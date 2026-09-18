@@ -16,6 +16,13 @@
 
 package android.os;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
+import android.os.PowerManager.GoToSleepReason;
+import android.os.PowerManager.UserActivityEvent;
+import android.os.PowerManager.UserActivityFlag;
+import android.os.PowerManager.WakeReason;
+import android.util.IntArray;
 import android.view.Display;
 import android.view.KeyEvent;
 
@@ -192,6 +199,66 @@ public abstract class PowerManagerInternal {
         void onLowPowerModeChanged(PowerSaveState state);
     }
 
+    /** Interface for clients to receive callbacks related to user activity. */
+    public interface UserActivityListener {
+        /**
+         * Called when a user activity happens.
+         *
+         * @param when The time of the user activity, in the {@link SystemClock#uptimeMillis()}.
+         * @param event The type of the user activity.
+         * @param flags The flags associated with the user activity.
+         */
+        void onUserActivity(long when, @UserActivityEvent int event, @UserActivityFlag int flags);
+    }
+
+    /** A delegate for handling wake up tasks. */
+    public interface WakeUpDelegate {
+        /**
+         * Invokes the wake up logic of the delegate.
+         *
+         * @param eventTime The time when the request to wake up was issued, in the
+         *      {@link SystemClock#uptimeMillis()} time base..
+         * @param reason The reason for the wake up.
+         * @param details A free form string to explain the specific details behind the wake up for
+         *      debugging purposes.
+         * @param uid The UID that triggered this wake up.
+         * @return {@code true} if the delegate successfully handles the wake up, {@code false}
+         *      otherwise.
+         */
+        boolean wakeUp(long eventTime, @WakeReason int reason, String details, int uid);
+
+        /**
+         * Invokes the sleep logic of the delegate.
+         *
+         * @param eventTime The time when the request to sleep request was issued, in the
+         *      {@link SystemClock#uptimeMillis()} time base.
+         * @param uid The UID that triggered this sleep request.
+         * @return {@code true} if the delegate successfully handles the sleep, {@code false}
+         *      otherwise.
+         */
+        boolean sleep(long eventTime, @GoToSleepReason int reason, int uid);
+    }
+
+    /**
+     * Sets a wake up delegate that can handle wake up events. Set to {@code null} to remove any
+     * previously set delegate.
+     */
+    public abstract void setWakeUpDelegate(@Nullable WakeUpDelegate delegate);
+
+    /**
+     * Registers a listener to be notified about user activity events.
+     *
+     * @param listener the {@link UserActivityListener} to register.
+     */
+    public abstract void registerUserActivityListener(UserActivityListener listener);
+
+    /**
+     * Unregisters a listener that was registered via {@link #registerUserActivityListener}.
+     *
+     * @param listener the {@link UserActivityListener} to unregister.
+     */
+    public abstract void unregisterUserActivityListener(UserActivityListener listener);
+
     public abstract boolean setDeviceIdleMode(boolean enabled);
 
     public abstract boolean setLightDeviceIdleMode(boolean enabled);
@@ -239,11 +306,53 @@ public abstract class PowerManagerInternal {
     public abstract boolean isDefaultGroupAdjacent(int groupId);
 
     /**
-     * Used to notify the power manager that wakelocks should be disabled.
+     * Used to notify the power manager that wakelocks should be enabled / disabled.
      *
      * @param force {@code true} to activate force disable wakelocks, {@code false} to turn it off.
      */
     public abstract void setForceDisableWakelocks(boolean force);
+
+    /**
+     * Used to notify the power manager that wakelocks should be enabled / disabled.
+     *
+     * @param force {@code true} to activate force disable wakelocks, {@code false} to turn it off.
+     * @param displayIds wakelocks corresponding to the power groups of each of these display ids
+     *                   will be acted upon.
+     */
+    public abstract void setForceDisableWakelocksByDisplay(boolean force, IntArray displayIds);
+
+    /**
+     * Used to notify the power manager that wakelocks should be enabled / disabled.
+     *
+     * @param force {@code true} to activate force disable wakelocks, {@code false} to turn it off.
+     * @param groupIds wakelocks corresponding to these power groups will be acted upon.
+     */
+    public abstract void setForceDisableWakelocksByPowerGroup(boolean force, IntArray groupIds);
+
+    /**
+     * Used to put certain power groups specifically to sleep.
+     *
+     * @param groupIds power groups that should be put to sleep
+     * @param eventTime when the request was issued
+     * @param reason reason for going to sleep - any of
+     * {@link android.os.PowerManager.GoToSleepReason}
+     * @param flags PowerManager sleep flags
+     */
+    public abstract void goToSleepPerGroup(IntArray groupIds, long eventTime, int reason,
+            int flags);
+
+    /**
+     * Used to wake up certain power groups.
+     *
+     * @param groupIds Power groups that should be woken up
+     * @param eventTime When the request was issued
+     * @param reason Reason for waking - any of {@link android.os.PowerManager.WakeReason}
+     * @param details Details about the event.
+     * @param opPackageName The Package name used for AppOps.
+     * @param uid The uid used for AppOps.
+     */
+    public abstract void wakeupPerGroup(IntArray groupIds, long eventTime, int reason,
+            String details, String opPackageName, int uid);
 
     /**
      * Boost: It is sent when user interacting with the device, for example,
@@ -399,4 +508,69 @@ public abstract class PowerManagerInternal {
      * Notifies PowerManager that settings have changed and that it should refresh its state.
      */
     public abstract void updateSettings();
+
+    /**
+     * A proxy for {@link PowerManagerInternal} that batches UID state change notifications and
+     * executes them asynchronously.
+     *
+     * <p>When {@link #startUidChanges()} is called, the proxy enters a batching mode. All
+     * subsequent UID state change notifications (e.g., {@link #uidActive}, {@link #uidIdle}) are
+     * buffered. When {@link #finishUidChanges()} is called, all buffered operations are posted to a
+     * handler for asynchronous execution. Calls made outside of a {@code
+     * startUidChanges/finishUidChanges} block are also executed asynchronously but are flushed
+     * immediately.
+     *
+     * <p>This class is thread-safe.
+     */
+    public interface UidChangesBatch {
+        /**
+         * Signals the beginning of a series of UID changes.
+         *
+         * <p>Subsequent calls to UID state modification methods will be buffered until {@link
+         * #finishUidChanges()} is called.
+         */
+        void startUidChanges();
+
+        /**
+         * Signals the end of a series of UID changes.
+         *
+         * <p>All buffered operations since the corresponding {@link #startUidChanges()} call are
+         * posted for asynchronous execution.
+         */
+        void finishUidChanges();
+
+        /**
+         * Notifies PowerManager that a UID has become active.
+         *
+         * <p>This operation is buffered if called within a {@code start/finishUidChanges} block.
+         */
+        void uidActive(int uid);
+
+        /**
+         * Notifies PowerManager that a UID has become idle.
+         *
+         * <p>This operation is buffered if called within a {@code start/finishUidChanges} block.
+         */
+        void uidIdle(int uid);
+
+        /**
+         * Notifies PowerManager that a UID is no longer active.
+         *
+         * <p>This operation is buffered if called within a {@code start/finishUidChanges} block.
+         */
+        void uidGone(int uid);
+
+        /**
+         * Notifies PowerManager of a process state change for a UID.
+         *
+         * <p>This operation is buffered if called within a {@code start/finishUidChanges} block.
+         */
+        void updateUidProcState(int uid, int procState);
+    }
+
+    /**
+     * Creates a proxy UidChangesBatch object that will do UID state change notifications on the
+     * given Looper.
+     */
+    public abstract UidChangesBatch getBatchProxy(@NonNull Looper looper);
 }

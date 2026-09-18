@@ -49,7 +49,7 @@ Because of this and in order to provide the necessary optimizations, `BroadcastD
 
 ## How do I use the dispatcher?
 
-Acquire the dispatcher by using `@Inject` to obtain a `BroadcastDispatcher`. Then, use the following methods in that instance. 
+Acquire the dispatcher by using `@Inject` to obtain a `BroadcastDispatcher`. Then, use the following methods in that instance.
 
 ### Subscribe
 
@@ -66,7 +66,7 @@ Acquire the dispatcher by using `@Inject` to obtain a `BroadcastDispatcher`. The
  * @param user A user handle to determine which broadcast should be dispatched to this receiver.
  *             Pass `null` to use the user of the context (system user in SystemUI).
  * @param flags Flags to use when registering the receiver. [Context.RECEIVER_EXPORTED] by
- *              default.             
+ *              default.
  * @throws IllegalArgumentException if the filter has other constraints that are not actions or
  *                                  categories or the filter has no actions.
  */

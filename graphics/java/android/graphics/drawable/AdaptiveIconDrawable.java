@@ -228,7 +228,7 @@ public class AdaptiveIconDrawable extends Drawable implements Drawable.Callback 
     }
 
     /**
-     * Sets the layer to the {@param index} and invalidates cache.
+     * Sets the layer to the {@code index} and invalidates cache.
      *
      * @param index The index of the layer.
      * @param layer The layer to add.

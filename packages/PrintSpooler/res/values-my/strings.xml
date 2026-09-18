@@ -21,7 +21,7 @@
     <string name="label_destination" msgid="9132510997381599275">"ဦးတည်ရာ"</string>
     <string name="label_copies" msgid="3634531042822968308">"မိတ္တူများ"</string>
     <string name="label_copies_summary" msgid="3861966063536529540">"မိတ္တူများ-"</string>
-    <string name="label_paper_size" msgid="908654383827777759">"စက္ကူ  ဆိုက်"</string>
+    <string name="label_paper_size" msgid="908654383827777759">"စက္ကူအရွယ်"</string>
     <string name="label_paper_size_summary" msgid="5668204981332138168">"စက္ကူ  ဆိုက်:"</string>
     <string name="label_color" msgid="1108690305218188969">"ရောင်စုံ"</string>
     <string name="label_duplex" msgid="5370037254347072243">"နှစ်ဖက်လှ"</string>
@@ -43,8 +43,9 @@
     <string name="summary_template" msgid="8899734908625669193">"အကျဉ်းချုပ်၊ ကော်ပီများ<xliff:g id="COPIES">%1$s</xliff:g>၊ စက္ကူ ဆိုက် <xliff:g id="PAPER_SIZE">%2$s</xliff:g>"</string>
     <string name="expand_handle" msgid="7282974448109280522">"ချဲ့ရန် လက်"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"ခေါက်ရန် လက်"</string>
-    <string name="print_button" msgid="645164566271246268">"စာထုတ်ရန်"</string>
-    <string name="savetopdf_button" msgid="2976186791686924743">"PDF သို့ သိမ်းဆည်းခဲ့"</string>
+    <string name="print_button" msgid="645164566271246268">"ပုံနှိပ်ရန်"</string>
+    <string name="setup_button" msgid="323390526074568450">"စနစ်ထည့်သွင်းရန်"</string>
+    <string name="savetopdf_button" msgid="2976186791686924743">"PDF တွင် သိမ်းရန်"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"ပရင့်ထုတ် ရွေးစရာများကို ချဲ့ထား"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"ပရင့်ထုတ် ရွေးစရာများကို ခေါက်ထား"</string>
     <string name="search" msgid="5421724265322228497">"ရှာဖွေခြင်း"</string>

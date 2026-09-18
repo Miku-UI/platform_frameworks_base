@@ -30,6 +30,7 @@ import android.service.notification.StatusBarNotification;
 import android.util.Log;
 
 import androidx.annotation.VisibleForTesting;
+import androidx.annotation.WorkerThread;
 
 import com.android.systemui.Dumpable;
 import com.android.systemui.dagger.qualifiers.Background;
@@ -119,6 +120,7 @@ public class NotificationMediaManager implements Dumpable {
         }
     };
 
+    @WorkerThread
     private void setMediaMetadata(MediaMetadata metadata) {
         mMediaMetadata = metadata;
     }
@@ -270,6 +272,7 @@ public class NotificationMediaManager implements Dumpable {
         mBackgroundExecutor.execute(() -> updateMediaMetaData(callback));
     }
 
+    @WorkerThread
     private void updateMediaMetaData(MediaListener callback) {
         int playbackState = getMediaControllerPlaybackState(mMediaController);
         mHandler.post(
@@ -298,6 +301,7 @@ public class NotificationMediaManager implements Dumpable {
      * This method must be called in background.
      * TODO(b/273443374) check this method
      */
+    @WorkerThread
     void findPlayingMediaNotification(@NonNull List<StatusBarNotification> allNotifications) {
         // Promote the media notification with a controller in 'playing' state, if any.
         StatusBarNotification statusBarNotification = null;
@@ -356,6 +360,7 @@ public class NotificationMediaManager implements Dumpable {
         mBackgroundExecutor.execute(this::clearMediaNotification);
     }
 
+    @WorkerThread
     private void clearMediaNotification() {
         mMediaNotificationKey = null;
         clearCurrentMediaNotificationSession();
@@ -366,6 +371,7 @@ public class NotificationMediaManager implements Dumpable {
         mBackgroundExecutor.execute(() -> updateMediaMetaData(callbacks));
     }
 
+    @WorkerThread
     private void updateMediaMetaData(List<MediaListener> callbacks) {
         @PlaybackState.State int state = getMediaControllerPlaybackState(mMediaController);
         mHandler.post(() -> {

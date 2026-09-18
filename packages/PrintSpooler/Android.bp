@@ -54,6 +54,7 @@ android_library {
     ],
     platform_apis: true,
     static_libs: [
+        "dynamiccolors",
         "android-support-annotations",
         "android-support-compat",
         "android-support-core-ui",

@@ -31,7 +31,7 @@ import java.util.Set;
  * Read-only maps are thread-safe for lookup, but the underlying object
  * values may need their own thread protection if mutable.</p>
  *
- * {@see AudioMetadataMap}
+ * @see AudioMetadataMap
  */
 public interface AudioMetadataReadMap {
     /**

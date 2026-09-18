@@ -18,7 +18,10 @@ package com.android.systemui.shared.system;
 
 import static android.view.CrossWindowBlurListeners.CROSS_WINDOW_BLUR_SUPPORTED;
 
+import static com.android.systemui.Flags.blurOnMoreSurfaces;
+
 import android.app.ActivityManager;
+import android.content.res.Resources;
 import android.os.SystemProperties;
 
 public abstract class BlurUtils {
@@ -31,5 +34,14 @@ public abstract class BlurUtils {
     public static boolean supportsBlursOnWindows() {
         return CROSS_WINDOW_BLUR_SUPPORTED && ActivityManager.isHighEndGfx()
                 && !SystemProperties.getBoolean("persist.sysui.disableBlur", false);
+    }
+
+    public static boolean isVolumeAndPowerBlurEnabled() {
+        return blurOnMoreSurfaces() && isBlurExpansionEnabledOnDevice();
+    }
+
+    private static boolean isBlurExpansionEnabledOnDevice() {
+        return Resources.getSystem().getBoolean(
+                com.android.internal.R.bool.config_enableBlurExpansion);
     }
 }

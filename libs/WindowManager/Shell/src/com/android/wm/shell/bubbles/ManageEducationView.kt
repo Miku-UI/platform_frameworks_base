@@ -34,10 +34,8 @@ import com.android.wm.shell.shared.animation.Interpolators
  * User education view to highlight the manage button that allows a user to configure the settings
  * for the bubble. Shown only the first time a user expands a bubble.
  */
-class ManageEducationView(
-    context: Context,
-    private val positioner: BubblePositioner
-) : LinearLayout(context) {
+class ManageEducationView(context: Context, private val positioner: BubblePositioner) :
+    LinearLayout(context) {
 
     companion object {
         const val PREF_MANAGED_EDUCATION: String = "HasSeenBubblesManageOnboarding"
@@ -54,10 +52,14 @@ class ManageEducationView(
 
     init {
         LayoutInflater.from(context).inflate(R.layout.bubbles_manage_button_education, this)
-        TypefaceUtils.setTypeface(findViewById(R.id.user_education_title),
-            TypefaceUtils.FontFamily.GSF_HEADLINE_SMALL_EMPHASIZED)
-        TypefaceUtils.setTypeface(findViewById(R.id.user_education_description),
-            TypefaceUtils.FontFamily.GSF_BODY_MEDIUM)
+        TypefaceUtils.setTypeface(
+            findViewById(R.id.user_education_title),
+            TypefaceUtils.FontFamily.GSF_HEADLINE_SMALL_EMPHASIZED,
+        )
+        TypefaceUtils.setTypeface(
+            findViewById(R.id.user_education_description),
+            TypefaceUtils.FontFamily.GSF_BODY_MEDIUM,
+        )
         TypefaceUtils.setTypeface(manageButton, TypefaceUtils.FontFamily.GSF_LABEL_LARGE_EMPHASIZED)
         TypefaceUtils.setTypeface(gotItButton, TypefaceUtils.FontFamily.GSF_LABEL_LARGE_EMPHASIZED)
         visibility = View.GONE
@@ -150,7 +152,7 @@ class ManageEducationView(
     private fun layoutManageView(
         manageButtonRect: Rect,
         manageButtonMargin: Int,
-        isStackOnLeft: Boolean
+        isStackOnLeft: Boolean,
     ) {
         val isLTR = resources.configuration.layoutDirection == LAYOUT_DIRECTION_LTR
         val isPinnedLeft = if (positioner.isLargeScreen) isStackOnLeft else isLTR

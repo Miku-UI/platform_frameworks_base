@@ -44,6 +44,7 @@
     <string name="expand_handle" msgid="7282974448109280522">"Genişletme tutacağı"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"Daraltma tutacağı"</string>
     <string name="print_button" msgid="645164566271246268">"Yazdır"</string>
+    <string name="setup_button" msgid="323390526074568450">"Ayarla"</string>
     <string name="savetopdf_button" msgid="2976186791686924743">"PDF\'ye kaydet"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"Yazdırma seçenekleri genişletildi"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"Yazdırma seçenekleri daraltıldı"</string>

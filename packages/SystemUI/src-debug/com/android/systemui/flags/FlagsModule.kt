@@ -19,19 +19,20 @@ package com.android.systemui.flags
 import android.content.Context
 import android.os.Handler
 import com.android.systemui.dagger.qualifiers.Main
-import com.android.systemui.util.settings.SettingsUtilModule
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.multibindings.IntoSet
 import javax.inject.Named
 
-@Module(includes = [
-    FeatureFlagsDebugStartableModule::class,
-    FlagsCommonModule::class,
-    ServerFlagReaderModule::class,
-    SettingsUtilModule::class,
-])
+@Module(
+    includes =
+        [
+            FeatureFlagsDebugStartableModule::class,
+            FlagsCommonModule::class,
+            ServerFlagReaderModule::class,
+        ]
+)
 abstract class FlagsModule {
     @Binds abstract fun bindsFeatureFlagDebug(impl: FeatureFlagsClassicDebug): FeatureFlagsClassic
 

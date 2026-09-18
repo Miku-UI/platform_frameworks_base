@@ -54,9 +54,7 @@
 #include "effects/GainmapRenderer.h"
 #include "pipeline/skia/AnimatedDrawables.h"
 #include "pipeline/skia/FunctorDrawable.h"
-#ifdef __ANDROID__
 #include "renderthread/CanvasContext.h"
-#endif
 
 namespace android {
 namespace uirenderer {
@@ -604,16 +602,14 @@ struct DrawPoints final : Op {
     SkPaint paint;
     void draw(SkCanvas* c, const SkMatrix&) const {
         if (paint.isAntiAlias()) {
-            c->drawPoints(mode, count, pod<SkPoint>(this), paint);
+            c->drawPoints(mode, {pod<SkPoint>(this), count}, paint);
         } else {
             c->save();
-#ifdef __ANDROID__
             auto pixelSnap = renderthread::CanvasContext::getActiveContext()->getPixelSnapMatrix();
             auto transform = c->getLocalToDevice();
             transform.postConcat(pixelSnap);
             c->setMatrix(transform);
-#endif
-            c->drawPoints(mode, count, pod<SkPoint>(this), paint);
+            c->drawPoints(mode, {pod<SkPoint>(this), count}, paint);
             c->restore();
         }
     }
@@ -715,12 +711,15 @@ struct DrawAtlas final : Op {
     SkPaint paint;
     bool has_colors;
     void draw(SkCanvas* c, const SkMatrix&) const {
-        auto xforms = pod<SkRSXform>(this, 0);
-        auto texs = pod<SkRect>(this, count * sizeof(SkRSXform));
-        auto colors = has_colors ? pod<SkColor>(this, count * (sizeof(SkRSXform) + sizeof(SkRect)))
-                                 : nullptr;
-        c->drawAtlas(atlas.get(), xforms, texs, colors, count, mode, sampling, maybe_unset(cull),
-                     &paint);
+        size_t xformsOffset = 0;
+        SkSpan<const SkRSXform> xforms(pod<SkRSXform>(this, 0), count);
+        size_t texOffset = xformsOffset + count * sizeof(SkRSXform);
+        SkSpan<const SkRect> texs(pod<SkRect>(this, texOffset), count);
+        size_t colorsOffset = texOffset + count * sizeof(SkRect);
+        SkSpan<const SkColor> colors = has_colors
+            ? SkSpan<const SkColor>(pod<SkColor>(this, colorsOffset), count)
+            : SkSpan<const SkColor>();
+        c->drawAtlas(atlas.get(), xforms, texs, colors, mode, sampling, maybe_unset(cull), &paint);
     }
 
     [[nodiscard]] std::optional<SkRect> getConservativeBounds() const {
@@ -801,23 +800,26 @@ private:
 
 public:
     void draw(SkCanvas* c, const SkMatrix&) const {
-        if (needsCompositedLayer(c)) {
-            // What we do now is create an offscreen surface, sized by the clip bounds.
-            // We won't apply a clip while drawing - clipping will be performed when compositing the
-            // surface back onto the original canvas. Note also that we're not using saveLayer
-            // because the webview functor still doesn't respect the canvas clip stack.
-            const SkIRect deviceBounds = c->getDeviceClipBounds();
-            if (mLayerSurface == nullptr || c->imageInfo() != mLayerImageInfo) {
-                mLayerImageInfo =
-                        c->imageInfo().makeWH(deviceBounds.width(), deviceBounds.height());
-                // SkCanvas::makeSurface returns a new surface that will be GPU-backed if
-                // canvas was also.
-                mLayerSurface = c->makeSurface(mLayerImageInfo);
-            }
+        if (!needsCompositedLayer(c)) {
+            c->drawDrawable(drawable.get());
+            return;
+        }
 
+        // What we do now is create an offscreen surface, sized by the clip bounds.
+        // We won't apply a clip while drawing - clipping will be performed when compositing the
+        // surface back onto the original canvas. Note also that we're not using saveLayer
+        // because the webview functor still doesn't respect the canvas clip stack.
+        const SkIRect deviceBounds = c->getDeviceClipBounds();
+        if (mLayerSurface == nullptr || c->imageInfo() != mLayerImageInfo) {
+            mLayerImageInfo = c->imageInfo().makeWH(deviceBounds.width(), deviceBounds.height());
+            // SkCanvas::makeSurface returns a new GPU-backed surface if canvas was also.
+            mLayerSurface = c->makeSurface(mLayerImageInfo);
+        }
+
+        {
             SkCanvas* layerCanvas = mLayerSurface->getCanvas();
 
-            SkAutoCanvasRestore(layerCanvas, true);
+            SkAutoCanvasRestore acr(layerCanvas, true);
             layerCanvas->clear(SK_ColorTRANSPARENT);
 
             // Preserve the transform from the original canvas, but now the clip rectangle is
@@ -826,21 +828,19 @@ public:
             mat4.postTranslate(-deviceBounds.fLeft, -deviceBounds.fTop);
             layerCanvas->concat(mat4);
             layerCanvas->drawDrawable(drawable.get());
-
-            SkAutoCanvasRestore acr(c, true);
-
-            // Temporarily use an identity transform, because this is just blitting to the parent
-            // canvas with an offset.
-            SkMatrix invertedMatrix;
-            if (!c->getTotalMatrix().invert(&invertedMatrix)) {
-                ALOGW("Unable to extract invert canvas matrix; aborting VkFunctor draw");
-                return;
-            }
-            c->concat(invertedMatrix);
-            mLayerSurface->draw(c, deviceBounds.fLeft, deviceBounds.fTop);
-        } else {
-            c->drawDrawable(drawable.get());
         }
+
+        SkAutoCanvasRestore acr(c, true);
+
+        // Temporarily use an identity transform, because this is just blitting to the parent
+        // canvas with an offset.
+        SkMatrix invertedMatrix;
+        if (!c->getTotalMatrix().invert(&invertedMatrix)) {
+            ALOGW("Unable to extract invert canvas matrix; aborting VkFunctor draw");
+            return;
+        }
+        c->concat(invertedMatrix);
+        mLayerSurface->draw(c, deviceBounds.fLeft, deviceBounds.fTop);
     }
 };
 }
@@ -1205,8 +1205,6 @@ void DisplayListData::reset() {
 
     // Leave fBytes and fReserved alone.
     fUsed = 0;
-
-    // TODO(b/372558459): reset here only?
     mColorArea.reset();
 }
 
@@ -1296,8 +1294,6 @@ void RecordingCanvas::reset(DisplayListData* dl, const SkIRect& bounds) {
     fDL = dl;
     mClipMayBeComplex = false;
     mSaveCount = mComplexSaveCount = 0;
-
-    // TODO(b/372558459) - Check if dl->reset() should be called here
     dl->setBounds(bounds);
 }
 

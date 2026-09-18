@@ -17,6 +17,7 @@
 package android.os;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -66,12 +67,24 @@ public final class PersistableBundle extends BaseBundle implements Cloneable, Pa
 
     /** @hide */
     public static boolean isValidType(Object value) {
-        return (value instanceof Integer) || (value instanceof Long) ||
+        // When enablePccFrameworkSupport is true, byte[] is supported.
+        // The previous behavior is to not support byte[].
+        if (enablePccFrameworkSupport()) {
+            return (value instanceof Integer) || (value instanceof Long) ||
+                (value instanceof Double) || (value instanceof String) ||
+                (value instanceof int[]) || (value instanceof long[]) ||
+                (value instanceof double[]) || (value instanceof String[]) ||
+                (value instanceof PersistableBundle) || (value == null) ||
+                (value instanceof Boolean) || (value instanceof boolean[]) ||
+                (value instanceof byte[]);
+        } else {
+            return (value instanceof Integer) || (value instanceof Long) ||
                 (value instanceof Double) || (value instanceof String) ||
                 (value instanceof int[]) || (value instanceof long[]) ||
                 (value instanceof double[]) || (value instanceof String[]) ||
                 (value instanceof PersistableBundle) || (value == null) ||
                 (value instanceof Boolean) || (value instanceof boolean[]);
+        }
     }
 
     /**

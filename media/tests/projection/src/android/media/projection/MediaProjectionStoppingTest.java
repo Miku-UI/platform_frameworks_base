@@ -108,7 +108,6 @@ public class MediaProjectionStoppingTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_STOP_MEDIA_PROJECTION_ON_CALL_END)
     @ApiTest(apis = "android.media.projection.MediaProjection.Callback#onStop")
     public void testMediaProjectionStop_callStartedAfterMediaProjection_doesNotStop()
             throws Exception {
@@ -137,7 +136,6 @@ public class MediaProjectionStoppingTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_STOP_MEDIA_PROJECTION_ON_CALL_END)
     @RequiresFlagsDisabled(Flags.FLAG_SHOW_STOP_DIALOG_POST_CALL_END)
     @ApiTest(apis = "android.media.projection.MediaProjection.Callback#onStop")
     public void
@@ -168,10 +166,7 @@ public class MediaProjectionStoppingTest {
     }
 
     @Test
-    @RequiresFlagsEnabled({
-            Flags.FLAG_STOP_MEDIA_PROJECTION_ON_CALL_END,
-            Flags.FLAG_SHOW_STOP_DIALOG_POST_CALL_END
-    })
+    @RequiresFlagsEnabled(Flags.FLAG_SHOW_STOP_DIALOG_POST_CALL_END)
     public void
     callEnds_mediaProjectionStartedDuringCallAndIsActive_stopDialogFlagEnabled_showsStopDialog()
             throws Exception {

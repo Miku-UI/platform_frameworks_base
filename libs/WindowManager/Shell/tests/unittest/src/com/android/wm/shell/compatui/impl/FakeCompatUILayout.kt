@@ -18,6 +18,7 @@ package com.android.wm.shell.compatui.impl
 
 import android.content.Context
 import android.graphics.Point
+import android.util.Size
 import android.view.View
 import com.android.wm.shell.compatui.api.CompatUIComponentState
 import com.android.wm.shell.compatui.api.CompatUIInfo
@@ -31,11 +32,14 @@ class FakeCompatUILayout(
     private val layoutParamFlagsReturn: Int = 0,
     private val viewBuilderReturn: View,
     private val positionBuilderReturn: Point = Point(0, 0),
+    private val sizeBuilderReturn: Size = Size(0, 0),
+    private val hasPositionFactory: Boolean = true,
 ) {
 
     var viewBuilderInvocation = 0
     var viewBinderInvocation = 0
     var positionFactoryInvocation = 0
+    var sizeFactoryInvocation = 0
     var viewReleaserInvocation = 0
 
     var lastViewBuilderContext: Context? = null
@@ -49,6 +53,10 @@ class FakeCompatUILayout(
     var lastPositionFactoryCompatUIInfo: CompatUIInfo? = null
     var lastPositionFactorySharedState: CompatUISharedState? = null
     var lastPositionFactoryCompState: CompatUIComponentState? = null
+    var lastSizeFactoryView: View? = null
+    var lastSizeFactoryCompatUIInfo: CompatUIInfo? = null
+    var lastSizeFactorySharedState: CompatUISharedState? = null
+    var lastSizeFactoryCompState: CompatUIComponentState? = null
 
     fun getLayout() =
         CompatUILayout(
@@ -68,13 +76,24 @@ class FakeCompatUILayout(
                 lastViewBinderSharedState = sharedState
                 viewBinderInvocation++
             },
-            positionFactory = { view, info, sharedState, componentState ->
-                lastPositionFactoryView = view
-                lastPositionFactoryCompatUIInfo = info
-                lastPositionFactoryCompState = componentState
-                lastPositionFactorySharedState = sharedState
-                positionFactoryInvocation++
-                positionBuilderReturn
+            positionFactory =
+                if (hasPositionFactory)
+                    { view, info, sharedState, componentState ->
+                        lastPositionFactoryView = view
+                        lastPositionFactoryCompatUIInfo = info
+                        lastPositionFactoryCompState = componentState
+                        lastPositionFactorySharedState = sharedState
+                        positionFactoryInvocation++
+                        positionBuilderReturn
+                    }
+                else null,
+            sizeFactory = { view, info, sharedState, componentState ->
+                lastSizeFactoryView = view
+                lastSizeFactoryCompatUIInfo = info
+                lastSizeFactoryCompState = componentState
+                lastSizeFactorySharedState = sharedState
+                sizeFactoryInvocation++
+                sizeBuilderReturn
             },
             viewReleaser = { viewReleaserInvocation++ },
         )
@@ -88,10 +107,13 @@ class FakeCompatUILayout(
     fun assertPositionFactoryInvocation(expected: Int) =
         assertEquals(expected, positionFactoryInvocation)
 
+    fun assertSizeFactoryInvocation(expected: Int) = assertEquals(expected, sizeFactoryInvocation)
+
     fun resetState() {
         viewBuilderInvocation = 0
         viewBinderInvocation = 0
         positionFactoryInvocation = 0
+        sizeFactoryInvocation = 0
         viewReleaserInvocation = 0
         lastViewBuilderCompatUIInfo = null
         lastViewBuilderCompState = null
@@ -103,5 +125,9 @@ class FakeCompatUILayout(
         lastPositionFactoryCompatUIInfo = null
         lastPositionFactorySharedState = null
         lastPositionFactoryCompState = null
+        lastSizeFactoryView = null
+        lastSizeFactoryCompatUIInfo = null
+        lastSizeFactoryCompState = null
+        lastSizeFactorySharedState = null
     }
 }

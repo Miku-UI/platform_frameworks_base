@@ -333,6 +333,24 @@ public class BackupManagerServiceTest {
     }
 
     @Test
+    public void isBackupServiceActive_guestUser_returnsFalse() {
+        createBackupManagerServiceAndUnlockSystemUser();
+        when(mUserInfoMock.isGuest()).thenReturn(true);
+        setMockMainUserAndCreateBackupManagerService(NON_SYSTEM_USER);
+
+        assertFalse(mService.isBackupServiceActive(NON_SYSTEM_USER));
+    }
+
+    @Test
+    public void isBackupServiceActive_nullUserInfo_returnsFalse() {
+        createBackupManagerServiceAndUnlockSystemUser();
+        when(mUserManagerInternalMock.getUserInfo(NON_SYSTEM_USER)).thenReturn(null);
+        setMockMainUserAndCreateBackupManagerService(NON_SYSTEM_USER);
+
+        assertFalse(mService.isBackupServiceActive(NON_SYSTEM_USER));
+    }
+
+    @Test
     public void setBackupServiceActive_forPrivateProfile_throws() {
         createBackupManagerServiceAndUnlockSystemUser();
         simulateUserUnlocked(NON_SYSTEM_USER);
@@ -780,6 +798,47 @@ public class BackupManagerServiceTest {
         inOrder.verify(mNonSystemUserBackupManagerService)
                 .dump(mFileDescriptorStub, mFakePrintWriter, args);
         inOrder.verifyNoMoreInteractions();
+    }
+
+    @Test
+    public void onDelayedRestoreCachedDataExpiredForUser_userNotReady_doesNothing() {
+        // Create service but don't unlock user, so isUserReadyForBackup() is false.
+        mService = new BackupManagerServiceTestable(mContextMock);
+        createBackupServiceLifecycle(mContextMock, mService);
+
+        mService.onDelayedRestoreCachedDataExpiredForUser(UserHandle.USER_SYSTEM, "some.package");
+
+        verify(mSystemUserBackupManagerService, never())
+                .onDelayedRestoreCachedDataExpired(anyString());
+    }
+
+    @Test
+    public void onDelayedRestoreCachedDataExpiredForUser_userReady_delegatesCall() {
+        createBackupManagerServiceAndUnlockSystemUser();
+        BackupManagerServiceTestable.sCallingUserId = UserHandle.USER_SYSTEM;
+        String packageName = "some.package";
+
+        mService.onDelayedRestoreCachedDataExpiredForUser(UserHandle.USER_SYSTEM, packageName);
+
+        verify(mSystemUserBackupManagerService).onDelayedRestoreCachedDataExpired(eq(packageName));
+    }
+
+    @Test
+    public void onDelayedRestoreCachedDataExpiredForUser_noPermission_throwsSecurityException() {
+        createBackupManagerServiceAndUnlockSystemUser();
+        mService.setBackupServiceActive(NON_SYSTEM_USER, true);
+        simulateUserUnlocked(NON_SYSTEM_USER);
+        BackupManagerServiceTestable.sCallingUserId = UserHandle.USER_SYSTEM;
+        doThrow(new SecurityException("Test exception"))
+                .when(mContextMock)
+                .enforceCallingOrSelfPermission(
+                        eq(Manifest.permission.INTERACT_ACROSS_USERS_FULL), anyString());
+
+        assertThrows(
+                SecurityException.class,
+                () ->
+                        mService.onDelayedRestoreCachedDataExpiredForUser(
+                                NON_SYSTEM_USER, "some.package"));
     }
 
     @Test

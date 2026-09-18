@@ -15,9 +15,6 @@
  */
 
 #include "ReorderBarrierDrawables.h"
-#include "RenderNode.h"
-#include "SkiaDisplayList.h"
-#include "LightingInfo.h"
 
 #include <SkColor.h>
 #include <SkMatrix.h>
@@ -27,6 +24,11 @@
 #include <SkRect.h>
 #include <SkScalar.h>
 #include <SkShadowUtils.h>
+
+#include "BackdropFilterDrawable.h"
+#include "LightingInfo.h"
+#include "RenderNode.h"
+#include "SkiaDisplayList.h"
 
 namespace android {
 namespace uirenderer {
@@ -104,7 +106,32 @@ void EndReorderBarrierDrawable::onDraw(SkCanvas* canvas) {
             // attempt to render the shadow if the caster about to be drawn is its caster,
             // OR if its caster's Z value is similar to the previous potential caster
             if (shadowIndex == drawIndex || casterZ - lastCasterZ < SHADOW_DELTA) {
-                this->drawShadow(canvas, zChildren[shadowIndex]);
+                // Skip drawing the shadow if the node has backdrop filter, the shadow
+                // will be drawn after backdrop filter captures the content behind the view.
+                RenderNodeDrawable* caster = zChildren[shadowIndex];
+                if (caster->getNodeProperties().layerProperties().getBackdropImageFilter() ==
+                    nullptr) {
+                    const RenderNode* casterNode = caster->getRenderNode();
+                    ShadowInfo shadowInfo;
+                    if (computeShadowInfo(casterNode, shadowInfo)) {
+                        SkAutoCanvasRestore acr(canvas, true);
+                        // Since we're drawing out of recording order, the child's matrix needs to
+                        // be applied to the canvas. In in-order drawing, the canvas already has the
+                        // child's matrix applied.
+                        canvas->setMatrix(mStartBarrier->mDisplayList->mParentMatrix);
+
+                        SkMatrix shadowMatrix;
+                        mat4 hwuiMatrix(caster->getRecordedMatrix());
+                        // TODO we don't pass the optional boolean to treat it as a 4x4 matrix
+                        // applyViewPropertyTransforms gets the same matrix, which render nodes
+                        // apply with RenderNodeDrawable::setViewProperties as a part if their draw.
+                        casterNode->applyViewPropertyTransforms(hwuiMatrix);
+                        hwuiMatrix.copyTo(shadowMatrix);
+                        canvas->concat(shadowMatrix);
+
+                        this->drawShadow(canvas, casterNode, shadowInfo);
+                    }
+                }
                 lastCasterZ = casterZ;  // must do this even if current caster not casting a shadow
                 shadowIndex++;
                 continue;
@@ -118,6 +145,12 @@ void EndReorderBarrierDrawable::onDraw(SkCanvas* canvas) {
         // canvas. In in-order drawing, the canvas already has the child's matrix applied.
         canvas->setMatrix(mStartBarrier->mDisplayList->mParentMatrix);
         canvas->concat(childNode->getRecordedMatrix());
+
+        // Draw the associated backdrop filter first, if it exists
+        if (childNode->getBackdropFilterDrawable()) {
+            childNode->getBackdropFilterDrawable()->forceDraw(canvas);
+        }
+
         childNode->forceDraw(canvas);
 
         drawIndex++;
@@ -128,31 +161,31 @@ static SkColor multiplyAlpha(SkColor color, float alpha) {
     return SkColorSetA(color, alpha * SkColorGetA(color));
 }
 
-// copied from FrameBuilder::deferShadow
-void EndReorderBarrierDrawable::drawShadow(SkCanvas* canvas, RenderNodeDrawable* caster) {
-    const RenderProperties& casterProperties = caster->getNodeProperties();
+bool EndReorderBarrierDrawable::computeShadowInfo(const RenderNode* casterNode,
+                                                  ShadowInfo& shadowInfo) {
+    const RenderProperties& casterProperties = casterNode->properties();
 
     if (casterProperties.getAlpha() <= 0.0f || casterProperties.getOutline().getAlpha() <= 0.0f ||
         !casterProperties.getOutline().getPath() || casterProperties.getScaleX() == 0 ||
         casterProperties.getScaleY() == 0) {
         // no shadow to draw
-        return;
+        return false;
     }
 
-    const SkScalar casterAlpha =
-            casterProperties.getAlpha() * casterProperties.getOutline().getAlpha();
-    if (casterAlpha <= 0.0f) {
-        return;
+    shadowInfo.casterAlpha = casterProperties.getAlpha() * casterProperties.getOutline().getAlpha();
+    if (shadowInfo.casterAlpha <= 0.0f) {
+        return false;
     }
 
-    float ambientAlpha = (LightingInfo::getAmbientShadowAlpha() / 255.f) * casterAlpha;
-    float spotAlpha = (LightingInfo::getSpotShadowAlpha() / 255.f) * casterAlpha;
+    shadowInfo.ambientAlpha =
+            (LightingInfo::getAmbientShadowAlpha() / 255.f) * shadowInfo.casterAlpha;
+    shadowInfo.spotAlpha = (LightingInfo::getSpotShadowAlpha() / 255.f) * shadowInfo.casterAlpha;
 
     const RevealClip& revealClip = casterProperties.getRevealClip();
     const SkPath* revealClipPath = revealClip.getPath();
     if (revealClipPath && revealClipPath->isEmpty()) {
         // An empty reveal clip means nothing is drawn
-        return;
+        return false;
     }
 
     bool clippedToBounds = casterProperties.getClippingFlags() & CLIP_TO_CLIP_BOUNDS;
@@ -164,31 +197,33 @@ void EndReorderBarrierDrawable::drawShadow(SkCanvas* canvas, RenderNodeDrawable*
         casterClipRect = clipBounds.toSkRect();
         if (casterClipRect.isEmpty()) {
             // An empty clip rect means nothing is drawn
-            return;
+            return false;
         }
     }
 
-    SkAutoCanvasRestore acr(canvas, true);
-    // Since we're drawing out of recording order, the child's matrix needs to be applied to the
-    // canvas. In in-order drawing, the canvas already has the child's matrix applied.
-    canvas->setMatrix(mStartBarrier->mDisplayList->mParentMatrix);
-
-    SkMatrix shadowMatrix;
-    mat4 hwuiMatrix(caster->getRecordedMatrix());
-    // TODO we don't pass the optional boolean to treat it as a 4x4 matrix
-    // applyViewPropertyTransforms gets the same matrix, which render nodes apply with
-    // RenderNodeDrawable::setViewProperties as a part if their draw.
-    caster->getRenderNode()->applyViewPropertyTransforms(hwuiMatrix);
-    hwuiMatrix.copyTo(shadowMatrix);
-    canvas->concat(shadowMatrix);
-
     // default the shadow-casting path to the outline of the caster
-    const SkPath* casterPath = casterProperties.getOutline().getPath();
+    shadowInfo.casterPath = casterProperties.getOutline().getPath();
 
     // intersect the shadow-casting path with the clipBounds, if present
-    if (clippedToBounds && !casterClipRect.contains(casterPath->getBounds())) {
-        casterPath = caster->getRenderNode()->getClippedOutline(casterClipRect);
+    if (clippedToBounds && !casterClipRect.contains(shadowInfo.casterPath->getBounds())) {
+        shadowInfo.casterPath = casterNode->getClippedOutline(casterClipRect);
     }
+
+    shadowInfo.ambientColor =
+            multiplyAlpha(casterProperties.getAmbientShadowColor(), shadowInfo.ambientAlpha);
+    shadowInfo.spotColor =
+            multiplyAlpha(casterProperties.getSpotShadowColor(), shadowInfo.spotAlpha);
+
+    return true;
+}
+
+// copied from FrameBuilder::deferShadow
+void EndReorderBarrierDrawable::drawShadow(SkCanvas* canvas, const RenderNode* casterNode,
+                                           const ShadowInfo& shadowInfo) {
+    const RenderProperties& casterProperties = casterNode->properties();
+    const RevealClip& revealClip = casterProperties.getRevealClip();
+    const SkPath* revealClipPath = revealClip.getPath();
+    const SkPath* casterPath = shadowInfo.casterPath;
 
     // intersect the shadow-casting path with the reveal, if present
     SkPath tmpPath;  // holds temporary SkPath to store the result of intersections
@@ -201,20 +236,19 @@ void EndReorderBarrierDrawable::drawShadow(SkCanvas* canvas, RenderNodeDrawable*
     const Vector3 lightPos = LightingInfo::getLightCenter();
     SkPoint3 skiaLightPos = SkPoint3::Make(lightPos.x, lightPos.y, lightPos.z);
     SkPoint3 zParams;
-    if (shadowMatrix.hasPerspective()) {
+    if (canvas->getTotalMatrix().hasPerspective()) {
         // get the matrix with the full 3D transform
         mat4 zMatrix;
-        caster->getRenderNode()->applyViewPropertyTransforms(zMatrix, true);
+        casterNode->applyViewPropertyTransforms(zMatrix, true);
         zParams = SkPoint3::Make(zMatrix[2], zMatrix[6], zMatrix[mat4::kTranslateZ]);
     } else {
         zParams = SkPoint3::Make(0, 0, casterProperties.getZ());
     }
-    SkColor ambientColor = multiplyAlpha(casterProperties.getAmbientShadowColor(), ambientAlpha);
-    SkColor spotColor = multiplyAlpha(casterProperties.getSpotShadowColor(), spotAlpha);
+
     SkShadowUtils::DrawShadow(
             canvas, *casterPath, zParams, skiaLightPos, LightingInfo::getLightRadius(),
-            ambientColor, spotColor,
-            casterAlpha < 1.0f ? SkShadowFlags::kTransparentOccluder_ShadowFlag : 0);
+            shadowInfo.ambientColor, shadowInfo.spotColor,
+            shadowInfo.casterAlpha < 1.0f ? SkShadowFlags::kTransparentOccluder_ShadowFlag : 0);
 }
 
 }  // namespace skiapipeline

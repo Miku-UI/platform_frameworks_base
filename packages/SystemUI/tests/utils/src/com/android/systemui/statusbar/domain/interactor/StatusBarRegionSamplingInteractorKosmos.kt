@@ -17,8 +17,8 @@
 package com.android.systemui.statusbar.domain.interactor
 
 import com.android.internal.view.AppearanceRegion
+import com.android.systemui.display.data.repository.displaySubcomponentPerDisplayRepository
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.statusbar.data.repository.statusBarModeRepository
 import com.android.systemui.uimode.data.repository.fakeForceInvertRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 val Kosmos.statusBarRegionSamplingInteractor by
     Kosmos.Fixture<StatusBarRegionSamplingInteractor> {
         StatusBarRegionSamplingInteractorImpl(
-            statusBarModeRepositoryStore = statusBarModeRepository,
+            displaySubcomponentRepo = displaySubcomponentPerDisplayRepository,
             forceInvertRepository = fakeForceInvertRepository,
         )
     }

@@ -18,6 +18,7 @@ package com.android.internal.accessibility.dialog;
 import static com.android.internal.accessibility.common.ShortcutConstants.ShortcutMenuMode;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.HARDWARE;
+import static com.android.internal.accessibility.dialog.AccessibilityButtonChooserActivity.EXTRA_TYPE_TO_CHOOSE;
 import static com.android.internal.accessibility.dialog.AccessibilityTargetHelper.getInstalledTargets;
 import static com.android.internal.accessibility.dialog.AccessibilityTargetHelper.getTargets;
 import static com.android.internal.accessibility.util.AccessibilityUtils.isUserSetupCompleted;
@@ -49,7 +50,7 @@ import java.util.List;
  */
 public class AccessibilityShortcutChooserActivity extends Activity {
     @UserShortcutType
-    private final int mShortcutType = HARDWARE;
+    private int mShortcutType = HARDWARE;
     private static final String KEY_ACCESSIBILITY_SHORTCUT_MENU_MODE =
             "accessibility_shortcut_menu_mode";
     private final List<AccessibilityTarget> mTargets = new ArrayList<>();
@@ -65,6 +66,8 @@ public class AccessibilityShortcutChooserActivity extends Activity {
         if (!theme.getBoolean(android.R.styleable.Theme_windowNoTitle, /* defValue= */ false)) {
             requestWindowFeature(Window.FEATURE_NO_TITLE);
         }
+
+        mShortcutType = getIntent().getIntExtra(EXTRA_TYPE_TO_CHOOSE, HARDWARE);
 
         mTargets.addAll(getTargets(this, mShortcutType));
         mTargetAdapter = new ShortcutTargetAdapter(mTargets);
@@ -97,9 +100,8 @@ public class AccessibilityShortcutChooserActivity extends Activity {
 
     private void onTargetSelected(AdapterView<?> parent, View view, int position, long id) {
         final AccessibilityTarget target = mTargets.get(position);
-        if (target instanceof AccessibilityServiceTarget
-                || target instanceof AccessibilityActivityTarget) {
-            if (sendRestrictedDialogIntentIfNeeded(target)) {
+        if (target instanceof AccessibilityServiceTarget serviceTarget) {
+            if (sendRestrictedDialogIntentIfNeeded(serviceTarget)) {
                 return;
             }
         }
@@ -112,7 +114,7 @@ public class AccessibilityShortcutChooserActivity extends Activity {
         final AccessibilityTarget target = mTargets.get(position);
 
         if (target instanceof AccessibilityServiceTarget serviceTarget) {
-            if (sendRestrictedDialogIntentIfNeeded(target)) {
+            if (sendRestrictedDialogIntentIfNeeded(serviceTarget)) {
                 return;
             }
             final AccessibilityManager am = getSystemService(AccessibilityManager.class);
@@ -120,12 +122,6 @@ public class AccessibilityShortcutChooserActivity extends Activity {
                     serviceTarget.getAccessibilityServiceInfo())) {
                 showPermissionDialogIfNeeded(this, (AccessibilityServiceTarget) target,
                         position, mTargetAdapter);
-                return;
-            }
-        }
-        if (target instanceof AccessibilityActivityTarget activityTarget) {
-            if (!activityTarget.isShortcutEnabled()
-                    && sendRestrictedDialogIntentIfNeeded(activityTarget)) {
                 return;
             }
         }
@@ -139,14 +135,14 @@ public class AccessibilityShortcutChooserActivity extends Activity {
      *
      * @return true if sends restricted dialog intent, otherwise false.
      */
-    private boolean sendRestrictedDialogIntentIfNeeded(AccessibilityTarget target) {
-        if (AccessibilityTargetHelper.isAccessibilityTargetAllowed(this,
-                target.getComponentName().getPackageName(), target.getUid())) {
+    private boolean sendRestrictedDialogIntentIfNeeded(AccessibilityServiceTarget target) {
+        if (AccessibilityTargetHelper.isAccessibilityServiceTargetAllowed(this,
+                target.getAccessibilityServiceInfo())) {
             return false;
         }
 
         AccessibilityTargetHelper.sendRestrictedDialogIntent(this,
-                target.getComponentName().getPackageName(), target.getUid());
+                target.getAccessibilityServiceInfo());
         return true;
     }
 

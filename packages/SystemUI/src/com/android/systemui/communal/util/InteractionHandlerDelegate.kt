@@ -32,6 +32,7 @@ import com.android.systemui.log.core.Logger
 /** A delegate that can be used to launch activities from [RemoteViews] */
 class InteractionHandlerDelegate(
     private val communalSceneInteractor: CommunalSceneInteractor,
+    private val controllerFactory: CommunalTransitionAnimatorController.Factory,
     private val findViewToAnimate: (View) -> Boolean,
     private val intentStarter: IntentStarter,
     private val logger: Logger,
@@ -64,7 +65,7 @@ class InteractionHandlerDelegate(
     override fun onInteraction(
         view: View,
         pendingIntent: PendingIntent,
-        response: RemoteViews.RemoteResponse
+        response: RemoteViews.RemoteResponse,
     ): Boolean {
         logger.i({ "Starting $str1 ($str2)" }) {
             str1 = pendingIntent.toLoggingString()
@@ -80,13 +81,13 @@ class InteractionHandlerDelegate(
                 val animationController =
                     hostView?.let(ActivityTransitionAnimator.Controller::fromView)?.let {
                         communalSceneInteractor.setIsLaunchingWidget(true)
-                        CommunalTransitionAnimatorController(it, communalSceneInteractor)
+                        controllerFactory.create(it)
                     }
                 intentStarter.startActivity(
                     pendingIntent,
                     fillInIntent,
                     activityOptions,
-                    animationController
+                    animationController,
                 )
             }
             else ->

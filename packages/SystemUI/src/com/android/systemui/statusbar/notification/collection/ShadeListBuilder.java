@@ -47,10 +47,10 @@ import androidx.annotation.OptIn;
 import androidx.annotation.VisibleForTesting;
 
 import com.android.systemui.Dumpable;
+import com.android.systemui.Flags;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.statusbar.NotificationInteractionTracker;
-import com.android.systemui.statusbar.notification.NotifPipelineFlags;
 import com.android.systemui.statusbar.notification.collection.coordinator.BundleCoordinator;
 import com.android.systemui.statusbar.notification.collection.listbuilder.NotifSection;
 import com.android.systemui.statusbar.notification.collection.listbuilder.OnBeforeFinalizeFilterListener;
@@ -73,7 +73,7 @@ import com.android.systemui.statusbar.notification.collection.listbuilder.plugga
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifStabilityManager;
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.Pluggable;
 import com.android.systemui.statusbar.notification.collection.notifcollection.CollectionReadyForBuildListener;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
+import com.android.systemui.statusbar.notification.shared.NmContextualDisplay;
 import com.android.systemui.statusbar.notification.stack.NotificationPriorityBucketKt;
 import com.android.systemui.util.Assert;
 import com.android.systemui.util.NamedListenerSet;
@@ -109,7 +109,6 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
     // used exclusivly by ShadeListBuilder#notifySectionEntriesUpdated
     // TODO replace temp with collection pool for readability
     private final ArrayList<PipelineEntry> mTempSectionMembers = new ArrayList<>();
-    private NotifPipelineFlags mFlags;
     private final boolean mAlwaysLogList;
 
     private List<PipelineEntry> mNotifList = new ArrayList<>();
@@ -156,15 +155,13 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
     public ShadeListBuilder(
             DumpManager dumpManager,
             NotifPipelineChoreographer pipelineChoreographer,
-            NotifPipelineFlags flags,
             NotificationInteractionTracker interactionTracker,
             ShadeListBuilderLogger logger,
             SystemClock systemClock
     ) {
         mSystemClock = systemClock;
         mLogger = logger;
-        mFlags = flags;
-        mAlwaysLogList = flags.isDevLoggingEnabled();
+        mAlwaysLogList = Flags.notificationDeveloperLogging();
         mInteractionTracker = interactionTracker;
         mChoreographer = pipelineChoreographer;
         mDumpManager = dumpManager;
@@ -467,11 +464,9 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         pruneIncompleteGroups(mNotifList);
 
         // Step 3.5: Bundle notifications according to classification
-        if (NotificationBundleUi.isEnabled()) {
-            bundleNotifs(mNotifList, mNewNotifList);
-            applyNewNotifList();
-            debugList("after bundling");
-        }
+        bundleNotifs(mNotifList, mNewNotifList);
+        applyNewNotifList();
+        debugList("after bundling");
 
         // Step 4: Group transforming
         // Move some notifs out of their groups and up to top-level (mostly used for heads-upping)
@@ -810,6 +805,15 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
             }
         }
         // Add all BundleEntries to the list. They will be pruned later if they are empty.
+        if (NmContextualDisplay.isEnabled()) {
+            // maybe sure we pick up new dynamic bundles if they'd been added since the last run
+            final List<BundleSpec> allBundleSpecs = mNotifBundler.getBundleSpecs();
+            for (BundleSpec bundleSpec : allBundleSpecs) {
+                if (!mIdToBundleEntry.containsKey(bundleSpec.getKey())) {
+                    mIdToBundleEntry.put(bundleSpec.getKey(), new BundleEntry(bundleSpec));
+                }
+            }
+        }
         final Collection<BundleEntry> allBundles = mIdToBundleEntry.values();
         for (final BundleEntry bundle : allBundles) {
             bundle.setParent(ROOT_ENTRY);
@@ -1678,12 +1682,8 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         entry.getAttachState().setExcludingFilter(filter);
         if (filter != null) {
             // notification is removed from the list, so we reset its initialization time
-            if (NotificationBundleUi.isEnabled()) {
-                if (entry.getRow() != null) {
-                    entry.getRow().resetInitializationTime();
-                }
-            } else {
-                entry.resetInitializationTime();
+            if (entry.getRow() != null) {
+                entry.getRow().resetInitializationTime();
             }
         }
         return filter != null;

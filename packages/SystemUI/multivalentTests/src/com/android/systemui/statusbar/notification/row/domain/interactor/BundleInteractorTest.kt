@@ -22,7 +22,6 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.UserHandle
-import android.platform.test.annotations.EnableFlags
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MotionScheme
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -32,14 +31,13 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.controls.dagger.ControlsComponentTest.Companion.eq
 import com.android.systemui.controls.ui.ControlActionCoordinatorImplTest.Companion.any
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.notifications.content.icon.appIconProvider
+import com.android.systemui.notifications.content.icon.mockAppIconProvider
 import com.android.systemui.notifications.ui.composable.row.BundleHeader
 import com.android.systemui.statusbar.notification.row.data.model.AppData
 import com.android.systemui.statusbar.notification.row.data.repository.BundleRepository
 import com.android.systemui.statusbar.notification.row.data.repository.testBundleRepository
 import com.android.systemui.statusbar.notification.row.domain.bundleInteractor
-import com.android.systemui.statusbar.notification.row.icon.appIconProvider
-import com.android.systemui.statusbar.notification.row.icon.mockAppIconProvider
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.testKosmos
 import com.android.systemui.util.time.FakeSystemClock
 import com.android.systemui.util.time.systemClock
@@ -64,7 +62,6 @@ import platform.test.motion.compose.runMonotonicClockTest
 @OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(NotificationBundleUi.FLAG_NAME)
 class BundleInteractorTest : SysuiTestCase() {
 
     @get:Rule val rule: MockitoRule = MockitoJUnit.rule()

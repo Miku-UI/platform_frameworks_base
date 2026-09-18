@@ -16,12 +16,17 @@
 
 package com.android.systemui.statusbar.window.shared.model
 
+import com.android.systemui.log.table.EnumDiffable
+
 /**
  * Represents the state of the status bar *window* as a whole (as opposed to individual views within
  * the status bar).
  */
-enum class StatusBarWindowState {
+enum class StatusBarWindowState : EnumDiffable<StatusBarWindowState> {
     Showing,
     Hiding,
-    Hidden,
+    Hidden;
+
+    override val columnName = "statusBarWindowState"
+    override val valueFetcher = { this.name }
 }

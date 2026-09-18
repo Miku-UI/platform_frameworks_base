@@ -43,21 +43,28 @@ public class NotificationUiAdjustmentTest extends SysuiTestCase {
     @Test
     public void needReinflate_differentLength() {
         PendingIntent pendingIntent =
-                PendingIntent.getActivity(mContext, 0,
+                PendingIntent.getActivity(
+                        mContext,
+                        0,
                         new Intent().setPackage(mContext.getPackageName()),
                         PendingIntent.FLAG_MUTABLE);
         Notification.Action action =
                 createActionBuilder("first", R.drawable.ic_corp_icon, pendingIntent).build();
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentFromSmartActions("first", Collections.emptyList()),
-                createUiAdjustmentFromSmartActions("second", Collections.singletonList(action))))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentFromSmartActions(
+                                        "first", Collections.emptyList()),
+                                createUiAdjustmentFromSmartActions(
+                                        "second", Collections.singletonList(action))))
                 .isTrue();
     }
 
     @Test
     public void needReinflate_differentLabels() {
         PendingIntent pendingIntent =
-                PendingIntent.getActivity(mContext, 0,
+                PendingIntent.getActivity(
+                        mContext,
+                        0,
                         new Intent().setPackage(mContext.getPackageName()),
                         PendingIntent.FLAG_MUTABLE);
         Notification.Action firstAction =
@@ -65,58 +72,76 @@ public class NotificationUiAdjustmentTest extends SysuiTestCase {
         Notification.Action secondAction =
                 createActionBuilder("second", R.drawable.ic_corp_icon, pendingIntent).build();
 
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentFromSmartActions("first", Collections.singletonList(firstAction)),
-                createUiAdjustmentFromSmartActions("second", Collections.singletonList(secondAction))))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentFromSmartActions(
+                                        "first", Collections.singletonList(firstAction)),
+                                createUiAdjustmentFromSmartActions(
+                                        "second", Collections.singletonList(secondAction))))
                 .isTrue();
     }
 
     @Test
     public void needReinflate_differentIcons() {
         PendingIntent pendingIntent =
-                PendingIntent.getActivity(mContext, 0,
+                PendingIntent.getActivity(
+                        mContext,
+                        0,
                         new Intent().setPackage(mContext.getPackageName()),
                         PendingIntent.FLAG_MUTABLE);
         Notification.Action firstAction =
                 createActionBuilder("same", R.drawable.ic_corp_icon, pendingIntent).build();
         Notification.Action secondAction =
-                createActionBuilder("same", com.android.settingslib.R.drawable.ic_account_circle,
-                        pendingIntent).build();
+                createActionBuilder(
+                                "same",
+                                com.android.settingslib.R.drawable.ic_account_circle,
+                                pendingIntent)
+                        .build();
 
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentFromSmartActions("first", Collections.singletonList(firstAction)),
-                createUiAdjustmentFromSmartActions("second", Collections.singletonList(secondAction))))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentFromSmartActions(
+                                        "first", Collections.singletonList(firstAction)),
+                                createUiAdjustmentFromSmartActions(
+                                        "second", Collections.singletonList(secondAction))))
                 .isTrue();
     }
 
     @Test
     public void needReinflate_differentPendingIntent() {
         PendingIntent firstPendingIntent =
-                PendingIntent.getActivity(mContext, 0,
+                PendingIntent.getActivity(
+                        mContext,
+                        0,
                         new Intent(Intent.ACTION_VIEW).setPackage(mContext.getPackageName()),
                         PendingIntent.FLAG_MUTABLE);
         PendingIntent secondPendingIntent =
-                PendingIntent.getActivity(mContext, 0,
+                PendingIntent.getActivity(
+                        mContext,
+                        0,
                         new Intent(Intent.ACTION_PROCESS_TEXT)
                                 .setPackage(mContext.getPackageName()),
                         PendingIntent.FLAG_MUTABLE);
         Notification.Action firstAction =
-                createActionBuilder("same", R.drawable.ic_corp_icon, firstPendingIntent)
-                        .build();
+                createActionBuilder("same", R.drawable.ic_corp_icon, firstPendingIntent).build();
         Notification.Action secondAction =
-                createActionBuilder("same", R.drawable.ic_corp_icon, secondPendingIntent)
-                        .build();
+                createActionBuilder("same", R.drawable.ic_corp_icon, secondPendingIntent).build();
 
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentFromSmartActions("first", Collections.singletonList(firstAction)),
-                createUiAdjustmentFromSmartActions("second", Collections.singletonList(secondAction))))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentFromSmartActions(
+                                        "first", Collections.singletonList(firstAction)),
+                                createUiAdjustmentFromSmartActions(
+                                        "second", Collections.singletonList(secondAction))))
                 .isTrue();
     }
 
     @Test
     public void needReinflate_differentChoices() {
         PendingIntent pendingIntent =
-                PendingIntent.getActivity(mContext, 0,
+                PendingIntent.getActivity(
+                        mContext,
+                        0,
                         new Intent().setPackage(mContext.getPackageName()),
                         PendingIntent.FLAG_MUTABLE);
 
@@ -134,16 +159,21 @@ public class NotificationUiAdjustmentTest extends SysuiTestCase {
                         .addRemoteInput(secondRemoteInput)
                         .build();
 
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentFromSmartActions("first", Collections.singletonList(firstAction)),
-                createUiAdjustmentFromSmartActions("second", Collections.singletonList(secondAction))))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentFromSmartActions(
+                                        "first", Collections.singletonList(firstAction)),
+                                createUiAdjustmentFromSmartActions(
+                                        "second", Collections.singletonList(secondAction))))
                 .isTrue();
     }
 
     @Test
     public void needReinflate_differentRemoteInputLabel() {
         PendingIntent pendingIntent =
-                PendingIntent.getActivity(mContext, 0,
+                PendingIntent.getActivity(
+                        mContext,
+                        0,
                         new Intent().setPackage(mContext.getPackageName()),
                         PendingIntent.FLAG_MUTABLE);
 
@@ -161,16 +191,21 @@ public class NotificationUiAdjustmentTest extends SysuiTestCase {
                         .addRemoteInput(secondRemoteInput)
                         .build();
 
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentFromSmartActions("first", Collections.singletonList(firstAction)),
-                createUiAdjustmentFromSmartActions("second", Collections.singletonList(secondAction))))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentFromSmartActions(
+                                        "first", Collections.singletonList(firstAction)),
+                                createUiAdjustmentFromSmartActions(
+                                        "second", Collections.singletonList(secondAction))))
                 .isTrue();
     }
 
     @Test
     public void needReinflate_negative() {
         PendingIntent pendingIntent =
-                PendingIntent.getActivity(mContext, 0,
+                PendingIntent.getActivity(
+                        mContext,
+                        0,
                         new Intent().setPackage(mContext.getPackageName()),
                         PendingIntent.FLAG_MUTABLE);
         RemoteInput firstRemoteInput =
@@ -180,71 +215,88 @@ public class NotificationUiAdjustmentTest extends SysuiTestCase {
 
         Notification.Action firstAction =
                 createActionBuilder("same", R.drawable.ic_corp_icon, pendingIntent)
-                        .addRemoteInput(firstRemoteInput).build();
+                        .addRemoteInput(firstRemoteInput)
+                        .build();
         Notification.Action secondAction =
                 createActionBuilder("same", R.drawable.ic_corp_icon, pendingIntent)
-                        .addRemoteInput(secondRemoteInput).build();
+                        .addRemoteInput(secondRemoteInput)
+                        .build();
 
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentFromSmartActions("first", Collections.singletonList(firstAction)),
-                createUiAdjustmentFromSmartActions(
-                        "second", Collections.singletonList(secondAction))))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentFromSmartActions(
+                                        "first", Collections.singletonList(firstAction)),
+                                createUiAdjustmentFromSmartActions(
+                                        "second", Collections.singletonList(secondAction))))
                 .isFalse();
     }
 
     @Test
     public void needReinflate_differentSmartReplies() {
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentFromSmartReplies("first", new CharSequence[]{"a", "b"}),
-                createUiAdjustmentFromSmartReplies("first", new CharSequence[] {"b", "a"})))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentFromSmartReplies(
+                                        "first", new CharSequence[] {"a", "b"}),
+                                createUiAdjustmentFromSmartReplies(
+                                        "first", new CharSequence[] {"b", "a"})))
                 .isTrue();
     }
 
     @Test
     public void needReinflate_sameSmartReplies() {
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentFromSmartReplies("first", new CharSequence[] {"a", "b"}),
-                createUiAdjustmentFromSmartReplies("first", new CharSequence[] {"a", "b"})))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentFromSmartReplies(
+                                        "first", new CharSequence[] {"a", "b"}),
+                                createUiAdjustmentFromSmartReplies(
+                                        "first", new CharSequence[] {"a", "b"})))
                 .isFalse();
     }
 
     @Test
     public void needReinflate_bothConversation() {
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentForConversation("first", true),
-                createUiAdjustmentForConversation("first", true)))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentForConversation("first", true),
+                                createUiAdjustmentForConversation("first", true)))
                 .isFalse();
     }
 
     @Test
     public void needReinflate_neitherConversation() {
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentForConversation("first", false),
-                createUiAdjustmentForConversation("first", false)))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentForConversation("first", false),
+                                createUiAdjustmentForConversation("first", false)))
                 .isFalse();
     }
 
     @Test
     public void needReinflate_differentIsConversation() {
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentForConversation("first", false),
-                createUiAdjustmentForConversation("first", true)))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentForConversation("first", false),
+                                createUiAdjustmentForConversation("first", true)))
                 .isTrue();
     }
 
     @Test
     public void needReinflate_differentBundling() {
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentFromSmartReplies("first", new CharSequence[]{"a", "b"}),
-                createUiAdjustmentFromSmartReplies("first", new CharSequence[] {"b", "a"})))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentFromSmartReplies(
+                                        "first", new CharSequence[] {"a", "b"}),
+                                createUiAdjustmentFromSmartReplies(
+                                        "first", new CharSequence[] {"b", "a"})))
                 .isTrue();
     }
 
     @Test
     public void needReinflate_sameBundling() {
-        assertThat(NotificationUiAdjustment.needReinflate(
-                createUiAdjustmentForBundling("first", true),
-                createUiAdjustmentForBundling("first", true)))
+        assertThat(
+                        NotificationUiAdjustment.needReinflate(
+                                createUiAdjustmentForBundling("first", true),
+                                createUiAdjustmentForBundling("first", true)))
                 .isFalse();
     }
 
@@ -273,8 +325,7 @@ public class NotificationUiAdjustmentTest extends SysuiTestCase {
         return new NotificationUiAdjustment(key, null, null, isConversation, false);
     }
 
-    private NotificationUiAdjustment createUiAdjustmentForBundling(
-            String key, boolean isBundle) {
+    private NotificationUiAdjustment createUiAdjustmentForBundling(String key, boolean isBundle) {
         return new NotificationUiAdjustment(key, null, null, false, isBundle);
     }
 }

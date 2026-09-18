@@ -35,31 +35,47 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.app.Activity;
 import android.app.ActivityClient;
+import android.app.ActivityManager;
 import android.app.ActivityThread;
 import android.app.ActivityThread.ActivityClientRecord;
+import android.app.ClientTransactionHandler;
+import android.app.ContentProviderHolder;
+import android.app.IActivityManager;
 import android.app.LoadedApk;
+import android.app.servertransaction.DestroyActivityItem;
 import android.app.servertransaction.PendingTransactionActions;
 import android.content.ComponentName;
+import android.content.ContentProvider;
 import android.content.Context;
+import android.content.IContentProvider;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.ProviderInfo;
 import android.content.res.Configuration;
+import android.os.Binder;
 import android.os.IBinder;
 import android.os.UserHandle;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.testing.PollingCheck;
+import android.util.ArrayMap;
 import android.view.WindowManagerGlobal;
 import android.window.ActivityWindowInfo;
 import android.window.SizeConfigurationBuckets;
@@ -69,6 +85,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
@@ -91,6 +108,9 @@ import java.util.concurrent.TimeUnit;
 @Presubmit
 public class ActivityThreadClientTest {
     private static final long WAIT_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(10);
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Test
     @UiThreadTest
@@ -252,6 +272,193 @@ public class ActivityThreadClientTest {
                         false /* alwaysReportChange */));
     }
 
+    @Test
+    public void testUpdateDeviceIdForNonUIContexts_nullProviderContext() {
+        try (ClientMockSession clientSession = new ClientMockSession()) {
+            ActivityThread activityThread = ActivityThread.currentActivityThread();
+            final int testDeviceId = 1;
+
+            // Create a mock ContentProvider that returns a null context
+            ContentProvider mockProvider = mock(ContentProvider.class);
+            doReturn(null).when(mockProvider).getContext();
+
+            // Create a ProviderClientRecord with the mock provider
+            ActivityThread.ProviderClientRecord providerClientRecord =
+                    new ActivityThread.ProviderClientRecord(
+                            new String[]{"com.android.test.provider"},
+                            mock(IContentProvider.class),
+                            mockProvider,
+                            mock(ContentProviderHolder.class));
+
+            final IBinder keyBinder = new Binder();
+            activityThread.mLocalProviders.put(keyBinder, providerClientRecord);
+
+            try {
+                activityThread.updateDeviceIdForNonUIContexts(testDeviceId);
+            } finally {
+                activityThread.mLocalProviders.remove(keyBinder);
+            }
+        }
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_SINGLE_USER_PROVIDER_CACHE_FIX)
+    public void testContentProvider_acquireSingleUserProvider() throws Exception {
+        final ApplicationInfo applicationInfo = new ApplicationInfo();
+        // Here we specify the received content provider is running under a
+        // different user (user 0) than the one that was requested for (user 10).
+        applicationInfo.uid = UserHandle.getUid(0 /* userId */, 23456 /* appId */);
+
+        final ProviderInfo info = new ProviderInfo();
+        info.applicationInfo = applicationInfo;
+        info.authority = "fakecontentprovider";
+        info.name = "com.example.fakecontentprovider";
+        // Since this is a single-user provider, it should be cached regardless
+        // of which user requested it.
+        info.flags = ProviderInfo.FLAG_SINGLE_USER;
+
+        final ContentProviderHolder holder = new ContentProviderHolder(info);
+
+        holder.connection = mock(IBinder.class);
+        holder.provider = mock(IContentProvider.class);
+
+        final IBinder binderObj = mock(IBinder.class);
+        when(holder.provider.asBinder()).thenReturn(binderObj);
+        when(binderObj.isBinderAlive()).thenReturn(true);
+
+        IActivityManager activityManager = ActivityManager.getService();
+        spyOn(activityManager);
+
+        doReturn(holder)
+                .when(activityManager)
+                .getContentProvider(any(), any(), eq("fakecontentprovider"),
+                        eq(10) /* userId */, eq(false) /* stable */);
+        doNothing()
+                .when(activityManager)
+                .removeContentProvider(any(), anyBoolean());
+
+        final Context context = mock(Context.class);
+
+        final ActivityThread activityThread = ActivityThread.currentActivityThread();
+
+        // Acquire the provider first to make sure it is cached.
+        IContentProvider resultProvider =
+                activityThread.acquireProvider(context, "fakecontentprovider",
+                        10 /* userId */, false /* stable */);
+
+        assertSame(holder.provider, resultProvider);
+
+        // The previously cached single-user provider should be returned, even
+        // though it is being requested from a user different from the one it
+        // is running under.
+        resultProvider =
+            activityThread.acquireExistingProvider(context, "fakecontentprovider",
+                    10 /* userId */, false /* stable */);
+
+        assertSame(holder.provider, resultProvider);
+
+        // Need two release the provider twice since we acquired it twice.
+        assertTrue(activityThread.releaseProvider(holder.provider, false /* stable */));
+        assertTrue(activityThread.releaseProvider(holder.provider, false /* stable */));
+
+        // Wait for the content provider to be released.
+        verify(activityManager, timeout(3000))
+                .removeContentProvider(eq(holder.connection), anyBoolean());
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_SINGLE_USER_PROVIDER_CACHE_FIX)
+    public void testContentProvider_acquireRegularContentProvider_notVisibleAcrossUsers()
+            throws Exception {
+        final ApplicationInfo applicationInfo = new ApplicationInfo();
+        // The provider is running under user 10.
+        applicationInfo.uid = UserHandle.getUid(10 /* userId */, 23456 /* appId */);
+
+        final ProviderInfo info = new ProviderInfo();
+        info.applicationInfo = applicationInfo;
+        info.authority = "fakecontentprovider";
+        info.name = "com.example.fakecontentprovider";
+        // This is a regular content provider, so FLAG_SINGLE_USER is not set.
+
+        final ContentProviderHolder holder = new ContentProviderHolder(info);
+
+        holder.connection = mock(IBinder.class);
+        holder.provider = mock(IContentProvider.class);
+
+        final IBinder binderObj = mock(IBinder.class);
+        when(holder.provider.asBinder()).thenReturn(binderObj);
+        when(binderObj.isBinderAlive()).thenReturn(true);
+
+        IActivityManager activityManager = ActivityManager.getService();
+        spyOn(activityManager);
+
+        doReturn(holder)
+                .when(activityManager)
+                .getContentProvider(any(), any(), eq("fakecontentprovider"),
+                        eq(10) /* userId */, eq(false) /* stable */);
+        doNothing()
+                .when(activityManager)
+                .removeContentProvider(any(), anyBoolean());
+
+        final Context context = mock(Context.class);
+
+        final ActivityThread activityThread = ActivityThread.currentActivityThread();
+
+        // This will cache it for user 10.
+        IContentProvider resultProvider =
+                activityThread.acquireProvider(context, "fakecontentprovider",
+                        10 /* userId */, false /* stable */);
+
+        assertSame(holder.provider, resultProvider);
+
+        // Attempt to acquire the same provider from user 0.
+        resultProvider =
+                activityThread.acquireExistingProvider(context, "fakecontentprovider",
+                        0 /* userId */, false /* stable */);
+
+        // Verify that the provider was not found in the cache for user 0.
+        assertEquals(null, resultProvider);
+
+        // Attempt to acquire the same provider from the cache as USER_ALL.
+        resultProvider =
+                activityThread.acquireExistingProvider(context, "fakecontentprovider",
+                        UserHandle.USER_ALL, false /* stable */);
+
+        // Verify that the provider was not found in the cache for USER_ALL.
+        assertEquals(null, resultProvider);
+
+        assertTrue(activityThread.releaseProvider(holder.provider, false /* stable */));
+
+        // Wait for the content provider to be released.
+        verify(activityManager, timeout(3000))
+                .removeContentProvider(eq(holder.connection), anyBoolean());
+    }
+
+    @Test
+    public void testDestroyActivityItem_postExecute_notifyWMS() {
+        try (ClientMockSession clientSession = new ClientMockSession()) {
+            final IBinder activityToken = new Binder();
+            final ClientTransactionHandler client = mock(ClientTransactionHandler.class);
+            doReturn(new ArrayMap<IBinder, DestroyActivityItem>()).when(client)
+                    .getActivitiesToBeDestroyed();
+            final PendingTransactionActions pendingActions = mock(PendingTransactionActions.class);
+
+            // No need to notify if not finishing.
+            final DestroyActivityItem item0 =
+                    new DestroyActivityItem(activityToken, false /* finished */);
+            item0.postExecute(client, pendingActions);
+
+            verify(clientSession.mActivityClient, never()).activityDestroyed(any());
+
+            // Notify if finishing.
+            final DestroyActivityItem item1 =
+                    new DestroyActivityItem(activityToken, true /* finished */);
+            item1.postExecute(client, pendingActions);
+
+            verify(clientSession.mActivityClient).activityDestroyed(activityToken);
+        }
+    }
+
     private void recreateAndVerifyNoRelaunch(ActivityThread activityThread, TestActivity activity) {
         clearInvocations(activityThread);
         getInstrumentation().runOnMainSync(() -> activity.recreate());
@@ -277,6 +484,7 @@ public class ActivityThreadClientTest {
     private class ClientMockSession implements AutoCloseable {
         private MockitoSession mMockSession;
         private ActivityThread mThread;
+        private ActivityClient mActivityClient;
 
         private ClientMockSession() {
             mThread = ActivityThread.currentActivityThread();
@@ -287,9 +495,9 @@ public class ActivityThreadClientTest {
                     .startMocking();
             doReturn(Mockito.mock(WindowManagerGlobal.class))
                     .when(WindowManagerGlobal::getInstance);
-            final ActivityClient mockAc = Mockito.mock(ActivityClient.class);
-            doReturn(mockAc).when(ActivityClient::getInstance);
-            doReturn(true).when(mockAc).finishActivity(any() /* token */,
+            mActivityClient = Mockito.mock(ActivityClient.class);
+            doReturn(mActivityClient).when(ActivityClient::getInstance);
+            doReturn(true).when(mActivityClient).finishActivity(any() /* token */,
                     anyInt() /* resultCode */, any() /* resultData */, anyInt() /* finishTask */);
         }
 
@@ -355,7 +563,8 @@ public class ActivityThreadClientTest {
                     null /* activityOptions */, true /* isForward */, null /* profilerInfo */,
                     mThread /* client */, null /* asssitToken */, null /* shareableActivityToken */,
                     false /* launchedFromBubble */, null /* taskfragmentToken */,
-                    null /* initialCallerInfoAccessToken */, new ActivityWindowInfo());
+                    null /* initialCallerInfoAccessToken */, new ActivityWindowInfo(),
+                    0 /* displayId */);
         }
 
         @Override

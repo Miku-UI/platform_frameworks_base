@@ -18,6 +18,9 @@ package com.android.server.pm;
 
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.assertExpectException;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -35,8 +38,11 @@ import android.os.UserHandle;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
 
 import org.mockito.ArgumentCaptor;
+import org.junit.runner.RunWith;
+import org.junit.Test;
 
 /**
  * Tests for {@link android.content.pm.ShortcutServiceInternal#requestPinAppWidget}
@@ -50,6 +56,7 @@ import org.mockito.ArgumentCaptor;
  */
 @Presubmit
 @SmallTest
+@RunWith(AndroidJUnit4.class)
 public class ShortcutManagerTest9 extends BaseShortcutManagerTest {
 
     private ShortcutRequestPinProcessor mProcessor;
@@ -90,6 +97,7 @@ public class ShortcutManagerTest9 extends BaseShortcutManagerTest {
                 .provider.getClassName());
     }
 
+    @Test
     public void testNotForeground() {
         setDefaultLauncher(USER_10, LAUNCHER_1);
 
@@ -144,10 +152,12 @@ public class ShortcutManagerTest9 extends BaseShortcutManagerTest {
         }
     }
 
+    @Test
     public void testRequestPinAppWidget() {
         checkRequestPinAppWidget(/* resultIntent=*/ null);
     }
 
+    @Test
     public void testRequestPinAppWidget_withCallback() {
         final PendingIntent resultIntent =
                 PendingIntent.getActivity(getTestContext(), 0,

@@ -17,6 +17,7 @@
 package android.media.quality;
 
 import android.annotation.CallbackExecutor;
+import android.annotation.ColorInt;
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -356,6 +357,8 @@ public final class MediaQualityManager {
      *
      * @hide
      */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
     @RequiresPermission(android.Manifest.permission.MANAGE_GLOBAL_PICTURE_QUALITY_SERVICE)
     @Nullable
     public PictureProfile getDefaultPictureProfile() {
@@ -389,6 +392,139 @@ public final class MediaQualityManager {
     }
 
     /**
+     * Set the color for the "color mute" feature.
+     * <p> The selected color will be displayed when the color mute feature is enabled,
+     * and in the absence of a signal for the display.
+     *
+     * @param color The ARGB color to be set.
+     *
+     * @see #setColorMuteEnabled(boolean)
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    @RequiresPermission(android.Manifest.permission.MANAGE_GLOBAL_PICTURE_QUALITY_SERVICE)
+    public void setMutedColor(@ColorInt int color) {
+        try {
+            mService.setMutedColor(color, mUserHandle.getIdentifier());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Sets whether color mute is enabled.
+     *
+     * <p>This feature enables the display of a colored screen in the absence of a signal to
+     * display. The color can be configured by {@link #setMutedColor(int)}.
+     *
+     * @param enable Whether color mute is enabled.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    @RequiresPermission(android.Manifest.permission.MANAGE_GLOBAL_PICTURE_QUALITY_SERVICE)
+    public void setColorMuteEnabled(boolean enable) {
+        try {
+            mService.setColorMuteEnabled(enable, mUserHandle.getIdentifier());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Gets the static equalizer capabilities of the device.
+     *
+     * <p>This includes information like the supported gain range (min/max levels) and the
+     * center frequencies of all available equalizer bands. This information is static and
+     * is not expected to change at runtime.
+     *
+     * @return An {@link EqualizerCapabilities} object describing the hardware's equalizer
+     *         capabilities, or {@code null} if the information is not available.
+     * @throws SecurityException if the caller does not have the required permission.
+     *
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    @Nullable
+    public EqualizerCapabilities getEqualizerCapabilities() {
+        try {
+            // The mService is the binder object pointing to the MediaQualityService.
+            // The userId is typically retrieved from the context.
+            return mService.getEqualizerCapabilities(mContext.getUserId());
+        } catch (RemoteException e) {
+            // Rethrow the exception as a standard system server exception.
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Gets the current equalizer settings.
+     *
+     * <p>This returns a list of all available bands and their current gain levels.
+     *
+     * @return An {@link EqualizerSettings} object containing the current settings for all
+     *         equalizer bands, or {@code null} if the settings are not available.
+     * @throws SecurityException if the caller does not have the required permission.
+     *
+     * @hide
+     */
+    @SystemApi
+    @RequiresPermission(android.Manifest.permission.MANAGE_GLOBAL_SOUND_QUALITY_SERVICE)
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    @Nullable
+    public EqualizerSettings getEqualizerSettings() {
+        try {
+            return mService.getEqualizerSettings(mContext.getUserId());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Sets the desired equalizer settings.
+     *
+     * <p>The caller provides an {@link EqualizerSettings} object containing the new
+     * settings. The framework must ensure the bands provided in the {@code settings} object
+     * match the frequencies reported by {@link #getEqualizerCapabilities()}.
+     *
+     * <p>This method override the app equalizer settings.
+     *
+     * @param settings The {@link EqualizerSettings} object containing the new desired settings.
+     *                 {@code null} means equalizer is not used.
+     * @throws SecurityException if the caller does not have the required permission.
+     *
+     * @hide
+     */
+    @SystemApi
+    @RequiresPermission(android.Manifest.permission.MANAGE_GLOBAL_SOUND_QUALITY_SERVICE)
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public void setEqualizerSettings(@Nullable EqualizerSettings settings) {
+        try {
+            mService.setEqualizerSettings(settings, mContext.getUserId());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Checks if a specific display panel technology is supported by the device.
+     * <p>
+     * This is a blocking call and should not be called on the main thread.
+     *
+     * @param panelTechnology The type of display panel technology to query. This must
+     * be one of the constants from {@code MediaQualityContract.PanelTechnology}.
+     * @return {@code true} if the specified panel technology is supported,
+     * {@code false} otherwise.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public boolean usesDisplayTechnology(
+            @MediaQualityContract.PanelTechnology int panelTechnology) {
+        try {
+            return mService.usesDisplayTechnology(panelTechnology,
+                    mUserHandle.getIdentifier());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+
+    /**
      * Gets all package names whose picture profiles are available.
      *
      * @see #getPictureProfilesByPackage(String, boolean)
@@ -418,6 +554,33 @@ public final class MediaQualityManager {
     }
 
     /**
+     * Returns a list of PictureProfileHandle objects corresponding to the provided
+     * profile identifiers.
+     *
+     * <p>The returned list contains handles that allow for the management or selection of
+     * specific picture profiles. If a provided ID does not correspond to an existing profile, it
+     * will be omitted from the result.
+     *
+     * @param ids An array of unique string identifiers for the desired picture profiles.
+     * @return A {@link List} of PictureProfileHandle objects. Returns an empty list if the input
+     *         IDs is empty. If no matching profile for an ID, the corresponding element in the
+     *         returned list is {@code null}.
+     *
+     * @hide
+     */
+    @SystemApi
+    @NonNull
+    @RequiresPermission(android.Manifest.permission.MANAGE_GLOBAL_PICTURE_QUALITY_SERVICE)
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public List<PictureProfileHandle> getPictureProfileHandles(@NonNull String[] ids) {
+        try {
+            return mService.getPictureProfileHandles(ids, mUserHandle.getIdentifier());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * Gets picture profile handle for TV input.
      * @hide
      */
@@ -430,10 +593,50 @@ public final class MediaQualityManager {
     }
 
     /**
-     * Gets current picture profile instance for TV input.
+     * Returns the PictureProfileHandle currently associated with a specific TV input.
+     *
+     * <p>This is used to retrieve the active picture profile for a given input source,
+     * such as an HDMI port or a built-in tuner. This allows system apps to query
+     * which profile is currently applied to the video content of that input.
+     *
+     * @param inputId The ID of the TV input (from {@link android.media.tv.TvInputInfo#getId()}).
+     * @return The PictureProfileHandle associated with the input, or PictureProfileHandle.NONE
+     * if the input ID is invalid or has no associated profile.
+     * @see android.media.tv.TvInputManager
+     *
      * @hide
      */
-    public PictureProfile getCurrentPictureProfileForTvInput(String inputId) {
+    @SystemApi
+    @Nullable
+    @RequiresPermission(android.Manifest.permission.MANAGE_GLOBAL_PICTURE_QUALITY_SERVICE)
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public PictureProfileHandle getCurrentPictureProfileHandleForTvInput(@NonNull String inputId) {
+        try {
+            return mService.getCurrentPictureProfileHandleForTvInput(
+                    inputId, mUserHandle.getIdentifier());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Returns the picture profile currently applied to the specified TV input.
+     *
+     * <p>This method retrieves the {@link PictureProfile} settings (such as brightness,
+     * contrast, and color mode) that are currently active for the given Input ID.
+     *
+     * @param inputId The ID of the TV input (e.g., {@link android.media.tv.TvInputInfo#getId()}).
+     * Cannot be {@code null}.
+     * @return The {@link PictureProfile} associated with the input, or {@code null} if
+     * no profile is currently set or if the input ID is invalid.
+     *
+     * @hide
+     */
+    @SystemApi
+    @Nullable
+    @RequiresPermission(android.Manifest.permission.MANAGE_GLOBAL_PICTURE_QUALITY_SERVICE)
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public PictureProfile getCurrentPictureProfileForTvInput(@NonNull String inputId) {
         try {
             return mService.getCurrentPictureProfileForTvInput(
                     inputId, mUserHandle.getIdentifier());
@@ -443,10 +646,23 @@ public final class MediaQualityManager {
     }
 
     /**
-     * Gets all picture profiles instance for TV input.
+     * Returns a list of all picture profiles supported by the specified TV input.
+     *
+     * <p>This method retrieves all available {@link PictureProfile} options that can be applied to
+     * the given Input ID.
+     *
+     * @param inputId The ID of the TV input (e.g., {@link android.media.tv.TvInputInfo#getId()}).
+     * Cannot be {@code null}.
+     * @return A list of {@link PictureProfile} objects supported by the input, or an empty list
+     * if no profiles are available.
+     *
      * @hide
      */
-    public List<PictureProfile> getAllPictureProfilesForTvInput(String inputId) {
+    @SystemApi
+    @NonNull
+    @RequiresPermission(android.Manifest.permission.MANAGE_GLOBAL_PICTURE_QUALITY_SERVICE)
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public List<PictureProfile> getAllPictureProfilesForTvInput(@NonNull String inputId) {
         try {
             return mService.getAllPictureProfilesForTvInput(
                     inputId, mUserHandle.getIdentifier());
@@ -466,6 +682,34 @@ public final class MediaQualityManager {
             throw e.rethrowFromSystemServer();
         }
     }
+
+    /**
+     * Returns a list of SoundProfileHandle objects corresponding to the provided
+     * profile identifiers.
+     *
+     * <p>The returned list contains handles that allow for the management or selection of
+     * specific sound profiles. If a provided ID does not correspond to an existing profile, it
+     * will be omitted from the result.
+     *
+     * @param ids An array of unique string identifiers for the desired sound profiles.
+     * @return A {@link List} of SoundProfileHandle objects. Returns an empty list if the input
+     *         IDs is empty. If no matching profile for an ID, the corresponding element in the
+     *         returned list is {@code null}.
+     *
+     * @hide
+     */
+    @SystemApi
+    @NonNull
+    @RequiresPermission(android.Manifest.permission.MANAGE_GLOBAL_SOUND_QUALITY_SERVICE)
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public List<SoundProfileHandle> getSoundProfileHandles(@NonNull String[] ids) {
+        try {
+            return mService.getSoundProfileHandles(ids, mUserHandle.getIdentifier());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
 
     /**
      * Creates a picture profile and store it in the system.
@@ -621,6 +865,27 @@ public final class MediaQualityManager {
         try {
             boolean includeParams = options == null || options.mParametersIncluded;
             return mService.getAvailableSoundProfiles(includeParams, mUserHandle.getIdentifier());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Get default sound profile
+     *
+     * @return SoundProfile the application default sound profile.
+     *
+     * @see SoundProfile
+     *
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.MANAGE_GLOBAL_SOUND_QUALITY_SERVICE)
+    @Nullable
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public SoundProfile getDefaultSoundProfile() {
+        try {
+            return mService.getDefaultSoundProfile();
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

@@ -40,4 +40,7 @@ android_test {
         "--no-version-vectors",
         "--no-version-transitions",
     ],
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }

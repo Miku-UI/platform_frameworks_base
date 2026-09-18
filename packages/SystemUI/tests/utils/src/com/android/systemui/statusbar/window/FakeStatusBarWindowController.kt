@@ -19,11 +19,16 @@ package com.android.systemui.statusbar.window
 import android.view.View
 import android.view.ViewGroup
 import com.android.systemui.animation.ActivityTransitionAnimator
-import com.android.systemui.fragments.FragmentHostManager
 import java.util.Optional
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class FakeStatusBarWindowController : StatusBarWindowController {
+
+    var isForcedVisible = false
+        private set
+
+    var wrappedAnimationControllers = setOf<ActivityTransitionAnimator.Controller>()
+        private set
 
     var isAttached = false
         private set
@@ -50,15 +55,17 @@ class FakeStatusBarWindowController : StatusBarWindowController {
     override val backgroundView: View
         get() = throw NotImplementedError()
 
-    override val fragmentHostManager: FragmentHostManager
-        get() = throw NotImplementedError()
-
     override fun wrapAnimationControllerIfInStatusBar(
         rootView: View,
         animationController: ActivityTransitionAnimator.Controller,
-    ): Optional<ActivityTransitionAnimator.Controller> = Optional.empty()
+    ): Optional<ActivityTransitionAnimator.Controller> {
+        wrappedAnimationControllers += animationController
+        return Optional.of(animationController)
+    }
 
-    override fun setForceStatusBarVisible(forceStatusBarVisible: Boolean, source: String) {}
+    override fun setForceStatusBarVisible(forceStatusBarVisible: Boolean, source: String) {
+        isForcedVisible = forceStatusBarVisible
+    }
 
     override fun setOngoingProcessRequiresStatusBarVisible(visible: Boolean, source: String) {
         ongoingProcessRequiresStatusBarVisible.value = visible

@@ -333,6 +333,22 @@ public abstract class PackageMonitor extends android.content.BroadcastReceiver {
     public void onPackageUnstopped(String packageName, int uid, Bundle extras) {
     }
 
+    /**
+     * Called when App Lock is enabled for a package.
+     *
+     * @param packageName Name of the package that had App Lock enabled
+     */
+    public void onPackageAppLockEnabled(String packageName) {
+    }
+
+    /**
+     * Called when App Lock is disabled for a package.
+     *
+     * @param packageName Name of the package that had App Lock disabled
+     */
+    public void onPackageAppLockDisabled(String packageName) {
+    }
+
     public boolean didSomePackagesChange() {
         return mSomePackagesChanged;
     }
@@ -585,6 +601,17 @@ public abstract class PackageMonitor extends android.content.BroadcastReceiver {
             mChangeType = PACKAGE_TEMPORARY_CHANGE;
             onPackageUnstopped(pkgName, intent.getIntExtra(Intent.EXTRA_UID, 0),
                     intent.getExtras());
+        } else if (android.security.Flags.appLockApis()
+                && PackageManager.ACTION_PACKAGE_APP_LOCK_ENABLED_STATE_CHANGED.equals(action)) {
+            String pkg = getPackageName(intent);
+            mSomePackagesChanged = true;
+            if (pkg != null) {
+                if (intent.getBooleanExtra(PackageManager.EXTRA_APP_LOCK_NEW_STATE, false)) {
+                    onPackageAppLockEnabled(pkg);
+                } else {
+                    onPackageAppLockDisabled(pkg);
+                }
+            }
         }
 
         if (mSomePackagesChanged) {

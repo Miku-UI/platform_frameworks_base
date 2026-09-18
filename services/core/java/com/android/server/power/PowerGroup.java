@@ -43,6 +43,7 @@ import android.os.Trace;
 import android.util.Slog;
 import android.util.TimeUtils;
 import android.view.Display;
+import android.view.accessibility.Flags;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.LatencyTracker;
@@ -127,8 +128,7 @@ public class PowerGroup {
 
         long dimDuration = INVALID_TIMEOUT;
         long screenOffTimeout = INVALID_TIMEOUT;
-        if (android.companion.virtualdevice.flags.Flags.deviceAwareDisplayPower()
-                && mGroupId != Display.DEFAULT_DISPLAY_GROUP) {
+        if (mGroupId != Display.DEFAULT_DISPLAY_GROUP) {
             VirtualDeviceManagerInternal vdm =
                     LocalServices.getService(VirtualDeviceManagerInternal.class);
             if (vdm != null) {
@@ -204,14 +204,10 @@ public class PowerGroup {
                 setLastPowerOnTimeLocked(eventTime);
                 setIsPoweringOnLocked(true);
                 mLastWakeTime = eventTime;
-                if (mFeatureFlags.isPolicyReasonInDisplayPowerRequestEnabled()) {
-                    mLastWakeReason = reason;
-                }
+                mLastWakeReason = reason;
             } else if (isInteractive(mWakefulness) && !isInteractive(newWakefulness)) {
                 mLastSleepTime = eventTime;
-                if (mFeatureFlags.isPolicyReasonInDisplayPowerRequestEnabled()) {
-                    mLastSleepReason = reason;
-                }
+                mLastSleepReason = reason;
             }
 
             // Since the group is transitioning to interactive wakefulness, we should reset the
@@ -342,6 +338,17 @@ public class PowerGroup {
 
     boolean dreamLocked(long eventTime, int uid, boolean allowWake) {
         if (eventTime < mLastWakeTime || (!allowWake && mWakefulness != WAKEFULNESS_AWAKE)) {
+            Slog.w(
+                    TAG,
+                    "Dream request ignored (eventTime: "
+                            + eventTime
+                            + " mLastWakeTime: "
+                            + mLastWakeTime
+                            + " allowWake: "
+                            + allowWake
+                            + " mWakefulness: "
+                            + PowerManagerInternal.wakefulnessToString(mWakefulness)
+                            + ")");
             return false;
         }
 
@@ -349,8 +356,14 @@ public class PowerGroup {
         try {
             Slog.i(TAG, "Napping power group (groupId=" + getGroupId() + ", uid=" + uid + ")...");
             setSandmanSummonedLocked(true);
-            setWakefulnessLocked(WAKEFULNESS_DREAMING, eventTime, uid, /* reason= */0,
-                    /* opUid= */ 0, /* opPackageName= */ null, /* details= */ null);
+            setWakefulnessLocked(
+                    WAKEFULNESS_DREAMING,
+                    eventTime,
+                    uid,
+                    /* reason= */ 0,
+                    /* opUid= */ 0,
+                    /* opPackageName= */ null,
+                    /* details= */ null);
         } finally {
             Trace.traceEnd(Trace.TRACE_TAG_POWER);
         }
@@ -572,9 +585,7 @@ public class PowerGroup {
             }
         }
 
-        if (mFeatureFlags.isPolicyReasonInDisplayPowerRequestEnabled()) {
-            mDisplayPowerRequest.policyReason = policyReason;
-        }
+        mDisplayPowerRequest.policyReason = policyReason;
         mDisplayPowerRequest.policy = policy;
     }
 
@@ -673,6 +684,10 @@ public class PowerGroup {
             case PowerManager.GO_TO_SLEEP_REASON_POWER_BUTTON:
             case PowerManager.GO_TO_SLEEP_REASON_SLEEP_BUTTON:
                 return Display.STATE_REASON_KEY;
+            case PowerManager.GO_TO_SLEEP_REASON_ACCESSIBILITY:
+                if (Flags.fixA11yLockScreenJank()) {
+                    return Display.STATE_REASON_ACCESSIBILITY;
+                }
             default:
                 return Display.STATE_REASON_DEFAULT_POLICY;
         }

@@ -42,9 +42,16 @@ public class ParsedUsesPermissionImpl implements ParsedUsesPermission, Parcelabl
     @ParsedUsesPermission.UsesPermissionFlags
     private int usesPermissionFlags;
 
+    private int purposeStringResource;
+
     @DataClass.ParcelWith(Parcelling.BuiltIn.ForStringSet.class)
     @NonNull
     private Set<String> purposes;
+
+    @DataClass.ParcelWith(Parcelling.BuiltIn.ForStringSet.class)
+    @NonNull
+    private Set<String> generalPurposes;
+
 
 
 
@@ -65,16 +72,22 @@ public class ParsedUsesPermissionImpl implements ParsedUsesPermission, Parcelabl
     public ParsedUsesPermissionImpl(
             @NonNull String name,
             @ParsedUsesPermission.UsesPermissionFlags int usesPermissionFlags,
-            @NonNull Set<String> purposes) {
+            int purposeStringResource,
+            @NonNull Set<String> purposes,
+            @NonNull Set<String> generalPurposes) {
         this.name = name;
         com.android.internal.util.AnnotationValidations.validate(
                 NonNull.class, null, name);
         this.usesPermissionFlags = usesPermissionFlags;
         com.android.internal.util.AnnotationValidations.validate(
                 ParsedUsesPermission.UsesPermissionFlags.class, null, usesPermissionFlags);
+        this.purposeStringResource = purposeStringResource;
         this.purposes = purposes;
         com.android.internal.util.AnnotationValidations.validate(
                 NonNull.class, null, purposes);
+        this.generalPurposes = generalPurposes;
+        com.android.internal.util.AnnotationValidations.validate(
+                NonNull.class, null, generalPurposes);
 
         // onConstructed(); // You can define this method to get a callback
     }
@@ -90,8 +103,18 @@ public class ParsedUsesPermissionImpl implements ParsedUsesPermission, Parcelabl
     }
 
     @DataClass.Generated.Member
+    public int getPurposeStringResource() {
+        return purposeStringResource;
+    }
+
+    @DataClass.Generated.Member
     public @NonNull Set<String> getPurposes() {
         return purposes;
+    }
+
+    @DataClass.Generated.Member
+    public @NonNull Set<String> getGeneralPurposes() {
+        return generalPurposes;
     }
 
     @DataClass.Generated.Member
@@ -111,10 +134,24 @@ public class ParsedUsesPermissionImpl implements ParsedUsesPermission, Parcelabl
     }
 
     @DataClass.Generated.Member
+    public @NonNull ParsedUsesPermissionImpl setPurposeStringResource( int value) {
+        purposeStringResource = value;
+        return this;
+    }
+
+    @DataClass.Generated.Member
     public @NonNull ParsedUsesPermissionImpl setPurposes(@NonNull Set<String> value) {
         purposes = value;
         com.android.internal.util.AnnotationValidations.validate(
                 NonNull.class, null, purposes);
+        return this;
+    }
+
+    @DataClass.Generated.Member
+    public @NonNull ParsedUsesPermissionImpl setGeneralPurposes(@NonNull Set<String> value) {
+        generalPurposes = value;
+        com.android.internal.util.AnnotationValidations.validate(
+                NonNull.class, null, generalPurposes);
         return this;
     }
 
@@ -140,6 +177,17 @@ public class ParsedUsesPermissionImpl implements ParsedUsesPermission, Parcelabl
         }
     }
 
+    @DataClass.Generated.Member
+    static Parcelling<Set<String>> sParcellingForGeneralPurposes =
+            Parcelling.Cache.get(
+                    Parcelling.BuiltIn.ForStringSet.class);
+    static {
+        if (sParcellingForGeneralPurposes == null) {
+            sParcellingForGeneralPurposes = Parcelling.Cache.put(
+                    new Parcelling.BuiltIn.ForStringSet());
+        }
+    }
+
     @Override
     @DataClass.Generated.Member
     public void writeToParcel(@NonNull Parcel dest, int flags) {
@@ -148,7 +196,9 @@ public class ParsedUsesPermissionImpl implements ParsedUsesPermission, Parcelabl
 
         sParcellingForName.parcel(name, dest, flags);
         dest.writeInt(usesPermissionFlags);
+        dest.writeInt(purposeStringResource);
         sParcellingForPurposes.parcel(purposes, dest, flags);
+        sParcellingForGeneralPurposes.parcel(generalPurposes, dest, flags);
     }
 
     @Override
@@ -164,7 +214,9 @@ public class ParsedUsesPermissionImpl implements ParsedUsesPermission, Parcelabl
 
         String _name = sParcellingForName.unparcel(in);
         int _usesPermissionFlags = in.readInt();
+        int _purposeStringResource = in.readInt();
         Set<String> _purposes = sParcellingForPurposes.unparcel(in);
+        Set<String> _generalPurposes = sParcellingForGeneralPurposes.unparcel(in);
 
         this.name = _name;
         com.android.internal.util.AnnotationValidations.validate(
@@ -172,9 +224,13 @@ public class ParsedUsesPermissionImpl implements ParsedUsesPermission, Parcelabl
         this.usesPermissionFlags = _usesPermissionFlags;
         com.android.internal.util.AnnotationValidations.validate(
                 ParsedUsesPermission.UsesPermissionFlags.class, null, usesPermissionFlags);
+        this.purposeStringResource = _purposeStringResource;
         this.purposes = _purposes;
         com.android.internal.util.AnnotationValidations.validate(
                 NonNull.class, null, purposes);
+        this.generalPurposes = _generalPurposes;
+        com.android.internal.util.AnnotationValidations.validate(
+                NonNull.class, null, generalPurposes);
 
         // onConstructed(); // You can define this method to get a callback
     }
@@ -194,10 +250,10 @@ public class ParsedUsesPermissionImpl implements ParsedUsesPermission, Parcelabl
     };
 
     @DataClass.Generated(
-            time = 1746161197344L,
+            time = 1762204690869L,
             codegenVersion = "1.0.23",
             sourceFile = "frameworks/base/core/java/com/android/internal/pm/pkg/component/ParsedUsesPermissionImpl.java",
-            inputSignatures = "private @com.android.internal.util.DataClass.ParcelWith(com.android.internal.util.Parcelling.BuiltIn.ForInternedString.class) @android.annotation.NonNull java.lang.String name\nprivate @com.android.internal.pm.pkg.component.ParsedUsesPermission.UsesPermissionFlags int usesPermissionFlags\nprivate @com.android.internal.util.DataClass.ParcelWith(com.android.internal.util.Parcelling.BuiltIn.ForStringSet.class) @android.annotation.NonNull java.util.Set<java.lang.String> purposes\nclass ParsedUsesPermissionImpl extends java.lang.Object implements [com.android.internal.pm.pkg.component.ParsedUsesPermission, android.os.Parcelable]\n@com.android.internal.util.DataClass(genGetters=true, genSetters=true, genBuilder=false, genParcelable=true, genAidl=false)")
+            inputSignatures = "private @com.android.internal.util.DataClass.ParcelWith(com.android.internal.util.Parcelling.BuiltIn.ForInternedString.class) @android.annotation.NonNull java.lang.String name\nprivate @com.android.internal.pm.pkg.component.ParsedUsesPermission.UsesPermissionFlags int usesPermissionFlags\nprivate  int purposeStringResource\nprivate @com.android.internal.util.DataClass.ParcelWith(com.android.internal.util.Parcelling.BuiltIn.ForStringSet.class) @android.annotation.NonNull java.util.Set<java.lang.String> purposes\nprivate @com.android.internal.util.DataClass.ParcelWith(com.android.internal.util.Parcelling.BuiltIn.ForStringSet.class) @android.annotation.NonNull java.util.Set<java.lang.String> generalPurposes\nclass ParsedUsesPermissionImpl extends java.lang.Object implements [com.android.internal.pm.pkg.component.ParsedUsesPermission, android.os.Parcelable]\n@com.android.internal.util.DataClass(genGetters=true, genSetters=true, genBuilder=false, genParcelable=true, genAidl=false)")
     @Deprecated
     private void __metadata() {}
 

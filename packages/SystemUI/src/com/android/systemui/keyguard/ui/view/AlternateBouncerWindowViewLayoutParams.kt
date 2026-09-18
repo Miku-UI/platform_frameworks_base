@@ -34,7 +34,7 @@ object AlternateBouncerWindowViewLayoutParams {
                 .apply {
                     title = "AlternateBouncerView"
                     fitInsetsTypes = 0 // overrides default, avoiding status bars during layout
-                    gravity = Gravity.TOP or Gravity.LEFT
+                    gravity = Gravity.TOP or Gravity.START
                     layoutInDisplayCutoutMode =
                         WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
                     privateFlags =

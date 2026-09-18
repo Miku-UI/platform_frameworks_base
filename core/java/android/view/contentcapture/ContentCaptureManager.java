@@ -18,8 +18,11 @@ package android.view.contentcapture;
 import static android.view.contentcapture.ContentCaptureHelper.sDebug;
 import static android.view.contentcapture.ContentCaptureHelper.sVerbose;
 import static android.view.contentcapture.ContentCaptureHelper.toSet;
+import static android.view.contentprotection.flags.Flags.FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED;
+import static android.view.contentcapture.flags.Flags.deprecateSetContentCaptureEnabled;
 
 import android.annotation.CallbackExecutor;
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -31,18 +34,22 @@ import android.annotation.UiThread;
 import android.annotation.UserIdInt;
 import android.app.Activity;
 import android.app.Service;
+import android.app.compat.CompatChanges;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledSince;
 import android.content.ComponentName;
 import android.content.ContentCaptureOptions;
 import android.content.Context;
-import android.content.LocusId;
 import android.graphics.Canvas;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.os.Trace;
 import android.util.ArraySet;
 import android.util.Dumpable;
 import android.util.Log;
@@ -220,6 +227,10 @@ public final class ContentCaptureManager {
 
     private static final String TAG = ContentCaptureManager.class.getSimpleName();
 
+    @ChangeId
+    @EnabledSince(targetSdkVersion = Build.VERSION_CODES.CINNAMON_BUN)
+    private static final long DEPRECATE_SET_CONTENT_CAPTURE_ENABLED = 454307959L;
+
     /** @hide */
     public static final boolean DEBUG = false;
 
@@ -351,14 +362,6 @@ public final class ContentCaptureManager {
     public static final String DEVICE_CONFIG_PROPERTY_IDLE_UNBIND_TIMEOUT = "idle_unbind_timeout";
 
     /**
-     * Sets to disable flush when receiving a VIEW_TREE_APPEARING event.
-     *
-     * @hide
-     */
-    public static final String DEVICE_CONFIG_PROPERTY_DISABLE_FLUSH_FOR_VIEW_TREE_APPEARING =
-            "disable_flush_for_view_tree_appearing";
-
-    /**
      * Enables the content protection receiver.
      *
      * @hide
@@ -458,11 +461,9 @@ public final class ContentCaptureManager {
     /** @hide */
     public static final int DEFAULT_IDLE_FLUSHING_FREQUENCY_MS = 5_000;
     /** @hide */
-    public static final int DEFAULT_TEXT_CHANGE_FLUSHING_FREQUENCY_MS = 1_000;
+    public static final int DEFAULT_TEXT_CHANGE_FLUSHING_FREQUENCY_MS = 500;
     /** @hide */
     public static final int DEFAULT_LOG_HISTORY_SIZE = 10;
-    /** @hide */
-    public static final boolean DEFAULT_DISABLE_FLUSH_FOR_VIEW_TREE_APPEARING = false;
     /** @hide */
     public static final boolean DEFAULT_ENABLE_CONTENT_CAPTURE_RECEIVER = true;
     /** @hide */
@@ -575,7 +576,6 @@ public final class ContentCaptureManager {
         mOptions = Objects.requireNonNull(options, "options cannot be null");
 
         ContentCaptureHelper.setLoggingLevel(mOptions.loggingLevel);
-        setFlushViewTreeAppearingEventDisabled(mOptions.disableFlushForViewTreeAppearing);
 
         if (sVerbose) Log.v(TAG, "Constructor for " + context.getPackageName());
 
@@ -740,7 +740,9 @@ public final class ContentCaptureManager {
      *
      * <p>There are many reasons it could be disabled, such as:
      * <ul>
-     *   <li>App itself disabled content capture through {@link #setContentCaptureEnabled(boolean)}.
+     *   <li>App itself disabled content capture through {@link #setContentCaptureEnabled(boolean)}
+     *   (for apps targeting SDK 36 or lower) or by applying
+     *   {@link android.view.WindowManager.LayoutParams#FLAG_SECURE}.
      *   <li>Intelligence service did not allowlist content capture for this activity's package.
      *   <li>Intelligence service did not allowlist content capture for this specific activity.
      *   <li>Intelligence service disabled content capture globally.
@@ -809,10 +811,24 @@ public final class ContentCaptureManager {
     /**
      * Called by apps to explicitly enable or disable content capture.
      *
-     * <p><b>Note: </b> this call is not persisted accross reboots, so apps should typically call
+     * <p><b>Note: </b> this call is not persisted across reboots, so apps should typically call
      * it on {@link android.app.Activity#onCreate(android.os.Bundle, android.os.PersistableBundle)}.
+     *
+     * @deprecated For apps targeting SDK 37 and higher, this method is deprecated. To opt
+     * out of content capture, you should use
+     * {@link android.view.WindowManager.LayoutParams#FLAG_SECURE}.
      */
+    @Deprecated
+    @FlaggedApi("android.view.contentcapture.flags.deprecate_set_content_capture_enabled")
     public void setContentCaptureEnabled(boolean enabled) {
+        if (deprecateSetContentCaptureEnabled()
+                && CompatChanges.isChangeEnabled(DEPRECATE_SET_CONTENT_CAPTURE_ENABLED)) {
+            Log.w(TAG, "setContentCaptureEnabled is deprecated and a no-op for apps targeting SDK "
+                    + "higher than " + Build.VERSION_CODES.BAKLAVA + ". Use "
+                    + "WindowManager.LayoutParams.FLAG_SECURE to prevent screen capture.");
+            return;
+        }
+
         if (sDebug) {
             Log.d(TAG, "setContentCaptureEnabled(): setting to " + enabled + " for " + mContext);
         }
@@ -828,6 +844,9 @@ public final class ContentCaptureManager {
         }
         if (mainSession != null) {
             mainSession.setDisabled(!enabled);
+        }
+        if (!enabled) {
+            Trace.instant(Trace.TRACE_TAG_VIEW, "ContentCaptureManager.contentCaptureDisabled");
         }
     }
 
@@ -858,38 +877,6 @@ public final class ContentCaptureManager {
         // Prevent overriding the status of disabling by app
         if (mainSession != null && !alreadyDisabledByApp) {
             mainSession.setDisabled(flagSecureEnabled);
-        }
-    }
-
-    /**
-     * Explicitly sets enable or disable flush for view tree appearing event.
-     *
-     * @hide
-     */
-    @VisibleForTesting
-    public void setFlushViewTreeAppearingEventDisabled(boolean disabled) {
-        if (sDebug) {
-            Log.d(TAG, "setFlushViewTreeAppearingEventDisabled(): setting to " + disabled);
-        }
-
-        synchronized (mLock) {
-            if (disabled) {
-                mFlags |= ContentCaptureContext.FLAG_DISABLED_FLUSH_FOR_VIEW_TREE_APPEARING;
-            } else {
-                mFlags &= ~ContentCaptureContext.FLAG_DISABLED_FLUSH_FOR_VIEW_TREE_APPEARING;
-            }
-        }
-    }
-
-    /**
-     * Gets whether content capture is needed to flush for view tree appearing event.
-     *
-     * @hide
-     */
-    public boolean getFlushViewTreeAppearingEventDisabled() {
-        synchronized (mLock) {
-            return (mFlags & ContentCaptureContext.FLAG_DISABLED_FLUSH_FOR_VIEW_TREE_APPEARING)
-                    != 0;
         }
     }
 
@@ -1098,6 +1085,27 @@ public final class ContentCaptureManager {
         }
         try {
             service.setDefaultServiceEnabled(userId, enabled);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Sets the allowlist for content protection.
+     *
+     * @param packageNames set of packages for the new allowlist.
+     * @throws SecurityException if the caller doesn't have the required permission or isn't the app
+     * that owns the content protection service.
+     *
+     * @hide
+     */
+    @SystemApi
+    @RequiresPermission(android.Manifest.permission.SET_CONTENT_PROTECTION_ALLOWLIST)
+    @FlaggedApi(FLAG_SET_CONTENT_PROTECTION_ALLOWLIST_ENABLED)
+    public void setContentProtectionAllowlist(@NonNull Set<String> packageNames) {
+        Objects.requireNonNull(packageNames);
+        try {
+            mService.setContentProtectionAllowlist(packageNames.stream().toList());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

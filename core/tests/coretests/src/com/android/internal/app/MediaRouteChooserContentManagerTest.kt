@@ -18,16 +18,23 @@ package com.android.internal.app
 
 import android.content.Context
 import android.media.MediaRouter
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.SetFlagsRule
 import android.testing.TestableLooper.RunWithLooper
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
+import android.widget.ListView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
+import com.android.internal.app.MediaRouteChooserContentManager.SHARE_CAST_ROUTE_NAME
 import com.android.internal.R
+import com.android.media.flags.Flags
 import com.google.common.truth.Truth.assertThat
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.any
@@ -41,6 +48,8 @@ import org.mockito.kotlin.verify
 @RunWithLooper(setAsMainLooper = true)
 @RunWith(AndroidJUnit4::class)
 class MediaRouteChooserContentManagerTest {
+    @get:Rule val setFlagsRule = SetFlagsRule()
+
     private val context: Context = getInstrumentation().context
 
     @Test
@@ -130,6 +139,7 @@ class MediaRouteChooserContentManagerTest {
             on { getSystemService(Context.LAYOUT_INFLATER_SERVICE) } doReturn layoutInflater
         }
         val contentManager = MediaRouteChooserContentManager(context, delegate)
+        contentManager.bindViews(inflateMediaRouteChooserDialog())
         contentManager.routeTypes = MediaRouter.ROUTE_TYPE_REMOTE_DISPLAY
 
         contentManager.onAttachedToWindow()
@@ -149,6 +159,7 @@ class MediaRouteChooserContentManagerTest {
             on { getSystemService(Context.LAYOUT_INFLATER_SERVICE) } doReturn layoutInflater
         }
         val contentManager = MediaRouteChooserContentManager(context, delegate)
+        contentManager.bindViews(inflateMediaRouteChooserDialog())
 
         contentManager.onDetachedFromWindow()
 
@@ -166,6 +177,7 @@ class MediaRouteChooserContentManagerTest {
             on { getSystemService(Context.LAYOUT_INFLATER_SERVICE) } doReturn layoutInflater
         }
         val contentManager = MediaRouteChooserContentManager(context, delegate)
+        contentManager.bindViews(inflateMediaRouteChooserDialog())
         contentManager.onAttachedToWindow()
 
         contentManager.routeTypes = MediaRouter.ROUTE_TYPE_REMOTE_DISPLAY
@@ -175,8 +187,86 @@ class MediaRouteChooserContentManagerTest {
             eq(MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN))
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_SHARE_CAST_IN_MEDIA_CHOOSER_DIALOG)
+    fun onAttachedToWindow_shareCastFlagIsEnabled_shareCastButtonVisible() {
+        val contentManager = setupContentManager(includeShareCastRoute = true)
+        val containerView = inflateMediaRouteChooserDialog()
+        contentManager.bindViews(containerView)
+
+        contentManager.onAttachedToWindow()
+
+        val mediaRouteList = containerView.findViewById<View>(R.id.media_route_list) as ListView
+        assertThat(mediaRouteList.adapter.getCount()).isEqualTo(0)
+        val shareCast = containerView.findViewById<View>(R.id.media_route_cast_to_others_button)
+        assertThat(shareCast.visibility).isEqualTo(View.VISIBLE)
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SHARE_CAST_IN_MEDIA_CHOOSER_DIALOG)
+    fun onAttachedToWindow_shareCastFlagIsDisabled_shareCastButtonNotVisible() {
+        val contentManager = setupContentManager(includeShareCastRoute = true)
+        val containerView = inflateMediaRouteChooserDialog()
+        contentManager.bindViews(containerView)
+
+        contentManager.onAttachedToWindow()
+
+        val mediaRouteList = containerView.findViewById<View>(R.id.media_route_list) as ListView
+        assertThat(mediaRouteList.adapter.getCount()).isEqualTo(0)
+        val shareCast = containerView.findViewById<View>(R.id.media_route_cast_to_others_button)
+        assertThat(shareCast.visibility).isEqualTo(View.GONE)
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_SHARE_CAST_IN_MEDIA_CHOOSER_DIALOG)
+    fun onAttachedToWindow_shareCastFlagIsEnabledButShareCastRouteNotIncluded_shareCastButtonNotVisible() {
+        val contentManager = setupContentManager(includeShareCastRoute = false)
+        val containerView = inflateMediaRouteChooserDialog()
+        contentManager.bindViews(containerView)
+
+        contentManager.onAttachedToWindow()
+
+        val mediaRouteList = containerView.findViewById<View>(R.id.media_route_list) as ListView
+        assertThat(mediaRouteList.adapter.getCount()).isEqualTo(1)
+        val shareCast = containerView.findViewById<View>(R.id.media_route_cast_to_others_button)
+        assertThat(shareCast.visibility).isEqualTo(View.GONE)
+    }
+
     private fun inflateMediaRouteChooserDialog(): View {
         return LayoutInflater.from(context)
             .inflate(R.layout.media_route_chooser_dialog, null, false)
+    }
+
+    private fun setupContentManager(
+        includeShareCastRoute: Boolean = false
+    ): MediaRouteChooserContentManager {
+        val routeName = if (includeShareCastRoute) SHARE_CAST_ROUTE_NAME else TEST_ROUTE_NAME
+        val delegate: MediaRouteChooserContentManager.Delegate = mock()
+        val layoutInflater = LayoutInflater.from(context)
+        val route: MediaRouter.RouteInfo =
+            mock<MediaRouter.RouteInfo> {
+                on { isDefault } doReturn false
+                on { isEnabled } doReturn true
+                on { matchesTypes(anyInt()) } doReturn true
+                on { getName() } doReturn routeName
+            }
+        val mediaRouter: MediaRouter =
+            mock<MediaRouter> {
+                on { getRouteCount() } doReturn 1
+                on { getRouteAt(anyInt()) } doReturn route
+            }
+        val mockContext: Context =
+            mock<Context> {
+                on { getSystemServiceName(MediaRouter::class.java) } doReturn
+                    Context.MEDIA_ROUTER_SERVICE
+                on { getSystemService(MediaRouter::class.java) } doReturn mediaRouter
+                on { getSystemService(Context.LAYOUT_INFLATER_SERVICE) } doReturn layoutInflater
+            }
+        val contentManager = MediaRouteChooserContentManager(mockContext, delegate)
+        return contentManager
+    }
+
+    private companion object {
+        const val TEST_ROUTE_NAME = "Test Route"
     }
 }

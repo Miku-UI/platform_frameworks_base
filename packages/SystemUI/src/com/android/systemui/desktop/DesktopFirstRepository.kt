@@ -17,7 +17,7 @@
 package com.android.systemui.desktop
 
 import com.android.systemui.dagger.SysUISingleton
-import com.android.wm.shell.desktopmode.DesktopMode
+import com.android.wm.shell.desktopmode.api.DesktopMode
 import com.android.wm.shell.shared.desktopmode.DesktopFirstListener
 import java.util.Optional
 import javax.inject.Inject

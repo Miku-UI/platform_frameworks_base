@@ -32,6 +32,7 @@ import android.content.om.OverlayableInfo;
 import android.content.pm.UserPackage;
 import android.os.FabricatedOverlayInfo;
 import android.os.FabricatedOverlayInternal;
+import android.os.IdmapParams;
 import android.os.OverlayConstraint;
 import android.text.TextUtils;
 import android.util.ArrayMap;
@@ -503,6 +504,23 @@ class OverlayManagerServiceImplTestsBase {
             }
             return idmap.isUpToDate(getCrc(targetPath), getCrc(overlayPath), targetPath, policies,
                     enforce);
+        }
+
+        @Override
+        String[] verifyOrCreateIdmaps(IdmapParams[] idmapParams) {
+            String[] ret = new String[idmapParams.length];
+            for (int i = 0; i < idmapParams.length; i++) {
+                final IdmapParams ip = idmapParams[i];
+                if (verifyIdmap(ip.targetPath, ip.overlayPath, ip.overlayName,
+                        ip.fulfilledPolicies, ip.enforceOverlayable, ip.userId, ip.constraints)) {
+                    ret[i] = "";
+                } else {
+                    ret[i] = createIdmap(ip.targetPath, ip.overlayPath, ip.overlayName,
+                            ip.fulfilledPolicies, ip.enforceOverlayable, ip.userId,
+                            ip.constraints);
+                }
+            }
+            return ret;
         }
 
         @Override

@@ -574,7 +574,7 @@ android_media_MediaRecorder_native_reset(JNIEnv *env, jobject thiz)
 }
 
 static void
-android_media_MediaRecorder_release(JNIEnv *env, jobject thiz)
+android_media_MediaRecorder_native_release(JNIEnv *env, jobject thiz)
 {
     ALOGV("release");
     sp<MediaRecorder> mr = setMediaRecorder(env, thiz, 0);
@@ -669,7 +669,7 @@ static void
 android_media_MediaRecorder_native_finalize(JNIEnv *env, jobject thiz)
 {
     ALOGV("finalize");
-    android_media_MediaRecorder_release(env, thiz);
+    android_media_MediaRecorder_native_release(env, thiz);
 }
 
 void android_media_MediaRecorder_setInputSurface(
@@ -891,7 +891,7 @@ static const JNINativeMethod gMethods[] = {
     {"pause",                "()V",                             (void *)android_media_MediaRecorder_pause},
     {"resume",               "()V",                             (void *)android_media_MediaRecorder_resume},
     {"native_reset",         "()V",                             (void *)android_media_MediaRecorder_native_reset},
-    {"release",              "()V",                             (void *)android_media_MediaRecorder_release},
+    {"native_release",       "()V",                             (void *)android_media_MediaRecorder_native_release},
     {"native_init",          "()V",                             (void *)android_media_MediaRecorder_native_init},
     {"native_setup",         "(Ljava/lang/Object;Ljava/lang/String;Landroid/os/Parcel;)V",
                                                                 (void *)android_media_MediaRecorder_native_setup},

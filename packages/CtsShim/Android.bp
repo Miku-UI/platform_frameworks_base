@@ -58,11 +58,7 @@ android_app_import {
 
     apex_available: [
         "//apex_available:platform",
-        "com.android.apex.cts.shim.v1",
-        "com.android.apex.cts.shim.v2",
-        "com.android.apex.cts.shim.v2_legacy",
-        "com.android.apex.cts.shim.v2_sdk_target_p",
-        "com.android.apex.cts.shim.v3",
+        "com.android.apex.cts.shim.*",
     ],
 }
 
@@ -98,10 +94,6 @@ android_app_import {
 
     apex_available: [
         "//apex_available:platform",
-        "com.android.apex.cts.shim.v1",
-        "com.android.apex.cts.shim.v2",
-        "com.android.apex.cts.shim.v2_legacy",
-        "com.android.apex.cts.shim.v2_sdk_target_p",
-        "com.android.apex.cts.shim.v3",
+        "com.android.apex.cts.shim.*",
     ],
 }

@@ -58,6 +58,8 @@ data class TutorialScreenConfig(
         @StringRes val bodySuccessResId: Int,
         @StringRes val titleErrorResId: Int,
         @StringRes val bodyErrorResId: Int,
+        @StringRes val titlePartialSuccessResId: Int? = null,
+        @StringRes val bodyPartialSuccessResId: Int? = null,
     )
 
     data class Animations(@RawRes val educationResId: Int)

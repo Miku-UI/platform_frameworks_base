@@ -73,6 +73,5 @@ java_library_static {
     libs: [
         "services.core",
         "app-compat-annotations",
-        "android.hardware.power-V1.0-java",
     ],
 }

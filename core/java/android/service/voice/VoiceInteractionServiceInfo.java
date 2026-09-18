@@ -27,6 +27,7 @@ import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.content.res.XmlResourceParser;
 import android.os.RemoteException;
+import android.service.voice.flags.Flags;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.util.Xml;
@@ -51,6 +52,9 @@ public class VoiceInteractionServiceInfo {
     private boolean mSupportsAssist;
     private boolean mSupportsLaunchFromKeyguard;
     private boolean mSupportsLocalInteraction;
+    private boolean mUsesAssistData;
+    private boolean mUsesAssistScreenshots;
+    private boolean mUsesAssistStructureScreenContent;
 
     /**
      * Loads the service metadata published by the component. Success is indicated by
@@ -140,6 +144,31 @@ public class VoiceInteractionServiceInfo {
                     .VoiceInteractionService_hotwordDetectionService);
             mVisualQueryDetectionService = array.getString(com.android.internal.R.styleable
                     .VoiceInteractionService_visualQueryDetectionService);
+
+            // Assistants declare their usage of AssistData via manifest attributes
+            if (Flags.enableAssistResourceAttributes()) {
+                mUsesAssistData =
+                        array.getBoolean(
+                                com.android.internal.R.styleable
+                                        .VoiceInteractionService_usesAssistData,
+                                false);
+                mUsesAssistScreenshots =
+                        array.getBoolean(
+                                com.android.internal.R.styleable
+                                        .VoiceInteractionService_usesAssistScreenshots,
+                                false);
+                mUsesAssistStructureScreenContent =
+                        array.getBoolean(
+                                com.android.internal.R.styleable
+                                        .VoiceInteractionService_usesAssistStructureScreenContent,
+                                false);
+            } else {
+                // The implicit, pre CINNAMON_BUN defaults
+                mUsesAssistData = true;
+                mUsesAssistScreenshots = true;
+                mUsesAssistStructureScreenContent = true;
+            }
+
             array.recycle();
             if (mSessionService == null) {
                 mParseError = "No sessionService specified";
@@ -198,4 +227,43 @@ public class VoiceInteractionServiceInfo {
     public String getVisualQueryDetectionService() {
         return mVisualQueryDetectionService;
     }
+
+    /**
+     * Returns whether the service has opted-in to receive assist data.
+     *
+     * <p>If {@link android.os.Build.VERSION_CODES#CINNAMON_BUN} or higher, the service must
+     * explicitly set the {@code R.styleable.VoiceInteractionService_usesAssistData} attribute to
+     * {@code true} to receive this data. For older SDK versions, this is implicitly {@code true}.
+     */
+    public boolean getUsesAssistData() {
+        return mUsesAssistData;
+    }
+
+    /**
+     * Returns whether the service has opted-in to receive screenshots.
+     *
+     * <p>If {@link android.os.Build.VERSION_CODES#CINNAMON_BUN} or higher, the service must
+     * explicitly set the {@code R.styleable.VoiceInteractionService_usesAssistScreenshots}
+     * attribute to {@code true} to receive this data. For older SDK versions, this is implicitly
+     * {@code true}.
+     */
+    public boolean getUsesAssistScreenshots() {
+        return mUsesAssistScreenshots;
+    }
+
+    /**
+     * Returns whether the service has opted-in to receive structured screen content.
+     *
+     * <p>If {@link android.os.Build.VERSION_CODES#CINNAMON_BUN} or higher, the service must
+     * explicitly set the {@code
+     * R.styleable.VoiceInteractionService_usesAssistStructureScreenContent} attribute to {@code
+     * true} to receive this data. For older SDK versions, this is implicitly {@code true}.
+     */
+    public boolean getUsesAssistStructureScreenContent() {
+        return mUsesAssistStructureScreenContent;
+    }
 }
+
+
+
+

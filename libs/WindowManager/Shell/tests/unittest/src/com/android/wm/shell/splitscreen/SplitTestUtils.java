@@ -16,17 +16,15 @@
 
 package com.android.wm.shell.splitscreen;
 
-import static android.view.Display.DEFAULT_DISPLAY;
-
 import static com.android.wm.shell.shared.split.SplitScreenConstants.SNAP_TO_2_50_50;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
+import android.app.ActivityManager;
 import android.app.IActivityTaskManager;
 import android.content.Context;
 import android.graphics.Rect;
-import android.hardware.display.DisplayManager;
 import android.os.Handler;
 import android.view.SurfaceControl;
 
@@ -53,7 +51,6 @@ import com.android.wm.shell.windowdecor.WindowDecorViewModel;
 
 import com.google.android.msdl.domain.MSDLPlayer;
 
-import java.util.Objects;
 import java.util.Optional;
 
 public class SplitTestUtils {
@@ -86,8 +83,8 @@ public class SplitTestUtils {
     }
 
     static class TestStageCoordinator extends StageCoordinator {
+        final ActivityManager.RunningTaskInfo mSplitRootTaskInfo;
         final SurfaceControl mRootLeash;
-        final SplitMultiDisplayHelper mMultiDisplayHelper;
 
         TestStageCoordinator(Context context, int displayId, SyncTransactionQueue syncQueue,
                 ShellTaskOrganizer taskOrganizer, StageTaskListener mainStage,
@@ -109,17 +106,13 @@ public class SplitTestUtils {
                     launchAdjacentController, windowDecorViewModel, splitState,
                     desktopTasksController, desktopUserRepositories, rootTDAOrganizer,
                     rootDisplayAreaOrganizer,
-                    desktopState, activityTaskManager, msdlPlayer, Optional.empty());
+                    desktopState, activityTaskManager, msdlPlayer, Optional.empty(),
+                    Optional.empty());
 
             // Prepare root task for testing.
+            mSplitRootTaskInfo = new TestRunningTaskInfoBuilder().build();
             mRootLeash = new SurfaceControl.Builder().setName("test").build();
-            DisplayManager displayManager = context.getSystemService(DisplayManager.class);
-            mMultiDisplayHelper = new SplitMultiDisplayHelper(
-                    Objects.requireNonNull(displayManager));
-            mMultiDisplayHelper.setDisplayRootTaskInfo(
-                    DEFAULT_DISPLAY, new TestRunningTaskInfoBuilder().build());
-            onTaskAppeared(mMultiDisplayHelper.getDisplayRootTaskInfo(
-                    DEFAULT_DISPLAY), mRootLeash);
+            onTaskAppeared(mSplitRootTaskInfo, mRootLeash);
         }
     }
 }

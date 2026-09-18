@@ -619,12 +619,15 @@ bool ManifestFixer::BuildRules(xml::XmlActionExecutor* executor, IAaptContext* c
   manifest_action["protected-broadcast"];
   manifest_action["adopt-permissions"];
   manifest_action["uses-permission"];
+  manifest_action["uses-permission"]["general-purpose"];
   manifest_action["uses-permission"]["purpose"];
   manifest_action["uses-permission"]["required-feature"].Action(RequiredNameIsNotEmpty);
   manifest_action["uses-permission"]["required-not-feature"].Action(RequiredNameIsNotEmpty);
   manifest_action["uses-permission-sdk-23"];
+  manifest_action["uses-permission-sdk-23"]["general-purpose"];
   manifest_action["uses-permission-sdk-23"]["purpose"];
   manifest_action["permission"];
+  manifest_action["permission"]["valid-general-purpose"].Action(RequiredNameIsNotEmpty);
   manifest_action["permission"]["valid-purpose"].Action(RequiredNameIsNotEmpty);
   manifest_action["permission"]["meta-data"] = meta_data_action;
   manifest_action["permission-tree"];
@@ -648,6 +651,9 @@ bool ManifestFixer::BuildRules(xml::XmlActionExecutor* executor, IAaptContext* c
 
   manifest_action["key-sets"]["key-set"]["public-key"];
   manifest_action["key-sets"]["upgrade-key-set"];
+
+  manifest_action["allow-component-access"]["package"].Action(RequiredNameIsJavaPackage);
+  manifest_action["allow-component-access"]["package"]["additional-certificate"];
 
   // Application actions.
   xml::XmlNodeAction& application_action = manifest_action["application"];
@@ -749,11 +755,10 @@ static bool RenameManifestPackage(StringPiece package_override, xml::Element* ma
             child_el->name == "provider" || child_el->name == "receiver" ||
             child_el->name == "service") {
           FullyQualifyClassName(original_package, xml::kSchemaAndroid, "name", child_el);
-          continue;
-        }
-
-        if (child_el->name == "activity-alias") {
-          FullyQualifyClassName(original_package, xml::kSchemaAndroid, "targetActivity", child_el);
+          if (child_el->name == "activity-alias") {
+            FullyQualifyClassName(original_package, xml::kSchemaAndroid, "targetActivity",
+                                  child_el);
+          }
           continue;
         }
 

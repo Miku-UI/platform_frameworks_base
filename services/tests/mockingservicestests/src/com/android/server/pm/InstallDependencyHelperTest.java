@@ -16,7 +16,7 @@
 
 package com.android.server.pm;
 
-import static android.content.pm.Flags.FLAG_SDK_DEPENDENCY_INSTALLER;
+import static android.content.pm.Flags.FLAG_SDK_DEPENDENCY_INSTALLER_DEPRECATION;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -35,7 +35,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.OutcomeReceiver;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
@@ -60,7 +60,7 @@ import java.util.concurrent.TimeUnit;
 
 @Presubmit
 @RunWith(JUnit4.class)
-@RequiresFlagsEnabled(FLAG_SDK_DEPENDENCY_INSTALLER)
+@RequiresFlagsDisabled(FLAG_SDK_DEPENDENCY_INSTALLER_DEPRECATION)
 public class InstallDependencyHelperTest {
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();

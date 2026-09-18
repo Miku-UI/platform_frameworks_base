@@ -29,6 +29,7 @@ import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.text.Annotation;
 import android.text.Spannable;
 import android.text.SpannableString;
+import android.text.Spanned;
 import android.text.SpannedString;
 import android.text.TextPaint;
 import android.text.TextUtils;
@@ -106,6 +107,7 @@ public final class StringBlock implements Closeable {
 
     @Nullable
     public CharSequence getSequence(int idx) {
+        CharSequence sparseStringRes = null;
         synchronized (this) {
             if (mStrings != null) {
                 CharSequence res = mStrings[idx];
@@ -113,10 +115,7 @@ public final class StringBlock implements Closeable {
                     return res;
                 }
             } else if (mSparseStrings != null) {
-                CharSequence res = mSparseStrings.get(idx);
-                if (res != null) {
-                    return res;
-                }
+                sparseStringRes = mSparseStrings.get(idx);
             } else {
                 final int num = nativeGetSize(mNative);
                 if (mUseSparse && num > 250) {
@@ -125,6 +124,12 @@ public final class StringBlock implements Closeable {
                     mStrings = new CharSequence[num];
                 }
             }
+        }
+        if (sparseStringRes != null) {
+            sparseStringRes = applyFontWeightAdjustment(sparseStringRes);
+            return sparseStringRes;
+        }
+        synchronized (this) {
             String str = nativeGetString(mNative, idx);
             if (str == null) {
                 return null;
@@ -195,6 +200,45 @@ public final class StringBlock implements Closeable {
             }
             return res;
         }
+    }
+
+    private static CharSequence applyFontWeightAdjustment(CharSequence res) {
+        if (Flags.applyFontWeightAdjustmentOnCachedStrings()) {
+            if (!(res instanceof Spanned spannedText)) {
+                return res;
+            }
+            Application application = ActivityThread.currentApplication();
+            if (application == null) {
+                return res;
+            }
+            int fontWeightAdjustment =
+                    application.getResources().getConfiguration()
+                            .fontWeightAdjustment;
+
+            StyleSpan[] spans = spannedText.getSpans(0, res.length(), StyleSpan.class);
+            if (spans.length == 0) {
+                return res;
+            }
+            SpannableString buffer = null;
+            for (StyleSpan span : spans) {
+                if (span.getStyle() == Typeface.BOLD && span.getFontWeightAdjustment()
+                        != fontWeightAdjustment) {
+                    if (buffer == null) {
+                        buffer = new SpannableString(res);
+                    }
+                    // Remove the old span to avoid duplication.
+                    buffer.removeSpan(span);
+                    buffer.setSpan(new StyleSpan(Typeface.BOLD, fontWeightAdjustment),
+                            spannedText.getSpanStart(span),
+                            spannedText.getSpanEnd(span),
+                            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+            }
+            if (buffer != null) {
+                res = new SpannedString(buffer);
+            }
+        }
+        return res;
     }
 
     @Override

@@ -21,7 +21,10 @@ import com.android.protolog.tool.Constants.VERSION
 import java.io.StringWriter
 
 class ViewerConfigJsonBuilder : ProtoLogTool.ProtologViewerConfigBuilder {
-    override fun build(groups: Collection<LogGroup>, statements: Map<ProtoLogTool.LogCall, Long>): ByteArray {
+    override fun build(
+        groups: Collection<LogGroup>,
+        statements: Map<ProtoLogTool.LogCall, Long>,
+    ): ByteArray {
         val stringWriter = StringWriter()
         val writer = JsonWriter(stringWriter)
         writer.setIndent("  ")
@@ -46,13 +49,15 @@ class ViewerConfigJsonBuilder : ProtoLogTool.ProtologViewerConfigBuilder {
         writer.endObject()
         writer.name("groups")
         writer.beginObject()
-        groups.toSortedSet { o1, o2 -> o1.name.compareTo(o2.name) }.forEach { group ->
-            writer.name(group.name)
-            writer.beginObject()
-            writer.name("tag")
-            writer.value(group.tag)
-            writer.endObject()
-        }
+        groups
+            .toSortedSet { o1, o2 -> o1.name.compareTo(o2.name) }
+            .forEach { group ->
+                writer.name(group.name)
+                writer.beginObject()
+                writer.name("tag")
+                writer.value(group.tag)
+                writer.endObject()
+            }
         writer.endObject()
         writer.endObject()
         stringWriter.buffer.append('\n')

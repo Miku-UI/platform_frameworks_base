@@ -17,7 +17,6 @@
 package com.android.systemui.doze.util
 
 import android.util.MathUtils
-import com.android.systemui.shared.Flags
 
 private const val MILLIS_PER_MINUTES = 1000 * 60f
 private const val BURN_IN_PREVENTION_PERIOD_Y = 271f
@@ -55,7 +54,7 @@ fun getBurnInProgressOffset(): Float {
 
 /** Returns a value to scale a view in order to avoid burn in. */
 fun getBurnInScale(): Float {
-    val baseBurninScale = if (Flags.clockReactiveSmartspaceLayout()) 0.75f else 0.8f
+    val baseBurninScale = 0.75f
     return baseBurninScale +
         zigzag(
             System.currentTimeMillis() / MILLIS_PER_MINUTES,

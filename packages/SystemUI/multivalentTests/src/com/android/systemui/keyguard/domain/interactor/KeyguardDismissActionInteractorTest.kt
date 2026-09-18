@@ -25,27 +25,30 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
 import com.android.systemui.bouncer.data.repository.fakeKeyguardBouncerRepository
-import com.android.systemui.deviceentry.data.repository.fakeDeviceEntryRepository
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
 import com.android.systemui.flags.EnableSceneContainer
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.data.repository.keyguardRepository
+import com.android.systemui.keyguard.shared.model.BiometricUnlockSource
 import com.android.systemui.keyguard.shared.model.DismissAction
 import com.android.systemui.keyguard.shared.model.KeyguardDone
-import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.scene.data.model.contains
 import com.android.systemui.scene.data.repository.HideOverlay
 import com.android.systemui.scene.data.repository.Idle
+import com.android.systemui.scene.data.repository.Transition
 import com.android.systemui.scene.data.repository.setSceneTransition
+import com.android.systemui.scene.data.repository.unlockDevice
+import com.android.systemui.scene.domain.interactor.sceneBackInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.domain.interactor.enableSingleShade
+import com.android.systemui.statusbar.phone.BiometricUnlockController
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -198,11 +201,42 @@ class KeyguardDismissActionInteractorTest : SysuiTestCase() {
             )
             assertThat(wasDismissActionInvoked).isFalse()
 
-            fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-                SuccessFingerprintAuthenticationStatus(0, true)
+            kosmos.biometricUnlockInteractor.setBiometricUnlockState(
+                unlockStateInt = BiometricUnlockController.MODE_DISMISS,
+                biometricUnlockSource = BiometricUnlockSource.FINGERPRINT_SENSOR,
             )
             setSceneTransition(Idle(Scenes.Gone))
             sceneInteractor.changeScene(Scenes.Gone, "")
+
+            assertThat(wasDismissActionInvoked).isTrue()
+            assertThat(keyguardRepository.dismissAction.value).isEqualTo(DismissAction.None)
+        }
+
+    @Test
+    fun dismissActionExecuted_WhenKeyguardDismissedBelowShade() =
+        kosmos.runTest {
+            var wasDismissActionInvoked = false
+            startInteractor()
+
+            // The device is already unlocked (but on the lockscreen), and the shade is open on top
+            unlockDevice()
+            setSceneTransition(Transition(Scenes.Lockscreen, Scenes.Shade, progress = flowOf(1f)))
+            sceneBackInteractor.onSceneChange(Scenes.Lockscreen, Scenes.Shade)
+
+            // A keyguard action will run after the keyguard is gone
+            val onDismissAction = { wasDismissActionInvoked = true }
+            keyguardRepository.setDismissAction(
+                DismissAction.RunAfterKeyguardGone(
+                    dismissAction = onDismissAction,
+                    onCancelAction = {},
+                    message = "message",
+                    willAnimateOnLockscreen = true,
+                )
+            )
+            assertThat(wasDismissActionInvoked).isFalse()
+
+            // The lockscreen is removed from the back stack
+            sceneBackInteractor.replaceLockscreenSceneOnBackStack("test")
 
             assertThat(wasDismissActionInvoked).isTrue()
             assertThat(keyguardRepository.dismissAction.value).isEqualTo(DismissAction.None)
@@ -285,7 +319,7 @@ class KeyguardDismissActionInteractorTest : SysuiTestCase() {
             var wasDismissActionInvoked = false
             var wasCancelActionInvoked = false
             fakeAuthenticationRepository.setAuthenticationMethod(AuthenticationMethodModel.None)
-            fakeDeviceEntryRepository.setLockscreenEnabled(true)
+            fakeKeyguardRepository.setKeyguardEnabled(true)
             assertThat(canSwipeToEnter).isTrue()
             sceneInteractor.changeScene(Scenes.QuickSettings, "")
             transitionState.value = ObservableTransitionState.Idle(Scenes.QuickSettings)
@@ -340,26 +374,29 @@ class KeyguardDismissActionInteractorTest : SysuiTestCase() {
             assertThat(currentScene).isEqualTo(Scenes.Gone)
 
             assertThat(wasDismissActionInvoked).isTrue()
-            assertThat(wasCancelActionInvoked).isFalse()
+            assertThat(wasCancelActionInvoked).isTrue()
         }
 
     @Test
-    fun clearDismissAction() =
+    fun clearDismissAction_dismissActionSetToNoneAndPreviousCancelActionTriggered() =
         kosmos.runTest {
             val dismissAction by collectLastValue(fakeKeyguardRepository.dismissAction)
+            var wasCancelActionInvoked = false
             fakeKeyguardRepository.setDismissAction(
                 DismissAction.RunImmediately(
                     onDismissAction = { KeyguardDone.IMMEDIATE },
-                    onCancelAction = {},
+                    onCancelAction = { wasCancelActionInvoked = true },
                     message = "",
                     willAnimateOnLockscreen = true,
                 )
             )
             assertThat(dismissAction).isNotEqualTo(DismissAction.None)
+            assertThat(wasCancelActionInvoked).isFalse()
 
             underTest.clearDismissAction()
 
             assertThat(dismissAction).isEqualTo(DismissAction.None)
+            assertThat(wasCancelActionInvoked).isTrue()
         }
 
     private fun Kosmos.startInteractor() {

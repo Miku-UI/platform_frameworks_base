@@ -22,16 +22,19 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.kosmos.testDispatcher
+import com.android.systemui.kosmos.testScope
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.pipeline.shared.TilesUpgradePath
 import com.android.systemui.qs.pipeline.shared.logging.QSPipelineLogger
 import com.android.systemui.res.R
 import com.android.systemui.retail.data.repository.FakeRetailModeRepository
+import com.android.systemui.testKosmos
+import com.android.systemui.user.data.repository.userRepository
 import com.android.systemui.user.domain.interactor.HeadlessSystemUserModeFake
 import com.android.systemui.util.settings.FakeSettings
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -45,6 +48,7 @@ import org.mockito.MockitoAnnotations
 @RunWith(AndroidJUnit4::class)
 class TileSpecSettingsRepositoryTest : SysuiTestCase() {
 
+    private val kosmos = testKosmos()
     private lateinit var secureSettings: FakeSettings
     private lateinit var retailModeRepository: FakeRetailModeRepository
     private val hsum = HeadlessSystemUserModeFake()
@@ -61,14 +65,15 @@ class TileSpecSettingsRepositoryTest : SysuiTestCase() {
                     secureSettings,
                     hsum,
                     logger,
+                    kosmos.userRepository,
                     testScope.backgroundScope,
                     testDispatcher,
                 )
             }
         }
 
-    private val testDispatcher = StandardTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
+    private val testDispatcher = kosmos.testDispatcher
+    private val testScope = kosmos.testScope
 
     private lateinit var underTest: TileSpecSettingsRepository
 

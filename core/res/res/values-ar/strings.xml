@@ -162,6 +162,10 @@
     <string name="wfc_mode_wifi_preferred_summary" msgid="1035175836270943089">"‏الاتصال عبر Wi-Fi"</string>
     <string name="wfc_mode_cellular_preferred_summary" msgid="4958965609212575619">"الاتصال عبر شبكة الجوّال"</string>
     <string name="wfc_mode_wifi_only_summary" msgid="104951993894678665">"‏Wi-Fi فقط"</string>
+    <string name="adaptive_low_frequency_less_than_one_minute" msgid="8869498183646028708">"‫~ %s"</string>
+    <string name="adaptive_low_frequency_neg_less_than_one_minute" msgid="2590062535985417056">"‫~ −%s"</string>
+    <string name="elapsed_time_low_frequency_short_format_h_mm" msgid="6728141238066668781">"‫%1$d:%2$02d:--"</string>
+    <string name="elapsed_time_low_frequency_short_format_mm" msgid="2405181895215514414">"‫%1$02d:--"</string>
     <!-- no translation found for crossSimFormat_spn (9125246077491634262) -->
     <skip />
     <string name="crossSimFormat_spn_cross_sim_calling" msgid="5620807020002879057">"<xliff:g id="SPN">%s</xliff:g> الاتصال الاحتياطي"</string>
@@ -282,6 +286,7 @@
     <string name="global_action_restart" msgid="4678451019561687074">"إعادة التشغيل"</string>
     <string name="global_action_emergency" msgid="1387617624177105088">"الطوارئ"</string>
     <string name="global_action_bug_report" msgid="5127867163044170003">"تقرير الأخطاء"</string>
+    <string name="global_action_feedback" msgid="3480836834202300036">"الملاحظات"</string>
     <string name="global_action_logout" msgid="6093581310002476511">"إنهاء الجلسة"</string>
     <string name="global_action_screenshot" msgid="2610053466156478564">"لقطة شاشة"</string>
     <string name="global_action_standby" msgid="6786920589970257642">"وضع الاستعداد"</string>
@@ -292,7 +297,7 @@
     <string name="bugreport_option_full_title" msgid="7681035745950045690">"تقرير كامل"</string>
     <string name="bugreport_option_full_summary" msgid="1975130009258435885">"يمكنك استخدام هذا الخيار للحصول على حد أدنى من تدخل النظام عند توقف استجابة الجهاز أو عند بطئها الشديد أو عند الحاجة إلى جميع أقسام التقرير. ولا يسمح لك هذا الخيار بالحصول على مزيد من التفاصيل أو تسجيل لقطات شاشة إضافية."</string>
     <string name="bugreport_countdown" msgid="6418620521782120755">"{count,plural, =1{سيتم التقاط لقطة شاشة لتقرير الخطأ خلال ثانية واحدة.}zero{سيتم التقاط لقطة شاشة لتقرير الخطأ خلال # ثانية.}two{سيتم التقاط لقطة شاشة لتقرير الخطأ خلال ثانيتين.}few{سيتم التقاط لقطة شاشة لتقرير الخطأ خلال # ثوانٍ.}many{سيتم التقاط لقطة شاشة لتقرير الخطأ خلال # ثانية.}other{سيتم التقاط لقطة شاشة لتقرير الخطأ خلال # ثانية.}}"</string>
-    <string name="bugreport_screenshot_success_toast" msgid="7986095104151473745">"تم التقاط لقطة شاشة من خلال تقرير خطأ."</string>
+    <string name="bugreport_screenshot_success_toast" msgid="7986095104151473745">"تم التقاط لقطة شاشة من خلال تقرير خطأ"</string>
     <string name="bugreport_screenshot_failure_toast" msgid="6736320861311294294">"تعذّر التقاط لقطة شاشة من خلال تقرير خطأ."</string>
     <string name="global_action_toggle_silent_mode" msgid="8464352592860372188">"وضع صامت"</string>
     <string name="global_action_silent_mode_on_status" msgid="2371892537738632013">"الصوت متوقف"</string>
@@ -330,6 +335,7 @@
     <string name="notification_channel_accessibility_hearing_device" msgid="7816963856388758952">"سماعة الأذن الطبية"</string>
     <string name="notification_channel_accessibility_security_policy" msgid="1727787021725251912">"استخدام \"أدوات تسهيل الاستخدام\""</string>
     <string name="notification_channel_display" msgid="6905032605735615090">"الشاشة"</string>
+    <string name="notification_channel_parental_controls" msgid="2963963315750128538">"أدوات رقابة الأهل"</string>
     <string name="foreground_service_app_in_background" msgid="1439289699671273555">"يستخدم تطبيق <xliff:g id="APP_NAME">%1$s</xliff:g> البطارية"</string>
     <string name="foreground_service_apps_in_background" msgid="7340037176412387863">"تستخدم <xliff:g id="NUMBER">%1$d</xliff:g> من التطبيقات البطارية"</string>
     <string name="foreground_service_tap_for_details" msgid="9078123626015586751">"انقر للحصول على تفاصيل حول البطارية واستخدام البيانات"</string>
@@ -501,7 +507,7 @@
     <string name="permdesc_broadcastSticky" product="tv" msgid="2338185920171000650">"‏للسماح للتطبيق بإرسال مواد بث ثابتة، والتي تظل متوفرة بعد انتهاء البث. وقد يؤدي الاستخدام المفرط لهذا التطبيق إلى حدوث بطء أو عدم استقرار في جهاز Android TV من خلال جعل الجهاز يستخدم قدرًا كبيرًا جدًا من الذاكرة."</string>
     <string name="permdesc_broadcastSticky" product="default" msgid="134529339678913453">"للسماح للتطبيق بإرسال مجموعات بث مستمرة، والتي تظل بعد انتهاء البث. قد يؤدي الاستخدام بكثرة إلى حدوث بطء أو عدم استقرار في الهاتف من خلال التسبب في استخدام الهاتف لمساحة كبيرة للغاية من الذاكرة."</string>
     <string name="permlab_readContacts" msgid="8776395111787429099">"قراءة جهات الاتصال"</string>
-    <string name="permdesc_readContacts" product="tablet" msgid="6430093481659992692">"يسمح هذا الإذن للتطبيق بقراءة بيانات حول جهات الاتصال المخزّنة على جهازك اللوحي. ويمكن للتطبيقات أيضًا الوصول إلى الحسابات التي تم إنشاء جهات الاتصال من خلالها على جهازك اللوحي. ويمكن أن يشمل ذلك الحسابات التي أنشأتها التطبيقات التي ثبتّها. ويتيح هذا الإذن للتطبيقات حفظ بيانات جهة الاتصال، وقد تشارك التطبيقات الضارة بيانات جهة الاتصال بدون علمك."</string>
+    <string name="permdesc_readContacts" product="tablet" msgid="6430093481659992692">"يسمح هذا الإذن للتطبيق بقراءة بيانات حول جهات الاتصال المخزّنة على جهازك اللوحي. ويمكن للتطبيق أيضًا الوصول إلى الحسابات التي تم إنشاء جهات الاتصال من خلالها على جهازك اللوحي. ويمكن أن يشمل ذلك الحسابات التي أنشأتها التطبيقات التي ثبتّها. ويتيح هذا الإذن للتطبيق حفظ بيانات جهة الاتصال، وقد تشارك التطبيقات الضارة بيانات جهة الاتصال بدون علمك."</string>
     <string name="permdesc_readContacts" product="tv" msgid="8400138591135554789">"‏يسمح هذا الإذن للتطبيق بقراءة بيانات حول جهات الاتصال المخزّنة على جهاز Android TV. ويمكن للتطبيقات أيضًا الوصول إلى الحسابات التي تم إنشاء جهات الاتصال من خلالها على جهاز Android TV. ويمكن أن يشمل ذلك الحسابات التي أنشأتها التطبيقات التي ثبتّها. ويتيح هذا الإذن للتطبيقات حفظ بيانات جهة الاتصال، وقد تشارك التطبيقات الضارة بيانات جهة الاتصال بدون علمك."</string>
     <string name="permdesc_readContacts" product="default" msgid="4911989776203207644">"يسمح هذا الإذن للتطبيق بقراءة بيانات حول جهات الاتصال المخزّنة على هاتفك. ويمكن للتطبيقات أيضًا الوصول إلى الحسابات التي تم إنشاء جهات الاتصال من خلالها على هاتفك. ويمكن أن يشمل ذلك الحسابات التي أنشأتها التطبيقات التي ثبتّها. ويتيح هذا الإذن للتطبيقات حفظ بيانات جهة الاتصال، وقد تشارك التطبيقات الضارة بيانات جهة الاتصال بدون علمك."</string>
     <string name="permlab_writeContacts" msgid="8919430536404830430">"تعديل جهات الاتصال"</string>
@@ -552,6 +558,8 @@
     <string name="permdesc_backgroundCamera" msgid="1615291686191138250">"يمكن لهذا التطبيق التقاط صور وتسجيل فيديوهات باستخدام الكاميرا في أي وقت."</string>
     <string name="permlab_systemCamera" msgid="3642917457796210580">"السماح لتطبيق أو خدمة بالوصول إلى كاميرات النظام لالتقاط صور وتسجيل فيديوهات"</string>
     <string name="permdesc_systemCamera" msgid="5938360914419175986">"‏إنّ تطبيق النظام هذا، أو التطبيق المزوّد بأذونات مميّزة، يمكنه التقاط صور وتسجيل فيديوهات باستخدام كاميرا النظام في أي وقت. ويجب أن يحصل التطبيق أيضًا على الإذن android.permission.CAMERA."</string>
+    <string name="permlab_warmUpCamera" msgid="6135692056406854923">"السماح لتطبيق أو خدمة بإرسال إشارة لتجهيز نظام الكاميرا الفرعي"</string>
+    <string name="permdesc_warmUpCamera" msgid="925343364567764736">"يمكن لتطبيق النظام هذا، أو التطبيق المزوَّد بأذونات مميّزة، إرسال إشارة لتجهيز نظام الكاميرا الفرعي من أجل تحسين الأداء، بالإضافة إلى مزايا أخرى"</string>
     <string name="permlab_cameraOpenCloseListener" msgid="5548732769068109315">"يسمح الإذن لتطبيق أو خدمة بتلقّي استدعاءات عما إذا كانت أجهزة الكاميرات مفتوحة أو مغلقة."</string>
     <string name="permdesc_cameraOpenCloseListener" msgid="2002636131008772908">"يمكن أن يتلقّى هذا التطبيق استدعاءات عندما تكون هناك كاميرا مفتوحة (بواسطة هذا التطبيق) أو مغلقة."</string>
     <string name="permlab_cameraHeadlessSystemUser" msgid="680194666834500050">"السماح لتطبيق أو خدمة بالوصول إلى الكاميرا بصفة مستخدِم لنظام بلا واجهة مستخدم رسومية"</string>
@@ -635,7 +643,7 @@
     <string name="permdesc_bluetooth" product="default" msgid="2779606714091276746">"للسماح للتطبيق بعرض إعداد البلوتوث على الهاتف وإجراء اتصالات وقبولها مع الأجهزة المقترنة."</string>
     <string name="permlab_bluetooth_scan" msgid="5402587142833124594">"اكتشاف أجهزة قريبة تتضمّن بلوتوث والاقتران بها"</string>
     <string name="permdesc_bluetooth_scan" product="default" msgid="6540723536925289276">"يسمح هذا الإذن للتطبيق باكتشاف الأجهزة القريبة التي تتضمّن بلوتوث والاقتران بها."</string>
-    <string name="permlab_bluetooth_connect" msgid="6657463246355003528">"تسمح بالربط الأجهزة المقترنة التي تتضمّن بلوتوث."</string>
+    <string name="permlab_bluetooth_connect" msgid="6657463246355003528">"الاتصال بالأجهزة المقترنة التي تتضمّن بلوتوث"</string>
     <string name="permdesc_bluetooth_connect" product="default" msgid="4546016548795544617">"يسمح هذا الإذن للتطبيق بالارتباط بالأجهزة المقترنة التي تتضمّن بلوتوث."</string>
     <string name="permlab_bluetooth_advertise" msgid="2781147747928853177">"عرض الإعلانات على الأجهزة القريبة التي تتضمن بلوتوث"</string>
     <string name="permdesc_bluetooth_advertise" product="default" msgid="6085174451034210183">"للسماح للتطبيق بعرض إعلانات على الأجهزة القريبة التي تتضمّن بلوتوث."</string>
@@ -645,6 +653,10 @@
     <string name="permdesc_nearby_wifi_devices" msgid="3054307728646332906">"‏للسماح للتطبيق بعرض الإعلانات والاتصال بالأجهزة الأخرى وتحديد الموقع النسبي لأجهزة Wi-Fi المجاورة."</string>
     <string name="permlab_access_local_network" msgid="3420360767259066877">"الوصول إلى الأجهزة المتصلة بالشبكة المحلية"</string>
     <string name="permdesc_access_local_network" msgid="6364679803386822638">"يسمح هذا الإذن للتطبيق بالوصول إلى الأجهزة المتصلة بالشبكة المحلية"</string>
+    <string name="permlab_use_loopback_interface" msgid="8032765172835686213">"استخدام واجهة الاسترجاع"</string>
+    <string name="permdesc_use_loopback_interface" msgid="47684087751145157">"يسمح هذا الإذن للتطبيق بالتفاعل مع تطبيقات أخرى عبر واجهة الاسترجاع"</string>
+    <string name="permlab_force_use_loopback_interface" msgid="1319727311706416481">"فرض استخدام واجهة الاسترجاع"</string>
+    <string name="permdesc_force_use_loopback_interface" msgid="5829032514048681980">"يسمح هذا الإذن للتطبيق بالتفاعل مع تطبيقات أخرى عبر واجهة الاسترجاع بدون الحاجة إلى منح التطبيق الآخر أذونات الاسترجاع"</string>
     <string name="permlab_ranging" msgid="2854543350668593390">"تحديد الموضع النسبي بين الأجهزة المجاورة"</string>
     <string name="permdesc_ranging" msgid="6703905535621521710">"يسمح هذا الإذن للتطبيق بتحديد الموضع النسبي بين الأجهزة المجاورة"</string>
     <string name="permlab_preferredPaymentInfo" msgid="5274423844767445054">"‏معلومات الخدمات المدفوعة باستخدام الاتصال قصير المدى NFC المفضّل"</string>
@@ -702,7 +714,7 @@
     <string name="biometric_dialog_secondary_display_toast" product="tablet" msgid="2855203015454795660">"يجب إثبات هويتك على جهازك اللوحي للمتابعة"</string>
     <string name="biometric_error_hw_unavailable" msgid="2494077380540615216">"معدّات المقاييس الحيوية غير متاحة."</string>
     <string name="biometric_error_user_canceled" msgid="6732303949695293730">"تم إلغاء المصادقة."</string>
-    <string name="biometric_not_recognized" msgid="5106687642694635888">"لم يتم التعرف عليها."</string>
+    <string name="biometric_not_recognized" msgid="5106687642694635888">"لم يتم التعرف على مقاييسك الحيوية"</string>
     <string name="biometric_face_not_recognized" msgid="5535599455744525200">"لم يتم التعرّف على الوجه."</string>
     <string name="biometric_error_canceled" msgid="8266582404844179778">"تم إلغاء المصادقة."</string>
     <string name="biometric_error_device_not_secured" msgid="3129845065043995924">"لم يتم ضبط رقم تعريف شخصي أو نقش أو كلمة مرور."</string>
@@ -724,7 +736,7 @@
   </string-array>
     <string name="fingerprint_error_not_match" msgid="4599441812893438961">"لم يتمّ التعرّف على البصمة."</string>
     <string name="fingerprint_udfps_error_not_match" msgid="8236930793223158856">"لم يتمّ التعرّف على بصمة الإصبع."</string>
-    <string name="fingerprint_dialog_use_fingerprint_instead" msgid="5590293588784953188">"لم يتم التعرّف على الوجه. استخدِم بصمة إصبعك."</string>
+    <string name="fingerprint_dialog_use_fingerprint_instead" msgid="5590293588784953188">"لم يتم التعرّف على وجهك. يُرجى استخدام بصمة إصبعك."</string>
     <string name="fingerprint_authenticated" msgid="2024862866860283100">"تم مصادقة بصمة الإصبع"</string>
     <string name="face_authenticated_no_confirmation_required" msgid="8867889115112348167">"تمّت مصادقة الوجه"</string>
     <string name="face_authenticated_confirmation_required" msgid="6872632732508013755">"تمّت مصادقة الوجه، يُرجى الضغط على \"تأكيد\"."</string>
@@ -739,7 +751,7 @@
     <string name="fingerprint_error_no_fingerprints" msgid="3144806556204061862">"ما مِن بصمات إصبع مسجَّلة"</string>
     <string name="fingerprint_error_hw_not_present" msgid="5898827259419366359">"لا يحتوي هذا الجهاز على جهاز استشعار بصمات الأصابع."</string>
     <string name="fingerprint_error_security_update_required" msgid="8440349108169661934">"تم مؤقتًا إيقاف أداة الاستشعار"</string>
-    <string name="fingerprint_error_bad_calibration" msgid="6770614925736183528">"يتعذّر استخدام أداة استشعار بصمة الإصبع. يُرجى التواصل مع مقدِّم خدمات إصلاح."</string>
+    <string name="fingerprint_error_bad_calibration" msgid="6770614925736183528">"لا يمكن استخدام أداة استشعار بصمة الإصبع. يُرجى التواصل مع مقدِّم خدمات إصلاح."</string>
     <string name="fingerprint_error_power_pressed" msgid="5479524500542129414">"تم الضغط على زر التشغيل"</string>
     <string name="fingerprint_name_template" msgid="8941662088160289778">"الإصبع <xliff:g id="FINGERID">%d</xliff:g>"</string>
     <string name="fingerprint_app_setting_name" msgid="4253767877095495844">"استخدام بصمة الإصبع"</string>
@@ -752,33 +764,48 @@
     <string name="fingerprint_icon_content_description" msgid="4741068463175388817">"رمز بصمة الإصبع"</string>
     <string name="device_unlock_notification_name" msgid="2632928999862915709">"فتح قفل الجهاز"</string>
     <string name="alternative_unlock_setup_notification_title" msgid="6241508547901933544">"تجربة طريقة أخرى لفتح القفل"</string>
-    <string name="alternative_face_setup_notification_content" msgid="3384959224091897331">"استخدِم ميزة \"فتح الجهاز ببصمة الوجه\" عندما لا يتم التعرف على بصمة إصبعك، مثلاً عندما تكون أصابعك مبتلة."</string>
+    <string name="alternative_face_setup_notification_content" product="default" msgid="3384959224091897331">"استخدِم ميزة \"فتح الجهاز ببصمة الوجه\" عندما لا يتم التعرف على بصمة إصبعك، مثلاً عندما تكون أصابعك مبتلة."</string>
+    <string name="alternative_face_setup_notification_content" product="desktop" msgid="8589631194028810041">"يمكنك فتح الجهاز باستخدام وجهك عندما لا يتم التعرّف على بصمة إصبعك، مثلاً عندما تكون أصابعك مبتلة"</string>
     <string name="alternative_fp_setup_notification_content" msgid="7454096947415721639">"استخدِم ميزة \"فتح الجهاز ببصمة الإصبع\" عندما لا يتم التعرف على وجهك، مثلاً عند عدم وجود ضوء كافٍ."</string>
-    <string name="face_recalibrate_notification_name" msgid="7311163114750748686">"فتح الجهاز ببصمة الوجه"</string>
-    <string name="face_recalibrate_notification_title" msgid="2524791952735579082">"مشكلة متعلّقة بميزة \"فتح الجهاز ببصمة الوجه\""</string>
+    <string name="face_recalibrate_notification_name" product="default" msgid="7311163114750748686">"فتح الجهاز ببصمة الوجه"</string>
+    <string name="face_recalibrate_notification_name" product="desktop" msgid="6343244778393495390">"فتح الجهاز ببصمة الوجه"</string>
+    <string name="face_recalibrate_notification_title" product="default" msgid="2524791952735579082">"مشكلة متعلّقة بميزة \"فتح الجهاز ببصمة الوجه\""</string>
+    <string name="face_recalibrate_notification_title" product="desktop" msgid="7502893130398903561">"تعذَّر فتح الجهاز ببصمة الوجه"</string>
     <string name="face_recalibrate_notification_content" msgid="3064513770251355594">"انقر لحذف نموذج الوجه ثم أضِف نموذجًا لوجهك مرة أخرى."</string>
-    <string name="face_sensor_privacy_enabled" msgid="7407126963510598508">"‏لاستخدام ميزة \"فتح الجهاز ببصمة الوجه\"، عليك منح إذن "<b>"الوصول إلى الكاميرا"</b>" في الإعدادات &gt; الخصوصية."</string>
+    <string name="face_sensor_privacy_enabled" product="default" msgid="7407126963510598508">"‏لاستخدام ميزة \"فتح الجهاز ببصمة الوجه\"، عليك منح إذن "<b>"الوصول إلى الكاميرا"</b>" في الإعدادات &gt; الخصوصية."</string>
+    <string name="face_sensor_privacy_enabled" product="desktop" msgid="7690221855638766930">"‏لفتح الجهاز ببصمة الوجه، يجب منح إذن "<b>"الوصول إلى الكاميرا"</b>" في \"الإعدادات\" &gt; \"الخصوصية\""</string>
     <string name="fingerprint_recalibrate_notification_name" msgid="1414578431898579354">"فتح الجهاز ببصمة الإصبع"</string>
     <string name="fingerprint_recalibrate_notification_title" msgid="2406561052064558497">"لا يمكن استخدام مستشعر بصمات الإصبع"</string>
     <string name="fingerprint_recalibrate_notification_content" msgid="8519935717822194943">"يُرجى التواصل مع مقدِّم خدمات إصلاح."</string>
     <string name="face_acquired_insufficient" msgid="6889245852748492218">"يتعذّر إنشاء نموذج الوجه. يُرجى إعادة المحاولة."</string>
     <string name="face_acquired_too_bright" msgid="8070756048978079164">"ساطع للغاية. يُرجى تجربة مستوى سطوع أقلّ"</string>
     <string name="face_acquired_too_dark" msgid="8539853432479385326">"الإضاءة غير كافية"</string>
-    <string name="face_acquired_too_close" msgid="4453646176196302462">"يُرجى إبعاد الهاتف عن وجهك قليلاً"</string>
-    <string name="face_acquired_too_far" msgid="2922278214231064859">"يُرجى تقريب الهاتف منك"</string>
-    <string name="face_acquired_too_high" msgid="8278815780046368576">"يُرجى رفع الهاتف للأعلى"</string>
-    <string name="face_acquired_too_low" msgid="4075391872960840081">"يُرجى خفض الهاتف للأسفل"</string>
-    <string name="face_acquired_too_right" msgid="6245286514593540859">"يُرجى تحريك الهاتف لجهة اليسار"</string>
-    <string name="face_acquired_too_left" msgid="9201762240918405486">"يُرجى تحريك الهاتف لجهة اليمين"</string>
-    <string name="face_acquired_poor_gaze" msgid="4427153558773628020">"يُرجى النظر إلى جهازك مباشرة أكثر."</string>
-    <string name="face_acquired_not_detected" msgid="1057966913397548150">"ارفع هاتفك إلى مستوى العينَين لأنّه تتعذّر رؤية وجهك"</string>
-    <string name="face_acquired_too_much_motion" msgid="8199691445085189528">"حركة أكثر من اللازم. يُرجى حمل الهاتف بثبات."</string>
+    <string name="face_acquired_too_close" product="default" msgid="4453646176196302462">"يُرجى إبعاد الهاتف عن وجهك قليلاً"</string>
+    <string name="face_acquired_too_close" product="desktop" msgid="7189579448504853047">"يجب إبعاد الجهاز عن وجهك قليلاً"</string>
+    <string name="face_acquired_too_far" product="default" msgid="2922278214231064859">"يُرجى تقريب الهاتف منك"</string>
+    <string name="face_acquired_too_far" product="desktop" msgid="6590730829823321223">"يجب تقريب الجهاز من وجهك"</string>
+    <string name="face_acquired_too_high" product="default" msgid="8278815780046368576">"يُرجى رفع الهاتف للأعلى"</string>
+    <string name="face_acquired_too_high" product="desktop" msgid="717393614154504299">"يجب رفع الجهاز للأعلى"</string>
+    <string name="face_acquired_too_low" product="default" msgid="4075391872960840081">"يُرجى خفض الهاتف للأسفل"</string>
+    <string name="face_acquired_too_low" product="desktop" msgid="7695733281069538045">"يجب خفض الجهاز للأسفل"</string>
+    <string name="face_acquired_too_right" product="default" msgid="6245286514593540859">"يُرجى تحريك الهاتف لجهة اليسار"</string>
+    <string name="face_acquired_too_right" product="desktop" msgid="4058756237538843740">"يجب تحريك الجهاز إلى اليسار"</string>
+    <string name="face_acquired_too_left" product="default" msgid="9201762240918405486">"يُرجى تحريك الهاتف لجهة اليمين"</string>
+    <string name="face_acquired_too_left" product="desktop" msgid="5804819007366973778">"يجب تحريك الجهاز إلى اليمين"</string>
+    <string name="face_acquired_poor_gaze" msgid="6746437451436776485">"يُرجى النظر إلى الكاميرا مباشرةً"</string>
+    <string name="face_acquired_not_detected" product="default" msgid="1057966913397548150">"ارفع هاتفك إلى مستوى عينَيك لأنّ وجهك لا يظهر"</string>
+    <string name="face_acquired_not_detected" product="desktop" msgid="1047701586390904260">"تتعذّر رؤية وجهك. يجب رفع الجهاز إلى مستوى العين."</string>
+    <string name="face_acquired_too_much_motion" product="default" msgid="8199691445085189528">"حركة أكثر من اللازم. يُرجى حمل الهاتف بثبات."</string>
+    <string name="face_acquired_too_much_motion" product="desktop" msgid="7135563968992659161">"الجهاز يتحرك كثيرًا. يُرجى حمله بثبات."</string>
     <string name="face_acquired_recalibrate" msgid="8724013080976469746">"يُرجى إعادة تسجيل وجهك."</string>
     <string name="face_acquired_too_different" msgid="4505278456634706967">"يتعذّر التعرّف على الوجه. يُرجى إعادة المحاولة."</string>
     <string name="face_acquired_too_similar" msgid="8882920552674125694">"غيِّر موضع رأسك قليلاً."</string>
-    <string name="face_acquired_pan_too_extreme" msgid="5417928604710621088">"يُرجى النظر إلى هاتفك مباشرةً"</string>
-    <string name="face_acquired_tilt_too_extreme" msgid="5715715666540716620">"يُرجى النظر إلى هاتفك مباشرةً"</string>
-    <string name="face_acquired_roll_too_extreme" msgid="8261939882838881194">"يُرجى النظر إلى هاتفك مباشرةً"</string>
+    <string name="face_acquired_pan_too_extreme" product="default" msgid="5417928604710621088">"يُرجى النظر إلى هاتفك مباشرةً"</string>
+    <string name="face_acquired_pan_too_extreme" product="desktop" msgid="821456302944137576">"يجب النظر إلى جهازك مباشرةً"</string>
+    <string name="face_acquired_tilt_too_extreme" product="default" msgid="5715715666540716620">"يُرجى النظر إلى هاتفك مباشرةً"</string>
+    <string name="face_acquired_tilt_too_extreme" product="desktop" msgid="1119243364774233108">"يجب النظر إلى جهازك مباشرةً"</string>
+    <string name="face_acquired_roll_too_extreme" product="default" msgid="8261939882838881194">"يُرجى النظر إلى هاتفك مباشرةً"</string>
+    <string name="face_acquired_roll_too_extreme" product="desktop" msgid="3665467581072397682">"يجب النظر إلى جهازك مباشرةً"</string>
     <string name="face_acquired_obscured" msgid="4917643294953326639">"يجب إزالة أي شيء يُخفي وجهك"</string>
     <string name="face_acquired_sensor_dirty" msgid="8968391891086721678">"يُرجى تنظيف الجزء العلوي من الشاشة، بما في ذلك الشريط الأسود."</string>
     <!-- no translation found for face_acquired_dark_glasses_detected (5643703296620631986) -->
@@ -787,23 +814,29 @@
     <skip />
     <string name="face_acquired_recalibrate_alt" msgid="5702674220280332115">"يتعذّر إنشاء نموذج الوجه. يُرجى إعادة المحاولة."</string>
     <string name="face_acquired_dark_glasses_detected_alt" msgid="4052123776406041972">"تمّ رصد نظارة شمسية. يجب أن يكون وجهك ظاهرًا بالكامل."</string>
-    <string name="face_acquired_mouth_covering_detected_alt" msgid="1122294982850589766">"تمّ رصد قناع على الوجه في حين يجب ظهور وجهك بالكامل"</string>
+    <string name="face_acquired_mouth_covering_detected_alt" msgid="1122294982850589766">"أزِل الغطاء عن وجهك لأنّه لا يظهر بالكامل"</string>
   <string-array name="face_acquired_vendor">
   </string-array>
     <string name="face_error_hw_not_available" msgid="5085202213036026288">"يتعذّر التحقُّق من الوجه. الجهاز غير مُتاح."</string>
-    <string name="face_error_timeout" msgid="2598544068593889762">"جرِّب \"فتح الجهاز ببصمة الوجه\" مرة أخرى."</string>
+    <string name="face_error_timeout" product="default" msgid="2598544068593889762">"جرِّب \"فتح الجهاز ببصمة الوجه\" مرة أخرى."</string>
+    <string name="face_error_timeout" product="desktop" msgid="8136501408214657840">"يُرجى إعادة محاولة فتح الجهاز ببصمة وجهك"</string>
     <string name="face_error_no_space" msgid="5649264057026021723">"يتعذَّر تخزين بيانات الوجه الجديد. احذف الوجه القديم أولاً."</string>
     <string name="face_error_canceled" msgid="2164434737103802131">"تمّ إلغاء عملية مصادقة الوجه."</string>
-    <string name="face_error_user_canceled" msgid="5766472033202928373">"ألغى المستخدم ميزة \"فتح الجهاز ببصمة الوجه\"."</string>
+    <string name="face_error_user_canceled" product="default" msgid="5766472033202928373">"ألغى المستخدم ميزة \"فتح الجهاز ببصمة الوجه\"."</string>
+    <string name="face_error_user_canceled" product="desktop" msgid="8903551031462609651">"ألغى المستخدم عملية فتح الجهاز ببصمة الوجه"</string>
     <string name="face_error_lockout" msgid="7864408714994529437">"تمّ إجراء محاولات كثيرة. أعِد المحاولة لاحقًا."</string>
-    <string name="face_error_lockout_permanent" msgid="8533257333130473422">"أجريت محاولات كثيرة جدًا. ميزة \"فتح الجهاز ببصمة الوجه\" غير متاحة."</string>
+    <string name="face_error_lockout_permanent" product="default" msgid="8533257333130473422">"أجريت محاولات كثيرة جدًا. ميزة \"فتح الجهاز ببصمة الوجه\" غير متاحة."</string>
+    <string name="face_error_lockout_permanent" product="desktop" msgid="1885291877517229762">"تعذَّر فتح القفل باستخدام ميزة \"فتح الجهاز ببصمة الوجه\" لأنّك أجريت محاولات كثيرة جدًا."</string>
     <string name="face_error_lockout_screen_lock" msgid="5062609811636860928">"تم إجراء عدد كبير جدًا من المحاولات. أدخِل قفل الشاشة بدلاً من ذلك."</string>
     <string name="face_error_unable_to_process" msgid="5723292697366130070">"يتعذّر التحقق من الوجه. حاول مرة أخرى."</string>
-    <string name="face_error_not_enrolled" msgid="1134739108536328412">"لم يسبق لك إعداد ميزة \"فتح الجهاز ببصمة الوجه\"."</string>
-    <string name="face_error_hw_not_present" msgid="7940978724978763011">"ميزة \"فتح الجهاز ببصمة الوجه\" غير متوافقة على هذا الجهاز."</string>
+    <string name="face_error_not_enrolled" product="default" msgid="1134739108536328412">"لم يسبق لك إعداد ميزة \"فتح الجهاز ببصمة الوجه\"."</string>
+    <string name="face_error_not_enrolled" product="desktop" msgid="7350396330456504527">"لم يتم إعداد ميزة \"فتح الجهاز ببصمة الوجه\" بعد"</string>
+    <string name="face_error_hw_not_present" product="default" msgid="7940978724978763011">"ميزة \"فتح الجهاز ببصمة الوجه\" غير متوافقة على هذا الجهاز."</string>
+    <string name="face_error_hw_not_present" product="desktop" msgid="4947323392112708365">"لا تتوفّر ميزة \"فتح الجهاز ببصمة الوجه\" على هذا الجهاز"</string>
     <string name="face_error_security_update_required" msgid="5076017208528750161">"تم إيقاف جهاز الاستشعار مؤقتًا."</string>
     <string name="face_name_template" msgid="3877037340223318119">"الوجه <xliff:g id="FACEID">%d</xliff:g>"</string>
-    <string name="face_app_setting_name" msgid="5854024256907828015">"فتح الجهاز ببصمة الوجه"</string>
+    <string name="face_app_setting_name" product="default" msgid="5854024256907828015">"فتح الجهاز ببصمة الوجه"</string>
+    <string name="face_app_setting_name" product="desktop" msgid="8226850671242901114">"فتح الجهاز ببصمة الوجه"</string>
     <string name="face_or_screen_lock_app_setting_name" msgid="1603149075605709106">"استخدام ميزة \"فتح الجهاز بالتعرف على الوجه\" أو ميزة \"قفل الشاشة\""</string>
     <string name="face_dialog_default_subtitle" msgid="6620492813371195429">"استخدِم الوجه للمتابعة"</string>
     <string name="face_or_screen_lock_dialog_default_subtitle" msgid="5006381531158341844">"استخدام ميزة \"فتح القفل بالوجه\" أو ميزة \"قفل الشاشة\" للمتابعة"</string>
@@ -825,6 +858,8 @@
     <string name="permdesc_readMediaVideo" msgid="3846400073770403528">"يسمح للتطبيق بقراءة ملفات الفيديو من مساحة التخزين المشتركة."</string>
     <string name="permlab_readMediaImages" msgid="4057590631020986789">"قراءة ملفات الصور من مساحة التخزين المشتركة"</string>
     <string name="permdesc_readMediaImages" msgid="5836219373138469259">"يسمح هذا الإذن للتطبيق بقراءة ملفات الصور من مساحة التخزين المشتركة."</string>
+    <string name="permlab_readMediaDocuments" msgid="5716810755602938263">"قراءة المستندات من مساحة التخزين المشتركة"</string>
+    <string name="permdesc_readMediaDocuments" msgid="5665930210237304120">"يسمح هذا الإذن للتطبيق بقراءة المستندات من مساحة التخزين المشتركة."</string>
     <string name="permlab_readVisualUserSelect" msgid="5516204215354667586">"قراءة ملفات الفيديو والصور من مساحة التخزين المشتركة"</string>
     <string name="permdesc_readVisualUserSelect" msgid="8027174717714968217">"يسمح هذا الإذن للتطبيق بقراءة ملفات الفيديو والصور التي تختارها من مساحة التخزين المشتركة."</string>
     <string name="permlab_sdcardWrite" msgid="4863021819671416668">"تعديل محتوى مساحة التخزين المشتركة أو حذفه"</string>
@@ -1048,7 +1083,7 @@
     <string name="keyguard_password_wrong_pin_code" msgid="8583732939138432793">"‏رمز PIN غير صحيح."</string>
     <string name="keyguard_label_text" msgid="3841953694564168384">"لإلغاء التأمين، اضغط على \"القائمة\" ثم على 0."</string>
     <string name="emergency_call_dialog_number_for_display" msgid="2978165477085612673">"رقم الطوارئ"</string>
-    <string name="lockscreen_carrier_default" msgid="6192313772955399160">"لا خدمة"</string>
+    <string name="lockscreen_carrier_default" msgid="6192313772955399160">"لا توجد خدمة"</string>
     <string name="lockscreen_screen_locked" msgid="7364905540516041817">"الشاشة مؤمّنة."</string>
     <string name="lockscreen_instructions_when_pattern_enabled" msgid="7982445492532123308">"اضغط على \"القائمة\" لإلغاء التأمين أو إجراء اتصال بالطوارئ."</string>
     <string name="lockscreen_instructions_when_pattern_disabled" msgid="7434061749374801753">"اضغط على \"القائمة\" لإلغاء التأمين."</string>
@@ -1058,8 +1093,12 @@
     <string name="lockscreen_pattern_correct" msgid="8050630103651508582">"صحيح!"</string>
     <string name="lockscreen_pattern_wrong" msgid="2940138714468358458">"أعد المحاولة"</string>
     <string name="lockscreen_password_wrong" msgid="8605355913868947490">"أعد المحاولة"</string>
+    <string name="lockscreen_click_to_unlock_hint" msgid="6056691847669178119">"يُرجى النقر لفتح الجهاز"</string>
+    <string name="lockscreen_enter_to_unlock_hint" msgid="4248057180339112937">"‏يمكنك الضغط على مفتاح Enter لفتح الجهاز"</string>
+    <string name="lockscreen_key_to_unlock_hint" msgid="9042402393653798264">"يُرجى الضغط على أي مفتاح لفتح الجهاز"</string>
     <string name="lockscreen_storage_locked" msgid="634993789186443380">"فتح القفل للوصول إلى جميع الميزات والبيانات"</string>
-    <string name="faceunlock_multiple_failures" msgid="681991538434031708">"تم تجاوز الحد الأقصى لعدد محاولات فتح الجهاز ببصمة الوجه"</string>
+    <string name="faceunlock_multiple_failures" product="default" msgid="681991538434031708">"تم تجاوز الحد الأقصى لعدد محاولات فتح الجهاز ببصمة الوجه"</string>
+    <string name="faceunlock_multiple_failures" product="desktop" msgid="5388142244463490793">"تم بلوغ الحد الأقصى لعدد محاولات فتح الجهاز ببصمة الوجه"</string>
     <string name="lockscreen_missing_sim_message_short" msgid="1229301273156907613">"‏لا تتوفر شريحة SIM"</string>
     <string name="lockscreen_missing_sim_message" product="tablet" msgid="3986843848305639161">"‏لا تتوفر شريحة SIM في الجهاز اللوحي."</string>
     <string name="lockscreen_missing_sim_message" product="tv" msgid="3903140876952198273">"‏لا تتوفر شريحة SIM في جهاز Android TV."</string>
@@ -1113,6 +1152,7 @@
     <string name="lockscreen_access_pattern_cell_added_verbose" msgid="2931364927622563465">"تمت إضافة الخلية <xliff:g id="CELL_INDEX">%1$s</xliff:g>"</string>
     <string name="lockscreen_access_pattern_detected" msgid="3931150554035194012">"اكتمل النمط"</string>
     <string name="lockscreen_access_pattern_area" msgid="1288780416685002841">"منطقة النقش."</string>
+    <string name="lockscreen_access_pattern_cell_verbose" msgid="6670905066468035137">"الخلية <xliff:g id="CELL_INDEX">%1$s</xliff:g>"</string>
     <string name="keyguard_accessibility_widget_changed" msgid="7298011259508200234">"‏%1$s. التطبيق المصغَّر %2$d من %3$d."</string>
     <string name="keyguard_accessibility_add_widget" msgid="8245795023551343672">"إضافة تطبيق مصغَّر."</string>
     <string name="keyguard_accessibility_widget_empty_slot" msgid="544239307077644480">"فارغة"</string>
@@ -1129,7 +1169,8 @@
     <string name="keyguard_accessibility_expand_lock_area" msgid="4215280881346033434">"توسيع منطقة فتح القفل."</string>
     <string name="keyguard_accessibility_slide_unlock" msgid="2968195219692413046">"فتح القفل باستخدام التمرير."</string>
     <string name="keyguard_accessibility_pattern_unlock" msgid="8669128146589233293">"فتح القفل باستخدام النقش."</string>
-    <string name="keyguard_accessibility_face_unlock" msgid="4533832120787386728">"فتح الجهاز ببصمة الوجه"</string>
+    <string name="keyguard_accessibility_face_unlock" product="default" msgid="4533832120787386728">"فتح الجهاز ببصمة الوجه"</string>
+    <string name="keyguard_accessibility_face_unlock" product="desktop" msgid="6739732585954513653">"يمكنك فتح قفل الجهاز باستخدام وجهك."</string>
     <string name="keyguard_accessibility_pin_unlock" msgid="4020864007967340068">"‏فتح القفل باستخدام رمز PIN."</string>
     <string name="keyguard_accessibility_sim_pin_unlock" msgid="4895939120871890557">"‏فتح قفل رقم التعريف الشخصي لشريحة SIM."</string>
     <string name="keyguard_accessibility_sim_puk_unlock" msgid="3459003464041899101">"‏فتح قفل مفتاح PUK لشريحة SIM."</string>
@@ -1179,7 +1220,7 @@
     <string name="searchview_description_submit" msgid="6771060386117334686">"إرسال طلب البحث"</string>
     <string name="searchview_description_voice" msgid="42360159504884679">"البحث الصوتي"</string>
     <string name="enable_explore_by_touch_warning_title" msgid="5095399706284943314">"‏هل تريد تفعيل ميزة Explore by Touch؟"</string>
-    <string name="enable_explore_by_touch_warning_message" product="tablet" msgid="1037295476738940824">"‏يريد <xliff:g id="ACCESSIBILITY_SERVICE_NAME">%1$s</xliff:g> تفعيل ميزة Explore by Touch. عند تفعيل ميزة Explore by Touch، سيكون بإمكانك سماع أو مشاهدة أوصاف لما تحت إصبعك أو إجراء إيماءات للتفاعل مع الجهاز اللوحي."</string>
+    <string name="enable_explore_by_touch_warning_message" product="tablet" msgid="1037295476738940824">"تريد خدمة <xliff:g id="ACCESSIBILITY_SERVICE_NAME">%1$s</xliff:g> تفعيل ميزة \"الاستكشاف باللمس\". عند تفعيلها، سيكون بإمكانك سماع أو مشاهدة أوصاف لما تحت إصبعك أو إجراء إيماءات للتفاعل مع الجهاز اللوحي."</string>
     <string name="enable_explore_by_touch_warning_message" product="default" msgid="4312979647356179250">"‏يريد <xliff:g id="ACCESSIBILITY_SERVICE_NAME">%1$s</xliff:g> تفعيل ميزة Explore by Touch. عند تفعيل ميزة Explore by Touch، سيكون بإمكانك سماع أو مشاهدة أوصاف لما تحت إصبعك أو إجراء إيماءات للتفاعل مع الهاتف."</string>
     <string name="oneMonthDurationPast" msgid="4538030857114635777">"قبل شهر واحد"</string>
     <string name="beforeOneMonthDurationPast" msgid="8315149541372065392">"قبل شهر واحد"</string>
@@ -1245,7 +1286,7 @@
     <string name="redo" msgid="7231448494008532233">"إعادة"</string>
     <string name="autofill" msgid="511224882647795296">"الملء التلقائي"</string>
     <string name="textSelectionCABTitle" msgid="5151441579532476940">"تحديد النص"</string>
-    <string name="addToDictionary" msgid="8041821113480950096">"إضافة إلى القاموس"</string>
+    <string name="addToDictionary" msgid="8041821113480950096">"الإضافة إلى القاموس"</string>
     <string name="deleteText" msgid="4200807474529938112">"حذف"</string>
     <string name="inputMethod" msgid="1784759500516314751">"طريقة الإرسال"</string>
     <string name="editTextMenuTitle" msgid="857666911134482176">"إجراءات النص"</string>
@@ -1279,6 +1320,7 @@
     <string name="whichApplicationLabel" msgid="7852182961472531728">"إكمال الإجراء"</string>
     <string name="whichViewApplication" msgid="5733194231473132945">"فتح باستخدام"</string>
     <string name="whichViewApplicationNamed" msgid="415164730629690105">"‏فتح باستخدام %1$s"</string>
+    <string name="open_app_name" msgid="6114096770130122912">"فتح \"<xliff:g id="APP_NAME">%1$s</xliff:g>\""</string>
     <string name="whichViewApplicationLabel" msgid="7367556735684742409">"فتح"</string>
     <string name="whichOpenHostLinksWith" msgid="7645631470199397485">"فتح روابط <xliff:g id="HOST">%1$s</xliff:g> باستخدام"</string>
     <string name="whichOpenLinksWith" msgid="1120936181362907258">"فتح الروابط باستخدام"</string>
@@ -1445,6 +1487,9 @@
     <string name="carrier_app_notification_text" msgid="6567057546341958637">"انقر لإعداده."</string>
     <string name="time_zone_change_notification_title" msgid="5232503069219193218">"تم تغيير منطقتك الزمنية"</string>
     <string name="time_zone_change_notification_body" msgid="6135793674904665585">"أنت الآن في <xliff:g id="TIME_ZONE_DISPLAY_NAME">%1$s</xliff:g> (<xliff:g id="TIME_ZONE_OFFSET">%2$s</xliff:g>)."</string>
+    <string name="time_zone_offset_change_notification_title" msgid="8232305835199459588">"تغيير التوقيت"</string>
+    <string name="time_zone_offset_change_notification_body_forward" msgid="1299493962341887576">"تم تقديم الوقت بمقدار <xliff:g id="TIME_ZONE_OFFSET_DURATION">%1$s</xliff:g>، وأصبح الآن على <xliff:g id="TIME_ZONE_DISPLAY_NAME">%2$s</xliff:g>‏ (<xliff:g id="TIME_ZONE_OFFSET_0">%3$s</xliff:g>)."</string>
+    <string name="time_zone_offset_change_notification_body_backward" msgid="6643532078142642118">"تم تأخير الساعة بمقدار <xliff:g id="TIME_ZONE_OFFSET_DURATION">%1$s</xliff:g>. أنت الآن في <xliff:g id="TIME_ZONE_DISPLAY_NAME">%2$s</xliff:g>‏ (<xliff:g id="TIME_ZONE_OFFSET_0">%3$s</xliff:g>)."</string>
     <string name="time_picker_dialog_title" msgid="9053376764985220821">"ضبط الوقت"</string>
     <string name="date_picker_dialog_title" msgid="5030520449243071926">"تعيين التاريخ"</string>
     <string name="date_time_set" msgid="4603445265164486816">"ضبط"</string>
@@ -1480,10 +1525,18 @@
     <string name="console_running_notification_message" msgid="7892751888125174039">"الأداء متأثر. لإيقاف وحدة التحكّم، تحقّق من برنامج الإقلاع."</string>
     <string name="mte_override_notification_title" msgid="4731115381962792944">"‏الميزة التجريبية إضافة وضع علامات الذاكرة (MTE) مفعّلة"</string>
     <string name="mte_override_notification_message" msgid="2441170442725738942">"‏قد تؤثر إضافة وضع علامات الذاكرة (MTE) على الأداء والثبات. يمكنك إعادة تشغيل النظام لإيقاف هذه الإضافة. إذا كانت مفعّلة باستخدام arm64.memtag.bootctl، يمكنك ضبطها على \"بدون\" بشكل مُسبق."</string>
-    <string name="usb_contaminant_detected_title" msgid="4359048603069159678">"‏السوائل أو الشوائب في منفذ USB"</string>
+    <string name="usb_contaminant_detected_title" msgid="4359048603069159678">"‏هناك سوائل أو شوائب في منفذ USB"</string>
     <string name="usb_contaminant_detected_message" msgid="7346100585390795743">"‏تمّ إيقاف منفذ USB تلقائيًا. انقُر لمعرفة المزيد من المعلومات."</string>
     <string name="usb_contaminant_not_detected_title" msgid="2651167729563264053">"‏مسموح باستخدام منفذ USB"</string>
     <string name="usb_contaminant_not_detected_message" msgid="892863190942660462">"لم يَعُد الهاتف يكتشف سوائل أو شوائب."</string>
+    <string name="usb_authorization_notify_on_screenlock_title" msgid="4219670768084927681">"‏تم توصيل جهاز USB جديد"</string>
+    <string name="usb_authorization_notify_on_screenlock_message" msgid="3391658768099414499">"‏يُرجى تسجيل الدخول للوثوق في جهاز USB هذا وبدء استخدامه."</string>
+    <string name="usb_authorization_notify_on_screenlock_message_multiple" msgid="1722575755931059980">"‏يُرجى تسجيل الدخول للوثوق في أجهزة USB هذه وبدء استخدامها."</string>
+    <string name="usb_authorization_notify_finish_logging_in_title" msgid="3417036506115006412">"‏تم توصيل جهاز USB جديد"</string>
+    <string name="usb_authorization_notify_finish_logging_in_message" msgid="7996802340128367690">"‏يُرجى تسجيل الدخول خلال <xliff:g id="NUM_SECONDS">%1$d</xliff:g> ثانية للوثوق تمامًا في جهاز USB هذا، وإلّا سيكون عليك فصله ثم إعادة توصيله."</string>
+    <string name="usb_authorization_notify_finish_logging_in_title_multiple" msgid="3184839817149193434">"‏تم توصيل أجهزة USB جديدة"</string>
+    <string name="usb_authorization_notify_finish_logging_in_message_multiple" msgid="6745916608298736853">"‏يُرجى تسجيل الدخول خلال <xliff:g id="NUM_SECONDS">%1$d</xliff:g> ثانية للوثوق تمامًا في أجهزة USB هذه، وإلّا سيكون عليك فصلها ثم إعادة توصيلها."</string>
+    <string name="notification_channel_usb_authorization" msgid="7567851967410736399">"‏إذن استخدام جهاز USB"</string>
     <string name="taking_remote_bugreport_notification_title" msgid="1582531382166919850">"جارٍ الحصول على تقرير الخطأ…"</string>
     <string name="share_remote_bugreport_notification_title" msgid="6708897723753334999">"هل تريد مشاركة تقرير الخطأ؟"</string>
     <string name="sharing_remote_bugreport_notification_title" msgid="3077385149217638550">"جارٍ مشاركة تقرير الخطأ…"</string>
@@ -1627,6 +1680,9 @@
     <string name="gpsNotifMessage" msgid="7346649122793758032">"مطلوب من <xliff:g id="NAME">%1$s</xliff:g> (<xliff:g id="SERVICE">%2$s</xliff:g>)"</string>
     <string name="gpsVerifYes" msgid="3719843080744112940">"نعم"</string>
     <string name="gpsVerifNo" msgid="1671201856091564741">"لا"</string>
+    <string name="emergency_location_notification_title" msgid="917557758257778958">"تمت مشاركة الموقع الجغرافي للحالة الطارئة"</string>
+    <string name="emergency_location_notification_message" msgid="1877038822515882885">"تلقّت خدمات الطوارئ موقعك الجغرافي من مشغّل شبكة الجوال"</string>
+    <string name="emergency_location_notification_learn_more" msgid="8718634939217070481">"مزيد من المعلومات"</string>
     <string name="sync_too_many_deletes" msgid="6999440774578705300">"تم تجاوز حد الحذف."</string>
     <string name="sync_too_many_deletes_desc" msgid="7409327940303504440">"هناك <xliff:g id="NUMBER_OF_DELETED_ITEMS">%1$d</xliff:g> من العناصر المحذوفة لـ <xliff:g id="TYPE_OF_SYNC">%2$s</xliff:g>، في حساب <xliff:g id="ACCOUNT_NAME">%3$s</xliff:g>. ماذا تريد أن تفعل؟"</string>
     <string name="sync_really_delete" msgid="5657871730315579051">"حذف العناصر"</string>
@@ -1797,8 +1853,8 @@
     <string name="accessibility_shortcut_single_service_warning" msgid="6363127705112844257">"‏يؤدي الضغط مع الاستمرار لبضع ثوانٍ على كلا مفتاحَي التحكّم في مستوى الصوت إلى تفعيل <xliff:g id="SERVICE">%1$s</xliff:g> وهي إحدى ميزات إمكانية الوصول. يمكن أن يؤدي هذا الإجراء إلى تغيير كيفية عمل جهازك.\n\nيمكنك تغيير هذا الاختصار لاستخدامه مع ميزة أخرى في الإعدادات &gt; أدوات تمكين الوصول."</string>
     <string name="accessibility_shortcut_on" msgid="5463618449556111344">"تفعيل"</string>
     <string name="accessibility_shortcut_off" msgid="3651336255403648739">"عدم التفعيل"</string>
-    <string name="accessibility_shortcut_menu_item_status_on" msgid="6608392117189732543">"مفعّل"</string>
-    <string name="accessibility_shortcut_menu_item_status_off" msgid="5531598275559472393">"غير مفعّل"</string>
+    <string name="accessibility_shortcut_menu_item_status_on" msgid="6162756705754654002">"مُفعّلة"</string>
+    <string name="accessibility_shortcut_menu_item_status_off" msgid="6274512913017713543">"غير مفعّلة"</string>
     <string name="accessibility_enable_service_title" msgid="3931558336268541484">"هل تريد السماح لـ \"<xliff:g id="SERVICE">%1$s</xliff:g>\" بالتحكّم الكامل في جهازك؟"</string>
     <string name="accessibility_service_warning_description" msgid="291674995220940133">"إنّ التحكّم الكامل ليس ملائمًا لمعظم التطبيقات، باستثناء التطبيقات المعنية بتسهيل الاستخدام."</string>
     <string name="accessibility_service_screen_control_title" msgid="190017412626919776">"قراءة محتوى الشاشة والتحكم به"</string>
@@ -1812,6 +1868,12 @@
     <string name="accessibility_select_shortcut_menu_title" msgid="6002726538854613272">"انقر على ميزة لبدء استخدامها:"</string>
     <string name="accessibility_edit_shortcut_menu_button_title" msgid="239446795930436325">"اختيار الميزات التي تريد استخدامها مع زر أدوات تمكين الوصول"</string>
     <string name="accessibility_edit_shortcut_menu_volume_title" msgid="2245540598834891500">"اختيار الميزات التي تريد استخدامها مع اختصار مفتاحَي مستوى الصوت"</string>
+    <string name="accessibility_shortcut_label_button" msgid="6473341300585254821">"زر أدوات تسهيل الاستخدام"</string>
+    <string name="accessibility_shortcut_label_volume_keys" msgid="5642990791242136231">"مفتاحا مستوى الصوت"</string>
+    <string name="accessibility_shortcut_label_gesture" msgid="7987298674836890931">"إيماءة"</string>
+    <string name="accessibility_shortcut_label_quick_settings" msgid="6851280333772213611">"الإعدادات السريعة"</string>
+    <string name="accessibility_shortcut_label_triple_tap" msgid="9058975959054454796">"النقر ثلاث مرّات"</string>
+    <string name="accessibility_shortcut_label_top_row_key" msgid="1488840908672437180">"مفتاح تسهيل الاستخدام"</string>
     <string name="accessibility_uncheck_legacy_item_warning" msgid="8047830891064817447">"تم إيقاف <xliff:g id="SERVICE_NAME">%s</xliff:g>."</string>
     <string name="edit_accessibility_shortcut_menu_button" msgid="8885752738733772935">"تعديل الاختصارات"</string>
     <string name="done_accessibility_shortcut_menu_button" msgid="3668407723770815708">"تم"</string>
@@ -1835,7 +1897,7 @@
     <string name="accessibility_gesture_prompt_text" msgid="6452246951969541792">"اختيار ميزة"</string>
     <string name="accessibility_gesture_3finger_prompt_text" msgid="77745752309056152">"اختيار ميزة"</string>
     <string name="accessibility_button_instructional_text" msgid="6831154884557881996">"سيتم فتح الميزة عند النقر على زر أدوات تسهيل الاستخدام في المرة القادمة"</string>
-    <string name="accessibility_gesture_instructional_text" msgid="4133877896011098550">"سيتم فتح الميزة عند استخدام هذا الاختصار في المرة القادمة. مرِّر سريعًا من أسفل الشاشة إلى أعلاها باستخدام إصبعَين وارفعما بعدها بسرعة."</string>
+    <string name="accessibility_gesture_instructional_text" msgid="4133877896011098550">"سيتم فتح الميزة عند استخدام هذا الاختصار في المرة القادمة. عليك التمرير سريعًا من أسفل الشاشة إلى أعلاها باستخدام إصبعَين ورفعما بعدها بسرعة."</string>
     <string name="accessibility_gesture_3finger_instructional_text" msgid="1124458279366968154">"سيتم فتح الميزة عند استخدام هذا الاختصار في المرة القادمة. مرِّر سريعًا من أسفل الشاشة إلى أعلاها باستخدام 3 أصابع وارفع أصابعك بعدها بسرعة."</string>
     <string name="accessibility_magnification_chooser_text" msgid="1502075582164931596">"التكبير"</string>
     <string name="hearing_device_switch_phone_mic_notification_title" msgid="6645178038359708836">"هل المطلوب التبديل إلى ميكروفون الهاتف؟"</string>
@@ -1845,7 +1907,7 @@
     <string name="hearing_device_notification_switch_button" msgid="3619524619430941300">"تبديل"</string>
     <string name="hearing_device_notification_settings_button" msgid="6673651052880279178">"الإعدادات"</string>
     <string name="user_switching_message" msgid="1912993630661332336">"جارٍ التبديل إلى <xliff:g id="NAME">%1$s</xliff:g>…"</string>
-    <string name="user_logging_out_message" msgid="7216437629179710359">"جارٍ الخروج <xliff:g id="NAME">%1$s</xliff:g>…"</string>
+    <string name="user_logging_out_message" msgid="2968888364742643174">"جارٍ تسجيل الخروج…"</string>
     <string name="owner_name" msgid="8713560351570795743">"المالك"</string>
     <string name="guest_name" msgid="8502103277839834324">"وضع الضيف"</string>
     <string name="headless_system_user_name" msgid="1849150903255530049">"مستخدم النظام"</string>
@@ -1983,6 +2045,7 @@
     <string name="managed_profile_label_badge_3" msgid="6882151970556391957">"العمل الثالث <xliff:g id="LABEL">%1$s</xliff:g>"</string>
     <string name="clone_profile_label_badge" msgid="1871997694718793964">"نسخة طبق الأصل عن \"<xliff:g id="LABEL">%1$s</xliff:g>\""</string>
     <string name="private_profile_label_badge" msgid="1712086003787839183">"ملف شخصي خاص على <xliff:g id="LABEL">%1$s</xliff:g>"</string>
+    <string name="hsu_label_badge" msgid="1357272000281944932">"‫<xliff:g id="LABEL">%1$s</xliff:g> النظام"</string>
     <string name="lock_to_app_unlock_pin" msgid="3890940811866290782">"طلب إدخال رقم التعريف الشخصي قبل إزالة التثبيت"</string>
     <string name="lock_to_app_unlock_pattern" msgid="2694204070499712503">"طلب إدخال نقش فتح القفل قبل إزالة التثبيت"</string>
     <string name="lock_to_app_unlock_password" msgid="9126722403506560473">"طلب إدخال كلمة المرور قبل إزالة التثبيت"</string>
@@ -1992,8 +2055,8 @@
     <string name="confirm_battery_saver" msgid="5247976246208245754">"حسنًا"</string>
     <string name="battery_saver_description_with_learn_more" msgid="8969945879044849461">"يؤدي استخدام ميزة \"توفير شحن البطارية\" إلى تفعيل \"المظهر الداكن\" والحد من أو إيقاف الأنشطة في الخلفية وبعض التأثيرات المرئية وميزات معيّنة وبعض اتصالات الشبكات."</string>
     <string name="battery_saver_description" msgid="2820475140307374570">"يؤدي استخدام ميزة \"توفير شحن البطارية\" إلى تفعيل \"المظهر الداكن\" والحد من أو إيقاف الأنشطة في الخلفية وبعض التأثيرات المرئية وميزات معيّنة وبعض اتصالات الشبكات."</string>
-    <string name="data_saver_description" msgid="4995164271550590517">"للمساعدة في خفض استخدام البيانات، تمنع ميزة \"توفير البيانات\" بعض التطبيقات من إرسال البيانات وتلقّيها في الخلفية. يمكن للتطبيقات المتاحة لديك الآن استخدام البيانات، ولكن بمعدّل أقل. وهذا يعني أن الصور مثلاً لن تظهر حتى تنقر عليها."</string>
-    <string name="data_saver_enable_title" msgid="7080620065745260137">"هل تريد تفعيل ميزة \"توفير البيانات\"؟"</string>
+    <string name="data_saver_description" msgid="4995164271550590517">"للمساعدة في خفض استخدام البيانات، تمنع ميزة \"توفير البيانات\" بعض التطبيقات من إرسال البيانات وتلقّيها في الخلفية. بإمكان أي تطبيق تستخدمه حاليًا استهلاك البيانات، ولكن بمعدّل أقل. وقد يعني ذلك مثلاً أنّ الصور لن تظهر حتى تنقر عليها."</string>
+    <string name="data_saver_enable_title" msgid="7080620065745260137">"تفعيل ميزة \"توفير البيانات\"؟"</string>
     <string name="data_saver_enable_button" msgid="4399405762586419726">"تفعيل"</string>
     <string name="zen_mode_duration_minutes_summary" msgid="4555514757230849789">"{count,plural, =1{لمدة دقيقة واحدة (حتى {formattedTime})}zero{لمدة # دقيقة (حتى {formattedTime})}two{لمدة دقيقتين (حتى {formattedTime})}few{لمدة # دقائق (حتى {formattedTime})}many{لمدة # دقيقة (حتى {formattedTime})}other{لمدة # دقيقة (حتى {formattedTime})}}"</string>
     <string name="zen_mode_duration_minutes_summary_short" msgid="1187553788355486950">"{count,plural, =1{لمدة دقيقة واحدة (حتى {formattedTime})}zero{لمدة # دقيقة (حتى {formattedTime})}two{لمدة دقيقتين (حتى {formattedTime})}few{لمدة # دقائق (حتى {formattedTime})}many{لمدة # دقيقة (حتى {formattedTime})}other{لمدة # دقيقة (حتى {formattedTime})}}"</string>
@@ -2056,6 +2119,9 @@
     <string name="notification_metric_label_unit" msgid="309618413505128451">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>)"</string>
     <string name="notification_metric_label_unit_separator" msgid="5631839566551764472">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>):"</string>
     <string name="notification_metric_label_separator" msgid="8416027475779515033">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>:"</string>
+    <string name="notification_history_metric_subtext" msgid="7408216222655116821">"‫<xliff:g id="METRIC_LABEL">%1$s</xliff:g>: <xliff:g id="METRIC_VALUE">%2$s</xliff:g>"</string>
+    <string name="notification_metric_running_timer" msgid="1096459900744921213">"الموقّت النشط"</string>
+    <string name="notification_metric_running_stopwatch" msgid="8039546029949295377">"ساعة الإيقاف النشطة"</string>
     <string name="call_notification_answer_action" msgid="5999246836247132937">"ردّ"</string>
     <string name="call_notification_answer_video_action" msgid="2086030940195382249">"فيديو"</string>
     <string name="call_notification_decline_action" msgid="3700345945214000726">"رفض"</string>
@@ -2088,6 +2154,38 @@
     <string name="app_suspended_default_message" msgid="6451215678552004172">"التطبيق <xliff:g id="APP_NAME_0">%1$s</xliff:g> غير متاح الآن، وهو مُدار بواسطة <xliff:g id="APP_NAME_1">%2$s</xliff:g>."</string>
     <string name="app_suspended_more_details" msgid="211260942831587014">"مزيد من المعلومات"</string>
     <string name="app_suspended_unsuspend_message" msgid="1665438589450555459">"استئناف تشغيل التطبيق"</string>
+    <string name="app_lock_add_screen_lock_button_text" msgid="9209013414563206600">"إضافة قفل شاشة"</string>
+    <string name="app_lock_add_screen_lock_message" msgid="6107009360675769892">"يمكنك قفل شاشتك باستخدام أي طريقة مما يلي واستخدامها لاحقًا في فتح جهازك والوصول إلى تطبيقاتك المقفلة: رقم تعريف شخصي أو نقش أو كلمة مرور."</string>
+    <string name="app_lock_add_screen_lock_title" msgid="6905612843620128689">"أولاً، يجب إضافة قفل شاشة"</string>
+    <string name="enable_app_lock_success_toast_message" msgid="3339622779190529987">"‫\"<xliff:g id="APP_NAME">%1$s</xliff:g>\" مُقفل"</string>
+    <string name="enable_app_lock_failure_toast_message" msgid="1055838896510445566">"يتعذّر قفل \"<xliff:g id="APP_NAME">%1$s</xliff:g>\""</string>
+    <string name="disable_app_lock_success_toast_message" msgid="360172251656799346">"تمت إزالة قفل التطبيق"</string>
+    <string name="enable_app_lock_biometric_prompt_subtitle" msgid="8215241065630017088">"ستتم إضافة قفل التطبيق إلى \"<xliff:g id="APP_NAME">%1$s</xliff:g>\""</string>
+    <string name="disable_app_lock_biometric_prompt_subtitle" msgid="3963064765974508170">"ستتم إزالة قفل التطبيق من \"<xliff:g id="APP_NAME">%1$s</xliff:g>\""</string>
+    <string name="locked_app_biometric_prompt_description" msgid="5892653396104581919">"هذا التطبيق محمي من خلال ميزة قفل التطبيقات"</string>
+    <string name="locked_app_external_display_message" msgid="5483884799685545338">"للوصول إلى التطبيق على هذه الشاشة، يجب أولاً إثبات هويتك على جهازك الآخر"</string>
+    <string name="app_lock_edu_dialog_enable_app_lock_title" msgid="283314042336592322">"إضافة قفل لتطبيق \"<xliff:g id="APP_NAME">%1$s</xliff:g>\"؟"</string>
+    <string name="app_lock_edu_dialog_description_template" msgid="8563718120753342530">"‏للحفاظ على أمانك، لا يمكن لأحد غيرك الوصول إلى هذا التطبيق باستخدام %1$s أو %2$s"</string>
+    <string name="app_lock_edu_dialog_description_template_no_biometrics" msgid="7122017109150633691">"‏للحفاظ على أمانك، لا يمكن لأحد غيرك الوصول إلى هذا التطبيق باستخدام %1$s"</string>
+    <string name="app_lock_edu_dialog_info_header" msgid="5876120209204270990">"مزايا استخدام قفل للتطبيق"</string>
+    <string name="app_lock_edu_dialog_info_notifications" msgid="1124438392204873305">"سيتم إخفاء محتوى الإشعارات"</string>
+    <string name="app_lock_edu_dialog_info_widgets" msgid="8809009414650740872">"ستتم إزالة التطبيقات المصغَّرة والاختصارات"</string>
+    <string name="app_lock_edu_dialog_info_ai_disclaimer" msgid="5623615653703542050">"‏سيظلّ وكلاء الذكاء الاصطناعي والخدمات التي منحتها الإذن بالوصول إلى تطبيق \"%1$s\" لها إمكانية الوصول إلى بياناته"</string>
+    <string name="app_lock_edu_dialog_button_lock" msgid="3914687128135704801">"إضافة قفل للتطبيق"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_face" product="default" msgid="1348151645996748654">"فتح الجهاز ببصمة الوجه"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_face" product="desktop" msgid="380233309639495358">"فتح الجهاز ببصمة الوجه"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint" msgid="5206107469561561455">"فتح الجهاز ببصمة الإصبع"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint_and_face" product="default" msgid="6551410616110497401">"فتح الجهاز ببصمة الإصبع، فتح الجهاز ببصمة الوجه"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint_and_face" product="desktop" msgid="4797005135507921547">"فتح الجهاز ببصمة الإصبع، فتح الجهاز ببصمة الوجه"</string>
+    <string name="app_lock_edu_dialog_lockscreen_password_name" msgid="6019284267033007445">"كلمة المرور"</string>
+    <string name="app_lock_edu_dialog_lockscreen_pattern_name" msgid="2370939002644936965">"نقش"</string>
+    <string name="app_lock_edu_dialog_lockscreen_pin_name" msgid="6458607126966304795">"رقم التعريف الشخصي"</string>
+    <string name="app_lock_permission_review_dialog_title_photos" msgid="6193222920123912729">"قد تظل صورك ظاهرة في تطبيقات أخرى"</string>
+    <string name="app_lock_permission_review_dialog_subtitle_photos" msgid="1854948251386976703">"التطبيقات التي يمكنها الوصول إلى صورك"</string>
+    <string name="app_lock_permission_review_dialog_title_files" msgid="8820759644609198515">"قد تظل ملفاتك ظاهرة في تطبيقات أخرى"</string>
+    <string name="app_lock_permission_review_dialog_subtitle_files" msgid="2999447193189851364">"التطبيقات التي يمكنها الوصول إلى ملفاتك"</string>
+    <string name="app_lock_permission_review_expand_app_list_button" msgid="3214809707125223273">"عرض الكل"</string>
+    <string name="app_lock_permission_review_continue_button" msgid="4045066724173414043">"متابعة"</string>
     <string name="work_mode_off_title" msgid="6367463960165135829">"أتريد إعادة تفعيل تطبيقات العمل؟"</string>
     <string name="work_mode_turn_on" msgid="5316648862401307800">"إعادة التفعيل"</string>
     <string name="work_mode_emergency_call_button" msgid="6818855962881612322">"الطوارئ"</string>
@@ -2166,13 +2264,21 @@
     <string name="autofill_picker_no_suggestions" msgid="1076022650427481509">"لا توجد اقتراحات للملء التلقائي"</string>
     <string name="autofill_picker_some_suggestions" msgid="5560549696296202701">"{count,plural, =1{اقتراح واحد للملء التلقائي}zero{# اقتراح للملء التلقائي}two{اقتراحان للملء التلقائي}few{# اقتراحات للملء التلقائي}many{# اقتراحًا للملء التلقائي}other{# اقتراح للملء التلقائي}}"</string>
     <string name="autofill_save_title" msgid="7719802414283739775">"هل تريد الحفظ في "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b>"؟"</string>
+    <string name="autofill_save_title_expressive" msgid="2665408870424848558">"يمكنك حفظ المعلومات في "<b>"\"<xliff:g id="LABEL">%1$s</xliff:g>\""</b></string>
     <string name="autofill_save_title_with_type" msgid="3002460014579799605">"هل تريد حفظ <xliff:g id="TYPE">%1$s</xliff:g> في "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b>"؟"</string>
+    <string name="autofill_save_title_with_type_expressive" msgid="6063660551496235255">"يمكنك حفظ <xliff:g id="TYPE">%1$s</xliff:g> في "<b>"\"<xliff:g id="LABEL">%2$s</xliff:g>\""</b></string>
     <string name="autofill_save_title_with_2types" msgid="3783270967447869241">"هل تريد حفظ <xliff:g id="TYPE_0">%1$s</xliff:g> و<xliff:g id="TYPE_1">%2$s</xliff:g> في "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b>"؟"</string>
+    <string name="autofill_save_title_with_2types_expressive" msgid="2996687022212666293">"يمكنك حفظ <xliff:g id="TYPE_0">%1$s</xliff:g> و<xliff:g id="TYPE_1">%2$s</xliff:g> في "<b>"\"<xliff:g id="LABEL">%3$s</xliff:g>\""</b></string>
     <string name="autofill_save_title_with_3types" msgid="6598228952100102578">"هل تريد حفظ <xliff:g id="TYPE_0">%1$s</xliff:g> و<xliff:g id="TYPE_1">%2$s</xliff:g> و<xliff:g id="TYPE_2">%3$s</xliff:g> في "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b>"؟"</string>
+    <string name="autofill_save_title_with_3types_expressive" msgid="3301676215501214049">"يمكنك حفظ <xliff:g id="TYPE_0">%1$s</xliff:g> و<xliff:g id="TYPE_1">%2$s</xliff:g> و<xliff:g id="TYPE_2">%3$s</xliff:g> في "<b>"\"<xliff:g id="LABEL">%4$s</xliff:g>\""</b></string>
     <string name="autofill_update_title" msgid="3630695947047069136">"هل تريد التحديث في "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b>"؟"</string>
+    <string name="autofill_update_title_expressive" msgid="7660582214109012920">"يمكنك تعديل المعلومات في "<b>"\"<xliff:g id="LABEL">%1$s</xliff:g>\""</b></string>
     <string name="autofill_update_title_with_type" msgid="5264152633488495704">"هل تريد تحديث <xliff:g id="TYPE">%1$s</xliff:g> في "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b>"؟"</string>
+    <string name="autofill_update_title_with_type_expressive" msgid="6162413585161767846">"يمكنك تعديل <xliff:g id="TYPE">%1$s</xliff:g> في "<b>"\"<xliff:g id="LABEL">%2$s</xliff:g>\""</b></string>
     <string name="autofill_update_title_with_2types" msgid="1797514386321086273">"هل تريد تحديث <xliff:g id="TYPE_0">%1$s</xliff:g> و<xliff:g id="TYPE_1">%2$s</xliff:g> في "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b>"؟"</string>
+    <string name="autofill_update_title_with_2types_expressive" msgid="1911825941498393471">"يمكنك تعديل <xliff:g id="TYPE_0">%1$s</xliff:g> و<xliff:g id="TYPE_1">%2$s</xliff:g> في "<b>"\"<xliff:g id="LABEL">%3$s</xliff:g>\""</b></string>
     <string name="autofill_update_title_with_3types" msgid="8285767070604652626">"هل تريد تعديل هذه العناصر في "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b>": <xliff:g id="TYPE_0">%1$s</xliff:g> و<xliff:g id="TYPE_1">%2$s</xliff:g> و<xliff:g id="TYPE_2">%3$s</xliff:g>؟"</string>
+    <string name="autofill_update_title_with_3types_expressive" msgid="6040725201378429027">"يمكنك تعديل هذه المعلومات في "<b>"\"<xliff:g id="LABEL">%4$s</xliff:g>\""</b>": <xliff:g id="TYPE_0">%1$s</xliff:g> و<xliff:g id="TYPE_1">%2$s</xliff:g> و<xliff:g id="TYPE_2">%3$s</xliff:g>"</string>
     <string name="autofill_save_yes" msgid="8035743017382012850">"حفظ"</string>
     <string name="autofill_save_no" msgid="9212826374207023544">"لا، شكرًا"</string>
     <string name="autofill_save_notnow" msgid="2853932672029024195">"ليس الآن"</string>
@@ -2366,8 +2472,8 @@
     <string name="PERSOSUBSTATE_SIM_IMPI_ENTRY" msgid="7043865376145617024">"‏رقم التعريف الشخصي لإلغاء قفل IMPI"</string>
     <string name="PERSOSUBSTATE_SIM_NS_SP_ENTRY" msgid="6144227308185112176">"رقم التعريف الشخصي لإلغاء قفل مقدم خدمة المجموعة الفرعية للشبكة"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_IN_PROGRESS" msgid="4233355366318061180">"‏جارٍ طلب إلغاء قفل شبكة شريحة SIM.…"</string>
-    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_IN_PROGRESS" msgid="6742563947637715645">"‏جارٍ طلب إلغاء قفل المجموعة الفرعية لشبكة شريحة SIM …"</string>
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_IN_PROGRESS" msgid="2033399698172403560">"‏جارٍ طلب إلغاء قفل مقدم خدمة شريحة SIM…"</string>
+    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_IN_PROGRESS" msgid="2917242135129860371">"‏جارٍ طلب إلغاء قفل \"المجموعة الفرعية لشبكة شريحة SIM\"…"</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_IN_PROGRESS" msgid="4435641041692795695">"‏جارٍ طلب إلغاء قفل \"مقدم خدمة شريحة SIM\"…"</string>
     <string name="PERSOSUBSTATE_SIM_CORPORATE_IN_PROGRESS" msgid="4795977251920732254">"‏جارٍ طلب إلغاء قفل شريحة SIM للشركات…"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_PUK_IN_PROGRESS" msgid="1090425878157254446">"‏جارٍ طلب إلغاء القفل باستخدام رمز PUK…"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_PUK_IN_PROGRESS" msgid="6476898876518094438">"‏جارٍ طلب إلغاء القفل باستخدام رمز PUK…"</string>
@@ -2393,15 +2499,15 @@
     <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_PUK_IN_PROGRESS" msgid="2695678959963807782">"‏جارٍ طلب إلغاء القفل باستخدام رمز PUK…"</string>
     <string name="PERSOSUBSTATE_RUIM_RUIM_PUK_IN_PROGRESS" msgid="1230605365926493599">"‏جارٍ طلب إلغاء القفل باستخدام رمز PUK…"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_ERROR" msgid="1924844017037151535">"‏تعذّر طلب إلغاء قفل شبكة شريحة SIM."</string>
-    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_ERROR" msgid="3372797822292089708">"‏تعذّر طلب إلغاء قفل المجموعة الفرعية لشبكة شريحة SIM."</string>
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_ERROR" msgid="1878443146720411381">"‏تعذّر طلب إلغاء قفل مقدم خدمة شريحة SIM."</string>
+    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_ERROR" msgid="7136658591279283417">"‏تعذَّر طلب إلغاء قفل \"المجموعة الفرعية لشبكة شريحة SIM\"."</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_ERROR" msgid="8344463467085504202">"‏تعذَّر طلب إلغاء قفل \"مقدم خدمة شريحة SIM\"."</string>
     <string name="PERSOSUBSTATE_SIM_CORPORATE_ERROR" msgid="7664778312218023192">"‏تعذّر طلب إلغاء قفل شريحة SIM للشركات."</string>
     <string name="PERSOSUBSTATE_SIM_SIM_ERROR" msgid="2472944311643350302">"‏تعذّر طلب إلغاء قفل شريحة SIM."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK1_ERROR" msgid="828089694480999120">"‏تعذّر طلب إلغاء قفل RUIM Network1."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK2_ERROR" msgid="17619001007092511">"‏تعذّر طلب إلغاء قفل RUIM network2."</string>
     <string name="PERSOSUBSTATE_RUIM_HRPD_ERROR" msgid="807214229604353614">"‏تعذّر طلب إلغاء قفل بطاقة RUIM لبيانات الحزمة ذات المعدل العالي."</string>
     <string name="PERSOSUBSTATE_RUIM_CORPORATE_ERROR" msgid="8644184447744175747">"‏تعذّر طلب إلغاء قفل بطاقة RUIM للشركات."</string>
-    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_ERROR" msgid="3801002648649640407">"‏تعذّر طلب إلغاء قفل مقدم خدمة بطاقة RUIM"</string>
+    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_ERROR" msgid="1882547895012628428">"‏تعذَّر طلب إلغاء قفل \"مقدم خدمة بطاقة RUIM\"."</string>
     <string name="PERSOSUBSTATE_RUIM_RUIM_ERROR" msgid="707397021218680753">"‏تعذّر طلب إلغاء قفل بطاقة RUIM."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_PUK_ERROR" msgid="894358680773257820">"‏تعذّر إلغاء القفل باستخدام رمز PUK."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_PUK_ERROR" msgid="352466878146726991">"‏تعذّر إلغاء القفل باستخدام رمز PUK."</string>
@@ -2421,20 +2527,20 @@
     <string name="PERSOSUBSTATE_SIM_NS_SP_ERROR" msgid="1890493954453456758">"تعذّر طلب إلغاء قفل مقدم خدمة المجموعة الفرعية للشبكة."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUCCESS" msgid="4886243367747126325">"‏تم إلغاء قفل شبكة شريحة SIM."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_SUCCESS" msgid="4053809277733513987">"‏تم إلغاء قفل المجموعة الفرعية لشبكة شريحة SIM."</string>
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_SUCCESS" msgid="8249342930499801740">"‏تم إلغاء قفل مقدم خدمة شريحة SIM."</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_SUCCESS" msgid="6233653087159353652">"‏تم إلغاء قفل \"مقدم خدمة شريحة SIM\" بنجاح."</string>
     <string name="PERSOSUBSTATE_SIM_CORPORATE_SUCCESS" msgid="2339794542560381270">"‏تم إلغاء قفل شريحة SIM للشركات."</string>
     <string name="PERSOSUBSTATE_SIM_SIM_SUCCESS" msgid="6975608174152828954">"‏تم إلغاء قفل شريحة SIM."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK1_SUCCESS" msgid="2846699261330463192">"‏تم إلغاء قفل RUIM Network1."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK2_SUCCESS" msgid="5335414726057102801">"‏تم إلغاء قفل RUIM network2."</string>
     <string name="PERSOSUBSTATE_RUIM_HRPD_SUCCESS" msgid="8868100318474971969">"‏تم إلغاء قفل بطاقة RUIM لبيانات الحزمة ذات المعدل العالي."</string>
-    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_SUCCESS" msgid="6020936629725666932">"‏تم إلغاء قفل مقدم خدمة بطاقة RUIM."</string>
+    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_SUCCESS" msgid="6724555357287036238">"‏تم إلغاء قفل \"مقدم خدمة بطاقة RUIM\" بنجاح."</string>
     <string name="PERSOSUBSTATE_RUIM_CORPORATE_SUCCESS" msgid="6944873647584595489">"‏تم إلغاء قفل بطاقة RUIM للشركات بنجاح."</string>
     <string name="PERSOSUBSTATE_RUIM_RUIM_SUCCESS" msgid="2526483514124121988">"‏تم إلغاء قفل بطاقة RUIM."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_PUK_SUCCESS" msgid="7662200333621664621">"‏تم إلغاء القفل باستخدام رمز PUK بنجاح."</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_PUK_SUCCESS" msgid="2861223407953766632">"‏تم إلغاء القفل باستخدام رمز PUK بنجاح."</string>
     <string name="PERSOSUBSTATE_SIM_CORPORATE_PUK_SUCCESS" msgid="5345648571175243272">"‏تم إلغاء القفل باستخدام رمز PUK بنجاح."</string>
     <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_PUK_SUCCESS" msgid="3725278343103422466">"‏تم إلغاء القفل باستخدام رمز PUK بنجاح."</string>
-    <string name="PERSOSUBSTATE_SIM_SIM_PUK_SUCCESS" msgid="6998502547560297983">"‏تم إلغاء القفل باستخدام رمز PUK بنجاح."</string>
+    <string name="PERSOSUBSTATE_SIM_SIM_PUK_SUCCESS" msgid="6998502547560297983">"‏تم فتح القفل باستخدام رمز PUK بنجاح."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK1_PUK_SUCCESS" msgid="8555433771162560361">"‏تم إلغاء القفل باستخدام رمز PUK بنجاح."</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK2_PUK_SUCCESS" msgid="3555767296933606232">"‏تم إلغاء القفل باستخدام رمز PUK بنجاح."</string>
     <string name="PERSOSUBSTATE_RUIM_HRPD_PUK_SUCCESS" msgid="6778051818199974237">"‏تم إلغاء القفل باستخدام رمز PUK بنجاح."</string>
@@ -2519,6 +2625,8 @@
     <string name="accessibility_label_clone_profile" msgid="7579118375042398784">"نسخة طبق الأصل"</string>
     <string name="accessibility_label_communal_profile" msgid="1437173163111334791">"ملف شخصي مشترك"</string>
     <string name="private_space_biometric_prompt_title" msgid="5777592909271728154">"المساحة الخاصّة"</string>
+    <string name="app_locked_new_notification" msgid="4409730436247596215">"إشعار جديد"</string>
+    <string name="app_locked_notification_message" msgid="4576179600328065280">"رسالة جديدة"</string>
     <string name="redacted_notification_message" msgid="1520587845842228816">"تم إخفاء المحتوى الحساس في الإشعار"</string>
     <string name="redacted_notification_action_title" msgid="6942924973335920935"></string>
     <string name="screen_not_shared_sensitive_content" msgid="7058419185079565001">"تم إخفاء محتوى التطبيق بعد تفعيل ميزة \"مشاركة الشاشة\" للحفاظ على أمانك"</string>
@@ -2558,13 +2666,16 @@
     <string name="satellite_messaging_unsupported_default_sms_app_notification_summary" msgid="17084124893763593">"‏للمراسلة عبر القمر الصناعي، عليك ضبط تطبيق \"رسائل Google\" ليصبح تطبيق المراسلة التلقائي"</string>
     <string name="satellite_messaging_location_disabled_notification_title" msgid="7270641894250928494">"ميزة \"المراسلة عبر القمر الاصطناعي\" غير متاحة"</string>
     <string name="satellite_messaging_location_disabled_notification_summary" msgid="1450824950686221810">"لمعرفة ما إذا كانت ميزة \"المراسلة عبر القمر الاصطناعي\" متاحة في هذا البلد أو هذه المنطقة، فعِّل إعدادات الموقع الجغرافي"</string>
+    <string name="satellite_indicator" msgid="6846063647532086110">"سات"</string>
     <string name="fingerprint_dangling_notification_title" msgid="7362075195588639989">"إعادة إعداد ميزة \"فتح الجهاز ببصمة الإصبع\""</string>
     <string name="fingerprint_dangling_notification_msg_1" msgid="5851784577768803510">"لا يمكن بعد الآن التعرّف على \"<xliff:g id="FINGERPRINT">%s</xliff:g>\"."</string>
     <string name="fingerprint_dangling_notification_msg_2" msgid="7925203589860744456">"لا يمكن بعد الآن التعرّف على \"<xliff:g id="FINGERPRINT_0">%1$s</xliff:g>\" و\"<xliff:g id="FINGERPRINT_1">%2$s</xliff:g>\"."</string>
     <string name="fingerprint_dangling_notification_msg_all_deleted_1" msgid="1824812666549916586">"لا يمكن بعد الآن التعرّف على \"<xliff:g id="FINGERPRINT">%s</xliff:g>\". يجب ضبط ميزة \"فتح الجهاز ببصمة الإصبع\" مجددًا."</string>
     <string name="fingerprint_dangling_notification_msg_all_deleted_2" msgid="5974657382960155099">"لا يمكن بعد الآن التعرّف على \"<xliff:g id="FINGERPRINT_0">%1$s</xliff:g>\" و\"<xliff:g id="FINGERPRINT_1">%2$s</xliff:g>\". يجب ضبط ميزة \"فتح الجهاز ببصمة الإصبع\" مجددًا."</string>
-    <string name="face_dangling_notification_title" msgid="947852541060975473">"إعادة إعداد ميزة \"فتح الجهاز ببصمة الوجه\""</string>
-    <string name="face_dangling_notification_msg" msgid="746235263598985384">"لا يمكن بعد الآن التعرّف على نموذج الوجه الخاص بك. يجب ضبط ميزة \"فتح الجهاز ببصمة الوجه\" مجددًا."</string>
+    <string name="face_dangling_notification_title" product="default" msgid="947852541060975473">"إعادة إعداد ميزة \"فتح الجهاز ببصمة الوجه\""</string>
+    <string name="face_dangling_notification_title" product="desktop" msgid="4632690536207343589">"إعداد \"فتح الجهاز ببصمة الوجه\" مجددًا"</string>
+    <string name="face_dangling_notification_msg" product="default" msgid="746235263598985384">"لا يمكن بعد الآن التعرّف على نموذج الوجه الخاص بك. يجب ضبط ميزة \"فتح الجهاز ببصمة الوجه\" مجددًا."</string>
+    <string name="face_dangling_notification_msg" product="desktop" msgid="5982979430103820891">"لا يمكن بعد الآن التعرّف على نموذج الوجه الخاص بك. يُرجى إعداد ميزة \"فتح الجهاز ببصمة الوجه\" مجددًا."</string>
     <string name="biometric_dangling_notification_action_set_up" msgid="8246885009807817961">"إعداد"</string>
     <string name="biometric_dangling_notification_action_not_now" msgid="8095249216864443491">"لاحقًا"</string>
     <string name="bg_user_sound_notification_title_alarm" msgid="5251678483393143527">"تنبيه لـ \"<xliff:g id="USER_NAME">%s</xliff:g>\""</string>
@@ -2598,7 +2709,17 @@
     <string name="fingerprint_frr_notification_msg" msgid="2162966846624639252">"يمكنك النقر لمراجعة النصائح من أجل تحسين تجربة فتح القفل"</string>
     <string name="no_blink_accessibility_text_cursor_blink_label" msgid="223072797385428874">"عدم تشغيل الوميض"</string>
     <string name="long_press_power_to_turn_off_tv_toast" msgid="2231397748028498986">"يُرجى الضغط مع الاستمرار على زر التشغيل لإطفاء التلفزيون"</string>
-    <string name="tv_watchdog_notification_channel_name" msgid="4936803270000103737">"تنبيهات بشأن موارد النظام"</string>
-    <string name="tv_watchdog_notification_title" msgid="195239206215922517">"فرط استخدام الموارد"</string>
-    <string name="tv_watchdog_notification_content" msgid="6444873431710133936">"يستخدم التطبيق \"<xliff:g id="APP_NAME">%1$s</xliff:g>\" الكثير من الموارد."</string>
+    <string name="supervision_blocked_app_title" msgid="5546803865875383588">"تحديث من أحد الوالدين"</string>
+    <string name="supervision_blocked_app_content" msgid="4125452996088641559">"تمت إزالة \"<xliff:g id="APP_NAME">%1$s</xliff:g>\" الآن"</string>
+    <string name="supervision_unblocked_app_content" msgid="8282985265957852278">"أصبح \"<xliff:g id="APP_NAME">%1$s</xliff:g>\" متاحًا الآن"</string>
+    <string name="media_route_chooser_share_cast_others" msgid="8797886650999355673">"بثّ المحتوى للأجهزة الأخرى"</string>
+    <string name="activity_embedding_divider_drag_handle_description" msgid="4922243158119077780">"الفاصل القابل للسحب"</string>
+    <string name="brightness_unable_adjust_msg" msgid="739363986705194491">"لا يمكن ضبط مستوى السطوع لأنّ التطبيق العلوي يتحكّم فيه"</string>
+    <string name="airplane_mode_sync_notification_channel_name" msgid="474278137226432576">"مزامنة \"وضع الطيران\""</string>
+    <string name="airplane_mode_sync_notification_title" msgid="1093374489486832486">"وضع الطيران"</string>
+    <string name="airplane_mode_sync_notification_content" msgid="300807352375759726">"ستتم الآن مزامنة \"وضع الطيران\" على هاتفك وساعتك.\n\nيمكنك إدارة الإعدادات المفضَّلة لمزامنة الأوضاع في إعدادات هاتفك وساعتك."</string>
+    <string name="apm_sync_notification_settings_action" msgid="3453490777165524861">"إدارة الإعدادات"</string>
+    <string name="do_not_disturb_sync_notification_channel_name" msgid="8652220979613037381">"مزامنة ميزة \"عدم الإزعاج\""</string>
+    <string name="do_not_disturb_sync_notification_title" msgid="6732475150089465528">"عدم الإزعاج"</string>
+    <string name="do_not_disturb_sync_notification_content" msgid="2755604717509797896">"تمّت المزامنة من جهازك المجاور"</string>
 </resources>

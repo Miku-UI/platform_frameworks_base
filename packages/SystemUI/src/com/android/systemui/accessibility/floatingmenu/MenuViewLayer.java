@@ -93,7 +93,8 @@ import java.util.Optional;
 @SuppressLint("ViewConstructor")
 class MenuViewLayer extends FrameLayout implements
         ViewTreeObserver.OnComputeInternalInsetsListener, View.OnClickListener, ComponentCallbacks,
-        MenuView.OnMoveToTuckedListener {
+        MenuView.OnMoveToTuckedListener,
+        AccessibilityTargetAdapter.MoreOptionsClickListener {
     private static final int SHOW_MESSAGE_DELAY_MS = 3000;
 
     /**
@@ -132,6 +133,8 @@ class MenuViewLayer extends FrameLayout implements
             this::onDockTooltipVisibilityChanged;
     private final Observer<Boolean> mMigrationTooltipObserver =
             this::onMigrationTooltipVisibilityChanged;
+    private final Observer<MenuPosition> mPositionObserver =
+            this::onPositionChanged;
     private final Rect mImeInsetsRect = new Rect();
     private boolean mIsMigrationTooltipShowing;
     private boolean mShouldShowDockTooltip;
@@ -229,14 +232,18 @@ class MenuViewLayer extends FrameLayout implements
                     @NonNull
                     @Override
                     public AccessibilityDelegateCompat getItemDelegate() {
-                        return new MenuItemAccessibilityDelegate(/* recyclerViewDelegate= */ this,
-                                mMenuAnimationController, MenuViewLayer.this);
+                        return new MenuItemAccessibilityDelegate(
+                                /* recyclerViewDelegate= */ this,
+                                mMenuAnimationController,
+                                MenuViewLayer.this);
                     }
                 });
         mMenuAnimationController = mMenuView.getMenuAnimationController();
         mMenuAnimationController.setSpringAnimationsEndAction(this::onSpringAnimationsEndAction);
         mDismissView = new DismissView(context);
         mDragToInteractView = new DragToInteractView(context, windowManager);
+        mDragToInteractView.addCircle(R.id.action_remove_menu);
+        mDragToInteractView.addCircle(R.id.action_edit);
         DismissViewUtils.setup(mDismissView);
         mDismissView.getCircle().setId(R.id.action_remove_menu);
         mNotificationFactory = new MenuNotificationFactory(context);
@@ -310,6 +317,72 @@ class MenuViewLayer extends FrameLayout implements
         setClickable(false);
         setFocusable(false);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+
+        AccessibilityTargetAdapter adapter =
+                (AccessibilityTargetAdapter) mMenuView.getTargetFeaturesView().getAdapter();
+        adapter.setMoreOptionsClickListener(this);
+    }
+
+    @Override
+    public void onMoreOptionsClicked(View anchorView) {
+        MenuPosition currentPosition = mMenuViewModel.getMenuPosition();
+        if (currentPosition == null) {
+            currentPosition = MenuPosition.BOTTOM_RIGHT;
+        }
+
+        int nextPositionHintResId = switch (currentPosition) {
+            case BOTTOM_RIGHT -> R.string.accessibility_floating_button_action_move_bottom_left;
+            case BOTTOM_LEFT -> R.string.accessibility_floating_button_action_move_top_left;
+            case TOP_LEFT -> R.string.accessibility_floating_button_action_move_top_right;
+            case TOP_RIGHT -> R.string.accessibility_floating_button_action_move_bottom_right;
+        };
+        String nextPositionHint = getContext().getString(nextPositionHintResId);
+
+        final MoreOptionsPopup popup =
+                createMoreOptionsPopup(
+                        nextPositionHint,
+                        new MoreOptionsPopup.OnItemClickListener() {
+                            @Override
+                            public void onEditClicked() {
+                                gotoEditScreen();
+                            }
+
+                            @Override
+                            public void onMoveClicked() {
+                                mMenuViewModel.cycleMenuPosition();
+                            }
+
+                            @Override
+                            public void onRemoveAllClicked() {
+                                mDismissMenuAction.run();
+                            }
+                        });
+        popup.show(anchorView);
+    }
+
+    @VisibleForTesting
+    MoreOptionsPopup createMoreOptionsPopup(
+            String nextMovePositionHint, MoreOptionsPopup.OnItemClickListener listener) {
+        return new MoreOptionsPopup(getContext(), nextMovePositionHint, listener);
+    }
+
+    private void onPositionChanged(MenuPosition position) {
+        if (position == null) return;
+
+        switch (position) {
+            case TOP_LEFT:
+                mMenuAnimationController.moveToTopLeftPosition();
+                break;
+            case TOP_RIGHT:
+                mMenuAnimationController.moveToTopRightPosition();
+                break;
+            case BOTTOM_LEFT:
+                mMenuAnimationController.moveToBottomLeftPosition();
+                break;
+            case BOTTOM_RIGHT:
+                mMenuAnimationController.moveToBottomRightPosition();
+                break;
+        }
     }
 
     @Override
@@ -360,6 +433,7 @@ class MenuViewLayer extends FrameLayout implements
         mMenuViewModel.getDockTooltipVisibilityData().observeForever(mDockTooltipObserver);
         mMenuViewModel.getMigrationTooltipVisibilityData().observeForever(
                 mMigrationTooltipObserver);
+        mMenuViewModel.getPositionData().observeForever(mPositionObserver);
         mMessageView.setUndoListener(view -> undo());
         getContext().registerComponentCallbacks(this);
         mNavigationModeController.addListener(mNavigationModeChangedListender);
@@ -376,6 +450,7 @@ class MenuViewLayer extends FrameLayout implements
         mMenuViewModel.getDockTooltipVisibilityData().removeObserver(mDockTooltipObserver);
         mMenuViewModel.getMigrationTooltipVisibilityData().removeObserver(
                 mMigrationTooltipObserver);
+        mMenuViewModel.getPositionData().removeObserver(mPositionObserver);
         mHandler.removeCallbacksAndMessages(/* token= */ null);
         getContext().unregisterComponentCallbacks(this);
         mNavigationModeController.removeListener(mNavigationModeChangedListender);
@@ -445,6 +520,10 @@ class MenuViewLayer extends FrameLayout implements
             );
 
             setClipBounds(bounds);
+
+            // If the user tucks, skip the dock tooltip.
+            mMenuViewModel.updateDockTooltipVisibility(/* hasSeen= */ true);
+            mShouldShowDockTooltip = false;
         }
         // Instead of clearing clip bounds when moveToTuck is false,
         // wait until the spring animation finishes.

@@ -32,8 +32,8 @@ interface IRollbackManager {
     // Exposed for use from the system server only. Callback from the package
     // manager during the install flow when user data can be backed up and restored for a given
     // package.
-    void snapshotAndRestoreUserData(String packageName, in int[] userIds, int appId, long ceDataInode,
-            String seInfo, int token);
+    void snapshotAndRestoreUserData(String packageName, in int[] userIds, int appId, int pccId,
+        long ceDataInode, String seInfo, int token);
 
     // Exposed for test purposes only.
     void reloadPersistedData();

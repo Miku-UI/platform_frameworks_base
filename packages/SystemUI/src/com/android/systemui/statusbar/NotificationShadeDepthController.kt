@@ -27,6 +27,7 @@ import android.util.MathUtils
 import android.view.Choreographer
 import android.view.Display
 import android.view.Display.DEFAULT_DISPLAY
+import android.view.SurfaceControl
 import android.view.View
 import androidx.annotation.VisibleForTesting
 import androidx.dynamicanimation.animation.FloatPropertyCompat
@@ -37,32 +38,28 @@ import com.android.app.tracing.coroutines.TrackTracer
 import com.android.systemui.Dumpable
 import com.android.systemui.Flags
 import com.android.systemui.Flags.checkDesktopModeForSpacialModelAppPushback
-import com.android.systemui.Flags.spatialModelAppPushback
 import com.android.systemui.animation.ShadeInterpolation
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.desktop.DesktopModeRepository
 import com.android.systemui.display.data.repository.FocusedDisplayRepository
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.plugins.statusbar.StatusBarStateController
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeExpansionChangeEvent
 import com.android.systemui.shade.ShadeExpansionListener
 import com.android.systemui.shade.data.repository.ShadeDisplaysRepository
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import com.android.systemui.statusbar.phone.BiometricUnlockController
-import com.android.systemui.statusbar.phone.BiometricUnlockController.MODE_WAKE_AND_UNLOCK
+import com.android.systemui.statusbar.phone.BiometricUnlockController.MODE_WAKE_AND_DISMISS
 import com.android.systemui.statusbar.phone.DozeParameters
 import com.android.systemui.statusbar.phone.ScrimController
 import com.android.systemui.statusbar.policy.KeyguardStateController
-import com.android.systemui.util.WallpaperController
 import com.android.systemui.wallpapers.domain.interactor.WallpaperInteractor
 import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor
-import com.android.wm.shell.appzoomout.AppZoomOut
-import com.android.wm.shell.desktopmode.DesktopMode
 import dagger.Lazy
 import java.io.PrintWriter
-import java.util.Optional
 import javax.inject.Inject
 import kotlin.math.max
 import kotlin.math.sign
@@ -83,17 +80,15 @@ constructor(
     private val keyguardStateController: KeyguardStateController,
     private val keyguardInteractor: KeyguardInteractor,
     private val choreographer: Choreographer,
-    private val wallpaperController: WallpaperController,
     private val wallpaperInteractor: WallpaperInteractor,
     private val notificationShadeWindowController: NotificationShadeWindowController,
     private val dozeParameters: DozeParameters,
     private val shadeModeInteractor: ShadeModeInteractor,
     private val windowRootViewBlurInteractor: WindowRootViewBlurInteractor,
-    private val appZoomOutOptional: Optional<AppZoomOut>,
     private val shadeDisplaysRepository: Lazy<ShadeDisplaysRepository>,
     private val focusedDisplayRepository: FocusedDisplayRepository,
     @Application private val applicationScope: CoroutineScope,
-    private val desktopMode: Optional<DesktopMode>,
+    private val desktopModeRepository: DesktopModeRepository,
     dumpManager: DumpManager,
 ) : ShadeExpansionListener, Dumpable {
     companion object {
@@ -110,6 +105,8 @@ constructor(
 
         private const val TAG = "DepthController"
     }
+
+    private val shadeDisplayId = shadeDisplaysRepository.get().displayId
 
     lateinit var root: View
     private var keyguardAnimator: Animator? = null
@@ -248,12 +245,7 @@ constructor(
         }
 
     private val isShadeOnDefaultDisplay: Boolean
-        get() =
-            if (ShadeWindowGoesAround.isEnabled) {
-                shadeDisplaysRepository.get().displayId.value == Display.DEFAULT_DISPLAY
-            } else {
-                true
-            }
+        get() = shadeDisplaysRepository.get().displayId.value == Display.DEFAULT_DISPLAY
 
     /** Blur radius of the wake and unlock animation on this frame, and whether to zoom out. */
     private var wakeAndUnlockBlurRadius = 0f
@@ -315,20 +307,21 @@ constructor(
             blur = 0
         }
 
+        if (zoomOut.isNaN()) {
+            Log.i(TAG, "Invalid zoomOut (NaN). blurRadius: $blur")
+            return Pair(blur, 0f)
+        }
+
         return Pair(blur, zoomOut)
     }
 
     private fun blurRadiusToZoomOut(blurRadius: Float): Float {
         val disableZoomForMode =
             if (checkDesktopModeForSpacialModelAppPushback()) {
-                desktopMode
-                    .map { dm ->
-                        dm.isDisplayInDesktopMode(shadeDisplaysRepository.get().displayId.value)
-                    }
-                    .orElse(false)
+                desktopModeRepository.isDisplayInDesktopMode(shadeDisplayId.value)
             } else {
-                shadeModeInteractor.isSplitShade
-            }
+                null
+            } ?: shadeModeInteractor.isSplitShade
 
         val zoomOut =
             when {
@@ -377,9 +370,7 @@ constructor(
     private fun onZoomOutChanged(zoomOutFromShadeRadius: Float) {
         TrackTracer.instantForGroup("shade", "zoom_out", zoomOutFromShadeRadius)
         Log.v(TAG, "onZoomOutChanged $zoomOutFromShadeRadius")
-        if (spatialModelAppPushback()) {
-            keyguardInteractor.setZoomOut(zoomOutFromShadeRadius)
-        }
+        keyguardInteractor.setZoomOut(zoomOutFromShadeRadius)
     }
 
     private val applyZoomOutForFrame =
@@ -395,7 +386,7 @@ constructor(
             override fun onKeyguardFadingAwayChanged() {
                 if (
                     !keyguardStateController.isKeyguardFadingAway ||
-                        biometricUnlockController.mode != MODE_WAKE_AND_UNLOCK
+                        biometricUnlockController.mode != MODE_WAKE_AND_DISMISS
                 ) {
                     return
                 }
@@ -601,7 +592,7 @@ constructor(
     }
 
     fun onTransitionAnimationProgress(progress: Float) {
-        if (!Flags.notificationShadeBlur() || !Flags.moveTransitionAnimationLayer()) return
+        if (!Flags.notificationShadeBlur()) return
         // Because the Shade takes a few frames to actually trigger the unblur after a transition
         // has ended, we need to disable it manually, or the opening window itself will be blurred
         // for a few frames due to relative ordering. We do this towards the end, so that the
@@ -611,9 +602,13 @@ constructor(
         }
     }
 
-    fun onTransitionAnimationEnd() {
-        if (!Flags.notificationShadeBlur() || !Flags.moveTransitionAnimationLayer()) return
+    fun onTransitionAnimationEnd(transaction: SurfaceControl.Transaction) {
+        if (!Flags.notificationShadeBlur()) return
         blursDisabledForAppLaunch = false
+        val surface = root.viewRootImpl?.surfaceControl
+        if (surface?.isValid == true) {
+            transaction.setBackgroundBlurRadius(surface, 0)
+        }
     }
 
     private fun updateShadeAnimationBlur(
@@ -685,7 +680,7 @@ constructor(
         zoomOutCalculatedFromShadeRadius = zoomOutFromShadeRadius
 
         // Do not blur or zoom out the wallpaper if the blurred wallpaper is not supported.
-        if (!windowRootViewBlurInteractor.isBlurredWallpaperSupported) {
+        if (!windowRootViewBlurInteractor.isBlurredWallpaperOnShadeSupported) {
             return
         }
 

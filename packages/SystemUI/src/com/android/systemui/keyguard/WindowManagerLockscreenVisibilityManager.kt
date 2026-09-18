@@ -19,9 +19,6 @@ package com.android.systemui.keyguard
 import android.app.IActivityTaskManager
 import android.os.RemoteException
 import android.util.Log
-import android.view.IRemoteAnimationFinishedCallback
-import android.view.RemoteAnimationTarget
-import android.view.WindowManager
 import com.android.internal.widget.LockPatternUtils
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
@@ -35,6 +32,7 @@ import com.android.systemui.statusbar.policy.KeyguardStateController
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import com.android.window.flags.Flags
 import com.android.wm.shell.keyguard.KeyguardTransitions
+import com.android.wm.shell.shared.compat.SurfaceTransition
 import java.util.concurrent.Executor
 import javax.inject.Inject
 
@@ -98,7 +96,7 @@ constructor(
      *
      * The going away animation will run until:
      * - We manually call [endKeyguardGoingAwayAnimation] after we're done animating.
-     * - We call [setLockscreenShown] = true, which cancels the going away animation.
+     * - We call [setLockscreenShowing] = true, which cancels the going away animation.
      * - WM calls [onKeyguardGoingAwayRemoteAnimationCancelled] for another reason (such as the 10
      *   second timeout).
      */
@@ -117,14 +115,20 @@ constructor(
     /**
      * The current user ID when we asked WM to start the keyguard going away animation. This is used
      * for validation when user switching occurs during unlock.
+     *
+     * Null if we haven't yet asked WM to start the keyguard going away animation since boot.
      */
-    private var keyguardGoingAwayRequestedForUserId: Int = -1
+    private var keyguardGoingAwayRequestedForUserId: Int? = null
 
-    /** Callback provided by WM to call once we're done with the going away animation. */
-    private var goingAwayRemoteAnimationFinishedCallback: IRemoteAnimationFinishedCallback? = null
+    /** Params for the going away animation, including the callback to use once it is complete. */
+    private var goingAwayRemoteAnimationParams: SurfaceTransition.Params? = null
 
     private val enableNewKeyguardShellTransitions: Boolean =
         Flags.ensureKeyguardDoesTransitionStartingBugFix()
+
+    fun onKeyguardServiceSystemReady() {
+        keyguardGoingAwayRequestedForUserId = selectedUserInteractor.getSelectedUserId()
+    }
 
     /**
      * Set the visibility of the surface behind the keyguard, making the appropriate calls to Window
@@ -156,7 +160,12 @@ constructor(
                 // Make the surface behind the keyguard visible by calling keyguardGoingAway. The
                 // lockscreen is still showing as well, allowing us to animate unlocked.
                 Log.d(TAG, "ATMS#keyguardGoingAway()")
-                activityTaskManagerService.keyguardGoingAway(0)
+                try {
+                    activityTaskManagerService.keyguardGoingAway(0)
+                } catch (e: RemoteException) {
+                    isKeyguardGoingAway = false
+                    Log.e(TAG, "Remote exception", e)
+                }
             }
         } else if (isLockscreenShowing == true) {
             // Re-show the lockscreen if the surface was visible and we want to make it invisible,
@@ -167,10 +176,14 @@ constructor(
             // might be disabled/suppressed).
             Log.d(
                 TAG,
-                "setLockscreenShown(true) because we're setting the surface invisible " +
+                "setLockscreenShowing(true) because we're setting the surface invisible " +
                     "and lockscreen is already showing.",
             )
-            setLockscreenShown(true, "requested surface invisible w/ lockscreen showing")
+            setLockscreenShowing(
+                lockscreenShowing = true,
+                reason = "requested surface invisible w/ lockscreen showing",
+                reshowIfAlreadyShowing = true,
+            )
         }
     }
 
@@ -179,30 +192,35 @@ constructor(
     }
 
     /** Sets the visibility of the lockscreen. */
-    fun setLockscreenShown(lockscreenShown: Boolean, reason: String = "") {
-        setWmLockscreenState(lockscreenShowing = lockscreenShown, reason = reason)
+    fun setLockscreenShowing(
+        lockscreenShowing: Boolean,
+        reason: String = "",
+        reshowIfAlreadyShowing: Boolean = false,
+    ) {
+        setWmLockscreenState(
+            lockscreenShowing = lockscreenShowing,
+            reason = reason,
+            reshowIfAlreadyShowing = reshowIfAlreadyShowing,
+        )
     }
 
     /**
-     * Called when the keyguard going away remote animation is started, and we have a
-     * RemoteAnimationTarget to animate.
+     * Called when the keyguard going away remote is started, and we have an AnimatedSurface to
+     * animate.
      *
      * This is triggered either by this class calling ATMS#keyguardGoingAway, or by WM directly,
      * such as when an activity with FLAG_DISMISS_KEYGUARD is launched over a dismissible keyguard.
+     *
+     * @return True if the animation was started, and false if we terminated the transition
+     *   immediately.
      */
-    fun onKeyguardGoingAwayRemoteAnimationStart(
-        @WindowManager.TransitionOldType transit: Int,
-        apps: Array<RemoteAnimationTarget>,
-        wallpapers: Array<RemoteAnimationTarget>,
-        nonApps: Array<RemoteAnimationTarget>,
-        finishedCallback: IRemoteAnimationFinishedCallback,
-    ) {
-        goingAwayRemoteAnimationFinishedCallback = finishedCallback
+    fun onKeyguardGoingAwayRemoteAnimationStart(params: SurfaceTransition.Params): Boolean {
+        goingAwayRemoteAnimationParams = params
 
         if (maybeStartTransitionIfUserSwitchedDuringGoingAway()) {
             Log.d(TAG, "User switched during keyguard going away - ending remote animation.")
             endKeyguardGoingAwayAnimation()
-            return
+            return false
         }
 
         // If we weren't expecting the keyguard to be going away, WM triggered this transition.
@@ -219,7 +237,7 @@ constructor(
                         "Dismiss transition was not started; we're already GONE. " +
                         "Ending remote animation.",
                 )
-                finishedCallback.onAnimationFinished()
+                params.invokeCallback(params.startTransaction)
                 isKeyguardGoingAway = false
             }
 
@@ -228,6 +246,7 @@ constructor(
             if (SceneContainerFlag.isEnabled) {
                 if (deviceEntryInteractor.get().isDeviceEntered.value) {
                     alreadyGoneCallback.invoke()
+                    return false
                 } else {
                     deviceEntryInteractor
                         .get()
@@ -245,13 +264,16 @@ constructor(
             isKeyguardGoingAway = true
         }
 
-        if (apps.isNotEmpty()) {
+        val apps = params.apps
+        if (apps?.isNotEmpty() == true) {
             keyguardSurfaceBehindAnimator.applyParamsToSurface(apps[0])
         } else {
             // Nothing to do here if we have no apps, end the animation, which will cancel it and WM
             // will make *something* visible.
-            finishedCallback.onAnimationFinished()
+            params.invokeCallback(params.startTransaction)
         }
+
+        return true
     }
 
     fun onKeyguardGoingAwayRemoteAnimationCancelled() {
@@ -280,11 +302,16 @@ constructor(
      *
      * If [lockscreenShowing] is null, it means we don't know if the lockscreen is showing yet. This
      * will be decided by the [KeyguardTransitionBootInteractor] shortly.
+     *
+     * If [reshowIfAlreadyShowing] is true, we'll setLockScreenShown(true) even if we've already
+     * done so. This is used in the cases where the status of the going away animation is unclear
+     * and we need to ensure that the surface is hidden and the lockscreen is re-shown.
      */
     private fun setWmLockscreenState(
         lockscreenShowing: Boolean? = this.isLockscreenShowing,
         aodVisible: Boolean = this.isAodVisible,
         reason: String,
+        reshowIfAlreadyShowing: Boolean = false,
     ) {
         if (lockscreenShowing == null) {
             Log.d(
@@ -297,7 +324,9 @@ constructor(
             return
         }
 
-        if (
+        if (reshowIfAlreadyShowing && this.isLockscreenShowing == true && lockscreenShowing) {
+            Log.d(TAG, "#setWmLockscreenState: lockscreenShowing=true; explicitly re-showing")
+        } else if (
             this.isLockscreenShowing == lockscreenShowing &&
                 this.isAodVisible == aodVisible &&
                 !this.isKeyguardGoingAway
@@ -353,8 +382,8 @@ constructor(
 
         executor.execute {
             Log.d(TAG, "Finishing remote animation.")
-            goingAwayRemoteAnimationFinishedCallback?.onAnimationFinished()
-            goingAwayRemoteAnimationFinishedCallback = null
+            goingAwayRemoteAnimationParams?.invokeCallback()
+            goingAwayRemoteAnimationParams = null
 
             isKeyguardGoingAway = false
 
@@ -370,13 +399,25 @@ constructor(
      */
     private fun maybeStartTransitionIfUserSwitchedDuringGoingAway(): Boolean {
         val currentUser = selectedUserInteractor.getSelectedUserId()
-        if (currentUser != keyguardGoingAwayRequestedForUserId) {
+
+        // If we've requested keyguard going away for a specific user ID, make sure it hasn't
+        // changed. If the user ID is still null, that means this is the first going away transition
+        // since boot, and also, that it was started by WM, not requested by us.
+        if (keyguardGoingAwayRequestedForUserId != currentUser) {
             if (lockPatternUtils.isSecure(currentUser)) {
                 keyguardShowWhileAwakeInteractor.onSwitchedToSecureUserWhileKeyguardGoingAway()
             } else {
-                keyguardDismissTransitionInteractor.startDismissKeyguardTransition(
-                    reason = "User switch during keyguard going away, and new user is insecure"
-                )
+                if (SceneContainerFlag.isEnabled) {
+                    deviceEntryInteractor
+                        .get()
+                        .attemptDeviceEntry(
+                            "User switch during keyguard going away, and new user is insecure"
+                        )
+                } else {
+                    keyguardDismissTransitionInteractor.startDismissKeyguardTransition(
+                        reason = "User switch during keyguard going away, and new user is insecure"
+                    )
+                }
             }
 
             return true

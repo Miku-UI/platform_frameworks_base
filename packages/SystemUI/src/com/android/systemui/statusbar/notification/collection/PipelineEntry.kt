@@ -31,7 +31,9 @@ sealed class PipelineEntry(
     /** @return Previous state that ShadeListBuilder assigned to this PipelineEntry. */
     val previousAttachState: ListAttachState = create()
 
-    @get:PriorityBucket abstract val bucket: Int
+    abstract val bucket: Int
+
+    abstract val bucketForLogging: Int
 
     var isSeenInShade: Boolean = false
 

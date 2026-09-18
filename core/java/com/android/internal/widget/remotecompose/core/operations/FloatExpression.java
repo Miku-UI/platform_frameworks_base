@@ -16,20 +16,20 @@
 package com.android.internal.widget.remotecompose.core.operations;
 
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.FLOAT;
-import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.FLOAT_ARRAY;
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.INT;
+import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.REPEATED_FLOAT;
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.SHORT;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
+import com.android.internal.widget.remotecompose.core.Limits;
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
 import com.android.internal.widget.remotecompose.core.RemoteContext;
 import com.android.internal.widget.remotecompose.core.VariableSupport;
 import com.android.internal.widget.remotecompose.core.WireBuffer;
 import com.android.internal.widget.remotecompose.core.documentation.DocumentationBuilder;
-import com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation;
 import com.android.internal.widget.remotecompose.core.operations.utilities.AnimatedFloatExpression;
 import com.android.internal.widget.remotecompose.core.operations.utilities.NanMap;
 import com.android.internal.widget.remotecompose.core.operations.utilities.easing.FloatAnimation;
@@ -53,13 +53,14 @@ public class FloatExpression extends Operation
     public int mId;
     public @NonNull float [] mSrcValue;
     public @Nullable float [] mSrcAnimation;
-    @Nullable public FloatAnimation mFloatAnimation;
-    @Nullable private SpringStopEngine mSpring;
+    @Nullable
+    public FloatAnimation mFloatAnimation;
+    @Nullable
+    private SpringStopEngine mSpring;
     public @Nullable float [] mPreCalcValue;
     private float mLastChange = Float.NaN;
     private float mLastCalculatedValue = Float.NaN;
     @NonNull AnimatedFloatExpression mExp = new AnimatedFloatExpression();
-    public static final int MAX_EXPRESSION_SIZE = 32;
 
     public FloatExpression(int id, @NonNull float [] value, @Nullable float [] animation) {
         this.mId = id;
@@ -182,7 +183,7 @@ public class FloatExpression extends Operation
                 markDirty();
             }
         } else if (mSpring != null) { // support damped spring animation
-            float lastComputedValue = mSpring.get(t - mLastChange);
+            float lastComputedValue = mSpring.get(t);
             float epsilon = 0.01f;
             if (lastComputedValue != mLastAnimatedValue
                     || Math.abs(mSpring.getTargetValue() - lastComputedValue) > epsilon) {
@@ -199,6 +200,9 @@ public class FloatExpression extends Operation
                                 mPreCalcValue,
                                 mPreCalcValue.length);
             } catch (Exception e) {
+                if (mPreCalcValue == null) {
+                    throw new RuntimeException(this.toString(), e);
+                }
                 throw new RuntimeException(this.toString() + " len = " + mPreCalcValue.length, e);
             }
             context.loadFloat(mId, v);
@@ -267,9 +271,9 @@ public class FloatExpression extends Operation
     /**
      * Writes out the operation to the buffer
      *
-     * @param buffer The buffer to write to
-     * @param id the id of the resulting float
-     * @param value the float expression array
+     * @param buffer    The buffer to write to
+     * @param id        the id of the resulting float
+     * @param value     the float expression array
      * @param animation the animation expression array
      */
     public static void apply(
@@ -281,7 +285,7 @@ public class FloatExpression extends Operation
         buffer.writeInt(id);
 
         int len = value.length;
-        if (len > MAX_EXPRESSION_SIZE) {
+        if (len > Limits.MAX_EXPRESSION_SIZE) {
             throw new RuntimeException(AnimatedFloatExpression.toString(value, null) + " to long");
         }
         if (animation != null) {
@@ -302,14 +306,14 @@ public class FloatExpression extends Operation
     /**
      * Read this operation and add it to the list of operations
      *
-     * @param buffer the buffer to read
+     * @param buffer     the buffer to read
      * @param operations the list of operations that will be added to
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
         int id = buffer.readInt();
         int len = buffer.readInt();
         int valueLen = len & 0xFFFF;
-        if (valueLen > MAX_EXPRESSION_SIZE) {
+        if (valueLen > Limits.MAX_EXPRESSION_SIZE) {
             throw new RuntimeException("Float expression too long");
         }
         int animLen = (len >> 16) & 0xFFFF;
@@ -336,26 +340,26 @@ public class FloatExpression extends Operation
      * @param doc to append the description to.
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
-        doc.operation("Expressions Operations", OP_CODE, CLASS_NAME)
-                .description("A Float expression")
-                .field(DocumentedOperation.INT, "id", "The id of the Color")
-                .field(SHORT, "expression_length", "expression length")
-                .field(SHORT, "animation_length", "animation description length")
+        doc.operation("Logic & Expressions Operations", OP_CODE, CLASS_NAME)
+                .description("Define a float via dynamic expression and optional animation")
+                .field(INT, "id", "The ID of the resulting float")
+                .field(SHORT, "expression_length", "The length of the expression")
+                .field(SHORT, "animation_length", "The length of the animation spec")
                 .field(
-                        FLOAT_ARRAY,
+                        REPEATED_FLOAT,
                         "expression",
-                        "expression_length",
-                        "Sequence of Floats representing and expression")
+                        "Sequence of floats representing an expression (RPN)")
                 .field(
-                        FLOAT_ARRAY,
-                        "AnimationSpec",
-                        "animation_length",
-                        "Sequence of Floats representing animation curve")
-                .field(FLOAT, "duration", "> time in sec")
-                .field(INT, "bits", "> WRAP|INITALVALUE | TYPE ")
-                .field(FLOAT_ARRAY, "spec", "> [SPEC PARAMETERS] ")
-                .field(FLOAT, "initialValue", "> [Initial value] ")
-                .field(FLOAT, "wrapValue", "> [Wrap value] ");
+                        REPEATED_FLOAT,
+                        "animationSpec",
+                        "Sequence of floats representing an animation curve")
+                .startSubsection("")
+                .field(FLOAT, "duration", "Time in sec")
+                .field(INT, "bits", "WRAP | INITIAL VALUE | TYPE ")
+                .field(REPEATED_FLOAT, "spec", "SPEC PARAMETERS")
+                .field(FLOAT, "initialValue", "Initial value")
+                .field(FLOAT, "wrapValue", "Wrap value")
+                .endSubsection();
     }
 
     @NonNull

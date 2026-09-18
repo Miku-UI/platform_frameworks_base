@@ -34,23 +34,81 @@ import org.junit.runner.RunWith
 class BubblePersistentRepositoryTest : ShellTestCase() {
 
     // user, package, shortcut, notification key, height, res-height, title, taskId, locusId
-    private val user0Bubbles = listOf(
-            BubbleEntity(0, "com.example.messenger", "shortcut-1", "0k1", 120, 0, null, 1, null,
-                    true),
-            BubbleEntity(10, "com.example.chat", "alice and bob", "0k2", 0, 16537428, "title", 2,
-                    null),
-            BubbleEntity(0, "com.example.messenger", "shortcut-2", "0k3", 120, 0, null,
-                    INVALID_TASK_ID, null)
-    )
+    private val user0Bubbles =
+        listOf(
+            BubbleEntity(
+                0,
+                "com.example.messenger",
+                "shortcut-1",
+                "0k1",
+                120,
+                0,
+                null,
+                1,
+                null,
+                true,
+            ),
+            BubbleEntity(
+                10,
+                "com.example.chat",
+                "alice and bob",
+                "0k2",
+                0,
+                16537428,
+                "title",
+                2,
+                null,
+            ),
+            BubbleEntity(
+                0,
+                "com.example.messenger",
+                "shortcut-2",
+                "0k3",
+                120,
+                0,
+                null,
+                INVALID_TASK_ID,
+                null,
+            ),
+        )
 
-    private val user1Bubbles = listOf(
-            BubbleEntity(1, "com.example.messenger", "shortcut-1", "1k1", 120, 0, null, 3, null,
-                    true),
-            BubbleEntity(12, "com.example.chat", "alice and bob", "1k2", 0, 16537428, "title", 4,
-                    null),
-            BubbleEntity(1, "com.example.messenger", "shortcut-2", "1k3", 120, 0, null,
-                    INVALID_TASK_ID, null)
-    )
+    private val user1Bubbles =
+        listOf(
+            BubbleEntity(
+                1,
+                "com.example.messenger",
+                "shortcut-1",
+                "1k1",
+                120,
+                0,
+                null,
+                3,
+                null,
+                true,
+            ),
+            BubbleEntity(
+                12,
+                "com.example.chat",
+                "alice and bob",
+                "1k2",
+                0,
+                16537428,
+                "title",
+                4,
+                null,
+            ),
+            BubbleEntity(
+                1,
+                "com.example.messenger",
+                "shortcut-2",
+                "1k3",
+                120,
+                0,
+                null,
+                INVALID_TASK_ID,
+                null,
+            ),
+        )
 
     private val bubbles = SparseArray<List<BubbleEntity>>()
 

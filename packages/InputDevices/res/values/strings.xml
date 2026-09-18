@@ -6,6 +6,9 @@
     <!-- Keyboard layouts label, used to describe the set of all built-in layouts in the UI. [CHAR LIMIT=35] -->
     <string name="keyboard_layouts_label">Android keyboard</string>
 
+    <!-- CA English keyboard layout label. [CHAR LIMIT=35] -->
+    <string name="keyboard_layout_english_ca_label">English (Canada)</string>
+
     <!-- UK English keyboard layout label. [CHAR LIMIT=35] -->
     <string name="keyboard_layout_english_uk_label">English (UK)</string>
 
@@ -99,6 +102,9 @@
     <!-- Slovak keyboard layout label. [CHAR LIMIT=35] -->
     <string name="keyboard_layout_slovak">Slovak</string>
 
+    <!-- Slovak (QWERTY style) keyboard layout label. [CHAR LIMIT=35] -->
+    <string name="keyboard_layout_slovak_qwerty">Slovak, QWERTY style</string>
+
     <!-- Slovenian keyboard layout label. [CHAR LIMIT=35] -->
     <string name="keyboard_layout_slovenian">Slovenian</string>
 
@@ -170,4 +176,52 @@
 
     <!-- English (India) keyboard layout label. [CHAR LIMIT=35] -->
     <string name="keyboard_layout_english_india">English (India)</string>
+
+    <!-- Sony Playstation game controller button with circle drawn on it. [CHAR LIMIT=35] -->
+    <string name="playstation_controller_circle_button">Circle button</string>
+
+    <!-- Sony Playstation game controller button with triangle drawn on it. [CHAR LIMIT=35] -->
+    <string name="playstation_controller_triangle_button">Triangle button</string>
+
+    <!-- Sony Playstation game controller button with square drawn on it. [CHAR LIMIT=35] -->
+    <string name="playstation_controller_square_button">Square button</string>
+
+    <!-- Sony Playstation game controller button with cross drawn on it. [CHAR LIMIT=35] -->
+    <string name="playstation_controller_cross_button">Cross button</string>
+
+    <!-- Default game controller down button. [CHAR LIMIT=35] -->
+    <string name="default_game_controller_down_button">Down button</string>
+
+    <!-- Default game controller left button. [CHAR LIMIT=35] -->
+    <string name="default_game_controller_left_button">Left button</string>
+
+    <!-- Default game controller right button. [CHAR LIMIT=35] -->
+    <string name="default_game_controller_right_button">Right button</string>
+
+    <!-- Default game controller up button. [CHAR LIMIT=35] -->
+    <string name="default_game_controller_up_button">Up button</string>
+
+    <!-- Nintendo game controller L button. [CHAR LIMIT=35] -->
+    <string name="nintendo_game_controller_l_button">L button</string>
+
+    <!-- Nintendo game controller R button. [CHAR LIMIT=35] -->
+    <string name="nintendo_game_controller_r_button">R button</string>
+
+    <!-- Nintendo game controller ZL button. [CHAR LIMIT=35] -->
+    <string name="nintendo_game_controller_zl_button">ZL button</string>
+
+    <!-- Nintendo game controller ZR button. [CHAR LIMIT=35] -->
+    <string name="nintendo_game_controller_zr_button">ZR button</string>
+
+    <!-- Xbox game controller LB button. [CHAR LIMIT=35] -->
+    <string name="xbox_game_controller_lb_button">LB button</string>
+
+    <!-- Xbox game controller RB button. [CHAR LIMIT=35] -->
+    <string name="xbox_game_controller_rb_button">RB button</string>
+
+    <!-- Xbox game controller LT button. [CHAR LIMIT=35] -->
+    <string name="xbox_game_controller_lt_button">LT button</string>
+
+    <!-- Xbox game controller RT button. [CHAR LIMIT=35] -->
+    <string name="xbox_game_controller_rt_button">RT button</string>
 </resources>

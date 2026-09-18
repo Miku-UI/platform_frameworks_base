@@ -90,7 +90,7 @@ class UninstallLaunch : FragmentActivity(), UninstallActionListener {
         if (savedInstanceState != null) {
             savedIntent = savedInstanceState.getParcelable(ARGS_SAVED_INTENT, Intent::class.java)
         }
-        if (!intent.filterEquals(savedIntent)) {
+        if (!uninstallViewModel!!.isPreprocessed || !intent.filterEquals(savedIntent)) {
             uninstallViewModel!!.preprocessIntent(intent, callerInfo)
         }
 
@@ -198,6 +198,14 @@ class UninstallLaunch : FragmentActivity(), UninstallActionListener {
     override fun onPositiveResponse(keepData: Boolean) {
         if (localLogv) {
             Log.d(LOG_TAG, "Staring uninstall")
+        }
+
+        // Dismiss the dialog UI immediately to ensure it doesn't visually persist
+        // (e.g. behind the App Lock authentication screen).
+        // The Activity remains alive to receive the final result.
+        val fragment = getUninstallationFragment()
+        if (fragment is DialogFragment) {
+            fragment.dismiss()
         }
         uninstallViewModel!!.initiateUninstall(keepData)
     }

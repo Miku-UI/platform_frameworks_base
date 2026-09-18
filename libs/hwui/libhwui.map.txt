@@ -68,6 +68,7 @@ LIBHWUI_PLATFORM {
       SkImageInfo::*;
       SkMemoryStream::SkMemoryStream*;
       android::uirenderer::logBitmapDecode*;
+      android::MinikinFontSkiaFactory::init*;
     };
   local:
     *;

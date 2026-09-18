@@ -42,11 +42,13 @@ import android.annotation.TestApi;
 import android.annotation.UserIdInt;
 import android.annotation.WorkerThread;
 import android.annotation.XmlRes;
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.ActivityThread;
 import android.app.AppDetailsActivity;
 import android.app.PackageDeleteObserver;
 import android.app.PackageInstallObserver;
+import android.app.PendingIntent;
 import android.app.PropertyInvalidatedCache;
 import android.app.admin.DevicePolicyManager;
 import android.app.usage.StorageStatsManager;
@@ -90,7 +92,12 @@ import android.os.incremental.IncrementalManager;
 import android.os.storage.StorageManager;
 import android.os.storage.VolumeInfo;
 import android.permission.PermissionManager;
+import android.ravenwood.annotation.RavenwoodKeep;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+import android.ravenwood.annotation.RavenwoodSupported;
 import android.ravenwood.annotation.RavenwoodSupported.SupportType;
+import android.service.personalcontext.PersonalContextManager;
 import android.telephony.TelephonyManager;
 import android.telephony.UiccCardInfo;
 import android.telephony.gba.GbaService;
@@ -139,7 +146,7 @@ import java.util.function.Function;
  * <a href="/training/basics/intents/package-visibility">manage package visibility</a>.
  * </p>
  */
-@android.ravenwood.annotation.RavenwoodKeepPartialClass
+@RavenwoodKeepPartialClass
 public abstract class PackageManager {
     private static final String TAG = "PackageManager";
 
@@ -153,7 +160,7 @@ public abstract class PackageManager {
      * This exception is thrown when a given package, application, or component
      * name cannot be found.
      */
-    @android.ravenwood.annotation.RavenwoodKeepWholeClass
+    @RavenwoodKeepWholeClass
     public static class NameNotFoundException extends AndroidException {
         public NameNotFoundException() {
         }
@@ -329,6 +336,44 @@ public abstract class PackageManager {
      */
     public static final String PROPERTY_ANDROID_SAFETY_LABEL =
             "android.content.PROPERTY_ANDROID_SAFETY_LABEL";
+
+    /**
+     * Service level {@link android.content.pm.PackageManager.Property} tag for native services
+     * specifying the name of the library to be loaded to the process that hosts the service.
+     * If not specified, the system tries to load {@code libmain.so}.
+     *
+     * <p>Example:
+     * <pre>
+     * &lt;service android:isolatedProcess="true"
+                   android:nativeService="true"&gt;
+     *   &lt;property
+     *     android:name="android.app.PROPERTY_NATIVE_SERVICE_LIBRARY_NAME"
+     *     android:value="libnativeservice.so"/&gt;
+     * &lt;/service&gt;
+     * </pre>
+     */
+    @FlaggedApi(android.os.Flags.FLAG_NATIVE_FRAMEWORK_PROTOTYPE)
+    public static final String PROPERTY_NATIVE_SERVICE_LIBRARY_NAME =
+            "android.app.PROPERTY_NATIVE_SERVICE_LIBRARY_NAME";
+
+    /**
+     * Service level {@link android.content.pm.PackageManager.Property} tag for native services
+     * specifying the symbol name of the entry point function for the service. If not specified,
+     * the system executes {@code ANativeService_onCreate}.
+     *
+     * <p>Example:
+     * <pre>
+     * &lt;service android:isolatedProcess="true"
+                   android:nativeService="true"&gt;
+     *   &lt;property
+     *     android:name="android.app.PROPERTY_NATIVE_SERVICE_FUNCTION_NAME"
+     *     android:value="native_service_createService"/&gt;
+     * &lt;/service&gt;
+     * </pre>
+     */
+    @FlaggedApi(android.os.Flags.FLAG_NATIVE_FRAMEWORK_PROTOTYPE)
+    public static final String PROPERTY_NATIVE_SERVICE_FUNCTION_NAME =
+            "android.app.PROPERTY_NATIVE_SERVICE_FUNCTION_NAME";
 
     /**
      * A property value set within the manifest.
@@ -949,6 +994,7 @@ public abstract class PackageManager {
             MATCH_HIDDEN_UNTIL_INSTALLED_COMPONENTS,
             MATCH_APEX,
             MATCH_ARCHIVED_PACKAGES,
+            GET_APP_LOCK_INFO,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ApplicationInfoFlagsBits {}
@@ -973,6 +1019,7 @@ public abstract class PackageManager {
             GET_DISABLED_UNTIL_USED_COMPONENTS,
             GET_UNINSTALLED_PACKAGES,
             MATCH_QUARANTINED_COMPONENTS,
+            GET_APP_LOCK_INFO,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ComponentInfoFlagsBits {}
@@ -998,6 +1045,7 @@ public abstract class PackageManager {
             GET_UNINSTALLED_PACKAGES,
             MATCH_CLONE_PROFILE_LONG,
             MATCH_QUARANTINED_COMPONENTS,
+            GET_APP_LOCK_INFO,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ResolveInfoFlagsBits {}
@@ -1362,7 +1410,8 @@ public abstract class PackageManager {
     public static final int MATCH_APEX = 0x40000000;
 
     /**
-     * @deprecated Use {@link #GET_ATTRIBUTIONS_LONG} to avoid unintended sign extension.
+     * @deprecated Use {@link #GET_ATTRIBUTIONS_LONG} to avoid unintended sign extension. Operations
+     * with this flag may cause unintended results and potential {@link RuntimeException}.
      */
     @Deprecated
     public static final int GET_ATTRIBUTIONS = 0x80000000;
@@ -1397,13 +1446,26 @@ public abstract class PackageManager {
      * <p>
      * This flag is used only for query and not resolution, the default behaviour would be to
      * restrict querying across clone profile. This flag would be honored only if caller have
-     * permission {@link Manifest.permission.QUERY_CLONED_APPS}.
+     * permission {@link Manifest.permission#QUERY_CLONED_APPS}.
      *
      * @hide
      */
     @FlaggedApi(android.content.pm.Flags.FLAG_FIX_DUPLICATED_FLAGS)
     @SystemApi
     public static final long MATCH_CLONE_PROFILE_LONG = 1L << 34;
+
+    /**
+     * {@link ApplicationInfo}, {@link ComponentInfo}, and {@link ResolveInfo} flag: return the
+     * {@link ApplicationInfo#isAppLockSupported} and {@link ApplicationInfo#isAppLockEnabled}
+     * associated with an application.
+     *
+     * <p>The caller should have the {@link Manifest.permission#LOCK_APPS} permission, or a
+     * {@link SecurityException} will be thrown. This flag cannot be used with
+     * {@link GET_ATTRIBUTIONS}, if the caller wishes to retrieve attributions, they must use
+     * {@link GET_ATTRIBUTIONS_LONG}.
+     */
+    @FlaggedApi(android.security.Flags.FLAG_APP_LOCK_APIS)
+    public static final long GET_APP_LOCK_INFO = 1L << 35;
 
     //-------------------------------------------------------------------------
     // End of GET_ and MATCH_ flags
@@ -2748,6 +2810,61 @@ public abstract class PackageManager {
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface DeleteFlags {}
+
+    /** @hide Indicate that no user option has been set. System default should be used. */
+    public static final int VIRTUAL_GAMEPAD_USER_OPTION_UNSET = 0;
+    /** @hide Indicate that user has chose to opt out from the virtual gamepad feature. */
+    public static final int VIRTUAL_GAMEPAD_USER_OPTION_OPT_OUT = 1;
+    /**
+     * User option for the virtual gamepad.
+     *
+     * @hide
+     */
+    @IntDef(prefix = { "VIRTUAL_GAMEPAD_USER_OPTION_" }, value = {
+            VIRTUAL_GAMEPAD_USER_OPTION_UNSET,
+            VIRTUAL_GAMEPAD_USER_OPTION_OPT_OUT,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface VirtualGamepadUserOption {}
+
+    /**
+     * User options for the personal context data collection setting.
+     *
+     * @see PersonalContextManager#isPersonalContextModeEnabled(String)
+     * @see PersonalContextManager#setPersonalContextModeEnabled(String, boolean)
+     * @hide
+     */
+    @IntDef(
+            prefix = {"PERSONAL_CONTEXT_MODE_"},
+            value = {
+                PERSONAL_CONTEXT_MODE_UNSET,
+                PERSONAL_CONTEXT_MODE_USER_OFF,
+                PERSONAL_CONTEXT_MODE_USER_ON
+            })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface PersonalContextMode {}
+
+    /**
+     * Value that indicates no user option has been set, meaning personal context data collection is
+     * enabled for this package.
+     *
+     * @hide
+     */
+    public static final int PERSONAL_CONTEXT_MODE_UNSET = 0;
+
+    /**
+     * Value that indicates the user turned off personal context data collection for a package.
+     *
+     * @hide
+     */
+    public static final int PERSONAL_CONTEXT_MODE_USER_OFF = 1;
+
+    /**
+     * Value that indicates the user turned on personal context data collection for a package.
+     *
+     * @hide
+     */
+    public static final int PERSONAL_CONTEXT_MODE_USER_ON = 2;
 
     /**
      * Flag parameter for {@link #deletePackage} to indicate that you don't want to delete the
@@ -4125,6 +4242,15 @@ public abstract class PackageManager {
 
     /**
      * Feature for {@link #getSystemAvailableFeatures} and
+     * {@link #hasSystemFeature}: The device supports connecting to USB hosts
+     * as the USB device.
+     */
+    @SdkConstant(SdkConstantType.FEATURE)
+    @FlaggedApi(android.hardware.usb.flags.Flags.FLAG_ENABLE_FEATURE_USB_DEVICE)
+    public static final String FEATURE_USB_DEVICE = "android.hardware.usb.device";
+
+    /**
+     * Feature for {@link #getSystemAvailableFeatures} and
      * {@link #hasSystemFeature}: The device supports connecting to USB accessories.
      */
     @SdkConstant(SdkConstantType.FEATURE)
@@ -4669,6 +4795,7 @@ public abstract class PackageManager {
      * the Android Keystore backed by an isolated execution environment. The version indicates
      * which features are implemented in the isolated execution environment:
      * <ul>
+     * <li>500: Hardware support for ML-DSA signature generation.
      * <li>400: Inclusion of module information (via tag MODULE_HASH) in the attestation record.
      * <li>300: Ability to include a second IMEI in the ID attestation record, see
      * {@link android.app.admin.DevicePolicyManager#ID_TYPE_IMEI}.
@@ -4752,11 +4879,13 @@ public abstract class PackageManager {
 
     /**
      * Feature for {@link #getSystemAvailableFeatures} and {@link #hasSystemFeature}:
-     * The device has a Keymaster implementation that supports Device ID attestation.
+     * The device has a KeyMint (or Keymaster) implementation that supports device ID attestation.
+     * See <a href="https://source.android.com/docs/security/features/keystore/attestation#id-attestation">the public documentation</a>
+     * for more information about device ID attestation.
      *
      * @see DevicePolicyManager#isDeviceIdAttestationSupported
-     * @hide
      */
+    @FlaggedApi(android.security.keystore2.Flags.FLAG_MAKE_ID_ATTESTATION_FEATURE_PUBLIC)
     @SdkConstant(SdkConstantType.FEATURE)
     public static final String FEATURE_DEVICE_ID_ATTESTATION =
             "android.software.device_id_attestation";
@@ -5030,6 +5159,26 @@ public abstract class PackageManager {
     public static final String FEATURE_XR_API_SPATIAL =
         "android.software.xr.api.spatial";
 
+    /**
+     * Feature for {@link #getSystemAvailableFeatures} and {@link #hasSystemFeature}: This device
+     * has protected virtual machine for AI applications processing personal data.
+     *
+     * @hide
+     */
+    @FlaggedApi(android.aiseal.Flags.FLAG_AISEAL_HOST_APIS)
+    @SystemApi
+    @SdkConstant(SdkConstantType.FEATURE)
+    public static final String FEATURE_AISEAL = "android.software.aiseal";
+
+    /**
+     * Feature for {@link #getSystemAvailableFeatures} and {@link #hasSystemFeature}: This device
+     * has a NPU (Neural Processing Unit) or similar hardware for accelerating AI workloads.
+     */
+    @FlaggedApi(com.android.npumanager.Flags.FLAG_NPUMANAGER_ENABLED)
+    @SdkConstant(SdkConstantType.FEATURE)
+    public static final String FEATURE_NEURAL_PROCESSING_UNIT =
+        "android.hardware.npu";
+
     /** @hide */
     public static final boolean APP_ENUMERATION_ENABLED_BY_DEFAULT = true;
 
@@ -5183,6 +5332,32 @@ public abstract class PackageManager {
     @Deprecated
     public static final String EXTRA_INTENT_FILTER_VERIFICATION_PACKAGE_NAME
             = "android.content.pm.extra.INTENT_FILTER_VERIFICATION_PACKAGE_NAME";
+
+    /**
+     * The action used to launch an activity for the user to set the App Lock state for an app.
+     *
+     * @hide
+     */
+    public static final String ACTION_SET_APP_LOCK = "android.content.pm.action.SET_APP_LOCK";
+
+    /**
+     * Extra field name used with {@link #ACTION_SET_APP_LOCK} for the new App Lock state to be set
+     * after successful authentication and {@link #ACTION_PACKAGE_APP_LOCK_ENABLED_STATE_CHANGED}
+     * for the App Lock state that was just updated. This should be a boolean, where {@code true}
+     * means App Lock should be enabled, and {@code false} means that App Lock should be disabled.
+     *
+     * @hide
+     */
+    public static final String EXTRA_APP_LOCK_NEW_STATE =
+            "android.content.pm.extra.APP_LOCK_NEW_STATE";
+
+    /**
+     * Broadcast action: Package's App Lock enabled state has changed.
+     *
+     * @hide
+     */
+    public static final String ACTION_PACKAGE_APP_LOCK_ENABLED_STATE_CHANGED =
+            "android.content.pm.action.PACKAGE_APP_LOCK_ENABLED_STATE_CHANGED";
 
     /**
      * The action used to request that the user approve a permission request
@@ -5493,6 +5668,26 @@ public abstract class PackageManager {
     public static final int FLAG_PERMISSION_SELECTED_LOCATION_ACCURACY =  1 << 19;
 
     /**
+     * Permission flag: The user has seen trusted system component once in the application.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.permission.flags.Flags.FLAG_LOCATION_BUTTON_ENABLED)
+    public static final int FLAG_PERMISSION_TRUSTED_UI_SHOWN =  1 << 20;
+
+    /**
+     * Permission flag: The user has consented to using a trusted system component in the
+     * application. When set, the system doesn't show the consent dialog for future
+     * interactions.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.permission.flags.Flags.FLAG_LOCATION_BUTTON_ENABLED)
+    public static final int FLAG_PERMISSION_TRUSTED_UI_CONSENTED =  1 << 21;
+
+    /**
      * Permission flags: Reserved for use by the permission controller. The platform and any
      * packages besides the permission controller should not assume any definition about these
      * flags.
@@ -5545,7 +5740,10 @@ public abstract class PackageManager {
             | FLAG_PERMISSION_GRANTED_BY_ROLE
             | FLAG_PERMISSION_REVOKED_COMPAT
             | FLAG_PERMISSION_ONE_TIME
-            | FLAG_PERMISSION_AUTO_REVOKED;
+            | FLAG_PERMISSION_AUTO_REVOKED
+            | FLAG_PERMISSION_SELECTED_LOCATION_ACCURACY
+            | FLAG_PERMISSION_TRUSTED_UI_SHOWN
+            | FLAG_PERMISSION_TRUSTED_UI_CONSENTED;
 
     /**
      * Injected activity in app that forwards user to setting activity of that app.
@@ -5781,7 +5979,7 @@ public abstract class PackageManager {
      * application info.
      * @hide
      */
-    @android.ravenwood.annotation.RavenwoodKeepWholeClass
+    @RavenwoodKeepWholeClass
     public static class Flags {
         final long mValue;
         protected Flags(long value) {
@@ -5796,7 +5994,7 @@ public abstract class PackageManager {
      * Specific flags used for retrieving package info. Example:
      * {@code PackageManager.getPackageInfo(packageName, PackageInfoFlags.of(0)}
      */
-    @android.ravenwood.annotation.RavenwoodKeepWholeClass
+    @RavenwoodKeepWholeClass
     public final static class PackageInfoFlags extends Flags {
         private PackageInfoFlags(@PackageInfoFlagsBits long value) {
             super(value);
@@ -5810,7 +6008,7 @@ public abstract class PackageManager {
     /**
      * Specific flags used for retrieving application info.
      */
-    @android.ravenwood.annotation.RavenwoodKeepWholeClass
+    @RavenwoodKeepWholeClass
     public final static class ApplicationInfoFlags extends Flags {
         private ApplicationInfoFlags(@ApplicationInfoFlagsBits long value) {
             super(value);
@@ -5824,7 +6022,7 @@ public abstract class PackageManager {
     /**
      * Specific flags used for retrieving component info.
      */
-    @android.ravenwood.annotation.RavenwoodKeepWholeClass
+    @RavenwoodKeepWholeClass
     public final static class ComponentInfoFlags extends Flags {
         private ComponentInfoFlags(@ComponentInfoFlagsBits long value) {
             super(value);
@@ -5838,7 +6036,7 @@ public abstract class PackageManager {
     /**
      * Specific flags used for retrieving resolve info.
      */
-    @android.ravenwood.annotation.RavenwoodKeepWholeClass
+    @RavenwoodKeepWholeClass
     public final static class ResolveInfoFlags extends Flags {
         private ResolveInfoFlags(@ResolveInfoFlagsBits long value) {
             super(value);
@@ -5859,7 +6057,7 @@ public abstract class PackageManager {
      * {@link Context#getPackageManager}
      */
     @Deprecated
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public PackageManager() {}
 
     /**
@@ -6890,7 +7088,10 @@ public abstract class PackageManager {
             FLAG_PERMISSION_GRANTED_BY_ROLE,
             FLAG_PERMISSION_REVOKED_COMPAT,
             FLAG_PERMISSION_ONE_TIME,
-            FLAG_PERMISSION_AUTO_REVOKED
+            FLAG_PERMISSION_AUTO_REVOKED,
+            FLAG_PERMISSION_SELECTED_LOCATION_ACCURACY,
+            FLAG_PERMISSION_TRUSTED_UI_SHOWN,
+            FLAG_PERMISSION_TRUSTED_UI_CONSENTED,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface PermissionFlags {}
@@ -7484,7 +7685,7 @@ public abstract class PackageManager {
             int flags, @UserIdInt int userId);
 
     /**
-     * See {@link #getInstalledApplicationsAsUser(int, int}.
+     * See {@link #getInstalledApplicationsAsUser(int, int)}
      * @hide
      */
     @NonNull
@@ -7778,6 +7979,7 @@ public abstract class PackageManager {
      *
      * @return Returns true if the devices supports the feature, else false.
      */
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ApplicationPackageManager")
     public abstract boolean hasSystemFeature(@NonNull String featureName);
 
     /**
@@ -7789,6 +7991,7 @@ public abstract class PackageManager {
      *
      * @return Returns true if the devices supports the feature, else false.
      */
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ApplicationPackageManager")
     public abstract boolean hasSystemFeature(@NonNull String featureName, int version);
 
     /**
@@ -8139,7 +8342,10 @@ public abstract class PackageManager {
     }
 
 
-    /** @deprecated @hide */
+    /**
+     * @deprecated
+     * @hide
+     */
     @NonNull
     @Deprecated
     @UnsupportedAppUsage
@@ -8551,8 +8757,7 @@ public abstract class PackageManager {
      *             found on the system.
      */
     @NonNull
-    @android.ravenwood.annotation.RavenwoodSupported(
-            type = SupportType.SUBCLASS, subclass = "RavenwoodPackageManager")
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ApplicationPackageManager")
     public abstract InstrumentationInfo getInstrumentationInfo(@NonNull ComponentName className,
             @InstrumentationInfoFlags int flags) throws NameNotFoundException;
 
@@ -9210,8 +9415,12 @@ public abstract class PackageManager {
      * {@link PackageManager#VERIFICATION_ALLOW} or
      * {@link PackageManager#VERIFICATION_REJECT}.
      *
-     * This method may only be called once per package id. Additional calls
-     * will have no effect.
+     * This method can be called multiple times, but the total amount of time extension time will
+     * be limited to {@link PackageManager#MAXIMUM_VERIFICATION_TIMEOUT}. If the method is called
+     * multiple times with different {@code verificationCodeAtTimeout}, then previous
+     * {@code verificationCodeAtTimeout} will be ignored and only the latest one will take effect.
+     * If this method is called after calling {@link PackageManager#verifyPendingInstall}, it may
+     * nullify the result set by verifyPendingInstall.
      *
      * @param id pending package identifier as passed via the
      *            {@link PackageManager#EXTRA_VERIFICATION_ID} Intent extra.
@@ -9531,6 +9740,7 @@ public abstract class PackageManager {
      */
     @SuppressWarnings("HiddenAbstractMethod")
     @UnsupportedAppUsage
+    @RequiresPermission(Manifest.permission.CLEAR_APP_USER_DATA)
     public abstract void clearApplicationUserData(@NonNull String packageName,
             @Nullable IPackageDataObserver observer);
     /**
@@ -10182,6 +10392,17 @@ public abstract class PackageManager {
     public static final int RESTRICTION_HIDE_NOTIFICATIONS = 0x00000002;
 
     /**
+     * Mark a package as requiring a speedbump before launch.
+     * When a package with this restriction is launched, a speedbump screen will be shown
+     * to the user, who must confirm they want to proceed.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_ACTIVITY_START_INTERCEPTOR_SPEEDBUMPS)
+    public static final int RESTRICTION_CONFIRM_WITH_SPEEDBUMP = 0x00000004;
+
+    /**
      * Restriction flags to set on a package that is considered as distracting to the user.
      * These should help the user to restrict their usage of these apps.
      *
@@ -10191,7 +10412,8 @@ public abstract class PackageManager {
     @IntDef(flag = true, prefix = {"RESTRICTION_"}, value = {
             RESTRICTION_NONE,
             RESTRICTION_HIDE_FROM_SUGGESTIONS,
-            RESTRICTION_HIDE_NOTIFICATIONS
+            RESTRICTION_HIDE_NOTIFICATIONS,
+            RESTRICTION_CONFIRM_WITH_SPEEDBUMP
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface DistractionRestriction {}
@@ -10215,6 +10437,7 @@ public abstract class PackageManager {
      * @see #RESTRICTION_NONE
      * @see #RESTRICTION_HIDE_FROM_SUGGESTIONS
      * @see #RESTRICTION_HIDE_NOTIFICATIONS
+     * @see #RESTRICTION_CONFIRM_WITH_SPEEDBUMP
      */
     @SystemApi
     @RequiresPermission(android.Manifest.permission.SUSPEND_APPS)
@@ -10520,13 +10743,100 @@ public abstract class PackageManager {
     }
 
     /**
+     * Returns a {@link PendingIntent} to launch an {@link Activity} that allows the caller to
+     * set App Lock for the specified package. Returns null if the App Lock state of the package
+     * cannot be set, either because App Lock is not supported for that package, or because it is
+     * already set to that value.
+     *
+     * <p>App Lock is a feature that allows users to add authentication as a requirement to open
+     * individual apps, even if the device is unlocked. When App Lock is enabled for an app, the
+     * system performs the following protections:
+     * <ul>
+     *   <li>Requires authentication using device credentials (e.g. PIN, pattern, or password) or
+     *   Class 3 biometrics, whenever the user attempts to open the app, share information to it
+     *   via the Sharesheet, or uninstall it.</li>
+     *   <li>Redacts sensitive content of notifications sent by the app.</li>
+     *   <li>Removes the app's widgets and shortcuts from the home screen.</li>
+     *   <li>Displays a locked view of the app in Recents to prevent content leakage.</li>
+     *   <li>Hides the app's Direct Share targets from the Sharesheet.</li>
+     * </ul>
+     *
+     * <p>Once authenticated, an App Lock enabled app remains unlocked while it is visible in
+     * the foreground. The app will remain unlocked for a short grace period after the user
+     * navigates away, after which the system will re-lock it. Additionally, all App Lock
+     * enabled apps are immediately locked whenever the device is locked.
+     *
+     * <p> Before calling this API to avoid getting a null {@link PendingIntent} callers should
+     * first verify that App Lock is supported for the specified package by first checking
+     * {@link ApplicationInfo#isAppLockSupported}, or if it's already at the target state for that
+     * package by checking {@link ApplicationInfo#isAppLockEnabled}. The {@link PendingIntent}
+     * resolves to an activity, which allows the user to enroll a device credential if one isn't
+     * enrolled, and then requires authentication before setting the App Lock enablement state as
+     * enabled or disabled.
+     *
+     * @param packageName the package to enable or disable App Lock.
+     * @param enabled true when the user would like to enable App Lock for the given package, false
+     *                otherwise
+     * @return a {@link PendingIntent} to launch an activity to set App Lock for the passed in
+     *         package. If the package does not support App Lock or the package's App Lock state is
+     *         already in the passed in state, return null.
+     */
+    @FlaggedApi(android.security.Flags.FLAG_APP_LOCK_APIS)
+    @RequiresPermission(Manifest.permission.LOCK_APPS)
+    @Nullable
+    public PendingIntent getEnableAppLockIntentForPackage(@NonNull String packageName,
+            boolean enabled) {
+        throw new UnsupportedOperationException(
+                "getEnableAppLockIntentForPackage has not been implemented");
+    }
+
+    /**
+     * Set App Lock enablement state (enabled or disabled). This should only be called after a
+     * successful authentication with either Device Credential or a Class 3 Biometric.
+     *
+     * Only called by the system or by test apps that hold the
+     * {@link Manifest.permission#TEST_LOCK_APPS} permission. This will do UID checks to verify the
+     * caller.
+     *
+     * @param packageName the package to enable or disable App Lock.
+     * @param enabled true when the user would like to enable App Lock for the given package, false
+     *                otherwise
+     * @return true if App Lock was successfully set to the target state for the given package for
+     *         the given context, false otherwise.
+     * @throws SecurityException if the caller isn't system.
+     *
+     * @hide
+     */
+    @FlaggedApi(android.security.Flags.FLAG_APP_LOCK_APIS)
+    @RequiresPermission(Manifest.permission.TEST_LOCK_APPS)
+    @TestApi
+    public boolean setPackageAppLockEnabled(@NonNull String packageName, boolean enabled) {
+        throw new UnsupportedOperationException(
+                "setPackageAppLockEnabled has not been implemented");
+    }
+
+    /**
+     * Check whether App Lock is enabled for a given package.
+     *
+     * Only called by the system. This will do UID checks to verify the caller.
+     *
+     * @param packageName the package being queried for the App Lock state
+     * @return True if App Lock is enabled for the given package and user, false otherwise
+     * @throws SecurityException if the caller isn't system.
+     *
+     * @hide
+     */
+    public boolean isPackageAppLockEnabled(@NonNull String packageName) {
+        throw new UnsupportedOperationException("isPackageAppLockEnabled has not been implemented");
+    }
+
+    /**
      * Query if an app is currently stopped.
      *
      * @return {@code true} if the given package is stopped, {@code false} otherwise
      * @throws NameNotFoundException if the package could not be found.
      * @see ApplicationInfo#FLAG_STOPPED
      */
-    @FlaggedApi(android.content.pm.Flags.FLAG_STAY_STOPPED)
     public boolean isPackageStopped(@NonNull String packageName) throws NameNotFoundException {
         throw new UnsupportedOperationException("isPackageStopped not implemented");
     }
@@ -10906,6 +11216,9 @@ public abstract class PackageManager {
             case FLAG_PERMISSION_REVOKED_COMPAT: return "REVOKED_COMPAT";
             case FLAG_PERMISSION_ONE_TIME: return "ONE_TIME";
             case FLAG_PERMISSION_AUTO_REVOKED: return "AUTO_REVOKED";
+            case FLAG_PERMISSION_SELECTED_LOCATION_ACCURACY: return "SELECTED_LOCATION_ACCURACY";
+            case FLAG_PERMISSION_TRUSTED_UI_SHOWN: return "TRUSTED_UI_SHOWN";
+            case FLAG_PERMISSION_TRUSTED_UI_CONSENTED: return "TRUSTED_UI_CONSENTED";
             default: return Integer.toString(flag);
         }
     }
@@ -12157,5 +12470,18 @@ public abstract class PackageManager {
     @VisibleForTesting
     public static int maybeGetSdkFeatureIndex(String featureName) {
         return com.android.internal.pm.SystemFeaturesMetadata.maybeGetSdkFeatureIndex(featureName);
+    }
+
+    /**
+     * Maps a Private Compute Core (PCC) UID to its corresponding application UID.
+     *
+     * @param pccUid The PCC UID to map.
+     * @return The corresponding application UID, or {@link Process#INVALID_UID} if the
+     *         provided UID is not a valid PCC UID or no mapping exists.
+     */
+    @FlaggedApi(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public int getAppUidForPrivateComputeCoreUid(int pccUid) {
+        throw new UnsupportedOperationException(
+                "getAppUidForPrivateComputeCoreUid not implemented in subclass");
     }
 }

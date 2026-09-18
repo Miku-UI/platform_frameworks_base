@@ -37,6 +37,7 @@ import android.content.res.TypedArray;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.Looper;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.dreams.DreamService;
@@ -90,6 +91,29 @@ public class DreamServiceTest {
                 ComponentName.unflattenFromString(testSettingsActivity));
         assertFalse(metadata.showComplications);
         assertThat(metadata.dreamCategory).isEqualTo(DreamService.DREAM_CATEGORY_HOME_PANEL);
+        assertThat(metadata.userSelectable).isTrue();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_USER_SELECTABLE_METADATA)
+    public void testMetadataParsing_userSelectableDisabled()
+            throws PackageManager.NameNotFoundException {
+        final String testDreamClassName =
+                "com.android.server.dreams.TestDreamServiceUserSelectableDisabled";
+        final DreamService.DreamMetadata metadata = getDreamMetadata(testDreamClassName);
+
+        assertThat(metadata.userSelectable).isFalse();
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_USER_SELECTABLE_METADATA)
+    public void testMetadataParsing_userSelectable_withFlagDisabled()
+            throws PackageManager.NameNotFoundException {
+        final String testDreamClassName =
+                "com.android.server.dreams.TestDreamServiceUserSelectableDisabled";
+        final DreamService.DreamMetadata metadata = getDreamMetadata(testDreamClassName);
+
+        assertThat(metadata.userSelectable).isTrue();
     }
 
     @Test

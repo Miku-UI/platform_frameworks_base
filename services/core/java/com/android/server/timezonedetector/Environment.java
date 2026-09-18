@@ -30,23 +30,18 @@ import java.io.PrintWriter;
  */
 public interface Environment {
 
-    /**
-     * Returns the device's currently configured time zone. May return an empty string.
-     */
+    /** Returns the device's currently configured time zone. May return an empty string. */
     @NonNull
     String getDeviceTimeZone();
 
-    /**
-     * Returns the confidence of the device's current time zone.
-     */
+    /** Returns the confidence of the device's current time zone. */
     @SystemTimeZone.TimeZoneConfidence
     int getDeviceTimeZoneConfidence();
 
-    /**
-     * Sets the device's time zone, associated confidence, and records a debug log entry.
-     */
+    /** Sets the device's time zone, associated confidence, and records a debug log entry. */
     void setDeviceTimeZoneAndConfidence(
-            @NonNull String zoneId, @SystemTimeZone.TimeZoneConfidence int confidence,
+            @NonNull String zoneId,
+            @SystemTimeZone.TimeZoneConfidence int confidence,
             @NonNull String logInfo);
 
     /**
@@ -57,24 +52,24 @@ public interface Environment {
     long elapsedRealtimeMillis();
 
     /**
-     * Returns the current time in milliseconds, the same as
-     * {@link java.lang.System#currentTimeMillis()}.
+     * Returns the current time in milliseconds, the same as {@link
+     * java.lang.System#currentTimeMillis()}.
      */
     @CurrentTimeMillisLong
     long currentTimeMillis();
 
-    /**
-     * Adds a standalone entry to the time zone debug log.
-     */
+    /** Adds a standalone entry to the time zone debug log. */
     void addDebugLogEntry(@NonNull String logMsg);
 
-    /**
-     * Dumps the time zone debug log to the supplied {@link PrintWriter}.
-     */
+    /** Dumps the time zone debug log to the supplied {@link PrintWriter}. */
     void dumpDebugLog(PrintWriter printWriter);
 
-    /**
-     * Requests that the supplied runnable be invoked asynchronously.
-     */
+    /** Requests that the supplied runnable be invoked asynchronously. */
     void runAsync(@NonNull Runnable runnable);
+
+    /** Posts the supplied runnable to the main thread handler after the specified delay. */
+    void postDelayed(@NonNull Runnable runnable, long delayMillis);
+
+    /** Removes pending runnable from the main thread handler. */
+    void removePendingRunnable(@NonNull Runnable runnable);
 }

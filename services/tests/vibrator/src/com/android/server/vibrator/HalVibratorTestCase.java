@@ -39,7 +39,6 @@ import android.os.test.TestLooper;
 import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.PrimitiveSegment;
 import android.os.vibrator.PwlePoint;
-import android.os.vibrator.RampSegment;
 import android.os.vibrator.StepSegment;
 import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
@@ -463,50 +462,6 @@ public abstract class HalVibratorTestCase {
     }
 
     @Test
-    public void on_withComposedPwle_performsEffect() {
-        mHelper.setCapabilities(IVibrator.CAP_GET_RESONANT_FREQUENCY,
-                IVibrator.CAP_FREQUENCY_CONTROL, IVibrator.CAP_COMPOSE_PWLE_EFFECTS);
-        HalVibrator vibrator = newInitializedVibrator(VIBRATOR_ID);
-        RampSegment[] ramps = new RampSegment[]{
-                new RampSegment(/* startAmplitude= */ 0, /* endAmplitude= */ 1,
-                        /* startFrequencyHz= */ 100, /* endFrequencyHz= */ 200, /* duration= */ 10)
-        };
-
-        assertThat(vibrator.on(1, 1, ramps)).isEqualTo(10L);
-        assertThat(vibrator.isVibrating()).isTrue();
-        assertThat(vibrator.getCurrentAmplitude()).isEqualTo(-1f);
-        assertThat(mHelper.getEffectSegments()).containsExactlyElementsIn(ramps).inOrder();
-    }
-
-    @Test
-    public void on_withComposedPwleAndCallbackSupported_triggersCallbackFromHal() {
-        mHelper.setCapabilities(IVibrator.CAP_GET_RESONANT_FREQUENCY,
-                IVibrator.CAP_FREQUENCY_CONTROL, IVibrator.CAP_COMPOSE_PWLE_EFFECTS);
-        HalVibrator vibrator = newInitializedVibrator(VIBRATOR_ID);
-        RampSegment[] ramps = new RampSegment[]{
-                new RampSegment(/* startAmplitude= */ 0, /* endAmplitude= */ 1,
-                        /* startFrequencyHz= */ 100, /* endFrequencyHz= */ 200, /* duration= */ 10)
-        };
-
-        assertThat(vibrator.on(7, 8, ramps)).isEqualTo(10L);
-        mTestLooper.moveTimeForward(10);
-        mTestLooper.dispatchAll();
-
-        verify(mCallbacksMock).onVibrationStepComplete(eq(VIBRATOR_ID), eq(7L), eq(8L));
-    }
-
-    @Test
-    public void on_withComposedPwleNotSupported_fail() {
-        HalVibrator vibrator = newInitializedVibrator(VIBRATOR_ID);
-        RampSegment[] ramps = new RampSegment[]{
-                new RampSegment(/* startAmplitude= */ 0, /* endAmplitude= */ 1,
-                        /* startFrequencyHz= */ 100, /* endFrequencyHz= */ 200, /* duration= */ 10)
-        };
-
-        assertThat(vibrator.on(1, 1, ramps)).isEqualTo(0L);
-    }
-
-    @Test
     public void on_withComposedPwleV2_performsEffect() {
         mHelper.setCapabilities(IVibrator.CAP_GET_RESONANT_FREQUENCY,
                 IVibrator.CAP_FREQUENCY_CONTROL, IVibrator.CAP_COMPOSE_PWLE_EFFECTS_V2);
@@ -603,7 +558,7 @@ public abstract class HalVibratorTestCase {
     }
 
     private StepSegment createStep(int millis) {
-        return new StepSegment(VibrationEffect.DEFAULT_AMPLITUDE, 0f, millis);
+        return new StepSegment(VibrationEffect.DEFAULT_AMPLITUDE, millis);
     }
 
     private List<Integer> toSupportedList(SparseBooleanArray supportArray) {

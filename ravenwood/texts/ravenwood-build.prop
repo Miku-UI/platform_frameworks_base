@@ -6,6 +6,8 @@ ro.board.first_api_level=1
 ro.product.first_api_level=1
 ro.soc.manufacturer=Android
 ro.soc.model=Ravenwood
+ro.strongbox.manufacturer=Android
+ro.strongbox.model=Ravenwood
 ro.debuggable=1
 
 persist.sys.locale=en-US
@@ -37,6 +39,7 @@ ro.sf.lcd_density=$$$r
 ro.treble.enabled=$$$r
 ro.vndk.version=$$$r
 ro.icu.data.path=$$$r
+ro.input.resampling=$$$r
 
 # Writable keys
 debug.=$$$w

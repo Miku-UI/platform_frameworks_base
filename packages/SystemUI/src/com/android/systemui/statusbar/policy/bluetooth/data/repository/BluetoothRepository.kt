@@ -130,7 +130,7 @@ constructor(
                 localBluetoothManager?.eventManager?.registerCallback(callback)
                 awaitClose { localBluetoothManager?.eventManager?.unregisterCallback(callback) }
             }
-            .onStart { scope.launch { getCurrentConnectedDevices() } }
+            .onStart { emit(getCurrentConnectedDevices()) }
             .flowOn(bgDispatcher)
             .stateIn(
                 scope = scope,

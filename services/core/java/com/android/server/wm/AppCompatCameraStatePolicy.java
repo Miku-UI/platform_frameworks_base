@@ -25,20 +25,18 @@ interface AppCompatCameraStatePolicy {
     /**
      * Notifies the compat listener that a task has opened camera.
      *
-     * @param appProcess The process in the {@link Task} which requested camera to be opened.
+     * @param cameraAppInfo Contains the process ID and task ID which requested camera to be opened.
      */
-    void onCameraOpened(@NonNull WindowProcessController appProcess, @NonNull Task task);
+    void onCameraOpened(@NonNull CameraAppInfo cameraAppInfo,
+            @NonNull WindowProcessController appProcess,
+            @NonNull Task cameraTask);
 
     /**
      * Checks whether a listener is ready to do a cleanup when camera is closed.
      *
      * <p>The notifier might try again if false is returned.
      */
-    // TODO(b/336474959): try to decouple `cameraId` from the listeners, as the treatment does not
-    //  change based on the cameraId - CameraStateMonitor should keep track of this.
-    //  This method actually checks "did an activity only temporarily close the camera", because a
-    //  refresh for compatibility is triggered.
-    boolean canCameraBeClosed(@NonNull String cameraId, @NonNull Task task);
+    boolean canCameraBeClosed(@NonNull CameraAppInfo cameraAppInfo, @NonNull Task task);
 
     /**
      * Notifies the compat listener that camera is closed.
@@ -48,7 +46,9 @@ interface AppCompatCameraStatePolicy {
      * parts of camera compat are done on activity level, application level, or even camera compat
      * policy level, the policies are notified even if the task or app are not active anymore.
      *
-     * @param appProcess The process in the {@link Task} which requested camera to be opened.
+     * @param cameraAppInfo the info that was originally sent on {@link #onCameraOpened}.
      */
-    void onCameraClosed(@Nullable WindowProcessController appProcess, @Nullable Task task);
+    void onCameraClosed(@NonNull CameraAppInfo cameraAppInfo,
+            @Nullable WindowProcessController appProcess,
+            @Nullable Task cameraTask);
 }

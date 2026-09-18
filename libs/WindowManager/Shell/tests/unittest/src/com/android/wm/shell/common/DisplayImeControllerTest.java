@@ -24,6 +24,7 @@ import static android.view.WindowInsets.Type.ime;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import android.graphics.Insets;
 import android.graphics.Point;
@@ -69,6 +71,12 @@ public class DisplayImeControllerTest extends ShellTestCase {
     private ShellInit mShellInit;
     @Mock
     private IWindowManager mWm;
+    @Mock
+    private DisplayController mDisplayController;
+    @Mock
+    private DisplayInsetsController mDisplayInsetsController;
+    @Mock
+    private DisplayLayout mDisplayLayout;
     private DisplayImeController mDisplayImeController;
     private DisplayImeController.PerDisplay mPerDisplay;
     private Executor mExecutor;
@@ -77,7 +85,9 @@ public class DisplayImeControllerTest extends ShellTestCase {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         mExecutor = spy(Runnable::run);
-        mDisplayImeController = new DisplayImeController(mWm, mShellInit, null, null,
+        when(mDisplayController.getDisplayLayout(anyInt())).thenReturn(mDisplayLayout);
+        mDisplayImeController = new DisplayImeController(mWm, mShellInit, mDisplayController,
+                mDisplayInsetsController,
                 new TransactionPool() {
                     @Override
                     public SurfaceControl.Transaction acquire() {
@@ -142,6 +152,45 @@ public class DisplayImeControllerTest extends ShellTestCase {
 
         mPerDisplay.setImeInputTargetRequestedVisibility(false, null /* statsToken */);
         verify(mockPp).onImeRequested(anyInt(), eq(false));
+    }
+
+    @Test
+    public void setImeInsetsUpdatesPaused_dispatchUpdatesOnUnpause() {
+        Looper.prepare();
+        mPerDisplay.setImeInsetsUpdatesPaused(true /* paused */);
+
+        InsetsState state = insetsStateWithIme(true /* visible */);
+        InsetsSourceControl[] controls = insetsSourceControl();
+        mPerDisplay.insetsControlChanged(state, controls);
+
+        // State not updated yet
+        assertNull(mPerDisplay.mImeSourceControl);
+
+        mPerDisplay.setImeInsetsUpdatesPaused(false /* paused */);
+
+        // Updates after unpause
+        assertNotNull(mPerDisplay.mImeSourceControl);
+    }
+
+    @Test
+    public void insetsControlChanged_retryAnimationIfLeashReady() {
+        Looper.prepare();
+        var mockPp = mock(DisplayImeController.ImePositionProcessor.class);
+        mDisplayImeController.addPositionProcessor(mockPp);
+
+        // Request IME visible. Animation won't start because no leash.
+        mPerDisplay.setImeInputTargetRequestedVisibility(true, ImeTracker.Token.empty());
+
+        // Control changed with a leash.
+        InsetsSourceControl control = new InsetsSourceControl(
+                ID_IME, ime(), mock(SurfaceControl.class), false, new Point(0, 0),
+                Insets.NONE);
+        mPerDisplay.insetsControlChanged(
+                insetsStateWithIme(true), new InsetsSourceControl[]{control});
+
+        // Verify animation started.
+        verify(mockPp).onImeStartPositioning(anyInt(), anyInt(), anyInt(), eq(true), anyBoolean(),
+                any());
     }
 
     private InsetsSourceControl[] insetsSourceControl() {

@@ -54,6 +54,10 @@
 # An merge or inlining could lead to missing dependencies that cause run time errors
 -keepclassmembernames class android.**.Flags, com.android.**.Flags { public *; }
 
+# These flags are referenced in module depending on services, see b/447749461
+# TODO(b/212737576): Remove this after resolving trace_references_from issues for all system_server builds.
+-keep class com.android.server.power.hint.Flags { *; }
+
 # Referenced via CarServiceHelperService in car-frameworks-service (avoid removing)
 -keep public class com.android.server.utils.Slogf { *; }
 
@@ -133,3 +137,9 @@
 # CoverageService guards optional jacoco class references with a runtime guard, so we can safely
 # suppress build-time warnings.
 -dontwarn org.jacoco.agent.rt.*
+
+# Preserve submerge JNI APIs. These APIs include java callbacks invoked from JNI layer so the full
+# java class shall be kept.
+-keep class com.google.android.submerge.** {
+    *;
+}

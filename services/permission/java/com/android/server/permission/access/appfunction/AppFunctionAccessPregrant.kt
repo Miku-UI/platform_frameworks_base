@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package com.android.server.permission.access.appfunction
 
 import android.app.appfunctions.AppFunctionManager.ACCESS_FLAG_PREGRANTED
@@ -23,7 +25,7 @@ import android.util.AtomicFile
 import android.util.Slog
 import android.util.Xml
 import com.android.server.permission.access.MutateStateScope
-import com.android.server.permission.access.collection.* // ktlint-disable no-wildcard-imports
+import com.android.server.permission.access.collection.*
 import com.android.server.permission.access.util.forEachTag
 import com.android.server.permission.access.util.getAttributeValueOrThrow
 import com.android.server.permission.access.util.tagName

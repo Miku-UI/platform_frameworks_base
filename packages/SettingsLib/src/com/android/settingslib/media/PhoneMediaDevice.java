@@ -50,7 +50,6 @@ import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import com.android.settingslib.R;
-import com.android.settingslib.media.flags.Flags;
 
 import java.util.Arrays;
 import java.util.List;
@@ -155,8 +154,7 @@ public class PhoneMediaDevice extends MediaDevice {
     }
 
     static boolean isTv(Context context) {
-        return context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK)
-                && Flags.enableTvMediaOutputDialog();
+        return context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK);
     }
 
     static boolean isTablet() {

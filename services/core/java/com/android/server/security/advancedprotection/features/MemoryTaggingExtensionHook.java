@@ -18,6 +18,7 @@ package com.android.server.security.advancedprotection.features;
 
 import static android.security.advancedprotection.AdvancedProtectionManager.ADVANCED_PROTECTION_SYSTEM_ENTITY;
 import static android.security.advancedprotection.AdvancedProtectionManager.FEATURE_ID_ENABLE_MTE;
+import static android.security.advancedprotection.AdvancedProtectionManager.FeatureId;
 
 import android.annotation.NonNull;
 import android.app.admin.DevicePolicyManager;
@@ -35,8 +36,6 @@ public final class MemoryTaggingExtensionHook
     private static final String MTE_SETTINGS_SYSTEM_PROPERTY =
             "ro.arm64.memtag.bootctl_settings_toggle";
 
-    private final AdvancedProtectionFeature mFeature = new AdvancedProtectionFeature(
-            FEATURE_ID_ENABLE_MTE);
     private final DevicePolicyManager mDevicePolicyManager;
 
     public MemoryTaggingExtensionHook(@NonNull Context context,
@@ -46,10 +45,9 @@ public final class MemoryTaggingExtensionHook
         onAdvancedProtectionChanged(enabled);
     }
 
-    @NonNull
     @Override
-    public AdvancedProtectionFeature getFeature() {
-        return mFeature;
+    public @FeatureId int getFeatureId() {
+        return FEATURE_ID_ENABLE_MTE;
     }
 
     @Override

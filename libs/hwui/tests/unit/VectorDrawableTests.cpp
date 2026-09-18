@@ -24,6 +24,7 @@
 #include <SkBitmap.h>
 #include <SkCanvas.h>
 #include <SkPath.h>
+#include <SkPathBuilder.h>
 #include <SkRefCnt.h>
 #include <SkShader.h>
 
@@ -35,7 +36,7 @@ namespace uirenderer {
 struct TestData {
     const char* pathString;
     const PathData pathData;
-    const std::function<void(SkPath*)> skPathLamda;
+    const std::function<void(SkPathBuilder*)> skPathLamda;
 };
 
 const static TestData sTestDataSet[] = {
@@ -50,7 +51,7 @@ const static TestData sTestDataSet[] = {
                  // Points
                  {2, 22, 20, 0, 1, -2000},
          },
-         [](SkPath* outPath) {
+         [](SkPathBuilder* outPath) {
              outPath->moveTo(2, 22);
              outPath->rLineTo(20, 0);
              outPath->rLineTo(1, -2000);
@@ -74,7 +75,7 @@ const static TestData sTestDataSet[] = {
                   8.0,  8.0, 8.0, 8.0, 8.0,  8.0,  9.0,  9.0,  9.0, 9.0, 9.0, 9.0,  9.0,  9.0, 10.0,
                   10.0, 0.0, 1.0, 1.0, 10.0, 10.0, 10.0, 10.0, 0.0, 1.0, 1.0, 10.0, 10.0,
           }},
-         [](SkPath* outPath) {
+         [](SkPathBuilder* outPath) {
              outPath->moveTo(1.0, 1.0);
              outPath->rMoveTo(2.0, 2.0);
              outPath->rLineTo(3.0, 3.0);
@@ -91,10 +92,10 @@ const static TestData sTestDataSet[] = {
              outPath->rCubicTo(8.0, 8.0, 8.0, 8.0, 8.0, 8.0);
              outPath->cubicTo(16.0, 16.0, 9.0, 9.0, 9.0, 9.0);
              outPath->rCubicTo(0.0, 0.0, 9.0, 9.0, 9.0, 9.0);
-             outPath->arcTo(10.0, 10.0, 0.0, SkPath::kLarge_ArcSize, SkPathDirection::kCW, 10.0,
-                            10.0);
-             outPath->arcTo(10.0, 10.0, 0.0, SkPath::kLarge_ArcSize, SkPathDirection::kCW, 20.0,
-                            20.0);
+             outPath->arcTo({10.0, 10.0}, 0.0, SkPathBuilder::kLarge_ArcSize, SkPathDirection::kCW,
+                            {10.0, 10.0});
+             outPath->arcTo({10.0, 10.0}, 0.0, SkPathBuilder::kLarge_ArcSize, SkPathDirection::kCW,
+                            {20.0, 20.0});
          }},
 
         // Check box VectorDrawable path data
@@ -124,7 +125,7 @@ const static TestData sTestDataSet[] = {
                   -14.0,       0.0,        -1.1044922,  -0.8955078, -2.0,      -2.0,  -2.0,
                   0.0,         0.0,        0.0,         0.0,        0.0,       0.0},
          },
-         [](SkPath* outPath) {
+         [](SkPathBuilder* outPath) {
              outPath->moveTo(0.0, -1.0);
              outPath->rLineTo(0.0, 0.0);
              outPath->rCubicTo(0.5522848, 0.0, 1.0, 0.44771525, 1.0, 1.0);
@@ -163,10 +164,10 @@ const static TestData sTestDataSet[] = {
                          300.0, 70.0, 230.0, 230.0, 0.0, 1.0, 0.0, 1.0, 0.0,
                  },
          },
-         [](SkPath* outPath) {
+         [](SkPathBuilder* outPath) {
              outPath->moveTo(300.0, 70.0);
-             outPath->arcTo(230.0, 230.0, 0.0, SkPath::kLarge_ArcSize, SkPathDirection::kCCW,
-                            301.0, 70.0);
+             outPath->arcTo({230.0, 230.0}, 0.0, SkPathBuilder::kLarge_ArcSize,
+                            SkPathDirection::kCCW, {301.0, 70.0});
              outPath->close();
              outPath->moveTo(300.0, 70.0);
          }},
@@ -189,7 +190,7 @@ const static TestData sTestDataSet[] = {
                   -1,   -0.2, -1.2, -1.7, -2.6, -3,   -4.3, -4,   -3.7, -2,   -8.3, -2,   -12,  0,
                   -1.7, 0.9,  -3.2, 2.3,  -4.3, 4,    5.7,  13.1, 5.5,  13.2, 5.3,  13.2},
          },
-         [](SkPath* outPath) {
+         [](SkPathBuilder* outPath) {
              outPath->moveTo(5.3, 13.2);
              outPath->rCubicTo(-0.1, 0.0, -0.3, 0.0, -0.4, -0.1);
              outPath->rCubicTo(-0.3, -0.2, -0.4, -0.7, -0.2, -1.0);
@@ -217,7 +218,7 @@ const static TestData sTestDataSet[] = {
                  // Points
                  {0, 0, 0.5, 0, 0, 0.5, -0.5, 0, 0, -0.5},
          },
-         [](SkPath* outPath) {
+         [](SkPathBuilder* outPath) {
              outPath->rLineTo(0.0, 0.0);
              outPath->rLineTo(0.5, 0.0);
              outPath->rLineTo(0.0, 0.5);
@@ -235,7 +236,7 @@ const static TestData sTestDataSet[] = {
                  {},
                  {},
          },
-         [](SkPath* outPath) {}}
+         [](SkPathBuilder* outPath) {}}
 
 };
 
@@ -281,11 +282,11 @@ TEST(PathParser, parseStringForData) {
 
 TEST(VectorDrawableUtils, createSkPathFromPathData) {
     for (const TestData& testData : sTestDataSet) {
-        SkPath expectedPath;
+        SkPathBuilder expectedPath;
         testData.skPathLamda(&expectedPath);
         SkPath actualPath;
         VectorDrawableUtils::verbsToPath(&actualPath, testData.pathData);
-        EXPECT_EQ(expectedPath, actualPath);
+        EXPECT_EQ(expectedPath.detach(), actualPath);
     }
 }
 
@@ -298,9 +299,9 @@ TEST(PathParser, parseAsciiStringForSkPath) {
         PathParser::parseAsciiStringForSkPath(&actualPath, &result, testData.pathString, length);
         bool hasValidData = !result.failureOccurred;
         EXPECT_EQ(hasValidData, testData.pathData.verbs.size() > 0);
-        SkPath expectedPath;
+        SkPathBuilder expectedPath;
         testData.skPathLamda(&expectedPath);
-        EXPECT_EQ(expectedPath, actualPath);
+        EXPECT_EQ(expectedPath.detach(), actualPath);
     }
 
     for (StringPath stringPath : sStringPaths) {

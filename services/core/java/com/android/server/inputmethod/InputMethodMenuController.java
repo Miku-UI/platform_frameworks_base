@@ -43,12 +43,14 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.inputmethod.InputMethodInfo;
+import android.view.inputmethod.InputMethodManager.IMPickerEntryPoint;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.widget.RecyclerView;
+import com.android.server.inputmethod.InputMethodManagerService.ImeSwitcherMenu;
 import com.android.server.inputmethod.InputMethodSubtypeSwitchingController.ImeSubtypeListItem;
 
 import java.util.ArrayList;
@@ -57,7 +59,7 @@ import java.util.List;
 /**
  * Controller for showing and hiding the Input Method Switcher Menu.
  */
-final class InputMethodMenuController {
+final class InputMethodMenuController implements ImeSwitcherMenu {
 
     private static final String TAG = InputMethodMenuController.class.getSimpleName();
 
@@ -88,13 +90,15 @@ final class InputMethodMenuController {
      *                             subtypes, or {@link InputMethodUtils#NOT_A_SUBTYPE_INDEX} if no
      *                             subtype is selected.
      * @param isScreenLocked       whether the screen is current locked.
+     * @param entryPoint           the entry point where the menu was requested from.
      * @param displayId            the ID of the display where the menu was requested.
      * @param userId               the ID of the user that requested the menu.
      */
     @RequiresPermission(allOf = {INTERACT_ACROSS_USERS, HIDE_OVERLAY_WINDOWS})
-    void show(@NonNull List<ImeSubtypeListItem> items, @Nullable String selectedImeId,
-            int selectedSubtypeIndex, boolean isScreenLocked, int displayId,
-            @UserIdInt int userId) {
+    @Override
+    public void show(@NonNull List<ImeSubtypeListItem> items, @Nullable String selectedImeId,
+            @IntRange(from = NOT_A_SUBTYPE_INDEX) int selectedSubtypeIndex, boolean isScreenLocked,
+            @IMPickerEntryPoint int entryPoint, int displayId, @UserIdInt int userId) {
         // Hide the menu in case it was already showing.
         hide(displayId, userId);
 
@@ -158,7 +162,7 @@ final class InputMethodMenuController {
         w.setAttributes(attrs);
 
         mDialog.show();
-        InputMethodManagerInternal.get().updateShouldShowImeSwitcher(displayId, userId);
+        InputMethodManagerInternal.get().updateShouldShowImeSwitcherButton(displayId, userId);
     }
 
     /**
@@ -167,7 +171,8 @@ final class InputMethodMenuController {
      * @param displayId the ID of the display from where the menu should be hidden.
      * @param userId    the ID of the user for which the menu should be hidden.
      */
-    void hide(int displayId, @UserIdInt int userId) {
+    @Override
+    public void hide(int displayId, @UserIdInt int userId) {
         if (DEBUG) Slog.v(TAG, "Hide IME switcher menu.");
 
         mMenuItems = null;
@@ -176,19 +181,27 @@ final class InputMethodMenuController {
             mDialog.dismiss();
             mDialog = null;
 
-            InputMethodManagerInternal.get().updateShouldShowImeSwitcher(displayId, userId);
+            InputMethodManagerInternal.get().updateShouldShowImeSwitcherButton(displayId, userId);
         }
     }
 
     /**
      * Returns whether the Input Method Switcher Menu is showing.
      */
-    boolean isShowing() {
+    @Override
+    public boolean isShowing(@Nullable UserData userData) {
         return mDialog != null && mDialog.isShowing();
     }
 
-    void dump(@NonNull Printer pw, @NonNull String prefix) {
-        final boolean showing = isShowing();
+    @Override
+    public void onImeAndSubtypeChanged(@Nullable String imeId, int subtypeIndex,
+            @Nullable Intent settingsIntent, @UserIdInt int userId) {
+        // Not implemented, only handled in new ImeSwitcherMenu.
+    }
+
+    @Override
+    public void dump(@NonNull Printer pw, @NonNull String prefix) {
+        final boolean showing = isShowing(null /* userData */);
         pw.println(prefix + "isShowing: " + showing);
 
         if (showing) {

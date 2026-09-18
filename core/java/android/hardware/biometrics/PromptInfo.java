@@ -23,6 +23,7 @@ import android.content.ComponentName;
 import android.graphics.Bitmap;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.view.Display;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,11 +34,11 @@ import java.util.List;
  * @hide
  */
 public class PromptInfo implements Parcelable {
-
     @DrawableRes private int mLogoRes;
     @Nullable private Bitmap mLogoBitmap;
     @Nullable private String mLogoDescription;
     @NonNull private CharSequence mTitle;
+    @NonNull private IdentityCheckInfo mIdentityCheckInfo = new IdentityCheckInfo();
     private boolean mUseDefaultTitle;
     @Nullable private CharSequence mSubtitle;
     private boolean mUseDefaultSubtitle;
@@ -50,7 +51,6 @@ public class PromptInfo implements Parcelable {
     private List<FallbackOption> mFallbackOptions = new ArrayList<>();
     private boolean mConfirmationRequested = true; // default to true
     private boolean mDeviceCredentialAllowed;
-    private boolean mIdentityCheckActive = false;
     private @BiometricManager.Authenticators.Types int mAuthenticators;
     private boolean mDisallowBiometricsIfPolicyExists;
     private boolean mReceiveSystemEvents;
@@ -62,9 +62,11 @@ public class PromptInfo implements Parcelable {
     private boolean mUseParentProfileForDeviceCredential = false;
     private ComponentName mRealCallerForConfirmDeviceCredentialActivity = null;
     private String mClassNameIfItIsConfirmDeviceCredentialActivity = null;
+    private boolean mIsSystemCaller = false;
+    private int mDisplayId = Display.DEFAULT_DISPLAY;
+    private boolean mNotifyVdmAuthenticationRequested = false;
 
     public PromptInfo() {
-
     }
 
     PromptInfo(Parcel in) {
@@ -84,7 +86,6 @@ public class PromptInfo implements Parcelable {
         mNegativeButtonText = in.readCharSequence();
         mConfirmationRequested = in.readBoolean();
         mDeviceCredentialAllowed = in.readBoolean();
-        mIdentityCheckActive = in.readBoolean();
         mAuthenticators = in.readInt();
         mDisallowBiometricsIfPolicyExists = in.readBoolean();
         mReceiveSystemEvents = in.readBoolean();
@@ -98,11 +99,14 @@ public class PromptInfo implements Parcelable {
         mRealCallerForConfirmDeviceCredentialActivity = in.readParcelable(
                 ComponentName.class.getClassLoader(), ComponentName.class);
         mClassNameIfItIsConfirmDeviceCredentialActivity = in.readString();
-        if (Flags.addFallback()) {
-            ArrayList<FallbackOption> options = new ArrayList<>();
-            in.readTypedList(options, FallbackOption.CREATOR);
-            mFallbackOptions = options;
-        }
+        ArrayList<FallbackOption> options = new ArrayList<>();
+        in.readTypedList(options, FallbackOption.CREATOR);
+        mFallbackOptions = options;
+        mIsSystemCaller = in.readBoolean();
+        mIdentityCheckInfo = in.readParcelable(IdentityCheckInfo.class.getClassLoader(),
+                IdentityCheckInfo.class);
+        mDisplayId = in.readInt();
+        mNotifyVdmAuthenticationRequested = in.readBoolean();
     }
 
     public static final Creator<PromptInfo> CREATOR = new Creator<PromptInfo>() {
@@ -139,7 +143,6 @@ public class PromptInfo implements Parcelable {
         dest.writeCharSequence(mNegativeButtonText);
         dest.writeBoolean(mConfirmationRequested);
         dest.writeBoolean(mDeviceCredentialAllowed);
-        dest.writeBoolean(mIdentityCheckActive);
         dest.writeInt(mAuthenticators);
         dest.writeBoolean(mDisallowBiometricsIfPolicyExists);
         dest.writeBoolean(mReceiveSystemEvents);
@@ -151,9 +154,11 @@ public class PromptInfo implements Parcelable {
         dest.writeBoolean(mUseParentProfileForDeviceCredential);
         dest.writeParcelable(mRealCallerForConfirmDeviceCredentialActivity, 0);
         dest.writeString(mClassNameIfItIsConfirmDeviceCredentialActivity);
-        if (Flags.addFallback()) {
-            dest.writeTypedList(mFallbackOptions);
-        }
+        dest.writeTypedList(mFallbackOptions);
+        dest.writeBoolean(mIsSystemCaller);
+        dest.writeParcelable(mIdentityCheckInfo, 0 /* parcelableFlags */);
+        dest.writeInt(mDisplayId);
+        dest.writeBoolean(mNotifyVdmAuthenticationRequested);
     }
 
     // LINT.IfChange
@@ -213,6 +218,8 @@ public class PromptInfo implements Parcelable {
         } else if (mContentView != null && isContentViewMoreOptionsButtonUsed()) {
             return true;
         } else if ((mAuthenticators & BiometricManager.Authenticators.IDENTITY_CHECK) != 0) {
+            return true;
+        } else if (mIdentityCheckInfo.isClearIdentityCheckFallbackOption()) {
             return true;
         }
         return false;
@@ -302,10 +309,21 @@ public class PromptInfo implements Parcelable {
     }
 
     public void setIdentityCheckActive(boolean identityCheckActive) {
-        mIdentityCheckActive = identityCheckActive;
+        mIdentityCheckInfo.setIdentityCheckActive(identityCheckActive);
+    }
+
+    public void setIdentityCheckInactiveReason(
+            @IdentityCheckInfo.IdentityCheckInactiveReason int identityCheckInactiveReason) {
+        mIdentityCheckInfo.setIdentityCheckInactiveReason(identityCheckInactiveReason);
     }
 
     public void setAuthenticators(int authenticators) {
+        if (Flags.doubleAuth() && authenticators
+                == BiometricManager.Authenticators.DEVICE_CREDENTIAL_AND_IDENTITY_CHECK) {
+            mIdentityCheckInfo.setDeviceCredentialAndIdentityCheck(true);
+            authenticators = BiometricManager.Authenticators.DEVICE_CREDENTIAL
+                    | BiometricManager.Authenticators.BIOMETRIC_STRONG;
+        }
         mAuthenticators = authenticators;
     }
 
@@ -349,6 +367,10 @@ public class PromptInfo implements Parcelable {
         mUseParentProfileForDeviceCredential = useParentProfileForDeviceCredential;
     }
 
+    public void clearIdentityCheckFallbackOption() {
+        mIdentityCheckInfo.clearIdentityCheckFallbackOption();
+    }
+
     /**
      * Set the class name of ConfirmDeviceCredentialActivity.
      */
@@ -356,8 +378,23 @@ public class PromptInfo implements Parcelable {
         mClassNameIfItIsConfirmDeviceCredentialActivity = className;
     }
 
+    public void setIsSystemCaller(boolean isSystemCaller) {
+        mIsSystemCaller = isSystemCaller;
+    }
+
+    public void setDisplayId(int displayId) {
+        mDisplayId = displayId;
+    }
+
+    public void notifyVdmAuthenticationRequested() {
+        mNotifyVdmAuthenticationRequested = true;
+    }
 
     // Getters
+
+    public boolean shouldNotifyVdmAuthenticationRequested() {
+        return mNotifyVdmAuthenticationRequested;
+    }
 
     /**
      * Returns the logo bitmap either from logo resource or bitmap passed in from the app.
@@ -432,6 +469,14 @@ public class PromptInfo implements Parcelable {
         return mNegativeButtonText;
     }
 
+    public int getDisplayId() {
+        return mDisplayId;
+    }
+
+    public boolean isClearIdentityCheckFallbackOption() {
+        return mIdentityCheckInfo.isClearIdentityCheckFallbackOption();
+    }
+
     public boolean isConfirmationRequested() {
         return mConfirmationRequested;
     }
@@ -448,7 +493,11 @@ public class PromptInfo implements Parcelable {
     }
 
     public boolean isIdentityCheckActive() {
-        return mIdentityCheckActive;
+        return mIdentityCheckInfo.isIdentityCheckActive();
+    }
+
+    public int getIdentityCheckInactiveReason() {
+        return mIdentityCheckInfo.getIdentityCheckInactiveReason();
     }
 
     public int getAuthenticators() {
@@ -496,6 +545,10 @@ public class PromptInfo implements Parcelable {
        return mClassNameIfItIsConfirmDeviceCredentialActivity;
     }
 
+    public boolean isSystemCaller() {
+        return mIsSystemCaller;
+    }
+
     public List<FallbackOption> getFallbackOptions() {
         return Collections.unmodifiableList(mFallbackOptions);
     }
@@ -505,5 +558,9 @@ public class PromptInfo implements Parcelable {
      */
     public void addFallbackOption(FallbackOption fallbackOption) {
         mFallbackOptions.add(fallbackOption);
+    }
+
+    public boolean isDeviceCredentialAndIdentityCheckRequested() {
+        return mIdentityCheckInfo.isDeviceCredentialAndIdentityCheckRequested();
     }
 }

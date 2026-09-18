@@ -25,7 +25,6 @@ import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.plugins.qs.QSTile
 import com.android.systemui.qs.external.TileServiceRequestController
-import com.android.systemui.qs.flags.QsInCompose
 import com.android.systemui.qs.pipeline.data.repository.TileSpecRepository.Companion.POSITION_AT_END
 import com.android.systemui.qs.pipeline.domain.interactor.CurrentTilesInteractor
 import com.android.systemui.qs.pipeline.shared.QSPipelineFlagsRepository
@@ -121,6 +120,10 @@ constructor(
         return interactor.userId.value
     }
 
+    override fun isCurrentUserHeadlessSystemUser(): Boolean {
+        return interactor.isCurrentUserHeadlessSystemUser.value
+    }
+
     override fun createTile(tileSpec: String): QSTile? {
         return interactor.createTileSync(TileSpec.create(tileSpec))
     }
@@ -138,9 +141,6 @@ constructor(
     }
 
     override fun clickTile(tile: ComponentName) {
-        if (QsInCompose.isUnexpectedlyInLegacyMode()) {
-            return
-        }
         val spec = TileSpec.create(tile)
         interactor.currentTiles.value.firstOrNull { it.spec == spec }?.tile?.click(null)
     }

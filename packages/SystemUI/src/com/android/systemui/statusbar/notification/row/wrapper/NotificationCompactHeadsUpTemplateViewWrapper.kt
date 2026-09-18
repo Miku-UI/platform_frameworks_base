@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.notification.row.wrapper
 
 import android.content.Context
 import android.view.View
-import com.android.systemui.statusbar.notification.FeedbackIcon
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 
 /**
@@ -29,6 +28,5 @@ open class NotificationCompactHeadsUpTemplateViewWrapper(
     view: View,
     row: ExpandableNotificationRow
 ) : NotificationTemplateViewWrapper(ctx, view, row) {
-    override fun setFeedbackIcon(icon: FeedbackIcon?) = Unit
     override fun setRecentlyAudiblyAlerted(audiblyAlerted: Boolean) = Unit
 }

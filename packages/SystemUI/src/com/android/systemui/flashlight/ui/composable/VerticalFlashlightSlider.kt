@@ -32,6 +32,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -45,6 +46,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderColors
 import androidx.compose.material3.SliderState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -69,6 +71,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.hideFromAccessibility
@@ -81,7 +84,6 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.android.compose.modifiers.height
-import com.android.compose.modifiers.size
 import com.android.compose.modifiers.sliderPercentage
 import com.android.compose.modifiers.width
 import com.android.systemui.compose.modifiers.sysuiResTag
@@ -95,6 +97,8 @@ import com.android.systemui.flashlight.ui.composable.Specs.THUMB_CENTER_TO_GAP_O
 import com.android.systemui.flashlight.ui.composable.Specs.THUMB_MAX_HEIGHT
 import com.android.systemui.flashlight.ui.composable.Specs.THUMB_MIN_HEIGHT
 import com.android.systemui.flashlight.ui.composable.Specs.THUMB_WIDTH
+import com.android.systemui.flashlight.ui.composable.Specs.TOP_BORDER_HEIGHT
+import com.android.systemui.flashlight.ui.composable.Specs.TOP_BORDER_WIDTH
 import com.android.systemui.flashlight.ui.composable.Specs.TRACK_LENGTH
 import com.android.systemui.flashlight.ui.composable.Specs.TRAPEZOID_BOTTOM_LEFT_HEIGHT_RATIO
 import com.android.systemui.flashlight.ui.composable.Specs.TRAPEZOID_TOP_LEFT_HEIGHT_RATIO
@@ -107,6 +111,10 @@ import com.android.systemui.haptics.slider.SliderHapticFeedbackConfig
 import com.android.systemui.haptics.slider.compose.ui.SliderHapticsViewModel
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.res.R
+import java.lang.Math.toDegrees
+import kotlin.math.atan
+import kotlin.math.pow
+import kotlin.math.sqrt
 import platform.test.motion.compose.values.MotionTestValueKey
 import platform.test.motion.compose.values.motionTestValues
 
@@ -148,104 +156,124 @@ fun VerticalFlashlightSlider(
         }
     val flashlightStrength = stringResource(R.string.flashlight_dialog_title)
 
-    Column(
-        modifier = modifier.fillMaxWidth().wrapContentHeight(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Slider(
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+        Spacer(
             modifier =
-                Modifier.rotate(270f)
-                    // 80 dp is enough for track height, but we need 120 for thumb height.
-                    // But since the rotate only rotates the draw layer, we would end up with  a 120
-                    // slider length rather than 140. Instead of 120 we go with 140 so that we don't
-                    // need extra code to rotate the layout.
-                    .size(TRACK_LENGTH)
-                    .semantics(mergeDescendants = true) {
-                        this.text = AnnotatedString(flashlightStrength)
-                    }
-                    .sliderPercentage { toPercent(animatedValue, valueRange) }
-                    .sysuiResTag("slider"),
-            enabled = isEnabled,
-            value = animatedValue,
-            valueRange = floatValueRange,
-            onValueChange = {
-                if (isEnabled) {
-                    hapticsViewModel.onValueChange(it)
-                    value = it.toInt()
-                    atEnd = value != valueRange.first
-                    onValueChange(value)
-                }
-            },
-            onValueChangeFinished = {
-                if (isEnabled) {
-                    hapticsViewModel.onValueChangeEnded()
-                    onValueChangeFinished(value)
-                }
-            },
-            interactionSource = interactionSource,
-            colors = colors,
-            thumb = { sliderState ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Thumb(
-                        interactionSource = interactionSource,
-                        colors = colors,
-                        thumbSize =
-                            DpSize(
-                                THUMB_WIDTH,
-                                thumbHeight(sliderState.value / sliderState.valueRange.endInclusive),
-                            ),
-                    )
-                }
-            },
-            track = { sliderState ->
-                TrapezoidTrack(
-                    modifier =
-                        Modifier.drawWithContent {
-                                // Cut a gap around the thumb. The is pre-rotation and horizontal,
-                                // hence we use the left-right gap metrics instead of top-bottom.
-                                clipRect(
-                                    left =
-                                        size.width * (sliderState.coercedValueAsFraction) -
-                                            THUMB_CENTER_TO_GAP_OUTSIDE.toPx(),
-                                    top = 0f,
-                                    bottom = size.height,
-                                    right =
-                                        size.width * (sliderState.coercedValueAsFraction) +
-                                            THUMB_CENTER_TO_GAP_OUTSIDE.toPx(),
-                                    clipOp = ClipOp.Difference,
-                                ) {
-                                    this@drawWithContent.drawContent()
-                                }
-                            }
-                            // TODO(440620729): gradient blur from top to bottom. or no bottom blur.
-                            .blur(
-                                BLUR_X,
-                                // TODO(440620729): start contraction on click down, not on drag.
-                                if (isDragged.value) (BLUR_Y * BLUR_CONTRACTION) else BLUR_Y,
-                                EdgeTreatment,
-                            )
-                            .motionTestValues {
-                                trackEndAlpha(sliderState.coercedValueAsFraction) exportAs
-                                    VerticalFlashlightSliderMotionTestKeys.TrackEndAlpha
-                            },
-                    brush =
-                        Brush.horizontalGradient(
-                            0f to colors.activeTrackColor,
-                            0.5f to colors.activeTrackColor,
-                            1.0f to
-                                // lower end alpha from 1 to 0.12 as slider progresses.
-                                colors.activeTrackColor.copy(
-                                    alpha = trackEndAlpha(sliderState.coercedValueAsFraction)
-                                ),
-                        ),
-                    sliderState = sliderState,
-                    maxSliderRange = floatValueRange.endInclusive,
-                    widthContraction = if (isDragged.value) WIDTH_CONTRACTION else 1f,
-                )
-            },
+                Modifier.size(TOP_BORDER_WIDTH, TOP_BORDER_HEIGHT)
+                    .background(colors.inactiveTrackColor, RoundedCornerShape(100))
         )
-        AnimatedVectorFlashlightDrawable(atEnd, colors.thumbColor, Modifier.size(48.dp))
+        Column(
+            modifier = modifier.fillMaxWidth().wrapContentHeight(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            // We want to assume that we always draw the track path from left to right.
+            // Additionally, if we don't force LTR, on RTL some of the logic will be upside down.
+            // For example the handle would be smaller up top, or the flashlight level would be at
+            // 100% when the handle is fully at the bottom.
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                Slider(
+                    modifier =
+                        Modifier.rotate(270f)
+                            // 80 dp is enough for track height, but we need 120 for thumb height.
+                            // But since the rotate only rotates the draw layer, we would end up
+                            // with a 120 slider length rather than 140. Instead of 120 we go with
+                            // 140 so that we don't need extra code to rotate the layout.
+                            .size(TRACK_LENGTH)
+                            .semantics(mergeDescendants = true) {
+                                this.text = AnnotatedString(flashlightStrength)
+                            }
+                            .sliderPercentage { toPercent(animatedValue, valueRange) }
+                            .sysuiResTag("slider"),
+                    enabled = isEnabled,
+                    value = animatedValue,
+                    valueRange = floatValueRange,
+                    onValueChange = {
+                        if (isEnabled) {
+                            hapticsViewModel.onValueChange(it)
+                            value = it.toInt()
+                            atEnd = value != valueRange.first
+                            onValueChange(value)
+                        }
+                    },
+                    onValueChangeFinished = {
+                        if (isEnabled) {
+                            hapticsViewModel.onValueChangeEnded()
+                            onValueChangeFinished(value)
+                        }
+                    },
+                    interactionSource = interactionSource,
+                    colors = colors,
+                    thumb = { sliderState ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            val thumbHeight by
+                                animateDpAsState(
+                                    thumbHeight(
+                                        sliderState.value / sliderState.valueRange.endInclusive,
+                                        sliderState.isDragging,
+                                    )
+                                )
+
+                            Thumb(
+                                interactionSource = interactionSource,
+                                colors = colors,
+                                thumbSize = DpSize(THUMB_WIDTH, thumbHeight),
+                            )
+                        }
+                    },
+                    track = { sliderState ->
+                        TrapezoidTrack(
+                            modifier =
+                                Modifier.drawWithContent {
+                                        // Cut a gap around the thumb. The is pre-rotation and
+                                        // horizontal, hence we use the left-right gap metrics
+                                        // instead of top-bottom.
+                                        clipRect(
+                                            left =
+                                                size.width * (sliderState.coercedValueAsFraction) -
+                                                    THUMB_CENTER_TO_GAP_OUTSIDE.toPx(),
+                                            top = 0f,
+                                            bottom = size.height,
+                                            right =
+                                                size.width * (sliderState.coercedValueAsFraction) +
+                                                    THUMB_CENTER_TO_GAP_OUTSIDE.toPx(),
+                                            clipOp = ClipOp.Difference,
+                                        ) {
+                                            this@drawWithContent.drawContent()
+                                        }
+                                    }
+                                    // TODO(440620729): gradient blur from top to bottom
+                                    .blur(
+                                        BLUR_X,
+                                        // TODO(440620729): start contraction on click-down not drag
+                                        if (isDragged.value) (BLUR_Y * BLUR_CONTRACTION)
+                                        else BLUR_Y,
+                                        EdgeTreatment,
+                                    )
+                                    .motionTestValues {
+                                        trackEndAlpha(sliderState.coercedValueAsFraction) exportAs
+                                            VerticalFlashlightSliderMotionTestKeys.TrackEndAlpha
+                                    },
+                            brush =
+                                Brush.horizontalGradient(
+                                    0f to colors.activeTrackColor,
+                                    0.5f to colors.activeTrackColor,
+                                    1.0f to
+                                        // lower end alpha from 1 to 0.12 as slider progresses.
+                                        colors.activeTrackColor.copy(
+                                            alpha =
+                                                trackEndAlpha(sliderState.coercedValueAsFraction)
+                                        ),
+                                ),
+                            sliderState = sliderState,
+                            maxSliderRange = floatValueRange.endInclusive,
+                            widthContraction = if (isDragged.value) WIDTH_CONTRACTION else 1f,
+                        )
+                    },
+                )
+            }
+            AnimatedVectorFlashlightDrawable(atEnd, colors.thumbColor, Modifier.size(50.dp))
+        }
     }
 }
 
@@ -273,8 +301,7 @@ private fun TrapezoidTrack(
 
         Canvas(
             modifier =
-                modifier
-                    .width { (TRACK_LENGTH * (sliderState.value / maxSliderRange)).roundToPx() }
+                Modifier.width { (TRACK_LENGTH * (sliderState.value / maxSliderRange)).roundToPx() }
                     .height { canvasHeight.roundToPx() }
                     .testTag(TRACK_TEST_TAG)
                     .motionTestValues {
@@ -354,8 +381,9 @@ fun Thumb(
     )
 }
 
-private fun thumbHeight(thumbPosition: Float): Dp {
-    return (THUMB_MAX_HEIGHT - THUMB_MIN_HEIGHT) * thumbPosition + THUMB_MIN_HEIGHT
+private fun thumbHeight(thumbPosition: Float, isDragged: Boolean): Dp {
+    return if (thumbPosition == 1.0f && !isDragged) TRACK_LENGTH
+    else ((THUMB_MAX_HEIGHT - THUMB_MIN_HEIGHT) * thumbPosition + THUMB_MIN_HEIGHT)
 }
 
 private class BeamShape : Shape {
@@ -371,21 +399,40 @@ private class BeamShape : Shape {
     }
 }
 
+/**
+ * This is pre-rotation so we are drawing from left to right. See
+ * {VerticalFlashlightSlider_drawBeamPath.png} for how the beam tip is drawn.
+ */
 private fun Path.drawBeamPath(size: Size, density: Density, center: Offset) {
     val leftSideLength = with(density) { MIN_TRACK_HEIGHT.toPx() }
     val topLeftY = center.y - leftSideLength / 2
     val bottomLeftY = center.y + leftSideLength / 2
 
+    // The following values are calculated for the beam tip
+    val bigBase = with(density) { MAX_TRACK_HEIGHT.toPx() }
+    val height = with(density) { TRACK_LENGTH.toPx() }
+    val displacement = displacement(leftSideLength, bigBase, height)
+    val radius = tipRadius(displacement.toDouble(), leftSideLength.toDouble()).toFloat()
+    val offsetDegrees = arcStartOffset(leftSideLength, bigBase, height).toFloat()
+
+    // draw the 3 sides of trapezoid
     moveTo(leftSideLength / 2, topLeftY) // start at top-left
     lineTo(size.width, 0f) // top  (moving right and up)
     lineTo(size.width, size.height) // right (moving down)
     lineTo(leftSideLength / 2, bottomLeftY) // bottom (moving left and up)
 
-    arcTo(
-        rect = Rect(left = 0f, top = topLeftY, right = leftSideLength, bottom = bottomLeftY),
-        startAngleDegrees = 90f, // point left
-        sweepAngleDegrees = 180f, // half the circle
-        forceMoveTo = true,
+    // now draw the tip
+    arcTo( // left side (moving up)
+        rect =
+            Rect(
+                left = displacement,
+                top = center.y - radius,
+                right = displacement + (radius * 2),
+                bottom = center.y + radius,
+            ),
+        startAngleDegrees = 90f + offsetDegrees, // point south + offsetDegrees to west
+        sweepAngleDegrees = 180f - 2 * offsetDegrees, // to stop at offsetDegrees before north
+        forceMoveTo = false,
     )
 }
 
@@ -395,6 +442,23 @@ object VerticalFlashlightSliderMotionTestKeys {
     val TrackEndAlpha = MotionTestValueKey<Float>("trackEndAlpha")
     val TrackHeight = MotionTestValueKey<Dp>("trackHeight")
     val TrackWidth = MotionTestValueKey<Dp>("trackWidth")
+}
+
+/** The degree at which the arc should start */
+private fun arcStartOffset(smallBase: Float, bigBase: Float, adjacent: Float): Double {
+    val opposite = (bigBase - smallBase) / 2
+    return toDegrees(atan((opposite / adjacent).toDouble()))
+}
+
+/** The distance to the right that should the center of tip move. */
+private fun displacement(smallBase: Float, bigBase: Float, height: Float): Float {
+    val opposite = (bigBase - smallBase) / 2
+    return (smallBase / 2) * (opposite / height)
+}
+
+/** Radius of the circle the beam-tip arc is cut from */
+private fun tipRadius(d: Double, smallBase: Double): Double {
+    return sqrt(d.pow(2) + (smallBase / 2).pow(2))
 }
 
 private object Specs {
@@ -408,6 +472,9 @@ private object Specs {
     val THUMB_CENTER_TO_GAP_OUTSIDE = THUMB_WIDTH / 2 + THUMB_GAP
     val BLUR_X = 20.dp // max 60
     val BLUR_Y = 5.dp // max 30
+    val TOP_BORDER_HEIGHT = 2.dp
+    val TOP_BORDER_WIDTH = TRACK_LENGTH - 2.dp
+
     val EdgeTreatment = BlurredEdgeTreatment(BeamShape())
     const val BLUR_CONTRACTION = 1f // max 1
     const val WIDTH_CONTRACTION = 0.7f // max 1

@@ -16,8 +16,12 @@
 
 package android.media;
 
+import static android.annotation.SystemApi.Client.MODULE_LIBRARIES;
+
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
@@ -25,6 +29,7 @@ import android.annotation.SystemApi;
 import android.annotation.WorkerThread;
 import android.app.Activity;
 import android.compat.annotation.UnsupportedAppUsage;
+import android.content.ComponentName;
 import android.content.ContentProvider;
 import android.content.ContentResolver;
 import android.content.ContentUris;
@@ -48,6 +53,8 @@ import android.provider.MediaStore.Audio.AudioColumns;
 import android.provider.MediaStore.MediaColumns;
 import android.provider.Settings;
 import android.provider.Settings.System;
+import android.telecom.PhoneAccountHandle;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.database.SortCursor;
@@ -72,7 +79,7 @@ import java.util.Objects;
  * <p>
  * To show a ringtone picker to the user, use the
  * {@link #ACTION_RINGTONE_PICKER} intent to launch the picker as a subactivity.
- * 
+ *
  * @see Ringtone
  */
 public class RingtoneManager {
@@ -81,29 +88,29 @@ public class RingtoneManager {
 
     // Make sure these are in sync with attrs.xml:
     // <attr name="ringtoneType">
-    
+
     /**
      * Type that refers to sounds that are used for the phone ringer.
      */
     public static final int TYPE_RINGTONE = 1;
-    
+
     /**
      * Type that refers to sounds that are used for notifications.
      */
     public static final int TYPE_NOTIFICATION = 2;
-    
+
     /**
      * Type that refers to sounds that are used for the alarm.
      */
     public static final int TYPE_ALARM = 4;
-    
+
     /**
      * All types of sounds.
      */
     public static final int TYPE_ALL = TYPE_RINGTONE | TYPE_NOTIFICATION | TYPE_ALARM;
 
     // </attr>
-    
+
     /**
      * Activity Action: Shows a ringtone picker.
      * <p>
@@ -120,17 +127,17 @@ public class RingtoneManager {
     /**
      * Given to the ringtone picker as a boolean. Whether to show an item for
      * "Default".
-     * 
+     *
      * @see #ACTION_RINGTONE_PICKER
      */
     public static final String EXTRA_RINGTONE_SHOW_DEFAULT =
             "android.intent.extra.ringtone.SHOW_DEFAULT";
-    
+
     /**
      * Given to the ringtone picker as a boolean. Whether to show an item for
      * "Silent". If the "Silent" item is picked,
      * {@link #EXTRA_RINGTONE_PICKED_URI} will be null.
-     * 
+     *
      * @see #ACTION_RINGTONE_PICKER
      */
     public static final String EXTRA_RINGTONE_SHOW_SILENT =
@@ -143,7 +150,7 @@ public class RingtoneManager {
     @Deprecated
     public static final String EXTRA_RINGTONE_INCLUDE_DRM =
             "android.intent.extra.ringtone.INCLUDE_DRM";
-    
+
     /**
      * Given to the ringtone picker as a {@link Uri}. The {@link Uri} of the
      * current ringtone, which will be used to show a checkmark next to the item
@@ -153,12 +160,12 @@ public class RingtoneManager {
      * {@link System#DEFAULT_NOTIFICATION_URI}, or
      * {@link System#DEFAULT_ALARM_ALERT_URI} to have the "Default" item
      * checked.
-     * 
+     *
      * @see #ACTION_RINGTONE_PICKER
      */
     public static final String EXTRA_RINGTONE_EXISTING_URI =
             "android.intent.extra.ringtone.EXISTING_URI";
-    
+
     /**
      * Given to the ringtone picker as a {@link Uri}. The {@link Uri} of the
      * ringtone to play when the user attempts to preview the "Default"
@@ -171,7 +178,7 @@ public class RingtoneManager {
      */
     public static final String EXTRA_RINGTONE_DEFAULT_URI =
             "android.intent.extra.ringtone.DEFAULT_URI";
-    
+
     /**
      * Given to the ringtone picker as an int. Specifies which ringtone type(s) should be
      * shown in the picker. One or more of {@link #TYPE_RINGTONE},
@@ -205,14 +212,14 @@ public class RingtoneManager {
      * {@link System#DEFAULT_NOTIFICATION_URI}, or
      * {@link System#DEFAULT_ALARM_ALERT_URI} if the default was chosen,
      * <li> null if the "Silent" item was picked.
-     * 
+     *
      * @see #ACTION_RINGTONE_PICKER
      */
     public static final String EXTRA_RINGTONE_PICKED_URI =
             "android.intent.extra.ringtone.PICKED_URI";
-    
+
     // Make sure the column ordering and then ..._COLUMN_INDEX are in sync
-    
+
     private static final String[] INTERNAL_COLUMNS = new String[] {
         MediaStore.Audio.Media._ID,
         MediaStore.Audio.Media.TITLE,
@@ -252,22 +259,54 @@ public class RingtoneManager {
     private Cursor mCursor;
 
     private int mType = TYPE_RINGTONE;
-    
+
     /**
      * If a column (item from this list) exists in the Cursor, its value must
      * be true (value of 1) for the row to be returned.
      */
     private final List<String> mFilterColumns = new ArrayList<String>();
-    
+
     private boolean mStopPreviousRingtone = true;
     private Ringtone mPreviousRingtone;
 
     private boolean mIncludeParentRingtones;
 
+    private static final String EMERGENCY_PHONE_ACCOUNT_HANDLE_ID = "E";
+
+    /** @hide */
+    public static final String RINGTONE_DELIMITER_FOR_PHONE_ACCOUNT_HANDLE = "_id_";
+
+    /**
+     * Query parameter key used in a ringtone {@link Uri} to store the string representation of the
+     * {@link ComponentName} of a {@link PhoneAccountHandle}.
+     * @hide
+     */
+    @SystemApi(client = MODULE_LIBRARIES)
+    @FlaggedApi(Flags.FLAG_SUPPORT_PER_PHONE_ACCOUNT_RINGTONE)
+    public static final String PHONE_ACCOUNT_HANDLE_COMPONENT_NAME = "phone_account_component";
+
+    /**
+     * Query parameter key used in a ringtone {@link Uri} to store the ID of a
+     * {@link PhoneAccountHandle}.
+     * @hide
+     */
+    @SystemApi(client = MODULE_LIBRARIES)
+    @FlaggedApi(Flags.FLAG_SUPPORT_PER_PHONE_ACCOUNT_RINGTONE)
+    public static final String PHONE_ACCOUNT_HANDLE_ID = "phone_account_id";
+
+    /**
+     * Query parameter key used in a ringtone {@link Uri} to store the user ID of a
+     * {@link PhoneAccountHandle}.
+     * @hide
+     */
+    @SystemApi(client = MODULE_LIBRARIES)
+    @FlaggedApi(Flags.FLAG_SUPPORT_PER_PHONE_ACCOUNT_RINGTONE)
+    public static final String PHONE_ACCOUNT_HANDLE_USER_HANDLE = "phone_account_user_handle";
+
     /**
      * Constructs a RingtoneManager. This constructor is recommended as its
      * constructed instance manages cursor(s).
-     * 
+     *
      * @param activity The activity used to get a managed cursor.
      */
     public RingtoneManager(Activity activity) {
@@ -295,7 +334,7 @@ public class RingtoneManager {
      * Constructs a RingtoneManager. The instance constructed by this
      * constructor will not manage the cursor(s), so the client should handle
      * this itself.
-     * 
+     *
      * @param context The context to used to get a cursor.
      */
     public RingtoneManager(Context context) {
@@ -320,18 +359,18 @@ public class RingtoneManager {
 
     /**
      * Sets which type(s) of ringtones will be listed by this.
-     * 
+     *
      * @param type The type(s), one or more of {@link #TYPE_RINGTONE},
      *            {@link #TYPE_NOTIFICATION}, {@link #TYPE_ALARM},
      *            {@link #TYPE_ALL}.
-     * @see #EXTRA_RINGTONE_TYPE           
+     * @see #EXTRA_RINGTONE_TYPE
      */
     public void setType(int type) {
         if (mCursor != null) {
             throw new IllegalStateException(
                     "Setting filter columns should be done before querying for ringtones.");
         }
-        
+
         mType = type;
         setFilterColumnsList(type);
     }
@@ -339,18 +378,18 @@ public class RingtoneManager {
     /**
      * Infers the volume stream type based on what type of ringtones this
      * manager is returning.
-     * 
+     *
      * @return The stream type.
      */
     public int inferStreamType() {
         switch (mType) {
-            
+
             case TYPE_ALARM:
                 return AudioManager.STREAM_ALARM;
-                
+
             case TYPE_NOTIFICATION:
                 return AudioManager.STREAM_NOTIFICATION;
-                
+
             default:
                 return AudioManager.STREAM_RING;
         }
@@ -362,7 +401,7 @@ public class RingtoneManager {
      * <p>
      * If this is false, make sure to {@link Ringtone#stop()} any previous
      * ringtones to free resources.
-     * 
+     *
      * @param stopPreviousRingtone If true, the previously retrieved
      *            {@link Ringtone} will be stopped.
      */
@@ -385,10 +424,10 @@ public class RingtoneManager {
             mPreviousRingtone.stop();
         }
     }
-    
+
     /**
      * Returns whether DRM ringtones will be included.
-     * 
+     *
      * @return Whether DRM ringtones will be included.
      * @see #setIncludeDrm(boolean)
      * Obsolete - always returns false
@@ -401,7 +440,7 @@ public class RingtoneManager {
 
     /**
      * Sets whether to include DRM ringtones.
-     * 
+     *
      * @param includeDrm Whether to include DRM ringtones.
      * Obsolete - no longer has any effect
      * @deprecated DRM ringtones are no longer supported
@@ -471,7 +510,7 @@ public class RingtoneManager {
     /**
      * Gets a {@link Ringtone} for the ringtone at the given position in the
      * {@link Cursor}.
-     * 
+     *
      * @param position The position (in the {@link Cursor}) of the ringtone.
      * @return A {@link Ringtone} pointing to the ringtone.
      */
@@ -487,7 +526,7 @@ public class RingtoneManager {
 
     /**
      * Gets a {@link Uri} for the ringtone at the given position in the {@link Cursor}.
-     * 
+     *
      * @param position The position (in the {@link Cursor}) of the ringtone.
      * @return A {@link Uri} pointing to the ringtone.
      */
@@ -604,7 +643,7 @@ public class RingtoneManager {
 
     /**
      * Gets the position of a {@link Uri} within this {@link RingtoneManager}.
-     * 
+     *
      * @param ringtoneUri The {@link Uri} to retreive the position of.
      * @return The position of the {@link Uri}, or -1 if it cannot be found.
      */
@@ -637,25 +676,25 @@ public class RingtoneManager {
      */
     public static Uri getValidRingtoneUri(Context context) {
         final RingtoneManager rm = new RingtoneManager(context);
-        
+
         Uri uri = getValidRingtoneUriFromCursorAndClose(context, rm.getInternalRingtones());
 
         if (uri == null) {
             uri = getValidRingtoneUriFromCursorAndClose(context, rm.getMediaRingtones());
         }
-        
+
         return uri;
     }
-    
+
     private static Uri getValidRingtoneUriFromCursorAndClose(Context context, Cursor cursor) {
         if (cursor != null) {
             Uri uri = null;
-            
+
             if (cursor.moveToFirst()) {
                 uri = getUriFromCursor(context, cursor);
             }
             cursor.close();
-            
+
             return uri;
         } else {
             return null;
@@ -689,39 +728,39 @@ public class RingtoneManager {
     private void setFilterColumnsList(int type) {
         List<String> columns = mFilterColumns;
         columns.clear();
-        
+
         if ((type & TYPE_RINGTONE) != 0) {
             columns.add(MediaStore.Audio.AudioColumns.IS_RINGTONE);
         }
-        
+
         if ((type & TYPE_NOTIFICATION) != 0) {
             columns.add(MediaStore.Audio.AudioColumns.IS_NOTIFICATION);
         }
-        
+
         if ((type & TYPE_ALARM) != 0) {
             columns.add(MediaStore.Audio.AudioColumns.IS_ALARM);
         }
     }
-    
+
     /**
      * Constructs a where clause that consists of at least one column being 1
      * (true). This is used to find all matching sounds for the given sound
      * types (ringtone, notifications, etc.)
-     * 
+     *
      * @param columns The columns that must be true.
      * @return The where clause.
      */
     private static String constructBooleanTrueWhereClause(List<String> columns) {
-        
+
         if (columns == null) return null;
-        
+
         StringBuilder sb = new StringBuilder();
         sb.append("(");
 
         for (int i = columns.size() - 1; i >= 0; i--) {
             sb.append(columns.get(i)).append("=1 or ");
         }
-        
+
         if (columns.size() > 0) {
             // Remove last ' or '
             sb.setLength(sb.length() - 4);
@@ -731,7 +770,7 @@ public class RingtoneManager {
 
         return sb.toString();
     }
-    
+
     private Cursor query(Uri uri,
             String[] projection,
             String selection,
@@ -753,14 +792,14 @@ public class RingtoneManager {
                     sortOrder);
         }
     }
-    
+
     /**
      * Returns a {@link Ringtone} for a given sound URI.
      * <p>
      * If the given URI cannot be opened for any reason, this method will
      * attempt to fallback on another sound. If it cannot find any, it will
      * return null.
-     * 
+     *
      * @param context A context used to query.
      * @param ringtoneUri The {@link Uri} of a sound or ringtone.
      * @return A {@link Ringtone} for the given URI, or null.
@@ -803,11 +842,29 @@ public class RingtoneManager {
     }
 
     /**
+     * Returns a {@link Ringtone} for a given sound URI, VolumeShaper config, and provided audio
+     * attributes.
+     * <p>
+     * If the given URI cannot be opened for any reason, this method will
+     * attempt to fallback on another sound. If it cannot find any, it will
+     * return null.
+     *
+     * @param context A context used to query.
+     * @param ringtoneUri The {@link Uri} of a sound or ringtone.
+     * @param volumeShaperConfig The {@link VolumeShaper.Configuration} containing curve/duration
+     *                           info used in controlling audio volume for media playback.
+     * @param audioAttributes The {@link AudioAttributes} that contain info regarding an audio
+     *                        stream.
+     * @return A {@link Ringtone} for the provided params, or null if there's an issue loading the
+     * {@link Uri} and there are fallback options available.
      * @hide
      */
-    public static Ringtone getRingtone(final Context context, Uri ringtoneUri,
+    @FlaggedApi(com.android.media.flags.Flags.FLAG_RELEASE_RINGTONE_AS_API)
+    @SystemApi
+    public static @Nullable Ringtone getRingtone(@NonNull final Context context,
+            @NonNull Uri ringtoneUri,
             @Nullable VolumeShaper.Configuration volumeShaperConfig,
-            AudioAttributes audioAttributes) {
+            @NonNull AudioAttributes audioAttributes) {
         // Don't set the stream type
         Ringtone ringtone = getRingtone(context, ringtoneUri, -1 /* streamType */,
                 volumeShaperConfig, false);
@@ -872,11 +929,69 @@ public class RingtoneManager {
         return null;
     }
 
+
+    /**
+     * Given a {@link Uri} representing a default ringtone, returns the {@link Uri} of the actual
+     * sound for that default ringtone.
+     * <p>
+     * This is the counterpart to {@link #getDefaultUri(int)}.
+     *
+     * @param context A context used to query.
+     * @param uri The {@link Uri} of a default ringtone.
+     * @return The {@link Uri} of the actual sound.
+     * @hide
+     */
+    static Uri getActualUriFromSettingsUri(Context context, Uri uri) {
+        final PhoneAccountHandle phoneAccountHandle = createPhoneAccountHandleFromUri(uri);
+        final int type = getDefaultType(uri);
+        return type == TYPE_RINGTONE
+                ? getRingtoneUriForPhoneAccountHandle(context, phoneAccountHandle)
+                : getActualDefaultRingtoneUri(context, type);
+    }
+
+    /**
+     * Given a {@link Uri} representing a default ringtone setting, returns the {@link Uri} of the
+     * cache for that ringtone.
+     * <p>
+     * This can be used to invalidate the cache of a default ringtone.
+     * This is the counterpart to {@link #getCacheForType(int, int)}.
+     *
+     * @param context A context used for the operation.
+     * @param uri The {@link Uri} of a default ringtone setting.
+     * @return The {@link Uri} of the cache.
+     * @hide
+     */
+    static Uri getCacheUriFromSettingsUri(Context context, Uri uri) {
+        final PhoneAccountHandle phoneAccountHandle = createPhoneAccountHandleFromUri(uri);
+        final int type = getDefaultType(uri);
+        return type == TYPE_RINGTONE
+                ? getRingtoneCacheForPhoneAccountHandle(context.getUserId(), phoneAccountHandle)
+                : getCacheForType(type, context.getUserId());
+    }
+
+    private static PhoneAccountHandle createPhoneAccountHandleFromUri(Uri uri) {
+        if (uri == null) {
+            return null;
+        }
+        String component = uri.getQueryParameter(
+                RingtoneManager.PHONE_ACCOUNT_HANDLE_COMPONENT_NAME);
+        String id = uri.getQueryParameter(RingtoneManager.PHONE_ACCOUNT_HANDLE_ID);
+        String userId = uri.getQueryParameter(RingtoneManager.PHONE_ACCOUNT_HANDLE_USER_HANDLE);
+        if (TextUtils.isEmpty(component) || TextUtils.isEmpty(id) || TextUtils.isEmpty(userId)) {
+            return null;
+        }
+        final ComponentName componentName = ComponentName.unflattenFromString(component);
+        if (componentName == null) {
+            return null;
+        }
+        return new PhoneAccountHandle(componentName, id, UserHandle.of(Integer.parseInt(userId)));
+    }
+
     /**
      * Gets the current default sound's {@link Uri}. This will give the actual
      * sound {@link Uri}, instead of using this, most clients can use
      * {@link System#DEFAULT_RINGTONE_URI}.
-     * 
+     *
      * @param context A context used for querying.
      * @param type The type whose default sound should be returned. One of
      *            {@link #TYPE_RINGTONE}, {@link #TYPE_NOTIFICATION}, or
@@ -886,6 +1001,33 @@ public class RingtoneManager {
      */
     public static Uri getActualDefaultRingtoneUri(Context context, int type) {
         String setting = getSettingForType(type);
+        return getRingtoneUriForSetting(context, setting);
+    }
+
+    /**
+     * Gets TYPE_RINGTONE's {@link Uri} by id of {@link PhoneAccountHandle}.
+     *
+     * @param context A context used for querying.
+     * @param phoneAccountHandle The {@link PhoneAccountHandle} whose sound should be returned.
+     *                           If null, the default ringtone will be returned.
+     * @return A {@link Uri} pointing to the sound for TYPE_RINGTONE.
+     * @see #setRingtoneUri(Context, Uri, PhoneAccountHandle)
+     */
+    @Nullable
+    @FlaggedApi(Flags.FLAG_SUPPORT_PER_PHONE_ACCOUNT_RINGTONE)
+    public static Uri getRingtoneUriForPhoneAccountHandle(@NonNull Context context,
+            @Nullable PhoneAccountHandle phoneAccountHandle) {
+        String setting = getRingtoneSettingForPhoneAccountHandle(phoneAccountHandle);
+        Uri ringtoneUri = getRingtoneUriForSetting(context, setting);
+        // If the ringtoneUri for targeted phoneAccountHandle is null,
+        // try to use the default ringtone which is saved in Settings.System.RINGTONE.
+        if (ringtoneUri == null) {
+            ringtoneUri = getRingtoneUriForSetting(context, Settings.System.RINGTONE);
+        }
+        return ringtoneUri;
+    }
+
+    private static Uri getRingtoneUriForSetting(Context context, String setting) {
         if (setting == null) return null;
         final String uriString = Settings.System.getStringForUser(context.getContentResolver(),
                 setting, context.getUserId());
@@ -900,10 +1042,10 @@ public class RingtoneManager {
 
         return ringtoneUri;
     }
-    
+
     /**
      * Sets the {@link Uri} of the default sound for a given sound type.
-     * 
+     *
      * @param context A context used for querying.
      * @param type The type whose default sound should be set. One of
      *            {@link #TYPE_RINGTONE}, {@link #TYPE_NOTIFICATION}, or
@@ -913,6 +1055,29 @@ public class RingtoneManager {
      */
     public static void setActualDefaultRingtoneUri(Context context, int type, Uri ringtoneUri) {
         String setting = getSettingForType(type);
+        setRingtoneUriForSetting(context, setting, ringtoneUri);
+    }
+
+    /**
+     * Sets the {@link Uri} of the sound by {@link PhoneAccountHandle} for TYPE_RINGTONE.
+     *
+     * @param context A context used for querying.
+     * @param ringtoneUri A {@link Uri} pointing to the sound to set. This parameter can be null, in
+     *                    which case the API behaves like
+     *                    {@link #setActualDefaultRingtoneUri(Context, int, Uri)}.
+     * @param phoneAccountHandle The {@link PhoneAccountHandle} whose sound should be set.
+     *                           This parameter can be null, in which case the API behaves
+     *                           like {@link #setActualDefaultRingtoneUri(Context, int, Uri)}.
+     * @see #getRingtoneUriForPhoneAccountHandle(Context, PhoneAccountHandle)
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_PER_PHONE_ACCOUNT_RINGTONE)
+    public static void setRingtoneUri(@NonNull Context context,
+            @Nullable Uri ringtoneUri, @Nullable PhoneAccountHandle phoneAccountHandle) {
+        String setting = getRingtoneSettingForPhoneAccountHandle(phoneAccountHandle);
+        setRingtoneUriForSetting(context, setting, ringtoneUri);
+    }
+
+    private static void setRingtoneUriForSetting(Context context, String setting, Uri ringtoneUri) {
         if (setting == null) return;
 
         final ContentResolver resolver = context.getContentResolver();
@@ -923,7 +1088,7 @@ public class RingtoneManager {
         if (ringtoneUri != null) {
             final String mimeType = resolver.getType(ringtoneUri);
             if (mimeType == null) {
-                Log.e(TAG, "setActualDefaultRingtoneUri for URI:" + ringtoneUri
+                Log.e(TAG, "Set ringtoneUri for URI:" + ringtoneUri
                         + " ignored: failure to find mimeType (no access from this context?)");
                 return;
             }
@@ -931,7 +1096,7 @@ public class RingtoneManager {
                     || mimeType.equals("application/x-flac")
                     // also check for video ringtones
                     || mimeType.startsWith("video/") || mimeType.equals("application/mp4"))) {
-                Log.e(TAG, "setActualDefaultRingtoneUri for URI:" + ringtoneUri
+                Log.e(TAG, "Set ringtoneUri for URI:" + ringtoneUri
                         + " ignored: associated MIME type:" + mimeType
                         + " is not a recognized audio or video type");
                 return;
@@ -975,13 +1140,13 @@ public class RingtoneManager {
      * @param type The type of the ringtone to be added. Must be one of {@link #TYPE_RINGTONE},
      *            {@link #TYPE_NOTIFICATION}, or {@link #TYPE_ALARM}.
      *
-     * @return The Uri of the installed ringtone, which may be the Uri of {@param fileUri} if it is
+     * @return The Uri of the installed ringtone, which may be the Uri of {@code fileUri} if it is
      *         already in ringtone storage.
      *
      * @throws FileNotFoundexception if an appropriate unique filename to save the new ringtone file
      *         as cannot be found, for example if the unique name is too long.
-     * @throws IllegalArgumentException if {@param fileUri} does not point to an existing audio
-     *         file, or if the {@param type} is not one of the accepted ringtone types.
+     * @throws IllegalArgumentException if {@code fileUri} does not point to an existing audio
+     *         file, or if the {@code type} is not one of the accepted ringtone types.
      * @throws IOException if the audio file failed to copy to ringtone storage; for example, if
      *         external storage was not available, or if the file was copied but the media scanner
      *         did not recognize it as a ringtone.
@@ -1047,6 +1212,15 @@ public class RingtoneManager {
         }
     }
 
+    private static String getRingtoneSettingForPhoneAccountHandle(
+            PhoneAccountHandle phoneAccountHandle) {
+        return (phoneAccountHandle == null || !Flags.supportPerPhoneAccountRingtone())
+                ? Settings.System.RINGTONE
+                : Settings.System.RINGTONE
+                        + RINGTONE_DELIMITER_FOR_PHONE_ACCOUNT_HANDLE
+                        + phoneAccountHandle.getId();
+    }
+
     /** @hide */
     public static Uri getCacheForType(int type) {
         return getCacheForType(type, UserHandle.getCallingUserId());
@@ -1065,19 +1239,29 @@ public class RingtoneManager {
         return null;
     }
 
+    private static Uri getRingtoneCacheForPhoneAccountHandle(int userId,
+            PhoneAccountHandle phoneAccountHandle) {
+        Uri uri = (phoneAccountHandle == null || !Flags.supportPerPhoneAccountRingtone())
+                ? Settings.System.RINGTONE_CACHE_URI
+                : Settings.System.getUriFor(Settings.System.RINGTONE_CACHE
+                        + RINGTONE_DELIMITER_FOR_PHONE_ACCOUNT_HANDLE
+                        + phoneAccountHandle.getId());
+        return ContentProvider.maybeAddUserId(uri, userId);
+    }
+
     /**
      * Returns whether the given {@link Uri} is one of the default ringtones.
-     * 
+     *
      * @param ringtoneUri The ringtone {@link Uri} to be checked.
      * @return Whether the {@link Uri} is a default.
      */
     public static boolean isDefault(Uri ringtoneUri) {
         return getDefaultType(ringtoneUri) != -1;
     }
-    
+
     /**
      * Returns the type of a default {@link Uri}.
-     * 
+     *
      * @param defaultRingtoneUri The default {@link Uri}. For example,
      *            {@link System#DEFAULT_RINGTONE_URI},
      *            {@link System#DEFAULT_NOTIFICATION_URI}, or
@@ -1105,6 +1289,11 @@ public class RingtoneManager {
             }
         }
 
+        if (Flags.supportPerPhoneAccountRingtone() && defaultRingtoneUri.toString()
+                .contains(Settings.System.DEFAULT_RINGTONE_URI.toString())) {
+            return TYPE_RINGTONE;
+        }
+
         if (defaultRingtoneUri.equals(Settings.System.DEFAULT_RINGTONE_URI)) {
             return TYPE_RINGTONE;
         } else if (defaultRingtoneUri.equals(Settings.System.DEFAULT_NOTIFICATION_URI)) {
@@ -1115,13 +1304,13 @@ public class RingtoneManager {
             return -1;
         }
     }
- 
+
     /**
      * Returns the {@link Uri} for the default ringtone of a particular type.
      * Rather than returning the actual ringtone's sound {@link Uri}, this will
      * return the symbolic {@link Uri} which will resolved to the actual sound
      * when played.
-     * 
+     *
      * @param type The ringtone type whose default should be returned.
      * @return The {@link Uri} of the default ringtone for the given type.
      */

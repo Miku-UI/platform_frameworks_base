@@ -20,5 +20,12 @@ package android.media.tv.extension.rating;
  * @hide
  */
 oneway interface IVbiRatingListener {
+    /**
+     * Notifies when the content rating in the VBI has changed.
+     *
+     * @param sessionToken The string identifier for the TIS session whose rating has been updated.
+     * @param newTvContentRating The updated rating information, formatted as a flattened string
+     *        from {@link android.media.tv.TvContentRating#flattenToString()}.
+     */
     void onVbiRatingChanged(String sessionToken, String newTvContentRating);
 }

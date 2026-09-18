@@ -27,8 +27,6 @@ import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
-import com.android.systemui.flags.FeatureFlags;
-import com.android.systemui.flags.Flags;
 import com.android.systemui.plugins.PluginManager;
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockMessageBuffers;
 import com.android.systemui.res.R;
@@ -55,7 +53,6 @@ public abstract class ClockRegistryModule {
             @Application CoroutineScope scope,
             @Main CoroutineDispatcher mainDispatcher,
             @Background CoroutineDispatcher bgDispatcher,
-            FeatureFlags featureFlags,
             @Main Resources resources,
             LayoutInflater layoutInflater,
             ClockMessageBuffers clockBuffers,
@@ -66,13 +63,10 @@ public abstract class ClockRegistryModule {
                 scope,
                 mainDispatcher,
                 bgDispatcher,
-                com.android.systemui.shared.Flags.lockscreenCustomClocks()
-                        || featureFlags.isEnabled(Flags.LOCKSCREEN_CUSTOM_CLOCKS),
                 /* handleAllUsers= */ true,
                 new DefaultClockProvider(
                         layoutInflater,
                         resources,
-                        com.android.systemui.shared.Flags.clockReactiveVariants(),
                         vibrator
                 ),
                 context.getString(R.string.lockscreen_clock_id_fallback),

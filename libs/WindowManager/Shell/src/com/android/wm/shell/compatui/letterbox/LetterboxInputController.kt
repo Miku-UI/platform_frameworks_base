@@ -114,6 +114,6 @@ constructor(
     }
 
     override fun dump() {
-        ProtoLog.v(WM_SHELL_APP_COMPAT, "%s: %s", TAG, "${inputDetectorMap.keys}")
+        ProtoLog.v(WM_SHELL_APP_COMPAT, "$TAG: %s", inputDetectorMap.keys)
     }
 }

@@ -17,11 +17,10 @@
 package com.android.server.am;
 
 import static android.app.ActivityManager.PROCESS_STATE_NONEXISTENT;
-import static android.app.ProcessMemoryState.HOSTING_COMPONENT_TYPE_ACTIVITY;
-import static android.app.ProcessMemoryState.HOSTING_COMPONENT_TYPE_BROADCAST_RECEIVER;
 import static android.app.ProcessMemoryState.HOSTING_COMPONENT_TYPE_EMPTY;
 import static android.app.ProcessMemoryState.HOSTING_COMPONENT_TYPE_STARTED_SERVICE;
 
+import android.app.ActivityManager;
 import android.app.IApplicationThread;
 import android.app.ProcessMemoryState.HostingComponentType;
 import android.content.pm.ApplicationInfo;
@@ -36,6 +35,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.app.procstats.ProcessState;
 import com.android.internal.app.procstats.ProcessStats;
 import com.android.server.am.ProcessList.ProcStateMemTracker;
+import com.android.server.am.psc.Constants.OomAdjust;
 import com.android.server.am.psc.ProcessRecordInternal;
 import com.android.server.power.stats.BatteryStatsImpl;
 
@@ -109,8 +109,6 @@ final class ProcessProfileRecord implements ProcessRecordInternal.StartedService
 
     /**
      * Last computed rss when in cached state.
-     *
-     * This value is not set or retrieved unless Flags.removeAppProfilerPssCollection() is true.
      */
     @GuardedBy("mProfilerLock")
     private long mLastCachedRss;
@@ -131,7 +129,7 @@ final class ProcessProfileRecord implements ProcessRecordInternal.StartedService
      * Currently requesting pss for.
      */
     @GuardedBy("mProfilerLock")
-    private int mPssProcState = PROCESS_STATE_NONEXISTENT;
+    private @ActivityManager.ProcessState int mPssProcState = PROCESS_STATE_NONEXISTENT;
 
     /**
      * The type of stat collection that we are currently requesting.
@@ -198,13 +196,13 @@ final class ProcessProfileRecord implements ProcessRecordInternal.StartedService
     private IApplicationThread mThread;
 
     @GuardedBy("mProfilerLock")
-    private int mSetProcState;
+    private @ActivityManager.ProcessState  int mSetProcState;
 
     @GuardedBy("mProfilerLock")
-    private int mSetAdj;
+    private @OomAdjust int mSetAdj;
 
     @GuardedBy("mProfilerLock")
-    private int mCurRawAdj;
+    private @OomAdjust int mCurRawAdj;
 
     @GuardedBy("mProfilerLock")
     private long mLastStateTime;
@@ -434,12 +432,13 @@ final class ProcessProfileRecord implements ProcessRecordInternal.StartedService
     }
 
     @GuardedBy("mProfilerLock")
+    @ActivityManager.ProcessState
     int getPssProcState() {
         return mPssProcState;
     }
 
     @GuardedBy("mProfilerLock")
-    void setPssProcState(int pssProcState) {
+    void setPssProcState(@ActivityManager.ProcessState int pssProcState) {
         mPssProcState = pssProcState;
     }
 
@@ -537,7 +536,7 @@ final class ProcessProfileRecord implements ProcessRecordInternal.StartedService
         }
     }
 
-    void setProcessTrackerState(int procState, int memFactor) {
+    void setProcessTrackerState(@ActivityManager.ProcessState int procState, int memFactor) {
         synchronized (mService.mProcessStats.mLock) {
             final ProcessState tracker = mBaseProcessTracker;
             if (tracker != null) {
@@ -564,12 +563,13 @@ final class ProcessProfileRecord implements ProcessRecordInternal.StartedService
     }
 
     @GuardedBy("mProfilerLock")
-    long computeNextPssTime(int procState, boolean test, boolean sleeping, long now) {
+    long computeNextPssTime(@ActivityManager.ProcessState int procState, boolean test,
+            boolean sleeping, long now) {
         return ProcessList.computeNextPssTime(procState, mProcStateMemTracker, test, sleeping, now,
                 // Cap the Pss time to make sure no Pss is collected during the very few
                 // minutes after the system is boot, given the system is already busy.
                 Math.max(mService.mBootCompletedTimestamp, mService.mLastIdleTime)
-                + mService.mConstants.FULL_PSS_MIN_INTERVAL);
+                        + mService.mConstants.FULL_PSS_MIN_INTERVAL);
     }
 
     private static void commitNextPssTime(ProcStateMemTracker tracker) {
@@ -616,17 +616,18 @@ final class ProcessProfileRecord implements ProcessRecordInternal.StartedService
     }
 
     @GuardedBy("mProfilerLock")
+    @ActivityManager.ProcessState
     int getSetProcState() {
         return mSetProcState;
     }
 
     @GuardedBy("mProfilerLock")
-    int getSetAdj() {
+    @OomAdjust int getSetAdj() {
         return mSetAdj;
     }
 
     @GuardedBy("mProfilerLock")
-    int getCurRawAdj() {
+    @OomAdjust int getCurRawAdj() {
         return mCurRawAdj;
     }
 
@@ -635,10 +636,19 @@ final class ProcessProfileRecord implements ProcessRecordInternal.StartedService
         return mLastStateTime;
     }
 
+    /**
+     * Updates the process state and OOM adjustment values from the given state.
+     *
+     * @param state The process record state.
+     * @param newProcState The new process state.
+     * @param newOomAdj The new OOM adjustment value.
+     */
     @GuardedBy({"mService", "mProfilerLock"})
-    void updateProcState(ProcessRecordInternal state) {
-        mSetProcState = state.getCurProcState();
-        mSetAdj = state.getCurAdj();
+    void updateProcState(ProcessRecordInternal state,
+            @ActivityManager.ProcessState int newProcState, @OomAdjust int newOomAdj) {
+        // TODO: b/489196673 - Switch to update the state from the state listener of the PSC.
+        mSetProcState = newProcState;
+        mSetAdj = newOomAdj;
         mCurRawAdj = state.getCurRawAdj();
         mLastStateTime = state.getLastStateTime();
     }
@@ -742,24 +752,6 @@ final class ProcessProfileRecord implements ProcessRecordInternal.StartedService
             addHostingComponentType(HOSTING_COMPONENT_TYPE_STARTED_SERVICE);
         } else {
             clearHostingComponentType(HOSTING_COMPONENT_TYPE_STARTED_SERVICE);
-        }
-    }
-
-    @Override
-    public void onIsReceivingBroadcastChanged(boolean isReceivingBroadcast) {
-        if (isReceivingBroadcast) {
-            addHostingComponentType(HOSTING_COMPONENT_TYPE_BROADCAST_RECEIVER);
-        } else {
-            clearHostingComponentType(HOSTING_COMPONENT_TYPE_BROADCAST_RECEIVER);
-        }
-    }
-
-    @Override
-    public void onHasActivitiesChanged(boolean hasActivities) {
-        if (hasActivities) {
-            addHostingComponentType(HOSTING_COMPONENT_TYPE_ACTIVITY);
-        } else {
-            clearHostingComponentType(HOSTING_COMPONENT_TYPE_ACTIVITY);
         }
     }
 }

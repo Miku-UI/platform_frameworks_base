@@ -39,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -108,6 +109,11 @@ fun ShortcutCustomizationDialog(
 }
 
 @Composable
+private fun DialogSurface(content: @Composable () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh) { content() }
+}
+
+@Composable
 private fun AddShortcutDialog(
     modifier: Modifier,
     uiState: ShortcutCustomizationUiState.AddShortcutDialog,
@@ -116,31 +122,37 @@ private fun AddShortcutDialog(
     onConfirmSetShortcut: () -> Unit,
     onClearSelectedKeyCombination: () -> Unit,
 ) {
-    Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        Title(uiState.shortcutLabel)
-        Description(
-            text = stringResource(id = R.string.shortcut_customize_mode_add_shortcut_description)
-        )
-        PromptShortcutModifier(
-            modifier = Modifier.padding(top = 24.dp).sizeIn(minWidth = 131.dp, minHeight = 48.dp),
-            defaultModifierKey = uiState.defaultCustomShortcutModifierKey,
-        )
-        SelectedKeyCombinationContainer(
-            shouldShowError = uiState.errorMessage.isNotEmpty(),
-            onShortcutKeyCombinationSelected = onShortcutKeyCombinationSelected,
-            pressedKeys = uiState.pressedKeys,
-            contentDescription = uiState.pressedKeysDescription,
-            onConfirmSetShortcut = onConfirmSetShortcut,
-            onClearSelectedKeyCombination = onClearSelectedKeyCombination,
-        )
-        ErrorMessageContainer(uiState.errorMessage)
-        DialogButtons(
-            onCancel,
-            isConfirmButtonEnabled = uiState.pressedKeys.isNotEmpty(),
-            onConfirm = onConfirmSetShortcut,
-            confirmButtonText =
-                stringResource(R.string.shortcut_helper_customize_dialog_set_shortcut_button_label),
-        )
+    DialogSurface {
+        Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+            Title(uiState.shortcutLabel)
+            Description(
+                text =
+                    stringResource(id = R.string.shortcut_customize_mode_add_shortcut_description)
+            )
+            PromptShortcutModifier(
+                modifier =
+                    Modifier.padding(top = 24.dp).sizeIn(minWidth = 131.dp, minHeight = 48.dp),
+                defaultModifierKey = uiState.defaultCustomShortcutModifierKey,
+            )
+            SelectedKeyCombinationContainer(
+                shouldShowError = uiState.errorMessage.isNotEmpty(),
+                onShortcutKeyCombinationSelected = onShortcutKeyCombinationSelected,
+                pressedKeys = uiState.pressedKeys,
+                contentDescription = uiState.pressedKeysDescription,
+                onConfirmSetShortcut = onConfirmSetShortcut,
+                onClearSelectedKeyCombination = onClearSelectedKeyCombination,
+            )
+            ErrorMessageContainer(uiState.errorMessage)
+            DialogButtons(
+                onCancel,
+                isConfirmButtonEnabled = uiState.pressedKeys.isNotEmpty(),
+                onConfirm = onConfirmSetShortcut,
+                confirmButtonText =
+                    stringResource(
+                        R.string.shortcut_helper_customize_dialog_set_shortcut_button_label
+                    ),
+            )
+        }
     }
 }
 
@@ -189,14 +201,16 @@ private fun ConfirmationDialog(
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    Column(modifier) {
-        Title(title = title)
-        Description(text = description)
-        DialogButtons(
-            onCancel = onCancel,
-            onConfirm = onConfirm,
-            confirmButtonText = confirmButtonText,
-        )
+    DialogSurface {
+        Column(modifier) {
+            Title(title = title)
+            Description(text = description)
+            DialogButtons(
+                onCancel = onCancel,
+                onConfirm = onConfirm,
+                confirmButtonText = confirmButtonText,
+            )
+        }
     }
 }
 

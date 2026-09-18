@@ -24,7 +24,7 @@ using namespace android::uirenderer;
 
 TEST(StretchEffect, noStretchDirectionDoesNotRequireLayer) {
   Properties::setStretchEffectBehavior(StretchEffectBehavior::ShaderHWUI);
-  auto stretchEffect = StretchEffect({.fX = 0.f, .fY = 0.f}, 100.f, 100.f);
+  auto stretchEffect = uirenderer::StretchEffect({.fX = 0.f, .fY = 0.f}, 100.f, 100.f);
   ASSERT_FALSE(stretchEffect.requiresLayer());
 
   Properties::setStretchEffectBehavior(StretchEffectBehavior::UniformScale);
@@ -33,7 +33,7 @@ TEST(StretchEffect, noStretchDirectionDoesNotRequireLayer) {
 
 TEST(StretchEffect, horizontalStretchRequiresLayer) {
   Properties::setStretchEffectBehavior(StretchEffectBehavior::ShaderHWUI);
-  auto stretchEffect = StretchEffect({.fX = 1.f, .fY = 0.f}, 100.f, 100.f);
+  auto stretchEffect = uirenderer::StretchEffect({.fX = 1.f, .fY = 0.f}, 100.f, 100.f);
   ASSERT_TRUE(stretchEffect.requiresLayer());
 
   Properties::setStretchEffectBehavior(StretchEffectBehavior::UniformScale);
@@ -43,7 +43,7 @@ TEST(StretchEffect, horizontalStretchRequiresLayer) {
 TEST(StretchEffect, verticalStretchRequiresLayer) {
   Properties::setStretchEffectBehavior(StretchEffectBehavior::ShaderHWUI);
 
-  auto stretchEffect = StretchEffect({.fX = 0.f, .fY = 1.f}, 100.f, 100.f);
+  auto stretchEffect = uirenderer::StretchEffect({.fX = 0.f, .fY = 1.f}, 100.f, 100.f);
   ASSERT_TRUE(stretchEffect.requiresLayer());
 
   Properties::setStretchEffectBehavior(StretchEffectBehavior::UniformScale);
@@ -53,7 +53,7 @@ TEST(StretchEffect, verticalStretchRequiresLayer) {
 TEST(StretchEffect, bidirectionalStretchRequiresLayer) {
   Properties::setStretchEffectBehavior(StretchEffectBehavior::ShaderHWUI);
 
-  auto stretchEffect = StretchEffect({.fX = 1.f, .fY = 1.f}, 100.f, 100.f);
+  auto stretchEffect = uirenderer::StretchEffect({.fX = 1.f, .fY = 1.f}, 100.f, 100.f);
   ASSERT_TRUE(stretchEffect.requiresLayer());
 
   Properties::setStretchEffectBehavior(StretchEffectBehavior::UniformScale);

@@ -18,8 +18,8 @@ package com.android.systemui.qs.tileimpl
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.MediumTest
-import com.android.systemui.res.R
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.res.R
 import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -34,7 +34,7 @@ class TilesStatesTextTest : SysuiTestCase() {
     fun testStockTilesHaveStatesArray() {
         val tiles = mContext.getString(R.string.quick_settings_tiles_stock).split(",")
         tiles.forEach { spec ->
-            val resName = "${QSTileViewImpl.TILE_STATE_RES_PREFIX}$spec"
+            val resName = "${TILE_STATE_RES_PREFIX}$spec"
             val resId = mContext.resources.getIdentifier(resName, "array", mContext.packageName)
 
             assertNotEquals("Missing resource for $resName", 0, resId)
@@ -56,7 +56,7 @@ class TilesStatesTextTest : SysuiTestCase() {
     fun testStockTilesSubtitlesMap() {
         val tiles = mContext.getString(R.string.quick_settings_tiles_stock).split(",")
         tiles.forEach { spec ->
-            val resName = "${QSTileViewImpl.TILE_STATE_RES_PREFIX}$spec"
+            val resName = "${TILE_STATE_RES_PREFIX}$spec"
             val resId = mContext.resources.getIdentifier(resName, "array", mContext.packageName)
 
             assertNotEquals("Missing resource for $resName", 0, resId)
@@ -73,7 +73,10 @@ class TilesStatesTextTest : SysuiTestCase() {
 
     @Test
     fun testStockTilesSubtitlesReturnsDefault_null() {
-        assertThat(SubtitleArrayMapping.getSubtitleId(null))
-            .isEqualTo(R.array.tile_states_default)
+        assertThat(SubtitleArrayMapping.getSubtitleId(null)).isEqualTo(R.array.tile_states_default)
+    }
+
+    companion object {
+        private const val TILE_STATE_RES_PREFIX = "tile_states_"
     }
 }

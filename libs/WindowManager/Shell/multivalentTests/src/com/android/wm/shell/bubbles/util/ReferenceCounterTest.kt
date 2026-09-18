@@ -27,8 +27,8 @@ import org.junit.runner.RunWith
  * Unit tests for [ReferenceCounter].
  *
  * Build/Install/Run:
- *  atest WMShellRobolectricTests:ReferenceCounterTest (on host)
- *  atest WMShellMultivalentTestsOnDevice:ReferenceCounterTest (on device)
+ * - atest WMShellRobolectricTests:ReferenceCounterTest (on host)
+ * - atest WMShellMultivalentTestsOnDevice:ReferenceCounterTest (on device)
  */
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -67,9 +67,7 @@ class ReferenceCounterTest {
         val b = Object()
 
         referenceCounter.increment(a)
-        Assert.assertThrows(IllegalArgumentException::class.java) {
-            referenceCounter.decrement(b)
-        }
+        Assert.assertThrows(IllegalArgumentException::class.java) { referenceCounter.decrement(b) }
     }
 
     @Test
@@ -79,9 +77,7 @@ class ReferenceCounterTest {
 
         referenceCounter.increment(a)
         referenceCounter.decrement(a)
-        Assert.assertThrows(IllegalArgumentException::class.java) {
-            referenceCounter.decrement(a)
-        }
+        Assert.assertThrows(IllegalArgumentException::class.java) { referenceCounter.decrement(a) }
     }
 
     @Test

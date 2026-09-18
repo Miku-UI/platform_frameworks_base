@@ -21,7 +21,7 @@ import com.android.systemui.common.shared.model.Icon
 sealed interface InternetTileIconModel {
     data class ResourceId(val resId: Int) : InternetTileIconModel
 
-    data class Cellular(val level: Int) : InternetTileIconModel
+    data class SignalLevel(val level: Int) : InternetTileIconModel
 
     data class Satellite(val resourceIcon: Icon.Resource) : InternetTileIconModel
 }

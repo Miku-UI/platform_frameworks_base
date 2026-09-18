@@ -24,13 +24,12 @@ import static android.view.MotionEvent.ACTION_UP;
 
 import android.accessibilityservice.AccessibilityTrace;
 import android.annotation.NonNull;
-import android.util.Log;
 import android.util.Slog;
 import android.view.MotionEvent;
 
+import com.android.server.accessibility.AccessibilityLogUtil;
 import com.android.server.accessibility.AccessibilityTraceManager;
 import com.android.server.accessibility.BaseEventStreamTransformation;
-import com.android.server.accessibility.Flags;
 
 import java.util.ArrayDeque;
 import java.util.Queue;
@@ -40,9 +39,9 @@ import java.util.Queue;
  */
 public abstract class MagnificationGestureHandler extends BaseEventStreamTransformation {
 
-    protected final String mLogTag = this.getClass().getSimpleName();
-    protected static final boolean DEBUG_ALL = Log.isLoggable("MagnificationGestureHandler",
-            Log.DEBUG);
+    protected final String mTag = getClass().getSimpleName();
+    protected static final boolean DEBUG_ALL = AccessibilityLogUtil.isDebugEnabled(
+            MagnificationGestureHandler.class.getSimpleName());
     protected static final boolean DEBUG_EVENT_STREAM = false | DEBUG_ALL;
     private final Queue<MotionEvent> mDebugInputEventHistory;
     private final Queue<MotionEvent> mDebugOutputEventHistory;
@@ -65,13 +64,6 @@ public abstract class MagnificationGestureHandler extends BaseEventStreamTransfo
      * {@code false} if it should ignore such gestures
      */
     protected final boolean mDetectSingleFingerTripleTap;
-
-    /**
-     * {@code true} if this detector should detect and respond to two-finger triple-tap
-     * gestures for engaging and disengaging magnification,
-     * {@code false} if it should ignore such gestures
-     */
-    protected final boolean mDetectTwoFingerTripleTap;
 
     /** Callback interface to report that magnification is interactive with a user. */
     public interface Callback {
@@ -98,6 +90,32 @@ public abstract class MagnificationGestureHandler extends BaseEventStreamTransfo
          * @param mode The magnification mode
          */
         void onMouseMove(int displayId, int mode);
+
+        /**
+         * Called when entering "Temporary Magnification Mode" (e.g., triple-tap-and-hold).
+         *
+         * @param displayId The logical display id
+         * @param mode The magnification mode
+         */
+        void onTemporaryModeStart(int displayId, int mode);
+
+        /**
+         * Called when exiting "Temporary Magnification Mode" upon finger release.
+         *
+         * @param displayId The logical display id
+         * @param mode The magnification mode
+         */
+        void onTemporaryModeEnd(int displayId, int mode);
+
+        /**
+         * Called when the magnification shortcut (e.g., Accessibility Button) is clicked,
+         * or when the user taps the screen to zoom after the shortcut is triggered.
+         *
+         * @param displayId The logical display id
+         * @param mode The magnification mode
+         * @param isShortcutTrigger True if initiated by a shortcut trigger, false otherwise.
+         */
+        void onShortcutTriggerChanged(int displayId, int mode, boolean isShortcutTrigger);
     }
 
     private final AccessibilityTraceManager mTrace;
@@ -105,14 +123,11 @@ public abstract class MagnificationGestureHandler extends BaseEventStreamTransfo
 
     protected MagnificationGestureHandler(int displayId,
             boolean detectSingleFingerTripleTap,
-            boolean detectTwoFingerTripleTap,
             boolean detectShortcutTrigger,
             AccessibilityTraceManager trace,
             @NonNull Callback callback) {
         mDisplayId = displayId;
         mDetectSingleFingerTripleTap = detectSingleFingerTripleTap;
-        mDetectTwoFingerTripleTap = Flags.enableMagnificationMultipleFingerMultipleTapGesture()
-                && detectTwoFingerTripleTap;
         mDetectShortcutTrigger = detectShortcutTrigger;
         mTrace = trace;
         mCallback = callback;
@@ -137,7 +152,7 @@ public abstract class MagnificationGestureHandler extends BaseEventStreamTransfo
     @Override
     public final void onMotionEvent(MotionEvent event, MotionEvent rawEvent, int policyFlags) {
         if (DEBUG_ALL) {
-            Slog.i(mLogTag, "onMotionEvent(" + event + ")");
+            Slog.i(mTag, "onMotionEvent(" + event + ")");
         }
         if (mTrace.isA11yTracingEnabledForTypes(
                 AccessibilityTrace.FLAGS_INPUT_FILTER | AccessibilityTrace.FLAGS_GESTURE)) {
@@ -167,11 +182,9 @@ public abstract class MagnificationGestureHandler extends BaseEventStreamTransfo
             } break;
             case SOURCE_MOUSE:
             case SOURCE_STYLUS: {
-                if (magnificationShortcutExists()) {
-                    if (event.getAction() == MotionEvent.ACTION_HOVER_MOVE) {
-                        mCallback.onMouseMove(mDisplayId, getMode());
-                    }
-                    handleMouseOrStylusEvent(event, rawEvent, policyFlags);
+                if (magnificationShortcutExists()
+                        && event.getAction() == MotionEvent.ACTION_HOVER_MOVE) {
+                    mCallback.onMouseMove(mDisplayId, getMode());
                 }
             }
                 break;
@@ -184,7 +197,6 @@ public abstract class MagnificationGestureHandler extends BaseEventStreamTransfo
 
     private boolean magnificationShortcutExists() {
         return (mDetectSingleFingerTripleTap
-                || mDetectTwoFingerTripleTap
                 || mDetectShortcutTrigger);
     }
 
@@ -218,18 +230,11 @@ public abstract class MagnificationGestureHandler extends BaseEventStreamTransfo
     abstract void onMotionEventInternal(MotionEvent event, MotionEvent rawEvent, int policyFlags);
 
     /**
-     * Called when this MagnificationGestureHandler should handle a mouse or stylus motion event,
-     * but not re-dispatch it when completed.
-     */
-    abstract void handleMouseOrStylusEvent(
-            MotionEvent event, MotionEvent rawEvent, int policyFlags);
-
-    /**
      * Called when the shortcut target is magnification.
      */
     public void notifyShortcutTriggered() {
         if (DEBUG_ALL) {
-            Slog.i(mLogTag, "notifyShortcutTriggered():");
+            Slog.i(mTag, "notifyShortcutTriggered():");
         }
         if (mDetectShortcutTrigger) {
             handleShortcutTriggered();

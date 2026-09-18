@@ -61,7 +61,6 @@ import com.android.settingslib.bluetooth.LocalBluetoothProfileManager;
 import com.android.settingslib.bluetooth.hearingdevices.ui.AmbientVolumeUiController;
 import com.android.settingslib.bluetooth.hearingdevices.ui.HearingDevicesSpinnerAdapter;
 import com.android.settingslib.bluetooth.hearingdevices.ui.PresetUiController;
-import com.android.systemui.Flags;
 import com.android.systemui.accessibility.hearingaid.HearingDevicesListAdapter.HearingDeviceItemCallback;
 import com.android.systemui.animation.ActivityTransitionAnimator;
 import com.android.systemui.animation.DialogTransitionAnimator;
@@ -343,9 +342,7 @@ public class HearingDevicesDialogDelegate implements SystemUIDialog.Delegate,
                 if (com.android.settingslib.flags.Flags.hearingDevicesInputRoutingControl()) {
                     setupInputRoutingSpinner(dialog, activeHearingDevice);
                 }
-                if (com.android.settingslib.flags.Flags.hearingDevicesAmbientVolumeControl()) {
-                    setupAmbientControls(activeHearingDevice);
-                }
+                setupAmbientControls(activeHearingDevice);
                 setupRelatedToolsView(dialog);
             });
         });
@@ -424,6 +421,7 @@ public class HearingDevicesDialogDelegate implements SystemUIDialog.Delegate,
         presetLayout.setUiEventLogger(mUiEventLogger, mLaunchSourceId);
         mPresetUiController = new PresetUiController(mDialog.getContext(), mLocalBluetoothManager,
                 presetLayout);
+        mPresetUiController.setHideUiWhenHapDisconnected(true);
         mPresetUiController.loadDevice(activeHearingDevice);
         mBgExecutor.execute(() -> mPresetUiController.start());
     }
@@ -619,9 +617,7 @@ public class HearingDevicesDialogDelegate implements SystemUIDialog.Delegate,
                     : intent.getPackage() + "/" + intent.getAction();
             mUiEventLogger.log(HearingDevicesUiEvent.HEARING_DEVICES_RELATED_TOOL_CLICK,
                     mLaunchSourceId, name);
-            if (Flags.stuckHearingDevicesQsTileFix()) {
-                mDialogTransitionAnimator.disableAllCurrentDialogsExitAnimations();
-            }
+            mDialogTransitionAnimator.disableAllCurrentDialogsExitAnimations();
             startActivityWithTransition(intent,
                     mDialogTransitionAnimator.createActivityTransitionController(view));
         });

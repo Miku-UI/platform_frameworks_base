@@ -24,27 +24,24 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
-import android.os.Build;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.UserHandle;
-import android.security.intrusiondetection.IntrusionDetectionEvent;
 import android.security.intrusiondetection.IIntrusionDetectionEventTransport;
+import android.security.intrusiondetection.IntrusionDetectionEvent;
 import android.text.TextUtils;
 import android.util.Slog;
 
-import com.android.internal.R;
 import com.android.internal.infra.AndroidFuture;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.Process;
 import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class IntrusionDetectionEventTransportConnection implements ServiceConnection {
     private static final String PRODUCTION_BUILD = "user";
@@ -111,6 +108,13 @@ public class IntrusionDetectionEventTransportConnection implements ServiceConnec
      * @return Whether the data is added to the binder service.
      */
     public boolean addData(List<IntrusionDetectionEvent> data) {
+        // Try initialize once more if the bound service is disconnected.
+        if (mService == null) {
+            Slog.d(TAG, "try initialize once more");
+            if (!initialize()) {
+                return false;
+            }
+        }
         AndroidFuture<Boolean> resultFuture = new AndroidFuture<>();
         try {
             mService.addData(data, resultFuture);
@@ -131,6 +135,8 @@ public class IntrusionDetectionEventTransportConnection implements ServiceConnec
             mService.release(resultFuture);
         } catch (RemoteException e) {
             Slog.e(TAG, "Remote Exception", e);
+        } catch (NullPointerException e) {
+            Slog.e(TAG, "The bound service was disconnected before the release call");
         } finally {
             unbindService();
         }
@@ -149,7 +155,7 @@ public class IntrusionDetectionEventTransportConnection implements ServiceConnec
     private String getSystemPropertyValue(String propertyName) {
         String commandString = "getprop " + propertyName;
         try {
-            Process process = Runtime.getRuntime().exec(commandString);
+            java.lang.Process process = Runtime.getRuntime().exec(commandString);
             BufferedReader reader =
                     new BufferedReader(new InputStreamReader(process.getInputStream()));
             String propertyValue = reader.readLine();

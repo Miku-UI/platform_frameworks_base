@@ -23,7 +23,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -32,8 +34,9 @@ import java.util.Arrays;
 
 @DisabledOnRavenwood(blockedBy = Process.class)
 public class ProcessTest {
+
     @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private static final int BAD_PID = 0;
 
@@ -103,6 +106,30 @@ public class ProcessTest {
         long[] pidMasks = Process.getSchedAffinity(Process.myPid());
         checkAffinityMasks(tidMasks);
         checkAffinityMasks(pidMasks);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testPccUidMapping() {
+        int appUid = Process.FIRST_APPLICATION_UID + 123;
+        int pccUid = Process.FIRST_PCC_UID + 123;
+
+        assertEquals(appUid, Process.getAppUidForPrivateComputeCoreUid(pccUid));
+        assertEquals(pccUid, Process.getPrivateComputeCoreUidForAppUid(appUid));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testGetAppUidForPrivateComputeCoreUid_invalidInput() {
+        int appUid = Process.FIRST_APPLICATION_UID + 123;
+        Process.getAppUidForPrivateComputeCoreUid(appUid);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testGetPrivateComputeCoreUidForAppUid_invalidInput() {
+        int pccUid = Process.FIRST_PCC_UID + 123;
+        Process.getPrivateComputeCoreUidForAppUid(pccUid);
     }
 
     @Test

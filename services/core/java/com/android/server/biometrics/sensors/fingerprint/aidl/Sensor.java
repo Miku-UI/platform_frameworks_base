@@ -232,7 +232,8 @@ public class Sensor {
                                                 location.display,
                                                 location.sensorLocationX,
                                                 location.sensorLocationY,
-                                                location.sensorRadius))
+                                                location.sensorRadius,
+                                                location.sensorLocationData))
                                 .collect(Collectors.toList()));
     }
 

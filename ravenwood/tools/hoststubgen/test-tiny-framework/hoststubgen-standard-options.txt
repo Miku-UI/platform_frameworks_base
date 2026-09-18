@@ -16,6 +16,12 @@
 --experimental-method-call-hook
     com.android.hoststubgen.test.tinyframework.TinyFrameworkHooks.onExperimentalMethodCalled
 
+# We skip the outermost annotation check for test-tiny-framework, because:
+# - Some tests actually violate it to ensure complex logic, and we don't want to rewrite the tests
+# - We have negative tests too, which we use in "invoketest", but we still need
+#   to build "tiny-framework" for other tests.
+--no-ensure-outermost-class-annotation
+
 # Standard annotations.
 # Note, each line is a single argument, so we need newlines after each `--xxx-annotation`.
 

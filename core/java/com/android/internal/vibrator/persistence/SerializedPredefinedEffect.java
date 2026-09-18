@@ -18,12 +18,14 @@ package com.android.internal.vibrator.persistence;
 
 import static com.android.internal.vibrator.persistence.XmlConstants.ATTRIBUTE_FALLBACK;
 import static com.android.internal.vibrator.persistence.XmlConstants.ATTRIBUTE_NAME;
+import static com.android.internal.vibrator.persistence.XmlConstants.ATTRIBUTE_START_TIME_MS;
 import static com.android.internal.vibrator.persistence.XmlConstants.NAMESPACE;
 import static com.android.internal.vibrator.persistence.XmlConstants.TAG_PREDEFINED_EFFECT;
 
 import android.annotation.NonNull;
 import android.os.VibrationEffect;
 import android.os.vibrator.PrebakedSegment;
+import android.os.vibrator.VibrationEffectSegment;
 
 import com.android.internal.vibrator.persistence.SerializedComposedEffect.SerializedSegment;
 import com.android.internal.vibrator.persistence.XmlConstants.PredefinedEffectName;
@@ -31,6 +33,8 @@ import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Serialized representation of a predefined effect created via
@@ -38,20 +42,34 @@ import java.io.IOException;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 final class SerializedPredefinedEffect implements SerializedSegment {
 
     @NonNull
     private final PredefinedEffectName mEffectName;
     private final boolean mShouldFallback;
+    private final long mStartTimeMillis;
 
     SerializedPredefinedEffect(PredefinedEffectName effectName, boolean shouldFallback) {
+        this(effectName, shouldFallback, -1);
+    }
+
+    SerializedPredefinedEffect(PredefinedEffectName effectName, boolean shouldFallback,
+            long startTimeMillis) {
         mEffectName = effectName;
         mShouldFallback = shouldFallback;
+        mStartTimeMillis = startTimeMillis;
     }
 
     @Override
     public void deserializeIntoComposition(@NonNull VibrationEffect.Composition composition) {
-        composition.addEffect(VibrationEffect.get(mEffectName.getEffectId(), mShouldFallback));
+        VibrationEffect effect = VibrationEffect.get(mEffectName.getEffectId(), mShouldFallback);
+        if (mStartTimeMillis >= 0 && effect instanceof VibrationEffect.Composed composed) {
+            List<VibrationEffectSegment> segments = new ArrayList<>(composed.getSegments());
+            segments.set(0, segments.get(0).applyStartTime(mStartTimeMillis));
+            effect = new VibrationEffect.Composed(segments, composed.getRepeatIndex());
+        }
+        composition.addEffect(effect);
     }
 
     @Override
@@ -61,6 +79,9 @@ final class SerializedPredefinedEffect implements SerializedSegment {
         if (mShouldFallback != PrebakedSegment.DEFAULT_SHOULD_FALLBACK) {
             serializer.attributeBoolean(NAMESPACE, ATTRIBUTE_FALLBACK, mShouldFallback);
         }
+        if (mStartTimeMillis >= 0) {
+            serializer.attributeLong(NAMESPACE, ATTRIBUTE_START_TIME_MS, mStartTimeMillis);
+        }
         serializer.endTag(NAMESPACE, TAG_PREDEFINED_EFFECT);
     }
 
@@ -69,6 +90,7 @@ final class SerializedPredefinedEffect implements SerializedSegment {
         return "SerializedPredefinedEffect{"
                 + "name=" + mEffectName
                 + ", fallback=" + mShouldFallback
+                + ", startTimeMillis=" + mStartTimeMillis
                 + '}';
     }
 
@@ -83,9 +105,10 @@ final class SerializedPredefinedEffect implements SerializedSegment {
             boolean allowHidden = (flags & XmlConstants.FLAG_ALLOW_HIDDEN_APIS) != 0;
             if (allowHidden) {
                 XmlValidator.checkTagHasNoUnexpectedAttributes(parser, ATTRIBUTE_NAME,
-                        ATTRIBUTE_FALLBACK);
+                        ATTRIBUTE_FALLBACK, ATTRIBUTE_START_TIME_MS);
             } else {
-                XmlValidator.checkTagHasNoUnexpectedAttributes(parser, ATTRIBUTE_NAME);
+                XmlValidator.checkTagHasNoUnexpectedAttributes(parser, ATTRIBUTE_NAME,
+                        ATTRIBUTE_START_TIME_MS);
             }
 
             String nameAttr = parser.getAttributeValue(NAMESPACE, ATTRIBUTE_NAME);
@@ -102,10 +125,16 @@ final class SerializedPredefinedEffect implements SerializedSegment {
                     ? parser.getAttributeBoolean(NAMESPACE, ATTRIBUTE_FALLBACK, defaultFallback)
                     : defaultFallback;
 
+            long startTimeMillis = -1;
+            if (parser.getAttributeIndex(NAMESPACE, ATTRIBUTE_START_TIME_MS) >= 0) {
+                startTimeMillis = XmlReader.readAttributeIntInRange(
+                        parser, ATTRIBUTE_START_TIME_MS, 0, Integer.MAX_VALUE);
+            }
+
             // Consume tag
             XmlReader.readEndTag(parser);
 
-            return new SerializedPredefinedEffect(effectName, fallback);
+            return new SerializedPredefinedEffect(effectName, fallback, startTimeMillis);
         }
     }
 }

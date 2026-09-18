@@ -9,7 +9,7 @@ parcelable ContextualSearchConfig;
  */
 interface IContextualSearchManager {
   boolean isContextualSearchAvailable();
-  void startContextualSearchForActivity(in IBinder activityToken, in ContextualSearchConfig config);
+  void startContextualSearchForApp(in ContextualSearchConfig config);
   oneway void startContextualSearch(int entrypoint, in ContextualSearchConfig config);
   oneway void getContextualSearchState(in IBinder token, in IContextualSearchCallback callback);
 }

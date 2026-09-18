@@ -16,27 +16,37 @@
 
 package android.security.keystore;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.StringDef;
 import android.annotation.SystemApi;
+import android.hardware.security.keymint.TagType;
 import android.os.Process;
 import android.security.keymaster.KeymasterDefs;
+import android.security.keystore2.Flags;
+
+import libcore.util.EmptyArray;
+
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.security.spec.AlgorithmParameterSpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.MGF1ParameterSpec;
 import java.util.Collection;
 import java.util.Locale;
-import libcore.util.EmptyArray;
 
 /**
  * Properties of <a href="{@docRoot}training/articles/keystore.html">Android Keystore</a> keys.
  */
 public abstract class KeyProperties {
     private KeyProperties() {}
+
+    // Defined in RFC 8410.
+    private static final String ED25519_OID = "1.3.101.112";
 
     /**
      * @hide
@@ -190,11 +200,15 @@ public abstract class KeyProperties {
      * @hide
      */
     @Retention(RetentionPolicy.SOURCE)
+    @Target({ElementType.TYPE_USE})
     @StringDef(prefix = { "KEY_" }, value = {
         KEY_ALGORITHM_RSA,
         KEY_ALGORITHM_EC,
         KEY_ALGORITHM_XDH,
         KEY_ALGORITHM_AES,
+        KEY_ALGORITHM_ML_DSA,
+        KEY_ALGORITHM_ML_DSA_65,
+        KEY_ALGORITHM_ML_DSA_87,
         KEY_ALGORITHM_HMAC_SHA1,
         KEY_ALGORITHM_HMAC_SHA224,
         KEY_ALGORITHM_HMAC_SHA256,
@@ -216,6 +230,27 @@ public abstract class KeyProperties {
 
     /** Advanced Encryption Standard (AES) key. */
     public static final String KEY_ALGORITHM_AES = "AES";
+
+    /**
+     * Module-Lattice-Based Digital Signature Algorithm (ML-DSA) key.
+     * Per https://openjdk.org/jeps/497, this defaults to the ML-DSA-65 variant.
+     */
+    @FlaggedApi(android.security.keystore2.Flags.FLAG_MLDSA_SUPPORT)
+    public static final String KEY_ALGORITHM_ML_DSA = "ML-DSA";
+
+    /**
+     * Module-Lattice-Based Digital Signature Algorithm (ML-DSA) key, with the parameter set
+     * corresponding to the ML-DSA-65 variant.
+     */
+    @FlaggedApi(android.security.keystore2.Flags.FLAG_MLDSA_SUPPORT)
+    public static final String KEY_ALGORITHM_ML_DSA_65 = "ML-DSA-65";
+
+    /**
+     * Module-Lattice-Based Digital Signature Algorithm (ML-DSA) key, with the parameter set
+     * corresponding to the ML-DSA-87 variant.
+     */
+    @FlaggedApi(android.security.keystore2.Flags.FLAG_MLDSA_SUPPORT)
+    public static final String KEY_ALGORITHM_ML_DSA_87 = "ML-DSA-87";
 
     /**
      * Triple Data Encryption Algorithm (3DES) key.
@@ -250,10 +285,17 @@ public abstract class KeyProperties {
         public static int toKeymasterAsymmetricKeyAlgorithm(
                 @NonNull @KeyAlgorithmEnum String algorithm) {
             if (KEY_ALGORITHM_EC.equalsIgnoreCase(algorithm)
-                    || KEY_ALGORITHM_XDH.equalsIgnoreCase(algorithm)) {
+                    || KEY_ALGORITHM_XDH.equalsIgnoreCase(algorithm)
+                    || ED25519_OID.equalsIgnoreCase(algorithm)) {
                 return KeymasterDefs.KM_ALGORITHM_EC;
             } else if (KEY_ALGORITHM_RSA.equalsIgnoreCase(algorithm)) {
                 return KeymasterDefs.KM_ALGORITHM_RSA;
+            } else if (Flags.mldsaSupport()
+                    && (KEY_ALGORITHM_ML_DSA.equalsIgnoreCase(algorithm)
+                            || KEY_ALGORITHM_ML_DSA_65.equalsIgnoreCase(algorithm)
+                            || KEY_ALGORITHM_ML_DSA_87.equalsIgnoreCase(algorithm))) {
+                // TODO(b/462036047): Replace with KeymasterDefs constant when KeyMint V5 is frozen.
+                return KM_ALGORITHM_ML_DSA;
             } else {
                 throw new IllegalArgumentException("Unsupported key algorithm: " + algorithm);
             }
@@ -267,6 +309,9 @@ public abstract class KeyProperties {
                     return KEY_ALGORITHM_EC;
                 case KeymasterDefs.KM_ALGORITHM_RSA:
                     return KEY_ALGORITHM_RSA;
+                // TODO(b/462036047): Replace with KeymasterDefs constant when KeyMint V5 is frozen.
+                case KM_ALGORITHM_ML_DSA:
+                    return KEY_ALGORITHM_ML_DSA;
                 default:
                     throw new IllegalArgumentException(
                             "Unsupported key algorithm: " + keymasterAlgorithm);
@@ -977,6 +1022,7 @@ public abstract class KeyProperties {
             NAMESPACE_APPLICATION,
             NAMESPACE_WIFI,
             NAMESPACE_LOCKSETTINGS,
+            NAMESPACE_KEYCHAIN,
     })
     public @interface Namespace {}
 
@@ -1003,6 +1049,13 @@ public abstract class KeyProperties {
      * @hide
      */
     public static final int NAMESPACE_LOCKSETTINGS = 103;
+
+    /**
+     * The namespace identifier for the KEYCHAIN Keystore namespace.
+     * This must be kept in sync with system/sepolicy/private/keystore2_key_contexts
+     * @hide
+     */
+    public static final int NAMESPACE_KEYCHAIN = 104;
 
     /**
      * The legacy UID that corresponds to {@link #NAMESPACE_APPLICATION}.
@@ -1047,4 +1100,36 @@ public abstract class KeyProperties {
      * This value indicates that there is no restriction on the number of times the key can be used.
      */
     public static final int UNRESTRICTED_USAGE_COUNT = -1;
+
+    /**
+     * Placeholder for the KeyMint Tag.ML_DSA_VARIANT AIDL enum value.
+     * @hide
+     */
+    // TODO(b/462036047): Delete when KeyMint V5 is frozen.
+    @FlaggedApi(android.security.keystore2.Flags.FLAG_MLDSA_SUPPORT)
+    public static final int KM_TAG_ML_DSA_VARIANT = TagType.ENUM | 11;
+
+    /**
+     * Placeholder for the KeyMint Algorithm.ML_DSA AIDL enum value.
+     * @hide
+     */
+    // TODO(b/462036047): Delete when KeyMint V5 is frozen.
+    @FlaggedApi(android.security.keystore2.Flags.FLAG_MLDSA_SUPPORT)
+    public static final int KM_ALGORITHM_ML_DSA = 4;
+
+    /**
+     * Placeholder for the KeyMint MlDsaVariant.ML_DSA_65 AIDL enum value.
+     * @hide
+     */
+    // TODO(b/462036047): Delete when KeyMint V5 is frozen.
+    @FlaggedApi(android.security.keystore2.Flags.FLAG_MLDSA_SUPPORT)
+    public static final int KM_ML_DSA_VARIANT_65 = 1;
+
+    /**
+     * Placeholder for the KeyMint MlDsaVariant.ML_DSA_87 AIDL enum value.
+     * @hide
+     */
+    // TODO(b/462036047): Delete when KeyMint V5 is frozen.
+    @FlaggedApi(android.security.keystore2.Flags.FLAG_MLDSA_SUPPORT)
+    public static final int KM_ML_DSA_VARIANT_87 = 2;
 }

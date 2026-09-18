@@ -20,6 +20,8 @@ import android.os.BatteryStats;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.power.stats.counters.TimeBase;
+
 import junit.framework.TestCase;
 
 /**
@@ -32,9 +34,9 @@ public class BatteryStatsDualTimerTest extends TestCase {
         final MockClock clocks = new MockClock();
         clocks.realtime = clocks.uptime = 100;
 
-        final BatteryStatsImpl.TimeBase timeBase = new BatteryStatsImpl.TimeBase();
+        final TimeBase timeBase = new TimeBase();
         timeBase.init(clocks.uptimeMillis(), clocks.elapsedRealtime());
-        final BatteryStatsImpl.TimeBase subTimeBase = new BatteryStatsImpl.TimeBase();
+        final TimeBase subTimeBase = new TimeBase();
         subTimeBase.init(clocks.uptimeMillis(), clocks.elapsedRealtime());
 
         final BatteryStatsImpl.DualTimer timer = new BatteryStatsImpl.DualTimer(clocks,

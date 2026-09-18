@@ -1,13 +1,29 @@
 package: "com.android.systemui"
 container: "system"
 
-# NOTE: Keep alphabetized to help limit merge conflicts from multiple simultaneous editors.
+# go/keep-sorted start block=yes newline_separated=yes by_regex=name:\s*"([^"]+)"
+flag {
+    name: "add_new_unlock_hint_on_keyguard"
+    namespace: "desktop_users_and_accounts"
+    description: "Add hints to Keyguard's message rotation explaining how users can get to the bouncer (click or key press)"
+    bug: "427686939"
+}
 
 flag {
-    name: "back_button_on_bouncer"
+    name: "back_button_on_bouncer_fix"
     namespace: "desktop_users_and_accounts"
     description: "Add a 'back' button to bouncer"
     bug: "432062209"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "containerize_bouncer_on_large_screens"
+    namespace: "desktop_users_and_accounts"
+    description: "Containerize Bouncer to modernize UX on large screens, showing a centered card dialog with all bouncer elements instead of a full screen"
+    bug: "427682946"
 }
 
 flag {
@@ -25,15 +41,24 @@ flag {
 }
 
 flag {
+    name: "more_indicators_and_buttons_on_password_bouncer"
+    namespace: "desktop_users_and_accounts"
+    description: "Enable more indicators and buttons on PasswordBouncer, such as a 'reveal password' button"
+    bug: "448546093"
+}
+
+flag {
+    name: "press_any_key_to_access_bouncer"
+    namespace: "desktop_users_and_accounts"
+    description: "Allow user to press any key to get from keyguard to bouncer"
+    bug: "427646658"
+}
+
+flag {
     name: "sign_out_button_on_keyguard_status_bar"
     namespace: "desktop_users_and_accounts"
     description: "Add a 'Sign out' button on keyguard's status bar"
     bug: "392052370"
 }
 
-flag {
-    name: "user_switcher_add_sign_out_option"
-    namespace: "desktop_users_and_accounts"
-    description: "Add a sign out option to the user switcher menu if sign out is possible"
-    bug: "381478261"
-}
+# go/keep-sorted end

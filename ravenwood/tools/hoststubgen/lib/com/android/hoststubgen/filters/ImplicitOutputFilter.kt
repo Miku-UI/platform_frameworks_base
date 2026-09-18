@@ -128,12 +128,10 @@ class ImplicitOutputFilter(
                 )
             }
 
-            // For synthetic methods (such as lambdas), use the resolved policy --
-            // Keep, Throw, Exp -- but set an "Ignored" label.
+            // Keep all synthetic methods (such as lambdas).
             mn?.let {
                 if (mn.isSynthetic()) {
-                    val resolved = classPolicy.policy.resolveClassWidePolicy()
-                    return resolved.withReason(classPolicy.reason).wrapReason(
+                    return FilterPolicy.Keep.withReason(classPolicy.reason).wrapReason(
                         "is-synthetic-method",
                         StatsLabel.Ignored,
                     )

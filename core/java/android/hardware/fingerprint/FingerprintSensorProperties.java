@@ -64,12 +64,18 @@ public class FingerprintSensorProperties extends SensorProperties {
     /**
      * @hide
      */
+    public static final int TYPE_STANDALONE = 6;
+
+    /**
+     * @hide
+     */
     @IntDef({TYPE_UNKNOWN,
             TYPE_REAR,
             TYPE_UDFPS_ULTRASONIC,
             TYPE_UDFPS_OPTICAL,
             TYPE_POWER_BUTTON,
-            TYPE_HOME_BUTTON})
+            TYPE_HOME_BUTTON,
+            TYPE_STANDALONE})
     @Retention(RetentionPolicy.SOURCE)
     public @interface SensorType {}
 

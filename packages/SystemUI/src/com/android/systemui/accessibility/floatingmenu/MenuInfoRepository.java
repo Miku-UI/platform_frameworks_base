@@ -32,6 +32,7 @@ import android.annotation.FloatRange;
 import android.annotation.IntDef;
 import android.annotation.Nullable;
 import android.content.ComponentCallbacks;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
@@ -48,6 +49,7 @@ import android.view.accessibility.AccessibilityManager;
 
 import androidx.annotation.NonNull;
 
+import com.android.internal.accessibility.AccessibilityShortcutController;
 import com.android.internal.accessibility.dialog.AccessibilityTarget;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.settingslib.bluetooth.HearingAidDeviceManager;
@@ -58,6 +60,7 @@ import com.android.systemui.util.settings.SecureSettings;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Stores and observe the settings contents for the menu view.
@@ -271,6 +274,7 @@ class MenuInfoRepository {
                 /* notifyForDescendants */ false,
                 mMenuTargetFeaturesContentObserver,
                 UserHandle.USER_CURRENT);
+        registerFrameworkFeaturesObserver();
         mSecureSettings.registerContentObserverForUserSync(
                 mSecureSettings.getUriFor(Settings.Secure.ACCESSIBILITY_FLOATING_MENU_SIZE),
                 /* notifyForDescendants */ false, mMenuSizeContentObserver,
@@ -291,6 +295,8 @@ class MenuInfoRepository {
         if (com.android.settingslib.flags.Flags.hearingDeviceSetConnectionStatusReport()) {
             registerConnectionStatusListener();
         }
+
+        onTargetFeaturesChanged();
     }
 
     private void registerConnectionStatusListener() {
@@ -353,5 +359,17 @@ class MenuInfoRepository {
     private void onDevicesConnectionStatusChanged(
             @HearingAidDeviceManager.ConnectionStatus int status) {
         mSettingsContentsCallback.onDevicesConnectionStatusChanged(status);
+    }
+
+    private void registerFrameworkFeaturesObserver() {
+        Map<ComponentName, AccessibilityShortcutController.FrameworkFeatureInfo> featureMap =
+                AccessibilityShortcutController.getFrameworkShortcutFeaturesMap();
+
+        featureMap.forEach((key, value) ->
+                mSecureSettings.registerContentObserverForUserSync(
+                        mSecureSettings.getUriFor(value.getSettingKey()),
+                        /* notifyForDescendants */ false,
+                        mMenuTargetFeaturesContentObserver,
+                        UserHandle.USER_CURRENT));
     }
 }

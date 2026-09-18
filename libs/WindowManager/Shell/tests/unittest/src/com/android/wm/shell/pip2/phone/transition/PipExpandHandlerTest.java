@@ -21,15 +21,14 @@ import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.view.WindowManager.TRANSIT_CHANGE;
 import static android.view.WindowManager.TRANSIT_OPEN;
 
-import static com.android.window.flags.Flags.FLAG_ENABLE_CROSS_DISPLAYS_PIP_TASK_LAUNCH;
 import static com.android.wm.shell.transition.Transitions.TRANSIT_EXIT_PIP;
 import static com.android.wm.shell.transition.Transitions.TRANSIT_EXIT_PIP_TO_SPLIT;
 
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.mockito.kotlin.VerificationKt.times;
 import static org.mockito.kotlin.VerificationKt.verify;
@@ -44,7 +43,6 @@ import android.content.Intent;
 import android.content.res.Resources;
 import android.graphics.Rect;
 import android.os.IBinder;
-import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -61,6 +59,8 @@ import android.window.WindowContainerTransaction;
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import com.android.testing.wm.util.StubTransaction;
+import com.android.testing.wm.util.TransitionInfoBuilder;
 import com.android.wm.shell.Flags;
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer;
 import com.android.wm.shell.common.DisplayController;
@@ -70,13 +70,12 @@ import com.android.wm.shell.common.pip.PipBoundsState;
 import com.android.wm.shell.common.pip.PipDesktopState;
 import com.android.wm.shell.common.pip.PipDisplayLayoutState;
 import com.android.wm.shell.pip2.PipSurfaceTransactionHelper;
+import com.android.wm.shell.pip2.animation.PipAlphaAnimator;
 import com.android.wm.shell.pip2.animation.PipExpandAnimator;
 import com.android.wm.shell.pip2.phone.PipInteractionHandler;
 import com.android.wm.shell.pip2.phone.PipScheduler;
 import com.android.wm.shell.pip2.phone.PipTransitionState;
 import com.android.wm.shell.splitscreen.SplitScreenController;
-import com.android.wm.shell.transition.TransitionInfoBuilder;
-import com.android.wm.shell.util.StubTransaction;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -92,6 +91,7 @@ import platform.test.runner.parameterized.Parameters;
 
 import java.util.List;
 import java.util.Optional;
+
 
 /**
  * Unit test against {@link PipExpandHandler}
@@ -122,6 +122,7 @@ public class PipExpandHandlerTest {
     @Mock private DisplayAreaInfo mMockDisplayAreaInfo;
     @Mock private DisplayLayout mMockDisplayLayout;
     @Mock private PipExpandAnimator mMockPipExpandAnimator;
+    @Mock private PipAlphaAnimator mMockPipAlphaAnimator;
 
     @Captor private ArgumentCaptor<Runnable> mAnimatorCallbackArgumentCaptor;
 
@@ -146,7 +147,7 @@ public class PipExpandHandlerTest {
     @Parameters(name = "{0}")
     public static List<FlagsParameterization> getParams() {
         return FlagsParameterization.allCombinationsOf(
-                Flags.FLAG_ENABLE_PIP_BOX_SHADOWS);
+                Flags.FLAG_ENABLE_PIP_BOX_SHADOWS_V2);
     }
 
     @Rule
@@ -180,18 +181,12 @@ public class PipExpandHandlerTest {
                 (context, pipSurfaceTransactionHelper, leash, startTransaction,
                         finishTransaction, baseBounds, startBounds, endBounds,
                         sourceRectHint, rotation, isPipInDesktopMode) -> mMockPipExpandAnimator);
+        mPipExpandHandler.setPipExpandAlphaAnimatorSupplier(
+                (context, pipSurfaceTransactionHelper, leash, startTransaction,
+                        finishTransaction, FADE_IN) -> mMockPipAlphaAnimator);
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_CROSS_DISPLAYS_PIP_TASK_LAUNCH)
-    public void handleRequest_crossDisplaysPipLaunchFlagDisabled_returnsNull() {
-        WindowContainerTransaction wct = mPipExpandHandler.handleRequest(
-                mMockTransitionToken, mMockRequestInfo);
-        assertNull(wct);
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_CROSS_DISPLAYS_PIP_TASK_LAUNCH)
     public void handleRequest_opensPipOnAnotherDisplay_returnsWct() {
         final ActivityManager.RunningTaskInfo pipTaskInfo = createPipTaskInfo(
                 TASk_ID, WINDOWING_MODE_PINNED, new PictureInPictureParams.Builder().build());
@@ -200,8 +195,8 @@ public class PipExpandHandlerTest {
         when(mMockRequestInfo.getType()).thenReturn(TRANSIT_OPEN);
         when(mMockRequestInfo.getTriggerTask()).thenReturn(pipTaskInfo);
         when(mMockPipDisplayLayoutState.getDisplayId()).thenReturn(SECONDARY_DISPLAY_ID);
-        when(mMockPipScheduler.getExitPipViaExpandIntoDisplayTransaction(
-                DEFAULT_DISPLAY_ID)).thenReturn(new WindowContainerTransaction());
+        when(mMockPipScheduler.getExitPipViaExpandTransaction())
+                .thenReturn(new WindowContainerTransaction());
 
         WindowContainerTransaction wct = mPipExpandHandler.handleRequest(
                 mMockTransitionToken, mMockRequestInfo);
@@ -210,22 +205,31 @@ public class PipExpandHandlerTest {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CROSS_DISPLAYS_PIP_TASK_LAUNCH)
     public void startAnimation_exitViaExpandOnDifferentDisplay_startExpandAnimation() {
         final ActivityManager.RunningTaskInfo pipTaskInfo = createPipTaskInfo(
                 TASk_ID, WINDOWING_MODE_PINNED, new PictureInPictureParams.Builder().build());
         final TransitionInfo info = getExpandFromPipTransitionInfo(
-                TRANSIT_OPEN, pipTaskInfo, null /* lastParent */, false /* toSplit */);
+                TRANSIT_OPEN, pipTaskInfo, null /* lastParent */,
+                DEFAULT_DISPLAY_ID /* startDisplayId */, SECONDARY_DISPLAY_ID /* endDisplayId */,
+                false /* toSplit */);
         final WindowContainerToken pipToken = pipTaskInfo.getToken();
         when(mMockPipTransitionState.getPipTaskToken()).thenReturn(pipToken);
         mPipExpandHandler.mExitViaExpandTransition = mMockTransitionToken;
+        StubTransaction spyStartT = spy(mStartT);
+        StubTransaction spyFinishT = spy(mStartT);
 
-        mPipExpandHandler.startAnimation(mMockTransitionToken, info, mStartT, mFinishT,
+        mPipExpandHandler.startAnimation(mMockTransitionToken, info, spyStartT, spyFinishT,
                 (wct) -> {});
 
-        verify(mMockPipExpandAnimator, times(1)).start();
+        verify(mMockPipAlphaAnimator, times(1)).start();
+        verify(spyStartT, times(1)).setWindowCrop(any(), eq(DISPLAY_BOUNDS.width()),
+                eq(DISPLAY_BOUNDS.height()));
+        verify(spyStartT, times(1)).setPosition(any(), eq((float) DISPLAY_BOUNDS.left),
+                eq((float) DISPLAY_BOUNDS.top));
+        verify(spyFinishT, times(1)).setPosition(any(), eq((float) DISPLAY_BOUNDS.left),
+                eq((float) DISPLAY_BOUNDS.top));
         verify(mMockPipBoundsState, times(1)).saveReentryState(SNAP_FRACTION);
-        verify(mMockPipExpandAnimator, times(1))
+        verify(mMockPipAlphaAnimator, times(1))
                 .setAnimationStartCallback(mAnimatorCallbackArgumentCaptor.capture());
         InstrumentationRegistry.getInstrumentation()
                 .runOnMainSync(mAnimatorCallbackArgumentCaptor.getValue());
@@ -239,7 +243,9 @@ public class PipExpandHandlerTest {
                 1, WINDOWING_MODE_FULLSCREEN, new PictureInPictureParams.Builder().build());
 
         final TransitionInfo info = getExpandFromPipTransitionInfo(
-                TRANSIT_EXIT_PIP, pipTaskInfo, null /* lastParent */, false /* toSplit */);
+                TRANSIT_EXIT_PIP, pipTaskInfo, null /* lastParent */,
+                DEFAULT_DISPLAY_ID /* startDisplayId */, DEFAULT_DISPLAY_ID /* endDisplayId */,
+                false /* toSplit */);
         final WindowContainerToken pipToken = pipTaskInfo.getToken();
         when(mMockPipTransitionState.getPipTaskToken()).thenReturn(pipToken);
 
@@ -267,7 +273,9 @@ public class PipExpandHandlerTest {
         // Change representing the ActivityRecord we are animating in the multi-activity PiP case;
         // make sure change's taskInfo=null as this is an activity, but let lastParent be PiP token.
         final TransitionInfo info = getExpandFromPipTransitionInfo(
-                TRANSIT_EXIT_PIP_TO_SPLIT, null /* taskInfo */, pipToken, true /* toSplit */);
+                TRANSIT_EXIT_PIP_TO_SPLIT, null /* taskInfo */, pipToken,
+                DEFAULT_DISPLAY_ID /* startDisplayId */, DEFAULT_DISPLAY_ID /* endDisplayId */,
+                true /* toSplit */);
 
         mPipExpandHandler.startAnimation(mMockTransitionToken, info, mStartT, mFinishT,
                 (wct) -> {});
@@ -286,15 +294,18 @@ public class PipExpandHandlerTest {
 
     private TransitionInfo getExpandFromPipTransitionInfo(@WindowManager.TransitionType int type,
             @Nullable ActivityManager.RunningTaskInfo pipTaskInfo,
-            @Nullable WindowContainerToken lastParent, boolean toSplit) {
-        final TransitionInfo info = new TransitionInfoBuilder(type)
-                .addChange(TRANSIT_CHANGE, pipTaskInfo).build();
+            @Nullable WindowContainerToken lastParent, int startDisplayId, int endDisplayId,
+            boolean toSplit) {
+        final TransitionInfo info = pipTaskInfo == null
+                ? new TransitionInfoBuilder(type).addChange(TRANSIT_CHANGE).build()
+                : new TransitionInfoBuilder(type).addChange(TRANSIT_CHANGE, pipTaskInfo).build();
         final TransitionInfo.Change pipChange = info.getChanges().getFirst();
         pipChange.setRotation(DISPLAY_ROTATION,
                 WindowConfiguration.ROTATION_UNDEFINED);
         pipChange.setStartAbsBounds(PIP_BOUNDS);
         pipChange.setEndAbsBounds(toSplit ? RIGHT_HALF_DISPLAY_BOUNDS : DISPLAY_BOUNDS);
         pipChange.setLeash(mPipLeash);
+        pipChange.setDisplayId(startDisplayId, endDisplayId);
         pipChange.setLastParent(lastParent);
         return info;
     }

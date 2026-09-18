@@ -67,6 +67,14 @@ public interface PlayerFocusEnforcer {
     void forgetUid(int uid);
 
     /**
+     * Returns true if a player belonging to the app with given uid is active.
+     *
+     * @param uid the app uid
+     * @return true if a player is active, false otherwise
+     */
+    boolean isPlaybackActiveForUid(int uid);
+
+    /**
      * Get the fade out duration currently active for the given usage
      * @param aa The {@link android.media.AudioAttributes}
      * @return fade out duration in milliseconds

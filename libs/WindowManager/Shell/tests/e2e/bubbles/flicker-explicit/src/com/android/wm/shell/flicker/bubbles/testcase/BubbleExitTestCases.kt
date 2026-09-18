@@ -23,30 +23,24 @@ import org.junit.Test
 /**
  * Verifies the exit transition of a bubble.
  *
- * Verifies a bubble's window and layer correctly transition from a visible to an invisible state
- * at the end of a trace.
+ * Verifies a bubble's window and layer correctly transition from a visible to an invisible state at
+ * the end of a trace.
  */
 interface BubbleExitTestCases : BubbleFlickerSubjects {
 
-    /**
-     * Verifies [BUBBLE] window is gone at the end of the transition.
-     */
+    /** Verifies [BUBBLE] window is gone at the end of the transition. */
     @Test
     fun bubbleWindowIsGoneAtEnd() {
         wmStateSubjectAtEnd.notContains(BUBBLE)
     }
 
-    /**
-     * Verifies [BUBBLE] layer is gone at the end of the transition.
-     */
+    /** Verifies [BUBBLE] layer is gone at the end of the transition. */
     @Test
     fun bubbleLayerIsGoneAtEnd() {
         layerTraceEntrySubjectAtEnd.notContains(BUBBLE)
     }
 
-    /**
-     * Verifies [BUBBLE] window was visible then disappears.
-     */
+    /** Verifies [BUBBLE] window was visible then disappears. */
     @Test
     fun bubbleWindowWasVisibleThenDisappear() {
         wmTraceSubject
@@ -58,15 +52,9 @@ interface BubbleExitTestCases : BubbleFlickerSubjects {
             .forAllEntries()
     }
 
-    /**
-     * Verifies [BUBBLE] layer was visible then disappears.
-     */
+    /** Verifies [BUBBLE] layer was visible then disappears. */
     @Test
     fun bubbleLayerWasVisibleThenDisappear() {
-        layersTraceSubject
-            .isVisible(BUBBLE)
-            .then()
-            .isInvisible(BUBBLE)
-            .forAllEntries()
+        layersTraceSubject.isVisible(BUBBLE).then().isInvisible(BUBBLE).forAllEntries()
     }
 }

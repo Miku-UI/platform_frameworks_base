@@ -24,7 +24,6 @@ import android.content.Context;
 import android.view.SurfaceControl;
 
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.wm.shell.R;
@@ -36,7 +35,7 @@ import java.lang.annotation.RetentionPolicy;
 /**
  * Animator that handles the alpha animation for entering PIP
  */
-public class PipAlphaAnimator extends ValueAnimator {
+public class PipAlphaAnimator extends PipAnimator {
     @IntDef(prefix = {"FADE_"}, value = {
             FADE_IN,
             FADE_OUT
@@ -90,10 +89,6 @@ public class PipAlphaAnimator extends ValueAnimator {
                 }
             };
 
-    // optional callbacks for tracking animation start and end
-    @Nullable private Runnable mAnimationStartCallback;
-    @Nullable private Runnable mAnimationEndCallback;
-
     @NonNull private PipSurfaceTransactionHelper.SurfaceControlTransactionFactory
             mSurfaceControlTransactionFactory;
     @NonNull private final PipSurfaceTransactionHelper mSurfaceTransactionHelper;
@@ -118,14 +113,6 @@ public class PipAlphaAnimator extends ValueAnimator {
         setDuration(enterAnimationDuration);
         addListener(mAnimatorListener);
         addUpdateListener(mAnimatorUpdateListener);
-    }
-
-    public void setAnimationStartCallback(@NonNull Runnable runnable) {
-        mAnimationStartCallback = runnable;
-    }
-
-    public void setAnimationEndCallback(@NonNull Runnable runnable) {
-        mAnimationEndCallback = runnable;
     }
 
     private void onAlphaAnimationUpdate(float alpha, SurfaceControl.Transaction tx) {

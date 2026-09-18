@@ -538,7 +538,7 @@ public final class PhantomProcessList {
             }
             for (int i = array.size() - 1; i >= 0; i--) {
                 final PhantomProcessRecord r = array.valueAt(i);
-                mService.mOomAdjuster.setProcessGroup(r.mPid, group, r.mProcessName);
+                ActivityManagerService.setProcessGroup(r.mPid, group, r.mProcessName);
             }
         }
     }

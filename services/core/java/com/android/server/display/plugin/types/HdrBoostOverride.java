@@ -19,6 +19,7 @@ package com.android.server.display.plugin.types;
 import android.annotation.FloatRange;
 import android.os.PowerManager;
 
+import com.android.internal.annotations.Keep;
 import com.android.server.display.DisplayBrightnessState;
 
 /**
@@ -34,6 +35,7 @@ import com.android.server.display.DisplayBrightnessState;
  *                             If not used should be set to
  *                             DisplayBrightnessState.CUSTOM_ANIMATION_RATE_NOT_SET
  */
+@Keep
 public record HdrBoostOverride(
         @FloatRange(from = 0)
         float sdrHdrRatio,

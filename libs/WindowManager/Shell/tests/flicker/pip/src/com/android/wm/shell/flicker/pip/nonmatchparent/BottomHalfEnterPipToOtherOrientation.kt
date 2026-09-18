@@ -18,8 +18,8 @@ package com.android.wm.shell.flicker.pip.nonmatchparent
 
 import android.platform.test.annotations.Presubmit
 import android.platform.test.annotations.RequiresFlagsDisabled
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.BottomHalfPipAppHelper
@@ -60,8 +60,7 @@ import org.junit.runners.Parameterized
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class BottomHalfEnterPipToOtherOrientation(flicker: FlickerTest) :
-    EnterPipToOtherOrientation(flicker)
-{
+    EnterPipToOtherOrientation(flicker) {
     override val pipApp: PipAppHelper = BottomHalfPipAppHelper(instrumentation)
 
     @Presubmit
@@ -70,12 +69,13 @@ class BottomHalfEnterPipToOtherOrientation(flicker: FlickerTest) :
         // Test app and pip app should covers the entire screen on start.
         flicker.assertLayersStart {
             visibleRegion(
-                if (ignoreOrientationRequest) {
-                    pipApp.or(testApp).or(ComponentNameMatcher.LETTERBOX)
-                } else {
-                    pipApp.or(testApp)
-                }
-            ).coversExactly(startingBounds)
+                    if (ignoreOrientationRequest) {
+                        pipApp.or(testApp).or(ComponentNameMatcher.LETTERBOX)
+                    } else {
+                        pipApp.or(testApp)
+                    }
+                )
+                .coversExactly(startingBounds)
         }
     }
 

@@ -35,7 +35,6 @@
     <string name="profile_name_medical" msgid="5617160509499466400">"የሕክምና መሣሪያ"</string>
     <string name="title_app_streaming" msgid="237666000400427614">"&lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; የመተግበሪያ እና የሥርዓት ባህሪያትን በእርስዎ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> እና &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; መካከል በዥረት እንዲለቅ ይፈቀድለት?"</string>
     <string name="summary_app_streaming" msgid="8346968726357732862">"<xliff:g id="APP_NAME">%1$s</xliff:g> የሚከተሉት ፈቃዶች ይሰጡታል፦"</string>
-    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> ኦዲዮ፣ ፎቶዎች፣ የክፍያ መረጃ፣ የይለፍ ቃላት እና መልዕክቶችን ጨምሮ በእርስዎ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ላይ የሚታየውን ወይም የሚጫወተውን የማንኛውም ነገር መዳረሻ ይኖረዋል።&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_1">%1$s</xliff:g> የዚህን መዳረሻ እስኪያስወግዱ ድረስ መተግበሪያዎችን ወደ <xliff:g id="DEVICE_NAME">%3$s</xliff:g> በዥረት መልቀቅ ይችላል።"</string>
     <string name="helper_summary_app_streaming" msgid="160149899100957545">"<xliff:g id="APP_NAME">%1$s</xliff:g> <xliff:g id="DEVICE_NAME">%2$s</xliff:g>ን በመወከል በመሣሪያዎችዎ መካከል መተግበሪያን እና የሥርዓት ባህሪያትን በዥረት ለመልቀቅ ፈቃድ እየጠየቀ ነው"</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
@@ -43,12 +42,13 @@
     <string name="helper_summary_computer" msgid="2298803016482139668">"<xliff:g id="APP_NAME">%1$s</xliff:g> የእርስዎን <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> ፎቶዎች፣ ሚዲያ እና ማሳወቂያዎች ለመድረስ የእርስዎን <xliff:g id="DEVICE_NAME">%2$s</xliff:g> ወክሎ ፈቃድ እየጠየቀ ነው"</string>
     <string name="title_nearby_device_streaming" msgid="5342768208699657581">"&lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; የመተግበሪያ እና የሥርዓት ባህሪያትን በእርስዎ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> እና &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; መካከል በዥረት እንዲለቅ ይፈቀድለት?"</string>
     <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"<xliff:g id="APP_NAME">%1$s</xliff:g> የሚከተሉት ፈቃዶች ይሰጡታል፦"</string>
-    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> ኦዲዮ፣ ፎቶዎች፣ የክፍያ መረጃ፣ የይለፍ ቃላት እና መልዕክቶችን ጨምሮ <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g> ላይ የሚታየውን ወይም የሚጫወተውን የማንኛውም ነገር መዳረሻ ይኖረዋል።&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%1$s</xliff:g> የዚህን መዳረሻ እስኪያስወግዱ ድረስ መተግበሪያዎችን ወደ <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> በዥረት መልቀቅ ይችላል።"</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"<xliff:g id="APP_NAME">%1$s</xliff:g> መተግበሪያዎችን ከእርስዎ <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> በዥረት ለመልቀቅ <xliff:g id="DEVICE_NAME">%2$s</xliff:g>ን በመወከል ፈቃድ እየጠየቀ ነው"</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"&lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; የኦዲዮ እና የሥርዓት ባህሪያትን በእርስዎ <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> እና &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt; መካከል በዥረት እንዲለቅ ይፈቀድለት?"</string>
     <string name="summary_virtual_device" msgid="1062189396947962635">"<xliff:g id="APP_NAME">%2$s</xliff:g> የሚከተሉት ፈቃዶች ይሰጡታል፦"</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"መሣሪያ"</string>
     <string name="summary_generic" msgid="1761976003668044801">"ይህ መተግበሪያ እንደ የሚደውል ሰው ስም ያለ መረጃን በስልክዎ እና በተመረጠው መሣሪያ መካከል ማስመር ይችላል"</string>
+    <string name="summary_generic_with_remote_ai_capability" msgid="5053633566439056634">"&lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; እንደ የደዋይ መረጃ ያለ መረጃን ለማስመር እና ከእርስዎ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ዘመናዊ እርምጃዎችን እንዲያሄድ ይፍቀዱ"</string>
+    <string name="summary_with_permissions_and_remote_ai_capability" msgid="5240771314596527096">"እንደ የደዋይ መረጃ ያለ መረጃን ለማሥመር እና ከእርስዎ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ዘመናዊ እርምጃዎችን ለማሄድ ለ&lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; ፈቃዶችን ይስጡ"</string>
     <string name="consent_yes" msgid="8344487259618762872">"ፍቀድ"</string>
     <string name="consent_no" msgid="2640796915611404382">"አትፍቀድ"</string>
     <string name="consent_cancel" msgid="5655005528379285841">"ይቅር"</string>
@@ -70,6 +70,7 @@
     <string name="permission_media_routing_control" msgid="5498639511586715253">"የሚዲያ ውጤትን ይቀይሩ"</string>
     <string name="permission_storage" msgid="6831099350839392343">"ፎቶዎች እና ሚዲያ"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"ማሳወቂያዎች"</string>
+    <string name="permission_app_streaming" msgid="4488910074894929222">"ማያ ገጽን ማንጸባረቅ እና መተግበሪያዎችን በዥረት መልቀቅ"</string>
     <string name="permission_create_virtual_device" msgid="1102905050922460040">"ውሂብ ወደ እርስዎ <xliff:g id="DEVICE_TYPE">%1$s</xliff:g> በዥረት ይልቀቁ"</string>
     <string name="permission_add_mirror_display" msgid="3743433250535606288">"ማያ ገፅዎን ያንጸባርቁ"</string>
     <string name="permission_add_trusted_display" msgid="9052824856626276723">"የዥረት መተግበሪያዎች"</string>
@@ -83,15 +84,16 @@
     <string name="permission_microphone_summary" msgid="4862628553869973259">"ኦዲዮ ቅረጽ"</string>
     <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"በአቅራቢያ ያሉ መሣሪያዎችን ማግኘት፣ ከእነሱ ጋር መገናኘት እና አንጻራዊ ቦታቸውን መወሰን"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"እንደ እውቂያዎች፣ መልዕክቶች እና ፎቶዎች ያሉ መረጃዎችን ጨምሮ ሁሉንም ማሳወቂያዎች ማንበብ"</string>
-    <string name="permission_notifications_summary" msgid="6819393427371255636">"• እንደ ዕውቂያዎች፣ መልዕክቶች እና ፎቶዎች ያሉ መረጃዎችን ጨምሮ ሁሉንም ማሳወቂያዎች ያንብቡ&lt;br/&gt;• ማሳወቂያዎችን ለእርስዎ መላክ&lt;br/&gt;&lt;br/&gt;የዚህን መተግበሪያ ማሳወቂያዎችን የማንበብ እና የመላክ ችሎታን በቅንብሮች &gt; ማሳወቂያዎች ውስጥ በማንኛውም ጊዜ ማስተዳደር ይችላሉ።"</string>
-    <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_notifications_summary" msgid="7491920318334824691">"• እንደ ዕውቂያዎች፣ መልዕክቶች እና ፎቶዎች ያሉ መረጃዎችን ጨምሮ ሁሉንም ማሳወቂያዎች ያንብቡ&lt;br/&gt;• ማሳወቂያዎችን ለእርስዎ ይልካል&lt;br/&gt;&lt;br/&gt;የዚህን መተግበሪያ ማሳወቂያዎችን የማንበብ እና የመላክ ችሎታን በቅንብሮች › ማሳወቂያዎች ውስጥ በማንኛውም ጊዜ ማስተዳደር ይችላሉ።"</string>
+    <string name="permission_storage_summary" msgid="3779040306012319942">"የስልክዎን ፎቶዎች እና ሚዲያ ከሌሎች መሣሪያዎችዎ ጋር ማጋራት።"</string>
     <string name="permission_post_notifications_summary" msgid="1099188848900200165">"ማሳወቂያዎችን ለእርስዎ መላክ"</string>
+    <string name="permission_app_streaming_summary" msgid="4114223538437344105">"መተግበሪያዎችን ጨምሮ የስልክዎን ማያ ገጽ ወደ መሣሪያዎችዎ ማጋራት። ስልክዎ ተቆልፎ ሳለ እንኳን ኦዲዮ፣ ፎቶዎች፣ የክፍያ መረጃ፣ የይለፍ ቃሎች እና መልዕክቶችን ጨምሮ መሣሪያዎችዎ በስልክዎ ላይ ለሚታየው ማንኛውም ነገር መዳረሻ ይኖራቸዋል።&lt;br/&gt;&lt;br/&gt;እንደ የመንካት ምልክቶች እና የመዳፊት ጠቅታዎች ያሉ መስተጋብሮችን ጨምሮ ከመሣሪያዎችዎ ላይ የማይክሮፎን፣ የካሜራ እና የሌላ ዳሳሽ ውሂብን ወደ ስልክዎ መልሶ ማቅረብ።"</string>
     <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"የማይክሮፎን፣ የካሜራ እና የሌላ ዳሳሽ ውሂብ ከ&lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; ወደ እርስዎ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> በዥረት ይልቀቁ።"</string>
     <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"የእርስዎን <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> ማያ ገፅ ወደ &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; ይቅዱ፣ ካስት ያድርጉ ወይም ያጋሩ። &lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> ኦዲዮ፣ ፎቶዎች፣ የክፍያ መረጃ፣ የይለፍ ቃሎች እና መልዕክቶችን ጨምሮ በእርስዎ <xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g> ላይ የሚታየውን ወይም የሚጫወተውን ማንኛውንም ነገር መዳረሻ ይኖረዋል።"</string>
     <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"የእርስዎን <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> መተግበሪያዎች ወደ &lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;/strong&gt; በዥረት ይልቀቁ። &lt;br/&gt;&lt;br/&gt;የእርስዎ<xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g> ሲቆለፍ እንኳን <xliff:g id="APP_NAME">%1$s</xliff:g> ኦዲዮ፣ ፎቶዎች፣ የክፍያ መረጃ፣ የይለፍ ቃሎች እና መልዕክቶችን ጨምሮ በእርስዎ <xliff:g id="DEVICE_NAME_2">%3$s</xliff:g> ላይ የሚታየውን ወይም የሚጫወተውን ማንኛውንም ነገር መዳረሻ ይኖረዋል።"</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"የሚገኙትን መሣሪያዎች ዝርዝር ይድረሱ እና የትኛዎቹ ኦዲዮን ወይም ቪዲዮን ከሌሎች መተግበሪያዎች በዥረት እንደሚለቅቁ ይቆጣጠሩ"</string>
-    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
-    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="4263728689361283271">"ማንቂያዎችን ለእርስዎ ይልካል"</string>
+    <string name="permission_bypass_dnd_summary" msgid="3649231048838415756">"አትረብሽ ሁነታ በርቶ ሳለ እንኳን ማንቂያዎችን ይልክልዎታል"</string>
     <string name="device_type" product="default" msgid="8268703872070046263">"ስልክ"</string>
     <string name="device_type" product="tablet" msgid="5038791954983067774">"ጡባዊ"</string>
     <string name="device_type" product="tv" msgid="5355611506659405636">"ቲቪ"</string>

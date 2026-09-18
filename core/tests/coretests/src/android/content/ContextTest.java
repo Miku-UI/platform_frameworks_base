@@ -47,7 +47,6 @@ import android.os.UserHandle;
 import android.platform.test.annotations.DisabledOnRavenwood;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.view.Display;
 import android.window.WindowTokenClient;
 import android.window.WindowTokenClientController;
@@ -73,9 +72,6 @@ import java.lang.ref.WeakReference;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class ContextTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule.Builder().build();
-
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
@@ -164,7 +160,6 @@ public class ContextTest {
     }
 
     @Test
-    @DisabledOnRavenwood(blockedBy = Context.class)
     public void testIsUiContext_appContext_returnsFalse() {
         final Context appContext = ApplicationProvider.getApplicationContext();
 

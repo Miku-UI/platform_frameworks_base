@@ -16,6 +16,8 @@
 
 package android.app.backup;
 
+import android.Manifest;
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
@@ -38,6 +40,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.backup.Flags;
 
 import java.util.List;
 
@@ -1110,6 +1113,53 @@ public class BackupManager {
             } catch (RemoteException e) {
                 Log.w(TAG, "reportDelayedRestoreResult() couldn't connect");
             }
+        }
+    }
+
+    /**
+     * Used by applications to inform the Android backup system that a part of the restore process
+     * has an external dependency and needs the dependency condition to be met. For example, this
+     * can be used when a restore depends on another application being installed. This method should
+     * only be called while the package requested it is in restore, otherwise an exception will be
+     * thrown.
+     *
+     * <p>When the external dependency specified in the {@link DelayedRestoreRequest} is met, the
+     * Android Backup system will call {@link
+     * android.app.backup.BackupAgent#onDelayedRestore(DelayedRestoreRequest, BackupDataInput, long,
+     * ParcelFileDescriptor)} or {@link
+     * android.app.backup.BackupAgent#onDelayedFullRestore(DelayedRestoreRequest)} on the
+     * application's {@link BackupAgent} based on the type of restore. Please refer to the javadoc
+     * of the appropriate method for details about the behavior and parameters provided.
+     *
+     * <p>If the request condition is already met, the BackupManager will dispatch the delayed
+     * restore immediately.
+     *
+     * <p>Returns {@code false} when the action cannot be scheduled due to the backup service being
+     * unavailable or the service rejecting the request.
+     *
+     * <p class="note">Note: {@link
+     * android.app.backup.DelayedRestoreRequest#TYPE_MANAGED_PROFILE_PROVISIONED} dependencies are
+     * not supported for delayed restores yet.
+     *
+     * @param request The {@link DelayedRestoreRequest} to schedule
+     * @return boolean indicating the success of the scheduling request
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_DELAYED_RESTORE_API)
+    @RequiresPermission(Manifest.permission.SCHEDULE_DELAYED_RESTORE)
+    @SystemApi
+    public boolean scheduleDelayedRestore(@NonNull DelayedRestoreRequest request) {
+        checkServiceBinder();
+        if (sService == null) {
+            Log.e(TAG, "scheduleDelayedRestore() couldn't connect, service is null");
+            return false;
+        }
+
+        try {
+            return sService.scheduleDelayedRestore(request);
+        } catch (RemoteException e) {
+            Log.e(TAG, "scheduleDelayedRestore() failed");
+            return false;
         }
     }
 

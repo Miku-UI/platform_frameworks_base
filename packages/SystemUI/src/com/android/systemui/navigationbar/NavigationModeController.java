@@ -190,7 +190,7 @@ public class NavigationModeController implements Dumpable {
         } catch (PackageManager.NameNotFoundException e) {
             // Never happens for the sysui package
             Log.e(TAG, "Failed to create package context", e);
-            return null;
+            return mContext;
         }
     }
 

@@ -328,7 +328,6 @@ public class FingerprintProviderTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_INTERNAL_CLEANUP_FOR_ALL_PROFILES)
     public void testGetHalInstance_whenDaemonIsNull() {
         mFingerprintProvider.setTestHalEnabled(false);
         for (SensorProps sensor : mSensorProps) {
@@ -351,6 +350,19 @@ public class FingerprintProviderTest {
                         any(ClientMonitorCallback.class));
         verify(mScheduler, times(ALIVE_USERS.size() * mSensorProps.length))
                 .scheduleClientMonitor(any(FingerprintGetAuthenticatorIdClient.class));
+    }
+
+    @Test
+    public void testNullSensorProps() {
+        mFingerprintProvider = new FingerprintProvider(mContext,
+                mBiometricStateCallback, mAuthenticationStateListeners, null /* props */, TAG,
+                mLockoutResetDispatcher, mGestureAvailabilityDispatcher, mBiometricContext,
+                mDaemon, mBiometricHandlerProvider, (fqName) -> mDaemon,
+                false /* resetLockoutRequiresHardwareAuthToken */, true /* testHalEnabled */);
+
+        waitForIdle();
+
+        //No crash
     }
 
     private void waitForIdle() {

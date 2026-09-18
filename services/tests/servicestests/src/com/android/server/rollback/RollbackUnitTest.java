@@ -16,6 +16,8 @@
 
 package com.android.server.rollback;
 
+import static android.os.Process.INVALID_UID;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -198,7 +200,8 @@ public class RollbackUnitTest {
         rollback.snapshotUserData(PKG_2, userIds, mMockDataHelper);
 
         // Data is snapshotted for the specified package.
-        verify(mMockDataHelper).snapshotAppData(eq(123), pkgRollbackInfoFor(PKG_2), eq(userIds));
+        verify(mMockDataHelper).snapshotAppData(
+                eq(123), pkgRollbackInfoFor(PKG_2), eq(userIds));
         verify(mMockDataHelper, never())
                 .snapshotAppData(anyInt(), pkgRollbackInfoFor(PKG_1), any());
     }
@@ -300,9 +303,10 @@ public class RollbackUnitTest {
         assertThat(rollback.isRestoreUserDataInProgress()).isFalse();
 
         assertThat(rollback.restoreUserDataForPackageIfInProgress(
-                PKG_1, new int[] { 5 }, 333, "", mMockDataHelper)).isFalse();
+                PKG_1, new int[] { 5 }, 333, INVALID_UID, "", mMockDataHelper)).isFalse();
 
-        verify(mMockDataHelper, never()).restoreAppData(anyInt(), any(), anyInt(), anyInt(), any());
+        verify(mMockDataHelper, never()).restoreAppData(
+                anyInt(), any(), anyInt(), anyInt(), anyInt(), any());
     }
 
     @Test
@@ -316,9 +320,10 @@ public class RollbackUnitTest {
         assertThat(rollback.isRestoreUserDataInProgress()).isTrue();
 
         assertThat(rollback.restoreUserDataForPackageIfInProgress(
-                PKG_3, new int[] { 5 }, 333, "", mMockDataHelper)).isFalse();
+                PKG_3, new int[] { 5 }, 333, INVALID_UID, "", mMockDataHelper)).isFalse();
 
-        verify(mMockDataHelper, never()).restoreAppData(anyInt(), any(), anyInt(), anyInt(), any());
+        verify(mMockDataHelper, never()).restoreAppData(
+                anyInt(), any(), anyInt(), anyInt(), anyInt(), any());
     }
 
     @Test
@@ -332,10 +337,10 @@ public class RollbackUnitTest {
         assertThat(rollback.isRestoreUserDataInProgress()).isTrue();
 
         assertThat(rollback.restoreUserDataForPackageIfInProgress(
-                PKG_1, new int[] { 5, 7 }, 333, "blah", mMockDataHelper)).isTrue();
+                PKG_1, new int[] { 5, 7 }, 333, INVALID_UID, "blah", mMockDataHelper)).isTrue();
 
-        verify(mMockDataHelper).restoreAppData(123, pkgInfo1, 5, 333, "blah");
-        verify(mMockDataHelper).restoreAppData(123, pkgInfo1, 7, 333, "blah");
+        verify(mMockDataHelper).restoreAppData(123, pkgInfo1, 5, 333, INVALID_UID, "blah");
+        verify(mMockDataHelper).restoreAppData(123, pkgInfo1, 7, 333, INVALID_UID, "blah");
     }
 
     @Test

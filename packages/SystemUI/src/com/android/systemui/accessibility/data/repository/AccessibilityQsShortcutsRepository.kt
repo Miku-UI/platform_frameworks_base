@@ -26,7 +26,6 @@ import android.view.accessibility.IUserInitializationCompleteCallback
 import androidx.annotation.GuardedBy
 import com.android.app.tracing.coroutines.asyncTraced as async
 import com.android.internal.accessibility.AccessibilityShortcutController
-import com.android.server.accessibility.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.kairos.awaitClose
@@ -74,9 +73,9 @@ class AccessibilityQsShortcutsRepositoryImpl
 constructor(
     private val manager: AccessibilityManager,
     private val userA11yQsShortcutsRepositoryFactory: UserA11yQsShortcutsRepository.Factory,
-    @Background private val backgroundDispatcher: CoroutineDispatcher,
-    @Background private val applicationScope: CoroutineScope,
-    @QSLog private val logBuffer: LogBuffer,
+    @param:Background private val backgroundDispatcher: CoroutineDispatcher,
+    @param:Background private val applicationScope: CoroutineScope,
+    @param:QSLog private val logBuffer: LogBuffer,
 ) : AccessibilityQsShortcutsRepository {
     companion object {
         val TILE_SPEC_TO_COMPONENT_MAPPING =
@@ -128,25 +127,23 @@ constructor(
         MutableStateFlow(null)
 
     init {
-        if (Flags.notifyQsTileChangedAfterUserInitialization()) {
-            applicationScope.launch(context = backgroundDispatcher) {
-                a11yUserInitializationCompleteState.collectLatest { a11yUserId ->
-                    val (userContext, tiles) = pendingExecution.value ?: return@collectLatest
-                    logBuffer.log(
-                        LOG_TAG,
-                        LogLevel.DEBUG,
-                        {
-                            int1 = userContext.userId
-                            str1 = "$a11yUserId"
-                        },
-                        {
-                            "observedUserInitializationComplete: " +
-                                "pendingUserContext:userId $int1, a11yUserId: $str1"
-                        },
-                    )
-                    if (userContext.userId == a11yUserId) {
-                        notifyAccessibilityManagerTilesChanged(userContext, tiles)
-                    }
+        applicationScope.launch(context = backgroundDispatcher) {
+            a11yUserInitializationCompleteState.collectLatest { a11yUserId ->
+                val (userContext, tiles) = pendingExecution.value ?: return@collectLatest
+                logBuffer.log(
+                    LOG_TAG,
+                    LogLevel.DEBUG,
+                    {
+                        int1 = userContext.userId
+                        str1 = "$a11yUserId"
+                    },
+                    {
+                        "observedUserInitializationComplete: " +
+                            "pendingUserContext:userId $int1, a11yUserId: $str1"
+                    },
+                )
+                if (userContext.userId == a11yUserId) {
+                    notifyAccessibilityManagerTilesChanged(userContext, tiles)
                 }
             }
         }
@@ -182,30 +179,29 @@ constructor(
             { "notifyAccessibilityManagerTilesChanged(userId= $int1, tiles= $str1" },
         )
 
-        if (Flags.notifyQsTileChangedAfterUserInitialization()) {
-            if (tiles.isEmpty()) {
-                // There is always at least one tile in the QS Panel.
-                return
-            }
-            if (a11yUserInitializationCompleteState.value != userContext.userId) {
-                logBuffer.log(
-                    LOG_TAG,
-                    LogLevel.DEBUG,
-                    {
-                        int1 = userContext.userId
-                        str1 = "${a11yUserInitializationCompleteState.value}"
-                    },
-                    {
-                        "userNotInitializedYet: pending process. " +
-                            "sysUiUserId= $int1, a11yUserId= $str1"
-                    },
-                )
-                pendingExecution.emit(Pair(userContext, tiles))
-                return
-            }
-
-            pendingExecution.emit(null)
+        if (tiles.isEmpty()) {
+            // There is always at least one tile in the QS Panel.
+            return
         }
+        if (a11yUserInitializationCompleteState.value != userContext.userId) {
+            logBuffer.log(
+                LOG_TAG,
+                LogLevel.DEBUG,
+                {
+                    int1 = userContext.userId
+                    str1 = "${a11yUserInitializationCompleteState.value}"
+                },
+                {
+                    "userNotInitializedYet: pending process. " +
+                        "sysUiUserId= $int1, a11yUserId= $str1"
+                },
+            )
+            pendingExecution.emit(Pair(userContext, tiles))
+            return
+        }
+
+        pendingExecution.emit(null)
+
         val newTiles = mutableListOf<ComponentName>()
         val accessibilityTileServices = getAccessibilityTileServices(userContext)
         tiles.forEach { tileSpec ->

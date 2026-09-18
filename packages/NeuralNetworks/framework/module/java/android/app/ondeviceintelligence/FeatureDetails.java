@@ -23,11 +23,11 @@ import android.os.Parcelable;
 import android.os.PersistableBundle;
 
 import java.lang.annotation.ElementType;
+import java.util.Objects;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.text.MessageFormat;
-import java.util.Objects;
 
 /**
  * Represents a status of a requested {@link Feature}.

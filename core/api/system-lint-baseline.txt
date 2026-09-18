@@ -2119,8 +2119,6 @@ UnflaggedApi: android.service.voice.HotwordTrainingData.Builder#setTrainingAudio
     New API must be flagged with @FlaggedApi: method android.service.voice.HotwordTrainingData.Builder.setTrainingAudioList(java.util.List<android.service.voice.HotwordTrainingAudio>)
 UnflaggedApi: android.service.voice.HotwordTrainingData.Builder#setTrainingAudios(java.util.List<android.service.voice.HotwordTrainingAudio>):
     New API must be flagged with @FlaggedApi: method android.service.voice.HotwordTrainingData.Builder.setTrainingAudios(java.util.List<android.service.voice.HotwordTrainingAudio>)
-UnflaggedApi: android.telecom.Call#enterBackgroundAudioProcessing(int):
-    New API must be flagged with @FlaggedApi: method android.telecom.Call.enterBackgroundAudioProcessing(int)
 UnflaggedApi: android.telecom.StreamingCall#EXTRA_CALL_ID:
     New API must be flagged with @FlaggedApi: field android.telecom.StreamingCall.EXTRA_CALL_ID
 UnflaggedApi: android.telephony.NetworkRegistrationInfo.Builder#setIsNonTerrestrialNetwork(boolean):

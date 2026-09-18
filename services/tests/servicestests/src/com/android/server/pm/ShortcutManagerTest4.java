@@ -21,6 +21,8 @@ import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.makeBundle;
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.makePersistableBundle;
 
+import static org.junit.Assert.assertTrue;
+
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.PersistableBundle;
@@ -31,8 +33,8 @@ import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Assume;
-import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.junit.Test;
 
 @Presubmit
 @SmallTest

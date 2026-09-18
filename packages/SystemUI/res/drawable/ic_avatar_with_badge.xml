@@ -22,7 +22,7 @@
     android:viewportHeight="50">
   <path
       android:pathData="M0,24C0,10.7452 10.7452,0 24,0V0C37.2548,0 48,10.7452 48,24V24C48,37.2548 37.2548,48 24,48V48C10.7452,48 0,37.2548 0,24V24Z"
-      android:fillColor="?androidprv:attr/colorAccentSecondary"/>
+      android:fillColor="@color/materialColorSecondary"/>
   <path
       android:pathData="M31.2003,19.2C31.2003,23.1764 27.9767,26.4 24.0003,26.4C20.0238,26.4 16.8003,23.1764 16.8003,19.2C16.8003,15.2235 20.0238,12 24.0003,12C27.9767,12 31.2003,15.2235 31.2003,19.2ZM28.8003,19.2C28.8003,21.851 26.6513,24 24.0003,24C21.3493,24 19.2003,21.851 19.2003,19.2C19.2003,16.549 21.3493,14.4 24.0003,14.4C26.6513,14.4 28.8003,16.549 28.8003,19.2Z"
       android:fillColor="@color/people_tile_background"
@@ -32,5 +32,5 @@
       android:fillColor="@color/people_tile_background"/>
   <path
       android:pathData="M40,40m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0"
-      android:fillColor="?androidprv:attr/colorAccentTertiary"/>
+      android:fillColor="@color/materialColorTertiary"/>
 </vector>

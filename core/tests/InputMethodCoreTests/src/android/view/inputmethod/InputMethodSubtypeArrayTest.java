@@ -20,24 +20,33 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import android.os.BadParcelableException;
 import android.os.Parcel;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.view.inputmethod.InputMethodSubtype.InputMethodSubtypeBuilder;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 @Presubmit
 public class InputMethodSubtypeArrayTest {
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Test
     public void testInstantiate() throws Exception {
@@ -93,6 +102,31 @@ public class InputMethodSubtypeArrayTest {
         assertWithMessage("Didn't read all data that was previously written")
                 .that(p.dataPosition())
                 .isEqualTo(p.dataSize());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LIMIT_SUBTYPE_COUNT)
+    public void testCountLimitExceeded() {
+        final var largeList = new ArrayList<InputMethodSubtype>();
+        for (int i = 0; i < InputMethodInfo.MAX_SUBTYPES_PER_IME + 10; ++i) {
+            largeList.add(createDummySubtype(i, "en_US"));
+        }
+        // Tests with unmodifiable list to verify the framework doesn't change the input.
+        final List<InputMethodSubtype> immutableList = Collections.unmodifiableList(largeList);
+
+        final InputMethodSubtypeArray array = new InputMethodSubtypeArray(immutableList);
+        assertEquals(InputMethodInfo.MAX_SUBTYPES_PER_IME, array.getCount());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LIMIT_SUBTYPE_COUNT)
+    public void testCountLimitExceededViaParcel() {
+        final var p = Parcel.obtain();
+        p.writeInt(InputMethodInfo.MAX_SUBTYPES_PER_IME + 1);
+        p.setDataPosition(0);
+        assertThrows(BadParcelableException.class, () -> {
+            new InputMethodSubtypeArray(p);
+        });
     }
 
     InputMethodSubtypeArray cloneViaParcel(final InputMethodSubtypeArray original) {

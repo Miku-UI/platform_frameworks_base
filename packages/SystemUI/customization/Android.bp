@@ -58,6 +58,7 @@ android_library {
 
     optimize: {
         proguard_flags_files: ["proguard_customization.flags"],
+        included_proguard_flags_files: [":sysui_proguard_kotlin"],
         export_proguard_flags_files: true,
     },
 }

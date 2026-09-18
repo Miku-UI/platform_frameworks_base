@@ -47,30 +47,35 @@ class BinderLocationTimeZoneProvider extends LocationTimeZoneProvider {
             @NonNull String providerName,
             @NonNull LocationTimeZoneProviderProxy proxy,
             boolean recordStateChanges) {
-        super(providerMetricsLogger, threadingDomain, providerName,
-                new ZoneInfoDbTimeZoneProviderEventPreProcessor(), recordStateChanges);
+        super(
+                providerMetricsLogger,
+                threadingDomain,
+                providerName,
+                new ZoneInfoDbTimeZoneProviderEventPreProcessor(),
+                recordStateChanges);
         mProxy = Objects.requireNonNull(proxy);
     }
 
     @Override
     boolean onInitialize() {
-        mProxy.initialize(new LocationTimeZoneProviderProxy.Listener() {
-            @Override
-            public void onReportTimeZoneProviderEvent(
-                    @NonNull TimeZoneProviderEvent timeZoneProviderEvent) {
-                handleTimeZoneProviderEvent(timeZoneProviderEvent);
-            }
+        mProxy.initialize(
+                new LocationTimeZoneProviderProxy.Listener() {
+                    @Override
+                    public void onReportTimeZoneProviderEvent(
+                            @NonNull TimeZoneProviderEvent timeZoneProviderEvent) {
+                        handleTimeZoneProviderEvent(timeZoneProviderEvent);
+                    }
 
-            @Override
-            public void onProviderBound() {
-                handleOnProviderBound();
-            }
+                    @Override
+                    public void onProviderBound() {
+                        handleOnProviderBound();
+                    }
 
-            @Override
-            public void onProviderUnbound() {
-                handleTemporaryFailure("onProviderUnbound()");
-            }
-        });
+                    @Override
+                    public void onProviderUnbound() {
+                        handleTemporaryFailure("onProviderUnbound()");
+                    }
+                });
         return true;
     }
 
@@ -87,38 +92,46 @@ class BinderLocationTimeZoneProvider extends LocationTimeZoneProvider {
             switch (currentState.stateEnum) {
                 case PROVIDER_STATE_STARTED_INITIALIZING:
                 case PROVIDER_STATE_STARTED_CERTAIN:
-                case PROVIDER_STATE_STARTED_UNCERTAIN: {
-                    debugLog("handleOnProviderBound mProviderName=" + mProviderName
-                            + ", currentState=" + currentState + ": Provider is started.");
+                case PROVIDER_STATE_STARTED_UNCERTAIN:
+                    debugLog(
+                            "handleOnProviderBound mProviderName="
+                                    + mProviderName
+                                    + ", currentState="
+                                    + currentState
+                                    + ": Provider is started.");
                     break;
-                }
-                case PROVIDER_STATE_STOPPED: {
-                    debugLog("handleOnProviderBound mProviderName=" + mProviderName
-                            + ", currentState=" + currentState + ": Provider is stopped.");
+                case PROVIDER_STATE_STOPPED:
+                    debugLog(
+                            "handleOnProviderBound mProviderName="
+                                    + mProviderName
+                                    + ", currentState="
+                                    + currentState
+                                    + ": Provider is stopped.");
                     break;
-                }
                 case PROVIDER_STATE_PERM_FAILED:
-                case PROVIDER_STATE_DESTROYED: {
-                    debugLog("handleOnProviderBound"
-                            + ", mProviderName=" + mProviderName
-                            + ", currentState=" + currentState
-                            + ": No state change required, provider is terminated.");
+                case PROVIDER_STATE_DESTROYED:
+                    debugLog(
+                            "handleOnProviderBound"
+                                    + ", mProviderName="
+                                    + mProviderName
+                                    + ", currentState="
+                                    + currentState
+                                    + ": No state change required, provider is terminated.");
                     break;
-                }
-                default: {
+                default:
                     throw new IllegalStateException("Unknown currentState=" + currentState);
-                }
             }
         }
     }
 
     @Override
-    void onStartUpdates(@NonNull Duration initializationTimeout,
-            @NonNull Duration eventFilteringAgeThreshold) {
+    void onStartUpdates(
+            @NonNull Duration initializationTimeout, @NonNull Duration eventFilteringAgeThreshold) {
         // Set a request on the proxy - it will be sent immediately if the service is bound,
         // or will be sent as soon as the service becomes bound.
-        TimeZoneProviderRequest request = TimeZoneProviderRequest.createStartUpdatesRequest(
-                initializationTimeout, eventFilteringAgeThreshold);
+        TimeZoneProviderRequest request =
+                TimeZoneProviderRequest.createStartUpdatesRequest(
+                        initializationTimeout, eventFilteringAgeThreshold);
         mProxy.setRequest(request);
     }
 
@@ -152,9 +165,12 @@ class BinderLocationTimeZoneProvider extends LocationTimeZoneProvider {
     public String toString() {
         synchronized (mSharedLock) {
             return "BinderLocationTimeZoneProvider{"
-                    + "mProviderName=" + mProviderName
-                    + ", mCurrentState=" + mCurrentState
-                    + ", mProxy=" + mProxy
+                    + "mProviderName="
+                    + mProviderName
+                    + ", mCurrentState="
+                    + mCurrentState
+                    + ", mProxy="
+                    + mProxy
                     + '}';
         }
     }

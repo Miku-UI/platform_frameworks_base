@@ -153,15 +153,15 @@ LIBANDROID {
     AKeyEvent_getRepeatCount;
     AKeyEvent_getScanCode;
     AKeyEvent_fromJava; # introduced=31
-    ALooper_acquire;
-    ALooper_addFd;
-    ALooper_forThread;
-    ALooper_pollAll;
-    ALooper_pollOnce;
-    ALooper_prepare;
-    ALooper_release;
-    ALooper_removeFd;
-    ALooper_wake;
+    ALooper_acquire; # artless
+    ALooper_addFd; # artless
+    ALooper_forThread; # artless
+    ALooper_pollAll; # artless
+    ALooper_pollOnce; # artless
+    ALooper_prepare; # artless
+    ALooper_release; # artless
+    ALooper_removeFd; # artless
+    ALooper_wake; # artless
     AMotionEvent_getAction;
     AMotionEvent_getActionButton; # introduced=Tiramisu
     AMotionEvent_getAxisValue;
@@ -273,9 +273,9 @@ LIBANDROID {
     ASensor_getVendor;
     ASensor_isDirectChannelTypeSupported; # introduced=26
     ASensor_isWakeUpSensor;
-    ASharedMemory_create; # introduced=26
-    ASharedMemory_getSize; # introduced=26
-    ASharedMemory_setProt; # introduced=26
+    ASharedMemory_create; # introduced=26 artless
+    ASharedMemory_getSize; # introduced=26 artless
+    ASharedMemory_setProt; # introduced=26 artless
     ASharedMemory_dupFromJava; # introduced=27
     AStorageManager_delete;
     AStorageManager_getMountedObbPath;
@@ -334,9 +334,9 @@ LIBANDROID {
     ASurfaceTransaction_setScale; # introduced=31
     ASurfaceTransaction_setVisibility; # introduced=29
     ASurfaceTransaction_setZOrder; # introduced=29
-    ASystemFontIterator_open; # introduced=29
-    ASystemFontIterator_close; # introduced=29
-    ASystemFontIterator_next; # introduced=29
+    ASystemFontIterator_open; # introduced=29 artless
+    ASystemFontIterator_close; # introduced=29 artless
+    ASystemFontIterator_next; # introduced=29 artless
     ASystemHealth_getMaxCpuHeadroomTidsSize; # introduced=36
     ASystemHealth_getCpuHeadroomCalculationWindowRange; # introduced=36
     ASystemHealth_getGpuHeadroomCalculationWindowRange; # introduced=36
@@ -357,27 +357,27 @@ LIBANDROID {
     AGpuHeadroomParams_getCalculationType; # introduced=36
     AGpuHeadroomParams_setCalculationWindowMillis; # introduced=36
     AGpuHeadroomParams_getCalculationWindowMillis; # introduced=36
-    AFont_close; # introduced=29
-    AFont_getFontFilePath; # introduced=29
-    AFont_getWeight; # introduced=29
-    AFont_isItalic; # introduced=29
-    AFont_getLocale; # introduced=29
-    AFont_getCollectionIndex; # introduced=29
-    AFont_getAxisCount; # introduced=29
-    AFont_getAxisTag; # introduced=29
-    AFont_getAxisValue; # introduced=29
-    AFontMatcher_create; # introduced=29
-    AFontMatcher_destroy; # introduced=29
-    AFontMatcher_setStyle; # introduced=29
-    AFontMatcher_setLocales; # introduced=29
-    AFontMatcher_setFamilyVariant; # introduced=29
-    AFontMatcher_match; # introduced=29
-    ATrace_beginSection; # introduced=23
-    ATrace_endSection; # introduced=23
-    ATrace_isEnabled; # introduced=23
-    ATrace_beginAsyncSection; # introduced=29
-    ATrace_endAsyncSection; # introduced=29
-    ATrace_setCounter; # introduced=29
+    AFont_close; # introduced=29 artless
+    AFont_getFontFilePath; # introduced=29 artless
+    AFont_getWeight; # introduced=29 artless
+    AFont_isItalic; # introduced=29 artless
+    AFont_getLocale; # introduced=29 artless
+    AFont_getCollectionIndex; # introduced=29 artless
+    AFont_getAxisCount; # introduced=29 artless
+    AFont_getAxisTag; # introduced=29 artless
+    AFont_getAxisValue; # introduced=29 artless
+    AFontMatcher_create; # introduced=29 artless
+    AFontMatcher_destroy; # introduced=29 artless
+    AFontMatcher_setStyle; # introduced=29 artless
+    AFontMatcher_setLocales; # introduced=29 artless
+    AFontMatcher_setFamilyVariant; # introduced=29 artless
+    AFontMatcher_match; # introduced=29 artless
+    ATrace_beginSection; # introduced=23 artless
+    ATrace_endSection; # introduced=23 artless
+    ATrace_isEnabled; # introduced=23 artless
+    ATrace_beginAsyncSection; # introduced=29 artless
+    ATrace_endAsyncSection; # introduced=29 artless
+    ATrace_setCounter; # introduced=29 artless
     android_getaddrinfofornetwork; # introduced=23
     android_getprocnetwork; # introduced=31
     android_setprocnetwork; # introduced=23
@@ -391,6 +391,7 @@ LIBANDROID {
     android_tag_socket_with_uid; # introduced=Tiramisu
     android_tag_socket; # introduced=Tiramisu
     android_untag_socket; # introduced=Tiramisu
+    android_getnetworkblockedreason;  # introduced=37
     AThermal_acquireManager; # introduced=30
     AThermal_releaseManager; # introduced=30
     AThermal_getCurrentThermalStatus; # introduced=30
@@ -431,6 +432,29 @@ LIBANDROID {
     ASessionCreationConfig_setGraphicsPipeline; # introduced=36
     ASessionCreationConfig_setNativeSurfaces; # introduced=36
     ASessionCreationConfig_setUseAutoTiming; # introduced=36
+    ANativeService_setOnBindCallback; # introduced=37 artless
+    ANativeService_setOnUnbindCallback; # introduced=37 artless
+    ANativeService_setOnRebindCallback; # introduced=37 artless
+    ANativeService_setOnDestroyCallback; # introduced=37 artless
+    ANativeService_setOnTrimMemoryCallback; # introduced=37 artless
+    ANpuManager_isSupported; # introduced=37
+    ANpuManager_allocAsync; # introduced=37
+    ANpuBuffer_free; # introduced=37
+    ANpuBuffer_map; # introduced=37
+    ANpuBuffer_unmap; # introduced=37
+    ANpuBuffer_setPriority; # introduced=37
+    ANpuBuffer_loadAsync; # introduced=37
+    ANpuManager_AllocRequest_create; # introduced=37
+    ANpuManager_AllocRequest_free; # introduced=37
+    ANpuManager_AllocRequest_setBufferPriority; # introduced=37
+    ANpuManager_AllocRequest_setBufferType; # introduced=37
+    ANpuManager_AllocRequest_setCookie; # introduced=37
+    ANpuManager_AllocRequest_setDeviceNumber; # introduced=37
+    ANpuManager_AllocRequest_setFileSegmentToLoad; # introduced=37
+    ANpuManager_AllocRequest_setProtectionFlags; # introduced=37
+    ANpuManager_AllocRequest_setOnAlloc; # introduced=37
+    ANpuManager_AllocRequest_setOnPreempt; # introduced=37
+    ANpuManager_AllocRequest_setSize; # introduced=37
   local:
     *;
 };
@@ -446,10 +470,10 @@ LIBANDROID_PLATFORM {
     APerformanceHint_createSessionUsingConfigInternal;
     APerformanceHint_setUseFMQForTesting;
     APerformanceHint_getRateLimiterPropertiesForTesting;
-    APerformanceHint_setUseNewLoadHintBehaviorForTesting;
     APerformanceHint_closeSessionFromJava;
     APerformanceHint_createSessionFromJava;
     APerformanceHint_setReportBatchSizeCapForTesting;
+    ANpuBuffer_getFd;
     extern "C++" {
         ASurfaceControl_registerSurfaceStatsListener*;
         ASurfaceControl_unregisterSurfaceStatsListener*;

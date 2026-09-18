@@ -20,8 +20,8 @@ import android.app.ActivityManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.PackageManagerInternal;
 import android.content.pm.UserInfo;
 import android.content.res.Resources;
 import android.os.Binder;
@@ -37,6 +37,7 @@ import android.os.UserHandle;
 import android.util.Log;
 
 import com.android.internal.util.DumpUtils;
+import com.android.server.LocalServices;
 import com.android.server.SystemService;
 
 import java.io.FileDescriptor;
@@ -69,6 +70,8 @@ public class IncidentCompanionService extends SystemService {
      * Tracker for reports pending approval.
      */
     private PendingReports mPendingReports;
+
+    private PackageManagerInternal mPmInternal;
 
     /**
      * Implementation of the IIncidentCompanion binder interface.
@@ -354,20 +357,11 @@ public class IncidentCompanionService extends SystemService {
          * Throw a SecurityException if the incoming binder call is not from pkg.
          */
         private void enforceCallerIsSameApp(String pkg) throws SecurityException {
-            try {
-                final int uid = Binder.getCallingUid();
-                final int userId = UserHandle.getCallingUserId();
-                final ApplicationInfo ai = getContext().getPackageManager()
-                        .getApplicationInfoAsUser(pkg, 0, userId);
-                if (ai == null) {
-                    throw new SecurityException("Unknown package " + pkg);
-                }
-                if (!UserHandle.isSameApp(ai.uid, uid)) {
-                    throw new SecurityException("Calling uid " + uid + " gave package "
-                            + pkg + " which is owned by uid " + ai.uid);
-                }
-            } catch (PackageManager.NameNotFoundException re) {
-                throw new SecurityException("Unknown package " + pkg + "\n" + re);
+            final int uid = Binder.getCallingUid();
+            final int userId = UserHandle.getCallingUserId();
+            if (!mPmInternal.isSameApp(pkg, uid, userId)) {
+                throw new SecurityException("Calling uid " + uid + " gave package "
+                        + pkg + " which belongs to another app");
             }
         }
     }
@@ -377,6 +371,7 @@ public class IncidentCompanionService extends SystemService {
      */
     public IncidentCompanionService(Context context) {
         super(context);
+        mPmInternal = LocalServices.getService(PackageManagerInternal.class);
         mPendingReports = new PendingReports(context);
     }
 

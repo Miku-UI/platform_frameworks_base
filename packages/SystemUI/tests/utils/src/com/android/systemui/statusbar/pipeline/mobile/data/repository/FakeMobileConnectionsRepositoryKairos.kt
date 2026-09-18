@@ -22,9 +22,6 @@ import android.telephony.TelephonyManager
 import com.android.settingslib.SignalIcon
 import com.android.settingslib.mobile.MobileMappings
 import com.android.settingslib.mobile.TelephonyIcons
-import com.android.systemui.KairosBuilder
-import com.android.systemui.kairos.ExperimentalKairosApi
-import com.android.systemui.kairos.KairosNetwork
 import com.android.systemui.kairos.MutableEvents
 import com.android.systemui.kairos.MutableState
 import com.android.systemui.kairos.State
@@ -33,16 +30,15 @@ import com.android.systemui.kairos.buildSpec
 import com.android.systemui.kairos.combine
 import com.android.systemui.kairos.map
 import com.android.systemui.kairos.mapValues
-import com.android.systemui.kairosBuilder
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
 import com.android.systemui.statusbar.pipeline.mobile.util.FakeMobileMappingsProxy
 import com.android.systemui.statusbar.pipeline.mobile.util.MobileMappingsProxy
+import com.android.systemui.util.lifecycle.kairos.KairosBuilder
+import com.android.systemui.util.lifecycle.kairos.kairosBuilder
 
 // TODO(b/261632894): remove this in favor of the real impl or DemoMobileConnectionsRepositoryKairos
-@ExperimentalKairosApi
 class FakeMobileConnectionsRepositoryKairos(
-    kairos: KairosNetwork,
     val tableLogBuffer: TableLogBuffer,
     mobileMappings: MobileMappingsProxy = FakeMobileMappingsProxy(),
 ) : MobileConnectionsRepositoryKairos, KairosBuilder by kairosBuilder() {
@@ -65,21 +61,19 @@ class FakeMobileConnectionsRepositoryKairos(
             LTE_ADVANCED_KEY to TelephonyIcons.NR_5G,
         )
 
-    override val subscriptions = MutableState(kairos, emptyList<SubscriptionModel>())
+    override val subscriptions = MutableState(emptyList<SubscriptionModel>())
 
     override val mobileConnectionsBySubId = buildIncremental {
         subscriptions
             .map { it.associate { sub -> sub.subscriptionId to Unit } }
             .asIncremental()
             .mapValues { (subId, _) ->
-                buildSpec {
-                    FakeMobileConnectionRepositoryKairos(subId, kairosNetwork, tableLogBuffer)
-                }
+                buildSpec { FakeMobileConnectionRepositoryKairos(subId, tableLogBuffer) }
             }
             .applyLatestSpecForKey()
     }
 
-    private val _activeMobileDataSubscriptionId = MutableState<Int?>(kairos, null)
+    private val _activeMobileDataSubscriptionId = MutableState<Int?>(null)
     override val activeMobileDataSubscriptionId: State<Int?> = _activeMobileDataSubscriptionId
 
     override val activeMobileDataRepository: State<MobileConnectionRepositoryKairos?> =
@@ -87,27 +81,27 @@ class FakeMobileConnectionsRepositoryKairos(
             conns[activeSub]
         }
 
-    override val activeSubChangedInGroupEvent = MutableEvents<Unit>(kairos)
+    override val activeSubChangedInGroupEvent = MutableEvents<Unit>()
 
-    override val defaultDataSubId = MutableState(kairos, INVALID_SUBSCRIPTION_ID)
+    override val defaultDataSubId = MutableState(INVALID_SUBSCRIPTION_ID)
 
-    override val mobileIsDefault = MutableState(kairos, false)
+    override val mobileIsDefault = MutableState(false)
 
-    override val hasCarrierMergedConnection = MutableState(kairos, false)
+    override val hasCarrierMergedConnection = MutableState(false)
 
-    override val defaultConnectionIsValidated = MutableState(kairos, false)
+    override val defaultConnectionIsValidated = MutableState(false)
 
-    override val defaultDataSubRatConfig = MutableState(kairos, MobileMappings.Config())
+    override val defaultDataSubRatConfig = MutableState(MobileMappings.Config())
 
-    override val defaultMobileIconMapping = MutableState(kairos, TEST_MAPPING)
+    override val defaultMobileIconMapping = MutableState(TEST_MAPPING)
 
-    override val defaultMobileIconGroup = MutableState(kairos, DEFAULT_ICON)
+    override val defaultMobileIconGroup = MutableState(DEFAULT_ICON)
 
-    override val isDeviceEmergencyCallCapable = MutableState(kairos, false)
+    override val isDeviceEmergencyCallCapable = MutableState(false)
 
-    override val isAnySimSecure = MutableState(kairos, false)
+    override val isAnySimSecure = MutableState(false)
 
-    override val isInEcmMode: State<Boolean> = MutableState(kairos, false)
+    override val isInEcmMode: State<Boolean> = MutableState(false)
 
     fun setActiveMobileDataSubscriptionId(subId: Int) {
         // Simulate the filtering that the repo does
@@ -116,6 +110,10 @@ class FakeMobileConnectionsRepositoryKairos(
         } else {
             _activeMobileDataSubscriptionId.setValue(subId)
         }
+    }
+
+    fun setDefaultDataSubId(subId: Int) {
+        defaultDataSubId.setValue(subId)
     }
 
     companion object {
@@ -129,6 +127,5 @@ class FakeMobileConnectionsRepositoryKairos(
     }
 }
 
-@ExperimentalKairosApi
 val MobileConnectionsRepositoryKairos.fake
     get() = this as FakeMobileConnectionsRepositoryKairos

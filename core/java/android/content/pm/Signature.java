@@ -21,6 +21,8 @@ import android.annotation.Nullable;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.util.apk.ApkSignatureVerifierMetrics;
+import android.util.apk.ApkSignatureVerifierMetrics.VerificationResult;
 
 import com.android.internal.util.ArrayUtils;
 import com.android.modules.utils.TypedXmlSerializer;
@@ -312,6 +314,31 @@ public class Signature implements Parcelable {
      * @hide
      */
     public static boolean areExactMatch(SigningDetails ad, SigningDetails bd) {
+        if (android.security.Flags.apkPqcHybridSigning()) {
+            if (ad.isV32Hybrid() != bd.isV32Hybrid()) {
+                ApkSignatureVerifierMetrics.logSigningKeyPolicyFailure(
+                        ad.getSignatureSchemeVersion(), ad.getSignatureSchemeMinorVersion(),
+                        VerificationResult.VERIFICATION_V32_SIGNATURE_SCHEME_MISMATCH);
+                return false;
+            }
+            if (ad.isV32Hybrid()) {
+                if (!areExactArraysMatch(ad.getSignatures(), bd.getSignatures())) {
+                    ApkSignatureVerifierMetrics.logSigningKeyPolicyFailure(
+                            ad.getSignatureSchemeVersion(), ad.getSignatureSchemeMinorVersion(),
+                            VerificationResult.VERIFICATION_V32_PQC_KEY_MISMATCH);
+                    return false;
+                }
+                Signature adClassical = ad.getV32ClassicalHybridSigner();
+                Signature bdClassical = bd.getV32ClassicalHybridSigner();
+                if (adClassical == null || !adClassical.equals(bdClassical)) {
+                    ApkSignatureVerifierMetrics.logSigningKeyPolicyFailure(
+                            ad.getSignatureSchemeVersion(), ad.getSignatureSchemeMinorVersion(),
+                            VerificationResult.VERIFICATION_V32_CLASSICAL_KEY_MISMATCH);
+                    return false;
+                }
+                return true;
+            }
+        }
         return areExactArraysMatch(ad.getSignatures(), bd.getSignatures());
     }
 
@@ -348,6 +375,32 @@ public class Signature implements Parcelable {
      */
     public static boolean areEffectiveMatch(SigningDetails a, SigningDetails b)
             throws CertificateException {
+        if (android.security.Flags.apkPqcHybridSigning()) {
+            if (a.isV32Hybrid() != b.isV32Hybrid()) {
+                ApkSignatureVerifierMetrics.logSigningKeyPolicyFailure(
+                        a.getSignatureSchemeVersion(), a.getSignatureSchemeMinorVersion(),
+                        VerificationResult.VERIFICATION_V32_SIGNATURE_SCHEME_MISMATCH);
+                return false;
+            }
+            if (a.isV32Hybrid()) {
+                if (!areEffectiveArraysMatch(a.getSignatures(), b.getSignatures())) {
+                    ApkSignatureVerifierMetrics.logSigningKeyPolicyFailure(
+                            a.getSignatureSchemeVersion(), a.getSignatureSchemeMinorVersion(),
+                            VerificationResult.VERIFICATION_V32_PQC_KEY_MISMATCH);
+                    return false;
+                }
+                Signature aClassical = a.getV32ClassicalHybridSigner();
+                Signature bClassical = b.getV32ClassicalHybridSigner();
+                if (aClassical == null || bClassical == null
+                        || !areEffectiveMatch(aClassical, bClassical)) {
+                    ApkSignatureVerifierMetrics.logSigningKeyPolicyFailure(
+                            a.getSignatureSchemeVersion(), a.getSignatureSchemeMinorVersion(),
+                            VerificationResult.VERIFICATION_V32_CLASSICAL_KEY_MISMATCH);
+                    return false;
+                }
+                return true;
+            }
+        }
         return areEffectiveArraysMatch(a.getSignatures(), b.getSignatures());
     }
 

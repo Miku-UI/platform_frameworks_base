@@ -16,8 +16,6 @@
 
 package com.android.systemui.statusbar;
 
-import static android.app.Flags.lifetimeExtensionRefactor;
-
 import android.annotation.NonNull;
 import android.app.Notification;
 import android.app.RemoteInputHistoryItem;
@@ -25,6 +23,8 @@ import android.content.Context;
 import android.net.Uri;
 import android.os.Parcelable;
 import android.service.notification.StatusBarNotification;
+import android.text.SpanWatcher;
+import android.text.Spannable;
 import android.text.TextUtils;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -113,48 +113,44 @@ public class RemoteInputNotificationRebuilder {
         Notification.Builder b = Notification.Builder
                 .recoverBuilder(mContext, sbn.getNotification().clone());
 
-        if (lifetimeExtensionRefactor()) {
-            if (entry.remoteInputs == null) {
-                entry.remoteInputs = new ArrayList<RemoteInputHistoryItem>();
-            }
+        if (entry.remoteInputs == null) {
+            entry.remoteInputs = new ArrayList<RemoteInputHistoryItem>();
+        }
 
-            // Append new remote input information to remoteInputs list
-            if (remoteInputText != null || uri != null) {
-                RemoteInputHistoryItem newItem = uri != null
-                        ? new RemoteInputHistoryItem(mimeType, uri, remoteInputText)
-                        : new RemoteInputHistoryItem(remoteInputText);
-                // The list is latest-first, so new elements should be added as the first element.
-                entry.remoteInputs.add(0, newItem);
-            }
-
-            // Read the whole remoteInputs list from the entry, then append all of those to the sbn.
-            Parcelable[] oldHistoryItems = sbn.getNotification().extras
-                    .getParcelableArray(Notification.EXTRA_REMOTE_INPUT_HISTORY_ITEMS);
-
-            RemoteInputHistoryItem[] newHistoryItems = oldHistoryItems != null
-                    ? Stream.concat(
-                            entry.remoteInputs.stream(),
-                            Arrays.stream(oldHistoryItems).map(p -> (RemoteInputHistoryItem) p))
-                    .toArray(RemoteInputHistoryItem[]::new)
-                    : entry.remoteInputs.toArray(RemoteInputHistoryItem[]::new);
-            b.setRemoteInputHistory(newHistoryItems);
-
-        } else {
-            if (remoteInputText != null || uri != null) {
-                RemoteInputHistoryItem newItem = uri != null
-                        ? new RemoteInputHistoryItem(mimeType, uri, remoteInputText)
-                        : new RemoteInputHistoryItem(remoteInputText);
-                Parcelable[] oldHistoryItems = sbn.getNotification().extras
-                        .getParcelableArray(Notification.EXTRA_REMOTE_INPUT_HISTORY_ITEMS);
-                RemoteInputHistoryItem[] newHistoryItems = oldHistoryItems != null
-                        ? Stream.concat(
-                                Stream.of(newItem),
-                                Arrays.stream(oldHistoryItems).map(p -> (RemoteInputHistoryItem) p))
-                        .toArray(RemoteInputHistoryItem[]::new)
-                        : new RemoteInputHistoryItem[]{newItem};
-                b.setRemoteInputHistory(newHistoryItems);
+        if (remoteInputText != null && remoteInputText instanceof Spannable) {
+            // remoteInputText will be annotated with (main thread) span watchers since it comes
+            // from an EditText. Strip these from the string before including it in the
+            // notification so that inflating the updated notification doesn't throw a
+            // CalledFromWrongThreadException
+            final SpanWatcher[] watchers = ((Spannable) remoteInputText).getSpans(
+                    0, remoteInputText.length(), SpanWatcher.class);
+            final int count = watchers.length;
+            for (SpanWatcher watcher : watchers) {
+                ((Spannable) remoteInputText).removeSpan(watcher);
             }
         }
+
+        // Append new remote input information to remoteInputs list
+        if (remoteInputText != null || uri != null) {
+            RemoteInputHistoryItem newItem = uri != null
+                    ? new RemoteInputHistoryItem(mimeType, uri, remoteInputText)
+                    : new RemoteInputHistoryItem(remoteInputText);
+            // The list is latest-first, so new elements should be added as the first element.
+            entry.remoteInputs.add(0, newItem);
+        }
+
+        // Read the whole remoteInputs list from the entry, then append all of those to the sbn.
+        Parcelable[] oldHistoryItems = sbn.getNotification().extras
+                .getParcelableArray(Notification.EXTRA_REMOTE_INPUT_HISTORY_ITEMS);
+
+        RemoteInputHistoryItem[] newHistoryItems = oldHistoryItems != null
+                ? Stream.concat(
+                        entry.remoteInputs.stream(),
+                        Arrays.stream(oldHistoryItems).map(p -> (RemoteInputHistoryItem) p))
+                .toArray(RemoteInputHistoryItem[]::new)
+                : entry.remoteInputs.toArray(RemoteInputHistoryItem[]::new);
+        b.setRemoteInputHistory(newHistoryItems);
+
         b.setShowRemoteInputSpinner(showSpinner);
         b.setHideSmartReplies(true);
 

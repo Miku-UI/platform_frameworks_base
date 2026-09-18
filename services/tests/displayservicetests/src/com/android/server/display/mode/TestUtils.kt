@@ -17,10 +17,15 @@
 package com.android.server.display.mode
 
 internal fun createVotesSummary(
-        supportedModesVoteEnabled: Boolean = true,
-        loggingEnabled: Boolean = true,
-        supportsFrameRateOverride: Boolean = true
+    supportedModesVoteEnabled: Boolean = true,
+    loggingEnabled: Boolean = true,
+    supportsFrameRateOverride: Boolean = true,
+    isUserPreferredHdrModeAllowed: Boolean = false,
 ): VoteSummary {
-    return VoteSummary(supportedModesVoteEnabled, loggingEnabled, supportsFrameRateOverride)
+    return VoteSummary(
+        supportedModesVoteEnabled,
+        loggingEnabled,
+        supportsFrameRateOverride,
+        isUserPreferredHdrModeAllowed,
+    )
 }
-

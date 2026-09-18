@@ -52,9 +52,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
-private val KEY_TIMESTAMP = "appliedTimestamp"
-private val KNOWN_PLUGINS =
-    mapOf<String, List<ClockMetadata>>(
+private const val KEY_TIMESTAMP = "appliedTimestamp"
+private val KNOWN_PLUGINS: Map<String, List<ClockMetadata>> =
+    mapOf(
         "com.android.systemui.clocks.bignum" to listOf(ClockMetadata("ANALOG_CLOCK_BIGNUM")),
         "com.android.systemui.clocks.calligraphy" to
             listOf(ClockMetadata("DIGITAL_CLOCK_CALLIGRAPHY")),
@@ -68,8 +68,8 @@ private val KNOWN_PLUGINS =
             listOf(ClockMetadata("DIGITAL_CLOCK_NUMBEROVERLAP")),
         "com.android.systemui.clocks.weather" to listOf(ClockMetadata("DIGITAL_CLOCK_WEATHER")),
     )
-private val TRACE_CLOCK_CHANGE = "LOCKSCREEN_CLOCK_CHANGE"
-private val TRACE_STYLE_CHANGE = "LOCKSCREEN_CLOCK_STYLE_CHANGE"
+private const val TRACE_CLOCK_CHANGE = "LOCKSCREEN_CLOCK_CHANGE"
+private const val TRACE_STYLE_CHANGE = "LOCKSCREEN_CLOCK_STYLE_CHANGE"
 
 private fun <TKey : Any, TVal : Any> ConcurrentHashMap<TKey, TVal>.concurrentGetOrPut(
     key: TKey,
@@ -90,10 +90,9 @@ open class ClockRegistry(
     val scope: CoroutineScope,
     val mainDispatcher: CoroutineDispatcher,
     val bgDispatcher: CoroutineDispatcher,
-    val isEnabled: Boolean,
     val handleAllUsers: Boolean,
     defaultClockProvider: ClockProvider,
-    val fallbackClockId: ClockId = DEFAULT_CLOCK_ID,
+    private val fallbackClockId: ClockId = DEFAULT_CLOCK_ID,
     val clockBuffers: ClockMessageBuffers? = null,
     val keepAllLoaded: Boolean,
     subTag: String,
@@ -128,17 +127,18 @@ open class ClockRegistry(
 
     private val pluginListener =
         object : PluginListener<ClockProviderPlugin> {
-            override fun getLogBuffer(): MessageBuffer = logger.buffer
+            override val logBuffer: MessageBuffer = logger.buffer
 
             override fun onPluginAttached(
                 manager: PluginLifecycleManager<ClockProviderPlugin>
             ): Boolean {
                 if (keepAllLoaded) {
                     // Always load new plugins if requested
+                    logger.d({ "Loading clock package: $str1" }) { str1 = manager.packageName }
                     return true
                 }
 
-                val knownClocks = KNOWN_PLUGINS.get(manager.packageName)
+                val knownClocks = KNOWN_PLUGINS[manager.packageName]
                 if (knownClocks == null) {
                     logger.w({ "Loading unrecognized clock package: $str1" }) {
                         str1 = manager.packageName
@@ -281,7 +281,6 @@ open class ClockRegistry(
 
     // TODO(b/267372164): Migrate to flows
     var settings: ClockSettings? = null
-        get() = field
         protected set(value) {
             if (field != value) {
                 beginChangeTrace(field?.clockId, value?.clockId)
@@ -413,7 +412,7 @@ open class ClockRegistry(
         }
     }
 
-    public suspend fun mutateSetting(mutator: (ClockSettings) -> ClockSettings) {
+    suspend fun mutateSetting(mutator: (ClockSettings) -> ClockSettings) {
         withContext(bgDispatcher) { applySettings(mutator(settings ?: ClockSettings())) }
     }
 
@@ -435,7 +434,7 @@ open class ClockRegistry(
     // TODO: Merge w/ CurrentClockId when we convert to a flow. We shouldn't need both behaviors.
     val activeClockId: String
         get() {
-            var id = currentClockId
+            val id = currentClockId
             if (!availableClocks.containsKey(id)) {
                 return DEFAULT_CLOCK_ID
             }
@@ -459,7 +458,7 @@ open class ClockRegistry(
     }
 
     fun registerListeners() {
-        if (!isEnabled || isRegistered) {
+        if (isRegistered) {
             return
         }
 
@@ -608,7 +607,6 @@ open class ClockRegistry(
 
     fun getClocks(includeDeprecated: Boolean = false): List<ClockMetadata> {
         return when {
-            !isEnabled -> listOf(availableClocks[DEFAULT_CLOCK_ID]!!.metadata)
             includeDeprecated -> availableClocks.map { (_, clock) -> clock.metadata }
             else -> availableClocks.map { (_, clock) -> clock.metadata }.filter { !it.isDeprecated }
         }
@@ -680,11 +678,6 @@ open class ClockRegistry(
     fun createCurrentClock(ctx: Context): ClockController {
         val clockId = currentClockId
         if (clockId.isEmpty()) {
-            return createDefaultClock(ctx) { attachEndChangeTrace(this) }
-        }
-
-        if (!isEnabled) {
-            logger.i("Customized clocks disabled")
             return createDefaultClock(ctx) { attachEndChangeTrace(this) }
         }
 

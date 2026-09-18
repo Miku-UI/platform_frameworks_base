@@ -22,5 +22,11 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface IAudioSignalInfoListener {
+    /**
+     * Called when the audio signal information has been updated.
+     *
+     * @param sessionToken      The token for the session whose audio signal information was updated.
+     * @param changedSignalInfo A Bundle containing the updated data.
+     */
     void onAudioSignalInfoChanged(String sessionToken, in Bundle changedSignalInfo);
 }

@@ -33,6 +33,8 @@ import androidx.preference.PreferenceViewHolder;
 
 import com.android.settingslib.widget.preference.selector.R;
 
+import java.util.function.Consumer;
+
 /**
  * Selector preference (checkbox or radio button) with an optional additional widget.
  *
@@ -72,6 +74,7 @@ public class SelectorWithWidgetPreference extends CheckBoxPreference {
     private boolean mIsCheckBox = false;  // whether to display this button as a checkbox
 
     private View.OnClickListener mExtraWidgetOnClickListener;
+    private Consumer<ImageView> mExtraWidgetOnBindConsumer;
     private int mTitleMaxLines;
 
 
@@ -178,6 +181,9 @@ public class SelectorWithWidgetPreference extends CheckBoxPreference {
             mExtraWidget.setContentDescription(mExtraWidgetContentDescription != null
                     ? mExtraWidgetContentDescription
                     : getContext().getString(R.string.settings_label));
+            if (mExtraWidgetOnBindConsumer != null) {
+                mExtraWidgetOnBindConsumer.accept(mExtraWidget);
+            }
         }
 
         TextView title = (TextView) holder.findViewById(android.R.id.title);
@@ -226,6 +232,18 @@ public class SelectorWithWidgetPreference extends CheckBoxPreference {
     }
 
     /**
+     * Sets a consumer which will receive a callback when the extra widget is bound.
+     * The callback will include a reference to the widget.
+     * This allows extra setup to be performed after binding.
+     */
+    public void setExtraWidgetOnBindConsumer(
+            Consumer<ImageView> consumer) {
+        if (!consumer.equals(mExtraWidgetOnBindConsumer)) {
+            mExtraWidgetOnBindConsumer = consumer;
+        }
+    }
+
+    /**
      * Returns whether this preference is a checkbox.
      */
     public boolean isCheckBox() {
@@ -264,7 +282,10 @@ public class SelectorWithWidgetPreference extends CheckBoxPreference {
         return context;
     }
 
-    @VisibleForTesting(otherwise = VisibleForTesting.NONE)
+    /**
+     * Returns the extra widget for the preference.
+     * @return The extra widget.
+     */
     public View getExtraWidget() {
         return mExtraWidget;
     }

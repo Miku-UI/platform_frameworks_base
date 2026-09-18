@@ -16,13 +16,13 @@
 
 #include "java/ManifestClassGenerator.h"
 
-#include <algorithm>
-
 #include "androidfw/Source.h"
 #include "java/ClassDefinition.h"
 #include "java/JavaClassGenerator.h"
 #include "text/Unicode.h"
 #include "xml/XmlDom.h"
+#include "cmd/Util.h"
+#include "util/Util.h"
 
 using ::aapt::text::IsJavaIdentifier;
 
@@ -55,32 +55,74 @@ static std::optional<std::string> ExtractJavaIdentifier(android::IDiagnostics* d
 }
 
 static bool WriteSymbol(const android::Source& source, android::IDiagnostics* diag,
-                        xml::Element* el, ClassDefinition* class_def) {
-  xml::Attribute* attr = el->FindAttribute(xml::kSchemaAndroid, "name");
-  if (!attr) {
+                        xml::Element* el, ClassDefinition* class_def,
+                        const FeatureFlagValues& feature_flag_values) {
+  xml::Attribute* name_attr = el->FindAttribute(xml::kSchemaAndroid, "name");
+  if (!name_attr) {
     diag->Error(android::DiagMessage(source) << "<" << el->name << "> must define 'android:name'");
     return false;
   }
 
-  std::optional<std::string> result =
-      ExtractJavaIdentifier(diag, source.WithLine(el->line_number), attr->value);
-  if (!result) {
+  std::optional<std::string> identifier =
+      ExtractJavaIdentifier(diag, source.WithLine(el->line_number), name_attr->value);
+  if (!identifier) {
     return false;
   }
 
   std::unique_ptr<StringMember> string_member =
-      util::make_unique<StringMember>(result.value(), attr->value);
+      util::make_unique<StringMember>(identifier.value(), name_attr->value);
+
+  bool member_enabled = true;
+  xml::Attribute* feature_flag_attr = el->FindAttribute(xml::kSchemaAndroid, xml::kAttrFeatureFlag);
+  if (feature_flag_attr) {
+    auto flag = ParseFlag(feature_flag_attr->value);
+    if (flag) {
+      const auto& flag_name = flag->name;
+      bool negated = flag->negated;
+      if (auto it = feature_flag_values.find(flag_name); it != feature_flag_values.end()) {
+        // Member is disabled if flag==true && attr=="!flag" (negated)
+        // OR flag==false && attr=="flag"
+        if (it->second.enabled.has_value() && it->second.read_only &&
+            *it->second.enabled == negated) {
+          if (diag->IsVerbose()) {
+            diag->Note(android::DiagMessage(source.WithLine(el->line_number))
+                      << "not adding comment for '" << identifier.value()
+                      << "' guarded by feature flag '" << (negated ? "!" : "") << flag_name
+                      << "' with value " << (*it->second.enabled ? "true" : "false"));
+          }
+          member_enabled = false;
+        }
+      }
+    }
+  }
   string_member->GetCommentBuilder()->AppendComment(el->comment);
 
-  if (class_def->AddMember(std::move(string_member)) == ClassDefinition::Result::kOverridden) {
+  // We ALWAYS want members generated in the Manifest Java file so that code referencing them (e.g.,
+  // within a feature flag check) will still compile, regardless of the feature flag value. However,
+  // if there are multiple members with the same name, we want to prioritize the members (i.e.,
+  // permission or permission group) that are enabled based on the feature flag value. (See value
+  // passed to `can_overwrite` below.)
+  //
+  // This mostly pertains to the comment on the member. For example, you can have the following
+  // permissions in the manifest:
+  //
+  //    <!-- If `some_flag` is true, pick this comment for `PERM` member -->
+  //    <permission android:name="android.permission.PERM" android:featureFlag="some_flag" />
+  //    <!-- If `some_flag` is false, pick this comment for `PERM` member -->
+  //    <permission android:name="android.permission.PERM" android:featureFlag="!some_flag" />
+
+  if (class_def->AddMember(std::move(string_member),
+                           /*can_overwrite=*/member_enabled) ==
+      ClassDefinition::Result::kOverridden) {
     diag->Warn(android::DiagMessage(source.WithLine(el->line_number))
-               << "duplicate definitions of '" << result.value() << "', overriding previous");
+               << "duplicate definitions of '" << identifier.value() << "', overriding previous");
   }
   return true;
 }
 
-std::unique_ptr<ClassDefinition> GenerateManifestClass(android::IDiagnostics* diag,
-                                                       xml::XmlResource* res) {
+std::unique_ptr<ClassDefinition> GenerateManifestClass(
+    android::IDiagnostics* diag, xml::XmlResource* res,
+    const FeatureFlagValues& feature_flag_values) {
   xml::Element* el = xml::FindRootElement(res->root.get());
   if (!el) {
     diag->Error(android::DiagMessage(res->file.source) << "no root tag defined");
@@ -102,9 +144,11 @@ std::unique_ptr<ClassDefinition> GenerateManifestClass(android::IDiagnostics* di
   for (xml::Element* child_el : children) {
     if (child_el->namespace_uri.empty()) {
       if (child_el->name == "permission") {
-        error |= !WriteSymbol(res->file.source, diag, child_el, permission_class.get());
+        error |= !WriteSymbol(res->file.source, diag, child_el, permission_class.get(),
+                              feature_flag_values);
       } else if (child_el->name == "permission-group") {
-        error |= !WriteSymbol(res->file.source, diag, child_el, permission_group_class.get());
+        error |= !WriteSymbol(res->file.source, diag, child_el, permission_group_class.get(),
+                              feature_flag_values);
       }
     }
   }

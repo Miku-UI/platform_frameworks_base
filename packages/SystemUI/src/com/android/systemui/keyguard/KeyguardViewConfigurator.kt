@@ -25,6 +25,7 @@ import com.android.systemui.common.ui.ConfigurationState
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryHapticsInteractor
+import com.android.systemui.deviceentry.domain.interactor.OccludingAppDeviceEntryInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardClockInteractor
 import com.android.systemui.keyguard.ui.binder.KeyguardBlueprintViewBinder
 import com.android.systemui.keyguard.ui.binder.KeyguardJankBinder
@@ -38,18 +39,15 @@ import com.android.systemui.keyguard.ui.viewmodel.KeyguardJankViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardRootViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardSmartspaceViewModel
 import com.android.systemui.keyguard.ui.viewmodel.LightRevealScrimViewModel
-import com.android.systemui.keyguard.ui.viewmodel.OccludingAppDeviceEntryMessageViewModel
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.dagger.KeyguardBlueprintLog
 import com.android.systemui.plugins.FalsingManager
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
-import com.android.systemui.shared.Flags.ambientAod
 import com.android.systemui.statusbar.KeyguardIndicationController
 import com.android.systemui.statusbar.LightRevealScrim
 import com.android.systemui.statusbar.VibratorHelper
-import com.android.systemui.statusbar.phone.ScreenOffAnimationController
 import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
 import com.android.systemui.temporarydisplay.chipbar.ChipbarCoordinator
 import com.android.systemui.wallpapers.ui.viewmodel.WallpaperViewModel
@@ -67,8 +65,7 @@ constructor(
     private val keyguardRootView: KeyguardRootView,
     private val keyguardRootViewModel: KeyguardRootViewModel,
     private val keyguardJankViewModel: KeyguardJankViewModel,
-    private val screenOffAnimationController: ScreenOffAnimationController,
-    private val occludingAppDeviceEntryMessageViewModel: OccludingAppDeviceEntryMessageViewModel,
+    private val occludingAppDeviceEntryInteractor: OccludingAppDeviceEntryInteractor,
     private val chipbarCoordinator: ChipbarCoordinator,
     private val keyguardBlueprintViewModel: KeyguardBlueprintViewModel,
     @ShadeDisplayAware private val configuration: ConfigurationState,
@@ -101,13 +98,11 @@ constructor(
         bindJankViewModel()
         initializeViews()
 
-        if (ambientAod()) {
-            LightRevealScrimViewBinder.bind(
-                lightRevealScrim,
-                lightRevealScrimViewModel,
-                wallpaperViewModel,
-            )
-        }
+        LightRevealScrimViewBinder.bind(
+            lightRevealScrim,
+            lightRevealScrimViewModel,
+            wallpaperViewModel,
+        )
 
         if (!SceneContainerFlag.isEnabled) {
             KeyguardBlueprintViewBinder.bind(
@@ -141,8 +136,6 @@ constructor(
                 keyguardRootViewModel,
                 keyguardBlueprintViewModel,
                 configuration,
-                occludingAppDeviceEntryMessageViewModel,
-                chipbarCoordinator,
                 shadeInteractor,
                 smartspaceViewModel,
                 deviceEntryHapticsInteractor,

@@ -26,14 +26,12 @@ import static org.junit.Assert.assertTrue;
 
 import android.platform.test.annotations.DisabledOnRavenwood;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.Log;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import org.junit.After;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -49,8 +47,6 @@ import java.util.Objects;
 @Presubmit
 @RunWith(AndroidJUnit4.class)
 public class BundleTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private Log.TerribleFailureHandler mWtfHandler;
 

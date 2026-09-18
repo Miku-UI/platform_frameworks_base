@@ -16,12 +16,12 @@
 
 package com.android.systemui.statusbar.notification.collection.listbuilder
 
+import com.android.systemui.Flags
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel.DEBUG
 import com.android.systemui.log.core.LogLevel.INFO
 import com.android.systemui.log.core.LogLevel.WARNING
 import com.android.systemui.log.dagger.NotificationLog
-import com.android.systemui.statusbar.notification.NotifPipelineFlags
 import com.android.systemui.statusbar.notification.collection.BundleEntry
 import com.android.systemui.statusbar.notification.collection.GroupEntry
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
@@ -36,15 +36,9 @@ import com.android.systemui.statusbar.notification.collection.listbuilder.plugga
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifStabilityManager
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.Pluggable
 import com.android.systemui.statusbar.notification.logKey
-import com.android.systemui.util.Compile
 import javax.inject.Inject
 
-class ShadeListBuilderLogger
-@Inject
-constructor(
-    notifPipelineFlags: NotifPipelineFlags,
-    @NotificationLog private val buffer: LogBuffer,
-) {
+class ShadeListBuilderLogger @Inject constructor(@NotificationLog private val buffer: LogBuffer) {
     fun logOnBuildList(reason: String?) {
         buffer.log(
             TAG,
@@ -357,7 +351,7 @@ constructor(
         )
     }
 
-    val logRankInFinalList = Compile.IS_DEBUG && notifPipelineFlags.isDevLoggingEnabled()
+    val logRankInFinalList = com.android.systemui.Flags.notificationDeveloperLogging()
 
     private fun getRankString(entry: PipelineEntry): String {
         if (entry is BundleEntry) {
@@ -387,7 +381,7 @@ constructor(
         }
     }
 
-    private fun logPipelineEntry(entry: PipelineEntry, i : Int, indent: String) {
+    private fun logPipelineEntry(entry: PipelineEntry, i: Int, indent: String) {
         buffer.log(
             TAG,
             DEBUG,

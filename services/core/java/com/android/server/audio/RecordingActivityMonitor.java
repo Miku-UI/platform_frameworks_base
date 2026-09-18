@@ -236,6 +236,21 @@ public final class RecordingActivityMonitor implements AudioSystem.AudioRecordin
         return false;
     }
 
+    /**
+     * @return uids which have an active playback configuration
+     */
+    public int[] getRecordingActiveUids() {
+        synchronized (mRecordStates) {
+            return mRecordStates
+                .stream()
+                .filter(x -> x.isActiveConfiguration() && !x.getConfig().isClientSilenced())
+                .mapToInt(x -> x.getConfig().getClientUid())
+                .sorted()
+                .distinct()
+                .toArray();
+        }
+    }
+
     private void dispatchCallbacks(List<AudioRecordingConfiguration> configs) {
         if (configs == null) { // null means "no changes"
             return;
@@ -262,8 +277,7 @@ public final class RecordingActivityMonitor implements AudioSystem.AudioRecordin
 
     protected void dump(PrintWriter pw) {
         // recorders
-        pw.println("\nRecordActivityMonitor dump time: "
-                + DateFormat.getTimeInstance().format(new Date()));
+        pw.println("## RecordActivityMonitor");
         synchronized (mRecordStates) {
             for (RecordingState state : mRecordStates) {
                 state.dump(pw);
@@ -272,6 +286,7 @@ public final class RecordingActivityMonitor implements AudioSystem.AudioRecordin
         pw.println("\n");
         // log
         sEventLogger.dump(pw);
+        pw.println();
     }
 
     private static ArrayList<AudioRecordingConfiguration> anonymizeForPublicConsumption(
@@ -643,7 +658,5 @@ public final class RecordingActivityMonitor implements AudioSystem.AudioRecordin
         }
     }
 
-    private static final EventLogger
-            sEventLogger = new EventLogger(50,
-            "recording activity received by AudioService");
+    private static final EventLogger sEventLogger = new EventLogger(50, "### Recording Activity");
 }

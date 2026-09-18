@@ -16,25 +16,23 @@
 
 package com.android.systemui.shade.domain.interactor
 
-import android.content.testableContext
-import android.provider.Settings
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
+import androidx.compose.ui.Alignment
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
-import com.android.systemui.display.data.repository.displayStateRepository
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.res.R
-import com.android.systemui.shade.data.repository.shadeRepository
 import com.android.systemui.shade.shared.model.ShadeMode
-import com.android.systemui.shared.settings.data.repository.fakeSecureSettingsRepository
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -47,6 +45,7 @@ class ShadeModeInteractorImplTest : SysuiTestCase() {
     private val Kosmos.underTest by Kosmos.Fixture { shadeModeInteractor }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun legacyShadeMode_narrowScreen_singleShade() =
         kosmos.runTest {
             val shadeMode by collectLastValue(underTest.shadeMode)
@@ -56,17 +55,18 @@ class ShadeModeInteractorImplTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun legacyShadeMode_narrowLargeScreen_singleShade() =
         kosmos.runTest {
             val shadeMode by collectLastValue(underTest.shadeMode)
             // This simulates the case of a tablet or certain unfolded foldables in portrait mode.
             enableSingleShade(wideLayout = false)
-            displayStateRepository.setIsLargeScreen(true)
 
             assertThat(shadeMode).isEqualTo(ShadeMode.Single)
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun legacyShadeMode_wideScreen_singleShade() =
         kosmos.runTest {
             val shadeMode by collectLastValue(underTest.shadeMode)
@@ -76,6 +76,7 @@ class ShadeModeInteractorImplTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun legacyShadeMode_wideScreen_splitShade() =
         kosmos.runTest {
             val shadeMode by collectLastValue(underTest.shadeMode)
@@ -85,30 +86,53 @@ class ShadeModeInteractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    fun legacyShadeMode_disableSplitShade_wideScreen_dualShade() =
+    @DisableFlags(FLAG_DUAL_SHADE)
+    fun legacyIsFullWidthShade_singleShadeWide_true() =
         kosmos.runTest {
-            overrideResource(R.bool.config_disableSplitShade, true)
-            val shadeMode by collectLastValue(underTest.shadeMode)
+            val isFullWidthShade by collectLastValue(underTest.isFullWidthShade)
+            enableSingleShade(wideLayout = true)
+
+            assertThat(isFullWidthShade).isTrue()
+        }
+
+    @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
+    fun legacyIsFullWidthShade_singleShadeNarrow_true() =
+        kosmos.runTest {
+            val isFullWidthShade by collectLastValue(underTest.isFullWidthShade)
+            enableSingleShade(wideLayout = false)
+
+            assertThat(isFullWidthShade).isTrue()
+        }
+
+    @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
+    fun legacyIsFullWidthShade_splitShade_false() =
+        kosmos.runTest {
+            val isFullWidthShade by collectLastValue(underTest.isFullWidthShade)
             enableSplitShade()
+
+            assertThat(isFullWidthShade).isFalse()
+        }
+
+    @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
+    fun defaultShadeMode_singleShadeOverridden_dualShade() =
+        kosmos.runTest {
+            overrideResource(R.bool.config_dualShadeEnabledByDefault, true)
+            enableSingleShade()
+            val shadeMode by collectLastValue(underTest.shadeMode)
+            assertThat(shadeMode).isEqualTo(ShadeMode.Single)
+
+            overrideResource(com.android.settingslib.R.bool.config_useDualShadeSetting, false)
             fakeConfigurationRepository.onConfigurationChange()
 
             assertThat(shadeMode).isEqualTo(ShadeMode.Dual)
         }
 
     @Test
-    fun legacyShadeMode_disableSplitShade_narrowScreen_singleShade() =
-        kosmos.runTest {
-            overrideResource(R.bool.config_disableSplitShade, true)
-            val shadeMode by collectLastValue(underTest.shadeMode)
-            enableSingleShade()
-
-            fakeConfigurationRepository.onConfigurationChange()
-
-            assertThat(shadeMode).isEqualTo(ShadeMode.Single)
-        }
-
-    @Test
-    fun shadeMode_wideScreen_isDual() =
+    @EnableFlags(FLAG_DUAL_SHADE)
+    fun shadeMode_wideScreenDefault_isDual() =
         kosmos.runTest {
             val shadeMode by collectLastValue(underTest.shadeMode)
             enableDualShade(wideLayout = true)
@@ -117,7 +141,8 @@ class ShadeModeInteractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    fun shadeMode_narrowScreen_isDual() =
+    @EnableFlags(FLAG_DUAL_SHADE)
+    fun shadeMode_narrowScreenDefault_isDual() =
         kosmos.runTest {
             val shadeMode by collectLastValue(underTest.shadeMode)
             enableDualShade(wideLayout = false)
@@ -126,129 +151,115 @@ class ShadeModeInteractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    fun isDualShade_settingEnabledSceneContainerEnabled_returnsTrue() =
+    @EnableFlags(FLAG_DUAL_SHADE)
+    fun isFullWidthShade_singleShadeNarrow_true() =
         kosmos.runTest {
-            // TODO(b/391578667): Add a test case for user switching once the bug is fixed.
-            val shadeMode by collectLastValue(underTest.shadeMode)
-            enableDualShade()
+            val isFullWidthShade by collectLastValue(underTest.isFullWidthShade)
+            enableSingleShade(wideLayout = false)
 
-            assertThat(shadeMode).isEqualTo(ShadeMode.Dual)
-            assertThat(underTest.isDualShade).isTrue()
+            assertThat(isFullWidthShade).isTrue()
         }
 
     @Test
-    fun isDualShade_settingDisabled_returnsFalse() =
+    @EnableFlags(FLAG_DUAL_SHADE)
+    fun isFullWidthShade_singleShadeWide_true() =
         kosmos.runTest {
-            val shadeMode by collectLastValue(underTest.shadeMode)
-            disableDualShade()
+            val isFullWidthShade by collectLastValue(underTest.isFullWidthShade)
+            enableSingleShade(wideLayout = true)
 
-            assertThat(shadeMode).isNotEqualTo(ShadeMode.Dual)
-            assertThat(underTest.isDualShade).isFalse()
+            assertThat(isFullWidthShade).isTrue()
         }
 
     @Test
-    fun isFullWidthShade_largeScreenPortrait() =
+    @EnableFlags(FLAG_DUAL_SHADE)
+    fun isFullWidthShade_dualShadeNarrow_true() =
         kosmos.runTest {
             val isFullWidthShade by collectLastValue(underTest.isFullWidthShade)
 
-            // Large screen portrait
-            setupScreenConfig(wideScreen = true, legacyUseSplitShade = false)
+            enableDualShade(wideLayout = false)
 
-            setupShadeConfig(dualShadeSettingEnabled = true, disableSplitShade = false)
-            assertThat(isFullWidthShade).isFalse()
-
-            setupShadeConfig(dualShadeSettingEnabled = true, disableSplitShade = true)
-            assertThat(isFullWidthShade).isFalse()
-
-            setupShadeConfig(dualShadeSettingEnabled = false, disableSplitShade = true)
-            assertThat(isFullWidthShade).isTrue()
-
-            setupShadeConfig(dualShadeSettingEnabled = false, disableSplitShade = false)
             assertThat(isFullWidthShade).isTrue()
         }
 
     @Test
-    fun isFullWidthShade_largeScreenLandscape() =
+    @EnableFlags(FLAG_DUAL_SHADE)
+    fun isFullWidthShade_dualShadeWide_false() =
         kosmos.runTest {
             val isFullWidthShade by collectLastValue(underTest.isFullWidthShade)
 
-            // Large screen landscape
-            setupScreenConfig(wideScreen = true, legacyUseSplitShade = true)
+            enableDualShade(wideLayout = true)
 
-            setupShadeConfig(dualShadeSettingEnabled = true, disableSplitShade = false)
-            assertThat(isFullWidthShade).isFalse()
-
-            setupShadeConfig(dualShadeSettingEnabled = true, disableSplitShade = true)
-            assertThat(isFullWidthShade).isFalse()
-
-            setupShadeConfig(dualShadeSettingEnabled = false, disableSplitShade = true)
-            assertThat(isFullWidthShade).isFalse()
-
-            setupShadeConfig(dualShadeSettingEnabled = false, disableSplitShade = false)
             assertThat(isFullWidthShade).isFalse()
         }
 
     @Test
-    fun isFullWidthShade_compactScreenPortrait() =
+    fun notificationStackHorizontalAlignment_singleShade_centeredHorizontally() =
         kosmos.runTest {
-            val isFullWidthShade by collectLastValue(underTest.isFullWidthShade)
+            val alignment by collectLastValue(underTest.notificationStackHorizontalAlignment)
 
-            // Compact screen portrait
-            setupScreenConfig(wideScreen = false, legacyUseSplitShade = false)
+            enableSingleShade(wideLayout = true)
 
-            setupShadeConfig(dualShadeSettingEnabled = true, disableSplitShade = false)
-            assertThat(isFullWidthShade).isTrue()
-
-            setupShadeConfig(dualShadeSettingEnabled = true, disableSplitShade = true)
-            assertThat(isFullWidthShade).isTrue()
-
-            setupShadeConfig(dualShadeSettingEnabled = false, disableSplitShade = true)
-            assertThat(isFullWidthShade).isTrue()
-
-            setupShadeConfig(dualShadeSettingEnabled = false, disableSplitShade = false)
-            assertThat(isFullWidthShade).isTrue()
+            assertThat(alignment).isEqualTo(Alignment.CenterHorizontally)
         }
 
     @Test
-    fun isFullWidthShade_compactScreenLandscape() =
+    @DisableFlags(FLAG_DUAL_SHADE)
+    fun notificationStackHorizontalAlignment_splitShade_endAligned() =
         kosmos.runTest {
-            val isFullWidthShade by collectLastValue(underTest.isFullWidthShade)
+            val alignment by collectLastValue(underTest.notificationStackHorizontalAlignment)
 
-            // Compact screen landscape
-            setupScreenConfig(wideScreen = true, legacyUseSplitShade = false)
+            enableSplitShade()
 
-            setupShadeConfig(dualShadeSettingEnabled = true, disableSplitShade = false)
-            assertThat(isFullWidthShade).isFalse()
-
-            setupShadeConfig(dualShadeSettingEnabled = true, disableSplitShade = true)
-            assertThat(isFullWidthShade).isFalse()
-
-            setupShadeConfig(dualShadeSettingEnabled = false, disableSplitShade = true)
-            assertThat(isFullWidthShade).isTrue()
-
-            setupShadeConfig(dualShadeSettingEnabled = false, disableSplitShade = false)
-            assertThat(isFullWidthShade).isTrue()
+            assertThat(alignment).isEqualTo(Alignment.End)
         }
 
-    private fun Kosmos.setupScreenConfig(wideScreen: Boolean, legacyUseSplitShade: Boolean) {
-        testableContext.orCreateTestableResources.apply {
-            addOverride(R.bool.config_isFullWidthShade, !wideScreen)
-            addOverride(R.bool.config_use_split_notification_shade, legacyUseSplitShade)
-            addOverride(R.bool.config_use_large_screen_shade_header, legacyUseSplitShade)
-        }
-        fakeConfigurationRepository.onConfigurationChange()
-        shadeRepository.legacyUseSplitShade.value = legacyUseSplitShade
-    }
+    @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
+    fun notificationStackHorizontalAlignment_dualShadeNarrow_centeredHorizontally() =
+        kosmos.runTest {
+            val alignment by collectLastValue(underTest.notificationStackHorizontalAlignment)
 
-    private fun Kosmos.setupShadeConfig(
-        dualShadeSettingEnabled: Boolean,
-        disableSplitShade: Boolean,
-    ) = runBlocking {
-        fakeSecureSettingsRepository.setBoolean(Settings.Secure.DUAL_SHADE, dualShadeSettingEnabled)
-        testableContext.orCreateTestableResources.addOverride(
-            R.bool.config_disableSplitShade,
-            disableSplitShade,
-        )
-        fakeConfigurationRepository.onConfigurationChange()
-    }
+            enableDualShade(wideLayout = false)
+
+            assertThat(alignment).isEqualTo(Alignment.CenterHorizontally)
+        }
+
+    @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
+    fun notificationStackHorizontalAlignment_dualShadeWide_startAligned() =
+        kosmos.runTest {
+            val alignment by collectLastValue(underTest.notificationStackHorizontalAlignment)
+
+            enableDualShade(wideLayout = true)
+
+            assertThat(alignment).isEqualTo(Alignment.Start)
+        }
+
+    @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
+    fun notificationStackHorizontalAlignment_desktopWithTopEndConfig_endAligned() =
+        kosmos.runTest {
+            val alignment by collectLastValue(underTest.notificationStackHorizontalAlignment)
+
+            overrideResource(R.bool.config_notificationShadeOnTopEnd, true)
+            fakeConfigurationRepository.onConfigurationChange()
+
+            enableDualShade(wideLayout = true)
+
+            assertThat(alignment).isEqualTo(Alignment.End)
+        }
+
+    @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
+    fun notificationStackHorizontalAlignment_desktopWithoutTopEndConfig_startAligned() =
+        kosmos.runTest {
+            val alignment by collectLastValue(underTest.notificationStackHorizontalAlignment)
+
+            overrideResource(R.bool.config_notificationShadeOnTopEnd, false)
+            fakeConfigurationRepository.onConfigurationChange()
+
+            enableDualShade(wideLayout = true)
+
+            assertThat(alignment).isEqualTo(Alignment.Start)
+        }
 }

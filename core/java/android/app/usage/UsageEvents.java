@@ -681,7 +681,6 @@ public final class UsageEvents implements Parcelable {
          *         {@link UsageStatsManager#EXTRA_EVENT_ACTION}. {@link PersistableBundle#EMPTY}
          *         will be returned if the details are not available.
          */
-        @FlaggedApi(Flags.FLAG_USER_INTERACTION_TYPE_API)
         public @NonNull PersistableBundle getExtras() {
             return mExtras == null ? PersistableBundle.EMPTY : mExtras;
         }
@@ -863,6 +862,14 @@ public final class UsageEvents implements Parcelable {
         mEventCount = events.size();
         mEventsToWrite = events;
         mIncludeTaskRoots = includeTaskRoots;
+    }
+
+    /**
+     * Returns the number of events.
+     * @hide
+     */
+    public int getEventCount() {
+        return mEventCount;
     }
 
     /**

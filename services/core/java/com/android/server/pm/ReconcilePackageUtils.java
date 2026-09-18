@@ -31,6 +31,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.SharedLibraryInfo;
 import android.content.pm.SigningDetails;
 import android.os.Build;
+import android.os.Process;
 import android.os.SystemProperties;
 import android.util.ArrayMap;
 import android.util.Log;
@@ -119,7 +120,7 @@ final class ReconcilePackageUtils {
                         installRequest.getRemovedInfo(),
                         installRequest.getOriginalPackageSetting(),
                         installRequest.getDisabledPackageSetting(),
-                        deleteFlags, null /* all users */);
+                        deleteFlags, null /* all users */, Process.SYSTEM_UID);
                 if (deletePackageAction == null) {
                     throw new ReconcileFailure(
                             PackageManager.INSTALL_FAILED_REPLACE_COULDNT_DELETE,

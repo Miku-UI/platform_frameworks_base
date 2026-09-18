@@ -10,6 +10,9 @@ package {
 android_test {
     name: "MtpTests",
     srcs: ["**/*.java"],
-    static_libs: ["androidx.test.rules"],
+    static_libs: [
+        "androidx.test.rules",
+        "androidx.test.core",
+    ],
     platform_apis: true,
 }

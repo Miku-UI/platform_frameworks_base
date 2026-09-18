@@ -153,6 +153,18 @@ class PrivacyDotWindowControllerTest : SysuiTestCase() {
     }
 
     @Test
+    fun onPrivacyDotShown_calledTwice_onlyOneViewAdded() {
+        underTest.start()
+        executor.runAllReady()
+
+        viewController.showingListener?.onPrivacyDotShown(viewController.topLeft!!)
+        viewController.showingListener?.onPrivacyDotShown(viewController.topLeft!!)
+        executor.runAllReady()
+
+        assertThat(windowManager.addedViews).hasSize(1)
+    }
+
+    @Test
     fun onPrivacyDotHidden_removesWindow() {
         underTest.start()
         executor.runAllReady()
@@ -278,6 +290,18 @@ class PrivacyDotWindowControllerTest : SysuiTestCase() {
         // Ensure no crash when stopping and trying to remove an already detached view
         underTest.stop()
         executor.runAllReady()
+    }
+
+    @Test
+    fun onStop_setsViewControllerShowingListenerToNull() {
+        underTest.start()
+        executor.runAllReady()
+        assertThat(viewController.showingListener).isNotNull()
+
+        underTest.stop()
+        executor.runAllReady()
+
+        assertThat(viewController.showingListener).isNull()
     }
 
     // Helper functions: Note that paramsForView needs to find the *root* view (FrameLayout)

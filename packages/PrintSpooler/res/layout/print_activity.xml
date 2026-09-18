@@ -72,7 +72,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="16dip"
             android:textAppearance="?android:attr/textAppearanceMedium"
-            android:textColor="?android:attr/textColorPrimary"
+            android:textColor="@color/materialColorOnSurface"
             android:singleLine="true"
             android:ellipsize="end">
         </TextView>
@@ -92,7 +92,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="16dip"
             android:textAppearance="?android:attr/textAppearanceMedium"
-            android:textColor="?android:attr/textColorPrimary"
+            android:textColor="@color/materialColorOnSurface"
             android:singleLine="true"
             android:ellipsize="end">
         </TextView>
@@ -108,14 +108,61 @@
         android:layout_marginStart="16dip"
         android:elevation="@dimen/preview_controls_elevation"
         android:tint="@android:color/white"
-        android:background="@drawable/print_button">
+        android:background="@drawable/print_button"
+        android:featureFlag="!com.android.printspooler.flags.updated_button_layout">
     </ImageButton>
 
     <!-- Controls -->
 
     <include layout="@layout/print_activity_controls"/>
 
-    <!-- Content -->
+    <!-- Action buttons -->
+
+    <LinearLayout
+        android:id="@+id/action_row"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="8dip"
+        android:paddingStart="16dip"
+        android:paddingEnd="16dip"
+        android:paddingBottom="8dip"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:elevation="@dimen/preview_controls_elevation"
+        style="?android:actionBarStyle"
+        android:featureFlag="com.android.printspooler.flags.updated_button_layout">
+        <Button
+            android:id="@+id/cancel_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingStart="24dip"
+            android:paddingEnd="24dip"
+            android:paddingTop="12dip"
+            android:paddingBottom="12dip"
+            android:elevation="@dimen/preview_controls_elevation"
+            android:background="@drawable/cancel_button"
+            android:textColor="@color/materialColorPrimary"
+            android:text="@string/cancel"
+            android:featureFlag="com.android.printspooler.flags.updated_button_layout">
+        </Button>
+        <Button
+            android:id="@+id/print_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:paddingStart="24dip"
+            android:paddingEnd="24dip"
+            android:paddingTop="12dip"
+            android:paddingBottom="12dip"
+            android:elevation="@dimen/preview_controls_elevation"
+            android:background="@drawable/print_button_state_selector"
+            android:textColor="@drawable/solid_button_text_color"
+            android:text="@string/print_button"
+            android:featureFlag="com.android.printspooler.flags.updated_button_layout">
+        </Button>
+    </LinearLayout>
+
+    <!-- Preview Content -->
 
     <com.android.printspooler.widget.EmbeddedContentContainer
         android:id="@+id/embedded_content_container"

@@ -17,7 +17,6 @@
 package com.android.systemui.haptics.msdl
 
 import com.android.systemui.haptics.msdl.qs.TileHapticsViewModel
-import com.android.systemui.haptics.msdl.qs.TileHapticsViewModelFactoryProvider
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.qs.panels.ui.viewmodel.TileViewModel
 
@@ -28,6 +27,3 @@ val Kosmos.tileHapticsViewModelFactory by
                 TileHapticsViewModel(fakeMSDLPlayer, tileViewModel)
         }
     }
-
-val Kosmos.tileHapticsViewModelFactoryProvider by
-    Kosmos.Fixture { TileHapticsViewModelFactoryProvider(tileHapticsViewModelFactory) }

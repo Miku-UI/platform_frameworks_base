@@ -2,5 +2,5 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
     <corners android:radius="28dp" />
-    <solid android:color="@androidprv:color/materialColorSurfaceContainerHighest" />
+    <solid android:color="@color/materialColorSurfaceContainerHighest" />
 </shape>

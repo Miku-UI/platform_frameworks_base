@@ -16,16 +16,18 @@
 
 package com.android.server.biometrics;
 
+import static android.Manifest.permission.ACCESS_BIOMETRIC_SENSOR_STRENGTHS;
 import static android.Manifest.permission.MANAGE_BIOMETRIC;
 import static android.Manifest.permission.SET_BIOMETRIC_DIALOG_ADVANCED;
 import static android.Manifest.permission.TEST_BIOMETRIC;
+import static android.Manifest.permission.USE_BIOMETRIC;
 import static android.Manifest.permission.USE_BIOMETRIC_INTERNAL;
+import static android.Manifest.permission.USE_FINGERPRINT;
 import static android.hardware.biometrics.BiometricAuthenticator.TYPE_NONE;
 import static android.hardware.biometrics.BiometricConstants.BIOMETRIC_ERROR_CANCELED;
 import static android.hardware.biometrics.BiometricConstants.BIOMETRIC_SUCCESS;
 
-import static junit.framework.Assert.assertEquals;
-
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -51,11 +53,15 @@ import android.hardware.biometrics.IBiometricEnabledOnKeyguardCallback;
 import android.hardware.biometrics.IBiometricService;
 import android.hardware.biometrics.IBiometricServiceReceiver;
 import android.hardware.biometrics.PromptInfo;
+import android.hardware.biometrics.SensorProperties;
+import android.hardware.biometrics.StrongSensorStrengthInternal;
 import android.hardware.biometrics.fingerprint.SensorProps;
 import android.hardware.face.FaceSensorConfigurations;
+import android.hardware.face.FaceSensorProperties;
 import android.hardware.face.FaceSensorPropertiesInternal;
 import android.hardware.face.IFaceService;
 import android.hardware.fingerprint.FingerprintSensorConfigurations;
+import android.hardware.fingerprint.FingerprintSensorProperties;
 import android.hardware.fingerprint.FingerprintSensorPropertiesInternal;
 import android.hardware.fingerprint.IFingerprintService;
 import android.hardware.iris.IIrisService;
@@ -65,9 +71,11 @@ import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.platform.test.flag.junit.SetFlagsRule;
+import android.view.Display;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
@@ -86,6 +94,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.stubbing.Stubber;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Presubmit
@@ -93,6 +102,7 @@ import java.util.List;
 public class AuthServiceTest {
 
     private static final String TEST_OP_PACKAGE_NAME = "test_package";
+    private static final int DISPLAY_ID = Display.DEFAULT_DISPLAY;
 
     private final @UserIdInt int mUserId = UserHandle.getCallingUserId();
 
@@ -126,12 +136,12 @@ public class AuthServiceTest {
     @Mock
     IFaceService mFaceService;
     @Mock
-
     AppOpsManager mAppOpsManager;
     @Mock
     private VirtualDeviceManagerInternal mVdmInternal;
     @Mock
     private BiometricHandlerProvider mBiometricHandlerProvider;
+
     @Captor
     private ArgumentCaptor<List<FingerprintSensorPropertiesInternal>> mFingerprintPropsCaptor;
     @Captor
@@ -165,6 +175,7 @@ public class AuthServiceTest {
 
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mContext.getResources()).thenReturn(mResources);
+
         when(mInjector.getBiometricService()).thenReturn(mBiometricService);
         when(mInjector.getConfiguration(any())).thenReturn(config);
         when(mInjector.getFaceConfiguration(any())).thenReturn(config);
@@ -180,8 +191,17 @@ public class AuthServiceTest {
                 new Handler(mFingerprintLooper.getLooper()));
         when(mBiometricHandlerProvider.getFaceHandler()).thenReturn(
                 new Handler(mFaceLooper.getLooper()));
+        when(mInjector.isForeground(anyInt(), anyInt())).thenReturn(true);
 
         setInternalAndTestBiometricPermissions(mContext, false /* hasPermission */);
+
+        // By default, set `USE_BIOMETRIC` as permission granted, since it is the basic
+        // permission for an app to use device-supported biometric modalities.
+        setPermission(mContext, USE_BIOMETRIC, true);
+
+        // `USE_FINGERPRINT` is deprecated, thus setting it as permission denied to prevent
+        // `AuthService.checkPermission` from not truly checking `USE_BIOMETRIC` under the hood.
+        setPermission(mContext, USE_FINGERPRINT, false);
     }
 
     @Test
@@ -348,6 +368,7 @@ public class AuthServiceTest {
     }
 
     @Test
+    @RequiresFlagsDisabled(Flags.FLAG_BP_COMPUTER_CONTROLLED)
     public void testAuthenticate_callsVirtualDeviceManagerOnAuthenticationPrompt()
             throws Exception {
         mAuthService = new AuthService(mContext, mInjector);
@@ -418,11 +439,11 @@ public class AuthServiceTest {
 
         final int expectedResult = BIOMETRIC_SUCCESS;
         final int authenticators = 0;
-        when(mBiometricService.canAuthenticate(anyString(), anyInt(), anyInt(), anyInt()))
+        when(mBiometricService.canAuthenticate(anyString(), anyInt(), anyInt(), anyInt(), anyInt()))
                 .thenReturn(expectedResult);
 
         final int result = mAuthService.mImpl
-                .canAuthenticate(TEST_OP_PACKAGE_NAME, mUserId, authenticators);
+                .canAuthenticate(TEST_OP_PACKAGE_NAME, mUserId, authenticators, DISPLAY_ID);
 
         assertEquals(expectedResult, result);
         waitForIdle();
@@ -430,7 +451,8 @@ public class AuthServiceTest {
                 eq(TEST_OP_PACKAGE_NAME),
                 eq(mUserId),
                 eq(UserHandle.getCallingUserId()),
-                eq(authenticators));
+                eq(authenticators),
+                eq(DISPLAY_ID));
     }
 
     @Test
@@ -596,6 +618,74 @@ public class AuthServiceTest {
                 eq(TEST_OP_PACKAGE_NAME));
         verify(mFingerprintService).getEnrolledFingerprints(eq(nonCallingId),
                 eq(TEST_OP_PACKAGE_NAME), eq("tag"));
+    }
+
+    @Test
+    public void testGetBiometricSensorStrengths_allowedRoleHolder() throws Exception {
+        setPermission(mContext, ACCESS_BIOMETRIC_SENSOR_STRENGTHS, true);
+        setSensorProperties();
+
+        mAuthService = new AuthService(mContext, mInjector);
+        mAuthService.onStart();
+        final List<StrongSensorStrengthInternal> actualSensorStrengths =
+                mAuthService.mImpl.getBiometricSensorStrengths(TEST_OP_PACKAGE_NAME);
+
+        assertEquals(2, actualSensorStrengths.size());
+        long actualFingerprintCount = actualSensorStrengths.stream()
+                .filter(s -> s.getModality() == BiometricManager.TYPE_FINGERPRINT)
+                .filter(s -> s.getStrength() == BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                .count();
+        assertEquals("Exactly one Class-3 fingerprint sensor is expected to be retrieved.", 1,
+                actualFingerprintCount);
+        long actualFaceCount = actualSensorStrengths.stream()
+                .filter(s -> s.getModality() == BiometricManager.TYPE_FACE)
+                .filter(s -> s.getStrength() == BiometricManager.Authenticators.LESS_THAN_STRONG)
+                .count();
+        assertEquals("Exactly one unknown/unexposed face sensor is expected to be retrieved.", 1,
+                actualFaceCount);
+    }
+
+    @Test
+    public void testGetBiometricSensorStrengths_rolePermissionDenied_throwsSecurityException()
+            throws Exception {
+        // From an end-to-end perspective, this could be due to not declaring
+        // `ACCESS_BIOMETRIC_SENSOR_STRENGTHS`, or declaring it but not holding the required roles.
+        setPermission(mContext, ACCESS_BIOMETRIC_SENSOR_STRENGTHS, false);
+
+        mAuthService = new AuthService(mContext, mInjector);
+        mAuthService.onStart();
+
+        assertThrows(SecurityException.class, () -> {
+            mAuthService.mImpl.getBiometricSensorStrengths(TEST_OP_PACKAGE_NAME);
+        });
+    }
+
+    @Test
+    public void testGetBiometricSensorStrengths_withoutBioPermission_throwsSecurityException()
+            throws Exception {
+        setPermission(mContext, USE_BIOMETRIC, false);
+        setPermission(mContext, USE_BIOMETRIC_INTERNAL, true);
+
+        mAuthService = new AuthService(mContext, mInjector);
+        mAuthService.onStart();
+
+        assertThrows(SecurityException.class, () -> {
+            mAuthService.mImpl.getBiometricSensorStrengths(TEST_OP_PACKAGE_NAME);
+        });
+    }
+
+    @Test
+    public void testGetBiometricSensorStrengths_backgroundCaller_throwsSecurityException()
+            throws Exception {
+        setPermission(mContext, ACCESS_BIOMETRIC_SENSOR_STRENGTHS, true);
+        when(mInjector.isForeground(anyInt(), anyInt())).thenReturn(false);
+
+        mAuthService = new AuthService(mContext, mInjector);
+        mAuthService.onStart();
+
+        assertThrows(SecurityException.class, () -> {
+            mAuthService.mImpl.getBiometricSensorStrengths(TEST_OP_PACKAGE_NAME);
+        });
     }
 
     private void setSensorProperties() throws Exception {

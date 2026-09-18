@@ -67,9 +67,16 @@ public class LightSensorController {
             if (event.sensor != mRegisteredLightSensor) {
                 return;
             }
+
+            float luxValue = event.values[0];
+            if (Float.isNaN(luxValue)) {
+                Slog.e(TAG, "Light sensor reported NaN lux value, ignoring.");
+                return;
+            }
+
             long now = mInjector.getTime();
             mAmbientFilter.addValue(TimeUnit.NANOSECONDS.toMillis(event.timestamp),
-                    event.values[0]);
+                    luxValue);
             final float lux = mAmbientFilter.getEstimate(now);
             mLightSensorListener.onAmbientLuxChange(lux);
         }

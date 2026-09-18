@@ -16,11 +16,12 @@
 
 package com.android.systemui.statusbar.domain.interactor
 
+import com.android.app.displaylib.PerDisplayRepository
 import com.android.internal.view.AppearanceRegion
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.statusbar.StatusBarAlwaysUseRegionSampling
 import com.android.systemui.statusbar.StatusBarRegionSampling
-import com.android.systemui.statusbar.data.repository.StatusBarModeRepositoryStore
 import com.android.systemui.uimode.data.repository.ForceInvertRepository
 import dagger.Binds
 import dagger.Module
@@ -28,7 +29,10 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
-/** Communicates sampled status bar lightness info to [StatusBarModeRepositoryStore]. */
+/**
+ * Communicates sampled status bar lightness info to
+ * [com.android.systemui.statusbar.data.repository.StatusBarModePerDisplayRepository].
+ */
 interface StatusBarRegionSamplingInteractor {
 
     /** Flow is `true` if region sampling should be enabled, otherwise `false`. */
@@ -47,7 +51,7 @@ interface StatusBarRegionSamplingInteractor {
 class StatusBarRegionSamplingInteractorImpl
 @Inject
 constructor(
-    private val statusBarModeRepositoryStore: StatusBarModeRepositoryStore,
+    private val displaySubcomponentRepo: PerDisplayRepository<SystemUIDisplaySubcomponent>,
     forceInvertRepository: ForceInvertRepository,
 ) : StatusBarRegionSamplingInteractor {
 
@@ -67,7 +71,8 @@ constructor(
         if (!StatusBarAlwaysUseRegionSampling.isAnyRegionSamplingEnabled) {
             return
         }
-        val statusBarModePerDisplayRepository = statusBarModeRepositoryStore.forDisplay(displayId)
+        val statusBarModePerDisplayRepository =
+            displaySubcomponentRepo[displayId]?.statusBarModeRepo
         statusBarModePerDisplayRepository?.setSampledAppearanceRegions(
             appearanceRegions.filterNotNull()
         )

@@ -18,15 +18,27 @@ package com.android.systemui.qs.footer.ui.viewmodel
 
 import android.content.Context
 import com.android.systemui.animation.Expandable
-import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.res.R
+import com.android.systemui.qs.footer.domain.model.FooterTextButtonModel.FooterForegroundServicesButtonModel
 
 /** A ViewModel for the foreground services button. */
-data class FooterActionsForegroundServicesButtonViewModel(
-    val foregroundServicesCount: Int,
-    override val text: String,
-    val displayText: Boolean,
-    override val hasNewChanges: Boolean,
+class FooterActionsForegroundServicesButtonViewModel(
+    override val model: FooterForegroundServicesButtonModel,
     override val onClick: (Context, Expandable) -> Unit,
-    override val icon: Icon = Icon.Resource(R.drawable.ic_qs_footer_info, contentDescription = null),
-) : FooterTextButtonViewModel
+) : FooterTextButtonViewModel {
+    constructor(
+        text: String,
+        foregroundServicesCount: Int,
+        displayText: Boolean,
+        onClick: (quickSettingsContext: Context, Expandable) -> Unit,
+        hasNewChanges: Boolean = false,
+    ) : this(
+        model =
+            FooterForegroundServicesButtonModel(
+                text = text,
+                hasNewChanges = hasNewChanges,
+                displayText = displayText,
+                foregroundServicesCount = foregroundServicesCount,
+            ),
+        onClick = onClick,
+    )
+}

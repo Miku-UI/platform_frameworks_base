@@ -17,15 +17,39 @@
 package android.media.tv.extension.rating;
 
 import android.os.Bundle;
+import android.media.tv.extension.rating.IRatingUpdateListener;
+import android.media.tv.extension.rating.RatingRegionInfo;
 
 /**
  * @hide
  */
 interface IRatingInterface {
-    // Get RRT rating information
-    Bundle getRRTRatingInfo();
-    // Set RRT rating information when user select
-    boolean setRRTRatingInfo(in Bundle param);
-    // Reset RRT5 to clear information
+    /**
+     * Gets the current RRT (Regional Rating Table) information. This should be called after the
+     * listener notified that there is an update to the RRT table.
+     *
+     * @return The RRT Rating list.
+     */
+    List<RatingRegionInfo> getRRTRatingInfo();
+    /**
+     * Sets the RRT rating list based on a user's selection.
+     *
+     * @param regions The RRT Rating list user selected.
+     * @return true if the rating information was set successfully, false otherwise.
+     */
+    boolean setRRTRatingInfo(in List<RatingRegionInfo> regions);
+    /**
+     * Resets and clears all stored RRT5 rating information.
+     *
+     * @return true if all RRT5 information was cleared successfully, false otherwise.
+     */
     boolean setResetRrt5();
+    /**
+     * Registers a listener to be notified of RRT table changes.
+     */
+    void registerRrtUpdateListener(IRatingUpdateListener listener);
+    /**
+     * Unregisters an existing listener.
+     */
+    void unregisterRrtUpdateListener(IRatingUpdateListener listener);
 }

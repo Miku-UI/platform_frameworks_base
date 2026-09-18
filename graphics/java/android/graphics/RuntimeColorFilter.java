@@ -299,7 +299,7 @@ public class RuntimeColorFilter extends ColorFilter {
         if (xfermode == null) {
             throw new NullPointerException("The xfermode parameter must not be null");
         }
-        nativeUpdateChild(getNativeInstance(), xfermodeName, xfermode.createNativeInstance());
+        nativeUpdateChild(getNativeInstance(), xfermodeName, xfermode.getNativeInstance());
     }
 
     /** @hide */

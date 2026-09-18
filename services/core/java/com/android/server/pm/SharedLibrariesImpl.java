@@ -81,6 +81,7 @@ import java.util.function.BiConsumer;
  * Current known shared libraries on the device.
  */
 public final class SharedLibrariesImpl implements SharedLibrariesRead, Watchable, Snappable {
+    private static final String TAG = "SharedLibrariesImpl";
     private static final boolean DEBUG_SHARED_LIBRARIES = false;
 
     private static final String LIBRARY_TYPE_SDK = "sdk";
@@ -333,6 +334,8 @@ public final class SharedLibrariesImpl implements SharedLibrariesRead, Watchable
     boolean pruneUnusedStaticSharedLibraries(@NonNull Computer computer, long neededSpace,
             long maxCachePeriod)
             throws IOException {
+        Slog.i(TAG, "Start pruneUnusedStaticSharedLibraries for neededSpace: " + neededSpace
+                + " maxCachePeriod: " + maxCachePeriod);
         final StorageManager storage = mInjector.getSystemService(StorageManager.class);
         final File volume = storage.findPathForUuid(StorageManager.UUID_PRIVATE_INTERNAL);
 
@@ -368,6 +371,9 @@ public final class SharedLibrariesImpl implements SharedLibrariesRead, Watchable
                     continue;
                 }
 
+                Slog.i(TAG, "pruning candidate: lib=" + libInfo.getName()
+                        + " version=" + libInfo.getVersion()
+                        + " pkg=" + ps.getPkg().getPackageName());
                 packagesToDelete.add(new VersionedPackage(ps.getPkg().getPackageName(),
                         libInfo.getDeclaringPackage().getLongVersionCode()));
             }
@@ -376,11 +382,13 @@ public final class SharedLibrariesImpl implements SharedLibrariesRead, Watchable
         final int packageCount = packagesToDelete.size();
         for (int i = 0; i < packageCount; i++) {
             final VersionedPackage pkgToDelete = packagesToDelete.get(i);
+            Slog.i(TAG, "attempting to delete: " + pkgToDelete.getPackageName());
             // Delete the package synchronously (will fail of the lib used for any user).
             if (mDeletePackageHelper.deletePackageX(pkgToDelete.getPackageName(),
                     pkgToDelete.getLongVersionCode(), UserHandle.USER_SYSTEM,
                     PackageManager.DELETE_ALL_USERS,
-                    true /*removedBySystem*/) == PackageManager.DELETE_SUCCEEDED) {
+                    true /*removedBySystem*/,
+                    Process.SYSTEM_UID) == PackageManager.DELETE_SUCCEEDED) {
                 if (volume.getUsableSpace() >= neededSpace) {
                     return true;
                 }
@@ -390,59 +398,44 @@ public final class SharedLibrariesImpl implements SharedLibrariesRead, Watchable
         return false;
     }
 
-    @Nullable SharedLibraryInfo getLatestStaticSharedLibraVersion(@NonNull AndroidPackage pkg) {
-        synchronized (mPm.mLock) {
-            return getLatestStaticSharedLibraVersionLPr(pkg);
-        }
-    }
-    /**
-     * Given a package of static shared library, returns its shared library info of
-     * the latest version.
-     *
-     * @param pkg A package of static shared library.
-     * @return The latest version of shared library info.
-     */
-    @GuardedBy("mPm.mLock")
-    @Nullable
-    private SharedLibraryInfo getLatestStaticSharedLibraVersionLPr(@NonNull AndroidPackage pkg) {
-        WatchedLongSparseArray<SharedLibraryInfo> versionedLib = mSharedLibraries.get(
-                pkg.getStaticSharedLibraryName());
-        if (versionedLib == null) {
-            return null;
-        }
-        long previousLibVersion = -1;
-        final int versionCount = versionedLib.size();
-        for (int i = 0; i < versionCount; i++) {
-            final long libVersion = versionedLib.keyAt(i);
-            if (libVersion < pkg.getStaticSharedLibraryVersion()) {
-                previousLibVersion = Math.max(previousLibVersion, libVersion);
-            }
-        }
-        if (previousLibVersion >= 0) {
-            return versionedLib.get(previousLibVersion);
-        }
-        return null;
-    }
-
-    /**
-     * Given a package scanned result of a static shared library, returns its package setting of
-     * the latest version
-     *
-     * @param installRequest The install result of a static shared library package.
-     * @return The package setting that represents the latest version of shared library info.
-     */
     @Nullable
     PackageSetting getStaticSharedLibLatestVersionSetting(@NonNull InstallRequest installRequest) {
-        if (installRequest.getParsedPackage() == null) {
+        final ParsedPackage parsedPackage = installRequest.getParsedPackage();
+        if (parsedPackage == null || !parsedPackage.isStaticSharedLibrary()) {
             return null;
         }
         PackageSetting sharedLibPackage = null;
         synchronized (mPm.mLock) {
-            final SharedLibraryInfo latestSharedLibraVersionLPr =
-                    getLatestStaticSharedLibraVersionLPr(installRequest.getParsedPackage());
-            if (latestSharedLibraVersionLPr != null) {
-                sharedLibPackage = mPm.mSettings.getPackageLPr(
-                        latestSharedLibraVersionLPr.getPackageName());
+            WatchedLongSparseArray<SharedLibraryInfo> versionedLib = mSharedLibraries.get(
+                    parsedPackage.getStaticSharedLibraryName());
+            if (versionedLib != null) {
+                long previousLibVersion = -1;
+                final int versionCount = versionedLib.size();
+                for (int i = 0; i < versionCount; i++) {
+                    final long libVersion = versionedLib.keyAt(i);
+                    if (libVersion < parsedPackage.getStaticSharedLibraryVersion()) {
+                        previousLibVersion = Math.max(previousLibVersion, libVersion);
+                    }
+                }
+                if (previousLibVersion >= 0) {
+                    final SharedLibraryInfo latestVersionedSharedLibrary =
+                            versionedLib.get(previousLibVersion);
+                    sharedLibPackage = mPm.mSettings.getPackageLPr(
+                            latestVersionedSharedLibrary.getPackageName());
+                }
+            }
+
+            if (sharedLibPackage == null) {
+                // Fallback: if we are installing a version older than all currently installed
+                // versions, the search for a lower version above will return null. We fall
+                // back to any existing version to ensure signature consistency across
+                // all versions sharing the same package name.
+                final WatchedLongSparseArray<SharedLibraryInfo> staticLibInfos =
+                        getStaticLibraryInfos(parsedPackage.getPackageName());
+                if (staticLibInfos != null && staticLibInfos.size() > 0) {
+                    sharedLibPackage = mPm.mSettings.getPackageLPr(
+                            staticLibInfos.valueAt(0).getPackageName());
+                }
             }
         }
         return sharedLibPackage;
@@ -734,7 +727,7 @@ public final class SharedLibrariesImpl implements SharedLibrariesRead, Watchable
                         try (var installLock = mPm.mInstallLock.acquireLock()) {
                             mDeletePackageHelper.deletePackageLIF(pkg.getPackageName(), null, true,
                                     mPm.mUserManager.getUserIds(), flags, new PackageRemovedInfo(),
-                                    true);
+                                    true, Process.SYSTEM_UID);
                         }
                     }
                     Slog.e(TAG, "updateAllSharedLibrariesLPw failed: " + e.getMessage());
@@ -776,11 +769,21 @@ public final class SharedLibrariesImpl implements SharedLibrariesRead, Watchable
             versionedLib = new WatchedLongSparseArray<>();
             mSharedLibraries.put(name, versionedLib);
         }
-        final String declaringPackageName = libraryInfo.getDeclaringPackage().getPackageName();
-        if (libraryInfo.getType() == SharedLibraryInfo.TYPE_STATIC) {
-            mStaticLibsByDeclaringPackage.put(declaringPackageName, versionedLib);
-        }
         versionedLib.put(libraryInfo.getLongVersion(), libraryInfo);
+
+        if (libraryInfo.getType() == SharedLibraryInfo.TYPE_STATIC) {
+            final String declaringPackageName = libraryInfo.getDeclaringPackage().getPackageName();
+            // We maintain a separate container for the declaring package name to allow multiple
+            // static libraries (or different versions) to share the same package name without
+            // overwriting each other in the index.
+            WatchedLongSparseArray<SharedLibraryInfo> staticLibInfos =
+                    mStaticLibsByDeclaringPackage.get(declaringPackageName);
+            if (staticLibInfos == null) {
+                staticLibInfos = new WatchedLongSparseArray<>();
+                mStaticLibsByDeclaringPackage.put(declaringPackageName, staticLibInfos);
+            }
+            staticLibInfos.put(libraryInfo.getLongVersion(), libraryInfo);
+        }
     }
 
     /**
@@ -820,9 +823,20 @@ public final class SharedLibrariesImpl implements SharedLibrariesRead, Watchable
             versionedLib.remove(version);
             if (versionedLib.size() <= 0) {
                 mSharedLibraries.remove(libName);
-                if (libraryInfo.getType() == SharedLibraryInfo.TYPE_STATIC) {
-                    mStaticLibsByDeclaringPackage.remove(libraryInfo.getDeclaringPackage()
-                            .getPackageName());
+            }
+
+            if (libraryInfo.getType() == SharedLibraryInfo.TYPE_STATIC) {
+                final String declaringPackageName = libraryInfo.getDeclaringPackage()
+                        .getPackageName();
+                WatchedLongSparseArray<SharedLibraryInfo> staticLibInfos =
+                        mStaticLibsByDeclaringPackage.get(declaringPackageName);
+                if (staticLibInfos != null) {
+                    staticLibInfos.remove(version);
+                    // Only remove the package name from the index if no more static library
+                    // versions remain for this package.
+                    if (staticLibInfos.size() <= 0) {
+                        mStaticLibsByDeclaringPackage.remove(declaringPackageName);
+                    }
                 }
             }
             return true;

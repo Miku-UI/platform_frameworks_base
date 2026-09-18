@@ -16,33 +16,17 @@
 
 package com.android.systemui.screencapture.record.data.repository
 
-import android.view.Display
-import com.android.systemui.screencapture.common.ScreenCaptureUiScope
-import com.android.systemui.screencapture.common.shared.model.ScreenCaptureTarget
-import com.android.systemui.screencapture.record.shared.model.ScreenCaptureRecordParametersModel
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.android.systemui.screencapture.common.ScreenCaptureScope
 import com.android.systemui.screenrecord.ScreenRecordingAudioSource
 import javax.inject.Inject
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 
-@ScreenCaptureUiScope
+@ScreenCaptureScope
 class ScreenCaptureRecordParametersRepository @Inject constructor() {
 
-    private val _parameters =
-        MutableStateFlow(
-            ScreenCaptureRecordParametersModel(
-                target = ScreenCaptureTarget.Fullscreen(Display.DEFAULT_DISPLAY),
-                audioSource = ScreenRecordingAudioSource.NONE,
-                shouldShowTaps = false,
-                shouldShowFrontCamera = false,
-            )
-        )
-    val parameters = _parameters.asStateFlow()
-
-    fun updateParameters(
-        update: (ScreenCaptureRecordParametersModel) -> ScreenCaptureRecordParametersModel
-    ) {
-        _parameters.update(update)
-    }
+    var audioSource: ScreenRecordingAudioSource by mutableStateOf(ScreenRecordingAudioSource.NONE)
+    var shouldShowTaps: Boolean by mutableStateOf(false)
+    var shouldShowFrontCamera: Boolean by mutableStateOf(false)
 }

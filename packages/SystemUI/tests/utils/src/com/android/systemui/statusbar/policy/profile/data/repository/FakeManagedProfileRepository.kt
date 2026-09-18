@@ -23,17 +23,4 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class FakeManagedProfileRepository : ManagedProfileRepository {
 
     override val currentProfileInfo = MutableStateFlow<ProfileInfo?>(null)
-
-    /** Creates a test profile info with default values. */
-    fun createTestProfileInfo(
-        userId: Int = 10,
-        iconResId: Int = 12345,
-        accessibilityString: String = "Work profile",
-    ): ProfileInfo {
-        return ProfileInfo(
-            userId = userId,
-            iconResId = iconResId,
-            contentDescription = accessibilityString,
-        )
-    }
 }

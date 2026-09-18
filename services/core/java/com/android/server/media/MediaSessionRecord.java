@@ -22,8 +22,6 @@ import static android.media.VolumeProvider.VOLUME_CONTROL_RELATIVE;
 import static android.media.session.MediaController.PlaybackInfo.PLAYBACK_TYPE_LOCAL;
 import static android.media.session.MediaController.PlaybackInfo.PLAYBACK_TYPE_REMOTE;
 
-import static com.android.media.mediasession.flags.Flags.removeWiuAllowlistingFromMediacontrollerSendcommand;
-
 import android.Manifest;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -179,6 +177,7 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
     private final int mOwnerUid;
     private final int mUserId;
     private final String mPackageName;
+    @Nullable private final String mOverridePackageName;
     private final String mTag;
     private final Bundle mSessionInfo;
     private final ControllerStub mController;
@@ -287,6 +286,7 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
             int ownerUid,
             int userId,
             String ownerPackageName,
+            String overridePackageName,
             ISessionCallback cb,
             String tag,
             Bundle sessionInfo,
@@ -298,9 +298,15 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
         mOwnerUid = ownerUid;
         mUserId = userId;
         mPackageName = ownerPackageName;
+        mOverridePackageName = overridePackageName;
         mTag = tag;
         mSessionInfo = sessionInfo;
-        mController = new ControllerStub(this, ownerPackageName);
+        mController =
+                new ControllerStub(
+                        this,
+                        TextUtils.isEmpty(mOverridePackageName)
+                                ? mPackageName
+                                : mOverridePackageName);
         mSessionToken = new MediaSession.Token(ownerUid, mController);
         mSession = new SessionStub(this);
         mSessionCb = new SessionCb(cb);
@@ -342,6 +348,11 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
     @Override
     public String getPackageName() {
         return mPackageName;
+    }
+
+    @Override
+    public String getOwnerPackageName() {
+        return mOverridePackageName == null ? mPackageName : mOverridePackageName;
     }
 
     /**
@@ -696,6 +707,9 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
         pw.println(indent + "ownerPid=" + mOwnerPid + ", ownerUid=" + mOwnerUid
                 + ", userId=" + mUserId);
         pw.println(indent + "package=" + mPackageName);
+        if (!TextUtils.isEmpty(mOverridePackageName)) {
+            pw.println(indent + "overridePackageName=" + mOverridePackageName);
+        }
         pw.println(indent + "launchIntent=" + mLaunchIntent);
         pw.println(indent + "mediaButtonReceiver=" + mMediaButtonReceiverHolder);
         pw.println(indent + "active=" + mIsActive);
@@ -1361,35 +1375,37 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
         final int uid = Binder.getCallingUid();
         final long token = Binder.clearCallingIdentity();
         try {
-            // mPackageName has been verified in MediaSessionService.enforcePackageName().
-            if (receiver != null && !TextUtils.equals(mPackageName, receiver.getPackageName())) {
-                EventLog.writeEvent(0x534e4554, "238177121", -1, ""); // SafetyNet logging.
-                throw new IllegalArgumentException(
-                        "receiver does not belong to "
-                                + "package name provided to MediaSessionRecord. Pkg = "
-                                + mPackageName
-                                + ", Receiver Pkg = "
-                                + receiver.getPackageName());
-            }
             if ((mPolicies & MediaSessionPolicyProvider.SESSION_POLICY_IGNORE_BUTTON_RECEIVER)
                     != 0) {
                 return;
             }
-
-            if (!componentNameExists(receiver, mContext, mUserId)) {
-                if (CompatChanges.isChangeEnabled(THROW_FOR_INVALID_BROADCAST_RECEIVER, uid)) {
-                    throw new IllegalArgumentException("Invalid component name: " + receiver);
-                } else {
-                    Slog.w(
-                            TAG,
-                            "setMediaButtonBroadcastReceiver(): "
-                                    + "Ignoring invalid component name="
-                                    + receiver);
+            if (receiver != null) {
+                // mPackageName has been verified in MediaSessionService.enforcePackageName().
+                if (!TextUtils.equals(mPackageName, receiver.getPackageName())) {
+                    EventLog.writeEvent(0x534e4554, "238177121", -1, ""); // SafetyNet logging.
+                    throw new IllegalArgumentException(
+                            "receiver does not belong to "
+                                    + "package name provided to MediaSessionRecord. Pkg = "
+                                    + mPackageName
+                                    + ", Receiver Pkg = "
+                                    + receiver.getPackageName());
                 }
-                return;
+                if (!componentNameExists(receiver, mContext, mUserId)) {
+                    if (CompatChanges.isChangeEnabled(THROW_FOR_INVALID_BROADCAST_RECEIVER, uid)) {
+                        throw new IllegalArgumentException("Invalid component name: " + receiver);
+                    } else {
+                        Slog.w(
+                                TAG,
+                                "setMediaButtonBroadcastReceiver(): "
+                                        + "Ignoring invalid component name="
+                                        + receiver);
+                    }
+                    return;
+                }
+                mMediaButtonReceiverHolder = MediaButtonReceiverHolder.create(mUserId, receiver);
+            } else {
+                mMediaButtonReceiverHolder = null;
             }
-
-            mMediaButtonReceiverHolder = MediaButtonReceiverHolder.create(mUserId, receiver);
             mService.onMediaButtonReceiverChanged(MediaSessionRecord.this);
         } finally {
             Binder.restoreCallingIdentity(token);
@@ -1876,11 +1892,8 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
         public void sendCommand(String packageName, int pid, int uid, String command, Bundle args,
                 ResultReceiver cb) {
             try {
-                if (!removeWiuAllowlistingFromMediacontrollerSendcommand()) {
-                    final String reason = TAG + ":" + command;
-                    mService.tempAllowlistTargetPkgIfPossible(
-                            getUid(), getPackageName(), pid, uid, packageName, reason);
-                }
+                // Intentionally not calling tempAllowlistTargetPkgIfPossible() here, as sendCommand
+                // is not a user-initiated action.
                 mCb.onCommand(packageName, pid, uid, command, args, cb);
             } catch (RemoteException e) {
                 Slog.e(TAG, "Remote failure in sendCommand.", e);
@@ -2200,9 +2213,8 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
             MediaSessionRecord record = mRecord.get();
             if (record == null) {
                 Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
-                return mPackageName;
             }
-            return record.getPackageName();
+            return mPackageName;
         }
 
         @Override

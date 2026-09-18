@@ -18,6 +18,7 @@ package com.android.systemui.scene.domain.interactor
 
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
+import com.android.systemui.keyguard.domain.interactor.KeyguardEnabledInteractor
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.statusbar.policy.domain.interactor.DeviceProvisioningInteractor
 import javax.inject.Inject
@@ -29,17 +30,18 @@ constructor(
     val deviceEntryInteractor: DeviceEntryInteractor,
     val deviceProvisioningInteractor: DeviceProvisioningInteractor,
     val sceneInteractor: SceneInteractor,
+    val keyguardEnabledInteractor: KeyguardEnabledInteractor,
 ) {
 
     /** Whether the lockscreen should be showing when the device starts up for the first time. */
-    suspend fun showLockscreenOnBoot(): Boolean {
-        return (deviceProvisioningInteractor.isDeviceProvisioned() ||
-            deviceEntryInteractor.isAuthenticationRequired()) &&
-            deviceEntryInteractor.isLockscreenEnabled()
+    fun showLockscreenOnBoot(): Boolean {
+        return keyguardEnabledInteractor.isKeyguardEnabled.value &&
+            (deviceProvisioningInteractor.isDeviceProvisioned() ||
+                deviceEntryInteractor.isAuthenticationRequired())
     }
 
     /** Instantly snap to [Scenes.Gone] if the lockscreen should not be shown. */
-    suspend fun maybeChangeInitialScene() {
+    fun maybeChangeInitialScene() {
         if (!showLockscreenOnBoot()) {
             sceneInteractor.snapToScene(Scenes.Gone, "No authentication on boot")
         }

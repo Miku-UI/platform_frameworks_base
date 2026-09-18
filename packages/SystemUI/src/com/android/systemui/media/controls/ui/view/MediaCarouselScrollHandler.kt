@@ -38,6 +38,7 @@ import com.android.systemui.res.R
 import com.android.systemui.util.animation.TransitionLayout
 import com.android.systemui.util.concurrency.DelayableExecutor
 import com.android.wm.shell.shared.animation.PhysicsAnimator
+import kotlin.math.abs
 import kotlin.math.sign
 
 private const val FLING_SLOP = 1000000
@@ -180,7 +181,9 @@ class MediaCarouselScrollHandler(
                     return
                 }
 
-                val relativeScrollX = scrollView.relativeScrollX
+                // Absolute value so we get the correct index - this can occasionally be flipped
+                // when adding new players in RTL mode
+                val relativeScrollX = abs(scrollView.relativeScrollX)
                 onMediaScrollingChanged(
                     relativeScrollX / playerWidthPlusPadding,
                     relativeScrollX % playerWidthPlusPadding,

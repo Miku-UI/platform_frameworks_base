@@ -30,10 +30,13 @@ soong_config_module_type {
     bool_variables: [
         "car_bootclasspath_fragment",
         "nfc_apex_bootclasspath_fragment",
-        "release_crashrecovery_module",
+        "release_npumanager_module",
         "release_ondevice_intelligence_module",
         "release_package_profiling_module",
         "release_telephony_module",
+        "release_uprobestats_bridge_service",
+        "release_webapp_module",
+        "release_bettertogether_module",
     ],
     properties: [
         "fragments",
@@ -87,6 +90,10 @@ custom_platform_bootclasspath {
         {
             apex: "com.android.conscrypt",
             module: "com.android.conscrypt-bootclasspath-fragment",
+        },
+        {
+            apex: "com.android.crashrecovery",
+            module: "com.android.crashrecovery-bootclasspath-fragment",
         },
         {
             apex: "com.android.devicelock",
@@ -169,12 +176,11 @@ custom_platform_bootclasspath {
                 },
             ],
         },
-        release_crashrecovery_module: {
+        release_npumanager_module: {
             fragments: [
-                // only used when crashrecovery is enabled
                 {
-                    apex: "com.android.crashrecovery",
-                    module: "com.android.crashrecovery-bootclasspath-fragment",
+                    apex: "com.android.npumanager",
+                    module: "com.android.npumanager-bootclasspath-fragment",
                 },
             ],
         },
@@ -202,6 +208,33 @@ custom_platform_bootclasspath {
                 {
                     apex: "com.android.telephonycore",
                     module: "com.android.telephony-bootclasspath-fragment",
+                },
+            ],
+        },
+        release_uprobestats_bridge_service: {
+            fragments: [
+                // only used if uprobestats is enabled.
+                {
+                    apex: "com.android.uprobestats",
+                    module: "com.android.uprobestats-bootclasspath-fragment",
+                },
+            ],
+        },
+        release_webapp_module: {
+            fragments: [
+                // only used if WebApp module is enabled.
+                {
+                    apex: "com.android.webapp",
+                    module: "com.android.webapp-bootclasspath-fragment",
+                },
+            ],
+        },
+        release_bettertogether_module: {
+            fragments: [
+                // only used if bettertogether module is enabled.
+                {
+                    apex: "com.android.bettertogether",
+                    module: "com.android.bettertogether-bootclasspath-fragment",
                 },
             ],
         },

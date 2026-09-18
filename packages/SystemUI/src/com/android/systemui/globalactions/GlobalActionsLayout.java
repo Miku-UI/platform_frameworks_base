@@ -16,7 +16,11 @@
 
 package com.android.systemui.globalactions;
 
+import static com.android.systemui.shared.system.BlurUtils.isVolumeAndPowerBlurEnabled;
+
 import android.content.Context;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.View;
@@ -34,18 +38,33 @@ import java.util.Locale;
  * Grid-based implementation of the button layout created by the global actions dialog.
  */
 public abstract class GlobalActionsLayout extends MultiListLayout {
-
     boolean mBackgroundsSet;
+
+    private Boolean mIsBlurSupported = null;
+    private final boolean mTranslucentPowerMenu;
 
     public GlobalActionsLayout(Context context, AttributeSet attrs) {
         super(context, attrs);
+        mTranslucentPowerMenu =
+                context.getResources().getBoolean(R.bool.config_translucentStandalonePowerMenu);
+    }
+
+    public void setIsBlurSupported(boolean isBlurSupported) {
+        if (mIsBlurSupported != null && isBlurSupported == mIsBlurSupported) {
+            return;
+        }
+
+        mIsBlurSupported = isBlurSupported;
+        updateIsBlurSupported();
     }
 
     private void setBackgrounds() {
         ViewGroup listView = getListView();
+
         int listBgColor = getResources().getColor(
                 R.color.global_actions_grid_background, null);
-        HardwareBgDrawable listBackground = getBackgroundDrawable(listBgColor);
+        Drawable listBackground = getBackgroundDrawable(listBgColor);
+
         if (listBackground != null) {
             listView.setBackground(listBackground);
         }
@@ -59,6 +78,24 @@ public abstract class GlobalActionsLayout extends MultiListLayout {
             if (separatedBackground != null) {
                 getSeparatedView().setBackground(separatedBackground);
             }
+        }
+    }
+
+    private void updateIsBlurSupported() {
+        if (isVolumeAndPowerBlurEnabled() && mBackgroundsSet && mIsBlurSupported != null) {
+            updateBackground(mContext.getColor(
+                    mIsBlurSupported && mTranslucentPowerMenu
+                            ? R.color.global_actions_grid_background_blur
+                            : R.color.global_actions_grid_background_blur_fallback));
+        }
+    }
+
+    private void updateBackground(int color) {
+        Drawable drawable = getListView().getBackground();
+        if (drawable instanceof GradientDrawable gradientDrawable) {
+            gradientDrawable.setColor(color);
+        } else {
+            drawable.setTint(color);
         }
     }
 
@@ -76,6 +113,7 @@ public abstract class GlobalActionsLayout extends MultiListLayout {
         if (getListView() != null && !mBackgroundsSet) {
             setBackgrounds();
             mBackgroundsSet = true;
+            updateIsBlurSupported();
         }
     }
 

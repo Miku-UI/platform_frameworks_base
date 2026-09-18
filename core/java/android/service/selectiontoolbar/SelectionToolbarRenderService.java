@@ -52,18 +52,15 @@ public abstract class SelectionToolbarRenderService extends Service {
     public static final String SERVICE_INTERFACE =
             "android.service.selectiontoolbar.SelectionToolbarRenderService";
 
-    private final Object mLock = new Object();
     private volatile ISelectionToolbarRenderServiceCallback mServiceCallback;
 
     private final HandlerThread mThread =
             new HandlerThread(SelectionToolbarRenderService.class.getSimpleName());
+    private final Executor mThreadExecutor;
 
     public SelectionToolbarRenderService() {
         mThread.start();
-    }
-
-    protected final Executor getToolbarUiExecutor() {
-        return mThread.getThreadExecutor();
+        mThreadExecutor = mThread.getThreadExecutor();
     }
 
     /**
@@ -88,15 +85,15 @@ public abstract class SelectionToolbarRenderService extends Service {
                 @Override
                 public void onShow(int uid, ShowInfo showInfo,
                         ISelectionToolbarCallback callback) {
-                    synchronized (mLock) {
+                    mThreadExecutor.execute(() -> {
                         RemoteCallbackWrapper remoteCallbackWrapper = mCache.get(uid);
                         if (remoteCallbackWrapper == null) {
                             try {
                                 DeathRecipient deathRecipient = () -> {
-                                    synchronized (mLock) {
+                                    mThreadExecutor.execute(() -> {
                                         mCache.remove(uid);
-                                    }
-                                    onUidDied(uid);
+                                        onUidDied(uid);
+                                    });
                                 };
                                 callback.asBinder().linkToDeath(deathRecipient, 0);
                                 remoteCallbackWrapper = new RemoteCallbackWrapper(callback,
@@ -109,33 +106,30 @@ public abstract class SelectionToolbarRenderService extends Service {
                         }
                         SelectionToolbarRenderService.this.onShow(uid, showInfo,
                                 remoteCallbackWrapper);
-                    }
+                    });
                 }
 
                 @Override
                 public void onHide(int uid) {
-                    synchronized (mLock) {
-                        SelectionToolbarRenderService.this.onHide(uid);
-                    }
+                    mThreadExecutor.execute(() -> SelectionToolbarRenderService.this.onHide(uid));
                 }
 
                 @Override
                 public void onDismiss(int uid) {
-                    synchronized (mLock) {
+                    mThreadExecutor.execute(() -> {
                         SelectionToolbarRenderService.this.onDismiss(uid);
                         RemoteCallbackWrapper remoteCallbackWrapper =
                                 mCache.removeReturnOld(uid);
                         if (remoteCallbackWrapper != null) {
                             remoteCallbackWrapper.unlinkToDeath();
                         }
-                    }
+                    });
                 }
 
                 @Override
                 public void onUidDied(int uid) {
-                    synchronized (mLock) {
-                        SelectionToolbarRenderService.this.onUidDied(uid);
-                    }
+                    mThreadExecutor.execute(
+                            () -> SelectionToolbarRenderService.this.onUidDied(uid));
                 }
             };
 
@@ -178,26 +172,22 @@ public abstract class SelectionToolbarRenderService extends Service {
     /**
      * Called when showing the selection toolbar.
      */
-    @GuardedBy("mLock")
     public abstract void onShow(int uid, ShowInfo showInfo,
             RemoteCallbackWrapper callbackWrapper);
 
     /**
      * Called when hiding the selection toolbar.
      */
-    @GuardedBy("mLock")
     public abstract void onHide(int uid);
 
     /**
      * Called when dismissing the selection toolbar.
      */
-    @GuardedBy("mLock")
     public abstract void onDismiss(int uid);
 
     /**
      * Called when the client process dies.
      */
-    @GuardedBy("mLock")
     public abstract void onUidDied(int uid);
 
     /**
@@ -230,6 +220,15 @@ public abstract class SelectionToolbarRenderService extends Service {
         }
 
         @Override
+        public void onInvisible() {
+            try {
+                mRemoteCallback.onInvisible();
+            } catch (RemoteException e) {
+                // no-op
+            }
+        }
+
+        @Override
         public void onWidgetUpdated(WidgetInfo widgetInfo) {
             try {
                 mRemoteCallback.onWidgetUpdated(widgetInfo);
@@ -242,15 +241,6 @@ public abstract class SelectionToolbarRenderService extends Service {
         public void onMenuItemClicked(int itemIndex) {
             try {
                 mRemoteCallback.onMenuItemClicked(itemIndex);
-            } catch (RemoteException e) {
-                // no-op
-            }
-        }
-
-        @Override
-        public void onError(int errorCode, int sequenceNumber) {
-            try {
-                mRemoteCallback.onError(errorCode, sequenceNumber);
             } catch (RemoteException e) {
                 // no-op
             }

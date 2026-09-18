@@ -20,8 +20,8 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.util.kotlin.pairwise
-import kotlinx.coroutines.flow.filter
 import javax.inject.Inject
+import kotlinx.coroutines.flow.filter
 
 /**
  * Manages notification-related logic that needs to persist across scene changes within the scene
@@ -36,12 +36,12 @@ constructor(
 ) : ExclusiveActivatable() {
 
     override suspend fun onActivated() {
-        // Unpin all HUNs only when the shade transitions from closed to open.
-        shadeInteractor.isAnyExpanded
+        // Unpin all HUNs only when the shade becomes fully expanded.
+        shadeInteractor.shadeExpansion
             .pairwise()
-            .filter { (wasExpanded, isExpanded) -> !wasExpanded && isExpanded }
+            .filter { (prev, current) -> prev < 1f && current == 1f }
             .collect {
-                headsUpNotificationInteractor.unpinAll(true)
+                headsUpNotificationInteractor.unpinAll(true, "NotifContainerInteractor.shadeExpansion")
             }
     }
 }

@@ -18,11 +18,14 @@ package com.android.systemui
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.ravenwood.SysUiRavenwoodPresubmit
+import com.android.systemui.res.R
 import com.google.common.truth.Truth
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @SmallTest
+@SysUiRavenwoodPresubmit(neverDisable = true)
 @RunWith(AndroidJUnit4::class)
 class SysuiTestCaseSelfTest : SysuiTestCase() {
     private val contextBeforeSetup = context
@@ -31,5 +34,12 @@ class SysuiTestCaseSelfTest : SysuiTestCase() {
     @Test
     fun captureCorrectContextBeforeSetupRuns() {
         Truth.assertThat(contextBeforeSetup).isEqualTo(context)
+    }
+
+    /** Make sure the resources are accessible. */
+    @Test
+    fun resourcesReadable() {
+        Truth.assertThat(context.getString(R.string.app_label)).isNotEmpty()
+        Truth.assertThat(context.getDrawable(R.drawable.android16_patch_adaptive)).isNotNull()
     }
 }

@@ -22,5 +22,11 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface IFavoriteNetworkListener {
+    /**
+     * Notify listeners when two or more favorite networks are detected.
+     *
+     * @param detectFavoriteNetworks, bundle should at least contain keys defined in
+     *        @ScanConstants.FavoriteNetworkDetectBundleKey.
+     */
     void onDetectFavoriteNetwork(in Bundle detectFavoriteNetworks);
 }

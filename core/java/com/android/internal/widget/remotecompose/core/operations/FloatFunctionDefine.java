@@ -20,6 +20,7 @@ import static com.android.internal.widget.remotecompose.core.documentation.Docum
 
 import android.annotation.NonNull;
 
+import com.android.internal.widget.remotecompose.core.Limits;
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
 import com.android.internal.widget.remotecompose.core.RemoteContext;
@@ -40,15 +41,15 @@ import java.util.List;
 public class FloatFunctionDefine extends Operation implements VariableSupport, Container {
     private static final int OP_CODE = Operations.FUNCTION_DEFINE;
     private static final String CLASS_NAME = "FunctionDefine";
-    private static final int MAX_ARGUMENTS = 32;
     private final int mId;
     private final @NonNull int [] mFloatVarId;
-    @NonNull private ArrayList<Operation> mList = new ArrayList<>();
+    @NonNull
+    private ArrayList<Operation> mList = new ArrayList<>();
 
     @NonNull AnimatedFloatExpression mExp = new AnimatedFloatExpression();
 
     /**
-     * @param id The id of the function
+     * @param id         The id of the function
      * @param floatVarId the ids of the variables
      */
     public FloatFunctionDefine(int id, @NonNull int [] floatVarId) {
@@ -63,7 +64,8 @@ public class FloatFunctionDefine extends Operation implements VariableSupport, C
     }
 
     @Override
-    public void updateVariables(@NonNull RemoteContext context) {}
+    public void updateVariables(@NonNull RemoteContext context) {
+    }
 
     @Override
     public void registerListening(@NonNull RemoteContext context) {
@@ -93,8 +95,8 @@ public class FloatFunctionDefine extends Operation implements VariableSupport, C
      * Write the operation on the buffer
      *
      * @param buffer the buffer to write to
-     * @param id the id of the function
-     * @param varId the ids of the variables
+     * @param id     the id of the function
+     * @param varId  the ids of the variables
      */
     public static void apply(@NonNull WireBuffer buffer, int id, @NonNull int [] varId) {
         buffer.start(OP_CODE);
@@ -108,13 +110,13 @@ public class FloatFunctionDefine extends Operation implements VariableSupport, C
     /**
      * Read this operation and add it to the list of operations
      *
-     * @param buffer the buffer to read
+     * @param buffer     the buffer to read
      * @param operations the list of operations that will be added to
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
         int id = buffer.readInt();
         int varLen = buffer.readInt();
-        if (varLen > MAX_ARGUMENTS) {
+        if (varLen > Limits.MAX_FUNCTION_ARGUMENTS) {
             throw new IllegalArgumentException("Too many arguments");
         }
         int[] varId = new int[varLen];
@@ -152,7 +154,8 @@ public class FloatFunctionDefine extends Operation implements VariableSupport, C
     }
 
     @Override
-    public void apply(@NonNull RemoteContext context) {}
+    public void apply(@NonNull RemoteContext context) {
+    }
 
     /**
      * Execute the function by applying the list of operations

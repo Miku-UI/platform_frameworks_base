@@ -79,7 +79,7 @@ interface IPermissionManager {
     boolean isPermissionRevokedByPolicy(String packageName, String permissionName, int deviceId,
             int userId);
 
-    List<SplitPermissionInfoParcelable> getSplitPermissions();
+    List<SplitPermissionInfoParcelable> getSplitPermissions(boolean includeDisabled);
 
     @EnforcePermission("MANAGE_ONE_TIME_PERMISSION_SESSIONS")
     void startOneTimePermissionSession(String packageName, int deviceId, int userId, long timeout,

@@ -40,7 +40,7 @@ class AccessibilityActivityTarget extends AccessibilityTarget {
                 isShortcutContained(context, shortcutType,
                         shortcutInfo.getComponentName().flattenToString()),
                 shortcutInfo.getComponentName().flattenToString(),
-                shortcutInfo.getActivityInfo().applicationInfo.uid,
+                shortcutInfo.getActivityInfo().getUid(),
                 shortcutInfo.getActivityInfo().loadLabel(context.getPackageManager()),
                 shortcutInfo.getActivityInfo().loadIcon(context.getPackageManager()),
                 convertToKey(shortcutType));
@@ -51,8 +51,7 @@ class AccessibilityActivityTarget extends AccessibilityTarget {
             @ShortcutMenuMode int shortcutMenuMode) {
         super.updateActionItem(holder, shortcutMenuMode);
 
-        final boolean isAllowed = AccessibilityTargetHelper.isAccessibilityTargetAllowed(
-                getContext(), getComponentName().getPackageName(), getUid());
+        final boolean isAllowed = true;
         final boolean isEditMenuMode =
                 shortcutMenuMode == ShortcutMenuMode.EDIT;
         final boolean enabled = isAllowed || (isEditMenuMode && isShortcutEnabled());

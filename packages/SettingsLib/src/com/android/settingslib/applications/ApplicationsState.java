@@ -307,8 +307,7 @@ public class ApplicationsState {
                 @SuppressWarnings("unchecked")
                 ParceledListSlice<ApplicationInfo> list =
                         mIpm.getInstalledApplications(
-                                user.isAdmin() ? mAdminRetrieveFlags : mRetrieveFlags,
-                                user.id);
+                                getFlagsForApplicationInfo(user.id), user.id);
                 mApplications.addAll(list.getList());
             } catch (Exception e) {
                 Log.e(TAG, "Error during doResumeIfNeededLocked", e);
@@ -641,9 +640,8 @@ public class ApplicationsState {
                     if (DEBUG_LOCKING) Log.v(TAG, "addPackage release lock: already exists");
                     return;
                 }
-                ApplicationInfo info = mIpm.getApplicationInfo(pkgName,
-                        mUm.isUserAdmin(userId) ? mAdminRetrieveFlags : mRetrieveFlags,
-                        userId);
+                ApplicationInfo info = mIpm.getApplicationInfo(
+                        pkgName, getFlagsForApplicationInfo(userId), userId);
                 if (info == null) {
                     return;
                 }
@@ -809,6 +807,14 @@ public class ApplicationsState {
             return Formatter.formatFileSize(mContext, size);
         }
         return null;
+    }
+
+    private int getFlagsForApplicationInfo(int userId) {
+        if (android.multiuser.Flags.dontShowOtherUsersAppsToAdmin()) {
+            return mRetrieveFlags;
+        } else {
+            return mUm.isUserAdmin(userId) ? mAdminRetrieveFlags : mRetrieveFlags;
+        }
     }
 
     private static boolean isAppIconCacheEnabled(Context context) {
@@ -1004,15 +1010,13 @@ public class ApplicationsState {
                 Log.i(TAG, "Rebuilding...");
             }
             for (AppEntry entry : apps) {
-                if (android.multiuser.Flags.enablePrivateSpaceFeatures()) {
-                    UserHandle userHandle = UserHandle.of(UserHandle.getUserId(entry.info.uid));
-                    if (!profileHideInQuietModeStatus.containsKey(userHandle)) {
-                        profileHideInQuietModeStatus.put(
-                                userHandle, isHideInQuietEnabledForProfile(mUm, userHandle));
-                    }
-                    filter.refreshAppEntryOnRebuild(
-                            entry, profileHideInQuietModeStatus.get(userHandle));
+                UserHandle userHandle = UserHandle.of(UserHandle.getUserId(entry.info.uid));
+                if (!profileHideInQuietModeStatus.containsKey(userHandle)) {
+                    profileHideInQuietModeStatus.put(
+                            userHandle, isHideInQuietEnabledForProfile(mUm, userHandle));
                 }
+                filter.refreshAppEntryOnRebuild(
+                        entry, profileHideInQuietModeStatus.get(userHandle));
                 if (entry != null && (filter == null || filter.filterApp(entry))) {
                     synchronized (mEntriesMap) {
                         if (DEBUG_LOCKING) {
@@ -1726,9 +1730,7 @@ public class ApplicationsState {
         }
 
         public boolean isPrivateProfile() {
-            return android.os.Flags.allowPrivateProfile()
-                    && android.multiuser.Flags.enablePrivateSpaceFeatures()
-                    && UserManager.USER_TYPE_PROFILE_PRIVATE.equals(mProfileType);
+            return UserManager.USER_TYPE_PROFILE_PRIVATE.equals(mProfileType);
         }
 
         /**
@@ -1830,11 +1832,8 @@ public class ApplicationsState {
          * quiet mode is enabled, false otherwise.
          */
         private boolean shouldHideInQuietMode(@NonNull UserManager userManager, int uid) {
-            if (android.multiuser.Flags.enablePrivateSpaceFeatures()) {
-                UserHandle userHandle = UserHandle.of(UserHandle.getUserId(uid));
-                return isHideInQuietEnabledForProfile(userManager, userHandle);
-            }
-            return false;
+            UserHandle userHandle = UserHandle.of(UserHandle.getUserId(uid));
+            return isHideInQuietEnabledForProfile(userManager, userHandle);
         }
     }
 

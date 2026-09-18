@@ -18,10 +18,10 @@
 <resources>
     <style name="SettingsSpinnerTitleBar.Expressive">
         <item name="android:textAppearance">@style/TextAppearance.SettingsLib.LabelLarge</item>
-        <item name="android:textColor">@color/settingslib_materialColorOnSecondaryContainer</item>
+        <item name="android:textColor">@color/settingslib_expressive_color_button_tonal_text_icon</item>
         <item name="android:maxLines">1</item>
         <item name="android:ellipsize">marquee</item>
-        <item name="android:minHeight">@dimen/settingslib_expressive_space_medium3</item>
+        <item name="android:minHeight">@dimen/settingslib_expressive_space_medium4</item>
         <item name="android:paddingHorizontal">@dimen/settingslib_expressive_space_small1</item>
         <item name="android:paddingVertical">@dimen/settingslib_expressive_space_extrasmall5</item>
     </style>
@@ -34,11 +34,11 @@
     </style>
 
     <style name="SettingsSpinnerTitleBar.Expressive.Outlined">
-        <item name="android:textColor">@color/settingslib_materialColorPrimary</item>
+        <item name="android:textColor">@color/settingslib_expressive_color_button_outlined_text_icon</item>
     </style>
 
     <style name="SettingsSpinnerTitleBar.Expressive.Large.Outlined">
-        <item name="android:textColor">@color/settingslib_materialColorPrimary</item>
+        <item name="android:textColor">@color/settingslib_expressive_color_button_outlined_text_icon</item>
     </style>
 
     <style name="SettingsSpinnerDropdown.Expressive">

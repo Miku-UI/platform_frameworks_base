@@ -36,14 +36,14 @@ public class LogDataType {
     /**
      * Creates a bitmask representing a list of data types.
      */
-    public static int logDataTypesToBitMask(List<Integer> types) {
-        if (types.size() > 16) {
+    public static long logDataTypesToBitMask(List<Integer> types) {
+        if (types.size() > 32) {
             throw new BitmaskConversionException("Too many log call parameters "
-                    + "- max 16 parameters supported");
+                    + "- max 32 parameters supported");
         }
-        int mask = 0;
+        long mask = 0L;
         for (int i = 0; i < types.size(); i++) {
-            int x = types.get(i);
+            long x = types.get(i);
             mask = mask | (x << (i * TYPE_WIDTH));
         }
         return mask;
@@ -52,11 +52,11 @@ public class LogDataType {
     /**
      * Decodes a bitmask to a list of LogDataTypes of provided length.
      */
-    public static int bitmaskToLogDataType(int bitmask, int index) {
-        if (index > 16) {
-            throw new BitmaskConversionException("Max 16 parameters allowed");
+    public static int bitmaskToLogDataType(long bitmask, int index) {
+        if (index < 0 || index > 32) {
+            throw new BitmaskConversionException("Index out of bounds. Max 32 parameters allowed");
         }
-        return (bitmask >> (index * TYPE_WIDTH)) & TYPE_MASK;
+        return (int) (bitmask >> (index * TYPE_WIDTH)) & TYPE_MASK;
     }
 
     /**
@@ -74,10 +74,13 @@ public class LogDataType {
                         types.add(LogDataType.BOOLEAN);
                         break;
                     case 'd':
+                    case 'o':
                     case 'x':
                         types.add(LogDataType.LONG);
                         break;
                     case 'f':
+                    case 'e':
+                    case 'g':
                         types.add(LogDataType.DOUBLE);
                         break;
                     case 's':

@@ -25,6 +25,7 @@ import dagger.Subcomponent
 @ScreenCaptureUiScope
 @Subcomponent(modules = [CommonModule::class, RecordModule::class])
 interface ScreenCaptureRecordUiComponent : ScreenCaptureUiComponent {
+
     @Subcomponent.Builder
     interface Builder : ScreenCaptureUiComponent.Builder {
         override fun build(): ScreenCaptureRecordUiComponent

@@ -129,7 +129,7 @@ public class Device {
         SomeArgs args = SomeArgs.obtain();
         args.arg1 = events;
         args.argl1 = offsetMicros;
-        args.argl2 = SystemClock.uptimeNanos();
+        args.argl2 = mTimeToSendNanos;
         Message msg = mHandler.obtainMessage(MSG_INJECT_EVENT, args);
         mHandler.sendMessageAtTime(msg, getTimeToSendMillis());
     }
@@ -236,8 +236,8 @@ public class Device {
                         // are in the future and uses the current time instead, making the reported
                         // timestamps inconsistent with the recording we're replaying.
                         //
-                        // To prevent this, we need to use the time at which we scheduled this first
-                        // batch, rather than the actual current time.
+                        // To prevent this, we need to use the time we scheduled this first batch
+                        // for, rather than the actual current time.
                         mLastInjectTimestampMicros = args.argl2 / 1000;
                     } else if (offsetMicros == -1) {
                         // No timestamp offset is specified for this event, so use the current time.

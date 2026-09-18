@@ -16,27 +16,24 @@
 
 package com.android.wm.shell.util
 
+import com.android.testing.wm.util.BaseRunningTaskInfoTestContext
 import com.android.wm.shell.compatui.letterbox.lifecycle.TaskIdResolver
 
-@DslMarker
-annotation class TaskIdResolverTagMarker
+@DslMarker annotation class TaskIdResolverTagMarker
 
 @TaskIdResolverTagMarker
-class TaskIdResolverTestContext(
-    private val taskIdResolver: TaskIdResolver
-) : BaseRunningTaskInfoTestContext() {
+class TaskIdResolverTestContext(private val taskIdResolver: TaskIdResolver) :
+    BaseRunningTaskInfoTestContext() {
 
     fun verifyLetterboxTaskId(consumer: (Int) -> Unit) {
         consumer(taskIdResolver.getLetterboxTaskId(taskInfo))
     }
 }
 
-/**
- * Function to run tests for the different [TaskIdResolver] implementations.
- */
+/** Function to run tests for the different [TaskIdResolver] implementations. */
 fun testTaskIdResolver(
     factory: () -> TaskIdResolver,
-    init: TaskIdResolverTestContext.() -> Unit
+    init: TaskIdResolverTestContext.() -> Unit,
 ): TaskIdResolverTestContext {
     val testContext = TaskIdResolverTestContext(factory())
     testContext.init()

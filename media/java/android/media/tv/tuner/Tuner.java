@@ -1868,6 +1868,12 @@ public class Tuner implements AutoCloseable  {
         if (maxNumber < 0) {
             return RESULT_INVALID_ARGUMENT;
         }
+        int availableFrontendNum = getPhysicalFrontendCount(frontendType);
+        if (availableFrontendNum < maxNumber) {
+            Log.d(TAG, "Cannot change to maxNumber(" + maxNumber
+                    + "). Exceeds available frontends(" + availableFrontendNum + ").");
+            return RESULT_INVALID_ARGUMENT;
+        }
         if (mFeOwnerTuner != null) {
             Log.d(TAG, "Operation cannot be done by sharee of tuner");
             return RESULT_INVALID_STATE;
@@ -1899,11 +1905,18 @@ public class Tuner implements AutoCloseable  {
         }
         int maxNumFromHAL = nativeGetMaxNumberOfFrontends(frontendType);
         int maxNumFromTRM = mTunerResourceManager.getMaxNumberOfFrontends(frontendType);
+        int availableFrontendNum = getPhysicalFrontendCount(frontendType);
         if (maxNumFromHAL != maxNumFromTRM) {
             Log.w(TAG, "max num of usable frontend is out-of-sync b/w " + maxNumFromHAL
                     + " != " + maxNumFromTRM);
         }
-        return maxNumFromHAL;
+        if (maxNumFromHAL > availableFrontendNum) {
+            Log.d(TAG, "max num from HAL(" + maxNumFromHAL
+                    + ") is greater than availableFrontends(" + availableFrontendNum + ")");
+            return availableFrontendNum;
+        } else {
+            return maxNumFromHAL;
+        }
     }
 
     /** @hide */
@@ -2900,5 +2913,18 @@ public class Tuner implements AutoCloseable  {
 
     private void releaseTRMSLock() {
         mTunerResourceManager.releaseLock(mClientId);
+    }
+
+    private int getPhysicalFrontendCount(int frontendType) {
+        List<FrontendInfo> infos = getAvailableFrontendInfos();
+        int count = 0;
+        if (infos != null) {
+            for (FrontendInfo info : infos) {
+                if (info.getType() == frontendType) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 }

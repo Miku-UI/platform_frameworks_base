@@ -20,13 +20,29 @@ import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 
 /**
+ * Session for importing service lists.
  * @hide
  */
 interface IServiceListImportSession {
-    // Start import service list. Should call after preload and before release.
+    /**
+     * Starts the import process.
+     * <p>Should be called after #preload() and before #release().</p>
+     *
+     * @param pfd The file descriptor to read from.
+     * @param importParams Optional reserved parameters bundle, null if not used.
+     * @return @ServicedbConstants.ResultCode.RESULT_SUCCESS or RESULT_ERROR.
+     */
     int importServiceList(in ParcelFileDescriptor pfd, in Bundle importParams);
-    // Preparing for import.
+    /**
+     * Prepares the system for import.
+     *
+     * @param pfd The file descriptor to read from (requires read permission).
+     * @return @ServicedbConstants.ResultCode.RESULT_SUCCESS or RESULT_ERROR.
+     */
     int preload(in ParcelFileDescriptor pfd);
-    // Release import resources.
+    /**
+     * Releases import resources.
+     * @return @ServicedbConstants.ResultCode.RESULT_SUCCESS or RESULT_ERROR.
+     */
     int release();
 }

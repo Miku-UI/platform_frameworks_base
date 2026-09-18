@@ -15,44 +15,49 @@
  */
 package com.android.wm.shell.shared.bubbles.logging
 
-import android.platform.test.annotations.EnableFlags
-import android.platform.test.flag.junit.SetFlagsRule
 import android.text.TextUtils
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.wm.shell.Flags
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /** Unit tests for [BubbleLog]. */
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(Flags.FLAG_ENABLE_BUBBLE_EVENT_HISTORY_LOGS)
 class BubbleLogTest {
-
-    @get:Rule val flagsRule = SetFlagsRule()
 
     @Before
     fun setup() {
+        val historyLogger = BubbleLog.bubbleEventHistoryLogger
         // Clear all loggers except BubbleEventHistoryLogger
-        BubbleLog.loggers.removeIf { it !is BubbleEventHistoryLogger }
-        val historyLogger = BubbleLog.loggers.first() as BubbleEventHistoryLogger
+        BubbleLog.loggers.clear()
+        BubbleLog.loggers.add(historyLogger)
         // Clear BubbleEventHistoryLogger previous events
         historyLogger.recentEvents.clear()
     }
 
     @Test
-    fun addLogger_addedLoggerHasAllEvents() {
+    fun addLogger_offTheSameTypeTwice_onlyFirstAdded() {
+        // Adding logger first time
+        assertThat(BubbleLog.addLogger(LogcatDebugLogger())).isTrue()
+        val loggersCount = BubbleLog.loggers.size
+        // Adding the same logger second time
+        assertThat(BubbleLog.addLogger(LogcatDebugLogger())).isFalse()
+        assertThat(BubbleLog.loggers.size).isEqualTo(loggersCount)
+    }
+
+    @Test
+    fun addLogger_addedLoggerHasAllNonHistoryEvents() {
         assertThat(BubbleLog.loggers.size).isEqualTo(1)
         val testLogger = TestLogger()
         val testData = "test data"
         BubbleLog.addLogger(testLogger)
 
+        BubbleLog.record("history event")
         BubbleLog.d("debug test message", eventData = testData)
         BubbleLog.v("verbose test message", eventData = testData)
         BubbleLog.i("info test message", eventData = testData)
@@ -60,13 +65,15 @@ class BubbleLogTest {
         BubbleLog.e("error test message", eventData = testData)
 
         val testLogs = testLogger.logs
-        assertThat(testLogs).containsExactly(
-            "d: debug test message | $testData",
-            "v: verbose test message | $testData",
-            "i: info test message | $testData",
-            "w: warning test message | $testData",
-            "e: error test message | $testData"
-        ).inOrder()
+        assertThat(testLogs)
+            .containsExactly(
+                "d: debug test message | $testData",
+                "v: verbose test message | $testData",
+                "i: info test message | $testData",
+                "w: warning test message | $testData",
+                "e: error test message | $testData",
+            )
+            .inOrder()
     }
 
     @Test
@@ -75,7 +82,7 @@ class BubbleLogTest {
         assertThat(BubbleLog.loggers.size).isEqualTo(1)
         BubbleLog.addLogger(errorLogger)
 
-        BubbleLog.d("debug test message")
+        BubbleLog.i("info test message")
 
         assertThat(errorLogger.exceptionThrown).isTrue()
         assertThat(getTrimmedLogLines()).isNotEmpty()
@@ -83,12 +90,13 @@ class BubbleLogTest {
 
     @Test
     fun dump_logsHistoryEventLoggerOutput() {
-        BubbleLog.d("debug test message boolean = %b", false)
-        BubbleLog.v("verbose test message int = %d", 1)
+        BubbleLog.record("history test message string = %s", "stringArgument")
+        BubbleLog.i("info test message boolean = %b", false)
+        BubbleLog.w("warning test message int = %d", 1)
 
         val loggerOutput = getDumpOutput { BubbleLog.dump(pw = it) }
         assertThat(loggerOutput).contains("Bubbles events history:")
-        assertThat(getTrimmedLogLines().size).isEqualTo(2)
+        assertThat(getTrimmedLogLines().size).isEqualTo(3)
     }
 
     private fun getTrimmedLogLines(): List<String> {
@@ -111,23 +119,23 @@ class BubbleLogTest {
 
         val logs = mutableListOf<String>()
 
-        override fun d(message: String, vararg parameters: Any, eventData: String?) {
+        override fun d(message: String, vararg parameters: Any?, eventData: String?) {
             logEvent("d: ${TextUtils.formatSimple(message, *parameters)}", eventData)
         }
 
-        override fun v(message: String, vararg parameters: Any, eventData: String?) {
+        override fun v(message: String, vararg parameters: Any?, eventData: String?) {
             logEvent("v: ${TextUtils.formatSimple(message, *parameters)}", eventData)
         }
 
-        override fun i(message: String, vararg parameters: Any, eventData: String?) {
+        override fun i(message: String, vararg parameters: Any?, eventData: String?) {
             logEvent("i: ${TextUtils.formatSimple(message, *parameters)}", eventData)
         }
 
-        override fun w(message: String, vararg parameters: Any, eventData: String?) {
+        override fun w(message: String, vararg parameters: Any?, eventData: String?) {
             logEvent("w: ${TextUtils.formatSimple(message, *parameters)}", eventData)
         }
 
-        override fun e(message: String, vararg parameters: Any, eventData: String?) {
+        override fun e(message: String, vararg parameters: Any?, eventData: String?) {
             logEvent("e: ${TextUtils.formatSimple(message, *parameters)}", eventData)
         }
 
@@ -140,23 +148,23 @@ class BubbleLogTest {
 
         var exceptionThrown = false
 
-        override fun d(message: String, vararg parameters: Any, eventData: String?) {
+        override fun d(message: String, vararg parameters: Any?, eventData: String?) {
             throwException()
         }
 
-        override fun v(message: String, vararg parameters: Any, eventData: String?) {
+        override fun v(message: String, vararg parameters: Any?, eventData: String?) {
             throwException()
         }
 
-        override fun i(message: String, vararg parameters: Any, eventData: String?) {
+        override fun i(message: String, vararg parameters: Any?, eventData: String?) {
             throwException()
         }
 
-        override fun w(message: String, vararg parameters: Any, eventData: String?) {
+        override fun w(message: String, vararg parameters: Any?, eventData: String?) {
             throwException()
         }
 
-        override fun e(message: String, vararg parameters: Any, eventData: String?) {
+        override fun e(message: String, vararg parameters: Any?, eventData: String?) {
             throwException()
         }
 

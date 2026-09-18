@@ -26,6 +26,8 @@ import com.android.systemui.keyguard.domain.interactor.KeyguardKeyEventInteracto
 import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -35,6 +37,7 @@ import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.junit.MockitoJUnit
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class SysUIKeyEventHandlerTest : SysuiTestCase() {
@@ -49,12 +52,13 @@ class SysUIKeyEventHandlerTest : SysuiTestCase() {
 
     @Before
     fun setup() {
-        keyguardInteractorWithDependencies = KeyguardInteractorFactory.create()
-        underTest =
-            SysUIKeyEventHandler(
-                backActionInteractor,
-                keyguardKeyEventInteractor,
+        val testDisptacher = UnconfinedTestDispatcher()
+        keyguardInteractorWithDependencies =
+            KeyguardInteractorFactory.create(
+                backgroundDispatcher = testDisptacher,
+                context = context,
             )
+        underTest = SysUIKeyEventHandler(backActionInteractor, keyguardKeyEventInteractor)
     }
 
     @Test
@@ -81,66 +85,42 @@ class SysUIKeyEventHandlerTest : SysuiTestCase() {
 
     @Test
     fun dispatchKeyEvent_isNotHandledByKeyguardKeyEventInteractor() {
-        val keyEvent =
-            KeyEvent(
-                KeyEvent.ACTION_UP,
-                KeyEvent.KEYCODE_SPACE,
-            )
+        val keyEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SPACE)
         whenever(keyguardKeyEventInteractor.dispatchKeyEvent(eq(keyEvent))).thenReturn(false)
         assertThat(underTest.dispatchKeyEvent(keyEvent)).isFalse()
     }
 
     @Test
     fun dispatchKeyEvent_handledByKeyguardKeyEventInteractor() {
-        val keyEvent =
-            KeyEvent(
-                KeyEvent.ACTION_UP,
-                KeyEvent.KEYCODE_SPACE,
-            )
+        val keyEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SPACE)
         whenever(keyguardKeyEventInteractor.dispatchKeyEvent(eq(keyEvent))).thenReturn(true)
         assertThat(underTest.dispatchKeyEvent(keyEvent)).isTrue()
     }
 
     @Test
     fun interceptMediaKey_isNotHandledByKeyguardKeyEventInteractor() {
-        val keyEvent =
-            KeyEvent(
-                KeyEvent.ACTION_UP,
-                KeyEvent.KEYCODE_SPACE,
-            )
+        val keyEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SPACE)
         whenever(keyguardKeyEventInteractor.interceptMediaKey(eq(keyEvent))).thenReturn(false)
         assertThat(underTest.interceptMediaKey(keyEvent)).isFalse()
     }
 
     @Test
     fun interceptMediaKey_handledByKeyguardKeyEventInteractor() {
-        val keyEvent =
-            KeyEvent(
-                KeyEvent.ACTION_UP,
-                KeyEvent.KEYCODE_SPACE,
-            )
+        val keyEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SPACE)
         whenever(keyguardKeyEventInteractor.interceptMediaKey(eq(keyEvent))).thenReturn(true)
         assertThat(underTest.interceptMediaKey(keyEvent)).isTrue()
     }
 
     @Test
     fun dispatchKeyEventPreIme_isNotHandledByKeyguardKeyEventInteractor() {
-        val keyEvent =
-            KeyEvent(
-                KeyEvent.ACTION_UP,
-                KeyEvent.KEYCODE_SPACE,
-            )
+        val keyEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SPACE)
         whenever(keyguardKeyEventInteractor.dispatchKeyEventPreIme(eq(keyEvent))).thenReturn(false)
         assertThat(underTest.dispatchKeyEventPreIme(keyEvent)).isFalse()
     }
 
     @Test
     fun dispatchKeyEventPreIme_handledByKeyguardKeyEventInteractor() {
-        val keyEvent =
-            KeyEvent(
-                KeyEvent.ACTION_UP,
-                KeyEvent.KEYCODE_SPACE,
-            )
+        val keyEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SPACE)
         whenever(keyguardKeyEventInteractor.dispatchKeyEventPreIme(eq(keyEvent))).thenReturn(true)
         assertThat(underTest.dispatchKeyEventPreIme(keyEvent)).isTrue()
     }

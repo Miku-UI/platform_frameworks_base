@@ -22,6 +22,7 @@ import androidx.annotation.VisibleForTesting;
 
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
+import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.statusbar.NotificationLockscreenUserManager;
 import com.android.systemui.statusbar.StatusBarState;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
@@ -97,6 +98,7 @@ public class DynamicPrivacyController implements KeyguardStateController.Callbac
      * contents aren't revealed yet?
      */
     public boolean isInLockedDownShade() {
+        SceneContainerFlag.assertInLegacyMode();
         if (!mKeyguardStateController.isShowing() || !mKeyguardStateController.isMethodSecure()) {
             return false;
         }

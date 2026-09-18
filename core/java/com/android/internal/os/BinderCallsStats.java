@@ -57,7 +57,7 @@ import java.util.function.ToDoubleFunction;
  * Collects statistics about CPU time spent per binder call across multiple dimensions, e.g.
  * per thread, uid or call description.
  */
-public class BinderCallsStats implements BinderInternal.Observer {
+public final class BinderCallsStats implements BinderInternal.Observer {
     public static final boolean ENABLED_DEFAULT = true;
     public static final boolean DETAILED_TRACKING_DEFAULT = true;
     public static final int PERIODIC_SAMPLING_INTERVAL_DEFAULT = 1000;
@@ -175,13 +175,32 @@ public class BinderCallsStats implements BinderInternal.Observer {
         public BinderLatencyObserver getLatencyObserver(int processSource) {
             return new BinderLatencyObserver(new BinderLatencyObserver.Injector(), processSource);
         }
+
+        public long getThreadTimeMicro() {
+            return SystemClock.currentThreadTimeMicro();
+        }
+
+        public long getElapsedRealtimeMicro() {
+            return SystemClock.elapsedRealtimeNanos() / 1000;
+        }
+
+        public int getCallingUid() {
+            return Binder.getCallingUid();
+        }
+
+        public int getNativeTid() {
+            return Process.myTid();
+        }
     }
+
+    private final Injector mInjector;
 
     public BinderCallsStats(Injector injector) {
         this(injector, SYSTEM_SERVER);
     }
 
     public BinderCallsStats(Injector injector, int processSource) {
+        this.mInjector = injector;
         this.mRandom = injector.getRandomGenerator();
         this.mCallStatsObserverHandler = injector.getHandler();
         this.mLatencyObserver = injector.getLatencyObserver(processSource);
@@ -711,16 +730,16 @@ public class BinderCallsStats implements BinderInternal.Observer {
         }
     }
 
-    protected long getThreadTimeMicro() {
-        return SystemClock.currentThreadTimeMicro();
+    private long getThreadTimeMicro() {
+        return mInjector.getThreadTimeMicro();
     }
 
-    protected int getCallingUid() {
-        return Binder.getCallingUid();
+    private int getCallingUid() {
+        return mInjector.getCallingUid();
     }
 
-    protected int getNativeTid() {
-        return Process.myTid();
+    private int getNativeTid() {
+        return mInjector.getNativeTid();
     }
 
     /**
@@ -730,11 +749,11 @@ public class BinderCallsStats implements BinderInternal.Observer {
         return mNativeTids.toArray();
     }
 
-    protected long getElapsedRealtimeMicro() {
-        return SystemClock.elapsedRealtimeNanos() / 1000;
+    private long getElapsedRealtimeMicro() {
+        return mInjector.getElapsedRealtimeMicro();
     }
 
-    protected boolean shouldRecordDetailedData() {
+    private boolean shouldRecordDetailedData() {
         return mRandom.nextInt(mPeriodicSamplingInterval) == 0;
     }
 
@@ -886,7 +905,7 @@ public class BinderCallsStats implements BinderInternal.Observer {
     /**
      * Aggregated data by uid/class/method to be sent through statsd.
      */
-    public static class ExportedCallStat {
+    public static final class ExportedCallStat {
         public int callingUid;
         public int workSourceUid;
         public String className;
@@ -908,7 +927,7 @@ public class BinderCallsStats implements BinderInternal.Observer {
     }
 
     @VisibleForTesting
-    public static class CallStat {
+    public static final class CallStat {
         // The UID who executed the transaction (i.e. Binder#getCallingUid).
         public final int callingUid;
         public final Class<? extends Binder> binderClass;
@@ -981,7 +1000,7 @@ public class BinderCallsStats implements BinderInternal.Observer {
     }
 
     /** Key used to store CallStat object in a Map. */
-    public static class CallStatKey {
+    public static final class CallStatKey {
         public int callingUid;
         public Class<? extends Binder> binderClass;
         public int transactionCode;
@@ -1012,7 +1031,7 @@ public class BinderCallsStats implements BinderInternal.Observer {
 
 
     @VisibleForTesting
-    public static class UidEntry {
+    public static final class UidEntry {
         // The UID who is responsible for the binder transaction. If the bluetooth process execute a
         // transaction on behalf of app foo, the workSourceUid will be the uid of app foo.
         public int workSourceUid;
@@ -1177,7 +1196,7 @@ public class BinderCallsStats implements BinderInternal.Observer {
      * We do not want to collect cpu data from other processes so only latency collection should be
      * possible to enable.
      */
-    public static class SettingsObserver extends ContentObserver {
+    public static final class SettingsObserver extends ContentObserver {
         // Settings for BinderCallsStats.
         public static final String SETTINGS_ENABLED_KEY = "enabled";
         public static final String SETTINGS_DETAILED_TRACKING_KEY = "detailed_tracking";

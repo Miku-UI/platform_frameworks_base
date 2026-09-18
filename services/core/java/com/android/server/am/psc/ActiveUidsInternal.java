@@ -16,6 +16,8 @@
 
 package com.android.server.am.psc;
 
+import android.util.SparseArray;
+
 /**
  * Interface for tracking the activity state of UIDs based on their running processes.
  * This provides a contract for implementations that store and retrieve
@@ -24,28 +26,44 @@ package com.android.server.am.psc;
  * TODO(b/425766486): Mark the mutable methods as package-private after moving the user classes
  *   (e.g. OomAdjuster, ProcessList) into psc package.
  */
-public interface ActiveUidsInternal {
+public class ActiveUidsInternal {
+    private final SparseArray<UidRecordInternal> mActiveUids = new SparseArray<>();
+
     /** Associates the specified UID with the given {@link UidRecordInternal}. */
-    void put(int uid, UidRecordInternal value);
+    public void put(int uid, UidRecordInternal value) {
+        mActiveUids.put(uid, value);
+    }
 
     /** Removes the mapping for a specified UID from this tracking mechanism. */
-    void remove(int uid);
+    public void remove(int uid) {
+        mActiveUids.remove(uid);
+    }
 
     /** Clears all active UID states. */
-    void clear();
+    public void clear() {
+        mActiveUids.clear();
+    }
 
     /** Returns the number of active UIDs currently being tracked. */
-    int size();
+    public int size() {
+        return mActiveUids.size();
+    }
 
     /**
      * Returns the {@link UidRecordInternal} associated with the specified UID,
      * or {@code null} if no mapping for the UID exists.
      */
-    UidRecordInternal get(int uid);
+    public UidRecordInternal get(int uid) {
+        return mActiveUids.get(uid);
+    }
 
     /** Returns the {@link UidRecordInternal} at the specified index. */
-    UidRecordInternal valueAt(int index);
+    public UidRecordInternal valueAt(int index) {
+        return mActiveUids.valueAt(index);
+    }
 
     /** Returns the UID (key) at the specified index. */
-    int keyAt(int index);
+    public int keyAt(int index) {
+        return mActiveUids.keyAt(index);
+    }
 }

@@ -26,6 +26,8 @@ import static android.security.Flags.shouldTrustManagerListenForPrimaryAuth;
 
 import static com.android.internal.widget.flags.Flags.enableDefaultVisibilityForSensitiveInputs;
 
+import static java.util.Objects.requireNonNullElse;
+
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -58,7 +60,6 @@ import android.text.TextUtils;
 import android.util.Log;
 import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
-import android.util.SparseLongArray;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
@@ -82,6 +83,7 @@ import java.util.function.Supplier;
 public class LockPatternUtils {
     private static final String TAG = "LockPatternUtils";
     private static final boolean FRP_CREDENTIAL_ENABLED = true;
+    private static final Duration MAX_INT_DURATION = Duration.ofMillis(Integer.MAX_VALUE);
 
     /**
      * The interval of the countdown for showing progress of the lockout.
@@ -112,6 +114,10 @@ public class LockPatternUtils {
 
     // NOTE: When modifying this, make sure credential sufficiency validation logic is intact.
     public static final int CREDENTIAL_TYPE_NONE = -1;
+    // "UNKNOWN" is a distinct value used only internally in LockSettingsService and its unit tests.
+    // Its value is arbitrary, but since the 'int' default of 0 is unused elsewhere it was chosen.
+    // getCredentialType() never returns the UNKNOWN type.
+    public static final int CREDENTIAL_TYPE_UNKNOWN = 0;
     public static final int CREDENTIAL_TYPE_PATTERN = 1;
     // This is the legacy value persisted on disk. Never return it to clients, but internally
     // we still need it to handle upgrade cases.
@@ -224,13 +230,12 @@ public class LockPatternUtils {
     private final Supplier<Duration> mTimeSinceBootSupplier;
     private UserManager mUserManager;
     private final Handler mHandler;
-    private final SparseLongArray mLockoutDeadlines = new SparseLongArray();
     private Boolean mHasSecureLockScreen;
 
     /**
      * Use {@link TrustManager#isTrustUsuallyManaged(int)}.
      *
-     * This returns the lazily-peristed value and should only be used by TrustManagerService.
+     * <p>This returns the lazily-peristed value and should only be used by TrustManagerService.
      */
     public boolean isTrustUsuallyManaged(int userId) {
         if (!(mLockSettingsService instanceof ILockSettings.Stub)) {
@@ -258,24 +263,6 @@ public class LockPatternUtils {
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
-    }
-
-    public static final class RequestThrottledException extends Exception {
-        private int mTimeoutMs;
-        @UnsupportedAppUsage
-        public RequestThrottledException(int timeoutMs) {
-            mTimeoutMs = timeoutMs;
-        }
-
-        /**
-         * @return The amount of time in ms before another request may
-         * be executed
-         */
-        @UnsupportedAppUsage
-        public int getTimeoutMs() {
-            return mTimeoutMs;
-        }
-
     }
 
     @UnsupportedAppUsage
@@ -412,12 +399,29 @@ public class LockPatternUtils {
         }
     }
 
-    public void reportPasswordLockout(int timeoutMs, int userId) {
+    /**
+     * Reports a password lockout to services that need to be aware of it.
+     */
+    public void reportPasswordLockout(Duration timeout, int userId) {
         if (isSpecialUserId(mContext, userId, /* checkDeviceSupported= */ true)) {
             return;
         }
-        getTrustManager().reportUnlockLockout(timeoutMs, userId);
+        getTrustManager().reportUnlockLockout(clamp(timeout), userId);
     }
+
+    /**
+     * Clamps the given duration to an integer. If the duration is negative or greater than {@link
+     * Integer#MAX_VALUE}, returns {@link Integer#MAX_VALUE}.
+     *
+     * @hide
+     */
+    public static int clamp(Duration duration) {
+        if (duration.compareTo(MAX_INT_DURATION) > 0 || duration.isNegative()) {
+            return Integer.MAX_VALUE;
+        }
+        return (int) duration.toMillis();
+    }
+
 
     public int getCurrentFailedPasswordAttempts(int userId) {
         if (isSpecialUserId(mContext, userId, /* checkDeviceSupported= */ true)) {
@@ -506,37 +510,44 @@ public class LockPatternUtils {
     }
 
     /**
+     * Sends a hint to the system server to prepare for verifying a credential within the next 5
+     * seconds. The hint is processed asynchronously, and implementations may choose to ignore it.
+     *
+     * @param userId The user whose credential is going to be checked
+     */
+    public void prepareToVerifyCredential(int userId) {
+        try {
+            getLockSettings().prepareToVerifyCredential(userId);
+        } catch (RemoteException e) {
+            // Do not re-throw, as this is just a hint.
+            Log.e(TAG, "Error while preparing to verify credential: " + e);
+        }
+    }
+
+    /**
      * Check to see if a credential matches the saved one.
      *
      * @param credential The credential to check.
      * @param userId The user whose credential is being checked
      * @param progressCallback callback to deliver early signal that the credential matches
-     * @return {@code true} if credential matches, {@code false} otherwise
-     * @throws RequestThrottledException if credential verification is being throttled due to
-     *         to many incorrect attempts.
      * @throws IllegalStateException if called on the main thread.
      */
-    public boolean checkCredential(@NonNull LockscreenCredential credential, int userId,
-            @Nullable CheckCredentialProgressCallback progressCallback)
-            throws RequestThrottledException {
+    public VerifyCredentialResponse checkCredential(
+            @NonNull LockscreenCredential credential,
+            int userId,
+            @Nullable CheckCredentialProgressCallback progressCallback) {
         throwIfCalledOnMainThread();
         try {
-            VerifyCredentialResponse response = getLockSettings().checkCredential(
-                    credential, userId, wrapCallback(progressCallback));
-            if (response == null) {
-                return false;
-            } else if (response.isMatched()) {
-                return true;
-            } else if (response.hasTimeout()) {
-                throw new RequestThrottledException(response.getTimeout());
-            } else {
-                return false;
-            }
+            final VerifyCredentialResponse response =
+                    getLockSettings()
+                            .checkCredential(credential, userId, wrapCallback(progressCallback));
+            return requireNonNullElse(response, VerifyCredentialResponse.OTHER_ERROR);
         } catch (RemoteException re) {
             Log.e(TAG, "failed to check credential", re);
-            return false;
+            return VerifyCredentialResponse.OTHER_ERROR;
         }
     }
+
 
     /**
      * Check if the credential of a managed profile with unified challenge matches. In this context,
@@ -605,20 +616,13 @@ public class LockPatternUtils {
             return false;
         }
         byte[] salt = getSalt(userId).getBytes();
-        String legacyHash = LockscreenCredential.legacyPasswordToHash(passwordToCheck, salt);
         String passwordHash = LockscreenCredential.passwordToHistoryHash(
                 passwordToCheck, salt, hashFactor);
         String[] history = passwordHistory.split(PASSWORD_HISTORY_DELIMITER);
         // Password History may be too long...
         for (int i = 0; i < Math.min(passwordHistoryLength, history.length); i++) {
-            if (android.security.Flags.stopRecognizingLegacyPasswordHashes()) {
-                if (history[i].equals(passwordHash)) {
-                    return true;
-                }
-            } else {
-                if (history[i].equals(legacyHash) || history[i].equals(passwordHash)) {
-                    return true;
-                }
+            if (history[i].equals(passwordHash)) {
+                return true;
             }
         }
         return false;
@@ -900,39 +904,50 @@ public class LockPatternUtils {
     }
 
     /**
-     * Returns true if {@code userHandle} is a profile with separate challenge.
+     * Returns true if {@code userHandle} is a profile whose credential is shareable with its parent
+     * user but the "Use one lock" setting is disabled. Otherwise, returns false.
      * <p>
-     * Returns false if {@code userHandle} is a profile with unified challenge, a profile whose
-     * credential is not shareable with its parent, or a non-profile user.
+     * The "Use one lock" setting being disabled causes sharing to not be active. The profile's
+     * credential, if it has one, is separate from and possibly different from the parent user's
+     * credential.
      */
     public boolean isSeparateProfileChallengeEnabled(int userHandle) {
-        return isCredentialShareableWithParent(userHandle) && hasSeparateChallenge(userHandle);
+        return isCredentialShareableWithParent(userHandle)
+                && !isUseOneLockSettingEnabled(userHandle);
     }
 
     /**
-     * Returns true if {@code userHandle} is a profile with unified challenge.
-     * <p>
-     * Returns false if {@code userHandle} is a profile with separate challenge, a profile whose
-     * credential is not shareable with its parent, or a non-profile user.
+     * Returns true if {@code userHandle} is a profile whose credential is shareable with its parent
+     * and the "Use one lock" setting is enabled. If this returns true then there are two cases.
+     * Either:
+     * <ul>
+     *     <li>the parent has a credential and the profile has a "unified profile password"
+     *     credential.</li>
+     *     <li>neither the parent nor the profile has a credential.</li>
+     * </ul>
+     * Note that the latter state is also possible with "Use one lock" disabled, the difference just
+     * being the state of "Use one lock" itself which matters if a credential is set again later.
      */
     public boolean isProfileWithUnifiedChallenge(int userHandle) {
-        return isCredentialShareableWithParent(userHandle) && !hasSeparateChallenge(userHandle);
+        return isCredentialShareableWithParent(userHandle)
+                && isUseOneLockSettingEnabled(userHandle);
     }
 
     /**
-     * Returns true if {@code userHandle} is a managed profile with unified challenge.
+     * Returns true if {@code userHandle} is a managed profile with unified challenge, i.e. the "Use
+     * one lock" setting is enabled.
      */
     public boolean isManagedProfileWithUnifiedChallenge(int userHandle) {
-        return isManagedProfile(userHandle) && !hasSeparateChallenge(userHandle);
+        return isManagedProfile(userHandle) && isUseOneLockSettingEnabled(userHandle);
     }
 
-    private boolean hasSeparateChallenge(int userHandle) {
+    private boolean isUseOneLockSettingEnabled(int userHandle) {
         try {
-            return getLockSettings().getSeparateProfileChallengeEnabled(userHandle);
+            return getLockSettings().isUseOneLockSettingEnabled(userHandle);
         } catch (RemoteException e) {
-            Log.e(TAG, "Couldn't get separate profile challenge enabled");
-            // Default value is false
-            return false;
+            Log.e(TAG, "Couldn't get isUseOneLockSettingEnabled");
+            // Default value is true
+            return true;
         }
     }
 
@@ -1170,32 +1185,6 @@ public class LockPatternUtils {
     }
 
     /**
-     * Set and store the lockout deadline, meaning the user can't attempt their unlock pattern until
-     * the deadline has passed.
-     *
-     * @return the chosen deadline.
-     * @deprecated this function just returns the current lockout end time after
-     *     <tt>android.security.manage_lockout_end_time_in_service</tt> is launched. Call-sites will
-     *     be removed and replaced with {@link #getLockoutAttemptDeadline(int)} as needed.
-     */
-    @UnsupportedAppUsage
-    @Deprecated
-    public long setLockoutAttemptDeadline(int userId, int timeoutMs) {
-        final long deadline = mTimeSinceBootSupplier.get().toMillis() + timeoutMs;
-        if (android.security.Flags.manageLockoutEndTimeInService()) {
-            final long lockoutEndTime = getLockoutAttemptDeadline(userId);
-            return Math.max(lockoutEndTime, deadline);
-        }
-        if (userId == USER_FRP) {
-            // For secure password storage (that is required for FRP), the underlying storage also
-            // enforces the deadline. Since we cannot store settings for the FRP user, don't.
-            return deadline;
-        }
-        mLockoutDeadlines.put(userId, deadline);
-        return deadline;
-    }
-
-    /**
      * @return The time since boot when the user is allowed to attempt primary auth, or {@link
      *     Duration#ZERO} if the user is currently allowed.
      */
@@ -1206,25 +1195,6 @@ public class LockPatternUtils {
             return mLockoutEndTimeCache.recompute(userId);
         }
         return lockoutEndTime;
-    }
-
-    /**
-     * @return The elapsed time in millis since boot when the user is allowed to attempt to enter
-     *     their lock pattern, or 0 if the user is welcome to enter a pattern.
-     */
-    public long getLockoutAttemptDeadline(int userId) {
-        if (android.security.Flags.softwareRatelimiter()
-                && android.security.Flags.manageLockoutEndTimeInService()) {
-            return getLockoutEndTime(userId).toMillis();
-        }
-        final long deadline = mLockoutDeadlines.get(userId, 0L);
-        final long now = mTimeSinceBootSupplier.get().toMillis();
-        if (deadline < now && deadline != 0) {
-            // timeout expired
-            mLockoutDeadlines.put(userId, 0);
-            return 0L;
-        }
-        return deadline;
     }
 
     private boolean getBoolean(String secureSettingKey, boolean defaultValue, int userId) {
@@ -1710,6 +1680,11 @@ public class LockPatternUtils {
                 new SparseBooleanArray();
         private final boolean mDefaultIsNonStrongBiometricAllowed = true;
 
+        /**
+         * @param context the current {@link Context}
+         * @throws NullPointerException if the current thread does not have a Looper (for example,
+         * on a background thread).
+         */
         public StrongAuthTracker(Context context) {
             this(context, Looper.myLooper());
         }

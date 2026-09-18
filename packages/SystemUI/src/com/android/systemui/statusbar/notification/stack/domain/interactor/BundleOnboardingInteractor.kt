@@ -69,4 +69,4 @@ constructor(
 }
 
 private const val TAG = "NotifBundles"
-private const val KEY_SHOW_BUNDLE_ONBOARDING = "show_bundle_onboarding"
+const val KEY_SHOW_BUNDLE_ONBOARDING = "show_bundle_onboarding"

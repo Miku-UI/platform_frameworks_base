@@ -20,7 +20,6 @@ import android.content.testableContext
 import android.view.View
 import com.android.systemui.concurrency.fakeExecutor
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.kosmos.backgroundScope
 import com.android.systemui.statusbar.domain.interactor.fakeStatusBarRegionSamplingInteractor
 import com.android.systemui.statusbar.domain.interactor.statusBarRegionSamplingInteractor
 import com.android.systemui.statusbar.ui.viewmodel.StatusBarRegionSamplingViewModel.RegionSamplingHelperFactory
@@ -69,7 +68,6 @@ val Kosmos.statusBarRegionSamplingViewModelFactory: StatusBarRegionSamplingViewM
                     statusBarRegionSamplingInteractor = fakeStatusBarRegionSamplingInteractor,
                     mainExecutor = fakeExecutor,
                     backgroundExecutor = fakeExecutor,
-                    backgroundScope = backgroundScope,
                 )
             }
         }

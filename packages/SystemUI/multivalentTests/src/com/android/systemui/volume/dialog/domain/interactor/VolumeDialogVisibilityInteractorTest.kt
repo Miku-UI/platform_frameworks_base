@@ -20,6 +20,7 @@ import android.app.ActivityManager
 import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_EXPANDED_AUDIO_DETAILED_VIEW
 import com.android.systemui.Flags.FLAG_QS_TILE_DETAILED_VIEW
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.accessibility.data.repository.accessibilityRepository
@@ -30,7 +31,6 @@ import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.plugins.fakeVolumeDialogController
-import com.android.systemui.res.R
 import com.android.systemui.shade.shadeTestUtil
 import com.android.systemui.testKosmos
 import com.android.systemui.volume.Events
@@ -135,10 +135,9 @@ class VolumeDialogVisibilityInteractorTest : SysuiTestCase() {
 
     @Test
     @EnableSceneContainer
-    @EnableFlags(FLAG_QS_TILE_DETAILED_VIEW)
+    @EnableFlags(FLAG_QS_TILE_DETAILED_VIEW, FLAG_EXPANDED_AUDIO_DETAILED_VIEW)
     fun testShowRequest_whenQsSliderFeatureEnabledAndQsNotExpanded_dialogVisible() {
         kosmos.runTest {
-            overrideResource(R.bool.config_enableDesktopAudioTileDetailsView, true)
             val visibilityModel by collectLastValue(underTest.dialogVisibility)
             shadeTestUtil.setQsExpansion(0f)
 
@@ -161,10 +160,9 @@ class VolumeDialogVisibilityInteractorTest : SysuiTestCase() {
 
     @Test
     @EnableSceneContainer
-    @EnableFlags(FLAG_QS_TILE_DETAILED_VIEW)
+    @EnableFlags(FLAG_QS_TILE_DETAILED_VIEW, FLAG_EXPANDED_AUDIO_DETAILED_VIEW)
     fun testShowRequest_whenQsSliderFeatureEnabledAndQsExpanded_dialogInvisible() {
         kosmos.runTest {
-            overrideResource(R.bool.config_enableDesktopAudioTileDetailsView, true)
             val visibilityModel by collectLastValue(underTest.dialogVisibility)
             shadeTestUtil.setQsExpansion(1f)
 
@@ -180,10 +178,9 @@ class VolumeDialogVisibilityInteractorTest : SysuiTestCase() {
 
     @Test
     @EnableSceneContainer
-    @EnableFlags(FLAG_QS_TILE_DETAILED_VIEW)
+    @EnableFlags(FLAG_QS_TILE_DETAILED_VIEW, FLAG_EXPANDED_AUDIO_DETAILED_VIEW)
     fun testShowRequest_whenQsSliderFeatureEnabledAndQsBecomesExpanded_dialogDismissed() {
         kosmos.runTest {
-            overrideResource(R.bool.config_enableDesktopAudioTileDetailsView, true)
             val visibilityModel by collectLastValue(underTest.dialogVisibility)
             shadeTestUtil.setQsExpansion(0f)
 

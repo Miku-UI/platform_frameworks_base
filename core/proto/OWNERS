@@ -12,7 +12,7 @@ roosa@google.com
 per-file package_item_info.proto = file:/PACKAGE_MANAGER_OWNERS
 per-file usagestatsservice.proto, usagestatsservice_v2.proto = file:/core/java/android/app/usage/OWNERS
 per-file apphibernationservice.proto = file:/core/java/android/apphibernation/OWNERS
-per-file android/hardware/sensorprivacy.proto = ntmyren@google.com,evanseverson@google.com
+per-file android/hardware/sensorprivacy.proto = file:/core/java/android/permission/OWNERS
 per-file background_install_control.proto = wenhaowang@google.com,georgechan@google.com,billylau@google.com
 per-file android/content/intent.proto = file:/PACKAGE_MANAGER_OWNERS
 per-file android/hardware/location/context_hub_info.proto = file:/services/core/java/com/android/server/location/contexthub/OWNERS
@@ -22,6 +22,8 @@ jbolinger@google.com
 
 # Launcher
 hyunyoungs@google.com
+per-file android/widget/remoteviews.proto = file:/core/java/android/appwidget/OWNERS
+per-file android/service/appwidget.proto = file:/core/java/android/appwidget/OWNERS
 
 # Graphics stats
 jreck@google.com

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues
+    type="baseline"
+    client=""
+    dependencies="true"
+    name=""
+    variant=""
+    version="">
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 23): `android.app.AppOpsManager#noteOp`"
+        errorLine1="        return when (appOpsManager.noteOp(op, callingUid, pkg, null, null)) {"
+        errorLine2="                                   ~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Ipc/src/com/android/settingslib/ipc/AppOpApiPermissionChecker.kt"
+            line="38"
+            column="36"/>
+    </issue>
+
+</issues>

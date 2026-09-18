@@ -61,7 +61,7 @@ public class ProtoLogImplTest {
         ProtoLogImpl.d(TestProtoLogGroup.TEST_GROUP, 1234, 4321);
         verify(mockedProtoLog).log(eq(LogLevel.DEBUG), eq(
                 TestProtoLogGroup.TEST_GROUP),
-                eq(1234L), eq(4321), eq(new Object[]{}));
+                eq(1234L), eq(4321L), eq(new Object[]{}));
     }
 
     @Test
@@ -71,7 +71,7 @@ public class ProtoLogImplTest {
         ProtoLogImpl.v(TestProtoLogGroup.TEST_GROUP, 1234, 4321);
         verify(mockedProtoLog).log(eq(LogLevel.VERBOSE), eq(
                 TestProtoLogGroup.TEST_GROUP),
-                eq(1234L), eq(4321), eq(new Object[]{}));
+                eq(1234L), eq(4321L), eq(new Object[]{}));
     }
 
     @Test
@@ -81,7 +81,7 @@ public class ProtoLogImplTest {
         ProtoLogImpl.i(TestProtoLogGroup.TEST_GROUP, 1234, 4321);
         verify(mockedProtoLog).log(eq(LogLevel.INFO), eq(
                 TestProtoLogGroup.TEST_GROUP),
-                eq(1234L), eq(4321), eq(new Object[]{}));
+                eq(1234L), eq(4321L), eq(new Object[]{}));
     }
 
     @Test
@@ -91,7 +91,7 @@ public class ProtoLogImplTest {
         ProtoLogImpl.w(TestProtoLogGroup.TEST_GROUP, 1234, 4321);
         verify(mockedProtoLog).log(eq(LogLevel.WARN), eq(
                 TestProtoLogGroup.TEST_GROUP),
-                eq(1234L), eq(4321), eq(new Object[]{}));
+                eq(1234L), eq(4321L), eq(new Object[]{}));
     }
 
     @Test
@@ -101,7 +101,7 @@ public class ProtoLogImplTest {
         ProtoLogImpl.e(TestProtoLogGroup.TEST_GROUP, 1234, 4321);
         verify(mockedProtoLog).log(eq(LogLevel.ERROR), eq(
                 TestProtoLogGroup.TEST_GROUP),
-                eq(1234L), eq(4321), eq(new Object[]{}));
+                eq(1234L), eq(4321L), eq(new Object[]{}));
     }
 
     @Test
@@ -112,14 +112,13 @@ public class ProtoLogImplTest {
                 1234, 4321);
         verify(mockedProtoLog).log(eq(LogLevel.WTF), eq(
                 TestProtoLogGroup.TEST_GROUP),
-                eq(1234L), eq(4321), eq(new Object[]{}));
+                eq(1234L), eq(4321L), eq(new Object[]{}));
     }
 
     private enum TestProtoLogGroup implements IProtoLogGroup {
-        TEST_GROUP(true, true, false, "WindowManagetProtoLogTest");
+        TEST_GROUP(true, false, "WindowManagerProtoLogTest");
 
         private final boolean mEnabled;
-        private volatile boolean mLogToProto;
         private volatile boolean mLogToLogcat;
         private final String mTag;
 
@@ -127,13 +126,11 @@ public class ProtoLogImplTest {
          * @param enabled     set to false to exclude all log statements for this group from
          *                    compilation,
          *                    they will not be available in runtime.
-         * @param logToProto  enable binary logging for the group
          * @param logToLogcat enable text logging for the group
          * @param tag         name of the source of the logged message
          */
-        TestProtoLogGroup(boolean enabled, boolean logToProto, boolean logToLogcat, String tag) {
+        TestProtoLogGroup(boolean enabled, boolean logToLogcat, String tag) {
             this.mEnabled = enabled;
-            this.mLogToProto = logToProto;
             this.mLogToLogcat = logToLogcat;
             this.mTag = tag;
         }

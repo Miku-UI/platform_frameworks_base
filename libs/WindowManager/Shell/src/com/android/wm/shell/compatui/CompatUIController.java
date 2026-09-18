@@ -18,9 +18,7 @@ package com.android.wm.shell.compatui;
 
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
-import static android.window.DesktopExperienceFlags.ENABLE_COMPAT_UI_DESKTOP_MODE_SYNCHRONIZATION_BUGFIX;
 
-import static com.android.window.flags.Flags.enableCompatuiSysuiLauncherFix;
 import static com.android.wm.shell.compatui.impl.CompatUIRequestsKt.DISPLAY_COMPAT_SHOW_RESTART_DIALOG;
 
 import android.annotation.NonNull;
@@ -44,7 +42,6 @@ import android.view.InsetsSourceControl;
 import android.view.InsetsState;
 import android.view.View;
 import android.view.accessibility.AccessibilityManager;
-import android.window.DesktopModeFlags;
 import android.window.RemoteTransition;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -66,6 +63,7 @@ import com.android.wm.shell.compatui.api.CompatUIEvent;
 import com.android.wm.shell.compatui.api.CompatUIHandler;
 import com.android.wm.shell.compatui.api.CompatUIInfo;
 import com.android.wm.shell.compatui.api.CompatUIRequest;
+import com.android.wm.shell.compatui.api.CompatUITypeUtils;
 import com.android.wm.shell.compatui.impl.CompatUIEvents.SizeCompatRestartButtonClicked;
 import com.android.wm.shell.compatui.impl.CompatUIRequests;
 import com.android.wm.shell.desktopmode.DesktopUserRepositories;
@@ -279,10 +277,6 @@ public class CompatUIController implements OnDisplaysChangedListener,
     }
 
     private void initActivityTransitionAnimator() {
-        if (!enableCompatuiSysuiLauncherFix()) {
-            return;
-        }
-
         mActivityTransitionAnimatorLazy.get().setCallback(
                 new ActivityTransitionAnimator.Callback() {
                     @Override
@@ -305,9 +299,10 @@ public class CompatUIController implements OnDisplaysChangedListener,
 
     @Override
     public void sendCompatUIRequest(CompatUIRequest compatUIRequest) {
-        switch(compatUIRequest.getRequestId()) {
+        switch (compatUIRequest.getRequestId()) {
             case DISPLAY_COMPAT_SHOW_RESTART_DIALOG:
-                handleDisplayCompatShowRestartDialog(compatUIRequest.asType());
+                handleDisplayCompatShowRestartDialog(CompatUITypeUtils.asTypeJava(compatUIRequest,
+                        CompatUIRequests.DisplayCompatShowRestartDialog.class));
                 break;
             default:
         }
@@ -818,11 +813,6 @@ public class CompatUIController implements OnDisplaysChangedListener,
     /** Launch the user aspect ratio settings for the package of the given task. */
     void launchUserAspectRatioSettings(
             @NonNull Context context, @NonNull TaskInfo taskInfo, @Nullable View launchableView) {
-        if (!enableCompatuiSysuiLauncherFix()) {
-            launchUserAspectRatioSettingsNoAnimation(context, taskInfo);
-            return;
-        }
-
         final ActivityTransitionAnimator.Controller delegate =
                 ActivityTransitionAnimator.Controller.fromView(
                         launchableView, /* cujType */ null);
@@ -1049,19 +1039,10 @@ public class CompatUIController implements OnDisplaysChangedListener,
         if (taskInfo == null) {
             return false;
         }
-        final boolean isDesktopModeShowing;
-        if (ENABLE_COMPAT_UI_DESKTOP_MODE_SYNCHRONIZATION_BUGFIX.isTrue()) {
-            // CompatUI is based on TaskListener and may not be synchronized with shell
-            // transitions. Checking the windowing mode in addition to desktop eligibility
-            // provides a more reliable state.
-            isDesktopModeShowing = taskInfo.getWindowingMode() == WINDOWING_MODE_FREEFORM
-                    && mDesktopState.isDesktopModeSupportedOnDisplay(taskInfo.displayId);
-        } else {
-            isDesktopModeShowing = mDesktopUserRepositories.isPresent()
-                    && mDesktopUserRepositories.get().getCurrent()
-                    .isAnyDeskActive(taskInfo.displayId);
-        }
-        return DesktopModeFlags.ENABLE_DESKTOP_SKIP_COMPAT_UI_EDUCATION_IN_DESKTOP_MODE_BUGFIX
-                .isTrue() && isDesktopModeShowing;
+        // CompatUI is based on TaskListener and may not be synchronized with shell transitions.
+        // Checking the windowing mode in addition to desktop eligibility provides a more reliable
+        // state.
+        return taskInfo.getWindowingMode() == WINDOWING_MODE_FREEFORM
+                && mDesktopState.isDesktopModeSupportedOnDisplay(taskInfo.displayId);
     }
 }

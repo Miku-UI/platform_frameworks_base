@@ -86,6 +86,7 @@ static struct {
     jfieldID mTransform;
     jfieldID mScalingMode;
     jfieldID mPlanes;
+    jfieldID mCropRect;
 } gSurfaceImageClassInfo;
 
 static struct {
@@ -97,6 +98,11 @@ static struct {
     jclass clazz;
     jmethodID ctor;
 } gImagePlaneClassInfo;
+
+static struct {
+    jclass clazz;
+    jmethodID ctor;
+} gRectClassInfo;
 
 // Get an ID that's unique within this process.
 static int32_t createProcessUniqueId() {
@@ -387,6 +393,11 @@ static void ImageReader_classInit(JNIEnv* env, jclass clazz)
                         "can't find android/graphics/ImageReader.%s",
                           ANDROID_MEDIA_IMAGEREADER_CTX_JNI_ID);
 
+    gSurfaceImageClassInfo.mCropRect =
+            env->GetFieldID(imageClazz, "mCropRect", "Landroid/graphics/Rect;");
+    LOG_ALWAYS_FATAL_IF(gSurfaceImageClassInfo.mCropRect == NULL,
+                        "can't find android/graphics/ImageReader.SurfaceImage.mCropRect");
+
     gImageReaderClassInfo.postEventFromNative = env->GetStaticMethodID(
             clazz, "postEventFromNative", "(Ljava/lang/Object;)V");
     LOG_ALWAYS_FATAL_IF(gImageReaderClassInfo.postEventFromNative == NULL,
@@ -409,6 +420,13 @@ static void ImageReader_classInit(JNIEnv* env, jclass clazz)
             "(IILjava/nio/ByteBuffer;)V");
     LOG_ALWAYS_FATAL_IF(gImagePlaneClassInfo.ctor == NULL,
             "Can not find ImagePlane constructor");
+
+    jclass rectClazz = env->FindClass("android/graphics/Rect");
+    LOG_ALWAYS_FATAL_IF(rectClazz == NULL, "Can not find graphics rect class");
+    // FindClass only gives a local reference of jclass object.
+    gRectClassInfo.clazz = (jclass) env->NewGlobalRef(rectClazz);
+    gRectClassInfo.ctor = env->GetMethodID(gRectClassInfo.clazz, "<init>", "(IIII)V");
+    LOG_ALWAYS_FATAL_IF(gRectClassInfo.ctor == NULL, "Can not find Rect constructor");
 }
 
 static void ImageReader_init(JNIEnv* env, jobject thiz, jobject weakThiz, jint width, jint height,
@@ -559,6 +577,8 @@ static void ImageReader_imageRelease(JNIEnv* env, jobject thiz, jobject image)
     }
 
     sp<Fence> releaseFence = Image_unlockIfLocked(env, image);
+
+    checkAndClearBlobFooter(buffer, releaseFence);
     bufferConsumer->releaseBuffer(*buffer, releaseFence);
     Image_setBufferItem(env, image, NULL);
     ctx->returnBufferItem(buffer);
@@ -606,15 +626,6 @@ static jint ImageReader_imageSetup(JNIEnv* env, jobject thiz, jobject image) {
 
     // Add some extra checks for non-opaque formats.
     if (!isFormatOpaque(ctx->getBufferFormat())) {
-        // Check if the left-top corner of the crop rect is origin, we currently assume this point is
-        // zero, will revisit this once this assumption turns out problematic.
-        Point lt = buffer->mCrop.leftTop();
-        if (lt.x != 0 || lt.y != 0) {
-            jniThrowExceptionFmt(env, "java/lang/UnsupportedOperationException",
-                    "crop left top corner [%d, %d] need to be at origin", lt.x, lt.y);
-            return -1;
-        }
-
         // Check if the producer buffer configurations match what ImageReader configured.
         int outputWidth = getBufferWidth(buffer);
         int outputHeight = getBufferHeight(buffer);
@@ -648,6 +659,13 @@ static jint ImageReader_imageSetup(JNIEnv* env, jobject thiz, jobject image) {
             static_cast<jint>(transform));
     env->SetIntField(image, gSurfaceImageClassInfo.mScalingMode,
             static_cast<jint>(buffer->mScalingMode));
+    if (!buffer->mCrop.isEmpty()) {
+        jobject cropRect =
+                env->NewObject(gRectClassInfo.clazz, gRectClassInfo.ctor, buffer->mCrop.left,
+                               buffer->mCrop.top, buffer->mCrop.right, buffer->mCrop.bottom);
+        env->SetObjectField(image, gSurfaceImageClassInfo.mCropRect, cropRect);
+        env->DeleteLocalRef(cropRect);
+    }
 
     return ACQUIRE_SUCCESS;
 }

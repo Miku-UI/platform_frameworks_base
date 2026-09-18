@@ -39,6 +39,7 @@ import android.app.IUnsafeIntentStrictModeCallback;
 import android.app.PendingIntent;
 import android.app.compat.CompatChanges;
 import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledAfter;
 import android.compat.annotation.EnabledSince;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.BroadcastReceiver;
@@ -61,6 +62,7 @@ import android.os.strictmode.DiskWriteViolation;
 import android.os.strictmode.ExplicitGcViolation;
 import android.os.strictmode.FileUriExposedViolation;
 import android.os.strictmode.ImplicitDirectBootViolation;
+import android.os.strictmode.ImplicitUriPermissionGrantViolation;
 import android.os.strictmode.IncorrectContextUseViolation;
 import android.os.strictmode.InstanceCountViolation;
 import android.os.strictmode.IntentReceiverLeakedViolation;
@@ -76,6 +78,9 @@ import android.os.strictmode.UntaggedSocketViolation;
 import android.os.strictmode.Violation;
 import android.os.strictmode.WebViewMethodCalledOnWrongThreadViolation;
 import android.ravenwood.annotation.RavenwoodIgnore;
+import android.ravenwood.annotation.RavenwoodKeep;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Printer;
@@ -166,7 +171,7 @@ import java.util.function.Consumer;
  * android.os.Binder} calls, it's still ultimately a best effort mechanism. Notably, disk or network
  * access from JNI calls won't necessarily trigger it.
  */
-@android.ravenwood.annotation.RavenwoodKeepPartialClass
+@RavenwoodKeepPartialClass
 public final class StrictMode {
     private static final String TAG = "StrictMode";
     private static final boolean LOG_V = Log.isLoggable(TAG, Log.VERBOSE);
@@ -277,6 +282,7 @@ public final class StrictMode {
             DETECT_VM_INCORRECT_CONTEXT_USE,
             DETECT_VM_UNSAFE_INTENT_LAUNCH,
             DETECT_VM_BACKGROUND_ACTIVITY_LAUNCH_ABORTED,
+            DETECT_VM_IMPLICIT_URI_PERMISSION_GRANT,
             PENALTY_GATHER,
             PENALTY_LOG,
             PENALTY_DIALOG,
@@ -322,6 +328,8 @@ public final class StrictMode {
     private static final int DETECT_VM_UNSAFE_INTENT_LAUNCH = 1 << 13;
     /** @hide */
     private static final int DETECT_VM_BACKGROUND_ACTIVITY_LAUNCH_ABORTED = 1 << 14;
+    /** @hide */
+    private static final int DETECT_VM_IMPLICIT_URI_PERMISSION_GRANT = 1 << 15;
 
     /** @hide */
     private static final int DETECT_VM_ALL = 0x0000ffff;
@@ -373,6 +381,28 @@ public final class StrictMode {
     @EnabledSince(targetSdkVersion = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     static final long DETECT_EXPLICIT_GC = 3400644L;
 
+    /**
+     * Enables reporting of instance count violations when a custom listener is set.
+     * Prior to this, instance count violations were not reported when a custom listener was
+     * set, but no penalty bits.
+     */
+    @ChangeId
+    @EnabledAfter(targetSdkVersion = Build.VERSION_CODES.BAKLAVA)
+    static final long DETECT_INSTANCE_COUNT_VIOLATIONS_WHEN_LISTENER_SET = 333566037L;
+
+    /**
+     * Detect when URI permissions are implicitly granted to your app, a behavior that will be
+     * discontinued in Android 18.
+     *
+     * <p>Implicit URI permission grants can occur when an app receives an {@link Intent} containing
+     * a {@link Uri} but without the {@link Intent#FLAG_GRANT_READ_URI_PERMISSION} or
+     * {@link Intent#FLAG_GRANT_WRITE_URI_PERMISSION} flags, yet the system still grant access to
+     * the URI on behalf of app.
+     */
+    @ChangeId
+    @EnabledAfter(targetSdkVersion = Build.VERSION_CODES.BAKLAVA)
+    private static final long DETECT_IMPLICIT_URI_PERMISSION_GRANT = 460838111L;
+
     // TODO: wrap in some ImmutableHashMap thing.
     // Note: must be before static initialization of sVmPolicy.
     private static final HashMap<Class, Integer> EMPTY_CLASS_LIMIT_MAP =
@@ -405,6 +435,9 @@ public final class StrictMode {
     private static final ThreadLocal<OnThreadViolationListener> sThreadViolationListener =
             new ThreadLocal<>();
     private static final ThreadLocal<Executor> sThreadViolationExecutor = new ThreadLocal<>();
+
+    private static final BackgroundActivityLaunchCallback BACKGROUND_ACTIVITY_LAUNCH_CALLBACK =
+            new BackgroundActivityLaunchCallback();
 
     /**
      * When #{@link ThreadPolicy.Builder#penaltyListener} is enabled, the listener is called on the
@@ -918,6 +951,10 @@ public final class StrictMode {
                 if (balStrictModeRo() && targetSdk > Build.VERSION_CODES.VANILLA_ICE_CREAM) {
                     detectBlockedBackgroundActivityLaunch();
                 }
+                if (android.security.Flags.strictModeViolationForImplicitUriGrantsEnabled()
+                        && CompatChanges.isChangeEnabled(DETECT_IMPLICIT_URI_PERMISSION_GRANT)) {
+                    detectImplicitUriPermissionGrant();
+                }
 
                 // TODO: Decide whether to detect non SDK API usage beyond a certain API level.
                 // TODO: enable detectImplicitDirectBoot() once system is less noisy
@@ -1189,6 +1226,42 @@ public final class StrictMode {
             }
 
             /**
+             * Detects when URI permissions are implicitly granted to your app, a behavior that
+             * will be discontinued in Android 18 (API 38).
+             *
+             * <p>Implicit URI permission grants can occur when an app receives an {@link Intent}
+             * containing a {@link Uri} but without the
+             * {@link Intent#FLAG_GRANT_READ_URI_PERMISSION} or
+             * {@link Intent#FLAG_GRANT_WRITE_URI_PERMISSION} flags, yet the system still grants
+             * access to the URI on behalf of the app.
+             *
+             * <p>Since implicit URI grants are being discontinued, developers must address this to
+             * prevent future app breakage. When sending intents with Uris, ensure that the
+             * appropriate grant flags are explicitly set if permission is intended to be granted.
+             * If no permission grant is intended, do not include Uris that could trigger implicit
+             * grants.
+             *
+             * @see Intent#FLAG_GRANT_READ_URI_PERMISSION
+             * @see Intent#FLAG_GRANT_WRITE_URI_PERMISSION
+             */
+            @FlaggedApi(android.security.Flags
+                    .FLAG_STRICT_MODE_VIOLATION_FOR_IMPLICIT_URI_GRANTS_ENABLED)
+            @SuppressWarnings("BuilderSetStyle")
+            public @NonNull Builder detectImplicitUriPermissionGrant() {
+                return enable(DETECT_VM_IMPLICIT_URI_PERMISSION_GRANT);
+            }
+
+            /**
+             * Disables detection when implicit URI permissions are granted to the app.
+             */
+            @FlaggedApi(android.security.Flags
+                    .FLAG_STRICT_MODE_VIOLATION_FOR_IMPLICIT_URI_GRANTS_ENABLED)
+            @SuppressWarnings("BuilderSetStyle")
+            public @NonNull Builder permitImplicitUriPermissionGrant() {
+                return disable(DETECT_VM_IMPLICIT_URI_PERMISSION_GRANT);
+            }
+
+            /**
              * Crashes the whole process on violation. This penalty runs at the end of all enabled
              * penalties so you'll still get your logging or other violations before the process
              * dies.
@@ -1422,7 +1495,7 @@ public final class StrictMode {
     }
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static @ThreadPolicyMask int allowThreadDiskWritesMask() {
         int oldPolicyMask = getThreadPolicyMask();
         int newPolicyMask = oldPolicyMask & ~(DETECT_THREAD_DISK_WRITE | DETECT_THREAD_DISK_READ);
@@ -1448,7 +1521,7 @@ public final class StrictMode {
     }
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static @ThreadPolicyMask int allowThreadDiskReadsMask() {
         int oldPolicyMask = getThreadPolicyMask();
         int newPolicyMask = oldPolicyMask & ~(DETECT_THREAD_DISK_READ);
@@ -1515,6 +1588,7 @@ public final class StrictMode {
      *
      * @hide
      */
+    @android.ravenwood.annotation.RavenwoodIgnore
     public static void initThreadDefaults(ApplicationInfo ai) {
         final ThreadPolicy.Builder builder = new ThreadPolicy.Builder();
         final int targetSdkVersion =
@@ -2159,6 +2233,18 @@ public final class StrictMode {
                 }
             };
 
+    private static boolean shouldCheckInstanceCountViolations(final VmPolicy policy) {
+        // New behavior: run if there are limits set, and either a penalty bit or penalty
+        // listener set.
+        if (CompatChanges.isChangeEnabled(DETECT_INSTANCE_COUNT_VIOLATIONS_WHEN_LISTENER_SET)) {
+            return policy.classInstanceLimit.size() != 0 &&
+                ((policy.mask & PENALTY_ALL) != 0 || policy.mListener != null);
+        } else {
+            // Old behavior: run if there are limits set, and a penalty bit set.
+            return policy.classInstanceLimit.size() != 0 && (policy.mask & PENALTY_ALL) != 0;
+        }
+    }
+
     /**
      * Sets the policy for what actions in the VM process (on any thread) should be detected, as
      * well as the penalty if such actions occur.
@@ -2173,8 +2259,7 @@ public final class StrictMode {
             Looper looper = Looper.getMainLooper();
             if (looper != null) {
                 MessageQueue mq = looper.mQueue;
-                if (policy.classInstanceLimit.size() == 0
-                        || (sVmPolicy.mask & PENALTY_ALL) == 0) {
+                if (!shouldCheckInstanceCountViolations(policy)) {
                     mq.removeIdleHandler(sProcessIdleHandler);
                     sIsIdlerRegistered = false;
                 } else if (!sIsIdlerRegistered) {
@@ -2231,7 +2316,7 @@ public final class StrictMode {
             IActivityTaskManager service = ActivityTaskManager.getService();
             if (service != null) {
                 service.registerBackgroundActivityStartCallback(
-                    new BackgroundActivityLaunchCallback());
+                        BACKGROUND_ACTIVITY_LAUNCH_CALLBACK);
             }
         } catch (DeadObjectException e) {
             // ignore
@@ -2319,6 +2404,7 @@ public final class StrictMode {
      * policy which can be changed by other threads.
      * @hide
      */
+    @RavenwoodIgnore
     public static boolean vmRegistrationLeaksEnabled() {
         return (sVmPolicy.mask & DETECT_VM_REGISTRATION_LEAKS) != 0;
     }
@@ -2400,6 +2486,7 @@ public final class StrictMode {
      * policy which can be changed by other threads.
      * @hide
      */
+    @RavenwoodIgnore
     public static boolean vmUnsafeIntentLaunchEnabled() {
         return (sVmPolicy.mask & DETECT_VM_UNSAFE_INTENT_LAUNCH) != 0;
     }
@@ -2412,6 +2499,16 @@ public final class StrictMode {
      */
     public static boolean vmBackgroundActivityLaunchEnabled() {
         return (sVmPolicy.mask & DETECT_VM_BACKGROUND_ACTIVITY_LAUNCH_ABORTED) != 0;
+    }
+
+    /**
+     * Note: This method should be used with caution. The value returned by this method is not
+     * guaranteed to be consistent across multiple calls because the value is read from the VM
+     * policy which can be changed by other threads.
+     * @hide
+     */
+    public static boolean vmImplicitUriPermissionGrantEnabled() {
+        return (sVmPolicy.mask & DETECT_VM_IMPLICIT_URI_PERMISSION_GRANT) != 0;
     }
 
     /** @hide */
@@ -2518,6 +2615,7 @@ public final class StrictMode {
      *
      * @hide
      */
+    @RavenwoodIgnore
     public static void assertConfigurationContext(@NonNull Context context,
             @NonNull String methodName) {
         if (vmIncorrectContextUseEnabled() && !context.isConfigurationContext()) {
@@ -2585,6 +2683,11 @@ public final class StrictMode {
     /** @hide */
     public static void onBackgroundActivityLaunchAborted(String message) {
         onVmPolicyViolation(new BackgroundActivityLaunchViolation(message));
+    }
+
+    /** @hide */
+    public static void onImplicitUriPermissionGrant(String message) {
+        onVmPolicyViolation(new ImplicitUriPermissionGrantViolation(message));
     }
 
     /** Assume locked until we hear otherwise */
@@ -3032,6 +3135,7 @@ public final class StrictMode {
      *
      * @hide
      */
+    @RavenwoodKeep
     public static Object trackActivity(Object instance) {
         return new InstanceTracker(instance);
     }
@@ -3392,6 +3496,7 @@ public final class StrictMode {
                 };
     }
 
+    @RavenwoodKeepWholeClass
     private static final class InstanceTracker {
         private static final HashMap<Class<?>, Integer> sInstanceCounts =
                 new HashMap<Class<?>, Integer>();

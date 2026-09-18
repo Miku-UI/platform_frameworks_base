@@ -19,6 +19,7 @@ import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.flags.FeatureFlags
 import com.android.systemui.flags.Flags
 import com.android.systemui.plugins.ActivityStarter
+import com.android.systemui.privacy.AbstractOngoingPrivacyChip
 import com.android.systemui.privacy.OngoingPrivacyChip
 import com.android.systemui.privacy.PrivacyDialogController
 import com.android.systemui.privacy.PrivacyDialogControllerV2
@@ -37,54 +38,38 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
-import org.mockito.Mockito
-import org.mockito.kotlin.never
-import org.mockito.kotlin.capture
-import org.mockito.kotlin.argumentCaptor
-import org.mockito.kotlin.times
-import org.mockito.kotlin.verify
-import org.mockito.kotlin.eq
+import org.mockito.Mockito.`when` as whenever
+import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
-import org.mockito.MockitoAnnotations
-import org.mockito.Mockito.`when` as whenever
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.capture
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.never
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class HeaderPrivacyIconsControllerTest : SysuiTestCase() {
 
     private val kosmos = testKosmos()
-    @Mock
-    private lateinit var privacyItemController: PrivacyItemController
-    @Mock
-    private lateinit var uiEventLogger: UiEventLogger
-    @Mock
-    private lateinit var privacyChip: OngoingPrivacyChip
-    @Mock
-    private lateinit var privacyDialogController: PrivacyDialogController
-    @Mock
-    private lateinit var privacyDialogControllerV2: PrivacyDialogControllerV2
-    @Mock
-    private lateinit var privacyLogger: PrivacyLogger
-    @Mock
-    private lateinit var iconContainer: StatusIconContainer
-    @Mock
-    private lateinit var permissionManager: PermissionManager
-    @Mock
-    private lateinit var activityStarter: ActivityStarter
-    @Mock
-    private lateinit var appOpsController: AppOpsController
-    @Mock
-    private lateinit var broadcastDispatcher: BroadcastDispatcher
-    @Mock
-    private lateinit var safetyCenterManager: SafetyCenterManager
-    @Mock
-    private lateinit var deviceProvisionedController: DeviceProvisionedController
-    @Mock
-    private lateinit var featureFlags: FeatureFlags
+    @Mock private lateinit var privacyItemController: PrivacyItemController
+    @Mock private lateinit var uiEventLogger: UiEventLogger
+    @Mock private lateinit var privacyChip: AbstractOngoingPrivacyChip
+    @Mock private lateinit var privacyDialogController: PrivacyDialogController
+    @Mock private lateinit var privacyDialogControllerV2: PrivacyDialogControllerV2
+    @Mock private lateinit var privacyLogger: PrivacyLogger
+    @Mock private lateinit var iconContainer: StatusIconContainer
+    @Mock private lateinit var permissionManager: PermissionManager
+    @Mock private lateinit var activityStarter: ActivityStarter
+    @Mock private lateinit var appOpsController: AppOpsController
+    @Mock private lateinit var broadcastDispatcher: BroadcastDispatcher
+    @Mock private lateinit var safetyCenterManager: SafetyCenterManager
+    @Mock private lateinit var deviceProvisionedController: DeviceProvisionedController
+    @Mock private lateinit var featureFlags: FeatureFlags
 
-    @Mock
-    private lateinit var userTracker: UserTracker
+    @Mock private lateinit var userTracker: UserTracker
 
     private val uiExecutor = FakeExecutor(FakeSystemClock())
     private val backgroundExecutor = FakeExecutor(FakeSystemClock())
@@ -105,7 +90,8 @@ class HeaderPrivacyIconsControllerTest : SysuiTestCase() {
         microphoneSlotName = context.getString(com.android.internal.R.string.status_bar_microphone)
         locationSlotName = context.getString(com.android.internal.R.string.status_bar_location)
 
-        controller = HeaderPrivacyIconsController(
+        controller =
+            HeaderPrivacyIconsController(
                 privacyItemController,
                 uiEventLogger,
                 privacyChip,
@@ -124,7 +110,7 @@ class HeaderPrivacyIconsControllerTest : SysuiTestCase() {
                 featureFlags,
                 kosmos.shadeDialogContextInteractor,
                 userTracker,
-        )
+            )
 
         backgroundExecutor.runAllReady()
     }
@@ -196,7 +182,7 @@ class HeaderPrivacyIconsControllerTest : SysuiTestCase() {
         captor.firstValue.onClick(privacyChip)
         verify(privacyDialogController).showDialog(any<Context>())
         verify(privacyDialogControllerV2, never())
-                .showDialog(any<Context>(), any<OngoingPrivacyChip>())
+            .showDialog(any<Context>(), any<OngoingPrivacyChip>())
     }
 
     @Test
@@ -204,11 +190,18 @@ class HeaderPrivacyIconsControllerTest : SysuiTestCase() {
         whenever(featureFlags.isEnabled(Flags.ENABLE_NEW_PRIVACY_DIALOG)).thenReturn(false)
         val receiverCaptor = argumentCaptor<BroadcastReceiver>()
         whenever(safetyCenterManager.isSafetyCenterEnabled).thenReturn(true)
-        verify(broadcastDispatcher).registerReceiver(receiverCaptor.capture(),
-                any(), any(), anyOrNull(), any<Int>(), anyOrNull())
+        verify(broadcastDispatcher)
+            .registerReceiver(
+                receiverCaptor.capture(),
+                any(),
+                any(),
+                anyOrNull(),
+                any<Int>(),
+                anyOrNull(),
+            )
         receiverCaptor.firstValue.onReceive(
-                context,
-                Intent(SafetyCenterManager.ACTION_SAFETY_CENTER_ENABLED_CHANGED)
+            context,
+            Intent(SafetyCenterManager.ACTION_SAFETY_CENTER_ENABLED_CHANGED),
         )
         backgroundExecutor.runAllReady()
         controller.onParentVisible()
@@ -225,11 +218,18 @@ class HeaderPrivacyIconsControllerTest : SysuiTestCase() {
         whenever(featureFlags.isEnabled(Flags.ENABLE_NEW_PRIVACY_DIALOG)).thenReturn(true)
         val receiverCaptor = argumentCaptor<BroadcastReceiver>()
         whenever(safetyCenterManager.isSafetyCenterEnabled).thenReturn(true)
-        verify(broadcastDispatcher).registerReceiver(receiverCaptor.capture(),
-                any(), any(), anyOrNull(), any<Int>(), anyOrNull())
+        verify(broadcastDispatcher)
+            .registerReceiver(
+                receiverCaptor.capture(),
+                any(),
+                any(),
+                anyOrNull(),
+                any<Int>(),
+                anyOrNull(),
+            )
         receiverCaptor.firstValue.onReceive(
-                context,
-                Intent(SafetyCenterManager.ACTION_SAFETY_CENTER_ENABLED_CHANGED)
+            context,
+            Intent(SafetyCenterManager.ACTION_SAFETY_CENTER_ENABLED_CHANGED),
         )
         backgroundExecutor.runAllReady()
         controller.onParentVisible()
@@ -257,10 +257,15 @@ class HeaderPrivacyIconsControllerTest : SysuiTestCase() {
         val broadcastReceiverCaptor = argumentCaptor<BroadcastReceiver>()
         val intentFilterCaptor = argumentCaptor<IntentFilter>()
         // Broadcast receiver is registered on init and when privacy chip is attached
-        verify(broadcastDispatcher, times(2)).registerReceiver(
-            broadcastReceiverCaptor.capture(),
-            intentFilterCaptor.capture(), any(), anyOrNull(), any<Int>(), anyOrNull()
-        )
+        verify(broadcastDispatcher, times(2))
+            .registerReceiver(
+                broadcastReceiverCaptor.capture(),
+                intentFilterCaptor.capture(),
+                any(),
+                anyOrNull(),
+                any<Int>(),
+                anyOrNull(),
+            )
     }
 
     @Test

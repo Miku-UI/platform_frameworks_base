@@ -10,7 +10,7 @@
         android:id="@+id/auth_screen"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:constraint_referenced_ids="button_bar, scrollView, indicator"/>
+        app:constraint_referenced_ids="button_bar, scrollView, indicator, close_button"/>
 
     <ImageView
         android:id="@+id/background"
@@ -28,6 +28,7 @@
         style="@style/AuthCredentialPanelStyle"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toStartOf="@id/rightGuideline"
         app:layout_constraintStart_toStartOf="@id/leftGuideline"
@@ -58,13 +59,25 @@
         app:layout_constraintStart_toStartOf="@id/panel"
         app:layout_constraintEnd_toEndOf="@id/panel" />
 
-    <com.android.systemui.deviceentry.ui.view.UdfpsAccessibilityOverlay
+    <androidx.compose.ui.platform.ComposeView
+        android:id="@+id/compose_credential_view"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:fillViewport="true"
+        app:layout_constrainedHeight="true"
+        app:layout_constrainedWidth="true"
+        app:layout_constraintBottom_toTopOf="@id/bottomGuideline"
+        app:layout_constraintEnd_toEndOf="@id/panel"
+        app:layout_constraintStart_toStartOf="@id/panel"
+        app:layout_constraintTop_toTopOf="@+id/topGuideline"
+        app:layout_constraintVertical_bias="1.0" />
+
+    <ViewStub
         android:id="@+id/biometric_prompt_udfps_accessibility_overlay"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:accessibilityLiveRegion="assertive"
-        android:importantForAccessibility="no"
-        android:clickable="false"
+        android:layout="@layout/biometric_prompt_udfps_accessibility_overlay"
         app:layout_constraintBottom_toBottomOf="@id/panel"
         app:layout_constraintEnd_toEndOf="@id/panel"
         app:layout_constraintStart_toStartOf="@id/panel"
@@ -205,13 +218,23 @@
         app:layout_constraintTop_toBottomOf="@+id/biometric_icon"
         app:layout_constraintVertical_bias="0.0" />
 
+    <ImageButton
+        android:id="@+id/close_button"
+        style="@style/AuthCredentialCloseButton"
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="24dp"
+        android:src="@drawable/ic_close"
+        android:contentDescription="@string/cancel"
+        app:layout_constraintTop_toTopOf="@id/panel"
+        app:layout_constraintEnd_toEndOf="@id/panel" />
+
     <androidx.constraintlayout.widget.Barrier
         android:id="@+id/topBarrier"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         app:barrierAllowsGoneWidgets="false"
         app:barrierDirection="top"
-        app:constraint_referenced_ids="scrollView, fallback_view" />
+        app:constraint_referenced_ids="scrollView, fallback_view, compose_credential_view" />
 
     <androidx.constraintlayout.widget.Barrier
         android:id="@+id/scrollBarrier"
@@ -259,4 +282,18 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintVertical_bias="1.0"
         tools:srcCompat="@tools:sample/avatars" />
+
+    <androidx.constraintlayout.helper.widget.Flow
+        android:id="@+id/biometric_flow"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:orientation="vertical"
+        app:flow_verticalGap="@dimen/biometric_prompt_center_vertical_spacing"
+        app:flow_verticalStyle="packed"
+        app:flow_wrapMode="chain"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

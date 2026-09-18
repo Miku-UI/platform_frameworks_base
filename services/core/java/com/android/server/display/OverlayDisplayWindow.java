@@ -160,6 +160,13 @@ final class OverlayDisplayWindow implements DumpUtils.Dump {
             mTitle += mContext.getResources().getString(
                     com.android.internal.R.string.display_manager_overlay_display_secure_suffix);
         }
+        if (mTitleTextView != null) {
+            mTitleTextView.setText(mTitle);
+        }
+        if (mTextureView != null) {
+            mTextureView.getLayoutParams().width = mWidth;
+            mTextureView.getLayoutParams().height = mHeight;
+        }
         if (doLayout) {
             relayout();
         }
@@ -232,8 +239,8 @@ final class OverlayDisplayWindow implements DumpUtils.Dump {
             mWindowParams.privateFlags |=
                     WindowManager.LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY;
         }
-        mWindowParams.privateFlags |=
-                WindowManager.LayoutParams.PRIVATE_FLAG_FORCE_HARDWARE_ACCELERATED;
+        mWindowParams.renderingHints |=
+                WindowManager.LayoutParams.RENDERING_HINT_FORCE_HARDWARE_ACCELERATED;
         mWindowParams.alpha = WINDOW_ALPHA;
         mWindowParams.gravity = Gravity.TOP | Gravity.LEFT;
         mWindowParams.setTitle(mTitle);

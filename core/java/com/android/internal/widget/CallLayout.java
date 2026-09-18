@@ -16,7 +16,7 @@
 
 package com.android.internal.widget;
 
-import static com.android.internal.widget.flags.Flags.notificationTransparentBadgeRing;
+import static android.app.Flags.notificationTransparentBadgeRing;
 
 import android.annotation.AttrRes;
 import android.annotation.NonNull;
@@ -24,6 +24,7 @@ import android.annotation.Nullable;
 import android.annotation.StyleRes;
 import android.app.Notification;
 import android.app.Person;
+import android.app.SetNotificationBackgroundColorRefactor;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.Icon;
@@ -100,8 +101,11 @@ public class CallLayout extends FrameLayout {
             mConversationIconView.setOutlineProvider(
                     PeopleHelper.getBadgeCutoutOutlineProvider(mConversationIconView,
                             conversationIconBadge));
+            if (SetNotificationBackgroundColorRefactor.isEnabled()) {
+                mConversationIconBadgeBg.setImageTintList(ColorStateList.valueOf(
+                        android.R.color.transparent));
+            }
         }
-
     }
 
     @NonNull
@@ -141,6 +145,7 @@ public class CallLayout extends FrameLayout {
      */
     @RemotableViewMethod
     public void setNotificationBackgroundColor(int color) {
+        SetNotificationBackgroundColorRefactor.assertInLegacyMode();
         mConversationIconBadgeBg.setImageTintList(ColorStateList.valueOf(
                 notificationTransparentBadgeRing() ? android.R.color.transparent : color));
     }

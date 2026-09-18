@@ -24,8 +24,8 @@ import android.tools.flicker.FlickerTest
 import android.tools.flicker.subject.layers.LayerTraceEntrySubject
 import android.tools.flicker.subject.layers.LayersTraceSubject
 import android.tools.helpers.WindowUtils
-import android.tools.traces.component.IComponentMatcher
 import android.tools.traces.component.ComponentNameMatcher.Companion.DESKTOP_HANDLE
+import android.tools.traces.component.IComponentMatcher
 
 fun FlickerTest.appPairsDividerIsVisibleAtEnd() {
     assertLayersEnd { this.isVisible(APP_PAIR_SPLIT_DIVIDER_COMPONENT) }
@@ -47,7 +47,7 @@ fun FlickerTest.splitScreenEntered(
     component1: IComponentMatcher,
     component2: IComponentMatcher,
     fromOtherApp: Boolean,
-    appExistAtStart: Boolean = true
+    appExistAtStart: Boolean = true,
 ) {
     if (fromOtherApp) {
         if (appExistAtStart) {
@@ -73,7 +73,7 @@ fun FlickerTest.splitScreenEntered(
 fun FlickerTest.splitScreenDismissed(
     component1: IComponentMatcher,
     component2: IComponentMatcher,
-    toHome: Boolean
+    toHome: Boolean,
 ) {
     appWindowIsVisibleAtStart(component1)
     appWindowIsVisibleAtStart(component2)
@@ -116,7 +116,6 @@ fun FlickerTest.tilingDividerIsInvisibleAtStart() {
     assertLayersStart { this.isInvisible(TILING_SPLIT_DIVIDER) }
 }
 
-
 fun FlickerTest.tilingScreenDividerIsInvisibleAtEnd() {
     assertLayersEnd { this.isInvisible(TILING_SPLIT_DIVIDER) }
 }
@@ -141,14 +140,19 @@ fun FlickerTest.layerBecomesVisible(component: IComponentMatcher) {
     assertLayers { this.isInvisible(component).then().isVisible(component) }
 }
 
+fun FlickerTest.layerBecomesVisibleThenInvisible(component: IComponentMatcher) {
+    assertLayers {
+        this.isInvisible(component).then().isVisible(component).then().isInvisible(component)
+    }
+}
+
 fun FlickerTest.layerBecomesInvisible(component: IComponentMatcher) {
     assertLayers { this.isVisible(component).then().isInvisible(component) }
 }
 
 fun FlickerTest.layerCoversFullScreenAtEnd(component: IComponentMatcher) {
     assertLayersEnd {
-        val displayBounds =
-            entry.physicalDisplayBounds ?: error("Missing physical display bounds")
+        val displayBounds = entry.physicalDisplayBounds ?: error("Missing physical display bounds")
         visibleRegion(component).coversExactly(displayBounds)
     }
 }
@@ -161,10 +165,20 @@ fun FlickerTest.layerKeepVisible(component: IComponentMatcher) {
     assertLayers { this.isVisible(component) }
 }
 
+fun FlickerTest.layerKeepVisibleOrOccluded(component: IComponentMatcher) {
+    assertLayers {
+        this.isVisible(component)
+            .then()
+            .isOccluded(component, isOptional = true)
+            .then()
+            .isVisible(component)
+    }
+}
+
 fun FlickerTest.splitAppLayerBoundsBecomesVisible(
     component: IComponentMatcher,
     landscapePosLeft: Boolean,
-    portraitPosTop: Boolean
+    portraitPosTop: Boolean,
 ) {
     assertLayers {
         this.notContains(SPLIT_SCREEN_DIVIDER_COMPONENT.or(component), isOptional = true)
@@ -175,7 +189,7 @@ fun FlickerTest.splitAppLayerBoundsBecomesVisible(
                 component,
                 landscapePosLeft,
                 portraitPosTop,
-                scenario.endRotation
+                scenario.endRotation,
             )
     }
 }
@@ -194,14 +208,14 @@ fun FlickerTest.splitAppLayerBoundsBecomesVisibleByDrag(component: IComponentMat
 fun FlickerTest.splitAppLayerBoundsBecomesInvisible(
     component: IComponentMatcher,
     landscapePosLeft: Boolean,
-    portraitPosTop: Boolean
+    portraitPosTop: Boolean,
 ) {
     assertLayers {
         this.splitAppLayerBoundsSnapToDivider(
                 component,
                 landscapePosLeft,
                 portraitPosTop,
-                scenario.endRotation
+                scenario.endRotation,
             )
             .then()
             .isVisible(component, true)
@@ -213,14 +227,14 @@ fun FlickerTest.splitAppLayerBoundsBecomesInvisible(
 fun FlickerTest.splitAppLayerBoundsIsVisibleAtEnd(
     component: IComponentMatcher,
     landscapePosLeft: Boolean,
-    portraitPosTop: Boolean
+    portraitPosTop: Boolean,
 ) {
     assertLayersEnd {
         splitAppLayerBoundsSnapToDivider(
             component,
             landscapePosLeft,
             portraitPosTop,
-            scenario.endRotation
+            scenario.endRotation,
         )
     }
 }
@@ -228,14 +242,14 @@ fun FlickerTest.splitAppLayerBoundsIsVisibleAtEnd(
 fun FlickerTest.splitAppLayerBoundsKeepVisible(
     component: IComponentMatcher,
     landscapePosLeft: Boolean,
-    portraitPosTop: Boolean
+    portraitPosTop: Boolean,
 ) {
     assertLayers {
         splitAppLayerBoundsSnapToDivider(
             component,
             landscapePosLeft,
             portraitPosTop,
-            scenario.endRotation
+            scenario.endRotation,
         )
     }
 }
@@ -243,7 +257,7 @@ fun FlickerTest.splitAppLayerBoundsKeepVisible(
 fun FlickerTest.splitAppLayerBoundsChanges(
     component: IComponentMatcher,
     landscapePosLeft: Boolean,
-    portraitPosTop: Boolean
+    portraitPosTop: Boolean,
 ) {
     assertLayers {
         if (landscapePosLeft) {
@@ -251,14 +265,14 @@ fun FlickerTest.splitAppLayerBoundsChanges(
                 component,
                 landscapePosLeft,
                 portraitPosTop,
-                scenario.endRotation
+                scenario.endRotation,
             )
         } else {
             splitAppLayerBoundsSnapToDivider(
                     component,
                     landscapePosLeft,
                     portraitPosTop,
-                    scenario.endRotation
+                    scenario.endRotation,
                 )
                 .then()
                 .isInvisible(component)
@@ -267,7 +281,7 @@ fun FlickerTest.splitAppLayerBoundsChanges(
                     component,
                     landscapePosLeft,
                     portraitPosTop,
-                    scenario.endRotation
+                    scenario.endRotation,
                 )
         }
     }
@@ -277,7 +291,7 @@ fun LayersTraceSubject.splitAppLayerBoundsSnapToDivider(
     component: IComponentMatcher,
     landscapePosLeft: Boolean,
     portraitPosTop: Boolean,
-    rotation: Rotation
+    rotation: Rotation,
 ): LayersTraceSubject {
     return invoke("splitAppLayerBoundsSnapToDivider") {
         it.splitAppLayerBoundsSnapToDivider(component, landscapePosLeft, portraitPosTop, rotation)
@@ -289,16 +303,16 @@ fun LayersTraceSubject.splitAppLayerBoundsSnapToDivider(
  *
  * @param component The component we are checking (should be one of the two split apps)
  * @param landscapePosLeft If [true], and device is in left/right split, app is on the left side of
- * the screen. Has no meaning if device is in top/bottom split.
- * @param portraitPosTop If [true], and device is in top/bottom split, app is on the top side of
- * the screen. Has no meaning if device is in left/right split.
+ *   the screen. Has no meaning if device is in top/bottom split.
+ * @param portraitPosTop If [true], and device is in top/bottom split, app is on the top side of the
+ *   screen. Has no meaning if device is in left/right split.
  * @param rotation The rotation state of the display.
  */
 fun LayerTraceEntrySubject.splitAppLayerBoundsSnapToDivider(
     component: IComponentMatcher,
     landscapePosLeft: Boolean,
     portraitPosTop: Boolean,
-    rotation: Rotation
+    rotation: Rotation,
 ): LayerTraceEntrySubject {
     val displayBounds = WindowUtils.getDisplayBounds(rotation)
     return invoke {
@@ -316,14 +330,14 @@ fun LayerTraceEntrySubject.splitAppLayerBoundsSnapToDivider(
                             -displayBounds.right, // the receding app can go offscreen
                             0,
                             (dividerRegion.left + dividerRegion.right) / 2,
-                            displayBounds.bottom
+                            displayBounds.bottom,
                         )
                     } else {
                         Region(
                             (dividerRegion.left + dividerRegion.right) / 2,
                             0,
                             displayBounds.right * 2, // the receding app can go offscreen
-                            displayBounds.bottom
+                            displayBounds.bottom,
                         )
                     }
                 } else {
@@ -332,14 +346,14 @@ fun LayerTraceEntrySubject.splitAppLayerBoundsSnapToDivider(
                             0,
                             -displayBounds.bottom, // the receding app can go offscreen
                             displayBounds.right,
-                            (dividerRegion.top + dividerRegion.bottom) / 2
+                            (dividerRegion.top + dividerRegion.bottom) / 2,
                         )
                     } else {
                         Region(
                             0,
                             (dividerRegion.top + dividerRegion.bottom) / 2,
                             displayBounds.right,
-                            displayBounds.bottom * 2 // the receding app can go offscreen
+                            displayBounds.bottom * 2, // the receding app can go offscreen
                         )
                     }
                 }
@@ -405,13 +419,11 @@ fun FlickerTest.appWindowKeepVisible(component: IComponentMatcher) {
 /**
  * Asserts that a layer has no associated desktop handle.
  *
- * This check is performed on the layers trace, ensuring no layer corresponding to a
- * desktop handle is present at the end of the scenario.
+ * This check is performed on the layers trace, ensuring no layer corresponding to a desktop handle
+ * is present at the end of the scenario.
  */
 fun FlickerTest.layerHasNoDesktopHandleAtEnd() {
-    assertLayersEnd {
-        this.notContains(DESKTOP_HANDLE)
-    }
+    assertLayersEnd { this.notContains(DESKTOP_HANDLE) }
 }
 
 fun FlickerTest.dockedStackDividerIsVisibleAtEnd() {
@@ -440,7 +452,7 @@ fun FlickerTest.dockedStackDividerNotExistsAtEnd() {
 
 fun FlickerTest.appPairsPrimaryBoundsIsVisibleAtEnd(
     rotation: Rotation,
-    primaryComponent: IComponentMatcher
+    primaryComponent: IComponentMatcher,
 ) {
     assertLayersEnd {
         val dividerRegion =
@@ -452,7 +464,7 @@ fun FlickerTest.appPairsPrimaryBoundsIsVisibleAtEnd(
 
 fun FlickerTest.dockedStackPrimaryBoundsIsVisibleAtEnd(
     rotation: Rotation,
-    primaryComponent: IComponentMatcher
+    primaryComponent: IComponentMatcher,
 ) {
     assertLayersEnd {
         val dividerRegion =
@@ -464,7 +476,7 @@ fun FlickerTest.dockedStackPrimaryBoundsIsVisibleAtEnd(
 
 fun FlickerTest.appPairsSecondaryBoundsIsVisibleAtEnd(
     rotation: Rotation,
-    secondaryComponent: IComponentMatcher
+    secondaryComponent: IComponentMatcher,
 ) {
     assertLayersEnd {
         val dividerRegion =
@@ -476,7 +488,7 @@ fun FlickerTest.appPairsSecondaryBoundsIsVisibleAtEnd(
 
 fun FlickerTest.dockedStackSecondaryBoundsIsVisibleAtEnd(
     rotation: Rotation,
-    secondaryComponent: IComponentMatcher
+    secondaryComponent: IComponentMatcher,
 ) {
     assertLayersEnd {
         val dividerRegion =
@@ -493,14 +505,14 @@ fun getPrimaryRegion(dividerRegion: Region, rotation: Rotation): Region {
             0,
             0,
             dividerRegion.bounds.left + WindowUtils.dockedStackDividerInset,
-            displayBounds.bottom
+            displayBounds.bottom,
         )
     } else {
         Region(
             0,
             0,
             displayBounds.right,
-            dividerRegion.bounds.top + WindowUtils.dockedStackDividerInset
+            dividerRegion.bounds.top + WindowUtils.dockedStackDividerInset,
         )
     }
 }
@@ -512,14 +524,14 @@ fun getSecondaryRegion(dividerRegion: Region, rotation: Rotation): Region {
             dividerRegion.bounds.right - WindowUtils.dockedStackDividerInset,
             0,
             displayBounds.right,
-            displayBounds.bottom
+            displayBounds.bottom,
         )
     } else {
         Region(
             0,
             dividerRegion.bounds.bottom - WindowUtils.dockedStackDividerInset,
             displayBounds.right,
-            displayBounds.bottom
+            displayBounds.bottom,
         )
     }
 }

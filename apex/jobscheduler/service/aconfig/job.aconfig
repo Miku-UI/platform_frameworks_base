@@ -23,91 +23,25 @@ flag {
 }
 
 flag {
-    name: "relax_prefetch_connectivity_constraint_only_on_charger"
+    name: "include_job_name_in_anr_message"
     namespace: "backstage_power"
-    description: "Only relax a prefetch job's connectivity constraint when the device is charging and battery is not low"
-    bug: "299329948"
-}
-
-flag {
-   name: "thermal_restrictions_to_fgs_jobs"
-   namespace: "backstage_power"
-   description: "Apply thermal restrictions to FGS jobs."
-   bug: "315157163"
-   metadata {
-       purpose: PURPOSE_BUGFIX
-   }
-}
-
-flag {
-   name: "remove_user_during_user_switch"
-   namespace: "backstage_power"
-   description: "Remove started user if user will be stopped due to user switch"
-   bug: "337077643"
-}
-
-flag {
-   name: "adjust_quota_default_constants"
-   namespace: "backstage_power"
-   description: "Adjust quota default parameters"
-   bug: "347058927"
-}
-
-flag {
-   name: "enforce_quota_policy_to_top_started_jobs"
-   namespace: "backstage_power"
-   description: "Apply the quota policy to jobs started when the app was in TOP state"
-   bug: "374323858"
-}
-
-flag {
-    name: "enforce_schedule_limit_to_proxy_jobs"
-    namespace: "backstage_power"
-    description: "Limit the schedule calls towards the persisted proxy jobs"
-    bug: "377912323"
+    description: "Include the job's component name in the slow app response ANR message."
+    bug: "453757844"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "include_trace_tag_in_job_name"
+    name: "enforce_proxied_jobs_limit"
     namespace: "backstage_power"
-    description: "Add the trace tag to the job name"
-    bug: "354795473"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-
-
-flag {
-    name: "fix_reporting_active_jobs"
-    namespace: "backstage_power"
-    description: "Correctly report the active jobs to idle controller"
-    bug: "425761099"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    description: "Enforce a limit on the number of proxied jobs that can be scheduled indirectly (e.g. via SyncManager)"
+    bug: "299930087"
 }
 
 flag {
-    name: "allow_cmp_exemption_for_restricted_bucket"
+    name: "limit_per_uid_cumulative_workitem_size"
     namespace: "backstage_power"
-    description: "Allow CMP exemption for apps in Restricted bucket due to timeout reason"
-    bug: "409606405"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "update_media_backup_exemption_policy"
-    namespace: "backstage_power"
-    description: "Update the criteria for media backup job exemption"
-    bug: "436531976"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    description: "Limit the total amount of memory consumption ab app can impose on the system via JobWorkItems"
+    bug: "434194137"
 }

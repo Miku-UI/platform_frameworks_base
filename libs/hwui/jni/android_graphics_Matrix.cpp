@@ -62,11 +62,11 @@ public:
         float* srcArray = autoSrc.ptr() + srcIndex;
         float* dstArray = autoDst.ptr() + dstIndex;
         if (isPts)
-            matrix->mapPoints((SkPoint*) dstArray, (const SkPoint*) srcArray,
-                    ptCount);
+            matrix->mapPoints({(SkPoint*) dstArray, ptCount},
+                              {(const SkPoint*) srcArray, ptCount});
         else
-            matrix->mapVectors((SkVector*) dstArray, (const SkVector*) srcArray,
-                    ptCount);
+            matrix->mapVectors({(SkVector*) dstArray, ptCount},
+                               {(const SkVector*) srcArray, ptCount});
     }
 
     static jboolean mapRect__RectFRectF(JNIEnv* env, jobject clazz,
@@ -106,8 +106,8 @@ public:
         float* dst = autoDst.ptr() + dstIndex;
         bool result;
 
-        result = matrix->setPolyToPoly((const SkPoint*) src,
-                (const SkPoint*) dst, ptCount);
+        result = matrix->setPolyToPoly({(const SkPoint*) src, ptCount},
+                                       {(const SkPoint*) dst, ptCount});
         return result ? JNI_TRUE : JNI_FALSE;
     }
 

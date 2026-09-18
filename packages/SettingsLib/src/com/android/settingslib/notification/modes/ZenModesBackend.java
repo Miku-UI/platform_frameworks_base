@@ -73,8 +73,15 @@ public class ZenModesBackend {
     }
 
     ZenModesBackend(Context context) {
+        this(context, context.getSystemService(NotificationManager.class));
+    }
+
+    @VisibleForTesting
+    ZenModesBackend(
+            Context context,
+            NotificationManager notificationManager) {
         mContext = context;
-        mNotificationManager = context.getSystemService(NotificationManager.class);
+        mNotificationManager = notificationManager;
     }
 
     public List<ZenMode> getModes() {

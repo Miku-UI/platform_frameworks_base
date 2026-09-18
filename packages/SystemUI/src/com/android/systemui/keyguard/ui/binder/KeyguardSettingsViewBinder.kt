@@ -40,6 +40,7 @@ import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.VibratorHelper
 import kotlinx.coroutines.DisposableHandle
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
@@ -61,24 +62,38 @@ object KeyguardSettingsViewBinder {
 
                 repeatOnLifecycle(Lifecycle.State.STARTED) {
                     launch("$TAG#viewModel.isVisible") {
-                        viewModel.isVisible.distinctUntilChanged().collect { isVisible ->
-                            view.animateVisibility(visible = isVisible)
-                            if (isVisible) {
-                                if (!Flags.msdlFeedback()) {
-                                    vibratorHelper.vibrate(KeyguardBottomAreaVibrations.Activated)
+                        combine(
+                                viewModel.isVisible.distinctUntilChanged(),
+                                viewModel.shouldAddClickListenerForA11y,
+                                ::Pair,
+                            )
+                            .collect { (isVisible, addA11yClickListener) ->
+                                view.animateVisibility(visible = isVisible)
+                                if (isVisible) {
+                                    if (!Flags.msdlFeedback()) {
+                                        vibratorHelper.vibrate(
+                                            KeyguardBottomAreaVibrations.Activated
+                                        )
+                                    }
+                                    val textView = view.requireViewById(R.id.text) as TextView
+                                    view.setOnTouchListener(
+                                        KeyguardSettingsButtonOnTouchListener(viewModel = viewModel)
+                                    )
+                                    if (addA11yClickListener) {
+                                        textView.setOnClickListener {
+                                            viewModel.clickKeyguardSettingsPopupMenu()
+                                        }
+                                    } else {
+                                        textView.setOnClickListener(null)
+                                    }
+                                    IconViewBinder.bind(
+                                        icon = viewModel.icon,
+                                        view = view.requireViewById(R.id.icon),
+                                    )
+                                    TextViewBinder.bind(view = textView, viewModel = viewModel.text)
+                                    textView.sendAccessibilityEvent(TYPE_VIEW_FOCUSED)
                                 }
-                                val textView = view.requireViewById(R.id.text) as TextView
-                                view.setOnTouchListener(
-                                    KeyguardSettingsButtonOnTouchListener(viewModel = viewModel)
-                                )
-                                IconViewBinder.bind(
-                                    icon = viewModel.icon,
-                                    view = view.requireViewById(R.id.icon),
-                                )
-                                TextViewBinder.bind(view = textView, viewModel = viewModel.text)
-                                textView.sendAccessibilityEvent(TYPE_VIEW_FOCUSED)
                             }
-                        }
                     }
 
                     // activityStarter will only be null when rendering the preview that

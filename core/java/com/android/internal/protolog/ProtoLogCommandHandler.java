@@ -105,7 +105,7 @@ public class ProtoLogCommandHandler extends ShellCommand {
         PrintWriter pw = getOutPrintWriter();
 
         if (cmd == null) {
-            pw.println("Incomplete command. Use 'cmd protolog help' for guidance.");
+            pw.println("Incomplete command. Use 'cmd protolog_configuration help' for guidance.");
             return 0;
         }
 
@@ -164,7 +164,7 @@ public class ProtoLogCommandHandler extends ShellCommand {
         PrintWriter pw = getOutPrintWriter();
 
         if (cmd == null) {
-            pw.println("Incomplete command. Use 'cmd protolog help' for guidance.");
+            pw.println("Incomplete command. Use 'cmd protolog_configuration help' for guidance.");
             return 0;
         }
 

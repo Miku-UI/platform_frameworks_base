@@ -17,6 +17,11 @@
 package com.android.settingslib.spaprivileged.template.app
 
 import android.content.Context
+import android.multiuser.Flags
+import android.os.UserHandle
+import android.os.UserManager
+import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.SetFlagsRule
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
@@ -32,6 +37,7 @@ import com.android.settingslib.spaprivileged.R
 import com.android.settingslib.spaprivileged.tests.testutils.TestAppListModel
 import com.android.settingslib.spaprivileged.tests.testutils.TestAppRecord
 import com.google.common.truth.Truth.assertThat
+import org.junit.Assume
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,6 +46,8 @@ import org.junit.runner.RunWith
 class AppListPageTest {
     @get:Rule
     val composeTestRule = createComposeRule()
+
+    @get:Rule val mSetFlagsRule = SetFlagsRule()
 
     private val context: Context = ApplicationProvider.getApplicationContext()
 
@@ -112,6 +120,17 @@ class AppListPageTest {
 
         composeTestRule.onNodeWithText(context.getString(R.string.menu_show_system))
             .assertIsDisplayed()
+    }
+
+    @Test
+    @EnableFlags(android.multiuser.Flags.FLAG_HSU_APP_MANAGEMENT)
+    fun showSystemAppsInitially_hsum_includesSystemUser() {
+        Assume.assumeTrue("Feature supported only on Headless System User Mode devices",
+                UserManager.isHeadlessSystemUserMode())
+        val inputState by setContent(showSystemAppsInitially = true)
+
+        val config = inputState!!.config
+        assertThat(config.userIds).contains(UserHandle.USER_SYSTEM)
     }
 
     @Test

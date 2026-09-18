@@ -16,7 +16,16 @@
 
 package com.android.systemui.scene.shared.logger
 
+import com.android.internal.logging.uiEventLoggerFake
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.util.mockito.mock
+import com.android.systemui.kosmos.backgroundCoroutineContext
+import com.android.systemui.log.logcatLogBuffer
 
-var Kosmos.sceneLogger by Kosmos.Fixture { mock<SceneLogger>() }
+var Kosmos.sceneLogger by
+    Kosmos.Fixture {
+        SceneLogger(
+            uiEventLogger = uiEventLoggerFake,
+            logBuffer = logcatLogBuffer("SceneLoggerKosmos"),
+            backgroundContext = backgroundCoroutineContext,
+        )
+    }

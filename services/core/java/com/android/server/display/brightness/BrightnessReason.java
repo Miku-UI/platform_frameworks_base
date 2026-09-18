@@ -16,9 +16,12 @@
 
 package com.android.server.display.brightness;
 
+import android.annotation.IntDef;
 import android.annotation.Nullable;
 import android.util.Slog;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.Objects;
 
 /**
@@ -44,14 +47,31 @@ public final class BrightnessReason {
     public static final int REASON_DOZE_MANUAL = 12;
     public static final int REASON_MAX = REASON_DOZE_MANUAL;
 
+    public static final int MODIFIER_NONE = 0x0;
     public static final int MODIFIER_DIMMED = 0x1;
     public static final int MODIFIER_LOW_POWER = 0x2;
     public static final int MODIFIER_HDR = 0x4;
     public static final int MODIFIER_THROTTLED = 0x8;
     public static final int MODIFIER_MIN_LUX = 0x10;
     public static final int MODIFIER_STYLUS_UNDER_USE = 0x20;
+    public static final int MODIFIER_SUNLIGHT = 0x40;
+    public static final int MODIFIER_MAX_LUX = 0x80;
     public static final int MODIFIER_MASK = MODIFIER_DIMMED | MODIFIER_LOW_POWER | MODIFIER_HDR
-            | MODIFIER_THROTTLED | MODIFIER_MIN_LUX | MODIFIER_STYLUS_UNDER_USE;
+            | MODIFIER_THROTTLED | MODIFIER_MIN_LUX | MODIFIER_STYLUS_UNDER_USE | MODIFIER_SUNLIGHT
+            | MODIFIER_MAX_LUX;
+
+    @IntDef(flag = true, prefix = {"MODIFIER_"}, value = {
+            MODIFIER_NONE,
+            MODIFIER_DIMMED,
+            MODIFIER_LOW_POWER,
+            MODIFIER_HDR,
+            MODIFIER_THROTTLED,
+            MODIFIER_MIN_LUX,
+            MODIFIER_STYLUS_UNDER_USE,
+            MODIFIER_SUNLIGHT
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface Modifier {}
 
     // ADJUSTMENT_*
     // These things can happen at any point, even if the main brightness reason doesn't
@@ -64,7 +84,8 @@ public final class BrightnessReason {
 
     // One of REASON_*
     private int mReason;
-    // Any number of MODIFIER_*
+
+    @Modifier
     private int mModifier;
 
     // Tag used to identify the source of the brightness (usually a specific activity/window).
@@ -93,7 +114,7 @@ public final class BrightnessReason {
      *
      * @param modifier The modifier which is to be added
      */
-    public void addModifier(int modifier) {
+    public void addModifier(@Modifier int modifier) {
         setModifier(modifier | this.mModifier);
     }
 
@@ -158,6 +179,12 @@ public final class BrightnessReason {
         if ((mModifier & MODIFIER_STYLUS_UNDER_USE) != 0) {
             sb.append(" stylus_under_use");
         }
+        if ((mModifier & MODIFIER_SUNLIGHT) != 0) {
+            sb.append(" sunlight");
+        }
+        if ((mModifier & MODIFIER_MAX_LUX) != 0) {
+            sb.append(" lux_upper_bound");
+        }
         int strlen = sb.length();
         if (sb.charAt(strlen - 1) == '[') {
             sb.setLength(strlen - 2);
@@ -195,6 +222,7 @@ public final class BrightnessReason {
         }
     }
 
+    @Modifier
     public int getModifier() {
         return mModifier;
     }
@@ -204,7 +232,7 @@ public final class BrightnessReason {
      *
      * @param modifier The value to which the modifier is to be updated
      */
-    public void setModifier(int modifier) {
+    public void setModifier(@Modifier int modifier) {
         if ((modifier & ~MODIFIER_MASK) != 0) {
             Slog.w(TAG, "brightness modifier out of bounds: 0x"
                     + Integer.toHexString(modifier));

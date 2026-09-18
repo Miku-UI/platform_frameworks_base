@@ -40,7 +40,7 @@ import java.time.Duration;
  * completed work on a particular resource. They initially start in an unsignaled state and make
  * a one-time transition to either a signaled or error state. SyncFences are created by various
  * device APIs in response to submitting tasks to the device. They cannot be created nor signaled
- * by userspace. As a result, this means that a SyncFence will make always make forward progress.
+ * by userspace. As a result, this means that a SyncFence will always make forward progress.
  *
  * <p>SyncFence's generally come in one of two varieties. "Presentation fences" refer to
  *  a SyncFence when the writing to a buffer has finished. "Release fences" then refer

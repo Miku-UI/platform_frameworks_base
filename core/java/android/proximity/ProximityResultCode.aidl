@@ -78,4 +78,6 @@ enum ProximityResultCode {
        as reported by the associated device.
     */
     ASSOCIATED_DEVICE_FAILED_PRECONDITION = 26,
+    /** Ranging already in progress. */
+    RESULT_IN_FLIGHT = 27,
 }

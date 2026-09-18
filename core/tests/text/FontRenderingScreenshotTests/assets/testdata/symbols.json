@@ -1,0 +1,15 @@
+{
+  "golden_id": "Symbol",
+  "test_strings": {
+    "digits": "0123456789",
+    "punctuation_basic": ".,:;!?\"'()[]{}<>-/_@#%&*+=",
+    "punctuation_typography": "…“”‘’–—•†‡§¶",
+    "punctuation_extended": "¡¿«»‖‗‚‛„‟‹›※‾‿⁀",
+    "punctuation_bullets_lists": "‣․‥‧⁃⁊⁋⁌⁍⁎",
+    "punctuation_mathematical": "±×÷϶⁄⁒⁺⁻⁼₊₋₌∂∆∏∑−√∞∫≈≠≤≥",
+    "currency_major": "$£€¥¢₪₹₽",
+    "currency_extended": "¤₠₡₢₣₤₥₦₧₨₩₫₭₮₯₰₱₲₳₴₵₶₷₸₺₻₼₾⃁",
+    "arrows_basic": "˂˃˄˅ꜛꜜ",
+    "arrows_directional": "˯˰˱˲⭎⭏⭚⭛⭜⭝⭞⭟"
+  }
+}

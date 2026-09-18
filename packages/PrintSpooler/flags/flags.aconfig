@@ -9,8 +9,34 @@ flag {
 }
 
 flag {
-    name: "enable_print_debug_option"
+    name: "skip_service_warning"
     namespace: "printing"
-    description: "Enable extra debug logging by checking a runtime system property."
-    bug: "397418860"
+    description: "Skip displaying the first-use print service warning."
+    bug: "455021653"
+}
+
+flag {
+    name: "grayscale_preview"
+    namespace: "printing"
+    description: "Display preview images in grayscale when B&W is selected."
+    bug: "455021653"
+}
+
+flag {
+    name: "updated_button_layout"
+    namespace: "printing"
+    description: "Replace print icon button with explicit print and cancel buttons."
+    bug: "455021653"
+    is_fixed_read_only: true
+}
+
+flag {
+    name: "opaque_print_activity"
+    namespace: "printing"
+    description: "Make the print activity opaque instead of translucent."
+    bug: "460859617"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+    is_fixed_read_only: true
 }

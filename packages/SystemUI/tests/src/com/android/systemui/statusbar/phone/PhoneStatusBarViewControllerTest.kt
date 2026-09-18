@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,6 +21,7 @@ import android.app.StatusBarManager.WINDOW_STATE_HIDING
 import android.app.StatusBarManager.WINDOW_STATE_SHOWING
 import android.app.StatusBarManager.WINDOW_STATUS_BAR
 import android.content.Context
+import android.content.res.mainResources
 import android.graphics.Insets
 import android.graphics.Region
 import android.hardware.display.DisplayManagerGlobal
@@ -42,7 +43,6 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.SysuiTestableContext
-import com.android.systemui.battery.BatteryMeterView
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.flags.andSceneContainer
@@ -56,19 +56,18 @@ import com.android.systemui.scene.ui.view.WindowRootView
 import com.android.systemui.shade.ShadeControllerImpl
 import com.android.systemui.shade.ShadeLogger
 import com.android.systemui.shade.ShadeViewController
-import com.android.systemui.shade.StatusBarLongPressGestureDetector
 import com.android.systemui.shade.data.repository.ShadeDisplaysRepository
 import com.android.systemui.shade.data.repository.defaultShadeDisplayPolicy
 import com.android.systemui.shade.display.StatusBarTouchShadeDisplayPolicy
+import com.android.systemui.shade.display.domain.interactor.ShadeExpansionTargetDisplayInteractor
 import com.android.systemui.shade.domain.interactor.PanelExpansionInteractor
 import com.android.systemui.shade.domain.interactor.enableDualShade
 import com.android.systemui.shade.domain.interactor.enableSingleShade
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.statusbar.CommandQueue
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
-import com.android.systemui.statusbar.data.repository.fakeStatusBarContentInsetsProviderStore
+import com.android.systemui.statusbar.gesture.StatusBarLongPressGestureDetector
+import com.android.systemui.statusbar.layout.mockStatusBarContentInsetsProvider
 import com.android.systemui.statusbar.policy.Clock
 import com.android.systemui.statusbar.policy.mockStatusBarConfigurationController
 import com.android.systemui.statusbar.window.StatusBarWindowControllerStore
@@ -92,6 +91,7 @@ import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -109,11 +109,9 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
 
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private val mStatusBarConfigurationController = kosmos.mockStatusBarConfigurationController
-    private val statusBarContentInsetsProviderStore = kosmos.fakeStatusBarContentInsetsProviderStore
-    private val statusBarContentInsetsProvider = statusBarContentInsetsProviderStore.defaultDisplay
-    private val statusBarContentInsetsProviderForSecondaryDisplay =
-        statusBarContentInsetsProviderStore.forDisplay(SECONDARY_DISPLAY_ID)
     private val windowRootView = mock<WindowRootView>()
+    private val statusBarContentInsetsProvider = kosmos.mockStatusBarContentInsetsProvider
+    private val resources = kosmos.mainResources
 
     private val fakeDarkIconDispatcher = kosmos.fakeDarkIconDispatcher
     @Mock private lateinit var shadeViewController: ShadeViewController
@@ -129,6 +127,9 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     @Mock private lateinit var viewUtil: ViewUtil
     @Mock private lateinit var mStatusBarLongPressGestureDetector: StatusBarLongPressGestureDetector
     @Mock private lateinit var statusBarTouchShadeDisplayPolicy: StatusBarTouchShadeDisplayPolicy
+    @Mock
+    private lateinit var shadeExpansionTargetDisplayInteractor:
+        ShadeExpansionTargetDisplayInteractor
     @Mock private lateinit var shadeDisplayRepository: ShadeDisplaysRepository
     @Mock private lateinit var statusBarWindowControllerStore: StatusBarWindowControllerStore
     private lateinit var statusBarWindowStateController: StatusBarWindowStateController
@@ -140,9 +141,6 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     private val clockView: Clock
         get() = view.requireViewById(R.id.clock)
 
-    private val batteryView: BatteryMeterView
-        get() = view.requireViewById(R.id.battery)
-
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
@@ -151,7 +149,9 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
 
         whenever(statusBarContentInsetsProvider.getStatusBarContentInsetsForCurrentRotation())
             .thenReturn(Insets.NONE)
-        whenever(mStatusOverlayHoverListenerFactory.createDarkAwareListener(any()))
+        whenever(
+                mStatusOverlayHoverListenerFactory.createDarkAwareListener(any(), anyOrNull<Int>())
+            )
             .thenReturn(mStatusOverlayHoverListener)
         whenever(
                 mStatusOverlayHoverListenerFactory.createDarkAwareListener(
@@ -166,12 +166,6 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
 
         view = createView(mContext)
         controller = createAndInitController(view)
-
-        whenever(
-                statusBarContentInsetsProviderForSecondaryDisplay
-                    .getStatusBarContentInsetsForCurrentRotation()
-            )
-            .thenReturn(Insets.NONE)
 
         val contextForSecondaryDisplay =
             SysuiTestableContext(
@@ -190,7 +184,6 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun onViewAttachedAndDrawn_addStatusBarConfigurationControllerCallback() {
         attachToWindow(view)
 
@@ -200,29 +193,17 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
-    fun onViewAttachedAndDrawn_doesNotAddStatusBarConfigurationControllerCallback() {
-        attachToWindow(view)
-
-        controller = createAndInitController(view)
-
-        verify(mStatusBarConfigurationController, never()).addCallback(any())
-    }
-
-    @Test
     fun onViewAttachedAndDrawn_darkReceiversRegistered() {
         attachToWindow(view)
 
         controller = createAndInitController(view)
 
-        assertThat(fakeDarkIconDispatcher.receivers.size).isEqualTo(2)
+        assertThat(fakeDarkIconDispatcher.receivers.size).isEqualTo(1)
         assertThat(fakeDarkIconDispatcher.receivers).contains(clockView)
-        assertThat(fakeDarkIconDispatcher.receivers).contains(batteryView)
     }
 
     @Test
-    @DisableFlags(StatusBarConnectedDisplays.FLAG_NAME)
-    fun onViewAttachedAndDrawn_connectedDisplaysFlagOff_doesNotSetInteractionGate() {
+    fun onViewAttachedAndDrawn_defaultDisplay_doesNotSetInteractionGate() {
         attachToWindow(view)
 
         controller = createAndInitController(view)
@@ -231,18 +212,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
-    @EnableFlags(StatusBarConnectedDisplays.FLAG_NAME)
-    fun onViewAttachedAndDrawn_connectedDisplaysFlagOn_defaultDisplay_doesNotSetInteractionGate() {
-        attachToWindow(view)
-
-        controller = createAndInitController(view)
-
-        verify(view, never()).setIsStatusBarInteractiveSupplier(any())
-    }
-
-    @Test
-    @EnableFlags(StatusBarConnectedDisplays.FLAG_NAME)
-    fun onViewAttachedAndDrawn_connectedDisplaysFlagOn_secondaryDisplay_setsInteractionGate() {
+    fun onViewAttachedAndDrawn_secondaryDisplay_setsInteractionGate() {
         attachToWindow(viewForSecondaryDisplay)
 
         controller = createAndInitController(viewForSecondaryDisplay)
@@ -281,6 +251,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun handleTouchEventFromStatusBar_panelsNotEnabled_returnsFalseAndNoViewEvent() {
         whenever(centralSurfacesImpl.commandQueuePanelsEnabled).thenReturn(false)
         val returnVal =
@@ -290,6 +261,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun handleTouchEventFromStatusBar_viewNotEnabled_returnsTrueAndNoViewEvent() {
         whenever(centralSurfacesImpl.commandQueuePanelsEnabled).thenReturn(true)
         whenever(shadeViewController.isViewEnabled).thenReturn(false)
@@ -300,6 +272,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun handleTouchEventFromStatusBar_viewNotEnabledButIsMoveEvent_viewReceivesEvent() {
         whenever(centralSurfacesImpl.commandQueuePanelsEnabled).thenReturn(true)
         whenever(shadeViewController.isViewEnabled).thenReturn(false)
@@ -315,6 +288,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun handleTouchEventFromStatusBar_panelAndViewEnabled_viewReceivesEvent() {
         whenever(centralSurfacesImpl.commandQueuePanelsEnabled).thenReturn(true)
         whenever(shadeViewController.isViewEnabled).thenReturn(true)
@@ -330,6 +304,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun handleTouchEventFromStatusBar_topEdgeTouch_viewNeverReceivesEvent() {
         whenever(centralSurfacesImpl.commandQueuePanelsEnabled).thenReturn(true)
         whenever(panelExpansionInteractor.isFullyCollapsed).thenReturn(true)
@@ -341,6 +316,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun handleTouchEventFromStatusBar_touchOnPrimaryDisplay_shadeReceivesEvent() {
         whenever(centralSurfacesImpl.commandQueuePanelsEnabled).thenReturn(true)
         whenever(shadeViewController.isViewEnabled).thenReturn(true)
@@ -356,7 +332,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
-    @EnableFlags(StatusBarConnectedDisplays.FLAG_NAME, ShadeWindowGoesAround.FLAG_NAME)
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun handleTouchEventFromStatusBar_touchOnSecondaryDisplay_interactionsAllowed_shadeReceivesEvent() {
         attachToWindow(viewForSecondaryDisplay)
         controller = createAndInitController(viewForSecondaryDisplay)
@@ -379,7 +355,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
-    @EnableFlags(StatusBarConnectedDisplays.FLAG_NAME, ShadeWindowGoesAround.FLAG_NAME)
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun handleTouchEventFromStatusBar_touchOnSecondaryDisplay_interactionsNotAllowed_shadeDoesNotReceiveEvent() {
         attachToWindow(viewForSecondaryDisplay)
         controller = createAndInitController(viewForSecondaryDisplay)
@@ -421,6 +397,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
 
     @Test
     @EnableSceneContainer
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun handleInterceptTouchEventFromStatusBar_swipeDown_intercepts() {
         val downEvent = MotionEvent.obtain(0L, 0L, MotionEvent.ACTION_DOWN, 0f, 10f, 0)
         view.onInterceptTouchEvent(downEvent)
@@ -434,6 +411,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
 
     @Test
     @EnableSceneContainer
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun handleInterceptTouchEventFromStatusBar_swipeDown_dispatchesCachedEvents() {
         val downEvent = MotionEvent.obtain(0L, 0L, MotionEvent.ACTION_DOWN, 0f, 10f, 0)
         view.onInterceptTouchEvent(downEvent)
@@ -453,6 +431,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
 
     @Test
     @EnableSceneContainer
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun handleInterceptTouchEventFromStatusBar_smallSwipe_doesNotIntercept() {
         val downEvent = MotionEvent.obtain(0L, 0L, MotionEvent.ACTION_DOWN, 0f, 10f, 0)
         view.onInterceptTouchEvent(downEvent)
@@ -466,6 +445,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
 
     @Test
     @EnableSceneContainer
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun handleInterceptTouchEventFromStatusBar_horizontalSwipe_doesNotIntercept() {
         val downEvent = MotionEvent.obtain(0L, 0L, MotionEvent.ACTION_DOWN, 0f, 10f, 0)
         view.onInterceptTouchEvent(downEvent)
@@ -479,6 +459,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
 
     @Test
     @EnableSceneContainer
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun handleInterceptTouchEventFromStatusBar_clearsCacheBetweenGestures() {
         // Gesture 1: A short tap/swipe that does NOT trigger interception.
         val downEvent1 = MotionEvent.obtain(0L, 0L, MotionEvent.ACTION_DOWN, 0f, 10f, 0)
@@ -544,38 +525,33 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
-    @EnableFlags(ShadeWindowGoesAround.FLAG_NAME)
+    @DisableFlags(Flags.FLAG_STATUS_BAR_EVENT_FORWARDING_MODERNIZATION)
     fun onInterceptTouchEvent_actionDown_propagatesToDisplayPolicy() {
         val event = MotionEvent.obtain(0L, 0L, MotionEvent.ACTION_DOWN, 0f, 0f, 0)
 
         view.onInterceptTouchEvent(event)
 
-        verify(statusBarTouchShadeDisplayPolicy).onStatusBarOrLauncherTouched(eq(event), any())
+        verify(shadeExpansionTargetDisplayInteractor)
+            .setExpansionIntentFromStatusBarEvent(
+                eq(event.x),
+                eq(event.displayId),
+                any(),
+                any(),
+                any(),
+            )
     }
 
     @Test
-    @EnableFlags(ShadeWindowGoesAround.FLAG_NAME)
     fun onInterceptTouchEvent_actionUp_notPropagatesToDisplayPolicy() {
         val event = MotionEvent.obtain(0L, 0L, MotionEvent.ACTION_UP, 0f, 0f, 0)
 
         view.onInterceptTouchEvent(event)
 
-        verify(statusBarTouchShadeDisplayPolicy, never()).onStatusBarOrLauncherTouched(any(), any())
+        verify(shadeExpansionTargetDisplayInteractor, never())
+            .setExpansionIntentFromStatusBarEvent(any(), any(), any(), any(), any())
     }
 
     @Test
-    @DisableFlags(ShadeWindowGoesAround.FLAG_NAME)
-    fun onInterceptTouchEvent_shadeWindowGoesAroundDisabled_notPropagatesToDisplayPolicy() {
-        val event = MotionEvent.obtain(0L, 0L, MotionEvent.ACTION_DOWN, 0f, 0f, 0)
-
-        view.onInterceptTouchEvent(event)
-
-        verify(statusBarTouchShadeDisplayPolicy, never())
-            .onStatusBarOrLauncherTouched(eq(event), any())
-    }
-
-    @Test
-    @EnableFlags(ShadeWindowGoesAround.FLAG_NAME)
     fun onTouch_withMouseOnEndSideIcons_flagOn_propagatedToShadeDisplayPolicy() {
         attachToWindow(view)
         controller = createAndInitController(view)
@@ -584,11 +560,17 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
         val statusContainer = view.requireViewById<View>(R.id.system_icons)
         statusContainer.dispatchTouchEvent(event)
 
-        verify(statusBarTouchShadeDisplayPolicy).onStatusBarOrLauncherTouched(eq(event), any())
+        verify(shadeExpansionTargetDisplayInteractor)
+            .setExpansionIntentFromStatusBarEvent(
+                eq(event.x),
+                eq(event.displayId),
+                any(),
+                any(),
+                any(),
+            )
     }
 
     @Test
-    @EnableFlags(ShadeWindowGoesAround.FLAG_NAME)
     fun onTouch_withMouseOnStartSideIcons_flagOn_propagatedToShadeDisplayPolicy() {
         attachToWindow(view)
         controller = createAndInitController(view)
@@ -597,37 +579,17 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
         val statusContainer = view.requireViewById<View>(R.id.status_bar_start_side_content)
         statusContainer.dispatchTouchEvent(event)
 
-        verify(statusBarTouchShadeDisplayPolicy).onStatusBarOrLauncherTouched(eq(event), any())
+        verify(shadeExpansionTargetDisplayInteractor)
+            .setExpansionIntentFromStatusBarEvent(
+                eq(event.x),
+                eq(event.displayId),
+                any(),
+                any(),
+                any(),
+            )
     }
 
     @Test
-    @DisableFlags(ShadeWindowGoesAround.FLAG_NAME)
-    fun onTouch_withMouseOnSystemIcons_flagOff_notPropagatedToShadeDisplayPolicy() {
-        attachToWindow(view)
-        controller = createAndInitController(view)
-        val event = getActionUpEventFromSource(InputDevice.SOURCE_MOUSE)
-
-        val statusContainer = view.requireViewById<View>(R.id.system_icons)
-        statusContainer.dispatchTouchEvent(event)
-
-        verify(statusBarTouchShadeDisplayPolicy, never())
-            .onStatusBarOrLauncherTouched(eq(event), any())
-    }
-
-    @Test
-    @EnableFlags(StatusBarConnectedDisplays.FLAG_NAME)
-    @DisableFlags(ShadeWindowGoesAround.FLAG_NAME)
-    fun shouldAllowInteractions_shadeGoesAroundFlagOff_returnsFalse() {
-        attachToWindow(viewForSecondaryDisplay)
-        controller = createAndInitController(viewForSecondaryDisplay)
-        val argumentCaptor = argumentCaptor<BooleanSupplier>()
-        verify(viewForSecondaryDisplay).setIsStatusBarInteractiveSupplier(argumentCaptor.capture())
-
-        assertThat(argumentCaptor.lastValue.asBoolean).isFalse()
-    }
-
-    @Test
-    @EnableFlags(StatusBarConnectedDisplays.FLAG_NAME, ShadeWindowGoesAround.FLAG_NAME)
     fun shouldAllowInteractions_defaultShadeDisplayPolicy_returnsFalse() {
         attachToWindow(viewForSecondaryDisplay)
         controller = createAndInitController(viewForSecondaryDisplay)
@@ -639,7 +601,6 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
-    @EnableFlags(StatusBarConnectedDisplays.FLAG_NAME, ShadeWindowGoesAround.FLAG_NAME)
     fun shouldAllowInteractions_statusBarTouchShadeDisplayPolicy_returnsTrue() {
         attachToWindow(viewForSecondaryDisplay)
         controller = createAndInitController(viewForSecondaryDisplay)
@@ -651,7 +612,6 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
-    @EnableFlags(StatusBarConnectedDisplays.FLAG_NAME, ShadeWindowGoesAround.FLAG_NAME)
     fun shouldAllowInteractions_shadePolicyChanges_updatesReturnValue() {
         attachToWindow(viewForSecondaryDisplay)
         controller = createAndInitController(viewForSecondaryDisplay)
@@ -666,7 +626,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
-    @EnableSceneContainer
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER, Flags.FLAG_DUAL_SHADE)
     fun dualShade_qsIsExpandedOnEndSideContentMouseClick() =
         kosmos.runTest {
             enableDualShade(wideLayout = true)
@@ -698,7 +658,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
-    @EnableSceneContainer
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER, Flags.FLAG_DUAL_SHADE)
     fun shadeIsExpandedOnEndSideContentMouseClick_dualShade_expandsQuickSettingsShade() {
         kosmos.enableDualShade()
         attachToWindow(view)
@@ -794,7 +754,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
-    @EnableSceneContainer
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER, Flags.FLAG_DUAL_SHADE)
     fun statusIconContainerIsHandlingTouchScreenTaps_dualShade_expandsQuickSettingsShade_flagOn() {
         Assume.assumeTrue(mContext.resources.getBoolean(R.bool.config_statusBarTapToExpandShade))
         kosmos.enableDualShade()
@@ -813,7 +773,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
     }
 
     @Test
-    @EnableSceneContainer
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER, Flags.FLAG_DUAL_SHADE)
     fun statusIconContainerIsNotHandlingTouchScreenTaps_dualShade_flagOff() {
         Assume.assumeFalse(mContext.resources.getBoolean(R.bool.config_statusBarTapToExpandShade))
         kosmos.enableDualShade()
@@ -850,26 +810,6 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
         verify(shadeControllerImpl, never()).animateExpandShade()
     }
 
-    @Test
-    @DisableFlags(StatusBarConnectedDisplays.FLAG_NAME)
-    fun connectedDisplayFlagOff_windowControllerIsSetInView() {
-        attachToWindow(view)
-
-        controller = createAndInitController(view)
-
-        verify(view).setStatusBarWindowControllerStore(statusBarWindowControllerStore)
-    }
-
-    @Test
-    @EnableFlags(StatusBarConnectedDisplays.FLAG_NAME)
-    fun connectedDisplayFlagOn_windowControllerIsNotSetInView() {
-        attachToWindow(view)
-
-        controller = createAndInitController(view)
-
-        verify(view, never()).setStatusBarWindowControllerStore(statusBarWindowControllerStore)
-    }
-
     private fun getCommandQueueCallback(): CommandQueue.Callbacks {
         val captor = argumentCaptor<CommandQueue.Callbacks>()
         verify(commandQueue).addCallback(captor.capture())
@@ -898,6 +838,7 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
         return PhoneStatusBarViewController.Factory(
                 Optional.of(progressProvider),
                 userChipViewModel,
+                resources,
                 centralSurfacesImpl,
                 statusBarWindowStateController,
                 shadeControllerImpl,
@@ -911,8 +852,9 @@ class PhoneStatusBarViewControllerTest(flags: FlagsParameterization) : SysuiTest
                 mStatusBarConfigurationController,
                 mStatusOverlayHoverListenerFactory,
                 fakeDarkIconDispatcher,
-                statusBarContentInsetsProviderStore,
+                statusBarContentInsetsProvider,
                 { statusBarTouchShadeDisplayPolicy },
+                shadeExpansionTargetDisplayInteractor,
                 { shadeDisplayRepository },
                 statusBarWindowControllerStore,
             )

@@ -36,12 +36,12 @@ import java.util.Optional;
  */
 public interface ServiceConfigAccessor {
 
-    @StringDef(prefix = "PROVIDER_MODE_",
-            value = { PROVIDER_MODE_DISABLED, PROVIDER_MODE_ENABLED })
+    @StringDef(
+            prefix = "PROVIDER_MODE_",
+            value = {PROVIDER_MODE_DISABLED, PROVIDER_MODE_ENABLED})
     @Retention(RetentionPolicy.SOURCE)
-    @Target({ ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
-    @interface ProviderMode {
-    }
+    @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
+    @interface ProviderMode {}
 
     /**
      * The "disabled" provider mode. For use with {@link #getPrimaryLocationTimeZoneProviderMode()}
@@ -56,8 +56,8 @@ public interface ServiceConfigAccessor {
     @ProviderMode String PROVIDER_MODE_ENABLED = "enabled";
 
     /**
-     * Adds a listener that will be invoked when {@link ConfigurationInternal} may have changed.
-     * The listener is invoked on the main thread.
+     * Adds a listener that will be invoked when {@link ConfigurationInternal} may have changed. The
+     * listener is invoked on the main thread.
      */
     void addConfigurationInternalChangeListener(@NonNull StateChangeListener listener);
 
@@ -70,8 +70,7 @@ public interface ServiceConfigAccessor {
     /**
      * Returns a snapshot of the {@link ConfigurationInternal} for the current user. This is only a
      * snapshot so callers must use {@link
-     * #addConfigurationInternalChangeListener(StateChangeListener)} to be notified when it
-     * changes.
+     * #addConfigurationInternalChangeListener(StateChangeListener)} to be notified when it changes.
      */
     @NonNull
     ConfigurationInternal getCurrentUserConfigurationInternal();
@@ -83,10 +82,11 @@ public interface ServiceConfigAccessor {
      * otherwise.
      *
      * @param bypassUserPolicyChecks {@code true} for device policy manager use cases where device
-     *   policy restrictions that should apply to actual users can be ignored
+     *     policy restrictions that should apply to actual users can be ignored
      */
     boolean updateConfiguration(
-            @UserIdInt int userId, @NonNull TimeZoneConfiguration requestedConfiguration,
+            @UserIdInt int userId,
+            @NonNull TimeZoneConfiguration requestedConfiguration,
             boolean bypassUserPolicyChecks);
 
     /**
@@ -120,7 +120,7 @@ public interface ServiceConfigAccessor {
      * This affects what services are started on boot to minimize expense when the feature is not
      * wanted.
      *
-     * Typically {@link #isGeoTimeZoneDetectionFeatureSupported()} should be used except during
+     * <p>Typically {@link #isGeoTimeZoneDetectionFeatureSupported()} should be used except during
      * boot.
      */
     boolean isGeoTimeZoneDetectionFeatureSupportedInConfig();
@@ -137,8 +137,8 @@ public interface ServiceConfigAccessor {
 
     /**
      * Sets the package name of the app hosting the primary location time zone provider for tests.
-     * Setting a {@code null} value means the provider is to be disabled.
-     * The values are reset with {@link #resetVolatileTestConfig()}.
+     * Setting a {@code null} value means the provider is to be disabled. The values are reset with
+     * {@link #resetVolatileTestConfig()}.
      */
     void setTestPrimaryLocationTimeZoneProviderPackageName(
             @Nullable String testPrimaryLocationTimeZoneProviderPackageName);
@@ -156,8 +156,8 @@ public interface ServiceConfigAccessor {
 
     /**
      * Sets the package name of the app hosting the secondary location time zone provider for tests.
-     * Setting a {@code null} value means the provider is to be disabled.
-     * The values are reset with {@link #resetVolatileTestConfig()}.
+     * Setting a {@code null} value means the provider is to be disabled. The values are reset with
+     * {@link #resetVolatileTestConfig()}.
      */
     void setTestSecondaryLocationTimeZoneProviderPackageName(
             @Nullable String testSecondaryLocationTimeZoneProviderPackageName);
@@ -181,16 +181,14 @@ public interface ServiceConfigAccessor {
      */
     boolean getRecordStateChangesForTests();
 
-    /**
-     * Returns the mode for the primary location time zone provider.
-     */
+    /** Returns the mode for the primary location time zone provider. */
     @NonNull
-    @ProviderMode String getPrimaryLocationTimeZoneProviderMode();
+    @ProviderMode
+    String getPrimaryLocationTimeZoneProviderMode();
 
-    /**
-     * Returns the mode for the secondary location time zone provider.
-     */
-    @ProviderMode String getSecondaryLocationTimeZoneProviderMode();
+    /** Returns the mode for the secondary location time zone provider. */
+    @ProviderMode
+    String getSecondaryLocationTimeZoneProviderMode();
 
     /**
      * Returns whether location time zone detection is enabled for users when there's no setting
@@ -207,8 +205,8 @@ public interface ServiceConfigAccessor {
     Optional<Boolean> getGeoDetectionSettingEnabledOverride();
 
     /**
-     * Returns the time to send to a location time zone provider that informs it how long it has
-     * to return its first time zone suggestion.
+     * Returns the time to send to a location time zone provider that informs it how long it has to
+     * return its first time zone suggestion.
      */
     @NonNull
     Duration getLocationTimeZoneProviderInitializationTimeout();
@@ -228,8 +226,8 @@ public interface ServiceConfigAccessor {
     Duration getLocationTimeZoneUncertaintyDelay();
 
     /**
-     * Returns the time between equivalent events before the provider process will send the event
-     * to the system server.
+     * Returns the time between equivalent events before the provider process will send the event to
+     * the system server.
      */
     @NonNull
     Duration getLocationTimeZoneProviderEventFilteringAgeThreshold();

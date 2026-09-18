@@ -18,6 +18,8 @@ package com.android.keyguard.logging
 
 import com.android.systemui.biometrics.AuthRippleController
 import com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController
+import com.android.systemui.keyguard.data.model.OcclusionEventModel
+import com.android.systemui.keyguard.data.model.ShowWhenLockedActivityInfoModel
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel
 import com.android.systemui.log.dagger.KeyguardLog
@@ -32,25 +34,12 @@ private const val BIO_TAG = "KeyguardLog"
  * temporary logs or logs for smaller classes when creating whole new [LogBuffer] wrapper might be
  * an overkill.
  */
-class KeyguardLogger
-@Inject
-constructor(
-    @KeyguardLog val buffer: LogBuffer,
-) {
+class KeyguardLogger @Inject constructor(@KeyguardLog val buffer: LogBuffer) {
     @JvmOverloads
-    fun log(
-        tag: String,
-        level: LogLevel,
-        @CompileTimeConstant msg: String,
-        ex: Throwable? = null,
-    ) = buffer.log(tag, level, msg, ex)
+    fun log(tag: String, level: LogLevel, @CompileTimeConstant msg: String, ex: Throwable? = null) =
+        buffer.log(tag, level, msg, ex)
 
-    fun log(
-        tag: String,
-        level: LogLevel,
-        @CompileTimeConstant msg: String,
-        arg: Any,
-    ) {
+    fun log(tag: String, level: LogLevel, @CompileTimeConstant msg: String, arg: Any) {
         buffer.log(
             tag,
             level,
@@ -58,7 +47,7 @@ constructor(
                 str1 = msg
                 str2 = arg.toString()
             },
-            { "$str1: $str2" }
+            { "$str1: $str2" },
         )
     }
 
@@ -66,7 +55,7 @@ constructor(
     fun logBiometricMessage(
         @CompileTimeConstant context: String,
         msgId: Int? = null,
-        msg: String? = null
+        msg: String? = null,
     ) {
         buffer.log(
             BIO_TAG,
@@ -76,15 +65,11 @@ constructor(
                 str2 = "$msgId"
                 str3 = msg
             },
-            { "$str1 msgId: $str2 msg: $str3" }
+            { "$str1 msgId: $str2 msg: $str3" },
         )
     }
 
-    fun delayShowingTrustAgentError(
-        msg: CharSequence,
-        fpEngaged: Boolean,
-        faceRunning: Boolean,
-    ) {
+    fun delayShowingTrustAgentError(msg: CharSequence, fpEngaged: Boolean, faceRunning: Boolean) {
         buffer.log(
             BIO_TAG,
             LogLevel.DEBUG,
@@ -93,15 +78,11 @@ constructor(
                 bool1 = fpEngaged
                 bool2 = faceRunning
             },
-            { "Delay showing trustAgentError:$str1. fpEngaged:$bool1 faceRunning:$bool2 " }
+            { "Delay showing trustAgentError:$str1. fpEngaged:$bool1 faceRunning:$bool2 " },
         )
     }
 
-    fun logUpdateDeviceEntryIndication(
-        animate: Boolean,
-        visible: Boolean,
-        dozing: Boolean,
-    ) {
+    fun logUpdateDeviceEntryIndication(animate: Boolean, visible: Boolean, dozing: Boolean) {
         buffer.log(
             KeyguardIndicationController.TAG,
             LogLevel.DEBUG,
@@ -110,7 +91,7 @@ constructor(
                 bool2 = visible
                 bool3 = dozing
             },
-            { "updateDeviceEntryIndication animate:$bool1 visible:$bool2 dozing $bool3" }
+            { "updateDeviceEntryIndication animate:$bool1 visible:$bool2 dozing $bool3" },
         )
     }
 
@@ -130,14 +111,11 @@ constructor(
             {
                 "updateLockScreenUserLockedMsg userId=$int1 " +
                     "userStorageUnlocked:$bool1 encryptedOrLockdown:$bool2"
-            }
+            },
         )
     }
 
-    fun logDropFaceMessage(
-        message: CharSequence,
-        followUpMessage: CharSequence?,
-    ) {
+    fun logDropFaceMessage(message: CharSequence, followUpMessage: CharSequence?) {
         buffer.log(
             KeyguardIndicationController.TAG,
             LogLevel.DEBUG,
@@ -145,14 +123,11 @@ constructor(
                 str1 = message.toString()
                 str2 = followUpMessage?.toString()
             },
-            { "droppingFaceMessage message=$str1 followUpMessage:$str2" }
+            { "droppingFaceMessage message=$str1 followUpMessage:$str2" },
         )
     }
 
-    fun logUpdateBatteryIndication(
-        powerIndication: String,
-        pluggedIn: Boolean,
-    ) {
+    fun logUpdateBatteryIndication(powerIndication: String, pluggedIn: Boolean) {
         buffer.log(
             KeyguardIndicationController.TAG,
             LogLevel.DEBUG,
@@ -160,14 +135,11 @@ constructor(
                 str1 = powerIndication
                 bool1 = pluggedIn
             },
-            { "updateBatteryIndication powerIndication:$str1 pluggedIn:$bool1" }
+            { "updateBatteryIndication powerIndication:$str1 pluggedIn:$bool1" },
         )
     }
 
-    fun logKeyguardSwitchIndication(
-        type: Int,
-        message: String?,
-    ) {
+    fun logKeyguardSwitchIndication(type: Int, message: String?) {
         buffer.log(
             KeyguardIndicationController.TAG,
             LogLevel.DEBUG,
@@ -175,7 +147,14 @@ constructor(
                 int1 = type
                 str1 = message
             },
-            { "keyguardSwitchIndication ${getKeyguardSwitchIndicationNonSensitiveLog(int1, str1)}" }
+            {
+                "keyguardSwitchIndication ${
+                    getKeyguardSwitchIndicationNonSensitiveLog(
+                        int1,
+                        str1,
+                    )
+                }"
+            },
         )
     }
 
@@ -183,7 +162,7 @@ constructor(
         isChargingOrFull: Boolean,
         powerPluggedIn: Boolean,
         batteryLevel: Int,
-        batteryOverheated: Boolean
+        batteryOverheated: Boolean,
     ) {
         buffer.log(
             KeyguardIndicationController.TAG,
@@ -197,7 +176,7 @@ constructor(
             {
                 "refreshBatteryInfo isChargingOrFull:$bool1 powerPluggedIn:$bool2" +
                     " batteryOverheated:$bool3 batteryLevel:$int1"
-            }
+            },
         )
     }
 
@@ -219,7 +198,7 @@ constructor(
                 bool1 = keyguardNotShowing
                 bool2 = unlockNotAllowed
             },
-            { "Not showing unlock ripple: keyguardNotShowing: $bool1, unlockNotAllowed: $bool2" }
+            { "Not showing unlock ripple: keyguardNotShowing: $bool1, unlockNotAllowed: $bool2" },
         )
     }
 
@@ -232,7 +211,24 @@ constructor(
                 int2 = y
                 str1 = context
             },
-            { "Showing unlock ripple with center (x, y): ($int1, $int2), context: $str1" }
+            { "Showing unlock ripple with center (x, y): ($int1, $int2), context: $str1" },
+        )
+    }
+
+    fun logOcclusionStateChange(
+        event: OcclusionEventModel,
+        oldState: ShowWhenLockedActivityInfoModel,
+        newState: ShowWhenLockedActivityInfoModel,
+    ) {
+        buffer.log(
+            "KeyguardOcclusion",
+            LogLevel.DEBUG,
+            {
+                str1 = event.toString()
+                str2 = oldState.toString()
+                str3 = newState.toString()
+            },
+            { "Occlusion Event: $str1 | Transition: $str2 -> $str3" },
         )
     }
 }

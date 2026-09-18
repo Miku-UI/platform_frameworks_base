@@ -17,18 +17,14 @@
 package com.android.systemui.statusbar.pipeline.mobile.domain.interactor
 
 import com.android.systemui.kairos.BuildScope
-import com.android.systemui.kairos.ExperimentalKairosApi
-import com.android.systemui.kairos.toColdConflatedFlow
 import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.statusbar.pipeline.mobile.data.model.NetworkNameModel
 import com.android.systemui.statusbar.pipeline.mobile.domain.model.NetworkTypeIconModel
 import com.android.systemui.statusbar.pipeline.mobile.domain.model.SignalIconModel
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
-@ExperimentalKairosApi
 fun BuildScope.MobileIconInteractorKairosAdapter(
     kairosImpl: MobileIconInteractorKairos
 ): MobileIconInteractor =
@@ -37,16 +33,18 @@ fun BuildScope.MobileIconInteractorKairosAdapter(
             subscriptionId = subscriptionId,
             tableLogBuffer = tableLogBuffer,
             activity =
-                activity.toColdConflatedFlow(
-                    kairosNetwork,
-                    nameTag { "MobileIconInteractorKairosAdapter(subId=$subscriptionId).activity" },
+                activity.toStateFlow(
+                    name =
+                        nameTag {
+                            "MobileIconInteractorKairosAdapter(subId=$subscriptionId).activity"
+                        }
                 ),
             mobileIsDefault =
-                mobileIsDefault.toColdConflatedFlow(
-                    kairosNetwork,
-                    nameTag {
-                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).mobileIsDefault"
-                    },
+                mobileIsDefault.toStateFlow(
+                    name =
+                        nameTag {
+                            "MobileIconInteractorKairosAdapter(subId=$subscriptionId).mobileIsDefault"
+                        }
                 ),
             isDataConnected =
                 isDataConnected.toStateFlow(
@@ -125,11 +123,11 @@ fun BuildScope.MobileIconInteractorKairosAdapter(
                     nameTag { "MobileIconInteractorKairosAdapter(subId=$subscriptionId).isRoaming" }
                 ),
             isForceHidden =
-                isForceHidden.toColdConflatedFlow(
-                    kairosNetwork,
-                    nameTag {
-                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).isForceHidden"
-                    },
+                isForceHidden.toStateFlow(
+                    name =
+                        nameTag {
+                            "MobileIconInteractorKairosAdapter(subId=$subscriptionId).isForceHidden"
+                        }
                 ),
             isAllowedDuringAirplaneMode =
                 isAllowedDuringAirplaneMode.toStateFlow(
@@ -149,8 +147,8 @@ fun BuildScope.MobileIconInteractorKairosAdapter(
 private class MobileIconInteractorKairosAdapter(
     override val subscriptionId: Int,
     override val tableLogBuffer: TableLogBuffer,
-    override val activity: Flow<DataActivityModel>,
-    override val mobileIsDefault: Flow<Boolean>,
+    override val activity: StateFlow<DataActivityModel>,
+    override val mobileIsDefault: StateFlow<Boolean>,
     override val isDataConnected: StateFlow<Boolean>,
     override val isInService: StateFlow<Boolean>,
     override val isEmergencyOnly: StateFlow<Boolean>,
@@ -164,7 +162,7 @@ private class MobileIconInteractorKairosAdapter(
     override val carrierName: StateFlow<String>,
     override val isSingleCarrier: StateFlow<Boolean>,
     override val isRoaming: StateFlow<Boolean>,
-    override val isForceHidden: Flow<Boolean>,
+    override val isForceHidden: StateFlow<Boolean>,
     override val isAllowedDuringAirplaneMode: StateFlow<Boolean>,
     override val carrierNetworkChangeActive: StateFlow<Boolean>,
 ) : MobileIconInteractor

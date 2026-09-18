@@ -46,6 +46,9 @@ import android.content.Intent;
 import android.metrics.LogMaker;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.UserHandle;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.provider.Settings;
 import android.service.quicksettings.Tile;
 import android.testing.TestableLooper;
@@ -60,6 +63,7 @@ import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.UiEventLogger;
 import com.android.internal.logging.testing.UiEventLoggerFake;
 import com.android.settingslib.RestrictedLockUtils.EnforcedAdmin;
+import com.android.systemui.Flags;
 import com.android.systemui.InstanceIdSequenceFake;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.animation.Expandable;
@@ -525,6 +529,43 @@ public class QSTileImplTest extends SysuiTestCase {
     public void testIsDestroyedImmediately() {
         mTile.destroy();
         assertThat(mTile.isDestroyed()).isTrue();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_HSU_QS_CHANGES)
+    public void testUpdateHandlesLongClickForHsumWithFlagEnabled() {
+        boolean originalValue = true;
+        mTile.getState().handlesLongClick = originalValue;
+        when(mHost.isCurrentUserHeadlessSystemUser()).thenReturn(true);
+
+        // Switching to user 0 should set handlesLongClick to false.
+        mTile.userSwitch(UserHandle.USER_SYSTEM);
+        mTestableLooper.processAllMessages();
+        assertThat(mTile.getState().handlesLongClick).isFalse();
+
+        // Switching to user 10 should reset handlesLongClick to true.
+        when(mHost.isCurrentUserHeadlessSystemUser()).thenReturn(false);
+        mTile.userSwitch(10);
+        mTestableLooper.processAllMessages();
+        assertThat(mTile.getState().handlesLongClick).isEqualTo(originalValue);
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_HSU_QS_CHANGES)
+    public void testUpdateHandlesLongClickForHsumWithFlagDisabled() {
+        boolean originalValue = true;
+        mTile.getState().handlesLongClick = originalValue;
+        when(mHost.isCurrentUserHeadlessSystemUser()).thenReturn(true);
+
+        // No changes since flag is disabled.
+        mTile.userSwitch(UserHandle.USER_SYSTEM);
+        mTestableLooper.processAllMessages();
+        assertThat(mTile.getState().handlesLongClick).isEqualTo(originalValue);
+
+        when(mHost.isCurrentUserHeadlessSystemUser()).thenReturn(false);
+        mTile.userSwitch(10);
+        mTestableLooper.processAllMessages();
+        assertThat(mTile.getState().handlesLongClick).isEqualTo(originalValue);
     }
 
     private void assertEvent(UiEventLogger.UiEventEnum eventType,

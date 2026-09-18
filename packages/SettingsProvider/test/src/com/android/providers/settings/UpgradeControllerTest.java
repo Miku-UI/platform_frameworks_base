@@ -16,6 +16,7 @@
 
 package com.android.providers.settings;
 
+import static android.provider.Settings.Secure.HDR_BRIGHTNESS_BOOST_LEVEL;
 import static android.provider.Settings.System.MIN_REFRESH_RATE;
 import static android.provider.Settings.System.PEAK_REFRESH_RATE;
 
@@ -38,8 +39,13 @@ import android.os.Looper;
 import android.os.SystemConfigManager;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.util.MathUtils;
 
 import androidx.test.core.app.ApplicationProvider;
+
+import android.provider.Settings;
+
+import com.android.internal.display.BrightnessUtils;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -98,6 +104,12 @@ public class UpgradeControllerTest {
     @Mock
     private SettingsState.Setting mMinRefreshRateSetting;
 
+    @Mock
+    private SettingsState.Setting mHdrBrightnessBoostSetting;
+
+    @Mock
+    private SettingsState.Setting mAdaptiveConnectivitySetting;
+
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
@@ -109,10 +121,19 @@ public class UpgradeControllerTest {
         when(mMockSetting.isNull()).thenReturn(true);
         when(mMockSetting.getValue()).thenReturn("0");
 
-        when(mSystemSettings.getSettingLocked(PEAK_REFRESH_RATE))
-                .thenReturn(mPeakRefreshRateSetting);
-        when(mSystemSettings.getSettingLocked(MIN_REFRESH_RATE))
-                .thenReturn(mMinRefreshRateSetting);
+        when(mSystemSettings.getSettingLocked(PEAK_REFRESH_RATE)).thenReturn(
+                mPeakRefreshRateSetting);
+        when(mSystemSettings.getSettingLocked(MIN_REFRESH_RATE)).thenReturn(mMinRefreshRateSetting);
+        when(mSecureSettings.getSettingLocked(HDR_BRIGHTNESS_BOOST_LEVEL)).thenReturn(
+                mHdrBrightnessBoostSetting);
+
+        when(mPeakRefreshRateSetting.isNull()).thenReturn(true);
+        when(mMinRefreshRateSetting.isNull()).thenReturn(true);
+        when(mHdrBrightnessBoostSetting.isNull()).thenReturn(true);
+
+        when(mSecureSettings.getSettingLocked(Settings.Secure.ADAPTIVE_CONNECTIVITY_ENABLED))
+                .thenReturn(mAdaptiveConnectivitySetting);
+        when(mAdaptiveConnectivitySetting.isNull()).thenReturn(true);
 
         mSettingsRegistry.injectSettings(mSystemSettings, SETTINGS_TYPE_SYSTEM, USER_ID, DEVICE_ID);
         mSettingsRegistry.injectSettings(mSecureSettings, SETTINGS_TYPE_SECURE, USER_ID, DEVICE_ID);
@@ -123,10 +144,7 @@ public class UpgradeControllerTest {
     }
 
     @Test
-    public void testUpgrade_refreshRateSettings_defaultValues() {
-        when(mPeakRefreshRateSetting.isNull()).thenReturn(true);
-        when(mMinRefreshRateSetting.isNull()).thenReturn(true);
-
+    public void testUpgrade_defaultValues() {
         mUpgradeController.upgradeIfNeededLocked();
 
         // Should remain unchanged
@@ -134,6 +152,9 @@ public class UpgradeControllerTest {
                 /* value= */ any(), /* tag= */ any(), /* makeDefault= */ anyBoolean(),
                 /* packageName= */ any());
         verify(mSystemSettings, never()).insertSettingLocked(eq(MIN_REFRESH_RATE),
+                /* value= */ any(), /* tag= */ any(), /* makeDefault= */ anyBoolean(),
+                /* packageName= */ any());
+        verify(mSecureSettings, never()).insertSettingLocked(eq(HDR_BRIGHTNESS_BOOST_LEVEL),
                 /* value= */ any(), /* tag= */ any(), /* makeDefault= */ anyBoolean(),
                 /* packageName= */ any());
     }
@@ -172,5 +193,101 @@ public class UpgradeControllerTest {
         verify(mSystemSettings, never()).insertSettingLocked(eq(MIN_REFRESH_RATE),
                 /* value= */ any(), /* tag= */ any(), /* makeDefault= */ anyBoolean(),
                 /* packageName= */ any());
+    }
+
+    @Test
+    public void testUpgrade_hdrBrightnessBoostLevel_0() {
+        when(mHdrBrightnessBoostSetting.isNull()).thenReturn(false);
+        when(mHdrBrightnessBoostSetting.getValue()).thenReturn("0f");
+
+        mUpgradeController.upgradeIfNeededLocked();
+
+        verify(mSecureSettings, never()).insertSettingLocked(eq(HDR_BRIGHTNESS_BOOST_LEVEL),
+                /* value= */ any(), /* tag= */ any(), /* makeDefault= */ anyBoolean(),
+                /* packageName= */ any());
+    }
+
+    @Test
+    public void testUpgrade_hdrBrightnessBoostLevel_1() {
+        when(mHdrBrightnessBoostSetting.isNull()).thenReturn(false);
+        when(mHdrBrightnessBoostSetting.getValue()).thenReturn("1f");
+
+        mUpgradeController.upgradeIfNeededLocked();
+
+        verify(mSecureSettings, never()).insertSettingLocked(eq(HDR_BRIGHTNESS_BOOST_LEVEL),
+                /* value= */ any(), /* tag= */ any(), /* makeDefault= */ anyBoolean(),
+                /* packageName= */ any());
+    }
+
+    @Test
+    public void testUpgrade_hdrBrightnessBoostLevel_convert() {
+        when(mHdrBrightnessBoostSetting.isNull()).thenReturn(false);
+        float hdrBrightnessBoostLevel = 0.14f;
+        when(mHdrBrightnessBoostSetting.getValue()).thenReturn(
+                String.valueOf(hdrBrightnessBoostLevel));
+
+        mUpgradeController.upgradeIfNeededLocked();
+
+        float ratioScaleFactor = BrightnessUtils.convertGammaToLinear(hdrBrightnessBoostLevel);
+        float newHdrBrightnessBoostLevel = MathUtils.sqrt(ratioScaleFactor);
+        verify(mSecureSettings).insertSettingLocked(eq(HDR_BRIGHTNESS_BOOST_LEVEL),
+                eq(String.valueOf(newHdrBrightnessBoostLevel)), /* tag= */ any(),
+                /* makeDefault= */ anyBoolean(), /* packageName= */ any());
+    }
+
+    @Test
+    public void testUpgrade_adaptiveConnectivity_enabled() {
+        when(mAdaptiveConnectivitySetting.isNull()).thenReturn(false);
+        when(mAdaptiveConnectivitySetting.getValue()).thenReturn("1");
+
+        mUpgradeController.upgradeIfNeededLocked();
+
+        verify(mSecureSettings).insertSettingOverrideableByRestoreLocked(
+                eq(Settings.Secure.ADAPTIVE_CONNECTIVITY_WIFI_ENABLED),
+                eq("1"),
+                /* tag= */ any(),
+                /* makeDefault= */ eq(true),
+                /* packageName= */ eq(SettingsState.SYSTEM_PACKAGE_NAME));
+        verify(mSecureSettings).insertSettingOverrideableByRestoreLocked(
+                eq(Settings.Secure.ADAPTIVE_CONNECTIVITY_MOBILE_NETWORK_ENABLED),
+                eq("1"),
+                /* tag= */ any(),
+                /* makeDefault= */ eq(true),
+                /* packageName= */ eq(SettingsState.SYSTEM_PACKAGE_NAME));
+    }
+
+    @Test
+    public void testUpgrade_adaptiveConnectivity_disabled() {
+        when(mAdaptiveConnectivitySetting.isNull()).thenReturn(false);
+        when(mAdaptiveConnectivitySetting.getValue()).thenReturn("0");
+
+        mUpgradeController.upgradeIfNeededLocked();
+
+        verify(mSecureSettings).insertSettingOverrideableByRestoreLocked(
+                eq(Settings.Secure.ADAPTIVE_CONNECTIVITY_WIFI_ENABLED),
+                eq("0"),
+                /* tag= */ any(),
+                /* makeDefault= */ eq(true),
+                /* packageName= */ eq(SettingsState.SYSTEM_PACKAGE_NAME));
+        verify(mSecureSettings).insertSettingOverrideableByRestoreLocked(
+                eq(Settings.Secure.ADAPTIVE_CONNECTIVITY_MOBILE_NETWORK_ENABLED),
+                eq("0"),
+                /* tag= */ any(),
+                /* makeDefault= */ eq(true),
+                /* packageName= */ eq(SettingsState.SYSTEM_PACKAGE_NAME));
+    }
+
+    @Test
+    public void testUpgrade_adaptiveConnectivity_missing() {
+        when(mAdaptiveConnectivitySetting.isNull()).thenReturn(true);
+
+        mUpgradeController.upgradeIfNeededLocked();
+
+        verify(mSecureSettings, never()).insertSettingOverrideableByRestoreLocked(
+                eq(Settings.Secure.ADAPTIVE_CONNECTIVITY_WIFI_ENABLED),
+                any(), any(), anyBoolean(), any());
+        verify(mSecureSettings, never()).insertSettingOverrideableByRestoreLocked(
+                eq(Settings.Secure.ADAPTIVE_CONNECTIVITY_MOBILE_NETWORK_ENABLED),
+                any(), any(), anyBoolean(), any());
     }
 }

@@ -17,13 +17,12 @@
 package com.android.systemui.qs.pipeline.data.model
 
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.qs.pipeline.data.restoreprocessors.CellTileRestoreProcessor
 import com.android.systemui.qs.pipeline.data.restoreprocessors.WorkTileRestoreProcessor
 
 val Kosmos.workTileRestoreProcessor by Kosmos.Fixture { WorkTileRestoreProcessor() }
 
+val Kosmos.cellTileRestoreProcessor by Kosmos.Fixture { CellTileRestoreProcessor() }
+
 var Kosmos.restoreProcessors by
-    Kosmos.Fixture {
-        setOf(
-            workTileRestoreProcessor,
-        )
-    }
+    Kosmos.Fixture { setOf(workTileRestoreProcessor, cellTileRestoreProcessor) }

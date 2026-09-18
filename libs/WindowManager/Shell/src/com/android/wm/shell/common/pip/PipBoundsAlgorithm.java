@@ -43,8 +43,10 @@ public class PipBoundsAlgorithm implements PipDisplayLayoutState.DisplayIdListen
     private static final String TAG = PipBoundsAlgorithm.class.getSimpleName();
     private static final float INVALID_SNAP_FRACTION = -1f;
 
+    @NonNull private final Context mContext;
     @NonNull private final PipBoundsState mPipBoundsState;
     @NonNull protected final PipDisplayLayoutState mPipDisplayLayoutState;
+    @Nullable private final PipDesktopState mPipDesktopState;
     @NonNull protected final SizeSpecSource mSizeSpecSource;
     private final PipSnapAlgorithm mSnapAlgorithm;
     private final PipKeepClearAlgorithmInterface mPipKeepClearAlgorithm;
@@ -58,12 +60,15 @@ public class PipBoundsAlgorithm implements PipDisplayLayoutState.DisplayIdListen
             @NonNull PipSnapAlgorithm pipSnapAlgorithm,
             @NonNull PipKeepClearAlgorithmInterface pipKeepClearAlgorithm,
             @NonNull PipDisplayLayoutState pipDisplayLayoutState,
+            @Nullable PipDesktopState pipDesktopState,
             @NonNull SizeSpecSource sizeSpecSource) {
+        mContext = context;
         mPipBoundsState = pipBoundsState;
         mSnapAlgorithm = pipSnapAlgorithm;
         mPipKeepClearAlgorithm = pipKeepClearAlgorithm;
         mPipDisplayLayoutState = pipDisplayLayoutState;
         mPipDisplayLayoutState.addDisplayIdListener(this);
+        mPipDesktopState = pipDesktopState;
         mSizeSpecSource = sizeSpecSource;
         reloadResources(context);
         // Initialize the aspect ratio to the default aspect ratio.  Don't do this in reload
@@ -165,14 +170,17 @@ public class PipBoundsAlgorithm implements PipDisplayLayoutState.DisplayIdListen
             return null;
         }
         final ActivityInfo.WindowLayout windowLayout = activityInfo.windowLayout;
+        final DisplayMetrics metrics = mContext.getResources().getDisplayMetrics();
+        final int minWidth = windowLayout.getMinWidth(metrics);
+        final int minHeight = windowLayout.getMinHeight(metrics);
         // -1 will be populated if an activity specifies defaultWidth/defaultHeight in <layout>
         // without minWidth/minHeight
-        if (windowLayout.minWidth > 0 && windowLayout.minHeight > 0) {
+        if (minWidth > 0 && minHeight > 0) {
             // If either dimension is smaller than the allowed minimum, adjust them
             // according to mOverridableMinSize
             return new Size(
-                    Math.max(windowLayout.minWidth, getOverrideMinEdgeSize()),
-                    Math.max(windowLayout.minHeight, getOverrideMinEdgeSize()));
+                    Math.max(minWidth, getOverrideMinEdgeSize()),
+                    Math.max(minHeight, getOverrideMinEdgeSize()));
         }
         return null;
     }
@@ -296,11 +304,15 @@ public class PipBoundsAlgorithm implements PipDisplayLayoutState.DisplayIdListen
         final int left = (int) (stackBounds.centerX() - size.getWidth() / 2f);
         final int top = (int) (stackBounds.centerY() - size.getHeight() / 2f);
         stackBounds.set(left, top, left + size.getWidth(), top + size.getHeight());
+        // If PiP is allowed to free-float, don't apply the snap fraction
+        if (mPipDesktopState != null && mPipDesktopState.isFreeFloatingPipEnabled()) {
+            return;
+        }
         mSnapAlgorithm.applySnapFraction(stackBounds, getMovementBounds(stackBounds), snapFraction);
     }
 
     /**
-     * @return the default bounds to show the PIP, if a {@param snapFraction} and {@param size} are
+     * @return the default bounds to show the PIP, if a {@code snapFraction} and {@code size} are
      * provided, then it will apply the default bounds to the provided snap fraction and size.
      */
     private Rect getDefaultBounds(float snapFraction, Size size) {
@@ -346,7 +358,7 @@ public class PipBoundsAlgorithm implements PipDisplayLayoutState.DisplayIdListen
 
     /**
      * Populates the bounds on the screen that the PIP can be visible on a given
-     * {@param displayLayout}.
+     * {@code displayLayout}.
      */
     public void getInsetBounds(Rect outRect, DisplayLayout displayLayout) {
         outRect.set(mPipDisplayLayoutState.getInsetBounds(displayLayout));
@@ -485,7 +497,7 @@ public class PipBoundsAlgorithm implements PipDisplayLayoutState.DisplayIdListen
     }
 
     /**
-     * Snaps PiP bounds to its movement bounds on a given {@param displayLayout}.
+     * Snaps PiP bounds to its movement bounds on a given {@code displayLayout}.
      */
     public void snapToMovementBoundsEdge(Rect bounds, DisplayLayout displayLayout) {
         // Get the movement bounds of the display
@@ -493,16 +505,28 @@ public class PipBoundsAlgorithm implements PipDisplayLayoutState.DisplayIdListen
                 displayLayout);
         final int leftEdge = bounds.left;
 
+        // Make sure that the PiP window vertically stays within the movement bounds
+        final int newTop = Math.max(movementBounds.top,
+                Math.min(bounds.top, movementBounds.bottom));
+
+        // If PiP is allowed to free-float, we only snap to an edge if the PiP is off-screen
+        if (mPipDesktopState.isFreeFloatingPipEnabled()) {
+            int adjustedLeft = leftEdge;
+            if (leftEdge < movementBounds.left) {
+                adjustedLeft = movementBounds.left;
+            } else if (leftEdge > movementBounds.right) {
+                adjustedLeft = movementBounds.right;
+            }
+            bounds.offsetTo(adjustedLeft, newTop);
+            return;
+        }
+
         final int fromLeft = Math.abs(leftEdge - movementBounds.left);
         final int fromRight = Math.abs(movementBounds.right - leftEdge);
-
         // The PIP will be snapped to either the right or left edge, so calculate which one
         // is closest to the current position.
         final int newLeft = fromLeft < fromRight
                 ? movementBounds.left : movementBounds.right;
-        // Make sure that the PiP window vertically stays within the movement bounds
-        final int newTop = Math.max(movementBounds.top,
-                Math.min(bounds.top, movementBounds.bottom));
 
         bounds.offsetTo(newLeft, newTop);
     }

@@ -16,8 +16,7 @@
 
 package com.android.wm.shell.functional.keyboardshortcuts
 
-import android.platform.test.annotations.Presubmit
-import android.platform.test.annotations.RequiresDesktopDevice
+import android.platform.test.annotations.Postsubmit
 import android.platform.test.rule.ScreenRecordRule
 import com.android.wm.shell.scenarios.AltTabSwitchOutDesktopMode
 import org.junit.runner.RunWith
@@ -25,7 +24,6 @@ import org.junit.runners.BlockJUnit4ClassRunner
 
 /* Functional test for Alt+Tab app switching out of desktop mode. */
 @RunWith(BlockJUnit4ClassRunner::class)
-@RequiresDesktopDevice
-@Presubmit
+@Postsubmit
 @ScreenRecordRule.ScreenRecord
 class AltTabSwitchOutDesktopModeTest : AltTabSwitchOutDesktopMode()

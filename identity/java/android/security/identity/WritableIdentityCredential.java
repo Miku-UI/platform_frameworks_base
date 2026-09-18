@@ -16,6 +16,7 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 
 import java.security.cert.X509Certificate;
@@ -28,7 +29,10 @@ import java.util.Collection;
  * re-creation.
  *
  * Use {@link IdentityCredentialStore#createCredential(String, String)} to create a new credential.
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public abstract class WritableIdentityCredential {
     /**
      * @hide
@@ -62,7 +66,11 @@ public abstract class WritableIdentityCredential {
      *                  attestation certificate is fresh. Implementations are required to support
      *                  challenges at least 32 bytes of length.
      * @return the X.509 certificate for this credential's CredentialKey.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @NonNull Collection<X509Certificate> getCredentialKeyCertificateChain(
             @NonNull byte[] challenge);
 
@@ -112,7 +120,11 @@ public abstract class WritableIdentityCredential {
      * @param personalizationData   The data to provision, including access control profiles
      *                              and data elements and their values, grouped into namespaces.
      * @return A COSE_Sign1 data structure, see above.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @NonNull byte[] personalize(
             @NonNull PersonalizationData personalizationData);
 }

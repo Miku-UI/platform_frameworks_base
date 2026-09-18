@@ -19,7 +19,6 @@ package com.android.systemui.statusbar.pipeline.mobile.data.repository
 import android.telephony.CellSignalStrength
 import android.telephony.SubscriptionInfo
 import android.telephony.TelephonyManager
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.combine as kairosCombine
 import com.android.systemui.log.table.TableLogBuffer
@@ -236,7 +235,6 @@ interface MobileConnectionRepository {
          *
          * @param default The default number of levels to use if [inflateSignalStrength] is false.
          */
-        @ExperimentalKairosApi
         fun createNumberOfLevelsState(
             inflateSignalStrength: State<Boolean>,
             default: State<Int>,

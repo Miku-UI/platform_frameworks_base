@@ -59,8 +59,6 @@ class AppCompatFocusOverrides {
      */
     boolean shouldSendFakeFocus() {
         // TODO(b/263593361): Explore enabling compat fake focus for freeform.
-        // TODO(b/263592337): Explore enabling compat fake focus for fullscreen, e.g. for when
-        // covered with bubbles.
         return mFakeFocusOptProp.shouldEnableWithOverrideAndProperty(
                 isChangeEnabled(mActivityRecord, OVERRIDE_ENABLE_COMPAT_FAKE_FOCUS))
                 && mActivityRecord.inMultiWindowMode() && !mActivityRecord.inPinnedWindowingMode()

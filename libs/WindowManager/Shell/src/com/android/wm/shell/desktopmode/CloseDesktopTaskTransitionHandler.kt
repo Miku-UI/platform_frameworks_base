@@ -89,6 +89,7 @@ constructor(
         animations +=
             closingChanges.map { createCloseAnimation(it, finishTransaction, onAnimFinish) }
         if (animations.isEmpty()) return false
+        startTransaction.apply()
         runningAnimations[transition] = animations
         closingChanges.lastOrNull()?.leash?.let { lastChangeLeash ->
             interactionJankMonitor.begin(

@@ -18,11 +18,14 @@ package com.android.systemui.qs.user
 
 import android.content.DialogInterface
 import android.content.Intent
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.provider.Settings
 import android.widget.Button
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.UiEventLogger
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
@@ -52,6 +55,7 @@ import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -90,7 +94,18 @@ class UserSwitchDialogControllerTest : SysuiTestCase() {
     }
 
     @Test
-    fun showDialog_callsDialogShow() {
+    @EnableFlags(Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
+    fun showDialog_callsDialogShow_withDynamicTargetResolution() {
+        val launchController = mock<DialogTransitionAnimator.Controller>()
+        `when`(launchExpandable.dialogTransitionController(any())).thenReturn(launchController)
+        controller.showDialog(launchExpandable)
+        verify(mDialogTransitionAnimator).show(eq(dialog), anyOrNull(), anyOrNull(), anyBoolean())
+        verify(uiEventLogger).log(QSUserSwitcherEvent.QS_USER_DETAIL_OPEN)
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
+    fun showDialog_callsDialogShow_withoutDynamicTargetResolution() {
         val launchController = mock<DialogTransitionAnimator.Controller>()
         `when`(launchExpandable.dialogTransitionController(any())).thenReturn(launchController)
         controller.showDialog(launchExpandable)

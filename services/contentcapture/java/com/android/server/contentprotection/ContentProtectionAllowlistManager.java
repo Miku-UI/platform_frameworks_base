@@ -112,9 +112,26 @@ public class ContentProtectionAllowlistManager {
         return allowedPackages.contains(packageName);
     }
 
-    private void handleUpdateAllowlistResponse(@NonNull List<String> packages) {
+    /** Returns the packages which were either added or removed from the current allowlist. */
+    @NonNull
+    public Set<String> setContentProtectionAllowlist(@NonNull List<String> packages) {
+        Set<String> oldSet;
+        Set<String> newSet = packages.stream().collect(Collectors.toUnmodifiableSet());
         synchronized (mLock) {
-            mAllowedPackages = packages.stream().collect(Collectors.toUnmodifiableSet());
+            oldSet = mAllowedPackages;
+            mAllowedPackages = newSet;
+        }
+        Set<String> diffSet =
+                oldSet.stream().filter(it -> !newSet.contains(it)).collect(Collectors.toSet());
+        diffSet.addAll(
+                newSet.stream().filter(it -> !oldSet.contains(it)).collect(Collectors.toSet()));
+        return diffSet;
+    }
+
+    private void handleUpdateAllowlistResponse(@NonNull List<String> packages) {
+        Set<String> newSet = packages.stream().collect(Collectors.toUnmodifiableSet());
+        synchronized (mLock) {
+            mAllowedPackages = newSet;
         }
         mUpdatePendingUntil = null;
     }
@@ -137,8 +154,9 @@ public class ContentProtectionAllowlistManager {
             return;
         }
 
+        int userId = UserHandle.getCallingUserId();
         RemoteContentProtectionService remoteContentProtectionService =
-                mContentCaptureManagerService.createRemoteContentProtectionService();
+                mContentCaptureManagerService.createRemoteContentProtectionService(userId);
         if (remoteContentProtectionService == null) {
             return;
         }

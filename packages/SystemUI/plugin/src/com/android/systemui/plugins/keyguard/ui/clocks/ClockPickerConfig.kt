@@ -109,7 +109,7 @@ data class ClockFontAxis(
     companion object {
         fun List<ClockFontAxis>.merge(axisStyle: ClockAxisStyle): List<ClockFontAxis> {
             return this.map { axis ->
-                    axisStyle.get(axis.key)?.let { axis.copy(currentValue = it) } ?: axis
+                    axisStyle[axis.key]?.let { axis.copy(currentValue = it) } ?: axis
                 }
                 .toList()
         }

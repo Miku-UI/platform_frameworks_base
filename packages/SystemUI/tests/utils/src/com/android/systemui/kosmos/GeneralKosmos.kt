@@ -64,14 +64,16 @@ var Kosmos.applicationCoroutineScope by Fixture { testScope.backgroundScope }
 var Kosmos.testCase: SysuiTestCase by Fixture()
 var Kosmos.backgroundCoroutineContext: CoroutineContext by Fixture { testDispatcher }
 var Kosmos.mainCoroutineContext: CoroutineContext by Fixture { testDispatcher }
+var Kosmos.defaultTestTimeout: Duration? by Fixture { null }
 
 /**
  * Run this test body with a [Kosmos] as receiver, and using the [testScope] currently installed in
  * that Kosmos instance
  */
-fun Kosmos.runTest(testBody: suspend Kosmos.() -> Unit) = let { kosmos ->
-    testScope.runTestWithSnapshots { kosmos.testBody() }
-}
+fun Kosmos.runTest(timeout: Duration? = defaultTestTimeout, testBody: suspend Kosmos.() -> Unit) =
+    let { kosmos ->
+        testScope.runTestWithSnapshots(timeout) { kosmos.testBody() }
+    }
 
 fun Kosmos.runCurrent() = testScope.runCurrent()
 

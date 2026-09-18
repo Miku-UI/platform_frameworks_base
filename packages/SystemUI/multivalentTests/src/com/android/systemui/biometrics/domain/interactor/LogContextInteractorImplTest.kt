@@ -23,23 +23,23 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
-import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
 import com.android.systemui.deviceentry.domain.interactor.deviceUnlockedInteractor
 import com.android.systemui.display.data.repository.DeviceStateRepository
 import com.android.systemui.display.data.repository.fakeDeviceStateRepository
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.FakeKeyguardTransitionRepository
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
+import com.android.systemui.keyguard.domain.interactor.biometricUnlockInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
+import com.android.systemui.keyguard.shared.model.BiometricUnlockSource
 import com.android.systemui.keyguard.shared.model.KeyguardState
-import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
 import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.statusbar.phone.BiometricUnlockController
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.map
@@ -72,7 +72,7 @@ class LogContextInteractorImplTest : SysuiTestCase() {
                 deviceStateRepository = deviceStateRepository,
                 keyguardTransitionInteractor = kosmos.keyguardTransitionInteractor,
                 udfpsOverlayInteractor = udfpsOverlayInteractor,
-                deviceEntryInteractor = { kosmos.deviceEntryInteractor },
+                sceneInteractor = { kosmos.sceneInteractor },
             )
     }
 
@@ -148,14 +148,9 @@ class LogContextInteractorImplTest : SysuiTestCase() {
         testScope.runTest {
             val displayState = collectLastValue(interactor.displayState)
 
+            kosmos.sceneInteractor.snapToScene(Scenes.Lockscreen, "test")
             keyguardTransitionRepository.startTransitionTo(KeyguardState.OFF)
             assertThat(displayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_NO_UI)
-
-            keyguardTransitionRepository.startTransitionTo(KeyguardState.DOZING)
-            assertThat(displayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_NO_UI)
-
-            keyguardTransitionRepository.startTransitionTo(KeyguardState.DREAMING)
-            assertThat(displayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_SCREENSAVER)
 
             keyguardTransitionRepository.startTransitionTo(KeyguardState.AOD)
             assertThat(displayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_AOD)
@@ -163,16 +158,19 @@ class LogContextInteractorImplTest : SysuiTestCase() {
             keyguardTransitionRepository.startTransitionTo(KeyguardState.ALTERNATE_BOUNCER)
             assertThat(displayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_LOCKSCREEN)
 
-            keyguardTransitionRepository.startTransitionTo(KeyguardState.PRIMARY_BOUNCER)
-            assertThat(displayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_LOCKSCREEN)
-
-            keyguardTransitionRepository.startTransitionTo(KeyguardState.GLANCEABLE_HUB)
-            assertThat(displayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_LOCKSCREEN)
-
             keyguardTransitionRepository.startTransitionTo(KeyguardState.LOCKSCREEN)
             assertThat(displayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_LOCKSCREEN)
 
-            keyguardTransitionRepository.startTransitionTo(KeyguardState.OCCLUDED)
+            keyguardTransitionRepository.startTransitionTo(KeyguardState.DOZING)
+            assertThat(displayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_NO_UI)
+
+            kosmos.sceneInteractor.snapToScene(Scenes.Dream, "test")
+            assertThat(displayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_SCREENSAVER)
+
+            kosmos.sceneInteractor.snapToScene(Scenes.Communal, "test")
+            assertThat(displayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_LOCKSCREEN)
+
+            kosmos.sceneInteractor.snapToScene(Scenes.Occluded, "test")
             assertThat(displayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_LOCKSCREEN)
 
             // Unlock the device.
@@ -180,14 +178,15 @@ class LogContextInteractorImplTest : SysuiTestCase() {
                 collectLastValue(
                     kosmos.deviceUnlockedInteractor.deviceUnlockStatus.map { it.isUnlocked }
                 )
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-                SuccessFingerprintAuthenticationStatus(0, true)
+            kosmos.biometricUnlockInteractor.setBiometricUnlockState(
+                unlockStateInt = BiometricUnlockController.MODE_DISMISS,
+                biometricUnlockSource = BiometricUnlockSource.FINGERPRINT_SENSOR,
             )
             runCurrent()
             assertThat(isDeviceUnlocked).isTrue()
             kosmos.sceneInteractor.snapToScene(Scenes.Gone, "")
 
-            keyguardTransitionRepository.startTransitionTo(KeyguardState.GONE)
+            keyguardTransitionRepository.startTransitionTo(KeyguardState.UNDEFINED)
             assertThat(displayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_UNKNOWN)
 
             keyguardTransitionRepository.startTransitionTo(KeyguardState.UNDEFINED)

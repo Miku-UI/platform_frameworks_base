@@ -16,6 +16,9 @@
 
 package com.android.server.theming;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.rules.TestRule;
@@ -26,10 +29,26 @@ public class HardwareColorRule implements TestRule {
     public String color = "";
     public String[] options = {};
     public boolean isTesting = false;
+    public final SystemPropertiesReader sysPropReader;
+
+    public HardwareColorRule() {
+        sysPropReader = new SystemPropertiesReader() {
+            @NonNull
+            @Override
+            public String get(@NonNull String key, @Nullable String def) {
+                return color;
+            }
+        };
+    }
 
     @Override
     public Statement apply(Statement base, Description description) {
-        HardwareColors hardwareColors = description.getAnnotation(HardwareColors.class);
+        HardwareColors hardwareColors = description.getTestClass().getAnnotation(
+                HardwareColors.class);
+        if (hardwareColors == null) {
+            hardwareColors = description.getAnnotation(HardwareColors.class);
+        }
+
         if (hardwareColors != null) {
             color = hardwareColors.color();
             options = hardwareColors.options();

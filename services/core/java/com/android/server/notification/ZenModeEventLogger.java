@@ -28,6 +28,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.app.NotificationManager;
+import android.app.modes.ContextualMode;
 import android.content.pm.PackageManager;
 import android.os.Process;
 import android.service.notification.DNDPolicyProto;
@@ -64,7 +65,7 @@ class ZenModeEventLogger {
     static final int ZEN_MODE_UNKNOWN = -1;
 
     // Special rule type for manual rule. Keep in sync with ActiveRuleType in dnd_enums.proto.
-    protected static final int ACTIVE_RULE_TYPE_MANUAL = 999;
+    protected static final int ACTIVE_RULE_TYPE_MANUAL = ContextualMode.TYPE_MANUAL_DO_NOT_DISTURB;
 
     // Object for tracking config changes and policy changes associated with an overall zen
     // mode change.

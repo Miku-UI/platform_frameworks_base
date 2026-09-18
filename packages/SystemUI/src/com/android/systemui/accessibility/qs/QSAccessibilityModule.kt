@@ -16,14 +16,12 @@
 
 package com.android.systemui.accessibility.qs
 
-import com.android.systemui.Flags
 import com.android.systemui.qs.QsEventLogger
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.shared.model.TileCategory
 import com.android.systemui.qs.tileimpl.QSTileImpl
 import com.android.systemui.qs.tiles.ColorCorrectionTile
 import com.android.systemui.qs.tiles.ColorInversionTile
-import com.android.systemui.qs.tiles.DreamTile
 import com.android.systemui.qs.tiles.FontScalingTile
 import com.android.systemui.qs.tiles.HearingDevicesTile
 import com.android.systemui.qs.tiles.NightDisplayTile
@@ -34,7 +32,6 @@ import com.android.systemui.qs.tiles.base.shared.model.QSTileConfig
 import com.android.systemui.qs.tiles.base.shared.model.QSTileUIConfig
 import com.android.systemui.qs.tiles.base.ui.viewmodel.QSTileViewModel
 import com.android.systemui.qs.tiles.base.ui.viewmodel.QSTileViewModelFactory
-import com.android.systemui.qs.tiles.base.ui.viewmodel.StubQSTileViewModel
 import com.android.systemui.qs.tiles.impl.colorcorrection.domain.interactor.ColorCorrectionTileDataInteractor
 import com.android.systemui.qs.tiles.impl.colorcorrection.domain.interactor.ColorCorrectionUserActionInteractor
 import com.android.systemui.qs.tiles.impl.colorcorrection.domain.model.ColorCorrectionTileModel
@@ -102,12 +99,6 @@ interface QSAccessibilityModule {
     @IntoMap
     @StringKey(ColorCorrectionTile.TILE_SPEC)
     fun bindColorCorrectionTile(colorCorrectionTile: ColorCorrectionTile): QSTileImpl<*>
-
-    /** Inject DreamTile into tileMap in QSModule */
-    @Binds
-    @IntoMap
-    @StringKey(DreamTile.TILE_SPEC)
-    fun bindDreamTile(dreamTile: DreamTile): QSTileImpl<*>
 
     /** Inject FontScalingTile into tileMap in QSModule */
     @Binds
@@ -303,14 +294,12 @@ interface QSAccessibilityModule {
             stateInteractor: ReduceBrightColorsTileDataInteractor,
             userActionInteractor: ReduceBrightColorsTileUserActionInteractor,
         ): QSTileViewModel =
-            if (Flags.qsNewTilesFuture())
-                factory.create(
-                    TileSpec.create(REDUCE_BRIGHTNESS_TILE_SPEC),
-                    userActionInteractor,
-                    stateInteractor,
-                    mapper,
-                )
-            else StubQSTileViewModel
+            factory.create(
+                TileSpec.create(REDUCE_BRIGHTNESS_TILE_SPEC),
+                userActionInteractor,
+                stateInteractor,
+                mapper,
+            )
 
         @Provides
         @IntoMap
@@ -337,14 +326,12 @@ interface QSAccessibilityModule {
             stateInteractor: OneHandedModeTileDataInteractor,
             userActionInteractor: OneHandedModeTileUserActionInteractor,
         ): QSTileViewModel =
-            if (Flags.qsNewTilesFuture())
-                factory.create(
-                    TileSpec.create(ONE_HANDED_TILE_SPEC),
-                    userActionInteractor,
-                    stateInteractor,
-                    mapper,
-                )
-            else StubQSTileViewModel
+            factory.create(
+                TileSpec.create(ONE_HANDED_TILE_SPEC),
+                userActionInteractor,
+                stateInteractor,
+                mapper,
+            )
 
         @Provides
         @IntoMap
@@ -374,14 +361,12 @@ interface QSAccessibilityModule {
             stateInteractor: NightDisplayTileDataInteractor,
             userActionInteractor: NightDisplayTileUserActionInteractor,
         ): QSTileViewModel =
-            if (Flags.qsNewTilesFuture())
-                factory.create(
-                    TileSpec.create(NIGHT_DISPLAY_TILE_SPEC),
-                    userActionInteractor,
-                    stateInteractor,
-                    mapper,
-                )
-            else StubQSTileViewModel
+            factory.create(
+                TileSpec.create(NIGHT_DISPLAY_TILE_SPEC),
+                userActionInteractor,
+                stateInteractor,
+                mapper,
+            )
 
         @Provides
         @IntoMap
@@ -410,15 +395,12 @@ interface QSAccessibilityModule {
             mapper: HearingDevicesTileMapper,
             stateInteractor: HearingDevicesTileDataInteractor,
             userActionInteractor: HearingDevicesTileUserActionInteractor,
-        ): QSTileViewModel {
-            return if (Flags.qsNewTilesFuture()) {
-                factory.create(
-                    TileSpec.create(HEARING_DEVICES_TILE_SPEC),
-                    userActionInteractor,
-                    stateInteractor,
-                    mapper,
-                )
-            } else StubQSTileViewModel
-        }
+        ): QSTileViewModel =
+            factory.create(
+                TileSpec.create(HEARING_DEVICES_TILE_SPEC),
+                userActionInteractor,
+                stateInteractor,
+                mapper,
+            )
     }
 }

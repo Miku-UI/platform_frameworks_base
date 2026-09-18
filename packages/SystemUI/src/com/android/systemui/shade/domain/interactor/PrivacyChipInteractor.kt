@@ -18,7 +18,7 @@ package com.android.systemui.shade.domain.interactor
 
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
-import com.android.systemui.privacy.OngoingPrivacyChip
+import com.android.systemui.privacy.AbstractOngoingPrivacyChip
 import com.android.systemui.privacy.PrivacyDialogController
 import com.android.systemui.privacy.PrivacyDialogControllerV2
 import com.android.systemui.privacy.PrivacyItem
@@ -50,7 +50,7 @@ constructor(
     val isLocationIndicationEnabled: StateFlow<Boolean> = repository.isLocationIndicationEnabled
 
     /** Notifies that the privacy chip was clicked. */
-    fun onPrivacyChipClicked(privacyChip: OngoingPrivacyChip) {
+    fun onPrivacyChipClicked(privacyChip: AbstractOngoingPrivacyChip) {
         if (!deviceProvisionedController.isDeviceProvisioned) return
 
         applicationScope.launch {

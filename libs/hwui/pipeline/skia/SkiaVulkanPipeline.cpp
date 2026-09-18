@@ -92,7 +92,7 @@ IRenderPipeline::DrawResult SkiaVulkanPipeline::draw(
     }
 
     // update the coordinates of the global light position based on surface rotation
-    SkPoint lightCenter = preTransform.mapXY(lightGeometry.center.x, lightGeometry.center.y);
+    SkPoint lightCenter = preTransform.mapPoint({lightGeometry.center.x, lightGeometry.center.y});
     LightGeometry localGeometry = lightGeometry;
     localGeometry.center.x = lightCenter.fX;
     localGeometry.center.y = lightCenter.fY;

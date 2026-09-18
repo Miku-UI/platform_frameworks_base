@@ -30,17 +30,6 @@
 #include "hwui/PaintFilter.h"
 #include "pipeline/skia/SkiaRecordingCanvas.h"
 
-#ifdef __linux__
-#include <com_android_graphics_hwui_flags.h>
-namespace flags = com::android::graphics::hwui::flags;
-#else // __linux__
-namespace flags {
-constexpr bool high_contrast_text_small_text_rect() {
-    return false;
-}
-}  // namespace flags
-#endif // __linux__
-
 namespace android {
 
 // These should match the constants in framework/base/core/java/android/text/Layout.java
@@ -60,15 +49,9 @@ static void simplifyPaint(SkColor4f color, Paint* paint) {
     paint->setColorFilter(nullptr);
     paint->setLooper(nullptr);
 
-    if (flags::high_contrast_text_small_text_rect()) {
-        paint->setStrokeWidth(
-                std::max(kHighContrastTextBorderWidth,
-                         kHighContrastTextBorderWidthFactor * paint->getSkFont().getSize()));
-    } else {
-        auto borderWidthFactor = 0.04f;
-        paint->setStrokeWidth(kHighContrastTextBorderWidth +
-                              borderWidthFactor * paint->getSkFont().getSize());
-    }
+    paint->setStrokeWidth(
+            std::max(kHighContrastTextBorderWidth,
+                     kHighContrastTextBorderWidthFactor * paint->getSkFont().getSize()));
     paint->setStrokeJoin(SkPaint::kRound_Join);
     paint->setLooper(nullptr);
     paint->setBlendMode(SkBlendMode::kSrcOver);

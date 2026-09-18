@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.StringRes;
 import android.content.res.Resources;
 import android.icu.text.MessageFormat;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import java.util.Map;
 
@@ -27,6 +28,7 @@ import java.util.Map;
  * Helper class for easier formatting of ICU {@link android.icu.text.MessageFormat} syntax.
  * @hide
  */
+@RavenwoodKeepWholeClass
 public class PluralsMessageFormatter {
     /**
      * Formatting the ICU {@link android.icu.text.MessageFormat} syntax

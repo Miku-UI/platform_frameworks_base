@@ -28,19 +28,24 @@ android_test {
         "android.test.base.stubs.system",
     ],
     static_libs: [
+        "AccessibilityMenuSource",
         "androidx.test.core",
         "androidx.test.runner",
         "androidx.test.ext.junit",
         "com_android_a11y_menu_flags_lib",
         "compatibility-device-util-axt",
         "platform-test-annotations",
+        "SettingsLibPreference-testutils",
+        "testables", // For TestableContext
+        "mockito-kotlin-nodeps",
         "truth",
         "uiautomator-helpers",
     ],
     srcs: [
         "src/**/*.java",
-        ":AccessibilityMenuSource",
+        "src/**/*.kt",
     ],
+
     platform_apis: true,
     test_suites: ["device-tests"],
     instrumentation_for: "AccessibilityMenu",

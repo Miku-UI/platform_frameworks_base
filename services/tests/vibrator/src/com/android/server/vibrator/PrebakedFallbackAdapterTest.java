@@ -31,7 +31,6 @@ import android.os.VibratorInfo;
 import android.os.vibrator.Flags;
 import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.PrimitiveSegment;
-import android.os.vibrator.RampSegment;
 import android.os.vibrator.StepSegment;
 import android.os.vibrator.VibrationEffectSegment;
 import android.platform.test.annotations.DisableFlags;
@@ -75,9 +74,8 @@ public class PrebakedFallbackAdapterTest {
     @EnableFlags(Flags.FLAG_REMOVE_HIDL_SUPPORT)
     public void testNonPrebakedSegments_keepsListUnchanged() {
         List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
-                new StepSegment(/* amplitude= */ 0, /* frequencyHz= */ 1, /* duration= */ 10),
-                new RampSegment(/* startAmplitude= */ 0.8f, /* endAmplitude= */ 0.2f,
-                        /* startFrequencyHz= */ 100, /* endFrequencyHz= */ 1, /* duration= */ 20),
+                new StepSegment(/* amplitude= */ 0, /* duration= */ 10),
+                new StepSegment(/* amplitude= */ 0.8f, /* duration= */ 20),
                 new PrimitiveSegment(PRIMITIVE_CLICK, 1f, 100, DELAY_TYPE_PAUSE)));
         List<VibrationEffectSegment> originalSegments = new ArrayList<>(segments);
 
@@ -136,15 +134,18 @@ public class PrebakedFallbackAdapterTest {
                 new PrebakedSegment(EFFECT_THUD, true, VibrationEffect.EFFECT_STRENGTH_MEDIUM),
                 new PrebakedSegment(EFFECT_POP, true, VibrationEffect.EFFECT_STRENGTH_STRONG)));
 
-        List<VibrationEffectSegment> expectedSegments = new ArrayList<>(Arrays.asList(
-                new PrebakedSegment(EFFECT_CLICK, true, VibrationEffect.EFFECT_STRENGTH_LIGHT),
-                new StepSegment(DEFAULT_AMPLITUDE, 0, 10),
-                new PrebakedSegment(EFFECT_POP, true, VibrationEffect.EFFECT_STRENGTH_STRONG)));
-
         // Repeat index maintained after replacement
         assertEquals(1, mAdapter.adaptToVibrator(BASIC_VIBRATOR_INFO, segments, 1));
 
-        assertEquals(expectedSegments, segments);
+        assertEquals(3, segments.size());
+        assertEquals(EFFECT_CLICK, ((PrebakedSegment) segments.get(0)).getEffectId());
+        assertEquals(DEFAULT_AMPLITUDE, ((StepSegment) segments.get(1)).getAmplitude(), 0);
+        assertEquals(EFFECT_POP, ((PrebakedSegment) segments.get(2)).getEffectId());
+
+        // Confirm all have default start time
+        assertEquals(-1, segments.get(0).getStartTimeMillis());
+        assertEquals(-1, segments.get(1).getStartTimeMillis());
+        assertEquals(-1, segments.get(2).getStartTimeMillis());
     }
 
     @Test
@@ -157,18 +158,112 @@ public class PrebakedFallbackAdapterTest {
                 new PrebakedSegment(EFFECT_THUD, true, VibrationEffect.EFFECT_STRENGTH_MEDIUM),
                 new PrebakedSegment(EFFECT_POP, true, VibrationEffect.EFFECT_STRENGTH_STRONG)));
 
-        List<VibrationEffectSegment> expectedSegments = new ArrayList<>(Arrays.asList(
-                new PrebakedSegment(EFFECT_CLICK, true, VibrationEffect.EFFECT_STRENGTH_LIGHT),
-                new StepSegment(0, 0, 10),
-                new StepSegment(DEFAULT_AMPLITUDE, 0, 10),
-                new StepSegment(0, 0, 10),
-                new StepSegment(DEFAULT_AMPLITUDE, 0, 10),
-                new PrebakedSegment(EFFECT_POP, true, VibrationEffect.EFFECT_STRENGTH_STRONG)));
-
         // Repeat index maintained after replacement
         assertEquals(5, mAdapter.adaptToVibrator(BASIC_VIBRATOR_INFO, segments, 2));
 
-        assertEquals(expectedSegments, segments);
+        assertEquals(6, segments.size());
+        assertEquals(EFFECT_CLICK, ((PrebakedSegment) segments.get(0)).getEffectId());
+        assertEquals(0, ((StepSegment) segments.get(1)).getAmplitude(), 0);
+        assertEquals(DEFAULT_AMPLITUDE, ((StepSegment) segments.get(2)).getAmplitude(), 0);
+        assertEquals(0, ((StepSegment) segments.get(3)).getAmplitude(), 0);
+        assertEquals(DEFAULT_AMPLITUDE, ((StepSegment) segments.get(4)).getAmplitude(), 0);
+        assertEquals(EFFECT_POP, ((PrebakedSegment) segments.get(5)).getEffectId());
+
+        // Confirm all have default start time
+        for (VibrationEffectSegment segment : segments) {
+            assertEquals(-1, segment.getStartTimeMillis());
+        }
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REMOVE_HIDL_SUPPORT)
+    public void testPrebakedUnsupportedWithFallback_shiftsStartTime() {
+        long fallbackSegmentStartTime = 100L;
+        VibrationEffect fallback = new VibrationEffect.Composed(
+                Arrays.asList(
+                        new StepSegment(DEFAULT_AMPLITUDE, 10, -1),
+                        new StepSegment(DEFAULT_AMPLITUDE, 20, fallbackSegmentStartTime),
+                        new StepSegment(DEFAULT_AMPLITUDE, 30, -1)),
+                -1);
+        mFallbackEffects.put(EFFECT_THUD, fallback);
+
+        long prebakedStartTime = 1234L;
+        List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
+                new PrebakedSegment(EFFECT_THUD, true, VibrationEffect.EFFECT_STRENGTH_MEDIUM,
+                        prebakedStartTime)));
+
+        mAdapter.adaptToVibrator(BASIC_VIBRATOR_INFO, segments, -1);
+
+        assertEquals(3, segments.size());
+        // First segment had -1 but it is the 1st segment, so it gets prebakedStartTime
+        assertEquals(prebakedStartTime, segments.get(0).getStartTimeMillis());
+        // Second segment had fallbackSegmentStartTime, so it gets prebakedStartTime +
+        // fallbackSegmentStartTime
+        assertEquals(
+                prebakedStartTime + fallbackSegmentStartTime, segments.get(1).getStartTimeMillis());
+        // Third segment had -1 and it is not the 1st segment, so it gets -1
+        assertEquals(-1, segments.get(2).getStartTimeMillis());
+
+        segments = new ArrayList<>(Arrays.asList(
+                new PrebakedSegment(EFFECT_THUD, true, VibrationEffect.EFFECT_STRENGTH_MEDIUM)));
+
+        mAdapter.adaptToVibrator(BASIC_VIBRATOR_INFO, segments, -1);
+
+        assertEquals(3, segments.size());
+        // All segments have start time = -1, because the prebaked segment had no start time.
+        assertEquals(-1, segments.get(0).getStartTimeMillis());
+        assertEquals(-1, segments.get(1).getStartTimeMillis());
+        assertEquals(-1, segments.get(2).getStartTimeMillis());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REMOVE_HIDL_SUPPORT)
+    public void testPrebakedUnsupportedWithFallback_propagatesStartTime() {
+        mFallbackEffects.put(EFFECT_THUD, VibrationEffect.createWaveform(
+                new long[] { 10, 10, 10, 10 }, -1));
+        long startTime = 1234L;
+        List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
+                new PrebakedSegment(EFFECT_THUD, true, VibrationEffect.EFFECT_STRENGTH_MEDIUM,
+                        startTime)));
+
+        mAdapter.adaptToVibrator(BASIC_VIBRATOR_INFO, segments, -1);
+
+        assertEquals(4, segments.size());
+        assertEquals(startTime, segments.get(0).getStartTimeMillis());
+        assertEquals(-1, segments.get(1).getStartTimeMillis());
+        assertEquals(-1, segments.get(2).getStartTimeMillis());
+        assertEquals(-1, segments.get(3).getStartTimeMillis());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REMOVE_HIDL_SUPPORT)
+    public void
+            testPrebakedUnsupportedWithFallback_repeatingWithPrimitivePreamble_propagatesStartTime() {
+        VibrationEffect fallback =
+                new VibrationEffect.Composed(
+                        Arrays.asList(
+                                new StepSegment(DEFAULT_AMPLITUDE, 10, -1),
+                                new StepSegment(DEFAULT_AMPLITUDE, 20, -1)),
+                        -1);
+        mFallbackEffects.put(EFFECT_THUD, fallback);
+
+        long prebakedStartTime = 500L;
+        List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
+                new PrimitiveSegment(PRIMITIVE_CLICK, 1f, 0, DELAY_TYPE_PAUSE),
+                new PrebakedSegment(EFFECT_THUD, true, VibrationEffect.EFFECT_STRENGTH_MEDIUM,
+                        prebakedStartTime)));
+
+        // repeatIndex = 1 (pointing to the PrebakedSegment)
+        int newRepeatIndex = mAdapter.adaptToVibrator(BASIC_VIBRATOR_INFO, segments, 1);
+
+        assertEquals(1, newRepeatIndex);
+        assertEquals(3, segments.size());
+        assertEquals(PRIMITIVE_CLICK, ((PrimitiveSegment) segments.get(0)).getPrimitiveId());
+
+        // The first fallback segment should have the startTime from the prebaked segment
+        assertEquals(prebakedStartTime, segments.get(1).getStartTimeMillis());
+        // The second fallback segment should have -1
+        assertEquals(-1, segments.get(2).getStartTimeMillis());
     }
 
     private static VibratorInfo createVibratorInfoWithEffects(int... ids) {

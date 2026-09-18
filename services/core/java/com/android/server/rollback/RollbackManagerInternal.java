@@ -35,12 +35,13 @@ public interface RollbackManagerInternal {
      * @param packageName Name of the package to restore/backup user data for
      * @param users Users whose data to be restored/backed up
      * @param appId ID of the package to restore/backup user data for
+     * @param pccId pcc ID of the package to restore/backup user data for
      * @param ceDataInode The index node of CE data to restore/backup
      * @param seInfo The seinfo tag used by SELinux policy
      * @param token Used to inform the package manager that the pending package install is finished
      */
     void snapshotAndRestoreUserData(@NonNull String packageName, @NonNull List<UserHandle> users,
-            int appId, long ceDataInode, @NonNull String seInfo, int token);
+            int appId, int pccId, long ceDataInode, @NonNull String seInfo, int token);
 
     /**
      * Used by the staging manager to notify the RollbackManager that a session is

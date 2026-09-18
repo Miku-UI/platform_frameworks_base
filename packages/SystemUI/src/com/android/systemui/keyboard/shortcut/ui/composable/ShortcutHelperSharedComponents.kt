@@ -251,7 +251,7 @@ fun Shortcut(
             if (shortcut.icon != null) {
                 ShortcutIcon(
                     shortcut.icon,
-                    modifier = Modifier.size(24.dp).semantics { hideFromAccessibility() },
+                    modifier = Modifier.size(32.dp).semantics { hideFromAccessibility() },
                 )
             }
             ShortcutDescriptionText(

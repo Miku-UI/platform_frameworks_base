@@ -16,10 +16,11 @@
 
 package com.android.systemui.qs.panels.ui.viewmodel
 
+import com.android.systemui.animation.Expandable
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.qs.FakeQSTile
 import com.android.systemui.qs.pipeline.shared.TileSpec
 
 val Kosmos.fakeQsTile by Kosmos.Fixture { FakeQSTile(user = 0, available = true) }
 val Kosmos.tileViewModel by
-    Kosmos.Fixture { TileViewModel(fakeQsTile, TileSpec.Companion.create("test")) }
+    Kosmos.Fixture { TileViewModel(fakeQsTile, TileSpec.Companion.create("test"), Expandable()) }

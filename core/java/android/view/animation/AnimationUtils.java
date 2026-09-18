@@ -16,11 +16,7 @@
 
 package android.view.animation;
 
-import static android.view.flags.Flags.FLAG_EXPECTED_PRESENTATION_TIME_READ_ONLY;
-import static android.view.flags.Flags.expectedPresentationTimeReadOnly;
-
 import android.annotation.AnimRes;
-import android.annotation.FlaggedApi;
 import android.annotation.InterpolatorRes;
 import android.annotation.TestApi;
 import android.compat.annotation.UnsupportedAppUsage;
@@ -33,7 +29,6 @@ import android.os.SystemClock;
 import android.ravenwood.annotation.RavenwoodIgnore;
 import android.ravenwood.annotation.RavenwoodKeepPartialClass;
 import android.util.AttributeSet;
-import android.util.TimeUtils;
 import android.util.Xml;
 import android.view.InflateException;
 
@@ -57,16 +52,10 @@ public class AnimationUtils {
     private static final int TOGETHER = 0;
     private static final int SEQUENTIALLY = 1;
 
-    private static boolean sExpectedPresentationTimeFlagValue;
-    static {
-        sExpectedPresentationTimeFlagValue = expectedPresentationTimeReadOnly();
-    }
-
     private static class AnimationState {
         boolean animationClockLocked;
         long currentVsyncTimeMillis;
         long lastReportedTimeMillis;
-        long mExpectedPresentationTimeNanos;
     };
 
     private static ThreadLocal<AnimationState> sAnimationState
@@ -76,43 +65,6 @@ public class AnimationUtils {
             return new AnimationState();
         }
     };
-
-    /**
-     * Locks AnimationUtils{@link #currentAnimationTimeMillis()} and
-     * AnimationUtils{@link #expectedPresentationTimeNanos()} to a fixed value for the current
-     * thread. This is used by {@link android.view.Choreographer} to ensure that all accesses
-     * during a vsync update are synchronized to the timestamp of the vsync.
-     *
-     * It is also exposed to tests to allow for rapid, flake-free headless testing.
-     *
-     * Must be followed by a call to {@link #unlockAnimationClock()} to allow time to
-     * progress. Failing to do this will result in stuck animations, scrolls, and flings.
-     *
-     * Note that time is not allowed to "rewind" and must perpetually flow forward. So the
-     * lock may fail if the time is in the past from a previously returned value, however
-     * time will be frozen for the duration of the lock. The clock is a thread-local, so
-     * ensure that {@link #lockAnimationClock(long)}, {@link #unlockAnimationClock()},
-     * {@link #currentAnimationTimeMillis()}, and {@link #expectedPresentationTimeNanos()}
-     * are all called on the same thread.
-     *
-     * This is also not reference counted in any way. Any call to {@link #unlockAnimationClock()}
-     * will unlock the clock for everyone on the same thread. It is therefore recommended
-     * for tests to use their own thread to ensure that there is no collision with any existing
-     * {@link android.view.Choreographer} instance.
-     *
-     * @hide
-     */
-    @TestApi
-    @FlaggedApi(FLAG_EXPECTED_PRESENTATION_TIME_READ_ONLY)
-    @RavenwoodIgnore
-    public static void lockAnimationClock(long vsyncMillis, long expectedPresentationTimeNanos) {
-        AnimationState state = sAnimationState.get();
-        state.animationClockLocked = true;
-        state.currentVsyncTimeMillis = vsyncMillis;
-        if (!sExpectedPresentationTimeFlagValue) {
-            state.mExpectedPresentationTimeNanos = expectedPresentationTimeNanos;
-        }
-    }
 
     /**
      * Locks AnimationUtils{@link #currentAnimationTimeMillis()} to a fixed value for the current
@@ -180,37 +132,6 @@ public class AnimationUtils {
         }
         state.lastReportedTimeMillis = SystemClock.uptimeMillis();
         return state.lastReportedTimeMillis;
-    }
-
-    /**
-     * The expected presentation time of a frame in the {@link System#nanoTime()}.
-     * Developers should prefer using this method over {@link #currentAnimationTimeMillis()}
-     * because it offers a more accurate time for the calculating animation progress.
-     *
-     * @return the expected presentation time of a frame in the
-     *         {@link System#nanoTime()} time base.
-     */
-    @FlaggedApi(FLAG_EXPECTED_PRESENTATION_TIME_READ_ONLY)
-    public static long getExpectedPresentationTimeNanos() {
-        if (!sExpectedPresentationTimeFlagValue) {
-            return SystemClock.uptimeMillis() * TimeUtils.NANOS_PER_MS;
-        }
-
-        AnimationState state = sAnimationState.get();
-        return state.mExpectedPresentationTimeNanos;
-    }
-
-    /**
-     * The expected presentation time of a frame in the {@link SystemClock#uptimeMillis()}.
-     * Developers should prefer using this method over {@link #currentAnimationTimeMillis()}
-     * because it offers a more accurate time for the calculating animation progress.
-     *
-     * @return the expected presentation time of a frame in the
-     *         {@link SystemClock#uptimeMillis()} time base.
-     */
-    @FlaggedApi(FLAG_EXPECTED_PRESENTATION_TIME_READ_ONLY)
-    public static long getExpectedPresentationTimeMillis() {
-        return getExpectedPresentationTimeNanos() / TimeUtils.NANOS_PER_MS;
     }
 
     /**

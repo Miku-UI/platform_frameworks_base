@@ -22,13 +22,11 @@ import android.telephony.SubscriptionManager
 import android.telephony.SubscriptionManager.PROFILE_CLASS_PROVISIONING
 import com.android.settingslib.SignalIcon.MobileIconGroup
 import com.android.systemui.KairosActivatable
-import com.android.systemui.KairosBuilder
 import com.android.systemui.activated
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.flags.FeatureFlagsClassic
 import com.android.systemui.flags.Flags.FILTER_PROVISIONING_NETWORK_SUBSCRIPTIONS
 import com.android.systemui.kairos.BuildScope
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.Incremental
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.asyncEvent
@@ -41,11 +39,9 @@ import com.android.systemui.kairos.map
 import com.android.systemui.kairos.mapValues
 import com.android.systemui.kairos.stateOf
 import com.android.systemui.kairos.util.nameTag
-import com.android.systemui.kairosBuilder
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.log.table.logDiffsForTable
 import com.android.systemui.statusbar.core.NewStatusBarIcons
-import com.android.systemui.statusbar.core.StatusBarRootModernization
 import com.android.systemui.statusbar.pipeline.dagger.MobileSummaryLog
 import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
@@ -56,6 +52,8 @@ import com.android.systemui.statusbar.pipeline.shared.data.model.ConnectivitySlo
 import com.android.systemui.statusbar.pipeline.shared.data.repository.ConnectivityRepository
 import com.android.systemui.statusbar.policy.data.repository.UserSetupRepository
 import com.android.systemui.util.CarrierConfigTracker
+import com.android.systemui.util.lifecycle.kairos.KairosBuilder
+import com.android.systemui.util.lifecycle.kairos.kairosBuilder
 import dagger.Binds
 import dagger.Provides
 import dagger.multibindings.ElementsIntoSet
@@ -74,7 +72,6 @@ import kotlinx.coroutines.delay
  * represents each RAT (LTE, 3G, etc.), as well as can produce an interactor for each individual
  * icon
  */
-@ExperimentalKairosApi
 interface MobileIconsInteractorKairos {
     /** See [MobileConnectionsRepository.mobileIsDefault]. */
     val mobileIsDefault: State<Boolean>
@@ -99,6 +96,12 @@ interface MobileIconsInteractorKairos {
      * [MobileIconInteractorKairos] responsible for the active data connection, if any.
      */
     val activeDataIconInteractor: State<MobileIconInteractorKairos?>
+
+    /**
+     * Flow providing a reference to the Interactor for the default data subId. This represents the
+     * [MobileIconInteractorKairos] responsible for the default data connection, if any.
+     */
+    val defaultDataIconInteractor: State<MobileIconInteractorKairos?>
 
     /** True if the RAT icon should always be displayed and false otherwise. */
     val alwaysShowDataRatIcon: State<Boolean>
@@ -132,7 +135,6 @@ interface MobileIconsInteractorKairos {
     val isDeviceInEmergencyCallsOnlyMode: State<Boolean>
 }
 
-@ExperimentalKairosApi
 @SysUISingleton
 class MobileIconsInteractorKairosImpl
 @Inject
@@ -295,7 +297,7 @@ constructor(
     }
 
     override val isStackable: State<Boolean> =
-        if (NewStatusBarIcons.isEnabled && StatusBarRootModernization.isEnabled) {
+        if (NewStatusBarIcons.isEnabled) {
             icons.flatMap { iconsBySubId: Map<Int, MobileIconInteractorKairos> ->
                 iconsBySubId.values
                     .map { it.signalLevelIcon }
@@ -304,9 +306,9 @@ constructor(
                         // - They are cellular
                         // - There's exactly two
                         // - They have the same number of levels
-                        signalLevelIcons.filterIsInstance<SignalIconModel.Cellular>().let {
-                            it.size == 2 && it[0].numberOfLevels == it[1].numberOfLevels
-                        }
+                        signalLevelIcons
+                            .filterIsInstance<SignalIconModel.CellularTypeIconModel.Cellular>()
+                            .let { it.size == 2 && it[0].numberOfLevels == it[1].numberOfLevels }
                     }
             }
         } else {
@@ -316,6 +318,18 @@ constructor(
     override val activeDataIconInteractor: State<MobileIconInteractorKairos?> =
         combine(mobileConnectionsRepo.activeMobileDataSubscriptionId, icons) { activeSubId, icons ->
             activeSubId?.let { icons[activeSubId] }
+        }
+
+    override val defaultDataIconInteractor: State<MobileIconInteractorKairos?> =
+        combine(mobileConnectionsRepo.defaultDataSubId, icons) { defaultSubId, icons ->
+            if (
+                defaultSubId != null &&
+                    defaultSubId != android.telephony.SubscriptionManager.INVALID_SUBSCRIPTION_ID
+            ) {
+                icons[defaultSubId]
+            } else {
+                null
+            }
         }
 
     /**
@@ -367,10 +381,10 @@ constructor(
         get() = mobileConnectionsRepo.defaultMobileIconMapping
 
     override val alwaysShowDataRatIcon: State<Boolean> =
-        mobileConnectionsRepo.defaultDataSubRatConfig.map { it.alwaysShowDataRatIcon }
+        mobileConnectionsRepo.defaultDataSubRatConfig.map { it?.alwaysShowDataRatIcon ?: false }
 
     override val alwaysUseCdmaLevel: State<Boolean> =
-        mobileConnectionsRepo.defaultDataSubRatConfig.map { it.alwaysShowCdmaRssi }
+        mobileConnectionsRepo.defaultDataSubRatConfig.map { it?.alwaysShowCdmaRssi ?: false }
 
     override val isSingleCarrier: State<Boolean> =
         filteredSubscriptions

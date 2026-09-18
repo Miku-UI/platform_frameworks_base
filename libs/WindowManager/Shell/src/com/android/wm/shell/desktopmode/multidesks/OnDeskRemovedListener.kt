@@ -18,5 +18,5 @@ package com.android.wm.shell.desktopmode.multidesks
 /** A listener for removals of desks. */
 fun interface OnDeskRemovedListener {
     /** Called when a desk has been removed from the system. */
-    fun onDeskRemoved(lastDisplayId: Int, deskId: Int)
+    fun onDeskRemoved(lastDisplayId: Int, deskId: Int, userId: Int, onlyDeskInDisplay: Boolean)
 }

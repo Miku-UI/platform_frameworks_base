@@ -177,6 +177,23 @@
       ]
     },
     {
+      "name": "CtsDevicePolicyManagerTestCases",
+      "options":[
+        {
+          "exclude-annotation":"androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation":"org.junit.Ignore"
+        },
+        {
+          "include-filter": "com.android.cts.devicepolicy.MixedProfileOwnerTest#testPackageInstallUserRestrictions"
+        },
+        {
+          "include-filter": "com.android.cts.devicepolicy.MixedManagedProfileOwnerTest#testPackageInstallUserRestrictions"
+        }
+      ]
+    },
+    {
       "name": "CtsPackageInstallerCUJDeveloperVerificationTestCases"
     }
   ],
@@ -388,6 +405,23 @@
     },
     {
       "name": "CtsPackageInstallerCUJDeveloperVerificationTestCases"
+    },
+    {
+      "name": "CtsDevicePolicyManagerTestCases",
+      "options":[
+        {
+          "exclude-annotation":"androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation":"org.junit.Ignore"
+        },
+        {
+          "include-filter": "com.android.cts.devicepolicy.MixedProfileOwnerTest#testPackageInstallUserRestrictions"
+        },
+        {
+          "include-filter": "com.android.cts.devicepolicy.MixedManagedProfileOwnerTest#testPackageInstallUserRestrictions"
+        }
+      ]
     }
   ]
 }

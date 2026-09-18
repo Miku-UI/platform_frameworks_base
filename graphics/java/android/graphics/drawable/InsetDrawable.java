@@ -48,6 +48,15 @@ import java.io.IOException;
  * information, see the guide to <a
  * href="{@docRoot}guide/topics/resources/drawable-resource.html">Drawable Resources</a>.</p>
  *
+ * <p>The inset values are added to the padding of the view. For instance, if a view has a
+ * padding of 10 pixels on all sides and an InsetDrawable with an inset of 5 pixels is set as its
+ * background, the effective padding of the view will be 15 pixels on all sides.</p>
+ *
+ * <p><b>Note:</b> When using fractional insets (floats), the intrinsic size calculation is
+ * influenced by insets on opposite sides. For example, applying a fractional inset to only the
+ * bottom of a drawable may also affect the drawable's top padding. For insets that should only
+ * affect a single side, using dimension-based insets (integers) will provide that behavior.</p>
+ *
  * @attr ref android.R.styleable#InsetDrawable_visible
  * @attr ref android.R.styleable#InsetDrawable_drawable
  * @attr ref android.R.styleable#InsetDrawable_insetLeft
@@ -231,6 +240,16 @@ public class InsetDrawable extends DrawableWrapper {
         out.bottom = mState.mInsetBottom.getDimension(b.height());
     }
 
+    /**
+     * Returns in {@code padding} the insets for this drawable.
+     *
+     * <p>The returned padding is the sum of the wrapped drawable's padding and the insets
+     * of this InsetDrawable. This means that if the inset value is 0, the resulting padding
+     * will be the same as the wrapped drawable's padding.
+     *
+     * @param padding The Rect to receive the padding.
+     * @return True if this drawable has a non-zero padding or non-zero insets, else false.
+     */
     @Override
     public boolean getPadding(Rect padding) {
         final boolean pad = super.getPadding(padding);
@@ -282,6 +301,13 @@ public class InsetDrawable extends DrawableWrapper {
         super.onBoundsChange(r);
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The intrinsic width is calculated based on the combination of both left and right
+     * fractional insets. This means a fractional inset on one side will influence the final
+     * size calculation for both sides.
+     */
     @Override
     public int getIntrinsicWidth() {
         final int childWidth = getDrawable().getIntrinsicWidth();
@@ -293,6 +319,13 @@ public class InsetDrawable extends DrawableWrapper {
             + mState.mInsetRight.mDimension;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>The intrinsic height is calculated based on the combination of both top and bottom
+     * fractional insets. For example, applying a fractional inset to only the bottom of a
+     * drawable will also influence the final size calculation for the top.
+     */
     @Override
     public int getIntrinsicHeight() {
         final int childHeight = getDrawable().getIntrinsicHeight();

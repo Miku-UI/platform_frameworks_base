@@ -29,6 +29,7 @@ import android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION
 import android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
 import android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
 import android.content.Intent.FLAG_ACTIVITY_TASK_ON_HOME
+import android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
 import android.os.Bundle
 import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.SetFlagsRule
@@ -52,7 +53,7 @@ class ChooserManagerTest {
     @Test
     fun test_startSession_intentWithFlags_intentProperlyConfigured() {
         val context = mock<Context>()
-        val flags =
+        val flagsToRemove =
             FLAG_ACTIVITY_SINGLE_TOP or
                 FLAG_ACTIVITY_NEW_TASK or
                 FLAG_ACTIVITY_CLEAR_TASK or
@@ -61,8 +62,12 @@ class ChooserManagerTest {
                 FLAG_ACTIVITY_REORDER_TO_FRONT or
                 FLAG_ACTIVITY_TASK_ON_HOME or
                 FLAG_ACTIVITY_LAUNCH_ADJACENT
+        val flagsToRetain = FLAG_GRANT_READ_URI_PERMISSION
+        val flagsToAdd = FLAG_ACTIVITY_NO_ANIMATION
         val chooserIntent =
-            Intent.createChooser(Intent(ACTION_SEND), null).apply { setFlags(flags) }
+            Intent.createChooser(Intent(ACTION_SEND), null).apply {
+                flags = flagsToRemove or flagsToRetain
+            }
 
         ChooserManager().startSession(context, chooserIntent)
 
@@ -72,9 +77,9 @@ class ChooserManagerTest {
             1 * { context.startActivity(intentCaptor.capture(), optionsCaptor.capture()) }
         }
 
-        assertThat(intentCaptor.firstValue.flags and flags).isEqualTo(0)
-        assertThat(intentCaptor.firstValue.flags and FLAG_ACTIVITY_NO_ANIMATION)
-            .isEqualTo(FLAG_ACTIVITY_NO_ANIMATION)
+        assertThat(intentCaptor.firstValue.flags and flagsToRemove).isEqualTo(0)
+        assertThat(intentCaptor.firstValue.flags and flagsToRetain).isEqualTo(flagsToRetain)
+        assertThat(intentCaptor.firstValue.flags and flagsToAdd).isEqualTo(flagsToAdd)
         val options = ActivityOptions.fromBundle(optionsCaptor.firstValue)
         assertThat(options.isAllowPassThroughOnTouchOutside).isTrue()
     }

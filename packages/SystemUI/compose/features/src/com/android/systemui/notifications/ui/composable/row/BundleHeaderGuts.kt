@@ -141,7 +141,7 @@ private fun ContentRow(viewModel: BundleHeaderGutsViewModel, modifier: Modifier 
                 maxLines = 1,
             )
             Text(
-                text = stringResource(viewModel.summaryText),
+                text = viewModel.summaryText ?: stringResource(viewModel.summaryTextRes!!),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                 overflow = TextOverflow.Ellipsis,

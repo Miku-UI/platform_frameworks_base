@@ -1,0 +1,84 @@
+// Signature format: 2.0
+package com.android.extensions.computercontrol {
+
+  public class ComputerControlExtensions {
+    method @Nullable public static com.android.extensions.computercontrol.ComputerControlExtensions getInstance(android.content.Context);
+    method public static int getVersion();
+    method @RequiresPermission(allOf={android.Manifest.permission.ACCESS_COMPUTER_CONTROL, android.Manifest.permission.POST_NOTIFICATIONS}) public void requestSession(@NonNull com.android.extensions.computercontrol.ComputerControlSession.Params, @NonNull java.util.concurrent.Executor, @NonNull com.android.extensions.computercontrol.ComputerControlSession.Callback);
+  }
+
+  public final class ComputerControlSession implements java.lang.AutoCloseable {
+    method public void attachNotificationInfo(int, @Nullable String);
+    method public void clearLifecycleCallback();
+    method public void clearStabilityListener();
+    method public void close();
+    method @NonNull public java.util.List<android.view.accessibility.AccessibilityWindowInfo> getAccessibilityWindows();
+    method @NonNull public android.util.Size getDisplaySize();
+    method @Deprecated @Nullable public android.media.Image getScreenshot();
+    method public void handOverApplications();
+    method public void insertText(@NonNull String, boolean, boolean);
+    method public void launchApplication(@NonNull String);
+    method public void launchApplication(@NonNull android.content.ComponentName);
+    method public void longPress(@IntRange(from=0) int, @IntRange(from=0) int);
+    method public void performAction(int);
+    method public void requestScreenshot(@NonNull java.util.concurrent.Executor, @NonNull android.os.OutcomeReceiver<android.media.Image,com.android.extensions.computercontrol.ComputerControlSession.ScreenshotException>, @Nullable android.os.CancellationSignal);
+    method public void setLifecycleCallback(@NonNull java.util.concurrent.Executor, @NonNull com.android.extensions.computercontrol.ComputerControlSession.LifecycleCallback);
+    method public void setPreviewIntent(@Nullable android.app.PendingIntent);
+    method public void setStabilityListener(@NonNull java.util.concurrent.Executor, @NonNull com.android.extensions.computercontrol.ComputerControlSession.StabilityListener);
+    method public void setStabilityListener(long, @NonNull java.util.concurrent.Executor, @NonNull com.android.extensions.computercontrol.ComputerControlSession.StabilityListener);
+    method public void setStabilityListener(@NonNull java.time.Duration, @NonNull java.util.concurrent.Executor, @NonNull com.android.extensions.computercontrol.ComputerControlSession.StabilityListener);
+    method public void swipe(@IntRange(from=0) int, @IntRange(from=0) int, @IntRange(from=0) int, @IntRange(from=0) int);
+    method public void tap(@IntRange(from=0) int, @IntRange(from=0) int);
+  }
+
+  public static interface ComputerControlSession.Callback {
+    method @Deprecated public void onSessionClosed();
+    method public void onSessionCreated(@NonNull com.android.extensions.computercontrol.ComputerControlSession);
+    method public void onSessionCreationFailed(int);
+    method public void onSessionPending(@NonNull android.content.IntentSender);
+  }
+
+  public static interface ComputerControlSession.LifecycleCallback {
+    method public void onActive();
+    method public void onBlocked(int, @Nullable String);
+    method public void onClosed(int);
+  }
+
+  public static class ComputerControlSession.Params {
+    method @NonNull public android.content.Context getContext();
+    method @NonNull public String getName();
+    method @NonNull public java.util.List<java.lang.String> getTargetPackageNames();
+  }
+
+  public static class ComputerControlSession.Params.Builder {
+    ctor public ComputerControlSession.Params.Builder(@NonNull android.content.Context);
+    method @NonNull public com.android.extensions.computercontrol.ComputerControlSession.Params build();
+    method @NonNull public com.android.extensions.computercontrol.ComputerControlSession.Params.Builder setName(@NonNull String);
+    method @NonNull public com.android.extensions.computercontrol.ComputerControlSession.Params.Builder setPreviewIntent(@Nullable android.app.PendingIntent);
+    method @NonNull public com.android.extensions.computercontrol.ComputerControlSession.Params.Builder setTargetPackageNames(@NonNull java.util.List<java.lang.String>);
+  }
+
+  public static class ComputerControlSession.ScreenshotException extends java.lang.Exception {
+    method public int getErrorCode();
+  }
+
+  public static interface ComputerControlSession.StabilityListener {
+    method public void onSessionStable();
+  }
+
+}
+
+package com.android.extensions.computercontrol.view {
+
+  @MainThread public class MirrorView extends android.widget.FrameLayout {
+    ctor public MirrorView(android.content.Context);
+    ctor public MirrorView(android.content.Context, android.util.AttributeSet);
+    ctor public MirrorView(android.content.Context, android.util.AttributeSet, int);
+    ctor public MirrorView(android.content.Context, android.util.AttributeSet, int, int);
+    method public void setComputerControlSession(@Nullable com.android.extensions.computercontrol.ComputerControlSession);
+    method public void setCornerRadius(int);
+    method public void setInteractive(boolean);
+  }
+
+}
+

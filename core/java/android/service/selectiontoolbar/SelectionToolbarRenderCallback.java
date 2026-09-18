@@ -29,6 +29,12 @@ public interface SelectionToolbarRenderCallback {
      * The selection toolbar is shown.
      */
     void onShown(WidgetInfo widgetInfo);
+
+    /**
+     * The selection toolbar is not shown.
+     */
+    void onInvisible();
+
     /**
      * The selection toolbar has changed.
      */
@@ -37,8 +43,4 @@ public interface SelectionToolbarRenderCallback {
      * The menu item index on the selection toolbar has been clicked.
      */
     void onMenuItemClicked(int itemIndex);
-    /**
-     * The error occurred when operating on the selection toolbar.
-     */
-    void onError(int errorCode, int sequenceNumber);
 }

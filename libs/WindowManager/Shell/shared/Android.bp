@@ -29,14 +29,9 @@ java_library_static {
     ],
 }
 
-filegroup {
-    name: "wm_shell-shared-aidls",
-
-    srcs: [
-        "**/*.aidl",
-    ],
-
-    path: "src",
+java_library {
+    name: "WindowManager-Shell-shared-aidls",
+    srcs: ["**/*.aidl"],
 }
 
 // NOTE: This shared lib is built with various apps and should not
@@ -51,15 +46,17 @@ android_library {
     srcs: [
         "**/*.java",
         "**/*.kt",
-        ":wm_shell-shared-aidls",
     ],
     static_libs: [
+        "WindowManager-Shell-shared-aidls",
         "androidx.core_core-animation",
         "androidx.dynamicanimation_dynamicanimation",
         "com_android_wm_shell_flags_lib",
         "com.android.window.flags.window-aconfig-java",
         "jsr330",
         "kotlin-parcelize-runtime",
+        "dynamiccolors",
+        "usertypelib",
     ],
     kotlin_plugins: ["kotlin-parcelize-compiler-plugin"],
     kotlincflags: ["-Xjvm-default=all"],
@@ -90,7 +87,7 @@ java_library {
     sdk_version: "current",
 
     srcs: [
-        "src/com/android/wm/shell/shared/bubbles/BubbleAnythingFlagHelper.java",
+        "src/com/android/wm/shell/shared/bubbles/BubbleFlagHelper.java",
         "src/com/android/wm/shell/shared/bubbles/logging/EntryPoint.kt",
     ],
     static_libs: [

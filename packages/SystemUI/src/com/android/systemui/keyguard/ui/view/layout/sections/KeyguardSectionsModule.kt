@@ -28,11 +28,15 @@ abstract class KeyguardSectionsModule {
     @Module
     companion object {
         const val KEYGUARD_AMBIENT_INDICATION_AREA_SECTION =
-                "keyguard_ambient_indication_area_section"
+            "keyguard_ambient_indication_area_section"
+        const val KEYGUARD_BATTERY_CHARGING_SECTION = "keyguard_battery_charging_section"
     }
 
     @BindsOptionalOf
     @Named(KEYGUARD_AMBIENT_INDICATION_AREA_SECTION)
     abstract fun defaultAmbientIndicationAreaSection(): KeyguardSection
 
+    @BindsOptionalOf
+    @Named(KEYGUARD_BATTERY_CHARGING_SECTION)
+    abstract fun batteryChargingSection(): KeyguardSection
 }

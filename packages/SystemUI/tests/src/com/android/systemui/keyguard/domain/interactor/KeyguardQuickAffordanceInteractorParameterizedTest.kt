@@ -34,6 +34,7 @@ import com.android.systemui.dock.DockManagerFake
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.FakeFeatureFlags
 import com.android.systemui.haptics.msdl.msdlPlayer
+import com.android.systemui.inputdevice.domain.interactor.pointerDeviceInteractor
 import com.android.systemui.keyguard.data.quickaffordance.BuiltInKeyguardQuickAffordanceKeys
 import com.android.systemui.keyguard.data.quickaffordance.FakeKeyguardQuickAffordanceConfig
 import com.android.systemui.keyguard.data.quickaffordance.FakeKeyguardQuickAffordanceProviderClientFactory
@@ -319,12 +320,13 @@ class KeyguardQuickAffordanceInteractorParameterizedTest : SysuiTestCase() {
                 secureLockDeviceInteractor = { kosmos.secureLockDeviceInteractor },
                 devicePolicyManager = devicePolicyManager,
                 dockManager = dockManager,
+                pointerDeviceInteractor = kosmos.pointerDeviceInteractor,
                 biometricSettingsRepository = biometricSettingsRepository,
                 backgroundDispatcher = testDispatcher,
                 appContext = mContext,
                 accessibilityInteractor = kosmos.accessibilityInteractor,
                 sceneInteractor = { kosmos.sceneInteractor },
-                msdlPlayer = kosmos.msdlPlayer,
+                msdlPlayer = { kosmos.msdlPlayer },
             )
     }
 

@@ -137,12 +137,13 @@ public class InputConsumerController {
      */
     public void registerInputConsumer() {
         if (mInputEventReceiver == null) {
-            final InputChannel inputChannel = new InputChannel();
+            final InputChannel inputChannel;
             try {
                 mWindowManager.destroyInputConsumer(mToken, DEFAULT_DISPLAY);
-                mWindowManager.createInputConsumer(mToken, mName, DEFAULT_DISPLAY, inputChannel);
+                inputChannel = mWindowManager.createInputConsumer(mToken, mName, DEFAULT_DISPLAY);
             } catch (RemoteException e) {
                 Log.e(TAG, "Failed to create input consumer", e);
+                throw e.rethrowFromSystemServer();
             }
             mInputEventReceiver = new InputEventReceiver(inputChannel, Looper.myLooper(),
                     Choreographer.getInstance());

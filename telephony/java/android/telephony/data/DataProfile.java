@@ -567,6 +567,20 @@ public final class DataProfile implements Parcelable {
         }
 
         /**
+         * Construct a Builder from an existing DataProfile.
+         *
+         * @param dataProfile The DataProfile object to copy data from.
+         *
+         * @hide
+         */
+        public Builder(@NonNull DataProfile dataProfile) {
+            mApnSetting = dataProfile.mApnSetting;
+            mTrafficDescriptor = dataProfile.mTrafficDescriptor;
+            mType = dataProfile.mType;
+            mPreferred = dataProfile.mPreferred;
+        }
+
+        /**
          * Set profile id. Note that this is not a global unique id of the data profile. This id
          * is only used by certain CDMA carriers to identify the type of data profile.
          *

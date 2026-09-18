@@ -199,9 +199,10 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wifi: tre staplar."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Full signalstyrka för wifi."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Ansluten till enheten."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Alla användare på den här enheten kan se och ansluta till nätverket."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Öppet nätverk"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Säkert nätverk"</string>
-    <string name="process_kernel_label" msgid="950292573930336765">"Operativsystemet Android"</string>
+    <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
     <string name="data_usage_uninstalled_apps" msgid="1933665711856171491">"Borttagna appar"</string>
     <string name="data_usage_uninstalled_apps_users" msgid="5533981546921913295">"Borttagna appar och användare"</string>
     <string name="data_usage_ota" msgid="7984667793701597001">"Systemuppdateringar"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Inställningarna för åtkomstpunktnamn är inte tillgängliga för den här användaren"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB-felsökning"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Felsökningsläge när USB har anslutits"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Återkalla åtkomst till USB-felsökning"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Återkalla auktoriseringar för adb-felsökning"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Trådlös felsökning"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Felsökningsläge vid wifi-anslutning"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Fel"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Enheten parkopplas …"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Det gick inte att parkoppla enheten. Antingen var det fel QR-kod eller är enheten inte ansluten till samma nätverk."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP-adress och port"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Inte tillgängligt (tillåts inte)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Inte tillgängligt (ingen wifi-anslutning)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Skanna QR-kod"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Parkoppla enheten via wifi genom att skanna en QR-kod"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Anslut till ett wifi-nätverk"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB-felsökning ska endast användas i utvecklingssyfte. Använd den för att kopiera data mellan datorn och enheten, installera appar på enheten utan meddelanden och läsa loggdata."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Vill du tillåta trådlös felsökning?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Trådlös felsökning ska endast användas i utvecklingssyfte. Använd den för att kopiera data mellan datorn och enheten, installera appar på enheten utan meddelanden och läsa loggdata."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Vill du återkalla åtkomst till USB-felsökning för alla datorer som du tidigare har godkänt?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Vill du återkalla åtkomst till adb-felsökning för alla datorer och nätverk som du tidigare har godkänt?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Tillåt utvecklarinställningar?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Inställningarna är endast avsedda att användas för utvecklingsändamål. De kan orsaka problem med enheten eller apparna som finns installerade på den."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Verifiera appar via USB"</string>
@@ -544,7 +547,7 @@
     <string name="battery_info_status_charging_on_hold" msgid="6364355145521694438">"Laddningen har pausats"</string>
     <string name="battery_info_status_charging_v2" msgid="6118522107222245505">"Laddning"</string>
     <string name="battery_info_status_charging_fast_v2" msgid="1825439848151256589">"Snabbladdning"</string>
-    <string name="disabled_by_admin_summary_text" msgid="5343911767402923057">"Strys av administratören"</string>
+    <string name="disabled_by_admin_summary_text" msgid="5343911767402923057">"Styrs av administratören"</string>
     <string name="disabled_by_app_ops_text" msgid="8373595926549098012">"Styrs av spärrad inställning"</string>
     <string name="disabled_in_phone_call_text" msgid="6568931334337318320">"Ej tillgänglig under samtal"</string>
     <string name="disabled" msgid="8017887509554714950">"Inaktiverad"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet har kopplats från."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Inga anrop."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Fysiskt tangentbord"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Välj en tangentbordslayout"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Standard"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Inställningar för att sätta på skärmen"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Tillåt att skärmen aktiveras"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Tillåt att en app aktiverar skärmen. Om du ger tillåtelse kan appen aktivera skärmen när som helst utan din uttryckliga avsikt."</string>

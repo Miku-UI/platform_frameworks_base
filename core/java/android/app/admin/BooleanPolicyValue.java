@@ -27,6 +27,14 @@ import java.util.Objects;
  */
 public final class BooleanPolicyValue extends PolicyValue<Boolean> {
 
+    /**
+     * Creates a BooleanPolicyValue unless the input is false, in which case
+     * this method returns null.
+     */
+    public static @Nullable BooleanPolicyValue createIfNotFalse(boolean value) {
+        return (value == false) ? null : new BooleanPolicyValue(true);
+    }
+
     public BooleanPolicyValue(boolean value) {
         super(value);
     }

@@ -152,8 +152,8 @@ public class ArtManager {
         /**
          * Called when the profile snapshot finished with an error.
          *
-         * @param errCode the error code {@see SNAPSHOT_FAILED_PACKAGE_NOT_FOUND,
-         *      SNAPSHOT_FAILED_CODE_PATH_NOT_FOUND, SNAPSHOT_FAILED_INTERNAL_ERROR}.
+         * @param errCode the error code. See {@link SNAPSHOT_FAILED_PACKAGE_NOT_FOUND},
+         *      {@link SNAPSHOT_FAILED_CODE_PATH_NOT_FOUND}, {@link SNAPSHOT_FAILED_INTERNAL_ERROR}.
          */
         public abstract void onError(int errCode);
     }

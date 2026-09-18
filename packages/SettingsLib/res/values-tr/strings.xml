@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Kablosuz sinyal gücü üç çubuk."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Kablosuz sinyal gücü tam."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Cihazınıza bağlandı."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Bu cihazdaki tüm kullanıcılar görüntüleyip bağlanabilir."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Açık ağ"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Güvenli ağ"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Erişim Noktası Adı ayarları bu kullanıcı için kullanılamıyor"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB hata ayıklaması"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"USB bağlandığında hata ayıklama modu"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"USB hata ayıklama yetkilerini kaldır"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Adb hata ayıklama yetkilerini kaldır"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Kablosuz hata ayıklama"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Kablosuz bağlandığında hata ayıklama modu"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Hata"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Cihaz eşleniyor…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Cihaz eşlenemedi. QR kodu hatalı ya da cihaz aynı ağa bağlı değil."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP adresi ve Bağlantı noktası"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Kullanılamıyor (İzin verilmiyor)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Kullanılamıyor (Kablosuz bağlantı yok)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"QR kodunu tara"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"QR kodu tarayarak kablosuz ağ üzerinden cihaz eşleyin"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Lütfen Kablosuz bir ağa bağlanın"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB hata ayıklaması yalnızca geliştirme amaçlıdır. Verileri bilgisayarınızla cihazınız arasında kopyalamak, bildirim göndermeksizin uygulamaları cihazınıza yüklemek ve günlük verilerini okumak için kullanın."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Kablosuz hata ayıklamaya izin verilsin mi?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Kablosuz hata ayıklama işlevi yalnızca geliştirme amaçlıdır. Verileri bilgisayarınızla cihazınız arasında kopyalamak, bildirim göndermeksizin uygulamaları cihazınıza yüklemek ve günlük verilerini okumak için kullanın."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Daha önce yetki verdiğiniz tüm bilgisayarların USB hata ayıklama erişimini iptal etmek istiyor musunuz?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Daha önce yetki verdiğiniz tüm bilgisayarların ve ağların adb hata ayıklama erişimini iptal etmek istiyor musunuz?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Geliştirme amaçlı ayarlara izin verilsin mi?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Bu ayarlar yalnızca geliştirme amaçlıdır. Cihazınızın veya cihazdaki uygulamaların bozulmasına veya hatalı çalışmasına neden olabilir."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"USB\'den yüklenen uygulamaları doğrula"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet bağlantısı kesildi."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Çağrı yok."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Fiziksel klavye"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Klavye düzenini seçin"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Varsayılan"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Ekran açma kontrolü"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Ekranı açmaya izin ver"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Bir uygulamanın ekranı açmasına izin verin. İzin verildiğinde, uygulama sizin belirgin niyetiniz olmadan istediği zaman ekranı açabilir."</string>

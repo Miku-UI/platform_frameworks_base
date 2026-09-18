@@ -15,20 +15,14 @@
  */
 package android.app.usage;
 
-import static android.app.usage.Flags.FLAG_FILTER_BASED_EVENT_QUERY_API;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import android.app.usage.UsageEvents.Event;
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -38,12 +32,8 @@ import java.util.Set;
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 public class UsageEventsQueryTest {
-    @Rule
-    public final CheckFlagsRule mCheckFlagsRule =
-            DeviceFlagsValueProvider.createCheckFlagsRule();
 
     @Test
-    @RequiresFlagsEnabled(FLAG_FILTER_BASED_EVENT_QUERY_API)
     public void testQueryDuration() {
         // Test with negative beginTimeMillis.
         long beginTimeMillis = -100;
@@ -108,7 +98,6 @@ public class UsageEventsQueryTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_FILTER_BASED_EVENT_QUERY_API)
     public void testQueryEventTypes() {
         Random rnd = new Random();
         UsageEventsQuery.Builder queryBuilder = new UsageEventsQuery.Builder(1000, 2000);
@@ -145,7 +134,6 @@ public class UsageEventsQueryTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_FILTER_BASED_EVENT_QUERY_API)
     public void testQueryEventPackages() {
         UsageEventsQuery.Builder queryBuilder = new UsageEventsQuery.Builder(1000, 2000);
 

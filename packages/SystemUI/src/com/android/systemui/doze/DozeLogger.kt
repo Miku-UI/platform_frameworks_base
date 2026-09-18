@@ -24,6 +24,7 @@ import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel.DEBUG
 import com.android.systemui.log.core.LogLevel.ERROR
 import com.android.systemui.log.core.LogLevel.INFO
+import com.android.systemui.log.core.LogLevel.WARNING
 import com.android.systemui.log.dagger.DozeLog
 import com.android.systemui.statusbar.policy.DevicePostureController
 import com.google.errorprone.annotations.CompileTimeConstant
@@ -121,6 +122,15 @@ class DozeLogger @Inject constructor(@DozeLog private val buffer: LogBuffer) {
 
     fun logMissedTick(delay: String) {
         buffer.log(TAG, ERROR, { str1 = delay }, { "Missed AOD time tick by $str1" })
+    }
+
+    fun logTimeTickIgnored(state: DozeMachine.State) {
+        buffer.log(
+            TAG,
+            WARNING,
+            { str1 = state.name },
+            { "Time tick requested to be scheduled, but in an invalid dozeState:$str1" },
+        )
     }
 
     fun logTimeTickScheduled(whenAt: Long, triggerAt: Long) {

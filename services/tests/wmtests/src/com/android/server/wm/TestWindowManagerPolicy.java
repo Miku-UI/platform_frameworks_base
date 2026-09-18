@@ -29,14 +29,16 @@ import android.util.proto.ProtoOutputStream;
 import android.view.KeyEvent;
 import android.view.KeyboardShortcutGroup;
 import android.view.WindowManager;
-import android.view.animation.Animation;
 
 import com.android.internal.policy.IKeyguardDismissCallback;
 import com.android.internal.policy.IShortcutService;
+import com.android.server.policy.SingleKeyGestureDetector;
 import com.android.server.policy.WindowManagerPolicy;
+import com.android.server.policy.keyguard.KeyguardServiceDelegate;
 
 import java.io.PrintWriter;
 import java.util.Collections;
+import java.util.function.Consumer;
 
 class TestWindowManagerPolicy implements WindowManagerPolicy {
 
@@ -72,17 +74,6 @@ class TestWindowManagerPolicy implements WindowManagerPolicy {
     @Override
     public boolean isKeyguardHostWindow(WindowManager.LayoutParams attrs) {
         return attrs.type == TYPE_NOTIFICATION_SHADE;
-    }
-
-    @Override
-    public Animation createHiddenByKeyguardExit(boolean onWallpaper,
-            boolean goingToNotificationShade, boolean subtleAnimation) {
-        return null;
-    }
-
-    @Override
-    public Animation createKeyguardWallpaperExit(boolean goingToNotificationShade) {
-        return null;
     }
 
     @Override
@@ -131,16 +122,20 @@ class TestWindowManagerPolicy implements WindowManagerPolicy {
     }
 
     @Override
-    public void startedWakingUp(int displayGroupId, @WakeReason int wakeReason) {
-    }
+    public void startedWakingUp(
+            int displayGroupId,
+            @WakeReason int wakeReason,
+            boolean anyDefaultOrAdjacentGroupInteractive) {}
 
     @Override
     public void finishedWakingUp(int displayGroupId, @WakeReason int wakeReason) {
     }
 
     @Override
-    public void startedGoingToSleep(int displayGroupId, @GoToSleepReason int sleepReason) {
-    }
+    public void startedGoingToSleep(
+            int displayGroupId,
+            @GoToSleepReason int sleepReason,
+            boolean anyDefaultOrAdjacentGroupInteractive) {}
 
     @Override
     public void finishedGoingToSleep(int displayGroupId, @GoToSleepReason int sleepReason) {
@@ -189,7 +184,7 @@ class TestWindowManagerPolicy implements WindowManagerPolicy {
     }
 
     @Override
-    public void exitKeyguardSecurely(OnKeyguardExitResult callback) {
+    public void exitKeyguardSecurely(Consumer<Boolean> callback) {
     }
 
     @Override
@@ -269,14 +264,6 @@ class TestWindowManagerPolicy implements WindowManagerPolicy {
     }
 
     @Override
-    public void keepScreenOnStartedLw() {
-    }
-
-    @Override
-    public void keepScreenOnStoppedLw() {
-    }
-
-    @Override
     public boolean hasNavigationBar() {
         return false;
     }
@@ -324,12 +311,16 @@ class TestWindowManagerPolicy implements WindowManagerPolicy {
     }
 
     @Override
-    public int applyKeyguardOcclusionChange() {
-        return 0;
+    public void applyKeyguardOcclusionChange() {
     }
 
     @Override
     public void showDismissibleKeyguard() {
+    }
+
+    @Override
+    public KeyguardServiceDelegate getKeyguardServiceDelegate() {
+        return null;
     }
 
     @Override
@@ -356,6 +347,10 @@ class TestWindowManagerPolicy implements WindowManagerPolicy {
     @Override
     public boolean isGlobalKey(int keyCode) {
         return false;
+    }
+
+    @Override
+    public void addSingleKeyRule(SingleKeyGestureDetector.SingleKeyRule singleKeyRule) {
     }
 
     @Override

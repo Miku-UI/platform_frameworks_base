@@ -18,6 +18,7 @@ package com.android.server.power.stats;
 import android.annotation.Nullable;
 import android.bluetooth.BluetoothActivityEnergyInfo;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.UidTraffic;
 import android.content.pm.PackageManager;
 import android.hardware.power.stats.EnergyConsumerType;
@@ -177,8 +178,16 @@ public class BluetoothPowerStatsCollector extends PowerStatsCollector {
 
                     @Override
                     public void onBluetoothActivityEnergyInfoError(int error) {
-                        immediateFuture.completeExceptionally(
-                                new RuntimeException("error: " + error));
+                        if (error == BluetoothStatusCodes.ERROR_PROFILE_SERVICE_NOT_BOUND) {
+                            Slog.i(TAG, "Bluetooth is off, skipping activity info request.");
+                            immediateFuture.complete(null);
+                        } else if (error == BluetoothStatusCodes.FEATURE_NOT_SUPPORTED) {
+                            Slog.i(TAG, "BluetoothActivityEnergyInfo not supported.");
+                            immediateFuture.complete(null);
+                        } else {
+                            immediateFuture.completeExceptionally(
+                                    new RuntimeException("error: " + error));
+                        }
                     }
                 });
 
@@ -219,7 +228,7 @@ public class BluetoothPowerStatsCollector extends PowerStatsCollector {
         List<UidTraffic> uidTraffic = activityInfo.getUidTraffic();
         for (int i = uidTraffic.size() - 1; i >= 0; i--) {
             UidTraffic ut = uidTraffic.get(i);
-            int uid = mUidResolver.mapUid(ut.getUid());
+            int uid = mUidResolver.getOwnerUid(ut.getUid());
             UidStats counts = mUidStats.get(uid);
             if (counts == null) {
                 counts = new UidStats();
@@ -257,7 +266,7 @@ public class BluetoothPowerStatsCollector extends PowerStatsCollector {
 
     private void collectBluetoothScanStats() {
         mBluetoothStatsRetriever.retrieveBluetoothScanTimes((uid, scanTimeMs) -> {
-            uid = mUidResolver.mapUid(uid);
+            uid = mUidResolver.getOwnerUid(uid);
             UidStats uidStats = mUidStats.get(uid);
             if (uidStats == null) {
                 uidStats = new UidStats();

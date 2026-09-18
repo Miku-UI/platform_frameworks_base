@@ -5,22 +5,26 @@ per-file ActiveServices.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file ProcessList.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file ActivityThread.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file Process*Record* = file:/ACTIVITY_MANAGER_OWNERS
+per-file PhantomProcessRecord.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file SystemServer.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file ServiceRecord.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file AppProfiler.java = file:/ACTIVITY_MANAGER_OWNERS
-per-file ForegroundServiceTypeLoggerModule.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file AppRestrictionController.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file ConnectionRecord.java = file:/ACTIVITY_MANAGER_OWNERS
+per-file ActiveUids.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file UidRecord.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file IntentBindRecord.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file AppFGSTracker.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file FgsTempAllowList.java = file:/ACTIVITY_MANAGER_OWNERS
-per-file HostingRecord.java = file:/ACTIVITY_MANAGER_OWNERS
-per-file App*ExitInfo* = file:/ACTIVITY_MANAGER_OWNERS
+per-file HostingRecord*.java = file:/ACTIVITY_MANAGER_OWNERS
+per-file App*Exit* = file:/ACTIVITY_MANAGER_OWNERS
 per-file appexitinfo.proto = file:/ACTIVITY_MANAGER_OWNERS
 per-file UidObserverController* = file:/ACTIVITY_MANAGER_OWNERS
 per-file App*StartInfo* = file:/PERFORMANCE_OWNERS
 per-file appstartinfo.proto = file:/PERFORMANCE_OWNERS
+per-file MemoryLimiter* = file:/PERFORMANCE_OWNERS
+per-file ForegroundService* = file:/ACTIVITY_MANAGER_OWNERS
+per-file PowerManagerBatchProxy.java = file:/ACTIVITY_MANAGER_OWNERS
 
 # Permissions & Packages
 per-file AccessCheckDelegateHelper.java = file:/core/java/android/permission/OWNERS
@@ -35,7 +39,7 @@ per-file *Assist* = file:/core/java/android/service/voice/OWNERS
 per-file *Voice* = file:/core/java/android/service/voice/OWNERS
 
 # Content Provider
-per-file ContentProvider* = varunshah@google.com, yamasani@google.com
+per-file ContentProvider* = yamasani@google.com, rajekumar@google.com
 
 # Cached App Freezer
 per-file ProcessCachedOptimizerRecord.java = file:/PERFORMANCE_OWNERS
@@ -64,14 +68,29 @@ per-file CarUserSwitchingDialog.java = file:platform/packages/services/Car:/OWNE
 # Activity Security
 per-file ActivityManager* = file:/ACTIVITY_SECURITY_OWNERS
 
+#App Lock
+per-file AppLockLocalService.java = file:/core/java/android/content/pm/APP_LOCK_OWNERS
+
+# Native Application
+per-file *NativeApplication* = file:/libs/native_activity_thread/OWNERS
+
 # Aconfig Flags
 per-file flags.aconfig = file:/ACTIVITY_MANAGER_OWNERS
+per-file performance_flags.aconfig = file:/PERFORMANCE_OWNERS
 
 # Londoners
 michaelwr@google.com #{LAST_RESORT_SUGGESTION}
 narayan@google.com #{LAST_RESORT_SUGGESTION}
 
+# Memory usage stats
+per-file MemoryUsageStats.java = file:/MEMORY_OWNERS
+
+# ANRs
+per-file *Anr*.java = file:/PERFORMANCE_OWNERS
+per-file TraceErrorLogger.java = file:/PERFORMANCE_OWNERS
+
 # Default
 yamasani@google.com #{LAST_RESORT_SUGGESTION}
 hackbod@google.com #{LAST_RESORT_SUGGESTION}
 omakoto@google.com #{LAST_RESORT_SUGGESTION}
+rajekumar@google.com #{LAST_RESORT_SUGGESTION}

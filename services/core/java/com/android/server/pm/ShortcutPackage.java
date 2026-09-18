@@ -831,6 +831,12 @@ class ShortcutPackage extends ShortcutPackageItem {
                 clone.clearFlags(ShortcutInfo.FLAG_PINNED);
             }
         }
+        // If the package has app lock enabled, we should not return any shortcuts.
+        if (android.content.pm.Flags.appLockShortcutRemoval()
+                && mShortcutUser.mService.isPackageAppLockEnabled(
+                    si.getPackage(), getPackageUserId())) {
+            return;
+        }
         if (query == null || query.test(clone)) {
             if (!isPinnedByCaller) {
                 clone.clearFlags(ShortcutInfo.FLAG_PINNED);

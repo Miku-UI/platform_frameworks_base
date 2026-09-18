@@ -37,7 +37,11 @@ import static android.content.res.Configuration.SCREEN_WIDTH_DP_UNDEFINED;
 import static android.content.res.Configuration.UI_MODE_NIGHT_NO;
 import static android.content.res.Configuration.UI_MODE_NIGHT_YES;
 import static android.view.InsetsSource.FLAG_FORCE_CONSUMING;
+import static android.view.WindowInsets.Side.LEFT;
+import static android.view.WindowInsets.Side.TOP;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION;
+import static android.window.DisplayAreaOrganizer.FEATURE_DEFAULT_TASK_CONTAINER;
+import static android.window.DisplayAreaOrganizer.FEATURE_ROOT;
 import static android.window.DisplayAreaOrganizer.FEATURE_VENDOR_FIRST;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doNothing;
@@ -50,9 +54,11 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.times;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
+import static com.android.server.wm.ActivityRecord.State.RESTARTING_PROCESS;
 import static com.android.server.wm.ActivityRecord.State.RESUMED;
 import static com.android.server.wm.WindowContainer.POSITION_TOP;
 import static com.android.server.wm.WindowContainer.SYNC_STATE_READY;
+import static com.android.server.wm.WindowContainer.fromBinder;
 import static com.android.server.wm.WindowState.BLAST_TIMEOUT_DURATION;
 import static com.android.server.wm.testing.Assert.assertThrows;
 
@@ -94,27 +100,29 @@ import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.util.ArrayMap;
 import android.util.Rational;
 import android.view.Display;
+import android.view.InsetsBoundingRect;
 import android.view.InsetsSource;
 import android.view.SurfaceControl;
 import android.view.WindowInsets;
+import android.window.IDisplayAreaOrganizer;
 import android.window.ITaskFragmentOrganizer;
 import android.window.ITaskOrganizer;
 import android.window.IWindowContainerTransactionCallback;
 import android.window.RemoteTransition;
-import android.window.StartingWindowInfo;
-import android.window.StartingWindowRemovalInfo;
 import android.window.TaskAppearedInfo;
+import android.window.TaskCreationParams;
 import android.window.TaskFragmentOrganizer;
-import android.window.TransitionInfo;
-import android.window.TransitionRequestInfo;
+import android.window.TaskPropertiesRequest;
 import android.window.WindowContainerToken;
 import android.window.WindowContainerTransaction;
 
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wm.TaskOrganizerController.PendingTaskEvent;
+import com.android.server.wm.utils.StubOrganizer;
 import com.android.window.flags.Flags;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -137,6 +145,9 @@ import java.util.function.BiConsumer;
 @Presubmit
 @RunWith(WindowTestRunner.class)
 public class WindowOrganizerTests extends WindowTestsBase {
+    IDisplayAreaOrganizer mMockTDAOrg;
+    IDisplayAreaOrganizer mMockRDOrg;
+    private final ITaskOrganizer mMockTaskOrg = createMockOrganizer();
 
     private ITaskOrganizer createMockOrganizer() {
         final ITaskOrganizer organizer = mock(ITaskOrganizer.class);
@@ -156,6 +167,31 @@ public class WindowOrganizerTests extends WindowTestsBase {
 
     private ITaskOrganizer registerMockOrganizer() {
         return registerMockOrganizer(null);
+    }
+
+    IDisplayAreaOrganizer registerDAOrganizer(int featureId) {
+        final IDisplayAreaOrganizer organ = mock(IDisplayAreaOrganizer.class);
+        when(organ.asBinder()).thenReturn(new Binder());
+        mAtm.mWindowOrganizerController.mDisplayAreaOrganizerController.registerOrganizer(
+                organ, featureId);
+        return organ;
+    }
+
+    @Before
+    public void setupOrganizers() {
+        mWm.mAtmService.mTaskOrganizerController.registerTaskOrganizer(mMockTaskOrg);
+        mMockRDOrg = registerDAOrganizer(FEATURE_ROOT);
+        mMockTDAOrg = registerDAOrganizer(FEATURE_DEFAULT_TASK_CONTAINER);
+    }
+
+    void unsetupOrganizers() {
+        // This is making some of the tests check more things than necessary, but this should work
+        // if everything is correct anyways.
+        mAtm.mTaskOrganizerController.unregisterTaskOrganizer(mMockTaskOrg);
+        mAtm.mWindowOrganizerController.mDisplayAreaOrganizerController.unregisterOrganizer(
+                mMockTDAOrg);
+        mAtm.mWindowOrganizerController.mDisplayAreaOrganizerController.unregisterOrganizer(
+                mMockRDOrg);
     }
 
     Task createTask(Task rootTask, boolean fakeDraw) {
@@ -247,7 +283,6 @@ public class WindowOrganizerTests extends WindowTestsBase {
         // Ensure events dispatch to organizer.
         mWm.mAtmService.mTaskOrganizerController.dispatchPendingEvents();
         verify(organizer, times(0)).onTaskVanished(any());
-        assertFalse(rootTask.isOrganized());
     }
 
     @Test
@@ -272,9 +307,12 @@ public class WindowOrganizerTests extends WindowTestsBase {
     @Test
     public void testRemoveWithOrganizerRemovesTask() throws RemoteException {
         final ITaskOrganizer organizer = registerMockOrganizer();
-        final Task rootTask = createRootTask();
-        final Task task = createTask(rootTask);
-        rootTask.mRemoveWithTaskOrganizer = true;
+        final Task rootTask = new TaskBuilder(mSupervisor)
+                .setTaskDisplayArea(mDisplayContent.getDefaultTaskDisplayArea())
+                .setRemoveWithTaskOrganizer(true)
+                .build();
+        createTask(rootTask);
+        assertTrue(rootTask.mRemoveWithTaskOrganizer);
 
         mWm.mAtmService.mTaskOrganizerController.dispatchPendingEvents();
         verify(organizer).onTaskAppeared(any(RunningTaskInfo.class), any(SurfaceControl.class));
@@ -291,8 +329,8 @@ public class WindowOrganizerTests extends WindowTestsBase {
     public void testNoRemoveWithOrganizerNoRemoveTask() throws RemoteException {
         final ITaskOrganizer organizer = registerMockOrganizer();
         final Task rootTask = createRootTask();
-        final Task task = createTask(rootTask);
-        rootTask.mRemoveWithTaskOrganizer = false;
+        createTask(rootTask);
+        assertFalse(rootTask.mRemoveWithTaskOrganizer);
 
         mWm.mAtmService.mTaskOrganizerController.dispatchPendingEvents();
         verify(organizer).onTaskAppeared(any(RunningTaskInfo.class), any(SurfaceControl.class));
@@ -307,6 +345,7 @@ public class WindowOrganizerTests extends WindowTestsBase {
 
     @Test
     public void testUnregisterOrganizer() throws RemoteException {
+        unsetupOrganizers();
         final ITaskOrganizer organizer = registerMockOrganizer();
         final Task rootTask = createRootTask();
         final Task task = createTask(rootTask);
@@ -369,6 +408,7 @@ public class WindowOrganizerTests extends WindowTestsBase {
 
     @Test
     public void testUnregisterOrganizer_removesTasksCreatedByIt() throws RemoteException {
+        unsetupOrganizers();
         final Task rootTask = createRootTask();
         final Task task = createTask(rootTask);
         final Task rootTask2 = createRootTask();
@@ -468,6 +508,7 @@ public class WindowOrganizerTests extends WindowTestsBase {
 
     @Test
     public void testRegisterTaskOrganizerWithExistingTasks() throws RemoteException {
+        unsetupOrganizers();
         final Task rootTask = createRootTask();
         final Task task = createTask(rootTask);
         final Task rootTask2 = createRootTask();
@@ -484,6 +525,7 @@ public class WindowOrganizerTests extends WindowTestsBase {
     @Test
     public void testRegisterTaskOrganizerWithExistingTasks_noSurfaceControl()
             throws RemoteException {
+        unsetupOrganizers();
         final Task rootTask = createRootTask();
         final Task task = createTask(rootTask);
         final Task rootTask2 = createRootTask();
@@ -925,15 +967,21 @@ public class WindowOrganizerTests extends WindowTestsBase {
     public void testCreateDeleteRootTasks() {
         DisplayContent dc = mWm.mRoot.getDisplayContent(Display.DEFAULT_DISPLAY);
 
-        Task task1 = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                dc, WINDOWING_MODE_FULLSCREEN, null);
+        Task task1 = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(dc.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_FULLSCREEN)
+                        .build());
         RunningTaskInfo info1 = task1.getTaskInfo();
         assertEquals(WINDOWING_MODE_FULLSCREEN,
                 info1.configuration.windowConfiguration.getWindowingMode());
         assertEquals(ACTIVITY_TYPE_UNDEFINED, info1.topActivityType);
 
-        Task task2 = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                dc, WINDOWING_MODE_MULTI_WINDOW, null);
+        Task task2 = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(dc.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
         RunningTaskInfo info2 = task2.getTaskInfo();
         assertEquals(WINDOWING_MODE_MULTI_WINDOW,
                 info2.configuration.windowConfiguration.getWindowingMode());
@@ -942,7 +990,7 @@ public class WindowOrganizerTests extends WindowTestsBase {
         List<Task> infos = getTasksCreatedByOrganizer(dc);
         assertEquals(2, infos.size());
 
-        assertTrue(mWm.mAtmService.mTaskOrganizerController.deleteRootTask(info1.token));
+        assertTrue(mWm.mAtmService.mTaskOrganizerController.deleteTask(info1.token));
         infos = getTasksCreatedByOrganizer(dc);
         assertEquals(1, infos.size());
         assertEquals(WINDOWING_MODE_MULTI_WINDOW, infos.get(0).getWindowingMode());
@@ -952,11 +1000,17 @@ public class WindowOrganizerTests extends WindowTestsBase {
     public void testSetAdjacentLaunchRoot() {
         DisplayContent dc = mWm.mRoot.getDisplayContent(Display.DEFAULT_DISPLAY);
 
-        final Task task1 = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                dc, WINDOWING_MODE_MULTI_WINDOW, null);
+        final Task task1 = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(dc.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
         final RunningTaskInfo info1 = task1.getTaskInfo();
-        final Task task2 = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                dc, WINDOWING_MODE_MULTI_WINDOW, null);
+        final Task task2 = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(dc.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
         final RunningTaskInfo info2 = task2.getTaskInfo();
 
         WindowContainerTransaction wct = new WindowContainerTransaction();
@@ -983,14 +1037,23 @@ public class WindowOrganizerTests extends WindowTestsBase {
     public void testSetAdjacentLaunchRootSet() {
         final DisplayContent dc = mWm.mRoot.getDisplayContent(Display.DEFAULT_DISPLAY);
 
-        final Task task1 = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                dc, WINDOWING_MODE_MULTI_WINDOW, null);
+        final Task task1 = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(dc.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
         final RunningTaskInfo info1 = task1.getTaskInfo();
-        final Task task2 = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                dc, WINDOWING_MODE_MULTI_WINDOW, null);
+        final Task task2 = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(dc.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
         final RunningTaskInfo info2 = task2.getTaskInfo();
-        final Task task3 = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                dc, WINDOWING_MODE_MULTI_WINDOW, null);
+        final Task task3 = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(dc.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
         final RunningTaskInfo info3 = task3.getTaskInfo();
 
         WindowContainerTransaction wct = new WindowContainerTransaction();
@@ -1025,8 +1088,11 @@ public class WindowOrganizerTests extends WindowTestsBase {
     public void testTileAddRemoveChild() {
         final StubOrganizer listener = new StubOrganizer();
         mWm.mAtmService.mTaskOrganizerController.registerTaskOrganizer(listener);
-        Task task = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                mDisplayContent, WINDOWING_MODE_MULTI_WINDOW, null);
+        Task task = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
         RunningTaskInfo info1 = task.getTaskInfo();
 
         final Task rootTask = createTask(
@@ -1063,21 +1129,32 @@ public class WindowOrganizerTests extends WindowTestsBase {
 
     @Test
     public void testAddInsetsSource() {
-        final Task rootTask = createTask(mDisplayContent);
+        final Task rootTask = createOrganizerTask(mDisplayContent);
 
         final Task navigationBarInsetsReceiverTask = createTaskInRootTask(rootTask, 0);
         navigationBarInsetsReceiverTask.getConfiguration().windowConfiguration.setBounds(new Rect(
                 0, 200, 1080, 700));
 
         final WindowContainerTransaction wct = new WindowContainerTransaction();
-        wct.addInsetsSource(
-                navigationBarInsetsReceiverTask.mRemoteToken.toWindowContainerToken(),
-                new Binder(),
-                0 /* index */,
-                WindowInsets.Type.systemOverlays(),
-                new Rect(0, 0, 1080, 200),
-                null /* boundingRects */,
-                0 /* flags */);
+        if (com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            wct.addInsetsSource(
+                    navigationBarInsetsReceiverTask.mRemoteToken.toWindowContainerToken(),
+                    new Binder(),
+                    0 /* index */,
+                    WindowInsets.Type.systemOverlays(),
+                    new Rect(0, 0, 1080, 200),
+                    (InsetsBoundingRect[]) null /* boundingRects */,
+                    0 /* flags */);
+        } else {
+            wct.addInsetsSource(
+                    navigationBarInsetsReceiverTask.mRemoteToken.toWindowContainerToken(),
+                    new Binder(),
+                    0 /* index */,
+                    WindowInsets.Type.systemOverlays(),
+                    new Rect(0, 0, 1080, 200),
+                    (Rect[]) null /* boundingRects */,
+                    0 /* flags */);
+        }
         mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct);
 
         assertThat(navigationBarInsetsReceiverTask.mLocalInsetsSources
@@ -1087,34 +1164,53 @@ public class WindowOrganizerTests extends WindowTestsBase {
 
     @Test
     public void testAddInsetsSource_withBoundingRects() {
-        final Task rootTask = createTask(mDisplayContent);
+        final Task rootTask = createOrganizerTask(mDisplayContent);
 
         final Task navigationBarInsetsReceiverTask = createTaskInRootTask(rootTask, 0);
         navigationBarInsetsReceiverTask.getConfiguration().windowConfiguration.setBounds(new Rect(
                 0, 200, 1080, 700));
 
-        final Rect[] boundingRects = new Rect[]{
-                new Rect(0, 0, 10, 10), new Rect(100, 100, 200, 100)
-        };
         final WindowContainerTransaction wct = new WindowContainerTransaction();
-        wct.addInsetsSource(
-                navigationBarInsetsReceiverTask.mRemoteToken.toWindowContainerToken(),
-                new Binder(),
-                0 /* index */,
-                WindowInsets.Type.systemOverlays(),
-                new Rect(0, 0, 1080, 200),
-                boundingRects,
-                0 /* flags */);
-        mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct);
+        if (com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            final InsetsBoundingRect[] boundingRects = new InsetsBoundingRect[]{
+                    new InsetsBoundingRect(LEFT | TOP, 0, 0, 10, 10),
+                    new InsetsBoundingRect(LEFT | TOP, 100, 100, 200, 100)
+            };
+            wct.addInsetsSource(
+                    navigationBarInsetsReceiverTask.mRemoteToken.toWindowContainerToken(),
+                    new Binder(),
+                    0 /* index */,
+                    WindowInsets.Type.systemOverlays(),
+                    new Rect(0, 0, 1080, 200),
+                    boundingRects,
+                    0 /* flags */);
+            mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct);
 
-        assertArrayEquals(boundingRects, navigationBarInsetsReceiverTask.mLocalInsetsSources
-                .valueAt(0).getBoundingRects());
+            assertArrayEquals(boundingRects, navigationBarInsetsReceiverTask.mLocalInsetsSources
+                    .valueAt(0).getInsetsBoundingRects());
+        } else {
+            final Rect[] boundingRects = new Rect[]{
+                    new Rect(0, 0, 10, 10),
+                    new Rect(100, 100, 200, 100)
+            };
+            wct.addInsetsSource(
+                    navigationBarInsetsReceiverTask.mRemoteToken.toWindowContainerToken(),
+                    new Binder(),
+                    0 /* index */,
+                    WindowInsets.Type.systemOverlays(),
+                    new Rect(0, 0, 1080, 200),
+                    boundingRects,
+                    0 /* flags */);
+            mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct);
+
+            assertArrayEquals(boundingRects, navigationBarInsetsReceiverTask.mLocalInsetsSources
+                    .valueAt(0).getBoundingRects());
+        }
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION)
     public void testAddInsetsSource_withFlags() {
-        final Task rootTask = createTask(mDisplayContent);
+        final Task rootTask = createOrganizerTask(mDisplayContent);
 
         final Task insetsReceiverTask = createTaskInRootTask(rootTask, 0);
         insetsReceiverTask.getConfiguration().windowConfiguration
@@ -1122,14 +1218,25 @@ public class WindowOrganizerTests extends WindowTestsBase {
 
         final @InsetsSource.Flags int flags = FLAG_FORCE_CONSUMING;
         final WindowContainerTransaction wct = new WindowContainerTransaction();
-        wct.addInsetsSource(
-                insetsReceiverTask.mRemoteToken.toWindowContainerToken(),
-                new Binder(),
-                0 /* index */,
-                WindowInsets.Type.systemOverlays(),
-                new Rect(0, 0, 1080, 200),
-                null /* boundingRects */,
-                flags);
+        if (com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            wct.addInsetsSource(
+                    insetsReceiverTask.mRemoteToken.toWindowContainerToken(),
+                    new Binder(),
+                    0 /* index */,
+                    WindowInsets.Type.systemOverlays(),
+                    new Rect(0, 0, 1080, 200),
+                    (InsetsBoundingRect[]) null /* boundingRects */,
+                    flags);
+        } else {
+            wct.addInsetsSource(
+                    insetsReceiverTask.mRemoteToken.toWindowContainerToken(),
+                    new Binder(),
+                    0 /* index */,
+                    WindowInsets.Type.systemOverlays(),
+                    new Rect(0, 0, 1080, 200),
+                    (Rect[]) null /* boundingRects */,
+                    flags);
+        }
         mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct);
 
         assertEquals(flags, insetsReceiverTask.mLocalInsetsSources.valueAt(0).getFlags());
@@ -1137,21 +1244,32 @@ public class WindowOrganizerTests extends WindowTestsBase {
 
     @Test
     public void testRemoveInsetsSource() {
-        final Task rootTask = createTask(mDisplayContent);
+        final Task rootTask = createOrganizerTask(mDisplayContent);
 
         final Task navigationBarInsetsReceiverTask = createTaskInRootTask(rootTask, 0);
         navigationBarInsetsReceiverTask.getConfiguration().windowConfiguration.setBounds(new Rect(
                 0, 200, 1080, 700));
         final Binder owner = new Binder();
         final WindowContainerTransaction wct = new WindowContainerTransaction();
-        wct.addInsetsSource(
-                navigationBarInsetsReceiverTask.mRemoteToken.toWindowContainerToken(),
-                owner,
-                0 /* index */,
-                WindowInsets.Type.systemOverlays(),
-                new Rect(0, 0, 1080, 200),
-                null /* boundingRects */,
-                0 /* flags */);
+        if (com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            wct.addInsetsSource(
+                    navigationBarInsetsReceiverTask.mRemoteToken.toWindowContainerToken(),
+                    owner,
+                    0 /* index */,
+                    WindowInsets.Type.systemOverlays(),
+                    new Rect(0, 0, 1080, 200),
+                    (InsetsBoundingRect[]) null /* boundingRects */,
+                    0 /* flags */);
+        } else {
+            wct.addInsetsSource(
+                    navigationBarInsetsReceiverTask.mRemoteToken.toWindowContainerToken(),
+                    owner,
+                    0 /* index */,
+                    WindowInsets.Type.systemOverlays(),
+                    new Rect(0, 0, 1080, 200),
+                    (Rect[]) null /* boundingRects */,
+                    0 /* flags */);
+        }
         mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct);
 
         final WindowContainerTransaction wct2 = new WindowContainerTransaction();
@@ -1177,8 +1295,11 @@ public class WindowOrganizerTests extends WindowTestsBase {
             }
         };
         mWm.mAtmService.mTaskOrganizerController.registerTaskOrganizer(listener);
-        Task task = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                mDisplayContent, WINDOWING_MODE_MULTI_WINDOW, null);
+        Task task = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
         RunningTaskInfo info1 = task.getTaskInfo();
         // Ensure events dispatch to organizer.
         mWm.mAtmService.mTaskOrganizerController.dispatchPendingEvents();
@@ -1234,11 +1355,17 @@ public class WindowOrganizerTests extends WindowTestsBase {
         };
         mWm.mAtmService.mTaskOrganizerController.registerTaskOrganizer(listener);
 
-        Task task1 = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                mDisplayContent, WINDOWING_MODE_MULTI_WINDOW, null);
+        Task task1 = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
         RunningTaskInfo info1 = task1.getTaskInfo();
-        Task task2 = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                mDisplayContent, WINDOWING_MODE_MULTI_WINDOW, null);
+        Task task2 = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
         RunningTaskInfo info2 = task2.getTaskInfo();
         // Ensure events dispatch to organizer.
         mWm.mAtmService.mTaskOrganizerController.dispatchPendingEvents();
@@ -1313,6 +1440,48 @@ public class WindowOrganizerTests extends WindowTestsBase {
         mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct);
     }
 
+    @Test
+    public void testRemoveTaskHierarchyOp_removeFromRecentNotSet_removesFromRecents() {
+        Task rootTask = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
+        Task leafTask = createTaskInRootTask(rootTask, rootTask.mUserId);
+        spyOn(mWm.mAtmService.mTaskSupervisor);
+        mWm.mAtmService.getRecentTasks().add(leafTask);
+
+        WindowContainerTransaction wct = new WindowContainerTransaction();
+        wct.removeTask(leafTask.mRemoteToken.toWindowContainerToken());
+        mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct);
+
+        verify(mWm.mAtmService.mTaskSupervisor).removeTask(leafTask, true, /* removeFromRecents= */
+                true,
+                "remove-task-through-hierarchyOp");
+        assertThat(mWm.mAtmService.getRecentTasks().getRawTasks()).isEmpty();
+    }
+
+    @Test
+    public void testRemoveTaskHierarchyOp_removeFromRecentIsFalse_doesNotRemoveFromRecents() {
+        Task rootTask = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
+        Task leafTask = createTaskInRootTask(rootTask, rootTask.mUserId);
+        spyOn(mWm.mAtmService.mTaskSupervisor);
+        mWm.mAtmService.getRecentTasks().add(leafTask);
+
+        WindowContainerTransaction wct = new WindowContainerTransaction();
+        wct.removeTask(leafTask.mRemoteToken.toWindowContainerToken(), false);
+        mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct);
+
+        verify(mWm.mAtmService.mTaskSupervisor).removeTask(leafTask, true, /* removeFromRecents= */
+                false,
+                "remove-task-through-hierarchyOp");
+        assertThat(mWm.mAtmService.getRecentTasks().getRawTasks().get(0).mTaskId).isEqualTo(
+                leafTask.mTaskId);
+    }
     private List<Task> getTasksCreatedByOrganizer(DisplayContent dc) {
         final ArrayList<Task> out = new ArrayList<>();
         dc.forAllRootTasks(task -> {
@@ -1355,44 +1524,6 @@ public class WindowOrganizerTests extends WindowTestsBase {
 
         verify(transactionListener).onTransactionReady(anyInt(), any());
     }
-
-    static class StubOrganizer extends ITaskOrganizer.Stub {
-        RunningTaskInfo mInfo;
-
-        @Override
-        public void addStartingWindow(StartingWindowInfo info) { }
-        @Override
-        public void removeStartingWindow(StartingWindowRemovalInfo removalInfo) { }
-        @Override
-        public void copySplashScreenView(int taskId) { }
-        @Override
-        public void onTaskAppeared(RunningTaskInfo info, SurfaceControl leash)
-                throws RemoteException {
-            mInfo = info;
-        }
-        @Override
-        public void onTaskVanished(RunningTaskInfo info) {
-        }
-        @Override
-        public void onTaskInfoChanged(RunningTaskInfo info) {
-        }
-        @Override
-        public void onBackPressedOnTaskRoot(RunningTaskInfo taskInfo) {
-        }
-        @Override
-        public void onImeDrawnOnTask(int taskId) throws RemoteException {
-        }
-        @Override
-        public void onAppSplashScreenViewRemoved(int taskId) {
-        }
-        @Override
-        public void onTransitionReady(IBinder iBinder, TransitionInfo transitionInfo,
-                SurfaceControl.Transaction t, SurfaceControl.Transaction finishT) {
-        }
-        @Override
-        public void requestStartTransition(IBinder iBinder, TransitionRequestInfo request) {
-        }
-    };
 
     private ActivityRecord makePipableActivity() {
         final ActivityRecord record = createActivityRecordWithParentTask(mDisplayContent,
@@ -1533,7 +1664,8 @@ public class WindowOrganizerTests extends WindowTestsBase {
                 new IRequestFinishCallback.Default());
         // Ensure events dispatch to organizer.
         mWm.mAtmService.mTaskOrganizerController.dispatchPendingEvents();
-        verify(organizer, never()).onBackPressedOnTaskRoot(any());
+        verify(organizer, never()).onBackOnTaskRoot(any(), anyBoolean(), anyBoolean(),
+                anyBoolean());
 
         // Enable intercepting back
         mWm.mAtmService.mTaskOrganizerController.setInterceptBackPressedOnTaskRoot(
@@ -1544,7 +1676,8 @@ public class WindowOrganizerTests extends WindowTestsBase {
                 new IRequestFinishCallback.Default());
         // Ensure events dispatch to organizer.
         mWm.mAtmService.mTaskOrganizerController.dispatchPendingEvents();
-        verify(organizer, times(1)).onBackPressedOnTaskRoot(any());
+        verify(organizer, times(1)).onBackOnTaskRoot(any(), anyBoolean(), anyBoolean(),
+                anyBoolean());
 
         // Disable intercepting back
         mWm.mAtmService.mTaskOrganizerController.setInterceptBackPressedOnTaskRoot(
@@ -1555,7 +1688,8 @@ public class WindowOrganizerTests extends WindowTestsBase {
                 new IRequestFinishCallback.Default());
         // Ensure events dispatch to organizer.
         mWm.mAtmService.mTaskOrganizerController.dispatchPendingEvents();
-        verify(organizer, times(1)).onBackPressedOnTaskRoot(any());
+        verify(organizer, times(1)).onBackOnTaskRoot(any(), anyBoolean(), anyBoolean(),
+                anyBoolean());
     }
 
     @Test
@@ -1574,7 +1708,8 @@ public class WindowOrganizerTests extends WindowTestsBase {
                 new IRequestFinishCallback.Default());
         // Ensure events dispatch to organizer.
         mWm.mAtmService.mTaskOrganizerController.dispatchPendingEvents();
-        verify(organizer, never()).onBackPressedOnTaskRoot(any());
+        verify(organizer, never()).onBackOnTaskRoot(any(), anyBoolean(), anyBoolean(),
+                anyBoolean());
 
         // Enable intercepting back
         mWm.mAtmService.mTaskOrganizerController.setInterceptBackPressedOnTaskRoot(
@@ -1585,7 +1720,8 @@ public class WindowOrganizerTests extends WindowTestsBase {
                 new IRequestFinishCallback.Default());
         // Ensure events dispatch to organizer.
         mWm.mAtmService.mTaskOrganizerController.dispatchPendingEvents();
-        verify(organizer, never()).onBackPressedOnTaskRoot(any());
+        verify(organizer, never()).onBackOnTaskRoot(any(), anyBoolean(), anyBoolean(),
+                anyBoolean());
     }
 
     @Test
@@ -1685,8 +1821,11 @@ public class WindowOrganizerTests extends WindowTestsBase {
     @Test
     @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING_V1)
     public void testSetSafeRegionBoundsOnRootTask() {
-        Task rootTask = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                mDisplayContent, WINDOWING_MODE_FULLSCREEN, null);
+        Task rootTask = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_FULLSCREEN)
+                        .build());
         final Task task1 = createRootTask();
         final Task task2 = createTask(rootTask, false /* fakeDraw */);
         WindowContainerTransaction wct = new WindowContainerTransaction();
@@ -1703,8 +1842,11 @@ public class WindowOrganizerTests extends WindowTestsBase {
     @Test
     @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING_V1)
     public void testSetSafeRegionBoundsOnRootTask_resetSafeRegionBounds() {
-        Task rootTask = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                mDisplayContent, WINDOWING_MODE_FULLSCREEN, null);
+        Task rootTask = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_FULLSCREEN)
+                        .build());
         final Task task1 = createRootTask();
         final Task task2 = createTask(rootTask, false /* fakeDraw */);
         WindowContainerTransaction wct = new WindowContainerTransaction();
@@ -1729,7 +1871,7 @@ public class WindowOrganizerTests extends WindowTestsBase {
 
     @Test
     public void testSetTaskForceExcludedFromRecents() {
-        final Task rootTask = createRootTask();
+        final Task rootTask = createOrganizerTask(mDisplayContent);
         final Task task = createTaskInRootTask(rootTask, 0 /* userId */);
         final WindowContainerTransaction wct = new WindowContainerTransaction();
         final WindowContainerToken token = task.mRemoteToken.toWindowContainerToken();
@@ -1759,8 +1901,11 @@ public class WindowOrganizerTests extends WindowTestsBase {
     @Test
     public void testReparentToOrganizedTask() {
         final ITaskOrganizer organizer = registerMockOrganizer();
-        Task rootTask = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                mDisplayContent, WINDOWING_MODE_MULTI_WINDOW, null);
+        Task rootTask = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
         final Task task1 = createRootTask();
         final Task task2 = createTask(rootTask, false /* fakeDraw */);
         WindowContainerTransaction wct = new WindowContainerTransaction();
@@ -1884,9 +2029,11 @@ public class WindowOrganizerTests extends WindowTestsBase {
         final TaskDisplayArea firstTaskDisplayArea = createTaskDisplayArea(
                 mDisplayContent, mRootWindowContainer.mWmService, "FirstTaskDisplayArea",
                 FEATURE_VENDOR_FIRST);
+        registerDAOrganizer(FEATURE_VENDOR_FIRST);
         final TaskDisplayArea secondTaskDisplayArea = createTaskDisplayArea(
                 mDisplayContent, mRootWindowContainer.mWmService, "SecondTaskDisplayArea",
                 FEATURE_VENDOR_FIRST + 1);
+        registerDAOrganizer(FEATURE_VENDOR_FIRST + 1);
         final Task firstRootTask = firstTaskDisplayArea.createRootTask(
                 WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD, false /* onTop */);
         final Task secondRootTask = secondTaskDisplayArea.createRootTask(
@@ -1912,13 +2059,46 @@ public class WindowOrganizerTests extends WindowTestsBase {
     }
 
     @Test
+    public void testReparentToSameRootTask() {
+        // Create a parent root task and a child task in that root
+        final ITaskOrganizer organizer = registerMockOrganizer();
+        Task rootTask = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
+        final Task task1 = createTask(rootTask, false /* fakeDraw */);
+        final Task task2 = createTask(rootTask, false /* fakeDraw */);
+
+        // Reparent the child task to the same parent but reorder to the bottom
+        WindowContainerTransaction wct1 = new WindowContainerTransaction();
+        wct1.reparent(task1.mRemoteToken.toWindowContainerToken(),
+                rootTask.mRemoteToken.toWindowContainerToken(),
+                true /* onTop */
+        );
+        mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct1);
+        assertThat(rootTask.getTopMostTask()).isEqualTo(task1);
+
+        // Reparent the child task to the same parent but reorder to the bottom
+        WindowContainerTransaction wct2 = new WindowContainerTransaction();
+        wct2.reparent(task1.mRemoteToken.toWindowContainerToken(),
+                rootTask.mRemoteToken.toWindowContainerToken(),
+                false /* onTop */
+        );
+        mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct2);
+        assertThat(rootTask.getBottomMostTask()).isEqualTo(task1);
+    }
+
+    @Test
     public void testReparentDisplayAreaUnsupported() {
         final TaskDisplayArea firstTaskDisplayArea = createTaskDisplayArea(
                 mDisplayContent, mRootWindowContainer.mWmService, "FirstTaskDisplayArea",
                 FEATURE_VENDOR_FIRST);
+        registerDAOrganizer(FEATURE_VENDOR_FIRST);
         final TaskDisplayArea secondTaskDisplayArea = createTaskDisplayArea(
                 mDisplayContent, mRootWindowContainer.mWmService, "SecondTaskDisplayArea",
                 FEATURE_VENDOR_FIRST + 1);
+        registerDAOrganizer(FEATURE_VENDOR_FIRST + 1);
 
         WindowContainerTransaction wct = new WindowContainerTransaction();
         wct.reparent(firstTaskDisplayArea.mRemoteToken.toWindowContainerToken(),
@@ -2068,8 +2248,11 @@ public class WindowOrganizerTests extends WindowTestsBase {
                 .build();
         final Task rootTask = activity.getRootTask();
         rootTask.setResizeMode(activity.info.resizeMode);
-        final Task splitPrimaryRootTask = mWm.mAtmService.mTaskOrganizerController.createRootTask(
-                mDisplayContent, WINDOWING_MODE_MULTI_WINDOW, null);
+        final Task splitPrimaryRootTask = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
         final WindowContainerTransaction wct = new WindowContainerTransaction();
         wct.reparent(rootTask.mRemoteToken.toWindowContainerToken(),
                 splitPrimaryRootTask.mRemoteToken.toWindowContainerToken(), true /* onTop */);
@@ -2204,6 +2387,63 @@ public class WindowOrganizerTests extends WindowTestsBase {
     }
 
     @Test
+    public void testSetPreserveLeafTaskIfRelaunch() {
+        registerMockOrganizer();
+        final Task rootTask = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
+        final WindowContainerToken token = rootTask.mRemoteToken.toWindowContainerToken();
+
+        final WindowContainerTransaction wct = new WindowContainerTransaction();
+        wct.setPreserveLeafTaskIfRelaunch(token, true);
+        mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct);
+        assertTrue(rootTask.mPreserveLeafTaskIfRelaunch);
+
+        wct.setPreserveLeafTaskIfRelaunch(token, false);
+        mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct);
+        assertFalse(rootTask.mPreserveLeafTaskIfRelaunch);
+    }
+
+    @Test
+    public void testSetPreserveLeafTaskIfRelaunch_reparentLeafTaskEnabled_throwsException() {
+        registerMockOrganizer();
+        final Task rootTask = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
+        rootTask.setReparentLeafTaskIfRelaunch(true);
+        final WindowContainerToken token = rootTask.mRemoteToken.toWindowContainerToken();
+
+        final WindowContainerTransaction wct = new WindowContainerTransaction();
+        wct.setPreserveLeafTaskIfRelaunch(token, true);
+        assertThrows(IllegalArgumentException.class, () ->
+                mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct));
+    }
+
+    @Test
+    public void testSetReparentLeafTaskIfRelaunchFromHome() {
+        registerMockOrganizer();
+        final Task rootTask = mWm.mAtmService.mTaskOrganizerController.createTaskInner(
+                new TaskCreationParams.Builder()
+                        .setDisplayId(mDisplayContent.getDisplayId())
+                        .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                        .build());
+        final WindowContainerToken token = rootTask.mRemoteToken.toWindowContainerToken();
+
+        final WindowContainerTransaction wct = new WindowContainerTransaction();
+        wct.setReparentLeafTaskIfRelaunchFromHome(token, true);
+        mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct);
+        assertTrue(rootTask.mReparentLeafTaskIfRelaunchFromHome);
+
+        wct.setReparentLeafTaskIfRelaunchFromHome(token, false);
+        mWm.mAtmService.mWindowOrganizerController.applyTransaction(wct);
+        assertFalse(rootTask.mReparentLeafTaskIfRelaunchFromHome);
+    }
+
+    @Test
     public void testConfigurationsAreEqualForOrganizer() {
         Configuration config1 = new Configuration();
         config1.smallestScreenWidthDp = 300;
@@ -2225,6 +2465,272 @@ public class WindowOrganizerTests extends WindowTestsBase {
 
         // Should be unequal for controllable configuration changes.
         assertFalse(WindowOrganizerController.configurationsAreEqualForOrganizer(config1, config3));
+    }
+
+    @Test
+    public void testBoundsChange_fillsParent_effectsLifecycle() {
+        final Task rootTask = new TaskBuilder(mSupervisor)
+                .setCreatedByOrganizer(true)
+                .setWindowingMode(WINDOWING_MODE_FREEFORM).build();
+        final Task task1 = createTask(rootTask, false /* fakeDraw */);
+        task1.getRequestedOverrideConfiguration().windowConfiguration
+                .setBounds(new Rect(10, 10, 300, 300));
+        final Task task2 = createTask(rootTask, false /* fakeDraw */);
+        task2.getRequestedOverrideConfiguration().windowConfiguration
+                .setBounds(new Rect(20, 20, 310, 310));
+
+        final WindowContainerTransaction t = new WindowContainerTransaction();
+        t.setBounds(task2.mRemoteToken.toWindowContainerToken(), new Rect());
+        clearInvocations(mRootWindowContainer);
+
+        mWm.mAtmService.mWindowOrganizerController.applyTransaction(t);
+
+        verify(mRootWindowContainer).ensureActivitiesVisible();
+    }
+
+
+    @Test
+    public void testBoundsChange_stopsFillingParent_effectsLifecycle() {
+        final Task rootTask = new TaskBuilder(mSupervisor)
+                .setCreatedByOrganizer(true)
+                .setWindowingMode(WINDOWING_MODE_FREEFORM).build();
+        final Task task1 = createTask(rootTask, false /* fakeDraw */);
+        task1.getRequestedOverrideConfiguration().windowConfiguration
+                .setBounds(new Rect(10, 10, 300, 300));
+        final Task task2 = createTask(rootTask, false /* fakeDraw */);
+        task2.getRequestedOverrideConfiguration().windowConfiguration
+                .setBounds(new Rect());
+
+        final WindowContainerTransaction t = new WindowContainerTransaction();
+        t.setBounds(task2.mRemoteToken.toWindowContainerToken(), new Rect(20, 20, 310, 310));
+        clearInvocations(mRootWindowContainer);
+
+        mWm.mAtmService.mWindowOrganizerController.applyTransaction(t);
+
+        verify(mRootWindowContainer).ensureActivitiesVisible();
+    }
+
+    @Test
+    public void testBoundsChange_noFillingParentChange_doesNotEffectLifecycle() {
+        final Task rootTask = new TaskBuilder(mSupervisor)
+                .setCreatedByOrganizer(true)
+                .setWindowingMode(WINDOWING_MODE_FREEFORM).build();
+        final Task task1 = createTask(rootTask, false /* fakeDraw */);
+        task1.getRequestedOverrideConfiguration().windowConfiguration
+                .setBounds(new Rect(10, 10, 300, 300));
+        final Task task2 = createTask(rootTask, false /* fakeDraw */);
+        task2.getRequestedOverrideConfiguration().windowConfiguration
+                .setBounds(new Rect(20, 20, 310, 310));
+
+        final WindowContainerTransaction t = new WindowContainerTransaction();
+        t.setBounds(task2.mRemoteToken.toWindowContainerToken(), new Rect(30, 30, 320, 320));
+        clearInvocations(mRootWindowContainer);
+
+        mWm.mAtmService.mWindowOrganizerController.applyTransaction(t);
+
+        verify(mRootWindowContainer, never()).ensureActivitiesVisible();
+    }
+
+    @Test
+    public void testCreateTask_setParentContainer_inRootTask() {
+        registerMockOrganizer();
+        final Task rootTask = new TaskBuilder(mSupervisor).setCreatedByOrganizer(true).build();
+        final TaskCreationParams params = new TaskCreationParams.Builder()
+                .setParentContainer(rootTask.mRemoteToken.toWindowContainerToken())
+                .build();
+
+        final TaskAppearedInfo taskAppearedInfo =
+                mWm.mAtmService.mTaskOrganizerController.createTask(params);
+
+        assertNotNull(taskAppearedInfo);
+        final WindowContainerToken token = taskAppearedInfo.getTaskInfo().getToken();
+        assertNotNull(fromBinder(token.asBinder()));
+        final Task newTask = fromBinder(token.asBinder()).asTask();
+        assertNotNull(newTask);
+        assertEquals(params.getLaunchCookie(), newTask.mLaunchCookie);
+        assertEquals(rootTask, newTask.getParent());
+    }
+
+    @Test
+    public void testCreateTask_setParentContainer_inTaskDisplayArea() {
+        registerMockOrganizer();
+        final TaskDisplayArea tda = createTaskDisplayArea(mDisplayContent, mWm, "test", 1000);
+        final TaskCreationParams params = new TaskCreationParams.Builder()
+                .setParentContainer(tda.mRemoteToken.toWindowContainerToken())
+                .build();
+
+        final TaskAppearedInfo taskAppearedInfo =
+                mWm.mAtmService.mTaskOrganizerController.createTask(params);
+
+        assertNotNull(taskAppearedInfo);
+        final WindowContainerToken token = taskAppearedInfo.getTaskInfo().getToken();
+        assertNotNull(fromBinder(token.asBinder()));
+        final Task newTask = fromBinder(token.asBinder()).asTask();
+        assertNotNull(newTask);
+        assertEquals(params.getLaunchCookie(), newTask.mLaunchCookie);
+        assertEquals(tda, newTask.getParent());
+    }
+
+    @Test
+    public void testCreateTask_setParentContainer_inRootTaskOfNonDefaultDisplay() {
+        registerMockOrganizer();
+        final DisplayContent dc = createNewDisplay();
+        final Task rootTask = new TaskBuilder(mSupervisor)
+                .setDisplay(dc)
+                .setCreatedByOrganizer(true)
+                .build();
+        final TaskCreationParams params = new TaskCreationParams.Builder()
+                .setDisplayId(dc.mDisplayId)
+                .setParentContainer(rootTask.mRemoteToken.toWindowContainerToken())
+                .build();
+
+        final TaskAppearedInfo taskAppearedInfo =
+                mWm.mAtmService.mTaskOrganizerController.createTask(params);
+
+        assertNotNull(taskAppearedInfo);
+        final WindowContainerToken token = taskAppearedInfo.getTaskInfo().getToken();
+        assertNotNull(fromBinder(token.asBinder()));
+        final Task newTask = fromBinder(token.asBinder()).asTask();
+        assertNotNull(newTask);
+        assertEquals(params.getLaunchCookie(), newTask.mLaunchCookie);
+        assertEquals(rootTask, newTask.getParent());
+    }
+
+    @Test
+    public void testCreateTask_setParentContainer_inValidRootTask() {
+        registerMockOrganizer();
+        final Task rootTask = new TaskBuilder(mSupervisor).setCreatedByOrganizer(false).build();
+        final TaskCreationParams params = new TaskCreationParams.Builder()
+                .setParentContainer(rootTask.mRemoteToken.toWindowContainerToken())
+                .build();
+
+        assertNull(mWm.mAtmService.mTaskOrganizerController.createTask(params));
+    }
+
+    @Test
+    public void testCreateTask_setParentContainer_unmatchedDisplay() {
+        registerMockOrganizer();
+        final DisplayContent dc = createNewDisplay();
+        final Task rootTask = new TaskBuilder(mSupervisor)
+                .setDisplay(dc)
+                .setCreatedByOrganizer(true)
+                .build();
+        final TaskCreationParams params = new TaskCreationParams.Builder()
+                .setDisplayId(mDisplayContent.mDisplayId) // Not the same as the rootTask's display
+                .setParentContainer(rootTask.mRemoteToken.toWindowContainerToken())
+                .build();
+
+        assertNull(mWm.mAtmService.mTaskOrganizerController.createTask(params));
+    }
+
+    @Test
+    public void testCreateTask_setVisibilityBarrier() {
+        registerMockOrganizer();
+        final TaskCreationParams params = new TaskCreationParams.Builder()
+                .setVisibilityBarrier(true)
+                .build();
+
+        final TaskAppearedInfo taskAppearedInfo =
+                mWm.mAtmService.mTaskOrganizerController.createTask(params);
+
+        assertNotNull(taskAppearedInfo);
+        final WindowContainerToken token = taskAppearedInfo.getTaskInfo().getToken();
+        assertNotNull(fromBinder(token.asBinder()));
+        final Task newTask = fromBinder(token.asBinder()).asTask();
+        assertNotNull(newTask);
+        assertEquals(params.getLaunchCookie(), newTask.mLaunchCookie);
+        assertTrue(newTask.isVisibilityBarrier());
+    }
+
+    @Test
+    public void testCreateTask_setForceLeafTasksNonOccluding() {
+        registerMockOrganizer();
+        final TaskCreationParams params = new TaskCreationParams.Builder()
+                .setTaskPropertiesRequest(
+                        new TaskPropertiesRequest().setForceLeafTasksNonOccluding(true))
+                .build();
+
+        final TaskAppearedInfo taskAppearedInfo =
+                mWm.mAtmService.mTaskOrganizerController.createTask(params);
+
+        assertNotNull(taskAppearedInfo);
+        final WindowContainerToken token = taskAppearedInfo.getTaskInfo().getToken();
+        assertNotNull(fromBinder(token.asBinder()));
+        final Task newTask = fromBinder(token.asBinder()).asTask();
+        assertNotNull(newTask);
+        assertEquals(params.getLaunchCookie(), newTask.mLaunchCookie);
+        assertTrue(newTask.isForceLeafTasksNonOccluding());
+    }
+
+    @Test
+    public void testCreateTask_setTaskProperties() {
+        registerMockOrganizer();
+        final TaskCreationParams params = new TaskCreationParams.Builder()
+                .setTaskPropertiesRequest(
+                        new TaskPropertiesRequest()
+                                .setReparentLeafTaskIfRelaunchFromHome(true)
+                                .setDisallowOverrideWindowingModeForChildren(true)
+                                .setPreserveLeafTaskIfRelaunch(true)
+                                .setTaskForceExcludedFromRecents(true)
+                                .setDisablePip(true)
+                                .setDisableLaunchAdjacent(true)
+                                .setForceTranslucent(true))
+                .build();
+
+        final TaskAppearedInfo taskAppearedInfo =
+                mWm.mAtmService.mTaskOrganizerController.createTask(params);
+
+        assertNotNull(taskAppearedInfo);
+        final WindowContainerToken token = taskAppearedInfo.getTaskInfo().getToken();
+        assertNotNull(fromBinder(token.asBinder()));
+        final Task newTask = fromBinder(token.asBinder()).asTask();
+        assertNotNull(newTask);
+
+        assertTrue(newTask.mReparentLeafTaskIfRelaunchFromHome);
+        assertTrue(newTask.mPreserveLeafTaskIfRelaunch);
+        assertTrue(newTask.isForceExcludedFromRecents());
+        assertTrue(newTask.isDisablePip());
+        assertTrue(newTask.isLaunchAdjacentDisabled());
+        assertTrue(newTask.isForceTranslucent());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTaskPropertiesRequest_setForceOpaque_conflict() {
+        new TaskPropertiesRequest().setForceTranslucent(true).setForceOpaque(true);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTaskPropertiesRequest_setForceTranslucent_conflict() {
+        new TaskPropertiesRequest().setForceOpaque(true).setForceTranslucent(true);
+    }
+
+    @Test
+    public void testBoundsChange_withWindowingModeChange_resetLeafTaskBoundsFromOptions() {
+        final Task task = new TaskBuilder(mSupervisor)
+                .setWindowingMode(WINDOWING_MODE_FREEFORM).build();
+        task.setBoundsWithSource(new Rect(10, 10, 300, 300), /* fromActivityOptions= */ true);
+        assertTrue(task.getTaskInfo().leafTaskBoundsFromOptions);
+
+        final WindowContainerTransaction t = new WindowContainerTransaction();
+        t.setWindowingMode(task.mRemoteToken.toWindowContainerToken(), WINDOWING_MODE_FULLSCREEN);
+        t.setBounds(task.mRemoteToken.toWindowContainerToken(), new Rect());
+        mWm.mAtmService.mWindowOrganizerController.applyTransaction(t);
+
+        assertFalse(task.getTaskInfo().leafTaskBoundsFromOptions);
+    }
+
+    @Test
+    public void testBoundsChange_withoutWindowingModeChange_resetLeafTaskBoundsFromOptions() {
+        final Task task = new TaskBuilder(mSupervisor)
+                .setWindowingMode(WINDOWING_MODE_FREEFORM).build();
+        task.setBoundsWithSource(new Rect(10, 10, 300, 300), /* fromActivityOptions= */ true);
+        assertTrue(task.getTaskInfo().leafTaskBoundsFromOptions);
+
+        final WindowContainerTransaction t = new WindowContainerTransaction();
+        t.setBounds(task.mRemoteToken.toWindowContainerToken(), new Rect(20, 10, 300, 300));
+        mWm.mAtmService.mWindowOrganizerController.applyTransaction(t);
+
+        assertFalse(task.getTaskInfo().leafTaskBoundsFromOptions);
     }
 
     private void testSetAlwaysOnTop(WindowContainer wc) {
@@ -2279,6 +2785,47 @@ public class WindowOrganizerTests extends WindowTestsBase {
     }
 
     @NonNull
+    @Test
+    public void testRestartTaskProcessIfVisible() {
+        final Task rootTask = createRootTask();
+        final Task task = createTask(rootTask);
+        final ActivityRecord activity1 = new ActivityBuilder(mAtm).setTask(task).build();
+        final ActivityRecord activity2 = new ActivityBuilder(mAtm).setTask(task).build();
+
+        spyOn(activity1);
+        spyOn(activity2);
+        // activity1 is at the bottom, activity2 is at the top.
+        doReturn(true).when(activity1).attachedToProcess();
+        doReturn(true).when(activity2).attachedToProcess();
+        activity1.setVisibleRequested(true);
+        activity2.setVisibleRequested(true);
+        activity1.setState(RESUMED, "test");
+        activity2.setState(RESUMED, "test");
+
+        mWm.mAtmService.mTaskOrganizerController.restartTaskProcessIfVisible(
+                task.mRemoteToken.toWindowContainerToken());
+
+        assertEquals(RESTARTING_PROCESS, activity2.getState());
+        verify(activity1).resetCompatConfiguration();
+        verify(activity2).resetCompatConfiguration();
+        verify(activity2).restartProcessIfVisible();
+    }
+
+    @Test
+    public void testRestartTaskProcessIfVisible_nullTopActivity() {
+        final Task rootTask = createRootTask();
+        final Task task = createTask(rootTask);
+        final ActivityRecord activity1 = new ActivityBuilder(mAtm).setTask(task).build();
+        spyOn(activity1);
+        activity1.finishing = true;
+
+        mWm.mAtmService.mTaskOrganizerController.restartTaskProcessIfVisible(
+                task.mRemoteToken.toWindowContainerToken());
+
+        verify(activity1, never()).resetCompatConfiguration();
+        verify(activity1, never()).restartProcessIfVisible();
+    }
+
     private TaskFragmentOrganizer createTaskFragmentOrganizer(
             @NonNull WindowContainerTransaction t, boolean isSystemOrganizer) {
         final TaskFragmentOrganizer organizer = new TaskFragmentOrganizer(Runnable::run);

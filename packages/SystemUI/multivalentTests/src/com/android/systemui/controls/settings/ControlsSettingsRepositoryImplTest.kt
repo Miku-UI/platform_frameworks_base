@@ -18,11 +18,13 @@
 package com.android.systemui.controls.settings
 
 import android.content.pm.UserInfo
+import android.os.UserManager
 import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.user.data.repository.FakeUserRepository
+import com.android.systemui.user.data.repository.UserIconProvider
 import com.android.systemui.util.settings.FakeSettings
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.toList
@@ -33,6 +35,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.mock
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -55,13 +58,15 @@ class ControlsSettingsRepositoryImplTest : SysuiTestCase() {
     private lateinit var secureSettings: FakeSettings
     private lateinit var userRepository: FakeUserRepository
 
+    private val userManager = mock<UserManager>()
+
     @Before
     fun setUp() {
         secureSettings = FakeSettings()
-        userRepository = FakeUserRepository()
-        userRepository.setUserInfos(ALL_USERS.values.toList())
-
         val coroutineDispatcher = UnconfinedTestDispatcher()
+        userRepository =
+            FakeUserRepository(UserIconProvider(context, userManager, coroutineDispatcher))
+        userRepository.setUserInfos(ALL_USERS.values.toList())
         testScope = TestScope(coroutineDispatcher)
 
         underTest =

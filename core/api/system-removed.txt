@@ -1,4 +1,5 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package android.app {
 
   public class AppOpsManager {
@@ -34,8 +35,8 @@ package android.app.prediction {
 
   public static final class AppTarget.Builder {
     ctor @Deprecated public AppTarget.Builder(@NonNull android.app.prediction.AppTargetId);
-    method @Deprecated @NonNull public android.app.prediction.AppTarget.Builder setTarget(@NonNull String, @NonNull android.os.UserHandle);
     method @Deprecated @NonNull public android.app.prediction.AppTarget.Builder setTarget(@NonNull android.content.pm.ShortcutInfo);
+    method @Deprecated @NonNull public android.app.prediction.AppTarget.Builder setTarget(@NonNull String, @NonNull android.os.UserHandle);
   }
 
 }
@@ -46,7 +47,7 @@ package android.app.search {
     method @Deprecated @NonNull public long getTimestamp();
   }
 
-  public final class SearchSession implements java.lang.AutoCloseable {
+  public final class SearchSession implements AutoCloseable {
     method @Deprecated public void destroy();
   }
 
@@ -62,7 +63,7 @@ package android.app.search {
 
 package android.content {
 
-  public class Intent implements java.lang.Cloneable android.os.Parcelable {
+  public class Intent implements Cloneable android.os.Parcelable {
     field @Deprecated public static final String ACTION_DEVICE_INITIALIZATION_WIZARD = "android.intent.action.DEVICE_INITIALIZATION_WIZARD";
     field @Deprecated public static final String ACTION_MASTER_CLEAR = "android.intent.action.MASTER_CLEAR";
     field @Deprecated public static final String ACTION_SERVICE_STATE = "android.intent.action.SERVICE_STATE";
@@ -177,7 +178,7 @@ package android.service.notification {
   }
 
   public static class NotificationListenerService.Ranking {
-    method public java.util.List<java.lang.String> getAdditionalPeople();
+    method public java.util.List<String> getAdditionalPeople();
     method public java.util.List<android.service.notification.SnoozeCriterion> getSnoozeCriteria();
   }
 
@@ -208,14 +209,6 @@ package android.service.translation {
   @Deprecated public static interface TranslationService.OnTranslationResultCallback {
     method @Deprecated public void onError();
     method @Deprecated public void onTranslationSuccess(@NonNull android.view.translation.TranslationResponse);
-  }
-
-}
-
-package android.telecom {
-
-  public class TelecomManager {
-    method @Deprecated @RequiresPermission(allOf={android.Manifest.permission.MODIFY_PHONE_STATE, android.Manifest.permission.WRITE_SECURE_SETTINGS}) public boolean setDefaultDialer(@Nullable String);
   }
 
 }
@@ -313,8 +306,8 @@ package android.telephony.ims {
   }
 
   @Deprecated public static final class SipDelegateImsConfiguration.Builder {
-    ctor @Deprecated public SipDelegateImsConfiguration.Builder(int);
     ctor @Deprecated public SipDelegateImsConfiguration.Builder(@NonNull android.telephony.ims.SipDelegateImsConfiguration);
+    ctor @Deprecated public SipDelegateImsConfiguration.Builder(int);
     method @Deprecated @NonNull public android.telephony.ims.SipDelegateImsConfiguration.Builder addBoolean(@NonNull String, boolean);
     method @Deprecated @NonNull public android.telephony.ims.SipDelegateImsConfiguration.Builder addInt(@NonNull String, int);
     method @Deprecated @NonNull public android.telephony.ims.SipDelegateImsConfiguration.Builder addString(@NonNull String, @NonNull String);

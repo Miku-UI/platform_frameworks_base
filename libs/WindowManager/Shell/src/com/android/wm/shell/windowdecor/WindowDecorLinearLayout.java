@@ -18,6 +18,9 @@ package com.android.wm.shell.windowdecor;
 
 import android.content.Context;
 import android.util.AttributeSet;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 
 import androidx.annotation.Nullable;
@@ -32,6 +35,7 @@ public class WindowDecorLinearLayout extends LinearLayout implements TaskFocusSt
     private static final int[] TASK_FOCUSED_STATE = { R.attr.state_task_focused };
 
     private boolean mIsTaskFocused;
+    private GestureInterceptor mGestureInterceptor;
 
     public WindowDecorLinearLayout(Context context) {
         super(context);
@@ -52,6 +56,26 @@ public class WindowDecorLinearLayout extends LinearLayout implements TaskFocusSt
         super(context, attrs, defStyleAttr, defStyleRes);
     }
 
+    public void setGestureInterceptor(GestureInterceptor gestureInterceptor) {
+        mGestureInterceptor = gestureInterceptor;
+    }
+
+    @Override
+    public boolean onInterceptTouchEvent(MotionEvent e) {
+        if (mGestureInterceptor == null) {
+            return false;
+        }
+        return mGestureInterceptor.onInterceptTouchEvent(this, e);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent e) {
+        if (mGestureInterceptor == null) {
+            return false;
+        }
+        return mGestureInterceptor.onTouch(this, e);
+    }
+
     @Override
     public void setTaskFocusState(boolean focused) {
         mIsTaskFocused = focused;
@@ -68,5 +92,20 @@ public class WindowDecorLinearLayout extends LinearLayout implements TaskFocusSt
         final int[] states = super.onCreateDrawableState(extraSpace + 1);
         mergeDrawableStates(states, TASK_FOCUSED_STATE);
         return states;
+    }
+
+    /**
+     * A pair of listeners to work with {@link ViewGroup#onInterceptTouchEvent(MotionEvent)} and
+     * {@link View#onTouchEvent(MotionEvent)}.
+     */
+    public interface GestureInterceptor extends View.OnTouchListener {
+        /**
+         * Called when {@link WindowDecorLinearLayout#onInterceptTouchEvent(MotionEvent)} is called.
+         *
+         * @param v the {@link WindowDecorLinearLayout}
+         * @param e the {@link MotionEvent}
+         * @return {@code true} if this gesture should be intercepted; {@code false} otherwise
+         */
+        boolean onInterceptTouchEvent(ViewGroup v, MotionEvent e);
     }
 }

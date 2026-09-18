@@ -17,6 +17,7 @@
 package com.android.systemui.keyboard.shortcut
 
 import android.app.role.mockRoleManager
+import android.app.role.roleManager
 import android.content.Context
 import android.content.applicationContext
 import android.content.res.mainResources
@@ -76,7 +77,9 @@ var Kosmos.shortcutHelperAppCategoriesShortcutsSource: KeyboardShortcutGroupsSou
     Kosmos.Fixture { AppCategoriesShortcutsSource(windowManager, testDispatcher) }
 
 var Kosmos.shortcutHelperSystemShortcutsSource: KeyboardShortcutGroupsSource by
-    Kosmos.Fixture { SystemShortcutsSource(mainResources, fakeInputManager.inputManager) }
+    Kosmos.Fixture {
+        SystemShortcutsSource(mainResources, fakeInputManager.inputManager, roleManager)
+    }
 
 var Kosmos.shortcutHelperMultiTaskingShortcutsSource: KeyboardShortcutGroupsSource by
     Kosmos.Fixture { MultitaskingShortcutsSource(mainResources, applicationContext, desktopState) }

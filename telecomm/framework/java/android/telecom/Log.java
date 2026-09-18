@@ -27,9 +27,10 @@ import android.telecom.Logging.Session;
 import android.telecom.Logging.SessionManager;
 import android.telephony.PhoneNumberUtils;
 import android.text.TextUtils;
+import android.util.IndentingPrintWriter;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.util.IndentingPrintWriter;
+import com.android.internal.telecom.BuildType;
 
 import java.util.Arrays;
 import java.util.IllegalFormatException;
@@ -51,7 +52,7 @@ public class Log {
     /**
      * When generating a bug report, include the last X dialable digits when logging phone numbers.
      */
-    private static final int NUM_DIALABLE_DIGITS_TO_LOG = Build.IS_USER ? 0 : 2;
+    private static final int NUM_DIALABLE_DIGITS_TO_LOG = BuildType.IS_USER ? 0 : 2;
 
     // Generic tag for all Telecom logging
     @VisibleForTesting
@@ -65,7 +66,6 @@ public class Log {
     public static boolean ERROR = isLoggable(android.util.Log.ERROR);
 
     private static final boolean FORCE_LOGGING = false; /* STOP SHIP if true */
-    private static final boolean USER_BUILD = Build.IS_USER;
 
     // Used to synchronize singleton logging lazy initialization
     private static final Object sSingletonSync = new Object();
@@ -415,7 +415,7 @@ public class Log {
      */
     public static void setLock(Object lock) {
         // Don't do lock monitoring on user builds.
-        if (!Build.IS_USER) {
+        if (!BuildType.IS_USER) {
             sLock = lock;
         }
     }

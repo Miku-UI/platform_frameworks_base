@@ -16,25 +16,30 @@
 
 package com.android.systemui.clock.ui.composable
 
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import com.android.systemui.clock.ui.viewmodel.AmPmStyle
+import androidx.compose.ui.text.TextStyle
 import com.android.systemui.clock.ui.viewmodel.ClockViewModel
-import com.android.systemui.lifecycle.rememberViewModel
 
 /** Composable for the clock UI that is shown on the top left of the status bar and the shade. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun Clock(
-    viewModelFactory: ClockViewModel.Factory,
+    clockViewModel: ClockViewModel,
+    textColor: Color,
     modifier: Modifier = Modifier,
-    amPmStyle: AmPmStyle = AmPmStyle.Gone,
+    textStyle: TextStyle = MaterialTheme.typography.bodyMediumEmphasized,
 ) {
-    val clockViewModel = rememberViewModel("Clock-viewModel") { viewModelFactory.create(amPmStyle) }
     Text(
         text = clockViewModel.clockText,
+        color = textColor,
+        style = textStyle,
         modifier = modifier.semantics { contentDescription = clockViewModel.contentDescriptionText },
     )
 }

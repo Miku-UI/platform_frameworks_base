@@ -22,11 +22,13 @@ import android.annotation.Nullable;
 import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.telephony.Rlog;
 import android.text.TextUtils;
 import android.util.IntArray;
 
 import com.android.internal.telephony.flags.Flags;
 
+import com.android.internal.telephony.util.TelephonyUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -64,16 +66,39 @@ public final class SystemSelectionSpecifier implements Parcelable {
     @Nullable private int[] mTagIds;
 
     /**
+     * The ICC ID of the satellite subscription.
+     */
+    @NonNull
+    private String mIccId = "";
+
+    /**
+     * Satellite PLMNs supported by a carrier associated with the satellite subscription.
+     */
+    @NonNull
+    private String[] mMccMncs = new String[0];
+
+    /**
      * @hide
      */
     public SystemSelectionSpecifier(@NonNull String mccmnc, @NonNull IntArray bands,
             @NonNull IntArray earfcns, @Nullable SatelliteInfo[] satelliteInfos,
             @Nullable IntArray tagIds) {
+        this(mccmnc, bands, earfcns, satelliteInfos, tagIds, "", new String[0]);
+    }
+
+    /**
+     * @hide
+     */
+    public SystemSelectionSpecifier(@NonNull String mccmnc, @NonNull IntArray bands,
+            @NonNull IntArray earfcns, @Nullable SatelliteInfo[] satelliteInfos,
+            @Nullable IntArray tagIds, @NonNull String iccId, @NonNull String[] mccMncs) {
         mMccMnc = mccmnc;
         mBands = bands.toArray();
         mEarfcns = earfcns.toArray();
         mSatelliteInfos = Arrays.stream(satelliteInfos).toList();
         mTagIds = tagIds.toArray();
+        mIccId = iccId;
+        mMccMncs = mccMncs;
     }
 
     /**
@@ -85,6 +110,8 @@ public final class SystemSelectionSpecifier implements Parcelable {
         mEarfcns = builder.mEarfcns;
         mSatelliteInfos = builder.mSatelliteInfos;
         mTagIds = builder.mTagIds;
+        mIccId = builder.mIccId;
+        mMccMncs = builder.mMccMncs;
     }
 
     /**
@@ -96,6 +123,10 @@ public final class SystemSelectionSpecifier implements Parcelable {
         @NonNull private int[] mEarfcns;
         private List<SatelliteInfo> mSatelliteInfos;
         @Nullable private int[] mTagIds;
+        @NonNull
+        private String mIccId = "";
+        @NonNull
+        private String[] mMccMncs = new String[0];
 
         /** Set network plmn associated with the channel and return the Builder class. */
         @NonNull
@@ -140,6 +171,26 @@ public final class SystemSelectionSpecifier implements Parcelable {
         @NonNull
         public Builder setTagIds(@NonNull int[] tagIds) {
             this.mTagIds = tagIds;
+            return this;
+        }
+
+        /**
+         * Set the ICC ID of the satellite subscription and return the Builder class.
+         */
+        @FlaggedApi(Flags.FLAG_SYSTEM_SELECTION_SPECIFIER_ENHANCEMENT)
+        @NonNull
+        public Builder setIccId(@NonNull String iccId) {
+            this.mIccId = iccId;
+            return this;
+        }
+
+        /**
+         * Set the satellite PLMNs and return the Builder class.
+         */
+        @FlaggedApi(Flags.FLAG_SYSTEM_SELECTION_SPECIFIER_ENHANCEMENT)
+        @NonNull
+        public Builder setMccMncs(@NonNull String[] mccMncs) {
+            this.mMccMncs = mccMncs;
             return this;
         }
 
@@ -192,6 +243,9 @@ public final class SystemSelectionSpecifier implements Parcelable {
         } else {
             out.writeInt(0);
         }
+
+        out.writeString8(mIccId);
+        out.writeString8Array(mMccMncs);
     }
 
     @NonNull public static final Parcelable.Creator<SystemSelectionSpecifier> CREATOR =
@@ -224,7 +278,7 @@ public final class SystemSelectionSpecifier implements Parcelable {
             sb.append("none,");
         }
 
-        sb.append("earfcs:");
+        sb.append("earfcns:");
         if (mEarfcns != null && mEarfcns.length > 0) {
             for (int i = 0; i < mEarfcns.length; i++) {
                 sb.append(mEarfcns[i]);
@@ -254,6 +308,19 @@ public final class SystemSelectionSpecifier implements Parcelable {
             sb.append("none");
         }
 
+        sb.append("mIccId:");
+        sb.append(Rlog.pii(TelephonyUtils.IS_DEBUGGABLE, mIccId));
+        sb.append(",");
+
+        sb.append("mMccMncs:");
+        if (mMccMncs != null && mMccMncs.length > 0) {
+            for (int i = 0; i < mMccMncs.length; i++) {
+                sb.append(mMccMncs[i]);
+                sb.append(",");
+            }
+        } else {
+            sb.append("none");
+        }
         return sb.toString();
     }
 
@@ -265,14 +332,17 @@ public final class SystemSelectionSpecifier implements Parcelable {
         return Objects.equals(mMccMnc, that.mMccMnc)
                 && Arrays.equals(mBands, that.mBands)
                 && Arrays.equals(mEarfcns, that.mEarfcns)
-                && (mSatelliteInfos == null ? that.mSatelliteInfos == null :
-                mSatelliteInfos.equals(that.mSatelliteInfos))
-                && Arrays.equals(mTagIds, that.mTagIds);
+                && (mSatelliteInfos == null ? that.mSatelliteInfos == null
+                : mSatelliteInfos.equals(that.mSatelliteInfos))
+                && Arrays.equals(mTagIds, that.mTagIds)
+                && Objects.equals(mIccId, that.mIccId)
+                && Arrays.equals(mMccMncs, that.mMccMncs);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(mMccMnc, Arrays.hashCode(mBands), Arrays.hashCode(mEarfcns));
+        return Objects.hash(mMccMnc, Arrays.hashCode(mBands), Arrays.hashCode(mEarfcns),
+                mIccId, Arrays.hashCode(mMccMncs));
     }
 
     /** Return network plmn associated with channel information. */
@@ -313,6 +383,35 @@ public final class SystemSelectionSpecifier implements Parcelable {
         return mTagIds;
     }
 
+    /**
+     * Returns the ICC ID (Integrated Circuit Card Identifier) of the satellite subscription.
+     *
+     * <p>This field is optional.
+     *
+     * @return The ICC ID as a string. Returns an empty string {@code ""} if the satellite
+     * subscription is unspecified.
+     */
+    @FlaggedApi(Flags.FLAG_SYSTEM_SELECTION_SPECIFIER_ENHANCEMENT)
+    @NonNull
+    public String getIccId() {
+        return mIccId;
+    }
+
+    /**
+     * Returns the satellite Public Land Mobile Networks (PLMNs) supported by the carrier
+     * associated with the satellite subscription.
+     *
+     * <p>This field is optional.
+     *
+     * @return An array of supported PLMNs. Returns an empty array if no PLMNs are
+     * configured by the carrier.
+     */
+    @FlaggedApi(Flags.FLAG_SYSTEM_SELECTION_SPECIFIER_ENHANCEMENT)
+    @NonNull
+    public String[] getMccMncs() {
+        return mMccMncs;
+    }
+
     private void readFromParcel(Parcel in) {
         mMccMnc = in.readString();
 
@@ -340,6 +439,15 @@ public final class SystemSelectionSpecifier implements Parcelable {
         if (numTagIds > 0) {
             for (int i = 0; i < numTagIds; i++) {
                 mTagIds[i] = in.readInt();
+            }
+        }
+
+        mIccId = in.readString();
+        int numMccMncs = in.readInt();
+        mMccMncs = new String[numMccMncs];
+        if (numMccMncs > 0) {
+            for (int i = 0; i < numMccMncs; i++) {
+                mMccMncs[i] = in.readString();
             }
         }
     }

@@ -18,6 +18,8 @@ package android.view;
 
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsStateControllerProto.INSETS_STATE;
+import static android.server.wm.ProtoExtractors.extract;
 import static android.view.InsetsSource.FLAG_FORCE_CONSUMING;
 import static android.view.InsetsSource.FLAG_FORCE_CONSUMING_OPAQUE_CAPTION_BAR;
 import static android.view.InsetsSource.FLAG_INVALID;
@@ -29,6 +31,8 @@ import static android.view.RoundedCorner.POSITION_BOTTOM_RIGHT;
 import static android.view.RoundedCorner.POSITION_TOP_LEFT;
 import static android.view.RoundedCorner.POSITION_TOP_RIGHT;
 import static android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+import static android.view.WindowInsets.Side.LEFT;
+import static android.view.WindowInsets.Side.RIGHT;
 import static android.view.WindowInsets.Type.captionBar;
 import static android.view.WindowInsets.Type.ime;
 import static android.view.WindowInsets.Type.navigationBars;
@@ -58,23 +62,27 @@ import android.graphics.Rect;
 import android.os.Parcel;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.SparseIntArray;
+import android.util.proto.ProtoOutputStream;
 import android.view.WindowInsets.Type;
 
 import androidx.annotation.NonNull;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
-import com.android.window.flags.Flags;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.List;
+
+import perfetto.protos.Insetssource;
+import perfetto.protos.Insetsstate;
+import perfetto.protos.Windowmanagerservice;
 
 /**
  * Tests for {@link InsetsState}.
@@ -269,7 +277,7 @@ public class InsetsStateTest {
 
         Insets visibleInsets = mState.calculateVisibleInsets(
                 new Rect(0, 0, 100, 400), null, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
-                SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */);
+                SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */, 0 /* ignoringTypes */);
         assertEquals(Insets.of(0, 300, 0, 0), visibleInsets);
     }
 
@@ -281,30 +289,30 @@ public class InsetsStateTest {
 
         Insets visibleInsets = mState.calculateVisibleInsets(
                 new Rect(0, 0, 150, 400), null, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
-                SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */);
+                SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */, 0 /* ignoringTypes */);
         assertEquals(Insets.of(0, 300, 0, 0), visibleInsets);
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_RELATIVE_INSETS)
     public void testCalculateInsets_captionRelativeInsets() {
         mState.getOrCreateSource(ID_CAPTION_BAR, captionBar())
                 .setAttachedInsets(Insets.of(0, 100, 0, 0))
                 .setVisible(true);
 
-        Insets visibleInsets = mState.calculateVisibleInsets(
-                new Rect(100, 200, 200, 600), new Rect(100, 200, 200, 600), TYPE_APPLICATION,
-                ACTIVITY_TYPE_UNDEFINED, SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */);
+        Insets visibleInsets = mState.calculateVisibleInsets(new Rect(100, 200, 200, 600),
+                new Rect(100, 200, 200, 600), TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+                SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */, 0 /* ignoringTypes */);
         assertEquals(Insets.of(0, 100, 0, 0), visibleInsets);
 
-        Insets insideWindowInsets = mState.calculateVisibleInsets(
-                new Rect(110, 250, 190, 550), new Rect(100, 200, 200, 600), TYPE_APPLICATION,
-                ACTIVITY_TYPE_UNDEFINED, SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */);
+        Insets insideWindowInsets = mState.calculateVisibleInsets(new Rect(110, 250, 190, 550),
+                new Rect(100, 200, 200, 600), TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+                SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */, 0 /* ignoringTypes */);
         assertEquals(Insets.of(0, 50, 0, 0), insideWindowInsets);
 
         Insets insideNonOverlappingWindowInsets = mState.calculateVisibleInsets(
                 new Rect(110, 310, 190, 550), new Rect(100, 200, 200, 600), TYPE_APPLICATION,
-                ACTIVITY_TYPE_UNDEFINED, SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */);
+                ACTIVITY_TYPE_UNDEFINED, SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */,
+                0 /* ignoringTypes */);
         assertEquals(Insets.of(0, 0, 0, 0), insideNonOverlappingWindowInsets);
     }
 
@@ -559,6 +567,22 @@ public class InsetsStateTest {
         assertNotEqualsAndHashCode();
     }
 
+    // TODO(b/474542908): Remove "2" from the test name once the test with the legacy
+    //                    setBoundingRects is removed.
+    @Test
+    public void testEquals_visibility2() {
+        mState.getOrCreateSource(ID_IME, ime())
+                .setFrame(new Rect(0, 0, 100, 100))
+                .setBoundingRects(new InsetsBoundingRect[]{
+                        new InsetsBoundingRect(LEFT, 0, 0, 10, 10) })
+                .setVisible(true);
+        mState2.getOrCreateSource(ID_IME, ime())
+                .setFrame(new Rect(0, 0, 100, 100))
+                .setBoundingRects(new InsetsBoundingRect[]{
+                        new InsetsBoundingRect(LEFT, 0, 0, 10, 10) });
+        assertNotEqualsAndHashCode();
+    }
+
     @Test
     public void testEquals_differentFrame() {
         mState.setDisplayFrame(new Rect(0, 1, 2, 3));
@@ -578,10 +602,14 @@ public class InsetsStateTest {
         mState.getOrCreateSource(ID_CAPTION_BAR, captionBar())
                 .setFrame(new Rect(0, 0, 100, 100))
                 .setBoundingRects(new Rect[]{ new Rect(0, 0, 10, 10) })
+                .setBoundingRects(new InsetsBoundingRect[]{
+                        new InsetsBoundingRect(LEFT, 0, 0, 10, 10) })
                 .setVisible(true);
         mState2.getOrCreateSource(ID_CAPTION_BAR, captionBar())
                 .setFrame(new Rect(0, 0, 100, 100))
-                .setBoundingRects(new Rect[]{ new Rect(0, 0, 10, 10) });
+                .setBoundingRects(new Rect[]{ new Rect(0, 0, 10, 10) })
+                .setBoundingRects(new InsetsBoundingRect[]{
+                        new InsetsBoundingRect(LEFT, 0, 0, 10, 10) });
         assertEqualsAndHashCode();
     }
 
@@ -593,7 +621,25 @@ public class InsetsStateTest {
                 .setVisible(true);
         mState2.getOrCreateSource(ID_CAPTION_BAR, captionBar())
                 .setFrame(new Rect(0, 0, 100, 100))
-                .setBoundingRects(new Rect[]{ new Rect(0, 0, 20, 20) });
+                .setBoundingRects(new Rect[]{ new Rect(0, 0, 20, 20) })
+                .setVisible(true);
+        assertNotEqualsAndHashCode();
+    }
+
+    // TODO(b/474542908): Remove "2" from the test name once the test with the legacy
+    //                    setBoundingRects is removed.
+    @Test
+    public void testEquals_differentBoundingRects2() {
+        mState.getOrCreateSource(ID_CAPTION_BAR, captionBar())
+                .setFrame(new Rect(0, 0, 100, 100))
+                .setBoundingRects(new InsetsBoundingRect[]{
+                        new InsetsBoundingRect(LEFT, 0, 0, 10, 10) })
+                .setVisible(true);
+        mState2.getOrCreateSource(ID_CAPTION_BAR, captionBar())
+                .setFrame(new Rect(0, 0, 100, 100))
+                .setBoundingRects(new InsetsBoundingRect[]{
+                        new InsetsBoundingRect(LEFT, 0, 0, 20, 10) })
+                .setVisible(true);
         assertNotEqualsAndHashCode();
     }
 
@@ -736,7 +782,7 @@ public class InsetsStateTest {
                 .setVisible(true);
         Insets visibleInsets = mState.calculateVisibleInsets(
                 new Rect(0, 0, 100, 300), null, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
-                SOFT_INPUT_ADJUST_PAN, 0 /* windowFlags */);
+                SOFT_INPUT_ADJUST_PAN, 0 /* windowFlags */, 0 /* ignoringTypes */);
         assertEquals(Insets.of(0, 100, 0, 100), visibleInsets);
     }
 
@@ -755,7 +801,7 @@ public class InsetsStateTest {
                 .setVisible(true);
         Insets visibleInsets = mState.calculateVisibleInsets(
                 new Rect(0, 0, 100, 300), null, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
-                SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */);
+                SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */, 0 /* ignoringTypes */);
         assertEquals(Insets.of(0, 100, 0, 0), visibleInsets);
     }
 
@@ -774,8 +820,27 @@ public class InsetsStateTest {
                 .setVisible(true);
         Insets visibleInsets = mState.calculateVisibleInsets(
                 new Rect(0, 0, 100, 300), null, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
-                SOFT_INPUT_ADJUST_PAN, FLAG_LAYOUT_NO_LIMITS);
+                SOFT_INPUT_ADJUST_PAN, FLAG_LAYOUT_NO_LIMITS, 0 /* ignoringTypes */);
         assertEquals(Insets.NONE, visibleInsets);
+    }
+
+    @Test
+    public void testCalculateVisibleInsets_ignoringTypes() {
+        mState.getOrCreateSource(ID_STATUS_BAR, statusBars())
+                .setFrame(new Rect(0, 0, 100, 100))
+                .setVisible(true);
+        mState.getOrCreateSource(ID_IME, ime())
+                .setFrame(new Rect(0, 100, 100, 300))
+                .setVisible(true);
+        mState.getOrCreateSource(ID_NAVIGATION_BAR, navigationBars())
+                .setFrame(new Rect(50, 0, 100, 300))
+                .setVisible(true);
+
+        Insets visibleInsets = mState.calculateVisibleInsets(new Rect(0, 0, 100, 300), null,
+                TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED, SOFT_INPUT_ADJUST_PAN,
+                0 /* windowFlags */, ime() | navigationBars() /* ignoringTypes */);
+        // Make sure that ignored types are not included
+        assertEquals(Insets.of(0, 100, 0, 0), visibleInsets);
     }
 
     @Test
@@ -948,7 +1013,7 @@ public class InsetsStateTest {
     public void testCalculateBoundingRects() {
         mState.getOrCreateSource(ID_STATUS_BAR, statusBars())
                 .setFrame(new Rect(0, 0, 1000, 100))
-                .setBoundingRects(null)
+                .setBoundingRects((Rect[]) null)
                 .setVisible(true);
         mState.getOrCreateSource(ID_CAPTION_BAR, captionBar())
                 .setFrame(new Rect(0, 0, 1000, 100))
@@ -1031,11 +1096,104 @@ public class InsetsStateTest {
                 List.of(new Rect(0, 0, 200, 100)),
                 insets.getBoundingRects(Type.tappableElement())
         );
+    }
 
+    // TODO(b/474542908): Remove "2" from the name of the following tests once the tests with the
+    //                    legacy setBoundingRects is removed.
+
+    @Test
+    public void testCalculateBoundingRects2() {
+        mState.getOrCreateSource(ID_STATUS_BAR, statusBars())
+                .setFrame(new Rect(0, 0, 1000, 100))
+                .setBoundingRects((InsetsBoundingRect[]) null)
+                .setVisible(true);
+        mState.getOrCreateSource(ID_CAPTION_BAR, captionBar())
+                .setFrame(new Rect(0, 0, 1000, 100))
+                .setBoundingRects(new InsetsBoundingRect[]{
+                        new InsetsBoundingRect(LEFT, 0, 0, 200, 100),
+                        new InsetsBoundingRect(RIGHT, 0, 0, 200, 100)
+                })
+                .setVisible(true);
+        SparseIntArray typeSideMap = new SparseIntArray();
+
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 1000, 1000), null, null, false,
+                SOFT_INPUT_ADJUST_RESIZE, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+                typeSideMap);
+
+        assertEquals(
+                List.of(new Rect(0, 0, 1000, 100)),
+                insets.getBoundingRects(Type.statusBars())
+        );
+        assertEquals(
+                List.of(
+                        new Rect(0, 0, 200, 100),
+                        new Rect(800, 0, 1000, 100)
+                ),
+                insets.getBoundingRects(Type.captionBar())
+        );
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION_ALWAYS)
+    public void testCalculateBoundingRects2_multipleSourcesOfSameType_concatenated() {
+        mState.getOrCreateSource(ID_CAPTION_BAR, captionBar())
+                .setFrame(new Rect(0, 0, 1000, 100))
+                .setBoundingRects(new InsetsBoundingRect[]{
+                        new InsetsBoundingRect(LEFT, 0, 0, 200, 100)})
+                .setVisible(true);
+        mState.getOrCreateSource(ID_EXTRA_CAPTION_BAR, captionBar())
+                .setFrame(new Rect(0, 0, 1000, 100))
+                .setBoundingRects(new InsetsBoundingRect[]{
+                        new InsetsBoundingRect(RIGHT, 0, 0, 200, 100)})
+                .setVisible(true);
+        SparseIntArray typeSideMap = new SparseIntArray();
+
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 1000, 1000), null, null, false,
+                SOFT_INPUT_ADJUST_RESIZE, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+                typeSideMap);
+
+        final List<Rect> expected = List.of(
+                new Rect(0, 0, 200, 100),
+                new Rect(800, 0, 1000, 100)
+        );
+        final List<Rect> actual = insets.getBoundingRects(captionBar());
+        assertEquals(expected.size(), actual.size());
+
+        // Order does not matter.
+        assertTrue(actual.containsAll(expected));
+    }
+
+    @Test
+    public void testCalculateBoundingRects2_captionBar_reportedAsSysGesturesAndTappableElement() {
+        mState.getOrCreateSource(ID_CAPTION_BAR, captionBar())
+                .setFrame(new Rect(0, 0, 1000, 100))
+                .setBoundingRects(new InsetsBoundingRect[]{
+                        new InsetsBoundingRect(LEFT, 0, 0, 200, 100)})
+                .setVisible(true);
+        SparseIntArray typeSideMap = new SparseIntArray();
+
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 1000, 1000), null, null, false,
+                SOFT_INPUT_ADJUST_RESIZE, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+                typeSideMap);
+
+        assertEquals(
+                List.of(new Rect(0, 0, 200, 100)),
+                insets.getBoundingRects(Type.captionBar())
+        );
+        assertEquals(
+                List.of(new Rect(0, 0, 200, 100)),
+                insets.getBoundingRects(Type.systemGestures())
+        );
+        assertEquals(
+                List.of(new Rect(0, 0, 200, 100)),
+                insets.getBoundingRects(Type.mandatorySystemGestures())
+        );
+        assertEquals(
+                List.of(new Rect(0, 0, 200, 100)),
+                insets.getBoundingRects(Type.tappableElement())
+        );
+    }
+
+    @Test
     public void testCalculateInsets_forceConsumingCaptionBar() {
         mState.getOrCreateSource(ID_CAPTION_BAR, captionBar())
                 .setFrame(new Rect(0, 0, 100, 100))
@@ -1047,5 +1205,42 @@ public class InsetsStateTest {
                 new SparseIntArray());
 
         assertTrue(insets.isForceConsumingOpaqueCaptionBar());
+    }
+
+
+    @Test
+    public void testDumpDebug() throws InvalidProtocolBufferException {
+        final InsetsSource statusBarSource = mState.getOrCreateSource(ID_STATUS_BAR, statusBars())
+                .setFrame(new Rect(0, 10, 20, 30))
+                .setVisible(true);
+        final InsetsSource imeSource = mState.getOrCreateSource(ID_IME, ime())
+                .setFrame(new Rect(0, 100, 200, 300))
+                .setVisible(true);
+
+        final ProtoOutputStream proto = new ProtoOutputStream();
+        mState.dumpDebug(proto, INSETS_STATE);
+
+        final Insetsstate.InsetsStateProto insetsStateProto =
+                Windowmanagerservice.InsetsStateControllerProto.parseFrom(
+                        proto.getBytes()).getInsetsState();
+
+        assertEquals(mState.sourceSize(), insetsStateProto.getSourcesCount());
+        boolean foundStatusBar = false;
+        boolean foundIme = false;
+        for (final Insetssource.InsetsSourceProto sourceProto : insetsStateProto.getSourcesList()) {
+            final Rect actualRect = extract(sourceProto.getFrame());
+            final boolean actualVisible = sourceProto.getVisible();
+            if (sourceProto.getTypeNumber() == statusBarSource.getType()) {
+                foundStatusBar = true;
+                assertEquals(statusBarSource.isVisible(), actualVisible);
+                assertEquals(statusBarSource.getFrame(), actualRect);
+            } else if (sourceProto.getTypeNumber() == imeSource.getType()) {
+                foundIme = true;
+                assertEquals(statusBarSource.isVisible(), actualVisible);
+                assertEquals(imeSource.getFrame(), actualRect);
+            }
+        }
+        assertTrue(foundStatusBar);
+        assertTrue(foundIme);
     }
 }

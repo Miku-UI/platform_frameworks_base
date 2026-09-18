@@ -162,7 +162,7 @@ public class MobileRadioPowerStatsProcessorTest {
 
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)).thenReturn(true);
-        when(mPowerStatsUidResolver.mapUid(anyInt()))
+        when(mPowerStatsUidResolver.getOwnerUid(anyInt()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
     }
 

@@ -46,7 +46,6 @@ import android.app.servertransaction.WindowContextInfoChangeItem;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.os.Bundle;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.view.Display;
 import android.view.DisplayInfo;
@@ -91,7 +90,7 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
     private WindowTokenClient mClientToken;
 
     private WindowProcessController mWpc;
-    private WindowContainer<?> mContainer;
+    private WindowToken mContainer;
 
     @Rule
     public final Expect mExpect = Expect.create();
@@ -144,7 +143,7 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
 
         assertEquals(2, mController.mListeners.size());
 
-        final WindowContainer<?> container = createTestWindowToken(TYPE_APPLICATION_OVERLAY,
+        final WindowToken container = createTestWindowToken(TYPE_APPLICATION_OVERLAY,
                 mDefaultDisplay);
         mController.registerWindowContainerListener(mWpc, mClientToken, container,
                 TYPE_APPLICATION_OVERLAY, false /* callerCanManageAppTokens */, null /* options */);
@@ -180,7 +179,7 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
         assertEquals(mDisplayContent.mDisplayId, clientToken.mDisplayId);
 
         // Update the WindowContainer.
-        final WindowContainer<?> container = createTestWindowToken(TYPE_APPLICATION_OVERLAY,
+        final WindowToken container = createTestWindowToken(TYPE_APPLICATION_OVERLAY,
                 mDefaultDisplay);
         final Configuration config2 = container.getConfiguration();
         final Rect bounds2 = new Rect(0, 0, 20, 20);
@@ -244,9 +243,9 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
     public void testWindowContextCreatedWindowTokenRemoved_SwitchToListenToDA() {
         WindowToken windowContextCreatedToken = new WindowToken.Builder(mWm, mClientToken,
                 TYPE_ACCESSIBILITY_MAGNIFICATION_OVERLAY)
-                .setDisplayContent(mDefaultDisplay)
                 .setFromClientToken(true)
                 .build();
+        mDefaultDisplay.addWindowToken(windowContextCreatedToken);
         final DisplayArea<?> da = windowContextCreatedToken.getDisplayArea();
 
         mController.registerWindowContainerListener(mWpc, mClientToken, windowContextCreatedToken,
@@ -272,7 +271,7 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
                 new DualDisplayAreaGroupPolicyTest.DualDisplayContent
                  .Builder(mAtm, 1000, 1000).build();
         dualDisplayContent.getDisplayInfo().state = STATE_ON;
-        final DisplayArea.Tokens imeContainer = dualDisplayContent.getImeContainer();
+        final ImeContainer imeContainer = dualDisplayContent.getImeContainer();
         // Put the ImeContainer to the first sub-RootDisplayArea
         dualDisplayContent.mFirstRoot.placeImeContainer(imeContainer);
 
@@ -281,10 +280,8 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
         // Simulate the behavior to show IME switch dialog: its context switches to register to
         // context created WindowToken.
         WindowToken windowContextCreatedToken = new WindowToken.Builder(mWm, mClientToken,
-                TYPE_INPUT_METHOD_DIALOG)
-                .setDisplayContent(dualDisplayContent)
-                .setFromClientToken(true)
-                .build();
+                TYPE_INPUT_METHOD_DIALOG).setFromClientToken(true).build();
+        dualDisplayContent.addWindowToken(windowContextCreatedToken);
         mController.registerWindowContainerListener(mWpc, mClientToken, windowContextCreatedToken,
                 TYPE_INPUT_METHOD_DIALOG, false /* callerCanManageAppTokens */, null /* options */);
 
@@ -353,7 +350,6 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
     public void assertCallerCanReparentListener_returnsTrueWhenExpected() {
         mController.registerWindowContainerListener(mWpc, mClientToken, mContainer,
                 TYPE_APPLICATION_OVERLAY, false /* callerCanManageAppTokens */,

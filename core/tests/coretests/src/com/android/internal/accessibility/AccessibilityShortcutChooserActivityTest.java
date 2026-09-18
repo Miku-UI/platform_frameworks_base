@@ -17,8 +17,6 @@
 package com.android.internal.accessibility;
 
 import static androidx.test.espresso.Espresso.onView;
-import static androidx.test.espresso.action.ViewActions.click;
-import static androidx.test.espresso.action.ViewActions.scrollTo;
 import static androidx.test.espresso.action.ViewActions.swipeUp;
 import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
@@ -34,7 +32,6 @@ import static org.hamcrest.Matchers.endsWith;
 import static org.junit.Assume.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -70,6 +67,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.internal.R;
 import com.android.internal.accessibility.dialog.AccessibilityShortcutChooserActivity;
+import com.android.internal.accessibility.dialog.AccessibilityTargetHelper;
 
 import org.junit.After;
 import org.junit.Before;
@@ -138,10 +136,10 @@ public class AccessibilityShortcutChooserActivityTest {
         when(mAccessibilityManagerService.getInstalledAccessibilityServiceList(
                 anyInt())).thenReturn(new ParceledListSlice<>(
                 Collections.singletonList(mAccessibilityServiceInfo)));
-        when(mAccessibilityManagerService.isAccessibilityServiceWarningRequired(any()))
-                .thenReturn(true);
-        when(mAccessibilityManagerService.isAccessibilityTargetAllowed(
-                anyString(), anyInt(), anyInt())).thenReturn(true);
+        when(mAccessibilityManagerService.isAccessibilityServiceWarningRequired(
+                eq(mAccessibilityServiceInfo))).thenReturn(true);
+        when(mAccessibilityManagerService.isAccessibilityServiceTargetAllowed(
+                eq(mAccessibilityServiceInfo), anyInt())).thenReturn(true);
         when(mKeyguardManager.isKeyguardLocked()).thenReturn(false);
         when(mPackageManager.getPackageInstaller()).thenReturn(mPackageInstaller);
 
@@ -200,8 +198,8 @@ public class AccessibilityShortcutChooserActivityTest {
 
     @Test
     public void selectTestService_permissionDialog_notShownWhenNotRequired() throws Exception {
-        when(mAccessibilityManagerService.isAccessibilityServiceWarningRequired(any()))
-                .thenReturn(false);
+        when(mAccessibilityManagerService.isAccessibilityServiceWarningRequired(
+                eq(mAccessibilityServiceInfo))).thenReturn(false);
         launchActivity();
         openShortcutsList();
 
@@ -215,10 +213,10 @@ public class AccessibilityShortcutChooserActivityTest {
     @Test
     public void selectTestService_notPermittedByAdmin_blockedEvenIfNoWarningRequired()
             throws Exception {
-        when(mAccessibilityManagerService.isAccessibilityServiceWarningRequired(any()))
-                .thenReturn(false);
-        when(mAccessibilityManagerService.isAccessibilityTargetAllowed(
-                eq(TEST_COMPONENT_NAME.getPackageName()), anyInt(), anyInt())).thenReturn(false);
+        when(mAccessibilityManagerService.isAccessibilityServiceWarningRequired(
+                eq(mAccessibilityServiceInfo))).thenReturn(false);
+        when(mAccessibilityManagerService.isAccessibilityServiceTargetAllowed(
+                eq(mAccessibilityServiceInfo), anyInt())).thenReturn(false);
         // This test class mocks AccessibilityManagerService, so the restricted dialog window
         // will not actually appear and therefore cannot be used for a wait Until.newWindow().
         // To still allow smart waiting in this test we can instead set up the mocked method
@@ -232,7 +230,7 @@ public class AccessibilityShortcutChooserActivityTest {
             }
             return null;
         }).when(mAccessibilityManagerService).sendRestrictedDialogIntent(
-                eq(TEST_COMPONENT_NAME.getPackageName()), anyInt(), anyInt());
+                eq(mAccessibilityServiceInfo), anyInt());
         launchActivity();
         openShortcutsList();
 
@@ -252,20 +250,23 @@ public class AccessibilityShortcutChooserActivityTest {
     @Test
     public void clickServiceTarget_notPermittedByAdmin_sendRestrictedDialogIntent()
             throws Exception {
-        when(mAccessibilityManagerService.isAccessibilityTargetAllowed(
-                eq(TEST_COMPONENT_NAME.getPackageName()), anyInt(), anyInt())).thenReturn(false);
+        when(mAccessibilityManagerService.isAccessibilityServiceTargetAllowed(
+                eq(mAccessibilityServiceInfo), anyInt())).thenReturn(false);
         launchActivity();
         openShortcutsList();
 
-        onView(withText(TEST_LABEL)).perform(scrollTo(), click());
+        mDevice.findObject(By.text(TEST_LABEL)).click();
+        mDevice.waitForIdle();
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
 
         verify(mAccessibilityManagerService).sendRestrictedDialogIntent(
-                eq(TEST_COMPONENT_NAME.getPackageName()), anyInt(), anyInt());
+                eq(mAccessibilityServiceInfo), anyInt());
     }
+
 
     @Test
     public void popEditShortcutMenuList_oneHandedModeEnabled_shouldBeInListView() {
-        TestUtils.setOneHandedModeEnabled(this, /* enabled= */ true);
+        AccessibilityTargetHelper.setSupportOneHandedModeForTesting(true);
         launchActivity();
         openShortcutsList();
 
@@ -277,7 +278,7 @@ public class AccessibilityShortcutChooserActivityTest {
 
     @Test
     public void popEditShortcutMenuList_oneHandedModeDisabled_shouldNotBeInListView() {
-        TestUtils.setOneHandedModeEnabled(this, /* enabled= */ false);
+        AccessibilityTargetHelper.setSupportOneHandedModeForTesting(false);
         launchActivity();
         openShortcutsList();
 

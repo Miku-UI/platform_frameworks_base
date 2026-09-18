@@ -30,10 +30,13 @@ import android.annotation.Nullable;
 import android.app.ActivityOptions;
 import android.content.pm.ActivityInfo;
 import android.graphics.Rect;
+import android.util.DisplayMetrics;
 import android.util.Size;
 import android.view.Gravity;
 import android.view.View;
 import android.window.WindowContainerToken;
+
+import com.android.window.flags.Flags;
 
 import java.util.function.Consumer;
 
@@ -92,8 +95,9 @@ class LaunchParamsUtil {
         final int freeformHeight = (int) (freeformHeightInDp * density + 0.5f);
 
         // Minimum layout requirements.
-        final int layoutMinWidth = (layout == null) ? -1 : layout.minWidth;
-        final int layoutMinHeight = (layout == null) ? -1 : layout.minHeight;
+        final DisplayMetrics displayMetrics = displayArea.getDisplayContent().getDisplayMetrics();
+        final int layoutMinWidth = (layout == null) ? -1 : layout.getMinWidth(displayMetrics);
+        final int layoutMinHeight = (layout == null) ? -1 : layout.getMinHeight(displayMetrics);
 
         // Max size, which is letterboxing/pillarboxing in displayArea. That's to say the large
         // dimension of default size is the small dimension of displayArea size, and the small
@@ -159,8 +163,10 @@ class LaunchParamsUtil {
                     stableBounds.height() / (float) inOutBounds.height();
             final float shrinkRatio = Math.min(heightShrinkRatio, widthShrinkRatio);
             // Minimum layout requirements.
-            final int layoutMinWidth = (layout == null) ? -1 : layout.minWidth;
-            final int layoutMinHeight = (layout == null) ? -1 : layout.minHeight;
+            final DisplayMetrics displayMetrics =
+                    displayArea.getDisplayContent().getDisplayMetrics();
+            final int layoutMinWidth = (layout == null) ? -1 : layout.getMinWidth(displayMetrics);
+            final int layoutMinHeight = (layout == null) ? -1 : layout.getMinHeight(displayMetrics);
             int adjustedWidth = Math.max(layoutMinWidth, (int) (inOutBounds.width() * shrinkRatio));
             int adjustedHeight = Math.max(layoutMinHeight,
                     (int) (inOutBounds.height() * shrinkRatio));
@@ -213,9 +219,9 @@ class LaunchParamsUtil {
      */
     static void calculateLayoutBounds(@NonNull Rect stableBounds,
             @NonNull ActivityInfo.WindowLayout windowLayout, @NonNull Rect inOutBounds,
-            @Nullable Size desiredSize) {
-        final int defaultWidth = stableBounds.width();
-        final int defaultHeight = stableBounds.height();
+            @Nullable Size desiredSize, @NonNull DisplayMetrics displayMetrics) {
+        final int stableParentWidth = stableBounds.width();
+        final int stableParentHeight = stableBounds.height();
         int width;
         int height;
 
@@ -226,17 +232,19 @@ class LaunchParamsUtil {
         }
 
         width = desiredSize.getWidth();
-        if (windowLayout.width > 0 && windowLayout.width < defaultWidth) {
-            width = windowLayout.width;
+        final int defaultWidth = windowLayout.getDefaultWidth(displayMetrics);
+        if (defaultWidth > 0 && defaultWidth < stableParentHeight) {
+            width = defaultWidth;
         } else if (windowLayout.widthFraction > 0 && windowLayout.widthFraction < 1.0f) {
-            width = (int) (defaultWidth * windowLayout.widthFraction);
+            width = (int) (stableParentWidth * windowLayout.widthFraction);
         }
 
         height = desiredSize.getHeight();
-        if (windowLayout.height > 0 && windowLayout.height < defaultHeight) {
-            height = windowLayout.height;
+        final int defaultHeight = windowLayout.getDefaultHeight(displayMetrics);
+        if (defaultHeight > 0 && defaultHeight < stableParentHeight) {
+            height = defaultHeight;
         } else if (windowLayout.heightFraction > 0 && windowLayout.heightFraction < 1.0f) {
-            height = (int) (defaultHeight * windowLayout.heightFraction);
+            height = (int) (stableParentHeight * windowLayout.heightFraction);
         }
 
         inOutBounds.set(0, 0, width, height);
@@ -345,16 +353,17 @@ class LaunchParamsUtil {
         }
 
         if (taskDisplayArea == null && source != null) {
-            final TaskDisplayArea sourceDisplayArea = source.getDisplayArea();
-            logger.accept("display-area-from-source=" + sourceDisplayArea);
-            taskDisplayArea = sourceDisplayArea;
+            if (!Flags.prioritizeVisibleTaskDisplayOverSource() || task == null
+                    || !task.isVisibleRequested()) {
+                final TaskDisplayArea sourceDisplayArea = source.getDisplayArea();
+                logger.accept("display-area-from-source=" + sourceDisplayArea);
+                taskDisplayArea = sourceDisplayArea;
+            }
         }
 
-        final Task rootTask = (taskDisplayArea == null && task != null)
-                ? task.getRootTask() : null;
-        if (rootTask != null) {
-            logger.accept("display-from-task=" + rootTask.getDisplayId());
-            taskDisplayArea = rootTask.getDisplayArea();
+        if (taskDisplayArea == null && task != null) {
+            logger.accept("display-from-task=" + task.getDisplayId());
+            taskDisplayArea = task.getDisplayArea();
         }
 
         if (taskDisplayArea == null && options != null) {
@@ -455,26 +464,40 @@ class LaunchParamsUtil {
             }
         }
 
-        if (com.android.window.flags.Flags.fallbackToFocusedDisplay()) {
-            // Select the TDA from the top focused display if possible.
-            final DisplayContent focusedDisplay =
-                    supervisor.mRootWindowContainer.getTopFocusedDisplayContent();
-            final TaskDisplayArea defaultTaskDisplayArea;
-            if (canPlaceEntityOnDisplay(focusedDisplay.getDefaultTaskDisplayArea(), activityRecord,
-                    request, supervisor)) {
-                defaultTaskDisplayArea = focusedDisplay.getDefaultTaskDisplayArea();
-            } else {
-                defaultTaskDisplayArea =
-                        supervisor.mRootWindowContainer.getDefaultTaskDisplayArea();
-            }
-            logger.accept("display-area-from-default-fallback=" + defaultTaskDisplayArea);
-            return defaultTaskDisplayArea;
+        // Select the TDA from the top focused display if possible.
+        final DisplayContent focusedDisplay =
+                supervisor.mRootWindowContainer.getTopFocusedDisplayContent();
+        final TaskDisplayArea defaultTaskDisplayArea;
+        if (canPlaceEntityOnDisplay(focusedDisplay.getDefaultTaskDisplayArea(), activityRecord,
+                request, supervisor)) {
+            defaultTaskDisplayArea = focusedDisplay.getDefaultTaskDisplayArea();
         } else {
-            final TaskDisplayArea defaultTaskDisplayArea =
-                    supervisor.mRootWindowContainer.getDefaultTaskDisplayArea();
-            logger.accept("display-area-from-default-fallback=" + defaultTaskDisplayArea);
-            return defaultTaskDisplayArea;
+            defaultTaskDisplayArea = supervisor.mRootWindowContainer.getDefaultTaskDisplayArea();
         }
+        logger.accept("display-area-from-default-fallback=" + defaultTaskDisplayArea);
+        return defaultTaskDisplayArea;
+    }
+
+    /**
+     * Returns {@code true} if the given activity can be placed on the TaskDisplayArea.
+     */
+    private static boolean canPlaceEntityOnDisplay(@Nullable TaskDisplayArea tda,
+            @Nullable ActivityRecord activity, @Nullable ActivityStarter.Request request,
+            @NonNull ActivityTaskSupervisor supervisor) {
+        if (tda == null) {
+            return false;
+        }
+
+        final int displayId = tda.getDisplayId();
+        if (activity != null) {
+            return activity.canBeLaunchedOnDisplay(displayId);
+        }
+
+        if (request != null && request.activityInfo != null) {
+            return supervisor.canPlaceEntityOnDisplay(displayId, request.callingPid,
+                    request.callingUid, request.activityInfo);
+        }
+        return false;
     }
 
     /**

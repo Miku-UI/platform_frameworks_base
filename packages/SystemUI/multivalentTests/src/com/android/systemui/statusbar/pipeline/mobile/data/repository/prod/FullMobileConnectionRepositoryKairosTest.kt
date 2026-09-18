@@ -31,11 +31,9 @@ import com.android.systemui.flags.fakeFeatureFlagsClassic
 import com.android.systemui.flags.featureFlagsClassic
 import com.android.systemui.kairos.ActivatedKairosFixture
 import com.android.systemui.kairos.BuildSpec
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosTestScope
 import com.android.systemui.kairos.MutableState
 import com.android.systemui.kairos.buildSpec
-import com.android.systemui.kairos.kairos
 import com.android.systemui.kairos.runKairosTest
 import com.android.systemui.kairos.stateOf
 import com.android.systemui.kosmos.Kosmos
@@ -72,16 +70,15 @@ import org.mockito.kotlin.mock
  * repository interface it's switching on. These tests just need to verify that the entire interface
  * properly switches over when the value of `isCarrierMerged` changes.
  */
-@OptIn(ExperimentalKairosApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class FullMobileConnectionRepositoryKairosTest : SysuiTestCase() {
     private val Kosmos.fakeMobileRepo by Fixture {
-        FakeMobileConnectionRepositoryKairos(SUB_ID, kairos, mobileLogger)
+        FakeMobileConnectionRepositoryKairos(SUB_ID, mobileLogger)
     }
 
     private val Kosmos.fakeCarrierMergedRepo by Fixture {
-        FakeMobileConnectionRepositoryKairos(SUB_ID, kairos, mobileLogger).apply {
+        FakeMobileConnectionRepositoryKairos(SUB_ID, mobileLogger).apply {
             // Mimicks the real carrier merged repository
             isAllowedDuringAirplaneMode.setValue(true)
         }
@@ -107,16 +104,15 @@ class FullMobileConnectionRepositoryKairosTest : SysuiTestCase() {
 
     private val Kosmos.subscriptionModel by Fixture {
         MutableState(
-            kairos,
             SubscriptionModel(
                 subscriptionId = SUB_ID,
                 carrierName = DEFAULT_NAME,
                 profileClass = PROFILE_CLASS_UNSET,
-            ),
+            )
         )
     }
 
-    private val Kosmos.isCarrierMerged by Fixture { MutableState(kairos, false) }
+    private val Kosmos.isCarrierMerged by Fixture { MutableState(false) }
 
     // Use a real config, with no overrides
     private val systemUiCarrierConfig = SystemUiCarrierConfig(SUB_ID, PersistableBundle())

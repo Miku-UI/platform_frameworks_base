@@ -28,6 +28,7 @@ import android.widget.Button;
 
 import androidx.annotation.Nullable;
 
+import com.android.app.tracing.TraceUtils;
 import com.android.internal.logging.MetricsLogger;
 import com.android.systemui.accessibility.hearingaid.HearingDevicesChecker;
 import com.android.systemui.accessibility.hearingaid.HearingDevicesDialogManager;
@@ -49,14 +50,12 @@ import javax.inject.Inject;
 
 /** Quick settings tile: Hearing Devices **/
 public class HearingDevicesTile extends QSTileImpl<BooleanState> {
-    //TODO(b/338520598): Transform the current implementation into new QS architecture
-    // and use Kotlin except Tile class.
     public static final String TILE_SPEC = "hearing_devices";
 
     private final HearingDevicesDialogManager mDialogManager;
     private final HearingDevicesChecker mDevicesChecker;
     private final BluetoothController mBluetoothController;
-
+    private Boolean mIsHearingDevicesSupported;
     private final BluetoothController.Callback mCallback = new BluetoothController.Callback() {
         @Override
         public void onBluetoothStateChange(boolean enabled) {
@@ -89,6 +88,17 @@ public class HearingDevicesTile extends QSTileImpl<BooleanState> {
         mDevicesChecker = hearingDevicesChecker;
         mBluetoothController = bluetoothController;
         mBluetoothController.observe(getLifecycle(), mCallback);
+    }
+
+    @Override
+    public boolean isAvailable() {
+        if (mIsHearingDevicesSupported == null) {
+            mIsHearingDevicesSupported = TraceUtils.trace(
+                    "HearingDevicesTile#isHearingDeviceSupported",
+                    mDevicesChecker::isHearingDeviceSupported);
+        }
+
+        return mIsHearingDevicesSupported;
     }
 
     @Override

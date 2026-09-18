@@ -25,6 +25,4 @@ import kotlinx.coroutines.test.TestScope
 fun Activatable.activateIn(
     testScope: TestScope,
     context: CoroutineContext = EmptyCoroutineContext,
-) {
-    testScope.backgroundScope.launch(context) { activate() }
-}
+) = testScope.backgroundScope.launch(context) { activate() }

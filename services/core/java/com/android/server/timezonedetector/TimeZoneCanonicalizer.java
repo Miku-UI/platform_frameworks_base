@@ -27,8 +27,10 @@ import java.util.function.Function;
 final class TimeZoneCanonicalizer implements Function<String, String> {
     @Override
     public String apply(String timeZoneId) {
-        String canonicialZoneId = TimeZoneFinder.getInstance().getCountryZonesFinder()
-                .findCanonicalTimeZoneId(timeZoneId);
+        String canonicialZoneId =
+                TimeZoneFinder.getInstance()
+                        .getCountryZonesFinder()
+                        .findCanonicalTimeZoneId(timeZoneId);
 
         return canonicialZoneId == null ? timeZoneId : canonicialZoneId;
     }

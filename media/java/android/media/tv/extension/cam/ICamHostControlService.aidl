@@ -23,13 +23,28 @@ import android.media.tv.extension.cam.ICamHostControlInfoListener;
  * @hide
  */
 interface ICamHostControlService {
-    // Register the listener to monitor host control session updates.
+    /**
+     * Registers a listener to monitor updates for the CICAM Host Control session.
+     *
+     * @param listener The ICamHostControlInfoListener to add.
+     */
     void addCamHostcontrolInfoListener(ICamHostControlInfoListener listener);
-    // Unregister ICamHostControlInfoListener and stop monitoring.
+    /**
+     * Unregisters a listener to stop monitoring CICAM Host Control session updates.
+     *
+     * @param listener The ICamHostControlInfoListener to remove.
+     */
     void removeCamHostcontrolInfoListener(ICamHostControlInfoListener listener);
-    // Request CICAM to release the resource.
+    /**
+     * Sends an asynchronous request to the CICAM, asking it to release control of
+     * a shared resource. The result of the request is delivered via the provided
+     * callback.
+     *
+     * @param sessionToken The unique token identifying the session requested the release.
+     * @param callback An ICamHostControlAskReleaseReplyCallback instance that
+     *                 will be invoked with the CAM's reply.
+     * @return @CamConstants.AskReleaseReplyStatus to indicate the cam reply status.
+     */
     int sendCamHostControlAskRelease(String sessionToken,
-        ICamHostControlAskReleaseReplyCallback callback);
-    // Enable/disable the host control mode.
-    void setHostControlMode(String sessionToken, boolean enable);
+            ICamHostControlAskReleaseReplyCallback callback);
 }

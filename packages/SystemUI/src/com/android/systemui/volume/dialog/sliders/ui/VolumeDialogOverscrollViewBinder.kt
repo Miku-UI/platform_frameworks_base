@@ -21,7 +21,7 @@ import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
 import com.android.app.tracing.coroutines.launchInTraced
-import com.android.systemui.volume.dialog.domain.interactor.DesktopAudioTileDetailsFeatureInteractor
+import com.android.systemui.volume.dialog.domain.interactor.ExpandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.sliders.dagger.VolumeDialogSliderScope
 import com.android.systemui.volume.dialog.sliders.ui.viewmodel.VolumeDialogOverscrollViewModel
 import com.android.systemui.volume.dialog.sliders.ui.viewmodel.VolumeDialogOverscrollViewModel.OverscrollEventModel
@@ -34,11 +34,11 @@ class VolumeDialogOverscrollViewBinder
 @Inject
 constructor(
     private val viewModel: VolumeDialogOverscrollViewModel,
-    desktopAudioTileDetailsFeatureInteractor: DesktopAudioTileDetailsFeatureInteractor,
+    expandedAudioTileDetailsFeatureInteractor: ExpandedAudioTileDetailsFeatureInteractor,
 ) {
 
     // Use horizontal volume dialog if the audio tile details view is enabled
-    private val isVolumeDialogVertical = !desktopAudioTileDetailsFeatureInteractor.isEnabled()
+    private val isVolumeDialogVertical = !expandedAudioTileDetailsFeatureInteractor.isEnabled()
 
     /**
      * [viewsToAnimate] is an array of [View] to be affected by the overscroll animation. [view] is

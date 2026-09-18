@@ -17,19 +17,15 @@
 package android.os;
 
 import android.os.MessageQueue.IdleHandler;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith(AndroidJUnit4.class)
 public class IdleHandlerTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private static class BaseTestHandler extends TestHandlerThread {
         Handler mHandler;

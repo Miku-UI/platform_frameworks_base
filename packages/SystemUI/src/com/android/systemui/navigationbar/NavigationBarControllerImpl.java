@@ -159,7 +159,8 @@ public class NavigationBarControllerImpl implements
                 navBarHelper, navigationModeController, sysUiFlagsContainer,
                 dumpManager, autoHideControllerStore.forDisplay(mContext.getDisplayId()),
                 lightBarController, pipOptional, backAnimation.orElse(null),
-                taskStackChangeListeners, displayTracker);
+                taskStackChangeListeners, displayTracker, displaysWithDecorationsRepositoryCompat,
+                mainCoroutineDispatcher);
         mIsLargeScreen = isLargeScreen(mContext);
         mIsPhone = determineIfPhone(mContext, deviceStateManager);
         dumpManager.registerDumpable(this);
@@ -443,7 +444,7 @@ public class NavigationBarControllerImpl implements
             public void onViewAttachedToWindow(View v) {
                 if (result != null) {
                     navBar.setImeWindowStatus(display.getDisplayId(), result.mImeWindowVis,
-                            result.mImeBackDisposition, result.mShowImeSwitcher);
+                            result.mImeBackDisposition, result.mShowImeSwitcherButton);
                 }
             }
 

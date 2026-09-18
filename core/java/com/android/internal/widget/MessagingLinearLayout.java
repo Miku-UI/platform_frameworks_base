@@ -16,8 +16,6 @@
 
 package com.android.internal.widget;
 
-import static android.app.Flags.notificationsRedesignTemplates;
-
 import android.annotation.Nullable;
 import android.annotation.Px;
 import android.content.Context;
@@ -207,10 +205,6 @@ public class MessagingLinearLayout extends ViewGroup {
     }
 
     private int maybeRemoveTopPadding(int totalHeight, MessagingChild firstVisibleChild) {
-        if (!notificationsRedesignTemplates()) {
-            return totalHeight;
-        }
-
         mIgnorePaddingTop = false;
         if (firstVisibleChild instanceof MessagingGroup messagingGroup) {
             // Note: The sender name can only be hidden if this is the first group.

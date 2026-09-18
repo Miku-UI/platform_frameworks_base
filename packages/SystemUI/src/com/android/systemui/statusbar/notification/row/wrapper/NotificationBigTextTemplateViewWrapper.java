@@ -23,7 +23,6 @@ import android.view.View;
 import com.android.internal.widget.ImageFloatingTextView;
 import com.android.systemui.statusbar.TransformableView;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 /**
  * Wraps a notification containing a big text template
@@ -45,9 +44,7 @@ public class NotificationBigTextTemplateViewWrapper extends NotificationTemplate
     public void onContentUpdated(ExpandableNotificationRow row) {
         // Reinspect the notification. Before the super call, because the super call also updates
         // the transformation types and we need to have our values set by then.
-        resolveViews(NotificationBundleUi.isEnabled()
-                ? row.getEntryAdapter().getSbn()
-                : row.getEntryLegacy().getSbn());
+        resolveViews(row.getEntryAdapter().getSbn());
         super.onContentUpdated(row);
     }
 

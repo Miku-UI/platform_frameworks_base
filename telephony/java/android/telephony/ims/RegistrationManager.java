@@ -457,7 +457,7 @@ public interface RegistrationManager {
      *                 callback.
      * @param c A callback called on the supplied {@link Executor} that will contain the
      *                      registration state of the IMS service, which will be one of the
-     * {@see  SubscriptionManager.OnSubscriptionsChangedListener} to listen to Subscription changed
+     * {@link  SubscriptionManager.OnSubscriptionsChangedListener} to listen to Subscription changed
      * events and call {@link #unregisterImsRegistrationCallback(RegistrationCallback)} to clean up.
      *
      * When the callback is registered, it will initiate the callback c to be called with the
@@ -506,11 +506,7 @@ public interface RegistrationManager {
     /**
      * Gets the Transport Type associated with the current IMS registration.
      * @param executor The {@link Executor} that will be used to call the transportTypeCallback.
-     * @param transportTypeCallback The transport type associated with the current IMS registration,
-     * which will be one of following:
-     * {@see AccessNetworkConstants#TRANSPORT_TYPE_WWAN},
-     * {@see AccessNetworkConstants#TRANSPORT_TYPE_WLAN}, or
-     * {@see AccessNetworkConstants#TRANSPORT_TYPE_INVALID}.
+     * @param transportTypeCallback The transport type associated with the current IMS registration.
      */
     @RequiresPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
     void getRegistrationTransportType(

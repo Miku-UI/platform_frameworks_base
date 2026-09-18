@@ -18,15 +18,16 @@ package com.android.server.vibrator;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.hardware.vibrator.ActivePwle;
 import android.hardware.vibrator.CompositeEffect;
 import android.hardware.vibrator.CompositePwleV2;
 import android.hardware.vibrator.FrequencyAccelerationMapEntry;
+import android.hardware.vibrator.HapticGeneratorConfig;
 import android.hardware.vibrator.IVibrationSession;
 import android.hardware.vibrator.IVibrator;
 import android.hardware.vibrator.IVibratorCallback;
 import android.hardware.vibrator.PrimitivePwle;
 import android.hardware.vibrator.PwleV2Primitive;
+import android.hardware.vibrator.VibrationEffectContent;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
@@ -37,10 +38,10 @@ import android.os.RemoteException;
 import android.os.VibrationEffect;
 import android.os.VibrationEffect.VendorEffect;
 import android.os.VibratorInfo;
+import android.os.vibrator.IHapticChannelStream;
 import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.PrimitiveSegment;
 import android.os.vibrator.PwlePoint;
-import android.os.vibrator.RampSegment;
 import android.os.vibrator.StepSegment;
 import android.os.vibrator.VibrationEffectSegment;
 
@@ -207,15 +208,6 @@ public final class HalVibratorHelper {
         mSupportedEffects = effects;
     }
 
-    /** Set the effects supported by the fake vibrator hardware. */
-    public void setSupportedBraking(int... braking) {
-        if (braking != null) {
-            braking = Arrays.copyOf(braking, braking.length);
-            Arrays.sort(braking);
-        }
-        mSupportedBraking = braking;
-    }
-
     /** Set the primitives supported by the fake vibrator hardware. */
     public void setSupportedPrimitives(int... primitives) {
         if (primitives != null) {
@@ -233,16 +225,6 @@ public final class HalVibratorHelper {
     /** Set the max number of primitives allowed in a composition by the fake vibrator hardware. */
     public void setCompositionSizeMax(int limit) {
         mCompositionSizeMax = limit;
-    }
-
-    /** Set the max number of PWLEs allowed in a composition by the fake vibrator hardware. */
-    public void setPwleSizeMax(int limit) {
-        mPwleSizeMax = limit;
-    }
-
-    /** Set the max duration of PWLE primitives in a composition by the fake vibrator hardware. */
-    public void setPwlePrimitiveDurationMax(int millis) {
-        mPwlePrimitiveDurationMax = millis;
     }
 
     /** Set the resonant frequency of the fake vibrator hardware. */
@@ -355,8 +337,7 @@ public final class HalVibratorHelper {
         if (mOnShouldFail) {
             return -1;
         }
-        recordEffectSegment(new StepSegment(VibrationEffect.DEFAULT_AMPLITUDE,
-                /* frequencyHz= */ 0, durationMs));
+        recordEffectSegment(new StepSegment(VibrationEffect.DEFAULT_AMPLITUDE, durationMs));
         applyLatency(mOnLatency);
         return durationMs;
     }
@@ -404,22 +385,6 @@ public final class HalVibratorHelper {
         }
         applyLatency(mOnLatency);
         return (int) duration;
-    }
-
-    int vibrate(RampSegment[] primitives) {
-        if (mPwleV1ShouldFail) {
-            return -1;
-        }
-        if ((mCapabilities & IVibrator.CAP_COMPOSE_PWLE_EFFECTS) == 0) {
-            return 0;
-        }
-        int duration = 0;
-        for (RampSegment primitive : primitives) {
-            duration += (int) primitive.getDuration();
-            recordEffectSegment(primitive);
-        }
-        applyLatency(mOnLatency);
-        return duration;
     }
 
     int vibrate(PwlePoint[] pwlePoints) {
@@ -536,16 +501,6 @@ public final class HalVibratorHelper {
         }
 
         @Override
-        public long composePwle(RampSegment[] primitives, int braking, long vibrationId,
-                long stepId) {
-            long duration = vibrate(primitives);
-            if (duration > 0) {
-                scheduleCallback(vibrationId, stepId, duration);
-            }
-            return duration;
-        }
-
-        @Override
         public long composePwleV2(PwlePoint[] pwlePoints, long vibrationId, long stepId) {
             long duration = vibrate(pwlePoints);
             if (duration > 0) {
@@ -603,11 +558,6 @@ public final class HalVibratorHelper {
                         new VibratorInfo.FrequencyProfile(resonantFrequency, null, null));
                 infoBuilder.setFrequencyProfileLegacy(new VibratorInfo.FrequencyProfileLegacy(
                         resonantFrequency, Float.NaN, Float.NaN, null));
-            }
-            if ((mCapabilities & IVibrator.CAP_COMPOSE_PWLE_EFFECTS) != 0) {
-                infoBuilder.setSupportedBraking(mSupportedBraking);
-                infoBuilder.setPwleSizeMax(mPwleSizeMax);
-                infoBuilder.setPwlePrimitiveDurationMax(mPwlePrimitiveDurationMax);
             }
             if ((mCapabilities & IVibrator.CAP_COMPOSE_PWLE_EFFECTS_V2) != 0) {
                 infoBuilder.setMaxEnvelopeEffectSize(mMaxEnvelopeEffectSize);
@@ -692,22 +642,6 @@ public final class HalVibratorHelper {
 
         @Override
         public int vibrateWithCallback(int vibratorId, long vibrationId, long stepId,
-                PrimitivePwle[] effects) {
-            RampSegment[] primitives = new RampSegment[effects.length];
-            for (int i = 0; i < primitives.length; i++) {
-                ActivePwle pwle = effects[i].getActive();
-                primitives[i] = new RampSegment(pwle.startAmplitude, pwle.endAmplitude,
-                        pwle.startFrequency, pwle.endFrequency, pwle.duration);
-            }
-            int result = vibrate(primitives);
-            if (result > 0) {
-                scheduleCallback(vibratorId, vibrationId, stepId, result);
-            }
-            return result;
-        }
-
-        @Override
-        public int vibrateWithCallback(int vibratorId, long vibrationId, long stepId,
                 CompositePwleV2 composite) {
             PwlePoint[] points = new PwlePoint[composite.pwlePrimitives.length];
             for (int i = 0; i < points.length; i++) {
@@ -720,6 +654,39 @@ public final class HalVibratorHelper {
                 scheduleCallback(vibratorId, vibrationId, stepId, result);
             }
             return result;
+        }
+
+        @Override
+        public boolean startHapticGeneratorSessionWithCallback(long sessionId, int vibratorId,
+                @NonNull HapticGeneratorConfig config) {
+            return false;
+        }
+
+        @Override
+        public boolean closeHapticGeneratorSession(long sessionId) {
+            return false;
+        }
+
+        @Override
+        public void clearHapticGeneratorSession(long sessionId) {
+            // no-op
+        }
+
+        @Override
+        public boolean startHapticGeneratorStream(long sessionId, int vibratorId,
+                @NonNull VibrationEffectContent[] effect) {
+            return false;
+        }
+
+        @Override
+        public int readHapticGeneratorStream(long sessionId, int vibratorId,
+                @NonNull byte[] buffer) {
+            return IHapticChannelStream.READ_STATUS_ERROR_IO;
+        }
+
+        @Override
+        public boolean stopHapticGeneratorStream(long sessionId, int vibratorId) {
+            return false;
         }
 
         private void scheduleCallback(int vibratorId, long vibrationId, long stepId,

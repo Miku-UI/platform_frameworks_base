@@ -18,6 +18,6 @@
 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
-  <solid android:color="@androidprv:color/materialColorSurfaceContainerLow"/>
+  <solid android:color="@color/materialColorSurfaceContainerLow"/>
   <corners android:radius="@dimen/global_actions_corner_radius" />
 </shape>

@@ -105,7 +105,7 @@ public class ShadowApplicationPackageManager
 
     @Override
     protected List<PackageInfo> getInstalledPackagesAsUser(int flags, int userId) {
-        return sInstalledPackages;
+        return new ArrayList<>(sInstalledPackages);
     }
 
     @Override

@@ -32,6 +32,7 @@ import com.android.settingslib.bluetooth.CachedBluetoothDeviceManager;
 import com.android.settingslib.bluetooth.LocalBluetoothAdapter;
 import com.android.settingslib.bluetooth.LocalBluetoothManager;
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.flags.SystemPropertiesHelper;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -51,6 +52,11 @@ public class HearingDevicesCheckerTest extends SysuiTestCase {
     @Rule
     public MockitoRule mockito = MockitoJUnit.rule();
 
+    private static final String ASHA_PROFILE_CENTRAL_PROPERTY =
+            "bluetooth.profile.asha.central.enabled";
+    private static final String HAP_PROFILE_CLIENT_PROPERTY =
+            "bluetooth.profile.hap.client.enabled";
+
     private final List<CachedBluetoothDevice> mCachedDevices = new ArrayList<>();
     @Mock
     private LocalBluetoothManager mLocalBluetoothManager;
@@ -62,6 +68,8 @@ public class HearingDevicesCheckerTest extends SysuiTestCase {
     private CachedBluetoothDevice mCachedDevice;
     @Mock
     private BluetoothDevice mDevice;
+    @Mock
+    private SystemPropertiesHelper mSystemPropertiesHelper;
     private HearingDevicesChecker mDevicesChecker;
 
     @Before
@@ -74,7 +82,8 @@ public class HearingDevicesCheckerTest extends SysuiTestCase {
         when(mDevice.getMetadata(BluetoothDevice.METADATA_EXCLUSIVE_MANAGER)).thenReturn(
                 null);
 
-        mDevicesChecker = new HearingDevicesChecker(mContext, mLocalBluetoothManager);
+        mDevicesChecker = new HearingDevicesChecker(mContext, mLocalBluetoothManager,
+                mSystemPropertiesHelper);
     }
 
     @Test
@@ -112,5 +121,35 @@ public class HearingDevicesCheckerTest extends SysuiTestCase {
         mCachedDevices.add(mCachedDevice);
 
         assertThat(mDevicesChecker.isAnyActiveHearingDevice()).isTrue();
+    }
+
+    @Test
+    public void isHearingDeviceSupported_ashaSupported_returnTrue() {
+        when(mSystemPropertiesHelper.getBoolean(ASHA_PROFILE_CENTRAL_PROPERTY, false)).thenReturn(
+                true);
+        when(mSystemPropertiesHelper.getBoolean(HAP_PROFILE_CLIENT_PROPERTY, false)).thenReturn(
+                false);
+
+        assertThat(mDevicesChecker.isHearingDeviceSupported()).isTrue();
+    }
+
+    @Test
+    public void isHearingDeviceSupported_hapSupported_returnTrue() {
+        when(mSystemPropertiesHelper.getBoolean(ASHA_PROFILE_CENTRAL_PROPERTY, false)).thenReturn(
+                false);
+        when(mSystemPropertiesHelper.getBoolean(HAP_PROFILE_CLIENT_PROPERTY, false)).thenReturn(
+                true);
+
+        assertThat(mDevicesChecker.isHearingDeviceSupported()).isTrue();
+    }
+
+    @Test
+    public void isHearingDeviceSupported_noneSupported_returnFalse() {
+        when(mSystemPropertiesHelper.getBoolean(ASHA_PROFILE_CENTRAL_PROPERTY, false)).thenReturn(
+                false);
+        when(mSystemPropertiesHelper.getBoolean(HAP_PROFILE_CLIENT_PROPERTY, false)).thenReturn(
+                false);
+
+        assertThat(mDevicesChecker.isHearingDeviceSupported()).isFalse();
     }
 }

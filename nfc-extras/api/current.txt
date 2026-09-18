@@ -1,4 +1,5 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package com.android.nfc_extras {
 
   public class EeAlreadyOpenException extends com.android.nfc_extras.EeIOException {

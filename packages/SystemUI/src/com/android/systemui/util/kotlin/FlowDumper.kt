@@ -25,7 +25,6 @@ import com.android.systemui.util.printCollection
 import java.io.PrintWriter
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -182,23 +181,20 @@ interface ActivatableFlowDumper : FlowDumper {
  *   there is something to dump.
  * @param tag the name with which this is dumper registered.
  */
-class ActivatableFlowDumperImpl(
-    private val dumpManager: DumpManager,
-    tag: String,
-) : SimpleFlowDumper(), ActivatableFlowDumper {
+class ActivatableFlowDumperImpl(private val dumpManager: DumpManager, tag: String) :
+    SimpleFlowDumper(), ActivatableFlowDumper {
 
     private val registration =
         object : ExclusiveActivatable() {
-            override suspend fun onActivated(): Nothing {
-                try {
-                    dumpManager.registerCriticalDumpable(
-                        dumpManagerName,
-                        this@ActivatableFlowDumperImpl
-                    )
-                    awaitCancellation()
-                } finally {
-                    dumpManager.unregisterDumpable(dumpManagerName)
-                }
+            override suspend fun onActivated() {
+                dumpManager.registerCriticalDumpable(
+                    dumpManagerName,
+                    this@ActivatableFlowDumperImpl,
+                )
+            }
+
+            override suspend fun onDeactivated() {
+                dumpManager.unregisterDumpable(dumpManagerName)
             }
         }
 

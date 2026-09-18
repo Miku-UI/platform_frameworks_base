@@ -342,11 +342,10 @@ public final class OriginTransitionSessionTest {
         }
 
         @Override
-        public RemoteTransition makeOriginTransitionWithReturnFilters(
+        public RemoteTransition makeOriginTransitions(
                 RemoteTransition launchTransition,
-                List<RemoteTransition> returnTransition,
-                List<TransitionFilter> returnFilters) {
-            mRecords.put(launchTransition, returnTransition.get(0));
+                List<RemoteTransition> returnTransitions) {
+            mRecords.put(launchTransition, returnTransitions.get(0));
             return launchTransition;
         }
 

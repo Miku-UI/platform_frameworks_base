@@ -18,8 +18,10 @@ package com.android.server.input
 
 import android.content.Context
 import android.content.ContextWrapper
+import android.hardware.display.DisplayManager
 import android.os.Handler
 import android.os.test.TestLooper
+import android.platform.test.annotations.DisabledOnRavenwood
 import android.platform.test.annotations.Presubmit
 import android.view.Display
 import android.view.PointerIcon
@@ -91,6 +93,7 @@ class PointerIconCacheTest {
     }
 
     @Test
+    @DisabledOnRavenwood(blockedBy = [DisplayManager::class])
     fun testSetAccessibilityScaleFactorOnSecondaryDisplay() {
         val defaultBitmap = getDefaultIcon().bitmap
         val secondaryDisplayId = Display.DEFAULT_DISPLAY + 1

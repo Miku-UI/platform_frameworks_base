@@ -57,16 +57,8 @@ class SkMatrix;
 class SkPath;
 struct SkRect;
 
-#ifdef __linux__
 #include <com_android_graphics_hwui_flags.h>
 namespace hwui_flags = com::android::graphics::hwui::flags;
-#else   // __linux__
-namespace hwui_flags {
-constexpr bool separate_pipeline_cache() {
-    return false;
-}
-}  // namespace hwui_flags
-#endif  // __linux__
 
 namespace android {
 namespace uirenderer {

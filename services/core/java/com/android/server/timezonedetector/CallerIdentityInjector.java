@@ -31,13 +31,15 @@ public interface CallerIdentityInjector {
     CallerIdentityInjector REAL = new Real();
 
     /**
-     * A {@link ActivityManager#handleIncomingUser} call. This can be used to map the abstract
-     * user ID value USER_CURRENT to the actual user ID.
+     * A {@link ActivityManager#handleIncomingUser} call. This can be used to map the abstract user
+     * ID value USER_CURRENT to the actual user ID.
      */
-    @UserIdInt int resolveUserId(@UserIdInt int userId, String debugInfo);
+    @UserIdInt
+    int resolveUserId(@UserIdInt int userId, String debugInfo);
 
     /** A {@link UserHandle#getCallingUserId()} call. */
-    @UserIdInt int getCallingUserId();
+    @UserIdInt
+    int getCallingUserId();
 
     /** A {@link Binder#clearCallingIdentity()} call. */
     long clearCallingIdentity();
@@ -48,13 +50,18 @@ public interface CallerIdentityInjector {
     /** The real implementation of {@link CallerIdentityInjector}. */
     class Real implements CallerIdentityInjector {
 
-        protected Real() {
-        }
+        protected Real() {}
 
         @Override
         public int resolveUserId(@UserIdInt int userId, String debugName) {
-            return ActivityManager.handleIncomingUser(Binder.getCallingPid(),
-                    Binder.getCallingUid(), userId, false, false, debugName, null);
+            return ActivityManager.handleIncomingUser(
+                    /* callingPid= */ Binder.getCallingPid(),
+                    /* callingUid= */ Binder.getCallingUid(),
+                    /* userId= */ userId,
+                    /* allowAll= */ false,
+                    /* requireFull= */ false,
+                    /* name= */ debugName,
+                    /* callerPackage= */ null);
         }
 
         @Override

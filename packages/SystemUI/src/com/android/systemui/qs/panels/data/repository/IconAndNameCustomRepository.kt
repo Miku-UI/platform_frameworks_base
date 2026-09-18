@@ -16,9 +16,13 @@
 
 package com.android.systemui.qs.panels.data.repository
 
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.Icon.scaleDownIfNecessary
 import android.os.Bundle
 import android.service.quicksettings.Flags
 import android.service.quicksettings.TileService
+import androidx.core.graphics.drawable.toDrawable
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.common.shared.model.Text
@@ -54,36 +58,47 @@ constructor(
                 installedTilesComponentRepository.getInstalledTilesServiceInfos(userTracker.userId)
             val packageManager = userTracker.userContext.packageManager
             val appIconRepository = appIconRepositoryFactory.create()
-            installedTiles
-                .map {
-                    val tileSpec = TileSpec.create(it.componentName)
-                    val label = it.loadLabel(packageManager)
-                    val icon = it.loadIcon(packageManager)
-                    val appName = it.applicationInfo.loadLabel(packageManager)
-                    val category =
-                        it.metaData?.getTileCategory()
-                            ?: defaultCategory(it.applicationInfo.isSystemApp)
-                    val appIcon =
-                        if (it.applicationInfo.isSystemApp) {
-                            null
-                        } else {
-                            appIconRepository.loadIcon(it.applicationInfo)
-                        }
-                    if (icon != null) {
-                        EditTileData(
-                            tileSpec,
-                            Icon.Loaded(icon, ContentDescription.Loaded(label.toString())),
-                            Text.Loaded(label.toString()),
-                            Text.Loaded(appName.toString()),
-                            appIcon,
-                            category,
-                        )
-                    } else {
+            installedTiles.mapNotNull {
+                val tileSpec = TileSpec.create(it.componentName)
+                val label = it.loadLabel(packageManager)
+                val icon = it.loadIcon(packageManager)?.scaleDownIfBitmap()
+                val appName = it.applicationInfo.loadLabel(packageManager)
+                val category =
+                    it.metaData?.getTileCategory()
+                        ?: defaultCategory(it.applicationInfo.isSystemApp)
+                val appIcon =
+                    if (it.applicationInfo.isSystemApp) {
                         null
+                    } else {
+                        appIconRepository.loadIcon(it.applicationInfo)?.scaleDownIfBitmap()
                     }
+                if (icon != null) {
+                    EditTileData(
+                        tileSpec,
+                        Icon.Loaded(icon, ContentDescription.Loaded(label.toString())),
+                        Text.Loaded(label.toString()),
+                        Text.Loaded(appName.toString()),
+                        appIcon,
+                        category,
+                    )
+                } else {
+                    null
                 }
-                .filterNotNull()
+            }
         }
+    }
+
+    private fun Drawable.scaleDownIfBitmap(): Drawable {
+        return if (this is BitmapDrawable) {
+            scaleDownIfNecessary(bitmap, MAX_SIZE, MAX_SIZE)
+                .toDrawable(userTracker.userContext.resources)
+        } else {
+            this
+        }
+    }
+
+    private fun Icon.Loaded.scaleDownIfBitmap(): Icon.Loaded {
+        return copy(drawable = drawable.scaleDownIfBitmap())
     }
 
     private fun Bundle.getTileCategory(): TileCategory? {
@@ -100,5 +115,9 @@ constructor(
         } else {
             TileCategory.PROVIDED_BY_APP
         }
+    }
+
+    private companion object {
+        const val MAX_SIZE = 4096
     }
 }

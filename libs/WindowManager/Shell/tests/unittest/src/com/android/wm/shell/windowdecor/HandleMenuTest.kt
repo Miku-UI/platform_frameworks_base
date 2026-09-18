@@ -54,6 +54,7 @@ import com.android.wm.shell.splitscreen.SplitScreenController
 import com.android.wm.shell.windowdecor.WindowDecoration2.SurfaceControlViewHostFactory
 import com.android.wm.shell.windowdecor.additionalviewcontainer.AdditionalSystemViewContainer
 import com.android.wm.shell.windowdecor.additionalviewcontainer.AdditionalViewHostViewContainer
+import com.android.wm.shell.windowdecor.common.DecorThemeUtil
 import com.android.wm.shell.windowdecor.common.WindowDecorTaskResourceLoader
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -97,6 +98,7 @@ class HandleMenuTest : ShellTestCase() {
     @Mock private lateinit var mockDesktopModeUiEventLogger: DesktopModeUiEventLogger
     @Mock private lateinit var mockSurfaceControlViewHostFactory: SurfaceControlViewHostFactory
 
+    private val decorThemeUtilFactory = DecorThemeUtil.Factory()
     private val handleMenuFactory = HandleMenu.HandleMenuFactory
     private lateinit var handleMenu: HandleMenu
 
@@ -250,7 +252,8 @@ class HandleMenuTest : ShellTestCase() {
 
         val handleMenuView =
             checkNotNull(handleMenu.handleMenuView) { "Expected non-null handle menu view" }
-        val splitButton = handleMenuView.rootView.findViewById<View>(R.id.split_screen_button)
+        val splitButton =
+            handleMenuView.windowingPillView.findViewById<View>(R.id.split_screen_button)
         assertThat(splitButton.visibility).isEqualTo(View.VISIBLE)
     }
 
@@ -262,7 +265,8 @@ class HandleMenuTest : ShellTestCase() {
 
         val handleMenuView =
             checkNotNull(handleMenu.handleMenuView) { "Expected non-null handle menu view" }
-        val splitButton = handleMenuView.rootView.findViewById<View>(R.id.split_screen_button)
+        val splitButton =
+            handleMenuView.windowingPillView.findViewById<View>(R.id.split_screen_button)
         assertThat(splitButton.visibility).isEqualTo(View.GONE)
     }
 
@@ -274,7 +278,8 @@ class HandleMenuTest : ShellTestCase() {
 
         val handleMenuView =
             checkNotNull(handleMenu.handleMenuView) { "Expected non-null handle menu view" }
-        val splitButton = handleMenuView.rootView.findViewById<View>(R.id.split_screen_button)
+        val splitButton =
+            handleMenuView.windowingPillView.findViewById<View>(R.id.split_screen_button)
         assertThat(splitButton.visibility).isEqualTo(View.VISIBLE)
     }
 
@@ -286,14 +291,47 @@ class HandleMenuTest : ShellTestCase() {
 
         val handleMenuView =
             checkNotNull(handleMenu.handleMenuView) { "Expected non-null handle menu view" }
-        val splitButton = handleMenuView.rootView.findViewById<View>(R.id.split_screen_button)
+        val splitButton =
+            handleMenuView.windowingPillView.findViewById<View>(R.id.split_screen_button)
         assertThat(splitButton.visibility).isEqualTo(View.VISIBLE)
+    }
+
+    @Test
+    fun testWindowingPill_shownWhenConfigured() = runTest {
+        createTaskInfo(WINDOWING_MODE_FREEFORM)
+        handleMenu = createAndShowHandleMenu(shouldShowWindowingPill = true)
+
+        val windowingPill = handleMenu.handleMenuView!!.windowingPillView
+        assertThat(windowingPill.visibility).isEqualTo(View.VISIBLE)
+    }
+
+    @Test
+    fun testWindowingPill_hiddenWhenConfigured() = runTest {
+        createTaskInfo(WINDOWING_MODE_FREEFORM)
+        handleMenu = createAndShowHandleMenu(shouldShowWindowingPill = false)
+
+        val windowingPill = handleMenu.handleMenuView!!.windowingPillView
+        assertThat(windowingPill.visibility).isEqualTo(View.GONE)
+    }
+
+    @Test
+    fun relayout_shouldShowWindowingPillFalse_doesNotCrash() = runTest {
+        createTaskInfo(WINDOWING_MODE_FREEFORM)
+        handleMenu = createAndShowHandleMenu(shouldShowWindowingPill = false)
+
+        // Relayout should not crash even if shouldShowWindowingPill is false
+        handleMenu.relayout(
+            SurfaceControl.Transaction(),
+            mContext.resources.configuration,
+            captionX = 0,
+            captionY = 0,
+        )
     }
 
     private suspend fun createTaskInfo(
         windowingMode: Int,
         splitPosition: Int? = null,
-        displayId: Int = DEFAULT_DISPLAY
+        displayId: Int = DEFAULT_DISPLAY,
     ) {
         val taskDescriptionBuilder =
             ActivityManager.TaskDescription.Builder().setBackgroundColor(Color.YELLOW)
@@ -333,6 +371,7 @@ class HandleMenuTest : ShellTestCase() {
     private fun TestScope.createAndShowHandleMenu(
         splitPosition: Int? = null,
         forceShowSystemBars: Boolean = false,
+        shouldShowWindowingPill: Boolean = true,
     ): HandleMenu {
         val layoutId =
             if (mockDesktopWindowDecoration.mTaskInfo.isFreeform) {
@@ -370,20 +409,21 @@ class HandleMenuTest : ShellTestCase() {
                     mockTaskResourceLoader,
                     layoutId,
                     splitScreenController,
-                    shouldShowWindowingPill = true,
+                    shouldShowWindowingPill = shouldShowWindowingPill,
                     shouldShowNewWindowButton = true,
                     shouldShowManageWindowsButton = false,
                     shouldShowChangeAspectRatioButton = false,
+                    shouldShowGameControlsButton = false,
                     shouldShowDesktopModeButton = true,
                     shouldShowRestartButton = true,
-                    isBrowserApp = false,
-                    openInAppOrBrowserIntent = null,
+                    appToWebData = null,
                     mockDesktopModeUiEventLogger,
                     captionView = captionView,
                     captionWidth = HANDLE_WIDTH,
                     captionHeight = 50,
                     captionX = captionX,
                     captionY = 0,
+                    decorThemeUtilFactory = decorThemeUtilFactory,
                     surfaceControlViewHostFactory = mockSurfaceControlViewHostFactory,
                 )
             } else {
@@ -396,20 +436,21 @@ class HandleMenuTest : ShellTestCase() {
                     mockTaskResourceLoader,
                     layoutId,
                     splitScreenController,
-                    shouldShowWindowingPill = true,
+                    shouldShowWindowingPill = shouldShowWindowingPill,
                     shouldShowNewWindowButton = true,
                     shouldShowManageWindowsButton = false,
                     shouldShowChangeAspectRatioButton = false,
+                    shouldShowGameControlsButton = false,
                     shouldShowDesktopModeButton = true,
                     shouldShowRestartButton = true,
-                    isBrowserApp = false,
-                    openInAppOrBrowserIntent = null,
+                    appToWebData = null,
                     mockDesktopModeUiEventLogger,
                     captionView = captionView,
                     captionWidth = HANDLE_WIDTH,
                     captionHeight = 50,
                     captionX = captionX,
                     captionY = 0,
+                    decorThemeUtilFactory = decorThemeUtilFactory,
                     surfaceControlViewHostFactory = mockSurfaceControlViewHostFactory,
                 )
             }

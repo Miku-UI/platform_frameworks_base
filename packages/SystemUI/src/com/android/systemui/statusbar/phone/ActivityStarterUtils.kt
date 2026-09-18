@@ -20,16 +20,18 @@ import android.annotation.SuppressLint
 import android.app.ActivityOptions
 import android.os.Bundle
 import android.os.IBinder
+import android.view.RemoteAnimationAdapter
 import android.window.RemoteTransition
 import android.window.SplashScreen
 import com.android.systemui.animation.ActivityTransitionAnimator
 import com.android.systemui.animation.DelegateTransitionAnimatorController
+import com.android.systemui.animation.RemoteAnimationRunnerCompat
 
 /**
  * Returns an [ActivityOptions] bundle created using the given parameters.
  *
- * @param displayId The ID of the display to launch the activity in. Typically this would be the
- *   display the status bar is on.
+ * @param displayId The ID of the display from which we are launching the activity. Typically this
+ *   would be the display the status bar is on.
  * @param transition The animation driver used to start this activity, or null for the default
  *   animation.
  * @param cookie The launch cookie associated with this activity, or null. Only used if [transition]
@@ -38,7 +40,6 @@ import com.android.systemui.animation.DelegateTransitionAnimatorController
 fun createActivityOptions(displayId: Int, transition: RemoteTransition?, cookie: IBinder?): Bundle {
     return createDefaultActivityOptions(transition, cookie)
         .apply {
-            launchDisplayId = displayId
             callerDisplayId = displayId
             isPendingIntentBackgroundActivityLaunchAllowed = true
         }
@@ -48,8 +49,8 @@ fun createActivityOptions(displayId: Int, transition: RemoteTransition?, cookie:
 /**
  * Returns an [ActivityOptions] bundle created using the given parameters.
  *
- * @param displayId The ID of the display to launch the activity in. Typically this would be the
- *   display the status bar is on.
+ * @param displayId The ID of the display from which we are launching the activity. Typically this
+ *   would be the display the status bar is on.
  * @param transition The animation driver used to start this activity, or null for the default
  *   animation.
  * @param cookie The launch cookie associated with this activity, or null. Only used if [transition]
@@ -75,7 +76,6 @@ fun createActivityOptions(
                 },
                 eventTime,
             )
-            launchDisplayId = displayId
             callerDisplayId = displayId
             isPendingIntentBackgroundActivityLaunchAllowed = true
         }
@@ -89,7 +89,87 @@ private fun createDefaultActivityOptions(
 ): ActivityOptions {
     val options =
         if (transition != null) {
-            ActivityOptions.makeRemoteTransition(transition).apply { launchCookie = cookie }
+            ActivityOptions.makeRemoteTransition(transition)
+        } else {
+            ActivityOptions.makeBasic()
+        }
+    options.launchCookie = cookie
+    options.splashScreenStyle = SplashScreen.SPLASH_SCREEN_STYLE_SOLID_COLOR
+    return options
+}
+
+/**
+ * Returns an ActivityOptions bundle created using the given parameters.
+ *
+ * @param displayId The ID of the display from which we are launching the activity. Typically this
+ *   would be the display the status bar is on.
+ * @param animationAdapter The animation adapter used to start this activity, or {@code null} for
+ *   the default animation.
+ */
+@Deprecated(
+    "Launches requiring the creation of ActivityOptions must use the  RemoteTransition API, and " +
+        "the createActivityOptions(Int, RemoteTransition?, IBinder?) overload accordingly."
+)
+fun createActivityOptions(displayId: Int, animationAdapter: RemoteAnimationAdapter?): Bundle {
+    return createDefaultActivityOptions(animationAdapter)
+        .apply {
+            callerDisplayId = displayId
+            isPendingIntentBackgroundActivityLaunchAllowed = true
+        }
+        .toBundle()
+}
+
+/**
+ * Returns an ActivityOptions bundle created using the given parameters.
+ *
+ * @param displayId The ID of the display from which we are launching the activity. Typically this
+ *   would be the display the status bar is on.
+ * @param animationAdapter The animation adapter used to start this activity, or {@code null} for
+ *   the default animation.
+ * @param isKeyguardShowing Whether keyguard is currently showing.
+ * @param eventTime The event time in milliseconds since boot, not including sleep. See {@link
+ *   ActivityOptions#setSourceInfo}.
+ */
+@Deprecated(
+    "Launches requiring the creation of ActivityOptions must use the  RemoteTransition API, and " +
+        "the createActivityOptions(Int, RemoteTransition?, IBinder?, Boolean, Long) overload " +
+        "accordingly."
+)
+fun createActivityOptions(
+    displayId: Int,
+    animationAdapter: RemoteAnimationAdapter?,
+    isKeyguardShowing: Boolean,
+    eventTime: Long,
+): Bundle {
+    return createDefaultActivityOptions(animationAdapter)
+        .apply {
+            setSourceInfo(
+                if (isKeyguardShowing) {
+                    ActivityOptions.SourceInfo.TYPE_LOCKSCREEN
+                } else {
+                    ActivityOptions.SourceInfo.TYPE_NOTIFICATION
+                },
+                eventTime,
+            )
+            callerDisplayId = displayId
+            isPendingIntentBackgroundActivityLaunchAllowed = true
+        }
+        .toBundle()
+}
+
+@SuppressLint("MissingPermission")
+private fun createDefaultActivityOptions(
+    animationAdapter: RemoteAnimationAdapter?
+): ActivityOptions {
+    val options =
+        if (animationAdapter != null) {
+            ActivityOptions.makeRemoteTransition(
+                RemoteTransition(
+                    RemoteAnimationRunnerCompat.wrap(animationAdapter.runner),
+                    animationAdapter.callingApplication,
+                    "SysUILaunch",
+                )
+            )
         } else {
             ActivityOptions.makeBasic()
         }
@@ -100,17 +180,27 @@ private fun createDefaultActivityOptions(
 /**
  * If [controller] is not null and does not already have a transition cookie, this function
  * generates a new unique cookie and returns a new [ActivityTransitionAnimator.Controller] with it
- * based on [controller]. Otherwise it just returns [controller] unchanged.
+ * based on [identity] (if provided), or [controller]. Otherwise it just returns [controller]
+ * unchanged.
+ *
+ * The [identity] object can be used to allow multiple calls from the same source but using
+ * individually instantiated controllers to use equivalent cookies.
  */
+@JvmOverloads
 fun addCookieIfNeeded(
-    controller: ActivityTransitionAnimator.Controller?
+    controller: ActivityTransitionAnimator.Controller?,
+    identity: Any? = null,
 ): ActivityTransitionAnimator.Controller? {
     return if (controller?.transitionCookie != null) {
         controller
     } else if (controller != null) {
         object : DelegateTransitionAnimatorController(controller) {
             override val transitionCookie =
-                ActivityTransitionAnimator.TransitionCookie("$controller")
+                if (identity != null) {
+                    ActivityTransitionAnimator.TransitionCookie("$identity")
+                } else {
+                    ActivityTransitionAnimator.TransitionCookie("$controller")
+                }
         }
     } else {
         null

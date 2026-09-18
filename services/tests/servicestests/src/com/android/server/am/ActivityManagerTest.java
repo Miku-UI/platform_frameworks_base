@@ -400,7 +400,7 @@ public class ActivityManagerTest {
             freezerDebounceTimeout = new DeviceConfigSession<>(
                     DeviceConfig.NAMESPACE_ACTIVITY_MANAGER_NATIVE_BOOT,
                     CachedAppOptimizer.KEY_FREEZER_DEBOUNCE_TIMEOUT,
-                    DeviceConfig::getLong, CachedAppOptimizer.DEFAULT_FREEZER_DEBOUNCE_TIMEOUT);
+                    DeviceConfig::getLong, 10_000L);
             freezerDebounceTimeout.set(waitFor);
 
             final String activityManagerConstants = Settings.Global.ACTIVITY_MANAGER_CONSTANTS;

@@ -76,7 +76,7 @@
             android:padding="@dimen/settingslib_expressive_space_extrasmall4"
             android:layout_gravity="center"
             android:scaleType="centerInside"
-            android:tint="@color/settingslib_materialColorSecondary" />
+            android:tint="@color/settingslib_materialColorOnSecondaryContainer" />
 
     </LinearLayout>
 </LinearLayout>

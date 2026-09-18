@@ -474,15 +474,7 @@ please see styles_device_defaults.xml.
 
     <style name="TextAppearance.Material.Notification.Title">
         <item name="textColor">@color/notification_primary_text_color_current</item>
-        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">sans-serif-medium</item>
         <item name="textSize">@dimen/notification_title_text_size</item>
-    </style>
-
-    <!-- unused as of the 2025 redesign -->
-    <style name="TextAppearance.Material.Notification.BigTitle">
-        <item name="textColor">@color/notification_primary_text_color_current</item>
-        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">sans-serif-medium</item>
-        <item name="textSize">@dimen/notification_big_title_text_size</item>
     </style>
 
     <style name="TextAppearance.Material.Notification.Line2">
@@ -1309,15 +1301,5 @@ please see styles_device_defaults.xml.
     </style>
 
     <style name="DialogWindowTitle.Material.Light" />
-
-    <style name="Notification.Header" parent="">
-        <item name="paddingTop">@dimen/notification_header_padding_top</item>
-        <item name="paddingBottom">@dimen/notification_header_padding_bottom</item>
-        <item name="layout_marginBottom">@dimen/notification_header_margin_bottom</item>
-        <item name="paddingStart">@dimen/notification_content_margin_start</item>
-        <item name="paddingEnd">@dimen/notification_content_margin_end</item>
-        <item name="gravity">top</item>
-    </style>
-
 
 </resources>

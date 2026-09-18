@@ -360,6 +360,15 @@ public class PackageStateMutator {
 
             @NonNull
             @Override
+            public PackageUserStateWrite setAppLockEnabled(boolean enabled) {
+                if (mUserState != null) {
+                    mUserState.setAppLockEnabled(enabled);
+                }
+                return this;
+            }
+
+            @NonNull
+            @Override
             public PackageUserStateWrite putSuspendParams(@NonNull UserPackage suspendingPackage,
                     @Nullable SuspendParams suspendParams) {
                 if (mUserState != null) {
@@ -457,6 +466,26 @@ public class PackageStateMutator {
                     @PackageManager.UserMinAspectRatio int aspectRatio) {
                 if (mUserState != null) {
                     mUserState.setMinAspectRatio(aspectRatio);
+                }
+                return this;
+            }
+
+            @NonNull
+            @Override
+            public PackageUserStateWrite setVirtualGamepadUserOption(
+                    @PackageManager.VirtualGamepadUserOption int userOption) {
+                if (mUserState != null) {
+                    mUserState.setVirtualGamepadUserOption(userOption);
+                }
+                return this;
+            }
+
+            @NonNull
+            @Override
+            public PackageUserStateWrite setPersonalContextMode(
+                    @PackageManager.PersonalContextMode int userOption) {
+                if (mUserState != null) {
+                    mUserState.setPersonalContextMode(userOption);
                 }
                 return this;
             }

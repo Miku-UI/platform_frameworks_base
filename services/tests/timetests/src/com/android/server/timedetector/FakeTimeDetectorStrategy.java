@@ -29,8 +29,8 @@ import android.util.IndentingPrintWriter;
 import com.android.server.timezonedetector.StateChangeListener;
 
 /**
- * A fake implementation of {@link com.android.server.timedetector.TimeDetectorStrategy} for use
- * in tests.
+ * A fake implementation of {@link com.android.server.timedetector.TimeDetectorStrategy} for use in
+ * tests.
  */
 public class FakeTimeDetectorStrategy implements TimeDetectorStrategy {
     private final FakeServiceConfigAccessor mFakeServiceConfigAccessor;
@@ -68,37 +68,36 @@ public class FakeTimeDetectorStrategy implements TimeDetectorStrategy {
     }
 
     @Override
-    public TimeCapabilitiesAndConfig getCapabilitiesAndConfig(int userId,
-            boolean bypassUserPolicyChecks) {
+    public TimeCapabilitiesAndConfig getCapabilitiesAndConfig(
+            int userId, boolean bypassUserPolicyChecks) {
         ConfigurationInternal configurationInternal =
                 mFakeServiceConfigAccessor.getConfigurationInternal(userId);
         return configurationInternal.createCapabilitiesAndConfig(bypassUserPolicyChecks);
     }
 
     @Override
-    public boolean updateConfiguration(int userId, TimeConfiguration configuration,
-            boolean bypassUserPolicyChecks) {
+    public boolean updateConfiguration(
+            int userId, TimeConfiguration configuration, boolean bypassUserPolicyChecks) {
         return mFakeServiceConfigAccessor.updateConfiguration(
                 userId, configuration, bypassUserPolicyChecks);
     }
 
     @Override
-    public void suggestTelephonyTime(TelephonyTimeSuggestion suggestion) {
-    }
+    public void suggestTelephonyTime(TelephonyTimeSuggestion suggestion) {}
 
     @Override
-    public boolean suggestManualTime(@UserIdInt int userId, ManualTimeSuggestion suggestion,
+    public boolean suggestManualTime(
+            @UserIdInt int userId,
+            ManualTimeSuggestion suggestion,
             boolean bypassUserPolicyChecks) {
         return true;
     }
 
     @Override
-    public void suggestNetworkTime(NetworkTimeSuggestion suggestion) {
-    }
+    public void suggestNetworkTime(NetworkTimeSuggestion suggestion) {}
 
     @Override
-    public void addNetworkTimeUpdateListener(StateChangeListener networkSuggestionUpdateListener) {
-    }
+    public void addNetworkTimeUpdateListener(StateChangeListener networkSuggestionUpdateListener) {}
 
     @Override
     public NetworkTimeSuggestion getLatestNetworkSuggestion() {
@@ -106,20 +105,16 @@ public class FakeTimeDetectorStrategy implements TimeDetectorStrategy {
     }
 
     @Override
-    public void clearLatestNetworkSuggestion() {
-    }
+    public void clearLatestNetworkSuggestion() {}
 
     @Override
-    public void suggestGnssTime(GnssTimeSuggestion suggestion) {
-    }
+    public void suggestGnssTime(GnssTimeSuggestion suggestion) {}
 
     @Override
-    public void suggestExternalTime(ExternalTimeSuggestion suggestion) {
-    }
+    public void suggestExternalTime(ExternalTimeSuggestion suggestion) {}
 
     @Override
-    public void dump(IndentingPrintWriter pw, String[] args) {
-    }
+    public void dump(IndentingPrintWriter pw, String[] args) {}
 
     void setLatestNetworkTime(NetworkTimeSuggestion networkTimeSuggestion) {
         mLatestNetworkTimeSuggestion = networkTimeSuggestion;

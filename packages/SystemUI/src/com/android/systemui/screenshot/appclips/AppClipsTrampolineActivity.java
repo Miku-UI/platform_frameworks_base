@@ -76,8 +76,6 @@ import javax.inject.Inject;
  * {@link Intent#FLAG_ACTIVITY_NEW_TASK}. So, this activity acts as a trampoline activity to
  * abstract the complexity of communication with the screenshot editing activity for a simpler
  * developer experience.
- *
- * TODO(b/267309532): Polish UI and animations.
  */
 public class AppClipsTrampolineActivity extends Activity {
 

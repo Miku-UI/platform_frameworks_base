@@ -30,7 +30,7 @@ import static android.content.pm.ActivityInfo.LOCK_TASK_LAUNCH_MODE_IF_ALLOWLIST
 import static android.content.pm.ActivityInfo.LOCK_TASK_LAUNCH_MODE_NEVER;
 import static android.os.UserHandle.USER_ALL;
 import static android.os.UserHandle.USER_CURRENT;
-import static android.telecom.TelecomManager.EMERGENCY_DIALER_COMPONENT;
+import static android.telephony.TelephonyManager.EMERGENCY_DIALER_COMPONENT;
 
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_LOCKTASK;
 import static com.android.server.wm.ActivityTaskManagerDebugConfig.POSTFIX_LOCKTASK;
@@ -259,6 +259,7 @@ public class LockTaskController {
      */
     boolean activityBlockedFromFinish(ActivityRecord activity) {
         final Task task = activity.getTask();
+        // Launchable priv-apps can finish.
         if (task.mLockTaskAuth == LOCK_TASK_AUTH_LAUNCHABLE_PRIV || !isRootTask(task)) {
             return false;
         }
@@ -686,6 +687,41 @@ public class LockTaskController {
         ProtoLog.w(WM_DEBUG_LOCKTASK, "%s", isSystemCaller ? "Locking pinned" : "Locking fully");
         setLockTaskMode(task, isSystemCaller ? LOCK_TASK_MODE_PINNED : LOCK_TASK_MODE_LOCKED,
                 "startLockTask", true);
+    }
+
+    /**
+     * Method to rebuild Lock Task Pinned Mode. This uses the existing locked tasks.
+     */
+    void rebuildSystemLockTaskPinnedMode() {
+        int lockTaskModeState = mLockTaskModeState;
+        if (lockTaskModeState != LOCK_TASK_MODE_PINNED) {
+            Slog.e(TAG_LOCKTASK,
+                    "rebuildSystemLockTaskPinnedMode: Attempt to rebuild pinned mode but not in "
+                            + "pinned mode.");
+            return;
+        }
+        if (mLockTaskModeTasks.isEmpty()) {
+            Slog.i(TAG_LOCKTASK,
+                    "rebuildSystemLockTaskPinnedMode: mLockTaskModeTasks empty, nothing to "
+                            + "rebuild.");
+            return;
+        }
+        Task task = mLockTaskModeTasks.getFirst();
+        mSupervisor.mRecentTasks.onLockTaskModeStateChanged(LOCK_TASK_MODE_PINNED, task.mUserId);
+        // rebuild pinned mode on the handler thread
+        mHandler.post(() -> {
+            try {
+                final IStatusBarService statusBarService = getStatusBarService();
+                if (statusBarService != null) {
+                    statusBarService.showPinningEnterExitToast(true /* entering */);
+                }
+                mTaskChangeNotificationController.notifyLockTaskModeChanged(lockTaskModeState);
+                setStatusBarState(lockTaskModeState, task.mUserId);
+                setKeyguardState(lockTaskModeState, task.mUserId);
+            } catch (RemoteException ex) {
+                throw new RuntimeException(ex);
+            }
+        });
     }
 
     /**

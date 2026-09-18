@@ -51,7 +51,7 @@ public class MediaSyncEvent implements Parcelable {
     /**
      * @hide
      * Used when sharing audio history between AudioRecord instances.
-     * See {@link AudioRecord.Builder#setSharedAudioEvent(MediaSyncEvent).
+     * See {@link AudioRecord.Builder#setSharedAudioEvent(MediaSyncEvent)}.
      */
     @SystemApi
     public static final int SYNC_EVENT_SHARE_AUDIO_HISTORY =

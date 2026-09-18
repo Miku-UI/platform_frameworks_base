@@ -17,11 +17,14 @@
 package com.android.systemui.shade.domain.interactor
 
 import android.graphics.Rect
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.ObservableTransitionState.Idle
 import com.android.compose.animation.scene.ObservableTransitionState.Transition
 import com.android.compose.animation.scene.OverlayKey
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
@@ -36,6 +39,7 @@ import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.data.repository.shadeRepository
 import com.android.systemui.shade.shared.model.ShadeMode
+import com.android.systemui.statusbar.quickactions.popups.StatusBarPopupChips
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,10 +54,10 @@ import org.junit.runner.RunWith
 class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
 
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
-    private val underTest by lazy { kosmos.shadeInteractorSceneContainerImpl }
-    private val shadeRepository by lazy { kosmos.shadeRepository }
+    private val Kosmos.underTest by Kosmos.Fixture { shadeInteractorSceneContainerImpl }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun qsExpansionWhenInSplitShadeAndQsExpanded() =
         kosmos.runTest {
             val actual by collectLastValue(underTest.qsExpansion)
@@ -79,7 +83,8 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
-    fun qsExpansionWhenNotInSplitShadeAndQsExpanded() =
+    @DisableFlags(FLAG_DUAL_SHADE)
+    fun qsExpansionWhenInSingleShadeAndQsExpanded() =
         kosmos.runTest {
             val actual by collectLastValue(underTest.qsExpansion)
 
@@ -129,6 +134,7 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun qsFullscreen_dualShade_falseWhenTransitioning() =
         kosmos.runTest {
             enableDualShade(wideLayout = false)
@@ -171,6 +177,7 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun qsFullscreen_splitShade_falseWhenIdleQs() =
         kosmos.runTest {
             val actual by collectLastValue(underTest.isQsFullscreen)
@@ -199,6 +206,7 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun qsFullscreen_dualShade_trueWhenIdleQs() =
         kosmos.runTest {
             enableDualShade(wideLayout = false)
@@ -220,6 +228,7 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun qsFullscreen_dualShadeWide_trueWhenIdleQs() =
         kosmos.runTest {
             enableDualShade(wideLayout = true)
@@ -254,6 +263,7 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun toggleNotificationsShade_splitShade_throwsException() =
         kosmos.runTest {
             // GIVEN split shade is enabled
@@ -280,6 +290,7 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun toggleQuickSettingsShade_splitShade_throwsException() =
         kosmos.runTest {
             // GIVEN split shade is enabled
@@ -401,6 +412,46 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
 
             // THEN expansion is 0
             assertThat(expansionAmount).isEqualTo(0f)
+        }
+
+    @Test
+    fun lockscreenShadeExpansion_idleOnScene_openBounceOverlay() =
+        kosmos.runTest {
+            enableSingleShade()
+            // GIVEN an expansion flow based on overlay transitions while on shade
+            val key = Scenes.Shade
+            val expansion = underTest.sceneBasedExpansion(sceneInteractor, key)
+            val expansionAmount by collectLastValue(expansion)
+
+            // WHEN transition state is starting show overlay
+            val progress = MutableStateFlow(0f)
+            sceneInteractor.setTransitionState(
+                flowOf(
+                    Transition.showOverlay(
+                        fromScene = key,
+                        overlay = Overlays.Bouncer,
+                        progress = progress,
+                        isInitiatedByUserInput = false,
+                        isUserInputOngoing = flowOf(false),
+                        currentOverlays = flowOf(emptySet()),
+                    )
+                )
+            )
+
+            // THEN expansion is always 1
+            assertThat(expansionAmount).isEqualTo(1f)
+
+            // WHEN transition state is partially to the scene
+            progress.value = .4f
+
+            // THEN expansion is always 1
+            assertThat(expansionAmount).isEqualTo(1f)
+
+            // WHEN transition completes
+            progress.value = 1f
+
+            // THEN expansion is always 1
+            assertThat(expansionAmount).isEqualTo(1f)
         }
 
     fun isQsBypassingShade_goneToQs() =
@@ -691,6 +742,7 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun expandNotificationsShade_dualShade_opensOverlay() =
         kosmos.runTest {
             enableDualShade()
@@ -725,6 +777,7 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun expandNotificationsShade_dualShadeQuickSettingsOpen_replacesOverlay() =
         kosmos.runTest {
             enableDualShade()
@@ -743,6 +796,27 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE, StatusBarPopupChips.FLAG_NAME)
+    fun expandNotificationsShade_dualShadeQuickActionsOpen_replacesOverlay() =
+        kosmos.runTest {
+            enableDualShade()
+            val shadeMode by collectLastValue(shadeMode)
+            val currentScene by collectLastValue(sceneInteractor.currentScene)
+            assertThat(shadeMode).isEqualTo(ShadeMode.Dual)
+
+            showOverlay(Overlays.QuickActions)
+            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
+            assertThat(sceneInteractor.transitionState.currentOverlays)
+                .containsExactly(Overlays.QuickActions)
+
+            underTest.expandNotificationsShade("reason")
+            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
+            assertThat(sceneInteractor.transitionState.currentOverlays)
+                .containsExactly(Overlays.NotificationsShade)
+        }
+
+    @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun expandQuickSettingsShade_dualShade_opensOverlay() =
         kosmos.runTest {
             enableDualShade()
@@ -777,6 +851,7 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun expandQuickSettingsShade_splitShade_switchesToShadeScene() =
         kosmos.runTest {
             enableSplitShade()
@@ -794,6 +869,7 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun expandQuickSettingsShade_dualShadeNotificationsOpen_replacesOverlay() =
         kosmos.runTest {
             enableDualShade()
@@ -812,17 +888,37 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE, StatusBarPopupChips.FLAG_NAME)
+    fun expandQuickSettingsShade_dualShadeQuickActionsOpen_replacesOverlay() =
+        kosmos.runTest {
+            enableDualShade()
+            val shadeMode by collectLastValue(shadeMode)
+            val currentScene by collectLastValue(sceneInteractor.currentScene)
+            assertThat(shadeMode).isEqualTo(ShadeMode.Dual)
+
+            showOverlay(Overlays.QuickActions)
+            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
+            assertThat(sceneInteractor.transitionState.currentOverlays)
+                .containsExactly(Overlays.QuickActions)
+
+            underTest.expandQuickSettingsShade("reason")
+            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
+            assertThat(sceneInteractor.transitionState.currentOverlays)
+                .containsExactly(Overlays.QuickSettingsShade)
+        }
+
+    @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun collapseNotificationsShade_dualShade_hidesOverlay() =
         kosmos.runTest {
             enableDualShade()
             val currentScene by collectLastValue(sceneInteractor.currentScene)
-            val currentOverlays by collectLastValue(sceneInteractor.currentOverlays)
-            openShade(Overlays.NotificationsShade)
+            showOverlay(Overlays.NotificationsShade)
 
             underTest.collapseNotificationsShade("reason")
 
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
-            assertThat(currentOverlays).isEmpty()
+            assertThat(sceneInteractor.transitionState.currentOverlays).isEmpty()
         }
 
     @Test
@@ -831,30 +927,48 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
             enableSingleShade()
             val shadeMode by collectLastValue(shadeMode)
             val currentScene by collectLastValue(sceneInteractor.currentScene)
-            val currentOverlays by collectLastValue(sceneInteractor.currentOverlays)
             assertThat(shadeMode).isEqualTo(ShadeMode.Single)
 
             sceneInteractor.changeScene(Scenes.Shade, "reason")
             assertThat(currentScene).isEqualTo(Scenes.Shade)
-            assertThat(currentOverlays).isEmpty()
+            assertThat(sceneInteractor.transitionState.currentOverlays).isEmpty()
 
             underTest.collapseNotificationsShade("reason")
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
-            assertThat(currentOverlays).isEmpty()
+            assertThat(sceneInteractor.transitionState.currentOverlays).isEmpty()
         }
 
     @Test
+    fun collapseNotificationsShade_singleShade_shadeNotOpen_doesNotSwitchScene() =
+        kosmos.runTest {
+            enableSingleShade()
+            val shadeMode by collectLastValue(shadeMode)
+            val currentScene by collectLastValue(sceneInteractor.currentScene)
+            assertThat(shadeMode).isEqualTo(ShadeMode.Single)
+
+            // Change scene to Communal. Shade not open.
+            sceneInteractor.changeScene(Scenes.Communal, "reason")
+            assertThat(currentScene).isEqualTo(Scenes.Communal)
+            assertThat(sceneInteractor.transitionState.currentOverlays).isEmpty()
+
+            // Verify scene does not change.
+            underTest.collapseNotificationsShade("reason")
+            assertThat(currentScene).isEqualTo(Scenes.Communal)
+            assertThat(sceneInteractor.transitionState.currentOverlays).isEmpty()
+        }
+
+    @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun collapseQuickSettingsShade_dualShade_hidesOverlay() =
         kosmos.runTest {
             enableDualShade()
             val currentScene by collectLastValue(sceneInteractor.currentScene)
-            val currentOverlays by collectLastValue(sceneInteractor.currentOverlays)
-            openShade(Overlays.QuickSettingsShade)
+            showOverlay(Overlays.QuickSettingsShade)
 
             underTest.collapseQuickSettingsShade("reason")
 
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
-            assertThat(currentOverlays).isEmpty()
+            assertThat(sceneInteractor.transitionState.currentOverlays).isEmpty()
         }
 
     @Test
@@ -863,12 +977,11 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
             enableSingleShade()
             val shadeMode by collectLastValue(shadeMode)
             val currentScene by collectLastValue(sceneInteractor.currentScene)
-            val currentOverlays by collectLastValue(sceneInteractor.currentOverlays)
             assertThat(shadeMode).isEqualTo(ShadeMode.Single)
 
             sceneInteractor.changeScene(Scenes.QuickSettings, "reason")
             assertThat(currentScene).isEqualTo(Scenes.QuickSettings)
-            assertThat(currentOverlays).isEmpty()
+            assertThat(sceneInteractor.transitionState.currentOverlays).isEmpty()
 
             underTest.collapseQuickSettingsShade(
                 loggingReason = "reason",
@@ -876,7 +989,7 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
             )
 
             assertThat(currentScene).isEqualTo(Scenes.Shade)
-            assertThat(currentOverlays).isEmpty()
+            assertThat(sceneInteractor.transitionState.currentOverlays).isEmpty()
         }
 
     @Test
@@ -902,23 +1015,47 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    fun collapseQuickSettingsShadeBypassingShade_quickSettingsNotOpen_doesNotSwitchScene() =
+        kosmos.runTest {
+            enableSingleShade()
+            val shadeMode by collectLastValue(shadeMode)
+            val currentScene by collectLastValue(sceneInteractor.currentScene)
+            val currentOverlays by collectLastValue(sceneInteractor.currentOverlays)
+            assertThat(shadeMode).isEqualTo(ShadeMode.Single)
+
+            // Change scene to Communal. Quick Settings not open.
+            sceneInteractor.changeScene(Scenes.Communal, "reason")
+            assertThat(currentScene).isEqualTo(Scenes.Communal)
+            assertThat(currentOverlays).isEmpty()
+
+            // Verify scene does not change.
+            underTest.collapseQuickSettingsShade(
+                loggingReason = "reason",
+                bypassNotificationsShade = true,
+            )
+            assertThat(currentScene).isEqualTo(Scenes.Communal)
+            assertThat(currentOverlays).isEmpty()
+        }
+
+    @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun collapseEitherShade_dualShade_hidesBothOverlays() =
         kosmos.runTest {
             enableDualShade()
             val currentScene by collectLastValue(sceneInteractor.currentScene)
-            val currentOverlays by collectLastValue(sceneInteractor.currentOverlays)
-            openShade(Overlays.QuickSettingsShade)
-            openShade(Overlays.NotificationsShade)
-            assertThat(currentOverlays)
+            showOverlay(Overlays.QuickSettingsShade)
+            showOverlay(Overlays.NotificationsShade)
+            assertThat(sceneInteractor.transitionState.currentOverlays)
                 .containsExactly(Overlays.QuickSettingsShade, Overlays.NotificationsShade)
 
             underTest.collapseEitherShade("reason")
 
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
-            assertThat(currentOverlays).isEmpty()
+            assertThat(sceneInteractor.transitionState.currentOverlays).isEmpty()
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun toggleNotificationsShade_dualShade_showsNotificationsOverlay() =
         kosmos.runTest {
             // GIVEN dual shade is enabled and no overlays are open
@@ -934,36 +1071,54 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun toggleNotificationsShade_dualShadeWithNotificationsOpen_hidesOverlay() =
         kosmos.runTest {
             // GIVEN dual shade is enabled and the notifications overlay is open
             enableDualShade()
-            val currentOverlays by collectLastValue(sceneInteractor.currentOverlays)
-            openShade(Overlays.NotificationsShade)
+            showOverlay(Overlays.NotificationsShade)
 
             // WHEN the notifications shade is toggled
             underTest.toggleNotificationsShade("reason")
 
             // THEN all overlays are hidden
-            assertThat(currentOverlays).isEmpty()
+            assertThat(sceneInteractor.transitionState.currentOverlays).isEmpty()
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun toggleNotificationsShade_dualShadeWithQsOpen_replacesWithNotificationsOverlay() =
         kosmos.runTest {
             // GIVEN dual shade is enabled and the QS overlay is open
             enableDualShade()
-            val currentOverlays by collectLastValue(sceneInteractor.currentOverlays)
-            openShade(Overlays.QuickSettingsShade)
+            showOverlay(Overlays.QuickSettingsShade)
 
             // WHEN the notifications shade is toggled
             underTest.toggleNotificationsShade("reason")
 
             // THEN the QS overlay is replaced by the notifications overlay
-            assertThat(currentOverlays).containsExactly(Overlays.NotificationsShade)
+            assertThat(sceneInteractor.transitionState.currentOverlays)
+                .containsExactly(Overlays.NotificationsShade)
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE, StatusBarPopupChips.FLAG_NAME)
+    fun toggleNotificationsShade_dualShadeWithQuickActionsOpen_replacesWithNotificationsOverlay() =
+        kosmos.runTest {
+            // GIVEN dual shade is enabled and the Quick Actions overlay is open
+            enableDualShade()
+            showOverlay(Overlays.QuickActions)
+
+            // WHEN the notifications shade is toggled
+            underTest.toggleNotificationsShade("reason")
+
+            // THEN the Quick Actions overlay is replaced by the notifications overlay
+            assertThat(sceneInteractor.transitionState.currentOverlays)
+                .containsExactly(Overlays.NotificationsShade)
+        }
+
+    @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun toggleQuickSettingsShade_dualShade_showsQsOverlay() =
         kosmos.runTest {
             // GIVEN dual shade is enabled and no overlays are open
@@ -979,33 +1134,50 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun toggleQuickSettingsShade_dualShadeWithQsOpen_hidesOverlay() =
         kosmos.runTest {
             // GIVEN dual shade is enabled and the QS overlay is open
             enableDualShade()
-            val currentOverlays by collectLastValue(sceneInteractor.currentOverlays)
-            openShade(Overlays.QuickSettingsShade)
+            showOverlay(Overlays.QuickSettingsShade)
 
             // WHEN the QS shade is toggled
             underTest.toggleQuickSettingsShade("reason")
 
             // THEN all overlays are hidden
-            assertThat(currentOverlays).isEmpty()
+            assertThat(sceneInteractor.transitionState.currentOverlays).isEmpty()
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun toggleQuickSettingsShade_dualShadeWithNotificationsOpen_replacesWithQsOverlay() =
         kosmos.runTest {
             // GIVEN dual shade is enabled and the notifications overlay is open
             enableDualShade()
-            val currentOverlays by collectLastValue(sceneInteractor.currentOverlays)
-            openShade(Overlays.NotificationsShade)
+            showOverlay(Overlays.NotificationsShade)
 
             // WHEN the QS shade is toggled
             underTest.toggleQuickSettingsShade("reason")
 
             // THEN the notifications overlay is replaced by the QS overlay
-            assertThat(currentOverlays).containsExactly(Overlays.QuickSettingsShade)
+            assertThat(sceneInteractor.transitionState.currentOverlays)
+                .containsExactly(Overlays.QuickSettingsShade)
+        }
+
+    @Test
+    @EnableFlags(FLAG_DUAL_SHADE, StatusBarPopupChips.FLAG_NAME)
+    fun toggleQuickSettingsShade_dualShadeWithQuickActionsOpen_replacesWithQsOverlay() =
+        kosmos.runTest {
+            // GIVEN dual shade is enabled and the Quick Actions overlay is open
+            enableDualShade()
+            showOverlay(Overlays.QuickActions)
+
+            // WHEN the QS shade is toggled
+            underTest.toggleQuickSettingsShade("reason")
+
+            // THEN the Quick Actions overlay is replaced by the QS overlay
+            assertThat(sceneInteractor.transitionState.currentOverlays)
+                .containsExactly(Overlays.QuickSettingsShade)
         }
 
     @Test
@@ -1021,18 +1193,18 @@ class ShadeInteractorSceneContainerImplTest : SysuiTestCase() {
             assertThat(shadeBounds).isEqualTo(bounds)
         }
 
-    private fun Kosmos.openShade(overlay: OverlayKey) {
+    private fun Kosmos.showOverlay(overlay: OverlayKey) {
         val shadeMode by collectLastValue(shadeMode)
-        val isAnyExpanded by collectLastValue(underTest.isAnyExpanded)
         val currentScene by collectLastValue(sceneInteractor.currentScene)
-        val currentOverlays by collectLastValue(sceneInteractor.currentOverlays)
         val initialScene = checkNotNull(currentScene)
         assertThat(shadeMode).isEqualTo(ShadeMode.Dual)
 
         sceneInteractor.showOverlay(overlay, "reason")
-        setSceneTransition(Idle(initialScene, checkNotNull(currentOverlays)))
+        setSceneTransition(
+            Idle(initialScene, checkNotNull(sceneInteractor.transitionState.currentOverlays)),
+            skipChangeScene = true,
+        )
         assertThat(currentScene).isEqualTo(initialScene)
-        assertThat(currentOverlays).contains(overlay)
-        assertThat(isAnyExpanded).isTrue()
+        assertThat(sceneInteractor.transitionState.currentOverlays).contains(overlay)
     }
 }

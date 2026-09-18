@@ -458,7 +458,10 @@ public class FullscreenMagnificationController implements ComponentCallbacks {
         }
     }
 
-    private boolean isActivated() {
+    /**
+     * Returns {@code true} if fullscreen magnification is activated, {@code false} otherwise.
+     */
+    public boolean isActivated() {
         return mFullscreenBorder != null;
     }
 

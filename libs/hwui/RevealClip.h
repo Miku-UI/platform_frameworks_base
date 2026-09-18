@@ -33,9 +33,10 @@ public:
         mY = y;
         mRadius = radius;
 
-        mPath.rewind();
         if (mShouldClip) {
-            mPath.addCircle(x, y, radius);
+            mPath = SkPath::Circle(x, y, radius);
+        } else {
+            mPath.reset();
         }
     }
 

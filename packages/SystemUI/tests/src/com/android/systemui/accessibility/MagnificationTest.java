@@ -38,10 +38,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.Instrumentation;
 import android.content.Context;
 import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
 import android.hardware.input.InputManager;
+import android.os.IBinder;
 import android.os.RemoteException;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
@@ -51,9 +53,12 @@ import android.view.IWindowManager;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.IMagnificationConnection;
 import android.view.accessibility.IMagnificationConnectionCallback;
+import android.view.accessibility.IRemoteMagnificationAnimationCallback;
 
+import androidx.annotation.NonNull;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.systemui.Flags;
 import com.android.systemui.LauncherProxyService;
@@ -69,12 +74,18 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 @TestableLooper.RunWithLooper
 public class MagnificationTest extends SysuiTestCase {
+    static final float SCALE = 1.0f;
+    static final float CENTER_X = 0.0f;
+    static final float CENTER_Y = 0.0f;
+    static final float OFFSET_X = 0.0f;
+    static final float OFFSET_Y = 0.0f;
 
     private static final int TEST_DISPLAY = Display.DEFAULT_DISPLAY;
     @Mock
@@ -91,6 +102,7 @@ public class MagnificationTest extends SysuiTestCase {
     private LauncherProxyService mLauncherProxyService;
     @Mock
     private SecureSettings mSecureSettings;
+    private Instrumentation mInstrumentation;
 
     private Display mDisplay;
     private CommandQueue mCommandQueue;
@@ -98,10 +110,12 @@ public class MagnificationTest extends SysuiTestCase {
     private LauncherProxyListener mLauncherProxyListener;
     private FakeDisplayTracker mDisplayTracker = new FakeDisplayTracker(mContext);
 
-    private FakeSettingsSupplier mSettingsSupplier;
+    private FakeSupplier<MagnificationSettingsController> mSettingsSupplier;
 
     @Mock
     private WindowMagnificationController mWindowMagnificationController;
+    @Mock
+    private FullscreenMagnificationController mFullscreenMagnificationController;
     @Mock
     private MagnificationSettingsController mMagnificationSettingsController;
     @Mock
@@ -112,6 +126,22 @@ public class MagnificationTest extends SysuiTestCase {
     private WindowManagerProvider mWindowManagerProvider;
     @Mock
     private InputManager mInputManager;
+
+    private Magnification.MagnificationActivationChangedListener mEnabledListener =
+            Mockito.mock(Magnification.MagnificationActivationChangedListener.class);
+
+    private IRemoteMagnificationAnimationCallback mAnimationCallback =
+            new IRemoteMagnificationAnimationCallback() {
+                @Override
+                public IBinder asBinder() {
+                    return null;
+                }
+
+                @Override
+                public void onResult(boolean success) {
+
+                }
+            };
 
     @Before
     public void setUp() throws Exception {
@@ -151,12 +181,16 @@ public class MagnificationTest extends SysuiTestCase {
                 mDisplayManager, mA11yLogger, mIWindowManager,
                 getContext().getSystemService(AccessibilityManager.class), mWindowManagerProvider,
                 mInputManager);
-        mMagnification.mWindowMagnificationControllerSupplier = new FakeControllerSupplier(
+        mMagnification.mWindowMagnificationControllerSupplier = new FakeSupplier<>(
                 mDisplayManager, mWindowMagnificationController);
-        mSettingsSupplier = new FakeSettingsSupplier(
+        mMagnification.mFullscreenMagnificationControllerSupplier = new FakeSupplier<>(
+                mDisplayManager, mFullscreenMagnificationController);
+        mSettingsSupplier = new FakeSupplier<>(
                 mDisplayManager, mMagnificationSettingsController);
         mMagnification.mMagnificationSettingsSupplier = mSettingsSupplier;
+
         mMagnification.start();
+        mInstrumentation = InstrumentationRegistry.getInstrumentation();
 
         final ArgumentCaptor<LauncherProxyListener> listenerArgumentCaptor =
                 ArgumentCaptor.forClass(LauncherProxyListener.class);
@@ -255,10 +289,6 @@ public class MagnificationTest extends SysuiTestCase {
         waitForIdleSync();
 
         verify(mWindowMagnificationController).changeMagnificationSize(eq(index));
-        verify(mA11yLogger).logWithPosition(
-                eq(MagnificationSettingsEvent.MAGNIFICATION_SETTINGS_WINDOW_SIZE_SELECTED),
-                eq(index)
-        );
     }
 
     @Test
@@ -401,7 +431,7 @@ public class MagnificationTest extends SysuiTestCase {
     @Test
     public void overviewProxyIsConnected_controllerIsAvailable_updateSysUiStateFlag() {
         final WindowMagnificationController mController = mock(WindowMagnificationController.class);
-        mMagnification.mWindowMagnificationControllerSupplier = new FakeControllerSupplier(
+        mMagnification.mWindowMagnificationControllerSupplier = new FakeSupplier<>(
                 mDisplayManager, mController);
         mMagnification.mWindowMagnificationControllerSupplier.get(TEST_DISPLAY);
 
@@ -411,25 +441,7 @@ public class MagnificationTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_CLEANUP_INSTANCES_WHEN_DISPLAY_REMOVED)
-    public void onDisplayRemoved_flagOff_instancesStayInSupplier() {
-        int originalCachedItemsSize = mSettingsSupplier.getSize();
-        int testDisplayId2 = 200;
-        int testDisplayId3 = 300;
-
-        // Make the settings supplier add 2 new instance entries.
-        mMagnification.hideMagnificationSettingsPanel(testDisplayId2);
-        mMagnification.hideMagnificationSettingsPanel(testDisplayId3);
-        // When displays removed, the current behavior keeps the entries/instances in the supplier.
-        mDisplayTracker.triggerOnDisplayRemoved(testDisplayId2);
-        mDisplayTracker.triggerOnDisplayRemoved(testDisplayId3);
-
-        assertThat(mSettingsSupplier.getSize()).isEqualTo(originalCachedItemsSize + 2);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_CLEANUP_INSTANCES_WHEN_DISPLAY_REMOVED)
-    public void onDisplayRemoved_flagOn_instancesAreRemovedFromSupplier() {
+    public void onDisplayRemoved_instancesAreRemovedFromSupplier() {
         int originalCachedItemsSize = mSettingsSupplier.getSize();
         int testDisplayId2 = 200;
         int testDisplayId3 = 300;
@@ -444,37 +456,66 @@ public class MagnificationTest extends SysuiTestCase {
         assertThat(mSettingsSupplier.getSize()).isEqualTo(originalCachedItemsSize);
     }
 
-    private static class FakeControllerSupplier extends
-            DisplayIdIndexSupplier<WindowMagnificationController> {
+    @Test
+    @EnableFlags(Flags.FLAG_FLOATING_MENU_MAGNIFICATION_STATUS)
+    public void onFullscreenMagnification_notifiesListener() {
+        mInstrumentation.runOnMainSync(() -> {
+            mMagnification.registerActivationChangedListener(mEnabledListener);
+            mMagnification.onFullscreenMagnificationActivationChanged(mContext.getDisplayId(),
+                    true);
+        });
 
-        private final WindowMagnificationController mController;
-
-        FakeControllerSupplier(DisplayManager displayManager,
-                WindowMagnificationController controller) {
-            super(displayManager);
-            mController = controller;
-        }
-
-        @Override
-        protected WindowMagnificationController createInstance(Display display) {
-            return mController;
-        }
+        verify(mEnabledListener).onActivationChanged(mContext.getDisplayId());
     }
 
-    private static class FakeSettingsSupplier extends
-            DisplayIdIndexSupplier<MagnificationSettingsController> {
+    @Test
+    @DisableFlags(Flags.FLAG_FLOATING_MENU_MAGNIFICATION_STATUS)
+    public void onFullscreenMagnification_flagOff_doesNotNotifyListener() {
+        mInstrumentation.runOnMainSync(() -> {
+            mMagnification.registerActivationChangedListener(mEnabledListener);
+            mMagnification.onFullscreenMagnificationActivationChanged(mContext.getDisplayId(),
+                    true);
+        });
 
-        private final MagnificationSettingsController mController;
+        verify(mEnabledListener, never()).onActivationChanged(mContext.getDisplayId());
+    }
 
-        FakeSettingsSupplier(DisplayManager displayManager,
-                MagnificationSettingsController controller) {
+    @Test
+    @EnableFlags(Flags.FLAG_FLOATING_MENU_MAGNIFICATION_STATUS)
+    public void onWindowMagnification_notifiesListener() {
+        mInstrumentation.runOnMainSync(() -> {
+            mMagnification.registerActivationChangedListener(mEnabledListener);
+            mMagnification.enableWindowMagnification(mContext.getDisplayId(),
+                    SCALE, CENTER_X, CENTER_Y, OFFSET_X, OFFSET_Y, mAnimationCallback);
+        });
+
+        verify(mEnabledListener).onActivationChanged(mContext.getDisplayId());
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_FLOATING_MENU_MAGNIFICATION_STATUS)
+    public void onWindowMagnification_flagOff_doesNotnotifyListener() {
+        mInstrumentation.runOnMainSync(() -> {
+            mMagnification.registerActivationChangedListener(mEnabledListener);
+            mMagnification.enableWindowMagnification(mContext.getDisplayId(),
+                    SCALE, CENTER_X, CENTER_Y, OFFSET_X, OFFSET_Y, mAnimationCallback);
+        });
+
+        verify(mEnabledListener, never()).onActivationChanged(mContext.getDisplayId());
+    }
+
+    private static class FakeSupplier<T> extends DisplayIdIndexSupplier<T> {
+        private final T mObject;
+
+        FakeSupplier(DisplayManager displayManager, T object) {
             super(displayManager);
-            mController = controller;
+            mObject = object;
         }
 
+        @NonNull
         @Override
-        protected MagnificationSettingsController createInstance(Display display) {
-            return mController;
+        protected T createInstance(Display display) {
+            return mObject;
         }
     }
 }

@@ -35,6 +35,7 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
+import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.os.UserHandle;
 import android.platform.test.annotations.EnableFlags;
@@ -92,7 +93,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
     public void notify_rapidUpdate_isThrottled() throws Exception {
         Notification n = exampleNotification();
 
@@ -108,7 +108,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
     public void notify_reasonableUpdate_isNotThrottled() throws Exception {
         Notification n = exampleNotification();
 
@@ -122,7 +121,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
     public void notify_rapidAdd_isNotThrottled() throws Exception {
         Notification n = exampleNotification();
 
@@ -136,7 +134,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
     public void notifyAsPackage_rapidUpdate_isThrottled() throws Exception {
         Notification n = exampleNotification();
 
@@ -152,8 +149,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY,
-            Flags.FLAG_NOTIFICATION_UPDATE_SHEDDING_ALLOW_PROGRESS_COMPLETION})
     public void notifyAsPackage_advanceProgress_isThrottled() throws Exception {
         for (int i = 0; i < 100; i++) {
             Notification advance = new Notification.Builder(mContext, "channel")
@@ -171,8 +166,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY,
-            Flags.FLAG_NOTIFICATION_UPDATE_SHEDDING_ALLOW_PROGRESS_COMPLETION})
     public void notifyAsPackage_completesProgress_isNotThrottled() throws Exception {
         for (int i = 0; i < 100; i++) {
             Notification advance = new Notification.Builder(mContext, "channel")
@@ -198,8 +191,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY,
-            Flags.FLAG_NOTIFICATION_UPDATE_SHEDDING_ALLOW_PROGRESS_COMPLETION})
     public void notifyAsPackage_removesProgress_isNotThrottled() throws Exception {
         for (int i = 0; i < 100; i++) {
             Notification advance = new Notification.Builder(mContext, "channel")
@@ -224,7 +215,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
     public void cancel_unnecessaryAndRapid_isThrottled() throws Exception {
 
         for (int i = 0; i < 100; i++) {
@@ -239,10 +229,9 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
     public void cancel_unnecessaryButReasonable_isNotThrottled() throws Exception {
         // Scenario: the app tries to repeatedly cancel a single notification, but at a reasonable
-        // rate. Strange, but not what we're trying to block with NM_BINDER_PERF_THROTTLE_NOTIFY.
+        // rate. Strange, but not what we're trying to block.
         for (int i = 0; i < 100; i++) {
             mNotificationManager.cancel(1);
             mClock.advanceByMillis(500);
@@ -253,10 +242,9 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
     public void cancel_necessaryAndRapid_isNotThrottled() throws Exception {
         // Scenario: the app posts and immediately cancels a bunch of notifications. Strange,
-        // but not what we're trying to block with NM_BINDER_PERF_THROTTLE_NOTIFY.
+        // but not what we're trying to block.
         Notification n = exampleNotification();
 
         for (int i = 0; i < 100; i++) {
@@ -272,7 +260,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
     public void cancel_maybeNecessaryAndRapid_isNotThrottled() throws Exception {
         // Scenario: the app posted a lot of notifications, is killed, then restarts (so NM client
         // doesn't know about them), then cancels them one by one. We don't want to throttle this
@@ -287,7 +274,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
     public void notify_afterCancel_isNotUpdateAndIsNotThrottled() throws Exception {
         // First, hit the enqueue threshold.
         Notification n = exampleNotification();
@@ -307,7 +293,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
     public void notify_afterCancelAsPackage_isNotUpdateAndIsNotThrottled() throws Exception {
         // First, hit the enqueue threshold.
         Notification n = exampleNotification();
@@ -327,7 +312,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
     public void notify_afterCancelAll_isNotUpdateAndIsNotThrottled() throws Exception {
         // First, hit the enqueue threshold.
         Notification n = exampleNotification();
@@ -347,7 +331,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY})
     public void notify_rapidUpdate_logsOncePerSecond() throws Exception {
         Notification n = exampleNotification();
         clearSlog();
@@ -361,7 +344,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY})
     public void cancel_unnecessaryAndRapid_logsOncePerSecond() throws Exception {
         clearSlog();
 
@@ -376,7 +358,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_CACHE_CHANNELS)
     public void getNotificationChannel_cachedUntilInvalidated() throws Exception {
         // Invalidate the cache first because the cache won't do anything until then
         NotificationManager.invalidateNotificationChannelCache();
@@ -400,7 +381,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_CACHE_CHANNELS)
     public void getNotificationChannel_sameApp_oneCall() throws Exception {
         NotificationManager.invalidateNotificationChannelCache();
 
@@ -421,7 +401,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_CACHE_CHANNELS)
     public void getNotificationChannels_cachedUntilInvalidated() throws Exception {
         NotificationManager.invalidateNotificationChannelCache();
         when(mNotificationManager.mBackendService.getNotificationChannels(any(), any(),
@@ -442,7 +421,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_CACHE_CHANNELS)
     public void getNotificationChannel_channelAndConversationLookup() throws Exception {
         NotificationManager.invalidateNotificationChannelCache();
 
@@ -479,7 +457,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_CACHE_CHANNELS)
     public void getNotificationChannel_differentPackages() throws Exception {
         NotificationManager.invalidateNotificationChannelCache();
         final String pkg1 = "one";
@@ -520,7 +497,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_CACHE_CHANNELS)
     public void getNotificationChannel_localModificationDoesNotChangeCache() throws Exception {
         NotificationManager.invalidateNotificationChannelCache();
         NotificationChannel original = new NotificationChannel("id", "name",
@@ -558,7 +534,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_CACHE_CHANNELS)
     public void getNotificationChannelGroup_cachedUntilInvalidated() throws Exception {
         // Data setup: group has some channels in it
         NotificationChannelGroup g1 = new NotificationChannelGroup("g1", "group one");
@@ -601,7 +576,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_CACHE_CHANNELS)
     public void getNotificationChannelGroups_cachedUntilInvalidated() throws Exception {
         NotificationChannelGroup g1 = new NotificationChannelGroup("g1", "group one");
         NotificationChannelGroup g2 = new NotificationChannelGroup("g2", "group two");
@@ -638,7 +612,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_BINDER_PERF_CACHE_CHANNELS)
     public void getNotificationChannelGroup_localModificationDoesNotChangeCache() throws Exception {
         // Group setup
         NotificationChannelGroup g1 = new NotificationChannelGroup("g1", "group one");
@@ -702,6 +675,178 @@ public class NotificationManagerTest {
         mContext.setPackageManager(pm);
 
         assertThat(mNotificationManager.areAutomaticZenRulesUserManaged()).isFalse();
+    }
+
+    @Test
+    public void Policy_parceling() {
+        NotificationManager.Policy policy = new NotificationManager.Policy(0, 0, 0);
+
+        Parcel parcel = Parcel.obtain();
+        policy.writeToParcel(parcel, 0);
+        parcel.setDataPosition(0);
+
+        NotificationManager.Policy fromParcel = NotificationManager.Policy.CREATOR
+                .createFromParcel(parcel);
+        assertThat(fromParcel).isEqualTo(policy);
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.
+        Flags.FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void Policy_parceling_splitSoundVibration() {
+        NotificationManager.Policy policy = new NotificationManager.Policy(
+                NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS, 0, 0,
+                NotificationManager.Policy.SUPPRESSED_EFFECTS_UNSET,
+                NotificationManager.Policy.STATE_UNSET,
+                NotificationManager.Policy.CONVERSATION_SENDERS_UNSET,
+                NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS, 0);
+
+        Parcel parcel = Parcel.obtain();
+        policy.writeToParcel(parcel, 0);
+        parcel.setDataPosition(0);
+
+        NotificationManager.Policy fromParcel = NotificationManager.Policy.CREATOR
+                .createFromParcel(parcel);
+        assertThat(fromParcel).isEqualTo(policy);
+        assertThat(fromParcel.allowSoundForPriorityCategory)
+                .isEqualTo(NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS);
+        assertThat(fromParcel.allowVibrationForPriorityCategory).isEqualTo(0);
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.
+        Flags.FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void Policy_allowSoundFor_soundEnabled() {
+        // sound is enabled for alarms
+        NotificationManager.Policy policy = new NotificationManager.Policy(
+                NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS, 0, 0,
+                NotificationManager.Policy.SUPPRESSED_EFFECTS_UNSET,
+                NotificationManager.Policy.STATE_UNSET,
+                NotificationManager.Policy.CONVERSATION_SENDERS_UNSET,
+                NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS, 0);
+
+        assertThat(policy.allowSoundFor(NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS))
+                .isTrue();
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.
+            Flags.FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void Policy_allowSoundFor_soundDisabled() {
+        // sound is disabled for alarms
+        NotificationManager.Policy policy = new NotificationManager.Policy(
+                0, 0, 0,
+                NotificationManager.Policy.SUPPRESSED_EFFECTS_UNSET,
+                NotificationManager.Policy.STATE_UNSET,
+                NotificationManager.Policy.CONVERSATION_SENDERS_UNSET,
+                0, 0);
+
+        assertThat(policy.allowSoundFor(NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS))
+                .isFalse();
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.
+            Flags.FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void Policy_allowVibrationFor_vibrationEnabled() {
+        // vibration is enabled for alarms
+        NotificationManager.Policy policy = new NotificationManager.Policy(
+                NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS, 0, 0,
+                NotificationManager.Policy.SUPPRESSED_EFFECTS_UNSET,
+                NotificationManager.Policy.STATE_UNSET,
+                NotificationManager.Policy.CONVERSATION_SENDERS_UNSET,
+                0, NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS);
+
+        assertThat(policy.allowVibrationFor(NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS))
+                .isTrue();
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.
+            Flags.FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void Policy_allowVibrationFor_vibrationDisabled() {
+        // vibration is disabled for alarms
+        NotificationManager.Policy policy = new NotificationManager.Policy(
+                0, 0, 0,
+                NotificationManager.Policy.SUPPRESSED_EFFECTS_UNSET,
+                NotificationManager.Policy.STATE_UNSET,
+                NotificationManager.Policy.CONVERSATION_SENDERS_UNSET,
+                0, 0);
+
+        assertThat(policy.allowVibrationFor(NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS))
+                .isFalse();
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.
+            Flags.FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void Policy_allowSoundVibrationFor_unset_alarmsEnabled() {
+        // sound is disabled for alarms
+        NotificationManager.Policy policy = new NotificationManager.Policy(
+                NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS, 0, 0,
+                NotificationManager.Policy.SUPPRESSED_EFFECTS_UNSET,
+                NotificationManager.Policy.STATE_UNSET,
+                NotificationManager.Policy.CONVERSATION_SENDERS_UNSET,
+                NotificationManager.Policy.ALLOWED_INTERRUPTION_TYPE_UNSET,
+                NotificationManager.Policy.ALLOWED_INTERRUPTION_TYPE_UNSET);
+
+        assertThat(policy.allowSoundFor(NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS))
+                .isTrue();
+        assertThat(policy.allowVibrationFor(NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS))
+                .isTrue();
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.
+            Flags.FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void Policy_allowSoundVibrationFor_unset_alarmsEnabled_defaultCtor() {
+        // sound is disabled for alarms
+        NotificationManager.Policy policy = new NotificationManager.Policy(
+                NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS, 0, 0,
+                NotificationManager.Policy.SUPPRESSED_EFFECTS_UNSET,
+                NotificationManager.Policy.STATE_UNSET,
+                NotificationManager.Policy.CONVERSATION_SENDERS_UNSET);
+
+        assertThat(policy.allowSoundFor(NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS))
+                .isTrue();
+        assertThat(policy.allowVibrationFor(NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS))
+                .isTrue();
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.
+            Flags.FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void Policy_allowSoundVibrationFor_unset_alarmsDisabled() {
+        // sound is disabled for alarms
+        NotificationManager.Policy policy = new NotificationManager.Policy(
+                0, 0, 0,
+                NotificationManager.Policy.SUPPRESSED_EFFECTS_UNSET,
+                NotificationManager.Policy.STATE_UNSET,
+                NotificationManager.Policy.CONVERSATION_SENDERS_UNSET,
+                NotificationManager.Policy.ALLOWED_INTERRUPTION_TYPE_UNSET,
+                NotificationManager.Policy.ALLOWED_INTERRUPTION_TYPE_UNSET);
+
+        assertThat(policy.allowSoundFor(NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS))
+                .isFalse();
+        assertThat(policy.allowVibrationFor(NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS))
+                .isFalse();
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.
+            Flags.FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void Policy_allowSoundVibrationFor_unset_alarmsDisabled_defaultCtor() {
+        // sound is disabled for alarms
+        NotificationManager.Policy policy = new NotificationManager.Policy(
+                0, 0, 0,
+                NotificationManager.Policy.SUPPRESSED_EFFECTS_UNSET,
+                NotificationManager.Policy.STATE_UNSET,
+                NotificationManager.Policy.CONVERSATION_SENDERS_UNSET);
+
+        assertThat(policy.allowSoundFor(NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS))
+                .isFalse();
+        assertThat(policy.allowVibrationFor(NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS))
+                .isFalse();
     }
 
     private Notification exampleNotification() {

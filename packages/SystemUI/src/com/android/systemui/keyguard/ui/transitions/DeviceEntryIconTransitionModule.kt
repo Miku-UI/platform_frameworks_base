@@ -60,6 +60,9 @@ import com.android.systemui.keyguard.ui.viewmodel.PrimaryBouncerToAodTransitionV
 import com.android.systemui.keyguard.ui.viewmodel.PrimaryBouncerToDozingTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.PrimaryBouncerToGlanceableHubTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.PrimaryBouncerToLockscreenTransitionViewModel
+import com.android.systemui.keyguard.ui.viewmodel.ToAodEndStateTransitionViewModel
+import com.android.systemui.keyguard.ui.viewmodel.ToDozingEndStateTransitionViewModel
+import com.android.systemui.keyguard.ui.viewmodel.ToLockscreenEndStateTransitionViewModel
 import dagger.Binds
 import dagger.Module
 import dagger.multibindings.IntoSet
@@ -320,5 +323,21 @@ abstract class DeviceEntryIconTransitionModule {
     @IntoSet
     abstract fun dozingToGlanceableHub(
         impl: DozingToGlanceableHubTransitionViewModel
+    ): DeviceEntryIconTransition
+
+    @Binds
+    @IntoSet
+    abstract fun toAodEndState(impl: ToAodEndStateTransitionViewModel): DeviceEntryIconTransition
+
+    @Binds
+    @IntoSet
+    abstract fun toDozingEndState(
+        impl: ToDozingEndStateTransitionViewModel
+    ): DeviceEntryIconTransition
+
+    @Binds
+    @IntoSet
+    abstract fun toLockscreenEndState(
+        impl: ToLockscreenEndStateTransitionViewModel
     ): DeviceEntryIconTransition
 }

@@ -27,12 +27,16 @@ import android.hardware.input.InputManager
 import android.hardware.lights.Light
 import android.os.SystemProperties
 import android.os.test.TestLooper
+import android.platform.test.annotations.DisabledOnRavenwood
+import android.platform.test.annotations.EnableFlags
 import android.platform.test.annotations.Presubmit
+import android.platform.test.flag.junit.SetFlagsRule
 import android.util.TypedValue
 import android.view.InputDevice
 import androidx.test.annotation.UiThreadTest
 import androidx.test.core.app.ApplicationProvider
 import com.android.dx.mockito.inline.extended.ExtendedMockito
+import com.android.hardware.input.Flags
 import com.android.internal.R
 import com.android.modules.utils.testing.ExtendedMockitoRule
 import com.android.server.input.KeyboardBacklightController.DEFAULT_BRIGHTNESS_VALUE_FOR_LEVEL
@@ -82,7 +86,11 @@ private fun createLight(lightId: Int, lightType: Int, suggestedBrightnessLevels:
  * Build/Install/Run: atest InputTests:KeyboardBacklightControllerTests
  */
 @Presubmit
+@EnableFlags(com.android.hardware.input.Flags.FLAG_KEYBOARD_BACKLIGHT_SHORTCUTS)
+@DisabledOnRavenwood(reason = "Static mocking in bivalent tests is tricky", bug = 310268946)
 class KeyboardBacklightControllerTests {
+    @get:Rule val mSetFlagsRule = SetFlagsRule()
+
     companion object {
         const val DEVICE_ID = 1
         const val LIGHT_ID = 2
@@ -475,6 +483,140 @@ class KeyboardBacklightControllerTests {
         )
     }
 
+    @Test
+    fun testKeyboardBacklight_toggle() {
+        setupController()
+        val keyboardWithBacklight = createKeyboard(DEVICE_ID)
+        val keyboardBacklight = createLight(LIGHT_ID, Light.LIGHT_TYPE_KEYBOARD_BACKLIGHT)
+        `when`(inputManagerRule.mock.getInputDevice(DEVICE_ID)).thenReturn(keyboardWithBacklight)
+        `when`(inputManagerRule.mock.getLights(DEVICE_ID)).thenReturn(listOf(keyboardBacklight))
+        keyboardBacklightController.onInputDeviceAdded(DEVICE_ID)
+
+        // Increment to a known level
+        incrementKeyboardBacklight(DEVICE_ID)
+        val level1Brightness = DEFAULT_BRIGHTNESS_VALUE_FOR_LEVEL[1]
+        assertEquals(
+            "Keyboard backlight should be at level 1",
+            Color.argb(level1Brightness, 0, 0, 0),
+            lightColorMap[LIGHT_ID],
+        )
+
+        // Toggle off
+        toggleKeyboardBacklight(DEVICE_ID)
+        assertEquals("Keyboard backlight should be off after toggle", 0, lightColorMap[LIGHT_ID])
+
+        // Toggle on (restore)
+        toggleKeyboardBacklight(DEVICE_ID)
+        assertEquals(
+            "Keyboard backlight should be restored to level 1 after toggle",
+            Color.argb(level1Brightness, 0, 0, 0),
+            lightColorMap[LIGHT_ID],
+        )
+    }
+
+    @Test
+    fun testKeyboardBacklight_toggle_setsDefaultBrightness() {
+        setupController()
+        val keyboardWithBacklight = createKeyboard(DEVICE_ID)
+        val keyboardBacklight = createLight(LIGHT_ID, Light.LIGHT_TYPE_KEYBOARD_BACKLIGHT)
+        `when`(inputManagerRule.mock.getInputDevice(DEVICE_ID)).thenReturn(keyboardWithBacklight)
+        `when`(inputManagerRule.mock.getLights(DEVICE_ID)).thenReturn(listOf(keyboardBacklight))
+        keyboardBacklightController.onInputDeviceAdded(DEVICE_ID)
+
+        // Toggle on
+        val defaultLevel = MAX_BRIGHTNESS_CHANGE_STEPS / 2
+        val defaultBrightness = DEFAULT_BRIGHTNESS_VALUE_FOR_LEVEL[defaultLevel]
+        toggleKeyboardBacklight(DEVICE_ID)
+        assertEquals(
+            "Keyboard backlight should be set to default brightness after initial toggle with no previous setting",
+            Color.argb(defaultBrightness, 0, 0, 0),
+            lightColorMap[LIGHT_ID],
+        )
+
+        decrementKeyboardBacklight(DEVICE_ID)
+        assertNotEquals(
+            "Keyboard backlight should not remain at default after decrement",
+            Color.argb(defaultBrightness, 0, 0, 0),
+            lightColorMap[LIGHT_ID],
+        )
+        // Toggle (off) backlight
+        toggleKeyboardBacklight(DEVICE_ID)
+        // Toggle (on) backlight
+        toggleKeyboardBacklight(DEVICE_ID)
+        assertNotEquals(
+            "Keyboard backlight should not be restored to default",
+            Color.argb(defaultBrightness, 0, 0, 0),
+            lightColorMap[LIGHT_ID],
+        )
+    }
+
+    @Test
+    fun testKeyboardBacklight_toggle_disablesAmbientControl() {
+        setupController()
+        val keyboardWithBacklight = createKeyboard(DEVICE_ID)
+        val keyboardBacklight = createLight(LIGHT_ID, Light.LIGHT_TYPE_KEYBOARD_BACKLIGHT)
+        `when`(inputManagerRule.mock.getInputDevice(DEVICE_ID)).thenReturn(keyboardWithBacklight)
+        `when`(inputManagerRule.mock.getLights(DEVICE_ID)).thenReturn(listOf(keyboardBacklight))
+        keyboardBacklightController.onInputDeviceAdded(DEVICE_ID)
+
+        incrementKeyboardBacklight(DEVICE_ID)
+        val initialBrightness = lightColorMap[LIGHT_ID]
+
+        // Toggle backlight, which should disable ambient light control
+        toggleKeyboardBacklight(DEVICE_ID)
+        assertEquals("Keyboard backlight should be off after toggle", 0, lightColorMap[LIGHT_ID])
+        toggleKeyboardBacklight(DEVICE_ID) // Toggle back on
+        assertEquals(
+            "Keyboard backlight should be restored",
+            initialBrightness,
+            lightColorMap[LIGHT_ID],
+        )
+
+        // Ambient light change should now be ignored
+        sendAmbientBacklightValue(100)
+        assertEquals(
+            "Ambient light changes should be ignored after toggle",
+            initialBrightness,
+            lightColorMap[LIGHT_ID],
+        )
+    }
+
+    @Test
+    fun testKeyboardBacklight_toggle_notifiesListener() {
+        setupController()
+        val keyboardWithBacklight = createKeyboard(DEVICE_ID)
+        val keyboardBacklight = createLight(LIGHT_ID, Light.LIGHT_TYPE_KEYBOARD_BACKLIGHT)
+        `when`(inputManagerRule.mock.getInputDevice(DEVICE_ID)).thenReturn(keyboardWithBacklight)
+        `when`(inputManagerRule.mock.getLights(DEVICE_ID)).thenReturn(listOf(keyboardBacklight))
+        keyboardBacklightController.onInputDeviceAdded(DEVICE_ID)
+
+        val listener = KeyboardBacklightListener()
+        keyboardBacklightController.registerKeyboardBacklightListener(listener, 0)
+
+        incrementKeyboardBacklight(DEVICE_ID) // Level 1
+        assertEquals(1, lastBacklightState?.brightnessLevel)
+
+        // Toggle off
+        lastBacklightState = null
+        toggleKeyboardBacklight(DEVICE_ID)
+        assertNotNull("Listener should be notified on toggle", lastBacklightState)
+        assertEquals(
+            "Brightness level should be 0 after toggle off",
+            0,
+            lastBacklightState?.brightnessLevel,
+        )
+
+        // Toggle on
+        lastBacklightState = null
+        toggleKeyboardBacklight(DEVICE_ID)
+        assertNotNull("Listener should be notified on toggle", lastBacklightState)
+        assertEquals(
+            "Brightness level should be restored after toggle on",
+            1,
+            lastBacklightState?.brightnessLevel,
+        )
+    }
+
     private fun assertIncrementDecrementForLevels(
         device: InputDevice,
         light: Light,
@@ -547,6 +689,12 @@ class KeyboardBacklightControllerTests {
 
     private fun sendAmbientBacklightValue(brightnessValue: Int) {
         keyboardBacklightController.handleAmbientLightValueChanged(brightnessValue)
+        keyboardBacklightController.notifyUserActivity()
+        testLooper.dispatchAll()
+    }
+
+    private fun toggleKeyboardBacklight(deviceId: Int) {
+        keyboardBacklightController.toggleKeyboardBacklight(deviceId)
         keyboardBacklightController.notifyUserActivity()
         testLooper.dispatchAll()
     }

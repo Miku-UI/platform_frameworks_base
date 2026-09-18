@@ -38,7 +38,7 @@ import java.util.Collections.synchronizedMap
 class MainThreadUnfoldTransitionProgressProvider
 @AssistedInject
 constructor(
-    @UnfoldMain private val mainHandler: Handler,
+    @param:UnfoldMain private val mainHandler: Handler,
     @Assisted private val rootProvider: UnfoldTransitionProgressProvider
 ) : UnfoldTransitionProgressProvider {
 

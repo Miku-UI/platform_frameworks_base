@@ -28,6 +28,7 @@ interface IWallpaperConnection {
     void attachEngine(IWallpaperEngine engine, int displayId);
     void engineShown(IWallpaperEngine engine);
     ParcelFileDescriptor setWallpaper(String name);
-    void onWallpaperColorsChanged(in WallpaperColors colors, int displayId);
+    void onWallpaperColorsChanged(in WallpaperColors colors, int displayId,
+            in WallpaperColors persistedColors);
     void onLocalWallpaperColorsChanged(in RectF area, in WallpaperColors colors, int displayId);
 }

@@ -50,7 +50,6 @@ import android.util.SparseIntArray;
 import android.util.SparseLongArray;
 import android.util.TypedValue;
 import android.view.Display;
-import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.accessibility.MagnificationAnimationCallback;
 
@@ -60,6 +59,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.function.pooled.PooledLambda;
 import com.android.server.LocalServices;
+import com.android.server.accessibility.AccessibilityLogUtil;
 import com.android.server.accessibility.AccessibilityManagerService;
 import com.android.server.accessibility.Flags;
 import com.android.server.wm.WindowManagerInternal;
@@ -95,8 +95,8 @@ public class MagnificationController implements MagnificationConnectionManager.C
         FullScreenMagnificationController.MagnificationInfoChangedCallback,
         WindowManagerInternal.AccessibilityControllerInternal.UiChangesForAccessibilityCallbacks {
 
-    private static final boolean DEBUG = false;
-    private static final String TAG = "MagnificationController";
+    private static final String TAG = MagnificationController.class.getSimpleName();
+    private static final boolean DEBUG = AccessibilityLogUtil.isDebugEnabled(TAG);
 
     private final AccessibilityManagerService mAms;
     private final PointF mTempPoint = new PointF();
@@ -106,7 +106,6 @@ public class MagnificationController implements MagnificationConnectionManager.C
     private final SparseArray<DisableMagnificationCallback>
             mMagnificationEndRunnableSparseArray = new SparseArray();
 
-    private final AlwaysOnMagnificationFeatureFlag mAlwaysOnMagnificationFeatureFlag;
     private final MagnificationScaleProvider mScaleProvider;
     private FullScreenMagnificationController mFullScreenMagnificationController;
     private MagnificationConnectionManager mMagnificationConnectionManager;
@@ -120,7 +119,7 @@ public class MagnificationController implements MagnificationConnectionManager.C
 
     private final Handler mHandler;
     // Prefer this to SystemClock, because it allows for tests to influence behavior.
-    private SystemClock mSystemClock;
+    private MagnificationSystemClock mSystemClock;
     private boolean[] mActivePanDirections = {false, false, false, false};
     private int mActivePanDisplay = Display.INVALID_DISPLAY;
     // The time that panning by keyboard last took place. Since users can pan
@@ -128,6 +127,8 @@ public class MagnificationController implements MagnificationConnectionManager.C
     // panned time ensures that panning doesn't occur too frequently.
     private long mLastPannedTime = 0;
     private long mLastMotionEventTriggeredUiChangeTime = 0;
+    private boolean mLastMotionEventTriggeredByMouse = false;
+    private boolean mShouldHideModeSwitchButton = false;
     private boolean mRepeatKeysEnabled = true;
 
     private @ZoomDirection int mActiveZoomDirection = ZOOM_DIRECTION_IN;
@@ -195,26 +196,6 @@ public class MagnificationController implements MagnificationConnectionManager.C
          */
         void onResult(int displayId, boolean success);
     }
-
-    /**
-     * Functional interface for providing time. Tests may extend this interface to "control time".
-     */
-    @VisibleForTesting
-    interface SystemClock {
-        /**
-         * Returns current time in milliseconds since boot, not counting time spent in deep sleep.
-         */
-        long uptimeMillis();
-    }
-
-    /** The real system clock for use in production. */
-    private static class SystemClockImpl implements SystemClock {
-        @Override
-        public long uptimeMillis() {
-            return android.os.SystemClock.uptimeMillis();
-        }
-    }
-
 
     /**
      * An interface to configure how much the magnification scale should be affected when moving in
@@ -340,17 +321,13 @@ public class MagnificationController implements MagnificationConnectionManager.C
         mScaleProvider = scaleProvider;
         mBackgroundExecutor = backgroundExecutor;
         mHandler = new Handler(looper);
-        mSystemClock = new SystemClockImpl();
+        mSystemClock = new MagnificationSystemClock();
         LocalServices.getService(WindowManagerInternal.class)
                 .getAccessibilityController().setUiChangesForAccessibilityCallbacks(this);
         mSupportWindowMagnification = context.getPackageManager().hasSystemFeature(
                 FEATURE_WINDOW_MAGNIFICATION);
         mScaleStepProvider = new DefaultMagnificationScaleStepProvider();
         mPanStepProvider = new DefaultMagnificationPanStepProvider(mContext);
-
-        mAlwaysOnMagnificationFeatureFlag = new AlwaysOnMagnificationFeatureFlag(context);
-        mAlwaysOnMagnificationFeatureFlag.addOnChangedListener(
-                mBackgroundExecutor, mAms::updateAlwaysOnMagnification);
     }
 
     @VisibleForTesting
@@ -358,7 +335,7 @@ public class MagnificationController implements MagnificationConnectionManager.C
             Context context, FullScreenMagnificationController fullScreenMagnificationController,
             MagnificationConnectionManager magnificationConnectionManager,
             MagnificationScaleProvider scaleProvider, Executor backgroundExecutor, Looper looper,
-            SystemClock systemClock) {
+            MagnificationSystemClock systemClock) {
         this(ams, lock, context, scaleProvider, backgroundExecutor, looper);
         mFullScreenMagnificationController = fullScreenMagnificationController;
         mMagnificationConnectionManager = magnificationConnectionManager;
@@ -400,6 +377,24 @@ public class MagnificationController implements MagnificationConnectionManager.C
     @Override
     public void onMouseMove(int displayId, int mode) {
         handleUserInteractionChanged(displayId, mode, /* isMouse= */ true);
+    }
+
+    @Override
+    public void onTemporaryModeStart(int displayId, int mode) {
+        mShouldHideModeSwitchButton = true;
+        updateMagnificationUIControls(displayId, mode);
+    }
+
+    @Override
+    public void onTemporaryModeEnd(int displayId, int mode) {
+        mShouldHideModeSwitchButton = false;
+        updateMagnificationUIControls(displayId, mode);
+    }
+
+    @Override
+    public void onShortcutTriggerChanged(int displayId, int mode, boolean isShortcutTrigger) {
+        mShouldHideModeSwitchButton = isShortcutTrigger;
+        updateMagnificationUIControls(displayId, mode);
     }
 
     @Override
@@ -479,21 +474,36 @@ public class MagnificationController implements MagnificationConnectionManager.C
     }
 
     /**
-     * Perform the action to activate the fullscreen magnification and zoom in with persisted scale.
+     * Perform the action to activate magnification and zoom in. Currently we only have zoom-in for
+     * fullscreen mode with persisted scale, and the window mode support is todo.
      *
      * @param displayId The logical display id
+     * @param magnificationMode The magnification mode on the specified display for the current user
      */
-    public void zoomInFullScreenMagnification(int displayId) {
-        final float scale = mFullScreenMagnificationController.getPersistedScale(displayId);
-        mFullScreenMagnificationController.setScaleAndCenter(
-                displayId,
-                scale,
-                Float.NaN,
-                Float.NaN,
-                /* animate= */ true,
-                AccessibilityManagerService.MAGNIFICATION_GESTURE_HANDLER_ID);
+    public void zoomInMagnification(int displayId, int magnificationMode) {
+        synchronized (mLock) {
+            // If the user already activate Magnification for any mode, we don't
+            // need to turn on Magnification and zoom in, which will change the
+            // user's current magnification settings.
+            if (isAnyMagnificationActivated(displayId)) {
+                return;
+            }
 
-        // TODO: b/440359677 - Rename the method and add zoom in for window magnification.
+            if (magnificationMode == Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN) {
+                // TODO: b/432526188 - Verify that the confirmation dialog is
+                // follow keyboard focus after this setting enabled by default.
+                final float scale = mFullScreenMagnificationController.getPersistedScale(displayId);
+                mFullScreenMagnificationController.setScaleAndCenter(
+                        displayId,
+                        scale,
+                        Float.NaN,
+                        Float.NaN,
+                        /* animate= */ true,
+                        AccessibilityManagerService.MAGNIFICATION_GESTURE_HANDLER_ID);
+            }
+
+            // TODO: b/440359677 - Rename the method and add zoom in for window magnification.
+        }
     }
 
     private void maybeContinuePan() {
@@ -536,34 +546,42 @@ public class MagnificationController implements MagnificationConnectionManager.C
     }
 
     private void handleUserInteractionChanged(int displayId, int mode, boolean isMouse) {
-        if (mMagnificationCapabilities != Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_ALL) {
+        if (mMagnificationCapabilities != Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_ALL
+                && mMagnificationCapabilities
+                != Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN) {
             return;
         }
 
-        // Mouse events are always throttled. Touch events are throttled only when the flag is on.
-        if (isMouse || Flags.throttleMotionEventsForUiUpdate()) {
-            final long currentTime = mSystemClock.uptimeMillis();
-            if (currentTime - mLastMotionEventTriggeredUiChangeTime
-                    < AccessibilityUtils.MAGNIFICATION_HANDLE_UI_CHANGE_INTERVAL_MS) {
-                return;
-            }
-            mLastMotionEventTriggeredUiChangeTime = currentTime;
+        mLastMotionEventTriggeredByMouse = isMouse;
+
+        // Mouse and touch events are both throttled.
+        final long currentTime = mSystemClock.uptimeMillis();
+        if (currentTime - mLastMotionEventTriggeredUiChangeTime
+                < AccessibilityUtils.MAGNIFICATION_HANDLE_UI_CHANGE_INTERVAL_MS) {
+            return;
         }
+        mLastMotionEventTriggeredUiChangeTime = currentTime;
 
         updateMagnificationUIControls(displayId, mode);
     }
 
     private void updateMagnificationUIControls(int displayId, int mode) {
         final boolean isActivated = isActivated(displayId, mode);
-        final boolean showModeSwitchButton;
-        final boolean enableSettingsPanel;
-        synchronized (mLock) {
-            showModeSwitchButton = isActivated
-                    && mMagnificationCapabilities == ACCESSIBILITY_MAGNIFICATION_MODE_ALL;
-            enableSettingsPanel = isActivated
-                    && (mMagnificationCapabilities == ACCESSIBILITY_MAGNIFICATION_MODE_ALL
-                    || mMagnificationCapabilities == ACCESSIBILITY_MAGNIFICATION_MODE_WINDOW);
-        }
+        final int capabilities = mMagnificationCapabilities;
+        final boolean showMagnificationUIForFullScreen =
+                capabilities == ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN
+                && mLastMotionEventTriggeredByMouse;
+        final boolean shouldHideSwitchButton =
+                Flags.enableMagnificationHideSettingsButtonInTemporaryMode()
+                && mShouldHideModeSwitchButton;
+        final boolean showModeSwitchButton = isActivated
+                && ((capabilities == ACCESSIBILITY_MAGNIFICATION_MODE_ALL
+                && !shouldHideSwitchButton)
+                || showMagnificationUIForFullScreen);
+        final boolean enableSettingsPanel = isActivated
+                && (capabilities == ACCESSIBILITY_MAGNIFICATION_MODE_ALL
+                || capabilities == ACCESSIBILITY_MAGNIFICATION_MODE_WINDOW
+                || showMagnificationUIForFullScreen);
 
         if (showModeSwitchButton) {
             getMagnificationConnectionManager().showMagnificationButton(displayId, mode);
@@ -804,13 +822,7 @@ public class MagnificationController implements MagnificationConnectionManager.C
             delegate = mAccessibilityCallbacksDelegateArray.get(displayId);
         }
         if (delegate != null) {
-            if (android.view.accessibility.Flags.requestRectangleWithSource()) {
-                delegate.onRectangleOnScreenRequested(displayId, left, top, right, bottom, source);
-            } else {
-                delegate.onRectangleOnScreenRequested(displayId, left, top, right, bottom,
-                        View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_UNDEFINED);
-            }
-
+            delegate.onRectangleOnScreenRequested(displayId, left, top, right, bottom, source);
         }
     }
 
@@ -1076,6 +1088,10 @@ public class MagnificationController implements MagnificationConnectionManager.C
         mScaleProvider.onUserRemoved(userId);
     }
 
+    public int getMagnificationCapabilities() {
+        return mMagnificationCapabilities;
+    }
+
     public void setMagnificationCapabilities(int capabilities) {
         mMagnificationCapabilities = capabilities;
     }
@@ -1109,8 +1125,9 @@ public class MagnificationController implements MagnificationConnectionManager.C
         getFullScreenMagnificationController().setAlwaysOnMagnificationEnabled(enabled);
     }
 
-    public boolean isAlwaysOnMagnificationFeatureFlagEnabled() {
-        return mAlwaysOnMagnificationFeatureFlag.isFeatureFlagEnabled();
+    public boolean isAlwaysOnMagnificationConfigSupported() {
+        return mContext.getResources().getBoolean(
+                com.android.internal.R.bool.config_magnification_always_on_enabled);
     }
 
     private DisableMagnificationCallback getDisableMagnificationEndRunnableLocked(

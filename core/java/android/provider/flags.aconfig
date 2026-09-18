@@ -96,3 +96,49 @@ flag {
     description: "Enable the new Account Attributes APIs for contacts"
     bug: "330326187"
 }
+
+# OWNER=cassycc TARGET=26Q2
+flag {
+    name: "enable_sync_state"
+    is_exported: true
+    namespace: "documentsui"
+    description: "This flag will enable the content sync state document column"
+    bug: "415947063"
+}
+
+#OWNER=zhaotian TARGET=26Q2
+flag {
+    name: "expose_vpn_app_exclusion_settings"
+    namespace: "android_settings"
+    description: "Allows VpnManager-based apps to launch a Settings screen to select apps excluded from the VPN"
+    is_exported: true
+    bug: "459584692"
+}
+
+
+flag {
+    name: "category_approved_document_handler"
+    is_exported: true
+    namespace: "documentsui"
+    description: "This flag enables the new intent category CATEGORY_APPROVED_DOCUMENT_HANDLER."
+    bug: "440464827"
+}
+
+flag {
+    name: "enable_on_volume_record_changed_listener"
+    is_exported: false
+    namespace: "documentsui"
+    description: "Enables an ExternalStorageProvider listener for onVolumeChanged."
+    bug: "350615090"
+}
+
+#OWNER=pdxt
+flag {
+    name: "enable_redacted_value_for_readable"
+    namespace: "app_compat"
+    description: "Allows returning a redacted value from Readable annotation"
+    bug: "440232200"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

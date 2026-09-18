@@ -19,14 +19,17 @@ package com.android.systemui.statusbar.notification.row
 
 import android.net.Uri
 import android.os.UserHandle
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.service.notification.StatusBarNotification
-import android.testing.TestableLooper
+import android.testing.TestableLooper.RunWithLooper
 import android.view.View
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.MetricsLogger
 import com.android.internal.logging.UiEventLogger
 import com.android.internal.statusbar.IStatusBarService
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.FeatureFlagsClassic
 import com.android.systemui.log.logcatLogBuffer
@@ -48,7 +51,6 @@ import com.android.systemui.statusbar.notification.collection.render.GroupMember
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRowController.BUBBLES_SETTING_URI
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.statusbar.notification.stack.NotificationChildrenContainerLogger
 import com.android.systemui.statusbar.notification.stack.NotificationListContainer
 import com.android.systemui.statusbar.notification.stack.ui.view.NotificationRowStatsLogger
@@ -77,7 +79,7 @@ import org.mockito.kotlin.atLeastOnce
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@TestableLooper.RunWithLooper
+@RunWithLooper
 class ExpandableNotificationRowControllerTest : SysuiTestCase() {
 
     private val kosmos = testKosmos()
@@ -121,15 +123,17 @@ class ExpandableNotificationRowControllerTest : SysuiTestCase() {
 
     @Before
     fun setUp() {
+        allowTestableLooperAsMainThread()
+
         entry = kosmos.buildNotificationEntry()
         view = spy(kosmos.createRowWithEntry(entry))
 
-        allowTestableLooperAsMainThread()
         controller = initController(view)
     }
 
     private fun initController(
-        row: ExpandableNotificationRow
+        row: ExpandableNotificationRow,
+        allowLongPress: Boolean = false,
     ): ExpandableNotificationRowController {
         return ExpandableNotificationRowController(
             row,
@@ -154,7 +158,7 @@ class ExpandableNotificationRowControllerTest : SysuiTestCase() {
             onExpandClickListener,
             statusBarStateController,
             gutsManager,
-            /*allowLongPress=*/ false,
+            allowLongPress,
             onUserInteractionCallback,
             falsingManager,
             featureFlags,
@@ -170,6 +174,8 @@ class ExpandableNotificationRowControllerTest : SysuiTestCase() {
             kosmos.windowRootViewBlurInteractor,
             bundleInteractionLogger,
             notificationActivityStarter,
+            kosmos.notificationUiEligibilityChecker,
+            kosmos.automationNotificationBackgroundProvider,
         )
     }
 
@@ -251,7 +257,6 @@ class ExpandableNotificationRowControllerTest : SysuiTestCase() {
         val entryAdapter = mock(EntryAdapter::class.java)
         whenever(entryAdapter.sbn).thenReturn(mock(StatusBarNotification::class.java))
         whenever(row.entryAdapter).thenReturn(entryAdapter)
-        whenever(row.entryLegacy).thenReturn(mock())
         val captor = ArgumentCaptor.forClass(View.OnAttachStateChangeListener::class.java)
         verify(row, atLeastOnce()).addOnAttachStateChangeListener(captor.capture())
         captor.allValues[0].onViewAttachedToWindow(view)
@@ -268,7 +273,6 @@ class ExpandableNotificationRowControllerTest : SysuiTestCase() {
         val entryAdapter = mock(EntryAdapter::class.java)
         whenever(entryAdapter.sbn).thenReturn(mock(StatusBarNotification::class.java))
         whenever(row.entryAdapter).thenReturn(entryAdapter)
-        whenever(row.entryLegacy).thenReturn(entryLegacy)
         val captor = ArgumentCaptor.forClass(View.OnAttachStateChangeListener::class.java)
         verify(row, atLeastOnce()).addOnAttachStateChangeListener(captor.capture())
         captor.allValues[0].onViewDetachedFromWindow(view)
@@ -279,12 +283,7 @@ class ExpandableNotificationRowControllerTest : SysuiTestCase() {
     @Test
     fun settingsListener_invalidUri() {
         controller.mSettingsListener.onSettingChanged(Uri.EMPTY, entry.sbn.userId, "1")
-        assertThat(
-                view.privateLayout.shouldShowBubbleButton(
-                    if (NotificationBundleUi.isEnabled) null else entry
-                )
-            )
-            .isFalse()
+        assertThat(view.privateLayout.shouldShowBubbleButton()).isFalse()
     }
 
     @Test
@@ -292,12 +291,7 @@ class ExpandableNotificationRowControllerTest : SysuiTestCase() {
         controller.mSettingsListener.onSettingChanged(BUBBLES_SETTING_URI, -1000, "1")
         controller.mSettingsListener.onSettingChanged(BUBBLES_SETTING_URI, -1000, null)
 
-        assertThat(
-                view.privateLayout.shouldShowBubbleButton(
-                    if (NotificationBundleUi.isEnabled) null else entry
-                )
-            )
-            .isFalse()
+        assertThat(view.privateLayout.shouldShowBubbleButton()).isFalse()
     }
 
     @Test
@@ -314,11 +308,10 @@ class ExpandableNotificationRowControllerTest : SysuiTestCase() {
 
     @Test
     fun settingsListener_userAll() {
-        val entryAll =
-            kosmos.buildNotificationEntry {
-                setUser(UserHandle.ALL)
-                setUid(UserHandle.ALL.getUid(1234))
-            }
+        val entryAll = kosmos.buildNotificationEntry {
+            setUser(UserHandle.ALL)
+            setUid(UserHandle.ALL.getUid(1234))
+        }
         val row = kosmos.createRowWithEntry(entryAll)
         val controllerUser = initController(row)
 
@@ -330,5 +323,43 @@ class ExpandableNotificationRowControllerTest : SysuiTestCase() {
 
         controllerUser.mSettingsListener.onSettingChanged(BUBBLES_SETTING_URI, 1, "0")
         verify(childView).setBubblesEnabledForUser(false)
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_INLINE_NOTIFICATION_SETTINGS_ACCESS)
+    fun contextClickListener_inlineSettingsAccessEnabled_invokesLongClickCallback() {
+        val row: ExpandableNotificationRow = mock()
+        val entryLegacy: NotificationEntry = mock()
+        val rowWidth = 100
+        val rowHeight = 200
+
+        whenever(row.width).thenReturn(rowWidth)
+        whenever(row.height).thenReturn(rowHeight)
+
+        controller = initController(row, allowLongPress = true)
+        controller.init(entryLegacy)
+
+        val captor = ArgumentCaptor.forClass(View.OnContextClickListener::class.java)
+        verify(row).setOnContextClickListener(captor.capture())
+
+        val listener = captor.value
+        val result = listener.onContextClick(row)
+
+        // Verify that the context click triggers the long click callback with the center
+        // coordinates of the view.
+        verify(row).doLongClickCallback(rowWidth / 2, rowHeight / 2)
+        assertThat(result).isTrue()
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_INLINE_NOTIFICATION_SETTINGS_ACCESS)
+    fun contextClickListener_inlineSettingsAccessDisabled_doesNotSetContextClickListener() {
+        val row: ExpandableNotificationRow = mock()
+        val entryLegacy: NotificationEntry = mock()
+
+        controller = initController(row, allowLongPress = true)
+        controller.init(entryLegacy)
+
+        verify(row, never()).setOnContextClickListener(any())
     }
 }

@@ -26,8 +26,11 @@ import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState.PRIMARY_BOUNCER
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.window.data.repository.BlurAppliedListener
 import com.android.systemui.window.data.repository.WindowRootViewBlurRepository
+import com.android.systemui.window.shared.model.BlurEffect
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +41,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+
+typealias ShadeBlurChangedListener = (BlurEffect) -> Unit
 
 /**
  * Interactor that provides the blur state for the window root view
@@ -54,12 +59,14 @@ constructor(
     private val communalInteractor: CommunalInteractor,
     private val repository: WindowRootViewBlurRepository,
 ) {
+    private var shadeBlurChangedListener: ShadeBlurChangedListener? = null
+
     private var isPrimaryBouncerVisible: StateFlow<Boolean> =
         if (Flags.bouncerUiRevamp()) {
             combine(
                     keyguardInteractor.primaryBouncerShowing,
                     keyguardTransitionInteractor
-                        .transitionValue(PRIMARY_BOUNCER)
+                        .transitionValue(Overlays.Bouncer, PRIMARY_BOUNCER)
                         .map { it > 0f }
                         .distinctUntilChanged(),
                 ) { bouncerShowing, bouncerTransitionInProgress ->
@@ -96,7 +103,7 @@ constructor(
     val isBlurCurrentlySupported: StateFlow<Boolean> = repository.isBlurSupported
 
     /** Whether the blurred wallpaper is supported. This feature is disabled on desktop. */
-    val isBlurredWallpaperSupported: Boolean =
+    val isBlurredWallpaperOnShadeSupported: Boolean =
         resources.getBoolean(R.bool.config_supportBlurredWallpaper)
 
     /** Radius of blur to be applied on the window root view. */
@@ -129,9 +136,21 @@ constructor(
         if (communalInteractor.isCommunalBlurring.value) {
             return false
         }
-        repository.blurRequestedByShade.value = blurRadius.toFloat()
-        repository.scaleRequestedByShade.value = blurScale
+        if (SceneContainerFlag.isEnabled) {
+            shadeBlurChangedListener?.invoke(BlurEffect(blurRadius.toFloat(), blurScale))
+        } else {
+            repository.blurRequestedByShade.value = blurRadius.toFloat()
+            repository.scaleRequestedByShade.value = blurScale
+        }
         return true
+    }
+
+    fun registerShadeBlurChangedListener(listener: ShadeBlurChangedListener) {
+        shadeBlurChangedListener = listener
+    }
+
+    fun clearShadeBlurChangedListener() {
+        shadeBlurChangedListener = null
     }
 
     /**

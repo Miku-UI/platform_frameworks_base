@@ -18,8 +18,8 @@ package com.android.systemui.statusbar.notification.dagger
 
 import android.annotation.StringRes
 import android.provider.Settings
-import com.android.systemui.res.R
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.res.R
 import com.android.systemui.statusbar.notification.collection.render.NodeController
 import com.android.systemui.statusbar.notification.collection.render.SectionHeaderController
 import com.android.systemui.statusbar.notification.collection.render.SectionHeaderNodeControllerImpl
@@ -38,9 +38,12 @@ object NotificationSectionHeadersModule {
     @Provides
     @IncomingHeader
     @SysUISingleton
-    @JvmStatic fun providesIncomingHeaderSubcomponent(
+    @JvmStatic
+    fun providesIncomingHeaderSubcomponent(
         builder: Provider<SectionHeaderControllerSubcomponent.Builder>
-    ) = builder.get()
+    ) =
+        builder
+            .get()
             .nodeLabel("incoming header")
             .headerText(R.string.notification_section_header_incoming)
             .clickIntentAction(Settings.ACTION_NOTIFICATION_SETTINGS)
@@ -49,9 +52,12 @@ object NotificationSectionHeadersModule {
     @Provides
     @AlertingHeader
     @SysUISingleton
-    @JvmStatic fun providesAlertingHeaderSubcomponent(
+    @JvmStatic
+    fun providesAlertingHeaderSubcomponent(
         builder: Provider<SectionHeaderControllerSubcomponent.Builder>
-    ) = builder.get()
+    ) =
+        builder
+            .get()
             .nodeLabel("alerting header")
             .headerText(R.string.notification_section_header_alerting)
             .clickIntentAction(Settings.ACTION_NOTIFICATION_SETTINGS)
@@ -60,9 +66,12 @@ object NotificationSectionHeadersModule {
     @Provides
     @PeopleHeader
     @SysUISingleton
-    @JvmStatic fun providesPeopleHeaderSubcomponent(
+    @JvmStatic
+    fun providesPeopleHeaderSubcomponent(
         builder: Provider<SectionHeaderControllerSubcomponent.Builder>
-    ) = builder.get()
+    ) =
+        builder
+            .get()
             .nodeLabel("people header")
             .headerText(R.string.notification_section_header_conversations)
             .clickIntentAction(Settings.ACTION_CONVERSATION_SETTINGS)
@@ -71,156 +80,103 @@ object NotificationSectionHeadersModule {
     @Provides
     @SilentHeader
     @SysUISingleton
-    @JvmStatic fun providesSilentHeaderSubcomponent(
+    @JvmStatic
+    fun providesSilentHeaderSubcomponent(
         builder: Provider<SectionHeaderControllerSubcomponent.Builder>
-    ) = builder.get()
+    ) =
+        builder
+            .get()
             .nodeLabel("silent header")
             .headerText(R.string.notification_section_header_gentle)
             .clickIntentAction(Settings.ACTION_NOTIFICATION_SETTINGS)
             .build()
 
     @Provides
-    @NewsHeader
+    @HighlightsHeader
     @SysUISingleton
-    @JvmStatic fun providesNewsHeaderSubcomponent(
+    @JvmStatic
+    fun providesHighlightsHeaderSubcomponent(
         builder: Provider<SectionHeaderControllerSubcomponent.Builder>
-    ) = builder.get()
-        .nodeLabel("news header")
-        .headerText(com.android.internal.R.string.news_notification_channel_label)
-        .clickIntentAction(Settings.ACTION_NOTIFICATION_SETTINGS)
-        .build()
-
-    @Provides
-    @SocialHeader
-    @SysUISingleton
-    @JvmStatic fun providesSocialHeaderSubcomponent(
-        builder: Provider<SectionHeaderControllerSubcomponent.Builder>
-    ) = builder.get()
-        .nodeLabel("social header")
-        .headerText(com.android.internal.R.string.social_notification_channel_label)
-        .clickIntentAction(Settings.ACTION_NOTIFICATION_SETTINGS)
-        .build()
-
-    @Provides
-    @RecsHeader
-    @SysUISingleton
-    @JvmStatic fun providesRecsHeaderSubcomponent(
-        builder: Provider<SectionHeaderControllerSubcomponent.Builder>
-    ) = builder.get()
-        .nodeLabel("recs header")
-        .headerText(com.android.internal.R.string.recs_notification_channel_label)
-        .clickIntentAction(Settings.ACTION_NOTIFICATION_SETTINGS)
-        .build()
-
-    @Provides
-    @PromoHeader
-    @SysUISingleton
-    @JvmStatic fun providesPromoHeaderSubcomponent(
-        builder: Provider<SectionHeaderControllerSubcomponent.Builder>
-    ) = builder.get()
-        .nodeLabel("promo header")
-        .headerText(com.android.internal.R.string.promotional_notification_channel_label)
-        .clickIntentAction(Settings.ACTION_NOTIFICATION_SETTINGS)
-        .build()
+    ) =
+        builder
+            .get()
+            .nodeLabel("highlights header")
+            .clickIntentAction(Settings.ACTION_NOTIFICATION_SETTINGS)
+            .headerText(R.string.notification_section_header_highlights)
+            .build()
 
     @Provides
     @SilentHeader
-    @JvmStatic fun providesSilentHeaderNodeController(
+    @JvmStatic
+    fun providesSilentHeaderNodeController(
         @SilentHeader subcomponent: SectionHeaderControllerSubcomponent
     ) = subcomponent.nodeController
 
     @Provides
     @SilentHeader
-    @JvmStatic fun providesSilentHeaderController(
+    @JvmStatic
+    fun providesSilentHeaderController(
         @SilentHeader subcomponent: SectionHeaderControllerSubcomponent
     ) = subcomponent.headerController
 
     @Provides
     @AlertingHeader
-    @JvmStatic fun providesAlertingHeaderNodeController(
+    @JvmStatic
+    fun providesAlertingHeaderNodeController(
         @AlertingHeader subcomponent: SectionHeaderControllerSubcomponent
     ) = subcomponent.nodeController
 
     @Provides
     @AlertingHeader
-    @JvmStatic fun providesAlertingHeaderController(
+    @JvmStatic
+    fun providesAlertingHeaderController(
         @AlertingHeader subcomponent: SectionHeaderControllerSubcomponent
     ) = subcomponent.headerController
 
     @Provides
     @PeopleHeader
-    @JvmStatic fun providesPeopleHeaderNodeController(
+    @JvmStatic
+    fun providesPeopleHeaderNodeController(
         @PeopleHeader subcomponent: SectionHeaderControllerSubcomponent
     ) = subcomponent.nodeController
 
     @Provides
     @PeopleHeader
-    @JvmStatic fun providesPeopleHeaderController(
+    @JvmStatic
+    fun providesPeopleHeaderController(
         @PeopleHeader subcomponent: SectionHeaderControllerSubcomponent
     ) = subcomponent.headerController
 
     @Provides
     @IncomingHeader
-    @JvmStatic fun providesIncomingHeaderNodeController(
+    @JvmStatic
+    fun providesIncomingHeaderNodeController(
         @IncomingHeader subcomponent: SectionHeaderControllerSubcomponent
     ) = subcomponent.nodeController
 
     @Provides
     @IncomingHeader
-    @JvmStatic fun providesIncomingHeaderController(
+    @JvmStatic
+    fun providesIncomingHeaderController(
         @IncomingHeader subcomponent: SectionHeaderControllerSubcomponent
     ) = subcomponent.headerController
 
     @Provides
-    @NewsHeader
-    @JvmStatic fun providesNewsHeaderNodeController(
-        @NewsHeader subcomponent: SectionHeaderControllerSubcomponent
+    @HighlightsHeader
+    @JvmStatic
+    fun providesHighlightsHeaderNodeController(
+        @HighlightsHeader subcomponent: SectionHeaderControllerSubcomponent
     ) = subcomponent.nodeController
 
     @Provides
-    @NewsHeader
-    @JvmStatic fun providesNewsHeaderController(
-        @NewsHeader subcomponent: SectionHeaderControllerSubcomponent
-    ) = subcomponent.headerController
-
-    @Provides
-    @SocialHeader
-    @JvmStatic fun providesSocialHeaderNodeController(
-        @SocialHeader subcomponent: SectionHeaderControllerSubcomponent
-    ) = subcomponent.nodeController
-
-    @Provides
-    @SocialHeader
-    @JvmStatic fun providesSocialHeaderController(
-        @SocialHeader subcomponent: SectionHeaderControllerSubcomponent
-    ) = subcomponent.headerController
-
-    @Provides
-    @RecsHeader
-    @JvmStatic fun providesRecsHeaderNodeController(
-        @RecsHeader subcomponent: SectionHeaderControllerSubcomponent
-    ) = subcomponent.nodeController
-
-    @Provides
-    @RecsHeader
-    @JvmStatic fun providesRecsHeaderController(
-        @RecsHeader subcomponent: SectionHeaderControllerSubcomponent
-    ) = subcomponent.headerController
-
-    @Provides
-    @PromoHeader
-    @JvmStatic fun providesPromoHeaderNodeController(
-        @PromoHeader subcomponent: SectionHeaderControllerSubcomponent
-    ) = subcomponent.nodeController
-
-    @Provides
-    @PromoHeader
-    @JvmStatic fun providesPromoHeaderController(
-        @PromoHeader subcomponent: SectionHeaderControllerSubcomponent
+    @HighlightsHeader
+    @JvmStatic
+    fun providesHighlightsHeaderController(
+        @HighlightsHeader subcomponent: SectionHeaderControllerSubcomponent
     ) = subcomponent.headerController
 }
 
-@Subcomponent(modules = [ SectionHeaderBindingModule::class ])
+@Subcomponent(modules = [SectionHeaderBindingModule::class])
 @SectionHeaderScope
 interface SectionHeaderControllerSubcomponent {
 
@@ -230,8 +186,11 @@ interface SectionHeaderControllerSubcomponent {
     @Subcomponent.Builder
     interface Builder {
         fun build(): SectionHeaderControllerSubcomponent
+
         @BindsInstance fun nodeLabel(@NodeLabel nodeLabel: String): Builder
+
         @BindsInstance fun headerText(@HeaderText @StringRes headerText: Int): Builder
+
         @BindsInstance fun clickIntentAction(@HeaderClickAction clickIntentAction: String): Builder
     }
 }
@@ -239,55 +198,27 @@ interface SectionHeaderControllerSubcomponent {
 @Module
 abstract class SectionHeaderBindingModule {
     @Binds abstract fun bindsNodeController(impl: SectionHeaderNodeControllerImpl): NodeController
-    @Binds abstract fun bindsSectionHeaderController(
+
+    @Binds
+    abstract fun bindsSectionHeaderController(
         impl: SectionHeaderNodeControllerImpl
     ): SectionHeaderController
 }
 
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class HeaderText
+@Qualifier @Retention(AnnotationRetention.BINARY) annotation class HeaderText
 
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class IncomingHeader
+@Qualifier @Retention(AnnotationRetention.BINARY) annotation class IncomingHeader
 
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class AlertingHeader
+@Qualifier @Retention(AnnotationRetention.BINARY) annotation class AlertingHeader
 
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class SilentHeader
+@Qualifier @Retention(AnnotationRetention.BINARY) annotation class SilentHeader
 
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class PeopleHeader
+@Qualifier @Retention(AnnotationRetention.BINARY) annotation class PeopleHeader
 
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class NodeLabel
+@Qualifier @Retention(AnnotationRetention.BINARY) annotation class NodeLabel
 
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class HeaderClickAction
+@Qualifier @Retention(AnnotationRetention.BINARY) annotation class HeaderClickAction
 
-@Scope
-@Retention(AnnotationRetention.BINARY)
-annotation class SectionHeaderScope
+@Scope @Retention(AnnotationRetention.BINARY) annotation class SectionHeaderScope
 
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class NewsHeader
-
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class SocialHeader
-
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class RecsHeader
-
-@Qualifier
-@Retention(AnnotationRetention.BINARY)
-annotation class PromoHeader
+@Qualifier @Retention(AnnotationRetention.BINARY) annotation class HighlightsHeader

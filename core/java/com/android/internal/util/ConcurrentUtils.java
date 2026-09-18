@@ -93,8 +93,8 @@ public class ConcurrentUtils {
     }
 
     /**
-     * Waits for {@link CountDownLatch#countDown()} to be called on the {@param countDownLatch}.
-     * <p>If {@link CountDownLatch#countDown()} doesn't occur within {@param timeoutMs}, this
+     * Waits for {@link CountDownLatch#countDown()} to be called on the {@code countDownLatch}.
+     * <p>If {@link CountDownLatch#countDown()} doesn't occur within {@code timeoutMs}, this
      * method will throw {@code IllegalStateException}
      * <p>If {@code InterruptedException} occurs, this method will interrupt the current thread
      * and throw {@code IllegalStateException}

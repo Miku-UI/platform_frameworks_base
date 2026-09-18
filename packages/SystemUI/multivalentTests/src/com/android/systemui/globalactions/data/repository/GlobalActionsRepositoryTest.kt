@@ -38,7 +38,7 @@ class GlobalActionsRepositoryTest : SysuiTestCase() {
 
     @Before
     fun setUp() {
-        underTest = kosmos.globalActionsRepository
+        underTest = kosmos.realGlobalActionsRepository
     }
 
     @Test

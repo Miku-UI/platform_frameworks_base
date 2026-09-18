@@ -16,6 +16,8 @@
 
 package com.android.systemui.statusbar.notification.collection;
 
+import static com.android.systemui.statusbar.notification.stack.NotificationPriorityBucketKt.BUCKET_UNKNOWN;
+
 import android.annotation.Nullable;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -33,6 +35,7 @@ import com.android.internal.logging.InstanceId;
 import com.android.systemui.statusbar.RankingBuilder;
 import com.android.systemui.statusbar.SbnBuilder;
 import com.android.systemui.statusbar.notification.collection.listbuilder.NotifSection;
+import com.android.systemui.statusbar.notification.stack.PriorityBucket;
 import com.android.systemui.util.time.FakeSystemClock;
 
 import kotlin.Unit;
@@ -62,6 +65,7 @@ public class NotificationEntryBuilder {
     /* If set, use this creation time instead of mClock.uptimeMillis */
     private long mCreationTime = -1;
     private int mStableIndex = -1;
+    private @PriorityBucket int mBucket = BUCKET_UNKNOWN;
 
     public NotificationEntryBuilder() {
         mSbnBuilder = new SbnBuilder();
@@ -134,6 +138,7 @@ public class NotificationEntryBuilder {
         entry.setParent(mParent);
         entry.getAttachState().setSection(mNotifSection);
         entry.getAttachState().setStableIndex(mStableIndex);
+        entry.setBucket(mBucket);
         return entry;
     }
 
@@ -291,11 +296,6 @@ public class NotificationEntryBuilder {
         return this;
     }
 
-    public NotificationEntryBuilder setAdditionalPeople(ArrayList<String> additionalPeople) {
-        mRankingBuilder.setAdditionalPeople(additionalPeople);
-        return this;
-    }
-
     public NotificationEntryBuilder setSnoozeCriteria(
             ArrayList<SnoozeCriterion> snoozeCriteria) {
         mRankingBuilder.setSnoozeCriteria(snoozeCriteria);
@@ -317,11 +317,6 @@ public class NotificationEntryBuilder {
         return this;
     }
 
-    public NotificationEntryBuilder setNoisy(boolean noisy) {
-        mRankingBuilder.setNoisy(noisy);
-        return this;
-    }
-
     public NotificationEntryBuilder setCanBubble(boolean canBubble) {
         mRankingBuilder.setCanBubble(canBubble);
         return this;
@@ -332,13 +327,13 @@ public class NotificationEntryBuilder {
         return this;
     }
 
-    public NotificationEntryBuilder setUserSentiment(int userSentiment) {
-        mRankingBuilder.setUserSentiment(userSentiment);
+    public NotificationEntryBuilder setChannel(NotificationChannel channel) {
+        mRankingBuilder.setChannel(channel);
         return this;
     }
 
-    public NotificationEntryBuilder setChannel(NotificationChannel channel) {
-        mRankingBuilder.setChannel(channel);
+    public NotificationEntryBuilder setBucket(@PriorityBucket int bucket) {
+        mBucket = bucket;
         return this;
     }
 
@@ -365,11 +360,6 @@ public class NotificationEntryBuilder {
 
     public NotificationEntryBuilder setShortcutInfo(ShortcutInfo shortcutInfo) {
         mRankingBuilder.setShortcutInfo(shortcutInfo);
-        return this;
-    }
-
-    public NotificationEntryBuilder setRankingAdjustment(int rankingAdjustment) {
-        mRankingBuilder.setRankingAdjustment(rankingAdjustment);
         return this;
     }
 }

@@ -17,9 +17,12 @@ package com.android.systemui.shade.data.repository
 
 import android.annotation.SuppressLint
 import android.graphics.Rect
+import com.android.systemui.Dumpable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.dump.DumpManager
 import com.android.systemui.shade.ShadeOverlayBoundsListener
+import java.io.PrintWriter
 import java.util.concurrent.CopyOnWriteArrayList
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -110,13 +113,6 @@ interface ShadeRepository {
     @Deprecated("Use ShadeInteractor.isQsBypassingShade instead")
     val legacyExpandImmediate: StateFlow<Boolean>
 
-    /**
-     * Whether the shade layout should be Split Shade (`true`) or Single Shade (`false`). Only
-     * applicable when Dual Shade is disabled. When Dual Shade is enabled, this always returns
-     * `false`.
-     */
-    val legacyUseSplitShade: MutableStateFlow<Boolean>
-
     /** True when QS is taking up the entire screen, i.e. fully expanded on a non-unfolded phone. */
     @Deprecated("Use ShadeInteractor instead") val legacyQsFullscreen: StateFlow<Boolean>
 
@@ -192,8 +188,14 @@ interface ShadeRepository {
 
 /** Business logic for shade interactions */
 @SysUISingleton
-class ShadeRepositoryImpl @Inject constructor(@Background val backgroundScope: CoroutineScope) :
-    ShadeRepository {
+class ShadeRepositoryImpl
+@Inject
+constructor(@Background val backgroundScope: CoroutineScope, dumpManager: DumpManager) :
+    ShadeRepository, Dumpable {
+    init {
+        dumpManager.registerDumpable("ShadeRepositoryImpl", this)
+    }
+
     private val _qsExpansion = MutableStateFlow(0f)
     @Deprecated("Use ShadeInteractor.qsExpansion instead")
     override val qsExpansion: StateFlow<Float> = _qsExpansion.asStateFlow()
@@ -244,8 +246,6 @@ class ShadeRepositoryImpl @Inject constructor(@Background val backgroundScope: C
     private val _legacyExpandImmediate = MutableStateFlow(false)
     @Deprecated("Use ShadeInteractor instead")
     override val legacyExpandImmediate: StateFlow<Boolean> = _legacyExpandImmediate.asStateFlow()
-
-    override val legacyUseSplitShade = MutableStateFlow(false)
 
     private val _legacyQsFullscreen = MutableStateFlow(false)
     @Deprecated("Use ShadeInteractor instead")
@@ -335,5 +335,27 @@ class ShadeRepositoryImpl @Inject constructor(@Background val backgroundScope: C
 
     override fun removeShadeBoundsListener(listener: ShadeOverlayBoundsListener) {
         shadeOverlayBoundsListeners.remove(listener)
+    }
+
+    override fun dump(pw: PrintWriter, args: Array<String>) {
+        pw.println("currentFling: ${currentFling.replayCache}")
+        pw.println("legacyExpandImmediate: ${_legacyExpandImmediate.value}")
+        pw.println(
+            "legacyExpandedOrAwaitingInputTransfer: ${_legacyExpandedOrAwaitingInputTransfer.value}"
+        )
+        pw.println("legacyIsClosing: ${_legacyIsClosing.value}")
+        pw.println("legacyIsQsExpanded: ${_legacyIsQsExpanded.value}")
+        pw.println("legacyLockscreenShadeTracking: ${legacyLockscreenShadeTracking.value}")
+        pw.println("legacyQsFullscreen: ${_legacyQsFullscreen.value}")
+        pw.println("legacyQsTracking: ${_legacyQsTracking.value}")
+        pw.println("legacyShadeExpansion: ${_legacyShadeExpansion.value}")
+        pw.println("legacyShadeTracking: ${_legacyShadeTracking.value}")
+        pw.println("lockscreenShadeExpansion: ${_lockscreenShadeExpansion.value}")
+        pw.println("qsExpansion: ${_qsExpansion.value}")
+        pw.println("shadeOverlayBounds: $shadeOverlayBounds")
+        pw.println("shadeOverlayBoundsListeners: ${shadeOverlayBoundsListeners.size} listeners")
+        pw.println(
+            "udfpsTransitionToFullShadeProgress: ${_udfpsTransitionToFullShadeProgress.value}"
+        )
     }
 }

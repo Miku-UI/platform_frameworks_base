@@ -31,10 +31,11 @@ import static com.android.internal.accessibility.common.ShortcutConstants.UserSh
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.GESTURE;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.HARDWARE;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.KEY_GESTURE;
+import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.QUICK_ACCESS;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.QUICK_SETTINGS;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.SOFTWARE;
+import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.TOP_ROW_KEY;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.TRIPLETAP;
-import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.TWOFINGER_DOUBLETAP;
 
 import android.accessibilityservice.AccessibilityService.SoftKeyboardShowMode;
 import android.accessibilityservice.AccessibilityServiceInfo;
@@ -69,14 +70,13 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * Class that hold states and settings per user and share between
@@ -99,8 +99,7 @@ public class AccessibilityUserState {
     final Map<ComponentName, AccessibilityServiceConnection> mComponentNameToServiceMap =
             new HashMap<>();
 
-    final List<AccessibilityServiceInfo> mInstalledServices = new ArrayList<>();
-
+    final Map<ComponentName, AccessibilityServiceInfo> mInstalledServicesMap = new HashMap<>();
     final List<AccessibilityShortcutInfo> mInstalledShortcuts = new ArrayList<>();
 
     final Set<ComponentName> mBindingServices = new HashSet<>();
@@ -108,6 +107,11 @@ public class AccessibilityUserState {
     final Set<ComponentName> mCrashedServices = new HashSet<>();
 
     final Set<ComponentName> mEnabledServices = new HashSet<>();
+
+    // All service connections currently bound or binding, including crashed ones.
+    private final Set<AccessibilityServiceConnection> mServiceConnections = new HashSet<>();
+
+    private Set<String> mPermittedAccessibilityServices = null;
 
     final Set<ComponentName> mTouchExplorationGrantedServices = new HashSet<>();
 
@@ -136,7 +140,6 @@ public class AccessibilityUserState {
     private boolean mIsAudioDescriptionByDefaultRequested;
     private boolean mIsAutoclickEnabled;
     private boolean mIsMagnificationSingleFingerTripleTapEnabled;
-    private boolean mMagnificationTwoFingerTripleTapEnabled;
     private boolean mIsFilterKeyEventsEnabled;
     private boolean mIsPerformGesturesEnabled;
     private boolean mAccessibilityFocusOnlyInActiveWindow;
@@ -166,7 +169,10 @@ public class AccessibilityUserState {
     // Whether the following typing focus feature for magnification is enabled.
     private boolean mMagnificationFollowTypingEnabled = true;
     // Whether the following keyboard focus feature for magnification is enabled.
-    private boolean mMagnificationFollowKeyboardEnabled = false;
+    // Default to true if magnification viewport prioritization is enabled to prevent viewport
+    // jitter. False otherwise.
+    private boolean mMagnificationFollowKeyboardEnabled =
+            Flags.enableMagnificationViewportPrioritization();
     // Whether the always on magnification feature is enabled.
     private boolean mAlwaysOnMagnificationEnabled = false;
 
@@ -221,6 +227,8 @@ public class AccessibilityUserState {
         mShortcutTargets.put(GESTURE, new ArraySet<>());
         mShortcutTargets.put(QUICK_SETTINGS, new ArraySet<>());
         mShortcutTargets.put(KEY_GESTURE, new ArraySet<>());
+        mShortcutTargets.put(TOP_ROW_KEY, new ArraySet<>());
+        mShortcutTargets.put(QUICK_ACCESS, new ArraySet<>());
     }
 
     boolean isHandlingAccessibilityEventsLocked() {
@@ -255,7 +263,6 @@ public class AccessibilityUserState {
         mRequestTwoFingerPassthrough = false;
         mSendMotionEventsEnabled = false;
         mIsMagnificationSingleFingerTripleTapEnabled = false;
-        mMagnificationTwoFingerTripleTapEnabled = false;
         mIsAutoclickEnabled = false;
         mUserNonInteractiveUiTimeout = 0;
         mUserInteractiveUiTimeout = 0;
@@ -265,7 +272,7 @@ public class AccessibilityUserState {
         mMagnificationCursorFollowingMode =
                 Settings.Secure.ACCESSIBILITY_MAGNIFICATION_CURSOR_FOLLOWING_MODE_CONTINUOUS;
         mMagnificationFollowTypingEnabled = true;
-        mMagnificationFollowKeyboardEnabled = false;
+        mMagnificationFollowKeyboardEnabled = Flags.enableMagnificationViewportPrioritization();
         mAlwaysOnMagnificationEnabled = false;
     }
 
@@ -300,6 +307,14 @@ public class AccessibilityUserState {
             mComponentNameToServiceMap.put(boundClient.getComponentName(), boundClient);
         }
         mServiceInfoChangeListener.onServiceInfoChangedLocked(this);
+    }
+
+    void addServiceConnectionLocked(AccessibilityServiceConnection connection) {
+        mServiceConnections.add(connection);
+    }
+
+    void removeServiceConnectionLocked(AccessibilityServiceConnection connection) {
+        mServiceConnections.remove(connection);
     }
 
     /**
@@ -435,8 +450,7 @@ public class AccessibilityUserState {
      * Remove the service from the crashed and binding service lists if the user disabled it.
      */
     void removeDisabledServicesFromTemporaryStatesLocked() {
-        for (int i = 0, count = mInstalledServices.size(); i < count; i++) {
-            final AccessibilityServiceInfo installedService = mInstalledServices.get(i);
+        for (AccessibilityServiceInfo installedService : getInstalledServices()) {
             final ComponentName componentName = ComponentName.unflattenFromString(
                     installedService.getId());
 
@@ -529,12 +543,15 @@ public class AccessibilityUserState {
                 & SHOW_MODE_HARD_KEYBOARD_ORIGINAL_VALUE) != 0;
     }
 
+    Set<AccessibilityServiceConnection> getServiceConnections() {
+        return mServiceConnections;
+    }
+
     private void unbindAllServicesLocked() {
-        final List<AccessibilityServiceConnection> services = mBoundServices;
-        for (int count = services.size(); count > 0; count--) {
-            // When the service is unbound, it disappears from the list, so there's no need to
-            // keep track of the index
-            services.get(0).unbindLocked();
+        // Copy the set because unbindLocked() removes the connection from the set.
+        final Set<AccessibilityServiceConnection> connections = new HashSet<>(mServiceConnections);
+        for (AccessibilityServiceConnection connection : connections) {
+            connection.unbindLocked();
         }
     }
 
@@ -582,7 +599,7 @@ public class AccessibilityUserState {
         pw.append(", autoclickEnabled=").append(String.valueOf(mIsAutoclickEnabled));
         pw.append(", nonInteractiveUiTimeout=").append(String.valueOf(mNonInteractiveUiTimeout));
         pw.append(", interactiveUiTimeout=").append(String.valueOf(mInteractiveUiTimeout));
-        pw.append(", installedServiceCount=").append(String.valueOf(mInstalledServices.size()));
+        pw.append(", installedServiceCount=").append(String.valueOf(getInstalledServices().size()));
         pw.append(", magnificationModes=").append(String.valueOf(mMagnificationModes));
         pw.append(", magnificationCapabilities=")
                 .append(String.valueOf(mMagnificationCapabilities));
@@ -609,6 +626,9 @@ public class AccessibilityUserState {
         dumpShortcutTargets(pw, QUICK_SETTINGS, "qs shortcut targets");
         pw.append("     a11y tiles in QS panel:").append(mA11yTilesInQsPanel.toString());
         pw.println();
+        dumpShortcutTargets(pw, TOP_ROW_KEY, "top row key");
+        dumpShortcutTargets(pw, QUICK_ACCESS, "quick access dialog");
+        dumpShortcutTargets(pw, KEY_GESTURE, "keyboard shortcuts targets");
         pw.append("     Bound services:{");
         final int serviceCount = mBoundServices.size();
         for (int j = 0; j < serviceCount; j++) {
@@ -668,6 +688,10 @@ public class AccessibilityUserState {
         pw.println("}]");
     }
 
+    public Collection<AccessibilityServiceInfo> getInstalledServices() {
+        return Collections.unmodifiableCollection(mInstalledServicesMap.values());
+    }
+
     public boolean isAutoclickEnabledLocked() {
         return mIsAutoclickEnabled;
     }
@@ -682,14 +706,6 @@ public class AccessibilityUserState {
 
     public void setMagnificationSingleFingerTripleTapEnabledLocked(boolean enabled) {
         mIsMagnificationSingleFingerTripleTapEnabled = enabled;
-    }
-
-    public boolean isMagnificationTwoFingerTripleTapEnabledLocked() {
-        return mMagnificationTwoFingerTripleTapEnabled;
-    }
-
-    public void setMagnificationTwoFingerTripleTapEnabledLocked(boolean enabled) {
-        mMagnificationTwoFingerTripleTapEnabled = enabled;
     }
 
     public boolean isFilterKeyEventsEnabledLocked() {
@@ -854,10 +870,7 @@ public class AccessibilityUserState {
             if ((shortcutTypes & shortcutType) != shortcutType) {
                 continue;
             }
-            if ((shortcutType == TRIPLETAP
-                    && isMagnificationSingleFingerTripleTapEnabledLocked()) || (
-                    shortcutType == TWOFINGER_DOUBLETAP
-                            && isMagnificationTwoFingerTripleTapEnabledLocked())) {
+            if (shortcutType == TRIPLETAP && isMagnificationSingleFingerTripleTapEnabledLocked()) {
                 targets.add(MAGNIFICATION_CONTROLLER_NAME);
             } else if (mShortcutTargets.containsKey(shortcutType)) {
                 targets.addAll(mShortcutTargets.get(shortcutType));
@@ -869,25 +882,24 @@ public class AccessibilityUserState {
     /**
      * Updates the corresponding shortcut targets with the provided set.
      * Tap shortcuts don't operate using sets of targets,
-     * so trying to update {@code TRIPLETAP} or {@code TWOFINGER_DOUBLETAP}
+     * so trying to update {@code TRIPLETAP}
      * will instead throw an {@code IllegalArgumentException}
      * @param newTargets set of targets to replace the existing set.
      * @param shortcutType type to be replaced.
      * @return {@code true} if the set was changed, or {@code false} if the elements are the same.
-     * @throws IllegalArgumentException if {@code TRIPLETAP} or {@code TWOFINGER_DOUBLETAP} is used.
+     * @throws IllegalArgumentException if {@code TRIPLETAP} is used.
      */
     boolean updateShortcutTargetsLocked(
             Set<String> newTargets, @UserShortcutType int shortcutType) {
-        final int mask = TRIPLETAP | TWOFINGER_DOUBLETAP;
-        if ((shortcutType & mask) != 0) {
+        if ((shortcutType & TRIPLETAP) != 0) {
             throw new IllegalArgumentException("Tap shortcuts cannot be updated with target sets.");
         }
         if (!mShortcutTargets.containsKey(shortcutType)) {
             mShortcutTargets.put(shortcutType, new ArraySet<>());
         }
         ArraySet<String> currentTargets = mShortcutTargets.get(shortcutType);
-        Slog.v(LOG_TAG, TextUtils.formatSimple("updateShortcutTargets: type:%s, current:%s, new:%s",
-                ShortcutUtils.convertToKey(shortcutType), currentTargets, newTargets));
+        Slog.v(LOG_TAG, "updateShortcutTargets: type:" + ShortcutUtils.convertToKey(shortcutType)
+                + ", current:" + currentTargets + ", new:" + newTargets);
         if (newTargets.equals(currentTargets)) {
             return false;
         }
@@ -897,27 +909,33 @@ public class AccessibilityUserState {
     }
 
     /**
+     * Sets the permitted accessibility services for this user according to
+     * {@link android.app.admin.DevicePolicyManager}.
+     *
+     * <p>This set should be updated whenever installed packages or device policy changes.</p>
+     *
+     * @param permittedServices The set of permitted package names.
+     */
+    public void setPermittedAccessibilityServicesLocked(Set<String> permittedServices) {
+        mPermittedAccessibilityServices = permittedServices;
+    }
+
+    /**
      * Whether or not the given shortcut target is installed in device.
      *
      * @param name The shortcut target name
      * @return true if the shortcut target is installed.
      */
     public boolean isShortcutTargetInstalledLocked(String name) {
-        if (TextUtils.isEmpty(name)) {
-            return false;
-        }
-        if (MAGNIFICATION_CONTROLLER_NAME.equals(name)) {
+        BuiltInCheckResult checkResult = checkIsBuiltInFeature(name);
+        if (checkResult == BuiltInCheckResult.VALID) {
             return true;
         }
-
+        if (checkResult == BuiltInCheckResult.INVALID) {
+            return false;
+        }
         final ComponentName componentName = ComponentName.unflattenFromString(name);
-        if (componentName == null) {
-            return false;
-        }
-        if (AccessibilityShortcutController.getFrameworkShortcutFeaturesMap()
-                .containsKey(componentName)) {
-            return true;
-        }
+
         if (getInstalledServiceInfoLocked(componentName) != null) {
             return true;
         }
@@ -930,6 +948,80 @@ public class AccessibilityUserState {
     }
 
     /**
+     * Checks if a given accessibility service or feature component is permitted for this user.
+     *
+     * @param name   The flattened ComponentName string of the service or feature.
+     * @return true if the service/feature is permitted, false otherwise.
+     */
+    public boolean isAccessibilityFeaturePermittedLocked(String name) {
+        return isAccessibilityFeaturePermittedLocked(name, mPermittedAccessibilityServices);
+    }
+
+    /**
+     * Returns whether the accessibility feature is permitted for this user.
+     *
+     * @param name The name of the accessibility feature.
+     * @param permittedPackageNameSet The set of permitted package names.
+     * @return true if the accessibility feature is permitted, false otherwise.
+     */
+    public boolean isAccessibilityFeaturePermittedLocked(String name,
+            Set<String> permittedPackageNameSet) {
+        BuiltInCheckResult checkResult = checkIsBuiltInFeature(name);
+        if (checkResult == BuiltInCheckResult.VALID) {
+            return true;
+        }
+        if (checkResult == BuiltInCheckResult.INVALID) {
+            return false;
+        }
+        final ComponentName componentName = ComponentName.unflattenFromString(name);
+
+        // a null return means all services are allowed
+        // (no restrictions in place from the DPM side for installable services).
+        if (permittedPackageNameSet == null || permittedPackageNameSet.contains(
+                componentName.getPackageName())) {
+            return true;
+        }
+
+        for (int i = 0; i < mInstalledShortcuts.size(); i++) {
+            if (mInstalledShortcuts.get(i).getComponentName().equals(componentName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private enum BuiltInCheckResult {
+        VALID,
+        INVALID,
+        NOT_APPLICABLE // Not one of the built-ins checked
+    }
+
+    private BuiltInCheckResult checkIsBuiltInFeature(String name) {
+        if (TextUtils.isEmpty(name)) {
+            return BuiltInCheckResult.INVALID;
+        }
+
+        if (name.equals(AccessibilityShortcutController.MAGNIFICATION_CONTROLLER_NAME)) {
+            return BuiltInCheckResult.VALID;
+        }
+
+        final ComponentName componentName = ComponentName.unflattenFromString(name);
+        if (componentName == null) {
+            return BuiltInCheckResult.INVALID;
+        }
+        if (AccessibilityShortcutController.getFrameworkShortcutFeaturesMap()
+                .containsKey(componentName)) {
+            if (getInstalledServiceInfoLocked(componentName) != null) {
+                return BuiltInCheckResult.INVALID;
+            }
+            return BuiltInCheckResult.VALID;
+        }
+
+        return BuiltInCheckResult.NOT_APPLICABLE;
+    }
+
+
+    /**
      * Removes given shortcut target in the set.
      *
      * @param shortcutType The shortcut type.
@@ -938,11 +1030,9 @@ public class AccessibilityUserState {
      */
     public boolean removeShortcutTargetLocked(
             @UserShortcutType int shortcutType, ComponentName target) {
-        if (shortcutType == TRIPLETAP
-                || shortcutType == TWOFINGER_DOUBLETAP) {
+        if (shortcutType == TRIPLETAP) {
             throw new UnsupportedOperationException(
-                    "removeShortcutTargetLocked only support shortcut type: "
-                            + "software and hardware and quick settings for now"
+                    "removeShortcutTargetLocked does not support TRIPLETAP."
             );
         }
 
@@ -962,13 +1052,7 @@ public class AccessibilityUserState {
      * Returns installed accessibility service info by the given service component name.
      */
     public AccessibilityServiceInfo getInstalledServiceInfoLocked(ComponentName componentName) {
-        for (int i = 0; i < mInstalledServices.size(); i++) {
-            final AccessibilityServiceInfo serviceInfo = mInstalledServices.get(i);
-            if (serviceInfo.getComponentName().equals(componentName)) {
-                return serviceInfo;
-            }
-        }
-        return null;
+        return mInstalledServicesMap.getOrDefault(componentName, null);
     }
 
     /**
@@ -1175,9 +1259,19 @@ public class AccessibilityUserState {
         return false;
     }
 
-    public void updateTileServiceMapForAccessibilityServiceLocked() {
+    /**
+     * Updates the internal map of accessibility services to their corresponding tile services.
+     *
+     * @param validA11yTileServices A set of valid {@link ComponentName}s for accessibility tile
+     *                              services.
+     */
+    public void updateTileServiceMapForAccessibilityServiceLocked(
+            @NonNull Set<ComponentName> validA11yTileServices) {
         mA11yServiceToTileService.clear();
-        mInstalledServices.forEach(
+        if (validA11yTileServices.isEmpty()) {
+            return;
+        }
+        getInstalledServices().forEach(
                 a11yServiceInfo -> {
                     String tileServiceName = a11yServiceInfo.getTileServiceName();
                     if (!TextUtils.isEmpty(tileServiceName)) {
@@ -1190,14 +1284,53 @@ public class AccessibilityUserState {
                                 a11yFeature.getPackageName(),
                                 tileServiceName
                         );
-                        mA11yServiceToTileService.put(a11yFeature, tileService);
+                        if (validA11yTileServices.contains(tileService)) {
+                            mA11yServiceToTileService.put(a11yFeature, tileService);
+                        }
                     }
                 }
         );
     }
 
-    public void updateTileServiceMapForAccessibilityActivityLocked() {
+    /**
+     * Builds and populates the internal map of installed accessibility services
+     * for O(1) lookups.
+     *
+     * <p>The map uses the service's {@link ComponentName} as the key and the
+     * {@link AccessibilityServiceInfo} object as the value. This replaces the
+     * need for a slower O(N) linear search when querying a service by its component name.</p>
+     *
+     * @param installedServices The list of {@link AccessibilityServiceInfo} objects
+     * representing all installed services for the current user.
+     * This list is typically retrieved from the system's package manager.
+     */
+    void buildInstalledServicesMapLocked(
+            List<AccessibilityServiceInfo> installedServices) {
+        mInstalledServicesMap.clear();
+        if (installedServices == null) {
+            return;
+        }
+
+        for (AccessibilityServiceInfo serviceInfo : installedServices) {
+            final ComponentName componentName = serviceInfo.getComponentName();
+            if (componentName != null) {
+                mInstalledServicesMap.put(componentName, serviceInfo);
+            }
+        }
+    }
+
+    /**
+     * Updates the internal map of accessibility activities to their corresponding tile services.
+     *
+     * @param validA11yTileServices A set of valid {@link ComponentName}s for accessibility tile
+     *                              services.
+     */
+    public void updateTileServiceMapForAccessibilityActivityLocked(
+            @NonNull Set<ComponentName> validA11yTileServices) {
         mA11yActivityToTileService.clear();
+        if (validA11yTileServices.isEmpty()) {
+            return;
+        }
         mInstalledShortcuts.forEach(
                 a11yShortcutInfo -> {
                     String tileServiceName = a11yShortcutInfo.getTileServiceName();
@@ -1206,7 +1339,9 @@ public class AccessibilityUserState {
                         ComponentName tileService = new ComponentName(
                                 a11yFeature.getPackageName(),
                                 tileServiceName);
-                        mA11yActivityToTileService.put(a11yFeature, tileService);
+                        if (validA11yTileServices.contains(tileService)) {
+                            mA11yActivityToTileService.put(a11yFeature, tileService);
+                        }
                     }
                 }
         );
@@ -1240,16 +1375,11 @@ public class AccessibilityUserState {
     public Map<ComponentName, AccessibilityServiceInfo> getTileServiceToA11yServiceInfoMapLocked() {
         Map<ComponentName, AccessibilityServiceInfo> tileServiceToA11yServiceInfoMap =
                 new ArrayMap<>();
-        Map<ComponentName, AccessibilityServiceInfo> a11yServiceToServiceInfoMap =
-                mInstalledServices.stream().collect(
-                        Collectors.toMap(
-                                AccessibilityServiceInfo::getComponentName,
-                                Function.identity()));
         for (Map.Entry<ComponentName, ComponentName> serviceToTile :
                 mA11yServiceToTileService.entrySet()) {
-            if (a11yServiceToServiceInfoMap.containsKey(serviceToTile.getKey())) {
+            if (mInstalledServicesMap.containsKey(serviceToTile.getKey())) {
                 tileServiceToA11yServiceInfoMap.put(serviceToTile.getValue(),
-                        a11yServiceToServiceInfoMap.get(serviceToTile.getKey()));
+                        mInstalledServicesMap.get(serviceToTile.getKey()));
             }
         }
         return tileServiceToA11yServiceInfoMap;

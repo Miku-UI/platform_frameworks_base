@@ -197,7 +197,7 @@ public class BlobStoreManager {
      * time, typically about a week.
      *
      * <p> If an app is planning to acquire a lease on this data (using
-     * {@link #acquireLease(BlobHandle, int)} or one of it's other variants) after committing
+     * {@link #acquireLease(BlobHandle, int)} or one of its other variants) after committing
      * this data (using {@link Session#commit(Executor, Consumer)}), it is recommended that
      * the app checks the remaining quota for acquiring a lease first using
      * {@link #getRemainingLeaseQuotaBytes()} and can skip contributing this data if needed.
@@ -633,7 +633,7 @@ public class BlobStoreManager {
 
     /**
      * Return {@link LeaseInfo} representing a lease acquired using
-     * {@link #acquireLease(BlobHandle, int)} or one of it's other variants,
+     * {@link #acquireLease(BlobHandle, int)} or one of its other variants,
      * or {@code null} if there is no lease acquired.
      *
      * @throws SecurityException when the blob represented by the {@code blobHandle} does not

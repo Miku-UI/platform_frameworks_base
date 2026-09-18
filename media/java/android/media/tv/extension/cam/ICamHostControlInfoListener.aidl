@@ -20,5 +20,13 @@ package android.media.tv.extension.cam;
  * @hide
  */
 oneway interface ICamHostControlInfoListener {
+    /**
+     * Notify the host of a change in the CICAM Host Control session status.
+     * This callback is invoked when a session transitions between active and inactive states.
+     *
+     * @param sessionToken The unique token identifying the session, which was established
+     *                     during the initial tune request.
+     * @param sessionStatus @CamConstants.CamHostSessionStatus indicate the status of the session.
+     */
     void onCamHostControlInfoChanged(String sessionToken, int sessionStatus);
 }

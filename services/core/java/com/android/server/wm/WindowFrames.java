@@ -142,7 +142,7 @@ public class WindowFrames {
     /**
      * Clears factors that would cause report-resize.
      */
-    void onResizeHandled() {
+    void clearForceReportingResized() {
         mForceReportingResized = false;
     }
 

@@ -234,6 +234,20 @@ public class BrightLineFalsingManagerTest extends SysuiTestCase {
     }
 
     @Test
+    public void testSkipFaceJustUnlocked() {
+        assertThat(mBrightLineFalsingManager.isFalseTouch(Classifier.GENERIC)).isTrue();
+        when(mFalsingDataProvider.isJustUnlockedWithFace()).thenReturn(true);
+        assertThat(mBrightLineFalsingManager.isFalseTouch(Classifier.GENERIC)).isFalse();
+    }
+
+    @Test
+    public void testSkipUnlockAndDismissing() {
+        assertThat(mBrightLineFalsingManager.isFalseTouch(Classifier.GENERIC)).isTrue();
+        when(mFalsingDataProvider.isUnlockedAndDismissing()).thenReturn(true);
+        assertThat(mBrightLineFalsingManager.isFalseTouch(Classifier.GENERIC)).isFalse();
+    }
+
+    @Test
     public void testAddAndRemoveFalsingBeliefListener() {
         verify(mHistoryTracker, never()).addBeliefListener(any());
 

@@ -16,24 +16,17 @@
 
 package com.android.systemui.qs.tiles.impl.cell.domain.model
 
-import com.android.systemui.common.shared.model.Icon
-
-/** A data-only model representing the icon for the Mobile Data tile. */
-sealed interface MobileDataTileIcon {
-    data class SignalIcon(val level: Int) : MobileDataTileIcon
-
-    data class ResourceIcon(val resourceIcon: Icon.Resource) : MobileDataTileIcon
-}
-
 /**
  * Model for the Mobile Data QS tile.
  *
  * @param isSimActive True if a data sim is active.
  * @param isEnabled True if mobile data is enabled.
- * @param icon The icon to display for the tile.
+ * @param isAirplaneModeEnabled True if airplane mode is enabled.
+ * @param secondaryLabel The secondary label to display for the tile.
  */
 data class MobileDataTileModel(
     val isSimActive: Boolean,
     val isEnabled: Boolean,
-    val icon: MobileDataTileIcon,
+    val isAirplaneModeEnabled: Boolean,
+    val secondaryLabel: CharSequence? = null,
 )

@@ -35,7 +35,4 @@ java_test_host {
     test_options: {
         unit_test: true,
     },
-    test_suites: [
-        "cts",
-    ],
 }

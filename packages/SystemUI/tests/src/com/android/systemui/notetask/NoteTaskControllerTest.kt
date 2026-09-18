@@ -27,7 +27,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.Intent.ACTION_CREATE_NOTE
 import android.content.Intent.ACTION_MAIN
-import android.content.Intent.ACTION_MANAGE_DEFAULT_APP
 import android.content.Intent.CATEGORY_HOME
 import android.content.Intent.EXTRA_USE_STYLUS_MODE
 import android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK
@@ -36,57 +35,52 @@ import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
 import android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+import android.content.pm.ShortcutInfo
 import android.content.pm.ShortcutManager
 import android.content.pm.UserInfo
 import android.content.res.Resources
 import android.graphics.drawable.Icon
 import android.os.UserHandle
 import android.os.UserManager
-import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.ext.truth.content.IntentSubject.assertThat
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.notetask.NoteTaskController.Companion.EXTRA_SHORTCUT_BADGE_OVERRIDE_PACKAGE
 import com.android.systemui.notetask.NoteTaskController.Companion.SHORTCUT_ID
-import com.android.systemui.notetask.NoteTaskEntryPoint.APP_CLIPS
 import com.android.systemui.notetask.NoteTaskEntryPoint.KEYBOARD_SHORTCUT
 import com.android.systemui.notetask.NoteTaskEntryPoint.QUICK_AFFORDANCE
 import com.android.systemui.notetask.NoteTaskEntryPoint.TAIL_BUTTON
-import com.android.systemui.notetask.NoteTaskEntryPoint.WIDGET_PICKER_SHORTCUT
 import com.android.systemui.notetask.shortcut.CreateNoteTaskShortcutActivity
 import com.android.systemui.notetask.shortcut.LaunchNoteTaskActivity
 import com.android.systemui.res.R
 import com.android.systemui.settings.FakeUserTracker
-import com.android.systemui.util.mockito.any
-import com.android.systemui.util.mockito.argumentCaptor
-import com.android.systemui.util.mockito.capture
-import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.mockito.mock
-import com.android.systemui.util.mockito.withArgCaptor
-import com.android.systemui.util.settings.FakeSettings
 import com.android.wm.shell.bubbles.Bubble
 import com.android.wm.shell.bubbles.Bubbles
 import com.google.common.truth.Truth.assertThat
 import java.util.Optional
 import kotlin.test.assertNotNull
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mock
-import org.mockito.Mockito.atLeastOnce
-import org.mockito.Mockito.doNothing
-import org.mockito.Mockito.never
-import org.mockito.Mockito.spy
-import org.mockito.Mockito.verify
-import org.mockito.Mockito.verifyNoMoreInteractions
-import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.atLeastOnce
+import org.mockito.kotlin.doNothing
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.never
+import org.mockito.kotlin.spy
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoMoreInteractions
 import org.mockito.kotlin.whenever
 
 /** atest SystemUITests:NoteTaskControllerTest */
@@ -98,7 +92,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
     @Mock private lateinit var workProfileContext: Context
     @Mock private lateinit var packageManager: PackageManager
     @Mock private lateinit var workProfilePackageManager: PackageManager
-    @Mock private lateinit var resolver: NoteTaskInfoResolver
+    @Mock private lateinit var noteTaskInfoResolver: NoteTaskInfoResolver
     @Mock private lateinit var bubbles: Bubbles
     @Mock private lateinit var keyguardManager: KeyguardManager
     @Mock private lateinit var userManager: UserManager
@@ -107,15 +101,16 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
     @Mock private lateinit var shortcutManager: ShortcutManager
     @Mock private lateinit var activityManager: ActivityManager
     @Mock private lateinit var devicePolicyManager: DevicePolicyManager
+    @Mock private lateinit var lockscreenNoteTakingAvailability: LockscreenNoteTakingAvailability
+    @Mock private lateinit var userResolver: NoteTaskUserResolver
     private lateinit var spiedResources: Resources
     private val userTracker = FakeUserTracker()
     private val testDispatcher = UnconfinedTestDispatcher()
     private val testScope = TestScope(testDispatcher)
-    private val secureSettings = FakeSettings(testDispatcher) { userTracker.userId }
 
     @Before
-    fun setUp() {
-        MockitoAnnotations.initMocks(this)
+    fun setUp(): Unit = runBlocking {
+        MockitoAnnotations.initMocks(this@NoteTaskControllerTest)
 
         whenever(context.getString(R.string.note_task_button_label))
             .thenReturn(NOTE_TASK_SHORT_LABEL)
@@ -125,25 +120,32 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
         whenever(context.createContextAsUser(any(), any())).thenReturn(context)
         whenever(packageManager.getApplicationInfo(any(), any<Int>())).thenReturn(mock())
         whenever(packageManager.getApplicationLabel(any())).thenReturn(NOTE_TASK_LONG_LABEL)
-        whenever(resolver.resolveInfo(any(), any(), any())).thenReturn(NOTE_TASK_INFO)
         whenever(userManager.isUserUnlocked).thenReturn(true)
         whenever(userManager.isUserUnlocked(any<Int>())).thenReturn(true)
         whenever(userManager.isUserUnlocked(any<UserHandle>())).thenReturn(true)
+        whenever(userResolver.getUserForHandlingNoteTaking(any()))
+            .thenReturn(userTracker.userHandle)
         whenever(
                 devicePolicyManager.getKeyguardDisabledFeatures(
                     /* admin= */ eq(null),
-                    /* userHandle= */ anyInt(),
+                    /* userHandle= */ any<Int>(),
                 )
             )
             .thenReturn(DevicePolicyManager.KEYGUARD_DISABLE_FEATURES_NONE)
         whenever(roleManager.getRoleHoldersAsUser(ROLE_NOTES, userTracker.userHandle))
             .thenReturn(listOf(NOTE_TASK_PACKAGE_NAME))
-        whenever(activityManager.getRunningTasks(anyInt())).thenReturn(emptyList())
+        whenever(activityManager.getRunningTasks(any<Int>())).thenReturn(emptyList())
         whenever(userManager.isManagedProfile(workUserInfo.id)).thenReturn(true)
         whenever(context.resources).thenReturn(getContext().resources)
 
         spiedResources = spy(context.resources)
-        `when`(context.resources).thenReturn(spiedResources)
+        whenever(context.resources).thenReturn(spiedResources)
+
+        setupTestScenario(
+            locked = false,
+            noteTaskInfo = NOTE_TASK_INFO,
+            isLockscreenNoteTakingEnabled = true,
+        )
     }
 
     private fun createNoteTaskController(
@@ -152,7 +154,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
     ): NoteTaskController =
         NoteTaskController(
             context = context,
-            resolver = resolver,
+            noteTaskInfoResolver = noteTaskInfoResolver,
             eventLogger = eventLogger,
             userManager = userManager,
             keyguardManager = keyguardManager,
@@ -162,12 +164,25 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
             roleManager = roleManager,
             shortcutManager = shortcutManager,
             activityManager = activityManager,
-            secureSettings = secureSettings,
+            lockscreenNoteTakingAvailability = lockscreenNoteTakingAvailability,
+            userResolver = userResolver,
             noteTaskBubblesController =
                 FakeNoteTaskBubbleController(context, testDispatcher, Optional.ofNullable(bubbles)),
             applicationScope = testScope,
             bgCoroutineContext = testScope.backgroundScope.coroutineContext,
         )
+
+    private fun setupTestScenario(
+        locked: Boolean,
+        noteTaskInfo: NoteTaskInfo? = NOTE_TASK_INFO,
+        isLockscreenNoteTakingEnabled: Boolean = true,
+    ) = runBlocking {
+        whenever(keyguardManager.isKeyguardLocked).thenReturn(locked)
+        whenever(noteTaskInfoResolver.resolveInfo(any(), eq(locked), any()))
+            .thenReturn(noteTaskInfo)
+        whenever(lockscreenNoteTakingAvailability.isLockscreenNoteTakingEnabled())
+            .thenReturn(isLockscreenNoteTakingEnabled)
+    }
 
     // region onBubbleExpandChanged
     @Test
@@ -249,75 +264,51 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
     // endregion
 
     // region showNoteTask
-    fun showNoteTaskAsUser_keyguardIsLocked_shouldStartActivityWithExpectedUserAndLogUiEvent() {
+    @Test
+    fun showNoteTaskAsUser_keyguardLocked_shouldStartActivityWithExpectedUserAndLogUiEvent() {
         val user10 = UserHandle.of(/* userId= */ 10)
         val expectedInfo =
             NOTE_TASK_INFO.copy(entryPoint = TAIL_BUTTON, isKeyguardLocked = true, user = user10)
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(expectedInfo.isKeyguardLocked)
-        whenever(resolver.resolveInfo(any(), any(), any())).thenReturn(expectedInfo)
+        setupTestScenario(locked = true, noteTaskInfo = expectedInfo)
 
         createNoteTaskController()
             .showNoteTaskAsUser(entryPoint = expectedInfo.entryPoint!!, user = user10)
 
-        val intentCaptor = argumentCaptor<Intent>()
-        val userCaptor = argumentCaptor<UserHandle>()
-        verify(context).startActivityAsUser(capture(intentCaptor), capture(userCaptor))
-        assertThat(intentCaptor.value).run {
-            hasAction(ACTION_CREATE_NOTE)
-            hasPackage(NOTE_TASK_PACKAGE_NAME)
-            hasFlags(FLAG_ACTIVITY_NEW_TASK)
-            hasFlags(FLAG_ACTIVITY_MULTIPLE_TASK)
-            hasFlags(FLAG_ACTIVITY_NEW_DOCUMENT)
-            extras().bool(EXTRA_USE_STYLUS_MODE).isTrue()
-        }
-        assertThat(userCaptor.value).isEqualTo(user10)
+        verifyNoteTaskOpenedAsActivity(user10, expectedUseStylusMode = true)
         verify(eventLogger).logNoteTaskOpened(expectedInfo)
         verifyNoMoreInteractions(bubbles)
     }
 
     @Test
-    fun showNoteTask_keyguardIsLocked_notesIsClosed_shouldStartActivityAndLogUiEvent() {
+    fun showNoteTask_keyguardLocked_notesIsClosed_shouldStartActivityAndLogUiEvent() {
         val expectedInfo = NOTE_TASK_INFO.copy(entryPoint = TAIL_BUTTON, isKeyguardLocked = true)
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(expectedInfo.isKeyguardLocked)
-        whenever(resolver.resolveInfo(any(), any(), any())).thenReturn(expectedInfo)
+        setupTestScenario(locked = true, noteTaskInfo = expectedInfo)
 
         createNoteTaskController().showNoteTask(entryPoint = expectedInfo.entryPoint!!)
 
-        val intentCaptor = argumentCaptor<Intent>()
-        val userCaptor = argumentCaptor<UserHandle>()
-        verify(context).startActivityAsUser(capture(intentCaptor), capture(userCaptor))
-        assertThat(intentCaptor.value).run {
-            hasAction(ACTION_CREATE_NOTE)
-            hasPackage(NOTE_TASK_PACKAGE_NAME)
-            hasFlags(FLAG_ACTIVITY_NEW_TASK)
-            hasFlags(FLAG_ACTIVITY_MULTIPLE_TASK)
-            hasFlags(FLAG_ACTIVITY_NEW_DOCUMENT)
-            extras().bool(EXTRA_USE_STYLUS_MODE).isTrue()
-        }
-        assertThat(userCaptor.value).isEqualTo(userTracker.userHandle)
+        verifyNoteTaskOpenedAsActivity(userTracker.userHandle, expectedUseStylusMode = true)
         verify(eventLogger).logNoteTaskOpened(expectedInfo)
         verifyNoMoreInteractions(bubbles)
     }
 
     @Test
-    fun showNoteTask_keyguardIsLocked_noteIsOpen_shouldCloseActivityAndLogUiEvent() {
+    fun showNoteTask_keyguardLocked_noteIsOpen_shouldCloseActivityAndLogUiEvent() {
         val expectedInfo = NOTE_TASK_INFO.copy(entryPoint = TAIL_BUTTON, isKeyguardLocked = true)
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(expectedInfo.isKeyguardLocked)
-        whenever(resolver.resolveInfo(any(), any(), any())).thenReturn(expectedInfo)
-        whenever(activityManager.getRunningTasks(anyInt()))
+        setupTestScenario(locked = true, noteTaskInfo = expectedInfo)
+        whenever(activityManager.getRunningTasks(any<Int>()))
             .thenReturn(listOf(NOTE_RUNNING_TASK_INFO))
 
         createNoteTaskController().showNoteTask(entryPoint = expectedInfo.entryPoint!!)
 
         val intentCaptor = argumentCaptor<Intent>()
         val userCaptor = argumentCaptor<UserHandle>()
-        verify(context).startActivityAsUser(capture(intentCaptor), capture(userCaptor))
-        assertThat(intentCaptor.value).run {
+        verify(context).startActivityAsUser(intentCaptor.capture(), userCaptor.capture())
+        assertThat(intentCaptor.lastValue).run {
             hasAction(ACTION_MAIN)
             categories().contains(CATEGORY_HOME)
             hasFlags(FLAG_ACTIVITY_NEW_TASK)
         }
-        assertThat(userCaptor.value).isEqualTo(userTracker.userHandle)
+        assertThat(userCaptor.lastValue).isEqualTo(userTracker.userHandle)
         verify(eventLogger).logNoteTaskClosed(expectedInfo)
         verifyNoMoreInteractions(bubbles)
     }
@@ -325,8 +316,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
     @Test
     fun showNoteTask_keyguardIsUnlocked_noteIsClosed_shouldStartBubblesWithoutLoggingUiEvent() {
         val expectedInfo = NOTE_TASK_INFO.copy(entryPoint = TAIL_BUTTON, isKeyguardLocked = false)
-        whenever(resolver.resolveInfo(any(), any(), any())).thenReturn(expectedInfo)
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(expectedInfo.isKeyguardLocked)
+        setupTestScenario(locked = false, noteTaskInfo = expectedInfo)
 
         createNoteTaskController().showNoteTask(entryPoint = expectedInfo.entryPoint!!)
 
@@ -339,9 +329,8 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
     @Test
     fun showNoteTask_keyguardIsUnlocked_noteIsOpen_shouldStartBubblesWithoutLoggingUiEvent() {
         val expectedInfo = NOTE_TASK_INFO.copy(entryPoint = TAIL_BUTTON, isKeyguardLocked = false)
-        whenever(resolver.resolveInfo(any(), any(), any())).thenReturn(expectedInfo)
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(expectedInfo.isKeyguardLocked)
-        whenever(activityManager.getRunningTasks(anyInt()))
+        setupTestScenario(locked = false, noteTaskInfo = expectedInfo)
+        whenever(activityManager.getRunningTasks(any<Int>()))
             .thenReturn(listOf(NOTE_RUNNING_TASK_INFO))
 
         createNoteTaskController().showNoteTask(entryPoint = expectedInfo.entryPoint!!)
@@ -353,42 +342,26 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
     }
 
     @Test
-    fun showNoteTask_defaultUserSet_shouldStartActivityWithExpectedUserAndLogUiEvent() {
-        secureSettings.putIntForUser(
-            /* name= */ Settings.Secure.DEFAULT_NOTE_TASK_PROFILE,
-            /* value= */ 10,
-            /* userHandle= */ userTracker.userId,
-        )
-        val user10 = UserHandle.of(/* userId= */ 10)
+    fun showNoteTask_keyguardLocked_defaultUserSet_shouldStartActivityWithExpectedUserAndLogUiEvent() =
+        runTest {
+            val user10 = UserHandle.of(/* userId= */ 10)
+            whenever(userResolver.getUserForHandlingNoteTaking(TAIL_BUTTON)).thenReturn(user10)
 
-        val expectedInfo =
-            NOTE_TASK_INFO.copy(
-                entryPoint = NoteTaskEntryPoint.TAIL_BUTTON,
-                isKeyguardLocked = true,
-                user = user10,
-            )
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(expectedInfo.isKeyguardLocked)
-        whenever(resolver.resolveInfo(any(), any(), any())).thenReturn(expectedInfo)
+            val expectedInfo =
+                NOTE_TASK_INFO.copy(
+                    entryPoint = TAIL_BUTTON,
+                    isKeyguardLocked = true,
+                    user = user10,
+                )
+            setupTestScenario(locked = true, noteTaskInfo = expectedInfo)
 
-        createNoteTaskController().showNoteTask(entryPoint = expectedInfo.entryPoint!!)
+            createNoteTaskController().showNoteTask(entryPoint = expectedInfo.entryPoint!!)
+            testScope.runCurrent()
 
-        val intentCaptor = argumentCaptor<Intent>()
-        val userCaptor = argumentCaptor<UserHandle>()
-        verify(context).startActivityAsUser(capture(intentCaptor), capture(userCaptor))
-        intentCaptor.value.let { intent ->
-            assertThat(intent.action).isEqualTo(Intent.ACTION_CREATE_NOTE)
-            assertThat(intent.`package`).isEqualTo(NOTE_TASK_PACKAGE_NAME)
-            assertThat(intent.flags and FLAG_ACTIVITY_NEW_TASK).isEqualTo(FLAG_ACTIVITY_NEW_TASK)
-            assertThat(intent.flags and FLAG_ACTIVITY_MULTIPLE_TASK)
-                .isEqualTo(FLAG_ACTIVITY_MULTIPLE_TASK)
-            assertThat(intent.flags and FLAG_ACTIVITY_NEW_DOCUMENT)
-                .isEqualTo(FLAG_ACTIVITY_NEW_DOCUMENT)
-            assertThat(intent.getBooleanExtra(Intent.EXTRA_USE_STYLUS_MODE, false)).isTrue()
+            verifyNoteTaskOpenedAsActivity(user10, expectedUseStylusMode = true)
+            verify(eventLogger).logNoteTaskOpened(expectedInfo)
+            verifyNoMoreInteractions(bubbles)
         }
-        assertThat(userCaptor.value).isEqualTo(user10)
-        verify(eventLogger).logNoteTaskOpened(expectedInfo)
-        verifyNoMoreInteractions(bubbles)
-    }
 
     @Test
     fun showNoteTask_bubblesIsNull_shouldDoNothing() {
@@ -399,7 +372,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
 
     @Test
     fun showNoteTask_intentResolverReturnsNull_shouldShowToast() {
-        whenever(resolver.resolveInfo(any(), any(), any())).thenReturn(null)
+        whenever(noteTaskInfoResolver.resolveInfo(any(), any(), any())).thenReturn(null)
         val noteTaskController = spy(createNoteTaskController())
         doNothing().whenever(noteTaskController).showNoDefaultNotesAppToast()
 
@@ -426,107 +399,77 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
     }
 
     @Test
-    fun showNoteTask_keyboardShortcut_shouldStartActivity() {
+    fun showNoteTask_keyguardLocked_keyboardShortcut_shouldStartActivity() {
         val expectedInfo =
             NOTE_TASK_INFO.copy(entryPoint = KEYBOARD_SHORTCUT, isKeyguardLocked = true)
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(expectedInfo.isKeyguardLocked)
-        whenever(resolver.resolveInfo(any(), any(), any())).thenReturn(expectedInfo)
+        setupTestScenario(locked = true, noteTaskInfo = expectedInfo)
 
         createNoteTaskController().showNoteTask(entryPoint = expectedInfo.entryPoint!!)
 
-        val intentCaptor = argumentCaptor<Intent>()
-        val userCaptor = argumentCaptor<UserHandle>()
-        verify(context).startActivityAsUser(capture(intentCaptor), capture(userCaptor))
-        assertThat(intentCaptor.value).run {
-            hasAction(ACTION_CREATE_NOTE)
-            hasPackage(NOTE_TASK_PACKAGE_NAME)
-            hasFlags(FLAG_ACTIVITY_NEW_TASK)
-            hasFlags(FLAG_ACTIVITY_MULTIPLE_TASK)
-            hasFlags(FLAG_ACTIVITY_NEW_DOCUMENT)
-            extras().bool(EXTRA_USE_STYLUS_MODE).isFalse()
-        }
-        assertThat(userCaptor.value).isEqualTo(userTracker.userHandle)
+        verifyNoteTaskOpenedAsActivity(userTracker.userHandle, expectedUseStylusMode = false)
         verify(eventLogger).logNoteTaskOpened(expectedInfo)
         verifyNoMoreInteractions(bubbles)
     }
 
     @Test
-    fun showNoteTask_stylusModePreferred_keyboardShortcut_shouldStartInDefaultUIMode() {
-        `when`(spiedResources.getInteger(R.integer.config_preferredNotesMode)).thenReturn(1)
+    fun showNoteTask_keyguardLocked_stylusModePreferred_keyboardShortcut_shouldStartInDefaultUIMode() {
+        whenever(spiedResources.getInteger(R.integer.config_preferredNotesMode)).thenReturn(1)
         val expectedInfo =
             NOTE_TASK_INFO.copy(entryPoint = KEYBOARD_SHORTCUT, isKeyguardLocked = true)
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(expectedInfo.isKeyguardLocked)
-        whenever(resolver.resolveInfo(any(), any(), any())).thenReturn(expectedInfo)
+        setupTestScenario(locked = true, noteTaskInfo = expectedInfo)
 
         createNoteTaskController().showNoteTask(entryPoint = expectedInfo.entryPoint!!)
 
-        val intentCaptor = argumentCaptor<Intent>()
-        val userCaptor = argumentCaptor<UserHandle>()
-        verify(context).startActivityAsUser(capture(intentCaptor), capture(userCaptor))
-        assertThat(intentCaptor.value).run {
-            hasAction(ACTION_CREATE_NOTE)
-            hasPackage(NOTE_TASK_PACKAGE_NAME)
-            extras().bool(EXTRA_USE_STYLUS_MODE).isFalse()
-        }
+        verifyNoteTaskOpenedAsActivity(userTracker.userHandle, expectedUseStylusMode = false)
     }
 
     @Test
-    fun showNoteTask_stylusModePreferred_quickAffordance_shouldStartInStylusUIMode() {
-        `when`(spiedResources.getInteger(R.integer.config_preferredNotesMode)).thenReturn(1)
+    fun showNoteTask_keyguardLocked_stylusModePreferred_quickAffordance_shouldStartInStylusUIMode() {
+        whenever(spiedResources.getInteger(R.integer.config_preferredNotesMode)).thenReturn(1)
         val expectedInfo =
             NOTE_TASK_INFO.copy(entryPoint = QUICK_AFFORDANCE, isKeyguardLocked = true)
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(expectedInfo.isKeyguardLocked)
-        whenever(resolver.resolveInfo(any(), any(), any())).thenReturn(expectedInfo)
+        setupTestScenario(locked = true, noteTaskInfo = expectedInfo)
 
         createNoteTaskController().showNoteTask(entryPoint = expectedInfo.entryPoint!!)
 
-        val intentCaptor = argumentCaptor<Intent>()
-        val userCaptor = argumentCaptor<UserHandle>()
-        verify(context).startActivityAsUser(capture(intentCaptor), capture(userCaptor))
-        assertThat(intentCaptor.value).run {
-            hasAction(ACTION_CREATE_NOTE)
-            hasPackage(NOTE_TASK_PACKAGE_NAME)
-            extras().bool(EXTRA_USE_STYLUS_MODE).isTrue()
-        }
+        verifyNoteTaskOpenedAsActivity(userTracker.userHandle, expectedUseStylusMode = true)
     }
 
     @Test
-    fun showNoteTask_noUIRecommendation_quickAffordance_shouldStartInDefaultUIMode() {
-        `when`(spiedResources.getInteger(R.integer.config_preferredNotesMode)).thenReturn(0)
+    fun showNoteTask_keyguardLocked_noUIRecommendation_quickAffordance_shouldStartInDefaultUIMode() {
+        whenever(spiedResources.getInteger(R.integer.config_preferredNotesMode)).thenReturn(0)
         val expectedInfo =
             NOTE_TASK_INFO.copy(entryPoint = QUICK_AFFORDANCE, isKeyguardLocked = true)
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(expectedInfo.isKeyguardLocked)
-        whenever(resolver.resolveInfo(any(), any(), any())).thenReturn(expectedInfo)
+        setupTestScenario(locked = true, noteTaskInfo = expectedInfo)
 
         createNoteTaskController().showNoteTask(entryPoint = expectedInfo.entryPoint!!)
 
-        val intentCaptor = argumentCaptor<Intent>()
-        val userCaptor = argumentCaptor<UserHandle>()
-        verify(context).startActivityAsUser(capture(intentCaptor), capture(userCaptor))
-        assertThat(intentCaptor.value).run {
-            hasAction(ACTION_CREATE_NOTE)
-            hasPackage(NOTE_TASK_PACKAGE_NAME)
-            extras().bool(EXTRA_USE_STYLUS_MODE).isFalse()
-        }
+        verifyNoteTaskOpenedAsActivity(userTracker.userHandle, expectedUseStylusMode = false)
     }
 
     @Test
-    fun showNoteTask_noUIRecommendation_tailButton_shouldStartInStylusUIMode() {
-        `when`(spiedResources.getInteger(R.integer.config_preferredNotesMode)).thenReturn(0)
+    fun showNoteTask_keyguardLocked_noUIRecommendation_tailButton_shouldStartInStylusUIMode() {
+        whenever(spiedResources.getInteger(R.integer.config_preferredNotesMode)).thenReturn(0)
         val expectedInfo = NOTE_TASK_INFO.copy(entryPoint = TAIL_BUTTON, isKeyguardLocked = true)
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(expectedInfo.isKeyguardLocked)
-        whenever(resolver.resolveInfo(any(), any(), any())).thenReturn(expectedInfo)
+        setupTestScenario(locked = true, noteTaskInfo = expectedInfo)
 
         createNoteTaskController().showNoteTask(entryPoint = expectedInfo.entryPoint!!)
 
-        val intentCaptor = argumentCaptor<Intent>()
-        val userCaptor = argumentCaptor<UserHandle>()
-        verify(context).startActivityAsUser(capture(intentCaptor), capture(userCaptor))
-        assertThat(intentCaptor.value).run {
-            hasAction(ACTION_CREATE_NOTE)
-            hasPackage(NOTE_TASK_PACKAGE_NAME)
-            extras().bool(EXTRA_USE_STYLUS_MODE).isTrue()
-        }
+        verifyNoteTaskOpenedAsActivity(userTracker.userHandle, expectedUseStylusMode = true)
+    }
+
+    @Test
+    fun showNoteTask_keyguardLocked_actionCorner_shouldStartInStylusUIMode() {
+        val expectedInfo =
+            NOTE_TASK_INFO.copy(
+                entryPoint = NoteTaskEntryPoint.ACTION_CORNER,
+                isKeyguardLocked = true,
+            )
+        setupTestScenario(locked = true, noteTaskInfo = expectedInfo)
+
+        createNoteTaskController().showNoteTask(entryPoint = expectedInfo.entryPoint!!)
+
+        verifyNoteTaskOpenedAsActivity(userTracker.userHandle, expectedUseStylusMode = true)
     }
 
     // endregion
@@ -545,7 +488,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
                 eq(PackageManager.DONT_KILL_APP),
             )
 
-        assertThat(argument.value.className)
+        assertThat(argument.lastValue.className)
             .isEqualTo(CreateNoteTaskShortcutActivity::class.java.name)
     }
 
@@ -562,7 +505,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
                 eq(PackageManager.DONT_KILL_APP),
             )
 
-        assertThat(argument.value.className)
+        assertThat(argument.lastValue.className)
             .isEqualTo(CreateNoteTaskShortcutActivity::class.java.name)
     }
 
@@ -584,7 +527,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
                 eq(PackageManager.DONT_KILL_APP),
             )
 
-        assertThat(argument.value.className)
+        assertThat(argument.lastValue.className)
             .isEqualTo(CreateNoteTaskShortcutActivity::class.java.name)
     }
 
@@ -607,23 +550,16 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
                 eq(PackageManager.DONT_KILL_APP),
             )
 
-        assertThat(argument.value.className)
+        assertThat(argument.lastValue.className)
             .isEqualTo(CreateNoteTaskShortcutActivity::class.java.name)
     }
 
     // endregion
 
-    // region keyguard policy
+    // region lockscreen notes
     @Test
-    fun showNoteTask_keyguardLocked_keyguardDisableShortcutsAll_shouldDoNothing() {
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(true)
-        whenever(
-                devicePolicyManager.getKeyguardDisabledFeatures(
-                    /* admin= */ eq(null),
-                    /* userHandle= */ anyInt(),
-                )
-            )
-            .thenReturn(DevicePolicyManager.KEYGUARD_DISABLE_SHORTCUTS_ALL)
+    fun showNoteTask_keyguardLocked_lockscreenNoteTakingDisabled_shouldDoNothing() {
+        setupTestScenario(locked = true, isLockscreenNoteTakingEnabled = false)
 
         createNoteTaskController().showNoteTask(entryPoint = QUICK_AFFORDANCE)
 
@@ -631,126 +567,92 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
     }
 
     @Test
-    fun showNoteTask_keyguardLocked_keyguardDisableFeaturesAll_shouldDoNothing() {
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(true)
-        whenever(
-                devicePolicyManager.getKeyguardDisabledFeatures(
-                    /* admin= */ eq(null),
-                    /* userHandle= */ anyInt(),
-                )
-            )
-            .thenReturn(DevicePolicyManager.KEYGUARD_DISABLE_FEATURES_ALL)
-
-        createNoteTaskController().showNoteTask(entryPoint = QUICK_AFFORDANCE)
-
-        verifyNoMoreInteractions(bubbles, eventLogger)
-    }
-
-    @Test
-    fun showNoteTask_keyguardUnlocked_keyguardDisableShortcutsAll_shouldStartBubble() {
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(false)
-        whenever(
-                devicePolicyManager.getKeyguardDisabledFeatures(
-                    /* admin= */ eq(null),
-                    /* userHandle= */ anyInt(),
-                )
-            )
-            .thenReturn(DevicePolicyManager.KEYGUARD_DISABLE_SHORTCUTS_ALL)
-
-        createNoteTaskController().showNoteTask(entryPoint = QUICK_AFFORDANCE)
-
-        verifyNoteTaskOpenInBubbleInUser(userTracker.userHandle)
-    }
-
-    @Test
-    fun showNoteTask_keyguardUnlocked_keyguardDisableFeaturesAll_shouldStartBubble() {
-        whenever(keyguardManager.isKeyguardLocked).thenReturn(false)
-        whenever(
-                devicePolicyManager.getKeyguardDisabledFeatures(
-                    /* admin= */ eq(null),
-                    /* userHandle= */ anyInt(),
-                )
-            )
-            .thenReturn(DevicePolicyManager.KEYGUARD_DISABLE_FEATURES_ALL)
-
-        createNoteTaskController().showNoteTask(entryPoint = QUICK_AFFORDANCE)
-
-        verifyNoteTaskOpenInBubbleInUser(userTracker.userHandle)
-    }
-
-    // endregion
-
-    // region showNoteTask, COPE devices
-    @Suppress("ktlint:standard:max-line-length")
-    @Test
-    fun showNoteTask_copeDevices_quickAffordanceEntryPoint_managedProfileNotFound_shouldStartBubbleInTheMainProfile() {
-        whenever(devicePolicyManager.isOrganizationOwnedDeviceWithManagedProfile).thenReturn(true)
-        userTracker.set(listOf(mainUserInfo), mainAndWorkProfileUsers.indexOf(mainUserInfo))
-
-        createNoteTaskController().showNoteTask(entryPoint = QUICK_AFFORDANCE)
-
-        verifyNoteTaskOpenInBubbleInUser(mainUserInfo.userHandle)
-    }
-
-    @Test
-    fun showNoteTask_copeDevices_quickAffordanceEntryPoint_shouldStartBubbleInWorkProfile() {
-        whenever(devicePolicyManager.isOrganizationOwnedDeviceWithManagedProfile).thenReturn(true)
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
-
-        createNoteTaskController().showNoteTask(entryPoint = QUICK_AFFORDANCE)
-
-        verifyNoteTaskOpenInBubbleInUser(workUserInfo.userHandle)
-    }
-
-    @Test
-    fun showNoteTask_copeDevices_tailButtonEntryPoint_shouldStartBubbleInTheUserSelectedUser() {
-        secureSettings.putIntForUser(
-            /* name= */ Settings.Secure.DEFAULT_NOTE_TASK_PROFILE,
-            /* value= */ mainUserInfo.id,
-            /* userHandle= */ userTracker.userId,
+    fun showNoteTask_keyguardLocked_lockscreenNoteTakingEnabled_shouldStartActivity() {
+        val expectedInfo = NOTE_TASK_INFO.copy(isKeyguardLocked = true)
+        setupTestScenario(
+            locked = true,
+            noteTaskInfo = expectedInfo,
+            isLockscreenNoteTakingEnabled = true,
         )
-        whenever(devicePolicyManager.isOrganizationOwnedDeviceWithManagedProfile).thenReturn(true)
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
 
-        createNoteTaskController().showNoteTask(entryPoint = TAIL_BUTTON)
+        createNoteTaskController().showNoteTask(entryPoint = QUICK_AFFORDANCE)
 
-        verifyNoteTaskOpenInBubbleInUser(mainUserInfo.userHandle)
+        verifyNoteTaskOpenedAsActivity(userTracker.userHandle, expectedUseStylusMode = true)
+        verify(eventLogger).logNoteTaskOpened(expectedInfo)
+        verifyNoMoreInteractions(bubbles)
     }
 
     @Test
-    fun showNoteTask_copeDevices_shortcutsEntryPoint_shouldStartBubbleInTheSelectedUser() {
-        whenever(devicePolicyManager.isOrganizationOwnedDeviceWithManagedProfile).thenReturn(true)
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
+    fun showNoteTask_keyguardUnlocked_lockscreenNoteTakingDisabled_shouldStartBubble() {
+        val expectedInfo = NOTE_TASK_INFO.copy(isKeyguardLocked = false)
+        setupTestScenario(
+            locked = false,
+            noteTaskInfo = expectedInfo,
+            isLockscreenNoteTakingEnabled = false,
+        )
 
-        createNoteTaskController().showNoteTask(entryPoint = WIDGET_PICKER_SHORTCUT)
+        createNoteTaskController().showNoteTask(entryPoint = QUICK_AFFORDANCE)
 
-        verifyNoteTaskOpenInBubbleInUser(mainUserInfo.userHandle)
+        verifyNoteTaskOpenInBubbleInUser(userTracker.userHandle)
     }
 
     @Test
-    fun showNoteTask_copeDevices_appClipsEntryPoint_shouldStartBubbleInTheSelectedUser() {
-        whenever(devicePolicyManager.isOrganizationOwnedDeviceWithManagedProfile).thenReturn(true)
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
+    fun showNoteTask_keyguardUnlocked_lockscreenNoteTakingEnabled_shouldStartBubble() {
+        val expectedInfo = NOTE_TASK_INFO.copy(isKeyguardLocked = false)
+        setupTestScenario(
+            locked = false,
+            noteTaskInfo = expectedInfo,
+            isLockscreenNoteTakingEnabled = true,
+        )
 
-        createNoteTaskController().showNoteTask(entryPoint = APP_CLIPS)
+        createNoteTaskController().showNoteTask(entryPoint = QUICK_AFFORDANCE)
 
-        verifyNoteTaskOpenInBubbleInUser(mainUserInfo.userHandle)
+        verifyNoteTaskOpenInBubbleInUser(userTracker.userHandle)
     }
 
     // endregion
+
+    // region showNoteTask, UserResolver integration
+    @Test
+    fun showNoteTask_shouldUseUserResolver() = runTest {
+        val expectedUser = UserHandle.of(100)
+        whenever(userResolver.getUserForHandlingNoteTaking(QUICK_AFFORDANCE))
+            .thenReturn(expectedUser)
+
+        createNoteTaskController().showNoteTask(entryPoint = QUICK_AFFORDANCE)
+
+        verifyNoteTaskOpenInBubbleInUser(expectedUser)
+    }
+
+    // endregion
+
+    private fun verifyNoteTaskOpenedAsActivity(user: UserHandle, expectedUseStylusMode: Boolean) {
+        val intentCaptor = argumentCaptor<Intent>()
+        val userCaptor = argumentCaptor<UserHandle>()
+        verify(context).startActivityAsUser(intentCaptor.capture(), userCaptor.capture())
+        assertThat(intentCaptor.lastValue).run {
+            hasAction(ACTION_CREATE_NOTE)
+            hasPackage(NOTE_TASK_PACKAGE_NAME)
+            hasFlags(FLAG_ACTIVITY_NEW_TASK)
+            hasFlags(FLAG_ACTIVITY_MULTIPLE_TASK)
+            hasFlags(FLAG_ACTIVITY_NEW_DOCUMENT)
+            extras().bool(EXTRA_USE_STYLUS_MODE).isEqualTo(expectedUseStylusMode)
+        }
+        assertThat(userCaptor.lastValue).isEqualTo(user)
+    }
 
     private fun verifyNoteTaskOpenInBubbleInUser(userHandle: UserHandle) {
         val intentCaptor = argumentCaptor<Intent>()
         val iconCaptor = argumentCaptor<Icon>()
         verify(bubbles)
-            .showOrHideNoteBubble(capture(intentCaptor), eq(userHandle), capture(iconCaptor))
-        assertThat(intentCaptor.value).run {
+            .showOrHideNoteBubble(intentCaptor.capture(), eq(userHandle), iconCaptor.capture())
+        assertThat(intentCaptor.lastValue).run {
             hasAction(ACTION_CREATE_NOTE)
             hasPackage(NOTE_TASK_PACKAGE_NAME)
             hasFlags(FLAG_ACTIVITY_NEW_TASK)
             extras().bool(EXTRA_USE_STYLUS_MODE).isTrue()
         }
-        iconCaptor.value?.let { icon ->
+        iconCaptor.lastValue?.let { icon ->
             assertNotNull(icon)
             assertThat(icon.resId).isEqualTo(R.drawable.ic_note_task_shortcut_widget)
         }
@@ -803,8 +705,10 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
         controller.updateNoteTaskAsUser(user)
 
         verify(controller, never()).launchUpdateNoteTaskAsUser(any())
-        val intent = withArgCaptor { verify(context).startServiceAsUser(capture(), eq(user)) }
-        assertThat(intent).hasComponentClass(NoteTaskControllerUpdateService::class.java)
+        val intentCaptor = argumentCaptor<Intent>()
+        verify(context).startServiceAsUser(intentCaptor.capture(), eq(user))
+        assertThat(intentCaptor.lastValue)
+            .hasComponentClass(NoteTaskControllerUpdateService::class.java)
     }
 
     // endregion
@@ -824,12 +728,13 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
                 eq(COMPONENT_ENABLED_STATE_ENABLED),
                 eq(PackageManager.DONT_KILL_APP),
             )
-        assertThat(actualComponent.value.className)
+        assertThat(actualComponent.lastValue.className)
             .isEqualTo(CreateNoteTaskShortcutActivity::class.java.name)
         verify(shortcutManager, never()).disableShortcuts(any())
         verify(shortcutManager).enableShortcuts(listOf(SHORTCUT_ID))
-        val shortcutInfo = withArgCaptor { verify(shortcutManager).updateShortcuts(capture()) }
-        with(shortcutInfo.first()) {
+        val shortcutInfoCaptor = argumentCaptor<List<ShortcutInfo>>()
+        verify(shortcutManager).updateShortcuts(shortcutInfoCaptor.capture())
+        with(shortcutInfoCaptor.lastValue.first()) {
             assertThat(id).isEqualTo(SHORTCUT_ID)
             assertThat(intent).run {
                 hasComponentClass(LaunchNoteTaskActivity::class.java)
@@ -861,7 +766,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
                 eq(COMPONENT_ENABLED_STATE_DISABLED),
                 eq(PackageManager.DONT_KILL_APP),
             )
-        assertThat(argument.value.className)
+        assertThat(argument.lastValue.className)
             .isEqualTo(CreateNoteTaskShortcutActivity::class.java.name)
         verify(shortcutManager).disableShortcuts(listOf(SHORTCUT_ID))
         verify(shortcutManager, never()).enableShortcuts(any())
@@ -882,7 +787,7 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
                 eq(COMPONENT_ENABLED_STATE_DISABLED),
                 eq(PackageManager.DONT_KILL_APP),
             )
-        assertThat(argument.value.className)
+        assertThat(argument.lastValue.className)
             .isEqualTo(CreateNoteTaskShortcutActivity::class.java.name)
         verify(shortcutManager).disableShortcuts(listOf(SHORTCUT_ID))
         verify(shortcutManager, never()).enableShortcuts(any())
@@ -906,143 +811,29 @@ internal class NoteTaskControllerTest : SysuiTestCase() {
 
     // endregion
 
-    // region getUserForHandlingNotesTaking
+    // region startNotesRoleSetting
     @Test
-    fun getUserForHandlingNotesTaking_cope_quickAffordance_shouldReturnWorkProfileUser() {
-        whenever(devicePolicyManager.isOrganizationOwnedDeviceWithManagedProfile).thenReturn(true)
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
-
-        val user = createNoteTaskController().getUserForHandlingNotesTaking(QUICK_AFFORDANCE)
-
-        assertThat(user).isEqualTo(UserHandle.of(workUserInfo.id))
-    }
-
-    @Suppress("ktlint:standard:max-line-length")
-    @Test
-    fun getUserForHandlingNotesTaking_cope_userSelectedWorkProfile_tailButton_shouldReturnWorkProfileUser() {
-        secureSettings.putIntForUser(
-            /* name= */ Settings.Secure.DEFAULT_NOTE_TASK_PROFILE,
-            /* value= */ workUserInfo.id,
-            /* userHandle= */ userTracker.userId,
-        )
-        whenever(devicePolicyManager.isOrganizationOwnedDeviceWithManagedProfile).thenReturn(true)
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
-
-        val user = createNoteTaskController().getUserForHandlingNotesTaking(TAIL_BUTTON)
-
-        assertThat(user).isEqualTo(UserHandle.of(workUserInfo.id))
-    }
-
-    @Suppress("ktlint:standard:max-line-length")
-    @Test
-    fun getUserForHandlingNotesTaking_cope_userSelectedMainProfile_tailButton_shouldReturnMainProfileUser() {
-        secureSettings.putIntForUser(
-            /* name= */ Settings.Secure.DEFAULT_NOTE_TASK_PROFILE,
-            /* value= */ mainUserInfo.id,
-            /* userHandle= */ userTracker.userId,
-        )
-        whenever(devicePolicyManager.isOrganizationOwnedDeviceWithManagedProfile).thenReturn(true)
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
-
-        val user = createNoteTaskController().getUserForHandlingNotesTaking(TAIL_BUTTON)
-
-        assertThat(user).isEqualTo(UserHandle.of(mainUserInfo.id))
-    }
-
-    @Test
-    fun getUserForHandlingNotesTaking_cope_appClip_shouldReturnCurrentUser() {
-        whenever(devicePolicyManager.isOrganizationOwnedDeviceWithManagedProfile).thenReturn(true)
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
-
-        val user = createNoteTaskController().getUserForHandlingNotesTaking(APP_CLIPS)
-
-        assertThat(user).isEqualTo(UserHandle.of(mainUserInfo.id))
-    }
-
-    @Test
-    fun getUserForHandlingNotesTaking_noManagement_quickAffordance_shouldReturnCurrentUser() {
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
-
-        val user = createNoteTaskController().getUserForHandlingNotesTaking(QUICK_AFFORDANCE)
-
-        assertThat(user).isEqualTo(UserHandle.of(mainUserInfo.id))
-    }
-
-    @Test
-    fun getUserForHandlingNotesTaking_noManagement_tailButton_shouldReturnCurrentUser() {
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
-
-        val user = createNoteTaskController().getUserForHandlingNotesTaking(TAIL_BUTTON)
-
-        assertThat(user).isEqualTo(UserHandle.of(mainUserInfo.id))
-    }
-
-    @Test
-    fun getUserForHandlingNotesTaking_noManagement_appClip_shouldReturnCurrentUser() {
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
-
-        val user = createNoteTaskController().getUserForHandlingNotesTaking(APP_CLIPS)
-
-        assertThat(user).isEqualTo(UserHandle.of(mainUserInfo.id))
-    }
-
-    // endregion
-
-    // startregion startNotesRoleSetting
-    @Test
-    fun startNotesRoleSetting_cope_quickAffordance_shouldStartNoteRoleIntentWithWorkProfileUser() {
-        whenever(devicePolicyManager.isOrganizationOwnedDeviceWithManagedProfile).thenReturn(true)
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
+    fun startNotesRoleSetting_withEntryPoint_shouldUseUserResolver() = runTest {
+        val expectedUser = UserHandle.of(100)
+        whenever(userResolver.getUserForHandlingNoteTaking(QUICK_AFFORDANCE))
+            .thenReturn(expectedUser)
 
         createNoteTaskController().startNotesRoleSetting(context, QUICK_AFFORDANCE)
 
-        val intentCaptor = argumentCaptor<Intent>()
         val userCaptor = argumentCaptor<UserHandle>()
-        verify(context).startActivityAsUser(capture(intentCaptor), capture(userCaptor))
-        assertThat(intentCaptor.value).hasAction(ACTION_MANAGE_DEFAULT_APP)
-        assertThat(userCaptor.value).isEqualTo(UserHandle.of(workUserInfo.id))
+        verify(context).startActivityAsUser(any(), userCaptor.capture())
+        assertThat(userCaptor.lastValue).isEqualTo(expectedUser)
     }
 
     @Test
-    fun startNotesRoleSetting_cope_nullEntryPoint_shouldStartNoteRoleIntentWithCurrentUser() {
-        whenever(devicePolicyManager.isOrganizationOwnedDeviceWithManagedProfile).thenReturn(true)
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
+    fun startNotesRoleSetting_withoutEntryPoint_shouldUseCurrentUser() = runTest {
+        val expectedUser = userTracker.userHandle
 
         createNoteTaskController().startNotesRoleSetting(context, entryPoint = null)
 
-        val intentCaptor = argumentCaptor<Intent>()
         val userCaptor = argumentCaptor<UserHandle>()
-        verify(context).startActivityAsUser(capture(intentCaptor), capture(userCaptor))
-        assertThat(intentCaptor.value).hasAction(ACTION_MANAGE_DEFAULT_APP)
-        assertThat(userCaptor.value).isEqualTo(UserHandle.of(mainUserInfo.id))
-    }
-
-    @Suppress("ktlint:standard:max-line-length")
-    @Test
-    fun startNotesRoleSetting_noManagement_quickAffordance_shouldStartNoteRoleIntentWithCurrentUser() {
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
-
-        createNoteTaskController().startNotesRoleSetting(context, QUICK_AFFORDANCE)
-
-        val intentCaptor = argumentCaptor<Intent>()
-        val userCaptor = argumentCaptor<UserHandle>()
-        verify(context).startActivityAsUser(capture(intentCaptor), capture(userCaptor))
-        assertThat(intentCaptor.value).hasAction(ACTION_MANAGE_DEFAULT_APP)
-        assertThat(userCaptor.value).isEqualTo(UserHandle.of(mainUserInfo.id))
-    }
-
-    @Suppress("ktlint:standard:max-line-length")
-    @Test
-    fun startNotesRoleSetting_noManagement_nullEntryPoint_shouldStartNoteRoleIntentWithCurrentUser() {
-        userTracker.set(mainAndWorkProfileUsers, mainAndWorkProfileUsers.indexOf(mainUserInfo))
-
-        createNoteTaskController().startNotesRoleSetting(context, entryPoint = null)
-
-        val intentCaptor = argumentCaptor<Intent>()
-        val userCaptor = argumentCaptor<UserHandle>()
-        verify(context).startActivityAsUser(capture(intentCaptor), capture(userCaptor))
-        assertThat(intentCaptor.value).hasAction(ACTION_MANAGE_DEFAULT_APP)
-        assertThat(userCaptor.value).isEqualTo(UserHandle.of(mainUserInfo.id))
+        verify(context).startActivityAsUser(any(), userCaptor.capture())
+        assertThat(userCaptor.lastValue).isEqualTo(expectedUser)
     }
 
     // endregion

@@ -60,6 +60,7 @@ import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionsRepository
 import com.android.systemui.user.data.model.SelectionStatus
 import com.android.systemui.user.data.repository.UserRepository
+import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import com.android.systemui.util.kotlin.pairwise
 import com.android.systemui.util.kotlin.sample
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
@@ -74,6 +75,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.filterNotNull
@@ -115,6 +117,7 @@ constructor(
     deviceEntryFaceAuthStatusInteractor: DeviceEntryFaceAuthStatusInteractor,
     cameraSensorPrivacyInteractor: CameraSensorPrivacyInteractor,
     private val mobileConnectionsRepository: MobileConnectionsRepository,
+    private val selectedUserInteractor: SelectedUserInteractor,
 ) : DeviceEntryFaceAuthInteractor {
 
     private val listeners: MutableList<FaceAuthenticationListener> = mutableListOf()
@@ -140,18 +143,24 @@ constructor(
                 }
                 .launchIn(applicationScope)
         } else {
-            // When face auth can run, `isBouncerShowingSoon` will always gets triggered before
-            // `isBouncerVisible`. Only run face auth when `isBouncerShowingSoon` (and not
-            // `isBouncerVisible` to avoid running face auth twice for a single transition
-            // to the primary bouncer.
-            isBouncerShowingSoon
-                .whenItFlipsToTrue()
-                .onEach {
-                    faceAuthenticationLogger.bouncerShowingSoon()
-                    runFaceAuth(
-                        FaceAuthUiEvent.FACE_AUTH_UPDATED_PRIMARY_BOUNCER_SHOWN_OR_WILL_BE_SHOWN,
-                        fallbackToDetect = false,
-                    )
+            selectedUserInteractor.isUserSwitching
+                .flatMapLatest {
+                    if (!it) {
+                        // When face auth can run, `isBouncerShowingSoon` will always gets triggered
+                        // before`isBouncerVisible`. Only run face auth when `isBouncerShowingSoon`
+                        // (and not`isBouncerVisible` to avoid running face auth twice for a single
+                        // transition to the primary bouncer.
+                        isBouncerShowingSoon.whenItFlipsToTrue().onEach {
+                            faceAuthenticationLogger.bouncerShowingSoon()
+                            runFaceAuth(
+                                FaceAuthUiEvent
+                                    .FACE_AUTH_UPDATED_PRIMARY_BOUNCER_SHOWN_OR_WILL_BE_SHOWN,
+                                fallbackToDetect = false,
+                            )
+                        }
+                    } else {
+                        emptyFlow() // don't trigger face auth while user switching
+                    }
                 }
                 .launchIn(applicationScope)
         }
@@ -279,7 +288,7 @@ constructor(
         if (SceneContainerFlag.isEnabled) {
             sceneInteractor
                 .get()
-                .transitionState
+                .transitionStateFlow
                 .filter {
                     it.isTransitioning(from = Scenes.Lockscreen, to = Scenes.Shade) ||
                         it.isTransitioning(
@@ -295,7 +304,7 @@ constructor(
 
     private val isBouncerVisible: Flow<Boolean> by lazy {
         if (SceneContainerFlag.isEnabled) {
-            sceneInteractor.get().transitionState.map {
+            sceneInteractor.get().transitionStateFlow.map {
                 it.isTransitioning(to = Overlays.Bouncer) || it.isIdle(Overlays.Bouncer)
             }
         } else {
@@ -394,14 +403,18 @@ constructor(
         if (!secureLockDevice()) return
 
         _pendingFaceAuthConfirmationInSecureLockDevice.value = isShowingConfirmButton
-        repository.cancel()
+        if (isShowingConfirmButton) {
+            repository.cancel()
+        }
     }
 
     override fun onSecureLockDeviceTryAgainButtonShowingChanged(isShowingTryAgainButton: Boolean) {
         if (!secureLockDevice()) return
 
         _pendingRetryBiometricAuthInSecureLockDevice.value = isShowingTryAgainButton
-        repository.cancel()
+        if (isShowingTryAgainButton) {
+            repository.cancel()
+        }
     }
 
     private val faceAuthenticationStatusOverride = MutableStateFlow<FaceAuthenticationStatus?>(null)
@@ -416,7 +429,7 @@ constructor(
     /** Provide the status of face detection */
     override val detectionStatus = repository.detectionStatus
     override val isLockedOut: StateFlow<Boolean> = repository.isLockedOut
-    override val isAuthenticated: StateFlow<Boolean> = repository.isAuthenticated
+    override val isAuthenticated: StateFlow<Boolean> = repository.isCurrentUserAuthenticated
     override val isCameraPrivacyInterfering: StateFlow<Boolean> =
         biometricSettingsRepository.isFaceAuthEnrolledAndEnabled
             .flatMapLatest {
@@ -482,7 +495,7 @@ constructor(
             .onEach { running -> listeners.forEach { it.onRunningStateChanged(running) } }
             .flowOn(mainDispatcher)
             .launchIn(applicationScope)
-        repository.isAuthenticated
+        repository.isCurrentUserAuthenticated
             .sample(userRepository.selectedUserInfo, ::Pair)
             .onEach { (isAuthenticated, userInfo) ->
                 if (!isAuthenticated) {

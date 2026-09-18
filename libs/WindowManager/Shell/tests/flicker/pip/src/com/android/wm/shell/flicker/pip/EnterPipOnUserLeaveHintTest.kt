@@ -18,9 +18,9 @@ package com.android.wm.shell.flicker.pip
 
 import android.platform.test.annotations.Presubmit
 import android.platform.test.annotations.RequiresFlagsDisabled
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.PipAppHelper
 import com.android.wm.shell.Flags
@@ -51,7 +51,7 @@ import org.junit.runners.Parameterized
 @RequiresFlagsDisabled(Flags.FLAG_ENABLE_PIP2)
 class EnterPipOnUserLeaveHintTest(flicker: FlickerTest) : EnterPipTransition(flicker) {
     override val pipApp: PipAppHelper = PipAppHelper(instrumentation)
-    override val thisTransition: FlickerBuilder.() -> Unit = { transitions { tapl.goHome() } }
+    override val thisTransition: FlickerBuilder.() -> Unit = { transitions { device.pressHome() } }
 
     override val defaultEnterPip: FlickerBuilder.() -> Unit = {
         setup {

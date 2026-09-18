@@ -16,7 +16,6 @@
 package com.android.systemui.statusbar.phone.domain.interactor
 
 import android.graphics.Rect
-import com.android.systemui.Flags.statusBarDarkIconInteractorMixedFix
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.plugins.DarkIconDispatcher
 import com.android.systemui.statusbar.phone.SysuiDarkIconDispatcher.DarkChange
@@ -85,11 +84,7 @@ class DarkIconInteractor @Inject constructor(private val repository: DarkIconRep
                             In this case the icon theme should always be dark so that callers
                             use light icons.
                             */
-                            if (statusBarDarkIconInteractorMixedFix()) {
-                                true
-                            } else {
-                                false
-                            }
+                            true
                         }
                     }
                 }

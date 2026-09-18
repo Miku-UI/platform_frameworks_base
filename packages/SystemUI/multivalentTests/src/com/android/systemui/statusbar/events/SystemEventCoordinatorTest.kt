@@ -15,6 +15,7 @@
  */
 package com.android.systemui.statusbar.events
 
+import android.location.flags.Flags.FLAG_LOCATION_INDICATORS_ANIMATION
 import android.location.flags.Flags.FLAG_LOCATION_INDICATORS_ENABLED
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
@@ -23,26 +24,26 @@ import android.platform.test.flag.junit.FlagsParameterization
 import android.testing.TestableLooper
 import androidx.test.filters.SmallTest
 import com.android.systemui.Flags
-import com.android.systemui.Flags.FLAG_STATUS_BAR_PRIVACY_CHIP_ANIMATION_EXEMPTION
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.broadcast.BroadcastDispatcherCustomExecutor
 import com.android.systemui.display.domain.interactor.ConnectedDisplayInteractor
 import com.android.systemui.display.domain.interactor.ConnectedDisplayInteractor.PendingDisplay
+import com.android.systemui.kosmos.mainCoroutineContext
+import com.android.systemui.kosmos.testScope
 import com.android.systemui.log.logcatLogBuffer
 import com.android.systemui.privacy.PrivacyApplication
 import com.android.systemui.privacy.PrivacyItem
 import com.android.systemui.privacy.PrivacyItemController
 import com.android.systemui.privacy.PrivacyType
 import com.android.systemui.res.R
-import com.android.systemui.statusbar.featurepods.av.domain.interactor.AvControlsChipInteractor
-import com.android.systemui.statusbar.policy.BatteryController
+import com.android.systemui.statusbar.policy.FakeBatteryControllerImpl
+import com.android.systemui.testKosmosNew
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.argThat
-import com.android.systemui.util.time.FakeSystemClock
+import com.android.systemui.util.time.fakeSystemClock
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -51,8 +52,8 @@ import org.mockito.Mock
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoMoreInteractions
-import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.never
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4
 import platform.test.runner.parameterized.Parameters
 
@@ -61,23 +62,38 @@ import platform.test.runner.parameterized.Parameters
 @SmallTest
 @UsesFlags(Flags::class, android.location.flags.Flags::class)
 class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase() {
+    private val kosmos = testKosmosNew()
 
-    private val fakeSystemClock = FakeSystemClock()
-    private val testScope = TestScope(UnconfinedTestDispatcher())
+    private val fakeSystemClock = kosmos.fakeSystemClock
+    private val testScope = kosmos.testScope
     private val connectedDisplayInteractor = FakeConnectedDisplayInteractor()
+    private val batteryController = FakeBatteryControllerImpl()
 
-    @Mock lateinit var batteryController: BatteryController
     @Mock lateinit var privacyController: PrivacyItemController
-    @Mock lateinit var avControlsChipInteractor: AvControlsChipInteractor
     @Mock lateinit var scheduler: SystemStatusAnimationScheduler
 
-    private lateinit var systemEventCoordinator: SystemEventCoordinator
+    private val systemEventCoordinator: SystemEventCoordinator by lazy {
+        SystemEventCoordinator(
+                fakeSystemClock,
+                batteryController,
+                privacyController,
+                context,
+                testScope.backgroundScope,
+                connectedDisplayInteractor,
+                logcatLogBuffer("SystemEventCoordinatorTest"),
+                kosmos.mainCoroutineContext,
+            )
+            .apply { attachScheduler(scheduler) }
+    }
 
     companion object {
         @JvmStatic
         @Parameters(name = "{0}")
         fun getParams(): List<FlagsParameterization> {
-            return FlagsParameterization.allCombinationsOf(FLAG_LOCATION_INDICATORS_ENABLED)
+            return FlagsParameterization.allCombinationsOf(
+                FLAG_LOCATION_INDICATORS_ENABLED,
+                BroadcastDispatcherCustomExecutor.FLAG_NAME,
+            )
         }
 
         private const val ADVANCE_TIME_WITHIN_DEBOUNCE_MS = DEBOUNCE_TIME_LOCATION - 100_000L
@@ -93,20 +109,27 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
     fun setup() {
         MockitoAnnotations.initMocks(this)
         overrideResource(R.string.config_cameraGesturePackage, DEFAULT_CAMERA_PACKAGE_NAME)
-        systemEventCoordinator =
-            SystemEventCoordinator(
-                    fakeSystemClock,
-                    batteryController,
-                    privacyController,
-                    avControlsChipInteractor,
-                    context,
-                    TestScope(UnconfinedTestDispatcher()),
-                    connectedDisplayInteractor,
-                    logcatLogBuffer("SystemEventCoordinatorTest"),
-                )
-                .apply { attachScheduler(scheduler) }
-        `when`(avControlsChipInteractor.isEnabled).thenReturn(MutableStateFlow(false))
     }
+
+    @Test
+    fun startObserving_batteryPluggedIn_doesNotPropagateOnStart() =
+        testScope.runTest {
+            batteryController._isPluggedIn = true
+
+            systemEventCoordinator.startObserving()
+
+            verify(scheduler, never()).onStatusEvent(any())
+        }
+
+    @Test
+    fun startObserving_batteryPluggedInAfterStart_propagatesEvent() =
+        testScope.runTest {
+            systemEventCoordinator.startObserving()
+
+            batteryController._isPluggedIn = true
+
+            verify(scheduler).onStatusEvent(any<BatteryEvent>())
+        }
 
     @Test
     fun startObserving_propagatesConnectedDisplayStatusEvents() =
@@ -136,7 +159,7 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
         }
 
     @Test
-    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED, FLAG_LOCATION_INDICATORS_ANIMATION)
     fun onPrivacyItemsChanged_locationOnly_locationFlagOn_showsAnimation() =
         testScope.runTest {
             val privacyList =
@@ -152,7 +175,24 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
         }
 
     @Test
-    @DisableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @DisableFlags(FLAG_LOCATION_INDICATORS_ANIMATION)
+    fun onPrivacyItemsChanged_locationOnly_locationFlagOn_locationAnimationOff_doesNotShowAnimation() =
+        testScope.runTest {
+            val privacyList =
+                listOf(
+                    PrivacyItem(
+                        application = PrivacyApplication("maps", 1),
+                        privacyType = PrivacyType.TYPE_LOCATION,
+                    )
+                )
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(privacyList)
+
+            verify(scheduler).onStatusEvent(argThat { !it.showAnimation })
+        }
+
+    @Test
+    @DisableFlags(FLAG_LOCATION_INDICATORS_ENABLED, FLAG_LOCATION_INDICATORS_ANIMATION)
     fun onPrivacyItemsChanged_locationOnly_locationFlagOff_doesNotShowAnimation() =
         testScope.runTest {
             val privacyList =
@@ -168,7 +208,7 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
         }
 
     @Test
-    @DisableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @DisableFlags(FLAG_LOCATION_INDICATORS_ENABLED, FLAG_LOCATION_INDICATORS_ANIMATION)
     fun onPrivacyItemsChanged_locationAndMic_locationFlagOff_showsAnimation() =
         testScope.runTest {
             val privacyList =
@@ -188,7 +228,7 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
         }
 
     @Test
-    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED, FLAG_LOCATION_INDICATORS_ANIMATION)
     fun onPrivacyItemsChanged_locationAndMic_locationFlagOn_showsAnimation() =
         testScope.runTest {
             val privacyList =
@@ -209,6 +249,27 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
 
     @Test
     @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @DisableFlags(FLAG_LOCATION_INDICATORS_ANIMATION)
+    fun onPrivacyItemsChanged_locationAndMic_locationFlagOn_locationAnimationOff_showsAnimation() =
+        testScope.runTest {
+            val privacyList =
+                listOf(
+                    PrivacyItem(
+                        application = PrivacyApplication("maps", 1),
+                        privacyType = PrivacyType.TYPE_LOCATION,
+                    ),
+                    PrivacyItem(
+                        application = PrivacyApplication("recorder", 2),
+                        privacyType = PrivacyType.TYPE_MICROPHONE,
+                    ),
+                )
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(privacyList)
+
+            verify(scheduler).onStatusEvent(argThat { it.showAnimation })
+        }
+
+    @Test
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED, FLAG_LOCATION_INDICATORS_ANIMATION)
     fun onPrivacyItemsChanged_locationOnly_respectsDebounceWindow() =
         testScope.runTest {
             val privacyList =
@@ -241,7 +302,7 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
         }
 
     @Test
-    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED, FLAG_LOCATION_INDICATORS_ANIMATION)
     fun onPrivacyItemsChanged_locationOnly_differentApps_respectsDebounceWindow() =
         testScope.runTest {
             val privacyList1 =
@@ -276,7 +337,43 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
         }
 
     @Test
-    @DisableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @DisableFlags(FLAG_LOCATION_INDICATORS_ANIMATION)
+    fun onPrivacyItemsChanged_locationOnly_differentApps_locationAnimationOff_doesNotShowAnimationAfterDebounce() =
+        testScope.runTest {
+            val privacyList1 =
+                listOf(
+                    PrivacyItem(
+                        application = PrivacyApplication("maps", 1),
+                        privacyType = PrivacyType.TYPE_LOCATION,
+                    )
+                )
+            val privacyList2 =
+                listOf(
+                    PrivacyItem(
+                        application = PrivacyApplication("photos", 2),
+                        privacyType = PrivacyType.TYPE_LOCATION,
+                    )
+                )
+
+            // First event, don't show animation because flag is off
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(privacyList1)
+
+            // Second event from a different app, within debounce window, should show animation, but
+            // flag is off so no animation
+            fakeSystemClock.advanceTime(ADVANCE_TIME_WITHIN_DEBOUNCE_MS)
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(privacyList2)
+
+            // Third event, from the first app again, within its debounce window, should NOT show
+            // animation, flag is off anyway
+            fakeSystemClock.advanceTime(ADVANCE_TIME_SHORT_MS)
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(privacyList1)
+
+            verify(scheduler, times(3)).onStatusEvent(argThat { !it.showAnimation })
+        }
+
+    @Test
+    @DisableFlags(FLAG_LOCATION_INDICATORS_ENABLED, FLAG_LOCATION_INDICATORS_ANIMATION)
     fun onPrivacyItemsChanged_locationOnly_flagOff_neverShowsAnimation() =
         testScope.runTest {
             val privacyList =
@@ -309,7 +406,39 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_PRIVACY_CHIP_ANIMATION_EXEMPTION)
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @DisableFlags(FLAG_LOCATION_INDICATORS_ANIMATION)
+    fun onPrivacyItemsChanged_locationOnly_locationAnimationOff_neverShowsAnimation() =
+        testScope.runTest {
+            val privacyList =
+                listOf(
+                    PrivacyItem(
+                        application = PrivacyApplication("maps", 1),
+                        privacyType = PrivacyType.TYPE_LOCATION,
+                    )
+                )
+
+            // First event, should not show animation
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(privacyList)
+            verify(scheduler).onStatusEvent(argThat { !it.showAnimation })
+
+            // Second event, within debounce window, should not show animation
+            fakeSystemClock.advanceTime(ADVANCE_TIME_WITHIN_DEBOUNCE_MS)
+            // We must clear the privacy items first to trigger the listener.
+            // The listener no-ops if the list of privacy items is identical to the last one.
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(emptyList())
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(privacyList)
+            verify(scheduler, times(2)).onStatusEvent(argThat { !it.showAnimation })
+
+            // Third event, after debounce window, should not show animation
+            fakeSystemClock.advanceTime(ADVANCE_TIME_OUTSIDE_DEBOUNCE_MS)
+            // We must clear the privacy items first to trigger the listener.
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(emptyList())
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(privacyList)
+            verify(scheduler, times(3)).onStatusEvent(argThat { !it.showAnimation })
+        }
+
+    @Test
     fun onPrivacyItemsChanged_notDefaultCamera_showsAnimation() =
         testScope.runTest {
             val privacyList =
@@ -325,7 +454,6 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_PRIVACY_CHIP_ANIMATION_EXEMPTION)
     fun onPrivacyItemsChanged_defaultCameraApp_cameraAccess_doesNotShowAnimation() =
         testScope.runTest {
             val privacyList =
@@ -341,7 +469,6 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_PRIVACY_CHIP_ANIMATION_EXEMPTION)
     fun onPrivacyItemsChanged_defaultCameraApp_microphoneAccess_doesNotShowAnimation() =
         testScope.runTest {
             val privacyList =
@@ -357,7 +484,6 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_PRIVACY_CHIP_ANIMATION_EXEMPTION)
     fun onPrivacyItemsChanged_defaultCamera_thenAnotherApp_showsAnimation() =
         testScope.runTest {
             val privacyList1 =
@@ -386,39 +512,7 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
         }
 
     @Test
-    @DisableFlags(FLAG_STATUS_BAR_PRIVACY_CHIP_ANIMATION_EXEMPTION)
-    fun onPrivacyItemsChanged_defaultCameraApp_cameraAccess_flagOff_showsAnimation() =
-        testScope.runTest {
-            val privacyList =
-                listOf(
-                    PrivacyItem(
-                        application = PrivacyApplication(DEFAULT_CAMERA_PACKAGE_NAME, 1),
-                        privacyType = PrivacyType.TYPE_CAMERA,
-                    )
-                )
-            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(privacyList)
-
-            verify(scheduler).onStatusEvent(argThat { it.showAnimation })
-        }
-
-    @Test
-    @DisableFlags(FLAG_STATUS_BAR_PRIVACY_CHIP_ANIMATION_EXEMPTION)
-    fun onPrivacyItemsChanged_defaultCameraApp_microphoneAccess_flagOff_showsAnimation() =
-        testScope.runTest {
-            val privacyList =
-                listOf(
-                    PrivacyItem(
-                        application = PrivacyApplication(DEFAULT_CAMERA_PACKAGE_NAME, 1),
-                        privacyType = PrivacyType.TYPE_MICROPHONE,
-                    )
-                )
-            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(privacyList)
-
-            verify(scheduler).onStatusEvent(argThat { it.showAnimation })
-        }
-
-    @Test
-    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED, FLAG_STATUS_BAR_PRIVACY_CHIP_ANIMATION_EXEMPTION)
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED, FLAG_LOCATION_INDICATORS_ANIMATION)
     fun onPrivacyItemsChanged_locationThenMicForDefaultCamera_noAnimation() =
         testScope.runTest {
             val locationList =
@@ -453,7 +547,41 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
         }
 
     @Test
-    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED, FLAG_STATUS_BAR_PRIVACY_CHIP_ANIMATION_EXEMPTION)
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @DisableFlags(FLAG_LOCATION_INDICATORS_ANIMATION)
+    fun onPrivacyItemsChanged_locationThenMicForDefaultCamera_locationAnimationOff_noAnimation() =
+        testScope.runTest {
+            val locationList =
+                listOf(
+                    PrivacyItem(
+                        application = PrivacyApplication("maps", 1),
+                        privacyType = PrivacyType.TYPE_LOCATION,
+                    )
+                )
+            val micAndLocationList =
+                locationList +
+                    PrivacyItem(
+                        application = PrivacyApplication(DEFAULT_CAMERA_PACKAGE_NAME, 2),
+                        privacyType = PrivacyType.TYPE_MICROPHONE,
+                    )
+
+            // First, location access shows animation, but flag is off.
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(locationList)
+
+            // Second, location access within debounce window, no animation, flag is off
+            fakeSystemClock.advanceTime(ADVANCE_TIME_WITHIN_DEBOUNCE_MS)
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(emptyList())
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(locationList)
+
+            // Third, add mic access for default camera, no animation
+            systemEventCoordinator
+                .getPrivacyStateListener()
+                .onPrivacyItemsChanged(micAndLocationList)
+            verify(scheduler, times(3)).onStatusEvent(argThat { !it.showAnimation })
+        }
+
+    @Test
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED, FLAG_LOCATION_INDICATORS_ANIMATION)
     fun onPrivacyItemsChanged_micForDefaultCameraThenLocation_showsAnimationOnce() =
         testScope.runTest {
             val micList =
@@ -491,6 +619,42 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
 
     @Test
     @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @DisableFlags(FLAG_LOCATION_INDICATORS_ANIMATION)
+    fun onPrivacyItemsChanged_micForDefaultCameraThenLocation_locationAnimationOff_doesNotShowAnimation() =
+        testScope.runTest {
+            val micList =
+                listOf(
+                    PrivacyItem(
+                        application = PrivacyApplication(DEFAULT_CAMERA_PACKAGE_NAME, 1),
+                        privacyType = PrivacyType.TYPE_MICROPHONE,
+                    )
+                )
+            val micAndLocationList =
+                micList +
+                    PrivacyItem(
+                        application = PrivacyApplication("maps", 2),
+                        privacyType = PrivacyType.TYPE_LOCATION,
+                    )
+
+            // First, mic access for default camera, no animation
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(micList)
+
+            // Second, add location access, flag is off so no animation
+            systemEventCoordinator
+                .getPrivacyStateListener()
+                .onPrivacyItemsChanged(micAndLocationList)
+
+            // Third, second location access within debounce window, no animation, flag is off
+            fakeSystemClock.advanceTime(ADVANCE_TIME_WITHIN_DEBOUNCE_MS)
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(emptyList())
+            systemEventCoordinator
+                .getPrivacyStateListener()
+                .onPrivacyItemsChanged(micAndLocationList)
+            verify(scheduler, times(3)).onStatusEvent(argThat { !it.showAnimation })
+        }
+
+    @Test
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED, FLAG_LOCATION_INDICATORS_ANIMATION)
     fun onPrivacyItemsChanged_locationDebounced_thenMic_showsAnimation() =
         testScope.runTest {
             val locationList =
@@ -526,6 +690,41 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
 
     @Test
     @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @DisableFlags(FLAG_LOCATION_INDICATORS_ANIMATION)
+    fun onPrivacyItemsChanged_locationDebounced_thenMic_locationAnimationOff_showsAnimation() =
+        testScope.runTest {
+            val locationList =
+                listOf(
+                    PrivacyItem(
+                        application = PrivacyApplication("maps", 1),
+                        privacyType = PrivacyType.TYPE_LOCATION,
+                    )
+                )
+            val micAndLocationList =
+                locationList +
+                    PrivacyItem(
+                        application = PrivacyApplication("recorder", 2),
+                        privacyType = PrivacyType.TYPE_MICROPHONE,
+                    )
+
+            // First, location access doesn't show animation because the flag is off
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(locationList)
+
+            // Second, location access within debounce window, no animation, flag is off
+            fakeSystemClock.advanceTime(ADVANCE_TIME_WITHIN_DEBOUNCE_MS)
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(emptyList())
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(locationList)
+            verify(scheduler, times(2)).onStatusEvent(argThat { !it.showAnimation })
+
+            // Third, add mic access, which should show an animation
+            systemEventCoordinator
+                .getPrivacyStateListener()
+                .onPrivacyItemsChanged(micAndLocationList)
+            verify(scheduler).onStatusEvent(argThat { it.showAnimation })
+        }
+
+    @Test
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED, FLAG_LOCATION_INDICATORS_ANIMATION)
     fun onPrivacyItemsChanged_location_continuousUsage_onlyAnimatesFirstTime() =
         testScope.runTest {
             val privacyList =
@@ -555,16 +754,50 @@ class SystemEventCoordinatorTest(flags: FlagsParameterization) : SysuiTestCase()
             verify(scheduler, times(2)).onStatusEvent(argThat { !it.showAnimation })
         }
 
+    @Test
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @DisableFlags(FLAG_LOCATION_INDICATORS_ANIMATION)
+    fun onPrivacyItemsChanged_location_continuousUsage_locationAnimationOff_doesNotAnimate() =
+        testScope.runTest {
+            val privacyList =
+                listOf(
+                    PrivacyItem(
+                        application = PrivacyApplication("maps", 1),
+                        privacyType = PrivacyType.TYPE_LOCATION,
+                    )
+                )
+
+            // First event, don't show animation because the flag is off
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(privacyList)
+
+            // Second event, within debounce window, should not show animation, flag is off
+            fakeSystemClock.advanceTime(ADVANCE_TIME_WITHIN_DEBOUNCE_MS)
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(emptyList())
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(privacyList)
+
+            // Third event, also within the debounce window of the *last usage*, should not show
+            // animation. flag is off
+            fakeSystemClock.advanceTime(ADVANCE_TIME_WITHIN_DEBOUNCE_MS)
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(emptyList())
+            systemEventCoordinator.getPrivacyStateListener().onPrivacyItemsChanged(privacyList)
+
+            // Verify that no-animation was shown three times.
+            verify(scheduler, times(3)).onStatusEvent(argThat { !it.showAnimation })
+        }
+
     class FakeConnectedDisplayInteractor : ConnectedDisplayInteractor {
         private val flow = MutableSharedFlow<Unit>()
 
         suspend fun emit() = flow.emit(Unit)
 
-        override val connectedDisplayState: Flow<ConnectedDisplayInteractor.State>
-            get() = MutableSharedFlow<ConnectedDisplayInteractor.State>()
+        override val connectedDisplayState: StateFlow<ConnectedDisplayInteractor.State>
+            get() = TODO("Not yet implemented")
 
         override val connectedDisplayAddition: Flow<Unit>
             get() = flow
+
+        override val connectedDisplayRemoval: Flow<Int>
+            get() = MutableSharedFlow()
 
         override val pendingDisplay: Flow<PendingDisplay?>
             get() = MutableSharedFlow<PendingDisplay>()

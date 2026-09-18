@@ -17,7 +17,6 @@
 package com.android.internal.protolog;
 
 import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.os.ServiceManager;
 import android.util.Log;
 
@@ -47,21 +46,16 @@ public class ProcessedPerfettoProtoLogImpl extends PerfettoProtoLogImpl {
             @NonNull String viewerConfigFilePath,
             @NonNull ProtoLogCacheUpdater cacheUpdater,
             @NonNull IProtoLogGroup[] groups) throws ServiceManager.ServiceNotFoundException {
-        this(datasource, viewerConfigFilePath, new ViewerConfigInputStreamProvider() {
-                    @NonNull
-                    @Override
-                    public AutoClosableProtoInputStream getInputStream() {
-                        try {
-                            final var protoFileInputStream =
-                                    new FileInputStream(viewerConfigFilePath);
-                            return new AutoClosableProtoInputStream(protoFileInputStream);
-                        } catch (FileNotFoundException e) {
-                            throw new RuntimeException(
-                                    "Failed to load viewer config file " + viewerConfigFilePath, e);
-                        }
-                    }
-                },
-                cacheUpdater, groups);
+        this(datasource, viewerConfigFilePath, (ViewerConfigInputStreamProvider) () -> {
+            try {
+                final var protoFileInputStream = new FileInputStream(viewerConfigFilePath);
+                return new AutoClosableProtoInputStream(protoFileInputStream);
+            } catch (FileNotFoundException e) {
+                throw new RuntimeException(
+                        "Failed to load viewer config file " + viewerConfigFilePath, e);
+            }
+        },
+                        cacheUpdater, groups);
     }
 
     @VisibleForTesting
@@ -88,10 +82,8 @@ public class ProcessedPerfettoProtoLogImpl extends PerfettoProtoLogImpl {
             @NonNull ViewerConfigInputStreamProvider viewerConfigInputStreamProvider,
             @NonNull ProtoLogViewerConfigReader viewerConfigReader,
             @NonNull ProtoLogCacheUpdater cacheUpdater,
-            @NonNull IProtoLogGroup[] groups,
-            @Nullable IProtoLogConfigurationService configurationService)
-            throws ServiceManager.ServiceNotFoundException {
-        super(datasource, cacheUpdater, groups, configurationService);
+            @NonNull IProtoLogGroup[] groups) {
+        super(datasource, cacheUpdater, groups);
 
         this.mViewerConfigFilePath = viewerConfigFilePath;
 
@@ -146,6 +138,11 @@ public class ProcessedPerfettoProtoLogImpl extends PerfettoProtoLogImpl {
         // If we successfully disabled logging, unload the viewer config.
         mViewerConfigReader.unloadViewerConfig(groups, logger);
         return status;
+    }
+
+    @Override
+    protected String getViewerConfigPath() {
+        return mViewerConfigFilePath;
     }
 
     @Deprecated

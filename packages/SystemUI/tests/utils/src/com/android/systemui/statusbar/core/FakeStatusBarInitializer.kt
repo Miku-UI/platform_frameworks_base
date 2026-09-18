@@ -38,10 +38,6 @@ class FakeStatusBarInitializer : StatusBarInitializer {
             value?.onStatusBarViewUpdated(statusBarViewController, statusBarTransitions)
         }
 
-    override fun initializeStatusBar() {
-        initializedByCentralSurfaces = true
-    }
-
     override fun stop() {}
 
     override fun start() {

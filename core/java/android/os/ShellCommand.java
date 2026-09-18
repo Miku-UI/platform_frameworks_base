@@ -27,6 +27,7 @@ import java.io.FileDescriptor;
  * Helper for implementing {@link Binder#onShellCommand Binder.onShellCommand}.
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public abstract class ShellCommand extends BasicShellCommandHandler {
     private ShellCallback mShellCallback;
     private ResultReceiver mResultReceiver;

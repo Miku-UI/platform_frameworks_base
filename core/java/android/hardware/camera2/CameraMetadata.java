@@ -188,9 +188,9 @@ public abstract class CameraMetadata<TKey> {
 
         Field[] fields = type.getDeclaredFields();
         for (Field field : fields) {
-            // Filter for Keys that are public
-            if (field.getType().isAssignableFrom(keyClass) &&
-                    (field.getModifiers() & Modifier.PUBLIC) != 0) {
+            // Filter for Keys that are public and can be assigned to keyClass.
+            if (keyClass.isAssignableFrom(field.getType())
+                    && (field.getModifiers() & Modifier.PUBLIC) != 0) {
 
                 TKey key;
                 try {
@@ -687,7 +687,7 @@ public abstract class CameraMetadata<TKey> {
      * then the list of resolutions for YUV_420_888 from {@link android.hardware.camera2.params.StreamConfigurationMap#getOutputSizes } contains at
      * least one resolution &gt;= 8 megapixels, with a minimum frame duration of &lt;= 1/20
      * s.</p>
-     * <p>If the device supports the {@link android.graphics.ImageFormat#RAW10 }, {@link android.graphics.ImageFormat#RAW12 }, {@link android.graphics.ImageFormat#Y8 }, then those can also be
+     * <p>If the device supports the {@link android.graphics.ImageFormat#RAW10 }, {@link android.graphics.ImageFormat#RAW12 }, {@link android.graphics.ImageFormat#RAW14 }, {@link android.graphics.ImageFormat#Y8 }, then those can also be
      * captured at the same rate as the maximum-size YUV_420_888 resolution is.</p>
      * <p>If the device supports the PRIVATE_REPROCESSING capability, then the same guarantees
      * as for the YUV_420_888 format also apply to the {@link android.graphics.ImageFormat#PRIVATE } format.</p>
@@ -1390,6 +1390,129 @@ public abstract class CameraMetadata<TKey> {
      */
     public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_MAX = 0x1000;
 
+    /**
+     * <p>8-bit profile with additional SMPTE 2094-50 per-frame metadata.</p>
+     * @see CameraCharacteristics#REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_STANDARD_SMPTE_2094_50 = 0x2000;
+
+    /**
+     * <p>10-bit pixel samples encoded using the Hybrid log-gamma transfer function with
+     * additional SMPTE 2094-50 per-frame metadata.</p>
+     * @see CameraCharacteristics#REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_HLG10_SMPTE_2094_50 = 0x4000;
+
+    /**
+     * <p>10-bit pixel samples encoded using the SMPTE ST 2084 transfer function.
+     * This profile utilizes internal static metadata to increase the quality
+     * of the capture and also includes SMPTE 2094-50 per-frame metadata.</p>
+     * @see CameraCharacteristics#REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_HDR10_SMPTE_2094_50 = 0x8000;
+
+    /**
+     * <p>10-bit pixel samples encoded using the SMPTE ST 2084 transfer function.
+     * In contrast to HDR10, this profile uses internal per-frame metadata
+     * to further enhance the quality of the capture and includes
+     * additional SMPTE 2094-50 per-frame metadata.</p>
+     * @see CameraCharacteristics#REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_HDR10_PLUS_SMPTE_2094_50 = 0x10000;
+
+    /**
+     * <p>This is a camera mode for Dolby Vision capture optimized for a more scene
+     * accurate capture. This would typically differ from what a specific device
+     * might want to tune for a consumer optimized Dolby Vision general capture and
+     * also includes additional SMPTE 2094-50 per-frame metadata.</p>
+     * @see CameraCharacteristics#REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_10B_HDR_REF_SMPTE_2094_50 = 0x20000;
+
+    /**
+     * <p>This is the power optimized mode for 10-bit Dolby Vision HDR Reference Mode
+     * with additional SMPTE 2094-50 per-frame metadata.</p>
+     * @see CameraCharacteristics#REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_10B_HDR_REF_PO_SMPTE_2094_50 = 0x40000;
+
+    /**
+     * <p>This is the camera mode for the default Dolby Vision capture mode for the
+     * specific device. This would be tuned by each specific device for consumer
+     * pleasing results that resonate with their particular audience. We expect
+     * that each specific device would have a different look for their default
+     * Dolby Vision capture and also include additional SMPTE 2094-50 per-frame metadata.</p>
+     * @see CameraCharacteristics#REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_10B_HDR_OEM_SMPTE_2094_50 = 0x80000;
+
+    /**
+     * <p>This is the power optimized mode for 10-bit Dolby Vision HDR device specific
+     * capture Mode and also includes additional SMPTE 2094-50 per-frame metadata.</p>
+     * @see CameraCharacteristics#REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_10B_HDR_OEM_PO_SMPTE_2094_50 = 0x100000;
+
+    /**
+     * <p>This is the 8-bit version of the Dolby Vision reference capture mode optimized
+     * for scene accuracy and also includes additional SMPTE 2094-50 per-frame metadata.</p>
+     * @see CameraCharacteristics#REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_8B_HDR_REF_SMPTE_2094_50 = 0x200000;
+
+    /**
+     * <p>This is the power optimized mode for 8-bit Dolby Vision HDR Reference Mode and
+     * also includes additional SMPTE 2094-50 per-frame metadata.</p>
+     * @see CameraCharacteristics#REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_8B_HDR_REF_PO_SMPTE_2094_50 = 0x400000;
+
+    /**
+     * <p>This is the 8-bit version of device specific tuned and optimized Dolby Vision
+     * capture mode and also includes additional SMPTE 2094-50 per-frame metadata.</p>
+     * @see CameraCharacteristics#REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_8B_HDR_OEM_SMPTE_2094_50 = 0x800000;
+
+    /**
+     * <p>This is the power optimized mode for 8-bit Dolby Vision HDR device specific
+     * capture Mode and also includes additional SMPTE 2094-50 per-frame metadata.</p>
+     * @see CameraCharacteristics#REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_DOLBY_VISION_8B_HDR_OEM_PO_SMPTE_2094_50 = 0x1000000;
+
+    /**
+     *
+     * @see CameraCharacteristics#REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NEW_DYNAMIC_RANGE_PROFILES)
+    public static final int REQUEST_AVAILABLE_DYNAMIC_RANGE_PROFILES_MAP_MAX_312 = 0x2000000;
+
     //
     // Enumeration values for CameraCharacteristics#REQUEST_AVAILABLE_COLOR_SPACE_PROFILES_MAP
     //
@@ -1510,6 +1633,7 @@ public abstract class CameraMetadata<TKey> {
      * <li>{@link android.graphics.ImageFormat#RAW_SENSOR RAW_SENSOR}</li>
      * <li>{@link android.graphics.ImageFormat#RAW10 RAW10}</li>
      * <li>{@link android.graphics.ImageFormat#RAW12 RAW12}</li>
+     * <li>{@link android.graphics.ImageFormat#RAW14 RAW14}</li>
      * </ul>
      * <p>session configuration is not guaranteed to succeed.</p>
      * <p>This stream use case may not be supported on some devices.</p>
@@ -1887,6 +2011,58 @@ public abstract class CameraMetadata<TKey> {
     public static final int INFO_SUPPORTED_HARDWARE_LEVEL_EXTERNAL = 4;
 
     //
+    // Enumeration values for CameraCharacteristics#INFO_DEVICE_TYPE
+    //
+
+    /**
+     * <p>This camera device is physically a part of this Android device, and the data produced
+     * is always within the device's control before it reaches the application requesting it.</p>
+     * @see CameraCharacteristics#INFO_DEVICE_TYPE
+     */
+    @FlaggedApi(Flags.FLAG_CAMERA_DEVICE_TYPE_API)
+    public static final int INFO_DEVICE_TYPE_BUILT_IN = 0;
+
+    /**
+     * <p>This camera device is not permanently connected to this Android device.  It may be
+     * connected by a wired connection, such as a USB webcam, or it might be connected
+     * wirelessly, such as via WiFi or other communication mechanism.</p>
+     * <p>The provenance of the image data from the external camera cannot be guaranteed, since it
+     * is produced by hardware that is not controlled by this Android device.</p>
+     * <p>Note that an <code>EXTERNAL</code> <code>{@link CameraCharacteristics#INFO_DEVICE_TYPE android.info.deviceType}</code> does not mean the
+     * <code>{@link CameraCharacteristics#INFO_SUPPORTED_HARDWARE_LEVEL android.info.supportedHardwareLevel}</code> must be <code>EXTERNAL</code>. A basic USB webcam would
+     * likely have an <code>EXTERNAL</code> hardware level, but more sophisticated remote camera systems
+     * may have more capabilities than that, and be listed with a <code>LIMITED</code> or better
+     * hardware level.</p>
+     *
+     * @see CameraCharacteristics#INFO_DEVICE_TYPE
+     * @see CameraCharacteristics#INFO_SUPPORTED_HARDWARE_LEVEL
+     * @see CameraCharacteristics#INFO_DEVICE_TYPE
+     */
+    @FlaggedApi(Flags.FLAG_CAMERA_DEVICE_TYPE_API)
+    public static final int INFO_DEVICE_TYPE_EXTERNAL = 1;
+
+    /**
+     * <p>This camera device produces purely virtual images, though they may be based on the
+     * output of a real hardware camera in some cases. For example, a virtual reality headset
+     * may have a virtual camera as the front-facing camera, producing a virtual avatar to
+     * represent the user, which is animated based on sensors on the headset.</p>
+     * <p>The image data should not be assumed to be real.</p>
+     * @see CameraCharacteristics#INFO_DEVICE_TYPE
+     */
+    @FlaggedApi(Flags.FLAG_CAMERA_DEVICE_TYPE_API)
+    public static final int INFO_DEVICE_TYPE_VIRTUAL = 2;
+
+    /**
+     * <p>This camera device has an unknown classification.</p>
+     * <p>This value will be used when new device classifications need to be added in future
+     * Android versions, so that applications targeting older SDK levels do not have to
+     * handle unknown enumeration values.</p>
+     * @see CameraCharacteristics#INFO_DEVICE_TYPE
+     */
+    @FlaggedApi(Flags.FLAG_CAMERA_DEVICE_TYPE_API)
+    public static final int INFO_DEVICE_TYPE_UNKNOWN = 3;
+
+    //
     // Enumeration values for CameraCharacteristics#SYNC_MAX_LATENCY
     //
 
@@ -2124,28 +2300,24 @@ public abstract class CameraMetadata<TKey> {
      * @see CameraCharacteristics#SHARED_SESSION_COLOR_SPACE
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
     public static final int SHARED_SESSION_COLOR_SPACE_UNSPECIFIED = -1;
 
     /**
      * @see CameraCharacteristics#SHARED_SESSION_COLOR_SPACE
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
     public static final int SHARED_SESSION_COLOR_SPACE_SRGB = 0;
 
     /**
      * @see CameraCharacteristics#SHARED_SESSION_COLOR_SPACE
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
     public static final int SHARED_SESSION_COLOR_SPACE_DISPLAY_P3 = 7;
 
     /**
      * @see CameraCharacteristics#SHARED_SESSION_COLOR_SPACE
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
     public static final int SHARED_SESSION_COLOR_SPACE_BT2020_HLG = 16;
 
     //

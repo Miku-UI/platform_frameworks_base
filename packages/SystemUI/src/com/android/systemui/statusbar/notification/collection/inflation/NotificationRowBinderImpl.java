@@ -54,7 +54,6 @@ import com.android.systemui.statusbar.notification.row.RowContentBindParams;
 import com.android.systemui.statusbar.notification.row.RowContentBindStage;
 import com.android.systemui.statusbar.notification.row.RowInflaterTask;
 import com.android.systemui.statusbar.notification.row.dagger.ExpandableNotificationRowComponent;
-import com.android.systemui.statusbar.notification.row.shared.AsyncGroupHeaderViewInflation;
 import com.android.systemui.statusbar.notification.stack.NotificationListContainer;
 
 import javax.inject.Inject;
@@ -268,16 +267,14 @@ public class NotificationRowBinderImpl implements NotificationRowBinder {
             params.markContentViewsFreeable(FLAG_CONTENT_VIEW_PUBLIC_SINGLE_LINE);
         }
 
-        if (AsyncGroupHeaderViewInflation.isEnabled()) {
-            if (inflaterParams.isGroupSummary()) {
-                params.requireContentViews(FLAG_GROUP_SUMMARY_HEADER);
-                if (isMinimized) {
-                    params.requireContentViews(FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER);
-                }
-            } else {
-                params.markContentViewsFreeable(FLAG_GROUP_SUMMARY_HEADER);
-                params.markContentViewsFreeable(FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER);
+        if (inflaterParams.isGroupSummary()) {
+            params.requireContentViews(FLAG_GROUP_SUMMARY_HEADER);
+            if (isMinimized) {
+                params.requireContentViews(FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER);
             }
+        } else {
+            params.markContentViewsFreeable(FLAG_GROUP_SUMMARY_HEADER);
+            params.markContentViewsFreeable(FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER);
         }
         params.rebindAllContentViews();
         mLogger.logRequestingRebind(entry, inflaterParams);

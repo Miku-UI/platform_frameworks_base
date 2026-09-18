@@ -19,7 +19,6 @@ package com.android.systemui.flashlight.ui.viewmodel
 import android.content.Context
 import androidx.annotation.DrawableRes
 import androidx.annotation.FloatRange
-import androidx.compose.runtime.getValue
 import com.android.internal.logging.UiEventLogger
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.common.shared.model.asIcon
@@ -29,8 +28,7 @@ import com.android.systemui.flashlight.shared.logger.FlashlightUiEvent
 import com.android.systemui.flashlight.shared.model.FlashlightModel
 import com.android.systemui.graphics.ImageLoader
 import com.android.systemui.haptics.slider.compose.ui.SliderHapticsViewModel
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.res.R
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -46,26 +44,17 @@ constructor(
     private val logger: FlashlightLogger,
     private val uiEventLogger: UiEventLogger,
     private val imageLoader: ImageLoader,
-) : ExclusiveActivatable() {
-    private val hydrator = Hydrator("FlashlightSliderViewModel.hydrator")
+) : HydratedActivatable() {
 
     val currentFlashlightLevel: FlashlightModel.Available.Level? by
-        hydrator.hydratedStateOf(
-            "currentFlashlightLevel",
-            flashlightInteractor.state.value as? FlashlightModel.Available.Level,
-            flashlightInteractor.state.filterIsInstance(FlashlightModel.Available.Level::class),
-        )
+        flashlightInteractor.state
+            .filterIsInstance(FlashlightModel.Available.Level::class)
+            .hydratedStateOf(flashlightInteractor.state.value as? FlashlightModel.Available.Level)
 
     val isFlashlightAdjustable: Boolean by
-        hydrator.hydratedStateOf(
-            "isFlashlightAdjustable",
-            flashlightInteractor.state.value is FlashlightModel.Available.Level,
-            flashlightInteractor.state.map { it is FlashlightModel.Available.Level },
-        )
-
-    override suspend fun onActivated(): Nothing {
-        hydrator.activate()
-    }
+        flashlightInteractor.state
+            .map { it is FlashlightModel.Available.Level }
+            .hydratedStateOf(flashlightInteractor.state.value is FlashlightModel.Available.Level)
 
     fun setFlashlightLevel(value: Int) {
         setFlashlightLevel(value, false)
@@ -101,6 +90,7 @@ constructor(
         return imageLoader
             .loadDrawable(
                 android.graphics.drawable.Icon.createWithResource(context, resId),
+                context = context,
                 maxHeight = 200,
                 maxWidth = 200,
             )!!

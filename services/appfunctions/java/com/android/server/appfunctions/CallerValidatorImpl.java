@@ -20,40 +20,38 @@ import android.Manifest;
 import android.annotation.BinderThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.annotation.RequiresPermission;
 import android.app.admin.DevicePolicyManager;
 import android.app.admin.DevicePolicyManager.AppFunctionsPolicy;
-import android.app.appfunctions.AppFunctionAccessServiceInterface;
-import android.app.appfunctions.AppFunctionManager;
+import android.app.appfunctions.flags.Flags;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Binder;
 import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.permission.flags.Flags;
 
+import android.util.Slog;
 import com.android.internal.infra.AndroidFuture;
+import com.android.server.appfunctions.allowlist.AppFunctionAllowlistReader;
 
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 
 /* Validates that caller has the correct privilege to call an AppFunctionManager Api. */
 class CallerValidatorImpl implements CallerValidator {
     private final Context mContext;
-    private final AppFunctionAccessServiceInterface mAppFunctionAccessService;
-
-    private final DeviceSettingHelper mDeviceSettingHelper;
 
     private final UserManager mUserManager;
 
+    private final AppFunctionAllowlistReader mAllowlistReader;
+
     CallerValidatorImpl(
             @NonNull Context context,
-            @NonNull AppFunctionAccessServiceInterface appFunctionAccessService,
-            @NonNull UserManager userManager) {
+            @NonNull UserManager userManager,
+            @Nullable AppFunctionAllowlistReader allowlistReader) {
         mContext = Objects.requireNonNull(context);
-        mAppFunctionAccessService = Objects.requireNonNull(appFunctionAccessService);
-        mDeviceSettingHelper = new DeviceSettingHelperImpl(context);
         mUserManager = Objects.requireNonNull(userManager);
+        mAllowlistReader = allowlistReader;
     }
 
     @Override
@@ -78,7 +76,10 @@ class CallerValidatorImpl implements CallerValidator {
         int callingUid = Binder.getCallingUid();
         final long callingIdentityToken = Binder.clearCallingIdentity();
         try {
-            if (Flags.appFunctionAccessServiceEnabled()) {
+            if (Flags.enableAppFunctionPermissionV2()) {
+                if (callingUid == Process.ROOT_UID || callingUid == Process.SHELL_UID) {
+                    return;
+                }
                 enforceNoCrossUserOrSecondaryProfileInteraction(targetUserHandle, callingUid);
             } else {
                 verifyUserInteraction(
@@ -92,62 +93,9 @@ class CallerValidatorImpl implements CallerValidator {
         }
     }
 
-    @RequiresPermission(Manifest.permission.EXECUTE_APP_FUNCTIONS)
-    @CanExecuteAppFunctionResult
-    private AndroidFuture<Integer> verifyCallerCanExecuteAppFunctionWithAccessService(
-            int callingUid,
-            int callingPid,
-            @NonNull UserHandle targetUser,
-            @NonNull String callerPackageName,
-            @NonNull String targetPackageName) {
-
-        boolean hasExecutionPermission =
-                mContext.checkPermission(
-                                Manifest.permission.EXECUTE_APP_FUNCTIONS, callingPid, callingUid)
-                        == PackageManager.PERMISSION_GRANTED;
-
-        boolean isSamePackage = callerPackageName.equals(targetPackageName);
-        int requestState =
-                mAppFunctionAccessService.getAccessRequestState(
-                        callerPackageName,
-                        UserHandle.getUserId(callingUid),
-                        mDeviceSettingHelper.getPermissionOwnerPackage(targetPackageName),
-                        targetUser.getIdentifier());
-        boolean hasAccessPermission =
-                requestState == AppFunctionManager.ACCESS_REQUEST_STATE_GRANTED;
-        if (hasExecutionPermission && hasAccessPermission) {
-            return AndroidFuture.completedFuture(CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_HAS_PERMISSION);
-        }
-        if (isSamePackage) {
-            return AndroidFuture.completedFuture(CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_SAME_PACKAGE);
-        }
-        return AndroidFuture.completedFuture(CAN_EXECUTE_APP_FUNCTIONS_DENIED);
-    }
-
-    @RequiresPermission(Manifest.permission.EXECUTE_APP_FUNCTIONS)
-    @CanExecuteAppFunctionResult
-    private AndroidFuture<Integer> verifyCallerCanExecuteAppFunctionHelper(
-            int callingUid,
-            int callingPid,
-            @NonNull String callerPackageName,
-            @NonNull String targetPackageName) {
-        boolean hasExecutionPermission =
-                mContext.checkPermission(
-                                Manifest.permission.EXECUTE_APP_FUNCTIONS, callingPid, callingUid)
-                        == PackageManager.PERMISSION_GRANTED;
-        if (hasExecutionPermission) {
-            return AndroidFuture.completedFuture(CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_HAS_PERMISSION);
-        }
-        if (callerPackageName.equals(targetPackageName)) {
-            return AndroidFuture.completedFuture(CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_SAME_PACKAGE);
-        }
-        return AndroidFuture.completedFuture(CAN_EXECUTE_APP_FUNCTIONS_DENIED);
-    }
-
     @Override
-    @RequiresPermission(Manifest.permission.EXECUTE_APP_FUNCTIONS)
     @CanExecuteAppFunctionResult
-    public AndroidFuture<Integer> verifyCallerCanExecuteAppFunction(
+    public CompletableFuture<Integer> verifyCallerCanExecuteAppFunction(
             int callingUid,
             int callingPid,
             @NonNull UserHandle targetUser,
@@ -160,12 +108,90 @@ class CallerValidatorImpl implements CallerValidator {
             return AndroidFuture.completedFuture(CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_HAS_PERMISSION);
         }
 
-        if (Flags.appFunctionAccessApiEnabled() && Flags.appFunctionAccessServiceEnabled()) {
-            return verifyCallerCanExecuteAppFunctionWithAccessService(
-                    callingUid, callingPid, targetUser, callerPackageName, targetPackageName);
+        if (Flags.enableAppFunctionPermissionV2()) {
+            if (mContext.checkPermission(
+                            Manifest.permission.EXECUTE_APP_FUNCTIONS_SYSTEM,
+                            callingPid,
+                            callingUid)
+                    == PackageManager.PERMISSION_GRANTED) {
+                // System permission does not require allowlist validation.
+                return AndroidFuture.completedFuture(
+                        CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_HAS_PERMISSION);
+            }
+
+            return Objects.requireNonNull(mAllowlistReader)
+                    .isAllowlisted(callerPackageName, targetPackageName, targetUser.getIdentifier())
+                    .thenCompose(
+                            (isAllowlisted) ->
+                                    verifyCallerCanExecuteAppFunctionWithAllowlist(
+                                            callingUid,
+                                            callingPid,
+                                            callerPackageName,
+                                            targetPackageName,
+                                            isAllowlisted));
         }
         return verifyCallerCanExecuteAppFunctionHelper(
                 callingUid, callingPid, callerPackageName, targetPackageName);
+    }
+
+    @CanExecuteAppFunctionResult
+    private AndroidFuture<Integer> verifyCallerCanExecuteAppFunctionWithAllowlist(
+            int callingUid,
+            int callingPid,
+            @NonNull String callerPackageName,
+            @NonNull String targetPackageName,
+            boolean isAllowlisted) {
+        final boolean hasPermission =
+                mContext.checkPermission(
+                                Manifest.permission.EXECUTE_APP_FUNCTIONS, callingPid, callingUid)
+                        == PackageManager.PERMISSION_GRANTED;
+
+        final boolean isSamePackage = callerPackageName.equals(targetPackageName);
+
+        if (hasPermission) {
+            if (isSamePackage) {
+                return AndroidFuture.completedFuture(
+                        CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_HAS_PERMISSION);
+            }
+            return isAllowlisted
+                    ? AndroidFuture.completedFuture(
+                            CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_HAS_PERMISSION)
+                    : AndroidFuture.completedFuture(
+                            CAN_EXECUTE_APP_FUNCTIONS_DENIED_NOT_ALLOWLISTED);
+        }
+
+        if (isSamePackage) {
+            return AndroidFuture.completedFuture(CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_SAME_PACKAGE);
+        }
+
+        return AndroidFuture.completedFuture(CAN_EXECUTE_APP_FUNCTIONS_DENIED);
+    }
+
+    @CanExecuteAppFunctionResult
+    private AndroidFuture<Integer> verifyCallerCanExecuteAppFunctionHelper(
+            int callingUid,
+            int callingPid,
+            @NonNull String callerPackageName,
+            @NonNull String targetPackageName) {
+        if (android.app.appfunctions.flags.Flags.enableAppFunctionPermissionV2()
+                && mContext.checkPermission(
+                                Manifest.permission.EXECUTE_APP_FUNCTIONS_SYSTEM,
+                                callingPid,
+                                callingUid)
+                        == PackageManager.PERMISSION_GRANTED) {
+            return AndroidFuture.completedFuture(CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_HAS_PERMISSION);
+        }
+        boolean hasExecutionPermission =
+                mContext.checkPermission(
+                                Manifest.permission.EXECUTE_APP_FUNCTIONS, callingPid, callingUid)
+                        == PackageManager.PERMISSION_GRANTED;
+        if (hasExecutionPermission) {
+            return AndroidFuture.completedFuture(CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_HAS_PERMISSION);
+        }
+        if (callerPackageName.equals(targetPackageName)) {
+            return AndroidFuture.completedFuture(CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_SAME_PACKAGE);
+        }
+        return AndroidFuture.completedFuture(CAN_EXECUTE_APP_FUNCTIONS_DENIED);
     }
 
     @Override

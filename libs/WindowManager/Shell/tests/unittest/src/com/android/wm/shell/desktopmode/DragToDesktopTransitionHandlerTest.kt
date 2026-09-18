@@ -7,11 +7,11 @@ import android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD
 import android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN
 import android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW
 import android.app.WindowConfiguration.WindowingMode
+import android.content.Intent
 import android.graphics.PointF
 import android.graphics.Rect
 import android.os.IBinder
 import android.os.SystemProperties
-import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.testing.TestableLooper.RunWithLooper
@@ -26,25 +26,27 @@ import com.android.dx.mockito.inline.extended.ExtendedMockito
 import com.android.internal.jank.Cuj.CUJ_DESKTOP_MODE_ENTER_APP_HANDLE_DRAG_HOLD
 import com.android.internal.jank.Cuj.CUJ_DESKTOP_MODE_ENTER_APP_HANDLE_DRAG_RELEASE
 import com.android.internal.jank.InteractionJankMonitor
-import com.android.window.flags.Flags
-import com.android.window.flags.Flags.FLAG_ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.TestRunningTaskInfoBuilder
 import com.android.wm.shell.bubbles.BubbleController
-import com.android.wm.shell.bubbles.BubbleTransitions
+import com.android.wm.shell.bubbles.transitions.BubbleTransitions
+import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.desktopmode.DesktopModeTransitionTypes.TRANSIT_DESKTOP_MODE_CANCEL_DRAG_TO_DESKTOP
 import com.android.wm.shell.desktopmode.DesktopModeTransitionTypes.TRANSIT_DESKTOP_MODE_END_DRAG_TO_DESKTOP
 import com.android.wm.shell.desktopmode.DesktopModeTransitionTypes.TRANSIT_DESKTOP_MODE_START_DRAG_TO_DESKTOP
 import com.android.wm.shell.desktopmode.DragToDesktopTransitionHandler.CancelState
 import com.android.wm.shell.desktopmode.DragToDesktopTransitionHandler.Companion.DRAG_TO_DESKTOP_FINISH_ANIM_DURATION_MS
 import com.android.wm.shell.desktopmode.multidesks.DesksOrganizer
+import com.android.wm.shell.shared.desktopmode.DesktopConfig
 import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.android.wm.shell.shared.split.SplitScreenConstants.SPLIT_POSITION_BOTTOM_OR_RIGHT
 import com.android.wm.shell.shared.split.SplitScreenConstants.SPLIT_POSITION_TOP_OR_LEFT
 import com.android.wm.shell.splitscreen.SplitScreenController
 import com.android.wm.shell.transition.Transitions
+import com.android.wm.shell.transition.Transitions.TransitionFinishCallback
 import com.android.wm.shell.windowdecor.MoveToDesktopAnimator
+import com.android.wm.shell.windowdecor.OnTaskResizeAnimationListener
 import com.google.common.truth.Truth.assertThat
 import java.util.Optional
 import java.util.function.Supplier
@@ -55,15 +57,18 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.anyBoolean
 import org.mockito.ArgumentMatchers.anyFloat
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mock
+import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.clearInvocations
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.times
@@ -92,10 +97,14 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     @Mock private lateinit var bubbleController: BubbleController
     @Mock private lateinit var visualIndicator: DesktopModeVisualIndicator
     @Mock private lateinit var dragCancelCallback: Runnable
+    @Mock private lateinit var desktopConfig: DesktopConfig
+    @Mock private lateinit var displayController: DisplayController
+    @Mock private lateinit var onResizeAnimationListener: OnTaskResizeAnimationListener
     @Mock
     private lateinit var dragToDesktopStateListener:
         DragToDesktopTransitionHandler.DragToDesktopStateListener
     private lateinit var desktopState: FakeDesktopState
+    private val wctCaptor = argumentCaptor<WindowContainerTransaction>()
 
     private val transactionSupplier = Supplier {
         val transaction = mock<SurfaceControl.Transaction>()
@@ -104,30 +113,12 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
         transaction
     }
 
-    private lateinit var defaultHandler: DragToDesktopTransitionHandler
     private lateinit var springHandler: SpringDragToDesktopTransitionHandler
 
     @Before
     fun setUp() {
         desktopState = FakeDesktopState()
         desktopState.canEnterDesktopMode = true
-        defaultHandler =
-            DefaultDragToDesktopTransitionHandler(
-                    context,
-                    transitions,
-                    taskDisplayAreaOrganizer,
-                    desksOrganizer,
-                    desktopUserRepositories,
-                    mockInteractionJankMonitor,
-                    Optional.of(bubbleController),
-                    transactionSupplier,
-                    desktopState,
-                )
-                .apply {
-                    setSplitScreenController(splitScreenController)
-                    dragToDesktopStateListener =
-                        this@DragToDesktopTransitionHandlerTest.dragToDesktopStateListener
-                }
         springHandler =
             SpringDragToDesktopTransitionHandler(
                     context,
@@ -139,30 +130,34 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
                     Optional.of(bubbleController),
                     transactionSupplier,
                     desktopState,
+                    desktopConfig,
+                    displayController,
                 )
                 .apply {
                     setSplitScreenController(splitScreenController)
                     dragToDesktopStateListener =
                         this@DragToDesktopTransitionHandlerTest.dragToDesktopStateListener
+                    onTaskResizeAnimationListener = onResizeAnimationListener
                 }
         whenever(
                 transitions.startTransition(
                     eq(TRANSIT_DESKTOP_MODE_END_DRAG_TO_DESKTOP),
-                    /* wct= */ any(),
-                    eq(defaultHandler),
+                    wctCaptor.capture(),
+                    eq(springHandler),
                 )
             )
             .thenReturn(mock<IBinder>())
+        whenever(dragAnimator.computeCurrentVelocity()).thenReturn(PointF())
     }
 
     @Test
     fun startDragToDesktop_animateDragWhenReady() {
         val task = createTask()
         // Simulate transition is started.
-        val transition = startDragToDesktopTransition(defaultHandler, task, dragAnimator)
+        val transition = startDragToDesktopTransition(springHandler, task, dragAnimator)
 
         // Now it's ready to animate.
-        defaultHandler.startAnimation(
+        springHandler.startAnimation(
             transition = transition,
             info =
                 createTransitionInfo(
@@ -180,21 +175,21 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     @Test
     fun startDragToDesktop_cancelledBeforeReady_startCancelTransition() {
         performEarlyCancel(
-            defaultHandler,
+            springHandler,
             DragToDesktopTransitionHandler.CancelState.STANDARD_CANCEL,
         )
         verify(transitions)
             .startTransition(
                 eq(TRANSIT_DESKTOP_MODE_CANCEL_DRAG_TO_DESKTOP),
                 any(),
-                eq(defaultHandler),
+                eq(springHandler),
             )
     }
 
     @Test
     fun startDragToDesktop_cancelledBeforeReady_verifySplitLeftCancel() {
         performEarlyCancel(
-            defaultHandler,
+            springHandler,
             DragToDesktopTransitionHandler.CancelState.CANCEL_SPLIT_LEFT,
         )
         verify(splitScreenController)
@@ -210,7 +205,7 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     @Test
     fun startDragToDesktop_cancelledBeforeReady_verifySplitRightCancel() {
         performEarlyCancel(
-            defaultHandler,
+            springHandler,
             DragToDesktopTransitionHandler.CancelState.CANCEL_SPLIT_RIGHT,
         )
         verify(splitScreenController)
@@ -226,7 +221,7 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     @Test
     fun startDragToDesktop_cancelledBeforeReady_verifyBubbleLeftCancel() {
         performEarlyCancel(
-            defaultHandler,
+            springHandler,
             DragToDesktopTransitionHandler.CancelState.CANCEL_BUBBLE_LEFT,
         )
         verify(bubbleController)
@@ -239,7 +234,7 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     @Test
     fun startDragToDesktop_cancelledBeforeReady_verifyBubbleRightCancel() {
         performEarlyCancel(
-            defaultHandler,
+            springHandler,
             DragToDesktopTransitionHandler.CancelState.CANCEL_BUBBLE_RIGHT,
         )
         verify(bubbleController)
@@ -253,34 +248,34 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     fun startDragToDesktop_aborted_finishDropped() {
         val task = createTask()
         // Simulate transition is started.
-        val transition = startDragToDesktopTransition(defaultHandler, task, dragAnimator)
+        val transition = startDragToDesktopTransition(springHandler, task, dragAnimator)
         // But the transition was aborted.
-        defaultHandler.onTransitionConsumed(transition, aborted = true, mock())
+        springHandler.onTransitionConsumed(transition, aborted = true, mock())
 
         // Attempt to finish the failed drag start.
-        defaultHandler.finishDragToDesktopTransition(WindowContainerTransaction())
+        springHandler.finishDragToDesktopTransition(WindowContainerTransaction())
 
         // Should not be attempted and state should be reset.
         verify(transitions, never())
             .startTransition(eq(TRANSIT_DESKTOP_MODE_END_DRAG_TO_DESKTOP), any(), any())
-        assertFalse(defaultHandler.inProgress)
+        assertFalse(springHandler.inProgress)
     }
 
     @Test
     fun startDragToDesktop_aborted_cancelDropped() {
         val task = createTask()
         // Simulate transition is started.
-        val transition = startDragToDesktopTransition(defaultHandler, task, dragAnimator)
+        val transition = startDragToDesktopTransition(springHandler, task, dragAnimator)
         // But the transition was aborted.
-        defaultHandler.onTransitionConsumed(transition, aborted = true, mock())
+        springHandler.onTransitionConsumed(transition, aborted = true, mock())
 
         // Attempt to finish the failed drag start.
-        defaultHandler.cancelDragToDesktopTransition(
+        springHandler.cancelDragToDesktopTransition(
             DragToDesktopTransitionHandler.CancelState.STANDARD_CANCEL
         )
 
         // Should not be attempted and state should be reset.
-        assertFalse(defaultHandler.inProgress)
+        assertFalse(springHandler.inProgress)
     }
 
     @Test
@@ -288,16 +283,40 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
         val task = createTask()
 
         // Simulate attempt to start two drag to desktop transitions.
-        startDragToDesktopTransition(defaultHandler, task, dragAnimator)
-        startDragToDesktopTransition(defaultHandler, task, dragAnimator)
+        startDragToDesktopTransition(springHandler, task, dragAnimator)
+        startDragToDesktopTransition(springHandler, task, dragAnimator)
 
         // Verify transition only started once.
         verify(transitions, times(1))
             .startTransition(
                 eq(TRANSIT_DESKTOP_MODE_START_DRAG_TO_DESKTOP),
                 any(),
-                eq(defaultHandler),
+                eq(springHandler),
             )
+    }
+
+    @Test
+    fun startDragToDesktop_onDefaultDisplay_usesHomeCategory() {
+        val task = createTask().apply { displayId = Display.DEFAULT_DISPLAY }
+        startDragToDesktopTransition(springHandler, task, dragAnimator)
+
+        val wct: WindowContainerTransaction = wctCaptor.firstValue
+        val capturedIntent = wct.hierarchyOps.mapNotNull { it.activityIntent }.first()
+
+        assertThat(capturedIntent.hasCategory(Intent.CATEGORY_HOME)).isTrue()
+        assertThat(capturedIntent.hasCategory(Intent.CATEGORY_SECONDARY_HOME)).isFalse()
+    }
+
+    @Test
+    fun startDragToDesktop_onSecondaryDisplay_usesSecondaryHomeCategory() {
+        val task = createTask().apply { displayId = SECONDARY_DISPLAY }
+        startDragToDesktopTransition(springHandler, task, dragAnimator)
+
+        val wct: WindowContainerTransaction = wctCaptor.firstValue
+        val capturedIntent = wct.hierarchyOps.mapNotNull { it.activityIntent }.first()
+
+        assertThat(capturedIntent.hasCategory(Intent.CATEGORY_HOME)).isFalse()
+        assertThat(capturedIntent.hasCategory(Intent.CATEGORY_SECONDARY_HOME)).isTrue()
     }
 
     @Test
@@ -308,7 +327,6 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
                 taskInfo = null
             }
 
-        assertFalse(defaultHandler.isHomeChange(change))
         assertFalse(springHandler.isHomeChange(change))
     }
 
@@ -321,7 +339,6 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
                     TestRunningTaskInfoBuilder().setActivityType(ACTIVITY_TYPE_STANDARD).build()
             }
 
-        assertFalse(defaultHandler.isHomeChange(change))
         assertFalse(springHandler.isHomeChange(change))
     }
 
@@ -333,7 +350,6 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
                 taskInfo = TestRunningTaskInfoBuilder().setActivityType(ACTIVITY_TYPE_HOME).build()
             }
 
-        assertTrue(defaultHandler.isHomeChange(change))
         assertTrue(springHandler.isHomeChange(change))
     }
 
@@ -350,21 +366,20 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
                         .build()
             }
 
-        assertFalse(defaultHandler.isHomeChange(change))
         assertFalse(springHandler.isHomeChange(change))
     }
 
     @Test
     fun cancelDragToDesktop_startWasReady_cancel_merged() {
-        val startToken = startDrag(defaultHandler)
+        val startToken = startDrag(springHandler)
 
         // Then user cancelled after it had already started.
         val cancelToken =
             cancelDragToDesktopTransition(
-                defaultHandler,
+                springHandler,
                 DragToDesktopTransitionHandler.CancelState.STANDARD_CANCEL,
             )
-        defaultHandler.mergeAnimation(
+        springHandler.mergeAnimation(
             cancelToken,
             TransitionInfo(TRANSIT_DESKTOP_MODE_CANCEL_DRAG_TO_DESKTOP, 0),
             mock<SurfaceControl.Transaction>(),
@@ -375,66 +390,109 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
 
         // Cancel animation should run since it had already started.
         verify(dragAnimator).cancelAnimator()
-        assertFalse("Drag should not be in progress after cancelling", defaultHandler.inProgress)
+        assertFalse("Drag should not be in progress after cancelling", springHandler.inProgress)
     }
 
     @Test
-    fun cancelSplitDragToDesktop_startWasReady_cancel_merged_and_starts_splitscreen_transition() {
-        val draggedTask = createTask(windowingMode = WINDOWING_MODE_MULTI_WINDOW)
-        val otherTask = createTask(windowingMode = WINDOWING_MODE_MULTI_WINDOW)
-        whenever(splitScreenController.getTaskInfo(anyInt())).thenReturn(otherTask)
-        val startToken = startDrag(defaultHandler, task = draggedTask)
-
-        // Then user cancelled after it had already started.
-        val cancelToken =
-            cancelDragToDesktopTransition(
-                defaultHandler,
-                DragToDesktopTransitionHandler.CancelState.STANDARD_CANCEL,
+    fun cancelDragToDesktop_toSplit_transitionFinishesOnSplitSelectAnimationStart() {
+        val task = createTask()
+        // Mark select split request as handled
+        whenever(
+                splitScreenController.requestEnterSplitSelect(
+                    eq(task),
+                    anyInt(),
+                    any(),
+                    anyBoolean(),
+                    anyOrNull(),
+                )
             )
-        defaultHandler.mergeAnimation(
-            cancelToken,
-            TransitionInfo(TRANSIT_DESKTOP_MODE_CANCEL_DRAG_TO_DESKTOP, 0),
-            mock<SurfaceControl.Transaction>(),
-            mock<SurfaceControl.Transaction>(),
-            startToken,
-            mock<Transitions.TransitionFinishCallback>(),
+            .thenReturn(true)
+        // Simulate transition is started and is ready to animate
+        val transition = startDragToDesktopTransition(springHandler, task, dragAnimator)
+
+        // Animate drag to desktop start
+        val mockCallback = mock<TransitionFinishCallback>()
+        springHandler.startAnimation(
+            transition = transition,
+            info =
+                createTransitionInfo(
+                    type = TRANSIT_DESKTOP_MODE_START_DRAG_TO_DESKTOP,
+                    draggedTask = task,
+                ),
+            startTransaction = mock(),
+            finishTransaction = mock(),
+            finishCallback = mockCallback,
         )
 
-        // Cancel animation should run since it had already started.
-        verify(dragAnimator).cancelAnimator()
-        assertFalse("Drag should not be in progress after cancelling", defaultHandler.inProgress)
+        // Then user drags to split, cancelling the enter desktop transition
+        springHandler.cancelDragToDesktopTransition(CancelState.CANCEL_SPLIT_LEFT)
+        clearInvocations(mockCallback)
 
-        // Splitscreen should expand to fullscreen after the regular cancel transition finishes.
-        verify(splitScreenController)
-            .moveTaskToFullscreen(
-                draggedTask.taskId,
-                SplitScreenController.EXIT_REASON_DRAG_TO_FULLSCREEN,
+        // Verify transition is finished when select animation is started
+        springHandler.onSplitSelectAnimationStarted(task.taskId)
+        verify(mockCallback).onTransitionFinished(anyOrNull())
+    }
+
+    @Test
+    fun cancelDragToDesktop_toSplit_OnSplitSelectRequestRejected_transitionFinishesInstantly() {
+        val task = createTask()
+        // Mark select split request as rejected
+        whenever(
+                splitScreenController.requestEnterSplitSelect(
+                    eq(task),
+                    anyInt(),
+                    any(),
+                    anyBoolean(),
+                    anyOrNull(),
+                )
             )
+            .thenReturn(false)
+        // Simulate transition is started and is ready to animate
+        val transition = startDragToDesktopTransition(springHandler, task, dragAnimator)
+
+        // Animate drag to desktop start
+        val mockCallback = mock<TransitionFinishCallback>()
+        springHandler.startAnimation(
+            transition = transition,
+            info =
+                createTransitionInfo(
+                    type = TRANSIT_DESKTOP_MODE_START_DRAG_TO_DESKTOP,
+                    draggedTask = task,
+                ),
+            startTransaction = mock(),
+            finishTransaction = mock(),
+            finishCallback = mockCallback,
+        )
+
+        // Then user drags to split, cancelling the enter desktop transition
+        springHandler.cancelDragToDesktopTransition(CancelState.CANCEL_SPLIT_LEFT)
+        // Verify transition was finished since split select request is rejected
+        verify(mockCallback).onTransitionFinished(anyOrNull())
     }
 
     @Test
     fun cancelDragToDesktop_startWasReady_cancel_aborted() {
-        val startToken = startDrag(defaultHandler)
+        val startToken = startDrag(springHandler)
 
         // Then user cancelled after it had already started.
         val cancelToken =
             cancelDragToDesktopTransition(
-                defaultHandler,
+                springHandler,
                 DragToDesktopTransitionHandler.CancelState.STANDARD_CANCEL,
             )
-        defaultHandler.onTransitionConsumed(cancelToken, aborted = true, null)
+        springHandler.onTransitionConsumed(cancelToken, aborted = true, null)
 
         // Cancel animation should run since it had already started.
         verify(dragAnimator).cancelAnimator()
-        assertFalse("Drag should not be in progress after cancelling", defaultHandler.inProgress)
+        assertFalse("Drag should not be in progress after cancelling", springHandler.inProgress)
     }
 
     @Test
     fun cancelDragToDesktop_splitLeftCancelType_splitRequested() {
-        startDrag(defaultHandler)
+        startDrag(springHandler)
 
         // Then user cancelled it, requesting split.
-        defaultHandler.cancelDragToDesktopTransition(
+        springHandler.cancelDragToDesktopTransition(
             DragToDesktopTransitionHandler.CancelState.CANCEL_SPLIT_LEFT
         )
 
@@ -450,11 +508,32 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     }
 
     @Test
+    fun mergeAnimation_cancelSplitToFullscreen_onAnimationEndCalled() {
+        val task = createSplitTask()
+        val startToken = startDrag(springHandler, task)
+
+        // Then user cancelled after it had already started.
+        val cancelToken =
+            cancelDragToDesktopTransition(springHandler, CancelState.CANCEL_SPLIT_TO_FULLSCREEN)
+        springHandler.mergeAnimation(
+            cancelToken,
+            TransitionInfo(TRANSIT_DESKTOP_MODE_CANCEL_DRAG_TO_DESKTOP, /* flags= */ 0),
+            mock<SurfaceControl.Transaction>(),
+            mock<SurfaceControl.Transaction>(),
+            startToken,
+            mock<Transitions.TransitionFinishCallback>(),
+        )
+
+        // onAnimationEnd called for cancelled drag to desktop
+        verify(onResizeAnimationListener).onAnimationEnd(task.taskId)
+    }
+
+    @Test
     fun cancelDragToDesktop_splitRightCancelType_splitRequested() {
-        startDrag(defaultHandler)
+        startDrag(springHandler)
 
         // Then user cancelled it, requesting split.
-        defaultHandler.cancelDragToDesktopTransition(
+        springHandler.cancelDragToDesktopTransition(
             DragToDesktopTransitionHandler.CancelState.CANCEL_SPLIT_RIGHT
         )
 
@@ -471,10 +550,10 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
 
     @Test
     fun cancelDragToDesktop_bubbleLeftCancelType_bubbleRequested() {
-        startDrag(defaultHandler)
+        startDrag(springHandler)
 
         // Then user cancelled it, requesting bubble.
-        defaultHandler.cancelDragToDesktopTransition(
+        springHandler.cancelDragToDesktopTransition(
             DragToDesktopTransitionHandler.CancelState.CANCEL_BUBBLE_LEFT
         )
 
@@ -488,10 +567,10 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
 
     @Test
     fun cancelDragToDesktop_bubbleRightCancelType_bubbleRequested() {
-        startDrag(defaultHandler)
+        startDrag(springHandler)
 
         // Then user cancelled it, requesting bubble.
-        defaultHandler.cancelDragToDesktopTransition(
+        springHandler.cancelDragToDesktopTransition(
             DragToDesktopTransitionHandler.CancelState.CANCEL_BUBBLE_RIGHT
         )
 
@@ -507,10 +586,10 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     fun cancelDragToDesktop_startWasNotReady_animateCancel() {
         val task = createTask()
         // Simulate transition is started and is ready to animate.
-        startDragToDesktopTransition(defaultHandler, task, dragAnimator)
+        startDragToDesktopTransition(springHandler, task, dragAnimator)
 
         // Then user cancelled before the transition was ready and animated.
-        defaultHandler.cancelDragToDesktopTransition(
+        springHandler.cancelDragToDesktopTransition(
             DragToDesktopTransitionHandler.CancelState.STANDARD_CANCEL
         )
 
@@ -521,7 +600,7 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     @Test
     fun cancelDragToDesktop_transitionNotInProgress_dropCancel() {
         // Then cancel is called before the transition was started.
-        defaultHandler.cancelDragToDesktopTransition(
+        springHandler.cancelDragToDesktopTransition(
             DragToDesktopTransitionHandler.CancelState.STANDARD_CANCEL
         )
 
@@ -530,22 +609,18 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
             .startTransition(
                 eq(TRANSIT_DESKTOP_MODE_CANCEL_DRAG_TO_DESKTOP),
                 any(),
-                eq(defaultHandler),
+                eq(springHandler),
             )
     }
 
     @Test
     fun finishDragToDesktop_transitionNotInProgress_dropFinish() {
         // Then finish is called before the transition was started.
-        defaultHandler.finishDragToDesktopTransition(WindowContainerTransaction())
+        springHandler.finishDragToDesktopTransition(WindowContainerTransaction())
 
         // Verify finish is dropped.
         verify(transitions, never())
-            .startTransition(
-                eq(TRANSIT_DESKTOP_MODE_END_DRAG_TO_DESKTOP),
-                any(),
-                eq(defaultHandler),
-            )
+            .startTransition(eq(TRANSIT_DESKTOP_MODE_END_DRAG_TO_DESKTOP), any(), eq(springHandler))
     }
 
     @Test
@@ -555,8 +630,8 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
         val finishCallback = mock<Transitions.TransitionFinishCallback>()
         val task = createTask()
 
-        startDrag(defaultHandler, task)
-        defaultHandler.mergeAnimation(
+        startDrag(springHandler, task)
+        springHandler.mergeAnimation(
             transition = mock<IBinder>(),
             info = createTransitionInfo(type = TRANSIT_OPEN, draggedTask = task),
             startT = mergedStartTransaction,
@@ -579,10 +654,10 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
         val finishCallback = mock<Transitions.TransitionFinishCallback>()
         val task = createTask()
         val startTransition =
-            startDrag(defaultHandler, task, finishTransaction = playingFinishTransaction)
-        defaultHandler.onTaskResizeAnimationListener = mock()
+            startDrag(springHandler, task, finishTransaction = playingFinishTransaction)
+        springHandler.onTaskResizeAnimationListener = mock()
 
-        defaultHandler.mergeAnimation(
+        springHandler.mergeAnimation(
             transition = mock<IBinder>(),
             info =
                 createTransitionInfo(
@@ -613,11 +688,11 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
         val deskChange = createDeskChange()
         val task = createTask()
         val startTransition =
-            startDrag(defaultHandler, task, finishTransaction = playingFinishTransaction)
-        defaultHandler.onTaskResizeAnimationListener = mock()
+            startDrag(springHandler, task, finishTransaction = playingFinishTransaction)
+        springHandler.onTaskResizeAnimationListener = mock()
         whenever(desksOrganizer.isDeskChange(deskChange)).thenReturn(true)
 
-        defaultHandler.mergeAnimation(
+        springHandler.mergeAnimation(
             transition = mock<IBinder>(),
             info =
                 createTransitionInfo(
@@ -640,7 +715,6 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
 
     @Test
     fun mergeAnimation_endTransition_springHandler_hidesHome() {
-        whenever(dragAnimator.computeCurrentVelocity()).thenReturn(PointF())
         val playingFinishTransaction = mock<SurfaceControl.Transaction>()
         val mergedStartTransaction = mock<SurfaceControl.Transaction>()
         val mergedFinishTransaction = mock<SurfaceControl.Transaction>()
@@ -676,7 +750,6 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
 
     @Test
     fun mergeAnimation_endTransition_springHandler_noStartHomeChange_doesntCrash() {
-        whenever(dragAnimator.computeCurrentVelocity()).thenReturn(PointF())
         val playingFinishTransaction = mock<SurfaceControl.Transaction>()
         val mergedStartTransaction = mock<SurfaceControl.Transaction>()
         val mergedFinishTransaction = mock<SurfaceControl.Transaction>()
@@ -818,9 +891,9 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
 
     @Test
     fun startDragToDesktop_aborted_logsDragHoldCancelled() {
-        val transition = startDragToDesktopTransition(defaultHandler, createTask(), dragAnimator)
+        val transition = startDragToDesktopTransition(springHandler, createTask(), dragAnimator)
 
-        defaultHandler.onTransitionConsumed(transition, aborted = true, mock())
+        springHandler.onTransitionConsumed(transition, aborted = true, mock())
 
         verify(mockInteractionJankMonitor).cancel(eq(CUJ_DESKTOP_MODE_ENTER_APP_HANDLE_DRAG_HOLD))
         verify(mockInteractionJankMonitor, times(0))
@@ -830,9 +903,9 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     @Test
     fun mergeEndDragToDesktop_aborted_logsDragReleaseCancelled() {
         val task = createTask()
-        val startTransition = startDrag(defaultHandler, task)
+        val startTransition = startDrag(springHandler, task)
         val endTransition = mock<IBinder>()
-        defaultHandler.onTaskResizeAnimationListener = mock()
+        springHandler.onTaskResizeAnimationListener = mock()
         mergeAnimation(
             transition = endTransition,
             type = TRANSIT_DESKTOP_MODE_END_DRAG_TO_DESKTOP,
@@ -840,7 +913,7 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
             mergeTarget = startTransition,
         )
 
-        defaultHandler.onTransitionConsumed(endTransition, aborted = true, mock())
+        springHandler.onTransitionConsumed(endTransition, aborted = true, mock())
 
         verify(mockInteractionJankMonitor)
             .cancel(eq(CUJ_DESKTOP_MODE_ENTER_APP_HANDLE_DRAG_RELEASE))
@@ -849,60 +922,43 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX)
-    fun mergeOtherTransition_flagDisabled_cancelAndEndNotYetRequested_doesNotInterruptStartDrag() {
-        val finishCallback = mock<Transitions.TransitionFinishCallback>()
-        val task = createTask()
-        defaultHandler.onTaskResizeAnimationListener = mock()
-        val startTransition = startDrag(defaultHandler, task, finishCallback = finishCallback)
-
-        mergeInterruptingTransition(mergeTarget = startTransition)
-
-        verify(finishCallback, never()).onTransitionFinished(anyOrNull())
-        verify(dragAnimator, never()).cancelAnimator()
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX)
     fun mergeOtherTransition_cancelAndEndNotYetRequested_interruptsStartDrag() {
         val finishCallback = mock<Transitions.TransitionFinishCallback>()
         val task = createTask()
-        defaultHandler.onTaskResizeAnimationListener = mock()
-        val startTransition = startDrag(defaultHandler, task, finishCallback = finishCallback)
+        springHandler.onTaskResizeAnimationListener = mock()
+        val startTransition = startDrag(springHandler, task, finishCallback = finishCallback)
 
         mergeInterruptingTransition(mergeTarget = startTransition)
 
         verify(dragAnimator).cancelAnimator()
         verify(dragCancelCallback).run()
         verify(dragToDesktopStateListener).onTransitionInterrupted()
-        assertThat(defaultHandler.inProgress).isTrue()
+        assertThat(springHandler.inProgress).isTrue()
         // Doesn't finish start transition yet
         verify(finishCallback, never()).onTransitionFinished(/* wct= */ anyOrNull())
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX)
     fun mergeOtherTransition_cancelAndEndNotYetRequested_finishesStartAfterAnimation() {
         val finishCallback = mock<Transitions.TransitionFinishCallback>()
         val task = createTask()
-        defaultHandler.onTaskResizeAnimationListener = mock()
-        val startTransition = startDrag(defaultHandler, task, finishCallback = finishCallback)
+        springHandler.onTaskResizeAnimationListener = mock()
+        val startTransition = startDrag(springHandler, task, finishCallback = finishCallback)
 
         mergeInterruptingTransition(mergeTarget = startTransition)
         mAnimatorTestRule.advanceTimeBy(DRAG_TO_DESKTOP_FINISH_ANIM_DURATION_MS)
 
         verify(finishCallback).onTransitionFinished(/* wct= */ anyOrNull())
-        assertThat(defaultHandler.inProgress).isFalse()
+        assertThat(springHandler.inProgress).isFalse()
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX)
     fun mergeOtherTransition_endDragAlreadyMerged_doesNotInterruptStartDrag() {
         val startDragFinishCallback = mock<Transitions.TransitionFinishCallback>()
         val task = createTask()
         val startTransition =
-            startDrag(defaultHandler, task, finishCallback = startDragFinishCallback)
-        defaultHandler.onTaskResizeAnimationListener = mock()
+            startDrag(springHandler, task, finishCallback = startDragFinishCallback)
+        springHandler.onTaskResizeAnimationListener = mock()
         mergeAnimation(
             type = TRANSIT_DESKTOP_MODE_END_DRAG_TO_DESKTOP,
             task = task,
@@ -915,19 +971,20 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX)
     fun startEndAnimation_otherTransitionInterruptedStartAfterEndRequest_finishImmediately() {
         val task1 = createTask()
-        val startTransition = startDrag(defaultHandler, task1)
+        val startTransition = startDrag(springHandler, task1)
         val endTransition =
-            defaultHandler.finishDragToDesktopTransition(WindowContainerTransaction())
+            springHandler.finishDragToDesktopTransition(WindowContainerTransaction())
         val startTransaction = mock<SurfaceControl.Transaction>()
         val endDragFinishCallback = mock<Transitions.TransitionFinishCallback>()
-        defaultHandler.onTaskResizeAnimationListener = mock()
+        springHandler.onTaskResizeAnimationListener = mock {
+            on { onAnimationStart(any(), any(), any()) } doReturn true
+        }
         mergeInterruptingTransition(mergeTarget = startTransition)
 
         val didAnimate =
-            defaultHandler.startAnimation(
+            springHandler.startAnimation(
                 transition = requireNotNull(endTransition),
                 info =
                     createTransitionInfo(
@@ -945,16 +1002,15 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX)
     fun startDrag_otherTransitionInterruptedStartAfterEndRequested_animatesDragWhenReady() {
         val task1 = createTask()
-        val startTransition = startDrag(defaultHandler, task1)
+        val startTransition = startDrag(springHandler, task1)
         verify(dragAnimator).startAnimation()
         val endTransition =
-            defaultHandler.finishDragToDesktopTransition(WindowContainerTransaction())
-        defaultHandler.onTaskResizeAnimationListener = mock()
+            springHandler.finishDragToDesktopTransition(WindowContainerTransaction())
+        springHandler.onTaskResizeAnimationListener = mock()
         mergeInterruptingTransition(mergeTarget = startTransition)
-        defaultHandler.startAnimation(
+        springHandler.startAnimation(
             transition = requireNotNull(endTransition),
             info =
                 createTransitionInfo(
@@ -966,24 +1022,23 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
             finishCallback = mock(),
         )
 
-        startDrag(defaultHandler, createTask())
+        startDrag(springHandler, createTask())
 
         verify(dragAnimator, times(2)).startAnimation()
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX)
     fun startCancelAnimation_otherTransitionInterruptingAfterCancelRequest_finishImmediately() {
         val task1 = createTask()
-        val startTransition = startDrag(defaultHandler, task1)
+        val startTransition = startDrag(springHandler, task1)
         val cancelTransition =
-            cancelDragToDesktopTransition(defaultHandler, CancelState.STANDARD_CANCEL)
+            cancelDragToDesktopTransition(springHandler, CancelState.STANDARD_CANCEL)
         mergeInterruptingTransition(mergeTarget = startTransition)
         val cancelFinishCallback = mock<Transitions.TransitionFinishCallback>()
         val startTransaction = mock<SurfaceControl.Transaction>()
 
         val didAnimate =
-            defaultHandler.startAnimation(
+            springHandler.startAnimation(
                 transition = requireNotNull(cancelTransition),
                 info =
                     createTransitionInfo(
@@ -1001,7 +1056,7 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     }
 
     private fun mergeInterruptingTransition(mergeTarget: IBinder) {
-        defaultHandler.mergeAnimation(
+        springHandler.mergeAnimation(
             transition = mock<IBinder>(),
             info = createTransitionInfo(type = TRANSIT_OPEN, draggedTask = createTask()),
             startT = mock(),
@@ -1017,7 +1072,7 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
         mergeTarget: IBinder,
         task: RunningTaskInfo,
     ) {
-        defaultHandler.mergeAnimation(
+        springHandler.mergeAnimation(
             transition = transition,
             info = createTransitionInfo(type = type, draggedTask = task),
             startT = mock(),
@@ -1072,13 +1127,12 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_VISUAL_INDICATOR_IN_TRANSITION_BUGFIX)
     fun startDrag_indicatorFlagEnabled_attachesIndicatorToTransitionRoot() {
         val task = createTask()
         val rootLeash = mock<SurfaceControl>()
         val startTransaction = mock<SurfaceControl.Transaction>()
         startDrag(
-            defaultHandler,
+            springHandler,
             task,
             startTransaction = startTransaction,
             transitionRootLeash = rootLeash,
@@ -1089,30 +1143,13 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_VISUAL_INDICATOR_IN_TRANSITION_BUGFIX)
-    fun startDrag_indicatorFlagDisabled_doesNotAttachIndicatorToTransitionRoot() {
-        val task = createTask()
-        val rootLeash = mock<SurfaceControl>()
-        val startTransaction = mock<SurfaceControl.Transaction>()
-        startDrag(
-            defaultHandler,
-            task,
-            startTransaction = startTransaction,
-            transitionRootLeash = rootLeash,
-        )
-
-        verify(visualIndicator, never()).reparentLeash(any(), any())
-        verify(visualIndicator, never()).fadeInIndicator()
-    }
-
-    @Test
     fun startDrag_hasDesktop_layerOrder_taskOnWallpaperOnHome() {
         desktopState.overrideDesktopModeSupportPerDisplay[Display.DEFAULT_DISPLAY] = true
         val task = createTask()
         val rootLeash = mock<SurfaceControl>()
         val startTransaction = mock<SurfaceControl.Transaction>()
         startDrag(
-            defaultHandler,
+            springHandler,
             task,
             startTransaction = startTransaction,
             transitionRootLeash = rootLeash,
@@ -1150,7 +1187,7 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
         val rootLeash = mock<SurfaceControl>()
         val startTransaction = mock<SurfaceControl.Transaction>()
         startDrag(
-            defaultHandler,
+            springHandler,
             task,
             startTransaction = startTransaction,
             transitionRootLeash = rootLeash,
@@ -1220,11 +1257,12 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
         whenever(
                 transitions.startTransition(
                     eq(TRANSIT_DESKTOP_MODE_START_DRAG_TO_DESKTOP),
-                    any(),
+                    wctCaptor.capture(),
                     eq(handler),
                 )
             )
             .thenReturn(token)
+        whenever(dragAnimator.position).thenReturn(PointF())
         handler.startDragToDesktopTransition(
             task,
             dragAnimator,
@@ -1276,6 +1314,16 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
 
         // Don't even animate the "drag" since it was already cancelled.
         verify(dragAnimator, never()).startAnimation()
+    }
+
+    private fun createSplitTask(): RunningTaskInfo {
+        val task1 = createTask(WINDOWING_MODE_MULTI_WINDOW)
+        val task2 = createTask(WINDOWING_MODE_MULTI_WINDOW)
+        whenever(splitScreenController.getSplitPosition(task1.taskId))
+            .thenReturn(SPLIT_POSITION_TOP_OR_LEFT)
+        whenever(splitScreenController.getTaskInfo(SPLIT_POSITION_BOTTOM_OR_RIGHT))
+            .thenReturn(task2)
+        return task1
     }
 
     private fun createTask(
@@ -1345,5 +1393,6 @@ class DragToDesktopTransitionHandlerTest : ShellTestCase() {
 
     private companion object {
         private const val TOLERANCE = 1e-5f
+        const val SECONDARY_DISPLAY = 2
     }
 }

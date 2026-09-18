@@ -260,6 +260,16 @@ public class AppWidgetManager {
     public static final String OPTION_APPWIDGET_HOST_CATEGORY = "appWidgetCategory";
 
     /**
+     * A bundle extra (int) that indicates which display the widget is currently being displayed
+     * on. This can be used with {@link android.hardware.display.DisplayManager#getDisplay(int)} to
+     * retrieve the {@link android.view.Display} and its corresponding {@link DisplayMetrics}.
+     *
+     * @see android.view.Display#getDisplayId()
+     */
+    @FlaggedApi(Flags.FLAG_WIDGET_DISPLAY_CHANGES)
+    public static final String OPTION_APPWIDGET_DISPLAY_ID = "appWidgetDisplayId";
+
+    /**
      * An intent extra which points to a bundle of extra information for a particular widget id.
      * In particular this bundle can contain {@link #OPTION_APPWIDGET_MIN_WIDTH},
      * {@link #OPTION_APPWIDGET_MIN_HEIGHT}, {@link #OPTION_APPWIDGET_MAX_WIDTH},
@@ -750,6 +760,7 @@ public class AppWidgetManager {
             return;
         }
 
+        views.setOriginalDensity(mDisplayMetrics.density);
         tryAdapterConversion(view -> mService.updateAppWidgetIds(mPackageName, appWidgetIds,
                 view), views, appWidgetIds, "Error updating app widget views in background");
     }
@@ -856,6 +867,7 @@ public class AppWidgetManager {
             return;
         }
 
+        views.setOriginalDensity(mDisplayMetrics.density);
         tryAdapterConversion(view -> mService.partiallyUpdateAppWidgetIds(mPackageName,
                 appWidgetIds, view), views, appWidgetIds,
                 "Error partially updating app widget views in background");
@@ -910,6 +922,7 @@ public class AppWidgetManager {
             return;
         }
 
+        views.setOriginalDensity(mDisplayMetrics.density);
         tryAdapterConversion(view -> mService.updateAppWidgetProvider(provider, view), views,
                 new int[0], "Error updating app widget view using provider in background");
     }
@@ -1488,7 +1501,7 @@ public class AppWidgetManager {
      */
     public boolean isRequestPinAppWidgetSupported() {
         try {
-            return mService.isRequestPinAppWidgetSupported();
+            return mService.isRequestPinAppWidgetSupported(mPackageName);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -1594,6 +1607,7 @@ public class AppWidgetManager {
             @AppWidgetProviderInfo.CategoryFlags int widgetCategories,
             @NonNull RemoteViews preview) {
         try {
+            preview.setOriginalDensity(mDisplayMetrics.density);
             return mService.setWidgetPreview(provider, widgetCategories, preview);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();

@@ -17,21 +17,26 @@
 
 package com.android.systemui.user.domain.interactor
 
+import android.os.UserManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.user.data.repository.FakeUserRepository
+import com.android.systemui.user.data.repository.UserIconProvider
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class RefreshUsersSchedulerTest : SysuiTestCase() {
+
+    @Mock private lateinit var userManager: UserManager
 
     private lateinit var underTest: RefreshUsersScheduler
 
@@ -41,7 +46,7 @@ class RefreshUsersSchedulerTest : SysuiTestCase() {
     fun setUp() {
         MockitoAnnotations.initMocks(this)
 
-        repository = FakeUserRepository()
+        repository = FakeUserRepository(UserIconProvider(context, userManager, IMMEDIATE))
     }
 
     @Test

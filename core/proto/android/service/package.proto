@@ -143,6 +143,7 @@ message PackageProto {
         optional int32 first_install_time_ms = 11;
         optional ArchiveState archive_state = 12;
         repeated int32 suspending_user = 13;
+        optional bool is_app_lock_enabled = 14;
     }
 
     message InstallSourceProto {

@@ -19,7 +19,7 @@ package com.android.wm.shell.bubbles;
 import static android.app.ActivityTaskManager.INVALID_TASK_ID;
 
 import static com.android.wm.shell.bubbles.util.BubbleUtils.getExitBubbleTransaction;
-import static com.android.wm.shell.bubbles.util.BubbleUtils.isBubbleToSplit;
+import static com.android.wm.shell.bubbles.util.BubbleUtils.isBubbleMovedToAnotherRootTask;
 import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_BUBBLES_NOISY;
 
 import android.app.ActivityManager;
@@ -35,15 +35,10 @@ import androidx.annotation.NonNull;
 import com.android.internal.protolog.ProtoLog;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.shared.TransitionUtil;
-import com.android.wm.shell.shared.bubbles.BubbleAnythingFlagHelper;
-import com.android.wm.shell.splitscreen.SplitScreenController;
+import com.android.wm.shell.shared.bubbles.BubbleFlagHelper;
 import com.android.wm.shell.taskview.TaskViewTaskController;
 import com.android.wm.shell.taskview.TaskViewTransitions;
 import com.android.wm.shell.transition.Transitions;
-
-import dagger.Lazy;
-
-import java.util.Optional;
 
 /**
  * Observer used to identify tasks that are opening or moving to front. If a bubble activity is
@@ -57,16 +52,13 @@ public class BubblesTransitionObserver implements Transitions.TransitionObserver
     private final BubbleData mBubbleData;
     @NonNull
     private final TaskViewTransitions mTaskViewTransitions;
-    private final Lazy<Optional<SplitScreenController>> mSplitScreenController;
 
     public BubblesTransitionObserver(@NonNull BubbleController controller,
             @NonNull BubbleData bubbleData,
-            @NonNull TaskViewTransitions taskViewTransitions,
-            Lazy<Optional<SplitScreenController>> splitScreenController) {
+            @NonNull TaskViewTransitions taskViewTransitions) {
         mBubbleController = controller;
         mBubbleData = bubbleData;
         mTaskViewTransitions = taskViewTransitions;
-        mSplitScreenController = splitScreenController;
     }
 
     @Override
@@ -74,9 +66,9 @@ public class BubblesTransitionObserver implements Transitions.TransitionObserver
             @NonNull SurfaceControl.Transaction startTransaction,
             @NonNull SurfaceControl.Transaction finishTransaction) {
         collapseBubbleIfNeeded(info);
-        if (BubbleAnythingFlagHelper.enableCreateAnyBubble()) {
+        if (BubbleFlagHelper.enableCreateAnyBubble()) {
             if (TransitionUtil.isOpeningType(info.getType()) && mBubbleData.hasBubbles()) {
-                removeBubbleIfLaunchingToSplit(info);
+                removeBubbleIfLaunchingToAnotherRootTask(info);
             }
         }
     }
@@ -118,8 +110,8 @@ public class BubblesTransitionObserver implements Transitions.TransitionObserver
 
                 // If the opening task was launched by another bubble, skip collapsing the
                 // existing one since BubbleTransitions will start a new bubble for it.
-                if (BubbleAnythingFlagHelper.enableCreateAnyBubble()
-                        && mBubbleController.shouldBeAppBubble(taskInfo)) {
+                if (BubbleFlagHelper.enableCreateAnyBubble()
+                        && mBubbleController.getBubbleHelper().isAppBubbleTask(taskInfo)) {
                     ProtoLog.d(WM_SHELL_BUBBLES_NOISY,
                             "BubblesTransitionObserver.onTransitionReady(): "
                                     + "skipping app bubble for taskId=%d", taskInfo.taskId);
@@ -156,7 +148,7 @@ public class BubblesTransitionObserver implements Transitions.TransitionObserver
         }
 
         // If the opening tasks contains the bubble root task, skip collapsing.
-        if (mBubbleController.isAppBubbleRootTask(taskId)) {
+        if (mBubbleController.getBubbleHelper().isAppBubbleRootTask(taskId)) {
             ProtoLog.d(WM_SHELL_BUBBLES_NOISY, "BubblesTransitionObserver.onTransitionReady(): "
                     + "task %d is the root task so skip collapsing", taskId);
             return true;
@@ -165,21 +157,27 @@ public class BubblesTransitionObserver implements Transitions.TransitionObserver
         return false;
     }
 
-    private void removeBubbleIfLaunchingToSplit(@NonNull TransitionInfo info) {
-        if (mSplitScreenController.get().isEmpty()) return;
+    private void removeBubbleIfLaunchingToAnotherRootTask(@NonNull TransitionInfo info) {
         for (final TransitionInfo.Change change : info.getChanges()) {
             final ActivityManager.RunningTaskInfo taskInfo = change.getTaskInfo();
             if (taskInfo == null) continue;
             final Bubble bubble = mBubbleData.getBubbleInStackWithTaskId(taskInfo.taskId);
             if (bubble == null) continue;
-            if (!isBubbleToSplit(taskInfo, mSplitScreenController)) continue;
-            // There is a bubble task that is moving to split screen
+            if (!isBubbleMovedToAnotherRootTask(taskInfo, mBubbleController.getBubbleHelper())) {
+                continue;
+            }
+            // There is a bubble task that is moving to split screen or desktop
             ProtoLog.d(WM_SHELL_BUBBLES_NOISY, "BubblesTransitionObserver.onTransitionReady(): "
-                    + "removing bubble for task launching into split taskId=%d", taskInfo.taskId);
+                            + "removing bubble for task launching into split/desktop taskId=%d",
+                    taskInfo.taskId);
             final TaskViewTaskController controller = bubble.getTaskView().getController();
             final ShellTaskOrganizer taskOrganizer = controller.getTaskOrganizer();
-            final WindowContainerTransaction wct = getExitBubbleTransaction(taskInfo.token,
-                    bubble.getTaskView().getCaptionInsetsOwner());
+            // Don't change the bounds here, the split-screen or desktop controller will handle
+            // setting the bounds for the task.
+            final WindowContainerTransaction wct = getExitBubbleTransaction(
+                    mBubbleController.getBubbleHelper(), taskInfo.token,
+                    bubble.getTaskView().getCaptionInsetsOwner(), false /* resetBounds */,
+                    false /* reparentToTda */);
 
             // Notify the task removal, but block all TaskViewTransitions during removal so we can
             // clear them without triggering

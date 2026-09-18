@@ -18,8 +18,10 @@ package com.android.systemui.scene.ui.viewmodel
 
 import android.content.applicationContext
 import android.content.pm.UserInfo
+import android.platform.test.annotations.EnableFlags
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.OverlayKey
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.Kosmos
@@ -48,6 +50,7 @@ import platform.test.runner.parameterized.Parameters
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4::class)
 @EnableSceneContainer
+@EnableFlags(FLAG_DUAL_SHADE)
 class DualShadeEducationalTooltipsViewModelTest(
     private val forOverlay: OverlayKey,
     private val tooltipText: String,

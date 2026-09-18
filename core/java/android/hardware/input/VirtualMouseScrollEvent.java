@@ -22,6 +22,7 @@ import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.SystemClock;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.view.InputEvent;
 
 import com.android.internal.util.Preconditions;
@@ -34,6 +35,7 @@ import com.android.internal.util.Preconditions;
  * @hide
  */
 @SystemApi
+@RavenwoodKeepWholeClass
 public final class VirtualMouseScrollEvent implements Parcelable {
 
     private final float mXAxisMovement;

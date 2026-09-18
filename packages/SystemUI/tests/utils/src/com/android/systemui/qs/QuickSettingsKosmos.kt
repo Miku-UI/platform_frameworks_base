@@ -43,11 +43,11 @@ import com.android.systemui.qs.panels.domain.interactor.textFeedbackInteractor
 import com.android.systemui.security.data.repository.securityRepository
 import com.android.systemui.settings.userTracker
 import com.android.systemui.shade.data.repository.shadeDialogContextInteractor
+import com.android.systemui.statusbar.phone.systemUIDialogDotFactory
 import com.android.systemui.statusbar.policy.deviceProvisionedController
 import com.android.systemui.statusbar.policy.securityController
 import com.android.systemui.supervision.data.repository.supervisionRepository
 import com.android.systemui.user.data.repository.userSwitcherRepository
-import com.android.systemui.user.domain.interactor.headlessSystemUserMode
 import com.android.systemui.user.domain.interactor.selectedUserInteractor
 import com.android.systemui.user.domain.interactor.userSwitcherInteractor
 import com.android.systemui.util.mockito.mock
@@ -76,6 +76,7 @@ val Kosmos.qsSecurityFooterUtils by Fixture {
         looper,
         dialogTransitionAnimator,
         shadeDialogContextInteractor,
+        systemUIDialogDotFactory,
     )
 }
 
@@ -111,7 +112,6 @@ val Kosmos.footerActionsViewModelFactory by Fixture {
         textFeedbackInteractor = textFeedbackInteractor,
         showPowerButton = true,
         selectedUserInteractor = selectedUserInteractor,
-        hsum = headlessSystemUserMode,
     )
 }
 

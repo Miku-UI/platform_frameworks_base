@@ -3,7 +3,22 @@ container: "system"
 
 flag {
     name: "enable_pcc_framework_support"
+    is_exported: true
     namespace: "private_compute"
     description: "Enable framework support for private compute core"
     bug: "430201829"
+}
+
+flag {
+    name: "adopt_pcc_framework_for_hotword_detection"
+    namespace: "private_compute"
+    description: "Adopt PCC framework for hotword detection"
+    bug: "451580175"
+}
+
+flag {
+    name: "enable_allow_component_access"
+    namespace: "private_compute"
+    description: "Enables the <allow-component-access> manifest tag, which allows an application to define a specific set of other components it is permitted to associate with."
+    bug: "454054660"
 }

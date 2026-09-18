@@ -216,17 +216,9 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
      */
     private int mSampleRate; // initialized by all constructors via audioParamCheck()
     /**
-     * The number of input audio channels (1 is mono, 2 is stereo)
+     * The audio channel position and index masks, and channel count.
      */
-    private int mChannelCount;
-    /**
-     * The audio channel position mask
-     */
-    private int mChannelMask;
-    /**
-     * The audio channel index mask
-     */
-    private int mChannelIndexMask;
+    private AudioFormat.ChannelMasks mChannelMasks = new AudioFormat.ChannelMasks();
     /**
      * The encoding of the audio samples.
      * @see AudioFormat#ENCODING_PCM_8BIT
@@ -446,19 +438,25 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
 
         audioParamCheck(mAudioAttributes.getCapturePreset(), rate, encoding);
 
+        int positionMask = AudioFormat.CHANNEL_INVALID;
+        int indexMask = AudioFormat.CHANNEL_INVALID;
+        int acnMask = AudioFormat.CHANNEL_INVALID;
+        if ((format.getPropertySetMask()
+                & AudioFormat.AUDIO_FORMAT_HAS_PROPERTY_CHANNEL_ACN_MASK) != 0) {
+            acnMask = format.getChannelAcnMask();
+        }
         if ((format.getPropertySetMask()
                 & AudioFormat.AUDIO_FORMAT_HAS_PROPERTY_CHANNEL_INDEX_MASK) != 0) {
-            mChannelIndexMask = format.getChannelIndexMask();
-            mChannelCount = format.getChannelCount();
+            indexMask = format.getChannelIndexMask();
         }
         if ((format.getPropertySetMask()
                 & AudioFormat.AUDIO_FORMAT_HAS_PROPERTY_CHANNEL_MASK) != 0) {
-            mChannelMask = getChannelMaskFromLegacyConfig(format.getChannelMask(), false);
-            mChannelCount = format.getChannelCount();
-        } else if (mChannelIndexMask == 0) {
-            mChannelMask = getChannelMaskFromLegacyConfig(AudioFormat.CHANNEL_IN_DEFAULT, false);
-            mChannelCount =  AudioFormat.channelCountFromInChannelMask(mChannelMask);
+            positionMask = getChannelMaskFromLegacyConfig(format.getChannelMask(), false);
+        } else if (indexMask == AudioFormat.CHANNEL_INVALID
+                && acnMask == AudioFormat.CHANNEL_INVALID) {
+            positionMask = getChannelMaskFromLegacyConfig(AudioFormat.CHANNEL_IN_DEFAULT, false);
         }
+        mChannelMasks = new AudioFormat.ChannelMasks(positionMask, indexMask, acnMask);
 
         audioBuffSizeCheck(bufferSizeInBytes);
 
@@ -477,7 +475,7 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
         //      due to capture device already open is available.
         try (ScopedParcelState attributionSourceState = attributionSource.asScopedParcelState()) {
             int initResult = native_setup(new WeakReference<AudioRecord>(this), mAudioAttributes,
-                    sampleRate, mChannelMask, mChannelIndexMask, mAudioFormat,
+                    sampleRate, mChannelMasks, mAudioFormat,
                     mNativeBufferSizeInBytes, session, attributionSourceState.getParcel(),
                     0 /*nativeRecordInJavaObj*/, maxSharedAudioHistoryMs, mHalInputFlags);
             if (initResult != SUCCESS) {
@@ -538,8 +536,7 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
                 initResult = native_setup(new WeakReference<>(this),
                         null /*mAudioAttributes*/,
                         rates /*mSampleRates*/,
-                        0 /*mChannelMask*/,
-                        0 /*mChannelIndexMask*/,
+                        null /*mChannelMasks*/,
                         0 /*mAudioFormat*/,
                         0 /*mNativeBufferSizeInBytes*/,
                         session,
@@ -676,6 +673,14 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
             // keep reference, we only copy the data when building
             mAttributes = attributes;
             return this;
+        }
+
+        /**
+         * @hide
+         * Internal accessor function for getting the AudioAttributes from an AudioRecord.Builder.
+         */
+        public @Nullable AudioAttributes getAudioAttributes() {
+            return mAttributes;
         }
 
         /**
@@ -999,7 +1004,8 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
                             .build();
                 }
                 if (mFormat.getChannelMask() == AudioFormat.CHANNEL_INVALID
-                        && mFormat.getChannelIndexMask() == AudioFormat.CHANNEL_INVALID) {
+                        && mFormat.getChannelIndexMask() == AudioFormat.CHANNEL_INVALID
+                        && mFormat.getChannelAcnMask() == AudioFormat.CHANNEL_INVALID) {
                     mFormat = new AudioFormat.Builder(mFormat)
                             .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
                             .build();
@@ -1219,6 +1225,7 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
             AudioManager.unregisterAudioPolicyAsyncStatic(mAudioCapturePolicy);
             mAudioCapturePolicy = null;
         }
+        mRecordingInfoImpl.endRecordingCallbackHandling();
         native_release();
         mState = STATE_UNINITIALIZED;
     }
@@ -1271,7 +1278,7 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
      * which contains both the channel position mask and the channel index mask.
      */
     public int getChannelConfiguration() {
-        return mChannelMask;
+        return mChannelMasks.getPositionMask();
     }
 
     /**
@@ -1283,11 +1290,14 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
         AudioFormat.Builder builder = new AudioFormat.Builder()
             .setSampleRate(mSampleRate)
             .setEncoding(mAudioFormat);
-        if (mChannelMask != AudioFormat.CHANNEL_INVALID) {
-            builder.setChannelMask(mChannelMask);
+        if (mChannelMasks.getPositionMask() != AudioFormat.CHANNEL_INVALID) {
+            builder.setChannelMask(mChannelMasks.getPositionMask());
         }
-        if (mChannelIndexMask != AudioFormat.CHANNEL_INVALID  /* 0 */) {
-            builder.setChannelIndexMask(mChannelIndexMask);
+        if (mChannelMasks.getIndexMask() != AudioFormat.CHANNEL_INVALID /* 0 */) {
+            builder.setChannelIndexMask(mChannelMasks.getIndexMask());
+        }
+        if (mChannelMasks.getAcnMask() != AudioFormat.CHANNEL_INVALID) {
+            builder.setChannelAcnMask(mChannelMasks.getAcnMask());
         }
         return builder.build();
     }
@@ -1296,7 +1306,7 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
      * Returns the configured number of channels.
      */
     public int getChannelCount() {
-        return mChannelCount;
+        return mChannelMasks.getChannelCount();
     }
 
     /**
@@ -1985,7 +1995,7 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
      * the intended start time for this app's capture relative to this AudioRecord's start time.
      * 4) Communicate the {@link MediaSyncEvent} returned by this method to the other app.
      * 5) The other app will use the MediaSyncEvent when creating its AudioRecord with
-     * {@link Builder#setSharedAudioEvent(MediaSyncEvent).
+     * {@link Builder#setSharedAudioEvent(MediaSyncEvent)}.
      * 6) Only after the other app has started capturing can this app stop capturing and
      * release its AudioRecord.
      * This method is intended to be called only once: if called multiple times, only the last
@@ -2247,7 +2257,7 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
             if (device != null) {
                 MicrophoneInfo microphone = AudioManager.microphoneInfoFromAudioDeviceInfo(device);
                 ArrayList<Pair<Integer, Integer>> channelMapping = new ArrayList<>();
-                for (int i = 0; i < mChannelCount; i++) {
+                for (int i = 0; i < mChannelMasks.getChannelCount(); i++) {
                     channelMapping.add(new Pair(i, MicrophoneInfo.CHANNEL_MAPPING_DIRECT));
                 }
                 microphone.setChannelMapping(channelMapping);
@@ -2482,16 +2492,18 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
             long nativeRecordInJavaObj, int halInputFlags) {
         AttributionSource attributionSource = AttributionSource.myAttributionSource()
                 .withPackageName(opPackageName);
+        AudioFormat.ChannelMasks channelMasks = new AudioFormat.ChannelMasks(
+                channelMask, channelIndexMask);
         try (ScopedParcelState attributionSourceState = attributionSource.asScopedParcelState()) {
-            return native_setup(audiorecordThis, attributes, sampleRate, channelMask,
-                    channelIndexMask, audioFormat, buffSizeInBytes, sessionId,
+            return native_setup(audiorecordThis, attributes, sampleRate, channelMasks,
+                    audioFormat, buffSizeInBytes, sessionId,
                     attributionSourceState.getParcel(), nativeRecordInJavaObj, 0, halInputFlags);
         }
     }
 
     private native int native_setup(Object audiorecordThis,
             Object /*AudioAttributes*/ attributes,
-            int[] sampleRate, int channelMask, int channelIndexMask, int audioFormat,
+            int[] sampleRate, Object /*AudioFormat.ChannelMasks*/ channelMasks, int audioFormat,
             int buffSizeInBytes, int[] sessionId, @NonNull Parcel attributionSource,
             long nativeRecordInJavaObj, int maxSharedAudioHistoryMs, int halInputFlags);
 

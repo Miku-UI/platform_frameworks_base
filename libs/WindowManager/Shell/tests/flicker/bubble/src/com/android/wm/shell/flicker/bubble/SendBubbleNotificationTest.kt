@@ -17,9 +17,9 @@
 package com.android.wm.shell.flicker.bubble
 
 import android.platform.test.annotations.Presubmit
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import androidx.test.filters.RequiresDevice
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Until
@@ -52,9 +52,8 @@ class SendBubbleNotificationTest(flicker: FlickerTest) : BaseBubbleScreen(flicke
 
                 device.wait(
                     Until.findObjects(By.res(SYSTEM_UI_PACKAGE, BUBBLE_RES_NAME)),
-                    FIND_OBJECT_TIMEOUT
-                )
-                    ?: error("No bubbles found")
+                    FIND_OBJECT_TIMEOUT,
+                ) ?: error("No bubbles found")
                 device.waitForIdle()
             }
         }

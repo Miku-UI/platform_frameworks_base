@@ -72,7 +72,7 @@ public final class VirtualKeyboardConfig extends VirtualInputDeviceConfig implem
     }
 
     /**
-     * @see Builder#setLanguageTag().
+     * @see Builder#setLanguageTag()
      */
     @NonNull
     public String getLanguageTag() {
@@ -80,7 +80,7 @@ public final class VirtualKeyboardConfig extends VirtualInputDeviceConfig implem
     }
 
     /**
-     * @see Builder#setLayoutType().
+     * @see Builder#setLayoutType()
      */
     @NonNull
     public String getLayoutType() {

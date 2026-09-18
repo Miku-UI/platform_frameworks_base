@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package com.android.server.permission.access
 
 import android.app.appfunctions.AppFunctionAccessServiceInterface
@@ -33,8 +35,8 @@ import com.android.server.appop.AppOpsCheckingServiceInterface
 import com.android.server.permission.PermissionManagerLocal
 import com.android.server.permission.access.appfunction.AppFunctionAccessService
 import com.android.server.permission.access.appop.AppOpService
-import com.android.server.permission.access.collection.* // ktlint-disable no-wildcard-imports
-import com.android.server.permission.access.immutable.* // ktlint-disable no-wildcard-imports
+import com.android.server.permission.access.collection.*
+import com.android.server.permission.access.immutable.*
 import com.android.server.permission.access.permission.PermissionManagerLocalImpl
 import com.android.server.permission.access.permission.PermissionService
 import com.android.server.pm.KnownPackages
@@ -56,7 +58,7 @@ class AccessCheckingService(context: Context) : SystemService(context) {
     private val persistence = AccessPersistence(policy)
 
     private lateinit var appOpService: AppOpService
-    private lateinit var permissionService: PermissionService
+    lateinit var permissionService: PermissionService
     private lateinit var appFunctionAccessService: AppFunctionAccessService
 
     private lateinit var packageManagerInternal: PackageManagerInternal

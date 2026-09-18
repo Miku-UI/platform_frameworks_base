@@ -35,7 +35,6 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.withContext
 
 class TileRequestDialogViewModel
@@ -61,7 +60,7 @@ constructor(
 
     val iconProvider by derivedStateOf { state.toIconProvider() }
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         withContext(backgroundDispatcher) {
             tileData.icon
                 ?.loadDrawableCheckingUriGrant(
@@ -72,7 +71,6 @@ constructor(
                 )
                 ?.run { _icon = DrawableIcon(this) }
         }
-        awaitCancellation()
     }
 
     @AssistedFactory

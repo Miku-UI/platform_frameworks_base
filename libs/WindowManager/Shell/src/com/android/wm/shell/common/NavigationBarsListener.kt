@@ -24,22 +24,28 @@ import com.android.wm.shell.common.DisplayInsetsController.OnInsetsChangedListen
 
 abstract class NavigationBarsListener(
     private val displayController: DisplayController,
-    val displayId: Int
+    val displayId: Int,
 ) : OnInsetsChangedListener {
     private var oldInsets = Insets.NONE
 
     override fun insetsChanged(insetsState: InsetsState) {
-        getNavigationBarsInsets(insetsState).takeIf { it != oldInsets }?.let { newInsets ->
-            oldInsets = newInsets
-            onNavigationBarsVisibilityChanged(newInsets)
-        }
+        getNavigationBarsInsets(insetsState)
+            .takeIf { it != oldInsets }
+            ?.let { newInsets ->
+                oldInsets = newInsets
+                onNavigationBarsVisibilityChanged(newInsets)
+            }
     }
 
     private fun getNavigationBarsInsets(insetsState: InsetsState): Insets {
         val layout = displayController.getDisplayLayout(displayId) ?: return Insets.NONE
         val displayBounds = Rect(0, 0, layout.width(), layout.height())
-        return insetsState.calculateInsets(displayBounds, displayBounds,
-            Type.navigationBars(), /* ignoreVisibility= */true)
+        return insetsState.calculateInsets(
+            displayBounds,
+            displayBounds,
+            Type.navigationBars(),
+            /* ignoreVisibility= */ true,
+        )
     }
 
     protected abstract fun onNavigationBarsVisibilityChanged(insets: Insets)

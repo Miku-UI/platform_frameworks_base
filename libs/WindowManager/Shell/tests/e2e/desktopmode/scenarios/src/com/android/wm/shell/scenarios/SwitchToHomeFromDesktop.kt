@@ -31,10 +31,9 @@ import org.junit.Ignore
 import org.junit.Test
 
 @Ignore("Base Test Class")
-abstract class SwitchToHomeFromDesktop
-    (
+abstract class SwitchToHomeFromDesktop(
     val navigationMode: NavBar = NavBar.MODE_GESTURAL,
-    val rotation: Rotation = Rotation.ROTATION_0
+    val rotation: Rotation = Rotation.ROTATION_0,
 ) : TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()

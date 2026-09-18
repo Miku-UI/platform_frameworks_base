@@ -484,6 +484,27 @@ inline ::std::ostream& operator<<(::std::ostream& out, const ResourceName& name)
   return out << name.to_string();
 }
 
+inline std::ostream& operator<<(std::ostream& os, const FlagStatus& status) {
+  switch (status) {
+    case FlagStatus::NoFlag:
+      os << "NoFlag";
+      break;
+    case FlagStatus::Disabled:
+      os << "Disabled";
+      break;
+    case FlagStatus::Enabled:
+      os << "Enabled";
+      break;
+    case FlagStatus::RWFlag:
+      os << "RWFlag";
+      break;
+    default:
+      os << "UNKNOWN_FLAG_STATUS";  // Handle unexpected values
+      break;
+  }
+  return os;
+}
+
 //
 // ResourceNameRef implementation.
 //

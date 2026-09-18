@@ -87,7 +87,7 @@ public class TransportConnectionManager {
 
     /**
      * Retrieves a {@link TransportConnection} for the transport identified by {@param
-     * transportComponent} whose binding intent will have the {@param extras} extras.
+     * transportComponent} whose binding intent will have the {@code extras} extras.
      *
      * @param transportComponent The {@link ComponentName} of the transport.
      * @param extras A {@link Bundle} of extras to pass to the binding intent.

@@ -135,6 +135,13 @@ public class JobParameters implements Parcelable {
             JobProtoEnums.INTERNAL_STOP_REASON_TIMEOUT_ABANDONED; // 13.
 
     /**
+     * The job was stopped because the device entered battery saver mode.
+     * @hide
+     */
+    public static final int INTERNAL_STOP_REASON_DEVICE_STATE_BATTERY_SAVER =
+            JobProtoEnums.INTERNAL_STOP_REASON_DEVICE_STATE_BATTERY_SAVER; // 14.
+
+    /**
      * All the stop reason codes. This should be regarded as an immutable array at runtime.
      *
      * Note the order of these values will affect "dumpsys batterystats", and we do not want to
@@ -159,6 +166,7 @@ public class JobParameters implements Parcelable {
             INTERNAL_STOP_REASON_USER_UI_STOP,
             INTERNAL_STOP_REASON_ANR,
             INTERNAL_STOP_REASON_TIMEOUT_ABANDONED,
+            INTERNAL_STOP_REASON_DEVICE_STATE_BATTERY_SAVER,
     };
 
     /**
@@ -182,6 +190,7 @@ public class JobParameters implements Parcelable {
             case INTERNAL_STOP_REASON_USER_UI_STOP: return "user_ui_stop";
             case INTERNAL_STOP_REASON_ANR: return "anr";
             case INTERNAL_STOP_REASON_TIMEOUT_ABANDONED: return "timeout_abandoned";
+            case INTERNAL_STOP_REASON_DEVICE_STATE_BATTERY_SAVER: return "battery_saver";
             default: return "unknown:" + reasonCode;
         }
     }
@@ -212,9 +221,15 @@ public class JobParameters implements Parcelable {
      */
     public static final int STOP_REASON_TIMEOUT = 3;
     /**
-     * The device state (eg. Doze, battery saver, memory usage, etc) requires JobScheduler stop this
-     * job.
+     * The device state (e.g., Doze, battery saver, memory usage, etc.) requires JobScheduler to
+     * stop this job.
+     * <p>
+     * Starting in a version of Android following
+     * {@link android.os.Build.VERSION_CODES#CINNAMON_BUN}, the system will provide more specific
+     * stop reasons when possible, such as {@link #STOP_REASON_DEVICE_STATE_THERMAL} or
+     * {@link #STOP_REASON_DEVICE_STATE_BATTERY_SAVER}.
      */
+     // TODO: b/477457908 - Update to the correct android VERSION_CODES when 26Q4 is defined
     public static final int STOP_REASON_DEVICE_STATE = 4;
     /**
      * The requested battery-not-low constraint is no longer satisfied.
@@ -304,6 +319,22 @@ public class JobParameters implements Parcelable {
     @FlaggedApi(Flags.FLAG_HANDLE_ABANDONED_JOBS)
     public static final int STOP_REASON_TIMEOUT_ABANDONED = 16;
 
+    /**
+     * The device is under thermal restriction.
+     * <p>
+     * This is a more specific version of {@link #STOP_REASON_DEVICE_STATE}.
+     */
+    @FlaggedApi(Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API)
+    public static final int STOP_REASON_DEVICE_STATE_THERMAL = 17;
+
+    /**
+     * The device entered battery saver mode.
+     * <p>
+     * This is a more specific version of {@link #STOP_REASON_DEVICE_STATE}.
+     */
+    @FlaggedApi(Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API)
+    public static final int STOP_REASON_DEVICE_STATE_BATTERY_SAVER = 18;
+
     /** @hide */
     @IntDef(prefix = {"STOP_REASON_"}, value = {
             STOP_REASON_UNDEFINED,
@@ -323,6 +354,8 @@ public class JobParameters implements Parcelable {
             STOP_REASON_SYSTEM_PROCESSING,
             STOP_REASON_ESTIMATED_APP_LAUNCH_TIME_CHANGED,
             STOP_REASON_TIMEOUT_ABANDONED,
+            STOP_REASON_DEVICE_STATE_THERMAL,
+            STOP_REASON_DEVICE_STATE_BATTERY_SAVER,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface StopReason {
@@ -574,7 +607,7 @@ public class JobParameters implements Parcelable {
      * <p>Once you are done with the {@link JobWorkItem} returned by this method, you must call
      * {@link #completeWork(JobWorkItem)} with it to inform the system that you are done
      * executing the work.  The job will not be finished until all dequeued work has been
-     * completed.  You do not, however, have to complete each returned work item before deqeueing
+     * completed.  You do not, however, have to complete each returned work item before dequeuing
      * the next one -- you can use {@link #dequeueWork()} multiple times before completing
      * previous work if you want to process work in parallel, and you can complete the work
      * in whatever order you want.</p>
@@ -837,7 +870,7 @@ public class JobParameters implements Parcelable {
         }
     }
 
-    public static final @android.annotation.NonNull Creator<JobParameters> CREATOR = new Creator<JobParameters>() {
+    public static final @NonNull Creator<JobParameters> CREATOR = new Creator<JobParameters>() {
         @Override
         public JobParameters createFromParcel(Parcel in) {
             return new JobParameters(in);

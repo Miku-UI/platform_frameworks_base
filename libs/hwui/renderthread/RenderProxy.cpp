@@ -24,6 +24,7 @@
 #include "utils/Thread.h"
 
 #ifdef __ANDROID__
+#include <gui/BLASTBufferQueue.h>
 #include <gui/SurfaceControl.h>
 #endif
 
@@ -46,7 +47,7 @@ namespace uirenderer {
 namespace renderthread {
 
 RenderProxy::RenderProxy(bool translucent, RenderNode* rootRenderNode,
-                         IContextFactory* contextFactory)
+                         IContextFactory* contextFactory, bool useIpcCanvas)
         : mRenderThread(RenderThread::getInstance()), mContext(nullptr) {
 #ifdef __ANDROID__
     pid_t uiThreadId = pthread_gettid_np(pthread_self());
@@ -55,8 +56,9 @@ RenderProxy::RenderProxy(bool translucent, RenderNode* rootRenderNode,
 #endif
     pid_t renderThreadId = getRenderThreadTid();
     mContext = mRenderThread.queue().runSync([=, this]() -> CanvasContext* {
-        CanvasContext* context = CanvasContext::create(mRenderThread, translucent, rootRenderNode,
-                                                       contextFactory, uiThreadId, renderThreadId);
+        CanvasContext* context =
+                CanvasContext::create(mRenderThread, translucent, rootRenderNode, contextFactory,
+                                      uiThreadId, renderThreadId, useIpcCanvas);
         if (context != nullptr) {
             mRenderThread.queue().post([=] { context->startHintSession(); });
         }
@@ -129,6 +131,55 @@ void RenderProxy::setSurfaceControl(sp<SurfaceControl> surfaceControl) {
 #endif
 }
 
+/**
+ * Sync methods below execute directly on the calling thread, and so
+ * setBLASTBufferQueue also does.
+ */
+void RenderProxy::setBLASTBufferQueue(const sp<BLASTBufferQueue>& bbq) {
+#ifdef __ANDROID__
+    mContext->setBLASTBufferQueue(std::move(bbq));
+#endif
+}
+
+#ifdef __ANDROID__
+void RenderProxy::setCornerRadiiCallback(
+        std::function<void(const gui::CornerRadii&)> cornerRadiiCallback) {
+    mContext->setCornerRadiiCallback(std::move(cornerRadiiCallback));
+}
+
+void RenderProxy::setWaitForBufferReleaseCallback(std::function<void(int64_t)> callback) {
+    mContext->setWaitForBufferReleaseCallback(std::move(callback));
+}
+
+void RenderProxy::mergeWithNextTransaction(SurfaceComposerClient::Transaction* t,
+                                           uint64_t frameNumber) {
+    mContext->mergeWithNextTransaction(t, frameNumber);
+}
+
+bool RenderProxy::syncNextTransaction(std::function<void(SurfaceComposerClient::Transaction*)> t,
+                                      bool acquireSingleBuffer) {
+    return mContext->syncNextTransaction(t, acquireSingleBuffer);
+}
+
+void RenderProxy::applyPendingTransactions(uint64_t frameNumber) {
+    mContext->applyPendingTransactions(frameNumber);
+}
+
+void RenderProxy::clearSyncTransaction() {
+    mContext->clearSyncTransaction();
+}
+
+SurfaceComposerClient::Transaction* RenderProxy::gatherPendingTransactions(uint64_t frameNumber) {
+    return mContext->gatherPendingTransactions(frameNumber);
+}
+#endif
+
+void RenderProxy::updateRenderTargetSize(uint64_t width, uint64_t height) {
+    return mRenderThread.queue().post([this, width, height]() {
+        mContext->updateRenderTargetSize(width, height);
+    });
+}
+
 void RenderProxy::allocateBuffers() {
     mRenderThread.queue().post([this]() { mContext->allocateBuffers(); });
 }
@@ -153,6 +204,10 @@ void RenderProxy::setLightGeometry(const Vector3& lightCenter, float lightRadius
 
 void RenderProxy::setOpaque(bool opaque) {
     mRenderThread.queue().post([=, this]() { mContext->setOpaque(opaque); });
+}
+
+void RenderProxy::setHintSessionEnabled(bool enabled) {
+    mRenderThread.queue().post([=, this]() { mContext->setHintSessionEnabled(enabled); });
 }
 
 float RenderProxy::setColorMode(ColorMode mode) {
@@ -441,6 +496,10 @@ void RenderProxy::setForceDark(ForceDarkType type) {
     mRenderThread.queue().post([this, type]() { mContext->setForceDark(type); });
 }
 
+void RenderProxy::setDrawingEnabled(bool enabled) {
+    mRenderThread.queue().post([this, enabled]() { mContext->setDrawingEnabled(enabled); });
+}
+
 void RenderProxy::copySurfaceInto(ANativeWindow* window, std::shared_ptr<CopyRequest>&& request) {
     auto& thread = RenderThread::getInstance();
     ANativeWindow_acquire(window);
@@ -522,6 +581,14 @@ void RenderProxy::setRtAnimationsEnabled(bool enabled) {
                 [enabled]() { Properties::enableRTAnimations = enabled; });
     } else {
         Properties::enableRTAnimations = enabled;
+    }
+}
+
+void RenderProxy::setRtAnimationsEnabledForContext(bool enabled) {
+    if (RenderThread::hasInstance()) {
+        RenderThread& thread = RenderThread::getInstance();
+        thread.queue().post(
+                [this, enabled]() { mContext->setRtAnimationsEnabled(enabled); });
     }
 }
 

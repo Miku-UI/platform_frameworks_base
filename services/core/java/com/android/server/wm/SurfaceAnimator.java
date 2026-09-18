@@ -457,11 +457,6 @@ public class SurfaceAnimator {
     public static final int ANIMATION_TYPE_NONE = 0;
 
     /**
-     * Animation for an app transition.
-     */
-    public static final int ANIMATION_TYPE_APP_TRANSITION = 1;
-
-    /**
      * Animation for screen rotation.
      */
     public static final int ANIMATION_TYPE_SCREEN_ROTATION = 1 << 1;
@@ -511,7 +506,6 @@ public class SurfaceAnimator {
      */
     @IntDef(flag = true, prefix = { "ANIMATION_TYPE_" }, value = {
             ANIMATION_TYPE_NONE,
-            ANIMATION_TYPE_APP_TRANSITION,
             ANIMATION_TYPE_SCREEN_ROTATION,
             ANIMATION_TYPE_DIMMER,
             ANIMATION_TYPE_WINDOW_ANIMATION,
@@ -529,7 +523,6 @@ public class SurfaceAnimator {
     static String animationTypeToString(@AnimationType int type) {
         switch (type) {
             case ANIMATION_TYPE_NONE: return "none";
-            case ANIMATION_TYPE_APP_TRANSITION: return "app_transition";
             case ANIMATION_TYPE_SCREEN_ROTATION: return "screen_rotation";
             case ANIMATION_TYPE_DIMMER: return "dimmer";
             case ANIMATION_TYPE_WINDOW_ANIMATION: return "window_animation";

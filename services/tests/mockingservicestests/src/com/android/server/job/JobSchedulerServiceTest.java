@@ -18,22 +18,48 @@ package com.android.server.job;
 
 import static android.app.job.Flags.FLAG_HANDLE_ABANDONED_JOBS;
 import static android.app.usage.UsageStatsManager.REASON_MAIN_TIMEOUT;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.BACK_OFF_POLICY_TYPE;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.DEADLINE_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.DELAY_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.EFFECTIVE_PRIORITY;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.INTERNAL_STOP_REASON;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.JOB_ID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.JOB_START_LATENCY_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.JOB_STATE_FLAGS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.NUM_PREVIOUS_ATTEMPTS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.NUM_RESCHEDULES_DUE_TO_ABANDONMENT;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.NUM_UNCOMPLETED_WORK_ITEMS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PERIODIC_JOB_FLEX_INTERVAL_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PERIODIC_JOB_INTERVAL_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PROC_STATE;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PROXY_UID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PUBLIC_STOP_REASON;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.REQUESTED_PRIORITY;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.SOURCE_UID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.STANDBY_BUCKET;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.STATE;
+import static android.net.Uri.fromParts;
 import static android.text.format.DateUtils.DAY_IN_MILLIS;
 import static android.text.format.DateUtils.HOUR_IN_MILLIS;
 import static android.text.format.DateUtils.MINUTE_IN_MILLIS;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doNothing;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.doThrow;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mock;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.spy;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static com.android.server.job.Flags.FLAG_BATCH_ACTIVE_BUCKET_JOBS;
 import static com.android.server.job.Flags.FLAG_BATCH_CONNECTIVITY_JOBS_PER_NETWORK;
-import static com.android.server.job.Flags.FLAG_THERMAL_RESTRICTIONS_TO_FGS_JOBS;
+import static com.android.server.job.Flags.FLAG_ENFORCE_PROXIED_JOBS_LIMIT;
 import static com.android.server.job.JobSchedulerService.ACTIVE_INDEX;
 import static com.android.server.job.JobSchedulerService.RARE_INDEX;
 import static com.android.server.job.JobSchedulerService.sElapsedRealtimeClock;
 import static com.android.server.job.JobSchedulerService.sUptimeMillisClock;
+import static com.android.server.job.JobStore.TOTAL_JOB_WORK_ITEM_SIZE_LIMIT;
+
+import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -46,11 +72,13 @@ import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.ActivityManagerInternal;
 import android.app.AppGlobals;
@@ -59,6 +87,7 @@ import android.app.UiModeManager;
 import android.app.compat.CompatChanges;
 import android.app.job.JobInfo;
 import android.app.job.JobParameters;
+import android.app.job.JobProtoEnums;
 import android.app.job.JobScheduler;
 import android.app.job.JobWorkItem;
 import android.app.usage.UsageStatsManager;
@@ -67,8 +96,11 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.PermissionChecker;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.IPackageManager;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
+import android.content.pm.ServiceInfo;
 import android.content.res.Resources;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -78,20 +110,23 @@ import android.os.BatteryManager;
 import android.os.BatteryManagerInternal;
 import android.os.BatteryManagerInternal.ChargingPolicyChangeListener;
 import android.os.Looper;
+import android.os.Parcel;
+import android.os.ParcelDuration;
+import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.SystemClock;
+import android.os.UserHandle;
 import android.os.WorkSource;
 import android.os.WorkSource.WorkChain;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
-import android.platform.test.annotations.RequiresFlagsDisabled;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.platform.test.flag.junit.SetFlagsRule;
 
+import com.android.internal.util.FrameworkStatsLog;
 import com.android.server.AppStateTracker;
 import com.android.server.AppStateTrackerImpl;
 import com.android.server.DeviceIdleInternal;
@@ -105,6 +140,7 @@ import com.android.server.job.controllers.QuotaController;
 import com.android.server.job.restrictions.JobRestriction;
 import com.android.server.job.restrictions.ThermalStatusRestriction;
 import com.android.server.pm.UserManagerInternal;
+import com.android.server.pm.pkg.PackageStateInternal;
 import com.android.server.usage.AppStandbyInternal;
 
 import org.junit.After;
@@ -114,19 +150,29 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoSession;
 import org.mockito.quality.Strictness;
 
 import java.time.Clock;
 import java.time.Duration;
 import java.time.ZoneOffset;
+import java.util.Arrays;
+import java.util.Map;
 
 public class JobSchedulerServiceTest {
     private static final String SOURCE_PACKAGE = "com.android.frameworks.mockingservicestests";
     private static final String TAG = JobSchedulerServiceTest.class.getSimpleName();
     private static final int TEST_UID = 10123;
+    private static final String TEST_NAMESPACE = "JobSchedulerServiceTest";
+    private static final int TEST_MAX_JOBS_PER_APP = 5;
+    private static final String TEST_PCC_PACKAGE = "com.example.pcc";
+    private static final ComponentName TEST_PCC_COMPONENT =
+            new ComponentName(TEST_PCC_PACKAGE, "PccJobService");
+    private static final int TEST_MAX_PROXIED_JOBS_PER_APP = 2;
 
     private JobSchedulerService mService;
+    private JobStore mJobStore;
 
     private MockitoSession mMockingSession;
     @Mock
@@ -137,6 +183,8 @@ public class JobSchedulerServiceTest {
     private Context mContext;
     @Mock
     private PackageManagerInternal mPackageManagerInternal;
+    @Mock
+    private IPackageManager mIPackageManager;
 
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
@@ -148,9 +196,13 @@ public class JobSchedulerServiceTest {
 
     private int mSourceUid;
 
+    @Mock
+    private JobPerfettoTracer mMockPerfettoTracer;
+
     private class TestJobSchedulerService extends JobSchedulerService {
-        TestJobSchedulerService(Context context) {
-            super(context);
+        TestJobSchedulerService(Context context, int maxJobs, JobStore jobStore,
+                JobPerfettoTracer perfettoTracer) {
+            super(context, maxJobs, jobStore, perfettoTracer);
             mAppStateTracker = mock(AppStateTrackerImpl.class);
         }
     }
@@ -164,7 +216,17 @@ public class JobSchedulerServiceTest {
                 .mockStatic(LocalServices.class)
                 .mockStatic(PermissionChecker.class)
                 .mockStatic(ServiceManager.class)
+                .mockStatic(AppGlobals.class)
                 .startMocking();
+
+
+        when(AppGlobals.getPackageManager()).thenReturn(mIPackageManager);
+        // Default to not finding the package to keep sourceUid == callingUid (1234)
+        // for existing tests which might rely on this behavior.
+        doThrow(new RemoteException("Not found")).when(mIPackageManager)
+                .getPackageUid(anyString(), anyLong(), anyInt());
+        doReturn(TEST_UID).when(mIPackageManager)
+                .getPackageUid(eq(SOURCE_PACKAGE), anyLong(), anyInt());
 
         // Called in JobSchedulerService constructor.
         when(mContext.getMainLooper()).thenReturn(Looper.getMainLooper());
@@ -229,7 +291,13 @@ public class JobSchedulerServiceTest {
         doReturn(mock(PlatformCompat.class))
                 .when(() -> ServiceManager.getService(Context.PLATFORM_COMPAT_SERVICE));
 
-        mService = new TestJobSchedulerService(mContext);
+        mJobStore = JobStore.initAndGetForTesting(mContext, mContext.getFilesDir());
+        mService = new TestJobSchedulerService(mContext, TEST_MAX_JOBS_PER_APP, mJobStore,
+                mMockPerfettoTracer);
+        when(mMockPerfettoTracer.startEvent(anyString())).thenReturn(mMockPerfettoTracer);
+        when(mMockPerfettoTracer.addField(anyLong(), anyInt())).thenReturn(mMockPerfettoTracer);
+        when(mMockPerfettoTracer.addField(anyLong(), anyLong())).thenReturn(mMockPerfettoTracer);
+        doNothing().when(mMockPerfettoTracer).emit();
         mService.waitOnAsyncLoadingForTesting();
 
         verify(mBatteryManagerInternal).registerChargingPolicyChangeListener(
@@ -240,12 +308,15 @@ public class JobSchedulerServiceTest {
 
     @After
     public void tearDown() {
+        if (mService != null) {
+            mService.cancelJobsForUid(TEST_UID, true,
+                    JobParameters.STOP_REASON_UNDEFINED,
+                    JobParameters.INTERNAL_STOP_REASON_UNKNOWN,
+                    "test cleanup");
+        }
         if (mMockingSession != null) {
             mMockingSession.finishMocking();
         }
-        mService.cancelJobsForUid(TEST_UID, true,
-                JobParameters.STOP_REASON_UNDEFINED, JobParameters.INTERNAL_STOP_REASON_UNKNOWN,
-                "test cleanup");
     }
 
     private Clock getAdvancedClock(Clock clock, long incrementMs) {
@@ -952,6 +1023,37 @@ public class JobSchedulerServiceTest {
                 mService.getMaxJobExecutionTimeMs(jobEj));
         assertEquals(mService.mConstants.RUNTIME_MIN_GUARANTEE_MS,
                 mService.getMaxJobExecutionTimeMs(jobReg));
+    }
+
+    /**
+     * Confirm that
+     * {@link JobSchedulerService#getRescheduleJobForFailureLocked(JobStatus, int, int)}
+     * correctly copies over pending job reason stats from the original job.
+     */
+    @Test
+    public void testGetRescheduleJobForFailure_copiesPendingJobReasonStats() {
+        JobStatus originalJob = createJobStatus("testGetRescheduleJobForFailure",
+                createJobInfo()
+                        .setRequiresCharging(true)
+                        .setRequiresBatteryNotLow(true));
+        // advance the clock a little so there's some data in the pending job reason stats
+        advanceElapsedClock(5 * MINUTE_IN_MILLIS); // now + 5 minutes
+        Map<String, ParcelDuration> pendingReasons = originalJob.getPendingJobReasonStats();
+        // ensure the job is pending due to at least 1 reason
+        assertFalse(pendingReasons.isEmpty());
+
+        JobStatus rescheduledJob = mService.getRescheduleJobForFailureLocked(originalJob,
+                JobParameters.STOP_REASON_UNDEFINED,
+                JobParameters.INTERNAL_STOP_REASON_UNKNOWN);
+        assertNotNull(rescheduledJob);
+        Map<String, ParcelDuration> newPendingReasons = rescheduledJob.getPendingJobReasonStats();
+
+        assertEquals(pendingReasons.size(), newPendingReasons.size());
+        for (String reason : pendingReasons.keySet()) {
+            assertTrue(newPendingReasons.containsKey(reason));
+            assertEquals(pendingReasons.get(reason).getDuration(),
+                    newPendingReasons.get(reason).getDuration());
+        }
     }
 
     /**
@@ -2381,35 +2483,10 @@ public class JobSchedulerServiceTest {
     }
 
     /**
-     * Tests that jobs scheduled through a proxy (eg. system server) count towards scheduling
-     * limits.
-     */
-    @Test
-    @DisableFlags(Flags.FLAG_ENFORCE_SCHEDULE_LIMIT_TO_PROXY_JOBS)
-    public void testScheduleLimiting_Proxy_NotCountTowardsLimit() {
-        mService.mConstants.ENABLE_API_QUOTAS = true;
-        mService.mConstants.API_QUOTA_SCHEDULE_COUNT = 300;
-        mService.mConstants.API_QUOTA_SCHEDULE_WINDOW_MS = 300000;
-        mService.mConstants.API_QUOTA_SCHEDULE_THROW_EXCEPTION = false;
-        mService.mConstants.API_QUOTA_SCHEDULE_RETURN_FAILURE_RESULT = true;
-        mService.updateQuotaTracker();
-        mService.resetScheduleQuota();
-
-        final JobInfo job = createJobInfo().setPersisted(true).build();
-        for (int i = 0; i < 500; ++i) {
-            assertEquals("Got unexpected result for schedule #" + (i + 1),
-                    JobScheduler.RESULT_SUCCESS,
-                    mService.scheduleAsPackage(job, null, TEST_UID, "proxied.package", 0, "JSSTest",
-                            ""));
-        }
-    }
-
-    /**
      * Tests that jobs scheduled through a proxy (eg. system server) don't count towards scheduling
      * limits.
      */
     @Test
-    @EnableFlags(Flags.FLAG_ENFORCE_SCHEDULE_LIMIT_TO_PROXY_JOBS)
     public void testScheduleLimiting_Proxy_CountTowardsLimit() {
         mService.mConstants.ENABLE_API_QUOTAS = true;
         mService.mConstants.API_QUOTA_SCHEDULE_COUNT = 300;
@@ -2511,61 +2588,6 @@ public class JobSchedulerServiceTest {
 
     /** Tests that jobs are removed from the pending list if the user stops the app. */
     @Test
-    @RequiresFlagsDisabled(android.app.job.Flags.FLAG_GET_PENDING_JOB_REASONS_API)
-    public void testUserStopRemovesPending() {
-        spyOn(mService);
-
-        JobStatus job1a = createJobStatus("testUserStopRemovesPending",
-                createJobInfo(1), 1, "pkg1");
-        JobStatus job1b = createJobStatus("testUserStopRemovesPending",
-                createJobInfo(2), 1, "pkg1");
-        JobStatus job2a = createJobStatus("testUserStopRemovesPending",
-                createJobInfo(1), 2, "pkg2");
-        JobStatus job2b = createJobStatus("testUserStopRemovesPending",
-                createJobInfo(2), 2, "pkg2");
-        doReturn(1).when(mPackageManagerInternal).getPackageUid("pkg1", 0, 0);
-        doReturn(11).when(mPackageManagerInternal).getPackageUid("pkg1", 0, 1);
-        doReturn(2).when(mPackageManagerInternal).getPackageUid("pkg2", 0, 0);
-
-        mService.getPendingJobQueue().clear();
-        mService.getPendingJobQueue().add(job1a);
-        mService.getPendingJobQueue().add(job1b);
-        mService.getPendingJobQueue().add(job2a);
-        mService.getPendingJobQueue().add(job2b);
-        mService.getJobStore().add(job1a);
-        mService.getJobStore().add(job1b);
-        mService.getJobStore().add(job2a);
-        mService.getJobStore().add(job2b);
-
-        mService.notePendingUserRequestedAppStopInternal("pkg1", 1, "test");
-        assertEquals(4, mService.getPendingJobQueue().size());
-        assertTrue(mService.getPendingJobQueue().contains(job1a));
-        assertTrue(mService.getPendingJobQueue().contains(job1b));
-        assertTrue(mService.getPendingJobQueue().contains(job2a));
-        assertTrue(mService.getPendingJobQueue().contains(job2b));
-
-        mService.notePendingUserRequestedAppStopInternal("pkg1", 0, "test");
-        assertEquals(2, mService.getPendingJobQueue().size());
-        assertFalse(mService.getPendingJobQueue().contains(job1a));
-        assertEquals(JobScheduler.PENDING_JOB_REASON_USER, mService.getPendingJobReason(job1a));
-        assertFalse(mService.getPendingJobQueue().contains(job1b));
-        assertEquals(JobScheduler.PENDING_JOB_REASON_USER, mService.getPendingJobReason(job1b));
-        assertTrue(mService.getPendingJobQueue().contains(job2a));
-        assertTrue(mService.getPendingJobQueue().contains(job2b));
-
-        mService.notePendingUserRequestedAppStopInternal("pkg2", 0, "test");
-        assertEquals(0, mService.getPendingJobQueue().size());
-        assertFalse(mService.getPendingJobQueue().contains(job1a));
-        assertFalse(mService.getPendingJobQueue().contains(job1b));
-        assertFalse(mService.getPendingJobQueue().contains(job2a));
-        assertEquals(JobScheduler.PENDING_JOB_REASON_USER, mService.getPendingJobReason(job2a));
-        assertFalse(mService.getPendingJobQueue().contains(job2b));
-        assertEquals(JobScheduler.PENDING_JOB_REASON_USER, mService.getPendingJobReason(job2b));
-    }
-
-    /** Tests that jobs are removed from the pending list if the user stops the app. */
-    @Test
-    @RequiresFlagsEnabled(android.app.job.Flags.FLAG_GET_PENDING_JOB_REASONS_API)
     public void testUserStopRemovesPending_withPendingJobReasonsApi() {
         spyOn(mService);
 
@@ -2644,6 +2666,74 @@ public class JobSchedulerServiceTest {
     }
 
     /**
+     * Test that a non-running job gets the correct thermal pending reason
+     * when it's restricted by thermal conditions.
+     */
+    @EnableFlags({
+            android.app.job.Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API
+    })
+    @Test
+    public void testPendingReason_Thermal() {
+        final JobStatus job = JobStatus.createFromJobInfo(
+                new JobInfo.Builder(1, new ComponentName("foo", "bar")).build(),
+                1000, "foo", 0, "test", "test");
+        final JobStatus jobSpy = spy(job);
+
+        ThermalStatusRestriction mockThermalStatusRestriction =
+                mock(ThermalStatusRestriction.class);
+
+        when(mockThermalStatusRestriction.isJobRestricted(any(), anyInt()))
+                .thenReturn(true);
+        when(mockThermalStatusRestriction.getPendingReason())
+                .thenReturn(JobScheduler.PENDING_JOB_REASON_DEVICE_STATE_THERMAL);
+
+        synchronized (mService.mLock) {
+            mService.getJobStore().add(jobSpy);
+
+            mService.mJobRestrictions.clear();
+            mService.mJobRestrictions.add(mockThermalStatusRestriction);
+
+            assertThat(mService.getPendingJobReasons(jobSpy))
+                    .asList()
+                    .contains(JobScheduler.PENDING_JOB_REASON_DEVICE_STATE_THERMAL);
+        }
+    }
+
+
+    /**
+     * Test that a non-running job gets the correct thermal stop reason
+     * when it's restricted by thermal conditions.
+     */
+    @EnableFlags({
+            android.app.job.Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API
+    })
+    @Test
+    public void testStopReason_DeviceStateThermal() {
+        final JobStatus job = JobStatus.createFromJobInfo(
+                new JobInfo.Builder(1, new ComponentName("foo", "bar")).build(),
+                1000, "foo", 0, "test", "test");
+        final JobStatus jobSpy = spy(job);
+
+        final ThermalStatusRestriction mockThermalRestriction =
+                mock(ThermalStatusRestriction.class);
+        mService.mJobRestrictions.add(mockThermalRestriction);
+
+        when(mockThermalRestriction.isJobRestricted(jobSpy, JobInfo.BIAS_DEFAULT))
+                .thenReturn(true);
+        when(mockThermalRestriction.getStopReason())
+                .thenReturn(JobParameters.STOP_REASON_DEVICE_STATE_THERMAL);
+
+        final JobRestriction restriction;
+        synchronized (mService.mLock) {
+            restriction = mService.checkIfRestricted(jobSpy);
+        }
+
+        assertNotNull("Job should be restricted", restriction);
+        assertEquals("Incorrect stop reason for thermal restriction",
+                JobParameters.STOP_REASON_DEVICE_STATE_THERMAL, restriction.getStopReason());
+    }
+
+    /**
      * Unit tests {@link JobSchedulerService#checkIfRestricted(JobStatus)} with multiple {@link
      * JobRestriction} registered.
      */
@@ -2686,28 +2776,6 @@ public class JobSchedulerServiceTest {
         }
     }
 
-    /**
-     * Jobs with foreground service and top app biases must not be restricted when the flag is
-     * disabled.
-     */
-    @Test
-    @RequiresFlagsDisabled(FLAG_THERMAL_RESTRICTIONS_TO_FGS_JOBS)
-    public void testCheckIfRestricted_highJobBias_flagThermalRestrictionsToFgsJobsDisabled() {
-        JobStatus fgsJob =
-                createJobStatus(
-                        "testCheckIfRestrictedJobBiasFgs",
-                        createJobInfo(1).setBias(JobInfo.BIAS_FOREGROUND_SERVICE));
-        JobStatus topAppJob =
-                createJobStatus(
-                        "testCheckIfRestrictedJobBiasTopApp",
-                        createJobInfo(2).setBias(JobInfo.BIAS_TOP_APP));
-
-        synchronized (mService.mLock) {
-            assertNull(mService.checkIfRestricted(fgsJob));
-            assertNull(mService.checkIfRestricted(topAppJob));
-        }
-    }
-
     /** Jobs with top app biases must not be restricted. */
     @Test
     public void testCheckIfRestricted_highJobBias() {
@@ -2741,5 +2809,624 @@ public class JobSchedulerServiceTest {
         if (mChargingPolicyChangeListener != null) {
             mChargingPolicyChangeListener.onChargingPolicyChanged(policy);
         }
+    }
+
+    @Test
+    public void testSchedule_jobCountLimit_systemUid_enhancedException() throws Exception {
+        // Schedule up to and including the max number of jobs.
+        for (int i = 0; i <= TEST_MAX_JOBS_PER_APP; i++) {
+            JobInfo job = createJobInfo(i).setMinimumLatency(3600_000).build();
+            assertEquals(JobScheduler.RESULT_SUCCESS, mService.scheduleAsPackage(
+                    job, null, Process.SYSTEM_UID, null, 0, TEST_NAMESPACE, ""));
+        }
+
+        JobInfo extraJob = createJobInfo(TEST_MAX_JOBS_PER_APP + 1).setMinimumLatency(
+                3600_000).build();
+        try {
+            mService.scheduleAsPackage(
+                    extraJob, null, Process.SYSTEM_UID, null, 0, TEST_NAMESPACE, "");
+            fail("Scheduling extra job should have thrown an exception");
+        } catch (IllegalStateException e) {
+            // Success
+            final int actualValue = TEST_MAX_JOBS_PER_APP + 1;
+            final String expected = "Apps may not schedule more than "
+                    + TEST_MAX_JOBS_PER_APP + " distinct jobs"
+                    + ". Top jobs: @" + TEST_NAMESPACE + "@foo/bar:" + actualValue;
+            assertEquals(expected, e.getMessage());
+        }
+    }
+
+    @Test
+    public void testSchedule_jobCountLimit_regularUid() throws Exception {
+        // Schedule up to and including the max number of jobs.
+        for (int i = 0; i <= TEST_MAX_JOBS_PER_APP; i++) {
+            JobInfo job = createJobInfo(i).setMinimumLatency(3600_000).build();
+            assertEquals(JobScheduler.RESULT_SUCCESS, mService.scheduleAsPackage(
+                    job, null, TEST_UID, null, 0, TEST_NAMESPACE, ""));
+        }
+
+        JobInfo extraJob = createJobInfo(TEST_MAX_JOBS_PER_APP + 1).setMinimumLatency(
+                3600_000).build();
+        try {
+            mService.scheduleAsPackage(
+                    extraJob, null, TEST_UID, null, 0, TEST_NAMESPACE, "");
+            fail("Scheduling extra job should have thrown an exception");
+        } catch (IllegalStateException e) {
+            // Success
+            final String expected = "Apps may not schedule more than "
+                    + TEST_MAX_JOBS_PER_APP + " distinct jobs";
+            assertEquals(expected, e.getMessage());
+        }
+    }
+
+    @Test
+    @EnableFlags(FLAG_ENFORCE_PROXIED_JOBS_LIMIT)
+    public void testProxiedJobLimit_enforced() throws Exception {
+        mService.mConstants.MAX_NUM_PROXIED_JOBS_PER_APP = TEST_MAX_PROXIED_JOBS_PER_APP;
+        final String sourcePackage = "test.source.pkg";
+        final int sourceUid = 10001;
+        final int sourceUserId = 0;
+
+        doReturn(sourceUid).when(mIPackageManager)
+                .getPackageUid(eq(sourcePackage), anyLong(), eq(sourceUserId));
+
+        // Schedule up to the limit.
+        for (int i = 0; i < TEST_MAX_PROXIED_JOBS_PER_APP; i++) {
+            final JobInfo job = createJobInfo(i)
+                    .setMinimumLatency(3600_000).build();
+            assertEquals("Job " + i + " should succeed", JobScheduler.RESULT_SUCCESS,
+                    mService.scheduleAsPackage(
+                            job, null, Process.SYSTEM_UID, sourcePackage,
+                            sourceUserId, TEST_NAMESPACE, ""));
+        }
+
+        // Try to schedule one more, it should fail.
+        final JobInfo extraJob =
+                createJobInfo(TEST_MAX_PROXIED_JOBS_PER_APP)
+                        .setMinimumLatency(3600_000).build();
+        assertEquals("Scheduling proxied job beyond limit should have failed",
+                JobScheduler.RESULT_FAILURE,
+                mService.scheduleAsPackage(
+                        extraJob, null, Process.SYSTEM_UID, sourcePackage,
+                        sourceUserId, TEST_NAMESPACE, ""));
+    }
+
+    @Test
+    @DisableFlags(FLAG_ENFORCE_PROXIED_JOBS_LIMIT)
+    public void testProxiedJobLimit_notEnforced() throws Exception {
+        mService.mConstants.MAX_NUM_PROXIED_JOBS_PER_APP = TEST_MAX_PROXIED_JOBS_PER_APP;
+        final String sourcePackage = "test.source.pkg";
+        final int sourceUserId = 0;
+
+        // Schedule up to the limit and then some more. All should succeed.
+        for (int i = 0; i < TEST_MAX_PROXIED_JOBS_PER_APP + 5; i++) {
+            final JobInfo job = createJobInfo(i)
+                    .setMinimumLatency(3600_000).build();
+            assertEquals("Job " + i + " should succeed", JobScheduler.RESULT_SUCCESS,
+                    mService.scheduleAsPackage(
+                            job, null, Process.SYSTEM_UID, sourcePackage,
+                            sourceUserId, TEST_NAMESPACE, ""));
+        }
+    }
+
+    @Test
+    public void testPerfettoTracing_ScheduleJob() {
+        // Given the job has been scheduled.
+        when(mMockPerfettoTracer.isTraceEnabled()).thenReturn(true);
+        final JobInfo job =
+                createJobInfo().setPeriodic(HOUR_IN_MILLIS, 10 * MINUTE_IN_MILLIS).build();
+        mService.updateUidState(TEST_UID, ActivityManager.PROCESS_STATE_TOP, 0);
+        final JobStatus jobStatus =
+                JobStatus.createFromJobInfo(job, TEST_UID, null, 0, "JSSTest", "");
+        final long loggingId = jobStatus.getLoggingJobId();
+        // Job is periodic. Other flags are cleared.
+        final long expectedFlags =
+                JobStatus.JOB_STATE_FLAG_IS_PERIODIC
+                        | JobStatus.JOB_STATE_FLAG_HAS_TIMING_DELAY_CONSTRAINT
+                        | JobStatus.JOB_STATE_FLAG_HAS_DEADLINE_CONSTRAINT
+                        | JobStatus.JOB_STATE_FLAG_HAS_FLEXIBILITY_CONSTRAINT;
+
+        mService.scheduleAsPackage(job, null, TEST_UID, null, 0, "JSSTest", "");
+
+        verify(mMockPerfettoTracer).startEvent(eq(jobStatus.getBatteryName()));
+        verify(mMockPerfettoTracer).addField(eq((long) JOB_ID), eq(loggingId));
+        verify(mMockPerfettoTracer)
+                .addField(eq((long) SOURCE_UID), eq((long) TEST_UID));
+        verify(mMockPerfettoTracer).addField(eq((long) PROXY_UID), eq(-1L));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) STATE),
+                        eq((long) FrameworkStatsLog.SCHEDULED_JOB_STATE_CHANGED__STATE__SCHEDULED));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) STANDBY_BUCKET),
+                        eq((long) JobSchedulerService.EXEMPTED_INDEX));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) REQUESTED_PRIORITY),
+                        eq((long) JobInfo.PRIORITY_DEFAULT));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) EFFECTIVE_PRIORITY),
+                        eq((long) JobInfo.PRIORITY_DEFAULT));
+        verify(mMockPerfettoTracer)
+                .addField(eq((long) NUM_PREVIOUS_ATTEMPTS), eq(0L));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) DEADLINE_MS),
+                        eq(job.getMaxExecutionDelayMillis()));
+        verify(mMockPerfettoTracer)
+                .addField(eq((long) DELAY_MS), eq(job.getMinLatencyMillis()));
+        verify(mMockPerfettoTracer)
+                .addField(eq((long) JOB_START_LATENCY_MS), eq(0L));
+        verify(mMockPerfettoTracer)
+                .addField(eq((long) NUM_UNCOMPLETED_WORK_ITEMS), eq(0L));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) PROC_STATE),
+                        eq((long) ActivityManager.processStateAmToProto(
+                                        ActivityManager.PROCESS_STATE_TOP)));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) PERIODIC_JOB_INTERVAL_MS),
+                        eq(HOUR_IN_MILLIS));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) PERIODIC_JOB_FLEX_INTERVAL_MS),
+                        eq(10L * MINUTE_IN_MILLIS));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) NUM_RESCHEDULES_DUE_TO_ABANDONMENT), eq(0L));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) BACK_OFF_POLICY_TYPE),
+                        eq((long) JobInfo.BACKOFF_POLICY_EXPONENTIAL + 1));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) INTERNAL_STOP_REASON),
+                        eq((long) JobProtoEnums.INTERNAL_STOP_REASON_UNKNOWN));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) PUBLIC_STOP_REASON),
+                        eq((long) JobProtoEnums.STOP_REASON_UNDEFINED));
+        verify(mMockPerfettoTracer)
+                .addField(eq((long) JOB_STATE_FLAGS), eq(expectedFlags));
+        verify(mMockPerfettoTracer).emit();
+    }
+
+    @Test
+    public void testPerfettoTracing_CancelJob() {
+        when(mMockPerfettoTracer.isTraceEnabled()).thenReturn(true);
+        // Given the job has been scheduled.
+        final JobInfo job =
+                createJobInfo().setPeriodic(HOUR_IN_MILLIS, 10 * MINUTE_IN_MILLIS).build();
+        mService.updateUidState(TEST_UID, ActivityManager.PROCESS_STATE_TOP, 0);
+        final JobStatus jobStatus =
+                JobStatus.createFromJobInfo(job, TEST_UID, null, 0, "JSSTest", "");
+        final long loggingId = jobStatus.getLoggingJobId();
+        // When we cancel the job
+        final int stopReason = JobParameters.STOP_REASON_CANCELLED_BY_APP;
+        final int internalStopReason = JobParameters.INTERNAL_STOP_REASON_CANCELED;
+        final long expectedFlags =
+                JobStatus.JOB_STATE_FLAG_IS_PERIODIC
+                        | JobStatus.JOB_STATE_FLAG_HAS_TIMING_DELAY_CONSTRAINT
+                        | JobStatus.JOB_STATE_FLAG_HAS_DEADLINE_CONSTRAINT
+                        | JobStatus.JOB_STATE_FLAG_HAS_FLEXIBILITY_CONSTRAINT;
+
+        mService.scheduleAsPackage(job, null, TEST_UID, null, 0, "JSSTest", "");
+        Mockito.clearInvocations(mMockPerfettoTracer);
+        mService.cancelJobsForUid(
+                TEST_UID,
+                false /* includeSourceApp */,
+                stopReason,
+                internalStopReason,
+                "test cancellation");
+
+        // Then Perfetto tracing should be called for cancellation.
+        verify(mMockPerfettoTracer).startEvent(eq(jobStatus.getBatteryName()));
+        // Verify cancelled event.
+        verify(mMockPerfettoTracer).addField(eq((long) JOB_ID), eq(loggingId));
+        verify(mMockPerfettoTracer)
+                .addField(eq((long) SOURCE_UID), eq((long) TEST_UID));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) STATE),
+                        eq((long) FrameworkStatsLog.SCHEDULED_JOB_STATE_CHANGED__STATE__CANCELLED));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) STANDBY_BUCKET),
+                        eq((long) JobSchedulerService.EXEMPTED_INDEX));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) PROC_STATE),
+                        eq((long) ActivityManager.processStateAmToProto(
+                                        ActivityManager.PROCESS_STATE_TOP)));
+        verify(mMockPerfettoTracer)
+                .addField(
+                        eq((long) INTERNAL_STOP_REASON),
+                        eq((long) internalStopReason));
+        verify(mMockPerfettoTracer)
+                .addField(eq((long) PUBLIC_STOP_REASON),
+                            eq((long) stopReason));
+        verify(mMockPerfettoTracer)
+                .addField(eq((long) JOB_STATE_FLAGS), eq(expectedFlags));
+        verify(mMockPerfettoTracer).emit();
+    }
+
+    private ServiceInfo createMockPccServiceInfo(int appUid, int pccUid) {
+        ServiceInfo serviceInfo = new ServiceInfo();
+        serviceInfo.packageName = TEST_PCC_PACKAGE;
+        serviceInfo.permission = android.app.job.JobService.PERMISSION_BIND;
+        serviceInfo.flags |= ServiceInfo.FLAG_RUN_IN_PCC_SANDBOX;
+
+        ApplicationInfo applicationInfo = new ApplicationInfo();
+        applicationInfo.uid = appUid;
+        applicationInfo.pccUid = pccUid;
+        serviceInfo.applicationInfo = applicationInfo;
+
+        return serviceInfo;
+    }
+
+    private void setupPccMocking(int appUid, int pccUid) throws Exception {
+        PackageManager mockPackageManager = mContext.getPackageManager();
+        doReturn(mContext).when(mContext).createContextAsUser(any(UserHandle.class), anyInt());
+        ServiceInfo serviceInfo = createMockPccServiceInfo(appUid, pccUid);
+        when(mockPackageManager.getServiceInfo(eq(TEST_PCC_COMPONENT), anyInt()))
+                .thenReturn(serviceInfo);
+    }
+
+    /**
+     * Verifies that {@link JobScheduler#schedule(JobInfo)} throws an
+     * {@link IllegalArgumentException} when PCC framework support is enabled and the calling
+     * UID does not match the service's PCC-aware UID.
+     */
+    @Test
+    @EnableFlags(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testSchedule_PccServiceCallingUidPccUidDifferentThrowException_FlagEnabled()
+            throws Exception {
+        final int testAppUid = Process.myUid();
+        final int testPccUid = testAppUid + Process.FIRST_PCC_UID - Process.FIRST_APPLICATION_UID;
+
+        setupPccMocking(testAppUid, testPccUid);
+
+        JobInfo job = new JobInfo.Builder(1, TEST_PCC_COMPONENT).build();
+
+        try {
+            mService.mJobSchedulerStub.schedule(TEST_NAMESPACE, job);
+            fail("Scheduling a PCC job from a non-PCC UID should fail when PCC support is enabled");
+        } catch (IllegalArgumentException e) {
+            assertTrue(e.getMessage().contains("uid " + testAppUid + " cannot schedule job in "
+                    + TEST_PCC_PACKAGE));
+        }
+    }
+
+    /**
+     * Verifies that {@link JobScheduler#schedule(JobInfo)} succeeds when PCC framework
+     * support is enabled and the calling UID matches the service's PCC-aware UID.
+     */
+    @Test
+    @EnableFlags(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testSchedule_PccServiceCallingUidSameAsPccUidSuccess_FlagEnabled()
+            throws Exception {
+        final int testAppUid = Process.myUid();
+
+        setupPccMocking(testAppUid, testAppUid);
+
+        JobInfo job = new JobInfo.Builder(1, TEST_PCC_COMPONENT).build();
+
+        try {
+            assertEquals(JobScheduler.RESULT_SUCCESS,
+                    mService.mJobSchedulerStub.schedule(TEST_NAMESPACE, job));
+        } catch (IllegalArgumentException e) {
+            fail("Scheduling should succeed when PccUid matches AppUid: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Verifies that {@link JobScheduler#schedule(JobInfo)} succeeds when PCC framework
+     * support is disabled, even if the service has a different PCC-aware UID,
+     * as long as the calling UID matches the base application UID.
+     */
+    @Test
+    @DisableFlags(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testSchedule_PccService_FlagDisabled() throws Exception {
+        final int testAppUid = Process.myUid();
+        final int testPccUid = testAppUid + Process.FIRST_PCC_UID - Process.FIRST_APPLICATION_UID;
+
+        setupPccMocking(testAppUid, testPccUid);
+
+        JobInfo job = new JobInfo.Builder(1, TEST_PCC_COMPONENT).build();
+
+        try {
+            assertEquals(JobScheduler.RESULT_SUCCESS,
+                    mService.mJobSchedulerStub.schedule(TEST_NAMESPACE, job));
+        } catch (IllegalArgumentException e) {
+            fail("Scheduling with appUid should succeed when PCC support is disabled: "
+                    + e.getMessage());
+        }
+    }
+
+    @Test
+    @EnableFlags(com.android.server.job.Flags.FLAG_LIMIT_PER_UID_CUMULATIVE_WORKITEM_SIZE)
+    public void testTotalJobWorkItemSizeLimit_scheduleJobWorkItems() {
+        final int divisor = 5;
+        final int largeStringSize = TOTAL_JOB_WORK_ITEM_SIZE_LIMIT / divisor;
+
+        final JobInfo job = createJobInfo().setPersisted(false).build();
+        // Create a JobWorkItem with a really long string.
+        final PersistableBundle extras = new PersistableBundle();
+        extras.putString("really_long_string", largeString(largeStringSize));
+        final JobWorkItem item = new JobWorkItem.Builder()
+                .setExtras(extras)
+                .build();
+        // Simulate a transaction by parcelling and unparcelling the JobWorkItem
+        Parcel p = Parcel.obtain();
+        item.writeToParcel(p, 0);
+        p.setDataPosition(0);
+        final JobWorkItem transactedItem = JobWorkItem.CREATOR.createFromParcel(p);
+        try {
+            // Strings can be encoded down to 8 bits per character, guarantee hitting the total
+            // size limit be scheduling N + 1 Jobs with JobWorkItems of size >= limit / N.
+            for (int i = 0; i < divisor + 1; ++i) {
+                mService.scheduleAsPackage(job, transactedItem, TEST_UID,
+                        job.getService().getPackageName(),
+                        0, "JSSTest", "");
+            }
+            fail("Excessive JobWorkItem scheduling should have triggered an "
+                    + "IllegalStateException.");
+        } catch (IllegalStateException ise) {
+            // Success
+        }
+    }
+
+    @Test
+    @EnableFlags(com.android.server.job.Flags.FLAG_LIMIT_PER_UID_CUMULATIVE_WORKITEM_SIZE)
+    public void testTotalJobWorkItemSizeLimit_multipleApps() {
+        final int divisor = 5;
+        final int largeStringSize = TOTAL_JOB_WORK_ITEM_SIZE_LIMIT / divisor;
+
+        final JobInfo job = createJobInfo().setPersisted(false).build();
+        // Create a JobWorkItem with a really long string.
+        final PersistableBundle extras = new PersistableBundle();
+        extras.putString("really_long_string", largeString(largeStringSize));
+        final JobWorkItem item = new JobWorkItem.Builder()
+                .setExtras(extras)
+                .build();
+        // Simulate a transaction by parcelling and unparcelling the JobWorkItem
+        Parcel p = Parcel.obtain();
+        item.writeToParcel(p, 0);
+        p.setDataPosition(0);
+        final JobWorkItem transactedItem = JobWorkItem.CREATOR.createFromParcel(p);
+
+        // Schedule several large JobWorkItems from different apps. None should hit the size limit.
+        for (int i = 0; i < divisor + 1; ++i) {
+            assertEquals(JobScheduler.RESULT_SUCCESS,
+                    mService.scheduleAsPackage(job, transactedItem, TEST_UID + i,
+                            job.getService().getPackageName(),
+                            0, "JSSTest", ""));
+        }
+    }
+
+    @Test
+    @EnableFlags(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testUserStopRemovesPendingPccUid() {
+        final String pkgName = "pcc_pkg";
+        final int userId = 0;
+        final int standardAppId = 10001;
+        final int standardUid = UserHandle.getUid(userId, standardAppId);
+        final int pccId = 30001;
+        final int pccUid = UserHandle.getUid(userId, pccId);
+
+        JobInfo.Builder jobInfoBuilder = new JobInfo.Builder(1,
+                new ComponentName(pkgName, "bar"));
+        JobStatus standardJob = createJobStatus("testUserStopRemovesPendingPccUid",
+                jobInfoBuilder, standardUid, pkgName);
+        JobInfo.Builder jobInfoBuilder2 = new JobInfo.Builder(2,
+                new ComponentName(pkgName, "bar"));
+        JobStatus pccJob = createJobStatus("testUserStopRemovesPendingPccUid",
+                jobInfoBuilder2, pccUid, pkgName);
+
+        doReturn(standardUid).when(mPackageManagerInternal)
+                .getPackageUid(eq(pkgName), anyLong(), eq(userId));
+
+        PackageStateInternal mockPackageState = mock(PackageStateInternal.class);
+        doReturn(pccId).when(mockPackageState).getPccId();
+        doReturn(mockPackageState).when(mPackageManagerInternal)
+                .getPackageStateInternal(eq(pkgName));
+
+        mService.getPendingJobQueue().clear();
+        mService.getPendingJobQueue().add(standardJob);
+        mService.getPendingJobQueue().add(pccJob);
+        mService.getJobStore().add(standardJob);
+        mService.getJobStore().add(pccJob);
+
+        mService.notePendingUserRequestedAppStopInternal(pkgName, userId, "test");
+
+        assertEquals(0, mService.getPendingJobQueue().size());
+        assertFalse(mService.getPendingJobQueue().contains(standardJob));
+        assertFalse(mService.getPendingJobQueue().contains(pccJob));
+
+        assertEquals(JobScheduler.PENDING_JOB_REASON_USER,
+                mService.getPendingJobReasons(standardJob)[0]);
+        assertEquals(JobScheduler.PENDING_JOB_REASON_USER,
+                mService.getPendingJobReasons(pccJob)[0]);
+
+        assertTrue((standardJob.getInternalFlags() & JobStatus.INTERNAL_FLAG_DEMOTED_BY_USER) != 0);
+        assertTrue((pccJob.getInternalFlags() & JobStatus.INTERNAL_FLAG_DEMOTED_BY_USER) != 0);
+    }
+
+    @Test
+    @EnableFlags(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testPackageRemovedCancelsPccJobs() {
+        final String pkgName = "pcc_pkg";
+        final int userId = 0;
+        final int standardUid = UserHandle.getUid(userId, 10001);
+        final int pccId = 30001;
+        final int pccUid = UserHandle.getUid(userId, pccId);
+
+        JobInfo.Builder jobInfoBuilder = new JobInfo.Builder(1,
+                new ComponentName(pkgName, "bar"));
+        JobStatus pccJob = createJobStatus("testPackageRemovedCancelsPccJobs",
+                jobInfoBuilder, pccUid, pkgName);
+        mService.getJobStore().add(pccJob);
+
+        // Mock PM returning null because the package is already fully removed.
+        doReturn(null).when(mPackageManagerInternal)
+                .getPackageStateInternal(eq(pkgName));
+
+        // Add to mUidToPackageCache so primary lookup logic (cache) can find it.
+        synchronized (mService.mLock) {
+            mService.mUidToPackageCache.add(pccUid, pkgName);
+        }
+
+        spyOn(mService);
+
+        Intent intent = new Intent(Intent.ACTION_PACKAGE_FULLY_REMOVED);
+        intent.setData(fromParts("package", pkgName, null));
+        intent.putExtra(Intent.EXTRA_UID, standardUid);
+
+        mService.mBroadcastReceiver.onReceive(mContext, intent);
+
+        verify(mService).cancelJobsForPackageAndUidLocked(eq(pkgName), eq(standardUid), eq(pccUid),
+                anyBoolean(), anyBoolean(), anyInt(), anyInt(), anyString());
+    }
+
+    @Test
+    @EnableFlags(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testPackageRemovedCancelsPccJobs_EmptyCache() {
+        final String pkgName = "pcc_pkg_empty_cache";
+        final int userId = 0;
+        final int standardUid = UserHandle.getUid(userId, 10002);
+        final int pccId = 30002;
+        final int pccUid = UserHandle.getUid(userId, pccId);
+
+        JobInfo.Builder jobInfoBuilder = new JobInfo.Builder(1,
+                new ComponentName(pkgName, "bar"));
+        JobStatus pccJob = createJobStatus("testPackageRemovedCancelsPccJobs_EmptyCache",
+                jobInfoBuilder, pccUid, pkgName);
+        mService.getJobStore().add(pccJob);
+
+        // Mock PM returning null because the package is already fully removed.
+        doReturn(null).when(mPackageManagerInternal)
+                .getPackageStateInternal(eq(pkgName));
+
+        // DO NOT add to mUidToPackageCache. This is the condition we want to test.
+
+        spyOn(mService);
+
+        Intent intent = new Intent(Intent.ACTION_PACKAGE_FULLY_REMOVED);
+        intent.setData(fromParts("package", pkgName, null));
+        intent.putExtra(Intent.EXTRA_UID, standardUid);
+
+        mService.mBroadcastReceiver.onReceive(mContext, intent);
+
+        verify(mService).cancelJobsForPackageAndUidLocked(eq(pkgName), eq(standardUid),
+                eq(pccUid), anyBoolean(), anyBoolean(), anyInt(), anyInt(), anyString());
+    }
+
+    @Test
+    @EnableFlags(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testPackageRestartedCancelsPccJobs() {
+        final String pkgName = "pcc_pkg";
+        final int userId = 0;
+        final int standardUid = UserHandle.getUid(userId, 10001);
+        final int pccId = 30001;
+        final int pccUid = UserHandle.getUid(userId, pccId);
+
+        JobInfo.Builder jobInfoBuilder = new JobInfo.Builder(1,
+                new ComponentName(pkgName, "bar"));
+        JobStatus pccJob = createJobStatus("testPackageRestartedCancelsPccJobs",
+                jobInfoBuilder, pccUid, pkgName);
+        mService.getJobStore().add(pccJob);
+
+        PackageStateInternal mockPackageState = mock(PackageStateInternal.class);
+        doReturn(pccId).when(mockPackageState).getPccId();
+        doReturn(mockPackageState).when(mPackageManagerInternal)
+                .getPackageStateInternal(eq(pkgName));
+
+        spyOn(mService);
+
+        Intent intent = new Intent(Intent.ACTION_PACKAGE_RESTARTED);
+        intent.setData(fromParts("package", pkgName, null));
+        intent.putExtra(Intent.EXTRA_UID, standardUid);
+
+        mService.mBroadcastReceiver.onReceive(mContext, intent);
+
+        verify(mService).cancelJobsForPackageAndUidLocked(eq(pkgName), eq(standardUid), eq(pccUid),
+                anyBoolean(), anyBoolean(), anyInt(), anyInt(), anyString());
+    }
+
+    @Test
+    @EnableFlags(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testPackageChangedDisabledCancelsPccJobs() throws Exception {
+        final String pkgName = "pcc_pkg";
+        final int userId = 0;
+        final int standardUid = UserHandle.getUid(userId, 10001);
+        final int pccId = 30001;
+        final int pccUid = UserHandle.getUid(userId, pccId);
+
+        JobInfo.Builder jobInfoBuilder = new JobInfo.Builder(1,
+                new ComponentName(pkgName, "bar"));
+        JobStatus pccJob = createJobStatus("testPackageChangedDisabledCancelsPccJobs",
+                jobInfoBuilder, pccUid, pkgName);
+        mService.getJobStore().add(pccJob);
+
+        PackageStateInternal mockPackageState = mock(PackageStateInternal.class);
+        doReturn(pccId).when(mockPackageState).getPccId();
+        doReturn(mockPackageState).when(mPackageManagerInternal)
+                .getPackageStateInternal(eq(pkgName));
+
+        when(mIPackageManager.getApplicationEnabledSetting(eq(pkgName), eq(userId)))
+                .thenReturn(PackageManager.COMPONENT_ENABLED_STATE_DISABLED);
+
+        spyOn(mService);
+
+        Intent intent = new Intent(Intent.ACTION_PACKAGE_CHANGED);
+        intent.setData(fromParts("package", pkgName, null));
+        intent.putExtra(Intent.EXTRA_UID, standardUid);
+        intent.putExtra(Intent.EXTRA_CHANGED_COMPONENT_NAME_LIST, new String[]{pkgName});
+
+        mService.mBroadcastReceiver.onReceive(mContext, intent);
+
+        verify(mService).cancelJobsForPackageAndUidLocked(eq(pkgName), eq(standardUid), eq(pccUid),
+                anyBoolean(), anyBoolean(), anyInt(), anyInt(), anyString());
+    }
+
+    @Test
+    @EnableFlags(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testQueryPackageRestartReturnsOkForPccJobs() {
+        final String pkgName = "pcc_pkg";
+        final int userId = 0;
+        final int standardUid = UserHandle.getUid(userId, 10001);
+        final int pccId = 30001;
+        final int pccUid = UserHandle.getUid(userId, pccId);
+
+        JobInfo.Builder jobInfoBuilder = new JobInfo.Builder(1,
+                new ComponentName(pkgName, "bar"));
+        JobStatus pccJob = createJobStatus("testQueryPackageRestartReturnsOkForPccJobs",
+                jobInfoBuilder, pccUid, pkgName);
+        mService.getJobStore().add(pccJob);
+
+        PackageStateInternal mockPackageState = mock(PackageStateInternal.class);
+        doReturn(pccId).when(mockPackageState).getPccId();
+        doReturn(mockPackageState).when(mPackageManagerInternal)
+                .getPackageStateInternal(eq(pkgName));
+
+        Intent intent = new Intent(Intent.ACTION_QUERY_PACKAGE_RESTART);
+        intent.setData(fromParts("package", pkgName, null));
+        intent.putExtra(Intent.EXTRA_UID, standardUid);
+
+        spyOn(mService.mBroadcastReceiver);
+        doNothing().when(mService.mBroadcastReceiver).setResultCode(anyInt());
+
+        mService.mBroadcastReceiver.onReceive(mContext, intent);
+
+        verify(mService.mBroadcastReceiver).setResultCode(Activity.RESULT_OK);
+    }
+
+    String largeString(int length) {
+        char[] manyChars = new char[length];
+        Arrays.fill(manyChars, 'A');
+        return new String(manyChars);
     }
 }

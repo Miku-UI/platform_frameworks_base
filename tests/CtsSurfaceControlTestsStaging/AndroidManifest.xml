@@ -32,6 +32,10 @@
                   android:turnScreenOn="true"
                   android:showWhenLocked="true"
                   android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
+        <activity android:name=".SurfaceViewTestActivity"
+                  android:exported="true"
+                  android:turnScreenOn="true"
+                  android:showWhenLocked="true" />
     </application>
 
     <instrumentation android:name="androidx.test.runner.AndroidJUnitRunner"

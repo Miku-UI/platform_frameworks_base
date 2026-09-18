@@ -16,12 +16,9 @@
 
 package com.android.server.firewall;
 
-import android.app.AppGlobals;
 import android.content.ComponentName;
 import android.content.Intent;
-import android.content.pm.IPackageManager;
 import android.content.pm.PackageManager;
-import android.os.RemoteException;
 import android.os.UserHandle;
 
 import org.xmlpull.v1.XmlPullParser;
@@ -41,23 +38,10 @@ public class SenderPackageFilter implements Filter {
     @Override
     public boolean matches(IntentFirewall ifw, ComponentName resolvedComponent, Intent intent,
             int callerUid, int callerPid, String resolvedType, int receivingUid) {
-        IPackageManager pm = AppGlobals.getPackageManager();
-
-        int packageUid = -1;
-        try {
-            // USER_SYSTEM here is not important. Only app id is used and getPackageUid() will
-            // return a uid whether the app is installed for a user or not.
-            packageUid = pm.getPackageUid(mPackageName, PackageManager.MATCH_ANY_USER,
-                    UserHandle.USER_SYSTEM);
-        } catch (RemoteException ex) {
-            // handled below
-        }
-
-        if (packageUid == -1)  {
-            return false;
-        }
-
-        return UserHandle.isSameApp(packageUid, callerUid);
+        return ifw.getPackageManager().isSameApp(mPackageName,
+                PackageManager.MATCH_ANY_USER,
+                callerUid,
+                UserHandle.USER_SYSTEM);
     }
 
     public static final FilterFactory FACTORY = new FilterFactory("sender-package") {

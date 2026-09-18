@@ -747,7 +747,7 @@ public class StagingManagerTest {
         params.isStaged = true;
 
         InstallSource installSource = InstallSource.create("testInstallInitiator",
-                "testInstallOriginator", "testInstaller", 100, "testUpdateOwner",
+                "testInstallOriginator", "testInstaller", 100, 100, "testUpdateOwner",
                 "testAttributionTag", PackageInstaller.PACKAGE_SOURCE_UNSPECIFIED);
 
         PackageInstallerSession session = new PackageInstallerSession(

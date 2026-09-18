@@ -38,13 +38,24 @@ public final class AppContentRequest {
 
     private final Size mThumbnailSize;
     private final Consumer<MediaProjectionAppContent[]> mContentConsumer;
+    private final Size mIconSize;
 
     /**
+     * Create a new AppContentRequest with the provided parameters.
+     *
+     * @param thumbnailSize   The requested size for the app content thumbnail. Can be 0x0 if no
+     *                        thumbnail is requested.
+     * @param iconSize        The requested size for the app content icon. Can be 0x0 if no icon is
+     *                        requested.
+     * @param contentConsumer The {@link Consumer} callback to be called when the content is
+     *                        available.
      * @hide
      */
     public AppContentRequest(@NonNull Size thumbnailSize,
+            @NonNull Size iconSize,
             @NonNull Consumer<MediaProjectionAppContent[]> contentConsumer) {
         mThumbnailSize = Objects.requireNonNull(thumbnailSize);
+        mIconSize = Objects.requireNonNull(iconSize);
         mContentConsumer = Objects.requireNonNull(contentConsumer);
     }
 
@@ -70,4 +81,13 @@ public final class AppContentRequest {
         return mThumbnailSize;
     }
 
+    /**
+     * Returns the requested icon size, in px, for each {@link MediaProjectionAppContent} item.
+     *
+     * @see MediaProjectionAppContent#getIcon()
+     */
+    @NonNull
+    public Size getIconSize() {
+        return mIconSize;
+    }
 }

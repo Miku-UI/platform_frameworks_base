@@ -32,6 +32,7 @@ import androidx.test.filters.SmallTest;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.keyguard.KeyguardSliceProvider;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.settings.FakeDisplayTracker;
 import com.android.systemui.statusbar.policy.ConfigurationController;
@@ -48,6 +49,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(AndroidJUnit4.class)
 @RunWithLooper(setAsMainLooper = true)
 public class KeyguardSliceViewControllerTest extends SysuiTestCase {
+    private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
     @Mock
     private KeyguardSliceView mView;
     @Mock
@@ -55,7 +57,7 @@ public class KeyguardSliceViewControllerTest extends SysuiTestCase {
     @Mock
     private ActivityStarter mActivityStarter;
     private FakeDisplayTracker mDisplayTracker = new FakeDisplayTracker(mContext);
-    private DumpManager mDumpManager = new DumpManager();
+    private DumpManager mDumpManager = mKosmos.getDumpManager();
     private Handler mHandler;
     private Handler mBgHandler;
     private KeyguardSliceViewController mController;

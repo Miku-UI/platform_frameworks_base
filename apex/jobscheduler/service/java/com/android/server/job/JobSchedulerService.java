@@ -19,8 +19,29 @@ package com.android.server.job;
 import static android.Manifest.permission.INTERACT_ACROSS_USERS_FULL;
 import static android.Manifest.permission.MANAGE_ACTIVITY_TASKS;
 import static android.app.job.JobParameters.OVERRIDE_HANDLE_ABANDONED_JOBS;
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
 import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
 import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.BACK_OFF_POLICY_TYPE;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.DEADLINE_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.DELAY_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.EFFECTIVE_PRIORITY;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.INTERNAL_STOP_REASON;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.JOB_ID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.JOB_START_LATENCY_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.JOB_STATE_FLAGS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.NUM_PREVIOUS_ATTEMPTS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.NUM_RESCHEDULES_DUE_TO_ABANDONMENT;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.NUM_UNCOMPLETED_WORK_ITEMS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PERIODIC_JOB_FLEX_INTERVAL_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PERIODIC_JOB_INTERVAL_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PROC_STATE;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PROXY_UID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PUBLIC_STOP_REASON;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.REQUESTED_PRIORITY;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.SOURCE_UID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.STANDBY_BUCKET;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.STATE;
 import static android.text.format.DateUtils.HOUR_IN_MILLIS;
 import static android.text.format.DateUtils.MINUTE_IN_MILLIS;
 
@@ -31,6 +52,8 @@ import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.app.Activity;
 import android.app.ActivityManager;
+import android.app.ActivityManager.ProcessCapability;
+import android.app.ActivityManager.ProcessState;
 import android.app.ActivityManagerInternal;
 import android.app.AppGlobals;
 import android.app.IUidObserver;
@@ -77,6 +100,7 @@ import android.os.Handler;
 import android.os.LimitExceededException;
 import android.os.Looper;
 import android.os.Message;
+import android.os.ParcelDuration;
 import android.os.ParcelFileDescriptor;
 import android.os.Process;
 import android.os.RemoteCallbackList;
@@ -136,6 +160,7 @@ import com.android.server.job.controllers.TimeController;
 import com.android.server.job.restrictions.JobRestriction;
 import com.android.server.job.restrictions.ThermalStatusRestriction;
 import com.android.server.pm.UserManagerInternal;
+import com.android.server.pm.pkg.PackageStateInternal;
 import com.android.server.usage.AppStandbyInternal;
 import com.android.server.usage.AppStandbyInternal.AppIdleStateChangeListener;
 import com.android.server.utils.quota.Categorizer;
@@ -186,9 +211,14 @@ public class JobSchedulerService extends com.android.server.SystemService
     public static final String TRACE_TRACK_NAME = "JobScheduler";
 
     /** The maximum number of jobs that we allow an app to schedule */
-    private static final int MAX_JOBS_PER_APP = 150;
+    private static final int DEFAULT_MAX_JOBS_PER_APP = 150;
+    private final int mMaxJobsPerApp;
     /** The number of the most recently completed jobs to keep track of for debugging purposes. */
     private static final int NUM_COMPLETED_JOB_HISTORY = 20;
+
+    @GuardedBy("mLock")
+    private final ArrayMap<String, SparseIntArray> mProxiedJobsCounts =
+            new ArrayMap<>();
 
     /**
      * Require the hosting job to specify a network constraint if the included
@@ -456,7 +486,8 @@ public class JobSchedulerService extends com.android.server.SystemService
     final ArrayMap<String, Boolean> mDebuggableApps = new ArrayMap<>();
 
     /** Cached mapping of UIDs (for all users) to a list of packages in the UID. */
-    private final SparseSetArray<String> mUidToPackageCache = new SparseSetArray<>();
+    @VisibleForTesting
+    final SparseSetArray<String> mUidToPackageCache = new SparseSetArray<>();
 
     /** List of jobs whose controller state has changed since the last time we evaluated the job. */
     @GuardedBy("mLock")
@@ -612,6 +643,9 @@ public class JobSchedulerService extends com.android.server.SystemService
                                 persistenceUpdated = true;
                             }
                             break;
+                        case Constants.KEY_MAX_NUM_PROXIED_JOBS_PER_APP:
+                            mConstants.updateProxiedJobsConstantsLocked();
+                            break;
                         default:
                             if (name.startsWith(JobConcurrencyManager.CONFIG_KEY_PREFIX_CONCURRENCY)
                                     && !concurrencyUpdated) {
@@ -744,6 +778,9 @@ public class JobSchedulerService extends com.android.server.SystemService
         private static final String KEY_MAX_NUM_PERSISTED_JOB_WORK_ITEMS =
                 "max_num_persisted_job_work_items";
 
+        private static final String KEY_MAX_NUM_PROXIED_JOBS_PER_APP =
+                "max_num_proxied_jobs_per_app";
+
         private static final int DEFAULT_MIN_READY_CPU_ONLY_JOBS_COUNT =
                 Math.min(3, JobConcurrencyManager.DEFAULT_CONCURRENCY_LIMIT / 3);
         private static final int DEFAULT_MIN_READY_NON_ACTIVE_JOBS_COUNT =
@@ -805,6 +842,7 @@ public class JobSchedulerService extends com.android.server.SystemService
         public static final boolean DEFAULT_RUNTIME_USE_DATA_ESTIMATES_FOR_LIMITS = false;
         static final boolean DEFAULT_PERSIST_IN_SPLIT_FILES = true;
         static final int DEFAULT_MAX_NUM_PERSISTED_JOB_WORK_ITEMS = 100_000;
+        static final int DEFAULT_MAX_NUM_PROXIED_JOBS_PER_APP = 150;
 
         /**
          * Minimum # of jobs that have to be ready for JS to be happy running work.
@@ -1038,6 +1076,12 @@ public class JobSchedulerService extends com.android.server.SystemService
          * The maximum number of {@link JobWorkItem JobWorkItems} that can be persisted per job.
          */
         public int MAX_NUM_PERSISTED_JOB_WORK_ITEMS = DEFAULT_MAX_NUM_PERSISTED_JOB_WORK_ITEMS;
+
+        /**
+        * The maximum number of jobs allowed to be scheduled indirectly (e.g. using SyncManager)
+        * by an app.
+        */
+        public int MAX_NUM_PROXIED_JOBS_PER_APP = DEFAULT_MAX_NUM_PROXIED_JOBS_PER_APP;
 
         public Constants() {
             copyTransportBatchThresholdDefaults();
@@ -1286,6 +1330,13 @@ public class JobSchedulerService extends com.android.server.SystemService
                     DEFAULT_RUNTIME_USE_DATA_ESTIMATES_FOR_LIMITS);
         }
 
+        private void updateProxiedJobsConstantsLocked() {
+            MAX_NUM_PROXIED_JOBS_PER_APP = DeviceConfig.getInt(
+                    DeviceConfig.NAMESPACE_JOB_SCHEDULER,
+                    KEY_MAX_NUM_PROXIED_JOBS_PER_APP,
+                    DEFAULT_MAX_NUM_PROXIED_JOBS_PER_APP);
+        }
+
         void dump(IndentingPrintWriter pw) {
             pw.println("Settings:");
             pw.increaseIndent();
@@ -1361,6 +1412,8 @@ public class JobSchedulerService extends com.android.server.SystemService
             pw.print(KEY_MAX_NUM_PERSISTED_JOB_WORK_ITEMS, MAX_NUM_PERSISTED_JOB_WORK_ITEMS)
                     .println();
 
+            pw.print(KEY_MAX_NUM_PROXIED_JOBS_PER_APP, MAX_NUM_PROXIED_JOBS_PER_APP).println();
+
             pw.decreaseIndent();
         }
 
@@ -1390,11 +1443,14 @@ public class JobSchedulerService extends com.android.server.SystemService
     final Constants mConstants;
     final ConstantsObserver mConstantsObserver;
 
+    private final JobPerfettoTracer mPerfettoTracer;
+
     /**
      * Cleans up outstanding jobs when a package is removed. Even if it's being replaced later we
      * still clean up. On reinstall the package will have a new uid.
      */
-    private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+    @VisibleForTesting
+    final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
@@ -1402,16 +1458,32 @@ public class JobSchedulerService extends com.android.server.SystemService
                 Slog.d(TAG, "Receieved: " + action);
             }
             final String pkgName = getPackageName(intent);
-            final int pkgUid = intent.getIntExtra(Intent.EXTRA_UID, -1);
+            final int pkgUid = intent.getIntExtra(Intent.EXTRA_UID, Process.INVALID_UID);
+            int pccUid = Process.INVALID_UID;
+
+            if (enablePccFrameworkSupport() && pkgUid != Process.INVALID_UID) {
+                final int userIdFromPkgUid = UserHandle.getUserId(pkgUid);
+                if (Intent.ACTION_PACKAGE_FULLY_REMOVED.equals(action)) {
+                    pccUid = getPccUidFromCache(pkgName, userIdFromPkgUid);
+                    if (pccUid == Process.INVALID_UID) {
+                        pccUid = getPccUidFromJobStore(pkgName, userIdFromPkgUid);
+                    }
+                } else {
+                    pccUid = getPccUid(pkgName, userIdFromPkgUid);
+                }
+            }
 
             if (Intent.ACTION_PACKAGE_CHANGED.equals(action)) {
                 synchronized (mPermissionCache) {
                     // Something changed. Better clear the cached permission set.
                     mPermissionCache.remove(pkgUid);
+                    if (enablePccFrameworkSupport() && pccUid != Process.INVALID_UID) {
+                        mPermissionCache.remove(pccUid);
+                    }
                 }
                 // Purge the app's jobs if the whole package was just disabled.  When this is
                 // the case the component name will be a bare package name.
-                if (pkgName != null && pkgUid != -1) {
+                if (pkgName != null && pkgUid != Process.INVALID_UID) {
                     final String[] changedComponents = intent.getStringArrayExtra(
                             Intent.EXTRA_CHANGED_COMPONENT_NAME_LIST);
                     if (changedComponents != null) {
@@ -1437,6 +1509,7 @@ public class JobSchedulerService extends com.android.server.SystemService
                                             // a user-initiated action, it should be fine to just
                                             // put USER instead of UNINSTALL or DISABLED.
                                             cancelJobsForPackageAndUidLocked(pkgName, pkgUid,
+                                                    pccUid,
                                                     /* includeSchedulingApp */ true,
                                                     /* includeSourceApp */ true,
                                                     JobParameters.STOP_REASON_USER,
@@ -1446,11 +1519,12 @@ public class JobSchedulerService extends com.android.server.SystemService
                                     }
                                 } catch (RemoteException | IllegalArgumentException e) {
                                     /*
-                                     * IllegalArgumentException means that the package doesn't exist.
-                                     * This arises when PACKAGE_CHANGED broadcast delivery has lagged
-                                     * behind outright uninstall, so by the time we try to act it's gone.
-                                     * We don't need to act on this PACKAGE_CHANGED when this happens;
-                                     * we'll get a PACKAGE_REMOVED later and clean up then.
+                                     * IllegalArgumentException means that the package doesn't
+                                     * exist. This arises when PACKAGE_CHANGED broadcast delivery
+                                     * has lagged behind outright uninstall, so by the time we try
+                                     * to act it's gone. We don't need to act on this
+                                     * PACKAGE_CHANGED when this happens; we'll get a
+                                     * PACKAGE_REMOVED later and clean up then.
                                      *
                                      * RemoteException can't actually happen; the package manager is
                                      * running in this same process.
@@ -1465,7 +1539,11 @@ public class JobSchedulerService extends com.android.server.SystemService
                         }
                         synchronized (mLock) {
                             for (int c = mControllers.size() - 1; c >= 0; --c) {
-                                mControllers.get(c).reevaluateStateLocked(pkgUid);
+                                final StateController stateController = mControllers.get(c);
+                                stateController.reevaluateStateLocked(pkgUid);
+                                if (enablePccFrameworkSupport() && pccUid != Process.INVALID_UID) {
+                                    stateController.reevaluateStateLocked(pccUid);
+                                }
                             }
                         }
                     }
@@ -1476,33 +1554,55 @@ public class JobSchedulerService extends com.android.server.SystemService
                 synchronized (mPermissionCache) {
                     // Something changed. Better clear the cached permission set.
                     mPermissionCache.remove(pkgUid);
+                    if (enablePccFrameworkSupport() && pccUid != Process.INVALID_UID) {
+                        mPermissionCache.remove(pccUid);
+                    }
                 }
                 if (!intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) {
                     synchronized (mLock) {
                         mUidToPackageCache.remove(pkgUid);
+                        if (enablePccFrameworkSupport() && pccUid != Process.INVALID_UID) {
+                            mUidToPackageCache.remove(pccUid);
+                        }
                     }
                 }
             } else if (Intent.ACTION_PACKAGE_FULLY_REMOVED.equals(action)) {
                 synchronized (mPermissionCache) {
                     mPermissionCache.remove(pkgUid);
+                    if (enablePccFrameworkSupport() && pccUid != Process.INVALID_UID) {
+                        mPermissionCache.remove(pccUid);
+                    }
                 }
                 if (DEBUG) {
                     Slog.d(TAG, "Removing jobs for " + pkgName + " (uid=" + pkgUid + ")");
                 }
                 synchronized (mLock) {
                     mUidToPackageCache.remove(pkgUid);
+                    if (enablePccFrameworkSupport() && pccUid != Process.INVALID_UID) {
+                        mUidToPackageCache.remove(pccUid);
+                        mUidBiasOverride.delete(pccUid);
+                        mUidCapabilities.delete(pccUid);
+                        mUidProcStates.delete(pccUid);
+                    }
                     // There's no guarantee that the process has been stopped by the time we
                     // get here, but since this is generally a user-initiated action, it should
                     // be fine to just put USER instead of UNINSTALL or DISABLED.
-                    cancelJobsForPackageAndUidLocked(pkgName, pkgUid,
+                    cancelJobsForPackageAndUidLocked(pkgName, pkgUid, pccUid,
                             /* includeSchedulingApp */ true, /* includeSourceApp */ true,
                             JobParameters.STOP_REASON_USER,
                             JobParameters.INTERNAL_STOP_REASON_UNINSTALL, "app uninstalled");
                     for (int c = 0; c < mControllers.size(); ++c) {
-                        mControllers.get(c).onAppRemovedLocked(pkgName, pkgUid);
+                        final StateController stateController = mControllers.get(c);
+                        stateController.onAppRemovedLocked(pkgName, pkgUid);
+                        if (enablePccFrameworkSupport() && pccUid != Process.INVALID_UID) {
+                            stateController.onAppRemovedLocked(pkgName, pccUid);
+                        }
                     }
                     mDebuggableApps.remove(pkgName);
                     mConcurrencyManager.onAppRemovedLocked(pkgName, pkgUid);
+                    if (enablePccFrameworkSupport() && pccUid != Process.INVALID_UID) {
+                        mConcurrencyManager.onAppRemovedLocked(pkgName, pccUid);
+                    }
                 }
             } else if (Intent.ACTION_UID_REMOVED.equals(action)) {
                 if (!intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) {
@@ -1543,16 +1643,20 @@ public class JobSchedulerService extends com.android.server.SystemService
             } else if (Intent.ACTION_QUERY_PACKAGE_RESTART.equals(action)) {
                 // Has this package scheduled any jobs, such that we will take action
                 // if it were to be force-stopped?
-                if (pkgUid != -1) {
-                    ArraySet<JobStatus> jobsForUid;
+                if (pkgUid != Process.INVALID_UID) {
+                    final ArraySet<JobStatus> jobsForUid = new ArraySet<>();
                     synchronized (mLock) {
-                        jobsForUid = mJobs.getJobsByUid(pkgUid);
+                        mJobs.getJobsByUid(pkgUid, jobsForUid);
+                        if (enablePccFrameworkSupport() && pccUid != Process.INVALID_UID) {
+                            mJobs.getJobsByUid(pccUid, jobsForUid);
+                        }
                     }
                     for (int i = jobsForUid.size() - 1; i >= 0; i--) {
                         if (jobsForUid.valueAt(i).getSourcePackageName().equals(pkgName)) {
                             if (DEBUG) {
                                 Slog.d(TAG, "Restart query: package " + pkgName + " at uid "
-                                        + pkgUid + " has jobs");
+                                        + pkgUid + (pccUid != Process.INVALID_UID
+                                                ? " or pcc uid " + pccUid : "") + " has jobs");
                             }
                             setResultCode(Activity.RESULT_OK);
                             break;
@@ -1561,7 +1665,7 @@ public class JobSchedulerService extends com.android.server.SystemService
                 }
             } else if (Intent.ACTION_PACKAGE_RESTARTED.equals(action)) {
                 // possible force-stop
-                if (pkgUid != -1) {
+                if (pkgUid != Process.INVALID_UID) {
                     if (DEBUG) {
                         Slog.d(TAG, "Removing jobs for pkg " + pkgName + " at uid " + pkgUid);
                     }
@@ -1570,7 +1674,7 @@ public class JobSchedulerService extends com.android.server.SystemService
                         // and other job proxy agents may not know to reschedule the job properly
                         // after force stop.
                         // Proxied jobs will not be allowed to run if the source app is stopped.
-                        cancelJobsForPackageAndUidLocked(pkgName, pkgUid,
+                        cancelJobsForPackageAndUidLocked(pkgName, pkgUid, pccUid,
                                 /* includeSchedulingApp */ true, /* includeSourceApp */ false,
                                 JobParameters.STOP_REASON_USER,
                                 JobParameters.INTERNAL_STOP_REASON_CANCELED,
@@ -1682,8 +1786,7 @@ public class JobSchedulerService extends com.android.server.SystemService
 
     @Override
     public void onUserSwitching(@Nullable TargetUser from, @NonNull TargetUser to) {
-        if (!Flags.removeUserDuringUserSwitch()
-                || from == null
+        if (from == null
                 || !mActivityManagerInternal.isEarlyPackageKillEnabledForUserSwitch(
                                                                 from.getUserIdentifier(),
                                                                 to.getUserIdentifier())) {
@@ -1714,8 +1817,7 @@ public class JobSchedulerService extends com.android.server.SystemService
             int userId, @Nullable String namespace, String tag) {
         // Rate limit excessive schedule() calls.
         final String servicePkg = job.getService().getPackageName();
-        if (job.isPersisted() && (Flags.enforceScheduleLimitToProxyJobs()
-                || (packageName == null || packageName.equals(servicePkg)))) {
+        if (job.isPersisted()) {
             // limit excessive schedule calls for persisted jobs.
             final String pkg = packageName == null ? servicePkg : packageName;
             if (!mQuotaTracker.isWithinQuota(userId, pkg, QUOTA_TRACKER_SCHEDULE_PERSISTED_TAG)) {
@@ -1802,6 +1904,7 @@ public class JobSchedulerService extends com.android.server.SystemService
         synchronized (mLock) {
             final JobStatus toCancel =
                     mJobs.getJobByUidAndJobId(callingUid, namespace, job.getId());
+            final boolean isNewJob = toCancel == null;
 
             if (work != null && toCancel != null) {
                 // Fast path: we are adding work to an existing job, and the JobInfo is not
@@ -1872,17 +1975,25 @@ public class JobSchedulerService extends com.android.server.SystemService
             if (DEBUG) Slog.d(TAG, "SCHEDULE: " + jobStatus.toShortString());
             // Jobs on behalf of others don't apply to the per-app job cap
             if (packageName == null) {
-                if (mJobs.countJobsForUid(callingUid) > MAX_JOBS_PER_APP) {
+                if (mJobs.countJobsForUid(callingUid) > mMaxJobsPerApp) {
                     Slog.w(TAG, "Too many jobs for uid " + callingUid);
                     Counter.logIncrementWithUid(
                             "job_scheduler.value_cntr_w_uid_max_scheduling_limit_hit", callingUid);
-                    throw new IllegalStateException("Apps may not schedule more than "
-                            + MAX_JOBS_PER_APP + " distinct jobs");
+                    String errorMsg = "Apps may not schedule more than "
+                            + mMaxJobsPerApp + " distinct jobs";
+                    if (callingUid == Process.SYSTEM_UID) {
+                        errorMsg += ". Top jobs: " + mJobs.getTopJobsDebugStringForUid(callingUid);
+                    }
+                    throw new IllegalStateException(errorMsg);
                 }
             }
 
             // This may throw a SecurityException.
             jobStatus.prepareLocked();
+
+            if (!isWithinProxiedJobLimitLocked(jobStatus, toCancel, isNewJob)) {
+                return JobScheduler.RESULT_FAILURE;
+            }
 
             if (toCancel != null) {
                 // On T and below, JobWorkItem count was unlimited but they could not be
@@ -1985,6 +2096,7 @@ public class JobSchedulerService extends com.android.server.SystemService
                     shouldUseAggressiveBackoff(
                             jobStatus.getNumAbandonedFailures(), jobStatus.getSourceUid()));
 
+            traceJobScheduledLocked(jobStatus);
             // If the job is immediately ready to run, then we can just immediately
             // put it in the pending list and try to schedule it.  This is especially
             // important for jobs with a 0 deadline constraint, since they will happen a fair
@@ -2157,10 +2269,37 @@ public class JobSchedulerService extends com.android.server.SystemService
             final JobStatus job = mJobs.getJobByUidAndJobId(uid, namespace, jobId);
             if (job == null) {
                 // Job doesn't exist.
-                throw new IllegalArgumentException("Invalid job id");
+                throw new IllegalArgumentException("Job not found for uid=" + uid
+                        + ", namespace=" + namespace + ", jobId=" + jobId);
             }
 
             return job.getPendingJobReasonsHistory();
+        }
+    }
+
+    /**
+     * Retrieves statistics about the reasons a job is pending.
+     *
+     * @param uid The UID of the application that scheduled the job.
+     * @param namespace The namespace of the job.
+     * @param jobId The ID of the job to retrieve stats for.
+     * @return A map where the keys are the pending reasons (as defined in
+     *         {@link JobScheduler}) and the values are {@link ParcelDuration} objects
+     *         representing the total time the job has been pending for that reason.
+     * @throws IllegalArgumentException if the job cannot be found.
+     */
+    @NonNull
+    private Map<String, ParcelDuration> getPendingJobReasonStats(int uid, String namespace,
+            int jobId) {
+        synchronized (mLock) {
+            final JobStatus job = mJobs.getJobByUidAndJobId(uid, namespace, jobId);
+            if (job == null) {
+                // Job doesn't exist.
+                throw new IllegalArgumentException("Job not found for uid=" + uid
+                        + ", namespace=" + namespace + ", jobId=" + jobId);
+            }
+
+            return job.getPendingJobReasonStats();
         }
     }
 
@@ -2177,6 +2316,76 @@ public class JobSchedulerService extends com.android.server.SystemService
         }
     }
 
+    /**
+     * Returns the Private Compute Core UID associated with the given package and user
+     *
+     * @param packageName The package name.
+     * @param userId The user ID.
+     * @return The PCC UID if found, otherwise {@link Process#INVALID_UID}.
+     */
+    private int getPccUid(@Nullable String packageName, @UserIdInt int userId) {
+        if (!enablePccFrameworkSupport() || packageName == null) {
+            return Process.INVALID_UID;
+        }
+        final PackageStateInternal ps = mLocalPM.getPackageStateInternal(packageName);
+        if (ps != null && ps.getPccId() != 0 && ps.getPccId() != Process.INVALID_UID
+                && Process.isPrivateComputeCoreUid(ps.getPccId())) {
+            return UserHandle.getUid(userId, ps.getPccId());
+        }
+        return Process.INVALID_UID;
+    }
+
+    /**
+     * Retrieves the Private Compute Core UID associated with a given package name and user ID
+     * from the cached UID to package map.
+     *
+     * @param pkgName The package name to look up.
+     * @param userId The user ID the package belongs to.
+     * @return The PCC UID if found in the cache, otherwise {@link Process#INVALID_UID}.
+     */
+    private int getPccUidFromCache(@Nullable String pkgName, @UserIdInt int userId) {
+        if (!enablePccFrameworkSupport() || pkgName == null) {
+            return Process.INVALID_UID;
+        }
+        synchronized (mLock) {
+            for (int i = 0; i < mUidToPackageCache.size(); i++) {
+                final int uid = mUidToPackageCache.keyAt(i);
+                if (UserHandle.getUserId(uid) == userId
+                        && Process.isPrivateComputeCoreUid(uid)
+                        && mUidToPackageCache.contains(uid, pkgName)) {
+                    return uid;
+                }
+            }
+        }
+        return Process.INVALID_UID;
+    }
+
+    /**
+     * Retrieves the Private Compute Core UID associated with a given package name and user ID
+     * by searching through the JobStore.
+     *
+     * @param pkgName The package name to look up.
+     * @param userId  The user ID the package belongs to.
+     * @return The PCC UID if found in the JobStore, otherwise {@link Process#INVALID_UID}.
+     */
+    private int getPccUidFromJobStore(@Nullable String pkgName, @UserIdInt int userId) {
+        if (!enablePccFrameworkSupport() || pkgName == null) {
+            return Process.INVALID_UID;
+        }
+        final int[] resultUid = { Process.INVALID_UID };
+        synchronized (mLock) {
+            mJobs.forEachJob(job -> {
+                if (resultUid[0] == Process.INVALID_UID
+                        && UserHandle.getUserId(job.getUid()) == userId
+                        && Process.isPrivateComputeCoreUid(job.getUid())
+                        && pkgName.equals(job.getSourcePackageName())) {
+                    resultUid[0] = job.getUid();
+                }
+            });
+        }
+        return resultUid[0];
+    }
+
     @VisibleForTesting
     void notePendingUserRequestedAppStopInternal(@NonNull String packageName, int userId,
             @Nullable String debugReason) {
@@ -2185,9 +2394,14 @@ public class JobSchedulerService extends com.android.server.SystemService
             Slog.wtf(TAG, "Asked to stop jobs of an unknown package");
             return;
         }
+        final int pccUid = getPccUid(packageName, userId);
         synchronized (mLock) {
             mConcurrencyManager.markJobsForUserStopLocked(userId, packageName, debugReason);
-            final ArraySet<JobStatus> jobs = mJobs.getJobsByUid(packageUid);
+            final ArraySet<JobStatus> jobs = new ArraySet<>();
+            mJobs.getJobsByUid(packageUid, jobs);
+            if (enablePccFrameworkSupport() && pccUid != Process.INVALID_UID) {
+                mJobs.getJobsByUid(pccUid, jobs);
+            }
             for (int i = jobs.size() - 1; i >= 0; i--) {
                 final JobStatus job = jobs.valueAt(i);
 
@@ -2243,7 +2457,8 @@ public class JobSchedulerService extends com.android.server.SystemService
         }
     }
 
-    private void cancelJobsForPackageAndUidLocked(String pkgName, int uid,
+    @VisibleForTesting
+    void cancelJobsForPackageAndUidLocked(String pkgName, int pkgUid, int pccUid,
             boolean includeSchedulingApp, boolean includeSourceApp,
             @JobParameters.StopReason int reason, int internalReasonCode, String debugReason) {
         if (!includeSchedulingApp && !includeSourceApp) {
@@ -2257,10 +2472,16 @@ public class JobSchedulerService extends com.android.server.SystemService
         }
         final ArraySet<JobStatus> jobsForUid = new ArraySet<>();
         if (includeSchedulingApp) {
-            mJobs.getJobsByUid(uid, jobsForUid);
+            mJobs.getJobsByUid(pkgUid, jobsForUid);
+            if (enablePccFrameworkSupport() && pccUid != Process.INVALID_UID) {
+                mJobs.getJobsByUid(pccUid, jobsForUid);
+            }
         }
         if (includeSourceApp) {
-            mJobs.getJobsBySourceUid(uid, jobsForUid);
+            mJobs.getJobsBySourceUid(pkgUid, jobsForUid);
+            if (enablePccFrameworkSupport() && pccUid != Process.INVALID_UID) {
+                mJobs.getJobsBySourceUid(pccUid, jobsForUid);
+            }
         }
         for (int i = jobsForUid.size() - 1; i >= 0; i--) {
             final JobStatus job = jobsForUid.valueAt(i);
@@ -2430,6 +2651,8 @@ public class JobSchedulerService extends com.android.server.SystemService
                     cancelled.getJob().getBackoffPolicy() + 1,
                     shouldUseAggressiveBackoff(
                             cancelled.getNumAbandonedFailures(), cancelled.getSourceUid()));
+
+            traceJobCancelledLocked(cancelled, reason, internalReasonCode);
         }
         // If this is a replacement, bring in the new version of the job
         if (incomingJob != null) {
@@ -2445,7 +2668,8 @@ public class JobSchedulerService extends com.android.server.SystemService
         }
     }
 
-    void updateUidState(int uid, int procState, int capabilities) {
+    void updateUidState(int uid, @ProcessState int procState,
+            @ProcessCapability int capabilities) {
         if (DEBUG) {
             Slog.d(TAG, "UID " + uid + " proc state changed to "
                     + ActivityManager.procStateToString(procState)
@@ -2496,14 +2720,14 @@ public class JobSchedulerService extends com.android.server.SystemService
      * Return the current {@link ActivityManager#PROCESS_CAPABILITY_ALL capabilities}
      * of the given UID.
      */
-    public int getUidCapabilities(int uid) {
+    public @ProcessCapability int getUidCapabilities(int uid) {
         synchronized (mLock) {
             return mUidCapabilities.get(uid, ActivityManager.PROCESS_CAPABILITY_NONE);
         }
     }
 
     /** Return the current proc state of the given UID. */
-    public int getUidProcState(int uid) {
+    public @ProcessState int getUidProcState(int uid) {
         synchronized (mLock) {
             return mUidProcStates.get(uid, ActivityManager.PROCESS_STATE_UNKNOWN);
         }
@@ -2539,6 +2763,45 @@ public class JobSchedulerService extends com.android.server.SystemService
                 jsc.informOfNetworkChangeLocked(newNetwork);
             }
         }
+    }
+
+    private JobPerfettoTracer addCommonTraceFieldsLocked(JobPerfettoTracer tracer, JobStatus job) {
+        return tracer.addField(JOB_ID, job.getLoggingJobId())
+                .addField(SOURCE_UID, job.getSourceUid())
+                .addField(PROXY_UID, job.isProxyJob() ? job.getUid() : -1)
+                .addField(STANDBY_BUCKET, job.getStandbyBucket())
+                .addField(PROC_STATE,
+                        ActivityManager.processStateAmToProto(mUidProcStates.get(job.getUid())));
+    }
+
+    private void traceJobScheduledLocked(JobStatus jobStatus) {
+        if (!mPerfettoTracer.isTraceEnabled()) {
+            return;
+        }
+        final int scheduledState = FrameworkStatsLog.SCHEDULED_JOB_STATE_CHANGED__STATE__SCHEDULED;
+        // For a newly scheduled job, satisfaction status is not meaningful yet.
+        // Set them to false to match what we do for FrameworkStatsLog.
+        long jobStateFlags = JobStatus.packStatesToBits(jobStatus);
+        jobStateFlags &= JobStatus.JOB_STATE_FLAGS_TO_CLEAR_ON_SCHEDULE;
+
+        JobPerfettoTracer tracer = mPerfettoTracer.startEvent(jobStatus.getBatteryName());
+        addCommonTraceFieldsLocked(tracer, jobStatus)
+            .addField(STATE, scheduledState)
+            .addField(REQUESTED_PRIORITY, jobStatus.getJob().getPriority())
+            .addField(EFFECTIVE_PRIORITY, jobStatus.getEffectivePriority())
+            .addField(NUM_PREVIOUS_ATTEMPTS, jobStatus.getNumPreviousAttempts())
+            .addField(DEADLINE_MS, jobStatus.getJob().getMaxExecutionDelayMillis())
+            .addField(DELAY_MS, jobStatus.getJob().getMinLatencyMillis())
+            .addField(JOB_START_LATENCY_MS, 0L)
+            .addField(NUM_UNCOMPLETED_WORK_ITEMS, jobStatus.getWorkCount())
+            .addField(PERIODIC_JOB_INTERVAL_MS, jobStatus.getJob().getIntervalMillis())
+            .addField(PERIODIC_JOB_FLEX_INTERVAL_MS, jobStatus.getJob().getFlexMillis())
+            .addField(NUM_RESCHEDULES_DUE_TO_ABANDONMENT, jobStatus.getNumAbandonedFailures())
+            .addField(BACK_OFF_POLICY_TYPE, jobStatus.getJob().getBackoffPolicy() + 1)
+            .addField(INTERNAL_STOP_REASON, JobProtoEnums.INTERNAL_STOP_REASON_UNKNOWN)
+            .addField(PUBLIC_STOP_REASON, JobProtoEnums.STOP_REASON_UNDEFINED)
+            .addField(JOB_STATE_FLAGS, jobStateFlags)
+            .emit();
     }
 
     @Override
@@ -2594,6 +2857,27 @@ public class JobSchedulerService extends com.android.server.SystemService
         // take a look at its job state for feedback purposes.
     }
 
+    private void traceJobCancelledLocked(JobStatus cancelled,
+            @JobParameters.StopReason int reason, int internalReasonCode) {
+        if (!mPerfettoTracer.isTraceEnabled()) {
+            return;
+        }
+        final int cancelledState =
+                FrameworkStatsLog.SCHEDULED_JOB_STATE_CHANGED__STATE__CANCELLED;
+        // A cancelled job is not running.
+        long jobStateFlags = JobStatus.packStatesToBits(cancelled);
+        jobStateFlags &= JobStatus.JOB_STATE_FLAGS_TO_CLEAR_ON_CANCEL;
+
+        JobPerfettoTracer tracer = mPerfettoTracer.startEvent(cancelled.getBatteryName());
+
+        addCommonTraceFieldsLocked(tracer, cancelled)
+            .addField(STATE, cancelledState)
+            .addField(INTERNAL_STOP_REASON, internalReasonCode)
+            .addField(PUBLIC_STOP_REASON, reason)
+            .addField(JOB_STATE_FLAGS, jobStateFlags)
+            .emit();
+    }
+
     /**
      * Initializes the system service.
      * <p>
@@ -2602,9 +2886,16 @@ public class JobSchedulerService extends com.android.server.SystemService
      * </p>
      *
      * @param context The system server context.
+     * @param maxJobs The maximum number of jobs a single app can have enqueued at one time.
+     * @param jobStore The JobStore to use for persisting jobs, or {@code null} to use the default.
+     * @param jobPerfettoTracer The JobPerfettoTracer to use for perfetto tracing.
      */
-    public JobSchedulerService(Context context) {
+    @VisibleForTesting
+    JobSchedulerService(Context context, int maxJobs, @Nullable JobStore jobStore,
+            JobPerfettoTracer jobPerfettoTracer) {
         super(context);
+        mPerfettoTracer = jobPerfettoTracer;
+        mMaxJobsPerApp = maxJobs;
 
         mLocalPM = LocalServices.getService(PackageManagerInternal.class);
         mActivityManagerInternal = Objects.requireNonNull(
@@ -2677,7 +2968,7 @@ public class JobSchedulerService extends com.android.server.SystemService
 
         // Initialize the job store and set up any persisted jobs
         mJobStoreLoadedLatch = new CountDownLatch(1);
-        mJobs = JobStore.get(this);
+        mJobs = jobStore == null ? JobStore.get(this) : jobStore;
         mJobs.initAsync(mJobStoreLoadedLatch);
 
         mBatteryStateTracker = new BatteryStateTracker();
@@ -2729,6 +3020,23 @@ public class JobSchedulerService extends com.android.server.SystemService
             Slog.w(TAG, "!!! RTC not yet good; tracking time updates for job scheduling");
             context.registerReceiver(mTimeSetReceiver, new IntentFilter(Intent.ACTION_TIME_CHANGED));
         }
+    }
+
+    /**
+     * Initializes the system service.
+     * <p>
+     * Subclasses must define a single argument constructor that accepts the context
+     * and passes it to super.
+     * </p>
+     *
+     * @param context The system server context.
+     */
+    public JobSchedulerService(Context context) {
+        this(context, DEFAULT_MAX_JOBS_PER_APP, null, JobPerfettoTracer.create());
+    }
+
+    JobPerfettoTracer getPerfettoTracer() {
+        return mPerfettoTracer;
     }
 
     private final BroadcastReceiver mTimeSetReceiver = new BroadcastReceiver() {
@@ -2843,6 +3151,10 @@ public class JobSchedulerService extends com.android.server.SystemService
             for (int i = mJobRestrictions.size() - 1; i >= 0; i--) {
                 mJobRestrictions.get(i).onSystemServicesReady();
             }
+
+            if (Flags.enforceProxiedJobsLimit()) {
+                initializeProxiedJobCountsAtBoot();
+            }
         } else if (phase == PHASE_THIRD_PARTY_APPS_CAN_START) {
             synchronized (mLock) {
                 // Let's go!
@@ -2888,6 +3200,10 @@ public class JobSchedulerService extends com.android.server.SystemService
         jobStatus.enqueueTime = sElapsedRealtimeClock.millis();
         final boolean update = lastJob != null;
         mJobs.add(jobStatus);
+        if (isSystemProxiedJob(jobStatus)) {
+            incrementProxiedJobCountLocked(
+                jobStatus.getSourceUid(), jobStatus.getSourcePackageName());
+        }
         // Clear potentially cached INVALID_JOB_ID reason.
         resetPendingJobReasonsCache(jobStatus);
         if (mReadyToRock) {
@@ -2921,6 +3237,10 @@ public class JobSchedulerService extends com.android.server.SystemService
 
         // Remove from store as well as controllers.
         final boolean removed = mJobs.remove(jobStatus, removeFromPersisted);
+        if (isSystemProxiedJob(jobStatus)) {
+            decrementProxiedJobCountLocked(
+                jobStatus.getSourceUid(), jobStatus.getSourcePackageName());
+        }
         if (!removed) {
             // We never create JobStatus objects for the express purpose of removing them, and this
             // method is only ever called for jobs that were saved in the JobStore at some point,
@@ -4829,7 +5149,9 @@ public class JobSchedulerService extends com.android.server.SystemService
                 if (si == null) {
                     throw new IllegalArgumentException("No such service " + service);
                 }
-                if (si.applicationInfo.uid != uid) {
+                final int serviceUid = enablePccFrameworkSupport() ? si.getUid() :
+                        si.applicationInfo.uid;
+                if (serviceUid != uid) {
                     throw new IllegalArgumentException("uid " + uid +
                             " cannot schedule job in " + service.getPackageName());
                 }
@@ -5218,6 +5540,19 @@ public class JobSchedulerService extends com.android.server.SystemService
                         uid, validateNamespace(namespace), jobId);
             } finally {
                 Binder.restoreCallingIdentity(ident);
+            }
+        }
+
+        @Override
+        public Map<String, ParcelDuration> getPendingJobReasonStats(String namespace, int jobId)
+                throws RemoteException {
+            final int uid = Binder.getCallingUid();
+            final long identity = Binder.clearCallingIdentity();
+            try {
+                return JobSchedulerService.this.getPendingJobReasonStats(
+                        uid, validateNamespace(namespace), jobId);
+            } finally {
+                Binder.restoreCallingIdentity(identity);
             }
         }
 
@@ -5953,6 +6288,85 @@ public class JobSchedulerService extends com.android.server.SystemService
         });
     }
 
+    @GuardedBy("mLock")
+    private boolean isWithinProxiedJobLimitLocked(JobStatus jobStatus, JobStatus toCancel,
+            boolean isNewJob) {
+        if (!Flags.enforceProxiedJobsLimit()) {
+            return true;
+        }
+        final boolean systemProxiedNewJob = isSystemProxiedJob(jobStatus);
+        final boolean systemProxiedToCancelJob = !isNewJob && isSystemProxiedJob(toCancel);
+        if (systemProxiedNewJob && !systemProxiedToCancelJob) {
+            if (isOverProxiedJobCountLimitLocked(jobStatus.getSourceUid(),
+                    jobStatus.getSourcePackageName())) {
+                Slog.wtf(TAG, "Too many proxied sync jobs for " + jobStatus.getSourcePackageName()
+                        + " (uid " + jobStatus.getSourceUid() + ")");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @GuardedBy("mLock")
+    private boolean isOverProxiedJobCountLimitLocked(int sourceUid, String sourcePackageName) {
+        final SparseIntArray uidCounts = mProxiedJobsCounts.get(sourcePackageName);
+        if (uidCounts == null) {
+            // No count for this package yet.
+            return false;
+        }
+        return uidCounts.get(sourceUid, 0) >= mConstants.MAX_NUM_PROXIED_JOBS_PER_APP;
+    }
+
+    @GuardedBy("mLock")
+    private void incrementProxiedJobCountLocked(int sourceUid, String sourcePackageName) {
+        if (!Flags.enforceProxiedJobsLimit()) {
+            return;
+        }
+        SparseIntArray uidCounts = mProxiedJobsCounts.get(sourcePackageName);
+        if (uidCounts == null) {
+            uidCounts = new SparseIntArray();
+            mProxiedJobsCounts.put(sourcePackageName, uidCounts);
+        }
+        uidCounts.put(sourceUid, uidCounts.get(sourceUid, 0) + 1);
+    }
+
+    @GuardedBy("mLock")
+    private void decrementProxiedJobCountLocked(int sourceUid, String sourcePackageName) {
+        if (!Flags.enforceProxiedJobsLimit()) {
+            return;
+        }
+        final SparseIntArray uidCounts = mProxiedJobsCounts.get(sourcePackageName);
+        if (uidCounts != null) {
+            final int uidIndex = uidCounts.indexOfKey(sourceUid);
+            if (uidIndex >= 0) {
+                uidCounts.setValueAt(uidIndex, Math.max(uidCounts.valueAt(uidIndex) - 1, 0));
+            } else {
+                Slog.w(TAG, "Decrementing count for non-tracked UID: " + sourceUid + " in package: "
+                        + sourcePackageName);
+            }
+        } else {
+            Slog.wtf(TAG, "Decrementing count for non-tracked package: " + sourcePackageName);
+        }
+    }
+
+    private static boolean isSystemProxiedJob(JobStatus job) {
+        return job.getUid() == Process.SYSTEM_UID && job.getUid() != job.getSourceUid();
+    }
+
+    private void initializeProxiedJobCountsAtBoot() {
+        // Initialize the proxied job counts with the jobs loaded from disk.
+        // We don't need to persist mProxiedJobsCounts to disk, because we can
+        // rebuild it on boot from the persisted jobs.
+        synchronized (mLock) {
+            mJobs.forEachJob((job) -> {
+                if (isSystemProxiedJob(job)) {
+                    incrementProxiedJobCountLocked(
+                            job.getSourceUid(), job.getSourcePackageName());
+                }
+            });
+        }
+    }
+
     @NeverCompile // Avoid size overhead of debugging code.
     void dumpInternal(final IndentingPrintWriter pw, int filterUid) {
         final int filterAppId = UserHandle.getAppId(filterUid);
@@ -5983,17 +6397,8 @@ public class JobSchedulerService extends com.android.server.SystemService
             pw.print(Flags.FLAG_DO_NOT_FORCE_RUSH_EXECUTION_AT_BOOT,
                     Flags.doNotForceRushExecutionAtBoot());
             pw.println();
-            pw.print(Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY,
-                    Flags.updateMediaBackupExemptionPolicy());
-            pw.println();
-            pw.print(android.app.job.Flags.FLAG_GET_PENDING_JOB_REASONS_API,
-                    android.app.job.Flags.getPendingJobReasonsApi());
-            pw.println();
-            pw.print(android.app.job.Flags.FLAG_GET_PENDING_JOB_REASONS_HISTORY_API,
-                    android.app.job.Flags.getPendingJobReasonsHistoryApi());
-            pw.println();
-            pw.print(android.app.job.Flags.FLAG_ADD_TYPE_INFO_TO_WAKELOCK_TAG,
-                    android.app.job.Flags.addTypeInfoToWakelockTag());
+            pw.print(android.app.job.Flags.FLAG_GET_PENDING_JOB_REASON_STATS_API,
+                    android.app.job.Flags.getPendingJobReasonStatsApi());
             pw.println();
             pw.decreaseIndent();
             pw.println();
@@ -6093,6 +6498,8 @@ public class JobSchedulerService extends com.android.server.SystemService
                 pw.println("None.");
             }
             pw.decreaseIndent();
+
+            mJobs.mJobSet.dumpCumulativeJobWorkItemSizes(pw);
 
             for (int i = 0; i < mControllers.size(); i++) {
                 pw.println();

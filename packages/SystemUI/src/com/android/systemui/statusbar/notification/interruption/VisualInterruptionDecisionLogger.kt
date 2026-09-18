@@ -39,7 +39,7 @@ constructor(@NotificationInterruptLog val buffer: LogBuffer) {
             TAG,
             INFO,
             { bool1 = isEnabled },
-            { "HUN feature is now ${if (bool1) "enabled" else "disabled"}" }
+            { "HUN feature is now ${if (bool1) "enabled" else "disabled"}" },
         )
     }
 
@@ -50,7 +50,7 @@ constructor(@NotificationInterruptLog val buffer: LogBuffer) {
     fun logDecision(
         type: String,
         entry: NotificationEntry,
-        decision: VisualInterruptionDecisionProvider.Decision
+        decision: VisualInterruptionDecisionProvider.Decision,
     ) {
         buffer.log(
             TAG,
@@ -64,14 +64,14 @@ constructor(@NotificationInterruptLog val buffer: LogBuffer) {
             {
                 val outcome = if (bool1) "allowed" else "suppressed"
                 "$str1 $outcome: $str2 (key=$str3)"
-            }
+            },
         )
     }
 
     fun logFullScreenIntentDecision(
         entry: NotificationEntry,
         decision: FullScreenIntentDecision,
-        warning: Boolean
+        warning: Boolean,
     ) {
         buffer.log(
             TAG,
@@ -90,16 +90,20 @@ constructor(@NotificationInterruptLog val buffer: LogBuffer) {
                         else -> "suppressed"
                     }
                 "FSI $outcome: $str1 (key=$str2)"
-            }
+            },
         )
     }
 
     fun logCooldownSetting(isEnabled: Boolean) {
+        buffer.log(TAG, INFO, { bool1 = isEnabled }, { "Cooldown enabled: $bool1" })
+    }
+
+    fun logSilentSystemServerUpdateDuringHeadsUp(entry: NotificationEntry) {
         buffer.log(
             TAG,
-            INFO,
-            { bool1 = isEnabled },
-            { "Cooldown enabled: $bool1" }
+            DEBUG,
+            { str1 = entry.logKey },
+            { "Silent system server update during heads up: $str1" },
         )
     }
 }

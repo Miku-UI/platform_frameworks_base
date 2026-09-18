@@ -121,7 +121,7 @@ public class TransitionDispatchState {
     }
 
     /**
-     * Sets that {@param handler} has played at least part of this transition.
+     * Sets that {@code handler} has played at least part of this transition.
      */
     public void setHasPlayed(@NonNull Transitions.TransitionHandler handler) {
         HandlerData handlerData = getDataOrCreate(handler);
@@ -129,7 +129,7 @@ public class TransitionDispatchState {
     }
 
     /**
-     * @return true if {@param handler} has played at least part of this transition.
+     * @return true if {@code handler} has played at least part of this transition.
      */
     public boolean hasPlayed(@NonNull Transitions.TransitionHandler handler) {
         HandlerData handlerData = mHandlersData.get(handler);
@@ -140,7 +140,7 @@ public class TransitionDispatchState {
     }
 
     /**
-     * @return true if {@param handler} has found problems with the handling of this transition.
+     * @return true if {@code handler} has found problems with the handling of this transition.
      */
     public boolean hasErrors(@NonNull Transitions.TransitionHandler handler) {
         HandlerData handlerData = mHandlersData.get(handler);

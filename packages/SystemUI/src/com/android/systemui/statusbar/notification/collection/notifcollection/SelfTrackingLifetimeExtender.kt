@@ -3,6 +3,7 @@ package com.android.systemui.statusbar.notification.collection.notifcollection
 import android.os.Handler
 import android.util.ArrayMap
 import android.util.Log
+import androidx.annotation.MainThread
 import com.android.systemui.Dumpable
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.util.asIndenting
@@ -46,6 +47,7 @@ abstract class SelfTrackingLifetimeExtender(
         mEnding = true
         entries.forEach { mCallback.onEndLifetimeExtension(this, it) }
         mEnding = false
+        entries.forEach { onFinishedLifetimeExtension(it, FinishReason.EndRequested) }
     }
 
     fun endLifetimeExtensionAfterDelay(key: String, delayMillis: Long) {
@@ -59,6 +61,7 @@ abstract class SelfTrackingLifetimeExtender(
         }
     }
 
+    @MainThread
     fun endLifetimeExtension(key: String) {
         if (debug) {
             Log.d(tag, "$name.endLifetimeExtension(key=$key)" +
@@ -66,10 +69,10 @@ abstract class SelfTrackingLifetimeExtender(
         }
         warnIfEnding()
         mEnding = true
-        mEntriesExtended.remove(key)?.let { removedEntry ->
-            mCallback.onEndLifetimeExtension(this, removedEntry)
-        }
+        val removedEntry = mEntriesExtended.remove(key)
+        removedEntry?.let { mCallback.onEndLifetimeExtension(this, it) }
         mEnding = false
+        removedEntry?.let { onFinishedLifetimeExtension(it, FinishReason.EndRequested) }
     }
 
     fun isExtending(key: String) = mEntriesExtended.contains(key)
@@ -84,8 +87,33 @@ abstract class SelfTrackingLifetimeExtender(
                     " shouldExtend=$shouldExtend")
         }
         warnIfEnding()
-        if (shouldExtend && mEntriesExtended.put(entry.key, entry) == null) {
-            onStartedLifetimeExtension(entry)
+        if (shouldExtend) {
+            var oldEntry = mEntriesExtended.put(entry.key, entry)
+            if (oldEntry == null) {
+                onStartedLifetimeExtension(entry)
+            } else if (oldEntry !== entry) {
+                if (debug) {
+                    Log.w(tag, "$name.maybeExtendLifetime(entry=$entry, reason=$reason)" +
+                            " (shouldExtend=$shouldExtend) called when lifetime extension already" +
+                            " active for a different entry ($oldEntry) with key: ${entry.key}")
+                }
+                onFinishedLifetimeExtension(oldEntry, FinishReason.Canceled)
+                onStartedLifetimeExtension(entry)
+            } else {
+                onContinuedLifetimeExtension(entry)
+            }
+        } else {
+            var oldEntry = mEntriesExtended.remove(entry.key)
+            if (oldEntry !== entry) {
+                if (debug) {
+                    Log.w(tag, "$name.maybeExtendLifetime(entry=$entry, reason=$reason)" +
+                            " (shouldExtend=$shouldExtend) called when lifetime extension already" +
+                            " active for a different entry ($oldEntry) with key: ${entry.key}")
+                }
+            }
+            if (oldEntry != null) {
+                onFinishedLifetimeExtension(oldEntry, FinishReason.NotRenewed)
+            }
         }
         return shouldExtend
     }
@@ -97,12 +125,26 @@ abstract class SelfTrackingLifetimeExtender(
         }
         warnIfEnding()
         mEntriesExtended.remove(entry.key)
-        onCanceledLifetimeExtension(entry)
+        onFinishedLifetimeExtension(entry, FinishReason.Canceled)
     }
 
     abstract fun queryShouldExtendLifetime(entry: NotificationEntry): Boolean
+
+    /** Called when the extender starts extending an entry. */
     open fun onStartedLifetimeExtension(entry: NotificationEntry) {}
-    open fun onCanceledLifetimeExtension(entry: NotificationEntry) {}
+    /** Called every time the extender reaffirms to the pipeline that it is extending an entry. */
+    open fun onContinuedLifetimeExtension(entry: NotificationEntry) {}
+    /** Called when the extender stops extending an entry. */
+    open fun onFinishedLifetimeExtension(entry: NotificationEntry, reason: FinishReason) {}
+
+    enum class FinishReason {
+        /** The extender ended the lifetime extension. */
+        EndRequested,
+        /** The NotificationEntry was cancelled for a non-extendable reason. */
+        Canceled,
+        /** The extender chose not to renew the lifetime extension. */
+        NotRenewed,
+    }
 
     final override fun setCallback(callback: NotifLifetimeExtender.OnEndLifetimeExtensionCallback) {
         mCallback = callback

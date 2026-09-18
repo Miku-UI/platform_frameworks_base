@@ -16,16 +16,12 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
-import com.android.systemui.deviceentry.domain.interactor.deviceEntryBypassInteractor
-import com.android.systemui.deviceentry.domain.interactor.deviceEntryUdfpsInteractor
-import com.android.systemui.keyguard.domain.interactor.keyguardBlueprintInteractor
 import com.android.systemui.keyguard.shared.transition.KeyguardTransitionAnimationCallback
 import com.android.systemui.keyguard.shared.transition.keyguardTransitionAnimationCallbackDelegator
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.statusbar.notification.stack.domain.interactor.notificationStackAppearanceInteractor
-import com.android.systemui.wallpapers.domain.interactor.wallpaperFocalAreaInteractor
 
 val Kosmos.lockscreenContentViewModelFactory by Fixture {
     object : LockscreenContentViewModel.Factory {
@@ -34,15 +30,10 @@ val Kosmos.lockscreenContentViewModelFactory by Fixture {
             viewState: ViewStateAccessor,
         ): LockscreenContentViewModel {
             return LockscreenContentViewModel(
-                interactor = keyguardBlueprintInteractor,
-                touchHandlingFactory = keyguardTouchHandlingViewModelFactory,
                 shadeModeInteractor = shadeModeInteractor,
-                deviceEntryBypassInteractor = deviceEntryBypassInteractor,
-                deviceEntryUdfpsInteractor = deviceEntryUdfpsInteractor,
                 keyguardTransitionAnimationCallbackDelegator =
                     keyguardTransitionAnimationCallbackDelegator,
                 keyguardTransitionAnimationCallback = keyguardTransitionAnimationCallback,
-                wallpaperFocalAreaInteractor = wallpaperFocalAreaInteractor,
                 notificationStackAppearanceInteractor = notificationStackAppearanceInteractor,
                 lockscreenAlphaViewModelFactory = lockscreenAlphaViewModelFactory,
                 viewStateAccessor = viewState,

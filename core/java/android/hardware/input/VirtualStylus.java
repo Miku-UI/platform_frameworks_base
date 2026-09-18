@@ -16,10 +16,14 @@
 
 package android.hardware.input;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.RemoteException;
 import android.util.Log;
+import android.view.InputDevice;
+
+import java.io.Closeable;
 
 /**
  * A virtual stylus which can be used to inject input into the framework that represents a stylus
@@ -31,11 +35,35 @@ import android.util.Log;
  * @hide
  */
 @SystemApi
-public class VirtualStylus extends VirtualInputDevice {
+public class VirtualStylus implements Closeable {
+
+    private static final String TAG = "VirtualStylus";
+
+    private final IVirtualStylus mVirtualStylus;
+
+    private final VirtualStylusConfig mConfig;
 
     /** @hide */
-    public VirtualStylus(VirtualStylusConfig config, IVirtualInputDevice virtualInputDevice) {
-        super(config, virtualInputDevice);
+    public VirtualStylus(VirtualStylusConfig config, IVirtualStylus virtualStylus) {
+        mConfig = config;
+        mVirtualStylus = virtualStylus;
+    }
+
+    /**
+     * Returns the ID of the underlying input device.
+     *
+     * @return The input device id of this device.
+     * @see InputDevice#getId()
+     * @hide
+     */
+    @FlaggedApi(com.android.hardware.input.Flags.FLAG_CREATE_VIRTUAL_KEYBOARD_API)
+    @SystemApi
+    public int getInputDeviceId() {
+        try {
+            return mVirtualStylus.getInputDeviceId();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
     }
 
     /**
@@ -45,7 +73,7 @@ public class VirtualStylus extends VirtualInputDevice {
      */
     public void sendMotionEvent(@NonNull VirtualStylusMotionEvent event) {
         try {
-            if (!mVirtualInputDevice.sendStylusMotionEvent(event)) {
+            if (!mVirtualStylus.sendStylusMotionEvent(event)) {
                 Log.w(TAG, "Failed to send motion event from virtual stylus "
                         + mConfig.getInputDeviceName());
             }
@@ -61,12 +89,27 @@ public class VirtualStylus extends VirtualInputDevice {
      */
     public void sendButtonEvent(@NonNull VirtualStylusButtonEvent event) {
         try {
-            if (!mVirtualInputDevice.sendStylusButtonEvent(event)) {
+            if (!mVirtualStylus.sendStylusButtonEvent(event)) {
                 Log.w(TAG, "Failed to send button event from virtual stylus "
                         + mConfig.getInputDeviceName());
             }
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
+    }
+
+    @Override
+    public void close() {
+        Log.d(TAG, "Closing virtual stylus " + mConfig.getInputDeviceName());
+        try {
+            mVirtualStylus.close();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @Override
+    public String toString() {
+        return mConfig.toString();
     }
 }

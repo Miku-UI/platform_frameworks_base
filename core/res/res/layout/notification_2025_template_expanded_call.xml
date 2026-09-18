@@ -23,7 +23,6 @@
     android:layout_height="wrap_content"
     android:clipChildren="false"
     android:tag="call"
-    android:theme="@style/Theme.DeviceDefault.Notification"
     >
 
     <!-- CallLayout shares visual appearance with ConversationLayout, so shares layouts -->

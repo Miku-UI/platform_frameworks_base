@@ -52,9 +52,7 @@ open class StartRecentAppMediaProjection {
     private val targetApp = CalculatorAppHelper(instrumentation)
     private val testApp = StartMediaProjectionAppHelper(instrumentation)
 
-    @Rule
-    @JvmField
-    val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, initialRotation)
+    @Rule @JvmField val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, initialRotation)
 
     @Before
     fun setup() {

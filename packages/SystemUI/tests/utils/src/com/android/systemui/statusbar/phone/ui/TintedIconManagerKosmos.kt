@@ -16,7 +16,6 @@
 
 package com.android.systemui.statusbar.phone.ui
 
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.kairos
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
@@ -25,7 +24,6 @@ import com.android.systemui.statusbar.pipeline.mobile.ui.mobileUiAdapter
 import com.android.systemui.statusbar.pipeline.mobile.ui.mobileUiAdapterKairos
 import com.android.systemui.statusbar.pipeline.wifi.ui.wifiUiAdapter
 
-@OptIn(ExperimentalKairosApi::class)
 val Kosmos.tintedIconManagerFactory by
     Kosmos.Fixture {
         TintedIconManager.Factory(

@@ -81,6 +81,13 @@ public final class BackNavigationInfo implements Parcelable {
     public static final int TYPE_IN_TRANSITION = 5;
 
     /**
+     * Back navigation on the root task will be intercepted by the TaskOrganizer.
+     * <p>
+     * @hide
+     */
+    public static final int TYPE_TASK_ROOT_INTERCEPTION = 6;
+
+    /**
      * Key to access the boolean value passed in {#mOnBackNavigationDone} result bundle
      * that represents if back navigation has been triggered.
      * @hide
@@ -114,7 +121,8 @@ public final class BackNavigationInfo implements Parcelable {
             TYPE_CROSS_ACTIVITY,
             TYPE_CROSS_TASK,
             TYPE_CALLBACK,
-            TYPE_IN_TRANSITION
+            TYPE_IN_TRANSITION,
+            TYPE_TASK_ROOT_INTERCEPTION
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface BackTargetType {
@@ -349,6 +357,8 @@ public final class BackNavigationInfo implements Parcelable {
                 return "TYPE_CALLBACK";
             case TYPE_IN_TRANSITION:
                 return "TYPE_IN_TRANSITION";
+            case TYPE_TASK_ROOT_INTERCEPTION:
+                return "TYPE_TASK_ROOT_INTERCEPTION";
         }
         return String.valueOf(type);
     }

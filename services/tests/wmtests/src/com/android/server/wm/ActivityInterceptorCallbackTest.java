@@ -39,6 +39,7 @@ public class ActivityInterceptorCallbackTest {
         int realCallingUid = 20;
         int realCallingPid = 200;
         int userId = 1;
+        int sourceDisplayId = 99;
         Intent intent = new Intent();
         ResolveInfo resolveInfo = new ResolveInfo();
         ActivityInfo activityInfo = new ActivityInfo();
@@ -57,6 +58,7 @@ public class ActivityInterceptorCallbackTest {
                 .setCallingFeatureId(callingFeatureId)
                 .setCheckedOptions(activityOptions)
                 .setClearOptionsAnimationRunnable(clearOptionsAnimation)
+                .setSourceDisplayId(sourceDisplayId)
                 .build();
 
         assertThat(activityInterceptorInfo.getCallingUid()).isEqualTo(callingUid);
@@ -73,6 +75,7 @@ public class ActivityInterceptorCallbackTest {
         assertThat(activityInterceptorInfo.getCheckedOptions()).isEqualTo(activityOptions);
         assertThat(activityInterceptorInfo.getClearOptionsAnimationRunnable())
                 .isEqualTo(clearOptionsAnimation);
+        assertThat(activityInterceptorInfo.getSourceDisplayId()).isEqualTo(sourceDisplayId);
     }
 
     @Test

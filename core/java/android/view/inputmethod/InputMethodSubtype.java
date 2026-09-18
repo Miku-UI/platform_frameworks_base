@@ -17,6 +17,7 @@
 package android.view.inputmethod;
 
 import android.annotation.AnyThread;
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.StringRes;
@@ -28,6 +29,7 @@ import android.icu.text.LocaleDisplayNames;
 import android.icu.util.ULocale;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.text.TextUtils;
 import android.util.Printer;
 import android.util.Slog;
@@ -55,9 +57,13 @@ import java.util.Objects;
  * <a href="{@docRoot}guide/topics/text/creating-input-method.html">
  * Creating an Input Method</a>.</p>
  *
+ * <p>Starting from Android 17, the number of subtypes that a single input method editor can declare
+ * is limited up to 1500.</p>
+ *
  * @see InputMethodInfo
  *
  * @attr ref android.R.styleable#InputMethod_Subtype_label
+ * @attr ref android.R.styleable#InputMethod_Subtype_shortLabel
  * @attr ref android.R.styleable#InputMethod_Subtype_icon
  * @attr ref android.R.styleable#InputMethod_Subtype_languageTag
  * @attr ref android.R.styleable#InputMethod_Subtype_imeSubtypeLocale
@@ -68,6 +74,7 @@ import java.util.Objects;
  * @attr ref android.R.styleable#InputMethod_Subtype_subtypeId
  * @attr ref android.R.styleable#InputMethod_Subtype_isAsciiCapable
  */
+@RavenwoodKeepWholeClass
 public final class InputMethodSubtype implements Parcelable {
     private static final String TAG = InputMethodSubtype.class.getSimpleName();
     private static final String LANGUAGE_TAG_NONE = "";
@@ -93,6 +100,9 @@ public final class InputMethodSubtype implements Parcelable {
     /** The untranslatable name of the subtype. */
     @NonNull
     private final CharSequence mSubtypeNameOverride;
+    /** The short label of the subtype. This is non-localized. */
+    @NonNull
+    private final CharSequence mSubtypeShortLabel;
     /** The layout label string resource identifier. */
     @StringRes
     private final int mLayoutLabelResId;
@@ -205,6 +215,32 @@ public final class InputMethodSubtype implements Parcelable {
         /** The untranslatable name of the subtype. */
         @NonNull
         private CharSequence mSubtypeNameOverride = "";
+
+        /**
+         * Sets the short label of the subtype.
+         *
+         * This is a non-localized string used to represent the subtype in compact UI elements where
+         * the full display name is too long. It may be used in place of an icon in some UI surfaces
+         * if a subtype icon is not specified.
+         *
+         * It is recommended that the short label is visually compact, around the size of two or
+         * three Latin letters to avoid visual truncation in limited-space UI surfaces. Examples
+         * include an abbreviation, a locale code, a symbol, or an emoji.
+         *
+         * @param subtypeShortLabel the short label.
+         */
+        @FlaggedApi(Flags.FLAG_IME_SUBTYPE_SHORT_LABEL)
+        @NonNull
+        public InputMethodSubtypeBuilder setSubtypeShortLabel(
+                @NonNull CharSequence subtypeShortLabel) {
+            Objects.requireNonNull(subtypeShortLabel, "subtypeShortLabel cannot be null");
+            mSubtypeShortLabel = subtypeShortLabel;
+            return this;
+        }
+
+        /** The short label of the subtype. */
+        @NonNull
+        private CharSequence mSubtypeShortLabel = "";
 
         /**
          * Sets the layout label string resource identifier.
@@ -400,6 +436,7 @@ public final class InputMethodSubtype implements Parcelable {
     private InputMethodSubtype(InputMethodSubtypeBuilder builder) {
         mSubtypeNameResId = builder.mSubtypeNameResId;
         mSubtypeNameOverride = builder.mSubtypeNameOverride;
+        mSubtypeShortLabel = builder.mSubtypeShortLabel;
         mLayoutLabelResId = builder.mLayoutLabelResId;
         mLayoutLabelNonLocalized = builder.mLayoutLabelNonLocalized;
         mPkLanguageTag = builder.mPkLanguageTag;
@@ -428,6 +465,8 @@ public final class InputMethodSubtype implements Parcelable {
         mSubtypeNameResId = source.readInt();
         CharSequence cs = TextUtils.CHAR_SEQUENCE_CREATOR.createFromParcel(source);
         mSubtypeNameOverride = cs != null ? cs : "";
+        cs = TextUtils.CHAR_SEQUENCE_CREATOR.createFromParcel(source);
+        mSubtypeShortLabel = cs != null ? cs : "";
         mLayoutLabelResId = source.readInt();
         cs = TextUtils.CHAR_SEQUENCE_CREATOR.createFromParcel(source);
         mLayoutLabelNonLocalized = cs != null ? cs : "";
@@ -436,13 +475,13 @@ public final class InputMethodSubtype implements Parcelable {
         s = source.readString8();
         mPkLayoutType = s != null ? s : "";
         mSubtypeIconResId = source.readInt();
-        s = source.readString();
+        s = source.readString8();
         mSubtypeLocale = s != null ? s : "";
-        s = source.readString();
+        s = source.readString8();
         mSubtypeLanguageTag = s != null ? s : LANGUAGE_TAG_NONE;
-        s = source.readString();
+        s = source.readString8();
         mSubtypeMode = s != null ? s : "";
-        s = source.readString();
+        s = source.readString8();
         mSubtypeExtraValue = s != null ? s : "";
         mIsAuxiliary = (source.readInt() == 1);
         mOverridesImplicitlyEnabledSubtype = (source.readInt() == 1);
@@ -464,6 +503,15 @@ public final class InputMethodSubtype implements Parcelable {
     @NonNull
     public CharSequence getNameOverride() {
         return mSubtypeNameOverride;
+    }
+
+    /**
+     * @return The subtype's short label, or an empty string if no short label is specified.
+     */
+    @FlaggedApi(Flags.FLAG_IME_SUBTYPE_SHORT_LABEL)
+    @NonNull
+    public CharSequence getSubtypeShortLabel() {
+        return mSubtypeShortLabel;
     }
 
     /**
@@ -883,15 +931,16 @@ public final class InputMethodSubtype implements Parcelable {
     public void writeToParcel(Parcel dest, int parcelableFlags) {
         dest.writeInt(mSubtypeNameResId);
         TextUtils.writeToParcel(mSubtypeNameOverride, dest, parcelableFlags);
+        TextUtils.writeToParcel(mSubtypeShortLabel, dest, parcelableFlags);
         dest.writeInt(mLayoutLabelResId);
         TextUtils.writeToParcel(mLayoutLabelNonLocalized, dest, parcelableFlags);
         dest.writeString8(mPkLanguageTag);
         dest.writeString8(mPkLayoutType);
         dest.writeInt(mSubtypeIconResId);
-        dest.writeString(mSubtypeLocale);
-        dest.writeString(mSubtypeLanguageTag);
-        dest.writeString(mSubtypeMode);
-        dest.writeString(mSubtypeExtraValue);
+        dest.writeString8(mSubtypeLocale);
+        dest.writeString8(mSubtypeLanguageTag);
+        dest.writeString8(mSubtypeMode);
+        dest.writeString8(mSubtypeExtraValue);
         dest.writeInt(mIsAuxiliary ? 1 : 0);
         dest.writeInt(mOverridesImplicitlyEnabledSubtype ? 1 : 0);
         dest.writeInt(mSubtypeHashCode);
@@ -901,6 +950,7 @@ public final class InputMethodSubtype implements Parcelable {
 
     void dump(@NonNull Printer pw, @NonNull String prefix) {
         pw.println(prefix + "mSubtypeNameOverride=" + mSubtypeNameOverride
+                + " mSubtypeShortLabel=" + mSubtypeShortLabel
                 + " mLayoutLabelNonLocalized=" + mLayoutLabelNonLocalized
                 + " mPkLanguageTag=" + mPkLanguageTag
                 + " mPkLayoutType=" + mPkLayoutType

@@ -87,7 +87,7 @@ public class SoundEffectConstants {
      * Get the sonification constant for the focus directions.
      * @param direction The direction of the focus.
      * @return The appropriate sonification constant.
-     * @throws {@link IllegalArgumentException} when the passed direction is not one of the
+     * @throws IllegalArgumentException when the passed direction is not one of the
      *     documented values.
      */
     public static int getContantForFocusDirection(@View.FocusDirection int direction) {

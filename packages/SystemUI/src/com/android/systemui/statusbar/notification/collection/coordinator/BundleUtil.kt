@@ -16,7 +16,6 @@
 
 package com.android.systemui.statusbar.notification.collection.coordinator
 
-import android.app.NotificationChannel.SYSTEM_RESERVED_IDS
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.PipelineEntry
 
@@ -27,14 +26,7 @@ class BundleUtil {
             pipelineEntry is NotificationEntry && isClassified(pipelineEntry)
 
         fun isClassified(notificationEntry: NotificationEntry): Boolean {
-            if (notificationEntry.channel == null) {
-                return false
-            }
-            val channelId = notificationEntry.channel.id
-            if (SYSTEM_RESERVED_IDS.contains(channelId)) {
-                return true
-            }
-            return false
+            return notificationEntry.isBundled
         }
     }
 }

@@ -28,10 +28,7 @@ import platform.test.desktop.SimulatedConnectedDisplayTestRule
 
 /** Base scenario test for moving an app between displays and manually restarting the app. */
 @Ignore("Test Base Class")
-@RequiresFlagsEnabled(
-    Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-    Flags.FLAG_ENABLE_RESTART_MENU_FOR_CONNECTED_DISPLAYS,
-)
+@RequiresFlagsEnabled(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE)
 abstract class RestartAppInDesktopMode(
     isResizable: Boolean = true,
     isLandscapeApp: Boolean = true,
@@ -46,7 +43,18 @@ abstract class RestartAppInDesktopMode(
 
     @Test
     open fun restartFromAppHandleMenu() {
-        val connectedDisplayId = connectedDisplayRule.setupTestDisplay()
+        // Ensure that density is different between the internal and simulated displays.
+        val primaryDisplayDensity =
+            wmHelper.currentState.wmState.getDefaultDisplay()?.fullConfiguration?.densityDpi ?: 160
+        val targetDensity = if (primaryDisplayDensity == 160) 240 else 160
+        // Use a larger display size to ensure it's above the 600dp multi-window threshold.
+        val connectedDisplayId =
+            connectedDisplayRule.setupTestDisplay(
+                width = 2560,
+                height = 1600,
+                density = targetDensity,
+            )
+        wmHelper.StateSyncBuilder().withDesktopModeOnDisplay(connectedDisplayId).waitForAndVerify()
         testApp.enterDesktopMode(wmHelper, device)
         testApp.moveToNextDisplayViaKeyboard(wmHelper, connectedDisplayId)
 

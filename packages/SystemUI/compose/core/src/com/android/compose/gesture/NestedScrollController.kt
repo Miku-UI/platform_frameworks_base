@@ -17,9 +17,7 @@
 package com.android.compose.gesture
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateSetOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -30,6 +28,7 @@ import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.util.fastForEach
 
 /**
  * Update [state] and disallow outer scroll after a child node consumed a non-zero scroll amount
@@ -60,7 +59,21 @@ fun Modifier.nestedScrollController(
     state: NestedScrollControlState,
     bounds: NestedScrollableBound = NestedScrollableBound.Any,
 ): Modifier {
-    return this.then(NestedScrollControllerElement(state, bounds))
+    return this then NestedScrollControllerElement(listOf(state), bounds)
+}
+
+/**
+ * Updates [states] and disallow outer scroll after a child node consumed a non-zero scroll amount
+ * before reaching its [bounds], so that the child is overscrolled instead of letting the outer
+ * scrollable(s) consume the extra scroll.
+ *
+ * @see nestedScrollController
+ */
+fun Modifier.nestedScrollController(
+    states: List<NestedScrollControlState>,
+    bounds: NestedScrollableBound = NestedScrollableBound.Any,
+): Modifier {
+    return this then NestedScrollControllerElement(states, bounds)
 }
 
 /**
@@ -70,8 +83,22 @@ fun Modifier.nestedScrollController(
  * @see nestedScrollController
  */
 class NestedScrollControlState {
-    var isOuterScrollAllowed by mutableStateOf(true)
-        internal set
+    private val activeHolders = mutableStateSetOf<NestedScrollControllerNode>()
+
+    val isOuterScrollAllowed: Boolean
+        get() = activeHolders.isEmpty()
+
+    internal fun holdOuterScroll(source: NestedScrollControllerNode) {
+        activeHolders.add(source)
+    }
+
+    internal fun isHolding(source: NestedScrollControllerNode): Boolean {
+        return source in activeHolders
+    }
+
+    internal fun releaseOuterScroll(source: NestedScrollControllerNode) {
+        activeHolders.remove(source)
+    }
 }
 
 /**
@@ -121,20 +148,27 @@ enum class NestedScrollableBound {
 }
 
 private data class NestedScrollControllerElement(
-    private val state: NestedScrollControlState,
+    private val states: List<NestedScrollControlState>,
     private val bounds: NestedScrollableBound,
 ) : ModifierNodeElement<NestedScrollControllerNode>() {
+
+    init {
+        require(states.isNotEmpty()) {
+            "Require at least 1 NestedScrollControlState, has: ${states.size}"
+        }
+    }
+
     override fun create(): NestedScrollControllerNode {
-        return NestedScrollControllerNode(state, bounds)
+        return NestedScrollControllerNode(states, bounds)
     }
 
     override fun update(node: NestedScrollControllerNode) {
-        node.update(state, bounds)
+        node.update(states, bounds)
     }
 }
 
-private class NestedScrollControllerNode(
-    private var state: NestedScrollControlState,
+internal class NestedScrollControllerNode(
+    private var states: List<NestedScrollControlState>,
     private var bounds: NestedScrollableBound,
 ) : DelegatingNode(), NestedScrollConnection {
     private var childrenConsumedAnyScroll = false
@@ -145,14 +179,15 @@ private class NestedScrollControllerNode(
     }
 
     override fun onDetach() {
-        state.isOuterScrollAllowed = true
+        releaseAllOuterScroll()
     }
 
-    fun update(controller: NestedScrollControlState, bounds: NestedScrollableBound) {
-        if (controller != this.state) {
-            controller.isOuterScrollAllowed = this.state.isOuterScrollAllowed
-            this.state.isOuterScrollAllowed = true
-            this.state = controller
+    fun update(newStates: List<NestedScrollControlState>, bounds: NestedScrollableBound) {
+        if (newStates != states) {
+            val wasHolding = isHoldingOuterScroll()
+            releaseAllOuterScroll()
+            states = newStates
+            if (wasHolding) holdAllOuterScroll()
         }
 
         this.bounds = bounds
@@ -177,9 +212,9 @@ private class NestedScrollControllerNode(
         }
 
         if (!childrenConsumedAnyScroll) {
-            state.isOuterScrollAllowed = true
+            releaseAllOuterScroll()
         } else {
-            state.isOuterScrollAllowed = false
+            holdAllOuterScroll()
         }
 
         return Offset.Zero
@@ -187,8 +222,20 @@ private class NestedScrollControllerNode(
 
     override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
         childrenConsumedAnyScroll = false
-        state.isOuterScrollAllowed = true
+        releaseAllOuterScroll()
         return super.onPostFling(consumed, available)
+    }
+
+    private fun holdAllOuterScroll() {
+        states.fastForEach { it.holdOuterScroll(this) }
+    }
+
+    private fun isHoldingOuterScroll(): Boolean {
+        return states.first().isHolding(this)
+    }
+
+    private fun releaseAllOuterScroll() {
+        states.fastForEach { it.releaseOuterScroll(this) }
     }
 
     private fun hasConsumedScrollInBounds(consumed: Float): Boolean {

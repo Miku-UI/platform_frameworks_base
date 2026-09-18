@@ -31,8 +31,8 @@ import android.view.accessibility.AccessibilityManager;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.accessibility.AccessibilityManagerService;
+import com.android.server.accessibility.AccessibilityMotionEventBuilder;
 import com.android.server.accessibility.EventStreamTransformation;
-import com.android.server.accessibility.Flags;
 import com.android.server.policy.WindowManagerPolicy;
 
 /**
@@ -50,7 +50,7 @@ public class EventDispatcher {
      */
     public static final int VIRTUAL_TOUCHSCREEN_DEVICE_ID = -1;
 
-    private static final String LOG_TAG = "EventDispatcher";
+    private static final String LOG_TAG = EventDispatcher.class.getSimpleName();
     private static final int CLICK_LOCATION_NONE = 0;
     private static final int CLICK_LOCATION_ACCESSIBILITY_FOCUS = 1;
     private static final int CLICK_LOCATION_LAST_TOUCH_EXPLORED = 2;
@@ -123,30 +123,23 @@ public class EventDispatcher {
             }
         }
         final long downTime;
-        if (action == MotionEvent.ACTION_DOWN) {
+        final long lastInjectedDownEventTime = mState.getLastInjectedDownEventTime();
+        if (action == MotionEvent.ACTION_DOWN || lastInjectedDownEventTime == 0) {
+            // If this is a HOVER event, it is possible that no prior DOWN event was injected into
+            // the system during this TouchState's lifecycle, meaning there is no cached downtime to
+            // refer to.
+            // However, InputDispatcher expects a monotonically increasing downTime for each
+            // injected event during the system lifecycle, which may cover several TouchState's
+            // lifecycles. Therefore, we set downTime = eventTime to meet this requirement.
             downTime = event.getEventTime();
         } else {
-            downTime = mState.getLastInjectedDownEventTime();
+            downTime = lastInjectedDownEventTime;
         }
 
         // The only way to change device id of the motion event is by re-creating the whole thing
-        final PointerProperties[] properties = new PointerProperties[event.getPointerCount()];
-        final PointerCoords[] coords = new PointerCoords[event.getPointerCount()];
-        for (int i = 0; i < event.getPointerCount(); i++) {
-            final PointerCoords c = new PointerCoords();
-            event.getPointerCoords(i, c);
-            coords[i] = c;
-            final PointerProperties p = new PointerProperties();
-            event.getPointerProperties(i, p);
-            properties[i] = p;
-        }
         final int deviceId = VIRTUAL_TOUCHSCREEN_DEVICE_ID;
-        event = MotionEvent.obtain(downTime, event.getEventTime(), event.getAction(),
-                event.getPointerCount(), properties, coords,
-                event.getMetaState(), event.getButtonState(),
-                event.getXPrecision(), event.getYPrecision(), deviceId,
-                event.getEdgeFlags(), rawEvent.getSource(), event.getDisplayId(), event.getFlags(),
-                event.getClassification());
+        event = AccessibilityMotionEventBuilder.fromBaseEvent(event).setDownTime(downTime)
+                .setDeviceId(deviceId).setSource(rawEvent.getSource()).build();
         // If the user is long pressing but the long pressing pointer
         // was not exactly over the accessibility focused item we need
         // to remap the location of that pointer so the user does not
@@ -202,9 +195,7 @@ public class EventDispatcher {
     AccessibilityEvent populateAccessibilityEvent(int type) {
         AccessibilityEvent event = new AccessibilityEvent(type);
         event.setWindowId(mAms.getActiveWindowId());
-        if (Flags.touchExplorerA11yEventsIncludeDisplayId()) {
-            event.setDisplayId(mDisplayId);
-        }
+        event.setDisplayId(mDisplayId);
         return event;
     }
 
@@ -417,6 +408,9 @@ public class EventDispatcher {
                 continue;
             }
             final int action = computeInjectionAction(MotionEvent.ACTION_POINTER_UP, i);
+            if (action == MotionEvent.ACTION_UP) {
+                pointerIdBits = mState.getInjectedPointersDown();
+            }
             sendMotionEvent(prototype, action, mState.getLastReceivedRawEvent(),
                     pointerIdBits, policyFlags);
             pointerIdBits &= ~(1 << pointerId);

@@ -55,6 +55,7 @@ public class HotspotTile extends QSTileImpl<BooleanState> {
     public static final String TILE_SPEC = "hotspot";
     private final HotspotController mHotspotController;
     private final DataSaverController mDataSaverController;
+    private final UserManager mUserManager;
 
     private final HotspotAndDataSaverCallbacks mCallbacks = new HotspotAndDataSaverCallbacks();
     private boolean mListening;
@@ -71,12 +72,14 @@ public class HotspotTile extends QSTileImpl<BooleanState> {
             ActivityStarter activityStarter,
             QSLogger qsLogger,
             HotspotController hotspotController,
-            DataSaverController dataSaverController
+            DataSaverController dataSaverController,
+            UserManager userManager
     ) {
         super(host, uiEventLogger, backgroundLooper, mainHandler, falsingManager, metricsLogger,
                 statusBarStateController, activityStarter, qsLogger);
         mHotspotController = hotspotController;
         mDataSaverController = dataSaverController;
+        mUserManager = userManager;
         mHotspotController.observe(this, mCallbacks);
         mDataSaverController.observe(this, mCallbacks);
     }
@@ -115,6 +118,16 @@ public class HotspotTile extends QSTileImpl<BooleanState> {
     protected void handleClick(@Nullable Expandable expandable) {
         final boolean isEnabled = mState.value;
         if (!isEnabled && mDataSaverController.isDataSaverEnabled()) {
+            return;
+        }
+        if (!isEnabled && !mUserManager.isUserUnlockingOrUnlocked(getCurrentTileUser())) {
+            mActivityStarter.postQSRunnableDismissingKeyguard(() -> {
+                if (mDataSaverController.isDataSaverEnabled()) {
+                    return;
+                }
+                refreshState(ARG_SHOW_TRANSIENT_ENABLING);
+                mHotspotController.setHotspotEnabled(true);
+            });
             return;
         }
         // Immediately enter transient enabling state when turning hotspot on.

@@ -47,6 +47,9 @@ constructor(
 
     val isLogoutToSystemUserEnabled: StateFlow<Boolean> = userRepository.isUserManagerLogoutEnabled
 
+    val isPolicyManagerLogoutEnabled: StateFlow<Boolean> =
+        userRepository.isPolicyManagerLogoutEnabled
+
     suspend fun logOutToSystemUser() {
         if (isLogoutToSystemUserEnabled.value) {
             userRepository.logOutWithUserManager()

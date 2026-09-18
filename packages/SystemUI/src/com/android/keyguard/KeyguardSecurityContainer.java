@@ -32,8 +32,6 @@ import static androidx.constraintlayout.widget.ConstraintSet.START;
 import static androidx.constraintlayout.widget.ConstraintSet.TOP;
 import static androidx.constraintlayout.widget.ConstraintSet.WRAP_CONTENT;
 
-import static com.android.systemui.Flags.bouncerUiRevamp2;
-import static com.android.systemui.Flags.disableDoubleClickSwapOnBouncer;
 import static com.android.systemui.plugins.FalsingManager.LOW_PENALTY;
 
 import static java.lang.Integer.max;
@@ -104,9 +102,11 @@ import com.android.systemui.FontStyles;
 import com.android.systemui.Gefingerpoken;
 import com.android.systemui.bouncer.domain.interactor.BouncerInteractor;
 import com.android.systemui.bouncer.ui.BouncerColors;
+import com.android.systemui.classifier.Classifier;
 import com.android.systemui.classifier.FalsingA11yDelegate;
 import com.android.systemui.plugins.FalsingManager;
 import com.android.systemui.res.R;
+import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.shade.TouchLogger;
 import com.android.systemui.shared.system.SysUiStatsLog;
 import com.android.systemui.statusbar.policy.BaseUserSwitcherAdapter;
@@ -114,6 +114,7 @@ import com.android.systemui.statusbar.policy.UserSwitcherController;
 import com.android.systemui.user.data.source.UserRecord;
 import com.android.systemui.util.settings.GlobalSettings;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -521,7 +522,7 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
     public boolean onTouchEvent(MotionEvent event) {
         final int action = event.getActionMasked();
 
-        boolean result =  mMotionEventListeners.stream()
+        boolean result = mMotionEventListeners.stream()
                 .anyMatch(listener -> listener.onTouchEvent(event))
                 || super.onTouchEvent(event);
 
@@ -562,15 +563,18 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
                 break;
         }
         if (action == MotionEvent.ACTION_UP) {
-            if (-getTranslationY() > TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP,
-                    MIN_DRAG_SIZE, getResources().getDisplayMetrics())) {
-                if (mSwipeListener != null) {
-                    mSwipeListener.onSwipeUp();
-                }
-            } else if (getTranslationY() > TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP,
-                    MIN_DRAG_SIZE, getResources().getDisplayMetrics())) {
-                if (mSwipeListener != null) {
-                    mSwipeListener.onSwipeDown();
+            if (!mFalsingManager.isFalseTouch(Classifier.BOUNCER_SWIPE)) {
+                if (-getTranslationY() > TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP,
+                        MIN_DRAG_SIZE, getResources().getDisplayMetrics())) {
+                    if (mSwipeListener != null) {
+                        mSwipeListener.onSwipeUp();
+                    }
+                } else if (getTranslationY() > TypedValue.applyDimension(
+                        TypedValue.COMPLEX_UNIT_DIP,
+                        MIN_DRAG_SIZE, getResources().getDisplayMetrics())) {
+                    if (mSwipeListener != null) {
+                        mSwipeListener.onSwipeDown();
+                    }
                 }
             }
         }
@@ -743,9 +747,8 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
         mAlertDialog.show();
     }
 
-    void showTimeoutDialog(int userId, int timeoutMs, LockPatternUtils lockPatternUtils,
+    void showTimeoutDialog(int userId, Duration timeout, LockPatternUtils lockPatternUtils,
             SecurityMode securityMode) {
-        int timeoutInSeconds = timeoutMs / 1000;
         int messageId = 0;
 
         switch (securityMode) {
@@ -769,7 +772,7 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
         if (messageId != 0) {
             final String message = mContext.getString(messageId,
                     lockPatternUtils.getCurrentFailedPasswordAttempts(userId),
-                    timeoutInSeconds);
+                    timeout.toSeconds());
             showDialog(null, message);
         }
     }
@@ -960,8 +963,10 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
                     leftAlignedByDefault ? Settings.Global.ONE_HANDED_KEYGUARD_SIDE_LEFT
                             : Settings.Global.ONE_HANDED_KEYGUARD_SIDE_RIGHT;
             mBouncerInteractor = bouncerInteractor;
-            mDisableDoubleClickSwap = disableDoubleClickSwapOnBouncer()
-                    && mBouncerInteractor.isImproveLargeScreenInteractionEnabled();
+            mDisableDoubleClickSwap =
+                    (Flags.disableDoubleClickSwapOnBouncer()
+                                    || Flags.disableDoubleClickSwapOnBouncer2())
+                            && mBouncerInteractor.isImproveLargeScreenInteractionEnabled();
         }
 
         /**
@@ -1154,6 +1159,9 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
         }
 
         private void findLargeUserIcon(int userId, Consumer<Drawable> consumer) {
+            if (SceneContainerFlag.isEnabled()) {
+                return;
+            }
             mBgExecutor.execute(() -> {
                 Drawable icon;
                 Bitmap userIcon = UserManager.get(mView.getContext()).getUserIcon(userId);
@@ -1409,7 +1417,7 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
                     true);
             mUserSwitcherViewGroup = mView.findViewById(R.id.keyguard_bouncer_user_switcher);
             mUserSwitcher = mView.findViewById(R.id.user_switcher_header);
-            if (bouncerUiRevamp2()) {
+            if (Flags.bouncerUiRevamp2()) {
                 mUserSwitcher.setTypeface(
                         Typeface.create(FontStyles.GSF_LABEL_MEDIUM, Typeface.NORMAL));
             }

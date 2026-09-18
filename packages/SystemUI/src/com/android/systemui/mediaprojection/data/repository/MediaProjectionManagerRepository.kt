@@ -163,9 +163,15 @@ constructor(
                         // will occur but `OnRecordingSessionSet` will not. We should still consider
                         // us to be projecting even if only audio is projecting. See b/373308507.
                         if (it.info != null) {
-                            MediaProjectionState.Projecting.NoScreen(
-                                hostPackage = it.info.packageName
-                            )
+                            if (it.info.type == MediaProjectionManager.TYPE_APP_CONTENT) {
+                                MediaProjectionState.Projecting.AppContent(
+                                    hostPackage = it.info.packageName
+                                )
+                            } else {
+                                MediaProjectionState.Projecting.NoScreen(
+                                    hostPackage = it.info.packageName
+                                )
+                            }
                         } else {
                             MediaProjectionState.NotProjecting
                         }

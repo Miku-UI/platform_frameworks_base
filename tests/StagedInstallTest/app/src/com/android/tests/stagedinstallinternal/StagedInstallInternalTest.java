@@ -324,6 +324,26 @@ public class StagedInstallInternalTest {
     }
 
     @Test
+    public void testAbandonedSessionShouldNotBlockNewStaging_Commit() throws Exception {
+        int sessionId2 = Install.single(TestApp.Apex2).setStaged().commit();
+        InstallUtils.getPackageInstaller().abandonSession(sessionId2);
+
+        int sessionId3 = Install.single(TestApp.Apex3).setStaged().commit();
+        assertSessionReady(sessionId3);
+        storeSessionId(sessionId3);
+    }
+
+    @Test
+    public void testAbandonedSessionShouldNotBlockNewStaging_Verify() throws Exception {
+        int sessionId = retrieveLastSessionId();
+        PackageInstaller.SessionInfo info = InstallUtils.getStagedSessionInfo(sessionId);
+        assertThat(info).isNotNull();
+        assertThat(info.isStagedSessionApplied()).isTrue();
+
+        assertThat(InstallUtils.getInstalledVersion(SHIM_APEX_PACKAGE_NAME)).isEqualTo(3);
+    }
+
+    @Test
     public void testApexActivationFailureIsCapturedInSession_Commit() throws Exception {
         int sessionId = Install.single(TestApp.Apex1).setStaged().commit();
         assertSessionReady(sessionId);

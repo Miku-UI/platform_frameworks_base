@@ -22,11 +22,12 @@ import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 import static android.content.Context.RECEIVER_NOT_EXPORTED;
 import static android.provider.Settings.ACTION_DATE_SETTINGS;
 
+import static com.android.server.SystemTimeZone.TIME_ZONE_CONFIDENCE_LOW;
+import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_FUSED;
 import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_LOCATION;
 import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_MANUAL;
 import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_TELEPHONY;
 import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_UNKNOWN;
-import static com.android.server.SystemTimeZone.TIME_ZONE_CONFIDENCE_LOW;
 
 import android.annotation.DurationMillisLong;
 import android.annotation.IntDef;
@@ -43,6 +44,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.icu.text.DateFormat;
 import android.icu.text.SimpleDateFormat;
@@ -57,7 +59,6 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.notification.SystemNotificationChannels;
 import com.android.server.LocalServices;
-import com.android.server.flags.Flags;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -68,7 +69,7 @@ import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /** An implementation of {@link TimeZoneChangeListener} that fires notifications. */
-public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
+public final class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
     @IntDef({STATUS_UNKNOWN, STATUS_UNTRACKED, STATUS_REJECTED, STATUS_ACCEPTED, STATUS_SUPERSEDED})
     @Retention(RetentionPolicy.SOURCE)
     @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
@@ -129,6 +130,7 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
     private final Handler mHandler;
     private final ServiceConfigAccessor mServiceConfigAccessor;
     private final AtomicInteger mNextChangeEventId = new AtomicInteger(1);
+    private final TimeZoneDetectorTelemetry mTelemetry;
 
     private final Resources mRes = Resources.getSystem();
 
@@ -173,9 +175,11 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
     private int mAcceptedManualChanges;
     private int mAcceptedTelephonyChanges;
     private int mAcceptedLocationChanges;
+    private int mAcceptedFusedChanges;
     private int mAcceptedUnknownChanges;
     private int mRejectedTelephonyChanges;
     private int mRejectedLocationChanges;
+    private int mRejectedFusedChanges;
     private int mRejectedUnknownChanges;
 
     /** Create and initialise a new {@code TimeZoneChangeTrackerImpl} */
@@ -184,19 +188,21 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
             Handler handler,
             Context context,
             ServiceConfigAccessor serviceConfigAccessor,
+            TimeZoneDetectorTelemetry telemetry,
             @NonNull Environment environment) {
         NotifyingTimeZoneChangeListener changeTracker =
                 new NotifyingTimeZoneChangeListener(
                         handler,
                         context,
                         serviceConfigAccessor,
+                        telemetry,
                         context.getSystemService(NotificationManager.class),
                         environment,
-                        context.getSystemService(KeyguardManager.class));
+                        context.getSystemService(KeyguardManager.class),
+                        context.getPackageManager());
 
         // Pretend there was an update to initialize configuration.
         changeTracker.handleConfigurationUpdate();
-
         return changeTracker;
     }
 
@@ -205,9 +211,11 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
             Handler handler,
             Context context,
             ServiceConfigAccessor serviceConfigAccessor,
+            TimeZoneDetectorTelemetry telemetry,
             NotificationManager notificationManager,
             @NonNull Environment environment,
-            KeyguardManager keyguardManager) {
+            KeyguardManager keyguardManager,
+            PackageManager packageManager) {
         mHandler = Objects.requireNonNull(handler);
         mContext = Objects.requireNonNull(context);
         mServiceConfigAccessor = Objects.requireNonNull(serviceConfigAccessor);
@@ -215,6 +223,7 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
                 this::handleConfigurationUpdate);
         mActivityManagerInternal = LocalServices.getService(ActivityManagerInternal.class);
         mNotificationManager = notificationManager;
+        mTelemetry = telemetry;
         mEnvironment = Objects.requireNonNull(environment);
         mKeyguardManager = keyguardManager;
     }
@@ -306,18 +315,11 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
                 lastTimeZoneChangeRecord.setAccepted(signalType);
 
                 switch (lastTimeZoneChangeRecord.getEvent().getOrigin()) {
-                    case ORIGIN_MANUAL:
-                        mAcceptedManualChanges += 1;
-                        break;
-                    case ORIGIN_TELEPHONY:
-                        mAcceptedTelephonyChanges += 1;
-                        break;
-                    case ORIGIN_LOCATION:
-                        mAcceptedLocationChanges += 1;
-                        break;
-                    default:
-                        mAcceptedUnknownChanges += 1;
-                        break;
+                    case ORIGIN_MANUAL -> mAcceptedManualChanges += 1;
+                    case ORIGIN_TELEPHONY -> mAcceptedTelephonyChanges += 1;
+                    case ORIGIN_LOCATION -> mAcceptedLocationChanges += 1;
+                    case ORIGIN_FUSED -> mAcceptedFusedChanges += 1;
+                    default -> mAcceptedUnknownChanges += 1;
                 }
             }
         }
@@ -338,34 +340,29 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
      */
     @GuardedBy("mTimeZoneChangeRecord")
     private void markChangeAsRejected(
-            int changeEventId, @UserIdInt int userId, @SignalType int signalType) {
+            @NonNull TimeZoneChangeRecord lastTimeZoneChangeRecord,
+            @UserIdInt int userId,
+            @SignalType int signalType,
+            @NonNull TimeZoneChangeEvent manualChangeEvent) {
         if (!isUserIdCurrentUser(userId)) {
             return;
         }
 
-        TimeZoneChangeRecord lastTimeZoneChangeRecord = mTimeZoneChangeRecord.get();
-        if (lastTimeZoneChangeRecord != null) {
-            if (lastTimeZoneChangeRecord.getId() != changeEventId) {
-                // To be accepted, the change being accepted has to still be the latest.
-                return;
-            }
-            if (lastTimeZoneChangeRecord.getStatus() != STATUS_UNKNOWN) {
-                // Change status has already been set.
-                return;
-            }
-            lastTimeZoneChangeRecord.setRejected(signalType);
+        lastTimeZoneChangeRecord.setRejected(signalType);
 
-            switch (lastTimeZoneChangeRecord.getEvent().getOrigin()) {
-                case ORIGIN_TELEPHONY:
-                    mRejectedTelephonyChanges += 1;
-                    break;
-                case ORIGIN_LOCATION:
-                    mRejectedLocationChanges += 1;
-                    break;
-                default:
-                    mRejectedUnknownChanges += 1;
-                    break;
-            }
+        if (android.timezone.flags.Flags.enableAutomaticTimeZoneRejectionLogging()) {
+            mTelemetry.logRejectedTimeZoneChange(
+                    lastTimeZoneChangeRecord.getEvent().getOrigin(),
+                    lastTimeZoneChangeRecord.getEvent().getOldZoneId(),
+                    lastTimeZoneChangeRecord.getEvent().getNewZoneId(),
+                    manualChangeEvent.getNewZoneId());
+        }
+
+        switch (lastTimeZoneChangeRecord.getEvent().getOrigin()) {
+            case ORIGIN_TELEPHONY -> mRejectedTelephonyChanges += 1;
+            case ORIGIN_LOCATION -> mRejectedLocationChanges += 1;
+            case ORIGIN_FUSED -> mRejectedFusedChanges += 1;
+            default -> mRejectedUnknownChanges += 1;
         }
     }
 
@@ -385,13 +382,12 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
                 // detector".
                 if (lastTimeZoneChangeRecord != null
                         && lastTimeZoneChangeRecord.getStatus() == STATUS_UNKNOWN) {
-                    TimeZoneChangeEvent lastChangeEvent = lastTimeZoneChangeRecord.getEvent();
-
-                    if (shouldRejectChangeEvent(changeEvent, lastChangeEvent)) {
+                    if (shouldRejectChangeEvent(changeEvent, lastTimeZoneChangeRecord.getEvent())) {
                         markChangeAsRejected(
-                                lastTimeZoneChangeRecord.getId(),
+                                lastTimeZoneChangeRecord,
                                 changeEvent.getUserId(),
-                                SIGNAL_TYPE_HEURISTIC);
+                                SIGNAL_TYPE_HEURISTIC,
+                                changeEvent);
                     }
                 }
 
@@ -556,7 +552,7 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
             @UserIdInt int userId, TimeZoneChangeRecord trackedChangeEvent) {
         TimeZoneChangeEvent changeEvent = trackedChangeEvent.getEvent();
 
-        if (!Flags.datetimeNotifications() || !areNotificationsEnabled()) {
+        if (!areNotificationsEnabled()) {
             return;
         }
 
@@ -638,28 +634,6 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
 
     @Override
     public void dump(IndentingPrintWriter pw) {
-        synchronized (mConfigurationLock) {
-            pw.println("currentUserId=" + mConfigurationInternal.getUserId());
-            pw.println(
-                    "notificationsEnabledBehavior="
-                            + mConfigurationInternal.getNotificationsEnabledBehavior());
-            pw.println(
-                    "notificationTrackingSupported="
-                            + mConfigurationInternal.isNotificationTrackingSupported());
-            pw.println(
-                    "manualChangeTrackingSupported="
-                            + mConfigurationInternal.isManualChangeTrackingSupported());
-        }
-
-        pw.println("mAcceptedLocationChanges=" + mAcceptedLocationChanges);
-        pw.println("mAcceptedManualChanges=" + mAcceptedManualChanges);
-        pw.println("mAcceptedTelephonyChanges=" + mAcceptedTelephonyChanges);
-        pw.println("mAcceptedUnknownChanges=" + mAcceptedUnknownChanges);
-        pw.println("mRejectedLocationChanges=" + mRejectedLocationChanges);
-        pw.println("mRejectedTelephonyChanges=" + mRejectedTelephonyChanges);
-        pw.println("mRejectedUnknownChanges=" + mRejectedUnknownChanges);
-        pw.println("mNextChangeEventId=" + mNextChangeEventId);
-
         pw.println("mTimeZoneChangeRecord:");
         pw.increaseIndent();
         synchronized (mTimeZoneChangeRecord) {

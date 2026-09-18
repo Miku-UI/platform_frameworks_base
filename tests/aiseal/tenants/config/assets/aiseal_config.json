@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "tenants": [
+    {
+      "name": "android.aiseal.tests.odim",
+      "role": "ondeviceintelligence",
+      "host_services": [
+        {
+          "name": "odim_payload_service",
+          "port": 5142
+        }
+      ]
+    }
+  ]
+}

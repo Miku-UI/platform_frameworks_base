@@ -1,0 +1,2 @@
+# Repackage classes from the network security aconfig flags
+rule com.android.org.conscrypt.net.flags.** android.security.net.internal.flags.@1

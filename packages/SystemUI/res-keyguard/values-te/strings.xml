@@ -45,12 +45,13 @@
     <string name="keyguard_accessibility_password" msgid="3524161948484801450">"పరికరం పాస్‌వర్డ్‌"</string>
     <string name="keyguard_accessibility_sim_pin_area" msgid="6272116591533888062">"SIM పిన్ ప్రాంతం"</string>
     <string name="keyguard_accessibility_sim_puk_area" msgid="5537294043180237374">"SIM PUK ప్రాంతం"</string>
+    <string name="keyguard_accessibility_pin_delete_long_click" msgid="1530074796041838525">"అన్నింటినీ తొలగించడానికి ఎక్కువసేపు నొక్కి, ఉంచండి"</string>
     <string name="keyboardview_keycode_delete" msgid="8489719929424895174">"తొలగించండి"</string>
     <string name="disable_carrier_button_text" msgid="7153361131709275746">"eSIMని నిలిపివేయండి"</string>
     <string name="error_disable_esim_title" msgid="3802652622784813119">"eSIMని నిలపడం సాధ్యపడదు"</string>
     <string name="error_disable_esim_msg" msgid="2441188596467999327">"ఎర్రర్ కారణంగా eSIMని నిలపడం సాధ్యపడదు."</string>
     <string name="keyboardview_keycode_enter" msgid="6727192265631761174">"Enter"</string>
-    <string name="kg_wrong_pattern" msgid="5907301342430102842">"ఆకృతి తప్పు"</string>
+    <string name="kg_wrong_pattern" msgid="5907301342430102842">"ఆకృతి తప్పు (రాంగ్ ప్యాటర్న్)"</string>
     <string name="kg_wrong_pattern_try_again" msgid="3603524940234151881">"ఆకృతి తప్పు. మళ్లీ గీయండి."</string>
     <string name="kg_wrong_password" msgid="4143127991071670512">"పాస్‌వర్డ్ తప్పు"</string>
     <string name="kg_wrong_password_try_again" msgid="6602878676125765920">"పాస్‌వర్డ్ తప్పు. రీట్రై."</string>
@@ -80,17 +81,28 @@
     <string name="kg_prompt_pin_auth_timeout" msgid="5868644725126275245">"మరింత సెక్యూరిటీ యాడ్ చెయ్యాలి. PINని ఈమధ్య వాడలేదు."</string>
     <string name="kg_prompt_password_auth_timeout" msgid="5809110458491920871">"యాడెడ్ సెక్యూరిటీ కావాలి. పాస్‌వర్డ్ ఈ మధ్య వాడలేదు."</string>
     <string name="kg_prompt_pattern_auth_timeout" msgid="1860605401869262178">"మరింత సెక్యూరిటీ కావాలి. ఆకృతిని ఈ మధ్య వాడలేదు."</string>
-    <string name="kg_prompt_auth_timeout" msgid="6620679830980315048">"మరింత సెక్యూరిటీ కావాలి. పరికరాన్ని ఈమధ్య తెరవలేదు."</string>
+    <string name="kg_prompt_auth_timeout" msgid="6620679830980315048">"అదనపు సెక్యూరిటీ అవసరం. డివైజ్‌ను ఈ మధ్య అన్‌లాక్ చేయలేదు."</string>
     <string name="kg_face_locked_out" msgid="2751559491287575">"ఫేస్‌తో అన్‌లాక్ అవ్వదు. ఎక్కువ సార్లు ట్రై చేశారు."</string>
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"వేలిముద్ర‌తో అన్‌లాకవదు. మరీ ఎక్కువ ట్రైలు చేశారు."</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"విశ్వసనీయ ఏజెంట్ అందుబాటులో లేదు"</string>
     <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"తప్పు PINతో చాలా ఎక్కువ సార్లు ట్రై చేయడం జరిగింది"</string>
+    <string name="kg_primary_auth_duplicate_guess_pin" msgid="5834891656916692329">"ఆ PINను ఇప్పటికే ట్రై చేశారు. వేరే PINతో ప్రయత్నించండి."</string>
+    <string name="kg_primary_auth_duplicate_guess_pattern" msgid="3827593245962385968">"ఆ ఆకృతిని ఇప్పటికే ట్రై చేశారు. మరో ఆకృతిని ట్రై చేయండి."</string>
+    <string name="kg_primary_auth_duplicate_guess_password" msgid="3153406042812407458">"ఆ పాస్‌వర్డ్‌ను ఇప్పటికే ట్రై చేశారు. మరో ఆకృతిని ట్రై చేయండి."</string>
     <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"తప్పు ఆకృతితో చాలా ఎక్కువ సార్లు ట్రై చేయడం జరిగింది"</string>
     <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"తప్పు పాస్‌వర్డ్‌తో చాలా ఎక్కువ సార్లు ట్రై చేశారు"</string>
+    <string name="kg_primary_auth_locked_out_pin_shortlink" msgid="1294871994741389848">"తప్పు PINతో చాలాసార్లు ట్రై చేశారు\n<xliff:g id="SHORTLINK">{shortlink}</xliff:g>‌లో మరింత తెలుసుకోండి"</string>
+    <string name="kg_primary_auth_locked_out_pattern_shortlink" msgid="5998598232858156495">"తప్పు ఆకృతితో చాలాసార్లు ట్రై చేశారు\n<xliff:g id="SHORTLINK">{shortlink}</xliff:g>‌లో మరింత తెలుసుకోండి"</string>
+    <string name="kg_primary_auth_locked_out_password_shortlink" msgid="7035847891707609104">"తప్పు పాస్‌వర్డ్‌తో చాలాసార్లు ట్రై చేశారు\n<xliff:g id="SHORTLINK">{shortlink}</xliff:g>‌లో మరింత తెలుసుకోండి"</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{# సెకనులో మళ్లీ ట్రై చేయండి.}other{# సెకన్లలో మళ్లీ ట్రై చేయండి.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_seconds" msgid="5869847493314053274">"{count,plural, =1{# సెకనులో మళ్లీ ట్రై చేయండి}other{# సెకన్లలో మళ్లీ ట్రై చేయండి}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_minutes" msgid="6688071439818994316">"{count,plural, =1{# నిమిషంలో మళ్లీ ట్రై చేయండి}other{# నిమిషాలలో మళ్లీ ట్రై చేయండి}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_hours" msgid="4895375498917738857">"{count,plural, =1{# గంటలో మళ్లీ ట్రై చేయండి}other{# గంటల్లో మళ్లీ ట్రై చేయండి}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_days" msgid="5427787465019979593">"{count,plural, =1{# రోజులో మళ్లీ ట్రై చేయండి}other{# రోజుల్లో మళ్లీ ట్రై చేయండి}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_years" msgid="7115333753941425268">"{count,plural, =1{# సంవత్సరంలో మళ్లీ ట్రై చేయండి}other{# సంవత్సరాలలో మళ్లీ ట్రై చేయండి}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"SIM పిన్‌ని నమోదు చేయండి."</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"\"<xliff:g id="CARRIER">%1$s</xliff:g>\" కోసం SIM పిన్‌ని నమోదు చేయండి."</string>
-    <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g> మొబైల్ సేవ లేకుండా పరికరాన్ని ఉపయోగించడం కోసం eSIMని నిలిపివేయండి."</string>
+    <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g> మొబైల్ సర్వీస్ లేకుండా డివైజ్‌ను ఉపయోగించడం కోసం eSIMను డిజేబుల్ చేయండి."</string>
     <string name="kg_puk_enter_puk_hint" msgid="3005288372875367017">"ఇప్పుడు SIM నిలిపివేయబడింది. కొనసాగించాలంటే, PUK కోడ్‌ను నమోదు చేయండి. వివరాల కోసం క్యారియర్‌ను సంప్రదించండి."</string>
     <string name="kg_puk_enter_puk_hint_multi" msgid="4876780689904862943">"ఇప్పుడు SIM \"<xliff:g id="CARRIER">%1$s</xliff:g>\"ని నిలిపివేయడం జరిగింది. కొనసాగించాలంటే, PUK కోడ్‌ను నమోదు చేయండి. వివరాల కోసం క్యారియర్‌ను సంప్రదించండి."</string>
     <string name="kg_puk_enter_pin_hint" msgid="6028432138916150399">"కావల్సిన పిన్ కోడ్‌ను నమోదు చేయండి"</string>
@@ -109,9 +121,12 @@
     <string name="kg_password_puk_failed" msgid="6778867411556937118">"SIM PUK చర్య విఫలమైంది!"</string>
     <string name="accessibility_ime_switch_button" msgid="9082358310194861329">"ఇన్‌పుట్ పద్ధతిని మార్చు"</string>
     <string name="airplane_mode" msgid="2528005343938497866">"విమానం మోడ్"</string>
-    <string name="kg_prompt_reason_restart_pattern" msgid="3321211830602827742">"పరికరాన్ని రీస్టార్ట్ చేశాక ఆకృతి అవసరం"</string>
-    <string name="kg_prompt_reason_restart_pin" msgid="2672166323886110512">"పరికరాన్ని రీస్టార్ట్ చేశాక PIN అవసరం"</string>
-    <string name="kg_prompt_reason_restart_password" msgid="3967993994418885887">"పరికరాన్ని రీస్టార్ట్ చేశాక పాస్‌వర్డ్ అవసరం"</string>
+    <string name="kg_prompt_reason_restart_pattern" msgid="3321211830602827742">"డివైజ్‌ను రీస్టార్ట్ చేసిన తర్వాత ఆకృతి అవసరం"</string>
+    <string name="kg_prompt_reason_restart_pin" msgid="2672166323886110512">"డివైజ్‌ను రీస్టార్ట్ చేసిన తర్వాత PIN అవసరం"</string>
+    <string name="kg_prompt_reason_restart_password" msgid="3967993994418885887">"డివైజ్‌ను రీస్టార్ట్ చేసిన తర్వాత పాస్‌వర్డ్ అవసరం"</string>
+    <string name="kg_prompt_reason_signin_pattern" msgid="1650886553162854395">"సైన్ ఇన్ చేయడానికి ఆకృతి అవసరం"</string>
+    <string name="kg_prompt_reason_signin_pin" msgid="636031498838532631">"సైన్ ఇన్ చేయడానికి PIN అవసరం"</string>
+    <string name="kg_prompt_reason_signin_password" msgid="1020939174735616114">"సైన్ ఇన్ చేయడానికి పాస్‌వర్డ్ అవసరం"</string>
     <string name="kg_prompt_reason_timeout_pattern" msgid="5514969660010197363">"అదనపు సెక్యూరిటీ కోసం, బదులుగా ఆకృతిని ఉపయోగించండి"</string>
     <string name="kg_prompt_reason_timeout_pin" msgid="4227962059353859376">"అదనపు సెక్యూరిటీ కోసం, బదులుగా PINను ఉపయోగించండి"</string>
     <string name="kg_prompt_reason_timeout_password" msgid="8810879144143933690">"అదనపు సెక్యూరిటీ కోసం, బదులుగా పాస్‌వర్డ్‌ను ఉపయోగించండి"</string>
@@ -122,12 +137,12 @@
     <string name="kg_prompt_reason_user_request" msgid="6015774877733717904">"పరికరం మాన్యువల్‌గా లాక్ చేయబడింది"</string>
     <string name="kg_face_not_recognized" msgid="7903950626744419160">"గుర్తించలేదు"</string>
     <string name="kg_face_sensor_privacy_enabled" msgid="939511161763558512">"ఫేస్ అన్‌లాక్ వాడేందుకు కెమెరా యాక్సెస్ ఆన్‌లో ఉండాలి"</string>
-    <string name="kg_password_default_pin_message" msgid="1434544655827987873">"{count,plural, =1{SIM PINను ఎంటర్ చేయండి. మీరు మీ పరికరాన్ని అన్‌లాక్ చేయడానికి మీరు తప్పనిసరిగా మీ క్యారియర్‌ను కాంటాక్ట్ చేయడానికి ముందు మీకు # ప్రయత్నం మిగిలి ఉంది.}other{SIM PINను ఎంటర్ చేయండి. మీకు # ప్రయత్నాలు మిగిలి ఉన్నాయి.}}"</string>
+    <string name="kg_password_default_pin_message" msgid="1434544655827987873">"{count,plural, =1{SIM PINను ఎంటర్ చేయండి. మీ డివైజ్‌ను అన్‌లాక్ చేయడానికి మీరు తప్పనిసరిగా మీ క్యారియర్‌ను కాంటాక్ట్ చేయడానికి ముందు మీకు # ప్రయత్నం మిగిలి ఉంది.}other{SIM PINను ఎంటర్ చేయండి. మీకు # ప్రయత్నాలు మిగిలి ఉన్నాయి.}}"</string>
     <string name="kg_password_default_puk_message" msgid="1025139786449741950">"{count,plural, =1{SIM ఇప్పుడు డిజేబుల్ చేయబడింది. కొనసాగించడానికి PUK కోడ్‌ను ఎంటర్ చేయండి. SIM శాశ్వతంగా నిరుపయోగం కాకుండా ఉండటానికి మీకు # ప్రయత్నం మిగిలి ఉంది. వివరాల కోసం క్యారియర్‌ను కాంటాక్ట్ చేయండి.}other{SIM ఇప్పుడు డిజేబుల్ చేయబడింది. కొనసాగించడానికి PUK కోడ్‌ను ఎంటర్ చేయండి. SIM శాశ్వతంగా నిరుపయోగం కాకుండా ఉండటానికి మీకు # ప్రయత్నాలు మిగిలి ఉన్నాయి. వివరాల కోసం క్యారియర్‌ను కాంటాక్ట్ చేయండి.}}"</string>
     <string name="clock_title_default" msgid="6342735240617459864">"ఆటోమేటిక్"</string>
     <string name="clock_title_bubble" msgid="2204559396790593213">"బబుల్"</string>
     <string name="clock_title_analog" msgid="8409262532900918273">"ఎనలాగ్"</string>
-    <string name="keyguard_unlock_to_continue" msgid="7509503484250597743">"కొనసాగించడానికి మీ పరికరాన్ని అన్‌లాక్ చేయండి"</string>
+    <string name="keyguard_unlock_to_continue" msgid="7509503484250597743">"కొనసాగించడానికి మీ డివైజ్‌ను అన్‌లాక్ చేయండి"</string>
     <string name="kg_prompt_unattended_update_pin" msgid="5979434876768801873">"అప్‌డేట్‌ను తర్వాత ఇన్‌స్టాల్ చేయడానికి PINను ఎంటర్ చేయండి"</string>
     <string name="kg_prompt_unattended_update_password" msgid="8805664437604967210">"అప్‌డేట్‌ను తర్వాత ఇన్‌స్టాల్ చేయడానికి పాస్‌వర్డ్‌ను ఎంటర్ చేయండి"</string>
     <string name="kg_prompt_unattended_update_pattern" msgid="8580479377489546091">"అప్‌డేట్‌ను తర్వాత ఇన్‌స్టాల్ చేయడానికి ఆకృతిని గీయండి"</string>

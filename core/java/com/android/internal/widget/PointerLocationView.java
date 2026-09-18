@@ -56,7 +56,7 @@ import android.view.WindowManagerPolicyConstants.PointerEventListener;
 
 public class PointerLocationView extends View implements InputDeviceListener,
         PointerEventListener {
-    private static final String TAG = "Pointer";
+    private static final String TAG = PointerLocationView.class.getSimpleName();
 
     // The system property key used to specify an alternate velocity tracker strategy
     // to plot alongside the default one.  Useful for testing and comparison purposes.

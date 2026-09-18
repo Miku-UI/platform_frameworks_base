@@ -27,7 +27,6 @@ import android.view.View
 import com.airbnb.lottie.LottieAnimationView
 import com.airbnb.lottie.LottieDrawable
 import com.android.app.tracing.traceSection
-import com.android.systemui.Flags.screenOffAnimationGuardEnabled
 import com.android.systemui.res.R
 import com.android.systemui.util.weakReference
 import java.lang.ref.WeakReference
@@ -41,10 +40,6 @@ private const val LOTTIE_UPDATES_WHEN_SCREEN_OFF_LIMIT = 2
  */
 fun LottieAnimationView.enableScreenOffAnimationGuard() {
     if (!(Build.IS_ENG || Build.IS_USERDEBUG)) {
-        return
-    }
-
-    if (!screenOffAnimationGuardEnabled()) {
         return
     }
 
@@ -127,10 +122,6 @@ fun ValueAnimator.enableScreenOffAnimationGuard(context: Context) {
 
 /** Attaches an animation guard listener to the given ValueAnimator. */
 fun ValueAnimator.enableScreenOffAnimationGuard(isDisplayOffPredicate: () -> Boolean) {
-    if (!screenOffAnimationGuardEnabled()) {
-        return
-    }
-
     val listener = ScreenOffAnimationGuardListener(isDisplayOffPredicate)
     this.addListener(listener)
     this.addUpdateListener(listener)
@@ -153,10 +144,6 @@ fun androidx.core.animation.ValueAnimator.enableScreenOffAnimationGuard(context:
 fun androidx.core.animation.ValueAnimator.enableScreenOffAnimationGuard(
     isDisplayOffPredicate: () -> Boolean
 ) {
-    if (!screenOffAnimationGuardEnabled()) {
-        return
-    }
-
     val listener = ScreenOffAnimationGuardListener(isDisplayOffPredicate)
     this.addListener(listener)
     this.addUpdateListener(listener)

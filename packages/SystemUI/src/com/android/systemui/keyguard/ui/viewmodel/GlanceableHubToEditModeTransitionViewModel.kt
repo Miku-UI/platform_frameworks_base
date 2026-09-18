@@ -16,7 +16,6 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
-import com.android.systemui.Flags.hubEditModeTransition
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
 import com.android.systemui.communal.shared.model.EditModeState
 import com.android.systemui.dagger.SysUISingleton
@@ -26,7 +25,6 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 
 @SysUISingleton
@@ -36,22 +34,18 @@ constructor(blurConfig: BlurConfig, communalSceneInteractor: CommunalSceneIntera
     GlanceableHubTransition {
 
     override val windowBlurRadius: Flow<Float> =
-        if (hubEditModeTransition()) {
-            communalSceneInteractor.editModeState
-                // Apply window blur when edit mode is not showing, and remove the blur immediately
-                // when the edit mode activity is ready to show. No transition is needed because
-                // SystemUI applies an opague background that covers the views below.
-                .map { editModeState ->
-                    if (editModeState == null || editModeState < EditModeState.READY_TO_SHOW) {
-                        blurConfig.maxBlurRadiusPx
-                    } else {
-                        blurConfig.minBlurRadiusPx
-                    }
+        communalSceneInteractor.editModeState
+            // Apply window blur when edit mode is starting, and remove the blur immediately
+            // when the edit mode activity is ready to show. No transition is needed because
+            // SystemUI applies an opaque background that covers the views below.
+            .map { editModeState ->
+                if (editModeState != null && editModeState < EditModeState.READY_TO_SHOW) {
+                    blurConfig.maxBlurRadiusPx
+                } else {
+                    blurConfig.minBlurRadiusPx
                 }
-                .distinctUntilChanged()
-                // Emit only when the blur radius changes
-                .drop(1)
-        } else {
-            emptyFlow()
-        }
+            }
+            .distinctUntilChanged()
+            // Emit only when the blur radius changes
+            .drop(1)
 }

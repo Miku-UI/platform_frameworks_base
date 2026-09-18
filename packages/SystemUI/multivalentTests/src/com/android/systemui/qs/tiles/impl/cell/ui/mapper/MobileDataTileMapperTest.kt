@@ -16,18 +16,15 @@
 
 package com.android.systemui.qs.tiles.impl.cell.ui.mapper
 
-import android.os.Handler
 import android.widget.Switch
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.settingslib.graph.SignalDrawable
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.qs.tiles.base.shared.model.QSTileConfigTestBuilder
 import com.android.systemui.qs.tiles.base.shared.model.QSTileState
 import com.android.systemui.qs.tiles.base.shared.model.QSTileUIConfig
 import com.android.systemui.qs.tiles.base.ui.model.QSTileStateSubject
-import com.android.systemui.qs.tiles.impl.cell.domain.model.MobileDataTileIcon
 import com.android.systemui.qs.tiles.impl.cell.domain.model.MobileDataTileModel
 import com.android.systemui.res.R
 import com.google.common.truth.Truth.assertThat
@@ -42,21 +39,21 @@ class MobileDataTileMapperTest : SysuiTestCase() {
         QSTileConfigTestBuilder.build {
             uiConfig =
                 QSTileUIConfig.Resource(
-                    iconRes = com.android.settingslib.R.drawable.ic_mobile_4_4_bar,
+                    iconRes = R.drawable.ic_cell_on,
                     labelRes = R.string.quick_settings_cellular_detail_title,
                 )
         }
     private var underTest: MobileDataTileMapper =
-        MobileDataTileMapper(context.resources, context.theme, context, Handler(context.mainLooper))
+        MobileDataTileMapper(context.resources, context.theme)
 
     @Test
     fun map_noActiveSim_isUnavailable() {
-        val iconRes = com.android.settingslib.R.drawable.ic_mobile_4_4_bar
+        val iconRes = R.drawable.ic_cell_off
         val model =
             MobileDataTileModel(
                 isSimActive = false,
                 isEnabled = false,
-                icon = MobileDataTileIcon.ResourceIcon(Icon.Resource(iconRes, null)),
+                isAirplaneModeEnabled = false,
             )
 
         val outputState = underTest.map(config, model)
@@ -64,19 +61,21 @@ class MobileDataTileMapperTest : SysuiTestCase() {
         val expectedState =
             createMobileDataTileState(
                 QSTileState.ActivationState.UNAVAILABLE,
+                null,
                 Icon.Loaded(context.getDrawable(iconRes)!!, null, iconRes),
+                setOf(QSTileState.UserAction.CLICK, QSTileState.UserAction.LONG_CLICK),
             )
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
     }
 
     @Test
     fun map_activeSim_dataDisabled_isInactive() {
-        val iconRes = R.drawable.ic_signal_mobile_data_off
+        val iconRes = R.drawable.ic_cell_off
         val model =
             MobileDataTileModel(
                 isSimActive = true,
                 isEnabled = false,
-                icon = MobileDataTileIcon.ResourceIcon(Icon.Resource(iconRes, null)),
+                isAirplaneModeEnabled = false,
             )
 
         val outputState = underTest.map(config, model)
@@ -84,7 +83,13 @@ class MobileDataTileMapperTest : SysuiTestCase() {
         val expectedState =
             createMobileDataTileState(
                 QSTileState.ActivationState.INACTIVE,
+                null,
                 Icon.Loaded(context.getDrawable(iconRes)!!, null, iconRes),
+                setOf(
+                    QSTileState.UserAction.CLICK,
+                    QSTileState.UserAction.LONG_CLICK,
+                    QSTileState.UserAction.TOGGLE_CLICK
+                ),
             )
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
     }
@@ -95,38 +100,77 @@ class MobileDataTileMapperTest : SysuiTestCase() {
             MobileDataTileModel(
                 isSimActive = true,
                 isEnabled = true,
-                icon = MobileDataTileIcon.SignalIcon(level = 4),
+                isAirplaneModeEnabled = false,
             )
 
         val outputState = underTest.map(config, model)
 
-        // SignalDrawable is created inside the mapper, so we can't create an identical one for the
-        // expected state. We copy the icon from the output and verify the rest of the state.
         val expectedState =
-            createMobileDataTileState(QSTileState.ActivationState.ACTIVE, outputState.icon)
+            createMobileDataTileState(
+                QSTileState.ActivationState.ACTIVE,
+                null,
+                outputState.icon,
+                setOf(
+                    QSTileState.UserAction.CLICK,
+                    QSTileState.UserAction.LONG_CLICK,
+                    QSTileState.UserAction.TOGGLE_CLICK
+                ),
+            )
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
+    }
 
-        // Then, we can verify the icon specifics separately.
-        val icon = outputState.icon as Icon.Loaded
-        val drawable = icon.drawable
-        assertThat(drawable).isInstanceOf(SignalDrawable::class.java)
-        assertThat((drawable as SignalDrawable).level).isEqualTo(4)
+    @Test
+    fun map_activeSim_dataEnabled_withSecondaryLabel_usesSecondaryLabel() {
+        val secondaryLabel = "Test Label"
+        val model =
+            MobileDataTileModel(
+                isSimActive = true,
+                isEnabled = true,
+                isAirplaneModeEnabled = false,
+                secondaryLabel = secondaryLabel,
+            )
+
+        val outputState = underTest.map(config, model)
+
+        assertThat(outputState.secondaryLabel).isEqualTo(secondaryLabel)
+    }
+
+    @Test
+    fun map_airplaneModeEnabled_isInactive() {
+        val iconRes = R.drawable.ic_cell_off
+        val model =
+            MobileDataTileModel(
+                isSimActive = true,
+                isEnabled = true,
+                isAirplaneModeEnabled = true,
+            )
+
+        val outputState = underTest.map(config, model)
+
+        val expectedState =
+            createMobileDataTileState(
+                QSTileState.ActivationState.INACTIVE,
+                context.getString(R.string.status_bar_airplane),
+                Icon.Loaded(context.getDrawable(iconRes)!!, null, iconRes),
+                setOf(QSTileState.UserAction.CLICK, QSTileState.UserAction.LONG_CLICK),
+            )
+        QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
     }
 
     private fun createMobileDataTileState(
         activationState: QSTileState.ActivationState,
+        secondaryLabel: CharSequence?,
         icon: Icon?,
+        supportedActions: Set<QSTileState.UserAction>,
+        enabledState: QSTileState.EnabledState = QSTileState.EnabledState.ENABLED,
     ): QSTileState {
         val label = context.getString(R.string.quick_settings_cellular_detail_title)
-        val enabledState = QSTileState.EnabledState.ENABLED
-        val supportedActions =
-            setOf(QSTileState.UserAction.CLICK, QSTileState.UserAction.LONG_CLICK)
 
         return QSTileState(
             icon = icon,
             label = label,
             activationState = activationState,
-            secondaryLabel = null,
+            secondaryLabel,
             supportedActions = supportedActions,
             contentDescription = label,
             stateDescription = null,

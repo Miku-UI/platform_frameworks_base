@@ -11,10 +11,10 @@ android_ravenwood_test {
     name: "RavenwoodMockitoTest",
 
     srcs: [
-        "test/**/*.java",
+        "src/**/*.java",
     ],
     exclude_srcs: [
-        "test/**/*DeviceOnly*.java",
+        "src/**/*DeviceOnly*.java",
     ],
     static_libs: [
         "junit",
@@ -32,10 +32,10 @@ android_test {
     name: "RavenwoodMockitoTest_device",
 
     srcs: [
-        "test/**/*.java",
+        "src/**/*.java",
     ],
     exclude_srcs: [
-        "test/**/*RavenwoodOnly*.java",
+        "src/**/*RavenwoodOnly*.java",
     ],
     static_libs: [
         "junit",

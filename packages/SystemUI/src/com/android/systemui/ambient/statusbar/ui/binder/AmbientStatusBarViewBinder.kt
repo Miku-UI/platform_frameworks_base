@@ -34,7 +34,6 @@ import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.statusbar.chips.ui.compose.OngoingActivityChips
 import com.android.systemui.statusbar.chips.ui.viewmodel.OngoingActivityChipsViewModel
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.ConnectedDisplaysStatusBarNotificationIconViewStore
 
 object AmbientStatusBarViewBinder {
@@ -73,12 +72,8 @@ object AmbientStatusBarViewBinder {
                                 )
                             }
                         val iconViewStore =
-                            if (StatusBarConnectedDisplays.isEnabled) {
-                                rememberViewModel("DreamStatusBar.IconViewStore") {
-                                    iconViewStoreFactory.create(context.displayId)
-                                }
-                            } else {
-                                null
+                            rememberViewModel("DreamStatusBar.IconViewStore") {
+                                iconViewStoreFactory.create(context.displayId)
                             }
                         val chips by viewModel.ongoingActivityChips.collectAsStateWithLifecycle()
 

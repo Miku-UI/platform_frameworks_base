@@ -18,15 +18,22 @@ package com.android.server.wm;
 
 import static android.view.WindowManager.LayoutParams.FIRST_APPLICATION_WINDOW;
 
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
+
 import static junit.framework.Assert.assertEquals;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.mockito.ArgumentMatchers.eq;
 
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.window.TaskSnapshot;
 
 import androidx.test.filters.SmallTest;
+
+import com.android.window.flags.Flags;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -58,7 +65,7 @@ public class TaskSnapshotCacheTest extends TaskSnapshotPersisterTestBase {
     public void setUp() {
         super.setUp();
         MockitoAnnotations.initMocks(this);
-        mCache = new TaskSnapshotCache(mLoader);
+        mCache = new TaskSnapshotCache(mLoader, mWm.mH);
     }
 
     @Test
@@ -113,6 +120,27 @@ public class TaskSnapshotCacheTest extends TaskSnapshotPersisterTestBase {
         // Load it from disk
         assertNotNull(mCache.getSnapshotFromDisk(window.getTask().mTaskId, mWm.mCurrentUserId,
                 false/* isLowResolution */, TaskSnapshot.REFERENCE_NONE));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ONLY_CACHE_LOW_RES_TASK_SNAPSHOT)
+    public void testRestoreFromDiskDeferRemove() {
+        spyOn(mCache.mDeferRemoveCache);
+        final WindowState window = newWindowBuilder("window", FIRST_APPLICATION_WINDOW).build();
+        final Task task = window.getTask();
+        final int taskId = task.mTaskId;
+        final TaskSnapshot snapshot = createSnapshot();
+        mPersister.persistSnapshot(taskId, mWm.mCurrentUserId, snapshot);
+        mSnapshotPersistQueue.waitForQueueEmpty();
+        assertNull(mCache.getSnapshot(taskId, false /* isLowResolution */));
+        // Simulate replaced by the low-resolution snapshot.
+        mCache.putSnapshot(window.getTask(), snapshot);
+        // Load it from disk
+        final TaskSnapshot loaded = mCache.getSnapshotFromDisk(taskId, mWm.mCurrentUserId,
+                false/* isLowResolution */, TaskSnapshot.REFERENCE_NONE);
+        assertNotNull(loaded);
+        verify(mCache.mDeferRemoveCache).putSnapshot(eq(taskId), eq(loaded));
+        verify(mCache.mDeferRemoveCache).scheduleRemoval(eq(taskId));
     }
 
     @Test

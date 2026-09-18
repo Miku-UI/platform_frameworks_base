@@ -22,12 +22,12 @@ import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.Presubmit
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.tools.Rotation
+import android.tools.device.apphelpers.PipApp
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.rules.RemoveAllTasksButHomeRule.Companion.removeAllTasksButHome
 import android.tools.helpers.WindowUtils
 import android.tools.traces.component.ComponentNameMatcher
-import android.tools.device.apphelpers.PipApp
 import com.android.server.wm.flicker.helpers.PipAppHelper
 import com.android.server.wm.flicker.helpers.setRotation
 import com.android.server.wm.flicker.testapp.ActivityOptions
@@ -37,9 +37,7 @@ import org.junit.Rule
 import org.junit.Test
 
 abstract class PipTransition(flicker: FlickerTest) : BaseTest(flicker) {
-    @JvmField
-    @Rule
-    val checkFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
+    @JvmField @Rule val checkFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
     protected val displayBounds = WindowUtils.getDisplayBounds(flicker.scenario.startRotation)
     protected val broadcastActionTrigger = BroadcastActionTrigger(instrumentation)
@@ -63,9 +61,7 @@ abstract class PipTransition(flicker: FlickerTest) : BaseTest(flicker) {
         }
     }
 
-    /**
-     * Defines the test app to run PIP flicker test.
-     */
+    /** Defines the test app to run PIP flicker test. */
     protected open val pipApp: PipApp = PipAppHelper(instrumentation)
 
     /** Defines the transition used to run the test */
@@ -92,7 +88,7 @@ abstract class PipTransition(flicker: FlickerTest) : BaseTest(flicker) {
         setup {
             pipApp.launchViaIntent(
                 wmHelper,
-                stringExtras = mapOf(ActivityOptions.Pip.EXTRA_ENTER_PIP to "true")
+                stringExtras = mapOf(ActivityOptions.Pip.EXTRA_ENTER_PIP to "true"),
             )
             pipApp.waitForPip(wmHelper)
         }

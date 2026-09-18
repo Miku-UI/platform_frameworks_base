@@ -34,11 +34,10 @@ class ScreenCaptureAppContentTest : SysuiTestCase() {
         // Arrange
         val fakeThumbnail = createBitmap(100, 100)
         val fakeMediaProjectionAppContent =
-            MediaProjectionAppContent(
-                /* thumbnail= */ fakeThumbnail,
-                /* title= */ "FakeTitle",
-                /* id= */ 123,
-            )
+            MediaProjectionAppContent.Builder(/* id= */ 123)
+                .setThumbnail(fakeThumbnail)
+                .setTitle("FakeTitle")
+                .build()
 
         // Act
         val result = ScreenCaptureAppContent("FakePackage", fakeMediaProjectionAppContent)
@@ -48,7 +47,7 @@ class ScreenCaptureAppContentTest : SysuiTestCase() {
             assertThat(packageName).isEqualTo("FakePackage")
             assertThat(contentId).isEqualTo(123)
             assertThat(label).isEqualTo("FakeTitle")
-            assertThat(thumbnail.sameAs(fakeThumbnail)).isTrue()
+            assertThat(thumbnail?.sameAs(fakeThumbnail)).isTrue()
         }
     }
 }

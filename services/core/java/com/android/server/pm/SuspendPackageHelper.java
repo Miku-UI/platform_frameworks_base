@@ -26,6 +26,7 @@ import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.app.AppOpsManager;
 import android.content.Intent;
+import android.content.pm.Flags;
 import android.content.pm.SuspendDialogInfo;
 import android.content.pm.UserPackage;
 import android.os.Binder;
@@ -486,7 +487,7 @@ public final class SuspendPackageHelper {
      */
     boolean isSuspendAllowedForUser(@NonNull Computer snapshot, int userId, int callingUid) {
         final UserManagerService userManager = mInjector.getUserManagerService();
-        return isCallerDeviceOrProfileOwner(snapshot, userId, callingUid)
+        return isCallerDevicePolicyController(snapshot, userId, callingUid)
                 || (!userManager.hasUserRestriction(UserManager.DISALLOW_APPS_CONTROL, userId)
                 && !userManager.hasUserRestriction(UserManager.DISALLOW_UNINSTALL_APPS, userId));
     }
@@ -504,8 +505,8 @@ public final class SuspendPackageHelper {
     boolean[] canSuspendPackageForUser(@NonNull Computer snapshot, @NonNull String[] packageNames,
             int targetUserId, int callingUid) {
         final boolean[] canSuspend = new boolean[packageNames.length];
-        final boolean isCallerOwner =
-                isCallerDeviceOrProfileOwner(snapshot, targetUserId, callingUid);
+        final boolean isCallerDpc = isCallerDevicePolicyController(snapshot, targetUserId,
+                callingUid);
         final long token = Binder.clearCallingIdentity();
         try {
             final DefaultAppProvider defaultAppProvider = mInjector.getDefaultAppProvider();
@@ -568,7 +569,7 @@ public final class SuspendPackageHelper {
                             + "\": protected package");
                     continue;
                 }
-                if (!isCallerOwner && snapshot.getBlockUninstall(targetUserId, packageName)) {
+                if (!isCallerDpc && snapshot.getBlockUninstall(targetUserId, packageName)) {
                     Slog.w(TAG, "Cannot suspend package \"" + packageName
                             + "\": blocked by admin");
                     continue;
@@ -576,6 +577,13 @@ public final class SuspendPackageHelper {
                 if (packageName.equals(requiredDeveloperVerificationServiceProviderPackage)) {
                     Slog.w(TAG, "Cannot suspend package \"" + packageName
                             + "\": required for package verification service");
+                    continue;
+                }
+                if (Flags.protectSystemRequiredPackages()
+                        && mPm.isRequiredSystemPackageThatCallerCannotControl(
+                                snapshot, packageName, callingUid)) {
+                    Slog.w(TAG, "Cannot suspend package \"" + packageName
+                            + "\": required system package");
                     continue;
                 }
 
@@ -634,15 +642,19 @@ public final class SuspendPackageHelper {
         return knownPackages.length > 0 ? knownPackages[0] : null;
     }
 
-    private boolean isCallerDeviceOrProfileOwner(@NonNull Computer snapshot, int targetUserId,
+    private boolean isCallerDevicePolicyController(@NonNull Computer snapshot, int targetUserId,
             int callingUid) {
         if (callingUid == SYSTEM_UID) {
             return true;
         }
-        final String ownerPackage =
-                mProtectedPackages.getDeviceOwnerOrProfileOwnerPackage(targetUserId);
-        if (ownerPackage != null) {
-            return callingUid == snapshot.getPackageUidInternal(ownerPackage, 0, targetUserId,
+        String dpcPackage;
+        if (android.app.admin.flags.Flags.pushDpcPackagesToSystemServices()) {
+            dpcPackage = mProtectedPackages.getDevicePolicyControllerPackage(targetUserId);
+        } else {
+            dpcPackage = mProtectedPackages.getDeviceOwnerOrProfileOwnerPackage(targetUserId);
+        }
+        if (dpcPackage != null) {
+            return callingUid == snapshot.getPackageUidInternal(dpcPackage, 0, targetUserId,
                     callingUid);
         }
         return false;

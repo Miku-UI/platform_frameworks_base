@@ -17,11 +17,12 @@
 package com.android.wm.shell.pip2.phone;
 
 import static com.android.internal.jank.Cuj.CUJ_PIP_TRANSITION;
+import static com.android.internal.jank.InteractionJankMonitor.Configuration.generateSessionName;
 import static com.android.wm.shell.pip2.phone.PipInteractionHandler.INTERACTION_ENTER_PIP;
 import static com.android.wm.shell.pip2.phone.PipInteractionHandler.INTERACTION_EXIT_PIP;
 import static com.android.wm.shell.pip2.phone.PipInteractionHandler.INTERACTION_EXIT_PIP_TO_SPLIT;
 
-import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.kotlin.VerificationKt.times;
 
@@ -33,11 +34,13 @@ import android.view.SurfaceControl;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.internal.jank.Cuj;
 import com.android.internal.jank.InteractionJankMonitor;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -71,29 +74,38 @@ public class PipInteractionHandlerTest {
 
     @Test
     public void begin_expand_startsTracking() {
+        ArgumentCaptor<InteractionJankMonitor.Configuration.Builder> configBuilderCaptor =
+                ArgumentCaptor.forClass(InteractionJankMonitor.Configuration.Builder.class);
         mPipInteractionHandler.begin(mTestLeash, INTERACTION_EXIT_PIP);
 
-        verify(mMockInteractionJankMonitor, times(1)).begin(eq(mTestLeash),
-                eq(mMockContext), eq(mMockHandler), eq(CUJ_PIP_TRANSITION),
-                eq(PipInteractionHandler.pipInteractionToString(INTERACTION_EXIT_PIP)));
+        verify(mMockInteractionJankMonitor, times(1))
+                .begin(configBuilderCaptor.capture());
+        InteractionJankMonitor.Configuration.Builder builder = configBuilderCaptor.getValue();
+        assertConfiguration(INTERACTION_EXIT_PIP, mTestLeash, builder.build());
     }
 
     @Test
     public void begin_expandToSplit_startsTracking() {
+        ArgumentCaptor<InteractionJankMonitor.Configuration.Builder> configBuilderCaptor =
+                ArgumentCaptor.forClass(InteractionJankMonitor.Configuration.Builder.class);
         mPipInteractionHandler.begin(mTestLeash, INTERACTION_EXIT_PIP_TO_SPLIT);
 
-        verify(mMockInteractionJankMonitor, times(1)).begin(eq(mTestLeash),
-                eq(mMockContext), eq(mMockHandler), eq(CUJ_PIP_TRANSITION),
-                eq(PipInteractionHandler.pipInteractionToString(INTERACTION_EXIT_PIP_TO_SPLIT)));
+        verify(mMockInteractionJankMonitor, times(1))
+                .begin(configBuilderCaptor.capture());
+        InteractionJankMonitor.Configuration.Builder builder = configBuilderCaptor.getValue();
+        assertConfiguration(INTERACTION_EXIT_PIP_TO_SPLIT, mTestLeash, builder.build());
     }
 
     @Test
     public void begin_enter_startsTracking() {
+        ArgumentCaptor<InteractionJankMonitor.Configuration.Builder> configBuilderCaptor =
+                ArgumentCaptor.forClass(InteractionJankMonitor.Configuration.Builder.class);
         mPipInteractionHandler.begin(mTestLeash, INTERACTION_ENTER_PIP);
 
-        verify(mMockInteractionJankMonitor, times(1)).begin(eq(mTestLeash),
-                eq(mMockContext), eq(mMockHandler), eq(CUJ_PIP_TRANSITION),
-                eq(PipInteractionHandler.pipInteractionToString(INTERACTION_ENTER_PIP)));
+        verify(mMockInteractionJankMonitor, times(1))
+                .begin(configBuilderCaptor.capture());
+        InteractionJankMonitor.Configuration.Builder builder = configBuilderCaptor.getValue();
+        assertConfiguration(INTERACTION_ENTER_PIP, mTestLeash, builder.build());
     }
 
     @Test
@@ -101,5 +113,16 @@ public class PipInteractionHandlerTest {
         mPipInteractionHandler.end();
 
         verify(mMockInteractionJankMonitor, times(1)).end(CUJ_PIP_TRANSITION);
+    }
+
+    private void assertConfiguration(
+            @PipInteractionHandler.Interaction int interaction,
+            SurfaceControl leash,
+            InteractionJankMonitor.Configuration configuration) {
+        final String expectedSessionName = generateSessionName(Cuj.getNameOfCuj(CUJ_PIP_TRANSITION),
+                PipInteractionHandler.pipInteractionToString(interaction));
+
+        assertEquals(expectedSessionName, configuration.getSessionName());
+        assertEquals(leash, configuration.getSurfaceControl());
     }
 }

@@ -496,9 +496,6 @@
       "name": "WmTests-wm-WindowTokenTests"
     },
     {
-      "name": "WmTests-wm-WindowTracingLegacyTest"
-    },
-    {
       "name": "WmTests-wm-WindowTracingPerfettoTest"
     },
     {

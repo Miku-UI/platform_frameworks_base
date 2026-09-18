@@ -24,7 +24,6 @@ import android.graphics.Insets;
 import android.view.Display;
 import android.view.DisplayCutout;
 import android.view.Surface;
-import android.window.DesktopExperienceFlags;
 
 import com.android.internal.R;
 
@@ -117,10 +116,6 @@ public final class SystemBarUtils {
      */
     @DimenRes
     public static int getDesktopViewAppHeaderHeightId() {
-        if (DesktopExperienceFlags.ENABLE_TALL_APP_HEADERS.isTrue()) {
-            return R.dimen.desktop_view_default_large_header_height;
-        } else {
-            return R.dimen.desktop_view_default_header_height;
-        }
+        return R.dimen.desktop_view_default_large_header_height;
     }
 }

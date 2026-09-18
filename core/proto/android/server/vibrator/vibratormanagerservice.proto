@@ -23,18 +23,9 @@ import "frameworks/base/core/proto/android/privacy.proto";
 
 message StepSegmentProto {
    option (.android.msg_privacy).dest = DEST_AUTOMATIC;
-   optional int32 duration = 1;
+   optional int32 duration = 1; // In milliseconds.
    optional float amplitude = 2;
-   optional float frequency = 3;
-}
-
-message RampSegmentProto {
-    option (.android.msg_privacy).dest = DEST_AUTOMATIC;
-    optional int32 duration = 1;
-    optional float startAmplitude = 2;
-    optional float endAmplitude = 3;
-    optional float startFrequency = 4;
-    optional float endFrequency = 5;
+   reserved 3; // prev float frequency
 }
 
 message PrebakedSegmentProto {
@@ -51,12 +42,32 @@ message PrimitiveSegmentProto {
     optional int32 delay = 3;
 }
 
+message PwleSegmentProto {
+    option (.android.msg_privacy).dest = DEST_AUTOMATIC;
+    optional float startAmplitude = 1;
+    optional float endAmplitude = 2;
+    optional float startFrequency = 3;
+    optional float endFrequency = 4;
+    optional int32 duration = 5; // In milliseconds.
+}
+
+message BasicPwleSegmentProto {
+    option (.android.msg_privacy).dest = DEST_AUTOMATIC;
+    optional float startIntensity = 1;
+    optional float endIntensity = 2;
+    optional float startSharpness = 3;
+    optional float endSharpness = 4;
+    optional int32 duration = 5; // In milliseconds.
+}
+
 message SegmentProto {
     option (.android.msg_privacy).dest = DEST_AUTOMATIC;
     optional PrebakedSegmentProto prebaked = 1;
     optional PrimitiveSegmentProto primitive = 2;
     optional StepSegmentProto step = 3;
-    optional RampSegmentProto ramp = 4;
+    reserved 4; // prev ramp segment
+    optional PwleSegmentProto pwle = 5;
+    optional BasicPwleSegmentProto basic_pwle = 6;
 }
 
 // A com.android.os.VibrationEffect object.

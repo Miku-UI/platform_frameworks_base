@@ -82,11 +82,20 @@ oneway interface ITaskOrganizer {
     void onTaskInfoChanged(in ActivityManager.RunningTaskInfo taskInfo);
 
     /**
-     * Called when the task organizer has requested
-     * {@link ITaskOrganizerController.setInterceptBackPressedOnTaskRoot} to get notified when the
-     * user has pressed back on the root activity of a task controlled by the task organizer.
+     * Called when a back action is performed on the root activity of a task controlled by the
+     * task organizer. This can be triggered by a user pressing the back button or by a call to
+     * {@link android.app.Activity#moveTaskToBack}. The task organizer must have requested
+     * {@link ITaskOrganizerController.setInterceptBackPressedOnTaskRoot} to receive this callback.
+     *
+     * @param taskInfo The information about the Task where the back press occurred.
+     * @param isFromBackPress True if the action was triggered by a user back press, false if it
+     *                        was triggered by {@link android.app.Activity#moveTaskToBack}.
+     * @param isOptInOnBackInvoked True if the root activity of the task has opted in to
+     *        {@link android.window.OnBackInvokedCallback}.
+     * @param hasOpaqueSibling Whether the task has an opaque sibling
      */
-    void onBackPressedOnTaskRoot(in ActivityManager.RunningTaskInfo taskInfo);
+    void onBackOnTaskRoot(in ActivityManager.RunningTaskInfo taskInfo, boolean isFromBackPress,
+            boolean isOptInOnBackInvoked, boolean hasOpaqueSibling);
 
     /**
      * Called when the IME has drawn on the organized task.
@@ -116,4 +125,33 @@ oneway interface ITaskOrganizer {
      * @param request Information about this particular request.
      */
     void requestStartTransition(in IBinder transitionToken, in TransitionRequestInfo request);
+
+    /**
+     * Called when a group of tasks belonging to a package are going through the update process.
+     *
+     * @param updatingTaskInfos Information about the tasks that are going through the package
+     *                          update process that WMShell previously registered to handle through
+     *                          {@link WindowContainerTransaction#setHandlePackageUpdateForTask}.
+     */
+    void onPackageUpdateRequested(in List<ActivityManager.RunningTaskInfo> updatingTaskInfos);
+
+    /**
+    * Called when a group of tasks belonging to a package has finished updating. Tasks here
+    * match the tasks previously sent through {@link ITaskOrganizer#onPackageUpdateRequested}.
+    *
+    * @param updatedTaskInfos Information about the tasks that are updated.
+    */
+    void onPackageUpdateFinished(in List<ActivityManager.RunningTaskInfo> updatedTaskInfos);
+
+    /**
+     * Called when the keyguard occluding task has changed.
+     * <p>
+     * This callback is dispatched before the keyguard occlude/unocclude transition is requested.
+     *
+     * @param displayId The ID of the display.
+     * @param taskInfo The RunningTaskInfo of the top Activity which is occluding the Keyguard,
+     *                 or {@code null} if no task is occluding it.
+     */
+     void onKeyguardOccludingTaskChanged(int displayId,
+             in @nullable ActivityManager.RunningTaskInfo taskInfo);
 }

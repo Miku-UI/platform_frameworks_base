@@ -16,12 +16,11 @@
 
 package com.android.systemui.screenshot.scroll;
 
-import static com.android.systemui.shared.Flags.usePreferredImageEditor;
+import static com.android.systemui.Flags.deleteAfterScrollCapture;
 
 import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.ActivityOptions;
-import android.content.ComponentName;
 import android.content.ContentProvider;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -37,7 +36,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Process;
 import android.os.UserHandle;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.Display;
 import android.view.ScrollCaptureResponse;
@@ -82,6 +80,7 @@ public class LongScreenshotActivity extends Activity {
 
     public static final String EXTRA_CAPTURE_RESPONSE = "capture-response";
     public static final String EXTRA_SCREENSHOT_USER_HANDLE = "screenshot-userhandle";
+    public static final String EXTRA_ORIGINAL_SCREENSHOT_URI = "original-screenshot";
     private static final String KEY_SAVED_IMAGE_PATH = "saved-image-path";
 
     private final UiEventLogger mUiEventLogger;
@@ -104,6 +103,7 @@ public class LongScreenshotActivity extends Activity {
     private ScrollCaptureResponse mScrollCaptureResponse;
     private UserHandle mScreenshotUserHandle;
     private File mSavedImagePath;
+    private Uri mOriginalScreenshotUri;
 
     private ListenableFuture<File> mCacheSaveFuture;
     private ListenableFuture<ImageLoader.Result> mCacheLoadFuture;
@@ -173,6 +173,8 @@ public class LongScreenshotActivity extends Activity {
         mScrollCaptureResponse = intent.getParcelableExtra(EXTRA_CAPTURE_RESPONSE);
         mScreenshotUserHandle = intent.getParcelableExtra(EXTRA_SCREENSHOT_USER_HANDLE,
                 UserHandle.class);
+        mOriginalScreenshotUri = intent.getParcelableExtra(
+                EXTRA_ORIGINAL_SCREENSHOT_URI, Uri.class);
         if (mScreenshotUserHandle == null) {
             mScreenshotUserHandle = Process.myUserHandle();
         }
@@ -361,41 +363,18 @@ public class LongScreenshotActivity extends Activity {
             });
 
         } else {
-            if (usePreferredImageEditor()) {
-                mActionIntentCreator.createEdit(uri, intent -> {
-                    Bundle options = null;
-
-                    if (intent.getComponent() != null) {
-                        // Modify intent for shared transition if we're opening a specific editor.
-                        intent.removeFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                        intent.removeFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                        options = prepareSharedTransition();
-                    }
-
-                    startActivity(intent, options);
-                });
-            } else {
-                String editorPackage = getString(R.string.config_screenshotEditor);
-                Intent intent = new Intent(Intent.ACTION_EDIT);
-                intent.setDataAndType(uri, "image/png");
-                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            mActionIntentCreator.createEdit(uri, intent -> {
                 Bundle options = null;
 
-                // Skip shared element transition for implicit edit intents
-                if (!TextUtils.isEmpty(editorPackage)) {
-                    intent.setComponent(ComponentName.unflattenFromString(editorPackage));
-                    mTransitionView.setImageBitmap(mOutputBitmap);
-                    mTransitionView.setVisibility(View.VISIBLE);
-                    mTransitionView.setTransitionName(
-                            ChooserActivity.FIRST_IMAGE_PREVIEW_TRANSITION_NAME);
-                    options = ActivityOptions.makeSceneTransitionAnimation(this, mTransitionView,
-                            ChooserActivity.FIRST_IMAGE_PREVIEW_TRANSITION_NAME).toBundle();
-                    // TODO: listen for transition completing instead of finishing onStop
-                    mTransitionStarted = true;
+                if (intent.getComponent() != null) {
+                    // Modify intent for shared transition if we're opening a specific editor.
+                    intent.removeFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    intent.removeFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    options = prepareSharedTransition();
                 }
+
                 startActivity(intent, options);
-            }
+            });
         }
     }
 
@@ -487,6 +466,12 @@ public class LongScreenshotActivity extends Activity {
         } catch (CancellationException | InterruptedException | ExecutionException e) {
             Log.e(TAG, "failed to export", e);
             return;
+        }
+        if (deleteAfterScrollCapture() && mOriginalScreenshotUri != null
+                && !Uri.EMPTY.equals(mOriginalScreenshotUri)) {
+            Log.i(TAG,
+                    "Scroll capture saved, deleting original screenshot " + mOriginalScreenshotUri);
+            getContentResolver().delete(mOriginalScreenshotUri, null, null);
         }
         Uri exported = ContentProvider.getUriWithoutUserId(result.uri);
         Log.e(TAG, action + " uri=" + exported);

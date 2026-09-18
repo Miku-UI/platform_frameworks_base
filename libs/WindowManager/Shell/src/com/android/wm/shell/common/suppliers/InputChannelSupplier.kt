@@ -22,9 +22,11 @@ import java.util.function.Supplier
 import javax.inject.Inject
 
 /**
- * An Injectable [Supplier<InputChannel>]. This can be used in place of kotlin default
- * parameters values [builder = ::InputChannel] which requires the [@JvmOverloads] annotation to
- * make this available in Java.
+ * An Injectable [Supplier<InputChannel>].
+ *
+ * This can be used in place of kotlin default parameters values [builder = ::InputChannel] which
+ * requires the [@JvmOverloads] annotation to make this available in Java.
+ *
  * This can be used every time a component needs the dependency to the default [Supplier] for
  * [InputChannel]s.
  */

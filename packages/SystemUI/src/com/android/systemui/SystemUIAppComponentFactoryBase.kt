@@ -31,7 +31,6 @@ import com.android.systemui.dagger.SysUIComponent
 import com.android.tools.r8.keepanno.annotations.KeepTarget
 import com.android.tools.r8.keepanno.annotations.UsesReflection
 import java.lang.reflect.InvocationTargetException
-import java.util.concurrent.ExecutionException
 import javax.inject.Inject
 
 /**
@@ -64,13 +63,7 @@ abstract class SystemUIAppComponentFactoryBase : AppComponentFactory() {
         return systemUIInitializer
             ?: run {
                 val initializer = createSystemUIInitializer(context.applicationContext)
-                try {
-                    initializer.init(false)
-                } catch (exception: ExecutionException) {
-                    throw RuntimeException("Failed to initialize SysUI", exception)
-                } catch (exception: InterruptedException) {
-                    throw RuntimeException("Failed to initialize SysUI", exception)
-                }
+                initializer.init(false)
                 initializer.sysUIComponent.inject(this@SystemUIAppComponentFactoryBase)
 
                 systemUIInitializer = initializer
@@ -104,11 +97,11 @@ abstract class SystemUIAppComponentFactoryBase : AppComponentFactory() {
                         rootComponent.javaClass.getMethod("inject", contentProvider.javaClass)
                     injectMethod.invoke(rootComponent, contentProvider)
                 } catch (e: NoSuchMethodException) {
-                    Log.w(TAG, "No injector for class: " + contentProvider.javaClass, e)
+                    Log.wtf(TAG, "No injector for class: ${contentProvider.javaClass}", e)
                 } catch (e: IllegalAccessException) {
-                    Log.w(TAG, "No injector for class: " + contentProvider.javaClass, e)
+                    Log.wtf(TAG, "Couldn't access injector for: ${contentProvider.javaClass}", e)
                 } catch (e: InvocationTargetException) {
-                    Log.w(TAG, "No injector for class: " + contentProvider.javaClass, e)
+                    Log.wtf(TAG, "Injector failed for class: ${contentProvider.javaClass}", e)
                 }
                 initializer
             }

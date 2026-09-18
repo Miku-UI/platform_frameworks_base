@@ -16,6 +16,7 @@
 
 package com.android.server.wm;
 
+import static android.companion.virtualdevice.flags.Flags.computerControlAccess;
 import static android.graphics.Matrix.MSCALE_X;
 import static android.graphics.Matrix.MSCALE_Y;
 import static android.graphics.Matrix.MSKEW_X;
@@ -43,7 +44,10 @@ import android.window.ITrustedPresentationListener;
 import android.window.TrustedPresentationThresholds;
 import android.window.WindowInfosListener;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
+import com.android.server.LocalServices;
+import com.android.server.companion.virtual.VirtualDeviceManagerInternal;
 import com.android.server.wm.utils.RegionUtils;
 
 import java.io.PrintWriter;
@@ -56,8 +60,29 @@ import java.util.Optional;
  */
 public class TrustedPresentationListenerController {
 
+    interface WindowInfosListenerProvider {
+        WindowInfosListener get();
+    }
+
+    private final WindowInfosListenerProvider mWindowInfosListenerProvider;
+    public TrustedPresentationListenerController() {
+        mWindowInfosListenerProvider = () -> new WindowInfosListener() {
+            @Override
+            public void onWindowInfosChanged(InputWindowHandle[] windowHandles,
+                    WindowInfosListener.DisplayInfo[] displayInfos) {
+                TrustedPresentationListenerController.this.onWindowInfosChanged(windowHandles,
+                        displayInfos);
+            }
+        };
+    }
+
+    @VisibleForTesting
+    TrustedPresentationListenerController(WindowInfosListenerProvider provider) {
+        mWindowInfosListenerProvider = provider;
+    }
+
     // Should only be accessed by the posting to the handler
-    private class Listeners {
+    class Listeners {
         private final class ListenerDeathRecipient implements IBinder.DeathRecipient {
             IBinder mListenerBinder;
             int mInstances;
@@ -154,6 +179,7 @@ public class TrustedPresentationListenerController {
     private final Object mHandlerThreadLock = new Object();
     private HandlerThread mHandlerThread;
     private Handler mHandler;
+    private VirtualDeviceManagerInternal mVdmInternal;
 
     private WindowInfosListener mWindowInfosListener;
 
@@ -164,6 +190,9 @@ public class TrustedPresentationListenerController {
     private void startHandlerThreadIfNeeded() {
         synchronized (mHandlerThreadLock) {
             if (mHandler == null) {
+                if (computerControlAccess()) {
+                    mVdmInternal = LocalServices.getService(VirtualDeviceManagerInternal.class);
+                }
                 mHandlerThread = new HandlerThread("WindowInfosListenerForTpl");
                 mHandlerThread.start();
                 mHandler = new Handler(mHandlerThread.getLooper());
@@ -203,17 +232,72 @@ public class TrustedPresentationListenerController {
         pw.println("TrustedPresentationListenerController:");
         pw.println(innerPrefix + "Active unique listeners ("
                 + mRegisteredListeners.mUniqueListeners.size() + "):");
-        for (int i = 0; i < mRegisteredListeners.mWindowToListeners.size(); i++) {
-            pw.println(
-                    innerPrefix + "  window=" + mRegisteredListeners.mWindowToListeners.keyAt(i));
-            final var listeners = mRegisteredListeners.mWindowToListeners.valueAt(i);
-            for (int j = 0; j < listeners.size(); j++) {
-                final var listener = listeners.get(j);
-                pw.println(innerPrefix + innerPrefix + "  listener=" + listener.mListener.asBinder()
-                        + " id=" + listener.mId
-                        + " thresholds=" + listener.mThresholds);
-            }
+
+        if (mHandler == null) {
+            return;
         }
+
+        mHandler.runWithScissors(() -> {
+            for (int i = 0; i < mRegisteredListeners.mWindowToListeners.size(); i++) {
+                IBinder windowToken = mRegisteredListeners.mWindowToListeners.keyAt(i);
+                String windowName = "unknown";
+                if (mLastWindowHandles != null && mLastWindowHandles.first != null) {
+                    for (int k = 0; k < mLastWindowHandles.first.length; ++k) {
+                        InputWindowHandle handle = mLastWindowHandles.first[k];
+                        if (handle.getWindowToken() != null
+                                && handle.getWindowToken().equals(windowToken)) {
+                            windowName = handle.name;
+                            break;
+                        }
+                    }
+                }
+                pw.print(innerPrefix + "  window=" + windowToken + " name=" + windowName);
+                final var listeners = mRegisteredListeners.mWindowToListeners.valueAt(i);
+                for (int j = 0; j < listeners.size(); j++) {
+                    final var listener = listeners.get(j);
+                    pw.print(" listener=" + listener.mListener.asBinder()
+                            + " id=" + listener.mId
+                            + " thresholds=" + listener.mThresholds);
+                    pw.print(" state(current=" + listener.mLastComputedTrustedPresentationState
+                            + " reported=" + listener.mLastReportedTrustedPresentationState + ")");
+                    pw.println(" alpha=" + listener.mLastAlpha
+                            + " fraction=" + listener.mLastFractionRendered);
+                }
+            }
+            pw.println(innerPrefix + "Window Infos:");
+            if (mLastWindowHandles != null && mLastWindowHandles.first != null) {
+                for (int k = 0; k < mLastWindowHandles.first.length; ++k) {
+                    InputWindowHandle handle = mLastWindowHandles.first[k];
+                    pw.print(innerPrefix + innerPrefix + "name=" + handle.name);
+                    pw.print(" displayId=" + handle.displayId);
+                    pw.print(" token=" + handle.getWindowToken());
+                    pw.print(" frame=" + handle.frame);
+                    pw.print(" alpha=" + handle.alpha);
+                    pw.print(" canOcclude=" + handle.canOccludePresentation);
+                    pw.print(" type=" + handle.layoutParamsType);
+                    pw.println(" flags=" + handle.layoutParamsFlags);
+                }
+            } else {
+                pw.println(innerPrefix + innerPrefix + "none");
+            }
+            pw.println(innerPrefix + "Display Infos:");
+            if (mLastWindowHandles != null && mLastWindowHandles.second != null) {
+                for (int k = 0; k < mLastWindowHandles.second.length; ++k) {
+                    WindowInfosListener.DisplayInfo handle = mLastWindowHandles.second[k];
+                    pw.print(innerPrefix + innerPrefix + "displayId=" + handle.mDisplayId);
+                    pw.print(" logicalSize=" + handle.mLogicalSize);
+                    pw.println(" transform=" + handle.mTransform);
+                }
+            } else {
+                pw.println(innerPrefix + innerPrefix + "none");
+            }
+        }, 0 /* timeout */);
+    }
+
+    @VisibleForTesting
+    void onWindowInfosChanged(InputWindowHandle[] windowHandles,
+            WindowInfosListener.DisplayInfo[] displayInfos) {
+        mHandler.post(() -> computeTpl(new Pair<>(windowHandles, displayInfos)));
     }
 
     private void registerWindowInfosListener() {
@@ -221,13 +305,7 @@ public class TrustedPresentationListenerController {
             return;
         }
 
-        mWindowInfosListener = new WindowInfosListener() {
-            @Override
-            public void onWindowInfosChanged(InputWindowHandle[] windowHandles,
-                    DisplayInfo[] displayInfos) {
-                mHandler.post(() -> computeTpl(new Pair<>(windowHandles, displayInfos)));
-            }
-        };
+        mWindowInfosListener = mWindowInfosListenerProvider.get();
         mLastWindowHandles = mWindowInfosListener.register();
     }
 
@@ -260,7 +338,11 @@ public class TrustedPresentationListenerController {
 
         ArrayMap<ITrustedPresentationListener, Pair<IntArray, IntArray>> listenerUpdates =
                 new ArrayMap<>();
-        for (var windowHandle : mLastWindowHandles.first) {
+
+        ArrayMap<IBinder, ArrayList<Pair<Float, Float>>> windowStates = new ArrayMap<>();
+
+        for (int i = 0; i < mLastWindowHandles.first.length; ++i) {
+            InputWindowHandle windowHandle = mLastWindowHandles.first[i];
             var isInvisible = ((windowHandle.inputConfig & InputConfig.NOT_VISIBLE)
                     == InputConfig.NOT_VISIBLE);
             if (!windowHandle.canOccludePresentation || isInvisible) {
@@ -268,7 +350,8 @@ public class TrustedPresentationListenerController {
             }
             int displayId = INVALID_DISPLAY;
             tmpRectF.set(windowHandle.frame);
-            for (var displayHandle : mLastWindowHandles.second) {
+            for (int j = 0; j < mLastWindowHandles.second.length; ++j) {
+                var displayHandle = mLastWindowHandles.second[j];
                 if (displayHandle.mDisplayId == windowHandle.displayId) {
                     // Transform the window frame into display logical space and then
                     // crop by the logical display size
@@ -288,8 +371,19 @@ public class TrustedPresentationListenerController {
                 continue;
             }
 
+            if (computerControlAccess()
+                    && mVdmInternal != null
+                    && mVdmInternal.isComputerControlDisplay(displayId)) {
+                // TODO(b/459548175, b/459545101): Remove this once we have a better way to handle
+                // virtual displays and mirrored content. For now, we just skip Computer Control
+                // displays and consider only the mirrored hierarchy (if the ComputerControl
+                // MirrorView is visible) for computing trusted presentation.
+                continue;
+            }
+
             Region coveredRegionsAbove = coveredRegionsAboveByDisplay.get(displayId, new Region());
-            var listeners = mRegisteredListeners.get(windowHandle.getWindowToken());
+            IBinder windowToken = windowHandle.getWindowToken();
+            var listeners = mRegisteredListeners.get(windowToken);
             if (listeners != null) {
                 Region region = new Region();
                 region.op(tmpRect, coveredRegionsAbove, Region.Op.DIFFERENCE);
@@ -304,14 +398,22 @@ public class TrustedPresentationListenerController {
                         windowHandle.contentSize,
                         scaleX, scaleY);
 
-                checkIfInThreshold(listeners, listenerUpdates, fractionRendered, windowHandle.alpha,
-                        currTimeMs);
+                windowStates.computeIfAbsent(windowToken, k -> new ArrayList<>())
+                        .add(new Pair<>(fractionRendered, windowHandle.alpha));
             }
 
             coveredRegionsAbove.op(tmpRect, Region.Op.UNION);
             coveredRegionsAboveByDisplay.put(displayId, coveredRegionsAbove);
             ProtoLog.v(WM_DEBUG_TPL, "coveredRegionsAbove updated with %s frame:%s region:%s",
                     windowHandle.name, tmpRect.toShortString(), coveredRegionsAbove);
+        }
+
+        for (int i = 0; i < mRegisteredListeners.mWindowToListeners.size(); i++) {
+            IBinder windowToken = mRegisteredListeners.mWindowToListeners.keyAt(i);
+            var listeners = mRegisteredListeners.mWindowToListeners.valueAt(i);
+            checkIfInThreshold(listeners, listenerUpdates,
+                    windowStates.get(windowToken),
+                    currTimeMs);
         }
 
         for (int i = 0; i < listenerUpdates.size(); i++) {
@@ -344,35 +446,56 @@ public class TrustedPresentationListenerController {
     private void checkIfInThreshold(
             ArrayList<TrustedPresentationInfo> listeners,
             ArrayMap<ITrustedPresentationListener, Pair<IntArray, IntArray>> listenerUpdates,
-            float fractionRendered, float alpha, long currTimeMs) {
-        ProtoLog.v(WM_DEBUG_TPL, "checkIfInThreshold fractionRendered=%f alpha=%f currTimeMs=%d",
-                fractionRendered, alpha, currTimeMs);
+            ArrayList<Pair<Float, Float>> states, long currTimeMs) {
+        if (states == null) {
+            states = new ArrayList<>();
+        }
         for (int i = 0; i < listeners.size(); i++) {
             var trustedPresentationInfo = listeners.get(i);
-            var listener = trustedPresentationInfo.mListener;
+            boolean newState = false;
+            float bestAlpha = 0f;
+            float bestFraction = 0f;
+            for (Pair<Float, Float> state : states) {
+                float fractionRendered = state.first;
+                float alpha = state.second;
+                boolean meetsThreshold =
+                        (alpha >= trustedPresentationInfo.mThresholds.getMinAlpha())
+                        && (fractionRendered >= trustedPresentationInfo.mThresholds
+                                .getMinFractionRendered());
+                if (meetsThreshold) {
+                    newState = true;
+                    bestAlpha = alpha;
+                    bestFraction = fractionRendered;
+                    break;
+                }
+                // Track best non-meeting state for debugging/dump
+                if (fractionRendered > bestFraction) {
+                    bestFraction = fractionRendered;
+                    bestAlpha = alpha;
+                }
+            }
+
+            trustedPresentationInfo.mLastAlpha = bestAlpha;
+            trustedPresentationInfo.mLastFractionRendered = bestFraction;
             boolean lastState = trustedPresentationInfo.mLastComputedTrustedPresentationState;
-            boolean newState =
-                    (alpha >= trustedPresentationInfo.mThresholds.getMinAlpha())
-                            && (fractionRendered >= trustedPresentationInfo.mThresholds
-                                    .getMinFractionRendered());
             trustedPresentationInfo.mLastComputedTrustedPresentationState = newState;
 
             ProtoLog.v(WM_DEBUG_TPL,
                     "lastState=%s newState=%s alpha=%f minAlpha=%f fractionRendered=%f "
                             + "minFractionRendered=%f",
-                    lastState, newState, alpha, trustedPresentationInfo.mThresholds.getMinAlpha(),
-                    fractionRendered, trustedPresentationInfo.mThresholds
-                            .getMinFractionRendered());
+                    lastState, newState, bestAlpha,
+                    trustedPresentationInfo.mThresholds.getMinAlpha(), bestFraction,
+                    trustedPresentationInfo.mThresholds.getMinFractionRendered());
 
             if (lastState && !newState) {
                 // We were in the trusted presentation state, but now we left it,
                 // emit the callback if needed
                 if (trustedPresentationInfo.mLastReportedTrustedPresentationState) {
                     trustedPresentationInfo.mLastReportedTrustedPresentationState = false;
-                    addListenerUpdate(listenerUpdates, listener,
+                    addListenerUpdate(listenerUpdates, trustedPresentationInfo.mListener,
                             trustedPresentationInfo.mId, /*presentationState*/ false);
                     ProtoLog.d(WM_DEBUG_TPL, "Adding untrusted state listener=%s with id=%d",
-                            listener, trustedPresentationInfo.mId);
+                            trustedPresentationInfo.mListener, trustedPresentationInfo.mId);
                 }
                 // Reset the timer
                 trustedPresentationInfo.mEnteredTrustedPresentationStateTime = -1;
@@ -392,10 +515,10 @@ public class TrustedPresentationListenerController {
                             > trustedPresentationInfo.mThresholds
                                         .getStabilityRequirementMillis())) {
                 trustedPresentationInfo.mLastReportedTrustedPresentationState = true;
-                addListenerUpdate(listenerUpdates, listener,
+                addListenerUpdate(listenerUpdates, trustedPresentationInfo.mListener,
                         trustedPresentationInfo.mId, /*presentationState*/ true);
                 ProtoLog.d(WM_DEBUG_TPL, "Adding trusted state listener=%s with id=%d",
-                        listener, trustedPresentationInfo.mId);
+                        trustedPresentationInfo.mListener, trustedPresentationInfo.mId);
             }
         }
     }
@@ -434,6 +557,8 @@ public class TrustedPresentationListenerController {
     }
 
     private static class TrustedPresentationInfo {
+        float mLastAlpha = -1;
+        float mLastFractionRendered = -1;
         boolean mLastComputedTrustedPresentationState = false;
         boolean mLastReportedTrustedPresentationState = false;
         long mEnteredTrustedPresentationStateTime = -1;

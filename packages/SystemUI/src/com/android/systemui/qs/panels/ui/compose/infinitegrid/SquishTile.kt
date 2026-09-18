@@ -36,12 +36,10 @@ fun Modifier.verticalSquish(squishiness: () -> Float): Modifier {
     return approachLayout(
         isMeasurementApproachInProgress = { squishiness() < 1 },
         approachMeasure = { measurable, constraints ->
-            val value = squishiness()
+            val squishinessValue = if (isLookingAhead) 1f else squishiness()
 
-            // Skip squishing during lookahead or when squishiness is 1.0.
-            // Lookahead: Ensures accurate pre-layout size.
-            // Squishiness 1f: Prevents unnecessary calculations when no squishing is needed.
-            if (isLookingAhead || value == 1f) {
+            // Prevents unnecessary calculations when no squishing is needed.
+            if (squishinessValue == 1f) {
                 return@approachLayout measurable.measure(constraints).run {
                     layout(width, height) { place(0, 0) }
                 }
@@ -50,7 +48,7 @@ fun Modifier.verticalSquish(squishiness: () -> Float): Modifier {
             val expectedHeight = lookaheadSize.height
 
             val placeable = measurable.measure(lookaheadConstraints)
-            val squishedHeight = (expectedHeight * value).roundToInt()
+            val squishedHeight = (expectedHeight * squishinessValue).roundToInt()
             // Center the content by moving it UP (squishedHeight < actualHeight)
             val scroll = (squishedHeight - expectedHeight) / 2
 

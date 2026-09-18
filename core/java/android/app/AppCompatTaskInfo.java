@@ -79,11 +79,6 @@ public class AppCompatTaskInfo implements Parcelable {
      */
     public float topNonResizableActivityAspectRatio = PROPERTY_VALUE_UNSET;
 
-    /**
-     * Stores camera-related app compat information about a particular Task.
-     */
-    public CameraCompatTaskInfo cameraCompatTaskInfo = CameraCompatTaskInfo.create();
-
     /** Constant indicating no top activity flag has been set. */
     private static final int FLAG_UNDEFINED = 0x0;
     /** Constant base value for top activity flag. */
@@ -116,6 +111,12 @@ public class AppCompatTaskInfo implements Parcelable {
     public static final int FLAG_SAFE_REGION_LETTERBOXED = FLAG_BASE << 12;
     /** The related task is a leaf task. */
     public static final int FLAG_IS_LEAF_TASK = FLAG_BASE << 13;
+    /** The main window of the top activity has rounded corners. */
+    public static final int FLAG_HAS_MAIN_WINDOW_ROUNDED_CORNERS = FLAG_BASE << 14;
+    /** The top activity has excluded caption insets from app bounds treatment. */
+    public static final int FLAG_IS_EXCLUDE_CAPTION_INSETS = FLAG_BASE << 15;
+    /** The top activity has letterbox state that is running, but might be hidden. */
+    public static final int FLAG_IS_LETTERBOX_RUNNING = FLAG_BASE << 16;
 
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(flag = true, value = {
@@ -133,7 +134,10 @@ public class AppCompatTaskInfo implements Parcelable {
             FLAG_ENABLE_RESTART_MENU_FOR_DISPLAY_MOVE,
             FLAG_OPT_OUT_EDGE_TO_EDGE,
             FLAG_SAFE_REGION_LETTERBOXED,
-            FLAG_IS_LEAF_TASK
+            FLAG_IS_LEAF_TASK,
+            FLAG_HAS_MAIN_WINDOW_ROUNDED_CORNERS,
+            FLAG_IS_EXCLUDE_CAPTION_INSETS,
+            FLAG_IS_LETTERBOX_RUNNING
     })
     public @interface TopActivityFlag {}
 
@@ -149,7 +153,8 @@ public class AppCompatTaskInfo implements Parcelable {
             | FLAG_ELIGIBLE_FOR_USER_ASPECT_RATIO_BUTTON | FLAG_FULLSCREEN_OVERRIDE_SYSTEM
             | FLAG_FULLSCREEN_OVERRIDE_USER | FLAG_HAS_MIN_ASPECT_RATIO_OVERRIDE
             | FLAG_OPT_OUT_EDGE_TO_EDGE | FLAG_ENABLE_RESTART_MENU_FOR_DISPLAY_MOVE
-            | FLAG_IS_LEAF_TASK;
+            | FLAG_IS_LEAF_TASK | FLAG_HAS_MAIN_WINDOW_ROUNDED_CORNERS
+            | FLAG_IS_EXCLUDE_CAPTION_INSETS | FLAG_IS_LETTERBOX_RUNNING;
 
     @TopActivityFlag
     private static final int FLAGS_COMPAT_UI_INTERESTED = FLAGS_ORGANIZER_INTERESTED
@@ -167,6 +172,22 @@ public class AppCompatTaskInfo implements Parcelable {
 
     private AppCompatTaskInfo(Parcel source) {
         readFromParcel(source);
+    }
+
+    /**
+     * @hide
+     */
+    public AppCompatTaskInfo(@NonNull AppCompatTaskInfo other) {
+        mTopActivityFlags = other.mTopActivityFlags;
+        topActivityLetterboxVerticalPosition = other.topActivityLetterboxVerticalPosition;
+        topActivityLetterboxHorizontalPosition = other.topActivityLetterboxHorizontalPosition;
+        topActivityLetterboxWidth = other.topActivityLetterboxWidth;
+        topActivityLetterboxHeight = other.topActivityLetterboxHeight;
+        topActivityAppBounds.set(other.topActivityAppBounds);
+        topActivityLetterboxBounds = other.topActivityLetterboxBounds != null
+                ? new Rect(other.topActivityLetterboxBounds)
+                : null;
+        topNonResizableActivityAspectRatio = other.topNonResizableActivityAspectRatio;
     }
 
     @Override
@@ -336,6 +357,20 @@ public class AppCompatTaskInfo implements Parcelable {
     }
 
     /**
+     * @return {@code true} if the main window has rounded corners.
+     */
+    public boolean hasMainWindowRoundedCorners() {
+        return isTopActivityFlagEnabled(FLAG_HAS_MAIN_WINDOW_ROUNDED_CORNERS);
+    }
+
+    /**
+     * Sets the information related to the rounded corners on the main window.
+     */
+    public void setHasMainWindowRoundedCorners(boolean hasRoundedCorners) {
+        setTopActivityFlag(FLAG_HAS_MAIN_WINDOW_ROUNDED_CORNERS, hasRoundedCorners);
+    }
+
+    /**
      * @return {@code true} if the restart menu is enabled for the top activity due to display move.
      */
     public boolean isRestartMenuEnabledForDisplayMove() {
@@ -380,6 +415,20 @@ public class AppCompatTaskInfo implements Parcelable {
     }
 
     /**
+     * @return {@code true} if the top activity letterbox is running, which could be hidden.
+     */
+    public boolean isTopActivityLetterboxRunning() {
+        return isTopActivityFlagEnabled(FLAG_IS_LETTERBOX_RUNNING);
+    }
+
+    /**
+     * Sets the top activity flag for whether letterbox is running, which could be hidden.
+     */
+    public void setTopActivityLetterboxRunning(boolean enable) {
+        setTopActivityFlag(FLAG_IS_LETTERBOX_RUNNING, enable);
+    }
+
+    /**
      * @return {@code true} if the top activity's min aspect ratio has been overridden.
      */
     public boolean hasMinAspectRatioOverride() {
@@ -408,6 +457,18 @@ public class AppCompatTaskInfo implements Parcelable {
         return isTopActivityFlagEnabled(FLAG_OPT_OUT_EDGE_TO_EDGE);
     }
 
+    /** Sets the top activity flag for whether caption insets are excluded from app bounds. */
+    public void setIsExcludeCaptionInsets(boolean enable) {
+        setTopActivityFlag(FLAG_IS_EXCLUDE_CAPTION_INSETS, enable);
+    }
+
+    /**
+     * @return {@code true} if the top activity has caption insets excluded from app bounds.
+     */
+    public boolean hasIsExcludeCaptionInsets() {
+        return isTopActivityFlagEnabled(FLAG_IS_EXCLUDE_CAPTION_INSETS);
+    }
+
     /** Clear all top activity flags and set to false. */
     public void clearTopActivityFlags() {
         mTopActivityFlags = FLAG_UNDEFINED;
@@ -429,7 +490,6 @@ public class AppCompatTaskInfo implements Parcelable {
                 && topActivityLetterboxWidth == that.topActivityLetterboxWidth
                 && topActivityLetterboxHeight == that.topActivityLetterboxHeight
                 && Objects.equals(topActivityAppBounds, that.topActivityAppBounds)
-                && cameraCompatTaskInfo.equalsForTaskOrganizer(that.cameraCompatTaskInfo)
                 && topNonResizableActivityAspectRatio == that.topNonResizableActivityAspectRatio;
     }
 
@@ -447,8 +507,7 @@ public class AppCompatTaskInfo implements Parcelable {
                     == that.topActivityLetterboxHorizontalPosition
                 && topActivityLetterboxWidth == that.topActivityLetterboxWidth
                 && topActivityLetterboxHeight == that.topActivityLetterboxHeight
-                && Objects.equals(topActivityAppBounds, that.topActivityAppBounds)
-                && cameraCompatTaskInfo.equalsForCompatUi(that.cameraCompatTaskInfo);
+                && Objects.equals(topActivityAppBounds, that.topActivityAppBounds);
     }
 
     /**
@@ -462,7 +521,6 @@ public class AppCompatTaskInfo implements Parcelable {
         topActivityLetterboxHeight = source.readInt();
         topActivityAppBounds.set(Objects.requireNonNull(source.readTypedObject(Rect.CREATOR)));
         topActivityLetterboxBounds = source.readTypedObject(Rect.CREATOR);
-        cameraCompatTaskInfo = source.readTypedObject(CameraCompatTaskInfo.CREATOR);
         topNonResizableActivityAspectRatio = source.readFloat();
     }
 
@@ -478,7 +536,6 @@ public class AppCompatTaskInfo implements Parcelable {
         dest.writeInt(topActivityLetterboxHeight);
         dest.writeTypedObject(topActivityAppBounds, flags);
         dest.writeTypedObject(topActivityLetterboxBounds, flags);
-        dest.writeTypedObject(cameraCompatTaskInfo, flags);
         dest.writeFloat(topNonResizableActivityAspectRatio);
     }
 
@@ -502,7 +559,6 @@ public class AppCompatTaskInfo implements Parcelable {
                 + " isSystemFullscreenOverrideEnabled=" + isSystemFullscreenOverrideEnabled()
                 + " hasMinAspectRatioOverride=" + hasMinAspectRatioOverride()
                 + " topActivityLetterboxBounds=" + topActivityLetterboxBounds
-                + " cameraCompatTaskInfo=" + cameraCompatTaskInfo.toString()
                 + " topNonResizableActivityAspectRatio=" + topNonResizableActivityAspectRatio
                 + "}";
     }

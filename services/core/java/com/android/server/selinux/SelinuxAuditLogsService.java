@@ -15,9 +15,6 @@
  */
 package com.android.server.selinux;
 
-import static com.android.sdksandbox.flags.Flags.selinuxSdkSandboxAudit;
-import static com.android.server.selinux.flags.Flags.selinuxLogsCollect;
-
 import android.app.job.JobInfo;
 import android.app.job.JobParameters;
 import android.app.job.JobScheduler;
@@ -46,10 +43,6 @@ public class SelinuxAuditLogsService extends JobService {
 
     static final int AUDITD_TAG_CODE = EventLog.getTagCode("auditd");
 
-    private static final String CONFIG_SELINUX_AUDIT_JOB_FREQUENCY_HOURS =
-            "selinux_audit_job_frequency_hours";
-    private static final String CONFIG_SELINUX_ENABLE_AUDIT_JOB = "selinux_enable_audit_job";
-    private static final String CONFIG_SELINUX_AUDIT_CAP = "selinux_audit_cap";
     private static final String DEVICE_CONFIG_SECURITY_NAMESPACE = "security";
     private static final String CONFIG_SECURITY_SELINUX_AUDIT_JOB_ENABLED =
             "selinux_audit_job_enabled";
@@ -63,16 +56,11 @@ public class SelinuxAuditLogsService extends JobService {
 
     // Audit logging is subject to both rate and quota limiting. A {@link RateLimiter} makes sure
     // that we push no more than one atom every 10 milliseconds. A {@link QuotaLimiter} caps the
-    // number of atoms pushed per day to CONFIG_SELINUX_AUDIT_CAP. The quota limiter is static
+    // number of atoms pushed per day to MAX_PERMITS_CAP_DEFAULT. The quota limiter is static
     // because new job executions happen in a new instance of this class. Making the quota limiter
     // an instance reference would reset the quota limitations between jobs executions.
     private static final Duration RATE_LIMITER_WINDOW = Duration.ofMillis(10);
-    private static final QuotaLimiter QUOTA_LIMITER =
-            new QuotaLimiter(
-                    DeviceConfig.getInt(
-                            DeviceConfig.NAMESPACE_ADSERVICES,
-                            CONFIG_SELINUX_AUDIT_CAP,
-                            MAX_PERMITS_CAP_DEFAULT));
+    private static final QuotaLimiter QUOTA_LIMITER = new QuotaLimiter(MAX_PERMITS_CAP_DEFAULT);
     private static final SelinuxAuditLogsJob LOGS_COLLECTOR_JOB =
             new SelinuxAuditLogsJob(
                     new SelinuxAuditLogsCollector(
@@ -80,7 +68,7 @@ public class SelinuxAuditLogsService extends JobService {
 
     /** Schedule jobs with the {@link JobScheduler}. */
     public static void schedule(Context context) {
-        if (!selinuxSdkSandboxAudit() && !enabledForAllDomains()) {
+        if (!enabledForAllDomains()) {
             Slog.d(TAG, "SelinuxAuditLogsService not enabled");
             return;
         }
@@ -96,14 +84,9 @@ public class SelinuxAuditLogsService extends JobService {
                                 .forNamespace(SELINUX_AUDIT_NAMESPACE));
         scheduler.schedule();
 
-        AdServicesPropertyMonitor adServicesProperties = new AdServicesPropertyMonitor(scheduler);
-        DeviceConfig.addOnPropertiesChangedListener(
-                DeviceConfig.NAMESPACE_ADSERVICES, context.getMainExecutor(), adServicesProperties);
-
         SecurityPropertyMonitor securityProperties = new SecurityPropertyMonitor(scheduler);
         DeviceConfig.addOnPropertiesChangedListener(
                 DEVICE_CONFIG_SECURITY_NAMESPACE, context.getMainExecutor(), securityProperties);
-
     }
 
     @Override
@@ -112,7 +95,7 @@ public class SelinuxAuditLogsService extends JobService {
             Slog.e(TAG, "The job id does not match the expected selinux job id.");
             return false;
         }
-        if (!selinuxSdkSandboxAudit() && !enabledForAllDomains()) {
+        if (!enabledForAllDomains()) {
             Slog.i(TAG, "Selinux audit job disabled.");
             return false;
         }
@@ -136,58 +119,10 @@ public class SelinuxAuditLogsService extends JobService {
 
     /** Checks if the service is enabled for all domains */
     public static final boolean enabledForAllDomains() {
-        if (selinuxLogsCollect()) {
-            return DeviceConfig.getBoolean(
-                    DEVICE_CONFIG_SECURITY_NAMESPACE,
-                    CONFIG_SECURITY_SELINUX_AUDIT_JOB_ENABLED,
-                    false);
-        }
-        return false;
-    }
-
-    /** Checks if the service is enabled for SDK Sandbox */
-    public static final boolean enabledForSdkSandbox() {
-        if (selinuxSdkSandboxAudit()) {
-            return DeviceConfig.getBoolean(
-                    DeviceConfig.NAMESPACE_ADSERVICES, CONFIG_SELINUX_ENABLE_AUDIT_JOB, false);
-        }
-        return false;
-    }
-
-    private static final class AdServicesPropertyMonitor
-            implements DeviceConfig.OnPropertiesChangedListener {
-
-        private final LogsCollectorJobScheduler mScheduler;
-
-        private AdServicesPropertyMonitor(LogsCollectorJobScheduler scheduler) {
-            mScheduler = scheduler;
-        }
-
-        @Override
-        public void onPropertiesChanged(Properties changedProperties) {
-            Set<String> keyset = changedProperties.getKeyset();
-
-            if (keyset.contains(CONFIG_SELINUX_AUDIT_CAP)) {
-                QUOTA_LIMITER.setMaxPermits(
-                        changedProperties.getInt(
-                                CONFIG_SELINUX_AUDIT_CAP, MAX_PERMITS_CAP_DEFAULT));
-            }
-
-            if (keyset.contains(CONFIG_SELINUX_ENABLE_AUDIT_JOB)) {
-                boolean enabled =
-                        changedProperties.getBoolean(
-                                CONFIG_SELINUX_ENABLE_AUDIT_JOB, /* defaultValue= */ false)
-                        || enabledForAllDomains();
-                if (enabled) {
-                    mScheduler.schedule();
-                } else {
-                    mScheduler.cancel();
-                }
-            } else if (keyset.contains(CONFIG_SELINUX_AUDIT_JOB_FREQUENCY_HOURS)) {
-                // The job frequency changed, reschedule.
-                mScheduler.schedule();
-            }
-        }
+        return DeviceConfig.getBoolean(
+                DEVICE_CONFIG_SECURITY_NAMESPACE,
+                CONFIG_SECURITY_SELINUX_AUDIT_JOB_ENABLED,
+                false);
     }
 
     private static final class SecurityPropertyMonitor
@@ -204,12 +139,8 @@ public class SelinuxAuditLogsService extends JobService {
             Set<String> keyset = changedProperties.getKeyset();
 
             if (keyset.contains(CONFIG_SECURITY_SELINUX_AUDIT_JOB_ENABLED)) {
-                boolean enabled =
-                        changedProperties.getBoolean(
-                                CONFIG_SECURITY_SELINUX_AUDIT_JOB_ENABLED,
-                                /* defaultValue= */ false)
-                        || enabledForSdkSandbox();
-                if (enabled) {
+                if (changedProperties.getBoolean(
+                        CONFIG_SECURITY_SELINUX_AUDIT_JOB_ENABLED, /* defaultValue= */ false)) {
                     mScheduler.schedule();
                 } else {
                     mScheduler.cancel();
@@ -235,12 +166,7 @@ public class SelinuxAuditLogsService extends JobService {
         }
 
         public void schedule() {
-            long frequencyMillis =
-                    TimeUnit.HOURS.toMillis(
-                            DeviceConfig.getInt(
-                                    DeviceConfig.NAMESPACE_ADSERVICES,
-                                    CONFIG_SELINUX_AUDIT_JOB_FREQUENCY_HOURS,
-                                    24));
+            long frequencyMillis = TimeUnit.HOURS.toMillis(24);
             if (mJobScheduler.schedule(
                             new JobInfo.Builder(SELINUX_AUDIT_JOB_ID, SELINUX_AUDIT_JOB_COMPONENT)
                                     .setPeriodic(frequencyMillis)

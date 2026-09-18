@@ -32,6 +32,7 @@ import android.os.Process
 import android.os.UserHandle
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import androidx.annotation.WorkerThread
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.app.tracing.traceSection
 import com.android.internal.logging.InstanceId
@@ -238,7 +239,7 @@ class LegacyMediaDataManagerImpl(
             setInactive(key, timedOut)
         }
         mediaTimeoutListener.stateCallback = { key: String, state: PlaybackState ->
-            updateState(key, state)
+            applicationScope.launch { updateState(key, state) }
         }
         mediaTimeoutListener.sessionCallback = { key: String -> onSessionDestroyed(key) }
         mediaResumeListener.setManager(this)
@@ -516,40 +517,43 @@ class LegacyMediaDataManagerImpl(
     }
 
     /** Called when the player's [PlaybackState] has been updated with new actions and/or state */
-    private fun updateState(key: String, state: PlaybackState) {
-        mediaEntries.get(key)?.let {
-            backgroundExecutor.execute {
-                val token = it.token
+    private suspend fun updateState(key: String, state: PlaybackState) {
+        mediaEntries[key]?.let { mediaData ->
+            withContext(backgroundDispatcher) {
+                val token = mediaData.token
                 if (token == null) {
                     if (DEBUG) Log.d(TAG, "State updated, but token was null")
-                    return@execute
+                    return@withContext
                 }
                 val actions =
                     createActionsFromState(
-                        it.packageName,
-                        mediaControllerFactory.create(it.token),
-                        UserHandle(it.userId),
+                        mediaData.packageName,
+                        mediaControllerFactory.create(mediaData.token),
+                        UserHandle(mediaData.userId),
                     )
-
-                // Control buttons
-                // If flag is enabled and controller has a PlaybackState,
-                // create actions from session info
-                // otherwise, no need to update semantic actions.
-                val data =
-                    if (actions != null) {
-                        it.copy(
-                            semanticActions = actions,
-                            isPlaying = isPlayingState(state.state),
-                            lastActive = getActiveTimestamp(systemClock),
-                        )
-                    } else {
-                        it.copy(
-                            isPlaying = isPlayingState(state.state),
-                            lastActive = getActiveTimestamp(systemClock),
-                        )
-                    }
                 if (DEBUG) Log.d(TAG, "State updated outside of notification")
-                foregroundExecutor.execute { onMediaDataLoaded(key, key, data) }
+                withContext(mainDispatcher) {
+                    // Control buttons
+                    // If flag is enabled and controller has a PlaybackState,
+                    // create actions from session info
+                    // otherwise, no need to update semantic actions.
+                    mediaEntries[key]?.let { recentData ->
+                        val data =
+                            if (actions != null) {
+                                recentData.copy(
+                                    semanticActions = actions,
+                                    isPlaying = isPlayingState(state.state),
+                                    lastActive = getActiveTimestamp(systemClock),
+                                )
+                            } else {
+                                recentData.copy(
+                                    isPlaying = isPlayingState(state.state),
+                                    lastActive = getActiveTimestamp(systemClock),
+                                )
+                            }
+                        onMediaDataLoaded(key, key, data)
+                    }
+                }
             }
         }
     }
@@ -665,6 +669,7 @@ class LegacyMediaDataManagerImpl(
         }
     }
 
+    @WorkerThread
     private fun createActionsFromState(
         packageName: String,
         controller: MediaController,
@@ -673,7 +678,7 @@ class LegacyMediaDataManagerImpl(
         if (!mediaFlags.areMediaSessionActionsEnabled(packageName, user)) {
             return null
         }
-        return createActionsFromState(context, packageName, controller)
+        return createActionsFromState(context, packageName, controller, user.identifier)
     }
 
     private fun getResumeMediaAction(action: Runnable): MediaAction {

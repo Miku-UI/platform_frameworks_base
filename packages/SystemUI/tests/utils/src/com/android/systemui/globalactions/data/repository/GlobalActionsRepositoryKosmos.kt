@@ -16,6 +16,11 @@
 
 package com.android.systemui.globalactions.data.repository
 
+import android.content.applicationContext
+import com.android.systemui.globalactions.data.repository.impl.GlobalActionsRepositoryImpl
 import com.android.systemui.kosmos.Kosmos
 
-val Kosmos.globalActionsRepository by Kosmos.Fixture { GlobalActionsRepository() }
+val Kosmos.realGlobalActionsRepository by
+    Kosmos.Fixture { GlobalActionsRepositoryImpl(applicationContext) }
+
+val Kosmos.globalActionsRepository by Kosmos.Fixture { FakeGlobalActionsRepository() }

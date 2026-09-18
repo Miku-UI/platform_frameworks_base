@@ -105,6 +105,12 @@ public class AndroidKeyStoreSecretKeyFactorySpi extends SecretKeyFactorySpi {
                                 a.keyParameter.value.getOrigin());
                         break;
                     case KeymasterDefs.KM_TAG_KEY_SIZE:
+                        if (key.getAlgorithm()
+                                .equalsIgnoreCase(KeyProperties.KEY_ALGORITHM_ML_DSA)) {
+                            // Keep the default value of -1. Casting to an unsigned integer causes
+                            // an overflow that fails the "Key too large" check.
+                            break;
+                        }
                         long keySizeUnsigned = KeyStore2ParameterUtils.getUnsignedInt(a);
                         if (keySizeUnsigned > Integer.MAX_VALUE) {
                             throw new ProviderException(
@@ -212,7 +218,10 @@ public class AndroidKeyStoreSecretKeyFactorySpi extends SecretKeyFactorySpi {
         } catch (IllegalArgumentException e) {
             throw new ProviderException("Unsupported key characteristic", e);
         }
-        if (keySize == -1) {
+
+        // Key size is ignored for ML-DSA.
+        if (keySize == -1
+                && !key.getAlgorithm().equalsIgnoreCase(KeyProperties.KEY_ALGORITHM_ML_DSA)) {
             throw new ProviderException("Key size not available");
         }
         if (origin == -1) {

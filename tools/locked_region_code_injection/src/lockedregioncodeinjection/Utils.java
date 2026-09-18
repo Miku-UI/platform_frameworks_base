@@ -15,6 +15,9 @@ package lockedregioncodeinjection;
 
 import org.objectweb.asm.Opcodes;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,48 +26,92 @@ public class Utils {
     public static final int ASM_VERSION = Opcodes.ASM9;
 
     /**
-     * Reads a comma separated configuration similar to the Jack definition.
+     * Reads configuration from a config file with key:value format.
+     *
+     * Each target begins with "target:" followed by lock class descriptor.
+     * Optional fields: pre, post, trace-before-acquire, trace-after-acquire,
+     * trace-before-release, trace-after-release, scoped.
+     * Empty lines and lines starting with # are ignored.
      */
-    public static List<LockTarget> getTargetsFromLegacyJackConfig(String classList,
-            String requestList, String resetList) {
+    public static List<LockTarget> getTargetsFromConfig(String configPath) throws IOException {
+        List<LockTarget> targets = new ArrayList<>();
 
-        String[] classes = classList.split(",");
-        String[] requests = requestList.split(",");
-        String[] resets = resetList.split(",");
+        try (BufferedReader reader = new BufferedReader(new FileReader(configPath))) {
+            String line;
+            TargetBuilder builder = null;
+            int lineNum = 0;
 
-        int total = classes.length;
-        assert requests.length == total;
-        assert resets.length == total;
+            while ((line = reader.readLine()) != null) {
+                lineNum++;
+                line = line.trim();
+                if (line.isEmpty() || line.startsWith("#")) {
+                    continue;
+                }
 
-        List<LockTarget> config = new ArrayList<LockTarget>();
+                int colonIndex = line.indexOf(':');
+                if (colonIndex == -1) {
+                    continue;
+                }
 
-        for (int i = 0; i < total; i++) {
-            config.add(new LockTarget(classes[i], requests[i], resets[i]));
-        }
+                String key = line.substring(0, colonIndex).trim();
+                String value = line.substring(colonIndex + 1).trim();
 
-        return config;
-    }
-
-    /**
-     * Returns a single {@link LockTarget} from a string.  The target is a comma-separated list of
-     * the target class, the request method, the release method, and a boolean which is true if this
-     * is a scoped target and false if this is a legacy target.  The boolean is optional and
-     * defaults to true.
-     */
-    public static LockTarget getScopedTarget(String arg) {
-        String[] c = arg.split(",");
-        if (c.length == 3) {
-          return new LockTarget(c[0], c[1], c[2], true);
-        } else if (c.length == 4) {
-            if (c[3].equals("true")) {
-                return new LockTarget(c[0], c[1], c[2], true);
-            } else if (c[3].equals("false")) {
-                return new LockTarget(c[0], c[1], c[2], false);
-            } else {
-                System.err.println("illegal target parameter \"" + c[3] + "\"");
+                if ("target".equals(key)) {
+                    if (builder != null) {
+                        targets.add(builder.build());
+                    }
+                    builder = new TargetBuilder(value, lineNum);
+                } else {
+                    if (builder == null) {
+                        throw new RuntimeException("Line " + lineNum + ": Key '" + key
+                                + "' found before 'target'");
+                    }
+                    builder.setProperty(key, value, lineNum);
+                }
+            }
+            if (builder != null) {
+                targets.add(builder.build());
             }
         }
-        // Fall through
-        throw new RuntimeException("invalid scoped target format");
+        return targets;
+    }
+
+    private static class TargetBuilder {
+        private final String mTargetDesc;
+        private final int mStartLine;
+        private String mPre;
+        private String mPost;
+        private String mTraceBeforeAcquire;
+        private String mTraceAfterAcquire;
+        private String mTraceBeforeRelease;
+        private String mTraceAfterRelease;
+        private boolean mScoped = false;
+
+        TargetBuilder(String desc, int line) {
+            mTargetDesc = desc;
+            mStartLine = line;
+        }
+
+        void setProperty(String key, String value, int lineNum) {
+            switch (key) {
+                case "pre" -> mPre = value;
+                case "post" -> mPost = value;
+                case "trace-before-acquire" -> mTraceBeforeAcquire = value;
+                case "trace-after-acquire" -> mTraceAfterAcquire = value;
+                case "trace-before-release" -> mTraceBeforeRelease = value;
+                case "trace-after-release" -> mTraceAfterRelease = value;
+                case "scoped" -> mScoped = Boolean.parseBoolean(value);
+                default -> throw new RuntimeException("Line " + lineNum + ": Unknown key: " + key);
+            }
+        }
+
+        LockTarget build() {
+            if ((mPre == null) != (mPost == null)) {
+                throw new RuntimeException("Target " + mTargetDesc + " starting at line "
+                        + mStartLine + ": pre and post must both be specified or both be null");
+            }
+            return new LockTarget(mTargetDesc, mPre, mPost, mTraceBeforeAcquire,
+                    mTraceAfterAcquire, mTraceBeforeRelease, mTraceAfterRelease, mScoped);
+        }
     }
 }

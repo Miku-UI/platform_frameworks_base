@@ -18,9 +18,6 @@ package com.android.server.accessibility.integration
 import android.app.Instrumentation
 import android.app.UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES
 import android.graphics.Point
-import android.platform.test.annotations.RequiresFlagsEnabled
-import android.platform.test.flag.junit.CheckFlagsRule
-import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -28,7 +25,6 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
 import com.android.compatibility.common.util.SettingsStateChangerRule
-import com.android.server.accessibility.Flags
 import org.junit.AfterClass
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -41,14 +37,10 @@ import org.junit.runner.RunWith
 import platform.test.desktop.DesktopMouseTestRule
 
 @RunWith(AndroidJUnit4::class)
-@RequiresFlagsEnabled(Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
 @Ignore("b/438414507")
 class AutoclickPanelTests {
-    @Rule(order = 0)
-    @JvmField
-    val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
-    @Rule(order = 1)
+    @Rule(order = 0)
     @JvmField
     val autoclickEnabledSettingRule: SettingsStateChangerRule =
         SettingsStateChangerRule(
@@ -57,7 +49,7 @@ class AutoclickPanelTests {
             "1"
         )
 
-    @Rule(order = 2)
+    @Rule(order = 1)
     @JvmField
     val desktopMouseTestRule = DesktopMouseTestRule()
 

@@ -21,11 +21,13 @@ import static java.util.Collections.emptySet;
 import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresPermission;
 import android.annotation.UserIdInt;
 import android.app.admin.DevicePolicyManager;
 import android.app.backup.BackupManager;
 import android.app.backup.BackupManagerInternal;
 import android.app.backup.BackupRestoreEventLogger.DataTypeResult;
+import android.app.backup.DelayedRestoreRequest;
 import android.app.backup.IBackupManager;
 import android.app.backup.IBackupManagerMonitor;
 import android.app.backup.IBackupObserver;
@@ -364,7 +366,13 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
         }
 
         // Returns false if the user is not a full user.
-        if (!mUserManagerInternal.getUserInfo(userId).isFull()) {
+        UserInfo userInfo = mUserManagerInternal.getUserInfo(userId);
+        if (userInfo == null || !userInfo.isFull()) {
+            return false;
+        }
+
+        // Returns false for guest users.
+        if (userInfo.isGuest()) {
             return false;
         }
 
@@ -761,6 +769,89 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
 
         if (userBackupManagerService != null) {
             userBackupManagerService.restoreAtInstall(packageName, token);
+        }
+    }
+
+    /**
+     * Schedules a restore request that is not yet possible due to some external dependency (for
+     * example, an app install). This method enforces the necessary permission check on the caller
+     * and then delegates to the {@link UserBackupManagerService} to schedule the request.
+     *
+     * @param userId User id for which the action should be scheduled.
+     * @param request The DelayedRestoreRequest to schedule
+     * @return boolean indicating the success of the scheduling request.
+     */
+    @Override
+    @RequiresPermission(android.Manifest.permission.SCHEDULE_DELAYED_RESTORE)
+    public boolean scheduleDelayedRestoreForUser(int userId, DelayedRestoreRequest request) {
+        mContext.enforceCallingOrSelfPermission(Manifest.permission.SCHEDULE_DELAYED_RESTORE,
+                "scheduleDelayedRestoreForUser()");
+
+        UserBackupManagerService userBackupManagerService =
+                getServiceForUserIfCallerHasPermission(userId,
+                        "scheduleDelayedRestoreForUser()");
+
+        if (userBackupManagerService != null) {
+            return userBackupManagerService.scheduleDelayedRestore(request);
+        }
+        return false;
+    }
+
+    /**
+     * Schedules a restore request that is not yet possible due to some external dependency (for
+     * example, an app install).
+     *
+     * @param request The DelayedRestoreRequest to schedule
+     * @return boolean indicating the success of the scheduling request.
+     */
+    @Override
+    public boolean scheduleDelayedRestore(DelayedRestoreRequest request) {
+        return scheduleDelayedRestoreForUser(binderGetCallingUserId(), request);
+    }
+
+    /**
+     * Triggers any previously scheduled delayed restore requests meeting the met conditions.
+     *
+     * @param userId User id for which the action should be performed.
+     * @param request The DelayedRestoreRequest to trigger.
+     */
+    @Override
+    public void onDelayedRestoreConditionMetForUser(@UserIdInt int userId,
+            DelayedRestoreRequest request) {
+        if (!isUserReadyForBackup(userId)) {
+            return;
+        }
+
+        UserBackupManagerService userBackupManagerService =
+                getServiceForUserIfCallerHasPermission(userId,
+                        "onDelayedRestoreConditionMetForUser()");
+
+        if (userBackupManagerService != null) {
+            userBackupManagerService.onDelayedRestoreConditionMet(request);
+        }
+    }
+
+    /**
+     * Clears any cached data for a delayed restore for the given user and package. This method is
+     * part of the {@link BackupManagerInternal} interface and is called by the system when the
+     * cached data (used for delayed restore) of a package has expired. It delegates the call to the
+     * appropriate {@link UserBackupManagerService} instance for the given user.
+     *
+     * @param userId The user id for which the cached data should be cleared.
+     * @param packageName The package name for which the cached data should be cleared.
+     */
+    @Override
+    public void onDelayedRestoreCachedDataExpiredForUser(int userId, @NonNull String packageName) {
+        if (!isUserReadyForBackup(userId)) {
+            return;
+        }
+
+        UserBackupManagerService userBackupManagerService =
+                getServiceForUserIfCallerHasPermission(userId,
+                        "onDelayedRestoreCachedDataExpiredForUser()");
+
+        if (userBackupManagerService != null) {
+            userBackupManagerService.onDelayedRestoreCachedDataExpired(packageName);
         }
     }
 

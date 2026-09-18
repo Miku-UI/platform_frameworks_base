@@ -82,7 +82,6 @@ import com.android.systemui.dump.DumpManager;
 import com.android.systemui.dump.LogBufferEulogizer;
 import com.android.systemui.statusbar.RankingBuilder;
 import com.android.systemui.statusbar.notification.BundleInteractionLogger;
-import com.android.systemui.statusbar.notification.NotifPipelineFlags;
 import com.android.systemui.statusbar.notification.collection.NoManSimulator.NotifEvent;
 import com.android.systemui.statusbar.notification.collection.NotifCollection.CancellationReason;
 import com.android.systemui.statusbar.notification.collection.coalescer.CoalescedEvent;
@@ -98,7 +97,6 @@ import com.android.systemui.statusbar.notification.collection.notifcollection.No
 import com.android.systemui.statusbar.notification.collection.notifcollection.UpdateSource;
 import com.android.systemui.statusbar.notification.collection.provider.NotificationDismissibilityProvider;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.util.concurrency.FakeExecutor;
 import com.android.systemui.util.time.FakeSystemClock;
 
@@ -124,7 +122,6 @@ import java.util.Map;
 public class NotifCollectionTest extends SysuiTestCase {
 
     @Mock private IStatusBarService mStatusBarService;
-    @Mock private NotifPipelineFlags mNotifPipelineFlags;
     private final NotifCollectionLogger mLogger = spy(new NotifCollectionLogger(logcatLogBuffer()));
     @Mock private LogBufferEulogizer mEulogizer;
     @Mock private Handler mMainHandler;
@@ -172,7 +169,6 @@ public class NotifCollectionTest extends SysuiTestCase {
         mCollection = new NotifCollection(
                 mStatusBarService,
                 mClock,
-                mNotifPipelineFlags,
                 mLogger,
                 mMainHandler,
                 mBgExecutor,
@@ -1815,13 +1811,7 @@ public class NotifCollectionTest extends SysuiTestCase {
     }
 
     private static EntryWithDismissStats entryWithDefaultStats(NotificationEntry entry) {
-        if (NotificationBundleUi.isEnabled()) {
-            return new EntryWithDismissStats(
-                    null, defaultStats(entry), entry.getKey(), entry.hashCode());
-        } else {
-            return new EntryWithDismissStats(
-                    entry, defaultStats(entry), entry.getKey(), entry.hashCode());
-        }
+        return new EntryWithDismissStats(defaultStats(entry), entry.getKey(), entry.hashCode());
     }
 
     private CollectionEvent postNotif(NotificationEntryBuilder builder) {

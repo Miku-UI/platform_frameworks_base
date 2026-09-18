@@ -14,6 +14,9 @@
 
 package com.android.systemui.statusbar.phone;
 
+import static com.android.systemui.statusbar.notification.collection.NotifCollection.REASON_PLUGIN;
+import static com.android.systemui.statusbar.notification.collection.NotifCollection.REASON_UNKNOWN;
+
 import android.app.NotificationChannel;
 import android.content.ComponentName;
 import android.content.Context;
@@ -162,7 +165,7 @@ public class NotificationListenerWithPlugins extends NotificationListenerService
 
             @Override
             public void removeNotification(StatusBarNotification sbn) {
-                onNotificationRemoved(sbn, getRankingMap());
+                onNotificationRemoved(sbn, getRankingMap(), REASON_PLUGIN);
             }
 
             @Override

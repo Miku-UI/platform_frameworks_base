@@ -23,8 +23,11 @@ import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.compat.annotation.UnsupportedAppUsage;
+import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.graphics.Color;
@@ -37,6 +40,7 @@ import android.text.TextUtils;
 import com.android.internal.R;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -48,6 +52,12 @@ public class CaptioningManager {
     /** Default captioning enabled value. */
     private static final int DEFAULT_ENABLED = 0;
     private static final boolean SYSTEM_AUDIO_CAPTIONING_DEFAULT_ENABLED = false;
+
+    private static final int DEFAULT_EASY_READER_ENABLED = 0;
+    private static final String EASY_READER_LOCALE_VARIANT = "simple";
+    private static final String LOCALE_DELIMITER = "_";
+    private static final String VARIANT_DELIMITER = "-";
+    private static final String SCRIPT_PREFIX = "#";
 
     /** Default style preset as an index into {@link CaptionStyle#PRESETS}. */
     private static final int DEFAULT_PRESET = 0;
@@ -61,6 +71,20 @@ public class CaptioningManager {
     private final Resources mResources;
     private final Context mContext;
     private final AccessibilityManager mAccessibilityManager;
+    private final boolean mIsEasyReaderSupported;
+
+    private final BroadcastReceiver mSystemLocaleBroadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            // When no locale is saved, but the user wants to use simplified language we
+            // need to set a language first to be able to apply the simple variant. In this
+            // case we'll use the system locale, but we'll need to update the caption locale
+            // whenever the user updates the system locale.
+            if (TextUtils.isEmpty(getRawLocale()) && isEasyReaderEnabled()) {
+                notifyLocaleChanged();
+            }
+        }
+    };
 
     /**
      * Creates a new captioning manager for the specified context.
@@ -75,14 +99,17 @@ public class CaptioningManager {
         final Handler handler = new Handler(context.getMainLooper());
         mContentObserver = new MyContentObserver(handler);
         mResources = context.getResources();
+
+        mIsEasyReaderSupported = mResources.getBoolean(R.bool.config_easyReaderCaptionsSupported);
     }
 
     /**
      * @return the user's preferred captioning enabled state
      */
     public final boolean isEnabled() {
-        return Secure.getInt(
-                mContentResolver, Secure.ACCESSIBILITY_CAPTIONING_ENABLED, DEFAULT_ENABLED) == 1;
+        return Secure.getIntForUser(
+                mContentResolver, Secure.ACCESSIBILITY_CAPTIONING_ENABLED, DEFAULT_ENABLED,
+                mContext.getUserId()) == 1;
     }
 
     /**
@@ -92,7 +119,17 @@ public class CaptioningManager {
      */
     @Nullable
     public final String getRawLocale() {
-        return Secure.getString(mContentResolver, Secure.ACCESSIBILITY_CAPTIONING_LOCALE);
+        return Secure.getStringForUser(mContentResolver, Secure.ACCESSIBILITY_CAPTIONING_LOCALE,
+                mContext.getUserId());
+    }
+
+    private boolean isEasyReaderEnabled() {
+        if (!Flags.enableCaptionsEasyReader() || !mIsEasyReaderSupported) {
+            return false;
+        }
+        return Secure.getIntForUser(mContentResolver,
+                Secure.ACCESSIBILITY_CAPTIONING_EASY_READER_ENABLED,
+                DEFAULT_EASY_READER_ENABLED, mContext.getUserId()) == 1;
     }
 
     /**
@@ -102,19 +139,47 @@ public class CaptioningManager {
     @Nullable
     public final Locale getLocale() {
         final String rawLocale = getRawLocale();
-        if (!TextUtils.isEmpty(rawLocale)) {
-            final String[] splitLocale = rawLocale.split("_");
-            switch (splitLocale.length) {
-                case 3:
-                    return new Locale(splitLocale[0], splitLocale[1], splitLocale[2]);
-                case 2:
-                    return new Locale(splitLocale[0], splitLocale[1]);
-                case 1:
-                    return new Locale(splitLocale[0]);
+        final boolean easyReaderEnabled = isEasyReaderEnabled();
+        Locale.Builder builder = new Locale.Builder();
+
+        if (TextUtils.isEmpty(rawLocale)) {
+            if (easyReaderEnabled) {
+                Locale systemLocale = Resources.getSystem().getConfiguration().getLocales().get(0);
+                builder.setLocale(systemLocale);
+                builder.setVariant(EASY_READER_LOCALE_VARIANT);
+                return builder.build();
+            } else {
+                return null;
             }
         }
+        final String[] splitLocale = rawLocale.split(LOCALE_DELIMITER, 3);
+        if (splitLocale.length >= 1) {
+            builder.setLanguage(splitLocale[0]);
+        }
+        if (splitLocale.length >= 2) {
+            builder.setRegion(splitLocale[1]);
+        }
+        if (splitLocale.length >= 3) {
+            String[] elements = splitLocale[2].split(LOCALE_DELIMITER);
+            List<String> variants = new ArrayList<>();
+            String script = null;
+            for (String element : elements) {
+                if (element.startsWith(SCRIPT_PREFIX)) {
+                    script = element.substring(SCRIPT_PREFIX.length());
+                } else {
+                    variants.add(element);
+                }
+            }
+            if (easyReaderEnabled) {
+                variants.add(EASY_READER_LOCALE_VARIANT);
+            }
+            builder.setVariant(String.join(VARIANT_DELIMITER, variants));
+            builder.setScript(script);
+        } else if (easyReaderEnabled) {
+            builder.setVariant(EASY_READER_LOCALE_VARIANT);
+        }
 
-        return null;
+        return builder.build();
     }
 
     /**
@@ -122,8 +187,9 @@ public class CaptioningManager {
      *         specified
      */
     public final float getFontScale() {
-        return Secure.getFloat(
-                mContentResolver, Secure.ACCESSIBILITY_CAPTIONING_FONT_SCALE, DEFAULT_FONT_SCALE);
+        return Secure.getFloatForUser(
+                mContentResolver, Secure.ACCESSIBILITY_CAPTIONING_FONT_SCALE, DEFAULT_FONT_SCALE,
+                mContext.getUserId());
     }
 
     /**
@@ -131,8 +197,9 @@ public class CaptioningManager {
      * @hide
      */
     public int getRawUserStyle() {
-        return Secure.getInt(
-                mContentResolver, Secure.ACCESSIBILITY_CAPTIONING_PRESET, DEFAULT_PRESET);
+        return Secure.getIntForUser(
+                mContentResolver, Secure.ACCESSIBILITY_CAPTIONING_PRESET, DEFAULT_PRESET,
+                mContext.getUserId());
     }
 
     /**
@@ -224,6 +291,12 @@ public class CaptioningManager {
                 registerObserver(Secure.ACCESSIBILITY_CAPTIONING_PRESET);
                 registerObserver(Secure.ODI_CAPTIONS_ENABLED);
                 registerObserver(Secure.ODI_CAPTIONS_VOLUME_UI_ENABLED);
+
+                if (Flags.enableCaptionsEasyReader() && mIsEasyReaderSupported) {
+                    registerObserver(Secure.ACCESSIBILITY_CAPTIONING_EASY_READER_ENABLED);
+                    mContext.registerReceiver(mSystemLocaleBroadcastReceiver,
+                            new IntentFilter(Intent.ACTION_LOCALE_CHANGED));
+                }
             }
 
             mListeners.add(listener);
@@ -242,10 +315,13 @@ public class CaptioningManager {
      */
     public void removeCaptioningChangeListener(@NonNull CaptioningChangeListener listener) {
         synchronized (mListeners) {
-            mListeners.remove(listener);
+            boolean removed = mListeners.remove(listener);
 
-            if (mListeners.isEmpty()) {
+            if (removed && mListeners.isEmpty()) {
                 mContentResolver.unregisterContentObserver(mContentObserver);
+                if (Flags.enableCaptionsEasyReader() && mIsEasyReaderSupported) {
+                    mContext.unregisterReceiver(mSystemLocaleBroadcastReceiver);
+                }
             }
         }
     }
@@ -332,7 +408,8 @@ public class CaptioningManager {
             final String name = uriPath.substring(uriPath.lastIndexOf('/') + 1);
             if (Secure.ACCESSIBILITY_CAPTIONING_ENABLED.equals(name)) {
                 notifyEnabledChanged();
-            } else if (Secure.ACCESSIBILITY_CAPTIONING_LOCALE.equals(name)) {
+            } else if (Secure.ACCESSIBILITY_CAPTIONING_LOCALE.equals(name)
+                    || Secure.ACCESSIBILITY_CAPTIONING_EASY_READER_ENABLED.equals(name)) {
                 notifyLocaleChanged();
             } else if (Secure.ACCESSIBILITY_CAPTIONING_FONT_SCALE.equals(name)) {
                 notifyFontScaleChanged();
@@ -387,7 +464,10 @@ public class CaptioningManager {
         private static final CaptionStyle DEFAULT_CUSTOM;
         private static final CaptionStyle UNSPECIFIED;
 
-        /** The default caption style used to fill in unspecified values. @hide */
+        /**
+         * The default caption style used to fill in unspecified values.
+         * @hide
+         */
         public static final CaptionStyle DEFAULT;
 
         /** @hide */

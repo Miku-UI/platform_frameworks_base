@@ -16,6 +16,7 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
@@ -28,7 +29,11 @@ import java.util.Map;
 /**
  * An object that contains the result of retrieving data from a credential. This is used to return
  * data requested from a {@link IdentityCredential}.
+ *
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 class CredstoreResultData extends ResultData {
     int mFeatureVersion = 0;
     byte[] mStaticAuthenticationData = null;

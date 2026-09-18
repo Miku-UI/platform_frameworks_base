@@ -34,7 +34,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ShortcutInfo;
 import android.media.AudioAttributes;
-import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -42,11 +41,11 @@ import android.os.VibrationEffect;
 import android.os.vibrator.persistence.VibrationXmlParser;
 import android.os.vibrator.persistence.VibrationXmlSerializer;
 import android.provider.Settings;
-import android.service.notification.Adjustment;
+import android.service.notification.DynamicBundle;
 import android.service.notification.NotificationListenerService;
 import android.text.TextUtils;
 import android.util.Log;
-import android.util.Slog;
+import android.util.Pair;
 import android.util.proto.ProtoOutputStream;
 
 import com.android.internal.util.Preconditions;
@@ -59,7 +58,6 @@ import org.json.JSONObject;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlSerializer;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
@@ -83,49 +81,38 @@ public final class NotificationChannel implements Parcelable {
     public static final String DEFAULT_CHANNEL_ID = "miscellaneous";
 
     /**
+     * A reserved prefix for dynamic bundle channels
+     *  @hide
+     */
+    public static final String DYNAMIC_BUNDLE_PREFIX = "android.app.dynamic.";
+    /**
      * A reserved id for a system channel reserved for promotional notifications.
      *  @hide
      */
     @TestApi
-    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public static final String PROMOTIONS_ID = "android.app.promotions";
     /**
      * A reserved id for a system channel reserved for non-conversation social media notifications.
      *  @hide
      */
     @TestApi
-    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public static final String SOCIAL_MEDIA_ID = "android.app.social";
     /**
      * A reserved id for a system channel reserved for news notifications.
      *  @hide
      */
     @TestApi
-    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public static final String NEWS_ID = "android.app.news";
     /**
      * A reserved id for a system channel reserved for content recommendation notifications.
      *  @hide
      */
     @TestApi
-    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public static final String RECS_ID = "android.app.recs";
 
     /** @hide */
-    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public static final ArrayList<String> SYSTEM_RESERVED_IDS = new ArrayList<>(
             List.of(NEWS_ID, SOCIAL_MEDIA_ID, PROMOTIONS_ID, RECS_ID));
-
-    /**
-     * The formatter used by the system to create an id for notification
-     * channels when it automatically creates conversation channels on behalf of an app. The format
-     * string takes two arguments, in this order: the
-     * {@link #getId()} of the original notification channel, and the
-     * {@link ShortcutInfo#getId() id} of the conversation.
-     * @hide
-     */
-    // TODO: b/432250872 - Delete when inlining random_conversation_ids flag.
-    public static final String OLD_CONVERSATION_CHANNEL_ID_FORMAT = "%1$s : %2$s";
 
     /**
      * TODO: STOPSHIP  remove
@@ -225,6 +212,8 @@ public final class NotificationChannel implements Parcelable {
     private static final String ATT_DEMOTE = "dem";
     private static final String ATT_DELETED_TIME_MS = "del_time";
     private static final String DELIMITER = ",";
+    private static final String ATT_BUNDLE = "is_bundle";
+    private static final String ATT_EMOJI = "emoji";
 
     /**
      * @hide
@@ -334,6 +323,8 @@ public final class NotificationChannel implements Parcelable {
      * is reset on each boot {@link NotificationAttentionHelper#buzzBeepBlinkLocked}.
      */
     private long mLastNotificationUpdateTimeMs = 0;
+    private boolean mIsBundleChannel;
+    private @Nullable String mEmoji;
 
     /**
      * Creates a notification channel.
@@ -404,24 +395,31 @@ public final class NotificationChannel implements Parcelable {
         mDeletedTime = in.readLong();
         mImportanceLockedDefaultApp = in.readBoolean();
 
-        // Add new fields above this line and not after vibration effect! We use parcel size to
-        // detect whether the vibration effect might be too large to handle, so this must remain at
-        // the end lest any following fields cause the data to get incorrectly dropped.
         mVibrationPattern = in.createLongArray();
         if (mVibrationPattern != null && mVibrationPattern.length > MAX_VIBRATION_LENGTH) {
             mVibrationPattern = Arrays.copyOf(mVibrationPattern, MAX_VIBRATION_LENGTH);
         }
-        // Note that we must check the length of remaining data in the parcel before reading in
-        // the data.
-        boolean largeEffect = (in.dataAvail() > MAX_SERIALIZED_VIBRATION_LENGTH);
         if (Flags.notificationChannelVibrationEffectApi()) {
             mVibrationEffect =
                     in.readInt() != 0 ? VibrationEffect.CREATOR.createFromParcel(in) : null;
-            if (mVibrationEffect != null && largeEffect) {
-                // Try trimming the effect if the remaining parcel size is large. If trimming is
-                // not applicable for the effect, rather than serializing to XML (expensive) to
-                // check the exact serialized length, we just reject the effect.
-                mVibrationEffect = mVibrationEffect.cropToLengthOrNull(MAX_VIBRATION_LENGTH);
+            // As an optimization, preemptively trim too-long effects. But if trimming is not
+            // possible, keep it as-is (for now) and we'll check again when serializing (checking
+            // the serialized value right now, for every unparceling, is too expensive).
+            if (mVibrationEffect != null) {
+                VibrationEffect trimmed = mVibrationEffect.cropToLengthOrNull(MAX_VIBRATION_LENGTH);
+                if (trimmed != null) {
+                    mVibrationEffect = trimmed;
+                }
+            }
+        }
+        if (Flags.nmContextualDisplay() || Flags.nmContextualDisplayLaunch()) {
+            mIsBundleChannel = in.readBoolean();
+        }
+        if (Flags.nmContextualDisplayLaunch()) {
+            if (in.readByte() != 0) {
+                mEmoji = getTrimmedString(in.readString());
+            } else {
+                mEmoji = null;
             }
         }
     }
@@ -484,7 +482,6 @@ public final class NotificationChannel implements Parcelable {
         dest.writeLong(mDeletedTime);
         dest.writeBoolean(mImportanceLockedDefaultApp);
 
-        // Add new fields above this line; vibration effect must remain the last entry.
         dest.writeLongArray(mVibrationPattern);
         if (Flags.notificationChannelVibrationEffectApi()) {
             if (mVibrationEffect != null) {
@@ -492,6 +489,18 @@ public final class NotificationChannel implements Parcelable {
                 mVibrationEffect.writeToParcel(dest, /* flags= */ 0);
             } else {
                 dest.writeInt(0);
+            }
+        }
+
+        if (Flags.nmContextualDisplay() || Flags.nmContextualDisplayLaunch()) {
+            dest.writeBoolean(mIsBundleChannel);
+        }
+        if (Flags.nmContextualDisplayLaunch()) {
+            if (mEmoji != null) {
+                dest.writeByte((byte) 1);
+                dest.writeString(mEmoji);
+            } else {
+                dest.writeByte((byte) 0);
             }
         }
     }
@@ -526,6 +535,8 @@ public final class NotificationChannel implements Parcelable {
         copy.setDeletedTimeMs(mDeletedTime);
         copy.setImportanceLockedByCriticalDeviceFunction(mImportanceLockedDefaultApp);
         copy.setLastNotificationUpdateTimeMs(mLastNotificationUpdateTimeMs);
+        copy.setIsBundleChannel(mIsBundleChannel);
+        copy.setEmoji(mEmoji);
 
         return copy;
     }
@@ -887,6 +898,16 @@ public final class NotificationChannel implements Parcelable {
     }
 
     /**
+     * Sets whether this channel is a reserved notification channel for bundling (silencing
+     * and minimizing).
+     *
+     * @hide
+     */
+    public void setIsBundleChannel(boolean isBundleChannel) {
+        mIsBundleChannel = isBundleChannel;
+    }
+
+    /**
      * Returns the id of this channel.
      */
     public String getId() {
@@ -1081,6 +1102,19 @@ public final class NotificationChannel implements Parcelable {
     }
 
     /**
+     * Returns whether this channel backs a bundle.
+     *
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY)
+    public boolean isBundleChannel() {
+        return SYSTEM_RESERVED_IDS.contains(mId)
+                || (Flags.nmContextualDisplay() && mIsBundleChannel)
+                || (Flags.nmContextualDisplayLaunch() && mIsBundleChannel);
+    }
+
+    /**
      * @hide
      */
     @SystemApi
@@ -1209,6 +1243,20 @@ public final class NotificationChannel implements Parcelable {
     /**
      * @hide
      */
+    public void setEmoji(String emoji) {
+        mEmoji = emoji;
+    }
+
+    /**
+     * @hide
+     */
+    public String getEmoji() {
+        return mEmoji;
+    }
+
+    /**
+     * @hide
+     */
     public void populateFromXmlForRestore(XmlPullParser parser, boolean pkgInstalled,
             Context context) {
         populateFromXml(XmlUtils.makeTyped(parser), true, pkgInstalled, context);
@@ -1223,7 +1271,7 @@ public final class NotificationChannel implements Parcelable {
     }
 
     /**
-     * If {@param forRestore} is true, {@param Context} MUST be non-null.
+     * If {@code forRestore} is true, {@code Context} MUST be non-null.
      */
     private void populateFromXml(TypedXmlPullParser parser, boolean forRestore,
             boolean pkgInstalled, @Nullable Context context) {
@@ -1239,9 +1287,15 @@ public final class NotificationChannel implements Parcelable {
         Uri sound = safeUri(parser, ATT_SOUND);
 
         final AudioAttributes audioAttributes = safeAudioAttributes(parser);
-        final int usage = audioAttributes.getUsage();
-        setSound(forRestore ? restoreSoundUri(context, sound, pkgInstalled, usage) : sound,
-                audioAttributes);
+        if (forRestore) {
+            final int usage = audioAttributes.getUsage();
+            Pair<Uri, Boolean> restorationResult = NotificationSoundCanonicalizer.restoreSoundUri(
+                    context, sound, pkgInstalled, usage, mSoundRestored);
+            setSoundRestored(restorationResult.second);
+            setSound(restorationResult.first, audioAttributes);
+        } else {
+            setSound(sound, audioAttributes);
+        }
 
         enableLights(safeBool(parser, ATT_LIGHTS, false));
         setLightColor(safeInt(parser, ATT_LIGHT_COLOR, DEFAULT_LIGHT_COLOR));
@@ -1274,6 +1328,12 @@ public final class NotificationChannel implements Parcelable {
                 parser.getAttributeValue(null, ATT_CONVERSATION_ID));
         setDemoted(safeBool(parser, ATT_DEMOTE, false));
         setImportantConversation(safeBool(parser, ATT_IMP_CONVERSATION, false));
+        if (Flags.nmContextualDisplay() || Flags.nmContextualDisplayLaunch()) {
+            setIsBundleChannel(safeBool(parser, ATT_BUNDLE, false));
+        }
+        if (Flags.nmContextualDisplayLaunch() && isBundleChannel()) {
+            setEmoji(parser.getAttributeValue(null, ATT_EMOJI));
+        }
     }
 
     /**
@@ -1286,92 +1346,11 @@ public final class NotificationChannel implements Parcelable {
         return mSoundRestored;
     }
 
-    @Nullable
-    private Uri getCanonicalizedSoundUri(ContentResolver contentResolver, @NonNull Uri uri) {
-        if (Settings.System.DEFAULT_NOTIFICATION_URI.equals(uri)) {
-            return uri;
-        }
-
-        if (ContentResolver.SCHEME_ANDROID_RESOURCE.equals(uri.getScheme())) {
-            try {
-                contentResolver.getResourceId(uri);
-                return uri;
-            } catch (FileNotFoundException e) {
-                return null;
-            }
-        }
-
-        if (ContentResolver.SCHEME_FILE.equals(uri.getScheme())) {
-            return uri;
-        }
-        return contentResolver.canonicalize(uri);
-    }
-
-    @Nullable
-    private Uri getUncanonicalizedSoundUri(
-            ContentResolver contentResolver, @NonNull Uri uri, int usage) {
-        if (Settings.System.DEFAULT_NOTIFICATION_URI.equals(uri)
-                || ContentResolver.SCHEME_ANDROID_RESOURCE.equals(uri.getScheme())
-                || ContentResolver.SCHEME_FILE.equals(uri.getScheme())) {
-            return uri;
-        }
-        int ringtoneType = 0;
-
-        // Consistent with UI(SoundPreferenceController.handlePreferenceTreeClick).
-        if (AudioAttributes.USAGE_ALARM == usage) {
-            ringtoneType = RingtoneManager.TYPE_ALARM;
-        } else if (AudioAttributes.USAGE_NOTIFICATION_RINGTONE == usage) {
-            ringtoneType = RingtoneManager.TYPE_RINGTONE;
-        } else {
-            ringtoneType = RingtoneManager.TYPE_NOTIFICATION;
-        }
-        try {
-            return RingtoneManager.getRingtoneUriForRestore(
-                    contentResolver, uri.toString(), ringtoneType);
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to uncanonicalized sound uri for " + uri + " " + e);
-            return Settings.System.DEFAULT_NOTIFICATION_URI;
-        }
-    }
-
     /**
-     * Restore/validate sound Uri from backup
-     * @param context The Context
-     * @param uri The sound Uri to restore
-     * @param pkgInstalled If the parent package is installed
-     * @return restored and validated Uri
      * @hide
      */
-    @Nullable
-    public Uri restoreSoundUri(
-            Context context, @Nullable Uri uri, boolean pkgInstalled, int usage) {
-        if (uri == null || Uri.EMPTY.equals(uri)) {
-            return null;
-        }
-        ContentResolver contentResolver = context.getContentResolver();
-        // There are backups out there with uncanonical uris (because we fixed this after
-        // shipping). If uncanonical uris are given to MediaProvider.uncanonicalize it won't
-        // verify the uri against device storage and we'll possibly end up with a broken uri.
-        // We then canonicalize the uri to uncanonicalize it back, which means we properly check
-        // the uri and in the case of not having the resource we end up with the default - better
-        // than broken. As a side effect we'll canonicalize already canonicalized uris, this is fine
-        // according to the docs because canonicalize method has to handle canonical uris as well.
-        Uri canonicalizedUri = getCanonicalizedSoundUri(contentResolver, uri);
-        if (canonicalizedUri == null) {
-            // Uri failed to restore with package installed
-            if (!mSoundRestored && pkgInstalled) {
-                mSoundRestored = true;
-                // We got a null because the uri in the backup does not exist here, so we return
-                // default
-                return Settings.System.DEFAULT_NOTIFICATION_URI;
-            } else {
-                // Flag as unrestored and try again later (on package install)
-                mSoundRestored = false;
-                return uri;
-            }
-        }
-        mSoundRestored = true;
-        return getUncanonicalizedSoundUri(contentResolver, canonicalizedUri, usage);
+    public void setSoundRestored(boolean soundRestored) {
+        mSoundRestored = soundRestored;
     }
 
     /**
@@ -1389,26 +1368,8 @@ public final class NotificationChannel implements Parcelable {
         writeXml(XmlUtils.makeTyped(out), true, context);
     }
 
-    private Uri getSoundForBackup(Context context) {
-        Uri sound = getSound();
-        if (sound == null || Uri.EMPTY.equals(sound)) {
-            return null;
-        }
-        try {
-            Uri canonicalSound = getCanonicalizedSoundUri(context.getContentResolver(), sound);
-            if (canonicalSound == null) {
-                // The content provider does not support canonical uris so we backup the default
-                return Settings.System.DEFAULT_NOTIFICATION_URI;
-            }
-            return canonicalSound;
-        } catch (Exception e) {
-            Slog.e(TAG, "Cannot find file for sound " + sound + " using default");
-            return Settings.System.DEFAULT_NOTIFICATION_URI;
-        }
-    }
-
     /**
-     * If {@param forBackup} is true, {@param Context} MUST be non-null.
+     * If {@code forBackup} is true, {@code Context} MUST be non-null.
      */
     private void writeXml(TypedXmlSerializer out, boolean forBackup, @Nullable Context context)
             throws IOException {
@@ -1431,7 +1392,9 @@ public final class NotificationChannel implements Parcelable {
         if (getLockscreenVisibility() != DEFAULT_VISIBILITY) {
             out.attributeInt(null, ATT_VISIBILITY, getLockscreenVisibility());
         }
-        Uri sound = forBackup ? getSoundForBackup(context) : getSound();
+        Uri sound = forBackup
+                ? NotificationSoundCanonicalizer.getSoundForBackup(context, getSound())
+                : getSound();
         if (sound != null) {
             out.attribute(null, ATT_SOUND, sound.toString());
         }
@@ -1454,8 +1417,12 @@ public final class NotificationChannel implements Parcelable {
         }
         if (getVibrationEffect() != null && getVibrationPattern() == null) {
             // Only serialize the vibration effect if we do not already have an equivalent
-            // vibration pattern.
-            out.attribute(null, ATT_VIBRATION_EFFECT, vibrationToString(getVibrationEffect()));
+            // vibration pattern AND if it's not "too long". Note that "too long" should be fairly
+            // rare here since setVibrationEffect() fixes most cases.
+            String serializedVibrationEffect = vibrationToString(getVibrationEffect());
+            if (serializedVibrationEffect.length() <= MAX_SERIALIZED_VIBRATION_LENGTH) {
+                out.attribute(null, ATT_VIBRATION_EFFECT, serializedVibrationEffect);
+            }
         }
         if (getUserLockedFields() != 0) {
             out.attributeInt(null, ATT_USER_LOCKED, getUserLockedFields());
@@ -1495,6 +1462,15 @@ public final class NotificationChannel implements Parcelable {
         }
         if (isImportantConversation()) {
             out.attributeBoolean(null, ATT_IMP_CONVERSATION, isImportantConversation());
+        }
+
+        if ((Flags.nmContextualDisplay() || Flags.nmContextualDisplayLaunch())
+                && isBundleChannel()) {
+            out.attributeBoolean(null, ATT_BUNDLE, isBundleChannel());
+        }
+
+        if (Flags.nmContextualDisplayLaunch() && isBundleChannel() && getEmoji() != null) {
+            out.attribute(null, ATT_EMOJI, getEmoji());
         }
 
         // mImportanceLockedDefaultApp has a different source of truth and so isn't written to
@@ -1567,6 +1543,7 @@ public final class NotificationChannel implements Parcelable {
         return val == null ? null : Uri.parse(val);
     }
 
+    @NonNull
     private static String vibrationToString(VibrationEffect effect) {
         StringWriter writer = new StringWriter();
         try {
@@ -1627,11 +1604,11 @@ public final class NotificationChannel implements Parcelable {
 
     /**
      * Get the reserved bundle channel ID for an Adjustment type
-     * @param the Adjustment type
+     * @param type the Adjustment type
      * @return the channel ID, or null if type is invalid
      * @hide
      */
-    public static @Nullable String getChannelIdForBundleType(@Adjustment.Types int type) {
+    public static @Nullable String getChannelIdForBundleType(int type) {
         switch (type) {
             case TYPE_CONTENT_RECOMMENDATION:
                 return RECS_ID;
@@ -1641,6 +1618,11 @@ public final class NotificationChannel implements Parcelable {
                 return PROMOTIONS_ID;
             case TYPE_SOCIAL_MEDIA:
                 return SOCIAL_MEDIA_ID;
+        }
+        if ((Flags.nmContextualDisplayLaunch() || Flags.nmContextualDisplay() )
+                && type >= DynamicBundle.DYNAMIC_RANGE_START
+                && type <= DynamicBundle.DYNAMIC_RANGE_END) {
+            return DYNAMIC_BUNDLE_PREFIX + type;
         }
         return null;
     }
@@ -1668,7 +1650,8 @@ public final class NotificationChannel implements Parcelable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         NotificationChannel that = (NotificationChannel) o;
-        return getImportance() == that.getImportance()
+
+        boolean isEqual = getImportance() == that.getImportance()
                 && mBypassDnd == that.mBypassDnd
                 && getLockscreenVisibility() == that.getLockscreenVisibility()
                 && mLights == that.mLights
@@ -1695,6 +1678,13 @@ public final class NotificationChannel implements Parcelable {
                 && Objects.equals(getConversationId(), that.getConversationId())
                 && isDemoted() == that.isDemoted()
                 && isImportantConversation() == that.isImportantConversation();
+        if (Flags.nmContextualDisplayLaunch()) {
+                isEqual = isEqual
+                        && (isBundleChannel() == that.isBundleChannel())
+                        && Objects.equals(getEmoji(), that.getEmoji());
+        }
+
+        return isEqual;
     }
 
     @Override
@@ -1705,7 +1695,7 @@ public final class NotificationChannel implements Parcelable {
                 mVibrationEnabled, mShowBadge, isDeleted(), getDeletedTimeMs(),
                 getGroup(), getAudioAttributes(), isBlockable(), mAllowBubbles,
                 mImportanceLockedDefaultApp, mOriginalImportance, getVibrationEffect(),
-                mParentId, mConversationId, mDemoted, mImportantConvo);
+                mParentId, mConversationId, mDemoted, mImportantConvo, isBundleChannel(), mEmoji);
         result = 31 * result + Arrays.hashCode(mVibrationPattern);
         return result;
     }
@@ -1757,7 +1747,9 @@ public final class NotificationChannel implements Parcelable {
                 + ", mConversationId=" + mConversationId
                 + ", mDemoted=" + mDemoted
                 + ", mImportantConvo=" + mImportantConvo
-                + ", mLastNotificationUpdateTimeMs=" + mLastNotificationUpdateTimeMs;
+                + ", mLastNotificationUpdateTimeMs=" + mLastNotificationUpdateTimeMs
+                + ", isBundle=" + isBundleChannel()
+                + ", emoji=" + getEmoji();
     }
 
     /** @hide */

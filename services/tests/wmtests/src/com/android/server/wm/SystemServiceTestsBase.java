@@ -60,16 +60,12 @@ class SystemServiceTestsBase {
         mLockRule.waitForLocked(mSystemServicesTestRule::waitUntilWindowAnimatorIdle);
     }
 
-    boolean waitHandlerIdle(Handler handler) {
-        return waitHandlerIdle(handler, 0 /* timeout */);
+    void waitHandlerIdle(Handler handler) {
+        runWithScissors(handler, () -> { }, 0 /* timeout */);
     }
 
-    boolean waitHandlerIdle(Handler handler, long timeout) {
-        return runWithScissors(handler, () -> { }, timeout);
-    }
-
-    boolean runWithScissors(Handler handler, Runnable r, long timeout) {
-        return mLockRule.runWithScissors(handler, r, timeout);
+    void runWithScissors(Handler handler, Runnable r, long timeout) {
+        mLockRule.runWithScissors(handler, r, timeout);
     }
 
     /** It is used when we want to wait for a result inside {@link WindowManagerGlobalLock}. */

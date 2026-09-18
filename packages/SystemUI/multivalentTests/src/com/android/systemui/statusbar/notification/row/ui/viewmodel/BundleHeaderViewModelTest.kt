@@ -16,7 +16,6 @@
 
 package com.android.systemui.statusbar.notification.row.ui.viewmodel
 
-import android.platform.test.annotations.EnableFlags
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MotionScheme
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -27,7 +26,6 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.notifications.ui.composable.row.BundleHeader
 import com.android.systemui.statusbar.notification.row.domain.interactor.BundleInteractor
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.testKosmos
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Before
@@ -43,7 +41,6 @@ import org.mockito.kotlin.whenever
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-@EnableFlags(NotificationBundleUi.FLAG_NAME)
 class BundleHeaderViewModelTest : SysuiTestCase() {
 
     @get:Rule val rule: MockitoRule = MockitoJUnit.rule()

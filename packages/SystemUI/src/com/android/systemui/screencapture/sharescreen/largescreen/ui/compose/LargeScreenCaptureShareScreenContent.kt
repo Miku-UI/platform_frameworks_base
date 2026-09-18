@@ -17,41 +17,40 @@
 package com.android.systemui.screencapture.sharescreen.largescreen.ui.compose
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.screencapture.common.ui.compose.ScreenCaptureContent
-import com.android.systemui.screencapture.common.ui.viewmodel.RecentTaskViewModel
-import com.android.systemui.screencapture.sharescreen.largescreen.ui.viewmodel.AudioSwitchViewModel
-import com.android.systemui.screencapture.sharescreen.largescreen.ui.viewmodel.PreShareToolbarViewModel
-import com.android.systemui.screencapture.sharescreen.largescreen.ui.viewmodel.ShareContentListViewModel
+import com.android.systemui.screencapture.sharescreen.ui.viewmodel.ScreenCaptureShareScreenViewModel
 import javax.inject.Inject
 
 class LargeScreenCaptureShareScreenContent
 @Inject
 constructor(
-    private val preShareToolbarViewModelFactory: PreShareToolbarViewModel.Factory,
-    private val shareContentListViewModelFactory: ShareContentListViewModel.Factory,
-    private val recentTaskViewModelFactory: RecentTaskViewModel.Factory,
-    private val audioSwitchViewModelFactory: AudioSwitchViewModel.Factory,
+    private val screenCaptureShareScreenViewModelFactory: ScreenCaptureShareScreenViewModel.Factory
 ) : ScreenCaptureContent {
 
     @Composable
     override fun Content() {
-        val preShareToolbarViewModel: PreShareToolbarViewModel =
-            rememberViewModel("PreShareToolbarViewModel") {
-                preShareToolbarViewModelFactory.create()
-            }
-        val shareContentListViewModel: ShareContentListViewModel =
-            rememberViewModel("ShareContentListViewModel") {
-                shareContentListViewModelFactory.create()
-            }
-        val audioSwitchViewModel: AudioSwitchViewModel =
-            rememberViewModel("AudioSwitchViewModel") { audioSwitchViewModelFactory.create() }
+        val density = LocalDensity.current
+        val thumbnailWidthPx = with(density) { 230.dp.toPx().toInt() }
+        val thumbnailHeightPx = with(density) { 140.dp.toPx().toInt() }
+        val iconSizePx = with(density) { 24.dp.toPx().toInt() }
 
-        PreShareUI(
-            preShareToolbarViewModel = preShareToolbarViewModel,
-            shareContentListViewModel = shareContentListViewModel,
-            audioSwitchViewModel = audioSwitchViewModel,
-            recentTaskViewModelFactory = recentTaskViewModelFactory,
-        )
+        val screenCaptureShareScreenViewModel: ScreenCaptureShareScreenViewModel =
+            rememberViewModel("ScreenCaptureShareScreenViewModel") {
+                screenCaptureShareScreenViewModelFactory.create(
+                    thumbnailWidthPx,
+                    thumbnailHeightPx,
+                    iconSizePx,
+                )
+            }
+
+        if (!screenCaptureShareScreenViewModel.isUiVisible) {
+            // Render nothing, the activity will finish itself when the async work is done.
+            return
+        }
+
+        PreShareUI(shareScreenViewModel = screenCaptureShareScreenViewModel)
     }
 }

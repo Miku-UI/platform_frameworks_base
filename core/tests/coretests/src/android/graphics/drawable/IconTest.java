@@ -802,6 +802,22 @@ public class IconTest {
         assertThat(icon.getResources()).isSameInstanceAs(initialResources);
     }
 
+    @Test
+    public void testCreateWithContentUri_preservesMetadata() {
+        final Bitmap bm = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+        final Icon source = Icon.createWithAdaptiveBitmap(bm);
+        source.setTint(0xFFFF0000);
+        source.setTintBlendMode(android.graphics.BlendMode.SCREEN);
+
+        final Uri uri = Uri.parse("content://test/icon");
+        final Icon result = Icon.createWithContentUri(source, uri);
+
+        assertThat(result.getType()).isEqualTo(Icon.TYPE_URI_ADAPTIVE_BITMAP);
+        assertThat(result.getUriString()).isEqualTo(uri.toString());
+        assertThat(result.getTintList().getDefaultColor()).isEqualTo(0xFFFF0000);
+        assertThat(result.getTintBlendMode()).isEqualTo(android.graphics.BlendMode.SCREEN);
+    }
+
     // ======== utils ========
 
     static final char[] GRADIENT = " .:;+=xX$#".toCharArray();

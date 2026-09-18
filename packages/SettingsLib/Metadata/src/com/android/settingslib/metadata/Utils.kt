@@ -17,6 +17,7 @@
 package com.android.settingslib.metadata
 
 import android.content.Context
+import android.content.Intent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,6 +30,11 @@ fun PreferenceScreenMetadata.getPreferenceScreenTitle(context: Context): CharSeq
         screenTitle != 0 -> context.getString(screenTitle)
         else -> getScreenTitle(context) ?: (this as? PreferenceTitleProvider)?.getTitle(context)
     }
+
+
+/** Returns the preference purpose */
+fun PreferenceMetadata.getPreferencePurpose(context: Context): CharSequence? =
+    context.getString(purpose)
 
 /** Returns the preference title. */
 fun PreferenceMetadata.getPreferenceTitle(context: Context): CharSequence? =
@@ -64,6 +70,22 @@ fun PreferenceMetadata.isPreferenceIndexable(context: Context): Boolean =
     if (this is PreferenceIndexableProvider) isIndexable(context) else indexable
 
 /**
+ * Returns whether the preference is only relevant for the UI.
+ *
+ * @return true if preference is only relevant for the UI, false otherwise
+ */
+fun PreferenceMetadata.isUiOnlyPreference(context: Context): Boolean =
+    tags(context).contains(UI_ONLY_PREFERENCE)
+
+/**
+ * Returns whether the preference is a pure metadata object in a UI screen
+ *
+ * @return true if preference is a pure metadata object in a UI screen, false otherwise
+ */
+fun PreferenceMetadata.isMetadataInUi(context: Context): Boolean =
+    tags(context).contains(METADATA_IN_UI)
+
+/**
  * Performs preference hierarchy operation with a new [CoroutineScope].
  *
  * The coroutine scope will be cancelled automatically (when the block is finished) to cancel
@@ -76,5 +98,44 @@ suspend fun <T> usePreferenceHierarchyScope(block: suspend CoroutineScope.() -> 
         scope.async { block() }.await()
     } finally {
         scope.cancel()
+    }
+}
+
+/**
+ * Returns an [Intent] to launch this preference screen through the Settings trampoline.
+ *
+ * This function creates a standard intent targeting the [LAUNCH_SETTINGS_PAGES_ACTION].
+ * By routing through the [SettingsLaunchpadActivity] trampoline, the Settings app
+ * can internally handle restricted targets (like Accessibility details),
+ * perform necessary permission checks that external callers might lack or generate the
+ * necessary extra data (like [EXTRA_LAUNCH_SCREEN])
+ *
+ * @param metadata The specific [PreferenceMetadata] to highlight or scroll to
+ *   when the screen is opened. If null, the screen opens at the top.
+ * @return A trampolined [Intent] configured with the necessary screen key,
+ *   arguments, and highlight key.
+ */
+fun PreferenceScreenMetadata.getTrampolinedLaunchIntent(
+    metadata: PreferenceMetadata?
+): Intent {
+    return Intent(PreferenceScreenMetadata.LAUNCH_SETTINGS_PAGES_ACTION).apply {
+        setPackage("com.android.settings")
+        putExtra(PreferenceScreenMetadata.EXTRA_SCREEN_KEY, this@getTrampolinedLaunchIntent.key)
+
+        if (metadata?.key != null) {
+            putExtra(PreferenceScreenMetadata.EXTRA_FRAGMENT_ARG_KEY, metadata.key)
+        }
+
+        if (CatalystFlagProviderFactory.catalystUseKeyParameters()) {
+            putExtra(
+                PreferenceScreenMetadata.EXTRA_SCREEN_ARGS,
+                this@getTrampolinedLaunchIntent.keyParameters?.toBundle()
+            )
+        } else {
+            putExtra(
+                PreferenceScreenMetadata.EXTRA_SCREEN_ARGS,
+                this@getTrampolinedLaunchIntent.arguments
+            )
+        }
     }
 }

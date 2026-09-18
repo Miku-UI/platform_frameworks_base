@@ -1,6 +1,5 @@
 hackbod@android.com
 hackbod@google.com
-jsharkey@android.com
 narayan@google.com
 include /PACKAGE_MANAGER_OWNERS
 
@@ -20,13 +19,15 @@ per-file *User* = file:/MULTIUSER_OWNERS
 per-file *user* = file:/MULTIUSER_OWNERS
 per-file *HSU*.java = file:/MULTIUSER_OWNERS
 per-file *Hsu*.java = file:/MULTIUSER_OWNERS
+per-file GenericAllowlist.java = file:/MULTIUSER_OWNERS
 
 # security
+per-file AppLockPackageHelper.java = file:/core/java/android/content/pm/APP_LOCK_OWNERS
 per-file KeySetHandle.java = cbrubaker@google.com, nnk@google.com
 per-file KeySetManagerService.java = cbrubaker@google.com, nnk@google.com
 per-file PackageKeySetData.java = cbrubaker@google.com, nnk@google.com
 per-file PackageSignatures.java = cbrubaker@google.com, nnk@google.com
-per-file SELinuxMMAC* = alanstokes@google.com, cbrubaker@google.com, jeffv@google.com
+per-file SELinuxMMAC* =cbrubaker@google.com, jeffv@google.com
 per-file SaferIntentUtils.java = topjohnwu@google.com
 
 # shortcuts

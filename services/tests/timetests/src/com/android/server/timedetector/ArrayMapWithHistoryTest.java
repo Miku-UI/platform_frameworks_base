@@ -112,8 +112,8 @@ public class ArrayMapWithHistoryTest {
         }
     }
 
-    private static <K, V> void putAndCompareReturnValue(ArrayMapWithHistory<K, V> historyMap,
-            ArrayMap<K, V> arrayMap, K key, V value) {
+    private static <K, V> void putAndCompareReturnValue(
+            ArrayMapWithHistory<K, V> historyMap, ArrayMap<K, V> arrayMap, K key, V value) {
         assertEquals(arrayMap.put(key, value), historyMap.put(key, value));
     }
 
@@ -132,8 +132,10 @@ public class ArrayMapWithHistoryTest {
     }
 
     @SafeVarargs
-    private static <K, V> void compareGetAndSizeForKeys(ArrayMapWithHistory<K, V> historyMap,
-            ArrayMap<K, V> arrayMap, Entry<K, V>... expectedEntries) {
+    private static <K, V> void compareGetAndSizeForKeys(
+            ArrayMapWithHistory<K, V> historyMap,
+            ArrayMap<K, V> arrayMap,
+            Entry<K, V>... expectedEntries) {
         for (Entry<K, V> expectedEntry : expectedEntries) {
             assertEquals(arrayMap.get(expectedEntry.key), historyMap.get(expectedEntry.key));
             assertEquals(expectedEntry.value, historyMap.get(expectedEntry.key));

@@ -22,5 +22,11 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface ILcnConflictListener {
+    /**
+     * Notify listeners when LCN Conflicts are detected during a service scan.
+     *
+     * @param detectLcnConflicts bundle to notify if there is a conflict, keys as defined but not
+     *        limited to keys in @ScanConstants.LcnConflictDetectBundleKey.
+     */
     void onDetectLcnConflict(in Bundle detectLcnConflicts);
 }

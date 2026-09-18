@@ -22,6 +22,7 @@ import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState.AOD
+import com.android.systemui.keyguard.shared.model.KeyguardState.DOZING
 import com.android.systemui.keyguard.shared.model.KeyguardState.GONE
 import com.android.systemui.keyguard.shared.model.KeyguardState.LOCKSCREEN
 import com.android.systemui.scene.shared.model.Scenes
@@ -52,5 +53,17 @@ constructor(
         keyguardTransitionInteractor.transition(
             edge = Edge.create(AOD, Scenes.Lockscreen),
             edgeWithoutSceneContainer = Edge.create(AOD, LOCKSCREEN),
+        )
+
+    val lockscreenToDozingTransition =
+        keyguardTransitionInteractor.transition(
+            edge = Edge.create(Scenes.Lockscreen, DOZING),
+            edgeWithoutSceneContainer = Edge.create(LOCKSCREEN, DOZING),
+        )
+
+    val goneToDozingTransition =
+        keyguardTransitionInteractor.transition(
+            edge = Edge.create(Scenes.Gone, DOZING),
+            edgeWithoutSceneContainer = Edge.create(GONE, DOZING),
         )
 }

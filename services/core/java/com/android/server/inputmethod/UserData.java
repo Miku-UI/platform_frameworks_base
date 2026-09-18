@@ -24,13 +24,12 @@ import android.util.Pair;
 import android.util.SparseArray;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.ImeTracker;
+import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodSubtype;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
-import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
 import com.android.internal.inputmethod.IRemoteInputConnection;
-import com.android.internal.inputmethod.InputMethodSubtypeHandle;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -95,6 +94,12 @@ final class UserData {
     boolean mInFullscreenMode;
 
     /**
+     * {@code true} when the IME Switcher Menu is visible.
+     */
+    @GuardedBy("ImfLock.class")
+    boolean mImeSwitcherMenuVisible;
+
+    /**
      * The {@link IRemoteInputConnection} last provided by the current client.
      */
     @GuardedBy("ImfLock.class")
@@ -102,12 +107,12 @@ final class UserData {
     IRemoteInputConnection mCurInputConnection;
 
     /**
-     * The map of {@link IRemoteComputerControlInputConnection}, provided by an active client on a
+     * The map of {@link ComputerControlInputConnectionData}, provided by an active client on a
      * computer control display.
      */
     @NonNull
-    Map<Integer, IRemoteComputerControlInputConnection> mComputerControlInputConnectionMap =
-            new HashMap<>();
+    Map<Integer, InputMethodManagerInternal.ComputerControlInputConnectionData>
+            mComputerControlInputConnectionMap = new HashMap<>();
 
     /**
      * The {@link ResultReceiver} last provided by the current client to
@@ -146,6 +151,9 @@ final class UserData {
     @Nullable
     InputMethodManagerService.SessionState mEnabledSession;
 
+    /**
+     * Currently enabled accessibility sessions, indexed by the accessibility service id.
+     */
     @GuardedBy("ImfLock.class")
     @NonNull
     SparseArray<InputMethodManagerService.AccessibilitySessionState> mEnabledAccessibilitySessions =
@@ -166,7 +174,7 @@ final class UserData {
      */
     @GuardedBy("ImfLock.class")
     @Nullable
-    Pair<InputMethodSubtypeHandle, InputMethodSubtype> mSubtypeForKeyboardLayoutMapping;
+    Pair<InputMethodInfo, InputMethodSubtype> mSubtypeForKeyboardLayoutMapping;
 
     /**
      * {@code true} when the IME is responsible for drawing the navigation bar and its buttons.

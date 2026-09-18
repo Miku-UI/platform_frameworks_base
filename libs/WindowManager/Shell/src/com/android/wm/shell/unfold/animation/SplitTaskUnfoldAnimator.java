@@ -312,6 +312,12 @@ public class SplitTaskUnfoldAnimator implements UnfoldTaskAnimator,
         }
 
         private void update() {
+            final Optional<SplitScreenController> ssController = mSplitScreenController.get();
+            if (!ssController.isPresent() || !ssController.get().isSplitScreenReady()) {
+                // Skip the update if the SplitScreen is not initialized.
+                return;
+            }
+
             final Rect stageBounds = mStageType == STAGE_TYPE_MAIN
                     ? mMainStageBounds : mSideStageBounds;
 
@@ -326,7 +332,6 @@ public class SplitTaskUnfoldAnimator implements UnfoldTaskAnimator,
 
             // Offset to surface coordinates as layout bounds are in screen coordinates
             mStartCropRect.offsetTo(0, 0);
-
             mEndCropRect.set(mStartCropRect);
 
             int maxSize = Math.max(mEndCropRect.width(), mEndCropRect.height());
@@ -334,7 +339,7 @@ public class SplitTaskUnfoldAnimator implements UnfoldTaskAnimator,
 
             // Sides adjacent to split bar or task bar are not be animated.
             Insets margins;
-            final boolean isLeftRightSplit = mSplitScreenController.get().get().isLeftRightSplit();
+            final boolean isLeftRightSplit = ssController.get().isLeftRightSplit();
             if (isLeftRightSplit) {
                 margins = getLandscapeMargins(margin, taskbarExpanded);
             } else { // Top and bottom splits.

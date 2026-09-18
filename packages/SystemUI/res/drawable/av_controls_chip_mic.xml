@@ -1,0 +1,26 @@
+<!--
+ Copyright (C) 2026 The Android Open Source Project
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <path android:pathData="M12 14.2875C11.2625 14.2875 10.6375 14.0312 10.125 13.5187C9.6125 13.0062 9.35625 12.3812 9.35625 11.6437V7.2C9.35625 6.4625 9.6125 5.8375 10.125 5.325C10.6375 4.8125 11.2625 4.55625 12 4.55625C12.7375 4.55625 13.3625 4.8125 13.875 5.325C14.3875 5.8375 14.6438 6.4625 14.6438 7.2V11.6437C14.6438 12.3812 14.3875 13.0062 13.875 13.5187C13.3625 14.0312 12.7375 14.2875 12 14.2875ZM11.175 18.1125V17.0437C9.975 16.9062 8.95 16.4125 8.1 15.5625C7.25 14.7 6.7375 13.675 6.5625 12.4875C6.525 12.25 6.58125 12.05 6.73125 11.8875C6.89375 11.725 7.09375 11.6437 7.33125 11.6437C7.55625 11.6437 7.75625 11.725 7.93125 11.8875C8.10625 12.05 8.21875 12.25 8.26875 12.4875C8.46875 13.375 8.91875 14.0937 9.61875 14.6437C10.3188 15.1812 11.1125 15.45 12 15.45C12.8875 15.45 13.6813 15.175 14.3813 14.625C15.0813 14.075 15.5313 13.3625 15.7313 12.4875C15.7813 12.25 15.8875 12.05 16.05 11.8875C16.225 11.725 16.4313 11.6437 16.6688 11.6437C16.8938 11.6437 17.0813 11.7312 17.2313 11.9062C17.3938 12.0687 17.4563 12.2687 17.4188 12.5062C17.2563 13.6937 16.75 14.7125 15.9 15.5625C15.05 16.4125 14.025 16.9062 12.825 17.0437V18.1125C12.825 18.35 12.7438 18.55 12.5813 18.7125C12.4313 18.8625 12.2375 18.9375 12 18.9375C11.775 18.9375 11.5813 18.8625 11.4188 18.7125C11.2563 18.55 11.175 18.35 11.175 18.1125Z"
+        android:fillColor="@android:color/black"
+        />
+</vector>

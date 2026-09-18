@@ -35,6 +35,7 @@ import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.ColorSpace;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
@@ -81,6 +82,7 @@ public class PlatLogoActivity extends Activity {
     private static final boolean FINISH_AFTER_NEXT_STAGE_LAUNCH = false;
 
     private ImageView mLogo;
+    private View mHeptaDecaView;
     private Starfield mStarfield;
 
     private FrameLayout mLayout;
@@ -225,9 +227,7 @@ public class PlatLogoActivity extends Activity {
         mRandom = new Random();
         mDp = getResources().getDisplayMetrics().density;
         mStarfield = new Starfield(mRandom, mDp * 2f);
-        mStarfield.setVelocity(
-                200f * (mRandom.nextFloat() - 0.5f),
-                200f * (mRandom.nextFloat() - 0.5f));
+        mStarfield.setWarp(0.1f); // very slow to start
         mLayout.setBackground(mStarfield);
 
         final DisplayMetrics dm = getResources().getDisplayMetrics();
@@ -240,12 +240,36 @@ public class PlatLogoActivity extends Activity {
         mLogo = new ImageView(this);
         mLogo.setImageResource(R.drawable.platlogo);
         mLogo.setOnTouchListener(mTouchListener);
-        mLogo.requestFocus();
+        mLogo.setVisibility(View.GONE);
+
+        mHeptaDecaView = new View(this);
+        final Heptadecagram heptadecagram = new Heptadecagram(dp);
+        mHeptaDecaView.setBackground(heptadecagram);
+        mHeptaDecaView.setOnTouchListener((v, event) -> {
+            if (heptadecagram.onTouch(event)) {
+                mHeptaDecaView.performHapticFeedback(HapticFeedbackConstants.CONFIRM);
+            }
+            if (heptadecagram.getPathLength() > Heptadecagram.MAX_DOTS) {
+                swapToPlatlogo();
+            }
+            return true;
+        });
+        mLayout.addView(mHeptaDecaView, lp);
         mLayout.addView(mLogo, lp);
 
-        Log.v(TAG, "Hello");
-
         setContentView(mLayout);
+    }
+
+    private void swapToPlatlogo() {
+        mHeptaDecaView.animate().alpha(0f).setDuration(500).withEndAction(() -> {
+            mHeptaDecaView.setVisibility(View.GONE);
+        }).start();
+        mLogo.setAlpha(0f);
+        mLogo.setVisibility(View.VISIBLE);
+        mLogo.animate().alpha(1f).setDuration(500).start();
+        mLogo.requestFocus();
+        ObjectAnimator.ofFloat(mStarfield, "warp", MIN_WARP)
+                .setDuration(250).start();
     }
 
     private void startAnimating() {
@@ -262,6 +286,10 @@ public class PlatLogoActivity extends Activity {
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
         if (keyCode == KeyEvent.KEYCODE_SPACE) {
+            if (mLogo.getVisibility() != View.VISIBLE) {
+                // If using the keyboard, skip the cute star-drawing minigame.
+                swapToPlatlogo();
+            }
             if (event.getRepeatCount() == 0) {
                 startWarp();
             }
@@ -399,6 +427,16 @@ public class PlatLogoActivity extends Activity {
         super.onStop();
     }
 
+    private static final ColorSpace sSrgbExt = ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB);
+
+    private static long packHdrWhite(float value, float alpha) {
+        return Color.valueOf(value, value, value, alpha, sSrgbExt).pack();
+    }
+
+    private static boolean pointInRadius(float x, float y, float r) {
+        return (x * x + y * y) < (r * r);
+    }
+
     private static class Starfield extends Drawable {
         private static final int NUM_STARS = 128;
 
@@ -406,7 +444,6 @@ public class PlatLogoActivity extends Activity {
 
         private static final float ROTATION = 45;
         private final float[] mStars = new float[NUM_STARS * 4];
-        private float mVx, mVy;
         private long mDt = 0;
         private final Paint mStarPaint;
 
@@ -414,7 +451,7 @@ public class PlatLogoActivity extends Activity {
         private final float mSize;
 
         private float mRadius = 0f;
-        private float mWarp = 1f;
+        private float mWarp = MIN_WARP;
 
         private float mBuffer;
 
@@ -442,29 +479,21 @@ public class PlatLogoActivity extends Activity {
             // end of each star's trail in this data structure. When we're not in warp that means
             // that we've got each star in there twice. It's fine, we're gonna move it off-screen
             for (int i = 0; i < NUM_STARS; i++) {
-                mStars[4 * i] = mRng.nextFloat() * 2 * mRadius - mRadius;
-                mStars[4 * i + 1] = mRng.nextFloat() * 2 * mRadius - mRadius;
+                // New in C: we're zooming out from the center this time. Classic.
+                final double angle = mRng.nextDouble() * 2 * Math.PI;
+                final float dist = mRng.nextFloat() * mRadius;
+                mStars[4 * i + 2] = (float) (Math.cos(angle) * dist);
+                mStars[4 * i + 3] = (float) (Math.sin(angle) * dist);
                 // duplicate copy (for now)
-                mStars[4 * i + 2] = mStars[4 * i];
-                mStars[4 * i + 3] = mStars[4 * i + 1];
+                mStars[4 * i + 0] = -10000;
+                mStars[4 * i + 1] = -10000;
             }
-        }
-
-        public void setVelocity(float x, float y) {
-            mVx = x;
-            mVy = y;
         }
 
         @Override
         public void draw(@NonNull Canvas canvas) {
             final float dtSec = mDt / 1000f;
-            final float dx = (mVx * dtSec * mWarp);
-            final float dy = (mVy * dtSec * mWarp);
-
             final boolean inWarp = mWarp > 1f;
-
-            final float diameter = mRadius * 2f;
-            final float triameter = mRadius * 3f;
 
             canvas.drawColor(Color.BLACK);
 
@@ -479,20 +508,43 @@ public class PlatLogoActivity extends Activity {
                         mRng.nextFloat() * (mWarp - 1f),
                         mRng.nextFloat() * (mWarp - 1f)
                 );
+
+                final float speedBase = 0.05f * dtSec * mWarp;
+
                 for (int i = 0; i < NUM_STARS; i++) {
                     final int plane = (int) ((((float) i) / NUM_STARS) * NUM_PLANES) + 1;
-                    mStars[4 * i + 2] = (mStars[4 * i + 2] + dx * plane + triameter) % diameter
-                            - mRadius;
-                    mStars[4 * i + 3] = (mStars[4 * i + 3] + dy * plane + triameter) % diameter
-                            - mRadius;
-                    mStars[4 * i + 0] = inWarp ? mStars[4 * i + 2] - dx * mWarp * plane : -10000;
-                    mStars[4 * i + 1] = inWarp ? mStars[4 * i + 3] - dy * mWarp * plane : -10000;
+
+                    float x = mStars[4 * i + 2];
+                    float y = mStars[4 * i + 3];
+
+                    final float speed = speedBase * plane;
+                    x += x * speed;
+                    y += y * speed;
+
+                    if (!pointInRadius(x, y, mRadius)) {
+                        final double angle = mRng.nextDouble() * 2 * Math.PI;
+                        final float dist = mRng.nextFloat() * 0.1f * mRadius;
+                        x = (float) (Math.cos(angle) * dist);
+                        y = (float) (Math.sin(angle) * dist);
+                    }
+
+                    mStars[4 * i + 2] = x;
+                    mStars[4 * i + 3] = y;
+
+                    if (inWarp) {
+                        final float tailScale = 1f / (1f + speed * mWarp);
+                        mStars[4 * i + 0] = x * tailScale;
+                        mStars[4 * i + 1] = y * tailScale;
+                    } else {
+                        mStars[4 * i + 0] = -10000;
+                        mStars[4 * i + 1] = -10000;
+                    }
                 }
             }
             final int slice = (mStars.length / NUM_PLANES / 4) * 4;
             for (int p = 0; p < NUM_PLANES; p++) {
                 final float value = (p + 1f) / (NUM_PLANES - 1);
-                mStarPaint.setColor(packHdrColor(value, 1.0f));
+                mStarPaint.setColor(packHdrWhite(value, 1.0f));
                 mStarPaint.setStrokeWidth(mSize * (p + 1));
                 if (inWarp) {
                     canvas.drawLines(mStars, p * slice, slice, mStarPaint);
@@ -502,7 +554,7 @@ public class PlatLogoActivity extends Activity {
 
             if (inWarp) {
                 final float frac = (mWarp - MIN_WARP) / (MAX_WARP - MIN_WARP);
-                canvas.drawColor(packHdrColor(2.0f, frac * frac));
+                canvas.drawColor(packHdrWhite(2.0f, frac * frac));
             }
         }
 
@@ -524,10 +576,165 @@ public class PlatLogoActivity extends Activity {
         public void update(long dt) {
             mDt = dt;
         }
+    }
 
-        private static final ColorSpace sSrgbExt = ColorSpace.get(ColorSpace.Named.EXTENDED_SRGB);
-        public static long packHdrColor(float value, float alpha) {
-            return Color.valueOf(value, value, value, alpha, sSrgbExt).pack();
+    private static class Heptadecagram extends Drawable {
+        public static final int MAX_DOTS = 17;
+        private final Paint mDotPaint, mLinePaint, mBgPaint;
+        private final float[] mDotsXY = new float[MAX_DOTS * 2];
+        private final int[] mPath = new int[MAX_DOTS + 1];
+        private int mPathLength = 0;
+        private float mTouchX, mTouchY;
+        private boolean mIsTracking = false;
+        private final float mDp;
+        private float mRadius;
+        private float mDotRadius;
+        private float mHitRadius;
+
+        private Path mDrawingPath = new Path();
+
+        Heptadecagram(float dp) {
+            mDp = dp;
+
+            mDotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mDotPaint.setColor(packHdrWhite(1.5f, 1.0f));
+            mDotPaint.setStyle(Paint.Style.FILL);
+
+            mLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mLinePaint.setColor(0xFFB31F7F);
+            mLinePaint.setStyle(Paint.Style.STROKE);
+            mLinePaint.setStrokeWidth(4 * dp);
+            mLinePaint.setStrokeJoin(Paint.Join.ROUND);
+            mLinePaint.setStrokeCap(Paint.Cap.ROUND);
+
+            mBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mBgPaint.setColor(Color.BLACK);
+            mDotPaint.setStyle(Paint.Style.FILL);
+        }
+
+        @Override
+        public void onBoundsChange(Rect bounds) {
+            float cx = bounds.width() / 2f;
+            float cy = bounds.height() / 2f;
+            mRadius = Math.min(cx, cy) * 0.9f;
+            mDotRadius = 4 * mDp;
+            mHitRadius = 24 * mDp;
+
+            for (int i = 0; i < MAX_DOTS; i++) {
+                // start at the top
+                double angle = -Math.PI / 2 + (2 * Math.PI * i / MAX_DOTS);
+                mDotsXY[i * 2] = cx + (float) Math.cos(angle) * mRadius;
+                mDotsXY[i * 2 + 1] = cy + (float) Math.sin(angle) * mRadius;
+            }
+        }
+
+        public boolean onTouch(MotionEvent event) {
+            float x = event.getX();
+            float y = event.getY();
+
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    mPathLength = 0;
+                    mIsTracking = true;
+                    mTouchX = x;
+                    mTouchY = y;
+                    invalidateSelf();
+                    return checkDot(x, y);
+                case MotionEvent.ACTION_MOVE:
+                    if (mIsTracking) {
+                        mTouchX = x;
+                        mTouchY = y;
+                        invalidateSelf();
+                        return checkDot(x, y);
+                    }
+                    break;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    mIsTracking = false;
+                    mPathLength = 0;
+                    invalidateSelf();
+                    break;
+            }
+
+            if (mPathLength == MAX_DOTS + 1) {
+                mIsTracking = false;
+                return true;
+            }
+            return false;
+        }
+
+        private boolean checkDot(float x, float y) {
+            for (int i = 0; i < MAX_DOTS; i++) {
+                float dx = x - mDotsXY[i * 2];
+                float dy = y - mDotsXY[i * 2 + 1];
+                if (pointInRadius(dx, dy, mHitRadius)) {
+                    if (mPathLength == 0) {
+                        mPath[mPathLength++] = i;
+                        return true;
+                    } else {
+                        int lastDot = mPath[mPathLength - 1];
+                        if (lastDot != i) {
+                            boolean visited = false;
+                            for (int j = 0; j < mPathLength; j++) {
+                                if (mPath[j] == i) {
+                                    visited = true;
+                                    break;
+                                }
+                            }
+                            if (!visited || mPathLength == MAX_DOTS && mPath[0] == i) {
+                                // another dot reached!
+                                mPath[mPathLength++] = i;
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+
+        private void drawTargetDot(Canvas canvas, float x, float y, float r, Paint paint) {
+            canvas.save();
+            canvas.translate(x, y);
+            canvas.rotate(45);
+            canvas.drawRect(-r, -r, r, r, paint);
+            canvas.restore();
+        }
+
+        @Override
+        public void draw(@NonNull Canvas canvas) {
+            canvas.drawCircle(getBounds().width() * 0.5f, getBounds().height() * 0.5f,
+                    mRadius, mBgPaint);
+
+            if (mPathLength > 0) {
+                mDrawingPath.reset();
+                mDrawingPath.moveTo(mDotsXY[mPath[0] * 2], mDotsXY[mPath[0] * 2 + 1]);
+                for (int i = 1; i < mPathLength; i++) {
+                    mDrawingPath.lineTo(mDotsXY[mPath[i] * 2], mDotsXY[mPath[i] * 2 + 1]);
+                }
+                if (mIsTracking && mPathLength <= MAX_DOTS) {
+                    mDrawingPath.lineTo(mTouchX, mTouchY);
+                }
+                canvas.drawPath(mDrawingPath, mLinePaint);
+            }
+
+            for (int i = 0; i < MAX_DOTS; i++) {
+                drawTargetDot(canvas, mDotsXY[i * 2], mDotsXY[i * 2 + 1], mDotRadius, mDotPaint);
+            }
+        }
+
+        @Override
+        public void setAlpha(int alpha) { }
+        @Override
+        public void setColorFilter(@Nullable ColorFilter colorFilter) { }
+        @Override
+        public int getOpacity() {
+            return PixelFormat.TRANSLUCENT;
+        }
+
+        public int getPathLength() {
+            return mPathLength;
         }
     }
 }
+

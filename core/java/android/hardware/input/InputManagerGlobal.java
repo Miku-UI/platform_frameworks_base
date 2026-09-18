@@ -49,6 +49,7 @@ import android.os.ServiceManager;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.os.VibratorManager;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.IntArray;
 import android.util.Log;
 import android.util.SparseArray;
@@ -80,6 +81,11 @@ import java.util.concurrent.Executor;
  *
  * @hide
  */
+@RavenwoodKeepWholeClass(conditional = true, comment = """
+        Need to provide an implementation of IInputManager and initialize with
+        InputManagerGlobal#createTestSession before using any of its methods.
+        The behavior of this class fully depends on the provided IInputManager.
+        """)
 public final class InputManagerGlobal {
     private static final String TAG = "InputManagerGlobal";
     // To enable these logs, run: 'adb shell setprop log.tag.InputManagerGlobal DEBUG'
@@ -1726,14 +1732,52 @@ public final class InputManagerGlobal {
             Manifest.permission.INJECT_EVENTS
     })
     public VirtualKeyboard createVirtualKeyboard(@NonNull VirtualKeyboardConfig config) {
-        IVirtualInputDevice virtualInputDevice;
+        IVirtualKeyboard virtualKeyboard;
         try {
             // Pass a token to the server so that the server can be notified when the calling
             // process has died and therefore clean up the virtual device.
             final IBinder token = new Binder(
                     "android.hardware.input.VirtualKeyboard:" + config.getInputDeviceName());
-            virtualInputDevice = mIm.createVirtualKeyboard(token, config);
-            return new VirtualKeyboard(config, virtualInputDevice);
+            virtualKeyboard = mIm.createVirtualKeyboard(token, config);
+            return new VirtualKeyboard(config, virtualKeyboard);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * @see InputManager#createVirtualGamepad(VirtualGamepadConfig)
+     */
+    @NonNull
+    @RequiresPermission(Manifest.permission.INJECT_EVENTS)
+    public VirtualGamepad createVirtualGamepad(@NonNull VirtualGamepadConfig config) {
+        IVirtualGamepad virtualGamepad;
+        try {
+            // Pass a token to the server so that the server can be notified when the calling
+            // process has died and therefore clean up the virtual device.
+            final IBinder token = new Binder(
+                    "android.hardware.input.VirtualGamepad:" + config.name);
+            virtualGamepad = mIm.createVirtualGamepad(token, config);
+            return new VirtualGamepad(config, virtualGamepad);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * @see InputManager#createVirtualMouse(VirtualMouseConfig)
+     */
+    @NonNull
+    @RequiresPermission(Manifest.permission.INJECT_EVENTS)
+    public VirtualMouse createVirtualMouse(@NonNull VirtualMouseConfig config) {
+        IVirtualMouse virtualMouse;
+        try {
+            // Pass a token to the server so that the server can be notified when the calling
+            // process has died and therefore clean up the virtual device.
+            final IBinder token = new Binder(
+                    "android.hardware.input.VirtualMouse:" + config.getInputDeviceName());
+            virtualMouse = mIm.createVirtualMouse(token, config);
+            return new VirtualMouse(config, virtualMouse);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

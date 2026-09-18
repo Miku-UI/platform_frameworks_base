@@ -24,6 +24,7 @@ import android.os.Trace;
 import android.util.Slog;
 import android.view.Display;
 
+import com.android.internal.util.FrameworkStatsLog;
 import com.android.server.display.utils.DebugUtils;
 
 /**
@@ -111,16 +112,17 @@ public class DisplayOffloadSessionImpl implements DisplayManagerInternal.Display
      * Start the offload session. The method returns if the session is already active.
      * @return Whether the session was started successfully
      */
-    public boolean startOffload() {
+    public boolean startOffload(int displayState) {
         if (mDisplayOffloader == null || mIsActive) {
             return false;
         }
 
         Trace.traceBegin(Trace.TRACE_TAG_POWER, "DisplayOffloader#startOffload");
         try {
-            mIsActive = mDisplayOffloader.startOffload();
+            mIsActive = mDisplayOffloader.startOffload(displayState);
             if (DEBUG) {
-                Slog.d(TAG, "startOffload = " + mIsActive);
+                Slog.d(TAG, "startOffload = " + mIsActive + " "
+                        + Display.stateToString(displayState));
             }
             return mIsActive;
         } finally {
@@ -131,19 +133,21 @@ public class DisplayOffloadSessionImpl implements DisplayManagerInternal.Display
     /**
      * Stop the offload session. The method returns if the session is not active.
      */
-    public void stopOffload() {
+    public void stopOffload(int displayState) {
         if (mDisplayOffloader == null || !mIsActive) {
             return;
         }
         Trace.traceBegin(Trace.TRACE_TAG_POWER, "DisplayOffloader#stopOffload");
         try {
-            mDisplayOffloader.stopOffload();
+            mDisplayOffloader.stopOffload(displayState);
             mIsActive = false;
             if (DEBUG) {
-                Slog.i(TAG, "stopOffload");
+                Slog.i(TAG, "stopOffload "
+                        + Display.stateToString(displayState));
             }
         } finally {
             Trace.traceEnd(Trace.TRACE_TAG_POWER);
+            FrameworkStatsLog.write(FrameworkStatsLog.DISPLAY_SWITCH_TO_AP_ISSUED);
         }
     }
 

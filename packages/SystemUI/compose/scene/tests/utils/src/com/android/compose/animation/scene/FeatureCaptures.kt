@@ -19,16 +19,13 @@ package com.android.compose.animation.scene
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.unit.IntSize
-import com.android.compose.animation.scene.DataPointTypes.scale
 import com.android.compose.animation.scene.testing.lastAlphaForTesting
 import com.android.compose.animation.scene.testing.lastOffsetForTesting
 import com.android.compose.animation.scene.testing.lastScaleForTesting
 import com.android.compose.animation.scene.testing.lastSizeForTesting
-import platform.test.motion.compose.DataPointTypes.intSize
-import platform.test.motion.compose.DataPointTypes.offset
-import platform.test.motion.golden.DataPoint
-import platform.test.motion.golden.DataPointTypes
+import platform.test.motion.compose.dataPointType
 import platform.test.motion.golden.FeatureCapture
+import platform.test.motion.golden.dataPointType
 
 /**
  * [FeatureCapture] implementations to record animated state of [SceneTransitionLayout] [Element].
@@ -36,22 +33,22 @@ import platform.test.motion.golden.FeatureCapture
 object FeatureCaptures {
 
     val elementAlpha =
-        FeatureCapture<SemanticsNode, Float>("alpha") {
-            DataPoint.of(it.lastAlphaForTesting, DataPointTypes.float)
+        FeatureCapture<SemanticsNode, Float>("alpha", Float.dataPointType) {
+            it.lastAlphaForTesting
         }
 
     val elementScale =
-        FeatureCapture<SemanticsNode, Scale>("scale") {
-            DataPoint.of(it.lastScaleForTesting, scale)
+        FeatureCapture<SemanticsNode, Scale>("scale", Scale.dataPointType) {
+            it.lastScaleForTesting
         }
 
     val elementOffset =
-        FeatureCapture<SemanticsNode, Offset>("offset") {
-            DataPoint.of(it.lastOffsetForTesting, offset)
+        FeatureCapture<SemanticsNode, Offset>("offset", Offset.dataPointType) {
+            it.lastOffsetForTesting
         }
 
     val elementSize =
-        FeatureCapture<SemanticsNode, IntSize>("size") {
-            DataPoint.of(it.lastSizeForTesting, intSize)
+        FeatureCapture<SemanticsNode, IntSize>("size", IntSize.dataPointType) {
+            it.lastSizeForTesting
         }
 }

@@ -27,6 +27,7 @@ import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
+import android.hardware.display.DisplayManager;
 import android.media.ApplicationMediaCapabilities;
 import android.media.ExifInterface;
 import android.media.MediaFormat;
@@ -45,7 +46,6 @@ import android.system.OsConstants;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.Display;
-import android.view.WindowManager;
 
 import com.android.internal.annotations.VisibleForNative;
 import com.android.internal.annotations.VisibleForTesting;
@@ -706,8 +706,11 @@ public class MtpDatabase implements AutoCloseable {
             case MtpConstants.DEVICE_PROPERTY_IMAGE_SIZE:
                 // use screen size as max image size
                 // TODO(b/147721765): Add support for foldables/multi-display devices.
-                Display display = ((WindowManager) mContext.getSystemService(
-                        Context.WINDOW_SERVICE)).getDefaultDisplay();
+                Display display = mContext.getSystemService(DisplayManager.class)
+                        .getDisplay(Display.DEFAULT_DISPLAY);
+                if (display == null) {
+                    return MtpConstants.RESPONSE_GENERAL_ERROR;
+                }
                 int width = display.getMaximumSizeDimension();
                 int height = display.getMaximumSizeDimension();
                 String imageSize = Integer.toString(width) + "x" + Integer.toString(height);

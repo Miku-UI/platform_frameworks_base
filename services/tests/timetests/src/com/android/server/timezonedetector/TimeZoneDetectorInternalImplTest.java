@@ -52,10 +52,16 @@ public class TimeZoneDetectorInternalImplTest {
     private static final TelephonyTimeZoneAlgorithmStatus ARBITRARY_TELEPHONY_STATUS =
             new TelephonyTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING);
     private static final LocationTimeZoneAlgorithmStatus ARBITRARY_LOCATION_CERTAIN_STATUS =
-            new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                    PROVIDER_STATUS_IS_CERTAIN, null, PROVIDER_STATUS_NOT_PRESENT, null);
+            new LocationTimeZoneAlgorithmStatus(
+                    DETECTION_ALGORITHM_STATUS_RUNNING,
+                    PROVIDER_STATUS_IS_CERTAIN,
+                    null,
+                    PROVIDER_STATUS_NOT_PRESENT,
+                    null);
     private static final TimeZoneDetectorStatus ARBITRARY_DETECTOR_STATUS =
-            new TimeZoneDetectorStatus(DETECTOR_STATUS_RUNNING, ARBITRARY_TELEPHONY_STATUS,
+            new TimeZoneDetectorStatus(
+                    DETECTOR_STATUS_RUNNING,
+                    ARBITRARY_TELEPHONY_STATUS,
                     ARBITRARY_LOCATION_CERTAIN_STATUS);
 
     private static final long ARBITRARY_ELAPSED_REALTIME_MILLIS = 1234L;
@@ -83,9 +89,12 @@ public class TimeZoneDetectorInternalImplTest {
         mTestCurrentUserIdentityInjector.initializeCurrentUserId(ARBITRARY_USER_ID);
         mFakeTimeZoneDetectorStrategySpy = spy(new FakeTimeZoneDetectorStrategy());
 
-        mTimeZoneDetectorInternal = new TimeZoneDetectorInternalImpl(
-                mMockContext, mTestHandler, mTestCurrentUserIdentityInjector,
-                mFakeTimeZoneDetectorStrategySpy);
+        mTimeZoneDetectorInternal =
+                new TimeZoneDetectorInternalImpl(
+                        mMockContext,
+                        mTestHandler,
+                        mTestCurrentUserIdentityInjector,
+                        mFakeTimeZoneDetectorStrategySpy);
     }
 
     @After
@@ -106,8 +115,8 @@ public class TimeZoneDetectorInternalImplTest {
 
         int expectedUserId = mTestCurrentUserIdentityInjector.getCurrentUserId();
         final boolean expectedBypassUserPolicyChecks = true;
-        verify(mFakeTimeZoneDetectorStrategySpy).getCapabilitiesAndConfig(
-                expectedUserId, expectedBypassUserPolicyChecks);
+        verify(mFakeTimeZoneDetectorStrategySpy)
+                .getCapabilitiesAndConfig(expectedUserId, expectedBypassUserPolicyChecks);
 
         TimeZoneCapabilitiesAndConfig expectedCapabilitiesAndConfig =
                 new TimeZoneCapabilitiesAndConfig(
@@ -126,16 +135,16 @@ public class TimeZoneDetectorInternalImplTest {
         mFakeTimeZoneDetectorStrategySpy.initializeConfigurationAndStatus(
                 initialConfigurationInternal, testStatus);
 
-        TimeZoneConfiguration timeConfiguration = new TimeZoneConfiguration.Builder()
-                .setAutoDetectionEnabled(true)
-                .build();
+        TimeZoneConfiguration timeConfiguration =
+                new TimeZoneConfiguration.Builder().setAutoDetectionEnabled(true).build();
         assertTrue(mTimeZoneDetectorInternal.updateConfigurationForDpm(timeConfiguration));
 
         final boolean expectedBypassUserPolicyChecks = true;
-        verify(mFakeTimeZoneDetectorStrategySpy).updateConfiguration(
-                mTestCurrentUserIdentityInjector.getCurrentUserId(),
-                timeConfiguration,
-                expectedBypassUserPolicyChecks);
+        verify(mFakeTimeZoneDetectorStrategySpy)
+                .updateConfiguration(
+                        mTestCurrentUserIdentityInjector.getCurrentUserId(),
+                        timeConfiguration,
+                        expectedBypassUserPolicyChecks);
     }
 
     @Test
@@ -147,21 +156,23 @@ public class TimeZoneDetectorInternalImplTest {
 
         int expectedUserId = mTestCurrentUserIdentityInjector.getCurrentUserId();
         boolean expectedBypassUserPolicyChecks = true;
-        verify(mFakeTimeZoneDetectorStrategySpy).suggestManualTimeZone(
-                expectedUserId, timeZoneSuggestion, expectedBypassUserPolicyChecks);
+        verify(mFakeTimeZoneDetectorStrategySpy)
+                .suggestManualTimeZone(
+                        expectedUserId, timeZoneSuggestion, expectedBypassUserPolicyChecks);
     }
 
     @Test
     public void testHandleLocationAlgorithmEvent() throws Exception {
         GeolocationTimeZoneSuggestion timeZoneSuggestion = createGeolocationTimeZoneSuggestion();
-        LocationAlgorithmEvent suggestionEvent = new LocationAlgorithmEvent(
-                ARBITRARY_LOCATION_CERTAIN_STATUS, timeZoneSuggestion);
+        LocationAlgorithmEvent suggestionEvent =
+                new LocationAlgorithmEvent(ARBITRARY_LOCATION_CERTAIN_STATUS, timeZoneSuggestion);
         mTimeZoneDetectorInternal.handleLocationAlgorithmEvent(suggestionEvent);
         mTestHandler.assertTotalMessagesEnqueued(1);
 
         mTestHandler.waitForMessagesToBeProcessed();
         verify(mFakeTimeZoneDetectorStrategySpy).handleLocationAlgorithmEvent(suggestionEvent);
     }
+
     private static ManualTimeZoneSuggestion createManualTimeZoneSuggestion() {
         return new ManualTimeZoneSuggestion(ARBITRARY_ZONE_ID);
     }

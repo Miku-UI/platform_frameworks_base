@@ -33,7 +33,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.ActivityManager;
-import android.platform.test.annotations.EnableFlags;
 import android.view.SurfaceControl;
 import android.window.WindowContainerTransaction;
 
@@ -42,11 +41,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.launcher3.icons.IconProvider;
-import com.android.wm.shell.Flags;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.ShellTestCase;
 import com.android.wm.shell.TestRunningTaskInfoBuilder;
 import com.android.wm.shell.bubbles.BubbleController;
+import com.android.wm.shell.bubbles.BubbleHelper;
 import com.android.wm.shell.common.SyncTransactionQueue;
 import com.android.wm.shell.windowdecor.WindowDecorViewModel;
 
@@ -84,6 +83,8 @@ public final class StageTaskListenerTests extends ShellTestCase {
     private WindowDecorViewModel mWindowDecorViewModel;
     @Mock
     private BubbleController mBubbleController;
+    @Mock
+    private BubbleHelper mBubbleHelper;
     @Spy
     private WindowContainerTransaction mWct;
     @Captor
@@ -96,6 +97,7 @@ public final class StageTaskListenerTests extends ShellTestCase {
     @UiThreadTest
     public void setup() {
         MockitoAnnotations.initMocks(this);
+        when(mBubbleController.getBubbleHelper()).thenReturn(mBubbleHelper);
         mStageTaskListener = new StageTaskListener(
                 mContext,
                 mTaskOrganizer,
@@ -110,7 +112,7 @@ public final class StageTaskListenerTests extends ShellTestCase {
         mRootTask.parentTaskId = INVALID_TASK_ID;
         mSurfaceControl = new SurfaceControl.Builder().setName("test").build();
         mStageTaskListener.onTaskAppeared(mRootTask, mSurfaceControl);
-        when(mBubbleController.shouldBeAppBubble(any())).thenReturn(false);
+        when(mBubbleHelper.isAppBubbleTask(any())).thenReturn(false);
     }
 
     @Test
@@ -126,7 +128,7 @@ public final class StageTaskListenerTests extends ShellTestCase {
     @Test
     public void testRootTaskAppeared() {
         assertThat(mStageTaskListener.mRootTaskInfo.taskId).isEqualTo(mRootTask.taskId);
-        verify(mCallbacks).onRootTaskAppeared(mRootTask);
+        verify(mCallbacks).onRootTaskAppeared();
         verify(mCallbacks, never()).onStageVisibilityChanged(mStageTaskListener);
     }
 
@@ -271,7 +273,6 @@ public final class StageTaskListenerTests extends ShellTestCase {
                 /* present= */ false, /* visible= */ true);
     }
 
-    @EnableFlags(Flags.FLAG_FIX_EXIT_SPLIT_ON_ENTER_BUBBLE)
     @Test
     public void testTaskVanished_bubbleTask_notifyChildTaskMovedToBubble() {
         final ActivityManager.RunningTaskInfo task =
@@ -282,7 +283,7 @@ public final class StageTaskListenerTests extends ShellTestCase {
                         .build();
         mStageTaskListener.mChildrenTaskInfo.put(task.taskId, task);
 
-        when(mBubbleController.shouldBeAppBubble(task)).thenReturn(true);
+        when(mBubbleHelper.isAppBubbleTask(task)).thenReturn(true);
 
         mStageTaskListener.onTaskVanished(task);
 

@@ -21,7 +21,9 @@ import android.graphics.Rect
 import android.os.IBinder
 import android.util.Log
 import android.view.ScrollCaptureResponse
+import com.android.internal.logging.UiEventLogger
 import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.screenshot.ScreenshotEvent.SCREENSHOT_LONG_SCREENSHOT_FITS_VIEWPORT
 import com.android.systemui.screenshot.scroll.ScrollCaptureController.LongScreenshot
 import com.google.common.util.concurrent.ListenableFuture
 import java.util.concurrent.ExecutionException
@@ -36,7 +38,8 @@ constructor(
     private val scrollCaptureClient: ScrollCaptureClient,
     private val scrollCaptureController: ScrollCaptureController,
     private val longScreenshotHolder: LongScreenshotData,
-    @Main private val mainExecutor: Executor
+    private val logger: UiEventLogger,
+    @param:Main private val mainExecutor: Executor,
 ) {
     private val isLowRamDevice = activityManager.isLowRamDevice
     private var lastScrollCaptureRequest: ListenableFuture<ScrollCaptureResponse>? = null
@@ -46,7 +49,7 @@ constructor(
     fun requestScrollCapture(
         displayId: Int,
         token: IBinder,
-        callback: (ScrollCaptureResponse) -> Unit
+        callback: (ScrollCaptureResponse) -> Unit,
     ) {
         if (!allowLongScreenshots()) {
             Log.d(TAG, "Long screenshots not supported on this device")
@@ -58,7 +61,7 @@ constructor(
             scrollCaptureClient.request(displayId).apply {
                 addListener(
                     { onScrollCaptureResponseReady(this)?.let { callback.invoke(it) } },
-                    mainExecutor
+                    mainExecutor,
                 )
             }
         lastScrollCaptureRequest = scrollRequest
@@ -68,7 +71,7 @@ constructor(
         fun onTransitionReady(
             destRect: Rect,
             onTransitionEnd: Runnable,
-            longScreenshot: LongScreenshot
+            longScreenshot: LongScreenshot,
         )
     }
 
@@ -86,6 +89,18 @@ constructor(
                 addListener(
                     {
                         getLongScreenshotChecked(this, onFailure)?.let {
+                            val boundsInWindowHeight = response.boundsInWindow?.height()
+                            // It's expected that response.boundsInWindow is NOT null as it should
+                            // be checked before the image capturing begins (see
+                            // ScrollCaptureClient.SessionWrapper).
+                            if (boundsInWindowHeight == null || boundsInWindowHeight >= it.height) {
+                                Log.w(TAG, "Long screenshot fits the view port")
+                                logger.log(
+                                    SCREENSHOT_LONG_SCREENSHOT_FITS_VIEWPORT,
+                                    0,
+                                    response.packageName,
+                                )
+                            }
                             longScreenshotHolder.setLongScreenshot(it)
                             longScreenshotHolder.setTransitionDestinationCallback {
                                 destinationRect: Rect,
@@ -95,7 +110,7 @@ constructor(
                             onCaptureComplete.run()
                         }
                     },
-                    mainExecutor
+                    mainExecutor,
                 )
             }
     }
@@ -110,7 +125,7 @@ constructor(
 
     private fun getLongScreenshotChecked(
         future: ListenableFuture<LongScreenshot>,
-        onFailure: Runnable
+        onFailure: Runnable,
     ): LongScreenshot? {
         var longScreenshot: LongScreenshot? = null
         runCatching { longScreenshot = future.get() }
@@ -141,7 +156,7 @@ constructor(
                 // or that it cannot support scroll capture.
                 Log.d(
                     TAG,
-                    "ScrollCapture: ${captureResponse.description} [${captureResponse.windowTitle}]"
+                    "ScrollCapture: ${captureResponse.description} [${captureResponse.windowTitle}]",
                 )
                 return null
             }

@@ -52,7 +52,9 @@ data class ChipbarInfo(
 ) : TemporaryViewInfo() {
     companion object {
         // LINT.IfChange
-        @ColorRes val DEFAULT_ICON_TINT = com.android.internal.R.color.materialColorOnSecondaryFixed
+        @ColorRes
+        val DEFAULT_ICON_TINT =
+            com.android.systemui.dynamiccolors.R.color.materialColorOnSecondaryFixed
         // LINT.ThenChange(/packages/SystemUI/res/layout/chipbar.xml)
     }
 }

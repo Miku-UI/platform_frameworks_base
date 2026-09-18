@@ -29,31 +29,31 @@ interface VersionChecker {
 
     /** Returns VersionInfo for the target class */
     fun <T : Plugin> getVersionInfo(instanceClass: Class<T>): VersionInfo?
-}
 
-/** Class that compares a plugin class against an implementation for version matching. */
-class VersionCheckerImpl @Inject constructor() : VersionChecker {
-    override fun <T : Plugin> checkVersion(
-        instanceClass: Class<T>,
-        pluginClass: Class<T>,
-        plugin: Plugin?,
-    ): Boolean {
-        val pluginVersion = VersionInfo().addClass(pluginClass)
-        val instanceVersion = VersionInfo().addClass(instanceClass)
-        if (instanceVersion.hasVersionInfo()) {
-            pluginVersion.checkVersion(instanceVersion)
-        } else if (plugin != null) {
-            val fallbackVersion = plugin.version
-            if (fallbackVersion != pluginVersion.defaultVersion) {
-                return false
+    /** Class that compares a plugin class against an implementation for version matching. */
+    class Impl @Inject constructor() : VersionChecker {
+        override fun <T : Plugin> checkVersion(
+            instanceClass: Class<T>,
+            pluginClass: Class<T>,
+            plugin: Plugin?,
+        ): Boolean {
+            val pluginVersion = VersionInfo(pluginClass)
+            val instanceVersion = VersionInfo(instanceClass)
+            if (instanceVersion.hasVersionInfo) {
+                pluginVersion.checkVersion(instanceVersion)
+            } else if (plugin != null) {
+                val fallbackVersion = plugin.version
+                if (fallbackVersion != pluginVersion.defaultVersion) {
+                    return false
+                }
             }
+            return true
         }
-        return true
-    }
 
-    /** Returns the version info for the class */
-    override fun <T : Plugin> getVersionInfo(instanceClass: Class<T>): VersionInfo? {
-        val instanceVersion = VersionInfo().addClass(instanceClass)
-        return if (instanceVersion.hasVersionInfo()) instanceVersion else null
+        /** Returns the version info for the class */
+        override fun <T : Plugin> getVersionInfo(instanceClass: Class<T>): VersionInfo? {
+            val instanceVersion = VersionInfo(instanceClass)
+            return if (instanceVersion.hasVersionInfo) instanceVersion else null
+        }
     }
 }

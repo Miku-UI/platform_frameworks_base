@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.internal.widget.remotecompose.player.player.platform;
+package com.android.internal.widget.remotecompose.player.platform;
 
-
+import android.annotation.NonNull;
 import android.content.Context;
 import android.provider.Settings;
 
 /** Class to retrieve values from {@link Settings}. */
 public class SettingsRetriever {
+
+    private SettingsRetriever() {}
+
     /** Determines whether the Remove Animations accessibility setting is enabled. */
-    public static Boolean animationsEnabled(Context context) {
-        return !(Settings.Global.getFloat(
+    public static boolean animationsEnabled(@NonNull Context context) {
+        return Settings.Global.getFloat(
                         context.getContentResolver(), Settings.Global.ANIMATOR_DURATION_SCALE, 1.0f)
-                == 0f);
+                != 0f;
     }
 }

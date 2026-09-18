@@ -17,6 +17,7 @@
 #ifndef _ANDROID_GRAPHICS_SURFACETEXTURE_H
 #define _ANDROID_GRAPHICS_SURFACETEXTURE_H
 
+#include <com_android_graphics_libgui_flags.h>
 #include <utils/StrongPointer.h>
 
 #include "jni.h"
@@ -24,6 +25,7 @@
 namespace android {
 
 class IGraphicBufferProducer;
+class Surface;
 class SurfaceTexture;
 
 extern bool android_SurfaceTexture_isInstanceOf(JNIEnv* env, jobject thiz);
@@ -32,7 +34,11 @@ extern bool android_SurfaceTexture_isInstanceOf(JNIEnv* env, jobject thiz);
 extern sp<SurfaceTexture> SurfaceTexture_getSurfaceTexture(JNIEnv* env, jobject thiz);
 
 /* gets the producer end of the SurfaceTexture */
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_SURFACETEXTURE)
+extern sp<Surface> SurfaceTexture_getSurface(JNIEnv* env, jobject thiz);
+#else
 extern sp<IGraphicBufferProducer> SurfaceTexture_getProducer(JNIEnv* env, jobject thiz);
+#endif
 
 } // namespace android
 

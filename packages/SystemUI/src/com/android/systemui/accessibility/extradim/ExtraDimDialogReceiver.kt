@@ -18,7 +18,6 @@ package com.android.systemui.accessibility.extradim
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.android.server.display.feature.flags.Flags
 import javax.inject.Inject
 
 /**
@@ -28,16 +27,11 @@ import javax.inject.Inject
  */
 class ExtraDimDialogReceiver
 @Inject
-constructor(
-    private val extraDimDialogManager: ExtraDimDialogManager,
-) : BroadcastReceiver() {
+constructor(private val extraDimDialogManager: ExtraDimDialogManager) : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (
-            !Flags.evenDimmer() ||
-                !context
-                    .getResources()
-                    .getBoolean(com.android.internal.R.bool.config_evenDimmerEnabled)
+            !context.getResources().getBoolean(com.android.internal.R.bool.config_evenDimmerEnabled)
         ) {
             return
         }

@@ -16,7 +16,6 @@
 
 package com.android.server.location.fudger;
 
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.location.flags.Flags;
@@ -41,7 +40,6 @@ import java.util.Objects;
  * The cache is first-in, first-out, and has a fixed size. Cache entries are valid until evicted by
  * another value.
  */
-@FlaggedApi(Flags.FLAG_POPULATION_DENSITY_PROVIDER)
 public class LocationFudgerCache {
 
     // The maximum number of S2 cell ids stored in the cache.

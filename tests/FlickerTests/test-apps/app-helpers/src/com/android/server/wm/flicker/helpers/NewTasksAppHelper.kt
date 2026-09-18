@@ -82,4 +82,27 @@ constructor(
             withSyncCondition = withSyncCondition,
         )
     }
+
+    /**
+     * Launches a browser and waits for the transition to idle.
+     *
+     * Clicks the button in the test app that launches a browser activity with
+     * `FLAG_ACTIVITY_NEW_TASK`.
+     *
+     * @param device The [UiDevice] instance to interact with the app.
+     * @param wmHelper The [WindowManagerStateHelper] for state verification.
+     * @param withSyncCondition extension function to configure the state synchronization condition.
+     */
+    fun openNewBrowser(
+        device: UiDevice,
+        wmHelper: WindowManagerStateHelper,
+        withSyncCondition: StateSyncBuilder.() -> StateSyncBuilder = { withAppTransitionIdle() },
+    ) {
+        clickButtonAndWaitForSync(
+            device = device,
+            wmHelper = wmHelper,
+            buttonResId = LaunchNewTask.RES_ID_NEW_BROWSER_BUTTON,
+            withSyncCondition = withSyncCondition,
+        )
+    }
 }

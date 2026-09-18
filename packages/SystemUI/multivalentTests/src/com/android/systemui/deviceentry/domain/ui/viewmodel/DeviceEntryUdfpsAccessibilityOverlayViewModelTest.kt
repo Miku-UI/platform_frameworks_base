@@ -30,6 +30,8 @@ import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.deviceentry.data.ui.viewmodel.deviceEntryUdfpsAccessibilityOverlayViewModel
 import com.android.systemui.deviceentry.ui.view.UdfpsAccessibilityOverlay
 import com.android.systemui.deviceentry.ui.viewmodel.DeviceEntryUdfpsAccessibilityOverlayViewModel
+import com.android.systemui.flags.DisableSceneContainer
+import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.flags.Flags.FULL_SCREEN_USER_SWITCHER
 import com.android.systemui.flags.andSceneContainer
 import com.android.systemui.flags.fakeFeatureFlagsClassic
@@ -43,6 +45,9 @@ import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.keyguard.ui.viewmodel.fakeDeviceEntryIconViewModelTransition
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.res.R
+import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.shadeTestUtil
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
@@ -157,11 +162,22 @@ class DeviceEntryUdfpsAccessibilityOverlayViewModelTest(flags: FlagsParameteriza
         }
 
     @Test
+    @DisableSceneContainer
     fun deviceEntryViewAlpha0_overlayNotVisible() =
         testScope.runTest {
             val visible by collectLastValue(underTest.visible)
             setupVisibleStateOnLockscreen()
             deviceEntryIconTransition.setDeviceEntryParentViewAlpha(0f)
+            assertThat(visible).isFalse()
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun notLockscreenScene_overlayNotVisible() =
+        testScope.runTest {
+            val visible by collectLastValue(underTest.visible)
+            setupVisibleStateOnLockscreen()
+            kosmos.sceneInteractor.changeScene(Scenes.Shade, "test")
             assertThat(visible).isFalse()
         }
 
@@ -244,8 +260,12 @@ class DeviceEntryUdfpsAccessibilityOverlayViewModelTest(flags: FlagsParameteriza
         // A11y enabled
         accessibilityRepository.isTouchExplorationEnabled.value = true
 
-        // Transition alpha is 1f
-        deviceEntryIconTransition.setDeviceEntryParentViewAlpha(1f)
+        if (SceneContainerFlag.isEnabled) {
+            kosmos.sceneInteractor.changeScene(Scenes.Lockscreen, "test")
+        } else {
+            // Transition alpha is 1f
+            deviceEntryIconTransition.setDeviceEntryParentViewAlpha(1f)
+        }
 
         // Listening for UDFPS
         fingerprintPropertyRepository.supportsUdfps()

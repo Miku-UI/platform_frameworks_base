@@ -30,7 +30,7 @@ import java.io.IOException
 data class ClipboardModel(
     val clipData: ClipData,
     val source: String,
-    val type: Type,
+    val type: Type?,
     val text: CharSequence?,
     val textLinks: TextLinks?,
     val uri: Uri?,
@@ -74,7 +74,12 @@ data class ClipboardModel(
         ): ClipboardModel {
             val sensitive = clipData.description?.extras?.getBoolean(EXTRA_IS_SENSITIVE) ?: false
             val item = clipData.getItemAt(0)!!
-            val type = getType(item, clipData.description.getMimeType(0))
+            val type =
+                getType(
+                    item,
+                    if (clipData.description.mimeTypeCount == 0) null
+                    else clipData.description.getMimeType(0),
+                )
             val remote = utils.isRemoteCopy(context, clipData, source)
             return ClipboardModel(
                 clipData,
@@ -88,11 +93,11 @@ data class ClipboardModel(
             )
         }
 
-        private fun getType(item: ClipData.Item, mimeType: String): Type {
+        private fun getType(item: ClipData.Item, mimeType: String?): Type {
             return if (!TextUtils.isEmpty(item.text)) {
                 Type.TEXT
             } else if (item.uri != null) {
-                if (mimeType.startsWith("image")) {
+                if (mimeType?.startsWith("image") == true) {
                     Type.IMAGE
                 } else {
                     Type.URI

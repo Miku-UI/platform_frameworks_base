@@ -481,7 +481,6 @@ public class ImsMmTelManager implements RegistrationManager {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_EMERGENCY_REGISTRATION_STATE)
     public void registerImsEmergencyRegistrationCallback(
             @NonNull @CallbackExecutor Executor executor,
             @NonNull RegistrationManager.RegistrationCallback c) throws ImsException {
@@ -536,7 +535,6 @@ public class ImsMmTelManager implements RegistrationManager {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_EMERGENCY_REGISTRATION_STATE)
     public void unregisterImsEmergencyRegistrationCallback(
             @NonNull RegistrationManager.RegistrationCallback c) {
         if (c == null) {

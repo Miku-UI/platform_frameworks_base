@@ -16,6 +16,7 @@
 
 package com.android.server.am;
 
+import android.annotation.NonNull;
 import android.util.ArraySet;
 import android.util.proto.ProtoOutputStream;
 
@@ -27,7 +28,7 @@ import java.io.PrintWriter;
 final class AppBindRecord {
     final ServiceRecord service;    // The running service.
     final IntentBindRecord intent;  // The intent we are bound to.
-    final ProcessRecord client;     // Who has started/bound the service.
+    final @NonNull ProcessRecord client;     // Who has started/bound the service.
     final ProcessRecord attributedClient; // The binding was done by the system on behalf
                                           // of 'attributedClient'
     final ArraySet<ConnectionRecord> connections = new ArraySet<>();
@@ -52,7 +53,7 @@ final class AppBindRecord {
     }
 
     AppBindRecord(ServiceRecord _service, IntentBindRecord _intent,
-            ProcessRecord _client, ProcessRecord _attributedClient) {
+            @NonNull ProcessRecord _client, ProcessRecord _attributedClient) {
         service = _service;
         intent = _intent;
         client = _client;

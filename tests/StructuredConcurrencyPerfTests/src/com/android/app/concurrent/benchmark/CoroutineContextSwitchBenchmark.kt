@@ -13,15 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-@file:OptIn(ExperimentalBlackHoleApi::class)
 
 package com.android.app.concurrent.benchmark
 
 import androidx.benchmark.BlackHole
-import androidx.benchmark.ExperimentalBlackHoleApi
 import com.android.app.concurrent.benchmark.base.BaseSchedulerBenchmark
-import com.android.app.concurrent.benchmark.util.ExecutorThreadBuilder
-import com.android.app.concurrent.benchmark.util.ThreadFactory
+import com.android.app.concurrent.benchmark.util.ExecutorServiceThreadWithExecutorBuilder
+import com.android.app.concurrent.benchmark.util.ThreadBuilder
 import com.android.app.concurrent.benchmark.util.times
 import java.util.concurrent.Executor
 import kotlin.coroutines.CoroutineContext
@@ -61,18 +59,18 @@ private fun wrapDispatcher(executor: Executor): CoroutineDispatcher {
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class CoroutineContextSwitchBenchmark(
-    param: ThreadFactory<Any, Executor>,
+    param: ThreadBuilder<Executor>,
     contextTransformer: ContextTransformParam,
 ) : BaseSchedulerBenchmark<Executor>(param) {
 
     companion object {
-        @Parameters(name = "{0},{1}")
+        @Parameters(name = "{0}:withContext={1}")
         @JvmStatic
-        fun getDispatchers() =
-            listOf(ExecutorThreadBuilder) *
+        fun getParameters() =
+            listOf(ExecutorServiceThreadWithExecutorBuilder) *
                 listOf(
-                    ContextTransformParam("unwrapped") { _ -> EmptyCoroutineContext },
-                    ContextTransformParam("wrapped") { executor -> wrapDispatcher(executor) },
+                    ContextTransformParam("EmptyCoroutineContext") { _ -> EmptyCoroutineContext },
+                    ContextTransformParam("wrapDispatcher") { executor -> wrapDispatcher(executor) },
                 )
     }
 

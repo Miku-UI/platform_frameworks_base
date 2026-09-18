@@ -16,6 +16,7 @@
 
 package android.security;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.Nullable;
 import android.annotation.TestApi;
@@ -148,6 +149,12 @@ public class KeyStoreException extends Exception {
      * @hide
      */
     public static final int ERROR_DEVICE_REQUIRES_UPGRADE_FOR_ATTESTATION = 17;
+    /**
+     * The caller has too many Keystore keys and so creation of a new key is not allowed.
+     * (Only emitted for apps with target SDK >= 37).
+     */
+    @FlaggedApi(android.security.keystore2.Flags.FLAG_LIMIT_KEYS_PER_UID)
+    public static final int ERROR_TOO_MANY_KEYS = 18;
 
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
@@ -169,6 +176,7 @@ public class KeyStoreException extends Exception {
             ERROR_KEY_OPERATION_EXPIRED,
             ERROR_ATTESTATION_KEYS_UNAVAILABLE,
             ERROR_DEVICE_REQUIRES_UPGRADE_FOR_ATTESTATION,
+            ERROR_TOO_MANY_KEYS,
     })
     public @interface PublicErrorCode {
     }
@@ -423,7 +431,7 @@ public class KeyStoreException extends Exception {
             return errorInfo;
         }
 
-        /**
+        /*
          * KeyStore/keymaster exception with positive error codes coming from the KeyStore and
          * negative ones from keymaster.
          * This is a safety fall-back: All error codes should be present in the map.
@@ -695,5 +703,11 @@ public class KeyStoreException extends Exception {
                         IS_SYSTEM_ERROR | IS_TRANSIENT_ERROR, ERROR_INTERNAL_SYSTEM_ERROR));
         sErrorCodeToFailureInfo.put(ResponseCode.INFO_NOT_AVAILABLE,
                 new PublicErrorInformation(IS_SYSTEM_ERROR, ERROR_INTERNAL_SYSTEM_ERROR));
+        // TODO(b/395078130): use ResponseCode.TOO_MANY_APP_KEYS[_SDK37] instead of 29/30 when
+        // available everywhere.
+        sErrorCodeToFailureInfo.put(/* ResponseCode.TOO_MANY_APP_KEYS = */ 29,
+                new PublicErrorInformation(0, ERROR_INCORRECT_USAGE));
+        sErrorCodeToFailureInfo.put(/* ResponseCode.TOO_MANY_APP_KEYS_SDK37 = */ 30,
+                new PublicErrorInformation(0, ERROR_TOO_MANY_KEYS));
     }
 }

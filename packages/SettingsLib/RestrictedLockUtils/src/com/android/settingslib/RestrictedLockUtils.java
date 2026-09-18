@@ -85,6 +85,7 @@ public class RestrictedLockUtils {
 
     /**
      * Sends the intent to trigger the {@code android.settings.ShowAdminSupportDetailsDialog}.
+     * @deprecated Use {@link #sendShowAdminSupportDetailsIntent(Context, EnforcingAdmin, String)}.
      */
     @RequiresApi(Build.VERSION_CODES.M)
     public static void sendShowAdminSupportDetailsIntent(Context context, EnforcedAdmin admin) {
@@ -109,6 +110,7 @@ public class RestrictedLockUtils {
 
     /**
      * Gets the intent to trigger the {@code android.settings.ShowAdminSupportDetailsDialog}.
+     * @deprecated Use {@link #getShowAdminSupportDetailsIntent(EnforcingAdmin)} instead.
      */
     public static Intent getShowAdminSupportDetailsIntent(EnforcedAdmin admin) {
         final Intent intent = new Intent(Settings.ACTION_SHOW_ADMIN_SUPPORT_DETAILS);
@@ -142,15 +144,17 @@ public class RestrictedLockUtils {
 
     /** Sends the intent to trigger the {@code android.settings.ShowAdminSupportDetailsDialog}. */
     @RequiresApi(Build.VERSION_CODES.BAKLAVA)
-    public static void sendShowAdminSupportDetailsIntent(
-            @NonNull Context context, @Nullable EnforcingAdmin admin, @NonNull String restriction) {
+    public static void sendShowAdminSupportDetailsIntent(@NonNull Context context,
+            @Nullable EnforcingAdmin admin, @Nullable String restriction) {
         final Intent intent = getShowAdminSupportDetailsIntent(admin);
         int targetUserId = UserHandle.myUserId();
         if (admin != null) {
             if (isCurrentUserOrProfile(context, admin.getUserHandle().getIdentifier())) {
                 targetUserId = admin.getUserHandle().getIdentifier();
             }
-            intent.putExtra(DevicePolicyManager.EXTRA_RESTRICTION, restriction);
+            if (restriction != null) {
+                intent.putExtra(DevicePolicyManager.EXTRA_RESTRICTION, restriction);
+            }
         }
         context.startActivityAsUser(intent, UserHandle.of(targetUserId));
     }
@@ -166,6 +170,7 @@ public class RestrictedLockUtils {
 
     /**
      * A admin for the restriction enforced.
+     * @deprecated Use {@link EnforcingAdmin} instead.
      */
     public static class EnforcedAdmin {
         @Nullable

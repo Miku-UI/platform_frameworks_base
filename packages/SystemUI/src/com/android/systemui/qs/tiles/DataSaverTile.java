@@ -30,6 +30,7 @@ import com.android.systemui.Prefs;
 import com.android.systemui.animation.DialogCuj;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.animation.Expandable;
+import com.android.systemui.animation.TransitionAnimator;
 import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.plugins.ActivityStarter;
@@ -124,7 +125,15 @@ public class DataSaverTile extends QSTileImpl<BooleanState> implements
                                 InteractionJankMonitor.CUJ_SHADE_DIALOG_OPEN,
                                 INTERACTION_JANK_TAG));
                 if (controller != null) {
-                    mDialogTransitionAnimator.show(dialog, controller);
+                    if (TransitionAnimator.Companion.dynamicTargetResolutionEnabled()) {
+                        mDialogTransitionAnimator.show(
+                                dialog,
+                                expandable::dialogTransitionController,
+                                controller.getCuj()
+                        );
+                    } else {
+                        mDialogTransitionAnimator.show(dialog, controller);
+                    }
                 } else {
                     dialog.show();
                 }

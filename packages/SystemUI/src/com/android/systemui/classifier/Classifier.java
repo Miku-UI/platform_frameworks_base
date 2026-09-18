@@ -48,6 +48,7 @@ public abstract class Classifier {
     public static final int ALTERNATE_BOUNCER_SWIPE = 19;
     public static final int GLANCEABLE_HUB_SWIPE = 20;
     public static final int MEDIA_CAROUSEL_SWIPE = 21;
+    public static final int BOUNCER_SWIPE = 22;
 
     @IntDef({
             QUICK_SETTINGS,
@@ -71,6 +72,7 @@ public abstract class Classifier {
             ALTERNATE_BOUNCER_SWIPE,
             GLANCEABLE_HUB_SWIPE,
             MEDIA_CAROUSEL_SWIPE,
+            BOUNCER_SWIPE,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface InteractionType {}

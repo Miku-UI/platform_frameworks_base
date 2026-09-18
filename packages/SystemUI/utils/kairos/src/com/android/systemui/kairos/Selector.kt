@@ -47,7 +47,6 @@ import com.android.systemui.kairos.util.toNameData
  *
  * @see groupByKey
  */
-@ExperimentalKairosApi
 fun <A> State<A>.selector(numDistinctValues: Int? = null): StateSelector<A> =
     selector(nameTag("State.selector").toNameData("State.selector"), numDistinctValues)
 
@@ -69,7 +68,6 @@ internal fun <A> State<A>.selector(
  *
  * @see selector
  */
-@ExperimentalKairosApi
 class StateSelector<in A>
 internal constructor(
     private val upstream: State<A>,

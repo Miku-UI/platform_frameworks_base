@@ -973,6 +973,11 @@ class LegacyMediaDataManagerImplTest : SysuiTestCase() {
                 setPkg(PACKAGE_NAME)
                 modifyNotification(context).also {
                     it.setSmallIcon(android.R.drawable.ic_media_pause)
+                    it.addAction(android.R.drawable.ic_media_rew, "rewind", null)
+                    it.addAction(android.R.drawable.ic_media_previous, "prev", null)
+                    it.addAction(android.R.drawable.ic_media_play, "play", null)
+                    it.addAction(android.R.drawable.ic_media_next, "next", null)
+                    it.addAction(android.R.drawable.ic_media_ff, "ff", null)
                     it.setStyle(
                         MediaStyle().apply {
                             setMediaSession(session.sessionToken)
@@ -1240,6 +1245,7 @@ class LegacyMediaDataManagerImplTest : SysuiTestCase() {
         // Callback gets an updated state
         val state = PlaybackState.Builder().setState(PlaybackState.STATE_PLAYING, 0L, 1f).build()
         onStateUpdated(KEY, state)
+        testScope.runCurrent()
 
         // Listener is notified of updated state
         verify(listener).onMediaDataLoaded(eq(KEY), eq(KEY), capture(mediaDataCaptor), eq(true))
@@ -1253,6 +1259,7 @@ class LegacyMediaDataManagerImplTest : SysuiTestCase() {
         // No media added with this key
 
         onStateUpdated(KEY, state)
+        testScope.runCurrent()
         verify(listener, never()).onMediaDataLoaded(eq(KEY), any(), any(), anyBoolean())
     }
 
@@ -1269,6 +1276,7 @@ class LegacyMediaDataManagerImplTest : SysuiTestCase() {
 
         // Then no changes are made
         onStateUpdated(KEY, state)
+        testScope.runCurrent()
         verify(listener, never()).onMediaDataLoaded(eq(KEY), any(), any(), anyBoolean())
     }
 
@@ -1279,6 +1287,7 @@ class LegacyMediaDataManagerImplTest : SysuiTestCase() {
 
         addNotificationAndLoad()
         onStateUpdated(KEY, state)
+        testScope.runCurrent()
 
         verify(listener).onMediaDataLoaded(eq(KEY), eq(KEY), capture(mediaDataCaptor), eq(true))
         assertThat(mediaDataCaptor.value.isPlaying).isFalse()
@@ -1315,6 +1324,7 @@ class LegacyMediaDataManagerImplTest : SysuiTestCase() {
             foregroundExecutor.runAllReady()
 
             onStateUpdated(PACKAGE_NAME, state)
+            runCurrent()
 
             verify(listener)
                 .onMediaDataLoaded(
@@ -1339,6 +1349,7 @@ class LegacyMediaDataManagerImplTest : SysuiTestCase() {
 
         addNotificationAndLoad()
         onStateUpdated(KEY, state)
+        testScope.runCurrent()
 
         verify(listener).onMediaDataLoaded(eq(KEY), eq(KEY), capture(mediaDataCaptor), eq(true))
         assertThat(mediaDataCaptor.value.isPlaying).isFalse()
@@ -1355,6 +1366,7 @@ class LegacyMediaDataManagerImplTest : SysuiTestCase() {
         clock.advanceTime(1000)
         val state = PlaybackState.Builder().setState(PlaybackState.STATE_PLAYING, 0L, 1f).build()
         onStateUpdated(KEY, state)
+        testScope.runCurrent()
 
         // Last active time is updated
         verify(listener).onMediaDataLoaded(eq(KEY), eq(KEY), capture(mediaDataCaptor), eq(true))
@@ -1590,8 +1602,6 @@ class LegacyMediaDataManagerImplTest : SysuiTestCase() {
 
     private fun onStateUpdated(key: String, state: PlaybackState) {
         stateCallbackCaptor.value.invoke(key, state)
-        backgroundExecutor.runAllReady()
-        foregroundExecutor.runAllReady()
     }
 
     private fun getNewPendingIntent(): PendingIntent {

@@ -199,8 +199,8 @@ constructor(
     }
 
     /** Unpin all currently pinned HUNs. */
-    fun unpinAll(userUnPinned: Boolean) {
-        headsUpRepository.unpinAll(userUnPinned)
+    fun unpinAll(userUnPinned: Boolean, reason: String) {
+        headsUpRepository.unpinAll(userUnPinned, reason)
     }
 
     /** Notifies that the current scene transition is idle. */

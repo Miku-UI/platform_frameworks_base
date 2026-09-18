@@ -189,10 +189,10 @@ public class BundleUtil {
             boolean shouldForwardInferenceInfo) {
         return new IStreamingResponseCallback.Stub() {
             @Override
-            public void onNewContent(Bundle processedResult) throws RemoteException {
+            public void onPartialResult(Bundle processedResult) throws RemoteException {
                 try {
                     sanitizeResponseParams(processedResult);
-                    streamingResponseCallback.onNewContent(processedResult);
+                    streamingResponseCallback.onPartialResult(processedResult);
                 } finally {
                     resourceClosingExecutor.execute(() -> tryCloseResource(processedResult));
                 }

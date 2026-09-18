@@ -23,7 +23,12 @@
 
 namespace android {
 
-extern std::shared_ptr<InputChannel> android_view_InputChannel_getInputChannel(
+/**
+ * Take the native InputChannel object "out of" the java object. The java object will be
+ * left in an 'empty' state - similar to what happens when you create java InputChannel
+ * using its constructor.
+ */
+extern std::unique_ptr<InputChannel> android_view_InputChannel_extractInputChannel(
         JNIEnv* env, jobject inputChannelObj);
 
 extern jobject android_view_InputChannel_createJavaObject(

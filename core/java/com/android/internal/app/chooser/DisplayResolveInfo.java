@@ -51,6 +51,7 @@ public class DisplayResolveInfo implements TargetInfo, Parcelable {
     private boolean mIsSuspended;
     private ResolveInfoPresentationGetter mResolveInfoPresentationGetter;
     private boolean mPinned = false;
+    private boolean mPreferredActivity = false;
 
     public DisplayResolveInfo(Intent originalIntent, ResolveInfo pri, Intent pOrigIntent,
             ResolveInfoPresentationGetter resolveInfoPresentationGetter) {
@@ -199,6 +200,14 @@ public class DisplayResolveInfo implements TargetInfo, Parcelable {
         mPinned = pinned;
     }
 
+    public boolean isPreferredActivity() {
+        return mPreferredActivity;
+    }
+
+    public void setPreferredActivity(boolean preferredActivity) {
+        mPreferredActivity = preferredActivity;
+    }
+
     @Override
     public int describeContents() {
         return 0;
@@ -212,6 +221,7 @@ public class DisplayResolveInfo implements TargetInfo, Parcelable {
         dest.writeTypedList(mSourceIntents);
         dest.writeBoolean(mIsSuspended);
         dest.writeBoolean(mPinned);
+        dest.writeBoolean(mPreferredActivity);
         dest.writeParcelable(mResolveInfo, 0);
     }
 
@@ -233,6 +243,7 @@ public class DisplayResolveInfo implements TargetInfo, Parcelable {
         in.readTypedList(mSourceIntents, Intent.CREATOR);
         mIsSuspended = in.readBoolean();
         mPinned = in.readBoolean();
+        mPreferredActivity = in.readBoolean();
         mResolveInfo = in.readParcelable(null /* ClassLoader */, android.content.pm.ResolveInfo.class);
     }
 }

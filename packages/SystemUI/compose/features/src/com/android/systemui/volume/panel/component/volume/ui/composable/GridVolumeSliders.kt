@@ -50,6 +50,7 @@ fun GridVolumeSliders(
                 onIconTapped = { sliderViewModel.toggleMuted(sliderState) },
                 sliderColors = sliderColors,
                 hapticsViewModelFactory = sliderViewModel.getSliderHapticsViewModelFactory(),
+                materialSliderColors = VolumeSliderColors.Defaults,
             )
         }
     }

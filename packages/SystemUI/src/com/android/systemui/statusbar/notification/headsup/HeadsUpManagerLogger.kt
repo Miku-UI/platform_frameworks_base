@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.notification.headsup
 
 import com.android.systemui.log.LogBuffer
+import com.android.systemui.log.core.LogLevel.ERROR
 import com.android.systemui.log.core.LogLevel.INFO
 import com.android.systemui.log.core.LogLevel.VERBOSE
 import com.android.systemui.log.dagger.NotificationHeadsUpLog
@@ -40,19 +41,16 @@ constructor(@NotificationHeadsUpLog private val buffer: LogBuffer) {
         buffer.log(TAG, INFO, { str1 = snoozeKey }, { "package snoozed when queried $str1" })
     }
 
-    fun logReleaseAllImmediately() {
-        buffer.log(TAG, INFO, {}, { "release all immediately" })
-    }
 
-    fun logShowNotificationRequest(entry: NotificationEntry, isPinnedByUser: Boolean) {
+    fun logShowNotificationRequest(entry: NotificationEntry, isFromUserOpenAction: Boolean) {
         buffer.log(
             TAG,
             INFO,
             {
                 str1 = entry.logKey
-                bool1 = isPinnedByUser
+                bool1 = isFromUserOpenAction
             },
-            { "request: show notification $str1. isPinnedByUser=$bool1" },
+            { "request: show notification $str1. isFromUserOpenAction=$bool1" },
         )
     }
 
@@ -130,15 +128,15 @@ constructor(@NotificationHeadsUpLog private val buffer: LogBuffer) {
         )
     }
 
-    fun logShowNotification(entry: NotificationEntry, isPinnedByUser: Boolean) {
+    fun logShowNotification(entry: NotificationEntry, isFromUserOpenAction: Boolean) {
         buffer.log(
             TAG,
             INFO,
             {
                 str1 = entry.logKey
-                bool1 = isPinnedByUser
+                bool1 = isFromUserOpenAction
             },
-            { "show notification $str1. isPinnedByUser=$bool1" },
+            { "show notification $str1. isFromUserOpenAction=$bool1" },
         )
     }
 
@@ -155,17 +153,6 @@ constructor(@NotificationHeadsUpLog private val buffer: LogBuffer) {
         )
     }
 
-    fun logAutoRemoveRequest(entry: NotificationEntry, reason: String) {
-        buffer.log(
-            TAG,
-            INFO,
-            {
-                str1 = entry.logKey
-                str2 = reason
-            },
-            { "request: reschedule auto remove of $str1 reason: $str2" },
-        )
-    }
 
     fun logAutoRemoveRescheduled(entry: NotificationEntry, delayMillis: Long, reason: String) {
         buffer.log(
@@ -180,17 +167,6 @@ constructor(@NotificationHeadsUpLog private val buffer: LogBuffer) {
         )
     }
 
-    fun logAutoRemoveCancelRequest(entry: NotificationEntry, reason: String?) {
-        buffer.log(
-            TAG,
-            INFO,
-            {
-                str1 = entry.logKey
-                str2 = reason ?: "unknown"
-            },
-            { "request: cancel auto remove of $str1 reason: $str2" },
-        )
-    }
 
     fun logAutoRemoveCanceled(entry: NotificationEntry?, reason: String?) {
         buffer.log(
@@ -208,18 +184,6 @@ constructor(@NotificationHeadsUpLog private val buffer: LogBuffer) {
         buffer.log(TAG, INFO, { str1 = entry?.logKey }, { "Add to next: $str1" })
     }
 
-    fun logRemoveEntryRequest(key: String, reason: String, isWaiting: Boolean) {
-        buffer.log(
-            TAG,
-            INFO,
-            {
-                str1 = logKey(key)
-                str2 = reason
-                bool1 = isWaiting
-            },
-            { "request: $str2 => remove entry $str1 isWaiting: $isWaiting" },
-        )
-    }
 
     fun logRemoveEntry(key: String, reason: String, isWaiting: Boolean) {
         buffer.log(
@@ -360,12 +324,33 @@ constructor(@NotificationHeadsUpLog private val buffer: LogBuffer) {
         )
     }
 
+    fun logRemoveEntryWhenReorderingAllowed(entry: NotificationEntry) {
+        buffer.log(
+            TAG,
+            VERBOSE,
+            { str1 = entry.logKey },
+            { "remove entry after reorder allowed: $str1" },
+        )
+    }
+
     fun logRemoveEntryAfterExpand(entry: NotificationEntry) {
         buffer.log(TAG, VERBOSE, { str1 = entry.logKey }, { "remove entry after expand: $str1" })
     }
 
     fun logDroppedHuns(entryList: String) {
         buffer.log(TAG, VERBOSE, { str1 = entryList }, { "[AC] dropped:\n $str1" })
+    }
+
+    fun logNotifEntryMismatch(method: String, entry: NotificationEntry) {
+        buffer.log(
+            TAG,
+            ERROR,
+            {
+                str1 = method
+                str2 = entry.logKey
+            },
+            { "NotificationEntry mismatch in $str1 for key $str2" },
+        )
     }
 }
 

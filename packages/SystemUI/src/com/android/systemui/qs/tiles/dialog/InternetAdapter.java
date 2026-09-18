@@ -18,6 +18,7 @@ package com.android.systemui.qs.tiles.dialog;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.text.Html;
 import android.text.TextUtils;
@@ -39,12 +40,15 @@ import com.android.settingslib.Utils;
 import com.android.settingslib.wifi.WifiUtils;
 import com.android.systemui.qs.flags.QsWifiConfig;
 import com.android.systemui.res.R;
+import com.android.systemui.user.data.repository.UserRepository;
+import com.android.systemui.util.kotlin.JavaAdapterKt;
 import com.android.wifi.flags.Flags;
 import com.android.wifitrackerlib.WifiEntry;
 
 import kotlinx.coroutines.CoroutineScope;
 import kotlinx.coroutines.Job;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -68,18 +72,21 @@ public class InternetAdapter extends RecyclerView.Adapter<InternetAdapter.Intern
 
     protected View mHolderView;
     protected Context mContext;
+    private boolean mHasMultipleFullUsers = false;
 
     public InternetAdapter(InternetDetailsContentController controller,
-            CoroutineScope coroutineScope) {
-        this(controller, coroutineScope,
-                false);
-    }
-
-    public InternetAdapter(InternetDetailsContentController controller,
-            CoroutineScope coroutineScope, boolean isInDetailsView) {
+            CoroutineScope coroutineScope, boolean isInDetailsView, UserRepository userRepository) {
         mInternetDetailsContentController = controller;
         mCoroutineScope = coroutineScope;
         mIsInDetailsView = isInDetailsView;
+        JavaAdapterKt.collectFlow(
+                coroutineScope,
+                userRepository.getHasMultipleFullUsers(),
+                hasMultipleFullUsers -> {
+                    mHasMultipleFullUsers = hasMultipleFullUsers;
+                    notifyDataSetChanged();
+                }
+        );
     }
 
     @Override
@@ -88,6 +95,65 @@ public class InternetAdapter extends RecyclerView.Adapter<InternetAdapter.Intern
         mContext = viewGroup.getContext();
         mHolderView = LayoutInflater.from(mContext).inflate(R.layout.internet_list_item,
                 viewGroup, false);
+
+        if (mIsInDetailsView) {
+            // Customize the wifi list's dimensions.
+            LinearLayout wifiList = mHolderView.findViewById(R.id.wifi_list);
+            Resources res = mHolderView.getContext().getResources();
+            LinearLayout.LayoutParams wifiListLayoutParams =
+                    (LinearLayout.LayoutParams) wifiList.getLayoutParams();
+
+            wifiListLayoutParams.height =
+                    res.getDimensionPixelSize(R.dimen.tile_details_entry_height);
+
+            final int horizontalMargin =
+                    res.getDimensionPixelSize(R.dimen.tile_details_entry_horizontal_margin);
+
+            wifiListLayoutParams.setMarginStart(horizontalMargin);
+            wifiListLayoutParams.setMarginEnd(horizontalMargin);
+
+            wifiList.setLayoutParams(wifiListLayoutParams);
+
+            // Customize the wifi network layout's dimensions.
+            LinearLayout wifiNetworkLayout = mHolderView.findViewById(R.id.wifi_network_layout);
+            LinearLayout.LayoutParams wifiNetworkLayoutParams =
+                    (LinearLayout.LayoutParams) wifiNetworkLayout.getLayoutParams();
+
+            wifiNetworkLayoutParams.height = wifiListLayoutParams.height;
+            wifiNetworkLayout.setLayoutParams(wifiNetworkLayoutParams);
+
+            // Update the size of the wifi icon.
+            ImageView wifiIcon = mHolderView.findViewById(R.id.wifi_icon);
+            View iconContainer = (View) wifiIcon.getParent();
+            ViewGroup.LayoutParams iconContainerParams = iconContainer.getLayoutParams();
+            int newIconSize = res.getDimensionPixelSize(R.dimen.tile_details_entry_icon_size);
+            iconContainerParams.width = newIconSize;
+            iconContainerParams.height = newIconSize;
+            iconContainer.setLayoutParams(iconContainerParams);
+
+            // Set each end icon's height to MATCH_PARENT to ensure they align
+            // vertically within the container.
+            ImageView[] endIcons = {
+                    mHolderView.findViewById(R.id.first_wifi_end_icon),
+                    mHolderView.findViewById(R.id.second_wifi_end_icon)};
+            for (ImageView icon : endIcons) {
+                ViewGroup.LayoutParams iconParams = icon.getLayoutParams();
+                iconParams.width = newIconSize;
+                iconParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
+                icon.setLayoutParams(iconParams);
+            }
+
+            // Set the end icon container's width to WRAP_CONTENT,
+            // allowing it to hold multiple icons.
+            View endIconContainer =
+                    mHolderView.findViewById(R.id.wifi_end_icon_container);
+            ViewGroup.LayoutParams endContainerParams =
+                    endIconContainer.getLayoutParams();
+            endContainerParams.width = ViewGroup.LayoutParams.WRAP_CONTENT;
+            endContainerParams.height = newIconSize;
+            endIconContainer.setLayoutParams(endContainerParams);
+        }
+
         return new InternetViewHolder(mHolderView, mInternetDetailsContentController,
                 mCoroutineScope, mIsInDetailsView);
     }
@@ -97,7 +163,7 @@ public class InternetAdapter extends RecyclerView.Adapter<InternetAdapter.Intern
         if (mWifiEntries == null || position >= mWifiEntriesCount) {
             return;
         }
-        viewHolder.onBind(mWifiEntries.get(position));
+        viewHolder.onBind(mWifiEntries.get(position), mHasMultipleFullUsers);
     }
 
     /**
@@ -168,7 +234,8 @@ public class InternetAdapter extends RecyclerView.Adapter<InternetAdapter.Intern
         final ImageView mWifiIcon;
         final TextView mWifiTitleText;
         final TextView mWifiSummaryText;
-        final ImageView mWifiEndIcon;
+        final ImageView mFirstWifiEndIcon;
+        final ImageView mSecondWifiEndIcon;
         final Context mContext;
         final InternetDetailsContentController mInternetDetailsContentController;
         final CoroutineScope mCoroutineScope;
@@ -190,17 +257,16 @@ public class InternetAdapter extends RecyclerView.Adapter<InternetAdapter.Intern
             mWifiIcon = view.requireViewById(R.id.wifi_icon);
             mWifiTitleText = view.requireViewById(R.id.wifi_title);
             mWifiSummaryText = view.requireViewById(R.id.wifi_summary);
-            mWifiEndIcon = view.requireViewById(R.id.wifi_end_icon);
+            mFirstWifiEndIcon = view.requireViewById(R.id.first_wifi_end_icon);
+            mSecondWifiEndIcon =
+                    view.requireViewById(R.id.second_wifi_end_icon);
         }
 
-        void onBind(@NonNull WifiEntry wifiEntry) {
+        void onBind(@NonNull WifiEntry wifiEntry, boolean hasMultipleFullUsers) {
             mWifiIcon.setImageDrawable(getWifiDrawable(wifiEntry));
             setWifiNetworkLayout(wifiEntry.getTitle(),
                     Html.fromHtml(wifiEntry.getSummary(false), Html.FROM_HTML_MODE_LEGACY));
-
-            final int connectedState = wifiEntry.getConnectedState();
-            final int security = wifiEntry.getSecurity();
-            updateEndIcon(connectedState, security);
+            updateEndIcons(wifiEntry, hasMultipleFullUsers);
 
             mWifiListLayout.setEnabled(shouldEnabled(wifiEntry));
 
@@ -212,13 +278,9 @@ public class InternetAdapter extends RecyclerView.Adapter<InternetAdapter.Intern
                     mWifiIcon.setColorFilter(
                             mContext.getColor(com.android.internal.R.color.materialColorOnSurface));
                 }
-                if (mWifiEndIcon.getDrawable() != null) {
-                    mWifiEndIcon.setColorFilter(
-                            mContext.getColor(com.android.internal.R.color.materialColorOnSurface));
-                }
             }
 
-            if (connectedState != WifiEntry.CONNECTED_STATE_DISCONNECTED) {
+            if (wifiEntry.getConnectedState() != WifiEntry.CONNECTED_STATE_DISCONNECTED) {
                 mWifiListLayout.setOnClickListener(
                         v -> mInternetDetailsContentController.launchWifiDetailsSetting(
                                 wifiEntry.getKey(), v));
@@ -303,19 +365,39 @@ public class InternetAdapter extends RecyclerView.Adapter<InternetAdapter.Intern
             return shared.get();
         }
 
-        void updateEndIcon(int connectedState, int security) {
-            Drawable drawable = null;
-            if (connectedState != WifiEntry.CONNECTED_STATE_DISCONNECTED) {
-                drawable = mContext.getDrawable(R.drawable.ic_settings_24dp);
-            } else if (security != WifiEntry.SECURITY_NONE && security != WifiEntry.SECURITY_OWE) {
-                drawable = mContext.getDrawable(R.drawable.ic_friction_lock_closed);
+        void updateEndIcons(@NonNull WifiEntry wifiEntry, boolean hasMultipleFullUsers) {
+            boolean isConnected = wifiEntry.getConnectedState()
+                    != WifiEntry.CONNECTED_STATE_DISCONNECTED;
+            boolean isShared = QsWifiConfig.isEnabled() && hasMultipleFullUsers
+                    && wifiEntry.isSharedWithOtherUsers();
+            boolean isSecured =
+                    (wifiEntry.getSecurity() != WifiEntry.SECURITY_NONE)
+                    && (wifiEntry.getSecurity() != WifiEntry.SECURITY_OWE);
+
+            // The sequence of icons matters. i.e. the shared network icon
+            // should precede the lock icon.
+            List<Integer> icons = new ArrayList<Integer>();
+            if (isConnected) icons.add(R.drawable.ic_settings_24dp);
+            else {
+                if (isShared) icons.add(R.drawable.ic_group_24dp);
+                if (isSecured) icons.add(R.drawable.ic_friction_lock_closed);
             }
-            if (drawable == null) {
-                mWifiEndIcon.setVisibility(View.GONE);
-                return;
+
+            ImageView[] iconSlots = {mFirstWifiEndIcon, mSecondWifiEndIcon};
+            for (int i = 0; i < iconSlots.length; i++) {
+                ImageView iconView = iconSlots[i];
+                if (i < icons.size()) {
+                    iconView.setImageDrawable(
+                            mContext.getDrawable(icons.get(i)));
+                    iconView.setVisibility(View.VISIBLE);
+                    if (mIsInDetailsView) {
+                        iconView.setColorFilter(mContext.getColor(
+                                com.android.internal.R.color.materialColorOnSurface));
+                    }
+                } else {
+                    iconView.setVisibility(View.GONE);
+                }
             }
-            mWifiEndIcon.setVisibility(View.VISIBLE);
-            mWifiEndIcon.setImageDrawable(drawable);
         }
     }
 }

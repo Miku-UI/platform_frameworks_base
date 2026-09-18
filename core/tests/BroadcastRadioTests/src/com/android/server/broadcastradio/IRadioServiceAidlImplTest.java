@@ -97,9 +97,9 @@ public final class IRadioServiceAidlImplTest extends ExtendedRadioMockitoTestCas
 
     @Test
     public void getServicesNames_forAidlImpl() {
-        doReturn(null).when(() -> ServiceManager.waitForDeclaredService(
+        doReturn(false).when(() -> ServiceManager.isDeclared(
                 AM_FM_SERVICE_NAME));
-        doReturn(mServiceBinderMock).when(() -> ServiceManager.waitForDeclaredService(
+        doReturn(true).when(() -> ServiceManager.isDeclared(
                 DAB_SERVICE_NAME));
 
         assertWithMessage("Names of services available")

@@ -23,7 +23,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.android.systemui.kairos.BuildSpec
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosNetwork
 import com.android.systemui.kairos.awaitClose
 import com.android.systemui.kairos.launchEffect
@@ -36,7 +35,6 @@ import com.android.systemui.kairos.util.map
  * [block] will be invoked with the result of activating the [buildSpec]. [buildSpec] will be
  * deactivated automatically when [ActivatedKairosSpec] leaves the composition.
  */
-@ExperimentalKairosApi
 @Composable
 fun <T> ActivatedKairosSpec(
     buildSpec: BuildSpec<T>,

@@ -16,23 +16,24 @@
 
 package com.android.systemui.statusbar.notification
 
-import android.app.Flags
 import android.app.Notification
 import android.app.Notification.EXTRA_SUMMARIZED_CONTENT
 import android.content.pm.LauncherApps
 import android.content.pm.launcherApps
+import android.content.testableContext
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper.RunWithLooper
 import android.text.SpannableStringBuilder
 import android.text.style.ImageSpan
-import android.text.style.StyleSpan
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.statusbar.RankingBuilder
 import com.android.systemui.statusbar.notification.collection.buildNotificationEntry
+import com.android.systemui.statusbar.notification.collection.coordinator.SummarizationDecorator
 import com.android.systemui.statusbar.notification.collection.makeEntryOfPeopleType
+import com.android.systemui.statusbar.notification.data.repository.SummarizationAnimationRepository
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinderLogger
 import com.android.systemui.statusbar.notification.row.notificationRowContentBinderLogger
 import com.android.systemui.testKosmos
@@ -51,18 +52,23 @@ class ConversationNotificationProcessorTest : SysuiTestCase() {
     private lateinit var launcherApps: LauncherApps
     private lateinit var logger: NotificationRowContentBinderLogger
     private lateinit var conversationNotificationManager: ConversationNotificationManager
+    private lateinit var summarizationRepository: SummarizationAnimationRepository
+    private lateinit var summarizationDecorator: SummarizationDecorator
 
     @Before
     fun setup() {
         launcherApps = kosmos.launcherApps
         conversationNotificationManager = kosmos.conversationNotificationManager
         logger = kosmos.notificationRowContentBinderLogger
+        summarizationRepository = SummarizationAnimationRepository()
+        summarizationDecorator = SummarizationDecorator(kosmos.testableContext)
 
         conversationNotificationProcessor =
             ConversationNotificationProcessor(
                 context,
                 launcherApps,
                 conversationNotificationManager,
+                summarizationDecorator,
             )
     }
 
@@ -76,7 +82,7 @@ class ConversationNotificationProcessorTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_NM_SUMMARIZATION, Flags.FLAG_NM_SUMMARIZATION_UI)
+    @EnableFlags(NmSummarizationAllFlag.FLAG_NAME)
     fun processNotification_messagingStyleWithSummarization_flagOff() {
         val summarization = "hello"
         val entry = kosmos.makeEntryOfPeopleType()
@@ -89,7 +95,7 @@ class ConversationNotificationProcessorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_SUMMARIZATION)
+    @DisableFlags(NmSummarizationAllFlag.FLAG_NAME)
     fun processNotification_messagingStyleWithSummarization() {
         val summarization = "hello"
         val entry = kosmos.makeEntryOfPeopleType()
@@ -114,7 +120,7 @@ class ConversationNotificationProcessorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_SUMMARIZATION)
+    @DisableFlags(NmSummarizationAllFlag.FLAG_NAME)
     fun processNotification_messagingStyleUpdateSummarizationToNull() {
         val entry = kosmos.makeEntryOfPeopleType()
         entry.setRanking(RankingBuilder(entry.ranking).setSummarization("hello").build())
@@ -130,7 +136,7 @@ class ConversationNotificationProcessorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_SUMMARIZATION)
+    @DisableFlags(NmSummarizationAllFlag.FLAG_NAME)
     fun processNotification_messagingStyleWithoutSummarization() {
         val entry = kosmos.makeEntryOfPeopleType()
         val builder = Notification.Builder.recoverBuilder(context, entry.sbn.notification)

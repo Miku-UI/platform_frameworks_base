@@ -23,27 +23,18 @@ import com.android.wm.shell.shared.bubbles.DropTargetManager.DragZoneChangedList
  * Class that encapsulates common logic of reacting to the drag zone changes for dragging launcher
  * icons to the bubble bar.
  */
-class DragToBubblesZoneChangeListener(
-    private val isRtl: Boolean,
-    private val callback: Callback,
-) : DragZoneChangedListener {
+class DragToBubblesZoneChangeListener(private val isRtl: Boolean, private val callback: Callback) :
+    DragZoneChangedListener {
 
     private var lastUpdateLocation: BubbleBarLocation? = null
     private val isLocationChangedFromOriginal: Boolean
-        get() = lastUpdateLocation != null
-                && isDifferentSides(
-            lastUpdateLocation,
-            callback.getStartingBubbleBarLocation(),
-            isRtl
-        )
+        get() =
+            lastUpdateLocation != null &&
+                isDifferentSides(lastUpdateLocation, callback.getStartingBubbleBarLocation(), isRtl)
 
     override fun onInitialDragZoneSet(dragZone: DragZone?) {}
 
-    override fun onDragZoneChanged(
-        draggedObject: DraggedObject,
-        from: DragZone?,
-        to: DragZone?,
-    ) {
+    override fun onDragZoneChanged(draggedObject: DraggedObject, from: DragZone?, to: DragZone?) {
         processLocationUpdate(to.toBubbleBarLocation())
     }
 
@@ -99,15 +90,14 @@ class DragToBubblesZoneChangeListener(
         // Notify if one is null and the other isn't (entering/exiting a general zone area)
         // OR if both are non-null and they represent different sides.
         return (lastUpdateLocation == null) != (updateLocation == null) ||
-                isDifferentSides(lastUpdateLocation, updateLocation, isRtl)
+            isDifferentSides(lastUpdateLocation, updateLocation, isRtl)
     }
 
     /**
      * Callback interface for {@link DragToBubblesZoneChangeListener} to communicate drag-related
-     * events and request actions on the bubble bar.
-     * The primary purpose of this callback is to decouple the generic drag zone detection logic
-     * within {@code DragToBubblesZoneChangeListener} from the specific UI implementation details
-     * of the bubble bar.
+     * events and request actions on the bubble bar. The primary purpose of this callback is to
+     * decouple the generic drag zone detection logic within {@code DragToBubblesZoneChangeListener}
+     * from the specific UI implementation details of the bubble bar.
      */
     interface Callback {
         /** The starting bubble bar location before the drag started. */
@@ -127,9 +117,9 @@ class DragToBubblesZoneChangeListener(
          * Called when a drag operation enters or exits a bubble bar location.
          *
          * @param bubbleBarLocation The [BubbleBarLocation] that the drag operation has entered.
-         *                          This will be non-null if the drag has entered a valid bubble bar
-         *                          location. It will be `null` if the drag operation has exited
-         *                          all bubble bar locations. Values are guaranteed to be distinct.
+         *   This will be non-null if the drag has entered a valid bubble bar location. It will be
+         *   `null` if the drag operation has exited all bubble bar locations. Values are guaranteed
+         *   to be distinct.
          */
         fun onDragEnteredLocation(bubbleBarLocation: BubbleBarLocation?) {}
     }

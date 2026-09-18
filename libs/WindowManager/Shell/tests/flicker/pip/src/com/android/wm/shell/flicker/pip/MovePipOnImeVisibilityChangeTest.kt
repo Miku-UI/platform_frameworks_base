@@ -19,11 +19,11 @@ package com.android.wm.shell.flicker.pip
 import android.platform.test.annotations.Presubmit
 import android.platform.test.annotations.RequiresFlagsDisabled
 import android.tools.Rotation
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.helpers.WindowUtils
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.RequiresDevice
@@ -38,8 +38,8 @@ import org.junit.runners.MethodSorters
 import org.junit.runners.Parameterized
 
 /**
- * Test Pip launch. To run this test:
- * `atest WMShellFlickerTestsPip3:MovePipOnImeVisibilityChangeTest`
+ * Test Pip launch. To run this test: `atest
+ * WMShellFlickerTestsPip3:MovePipOnImeVisibilityChangeTest`
  */
 @RequiresDevice
 @RunWith(Parameterized::class)

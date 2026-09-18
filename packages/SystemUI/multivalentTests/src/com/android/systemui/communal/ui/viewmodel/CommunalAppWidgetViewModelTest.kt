@@ -18,6 +18,7 @@ package com.android.systemui.communal.ui.viewmodel
 
 import android.appwidget.AppWidgetHost.AppWidgetHostListener
 import android.appwidget.AppWidgetHostView
+import android.os.DeadObjectException
 import android.platform.test.flag.junit.FlagsParameterization
 import android.util.SizeF
 import android.widget.RemoteViews
@@ -44,6 +45,7 @@ import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4
 import platform.test.runner.parameterized.Parameters
 
@@ -162,6 +164,64 @@ class CommunalAppWidgetViewModelTest(flags: FlagsParameterization) : SysuiTestCa
             runAll()
 
             verify(listener).updateAppWidget(any())
+        }
+
+    @Test
+    fun setListener_handlesDeadObjectException() =
+        kosmos.runTest {
+            whenever(appWidgetHost.setListener(any(), any())).thenAnswer {
+                throw DeadObjectException()
+            }
+            val listener = mock<AppWidgetHostListener>()
+
+            underTest.setListener(123, listener)
+            runAll()
+
+            // No crash.
+        }
+
+    @Test
+    fun setListener_handlesWrappedDeadObjectException() =
+        kosmos.runTest {
+            whenever(appWidgetHost.setListener(any(), any())).thenAnswer {
+                throw RuntimeException(DeadObjectException())
+            }
+            val listener = mock<AppWidgetHostListener>()
+
+            underTest.setListener(123, listener)
+            runAll()
+
+            // No crash.
+        }
+
+    @Test
+    fun setListener_handlesDeadObjectException_HSUM() =
+        kosmos.runTest {
+            fakeGlanceableHubMultiUserHelper.setIsInHeadlessSystemUser(true)
+            whenever(glanceableHubWidgetManager.setAppWidgetHostListener(any(), any())).thenAnswer {
+                throw DeadObjectException()
+            }
+            val listener = mock<AppWidgetHostListener>()
+
+            underTest.setListener(123, listener)
+            runAll()
+
+            // No crash.
+        }
+
+    @Test
+    fun setListener_handlesWrappedDeadObjectException_HSUM() =
+        kosmos.runTest {
+            fakeGlanceableHubMultiUserHelper.setIsInHeadlessSystemUser(true)
+            whenever(glanceableHubWidgetManager.setAppWidgetHostListener(any(), any())).thenAnswer {
+                throw RuntimeException(DeadObjectException())
+            }
+            val listener = mock<AppWidgetHostListener>()
+
+            underTest.setListener(123, listener)
+            runAll()
+
+            // No crash.
         }
 
     private fun Kosmos.runAll() {

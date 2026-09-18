@@ -19,6 +19,7 @@ package com.android.systemui.screenshot
 import android.content.ComponentName
 import android.graphics.Insets
 import android.graphics.Rect
+import android.net.Uri
 import android.os.UserHandle
 import android.view.Display
 import android.view.WindowManager
@@ -38,6 +39,8 @@ class ScreenshotDataTest : SysuiTestCase() {
     private val userId = 1
     private val insets = Insets.of(1, 2, 3, 4)
     private val component = ComponentName("android.test", "android.test.Component")
+    private val customUri =
+        Uri.parse("content://com.android.externalstorage.documents/tree/primary%3ATest")
 
     @Test
     fun testConstruction() {
@@ -48,6 +51,7 @@ class ScreenshotDataTest : SysuiTestCase() {
                 .setTaskId(taskId)
                 .setUserId(userId)
                 .setTopComponent(component)
+                .setCustomSaveUri(customUri)
                 .build()
 
         val data = ScreenshotData.fromRequest(request)
@@ -60,6 +64,7 @@ class ScreenshotDataTest : SysuiTestCase() {
         assertThat(data.userHandle).isEqualTo(UserHandle.of(userId))
         assertThat(data.topComponent).isEqualTo(component)
         assertThat(data.displayId).isEqualTo(Display.DEFAULT_DISPLAY)
+        assertThat(data.customSaveUri).isEqualTo(customUri)
     }
 
     @Test

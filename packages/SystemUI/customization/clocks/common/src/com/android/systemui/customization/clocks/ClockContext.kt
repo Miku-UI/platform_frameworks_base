@@ -19,12 +19,22 @@ import android.os.Vibrator
 import com.android.systemui.log.core.MessageBuffer
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockSettings
 
-data class ClockContext(
-    val context: Context,
-    val resources: Resources,
-    val settings: ClockSettings,
-    val typefaceCache: TypefaceCache,
-    val messageBuffer: MessageBuffer,
-    val vibrator: Vibrator?,
-    val timeKeeper: TimeKeeper,
-)
+interface ClockContext {
+    val context: Context
+    val resources: Resources
+    val settings: ClockSettings
+    val messageBuffer: MessageBuffer
+    val vibrator: Vibrator?
+    val timeKeeper: TimeKeeper
+    val isAnimationEnabled: Boolean
+}
+
+data class ClockContextImpl(
+    override val context: Context,
+    override val resources: Resources,
+    override val settings: ClockSettings,
+    override val messageBuffer: MessageBuffer,
+    override val vibrator: Vibrator?,
+    override val timeKeeper: TimeKeeper,
+    override val isAnimationEnabled: Boolean,
+) : ClockContext

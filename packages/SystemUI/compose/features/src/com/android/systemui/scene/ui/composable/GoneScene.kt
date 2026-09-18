@@ -27,9 +27,8 @@ import com.android.compose.animation.scene.animateContentFloatAsState
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.lifecycle.rememberViewModel
-import com.android.systemui.notifications.ui.composable.SnoozeableHeadsUpNotificationSpace
+import com.android.systemui.notifications.ui.composable.SnoozableHeadsUpNotificationPlaceholder
 import com.android.systemui.qs.shared.ui.QuickSettings
-import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.ui.viewmodel.GoneUserActionsViewModel
 import com.android.systemui.statusbar.notification.stack.ui.view.NotificationScrollView
@@ -58,7 +57,7 @@ constructor(
 
     override val alwaysCompose: Boolean = false
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         actionsViewModel.activate()
     }
 
@@ -69,17 +68,13 @@ constructor(
             key = QuickSettings.SharedValues.TilesSquishiness,
         )
         Spacer(modifier.fillMaxSize())
-        SnoozeableHeadsUpNotificationSpace(
-            useDrawBounds = {
-                with(layoutState.transitionState) {
-                    isIdle(key) &&
-                        !isIdle(Overlays.NotificationsShade) &&
-                        !isIdle(Overlays.QuickSettingsShade)
-                }
-            },
+        SnoozableHeadsUpNotificationPlaceholder(
+            tag = "GoneScene",
             stackScrollView = notificationStackScrollView.get(),
             viewModel =
-                rememberViewModel("GoneScene") { notificationsPlaceholderViewModelFactory.create() },
+                rememberViewModel("GoneScene") {
+                    notificationsPlaceholderViewModelFactory.create(Scenes.Gone)
+                },
         )
     }
 }

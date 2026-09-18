@@ -23,6 +23,7 @@ import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Region
+import android.platform.test.annotations.DisableFlags
 import android.view.Display
 import android.view.DisplayCutout
 import android.view.DisplayInfo
@@ -39,8 +40,8 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito.spy
 import org.mockito.Mockito.verify
-import org.mockito.MockitoAnnotations
 import org.mockito.Mockito.`when` as whenever
+import org.mockito.MockitoAnnotations
 
 @RunWith(AndroidJUnit4::class)
 @SmallTest
@@ -52,7 +53,8 @@ class DisplayCutoutBaseViewTest : SysuiTestCase() {
     @Mock private lateinit var mockContext: Context
 
     private lateinit var cutoutBaseView: DisplayCutoutBaseView
-    private val cutout: DisplayCutout = DisplayCutout.Builder()
+    private val cutout: DisplayCutout =
+        DisplayCutout.Builder()
             .setSafeInsets(Insets.of(0, 2, 0, 0))
             .setBoundingRectTop(Rect(1, 0, 2, 2))
             .build()
@@ -86,6 +88,7 @@ class DisplayCutoutBaseViewTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_STATUS_BAR_SCREEN_DECOR_TOUCH_HANDLING_FIX)
     fun testShouldInterceptTouch_hasCutout() {
         setupDisplayCutoutBaseView(true /* fillCutout */, true /* hasCutout */)
         cutoutBaseView.updateCutout()
@@ -94,6 +97,7 @@ class DisplayCutoutBaseViewTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_STATUS_BAR_SCREEN_DECOR_TOUCH_HANDLING_FIX)
     fun testShouldInterceptTouch_noCutout() {
         setupDisplayCutoutBaseView(true /* fillCutout */, false /* hasCutout */)
         cutoutBaseView.updateCutout()
@@ -165,9 +169,13 @@ class DisplayCutoutBaseViewTest : SysuiTestCase() {
 
     private fun setupDisplayCutoutBaseView(fillCutout: Boolean, hasCutout: Boolean) {
         mContext.orCreateTestableResources.addOverride(
-                R.array.config_displayUniqueIdArray, arrayOf<String>())
+            R.array.config_displayUniqueIdArray,
+            arrayOf<String>(),
+        )
         mContext.orCreateTestableResources.addOverride(
-                R.bool.config_fillMainBuiltInDisplayCutout, fillCutout)
+            R.bool.config_fillMainBuiltInDisplayCutout,
+            fillCutout,
+        )
 
         cutoutBaseView = spy(DisplayCutoutBaseView(mContext))
 
@@ -176,8 +184,7 @@ class DisplayCutoutBaseViewTest : SysuiTestCase() {
         whenever(mockDisplay.uniqueId).thenReturn("mockDisplayUniqueId")
         whenever(cutoutBaseView.rootView).thenReturn(mockRootView)
         whenever(cutoutBaseView.getPhysicalPixelDisplaySizeRatio()).thenReturn(1f)
-        whenever(mockDisplay.getDisplayInfo(eq(cutoutBaseView.displayInfo))
-        ).then {
+        whenever(mockDisplay.getDisplayInfo(eq(cutoutBaseView.displayInfo))).then {
             val info = it.getArgument<DisplayInfo>(0)
             info.displayCutout = if (hasCutout) cutout else null
             return@then true

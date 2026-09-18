@@ -98,6 +98,8 @@ public class CreateUserDialogController {
     private boolean mWaitingForActivityResult;
     private NewUserData mSuccessCallback;
     private Runnable mCancelCallback;
+    private boolean mCanCreateAdminUser;
+    private boolean mCanEditUserInfo;
 
     private final String mFileAuthority;
 
@@ -125,6 +127,8 @@ public class CreateUserDialogController {
         mCancelCallback = null;
         mCachedDrawablePath = null;
         mCurrentState = INITIAL_DIALOG;
+        mCanCreateAdminUser = false;
+        mCanEditUserInfo = true;
     }
 
     /**
@@ -180,15 +184,21 @@ public class CreateUserDialogController {
      * Creates an add user dialog with option to set the user's name and photo and choose their
      * admin status.
      */
-    public Dialog createDialog(Activity activity,
-            @NonNull ActivityStarter activityStarter, boolean canCreateAdminUser,
-            NewUserData successCallback, Runnable cancelCallback) {
+    public Dialog createDialog(
+            Activity activity,
+            @NonNull ActivityStarter activityStarter,
+            boolean canCreateAdminUser,
+            boolean canEditUserInfo,
+            NewUserData successCallback,
+            Runnable cancelCallback) {
         mActivity = activity;
         mCustomDialogHelper = new CustomDialogHelper(activity);
         mSuccessCallback = successCallback;
         mCancelCallback = cancelCallback;
         mActivityStarter = activityStarter;
-        addCustomViews(canCreateAdminUser);
+        mCanCreateAdminUser = canCreateAdminUser;
+        mCanEditUserInfo = canEditUserInfo;
+        addCustomViews();
         mUserCreationDialog = mCustomDialogHelper.getDialog();
         updateLayout();
         mUserCreationDialog.setOnDismissListener(view -> finish());
@@ -197,23 +207,33 @@ public class CreateUserDialogController {
         return mUserCreationDialog;
     }
 
-    private void addCustomViews(boolean canCreateAdminUser) {
+    private void addCustomViews() {
         addGrantAdminView();
         addUserInfoEditView();
-        mCustomDialogHelper.setPositiveButton(R.string.next, view -> {
-            mCurrentState++;
-            if (mCurrentState == GRANT_ADMIN_DIALOG && !canCreateAdminUser) {
-                mCurrentState++;
-            }
-            updateLayout();
-        });
-        mCustomDialogHelper.setNegativeButton(R.string.back, view -> {
-            mCurrentState--;
-            if (mCurrentState == GRANT_ADMIN_DIALOG && !canCreateAdminUser) {
-                mCurrentState--;
-            }
-            updateLayout();
-        });
+        mCustomDialogHelper.setPositiveButton(
+                R.string.next,
+                view -> {
+                    mCurrentState++;
+                    if (mCurrentState == GRANT_ADMIN_DIALOG && !mCanCreateAdminUser) {
+                        mCurrentState++;
+                    }
+                    if (mCurrentState == EDIT_NAME_DIALOG && !mCanEditUserInfo) {
+                        mCurrentState++;
+                    }
+                    updateLayout();
+                });
+        mCustomDialogHelper.setNegativeButton(
+                R.string.back,
+                view -> {
+                    mCurrentState--;
+                    if (mCurrentState == EDIT_NAME_DIALOG && !mCanEditUserInfo) {
+                        mCurrentState--;
+                    }
+                    if (mCurrentState == GRANT_ADMIN_DIALOG && !mCanCreateAdminUser) {
+                        mCurrentState--;
+                    }
+                    updateLayout();
+                });
     }
 
     private void updateLayout() {
@@ -233,6 +253,8 @@ public class CreateUserDialogController {
                             KEY_ADD_USER_LONG_MESSAGE_DISPLAYED,
                             true).apply();
                 }
+                final int initialButtonResId =
+                        !mCanCreateAdminUser && !mCanEditUserInfo ? R.string.done : R.string.next;
                 Drawable icon = mActivity.getDrawable(R.drawable.ic_person_add);
                 mCustomDialogHelper.setVisibility(mCustomDialogHelper.ICON, true)
                         .setVisibility(mCustomDialogHelper.MESSAGE, true)
@@ -241,12 +263,13 @@ public class CreateUserDialogController {
                         .setTitle(R.string.user_add_user_title)
                         .setMessage(messageResId)
                         .setNegativeButtonText(R.string.cancel)
-                        .setPositiveButtonText(R.string.next);
+                        .setPositiveButtonText(initialButtonResId);
                 focus();
                 break;
             case GRANT_ADMIN_DIALOG:
                 mEditUserInfoView.setVisibility(View.GONE);
                 mGrantAdminView.setVisibility(View.VISIBLE);
+                final int grantAdminButtonResId = !mCanEditUserInfo ? R.string.done : R.string.next;
                 mCustomDialogHelper
                         .setVisibility(mCustomDialogHelper.ICON, true)
                         .setVisibility(mCustomDialogHelper.MESSAGE, true)
@@ -254,7 +277,7 @@ public class CreateUserDialogController {
                         .setTitle(R.string.user_grant_admin_title)
                         .setMessage(R.string.user_grant_admin_message)
                         .setNegativeButtonText(R.string.back)
-                        .setPositiveButtonText(R.string.next);
+                        .setPositiveButtonText(grantAdminButtonResId);
                 focus();
                 if (mIsAdmin == null) {
                     mCustomDialogHelper.setButtonEnabled(false);

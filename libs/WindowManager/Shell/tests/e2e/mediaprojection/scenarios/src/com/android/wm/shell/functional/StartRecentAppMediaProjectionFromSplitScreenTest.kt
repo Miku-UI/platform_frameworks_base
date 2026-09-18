@@ -24,4 +24,5 @@ import org.junit.runners.BlockJUnit4ClassRunner
 /* Functional test for [StartRecentAppMediaProjectionFromSplitScreen]. */
 @RunWith(BlockJUnit4ClassRunner::class)
 @Postsubmit
-class StartRecentAppMediaProjectionFromSplitScreenTest() : StartRecentAppMediaProjectionFromSplitScreen()
+class StartRecentAppMediaProjectionFromSplitScreenTest() :
+    StartRecentAppMediaProjectionFromSplitScreen()

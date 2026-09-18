@@ -101,6 +101,25 @@ public final class FontManagerService extends IFontManager.Stub {
         }
     }
 
+    @RequiresPermission(Manifest.permission.UPDATE_FONTS)
+    @Override
+    public int updateFontFallbacks(@NonNull List<FontUpdateRequest> fallbackRequests) {
+        try {
+            Objects.requireNonNull(fallbackRequests);
+            getContext().enforceCallingPermission(Manifest.permission.UPDATE_FONTS,
+                    "UPDATE_FONTS permission required.");
+            try {
+                updateFallbacks(fallbackRequests);
+                return FontManager.RESULT_SUCCESS;
+            } catch (SystemFontException e) {
+                Slog.e(TAG, "Failed to update font fallbacks", e);
+                return e.getErrorCode();
+            }
+        } finally {
+            closeFileDescriptors(fallbackRequests);
+        }
+    }
+
     private static void closeFileDescriptors(@Nullable List<FontUpdateRequest> requests) {
         // Make sure we close every passed FD, even if 'requests' is constructed incorrectly and
         // some fields are null.
@@ -351,6 +370,19 @@ public final class FontManagerService extends IFontManager.Stub {
                         "The base config version is older than current.");
             }
             mUpdatableFontDir.update(requests);
+            updateSerializedFontMap();
+        }
+    }
+
+    /* package */ void updateFallbacks(List<FontUpdateRequest> fallbackRequests)
+            throws SystemFontException {
+        synchronized (mUpdatableFontDirLock) {
+            if (mUpdatableFontDir == null) {
+                throw new SystemFontException(
+                        FontManager.RESULT_ERROR_FONT_UPDATER_DISABLED,
+                        "The font updater is disabled.");
+            }
+            mUpdatableFontDir.updateFontFallbacks(fallbackRequests);
             updateSerializedFontMap();
         }
     }

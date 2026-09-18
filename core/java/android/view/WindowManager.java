@@ -47,14 +47,18 @@ import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutPa
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.FIT_INSETS_SIDES;
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.FIT_INSETS_TYPES;
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.FLAGS;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.FORCIBLY_SHOWN_TYPES;
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.FORMAT;
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.GRAVITY;
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.HAS_SYSTEM_UI_LISTENERS;
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.HEIGHT;
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.HORIZONTAL_MARGIN;
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.INPUT_FEATURE_FLAGS;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.PARAMS_FOR_ROTATION;
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.PREFERRED_REFRESH_RATE;
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.PRIVATE_FLAGS;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.PROVIDED_INSETS;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.RENDERING_HINTS;
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.ROTATION_ANIMATION;
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.SCREEN_BRIGHTNESS;
 import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.SOFT_INPUT_MODE;
@@ -97,6 +101,7 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.Insets;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
@@ -122,6 +127,8 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.window.InputTransferToken;
 import android.window.TaskFpsCallback;
 import android.window.TrustedPresentationThresholds;
+
+import androidx.annotation.ColorLong;
 
 import com.android.internal.R;
 import com.android.window.flags.Flags;
@@ -530,13 +537,6 @@ public interface WindowManager extends ViewManager {
     int TRANSIT_FLAG_KEYGUARD_UNOCCLUDING = (1 << 13); // 0x2000
 
     /**
-     * Transition flag: Indicates that there is a physical display switch
-     * TODO(b/316112906) remove after defer_display_updates flag roll out
-     * @hide
-     */
-    int TRANSIT_FLAG_PHYSICAL_DISPLAY_SWITCH = (1 << 14); // 0x4000
-
-    /**
      * Transition flag: Indicates that aod is showing hidden by entering doze
      * @hide
      */
@@ -574,7 +574,6 @@ public interface WindowManager extends ViewManager {
             TRANSIT_FLAG_KEYGUARD_APPEARING,
             TRANSIT_FLAG_KEYGUARD_OCCLUDING,
             TRANSIT_FLAG_KEYGUARD_UNOCCLUDING,
-            TRANSIT_FLAG_PHYSICAL_DISPLAY_SWITCH,
             TRANSIT_FLAG_AOD_APPEARING,
             TRANSIT_FLAG_AVOID_MOVE_TO_FRONT,
             TRANSIT_FLAG_DISPLAY_LEVEL_TRANSITION
@@ -975,6 +974,36 @@ public interface WindowManager extends ViewManager {
 
     /**
      * Application level {@link android.content.pm.PackageManager.Property PackageManager.Property}
+     * for an app to inform the system that it needs to be opted-out from the compatibility
+     * treatment that sandboxes the {@link android.content.res.Configuration } API when caption
+     * insets are force consumed.
+     *
+     * <p>The treatment can be enabled by device manufacturers for applications that don't handle
+     * consumption of {@link WindowInsets.Type#captionBar } insets which can lead to top or bottom
+     * UI elements being cropped. The treatment will sandbox
+     * {@link android.content.res.Configuration#screenHeightDp } to exclude caption insets.
+     *
+     * <p>Setting this property to {@code false} informs the system that the application
+     * must be opted-out from the exclude caption insets from app bounds treatment even if
+     * the device manufacturer has opted the app into the treatment.
+     *
+     * <p>Not setting this property at all, or setting this property to {@code true} has no effect.
+     *
+     * <p><b>Syntax:</b>
+     * <pre>
+     * &lt;application&gt;
+     *   &lt;property
+     *     android:name="android.window.PROPERTY_COMPAT_ALLOW_EXCLUDE_CAPTION_INSETS"
+     *     android:value="false"/&gt;
+     * &lt;/application&gt;
+     * </pre>
+     */
+    @FlaggedApi(Flags.FLAG_EXCLUDE_CAPTION_INSETS_OPT_OUT_API)
+    String PROPERTY_COMPAT_ALLOW_EXCLUDE_CAPTION_INSETS =
+            "android.window.PROPERTY_COMPAT_ALLOW_EXCLUDE_CAPTION_INSETS";
+
+    /**
+     * Application level {@link android.content.pm.PackageManager.Property PackageManager.Property}
      * for an app to inform the system that the application can be opted-in or opted-out from the
      * compatibility treatment that enables sending a fake focus event for unfocused resumed
      * split-screen activities. This is needed because some game engines wait to get focus before
@@ -1312,6 +1341,29 @@ public interface WindowManager extends ViewManager {
             "android.window.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES";
 
     /**
+     * Application level {@link android.content.pm.PackageManager.Property PackageManager.Property}
+     * for an app to inform the system that the app should be opted-out from the compatibility
+     * override that enables virtual gamepad support.
+     *
+     * <p>With this property set to {@code false}, the system will not enable the virtual gamepad
+     * support for the app even if the device manufacturer has opted the app into the treatment.
+     *
+     * <p>Not setting this property at all, or setting this property to {@code true} has no effect.
+     *
+     * <p><b>Syntax:</b>
+     * <pre>
+     * &lt;application&gt;
+     *   &lt;property
+     *     android:name="android.window.PROPERTY_COMPAT_ALLOW_VIRTUAL_GAMEPAD_OVERRIDE"
+     *     android:value="true|false"/&gt;
+     * &lt;/application&gt;
+     * </pre>
+     */
+    @FlaggedApi(Flags.FLAG_VIRTUAL_GAMEPAD_DEVELOPER_OPT_OUT)
+    String PROPERTY_COMPAT_ALLOW_VIRTUAL_GAMEPAD_OVERRIDE =
+            "android.window.PROPERTY_COMPAT_ALLOW_VIRTUAL_GAMEPAD_OVERRIDE";
+
+    /**
      * Application level
      * {@link android.content.pm.PackageManager.Property PackageManager.Property}
      * tag that (when set to false) informs the system the app has opted out of the
@@ -1410,6 +1462,7 @@ public interface WindowManager extends ViewManager {
      * {@link android.R.attr#maxAspectRatio min aspect ratio}
      * {@link android.R.attr#resizeableActivity unresizable} on large screen devices with the
      * ignore orientation request display setting enabled since Android 16 (API level 36) or higher.
+     * <p>This property is ignored if the app's target SDK is Android 17 (API level 37) or higher.
      *
      * <p>The default value is {@code false}.
      *
@@ -1430,9 +1483,43 @@ public interface WindowManager extends ViewManager {
      * </pre>
      * @hide
      */
-    // TODO(b/357141415): Remove this from sdk 37
     String PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY =
             "android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY";
+
+    /**
+     * Application or Activity level
+     * {@link android.content.pm.PackageManager.Property PackageManager.Property} that specifies
+     * whether this package or activity wants to allow synchronized insets animation.
+     *
+     * <p>When the synchronized insets animation is enabled, the insets will be dispatched to the
+     * view hierarchy for each frame of the animation, ensuring that the views are laid out in sync
+     * with the animation progress.
+     *
+     * <p>Setting this property to {@code false} informs the system that the activity must be
+     * opted-out from the synchronized insets animation even if the device manufacturer has opted
+     * the app into the treatment.
+     *
+     * <p>Not setting this property at all, or setting this property to {@code true} has no effect.
+     *
+     * <p><b>Syntax:</b>
+     * <pre>
+     * &lt;application&gt;
+     *   &lt;property
+     *     android:name="android.window.PROPERTY_COMPAT_ALLOW_SYNCHRONIZED_INSETS_ANIMATION"
+     *     android:value="false"/&gt;
+     * &lt;/application&gt;
+     * </pre>or
+     * <pre>
+     * &lt;activity&gt;
+     *   &lt;property
+     *     android:name="android.window.PROPERTY_COMPAT_ALLOW_SYNCHRONIZED_INSETS_ANIMATION"
+     *     android:value="false"/&gt;
+     * &lt;/activity&gt;
+     * </pre>
+     * @hide
+     */
+    String PROPERTY_COMPAT_ALLOW_SYNCHRONIZED_INSETS_ANIMATION =
+            "android.window.PROPERTY_COMPAT_ALLOW_SYNCHRONIZED_INSETS_ANIMATION";
 
     /**
      * Application or Activity level
@@ -1473,9 +1560,69 @@ public interface WindowManager extends ViewManager {
             "android.window.PROPERTY_COMPAT_ALLOW_SAFE_REGION_LETTERBOXING";
 
     /**
+     * Activity level {@link android.content.pm.PackageManager.Property PackageManager.Property}
+     * that specifies an activity's request to launch in fullscreen if launching in a new task.
+     * Requires application to hold the
+     * {@link android.Manifest.permission#PREFER_FULLSCREEN_IN_NEW_TASK} permission to take effect,
+     * not holding the permission will result in the property value set being ignored
+     * (equivalent to default value {@code false}).
+     *
+     * <p><b>Syntax:</b>
+     * <pre>
+     * &lt;activity&gt;
+     *   &lt;property
+     *     android:name="android.window.PROPERTY_PREFER_FULLSCREEN_IN_NEW_TASK"
+     *     android:value="true"/&gt;
+     * &lt;/activity&gt;
+     * </pre>
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_ENABLE_FULLSCREEN_IN_NEW_TASK_PREFERENCE)
+    @RequiresPermission(android.Manifest.permission.PREFER_FULLSCREEN_IN_NEW_TASK)
+    String PROPERTY_PREFER_FULLSCREEN_IN_NEW_TASK =
+            "android.window.PROPERTY_PREFER_FULLSCREEN_IN_NEW_TASK";
+
+    /**
+     * {@link android.content.pm.PackageManager.Property} for an activity that is a home activity
+     * (i.e. has a {@link android.content.Intent#CATEGORY_HOME} or
+     * {@link android.content.Intent#CATEGORY_SECONDARY_HOME} category).
+     *
+     * <p>If this property is set to {@code true} for a home activity, the system will ensure
+     * that the home activity is always present on every available display. This behavior will only
+     * be applied if the target home activity is privileged and the system default home activity.
+     * If the home activity goes away for any reason, system will relaunch the activity and move
+     * it to the back.
+     *
+     * <p>Example:
+     * <pre>
+     * &lt;activity android:name=".HomeActivity" android:exported="true"&gt;
+     *   &lt;intent-filter&gt;
+     *     &lt;action android:name="android.intent.action.MAIN" /&gt;
+     *     &lt;category android:name="android.intent.category.HOME" /&gt;
+     *     &lt;category android:name="android.intent.category.DEFAULT" /&gt;
+     *   &lt;/intent-filter&gt;
+     *   &lt;property android:name="android.window.ALLOW_HOME_ACTIVITY_ALWAYS_PRESENT"
+     *             android:value="true" /&gt;
+     * &lt;/activity&gt;
+     * </pre>
+     *
+     * <p>The default value is {@code false}.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_HOME_ACTIVITY_ALWAYS_PRESENT)
+    String ALLOW_HOME_ACTIVITY_ALWAYS_PRESENT = "android.window.ALLOW_HOME_ACTIVITY_ALWAYS_PRESENT";
+
+    /**
      * @hide
      */
     public static final String PARCEL_KEY_SHORTCUTS_ARRAY = "shortcuts_array";
+
+    /**
+     * @hide
+     */
+    String PARCEL_KEY_A11Y_EMBEDDED_CONNECTION = "a11y_embedded_connection";
 
     /**
      * Whether the WindowManager Extensions - Activity Embedding feature should be guarded by
@@ -2052,6 +2199,7 @@ public interface WindowManager extends ViewManager {
          * @see #TYPE_APPLICATION_MEDIA
          * @see #TYPE_APPLICATION_SUB_PANEL
          * @see #TYPE_APPLICATION_ATTACHED_DIALOG
+         * @see #TYPE_APPLICATION_CAPTION_BAR
          * @see #TYPE_STATUS_BAR
          * @see #TYPE_SEARCH_BAR
          * @see #TYPE_PHONE
@@ -2084,6 +2232,8 @@ public interface WindowManager extends ViewManager {
                         to = "APPLICATION_ABOVE_SUB_PANEL"),
                 @ViewDebug.IntToString(from = TYPE_APPLICATION_ATTACHED_DIALOG,
                         to = "APPLICATION_ATTACHED_DIALOG"),
+                @ViewDebug.IntToString(from = TYPE_APPLICATION_CAPTION_BAR,
+                        to = "APPLICATION_CAPTION_BAR"),
                 @ViewDebug.IntToString(from = TYPE_APPLICATION_MEDIA_OVERLAY,
                         to = "APPLICATION_MEDIA_OVERLAY"),
                 @ViewDebug.IntToString(from = TYPE_STATUS_BAR,
@@ -2251,12 +2401,18 @@ public interface WindowManager extends ViewManager {
         public static final int TYPE_APPLICATION_MEDIA_OVERLAY  = FIRST_SUB_WINDOW + 4;
 
         /**
-         * Window type: a above sub-panel on top of an application window and it's
+         * Window type: an above sub-panel on top of an application window and it's
          * sub-panel windows. These windows are displayed on top of their attached window
          * and any {@link #TYPE_APPLICATION_SUB_PANEL} panels.
          * @hide
          */
         public static final int TYPE_APPLICATION_ABOVE_SUB_PANEL = FIRST_SUB_WINDOW + 5;
+
+        /**
+         * Window type: a caption bar on top of an application window.
+         * @hide
+         */
+        public static final int TYPE_APPLICATION_CAPTION_BAR = FIRST_SUB_WINDOW + 6;
 
         /**
          * End of types of sub-windows.
@@ -2606,6 +2762,7 @@ public interface WindowManager extends ViewManager {
                 TYPE_APPLICATION_MEDIA,
                 TYPE_APPLICATION_SUB_PANEL,
                 TYPE_APPLICATION_ATTACHED_DIALOG,
+                TYPE_APPLICATION_CAPTION_BAR,
                 TYPE_APPLICATION_MEDIA_OVERLAY,
                 TYPE_APPLICATION_ABOVE_SUB_PANEL,
                 TYPE_STATUS_BAR,
@@ -3321,17 +3478,6 @@ public interface WindowManager extends ViewManager {
         public int flags;
 
         /**
-         * In the system process, we globally do not use hardware acceleration
-         * because there are many threads doing UI there and they conflict.
-         * If certain parts of the UI that really do want to use hardware
-         * acceleration, this flag can be set to force it.  This is basically
-         * for the lock screen.  Anyone else using it, you are probably wrong.
-         *
-         * @hide
-         */
-        public static final int PRIVATE_FLAG_FORCE_HARDWARE_ACCELERATED = 1 << 1;
-
-        /**
          * By default, wallpapers are sent new offsets when the wallpaper is scrolled. Wallpapers
          * may elect to skip these notifications if they are not doing anything productive with
          * them (they do not affect the wallpaper scrolling operation) by calling
@@ -3435,20 +3581,6 @@ public interface WindowManager extends ViewManager {
          * @hide
          */
         public static final int PRIVATE_FLAG_LAYOUT_CHILD_WINDOW_IN_PARENT_FRAME = 1 << 14;
-
-        /**
-         * Flag to indicate that this window is always drawing the status bar background, no matter
-         * what the other flags are.
-         * @hide
-         */
-        public static final int PRIVATE_FLAG_FORCE_DRAW_BAR_BACKGROUNDS = 1 << 15;
-
-        /**
-         * Flag to indicate that this window needs Sustained Performance Mode if
-         * the device supports it.
-         * @hide
-         */
-        public static final int PRIVATE_FLAG_SUSTAINED_PERFORMANCE_MODE = 1 << 16;
 
         /**
          * Flag to indicate that this window is a immersive mode confirmation window. The window
@@ -3595,7 +3727,6 @@ public interface WindowManager extends ViewManager {
          * @hide
          */
         @IntDef(flag = true, prefix="PRIVATE_FLAG_", value = {
-                PRIVATE_FLAG_FORCE_HARDWARE_ACCELERATED,
                 PRIVATE_FLAG_WANTS_OFFSET_NOTIFICATIONS,
                 SYSTEM_FLAG_SHOW_FOR_ALL_USERS,
                 PRIVATE_FLAG_UNRESTRICTED_GESTURE_EXCLUSION,
@@ -3608,8 +3739,6 @@ public interface WindowManager extends ViewManager {
                 PRIVATE_FLAG_LAYOUT_SIZE_EXTENDED_BY_CUTOUT,
                 PRIVATE_FLAG_FORCE_DECOR_VIEW_VISIBILITY,
                 PRIVATE_FLAG_LAYOUT_CHILD_WINDOW_IN_PARENT_FRAME,
-                PRIVATE_FLAG_FORCE_DRAW_BAR_BACKGROUNDS,
-                PRIVATE_FLAG_SUSTAINED_PERFORMANCE_MODE,
                 PRIVATE_FLAG_IMMERSIVE_CONFIRMATION_WINDOW,
                 PRIVATE_FLAG_OVERRIDE_LAYOUT_IN_DISPLAY_CUTOUT_MODE,
                 SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS,
@@ -3635,10 +3764,6 @@ public interface WindowManager extends ViewManager {
          */
         @UnsupportedAppUsage
         @ViewDebug.ExportedProperty(flagMapping = {
-                @ViewDebug.FlagToString(
-                        mask = PRIVATE_FLAG_FORCE_HARDWARE_ACCELERATED,
-                        equals = PRIVATE_FLAG_FORCE_HARDWARE_ACCELERATED,
-                        name = "FORCE_HARDWARE_ACCELERATED"),
                 @ViewDebug.FlagToString(
                         mask = PRIVATE_FLAG_WANTS_OFFSET_NOTIFICATIONS,
                         equals = PRIVATE_FLAG_WANTS_OFFSET_NOTIFICATIONS,
@@ -3683,14 +3808,6 @@ public interface WindowManager extends ViewManager {
                         mask = PRIVATE_FLAG_LAYOUT_CHILD_WINDOW_IN_PARENT_FRAME,
                         equals = PRIVATE_FLAG_LAYOUT_CHILD_WINDOW_IN_PARENT_FRAME,
                         name = "LAYOUT_CHILD_WINDOW_IN_PARENT_FRAME"),
-                @ViewDebug.FlagToString(
-                        mask = PRIVATE_FLAG_FORCE_DRAW_BAR_BACKGROUNDS,
-                        equals = PRIVATE_FLAG_FORCE_DRAW_BAR_BACKGROUNDS,
-                        name = "FORCE_DRAW_STATUS_BAR_BACKGROUND"),
-                @ViewDebug.FlagToString(
-                        mask = PRIVATE_FLAG_SUSTAINED_PERFORMANCE_MODE,
-                        equals = PRIVATE_FLAG_SUSTAINED_PERFORMANCE_MODE,
-                        name = "SUSTAINED_PERFORMANCE_MODE"),
                 @ViewDebug.FlagToString(
                         mask = PRIVATE_FLAG_IMMERSIVE_CONFIRMATION_WINDOW,
                         equals = PRIVATE_FLAG_IMMERSIVE_CONFIRMATION_WINDOW,
@@ -3755,6 +3872,84 @@ public interface WindowManager extends ViewManager {
         @PrivateFlags
         @TestApi
         public int privateFlags;
+
+        /**
+         * Flag to indicate that this window disables the performance hint session.
+         *
+         * @hide
+         */
+        public static final int RENDERING_HINT_DISABLE_PERFORMANCE_HINT = 1;
+
+        /**
+         * Forces the window to be hardware accelerated.
+         *
+         * <p>In the system process, hardware acceleration is globally disabled by default because
+         * multiple threads performing UI operations can conflict. This flag allows specific windows
+         * created by the system process to override this global default and enable hardware
+         * acceleration.
+         *
+         * <p>Standard applications should use {@link #FLAG_HARDWARE_ACCELERATED} instead.
+         *
+         * @hide
+         */
+        public static final int RENDERING_HINT_FORCE_HARDWARE_ACCELERATED = 1 << 1;
+
+        /**
+         * Flag to indicate that this window is always drawing the status bar background, no matter
+         * what the other flags are.
+         *
+         * @hide
+         */
+        public static final int RENDERING_HINT_FORCE_DRAW_BAR_BACKGROUNDS = 1 << 2;
+
+        /**
+         * Flag to indicate that this window needs Sustained Performance Mode if the device supports
+         * it.
+         *
+         * @hide
+         */
+        public static final int RENDERING_HINT_SUSTAINED_PERFORMANCE_MODE = 1 << 3;
+
+        /** @hide */
+        @IntDef(
+                flag = true,
+                prefix = {"RENDERING_HINT_"},
+                value = {
+                    RENDERING_HINT_DISABLE_PERFORMANCE_HINT,
+                    RENDERING_HINT_FORCE_HARDWARE_ACCELERATED,
+                    RENDERING_HINT_FORCE_DRAW_BAR_BACKGROUNDS,
+                    RENDERING_HINT_SUSTAINED_PERFORMANCE_MODE,
+                })
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface RenderingHints {}
+
+        /**
+         * Hints for rendering/performance optimizations for the window.
+         *
+         * @hide
+         */
+        @UnsupportedAppUsage
+        @ViewDebug.ExportedProperty(
+                flagMapping = {
+                    @ViewDebug.FlagToString(
+                            mask = RENDERING_HINT_DISABLE_PERFORMANCE_HINT,
+                            equals = RENDERING_HINT_DISABLE_PERFORMANCE_HINT,
+                            name = "DISABLE_PERFORMANCE_HINT"),
+                    @ViewDebug.FlagToString(
+                            mask = RENDERING_HINT_FORCE_HARDWARE_ACCELERATED,
+                            equals = RENDERING_HINT_FORCE_HARDWARE_ACCELERATED,
+                            name = "FORCE_HARDWARE_ACCELERATED"),
+                    @ViewDebug.FlagToString(
+                            mask = RENDERING_HINT_FORCE_DRAW_BAR_BACKGROUNDS,
+                            equals = RENDERING_HINT_FORCE_DRAW_BAR_BACKGROUNDS,
+                            name = "FORCE_DRAW_BAR_BACKGROUNDS"),
+                    @ViewDebug.FlagToString(
+                            mask = RENDERING_HINT_SUSTAINED_PERFORMANCE_MODE,
+                            equals = RENDERING_HINT_SUSTAINED_PERFORMANCE_MODE,
+                            name = "SUSTAINED_PERFORMANCE_MODE")
+                })
+        @RenderingHints
+        public int renderingHints;
 
         /**
          * Given a particular set of window manager flags, determine whether
@@ -4025,6 +4220,16 @@ public interface WindowManager extends ViewManager {
         public float dimAmount = 1.0f;
 
         /**
+         * When {@link #FLAG_DIM_BEHIND} is set, this is the color of the dimming
+         * to apply. The default value is black (0xFF000000). The alpha component
+         * of this color is ignored, as the opacity of the dim layer is controlled
+         * by {@link #dimAmount}.
+         */
+        @ColorLong
+        @FlaggedApi(com.android.window.flags.Flags.FLAG_SUPPORT_CUSTOM_DIM_COLOR)
+        public long dimColor = Color.pack(Color.BLACK);
+
+        /**
          * Default value for {@link #screenBrightness} and {@link #buttonBrightness}
          * indicating that the brightness value is not overridden for this window
          * and normal brightness policy should be used.
@@ -4176,6 +4381,9 @@ public interface WindowManager extends ViewManager {
          * <p>
          * This must be one of the supported modes obtained for the display(s) the window is on.
          * A value of {@code 0} means no preference.
+         * <p>
+         * The display resolution part of the mode requested by apps is treated as a
+         * preference and may be ignored by the system based on device capabilities.
          *
          * @see Display#getSupportedModes()
          * @see Display.Mode#getModeId()
@@ -4725,7 +4933,6 @@ public interface WindowManager extends ViewManager {
          *
          * @hide
          */
-        @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_STATUS_BAR_AND_INSETS)
         @SystemApi
         public void setInsetsParams(@NonNull List<InsetsParams> insetsParams) {
             if (insetsParams.isEmpty()) {
@@ -4807,8 +5014,8 @@ public interface WindowManager extends ViewManager {
          * dispatch. Requires the {@link android.Manifest.permission#INTERNAL_SYSTEM_WINDOW}
          * permission.
          *
-         * {@see android.view.MotionEvent#FLAG_WINDOW_IS_OBSCURED}
-         * {@see android.view.MotionEvent#FLAG_WINDOW_IS_PARTIALLY_OBSCURED}
+         * @see android.view.MotionEvent#FLAG_WINDOW_IS_OBSCURED
+         * @see android.view.MotionEvent#FLAG_WINDOW_IS_PARTIALLY_OBSCURED
          * @hide
          */
         public void setTrustedOverlay() {
@@ -4844,6 +5051,14 @@ public interface WindowManager extends ViewManager {
         public boolean isSystemApplicationOverlay() {
             return (privateFlags & PRIVATE_FLAG_SYSTEM_APPLICATION_OVERLAY)
                     == PRIVATE_FLAG_SYSTEM_APPLICATION_OVERLAY;
+        }
+
+        /**
+         * Returns if this window disables the performance hint session.
+         * @hide
+         */
+        public boolean isPerfHintSessionDisabled() {
+            return (renderingHints & RENDERING_HINT_DISABLE_PERFORMANCE_HINT) != 0;
         }
 
         /**
@@ -5269,6 +5484,7 @@ public interface WindowManager extends ViewManager {
             out.writeInt(windowAnimations);
             out.writeFloat(alpha);
             out.writeFloat(dimAmount);
+            out.writeLong(dimColor);
             out.writeFloat(screenBrightness);
             out.writeFloat(buttonBrightness);
             out.writeInt(rotationAnimation);
@@ -5315,6 +5531,7 @@ public interface WindowManager extends ViewManager {
                 out.writeBoolean(mFrameRateBoostOnTouch);
                 out.writeBoolean(mIsFrameRatePowerSavingsBalanced);
             }
+            out.writeInt(renderingHints);
         }
 
         public static final @android.annotation.NonNull Parcelable.Creator<LayoutParams> CREATOR
@@ -5346,6 +5563,7 @@ public interface WindowManager extends ViewManager {
             windowAnimations = in.readInt();
             alpha = in.readFloat();
             dimAmount = in.readFloat();
+            dimColor = in.readLong();
             screenBrightness = in.readFloat();
             buttonBrightness = in.readFloat();
             rotationAnimation = in.readInt();
@@ -5391,6 +5609,7 @@ public interface WindowManager extends ViewManager {
                 mFrameRateBoostOnTouch = in.readBoolean();
                 mIsFrameRatePowerSavingsBalanced = in.readBoolean();
             }
+            renderingHints = in.readInt();
         }
 
         @SuppressWarnings({"PointlessBitwiseExpression"})
@@ -5399,6 +5618,11 @@ public interface WindowManager extends ViewManager {
         public static final int FLAGS_CHANGED = 1<<2;
         public static final int FORMAT_CHANGED = 1<<3;
         public static final int ANIMATION_CHANGED = 1<<4;
+        /*
+            This flag is used to indicate a change in either dimAmount or dimColor
+            A unified flag is used because these properties are functionally coupled.
+            The original flag name is maintained for API compatibility.
+         */
         public static final int DIM_AMOUNT_CHANGED = 1<<5;
         public static final int TITLE_CHANGED = 1<<6;
         public static final int ALPHA_CHANGED = 1<<7;
@@ -5501,6 +5725,12 @@ public interface WindowManager extends ViewManager {
                 privateFlags = o.privateFlags;
                 changes |= PRIVATE_FLAGS_CHANGED;
             }
+
+            if (renderingHints != o.renderingHints) {
+                renderingHints = o.renderingHints;
+                changes |= PRIVATE_FLAGS_CHANGED;
+            }
+
             if (softInputMode != o.softInputMode) {
                 softInputMode = o.softInputMode;
                 changes |= SOFT_INPUT_MODE_CHANGED;
@@ -5545,8 +5775,9 @@ public interface WindowManager extends ViewManager {
                 alpha = o.alpha;
                 changes |= ALPHA_CHANGED;
             }
-            if (dimAmount != o.dimAmount) {
+            if (dimAmount != o.dimAmount || dimColor != o.dimColor) {
                 dimAmount = o.dimAmount;
+                dimColor = o.dimColor;
                 changes |= DIM_AMOUNT_CHANGED;
             }
             if (screenBrightness != o.screenBrightness) {
@@ -5914,6 +6145,13 @@ public interface WindowManager extends ViewManager {
                 sb.append(prefix).append("  pfl=").append(ViewDebug.flagsToString(
                         LayoutParams.class, "privateFlags", privateFlags));
             }
+
+            if (renderingHints != 0) {
+                sb.append(System.lineSeparator());
+                sb.append(prefix).append("  rh=").append(ViewDebug.flagsToString(
+                        LayoutParams.class, "renderingHint", renderingHints));
+            }
+
             if (systemUiVisibility != 0) {
                 sb.append(System.lineSeparator());
                 sb.append(prefix).append("  sysui=").append(ViewDebug.flagsToString(
@@ -6021,6 +6259,20 @@ public interface WindowManager extends ViewManager {
             proto.write(FIT_INSETS_TYPES, mFitInsetsTypes);
             proto.write(FIT_INSETS_SIDES, mFitInsetsSides);
             proto.write(FIT_IGNORE_VISIBILITY, mFitInsetsIgnoringVisibility);
+            proto.write(FORCIBLY_SHOWN_TYPES, forciblyShownTypes);
+            if (providedInsets != null) {
+                for (InsetsFrameProvider provider : providedInsets) {
+                    provider.dumpDebug(proto, PROVIDED_INSETS);
+                }
+            }
+            if (paramsForRotation != null) {
+                for (LayoutParams params : paramsForRotation) {
+                    if (params != null) {
+                        params.dumpDebug(proto, PARAMS_FOR_ROTATION);
+                    }
+                }
+            }
+            proto.write(RENDERING_HINTS, renderingHints);
             proto.end(token);
         }
 
@@ -6233,7 +6485,6 @@ public interface WindowManager extends ViewManager {
      *
      * @hide
      */
-    @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_STATUS_BAR_AND_INSETS)
     @SystemApi
     public static class InsetsParams {
 
@@ -6708,6 +6959,264 @@ public interface WindowManager extends ViewManager {
     }
 
     /**
+     * A flag indicating the engagement mode includes a visual presentation.
+     * When this flag is set, it means the user can visually see the app UI on visible window.
+     *
+     * This should be kept in sync with
+     * @see androidx.window.extensions.layout.WindowLayoutInfo#ENGAGEMENT_MODE_FLAG_VISUALS_ON
+     *
+     * @hide
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    @SystemApi
+    int ENGAGEMENT_MODE_FLAG_VISUALS_ON = 1 << 0;
+
+    /**
+     * A flag indicating the engagement mode includes an audio presentation.
+     * This can be set with or without {@link #ENGAGEMENT_MODE_FLAG_VISUALS_ON}.
+     * When set without, it signifies an audio-only experience.
+     *
+     * This should be kept in sync with
+     * @see androidx.window.extensions.layout.WindowLayoutInfo#ENGAGEMENT_MODE_FLAG_AUDIO_ON
+     *
+     * @hide
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    @SystemApi
+    int ENGAGEMENT_MODE_FLAG_AUDIO_ON = 1 << 1;
+
+    /**
+     * An internal annotation for the engagement mode flags.
+     *
+     * @hide
+     */
+    @IntDef(flag = true, prefix = { "ENGAGEMENT_MODE_FLAG_" }, value = {
+            ENGAGEMENT_MODE_FLAG_VISUALS_ON,
+            ENGAGEMENT_MODE_FLAG_AUDIO_ON
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    @interface EngagementModeFlags {}
+
+    /**
+     * A class that holds information about the display engagement mode.
+     *
+     * @hide
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    @SystemApi
+    final class DisplayEngagementModeState {
+        private final int mDisplayId;
+        private final @EngagementModeFlags int mEngagementModeFlags;
+
+        DisplayEngagementModeState(
+                int displayId, @EngagementModeFlags int engagementModeFlags) {
+            mDisplayId = displayId;
+            mEngagementModeFlags = engagementModeFlags;
+        }
+
+        public int getDisplayId() {
+            return mDisplayId;
+        }
+
+        @EngagementModeFlags
+        public int getEngagementModeFlags() {
+            return mEngagementModeFlags;
+        }
+    }
+
+    /**
+     * Sets the user engagement mode for a specific display. Does nothing if the display is not
+     * found.
+     *
+     * @param displayId The display to set the engagement mode for.
+     * @param engagementModeFlags The engagement mode to set.
+     * @see #ENGAGEMENT_MODE_FLAG_VISUALS_ON
+     * @see #ENGAGEMENT_MODE_FLAG_AUDIO_ON
+     *
+     * @hide
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    @SystemApi
+    @SuppressLint("AndroidFrameworkRequiresPermission")
+    @RequiresPermission(permission.MANAGE_DISPLAYS)
+    default void setDisplayEngagementMode(
+            int displayId, @EngagementModeFlags int engagementModeFlags) {
+        throw new UnsupportedOperationException("setDisplayEngagementMode is not implemented");
+    }
+
+    /**
+     * Gets the user engagement mode for a specific display.
+     *
+     * @param displayId The display to get the engagement mode for.
+     * @return The engagement mode for the given display. Returns the system default if the display
+     * is not found.
+     * @see #ENGAGEMENT_MODE_FLAG_VISUALS_ON
+     * @see #ENGAGEMENT_MODE_FLAG_AUDIO_ON
+     *
+     * @hide
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    @SystemApi
+    @EngagementModeFlags
+    default int getDisplayEngagementMode(int displayId) {
+        throw new UnsupportedOperationException("getDisplayEngagementMode is not implemented");
+    }
+
+    /**
+     * Registers a callback for display engagement mode changes.
+     *
+     * The callback will be invoked with the latest engagement mode flags upon registration.
+     * If the specified callback instance is already registered, this call does nothing.
+     *
+     * @param executor The executor to run the callback on.
+     * @param callback The callback to register.
+     *
+     * @hide
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    @SystemApi
+    default void registerDisplayEngagementModeCallback(@NonNull @CallbackExecutor Executor executor,
+            @NonNull Consumer<DisplayEngagementModeState> callback) {
+        throw new UnsupportedOperationException(
+                "registerDisplayEngagementModeCallback is not implemented");
+    }
+
+    /**
+     * Unregisters a callback for display engagement mode changes.
+     *
+     * @param callback The callback to unregister.
+     *
+     * @hide
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    @SystemApi
+    default void unregisterDisplayEngagementModeCallback(
+            @NonNull Consumer<DisplayEngagementModeState> callback) {
+        throw new UnsupportedOperationException(
+                "unregisterDisplayEngagementModeCallback is not implemented");
+    }
+
+    /**
+     * An internal annotation for the engagement control flags.
+     *
+     * @hide
+     */
+    @IntDef(flag = true, value = {
+            ENGAGEMENT_CONTROL_FLAG_SUSTAIN_VISUALS
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    @interface EngagementControlFlags {}
+
+    /**
+     * Flags for requesting engagement visual state to be sustained.
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_ENGAGEMENT_CONTROL_API)
+    int ENGAGEMENT_CONTROL_FLAG_SUSTAIN_VISUALS = 1 << 0;
+
+    /**
+     * Requests an engagement control state.
+     *
+     * Allows applications to request physical display state behaviors, such as keeping the screen
+     * on for XR glasses.
+     *
+     * Note: This is a request. The system determines if the requested state will be respected.
+     * Applications should use `registerDisplayEngagementModeCallback` to observe the actual
+     * applied state.
+     *
+     * @param engagementControlFlags A bitmask of requested engagement states.
+     *                               Pass 0 to clear all requests.
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_ENGAGEMENT_CONTROL_API)
+    default void requestEngagementControlState(
+            @EngagementControlFlags int engagementControlFlags) {
+        throw new UnsupportedOperationException(
+                "requestEngagementControlState is not implemented");
+    }
+
+    /**
+     * Data object representing an engagement control request from an application.
+     * Allows applications to request physical display state behaviors, such as keeping the
+     * screen on for XR glasses.
+     *
+     * @hide
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_ENGAGEMENT_CONTROL_API)
+    @SystemApi
+    final class EngagementControlRequest {
+        private final int mDisplayId;
+        private final int mTaskId;
+        private final @EngagementControlFlags int mEngagementControlFlags;
+
+        /** @hide */
+        public EngagementControlRequest(int displayId, int taskId,
+                @EngagementControlFlags int engagementControlFlags) {
+            mDisplayId = displayId;
+            mTaskId = taskId;
+            mEngagementControlFlags = engagementControlFlags;
+        }
+
+
+        /**
+         * Returns the display ID.
+         */
+        public int getDisplayId() {
+            return mDisplayId;
+        }
+
+        /**
+         * Returns the task ID associated with the window making the request.
+         */
+        public int getTaskId() {
+            return mTaskId;
+        }
+
+        /**
+         * Returns the engagement control flags.
+         */
+        @EngagementControlFlags
+        public int getEngagementControlFlags() {
+            return mEngagementControlFlags;
+        }
+    }
+
+    /**
+     * Registers a consumer for engagement control requests.
+     *
+     * Allows applications to request physical display state behaviors, such as keeping the screen
+     * on for XR glasses.
+     *
+     * @hide
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_ENGAGEMENT_CONTROL_API)
+    @SystemApi
+    @SuppressLint("AndroidFrameworkRequiresPermission")
+    @RequiresPermission(permission.MANAGE_DISPLAYS)
+    default void addEngagementControlRequestConsumer(
+            @NonNull @CallbackExecutor Executor executor,
+            @NonNull Consumer<EngagementControlRequest> consumer) {
+        throw new UnsupportedOperationException(
+                "addEngagementControlRequestConsumer is not implemented");
+    }
+
+    /**
+     * Unregisters a previously registered engagement control request consumer.
+     *
+     * Allows applications to request physical display state behaviors, such as keeping the screen
+     * on for XR glasses.
+     *
+     * @hide
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_ENGAGEMENT_CONTROL_API)
+    @SystemApi
+    @SuppressLint("AndroidFrameworkRequiresPermission")
+    @RequiresPermission(permission.MANAGE_DISPLAYS)
+    default void removeEngagementControlRequestConsumer(
+            @NonNull Consumer<EngagementControlRequest> consumer) {
+        throw new UnsupportedOperationException(
+                "removeEngagementControlRequestConsumer is not implemented");
+    }
+
+    /**
      * Sets the parent window to this {@code WindowManager}.
      * This is necessary to attach sub-windows.
      *
@@ -6731,5 +7240,10 @@ public interface WindowManager extends ViewManager {
      */
     default WindowManager createLocalWindowManager(@NonNull Window parentWindow) {
         throw new UnsupportedOperationException();
+    }
+
+    /** @hide */
+    static boolean useClientSurface() {
+        return com.android.window.flags.Flags.useClientSurface();
     }
 }

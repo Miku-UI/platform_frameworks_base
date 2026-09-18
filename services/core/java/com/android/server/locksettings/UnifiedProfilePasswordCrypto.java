@@ -18,6 +18,7 @@ package com.android.server.locksettings;
 
 import android.security.keystore.KeyProperties;
 import android.security.keystore.KeyProtection;
+import android.text.TextUtils;
 
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.widget.LockscreenCredential;
@@ -42,6 +43,17 @@ import javax.crypto.spec.GCMParameterSpec;
 
 /**
  * Helpers for the cryptography related to managing unified passwords for child profiles.
+ *
+ * <p>There are two formats of unified profile passwords: the legacy format and the protector
+ * format. They differ only in the format of the Keystore key alias used for the encryption and
+ * decryption keys.</p>
+ *
+ * <ul>
+ *     <li>The legacy format is encrypted with a new encryption key whose Keystore alias encodes
+ *     only the profileUserId.</li>
+ *     <li>The protector format is encrypted with a new encryption key whose Keystore alias encodes
+*      both the profileUserId and the protectorId.</li>
+ * </ul>
  */
 class UnifiedProfilePasswordCrypto {
 
@@ -55,20 +67,63 @@ class UnifiedProfilePasswordCrypto {
 
     /**
      * Decrypts the given byte array using the parent-bound key into a {@link LockscreenCredential}.
-     * The input format is expected to match the output of the
-     * {@link #encryptProfilePassword(KeyStore, int, long, LockscreenCredential)} method.
+     *
+     * <p>The decryption key's alias encodes only the userId.</p>
+     *
+     * <p>The input format is expected to match the output of the {@link
+     * #encryptProfilePasswordLegacy(KeyStore, int, long, LockscreenCredential)} method.</p>
      */
-    static LockscreenCredential decryptProfilePassword(KeyStore keyStore,
-            int userId, byte[] storedData)
-            throws NoSuchPaddingException, NoSuchAlgorithmException,
-            InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException,
-            BadPaddingException, UnrecoverableKeyException, KeyStoreException {
+    static LockscreenCredential decryptProfilePasswordLegacy(
+            KeyStore keyStore, int userId, byte[] storedData)
+            throws NoSuchPaddingException,
+                    NoSuchAlgorithmException,
+                    InvalidAlgorithmParameterException,
+                    InvalidKeyException,
+                    IllegalBlockSizeException,
+                    BadPaddingException,
+                    UnrecoverableKeyException,
+                    KeyStoreException {
+        String decryptAlias = profilePasswordDecryptLegacyAlias(userId);
+        return decryptProfilePassword(keyStore, decryptAlias, storedData);
+    }
+
+    /**
+     * Decrypts the given byte array using the parent-bound key into a {@link LockscreenCredential}.
+     *
+     * <p>The decryption key's alias encodes both the userId and protectorId.</p>
+     *
+     * <p>The input format is expected to match the output of the {@link
+     * #encryptProfilePassword(KeyStore, int, long, long, LockscreenCredential)} method.</p>
+     */
+    static LockscreenCredential decryptProfilePassword(
+            KeyStore keyStore, int userId, long protectorId, byte[] storedData)
+            throws NoSuchPaddingException,
+                    NoSuchAlgorithmException,
+                    InvalidAlgorithmParameterException,
+                    InvalidKeyException,
+                    IllegalBlockSizeException,
+                    BadPaddingException,
+                    UnrecoverableKeyException,
+                    KeyStoreException {
+        String decryptAlias = profilePasswordDecryptAlias(userId, protectorId);
+        return decryptProfilePassword(keyStore, decryptAlias, storedData);
+    }
+
+    private static LockscreenCredential decryptProfilePassword(
+            KeyStore keyStore, String decryptAlias, byte[] storedData)
+            throws KeyStoreException,
+                    NoSuchAlgorithmException,
+                    UnrecoverableKeyException,
+                    NoSuchPaddingException,
+                    InvalidKeyException,
+                    InvalidAlgorithmParameterException,
+                    IllegalBlockSizeException,
+                    BadPaddingException {
         byte[] iv = Arrays.copyOfRange(storedData, 0, PROFILE_KEY_IV_SIZE);
         byte[] encryptedPassword = Arrays.copyOfRange(storedData, PROFILE_KEY_IV_SIZE,
                 storedData.length);
         byte[] decryptionResult;
-        SecretKey decryptionKey = (SecretKey) keyStore.getKey(
-                profilePasswordDecryptAlias(userId), null);
+        SecretKey decryptionKey = (SecretKey) keyStore.getKey(decryptAlias, null);
 
         Cipher cipher = Cipher.getInstance(KeyProperties.KEY_ALGORITHM_AES + "/"
                 + KeyProperties.BLOCK_MODE_GCM + "/" + KeyProperties.ENCRYPTION_PADDING_NONE);
@@ -82,15 +137,56 @@ class UnifiedProfilePasswordCrypto {
     }
 
     /**
-     * Creates a parent-bound key and encrypts the given password with it. The result is a byte
-     * array as follows:
+     * Creates a parent-bound key and encrypts the given password with it.
+     *
+     * <p>The encryption key's alias is unique per profileUserId.</p>
+     *
+     * <p>Only used for unified profile passwords that were tied up to Android 16.</p>
+     *
+     * <p>The result is a byte array as follows:</p>
      *
      * <pre>
      * <- PROFILE_KEY_IV_SIZE ->
      * [        iv              , ciphertext ]
      * </pre>
      */
-    static byte[] encryptProfilePassword(KeyStore keyStore, int profileUserId, long parentSid,
+    static byte[] encryptProfilePasswordLegacy(KeyStore keyStore, int profileUserId, long parentSid,
+            LockscreenCredential password) {
+        String encryptAlias = profilePasswordEncryptLegacyAlias(profileUserId);
+        String decryptAlias = profilePasswordDecryptLegacyAlias(profileUserId);
+        return encryptProfilePassword(keyStore, encryptAlias, decryptAlias, parentSid, password);
+    }
+
+    /**
+     * Creates a parent-bound key and encrypts the given password with it.
+     *
+     * <p>The encryption key's alias is unique per (profileUserId, protectorId) tuple.</p>
+     *
+     * <p>Unified profile passwords from Android 17 onward are tied using this operation.</p>
+     *
+     * <p>The result is a byte array as follows:</p>
+     *
+     * <pre>
+     * <- PROFILE_KEY_IV_SIZE ->
+     * [        iv              , ciphertext ]
+     * </pre>
+     */
+    static byte[] encryptProfilePassword(
+            KeyStore keyStore,
+            int profileUserId,
+            long protectorId,
+            long parentSid,
+            LockscreenCredential password) {
+        String encryptAlias = profilePasswordEncryptAlias(profileUserId, protectorId);
+        String decryptAlias = profilePasswordDecryptAlias(profileUserId, protectorId);
+        return encryptProfilePassword(keyStore, encryptAlias, decryptAlias, parentSid, password);
+    }
+
+    private static byte[] encryptProfilePassword(
+            KeyStore keyStore,
+            String encryptAlias,
+            String decryptAlias,
+            long parentSid,
             LockscreenCredential password) {
         final byte[] iv;
         final byte[] ciphertext;
@@ -100,14 +196,14 @@ class UnifiedProfilePasswordCrypto {
             SecretKey secretKey = keyGenerator.generateKey();
             try {
                 keyStore.setEntry(
-                        profilePasswordEncryptAlias(profileUserId),
+                        encryptAlias,
                         new KeyStore.SecretKeyEntry(secretKey),
                         new KeyProtection.Builder(KeyProperties.PURPOSE_ENCRYPT)
                                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                                 .build());
                 keyStore.setEntry(
-                        profilePasswordDecryptAlias(profileUserId),
+                        decryptAlias,
                         new KeyStore.SecretKeyEntry(secretKey),
                         new KeyProtection.Builder(KeyProperties.PURPOSE_DECRYPT)
                                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
@@ -117,8 +213,7 @@ class UnifiedProfilePasswordCrypto {
                                 .setUserAuthenticationValidityDurationSeconds(30)
                                 .build());
                 // Key imported, obtain a reference to it.
-                SecretKey keyStoreEncryptionKey = (SecretKey) keyStore.getKey(
-                        profilePasswordEncryptAlias(profileUserId), null);
+                SecretKey keyStoreEncryptionKey = (SecretKey) keyStore.getKey(encryptAlias, null);
                 Cipher cipher = Cipher.getInstance(
                         KeyProperties.KEY_ALGORITHM_AES + "/"
                                 + KeyProperties.BLOCK_MODE_GCM + "/"
@@ -128,7 +223,7 @@ class UnifiedProfilePasswordCrypto {
                 iv = cipher.getIV();
             } finally {
                 // The original key can now be discarded.
-                keyStore.deleteEntry(profilePasswordEncryptAlias(profileUserId));
+                keyStore.deleteEntry(encryptAlias);
             }
         } catch (UnrecoverableKeyException
                  | BadPaddingException | IllegalBlockSizeException | KeyStoreException
@@ -141,20 +236,31 @@ class UnifiedProfilePasswordCrypto {
         return ArrayUtils.concat(iv, ciphertext);
     }
 
-    // TODO: b/412331826 Add protectorId param
-    static String profilePasswordEncryptAlias(int profileUserId) {
+    static String profilePasswordEncryptLegacyAlias(int profileUserId) {
         return PROFILE_KEY_NAME_ENCRYPT + profileUserId;
     }
 
-    // TODO: b/412331826 Add protectorId param
-    static String profilePasswordDecryptAlias(int profileUserId) {
+    static String profilePasswordDecryptLegacyAlias(int profileUserId) {
         return PROFILE_KEY_NAME_DECRYPT + profileUserId;
     }
 
-    /** Cleans up the keystore entries for the profile password's encrypt/decrypt keys. */
-    static void removeKeystoreProfileKey(KeyStore keyStore, int targetUserId) {
-        final String encryptAlias = profilePasswordEncryptAlias(targetUserId);
-        final String decryptAlias = profilePasswordDecryptAlias(targetUserId);
+    static String profilePasswordEncryptAlias(int profileUserId, long protectorId) {
+        return TextUtils.formatSimple(
+                "%s%d.%016x", PROFILE_KEY_NAME_ENCRYPT, profileUserId, protectorId);
+    }
+
+    static String profilePasswordDecryptAlias(int profileUserId, long protectorId) {
+        return TextUtils.formatSimple(
+                "%s%d.%016x", PROFILE_KEY_NAME_DECRYPT, profileUserId, protectorId);
+    }
+
+    /**
+     * Cleans up the keystore entries for the profile password's encrypt/decrypt legacy keys which
+     * only encode the userId.
+     */
+    static void removeKeystoreProfileKeyLegacy(KeyStore keyStore, int targetUserId) {
+        final String encryptAlias = profilePasswordEncryptLegacyAlias(targetUserId);
+        final String decryptAlias = profilePasswordDecryptLegacyAlias(targetUserId);
         try {
             if (keyStore.containsAlias(encryptAlias) || keyStore.containsAlias(decryptAlias)) {
                 Slogf.i(TAG, "Removing keystore profile key for user %d", targetUserId);
@@ -164,6 +270,34 @@ class UnifiedProfilePasswordCrypto {
         } catch (KeyStoreException e) {
             // We have tried our best to remove the key.
             Slogf.e(TAG, e, "Error removing keystore profile key for user %d", targetUserId);
+        }
+    }
+
+    /**
+     * Cleans up the keystore entries for the profile password's encrypt/decrypt keys which encode
+     * the userId and protectorId.
+     */
+    static void removeKeystoreProfileKey(KeyStore keyStore, int targetUserId, long protectorId) {
+        final String encryptAlias = profilePasswordEncryptAlias(targetUserId, protectorId);
+        final String decryptAlias = profilePasswordDecryptAlias(targetUserId, protectorId);
+        try {
+            if (keyStore.containsAlias(encryptAlias) || keyStore.containsAlias(decryptAlias)) {
+                Slogf.i(
+                        TAG,
+                        "Removing keystore profile key for user %d, protector %016x",
+                        targetUserId,
+                        protectorId);
+                keyStore.deleteEntry(encryptAlias);
+                keyStore.deleteEntry(decryptAlias);
+            }
+        } catch (KeyStoreException e) {
+            // We have tried our best to remove the key.
+            Slogf.e(
+                    TAG,
+                    e,
+                    "Error removing keystore profile key for user %d, protector %016x",
+                    targetUserId,
+                    protectorId);
         }
     }
 }

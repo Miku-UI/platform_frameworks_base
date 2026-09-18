@@ -49,6 +49,7 @@ public class BrightnessLowLuxModifier extends BrightnessModifier implements
     private final ContentResolver mContentResolver;
     private final Handler mHandler;
     private final BrightnessClamperController.ClamperChangeListener mChangeListener;
+    @BrightnessReason.Modifier
     private int mReason;
     private float mBrightnessLowerBound;
     private float mMinNitsAllowed;
@@ -79,6 +80,7 @@ public class BrightnessLowLuxModifier extends BrightnessModifier implements
     public void recalculateLowerBound() {
         boolean isActive = mAmbientLux != BrightnessMappingStrategy.INVALID_LUX;
 
+        @BrightnessReason.Modifier
         final int reason;
         float minNitsAllowed = -1f; // undefined, if setting is off.
         final float minBrightnessAllowed;
@@ -90,7 +92,7 @@ public class BrightnessLowLuxModifier extends BrightnessModifier implements
             reason = BrightnessReason.MODIFIER_MIN_LUX;
         } else {
             minBrightnessAllowed = mDisplayDeviceConfig.getEvenDimmerTransitionPoint();
-            reason = 0;
+            reason = BrightnessReason.MODIFIER_NONE;
         }
 
         if (mBrightnessLowerBound != minBrightnessAllowed
@@ -149,6 +151,7 @@ public class BrightnessLowLuxModifier extends BrightnessModifier implements
     }
 
     @Override
+    @BrightnessReason.Modifier
     int getModifier() {
         return mReason;
     }

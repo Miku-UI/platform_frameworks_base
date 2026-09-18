@@ -23,6 +23,7 @@ import com.android.systemui.display.data.repository.displayRepository
 import com.android.systemui.dump.dumpManager
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.log.table.tableLogBufferFactory
 import org.mockito.Mockito.spy
 
 val Kosmos.sysUiState by Fixture { sysUiStateFactory.create(Display.DEFAULT_DISPLAY) }
@@ -32,7 +33,13 @@ val Kosmos.sysUiStateFactory by Fixture {
     object : SysUiStateImpl.Factory {
         override fun create(displayId: Int): SysUiStateImpl {
             return spy(
-                SysUiStateImpl(displayId, sceneContainerPlugin, dumpManager, sysUIStateDispatcher)
+                SysUiStateImpl(
+                    displayId,
+                    sceneContainerPlugin,
+                    dumpManager,
+                    sysUIStateDispatcher,
+                    tableLogBufferFactory,
+                )
             )
         }
     }
@@ -56,6 +63,7 @@ val Kosmos.sysUiStateOverrideFactory by Fixture {
             dumpManager,
             sysUiState,
             sysUIStateDispatcher,
+            tableLogBufferFactory,
         )
     }
 }

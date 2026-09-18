@@ -16,14 +16,14 @@
 
 package com.android.systemui.kairos.internal
 
+import androidx.collection.MutableScatterMap
 import com.android.systemui.kairos.CoalescingPolicy
 import com.android.systemui.kairos.internal.util.LogIndent
 import com.android.systemui.kairos.internal.util.fastForEach
-import com.android.systemui.kairos.internal.util.logDuration
 import com.android.systemui.kairos.internal.util.logDurationCoroutine
 import com.android.systemui.kairos.util.Maybe
-import com.android.systemui.kairos.util.Maybe.Present
 import com.android.systemui.kairos.util.maybeOf
+import com.android.systemui.kairos.util.whenPresent
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.ContinuationInterceptor
 import kotlinx.coroutines.CompletableDeferred
@@ -60,6 +60,7 @@ internal class Network(
             true
         }
     }
+
     override val scheduler = SchedulerImpl {
         if (it.markedForEvaluation) false
         else {
@@ -67,13 +68,14 @@ internal class Network(
             true
         }
     }
+
     override val transactionStore = TransactionStore()
 
     private val deferScopeImpl = DeferScopeImpl()
-    //    private val stateWrites = ArrayDeque<StateSource<*>>()
     private val fastOutputs = ArrayDeque<Output<*>>()
-    private val outputsByDispatcher = HashMap<ContinuationInterceptor, ArrayDeque<() -> Unit>>()
-    private val muxMovers = ArrayDeque<MuxDeferredNode<*, *, *>>()
+    private val outputsByDispatcher =
+        MutableScatterMap<ContinuationInterceptor, ArrayDeque<() -> Unit>>()
+    private val muxMovers = ArrayDeque<MuxDeferredNode<*, *, *, *>>()
     private val deactivations = ArrayDeque<PushNode<*>>()
     private val outputDeactivations = ArrayDeque<Output<*>>()
     private val inputScheduleChan = Channel<ScheduledAction<*>>(Channel.UNLIMITED)
@@ -87,11 +89,11 @@ internal class Network(
         block: () -> Unit,
     ) {
         outputsByDispatcher
-            .computeIfAbsent(interceptor ?: Dispatchers.Unconfined) { ArrayDeque() }
+            .getOrPut(interceptor ?: Dispatchers.Unconfined) { ArrayDeque() }
             .add(block)
     }
 
-    override fun scheduleMuxMover(muxMover: MuxDeferredNode<*, *, *>) {
+    override fun scheduleMuxMover(muxMover: MuxDeferredNode<*, *, *, *>) {
         muxMovers.add(muxMover)
     }
 
@@ -107,7 +109,7 @@ internal class Network(
     suspend fun runInputScheduler() {
         val actions = mutableListOf<ScheduledAction<*>>()
         for (first in inputScheduleChan) {
-            // Drain and conflate all transaction requests into a single transaction
+            // Drain and coalesce all transaction requests into a single transaction
             actions.add(first)
             when (coalescingPolicy) {
                 CoalescingPolicy.None -> {}
@@ -159,13 +161,13 @@ internal class Network(
     /** Evaluates [block] inside of a new transaction when the network is ready. */
     fun <R> transaction(reason: String, block: EvalScope.() -> R): Deferred<R> =
         CompletableDeferred<R>(parent = coroutineScope.coroutineContext.job).also { onResult ->
-            if (!coroutineScope.isActive) {
+            if (coroutineScope.isActive) {
+                inputScheduleChan.trySend(
+                    ScheduledAction(reason, onStartTransaction = block, onResult = onResult)
+                )
+            } else {
                 onResult.cancel()
-                return@also
             }
-            inputScheduleChan.trySend(
-                ScheduledAction(reason, onStartTransaction = block, onResult = onResult)
-            )
         }
 
     inline fun <R> runThenDrainDeferrals(block: () -> R): R =
@@ -194,7 +196,7 @@ internal class Network(
         epoch++
         // Perform deferred switches
         logDuration({ "deferred moves" }, trace = true) {
-            runThenDrainDeferrals { evalMuxMovers(currentLogIndent, evalScope) }
+            runThenDrainDeferrals { evalMuxMovers(evalScope) }
         }
         // Compact depths
         logDuration({ "compact depths" }, trace = true) {
@@ -203,7 +205,7 @@ internal class Network(
         }
 
         // Deactivate nodes with no downstream
-        logDuration({ "deactivations" }, trace = true) { evalDeactivations() }
+        logDuration({ "deactivations" }, trace = true) { evalDeactivations(evalScope) }
     }
 
     private fun evalFastOutputs(evalScope: EvalScope): Boolean {
@@ -231,27 +233,28 @@ internal class Network(
         outputsByDispatcher.clear()
     }
 
-    private fun evalMuxMovers(logIndent: Int, evalScope: EvalScope) {
+    private fun evalMuxMovers(evalScope: EvalScope) {
         while (muxMovers.isNotEmpty()) {
             val toMove = muxMovers.removeFirst()
             toMove.performMove(evalScope)
         }
     }
 
-    private fun evalDeactivations() {
+    private fun evalDeactivations(evalScope: EvalScope) {
         while (deactivations.isNotEmpty()) {
             // traverse in reverse order
             //   - deactivations are added in depth-order during the node traversal phase
             //   - perform deactivations in reverse order, in case later ones propagate to
             //     earlier ones
             val toDeactivate = deactivations.removeLast()
-            toDeactivate.deactivateIfNeeded()
+            toDeactivate.deactivateIfNeeded(evalScope)
         }
 
         while (outputDeactivations.isNotEmpty()) {
             val toDeactivate = outputDeactivations.removeFirst()
             toDeactivate.upstream?.removeDownstreamAndDeactivateIfNeeded(
-                downstream = toDeactivate.schedulable
+                downstream = toDeactivate.schedulable,
+                evalScope = evalScope,
             )
         }
         check(deactivations.isEmpty()) { "unexpected lingering deactivations" }
@@ -259,7 +262,7 @@ internal class Network(
     }
 }
 
-internal class ScheduledAction<T>(
+private class ScheduledAction<T>(
     val reason: String,
     private val onResult: CompletableDeferred<T>? = null,
     private val onStartTransaction: EvalScope.() -> T,
@@ -277,56 +280,8 @@ internal class ScheduledAction<T>(
 
     fun completed() {
         if (onResult != null) {
-            when (val result = result) {
-                is Present -> onResult.complete(result.value)
-                else -> {}
-            }
+            result.whenPresent { onResult.complete(it) }
         }
         result = maybeOf()
-    }
-}
-
-internal class TransactionStore private constructor(private val storage: ArrayList<Any?>) {
-    constructor(capacity: Int) : this(ArrayList(capacity))
-
-    constructor() : this(ArrayList())
-
-    @Suppress("UNCHECKED_CAST")
-    operator fun <A> get(key: Key<A>): A =
-        storage.getOrElse(key.index) { error("no value for $key in this transaction") } as A
-
-    fun <A> put(value: A): Key<A> {
-        val index = storage.size
-        storage.add(value)
-        return Key(index)
-    }
-
-    fun clear() = storage.clear()
-
-    @JvmInline value class Key<A>(val index: Int)
-}
-
-internal class TransactionCache<A> {
-    private var key: TransactionStore.Key<A>? = null
-
-    var epoch: Long = Long.MIN_VALUE
-        private set
-
-    fun getOrPut(evalScope: EvalScope, block: () -> A): A =
-        if (epoch < evalScope.epoch) {
-            epoch = evalScope.epoch
-            block().also { key = evalScope.transactionStore.put(it) }
-        } else {
-            evalScope.transactionStore[key!!]
-        }
-
-    fun put(evalScope: EvalScope, value: A) {
-        epoch = evalScope.epoch
-        key = evalScope.transactionStore.put(value)
-    }
-
-    fun getCurrentValue(evalScope: EvalScope): A {
-        check(epoch == evalScope.epoch) { "no value for $key in this transaction" }
-        return evalScope.transactionStore[key!!]
     }
 }

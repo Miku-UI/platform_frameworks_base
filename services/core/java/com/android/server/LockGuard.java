@@ -64,21 +64,53 @@ import java.io.PrintWriter;
 public class LockGuard {
     private static final String TAG = "LockGuard";
 
-    /**
-     * Well-known locks ordered by fixed index. Locks with a specific index
-     * should never be acquired while holding a lock of a lower index.
+    /*
+     * Well-known locks with a fixed order.
+     *
+     * <p>Locks must be acquired in increasing order: a lock must never be acquired while holding
+     * another lock of a higher index.
      */
-    public static final int INDEX_APP_OPS = 0;
-    public static final int INDEX_POWER = 1;
-    public static final int INDEX_USER = 2;
-    public static final int INDEX_PACKAGES = 3;
-    public static final int INDEX_STORAGE = 4;
-    public static final int INDEX_WINDOW = 5;
-    public static final int INDEX_PROC = 6;
-    public static final int INDEX_ACTIVITY = 7;
-    public static final int INDEX_DPMS = 8;
 
-    private static Object[] sKnownFixed = new Object[INDEX_DPMS + 1];
+    /** {@link android.server.devicepolicy.DevicePolicyManagerService#mLock} */
+    public static final int INDEX_DPMS = 0;
+    /** {@link android.server.am.ActivityManagerService#mGlobalLock} */
+    public static final int INDEX_ACTIVITY = 1;
+    /** {@link android.server.am.ActivityManagerService#sProcThreadPriorityBooster} */
+    public static final int INDEX_PROC = 2;
+    /** {@link android.server.wm.WindowManagerService#mGlobalLock} */
+    public static final int INDEX_WINDOW = 3;
+    /** {@link com.android.server.display.DisplayManagerService#mSyncRoot} */
+    public static final int INDEX_DISPLAY_MANAGER_SERVICE = 4;
+    /** {@link com.android.server.display.DisplayPowerController#mLock} */
+    public static final int INDEX_DISPLAY_POWER_CONTROLLER = 5;
+    /** {@link com.android.server.policy.PhoneWindowManager#mLock} */
+    public static final int INDEX_PHONE_WINDOW_MANAGER = 6;
+    public static final int INDEX_MOUNT_SERVICE_CONNECTOR = 7;
+    public static final int INDEX_MOUNT_SERVICE = 8;
+    /** {@link com.android.server.StorageManagerService#mLock} */
+    public static final int INDEX_STORAGE = 9;
+    /** {@link com.android.server.pm.PackageManagerService#mInstallLock} */
+    public static final int INDEX_PACKAGE_INSTALL = 10;
+    /** {@link com.android.server.pm.PackageManagerService#mLock} */
+    public static final int INDEX_PACKAGES = 11;
+    /** {@link com.android.server.pm.UserManagerService#mUsersLock} */
+    public static final int INDEX_USER = 12;
+    /** {@link com.android.server.pm.UserManagerService#mRestrictionsLock} */
+    public static final int INDEX_USER_RESTRICTIONS = 13;
+    /** {@link com.android.server.pm.UserManagerService#mAppRestrictionsLock} */
+    public static final int INDEX_USER_APP_RESTRICTIONS = 14;
+    /** {@link com.android.server.power.PowerManagerService#mLock} */
+    public static final int INDEX_POWER = 15;
+    /** {@link com.android.server.appop.AppOpsService} */
+    public static final int INDEX_APP_OPS = 16;
+    /** {@link com.android.server.companion.virtual.VirtualDeviceManagerService} */
+    public static final int INDEX_VIRTUAL_DEVICE_MANAGER = 17;
+    /** {@link com.android.server.companion.virtual.VirtualDeviceImpl#mVirtualDeviceLock} */
+    public static final int INDEX_VIRTUAL_DEVICE_MANAGER_DEVICE = 18;
+
+    private static final int INDEX_LAST = INDEX_VIRTUAL_DEVICE_MANAGER_DEVICE;
+
+    private static Object[] sKnownFixed = new Object[INDEX_LAST + 1];
 
     private static ArrayMap<Object, LockInfo> sKnown = new ArrayMap<>(0, true);
 
@@ -145,14 +177,13 @@ public class LockGuard {
     }
 
     /**
-     * Yell if any lower-level locks are being held by the calling thread that
+     * Yell if any higher-level locks are being held by the calling thread that
      * is about to acquire the given lock.
      */
     public static void guard(int index) {
-        for (int i = 0; i < index; i++) {
+        for (int i = index + 1; i < sKnownFixed.length; i++) {
             final Object lock = sKnownFixed[i];
             if (lock != null && Thread.holdsLock(lock)) {
-
                 // Note in this case sKnownFixed may not contain a lock at the given index,
                 // which is okay and in that case we just don't do a WTF.
                 final Object targetMayBeNull = sKnownFixed[index];
@@ -224,15 +255,25 @@ public class LockGuard {
 
     private static String lockToString(int index) {
         switch (index) {
-            case INDEX_APP_OPS: return "APP_OPS";
-            case INDEX_POWER: return "POWER";
-            case INDEX_USER: return "USER";
-            case INDEX_PACKAGES: return "PACKAGES";
-            case INDEX_STORAGE: return "STORAGE";
-            case INDEX_WINDOW: return "WINDOW";
-            case INDEX_PROC: return "PROCESS";
-            case INDEX_ACTIVITY: return "ACTIVITY";
             case INDEX_DPMS: return "DPMS";
+            case INDEX_ACTIVITY: return "ACTIVITY";
+            case INDEX_PROC: return "PROCESS";
+            case INDEX_WINDOW: return "WINDOW";
+            case INDEX_DISPLAY_MANAGER_SERVICE: return "DISPLAY";
+            case INDEX_DISPLAY_POWER_CONTROLLER: return "DISPLAY_POWER";
+            case INDEX_PHONE_WINDOW_MANAGER: return "PHONE_WINDOW";
+            case INDEX_MOUNT_SERVICE_CONNECTOR: return "MOUNT_CONNECTOR";
+            case INDEX_MOUNT_SERVICE: return "MOUNT_SERVICE";
+            case INDEX_STORAGE: return "STORAGE";
+            case INDEX_PACKAGE_INSTALL: return "PACKAGE_INSTALL";
+            case INDEX_PACKAGES: return "PACKAGES";
+            case INDEX_USER: return "USER";
+            case INDEX_USER_RESTRICTIONS: return "USER_RESTRICTIONS";
+            case INDEX_USER_APP_RESTRICTIONS: return "USER_APP_RESTRICTIONS";
+            case INDEX_POWER: return "POWER";
+            case INDEX_APP_OPS: return "APP_OPS";
+            case INDEX_VIRTUAL_DEVICE_MANAGER: return "VIRTUAL_DEVICE_MANAGER";
+            case INDEX_VIRTUAL_DEVICE_MANAGER_DEVICE: return "VIRTUAL_DEVICE_MANAGER_DEVICE";
             default: return Integer.toString(index);
         }
     }

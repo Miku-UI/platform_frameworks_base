@@ -17,7 +17,6 @@
 package com.android.systemui.statusbar.systemstatusicons.wifi.ui.viewmodel
 
 import android.content.testableContext
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -25,21 +24,20 @@ import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
-import com.android.systemui.statusbar.core.NewStatusBarIcons
 import com.android.systemui.statusbar.pipeline.shared.data.model.ConnectivitySlot
 import com.android.systemui.statusbar.pipeline.shared.data.repository.connectivityRepository
 import com.android.systemui.statusbar.pipeline.shared.data.repository.fake
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.fakeWifiRepository
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel
 import com.android.systemui.statusbar.pipeline.wifi.ui.model.WifiIcon as PipelineWifiIcon
-import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
+import com.android.systemui.statusbar.systemstatusicons.flags.EnableSystemStatusIconsInCompose
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-@EnableFlags(SystemStatusIconsInCompose.FLAG_NAME, NewStatusBarIcons.FLAG_NAME)
+@EnableSystemStatusIconsInCompose
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class WifiIconViewModelTest : SysuiTestCase() {
@@ -132,8 +130,7 @@ class WifiIconViewModelTest : SysuiTestCase() {
     fun icon_visible_isCorrect() =
         kosmos.runTest {
             fakeWifiRepository.setIsWifiEnabled(true)
-            val testNetwork =
-                WifiNetworkModel.Active.of(isValidated = true, level = 4, ssid = "TestWifi")
+            val testNetwork = WifiNetworkModel.Active.of(level = 4, ssid = "TestWifi")
             fakeWifiRepository.setWifiNetwork(testNetwork)
             connectivityRepository.fake.setWifiConnected()
 

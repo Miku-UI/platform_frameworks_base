@@ -27,6 +27,7 @@ import android.widget.ListView
 import android.widget.TextView
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -49,15 +50,27 @@ import com.android.internal.app.MediaRouteControllerContentManager
 import com.android.systemui.res.R as SystemUiR
 
 private val TILE_DETAILS_HORIZONTAL_PADDING = SystemUiR.dimen.tile_details_horizontal_padding
+private val TILE_DETAILS_BOTTOM_PADDING = SystemUiR.dimen.tile_details_bottom_padding
 private val MAX_CAST_LIST_HEIGHT = 5000.dp
 
 @Composable
 fun CastDetailsContent(castDetailsViewModel: CastDetailsViewModel) {
-    if (castDetailsViewModel.shouldShowChooserDialog()) {
+    // The view can be in two states: showing the device chooser or the connected device
+    // controller. `viewUpdateKey` is a state that is used to update this ui, when the user
+    // disconnects from a device or connects to a new one.
+    val showChooser =
+        remember(castDetailsViewModel.viewUpdateKey) {
+            castDetailsViewModel.shouldShowChooserDialog()
+        }
+
+    if (showChooser) {
         val contentManager: MediaRouteChooserContentManager = remember {
             castDetailsViewModel.createChooserContentManager()
         }
-        CastChooserView(contentManager, castDetailsViewModel)
+
+        Box(modifier = Modifier.padding(bottom = dimensionResource(TILE_DETAILS_BOTTOM_PADDING))) {
+            CastChooserView(contentManager, castDetailsViewModel)
+        }
         return
     }
 
@@ -66,6 +79,7 @@ fun CastDetailsContent(castDetailsViewModel: CastDetailsViewModel) {
     }
 
     Column(
+        modifier = Modifier.padding(bottom = dimensionResource(TILE_DETAILS_BOTTOM_PADDING)),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -97,6 +111,7 @@ fun CastChooserView(
             // Inflate with the existing dialog xml layout
             val view =
                 LayoutInflater.from(context).inflate(R.layout.media_route_chooser_dialog, null)
+            (view as? LinearLayout)?.showDividers = LinearLayout.SHOW_DIVIDER_NONE
             contentManager.bindViews(view)
             contentManager.onAttachedToWindow()
 

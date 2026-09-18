@@ -15,17 +15,25 @@
  */
 package com.android.server.wm;
 
-import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_STATES;
+import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_CAMERA_COMPAT;
+import static com.android.server.wm.AppCompatCameraPolicy.TAG_CAMERA_COMPAT;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WITH_CLASS_NAME;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WM;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
 import android.os.Handler;
+import android.util.Slog;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
+
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Class that listens to camera open/closed signals, keeps track of the current apps using camera,
@@ -48,8 +56,6 @@ class CameraStateMonitor {
 
     /** Returns the information about apps using camera, for logging purposes. */
     @NonNull
-    private final DisplayContent mDisplayContent;
-    @NonNull
     private final WindowManagerService mWmService;
     @Nullable
     private final CameraManager mCameraManager;
@@ -60,6 +66,10 @@ class CameraStateMonitor {
     final AppCompatCameraStateStrategyForTask mAppCompatCameraStateStrategy;
     @VisibleForTesting
     final AppCompatCameraStatePolicy mAppCompatCameraStatePolicy;
+
+    /** Available rotateAndCropModes per cameraId. */
+    private final HashMap<String, ArrayList<Integer>> mAvailableRotateAndCropModesForCamera =
+            new HashMap<>();
 
     /**
      * Value toggled on {@link #startListeningToCameraState()} to {@code true} and on {@link
@@ -83,16 +93,14 @@ class CameraStateMonitor {
                 }
             };
 
-    CameraStateMonitor(@NonNull DisplayContent displayContent, @NonNull Handler handler,
+    CameraStateMonitor(@NonNull WindowManagerService wmService, @NonNull Handler handler,
             @NonNull AppCompatCameraStatePolicy appCompatCameraStatePolicy) {
-        // This constructor is called from DisplayContent constructor. Don't use any fields in
-        // DisplayContent here since they aren't guaranteed to be set.
+        // This constructor is called from WindowManagerService constructor.
         mHandler = handler;
-        mDisplayContent = displayContent;
         mAppCompatCameraStatePolicy = appCompatCameraStatePolicy;
-        mWmService = displayContent.mWmService;
+        mWmService = wmService;
         mCameraManager = mWmService.mContext.getSystemService(CameraManager.class);
-        mAppCompatCameraStateStrategy = new AppCompatCameraStateStrategyForTask(displayContent);
+        mAppCompatCameraStateStrategy = new AppCompatCameraStateStrategyForTask(mWmService);
     }
 
     /** Starts listening to camera opened/closed signals. */
@@ -121,15 +129,21 @@ class CameraStateMonitor {
         return mIsListeningToCameraState;
     }
 
+    void dump(@NonNull PrintWriter pw, @NonNull String prefix) {
+        pw.println(prefix + "CameraStateMonitor:");
+        pw.println(prefix + "  activeCameraConnections=" + mAppCompatCameraStateStrategy);
+        pw.println(prefix + "  mAvailableRotateAndCropModesForCamera="
+                + mAvailableRotateAndCropModesForCamera);
+    }
+
     private void notifyCameraOpenedWithDelay(@NonNull String cameraId,
             @NonNull String packageName) {
         // Some apps can’t handle configuration changes coming at the same time with Camera setup so
         // delaying orientation update to accommodate for that.
         // If an activity is restarting or camera is flipping, the camera connection can be
         // quickly closed and reopened.
-        ProtoLog.v(WM_DEBUG_STATES,
-                "Display id=%d is notified that Camera %s is open for package %s",
-                mDisplayContent.mDisplayId, cameraId, packageName);
+        ProtoLog.v(WM_DEBUG_CAMERA_COMPAT, "%s: Camera %s is open for package %s",
+                TAG_CAMERA_COMPAT, cameraId, packageName);
         final CameraAppInfo cameraAppInfo = mAppCompatCameraStateStrategy.trackOnCameraOpened(
                 cameraId, packageName);
         mHandler.postDelayed(() -> {
@@ -150,9 +164,8 @@ class CameraStateMonitor {
      * and when an activity is refreshed due to camera compat treatment.
      */
     private void notifyCameraClosedWithDelay(@NonNull String cameraId) {
-        ProtoLog.v(WM_DEBUG_STATES,
-                "Display id=%d is notified that Camera %s is closed.",
-                mDisplayContent.mDisplayId, cameraId);
+        ProtoLog.v(WM_DEBUG_CAMERA_COMPAT, "%s: Camera %s is closed.", TAG_CAMERA_COMPAT,
+                cameraId);
         scheduleRemoveCameraId(cameraId);
     }
 
@@ -187,6 +200,46 @@ class CameraStateMonitor {
             // Try again later.
             scheduleRemoveCameraId(cameraAppInfo.mCameraId);
         }
+    }
+
+    /**
+     * Checks whether the rotate-and-crop mode - a certain number of degrees - is supported on
+     * Camera HAL.
+     *
+     * <p>This method with find which camera does the current activity use, and check supported
+     * rotate-and-crop degrees.
+     */
+    boolean isRotateAndCropModeSupported(@NonNull ActivityRecord activity, int rotateAndCropMode) {
+        final String cameraId = mAppCompatCameraStateStrategy.getActiveCameraId(activity);
+        return cameraId != null && isRotateAndCropModeSupported(cameraId, rotateAndCropMode);
+    }
+
+    private boolean isRotateAndCropModeSupported(@NonNull String cameraId, int rotateAndCropMode) {
+        if (!fetchAvailableRotateAndCropModes(cameraId)) {
+            return false;
+        }
+
+        return mAvailableRotateAndCropModesForCamera.get(cameraId).contains(rotateAndCropMode);
+    }
+
+    private boolean fetchAvailableRotateAndCropModes(@NonNull String cameraId) {
+        if (!mAvailableRotateAndCropModesForCamera.containsKey(cameraId)) {
+            try {
+                final int[] availableRotateAndCropModes = mCameraManager
+                        .getCameraCharacteristics(cameraId)
+                        .get(CameraCharacteristics.SCALER_AVAILABLE_ROTATE_AND_CROP_MODES);
+                final ArrayList<Integer> modes = new ArrayList<>();
+                for (int i = 0; i < availableRotateAndCropModes.length; i++) {
+                    modes.add(availableRotateAndCropModes[i]);
+                }
+                mAvailableRotateAndCropModesForCamera.put(cameraId, modes);
+            } catch (IllegalArgumentException | CameraAccessException e) {
+                Slog.w(TAG, "Unable to access camera to check available rotate-and-crop modes.");
+                return false;
+            }
+        }
+
+        return true;
     }
 
     @NonNull

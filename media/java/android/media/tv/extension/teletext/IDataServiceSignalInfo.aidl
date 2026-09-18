@@ -21,15 +21,33 @@ import android.os.Bundle;
 
 
 /**
+ * Interface for retrieving Teletext signal information.
  * @hide
  */
 interface IDataServiceSignalInfo {
-     // Get Teletext data service signal information.
+    /**
+     * Gets data service signal information on Teletext.
+     *
+     * @param sessionToken The per-session token provided by the host during session creation.
+     * @return A Bundle containing keys as defined in @TeletextConstants.DataServiceSignalInfoKey.
+     * </ul>
+     */
      Bundle getDataServiceSignalInfo(String sessionToken);
-     // Add a listener that receives notifications of teletext running information.
+     /**
+      * Adds a listener to receive notifications about Teletext running status updates.
+      *
+      * @param clientToken A token representing the client.
+      * @param listener An IDataServiceSignalInfoListener listener that will be called when the
+      *                 information is updated.
+      */
      void addDataServiceSignalInfoListener(String clientToken,
         IDataServiceSignalInfoListener listener);
-     // Remove a listener that receives notifications of Teletext running information.
+     /**
+      * Removes a previously registered listener for Teletext running status updates.
+      *
+      * @param clientToken A token representing the client.
+      * @param listener The IDataServiceSignalInfoListener that was previously registered.
+      */
      void removeDataServiceSignalInfoListener(String clientToken,
         IDataServiceSignalInfoListener listener);
 }

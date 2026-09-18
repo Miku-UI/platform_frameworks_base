@@ -46,6 +46,8 @@ import android.hardware.display.DisplayManager;
 import android.media.AudioManager;
 import android.os.PowerManager;
 import android.os.UserManager;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.platform.uiautomatorhelpers.WaitUtils;
 import android.provider.Settings;
 import android.util.Log;
@@ -60,6 +62,7 @@ import androidx.test.uiautomator.Configurator;
 import androidx.test.uiautomator.UiDevice;
 
 import com.android.compatibility.common.util.TestUtils;
+import com.android.systemui.Flags;
 import com.android.systemui.accessibility.accessibilitymenu.model.A11yMenuShortcut.ShortcutId;
 
 import org.junit.After;
@@ -67,6 +70,7 @@ import org.junit.AfterClass;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -77,6 +81,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @RunWith(AndroidJUnit4.class)
 public class AccessibilityMenuServiceTest {
+    @Rule
+    public SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     private static final String TAG = "A11yMenuServiceTest";
     private static final int CLICK_ID = AccessibilityNodeInfo.ACTION_CLICK;
 
@@ -466,9 +473,8 @@ public class AccessibilityMenuServiceTest {
     @Test
     public void testOnScreenLock_closesMenu() throws Throwable {
         openMenu();
-        closeScreen();
-        wakeUpScreen();
-        assertThat(sKeyguardManager.isKeyguardLocked()).isTrue();
+
+        lockScreen();
 
         TestUtils.waitUntil("Menu did not close.",
                 TIMEOUT_UI_CHANGE_S,
@@ -478,9 +484,7 @@ public class AccessibilityMenuServiceTest {
 
     @Test
     public void testOnScreenLock_cannotOpenMenu() throws Throwable {
-        closeScreen();
-        wakeUpScreen();
-        assertThat(sKeyguardManager.isKeyguardLocked()).isTrue();
+        lockScreen();
 
         sInstrumentation.getContext().sendBroadcast(INTENT_OPEN_MENU);
         sUiDevice.waitForIdle();
@@ -528,10 +532,37 @@ public class AccessibilityMenuServiceTest {
         }
     }
 
+    @EnableFlags(Flags.FLAG_ACCESSIBILITY_MENU_INPUTS_FOR_HIDING)
+    @Test
+    public void onBackKey_hidesMenu() throws Throwable {
+        openMenu();
+
+        sUiDevice.pressBack();
+
+        TestUtils.waitUntil("Back key should close menu", () -> !isMenuVisible());
+    }
+
+    @EnableFlags(Flags.FLAG_ACCESSIBILITY_MENU_INPUTS_FOR_HIDING)
+    @Test
+    public void onEscKey_hidesMenu() throws Throwable {
+        openMenu();
+
+        sUiDevice.pressKeyCode(KeyEvent.KEYCODE_ESCAPE);
+
+        TestUtils.waitUntil("Escape key should close menu", () -> !isMenuVisible());
+    }
+
     private void setUserRestriction(String restriction, boolean isRestricted) throws Throwable {
         final Context context = sInstrumentation.getTargetContext();
         final UserManager userManager = context.getSystemService(UserManager.class);
         userManager.setUserRestriction(restriction, isRestricted);
+    }
+
+    private static void lockScreen() throws Exception {
+        closeScreen();
+        wakeUpScreen();
+        TestUtils.waitUntil("Keyguard is locked",
+                TIMEOUT_UI_CHANGE_S, () -> sKeyguardManager.isKeyguardLocked());
     }
 
     private static void unlockSignal() throws IOException {

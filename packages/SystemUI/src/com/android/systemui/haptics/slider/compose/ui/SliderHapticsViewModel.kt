@@ -38,8 +38,6 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import kotlin.math.abs
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 
 class SliderHapticsViewModel
@@ -87,31 +85,21 @@ constructor(
         )
     private var sliderTracker: SliderStateTracker? = null
 
-    private var trackerJob: Job? = null
-
     val isRunning: Boolean
-        get() = trackerJob?.isActive == true && sliderTracker?.isTracking == true
+        get() = isActive
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         coroutineScope {
-            trackerJob =
-                launch("SliderHapticsViewModel#SliderStateTracker") {
-                    try {
-                        sliderTracker =
-                            SliderStateTracker(
-                                sliderHapticFeedbackProvider,
-                                sliderStateProducer,
-                                this,
-                                sliderTrackerConfig,
-                            )
-                        sliderTracker?.startTracking()
-                        awaitCancellation()
-                    } finally {
-                        sliderTracker?.stopTracking()
-                        sliderTracker = null
-                        velocityTracker.resetTracking()
-                    }
-                }
+            launch("SliderHapticsViewModel#SliderStateTracker") {
+                sliderTracker =
+                    SliderStateTracker(
+                        sliderHapticFeedbackProvider,
+                        sliderStateProducer,
+                        this,
+                        sliderTrackerConfig,
+                    )
+                sliderTracker?.startTracking()
+            }
 
             launch("SliderHapticsViewModel#InteractionSource") {
                 interactionSource.interactions.collect { interaction ->
@@ -121,8 +109,13 @@ constructor(
                     }
                 }
             }
-            awaitCancellation()
         }
+    }
+
+    override suspend fun onDeactivated() {
+        sliderTracker?.stopTracking()
+        sliderTracker = null
+        velocityTracker.resetTracking()
     }
 
     /**

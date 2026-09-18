@@ -29,10 +29,10 @@ object NewStatusBarIcons {
     val token: FlagToken
         get() = FlagToken(FLAG_NAME, isEnabled)
 
-    /** Is the refactor enabled. Dependency on [StatusBarRootModernization] */
+    /** Is the refactor enabled. */
     @JvmStatic
     inline val isEnabled
-        get() = Flags.newStatusBarIcons() && StatusBarRootModernization.isEnabled
+        get() = Flags.newStatusBarIcons()
 
     /**
      * Called to ensure code is only run when the flag is enabled. This protects users from the

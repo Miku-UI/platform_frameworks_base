@@ -17,6 +17,7 @@
 package com.android.internal.inputmethod;
 
 import android.view.KeyEvent;
+import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.TextAttribute;
 import com.android.internal.inputmethod.InputConnectionCommandHeader;
 
@@ -77,4 +78,14 @@ oneway interface IRemoteComputerControlInputConnection {
      * @see InputConnection#sendKeyEvent(KeyEvent)
      */
     void sendKeyEvent(in InputConnectionCommandHeader header, in KeyEvent event);
+
+    /**
+     * Have the editor perform an action it has said it can do.
+     *
+     * @param editorAction This must be one of the action constants for
+     * {@link EditorInfo#imeOptions EditorInfo.imeOptions}, such as
+     * {@link EditorInfo#IME_ACTION_GO EditorInfo.EDITOR_ACTION_GO}, or the value of
+     * {@link EditorInfo#actionId EditorInfo.actionId} if a custom action is available.
+     */
+    void performEditorAction(in InputConnectionCommandHeader header, int actionCode);
 }

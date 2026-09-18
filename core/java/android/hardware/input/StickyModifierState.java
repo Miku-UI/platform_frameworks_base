@@ -16,12 +16,15 @@
 
 package android.hardware.input;
 
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+
 /**
  * The StickyModifierState class is a representation of a modifier state when A11y Sticky keys
  * feature is enabled
  *
  * @hide
  */
+@RavenwoodKeepWholeClass
 public abstract class StickyModifierState {
 
     /**

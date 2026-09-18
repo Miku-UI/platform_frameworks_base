@@ -15,9 +15,17 @@
  */
 package com.android.server.pm;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import android.platform.test.annotations.Presubmit;
 
 import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
+
+import org.junit.runner.RunWith;
+import org.junit.Test;
 
 /**
  * Tests for {@link ShortcutService#hasShortcutHostPermissionInner}, which includes
@@ -25,6 +33,7 @@ import androidx.test.filters.SmallTest;
  */
 @Presubmit
 @SmallTest
+@RunWith(AndroidJUnit4.class)
 public class ShortcutManagerTest6 extends BaseShortcutManagerTest {
     public void disabled_testHasShortcutHostPermissionInner_with3pLauncher_complicated() {
         // Set the default launcher.
@@ -59,6 +68,7 @@ public class ShortcutManagerTest6 extends BaseShortcutManagerTest {
                 mService.getUserShortcutsLocked(USER_10).getCachedLauncher());
     }
 
+    @Test
     public void testHasShortcutHostPermissionInner_multiUser() {
         mRunningUsers.put(USER_11, true);
 

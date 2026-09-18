@@ -23,13 +23,13 @@
         android:layout_height="match_parent"
         android:layout_width="@dimen/notification_menu_item_width"
         android:background="@drawable/notification_menu_button_background"
-        android:backgroundTint="@androidprv:color/materialColorPrimaryContainer"
+        android:backgroundTint="@color/materialColorPrimaryContainer"
         android:padding="@dimen/notification_menu_button_padding">
         <ImageView
             android:id="@+id/promoted_menuitem_icon"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:tint="@androidprv:color/materialColorPrimary"
+            android:tint="@color/materialColorPrimary"
             android:src="@drawable/unpin_icon" />
         <TextView
             android:id="@+id/promoted_menuitem_text"

@@ -19,8 +19,10 @@ package com.android.server.autofill.ui;
 import static com.android.server.autofill.Helper.sDebug;
 import static com.android.server.autofill.Helper.sVerbose;
 
+import android.annotation.LayoutRes;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.StyleRes;
 import android.app.Dialog;
 import android.content.ComponentName;
 import android.content.Context;
@@ -28,6 +30,7 @@ import android.content.IntentSender;
 import android.graphics.drawable.Drawable;
 import android.service.autofill.Dataset;
 import android.service.autofill.FillResponse;
+import android.service.autofill.Flags;
 import android.text.TextUtils;
 import android.util.DisplayMetrics;
 import android.util.PluralsMessageFormatter;
@@ -37,6 +40,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityManager;
@@ -79,6 +83,10 @@ final class DialogFillUi {
             R.style.Theme_DeviceDefault_Light_Autofill_Save;
     private static final int THEME_ID_DARK =
             R.style.Theme_DeviceDefault_Autofill_Save;
+    private static final int THEME_ID_EXPRESSIVE_LIGHT =
+            R.style.Theme_DeviceDefault_Light_Autofill_Dialog;
+    private static final int THEME_ID_EXPRESSIVE_DARK =
+            R.style.Theme_DeviceDefault_Autofill_Dialog;
 
     interface UiCallback {
         void onResponsePicked(@NonNull FillResponse response);
@@ -90,16 +98,17 @@ final class DialogFillUi {
     }
 
     private final @NonNull Dialog mDialog;
-    private final @NonNull OverlayControl mOverlayControl;
     private final String mServicePackageName;
     private final ComponentName mComponentName;
     private final int mThemeId;
     private final @NonNull Context mContext;
     private final @NonNull Context mUserContext;
     private final @NonNull UiCallback mCallback;
-    private final @NonNull ListView mListView;
+    private final @Nullable ListView mListView;
     private final @Nullable ItemsAdapter mAdapter;
     private final int mVisibleDatasetsMaxCount;
+    private final ViewTreeObserver.OnGlobalLayoutListener mOnGlobalLayoutListener;
+    private final ViewTreeObserver.OnScrollChangedListener mOnScrollChangedListener;
 
     private @Nullable String mFilterText;
     private @Nullable AnnounceFilterResult mAnnounceFilterResult;
@@ -110,19 +119,36 @@ final class DialogFillUi {
     DialogFillUi(@NonNull Context context, @NonNull FillResponse response,
             @NonNull AutofillId focusedViewId, @Nullable String filterText,
             @Nullable Drawable serviceIcon, @Nullable String servicePackageName,
-            @Nullable ComponentName componentName, @NonNull OverlayControl overlayControl,
-            boolean nightMode, @NonNull UiCallback callback) {
+            @Nullable ComponentName componentName, boolean nightMode,
+            @NonNull UiCallback callback) {
         if (sVerbose) Slog.v(TAG, "nightMode: " + nightMode);
-        mThemeId = nightMode ? THEME_ID_DARK : THEME_ID_LIGHT;
+        mThemeId = getThemeId(nightMode);
         mCallback = callback;
-        mOverlayControl = overlayControl;
         mServicePackageName = servicePackageName;
         mComponentName = componentName;
 
         mContext = new ContextThemeWrapper(context, mThemeId);
         mUserContext = Helper.getUserContext(mContext);
         final LayoutInflater inflater = LayoutInflater.from(mContext);
-        final View decor = inflater.inflate(R.layout.autofill_fill_dialog, null);
+        final View decor = inflater.inflate(getLayoutResId(), null);
+        mListView = decor.findViewById(R.id.autofill_dialog_list);
+        if (Flags.expressiveFillDialog()) {
+            final View headerContainer = inflater.inflate(R.layout.autofill_fill_dialog_header,
+                    null);
+            mListView.addHeaderView(headerContainer, null, false);
+            View closeButton = decor.findViewById(R.id.closeButton);
+            closeButton.setOnClickListener(v -> mCallback.onDismissed());
+
+            // Adjust the elevation of the close button based on the scrolling position.
+            mOnGlobalLayoutListener = () -> adjustCloseButtonElevation(mListView, closeButton);
+            mOnScrollChangedListener = () -> adjustCloseButtonElevation(mListView, closeButton);
+            ViewTreeObserver observer = mListView.getViewTreeObserver();
+            observer.addOnGlobalLayoutListener(mOnGlobalLayoutListener);
+            observer.addOnScrollChangedListener(mOnScrollChangedListener);
+        } else {
+            mOnGlobalLayoutListener = null;
+            mOnScrollChangedListener = null;
+        }
 
         if (response.getShowFillDialogIcon()) {
             setServiceIcon(decor, serviceIcon);
@@ -132,10 +158,14 @@ final class DialogFillUi {
         mVisibleDatasetsMaxCount = getVisibleDatasetsMaxCount();
 
         if (response.getAuthentication() != null) {
-            mListView = null;
             mAdapter = null;
             try {
                 initialAuthenticationLayout(decor, response);
+                if (Flags.expressiveFillDialog()) {
+                    // In this case, only the header view will be shown. Setting a null adapter will
+                    // preserve the header.
+                    mListView.setAdapter(null);
+                }
             } catch (RuntimeException e) {
                 callback.onCanceled();
                 Slog.e(TAG, "Error inflating remote views", e);
@@ -145,7 +175,6 @@ final class DialogFillUi {
         } else {
             final List<ViewItem> items = createDatasetItems(response, focusedViewId);
             mAdapter = new ItemsAdapter(items);
-            mListView = decor.findViewById(R.id.autofill_dialog_list);
             initialDatasetLayout(decor, filterText);
         }
 
@@ -153,6 +182,7 @@ final class DialogFillUi {
 
         mDialog = new Dialog(mContext, mThemeId);
         mDialog.setContentView(decor);
+        mDialog.getWindow().setHideOverlayWindows(true);
         setDialogParamsAsBottomSheet();
         mDialog.setOnCancelListener((d) -> mCallback.onCanceled());
         int datasetsShown = (mAdapter != null) ? mAdapter.getCount() : 0;
@@ -185,12 +215,15 @@ final class DialogFillUi {
         window.setCloseOnTouchOutside(true);
         final WindowManager.LayoutParams params = window.getAttributes();
 
-        DisplayMetrics displayMetrics = new DisplayMetrics();
-        window.getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-        final int screenWidth = displayMetrics.widthPixels;
-        final int maxWidth =
-                mContext.getResources().getDimensionPixelSize(R.dimen.autofill_dialog_max_width);
-        params.width = Math.min(screenWidth, maxWidth);
+        if (!Flags.expressiveFillDialog()) {
+            DisplayMetrics displayMetrics = new DisplayMetrics();
+            window.getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+            final int screenWidth = displayMetrics.widthPixels;
+            final int maxWidth =
+                    mContext.getResources().getDimensionPixelSize(
+                            R.dimen.autofill_dialog_max_width);
+            params.width = Math.min(screenWidth, maxWidth);
+        }
 
         params.accessibilityTitle =
                 mContext.getString(R.string.autofill_picker_accessibility_title);
@@ -236,9 +269,20 @@ final class DialogFillUi {
 
     private void setDismissButton(View decor) {
         final TextView noButton = decor.findViewById(R.id.autofill_dialog_no);
-        // set "No thinks" by default
-        noButton.setText(R.string.autofill_save_no);
-        noButton.setOnClickListener((v) -> mCallback.onDismissed());
+        if (Flags.expressiveFillDialog()) {
+            // set "Cancel" as dismiss button text
+            noButton.setText(R.string.cancel);
+        } else {
+            // set "No thanks" by default
+            noButton.setText(R.string.autofill_save_no);
+        }
+        noButton.setOnClickListener((v) -> {
+            if (Flags.expressiveFillDialog()) {
+                mCallback.onCanceled();
+            } else {
+                mCallback.onDismissed();
+            }
+        });
     }
 
     private void setContinueButton(View decor, View.OnClickListener listener) {
@@ -311,6 +355,11 @@ final class DialogFillUi {
                     if (sVerbose) Slog.v(TAG, "setting remote view for " + focusedViewId);
                     view = presentation.applyWithTheme(
                             mUserContext, null, interceptionHandler, mThemeId);
+                    if (Flags.expressiveFillDialog()) {
+                        // Switch access can identify the item as clickable only if the
+                        // OnClickListener is set.
+                        view.setOnClickListener(v -> mCallback.onDatasetPicked(dataset));
+                    }
                 } catch (RuntimeException e) {
                     Slog.e(TAG, "Error inflating remote views", e);
                     continue;
@@ -352,12 +401,19 @@ final class DialogFillUi {
 
         mListView.setAdapter(mAdapter);
         mListView.setVisibility(View.VISIBLE);
-        mListView.setOnItemClickListener(onItemClickListener);
+        // For expressive fill dialog, the OnClickListener for each item is already set explicitly.
+        if (!Flags.expressiveFillDialog()) {
+            mListView.setOnItemClickListener(onItemClickListener);
+        }
 
         if (mAdapter.getCount() == 1) {
-            // just single item, set up continue button
-            setContinueButton(decor, (v) ->
-                    onItemClickListener.onItemClick(null, null, 0, 0));
+            // Do not show continue button for expressive fill dialog.
+            if (!Flags.expressiveFillDialog()) {
+                // Just single item, set up continue button.
+                setContinueButton(decor,
+                        (v) -> onItemClickListener.onItemClick(/* parent= */ null, /* view= */
+                                null, /* position= */ 0, /* id= */ 0));
+            }
         }
 
         if (filterText == null) {
@@ -378,8 +434,8 @@ final class DialogFillUi {
                 }
                 mCallback.onCanceled();
             } else {
-
-                if (mAdapter.getCount() > mVisibleDatasetsMaxCount) {
+                if (Flags.expressiveFillDialog()
+                        || mAdapter.getCount() > mVisibleDatasetsMaxCount) {
                     mListView.setVerticalScrollBarEnabled(true);
                     mListView.onVisibilityAggregated(true);
                 } else {
@@ -395,7 +451,6 @@ final class DialogFillUi {
     private void show() {
         Slog.i(TAG, "Showing fill dialog");
         mDialog.show();
-        mOverlayControl.hideOverlays();
     }
 
     boolean isShowing() {
@@ -404,23 +459,21 @@ final class DialogFillUi {
 
     void hide() {
         if (sVerbose) Slog.v(TAG, "Hiding fill dialog.");
-        try {
-            mDialog.hide();
-        } finally {
-            mOverlayControl.showOverlays();
-        }
+        mDialog.hide();
     }
 
     void destroy() {
-        try {
-            if (sDebug) Slog.d(TAG, "destroy()");
-            throwIfDestroyed();
-
-            mDialog.dismiss();
-            mDestroyed = true;
-        } finally {
-            mOverlayControl.showOverlays();
+        if (sDebug) Slog.d(TAG, "destroy()");
+        throwIfDestroyed();
+        if (Flags.expressiveFillDialog() && mListView != null) {
+            ViewTreeObserver observer = mListView.getViewTreeObserver();
+            if (observer.isAlive()) {
+                observer.removeOnGlobalLayoutListener(mOnGlobalLayoutListener);
+                observer.removeOnScrollChangedListener(mOnScrollChangedListener);
+            }
         }
+        mDialog.dismiss();
+        mDestroyed = true;
     }
 
     private void throwIfDestroyed() {
@@ -435,6 +488,29 @@ final class DialogFillUi {
         return "NO TITLE";
     }
 
+    @LayoutRes
+    private int getLayoutResId() {
+        return Flags.expressiveFillDialog() ? R.layout.autofill_fill_dialog_expressive
+                : R.layout.autofill_fill_dialog;
+    }
+
+    @StyleRes
+    private int getThemeId(boolean nightMode) {
+        if (Flags.expressiveFillDialog()) {
+            return nightMode ? THEME_ID_EXPRESSIVE_DARK : THEME_ID_EXPRESSIVE_LIGHT;
+        }
+        return nightMode ? THEME_ID_DARK : THEME_ID_LIGHT;
+    }
+
+    private void adjustCloseButtonElevation(ListView listView, View closeButton) {
+        // If the ListView is scrollable and begins scrolling, the elevation of the close button is
+        // 3dp, otherwise, 0.
+        boolean canScrollUp = listView.canScrollVertically(-1); // -1 to check scrolling up
+        final float elevation =
+                canScrollUp ? 3 * mContext.getResources().getDisplayMetrics().density : 0f;
+        closeButton.setElevation(elevation);
+    }
+
     void dump(PrintWriter pw, String prefix) {
 
         pw.print(prefix); pw.print("service: "); pw.println(mServicePackageName);
@@ -446,6 +522,12 @@ final class DialogFillUi {
                 break;
             case THEME_ID_LIGHT:
                 pw.println(" (light)");
+                break;
+            case THEME_ID_EXPRESSIVE_DARK:
+                pw.println(" (expressive dark)");
+                break;
+            case THEME_ID_EXPRESSIVE_LIGHT:
+                pw.println(" (expressive light)");
                 break;
             default:
                 pw.println("(UNKNOWN_MODE)");
@@ -476,12 +558,8 @@ final class DialogFillUi {
         private static final int SEARCH_RESULT_ANNOUNCEMENT_DELAY = 1000; // 1 sec
 
         public void post() {
-            remove();
-            mListView.postDelayed(this, SEARCH_RESULT_ANNOUNCEMENT_DELAY);
-        }
-
-        public void remove() {
             mListView.removeCallbacks(this);
+            mListView.postDelayed(this, SEARCH_RESULT_ANNOUNCEMENT_DELAY);
         }
 
         @Override
@@ -585,13 +663,14 @@ final class DialogFillUi {
         /**
          * Default constructor.
          *
-         * @param dataset dataset associated with the item
-         * @param filter optional filter set by the service to determine how the item should be
-         * filtered
+         * @param dataset    dataset associated with the item
+         * @param filter     optional filter set by the service to determine how the item should be
+         *                   filtered
          * @param filterable optional flag set by the service to indicate this item should not be
-         * filtered (typically used when the dataset has value but it's sensitive, like a password)
-         * @param value dataset value
-         * @param view dataset presentation.
+         *                   filtered (typically used when the dataset has value but it's sensitive,
+         *                   like a password)
+         * @param value      dataset value
+         * @param view       dataset presentation.
          */
         ViewItem(@NonNull Dataset dataset, @Nullable Pattern filter, boolean filterable,
                 @Nullable String value, @NonNull View view) {

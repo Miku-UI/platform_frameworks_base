@@ -16,38 +16,35 @@
 package com.android.systemui.statusbar.notification.stack
 
 import android.annotation.ColorInt
+import android.annotation.MainThread
 import android.util.Log
 import android.view.View
 import com.android.internal.annotations.VisibleForTesting
+import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.media.controls.ui.controller.KeyguardMediaController
+import com.android.systemui.notifications.intelligence.rules.shared.NmContextualDisplayLaunch
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.statusbar.notification.SourceType
-import com.android.systemui.statusbar.notification.collection.NotificationClassificationFlag
+import com.android.systemui.statusbar.notification.SourceType.Companion.from
 import com.android.systemui.statusbar.notification.collection.render.MediaContainerController
 import com.android.systemui.statusbar.notification.collection.render.SectionHeaderController
 import com.android.systemui.statusbar.notification.dagger.AlertingHeader
+import com.android.systemui.statusbar.notification.dagger.HighlightsHeader
 import com.android.systemui.statusbar.notification.dagger.IncomingHeader
-import com.android.systemui.statusbar.notification.dagger.NewsHeader
 import com.android.systemui.statusbar.notification.dagger.PeopleHeader
-import com.android.systemui.statusbar.notification.dagger.PromoHeader
-import com.android.systemui.statusbar.notification.dagger.RecsHeader
 import com.android.systemui.statusbar.notification.dagger.SilentHeader
-import com.android.systemui.statusbar.notification.dagger.SocialHeader
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notification.row.ExpandableView
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
-import com.android.systemui.statusbar.notification.shared.NotificationSummarizationOnboardingUi
+import com.android.systemui.statusbar.notification.shared.NmContextualDisplay
 import com.android.systemui.statusbar.notification.stack.StackScrollAlgorithm.SectionProvider
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.util.foldToSparseArray
 import javax.inject.Inject
 
-/**
- * Manages section headers in the NSSL.
- *
- * TODO: Move remaining sections logic from NSSL into this class.
- */
+/** Manages section headers in the NSSL. */
+@MainThread
+@SysUISingleton
 class NotificationSectionsManager
 @Inject
 internal constructor(
@@ -59,12 +56,15 @@ internal constructor(
     @PeopleHeader private val peopleHeaderController: SectionHeaderController,
     @AlertingHeader private val alertingHeaderController: SectionHeaderController,
     @SilentHeader private val silentHeaderController: SectionHeaderController,
-    @NewsHeader private val newsHeaderController: SectionHeaderController,
-    @SocialHeader private val socialHeaderController: SectionHeaderController,
-    @RecsHeader private val recsHeaderController: SectionHeaderController,
-    @PromoHeader private val promoHeaderController: SectionHeaderController,
+    @HighlightsHeader private val highlightsHeaderController: SectionHeaderController,
 ) : SectionProvider {
 
+    private val groupingDisabledBuckets =
+        buildSet<Int> {
+            if (android.app.Flags.richOngoingImprovements()) {
+                add(BUCKET_FOREGROUND_SERVICE)
+            }
+        }
     private val configurationListener =
         object : ConfigurationController.ConfigurationListener {
             override fun onLocaleListChanged() {
@@ -74,6 +74,8 @@ internal constructor(
 
     private lateinit var parent: NotificationStackScrollLayout
     private var initialized = false
+
+    private lateinit var sections: MutableList<NotificationSection>
 
     @VisibleForTesting
     val silentHeaderView: SectionHeaderView?
@@ -96,32 +98,24 @@ internal constructor(
         get() = mediaContainerController.mediaContainerView
 
     @VisibleForTesting
-    val newsHeaderView: SectionHeaderView?
-        get() = newsHeaderController.headerView
-
-    @VisibleForTesting
-    val socialHeaderView: SectionHeaderView?
-        get() = socialHeaderController.headerView
-
-    @VisibleForTesting
-    val recsHeaderView: SectionHeaderView?
-        get() = recsHeaderController.headerView
-
-    @VisibleForTesting
-    val promoHeaderView: SectionHeaderView?
-        get() = promoHeaderController.headerView
+    val highlightsHeaderView: SectionHeaderView?
+        get() = highlightsHeaderController.headerView
 
     /** Must be called before use. */
     fun initialize(parent: NotificationStackScrollLayout) {
         check(!initialized) { "NotificationSectionsManager already initialized" }
+
+        createSectionsForBuckets()
+
         initialized = true
         this.parent = parent
         reinflateViews()
         configurationController.addCallback(configurationListener)
     }
 
-    fun createSectionsForBuckets(): Array<NotificationSection> =
-        PriorityBucket.getAllInOrder().map { NotificationSection(it) }.toTypedArray()
+    fun createSectionsForBuckets() {
+        sections = PriorityBucket.getAllInOrder().map { NotificationSection(it) }.toMutableList()
+    }
 
     /** Reinflates the entire notification header, including all decoration views. */
     fun reinflateViews() {
@@ -133,12 +127,13 @@ internal constructor(
         if (!SceneContainerFlag.isEnabled) {
             keyguardMediaController.attachSinglePaneContainer(mediaControlsView)
         }
-        if (NotificationClassificationFlag.isEnabled) {
-            newsHeaderController.reinflateView(parent)
-            socialHeaderController.reinflateView(parent)
-            recsHeaderController.reinflateView(parent)
-            promoHeaderController.reinflateView(parent)
+        if (NmContextualDisplayLaunch.isEnabled) {
+            highlightsHeaderController.reinflateView(parent)
         }
+    }
+
+    override fun isGroupingDisabled(view: View): Boolean {
+        return getBucket(view) in groupingDisabledBuckets
     }
 
     override fun beginsSection(view: View, previous: View?): Boolean =
@@ -147,16 +142,11 @@ internal constructor(
             view === peopleHeaderView ||
             view === alertingHeaderView ||
             view === incomingHeaderView ||
-            (NotificationClassificationFlag.isEnabled &&
-                (view === newsHeaderView ||
-                    view === socialHeaderView ||
-                    view === recsHeaderView ||
-                    view === promoHeaderView)) ||
+            (NmContextualDisplayLaunch.isEnabled && view === highlightsHeaderView) ||
             getBucket(view) != getBucket(previous)) &&
             // don't consider the first notification after onboarding to be a new section, so that
             // the onboarding affordance remains close to the notification
-            !(NotificationSummarizationOnboardingUi.isEnabled &&
-                previous is OnboardingAffordanceView)
+            previous !is OnboardingAffordanceView
 
     private fun getBucket(view: View?): Int? =
         when {
@@ -165,13 +155,8 @@ internal constructor(
             view === mediaControlsView -> BUCKET_MEDIA_CONTROLS
             view === peopleHeaderView -> BUCKET_PEOPLE
             view === alertingHeaderView -> BUCKET_ALERTING
-            view === newsHeaderView -> BUCKET_NEWS
-            view === socialHeaderView -> BUCKET_SOCIAL
-            view === recsHeaderView -> BUCKET_RECS
-            view === promoHeaderView -> BUCKET_PROMO
-            view is ExpandableNotificationRow ->
-                if (NotificationBundleUi.isEnabled) view.entryAdapter?.sectionBucket
-                else view.entryLegacy.bucket
+            view === highlightsHeaderView -> BUCKET_HIGHLIGHTS
+            view is ExpandableNotificationRow -> view.entryAdapter?.sectionBucket
             else -> null
         }
 
@@ -212,10 +197,7 @@ internal constructor(
      *
      * @return `true` If the last view in the top section changed (so we need to animate).
      */
-    fun updateFirstAndLastViewsForAllSections(
-        sections: Array<NotificationSection>,
-        children: List<ExpandableView>,
-    ): Boolean {
+    fun updateFirstAndLastViewsForAllSections(children: List<ExpandableView>): Boolean {
         // Create mapping of bucket to section
         val sectionBounds =
             children
@@ -273,13 +255,91 @@ internal constructor(
             noMoreLastChild.requestBottomRoundness(0f, SECTION)
         }
 
+        if (android.app.Flags.richOngoingImprovements() || NmContextualDisplay.isEnabled) {
+            for ((index, child) in children.withIndex()) {
+                if (child is ExpandableNotificationRow) {
+                    if (android.app.Flags.richOngoingImprovements()) {
+                        if (isGroupingDisabled(child)) {
+                            child.requestRoundness(1f, 1f, GROUPING_DISABLED_SECTION)
+                        } else {
+                            child.requestRoundness(0f, 0f, GROUPING_DISABLED_SECTION)
+                        }
+                    }
+                    if (NmContextualDisplay.isEnabled) {
+                        if (child.entryAdapter.isBundle) {
+                            child.requestRoundness(1f, 1f, BUNDLE)
+                        }
+                    }
+
+                    val previousIndex = index - 1
+                    val nextIndex = index + 1
+
+                    if (previousIndex >= 0) {
+                        if (
+                            hasIntrinsicTopRoundness(child) &&
+                                children[previousIndex] is ExpandableNotificationRow &&
+                                isInSameSection(
+                                    child,
+                                    children[previousIndex] as ExpandableNotificationRow,
+                                )
+                        ) {
+                            children[previousIndex].requestBottomRoundness(1f, FOLLOWING)
+                        } else {
+                            children[previousIndex].requestBottomRoundness(0f, FOLLOWING)
+                        }
+                    }
+                    if (nextIndex < children.size) {
+                        if (
+                            hasIntrinsicBottomRoundness(child) &&
+                                children[nextIndex] is ExpandableNotificationRow &&
+                                isInSameSection(
+                                    child,
+                                    children[nextIndex] as ExpandableNotificationRow,
+                                )
+                        ) {
+                            children[nextIndex].requestTopRoundness(1f, PREVIOUS)
+                        } else {
+                            children[nextIndex].requestTopRoundness(0f, PREVIOUS)
+                        }
+                    }
+                }
+            }
+        }
+
         if (DEBUG) {
             logSections(sections)
         }
         return changed
     }
 
-    private fun logSections(sections: Array<NotificationSection>) {
+    /**
+     * Whether the top of the view is rounded due to state internal to the view rather than being
+     * rounded just because a neighbor is rounded
+     */
+    @VisibleForTesting
+    fun hasIntrinsicTopRoundness(view: ExpandableView): Boolean {
+        return view.getTopRoundnessSources().contains(BUNDLE) ||
+            view.getTopRoundnessSources().contains(GROUPING_DISABLED_SECTION)
+    }
+
+    fun isInSameSection(
+        view: ExpandableNotificationRow,
+        view2: ExpandableNotificationRow,
+    ): Boolean {
+        return view.entryAdapter.sectionBucket == view2.entryAdapter.sectionBucket
+    }
+
+    /**
+     * Whether the bottom of the view is rounded due to state internal to the view rather than being
+     * rounded just because a neighbor is rounded
+     */
+    @VisibleForTesting
+    fun hasIntrinsicBottomRoundness(view: ExpandableView): Boolean {
+        return view.getBottomRoundnessSources().contains(BUNDLE) ||
+            view.getBottomRoundnessSources().contains(GROUPING_DISABLED_SECTION)
+    }
+
+    private fun logSections(sections: List<NotificationSection>) {
         for (i in sections.indices) {
             val s = sections[i]
             val fs =
@@ -303,17 +363,37 @@ internal constructor(
         peopleHeaderView?.setForegroundColors(onSurface, onSurfaceVariant)
         silentHeaderView?.setForegroundColors(onSurface, onSurfaceVariant)
         alertingHeaderView?.setForegroundColors(onSurface, onSurfaceVariant)
-        if (NotificationClassificationFlag.isEnabled) {
-            newsHeaderView?.setForegroundColors(onSurface, onSurfaceVariant)
-            socialHeaderView?.setForegroundColors(onSurface, onSurfaceVariant)
-            recsHeaderView?.setForegroundColors(onSurface, onSurfaceVariant)
-            promoHeaderView?.setForegroundColors(onSurface, onSurfaceVariant)
+        if (NmContextualDisplayLaunch.isEnabled) {
+            highlightsHeaderView?.setForegroundColors(onSurface, onSurfaceVariant)
         }
+    }
+
+    fun getFirstVisibleSection(): NotificationSection? {
+        for (section in sections) {
+            if (section.getFirstVisibleChild() != null) {
+                return section
+            }
+        }
+        return null
+    }
+
+    fun getLastVisibleSection(): NotificationSection? {
+        for (i in sections.indices.reversed()) {
+            val section: NotificationSection = sections[i]
+            if (section.getLastVisibleChild() != null) {
+                return section
+            }
+        }
+        return null
     }
 
     companion object {
         private const val TAG = "NotifSectionsManager"
         private const val DEBUG = false
-        private val SECTION = SourceType.from("Section")
+        val SECTION = SourceType.from("Section")
+        val GROUPING_DISABLED_SECTION = SourceType.from("Grouping Disabled Section")
+        val BUNDLE = SourceType.from("Bundle")
+        val PREVIOUS: SourceType = from("Previous view bottom rounded")
+        val FOLLOWING: SourceType = from("Following view top rounded")
     }
 }

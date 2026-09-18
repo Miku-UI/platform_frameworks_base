@@ -24,40 +24,26 @@ package android.app.time;
  */
 public final class LocationTimeZoneManager {
 
-    /**
-     * The name of the primary location time zone provider, used for shell commands.
-     */
+    /** The name of the primary location time zone provider, used for shell commands. */
     public static final String PRIMARY_PROVIDER_NAME = "primary";
 
-    /**
-     * The name of the secondary location time zone provider, used for shell commands.
-     */
+    /** The name of the secondary location time zone provider, used for shell commands. */
     public static final String SECONDARY_PROVIDER_NAME = "secondary";
 
-    /**
-     * The name of the service for shell commands
-     */
+    /** The name of the service for shell commands */
     public static final String SERVICE_NAME = "location_time_zone_manager";
 
-    /**
-     * A shell command that starts the service (after stop).
-     */
+    /** A shell command that starts the service (after stop). */
     public static final String SHELL_COMMAND_START = "start";
 
-    /**
-     * A shell command that stops the service.
-     */
+    /** A shell command that stops the service. */
     public static final String SHELL_COMMAND_STOP = "stop";
 
-    /**
-     * A shell command that clears recorded provider state information during tests.
-     */
+    /** A shell command that clears recorded provider state information during tests. */
     public static final String SHELL_COMMAND_CLEAR_RECORDED_PROVIDER_STATES =
             "clear_recorded_provider_states";
 
-    /**
-     * A shell command that tells the service to dump its current state.
-     */
+    /** A shell command that tells the service to dump its current state. */
     public static final String SHELL_COMMAND_DUMP_STATE = "dump_state";
 
     /**

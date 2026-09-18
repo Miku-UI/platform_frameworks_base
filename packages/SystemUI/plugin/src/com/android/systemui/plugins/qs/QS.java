@@ -15,7 +15,6 @@
 package com.android.systemui.plugins.qs;
 
 import android.graphics.Rect;
-import android.view.View;
 
 import androidx.annotation.FloatRange;
 
@@ -75,8 +74,6 @@ public interface QS extends FragmentBase {
      */
     void setQsExpansion(float qsExpansionFraction, float panelExpansionFraction,
             float headerTranslation, float squishinessFraction);
-    void setHeaderListening(boolean listening);
-    void notifyCustomizeChanged();
     void setContainerController(QSContainerController controller);
 
     /**
@@ -84,17 +81,6 @@ public interface QS extends FragmentBase {
      * @param action
      */
     void setCollapseExpandAction(Runnable action);
-
-    /**
-     * Returns the height difference between the QSPanel container and the QuickQSPanel container
-     */
-    int getHeightDiff();
-
-    /**
-     * Returns the header view that contains QQS. This might return null (or throw) if there's no
-     * actual header view.
-     */
-    View getHeader();
 
     /**
      * Returns the top of the header view that contains QQS wrt to the container view
@@ -128,9 +114,6 @@ public interface QS extends FragmentBase {
      * View.isShown).
      */
     boolean isHeaderShown();
-
-    default void setHasNotifications(boolean hasNotifications) {
-    }
 
     /** Sets whether the squishiness fraction should be updated on the media host. */
     default void setShouldUpdateSquishinessOnMedia(boolean shouldUpdate) {}

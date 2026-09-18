@@ -78,4 +78,8 @@ class ProjectedModeState(context: Context, val desktopState: DesktopState) {
             desktopState.isDesktopModeSupportedOnDisplay(display)
         } ?: false
     }
+
+    fun destroy() {
+        WindowManagerGlobal.getWindowManagerService()?.unregisterDisplayWindowListener(callback)
+    }
 }

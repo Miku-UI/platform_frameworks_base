@@ -325,15 +325,13 @@ class WindowMagnificationController implements View.OnTouchListener, SurfaceHold
         mAllowDiagonalScrolling = secureSettings.getIntForUser(
                 Settings.Secure.ACCESSIBILITY_ALLOW_DIAGONAL_SCROLLING, 1,
                 UserHandle.USER_CURRENT) == 1;
-        if (com.android.server.accessibility.Flags.enableMagnificationMagnifyNavBarAndIme()) {
-            mAllowMagnifyTyping = secureSettings.getIntForUser(
-                    Settings.Secure.ACCESSIBILITY_MAGNIFICATION_FOLLOW_TYPING_ENABLED, 1,
-                    UserHandle.USER_CURRENT) == 1;
-            mAllowMagnifyKeyboard = secureSettings.getIntForUser(
-                    Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MAGNIFY_NAV_AND_IME,
-                    AccessibilityUtils.getMagnificationMagnifyKeyboardDefaultValue(mContext),
-                    UserHandle.USER_CURRENT) == 1;
-        }
+        mAllowMagnifyTyping = secureSettings.getIntForUser(
+                Settings.Secure.ACCESSIBILITY_MAGNIFICATION_FOLLOW_TYPING_ENABLED, 1,
+                UserHandle.USER_CURRENT) == 1;
+        mAllowMagnifyKeyboard = secureSettings.getIntForUser(
+                Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MAGNIFY_NAV_AND_IME,
+                AccessibilityUtils.getMagnificationMagnifyKeyboardDefaultValue(mContext),
+                UserHandle.USER_CURRENT) == 1;
 
         setupMagnificationSizeScaleOptions();
 
@@ -510,9 +508,7 @@ class WindowMagnificationController implements View.OnTouchListener, SurfaceHold
             return;
         }
 
-        if (Flags.updateWindowMagnifierBottomBoundaryWithMouse()) {
-            mInputManager.unregisterInputDeviceListener(mInputDeviceListener);
-        }
+        mInputManager.unregisterInputDeviceListener(mInputDeviceListener);
 
         if (mMirrorSurface != null) {
             mTransaction.remove(mMirrorSurface).apply();
@@ -1310,10 +1306,8 @@ class WindowMagnificationController implements View.OnTouchListener, SurfaceHold
             showControls();
             applyResourcesValues();
 
-            if (Flags.updateWindowMagnifierBottomBoundaryWithMouse()) {
-                mInputManager.registerInputDeviceListener(mInputDeviceListener, mHandler);
-                mInputDeviceListener.onInputDeviceChanged(-1);
-            }
+            mInputManager.registerInputDeviceListener(mInputDeviceListener, mHandler);
+            mInputDeviceListener.onInputDeviceChanged(-1);
         } else {
             modifyWindowMagnification(false);
         }
@@ -1674,8 +1668,7 @@ class WindowMagnificationController implements View.OnTouchListener, SurfaceHold
     }
 
     private boolean canOverlapWithBottomGestureInsets() {
-        return Flags.updateWindowMagnifierBottomBoundaryWithMouse()
-                && mIsMouseOrKeyboardConnected;
+        return mIsMouseOrKeyboardConnected;
     }
 
     public void dump(PrintWriter pw) {

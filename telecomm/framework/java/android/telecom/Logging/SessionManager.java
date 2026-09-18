@@ -17,6 +17,7 @@
 package android.telecom.Logging;
 
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.os.Handler;
@@ -460,10 +461,10 @@ public class SessionManager {
      * Returns the amount of time after a Logging session has been started that Telecom is set to
      * perform a sweep to check and make sure that the session is still not incomplete (stale).
      */
+    @SuppressLint("NonUserGetterCalled")
     private long getCleanupTimeout(Context context) {
         final ContentResolver cr = context.getContentResolver();
-        return Settings.Secure.getLongForUser(cr, TIMEOUTS_PREFIX
-                        + "stale_session_cleanup_timeout_millis", DEFAULT_SESSION_TIMEOUT_MS,
-                cr.getUserId());
+        return Settings.Secure.getLong(cr, TIMEOUTS_PREFIX
+                        + "stale_session_cleanup_timeout_millis", DEFAULT_SESSION_TIMEOUT_MS);
     }
 }

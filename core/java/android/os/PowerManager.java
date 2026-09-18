@@ -23,7 +23,6 @@ import static com.android.server.power.feature.flags.Flags.FLAG_SHUTDOWN_SYSTEM_
 
 import android.Manifest.permission;
 import android.annotation.CallbackExecutor;
-import android.annotation.CurrentTimeMillisLong;
 import android.annotation.FlaggedApi;
 import android.annotation.FloatRange;
 import android.annotation.IntDef;
@@ -37,6 +36,8 @@ import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
 import android.app.PropertyInvalidatedCache;
+import android.companion.virtual.VirtualDeviceManager;
+import android.companion.virtual.VirtualDeviceParams;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.service.dreams.Sandman;
@@ -48,6 +49,7 @@ import android.view.Display;
 
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.Preconditions;
 
 import java.lang.annotation.ElementType;
@@ -64,7 +66,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This class lets you query and request control of aspects of the device's power state.
@@ -451,6 +452,14 @@ public final class PowerManager {
     @Retention(RetentionPolicy.SOURCE)
     @FlaggedApi(Flags.FLAG_LOW_LIGHT_DREAM_BEHAVIOR)
     public @interface FlagAmbientSuppression{}
+
+    /** @hide */
+    @IntDef(flag = true, prefix = {"USER_ACTIVITY_FLAG_"}, value = {
+            USER_ACTIVITY_FLAG_INDIRECT,
+            USER_ACTIVITY_FLAG_NO_CHANGE_LIGHTS,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface UserActivityFlag{}
 
     /**
      *
@@ -1315,8 +1324,9 @@ public final class PowerManager {
     final Handler mHandler;
     final IThermalService mThermalService;
 
-    /** We lazily initialize it.*/
+    /** We lazily initialize them.*/
     private PowerExemptionManager mPowerExemptionManager;
+    private VirtualDeviceManager mVirtualDeviceManager;
 
     @GuardedBy("mThermalStatusListenerMap")
     private final ArrayMap<OnThermalStatusChangedListener, IThermalStatusListener>
@@ -1595,7 +1605,7 @@ public final class PowerManager {
             android.Manifest.permission.DEVICE_POWER,
             android.Manifest.permission.USER_ACTIVITY
     })
-    public void userActivity(long when, int event, int flags) {
+    public void userActivity(long when, @UserActivityEvent int event, @UserActivityFlag int flags) {
         try {
             mService.userActivity(mContext.getDisplayId(), when, event, flags);
         } catch (RemoteException e) {
@@ -2114,7 +2124,7 @@ public final class PowerManager {
      * @hide
      */
     @FlaggedApi(FLAG_PARTIAL_SLEEP_WAKELOCKS)
-    @SystemApi
+    @TestApi
     @NonNull
     @RequiresPermission(permission.ACQUIRE_SLEEP_LOCK)
     public SleepLock newSleepLock(int displayId, @NonNull String tag) throws RuntimeException {
@@ -2145,7 +2155,7 @@ public final class PowerManager {
      * @hide
      */
     @FlaggedApi(FLAG_PARTIAL_SLEEP_WAKELOCKS)
-    @SystemApi
+    @TestApi
     @SuppressLint("NotCloseable")
     public final class SleepLock {
         private static final int SLEEP_LOCK = PowerManager.PARTIAL_SLEEP_WAKE_LOCK;
@@ -2172,6 +2182,7 @@ public final class PowerManager {
             mDefaultTimeoutMillis = mContext.getResources().getInteger(
                     R.integer.config_maximumPartialSleepWakeLockDuration);
             mWakelock = new WakeLock(SLEEP_LOCK, mTag, mContext.getOpPackageName(), mDisplayId);
+            mWakelock.setReferenceCounted(false);
         }
 
         /**
@@ -2208,6 +2219,7 @@ public final class PowerManager {
          *
          * @return {@code true} if the lock is held, {@code false} otherwise.
          */
+        @VisibleForTesting
         public boolean isHeld() {
             return mWakelock.isHeld();
         }
@@ -2971,6 +2983,12 @@ public final class PowerManager {
     }
 
     /**
+     * Invalid thermal status.
+     * @hide
+     */
+    public static final int THERMAL_STATUS_INVALID = -1;
+
+    /**
      * Thermal status code: Not under throttling.
      */
     public static final int THERMAL_STATUS_NONE = Temperature.THROTTLING_NONE;
@@ -3009,6 +3027,7 @@ public final class PowerManager {
     /** @hide */
     @Target(ElementType.TYPE_USE)
     @IntDef(prefix = { "THERMAL_STATUS_" }, value = {
+            THERMAL_STATUS_INVALID,
             THERMAL_STATUS_NONE,
             THERMAL_STATUS_LIGHT,
             THERMAL_STATUS_MODERATE,
@@ -3028,7 +3047,11 @@ public final class PowerManager {
      */
     public @ThermalStatus int getCurrentThermalStatus() {
         try {
-            return mThermalService.getCurrentThermalStatus();
+            if (hasCustomDeviceThermalPolicy()) {
+                return mThermalService.getCurrentThermalStatusForDevice(mContext.getDeviceId());
+            } else {
+                return mThermalService.getCurrentThermalStatus();
+            }
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -3130,7 +3153,14 @@ public final class PowerManager {
                 }
             };
             try {
-                if (mThermalService.registerThermalStatusListener(internalListener)) {
+                final boolean success;
+                if (hasCustomDeviceThermalPolicy()) {
+                    success = mThermalService.registerThermalStatusListenerForDevice(
+                            mContext.getDeviceId(), internalListener);
+                } else {
+                    success = mThermalService.registerThermalStatusListener(internalListener);
+                }
+                if (success) {
                     mThermalStatusListenerMap.put(listener, internalListener);
                 } else {
                     throw new RuntimeException("Thermal status listener failed to set");
@@ -3187,6 +3217,10 @@ public final class PowerManager {
             @NonNull OnThermalHeadroomChangedListener listener) {
         Objects.requireNonNull(listener, "Thermal headroom listener cannot be null");
         Objects.requireNonNull(executor, "Executor cannot be null");
+        if (hasCustomDeviceThermalPolicy()) {
+            throw new UnsupportedOperationException(
+                    "Thermal headroom API not enabled for this device");
+        }
         synchronized (mThermalHeadroomListenerMap) {
             Preconditions.checkArgument(!mThermalHeadroomListenerMap.containsKey(listener),
                     "Thermal headroom listener already registered: %s", listener);
@@ -3241,10 +3275,21 @@ public final class PowerManager {
         }
     }
 
-
-    @CurrentTimeMillisLong
-    private final AtomicLong mLastHeadroomUpdate = new AtomicLong(0L);
-    private static final int MINIMUM_HEADROOM_TIME_MILLIS = 500;
+    private boolean hasCustomDeviceThermalPolicy() {
+        if (!android.companion.virtualdevice.flags.Flags.deviceAwareThermalStatus()) {
+            return false;
+        }
+        if (mContext.getDeviceId() == Context.DEVICE_ID_DEFAULT) {
+            return false;
+        }
+        if (mVirtualDeviceManager == null) {
+            mVirtualDeviceManager = mContext.getSystemService(VirtualDeviceManager.class);
+        }
+        return mVirtualDeviceManager != null
+                && mVirtualDeviceManager.getDevicePolicy(
+                        mContext.getDeviceId(), VirtualDeviceParams.POLICY_TYPE_THERMAL)
+                == VirtualDeviceParams.DEVICE_POLICY_CUSTOM;
+    }
 
     /**
      * Provides an estimate of how much thermal headroom the device currently has before hitting
@@ -3278,21 +3323,15 @@ public final class PowerManager {
      *                        future will likely be less accurate than forecasts in the near future.
      * @return a value greater than or equal to 0.0 where 1.0 indicates the SEVERE throttling
      *         threshold, as described above. Returns NaN if the device does not support this
-     *         functionality or if this function is called significantly faster than once per
-     *         second.
+     *         functionality.
      */
     public @FloatRange(from = 0f) float getThermalHeadroom(
             @IntRange(from = 0, to = 60) int forecastSeconds) {
-        // Rate-limit calls into the thermal service
-        long now = SystemClock.elapsedRealtime();
-        long timeSinceLastUpdate = now - mLastHeadroomUpdate.get();
-        if (timeSinceLastUpdate < MINIMUM_HEADROOM_TIME_MILLIS) {
+        if (hasCustomDeviceThermalPolicy()) {
             return Float.NaN;
         }
-
         try {
             float forecast = mThermalService.getThermalHeadroom(forecastSeconds);
-            mLastHeadroomUpdate.set(SystemClock.elapsedRealtime());
             return forecast;
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
@@ -3339,6 +3378,10 @@ public final class PowerManager {
      */
     @FlaggedApi(Flags.FLAG_ALLOW_THERMAL_HEADROOM_THRESHOLDS)
     public @NonNull Map<@ThermalStatus Integer, Float> getThermalHeadroomThresholds() {
+        if (hasCustomDeviceThermalPolicy()) {
+            throw new UnsupportedOperationException(
+                    "Thermal headroom API not enabled for this device");
+        }
         try {
             return convertThresholdsToMap(mThermalService.getThermalHeadroomThresholds());
         } catch (RemoteException e) {

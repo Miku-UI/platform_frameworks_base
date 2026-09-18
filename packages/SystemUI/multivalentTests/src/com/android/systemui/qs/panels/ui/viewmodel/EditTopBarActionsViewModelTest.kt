@@ -39,19 +39,30 @@ import org.mockito.kotlin.verify
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class EditTopBarActionsViewModelTest : SysuiTestCase() {
+
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private val Kosmos.underTest by Kosmos.Fixture { editTopBarActionsViewModelFactory.create() }
 
     @Test
     @DisableSceneContainer
     fun sceneContainerDisabled_baseActionsEmpty() =
-        kosmos.runTest { assertThat(underTest.actions).isEmpty() }
+        kosmos.runTest { assertThat(underTest.actions(showDualShadeSetting = false)).isEmpty() }
+
+    @Test
+    @DisableSceneContainer
+    fun sceneContainerDisabled_dualShadeOn_baseActionsEmpty() =
+        kosmos.runTest { assertThat(underTest.actions(showDualShadeSetting = true)).isEmpty() }
+
+    @Test
+    @EnableSceneContainer
+    fun sceneContainerEnabled_dualShadeOff_baseActionsEmpty() =
+        kosmos.runTest { assertThat(underTest.actions(showDualShadeSetting = false)).isEmpty() }
 
     @Test
     @EnableSceneContainer
     fun sceneContainerEnabled_baseActionsHasSettings() =
         kosmos.runTest {
-            val settingsAction = underTest.actions.single()
+            val settingsAction = underTest.actions(showDualShadeSetting = true).single()
 
             assertThat(settingsAction.icon).isEqualTo(Settings)
             assertThat(settingsAction.labelId).isEqualTo(R.string.qs_edit_settings)

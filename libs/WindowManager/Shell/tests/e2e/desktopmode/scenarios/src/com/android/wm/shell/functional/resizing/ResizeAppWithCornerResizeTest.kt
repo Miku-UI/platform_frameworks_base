@@ -17,7 +17,6 @@
 package com.android.wm.shell.functional.resizing
 
 import android.platform.test.annotations.Presubmit
-import android.platform.test.annotations.RequiresDesktopDevice
 import android.platform.test.rule.ScreenRecordRule
 import com.android.wm.shell.scenarios.ResizeAppWithCornerResize
 import org.junit.runner.RunWith
@@ -25,7 +24,6 @@ import org.junit.runners.BlockJUnit4ClassRunner
 
 /* Functional test for [ResizeAppWithCornerResize]. */
 @RunWith(BlockJUnit4ClassRunner::class)
-@RequiresDesktopDevice
 @Presubmit
 @ScreenRecordRule.ScreenRecord
 class ResizeAppWithCornerResizeTest : ResizeAppWithCornerResize()

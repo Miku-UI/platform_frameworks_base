@@ -26,9 +26,11 @@ import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.screencapture.common.data.repository.fakeScreenCaptureAppContentRepository
 import com.android.systemui.screencapture.common.domain.model.ScreenCaptureAppContent
-import com.android.systemui.screencapture.common.shared.model.castScreenCaptureUiParameters
+import com.android.systemui.screencapture.common.repository.FakeAppContentProjectionCallback
+import com.android.systemui.screencapture.common.shared.model.ScreenCaptureUiParameters
 import com.android.systemui.testKosmosNew
 import com.google.common.truth.Truth.assertThat
+import java.lang.ref.WeakReference
 import kotlinx.coroutines.launch
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,17 +43,15 @@ class ScreenCaptureAppContentInteractorTest : SysuiTestCase() {
 
     private val fakeUserHandle = UserHandle.of(123)
     private val fakeMediaProjectionAppContent1 =
-        MediaProjectionAppContent(
-            /* thumbnail= */ createBitmap(100, 100),
-            /* title= */ "FakeTitle1",
-            /* id= */ 456,
-        )
+        MediaProjectionAppContent.Builder(456)
+            .setTitle("FakeTitle1")
+            .setThumbnail(createBitmap(100, 100))
+            .build()
     private val fakeMediaProjectionAppContent2 =
-        MediaProjectionAppContent(
-            /* thumbnail= */ createBitmap(200, 200),
-            /* title= */ "FakeTitle2",
-            /* id= */ 789,
-        )
+        MediaProjectionAppContent.Builder(789)
+            .setTitle("FakeTitle2")
+            .setThumbnail(createBitmap(200, 200))
+            .build()
     private val fakeThrowable = IllegalStateException("FakeMessage")
 
     @Test
@@ -62,18 +62,20 @@ class ScreenCaptureAppContentInteractorTest : SysuiTestCase() {
                 ScreenCaptureAppContentInteractor(
                     repository = fakeScreenCaptureAppContentRepository,
                     parameters =
-                        castScreenCaptureUiParameters.copy(hostAppUserHandle = fakeUserHandle),
+                        ScreenCaptureUiParameters.ShareScreen(hostAppUserHandle = fakeUserHandle),
                 )
-            var result: Result<List<ScreenCaptureAppContent>>? = null
+            var result: Result<SingleAppContent>? = null
 
             // Act
-            val appContents = interactor.appContentsFor("FakePackage", 200, 150)
+            val appContents = interactor.appContentsFor("FakePackage", 200, 150, 50)
             val job = testScope.launch { appContents.collect { result = it } }
             assertThat(result).isNull()
+            val fakeCallback = FakeAppContentProjectionCallback(context)
             fakeScreenCaptureAppContentRepository.setAppContentSuccess(
                 packageName = "FakePackage",
                 user = fakeUserHandle,
-                fakeMediaProjectionAppContent1,
+                listOf(fakeMediaProjectionAppContent1),
+                WeakReference(fakeCallback),
             )
 
             // Assert
@@ -83,12 +85,15 @@ class ScreenCaptureAppContentInteractorTest : SysuiTestCase() {
                 assertThat(user).isEqualTo(fakeUserHandle)
                 assertThat(thumbnailWidthPx).isEqualTo(200)
                 assertThat(thumbnailHeightPx).isEqualTo(150)
+                assertThat(iconSizePx).isEqualTo(50)
             }
             assertThat(result?.isSuccess).isTrue()
-            assertThat(result?.getOrNull())
+            val (appContentList, callback) = result?.getOrNull()!!
+            assertThat(appContentList)
                 .containsExactly(
                     ScreenCaptureAppContent("FakePackage", fakeMediaProjectionAppContent1)
                 )
+            assertThat(callback).isNotNull()
 
             // Cleanup
             job.cancel()
@@ -102,12 +107,12 @@ class ScreenCaptureAppContentInteractorTest : SysuiTestCase() {
                 ScreenCaptureAppContentInteractor(
                     repository = fakeScreenCaptureAppContentRepository,
                     parameters =
-                        castScreenCaptureUiParameters.copy(hostAppUserHandle = fakeUserHandle),
+                        ScreenCaptureUiParameters.ShareScreen(hostAppUserHandle = fakeUserHandle),
                 )
-            var result: Result<List<ScreenCaptureAppContent>>? = null
+            var result: Result<SingleAppContent>? = null
 
             // Act
-            val appContents = interactor.appContentsFor("FakePackage", 200, 150)
+            val appContents = interactor.appContentsFor("FakePackage", 200, 150, 50)
             val job = testScope.launch { appContents.collect { result = it } }
             assertThat(result).isNull()
             fakeScreenCaptureAppContentRepository.setAppContentFailure(
@@ -123,69 +128,10 @@ class ScreenCaptureAppContentInteractorTest : SysuiTestCase() {
                 assertThat(user).isEqualTo(fakeUserHandle)
                 assertThat(thumbnailWidthPx).isEqualTo(200)
                 assertThat(thumbnailHeightPx).isEqualTo(150)
+                assertThat(iconSizePx).isEqualTo(50)
             }
             assertThat(result?.isFailure).isTrue()
             assertThat(result?.exceptionOrNull()).isSameInstanceAs(fakeThrowable)
-
-            // Cleanup
-            job.cancel()
-        }
-
-    @Test
-    fun appContentsFor_multiplePackages_propagatesOnlySuccessfulFetches() =
-        kosmos.runTest {
-            // Arrange
-            val interactor =
-                ScreenCaptureAppContentInteractor(
-                    repository = fakeScreenCaptureAppContentRepository,
-                    parameters =
-                        castScreenCaptureUiParameters.copy(hostAppUserHandle = fakeUserHandle),
-                )
-            var result: List<ScreenCaptureAppContent>? = null
-
-            // Act
-            val appContents =
-                interactor.appContentsFor(
-                    listOf("FakePackage1", "FakePackage2", "FakePackage3"),
-                    200,
-                    150,
-                )
-            val job = testScope.launch { appContents.collect { result = it } }
-            assertThat(result).isNull()
-            with(fakeScreenCaptureAppContentRepository) {
-                setAppContentSuccess(
-                    packageName = "FakePackage1",
-                    user = fakeUserHandle,
-                    fakeMediaProjectionAppContent1,
-                )
-                setAppContentFailure(
-                    packageName = "FakePackage2",
-                    user = fakeUserHandle,
-                    throwable = fakeThrowable,
-                )
-                setAppContentSuccess(
-                    packageName = "FakePackage3",
-                    user = fakeUserHandle,
-                    fakeMediaProjectionAppContent2,
-                )
-            }
-
-            // Assert
-            assertThat(fakeScreenCaptureAppContentRepository.appContentsForCalls).hasSize(3)
-            fakeScreenCaptureAppContentRepository.appContentsForCalls.forEachIndexed { index, call
-                ->
-                with(call) {
-                    assertThat(packageName).isEqualTo("FakePackage${index + 1}")
-                    assertThat(user).isEqualTo(fakeUserHandle)
-                    assertThat(thumbnailWidthPx).isEqualTo(200)
-                    assertThat(thumbnailHeightPx).isEqualTo(150)
-                }
-            }
-            assertThat(result)
-                .containsExactly(
-                    ScreenCaptureAppContent("FakePackage1", fakeMediaProjectionAppContent1),
-                    ScreenCaptureAppContent("FakePackage3", fakeMediaProjectionAppContent2),
-                )
 
             // Cleanup
             job.cancel()

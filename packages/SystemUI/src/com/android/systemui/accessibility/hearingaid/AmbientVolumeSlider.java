@@ -16,9 +16,18 @@
 
 package com.android.systemui.accessibility.hearingaid;
 
+import static android.bluetooth.AudioInputControl.MUTE_DISABLED;
+import static android.bluetooth.AudioInputControl.MUTE_MUTED;
+import static android.bluetooth.AudioInputControl.MUTE_NOT_MUTED;
+
+import static com.android.settingslib.bluetooth.hearingdevices.ui.AmbientVolumeUi.AMBIENT_VOLUME_LEVEL_NUMBER;
+
 import android.content.Context;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -40,35 +49,13 @@ public class AmbientVolumeSlider extends LinearLayout {
 
     private final TextView mTitle;
     private final Slider mSlider;
+    private final ViewGroup mMuteIconFrame;
+    private final ImageView mMuteIcon;
     private final List<OnChangeListener> mChangeListeners = new ArrayList<>();
-    private final Slider.OnSliderTouchListener mSliderTouchListener =
-            new Slider.OnSliderTouchListener() {
-                @Override
-                public void onStartTrackingTouch(@NonNull Slider slider) {
-                    mTrackingTouch = true;
-                }
 
-                @Override
-                public void onStopTrackingTouch(@NonNull Slider slider) {
-                    mTrackingTouch = false;
-                    final int value = Math.round(slider.getValue());
-                    for (OnChangeListener listener : mChangeListeners) {
-                        listener.onValueChange(AmbientVolumeSlider.this, value);
-                    }
-                }
-            };
-    private final Slider.OnChangeListener mSliderChangeListener = new Slider.OnChangeListener() {
-        @Override
-        public void onValueChange(@NonNull Slider slider, float value, boolean fromUser) {
-            if (fromUser && !mTrackingTouch) {
-                final int roundedValue = Math.round(value);
-                for (OnChangeListener listener : mChangeListeners) {
-                    listener.onValueChange(AmbientVolumeSlider.this, roundedValue);
-                }
-            }
-        }
-    };
     private boolean mTrackingTouch = false;
+    private int mMuteState = MUTE_NOT_MUTED;
+
 
     public AmbientVolumeSlider(@Nullable Context context) {
         this(context, /* attrs= */ null);
@@ -90,13 +77,42 @@ public class AmbientVolumeSlider extends LinearLayout {
         inflate(context, R.layout.hearing_device_ambient_volume_slider, /* root= */ this);
         mTitle = requireViewById(R.id.ambient_volume_slider_title);
         mSlider = requireViewById(R.id.ambient_volume_slider);
-        mSlider.addOnSliderTouchListener(mSliderTouchListener);
-        mSlider.addOnChangeListener(mSliderChangeListener);
+        Slider.OnSliderTouchListener sliderTouchListener = new Slider.OnSliderTouchListener() {
+            @Override
+            public void onStartTrackingTouch(@NonNull Slider slider) {
+                mTrackingTouch = true;
+            }
+
+            @Override
+            public void onStopTrackingTouch(@NonNull Slider slider) {
+                mTrackingTouch = false;
+                final int value = Math.round(slider.getValue());
+                for (OnChangeListener listener : mChangeListeners) {
+                    listener.onValueChange(AmbientVolumeSlider.this, value);
+                }
+            }
+        };
+        mSlider.addOnSliderTouchListener(sliderTouchListener);
+        Slider.OnChangeListener sliderChangeListener = new Slider.OnChangeListener() {
+            @Override
+            public void onValueChange(@NonNull Slider slider, float value, boolean fromUser) {
+                if (fromUser && !mTrackingTouch) {
+                    final int roundedValue = Math.round(value);
+                    for (OnChangeListener listener : mChangeListeners) {
+                        listener.onValueChange(AmbientVolumeSlider.this, roundedValue);
+                    }
+                }
+            }
+        };
+        mSlider.addOnChangeListener(sliderChangeListener);
 
         setFocusable(false);
         setClickable(false);
         mSlider.setFocusable(false);
         mSlider.setClickable(false);
+
+        mMuteIconFrame = requireViewById(R.id.mute_icon_frame);
+        mMuteIcon = requireViewById(R.id.mute_icon);
     }
 
     /**
@@ -159,11 +175,75 @@ public class AmbientVolumeSlider extends LinearLayout {
     /** Sets the enable state to the ambient volume slider. */
     public void setEnabled(boolean enabled) {
         mSlider.setEnabled(enabled);
+        if (!enabled) {
+            mSlider.setValue(mSlider.getValueFrom());
+        }
     }
 
     /** Gets the enable state of the ambient volume slider. */
     public boolean isEnabled() {
         return mSlider.isEnabled();
+    }
+
+    /**
+     * Sets a listener for the mute icon.
+     * <p>
+     * The listener is invoked *after* the internal mute state is automatically toggled
+     * between muted and unmuted. Clicks are ignored if the state is
+     * {@link android.bluetooth.AudioInputControl#MUTE_DISABLED}.
+     *
+     * @param listener The listener to call on a mute icon click.
+     */
+    public void setOnMuteIconClickListener(View.OnClickListener listener) {
+        mMuteIconFrame.setOnClickListener(v -> {
+            if (mMuteState == MUTE_DISABLED) {
+                return;
+            }
+            int newMuteState =  mMuteState == MUTE_MUTED ? MUTE_NOT_MUTED : MUTE_MUTED;
+            setMuteState(newMuteState);
+            if (listener != null) {
+                listener.onClick(v);
+            }
+        });
+    }
+
+    /**
+     * Sets the mute state and updates the UI accordingly.
+     * <p>
+     * This controls the mute icon's visibility, image, and content description. When the state
+     * is set to {@code MUTE_MUTED}, the slider value is also reset to its minimum.
+     *
+     * @param muteState The current mute state, which will be one of
+     *                  {@link android.bluetooth.AudioInputControl#MUTE_DISABLED},
+     *                  {@link android.bluetooth.AudioInputControl#MUTE_MUTED}, or
+     *                  {@link android.bluetooth.AudioInputControl#MUTE_NOT_MUTED}.
+     */
+    public void setMuteState(int muteState) {
+        mMuteState = muteState;
+        mMuteIconFrame.setVisibility(muteState == MUTE_DISABLED ? GONE : VISIBLE);
+        if (muteState == MUTE_MUTED) {
+            mSlider.setValue(mSlider.getValueFrom());
+            mMuteIcon.setImageResource(com.android.settingslib.R.drawable.ic_ambient_mute);
+            mMuteIconFrame.setContentDescription(
+                    mContext.getString(R.string.hearing_devices_ambient_unmute));
+        } else if (muteState == MUTE_NOT_MUTED) {
+            mMuteIcon.setImageResource(com.android.settingslib.R.drawable.ic_ambient_unmute);
+            mMuteIconFrame.setContentDescription(
+                    mContext.getString(R.string.hearing_devices_ambient_mute));
+        }
+    }
+
+    /**
+     * Gets the current mute state of the control.
+     *
+     * @return The current mute state, which will be one of
+     *         {@link android.bluetooth.AudioInputControl#MUTE_DISABLED},
+     *         {@link android.bluetooth.AudioInputControl#MUTE_MUTED}, or
+     *         {@link android.bluetooth.AudioInputControl#MUTE_NOT_MUTED}.
+     * @see #setMuteState(int)
+     */
+    public int getMuteState() {
+        return mMuteState;
     }
 
     /**
@@ -173,12 +253,12 @@ public class AmbientVolumeSlider extends LinearLayout {
      * volume is divided into 4 equal intervals, represented by levels 1 to 4.
      */
     public int getVolumeLevel() {
-        if (!mSlider.isEnabled()) {
+        if (!mSlider.isEnabled() || mMuteState != MUTE_NOT_MUTED) {
             return 0;
         }
         final double min = mSlider.getValueFrom();
         final double max = mSlider.getValueTo();
-        final double levelGap = (max - min) / 4.0;
+        final double levelGap = (max - min) / (double) (AMBIENT_VOLUME_LEVEL_NUMBER - 1);
         final double value = mSlider.getValue();
         return (int) Math.ceil((value - min) / levelGap);
     }

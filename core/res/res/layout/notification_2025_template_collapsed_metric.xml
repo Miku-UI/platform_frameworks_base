@@ -21,7 +21,7 @@
     android:layout_height="wrap_content"
     android:layout_weight="1"
     android:minHeight="@dimen/notification_2025_min_height"
-    android:tag="base"
+    android:tag="metric"
     >
 
     <ImageView
@@ -86,7 +86,6 @@
                 android:layout_marginEnd="@dimen/notification_2025_content_margin_end"
                 android:minHeight="@dimen/notification_2025_content_min_height"
                 android:clipChildren="false"
-                android:theme="@style/Theme.DeviceDefault.Notification"
                 >
 
                 <!--
@@ -116,14 +115,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-            >
+                >
                 <include layout="@layout/notification_2025_collapsed_metric" />
-                <include
-                    layout="@layout/notification_template_progress"
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/notification_headerless_line_height"
-                    android:layout_marginEnd="@dimen/notification_2025_margin"
-                    />
             </LinearLayout>
 
         </LinearLayout>

@@ -23,13 +23,15 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.shared.model.Icon
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.qs.tiles.base.shared.model.QSTileState
 import com.android.systemui.qs.tiles.base.ui.model.QSTileStateSubject
+import com.android.systemui.qs.tiles.impl.screenrecord.domain.model.ScreenRecordTileModel
 import com.android.systemui.qs.tiles.impl.screenrecord.domain.ui.mapper.ScreenRecordTileMapper
 import com.android.systemui.qs.tiles.impl.screenrecord.qsScreenRecordTileConfig
 import com.android.systemui.res.R
 import com.android.systemui.screenrecord.data.model.ScreenRecordModel
-import com.android.systemui.testKosmos
+import com.android.systemui.testKosmosNew
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,9 +39,8 @@ import org.junit.runner.RunWith
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class ScreenRecordTileMapperTest : SysuiTestCase() {
-    private val kosmos = testKosmos()
+    private val kosmos = testKosmosNew()
     private val config = kosmos.qsScreenRecordTileConfig
-
     private lateinit var mapper: ScreenRecordTileMapper
 
     @Before
@@ -58,7 +59,7 @@ class ScreenRecordTileMapperTest : SysuiTestCase() {
 
     @Test
     fun activeStateMatchesRecordingDataModel() {
-        val inputModel = ScreenRecordModel.Recording
+        val inputModel = ScreenRecordTileModel(ScreenRecordModel.Recording)
 
         val outputState = mapper.map(config, inputModel)
 
@@ -66,6 +67,7 @@ class ScreenRecordTileMapperTest : SysuiTestCase() {
             createScreenRecordTileState(
                 QSTileState.ActivationState.ACTIVE,
                 R.drawable.qs_screen_record_icon_on,
+                context.getString(R.string.quick_settings_screen_record_label),
                 context.getString(R.string.quick_settings_screen_record_stop),
             )
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
@@ -74,7 +76,7 @@ class ScreenRecordTileMapperTest : SysuiTestCase() {
     @Test
     fun activeStateMatchesStartingDataModel() {
         val timeLeft = 0L
-        val inputModel = ScreenRecordModel.Starting(timeLeft)
+        val inputModel = ScreenRecordTileModel(ScreenRecordModel.Starting(timeLeft))
 
         val outputState = mapper.map(config, inputModel)
 
@@ -82,6 +84,7 @@ class ScreenRecordTileMapperTest : SysuiTestCase() {
             createScreenRecordTileState(
                 QSTileState.ActivationState.ACTIVE,
                 R.drawable.qs_screen_record_icon_on,
+                context.getString(R.string.quick_settings_screen_record_label),
                 String.format("%d...", timeLeft),
             )
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
@@ -89,7 +92,7 @@ class ScreenRecordTileMapperTest : SysuiTestCase() {
 
     @Test
     fun inactiveStateMatchesDisabledDataModel() {
-        val inputModel = ScreenRecordModel.DoingNothing
+        val inputModel = ScreenRecordTileModel(ScreenRecordModel.DoingNothing)
 
         val outputState = mapper.map(config, inputModel)
 
@@ -97,18 +100,82 @@ class ScreenRecordTileMapperTest : SysuiTestCase() {
             createScreenRecordTileState(
                 QSTileState.ActivationState.INACTIVE,
                 R.drawable.qs_screen_record_icon_off,
+                context.getString(R.string.quick_settings_screen_record_label),
                 context.getString(R.string.quick_settings_screen_record_start),
             )
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
     }
 
+    @Test
+    fun activeStateAndRecording_whenLargeScreenRecordingEnabled_hasScreenCaptureLabel() =
+        kosmos.runTest {
+            val inputModel =
+                ScreenRecordTileModel(
+                    ScreenRecordModel.Recording,
+                    isLargeScreenRecordingEnabled = true,
+                )
+
+            val outputState = mapper.map(config, inputModel)
+
+            val expectedState =
+                createScreenRecordTileState(
+                    QSTileState.ActivationState.ACTIVE,
+                    R.drawable.qs_screen_record_icon_on,
+                    context.getString(R.string.quick_settings_screen_capture_label),
+                    context.getString(R.string.quick_settings_screen_record_stop),
+                )
+            QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
+        }
+
+    @Test
+    fun activeStateAndStarting_whenLargeScreenRecordingEnabled_hasScreenCaptureLabel() =
+        kosmos.runTest {
+            val timeLeft = 0L
+            val inputModel =
+                ScreenRecordTileModel(
+                    ScreenRecordModel.Starting(timeLeft),
+                    isLargeScreenRecordingEnabled = true,
+                )
+
+            val outputState = mapper.map(config, inputModel)
+
+            val expectedState =
+                createScreenRecordTileState(
+                    QSTileState.ActivationState.ACTIVE,
+                    R.drawable.qs_screen_record_icon_on,
+                    context.getString(R.string.quick_settings_screen_capture_label),
+                    String.format("%d...", timeLeft),
+                )
+            QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
+        }
+
+    @Test
+    fun inactiveState_whenLargeScreenRecordingEnabled_hasScreenCaptureLabelAndNoSecondaryLabel() =
+        kosmos.runTest {
+            val inputModel =
+                ScreenRecordTileModel(
+                    ScreenRecordModel.DoingNothing,
+                    isLargeScreenRecordingEnabled = true,
+                )
+
+            val outputState = mapper.map(config, inputModel)
+
+            val expectedState =
+                createScreenRecordTileState(
+                    QSTileState.ActivationState.INACTIVE,
+                    R.drawable.qs_screen_record_icon_off,
+                    context.getString(R.string.quick_settings_screen_capture_label),
+                    null,
+                )
+            QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
+        }
+
     private fun createScreenRecordTileState(
         activationState: QSTileState.ActivationState,
         iconRes: Int,
-        secondaryLabel: String,
+        label: String,
+        secondaryLabel: String?,
     ): QSTileState {
-        val label = context.getString(R.string.quick_settings_screen_record_label)
-
         return QSTileState(
             Icon.Loaded(context.getDrawable(iconRes)!!, null, iconRes),
             label,

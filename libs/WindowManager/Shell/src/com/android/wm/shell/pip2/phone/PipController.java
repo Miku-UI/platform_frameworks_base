@@ -35,9 +35,10 @@ import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Debug;
 import android.util.Log;
+import android.util.SparseArray;
 import android.view.DisplayCutout;
+import android.view.InsetsState;
 import android.view.SurfaceControl;
-import android.window.DesktopExperienceFlags;
 import android.window.DisplayAreaInfo;
 import android.window.WindowContainerTransaction;
 
@@ -68,6 +69,7 @@ import com.android.wm.shell.common.pip.IPipAnimationListener.PipResources;
 import com.android.wm.shell.common.pip.PipAppOpsListener;
 import com.android.wm.shell.common.pip.PipBoundsAlgorithm;
 import com.android.wm.shell.common.pip.PipBoundsState;
+import com.android.wm.shell.common.pip.PipDesktopState;
 import com.android.wm.shell.common.pip.PipDisplayLayoutState;
 import com.android.wm.shell.common.pip.PipKeepClearAlgorithmInterface;
 import com.android.wm.shell.common.pip.PipMediaController;
@@ -83,8 +85,10 @@ import com.android.wm.shell.sysui.ShellController;
 import com.android.wm.shell.sysui.ShellInit;
 
 import java.io.PrintWriter;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 /**
@@ -98,8 +102,7 @@ public class PipController implements ConfigurationChangeListener,
     private static final String TAG = PipController.class.getSimpleName();
     private static final String SWIPE_TO_PIP_APP_BOUNDS = "pip_app_bounds";
     private static final String SWIPE_TO_PIP_OVERLAY = "swipe_to_pip_overlay";
-    private static final String DISPLAY_CHANGE_PIP_BOUNDS_UPDATE =
-            "display_change_pip_bounds_update";
+    private static final String DISPLAY_CHANGE_PIP_BOUNDS = "display_change_pip_bounds";
 
     private Context mContext;
     private final ShellCommandHandler mShellCommandHandler;
@@ -121,7 +124,8 @@ public class PipController implements ConfigurationChangeListener,
     private final PipUiEventLogger mPipUiEventLogger;
     private final ShellExecutor mMainExecutor;
     private final PipImpl mImpl;
-    private final List<Consumer<Boolean>> mOnIsInPipStateChangedListeners = new ArrayList<>();
+    private final Map<Consumer<Boolean>, Executor> mOnIsInPipStateChangedListeners =
+            new HashMap<>();
     private final PipMediaController mMediaController;
 
     // Wrapper for making Binder calls into PiP animation listener hosted in launcher's Recents.
@@ -130,8 +134,13 @@ public class PipController implements ConfigurationChangeListener,
     private final PipSurfaceTransactionHelper.SurfaceControlTransactionFactory
             mSurfaceControlTransactionFactory;
     private final PipSurfaceTransactionHelper mPipSurfaceTransactionHelper;
+    private final PipDesktopState mPipDesktopState;
 
     private boolean mWaitingToPlayDisplayChangeBoundsUpdate;
+
+    @VisibleForTesting
+    final SparseArray<List<DisplayInsetsController.OnInsetsChangedListener>> mListenersPerDisplay =
+            new SparseArray<>();
 
     @VisibleForTesting
     interface PipAnimationListener {
@@ -144,8 +153,7 @@ public class PipController implements ConfigurationChangeListener,
          * Notifies the listener about PiP resource dimensions changed.
          * Listener can expect an immediate callback the first time they attach.
          *
-         * @param cornerRadius the pixel value of the corner radius, zero means it's disabled.
-         * @param shadowRadius the pixel value of the shadow radius, zero means it's disabled.
+         * @param res {@code PipResources} instances contains shadow and corner radius
          */
         void onPipResourceDimensionsChanged(PipResources res);
 
@@ -176,6 +184,7 @@ public class PipController implements ConfigurationChangeListener,
             TabletopModeController tabletopModeController,
             PipKeepClearAlgorithmInterface pipKeepClearAlgorithm,
             PipSurfaceTransactionHelper pipSurfaceTransactionHelper,
+            PipDesktopState pipDesktopState,
             ShellExecutor mainExecutor) {
         mContext = context;
         mShellCommandHandler = shellCommandHandler;
@@ -199,6 +208,7 @@ public class PipController implements ConfigurationChangeListener,
         mTabletopModeController = tabletopModeController;
         mPipKeepClearAlgorithm = pipKeepClearAlgorithm;
         mPipSurfaceTransactionHelper = pipSurfaceTransactionHelper;
+        mPipDesktopState = pipDesktopState;
         mMainExecutor = mainExecutor;
         mImpl = new PipImpl();
         mSurfaceControlTransactionFactory =
@@ -233,6 +243,7 @@ public class PipController implements ConfigurationChangeListener,
             TabletopModeController tabletopModeController,
             PipKeepClearAlgorithmInterface pipKeepClearAlgorithm,
             PipSurfaceTransactionHelper pipSurfaceTransactionHelper,
+            PipDesktopState pipDesktopState,
             ShellExecutor mainExecutor) {
         if (!context.getPackageManager().hasSystemFeature(FEATURE_PICTURE_IN_PICTURE)) {
             ProtoLog.w(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
@@ -244,14 +255,15 @@ public class PipController implements ConfigurationChangeListener,
                 pipDisplayLayoutState, pipScheduler, taskStackListener, shellTaskOrganizer,
                 pipTransitionState, pipTouchHandler, pipAppOpsListener, pipMenuController,
                 pipUiEventLogger, pipMediaController, tabletopModeController,
-                pipKeepClearAlgorithm, pipSurfaceTransactionHelper, mainExecutor);
+                pipKeepClearAlgorithm, pipSurfaceTransactionHelper, pipDesktopState, mainExecutor);
     }
 
     public PipImpl getPipImpl() {
         return mImpl;
     }
 
-    private void onInit() {
+    @VisibleForTesting
+    void onInit() {
         mShellCommandHandler.addDumpCallback(this::dump, this);
         // Ensure that we have the display info in case we get calls to update the bounds before the
         // listener calls back
@@ -261,20 +273,56 @@ public class PipController implements ConfigurationChangeListener,
 
         mDisplayController.addDisplayChangingController(this);
         mDisplayController.addDisplayWindowListener(this);
-        mDisplayInsetsController.addInsetsChangedListener(mPipDisplayLayoutState.getDisplayId(),
-                new ImeListener(mDisplayController, mPipDisplayLayoutState.getDisplayId()) {
+        mDisplayInsetsController.addGlobalInsetsChangedListener(
+                new DisplayInsetsController.OnInsetsChangedListener() {
                     @Override
-                    public void onImeVisibilityChanged(boolean imeVisible, int imeHeight) {
-                        mPipTouchHandler.onImeVisibilityChanged(imeVisible, imeHeight);
-                    }
-                });
-        mDisplayInsetsController.addInsetsChangedListener(mPipDisplayLayoutState.getDisplayId(),
-                new NavigationBarsListener(mDisplayController,
-                        mPipDisplayLayoutState.getDisplayId()) {
-                    @Override
-                    protected void onNavigationBarsVisibilityChanged(
-                            @NonNull Insets insets) {
-                        mPipDisplayLayoutState.setNavigationBarsInsets(insets);
+                    public void insetsChanged(int displayId, InsetsState insetsState) {
+                        // ImeListeners and NavigationBarsListener have to be registered per-display
+                        // so we keep track of the listeners and dispatch insetsChanged to the
+                        // appropriate listeners
+                        if (mListenersPerDisplay.contains(displayId)) {
+                            mListenersPerDisplay.get(displayId).forEach(
+                                    l -> l.insetsChanged(insetsState));
+                        } else {
+                            final ImeListener imeListener =
+                                    new ImeListener(mDisplayController, displayId) {
+                                        @Override
+                                        public void onImeVisibilityChanged(boolean imeVisible,
+                                                int imeHeight) {
+                                            if (displayId
+                                                    == mPipDisplayLayoutState.getDisplayId()) {
+                                                mPipTouchHandler.onImeVisibilityChanged(imeVisible,
+                                                        imeHeight);
+                                            }
+                                        }
+                                    };
+                            final NavigationBarsListener navBarsListener =
+                                    new NavigationBarsListener(mDisplayController, displayId) {
+                                        @Override
+                                        protected void onNavigationBarsVisibilityChanged(
+                                                @NonNull Insets insets) {
+                                            if (displayId
+                                                    == mPipDisplayLayoutState.getDisplayId()) {
+                                                mPipDisplayLayoutState.setNavigationBarsInsets(
+                                                        insets);
+                                            }
+                                        }
+                                    };
+                            mListenersPerDisplay.put(displayId,
+                                    List.of(imeListener, navBarsListener));
+                            imeListener.insetsChanged(insetsState);
+                            navBarsListener.insetsChanged(insetsState);
+                        }
+
+                        if (displayId == mPipDisplayLayoutState.getDisplayId()) {
+                            mMainExecutor.execute(() -> {
+                                DisplayLayout pendingLayout = mDisplayController
+                                        .getDisplayLayout(displayId);
+                                if (pendingLayout != null) {
+                                    mPipDisplayLayoutState.setDisplayLayout(pendingLayout);
+                                }
+                            });
+                        }
                     }
                 });
 
@@ -288,19 +336,16 @@ public class PipController implements ConfigurationChangeListener,
             public void onActivityRestartAttempt(ActivityManager.RunningTaskInfo task,
                     boolean homeTaskVisible, boolean clearedTask, boolean wasVisible) {
                 ProtoLog.d(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
-                        "onActivityRestartAttempt: topActivity=%s, wasVisible=%b, displayId=%s, "
-                                + "pipDisplayLayoutState#displayId=%s",
+                        "onActivityRestartAttempt: topActivity=%s, wasVisible=%b, displayId=%d, "
+                                + "pipDisplayLayoutState#displayId=%d",
                         task.topActivity, wasVisible, task.displayId,
                         mPipDisplayLayoutState.getDisplayId());
-                boolean keepPipFromLockscreen = !wasVisible && !Flags.dismissPipFromLockscreen();
-                boolean isPipLaunchingOnDifferentDisplay =
-                        DesktopExperienceFlags.ENABLE_CROSS_DISPLAYS_PIP_TASK_LAUNCH.isTrue()
-                                && task.displayId != mPipDisplayLayoutState.getDisplayId();
-                if (task.getWindowingMode() != WINDOWING_MODE_PINNED || keepPipFromLockscreen
-                        || isPipLaunchingOnDifferentDisplay) {
+                if (task.getWindowingMode() != WINDOWING_MODE_PINNED
+                        || task.displayId != mPipDisplayLayoutState.getDisplayId()) {
                     return;
                 }
-                mPipScheduler.scheduleExitPipViaExpand(wasVisible);
+                mPipScheduler.scheduleExitPipViaExpand(wasVisible,
+                        mPipDisplayLayoutState.getDisplayId());
             }
         });
 
@@ -387,7 +432,7 @@ public class PipController implements ConfigurationChangeListener,
     @Override
     public void onThemeChanged() {
         setDisplayLayout(new DisplayLayout(mContext, mContext.getDisplay()));
-        if (Flags.enablePipBoxShadows()) {
+        if (Flags.enablePipBoxShadowsV2()) {
             if (mPipTransitionState.isInPip()) {
                 SurfaceControl pipLeash = mPipTransitionState.getPinnedTaskLeash();
                 if (pipLeash == null) {
@@ -421,19 +466,44 @@ public class PipController implements ConfigurationChangeListener,
 
     @Override
     public void onDisplayRemoved(int displayId) {
-        // If PiP was active on an external display that is removed, clean up states and set
-        // {@link PipDisplayLayoutState} to DEFAULT_DISPLAY.
-        if (DesktopExperienceFlags.ENABLE_CONNECTED_DISPLAYS_PIP.isTrue()
-                && mPipTransitionState.isInPip()
-                && displayId == mPipDisplayLayoutState.getDisplayId()
-                && displayId != DEFAULT_DISPLAY) {
-            mPipTransitionState.setState(PipTransitionState.EXITING_PIP);
-            mPipTransitionState.setState(PipTransitionState.EXITED_PIP);
+        if (mPipTransitionState.isInPip()) {
+            if (displayId == mPipDisplayLayoutState.getDisplayId()) {
+                // If PiP was active on an external display that is removed, clean up states and set
+                // {@link PipDisplayLayoutState} to DEFAULT_DISPLAY.
+                mPipTransitionState.setState(PipTransitionState.EXITING_PIP);
+                mPipTransitionState.setState(PipTransitionState.EXITED_PIP);
 
-            mPipDisplayLayoutState.setDisplayId(DEFAULT_DISPLAY);
-            mPipDisplayLayoutState.setDisplayLayout(
-                    mDisplayController.getDisplayLayout(DEFAULT_DISPLAY));
+                mPipDisplayLayoutState.setDisplayId(DEFAULT_DISPLAY);
+                mPipDisplayLayoutState.setDisplayLayout(
+                        mDisplayController.getDisplayLayout(DEFAULT_DISPLAY));
+            } else {
+                // If PiP was active but not on the display that is removed (i.e. it's remaining on
+                // the same display), snap PiP to an edge if the display does not currently allow
+                // free-floating (because it might have changed from Desktop-first to Touch-first).
+                if (!mPipDesktopState.isFreeFloatingPipEnabled()) {
+                    final Rect currentBounds = mPipBoundsState.getBounds();
+                    final float snapFraction =
+                            mPipBoundsAlgorithm.getSnapAlgorithm().getSnapFraction(
+                                    currentBounds,
+                                    mPipBoundsAlgorithm.getMovementBounds(currentBounds),
+                                    mPipBoundsState.getStashedState());
+                    updateBoundsOnDisplayChange(snapFraction);
+                    final Rect toBounds = mPipBoundsState.getBounds();
+                    // Use the existing DISPLAY_CHANGE_PIP_BOUNDS logic to jump cut to new bounds
+                    if (!currentBounds.equals(toBounds)) {
+                        mPipTransitionState.setOnIdlePipTransitionStateRunnable(() -> {
+                            final Bundle extra = new Bundle();
+                            extra.putParcelable(DISPLAY_CHANGE_PIP_BOUNDS, toBounds);
+                            mPipTransitionState.setState(PipTransitionState.SCHEDULED_BOUNDS_CHANGE,
+                                    extra);
+                        });
+                    }
+                }
+            }
         }
+
+        // Avoid keeping track of insets listeners for the removed displays to prevent memory leaks.
+        mListenersPerDisplay.remove(displayId);
     }
 
     /**
@@ -464,7 +534,8 @@ public class PipController implements ConfigurationChangeListener,
             // Skip the PiP-relevant updates if we aren't in a valid PiP state.
             if (mPipTransitionState.isInFixedRotation()) {
                 ProtoLog.e(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
-                        "Fixed rotation flag shouldn't be set while in an invalid PiP state");
+                        "Invalid PiP state, reset the fixed rotation flag");
+                mPipTransitionState.setInFixedRotation(false);
             }
             return;
         }
@@ -475,6 +546,8 @@ public class PipController implements ConfigurationChangeListener,
             // Do not change the bounds when in fixed rotation, but do update the movement bounds
             // based on the current bounds state and potentially new display layout.
             mPipTouchHandler.updateMovementBounds();
+            ProtoLog.d(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
+                    "Reset the fixed rotation flag on display change");
             mPipTransitionState.setInFixedRotation(false);
         } else {
             updateBoundsOnDisplayChange(snapFraction);
@@ -482,9 +555,10 @@ public class PipController implements ConfigurationChangeListener,
         if (mPipTransitionState.getPipTaskToken() == null) {
             Log.d(TAG, "PipController.onDisplayChange no PiP task token"
                     + " state=" + mPipTransitionState.getState());
+            final Rect toBounds = mPipBoundsState.getBounds();
             mPipTransitionState.setOnIdlePipTransitionStateRunnable(() -> {
                 final Bundle extra = new Bundle();
-                extra.putBoolean(DISPLAY_CHANGE_PIP_BOUNDS_UPDATE, true);
+                extra.putParcelable(DISPLAY_CHANGE_PIP_BOUNDS, toBounds);
                 mPipTransitionState.setState(PipTransitionState.SCHEDULED_BOUNDS_CHANGE, extra);
             });
         } else {
@@ -569,14 +643,11 @@ public class PipController implements ConfigurationChangeListener,
             return null;
         }
 
-        // If PiP is enabled on Connected Displays, update PipDisplayLayoutState to have the correct
-        // display info that PiP is entering in.
-        if (DesktopExperienceFlags.ENABLE_CONNECTED_DISPLAYS_PIP.isTrue()) {
-            final DisplayLayout displayLayout = mDisplayController.getDisplayLayout(displayId);
-            if (displayLayout != null) {
-                mPipDisplayLayoutState.setDisplayId(displayId);
-                mPipDisplayLayoutState.setDisplayLayout(displayLayout);
-            }
+        // Update PipDisplayLayoutState to have the correct display info that PiP is entering in.
+        final DisplayLayout displayLayout = mDisplayController.getDisplayLayout(displayId);
+        if (displayLayout != null) {
+            mPipDisplayLayoutState.setDisplayId(displayId);
+            mPipDisplayLayoutState.setDisplayLayout(displayLayout);
         }
 
         // Preemptively add the keep clear area for Hotseat, so that it is taken into account
@@ -676,26 +747,24 @@ public class PipController implements ConfigurationChangeListener,
                 } else {
                     mPipUiEventLogger.log(PipUiEventLogger.PipUiEventEnum.PICTURE_IN_PICTURE_ENTER);
                 }
-                for (Consumer<Boolean> listener : mOnIsInPipStateChangedListeners) {
-                    listener.accept(true /* inPip */);
-                }
+                mOnIsInPipStateChangedListeners.forEach(
+                        (listener, executor) -> executor.execute(() -> listener.accept(true)));
                 break;
             case PipTransitionState.EXITED_PIP:
                 mPipAppOpsListener.onActivityUnpinned();
                 mPipUiEventLogger.setTaskInfo(null);
-                for (Consumer<Boolean> listener : mOnIsInPipStateChangedListeners) {
-                    listener.accept(false /* inPip */);
-                }
+                mOnIsInPipStateChangedListeners.forEach(
+                        (listener, executor) -> executor.execute(() -> listener.accept(false)));
                 break;
             case PipTransitionState.SCHEDULED_BOUNDS_CHANGE:
-                mWaitingToPlayDisplayChangeBoundsUpdate =
-                        extra.getBoolean(DISPLAY_CHANGE_PIP_BOUNDS_UPDATE);
+                final Rect toBounds = extra.getParcelable(DISPLAY_CHANGE_PIP_BOUNDS, Rect.class);
+                mWaitingToPlayDisplayChangeBoundsUpdate = toBounds != null;
                 if (mWaitingToPlayDisplayChangeBoundsUpdate) {
                     // If we reach this point, it means display change did not send through a WCT to
                     // update the pinned task bounds in Core. Instead, the local Shell-side
                     // PiP-relevant bounds state and movement bounds were updated.
                     // So schedule a jumpcut animation to those bounds now.
-                    mPipScheduler.scheduleAnimateResizePip(mPipBoundsState.getBounds());
+                    mPipScheduler.scheduleAnimateResizePip(toBounds);
                 }
                 break;
             case PipTransitionState.CHANGING_PIP_BOUNDS:
@@ -762,10 +831,12 @@ public class PipController implements ConfigurationChangeListener,
         mPipTransitionState.dump(pw, innerPrefix);
     }
 
-    private void addOnIsInPipStateChangedListener(@NonNull Consumer<Boolean> callback) {
+    private void addOnIsInPipStateChangedListener(
+            @NonNull Executor executor,
+            @NonNull Consumer<Boolean> callback) {
         if (callback != null) {
-            mOnIsInPipStateChangedListeners.add(callback);
-            callback.accept(mPipTransitionState.isInPip());
+            mOnIsInPipStateChangedListeners.put(callback, executor);
+            executor.execute(() -> callback.accept(mPipTransitionState.isInPip()));
         }
     }
 
@@ -790,25 +861,26 @@ public class PipController implements ConfigurationChangeListener,
         public void onSystemUiStateChanged(boolean isSysUiStateValid, long flag) {}
 
         @Override
-        public void addOnIsInPipStateChangedListener(@NonNull Consumer<Boolean> callback) {
-            mMainExecutor.execute(() -> {
-                PipController.this.addOnIsInPipStateChangedListener(callback);
-            });
+        public void addOnIsInPipStateChangedListener(
+                @NonNull Executor executor,
+                @NonNull Consumer<Boolean> callback) {
+            mMainExecutor.execute(
+                    () -> PipController.this.addOnIsInPipStateChangedListener(executor, callback));
         }
 
         @Override
         public void removeOnIsInPipStateChangedListener(@NonNull Consumer<Boolean> callback) {
-            mMainExecutor.execute(() -> {
-                PipController.this.removeOnIsInPipStateChangedListener(callback);
-            });
+            mMainExecutor.execute(
+                    () -> PipController.this.removeOnIsInPipStateChangedListener(callback));
         }
 
         @Override
-        public void addPipExclusionBoundsChangeListener(Consumer<Rect> listener) {
+        public void addPipExclusionBoundsChangeListener(
+                Executor executor, Consumer<Rect> listener) {
             mMainExecutor.execute(() -> {
                 ProtoLog.d(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                         "addPipExclusionBoundsChangeListener: %s", listener);
-                mPipBoundsState.addPipExclusionBoundsChangeCallback(listener);
+                mPipBoundsState.addPipExclusionBoundsChangeCallback(executor, listener);
             });
         }
 

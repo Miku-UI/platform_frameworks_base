@@ -22,6 +22,9 @@ import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
+import android.util.Log;
+
+import com.android.hardware.input.Flags;
 
 /**
  * Detects scaling transformation gestures using the supplied {@link MotionEvent}s.
@@ -154,6 +157,8 @@ public class ScaleGestureDetector {
     private float mAnchoredScaleStartX;
     private float mAnchoredScaleStartY;
     private int mAnchoredScaleMode = ANCHORED_SCALE_MODE_NONE;
+    private boolean mIsClassifiedPinchMode = false;
+    private float mClassifiedPinchScaleFactor;
 
     private static final long TOUCH_STABILIZE_TIME = 128; // ms
     private static final float SCALE_FACTOR = .5f;
@@ -239,6 +244,64 @@ public class ScaleGestureDetector {
     }
 
     /**
+     * Handles an event classified as a pinch.
+     *
+     * @return {@code true} if the event has been handled.
+     */
+    private boolean handleClassifiedPinch(MotionEvent event) {
+        if (!Flags.scaleGestureDetectorUseEventsClassification()) {
+            return false;
+        }
+
+        boolean isPinch = event.getClassification() == MotionEvent.CLASSIFICATION_PINCH;
+
+        if (mInProgress && isPinch != mIsClassifiedPinchMode) {
+            // This isn't expected to happen unless the client doesn't provide all the events.
+            Log.e(TAG, "Unexpected event: " + event);
+            endStream();
+        }
+
+        mIsClassifiedPinchMode = isPinch;
+        if (!isPinch) {
+            return false;
+        }
+
+        final int action = event.getActionMasked();
+
+        switch (action) {
+            case MotionEvent.ACTION_CANCEL,
+                    MotionEvent.ACTION_DOWN,
+                    MotionEvent.ACTION_POINTER_UP,
+                    MotionEvent.ACTION_UP -> {
+                if (mInProgress) {
+                    endStream();
+                }
+                return true;
+            }
+        }
+
+        // TODO(b/297167643): use MotionEvent#get{X,Y}CursorPosition once they're public.
+        var focusX = 0.5f * (event.getX(0) + event.getX(1));
+        var focusY = 0.5f * (event.getY(0) + event.getY(1));
+        // UncapturedGestureConverter populates the span value in the X axes.
+        var spanX = event.getX(1) - event.getX(0);
+        var spanY = 0;
+        var span = spanX;
+        mClassifiedPinchScaleFactor =
+                event.getAxisValue(MotionEvent.AXIS_GESTURE_PINCH_SCALE_FACTOR, 0);
+        long eventTime = event.getEventTime();
+
+        switch (action) {
+            case MotionEvent.ACTION_POINTER_DOWN ->
+                    startStream(focusX, focusY, span, spanX, spanY, eventTime);
+            case MotionEvent.ACTION_MOVE ->
+                    callOnScale(focusX, focusY, span, spanX, spanY, eventTime);
+        }
+
+        return true;
+    }
+
+    /**
      * Accepts MotionEvents and dispatches events to a {@link OnScaleGestureListener}
      * when appropriate.
      *
@@ -264,6 +327,10 @@ public class ScaleGestureDetector {
             mGestureDetector.onTouchEvent(event);
         }
 
+        if (handleClassifiedPinch(event)) {
+            return true;
+        }
+
         final int count = event.getPointerCount();
         final boolean isStylusButtonDown =
                 (event.getButtonState() & MotionEvent.BUTTON_STYLUS_PRIMARY) != 0;
@@ -278,10 +345,7 @@ public class ScaleGestureDetector {
             // If it's an ACTION_DOWN we're beginning a new event stream.
             // This means the app probably didn't give us all the events. Shame on it.
             if (mInProgress) {
-                mListener.onScaleEnd(this);
-                mInProgress = false;
-                mInitialSpan = 0;
-                mAnchoredScaleMode = ANCHORED_SCALE_MODE_NONE;
+                endStream();
             } else if (inAnchoredScaleMode() && streamComplete) {
                 mInProgress = false;
                 mInitialSpan = 0;
@@ -366,8 +430,7 @@ public class ScaleGestureDetector {
         mFocusX = focusX;
         mFocusY = focusY;
         if (!inAnchoredScaleMode() && mInProgress && (span < mMinSpan || configChanged)) {
-            mListener.onScaleEnd(this);
-            mInProgress = false;
+            endStream();
             mInitialSpan = span;
         }
         if (configChanged) {
@@ -377,36 +440,66 @@ public class ScaleGestureDetector {
         }
 
         final int minSpan = inAnchoredScaleMode() ? mSpanSlop : mMinSpan;
-        if (!mInProgress && span >=  minSpan &&
-                (wasInProgress || Math.abs(span - mInitialSpan) > mSpanSlop)) {
-            mPrevSpanX = mCurrSpanX = spanX;
-            mPrevSpanY = mCurrSpanY = spanY;
-            mPrevSpan = mCurrSpan = span;
-            mPrevTime = mCurrTime;
-            mInProgress = mListener.onScaleBegin(this);
+        if (!mInProgress && span >= minSpan
+                && (wasInProgress || Math.abs(span - mInitialSpan) > mSpanSlop)) {
+            startStream(focusX, focusY, span, spanX, spanY, event.getEventTime());
         }
 
         // Handle motion; focal point and span/scale factor are changing.
         if (action == MotionEvent.ACTION_MOVE) {
-            mCurrSpanX = spanX;
-            mCurrSpanY = spanY;
-            mCurrSpan = span;
-
-            boolean updatePrev = true;
-
-            if (mInProgress) {
-                updatePrev = mListener.onScale(this);
-            }
-
-            if (updatePrev) {
-                mPrevSpanX = mCurrSpanX;
-                mPrevSpanY = mCurrSpanY;
-                mPrevSpan = mCurrSpan;
-                mPrevTime = mCurrTime;
-            }
+            callOnScale(focusX, focusY, span, spanX, spanY, event.getEventTime());
         }
 
         return true;
+    }
+
+    private void callOnScale(
+            float focusX, float focusY, float span, float spanX, float spanY, long eventTime) {
+        boolean updatePrev = true;
+
+        mCurrSpan = span;
+        mCurrSpanX = spanX;
+        mCurrSpanY = spanY;
+        mFocusX = focusX;
+        mFocusY = focusY;
+        mCurrTime = eventTime;
+
+        if (mInProgress) {
+            updatePrev = mListener.onScale(this);
+        }
+
+        if (updatePrev) {
+            mPrevSpanX = mCurrSpanX;
+            mPrevSpanY = mCurrSpanY;
+            mPrevSpan = mCurrSpan;
+            mPrevTime = mCurrTime;
+        }
+    }
+
+    private void startStream(
+            float focusX, float focusY, float span, float spanX, float spanY, long eventTime) {
+        if (mInProgress) {
+            return;
+        }
+
+        mFocusX = focusX;
+        mFocusY = focusY;
+        mPrevSpan = mCurrSpan = span;
+        mPrevSpanX = mCurrSpanX = spanX;
+        mPrevSpanY = mCurrSpanY = spanY;
+        mPrevTime = mCurrTime = eventTime;
+        mInProgress = mListener.onScaleBegin(this);
+    }
+
+    private void endStream() {
+        if (!mInProgress) {
+            return;
+        }
+
+        mListener.onScaleEnd(this);
+        mInProgress = false;
+        mInitialSpan = mCurrSpan;
+        mAnchoredScaleMode = ANCHORED_SCALE_MODE_NONE;
     }
 
     private boolean inAnchoredScaleMode() {
@@ -439,7 +532,8 @@ public class ScaleGestureDetector {
 
     /**
      * Return whether the quick scale gesture, in which the user performs a double tap followed by a
-     * swipe, should perform scaling. {@see #setQuickScaleEnabled(boolean)}.
+     * swipe, should perform scaling.
+     * @see #setQuickScaleEnabled(boolean)
      */
     public boolean isQuickScaleEnabled() {
         return mQuickScaleEnabled;
@@ -458,7 +552,8 @@ public class ScaleGestureDetector {
 
     /**
      * Return whether the stylus scale gesture, in which the user uses a stylus and presses the
-     * button, should perform scaling. {@see #setStylusScaleEnabled(boolean)}
+     * button, should perform scaling.
+     * @see #setStylusScaleEnabled(boolean)
      */
     public boolean isStylusScaleEnabled() {
         return mStylusScaleEnabled;
@@ -577,6 +672,11 @@ public class ScaleGestureDetector {
             final float spanDiff = (Math.abs(1 - (mCurrSpan / mPrevSpan)) * SCALE_FACTOR);
             return mPrevSpan <= mSpanSlop ? 1 : scaleUp ? (1 + spanDiff) : (1 - spanDiff);
         }
+
+        if (mIsClassifiedPinchMode) {
+            return mClassifiedPinchScaleFactor;
+        }
+
         return mPrevSpan > 0 ? mCurrSpan / mPrevSpan : 1;
     }
 

@@ -18,15 +18,22 @@ package com.android.server.wm;
 
 import static android.content.pm.ActivityInfo.FORCE_NON_RESIZE_APP;
 import static android.content.pm.ActivityInfo.FORCE_RESIZE_APP;
+import static android.content.pm.ActivityInfo.OVERRIDE_ENABLE_VIRTUAL_GAMEPAD;
 import static android.internal.perfetto.protos.Windowmanagerservice.ActivityRecordProto.SHOULD_OVERRIDE_FORCE_RESIZE_APP;
 import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES;
 import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY;
+import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_VIRTUAL_GAMEPAD_OVERRIDE;
 
 import static com.android.server.wm.AppCompatUtils.isChangeEnabled;
 
 import android.annotation.NonNull;
-import android.annotation.UserIdInt;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledAfter;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.os.Build;
+import android.os.RemoteException;
+import android.os.UserHandle;
 import android.util.proto.ProtoOutputStream;
 
 import com.android.server.wm.utils.OptPropFactory;
@@ -38,6 +45,15 @@ import java.util.function.BooleanSupplier;
  */
 class AppCompatResizeOverrides {
 
+    /**
+     * Disable opting out the universal resizability on large screen devices.
+     * The property "android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY" will no longer
+     * take effect since Android 17 (API level 37).
+     */
+    @ChangeId
+    @EnabledAfter(targetSdkVersion = Build.VERSION_CODES.BAKLAVA)
+    static final long DISABLE_OPT_OUT_UNIVERSAL_RESIZABLE_BY_DEFAULT = 447301631L;
+
     @NonNull
     private final ActivityRecord mActivityRecord;
 
@@ -45,7 +61,12 @@ class AppCompatResizeOverrides {
     private final OptPropFactory.OptProp mAllowForceResizeOverrideOptProp;
 
     @NonNull
+    private final OptPropFactory.OptProp mAllowVirtualGamepadOverrideOptProp;
+
+    @NonNull
     private final BooleanSupplier mAllowRestrictedResizability;
+
+    private final BooleanSupplier mEnableSizeOverrideForVirtualGamepad;
 
     AppCompatResizeOverrides(@NonNull ActivityRecord activityRecord,
             @NonNull PackageManager packageManager,
@@ -53,10 +74,16 @@ class AppCompatResizeOverrides {
         mActivityRecord = activityRecord;
         mAllowForceResizeOverrideOptProp = optPropBuilder.create(
                 PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES);
+        mAllowVirtualGamepadOverrideOptProp = optPropBuilder.create(
+                PROPERTY_COMPAT_ALLOW_VIRTUAL_GAMEPAD_OVERRIDE);
         mAllowRestrictedResizability = AppCompatUtils.asLazy(() -> {
+            if (mActivityRecord.info.applicationInfo.isChangeEnabled(
+                    DISABLE_OPT_OUT_UNIVERSAL_RESIZABLE_BY_DEFAULT)) {
+                return false;
+            }
             // Application level.
-            if (allowRestrictedResizability(packageManager, mActivityRecord.packageName,
-                    mActivityRecord.mUserId)) {
+            if (allowRestrictedResizability(packageManager, mActivityRecord.info.applicationInfo,
+                    true /* hasCheckedDisableOptOut */)) {
                 return true;
             }
             // Activity level.
@@ -70,13 +97,33 @@ class AppCompatResizeOverrides {
                 return false;
             }
         });
+        mEnableSizeOverrideForVirtualGamepad = AppCompatUtils.asLazy(() -> {
+            try {
+                int userOption = activityRecord.mAtmService.getPackageManager()
+                        .getVirtualGamepadUserOption(
+                                activityRecord.packageName, activityRecord.mUserId);
+                if (userOption == PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_OPT_OUT) {
+                    return false;
+                }
+                return mAllowVirtualGamepadOverrideOptProp
+                        .shouldEnableWithOptInOverrideAndOptOutProperty(
+                                isChangeEnabled(activityRecord, OVERRIDE_ENABLE_VIRTUAL_GAMEPAD));
+            } catch (RemoteException e) {
+                return false;
+            }
+        });
     }
 
     static boolean allowRestrictedResizability(@NonNull PackageManager pm,
-            @NonNull String packageName, @UserIdInt int userId) {
+            @NonNull ApplicationInfo appInfo, boolean hasCheckedDisableOptOut) {
+        if (!hasCheckedDisableOptOut && appInfo.isChangeEnabled(
+                DISABLE_OPT_OUT_UNIVERSAL_RESIZABLE_BY_DEFAULT)) {
+            return false;
+        }
         try {
-            return pm.getPropertyAsUser(PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY, packageName,
-                            null /* className */, userId).getBoolean();
+            return pm.getPropertyAsUser(PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY,
+                    appInfo.packageName, null /* className */,
+                    UserHandle.getUserId(appInfo.uid)).getBoolean();
         } catch (PackageManager.NameNotFoundException e) {
             return false;
         }
@@ -91,12 +138,13 @@ class AppCompatResizeOverrides {
      * <p>This method returns {@code true} when the following conditions are met:
      * <ul>
      *     <li>Opt-out component property isn't enabled
-     *     <li>Per-app override is enabled
+     *     <li>Per-app force-resize override or virtual gamepad override is enabled
      * </ul>
      */
     boolean shouldOverrideForceResizeApp() {
         return mAllowForceResizeOverrideOptProp.shouldEnableWithOptInOverrideAndOptOutProperty(
-                isChangeEnabled(mActivityRecord, FORCE_RESIZE_APP));
+                isChangeEnabled(mActivityRecord, FORCE_RESIZE_APP)
+                        || mEnableSizeOverrideForVirtualGamepad.getAsBoolean());
     }
 
     /**

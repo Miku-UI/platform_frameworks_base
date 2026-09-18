@@ -23,7 +23,7 @@ import static android.internal.perfetto.protos.Windowmanagerservice.InsetsSource
 import static android.internal.perfetto.protos.Windowmanagerservice.InsetsSourceProviderProto.CONTROL_TARGET_IDENTIFIER;
 import static android.internal.perfetto.protos.Windowmanagerservice.InsetsSourceProviderProto.FAKE_CONTROL;
 import static android.internal.perfetto.protos.Windowmanagerservice.InsetsSourceProviderProto.FAKE_CONTROL_TARGET_IDENTIFIER;
-import static android.internal.perfetto.protos.Windowmanagerservice.InsetsSourceProviderProto.FRAME;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsSourceProviderProto.INSETS_HINT;
 import static android.internal.perfetto.protos.Windowmanagerservice.InsetsSourceProviderProto.IS_LEASH_READY_FOR_DISPATCHING;
 import static android.internal.perfetto.protos.Windowmanagerservice.InsetsSourceProviderProto.PENDING_CONTROL_TARGET_IDENTIFIER;
 import static android.internal.perfetto.protos.Windowmanagerservice.InsetsSourceProviderProto.SERVER_VISIBLE;
@@ -733,11 +733,9 @@ class InsetsSourceProvider {
         }
     }
 
-    void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId,
-            @WindowTracingLogLevel int logLevel) {
+    void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId) {
         final long token = proto.start(fieldId);
         mSource.dumpDebug(proto, SOURCE);
-        mTmpRect.dumpDebug(proto, FRAME);
         mFakeControl.dumpDebug(proto, FAKE_CONTROL);
         if (mControl != null) {
             mControl.dumpDebug(proto, CONTROL);
@@ -763,6 +761,9 @@ class InsetsSourceProvider {
         proto.write(CONTROLLABLE, mControllable);
         if (mWin != null) {
             mWin.writeIdentifierToProto(proto, SOURCE_WINDOW_STATE_IDENTIFIER);
+        }
+        if (mControllable) {
+            mInsetsHint.dumpDebug(proto, INSETS_HINT);
         }
         proto.end(token);
     }

@@ -18,29 +18,29 @@ package com.android.wm.shell.flicker.bubbles
 
 import android.graphics.Bitmap
 import android.platform.test.annotations.Presubmit
+import android.platform.test.annotations.RequiresFlagsDisabled
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.tools.NavBar
 import android.tools.Rotation
-import androidx.test.filters.FlakyTest
 import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.ImeShownOnAppStartHelper
 import com.android.wm.shell.Flags
-import com.android.wm.shell.Utils
+import com.android.wm.shell.Utils.testSetupRule
 import com.android.wm.shell.flicker.bubbles.ExpandBubbleWithImeViaBubbleBarTest.Companion.testApp
-import com.android.wm.shell.flicker.bubbles.testcase.ExpandBubbleTestCases
+import com.android.wm.shell.flicker.bubbles.testcase.ExpandBubbleFromHomeTestCases
 import com.android.wm.shell.flicker.bubbles.testcase.ImeBecomesVisibleAndBubbleIsShrunkTestCase
-import com.android.wm.shell.flicker.bubbles.utils.ApplyPerParameterRule
+import com.android.wm.shell.flicker.bubbles.utils.AssumptionRule
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.collapseBubbleAppViaBackKey
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.expandBubbleAppViaBubbleBar
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.launchBubbleViaBubbleMenu
 import com.android.wm.shell.flicker.bubbles.utils.RecordTraceWithTransitionRule
-import org.junit.Assume.assumeTrue
-import org.junit.Before
+import com.android.wm.shell.flicker.bubbles.utils.RunOncePerParameterRule
 import org.junit.FixMethodOrder
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.junit.runners.MethodSorters
 import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameters
 
 /**
  * Test tapping on bubble bar to expand a bubble that was in collapsed state and show IME.
@@ -56,65 +56,70 @@ import org.junit.runners.Parameterized
  * ```
  *     Expand the [testApp] bubble via tapping on bubble bar and show IME
  * ```
+ *
  * Verified tests:
  * - [BubbleFlickerTestBase]
- * - [ExpandBubbleTestCases]
+ * - [ExpandBubbleFromHomeTestCases]
  * - [ImeBecomesVisibleAndBubbleIsShrunkTestCase]
  */
+// TODO(b/479182156) Remove this when bubbling is supported in desktop mode.
+@RequiresFlagsDisabled(Flags.FLAG_DISABLE_BUBBLE_ANYTHING_DESKTOP_WINDOWING)
 @RequiresFlagsEnabled(Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE, Flags.FLAG_ENABLE_BUBBLE_BAR)
 @RequiresDevice
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 @Presubmit
-@FlakyTest(bugId = 421000153)
 @RunWith(Parameterized::class)
-class ExpandBubbleWithImeViaBubbleBarTest(navBar: NavBar) : BubbleFlickerTestBase(),
-    ExpandBubbleTestCases, ImeBecomesVisibleAndBubbleIsShrunkTestCase {
+class ExpandBubbleWithImeViaBubbleBarTest(navBar: NavBar) :
+    BubbleFlickerTestBase(),
+    ExpandBubbleFromHomeTestCases,
+    ImeBecomesVisibleAndBubbleIsShrunkTestCase {
 
     companion object {
         private val testApp = ImeShownOnAppStartHelper(instrumentation, Rotation.ROTATION_0)
 
-        /**
-         * The screenshot took at the end of the transition.
-         */
+        /** The screenshot took at the end of the transition. */
         private lateinit var bitmapAtEnd: Bitmap
 
-        /**
-         * The IME inset observed from [testApp]
-         */
+        /** The IME inset observed from [testApp] */
         private var imeInset: Int = -1
 
-        private val recordTraceWithTransitionRule = RecordTraceWithTransitionRule(
-            setUpBeforeTransition = {
-                // Launch and collapse the bubble.
-                launchBubbleViaBubbleMenu(testApp, tapl, wmHelper)
-                // Press back to dismiss IME window.
-                tapl.pressBack()
-                collapseBubbleAppViaBackKey(testApp, tapl, wmHelper)
-                // Checks that the IME is gone and the bubble is in collapsed state
-                wmHelper
-                    .StateSyncBuilder()
-                    .withImeGone()
-                    .waitForAndVerify()
-            },
-            transition = {
-                expandBubbleAppViaBubbleBar(testApp, uiDevice, wmHelper)
-                testApp.waitIMEShown(wmHelper)
-                bitmapAtEnd = instrumentation.uiAutomation.takeScreenshot()
-                imeInset = testApp.retrieveImeBottomInset()
-            },
-            tearDownAfterTransition = { testApp.exit(wmHelper) }
-        )
+        private val recordTraceWithTransitionRule =
+            RecordTraceWithTransitionRule(
+                setUpBeforeTransition = {
+                    // Launch and collapse the bubble.
+                    launchBubbleViaBubbleMenu(testApp, tapl, wmHelper)
+                    // Press back to dismiss IME window.
+                    tapl.pressBack()
+                    collapseBubbleAppViaBackKey(testApp, tapl, wmHelper)
+                    // Checks that the IME is gone and the bubble is in collapsed state
+                    wmHelper.StateSyncBuilder().withImeGone().waitForAndVerify()
+                },
+                transition = {
+                    expandBubbleAppViaBubbleBar(testApp, uiDevice, wmHelper)
+                    testApp.waitIMEShown(wmHelper)
+                    bitmapAtEnd = instrumentation.uiAutomation.takeScreenshot()
+                    imeInset = testApp.retrieveImeBottomInset()
+                },
+                tearDownAfterTransition = { testApp.exit(wmHelper) },
+            )
 
-        @Parameterized.Parameters(name = "{0}")
-        @JvmStatic
-        fun data(): List<NavBar> = listOf(NavBar.MODE_GESTURAL, NavBar.MODE_3BUTTON)
+        @Parameters(name = "{0}") @JvmStatic fun data(): List<NavBar> = NavBar.entries
     }
 
-    @get:Rule
-    val setUpRule = ApplyPerParameterRule(
-        Utils.testSetupRule(navBar).around(recordTraceWithTransitionRule),
-        params = arrayOf(navBar),
-    )
+    @get:Rule(order = 1)
+    val assumptionRule =
+        AssumptionRule(
+            condition = { tapl.isTablet },
+            message = "The bubble bar is only available on large screen devices",
+        )
+
+    @get:Rule(order = 2)
+    val setUpRule =
+        RunOncePerParameterRule(
+            testClass = this::class,
+            wrappedRule = testSetupRule(navBar).around(recordTraceWithTransitionRule),
+            params = arrayOf(navBar),
+        )
 
     override val traceDataReader
         get() = recordTraceWithTransitionRule.reader
@@ -127,10 +132,4 @@ class ExpandBubbleWithImeViaBubbleBarTest(navBar: NavBar) : BubbleFlickerTestBas
 
     override val expectedImeInset
         get() = imeInset
-
-    @Before
-    override fun setUp() {
-        assumeTrue(tapl.isTablet)
-        super.setUp()
-    }
 }

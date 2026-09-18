@@ -18,7 +18,9 @@ package android.app;
 
 import static android.Manifest.permission.WRITE_SECURE_SETTINGS;
 
+import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.SystemService;
@@ -26,30 +28,45 @@ import android.annotation.TestApi;
 import android.annotation.UserHandleAware;
 import android.content.ComponentName;
 import android.content.Context;
+import android.os.Binder;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.UserHandle;
 import android.provider.Settings;
+import android.service.dreams.DreamPlaylist;
 import android.service.dreams.DreamService;
 import android.service.dreams.Flags;
 import android.service.dreams.IDreamManager;
+import android.service.dreams.IDreamManagerListener;
+import com.android.internal.util.ClientListenerMultiplexer;
 
-/**
- * @hide
- */
+import java.util.Objects;
+import java.util.concurrent.Executor;
+
+/** @hide */
 @SystemService(Context.DREAM_SERVICE)
 @TestApi
 public class DreamManager {
     private final IDreamManager mService;
     private final Context mContext;
+    private final ClientListenerMultiplexer<DreamListener, IDreamManager, IDreamManagerListener>
+            mMultiplexer;
 
     /**
      * @hide
      */
     public DreamManager(Context context) throws ServiceManager.ServiceNotFoundException {
         mService = IDreamManager.Stub.asInterface(
-                ServiceManager.getServiceOrThrow(DreamService.DREAM_SERVICE));
+                        ServiceManager.getServiceOrThrow(DreamService.DREAM_SERVICE));
         mContext = context;
+        mMultiplexer =
+                new ClientListenerMultiplexer<>(
+                        mService,
+                        new DreamEventListener(),
+                        (service, callback) ->
+                                service.registerListener(callback, mContext.getUserId()),
+                        (service, callback) ->
+                                service.unregisterListener(callback, mContext.getUserId()));
     }
 
     /**
@@ -155,7 +172,7 @@ public class DreamManager {
     /**
      * Sets or clears the system dream component.
      *
-     * The system dream component, when set, will be shown instead of the user configured dream
+     * <p>The system dream component, when set, will be shown instead of the user configured dream
      * when the system starts dreaming (not dozing). If the system is dreaming at the time the
      * system dream is set or cleared, it immediately switches dream.
      *
@@ -165,7 +182,9 @@ public class DreamManager {
     @RequiresPermission(android.Manifest.permission.WRITE_DREAM_STATE)
     public void setSystemDreamComponent(@Nullable ComponentName dreamComponent) {
         try {
-            mService.setSystemDreamComponent(dreamComponent);
+            final Binder lifecycleToken =
+                    (dreamComponent != null) ? new Binder("system dream token") : null;
+            mService.setSystemDreamComponent(dreamComponent, lifecycleToken);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -243,7 +262,6 @@ public class DreamManager {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_ALLOW_DREAM_WHEN_POSTURED)
     @RequiresPermission(android.Manifest.permission.WRITE_DREAM_STATE)
     public void setDevicePostured(boolean isPostured) {
         try {
@@ -251,5 +269,116 @@ public class DreamManager {
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
+    }
+
+    /**
+     * Sets the active dream on the device to the dream component, or null to clear it.
+     *
+     * <p>Note that this differs from {@link DreamManager#setActiveDream(ComponentName)}, which
+     * changes the "allowed" list of dreams rather than the "active" dream.
+     *
+     * @return Whether the active dream was successfully set.
+     *
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.WRITE_DREAM_STATE)
+    @UserHandleAware(
+            requiresPermissionIfNotCaller = android.Manifest.permission.INTERACT_ACROSS_USERS)
+    public boolean setActiveDreamComponent(@Nullable ComponentName dreamComponent) {
+        assertDreamSwitcherFlag();
+        try {
+            return mService.setActiveDream(dreamComponent, mContext.getUserId());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Returns the current dream playlist.
+     *
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.READ_DREAM_STATE)
+    @UserHandleAware(
+            requiresPermissionIfNotCaller = android.Manifest.permission.INTERACT_ACROSS_USERS)
+    @NonNull
+    public DreamPlaylist getDreamPlaylist() {
+        assertDreamSwitcherFlag();
+        try {
+            return mService.getDreamPlaylist(mContext.getUserId());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Registers a listener for dream state changes.
+     *
+     * <p>Since the listeners are multiplexed, the current state is not returned upon registration.
+     * Clients should query the current state via the relevant methods (e.g. {@link
+     * #getDreamPlaylist()}) and then register a listener to receive updates.
+     *
+     * @param executor The executor to run the callback on.
+     * @param listener The listener to register.
+     * @hide
+     */
+    @UserHandleAware(
+            requiresPermissionIfNotCaller = android.Manifest.permission.INTERACT_ACROSS_USERS)
+    @RequiresPermission(android.Manifest.permission.READ_DREAM_STATE)
+    public void registerListener(
+            @NonNull @CallbackExecutor Executor executor, @NonNull DreamListener listener) {
+        assertDreamSwitcherFlag();
+        Objects.requireNonNull(executor, "Executor must not be null");
+        Objects.requireNonNull(listener, "Listener must not be null");
+        mMultiplexer.addListener(executor, listener);
+    }
+
+    /**
+     * Unregisters a listener for dream state changes.
+     *
+     * @param listener The listener to unregister.
+     * @hide
+     */
+    @UserHandleAware(
+            requiresPermissionIfNotCaller = android.Manifest.permission.INTERACT_ACROSS_USERS)
+    @RequiresPermission(android.Manifest.permission.READ_DREAM_STATE)
+    public void unregisterListener(@NonNull DreamListener listener) {
+        assertDreamSwitcherFlag();
+        Objects.requireNonNull(listener, "Listener must not be null");
+        mMultiplexer.removeListener(listener);
+    }
+
+    private final class DreamEventListener extends IDreamManagerListener.Stub {
+        @Override
+        public void onPlaylistChanged(DreamPlaylist playlist) {
+            Binder.withCleanCallingIdentity(
+                    () ->
+                            mMultiplexer.forEachListener(
+                                    listener -> listener.onPlaylistChanged(playlist)));
+        }
+    }
+
+    private void assertDreamSwitcherFlag() {
+        if (!Flags.dreamsSwitcher()) {
+            throw new UnsupportedOperationException(
+                    "Feature not enabled: "
+                            + Flags.FLAG_DREAMS_SWITCHER
+                            + ". The caller is expected to guard the call site with a runtime check"
+                            + " to ensure the associated flag is enabled before calling the API.");
+        }
+    }
+
+    /**
+     * Listener for dream state changes.
+     *
+     * @hide
+     */
+    public interface DreamListener {
+        /**
+         * Called when the dream playlist or active dream changes.
+         *
+         * @param playlist The new playlist.
+         */
+        default void onPlaylistChanged(@NonNull DreamPlaylist playlist) {}
     }
 }

@@ -35,7 +35,6 @@ val Kosmos.fakeFeatureFlagsClassic by
         FakeFeatureFlagsClassic().apply {
             set(Flags.FULL_SCREEN_USER_SWITCHER, false)
             set(Flags.LOCKSCREEN_ENABLE_LANDSCAPE, false)
-            set(Flags.NSSL_DEBUG_LINES, false)
             set(Flags.COMMUNAL_SERVICE_ENABLED, false)
         }
     }

@@ -22,13 +22,14 @@ import android.annotation.NonNull;
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
 import com.android.internal.widget.remotecompose.core.RemoteContext;
+import com.android.internal.widget.remotecompose.core.VariableSupport;
 import com.android.internal.widget.remotecompose.core.WireBuffer;
 import com.android.internal.widget.remotecompose.core.documentation.DocumentationBuilder;
 
 import java.util.List;
 
 /** Operation to measure the length of the text */
-public class TextLength extends Operation {
+public class TextLength extends Operation implements VariableSupport, ComponentData {
     private static final int OP_CODE = Operations.TEXT_LENGTH;
     private static final String CLASS_NAME = "TextLength";
     public int mLengthId;
@@ -99,15 +100,24 @@ public class TextLength extends Operation {
      * @param doc to append the description to.
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
-        doc.operation("Expressions Operations", OP_CODE, CLASS_NAME)
-                .description("get the length of the text and store in float table")
-                .field(INT, "id", "id of float length")
-                .field(INT, "value", "index of text");
+        doc.operation("Text Operations", OP_CODE, CLASS_NAME)
+                .description("Get the length of a string and store it in a float variable")
+                .field(INT, "lengthId", "The ID of the float variable to store the length")
+                .field(INT, "textId", "The ID of the text to measure");
     }
 
     @Override
     public void apply(@NonNull RemoteContext context) {
         context.loadFloat(mLengthId, context.getText(mTextId).length());
+    }
+
+    @Override
+    public void updateVariables(@NonNull RemoteContext context) {
+    }
+
+    @Override
+    public void registerListening(@NonNull RemoteContext context) {
+        context.listensTo(mTextId, this);
     }
 
     @NonNull

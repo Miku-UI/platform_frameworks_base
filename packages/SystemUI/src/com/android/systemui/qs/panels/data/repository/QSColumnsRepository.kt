@@ -22,9 +22,9 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.util.kotlin.emitOnStart
+import com.android.systemui.util.kotlin.mapDirect
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.mapLatest
 
 @SysUISingleton
 class QSColumnsRepository
@@ -34,15 +34,15 @@ constructor(
     @ShadeDisplayAware configurationRepository: ConfigurationRepository,
 ) {
     val splitShadeColumns: Flow<Int> =
-        configurationRepository.onConfigurationChange.emitOnStart().mapLatest {
+        configurationRepository.onConfigurationChange.emitOnStart().mapDirect {
             resources.getInteger(R.integer.quick_settings_split_shade_num_columns)
         }
     val dualShadeColumns: Flow<Int> =
-        configurationRepository.onConfigurationChange.emitOnStart().mapLatest {
+        configurationRepository.onConfigurationChange.emitOnStart().mapDirect {
             resources.getInteger(R.integer.quick_settings_dual_shade_num_columns)
         }
     val columns: Flow<Int> =
-        configurationRepository.onConfigurationChange.emitOnStart().mapLatest {
+        configurationRepository.onConfigurationChange.emitOnStart().mapDirect {
             resources.getInteger(R.integer.quick_settings_infinite_grid_num_columns)
         }
     val defaultColumns: Int =

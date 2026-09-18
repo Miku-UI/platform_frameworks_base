@@ -16,10 +16,11 @@
 
 package com.android.systemui.statusbar.core
 
-import android.content.testableContext
+import android.content.applicationContext
 import android.view.Display
 import com.android.app.displaylib.fakes.FakePerDisplayRepository
 import com.android.systemui.bouncer.domain.interactor.primaryBouncerInteractor
+import com.android.systemui.display.data.repository.displayPhoneSubcomponentPerDisplayRepository
 import com.android.systemui.display.data.repository.displayRepository
 import com.android.systemui.display.data.repository.displayScopeRepository
 import com.android.systemui.dump.dumpManager
@@ -33,16 +34,15 @@ import com.android.systemui.shade.mockShadeSurface
 import com.android.systemui.statusbar.data.repository.fakeStatusBarModePerDisplayRepository
 import com.android.systemui.statusbar.data.repository.lightBarControllerStore
 import com.android.systemui.statusbar.data.repository.privacyDotWindowControllerStore
-import com.android.systemui.statusbar.data.repository.statusBarModeRepository
 import com.android.systemui.statusbar.domain.interactor.StatusBarIconRefreshInteractor
 import com.android.systemui.statusbar.domain.interactor.StatusBarIconRefreshInteractorImpl
 import com.android.systemui.statusbar.mockNotificationRemoteInputManager
+import com.android.systemui.statusbar.multiDisplayStatusBarLogger
 import com.android.systemui.statusbar.phone.fakeAutoHideControllerStore
 import com.android.systemui.statusbar.phone.mockAutoHideController
 import com.android.systemui.statusbar.phone.ui.statusBarIconController
 import com.android.systemui.statusbar.policy.statusBarConfigurationController
 import com.android.systemui.statusbar.window.data.repository.fakeStatusBarWindowStatePerDisplayRepository
-import com.android.systemui.statusbar.window.data.repository.statusBarWindowStateRepositoryStore
 import com.android.systemui.statusbar.window.fakeStatusBarWindowController
 import com.android.systemui.statusbar.window.statusBarWindowControllerStore
 import com.android.wm.shell.bubbles.bubblesOptional
@@ -54,19 +54,18 @@ val Kosmos.multiDisplayStatusBarOrchestratorStore by
             displayRepository,
             statusBarOrchestratorFactory,
             statusBarWindowControllerStore,
-            statusBarModeRepository,
             statusBarInitializerStore,
             fakeAutoHideControllerStore,
             displayScopeRepository,
-            statusBarWindowStateRepositoryStore,
             statusBarIconRefreshPerDisplayRepository,
+            displayPhoneSubcomponentPerDisplayRepository,
         )
     }
 
 val Kosmos.statusBarIconRefreshInteractor by
     Kosmos.Fixture {
         StatusBarIconRefreshInteractorImpl(
-            testableContext.displayId,
+            applicationContext.displayId,
             statusBarConfigurationController,
             statusBarIconController,
         )
@@ -82,7 +81,7 @@ val Kosmos.statusBarIconRefreshPerDisplayRepository by
 val Kosmos.statusBarOrchestrator by
     Kosmos.Fixture {
         StatusBarOrchestrator(
-            testableContext.displayId,
+            applicationContext.displayId,
             applicationCoroutineScope,
             fakeStatusBarWindowStatePerDisplayRepository,
             fakeStatusBarModePerDisplayRepository,
@@ -117,5 +116,6 @@ val Kosmos.multiDisplayStatusBarStarter by
             statusBarInitializerStore,
             privacyDotWindowControllerStore,
             lightBarControllerStore,
+            multiDisplayStatusBarLogger,
         )
     }

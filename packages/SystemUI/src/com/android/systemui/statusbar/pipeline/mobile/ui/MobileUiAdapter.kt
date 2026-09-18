@@ -22,8 +22,10 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.shade.carrier.ShadeCarrierGroupController
 import com.android.systemui.statusbar.phone.ui.StatusBarIconController
+import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIconsInteractor
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconsViewModel
+import dagger.Lazy
 import java.io.PrintWriter
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -44,7 +46,7 @@ class MobileUiAdapter
 @Inject
 constructor(
     private val iconController: StatusBarIconController,
-    val mobileIconsViewModel: MobileIconsViewModel,
+    val mobileIconsViewModel: Lazy<MobileIconsViewModel>,
     private val logger: MobileViewLogger,
     @Application private val scope: CoroutineScope,
 ) : CoreStartable {
@@ -54,12 +56,13 @@ constructor(
     private var shadeCarrierGroupController: ShadeCarrierGroupController? = null
 
     override fun start() {
+        if (StatusBarMobileIconKairos.isEnabled) return
         // Start notifying the icon controller of subscriptions
         scope.launch {
             isCollecting = true
             combine(
-                    mobileIconsViewModel.subscriptionIdsFlow,
-                    mobileIconsViewModel.isStackable,
+                    mobileIconsViewModel.get().subscriptionIdsFlow,
+                    mobileIconsViewModel.get().isStackable,
                     ::Pair,
                 )
                 .collectLatest { (subIds, isStackable) ->
@@ -79,6 +82,7 @@ constructor(
 
     /** Set the [ShadeCarrierGroupController] to notify of subscription updates */
     fun setShadeCarrierGroupController(controller: ShadeCarrierGroupController) {
+        StatusBarMobileIconKairos.assertInLegacyMode()
         shadeCarrierGroupController = controller
     }
 

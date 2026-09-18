@@ -16,19 +16,12 @@
 
 package com.android.internal.statusbar;
 
-import android.os.Message;
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.util.Log;
 
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
-
-import java.util.ArrayDeque;
-import java.util.Collection;
-
 public class NotificationVisibility implements Parcelable {
     private static final String TAG = "NoViz";
-    private static final int MAX_POOL_SIZE = 25;
     private static int sNexrId = 0;
 
     public String key;
@@ -72,16 +65,6 @@ public class NotificationVisibility implements Parcelable {
 
     private NotificationVisibility() {
         id = sNexrId++;
-    }
-
-    private NotificationVisibility(String key, int rank, int count, boolean visible,
-            NotificationLocation location) {
-        this();
-        this.key = key;
-        this.rank = rank;
-        this.count = count;
-        this.visible = visible;
-        this.location = location;
     }
 
     @Override

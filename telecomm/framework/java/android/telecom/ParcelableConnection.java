@@ -17,6 +17,7 @@
 package android.telecom;
 
 import android.net.Uri;
+import android.os.BadParcelableException;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -54,7 +55,7 @@ public final class ParcelableConnection implements Parcelable {
     private final Bundle mExtras;
     private String mParentCallId;
     private @Call.Details.CallDirection int mCallDirection;
-    private @Connection.VerificationStatus int mCallerNumberVerificationStatus;
+    private @Annotation.VerificationStatus int mCallerNumberVerificationStatus;
 
     /** @hide */
     public ParcelableConnection(
@@ -79,7 +80,7 @@ public final class ParcelableConnection implements Parcelable {
             Bundle extras,
             String parentCallId,
             @Call.Details.CallDirection int callDirection,
-            @Connection.VerificationStatus int callerNumberVerificationStatus) {
+            @Annotation.VerificationStatus int callerNumberVerificationStatus) {
         this(phoneAccount, state, capabilities, properties, supportedAudioRoutes, address,
                 addressPresentation, callerDisplayName, callerDisplayNamePresentation,
                 videoProvider, videoState, ringbackRequested, isVoipAudioMode, connectTimeMillis,
@@ -110,7 +111,7 @@ public final class ParcelableConnection implements Parcelable {
             DisconnectCause disconnectCause,
             List<String> conferenceableConnectionIds,
             Bundle extras,
-            @Connection.VerificationStatus int callerNumberVerificationStatus) {
+            @Annotation.VerificationStatus int callerNumberVerificationStatus) {
         mPhoneAccount = phoneAccount;
         mState = state;
         mConnectionCapabilities = capabilities;
@@ -231,7 +232,7 @@ public final class ParcelableConnection implements Parcelable {
         return mCallDirection;
     }
 
-    public @Connection.VerificationStatus int getCallerNumberVerificationStatus() {
+    public @Annotation.VerificationStatus int getCallerNumberVerificationStatus() {
         return mCallerNumberVerificationStatus;
     }
 
@@ -278,7 +279,7 @@ public final class ParcelableConnection implements Parcelable {
             DisconnectCause disconnectCause = source.readParcelable(classLoader, android.telecom.DisconnectCause.class);
             List<String> conferenceableConnectionIds = new ArrayList<>();
             source.readStringList(conferenceableConnectionIds);
-            Bundle extras = Bundle.setDefusable(source.readBundle(classLoader), true);
+            Bundle extras = defuse(source.readBundle(classLoader));
             int properties = source.readInt();
             int supportedAudioRoutes = source.readInt();
             String parentCallId = source.readString();
@@ -349,5 +350,20 @@ public final class ParcelableConnection implements Parcelable {
         destination.writeLong(mConnectElapsedTimeMillis);
         destination.writeInt(mCallDirection);
         destination.writeInt(mCallerNumberVerificationStatus);
+    }
+
+    // Try to defuse the Bundle and if it fails, return an empty Bundle instead of an exception.
+    private static Bundle defuse(Bundle bundle) {
+        if (bundle == null) {
+            Log.w(null, "defuse: bundle is null, returning null");
+            return null;
+        }
+        try {
+            bundle.getBoolean("FOO", false);
+            return bundle;
+        } catch (BadParcelableException e) {
+            Log.e(bundle, e, "defuse: BadParcelableException caught, returning empty Bundle.");
+            return new Bundle();
+        }
     }
 }

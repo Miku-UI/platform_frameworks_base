@@ -19,15 +19,15 @@ package com.android.wm.shell.flicker.fundamentals
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
-import com.android.wm.shell.flicker.utils.appWindowOnTopAtStart
 import com.android.wm.shell.flicker.utils.appWindowOnTopAtEnd
+import com.android.wm.shell.flicker.utils.appWindowOnTopAtStart
 import com.android.wm.shell.scenarios.SwitchFocusBetweenApps
 import org.junit.Rule
 import org.junit.Test
@@ -44,9 +44,8 @@ import org.junit.runners.Parameterized
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
 class SwitchFocusBetweenAppsTest(flicker: FlickerTest) : DesktopModeBaseTest(flicker) {
-    inner class SwitchFocusBetweenAppsScenario : SwitchFocusBetweenApps(
-        flicker.scenario.startRotation
-    )
+    inner class SwitchFocusBetweenAppsScenario :
+        SwitchFocusBetweenApps(flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -57,22 +56,14 @@ class SwitchFocusBetweenAppsTest(flicker: FlickerTest) : DesktopModeBaseTest(fli
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.focusApp()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.focusApp() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appWindowOnTopAtStart() = flicker.appWindowOnTopAtStart(testApp)
+    @Test fun appWindowOnTopAtStart() = flicker.appWindowOnTopAtStart(testApp)
 
-    @Test
-    fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(calculatorApp)
+    @Test fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(calculatorApp)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

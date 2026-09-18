@@ -16,8 +16,6 @@
 
 package com.android.server.people;
 
-import static com.android.server.flags.Flags.earlyDataManagerInit;
-
 import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -121,12 +119,10 @@ public class PeopleService extends SystemService {
     @Override
     public void onBootPhase(int phase) {
         if (phase == PHASE_BOOT_COMPLETED) {
-            if (earlyDataManagerInit()) {
-                // Force initialization of DataManager before onUserUnlocked
-                // to avoid blocking the ActivityManagerService on
-                // shortcutHandleUnlockUser.
-                getDataManager();
-            }
+            // Force initialization of DataManager before onUserUnlocked
+            // to avoid blocking the ActivityManagerService on
+            // shortcutHandleUnlockUser.
+            getDataManager();
         }
     }
 
@@ -171,8 +167,7 @@ public class PeopleService extends SystemService {
         final int callingUid = Binder.getCallingUid();
         final int callingUserId = UserHandle.getUserId(callingUid);
 
-        if (mPackageManagerInternal.getPackageUid(pkg, /*flags=*/ 0,
-                callingUserId) != callingUid) {
+        if (!mPackageManagerInternal.isSameApp(pkg, callingUid, callingUserId)) {
             throw new SecurityException("Calling uid " + callingUid + " cannot query events"
                     + "for package " + pkg);
         }

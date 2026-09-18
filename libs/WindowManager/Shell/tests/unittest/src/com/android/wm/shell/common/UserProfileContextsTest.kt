@@ -42,9 +42,7 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
-/**
- * Tests for [UserProfileContexts].
- */
+/** Tests for [UserProfileContexts]. */
 @RunWith(AndroidTestingRunner::class)
 class UserProfileContextsTest : ShellTestCase() {
 
@@ -123,11 +121,12 @@ class UserProfileContextsTest : ShellTestCase() {
         val newUserContext = createContextForUser(SECOND_USER)
         userChangeListener.onUserChanged(SECOND_USER, newUserContext)
         userChangeListener.onUserProfilesChanged(SECOND_PROFILES)
-        val newProfiles = listOf(
-            UserInfo(SECOND_USER, "Second", 0),
-            UserInfo(SECOND_PROFILE, "Second Profile", 0),
-            UserInfo(MAIN_PROFILE, "Main profile", 0),
-        )
+        val newProfiles =
+            listOf(
+                UserInfo(SECOND_USER, "Second", 0),
+                UserInfo(SECOND_PROFILE, "Second Profile", 0),
+                UserInfo(MAIN_PROFILE, "Main profile", 0),
+            )
 
         userChangeListener.onUserProfilesChanged(newProfiles)
 

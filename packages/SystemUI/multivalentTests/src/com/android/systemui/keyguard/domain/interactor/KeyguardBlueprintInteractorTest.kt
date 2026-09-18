@@ -17,8 +17,10 @@
 
 package com.android.systemui.keyguard.domain.interactor
 
+import android.platform.test.annotations.DisableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.biometrics.data.repository.fakeFingerprintPropertyRepository
 import com.android.systemui.biometrics.shared.model.FingerprintSensorType
@@ -89,6 +91,7 @@ class KeyguardBlueprintInteractorTest : SysuiTestCase() {
 
     @Test
     @EnableSceneContainer
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun testDoesNotApplySplitShadeBlueprint() {
         kosmos.runTest {
             val blueprintId by collectLastValue(underTest.blueprintId)

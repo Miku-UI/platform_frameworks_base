@@ -151,7 +151,7 @@ open class Universe(val namer: Namer, randomSeed: Long) : Simulator(randomSeed) 
                     radius = radius,
                     pos = star.pos + Vec2.makeWithAngleMag(thisPlanetFrac * PI2f, orbitRadius),
                     speed = speed,
-                    color = Colors.Eigengrau4
+                    color = Color.hsv(thisPlanetFrac * 360f, 1f, 1f)
                 )
             android.util.Log.v("Landroid", "created planet $p with period $period and vel $speed")
             val num = it + 1
@@ -202,13 +202,15 @@ open class Universe(val namer: Namer, randomSeed: Long) : Simulator(randomSeed) 
             val period = sqrt(orbitRadius.pow(3f) / star.mass) * KEPLER_CONSTANT
             val speed = 2f * PIf * orbitRadius / period
 
+            val hue = (radius % 360f)
+
             val p =
                 Planet(
                     orbitCenter = star.pos,
                     radius = radius,
                     pos = star.pos + Vec2.makeWithAngleMag(rng.nextFloat() * PI2f, orbitRadius),
                     speed = speed,
-                    color = Colors.Eigengrau4
+                    color = Color.hsv(hue, 0.75f, 1f)
                 )
             android.util.Log.v("Landroid", "created planet $p with period $period and vel $speed")
             p.description = namer.describePlanet(rng)

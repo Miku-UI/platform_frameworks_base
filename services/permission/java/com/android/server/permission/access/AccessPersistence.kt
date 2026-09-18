@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package com.android.server.permission.access
 
 import android.os.Handler
@@ -28,8 +30,8 @@ import com.android.internal.annotations.GuardedBy
 import com.android.modules.utils.BinaryXmlPullParser
 import com.android.modules.utils.BinaryXmlSerializer
 import com.android.server.IoThread
-import com.android.server.permission.access.collection.* // ktlint-disable no-wildcard-imports
-import com.android.server.permission.access.immutable.* // ktlint-disable no-wildcard-imports
+import com.android.server.permission.access.collection.*
+import com.android.server.permission.access.immutable.*
 import com.android.server.permission.access.util.PermissionApex
 import com.android.server.permission.access.util.parseBinaryXml
 import com.android.server.permission.access.util.readWithReserveCopy

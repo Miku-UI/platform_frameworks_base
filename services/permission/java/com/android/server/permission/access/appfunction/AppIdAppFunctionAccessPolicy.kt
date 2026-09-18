@@ -22,6 +22,7 @@ import android.app.appfunctions.AppFunctionManager.ACCESS_FLAG_MASK_OTHER
 import android.app.appfunctions.AppFunctionManager.ACCESS_FLAG_MASK_USER
 import android.app.appfunctions.AppFunctionManager.ACCESS_FLAG_OTHER_GRANTED
 import android.app.appfunctions.AppFunctionManager.ACCESS_FLAG_PREGRANTED
+import android.app.appfunctions.AppFunctionManager.ACCESS_FLAG_UPGRADE_GRANTED
 import android.app.appfunctions.AppFunctionManager.ACCESS_FLAG_USER_GRANTED
 import android.app.appfunctions.AppFunctionManager.ACCESS_REQUEST_STATE_DENIED
 import android.app.appfunctions.AppFunctionManager.ACCESS_REQUEST_STATE_GRANTED
@@ -57,6 +58,8 @@ class AppIdAppFunctionAccessPolicy : SchemePolicy() {
     private val persistence = AppIdAppFunctionAccessPersistence()
 
     private val upgrade = AppIdAppFunctionAccessUpgrade(this)
+
+    @Volatile var listener: OnAppFunctionAccessFlagsChangedListener? = null
 
     fun GetStateScope.getAccessRequestState(
         agentAppId: Int,
@@ -131,6 +134,7 @@ class AppIdAppFunctionAccessPolicy : SchemePolicy() {
             newState.mutateUserState(agentUserId)!!.mutateAppIdAppFunctionAccessFlags()
         val flags = appIdAppFunctionAccessFlags.mutateOrPut(agentAppId) { MutableIntIntMap() }
         flags.putWithDefault(targetUid, newFlags, 0)
+        listener?.onAppFunctionAccessFlagsChanged(UserHandle.getUid(agentUserId, agentAppId))
         return true
     }
 
@@ -196,7 +200,7 @@ class AppIdAppFunctionAccessPolicy : SchemePolicy() {
         }
     }
 
-    private fun GetStateScope.isValidAgent(packageState: PackageState, userId: Int): Boolean {
+    fun GetStateScope.isValidAgent(packageState: PackageState, userId: Int): Boolean {
         if (!packageState.isInstalledForUser(userId)) {
             return false
         }
@@ -220,7 +224,7 @@ class AppIdAppFunctionAccessPolicy : SchemePolicy() {
             return false
         }
 
-        return allowedAgent.certificateDigestOrNull == null ||
+        return !allowedAgent.hasCertificateDigest() ||
             possibleAgent.androidPackage
                 ?.signingDetails
                 ?.hasSha256Certificate(allowedAgent.certificateDigest) == true
@@ -243,6 +247,10 @@ class AppIdAppFunctionAccessPolicy : SchemePolicy() {
     private fun PackageState.isInstalledForUser(userId: Int) =
         getUserStateOrDefault(userId).isInstalled
 
+    override fun GetStateScope.onStateMutated() {
+        listener?.onStateMutated()
+    }
+
     override fun MutateStateScope.onAgentAllowlistChanged(agentAllowlist: Set<SignedPackage>?) {
         if (agentAllowlist == null) {
             // if the allowlist is null, then it isn't enforced, don't clean up state
@@ -256,7 +264,7 @@ class AppIdAppFunctionAccessPolicy : SchemePolicy() {
                     ?: return@forEachIndexed
             )
         }
-        newState.userStates.forEachIndexed { userIndex, user, _ ->
+        newState.userStates.forEachIndexed { userIndex, userId, _ ->
             val appIdAppFunctionAccessFlags =
                 newState.mutateUserStateAt(userIndex).mutateAppIdAppFunctionAccessFlags()
             appIdAppFunctionAccessFlags.forEachReversedIndexed { appIdIndex, appId, _ ->
@@ -305,6 +313,32 @@ class AppIdAppFunctionAccessPolicy : SchemePolicy() {
         }
     }
 
+    override fun MutateStateScope.onStorageVolumeMounted(
+        volumeUuid: String?,
+        packageNames: List<String>,
+        isSystemUpdated: Boolean,
+    ) {
+        packageNames.forEachIndexed { _, packageName ->
+            val packageState =
+                newState.externalState.packageStates[packageName] ?: return@forEachIndexed
+            // The package may still be unavailable if the storage volume is removed before fully
+            // scanned, in which case we should skip it and wait for the next time.
+            packageState.androidPackage ?: return@forEachIndexed
+            trimAccessFlags(packageState.appId)
+        }
+    }
+
+    override fun MutateStateScope.onPackageAdded(packageState: PackageState) {
+        trimAccessFlags(packageState.appId)
+    }
+
+    override fun MutateStateScope.onPackageRemoved(packageName: String, appId: Int) {
+        if (appId in newState.externalState.appIdPackageNames) {
+            trimAccessFlags(appId)
+        }
+        // Else, we will get an onAppIdRemoved call, which will handle state removal
+    }
+
     override fun MutateStateScope.onPackageUninstalled(
         packageName: String,
         appId: Int,
@@ -313,25 +347,39 @@ class AppIdAppFunctionAccessPolicy : SchemePolicy() {
         if (userId !in newState.userStates) {
             return
         }
-        val isValidAgentUid = anyInstalledPackageInUid(appId, userId) { isValidAgent(it, userId) }
-        if (!isValidAgentUid) {
-            if (appId in newState.userStates[userId]!!.appIdAppFunctionAccessFlags) {
-                newState.mutateUserState(userId)!!.mutateAppIdAppFunctionAccessFlags() -= appId
+        val packageState = newState.externalState.packageStates[packageName] ?: return
+        trimAccessFlags(packageState.appId, userId)
+    }
+
+    // Checks if the given app ID is a valid agent or target, and removes any invalid entries.
+    private fun MutateStateScope.trimAccessFlags(
+        appId: Int,
+        userIdToTrim: Int = UserHandle.USER_ALL,
+    ) {
+        newState.userStates.forEachIndexed { userIndex, userId, userState ->
+            if (userIdToTrim != UserHandle.USER_ALL && userIdToTrim != userId) {
+                return@forEachIndexed
             }
-        }
-        val isValidTargetUid = anyInstalledPackageInUid(appId, userId) { isValidTarget(it, userId) }
-        if (!isValidTargetUid) {
-            val uid = UserHandle.getUid(userId, appId)
-            newState.userStates.forEachIndexed { userIndex, _, userState ->
-                userState.appIdAppFunctionAccessFlags.forEachIndexed {
-                    appIdIndex,
-                    appId,
-                    accessFlags ->
-                    if (uid in accessFlags) {
-                        newState
-                            .mutateUserStateAt(userIndex)
-                            .mutateAppIdAppFunctionAccessFlags()
-                            .mutateAt(appIdIndex) -= uid
+            val isValidAgent = anyInstalledPackageInUid(appId, userId) { isValidAgent(it, userId) }
+            if (!isValidAgent && appId in userState.appIdAppFunctionAccessFlags) {
+                newState.mutateUserStateAt(userIndex).mutateAppIdAppFunctionAccessFlags() -= appId
+            }
+
+            val isValidTarget =
+                anyInstalledPackageInUid(appId, userId) { isValidTarget(it, userId) }
+            if (!isValidTarget) {
+                val uid = UserHandle.getUid(userId, appId)
+                newState.userStates.forEachIndexed { targetUserIndex, _, targetUserState ->
+                    targetUserState.appIdAppFunctionAccessFlags.forEachIndexed {
+                        appIdIndex,
+                        appId,
+                        accessFlags ->
+                        if (uid in accessFlags) {
+                            newState
+                                .mutateUserStateAt(targetUserIndex)
+                                .mutateAppIdAppFunctionAccessFlags()
+                                .mutateAt(appIdIndex) -= uid
+                        }
                     }
                 }
             }
@@ -354,19 +402,25 @@ class AppIdAppFunctionAccessPolicy : SchemePolicy() {
         with(persistence) { this@serializeUserState.serializeUserState(state, userId) }
     }
 
+    interface OnAppFunctionAccessFlagsChangedListener {
+        fun onAppFunctionAccessFlagsChanged(agentUid: Int)
+
+        fun onStateMutated()
+    }
+
     companion object {
         private val LOG_TAG = AppIdAppFunctionAccessPolicy::class.java.simpleName
 
-        // Grant logic ordering goes as follows: USER flags override OTHER flags.
-        // If no other DENIED flags are applied, PREGRANTED flag means granted.
+        // Grant logic ordering goes as follows: OTHER flags override USER flags.
+        // If no other DENIED flags are applied, PREGRANTED or UPGRADE flag means granted.
         fun isAccessGranted(flags: Int): Boolean {
-            if (flags.hasAnyBit(ACCESS_FLAG_MASK_USER)) {
-                return flags.hasBits(ACCESS_FLAG_USER_GRANTED)
-            }
             if (flags.hasAnyBit(ACCESS_FLAG_MASK_OTHER)) {
                 return flags.hasBits(ACCESS_FLAG_OTHER_GRANTED)
             }
-            return flags.hasBits(ACCESS_FLAG_PREGRANTED)
+            if (flags.hasAnyBit(ACCESS_FLAG_MASK_USER)) {
+                return flags.hasBits(ACCESS_FLAG_USER_GRANTED)
+            }
+            return flags.hasAnyBit(ACCESS_FLAG_PREGRANTED or ACCESS_FLAG_UPGRADE_GRANTED)
         }
     }
 }

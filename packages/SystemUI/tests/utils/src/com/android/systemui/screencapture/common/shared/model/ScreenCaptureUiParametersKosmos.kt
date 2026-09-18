@@ -16,44 +16,12 @@
 
 package com.android.systemui.screencapture.common.shared.model
 
-import android.os.UserHandle
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.screencapture.common.shared.model.ScreenCaptureUiParameters.Record.LargeScreenCaptureUiParameters
 
-val Kosmos.recordScreenCaptureUiParameters: ScreenCaptureUiParameters by
+var Kosmos.screenCaptureUiParameters: ScreenCaptureUiParameters by
     Kosmos.Fixture {
-        ScreenCaptureUiParameters(
-            screenCaptureType = ScreenCaptureType.RECORD,
-            isUserConsentRequired = false,
-            resultReceiver = null,
-            mediaProjection = null,
-            hostAppUserHandle = UserHandle.CURRENT,
-            hostAppUid = 0,
-            largeScreenParameters = largeScreenCaptureUiParameters,
-        )
-    }
-
-val Kosmos.castScreenCaptureUiParameters: ScreenCaptureUiParameters by
-    Kosmos.Fixture {
-        ScreenCaptureUiParameters(
-            screenCaptureType = ScreenCaptureType.CAST,
-            isUserConsentRequired = false,
-            resultReceiver = null,
-            mediaProjection = null,
-            hostAppUserHandle = UserHandle.CURRENT,
-            hostAppUid = 0,
-        )
-    }
-
-val Kosmos.shareScreenCaptureUiParameters: ScreenCaptureUiParameters by
-    Kosmos.Fixture {
-        ScreenCaptureUiParameters(
-            screenCaptureType = ScreenCaptureType.SHARE_SCREEN,
-            isUserConsentRequired = false,
-            resultReceiver = null,
-            mediaProjection = null,
-            hostAppUserHandle = UserHandle.CURRENT,
-            hostAppUid = 0,
-        )
+        ScreenCaptureUiParameters.Record(largeScreenParameters = largeScreenCaptureUiParameters)
     }
 
 /** Modifiable to set the default capture type and capture region */

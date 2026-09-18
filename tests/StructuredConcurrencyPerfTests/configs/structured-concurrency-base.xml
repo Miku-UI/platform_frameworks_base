@@ -32,10 +32,16 @@
     </target_preparer>
 
     <target_preparer class="com.android.tradefed.targetprep.RunCommandTargetPreparer">
-        <!-- perf-setup.sh is pre-installed on eng and userdebug builds -->
-        <option name="run-command" value="perf-setup.sh" />
+        <!-- Assume device has a script named perf_mode.sh with the following capabilities:
+                 ./perf_mode.sh [start|stop]
+                 start : set the device in full speed
+                 stop  : back to normal after reboot
+             Otherwise, fallback to running: ./perf-setup.sh
+               -->
+        <option name="run-command" value="perf_mode.sh start || perf-setup.sh" />
         <option name="run-command" value="pm compile -m speed -f com.android.app.concurrent.benchmark" />
         <option name="run-command" value="cat /dev/cpuset/camera-daemon-high-group/cpus > /dev/cpuset/top-app/cpus" />
+        <option name="teardown-command" value="perf_mode.sh stop || echo 'restart to undo ./perf-setup.sh'" />
         <option name="throw-if-cmd-fail" value="true" />
     </target_preparer>
 
@@ -53,14 +59,7 @@
         <option name="clean-up" value="false"/>
     </metrics_collector>
 
-    <!-- Pull test metric results summary file from device to host -->
-    <metrics_collector class="com.android.tradefed.device.metric.FilePullerLogCollector">
-        <option name="pull-pattern-keys" value="metricSummaryOutputFile"/>
-        <option name="clean-up" value="false" />
-    </metrics_collector>
-
     <metric_post_processor class="com.android.tradefed.postprocessor.MetricFilePostProcessor">
-        <option name="enable-per-test-log" value="true" />
         <option name="strict-include-metric-filter" value="(perfetto_mt|time_nanos|allocation_count)_.*" />
     </metric_post_processor>
 

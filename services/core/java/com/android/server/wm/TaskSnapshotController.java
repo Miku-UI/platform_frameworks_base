@@ -82,9 +82,8 @@ class TaskSnapshotController extends AbsAppSnapshotController<Task, TaskSnapshot
                 persistQueue,
                 mPersistInfoProvider,
                 shouldDisableSnapshots());
-        initialize(new TaskSnapshotCache(new AppSnapshotLoader(mPersistInfoProvider)));
-        mOnlyCacheLowResSnapshot = Flags.reduceTaskSnapshotMemoryUsage()
-                && Flags.respectRequestedTaskSnapshotResolution()
+        initialize(new TaskSnapshotCache(new AppSnapshotLoader(mPersistInfoProvider), service.mH));
+        mOnlyCacheLowResSnapshot = Flags.onlyCacheLowResTaskSnapshot()
                 && mPersistInfoProvider.enableLowResSnapshots();
     }
 
@@ -206,7 +205,15 @@ class TaskSnapshotController extends AbsAppSnapshotController<Task, TaskSnapshot
                 if (converted == null) {
                     return;
                 }
+                // Since SnapshotController#getTaskSnapshotInner may have already cached and shared
+                // the converted low-resolution snapshot with the supplier, there is no need to
+                // upload the same snapshot to the cache again here.
                 synchronized (mService.mGlobalLock) {
+                    final TaskSnapshot hasLow = mCache.getSnapshot(task.mTaskId,
+                            TaskSnapshotManager.RESOLUTION_LOW, TaskSnapshot.REFERENCE_NONE);
+                    if (hasLow == converted) {
+                        return;
+                    }
                     if (!task.isAttached()
                             || !updateCacheWithLowResSnapshotIfNeeded(task, converted)) {
                         converted.closeBuffer();
@@ -234,16 +241,6 @@ class TaskSnapshotController extends AbsAppSnapshotController<Task, TaskSnapshot
             return true;
         }
         return false;
-    }
-
-    /**
-     * Retrieves a snapshot from cache.
-     * @deprecated Use {@link #getSnapshot(int, int)}
-     */
-    @Deprecated
-    @Nullable
-    TaskSnapshot getSnapshot(int taskId, boolean isLowResolution) {
-        return getSnapshot(taskId, false /* isLowResolution */, REFERENCE_NONE);
     }
 
     /**
@@ -289,8 +286,17 @@ class TaskSnapshotController extends AbsAppSnapshotController<Task, TaskSnapshot
     @Nullable
     TaskSnapshot getSnapshotFromDisk(int taskId, int userId,
             boolean isLowResolution, @TaskSnapshot.ReferenceFlags int usage) {
-        return mCache.getSnapshotFromDisk(taskId, userId, isLowResolution
+        final boolean traceEnabled = Trace.isTagEnabled(TRACE_TAG_WINDOW_MANAGER);
+        if (traceEnabled) {
+            Trace.traceBegin(TRACE_TAG_WINDOW_MANAGER,
+                    "getSnapshotFromDisk_Id=" + taskId + "_isLow=" + isLowResolution);
+        }
+        final TaskSnapshot result = mCache.getSnapshotFromDisk(taskId, userId, isLowResolution
                 && mPersistInfoProvider.enableLowResSnapshots(), usage);
+        if (traceEnabled) {
+            Trace.traceEnd(TRACE_TAG_WINDOW_MANAGER);
+        }
+        return result;
     }
 
     /**
@@ -315,13 +321,8 @@ class TaskSnapshotController extends AbsAppSnapshotController<Task, TaskSnapshot
      * last taken, or -1 if no such snapshot exists for that task.
      */
     long getSnapshotCaptureTime(int taskId) {
-        final TaskSnapshot snapshot;
-        if (Flags.reduceTaskSnapshotMemoryUsage()) {
-            snapshot = mCache.getSnapshot(taskId, TaskSnapshotManager.RESOLUTION_ANY,
-                    TaskSnapshot.REFERENCE_NONE);
-        } else {
-            snapshot = mCache.getSnapshot(taskId, false /* isLowResolution */);
-        }
+        final TaskSnapshot snapshot = mCache.getSnapshot(taskId, TaskSnapshotManager.RESOLUTION_ANY,
+                TaskSnapshot.REFERENCE_NONE);
         if (snapshot != null) {
             return snapshot.getCaptureTime();
         }
@@ -359,7 +360,7 @@ class TaskSnapshotController extends AbsAppSnapshotController<Task, TaskSnapshot
             }
             return null;
         }
-        final WindowState imeWindow = task.getDisplayContent().mInputMethodWindow;
+        final WindowState imeWindow = task.getDisplayContent().getImeWindow();
         if (imeWindow != null && imeWindow.isVisible()) {
             final Rect bounds = imeWindow.getParentFrame();
             bounds.offsetTo(0, 0);

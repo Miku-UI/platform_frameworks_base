@@ -56,11 +56,7 @@ constructor(private val componentFactory: SystemUIDisplaySubcomponent.Factory) :
             instance.displayCoroutineScope.cancel("Cancelling scope associated to the display.")
         }
         try {
-            instance.lifecycleListeners.forEachTraced(
-                "Notifying listeners of a display component destruction"
-            ) {
-                it.stop()
-            }
+            instance.lifecycleListeners.forEachTraced("LifecycleListener#stop()") { it.stop() }
         } catch (exception: DisplayNotFoundException) {
             Log.e(TAG, "Display no longer exists. Can't destroyInstance", exception)
         }
@@ -68,11 +64,7 @@ constructor(private val componentFactory: SystemUIDisplaySubcomponent.Factory) :
 
     override fun setupInstance(instance: SystemUIDisplaySubcomponent) {
         try {
-            instance.lifecycleListeners.forEachTraced(
-                "Notifying listeners of a display component creation"
-            ) {
-                it.start()
-            }
+            instance.lifecycleListeners.forEachTraced("LifecycleListener#start()") { it.start() }
         } catch (exception: DisplayNotFoundException) {
             Log.e(TAG, "Display no longer exists. Can't setupInstance", exception)
         }
@@ -95,6 +87,7 @@ object DisplayComponentRepository {
             debugName = "DisplayComponentInstanceProvider",
             instanceProvider,
             createInstanceEagerly = isEagerInitializationEnabled(),
+            mainThreadForDefaultDisplayEagerlyCreation = true,
         )
     }
 }

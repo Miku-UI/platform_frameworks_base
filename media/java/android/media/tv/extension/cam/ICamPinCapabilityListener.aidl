@@ -22,5 +22,13 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface ICamPinCapabilityListener {
-    void onCamPinCapabilityChanged(int slotId, in Bundle bundle);
+    /**
+     * Called to notify that the PIN capabilities of the CICAM have changed.
+     *
+     * @param slotId The slot ID of the corresponding CICAM.
+     * @param pinCapability An input Bundle containing the PIN capabilities information, key
+     *                         as defined in @CamConstants.CamPinCapabilityBundleKey and values
+     *                         for KEY_PIN_CAP_CAPABILITY as @CamConstants.CamPinCapabilityType.
+     */
+    void onCamPinCapabilityChanged(int slotId, in Bundle pinCapability);
 }

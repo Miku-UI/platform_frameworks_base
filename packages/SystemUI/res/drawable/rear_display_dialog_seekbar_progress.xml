@@ -35,6 +35,6 @@
         android:right="@dimen/rear_display_dialog_slider_icon_inset">
         <com.android.systemui.util.AlphaTintDrawableWrapper
             android:drawable="@drawable/ic_rear_display_slider"
-            android:tint="?androidprv:attr/colorAccentPrimaryVariant" />
+            android:tint="@color/materialColorPrimaryContainer" />
     </item>
 </layer-list>

@@ -22,10 +22,8 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import android.util.Log
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -36,18 +34,18 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.android.compose.PlatformButton
 import com.android.compose.PlatformOutlinedButton
-import com.android.compose.theme.PlatformTheme
+import com.android.compose.dialog.AlertDialogContent
 import com.android.internal.annotations.VisibleForTesting
 import com.android.internal.jank.InteractionJankMonitor
 import com.android.settingslib.notification.modes.EnableDndDialogFactory
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
+import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
-import com.android.systemui.dialog.ui.composable.AlertDialogContent
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.qs.tiles.dialog.QSEnableDndDialogMetricsLogger
 import com.android.systemui.res.R
@@ -113,39 +111,30 @@ constructor(
 
     @Composable
     private fun ModesDialogContent(dialog: SystemUIDialog) {
-        // TODO(b/369376884): The composable does correctly update when the theme changes
-        //  while the dialog is open, but the background (which we don't control here)
-        //  doesn't, which causes us to show things like white text on a white background.
-        //  as a workaround, we remember the original theme and keep it on recomposition.
-        val isCurrentlyInDarkTheme = isSystemInDarkTheme()
-        val cachedDarkTheme = remember { isCurrentlyInDarkTheme }
-        PlatformTheme(isDarkTheme = cachedDarkTheme) {
-            AlertDialogContent(
-                modifier =
-                    Modifier.semantics {
-                        testTagsAsResourceId = true
-                        paneTitle =
-                            dialog.context.getString(R.string.accessibility_desc_quick_settings)
-                    },
-                title = {
-                    Text(
-                        modifier = Modifier.testTag("modes_title"),
-                        text = stringResource(R.string.zen_modes_dialog_title),
-                    )
+        AlertDialogContent(
+            modifier =
+                Modifier.semantics {
+                    testTagsAsResourceId = true
+                    paneTitle = dialog.context.getString(R.string.accessibility_desc_quick_settings)
                 },
-                content = { ModeTileGrid(viewModel.get()) },
-                neutralButton = {
-                    PlatformOutlinedButton(onClick = { openSettings(dialog) }) {
-                        Text(stringResource(R.string.zen_modes_dialog_settings))
-                    }
-                },
-                positiveButton = {
-                    PlatformButton(onClick = { dialog.dismiss() }) {
-                        Text(stringResource(R.string.zen_modes_dialog_done))
-                    }
-                },
-            )
-        }
+            title = {
+                Text(
+                    modifier = Modifier.testTag("modes_title"),
+                    text = stringResource(R.string.zen_modes_dialog_title),
+                )
+            },
+            content = { ModeTileGrid(viewModel.get()) },
+            neutralButton = {
+                PlatformOutlinedButton(onClick = { openSettings(dialog) }) {
+                    Text(stringResource(R.string.zen_modes_dialog_settings))
+                }
+            },
+            positiveButton = {
+                PlatformButton(onClick = { dialog.dismiss() }) {
+                    Text(stringResource(R.string.zen_modes_dialog_done))
+                }
+            },
+        )
     }
 
     @VisibleForTesting
@@ -179,8 +168,17 @@ constructor(
                 ?.dialogTransitionController(
                     DialogCuj(InteractionJankMonitor.CUJ_SHADE_DIALOG_OPEN, INTERACTION_JANK_TAG)
                 )
-                ?.let { controller -> dialogTransitionAnimator.show(currentDialog!!, controller) }
-                ?: currentDialog!!.show()
+                ?.let { controller ->
+                    if (TransitionAnimator.dynamicTargetResolutionEnabled()) {
+                        dialogTransitionAnimator.show(
+                            currentDialog!!,
+                            expandable::dialogTransitionController,
+                            controller.cuj,
+                        )
+                    } else {
+                        dialogTransitionAnimator.show(currentDialog!!, controller)
+                    }
+                } ?: currentDialog!!.show()
         }
 
         return currentDialog!!

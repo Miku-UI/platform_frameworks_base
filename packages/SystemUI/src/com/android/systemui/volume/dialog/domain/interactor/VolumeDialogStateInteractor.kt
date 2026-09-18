@@ -18,9 +18,9 @@ package com.android.systemui.volume.dialog.domain.interactor
 
 import android.util.SparseArray
 import androidx.core.util.keyIterator
+import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.plugins.VolumeDialogController
-import com.android.systemui.volume.dialog.dagger.scope.VolumeDialogPlugin
-import com.android.systemui.volume.dialog.dagger.scope.VolumeDialogPluginScope
 import com.android.systemui.volume.dialog.data.repository.VolumeDialogStateRepository
 import com.android.systemui.volume.dialog.domain.model.VolumeDialogEventModel
 import com.android.systemui.volume.dialog.shared.model.VolumeDialogCsdWarningModel
@@ -39,14 +39,14 @@ import kotlinx.coroutines.flow.onEach
  *
  * @see [VolumeDialogController]
  */
-@VolumeDialogPluginScope
+@SysUISingleton
 class VolumeDialogStateInteractor
 @Inject
 constructor(
     volumeDialogCallbacksInteractor: VolumeDialogCallbacksInteractor,
     private val volumeDialogController: VolumeDialogController,
     private val volumeDialogStateRepository: VolumeDialogStateRepository,
-    @VolumeDialogPlugin private val coroutineScope: CoroutineScope,
+    @Background private val coroutineScope: CoroutineScope,
 ) {
 
     init {

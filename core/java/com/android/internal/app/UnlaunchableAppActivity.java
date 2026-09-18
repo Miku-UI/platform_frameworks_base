@@ -77,9 +77,7 @@ public class UnlaunchableAppActivity extends Activity
             return;
         }
 
-        if (android.os.Flags.allowPrivateProfile()
-                && android.multiuser.Flags.enablePrivateSpaceFeatures()
-                && !userManager.isManagedProfile(mUserId)) {
+        if (!userManager.isManagedProfile(mUserId)) {
             Log.e(TAG, "Unlaunchable activity for target package " + targetPackageName
                     + " called for a non-managed-profile " + mUserId);
             finish();

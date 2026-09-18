@@ -18,7 +18,6 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:layout_marginTop="2dp"
     >
     <LinearLayout
         android:id="@+id/metric_view_0"
@@ -38,25 +37,18 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
-            <TextView
+            <com.android.internal.widget.NotificationMetricAdaptiveTextView
                 android:id="@+id/metric_value_0"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 style="@style/NotificationExpandedMetricValue"
                 />
-            <Chronometer
+            <com.android.internal.widget.NotificationMetricAdaptiveChronometer
                 android:id="@+id/metric_chronometer_0"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:visibility="gone"
                 style="@style/NotificationExpandedMetricValue"
-                />
-            <TextView
-                android:id="@+id/metric_unit_0"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/notification_expanded_metric_unit_margin"
-                style="@style/NotificationMetricUnit"
                 />
         </LinearLayout>
     </LinearLayout>
@@ -78,25 +70,18 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
-            <TextView
+            <com.android.internal.widget.NotificationMetricAdaptiveTextView
                 android:id="@+id/metric_value_1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 style="@style/NotificationExpandedMetricValue"
                 />
-            <Chronometer
+            <com.android.internal.widget.NotificationMetricAdaptiveChronometer
                 android:id="@+id/metric_chronometer_1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:visibility="gone"
                 style="@style/NotificationExpandedMetricValue"
-                />
-            <TextView
-                android:id="@+id/metric_unit_1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                style="@style/NotificationMetricUnit"
-                android:layout_marginStart="@dimen/notification_expanded_metric_unit_margin"
                 />
         </LinearLayout>
     </LinearLayout>
@@ -117,7 +102,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
-            <TextView
+            <com.android.internal.widget.NotificationMetricAdaptiveTextView
                 android:id="@+id/metric_value_2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -125,19 +110,12 @@
                 android:maxLines="1"
                 style="@style/NotificationExpandedMetricValue"
                 />
-            <Chronometer
+            <com.android.internal.widget.NotificationMetricAdaptiveChronometer
                 android:id="@+id/metric_chronometer_2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:visibility="gone"
                 style="@style/NotificationExpandedMetricValue"
-                />
-            <TextView
-                android:id="@+id/metric_unit_2"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="@dimen/notification_expanded_metric_unit_margin"
-                style="@style/NotificationMetricUnit"
                 />
         </LinearLayout>
     </LinearLayout>

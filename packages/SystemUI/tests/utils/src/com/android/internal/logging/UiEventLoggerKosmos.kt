@@ -21,3 +21,5 @@ import com.android.systemui.kosmos.Kosmos
 
 var Kosmos.uiEventLogger: UiEventLogger by Kosmos.Fixture { uiEventLoggerFake }
 var Kosmos.uiEventLoggerFake by Kosmos.Fixture { UiEventLoggerFake() }
+
+val UiEventLogger.fake get() = this as UiEventLoggerFake

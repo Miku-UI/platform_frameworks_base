@@ -28,15 +28,14 @@ import dagger.Module;
 import dagger.Provides;
 import dagger.Subcomponent;
 
-
-/**
- * Dagger Component for a {@link ExpandableNotificationRow}.
- */
-@Subcomponent(modules = {
-        ActivatableNotificationViewModule.class,
-        ExpandableNotificationRowComponent.ExpandableNotificationRowModule.class,
-        RemoteInputViewModule.class
-})
+/** Dagger Component for a {@link ExpandableNotificationRow}. */
+@Subcomponent(
+        modules = {
+            ActivatableNotificationViewModule.class,
+            EligibilityModule.class,
+            ExpandableNotificationRowComponent.ExpandableNotificationRowModule.class,
+            RemoteInputViewModule.class
+        })
 @NotificationRowScope
 public interface ExpandableNotificationRowComponent {
     /**

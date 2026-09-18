@@ -26,6 +26,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.os.IInputConstants.UNMULTIPLIED_DEFAULT_DISPATCHING_TIMEOUT_MILLIS
 import android.os.SystemClock
+import android.platform.test.annotations.DisabledOnRavenwood
 import android.server.wm.CtsWindowInfoUtils.getWindowCenter
 import android.server.wm.CtsWindowInfoUtils.waitForWindowOnTop
 import android.testing.PollingCheck
@@ -88,6 +89,7 @@ private fun clickOnWindow(
  */
 @MediumTest
 @RunWith(AndroidJUnit4::class)
+@DisabledOnRavenwood(reason = "UiAutomation and running shell commands are not supported")
 class AnrTest {
     companion object {
         private const val TAG = "AnrTest"

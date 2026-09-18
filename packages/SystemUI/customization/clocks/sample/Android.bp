@@ -30,6 +30,7 @@ android_library {
     optimize: {
         enabled: true,
         proguard_flags_files: ["proguard_sample.flags"],
+        included_proguard_flags_files: [":sysui_proguard_kotlin"],
         export_proguard_flags_files: true,
         shrink_resources: true,
         optimized_shrink_resources: true,
@@ -54,5 +55,6 @@ android_app {
         shrink_resources: true,
         optimized_shrink_resources: true,
         proguard_flags_files: ["proguard_sample.flags"],
+        included_proguard_flags_files: [":sysui_proguard_kotlin"],
     },
 }

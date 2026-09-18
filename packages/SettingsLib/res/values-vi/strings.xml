@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Tín hiệu Wi-Fi ba vạch."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Tín hiệu Wi-Fi đủ."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Đã kết nối với thiết bị của bạn."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Tất cả người dùng trên thiết bị này đều có thể xem và kết nối."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Mạng mở"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Mạng bảo mật"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Hệ điều hành Android"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Cài đặt tên điểm truy cập không khả dụng cho người dùng này"</string>
     <string name="enable_adb" msgid="8072776357237289039">"Gỡ lỗi qua USB"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Bật chế độ gỡ lỗi khi kết nối USB"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Thu hồi các lượt ủy quyền gỡ lỗi qua USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Thu hồi quyền truy cập vào công cụ gỡ lỗi adb"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Gỡ lỗi qua Wi-Fi"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Bật chế độ gỡ lỗi khi có kết nối Wi-Fi"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Lỗi"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Đang ghép nối thiết bị…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Không ghép nối được thiết bị. Mã QR không chính xác hoặc bạn không kết nối thiết bị với cùng một mạng."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"Địa chỉ IP và cổng"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Không dùng được (Không được phép)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Không dùng được (Đã ngắt kết nối Wi‑Fi)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Quét mã QR"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Ghép nối thiết bị qua Wi-Fi bằng cách quét mã QR"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Hãy kết nối mạng Wi-Fi"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"Gỡ lỗi USB chỉ dành cho mục đích phát triển. Hãy sử dụng tính năng này để sao chép dữ liệu giữa máy tính và thiết bị của bạn, cài đặt ứng dụng trên thiết bị của bạn mà không thông báo và đọc dữ liệu nhật ký."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Bật tính năng gỡ lỗi qua Wi-Fi?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Tính năng gỡ lỗi qua Wi-Fi chỉ dành cho mục đích phát triển. Hãy sử dụng tính năng này để sao chép dữ liệu giữa máy tính và thiết bị của bạn, cài đặt ứng dụng trên thiết bị mà không thông báo và đọc dữ liệu nhật ký."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Thu hồi quyền truy cập gỡ lỗi USB từ tất cả máy tính mà bạn đã ủy quyền trước đó?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Thu hồi quyền truy cập vào công cụ gỡ lỗi adb từ tất cả máy tính và mạng mà bạn đã uỷ quyền trước đây?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Cho phép cài đặt phát triển?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Những tùy chọn cài đặt này chỉ dành cho mục đích phát triển. Chúng có thể làm cho thiết bị và ứng dụng trên thiết bị của bạn bị lỗi và hoạt động không đúng cách."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Xác minh ứng dụng qua USB"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Đã ngắt kết nối Ethernet."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Không thể gọi điện."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Bàn phím thực"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Chọn bố cục bàn phím"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Mặc định"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Kiểm soát chế độ bật màn hình"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Cho phép bật màn hình"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Cho phép ứng dụng bật màn hình. Nếu được phép, ứng dụng có thể bật màn hình bất kỳ lúc nào kể cả khi bạn không có ý định như vậy."</string>

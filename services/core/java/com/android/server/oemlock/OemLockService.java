@@ -32,6 +32,7 @@ import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.service.oemlock.IOemLockService;
+import android.service.persistentdata.PersistentDataBlockManager;
 import android.util.Slog;
 
 import com.android.server.LocalServices;
@@ -175,6 +176,10 @@ public class OemLockService extends SystemService {
 
             final long token = Binder.clearCallingIdentity();
             try {
+                if (isFactoryResetProtectionActive()) {
+                    throw new SecurityException("OEM unlock disallowed while FRP is active");
+                }
+
                 if (!isOemUnlockAllowedByAdmin()) {
                     throw new SecurityException("Admin does not allow OEM unlock");
                 }
@@ -253,6 +258,13 @@ public class OemLockService extends SystemService {
         }
     }
 
+    private boolean isFactoryResetProtectionActive() {
+        final PersistentDataBlockManager pdbm = (PersistentDataBlockManager)
+                mContext.getSystemService(Context.PERSISTENT_DATA_BLOCK_SERVICE);
+        if (pdbm == null) return false;
+        return pdbm.isFactoryResetProtectionActive();
+    }
+
     private boolean isOemUnlockAllowedByAdmin() {
         return !UserManager.get(mContext)
                 .hasUserRestriction(UserManager.DISALLOW_FACTORY_RESET, UserHandle.SYSTEM);
@@ -261,8 +273,12 @@ public class OemLockService extends SystemService {
     private void enforceUserIsAdmin() {
         final int userId = UserHandle.getCallingUserId();
         final long token = Binder.clearCallingIdentity();
+        // TODO(b/443134869): Determine whether non-Admin SYSTEM user should be allowed to call this
+        final boolean isAdminOrSystem =
+                (android.multiuser.Flags.hsuNotAdmin() && userId == UserHandle.USER_SYSTEM)
+                        || UserManager.get(mContext).isUserAdmin(userId);
         try {
-            if (!UserManager.get(mContext).isUserAdmin(userId)) {
+            if (!isAdminOrSystem) {
                 throw new SecurityException("Must be an admin user");
             }
         } finally {

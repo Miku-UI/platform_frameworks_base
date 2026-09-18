@@ -20,6 +20,32 @@
               android:orientation="vertical"
               android:divider="?android:attr/dividerHorizontal"
               android:showDividers="middle">
+    <!-- Cast to others button. -->
+    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingBottom="8dp" >
+
+        <Button android:id="@+id/media_route_cast_to_others_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingTop="@dimen/media_route_cast_to_other_vertical_padding"
+                android:paddingBottom="@dimen/media_route_cast_to_other_vertical_padding"
+                android:minHeight="48dp"
+                android:layout_gravity="start|center_vertical"
+                style="@style/Widget.DeviceDefault.Button.Colored"
+                android:background="@drawable/media_route_chip_background"
+                android:paddingStart="?android:attr/listPreferredItemPaddingStart"
+                android:paddingEnd="?android:attr/listPreferredItemPaddingEnd"
+                android:text="@string/media_route_chooser_share_cast_others"
+                android:textAppearance="?android:attr/textAppearanceSmall"
+                android:textColor="?android:attr/textColorPrimary"
+                android:drawableStart="@android:drawable/ic_media_route_cast_groups"
+                android:drawablePadding="8dp"
+                android:drawableTint="?android:attr/textColorPrimary"
+                android:visibility="gone" />
+    </LinearLayout>
+
     <!-- List of routes. -->
     <ListView android:id="@+id/media_route_list"
               android:layout_width="match_parent"

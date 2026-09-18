@@ -56,7 +56,6 @@ import com.android.app.viewcapture.ViewCaptureFactory;
 import com.android.internal.view.FloatingActionMode;
 import com.android.internal.widget.floatingtoolbar.FloatingToolbar;
 import com.android.systemui.scene.ui.view.WindowRootView;
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround;
 import com.android.systemui.statusbar.phone.ConfigurationForwarder;
 
 /**
@@ -152,7 +151,6 @@ public class NotificationShadeWindowView extends WindowRootView {
     @Override
     public void onMovedToDisplay(int displayId, Configuration config) {
         super.onMovedToDisplay(displayId, config);
-        ShadeWindowGoesAround.isUnexpectedlyInLegacyMode();
         ShadeTraceLogger.logOnMovedToDisplay(displayId, config);
         if (mConfigurationForwarder != null) {
             mConfigurationForwarder.dispatchOnMovedToDisplay(displayId, config);
@@ -184,7 +182,6 @@ public class NotificationShadeWindowView extends WindowRootView {
     }
 
     public void setConfigurationForwarder(ConfigurationForwarder configurationForwarder) {
-        ShadeWindowGoesAround.isUnexpectedlyInLegacyMode();
         mConfigurationForwarder = configurationForwarder;
     }
 

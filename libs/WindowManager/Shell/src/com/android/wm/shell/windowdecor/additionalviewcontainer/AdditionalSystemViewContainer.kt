@@ -50,7 +50,7 @@ class AdditionalSystemViewContainer(
                 height,
                 x,
                 y,
-                WindowManager.LayoutParams.TYPE_STATUS_BAR_ADDITIONAL,
+                WindowManager.LayoutParams.TYPE_NAVIGATION_BAR_PANEL,
                 flags,
                 PixelFormat.TRANSPARENT,
             )

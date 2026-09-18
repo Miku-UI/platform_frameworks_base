@@ -414,10 +414,6 @@ public class LocalBluetoothLeBroadcast implements LocalBluetoothProfile {
                                         + ", state = "
                                         + state);
                     }
-                    if (!Flags.audioStreamMediaServiceByReceiveState()) {
-                        Log.d(TAG, "Skip notifyPrivateBroadcastReceived, flag off.");
-                        return;
-                    }
                     if (mIsWorkProfile) {
                         Log.d(TAG, "Skip notifyPrivateBroadcastReceived for work profile.");
                         return;

@@ -199,4 +199,11 @@ public class VibrationStatsWriterTest {
                 eq(VibrationStatsWriter.VIBRATION_PATTERN_PLAYED),
                 eq(RingtoneManager.TYPE_NOTIFICATION), eq(202), anyInt(), eq(false));
     }
+
+    @Test
+    public void testVibrationStatsWriter_nullAppContext_noException() {
+        when(mContext.getApplicationContext()).thenReturn(null);
+
+        VibrationStatsWriter.getInstance(mContext);
+    }
 }

@@ -16,7 +16,7 @@
 
 package com.android.systemui.dreams.ui.viewmodel
 
-import com.android.systemui.deviceentry.domain.interactor.deviceUnlockedInteractor
+import android.content.res.mainResources
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.shade.domain.interactor.shadeInteractor
@@ -26,9 +26,9 @@ val Kosmos.dreamUserActionsViewModelFactory by Fixture {
     object : DreamUserActionsViewModel.Factory {
         override fun create(): DreamUserActionsViewModel {
             return DreamUserActionsViewModel(
-                deviceUnlockedInteractor = deviceUnlockedInteractor,
                 shadeInteractor = shadeInteractor,
                 shadeModeInteractor = shadeModeInteractor,
+                resources = mainResources,
             )
         }
     }

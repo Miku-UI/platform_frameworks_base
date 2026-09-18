@@ -15,9 +15,7 @@
  */
 package com.android.systemui.model
 
-import android.view.Display
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import java.util.concurrent.CopyOnWriteArrayList
 import javax.inject.Inject
 
@@ -55,7 +53,6 @@ class SysUIStateDispatcher @Inject constructor() {
 
     /** Called from each [SysUiState] to propagate new state changes. */
     fun dispatchSysUIStateChange(sysUiFlags: Long, displayId: Int) {
-        if (displayId != Display.DEFAULT_DISPLAY && !ShadeWindowGoesAround.isEnabled) return
         listeners.forEach { listener ->
             listener.onSystemUiStateChanged(sysUiFlags = sysUiFlags, displayId = displayId)
         }

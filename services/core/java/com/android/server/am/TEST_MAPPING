@@ -49,6 +49,9 @@
       "name": "FrameworksMockingServicesTests_android_server_am_broadcast"
     },
     {
+      "name": "CtsContentTestCases_context_cts"
+    },
+    {
       "file_patterns": ["Broadcast.*"],
       "name": "CtsBroadcastTestCases_android_server_am"
     },
@@ -58,6 +61,18 @@
         "BroadcastQueue\\.java"
       ],
       "name": "CtsBRSTestCases"
+    },
+    {
+      "file_patterns": ["AppStartInfo.*"],
+      "name": "FrameworksMockingServicesTests_android_server_am_app_start_info"
+    },
+    {
+      "file_patterns": ["MemoryLimiter.*"],
+      "name": "MemoryLimiterTests"
+    },
+    {
+      "file_patterns": ["AppExit.*"],
+      "name": "CtsStatsdAtomHostTestCases_appexit_appexithosttest"
     }
   ],
   "postsubmit": [

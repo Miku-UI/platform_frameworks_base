@@ -42,9 +42,49 @@ class TransitionInfoTest {
     private val token = WindowContainerToken(mock<IWindowContainerToken>())
     private val change = TransitionInfo.Change(token, SurfaceControl() /* leash */)
     private val activityTransitionInfo = ActivityTransitionInfo(component, TASK_ID)
-    private val appCompatTransitionInfo = AppCompatTransitionInfo(letterboxBounds)
+    private val appCompatTransitionInfo = AppCompatTransitionInfo(letterboxBounds, false)
     private val activityTransitionInfoWithAppCompat =
         ActivityTransitionInfo(component, TASK_ID, appCompatTransitionInfo)
+    private val topCompatActivityLeash = SurfaceControl()
+
+    @Test
+    fun parcelable_recreatemWithoutTopCompatActivityLeashSucceeds() {
+        change.setTopCompatActivityLeash(null)
+        val transitionInfo = TransitionInfo(TRANSIT_OPEN, 0 /* flags */)
+        transitionInfo.addChange(change)
+
+        val createdFromParcel = transitionInfo.recreateFromParcel(TransitionInfo.CREATOR)
+
+        assertThat(createdFromParcel.changes).hasSize(1)
+        val chg = createdFromParcel.changes[0]
+        assertThat(chg.topCompatActivityLeash).isNull()
+    }
+
+    @Test
+    fun parcelable_recreatemWithTopCompatActivityLeashSucceeds() {
+        change.setTopCompatActivityLeash(topCompatActivityLeash)
+        val transitionInfo = TransitionInfo(TRANSIT_OPEN, 0 /* flags */)
+        transitionInfo.addChange(change)
+
+        val createdFromParcel = transitionInfo.recreateFromParcel(TransitionInfo.CREATOR)
+
+        assertThat(createdFromParcel.changes).hasSize(1)
+        val chg = createdFromParcel.changes[0]
+        assertThat(chg.topCompatActivityLeash).isNotNull()
+    }
+
+    @Test
+    fun localRemoteCopy_copiesTopCompatActivityLeash() {
+        change.setTopCompatActivityLeash(topCompatActivityLeash)
+        val transitionInfo = TransitionInfo(TRANSIT_OPEN, 0 /* flags */)
+        transitionInfo.addChange(change)
+
+        val copiedTransitionInfo = transitionInfo.localRemoteCopy()
+
+        assertThat(copiedTransitionInfo.changes).hasSize(1)
+        val chg = copiedTransitionInfo.changes[0]
+        assertThat(chg.topCompatActivityLeash).isNotNull()
+    }
 
     @Test
     fun parcelable_recreateWithActivityTransitionInfoSucceeds() {

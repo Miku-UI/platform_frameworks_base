@@ -62,32 +62,31 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
 
-/**
- * A singleton implementation of {@link ServiceConfigAccessor}.
- */
+/** A singleton implementation of {@link ServiceConfigAccessor}. */
 final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
 
     /**
      * An absolute threshold at/below which the system clock confidence can be upgraded. i.e. if the
      * detector receives a high-confidence time and the current system clock is +/- this value from
      * that time and the confidence in the time is low, then the device's confidence in the current
-     * system clock time can be upgraded. This needs to be an amount users would consider
-     * "close enough".
+     * system clock time can be upgraded. This needs to be an amount users would consider "close
+     * enough".
      */
     private static final int SYSTEM_CLOCK_CONFIRMATION_THRESHOLD_MILLIS = 1000;
 
     /**
-     * By default telephony and network only suggestions are accepted and telephony takes
-     * precedence over network.
+     * By default telephony and network only suggestions are accepted and telephony takes precedence
+     * over network.
      */
-    private static final @Origin int[]
-            DEFAULT_AUTOMATIC_TIME_ORIGIN_PRIORITIES = { ORIGIN_TELEPHONY, ORIGIN_NETWORK };
+    private static final @Origin int[] DEFAULT_AUTOMATIC_TIME_ORIGIN_PRIORITIES = {
+        ORIGIN_TELEPHONY, ORIGIN_NETWORK
+    };
 
     /** Device config keys that affect the {@link TimeDetectorService}. */
-    private static final Set<String> SERVER_FLAGS_KEYS_TO_WATCH = Set.of(
-            KEY_TIME_DETECTOR_LOWER_BOUND_MILLIS_OVERRIDE,
-            KEY_TIME_DETECTOR_ORIGIN_PRIORITIES_OVERRIDE
-    );
+    private static final Set<String> SERVER_FLAGS_KEYS_TO_WATCH =
+            Set.of(
+                    KEY_TIME_DETECTOR_LOWER_BOUND_MILLIS_OVERRIDE,
+                    KEY_TIME_DETECTOR_ORIGIN_PRIORITIES_OVERRIDE);
 
     private static final Object SLOCK = new Object();
 
@@ -122,8 +121,9 @@ final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
         mConfigOriginPrioritiesSupplier = new ConfigOriginPrioritiesSupplier(context);
         mServerFlagsOriginPrioritiesSupplier =
                 new ServerFlagsOriginPrioritiesSupplier(mServerFlags);
-        mSystemClockUpdateThresholdMillis = context.getResources().getInteger(
-                R.integer.config_timeDetectorAutoUpdateDiffMillis);
+        mSystemClockUpdateThresholdMillis =
+                context.getResources()
+                        .getInteger(R.integer.config_timeDetectorAutoUpdateDiffMillis);
 
         // Wire up the config change listeners for anything that could affect ConfigurationInternal.
         // Use the main thread for event delivery, listeners can post to their chosen thread.
@@ -132,29 +132,34 @@ final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
         // thread.
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_USER_SWITCHED);
-        mContext.registerReceiverForAllUsers(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                handleConfigurationInternalChangeOnMainThread();
-            }
-        }, filter, null, null /* main thread */);
+        mContext.registerReceiverForAllUsers(
+                new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context context, Intent intent) {
+                        handleConfigurationInternalChangeOnMainThread();
+                    }
+                },
+                filter,
+                null,
+                null /* main thread */);
 
         Handler mainThreadHandler = mContext.getMainThreadHandler();
 
         // Add async callbacks for global settings being changed.
         ContentResolver contentResolver = mContext.getContentResolver();
-        ContentObserver contentObserver = new ContentObserver(mainThreadHandler) {
-            @Override
-            public void onChange(boolean selfChange) {
-                handleConfigurationInternalChangeOnMainThread();
-            }
-        };
+        ContentObserver contentObserver =
+                new ContentObserver(mainThreadHandler) {
+                    @Override
+                    public void onChange(boolean selfChange) {
+                        handleConfigurationInternalChangeOnMainThread();
+                    }
+                };
         contentResolver.registerContentObserver(
                 Settings.Global.getUriFor(Settings.Global.AUTO_TIME), true, contentObserver);
 
         // Watch server flags.
-        mServerFlags.addListener(this::handleConfigurationInternalChangeOnMainThread,
-                SERVER_FLAGS_KEYS_TO_WATCH);
+        mServerFlags.addListener(
+                this::handleConfigurationInternalChangeOnMainThread, SERVER_FLAGS_KEYS_TO_WATCH);
 
         // Watch for policy changes that affect what the user is permitted to do.
         mUserManager.addUserRestrictionsListener(
@@ -165,8 +170,9 @@ final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
                         // This callback currently delivered on main thread, but this post() is
                         // defensive and doesn't rely on that in case it changes.
                         mainThreadHandler.post(
-                                () -> handleUserRestrictionsChangeOnMainThread(
-                                        userId, newRestrictions, prevRestrictions));
+                                () ->
+                                        handleUserRestrictionsChangeOnMainThread(
+                                                userId, newRestrictions, prevRestrictions));
                     }
                 });
     }
@@ -221,12 +227,15 @@ final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
     }
 
     @Override
-    public synchronized boolean updateConfiguration(@UserIdInt int userId,
-            @NonNull TimeConfiguration requestedConfiguration, boolean bypassUserPolicyChecks) {
+    public synchronized boolean updateConfiguration(
+            @UserIdInt int userId,
+            @NonNull TimeConfiguration requestedConfiguration,
+            boolean bypassUserPolicyChecks) {
         Objects.requireNonNull(requestedConfiguration);
 
-        TimeCapabilitiesAndConfig capabilitiesAndConfig = getConfigurationInternal(userId)
-                .createCapabilitiesAndConfig(bypassUserPolicyChecks);
+        TimeCapabilitiesAndConfig capabilitiesAndConfig =
+                getConfigurationInternal(userId)
+                        .createCapabilitiesAndConfig(bypassUserPolicyChecks);
         TimeCapabilities capabilities = capabilitiesAndConfig.getCapabilities();
         TimeConfiguration oldConfiguration = capabilitiesAndConfig.getConfiguration();
 
@@ -245,9 +254,9 @@ final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
     }
 
     /**
-     * Stores the configuration properties contained in {@code newConfiguration}.
-     * All checks about user capabilities must be done by the caller and
-     * {@link TimeConfiguration#isComplete()} must be {@code true}.
+     * Stores the configuration properties contained in {@code newConfiguration}. All checks about
+     * user capabilities must be done by the caller and {@link TimeConfiguration#isComplete()} must
+     * be {@code true}.
      */
     @GuardedBy("this")
     private void storeConfiguration(
@@ -311,8 +320,9 @@ final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
                     || originSupported == ORIGIN_GNSS) {
                 return true;
             } else if (originSupported == ORIGIN_TELEPHONY) {
-                boolean deviceHasTelephony = mContext.getPackageManager()
-                        .hasSystemFeature(PackageManager.FEATURE_TELEPHONY);
+                boolean deviceHasTelephony =
+                        mContext.getPackageManager()
+                                .hasSystemFeature(PackageManager.FEATURE_TELEPHONY);
                 if (deviceHasTelephony) {
                     return true;
                 }
@@ -331,7 +341,8 @@ final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
 
     @NonNull
     private Instant getAutoSuggestionLowerBound() {
-        return mServerFlags.getOptionalInstant(KEY_TIME_DETECTOR_LOWER_BOUND_MILLIS_OVERRIDE)
+        return mServerFlags
+                .getOptionalInstant(KEY_TIME_DETECTOR_LOWER_BOUND_MILLIS_OVERRIDE)
                 .orElse(TimeDetectorHelper.INSTANCE.getAutoSuggestionLowerBoundDefault());
     }
 
@@ -350,13 +361,17 @@ final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
     }
 
     /**
-     * A base supplier of an array of time origin integers in priority order.
-     * It handles memoization of the result to avoid repeated string parsing when nothing has
-     * changed.
+     * A base supplier of an array of time origin integers in priority order. It handles memoization
+     * of the result to avoid repeated string parsing when nothing has changed.
      */
     private abstract static class BaseOriginPrioritiesSupplier implements Supplier<@Origin int[]> {
-        @GuardedBy("this") @Nullable private String[] mLastPriorityStrings;
-        @GuardedBy("this") @Nullable private int[] mLastPriorityInts;
+        @GuardedBy("this")
+        @Nullable
+        private String[] mLastPriorityStrings;
+
+        @GuardedBy("this")
+        @Nullable
+        private int[] mLastPriorityInts;
 
         /** Returns an array of {@code ORIGIN_*} values, or {@code null}. */
         @Override
@@ -412,8 +427,8 @@ final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
     }
 
     /**
-     * Supplies origin priorities from device_config (server flags), see
-     * {@link ServerFlags#KEY_TIME_DETECTOR_ORIGIN_PRIORITIES_OVERRIDE}.
+     * Supplies origin priorities from device_config (server flags), see {@link
+     * ServerFlags#KEY_TIME_DETECTOR_ORIGIN_PRIORITIES_OVERRIDE}.
      */
     private static class ServerFlagsOriginPrioritiesSupplier extends BaseOriginPrioritiesSupplier {
 
@@ -426,8 +441,9 @@ final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
         @Override
         @Nullable
         protected String[] lookupPriorityStrings() {
-            Optional<String[]> priorityStrings = mServerFlags.getOptionalStringArray(
-                    KEY_TIME_DETECTOR_ORIGIN_PRIORITIES_OVERRIDE);
+            Optional<String[]> priorityStrings =
+                    mServerFlags.getOptionalStringArray(
+                            KEY_TIME_DETECTOR_ORIGIN_PRIORITIES_OVERRIDE);
             return priorityStrings.orElse(null);
         }
     }

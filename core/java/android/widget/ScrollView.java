@@ -16,11 +16,13 @@
 
 package android.widget;
 
-import static android.view.flags.Flags.enableScrollFeedbackForTouch;
 import static android.view.flags.Flags.viewVelocityApi;
 
 import android.annotation.ColorInt;
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
+import android.app.jank.AppJankStats;
+import android.app.jank.JankTracker;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.content.res.Configuration;
@@ -97,6 +99,24 @@ public class ScrollView extends FrameLayout {
      * scrolling quickly.
      */
     private static final float FLING_DESTRETCH_FACTOR = 4f;
+
+    // The view is currently not scrolling
+    private static final int SCROLL_STATE_NONE = 0;
+
+    // The user is actively dragging the view.
+    private static final int SCROLL_STATE_SCROLLING = 1;
+
+    // The view is currently being flung.
+    private static final int SCROLL_STATE_FLING = 2;
+
+    // Called when there is a transition between scroll states
+    private ScrollStateChangeListener mScrollStateChangeListener;
+
+    // The current scroll state
+    private int mScrollState = SCROLL_STATE_NONE;
+
+    private JankTracker mJankTracker;
+
 
     @UnsupportedAppUsage
     private long mLastScroll;
@@ -214,6 +234,11 @@ public class ScrollView extends FrameLayout {
     private HapticScrollFeedbackProvider mHapticScrollFeedbackProvider;
 
     /**
+     * Whether this view should respond to system-level scroll-to-top commands.
+     */
+    private boolean mScrollToTopEnabled = true;
+
+    /**
      * Sentinel value for no current active pointer.
      * Used by {@link #mActivePointerId}.
      */
@@ -245,7 +270,10 @@ public class ScrollView extends FrameLayout {
                 attrs, a, defStyleAttr, defStyleRes);
 
         setFillViewport(a.getBoolean(R.styleable.ScrollView_fillViewport, false));
-
+        if (Flags.scrollToTop()) {
+            setScrollToTopEnabled(a.getBoolean(
+                    com.android.internal.R.styleable.ScrollView_isScrollToTopEnabled, true));
+        }
         a.recycle();
 
         if (context.getResources().getConfiguration().uiMode == Configuration.UI_MODE_TYPE_WATCH) {
@@ -377,6 +405,9 @@ public class ScrollView extends FrameLayout {
         mOverscrollDistance = configuration.getScaledOverscrollDistance();
         mOverflingDistance = configuration.getScaledOverflingDistance();
         mVerticalScrollFactor = configuration.getScaledVerticalScrollFactor();
+        if (android.app.jank.Flags.instrumentScrollviewScrollStates()) {
+            initJankTracking(String.valueOf(this.getId()));
+        }
     }
 
     @Override
@@ -814,6 +845,7 @@ public class ScrollView extends FrameLayout {
                         mFlingStrictSpan.finish();
                         mFlingStrictSpan = null;
                     }
+                    setScrollState(SCROLL_STATE_NONE);
                 }
 
                 // Remember where the motion event started
@@ -851,6 +883,7 @@ public class ScrollView extends FrameLayout {
                 boolean hitTopLimit = false;
                 boolean hitBottomLimit = false;
                 if (mIsBeingDragged) {
+                    setScrollState(SCROLL_STATE_SCROLLING);
                     // Scroll to follow the motion event
                     mLastMotionY = y - mScrollOffset[1];
 
@@ -910,17 +943,15 @@ public class ScrollView extends FrameLayout {
                 }
 
                 // TODO: b/360198915 - Add unit tests.
-                if (enableScrollFeedbackForTouch()) {
-                    if (hitTopLimit || hitBottomLimit) {
-                        initHapticScrollFeedbackProviderIfNotExists();
-                        mHapticScrollFeedbackProvider.onScrollLimit(vtev.getDeviceId(),
-                                vtev.getSource(), MotionEvent.AXIS_Y,
-                                /* isStart= */ hitTopLimit);
-                    } else if (Math.abs(deltaY) != 0) {
-                        initHapticScrollFeedbackProviderIfNotExists();
-                        mHapticScrollFeedbackProvider.onScrollProgress(vtev.getDeviceId(),
-                                vtev.getSource(), MotionEvent.AXIS_Y, deltaY);
-                    }
+                if (hitTopLimit || hitBottomLimit) {
+                    initHapticScrollFeedbackProviderIfNotExists();
+                    mHapticScrollFeedbackProvider.onScrollLimit(vtev.getDeviceId(),
+                            vtev.getSource(), MotionEvent.AXIS_Y,
+                            /* isStart= */ hitTopLimit);
+                } else if (Math.abs(deltaY) != 0) {
+                    initHapticScrollFeedbackProviderIfNotExists();
+                    mHapticScrollFeedbackProvider.onScrollProgress(vtev.getDeviceId(),
+                            vtev.getSource(), MotionEvent.AXIS_Y, deltaY);
                 }
                 break;
             case MotionEvent.ACTION_UP:
@@ -939,6 +970,10 @@ public class ScrollView extends FrameLayout {
                     mActivePointerId = INVALID_POINTER;
                     endDrag();
                     velocityTracker.clear();
+
+                    if (mScroller.isFinished()) {
+                        setScrollState(SCROLL_STATE_NONE);
+                    }
                 }
                 break;
             case MotionEvent.ACTION_CANCEL:
@@ -947,6 +982,7 @@ public class ScrollView extends FrameLayout {
                         postInvalidateOnAnimation();
                     }
                     mActivePointerId = INVALID_POINTER;
+                    setScrollState(SCROLL_STATE_NONE);
                     endDrag();
                 }
                 break;
@@ -1609,9 +1645,49 @@ public class ScrollView extends FrameLayout {
         } else {
             if (mFlingStrictSpan != null) {
                 mFlingStrictSpan.finish();
+                setScrollState(SCROLL_STATE_NONE);
                 mFlingStrictSpan = null;
             }
         }
+    }
+
+    /**
+     * Sets whether this ScrollView should consume system-level scroll-to-top events.
+     * <p>
+     * When set to true (default), this view will scroll to the top when a system trigger
+     * (e.g., status bar tap) occurs, provided the view is visible, and currently scrolled down.
+     *
+     * @param enabled true to enable scroll-to-top behavior, false to disable.
+     */
+    @FlaggedApi(Flags.FLAG_SCROLL_TO_TOP)
+    public void setScrollToTopEnabled(boolean enabled) {
+        mScrollToTopEnabled = enabled;
+    }
+
+    /**
+     * Indicates whether this ScrollView allows system-level scroll-to-top event consumption.
+     *
+     * @return True if scroll-to-top consumption is enabled, false otherwise.
+     */
+    @FlaggedApi(Flags.FLAG_SCROLL_TO_TOP)
+    public boolean isScrollToTopEnabled() {
+        return mScrollToTopEnabled;
+    }
+
+    /**
+     * Called when a scroll-to-top command is received.
+     *
+     * @param x the x coordinate of the triggering event.
+     * @return true if the event was consumed and the view was scrolled to top.
+     */
+    @Override
+    @FlaggedApi(Flags.FLAG_SCROLL_TO_TOP)
+    public boolean onScrollToTop(int x) {
+        if (mScrollToTopEnabled && getScrollY() > 0) {
+            smoothScrollTo(0, 0);
+            return true;
+        }
+        return super.onScrollToTop(x);
     }
 
     /**
@@ -1911,6 +1987,7 @@ public class ScrollView extends FrameLayout {
      */
     public void fling(int velocityY) {
         if (getChildCount() > 0) {
+            setScrollState(SCROLL_STATE_FLING);
             int height = getHeight() - mPaddingBottom - mPaddingTop;
             int bottom = getChildAt(0).getHeight();
 
@@ -1940,12 +2017,14 @@ public class ScrollView extends FrameLayout {
                 if (!mEdgeGlowTop.isFinished()) {
                     if (shouldAbsorb(mEdgeGlowTop, -velocityY)) {
                         mEdgeGlowTop.onAbsorb(-velocityY);
+                        setScrollState(SCROLL_STATE_NONE);
                     } else {
                         fling(velocityY);
                     }
                 } else if (!mEdgeGlowBottom.isFinished()) {
                     if (shouldAbsorb(mEdgeGlowBottom, velocityY)) {
                         mEdgeGlowBottom.onAbsorb(velocityY);
+                        setScrollState(SCROLL_STATE_NONE);
                     } else {
                         fling(velocityY);
                     }
@@ -2022,7 +2101,7 @@ public class ScrollView extends FrameLayout {
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     @Override
     public void onStopNestedScroll(View target) {
@@ -2040,7 +2119,7 @@ public class ScrollView extends FrameLayout {
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     @Override
     public boolean onNestedFling(View target, float velocityX, float velocityY, boolean consumed) {
@@ -2228,6 +2307,64 @@ public class ScrollView extends FrameLayout {
         @Override
         public float getScaledScrollFactor() {
             return -mVerticalScrollFactor;
+        }
+    }
+
+    /**
+     * Callback for scroll state changes
+     */
+    private interface ScrollStateChangeListener {
+        /**
+         * Called when the scroll state of a ScrollView has changed.
+         *
+         * @param scrollView The ScrollView whose state has changed.
+         * @param scrollState   The new scroll state. One of {@link #SCROLL_STATE_NONE},
+         *                   {@link #SCROLL_STATE_SCROLLING} or {@link #SCROLL_STATE_FLING}
+         * @param previousScrollState The previous scroll state.
+         */
+        void onScrollStateChanged(ScrollView scrollView, int scrollState, int previousScrollState);
+
+    }
+
+    private void initJankTracking(String widgetId) {
+        mScrollStateChangeListener = (scrollView,
+                previousScrollState, scrollState) -> {
+            // JankTracker lives in the enclosing activity and may not be instantiated when views
+            // are.
+            if (mJankTracker == null) {
+                mJankTracker = this.getJankTracker();
+            }
+            if (mJankTracker != null) {
+                mJankTracker.updateUiState(AppJankStats.WIDGET_CATEGORY_SCROLL,
+                        widgetId,
+                        getWidgetStateFromScrollState(previousScrollState),
+                        getWidgetStateFromScrollState(scrollState));
+            }
+        };
+    }
+
+    private void setScrollState(int newScrollState) {
+        if (mScrollState == newScrollState) {
+            return;
+        }
+        if (mScrollStateChangeListener != null) {
+            mScrollStateChangeListener.onScrollStateChanged(this,
+                    mScrollState, newScrollState);
+        }
+        mScrollState = newScrollState;
+    }
+
+    private String getWidgetStateFromScrollState(int scrollState) {
+        switch (scrollState) {
+            case SCROLL_STATE_FLING -> {
+                return AppJankStats.WIDGET_STATE_FLINGING;
+            }
+            case SCROLL_STATE_SCROLLING -> {
+                return AppJankStats.WIDGET_STATE_SCROLLING;
+            }
+            default -> {
+                return AppJankStats.WIDGET_STATE_NONE;
+            }
         }
     }
 }

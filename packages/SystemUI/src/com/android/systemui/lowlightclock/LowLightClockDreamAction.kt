@@ -24,7 +24,6 @@ import com.android.systemui.lifecycle.ExclusiveActivatable
 import dagger.Lazy
 import javax.inject.Inject
 import javax.inject.Named
-import kotlinx.coroutines.awaitCancellation
 
 class LowLightClockDreamAction
 @Inject
@@ -58,13 +57,12 @@ constructor(
             )
     }
 
-    override suspend fun onActivated(): Nothing {
-        try {
-            setEnabled(true)
-            awaitCancellation()
-        } finally {
-            setEnabled(false)
-        }
+    override suspend fun onActivated() {
+        setEnabled(true)
+    }
+
+    override suspend fun onDeactivated() {
+        setEnabled(false)
     }
 
     companion object {

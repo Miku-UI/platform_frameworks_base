@@ -6,6 +6,8 @@ java_defaults {
     name: "FrameworksServicesTests-jni-defaults",
     jni_libs: [
         "libservicestestjni",
+        "libbpf",
+        "submerge_java_static_jni",
     ],
 }
 
@@ -34,15 +36,16 @@ android_test {
         "test-apps/TopologyTestApp/src/**/*.java",
     ],
 
-    exclude_srcs: ["src/com/android/server/signalcollector/**/*.java"],
     static_libs: [
         "ActivityContext",
         "CtsAccessibilityCommon",
         "CtsVirtualDeviceCommonLib",
         "ShortcutManagerTestUtils",
+        "TestParameterInjector",
         "a11ychecker",
         "aatf",
         "accessibility_protos_lite",
+        "android.credentials.flags-aconfig-java",
         "androidx.test.core",
         "androidx.test.ext.junit",
         "androidx.test.ext.truth",
@@ -64,6 +67,7 @@ android_test {
         "junit",
         "junit-params",
         "mockito-kotlin2",
+        "mockito-target-extended-minus-junit4",
         "mockito-target-minus-junit4",
         "net-tests-utils",
         "net_flags_lib",
@@ -82,28 +86,27 @@ android_test {
         "services.companion",
         "services.contentcapture",
         "services.core",
+        "service-crashrecovery-pre-jarjar",
         "services.credentials",
         "services.devicepolicy",
+        "services.files",
         "services.flags",
         "services.net",
         "services.people",
-        "services.supervision",
         "services.usage",
+        "servicestests-assert-utils",
         "servicestests-utils",
+        "telephony_flags_core_java_lib",
         "testables",
         // TODO: remove once Android migrates to JUnit 4.12,
         // which provides assertThrows
         "testng",
         "truth",
-    ] + select(soong_config_variable("ANDROID", "release_crashrecovery_module"), {
-        "true": ["service-crashrecovery-pre-jarjar"],
-        default: [],
-    }) + select(release_flag("RELEASE_ANOMALY_DETECTOR"), {
-        true: [
-            "signal-collector-service-test",
-        ],
-        default: [],
-    }),
+        "services.signal-collectors",
+        "services.signal-collector-manager-internal",
+        "service-anomaly-detector.impl",
+        "TestParameterInjector",
+    ],
 
     libs: [
         "android.hardware.power-V1-java",
@@ -128,6 +131,9 @@ android_test {
     jni_libs: [
         "libbase",
         "libbinder",
+        "libbpf",
+        "libbpf_bcc",
+        "libbpf_minimal",
         "libc++",
         "libcutils",
         "liblog",
@@ -155,6 +161,8 @@ android_test {
         ":SuspendTestApp",
         ":TopologyTestApp",
         "data/broken_shortcut.xml",
+        "data/test_system_supplemental_security_patches.xml",
+        "data/test_vendor_supplemental_security_patches.xml",
     ],
 
     java_resources: [
@@ -174,6 +182,8 @@ java_defaults {
         "androidx.annotation_annotation",
         "androidx.test.rules",
         "flag-junit",
+        "servicestests-assert-utils",
+        "truth",
     ],
     auto_gen_config: true,
 }
@@ -186,7 +196,6 @@ java_defaults {
 android_ravenwood_test {
     name: "FrameworksServicesTestsRavenwood_Uri",
     defaults: ["FrameworksServicesTestsRavenwood-defaults"],
-    team: "trendy_team_ravenwood",
     static_libs: [
         "services.core",
     ],
@@ -201,7 +210,6 @@ android_ravenwood_test {
 android_ravenwood_test {
     name: "FrameworksServicesTestsRavenwood_Compat",
     defaults: ["FrameworksServicesTestsRavenwood-defaults"],
-    team: "trendy_team_ravenwood",
     static_libs: [
         "services.core.ravenwood",
     ],
@@ -219,7 +227,22 @@ android_ravenwood_test {
     ],
     srcs: [
         "src/com/android/server/am/psc/**/*.java",
-        "src/com/android/server/am/BoundServiceSessionTests.java",
+    ],
+}
+
+android_ravenwood_test {
+    name: "FrameworksServicesTestsRavenwood_PowerManager",
+    defaults: ["FrameworksServicesTestsRavenwood-defaults"],
+    static_libs: [
+        "androidx.test.ext.junit",
+        "frameworks-base-testutils",
+        "services.core.ravenwood",
+    ],
+    libs: [
+        "mockito-ravenwood-prebuilt",
+    ],
+    srcs: [
+        "src/com/android/server/power/PowerManagerBatchProxyTest.java",
     ],
 }
 
@@ -272,8 +295,11 @@ java_library {
         "utils/**/*.kt",
     ],
     static_libs: [
+        "hamcrest-library",
         "junit",
         "mockito-target-minus-junit4",
+        "androidx.annotation_annotation",
+        "services.core",
     ],
     libs: [
         "android.test.runner.stubs.system",
@@ -287,8 +313,13 @@ java_library {
         "utils/**/*.java",
         "utils/**/*.kt",
     ],
+    static_libs: [
+        "hamcrest-library",
+        "services.core.ravenwood",
+    ],
     libs: [
         "android.test.runner.stubs.system",
+        "androidx.annotation_annotation",
         "junit",
         "mockito-ravenwood-prebuilt",
     ],
@@ -312,8 +343,11 @@ java_library {
         "utils/**/*.kt",
     ],
     static_libs: [
+        "hamcrest-library",
         "junit",
         "mockito-target-extended-minus-junit4",
+        "androidx.annotation_annotation",
+        "services.core",
     ],
     libs: [
         "android.test.runner.stubs.system",
@@ -1092,16 +1126,6 @@ test_module_config {
 }
 
 test_module_config {
-    name: "FrameworksServicesTests_supervision",
-    base: "FrameworksServicesTests",
-    test_suites: [
-        "automotive-tests",
-        "device-tests",
-    ],
-    include_filters: ["com.android.server.supervision"],
-}
-
-test_module_config {
     name: "FrameworksServicesTests_incident",
     base: "FrameworksServicesTests",
     test_suites: [
@@ -1109,4 +1133,46 @@ test_module_config {
         "device-tests",
     ],
     include_filters: ["com.android.server.incident"],
+}
+
+test_module_config {
+    name: "FrameworksServicesTests_adb",
+    base: "FrameworksServicesTests",
+    test_suites: [
+        "automotive-tests",
+        "device-tests",
+    ],
+    include_filters: ["com.android.server.adb"],
+}
+
+test_module_config {
+    name: "FrameworksServicesTests_companion_virtual",
+    base: "FrameworksServicesTests",
+    test_suites: [
+        "automotive-tests",
+        "device-tests",
+    ],
+    include_filters: ["com.android.server.companion.virtual"],
+}
+
+test_module_config {
+    name: "FrameworksServicesTests_contextual_mode",
+    base: "FrameworksServicesTests",
+    team: "trendy_team_notifications",
+    test_suites: [
+        "automotive-tests",
+        "device-tests",
+    ],
+    include_filters: ["com.android.server.modes"],
+}
+
+test_module_config {
+    name: "FrameworksServicesTests_cross_device_sync",
+    base: "FrameworksServicesTests",
+    team: "trendy_team_wear_wear_frameworks",
+    test_suites: [
+        "automotive-tests",
+        "device-tests",
+    ],
+    include_filters: ["com.android.server.companion.datatransfer.crossdevicesync"],
 }

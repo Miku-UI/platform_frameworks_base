@@ -21,7 +21,6 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.never;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
-import static com.android.server.wm.SurfaceAnimator.ANIMATION_TYPE_APP_TRANSITION;
 import static com.android.server.wm.SurfaceAnimator.ANIMATION_TYPE_WINDOW_ANIMATION;
 
 import static org.junit.Assert.assertEquals;
@@ -90,18 +89,18 @@ public class SurfaceAnimatorTest extends WindowTestsBase {
     @Test
     public void testRunAnimation() {
         mAnimatable.mSurfaceAnimator.startAnimation(mTransaction, mSpec, true /* hidden */,
-                ANIMATION_TYPE_APP_TRANSITION);
+                ANIMATION_TYPE_WINDOW_ANIMATION);
         final ArgumentCaptor<OnAnimationFinishedCallback> callbackCaptor = ArgumentCaptor.forClass(
                 OnAnimationFinishedCallback.class);
         assertAnimating(mAnimatable);
         verify(mTransaction).reparent(eq(mAnimatable.mSurface), eq(mAnimatable.mLeash));
-        verify(mSpec).startAnimation(any(), any(), eq(ANIMATION_TYPE_APP_TRANSITION),
+        verify(mSpec).startAnimation(any(), any(), eq(ANIMATION_TYPE_WINDOW_ANIMATION),
                 callbackCaptor.capture());
 
-        callbackCaptor.getValue().onAnimationFinished(ANIMATION_TYPE_APP_TRANSITION, mSpec);
+        callbackCaptor.getValue().onAnimationFinished(ANIMATION_TYPE_WINDOW_ANIMATION, mSpec);
         assertNotAnimating(mAnimatable);
         assertTrue(mAnimatable.mFinishedCallbackCalled);
-        assertEquals(ANIMATION_TYPE_APP_TRANSITION, mAnimatable.mFinishedAnimationType);
+        assertEquals(ANIMATION_TYPE_WINDOW_ANIMATION, mAnimatable.mFinishedAnimationType);
         verify(mTransaction).remove(eq(mAnimatable.mLeash));
         // TODO: Verify reparenting once we use mPendingTransaction to reparent it back
     }
@@ -109,10 +108,10 @@ public class SurfaceAnimatorTest extends WindowTestsBase {
     @Test
     public void testOverrideAnimation() {
         mAnimatable.mSurfaceAnimator.startAnimation(mTransaction, mSpec, true /* hidden */,
-                ANIMATION_TYPE_APP_TRANSITION);
+                ANIMATION_TYPE_WINDOW_ANIMATION);
         final SurfaceControl firstLeash = mAnimatable.mLeash;
         mAnimatable.mSurfaceAnimator.startAnimation(mTransaction, mSpec2, true /* hidden */,
-                ANIMATION_TYPE_APP_TRANSITION);
+                ANIMATION_TYPE_WINDOW_ANIMATION);
 
         verify(mTransaction).remove(eq(firstLeash));
         assertFalse(mAnimatable.mFinishedCallbackCalled);
@@ -120,32 +119,32 @@ public class SurfaceAnimatorTest extends WindowTestsBase {
         final ArgumentCaptor<OnAnimationFinishedCallback> callbackCaptor = ArgumentCaptor.forClass(
                 OnAnimationFinishedCallback.class);
         assertAnimating(mAnimatable);
-        verify(mSpec).startAnimation(any(), any(), eq(ANIMATION_TYPE_APP_TRANSITION),
+        verify(mSpec).startAnimation(any(), any(), eq(ANIMATION_TYPE_WINDOW_ANIMATION),
                 callbackCaptor.capture());
 
         // First animation was finished, but this shouldn't cancel the second animation
-        callbackCaptor.getValue().onAnimationFinished(ANIMATION_TYPE_APP_TRANSITION, mSpec);
+        callbackCaptor.getValue().onAnimationFinished(ANIMATION_TYPE_WINDOW_ANIMATION, mSpec);
         assertTrue(mAnimatable.mSurfaceAnimator.isAnimating());
 
         // Second animation was finished
-        verify(mSpec2).startAnimation(any(), any(), eq(ANIMATION_TYPE_APP_TRANSITION),
+        verify(mSpec2).startAnimation(any(), any(), eq(ANIMATION_TYPE_WINDOW_ANIMATION),
                 callbackCaptor.capture());
-        callbackCaptor.getValue().onAnimationFinished(ANIMATION_TYPE_APP_TRANSITION, mSpec2);
+        callbackCaptor.getValue().onAnimationFinished(ANIMATION_TYPE_WINDOW_ANIMATION, mSpec2);
         assertNotAnimating(mAnimatable);
         assertTrue(mAnimatable.mFinishedCallbackCalled);
-        assertEquals(ANIMATION_TYPE_APP_TRANSITION, mAnimatable.mFinishedAnimationType);
+        assertEquals(ANIMATION_TYPE_WINDOW_ANIMATION, mAnimatable.mFinishedAnimationType);
     }
 
     @Test
     public void testCancelAnimation() {
         mAnimatable.mSurfaceAnimator.startAnimation(mTransaction, mSpec, true /* hidden */,
-                ANIMATION_TYPE_APP_TRANSITION);
+                ANIMATION_TYPE_WINDOW_ANIMATION);
         assertAnimating(mAnimatable);
         mAnimatable.mSurfaceAnimator.cancelAnimation();
         assertNotAnimating(mAnimatable);
         verify(mSpec).onAnimationCancelled(any());
         assertTrue(mAnimatable.mFinishedCallbackCalled);
-        assertEquals(ANIMATION_TYPE_APP_TRANSITION, mAnimatable.mFinishedAnimationType);
+        assertEquals(ANIMATION_TYPE_WINDOW_ANIMATION, mAnimatable.mFinishedAnimationType);
         verify(mTransaction).remove(eq(mAnimatable.mLeash));
     }
 
@@ -153,7 +152,7 @@ public class SurfaceAnimatorTest extends WindowTestsBase {
     public void testCancelWithNullFinishCallbackAnimation() {
         SurfaceAnimator animator = new SurfaceAnimator(mAnimatable, null, mWm);
         animator.startAnimation(mTransaction, mSpec, true /* hidden */,
-                ANIMATION_TYPE_APP_TRANSITION);
+                ANIMATION_TYPE_WINDOW_ANIMATION);
         assertTrue(animator.isAnimating());
         assertNotNull(animator.getAnimation());
         animator.cancelAnimation();
@@ -166,11 +165,11 @@ public class SurfaceAnimatorTest extends WindowTestsBase {
     @Test
     public void testTransferAnimation() {
         mAnimatable.mSurfaceAnimator.startAnimation(mTransaction, mSpec, true /* hidden */,
-                ANIMATION_TYPE_APP_TRANSITION);
+                ANIMATION_TYPE_WINDOW_ANIMATION);
 
         final ArgumentCaptor<OnAnimationFinishedCallback> callbackCaptor = ArgumentCaptor.forClass(
                 OnAnimationFinishedCallback.class);
-        verify(mSpec).startAnimation(any(), any(), eq(ANIMATION_TYPE_APP_TRANSITION),
+        verify(mSpec).startAnimation(any(), any(), eq(ANIMATION_TYPE_WINDOW_ANIMATION),
                 callbackCaptor.capture());
         final SurfaceControl leash = mAnimatable.mLeash;
 
@@ -179,17 +178,17 @@ public class SurfaceAnimatorTest extends WindowTestsBase {
         assertAnimating(mAnimatable2);
         assertEquals(leash, mAnimatable2.mSurfaceAnimator.mLeash);
         verify(mTransaction, never()).remove(eq(leash));
-        callbackCaptor.getValue().onAnimationFinished(ANIMATION_TYPE_APP_TRANSITION, mSpec);
+        callbackCaptor.getValue().onAnimationFinished(ANIMATION_TYPE_WINDOW_ANIMATION, mSpec);
         assertNotAnimating(mAnimatable2);
         assertTrue(mAnimatable2.mFinishedCallbackCalled);
-        assertEquals(ANIMATION_TYPE_APP_TRANSITION, mAnimatable.mFinishedAnimationType);
+        assertEquals(ANIMATION_TYPE_WINDOW_ANIMATION, mAnimatable.mFinishedAnimationType);
         verify(mTransaction).remove(eq(leash));
     }
 
     @Test
     public void testOnAnimationLeashLostWhenAnimatableParentSurfaceControlNull() {
         mAnimatable.mSurfaceAnimator.startAnimation(mTransaction, mSpec, true /* hidden */,
-                ANIMATION_TYPE_APP_TRANSITION);
+                ANIMATION_TYPE_WINDOW_ANIMATION);
         spyOn(mAnimatable);
 
         // Verify onAnimationLeashLost will be called even animatable's parent surface control lost.
@@ -214,7 +213,7 @@ public class SurfaceAnimatorTest extends WindowTestsBase {
         verify(deferredFinishAdapter).startAnimation(any(), any(),
                 eq(ANIMATION_TYPE_WINDOW_ANIMATION), callbackCaptor.capture());
         final OnAnimationFinishedCallback onFinishedCallback = callbackCaptor.getValue();
-        onFinishedCallback.onAnimationFinished(ANIMATION_TYPE_APP_TRANSITION,
+        onFinishedCallback.onAnimationFinished(ANIMATION_TYPE_WINDOW_ANIMATION,
                 deferredFinishAdapter);
         // The callback is the resetAndInvokeFinish in {@link SurfaceAnimator#getFinishedCallback}.
         final Runnable firstDeferFinishCallback = deferredFinishAdapter.mEndDeferFinishCallback;
@@ -237,10 +236,9 @@ public class SurfaceAnimatorTest extends WindowTestsBase {
         DeferredFinishAdapter deferredFinishAdapter = new DeferredFinishAdapter();
         // Start animation
         mAnimatable.mSurfaceAnimator.startAnimation(mTransaction, deferredFinishAdapter,
-                true /* hidden */,
-                ANIMATION_TYPE_APP_TRANSITION);
+                true /* hidden */, ANIMATION_TYPE_WINDOW_ANIMATION);
         assertAnimating(mAnimatable);
-        deferredFinishAdapter.mFinishCallback.onAnimationFinished(ANIMATION_TYPE_APP_TRANSITION,
+        deferredFinishAdapter.mFinishCallback.onAnimationFinished(ANIMATION_TYPE_WINDOW_ANIMATION,
                 deferredFinishAdapter);
 
         assertAnimating(mAnimatable);

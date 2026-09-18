@@ -59,6 +59,21 @@ public class BitmapPerfTest {
         bitmap.recycle();
     }
 
+    @Test
+    public void testCreateScaledAshmemBitmap() {
+        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final Bitmap bitmap = makeBitmap();
+
+        while (state.keepRunning()) {
+            final Bitmap scaled = Bitmap.createScaledAshmemBitmap(bitmap, 500, 500, true);
+            // This should be a no-op, since the bitmap is already ashmem and immutable.
+            final Bitmap unused = scaled.asShared();
+            scaled.recycle();
+        }
+
+        bitmap.recycle();
+    }
+
     private Bitmap makeBitmap() {
         Bitmap bitmap = Bitmap.createBitmap(1000, 1000, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);

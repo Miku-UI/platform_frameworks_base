@@ -80,12 +80,13 @@ public final class TelephonyTimeSuggestion implements Parcelable {
         int slotIndex = in.readInt();
         UnixEpochTime unixEpochTime =
                 in.readParcelable(null /* classLoader */, UnixEpochTime.class);
-        TelephonyTimeSuggestion suggestion = new TelephonyTimeSuggestion.Builder(slotIndex)
-                .setUnixEpochTime(unixEpochTime)
-                .build();
+        TelephonyTimeSuggestion suggestion =
+                new TelephonyTimeSuggestion.Builder(slotIndex)
+                        .setUnixEpochTime(unixEpochTime)
+                        .build();
         @SuppressWarnings("unchecked")
-        ArrayList<String> debugInfo = in.readArrayList(
-                null /* classLoader */, java.lang.String.class);
+        ArrayList<String> debugInfo =
+                in.readArrayList(null /* classLoader */, java.lang.String.class);
         if (debugInfo != null) {
             suggestion.addDebugInfo(debugInfo);
         }
@@ -101,22 +102,14 @@ public final class TelephonyTimeSuggestion implements Parcelable {
         String opt;
         while ((opt = cmd.getNextArg()) != null) {
             switch (opt) {
-                case "--slot_index": {
-                    slotIndex = Integer.parseInt(cmd.getNextArgRequired());
-                    break;
-                }
-                case "--reference_time":
-                case "--elapsed_realtime": {
-                    elapsedRealtimeMillis = Long.parseLong(cmd.getNextArgRequired());
-                    break;
-                }
-                case "--unix_epoch_time": {
-                    unixEpochTimeMillis = Long.parseLong(cmd.getNextArgRequired());
-                    break;
-                }
-                default: {
-                    throw new IllegalArgumentException("Unknown option: " + opt);
-                }
+                case "--slot_index" -> slotIndex = Integer.parseInt(cmd.getNextArgRequired());
+                case "--reference_time" ->
+                        elapsedRealtimeMillis = Long.parseLong(cmd.getNextArgRequired());
+                case "--elapsed_realtime" ->
+                        elapsedRealtimeMillis = Long.parseLong(cmd.getNextArgRequired());
+                case "--unix_epoch_time" ->
+                        unixEpochTimeMillis = Long.parseLong(cmd.getNextArgRequired());
+                default -> throw new IllegalArgumentException("Unknown option: " + opt);
             }
         }
 
@@ -131,9 +124,10 @@ public final class TelephonyTimeSuggestion implements Parcelable {
         }
 
         UnixEpochTime timeSignal = new UnixEpochTime(elapsedRealtimeMillis, unixEpochTimeMillis);
-        Builder builder = new Builder(slotIndex)
-                .setUnixEpochTime(timeSignal)
-                .addDebugInfo("Command line injection");
+        Builder builder =
+                new Builder(slotIndex)
+                        .setUnixEpochTime(timeSignal)
+                        .addDebugInfo("Command line injection");
         return builder.build();
     }
 
@@ -186,7 +180,8 @@ public final class TelephonyTimeSuggestion implements Parcelable {
     @NonNull
     public List<String> getDebugInfo() {
         return mDebugInfo == null
-                ? Collections.emptyList() : Collections.unmodifiableList(mDebugInfo);
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(mDebugInfo);
     }
 
     /**
@@ -222,8 +217,7 @@ public final class TelephonyTimeSuggestion implements Parcelable {
             return false;
         }
         TelephonyTimeSuggestion that = (TelephonyTimeSuggestion) o;
-        return mSlotIndex == that.mSlotIndex
-                && Objects.equals(mUnixEpochTime, that.mUnixEpochTime);
+        return mSlotIndex == that.mSlotIndex && Objects.equals(mUnixEpochTime, that.mUnixEpochTime);
     }
 
     @Override
@@ -234,9 +228,13 @@ public final class TelephonyTimeSuggestion implements Parcelable {
     @Override
     public String toString() {
         return "TelephonyTimeSuggestion{"
-                + "mSlotIndex='" + mSlotIndex + '\''
-                + ", mUnixEpochTime=" + mUnixEpochTime
-                + ", mDebugInfo=" + mDebugInfo
+                + "mSlotIndex='"
+                + mSlotIndex
+                + '\''
+                + ", mUnixEpochTime="
+                + mUnixEpochTime
+                + ", mDebugInfo="
+                + mDebugInfo
                 + '}';
     }
 

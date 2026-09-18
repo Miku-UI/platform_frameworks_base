@@ -16,6 +16,8 @@
 
 package android.os;
 
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
+
 import android.annotation.AppIdInt;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -218,6 +220,35 @@ public final class UserHandle implements Parcelable {
     @UnsupportedAppUsage
     public static boolean isSameApp(int uid1, int uid2) {
         return getAppId(uid1) == getAppId(uid2);
+    }
+
+    /**
+     * Whether a UID refers to the same app, treating a Private Compute Core (PCC)
+     * sandbox UID as equal to its host app's UID.
+     *
+     * @param uid1 The first UID to compare
+     * @param uid2 The second UID to compare
+     * @hide
+     */
+    public static boolean isSameAppIdWithPcc(int uid1, int uid2) {
+        int appId1 = getAppId(uid1);
+        int appId2 = getAppId(uid2);
+
+        if (appId1 == appId2) {
+            return true;
+        }
+
+        if (enablePccFrameworkSupport()) {
+            if (Process.isPrivateComputeCoreUid(appId1)) {
+                appId1 = Process.getAppUidForPrivateComputeCoreUid(appId1);
+            }
+            if (Process.isPrivateComputeCoreUid(appId2)) {
+                appId2 = Process.getAppUidForPrivateComputeCoreUid(appId2);
+            }
+            return appId1 == appId2;
+        }
+
+        return false;
     }
 
     /**
@@ -458,6 +489,9 @@ public final class UserHandle implements Parcelable {
     public static int getCacheAppGid(@UserIdInt int userId, @AppIdInt int appId) {
         if (appId >= AID_APP_START && appId <= AID_APP_END) {
             return getUid(userId, (appId - AID_APP_START) + AID_CACHE_GID_START);
+        } else if (appId >= Process.FIRST_PCC_UID && appId <= Process.LAST_PCC_UID) {
+            return getUid(userId, (appId - Process.FIRST_PCC_UID)
+                    + Process.FIRST_PCC_CACHE_GID);
         } else {
             return -1;
         }
@@ -483,6 +517,9 @@ public final class UserHandle implements Parcelable {
                     sb.append("ai");
                     sb.append(appId - Process.FIRST_APP_ZYGOTE_ISOLATED_UID);
                 }
+            } else if (enablePccFrameworkSupport() && Process.isPrivateComputeCoreUid(uid)) {
+                sb.append('p');
+                sb.append(appId - Process.FIRST_PCC_UID);
             } else if (appId >= Process.FIRST_APPLICATION_UID) {
                 sb.append('a');
                 sb.append(appId - Process.FIRST_APPLICATION_UID);
@@ -578,6 +615,7 @@ public final class UserHandle implements Parcelable {
     @Deprecated
     @SystemApi
     public boolean isOwner() {
+        UserManager.logStaticDeprecation();
         return this.equals(OWNER);
     }
 

@@ -18,10 +18,11 @@ flag {
 }
 
 flag {
-  name: "bp_fallback_options"
+  name: "add_fallback_icons"
   namespace: "biometrics_framework"
-  description: "Adds fallback options UI to biometric prompt"
-  bug: "377774089"
+  description: "Feature flag for adding new fallback icons for biometric prompt"
+  is_exported: true
+  bug: "447227164"
 }
 
 flag {
@@ -74,6 +75,16 @@ flag {
 }
 
 flag {
+  name: "external_bp"
+  namespace: "biometrics_framework"
+  description: "Bug fix flag for BP on external displays"
+  bug: "463284718"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
   name: "move_fm_api_to_bm"
   is_exported: true
   namespace: "biometrics_framework"
@@ -89,13 +100,6 @@ flag {
 }
 
 flag {
-  name: "identity_check_all_surfaces"
-  namespace: "biometrics_framework"
-  description: "This flag applies Identity Check to all biometric prompt requests"
-  bug: "402534668"
-}
-
-flag {
   name: "identity_check_watch"
   namespace: "biometrics_framework"
   description: "This flag is for the integration of Identity Check with Watch"
@@ -103,11 +107,41 @@ flag {
 }
 
 flag {
-  name: "bp_initialize_compose_watch"
-  namespace: "wear_frameworks"
-  description: "Initialize lifecycle to enable compose to run outside activities"
-  bug: "414859063"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
+  name: "clear_fallback_option"
+  is_exported: true
+  namespace: "biometrics_framework"
+  description: "Feature flag for removing a framework-added fallback option"
+  bug: "456265916"
+}
+
+flag {
+  name: "double_auth"
+  namespace: "biometrics_framework"
+  description: "Feature flag for adding double auth in biometric prompt for Identity Check"
+  bug: "442571994"
+}
+
+flag {
+  name: "get_biometric_sensor_strengths"
+  is_exported: true
+  namespace: "biometrics_framework"
+  description: "Feature flag for adding the getBiometricSensorStrengths API to BiometricManager."
+  bug: "454275027"
+}
+
+flag {
+    name: "agent_auth_api"
+    namespace: "biometrics_framework"
+    description: "Feature flag for internal xdevice agent auth API"
+    bug: "474639153"
+}
+
+flag {
+    name: "agent_auth_allow_auto_projected"
+    namespace: "biometrics_framework"
+    description: "Bug fix flag for auto projected role in agent auth"
+    bug: "474639153"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

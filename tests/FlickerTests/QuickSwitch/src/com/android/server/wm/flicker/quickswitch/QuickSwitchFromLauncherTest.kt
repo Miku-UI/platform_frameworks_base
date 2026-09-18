@@ -58,7 +58,7 @@ class QuickSwitchFromLauncherTest(flicker: FlickerTest) : BaseTest(flicker) {
     /** {@inheritDoc} */
     override val transition: FlickerBuilder.() -> Unit = {
         setup {
-            tapl.setExpectedRotationCheckEnabled(false)
+            tapl.expectedRotationCheckEnabled = false
 
             tapl.setExpectedRotation(flicker.scenario.startRotation.value)
 

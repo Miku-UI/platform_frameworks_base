@@ -29,8 +29,6 @@ class FakePluginManager(test: LeakCheck) : PluginManager {
         mLeakChecker.addCallback(listener)
     }
 
-    override val config = PluginManager.Config()
-
     override fun removePluginListener(listener: PluginListener<*>) {
         mLeakChecker.removeCallback(listener)
     }

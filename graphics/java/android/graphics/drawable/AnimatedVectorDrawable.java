@@ -55,6 +55,7 @@ import android.view.Choreographer;
 import android.view.NativeVectorDrawableAnimator;
 import android.view.View;
 
+import com.android.graphics.hwui.flags.Flags;
 import com.android.internal.R;
 import com.android.internal.util.VirtualRefBasePtr;
 
@@ -680,7 +681,12 @@ public class AnimatedVectorDrawable extends Drawable implements Animatable2 {
         }
 
         if (t != null) {
-            mAnimatedVectorState.inflatePendingAnimators(t.getResources(), t);
+            if (Flags.fixAvdWrongResources()) {
+                mAnimatedVectorState.inflatePendingAnimators(mRes, t);
+            } else {
+                mAnimatedVectorState.inflatePendingAnimators(t.getResources(), t);
+            }
+
         }
 
         // If we don't have any pending animations, we don't need to hold a

@@ -17,27 +17,23 @@
 
 #define LOG_TAG "HardwareBuffer"
 
-#include "jni.h"
-#include <nativehelper/JNIHelp.h>
-
-#include "android_os_Parcel.h"
-
 #include <android/hardware_buffer.h>
-#include <android_runtime/android_graphics_GraphicBuffer.h>
-#include <android_runtime/android_hardware_HardwareBuffer.h>
 #include <android_runtime/AndroidRuntime.h>
 #include <android_runtime/Log.h>
-#include <private/android/AHardwareBufferHelpers.h>
-
+#include <android_runtime/android_graphics_GraphicBuffer.h>
+#include <android_runtime/android_hardware_HardwareBuffer.h>
 #include <binder/Parcel.h>
-
+#include <grallocusage/GrallocUsageConversion.h>
+#include <hardware/gralloc1.h>
+#include <nativehelper/JNIHelp.h>
+#include <private/android/AHardwareBufferHelpers.h>
 #include <private/gui/ComposerService.h>
+#include <ui/GraphicBufferMapper.h>
 #include <ui/PixelFormat.h>
 
-#include <hardware/gralloc1.h>
-#include <grallocusage/GrallocUsageConversion.h>
-
+#include "android_os_Parcel.h"
 #include "core_jni_helpers.h"
+#include "jni.h"
 
 using namespace android;
 
@@ -259,6 +255,20 @@ uint64_t android_hardware_HardwareBuffer_convertToGrallocUsageBits(uint64_t usag
     return AHardwareBuffer_convertToGrallocUsageBits(usage);
 }
 
+static void android_hardware_HardwareBuffer_setSmpte2094_50(JNIEnv* env, jobject clazz,
+                                                            jlong nativeObject, jbyteArray metadata,
+                                                            jint offset, jint length) {
+    GraphicBuffer* buffer = GraphicBufferWrapper_to_GraphicBuffer(nativeObject);
+    std::optional<std::vector<uint8_t>> metadataVec;
+    if (metadata != nullptr) {
+        metadataVec.emplace(length);
+        env->GetByteArrayRegion(metadata, offset, length,
+                                reinterpret_cast<jbyte*>(metadataVec->data()));
+    }
+
+    GraphicBufferMapper::getInstance().setSmpte2094_50(buffer->handle, metadataVec);
+}
+
 }  // namespace android
 
 // ----------------------------------------------------------------------------
@@ -292,6 +302,7 @@ static const JNINativeMethod gMethods[] = {
     // --------------- @CriticalNative ----------------------
     { "nEstimateSize", "(J)J",  (void*) android_hardware_HardwareBuffer_estimateSize },
     { "nGetId", "(J)J",  (void*) android_hardware_HardwareBuffer_getId },
+    { "nSetSmpte2094_50", "(J[BII)V", (void*) android_hardware_HardwareBuffer_setSmpte2094_50 },
 };
 // clang-format on
 

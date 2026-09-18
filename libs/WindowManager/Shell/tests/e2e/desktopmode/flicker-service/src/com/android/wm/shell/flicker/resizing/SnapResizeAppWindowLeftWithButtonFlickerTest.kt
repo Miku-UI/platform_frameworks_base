@@ -19,20 +19,20 @@ package com.android.wm.shell.flicker.resizing
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
+import com.android.wm.shell.flicker.utils.appWindowCoversHalfScreenAtEnd
+import com.android.wm.shell.flicker.utils.appWindowKeepVisible
+import com.android.wm.shell.scenarios.SnapResizeAppWindowWithButton
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import com.android.wm.shell.flicker.utils.appWindowCoversHalfScreenAtEnd
-import com.android.wm.shell.flicker.utils.appWindowKeepVisible
-import com.android.wm.shell.scenarios.SnapResizeAppWindowWithButton
 
 /**
  * Snap resize app window using the Snap Left button from the maximize menu.
@@ -43,14 +43,11 @@ import com.android.wm.shell.scenarios.SnapResizeAppWindowWithButton
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
-class SnapResizeAppWindowLeftWithButtonFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(
-    flicker
-) {
+class SnapResizeAppWindowLeftWithButtonFlickerTest(flicker: FlickerTest) :
+    DesktopModeBaseTest(flicker) {
 
-    inner class SnapResizeAppWindowLeftWithButtonScenario : SnapResizeAppWindowWithButton(
-        toLeft = true,
-        rotation = flicker.scenario.startRotation
-    )
+    inner class SnapResizeAppWindowLeftWithButtonScenario :
+        SnapResizeAppWindowWithButton(toLeft = true, rotation = flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -60,23 +57,16 @@ class SnapResizeAppWindowLeftWithButtonFlickerTest(flicker: FlickerTest) : Deskt
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.snapResizeAppWindowWithButton()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.snapResizeAppWindowWithButton() }
+            teardown { scenario.teardown() }
         }
 
     @Test
     fun appWindowCoversLeftHalfScreenAtEnd() =
         flicker.appWindowCoversHalfScreenAtEnd(testApp, isLeftHalf = true)
 
-    @Test
-    fun appWindowIsAlwaysVisible() = flicker.appWindowKeepVisible(testApp)
+    @Test fun appWindowIsAlwaysVisible() = flicker.appWindowKeepVisible(testApp)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

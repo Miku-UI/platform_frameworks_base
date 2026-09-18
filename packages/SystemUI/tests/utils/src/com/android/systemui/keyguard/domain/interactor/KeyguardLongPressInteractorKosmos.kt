@@ -33,6 +33,7 @@ import com.android.systemui.shade.pulsingGestureListener
 import com.android.systemui.statusbar.phone.statusBarKeyguardViewManager
 import com.android.systemui.util.settings.data.repository.userAwareSecureSettingsRepository
 import com.android.systemui.util.time.fakeSystemClock
+import com.android.systemui.wallpapers.domain.interactor.wallpaperFocalAreaInteractor
 
 val Kosmos.keyguardTouchHandlingInteractor by
     Kosmos.Fixture {
@@ -54,5 +55,6 @@ val Kosmos.keyguardTouchHandlingInteractor by
             systemClock = fakeSystemClock,
             pointerDeviceRepository = pointerDeviceRepository,
             secureLockDeviceInteractor = { secureLockDeviceInteractor },
+            wallpaperFocalAreaInteractor = wallpaperFocalAreaInteractor,
         )
     }

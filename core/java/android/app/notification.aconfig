@@ -5,12 +5,6 @@ container: "system"
 # when appropriate, as it's not currently part of the namespace so it may not be obvious what the
 # flag relates to.
 
-flag {
-  name: "notifications_redesign_app_icons"
-  namespace: "systemui"
-  description: "Notifications Redesign: Use app icons in notification rows"
-  bug: "371174789"
-}
 
 flag {
   name: "notifications_redesign_themed_app_icons"
@@ -20,28 +14,17 @@ flag {
 }
 
 flag {
-  name: "notifications_redesign_templates"
-  namespace: "systemui"
-  description: "Notifications Redesign: Update notification templates"
-  bug: "378660052"
+  name: "always_show_minimal_hun"
+  namespace: "notifications"
+  description: "[prototype] Always show Minimal HUN, even if the device is not in full screen."
+  bug: "449676256"
 }
 
 flag {
-  name: "notifications_redesign_fonts"
-  namespace: "systemui"
-  description: "Notifications Redesign: Update text styles in notification templates"
-  bug: "409496809"
-  is_fixed_read_only: true
-}
-
-flag {
-    name: "notification_top_line_margin_fix"
-    namespace: "systemui"
-    description: "Fixes a small bug where the timestamp had an unnecessary margin in grouped notifications."
-    bug: "417196998"
-    metadata {
-       purpose: PURPOSE_BUGFIX
-    }
+  name: "notifs_all_use_pill_buttons"
+  namespace: "notifications"
+  description: "[prototype] Change all notifications to use pill-shaped action buttons."
+  bug: "449676256"
 }
 
 flag {
@@ -53,13 +36,37 @@ flag {
 }
 
 flag {
-  name: "metric_style_unit_in_label"
+  name: "metric_value_alternative_strings"
   namespace: "notifications"
-  description: "In MetricStyle, concatenate the unit of the MetricValue to the label, instead of displaying it next to the value. This flag is only for prototyping; either the flag-on or flag-off path will be inlined once the behavior is decided."
-  bug: "434910979"
+  description: "Produce different versions of the string representation of a MetricValue (e.g. 10000 -> 10,000, 10k) and choose the most appropriate for display."
+  bug: "415827681"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
+}
+
+flag {
+  name: "api_notification_action_custom"
+  is_exported: true
+  namespace: "notifications"
+  description: "Adds APIs to control Notification Action emphasis and style (for RONs). Also shows RON actions as pill buttons."
+  bug: "440125908"
+}
+
+flag {
+  name: "api_notification_semantic_style"
+  is_exported: true
+  namespace: "notifications"
+  description: "Adds APIs to apply semantic style (color) to notification components"
+  bug: "440125908"
+}
+
+flag {
+  name: "api_notification_chip"
+  is_exported: true
+  namespace: "notifications"
+  description: "Adds Notification.CompactContent and related classes. Mostly dependent on api_metric_style."
+  bug: "444195983"
 }
 
 flag {
@@ -73,61 +80,10 @@ flag {
 }
 
 flag {
-  name: "modes_ui_tile_reactivates_last"
-  namespace: "systemui"
-  description: "The secondary target on the Modes tile activates the last-manually-activated mode, instead of DND"
-  bug: "405988332"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "modes_ui_dnd_slice"
-  namespace: "systemui"
-  description: "Restores a (tweaked) DND slice in Settings; dependent on modes_ui"
-  bug: "406238205"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "notification_expansion_optional"
   namespace: "systemui"
   description: "Experiment to restore the pre-S behavior where standard notifications are not expandable unless they have actions."
   bug: "339523906"
-}
-
-flag {
-  name: "notification_no_custom_view_conversations"
-  namespace: "systemui"
-  description: "Ensures that conversations are not allowed to use Custom Views."
-  bug: "368817201"
-}
-
-flag {
-  name: "evenly_divided_call_style_action_layout"
-  namespace: "systemui"
-  description: "Evenly divides horizontal space for action buttons in CallStyle notifications."
-  bug: "268733030"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "clean_up_spans_and_new_lines"
-  namespace: "systemui"
-  description: "Cleans up spans and unnecessary new lines from standard notification templates"
-  bug: "313439845"
-}
-
-flag {
-  name: "compact_heads_up_notification_reply"
-  namespace: "systemui"
-  description: "[Minimal HUN] Enables the compact heads up notification reply capability for Conversation Notifications"
-  bug: "336229954"
 }
 
 flag {
@@ -145,58 +101,6 @@ flag {
 }
 
 flag {
-  name: "notification_classification_ui"
-  namespace: "systemui"
-  description: "Adds UI for NAS classification of notifications"
-  bug: "367996732"
-}
-
-flag {
-  name: "nm_binder_perf_permission_check"
-  namespace: "systemui"
-  description: "Use PermissionManager for areNotificationsEnabled() instead of NMS"
-  bug: "362981561"
-}
-
-flag {
-  name: "nm_binder_perf_cache_channels"
-  namespace: "systemui"
-  description: "Use IpcDataCache for notification channel/group lookups"
-  bug: "362981561"
-}
-
-flag {
-  name: "nm_binder_perf_throttle_notify"
-  namespace: "systemui"
-  description: "Rate-limit calls to enqueueNotificationWithTag client-side"
-  bug: "362981561"
-}
-
-flag {
-  name: "nm_binder_perf_get_apps_with_channels"
-  namespace: "systemui"
-  description: "Use a single binder call to get the set of apps with channels for a user"
-  bug: "362981561"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "no_sbnholder"
-  namespace: "systemui"
-  description: "removes sbnholder from NLS"
-  bug: "378128805"
-}
-
-flag {
-  name: "nm_summarization_ui"
-  namespace: "systemui"
-  description: "Shows summarized notifications in the UI"
-  bug: "390217880"
-}
-
-flag {
   name: "nm_collapsed_lines"
   namespace: "systemui"
   description: "Shows 2 lines for collapsed notifications by default"
@@ -207,23 +111,54 @@ flag {
 }
 
 flag {
-  name: "nm_summarization_onboarding_ui"
+  name: "notification_transparent_badge_ring"
   namespace: "systemui"
-  description: "Shows summarizatino onboarding UI"
-  bug: "391568054"
+  description: "Makes notification badge ring transparent and skips no longer necessary method."
+  bug: "409346132"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
 }
 
 flag {
-  name: "notification_update_shedding_allow_progress_completion"
+  name: "notification_animated_action_content_description"
   namespace: "systemui"
-  description: "When throttling notification updates, specifically allow the progress -> no_progress transition"
-  bug: "425364383"
+  description: "This flag enables the customized content description for animated actions and replies."
+  bug: "412288906"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
+}
+
+flag {
+  name: "modes_auto_reply_message"
+  namespace: "systemui"
+  description: "When enabled, auto reply messages for a specific mode when it is turned on."
+  bug: "467758845"
+}
+
+flag {
+  name: "enable_action_attribution"
+  namespace: "ailabs"
+  description: "This flag enables the attribution in notification action."
+  bug: "466466234"
+}
+
+flag {
+  name: "enable_automation_notification_ui"
+  namespace: "notifications"
+  description: "Whether automation visual treatment is enabled for notifications."
+  bug: "483447802"
+  metadata {
+    purpose: PURPOSE_FEATURE
+  }
+}
+
+flag {
+  name: "status_bar_headline"
+  namespace: "notifications"
+  description: "[prototype] Replaces ongoing activity chips with Headline."
+  bug: "486143387"
 }
 
 # Start: exported flags that cannot be removed
@@ -303,11 +238,20 @@ flag {
 }
 
 flag {
-  name: "ui_rich_ongoing"
-  is_exported: true
+  name: "rich_ongoing_improvements"
   namespace: "systemui"
-  description: "[RONs] Guards new promotion logic and UI, including AOD notification and Colorization"
-  bug: "367705002"
+  description: "[RONs] Visual Improvements for Live Updates, for glanceability"
+  bug: "440125908"
+}
+
+flag {
+  name: "nm_remove_must_have_flags"
+  namespace: "notifications"
+  description: "This controls the removal of the internal method parameter 'mustHaveFlags' which was used inconsistently"
+  bug: "440125528"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
 }
 
 flag {
@@ -326,20 +270,15 @@ flag {
   metadata {
     purpose: PURPOSE_FEATURE
   }
+  is_exported: true
 }
 
 flag {
   name: "nm_summarization_all"
   namespace: "notifications"
+  is_exported: true
   description: "Allows the NAS to summarize notifications of any type"
   bug: "430487852"
-}
-
-flag {
-  name: "nm_highlights"
-  namespace: "notifications"
-  description: "Allows the NAS to highlight notifications"
-  bug: "438704838"
 }
 
 flag {
@@ -352,8 +291,49 @@ flag {
 flag {
   name: "nm_contextual_display"
   namespace: "notifications"
+  is_exported: true
+  description: "Changes notification appearance based on user created rules, prototyping"
+  bug: "438704204"
+}
+
+flag {
+  name: "nm_contextual_display_launch"
+  namespace: "notifications"
+  is_exported: true
   description: "Changes notification appearance based on user created rules"
   bug: "438704204"
+}
+
+flag {
+   name: "bridged_notifications"
+   is_exported: true
+   namespace: "notifications"
+   description: "Adds support for specifying bridged notification metadata for displaying to the user."
+   bug: "438827600"
+}
+
+flag {
+  name: "notification_semantic_actions_for_playback"
+  namespace: "notifications"
+  description: "Adds semantic action values for PLAY/PAUSE/STOP"
+  is_exported: true
+  bug: "458744035"
+}
+
+flag {
+  name: "api_projected_extender"
+  namespace: "notifications"
+  description: "Guards new android.app.Notification.ProjectedExtender api"
+  bug: "455909258"
+  is_exported: true
+}
+
+flag {
+  name: "prefer_small_icon"
+  namespace: "notifications"
+  description: "Makes prefer small icon fully public"
+  bug: "469460575"
+  is_exported: true
 }
 
 # End: exported flags that cannot be removed
@@ -387,6 +367,14 @@ flag {
   namespace: "systemui"
   description: "This flag controls new and updated DND UIs; dependent on flag modes_api"
   bug: "270703654"
+}
+
+flag {
+  name: "modes_ui_transit"
+  namespace: "systemui"
+  description: "This flag controls DND UI: transit mode"
+  is_exported: true
+  bug: "450159513"
 }
 
 # End: Flags that have been cleaned up in code but need to remain for CTS

@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.pipeline.mobile.data.repository.prod
 
 import androidx.test.filters.SmallTest
 import com.android.systemui.activated
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.launchKairosNetwork
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,7 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import org.mockito.Mockito
 
-@OptIn(ExperimentalKairosApi::class, ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 class MobileConnectionKairosAdapterTelephonySmokeTests : MobileConnectionTelephonySmokeTestsBase() {
 

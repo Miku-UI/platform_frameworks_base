@@ -25,18 +25,13 @@ import static org.mockito.Mockito.when;
 
 import android.content.res.Resources;
 import android.os.BatteryManager;
-import android.os.RemoteException;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
-import com.android.internal.app.IBatteryStats;
 import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.keyguard.KeyguardUpdateMonitorCallback;
 import com.android.settingslib.fuelgauge.BatteryStatus;
-import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.res.R;
 import com.android.systemui.statusbar.KeyguardIndicationController;
@@ -56,8 +51,6 @@ public class ChargingStatusProviderTest extends SysuiTestCase {
     @Mock
     private Resources mResources;
     @Mock
-    private IBatteryStats mBatteryInfo;
-    @Mock
     private KeyguardUpdateMonitor mKeyguardUpdateMonitor;
     @Mock
     private Lazy<KeyguardIndicationController> mKeyguardIndicationControllerLazy;
@@ -75,8 +68,6 @@ public class ChargingStatusProviderTest extends SysuiTestCase {
         when(mKeyguardIndicationControllerLazy.get()).thenReturn(mKeyguardIndicationController);
         mProvider = new ChargingStatusProvider(
                 mContext,
-                mResources,
-                mBatteryInfo,
                 mKeyguardUpdateMonitor,
                 mKeyguardIndicationControllerLazy);
     }
@@ -158,70 +149,7 @@ public class ChargingStatusProviderTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_LOWLIGHT_CLOCK_USES_KEYGUARD_CHARGING_STATUS)
-    public void testChargingStatusReportsChargingLimitedWhenOverheated() {
-        ArgumentCaptor<KeyguardUpdateMonitorCallback> keyguardUpdateMonitorCallbackArgumentCaptor =
-                ArgumentCaptor.forClass(KeyguardUpdateMonitorCallback.class);
-        mProvider.startUsing(mCallback);
-        verify(mCallback).onChargingStatusChanged(false, null);
-        verify(mKeyguardUpdateMonitor)
-                .registerCallback(keyguardUpdateMonitorCallbackArgumentCaptor.capture());
-        keyguardUpdateMonitorCallbackArgumentCaptor.getValue()
-                .onRefreshBatteryInfo(getBatteryDefender());
-        verify(mResources).getString(eq(R.string.keyguard_plugged_in_charging_limited), any());
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_LOWLIGHT_CLOCK_USES_KEYGUARD_CHARGING_STATUS)
-    public void testChargingStatusReportsChargedWhenCharged() {
-        ArgumentCaptor<KeyguardUpdateMonitorCallback> keyguardUpdateMonitorCallbackArgumentCaptor =
-                ArgumentCaptor.forClass(KeyguardUpdateMonitorCallback.class);
-        mProvider.startUsing(mCallback);
-        verify(mCallback).onChargingStatusChanged(false, null);
-        verify(mKeyguardUpdateMonitor)
-                .registerCallback(keyguardUpdateMonitorCallbackArgumentCaptor.capture());
-        keyguardUpdateMonitorCallbackArgumentCaptor.getValue()
-                .onRefreshBatteryInfo(getChargedBattery());
-        verify(mResources).getString(R.string.keyguard_charged);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_LOWLIGHT_CLOCK_USES_KEYGUARD_CHARGING_STATUS)
-    public void testChargingStatusReportsPluggedInWhenDockedAndChargingTimeUnknown() throws
-            RemoteException {
-        ArgumentCaptor<KeyguardUpdateMonitorCallback> keyguardUpdateMonitorCallbackArgumentCaptor =
-                ArgumentCaptor.forClass(KeyguardUpdateMonitorCallback.class);
-        mProvider.startUsing(mCallback);
-        verify(mCallback).onChargingStatusChanged(false, null);
-        verify(mKeyguardUpdateMonitor)
-                .registerCallback(keyguardUpdateMonitorCallbackArgumentCaptor.capture());
-        when(mBatteryInfo.computeChargeTimeRemaining()).thenReturn(-1L);
-        keyguardUpdateMonitorCallbackArgumentCaptor.getValue()
-                .onRefreshBatteryInfo(getChargingBattery());
-        verify(mResources).getString(
-                eq(R.string.keyguard_plugged_in_dock), any());
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_LOWLIGHT_CLOCK_USES_KEYGUARD_CHARGING_STATUS)
-    public void testChargingStatusReportsTimeRemainingWhenDockedAndCharging() throws
-            RemoteException {
-        ArgumentCaptor<KeyguardUpdateMonitorCallback> keyguardUpdateMonitorCallbackArgumentCaptor =
-                ArgumentCaptor.forClass(KeyguardUpdateMonitorCallback.class);
-        mProvider.startUsing(mCallback);
-        verify(mCallback).onChargingStatusChanged(false, null);
-        verify(mKeyguardUpdateMonitor)
-                .registerCallback(keyguardUpdateMonitorCallbackArgumentCaptor.capture());
-        when(mBatteryInfo.computeChargeTimeRemaining()).thenReturn(1L);
-        keyguardUpdateMonitorCallbackArgumentCaptor.getValue()
-                .onRefreshBatteryInfo(getChargingBattery());
-        verify(mResources).getString(
-                eq(R.string.keyguard_indication_charging_time_dock), any(), any());
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_LOWLIGHT_CLOCK_USES_KEYGUARD_CHARGING_STATUS)
-    public void testAsksKeyguardForChargingStatusWhenFlagEnabled() {
+    public void testAsksKeyguardForChargingStatus() {
         mProvider.startUsing(mCallback);
         verify(mCallback).onChargingStatusChanged(false, null);
         verify(mKeyguardIndicationController).getPowerChargingString();

@@ -45,7 +45,6 @@ static const char* kPathAllowlist[] = {
         "/sys/kernel/tracing/trace_marker",
         "/system/framework/framework-res.apk",
         "/dev/urandom",
-        "/dev/ion",
         "/dev/dri/renderD129", // Fixes b/31172436
         "/dev/stune/foreground/tasks",
         "/dev/blkio/tasks",

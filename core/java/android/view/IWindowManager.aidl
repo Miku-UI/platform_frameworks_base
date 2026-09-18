@@ -76,6 +76,8 @@ import android.window.IScreenCaptureCallback;
 import android.window.IScreenRecordingCallback;
 import android.window.ISurfaceSyncGroupCompletedListener;
 import android.window.ITaskFpsCallback;
+import android.window.IDisplayEngagementModeCallback;
+import android.window.IEngagementControlRequestConsumer;
 import android.window.ITrustedPresentationListener;
 import android.window.InputTransferToken;
 import android.window.ScreenCapture;
@@ -471,12 +473,6 @@ interface IWindowManager
         int displayId);
 
     /**
-     * Used only for assist -- request a screenshot of the current application.
-     * @deprecated. Use WindowManagerInternal#requestAssistScreenshot instead.
-     */
-    void requestAssistScreenshot(IAssistDataReceiver receiver);
-
-    /**
      * Called by System UI to notify Window Manager to hide transient bars.
      */
     oneway void hideTransientBars(int displayId);
@@ -583,9 +579,7 @@ interface IWindowManager
     /**
      * Create an input consumer by name and display id.
      */
-    @UnsupportedAppUsage
-    void createInputConsumer(IBinder token, String name, int displayId,
-        out InputChannel inputChannel);
+    InputChannel createInputConsumer(IBinder token, String name, int displayId);
 
     /**
      * Destroy an input consumer by token and display id.
@@ -878,6 +872,17 @@ interface IWindowManager
      */
     void requestScrollCapture(int displayId, IBinder behindClient, int taskId,
             IScrollCaptureResponseListener listener);
+
+    /**
+     * Dispatches a scroll to top command to the appropriate window on the given display.
+     *
+     * @param displayId The ID of the display.
+     * @param x The x-coordinate of the command in the display's coordinate space.
+     * @param targetTaskId The ID of the task that should receive the event, or -1 to use default
+     *                     focus logic.
+     */
+    @EnforcePermission("STATUS_BAR_SERVICE")
+    void dispatchScrollToTop(int displayId, int x, int targetTaskId);
 
     /**
      * Holds the WM lock for the specified amount of milliseconds.
@@ -1181,6 +1186,52 @@ interface IWindowManager
 
     @EnforcePermission("DETECT_SCREEN_RECORDING")
     void unregisterScreenRecordingCallback(IScreenRecordingCallback callback);
+
+    /**
+     * Sets the user engagement mode for a specific display.
+     * @see android.view.WindowManager#setDisplayEngagementMode
+     */
+    @EnforcePermission("MANAGE_DISPLAYS")
+    void setDisplayEngagementMode(int displayId, int engagementModeFlags);
+
+    /**
+     * Gets the user engagement mode for a specific display.
+     * @see android.view.WindowManager#getDisplayEngagementMode
+     */
+    int getDisplayEngagementMode(int displayId);
+
+    /**
+     * Registers a callback for display engagement mode changes.
+     * @see android.view.WindowManager#registerDisplayEngagementModeCallback
+     */
+    void registerDisplayEngagementModeCallback(in IDisplayEngagementModeCallback callback);
+
+    /**
+     * Unregisters a callback for display engagement mode changes.
+     * @see android.view.WindowManager#unregisterDisplayEngagementModeCallback
+     */
+    void unregisterDisplayEngagementModeCallback(in IDisplayEngagementModeCallback callback);
+
+    /**
+     * Requests an engagement state.
+     *
+     * @param windowToken The IBinder token identifying the window making the request.
+     * @param engagementControlFlags A bitmask of requested engagement states.
+     *                               Pass 0 to clear all requests.
+     */
+    void requestEngagementControlState(in IBinder windowToken, int engagementControlFlags);
+
+    /**
+     * Registers a consumer for engagement control requests.
+     */
+    @EnforcePermission("MANAGE_DISPLAYS")
+    void registerEngagementControlRequestConsumer(in IEngagementControlRequestConsumer callback);
+
+    /**
+     * Unregisters a previously registered engagement control request consumer.
+     */
+    @EnforcePermission("MANAGE_DISPLAYS")
+    void unregisterEngagementControlRequestConsumer(in IEngagementControlRequestConsumer callback);
 
     /**
      * Sets the listener to be called back when a cross-window drag and drop operation happens.

@@ -19,9 +19,6 @@ import android.app.Activity
 import android.app.Instrumentation
 import android.app.UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES
 import android.os.Bundle
-import android.platform.test.annotations.RequiresFlagsEnabled
-import android.platform.test.flag.junit.CheckFlagsRule
-import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.provider.Settings
 import android.view.Display.DEFAULT_DISPLAY
 import android.view.GestureDetector
@@ -37,7 +34,6 @@ import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Configurator
 import androidx.test.uiautomator.UiDevice
 import com.android.compatibility.common.util.SettingsStateChangerRule
-import com.android.server.accessibility.Flags
 import kotlin.test.assertEquals
 import org.junit.AfterClass
 import org.junit.Before
@@ -46,20 +42,17 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import platform.test.desktop.DesktopMouseTestRule
+import platform.test.desktop.LogicalDisplayPointPx
 
 @RunWith(AndroidJUnit4::class)
-@RequiresFlagsEnabled(Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
 class AutoclickClickTypeTests {
-    @Rule(order = 0)
-    @JvmField
-    val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
-    @Rule(order = 1)
+    @Rule(order = 0)
     @JvmField
     val activityScenarioRule: ActivityScenarioRule<TestClickActivity> =
         ActivityScenarioRule(TestClickActivity::class.java)
 
-    @Rule(order = 2)
+    @Rule(order = 1)
     @JvmField
     val autoclickEnabledSettingRule: SettingsStateChangerRule =
         SettingsStateChangerRule(
@@ -68,7 +61,7 @@ class AutoclickClickTypeTests {
             "1"
         )
 
-    @Rule(order = 3)
+    @Rule(order = 2)
     @JvmField
     val desktopMouseTestRule = DesktopMouseTestRule()
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -101,13 +94,15 @@ class AutoclickClickTypeTests {
     // Move the mouse to the center of the view
     private fun moveMouseToView(view: View) {
         val (centerX, centerY) = getViewCenter(view)
-        desktopMouseTestRule.move(DEFAULT_DISPLAY, centerX, centerY)
+        desktopMouseTestRule.move(LogicalDisplayPointPx(DEFAULT_DISPLAY, centerX, centerY))
     }
 
     // Move the mouse a given distance away from the center of the view.
     private fun moveMouseAwayFromView(view: View, deltaX: Int, deltaY: Int) {
         val (centerX, centerY) = getViewCenter(view)
-        desktopMouseTestRule.move(DEFAULT_DISPLAY, centerX + deltaX, centerY + deltaY)
+        desktopMouseTestRule.move(
+            LogicalDisplayPointPx(DEFAULT_DISPLAY, centerX + deltaX, centerY + deltaY)
+        )
     }
 
     private fun moveMouseToScrollButton(resourceId: String) {
@@ -115,9 +110,11 @@ class AutoclickClickTypeTests {
             uiDevice, By.res(resourceId)
         )
         desktopMouseTestRule.move(
-            DEFAULT_DISPLAY,
-            scrollButton.visibleCenter.x,
-            scrollButton.visibleCenter.y
+            LogicalDisplayPointPx(
+                DEFAULT_DISPLAY,
+                scrollButton.visibleCenter.x,
+                scrollButton.visibleCenter.y,
+            )
         )
     }
 

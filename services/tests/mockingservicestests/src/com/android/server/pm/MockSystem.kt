@@ -57,6 +57,7 @@ import com.android.dx.mockito.inline.extended.ExtendedMockito.spy
 import com.android.dx.mockito.inline.extended.StaticMockitoSession
 import com.android.dx.mockito.inline.extended.StaticMockitoSessionBuilder
 import com.android.internal.R
+import com.android.internal.content.InstallLocationUtils
 import com.android.internal.pm.parsing.PackageParser2
 import com.android.internal.pm.parsing.pkg.PackageImpl
 import com.android.internal.pm.parsing.pkg.ParsedPackage
@@ -145,7 +146,7 @@ class MockSystem(withSession: (StaticMockitoSessionBuilder) -> Unit = {}) {
                 .mockStatic(SaferIntentUtils::class.java)
                 .mockStatic(SystemProperties::class.java)
                 .mockStatic(SystemConfig::class.java)
-                .mockStatic(SELinuxMMAC::class.java, Mockito.CALLS_REAL_METHODS)
+                .mockStatic(SELinuxMMAC::class.java)
                 .mockStatic(FallbackCategoryProvider::class.java)
                 .mockStatic(PackageManagerServiceUtils::class.java)
                 .mockStatic(Environment::class.java)
@@ -159,6 +160,7 @@ class MockSystem(withSession: (StaticMockitoSessionBuilder) -> Unit = {}) {
                 .mockStatic(HexEncoding::class.java)
                 .mockStatic(DeveloperVerifierController::class.java)
                 .mockStatic(IoThread::class.java)
+                .mockStatic(InstallLocationUtils::class.java)
                 .apply(withSession)
         session = apply.startMocking()
         whenever(mocks.settings.insertPackageSettingLPw(
@@ -171,7 +173,7 @@ class MockSystem(withSession: (StaticMockitoSessionBuilder) -> Unit = {}) {
             null
         }
         whenever(mocks.settings.addPackageLPw(nullable(), nullable(), nullable(), nullable(),
-                nullable(), nullable(), nullable(), nullable())) {
+                nullable(), nullable(), nullable(), nullable(), nullable())) {
             val name: String = getArgument(0)
             val pendingAdd = mPendingPackageAdds.firstOrNull { it.first == name }
                     ?: return@whenever null
@@ -325,6 +327,7 @@ class MockSystem(withSession: (StaticMockitoSessionBuilder) -> Unit = {}) {
         whenever(mocks.systemConfig.hiddenApiWhitelistedApps).thenReturn(ArraySet())
         whenever(mocks.systemConfig.appMetadataFilePaths).thenReturn(ArrayMap())
         whenever(mocks.systemConfig.oemDefinedUids).thenReturn(ArrayMap())
+        whenever(mocks.systemConfig.preventUserDisablePackages).thenReturn(ArraySet())
         wheneverStatic { SystemProperties.set(anyString(), anyString()) }.thenDoNothing()
         wheneverStatic { SystemProperties.getBoolean("fw.free_cache_v2", true) }.thenReturn(true)
         wheneverStatic { Environment.getApexDirectory() }.thenReturn(apexDirectory)
@@ -333,6 +336,7 @@ class MockSystem(withSession: (StaticMockitoSessionBuilder) -> Unit = {}) {
         wheneverStatic { Environment.getRootDirectory() }.thenReturn(rootDirectory)
         wheneverStatic { SystemServerInitThreadPool.submit(any(Runnable::class.java), anyString()) }
                 .thenAnswer { FutureTask<Any?>(it.getArgument(0), null) }
+        wheneverStatic { SELinuxMMAC.readInstallPolicy() }.thenReturn(true)
 
         wheneverStatic { Environment.getDataDirectory() }.thenReturn(dataAppDirectory.parentFile)
         wheneverStatic { Environment.getDataSystemDirectory() }

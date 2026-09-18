@@ -20,10 +20,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.dump.DumpManager
+import com.android.systemui.kosmos.backgroundScope
 import com.android.systemui.plugins.qs.QS
 import com.android.systemui.res.R
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.statusbar.policy.FakeConfigurationController
 import com.android.systemui.statusbar.policy.ResourcesSplitShadeStateController
+import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.mock
 import com.google.common.truth.Expect
 import com.google.common.truth.Truth.assertThat
@@ -39,11 +42,14 @@ import org.mockito.MockitoAnnotations
 @RunWith(AndroidJUnit4::class)
 class LockscreenShadeQsTransitionControllerTest : SysuiTestCase() {
 
+    private val kosmos = testKosmos()
+    private val shadeModeInteractor = kosmos.shadeModeInteractor
     private val configurationController = FakeConfigurationController()
 
     @get:Rule val expect: Expect = Expect.create()
 
     @Mock private lateinit var dumpManager: DumpManager
+
     private var qS: QS? = null
 
     private lateinit var controller: LockscreenShadeQsTransitionController
@@ -64,7 +70,9 @@ class LockscreenShadeQsTransitionControllerTest : SysuiTestCase() {
                 configurationController,
                 dumpManager,
                 qsProvider = { qS },
-                ResourcesSplitShadeStateController()
+                ResourcesSplitShadeStateController(),
+                shadeModeInteractor,
+                kosmos.backgroundScope,
             )
     }
 
@@ -227,7 +235,7 @@ class LockscreenShadeQsTransitionControllerTest : SysuiTestCase() {
             .setTransitionToFullShadeProgress(
                 /* isTransitioningToFullShade= */ true,
                 /* transitionFraction= */ controller.qsTransitionFraction,
-                /* squishinessFraction= */ controller.qsSquishTransitionFraction
+                /* squishinessFraction= */ controller.qsSquishTransitionFraction,
             )
     }
 

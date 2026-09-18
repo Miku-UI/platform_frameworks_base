@@ -21,6 +21,7 @@ import android.hardware.BatteryState
 import android.os.Handler
 import android.os.HandlerExecutor
 import android.os.test.TestLooper
+import android.platform.test.annotations.DisabledOnRavenwood
 import android.platform.test.annotations.Presubmit
 import androidx.test.core.app.ApplicationProvider
 import com.android.server.testutils.any
@@ -48,6 +49,7 @@ import org.mockito.junit.MockitoJUnitRunner
  */
 @Presubmit
 @RunWith(MockitoJUnitRunner::class)
+@DisabledOnRavenwood(blockedBy = [BatteryState::class])
 class InputDeviceBatteryListenerTest {
     @get:Rule val rule = MockitoJUnit.rule()!!
 

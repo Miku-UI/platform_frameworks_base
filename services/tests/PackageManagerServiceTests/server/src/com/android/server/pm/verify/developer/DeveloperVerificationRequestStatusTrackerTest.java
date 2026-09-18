@@ -25,6 +25,8 @@ import android.platform.test.annotations.Presubmit;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
+import com.android.server.pm.PackageInstallerSession;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,6 +48,9 @@ public class DeveloperVerificationRequestStatusTrackerTest {
 
     @Mock
     DeveloperVerifierController.Injector mInjector;
+    @Mock
+    PackageInstallerSession.DeveloperVerifierCallback mCallback;
+
     private DeveloperVerificationRequestStatusTracker mTracker;
 
     @Before
@@ -63,7 +68,7 @@ public class DeveloperVerificationRequestStatusTrackerTest {
                 .thenReturn(TEST_REQUEST_START_TIME + TEST_MAX_TIMEOUT_DURATION_MILLIS - 100)
                 .thenReturn(TEST_REQUEST_START_TIME + TEST_MAX_TIMEOUT_DURATION_MILLIS);
         mTracker = new DeveloperVerificationRequestStatusTracker(TEST_TIMEOUT_DURATION_MILLIS,
-                TEST_MAX_TIMEOUT_DURATION_MILLIS, mInjector, 0);
+                TEST_MAX_TIMEOUT_DURATION_MILLIS, mInjector, 0, mCallback);
     }
 
     @Test

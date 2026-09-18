@@ -57,7 +57,7 @@ cc_binary {
 
     shared_libs: [
         "libOpenSLES",
-        "libbootanimation",
+        "libbootanimation_preapex",
     ],
 
     srcs: [
@@ -78,14 +78,14 @@ cc_binary {
 // ===========================================================
 
 cc_library_shared {
-    name: "libbootanimation",
+    name: "libbootanimation_preapex",
     defaults: ["bootanimation_defaults"],
 
     srcs: ["BootAnimation.cpp"],
 
     shared_libs: [
         "libui",
-        "libjnigraphics",
+        "libjnigraphics_preapex",
         "libEGL",
         "libGLESv2",
         "libgui",

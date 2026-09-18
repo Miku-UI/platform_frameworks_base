@@ -22,8 +22,6 @@ import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.LogBufferFactory
 import com.android.systemui.statusbar.chips.notification.domain.interactor.StatusBarNotificationChipsInteractor
 import com.android.systemui.statusbar.chips.ui.viewmodel.OngoingActivityChipsRefiner
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
-import dagger.Lazy
 import dagger.Module
 import dagger.Provides
 import dagger.multibindings.ClassKey
@@ -45,14 +43,8 @@ abstract class StatusBarChipsModule {
         @IntoMap
         @ClassKey(StatusBarNotificationChipsInteractor::class)
         fun statusBarNotificationChipsInteractorAsCoreStartable(
-            interactorLazy: Lazy<StatusBarNotificationChipsInteractor>
-        ): CoreStartable {
-            return if (PromotedNotificationUi.isEnabled) {
-                interactorLazy.get()
-            } else {
-                CoreStartable.NOP
-            }
-        }
+            interactor: StatusBarNotificationChipsInteractor
+        ): CoreStartable = interactor
     }
 
     /** Provides the base empty set for [OngoingActivityChipsRefiner]. */

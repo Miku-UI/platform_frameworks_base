@@ -161,7 +161,7 @@ public interface ServiceWatcher {
                 BIND_AUTO_CREATE | BIND_NOT_FOREGROUND | BIND_NOT_VISIBLE;
 
         protected BoundServiceInfo(String action, ResolveInfo resolveInfo) {
-            this(action, resolveInfo.serviceInfo.applicationInfo.uid,
+            this(action, resolveInfo.serviceInfo.getUid(),
                     resolveInfo.serviceInfo.getComponentName());
         }
 

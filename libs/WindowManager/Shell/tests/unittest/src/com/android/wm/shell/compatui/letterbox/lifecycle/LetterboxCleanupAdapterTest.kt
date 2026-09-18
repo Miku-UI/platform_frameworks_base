@@ -20,15 +20,12 @@ import android.app.ActivityManager.RunningTaskInfo
 import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
 import android.content.ComponentName
 import android.content.Intent
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.view.Display.DEFAULT_DISPLAY
 import android.view.SurfaceControl.Transaction
 import android.window.IWindowContainerToken
 import android.window.WindowContainerToken
 import androidx.test.filters.SmallTest
-import com.android.window.flags.Flags
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.ShellExecutor
@@ -56,7 +53,6 @@ import org.mockito.kotlin.whenever
 class LetterboxCleanupAdapterTest : ShellTestCase() {
 
     @Test
-    @EnableFlags(Flags.FLAG_APP_COMPAT_REFACTORING)
     fun `When the flag is ENABLED the listener is registered`() {
         runTestScenario { r ->
             r.invokeShellInit()
@@ -65,16 +61,6 @@ class LetterboxCleanupAdapterTest : ShellTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_APP_COMPAT_REFACTORING)
-    fun `When the flag is DISABLED the listener is NOT registered`() {
-        runTestScenario { r ->
-            r.invokeShellInit()
-            r.checkListenerIsRegistered(expected = false)
-        }
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_APP_COMPAT_REFACTORING)
     fun `When Task destroyed letterbox surfaces are removed`() {
         runTestScenario { r ->
             r.invokeShellInit()

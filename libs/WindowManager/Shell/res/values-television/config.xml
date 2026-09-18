@@ -34,6 +34,9 @@
          Currently, this maps to Gravity.BOTTOM | Gravity.RIGHT -->
     <integer name="config_defaultPictureInPictureGravity">0x55</integer>
 
+    <!-- Animation duration (in milliseconds) for PIP when entering. -->
+    <integer name="config_pipEnterAnimationDuration">600</integer>
+
     <!-- Fraction of screen width/height restricted keep clear areas can move the PiP. -->
     <fraction name="config_pipMaxRestrictedMoveDistance">15%</fraction>
 

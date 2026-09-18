@@ -16,10 +16,12 @@
 
 package com.android.systemui.shade
 
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.ObservableTransitionState.Idle
 import com.android.compose.animation.scene.OverlayKey
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.Kosmos
@@ -31,6 +33,7 @@ import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.domain.interactor.enableDualShade
+import com.android.systemui.shade.domain.interactor.enableSingleShade
 import com.android.systemui.statusbar.commandline.commandRegistry
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
@@ -58,6 +61,7 @@ class ShadeInstantExpansionCommandsTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun commandShadeShowNotifications_dualShade() =
         kosmos.runTest {
             enableDualShade()
@@ -73,6 +77,7 @@ class ShadeInstantExpansionCommandsTest : SysuiTestCase() {
     @Test
     fun commandShadeShowQs_singleShade() =
         kosmos.runTest {
+            enableSingleShade()
             val currentScene by collectLastValue(sceneInteractor.currentScene)
             shadeInstantExpansionCommands.start()
             commandRegistry.onShellCommand(
@@ -83,6 +88,7 @@ class ShadeInstantExpansionCommandsTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun commandShadeShowQs_dualShade() =
         kosmos.runTest {
             enableDualShade()
@@ -98,6 +104,7 @@ class ShadeInstantExpansionCommandsTest : SysuiTestCase() {
     @Test
     fun commandShadeHideNotifications_singleShade() =
         kosmos.runTest {
+            enableSingleShade()
             val currentScene by collectLastValue(sceneInteractor.currentScene)
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
             shadeInstantExpansionCommands.start()
@@ -108,6 +115,7 @@ class ShadeInstantExpansionCommandsTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun commandShadeHideNotifications_dualShade() =
         kosmos.runTest {
             enableDualShade()
@@ -121,6 +129,7 @@ class ShadeInstantExpansionCommandsTest : SysuiTestCase() {
     @Test
     fun commandShadeHideQs_singleShade() =
         kosmos.runTest {
+            enableSingleShade()
             val currentScene by collectLastValue(sceneInteractor.currentScene)
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
             shadeInstantExpansionCommands.start()
@@ -131,6 +140,7 @@ class ShadeInstantExpansionCommandsTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun commandShadeHideQs_dualShade() =
         kosmos.runTest {
             enableDualShade()

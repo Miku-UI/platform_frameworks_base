@@ -63,7 +63,6 @@ public class ValueAnimatorTests {
     private final static int A2_END_VALUE = 200;
 
     private final static long DEFAULT_FRAME_INTERVAL = 5; //ms
-    private final static long COMMIT_DELAY = 3; //ms
 
     private ActivityTestRule<BasicAnimatorActivity> mActivityRule =
             new ActivityTestRule<>(BasicAnimatorActivity.class);
@@ -1333,17 +1332,6 @@ public class ValueAnimatorTests {
             if (!mFrameCallbacks.contains(callback)) {
                 mFrameCallbacks.add(callback);
             }
-        }
-
-        @Override
-        public void postCommitCallback(Runnable runnable) {
-            // Run the runnable after a commit delay
-            mHandler.postDelayed(runnable, COMMIT_DELAY);
-        }
-
-        @Override
-        public long getFrameTime() {
-            return SystemClock.uptimeMillis();
         }
 
         @Override

@@ -59,6 +59,7 @@ interface SceneTransitionsBuilder {
         to: ContentKey,
         key: TransitionKey? = null,
         @CujType cuj: Int? = null,
+        cujTag: String? = null,
         preview: (TransitionBuilder.() -> Unit)? = null,
         reversePreview: (TransitionBuilder.() -> Unit)? = null,
         builder: TransitionBuilder.() -> Unit = {},
@@ -86,8 +87,19 @@ interface SceneTransitionsBuilder {
         to: ContentKey? = null,
         key: TransitionKey? = null,
         @CujType cuj: Int? = null,
+        cujTag: String? = null,
         preview: (TransitionBuilder.() -> Unit)? = null,
         reversePreview: (TransitionBuilder.() -> Unit)? = null,
+        builder: TransitionBuilder.() -> Unit = {},
+    )
+
+    /**
+     * Define the default transformations to use when there is no more specific ones defined for a
+     * given transition. This can be for instance used when the set of scenes is dynamic and not
+     * known in advance.
+     */
+    fun default(
+        preview: (TransitionBuilder.() -> Unit)? = null,
         builder: TransitionBuilder.() -> Unit = {},
     )
 }
@@ -134,8 +146,19 @@ interface TransitionBuilder : BaseTransitionBuilder {
      */
     var spec: AnimationSpec<Float>?
 
+    /**
+     * Hints at the intrinsic, "design intent" direction of the transition.
+     *
+     * Provides the direction for direction-dependent animations when they are triggered
+     * programmatically via [spec], rather than by a user's swipe.
+     */
+    var intrinsicDirection: SwipeDirection?
+
     /** The CUJ associated to this transitions. */
     @CujType var cuj: Int?
+
+    /** The string appended to the CUJ */
+    var cujTag: String?
 
     /**
      * Define a timestamp-based range for the transformations inside [builder].
@@ -288,30 +311,6 @@ object HighestZIndexContentPicker : ElementContentPicker {
             transition.toContent
         }
     }
-
-    /**
-     * Return a [StaticElementContentPicker] that behaves like [HighestZIndexContentPicker] and can
-     * be used by [MovableElement].
-     */
-    operator fun invoke(contents: Set<ContentKey>): StaticElementContentPicker {
-        return object : StaticElementContentPicker {
-            override val contents: Set<ContentKey> = contents
-
-            override fun contentDuringTransition(
-                element: ElementKey,
-                transition: TransitionState.Transition,
-                fromContentZIndex: Long,
-                toContentZIndex: Long,
-            ): ContentKey {
-                return HighestZIndexContentPicker.contentDuringTransition(
-                    element,
-                    transition,
-                    fromContentZIndex,
-                    toContentZIndex,
-                )
-            }
-        }
-    }
 }
 
 /**
@@ -368,7 +367,17 @@ object LowestZIndexContentPicker : ElementContentPicker {
  *
  * The downside of this picker is that the zIndex of the element when going from scene A to scene B
  * is not the same as when going from scene B to scene A, so it's not usable in situations where
- * z-ordering during the transition matters.
+ * z-ordering during the transition matters. If the size of a [MovableElement] does not depend on
+ * the size of its children, you should probably use [DefaultElementContentPicker] instead.
+ *
+ * Important: [contents] must contain the *exact* list of contents in which the associated element
+ * *is* (and not *can be*). For a MovableElement, STL needs to know *before composition* in which
+ * contents that MovableElement *will* be composed, and [contents] will be used for that. You should
+ * therefore make sure that [contents]:
+ * - does not contain contents in which the element won't be composed.
+ * - contains all contents in which the element will be composed.
+ *
+ * @see DefaultElementContentPicker
  */
 class MovableElementContentPicker(override val contents: Set<ContentKey>) :
     StaticElementContentPicker {
@@ -394,9 +403,50 @@ class MovableElementContentPicker(override val contents: Set<ContentKey>) :
 /** The default [ElementContentPicker]. */
 val DefaultElementContentPicker = HighestZIndexContentPicker
 
-/** The [DefaultElementContentPicker] that can be used for [MovableElement]s. */
+/**
+ * The [DefaultElementContentPicker] that can be used for [MovableElement]s.
+ *
+ * If the element is in both [fromContent][TransitionState.Transition.fromContent] and
+ * [toContent][TransitionState.Transition.toContent], then the content with highest zIndex will be
+ * used. Otherwise, the single content containing the element will be used.
+ *
+ * Important: [contents] must contain the *exact* list of contents in which the associated element
+ * *is* (and not *can be*). For a MovableElement, STL needs to know *before composition* in which
+ * contents that MovableElement *will* be composed, and [contents] will be used for that. You should
+ * therefore make sure that [contents]:
+ * - does not contain contents in which the element won't be composed.
+ * - contains all contents in which the element will be composed.
+ */
 fun DefaultElementContentPicker(contents: Set<ContentKey>): StaticElementContentPicker {
-    return HighestZIndexContentPicker(contents)
+    return object : StaticElementContentPicker {
+        override val contents: Set<ContentKey> = contents
+
+        override fun contentDuringTransition(
+            element: ElementKey,
+            transition: TransitionState.Transition,
+            fromContentZIndex: Long,
+            toContentZIndex: Long,
+        ): ContentKey {
+            val inFromContent = transition.fromContent in contents
+            val inToContent = transition.toContent in contents
+            return if (inFromContent && inToContent) {
+                HighestZIndexContentPicker.contentDuringTransition(
+                    element,
+                    transition,
+                    fromContentZIndex,
+                    toContentZIndex,
+                )
+            } else if (inToContent) {
+                transition.toContent
+            } else {
+                check(inFromContent) {
+                    "transition $transition should not have been picked for element " +
+                        element.debugName
+                }
+                transition.fromContent
+            }
+        }
+    }
 }
 
 @TransitionDsl

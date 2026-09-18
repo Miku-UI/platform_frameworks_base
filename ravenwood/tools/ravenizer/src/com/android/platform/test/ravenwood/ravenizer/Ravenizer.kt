@@ -21,8 +21,9 @@ import com.android.hoststubgen.HostStubGenStats
 import com.android.hoststubgen.asm.ClassNodes
 import com.android.hoststubgen.asm.zipEntryNameToClassName
 import com.android.hoststubgen.executableName
+import com.android.hoststubgen.getJarMetadata
 import com.android.hoststubgen.log
-import com.android.hoststubgen.utils.ConcurrentZipFile
+import com.android.hoststubgen.utils.ConcurrentZipProcessor
 import com.android.hoststubgen.utils.ZipEntryData
 import com.android.platform.test.ravenwood.ravenizer.adapter.RunnerRewritingAdapter
 import java.util.concurrent.atomic.AtomicInteger
@@ -65,40 +66,27 @@ class Ravenizer {
         val stats = RavenizerStats()
 
         stats.totalTime = log.nTime {
-            val inJar = ConcurrentZipFile(options.inJar.get, options.numShards.get)
+            val inJar = ConcurrentZipProcessor(options.inJars, options.numShards.get)
             val allClasses = ClassNodes.loadClassStructures(inJar, String::shouldProcess) {
                 stats.loadStructureTime = it
             }
             process(inJar, options, allClasses, stats)
         }
-        log.i(stats.toString())
+        log.v(stats.toString())
     }
 
     private fun process(
-        inJar: ConcurrentZipFile,
+        inJars: ConcurrentZipProcessor,
         options: RavenizerOptions,
         allClasses: ClassNodes,
         stats: RavenizerStats,
     ) {
-        if (options.enableValidation.get) {
-            stats.validationTime = log.iTime("Validating classes") {
-                if (!validateClasses(allClasses)) {
-                    val message = "Invalid test class(es) detected." +
-                            " See error log for details."
-                    if (options.fatalValidation.get) {
-                        throw RavenizerInvalidTestException(message)
-                    } else {
-                        log.w("Warning: $message")
-                    }
-                }
-            }
-        }
         if (includeUnsupportedMockito(allClasses)) {
-            log.w("Unsupported Mockito detected in ${inJar.fileName}!")
+            log.w("Unsupported Mockito detected in ${inJars.sourceFiles}!")
         }
 
-        stats.totalProcessTime = log.vTime("$executableName processing ${inJar.fileName}") {
-            inJar.forEachThread { entries ->
+        stats.totalProcessTime = log.vTime("$executableName processing ${inJars.sourceFiles}") {
+            inJars.forEachThread { entries ->
                 val processor = HostStubGenClassProcessor(options, allClasses)
                 entries.process { entry ->
                     stats.totalEntries.incrementAndGet()
@@ -106,8 +94,12 @@ class Ravenizer {
                         // Seems like it's an ART jar file. We can't process it.
                         // It's a fatal error.
                         throw GeneralUserErrorException(
-                            "${inJar.fileName} is not a desktop jar file. It contains a *.dex file."
+                            "${entry.container} is not a desktop jar file. It contains a *.dex file."
                         )
+                    }
+                    if (entry.name.startsWith("META-INF/")) {
+                        // Do not touch any files in it.
+                        return@process entry
                     }
 
                     if (options.stripMockito.get && entry.name.isMockitoFile()) {
@@ -135,7 +127,11 @@ class Ravenizer {
                         }
                         classBytes = processor.processClassBytecode(classBytes)
                         // Create a new entry
-                        ZipEntryData.fromBytes(entryInfo.renamedEntryName, classBytes)
+                        ZipEntryData.fromBytes(
+                            entry.container,
+                            entryInfo.renamedEntryName,
+                            classBytes,
+                        )
                     } else {
                         // Do not process and return the original entry
                         entry
@@ -143,7 +139,9 @@ class Ravenizer {
                 }
             }
         }
-        inJar.write(options.outJar.get) { writeTime ->
+        val out = options.outJar.get
+        val meta = getJarMetadata("ravenizer", inJars.sourceFiles, out)
+        inJars.write(out, meta) { writeTime ->
             stats.totalWriteTime += writeTime
         }
     }

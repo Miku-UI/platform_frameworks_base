@@ -18,11 +18,9 @@ package com.android.wm.shell.common
 import android.os.Looper
 import java.util.concurrent.Executor
 
-/** Executor implementation which can be boosted temporarily to a different thread priority.  */
+/** Executor implementation which can be boosted temporarily to a different thread priority. */
 interface BoostExecutor : Executor {
-    /**
-     * Requests that the executor is boosted until {@link #resetBoost()} is called.
-     */
+    /** Requests that the executor is boosted until {@link #resetBoost()} is called. */
     fun setBoost() {}
 
     /**
@@ -31,17 +29,13 @@ interface BoostExecutor : Executor {
      */
     fun resetBoost() {}
 
-    /**
-     * Returns whether the executor is boosted.
-     */
-    fun isBoosted() : Boolean {
+    /** Returns whether the executor is boosted. */
+    fun isBoosted(): Boolean {
         return false
     }
 
-    /**
-     * Returns the looper for this executor.
-     */
-    fun getLooper() : Looper? {
+    /** Returns the looper for this executor. */
+    fun getLooper(): Looper? {
         return Looper.myLooper()
     }
 }

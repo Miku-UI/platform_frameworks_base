@@ -34,7 +34,6 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import android.app.Flags;
 import android.app.INotificationManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -48,7 +47,6 @@ import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Icon;
 import android.os.UserHandle;
-import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.service.notification.StatusBarNotification;
 import android.testing.TestableLooper;
@@ -121,9 +119,7 @@ public class PartialConversationInfoTest extends SysuiTestCase {
         mDependency.injectTestDependency(MetricsLogger.class, mMetricsLogger);
         // Inflate the layout
         final LayoutInflater layoutInflater = LayoutInflater.from(mContext);
-        int layoutId = Flags.notificationsRedesignTemplates()
-                ? R.layout.notification_2025_partial_conversation_info
-                : R.layout.partial_conversation_info;
+        int layoutId = R.layout.notification_2025_partial_conversation_info;
         mInfo = (PartialConversationInfo) layoutInflater.inflate(layoutId,
                 null);
         mInfo.setGutsParent(mock(NotificationGuts.class));
@@ -360,25 +356,6 @@ public class PartialConversationInfoTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags({Flags.FLAG_NOTIFICATION_CLASSIFICATION_UI, Flags.FLAG_NM_SUMMARIZATION,
-            Flags.FLAG_NM_SUMMARIZATION_UI})
-    public void testBindNotification_HidesFeedbackLink_flagOff() {
-        mInfo.bindNotification(
-                mMockPackageManager,
-                mMockINotificationManager,
-                mChannelEditorDialogController,
-                TEST_PACKAGE_NAME,
-                mEntry.getRanking(),
-                mSbn,
-                null,
-                null,
-                true,
-                true);
-        assertThat(mInfo.findViewById(R.id.feedback).getVisibility()).isEqualTo(GONE);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_NOTIFICATION_CLASSIFICATION_UI)
     public void testBindNotification_SetsFeedbackLink_isReservedChannel() {
         mEntry.setRanking(
                 new RankingBuilder(mEntry.getRanking())
@@ -408,7 +385,6 @@ public class PartialConversationInfoTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NM_SUMMARIZATION_UI)
     public void testBindNotification_SetsFeedbackLink_hasSummarization() {
         mEntry.setRanking(
                 new RankingBuilder(mEntry.getRanking())
@@ -435,5 +411,46 @@ public class PartialConversationInfoTest extends SysuiTestCase {
         feedback.performClick();
         // Verify that listener was triggered.
         assertThat(latch.getCount()).isEqualTo(0);
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_NM_SUMMARIZATION_ALL)
+    public void testBindNotification_noAppSummarization() {
+        when(mMockPackageManager.getApplicationLabel(any())).thenReturn("Package");
+        mInfo.bindNotification(
+                mMockPackageManager,
+                mMockINotificationManager,
+                mChannelEditorDialogController,
+                TEST_PACKAGE_NAME,
+                mEntry.getRanking(),
+                mSbn,
+                null,
+                null,
+                true,
+                false);
+        View v = mInfo.findViewById(R.id.summarized_by);
+        assertThat(v.getVisibility()).isEqualTo(GONE);
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_NM_SUMMARIZATION_ALL)
+    public void testBindNotification_appSummarized() {
+        mEntry.getSbn().getNotification().extras.putCharSequence(
+                Notification.EXTRA_APP_SUMMARIZATION, "hello");
+
+        mInfo.bindNotification(
+                mMockPackageManager,
+                mMockINotificationManager,
+                mChannelEditorDialogController,
+                TEST_PACKAGE_NAME,
+                mEntry.getRanking(),
+                mSbn,
+                null,
+                null,
+                true,
+                false);
+        TextView v = mInfo.findViewById(R.id.summarized_by);
+        assertThat(v.getVisibility()).isEqualTo(VISIBLE);
+        assertThat(v.getText().toString()).contains("Summarized");
     }
 }

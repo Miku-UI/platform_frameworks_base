@@ -18,6 +18,7 @@ package com.android.systemui.user.utils
 
 import android.content.Context
 import android.os.UserHandle
+import androidx.annotation.WorkerThread
 import androidx.core.content.getSystemService
 import com.android.systemui.dagger.qualifiers.Application
 
@@ -47,7 +48,7 @@ import com.android.systemui.dagger.qualifiers.Application
  */
 fun interface UserScopedService<T> {
     /** Create a service instance for the given user. */
-    fun forUser(user: UserHandle): T
+    @WorkerThread fun forUser(user: UserHandle): T
 }
 
 class UserScopedServiceImpl<T : Any>(

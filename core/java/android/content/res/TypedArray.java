@@ -27,6 +27,7 @@ import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.StrictMode;
+import android.ravenwood.annotation.RavenwoodIgnore;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
@@ -1266,6 +1267,13 @@ public class TypedArray implements AutoCloseable {
         mTheme = null;
         mAssets = null;
 
+        releaseToPool();
+    }
+
+    @RavenwoodIgnore(
+            bug = 447612418,
+            comment = "Better fix in b/447612418#comment2, but it might not be safe")
+    private void releaseToPool() {
         mResources.mTypedArrayPool.release(this);
     }
 

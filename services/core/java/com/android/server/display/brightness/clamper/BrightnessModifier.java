@@ -22,6 +22,7 @@ import android.hardware.display.DisplayManagerInternal;
 import android.os.PowerManager;
 
 import com.android.server.display.DisplayBrightnessState;
+import com.android.server.display.brightness.BrightnessReason;
 
 import java.io.PrintWriter;
 
@@ -37,6 +38,7 @@ abstract class BrightnessModifier implements BrightnessStateModifier {
     abstract float getBrightnessAdjusted(float currentBrightness,
             DisplayManagerInternal.DisplayPowerRequest request);
 
+    @BrightnessReason.Modifier
     abstract int getModifier();
 
     @Override

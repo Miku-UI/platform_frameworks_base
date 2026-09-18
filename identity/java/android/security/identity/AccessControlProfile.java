@@ -16,13 +16,18 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 
 import java.security.cert.X509Certificate;
 
 /**
  * A class used to specify access controls.
+ *
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public class AccessControlProfile {
     private AccessControlProfileId mAccessControlProfileId = new AccessControlProfileId(0);
     private X509Certificate mReaderCertificate = null;
@@ -32,25 +37,54 @@ public class AccessControlProfile {
     private AccessControlProfile() {
     }
 
+    /**
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
+     */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     AccessControlProfileId getAccessControlProfileId() {
         return mAccessControlProfileId;
     }
 
+    /**
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
+     */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     long getUserAuthenticationTimeout() {
         return mUserAuthenticationTimeout;
     }
 
+    /**
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
+     */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     boolean isUserAuthenticationRequired() {
         return mUserAuthenticationRequired;
     }
 
+    /**
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
+     */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     X509Certificate getReaderCertificate() {
         return mReaderCertificate;
     }
 
     /**
      * A builder for {@link AccessControlProfile}.
+     *
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public static final class Builder {
         private AccessControlProfile mProfile;
 
@@ -63,7 +97,11 @@ public class AccessControlProfile {
          * every presentation where data elements using this access control profile is used.</p>
          *
          * @param accessControlProfileId the access control profile identifier.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public Builder(@NonNull AccessControlProfileId accessControlProfileId) {
             mProfile = new AccessControlProfile();
             mProfile.mAccessControlProfileId = accessControlProfileId;
@@ -80,7 +118,11 @@ public class AccessControlProfile {
          * @param userAuthenticationRequired Set to true if user authentication is required,
          *                                   false otherwise.
          * @return The builder.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull Builder setUserAuthenticationRequired(boolean userAuthenticationRequired) {
             mProfile.mUserAuthenticationRequired = userAuthenticationRequired;
             return this;
@@ -98,7 +140,11 @@ public class AccessControlProfile {
          *
          * @param userAuthenticationTimeoutMillis the authentication timeout, in milliseconds.
          * @return The builder.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull Builder setUserAuthenticationTimeout(long userAuthenticationTimeoutMillis) {
             mProfile.mUserAuthenticationTimeout = userAuthenticationTimeoutMillis;
             return this;
@@ -113,7 +159,11 @@ public class AccessControlProfile {
          *
          * @param readerCertificate the certificate to use for the access control check.
          * @return The builder.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull Builder setReaderCertificate(@NonNull X509Certificate readerCertificate) {
             mProfile.mReaderCertificate = readerCertificate;
             return this;
@@ -123,7 +173,11 @@ public class AccessControlProfile {
          * Creates a new {@link AccessControlProfile} from the data supplied to the builder.
          *
          * @return The created {@link AccessControlProfile} object.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull AccessControlProfile build() {
             return mProfile;
         }

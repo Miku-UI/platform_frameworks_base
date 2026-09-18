@@ -16,6 +16,8 @@
 
 package com.android.server.rollback;
 
+import static android.os.Process.INVALID_UID;
+
 import static com.android.server.rollback.Rollback.rollbackStateFromString;
 
 import android.annotation.NonNull;
@@ -142,6 +144,7 @@ class RollbackStore {
             JSONObject jo = new JSONObject();
             jo.put("userId", ri.userId);
             jo.put("appId", ri.appId);
+            jo.put("pccId", ri.pccId);
             jo.put("seInfo", ri.seInfo);
             jsonArray.put(jo);
         }
@@ -158,6 +161,7 @@ class RollbackStore {
             restoreInfos.add(new RestoreInfo(
                     jo.getInt("userId"),
                     jo.getInt("appId"),
+                    jo.optInt("pccId", INVALID_UID),
                     jo.getString("seInfo")));
         }
 

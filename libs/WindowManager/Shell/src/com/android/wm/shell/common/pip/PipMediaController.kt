@@ -36,38 +36,26 @@ import com.android.wm.shell.R
 import java.util.function.Consumer
 
 /**
- * Interfaces with the [MediaSessionManager] to compose the right set of actions to show (only
- * if there are no actions from the PiP activity itself). The active media controller is only set
- * when there is a media session from the top PiP activity.
+ * Interfaces with the [MediaSessionManager] to compose the right set of actions to show (only if
+ * there are no actions from the PiP activity itself). The active media controller is only set when
+ * there is a media session from the top PiP activity.
  */
 class PipMediaController(private val mContext: Context, private val mMainHandler: Handler) {
-    /**
-     * A listener interface to receive notification on changes to the media actions.
-     */
+    /** A listener interface to receive notification on changes to the media actions. */
     interface ActionListener {
-        /**
-         * Called when the media actions changed.
-         */
+        /** Called when the media actions changed. */
         fun onMediaActionsChanged(actions: List<RemoteAction?>?)
     }
 
-    /**
-     * A listener interface to receive notification on changes to the media metadata.
-     */
+    /** A listener interface to receive notification on changes to the media metadata. */
     interface MetadataListener {
-        /**
-         * Called when the media metadata changed.
-         */
+        /** Called when the media metadata changed. */
         fun onMediaMetadataChanged(metadata: MediaMetadata?)
     }
 
-    /**
-     * A listener interface to receive notification on changes to the media session token.
-     */
+    /** A listener interface to receive notification on changes to the media session token. */
     interface TokenListener {
-        /**
-         * Called when the media session token changed.
-         */
+        /** Called when the media session token changed. */
         fun onMediaSessionTokenChanged(token: MediaSession.Token?)
     }
 
@@ -78,20 +66,21 @@ class PipMediaController(private val mContext: Context, private val mMainHandler
     private val mPlayAction: RemoteAction
     private val mNextAction: RemoteAction
     private val mPrevAction: RemoteAction
-    private val mMediaActionReceiver: BroadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (mMediaController == null) {
-                // no active media session, bail early.
-                return
-            }
-            when (intent.action) {
-                ACTION_PLAY -> mMediaController!!.transportControls.play()
-                ACTION_PAUSE -> mMediaController!!.transportControls.pause()
-                ACTION_NEXT -> mMediaController!!.transportControls.skipToNext()
-                ACTION_PREV -> mMediaController!!.transportControls.skipToPrevious()
+    private val mMediaActionReceiver: BroadcastReceiver =
+        object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (mMediaController == null) {
+                    // no active media session, bail early.
+                    return
+                }
+                when (intent.action) {
+                    ACTION_PLAY -> mMediaController!!.transportControls.play()
+                    ACTION_PAUSE -> mMediaController!!.transportControls.pause()
+                    ACTION_NEXT -> mMediaController!!.transportControls.skipToNext()
+                    ACTION_PREV -> mMediaController!!.transportControls.skipToPrevious()
+                }
             }
         }
-    }
     private val mPlaybackChangedListener: MediaController.Callback =
         object : MediaController.Callback() {
             override fun onPlaybackStateChanged(state: PlaybackState?) {
@@ -117,48 +106,46 @@ class PipMediaController(private val mContext: Context, private val mMainHandler
         mediaControlFilter.addAction(ACTION_NEXT)
         mediaControlFilter.addAction(ACTION_PREV)
         mContext.registerReceiverForAllUsers(
-            mMediaActionReceiver, mediaControlFilter,
-            SYSTEMUI_PERMISSION, mMainHandler, Context.RECEIVER_EXPORTED
+            mMediaActionReceiver,
+            mediaControlFilter,
+            SYSTEMUI_PERMISSION,
+            mMainHandler,
+            Context.RECEIVER_EXPORTED,
         )
 
         // Creates the standard media buttons that we may show.
-        mPauseAction = getDefaultRemoteAction(
-            R.string.pip_pause,
-            R.drawable.pip_ic_pause_white, ACTION_PAUSE
-        )
-        mPlayAction = getDefaultRemoteAction(
-            R.string.pip_play,
-            R.drawable.pip_ic_play_arrow_white, ACTION_PLAY
-        )
-        mNextAction = getDefaultRemoteAction(
-            R.string.pip_skip_to_next,
-            R.drawable.pip_ic_skip_next_white, ACTION_NEXT
-        )
-        mPrevAction = getDefaultRemoteAction(
-            R.string.pip_skip_to_prev,
-            R.drawable.pip_ic_skip_previous_white, ACTION_PREV
-        )
-        mMediaSessionManager = mContext.getSystemService(
-            MediaSessionManager::class.java
-        )
+        mPauseAction =
+            getDefaultRemoteAction(R.string.pip_pause, R.drawable.pip_ic_pause_white, ACTION_PAUSE)
+        mPlayAction =
+            getDefaultRemoteAction(
+                R.string.pip_play,
+                R.drawable.pip_ic_play_arrow_white,
+                ACTION_PLAY,
+            )
+        mNextAction =
+            getDefaultRemoteAction(
+                R.string.pip_skip_to_next,
+                R.drawable.pip_ic_skip_next_white,
+                ACTION_NEXT,
+            )
+        mPrevAction =
+            getDefaultRemoteAction(
+                R.string.pip_skip_to_prev,
+                R.drawable.pip_ic_skip_previous_white,
+                ACTION_PREV,
+            )
+        mMediaSessionManager = mContext.getSystemService(MediaSessionManager::class.java)
     }
 
-    /**
-     * Handles when an activity is pinned.
-     */
+    /** Handles when an activity is pinned. */
     fun onActivityPinned() {
         // Once we enter PiP, try to find the active media controller for the top most activity
         resolveActiveMediaController(
-            mMediaSessionManager!!.getActiveSessionsForUser(
-                null,
-                UserHandle.CURRENT
-            )
+            mMediaSessionManager!!.getActiveSessionsForUser(null, UserHandle.CURRENT)
         )
     }
 
-    /**
-     * Adds a new media action listener.
-     */
+    /** Adds a new media action listener. */
     fun addActionListener(listener: ActionListener) {
         if (!mActionListeners.contains(listener)) {
             mActionListeners.add(listener)
@@ -166,17 +153,13 @@ class PipMediaController(private val mContext: Context, private val mMainHandler
         }
     }
 
-    /**
-     * Removes a media action listener.
-     */
+    /** Removes a media action listener. */
     fun removeActionListener(listener: ActionListener) {
         listener.onMediaActionsChanged(emptyList<RemoteAction>())
         mActionListeners.remove(listener)
     }
 
-    /**
-     * Adds a new media metadata listener.
-     */
+    /** Adds a new media metadata listener. */
     fun addMetadataListener(listener: MetadataListener) {
         if (!mMetadataListeners.contains(listener)) {
             mMetadataListeners.add(listener)
@@ -184,17 +167,13 @@ class PipMediaController(private val mContext: Context, private val mMainHandler
         }
     }
 
-    /**
-     * Removes a media metadata listener.
-     */
+    /** Removes a media metadata listener. */
     fun removeMetadataListener(listener: MetadataListener) {
         listener.onMediaMetadataChanged(null)
         mMetadataListeners.remove(listener)
     }
 
-    /**
-     * Adds a new token listener.
-     */
+    /** Adds a new token listener. */
     fun addTokenListener(listener: TokenListener) {
         if (!mTokenListeners.contains(listener)) {
             mTokenListeners.add(listener)
@@ -202,40 +181,37 @@ class PipMediaController(private val mContext: Context, private val mMainHandler
         }
     }
 
-    /**
-     * Removes a token listener.
-     */
+    /** Removes a token listener. */
     fun removeTokenListener(listener: TokenListener) {
         listener.onMediaSessionTokenChanged(null)
         mTokenListeners.remove(listener)
     }
 
     private val token: MediaSession.Token?
-        get() = if (mMediaController == null) {
-            null
-        } else mMediaController!!.sessionToken
+        get() =
+            if (mMediaController == null) {
+                null
+            } else mMediaController!!.sessionToken
+
     private val mediaMetadata: MediaMetadata?
         get() = if (mMediaController != null) mMediaController!!.metadata else null
 
     private val mediaActions: List<RemoteAction?>
-        /**
-         * Gets the set of media actions currently available.
-         */
+        /** Gets the set of media actions currently available. */
         get() {
             if (mMediaController == null) {
                 return emptyList<RemoteAction>()
             }
             // Cache the PlaybackState since it's a Binder call.
             // Safe because mMediaController is guaranteed non-null here.
-            val playbackState: PlaybackState = mMediaController!!.playbackState
-                ?: return emptyList<RemoteAction>()
+            val playbackState: PlaybackState =
+                mMediaController!!.playbackState ?: return emptyList<RemoteAction>()
             val mediaActions = ArrayList<RemoteAction?>()
             val isPlaying = playbackState.isActive
             val actions = playbackState.actions
 
             // Prev action
-            mPrevAction.isEnabled =
-                actions and PlaybackState.ACTION_SKIP_TO_PREVIOUS != 0L
+            mPrevAction.isEnabled = actions and PlaybackState.ACTION_SKIP_TO_PREVIOUS != 0L
             mediaActions.add(mPrevAction)
 
             // Play/pause action
@@ -246,46 +222,45 @@ class PipMediaController(private val mContext: Context, private val mMainHandler
             }
 
             // Next action
-            mNextAction.isEnabled =
-                actions and PlaybackState.ACTION_SKIP_TO_NEXT != 0L
+            mNextAction.isEnabled = actions and PlaybackState.ACTION_SKIP_TO_NEXT != 0L
             mediaActions.add(mNextAction)
             return mediaActions
         }
 
-    /** @return Default [RemoteAction] sends broadcast back to SysUI.
-     */
+    /** @return Default [RemoteAction] sends broadcast back to SysUI. */
     private fun getDefaultRemoteAction(
         @StringRes titleAndDescription: Int,
         @DrawableRes icon: Int,
-        action: String
+        action: String,
     ): RemoteAction {
         val titleAndDescriptionStr = mContext.getString(titleAndDescription)
         val intent = Intent(action)
         intent.setPackage(mContext.packageName)
         return RemoteAction(
             Icon.createWithResource(mContext, icon),
-            titleAndDescriptionStr, titleAndDescriptionStr,
+            titleAndDescriptionStr,
+            titleAndDescriptionStr,
             PendingIntent.getBroadcast(
-                mContext, 0 /* requestCode */, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
+                mContext,
+                0 /* requestCode */,
+                intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            ),
         )
     }
 
-    /**
-     * Re-registers the session listener for the current user.
-     */
+    /** Re-registers the session listener for the current user. */
     fun registerSessionListenerForCurrentUser() {
         mMediaSessionManager!!.removeOnActiveSessionsChangedListener(mSessionsChangedListener)
         mMediaSessionManager.addOnActiveSessionsChangedListener(
-            null, UserHandle.CURRENT,
-            mHandlerExecutor, mSessionsChangedListener
+            null,
+            UserHandle.CURRENT,
+            mHandlerExecutor,
+            mSessionsChangedListener,
         )
     }
 
-    /**
-     * Tries to find and set the active media controller for the top PiP activity.
-     */
+    /** Tries to find and set the active media controller for the top PiP activity. */
     private fun resolveActiveMediaController(controllers: List<MediaController>?) {
         if (controllers != null) {
             val topActivity = PipUtils.getTopPipActivity(mContext).first
@@ -302,16 +277,12 @@ class PipMediaController(private val mContext: Context, private val mMainHandler
         setActiveMediaController(null)
     }
 
-    /**
-     * Returns {@code true} if the pinned Activity has an active associated MediaSession.
-     */
+    /** Returns {@code true} if the pinned Activity has an active associated MediaSession. */
     fun hasActiveMediaSession(): Boolean {
         return mMediaController != null
     }
 
-    /**
-     * Sets the active media controller for the top PiP activity.
-     */
+    /** Sets the active media controller for the top PiP activity. */
     private fun setActiveMediaController(controller: MediaController?) {
         if (controller != mMediaController) {
             if (mMediaController != null) {
@@ -327,37 +298,30 @@ class PipMediaController(private val mContext: Context, private val mMainHandler
         }
     }
 
-    /**
-     * Notifies all listeners that the actions have changed.
-     */
+    /** Notifies all listeners that the actions have changed. */
     private fun notifyActionsChanged() {
         if (mActionListeners.isNotEmpty()) {
             val actions = mediaActions
             mActionListeners.forEach(
-                Consumer { l: ActionListener -> l.onMediaActionsChanged(actions) })
+                Consumer { l: ActionListener -> l.onMediaActionsChanged(actions) }
+            )
         }
     }
 
-    /**
-     * Notifies all listeners that the metadata have changed.
-     */
+    /** Notifies all listeners that the metadata have changed. */
     private fun notifyMetadataChanged(metadata: MediaMetadata?) {
         if (mMetadataListeners.isNotEmpty()) {
-            mMetadataListeners.forEach(Consumer { l: MetadataListener ->
-                l.onMediaMetadataChanged(
-                    metadata
-                )
-            })
+            mMetadataListeners.forEach(
+                Consumer { l: MetadataListener -> l.onMediaMetadataChanged(metadata) }
+            )
         }
     }
 
     private fun notifyTokenChanged(token: MediaSession.Token?) {
         if (mTokenListeners.isNotEmpty()) {
-            mTokenListeners.forEach(Consumer { l: TokenListener ->
-                l.onMediaSessionTokenChanged(
-                    token
-                )
-            })
+            mTokenListeners.forEach(
+                Consumer { l: TokenListener -> l.onMediaSessionTokenChanged(token) }
+            )
         }
     }
 

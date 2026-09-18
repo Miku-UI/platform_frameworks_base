@@ -132,7 +132,7 @@
     <string name="bluetooth_battery_level_untethered_right_lea_support" msgid="8941549024377771038">"เชื่อมต่อแล้ว (รองรับการแชร์เสียง) ขวา: แบตเตอรี่ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_no_battery_level_lea_support" msgid="5721725041048434075">"เชื่อมต่อแล้ว (รองรับการแชร์เสียง)"</string>
     <string name="bluetooth_guest_battery_level_lea_support" msgid="8098327939585013928">"อุปกรณ์ของผู้ใช้ชั่วคราว (รองรับการแชร์เสียง) แบตเตอรี่ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
-    <string name="bluetooth_guest_battery_level_untethered_lea_support" msgid="3701035025565668360">"อุปกรณ์ของผู้ใช้ชั่วคราว (รองรับการแชร์เสียง) L: แบตเตอรี่ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: แบตเตอรี่ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_guest_battery_level_untethered_lea_support" msgid="3701035025565668360">"อุปกรณ์ของผู้ใช้ชั่วคราว (รองรับการแชร์เสียง) แบตเตอรี่ข้างซ้าย: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ข้างขวา: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
     <string name="bluetooth_guest_no_battery_level_lea_support" msgid="2977038548753103470">"อุปกรณ์ของผู้ใช้ชั่วคราว (รองรับการแชร์เสียง)"</string>
     <string name="bluetooth_active_media_only_no_battery_level" msgid="71106861912593126">"ใช้งานอยู่ (สื่อเท่านั้น)"</string>
     <string name="bluetooth_guest_no_battery_level" msgid="9122974160381136920">"อุปกรณ์ของผู้ใช้ชั่วคราว"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"สัญญาณ Wi-Fi 3 ขีด"</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"สัญญาณ Wi-Fi เต็ม"</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"เชื่อมต่อกับอุปกรณ์แล้ว"</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"ผู้ใช้ทุกคนในอุปกรณ์นี้สามารถดูและเชื่อมต่อได้"</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"เครือข่ายแบบเปิด"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"เครือข่ายที่ปลอดภัย"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"ระบบปฏิบัติการ Android"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"การตั้งค่าจุดเข้าใช้งานไม่สามารถใช้ได้สำหรับผู้ใช้รายนี้"</string>
     <string name="enable_adb" msgid="8072776357237289039">"การแก้ไขข้อบกพร่อง USB"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"โหมดแก้ไขข้อบกพร่องเมื่อเชื่อมต่อ USB"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"เพิกถอนการให้สิทธิ์การแก้ไขข้อบกพร่อง USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"เพิกถอนการให้สิทธิ์การแก้ไขข้อบกพร่อง adb"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"การแก้ไขข้อบกพร่องผ่าน Wi-Fi"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"โหมดแก้ไขข้อบกพร่องเมื่อเชื่อมต่อ Wi-Fi"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"ข้อผิดพลาด"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"กำลังจับคู่อุปกรณ์…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"จับคู่อุปกรณ์ไม่สำเร็จ คิวอาร์โค้ดไม่ถูกต้อง หรืออุปกรณ์ไม่ได้เชื่อมต่อกับเครือข่ายเดียวกัน"</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"ที่อยู่ IP และพอร์ต"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"ไม่พร้อมใช้งาน (ไม่อนุญาต)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"ไม่พร้อมใช้งาน (ไม่ได้เชื่อมต่อ Wi‑Fi)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"สแกนคิวอาร์โค้ด"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"จับคู่อุปกรณ์ผ่าน Wi‑Fi ด้วยการสแกนคิวอาร์โค้ด"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"โปรดเชื่อมต่อกับเครือข่าย Wi-Fi"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"การแก้ไขข้อบกพร่อง USB มีไว้เพื่อการพัฒนาเท่านั้น ให้ใช้การแก้ไขนี้เพื่อคัดลอกข้อมูลระหว่างคอมพิวเตอร์และอุปกรณ์ ติดตั้งแอปพลิเคชันบนอุปกรณ์โดยไม่มีการแจ้งเตือน และอ่านข้อมูลบันทึก"</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"อนุญาตให้แก้ไขข้อบกพร่องผ่าน Wi-Fi ไหม"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"การแก้ไขข้อบกพร่องผ่าน Wi-Fi มีไว้เพื่อการพัฒนาเท่านั้น ให้ใช้การแก้ไขนี้เพื่อคัดลอกข้อมูลระหว่างคอมพิวเตอร์และอุปกรณ์ ติดตั้งแอปในอุปกรณ์โดยไม่มีการแจ้งเตือน และอ่านข้อมูลบันทึก"</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"ยกเลิกการเข้าถึงเพื่อแก้ปัญหาผ่าน USB จากคอมพิวเตอร์ทุกเครื่องที่คุณได้ให้สิทธิ์ก่อนหน้านี้ไหม"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"เพิกถอนการเข้าถึงเพื่อการแก้ไขข้อบกพร่อง adb จากคอมพิวเตอร์และเครือข่ายทั้งหมดที่คุณได้ให้สิทธิ์ก่อนหน้านี้ไหม"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"อนุญาตการตั้งค่าสำหรับการพัฒนาหรือไม่"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"การตั้งค่านี้มีไว้เพื่อการพัฒนาเท่านั้น จึงอาจทำให้อุปกรณ์และแอปพลิเคชันที่มีอยู่เสียหายหรือทำงานผิดพลาดได้"</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"ยืนยันแอปผ่าน USB"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"ยกเลิกการเชื่อมต่ออีเทอร์เน็ตแล้ว"</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"อีเทอร์เน็ต"</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"ไม่มีการโทร"</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"แป้นพิมพ์จริง"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"เลือกรูปแบบแป้นพิมพ์"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"ค่าเริ่มต้น"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"การควบคุมการเปิดหน้าจอ"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"อนุญาตให้เปิดหน้าจอ"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"อนุญาตให้แอปเปิดหน้าจอ หากอนุญาต แอปอาจเปิดหน้าจอได้ทุกเมื่อแม้คุณไม่ได้ระบุเจตนาที่ชัดแจ้ง"</string>

@@ -49,6 +49,9 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import android.content.res.Resources;
+
+import java.lang.reflect.Field;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -545,4 +548,40 @@ public class PowerManagerTest {
 
         assertFalse(pm.isBatterySaverSupported());
     }
+    /**
+     * Confirm that SleepLock is not reference counted.
+     * Note: Requires isHeld() to be visible for testing in PowerManager.SleepLock.
+    */
+    @Test
+    @SmallTest
+    public void testSleepLock_isNotReferenceCounted() throws Exception {
+        Context mockContext = mock(Context.class);
+        Resources mockResources = mock(Resources.class);
+        IPowerManager mockService = mock(IPowerManager.class);
+        IThermalService mockThermalService = mock(IThermalService.class);
+
+        when(mockContext.getApplicationContext()).thenReturn(mockContext);
+        when(mockContext.getResources()).thenReturn(mockResources);
+        when(mockContext.getOpPackageName()).thenReturn("android");
+
+        when(mockResources.getBoolean(
+            com.android.internal.R.bool.config_allowPartialSleepWakeLocks))
+            .thenReturn(true);
+
+        when(mockResources.getInteger(
+            com.android.internal.R.integer.config_maximumPartialSleepWakeLockDuration))
+            .thenReturn(10000);
+
+        PowerManager pm = new PowerManager(mockContext, mockService, mockThermalService,
+                Handler.createAsync(Looper.getMainLooper()));
+
+        PowerManager.SleepLock lock = pm.newSleepLock(0, "PowerManagerTestTag");
+
+        lock.acquire(100);
+        lock.acquire(100);
+        lock.release();
+
+        assertFalse("SleepLock should NOT be reference counted", lock.isHeld());
+    }
+
 }

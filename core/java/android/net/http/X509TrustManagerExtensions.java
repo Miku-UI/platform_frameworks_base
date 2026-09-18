@@ -16,12 +16,9 @@
 
 package android.net.http;
 
-import static com.android.org.conscrypt.flags.Flags.certificateTransparencyCheckservertrustedApi;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
-import android.security.Flags;
 import android.security.net.config.UserCertificateSource;
 
 import com.android.org.conscrypt.TrustManagerImpl;
@@ -160,15 +157,8 @@ public class X509TrustManagerExtensions {
             throws CertificateException {
         List<X509Certificate> result;
         if (mDelegate != null) {
-            if (certificateTransparencyCheckservertrustedApi()) {
-                result = mDelegate.checkServerTrusted(chain, ocspData, tlsSctData, authType, host);
-                return result == null ? Collections.emptyList() : result;
-            } else {
-                // The conscrypt mainline module does not have the required method.
-                throw new IllegalArgumentException("Required method"
-                    + " checkServerTrusted(X509Certificate[], byte[], byte[], String, String)"
-                    + " not available in TrustManagerImpl");
-            }
+            result = mDelegate.checkServerTrusted(chain, ocspData, tlsSctData, authType, host);
+            return result == null ? Collections.emptyList() : result;
         }
         if (mCheckServerTrustedOcspAndTlsData == null) {
             throw new IllegalArgumentException("Required method"

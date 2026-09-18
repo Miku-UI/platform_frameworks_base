@@ -38,16 +38,16 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/**
- * Exit the app in desktop mode to full screen via app header menu.
- */
+/** Exit the app in desktop mode to full screen via app header menu. */
 @RequiresDesktopDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
-class ExitDesktopToFullScreenWithAppHeaderMenuFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(flicker) {
+class ExitDesktopToFullScreenWithAppHeaderMenuFlickerTest(flicker: FlickerTest) :
+    DesktopModeBaseTest(flicker) {
 
-    inner class ExitDesktopToFullScreenWithAppHeaderMenuScenario : ExitDesktopToFullScreenWithAppHeaderMenu(flicker.scenario.startRotation)
+    inner class ExitDesktopToFullScreenWithAppHeaderMenuScenario :
+        ExitDesktopToFullScreenWithAppHeaderMenu(flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -57,28 +57,19 @@ class ExitDesktopToFullScreenWithAppHeaderMenuFlickerTest(flicker: FlickerTest) 
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.exitDesktopToFullScreenWithAppHeaderMenu()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.exitDesktopToFullScreenWithAppHeaderMenu() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appWindowOnTopAtStart() = flicker.appWindowOnTopAtStart(testApp)
+    @Test fun appWindowOnTopAtStart() = flicker.appWindowOnTopAtStart(testApp)
 
-    @Test
-    fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(testApp)
+    @Test fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(testApp)
 
     @Test
     fun appWindowInsideDisplayBoundsAtEnd() = flicker.appWindowInsideDisplayBoundsAtEnd(testApp)
 
-    @Test
-    fun layerIsVisibleAtEnd() = flicker.layerIsVisibleAtEnd(testApp)
+    @Test fun layerIsVisibleAtEnd() = flicker.layerIsVisibleAtEnd(testApp)
 
     @Test
     fun wallpaperActivityBecomesInvisible() =
@@ -89,7 +80,7 @@ class ExitDesktopToFullScreenWithAppHeaderMenuFlickerTest(flicker: FlickerTest) 
         @JvmStatic
         fun getParams(): Collection<FlickerChecker> {
             return FlickerTestFactory.nonRotationTests(
-                    supportedNavigationModes = listOf(NavBar.MODE_GESTURAL)
+                supportedNavigationModes = listOf(NavBar.MODE_GESTURAL)
             )
         }
     }

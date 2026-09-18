@@ -45,11 +45,10 @@ public final class DeviceId implements Parcelable {
     /**
      * @hide
      */
-    public DeviceId(@Nullable String customId, @Nullable MacAddress macAddress,
-            @Nullable byte[] key) {
-        mCustomId = customId;
-        mMacAddress = macAddress;
-        mKey = key;
+    private DeviceId(Builder builder) {
+        mCustomId = builder.mCustomId;
+        mMacAddress = builder.mMacAddress;
+        mKey = builder.mKey;
     }
 
     /** @hide */
@@ -173,6 +172,7 @@ public final class DeviceId implements Parcelable {
     public static final class Builder {
         private String mCustomId;
         private MacAddress mMacAddress;
+        private byte[] mKey;
 
         public Builder() {}
 
@@ -191,7 +191,7 @@ public final class DeviceId implements Parcelable {
                 throw new IllegalArgumentException("Length of the custom id must be at most "
                         + CUSTOM_ID_LENGTH_LIMIT + " characters");
             }
-            this.mCustomId = customId;
+            mCustomId = customId;
             return this;
         }
 
@@ -209,13 +209,20 @@ public final class DeviceId implements Parcelable {
             return this;
         }
 
+        /** @hide */
+        @NonNull
+        public Builder setKey(@Nullable byte[] key) {
+            mKey = key;
+            return this;
+        }
+
         @NonNull
         public DeviceId build() {
             if (mCustomId == null && mMacAddress == null) {
-                throw new IllegalArgumentException("At least one device id property must be"
+                throw new IllegalArgumentException("At least one device id property must be "
                         + "non-null to build a DeviceId.");
             }
-            return new DeviceId(mCustomId, mMacAddress, null);
+            return new DeviceId(this);
         }
     }
 }

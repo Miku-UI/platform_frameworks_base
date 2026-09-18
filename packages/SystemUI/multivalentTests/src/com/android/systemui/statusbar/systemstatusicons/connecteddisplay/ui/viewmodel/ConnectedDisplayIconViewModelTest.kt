@@ -17,7 +17,6 @@
 package com.android.systemui.statusbar.systemstatusicons.connecteddisplay.ui.viewmodel
 
 import android.content.testableContext
-import android.platform.test.annotations.EnableFlags
 import android.view.Display
 import android.view.Display.FLAG_SECURE
 import android.view.Display.TYPE_EXTERNAL
@@ -33,7 +32,7 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.res.R
-import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
+import com.android.systemui.statusbar.systemstatusicons.flags.EnableSystemStatusIconsInCompose
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
@@ -43,7 +42,7 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(SystemStatusIconsInCompose.FLAG_NAME)
+@EnableSystemStatusIconsInCompose
 class ConnectedDisplayIconViewModelTest : SysuiTestCase() {
 
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()

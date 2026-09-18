@@ -25,6 +25,7 @@ import org.xmlpull.v1.XmlPullParserException;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class XmlParserException extends Exception {
 
     /**

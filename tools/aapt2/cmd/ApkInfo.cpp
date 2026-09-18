@@ -28,6 +28,7 @@
 #include "androidfw/StringPiece.h"
 #include "dump/DumpManifest.h"
 #include "format/proto/ProtoSerialize.h"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
 
 using ::android::StringPiece;
 
@@ -85,7 +86,21 @@ int ApkInfoCommand::Action(const std::vector<std::string>& args) {
     return 1;
   }
 
-  bool is_serialized = out_apk_info.SerializeToFileDescriptor(outfd);
+  bool is_serialized;
+
+  {
+    // Use a CodedOutputStream with SetSerializationDeterministic(true) to
+    // produce a deterministic proto message that can be used in tests to compare
+    // against a golden output.
+    // Use an inner scope so that the output streams are flushed when
+    // leaving the scope.
+    google::protobuf::io::FileOutputStream raw_output(outfd);
+    google::protobuf::io::CodedOutputStream coded_output(&raw_output);
+    coded_output.SetSerializationDeterministic(true);
+
+    is_serialized = out_apk_info.SerializeToCodedStream(&coded_output);
+  }
+
   close(outfd);
 
   return is_serialized ? 0 : 1;

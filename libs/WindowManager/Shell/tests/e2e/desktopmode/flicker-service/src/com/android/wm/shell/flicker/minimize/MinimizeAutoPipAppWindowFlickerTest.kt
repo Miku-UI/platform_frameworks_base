@@ -19,26 +19,25 @@ package com.android.wm.shell.flicker.minimize
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
-import com.android.wm.shell.flicker.DesktopModeBaseTest
-import com.android.wm.shell.scenarios.MinimizeAutoPipAppWindow
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.wm.shell.Utils
+import com.android.wm.shell.flicker.DesktopModeBaseTest
 import com.android.wm.shell.flicker.utils.appWindowBecomesPinned
 import com.android.wm.shell.flicker.utils.appWindowKeepVisible
+import com.android.wm.shell.scenarios.MinimizeAutoPipAppWindow
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 /**
- * Open an app in desktop mode, launch an app that can go into
- * PiP, minimize app and ensure that app goes into PiP mode automatically.
+ * Open an app in desktop mode, launch an app that can go into PiP, minimize app and ensure that app
+ * goes into PiP mode automatically.
  */
-
 @RequiresDesktopDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
@@ -49,30 +48,21 @@ class MinimizeAutoPipAppWindowFlickerTest(flicker: FlickerTest) : DesktopModeBas
 
     @Rule
     @JvmField
-    val testSetupRule =
-        Utils.testSetupRule(NavBar.MODE_GESTURAL, flicker.scenario.startRotation)
+    val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, flicker.scenario.startRotation)
     val scenario = MinimizeAutoPipAppWindowScenario()
     private val pipAppDesktopMode = scenario.pipAppDesktopMode
     private val appInDesktop = scenario.appInDesktop
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.minimizePipAppWindow()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.minimizePipAppWindow() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appWindowBecomesPinned() = flicker.appWindowBecomesPinned(pipAppDesktopMode)
+    @Test fun appWindowBecomesPinned() = flicker.appWindowBecomesPinned(pipAppDesktopMode)
 
-    @Test
-    fun appWindowKeepVisible() = appInDesktop.forEach { flicker.appWindowKeepVisible(it) }
+    @Test fun appWindowKeepVisible() = appInDesktop.forEach { flicker.appWindowKeepVisible(it) }
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

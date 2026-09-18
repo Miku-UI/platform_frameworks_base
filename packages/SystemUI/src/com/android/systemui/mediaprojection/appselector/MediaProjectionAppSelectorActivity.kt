@@ -174,6 +174,7 @@ class MediaProjectionAppSelectorActivity(
         val launchCookie = LaunchCookie("media_projection_launch_token")
         val activityOptions = ActivityOptions.makeBasic()
         activityOptions.setLaunchCookie(launchCookie)
+        activityOptions.setLaunchDisplayId(displayId)
 
         val userHandle = mMultiProfilePagerAdapter.activeListAdapter.userHandle
 

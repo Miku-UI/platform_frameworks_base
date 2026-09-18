@@ -650,14 +650,10 @@ bool ResourceFileFlattener::Flatten(ResourceTable* table, IArchiveWriter* archiv
           }
 
           FeatureFlagsFilterOptions flags_filter_options;
-          // Don't fail on unrecognized flags or flags without values as these flags might be
-          // defined and have a value by the time they are evaluated at runtime.
-          flags_filter_options.fail_on_unrecognized_flags = false;
-          flags_filter_options.flags_must_have_value = false;
-          flags_filter_options.remove_disabled_elements = true;
           FeatureFlagsFilter flags_filter(options_.feature_flag_values, flags_filter_options);
           if (!flags_filter.Consume(context_, file_op.xml_to_flatten.get())) {
-            return 1;
+            error = true;
+            continue;
           }
 
           std::vector<std::unique_ptr<xml::XmlResource>> versioned_docs =
@@ -1381,8 +1377,8 @@ class Linker {
       return true;
     }
 
-    std::unique_ptr<ClassDefinition> manifest_class =
-        GenerateManifestClass(context_->GetDiagnostics(), manifest_xml);
+    std::unique_ptr<ClassDefinition> manifest_class = GenerateManifestClass(
+        context_->GetDiagnostics(), manifest_xml, options_.feature_flag_values);
 
     if (!manifest_class) {
       // Something bad happened, but we already logged it, so exit.
@@ -2069,13 +2065,6 @@ class Linker {
     std::unique_ptr<xml::XmlResource> pre_flags_filter_manifest_xml = manifest_xml->Clone();
 
     FeatureFlagsFilterOptions flags_filter_options;
-    if (context_->GetMinSdkVersion() > SDK_UPSIDE_DOWN_CAKE) {
-      // For API version > U, PackageManager will dynamically read the flag values and disable
-      // manifest elements accordingly when parsing the manifest.
-      // For API version <= U, we remove disabled elements from the manifest with the filter.
-      flags_filter_options.remove_disabled_elements = false;
-      flags_filter_options.flags_must_have_value = false;
-    }
     FeatureFlagsFilter flags_filter(options_.feature_flag_values, flags_filter_options);
     if (!flags_filter.Consume(context_, manifest_xml.get())) {
       return 1;

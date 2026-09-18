@@ -40,6 +40,7 @@ public final class CompanionResources {
     public static final int PERMISSION_ADD_TRUSTED_DISPLAY = 14;
     public static final int PERMISSION_SCHEDULE_EXACT_ALARM = 15;
     public static final int PERMISSION_BYPASS_DND = 16;
+    public static final int PERMISSION_APP_STREAMING = 17;
 
     // Constants used by AssociationRequestProcessor and CompanionAssociationActivity
     public static final String EXTRA_APPLICATION_CALLBACK = "application_callback";

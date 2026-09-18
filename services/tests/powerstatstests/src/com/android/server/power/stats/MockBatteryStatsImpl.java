@@ -39,6 +39,7 @@ import com.android.internal.os.KernelCpuUidTimeReader.KernelCpuUidUserSysTimeRea
 import com.android.internal.os.KernelSingleUidTimeReader;
 import com.android.internal.os.MonotonicClock;
 import com.android.internal.os.PowerProfile;
+import com.android.server.power.stats.counters.TimeBase;
 
 import java.io.File;
 import java.io.IOException;

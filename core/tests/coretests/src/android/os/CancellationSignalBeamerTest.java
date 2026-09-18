@@ -23,7 +23,6 @@ import static com.google.common.truth.Truth.assertThat;
 import android.content.Context;
 import android.os.CancellationSignalBeamer.Receiver;
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.PollingCheck;
 import android.util.PollingCheck.PollingCheckCondition;
 
@@ -32,7 +31,6 @@ import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -46,8 +44,6 @@ import java.util.concurrent.CountDownLatch;
 @SmallTest
 @DisabledOnRavenwood(blockedBy = CancellationSignalBeamer.class)
 public class CancellationSignalBeamerTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private CancellationSignal mSenderSignal;
     private CancellationSignal mReceivedSignal;

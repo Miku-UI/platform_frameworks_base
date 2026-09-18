@@ -18,11 +18,13 @@ package com.android.systemui.settings.brightness
 
 import android.content.Intent
 import android.graphics.Rect
-import android.platform.test.flag.junit.FlagsParameterization
+import android.os.UserHandle
+import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManagerPolicyConstants.EXTRA_FROM_BRIGHTNESS_KEY
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.FlakyTest
 import androidx.test.filters.SmallTest
 import androidx.test.rule.ActivityTestRule
@@ -30,17 +32,20 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.activity.SingleActivityFactory
 import com.android.systemui.brightness.ui.viewmodel.BrightnessSliderViewModel
 import com.android.systemui.brightness.ui.viewmodel.brightnessSliderViewModelFactory
-import com.android.systemui.qs.flags.QSComposeFragment
-import com.android.systemui.qs.flags.QsInCompose
+import com.android.systemui.broadcast.BroadcastSender
+import com.android.systemui.desktop.domain.interactor.DesktopInteractor
+import com.android.systemui.desktop.domain.interactor.desktopInteractor
 import com.android.systemui.res.R
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
+import com.android.systemui.shared.Flags
 import com.android.systemui.statusbar.policy.AccessibilityManagerWrapper
 import com.android.systemui.testKosmos
 import com.android.systemui.util.concurrency.DelayableExecutor
 import com.android.systemui.util.concurrency.FakeExecutor
-import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.time.FakeSystemClock
+import com.android.systemui.volume.dialog.domain.interactor.ExpandedAudioTileDetailsFeatureInteractor
+import com.android.systemui.volume.dialog.domain.interactor.expandedAudioTileDetailsFeatureInteractor
 import com.google.common.truth.Truth.assertThat
 import java.util.concurrent.CountDownLatch
 import kotlin.time.Duration.Companion.milliseconds
@@ -59,32 +64,17 @@ import org.mockito.Mockito.anyInt
 import org.mockito.Mockito.eq
 import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4
-import platform.test.runner.parameterized.Parameters
 
 @SmallTest
-@RunWith(ParameterizedAndroidJunit4::class)
+@RunWith(AndroidJUnit4::class)
 @TestableLooper.RunWithLooper
-class BrightnessDialogTest(val flags: FlagsParameterization) : SysuiTestCase() {
+class BrightnessDialogTest : SysuiTestCase() {
 
-    init {
-        mSetFlagsRule.setFlagsParameterization(flags)
-    }
+    private val viewId = R.id.brightness_dialog_slider
 
-    private val viewId by lazy {
-        if (QsInCompose.isEnabled) {
-            R.id.brightness_dialog_slider
-        } else {
-            R.id.brightness_mirror_container
-        }
-    }
-
-    @Mock private lateinit var brightnessSliderControllerFactory: BrightnessSliderController.Factory
-    @Mock private lateinit var brightnessSliderController: BrightnessSliderController
-    @Mock private lateinit var brightnessControllerFactory: BrightnessController.Factory
-    @Mock private lateinit var brightnessController: BrightnessController
     @Mock private lateinit var accessibilityMgr: AccessibilityManagerWrapper
     @Mock private lateinit var shadeInteractor: ShadeInteractor
+    @Mock private lateinit var broadcastSender: BroadcastSender
 
     private val kosmos = testKosmos()
 
@@ -93,17 +83,22 @@ class BrightnessDialogTest(val flags: FlagsParameterization) : SysuiTestCase() {
 
     private val onDestroyLatch = CountDownLatch(1)
 
+    companion object {
+        var sTestUserId: Int? = null
+    }
+
     @Rule(order = 200)
     @JvmField
     var activityRule =
         ActivityTestRule(
             /* activityFactory= */ SingleActivityFactory {
                 TestDialog(
-                    brightnessSliderControllerFactory,
-                    brightnessControllerFactory,
                     mainExecutor,
                     accessibilityMgr,
                     shadeInteractor,
+                    broadcastSender,
+                    kosmos.desktopInteractor,
+                    kosmos.expandedAudioTileDetailsFeatureInteractor,
                     kosmos.brightnessSliderViewModelFactory,
                     onDestroyLatch,
                 )
@@ -115,10 +110,7 @@ class BrightnessDialogTest(val flags: FlagsParameterization) : SysuiTestCase() {
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
-        `when`(brightnessSliderControllerFactory.create(any(), any()))
-            .thenReturn(brightnessSliderController)
-        `when`(brightnessSliderController.rootView).thenReturn(View(context))
-        `when`(brightnessControllerFactory.create(any(), any())).thenReturn(brightnessController)
+        whenever(shadeInteractor.isAnyExpanded).thenReturn(MutableStateFlow(false))
         whenever(shadeInteractor.isQsExpanded).thenReturn(MutableStateFlow(false))
     }
 
@@ -210,36 +202,59 @@ class BrightnessDialogTest(val flags: FlagsParameterization) : SysuiTestCase() {
     @OptIn(FlowPreview::class)
     @FlakyTest(bugId = 326186573)
     @Test
-    fun testFinishOnQSExpanded() = runTest {
-        val isQSExpanded = MutableStateFlow(false)
-        `when`(shadeInteractor.isQsExpanded).thenReturn(isQSExpanded)
+    fun testFinishOnAnyExpanded() = runTest {
+        val isAnyExpanded = MutableStateFlow(false)
+        `when`(shadeInteractor.isAnyExpanded).thenReturn(isAnyExpanded)
         activityRule.launchActivity(Intent(Intent.ACTION_SHOW_BRIGHTNESS_DIALOG))
 
         assertThat(activityRule.activity.isFinishing()).isFalse()
 
-        isQSExpanded.value = true
+        isAnyExpanded.value = true
         // Observe the activity's state until is it finishing or the timeout is reached, whatever
         // comes first. This fixes the flakiness seen when using advanceUntilIdle().
         activityRule.activity.finishing.timeout(100.milliseconds).takeWhile { !it }.collect {}
         assertThat(activityRule.activity.isFinishing()).isTrue()
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_BRIGHTNESS_DIALOG_ON_SYSTEM_USER)
+    fun testFinishIfNotUser0() = runTest {
+        sTestUserId = UserHandle.USER_CURRENT
+        activityRule.launchActivity(Intent(Intent.ACTION_SHOW_BRIGHTNESS_DIALOG))
+
+        activityRule.activity.finishing.timeout(100.milliseconds).takeWhile { !it }.collect {}
+        // Should be finished if not on user 0
+        assertThat(activityRule.activity.isFinishing()).isTrue()
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_BRIGHTNESS_DIALOG_ON_SYSTEM_USER)
+    fun testDoesNotFinishIfUser0() = runTest {
+        sTestUserId = UserHandle.USER_SYSTEM
+        activityRule.launchActivity(Intent(Intent.ACTION_SHOW_BRIGHTNESS_DIALOG))
+
+        assertThat(activityRule.activity.isFinishing()).isFalse()
+        clock.advanceTime(BrightnessDialog.DIALOG_TIMEOUT_MILLIS.toLong())
+        assertThat(activityRule.activity.isFinishing()).isFalse()
+    }
+
     class TestDialog(
-        brightnessSliderControllerFactory: BrightnessSliderController.Factory,
-        brightnessControllerFactory: BrightnessController.Factory,
         mainExecutor: DelayableExecutor,
         accessibilityMgr: AccessibilityManagerWrapper,
         shadeInteractor: ShadeInteractor,
+        broadcastSender: BroadcastSender,
+        desktopInteractor: DesktopInteractor,
+        expandedAudioTileDetailsFeatureInteractor: ExpandedAudioTileDetailsFeatureInteractor,
         brightnessSliderViewModelFactory: BrightnessSliderViewModel.Factory,
         private val countdownLatch: CountDownLatch,
     ) :
         BrightnessDialog(
-            brightnessSliderControllerFactory,
-            brightnessControllerFactory,
             mainExecutor,
             accessibilityMgr,
-            shadeInteractor,
+            { shadeInteractor },
             brightnessSliderViewModelFactory,
+            broadcastSender,
+            expandedAudioTileDetailsFeatureInteractor,
         ) {
         var finishing = MutableStateFlow(false)
 
@@ -255,13 +270,9 @@ class BrightnessDialogTest(val flags: FlagsParameterization) : SysuiTestCase() {
             super.onDestroy()
             countdownLatch.countDown()
         }
-    }
 
-    companion object {
-        @JvmStatic
-        @Parameters(name = "{0}")
-        fun getParams(): List<FlagsParameterization> {
-            return FlagsParameterization.allCombinationsOf(QSComposeFragment.FLAG_NAME)
+        override fun getUserId(): Int {
+            return sTestUserId ?: super.getUserId()
         }
     }
 }

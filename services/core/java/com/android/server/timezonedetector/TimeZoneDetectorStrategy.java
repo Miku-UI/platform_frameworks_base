@@ -43,11 +43,12 @@ import java.lang.annotation.Target;
  *
  * <p>The two automatic detection algorithms supported are "telephony" and "location". Algorithm
  * availability and use depends on several factors:
+ *
  * <ul>
- * <li>Telephony is only available on devices with a telephony stack.
- * <li>Location is also optional and configured at image creation time. When enabled on a device,
- * its availability depends on the current user's settings, so switching between users can change
- * the automatic detection algorithm used by the device.</li>
+ *   <li>Telephony is only available on devices with a telephony stack.
+ *   <li>Location is also optional and configured at image creation time. When enabled on a device,
+ *       its availability depends on the current user's settings, so switching between users can
+ *       change the automatic detection algorithm used by the device.
  * </ul>
  *
  * <p>If there are no automatic time zone detections algorithms available then the user can usually
@@ -71,8 +72,8 @@ import java.lang.annotation.Target;
  * that lose their location fix must have an empty suggestion submitted in order to "withdraw" their
  * previous suggestion otherwise it will remain in use.
  *
- * <p>The strategy uses only one algorithm at a time and does not attempt consensus even when
- * more than one is available on a device. This "use only one" behavior is deliberate as different
+ * <p>The strategy uses only one algorithm at a time and does not attempt consensus even when more
+ * than one is available on a device. This "use only one" behavior is deliberate as different
  * algorithms have edge cases and blind spots that lead to incorrect answers or uncertainty;
  * different algorithms aren't guaranteed to agree, and algorithms may frequently lose certainty as
  * users enter areas without the necessary signals. Ultimately, with no perfect algorithm available,
@@ -103,9 +104,9 @@ import java.lang.annotation.Target;
  * @hide
  */
 public interface TimeZoneDetectorStrategy extends Dumpable {
-    @IntDef({ ORIGIN_UNKNOWN, ORIGIN_MANUAL, ORIGIN_TELEPHONY, ORIGIN_LOCATION })
+    @IntDef({ORIGIN_UNKNOWN, ORIGIN_MANUAL, ORIGIN_TELEPHONY, ORIGIN_LOCATION, ORIGIN_FUSED})
     @Retention(RetentionPolicy.SOURCE)
-    @Target({ ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
+    @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
     @interface Origin {}
 
     /** Used when the origin of the time zone value cannot be inferred. */
@@ -120,12 +121,15 @@ public interface TimeZoneDetectorStrategy extends Dumpable {
     /** Used when a time zone value originated from a location signal. */
     @Origin int ORIGIN_LOCATION = 3;
 
+    /** Used when a time zone value originated from the fused time zone detector. */
+    @Origin int ORIGIN_FUSED = 4;
+
     /**
-     * Adds a listener that will be triggered when something changes that could affect the result
-     * of the {@link #getCapabilitiesAndConfig} call for the <em>current user only</em>. This
-     * includes the current user changing. This is exposed so that (indirect) users like SettingsUI
-     * can monitor for changes to data derived from {@link TimeZoneCapabilitiesAndConfig} and update
-     * the UI accordingly.
+     * Adds a listener that will be triggered when something changes that could affect the result of
+     * the {@link #getCapabilitiesAndConfig} call for the <em>current user only</em>. This includes
+     * the current user changing. This is exposed so that (indirect) users like SettingsUI can
+     * monitor for changes to data derived from {@link TimeZoneCapabilitiesAndConfig} and update the
+     * UI accordingly.
      */
     void addChangeListener(StateChangeListener listener);
 
@@ -139,7 +143,7 @@ public interface TimeZoneDetectorStrategy extends Dumpable {
      *
      * @param userId the user ID to retrieve the information for
      * @param bypassUserPolicyChecks {@code true} for device policy manager use cases where device
-     *   policy restrictions that should apply to actual users can be ignored
+     *     policy restrictions that should apply to actual users can be ignored
      */
     TimeZoneCapabilitiesAndConfig getCapabilitiesAndConfig(
             @UserIdInt int userId, boolean bypassUserPolicyChecks);
@@ -153,13 +157,15 @@ public interface TimeZoneDetectorStrategy extends Dumpable {
      * <p>See {@link #getCapabilitiesAndConfig} for guarantees about visibility of updates to
      * subsequent calls.
      *
-     * @param userId the current user ID, supplied to make sure that the asynchronous process
-     *   that happens when users switch is completed when the call is made
+     * @param userId the current user ID, supplied to make sure that the asynchronous process that
+     *     happens when users switch is completed when the call is made
      * @param configuration the configuration changes
      * @param bypassUserPolicyChecks {@code true} for device policy manager use cases where device
-     *   policy restrictions that should apply to actual users can be ignored
+     *     policy restrictions that should apply to actual users can be ignored
      */
-    boolean updateConfiguration(@UserIdInt int userId, TimeZoneConfiguration configuration,
+    boolean updateConfiguration(
+            @UserIdInt int userId,
+            TimeZoneConfiguration configuration,
             boolean bypassUserPolicyChecks);
 
     /** Returns a snapshot of the system time zone state. See {@link TimeZoneState} for details. */
@@ -173,34 +179,32 @@ public interface TimeZoneDetectorStrategy extends Dumpable {
     void setTimeZoneState(@NonNull TimeZoneState timeZoneState);
 
     /**
-     * Signals that a user has confirmed the time zone. If the {@code timeZoneId} is the same as
-     * the current time zone then this can be used to raise the system's confidence in that time
-     * zone. Returns {@code true} if confirmation was successful (i.e. the ID matched),
-     * {@code false} otherwise.
+     * Signals that a user has confirmed the time zone. If the {@code timeZoneId} is the same as the
+     * current time zone then this can be used to raise the system's confidence in that time zone.
+     * Returns {@code true} if confirmation was successful (i.e. the ID matched), {@code false}
+     * otherwise.
      */
     boolean confirmTimeZone(@NonNull String timeZoneId);
 
-    /**
-     * Handles an event from the location-based time zone detection algorithm.
-     */
+    /** Handles an event from the location-based time zone detection algorithm. */
     void handleLocationAlgorithmEvent(@NonNull LocationAlgorithmEvent event);
 
     /**
      * Suggests a time zone for the device using manually-entered (i.e. user sourced) information.
      *
      * @param bypassUserPolicyChecks {@code true} for device policy manager use cases where device
-     *   policy restrictions that should apply to actual users can be ignored
+     *     policy restrictions that should apply to actual users can be ignored
      */
     boolean suggestManualTimeZone(
-            @UserIdInt int userId, @NonNull ManualTimeZoneSuggestion suggestion,
+            @UserIdInt int userId,
+            @NonNull ManualTimeZoneSuggestion suggestion,
             boolean bypassUserPolicyChecks);
 
     /**
-     * Suggests a time zone for the device, or withdraws a previous suggestion if
-     * {@link TelephonyTimeZoneSuggestion#getZoneId()} is {@code null}. The suggestion is scoped to
-     * a specific {@link TelephonyTimeZoneSuggestion#getSlotIndex() slotIndex}.
-     * See {@link TelephonyTimeZoneSuggestion} for an explanation of the metadata associated with a
-     * suggestion.
+     * Suggests a time zone for the device, or withdraws a previous suggestion if {@link
+     * TelephonyTimeZoneSuggestion#getZoneId()} is {@code null}. The suggestion is scoped to a
+     * specific {@link TelephonyTimeZoneSuggestion#getSlotIndex() slotIndex}. See {@link
+     * TelephonyTimeZoneSuggestion} for an explanation of the metadata associated with a suggestion.
      */
     void suggestTelephonyTimeZone(@NonNull TelephonyTimeZoneSuggestion suggestion);
 

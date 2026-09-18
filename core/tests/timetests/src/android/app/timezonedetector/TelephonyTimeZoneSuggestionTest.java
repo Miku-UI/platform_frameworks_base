@@ -24,7 +24,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
-import android.app.timezonedetector.TelephonySignal;
 import android.os.ShellCommand;
 import android.platform.test.annotations.Presubmit;
 
@@ -217,7 +216,8 @@ public class TelephonyTimeZoneSuggestionTest {
 
     @Test
     public void testPrintCommandLineOpts() throws Exception {
-        try (StringWriter sw = new StringWriter(); PrintWriter pw = new PrintWriter(sw)) {
+        try (StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw)) {
             TelephonyTimeZoneSuggestion.printCommandLineOpts(pw);
             assertTrue(sw.getBuffer().length() > 0);
         }
@@ -237,8 +237,8 @@ public class TelephonyTimeZoneSuggestionTest {
 
     @Test
     public void testParseCommandLineArg_validEmptyZoneIdSuggestion() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--slot_index 0 --zone_id _");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions("--slot_index 0 --zone_id _");
         TelephonyTimeZoneSuggestion expectedSuggestion =
                 new TelephonyTimeZoneSuggestion.Builder(0).build();
         TelephonyTimeZoneSuggestion actualSuggestion =
@@ -248,8 +248,10 @@ public class TelephonyTimeZoneSuggestionTest {
 
     @Test
     public void testParseCommandLineArg_validNonEmptySuggestion() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--slot_index 0 --zone_id Europe/London --quality single --match_type country");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        "--slot_index 0 --zone_id Europe/London --quality single --match_type"
+                                + " country");
         TelephonyTimeZoneSuggestion expectedSuggestion =
                 new TelephonyTimeZoneSuggestion.Builder(0)
                         .setZoneId("Europe/London")
@@ -263,8 +265,8 @@ public class TelephonyTimeZoneSuggestionTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_unknownArgument() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--slot_index 0 --zone_id _ --bad_arg 0");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions("--slot_index 0 --zone_id _ --bad_arg 0");
         TelephonyTimeZoneSuggestion.parseCommandLineArg(testShellCommand);
     }
 }

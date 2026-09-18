@@ -101,6 +101,8 @@ open class PackageHelperTestBase {
 
         whenever(protectedPackages.getDeviceOwnerOrProfileOwnerPackage(eq(TEST_USER_ID)))
                 .thenReturn(DEVICE_OWNER_PACKAGE)
+        whenever(protectedPackages.getDevicePolicyControllerPackage(eq(TEST_USER_ID)))
+            .thenReturn(DEVICE_OWNER_PACKAGE)
         whenever(rule.mocks().userManagerService.hasUserRestriction(
                 eq(UserManager.DISALLOW_APPS_CONTROL), eq(TEST_USER_ID))).thenReturn(true)
         whenever(rule.mocks().userManagerService.hasUserRestriction(

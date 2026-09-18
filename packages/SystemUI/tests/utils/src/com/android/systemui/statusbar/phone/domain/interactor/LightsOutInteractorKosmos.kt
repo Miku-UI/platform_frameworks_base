@@ -16,7 +16,8 @@
 
 package com.android.systemui.statusbar.phone.domain.interactor
 
+import com.android.systemui.display.data.repository.displaySubcomponentPerDisplayRepository
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.statusbar.data.repository.statusBarModeRepository
 
-val Kosmos.lightsOutInteractor by Kosmos.Fixture { LightsOutInteractor(statusBarModeRepository) }
+val Kosmos.lightsOutInteractor by
+    Kosmos.Fixture { LightsOutInteractor(displaySubcomponentPerDisplayRepository) }

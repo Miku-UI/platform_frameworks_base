@@ -44,7 +44,8 @@
     <string name="expand_handle" msgid="7282974448109280522">"ஹேண்டிலை விரிவாக்கு"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"ஹேண்டிலைச் சுருக்கு"</string>
     <string name="print_button" msgid="645164566271246268">"அச்சிடு"</string>
-    <string name="savetopdf_button" msgid="2976186791686924743">"PDF ஆகச் சேமி"</string>
+    <string name="setup_button" msgid="323390526074568450">"அமை"</string>
+    <string name="savetopdf_button" msgid="2976186791686924743">"PDF ஆக சேமி"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"அச்சு விருப்பங்கள் விரிவாக்கப்பட்டன"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"அச்சு விருப்பங்கள் சுருக்கப்பட்டன"</string>
     <string name="search" msgid="5421724265322228497">"தேடு"</string>

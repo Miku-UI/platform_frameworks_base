@@ -80,6 +80,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.IIntentReceiver;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ConfigurationInfo;
 import android.content.pm.FeatureInfo;
 import android.content.pm.IPackageManager;
@@ -88,6 +89,8 @@ import android.content.pm.ParceledListSlice;
 import android.content.pm.ResolveInfo;
 import android.content.pm.SharedLibraryInfo;
 import android.content.pm.UserInfo;
+import android.content.pm.verify.domain.DomainVerificationInfo;
+import android.content.pm.verify.domain.DomainVerificationManager;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -138,7 +141,6 @@ import com.android.server.am.nano.VMCapability;
 import com.android.server.am.nano.VMInfo;
 import com.android.server.compat.PlatformCompat;
 import com.android.server.pm.UserManagerInternal;
-import com.android.server.utils.AnrTimer;
 import com.android.server.utils.Slogf;
 
 import dalvik.annotation.optimization.NeverCompile;
@@ -165,6 +167,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -191,6 +194,7 @@ final class ActivityManagerShellCommand extends ShellCommand {
             DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss", Locale.ROOT);
 
     private static final String PROFILER_OUTPUT_VERSION_FLAG = "--profiler-output-version";
+    private static final String PROFILER_FLAGS = "--flags";
 
     // IPC interface to activity manager -- don't need to do additional security checks.
     final IActivityManager mInterface;
@@ -218,6 +222,7 @@ final class ActivityManagerShellCommand extends ShellCommand {
     private boolean mAttachAgentDuringBind;  // Whether agent should be attached late.
     private int mClockType; // Whether we need thread cpu / wall clock / both.
     private int mProfilerOutputVersion; // The version of the profiler output.
+    private int mProfilerFlags; // Flags for the profiler
     private boolean mLongRunningMethods; // Whether we need to trace only long running methods
     private long mDurationMicros; // duration in microseconds that specifies how long to trace.
     private int mDisplayId;
@@ -231,6 +236,7 @@ final class ActivityManagerShellCommand extends ShellCommand {
     private BroadcastOptions mBroadcastOptions;
     private boolean mShowSplashScreen;
     private boolean mDismissKeyguardIfInsecure;
+    private boolean mDebugLink;
 
     final boolean mDumping;
 
@@ -294,8 +300,6 @@ final class ActivityManagerShellCommand extends ShellCommand {
                     return -1;
                 case "trace-ipc":
                     return runTraceIpc(pw);
-                case "trace-timer":
-                    return runTraceTimer(pw);
                 case "profile":
                     return runProfile(pw);
                 case "dumpheap":
@@ -460,6 +464,10 @@ final class ActivityManagerShellCommand extends ShellCommand {
                     return runSetMediaForegroundService(pw);
                 case "clear-bad-process":
                     return runClearBadProcess(pw);
+                case "get-broadcast-constant":
+                    return runGetBroadcastConstant(pw);
+                case "memory-limiter":
+                    return runMemoryLimiter(pw);
                 default:
                     return handleDefaultCommands(cmd);
             }
@@ -623,6 +631,8 @@ final class ActivityManagerShellCommand extends ShellCommand {
             public boolean handleOption(String opt, ShellCommand cmd) {
                 if (opt.equals("-D")) {
                     mStartFlags |= ActivityManager.START_FLAG_DEBUG;
+                } else if (opt.equals("--debug-link")) {
+                    mDebugLink = true;
                 } else if (opt.equals("--suspend")) {
                     mStartFlags |= ActivityManager.START_FLAG_DEBUG_SUSPEND;
                 } else if (opt.equals("-N")) {
@@ -642,6 +652,8 @@ final class ActivityManagerShellCommand extends ShellCommand {
                     mClockType = ProfilerInfo.getClockTypeFromString(clock_type);
                 } else if (opt.equals(PROFILER_OUTPUT_VERSION_FLAG)) {
                     mProfilerOutputVersion = Integer.parseInt(getNextArgRequired());
+                } else if (opt.equals(PROFILER_FLAGS)) {
+                    mProfilerFlags = Integer.decode(getNextArgRequired());
                 } else if (opt.equals("--streaming")) {
                     mStreaming = true;
                 } else if (opt.equals("--attach-agent")) {
@@ -764,6 +776,12 @@ final class ActivityManagerShellCommand extends ShellCommand {
 
         final String mimeType = intent.resolveType(mInternal.mContext);
 
+        if (mDebugLink && isWebUri(intent)) {
+            pw.println("--- App Link Resolution Debug ---\n");
+            printAppLinkDebugInfo(pw, intent, mimeType);
+            pw.println("---------------------------------\n");
+        }
+
         do {
             if (mStopOption) {
                 String packageName;
@@ -807,9 +825,11 @@ final class ActivityManagerShellCommand extends ShellCommand {
                         return 1;
                     }
                 }
+                int flags = ProfilerInfo.updateFlags(mClockType, mProfilerOutputVersion,
+                        mProfilerFlags);
                 profilerInfo = new ProfilerInfo(mProfileFile, fd, mSamplingInterval, mAutoStop,
-                        mStreaming, mAgent, mAttachAgentDuringBind, mClockType,
-                        mProfilerOutputVersion, mLongRunningMethods, mDurationMicros);
+                        mStreaming, mAgent, mAttachAgentDuringBind, flags,
+                        mLongRunningMethods, mDurationMicros);
             }
 
             pw.println("Starting: " + intent);
@@ -944,6 +964,10 @@ final class ActivityManagerShellCommand extends ShellCommand {
                             "Error: Not allowed to start background user activity"
                                     + " that shouldn't be displayed for all users.");
                     return 1;
+                case ActivityManager.START_NOT_ALLOWED_FOR_USER:
+                    out.println(
+                            "Error: Activity not started, not allowed for the given user.");
+                    return 1;
                 default:
                     out.println(
                             "Error: Activity not started, unknown error code " + res);
@@ -973,6 +997,146 @@ final class ActivityManagerShellCommand extends ShellCommand {
             }
         } while (mRepeat > 0);
         return 0;
+    }
+
+    private boolean isWebUri(Intent intent) {
+        return (intent != null)
+                && ("http".equalsIgnoreCase(intent.getScheme())
+                    || "https".equalsIgnoreCase(intent.getScheme()));
+    }
+
+    private void printAppLinkDebugInfo(PrintWriter pw, Intent intent, String mimeType) {
+        pw.println("URI: " + intent.getDataString());
+
+        int userIdForQuery = mInternal.mUserController.handleIncomingUser(
+                Binder.getCallingPid(), Binder.getCallingUid(), mUserId, false,
+                ALLOW_NON_FULL, "ActivityManagerShellCommand", null);
+
+        try {
+            ResolveInfo resolveInfo =
+                    mPm.resolveIntent(
+                            intent, mimeType, PackageManager.GET_RESOLVED_FILTER, userIdForQuery);
+            List<ResolveInfo> candidates =
+                    mPm.queryIntentActivities(
+                            intent, mimeType, PackageManager.GET_RESOLVED_FILTER, userIdForQuery)
+                        .getList();
+
+            if (candidates == null || candidates.isEmpty()) {
+                pw.println("Resolution: Failed to resolve to any component.");
+                pw.println("\nReasons for Non-Resolution:");
+                pw.println("  No app found with a matching intent filter.");
+                return;
+            }
+
+            boolean isResolver = resolveInfo != null
+                    && "android".equals(resolveInfo.activityInfo.packageName)
+                    && getResolverActivityName().equals(resolveInfo.activityInfo.name);
+
+            if (isResolver) {
+                pw.println("Resolution: Ambiguous (Multiple apps or Browser fallback)");
+                pw.println("This usually happens when multiple apps can handle the link and no "
+                        + "default is set.");
+            } else if (resolveInfo != null) {
+                pw.println("Resolution: Resolved to " + resolveInfo.activityInfo.packageName
+                        + "/" + resolveInfo.activityInfo.name);
+            }
+
+            pw.println("\nAll Matching Candidates:");
+            for (ResolveInfo candidate : candidates) {
+                printResolveInfoDetail(pw, candidate, intent, userIdForQuery);
+            }
+        } catch (RemoteException e) {
+            pw.println("Error resolving intent: " + e);
+        }
+        pw.println("");
+    }
+
+    private void printResolveInfoDetail(
+            PrintWriter pw, ResolveInfo resolveInfo, Intent intent, int userId) {
+        pw.println("\nTarget:");
+        pw.println("  Package: " + resolveInfo.activityInfo.packageName);
+        pw.println("  Activity: " + resolveInfo.activityInfo.name);
+
+        IntentFilter filter = resolveInfo.filter;
+        if (filter == null) {
+            return;
+        }
+
+        filter.printIntentFilterMatchDetails(pw, intent);
+
+        if (filter.getAutoVerify()) {
+            printAppLinkVerification(
+                    pw, resolveInfo.activityInfo.packageName, intent.getData(), userId);
+        }
+    }
+
+    private void printAppLinkVerification(
+            PrintWriter pw, String packageName, android.net.Uri data, int userId) {
+        pw.println("\nApp Link Verification:");
+        DomainVerificationManager dvm =
+                mInternal.mContext.getSystemService(DomainVerificationManager.class);
+        if (dvm == null) {
+            pw.println("  Error: DomainVerificationManager not available.");
+            return;
+        }
+
+        try {
+            DomainVerificationInfo info = dvm.getDomainVerificationInfo(packageName);
+            if (info == null) {
+                pw.println("  Status: No domain verification info found for package.");
+                return;
+            }
+
+            String host = data.getHost();
+            if (host == null) return;
+
+            Integer state = info.getHostToStateMap().get(host);
+            if (state == null) {
+                pw.println("  Status: Domain '" + host + "' not declared in autoVerify.");
+                return;
+            }
+
+            pw.println("  Verification status: " + DomainVerificationInfo.stateToString(state));
+
+            if (state != DomainVerificationInfo.STATE_SUCCESS) {
+                return;
+            }
+
+            try {
+                List<android.content.UriRelativeFilterGroup> groups =
+                        dvm.getUriRelativeFilterGroups(packageName, java.util.Arrays.asList(host))
+                                .get(host);
+                if (groups == null || groups.isEmpty()) {
+                    pw.println("  Dynamic App Links: None stored for this domain.");
+                    return;
+                }
+
+                pw.println("  Dynamic App Links:");
+                for (int i = 0; i < groups.size(); i++) {
+                    android.content.UriRelativeFilterGroup group = groups.get(i);
+                    if (!group.matchData(data)) {
+                        pw.println("    -> Did not match rule " + i + ": " + group.toString());
+                    } else {
+                        pw.println("    -> Matched Rule " + i + ": " + group.toString());
+                    }
+                }
+            } catch (Exception groupEx) {
+                pw.println("  Error retrieving dynamic rules: " + groupEx);
+            }
+
+        } catch (Exception e) {
+            pw.println("  Error retrieving verification info: " + e);
+        }
+    }
+
+    private String getResolverActivityName() {
+        final int resId = Resources.getSystem().getIdentifier(
+                "config_customResolverActivity", "string", "android");
+        String customResolverActivity = mInternal.mContext.getString(resId);
+        if (TextUtils.isEmpty(customResolverActivity)) {
+            return com.android.internal.app.ResolverActivity.class.getName();
+        }
+        return customResolverActivity;
     }
 
     int runStartService(PrintWriter pw, boolean asForeground) throws RemoteException {
@@ -1144,23 +1308,6 @@ final class ActivityManagerShellCommand extends ShellCommand {
         return 0;
     }
 
-    // Update AnrTimer tracing.
-    private int runTraceTimer(PrintWriter pw) throws RemoteException {
-        if (!AnrTimer.traceFeatureEnabled()) return -1;
-
-        // Delegate all argument parsing to the AnrTimer method.
-        try {
-            final String result = AnrTimer.traceTimers(peekRemainingArgs());
-            if (result != null) {
-                pw.println(result);
-            }
-            return 0;
-        } catch (IllegalArgumentException e) {
-            getErrPrintWriter().println("Error: bad trace-timer command: " + e);
-            return -1;
-        }
-    }
-
     // NOTE: current profiles can only be started on default display (even on automotive builds with
     // passenger displays), so there's no need to pass a display-id
     private int runProfile(PrintWriter pw) throws RemoteException {
@@ -1174,7 +1321,8 @@ final class ActivityManagerShellCommand extends ShellCommand {
         mClockType = ProfilerInfo.CLOCK_TYPE_DEFAULT;
         mLongRunningMethods = false;
         mDurationMicros = 0;
-        mProfilerOutputVersion = ProfilerInfo.OUTPUT_VERSION_DEFAULT;
+        mProfilerOutputVersion = 0;
+        mProfilerFlags = ProfilerInfo.DEFAULT_FLAGS;
 
         String process = null;
 
@@ -1191,6 +1339,8 @@ final class ActivityManagerShellCommand extends ShellCommand {
                     mClockType = ProfilerInfo.getClockTypeFromString(clock_type);
                 } else if (opt.equals(PROFILER_OUTPUT_VERSION_FLAG)) {
                     mProfilerOutputVersion = Integer.parseInt(getNextArgRequired());
+                } else if (opt.equals(PROFILER_FLAGS)) {
+                    mProfilerFlags = Integer.decode(getNextArgRequired());
                 } else if (opt.equals("--streaming")) {
                     mStreaming = true;
                 } else if (opt.equals("--sampling")) {
@@ -1268,9 +1418,10 @@ final class ActivityManagerShellCommand extends ShellCommand {
         }
 
         if (start || hasFileArg) {
+            int flags = ProfilerInfo.updateFlags(mClockType, mProfilerOutputVersion,
+                    mProfilerFlags);
             profilerInfo = new ProfilerInfo(profileFile, fd, mSamplingInterval, false, mStreaming,
-                    null, false, mClockType, mProfilerOutputVersion, mLongRunningMethods,
-                    mDurationMicros);
+                    null, false, flags, mLongRunningMethods, mDurationMicros);
         }
 
         if (!mInterface.profileControl(process, userId, start, profilerInfo, profileType)) {
@@ -1448,10 +1599,7 @@ final class ActivityManagerShellCommand extends ShellCommand {
                 managed = false;
                 mallocInfo = true;
             } else if (opt.equals("-b")) {
-                dumpBitmaps = getNextArg();
-                if (dumpBitmaps == null) {
-                    dumpBitmaps = "png"; // default to PNG in dumping bitmaps
-                }
+                dumpBitmaps = getNextArgRequired();
             } else {
                 err.println("Error: Unknown option: " + opt);
                 return -1;
@@ -4656,6 +4804,102 @@ final class ActivityManagerShellCommand extends ShellCommand {
         return 0;
     }
 
+    int runGetBroadcastConstant(PrintWriter pw) {
+        final String key = getNextArgRequired();
+        try {
+            pw.println(mInternal.getBroadcastConstant(key));
+        } catch (IllegalArgumentException e) {
+            getErrPrintWriter().println("Error: " + e.getMessage());
+            return -1;
+        }
+        return 0;
+    }
+
+    int runMemoryLimiter(PrintWriter pw) {
+        try {
+            String cmd = getNextArgRequired();
+            MemoryLimiter limiter = mInternal.getMemoryLimiter();
+            switch (cmd) {
+                case "ignore" -> {
+                    String uidString = getNextArgRequired();
+                    if (Objects.equals(uidString, "none")) {
+                        limiter.ignoreUid(MemoryLimiter.ALL_UIDS, false);
+                    } else if (Objects.equals(uidString, "all")) {
+                        limiter.ignoreUid(MemoryLimiter.ALL_UIDS, true);
+                    } else {
+                        try {
+                            limiter.ignoreUid(Integer.valueOf(uidString), true);
+                        } catch (NumberFormatException e) {
+                            getErrPrintWriter().println("Invalid UID: \"" + uidString + "\"");
+                            return -1;
+                        }
+                    }
+                }
+
+                case "manual" -> {
+                    String pidStr = getNextArgRequired();
+                    String limitStr = getNextArgRequired();
+                    int pid;
+                    try {
+                        pid = Integer.parseInt(pidStr);
+                    } catch (NumberFormatException e) {
+                        getErrPrintWriter().println("Invalid PID: \"" + pidStr + "\"");
+                        return -1;
+                    }
+                    int limitPercent;
+                    if ("none".equals(limitStr)) {
+                        limitPercent = -1;
+                    } else {
+                        try {
+                            limitPercent = Integer.parseInt(limitStr);
+                        } catch (NumberFormatException e) {
+                            getErrPrintWriter().println("Invalid limit: \"" + limitStr + "\"");
+                            return -1;
+                        }
+                    }
+
+                    int uid = -1;
+                    synchronized (mInternal.mPidsSelfLocked) {
+                        ProcessRecord app = mInternal.mPidsSelfLocked.get(pid);
+                        if (app != null) {
+                            uid = app.uid;
+                        }
+                    }
+                    if (uid != -1) {
+                        limiter.setManualLimit(pid, uid, limitPercent);
+                    } else {
+                        getErrPrintWriter().println("Process not found for pid " + pid);
+                        return -1;
+                    }
+                }
+
+                case "status" -> {
+                    limiter.dump(pw);
+                }
+
+                default -> {
+                    getErrPrintWriter().println("Error: unknown sub-command \"" + cmd + "\"");
+                    return -1;
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            getErrPrintWriter().println("Error: " + e.getMessage());
+            return -1;
+        }
+        return 0;
+    }
+
+    private static void showMemoryLimiterHelp(PrintWriter pw) {
+        pw.println("  memory-limiter <SUBCOMMAND>");
+        pw.println("      status: report the status of the limiter.");
+        pw.println("      ignore <UID|none|all>: do not configure limits for the UID.");
+        pw.println("          none: resume normal operation for all UIDs.");
+        pw.println("          all: ignore all processes (disable limiting globally).");
+        pw.println("      manual <PID> <PERCENT|none>: set a manual memory limit for a process.");
+        pw.println("          PERCENT: percentage of total RAM (1-99).");
+        pw.println("          none: remove the manual limit override.");
+    }
+
     private Resources getResources(PrintWriter pw) throws RemoteException {
         // system resources does not contain all the device configuration, construct it manually.
         Configuration config = mInterface.getConfiguration();
@@ -4748,6 +4992,14 @@ final class ActivityManagerShellCommand extends ShellCommand {
             pw.println("          (use with --start-profiler)");
             pw.println("      " + PROFILER_OUTPUT_VERSION_FLAG + " Specify the version of the");
             pw.println("          profiling output (use with --start-profiler)");
+            pw.println("      " + PROFILER_FLAGS + "<FLAGS> Specify the bit mask of flags to pass");
+            pw.println("          to the profiler. The stable bits are:");
+            pw.println("          Bit 0: Track allocations");
+            pw.println("          Bit 1-2: Output version");
+            pw.println("          Bit 4&8: Clock type");
+            pw.println("          --clock-type / " + PROFILER_OUTPUT_VERSION_FLAG + " take");
+            pw.println("          priority over the values specified in flags. There are other");
+            pw.println("          experimental options that depend on the ART module");
             pw.println("      -P <FILE>: like above, but profiling stops when app goes idle");
             pw.println("      --attach-agent <agent>: attach the given agent before binding");
             pw.println("      --attach-agent-bind <agent>: attach the given agent during binding");
@@ -4844,7 +5096,6 @@ final class ActivityManagerShellCommand extends ShellCommand {
             pw.println("      start: start tracing IPC transactions.");
             pw.println("      stop: stop tracing IPC transactions and dump the results to file.");
             pw.println("      --dump-file <FILE>: Specify the file the trace should be dumped to.");
-            anrTimerHelp(pw);
             pw.println("  profile start [--user <USER_ID> current]");
             pw.println("          [--clock-type <TYPE>]");
             pw.println("          [" + PROFILER_OUTPUT_VERSION_FLAG + " VERSION]");
@@ -4859,6 +5110,14 @@ final class ActivityManagerShellCommand extends ShellCommand {
             pw.println("          value is dual.");
             pw.println("      " + PROFILER_OUTPUT_VERSION_FLAG + "VERSION: specifies the output");
             pw.println("          format version");
+            pw.println("      " + PROFILER_FLAGS + "<FLAGS> Specify the bit mask of flags to pass");
+            pw.println("          to the profiler. The stable bits are:");
+            pw.println("          Bit 0: Track allocations");
+            pw.println("          Bit 1-2: Output version");
+            pw.println("          Bit 4&8: Clock type");
+            pw.println("          --clock-type / " + PROFILER_OUTPUT_VERSION_FLAG + " take");
+            pw.println("          priority over the values specified in flags. There are other");
+            pw.println("          experimental options that depend on the ART module");
             pw.println("      --sampling INTERVAL: use sample profiling with INTERVAL microseconds");
             pw.println("          between samples.");
             pw.println("      --streaming: stream the profiling output to the specified file.");
@@ -5117,22 +5376,8 @@ final class ActivityManagerShellCommand extends ShellCommand {
             pw.println("         Set an app's media service inactive or active.");
             pw.println("  clear-bad-process [--user USER_ID] <PROCESS_NAME>");
             pw.println("         Clears a process from the bad processes list.");
+            showMemoryLimiterHelp(pw);
             Intent.printIntentArgsHelp(pw, "");
-        }
-    }
-
-    static void anrTimerHelp(PrintWriter pw) {
-        // Return silently if tracing is not feature-enabled.
-        if (!AnrTimer.traceFeatureEnabled()) return;
-
-        String h = AnrTimer.traceTimers(new String[]{"help"});
-        if (h == null) {
-            return;
-        }
-
-        pw.println("  trace-timer <cmd>");
-        for (String s : h.split("\n")) {
-            pw.println("         " + s);
         }
     }
 }

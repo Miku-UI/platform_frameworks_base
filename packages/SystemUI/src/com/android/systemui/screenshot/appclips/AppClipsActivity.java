@@ -65,7 +65,6 @@ import androidx.lifecycle.ViewModelProvider;
 import com.android.internal.logging.UiEventLogger;
 import com.android.internal.logging.UiEventLogger.UiEventEnum;
 import com.android.settingslib.Utils;
-import com.android.systemui.Flags;
 import com.android.systemui.log.DebugLogger;
 import com.android.systemui.res.R;
 import com.android.systemui.screenshot.appclips.InternalBacklinksData.BacklinksData;
@@ -210,13 +209,11 @@ public class AppClipsActivity extends ComponentActivity {
             int displayId = getDisplayId();
             mViewModel.performScreenshot(displayId);
 
-            if (Flags.appClipsBacklinks()) {
-                int appClipsTaskId = getTaskId();
-                int callingPackageTaskId = intent.getIntExtra(EXTRA_CALLING_PACKAGE_TASK_ID,
-                        INVALID_TASK_ID);
-                Set<Integer> taskIdsToIgnore = Set.of(appClipsTaskId, callingPackageTaskId);
-                mViewModel.triggerBacklinks(taskIdsToIgnore, displayId);
-            }
+            int appClipsTaskId = getTaskId();
+            int callingPackageTaskId = intent.getIntExtra(EXTRA_CALLING_PACKAGE_TASK_ID,
+                    INVALID_TASK_ID);
+            Set<Integer> taskIdsToIgnore = Set.of(appClipsTaskId, callingPackageTaskId);
+            mViewModel.triggerBacklinks(taskIdsToIgnore, displayId);
         }
     }
 

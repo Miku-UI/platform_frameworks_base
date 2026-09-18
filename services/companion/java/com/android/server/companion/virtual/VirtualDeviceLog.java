@@ -16,6 +16,9 @@
 
 package com.android.server.companion.virtual;
 
+import android.companion.AssociationRequest;
+import android.companion.virtual.VirtualDevice;
+import android.companion.virtual.VirtualDevice.DeviceProfile;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Binder;
@@ -45,19 +48,21 @@ final class VirtualDeviceLog {
         mContext = context;
     }
 
-    void logCreated(int deviceId, int ownerUid) {
+    void logCreated(int deviceId, int ownerUid, @DeviceProfile int deviceProfile) {
         final long token = Binder.clearCallingIdentity();
         try {
-            addEntry(new LogEntry(TYPE_CREATED, deviceId, System.currentTimeMillis(), ownerUid));
+            addEntry(new LogEntry(TYPE_CREATED, deviceId, deviceProfile, System.currentTimeMillis(),
+                    ownerUid));
         } finally {
             Binder.restoreCallingIdentity(token);
         }
     }
 
-    void logClosed(int deviceId, int ownerUid) {
+    void logClosed(int deviceId, int ownerUid, @DeviceProfile int deviceProfile) {
         final long token = Binder.clearCallingIdentity();
         try {
-            addEntry(new LogEntry(TYPE_CLOSED, deviceId, System.currentTimeMillis(), ownerUid));
+            addEntry(new LogEntry(TYPE_CLOSED, deviceId, deviceProfile, System.currentTimeMillis(),
+                    ownerUid));
         } finally {
             Binder.restoreCallingIdentity(token);
         }
@@ -88,12 +93,16 @@ final class VirtualDeviceLog {
     static class LogEntry {
         private final int mType;
         private final int mDeviceId;
+        @DeviceProfile
+        private final int mDeviceProfile;
         private final long mTimestamp;
         private final int mOwnerUid;
 
-        LogEntry(int type, int deviceId, long timestamp, int ownerUid) {
+        LogEntry(int type, int deviceId, @DeviceProfile int deviceProfile, long timestamp,
+                int ownerUid) {
             this.mType = type;
             this.mDeviceId = deviceId;
+            this.mDeviceProfile = deviceProfile;
             this.mTimestamp = timestamp;
             this.mOwnerUid = ownerUid;
         }
@@ -110,8 +119,26 @@ final class VirtualDeviceLog {
             sb.append(" (");
             sb.append(packageNameCache.getPackageName(mOwnerUid));
             sb.append(")");
+            sb.append(" Profile: ");
+            sb.append(deviceProfileToString(mDeviceProfile));
             pw.println(sb);
         }
+    }
+
+    static String deviceProfileToString(@DeviceProfile int deviceProfile) {
+        return switch (deviceProfile) {
+            case VirtualDevice.DEVICE_PROFILE_SHELL -> "DEVICE_PROFILE_SHELL";
+            case VirtualDevice.DEVICE_PROFILE_COMPUTER_CONTROL -> "DEVICE_PROFILE_COMPUTER_CONTROL";
+            case VirtualDevice.DEVICE_PROFILE_AUTOMOTIVE_PROJECTION ->
+                    AssociationRequest.DEVICE_PROFILE_AUTOMOTIVE_PROJECTION;
+            case VirtualDevice.DEVICE_PROFILE_APP_STREAMING ->
+                    AssociationRequest.DEVICE_PROFILE_APP_STREAMING;
+            case VirtualDevice.DEVICE_PROFILE_NEARBY_DEVICE_STREAMING ->
+                    AssociationRequest.DEVICE_PROFILE_NEARBY_DEVICE_STREAMING;
+            case VirtualDevice.DEVICE_PROFILE_VIRTUAL_DEVICE ->
+                    AssociationRequest.DEVICE_PROFILE_VIRTUAL_DEVICE;
+            default -> "DEVICE_PROFILE_UNKNOWN (" + deviceProfile + ")";
+        };
     }
 
     private static class UidToPackageNameCache {

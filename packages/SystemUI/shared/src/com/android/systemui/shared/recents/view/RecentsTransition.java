@@ -52,7 +52,7 @@ public class RecentsTransition {
     }
 
     /**
-     * @return a {@link GraphicBuffer} with the {@param view} drawn into it. Result can be null if
+     * @return a {@link GraphicBuffer} with the {@code view} drawn into it. Result can be null if
      *         we were unable to allocate a hardware bitmap.
      */
     public static Bitmap drawViewIntoHardwareBitmap(int width, int height, final View view,
@@ -72,7 +72,7 @@ public class RecentsTransition {
     }
 
     /**
-     * @return a hardware {@link Bitmap} after being drawn with the {@param consumer}. Result can be
+     * @return a hardware {@link Bitmap} after being drawn with the {@code consumer}. Result can be
      *         null if we were unable to allocate a hardware bitmap.
      */
     public static Bitmap createHardwareBitmap(int width, int height, Consumer<Canvas> consumer) {

@@ -31,6 +31,8 @@ import android.net.connectivityManager
 import android.net.vcn.VcnTransportInfo
 import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelUuid
 import android.telephony.CarrierConfigManager
 import android.telephony.ServiceState
@@ -56,7 +58,6 @@ import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.broadcast.broadcastDispatcherContext
 import com.android.systemui.flags.Flags
 import com.android.systemui.flags.fakeFeatureFlagsClassic
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosTestScope
 import com.android.systemui.kairos.combine
 import com.android.systemui.kairos.kairos
@@ -109,7 +110,6 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.stub
 import org.mockito.kotlin.whenever
 
-@OptIn(ExperimentalKairosApi::class)
 @SmallTest
 // This is required because our [SubscriptionManager.OnSubscriptionsChangedListener] uses a looper
 // to run the callback and this makes the looper place nicely with TestScope etc.
@@ -144,6 +144,7 @@ class MobileConnectionsRepositoryKairosTest : SysuiTestCase() {
                 ConnectivityRepositoryImpl(
                     connectivityManager,
                     ConnectivitySlots(applicationContext),
+                    Handler(Looper.getMainLooper()),
                     applicationContext,
                     mock(),
                     mock(),

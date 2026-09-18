@@ -23,7 +23,7 @@ package {
 
 android_test {
     name: "FrameworksAppFunctionsTests",
-    team: "trendy_team_machine_learning",
+    team: "trendy_team_app_function",
     defaults: [
         "modules-utils-testable-device-config-defaults",
     ],

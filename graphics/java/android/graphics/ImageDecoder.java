@@ -22,6 +22,7 @@ import static android.system.OsConstants.SEEK_SET;
 import static java.lang.annotation.RetentionPolicy.SOURCE;
 
 import android.annotation.AnyThread;
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
@@ -50,6 +51,8 @@ import android.system.Os;
 import android.util.DisplayMetrics;
 import android.util.Size;
 import android.util.TypedValue;
+
+import com.android.graphics.hwui.flags.Flags;
 
 import dalvik.system.CloseGuard;
 
@@ -726,11 +729,24 @@ public final class ImageDecoder implements AutoCloseable {
         /**
          *  The encoded data contained an error.
          */
-        public static final int SOURCE_MALFORMED_DATA      = 3;
+        public static final int SOURCE_MALFORMED_DATA = 3;
+
+        /**
+         * The extraction of the gainmap component of the image failed. If the partially
+         * decoded result is returned by returning true from
+         * {@link OnPartialImageListener#onPartialImage(DecodeException)} there will
+         * still be a complete base image to be viewed. It is thus recommended
+         * to return the partial image and proceed with displaying it. Applications that are
+         * doing this for editing or similar may want to consider warning the user that
+         * data was lost.
+         */
+        @FlaggedApi(Flags.FLAG_IMAGE_DECODER_GAINMAP_FAIL)
+        public static final int GAINMAP_EXTRACTION_FAILED = 4;
 
         /** @hide **/
         @Retention(SOURCE)
-        @IntDef(value = { SOURCE_EXCEPTION, SOURCE_INCOMPLETE, SOURCE_MALFORMED_DATA },
+        @IntDef(value = { SOURCE_EXCEPTION, SOURCE_INCOMPLETE, SOURCE_MALFORMED_DATA,
+                GAINMAP_EXTRACTION_FAILED },
                 prefix = {"SOURCE_"})
         public @interface Error {};
 
@@ -842,6 +858,7 @@ public final class ImageDecoder implements AutoCloseable {
     private Rect       mCropRect;
     private Rect       mOutPaddingRect;
     private Source     mSource;
+    private long       mAllocationLimit = 536900000; // 0.5GiB
 
     private PostProcessor          mPostProcessor;
     private OnPartialImageListener mOnPartialImageListener;
@@ -1323,6 +1340,32 @@ public final class ImageDecoder implements AutoCloseable {
     }
 
     /**
+     *  Set a maximum memory limit (bytes) for an image decode.
+     *
+     *  <p>Memory usage is tracked during the decoding process, for instance when
+     * calling {@link decodeBitmap} or {@link decodeDrawable}. If an allocation is expected to
+     * raise the decode memory usage over the allocation limit, the decode is aborted and an
+     * {@link IOException} is thrown by decode function.
+     * <p>The limit is applied per each image decode. The default limit is 0.5GiB. 0 indicates no
+     * limit.</p>
+     */
+    @FlaggedApi(Flags.FLAG_IMAGE_DECODER_ALLOCATION_LIMIT)
+    public void setAllocationLimit(long limit) {
+        if (limit < 0) {
+            throw new IllegalArgumentException("allocation limit cannot be negative: " + limit);
+        }
+        mAllocationLimit = limit;
+    }
+
+    /**
+     *  Get the maximum memory limit in bytes for image decoding.
+     */
+    @FlaggedApi(Flags.FLAG_IMAGE_DECODER_ALLOCATION_LIMIT)
+    public long getAllocationLimit() {
+        return mAllocationLimit;
+    }
+
+    /**
      *  Specify whether the {@link Bitmap} should have unpremultiplied pixels.
      *
      *  <p>By default, ImageDecoder will create a {@link Bitmap} with
@@ -1677,16 +1720,102 @@ public final class ImageDecoder implements AutoCloseable {
                 mDesiredWidth, mDesiredHeight, mCropRect,
                 mMutable, mAllocator, mUnpremultipliedRequired,
                 mConserveMemory, mDecodeAsAlphaMask, getColorSpacePtr(),
-                checkForExtended());
+                checkForExtended(), mAllocationLimit);
+    }
+
+    private static OnHeaderDecodedListener sDefaultProcessListener = null;
+    private static ThreadLocal<OnHeaderDecodedListener> sDefaultThreadListener =
+            new ThreadLocal<>();
+
+    // Listeners are nullable so must use separate object to lock.
+    private static final Object sListenerLock = new Object();
+
+    /**
+     * Set the thread-level default {@link OnHeaderDecodedListener}. A subsequent call
+     * will overwrite any previous calls.
+     *
+     * <p>If set, this is the first {@link OnHeaderDecodedListener} to run during image decoding.
+     * At the time of decoding, a listener can also be provided to
+     * {@link #decodeDrawable(Source, OnHeaderDecodedListener)} which is run after the
+     * thread-level default.
+     *
+     * <p>Note: setting a thread-level default will cause the process-level default set by
+     * {@link #setDefaultProcessListener(OnHeaderDecodedListener)} to be skipped on that thread.
+     * The listener passed to {@link #decodeDrawable} will always run.
+     */
+    @FlaggedApi(Flags.FLAG_IMAGE_DECODER_DEFAULT_LISTENER)
+    public static void setDefaultThreadListener(@Nullable OnHeaderDecodedListener listener) {
+        sDefaultThreadListener.set(listener);
+    }
+
+    /**
+     * Return the thread-level default {@link OnHeaderDecodedListener}.
+     */
+    @Nullable
+    @FlaggedApi(Flags.FLAG_IMAGE_DECODER_DEFAULT_LISTENER)
+    public static OnHeaderDecodedListener getDefaultThreadListener() {
+        return sDefaultThreadListener.get();
+    }
+
+    /**
+     * Set the process-level default {@link OnHeaderDecodedListener}. A subsequent call
+     * will overwrite any previous calls.
+     *
+     * <p>If there is no thread-level default set on the current thread, this is the first
+     * {@link OnHeaderDecodedListener} to run during image decoding. At the time of decoding, a
+     * listener can also be provided to {@link #decodeDrawable(Source, OnHeaderDecodedListener)}
+     * which is run after the process-level default.
+     *
+     * <p>Note: setting a thread-level default via
+     * {@link #setDefaultThreadListener(OnHeaderDecodedListener)} will cause the process-level
+     * default to be skipped on that thread. The listener passed to {@link #decodeDrawable} will
+     * always run.
+     */
+    @FlaggedApi(Flags.FLAG_IMAGE_DECODER_DEFAULT_LISTENER)
+    public static void setDefaultProcessListener(@Nullable OnHeaderDecodedListener listener) {
+        synchronized (sListenerLock) {
+            sDefaultProcessListener = listener;
+        }
+    }
+
+    /**
+     * Return the process-level default {@link OnHeaderDecodedListener}.
+     */
+    @Nullable
+    @FlaggedApi(Flags.FLAG_IMAGE_DECODER_DEFAULT_LISTENER)
+    public static OnHeaderDecodedListener getDefaultProcessListener() {
+        synchronized (sListenerLock) {
+            return sDefaultProcessListener;
+        }
     }
 
     private void callHeaderDecoded(@Nullable OnHeaderDecodedListener listener,
             @NonNull Source src) {
-        if (listener != null) {
+
+        OnHeaderDecodedListener threadListener = null;
+        OnHeaderDecodedListener processListener = null;
+
+        if (Flags.imageDecoderDefaultListener()) {
+            threadListener = getDefaultThreadListener();
+            processListener = getDefaultProcessListener();
+        }
+
+        if (listener != null || threadListener != null || processListener != null) {
             ImageInfo info =
                     new ImageInfo(
                             new Size(mWidth, mHeight), mAnimated, getMimeType(), getColorSpace());
-            listener.onHeaderDecoded(this, info, src);
+
+            // Thread listener preferred over process listener to set defaults.
+            if (threadListener != null) {
+                threadListener.onHeaderDecoded(this, info, src);
+            } else if (processListener != null) {
+                processListener.onHeaderDecoded(this, info, src);
+            }
+
+            // Always invoke a provided listener.
+            if (listener != null) {
+                listener.onHeaderDecoded(this, info, src);
+            }
         }
     }
 
@@ -2088,6 +2217,11 @@ public final class ImageDecoder implements AutoCloseable {
     @SuppressWarnings("unused")
     private void onPartialImage(@DecodeException.Error int error, @Nullable Throwable cause)
             throws DecodeException {
+        if (error == DecodeException.GAINMAP_EXTRACTION_FAILED) {
+            if (!Flags.imageDecoderGainmapFail() || Compatibility.getTargetSdkVersion() <= 37) {
+                return;
+            }
+        }
         DecodeException exception = new DecodeException(error, cause, mSource);
         if (mOnPartialImageListener == null
                 || !mOnPartialImageListener.onPartialImage(exception)) {
@@ -2174,7 +2308,7 @@ public final class ImageDecoder implements AutoCloseable {
             @Nullable Rect cropRect, boolean mutable,
             int allocator, boolean unpremulRequired,
             boolean conserveMemory, boolean decodeAsAlphaMask,
-            long desiredColorSpace, boolean extended)
+            long desiredColorSpace, boolean extended, long allocationLimit)
         throws IOException;
     private static native Size nGetSampledSize(long nativePtr,
                                                int sampleSize);

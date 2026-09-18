@@ -30,6 +30,8 @@
 
 #ifdef __ANDROID__ // Layoutlib does not support hardware acceleration
 #include <android/hardware_buffer.h>
+
+#include "OutOfProcessRendering.h"
 #endif
 
 class SkWStream;
@@ -261,6 +263,10 @@ private:
     static size_t mTotalBitmapCount;
     void traceBitmapCreate();
     void traceBitmapDelete();
+
+#ifdef __ANDROID__
+    uirenderer::OoprBitmap mOoprResources;
+#endif
 };
 
 }  // namespace android

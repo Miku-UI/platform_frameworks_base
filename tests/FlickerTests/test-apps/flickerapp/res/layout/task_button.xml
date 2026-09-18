@@ -31,4 +31,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="New task (clear top + recycle if possible)" />
+    <Button
+        android:id="@+id/launch_new_browser"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="New browser (new task)" />
 </LinearLayout>

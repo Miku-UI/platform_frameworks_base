@@ -18,13 +18,13 @@ package com.android.server.ondeviceintelligence;
 
 import android.annotation.NonNull;
 import android.os.Binder;
-
 import com.android.modules.utils.BasicShellCommandHandler;
-
 import java.io.PrintWriter;
 import java.util.Objects;
 
 /**
+ * Shell commands for {@link OnDeviceIntelligenceManagerService}.
+ *
  * @hide
  */
 final class OnDeviceIntelligenceShellCommand extends BasicShellCommandHandler {

@@ -16,7 +16,6 @@
 
 package com.android.internal.notification;
 
-import static android.app.NotificationChannel.SYSTEM_RESERVED_IDS;
 import static android.app.NotificationManager.IMPORTANCE_NONE;
 
 import android.annotation.NonNull;
@@ -153,8 +152,7 @@ public class NotificationChannelGroupsHelper {
                             || (params.includeAllBlockedWithFilter
                                     && nc.getImportance() == IMPORTANCE_NONE)
                             || params.channelFilter.contains(nc.getId()))
-                    && (!Flags.notificationClassification()
-                            || !SYSTEM_RESERVED_IDS.contains(nc.getId()));
+                    && (!nc.isBundleChannel());
             if (includeChannel) {
                 if (nc.getGroup() != null) {
                     if (allGroups.get(nc.getGroup()) != null) {

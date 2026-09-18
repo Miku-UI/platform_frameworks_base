@@ -45,6 +45,7 @@
     <string name="keyguard_accessibility_password" msgid="3524161948484801450">"የመሣሪያ ይለፍ ቃል"</string>
     <string name="keyguard_accessibility_sim_pin_area" msgid="6272116591533888062">"የሲም ፒን አካባቢ"</string>
     <string name="keyguard_accessibility_sim_puk_area" msgid="5537294043180237374">"የሲም PUK አካባቢ"</string>
+    <string name="keyguard_accessibility_pin_delete_long_click" msgid="1530074796041838525">"ሁሉንም ለመሰረዝ በረዥም ይጫኑ"</string>
     <string name="keyboardview_keycode_delete" msgid="8489719929424895174">"ሰርዝ"</string>
     <string name="disable_carrier_button_text" msgid="7153361131709275746">"eSIMን አሰናክል"</string>
     <string name="error_disable_esim_title" msgid="3802652622784813119">"eSIMን ማሰናከል አልተቻለም"</string>
@@ -64,7 +65,7 @@
     <string name="kg_bio_try_again_or_pattern" msgid="4867893307468801501">"እንደገና ይሞክሩ ወይም ስርዓተ ጥለት ይሳሉ"</string>
     <string name="kg_bio_too_many_attempts_pin" msgid="5850845723433047605">"በጣም ከብዙ ሙከራዎች በኋላ ፒን ያስፈልጋል"</string>
     <string name="kg_bio_too_many_attempts_password" msgid="5551690347827728042">"በጣም ከብዙ ሙከራዎች በኋላ የይለፍ ቃል ያስፈልጋል"</string>
-    <string name="kg_bio_too_many_attempts_pattern" msgid="736884689355181602">"በጣም ከብዙ ሙከራዎች በኋላ ስርዓተ ጥለት ያስፈልጋል"</string>
+    <string name="kg_bio_too_many_attempts_pattern" msgid="736884689355181602">"በጣም ከብዙ ሙከራዎች በኋላ ሥርዓተ ጥለት ያስፈልጋል"</string>
     <string name="kg_unlock_with_pin_or_fp" msgid="5635161174698729890">"በፒን ወይም የጣት አሻራ ይክፈቱ"</string>
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"በይለፍ ቃል ወይም የጣት አሻራ ይክፈቱ"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"በስርዓተ ጥለት ወይም የጣት አሻራ ይክፈቱ"</string>
@@ -85,9 +86,20 @@
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"በጣት አሻራ መክፈት አልተቻለም። በጣም ብዙ ሙከራዎች።"</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"የተአማኒነት ወኪል አይገኝም"</string>
     <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"በተሳሳተ ፒን በጣም ብዙ ሙከራዎች"</string>
+    <string name="kg_primary_auth_duplicate_guess_pin" msgid="5834891656916692329">"አስቀድመው ያንን ፒን ሞክረውታል። ሌላ ይሞክሩ።"</string>
+    <string name="kg_primary_auth_duplicate_guess_pattern" msgid="3827593245962385968">"አስቀድመው ያንን ሥርዓተ ጥለት ሞክረውታል። ሌላ ይሞክሩ።"</string>
+    <string name="kg_primary_auth_duplicate_guess_password" msgid="3153406042812407458">"አስቀድመው ያንን የይለፍ ቃል ሞክረውታል። ሌላ ይሞክሩ።"</string>
     <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"በተሳሳተ ስርዓተ ጥለት በጣም ብዙ ሙከራዎች"</string>
     <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"በተሳሳተ የይለፍ ቃል በጣም ብዙ ሙከራዎች"</string>
+    <string name="kg_primary_auth_locked_out_pin_shortlink" msgid="1294871994741389848">"በተሳሳተ ፒን በጣም ብዙ ሙከራዎች\n<xliff:g id="SHORTLINK">{shortlink}</xliff:g> ላይ የበለጠ ይወቁ"</string>
+    <string name="kg_primary_auth_locked_out_pattern_shortlink" msgid="5998598232858156495">"በተሳሳተ ሥርዓተ ጥለት በጣም ብዙ ሙከራዎች\n<xliff:g id="SHORTLINK">{shortlink}</xliff:g> ላይ የበለጠ ይወቁ"</string>
+    <string name="kg_primary_auth_locked_out_password_shortlink" msgid="7035847891707609104">"በተሳሳተ የይለፍ ቃል በጣም ብዙ ሙከራዎች\n<xliff:g id="SHORTLINK">{shortlink}</xliff:g> ላይ የበለጠ ይወቁ"</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{በ# ሰከንድ ውስጥ እንደገና ይሞክሩ።}one{በ# ሰከንድ ውስጥ እንደገና ይሞክሩ።}other{በ# ሰከንዶች ውስጥ እንደገና ይሞክሩ።}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_seconds" msgid="5869847493314053274">"{count,plural, =1{በ# ሰከንድ ውስጥ እንደገና ይሞክሩ}one{በ# ሰከንድ ውስጥ እንደገና ይሞክሩ}other{በ# ሰከንዶች ውስጥ እንደገና ይሞክሩ}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_minutes" msgid="6688071439818994316">"{count,plural, =1{በ# ደቂቃ ውስጥ እንደገና ይሞክሩ}one{በ# ደቂቃ ውስጥ እንደገና ይሞክሩ}other{በ# ደቂቃዎች ውስጥ እንደገና ይሞክሩ}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_hours" msgid="4895375498917738857">"{count,plural, =1{በ# ሰዓት ውስጥ እንደገና ይሞክሩ}one{በ# ሰዓት ውስጥ እንደገና ይሞክሩ}other{በ# ሰዓታት ውስጥ እንደገና ይሞክሩ}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_days" msgid="5427787465019979593">"{count,plural, =1{በ# ቀን ውስጥ እንደገና ይሞክሩ}one{በ# ቀን ውስጥ እንደገና ይሞክሩ}other{በ# ቀናት ውስጥ እንደገና ይሞክሩ}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_years" msgid="7115333753941425268">"{count,plural, =1{በ# ዓመት ውስጥ እንደገና ይሞክሩ}one{በ# ዓመት ውስጥ እንደገና ይሞክሩ}other{በ# ዓመታት ውስጥ እንደገና ይሞክሩ}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"የሲም ፒን ያስገቡ።"</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"የ«<xliff:g id="CARRIER">%1$s</xliff:g>» ሲም ፒን ያስገቡ።"</string>
     <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g> መሣሪያን ያለሞባይል አገልግሎት ለመጠቀም eSIMን ያሰናክሉ።"</string>
@@ -112,6 +124,9 @@
     <string name="kg_prompt_reason_restart_pattern" msgid="3321211830602827742">"መሣሪያ እንደገና ከጀመረ በኋላ ስርዓተ ጥለት ያስፈልጋል"</string>
     <string name="kg_prompt_reason_restart_pin" msgid="2672166323886110512">"መሣሪያ እንደገና ከጀመረ በኋላ ፒን ያስፈልጋል"</string>
     <string name="kg_prompt_reason_restart_password" msgid="3967993994418885887">"መሣሪያ እንደገና ከጀመረ በኋላ የይለፍ ቃል ያስፈልጋል"</string>
+    <string name="kg_prompt_reason_signin_pattern" msgid="1650886553162854395">"ለመግባት ሥርዓተ ጥለት ያስፈልጋል"</string>
+    <string name="kg_prompt_reason_signin_pin" msgid="636031498838532631">"ለመግባት ፒን ያስፈልጋል"</string>
+    <string name="kg_prompt_reason_signin_password" msgid="1020939174735616114">"ለመግባት የይለፍ ቃል ያስፈልጋል"</string>
     <string name="kg_prompt_reason_timeout_pattern" msgid="5514969660010197363">"ለተጨማሪ ደህንነት በምትኩ ሥርዓተ ጥለት ይጠቀሙ"</string>
     <string name="kg_prompt_reason_timeout_pin" msgid="4227962059353859376">"ለተጨማሪ ደህንነት በምትኩ ፒን ይጠቀሙ"</string>
     <string name="kg_prompt_reason_timeout_password" msgid="8810879144143933690">"ለተጨማሪ ደህንነት በምትኩ የይለፍ ቃል ይጠቀሙ"</string>

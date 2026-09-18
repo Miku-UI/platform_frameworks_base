@@ -112,15 +112,64 @@ public final class MemInfoReader {
                 + mInfos[Debug.MEMINFO_SWAP_CACHED];
     }
 
+    private long getGpuKernelUsedSizeKb() {
+        long kernelUsed = 0;
+
+        if (Debug.getGpuTotalUsageKb() >= 0) {
+            final long gpuPrivateUsage = Debug.getGpuPrivateMemoryKb();
+            if (gpuPrivateUsage >= 0) {
+                kernelUsed += gpuPrivateUsage;
+            }
+        }
+
+        return kernelUsed;
+    }
+
     /**
      * Amount of RAM that is in use by the kernel for actual allocations.
+     *
+     * While this should also include the amount of memory allocated by kernel
+     * drivers via DMA-BUF, that calculation is expensive (can take up to
+     * 1 second), which would degrade the performance of the callers of this
+     * function. Therefore, it is up to the callers of this function to
+     * supplement this value with the amount of kernel memory allocated via
+     * DMA-BUF if necessary.
      */
     public long getKernelUsedSizeKb() {
         long size = mInfos[Debug.MEMINFO_SHMEM] + mInfos[Debug.MEMINFO_SLAB_UNRECLAIMABLE]
-                + mInfos[Debug.MEMINFO_VM_ALLOC_USED] + mInfos[Debug.MEMINFO_PAGE_TABLES];
+                + mInfos[Debug.MEMINFO_VM_ALLOC_USED] + mInfos[Debug.MEMINFO_PAGE_TABLES]
+                + mInfos[Debug.MEMINFO_SEC_PAGE_TABLES] + mInfos[Debug.MEMINFO_PERCPU];
         if (!Debug.isVmapStack()) {
             size += mInfos[Debug.MEMINFO_KERNEL_STACK];
         }
+
+        // CMA memory can be in one of the following four states:
+        //
+        // 1. Free, in which case it is accounted for as part of MemFree, which
+        //    is already considered in the lostRAM calculation below.
+        //
+        // 2. Allocated as part of a userspace allocation, in which case it is
+        //    already accounted for in the total PSS value that is computed for
+        //    lost RAM calculations.
+        //
+        // 3. Allocated for storing compressed memory (ZRAM) on Android kernels.
+        //    This is accounted for by calculating the amount of memory ZRAM
+        //    consumes and including it in the lost RAM calculations.
+        //
+        // 4. Allocated by a kernel driver, in which case, it is currently not
+        //    attributed to any term that is used in the lost RAM calculation.
+        //    Since the allocations come from a kernel driver, add it to
+        //    kernelUsed.
+        final long kernelCma = Debug.getKernelCmaUsageKb();
+        if(kernelCma > 0) {
+            size += kernelCma;
+        }
+
+        final long kernelGpu = getGpuKernelUsedSizeKb();
+        if (kernelGpu > 0) {
+            size += kernelGpu;
+        }
+
         return size;
     }
 

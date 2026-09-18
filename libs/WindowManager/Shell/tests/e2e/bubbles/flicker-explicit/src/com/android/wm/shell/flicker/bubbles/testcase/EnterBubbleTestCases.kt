@@ -16,61 +16,13 @@
 
 package com.android.wm.shell.flicker.bubbles.testcase
 
-import android.tools.traces.component.ComponentNameMatcher.Companion.BUBBLE
-import org.junit.Test
-
 /**
  * The set to verify launching bubble to the expanded state, which verifies
  * - [BubbleAppBecomesExpandedTestCases]
+ * - [BubbleBecomesVisibleTestCases]
  * - [LauncherAlwaysVisibleTestCases]
- * - Bubble becomes visible
  */
-interface EnterBubbleTestCases : BubbleAppBecomesExpandedTestCases, LauncherAlwaysVisibleTestCases {
-
-// region Bubble related tests
-
-    /**
-     * Verifies the bubble window is visible at the end of transition.
-     */
-    @Test
-    fun bubbleWindowIsVisibleAtEnd() {
-        wmStateSubjectAtEnd.isNonAppWindowVisible(BUBBLE)
-    }
-
-    /**
-     * Verifies the bubble layer is visible at the end of transition.
-     */
-    @Test
-    fun bubbleLayerIsVisibleAtEnd() {
-        layerTraceEntrySubjectAtEnd.isVisible(BUBBLE)
-    }
-
-    /**
-     * Verifies the bubble window becomes visible.
-     */
-    @Test
-    fun bubbleWindowBecomesVisible() {
-        wmTraceSubject
-            // Bubble app window may not have been added to WM hierarchy at the start of the
-            // transition.
-            .isNonAppWindowInvisible(BUBBLE)
-            .then()
-            .isAboveAppWindowVisible(BUBBLE)
-            .forAllEntries()
-    }
-
-    /**
-     * Verifies the bubble layer becomes visible.
-     */
-    @Test
-    fun bubbleLayerBecomesVisible() {
-        layersTraceSubject
-            // Bubble may not appear at the start of the transition.
-            .isInvisible(BUBBLE)
-            .then()
-            .isVisible(BUBBLE)
-            .forAllEntries()
-    }
-
-// endregion
-}
+interface EnterBubbleTestCases :
+    BubbleAppBecomesExpandedTestCases,
+    BubbleBecomesVisibleTestCases,
+    LauncherAlwaysVisibleTestCases

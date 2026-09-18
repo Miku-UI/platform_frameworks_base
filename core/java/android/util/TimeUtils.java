@@ -77,7 +77,7 @@ public class TimeUtils {
      * @hide
      */
     public static final Instant MIN_USE_DATE_OF_TIMEZONE =
-            Instant.ofEpochMilli(1546300800000L); // 1/1/2019 00:00 UTC
+            Instant.ofEpochMilli(1711846800000L); // 31 Mar 2024 01:00 UTC
 
     /**
      * Tries to return a time zone that would have had the specified offset

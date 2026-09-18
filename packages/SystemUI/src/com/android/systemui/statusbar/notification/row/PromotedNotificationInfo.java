@@ -22,6 +22,7 @@ import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 import android.text.SpannableStringBuilder;
@@ -33,12 +34,10 @@ import android.widget.TextView;
 
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.UiEventLogger;
+import com.android.systemui.notifications.content.icon.AppIconProvider;
 import com.android.systemui.res.R;
-import com.android.systemui.statusbar.notification.AssistantFeedbackController;
 import com.android.systemui.statusbar.notification.collection.EntryAdapter;
-import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.promoted.domain.interactor.PackageDemotionInteractor;
-import com.android.systemui.statusbar.notification.row.icon.AppIconProvider;
 import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyleProvider;
 
 /**
@@ -68,7 +67,6 @@ public class PromotedNotificationInfo extends NotificationInfo {
             String pkg,
             NotificationListenerService.Ranking ranking,
             StatusBarNotification sbn,
-            NotificationEntry entry,
             EntryAdapter entryAdapter,
             OnSettingsClickListener onSettingsClick,
             OnAppSettingsClickListener onAppSettingsClick,
@@ -78,14 +76,13 @@ public class PromotedNotificationInfo extends NotificationInfo {
             boolean isNonblockable,
             boolean isDismissable,
             boolean wasShownHighPriority,
-            AssistantFeedbackController assistantFeedbackController,
             MetricsLogger metricsLogger, OnClickListener onCloseClick) throws RemoteException {
         super.bindNotification(pm, iNotificationManager, appIconProvider, iconStyleProvider,
                 onUserInteractionCallback, channelEditorDialogController,
                 packageDemotionInteractor, pkg, ranking, sbn,
-                entry, entryAdapter, onSettingsClick, onAppSettingsClick, feedbackClickListener,
+                entryAdapter, onSettingsClick, onAppSettingsClick, feedbackClickListener,
                 uiEventLogger, isDeviceProvisioned, isNonblockable, isDismissable,
-                wasShownHighPriority, assistantFeedbackController, metricsLogger, onCloseClick);
+                wasShownHighPriority, metricsLogger, onCloseClick);
 
         mNotificationManager = iNotificationManager;
 
@@ -93,11 +90,21 @@ public class PromotedNotificationInfo extends NotificationInfo {
 
         mUiEventLogger = uiEventLogger;
 
-        bindDemote(sbn, pkg);
+        if (canDemote(sbn)) {
+            bindDemote(sbn, pkg);
+        } else {
+            findViewById(R.id.live_notifications_group).setVisibility(GONE);
+        }
 
         // Override the visibility of elements we don't want for the promoted notification
         findViewById(R.id.interruptiveness_settings).setVisibility(GONE);
         findViewById(R.id.turn_off_notifications).setVisibility(GONE);
+    }
+
+    private boolean canDemote(StatusBarNotification sbn) {
+        // RON permission for a package with sharedUserId="android.uid.system" cannot be effectively
+        // taken away (PermissionManager always returns GRANTED).
+        return !UserHandle.isSameApp(sbn.getUid(), android.os.Process.SYSTEM_UID);
     }
 
     protected void bindDemote(StatusBarNotification sbn, String packageName) {

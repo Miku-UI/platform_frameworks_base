@@ -18,18 +18,35 @@ package com.android.server.vibrator;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.hardware.vibrator.CompositeEffect;
+import android.hardware.vibrator.HapticGeneratorConfig;
+import android.hardware.vibrator.OneShotPrimitive;
+import android.hardware.vibrator.PwleV2Primitive;
+import android.hardware.vibrator.VibrationEffectContent;
+import android.media.audio.common.AidlConversion;
+import android.os.BadParcelableException;
 import android.os.DeadObjectException;
 import android.os.IBinder;
+import android.os.Parcelable;
+import android.os.ParcelableHolder;
 import android.os.RemoteException;
+import android.os.vibrator.HapticGeneratorSession;
+import android.os.vibrator.PrebakedSegment;
+import android.os.vibrator.PrimitiveSegment;
+import android.os.vibrator.PwleSegment;
+import android.os.vibrator.StepSegment;
+import android.os.vibrator.VibrationEffectSegment;
 import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
 
+import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /** Helpers for interacting with VINTF objects. */
 class VintfUtils {
+    private static final String TAG = "VintfUtils";
 
     /** {@link Supplier} that takes a VINTF object and throw {@link RemoteException} */
     @FunctionalInterface
@@ -170,6 +187,95 @@ class VintfUtils {
             errorHandler.accept(e);
         }
         return false;
+    }
+
+    /**
+     * Converts an array of {@link VibrationEffectSegment} into a list of HAL
+     * {@link VibrationEffectContent} variants.
+     *
+     * <p>This supports converting {@link PrebakedSegment}, {@link PrimitiveSegment},
+     * {@link StepSegment}, and {@link PwleSegment}.
+     *
+     * @param segments The vibration effect segments to convert.
+     * @return A list of HAL VibrationEffectContent variants, or null if the conversion fails due to
+     *         an unsupported segment type.
+     */
+    @Nullable
+    static VibrationEffectContent[] toHalVibrationEffectContent(
+            @NonNull VibrationEffectSegment[] segments) {
+
+        ArrayList<VibrationEffectContent> effects = new ArrayList<>();
+
+        for (int i = 0; i < segments.length; i++) {
+            VibrationEffectSegment segment = segments[i];
+            switch (segment) {
+                case PrebakedSegment prebaked -> {
+                    android.hardware.vibrator.PredefinedEffect predefinedEffect =
+                            new android.hardware.vibrator.PredefinedEffect();
+                    predefinedEffect.effect = prebaked.getEffectId();
+                    predefinedEffect.strength = (byte) prebaked.getEffectStrength();
+                    effects.add(VibrationEffectContent.predefined(predefinedEffect));
+                }
+                case PrimitiveSegment primitive -> {
+                    CompositeEffect compositeEffect = new CompositeEffect();
+                    compositeEffect.primitive = primitive.getPrimitiveId();
+                    compositeEffect.scale = primitive.getScale();
+                    compositeEffect.delayMs = primitive.getDelay();
+                    effects.add(VibrationEffectContent.composite(compositeEffect));
+                }
+                case PwleSegment pwleSegment -> {
+                    PwleV2Primitive pwle = new PwleV2Primitive();
+
+                    if (i == 0 || !(segments[i - 1] instanceof PwleSegment)) {
+                        pwle.amplitude = pwleSegment.getStartAmplitude();
+                        pwle.frequencyHz = pwleSegment.getStartFrequencyHz();
+                        pwle.timeMillis = 0;
+                        effects.add(VibrationEffectContent.pwleV2Primitive(pwle));
+                    }
+
+                    pwle.amplitude = pwleSegment.getEndAmplitude();
+                    pwle.frequencyHz = pwleSegment.getEndFrequencyHz();
+                    pwle.timeMillis = (int) pwleSegment.getDuration();
+                    effects.add(VibrationEffectContent.pwleV2Primitive(pwle));
+                }
+                case StepSegment stepSegment -> {
+                    OneShotPrimitive oneShotPrimitive = new OneShotPrimitive();
+                    oneShotPrimitive.amplitude = stepSegment.getAmplitude();
+                    oneShotPrimitive.timeMillis = (int) stepSegment.getDuration();
+                    effects.add(VibrationEffectContent.oneShotPrimitive(
+                            oneShotPrimitive));
+                }
+                default -> {
+                    Slog.w(TAG, "Unsupported segment type for haptic generator stream: "
+                            + segment.getClass().getSimpleName());
+                    return null; // Fail the entire conversion if one segment is unsupported
+                }
+            }
+        }
+
+        return effects.toArray(new VibrationEffectContent[0]);
+    }
+
+    /**
+     * Converts a {@link HapticGeneratorSession.Config} into a {@link HapticGeneratorConfig}.
+     *
+     * @param config The session config.
+     * @return A converted HAL HapticGeneratorConfig.
+     * @throws IllegalArgumentException on conversion errors.
+     * @throws BadParcelableException if vendor parcelable is invalid.
+     */
+    @NonNull
+    static HapticGeneratorConfig toHalHapticGeneratorConfig(
+            @NonNull HapticGeneratorSession.Config config) {
+        HapticGeneratorConfig result = new HapticGeneratorConfig();
+        result.audioFormat = AidlConversion.api2aidl_AudioFormat_AudioConfigBase(
+                config.getAudioFormat(), /* isInput= */ false);
+        ParcelableHolder extension = config.getVendorExtension();
+        if (extension != null) {
+            // This will fail if parcelable stability < Parcelable.PARCELABLE_STABILITY_VINTF
+            result.vendorExtension.setParcelable(extension.getParcelable(Parcelable.class));
+        }
+        return result;
     }
 
     // Non-instantiable helper class.

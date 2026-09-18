@@ -179,6 +179,25 @@ public class QuickAccessWalletController {
     }
 
     /**
+     * Sets the double tap power button gesture to open the wallet, if the wallet service is
+     * available.
+     *
+     * @return true if the wallet is enabled and the setting was updated, false otherwise.
+     */
+    @WorkerThread
+    public boolean setupDoubleTapPowerButtonToOpenWallet() {
+        updateWalletPreference();
+        if (!mWalletEnabled) {
+            Log.i(TAG, "Wallet is not enabled, not setting double tap power button gesture.");
+            return false;
+        }
+        // 1 = Wallet launch (Settings.Secure.DOUBLE_TAP_POWER_BUTTON_GESTURE)
+        Settings.Secure.putInt(
+                mContext.getContentResolver(), Settings.Secure.DOUBLE_TAP_POWER_BUTTON_GESTURE, 1);
+        return true;
+    }
+
+    /**
      * Query the wallet cards from {@link QuickAccessWalletClient}.
      * This should not be called on the main thread.
      *

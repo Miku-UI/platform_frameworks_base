@@ -48,6 +48,7 @@ key 3 {
     base:                               '3'
     shift:                              '#'
     shift+capslock:                     '\u05b3'
+    ralt:                               '\u20ac'
 }
 
 key 4 {

@@ -9,3 +9,4 @@ CarSystemUIRavenTests
 PowerStatsTestsRavenwood
 CarServiceHostUnitTest
 CarLibHostUnitTest
+CtsViewTestCasesRavenwood_exp

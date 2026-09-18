@@ -1,4 +1,5 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package omapi.uuid.map.config {
 
   public class RefDo {
@@ -16,7 +17,7 @@ package omapi.uuid.map.config {
 
   public static class RefDo.UuidRefDo.Uids {
     ctor public RefDo.UuidRefDo.Uids();
-    method public java.util.List<java.lang.Short> getUid();
+    method public java.util.List<Short> getUid();
   }
 
   public class XmlParser {

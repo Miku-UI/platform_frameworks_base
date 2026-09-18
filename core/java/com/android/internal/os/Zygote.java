@@ -204,6 +204,9 @@ public final class Zygote {
     /** Load 4KB ELF files on 16KB device using appcompat mode */
     public static final int ENABLE_PAGE_SIZE_APP_COMPAT = 1 << 26;
 
+    /** Whether this process sends a copy of its binder transactions to the PCC audit log. */
+    public static final int AUDIT_OUTGOING_TRANSACTIONS = 1 << 27;
+
     /** No external storage should be mounted. */
     public static final int MOUNT_EXTERNAL_NONE = IVold.REMOUNT_MODE_NONE;
     /** Default external storage should be mounted. */
@@ -305,6 +308,11 @@ public final class Zygote {
     public static final String SECONDARY_SOCKET_NAME = "zygote_secondary";
 
     /**
+     * @hide for internal use only.
+     */
+    public static final String NATIVE_SOCKET_NAME = "zygote_next";
+
+    /**
      * @hide for internal use only
      */
     public static final String USAP_POOL_PRIMARY_SOCKET_NAME = "usap_pool_primary";
@@ -376,8 +384,7 @@ public final class Zygote {
         boolean useFifoUi = SystemProperties.getInt("sys.use_fifo_ui", 0) == 1;
         int pid = nativeForkAndSpecialize(
                 uid, gid, gids, runtimeFlags, rlimits, mountExternal, seInfo, niceName, fdsToClose,
-                fdsToIgnore, startChildZygote, instructionSet, appDataDir, isTopApp,
-                com.android.internal.os.Flags.zygoteEarlyFifoBoost() ? useFifoUi : false,
+                fdsToIgnore, startChildZygote, instructionSet, appDataDir, isTopApp, useFifoUi,
                 pkgDataInfoList, allowlistedDataInfoList, bindMountAppDataDirs,
                 bindMountAppStorageDirs, bindMountSyspropOverrides);
         if (pid == 0) {
@@ -895,6 +902,7 @@ public final class Zygote {
 
             return ZygoteInit.zygoteInit(args.mTargetSdkVersion,
                                          args.mDisabledCompatChanges,
+                                         args.mEnabledCompatChanges,
                                          args.mRemainingArgs,
                                          null /* classLoader */);
         } finally {
@@ -1473,6 +1481,7 @@ public final class Zygote {
         if (enableNativeHeapZeroInit(info, processInfo, platformCompat)) {
             runtimeFlags |= NATIVE_HEAP_ZERO_INIT_ENABLED;
         }
+
         return runtimeFlags;
     }
 

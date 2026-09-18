@@ -16,7 +16,7 @@
 package com.android.app.concurrent.benchmark.event
 
 import com.android.app.concurrent.benchmark.base.BaseSchedulerBenchmark
-import com.android.app.concurrent.benchmark.util.ThreadFactory
+import com.android.app.concurrent.benchmark.util.ThreadBuilder
 import com.android.app.concurrent.benchmark.util.dbg
 import org.junit.After
 import org.junit.Before
@@ -102,7 +102,7 @@ interface DistinctUntilChangedOperator<E : Any> {
 }
 
 abstract class BaseEventBenchmark<T : Any, P : EventContext>(
-    threadParam: ThreadFactory<Any, T>,
+    threadParam: ThreadBuilder<T>,
     val build: (T) -> P,
 ) : BaseSchedulerBenchmark<T>(threadParam) {
 

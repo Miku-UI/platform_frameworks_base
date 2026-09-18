@@ -28,14 +28,6 @@ flag {
 }
 
 flag {
-    name: "enable_clear_pipe_after_restore_file"
-    namespace: "onboarding"
-    description: "Enables clearing the pipe buffer after restoring a single file to a BackupAgent."
-    bug: "320633449"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "enable_v_to_u_restore_for_system_components_in_allowlist"
     namespace: "onboarding"
     description: "Enables system components to opt in to support restore in V to U downgrade "
@@ -94,6 +86,7 @@ flag {
     description: "Enables delayed restore API for system components"
     bug: "399038494"
     is_fixed_read_only: true
+    is_exported: true
 }
 
 flag {
@@ -102,4 +95,14 @@ flag {
     description: "Enables getting the backup manager monitor from the transport "
             "on KV backup and logging agent logs with the proper flow id."
     bug: "443738546"
+}
+
+flag {
+    name: "enable_synchronous_restore_session_cleanup"
+    namespace: "onboarding"
+    description: "Make restore session cleanup synchronous to fix flaky backup tests"
+    bug: "493162233"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

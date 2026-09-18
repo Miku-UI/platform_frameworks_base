@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<resources>
+    <string name="preference_screen_purpose" translatable="false">Screen purpose</string>
+    <string name="preference_purpose1" translatable="false">Preference purpose 1</string>
+    <string name="preference_purpose2" translatable="false">Preference purpose 2</string>
+    <string name="preconditions_description1" translatable="false">Preconditions description 1</string>
+    <string name="preconditions_description2" translatable="false">Preconditions description 2</string>
+    <string name="preconditions_hardware_unsupported_message" translatable="false">Plug in the device</string>
+    <string name="preconditions_enterprise_restriction_message" translatable="false">Blocked by admin</string>
+    <string name="preconditions_custom_message" translatable="false">Custom preconditions message</string>
+    <string name="preconditions_invalid_preference_message" translatable="false">Requesting invalid preference</string>
+    <string name="preconditions_missing_permission_message" translatable="false">You miss an important permission</string>
+
+    <string name="value_preconditions_even_number_description" translatable="false">Value\'s digits must add up to even number</string>
+    <string name="value_preconditions_disallow_custom_reason" translatable="false">Wrong value</string>
+    <string name="value_preconditions_description1" translatable="false">Value Preconditions Description 1</string>
+    <string name="value_preconditions_description2" translatable="false">Value Preconditions Description 2</string>
+
+    <string name="warning_preconditions_description1" translatable="false">Warning Preconditions Description 1</string>
+    <string name="warning_preconditions_description2" translatable="false">Warning Preconditions Description 2</string>
+    <string name="warning_message1" translatable="false">Warning Message 1</string>
+    <string name="warning_message2" translatable="false">Warning Message 2</string>
+
+    <string name="parameter_purpose1" translatable="false">Parameter purpose 1</string>
+    <string name="parameter_purpose2" translatable="false">Parameter purpose 2</string>
+    <string name="parameter_type_description" translatable="false">Parameter generated type</string>
+
+    <string name="required_param_purpose" translatable="false">A required parameter</string>
+    <string name="optional_param_purpose" translatable="false">An optional parameter</string>
+
+    <string name="enum_api_purpose_message1" translatable="false">Enum purpose message 1</string>
+    <string name="enum_api_purpose_message2" translatable="false">Enum purpose message 2</string>
+    <string name="enum_api_purpose_message3" translatable="false">Enum purpose message 3</string>
+
+    <string name="test_int_enum_description" translatable="false">Test Int enum</string>
+</resources>

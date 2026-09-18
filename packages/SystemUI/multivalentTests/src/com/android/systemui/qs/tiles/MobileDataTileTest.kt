@@ -34,12 +34,14 @@ import com.android.systemui.qs.tiles.base.shared.model.QSTileConfigProvider
 import com.android.systemui.qs.tiles.base.shared.model.QSTileConfigTestBuilder
 import com.android.systemui.qs.tiles.base.shared.model.QSTileState
 import com.android.systemui.qs.tiles.base.shared.model.QSTileUIConfig
+import com.android.systemui.qs.tiles.dialog.InternetDetailsViewModel
 import com.android.systemui.qs.tiles.impl.cell.domain.interactor.MobileDataTileDataInteractor
 import com.android.systemui.qs.tiles.impl.cell.domain.interactor.MobileDataTileUserActionInteractor
-import com.android.systemui.qs.tiles.impl.cell.domain.model.MobileDataTileIcon
 import com.android.systemui.qs.tiles.impl.cell.domain.model.MobileDataTileModel
 import com.android.systemui.qs.tiles.impl.cell.ui.mapper.MobileDataTileMapper
 import com.android.systemui.res.R
+import com.android.systemui.testKosmos
+import com.android.systemui.user.data.repository.fakeUserRepository
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
@@ -59,6 +61,7 @@ import org.mockito.kotlin.whenever
 @RunWith(AndroidJUnit4::class)
 @RunWithLooper(setAsMainLooper = true)
 class MobileDataTileTest : SysuiTestCase() {
+    private val kosmos = testKosmos()
 
     @Mock private lateinit var host: QSHost
     @Mock private lateinit var uiEventLogger: QsEventLogger
@@ -72,7 +75,9 @@ class MobileDataTileTest : SysuiTestCase() {
     @Mock private lateinit var dataInteractor: MobileDataTileDataInteractor
     @Mock private lateinit var tileMapper: MobileDataTileMapper
     @Mock private lateinit var userActionInteractor: MobileDataTileUserActionInteractor
+    @Mock private lateinit var internetDetailsViewModelFactory: InternetDetailsViewModel.Factory
 
+    private val userRepository = kosmos.fakeUserRepository
     private lateinit var testableLooper: TestableLooper
     private lateinit var underTest: MobileDataTile
     private val tileDataFlow =
@@ -80,7 +85,7 @@ class MobileDataTileTest : SysuiTestCase() {
             MobileDataTileModel(
                 isSimActive = false,
                 isEnabled = false,
-                icon = MobileDataTileIcon.SignalIcon(4),
+                isAirplaneModeEnabled = false,
             )
         )
 
@@ -115,6 +120,7 @@ class MobileDataTileTest : SysuiTestCase() {
                 uiEventLogger,
                 testableLooper.looper,
                 Handler(testableLooper.looper),
+                userRepository,
                 FalsingManagerFake(),
                 metricsLogger,
                 statusBarStateController,
@@ -124,6 +130,7 @@ class MobileDataTileTest : SysuiTestCase() {
                 dataInteractor,
                 tileMapper,
                 userActionInteractor,
+                internetDetailsViewModelFactory,
             )
 
         underTest.initialize()
@@ -144,7 +151,7 @@ class MobileDataTileTest : SysuiTestCase() {
             MobileDataTileModel(
                 isSimActive = true,
                 isEnabled = true,
-                icon = MobileDataTileIcon.SignalIcon(4),
+                isAirplaneModeEnabled = false,
             )
         // Mock a placeholder state to be returned by the mapper
         whenever(tileMapper.map(any(), any())).thenReturn(mock(QSTileState::class.java))
@@ -168,9 +175,20 @@ class MobileDataTileTest : SysuiTestCase() {
     }
 
     @Test
+    fun secondaryClick_callsUserActionInteractor() = runTest {
+        // Act: Use the public secondaryClick() method
+        underTest.secondaryClick(mock(Expandable::class.java))
+        testableLooper.processAllMessages()
+
+        // Assert
+        verify(userActionInteractor).handleSecondaryClick(any())
+    }
+
+    @Test
     fun isAvailable_fromDataInteractor_isTrue() {
         // Arrange
-        whenever(dataInteractor.isAvailable()).thenReturn(true)
+        userRepository.mainUserId = host.userId
+        whenever(dataInteractor.isTileSupported()).thenReturn(true)
 
         // Act & Assert
         assertThat(underTest.isAvailable).isTrue()
@@ -179,7 +197,18 @@ class MobileDataTileTest : SysuiTestCase() {
     @Test
     fun isAvailable_fromDataInteractor_isFalse() {
         // Arrange
-        whenever(dataInteractor.isAvailable()).thenReturn(false)
+        userRepository.mainUserId = host.userId
+        whenever(dataInteractor.isTileSupported()).thenReturn(false)
+
+        // Act & Assert
+        assertThat(underTest.isAvailable).isFalse()
+    }
+
+    @Test
+    fun isAvailable_notMainUser_isFalse() {
+        // Arrange
+        userRepository.mainUserId = host.userId + 1
+        whenever(dataInteractor.isTileSupported()).thenReturn(true)
 
         // Act & Assert
         assertThat(underTest.isAvailable).isFalse()

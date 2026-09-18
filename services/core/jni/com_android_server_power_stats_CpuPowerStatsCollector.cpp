@@ -26,7 +26,8 @@
 
 namespace android {
 
-#define JAVA_CLASS_CPU_POWER_STATS_COLLECTOR "com/android/server/power/stats/CpuPowerStatsCollector"
+#define JAVA_CLASS_CPU_POWER_STATS_COLLECTOR \
+    "com/android/server/power/stats/CpuTimeInStateCollector"
 #define JAVA_CLASS_KERNEL_CPU_STATS_READER \
     JAVA_CLASS_CPU_POWER_STATS_COLLECTOR "$KernelCpuStatsReader"
 #define JAVA_CLASS_KERNEL_CPU_STATS_CALLBACK \

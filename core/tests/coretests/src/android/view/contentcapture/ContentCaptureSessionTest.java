@@ -271,6 +271,11 @@ public class ContentCaptureSessionTest {
         }
 
         @Override
+        void internalNotifyContentInteractionEvent(int sessionId, @NonNull AutofillId autofillId) {
+            throw new UnsupportedOperationException("should not have been called");
+        }
+
+        @Override
         void internalNotifyChildSessionStarted(int parentSessionId, int childSessionId,
                 @NonNull ContentCaptureContext clientContext) {
             throw new UnsupportedOperationException("should not have been called");
@@ -294,6 +299,12 @@ public class ContentCaptureSessionTest {
         @Override
         public void notifyContentCaptureEvents(
                 @NonNull SparseArray<ArrayList<Object>> contentCaptureEvents) {
+
+        }
+
+        @Override
+        public void notifyContentCaptureInteractionEvents(
+                @NonNull SparseArray<ArrayList<Object>> contentCaptureInteractionEvents) {
 
         }
 

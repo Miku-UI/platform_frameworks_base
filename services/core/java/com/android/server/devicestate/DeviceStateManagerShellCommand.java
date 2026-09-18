@@ -202,7 +202,10 @@ public class DeviceStateManagerShellCommand extends ShellCommand {
         pw.println("  help");
         pw.println("    Print this help text.");
         pw.println("  state [reset|OVERRIDE_DEVICE_STATE]");
-        pw.println("    Return or override device state.");
+        pw.println("    Return or override emulated device state. "
+                + "This will not change physical state of device");
+        pw.println("  base-state [reset|OVERRIDE_DEVICE_STATE]");
+        pw.println("    Return or override physical device state.");
         pw.println("  print-state");
         pw.println("    Return the current device state.");
         pw.println("  print-states");

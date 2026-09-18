@@ -16,6 +16,7 @@
 
 package com.android.systemui.statusbar.data.repository
 
+import android.content.res.Configuration
 import android.graphics.Rect
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
@@ -29,23 +30,21 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.statusbar.LetterboxDetails
 import com.android.internal.view.AppearanceRegion
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
+import com.android.systemui.common.ui.domain.interactor.configurationInteractor
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.dump.dumpManager
 import com.android.systemui.statusbar.CommandQueue
 import com.android.systemui.statusbar.StatusBarAlwaysUseRegionSampling
 import com.android.systemui.statusbar.StatusBarRegionSampling
-import com.android.systemui.statusbar.core.StatusBarRootModernization
 import com.android.systemui.statusbar.data.model.StatusBarMode
 import com.android.systemui.statusbar.layout.BoundsPair
 import com.android.systemui.statusbar.layout.LetterboxAppearance
 import com.android.systemui.statusbar.layout.LetterboxAppearanceCalculator
 import com.android.systemui.statusbar.layout.StatusBarBoundsProvider
 import com.android.systemui.statusbar.phone.fragment.dagger.HomeStatusBarComponent
-import com.android.systemui.statusbar.phone.ongoingcall.DisableChipsModernization
-import com.android.systemui.statusbar.phone.ongoingcall.EnableChipsModernization
-import com.android.systemui.statusbar.phone.ongoingcall.data.repository.ongoingCallRepository
-import com.android.systemui.statusbar.phone.ongoingcall.shared.model.OngoingCallModel
-import com.android.systemui.statusbar.phone.ongoingcall.shared.model.inCallModel
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.argumentCaptor
@@ -53,14 +52,20 @@ import com.android.systemui.util.mockito.capture
 import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
+import com.android.wm.shell.desktopmode.api.DesktopMode
+import com.android.wm.shell.shared.desktopmode.DesktopScrimListener
 import com.google.common.truth.Truth.assertThat
+import java.util.Optional
+import java.util.concurrent.Executor
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
+import org.mockito.kotlin.clearInvocations
+import org.mockito.kotlin.never
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -74,7 +79,7 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
         mock<HomeStatusBarComponent>().also {
             whenever(it.boundsProvider).thenReturn(statusBarBoundsProvider)
         }
-    private val ongoingCallRepository = kosmos.ongoingCallRepository
+    private val desktopMode = mock<DesktopMode>()
 
     private val underTest by lazy {
         StatusBarModePerDisplayRepositoryImpl(
@@ -82,7 +87,10 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
             DISPLAY_ID,
             commandQueue,
             letterboxAppearanceCalculator,
-            ongoingCallRepository,
+            kosmos.dumpManager,
+            Optional.of(desktopMode),
+            Executor { it.run() },
+            kosmos.configurationInteractor,
         )
     }
 
@@ -114,19 +122,22 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(StatusBarRootModernization.FLAG_NAME)
-    fun stop_flagOn_boundsProviderStopped() {
+    fun stop_boundsProviderStopped() {
         underTest.stop()
 
         verify(statusBarBoundsProvider).stop()
     }
 
     @Test
-    @DisableFlags(StatusBarRootModernization.FLAG_NAME)
-    fun stop_flagOff_boundsProviderNotStopped() {
+    fun start_registersDumpable() {
+        verify(kosmos.dumpManager).registerCriticalDumpable(any(), eq(underTest))
+    }
+
+    @Test
+    fun stop_unregistersDumpable() {
         underTest.stop()
 
-        verify(statusBarBoundsProvider, never()).stop()
+        verify(kosmos.dumpManager).unregisterDumpable(any())
     }
 
     @Test
@@ -486,19 +497,6 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableChipsModernization
-    fun statusBarMode_ongoingCallAndFullscreen_semiTransparent() =
-        testScope.runTest {
-            val latest by collectLastValue(underTest.statusBarAppearance)
-
-            ongoingCallRepository.setOngoingCallState(inCallModel(startTimeMs = 34))
-            onSystemBarAttributesChanged(requestedVisibleTypes = WindowInsets.Type.navigationBars())
-
-            assertThat(latest!!.mode).isEqualTo(StatusBarMode.SEMI_TRANSPARENT)
-        }
-
-    @Test
-    @EnableChipsModernization
     fun statusBarMode_ongoingProcessRequiresStatusBarVisible_andFullscreen_semiTransparent() =
         testScope.runTest {
             val latest by collectLastValue(underTest.statusBarAppearance)
@@ -510,23 +508,6 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableChipsModernization
-    fun statusBarMode_ongoingCallButNotFullscreen_matchesAppearance() =
-        testScope.runTest {
-            val latest by collectLastValue(underTest.statusBarAppearance)
-
-            ongoingCallRepository.setOngoingCallState(inCallModel(startTimeMs = 789))
-
-            onSystemBarAttributesChanged(
-                requestedVisibleTypes = WindowInsets.Type.statusBars(),
-                appearance = APPEARANCE_OPAQUE_STATUS_BARS,
-            )
-
-            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE)
-        }
-
-    @Test
-    @EnableChipsModernization
     fun statusBarMode_ongoingProcessRequiresStatusBarVisible_butNotFullscreen_matchesAppearance() =
         testScope.runTest {
             val latest by collectLastValue(underTest.statusBarAppearance)
@@ -538,26 +519,10 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
                 appearance = APPEARANCE_OPAQUE_STATUS_BARS,
             )
 
-            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE)
+            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE_DARK)
         }
 
     @Test
-    @DisableChipsModernization
-    fun statusBarMode_fullscreenButNotOngoingCall_matchesAppearance() =
-        testScope.runTest {
-            val latest by collectLastValue(underTest.statusBarAppearance)
-
-            ongoingCallRepository.setOngoingCallState(OngoingCallModel.NoCall)
-            onSystemBarAttributesChanged(
-                requestedVisibleTypes = WindowInsets.Type.navigationBars(),
-                appearance = APPEARANCE_OPAQUE_STATUS_BARS,
-            )
-
-            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE)
-        }
-
-    @Test
-    @EnableChipsModernization
     fun statusBarMode_fullscreen_butNotOngoingProcessRequiresStatusBarVisible_matchesAppearance() =
         testScope.runTest {
             val latest by collectLastValue(underTest.statusBarAppearance)
@@ -568,7 +533,7 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
                 appearance = APPEARANCE_OPAQUE_STATUS_BARS,
             )
 
-            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE)
+            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE_DARK)
         }
 
     @Test
@@ -611,7 +576,7 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
 
             onSystemBarAttributesChanged(appearance = APPEARANCE_OPAQUE_STATUS_BARS)
 
-            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE)
+            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE_DARK)
         }
 
     @Test
@@ -632,6 +597,124 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
             onSystemBarAttributesChanged(appearance = 0)
 
             assertThat(latest!!.mode).isEqualTo(StatusBarMode.TRANSPARENT)
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_OPAQUE_STATUS_BAR)
+    fun statusBarMode_useOpaqueBackground_darkTheme_opaqueDark() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.statusBarAppearance)
+            kosmos.fakeConfigurationRepository.onConfigurationChange(
+                Configuration().apply { uiMode = Configuration.UI_MODE_NIGHT_YES }
+            )
+
+            onSystemBarAttributesChanged()
+            runCurrent()
+
+            val listenerCaptor = argumentCaptor<DesktopScrimListener>()
+            verify(desktopMode).addDesktopScrimListener(listenerCaptor.capture(), any())
+            val scrimListener = listenerCaptor.value
+
+            scrimListener.onDesktopScrimEffectChanged(DISPLAY_ID, /* applyLightOutEffect= */ true)
+
+            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE_DARK)
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_OPAQUE_STATUS_BAR)
+    fun statusBarMode_useOpaqueBackground_lightTheme_opaqueLight() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.statusBarAppearance)
+            kosmos.fakeConfigurationRepository.onConfigurationChange(
+                Configuration().apply { uiMode = Configuration.UI_MODE_NIGHT_NO }
+            )
+
+            onSystemBarAttributesChanged()
+            runCurrent()
+
+            val listenerCaptor = argumentCaptor<DesktopScrimListener>()
+            verify(desktopMode).addDesktopScrimListener(listenerCaptor.capture(), any())
+            val scrimListener = listenerCaptor.value
+
+            scrimListener.onDesktopScrimEffectChanged(DISPLAY_ID, /* applyLightOutEffect= */ true)
+
+            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE_LIGHT)
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_OPAQUE_STATUS_BAR)
+    fun statusBarMode_flagDisabled_doesNotUseOpaqueBackground() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.statusBarAppearance)
+            kosmos.fakeConfigurationRepository.onConfigurationChange(
+                Configuration().apply { uiMode = Configuration.UI_MODE_NIGHT_YES }
+            )
+
+            // Re-initialize underTest since the flag was evaluated in start()
+            underTest.stop()
+            clearInvocations(commandQueue)
+            underTest.start()
+
+            // Verify that the listener was NOT added to desktopMode
+            verify(desktopMode, never()).addDesktopScrimListener(any(), any())
+
+            // It should fall back to the standard appearance based mode
+            onSystemBarAttributesChanged(appearance = APPEARANCE_OPAQUE_STATUS_BARS)
+
+            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE_DARK)
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_OPAQUE_STATUS_BAR)
+    fun statusBarMode_useOpaqueBackground_themeChanges_updatesMode() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.statusBarAppearance)
+            kosmos.fakeConfigurationRepository.onConfigurationChange(
+                Configuration().apply { uiMode = Configuration.UI_MODE_NIGHT_YES }
+            )
+            onSystemBarAttributesChanged()
+            runCurrent()
+
+            val listenerCaptor = argumentCaptor<DesktopScrimListener>()
+            verify(desktopMode).addDesktopScrimListener(listenerCaptor.capture(), any())
+            val scrimListener = listenerCaptor.value
+            scrimListener.onDesktopScrimEffectChanged(DISPLAY_ID, /* applyLightOutEffect= */ true)
+
+            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE_DARK)
+
+            kosmos.fakeConfigurationRepository.onConfigurationChange(
+                Configuration().apply { uiMode = Configuration.UI_MODE_NIGHT_NO }
+            )
+
+            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE_LIGHT)
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_OPAQUE_STATUS_BAR)
+    fun statusBarMode_flagDisabled_themeChanges_doesNotUpdateMode() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.statusBarAppearance)
+            kosmos.fakeConfigurationRepository.onConfigurationChange(
+                Configuration().apply { uiMode = Configuration.UI_MODE_NIGHT_YES }
+            )
+
+            // We need to re-init underTest to ensure the listener is NOT added
+            // naturally because the flag is disabled.
+            underTest.stop()
+            clearInvocations(commandQueue)
+            underTest.start()
+
+            onSystemBarAttributesChanged(appearance = APPEARANCE_OPAQUE_STATUS_BARS)
+
+            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE_DARK)
+
+            // Emit a new configuration to simulate a theme change
+            kosmos.fakeConfigurationRepository.onConfigurationChange(
+                Configuration().apply { uiMode = Configuration.UI_MODE_NIGHT_NO }
+            )
+
+            // Since flag is disabled, it shouldn't affect mode if appearance is opaque
+            assertThat(latest!!.mode).isEqualTo(StatusBarMode.OPAQUE_DARK)
         }
 
     private fun onSystemBarAttributesChanged(

@@ -65,7 +65,7 @@ InputQueue::~InputQueue() {
 
 void InputQueue::attachLooper(Looper* looper, int ident,
         ALooper_callbackFunc callback, void* data) {
-    Mutex::Autolock _l(mLock);
+    std::scoped_lock _l(mLock);
     for (size_t i = 0; i < mAppLoopers.size(); i++) {
         if (looper == mAppLoopers[i]) {
             return;
@@ -76,7 +76,7 @@ void InputQueue::attachLooper(Looper* looper, int ident,
 }
 
 void InputQueue::detachLooper() {
-    Mutex::Autolock _l(mLock);
+    std::scoped_lock _l(mLock);
     detachLooperLocked();
 }
 
@@ -88,12 +88,12 @@ void InputQueue::detachLooperLocked() {
 }
 
 bool InputQueue::hasEvents() {
-    Mutex::Autolock _l(mLock);
+    std::scoped_lock _l(mLock);
     return mPendingEvents.size() > 0;
 }
 
 status_t InputQueue::getEvent(InputEvent** outEvent) {
-    Mutex::Autolock _l(mLock);
+    std::scoped_lock _l(mLock);
     *outEvent = NULL;
     if (!mPendingEvents.isEmpty()) {
         *outEvent = mPendingEvents[0];
@@ -126,7 +126,7 @@ bool InputQueue::preDispatchEvent(InputEvent* e) {
 }
 
 void InputQueue::finishEvent(InputEvent* event, bool handled) {
-    Mutex::Autolock _l(mLock);
+    std::scoped_lock _l(mLock);
     mFinishedEvents.push(key_value_pair_t<InputEvent*, bool>(event, handled));
     if (mFinishedEvents.size() == 1) {
         mDispatchLooper->sendMessage(this, Message(MSG_FINISH_INPUT));
@@ -146,7 +146,7 @@ void InputQueue::handleMessage(const Message& message) {
             InputEvent* event;
             bool handled;
             {
-                Mutex::Autolock _l(mLock);
+                std::scoped_lock _l(mLock);
                 if (mFinishedEvents.isEmpty()) {
                     break;
                 }
@@ -175,7 +175,7 @@ MotionEvent* InputQueue::createMotionEvent() {
 }
 
 void InputQueue::enqueueEvent(InputEvent* event) {
-    Mutex::Autolock _l(mLock);
+    std::scoped_lock _l(mLock);
     mPendingEvents.push(event);
     if (mPendingEvents.size() == 1) {
         char payload = '\0';

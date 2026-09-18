@@ -35,6 +35,7 @@
 #include <SkString.h>
 #include <SkTypeface.h>
 #include <android-base/properties.h>
+#include <com_android_graphics_libgui_flags.h>
 #include <gui/TraceUtils.h>
 #include <include/android/SkSurfaceAndroid.h>
 #include <include/docs/SkMultiPictureDocument.h>
@@ -166,9 +167,9 @@ bool SkiaPipeline::setupMultiFrameCapture() {
         // passing the GrDirectContext to the SerialContext allows us to raster/serialize GPU images
         mSerialContext->setDirectContext(mRenderThread.getGrContext());
         SkSerialProcs procs;
-        procs.fImageProc = SkSharingSerialContext::serializeImage;
+        procs.fImageProc = SkSharingContext::serializeImage;
         procs.fImageCtx = mSerialContext.get();
-        procs.fTypefaceProc = [](SkTypeface* tf, void* ctx){
+        procs.fTypefaceProc = [](SkTypeface* tf, void* ctx) -> SkSerialReturnType {
             return tf->serialize(SkTypeface::SerializeBehavior::kDoIncludeData);
         };
         // SkDocuments don't take owership of the streams they write.
@@ -316,10 +317,10 @@ void SkiaPipeline::endCapture(SkSurface* surface) {
             } else {
                 // single frame skp to file
                 SkSerialProcs procs;
-                procs.fTypefaceProc = [](SkTypeface* tf, void* ctx){
+                procs.fTypefaceProc = [](SkTypeface* tf, void* ctx) -> SkSerialReturnType {
                     return tf->serialize(SkTypeface::SerializeBehavior::kDoIncludeData);
                 };
-                procs.fImageProc = [](SkImage* img, void* ctx) -> sk_sp<SkData> {
+                procs.fImageProc = [](SkImage* img, void* ctx) -> SkSerialReturnType {
                     GrDirectContext* dCtx = static_cast<GrDirectContext*>(ctx);
                     return SkPngEncoder::Encode(dCtx,
                                                 img,
@@ -493,9 +494,10 @@ void SkiaPipeline::setSurfaceColorProperties(ColorMode colorMode) {
                 mSurfaceColorType = SkColorType::kRGBA_10x6_SkColorType;
                 mSurfaceColorSpace = SkColorSpace::MakeRGB(
                         GetExtendedTransferFunction(mTargetSdrHdrRatio), SkNamedGamut::kDisplayP3);
-            } else if (DeviceInfo::get()->isSupportFp16ForHdr()) {
-                mSurfaceColorType = SkColorType::kRGBA_F16_SkColorType;
-                mSurfaceColorSpace = SkColorSpace::MakeSRGB();
+            // TODO: Disabled until we figure out how this is supposed to work & have validated it
+            // } else if (DeviceInfo::get()->isSupportFp16ForHdr()) {
+            //     mSurfaceColorType = SkColorType::kRGBA_F16_SkColorType;
+            //     mSurfaceColorSpace = SkColorSpace::MakeSRGB();
             } else {
                 mSurfaceColorType = SkColorType::kN32_SkColorType;
                 mSurfaceColorSpace = SkColorSpace::MakeRGB(
@@ -575,6 +577,59 @@ void SkiaPipeline::renderOverdraw(const SkRect& clip,
     const SkColor* colors = kOverdrawColors[static_cast<int>(Properties::overdrawColorSet)];
     paint.setColorFilter(SkOverdrawColorFilter::MakeWithSkColors(colors));
     surface->getCanvas()->drawImage(counts.get(), 0.0f, 0.0f, SkSamplingOptions(), &paint);
+}
+
+uint64_t SkiaPipeline::getFrameNumber() {
+    ANativeWindow* anw = getSurface();
+    if (!anw) {
+        return 0;
+    }
+    return ANativeWindow_getNextFrameId(anw);
+}
+
+int SkiaPipeline::getFrameTimestamps(uint64_t frameNumber, nsecs_t* outRequestedPresentTime,
+                                     nsecs_t* outAcquireTime, nsecs_t* outLatchTime,
+                                     nsecs_t* outFirstRefreshStartTime,
+                                     nsecs_t* outLastRefreshStartTime,
+                                     nsecs_t* outGpuCompositionDoneTime,
+                                     nsecs_t* outDisplayPresentTime, nsecs_t* outDequeueReadyTime,
+                                     nsecs_t* outReleaseTime) {
+    ANativeWindow* anw = getSurface();
+    if (!anw) {
+        return -1;
+    }
+    const bool debugGpuPresentTimes =
+            com::android::graphics::libgui::flags::debug_gpu_present_times() &&
+            outDisplayPresentTime;
+    nsecs_t tempAcquireTime;
+    nsecs_t* pAcquireTime =
+            debugGpuPresentTimes && !outAcquireTime ? &tempAcquireTime : outAcquireTime;
+
+    int result = native_window_get_frame_timestamps(
+            anw, frameNumber, outRequestedPresentTime, pAcquireTime, outLatchTime,
+            outFirstRefreshStartTime, outLastRefreshStartTime, outGpuCompositionDoneTime,
+            outDisplayPresentTime, outDequeueReadyTime, outReleaseTime);
+    if (debugGpuPresentTimes) {
+        ATRACE_FORMAT_INSTANT("450351988: SkiaPipeline::getFrameTimestamps: frameNumber=%" PRId64
+                              " presentTime=%" PRId64 " acquireFence=%" PRId64,
+                              frameNumber, *outDisplayPresentTime, *pAcquireTime);
+    }
+    return result;
+}
+
+void SkiaPipeline::setFrameTimelineInfo(const struct ANativeWindowFrameTimelineInfo& info) {
+    ANativeWindow* anw = getSurface();
+    if (anw) {
+        native_window_set_frame_timeline_info(anw, info);
+    }
+}
+
+int64_t SkiaPipeline::getLastDequeueDuration() {
+    ANativeWindow* anw = getSurface();
+    if (anw) {
+        return ANativeWindow_getLastDequeueDuration(anw);
+    }
+    return 0;
 }
 
 } /* namespace skiapipeline */

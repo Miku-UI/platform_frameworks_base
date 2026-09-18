@@ -16,15 +16,18 @@
 
 package android.companion.virtual.computercontrol;
 
-import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.AppInteractionAttribution;
+import android.app.Notification;
+import android.app.PendingIntent;
+import android.companion.virtual.CompanionDeviceId;
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.view.Surface;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Parameters for creating a {@link ComputerControlSession}.
@@ -33,40 +36,45 @@ import java.util.List;
  */
 public final class ComputerControlSessionParams implements Parcelable {
 
+    private static final int MAX_TARGET_PACKAGES = 6;
+
+    public static final int MIN_COMPUTER_CONTROL_VERSION_FOR_ANDROID_17 = 5;
+
     private final String mName;
+    private final int mTargetComputerControlVersion;
     private final List<String> mTargetPackageNames;
-    private final int mDisplayWidthPx;
-    private final int mDisplayHeightPx;
-    private final int mDisplayDpi;
-    private final Surface mDisplaySurface;
-    private final boolean mIsDisplayAlwaysUnlocked;
+    private final PendingIntent mPreviewIntent;
+    private final AppInteractionAttribution mAppInteractionAttribution;
+    private final CompanionDeviceId mCompanionDeviceId;
+    @Nullable
+    private final NotificationParams mNotificationParams;
 
     private ComputerControlSessionParams(
             @NonNull String name,
-            @Nullable List<String> targetPackageNames,  // TODO(b/437849228): Should be non-null
-            int displayWidthPx,
-            int displayHeightPx,
-            int displayDpi,
-            @Nullable Surface displaySurface,
-            boolean isDisplayAlwaysUnlocked) {
+            int targetComputerControlVersion,
+            @NonNull List<String> targetPackageNames,
+            @Nullable PendingIntent previewIntent,
+            @Nullable AppInteractionAttribution appInteractionAttribution,
+            @Nullable CompanionDeviceId companionDeviceId,
+            @Nullable NotificationParams notificationParams) {
         mName = name;
+        mTargetComputerControlVersion = targetComputerControlVersion;
         mTargetPackageNames = targetPackageNames;
-        mDisplayWidthPx = displayWidthPx;
-        mDisplayHeightPx = displayHeightPx;
-        mDisplayDpi = displayDpi;
-        mDisplaySurface = displaySurface;
-        mIsDisplayAlwaysUnlocked = isDisplayAlwaysUnlocked;
+        mPreviewIntent = previewIntent;
+        mAppInteractionAttribution = appInteractionAttribution;
+        mCompanionDeviceId = companionDeviceId;
+        mNotificationParams = notificationParams;
     }
 
     private ComputerControlSessionParams(Parcel parcel) {
         mName = parcel.readString8();
         mTargetPackageNames = new ArrayList<>();
         parcel.readStringList(mTargetPackageNames);
-        mDisplayWidthPx = parcel.readInt();
-        mDisplayHeightPx = parcel.readInt();
-        mDisplayDpi = parcel.readInt();
-        mDisplaySurface = parcel.readTypedObject(Surface.CREATOR);
-        mIsDisplayAlwaysUnlocked = parcel.readBoolean();
+        mPreviewIntent = parcel.readTypedObject(PendingIntent.CREATOR);
+        mAppInteractionAttribution = parcel.readTypedObject(AppInteractionAttribution.CREATOR);
+        mTargetComputerControlVersion = parcel.readInt();
+        mCompanionDeviceId = parcel.readTypedObject(CompanionDeviceId.CREATOR);
+        mNotificationParams = parcel.readTypedObject(NotificationParams.CREATOR);
     }
 
     /** Returns the name of this computer control session. */
@@ -75,36 +83,46 @@ public final class ComputerControlSessionParams implements Parcelable {
         return mName;
     }
 
+    /** Returns the target computer control version of the computer control session. */
+    public int getTargetComputerControlVersion() {
+        return mTargetComputerControlVersion;
+    }
+
     /** Returns the package names of the applications that can be automated during this session. */
-    @Nullable  // TODO(b/437849228): Should be non-null
+    @NonNull
     public List<String> getTargetPackageNames() {
         return mTargetPackageNames;
     }
 
-    /** Returns the width of the display, in pixels. */
-    public int getDisplayWidthPx() {
-        return mDisplayWidthPx;
-    }
-
-    /** Returns the height of the display, in pixels. */
-    public int getDisplayHeightPx() {
-        return mDisplayHeightPx;
-    }
-
-    /** Returns the density of the display, in dpi. */
-    public int getDisplayDpi() {
-        return mDisplayDpi;
-    }
-
-    /** Returns the surface to which the display content should be rendered. */
+    /**
+     * Returns the intent launched when the user wants to preview the automation, or null if none is
+     * set.
+     */
     @Nullable
-    public Surface getDisplaySurface() {
-        return mDisplaySurface;
+    public PendingIntent getPreviewIntent() {
+        return mPreviewIntent;
     }
 
-    /** Returns true if the display should be always unlocked. */
-    public boolean isDisplayAlwaysUnlocked() {
-        return mIsDisplayAlwaysUnlocked;
+    /**
+     * Returns the attribution for the app interaction that triggered the creation of this session.
+     */
+    @Nullable
+    public AppInteractionAttribution getAppInteractionAttribution() {
+        return mAppInteractionAttribution;
+    }
+
+    /**
+     * Returns the companion device id of the device that is controlling this session.
+     */
+    @Nullable
+    public CompanionDeviceId getCompanionDeviceId() {
+        return mCompanionDeviceId;
+    }
+
+    /** Returns the notification parameters for this session. */
+    @Nullable
+    public NotificationParams getNotificationParams() {
+        return mNotificationParams;
     }
 
     @Override
@@ -116,37 +134,38 @@ public final class ComputerControlSessionParams implements Parcelable {
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeString8(mName);
         dest.writeStringList(mTargetPackageNames);
-        dest.writeInt(mDisplayWidthPx);
-        dest.writeInt(mDisplayHeightPx);
-        dest.writeInt(mDisplayDpi);
-        dest.writeTypedObject(mDisplaySurface, flags);
-        dest.writeBoolean(mIsDisplayAlwaysUnlocked);
+        dest.writeTypedObject(mPreviewIntent, flags);
+        dest.writeTypedObject(mAppInteractionAttribution, flags);
+        dest.writeInt(mTargetComputerControlVersion);
+        dest.writeTypedObject(mCompanionDeviceId, flags);
+        dest.writeTypedObject(mNotificationParams, flags);
     }
 
     @NonNull
-    public static final Creator<ComputerControlSessionParams> CREATOR = new Creator<>() {
-        @Override
-        @NonNull
-        public ComputerControlSessionParams createFromParcel(@NonNull Parcel in) {
-            return new ComputerControlSessionParams(in);
-        }
+    public static final Creator<ComputerControlSessionParams> CREATOR =
+            new Creator<>() {
+                @Override
+                @NonNull
+                public ComputerControlSessionParams createFromParcel(@NonNull Parcel in) {
+                    return new ComputerControlSessionParams(in);
+                }
 
-        @Override
-        @NonNull
-        public ComputerControlSessionParams[] newArray(int size) {
-            return new ComputerControlSessionParams[size];
-        }
-    };
+                @Override
+                @NonNull
+                public ComputerControlSessionParams[] newArray(int size) {
+                    return new ComputerControlSessionParams[size];
+                }
+            };
 
     /** Builder for {@link ComputerControlSessionParams}. */
     public static final class Builder {
         private String mName;
+        private int mTargetComputerControlVersion = 0;
         private List<String> mTargetPackageNames;
-        private int mDisplayWidthPx;
-        private int mDisplayHeightPx;
-        private int mDisplayDpi;
-        private Surface mDisplaySurface;
-        private boolean mIsDisplayAlwaysUnlocked;
+        private PendingIntent mPreviewIntent;
+        private AppInteractionAttribution mAppInteractionAttribution;
+        private CompanionDeviceId mCompanionDeviceId = null;
+        private NotificationParams mNotificationParams = null;
 
         /**
          * Sets the name of this computer control session.
@@ -163,80 +182,93 @@ public final class ComputerControlSessionParams implements Parcelable {
             return this;
         }
 
-
         /**
          * Set the package names of all applications that may be automated during this session.
          *
          * <p>All package names specified in the list must meet the following requirements:
+         *
          * <ol>
-         *     <li>The package name has a valid launcher Intent.</li>
-         *     <li>The package name is not the device permission controller.</li>
+         *   <li>The package name has a valid launcher Intent.
+         *   <li>The package name is not the device permission controller.
          * </ol>
          */
-        @Nullable  // TODO(b/437849228): Should be non-null
+        @NonNull
         public Builder setTargetPackageNames(@NonNull List<String> targetPackageNames) {
-            // TODO(b/437849228): Check for null and non-empty
+            if (targetPackageNames == null || targetPackageNames.isEmpty()) {
+                throw new IllegalArgumentException("Target package names must not be empty");
+            }
             mTargetPackageNames = targetPackageNames;
             return this;
         }
 
         /**
-         * Sets the width of the display, in pixels.
+         * Sets the intent launched when the user wants to preview the automation, or null if none.
          *
-         * @param displayWidthPx The width of the display.
+         * @param previewIntent The intent to launch the preview UI.
          * @return This builder.
          */
         @NonNull
-        public Builder setDisplayWidthPx(@IntRange(from = 1) int displayWidthPx) {
-            mDisplayWidthPx = displayWidthPx;
+        public Builder setPreviewIntent(@Nullable PendingIntent previewIntent) {
+            mPreviewIntent = previewIntent;
             return this;
         }
 
         /**
-         * Sets the height of the display, in pixels.
+         * Sets the attribution for the app interaction that triggered the creation of this session.
          *
-         * @param displayHeightPx The height of the display.
+         * @param appInteractionAttribution The attribution for the app interaction.
          * @return This builder.
          */
         @NonNull
-        public Builder setDisplayHeightPx(@IntRange(from = 1) int displayHeightPx) {
-            mDisplayHeightPx = displayHeightPx;
+        public Builder setAppInteractionAttribution(
+                @Nullable AppInteractionAttribution appInteractionAttribution) {
+            mAppInteractionAttribution = appInteractionAttribution;
             return this;
         }
 
         /**
-         * Sets the density of the display, in dpi.
+         * Sets the companion device id of the device that is controlling this session.
          *
-         * @param displayDpi The density of the display.
+         * @param companionDeviceId The companion device id.
          * @return This builder.
          */
         @NonNull
-        public Builder setDisplayDpi(@IntRange(from = 1) int displayDpi) {
-            mDisplayDpi = displayDpi;
+        public Builder setCompanionDeviceId(@Nullable CompanionDeviceId companionDeviceId) {
+            mCompanionDeviceId = companionDeviceId;
             return this;
         }
 
         /**
-         * Sets the surface to which the display content should be rendered.
+         * Sets the target computer control version of the computer control session.
          *
-         * @param displaySurface The surface for the display.
+         * @param targetComputerControlVersion The target computer control version.
          * @return This builder.
          */
         @NonNull
-        public Builder setDisplaySurface(@NonNull Surface displaySurface) {
-            mDisplaySurface = displaySurface;
+        public Builder setTargetComputerControlVersion(int targetComputerControlVersion) {
+            mTargetComputerControlVersion = targetComputerControlVersion;
             return this;
         }
 
         /**
-         * Sets whether the display should be always unlocked.
+         * Sets the notification parameters for this session.
          *
-         * @param isDisplayAlwaysUnlocked true if the display should be always unlocked.
+         * <p>The notification gets posted when the session is created, and canceled when the
+         * session is closed. It cannot be dismissed by the user, or canceled by the caller.
+         * However, the caller can update the contents of the notification at any time,
+         * by using {@link android.app.NotificationManager#notify}. In fact, callers should re-use
+         * the same notification for their own foreground service (if any), to avoid any duplicate
+         * notifications.
+         *
+         * <p>{@link Notification#hasPromotableCharacteristics()} must return {@code true} for the
+         * notification that is passed, otherwise {@link IllegalArgumentException} is thrown.
+         *
+         * @param notificationParams The notification parameters.
          * @return This builder.
          */
         @NonNull
-        public Builder setDisplayAlwaysUnlocked(boolean isDisplayAlwaysUnlocked) {
-            mIsDisplayAlwaysUnlocked = isDisplayAlwaysUnlocked;
+        public Builder setNotificationParams(@Nullable NotificationParams notificationParams) {
+            mNotificationParams = notificationParams;
             return this;
         }
 
@@ -244,37 +276,162 @@ public final class ComputerControlSessionParams implements Parcelable {
          * Builds the {@link ComputerControlSessionParams} instance.
          *
          * @return The built {@link ComputerControlSessionParams}.
-         * @throws IllegalArgumentException if the name or surface are not set, or if the display
-         *     width, height, or dpi are not positive.
+         * @throws IllegalArgumentException if any of the required arguments are not set.
          */
         @NonNull
         public ComputerControlSessionParams build() {
             if (mName == null || mName.isEmpty()) {
                 throw new IllegalArgumentException("Name must be set");
             }
-            // TODO(b/437849228): Do not allow for unset targetPackageNames
-            if (mDisplaySurface != null) {
-                if (mDisplayWidthPx <= 0) {
+            if (mTargetPackageNames == null || mTargetPackageNames.isEmpty()) {
+                throw new IllegalArgumentException("Target package names must be set");
+            }
+
+            if (mTargetComputerControlVersion >= MIN_COMPUTER_CONTROL_VERSION_FOR_ANDROID_17) {
+                if (android.app.appfunctions.flags.Flags.enableAppInteractionApi()
+                        && mAppInteractionAttribution == null) {
                     throw new IllegalArgumentException(
-                            "Display width must be positive if surface is set");
+                            "App interaction attribution must be set");
                 }
-                if (mDisplayHeightPx <= 0) {
+                if (mNotificationParams == null) {
                     throw new IllegalArgumentException(
-                            "Display height must be positive if surface is set");
+                            "Notification parameters must be set");
                 }
-                if (mDisplayDpi <= 0) {
+                if (mTargetPackageNames.size() > MAX_TARGET_PACKAGES) {
                     throw new IllegalArgumentException(
-                            "Display DPI must be positive if surface is set");
+                            "Number of target package names must not exceed "
+                                    + MAX_TARGET_PACKAGES);
                 }
             }
+
+            if (mCompanionDeviceId != null
+                    && mTargetComputerControlVersion
+                    < MIN_COMPUTER_CONTROL_VERSION_FOR_ANDROID_17) {
+                throw new IllegalArgumentException(
+                        "companionDeviceId can only be used with targetComputerControlVersion "
+                                + MIN_COMPUTER_CONTROL_VERSION_FOR_ANDROID_17 + " or above");
+            }
+
             return new ComputerControlSessionParams(
                     mName,
+                    mTargetComputerControlVersion,
                     mTargetPackageNames,
-                    mDisplayWidthPx,
-                    mDisplayHeightPx,
-                    mDisplayDpi,
-                    mDisplaySurface,
-                    mIsDisplayAlwaysUnlocked);
+                    mPreviewIntent,
+                    mAppInteractionAttribution,
+                    mCompanionDeviceId,
+                    mNotificationParams);
+        }
+    }
+
+    /**
+     * Parameters for the notification associated with this session.
+     */
+    public static final class NotificationParams implements Parcelable {
+        @NonNull
+        private final Notification mNotification;
+        private final int mNotificationId;
+        @Nullable
+        private final String mNotificationTag;
+
+        private NotificationParams(@NonNull Notification notification, int notificationId,
+                @Nullable String notificationTag) {
+            mNotification = notification;
+            mNotificationId = notificationId;
+            mNotificationTag = notificationTag;
+        }
+
+        private NotificationParams(Parcel in) {
+            mNotification = in.readTypedObject(Notification.CREATOR);
+            mNotificationId = in.readInt();
+            mNotificationTag = in.readString8();
+        }
+
+        /** Returns the notification to be posted. */
+        @NonNull
+        public Notification getNotification() {
+            return mNotification;
+        }
+
+        /** Returns the id of the notification. */
+        public int getNotificationId() {
+            return mNotificationId;
+        }
+
+        /** Returns the tag of the notification. */
+        @Nullable
+        public String getNotificationTag() {
+            return mNotificationTag;
+        }
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+
+        @Override
+        public void writeToParcel(@NonNull Parcel dest, int flags) {
+            dest.writeTypedObject(mNotification, flags);
+            dest.writeInt(mNotificationId);
+            dest.writeString8(mNotificationTag);
+        }
+
+        @NonNull
+        public static final Creator<NotificationParams> CREATOR = new Creator<>() {
+            @Override
+            @NonNull
+            public NotificationParams createFromParcel(@NonNull Parcel in) {
+                return new NotificationParams(in);
+            }
+
+            @Override
+            @NonNull
+            public NotificationParams[] newArray(int size) {
+                return new NotificationParams[size];
+            }
+        };
+
+        /** Builder for {@link NotificationParams}. */
+        public static final class Builder {
+            @NonNull
+            private final Notification mNotification;
+            private final int mNotificationId;
+            @Nullable
+            private String mNotificationTag;
+
+            /**
+             * @param notification the {@link Notification} associated with this session
+             * @param notificationId the identifier for the notification, as per
+             * {@link android.app.NotificationManager#notify(String, int, Notification)}
+             */
+            public Builder(@NonNull Notification notification, int notificationId) {
+                Objects.requireNonNull(notification, "Notification must not be null");
+                if (!notification.hasPromotableCharacteristics()) {
+                    throw new IllegalArgumentException(
+                            "Notification must have promotable characteristics,"
+                                    + " i.e., notification.hasPromotableCharacteristics() must"
+                                    + " return true");
+                }
+                mNotification = notification;
+                mNotificationId = notificationId;
+            }
+
+            /**
+             * Sets the optional tag for the notification.
+             *
+             * @param notificationTag the tag for the notification, as per
+             * {@link android.app.NotificationManager#notify(String, int, Notification)}
+             */
+            @NonNull
+            public Builder setNotificationTag(@Nullable String notificationTag) {
+                mNotificationTag = notificationTag;
+                return this;
+            }
+
+            /** Builds the {@link NotificationParams} instance. */
+            @NonNull
+            public NotificationParams build() {
+                return new NotificationParams(mNotification, mNotificationId, mNotificationTag);
+            }
         }
     }
 }

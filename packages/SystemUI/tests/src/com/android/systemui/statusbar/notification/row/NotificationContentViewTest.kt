@@ -19,7 +19,7 @@ package com.android.systemui.statusbar.notification.row
 import android.annotation.DimenRes
 import android.content.res.Resources
 import android.os.UserHandle
-import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.service.notification.StatusBarNotification
 import android.testing.TestableLooper
 import android.testing.ViewUtils
@@ -36,15 +36,14 @@ import com.android.internal.R
 import com.android.internal.widget.NotificationActionListLayout
 import com.android.internal.widget.NotificationExpandButton
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.statusbar.notification.FeedbackIcon
 import com.android.systemui.statusbar.notification.collection.EntryAdapter
 import com.android.systemui.statusbar.notification.collection.EntryAdapterFactory
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.makeEntryOfPeopleType
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier
 import com.android.systemui.statusbar.notification.people.peopleNotificationIdentifier
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.testKosmos
+import com.google.common.truth.Truth.assertThat
 import junit.framework.Assert.assertEquals
 import junit.framework.Assert.assertFalse
 import junit.framework.Assert.assertTrue
@@ -79,7 +78,6 @@ class NotificationContentViewTest : SysuiTestCase() {
     private val contractedHeight =
         px(com.android.systemui.res.R.dimen.min_notification_layout_height)
     private val expandedHeight = px(com.android.systemui.res.R.dimen.notification_max_height)
-    private val notificationContentMargin = px(R.dimen.notification_content_margin)
 
     @Before
     fun setup() {
@@ -92,16 +90,8 @@ class NotificationContentViewTest : SysuiTestCase() {
 
         row =
             spy(
-                when (NotificationBundleUi.isEnabled) {
-                    true -> {
-                        ExpandableNotificationRow(mContext, /* attrs= */ null, UserHandle.CURRENT)
-                            .apply { this.entryAdapter = entryAdapter }
-                    }
-                    false -> {
-                        ExpandableNotificationRow(mContext, /* attrs= */ null, entry).apply {
-                            entryLegacy = entry
-                        }
-                    }
+                ExpandableNotificationRow(mContext, /* attrs= */ null, UserHandle.CURRENT).apply {
+                    this.entryAdapter = entryAdapter
                 }
             )
         ViewUtils.attachView(fakeParent)
@@ -280,25 +270,6 @@ class NotificationContentViewTest : SysuiTestCase() {
     }
 
     @Test
-    fun testSetFeedbackIcon() {
-        // Given: contractedChild, enpandedChild, and headsUpChild being set
-        val view = createContentView(isSystemExpanded = false)
-
-        // When: FeedBackIcon is set
-        val icon =
-            FeedbackIcon(
-                R.drawable.ic_feedback_alerted,
-                R.string.notification_feedback_indicator_alerted,
-            )
-        view.setFeedbackIcon(icon)
-
-        // Then: contractedChild, enpandedChild, and headsUpChild is updated with the feedbackIcon
-        verify(view.contractedWrapper).setFeedbackIcon(icon)
-        verify(view.expandedWrapper).setFeedbackIcon(icon)
-        verify(view.headsUpWrapper).setFeedbackIcon(icon)
-    }
-
-    @Test
     fun testExpandButtonFocusIsCalled() {
         val mockContractedEB = mock<NotificationExpandButton>()
         val mockContracted = createMockNotificationHeaderView(contractedHeight, mockContractedEB)
@@ -402,135 +373,6 @@ class NotificationContentViewTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(android.app.Flags.FLAG_NOTIFICATIONS_REDESIGN_TEMPLATES)
-    fun setExpandedChild_notShowBubbleButton_marginTargetBottomMarginShouldNotChange() {
-        // Given: bottom margin of actionListMarginTarget is notificationContentMargin
-        // Bubble button should not be shown for the given NotificationEntry
-        val mockNotificationEntry = kosmos.makeEntryOfPeopleType()
-        val mockContainingNotification = createMockContainingNotification(mockNotificationEntry)
-        val actionListMarginTarget =
-            spy(createLinearLayoutWithBottomMargin(notificationContentMargin))
-        val mockExpandedChild = createMockExpandedChild()
-        whenever(
-                mockExpandedChild.findViewById<LinearLayout>(
-                    R.id.notification_action_list_margin_target
-                )
-            )
-            .thenReturn(actionListMarginTarget)
-        val view = createContentView(isSystemExpanded = false)
-
-        view.setContainingNotification(mockContainingNotification) // maybe not needed
-
-        // When: call NotificationContentView.setExpandedChild() to set the expandedChild
-        view.expandedChild = mockExpandedChild
-
-        // Then: bottom margin of actionListMarginTarget should not change,
-        // still be notificationContentMargin
-        assertEquals(notificationContentMargin, getMarginBottom(actionListMarginTarget))
-    }
-
-    @Test
-    @DisableFlags(android.app.Flags.FLAG_NOTIFICATIONS_REDESIGN_TEMPLATES)
-    fun setExpandedChild_showBubbleButton_marginTargetBottomMarginShouldChangeToZero() {
-        // Given: bottom margin of actionListMarginTarget is notificationContentMargin
-        // Bubble button should be shown for the given NotificationEntry
-        val mockNotificationEntry = kosmos.makeEntryOfPeopleType()
-        val mockContainingNotification = createMockContainingNotification(mockNotificationEntry)
-        val actionListMarginTarget =
-            spy(createLinearLayoutWithBottomMargin(notificationContentMargin))
-        val mockExpandedChild = createMockExpandedChild()
-        whenever(
-                mockExpandedChild.findViewById<LinearLayout>(
-                    R.id.notification_action_list_margin_target
-                )
-            )
-            .thenReturn(actionListMarginTarget)
-        val view = createContentView(isSystemExpanded = false)
-
-        view.setContainingNotification(mockContainingNotification)
-
-        // Given: controller says bubbles are enabled for the user
-        view.setBubblesEnabledForUser(true)
-
-        // When: call NotificationContentView.setExpandedChild() to set the expandedChild
-        view.expandedChild = mockExpandedChild
-
-        // Then: bottom margin of actionListMarginTarget should be set to 0
-        assertEquals(0, getMarginBottom(actionListMarginTarget))
-    }
-
-    @Test
-    @DisableFlags(android.app.Flags.FLAG_NOTIFICATIONS_REDESIGN_TEMPLATES)
-    fun onNotificationUpdated_notShowBubbleButton_marginTargetBottomMarginShouldNotChange() {
-        // Given: bottom margin of actionListMarginTarget is notificationContentMargin
-        val mockNotificationEntry = kosmos.makeEntryOfPeopleType()
-        val mockContainingNotification = createMockContainingNotification(mockNotificationEntry)
-        val actionListMarginTarget =
-            spy(createLinearLayoutWithBottomMargin(notificationContentMargin))
-        val mockExpandedChild = createMockExpandedChild()
-        whenever(
-                mockExpandedChild.findViewById<LinearLayout>(
-                    R.id.notification_action_list_margin_target
-                )
-            )
-            .thenReturn(actionListMarginTarget)
-        val view = createContentView(isSystemExpanded = false)
-
-        view.setContainingNotification(mockContainingNotification)
-        view.expandedChild = mockExpandedChild
-        assertEquals(notificationContentMargin, getMarginBottom(actionListMarginTarget))
-
-        // When: call NotificationContentView.onNotificationUpdated() to update the
-        // NotificationEntry, which should not show bubble button
-        if (NotificationBundleUi.isEnabled) {
-            view.onNotificationUpdated(null)
-        } else {
-            view.onNotificationUpdated(mockNotificationEntry)
-        }
-
-        // Then: bottom margin of actionListMarginTarget should not change, still be 20
-        assertEquals(notificationContentMargin, getMarginBottom(actionListMarginTarget))
-    }
-
-    @Test
-    @DisableFlags(android.app.Flags.FLAG_NOTIFICATIONS_REDESIGN_TEMPLATES)
-    fun onNotificationUpdated_showBubbleButton_marginTargetBottomMarginShouldChangeToZero() {
-        // Given: bottom margin of actionListMarginTarget is notificationContentMargin
-        val mockNotificationEntry = kosmos.makeEntryOfPeopleType()
-        val mockContainingNotification = createMockContainingNotification(mockNotificationEntry)
-        val actionListMarginTarget =
-            spy(createLinearLayoutWithBottomMargin(notificationContentMargin))
-        val mockExpandedChild = createMockExpandedChild()
-        whenever(
-                mockExpandedChild.findViewById<LinearLayout>(
-                    R.id.notification_action_list_margin_target
-                )
-            )
-            .thenReturn(actionListMarginTarget)
-        val view = createContentView(isSystemExpanded = false, expandedView = mockExpandedChild)
-
-        view.setContainingNotification(mockContainingNotification)
-        assertEquals(notificationContentMargin, getMarginBottom(actionListMarginTarget))
-
-        // When: call NotificationContentView.onNotificationUpdated() to update the
-        // NotificationEntry, which should show bubble button
-        if (NotificationBundleUi.isEnabled) {
-            view.onNotificationUpdated(null)
-        } else {
-            view.onNotificationUpdated(mockNotificationEntry)
-        }
-
-        // Then: no bubble yet
-        assertEquals(notificationContentMargin, getMarginBottom(actionListMarginTarget))
-
-        // Given: controller says bubbles are enabled for the user
-        view.setBubblesEnabledForUser(true)
-
-        // Then: bottom margin of actionListMarginTarget should be changed to 0
-        assertEquals(0, getMarginBottom(actionListMarginTarget))
-    }
-
-    @Test
     fun onSetAnimationRunning() {
         // Given: contractedWrapper, enpandedWrapper, and headsUpWrapper being set
         val view = createContentView(isSystemExpanded = false)
@@ -621,11 +463,228 @@ class NotificationContentViewTest : SysuiTestCase() {
         verify(fakeParent, never()).notifySubtreeAccessibilityStateChanged(any(), any(), any())
     }
 
+    @Test
+    fun testGetVisualTypeForHeight_headsUp() {
+        val view =
+            createContentView(
+                headsUpView = createViewWithSpecificHeight(100),
+                contractedView = createViewWithSpecificHeight(100),
+                expandedView = createViewWithSpecificHeight(200),
+            )
+        view.setHeadsUp(true)
+        whenever(row.canShowHeadsUp()).thenReturn(true)
+
+        // Height less than heads up height
+        var result = view.getVisualTypeForHeight(50f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_HEADSUP)
+
+        // Height equal to heads up height
+        result = view.getVisualTypeForHeight(100f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_HEADSUP)
+    }
+
+    @Test
+    fun testGetVisualTypeForHeight_headsUpAnimatingAway() {
+        val view =
+            createContentView(
+                headsUpView = createViewWithSpecificHeight(100),
+                contractedView = createViewWithSpecificHeight(100),
+                expandedView = createViewWithSpecificHeight(200),
+            )
+        view.setHeadsUp(false)
+        view.setHeadsUpAnimatingAway(true)
+
+        // Height less than heads up height
+        var result = view.getVisualTypeForHeight(50f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_HEADSUP)
+
+        // Height equal to heads up height
+        result = view.getVisualTypeForHeight(100f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_HEADSUP)
+    }
+
+    @Test
+    fun testGetVisualTypeForHeight_expanded() {
+        val view =
+            createContentView(
+                contractedView = createViewWithSpecificHeight(100),
+                expandedView = createViewWithSpecificHeight(200),
+            )
+
+        // Height greater than contracted height
+        var result = view.getVisualTypeForHeight(150f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_EXPANDED)
+
+        // Height equal to expanded height
+        result = view.getVisualTypeForHeight(200f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_EXPANDED)
+    }
+
+    @Test
+    fun testGetVisualTypeForHeight_singleLine() {
+        val view = createContentView()
+        view.singleLineView = spy(HybridNotificationView(mContext, null))
+        view.setIsChildInGroup(true)
+        whenever(row.isParentGroupExpanded).thenReturn(false)
+
+        val result = view.getVisualTypeForHeight(50f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_SINGLELINE)
+    }
+
+    @Test
+    fun testGetVisualTypeForHeight_contracted() {
+        val view = createContentView(contractedView = createViewWithSpecificHeight(100))
+
+        // Height less than contracted height
+        var result = view.getVisualTypeForHeight(50f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_CONTRACTED)
+
+        // Height equal to contracted height
+        result = view.getVisualTypeForHeight(100f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_CONTRACTED)
+    }
+
+    @Test
+    fun testGetVisualTypeForHeight_headsUpButTaller() {
+        val view =
+            createContentView(
+                headsUpView = createViewWithSpecificHeight(100),
+                contractedView = createViewWithSpecificHeight(100),
+                expandedView = createViewWithSpecificHeight(200),
+            )
+        view.setHeadsUp(true)
+        whenever(row.canShowHeadsUp()).thenReturn(true)
+
+        // Height greater than heads up height
+        val result = view.getVisualTypeForHeight(150f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_EXPANDED)
+    }
+
+    @Test
+    fun testGetVisualTypeForHeight_contracted_childInGroup_groupExpanded() {
+        val view = createContentView(contractedView = createViewWithSpecificHeight(100))
+        val mockNotificationEntry = kosmos.makeEntryOfPeopleType()
+        val row = createMockContainingNotification(mockNotificationEntry)
+        view.setContainingNotification(row)
+        view.setIsChildInGroup(true)
+        whenever(row.isGroupExpanded).thenReturn(true)
+
+        val result = view.getVisualTypeForHeight(100f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_CONTRACTED)
+    }
+
+    @Test
+    fun testGetVisualTypeForHeight_contracted_childInGroup_notifNotExpanded() {
+        val view = createContentView(contractedView = createViewWithSpecificHeight(100))
+        val mockNotificationEntry = kosmos.makeEntryOfPeopleType()
+        val row = createMockContainingNotification(mockNotificationEntry)
+        view.setContainingNotification(row)
+        whenever(row.isGroupExpanded()).thenReturn(false)
+
+        whenever(row.isExpanded(true)).thenReturn(false)
+        view.setIsChildInGroup(true)
+
+        val result = view.getVisualTypeForHeight(100f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_CONTRACTED)
+    }
+
+    @Test
+    fun testGetVisualTypeForHeight_headsUp_noExpanded() {
+        val view =
+            createContentView(
+                headsUpView = createViewWithSpecificHeight(100),
+                contractedView = createViewWithSpecificHeight(100),
+            )
+        view.expandedChild = null // No expanded child
+        view.mockRequestLayout()
+
+        view.setHeadsUp(true)
+        whenever(row.canShowHeadsUp()).thenReturn(true)
+
+        // Height less than heads up height
+        var result = view.getVisualTypeForHeight(50f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_HEADSUP)
+
+        // Height greater than heads up height
+        result = view.getVisualTypeForHeight(150f)
+        // Stays HeadsUp
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_HEADSUP)
+    }
+
+    @Test
+    fun testGetVisualTypeForHeight_noExpanded_alwaysContractedUnlessSpecial() {
+        val view = createContentView()
+        view.contractedChild = createViewWithSpecificHeight(100)
+        view.expandedChild = null // No expanded child
+        view.headsUpChild = null // No heads up
+        view.singleLineView = null // No single line
+        view.mockRequestLayout()
+
+        // Height less than contracted
+        var result = view.getVisualTypeForHeight(50f)
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_CONTRACTED)
+
+        // Height greater than contracted
+        result = view.getVisualTypeForHeight(150f)
+        // Defaults to Contracted
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_CONTRACTED)
+    }
+
+    @EnableFlags(android.app.Flags.FLAG_RICH_ONGOING_IMPROVEMENTS)
+    @Test
+    fun getVisualTypeForHeight_promoted_canShowExpanded_returnsExpanded() {
+        // GIVEN: is promoted, can show expanded, and has expanded child
+        val view =
+            createContentView(
+                contractedView = createViewWithSpecificHeight(100),
+                expandedView = createViewWithSpecificHeight(200),
+            )
+        whenever(row.isPromotedOngoing).thenReturn(true)
+        whenever(row.canPromotedNotificationShowExpanded(false)).thenReturn(true)
+
+        // WHEN height would normally be contracted
+        val result = view.getVisualTypeForHeight(100f)
+
+        // THEN returns EXPANDED due to rich ongoing
+        assertEquals(NotificationContentView.VISIBLE_TYPE_EXPANDED, result)
+    }
+
+    @EnableFlags(android.app.Flags.FLAG_RICH_ONGOING_IMPROVEMENTS)
+    @Test
+    fun getVisualTypeForHeight_promoted_cannotShowExpanded_returnsContracted() {
+        // GIVEN: cannot show promoted notification expanded
+        val view =
+            createContentView(
+                contractedView = createViewWithSpecificHeight(100),
+                expandedView = createViewWithSpecificHeight(200),
+            )
+        whenever(row.isPromotedOngoing).thenReturn(true)
+        whenever(row.canPromotedNotificationShowExpanded(false)).thenReturn(false)
+
+        val result = view.getVisualTypeForHeight(100f)
+
+        // THEN returns CONTRACTED
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_CONTRACTED)
+    }
+
+    @EnableFlags(android.app.Flags.FLAG_RICH_ONGOING_IMPROVEMENTS)
+    @Test
+    fun getVisualTypeForHeight_promoted_noExpandedChild_returnsContracted() {
+        // GIVEN: no expanded child
+        val view = createContentView(contractedView = createViewWithSpecificHeight(100))
+        view.expandedChild = null
+        view.mockRequestLayout()
+        whenever(row.isPromotedOngoing).thenReturn(true)
+        whenever(row.canPromotedNotificationShowExpanded(false)).thenReturn(true)
+
+        val result = view.getVisualTypeForHeight(100f)
+
+        // THEN returns CONTRACTED
+        assertThat(result).isEqualTo(NotificationContentView.VISIBLE_TYPE_CONTRACTED)
+    }
+
     private fun createMockContainingNotification(notificationEntry: NotificationEntry) =
         mock<ExpandableNotificationRow>().apply {
-            if (!NotificationBundleUi.isEnabled) {
-                whenever(this.entryLegacy).thenReturn(notificationEntry)
-            }
             whenever(this.context).thenReturn(mContext)
             whenever(this.bubbleClickListener).thenReturn(View.OnClickListener {})
             whenever(this.entryAdapter).thenReturn(factory.create(notificationEntry))
@@ -707,15 +766,15 @@ class NotificationContentViewTest : SysuiTestCase() {
             .also { contentView ->
                 fakeParent.addView(contentView)
                 contentView.mockRequestLayout()
-                contentView.onNotificationUpdated(
-                    if (NotificationBundleUi.isEnabled) {
-                        null
-                    } else {
-                        row.entryLegacy
-                    }
-                )
+                contentView.onNotificationUpdated()
             }
     }
+
+    private fun createViewWithSpecificHeight(height: Int) =
+        spy(View(mContext, /* attrs= */ null)).apply {
+            minimumHeight = height
+            whenever(this.height).thenReturn(height)
+        }
 
     private fun createViewWithHeight(height: Int) =
         View(mContext, /* attrs= */ null).apply { minimumHeight = height }

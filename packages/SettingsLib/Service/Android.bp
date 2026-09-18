@@ -10,6 +10,7 @@ android_library {
     srcs: ["src/**/*.kt"],
     static_libs: [
         "SettingsLibGraph",
+        "SettingsLibUtils",
     ],
     sdk_version: "system_current",
     min_sdk_version: "23",
@@ -17,4 +18,7 @@ android_library {
     flags_packages: [
         "aconfig_settingslib_flags",
     ],
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }

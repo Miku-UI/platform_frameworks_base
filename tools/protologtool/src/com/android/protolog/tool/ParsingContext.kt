@@ -19,8 +19,10 @@ package com.android.protolog.tool
 import com.github.javaparser.ast.Node
 
 data class ParsingContext(val filePath: String, val lineNumber: Int) {
-    constructor(filePath: String, node: Node)
-            : this(filePath, if (node.range.isPresent) node.range.get().begin.line else -1)
+    constructor(
+        filePath: String,
+        node: Node,
+    ) : this(filePath, if (node.range.isPresent) node.range.get().begin.line else -1)
 
     constructor() : this("", -1)
 }

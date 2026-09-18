@@ -154,6 +154,7 @@ fun BundleHeader(viewModel: BundleHeaderViewModel, modifier: Modifier = Modifier
             // ExpandableNotificationRow. We clear all semantics here so that accessibility focus
             // remains on the same element as handles the clicks and actions.
             modifier = Modifier.clearAndSetSemantics {},
+            debugName = "Bundle Header (${stringResource(viewModel.titleText)})",
         ) {
             scene(BundleHeader.Scenes.Collapsed) {
                 BundleHeaderContent(viewModel, collapsed = true)
@@ -205,7 +206,7 @@ private fun ContentScope.BundleHeaderContent(
         val config = LocalConfiguration.current
         val isBoldTextEnabled = config.fontWeightAdjustment > 0
         Text(
-            text = stringResource(viewModel.titleText),
+            text = viewModel.summaryText ?: stringResource(viewModel.titleText),
             style =
                 MaterialTheme.typography.titleMediumEmphasized.copy(
                     fontWeight = if (isBoldTextEnabled) FontWeight.ExtraBold else FontWeight.Bold

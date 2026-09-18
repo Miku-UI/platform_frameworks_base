@@ -22,5 +22,11 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface ILcnV2ChannelListListener {
+    /**
+     * Notify listeners when two or more channel list are detected during a service scan.
+     *
+     * @param detectLcnV2ChannelList Bundle, keys must at least contain the keys defined in
+     *        @ScanConstants.LcnV2ChannelListDetectBundleKey.
+     */
     void onDetectLcnV2ChannelList(in Bundle detectLcnV2ChannelList);
 }

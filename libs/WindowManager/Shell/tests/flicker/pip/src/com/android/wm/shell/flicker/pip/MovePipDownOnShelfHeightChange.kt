@@ -17,11 +17,11 @@
 package com.android.wm.shell.flicker.pip
 
 import android.platform.test.annotations.Presubmit
-import androidx.test.filters.RequiresDevice
 import android.platform.test.annotations.RequiresFlagsDisabled
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
+import androidx.test.filters.RequiresDevice
 import com.android.wm.shell.Flags
 import com.android.wm.shell.flicker.pip.common.MovePipShelfHeightTransition
 import com.android.wm.shell.flicker.utils.Direction
@@ -59,8 +59,7 @@ import org.junit.runners.Parameterized
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 @RequiresFlagsDisabled(Flags.FLAG_ENABLE_PIP2)
-class MovePipDownOnShelfHeightChange(flicker: FlickerTest) :
-    MovePipShelfHeightTransition(flicker) {
+class MovePipDownOnShelfHeightChange(flicker: FlickerTest) : MovePipShelfHeightTransition(flicker) {
     override val thisTransition: FlickerBuilder.() -> Unit = {
         teardown { testApp.exit(wmHelper) }
         transitions { testApp.launchViaIntent(wmHelper) }

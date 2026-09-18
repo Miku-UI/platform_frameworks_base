@@ -139,21 +139,21 @@ public class PipAnimationController {
     }
 
     /**
-     * Construct and return an animator that animates from the {@param startBounds} to the
-     * {@param endBounds} with the given {@param direction}. If {@param direction} is type
-     * {@link PipTransitionController#ANIM_TYPE_BOUNDS}, then {@param sourceHintRect} will be used
+     * Construct and return an animator that animates from the {@code startBounds} to the
+     * {@code endBounds} with the given {@code direction}. If {@code direction} is type
+     * {@link PipTransitionController#ANIM_TYPE_BOUNDS}, then {@code sourceHintRect} will be used
      * to animate in a better, more smooth manner. If the original bound was rotated and a reset
-     * needs to happen, pass in {@param startingAngle}.
+     * needs to happen, pass in {@code startingAngle}.
      *
      * In the case where one wants to start animation during an intermediate animation (for example,
      * if the user is currently doing a pinch-resize, and upon letting go now PiP needs to animate
      * to the correct snap fraction region), then provide the base bounds, which is current PiP
      * leash bounds before transformation/any animation. This is so when we try to construct
      * the different transformation matrices for the animation, we are constructing this based off
-     * the PiP original bounds, rather than the {@param startBounds}, which is post-transformed.
+     * the PiP original bounds, rather than the {@code startBounds}, which is post-transformed.
      *
-     * If non-zero {@param rotationDelta} is given, it means that the display will be rotated by
-     * leaving PiP to fullscreen, and the {@param endBounds} is the fullscreen bounds before the
+     * If non-zero {@code rotationDelta} is given, it means that the display will be rotated by
+     * leaving PiP to fullscreen, and the {@code endBounds} is the fullscreen bounds before the
      * rotation change.
      */
     @SuppressWarnings("unchecked")

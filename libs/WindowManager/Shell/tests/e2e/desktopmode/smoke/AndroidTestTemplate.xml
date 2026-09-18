@@ -36,7 +36,9 @@
         <option name="run-command" value="locksettings set-disabled false"/>
         <!-- restart launcher to activate TAPL -->
         <option name="run-command"
-                value="setprop ro.test_harness 1 ; am force-stop com.google.android.apps.nexuslauncher"/>
+                value="setprop ro.test_harness 1 ;
+                       setprop persist.sys.test_harness 1;
+                       am force-stop com.google.android.apps.nexuslauncher"/>
         <!-- Increase trace size: 20mb for WM and 80mb for SF -->
         <option name="run-command" value="cmd window tracing size 20480"/>
         <option name="run-command" value="su root service call SurfaceFlinger 1029 i32 81920"/>
@@ -48,10 +50,14 @@
         <option name="throw-if-cmd-fail" value="true" />
         <option name="run-command" value="rm -rf /data/user/%TEST_USER%/files/*"/>
         <option name="run-command" value="settings put secure show_ime_with_hard_keyboard 1"/>
+        <option name="run-command" value="settings put system show_key_presses 1"/>
+        <option name="run-command" value="settings put secure clock_seconds 1"/>
         <option name="run-command" value="settings put system show_touches 1"/>
         <option name="run-command" value="settings put system pointer_location 1"/>
         <option name="teardown-command"
                 value="settings delete secure show_ime_with_hard_keyboard"/>
+        <option name="teardown-command" value="settings delete system show_key_presses"/>
+        <option name="teardown-command" value="settings delete secure clock_seconds"/>
         <option name="teardown-command" value="settings delete system show_touches"/>
         <option name="teardown-command" value="settings delete system pointer_location"/>
         <option name="teardown-command"

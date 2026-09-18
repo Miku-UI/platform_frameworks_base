@@ -16,10 +16,7 @@
 package com.android.systemui.shade
 
 import android.content.res.Configuration
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper.RunWithLooper
-import android.view.Choreographer
 import android.view.accessibility.AccessibilityEvent
 import android.widget.FrameLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -31,6 +28,8 @@ import com.android.systemui.Flags as AConfigFlags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
+import com.android.systemui.brightness.data.repository.BrightnessMirrorShowingRepositoryImpl
+import com.android.systemui.brightness.domain.interactor.BrightnessMirrorShowingInteractorPassThrough
 import com.android.systemui.classifier.FalsingCollectorFake
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.dock.DockManager
@@ -46,15 +45,12 @@ import com.android.systemui.keyguard.shared.model.KeyguardState.DREAMING
 import com.android.systemui.keyguard.shared.model.KeyguardState.LOCKSCREEN
 import com.android.systemui.res.R
 import com.android.systemui.scene.ui.view.WindowRootViewKeyEventHandler
-import com.android.systemui.settings.brightness.data.repository.BrightnessMirrorShowingRepository
-import com.android.systemui.settings.brightness.domain.interactor.BrightnessMirrorShowingInteractorPassThrough
 import com.android.systemui.shade.NotificationShadeWindowView.InteractionEventHandler
 import com.android.systemui.shade.data.repository.ShadeAnimationRepository
 import com.android.systemui.shade.data.repository.ShadeRepositoryImpl
 import com.android.systemui.shade.domain.interactor.PanelExpansionInteractor
 import com.android.systemui.shade.domain.interactor.ShadeAnimationInteractorLegacyImpl
 import com.android.systemui.shade.domain.interactor.shadeStatusBarComponentsInteractor
-import com.android.systemui.statusbar.BlurUtils
 import com.android.systemui.statusbar.DragDownHelper
 import com.android.systemui.statusbar.LockscreenShadeTransitionController
 import com.android.systemui.statusbar.NotificationInsetsController
@@ -78,6 +74,7 @@ import com.android.systemui.util.kotlin.javaAdapter
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.time.FakeSystemClock
+import com.android.systemui.window.ui.BlurChoreographer
 import com.android.systemui.window.ui.viewmodel.WindowRootViewModel
 import com.google.common.truth.Truth.assertThat
 import java.util.Optional
@@ -106,8 +103,7 @@ class NotificationShadeWindowViewTest : SysuiTestCase() {
 
     private val kosmos = testKosmos()
 
-    @Mock private lateinit var choreographer: Choreographer
-    @Mock private lateinit var blurUtils: BlurUtils
+    @Mock private lateinit var blurChoreographer: BlurChoreographer
     @Mock private lateinit var windowRootViewModelFactory: WindowRootViewModel.Factory
     @Mock private lateinit var dragDownHelper: DragDownHelper
     @Mock private lateinit var statusBarStateController: SysuiStatusBarStateController
@@ -154,7 +150,7 @@ class NotificationShadeWindowViewTest : SysuiTestCase() {
     @Captor
     private lateinit var interactionEventHandlerCaptor: ArgumentCaptor<InteractionEventHandler>
 
-    private val brightnessMirrorShowingRepository = BrightnessMirrorShowingRepository()
+    private val brightnessMirrorShowingRepository = BrightnessMirrorShowingRepositoryImpl()
     private val brightnessMirrorShowingInteractor =
         BrightnessMirrorShowingInteractorPassThrough(brightnessMirrorShowingRepository)
 
@@ -195,9 +191,8 @@ class NotificationShadeWindowViewTest : SysuiTestCase() {
         val falsingCollector = FalsingCollectorFake()
         controller =
             NotificationShadeWindowViewController(
-                blurUtils,
+                blurChoreographer,
                 windowRootViewModelFactory,
-                choreographer,
                 lockscreenShadeTransitionController,
                 falsingCollector,
                 statusBarStateController,
@@ -207,7 +202,8 @@ class NotificationShadeWindowViewTest : SysuiTestCase() {
                 shadeViewController,
                 ShadeAnimationInteractorLegacyImpl(
                     ShadeAnimationRepository(),
-                    ShadeRepositoryImpl(testScope),
+                    ShadeRepositoryImpl(testScope, dumpManager),
+                    mock(),
                 ),
                 panelExpansionInteractor,
                 ShadeExpansionStateManager(),
@@ -261,7 +257,6 @@ class NotificationShadeWindowViewTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(AConfigFlags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun onConfigurationChanged_configForwarderNotSet() {
         underTest.onConfigurationChanged(Configuration())
 
@@ -269,7 +264,6 @@ class NotificationShadeWindowViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(AConfigFlags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun onMovedToDisplay_configForwarderSet_propagatesConfig() {
         val config = Configuration()
 

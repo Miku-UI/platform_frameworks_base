@@ -39,6 +39,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.UserHandle;
+import android.text.TextUtils;
 import android.util.IndentingPrintWriter;
 import android.util.Log;
 import android.util.Slog;
@@ -231,6 +232,7 @@ public final class KeyboardGlyphManager implements InputManager.InputDeviceListe
     private KeyGlyphMap loadGlyphMapFromResource(Resources resources,
             @NonNull ComponentName componentName, @AnyRes int glyphMapId) {
         SparseIntArray keyGlyphs = new SparseIntArray();
+        SparseArray<String> keyDisplayNames = new SparseArray<>();
         SparseIntArray modifierGlyphs = new SparseIntArray();
         List<Integer> functionRowKeys = new ArrayList<>();
         HashMap<KeyGlyphMap.KeyCombination, Integer> hardwareShortcuts = new HashMap<>();
@@ -253,6 +255,12 @@ public final class KeyboardGlyphManager implements InputManager.InputDeviceListe
                             int keyGlyph = a.getResourceId(R.styleable.KeyGlyph_glyphDrawable, 0);
                             if (keycode != 0 && keyGlyph != 0) {
                                 keyGlyphs.put(keycode, keyGlyph);
+                            }
+                            if (com.android.hardware.input.Flags.controllerRemapping()) {
+                                String displayName = a.getString(R.styleable.KeyGlyph_displayName);
+                                if (keycode != 0 && !TextUtils.isEmpty(displayName)) {
+                                    keyDisplayNames.put(keycode, displayName);
+                                }
                             }
                         } finally {
                             a.recycle();
@@ -310,7 +318,7 @@ public final class KeyboardGlyphManager implements InputManager.InputDeviceListe
         } catch (XmlPullParserException | IOException e) {
             Log.e(TAG, "Unable to parse key glyph map : " + e);
         }
-        return new KeyGlyphMap(componentName, keyGlyphs, modifierGlyphs,
+        return new KeyGlyphMap(componentName, keyGlyphs, keyDisplayNames, modifierGlyphs,
                 functionRowKeys.stream().mapToInt(Integer::intValue).toArray(), hardwareShortcuts);
     }
 
@@ -335,7 +343,7 @@ public final class KeyboardGlyphManager implements InputManager.InputDeviceListe
     @GuardedBy("mGlyphMapLock")
     private KeyGlyphMap getKeyGlyphMapInternal(int deviceId) {
         final InputDevice inputDevice = getInputDevice(deviceId);
-        if (inputDevice == null || inputDevice.isVirtual() || !inputDevice.isFullKeyboard()) {
+        if (inputDevice == null || !inputDevice.isPhysicalDevice()) {
             return null;
         }
         if (!mGlyphMapDataLoaded) {

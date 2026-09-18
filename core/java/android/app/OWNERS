@@ -55,9 +55,18 @@ per-file ActivityThread.java = file:RESOURCES_OWNERS
 # Alarm
 per-file *Alarm* = file:/apex/jobscheduler/ALARM_OWNERS
 
+# Ambient Context
+per-file ambient_context.aconfig = file:ambientcontext/OWNERS
+
 # AndroidForwardingOs
 per-file AndroidForwardingOs.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file AndroidForwardingOS.java = file:RESOURCES_OWNERS
+
+# AppInteraction
+per-file *AppInteraction* = file:/core/java/android/app/appfunctions/OWNERS
+
+# App Lock
+per-file *AppLock* = file:/core/java/android/content/pm/APP_LOCK_OWNERS
 
 # AppOps
 per-file *AppOp* = file:/core/java/android/permission/OWNERS
@@ -93,10 +102,12 @@ per-file *Notification* = file:/packages/SystemUI/OWNERS
 per-file *Zen* = file:/packages/SystemUI/OWNERS
 per-file *StatusBar* = file:/packages/SystemUI/OWNERS
 per-file *UiModeManager* = file:/packages/SystemUI/OWNERS
+per-file ui_mode_manager.aconfig = file:/packages/SystemUI/OWNERS
 per-file notification.aconfig = file:/packages/SystemUI/OWNERS
+per-file statusbar.aconfig = file:/packages/SystemUI/OWNERS
 
 # PackageManager
-per-file ApplicationPackageManager.java = file:/services/core/java/com/android/server/pm/OWNERS
+per-file ApplicationPackageManager*.java = file:/services/core/java/com/android/server/pm/OWNERS
 per-file InstantAppResolverService.java = file:/services/core/java/com/android/server/pm/OWNERS
 per-file LoadedApk.java = file:/services/core/java/com/android/server/pm/OWNERS
 per-file PackageDeleteObserver.java = file:/services/core/java/com/android/server/pm/OWNERS
@@ -129,10 +140,14 @@ per-file *VoiceInteract* = file:/core/java/android/service/voice/OWNERS
 per-file *Wallpaper* = file:/core/java/android/service/wallpaper/OWNERS
 per-file wallpaper.aconfig = file:/core/java/android/service/wallpaper/OWNERS
 
+# ThemeManager
+per-file ThemeManager.java = file:/services/core/java/com/android/server/theming/OWNERS
+
 # WindowManager
 per-file *Activity* = file:/services/core/java/com/android/server/wm/OWNERS
 per-file ClientTransactionHandler.java = file:/services/core/java/com/android/server/wm/OWNERS
 per-file Fragment.java = file:/services/core/java/com/android/server/wm/OWNERS
+per-file FullscreenRequestHandler.java = file:/services/core/java/com/android/server/wm/OWNERS
 per-file *Task* = file:/services/core/java/com/android/server/wm/OWNERS
 per-file Window* = file:/services/core/java/com/android/server/wm/OWNERS
 per-file ConfigurationController.java = file:/services/core/java/com/android/server/wm/OWNERS
@@ -148,3 +163,6 @@ per-file PictureInPicture* = file:/libs/WindowManager/Shell/OWNERS
 
 # Zygote
 per-file *Zygote* = file:/ZYGOTE_OWNERS
+
+# Native Application
+per-file *NativeApplication* = file:/libs/native_activity_thread/OWNERS

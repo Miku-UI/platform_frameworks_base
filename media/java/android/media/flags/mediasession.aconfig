@@ -2,31 +2,11 @@ package: "com.android.media.mediasession.flags"
 container: "system"
 
 flag {
-  name: "add_wiu_allowlisting_to_media_button_receiver_holder_send"
-  namespace: "media_solutions"
-  description: "Add correct WIU allowlisting to MediaButtonReceiverHolder.send"
-  bug: "385736540"
-}
-
-flag {
-  name: "avoid_media_browser_include_capabilities_if_not_needed"
-  namespace: "media_solutions"
-  description: "Avoid BIND_INCLUDE_CAPABILITIES from MediaBrowser.connect if not needed"
-  bug: "393582077"
-}
-
-flag {
-  name: "remove_wiu_allowlisting_from_mediacontroller_sendcommand"
-  namespace: "media_solutions"
-  description: "Remove WIU allowlisting from MediaController.sendCommand"
-  bug: "339637822"
-}
-
-flag {
   name: "deprecate_platform_mediasession2_apis"
   namespace: "media_solutions"
   description: "Deprecate platform MediaSession2 APIs"
   bug: "436849846"
+  is_exported: true
 }
 
 flag {
@@ -50,4 +30,29 @@ flag {
   namespace: "media_solutions"
   description: "Remove the static memoization from AudioPlayerStateMonitor.getInstance(Context)."
   bug: "438917725"
+}
+
+flag {
+  name: "override_media_session_owner"
+  namespace: "media_solutions"
+  description: "Allow applications with permission to register media session on behalf of other apps."
+  bug: "422078108"
+  is_exported: true
+}
+
+flag {
+  name: "fetch_media_controllers_for_app"
+  namespace: "media_solutions"
+  description: "Allow media applications to fetch their media controllers. Also allow media apps"
+               "to add and remove listener for change in their controllers."
+  bug: "422078108"
+  is_exported: true
+}
+
+flag {
+  name: "expose_bitmap_size_limit_api"
+  namespace: "media_solutions"
+  description: "API to expose bitmap size limit used in MediaSession"
+  bug: "442621818"
+  is_exported: true
 }

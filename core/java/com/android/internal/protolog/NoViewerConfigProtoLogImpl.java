@@ -44,7 +44,7 @@ public class NoViewerConfigProtoLogImpl implements IProtoLog {
 
     @Override
     public void log(@NonNull LogLevel logLevel, @NonNull IProtoLogGroup group, long messageHash,
-            int paramsMask, @Nullable Object[] args) {
+            long paramsMask, @Nullable Object[] args) {
         final var argsString = args == null ? ""
                 : Arrays.stream(args).map(Object::toString).collect(Collectors.joining());
 

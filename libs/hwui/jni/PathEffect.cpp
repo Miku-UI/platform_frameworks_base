@@ -1,4 +1,5 @@
 #include "GraphicsJNI.h"
+#include "Path.h"
 #include "Sk1DPathEffect.h"
 #include "SkCornerPathEffect.h"
 #include "SkDashPathEffect.h"
@@ -36,13 +37,13 @@ public:
         AutoJavaFloatArray autoInterval(env, intervalArray);
         int         count = autoInterval.length() & ~1;  // even number
         SkScalar* intervals = autoInterval.ptr();
-        SkPathEffect* effect = SkDashPathEffect::Make(intervals, count, phase).release();
+        SkPathEffect* effect = SkDashPathEffect::Make({intervals, count}, phase).release();
         return reinterpret_cast<jlong>(effect);
     }
 
     static jlong OneD_constructor(JNIEnv* env, jobject,
                   jlong shapeHandle, jfloat advance, jfloat phase, jint style) {
-        const SkPath* shape = reinterpret_cast<SkPath*>(shapeHandle);
+        const SkPath* shape = android::AsSkPath(shapeHandle);
         SkASSERT(shape != NULL);
         SkPathEffect* effect = SkPath1DPathEffect::Make(*shape, advance, phase,
                 (SkPath1DPathEffect::Style)style).release();

@@ -72,6 +72,7 @@ public class VibratorPerfTest {
             String.format("atrace --async_start -b %d -c %s", ATRACE_BUFFER_SIZE, ATRACE_TAG);
     private static final String ATRACE_STOP = "atrace --async_stop";
     private static final String ATRACE_DUMP = "atrace --async_dump";
+    private static final String VIBRATION_SLICE_KEY = "vibration";
 
     // Traces that includes the vibration duration and should be used to generate latency metrics.
     private static final Set<String> LATENCY_TRACES = Set.of("vibration", "HalVibrator.vibration");
@@ -99,6 +100,11 @@ public class VibratorPerfTest {
             "OnVibratorStateChangedListener.start" + LATENCY_METRIC_KEY_SUFFIX;
     private static final String VIBRATOR_STATE_STOP_LATENCY_METRIC_KEY =
             "OnVibratorStateChangedListener.stop" + LATENCY_METRIC_KEY_SUFFIX;
+
+    private static final String VIBRATOR_SERVICE_COMPOSITION_DURATION_METRIC_KEY =
+            "VibratorService.compositionDuration";
+    private static final String VIBRATOR_SERVICE_COMPOSITION_GAP_METRIC_KEY =
+            "VibratorService.compositionGap";
 
     @Rule
     public final PerfManualStatusReporter mStatusReporter = new PerfManualStatusReporter();
@@ -221,6 +227,66 @@ public class VibratorPerfTest {
     }
 
     @Test
+    public void testComposeMixedEffectsTracesWith7EventsAnd2VibratingTimes()
+            throws InterruptedException {
+        // Enable traces in separate test case, as they might affect performance.
+        assumeTrue("Device without primitives or envelope effect support",
+                mVibrator.areAllPrimitivesSupported(PRIMITIVE_CLICK)
+                        && mVibrator.areEnvelopeEffectsSupported());
+
+        VibrationEffect pwle = new VibrationEffect.BasicEnvelopeBuilder()
+                .addControlPoint(1, 1, 50)
+                .addControlPoint(0.5f, 0.5f, 50)
+                .addControlPoint(0, 0, 50)
+                .build();
+        VibrationEffect predefined = VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK);
+        VibrationEffect waveform = VibrationEffect.createWaveform(
+                new long[]{20, 50, 40}, new int[]{255, 128, 0}, -1);
+        VibrationEffect effect = VibrationEffect.startComposition()
+                .addPrimitive(PRIMITIVE_CLICK)
+                .addEffect(pwle)
+                .addEffect(waveform) // This will trigger the vibrator off.
+                .addEffect(predefined)
+                .addPrimitive(PRIMITIVE_TICK)
+                .addEffect(pwle)
+                .addPrimitive(PRIMITIVE_CLICK)
+                .compose();
+        long durationMs = effect.getDuration(mVibrator.getInfo());
+
+        benchmarkVibrateWithTraces(effect, /* durationMs= */ durationMs, /* vibratingTimes= */ 2,
+                /* addCompositionMetrics= */ true);
+    }
+
+    @Test
+    public void testComposeMixedEffectsTracesWith5EventsAnd1VibratingTimes()
+            throws InterruptedException {
+        // Enable traces in separate test case, as they might affect performance.
+        assumeTrue("Device without primitives or envelope effect support",
+                mVibrator.areAllPrimitivesSupported(PRIMITIVE_CLICK)
+                        && mVibrator.areEnvelopeEffectsSupported());
+
+        VibrationEffect pwle = new VibrationEffect.BasicEnvelopeBuilder()
+                .addControlPoint(1, 1, 50)
+                .addControlPoint(0.5f, 0.5f, 50)
+                .addControlPoint(0, 0, 50)
+                .build();
+        VibrationEffect predefined = VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK);
+        VibrationEffect waveform = VibrationEffect.createWaveform(
+                new long[]{20, 50, 40}, new int[]{255, 128, 64}, -1);
+        VibrationEffect effect = VibrationEffect.startComposition()
+                .addPrimitive(PRIMITIVE_CLICK)
+                .addEffect(pwle)
+                .addEffect(waveform)
+                .addEffect(predefined)
+                .addPrimitive(PRIMITIVE_CLICK)
+                .compose();
+        long durationMs = effect.getDuration(mVibrator.getInfo());
+
+        benchmarkVibrateWithTraces(effect, /* durationMs= */ durationMs, /* vibratingTimes= */ 1,
+                /* addCompositionMetrics= */ true);
+    }
+
+    @Test
     public void testEnvelopeEffect() throws InterruptedException {
         long durationMs = 100;
         VibrationEffect effect = new VibrationEffect.BasicEnvelopeBuilder()
@@ -337,6 +403,13 @@ public class VibratorPerfTest {
 
     private void benchmarkVibrateWithTraces(VibrationEffect effect, long durationMs)
             throws InterruptedException {
+        benchmarkVibrateWithTraces(effect, durationMs, /* vibratingTimes= */ 1,
+                /* addCompositionMetrics= */ false);
+    }
+
+    private void benchmarkVibrateWithTraces(VibrationEffect effect, long durationMs,
+            int vibratingTimes, boolean addCompositionMetrics)
+            throws InterruptedException {
         assumeTrue("Device without vibrator", mVibrator.hasVibrator());
         assertVibratorIdle();
         ManualBenchmarkState state = mStatusReporter.getBenchmarkState();
@@ -345,11 +418,15 @@ public class VibratorPerfTest {
             startAsyncAtrace();
             long elapsedTimeNs = 0;
             while (state.keepRunning(elapsedTimeNs)) {
-                elapsedTimeNs = measureVibrateWithTraces(effect);
+                elapsedTimeNs = measureVibrateWithTraces(effect, vibratingTimes);
             }
         } finally {
             stopAsyncAtraceAndDumpTraces();
-            addTracesToState(state, durationMs);
+            if (addCompositionMetrics) {
+                addCompositionMetricForTrace(state, durationMs);
+            } else {
+                addTracesToState(state, durationMs);
+            }
         }
     }
 
@@ -377,14 +454,17 @@ public class VibratorPerfTest {
      * <p>This will wait for the vibration and apply a rate-limiting sleep to wait for the service
      * to become idle before next iteration.
      */
-    private long measureVibrateWithTraces(VibrationEffect effect) throws InterruptedException {
+    private long measureVibrateWithTraces(VibrationEffect effect, int vibratingTimes)
+            throws InterruptedException {
         long startTimeNs = System.nanoTime();
         mVibrator.vibrate(effect);
         long latencyNs = System.nanoTime() - startTimeNs;
 
-        mStateListener.awaitVibrating(5, SECONDS);
-        mStateListener.awaitIdle(5, SECONDS);
-        mStateListener.resetCounters();
+        for (int i = 0; i < vibratingTimes; i++) {
+            mStateListener.awaitVibrating(5, SECONDS);
+            mStateListener.awaitIdle(5, SECONDS);
+            mStateListener.resetCounters();
+        }
 
         // Rate-limiting, wait for service to become idle after vibration ended.
         SystemClock.sleep(SERVICE_DELAY_MS);
@@ -474,6 +554,28 @@ public class VibratorPerfTest {
             }
         });
         Log.i(TAG, String.valueOf(mTraceMethods));
+    }
+
+    private void addCompositionMetricForTrace(
+            ManualBenchmarkState state, long durationMs) {
+        mTraceMethods.forAllSlices(
+                (key, slices) -> {
+                    if (key.equals(VIBRATION_SLICE_KEY)) {
+                        if (slices.size() < 2) {
+                            Log.w(TAG, "No enough trace samples for: " + key);
+                            return;
+                        }
+                        for (TraceMarkParser.TraceMarkSlice slice : slices) {
+                            state.addExtraResult(
+                                    VIBRATOR_SERVICE_COMPOSITION_DURATION_METRIC_KEY,
+                                    (long) (slice.getDurationInSeconds() * NANOS_PER_S));
+                            state.addExtraResult(
+                                    VIBRATOR_SERVICE_COMPOSITION_GAP_METRIC_KEY,
+                                    (long) (slice.getDurationInSeconds() * NANOS_PER_S)
+                                            - durationMs * NANOS_PER_MS);
+                        }
+                    }
+                });
     }
 
     private void addVibrationLatencyMetricForTrace(ManualBenchmarkState state, String key,

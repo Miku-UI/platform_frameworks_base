@@ -72,11 +72,16 @@ final class LocationTimeZoneManagerServiceState {
     @Override
     public String toString() {
         return "LocationTimeZoneManagerServiceState{"
-                + "mControllerState=" + mControllerState
-                + ", mLastEvent=" + mLastEvent
-                + ", mControllerStates=" + mControllerStates
-                + ", mPrimaryProviderStates=" + mPrimaryProviderStates
-                + ", mSecondaryProviderStates=" + mSecondaryProviderStates
+                + "mControllerState="
+                + mControllerState
+                + ", mLastEvent="
+                + mLastEvent
+                + ", mControllerStates="
+                + mControllerStates
+                + ", mPrimaryProviderStates="
+                + mPrimaryProviderStates
+                + ", mSecondaryProviderStates="
+                + mSecondaryProviderStates
                 + '}';
     }
 

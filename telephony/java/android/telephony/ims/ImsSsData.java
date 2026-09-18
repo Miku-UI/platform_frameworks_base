@@ -123,7 +123,7 @@ public final class ImsSsData implements Parcelable {
 
     /**
      * Service class flag for all data bearers (including
-     * {@link #SERVICE_CLASS_DATA_CIRCUIT_SYNC,
+     * {@link #SERVICE_CLASS_DATA_CIRCUIT_SYNC},
      * {@link #SERVICE_CLASS_DATA_CIRCUIT_ASYNC}, {@link #SERVICE_CLASS_PACKET_ACCESS},
      * {@link #SERVICE_CLASS_PAD}}) if supported by the carrier.
      *

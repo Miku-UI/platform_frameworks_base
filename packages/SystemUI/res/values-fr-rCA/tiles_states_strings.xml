@@ -42,7 +42,7 @@
     <item msgid="6221288736127914861">"Activé"</item>
   </string-array>
   <string-array name="tile_states_cell">
-    <item msgid="1235899788959500719">"Non disponible"</item>
+    <item msgid="1235899788959500719">"Non disponibles"</item>
     <item msgid="2074416252859094119">"Désactivées"</item>
     <item msgid="287997784730044767">"Activées"</item>
   </string-array>
@@ -102,7 +102,7 @@
     <item msgid="8067744885820618230">"Activée"</item>
   </string-array>
   <string-array name="tile_states_saver">
-    <item msgid="39714521631367660">"Non disponible"</item>
+    <item msgid="39714521631367660">"Non disponibles"</item>
     <item msgid="6983679487661600728">"Désactivé"</item>
     <item msgid="7520663805910678476">"Activé"</item>
   </string-array>
@@ -180,11 +180,6 @@
     <item msgid="8189342855739930015">"Indisponible"</item>
     <item msgid="146088982397753810">"Désactivé"</item>
     <item msgid="460891964396502657">"Activé"</item>
-  </string-array>
-  <string-array name="tile_states_dream">
-    <item msgid="6184819793571079513">"Non accessible"</item>
-    <item msgid="8014986104355098744">"Désactivé"</item>
-    <item msgid="5966994759929723339">"Activé"</item>
   </string-array>
   <string-array name="tile_states_font_scaling">
     <item msgid="3173069902082305985">"Non accessible"</item>

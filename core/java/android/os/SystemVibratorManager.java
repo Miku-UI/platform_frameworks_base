@@ -23,6 +23,9 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
 import android.hardware.vibrator.IVibratorManager;
+import android.os.vibrator.HapticGeneratorSession;
+import android.os.vibrator.IHapticGeneratorSession;
+import android.os.vibrator.IHapticGeneratorSessionCallback;
 import android.os.vibrator.IVibrationSession;
 import android.os.vibrator.IVibrationSessionCallback;
 import android.os.vibrator.VendorVibrationSession;
@@ -234,6 +237,29 @@ public class SystemVibratorManager extends VibratorManager {
         }
     }
 
+    @Override
+    public void startHapticGeneratorSession(
+            int vibratorId,
+            @NonNull HapticGeneratorSession.Config config,
+            @NonNull Executor executor,
+            @NonNull OutcomeReceiver<HapticGeneratorSession, Exception> callback) {
+        Objects.requireNonNull(config);
+        HapticGeneratorSessionCallback callbackDelegate = new HapticGeneratorSessionCallback(
+                executor, callback);
+        try {
+            if (mService == null) {
+                Log.w(TAG,
+                        "Failed to start haptic generator session; no vibrator manager service.");
+                callbackDelegate.onError(IHapticGeneratorSessionCallback.ERROR_CODE_ILLEGAL_STATE);
+                return;
+            }
+            mService.startHapticGeneratorSession(vibratorId, config, callbackDelegate);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Failed to start haptic generator session.", e);
+            callbackDelegate.onError(IHapticGeneratorSessionCallback.ERROR_CODE_UNKNOWN);
+        }
+    }
+
     private int getCapabilities() {
         synchronized (mLock) {
             if (mCapabilities != 0) {
@@ -312,6 +338,43 @@ public class SystemVibratorManager extends VibratorManager {
         @Override
         public void onFinished(int status) {
             mExecutor.execute(() -> mCallback.onFinished(status));
+        }
+    }
+
+    /** Callback for haptic generator sessions. */
+    private static class HapticGeneratorSessionCallback extends
+            IHapticGeneratorSessionCallback.Stub {
+        private final Executor mExecutor;
+        private final OutcomeReceiver<HapticGeneratorSession, Exception> mCallback;
+
+        HapticGeneratorSessionCallback(
+                @NonNull Executor executor,
+                @NonNull OutcomeReceiver<HapticGeneratorSession, Exception> callback) {
+            Objects.requireNonNull(executor);
+            Objects.requireNonNull(callback);
+            mExecutor = executor;
+            mCallback = callback;
+        }
+
+        @Override
+        public void onSessionStarted(IHapticGeneratorSession session) {
+            mExecutor.execute(() -> mCallback.onResult(new HapticGeneratorSession(session)));
+        }
+
+        @Override
+        public void onError(int errorCode) {
+            switch (errorCode) {
+                case IHapticGeneratorSessionCallback.ERROR_CODE_UNSUPPORTED:
+                    mExecutor.execute(() -> mCallback.onError(new UnsupportedOperationException()));
+                    break;
+                case IHapticGeneratorSessionCallback.ERROR_CODE_ILLEGAL_STATE:
+                    mExecutor.execute(() -> mCallback.onError(new IllegalStateException()));
+                    break;
+                default:
+                    mExecutor.execute(() -> mCallback.onError(
+                            new RuntimeException("Unknown error code: " + errorCode)));
+                    break;
+            }
         }
     }
 
@@ -472,6 +535,21 @@ public class SystemVibratorManager extends VibratorManager {
                 @NonNull VendorVibrationSession.Callback callback) {
             SystemVibratorManager.this.startVendorSession(mVibratorId, attrs, reason,
                     cancellationSignal, executor, callback);
+        }
+
+        @Override
+        public void startHapticGeneratorSession(
+                @Nullable HapticGeneratorSession.Config config,
+                @NonNull Executor executor,
+                @NonNull OutcomeReceiver<HapticGeneratorSession, Exception> callback) {
+            SystemVibratorManager.this.startHapticGeneratorSession(mVibratorInfo.getId(), config,
+                    executor, callback);
+        }
+
+        @Override
+        public boolean isHapticGeneratorSupported() {
+            return SystemVibratorManager.this.hasCapabilities(
+                    IVibratorManager.CAP_HAPTIC_GENERATOR);
         }
     }
 }

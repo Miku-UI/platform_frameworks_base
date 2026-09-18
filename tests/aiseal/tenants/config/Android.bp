@@ -1,0 +1,68 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+genrule {
+    name: "aiseal_test_odim_version",
+    device_first_srcs: [
+        "//frameworks/base/tests/aiseal/tenants/odim:AiSealTestHelperAppOdim",
+    ],
+    out: ["aiseal_test_odim_version.txt"],
+    tools: [":aapt2"],
+    cmd: "$(location :aapt2) dump badging $(in) | grep -o \"versionCode='[^']*'\" | cut -d\"'\" -f2 > $(out)",
+}
+
+genrule {
+    name: "aiseal_test_odim_expected_authority",
+    device_first_srcs: [
+        "//frameworks/base/tests/aiseal/tenants/odim:AiSealTestHelperAppOdim",
+    ],
+    out: ["aiseal_test_odim_expected_authority.txt"],
+    tools: [":apksigner"],
+    cmd: "$(location :apksigner) verify --print-certs-pem --min-sdk-version 24 --in $(in) | " +
+        "openssl x509 -inform PEM -outform DER | sha512sum | cut -d ' ' -f 1 > $(out)",
+}
+
+genrule {
+    name: "aiseal_test_vm_config_json",
+    srcs: [
+        "assets/vm_config.json",
+        ":aiseal_test_odim_expected_authority",
+        ":aiseal_test_odim_version",
+    ],
+    out: ["vm_config.json"],
+    cmd: "sed \"s/{ODIM_EXPECTED_AUTHORITY}/$$(cat $(location :aiseal_test_odim_expected_authority))/g\" $(location assets/vm_config.json) | " +
+        "sed \"s/{ODIM_VERSION}/$$(cat $(location :aiseal_test_odim_version))/g\" > $(out)",
+}
+
+genrule {
+    name: "aiseal_test_aiseal_config_json",
+    srcs: ["assets/aiseal_config.json"],
+    out: ["aiseal_config.json"],
+    cmd: "cp -f $(in) $(out)",
+}
+
+android_test_helper_app {
+    name: "AiSealTestTenantConfig",
+    asset_dirs: [],
+    assets: [
+        ":aiseal_test_vm_config_json",
+        ":aiseal_test_aiseal_config_json",
+    ],
+    certificate: "platform",
+    sdk_version: "current",
+}

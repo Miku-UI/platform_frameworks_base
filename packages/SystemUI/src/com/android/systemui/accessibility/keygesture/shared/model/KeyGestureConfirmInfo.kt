@@ -18,11 +18,15 @@ package com.android.systemui.accessibility.keygesture.shared.model
 
 import androidx.annotation.DrawableRes
 
+data class DialogContentSection(val heading: CharSequence?, val message: CharSequence?)
+
 data class KeyGestureConfirmInfo(
     val keyGestureType: Int,
     val title: String,
     val contentText: CharSequence,
+    val contentSections: List<DialogContentSection> = emptyList(),
     val targetName: String,
     @DrawableRes val actionKeyIconResId: Int,
     val displayId: Int,
+    val ttsText: CharSequence?,
 )

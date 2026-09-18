@@ -5,10 +5,11 @@ eranm@google.com
 jeffv@google.com
 tweek@google.com
 
-per-file *NetworkSecurityPolicy.java = file:net/OWNERS
 per-file Confirmation*.java = file:/keystore/OWNERS
 per-file FileIntegrityManager.java = file:platform/system/security:/fsverity/OWNERS
 per-file IFileIntegrityService.aidl = file:platform/system/security:/fsverity/OWNERS
-per-file *.aconfig = victorhsieh@google.com,eranm@google.com
+per-file *.aconfig = victorhsieh@google.com,eranm@google.com,ebiggers@google.com
 per-file *responsible_apis_flags.aconfig = file:platform/frameworks/base:main:/core/java/android/security/advancedprotection/OWNERS
 per-file *responsible_apis_flags.aconfig = file:platform/frameworks/base:main:/BAL_OWNERS
+per-file keychain_flags.aconfig = file:platform/packages/apps/KeyChain:/OWNERS
+per-file KeyChainManager.java = file:platform/packages/apps/KeyChain:/OWNERS

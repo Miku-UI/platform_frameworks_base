@@ -41,7 +41,6 @@ import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
 
-
 @RunWith(AndroidJUnit4.class)
 public class StateTrackerTest {
 
@@ -63,11 +62,13 @@ public class StateTrackerTest {
     @BeforeClass
     public static void classSetup() {
         sEmptyActivityRule = ActivityScenario.launch(EmptyActivity.class);
+        JankUtils.forceEnableJankTrackingConfig();
     }
 
     @AfterClass
     public static void classTearDown() {
         sEmptyActivityRule.close();
+        JankUtils.resetJankTrackingConfigDefaults();
     }
 
     @Before

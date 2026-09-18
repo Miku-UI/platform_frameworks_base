@@ -18,12 +18,14 @@ package android.hardware.display;
 
 import static android.view.Display.DEFAULT_DISPLAY;
 
+import android.Manifest;
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
 import android.annotation.FloatRange;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.hardware.display.DisplayManager.VirtualDisplayFlag;
@@ -162,7 +164,6 @@ public final class VirtualDisplayConfig implements Parcelable {
      * @see Builder#setDisplayCutout
      * @hide
      */
-    @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_VIRTUAL_DISPLAY_INSETS)
     @SystemApi
     @Nullable
     public DisplayCutout getDisplayCutout() {
@@ -177,7 +178,6 @@ public final class VirtualDisplayConfig implements Parcelable {
      *
      * @see Builder#setDefaultBrightness(float)
      */
-    @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
     public @FloatRange(from = 0.0f, to = 1.0f) float getDefaultBrightness() {
         return mDefaultBrightness;
     }
@@ -190,7 +190,6 @@ public final class VirtualDisplayConfig implements Parcelable {
      *
      * @see Builder#setDimBrightness(float)
      */
-    @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
     public @FloatRange(from = 0.0f, to = 1.0f) float getDimBrightness() {
         return mDimBrightness;
     }
@@ -208,7 +207,10 @@ public final class VirtualDisplayConfig implements Parcelable {
      * Returns the unique identifier for the display. Shouldn't be displayed to the user.
      * @hide
      */
+    @SystemApi
     @Nullable
+    @FlaggedApi(com.android.server.display.feature.flags.Flags
+            .FLAG_VIRTUAL_DISPLAYS_SUPPORT_DESKTOP_MODE)
     public String getUniqueId() {
         return mUniqueId;
     }
@@ -387,7 +389,6 @@ public final class VirtualDisplayConfig implements Parcelable {
     /**
      * Listener for display brightness changes.
      */
-    @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
     public interface BrightnessListener {
 
         /**
@@ -513,10 +514,17 @@ public final class VirtualDisplayConfig implements Parcelable {
         }
 
         /**
-         * Sets the unique identifier for the display.
+         * Sets the unique identifier for the display, this identifier will be used to persist
+         * some display settings and preferences like resolution and orientation like internal
+         * displays.
+         *
          * @hide
          */
         @NonNull
+        @SystemApi
+        @RequiresPermission(Manifest.permission.ADD_TRUSTED_DISPLAY)
+        @FlaggedApi(com.android.server.display.feature.flags.Flags
+                .FLAG_VIRTUAL_DISPLAYS_SUPPORT_DESKTOP_MODE)
         public Builder setUniqueId(@Nullable String uniqueId) {
             mUniqueId = uniqueId;
             return this;
@@ -618,7 +626,6 @@ public final class VirtualDisplayConfig implements Parcelable {
          *
          * @hide
          */
-        @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_VIRTUAL_DISPLAY_INSETS)
         @SystemApi
         @NonNull
         public Builder setDisplayCutout(@Nullable DisplayCutout displayCutout) {
@@ -659,7 +666,6 @@ public final class VirtualDisplayConfig implements Parcelable {
          * @see android.view.View#setKeepScreenOn(boolean)
          * @see #setBrightnessListener(Executor, BrightnessListener)
          */
-        @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
         @NonNull
         public Builder setDefaultBrightness(@FloatRange(from = 0.0f, to = 1.0f) float brightness) {
             if (!isValidBrightness(brightness)) {
@@ -686,7 +692,6 @@ public final class VirtualDisplayConfig implements Parcelable {
          * @see Builder#setDefaultBrightness(float)
          * @see #setBrightnessListener(Executor, BrightnessListener)
          */
-        @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
         @NonNull
         public Builder setDimBrightness(@FloatRange(from = 0.0f, to = 1.0f) float brightness) {
             if (!isValidBrightness(brightness)) {
@@ -704,7 +709,6 @@ public final class VirtualDisplayConfig implements Parcelable {
          * @param listener The listener to get notified when the display brightness has changed.
          */
         @SuppressLint("MissingGetterMatchingBuilder") // The hidden getter returns the AIDL object
-        @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
         @NonNull
         public Builder setBrightnessListener(@NonNull @CallbackExecutor Executor executor,
                 @NonNull BrightnessListener listener) {

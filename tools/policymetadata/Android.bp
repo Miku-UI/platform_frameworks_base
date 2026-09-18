@@ -1,0 +1,64 @@
+package {
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "frameworks_base_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["frameworks_base_license"],
+    default_team: "trendy_team_enterprise",
+}
+
+java_library_host {
+    name: "PolicyMetadataGeneratorHostLibrary",
+    srcs: [
+        "src/**/*.kt",
+    ],
+    use_tools_jar: true,
+    static_libs: [
+        "libprotobuf-java-full",
+        "javapoet",
+        "DevicePolicyAnnotationProcessorProto",
+    ],
+}
+
+java_binary_host {
+    name: "PolicyMetadataGenerator",
+    main_class: "android.tools.policymetadata.Main",
+    static_libs: [
+        "PolicyMetadataGeneratorHostLibrary",
+    ],
+}
+
+java_test_host {
+    name: "PolicyMetadataGeneratorHostTests",
+
+    srcs: ["test/src/**/*.kt"],
+
+    static_libs: [
+        "compile-testing-prebuilt",
+        "junit",
+        "truth",
+        "kotlin-reflect",
+        "PolicyMetadataGeneratorHostLibrary",
+    ],
+
+    java_resources: [":PolicyMetadataGeneratorTestSource"],
+    test_suites: ["general-tests"],
+}
+
+filegroup {
+    name: "PolicyMetadataGeneratorTestSource",
+    srcs: [
+        "test/resources/**/*.java",
+        "test/resources/**/*.textproto",
+    ],
+    visibility: ["//visibility:private"],
+}
+
+genrule {
+    name: "GeneratedPolicyMetadata",
+    tools: ["PolicyMetadataGenerator"],
+    srcs: ["policies.textproto"],
+    cmd: "$(location PolicyMetadataGenerator) $(in) $(out)",
+    out: ["android/app/admin/metadata/Policies.java"],
+}

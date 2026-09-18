@@ -81,7 +81,7 @@ interface IAppWidgetService {
     boolean isBoundWidgetPackage(String packageName, int userId);
     boolean requestPinAppWidget(String packageName, in ComponentName providerComponent,
             in Bundle extras, in IntentSender resultIntent);
-    boolean isRequestPinAppWidgetSupported();
+    boolean isRequestPinAppWidgetSupported(String packageName);
     oneway void noteAppWidgetTapped(in String callingPackage, in int appWidgetId);
     boolean setWidgetPreview(in ComponentName providerComponent, in int widgetCategories,
             in RemoteViews preview);

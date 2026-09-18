@@ -38,11 +38,12 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.never;
 
 import android.app.ActivityManager.RunningTaskInfo;
 import android.app.TaskInfo;
@@ -58,6 +59,7 @@ import android.view.SurfaceControl;
 import android.window.ITaskOrganizer;
 import android.window.ITaskOrganizerController;
 import android.window.TaskAppearedInfo;
+import android.window.TaskCreationParams;
 import android.window.WindowContainerToken;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -204,6 +206,55 @@ public class ShellTaskOrganizerTests extends ShellTestCase {
         mOrganizer.addListenerForType(listener, TASK_LISTENER_TYPE_MULTI_WINDOW);
         assertTrue(listener.appeared.contains(task1));
         assertTrue(listener.appeared.contains(task2));
+    }
+
+    @Test
+    public void testOnTaskInfoUpdated() {
+        RunningTaskInfo taskInfo = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_MULTI_WINDOW);
+        taskInfo.isInteractive = false;
+        TrackingTaskListener listener = new TrackingTaskListener();
+        mOrganizer.addListenerForType(listener, TASK_LISTENER_TYPE_MULTI_WINDOW);
+        mOrganizer.onTaskAppeared(taskInfo, /* leash= */ null);
+
+        RunningTaskInfo updateInfo = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_MULTI_WINDOW);
+        updateInfo.isInteractive = true;
+        mOrganizer.onTaskInfoUpdated(updateInfo);
+
+        assertEquals(0, listener.infoChanged.size());
+        assertTrue(mOrganizer.getRunningTaskInfo(1).isInteractive);
+    }
+
+    @Test
+    public void testOnTaskInfoUpdated_notAppeared() {
+        RunningTaskInfo updateInfo = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_MULTI_WINDOW);
+        updateInfo.isInteractive = true;
+        mOrganizer.onTaskInfoUpdated(updateInfo);
+
+        assertNull(mOrganizer.getRunningTaskInfo(1));
+    }
+
+    @Test
+    public void testOnTaskInfoChanged_preservesInteractivity() {
+        RunningTaskInfo taskInfo = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_MULTI_WINDOW);
+        taskInfo.isInteractive = true;
+        mOrganizer.onTaskAppeared(taskInfo, /* leash= */ null);
+
+        // Transition update changes interactivity to false
+        RunningTaskInfo updateInfo = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_MULTI_WINDOW);
+        updateInfo.isInteractive = false;
+        mOrganizer.onTaskInfoUpdated(updateInfo);
+        assertFalse(mOrganizer.getRunningTaskInfo(1).isInteractive);
+
+        // Task info change from Core with potentially stale interactivity (true)
+        RunningTaskInfo changeInfo = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_MULTI_WINDOW);
+        changeInfo.isInteractive = true;
+        // Trigger a change that would satisfy equalsForTaskOrganizer (e.g. visibility)
+        changeInfo.isVisible = !taskInfo.isVisible;
+
+        mOrganizer.onTaskInfoChanged(changeInfo);
+
+        // Interactivity should be preserved from the cache (false), not overwritten by changeInfo
+        assertFalse(mOrganizer.getRunningTaskInfo(1).isInteractive);
     }
 
     @Test
@@ -854,6 +905,35 @@ public class ShellTaskOrganizerTests extends ShellTestCase {
         assertEquals(mOrganizer.getHomeTaskSurface(/* displayId= */ 2), taskLeash);
     }
 
+    @Test
+    public void testTaskOrganizerCreateRootTaskListener() throws Exception {
+        final TaskAppearedInfo appearedInfo = mock(TaskAppearedInfo.class);
+        doReturn(appearedInfo).when(mTaskOrganizerController).createTask(any());
+
+        final ShellTaskOrganizer.ContainerHierarchyRootTaskListener listener =
+                mock(ShellTaskOrganizer.ContainerHierarchyRootTaskListener.class);
+        mOrganizer.setContainerHierarchyCreateRootTaskListener(listener);
+
+        final TaskCreationParams params = new TaskCreationParams.Builder()
+                .setName("test")
+                .build();
+        mOrganizer.createTask(params);
+
+        verify(listener).onRootTaskCreated(appearedInfo, "test");
+    }
+
+    @Test
+    public void testTaskOrganizerRemoveRootTaskListener() throws Exception {
+        final WindowContainerToken token = mock(WindowContainerToken.class);
+        final ShellTaskOrganizer.ContainerHierarchyRootTaskListener listener =
+                mock(ShellTaskOrganizer.ContainerHierarchyRootTaskListener.class);
+        mOrganizer.setContainerHierarchyCreateRootTaskListener(listener);
+
+        mOrganizer.deleteTask(token);
+
+        verify(listener).onRootTaskRemoved(token);
+    }
+
     private static ShellTaskOrganizer.TaskVanishedListener getSelfRemovingVanishedListener(
             ShellTaskOrganizer shellTaskOrganizer, AtomicInteger taskVanishedCalls) {
         return new ShellTaskOrganizer.TaskVanishedListener() {
@@ -895,5 +975,20 @@ public class ShellTaskOrganizerTests extends ShellTestCase {
         final CompatUIInfo captureValue = capture.getValue();
         assertEquals(captureValue.getTaskInfo(), taskInfo);
         assertEquals(captureValue.getListener(), listener);
+    }
+
+    @Test
+    public void testKeyguardOccludingTaskChanged() {
+        ShellTaskOrganizer.KeyguardOccludingTaskListener listener =
+                mock(ShellTaskOrganizer.KeyguardOccludingTaskListener.class);
+        mOrganizer.addKeyguardOccludingTaskListener(listener);
+
+        final RunningTaskInfo taskInfo = new TestRunningTaskInfoBuilder().build();
+        mOrganizer.onKeyguardOccludingTaskChanged(DEFAULT_DISPLAY, taskInfo);
+        verify(listener).onKeyguardOccludingTaskChanged(DEFAULT_DISPLAY, taskInfo);
+
+        mOrganizer.removeKeyguardOccludingTaskListener(listener);
+        mOrganizer.onKeyguardOccludingTaskChanged(DEFAULT_DISPLAY, null);
+        verify(listener, times(1)).onKeyguardOccludingTaskChanged(anyInt(), any());
     }
 }

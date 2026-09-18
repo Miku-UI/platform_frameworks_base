@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.platform.test.annotations.DisabledOnRavenwood;
 import android.test.InstrumentationTestCase;
 import android.util.Log;
 
@@ -43,6 +44,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringReader;
 
+@DisabledOnRavenwood(blockedBy = StorageManager.class)
 public class StorageManagerBaseTest extends InstrumentationTestCase {
 
     protected Context mContext = null;

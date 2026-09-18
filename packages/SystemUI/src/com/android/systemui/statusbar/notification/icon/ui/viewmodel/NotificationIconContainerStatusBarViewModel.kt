@@ -24,25 +24,15 @@ import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.plugins.DarkIconDispatcher
 import com.android.systemui.res.R
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
-import com.android.systemui.statusbar.headsup.shared.StatusBarNoHunBehavior
-import com.android.systemui.statusbar.notification.domain.interactor.HeadsUpNotificationIconInteractor
 import com.android.systemui.statusbar.notification.icon.domain.interactor.StatusBarNotificationIconsInteractor
 import com.android.systemui.statusbar.phone.domain.interactor.DarkIconInteractor
 import com.android.systemui.util.kotlin.FlowDumperImpl
-import com.android.systemui.util.kotlin.pairwise
-import com.android.systemui.util.kotlin.sample
-import com.android.systemui.util.ui.AnimatableEvent
-import com.android.systemui.util.ui.AnimatedValue
-import com.android.systemui.util.ui.toAnimatedValueFlow
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
@@ -54,7 +44,6 @@ constructor(
     private val darkIconInteractor: DarkIconInteractor,
     dumpManager: DumpManager,
     iconsInteractor: StatusBarNotificationIconsInteractor,
-    headsUpIconInteractor: HeadsUpNotificationIconInteractor,
     keyguardInteractor: KeyguardInteractor,
     @Main resources: Resources,
     shadeInteractor: ShadeInteractor,
@@ -96,45 +85,6 @@ constructor(
             .conflate()
             .distinctUntilChanged()
             .dumpWhileCollecting("icons")
-
-    /** An Icon to show "isolated" in the IconContainer. */
-    val isolatedIcon: Flow<AnimatedValue<NotificationIconInfo?>> =
-        if (StatusBarNoHunBehavior.isEnabled) {
-            flowOf(AnimatedValue.NotAnimating(null))
-        } else {
-            headsUpIconInteractor.isolatedNotification
-                .combine(icons) { isolatedNotif, iconsViewData ->
-                    isolatedNotif?.let {
-                        iconsViewData.visibleIcons.firstOrNull { it.notifKey == isolatedNotif }
-                    }
-                }
-                .distinctUntilChanged()
-                .flowOn(bgContext)
-                .conflate()
-                .distinctUntilChanged()
-                .pairwise(initialValue = null)
-                .sample(shadeInteractor.shadeExpansion) { (prev, iconInfo), shadeExpansion ->
-                    val animate =
-                        when {
-                            iconInfo?.notifKey == prev?.notifKey -> false
-                            iconInfo == null || prev == null -> shadeExpansion == 0f
-                            else -> false
-                        }
-                    AnimatableEvent(iconInfo, animate)
-                }
-                .toAnimatedValueFlow()
-        }
-
-    /** Location to show an isolated icon, if there is one. */
-    val isolatedIconLocation: Flow<Rect> =
-        if (StatusBarNoHunBehavior.isEnabled) {
-            emptyFlow()
-        } else {
-            headsUpIconInteractor.isolatedIconLocation
-                .filterNotNull()
-                .conflate()
-                .distinctUntilChanged()
-        }
 
     private class IconColorsImpl(override val tint: Int, private val areas: Collection<Rect>) :
         NotificationIconColors {

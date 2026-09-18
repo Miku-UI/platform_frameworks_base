@@ -74,7 +74,8 @@ public class VibrationStatsWriter {
     private static VibrationStatsWriter sVibrationStatsWriter;
 
     private VibrationStatsWriter(Context context) {
-        mContext = context.getApplicationContext();
+        Context appContext = context.getApplicationContext();
+        mContext = appContext != null ? appContext : context;
         boolean initialized;
         try {
             loadVibrationPatternsIntoMap(mContext,

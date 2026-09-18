@@ -45,6 +45,7 @@
     <string name="keyguard_accessibility_password" msgid="3524161948484801450">"รหัสผ่านของอุปกรณ์"</string>
     <string name="keyguard_accessibility_sim_pin_area" msgid="6272116591533888062">"พื้นที่ PIN ของซิม"</string>
     <string name="keyguard_accessibility_sim_puk_area" msgid="5537294043180237374">"พื้นที่ PUK ของซิม"</string>
+    <string name="keyguard_accessibility_pin_delete_long_click" msgid="1530074796041838525">"กดค้างเพื่อลบทั้งหมด"</string>
     <string name="keyboardview_keycode_delete" msgid="8489719929424895174">"ลบ"</string>
     <string name="disable_carrier_button_text" msgid="7153361131709275746">"ปิดใช้ eSIM"</string>
     <string name="error_disable_esim_title" msgid="3802652622784813119">"ปิดใช้ eSIM ไม่ได้"</string>
@@ -85,9 +86,20 @@
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"ปลดล็อกด้วยลายนิ้วมือไม่ได้ ลองหลายครั้งเกินไป"</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"เอเจนต์ความน่าเชื่อถือไม่พร้อมใช้งาน"</string>
     <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"ป้อน PIN ผิดหลายครั้งเกินไป"</string>
+    <string name="kg_primary_auth_duplicate_guess_pin" msgid="5834891656916692329">"ลองใช้ PIN นี้แล้ว โปรดลองใช้ PIN อื่น"</string>
+    <string name="kg_primary_auth_duplicate_guess_pattern" msgid="3827593245962385968">"ลองใช้รูปแบบนี้แล้ว โปรดลองรูปแบบอื่น"</string>
+    <string name="kg_primary_auth_duplicate_guess_password" msgid="3153406042812407458">"ลองใช้รหัสผ่านนั้นแล้ว โปรดลองรหัสผ่านอื่น"</string>
     <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"วาดรูปแบบผิดหลายครั้งเกินไป"</string>
     <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"ป้อนรหัสผ่านผิดหลายครั้งเกินไป"</string>
+    <string name="kg_primary_auth_locked_out_pin_shortlink" msgid="1294871994741389848">"ป้อน PIN ผิดหลายครั้งเกินไป\nดูข้อมูลเพิ่มเติมที่ <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
+    <string name="kg_primary_auth_locked_out_pattern_shortlink" msgid="5998598232858156495">"วาดรูปแบบผิดหลายครั้งเกินไป\nดูข้อมูลเพิ่มเติมที่ <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
+    <string name="kg_primary_auth_locked_out_password_shortlink" msgid="7035847891707609104">"ป้อนรหัสผ่านผิดหลายครั้งเกินไป\nดูข้อมูลเพิ่มเติมที่ <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{ลองอีกครั้งใน # วินาที}other{ลองอีกครั้งใน # วินาที}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_seconds" msgid="5869847493314053274">"{count,plural, =1{โปรดลองอีกครั้งในอีก # วินาที}other{โปรดลองอีกครั้งในอีก # วินาที}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_minutes" msgid="6688071439818994316">"{count,plural, =1{โปรดลองอีกครั้งในอีก # นาที}other{โปรดลองอีกครั้งในอีก # นาที}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_hours" msgid="4895375498917738857">"{count,plural, =1{โปรดลองอีกครั้งในอีก # ชั่วโมง}other{โปรดลองอีกครั้งในอีก # ชั่วโมง}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_days" msgid="5427787465019979593">"{count,plural, =1{โปรดลองอีกครั้งใน # วัน}other{โปรดลองอีกครั้งใน # วัน}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_years" msgid="7115333753941425268">"{count,plural, =1{โปรดลองอีกครั้งในอีก # ปี}other{โปรดลองอีกครั้งในอีก # ปี}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"ป้อน PIN ของซิม"</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"ป้อน PIN ของซิมสำหรับ \"<xliff:g id="CARRIER">%1$s</xliff:g>\""</string>
     <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g> ปิดใช้ eSIM เพื่อใช้อุปกรณ์โดยไม่มีบริการมือถือ"</string>
@@ -112,6 +124,9 @@
     <string name="kg_prompt_reason_restart_pattern" msgid="3321211830602827742">"ต้องวาดรูปแบบหลังจากรีสตาร์ทอุปกรณ์"</string>
     <string name="kg_prompt_reason_restart_pin" msgid="2672166323886110512">"ต้องป้อน PIN หลังจากรีสตาร์ทอุปกรณ์"</string>
     <string name="kg_prompt_reason_restart_password" msgid="3967993994418885887">"ต้องป้อนรหัสผ่านหลังจากรีสตาร์ทอุปกรณ์"</string>
+    <string name="kg_prompt_reason_signin_pattern" msgid="1650886553162854395">"ต้องวาดรูปแบบเพื่อลงชื่อเข้าใช้"</string>
+    <string name="kg_prompt_reason_signin_pin" msgid="636031498838532631">"ต้องระบุ PIN เพื่อลงชื่อเข้าใช้"</string>
+    <string name="kg_prompt_reason_signin_password" msgid="1020939174735616114">"ต้องระบุรหัสผ่านเพื่อลงชื่อเข้าใช้"</string>
     <string name="kg_prompt_reason_timeout_pattern" msgid="5514969660010197363">"ใช้รูปแบบแทนเพื่อเพิ่มความปลอดภัย"</string>
     <string name="kg_prompt_reason_timeout_pin" msgid="4227962059353859376">"ใช้ PIN แทนเพื่อเพิ่มความปลอดภัย"</string>
     <string name="kg_prompt_reason_timeout_password" msgid="8810879144143933690">"ใช้รหัสผ่านแทนเพื่อเพิ่มความปลอดภัย"</string>

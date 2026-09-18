@@ -148,6 +148,7 @@ class MetadataSyncAdapterTest {
             metadataSyncAdapter.trySyncAppFunctionMetadataBlocking(
                 staticSearchSession,
                 runtimeSearchSession,
+                /* shouldSetRuntimeMetadataSchemaUnconditionally = */ false,
             )
 
         assertThat(submitSyncRequest).isInstanceOf(Unit::class.java)
@@ -189,6 +190,7 @@ class MetadataSyncAdapterTest {
             metadataSyncAdapter.trySyncAppFunctionMetadataBlocking(
                 staticSearchSession,
                 runtimeSearchSession,
+                /* shouldSetRuntimeMetadataSchemaUnconditionally = */ false,
             )
 
         assertThat(submitSyncRequest).isInstanceOf(Unit::class.java)
@@ -244,6 +246,7 @@ class MetadataSyncAdapterTest {
             metadataSyncAdapter.trySyncAppFunctionMetadataBlocking(
                 staticSearchSession,
                 runtimeSearchSession,
+                /* shouldSetRuntimeMetadataSchemaUnconditionally = */ false,
             )
 
         assertThat(submitSyncRequest).isInstanceOf(Unit::class.java)

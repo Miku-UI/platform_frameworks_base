@@ -26,7 +26,6 @@ import android.hardware.radio.ITuner;
 import android.hardware.radio.ITunerCallback;
 import android.hardware.radio.RadioManager;
 import android.os.Binder;
-import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.util.IndentingPrintWriter;
@@ -61,8 +60,7 @@ final class IRadioServiceAidlImpl extends IRadioService.Stub {
     public static ArrayList<String> getServicesNames() {
         ArrayList<String> serviceList = new ArrayList<>();
         for (int i = 0; i < SERVICE_NAMES.size(); i++) {
-            IBinder serviceBinder = ServiceManager.waitForDeclaredService(SERVICE_NAMES.get(i));
-            if (serviceBinder != null) {
+            if (ServiceManager.isDeclared(SERVICE_NAMES.get(i))) {
                 serviceList.add(SERVICE_NAMES.get(i));
             }
         }

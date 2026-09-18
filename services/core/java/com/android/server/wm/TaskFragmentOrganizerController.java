@@ -62,7 +62,6 @@ import android.window.WindowContainerTransaction;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
 import com.android.internal.protolog.WmProtoLogGroups;
-import com.android.window.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -514,9 +513,8 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
                     "Defer transition id=%d for TaskFragmentTransaction=%s", transitionId,
                     transaction.getTransactionToken());
             mDeferredTransitions.put(transaction.getTransactionToken(), transitionId);
-            mWindowOrganizerController.getTransitionController().deferTransitionReady();
             final Transition.ReadyCondition transactionApplied = new Transition.ReadyCondition(
-                    "task-fragment transaction", transaction, !Flags.migrateBasicLegacyReady());
+                    "task-fragment transaction", transaction, false);
             mWindowOrganizerController.getTransitionController().waitFor(transactionApplied);
             mInFlightTransactions.put(transaction.getTransactionToken(), transactionApplied);
         }
@@ -543,7 +541,6 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
             ProtoLog.v(WmProtoLogGroups.WM_DEBUG_WINDOW_TRANSITIONS_MIN,
                     "Continue transition id=%d for TaskFragmentTransaction=%s", transitionId,
                     transactionToken);
-            mWindowOrganizerController.getTransitionController().continueTransitionReady();
         }
     }
 
@@ -955,6 +952,9 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
             @NonNull ITaskFragmentOrganizer organizer, @NonNull Task task) {
         final List<PendingTaskFragmentEvent> events = mPendingTaskFragmentEvents
                 .get(organizer.asBinder());
+        if (events == null) {
+            return null;
+        }
         for (int i = events.size() - 1; i >= 0; i--) {
             final PendingTaskFragmentEvent event = events.get(i);
             if (task == event.mTask

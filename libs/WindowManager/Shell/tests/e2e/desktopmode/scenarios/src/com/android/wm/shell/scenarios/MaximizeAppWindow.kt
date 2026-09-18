@@ -17,9 +17,9 @@
 package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
+import android.platform.test.annotations.WithDesktopTest
 import android.tools.Rotation
 import android.tools.traces.parsers.WindowManagerStateHelper
-import android.window.DesktopModeFlags
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
@@ -27,31 +27,29 @@ import com.android.server.wm.flicker.helpers.DesktopModeAppHelper.MaximizeDeskto
 import com.android.server.wm.flicker.helpers.NonResizeableAppHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
 import org.junit.After
-import org.junit.Assume
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 
+@WithDesktopTest
 @Ignore("Test Base Class")
 abstract class MaximizeAppWindow(
     private val rotation: Rotation = Rotation.ROTATION_0,
     isResizable: Boolean = true,
-    private val trigger: MaximizeDesktopAppTrigger = MaximizeDesktopAppTrigger.MAXIMIZE_MENU,
+    private val trigger: MaximizeDesktopAppTrigger = MaximizeDesktopAppTrigger.LAYOUT_MENU,
 ) : TestScenarioBase(rotation) {
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
-    val testApp = if (isResizable) {
-        DesktopModeAppHelper(SimpleAppHelper(instrumentation))
-    } else {
-        DesktopModeAppHelper(NonResizeableAppHelper(instrumentation))
-    }
+    val testApp =
+        if (isResizable) {
+            DesktopModeAppHelper(SimpleAppHelper(instrumentation))
+        } else {
+            DesktopModeAppHelper(NonResizeableAppHelper(instrumentation))
+        }
 
     @Before
     fun setup() {
-        if (trigger == MaximizeDesktopAppTrigger.KEYBOARD_SHORTCUT) {
-            Assume.assumeTrue(DesktopModeFlags.ENABLE_TASK_RESIZING_KEYBOARD_SHORTCUTS.isTrue)
-        }
         testApp.enterDesktopMode(wmHelper, device)
     }
 

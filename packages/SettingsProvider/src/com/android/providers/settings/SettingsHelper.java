@@ -50,7 +50,6 @@ import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.app.LocalePicker;
-import com.android.server.backup.Flags;
 
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -85,6 +84,26 @@ public class SettingsHelper {
     private static final String ERROR_REMOTE_EXCEPTION_SETTING_LOCALE_DATA =
         "remote_exception_setting_locale_data";
     private static final String ERROR_FAILED_TO_RESTORE_SETTING = "failed_to_restore_setting";
+
+    /**
+     * Restored status for accessibility settings.
+     */
+    public enum SettingRestoreStatus {
+        RESTORED_DISABLED(-2),
+        RESTORED_ENABLED(-1),
+        ENABLED(1),
+        DISABLED(0);
+
+        private final int value;
+
+        SettingRestoreStatus(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+    }
 
     private Context mContext;
     private AudioManager mAudioManager;
@@ -272,8 +291,7 @@ public class SettingsHelper {
                 // Don't write it to setting. Let the broadcast receiver in
                 // AccessibilityManagerService handle restore/merging logic.
                 return;
-            } else if (com.android.graphics.hwui.flags.Flags.highContrastTextSmallTextRect()
-                    && Settings.Secure.ACCESSIBILITY_HIGH_TEXT_CONTRAST_ENABLED.equals(name)) {
+            } else if (Settings.Secure.ACCESSIBILITY_HIGH_TEXT_CONTRAST_ENABLED.equals(name)) {
                 final boolean currentlyEnabled = Settings.Secure.getInt(
                         context.getContentResolver(),
                         Settings.Secure.ACCESSIBILITY_HIGH_TEXT_CONTRAST_ENABLED, 0) == 1;
@@ -289,6 +307,52 @@ public class SettingsHelper {
                     return;
                 }
                 // fall through to the ordinary write to settings
+            } else if (Settings.Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED.equals(name)
+                    && isColorInversionInSetupWizardEnabled(context)
+                    && !isUserSetupCompleted(cr)) {
+                Log.i(TAG, "Color inversion setting is restored: " + name + " " + value);
+                // If the value is null, don't restore.
+                if (value == null) {
+                    return;
+                }
+                // Map the restored value to a temporary value to avoid it taking effect
+                // before the Setup Wizard finishes.
+                try {
+                    int intValue = Integer.parseInt(value);
+                    if (intValue == SettingRestoreStatus.ENABLED.getValue()) {
+                        value = String.valueOf(SettingRestoreStatus.RESTORED_ENABLED.getValue());
+                    } else if (intValue == SettingRestoreStatus.DISABLED.getValue()) {
+                        value = String.valueOf(SettingRestoreStatus.RESTORED_DISABLED.getValue());
+                    }
+                    // Unrecognized integer values fall through to write the original setting.
+                } catch (NumberFormatException e) {
+                    // Non-integer values also fall through.
+                    Log.w(TAG, "Unexpected non-integer value for color inversion: " + value);
+                }
+                // Fall through to write the setting.
+            } else if (Settings.Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED.equals(name)
+                    && isColorDaltonizerInSetupWizardEnabled(context)
+                    && !isUserSetupCompleted(cr)) {
+                Log.i(TAG, "Color daltonizer setting is restored: " + name + " " + value);
+                // If the value is null, don't restore.
+                if (value == null) {
+                    return;
+                }
+                // Map the restored value to a temporary value to avoid it taking effect
+                // before the Setup Wizard finishes.
+                try {
+                    int intValue = Integer.parseInt(value);
+                    if (intValue == SettingRestoreStatus.ENABLED.getValue()) {
+                        value = String.valueOf(SettingRestoreStatus.RESTORED_ENABLED.getValue());
+                    } else if (intValue == SettingRestoreStatus.DISABLED.getValue()) {
+                        value = String.valueOf(SettingRestoreStatus.RESTORED_DISABLED.getValue());
+                    }
+                    // Unrecognized integer values fall through to write the original setting.
+                } catch (NumberFormatException e) {
+                    // Non-integer values also fall through.
+                    Log.w(TAG, "Unexpected non-integer value for color daltonizer: " + value);
+                }
+                // Fall through to write the setting.
             }
 
             // Default case: write the restored value to settings
@@ -336,6 +400,24 @@ public class SettingsHelper {
                 }
             }
         }
+    }
+
+    private static boolean isColorInversionInSetupWizardEnabled(Context context) {
+        return context.getResources().getBoolean(
+                 com.android.internal.R.bool.config_enableColorInversionInSetupWizard)
+                 && com.android.server.accessibility.Flags.enableColorInversionInSuw();
+    }
+
+    private static boolean isColorDaltonizerInSetupWizardEnabled(Context context) {
+        return context.getResources()
+                        .getBoolean(
+                                com.android.internal.R.bool
+                                        .config_enableColorDaltonizerInSetupWizard)
+                && com.android.server.accessibility.Flags.enableColorDaltonizerInSuw();
+    }
+
+    private static boolean isUserSetupCompleted(ContentResolver cr) {
+        return Settings.Secure.getInt(cr, Settings.Secure.USER_SETUP_COMPLETE, 0) == 1;
     }
 
     private boolean shouldSkipAutoRotateRestore() {
@@ -488,7 +570,6 @@ public class SettingsHelper {
             case Settings.Secure.TOUCH_EXPLORATION_ENABLED:
             case Settings.Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED:
             case Settings.Secure.ACCESSIBILITY_DISPLAY_MAGNIFICATION_ENABLED:
-            case Settings.Secure.ACCESSIBILITY_MAGNIFICATION_TWO_FINGER_TRIPLE_TAP_ENABLED:
             case Settings.Secure.ACCESSIBILITY_DISPLAY_MAGNIFICATION_NAVBAR_ENABLED:
                 return Settings.Secure.getInt(mContext.getContentResolver(), name, 0) != 0;
             case Settings.Secure.TOUCH_EXPLORATION_GRANTED_ACCESSIBILITY_SERVICES:

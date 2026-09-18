@@ -35,10 +35,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.kotlin.whenever
 
 /** atest RearDisplayStateInteractorTest */
 @RunWith(AndroidJUnit4::class)
@@ -55,11 +53,6 @@ class RearDisplayStateInteractorTest : SysuiTestCase() {
             kosmos.testDispatcher,
         )
     private val emissionTracker = EmissionTracker(rearDisplayStateInteractor, kosmos.testScope)
-
-    @Before
-    fun setup() {
-        whenever(kosmos.rearDisplay.flags).thenReturn(Display.FLAG_REAR)
-    }
 
     @Test
     fun enableRearDisplayWhenDisplayImmediatelyAvailable() =

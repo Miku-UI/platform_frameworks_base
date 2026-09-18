@@ -29,7 +29,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Objects;
 
-abstract class TvPipAction {
+public abstract class TvPipAction {
 
     /**
      * Extras key for adding a boolean to the {@link Notification.Action} to differentiate custom
@@ -100,7 +100,7 @@ abstract class TvPipAction {
 
     abstract Notification.Action toNotificationAction(Context context);
 
-    interface SystemActionsHandler {
+    public interface SystemActionsHandler {
         void executeAction(@TvPipAction.ActionType int actionType);
     }
 }

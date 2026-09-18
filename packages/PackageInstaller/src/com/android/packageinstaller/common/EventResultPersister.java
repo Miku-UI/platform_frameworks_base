@@ -99,7 +99,8 @@ public class EventResultPersister {
         /**
          * Called when a result is received.
          */
-        void onResult(int status, int legacyStatus, @Nullable String message, int serviceId);
+        void onResult(int status, int legacyStatus, @Nullable String message, int serviceId,
+                @Nullable Intent intent);
 
         /**
          * Return true if the intent is handled by the observer. When the intent is handled,
@@ -131,6 +132,8 @@ public class EventResultPersister {
      *
      * @return The value of the attribute
      */
+    // TypedXmlPullParser is not available to this target due to API/variant mismatch
+    @SuppressWarnings("AndroidFrameworkEfficientXml")
     private static int readIntAttribute(@NonNull XmlPullParser parser, @NonNull String name) {
         return Integer.parseInt(parser.getAttributeValue(null, name));
     }
@@ -157,6 +160,8 @@ public class EventResultPersister {
         mCounter = GENERATE_NEW_ID + 1;
 
         try (FileInputStream stream = mResultsFile.openRead()) {
+            // TypedXmlPullParser is not available to this target due to API/variant mismatch
+            @SuppressWarnings("AndroidFrameworkEfficientXml")
             XmlPullParser parser = Xml.newPullParser();
             parser.setInput(stream, StandardCharsets.UTF_8.name());
 
@@ -228,7 +233,7 @@ public class EventResultPersister {
                     // If the intent is handled, don't remove the observer, still needs to
                     // receive the later events.
                     isIntentHandled = observerToCall.onHandleIntent(intent);
-                    if (!isIntentHandled) {
+                    if (!isIntentHandled && status != PackageInstaller.STATUS_PENDING_USER_ACTION) {
                         mObservers.removeAt(i);
                     }
 
@@ -239,7 +244,7 @@ public class EventResultPersister {
             if (observerToCall != null) {
                 // If the intent is handled, don't call back the observer#onResult().
                 if (!isIntentHandled) {
-                    observerToCall.onResult(status, legacyStatus, statusMessage, serviceId);
+                    observerToCall.onResult(status, legacyStatus, statusMessage, serviceId, intent);
                 }
             } else {
                 mResults.put(id, new EventResult(status, legacyStatus, statusMessage, serviceId));
@@ -251,6 +256,8 @@ public class EventResultPersister {
     /**
      * Persist current state. The persistence might be delayed.
      */
+    // TypedXmlSerializer is not available to this target due to API/variant mismatch
+    @SuppressWarnings("AndroidFrameworkEfficientXml")
     private void writeState() {
         synchronized (mLock) {
             mIsPersistingStateValid = false;
@@ -273,6 +280,9 @@ public class EventResultPersister {
                         FileOutputStream stream = null;
                         try {
                             stream = mResultsFile.startWrite();
+                            // TypedXmlSerializer is not available to this target due to API/variant
+                            // mismatch
+                            @SuppressWarnings("AndroidFrameworkEfficientXml")
                             XmlSerializer serializer = Xml.newSerializer();
                             serializer.setOutput(stream, StandardCharsets.UTF_8.name());
                             serializer.startDocument(null, true);
@@ -350,7 +360,7 @@ public class EventResultPersister {
                 EventResult result = mResults.valueAt(resultIndex);
 
                 observer.onResult(result.status, result.legacyStatus, result.message,
-                        result.serviceId);
+                        result.serviceId, /* intent= */ null);
                 mResults.removeAt(resultIndex);
                 writeState();
             } else {

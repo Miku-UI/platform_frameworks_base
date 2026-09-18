@@ -71,6 +71,7 @@ import android.util.proto.ProtoOutputStream;
 import android.view.DisplayAddress;
 import android.view.IWindowManager;
 import android.view.Surface;
+import android.window.DesktopExperienceFlags;
 import android.window.TransitionRequestInfo;
 import android.window.WindowContainerTransaction;
 
@@ -86,7 +87,6 @@ import com.android.settingslib.devicestate.DeviceStateAutoRotateSettingManager;
 import com.android.settingslib.devicestate.DeviceStateAutoRotateSettingManagerImpl;
 import com.android.settingslib.devicestate.PostureDeviceStateConverter;
 import com.android.settingslib.devicestate.SecureSettings;
-import com.android.window.flags.Flags;
 
 import java.io.PrintWriter;
 import java.lang.annotation.Retention;
@@ -111,6 +111,8 @@ public class DisplayRotation {
 
     @Nullable
     final FoldController mFoldController;
+    @Nullable
+    final LaptopController mLaptopController;
 
     private final WindowManagerService mService;
     private final DisplayContent mDisplayContent;
@@ -293,8 +295,15 @@ public class DisplayRotation {
             } else {
                 mFoldController = null;
             }
+            if (DesktopExperienceFlags.ENABLE_AUTO_ROTATE_ON_SLATE_STATE.isTrue()
+                    && mSupportAutoRotation && mDeviceStateController.isLaptop()) {
+                mLaptopController = new LaptopController();
+            } else {
+                mLaptopController = null;
+            }
         } else {
             mFoldController = null;
+            mLaptopController = null;
         }
     }
 
@@ -325,11 +334,10 @@ public class DisplayRotation {
     private int readDefaultDisplayRotation(DisplayAddress displayAddress,
             DisplayContent displayContent) {
         String syspropValue = "";
-        if (displayAddress instanceof DisplayAddress.Physical) {
-            final DisplayAddress.Physical physicalAddress =
-                    (DisplayAddress.Physical) displayAddress;
+        if (displayAddress != null
+                && displayAddress.getPhysicalDisplayId() != DisplayAddress.INVALID_DISPLAY_ID) {
             syspropValue = SystemProperties.get(
-                    "ro.bootanim.set_orientation_" + physicalAddress.getPhysicalDisplayId(), "");
+                    "ro.bootanim.set_orientation_" + displayAddress.getPhysicalDisplayId(), "");
         }
         if ("".equals(syspropValue) && displayContent.isDefaultDisplay) {
             syspropValue = SystemProperties.get(
@@ -597,9 +605,20 @@ public class DisplayRotation {
             final ActionChain chain = mService.mAtmService.mChainTracker.startTransit("updateRot");
             if (!chain.isCollecting()) {
                 if (mDisplayContent.getLastHasContent()) {
-                    final TransitionRequestInfo.DisplayChange change =
-                            new TransitionRequestInfo.DisplayChange(mDisplayContent.getDisplayId(),
-                                    oldRotation, mRotation);
+                    final var endRotationInsetsState =
+                            com.android.window.flags.Flags.sendNewInsetsStateWithRotation()
+                                    ? mDisplayContent.getInsetsStateForRotation(mRotation) : null;
+                    final TransitionRequestInfo.DisplayChange change;
+                    if (com.android.window.flags.Flags.syncedDisplayModeUpdates()) {
+                        change = new TransitionRequestInfo.DisplayChange(mDisplayContent
+                                        .getDisplayAreaInfo());
+                        change.setStartRotation(oldRotation);
+                        change.setEndInsetsState(endRotationInsetsState);
+                    } else {
+                        change = new TransitionRequestInfo.DisplayChange(
+                                mDisplayContent.getDisplayId(), oldRotation, mRotation,
+                                endRotationInsetsState);
+                    }
                     mDisplayContent.requestChangeTransition(
                             ActivityInfo.CONFIG_WINDOW_CONFIGURATION, change, chain);
                 }
@@ -708,6 +727,9 @@ public class DisplayRotation {
 
     void restoreSettings(int userRotationMode, int userRotation, int fixedToUserRotation) {
         mFixedToUserRotation = fixedToUserRotation;
+        if (mLaptopController != null) {
+            mLaptopController.refreshConfig();
+        }
 
         // We will retrieve user rotation and user rotation mode from settings for default display.
         if (isDefaultDisplay) {
@@ -1057,20 +1079,6 @@ public class DisplayRotation {
         }
         return mSupportAutoRotation;
     }
-
-    /**
-     * If this is true we have updated our desired orientation, but not yet changed the real
-     * orientation our applied our screen rotation animation. For example, because a previous
-     * screen rotation was in progress.
-     *
-     * @return {@code true} if the there is an ongoing rotation change.
-     */
-    boolean needsUpdate() {
-        final int oldRotation = mRotation;
-        final int rotation = rotationForOrientation(mLastOrientation, oldRotation);
-        return oldRotation != rotation;
-    }
-
 
     /**
      * Resets whether the screen can be rotated via the accelerometer in all 4 rotations as the
@@ -1640,6 +1648,11 @@ public class DisplayRotation {
                 mFoldController.foldStateChanged(deviceStateEnum);
             }
         }
+        if (mLaptopController != null) {
+            synchronized (mLock) {
+                mLaptopController.foldStateChanged(deviceStateEnum);
+            }
+        }
     }
 
     /**
@@ -1707,36 +1720,25 @@ public class DisplayRotation {
         if (!isDeviceStateRotationLockEnabled(context)) {
             return null;
         }
-        if (!Flags.enableDeviceStateAutoRotateSettingLogging()
-                && !Flags.enableDeviceStateAutoRotateSettingRefactor()) {
-            return null;
-        }
-
-        DeviceStateAutoRotateSettingController deviceStateAutoRotateSettingController = null;
 
         final SecureSettings secureSettings = new AndroidSecureSettings(
                 context.getContentResolver());
 
-        if (Flags.enableDeviceStateAutoRotateSettingLogging()) {
-            new DeviceStateAutoRotateSettingIssueLogger(SystemClock::elapsedRealtime,
-                    secureSettings, deviceStateController, wmService.mH);
-        }
+        new DeviceStateAutoRotateSettingIssueLogger(SystemClock::elapsedRealtime, secureSettings,
+                deviceStateController, wmService.mH);
 
-        if (Flags.enableDeviceStateAutoRotateSettingRefactor()) {
-            final DeviceStateManager deviceStateManager = context.getSystemService(
-                    DeviceStateManager.class);
-            final PostureDeviceStateConverter postureDeviceStateController =
-                    new PostureDeviceStateConverter(context, deviceStateManager);
-            final DeviceStateAutoRotateSettingManager deviceStateAutoRotateSettingManager =
-                    new DeviceStateAutoRotateSettingManagerImpl(
-                            context, BackgroundThread.getExecutor(), secureSettings, wmService.mH,
-                            postureDeviceStateController);
-            deviceStateAutoRotateSettingController = new DeviceStateAutoRotateSettingController(
-                    deviceStateController, deviceStateAutoRotateSettingManager, wmService,
-                    postureDeviceStateController);
-        }
+        final DeviceStateManager deviceStateManager = context.getSystemService(
+                DeviceStateManager.class);
+        final PostureDeviceStateConverter postureDeviceStateController =
+                new PostureDeviceStateConverter(context, deviceStateManager);
+        final DeviceStateAutoRotateSettingManager deviceStateAutoRotateSettingManager =
+                new DeviceStateAutoRotateSettingManagerImpl(
+                        context, BackgroundThread.getExecutor(), secureSettings, wmService.mH,
+                        postureDeviceStateController);
+        return new DeviceStateAutoRotateSettingController(
+                deviceStateController, deviceStateAutoRotateSettingManager, wmService,
+                postureDeviceStateController);
 
-        return deviceStateAutoRotateSettingController;
     }
 
     class FoldController {
@@ -2015,6 +2017,25 @@ public class DisplayRotation {
         }
     }
 
+    class LaptopController {
+        private DeviceStateController.DeviceStateEnum mCurrentState =
+                DeviceStateController.DeviceStateEnum.UNKNOWN;
+
+        void foldStateChanged(DeviceStateController.DeviceStateEnum newState) {
+            mCurrentState = newState;
+            refreshConfig();
+        }
+
+        void refreshConfig() {
+            if (mCurrentState == DeviceStateController.DeviceStateEnum.SLATE) {
+                setFixedToUserRotation(IWindowManager.FIXED_TO_USER_ROTATION_DISABLED);
+            } else {
+                setFixedToUserRotation(IWindowManager.FIXED_TO_USER_ROTATION_DEFAULT);
+            }
+            updateOrientationListenerLw();
+        }
+    }
+
     @VisibleForTesting
     Handler getHandler() {
         return mService.mH;
@@ -2204,8 +2225,8 @@ public class DisplayRotation {
                     mInHalfFoldTransition = false;
                     mDeviceStateEnum = DeviceStateController.DeviceStateEnum.UNKNOWN;
                 }
-                mDisplayRotationCompatPolicySummary = dc.mAppCompatCameraPolicy
-                        .getSummaryForDisplayRotationHistoryRecord();
+                mDisplayRotationCompatPolicySummary = dr.mService.mAppCompatCameraPolicy
+                        .getSummaryForDisplayRotationHistoryRecord(dc);
                 mRotationReversionSlots =
                         dr.mDisplayContent.getRotationReversionController().getSlotsCopy();
             }

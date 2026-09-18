@@ -21,6 +21,13 @@ import android.tools.device.apphelpers.StandardAppHelper
 import android.tools.traces.parsers.toFlickerComponent
 import com.android.server.wm.flicker.testapp.ActivityOptions
 
+/**
+ * The test activity that is used to send chat bubble notifications.
+ *
+ * The bubble notifications use an intent of a different activity.
+ *
+ * @see ChatBubbleActivityHelper
+ */
 class LaunchBubbleHelper(instrumentation: Instrumentation) :
     StandardAppHelper(
         instrumentation,

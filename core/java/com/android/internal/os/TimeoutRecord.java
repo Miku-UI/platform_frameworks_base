@@ -19,9 +19,10 @@ package com.android.internal.os;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.AnrTypes;
+import android.app.AnrTypes.AnrType;
 import android.app.ApplicationExitInfo;
 import android.app.ApplicationExitInfo.SubReason;
-import android.content.ComponentName;
 import android.content.Intent;
 import android.os.SystemClock;
 import android.util.Slog;
@@ -113,18 +114,7 @@ public class TimeoutRecord {
     @NonNull
     public static TimeoutRecord forBroadcastReceiver(@NonNull Intent intent,
             @Nullable String packageName, @Nullable String className) {
-        final Intent logIntent;
-        if (packageName != null) {
-            if (className != null) {
-                logIntent = new Intent(intent);
-                logIntent.setComponent(new ComponentName(packageName, className));
-            } else {
-                logIntent = new Intent(intent);
-                logIntent.setPackage(packageName);
-            }
-        } else {
-            logIntent = intent;
-        }
+        final Intent logIntent = createLogIntentForBroadcast(intent, packageName, className);
         return forBroadcastReceiver(logIntent);
     }
 
@@ -262,5 +252,53 @@ public class TimeoutRecord {
                 yield ApplicationExitInfo.SUBREASON_UNKNOWN;
             }
         };
+    }
+
+    /**
+     * Maps a {@link TimeoutRecord.TimeoutKind} to its corresponding {@link AnrTypes.AnrType} for
+     * ANR events.
+     *
+     * @return The {@link AnrTypes.AnrType} corresponding to the internal {@code mKind}. Returns
+     *     {@link AnrTypes#ANR_TYPE_OTHER} if the {@code mKind} does not match any known ANR type.
+     */
+    public @AnrType int getAnrType() {
+        return switch (mKind) {
+            case TimeoutKind.INPUT_DISPATCH_NO_FOCUSED_WINDOW ->
+                    AnrTypes.ANR_TYPE_INPUT_DISPATCH_NO_FOCUSED_WINDOW;
+            case TimeoutKind.INPUT_DISPATCH_WINDOW_UNRESPONSIVE -> AnrTypes.ANR_TYPE_INPUT_DISPATCH;
+            case TimeoutKind.BROADCAST_RECEIVER -> AnrTypes.ANR_TYPE_BROADCAST_OF_INTENT;
+            case TimeoutKind.SERVICE_START -> AnrTypes.ANR_TYPE_START_FOREGROUND_SERVICE;
+            case TimeoutKind.SERVICE_EXEC -> AnrTypes.ANR_TYPE_EXECUTE_SERVICE;
+            case TimeoutKind.CONTENT_PROVIDER -> AnrTypes.ANR_TYPE_CONTENT_PROVIDER_NOT_RESPONDING;
+            case TimeoutKind.APP_REGISTERED -> AnrTypes.ANR_TYPE_APP_TRIGGERED;
+            case TimeoutKind.SHORT_FGS_TIMEOUT ->
+                    AnrTypes.ANR_TYPE_FOREGROUND_SHORT_SERVICE_TIMEOUT;
+            case TimeoutKind.JOB_SERVICE -> AnrTypes.ANR_TYPE_JOB_SERVICE_START;
+            case TimeoutKind.APP_START -> AnrTypes.ANR_TYPE_APPLICATION_START;
+            default -> {
+                Slog.e(TAG, "Unknown TimeoutKind: " + mKind);
+                yield AnrTypes.ANR_TYPE_OTHER;
+            }
+        };
+    }
+
+    /**
+     * Creates a new {@link Intent} object with the provided {@link Intent} based on the supplied
+     * package and class names.
+     */
+    public static Intent createLogIntentForBroadcast(
+            @NonNull Intent intent, @Nullable String packageName, @Nullable String className) {
+        if (packageName == null) {
+            return intent;
+        }
+
+        final Intent resultIntent = new Intent(intent);
+
+        if (className == null) {
+            resultIntent.setPackage(packageName);
+        } else {
+            resultIntent.setClassName(packageName, className);
+        }
+        return resultIntent;
     }
 }

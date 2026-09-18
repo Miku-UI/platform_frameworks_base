@@ -18,6 +18,7 @@ package com.android.internal.ravenwood;
 import static android.os.Build.VERSION_CODES.S;
 import static android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
 
+import android.app.StackTrace;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.Disabled;
 import android.compat.annotation.EnabledAfter;
@@ -133,5 +134,34 @@ public final class RavenwoodHelperBridge {
     @RavenwoodThrow
     public static int forExperimentalApiTest() {
         return 1;
+    }
+
+    /**
+     * Return a {@link Throwable} object that can be used to show a stacktrace. On a real device,
+     * it just returns a {@link StackTrace} instance, but on Ravenwood, it'll return a more
+     * complex object.
+     */
+    @RavenwoodRedirect
+    public static Throwable getStackTrace(String message) {
+        return new StackTrace(message);
+    }
+
+    /**
+     * Used by HostStubGen for a method call logging. No-op on a real device.
+     */
+    @RavenwoodRedirect
+    public static long enterMethod(Class<?> clazz, Object obj, String method, String methodDesc,
+            Object[] args) {
+        return 0;
+    }
+
+    /**
+     * Used by HostStubGen for a method call logging. No-op on a real device.
+     *
+     * @param enterToken a retgurn value returned by {@link #enterMethod}
+     */
+    @RavenwoodRedirect
+    public static void exitMethod(long enterToken, Class<?> clazz, Object obj, String method,
+            String methodDesc, Object ret) {
     }
 }

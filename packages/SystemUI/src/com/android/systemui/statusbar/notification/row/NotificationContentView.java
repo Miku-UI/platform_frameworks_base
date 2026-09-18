@@ -16,10 +16,9 @@
 
 package com.android.systemui.statusbar.notification.row;
 
-import static android.app.Flags.notificationsRedesignTemplates;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.Flags;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -53,10 +52,8 @@ import com.android.systemui.res.R;
 import com.android.systemui.statusbar.RemoteInputController;
 import com.android.systemui.statusbar.SmartReplyController;
 import com.android.systemui.statusbar.TransformableView;
-import com.android.systemui.statusbar.notification.FeedbackIcon;
 import com.android.systemui.statusbar.notification.NotificationFadeAware;
 import com.android.systemui.statusbar.notification.NotificationUtils;
-import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.RemoteInputEntryAdapter;
 import com.android.systemui.statusbar.notification.collection.render.GroupMembershipManager;
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier;
@@ -64,7 +61,6 @@ import com.android.systemui.statusbar.notification.row.wrapper.NotificationCompa
 import com.android.systemui.statusbar.notification.row.wrapper.NotificationCustomViewWrapper;
 import com.android.systemui.statusbar.notification.row.wrapper.NotificationHeaderViewWrapper;
 import com.android.systemui.statusbar.notification.row.wrapper.NotificationViewWrapper;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.statusbar.phone.ExpandHeadsUpOnInlineReply;
 import com.android.systemui.statusbar.policy.InflatedSmartReplyState;
 import com.android.systemui.statusbar.policy.InflatedSmartReplyViewHolder;
@@ -145,7 +141,6 @@ public class NotificationContentView extends FrameLayout implements Notification
     private int mSmallHeight;
     private int mHeadsUpHeight;
     private int mNotificationMaxHeight;
-    private @Nullable NotificationEntry mNotificationEntry;
     private @Nullable StatusBarNotification mSbn;
     private RemoteInputController mRemoteInputController;
     private Runnable mExpandedVisibleListener;
@@ -377,7 +372,7 @@ public class NotificationContentView extends FrameLayout implements Notification
     private int getExtraRemoteInputHeight(RemoteInputView remoteInput) {
         if (remoteInput != null && (remoteInput.isActive() || remoteInput.isSending())) {
             return getResources().getDimensionPixelSize(
-                    com.android.internal.R.dimen.notification_content_margin);
+                    com.android.internal.R.dimen.notification_2025_margin);
         }
         return 0;
     }
@@ -509,11 +504,7 @@ public class NotificationContentView extends FrameLayout implements Notification
         mExpandedWrapper = NotificationViewWrapper.wrap(getContext(), child,
                 mContainingNotification);
         if (mContainingNotification != null) {
-            if (NotificationBundleUi.isEnabled()) {
-                applySystemActions(mExpandedChild, null);
-            } else {
-                applySystemActions(mExpandedChild, mContainingNotification.getEntryLegacy());
-            }
+            applySystemActions(mExpandedChild);
         }
         // The expanded wrapper has changed. If this is the shown wrapper, we need to update it.
         updateShownWrapper(mVisibleType);
@@ -572,11 +563,7 @@ public class NotificationContentView extends FrameLayout implements Notification
         }
 
         if (mContainingNotification != null) {
-            if (NotificationBundleUi.isEnabled()) {
-                applySystemActions(mHeadsUpChild, null);
-            } else {
-                applySystemActions(mHeadsUpChild, mContainingNotification.getEntryLegacy());
-            }
+            applySystemActions(mHeadsUpChild);
         }
         // The heads up wrapper has changed. If this is the shown wrapper, we need to update it.
         updateShownWrapper(mVisibleType);
@@ -604,11 +591,7 @@ public class NotificationContentView extends FrameLayout implements Notification
         if (mContainingNotification == null) {
             return null;
         }
-        if (NotificationBundleUi.isEnabled()) {
-            return mContainingNotification.getEntryAdapter().getSbn();
-        } else {
-            return mContainingNotification.getEntryLegacy().getSbn();
-        }
+        return mContainingNotification.getEntryAdapter().getSbn();
     }
 
     /**
@@ -728,9 +711,7 @@ public class NotificationContentView extends FrameLayout implements Notification
      */
     private int getMinContentHeightHint() {
         int actionListHeight = mContext.getResources().getDimensionPixelSize(
-                notificationsRedesignTemplates()
-                        ? com.android.internal.R.dimen.notification_2025_action_list_height
-                        : com.android.internal.R.dimen.notification_action_list_height);
+                com.android.internal.R.dimen.notification_2025_action_list_height);
         if (mIsChildInGroup && isVisibleOrTransitioning(VISIBLE_TYPE_SINGLELINE)) {
             return actionListHeight;
         }
@@ -1083,7 +1064,7 @@ public class NotificationContentView extends FrameLayout implements Notification
         // When expanding or user locked we want the new type, when collapsing we want
         // the original type
         final int visibleType = (
-                isGroupExpanded() || mContainingNotification.isUserLocked())
+                isGroupExpanded() || mContainingNotification.isUserSwipingToExpandRow())
                 ? calculateVisibleType()
                 : getVisibleType();
         return getBackgroundColor(visibleType);
@@ -1297,7 +1278,8 @@ public class NotificationContentView extends FrameLayout implements Notification
         return getVisualTypeForHeight(viewHeight);
     }
 
-    private int getVisualTypeForHeight(float viewHeight) {
+    @VisibleForTesting
+    public int getVisualTypeForHeight(float viewHeight) {
         boolean noExpandedChild = mExpandedChild == null;
         if (!noExpandedChild && viewHeight == getViewHeight(VISIBLE_TYPE_EXPANDED)) {
             return VISIBLE_TYPE_EXPANDED;
@@ -1306,6 +1288,13 @@ public class NotificationContentView extends FrameLayout implements Notification
 
         if (!mUserExpanding && shouldShowSingleLineView() && isSingleLinePresent) {
             return VISIBLE_TYPE_SINGLELINE;
+        }
+
+        if (Flags.richOngoingImprovements() && !noExpandedChild
+                && mContainingNotification.isPromotedOngoing()
+                && mContainingNotification.canPromotedNotificationShowExpanded(
+                        /* allowOnKeyguard = */false)) {
+            return VISIBLE_TYPE_EXPANDED;
         }
 
         if ((mIsHeadsUp || mHeadsUpAnimatingAway) && mHeadsUpChild != null
@@ -1377,19 +1366,9 @@ public class NotificationContentView extends FrameLayout implements Notification
         }
     }
 
-    public void onNotificationUpdated(NotificationEntry entry) {
-        if (NotificationBundleUi.isEnabled()) {
-            if (entry != null) {
-                throw new IllegalStateException("Entry is not null but should be");
-            }
-        }
-        mNotificationEntry = entry;
-        mSbn = NotificationBundleUi.isEnabled()
-            ? mContainingNotification.getEntryAdapter().getSbn()
-            : entry.getSbn();
-        mBeforeN = NotificationBundleUi.isEnabled()
-                ? mContainingNotification.getEntryAdapter().getTargetSdk() < Build.VERSION_CODES.N
-                : entry.targetSdk < Build.VERSION_CODES.N;
+    public void onNotificationUpdated() {
+        mSbn = mContainingNotification.getEntryAdapter().getSbn();
+        mBeforeN = mContainingNotification.getEntryAdapter().getTargetSdk() < Build.VERSION_CODES.N;
 
         if (mContractedChild != null) {
             mContractedWrapper.onContentUpdated(mContainingNotification);
@@ -1406,8 +1385,8 @@ public class NotificationContentView extends FrameLayout implements Notification
         mForceSelectNextLayout = true;
         mPreviousExpandedRemoteInputIntent = null;
         mPreviousHeadsUpRemoteInputIntent = null;
-        applySystemActions(mExpandedChild, entry);
-        applySystemActions(mHeadsUpChild, entry);
+        applySystemActions(mExpandedChild);
+        applySystemActions(mHeadsUpChild);
     }
 
     /**
@@ -1521,9 +1500,8 @@ public class NotificationContentView extends FrameLayout implements Notification
             if (result.mView == null && hasRemoteInput) {
                 ViewGroup actionContainer = (FrameLayout) actionContainerCandidate;
                 if (cachedView == null) {
-                    RemoteInputEntryAdapter riea = NotificationBundleUi.isEnabled()
-                            ? mContainingNotification.getEntryAdapter().getRemoteInputEntryAdapter()
-                            : null;
+                    RemoteInputEntryAdapter riea =
+                            mContainingNotification.getEntryAdapter().getRemoteInputEntryAdapter();
                     RemoteInputView riv = RemoteInputView.inflate(
                             mContext, actionContainer, mContainingNotification, riea,
                             mRemoteInputController);
@@ -1585,50 +1563,36 @@ public class NotificationContentView extends FrameLayout implements Notification
      *
      * @param entry the new entry to use.
      */
-    public void updateBubbleButton(NotificationEntry entry) {
-        applyBubbleAction(mExpandedChild, entry);
+    public void updateBubbleButton() {
+        applyBubbleAction(mExpandedChild);
     }
 
     /**
      * Setup icon buttons provided by System UI.
      */
-    private void applySystemActions(View layout, NotificationEntry entry) {
+    private void applySystemActions(View layout) {
         if (mSbn == null) {
             return;
         }
-        if (NotificationBundleUi.isEnabled()) {
-            if (entry != null) {
-                throw new IllegalStateException("Entry is not null but should be");
-            }
-        }
         applySnoozeAction(layout);
-        applyBubbleAction(layout, entry);
+        applyBubbleAction(layout);
     }
 
-    private void applyBubbleAction(View layout, @Nullable NotificationEntry entry) {
+    private void applyBubbleAction(View layout) {
         if (layout == null || mContainingNotification == null || mPeopleIdentifier == null) {
             return;
         }
-        if (NotificationBundleUi.isEnabled()) {
-            if (entry != null) {
-                throw new IllegalStateException("Entry is not null but should be");
-            }
-        }
         ImageView bubbleButton = layout.findViewById(com.android.internal.R.id.bubble_button);
-        // With the new design, the actions_container should always be visible to act as padding
-        // when there are no actions. We're making its child visible/invisible instead.
+        // The actions_container should always be visible to act as padding when there are no
+        // actions. We're making its child visible/invisible instead.
         View actionsContainerForVisibilityChange = layout.findViewById(
-                notificationsRedesignTemplates()
-                        ? com.android.internal.R.id.actions_container_layout
-                        : com.android.internal.R.id.actions_container);
+                com.android.internal.R.id.actions_container_layout);
         if (bubbleButton == null || actionsContainerForVisibilityChange == null) {
             return;
         }
 
-        if (shouldShowBubbleButton(entry)) {
-            boolean isBubble = NotificationBundleUi.isEnabled()
-                    ? mContainingNotification.getEntryAdapter().isBubble()
-                    : entry.isBubble();
+        if (shouldShowBubbleButton()) {
+            boolean isBubble = mContainingNotification.getEntryAdapter().isBubble();
             // explicitly resolve drawable resource using SystemUI's theme
             Drawable d = mContext.getDrawable(isBubble
                     ? com.android.wm.shell.R.drawable.bubble_ic_stop_bubble
@@ -1643,27 +1607,8 @@ public class NotificationContentView extends FrameLayout implements Notification
             bubbleButton.setOnClickListener(mContainingNotification.getBubbleClickListener());
             bubbleButton.setVisibility(VISIBLE);
             actionsContainerForVisibilityChange.setVisibility(VISIBLE);
-            if (!notificationsRedesignTemplates()) {
-                // Set notification_action_list_margin_target's bottom margin to 0 when showing
-                // bubble
-                ViewGroup actionListMarginTarget = layout.findViewById(
-                        com.android.internal.R.id.notification_action_list_margin_target);
-                if (actionListMarginTarget != null) {
-                    removeBottomMargin(actionListMarginTarget);
-                }
-            }
         } else  {
             bubbleButton.setVisibility(GONE);
-        }
-    }
-
-    private static void removeBottomMargin(ViewGroup actionListMarginTarget) {
-        ViewGroup.LayoutParams lp = actionListMarginTarget.getLayoutParams();
-        if (lp instanceof MarginLayoutParams) {
-            final MarginLayoutParams mlp = (MarginLayoutParams) lp;
-            if (mlp.bottomMargin > 0) {
-                mlp.setMargins(mlp.leftMargin, mlp.topMargin, mlp.rightMargin, 0);
-            }
         }
     }
 
@@ -1671,24 +1616,15 @@ public class NotificationContentView extends FrameLayout implements Notification
     public void setBubblesEnabledForUser(boolean enabled) {
         mBubblesEnabledForUser = enabled;
 
-        applyBubbleAction(mExpandedChild, mNotificationEntry);
-        applyBubbleAction(mHeadsUpChild, mNotificationEntry);
+        applyBubbleAction(mExpandedChild);
+        applyBubbleAction(mHeadsUpChild);
     }
 
     @VisibleForTesting
-    boolean shouldShowBubbleButton(@Nullable NotificationEntry entry) {
-        if (NotificationBundleUi.isEnabled()) {
-            if (entry != null) {
-                throw new IllegalStateException("Entry is not null but should be");
-            }
-        }
-        int peopleType = NotificationBundleUi.isEnabled()
-                ? mContainingNotification.getEntryAdapter().getPeopleNotificationType()
-                : mPeopleIdentifier.getPeopleNotificationType(entry);
-        Notification.BubbleMetadata bubbleMetadata = NotificationBundleUi.isEnabled()
-                ? mContainingNotification.getEntryAdapter().getSbn().getNotification()
-                        .getBubbleMetadata()
-                : entry.getBubbleMetadata();
+    boolean shouldShowBubbleButton() {
+        int peopleType = mContainingNotification.getEntryAdapter().getPeopleNotificationType();
+        Notification.BubbleMetadata bubbleMetadata = mContainingNotification.getEntryAdapter()
+                .getSbn().getNotification().getBubbleMetadata();
         boolean isPersonWithShortcut = peopleType
                 >= PeopleNotificationIdentifier.TYPE_FULL_PERSON;
         return mBubblesEnabledForUser
@@ -1701,12 +1637,10 @@ public class NotificationContentView extends FrameLayout implements Notification
             return;
         }
         ImageView snoozeButton = layout.findViewById(com.android.internal.R.id.snooze_button);
-        // With the new design, the actions_container should always be visible to act as padding
-        // when there are no actions. We're making its child visible/invisible instead.
+        // The actions_container should always be visible to act as padding when there are no
+        // actions. We're making its child visible/invisible instead.
         View actionsContainerForVisibilityChange = layout.findViewById(
-                notificationsRedesignTemplates()
-                        ? com.android.internal.R.id.actions_container_layout
-                        : com.android.internal.R.id.actions_container);
+                com.android.internal.R.id.actions_container_layout);
         if (snoozeButton == null || actionsContainerForVisibilityChange == null) {
             return;
         }
@@ -1759,11 +1693,7 @@ public class NotificationContentView extends FrameLayout implements Notification
                             && mSmartReplyConstants.getEffectiveEditChoicesBeforeSending(
                             smartReplies.remoteInput.getEditChoicesBeforeSending());
                     String key;
-                    if (NotificationBundleUi.isEnabled()) {
-                        key = mContainingNotification.getEntryAdapter().getKey();
-                    } else {
-                        key = mNotificationEntry.getKey();
-                    }
+                    key = mContainingNotification.getEntryAdapter().getKey();
 
                     mSmartReplyController.smartSuggestionsAdded(key, numSmartReplies,
                             numSmartActions, fromAssistant, editBeforeSending);
@@ -1981,19 +1911,6 @@ public class NotificationContentView extends FrameLayout implements Notification
             return mHeadsUpWrapper;
         }
         return null;
-    }
-
-    /** Shows the given feedback icon, or hides the icon if null. */
-    public void setFeedbackIcon(@Nullable FeedbackIcon icon) {
-        if (mContractedChild != null) {
-            mContractedWrapper.setFeedbackIcon(icon);
-        }
-        if (mExpandedChild != null) {
-            mExpandedWrapper.setFeedbackIcon(icon);
-        }
-        if (mHeadsUpChild != null) {
-            mHeadsUpWrapper.setFeedbackIcon(icon);
-        }
     }
 
     /** Sets whether the notification being displayed audibly alerted the user. */

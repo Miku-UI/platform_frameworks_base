@@ -52,7 +52,6 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.android.internal.R;
 import com.android.internal.util.test.FakeSettingsProvider;
 import com.android.internal.util.test.FakeSettingsProviderRule;
-import com.android.server.biometrics.Flags;
 import com.android.server.biometrics.Utils;
 import com.android.server.biometrics.log.BiometricContext;
 import com.android.server.biometrics.sensors.face.aidl.FaceProvider;
@@ -157,7 +156,6 @@ public class FaceServiceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_FACE_VHAL_FEATURE)
     public void registerAuthenticatorsLegacy_virtualOnly() throws Exception {
         initService();
         Settings.Secure.putInt(mSettingsRule.mockContentResolver(mContext),
@@ -172,7 +170,6 @@ public class FaceServiceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_FACE_VHAL_FEATURE)
     public void registerAuthenticators_virtualFaceOnly() throws Exception {
         initService();
         Settings.Secure.putInt(mSettingsRule.mockContentResolver(mContext),

@@ -2415,16 +2415,16 @@ public final class BugreportProgressService extends Service {
         protected BugreportInfo(Parcel in) {
             context = null;
             id = in.readInt();
-            baseName = in.readString();
-            name = in.readString();
-            initialName = in.readString();
-            title = in.readString();
-            shareTitle = in.readString();
-            description = in.readString();
+            baseName = in.readString8();
+            name = in.readString8();
+            initialName = in.readString8();
+            title = in.readString8();
+            shareTitle = in.readString8();
+            description = in.readString8();
             progress.set(in.readInt());
             lastProgress.set(in.readInt());
             lastUpdate.set(in.readLong());
-            formattedLastUpdate = in.readString();
+            formattedLastUpdate = in.readString8();
             bugreportLocationInfo = new BugreportLocationInfo(readFile(in));
 
             int screenshotSize = in.readInt();
@@ -2437,7 +2437,7 @@ public final class BugreportProgressService extends Service {
             addingDetailsToZip = in.readBoolean();
             addedDetailsToZip = in.readBoolean();
             screenshotCounter = in.readInt();
-            shareDescription = in.readString();
+            shareDescription = in.readString8();
             type = in.readInt();
             nonce = in.readLong();
         }
@@ -2445,16 +2445,16 @@ public final class BugreportProgressService extends Service {
         @Override
         public void writeToParcel(Parcel dest, int flags) {
             dest.writeInt(id);
-            dest.writeString(baseName);
-            dest.writeString(name);
-            dest.writeString(initialName);
-            dest.writeString(title);
-            dest.writeString(shareTitle);
-            dest.writeString(description);
+            dest.writeString8(baseName);
+            dest.writeString8(name);
+            dest.writeString8(initialName);
+            dest.writeString8(title);
+            dest.writeString8(shareTitle);
+            dest.writeString8(description);
             dest.writeInt(progress.intValue());
             dest.writeInt(lastProgress.intValue());
             dest.writeLong(lastUpdate.longValue());
-            dest.writeString(getFormattedLastUpdate());
+            dest.writeString8(getFormattedLastUpdate());
             writeFile(dest, bugreportLocationInfo.mBugreportFile);
 
             dest.writeInt(screenshotLocationInfo.mScreenshotFiles.size());
@@ -2466,7 +2466,7 @@ public final class BugreportProgressService extends Service {
             dest.writeBoolean(addingDetailsToZip);
             dest.writeBoolean(addedDetailsToZip);
             dest.writeInt(screenshotCounter);
-            dest.writeString(shareDescription);
+            dest.writeString8(shareDescription);
             dest.writeInt(type);
             dest.writeLong(nonce);
         }
@@ -2477,11 +2477,11 @@ public final class BugreportProgressService extends Service {
         }
 
         private void writeFile(Parcel dest, File file) {
-            dest.writeString(file == null ? null : file.getPath());
+            dest.writeString8(file == null ? null : file.getPath());
         }
 
         private File readFile(Parcel in) {
-            final String path = in.readString();
+            final String path = in.readString8();
             return path == null ? null : new File(path);
         }
 

@@ -15,6 +15,8 @@
  */
 package com.android.server.power.stats;
 
+import static android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.eq;
@@ -24,6 +26,7 @@ import static org.mockito.Mockito.when;
 import android.app.ActivityManager;
 import android.bluetooth.BluetoothActivityEnergyInfo;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.UidTraffic;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -32,6 +35,7 @@ import android.hardware.power.stats.EnergyConsumerType;
 import android.os.BatteryConsumer;
 import android.os.Handler;
 import android.os.Parcel;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.IndentingPrintWriter;
 import android.util.SparseLongArray;
@@ -55,6 +59,7 @@ public class BluetoothPowerStatsCollectorTest {
     private static final int APP_UID1 = 42;
     private static final int APP_UID2 = 24;
     private static final int ISOLATED_UID = 99123;
+    private static final int PRIVATE_COMPUTE_UID = 30000;
 
     @Rule(order = 0)
     public final BatteryUsageStatsRule mStatsRule = new BatteryUsageStatsRule()
@@ -73,6 +78,7 @@ public class BluetoothPowerStatsCollectorTest {
     private final PowerStatsUidResolver mPowerStatsUidResolver = new PowerStatsUidResolver();
 
     private BluetoothActivityEnergyInfo mBluetoothActivityEnergyInfo;
+    private int mBluetoothActivityEnergyInfoError = 0;
     private final SparseLongArray mUidScanTimes = new SparseLongArray();
 
     private final BluetoothPowerStatsCollector.BluetoothStatsRetriever mBluetoothStatsRetriever =
@@ -88,6 +94,11 @@ public class BluetoothPowerStatsCollectorTest {
                 @Override
                 public boolean requestControllerActivityEnergyInfo(Executor executor,
                         BluetoothAdapter.OnBluetoothActivityEnergyInfoCallback callback) {
+                    if (mBluetoothActivityEnergyInfoError != 0) {
+                        callback.onBluetoothActivityEnergyInfoError(
+                                mBluetoothActivityEnergyInfoError);
+                        return true;
+                    }
                     callback.onBluetoothActivityEnergyInfoAvailable(mBluetoothActivityEnergyInfo);
                     return true;
                 }
@@ -140,6 +151,9 @@ public class BluetoothPowerStatsCollectorTest {
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH)).thenReturn(true);
         mPowerStatsUidResolver.noteIsolatedUidAdded(ISOLATED_UID, APP_UID2);
+        mPowerStatsUidResolver.setPackageManager(mPackageManager);
+        when(mPackageManager.getAppUidForPrivateComputeCoreUid(PRIVATE_COMPUTE_UID))
+                .thenReturn(APP_UID2);
         mBatteryStats = mStatsRule.getBatteryStats();
     }
 
@@ -178,7 +192,7 @@ public class BluetoothPowerStatsCollectorTest {
 
     @Test
     public void collectStats() {
-        PowerStats powerStats = collectPowerStats();
+        PowerStats powerStats = collectPowerStats(false);
         assertThat(powerStats.durationMs).isEqualTo(7200);
 
         BluetoothPowerStatsLayout layout = new BluetoothPowerStatsLayout(powerStats.descriptor);
@@ -205,8 +219,65 @@ public class BluetoothPowerStatsCollectorTest {
     }
 
     @Test
+    @RequiresFlagsEnabled(FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void collectStats_withPccUidStats() {
+        PowerStats powerStats = collectPowerStats(true);
+        assertThat(powerStats.durationMs).isEqualTo(7200);
+
+        BluetoothPowerStatsLayout layout = new BluetoothPowerStatsLayout(powerStats.descriptor);
+        // 6600 - 600
+        assertThat(layout.getDeviceRxTime(powerStats.stats)).isEqualTo(6000);
+        // 1100 - 100
+        assertThat(layout.getDeviceTxTime(powerStats.stats)).isEqualTo(1000);
+        // 2200 - 200
+        assertThat(layout.getDeviceIdleTime(powerStats.stats)).isEqualTo(200);
+        // APP_UID(200-100) + APP_UID2(400) + ISOLATED_UID(300) + PCC_UID(150-50)
+        assertThat(layout.getDeviceScanTime(powerStats.stats)).isEqualTo(900);
+        assertThat(layout.getConsumedEnergy(powerStats.stats, 0))
+                .isEqualTo((64321 - 10000) * 1000 / 3500);
+
+        assertThat(powerStats.uidStats.size()).isEqualTo(2);
+        long[] actual1 = powerStats.uidStats.get(APP_UID1);
+        // Expected RxBytes: APP_UID1(1100-100)
+        assertThat(layout.getUidRxBytes(actual1)).isEqualTo(1000);
+        // Expected TxBytes: APP_UID1(2200-200)
+        assertThat(layout.getUidTxBytes(actual1)).isEqualTo(2000);
+        assertThat(layout.getUidScanTime(actual1)).isEqualTo(100);
+
+        // Combines APP_UID2, ISOLATED_UID and PRIVATE_COMPUTE_UID
+        long[] actual2 = powerStats.uidStats.get(APP_UID2);
+        // Expected RxBytes: APP_UID2(3300-300) + ISOLATED_UID(5500-500) + PCC(110-10)
+        assertThat(layout.getUidRxBytes(actual2)).isEqualTo(8100);
+        // Expected TxBytes: APP_UID2(4400-400) + ISOLATED_UID(6600-600) + PCC(220-20)
+        assertThat(layout.getUidTxBytes(actual2)).isEqualTo(10200);
+        // Expected UidScanTime: APP_UID2(300) + ISOLATED_UID(400) + PCC_UID(150-100) = 800
+        assertThat(layout.getUidScanTime(actual2)).isEqualTo(800);
+
+        assertThat(powerStats.uidStats.get(ISOLATED_UID)).isNull();
+        assertThat(powerStats.uidStats.get(PRIVATE_COMPUTE_UID)).isNull();
+    }
+
+    @Test
+    public void ignoreFeatureNotSupportedError() {
+        when(mConsumedEnergyRetriever.getEnergyConsumerIds(EnergyConsumerType.BLUETOOTH))
+                .thenReturn(new int[0]);
+
+        mBluetoothActivityEnergyInfoError = BluetoothStatusCodes.FEATURE_NOT_SUPPORTED;
+
+        BluetoothPowerStatsCollector collector = new BluetoothPowerStatsCollector(mInjector, null);
+        collector.setEnabled(true);
+
+        PowerStats powerStats = collector.collectStats();
+        BluetoothPowerStatsLayout layout = new BluetoothPowerStatsLayout(powerStats.descriptor);
+
+        assertThat(layout.getDeviceRxTime(powerStats.stats)).isEqualTo(0);
+        assertThat(layout.getDeviceTxTime(powerStats.stats)).isEqualTo(0);
+        assertThat(layout.getDeviceIdleTime(powerStats.stats)).isEqualTo(0);
+    }
+
+    @Test
     public void dump() throws Throwable {
-        PowerStats powerStats = collectPowerStats();
+        PowerStats powerStats = collectPowerStats(false);
         StringWriter sw = new StringWriter();
         IndentingPrintWriter pw = new IndentingPrintWriter(sw);
         powerStats.dump(pw);
@@ -219,7 +290,23 @@ public class BluetoothPowerStatsCollectorTest {
         assertThat(dump).contains("UID 42: rx-B: 1000 tx-B: 2000 scan: 100");
     }
 
-    private PowerStats collectPowerStats() {
+    @Test
+    @RequiresFlagsEnabled(FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void dump_withPccUidStats() throws Throwable {
+        PowerStats powerStats = collectPowerStats(true);
+        StringWriter sw = new StringWriter();
+        IndentingPrintWriter pw = new IndentingPrintWriter(sw);
+        powerStats.dump(pw);
+        pw.flush();
+        String dump = sw.toString();
+        assertThat(dump).contains("duration=7200");
+        assertThat(dump).contains(
+                "rx: 6000 tx: 1000 idle: 200 scan: 900 energy: " + ((64321 - 10000) * 1000 / 3500));
+        assertThat(dump).contains("UID 24: rx-B: 8100 tx-B: 10200 scan: 800");
+        assertThat(dump).contains("UID 42: rx-B: 1000 tx-B: 2000 scan: 100");
+    }
+
+    private PowerStats collectPowerStats(boolean addPccUidStats) {
         List<BluetoothActivityEnergyInfo> expected = new ArrayList<>();
         List<BluetoothActivityEnergyInfo> observed = new ArrayList<>();
         BluetoothPowerStatsCollector collector = new BluetoothPowerStatsCollector(mInjector,
@@ -230,29 +317,51 @@ public class BluetoothPowerStatsCollectorTest {
         when(mConsumedEnergyRetriever.getEnergyConsumerIds(EnergyConsumerType.BLUETOOTH))
                 .thenReturn(new int[]{777});
 
-        mBluetoothActivityEnergyInfo = mockBluetoothActivityEnergyInfo(1000, 600, 100, 2000,
-                mockUidTraffic(APP_UID1, 100, 200),
-                mockUidTraffic(APP_UID2, 300, 400),
-                mockUidTraffic(ISOLATED_UID, 500, 600));
+        if (addPccUidStats) {
+            mBluetoothActivityEnergyInfo = mockBluetoothActivityEnergyInfo(1000, 600, 100, 2000,
+                    mockUidTraffic(APP_UID1, 100, 200),
+                    mockUidTraffic(APP_UID2, 300, 400),
+                    mockUidTraffic(ISOLATED_UID, 500, 600),
+                    mockUidTraffic(PRIVATE_COMPUTE_UID, 10, 20));
+        } else {
+            mBluetoothActivityEnergyInfo = mockBluetoothActivityEnergyInfo(1000, 600, 100, 2000,
+                    mockUidTraffic(APP_UID1, 100, 200),
+                    mockUidTraffic(APP_UID2, 300, 400),
+                    mockUidTraffic(ISOLATED_UID, 500, 600));
+        }
         expected.add(mBluetoothActivityEnergyInfo);
 
         mUidScanTimes.put(APP_UID1, 100);
+        if (addPccUidStats) {
+            mUidScanTimes.put(PRIVATE_COMPUTE_UID, 50);
+        }
 
         mockConsumedEnergy(777, 10000);
 
         // Establish a baseline
         collector.collectStats();
 
-        mBluetoothActivityEnergyInfo = mockBluetoothActivityEnergyInfo(1100, 6600, 1100, 2200,
-                mockUidTraffic(APP_UID1, 1100, 2200),
-                mockUidTraffic(APP_UID2, 3300, 4400),
-                mockUidTraffic(ISOLATED_UID, 5500, 6600));
+        if (addPccUidStats) {
+            mBluetoothActivityEnergyInfo = mockBluetoothActivityEnergyInfo(1100, 6600, 1100, 2200,
+                    mockUidTraffic(APP_UID1, 1100, 2200),
+                    mockUidTraffic(APP_UID2, 3300, 4400),
+                    mockUidTraffic(ISOLATED_UID, 5500, 6600),
+                    mockUidTraffic(PRIVATE_COMPUTE_UID, 110, 220));
+        } else {
+            mBluetoothActivityEnergyInfo = mockBluetoothActivityEnergyInfo(1100, 6600, 1100, 2200,
+                    mockUidTraffic(APP_UID1, 1100, 2200),
+                    mockUidTraffic(APP_UID2, 3300, 4400),
+                    mockUidTraffic(ISOLATED_UID, 5500, 6600));
+        }
         expected.add(mBluetoothActivityEnergyInfo);
 
         mUidScanTimes.clear();
         mUidScanTimes.put(APP_UID1, 200);
         mUidScanTimes.put(APP_UID2, 300);
         mUidScanTimes.put(ISOLATED_UID, 400);
+        if (addPccUidStats) {
+            mUidScanTimes.put(PRIVATE_COMPUTE_UID, 150);
+        }
 
         mockConsumedEnergy(777, 64321);
 

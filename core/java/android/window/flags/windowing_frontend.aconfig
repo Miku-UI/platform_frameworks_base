@@ -12,21 +12,20 @@ flag {
 }
 
 flag {
-  name: "remove_get_dimmer"
+  name: "show_ime_layering_target_when_adding"
   namespace: "windowing_frontend"
-  description: "Clean up old usages of dimmer"
-  bug: "435301249"
+  description: "Prevent IME flickering when adding a layering target"
+  bug: "495662368"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
 }
 
 flag {
-  name: "release_all_transition_surfaces"
+  name: "release_all_transition_surfaces_on_idle"
   namespace: "windowing_frontend"
   description: "Reduce offscreen layers which rely on GC to release"
   bug: "429548260"
-  is_fixed_read_only: true
   metadata {
     purpose: PURPOSE_BUGFIX
   }
@@ -74,21 +73,85 @@ flag {
 }
 
 flag {
-  name: "do_not_force_wallpaper_for_freeform_task"
+  name: "use_snapshot_fixed_rotation"
   namespace: "windowing_frontend"
-  description: "Remove legacy condition to reduce overhead"
-  bug: "433694978"
-  is_fixed_read_only: true
+  description: "Use known rotation of snapshot to apply fixed rotation"
+  bug: "488963381"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
 }
 
 flag {
-  name: "no_alpha_rotation_enter_animation"
+    name: "synced_display_mode_updates"
+    namespace: "windowing_frontend"
+    description: "Synchronized multi-display mode updates"
+    bug: "448471638"
+}
+
+flag {
+  name: "avoid_intermediate_destroying_state"
   namespace: "windowing_frontend"
-  description: "Remove alpha effect of rotation enter animation"
-  bug: "438615184"
+  description: "Prevent intermediate destroying state from affecting visibility"
+  bug: "479716606"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "use_client_surface"
+  namespace: "windowing_frontend"
+  description: "Let regular windows create their own surface"
+  bug: "308662081"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "deprecate_make_task_launch_behind"
+  namespace: "windowing_frontend"
+  description: "Deprecate ActivityOptions#makeTaskLaunchBehind"
+  bug: "473967290"
+  is_exported: true
+}
+
+flag {
+  name: "lite_task_description_changed"
+  namespace: "windowing_frontend"
+  description: "Optimize TaskDescription change events dispatching"
+  bug: "489914754"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "one_way_set_task_description"
+  namespace: "windowing_frontend"
+  description: "Reduce blocking calls that are usually called on UI thread"
+  bug: "482936553"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "use_known_display_id_for_base_context"
+  namespace: "windowing_frontend"
+  description: "Reduce binder calls that query display id using a token"
+  bug: "476026852"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "reduce_window_traversal_on_entering"
+  namespace: "windowing_frontend"
+  description: "Reduce unnecessary window traversal when an entering animation is done"
+  bug: "493429456"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
@@ -103,20 +166,23 @@ flag {
 }
 
 flag {
-  name: "universal_resizable_by_default"
+  name: "report_missed_enter_anim_on_resume"
   namespace: "windowing_frontend"
-  description: "The orientation, aspect ratio, resizability of activity will follow system behavior by default"
-  bug: "357141415"
-}
-
-flag {
-  name: "opt_out_override_orientation_to_user"
-  namespace: "windowing_frontend"
-  description: "If apps opt out universal resizable, the override-to-user should not take effect"
-  bug: "443951799"
+  description: "Notify onEnterAnimationComplete if process attaches after transition"
+  bug: "493382989"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
+}
+
+flag {
+    name: "enable_split_dismiss_animation_v2"
+    namespace: "windowing_frontend"
+    description: "Resize animation for expanding and collapsing surfaces when split screen is dismissed"
+    bug: "481965406"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -127,31 +193,11 @@ flag {
 }
 
 flag {
-  name: "app_handle_no_relayout_on_exclusion_change"
-  namespace: "windowing_frontend"
-  description: "Remove unnecessary relayouts for app handle when exclusion regions change"
-  bug: "383672263"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "update_dims_when_window_shown"
   namespace: "windowing_frontend"
   description: "Check if we need to update dim layers when a new window draws the first frame"
   bug: "327332488"
   is_fixed_read_only: true
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "system_ui_post_animation_end"
-  namespace: "windowing_frontend"
-  description: "Run AnimatorListener#onAnimationEnd on next frame for SystemUI"
-  bug: "300035126"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
@@ -169,10 +215,10 @@ flag {
 }
 
 flag {
-  name: "keyguard_remove_default_display_usage"
+  name: "commit_keyguard_occlusion_before_waking_up"
   namespace: "windowing_frontend"
-  description: "Execute transitions on affected DisplayContent(s) instead of Default DisplayContent"
-  bug: "430227391"
+  description: "Report latest keyguard state before notifying KeyguardService to wake up"
+  bug: "427961601"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
@@ -224,13 +270,7 @@ flag {
     is_exported: true
 }
 
-flag {
-  name: "relative_insets"
-  namespace: "windowing_frontend"
-  description: "Support insets definition and calculation relative to task bounds."
-  bug: "277292497"
-  is_fixed_read_only: true
-}
+
 
 flag {
     name: "reduce_changed_exclusion_rects_msgs"
@@ -258,17 +298,6 @@ flag {
 }
 
 flag {
-    name: "reduce_task_snapshot_memory_usage"
-    namespace: "windowing_frontend"
-    description: "Reduce task snapshot memory usage in either heap and dmabuf."
-    bug: "238206323"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "respect_requested_task_snapshot_resolution"
     namespace: "windowing_frontend"
     description: "Produce a task snapshot object that respects the requested resolution, and only cache low resolution snapshot in system server."
@@ -278,7 +307,6 @@ flag {
     }
 }
 
-
 flag {
     name: "enable_handlers_debugging_mode"
     namespace: "windowing_frontend"
@@ -286,12 +314,6 @@ flag {
     bug: "402454136"
 }
 
-flag {
-    name: "enable_multidisplay_trackpad_back_gesture"
-    namespace: "lse_desktop_experience"
-    description: "Adds support for trackpad back gestures on connected displays"
-    bug: "382774299"
-}
 
 flag {
     name: "transition_handler_cuj_tags"
@@ -301,26 +323,6 @@ flag {
     is_fixed_read_only: true
     metadata {
         purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "predictive_back_delay_wm_transition"
-    namespace: "windowing_frontend"
-    description: "Separate the predictive back transition request from start navigation"
-    bug: "301195601"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "predictive_back_intercept_transition"
-    namespace: "windowing_frontend"
-    description: "Allows back gesture to intercept a running transition."
-    bug: "426448018"
-    metadata {
-      purpose: PURPOSE_BUGFIX
     }
 }
 
@@ -345,76 +347,11 @@ flag {
     bug: "410930250"
 }
 
-
-
-flag {
-    name: "multiple_system_navigation_observer_callbacks"
-    namespace: "windowing_frontend"
-    description: "Removes restriction that only one back callback with PRIORITY_SYSTEM_NAVIGATION_OBSERVER can be registered"
-    bug: "424146227"
-}
-
-flag {
-    name: "polish_close_wallpaper_includes_open_change"
-    namespace: "windowing_frontend"
-    description: "Record the initial z-order while collecting window containers, keep the wallpaper always at the bottom, and use a cross-fade animation when a close wallpaper transition includes an open target."
-    bug: "421436197"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-flag {
-    name: "transfer_starting_window_to_next_when_invisible"
-    namespace: "windowing_frontend"
-    description: "Transfer the starting window to the next non-finishing activity when the top activity becomes invisible that contains the starting window."
-    bug: "436461530"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "predictive_back_callback_cancellation_fix"
-    namespace: "windowing_frontend"
-    description: "Fixes a bug that caused the wrong callback to receive onBackCancelled sometimes"
-    bug: "420650888"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "excluding_layer_from_task_snapshot"
-    namespace: "windowing_frontend"
-    description: "Supports excluding non-window layers from being included in a task snapshot."
-    bug: "399228526"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
 flag {
     name: "fallback_transition_player"
     namespace: "windowing_frontend"
     description: "Use a fallback transition-player while sysui is starting or crashed."
     bug: "365884835"
-}
-
-flag {
-    name: "update_task_crop_in_sync"
-    namespace: "windowing_frontend"
-    description: "Fixes a bug where we fail to update task crops during transitions"
-    bug: "410684072"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "migrate_basic_legacy_ready"
-    namespace: "windowing_frontend"
-    description: "Migrate basic legacy ready-conditions to new ready tracking"
-    bug: "294925498"
 }
 
 flag {
@@ -424,29 +361,179 @@ flag {
     bug: "385976595"
 }
 
+
 flag {
-    name: "ime_back_callback_leak_prevention"
-    namespace: "input_method"
-    description: "Prevents custom ime back callbacks from remaining registered in app process after IME hide"
-    bug: "420870283"
+    name: "transit_invisible_existence_change"
+    namespace: "windowing_frontend"
+    description: "Allow invisible containers to be in a transition if gone or created"
+    bug: "445874680"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "predictive_back_stop_keycode_back_forwarding"
+    name: "sleep_wake_transitions"
     namespace: "windowing_frontend"
-    description: "No longer forward KEYCODE_BACK events when app has enableOnBackInvokedCallback=true"
-    bug: "436871339"
+    description: "Make the rest of sleep/wake situations into transitions."
+    bug: "423701190"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "scvh_set_focusable"
+    name: "virtual_display_can_create_system_application_overlay"
     namespace: "windowing_frontend"
-    description: "Adds a focusable flag to SurfaceControlViewHost"
-    bug: "425415517"
+    description: "Virtual display owners can create system application overlays"
+    bug: "432521645"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_cross_activity_back_animation_in_bubbles"
+    namespace: "windowing_frontend"
+    description: "Enables the predictive cross-activity back animation in bubbles"
+    bug: "449125591"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "improve_fluid_resizing_performance"
+    namespace: "windowing_frontend"
+    description: "Improve the performance during fluid resizing."
+    bug: "429960813"
+}
+
+flag {
+    name: "perfect_edge"
+    namespace: "windowing_frontend"
+    description: "Make the app window match the window decoration during fluid resizing."
+    bug: "475362867"
+}
+
+flag {
+    name: "refine_ancestor_search_and_bounds"
+    namespace: "windowing_frontend"
+    description: "Limit the animation bounds for close transition, and do not let other child participants affect final root of a transition."
+    bug: "472227796"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "transit_mixpatcher_base"
+    namespace: "windowing_frontend"
+    description: "Foundation for shell-side transition Mixpatcher."
+    bug: "469422564"
+}
+
+flag {
+    name: "no_transfer_first_window_drawn"
+    namespace: "windowing_frontend"
+    description: "The firstWindowDrawn attribute should only represents main window drawn for an activity."
+    bug: "477134239"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_merge_animations"
+    namespace: "windowing_frontend"
+    description: "Create animations for windows during mergeAnimation"
+    bug: "477175273"
+}
+
+flag {
+    name: "only_cache_low_res_task_snapshot"
+    namespace: "windowing_frontend"
+    description: "Only cache low resolution task snapshot in system server."
+    bug: "238206323"
+}
+
+flag {
+    name: "shared_surface_transition_animation"
+    namespace: "windowing_frontend"
+    description: "Allow the client to describe a transition animation and participate in the animation using a shared surface."
+    bug: "475737659"
+}
+
+flag {
+    name: "send_new_insets_state_with_rotation"
+    namespace: "windowing_frontend"
+    description: "Send the new InsetsState to the shell when the display rotates"
+    bug: "480967801"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "merge_predictive_back_transaction_together"
+    namespace: "windowing_frontend"
+    description: "Merge the close transition's finish transaction into the back navigation during mergeAnimation"
+    bug: "471522918"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "synced_insets_animation"
+    namespace: "windowing_frontend"
+    description: "Synchronize the applied insets to a view with the ongoing system insets animation."
+    bug: "463899193"
+}
+
+flag {
+    name: "cross_display_transition_v2"
+    namespace: "windowing_frontend"
+    description: "Cross fade transition between two displays"
+    bug: "481219379"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "sync_before_enabling_screen"
+    namespace: "windowing_frontend"
+    description: "Sync storage before enabling screen during boot"
+    bug: "467888558"
+}
+
+flag {
+    name: "keep_show_wallpaper_on_bottom"
+    namespace: "windowing_frontend"
+    description: "Keep changes with the SHOW_WALLPAPER flag at the bottom of the transition."
+    bug: "479707267"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "remove_starting_window_when_commit_invisible"
+    namespace: "windowing_frontend"
+    description: "Always clean up starting window when an activity commit invisible."
+    bug: "489653115"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "consolidate_remove_starting_window_from_task"
+    namespace: "windowing_frontend"
+    description: "Ensure a starting window being removed when condition met for all activities."
+    bug: "477134239"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

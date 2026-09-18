@@ -148,7 +148,7 @@
     <string name="bluetooth_profile_hid" msgid="2969922922664315866">"Eingabegerät"</string>
     <string name="bluetooth_profile_pan" msgid="1006235139308318188">"Internetzugriff"</string>
     <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"Zugriff auf Kontakte und Anrufliste gewähren"</string>
-    <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"Die Daten werden z. B. für Anrufbenachrichtigungen verwendet"</string>
+    <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"Die Daten werden u. a. für Anrufbenachrichtigungen verwendet"</string>
     <string name="bluetooth_profile_pan_nap" msgid="7871974753822470050">"Freigabe der Internetverbindung"</string>
     <string name="bluetooth_profile_map" msgid="8907204701162107271">"SMS"</string>
     <string name="bluetooth_profile_sap" msgid="8304170950447934386">"Zugriff auf SIM"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"WLAN: drei Balken"</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"WLAN: volle Signalstärke"</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Mit deinem Gerät verbunden."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Alle Nutzer auf diesem Gerät können das Netzwerk sehen und sich damit verbinden."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Offenes Netzwerk"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Sicheres Netzwerk"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Die Einstellungen für den Zugangspunkt sind für diesen Nutzer nicht verfügbar."</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB-Debugging"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Debugging-Modus bei Anschluss über USB"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"USB-Debugging-Autorisierungen aufheben"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Autorisierungen für das ADB-Debugging aufheben"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Debugging über WLAN"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Debugging-Modus, wenn eine WLAN-Verbindung besteht"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Fehler"</string>
@@ -277,7 +278,7 @@
     <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"Gerät über einen QR-Code koppeln"</string>
     <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"Neue Geräte über QR-Codescanner koppeln"</string>
     <string name="adb_pair_method_code_title" msgid="1122590300445142904">"Gerät über einen Kopplungscode koppeln"</string>
-    <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"Neue Geräte mit sechsstelligem Code koppeln"</string>
+    <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"Neue Geräte über sechsstelligen Code koppeln"</string>
     <string name="adb_paired_devices_title" msgid="5268997341526217362">"Gekoppelte Geräte"</string>
     <string name="adb_wireless_device_connected_summary" msgid="3039660790249148713">"Derzeit verbunden"</string>
     <string name="adb_wireless_device_details_title" msgid="7129369670526565786">"Gerätedetails"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Gerät wird gekoppelt…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Das Gerät konnte nicht gekoppelt werden. Der QR-Code war nicht korrekt oder das Gerät ist nicht mit demselben Netzwerk verbunden."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP-Adresse &amp; Port"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Nicht verfügbar (nicht zulässig)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Nicht verfügbar (WLAN getrennt)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"QR-Code scannen"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Scanne einen QR-Code, um das Gerät über WLAN zu koppeln"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Bitte stell eine WLAN-Verbindung her"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB-Debugging ist nur für Entwicklungszwecke vorgesehen. Damit kannst du Daten zwischen deinem Computer und deinem Gerät kopieren, Apps auf deinem Gerät ohne Benachrichtigung installieren und Protokolldaten lesen."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Debugging über WLAN zulassen?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"\"Debugging über WLAN\" ist nur für Entwicklungszwecke vorgesehen. Damit kannst du Daten zwischen deinem Computer und deinem Gerät kopieren, Apps auf deinem Gerät ohne Benachrichtigung installieren und Protokolldaten lesen."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Zugriff auf USB-Debugging für alle zuvor autorisierten Computer aufheben?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Zugriff auf ADB-Debugging für alle zuvor autorisierten Computer und Netzwerke aufheben?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Entwicklungseinstellungen zulassen?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Diese Einstellungen sind ausschließlich für Entwicklungszwecke gedacht. Sie können dein Gerät und die darauf installierten Apps beschädigen oder zu unerwünschtem Verhalten führen."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Über USB installierte Apps prüfen"</string>
@@ -528,8 +531,8 @@
     <string name="power_charging_limited" msgid="4144004473976005214">"<xliff:g id="LEVEL">%1$s</xliff:g> – Ladevorgang zum Schutz des Akkus angehalten"</string>
     <string name="power_charging_future_paused" msgid="1809543660923642799">"<xliff:g id="LEVEL">%1$s</xliff:g> – Wird geladen"</string>
     <string name="power_fast_charging_duration_v2" msgid="3797735998640359490">"<xliff:g id="LEVEL">%1$s</xliff:g> – <xliff:g id="STATUS">%2$s</xliff:g> – Vollständig geladen in <xliff:g id="TIME">%3$s</xliff:g>"</string>
-    <string name="power_charging_duration_v2" msgid="2938998284074003248">"<xliff:g id="LEVEL">%1$s</xliff:g> – Vollständig geladen in <xliff:g id="TIME">%2$s</xliff:g>"</string>
-    <string name="power_remaining_charging_duration_only_v2" msgid="5358176435722950193">"Vollständig geladen um <xliff:g id="TIME">%1$s</xliff:g>"</string>
+    <string name="power_charging_duration_v2" msgid="2938998284074003248">"<xliff:g id="LEVEL">%1$s</xliff:g> – Vollständig geladen bis <xliff:g id="TIME">%2$s</xliff:g>"</string>
+    <string name="power_remaining_charging_duration_only_v2" msgid="5358176435722950193">"Vollständig geladen bis <xliff:g id="TIME">%1$s</xliff:g>"</string>
     <string name="power_remaining_fast_charging_duration_only_v2" msgid="6270950195810579563">"Vollständig geladen bis <xliff:g id="TIME">%1$s</xliff:g>"</string>
     <string name="battery_info_status_unknown" msgid="268625384868401114">"Unbekannt"</string>
     <string name="battery_info_status_charging" msgid="4279958015430387405">"Wird aufgeladen"</string>
@@ -663,8 +666,8 @@
     <string name="user_add_user_item_title" msgid="2394272381086965029">"Nutzer"</string>
     <string name="user_add_profile_item_title" msgid="3111051717414643029">"Eingeschränkte Profile"</string>
     <string name="user_add_user_title" msgid="5457079143694924885">"Neuen Nutzer hinzufügen?"</string>
-    <string name="user_add_user_message_long" msgid="1527434966294733380">"Du kannst dieses Gerät zusammen mit anderen nutzen, indem du weitere Nutzer erstellst. Jeder erhält einen eigenen Bereich, in dem er Apps, den Hintergrund usw. personalisieren kann. Außerdem lassen sich Geräteeinstellungen wie WLAN ändern, die sich auf alle Nutzer auswirken.\n\nWenn du einen neuen Nutzer hinzufügst, muss dieser seinen Bereich einrichten.\n\nJeder Nutzer kann Apps für alle anderen Nutzer aktualisieren. Einstel­lun­gen und Dienste für die Bedie­nungs­hil­fen werden mög­licher­weise nicht auf den neuen Nutzer übertragen."</string>
-    <string name="user_add_user_message_short" msgid="3295959985795716166">"Wenn du einen neuen Nutzer hinzufügst, muss dieser seinen Bereich einrichten.\n\nJeder Nutzer kann Apps für alle anderen Nutzer aktualisieren."</string>
+    <string name="user_add_user_message_long" msgid="1527434966294733380">"Du kannst dieses Gerät zusammen mit anderen nutzen, indem du weitere Nutzer erstellst. Jeder erhält ein eigenes Profil, in dem er Apps, den Hintergrund usw. personalisieren kann. Außerdem lassen sich Geräteeinstellungen wie WLAN ändern, die sich auf alle Nutzer auswirken.\n\nWenn du einen neuen Nutzer hinzufügst, muss dieser sein privates Profil einrichten.\n\nJeder Nutzer kann Apps für alle anderen Nutzer aktualisieren. Einstel­lun­gen und Dienste für die Bedie­nungs­hil­fen werden mög­licher­weise nicht auf den neuen Nutzer übertragen."</string>
+    <string name="user_add_user_message_short" msgid="3295959985795716166">"Wenn du einen neuen Nutzer hinzufügst, muss dieser sein privates Profil einrichten.\n\nJeder Nutzer kann Apps für alle anderen Nutzer aktualisieren."</string>
     <string name="user_grant_admin_title" msgid="5157031020083343984">"Diesen Nutzer als Administrator festlegen?"</string>
     <string name="user_grant_admin_message" msgid="1673791931033486709">"Im Gegensatz zu anderen Nutzern haben Administratoren besondere Berechtigungen. Ein Administrator kann alle Nutzer verwalten, dieses Gerät aktualisieren oder zurücksetzen, Einstellungen ändern, alle installierten Apps sehen und anderen Administrator­­­berech­ti­gungen gewähren oder diese widerrufen."</string>
     <string name="user_grant_admin_button" msgid="5441486731331725756">"Als Administrator festlegen"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet nicht verbunden"</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Keine Anrufe."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Physische Tastatur"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Tastaturlayout wählen"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Standard"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Berechtigung zum Aktivieren des Displays"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Aktivieren des Displays erlauben"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Einer App erlauben, das Display zu aktivieren. Wenn du diese Erlaubnis erteilst, kann die App jederzeit das Display aktivieren – auch ohne dass du dies beabsichtigst."</string>

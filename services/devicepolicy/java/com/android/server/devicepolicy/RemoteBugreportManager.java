@@ -79,7 +79,7 @@ public class RemoteBugreportManager {
     })
     @interface RemoteBugreportNotificationType {}
     private final DevicePolicyManagerService mService;
-    private final DevicePolicyManagerService.Injector mInjector;
+    private final Injector mInjector;
 
     private final SecureRandom mRng = new SecureRandom();
 
@@ -122,7 +122,7 @@ public class RemoteBugreportManager {
     };
 
     public RemoteBugreportManager(
-            DevicePolicyManagerService service, DevicePolicyManagerService.Injector injector) {
+            DevicePolicyManagerService service, Injector injector) {
         mService = service;
         mInjector = injector;
         mContext = service.mContext;

@@ -31,9 +31,15 @@ import android.os.Parcelable
 data class DeviceSettingsConfig(
     val mainContentItems: List<DeviceSettingItem>,
     val moreSettingsItems: List<DeviceSettingItem>,
-    val moreSettingsHelpItem: DeviceSettingItem?,
+    val moreSettingsHelpItem: DeviceSettingItem? = null,
+    val settingGroups: List<DeviceSettingGroup>? = null,
     val extras: Bundle = Bundle.EMPTY,
 ) : Parcelable {
+    private val processedExtras: Bundle = Bundle(extras).apply {
+        if (settingGroups != null) {
+            putParcelableArrayList(SETTING_GROUPS_KEY, ArrayList(settingGroups))
+        }
+    }
 
     override fun describeContents(): Int = 0
 
@@ -42,31 +48,42 @@ data class DeviceSettingsConfig(
             writeTypedList(mainContentItems)
             writeTypedList(moreSettingsItems)
             writeParcelable(moreSettingsHelpItem, flags)
-            writeBundle(extras)
+            writeBundle(processedExtras)
         }
     }
 
     companion object {
+        private const val SETTING_GROUPS_KEY = "settingGroups"
+
         @JvmField
         val CREATOR: Parcelable.Creator<DeviceSettingsConfig> =
             object : Parcelable.Creator<DeviceSettingsConfig> {
-                override fun createFromParcel(parcel: Parcel): DeviceSettingsConfig =
-                    parcel.run {
-                        DeviceSettingsConfig(
-                            mainContentItems =
-                                arrayListOf<DeviceSettingItem>().also {
-                                    readTypedList(it, DeviceSettingItem.CREATOR)
-                                },
-                            moreSettingsItems =
-                                arrayListOf<DeviceSettingItem>().also {
-                                    readTypedList(it, DeviceSettingItem.CREATOR)
-                                },
-                            moreSettingsHelpItem = readParcelable(
-                                DeviceSettingItem::class.java.classLoader
-                            ),
-                            extras = readBundle((Bundle::class.java.classLoader)) ?: Bundle.EMPTY,
+                override fun createFromParcel(parcel: Parcel): DeviceSettingsConfig = parcel.run {
+                    val mainContentItems = arrayListOf<DeviceSettingItem>().also {
+                        readTypedList(
+                            it, DeviceSettingItem.CREATOR
                         )
                     }
+                    val moreSettingsItems = arrayListOf<DeviceSettingItem>().also {
+                        readTypedList(
+                            it, DeviceSettingItem.CREATOR
+                        )
+                    }
+                    val moreSettingsHelpItem: DeviceSettingItem? =
+                        readParcelable(DeviceSettingItem::class.java.classLoader)
+                    val extras = readBundle((Bundle::class.java.classLoader)) ?: Bundle.EMPTY
+                    extras.classLoader = DeviceSettingGroup::class.java.classLoader
+                    val settingGroups: List<DeviceSettingGroup>? = extras.getParcelableArrayList(
+                        SETTING_GROUPS_KEY, DeviceSettingGroup::class.java
+                    )
+                    return DeviceSettingsConfig(
+                        mainContentItems,
+                        moreSettingsItems,
+                        moreSettingsHelpItem,
+                        settingGroups,
+                        extras,
+                    )
+                }
 
                 override fun newArray(size: Int): Array<DeviceSettingsConfig?> {
                     return arrayOfNulls(size)

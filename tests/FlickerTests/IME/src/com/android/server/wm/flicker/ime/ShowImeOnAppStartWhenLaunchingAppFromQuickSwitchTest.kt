@@ -53,7 +53,7 @@ class ShowImeOnAppStartWhenLaunchingAppFromQuickSwitchTest(flicker: FlickerTest)
     /** {@inheritDoc} */
     override val transition: FlickerBuilder.() -> Unit = {
         setup {
-            tapl.setExpectedRotationCheckEnabled(false)
+            tapl.expectedRotationCheckEnabled = false
             tapl.setIgnoreTaskbarVisibility(true)
             this.setRotation(flicker.scenario.startRotation)
             testApp.launchViaIntent(wmHelper)
@@ -65,7 +65,7 @@ class ShowImeOnAppStartWhenLaunchingAppFromQuickSwitchTest(flicker: FlickerTest)
             imeTestApp.openIME(wmHelper)
         }
         teardown {
-            tapl.goHome()
+            device.pressHome()
             wmHelper.StateSyncBuilder().withHomeActivityVisible().waitForAndVerify()
             testApp.exit(wmHelper)
             imeTestApp.exit(wmHelper)

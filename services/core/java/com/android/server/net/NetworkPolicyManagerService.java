@@ -143,7 +143,9 @@ import static com.android.internal.util.XmlUtils.readBooleanAttribute;
 import static com.android.internal.util.XmlUtils.readIntAttribute;
 import static com.android.internal.util.XmlUtils.readLongAttribute;
 import static com.android.internal.util.XmlUtils.readStringAttribute;
+import static com.android.internal.util.XmlUtils.readThisIntArrayXml;
 import static com.android.internal.util.XmlUtils.writeBooleanAttribute;
+import static com.android.internal.util.XmlUtils.writeIntArrayXml;
 import static com.android.internal.util.XmlUtils.writeIntAttribute;
 import static com.android.internal.util.XmlUtils.writeLongAttribute;
 import static com.android.internal.util.XmlUtils.writeStringAttribute;
@@ -160,6 +162,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.ActivityManager.ProcessCapability;
+import android.app.ActivityManager.ProcessState;
 import android.app.ActivityManagerInternal;
 import android.app.AppGlobals;
 import android.app.AppOpsManager;
@@ -271,6 +274,7 @@ import com.android.internal.util.ConcurrentUtils;
 import com.android.internal.util.DumpUtils;
 import com.android.internal.util.IndentingPrintWriter;
 import com.android.internal.util.StatLogger;
+import com.android.internal.util.XmlUtils;
 import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
 import com.android.net.module.util.NetworkIdentityUtils;
@@ -287,6 +291,8 @@ import com.android.server.usage.AppStandbyInternal.AppIdleStateChangeListener;
 import dalvik.annotation.optimization.NeverCompile;
 
 import libcore.io.IoUtils;
+
+import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.File;
 import java.io.FileDescriptor;
@@ -364,7 +370,8 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
     private static final int VERSION_ADDED_NETWORK_TYPES = 12;
     private static final int VERSION_SUPPORTED_CARRIER_USAGE = 13;
     private static final int VERSION_REMOVED_SUBSCRIPTION_PLANS = 14;
-    private static final int VERSION_LATEST = VERSION_REMOVED_SUBSCRIPTION_PLANS;
+    private static final int VERSION_ADDED_SUBSCRIPTION_PLANS_WITH_EXPIRATION = 15;
+    private static final int VERSION_LATEST = VERSION_ADDED_SUBSCRIPTION_PLANS_WITH_EXPIRATION;
 
     @VisibleForTesting
     public static final int TYPE_WARNING = SystemMessage.NOTE_NET_WARNING;
@@ -377,6 +384,7 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
 
     private static final String TAG_POLICY_LIST = "policy-list";
     private static final String TAG_NETWORK_POLICY = "network-policy";
+    private static final String TAG_SUBSCRIPTION_PLAN = "subscription-plan";
     private static final String TAG_UID_POLICY = "uid-policy";
     private static final String TAG_APP_POLICY = "app-policy";
     private static final String TAG_ALLOWLIST = "whitelist";
@@ -415,6 +423,13 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
     private static final String ATTR_OWNER_PACKAGE = "ownerPackage";
     private static final String ATTR_NETWORK_TYPES = "networkTypes";
     private static final String ATTR_XML_UTILS_NAME = "name";
+    private static final String ATTR_EXPIRATION_TIME = "expirationTime";
+    private static final String ATTR_PLAN_ID = "planId";
+    private static final String ATTR_PLAN_TYPES = "planTypes";
+    private static final String ATTR_RESET_TIME = "resetTime";
+    private static final String ATTR_DOWNLINK_KBPS = "downlinkKbps";
+    private static final String ATTR_UPLINK_KBPS = "uplinkKbps";
+    private static final String ATTR_SUBSCRIPTION_STATUS = "subscriptionStatus";
 
     private static final String ACTION_SNOOZE_WARNING =
             "com.android.server.net.action.SNOOZE_WARNING";
@@ -609,6 +624,9 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
     /** Map from subId to the ID of the clear plans request. */
     @GuardedBy("mNetworkPoliciesSecondLock")
     final SparseIntArray mSetSubscriptionPlansIds = new SparseIntArray();
+    /** Map from subId to its expiration time in millis. */
+    @GuardedBy("mNetworkPoliciesSecondLock")
+    final SparseLongArray mSubscriptionPlansExpirationTime = new SparseLongArray();
     /** Atomic integer to generate a new ID for each clear plans request. */
     @GuardedBy("mNetworkPoliciesSecondLock")
     int mSetSubscriptionPlansIdCounter = 0;
@@ -850,22 +868,37 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
     static class Dependencies {
         final Context mContext;
         final NetworkStatsManager mNetworkStatsManager;
+        final boolean mUseNetstatsPerQueryFlags;
+
         Dependencies(Context context) {
             mContext = context;
             mNetworkStatsManager = mContext.getSystemService(NetworkStatsManager.class);
+            mUseNetstatsPerQueryFlags = android.net.platform.flags.Flags.useNetstatsPerQueryFlags();
             // Query stats from NetworkStatsService will trigger a poll by default.
             // But since NPMS listens stats updated event, and will query stats
             // after the event. A polling -> updated -> query -> polling loop will be introduced
             // if polls on open. Hence, while NPMS manages it's poll requests explicitly, set
             // flag to false to prevent a polling loop.
-            mNetworkStatsManager.setPollOnOpen(false);
+            //
+            // This is the legacy path for disabling polling. When the flag is enabled, polling is
+            // disabled by passing the appropriate flags per-query.
+            if (!mUseNetstatsPerQueryFlags) {
+                mNetworkStatsManager.setPollOnOpen(false);
+            }
         }
 
         long getNetworkTotalBytes(NetworkTemplate template, long start, long end) {
             Trace.traceBegin(TRACE_TAG_NETWORK, "getNetworkTotalBytes");
             try {
-                final NetworkStats.Bucket ret = mNetworkStatsManager
-                        .querySummaryForDevice(template, start, end);
+                final NetworkStats.Bucket ret;
+                if (mUseNetstatsPerQueryFlags) {
+                    // Pass 0 as flags to avoid triggering a poll (FLAG_POLL_ON_OPEN),
+                    // which would cause a polling loop.
+                    ret = mNetworkStatsManager.querySummaryForDevice(
+                            template, start, end, 0 /* flags */);
+                } else {
+                    ret = mNetworkStatsManager.querySummaryForDevice(template, start, end);
+                }
                 return ret.getRxBytes() + ret.getTxBytes();
             } catch (RuntimeException e) {
                 Slog.w(TAG, "Failed to read network stats: " + e);
@@ -881,7 +914,14 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
             Trace.traceBegin(TRACE_TAG_NETWORK, "getNetworkUidBytes");
             final List<NetworkStats.Bucket> buckets = new ArrayList<>();
             try {
-                final NetworkStats stats = mNetworkStatsManager.querySummary(template, start, end);
+                final NetworkStats stats;
+                if (mUseNetstatsPerQueryFlags) {
+                    // Pass 0 as flags to avoid triggering a poll (FLAG_POLL_ON_OPEN),
+                    // which would cause a polling loop.
+                    stats = mNetworkStatsManager.querySummary(template, start, end, 0);
+                } else {
+                    stats = mNetworkStatsManager.querySummary(template, start, end);
+                }
                 while (stats.hasNextBucket()) {
                     final NetworkStats.Bucket bucket = new NetworkStats.Bucket();
                     stats.getNextBucket(bucket);
@@ -1238,7 +1278,8 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
          */
         @GuardedBy("mUidStateCallbackInfos")
         private boolean isUidStateChangeRelevant(UidStateCallbackInfo previousInfo,
-                int newProcState, long newProcStateSeq, int newCapability) {
+                @ProcessState int newProcState, long newProcStateSeq,
+                @ProcessCapability int newCapability) {
             if (previousInfo.procStateSeq == -1) {
                 // No previous record. Always process the first state change callback.
                 return true;
@@ -1247,7 +1288,7 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                 // Stale callback. Ignore.
                 return false;
             }
-            final int previousProcState = previousInfo.procState;
+            final @ProcessState int previousProcState = previousInfo.procState;
             if ((previousProcState <= TOP_THRESHOLD_STATE)
                     || (newProcState <= TOP_THRESHOLD_STATE)) {
                 // If the proc-state change crossed TOP_THRESHOLD_STATE, network rules for the
@@ -1278,8 +1319,9 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                 // transition delay is reduced, so we may have to update the rules sooner.
                 return true;
             }
-            final int networkCapabilities = PROCESS_CAPABILITY_POWER_RESTRICTED_NETWORK
-                    | PROCESS_CAPABILITY_USER_RESTRICTED_NETWORK;
+            final @ProcessCapability int networkCapabilities =
+                    PROCESS_CAPABILITY_POWER_RESTRICTED_NETWORK
+                            | PROCESS_CAPABILITY_USER_RESTRICTED_NETWORK;
             if ((previousInfo.capability & networkCapabilities)
                     != (newCapability & networkCapabilities)) {
                 return true;
@@ -1287,8 +1329,9 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
             return false;
         }
 
-        @Override public void onUidStateChanged(int uid, int procState, long procStateSeq,
-                @ProcessCapability int capability) {
+        @Override
+        public void onUidStateChanged(int uid, @ProcessState int procState,
+                long procStateSeq, @ProcessCapability int capability) {
             synchronized (mUidStateCallbackInfos) {
                 UidStateCallbackInfo callbackInfo = mUidStateCallbackInfos.get(uid);
                 if (callbackInfo == null) {
@@ -1316,13 +1359,15 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
 
     private static final class UidStateCallbackInfo {
         public int uid;
+        @ProcessState
         public int procState = ActivityManager.PROCESS_STATE_NONEXISTENT;
         public long procStateSeq = -1;
         @ProcessCapability
         public int capability;
         public boolean isPending;
 
-        public void update(int uid, int procState, long procStateSeq, int capability) {
+        public void update(int uid, @ProcessState int procState,
+                long procStateSeq, @ProcessCapability int capability) {
             this.uid = uid;
             this.procState = procState;
             this.procStateSeq = procStateSeq;
@@ -2312,7 +2357,9 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                     tmSub.getMergedImsisFromGroup());
             mergedSubscriberIdsList.add(mergedSubscriberId);
 
-            final PersistableBundle config = mCarrierConfigManager.getConfigForSubId(subId);
+            final PersistableBundle config = mCarrierConfigManager != null
+                    ? mCarrierConfigManager.getConfigForSubId(subId)
+                    : null;
             if (config != null) {
                 subIdToCarrierConfig.put(subId, config);
             } else {
@@ -2818,6 +2865,112 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                                     warningBytes, limitBytes, lastWarningSnooze,
                                     lastLimitSnooze, metered, inferred));
                         }
+                    } else if (TAG_SUBSCRIPTION_PLAN.equals(tag)) {
+                        if (!com.android.internal.telephony.flags
+                                .Flags.subscriptionPlanEnhancement()) {
+                            continue;
+                        }
+                        final long expirationTime = readLongAttribute(in, ATTR_EXPIRATION_TIME, 0);
+                        final long now = mClock.millis();
+                        if (now >= expirationTime) {
+                            // If the plan is already expired, no need to load it into memory.
+                            continue;
+                        }
+                        final String start = readStringAttribute(in, ATTR_CYCLE_START);
+                        final String end = readStringAttribute(in, ATTR_CYCLE_END);
+                        final String period = readStringAttribute(in, ATTR_CYCLE_PERIOD);
+                        final SubscriptionPlan.Builder builder = new SubscriptionPlan.Builder(
+                                RecurrenceRule.convertZonedDateTime(start),
+                                RecurrenceRule.convertZonedDateTime(end),
+                                RecurrenceRule.convertPeriod(period));
+                        builder.setTitle(readStringAttribute(in, ATTR_TITLE));
+                        builder.setSummary(readStringAttribute(in, ATTR_SUMMARY));
+
+                        final long limitBytes = readLongAttribute(in, ATTR_LIMIT_BYTES,
+                                SubscriptionPlan.BYTES_UNKNOWN);
+                        final int limitBehavior = readIntAttribute(in, ATTR_LIMIT_BEHAVIOR,
+                                SubscriptionPlan.LIMIT_BEHAVIOR_UNKNOWN);
+                        if (limitBytes != SubscriptionPlan.BYTES_UNKNOWN
+                                && limitBehavior != SubscriptionPlan.LIMIT_BEHAVIOR_UNKNOWN) {
+                            builder.setDataLimit(limitBytes, limitBehavior);
+                        }
+
+                        final long usageBytes = readLongAttribute(in, ATTR_USAGE_BYTES,
+                                SubscriptionPlan.BYTES_UNKNOWN);
+                        final long usageTime = readLongAttribute(in, ATTR_USAGE_TIME,
+                                SubscriptionPlan.TIME_UNKNOWN);
+                        if (usageBytes != SubscriptionPlan.BYTES_UNKNOWN
+                                && usageTime != SubscriptionPlan.TIME_UNKNOWN) {
+                            builder.setDataUsage(usageBytes, usageTime);
+                        }
+
+                        final int subId = readIntAttribute(in, ATTR_SUB_ID);
+                        final String ownerPackage = readStringAttribute(in, ATTR_OWNER_PACKAGE);
+
+                        final int planId = readIntAttribute(in, ATTR_PLAN_ID,
+                                SubscriptionPlan.UNSPECIFIED_ID);
+                        final String resetTime = readStringAttribute(in, ATTR_RESET_TIME);
+                        final long downlink = readLongAttribute(in, ATTR_DOWNLINK_KBPS,
+                                SubscriptionPlan.BITRATE_UNKNOWN);
+                        final long uplink = readLongAttribute(in, ATTR_UPLINK_KBPS,
+                                SubscriptionPlan.BITRATE_UNKNOWN);
+                        final int subscriptionStatus = readIntAttribute(in,
+                                ATTR_SUBSCRIPTION_STATUS,
+                                SubscriptionPlan.SUBSCRIPTION_STATUS_UNKNOWN);
+
+                        if (planId != SubscriptionPlan.UNSPECIFIED_ID) {
+                            builder.setId(planId);
+                        }
+                        if (resetTime != null) {
+                            builder.setDataUsageResetTime(
+                                    RecurrenceRule.convertZonedDateTime(resetTime));
+                        }
+                        if (downlink != SubscriptionPlan.BITRATE_UNKNOWN) {
+                            builder.setStreamingAppMaxDownlinkKbps(downlink);
+                        }
+                        if (uplink != SubscriptionPlan.BITRATE_UNKNOWN) {
+                            builder.setStreamingAppMaxUplinkKbps(uplink);
+                        }
+                        if (subscriptionStatus != SubscriptionPlan.SUBSCRIPTION_STATUS_UNKNOWN) {
+                            builder.setSubscriptionStatus(subscriptionStatus);
+                        }
+
+                        if (version >= VERSION_ADDED_NETWORK_TYPES) {
+                            final int depth = in.getDepth();
+                            while (XmlUtils.nextElementWithin(in, depth)) {
+                                if (TAG_XML_UTILS_INT_ARRAY.equals(in.getName())) {
+                                    final String name = readStringAttribute(in,
+                                            ATTR_XML_UTILS_NAME);
+                                    if (ATTR_NETWORK_TYPES.equals(name)) {
+                                        final int[] networkTypes =
+                                                readThisIntArrayXml(in, TAG_XML_UTILS_INT_ARRAY,
+                                                        null);
+                                        builder.setNetworkTypes(networkTypes);
+                                    } else if (ATTR_PLAN_TYPES.equals(name)) {
+                                        final int[] planTypes =
+                                                readThisIntArrayXml(in, TAG_XML_UTILS_INT_ARRAY,
+                                                        null);
+                                        builder.setTypes(planTypes);
+                                    }
+                                }
+                            }
+                        }
+
+                        final SubscriptionPlan plan = builder.build();
+                        mSubscriptionPlans.put(subId, ArrayUtils.appendElement(
+                                SubscriptionPlan.class, mSubscriptionPlans.get(subId), plan));
+                        mSubscriptionPlansOwner.put(subId, ownerPackage);
+
+                        if (expirationTime > 0) {
+                            mSubscriptionPlansExpirationTime.put(subId, expirationTime);
+
+                            final int setPlansId = mSetSubscriptionPlansIdCounter++;
+                            mSetSubscriptionPlansIds.put(subId, setPlansId);
+
+                            mHandler.sendMessageDelayed(
+                                    mHandler.obtainMessage(MSG_CLEAR_SUBSCRIPTION_PLANS,
+                                            subId, setPlansId, ownerPackage), expirationTime - now);
+                        }
                     } else if (TAG_UID_POLICY.equals(tag)) {
                         final int uid = readIntAttribute(in, ATTR_UID);
                         final int policy = readIntAttribute(in, ATTR_POLICY);
@@ -3006,6 +3159,75 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                 writeBooleanAttribute(out, ATTR_METERED, policy.metered);
                 writeBooleanAttribute(out, ATTR_INFERRED, policy.inferred);
                 out.endTag(null, TAG_NETWORK_POLICY);
+            }
+
+            if (com.android.internal.telephony.flags.Flags.subscriptionPlanEnhancement()) {
+                // write all known subscription plans
+                for (int i = 0; i < mSubscriptionPlans.size(); i++) {
+                    final int subId = mSubscriptionPlans.keyAt(i);
+                    if (subId == INVALID_SUBSCRIPTION_ID) continue;
+                    final String ownerPackage = mSubscriptionPlansOwner.get(subId);
+                    final SubscriptionPlan[] plans = mSubscriptionPlans.valueAt(i);
+                    if (ArrayUtils.isEmpty(plans)) continue;
+                    final long expirationTime = mSubscriptionPlansExpirationTime.get(subId, 0);
+                    if (expirationTime == 0) continue; // skip writing volatile subscription plans
+
+                    for (SubscriptionPlan plan : plans) {
+                        out.startTag(null, TAG_SUBSCRIPTION_PLAN);
+                        writeIntAttribute(out, ATTR_SUB_ID, subId);
+                        writeStringAttribute(out, ATTR_OWNER_PACKAGE, ownerPackage);
+                        final RecurrenceRule cycleRule = plan.getCycleRule();
+                        writeStringAttribute(out, ATTR_CYCLE_START,
+                                RecurrenceRule.convertZonedDateTime(cycleRule.start));
+                        writeStringAttribute(out, ATTR_CYCLE_END,
+                                RecurrenceRule.convertZonedDateTime(cycleRule.end));
+                        writeStringAttribute(out, ATTR_CYCLE_PERIOD,
+                                RecurrenceRule.convertPeriod(cycleRule.period));
+                        writeStringAttribute(out, ATTR_TITLE, plan.getTitle());
+                        writeStringAttribute(out, ATTR_SUMMARY, plan.getSummary());
+                        writeLongAttribute(out, ATTR_LIMIT_BYTES, plan.getDataLimitBytes());
+                        writeIntAttribute(out, ATTR_LIMIT_BEHAVIOR, plan.getDataLimitBehavior());
+                        writeLongAttribute(out, ATTR_USAGE_BYTES, plan.getDataUsageBytes());
+                        writeLongAttribute(out, ATTR_USAGE_TIME, plan.getDataUsageTime());
+                        if (expirationTime > 0) {
+                            writeLongAttribute(out, ATTR_EXPIRATION_TIME, expirationTime);
+                        }
+                        if (plan.getId() != SubscriptionPlan.UNSPECIFIED_ID) {
+                            writeIntAttribute(out, ATTR_PLAN_ID, plan.getId());
+                        }
+                        if (plan.getDataUsageResetTime() != null) {
+                            writeStringAttribute(out, ATTR_RESET_TIME,
+                                    RecurrenceRule.convertZonedDateTime(
+                                            plan.getDataUsageResetTime()));
+                        }
+                        if (plan.getStreamingAppMaxDownlinkKbps()
+                                != SubscriptionPlan.BITRATE_UNKNOWN) {
+                            writeLongAttribute(out, ATTR_DOWNLINK_KBPS,
+                                    plan.getStreamingAppMaxDownlinkKbps());
+                        }
+                        if (plan.getStreamingAppMaxUplinkKbps()
+                                != SubscriptionPlan.BITRATE_UNKNOWN) {
+                            writeLongAttribute(out, ATTR_UPLINK_KBPS,
+                                    plan.getStreamingAppMaxUplinkKbps());
+                        }
+                        if (plan.getSubscriptionStatus()
+                                != SubscriptionPlan.SUBSCRIPTION_STATUS_UNKNOWN) {
+                            writeIntAttribute(out, ATTR_SUBSCRIPTION_STATUS,
+                                    plan.getSubscriptionStatus());
+                        }
+                        try {
+                            writeIntArrayXml(plan.getNetworkTypes(), ATTR_NETWORK_TYPES, out);
+                        } catch (XmlPullParserException ignored) { }
+                        final int[] planTypes = plan.getTypes().stream().mapToInt(
+                                Integer::intValue).toArray();
+                        if (planTypes.length > 0) {
+                            try {
+                                writeIntArrayXml(planTypes, ATTR_PLAN_TYPES, out);
+                            } catch (XmlPullParserException ignored) { }
+                        }
+                        out.endTag(null, TAG_SUBSCRIPTION_PLAN);
+                    }
+                }
             }
 
             // write all known uid policies
@@ -3611,7 +3833,9 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
         final TelephonyManager tm;
         final long token = Binder.clearCallingIdentity();
         try {
-            config = mCarrierConfigManager.getConfigForSubId(subId);
+            config = mCarrierConfigManager != null
+                ? mCarrierConfigManager.getConfigForSubId(subId)
+                : null;
             tm = mContext.getSystemService(TelephonyManager.class).createForSubscriptionId(subId);
         } finally {
             Binder.restoreCallingIdentity(token);
@@ -3937,6 +4161,31 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                 mSubscriptionPlans.put(subId, plans);
                 mSubscriptionPlansOwner.put(subId, callingPackage);
 
+                if (com.android.internal.telephony.flags.Flags.subscriptionPlanEnhancement()) {
+                    long downlinkBandwidth = SubscriptionPlan.BITRATE_UNKNOWN;
+                    long uplinkBandwidth = SubscriptionPlan.BITRATE_UNKNOWN;
+                    if (plans.length > 0) {
+                        // For now we only support DL/UL bitrate from the master plan.
+                        downlinkBandwidth = plans[0].getStreamingAppMaxDownlinkKbps();
+                        uplinkBandwidth = plans[0].getStreamingAppMaxUplinkKbps();
+                    }
+
+                    // Write bandwidth information into SubscriptionInfo. This makes it available to
+                    // apps with READ_PHONE_STATE permission, which is less restrictive than the
+                    // permissions required to access the full SubscriptionPlan. This is acceptable
+                    // because bandwidth data is considered less privacy-sensitive.
+                    try {
+                        SubscriptionManager.setSubscriptionProperty(subId,
+                                SubscriptionManager.STREAMING_APP_MAX_DOWNLINK_KBPS,
+                                String.valueOf(downlinkBandwidth));
+                        SubscriptionManager.setSubscriptionProperty(subId,
+                                SubscriptionManager.STREAMING_APP_MAX_UPLINK_KBPS,
+                                String.valueOf(uplinkBandwidth));
+                    } catch (IllegalArgumentException e) {
+                        Log.w(TAG, "Subscription does not exist");
+                    }
+                }
+
                 final String subscriberId = mSubIdToSubscriberId.get(subId, null);
                 if (subscriberId != null) {
                     ensureActiveCarrierPolicyAL(subId, subscriberId);
@@ -3944,6 +4193,11 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                 } else {
                     Slog.wtf(TAG, "Missing subscriberId for subId " + subId);
                 }
+
+                final long expirationTime = expirationDurationMillis > 0
+                        ? mClock.millis() + expirationDurationMillis
+                        : 0;
+                mSubscriptionPlansExpirationTime.put(subId, expirationTime);
 
                 handleNetworkPoliciesUpdateAL(true);
 
@@ -4089,6 +4343,8 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                         + mUseDifferentDelaysForBackgroundChain);
                 fout.println(Flags.FLAG_NEVER_APPLY_RULES_TO_CORE_UIDS + ": "
                         + mNeverApplyRulesToCoreUids);
+                fout.println(android.net.platform.flags.Flags.FLAG_USE_NETSTATS_PER_QUERY_FLAGS
+                        + ": " + mDeps.mUseNetstatsPerQueryFlags);
 
                 fout.println();
                 fout.println("mRestrictBackgroundLowPowerMode: " + mRestrictBackgroundLowPowerMode);
@@ -4395,7 +4651,7 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                 || isProcStateAllowedNetworkWhileBackground(mUidState.get(uid));
     }
 
-    private long getBackgroundTransitioningDelay(int procState) {
+    private long getBackgroundTransitioningDelay(@ProcessState int procState) {
         if (mUseDifferentDelaysForBackgroundChain) {
             return procState <= PROCESS_STATE_LAST_ACTIVITY ? mBackgroundRestrictionLongDelayMs
                     : mBackgroundRestrictionShortDelayMs;
@@ -4410,8 +4666,8 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
      * {@link #updateRulesForPowerRestrictionsUL(int)}. Returns true if the state was updated.
      */
     @GuardedBy("mUidRulesFirstLock")
-    private boolean updateUidStateUL(int uid, int procState, long procStateSeq,
-            @ProcessCapability int capability) {
+    private boolean updateUidStateUL(int uid, @ProcessState int procState,
+            long procStateSeq, @ProcessCapability int capability) {
         Trace.traceBegin(Trace.TRACE_TAG_NETWORK, "updateUidStateUL: " + uid + "/"
                 + ActivityManager.procStateToString(procState) + "/" + procStateSeq + "/"
                 + ActivityManager.getCapabilitiesSummary(capability));
@@ -4814,7 +5070,7 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
      * mode, and app idle).
      *
      * @param deviceIdleMode if true then we don't consider
-     *        {@link #mPowerSaveWhitelistExceptIdleAppIds} for checking if the {@param uid} is
+     *        {@link #mPowerSaveWhitelistExceptIdleAppIds} for checking if the {@code uid} is
      *        allowlisted.
      */
     @GuardedBy("mUidRulesFirstLock")
@@ -6006,9 +6262,9 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
     void handleUidChanged(int uid) {
         Trace.traceBegin(Trace.TRACE_TAG_NETWORK, "onUidStateChanged");
         try {
-            final int procState;
+            final @ProcessState int procState;
             final long procStateSeq;
-            final int capability;
+            final @ProcessCapability int capability;
             synchronized (mUidStateCallbackInfos) {
                 final UidStateCallbackInfo uidStateCallbackInfo = mUidStateCallbackInfos.get(uid);
                 if (uidStateCallbackInfo == null) {
@@ -6862,7 +7118,7 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
             return effectiveBlockedReasons;
         }
 
-        static int getAllowedReasonsForProcState(int procState) {
+        static int getAllowedReasonsForProcState(@ProcessState int procState) {
             if (procState <= NetworkPolicyManager.TOP_THRESHOLD_STATE) {
                 return ALLOWED_REASON_TOP | ALLOWED_REASON_FOREGROUND
                         | ALLOWED_METERED_REASON_FOREGROUND | ALLOWED_REASON_NOT_IN_BACKGROUND;

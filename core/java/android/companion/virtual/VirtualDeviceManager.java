@@ -41,9 +41,11 @@ import android.companion.virtual.audio.VirtualAudioDevice.AudioConfigurationChan
 import android.companion.virtual.camera.VirtualCamera;
 import android.companion.virtual.camera.VirtualCameraConfig;
 import android.companion.virtual.computercontrol.AutomatedPackageListener;
+import android.companion.virtual.computercontrol.ComputerControlConsentManager;
 import android.companion.virtual.computercontrol.ComputerControlSession;
 import android.companion.virtual.computercontrol.ComputerControlSessionParams;
 import android.companion.virtual.computercontrol.IAutomatedPackageListener;
+import android.companion.virtual.computercontrol.IComputerControlConsentManager;
 import android.companion.virtual.computercontrol.IComputerControlSessionCallback;
 import android.companion.virtual.sensor.VirtualSensor;
 import android.companion.virtualdevice.flags.Flags;
@@ -78,7 +80,9 @@ import android.hardware.input.VirtualTouchscreenConfig;
 import android.media.AudioManager;
 import android.os.Binder;
 import android.os.Build;
+import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.ArraySet;
@@ -108,6 +112,20 @@ import java.util.function.IntConsumer;
  * <p>VirtualDeviceManager enables interactive sharing of capabilities between the host Android
  * device and a remote device.
  *
+ * <p>A device only supports VirtualDeviceManager if it enables it via {@code
+ * config_enableVirtualDeviceManager}. Otherwise {@code Context#getSystemService
+ * (VirtualDeviceManager.class)} will return {@code null}.
+ *
+ * <p>VirtualDeviceManager provides support for the ComputerControl feature in Android. For a
+ * device to support the ComputerControl feature, the device needs to:
+ * <ul>
+ *     <li>Enable support for feature {@code android.software.activities_on_secondary_displays}</li>
+ *     <li>Enable support for VirtualDeviceManager {@code config_enableVirtualDeviceManager}</li>
+ *     <li>Preload the ComputerControl extensions library {@code com.android.extensions
+ *     .computercontrol}</li>
+ *     <li>Preload the platform application {@code VirtualDeviceManager}</li>
+ * </ul>
+ *
  * <p class="note">Not to be confused with the Android Studio's Virtual Device Manager, which allows
  * for device emulation.
  */
@@ -117,6 +135,9 @@ import java.util.function.IntConsumer;
 public final class VirtualDeviceManager {
 
     private static final String TAG = "VirtualDeviceManager";
+
+    /** @hide */
+    public static final int COMPUTER_CONTROL_VERSION = Flags.computerControlSupportV5() ? 5 : 4;
 
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
@@ -241,7 +262,8 @@ public final class VirtualDeviceManager {
      *
      * @hide
      */
-    @RequiresPermission(android.Manifest.permission.ACCESS_COMPUTER_CONTROL)
+    @RequiresPermission(allOf = {Manifest.permission.ACCESS_COMPUTER_CONTROL,
+            Manifest.permission.POST_NOTIFICATIONS}, conditional = true)
     public void requestComputerControlSession(
             @NonNull ComputerControlSessionParams params,
             @NonNull @CallbackExecutor Executor executor,
@@ -255,9 +277,33 @@ public final class VirtualDeviceManager {
         Objects.requireNonNull(callback, "callback must not be null");
         try {
             IComputerControlSessionCallback callbackProxy =
-                    new ComputerControlSession.CallbackProxy(executor, callback);
+                    new ComputerControlSession.CallbackProxy(mContext, executor, callback);
             mService.requestComputerControlSession(
-                    mContext.getAttributionSource(), params, callbackProxy);
+                    mContext.getIApplicationThread(), mContext.getAttributionSource(), params,
+                    callbackProxy);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Provides {@link ComputerControlConsentManager} for managing per-app consent.
+     *
+     * @return consent manager for managing per-app consent.
+     * @see android.Manifest.permission#MANAGE_COMPUTER_CONTROL_CONSENT
+     *
+     * @hide
+     */
+    public ComputerControlConsentManager getComputerControlConsentManager() {
+        if (mService == null) {
+            Log.w(TAG,
+                    "Failed to provide computer control consent manager; no virtual device "
+                            + "manager service.");
+            return null;
+        }
+        try {
+            return new LocalComputerControlConsentManager(
+                    mService.getComputerControlConsentManager());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -429,6 +475,26 @@ public final class VirtualDeviceManager {
                     it.remove();
                 }
             }
+        }
+    }
+
+    /**
+     * Returns whether the computer control functionality is available for the caller.
+     *
+     * @hide
+     */
+    public boolean isComputerControlAvailable(int targetComputerControlVersion) {
+        if (mService == null) {
+            return false;
+        }
+        if (!Flags.computerControlAccess()) {
+            return false;
+        }
+        try {
+            return mService.isComputerControlAvailable(mContext.getAttributionSource(),
+                    targetComputerControlVersion);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
         }
     }
 
@@ -630,6 +696,14 @@ public final class VirtualDeviceManager {
     }
 
     /**
+     * Returns true if virtual cameras can be added to virtual devices on this device.
+     */
+    @FlaggedApi(Flags.FLAG_VIRTUAL_CAMERA_SUPPORT_API)
+    public static boolean isVirtualCameraSupported() {
+        return VirtualCamera.isSupported();
+    }
+
+    /**
      * Requests sound effect to be played on virtual device.
      *
      * @see AudioManager#playSoundEffect(int)
@@ -654,6 +728,26 @@ public final class VirtualDeviceManager {
     }
 
     /**
+     * Returns the audio focus environment IBinder token for a virtual device or null if there is
+     * no separate audio focus environment for the device.
+     *
+     * @param deviceId - id of the virtual audio device
+     *
+     * @hide
+     */
+    @Nullable
+    public IBinder getAudioFocusEnvironment(int deviceId) {
+        if (mService == null) {
+            return null;
+        }
+        try {
+            return mService.getAudioFocusEnvironment(deviceId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * Returns whether the given display is an auto-mirror display owned by a virtual device.
      *
      * @hide
@@ -666,6 +760,42 @@ public final class VirtualDeviceManager {
         }
         try {
             return mService.isVirtualDeviceOwnedMirrorDisplay(displayId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Returns whether the given package is allowed to be a computer control agent.
+     *
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.MANAGE_COMPUTER_CONTROL_CONSENT)
+    public boolean isPackageApprovedToRunComputerControlAutomation(@NonNull String packageName,
+            int userId) {
+        if (mService == null) {
+            return false;
+        }
+        try {
+            return mService.isPackageApprovedToRunComputerControlAutomation(packageName, userId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Returns whether the given package is allowed to be automated by a computer control agent.
+     *
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.MANAGE_COMPUTER_CONTROL_CONSENT)
+    public boolean isPackageTargetableForComputerControlAutomation(@NonNull String packageName,
+            int userId) {
+        if (mService == null) {
+            return false;
+        }
+        try {
+            return mService.isPackageTargetableForComputerControlAutomation(packageName, userId);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -757,7 +887,6 @@ public final class VirtualDeviceManager {
          * @see DisplayManager#VIRTUAL_DISPLAY_FLAG_TRUSTED
          * @see DisplayManager#VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
          */
-        @FlaggedApi(Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
         public void goToSleep() {
             mVirtualDeviceInternal.goToSleep();
         }
@@ -775,7 +904,6 @@ public final class VirtualDeviceManager {
          * @see DisplayManager#VIRTUAL_DISPLAY_FLAG_TRUSTED
          * @see DisplayManager#VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
          */
-        @FlaggedApi(Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
         public void wakeUp() {
             mVirtualDeviceInternal.wakeUp();
         }
@@ -971,7 +1099,6 @@ public final class VirtualDeviceManager {
          * @see #removeActivityPolicyExemption(ActivityPolicyExemption)
          * @see #setDevicePolicy
          */
-        @FlaggedApi(Flags.FLAG_ACTIVITY_CONTROL_API)
         public void addActivityPolicyExemption(@NonNull ActivityPolicyExemption exemption) {
             mVirtualDeviceInternal.addActivityPolicyExemption(Objects.requireNonNull(exemption));
         }
@@ -986,7 +1113,6 @@ public final class VirtualDeviceManager {
          * @see #addActivityPolicyExemption(ActivityPolicyExemption)
          * @see #setDevicePolicy
          */
-        @FlaggedApi(Flags.FLAG_ACTIVITY_CONTROL_API)
         public void removeActivityPolicyExemption(@NonNull ActivityPolicyExemption exemption) {
             mVirtualDeviceInternal.removeActivityPolicyExemption(Objects.requireNonNull(exemption));
         }
@@ -1008,7 +1134,6 @@ public final class VirtualDeviceManager {
          * @see VirtualDeviceParams#POLICY_TYPE_RECENTS
          * @see VirtualDeviceParams#POLICY_TYPE_ACTIVITY
          */
-        @FlaggedApi(Flags.FLAG_ACTIVITY_CONTROL_API)
         public void setDevicePolicy(
                 @VirtualDeviceParams.DynamicDisplayPolicyType int policyType,
                 @VirtualDeviceParams.DevicePolicy int devicePolicy,
@@ -1170,12 +1295,8 @@ public final class VirtualDeviceManager {
          * @see android.view.InputDevice#SOURCE_ROTARY_ENCODER
          */
         @NonNull
-        @FlaggedApi(Flags.FLAG_VIRTUAL_ROTARY)
         public VirtualRotaryEncoder createVirtualRotaryEncoder(
                 @NonNull VirtualRotaryEncoderConfig config) {
-            if (!Flags.virtualRotary()) {
-                throw new UnsupportedOperationException("Virtual rotary support not enabled");
-            }
             return mVirtualDeviceInternal.createVirtualRotaryEncoder(config);
         }
 
@@ -1231,6 +1352,12 @@ public final class VirtualDeviceManager {
          */
         @NonNull
         public VirtualCamera createVirtualCamera(@NonNull VirtualCameraConfig config) {
+            if (Flags.virtualCameraSupportApi()) {
+                if (!isVirtualCameraSupported()) {
+                    throw new UnsupportedOperationException(
+                            "Virtual camera not supported on this device");
+                }
+            }
             return mVirtualDeviceInternal.createVirtualCamera(Objects.requireNonNull(config));
         }
 
@@ -1262,6 +1389,27 @@ public final class VirtualDeviceManager {
         }
 
         /**
+         * Sets whether the given display should be in <a
+         * href="https://developer.android.com/develop/ui/views/touch-and-input/input-events#TouchMode">
+         * touch mode</a>.
+         *
+         * @param displayId the ID of the display to change the touch mode for. It must be owned by
+         *   this virtual device.
+         * @param inTouchMode whether the display should be in touch mode.
+         * @throws SecurityException if the display is not owned by this device, is not
+         *   {@link DisplayManager#VIRTUAL_DISPLAY_FLAG_TRUSTED trusted}, or is a
+         *   {@link DisplayManager#VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR mirror} display.
+         * @see android.view.View#isInTouchMode
+         */
+        @FlaggedApi(Flags.FLAG_DEVICE_AWARE_TOUCH_MODE)
+        public void setDisplayInTouchMode(int displayId, boolean inTouchMode) {
+            if (!Flags.deviceAwareTouchMode()) {
+                throw new UnsupportedOperationException("Required flag is not enabled");
+            }
+            mVirtualDeviceInternal.setDisplayInTouchMode(displayId, inTouchMode);
+        }
+
+        /**
          * Specifies the UI mode on the given display.
          *
          * <p>By default, all displays created by virtual devices have
@@ -1286,6 +1434,28 @@ public final class VirtualDeviceManager {
                 throw new UnsupportedOperationException("Required flag is not enabled");
             }
             mVirtualDeviceInternal.setDisplayUiMode(displayId, uiMode);
+        }
+
+        /**
+         * Specifies the current thermal status of the device.
+         *
+         * <p>This status will be available to apps via
+         * {@link PowerManager#getCurrentThermalStatus(int)} if this virtual device's ID has been
+         * passed as {@code deviceId} argument, and to any registered
+         * {@link PowerManager.OnThermalStatusChangedListener}.</p>
+         *
+         * @param status the current thermal status
+         * @throws IllegalArgumentException if status is not one of the expected values
+         * @throws UnsupportedOperationException if the virtual device does not have
+         *         {@link VirtualDeviceParams#POLICY_TYPE_THERMAL} set to {@link
+         *         VirtualDeviceParams#DEVICE_POLICY_CUSTOM}.
+         */
+        @FlaggedApi(Flags.FLAG_DEVICE_AWARE_THERMAL_STATUS)
+        public void setCurrentThermalStatus(@PowerManager.ThermalStatus int status) {
+            if (!Flags.deviceAwareThermalStatus()) {
+                throw new UnsupportedOperationException("Required flag is not enabled");
+            }
+            mVirtualDeviceInternal.setCurrentThermalStatus(status);
         }
 
         /**
@@ -1420,7 +1590,6 @@ public final class VirtualDeviceManager {
          * @see VirtualDeviceParams#POLICY_TYPE_ACTIVITY
          * @see VirtualDevice#addActivityPolicyExemption(ActivityPolicyExemption)
          */
-        @FlaggedApi(Flags.FLAG_ACTIVITY_CONTROL_API)
         default void onActivityLaunchBlocked(int displayId, @NonNull ComponentName componentName,
                 @NonNull UserHandle user, @Nullable IntentSender intentSender) {}
 
@@ -1436,24 +1605,44 @@ public final class VirtualDeviceManager {
          * @see Display#FLAG_SECURE
          * @see WindowManager.LayoutParams#FLAG_SECURE
          */
-        @FlaggedApi(Flags.FLAG_ACTIVITY_CONTROL_API)
         default void onSecureWindowShown(int displayId, @NonNull ComponentName componentName,
                 @NonNull UserHandle user) {}
 
         /**
-         * Called when there is no longer any window with a secure surface shown on the device.
+         * Called when a secure window is no longer shown on the virtual display.
          *
-         * <p>This is only called once there are no more secure windows shown on the device. If
-         * there are multiple secure windows shown on the device, this callback will be called only
-         * once all of them are hidden.</p>
+         * <p>This could mean that either an activity (previously with secure content) doesn't show
+         * secure content anymore, or a different activity with insecure content is launched on the
+         * display.</p>
          *
          * @param displayId The display ID on which the window was shown before.
          *
          * @see Display#FLAG_SECURE
          * @see WindowManager.LayoutParams#FLAG_SECURE
          */
-        @FlaggedApi(Flags.FLAG_ACTIVITY_CONTROL_API)
         default void onSecureWindowHidden(int displayId) {}
+
+        /**
+         * Called when an activity launch is requested on the given display for the given user.
+         *
+         * @param displayId The display ID on which the activity launch is requested.
+         * @param componentName The component name of the activity whose launch is requested.
+         * @param userId The user ID associated with the activity whose launch is requested.
+         * @hide
+         */
+        @TestApi
+        @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+        default void onActivityLaunchRequested(int displayId, @NonNull ComponentName componentName,
+                @UserIdInt int userId) {}
+
+        /**
+         * Called when biometric authentication is requested.
+         *
+         * @param displayId The display ID on which biometric authentication is requested.
+         * @param packageName Package name of the calling application.
+         * @hide
+         */
+        default void onAuthenticationPrompt(int displayId, String packageName) {}
     }
 
     /**
@@ -1571,6 +1760,62 @@ public final class VirtualDeviceManager {
             Binder.withCleanCallingIdentity(() ->
                     mExecutor.execute(() -> mListener.onAutomatedPackagesChanged(
                             automatingPackage, automatedPackages, user)));
+        }
+    }
+
+    /**
+     * A wrapper for {@link ComputerControlConsentManager}
+     */
+    private static class LocalComputerControlConsentManager implements
+            ComputerControlConsentManager {
+        private final IComputerControlConsentManager mConsentManager;
+
+        private LocalComputerControlConsentManager(IComputerControlConsentManager consentManager) {
+            mConsentManager = consentManager;
+        }
+
+        @Override
+        public void addAppToAutomatableAppListForAgent(int agentUid,
+                @NonNull String agentPackageName,
+                @NonNull String packageName) {
+            try {
+                mConsentManager.addAppToAutomatableAppListForAgent(agentUid, agentPackageName,
+                        packageName);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+        }
+
+        @Override
+        public void removeAppFromAutomatableAppListForAgent(int agentUid,
+                @NonNull String agentPackageName,
+                @NonNull String packageName) {
+            try {
+                mConsentManager.removeAppFromAutomatableAppListForAgent(agentUid, agentPackageName,
+                        packageName);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+        }
+
+        @Override
+        public void clearAutomatableAppListForAgent(int agentUid,
+                @NonNull String agentPackageName) {
+            try {
+                mConsentManager.clearAutomatableAppListForAgent(agentUid, agentPackageName);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+        }
+
+        @Override
+        public String[] getAutomatableAppListForAgent(int agentUid,
+                @NonNull String agentPackageName) {
+            try {
+                return mConsentManager.getAutomatableAppListForAgent(agentUid, agentPackageName);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
         }
     }
 }

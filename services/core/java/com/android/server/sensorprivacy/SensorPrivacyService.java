@@ -463,9 +463,7 @@ public final class SensorPrivacyService extends SystemService {
                 return;
             }
 
-            if (uid == Process.SYSTEM_UID
-                    && !(com.android.server.telecom.flags.Flags.resolveHiddenDependenciesTwo()
-                    && isPhoneCall)) {
+            if (uid == Process.SYSTEM_UID && !isPhoneCall) {
                 // If the system uid is being blamed for sensor access, the ui must be shown
                 // explicitly using SensorPrivacyManager#showSensorUseDialog. An exception is made
                 // for phone calls which are handled by the Telecom subsystem.

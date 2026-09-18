@@ -50,7 +50,7 @@ class HorizontalSplitChangeRatioTest(flicker: FlickerTest) :
     /** {@inheritDoc} */
     override val transition: FlickerBuilder.() -> Unit = {
         setup {
-            tapl.setExpectedRotationCheckEnabled(false)
+            tapl.expectedRotationCheckEnabled = false
             testApp.launchViaIntent(wmHelper)
             testApp.launchSecondaryActivityHorizontally(wmHelper)
             startDisplayBounds =
@@ -58,7 +58,7 @@ class HorizontalSplitChangeRatioTest(flicker: FlickerTest) :
         }
         transitions { testApp.changeSecondaryActivityRatio(wmHelper) }
         teardown {
-            tapl.goHome()
+            device.pressHome()
             testApp.exit(wmHelper)
         }
     }

@@ -193,7 +193,6 @@ public final class UiTranslationManager {
     public void startTranslation(@NonNull TranslationSpec sourceSpec,
             @NonNull TranslationSpec targetSpec, @NonNull List<AutofillId> viewIds,
             @NonNull ActivityId activityId, @NonNull UiTranslationSpec uiTranslationSpec) {
-        // TODO(b/177789967): Return result code or find a way to notify the status.
         Objects.requireNonNull(sourceSpec);
         Objects.requireNonNull(targetSpec);
         Objects.requireNonNull(viewIds);

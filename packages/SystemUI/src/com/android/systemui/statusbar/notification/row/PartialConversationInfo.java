@@ -16,9 +16,6 @@
 
 package com.android.systemui.statusbar.notification.row;
 
-import static android.app.Flags.notificationClassificationUi;
-import static android.app.NotificationChannel.SYSTEM_RESERVED_IDS;
-
 import android.app.Flags;
 import android.app.INotificationManager;
 import android.app.NotificationChannel;
@@ -27,6 +24,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.RemoteException;
 import android.service.notification.NotificationListenerService;
@@ -41,9 +39,7 @@ import android.widget.TextView;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.systemui.res.R;
-import com.android.systemui.statusbar.notification.NmSummarizationUiFlag;
 import com.android.systemui.statusbar.notification.collection.EntryAdapter;
-import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 
 /**
  * The guts of a conversation notification that doesn't use valid shortcuts that is revealed when
@@ -141,6 +137,7 @@ public class PartialConversationInfo extends LinearLayout implements
         bindPackage();
         // Delegate
         bindDelegate();
+        bindSummarizer();
     }
 
     private OnClickListener getSettingsOnClickListener() {
@@ -199,6 +196,20 @@ public class PartialConversationInfo extends LinearLayout implements
             delegateView.setVisibility(View.VISIBLE);
         } else {
             delegateView.setVisibility(View.GONE);
+        }
+    }
+
+    private void bindSummarizer() {
+        if (android.app.Flags.nmSummarizationAll()) {
+            TextView summarized = findViewById(R.id.summarized_by);
+            if (!TextUtils.isEmpty(mSbn.getNotification().getSummarizedContent())) {
+                summarized.setVisibility(VISIBLE);
+                summarized.setText(
+                        mContext.getString(R.string.notification_summarization_header, mAppName));
+                summarized.setTypeface(Typeface.create("variable-body-medium", Typeface.ITALIC));
+            } else {
+                summarized.setVisibility(GONE);
+            }
         }
     }
 
@@ -277,29 +288,17 @@ public class PartialConversationInfo extends LinearLayout implements
         return false;
     }
 
-    private boolean showSummarizationFeedback() {
-        return NmSummarizationUiFlag.isEnabled();
-    }
-
-    private boolean showClassificationFeedback() {
-        return Flags.notificationClassificationUi();
-    }
-
     private void bindFeedback() {
         View feedbackButton = findViewById(R.id.feedback);
-        if (!showSummarizationFeedback() && !showClassificationFeedback()) {
+        Intent intent = NotificationInfo.getAssistantFeedbackIntent(
+                mINotificationManager, mPm, mSbn.getKey(), mRanking);
+        if (intent == null) {
             feedbackButton.setVisibility(GONE);
         } else {
-            Intent intent = NotificationInfo.getAssistantFeedbackIntent(
-                    mINotificationManager, mPm, mSbn.getKey(), mRanking);
-            if (intent == null) {
-                feedbackButton.setVisibility(GONE);
-            } else {
-                feedbackButton.setVisibility(VISIBLE);
-                feedbackButton.setOnClickListener((View v) -> {
-                    mFeedbackClickListener.onClick(v, intent);
-                });
-            }
+            feedbackButton.setVisibility(VISIBLE);
+            feedbackButton.setOnClickListener((View v) -> {
+                mFeedbackClickListener.onClick(v, intent);
+            });
         }
     }
 }

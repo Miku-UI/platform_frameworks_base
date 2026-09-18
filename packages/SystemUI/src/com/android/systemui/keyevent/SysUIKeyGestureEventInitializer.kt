@@ -16,24 +16,31 @@
 
 package com.android.systemui.keyevent
 
+import android.app.contextualsearch.ContextualSearchManager
 import android.content.res.Resources
 import android.hardware.input.InputManager
 import android.hardware.input.KeyGestureEvent.KEY_GESTURE_TYPE_ALL_APPS
+import android.hardware.input.KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_CURSOR
+import android.hardware.input.KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_SEARCH
+import android.hardware.input.KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_APP_WINDOW_SCREENSHOT
 import android.hardware.input.KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_PARTIAL_SCREENSHOT
 import android.hardware.input.KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_NOTIFICATION_PANEL
 import android.hardware.input.KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_QUICK_SETTINGS_PANEL
 import android.util.Slog
+import com.android.hardware.input.Flags.enableContextualCursorDesktopEntrypoints
+import com.android.hardware.input.Flags.enableContextualSearchDesktopEntrypoints
 import com.android.hardware.input.Flags.enablePartialScreenshotKeyboardShortcut
 import com.android.hardware.input.Flags.enableQuickSettingsPanelShortcut
 import com.android.systemui.CoreStartable
+import com.android.systemui.LauncherProxyService
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.res.R
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.screencapture.domain.interactor.ScreenCaptureKeyboardShortcutInteractor
-import com.android.systemui.shade.display.StatusBarTouchShadeDisplayPolicy
+import com.android.systemui.shade.display.domain.interactor.ShadeExpansionTargetDisplayInteractor
 import com.android.systemui.statusbar.CommandQueue
-import com.android.window.flags.Flags.enableKeyGestureHandlerForSysui
+import com.android.wm.shell.shared.desktopmode.DesktopState
 import java.util.concurrent.Executor
 import javax.inject.Inject
 
@@ -49,8 +56,10 @@ constructor(
     @Main private val resources: Resources,
     private val inputManager: InputManager,
     private val commandQueue: CommandQueue,
-    private val shadeDisplayPolicy: StatusBarTouchShadeDisplayPolicy,
+    private val desktopState: DesktopState,
+    private val shadeExpansionTargetDisplayInteractor: ShadeExpansionTargetDisplayInteractor,
     private val screenCaptureKeyboardShortcutInteractor: ScreenCaptureKeyboardShortcutInteractor,
+    private val launcherProxyService: LauncherProxyService,
 ) : CoreStartable {
     override fun start() {
         registerKeyGestureEventHandlers()
@@ -59,9 +68,7 @@ constructor(
 
     private fun registerKeyGestureEventHandlers() {
         val supportedGestures = mutableListOf<Int>()
-        if (enableKeyGestureHandlerForSysui()) {
-            supportedGestures.add(KEY_GESTURE_TYPE_TOGGLE_NOTIFICATION_PANEL)
-        }
+        supportedGestures.add(KEY_GESTURE_TYPE_TOGGLE_NOTIFICATION_PANEL)
         if (enableQuickSettingsPanelShortcut()) {
             supportedGestures.add(KEY_GESTURE_TYPE_TOGGLE_QUICK_SETTINGS_PANEL)
         }
@@ -69,6 +76,13 @@ constructor(
         // devices.
         if (enablePartialScreenshotKeyboardShortcut()) {
             supportedGestures.add(KEY_GESTURE_TYPE_TAKE_PARTIAL_SCREENSHOT)
+            supportedGestures.add(KEY_GESTURE_TYPE_TAKE_APP_WINDOW_SCREENSHOT)
+        }
+        if (enableContextualSearchDesktopEntrypoints()) {
+            supportedGestures.add(KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_SEARCH)
+        }
+        if (enableContextualCursorDesktopEntrypoints()) {
+            supportedGestures.add(KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_CURSOR)
         }
         if (supportedGestures.isEmpty()) {
             return
@@ -78,13 +92,34 @@ constructor(
                 KEY_GESTURE_TYPE_TAKE_PARTIAL_SCREENSHOT -> {
                     screenCaptureKeyboardShortcutInteractor.attemptPartialRegionScreenshot()
                 }
+                KEY_GESTURE_TYPE_TAKE_APP_WINDOW_SCREENSHOT -> {
+                    screenCaptureKeyboardShortcutInteractor.attemptAppWindowScreenshot()
+                }
                 KEY_GESTURE_TYPE_TOGGLE_NOTIFICATION_PANEL -> {
-                    shadeDisplayPolicy.onNotificationPanelKeyboardShortcut()
+                    if (desktopState.canEnterDesktopMode) {
+                        // If device supports desktop windowing/connected displays, then
+                        // reparent the shade to focused display, else open it where it is
+                        shadeExpansionTargetDisplayInteractor.onNotificationPanelKeyboardShortcut()
+                    }
                     commandQueue.toggleNotificationsPanel()
                 }
                 KEY_GESTURE_TYPE_TOGGLE_QUICK_SETTINGS_PANEL -> {
-                    shadeDisplayPolicy.onQSPanelKeyboardShortcut()
+                    if (desktopState.canEnterDesktopMode) {
+                        // If device supports desktop windowing/connected displays, then
+                        // reparent the shade to focused display, else open it where it is
+                        shadeExpansionTargetDisplayInteractor.onQSPanelKeyboardShortcut()
+                    }
                     commandQueue.toggleQuickSettingsPanel()
+                }
+                // TODO: b/484184229 - Temporarily mapping the contextual cursor
+                // shortcut to contextual search. A dedicated implementation for
+                // the contextual cursor will follow in a later iteration.
+                KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_CURSOR,
+                KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_SEARCH -> {
+                    launcherProxyService.proxy?.invokeContextualSearch(
+                        ContextualSearchManager.ENTRYPOINT_KEYBOARD_SHORTCUT,
+                        /* config= */ null,
+                    )
                 }
                 else ->
                     Slog.w(TAG, "Unsupported key gesture event handler: ${event.keyGestureType}")

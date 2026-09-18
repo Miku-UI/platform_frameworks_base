@@ -52,6 +52,9 @@ interface ICompanionDeviceManager {
     @EnforcePermission("MANAGE_COMPANION_DEVICES")
     List<AssociationInfo> getAllAssociationsForUser(int userId);
 
+    @EnforcePermission("ACCESS_COMPANION_MESSAGE_PCC")
+    List<AssociationInfo> getTrustedAssociationsForUser(int userId);
+
     /** @deprecated */
     void legacyDisassociate(String deviceMacAddress, String callingPackage, int userId);
 
@@ -99,13 +102,13 @@ interface ICompanionDeviceManager {
     @EnforcePermission("USE_COMPANION_TRANSPORTS")
     List<AssociationInfo> getAllAssociationsWithTransports();
 
-    @EnforcePermission("USE_COMPANION_TRANSPORTS")
+    @PermissionManuallyEnforced
     void sendMessage(int messageType, in byte[] data, in int[] associationIds);
 
-    @EnforcePermission("USE_COMPANION_TRANSPORTS")
+    @PermissionManuallyEnforced
     void addOnMessageReceivedListener(int messageType, IOnMessageReceivedListener listener);
 
-    @EnforcePermission("USE_COMPANION_TRANSPORTS")
+    @PermissionManuallyEnforced
     void removeOnMessageReceivedListener(int messageType, IOnMessageReceivedListener listener);
 
     @EnforcePermission("USE_COMPANION_TRANSPORTS")
@@ -138,8 +141,10 @@ interface ICompanionDeviceManager {
 
     PendingIntent buildAssociationCancellationIntent(in String callingPackage, int userId);
 
+    @PermissionManuallyEnforced
     void enableSystemDataSync(int associationId, int flags);
 
+    @PermissionManuallyEnforced
     void disableSystemDataSync(int associationId, int flags);
 
     void enablePermissionsSync(int associationId);
@@ -163,7 +168,11 @@ interface ICompanionDeviceManager {
 
     DeviceId setDeviceId(int associationId, in DeviceId deviceId);
 
+    @EnforcePermission("MANAGE_COMPANION_DEVICES")
     void setLocalMetadata(int userId, String key, in PersistableBundle value);
+
+    @EnforcePermission("MANAGE_COMPANION_DEVICES")
+    PersistableBundle getLocalMetadata(int userId);
 
     @EnforcePermission("USE_COMPANION_TRANSPORTS")
     void setOnDevicePresenceEventListener(in int[] associationIds, in String serviceName,
@@ -175,16 +184,24 @@ interface ICompanionDeviceManager {
     @EnforcePermission("REQUEST_COMPANION_SELF_MANAGED")
     void notifyDevicePresence(in int associationId, in DevicePresenceEvent event);
 
-    @EnforcePermission("USE_COMPANION_TRANSPORTS")
-    void requestAction(in ActionRequest request, in String serviceName, in int[] associationIds);
+    @EnforcePermission(anyOf = { "USE_COMPANION_TRANSPORTS", "ACCESS_COMPANION_MESSAGE_PCC" })
+    void requestAction(in ActionRequest request, in String serviceName, in String packageName, in int[] associationIds);
 
-    @EnforcePermission("REQUEST_COMPANION_SELF_MANAGED")
     void notifyActionResult(in int associationId, in ActionResult result);
 
-    @EnforcePermission("USE_COMPANION_TRANSPORTS")
-    void setOnActionResultListener(in int[] associationIds, in String serviceName,
-            in IOnActionResultListener listener, in int userId);
+    @EnforcePermission(anyOf = { "USE_COMPANION_TRANSPORTS", "ACCESS_COMPANION_MESSAGE_PCC" })
+    void setOnActionResultListener(in int[] associationIds, in String serviceName, in String callingPackageName,
+            in IOnActionResultListener listener);
+
+    @EnforcePermission(anyOf = { "USE_COMPANION_TRANSPORTS", "ACCESS_COMPANION_MESSAGE_PCC" })
+    void clearOnActionResultListener(in String serviceName, in String callingPackageName);
+
+    @PermissionManuallyEnforced
+    boolean isSystemDataTransportAttached(in int associationId);
 
     @EnforcePermission("USE_COMPANION_TRANSPORTS")
-    void removeOnActionResultListener(in String serviceName, in int userId);
+    void setRequestActionAllowList(in List<String> allowList);
+
+    @EnforcePermission("MANAGE_COMPANION_DEVICES")
+    boolean isDevicePresent(in int associationId);
 }

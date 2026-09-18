@@ -34,7 +34,7 @@ import org.junit.Test
  * maximized.
  */
 @Ignore("Test Base Class")
-abstract class UnmaximizeAppWindow (
+abstract class UnmaximizeAppWindow(
     private val rotation: Rotation = Rotation.ROTATION_0,
     isResizable: Boolean = true,
 ) : TestScenarioBase(rotation) {
@@ -42,11 +42,12 @@ abstract class UnmaximizeAppWindow (
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
-    private val testApp = if (isResizable) {
-        DesktopModeAppHelper(SimpleAppHelper(instrumentation))
-    } else {
-        DesktopModeAppHelper(NonResizeableAppHelper(instrumentation))
-    }
+    private val testApp =
+        if (isResizable) {
+            DesktopModeAppHelper(SimpleAppHelper(instrumentation))
+        } else {
+            DesktopModeAppHelper(NonResizeableAppHelper(instrumentation))
+        }
 
     @Before
     fun setup() {

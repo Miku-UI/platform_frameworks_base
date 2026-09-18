@@ -513,7 +513,7 @@ public class AppWidgetProviderInfo implements Parcelable {
      * @return The hosting user profile.
      */
     public final UserHandle getProfile() {
-        return new UserHandle(UserHandle.getUserId(providerInfo.applicationInfo.uid));
+        return new UserHandle(UserHandle.getUserId(providerInfo.getUid()));
     }
 
     /**

@@ -56,7 +56,7 @@ public abstract class HdmiClient {
      *
      * @param logicalAddress logical address of the device to select
      * @param listener listener to get the result with
-     * @throws {@link IllegalArgumentException} if the {@code listener} is null
+     * @throws IllegalArgumentException if the {@code listener} is null
      */
     public void selectDevice(
             int logicalAddress,

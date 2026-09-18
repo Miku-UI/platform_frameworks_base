@@ -8,6 +8,20 @@ namespace quality {
 
 // TODO: implement writeToParcel and readFromParcel
 
+class SoundProfileHandle : public Parcelable {
+    public:
+        SoundProfileHandle() {}
+        status_t writeToParcel(android::Parcel*) const override {
+            return 0;
+        }
+        status_t readFromParcel(const android::Parcel*) override {
+            return 0;
+        }
+        std::string toString() const {
+            return "";
+        }
+};
+
 class PictureProfileHandle : public Parcelable {
     public:
         PictureProfileHandle() {}
@@ -109,6 +123,34 @@ class AmbientBacklightSettings : public Parcelable {
 class ParameterCapability : public Parcelable {
     public:
         ParameterCapability() {}
+        status_t writeToParcel(android::Parcel*) const override {
+            return 0;
+        }
+        status_t readFromParcel(const android::Parcel*) override {
+            return 0;
+        }
+        std::string toString() const {
+            return "";
+        }
+};
+
+class EqualizerCapabilities : public Parcelable {
+    public:
+        EqualizerCapabilities() {}
+        status_t writeToParcel(android::Parcel*) const override {
+            return 0;
+        }
+        status_t readFromParcel(const android::Parcel*) override {
+            return 0;
+        }
+        std::string toString() const {
+            return "";
+        }
+};
+
+class EqualizerSettings : public Parcelable {
+    public:
+        EqualizerSettings() {}
         status_t writeToParcel(android::Parcel*) const override {
             return 0;
         }

@@ -161,6 +161,13 @@ class CpuPowerStatsProcessor extends PowerStatsProcessor {
             mPlan = new PowerEstimationPlan(stats.getConfig());
         }
 
+        if (mStatsLayout.getCpuScalingStepCount() == 0
+                && stats.getPowerStatsDescriptor().extras.containsKey("de")) {
+            // Fast path for CpuCyclePerUidCollector which provides energy directly in uC
+            computePowerFromEnergyConsumers(stats);
+            return;
+        }
+
         Intermediates intermediates = new Intermediates();
 
         int cpuScalingStepCount = mStatsLayout.getCpuScalingStepCount();
@@ -199,6 +206,46 @@ class CpuPowerStatsProcessor extends PowerStatsProcessor {
             }
         }
         mPlan.resetIntermediates();
+    }
+
+    private void computePowerFromEnergyConsumers(PowerComponentAggregatedPowerStats stats) {
+        List<DeviceStateEstimation> deviceStateEstimations = mPlan.deviceStateEstimations;
+        for (int i = deviceStateEstimations.size() - 1; i >= 0; i--) {
+            DeviceStateEstimation deviceStateEstimation = deviceStateEstimations.get(i);
+            if (!stats.getDeviceStats(mTmpDeviceStatsArray, deviceStateEstimation.stateValues)) {
+                continue;
+            }
+
+            double power = uCtoMah(mStatsLayout.getConsumedEnergy(mTmpDeviceStatsArray, 0));
+            mStatsLayout.setDevicePowerEstimate(mTmpDeviceStatsArray, power);
+            stats.setDeviceStats(deviceStateEstimation.stateValues, mTmpDeviceStatsArray);
+        }
+
+        IntArray uids = stats.getActiveUids();
+        if (uids.size() != 0) {
+            for (int i = mPlan.uidStateEstimates.size() - 1; i >= 0; i--) {
+                UidStateEstimate uidStateEstimate = mPlan.uidStateEstimates.get(i);
+                List<UidStateProportionalEstimate> proportionalEstimates =
+                        uidStateEstimate.proportionalEstimates;
+                for (int j = proportionalEstimates.size() - 1; j >= 0; j--) {
+                    UidStateProportionalEstimate proportionalEstimate =
+                            proportionalEstimates.get(j);
+                    for (int k = uids.size() - 1; k >= 0; k--) {
+                        int uid = uids.get(k);
+                        if (stats.getUidStats(mTmpUidStatsArray, uid,
+                                proportionalEstimate.stateValues)) {
+                            double power = uCtoMah(mStatsLayout.getUidConsumedEnergy(
+                                    mTmpUidStatsArray, 0));
+                            if (power != 0) {
+                                mStatsLayout.setUidPowerEstimate(mTmpUidStatsArray, power);
+                                stats.setUidStats(uid, proportionalEstimate.stateValues,
+                                        mTmpUidStatsArray);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Nullable

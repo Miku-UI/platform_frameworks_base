@@ -20,14 +20,10 @@ import android.view.Choreographer
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.util.concurrency.DelayableExecutor
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.withArgCaptor
-import dagger.BindsInstance
-import dagger.Component
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,22 +37,19 @@ class NotifPipelineChoreographerTest : SysuiTestCase() {
 
     val viewChoreographer: Choreographer = mock()
     val timeoueSubscription: Runnable = mock()
-    val executor: DelayableExecutor = mock<DelayableExecutor>().also {
-        whenever(it.executeDelayed(any(), anyLong())).thenReturn(timeoueSubscription)
-    }
+    val executor: DelayableExecutor =
+        mock<DelayableExecutor>().also {
+            whenever(it.executeDelayed(any(), anyLong())).thenReturn(timeoueSubscription)
+        }
 
     val pipelineChoreographer: NotifPipelineChoreographer =
-        DaggerNotifPipelineChoreographerTestComponent.factory()
-                .create(viewChoreographer, executor)
-                .choreographer
+        NotifPipelineChoreographerImpl(viewChoreographer, executor)
 
     @Test
     fun scheduleThenEvalFrameCallback() {
         // GIVEN a registered eval listener and scheduled choreographer
         var hasEvaluated = false
-        pipelineChoreographer.addOnEvalListener {
-            hasEvaluated = true
-        }
+        pipelineChoreographer.addOnEvalListener { hasEvaluated = true }
         pipelineChoreographer.schedule()
         val frameCallback: Choreographer.FrameCallback = withArgCaptor {
             verify(viewChoreographer).postFrameCallback(capture())
@@ -73,9 +66,7 @@ class NotifPipelineChoreographerTest : SysuiTestCase() {
     fun scheduleThenEvalTimeoutCallback() {
         // GIVEN a registered eval listener and scheduled choreographer
         var hasEvaluated = false
-        pipelineChoreographer.addOnEvalListener {
-            hasEvaluated = true
-        }
+        pipelineChoreographer.addOnEvalListener { hasEvaluated = true }
         pipelineChoreographer.schedule()
         val frameCallback: Choreographer.FrameCallback = withArgCaptor {
             verify(viewChoreographer).postFrameCallback(capture())
@@ -102,20 +93,5 @@ class NotifPipelineChoreographerTest : SysuiTestCase() {
         // THEN both the FrameCallback is unregistered and the timeout subscription is cancelled.
         verify(viewChoreographer).removeFrameCallback(frameCallback)
         verify(timeoueSubscription).run()
-    }
-}
-
-@SysUISingleton
-@Component(modules = [NotifPipelineChoreographerModule::class])
-interface NotifPipelineChoreographerTestComponent {
-
-    val choreographer: NotifPipelineChoreographer
-
-    @Component.Factory
-    interface Factory {
-        fun create(
-            @BindsInstance viewChoreographer: Choreographer,
-            @BindsInstance @Main executor: DelayableExecutor
-        ): NotifPipelineChoreographerTestComponent
     }
 }

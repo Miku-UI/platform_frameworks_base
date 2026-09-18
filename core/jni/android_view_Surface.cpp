@@ -154,6 +154,10 @@ static inline bool isSurfaceValid(const sp<Surface>& sur) {
 #ifdef __ANDROID__
 static jlong nativeCreateFromSurfaceTexture(JNIEnv* env, jclass clazz,
         jobject surfaceTextureObj) {
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_SURFACETEXTURE)
+    sp<Surface> originalSurface = SurfaceTexture_getSurface(env, surfaceTextureObj);
+    sp<Surface> surface = originalSurface ? originalSurface->createEvilTwin() : nullptr;
+#else
     sp<IGraphicBufferProducer> producer(SurfaceTexture_getProducer(env, surfaceTextureObj));
     if (producer == NULL) {
         jniThrowException(env, IllegalArgumentException,
@@ -162,6 +166,7 @@ static jlong nativeCreateFromSurfaceTexture(JNIEnv* env, jclass clazz,
     }
 
     sp<Surface> surface = sp<Surface>::make(producer, true);
+#endif
     if (surface == NULL) {
         jniThrowException(env, OutOfResourcesException, NULL);
         return 0;
@@ -461,6 +466,21 @@ static jint nativeSetFrameRate(JNIEnv* env, jclass clazz, jlong nativeObject, jf
                         int(changeFrameRateStrategy));
 }
 
+static jint nativeSetProducerThrottlingEnabled(JNIEnv* env, jclass clazz, jlong nativeObject,
+                                               jboolean enabled) {
+    Surface* surface = reinterpret_cast<Surface*>(nativeObject);
+    ANativeWindow* anw = static_cast<ANativeWindow*>(surface);
+    return anw->perform(surface, NATIVE_WINDOW_SET_PRODUCER_THROTTLING_ENABLED, bool(enabled));
+}
+
+static jint nativeIsProducerThrottlingEnabled(JNIEnv* env, jclass clazz, jlong nativeObject) {
+    Surface* surface = reinterpret_cast<Surface*>(nativeObject);
+    ANativeWindow* anw = static_cast<ANativeWindow*>(surface);
+    bool outEnabled;
+    int result = anw->perform(surface, NATIVE_WINDOW_GET_PRODUCER_THROTTLING_ENABLED, &outEnabled);
+    return result < 0 ? result : outEnabled;
+}
+
 static void nativeDestroy(JNIEnv* env, jclass clazz, jlong nativeObject) {
     sp<Surface> surface(reinterpret_cast<Surface*>(nativeObject));
     surface->destroy();
@@ -499,6 +519,8 @@ static const JNINativeMethod gSurfaceMethods[] = {
         {"nativeSetSharedBufferModeEnabled", "(JZ)I", (void*)nativeSetSharedBufferModeEnabled},
         {"nativeSetAutoRefreshEnabled", "(JZ)I", (void*)nativeSetAutoRefreshEnabled},
         {"nativeSetFrameRate", "(JFII)I", (void*)nativeSetFrameRate},
+        {"nativeSetProducerThrottlingEnabled", "(JZ)I", (void*)nativeSetProducerThrottlingEnabled},
+        {"nativeIsProducerThrottlingEnabled", "(J)I", (void*)nativeIsProducerThrottlingEnabled},
 #ifdef __ANDROID__
         {"nativeGetFromBlastBufferQueue", "(JJ)J", (void*)nativeGetFromBlastBufferQueue},
 #endif

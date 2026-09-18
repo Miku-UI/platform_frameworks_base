@@ -25,6 +25,7 @@ import com.android.settingslib.metadata.PersistentPreference
 import com.android.settingslib.metadata.PreferenceHierarchy
 import com.android.settingslib.metadata.PreferenceMetadata
 import com.android.settingslib.metadata.PreferenceScreenMetadata
+import com.android.settingslib.metadata.isMetadataInUi
 
 /** Inflates [PreferenceHierarchy] into given [PreferenceGroup] recursively. */
 fun PreferenceScreen.inflatePreferenceHierarchy(
@@ -49,6 +50,8 @@ private fun PreferenceGroup.inflatePreferenceHierarchy(
     preferenceBindingFactory.bind(this, hierarchy)
     hierarchy.forEach {
         val metadata = it.metadata
+        if(metadata.isMetadataInUi(context))
+            return@forEach
         val preferenceBinding =
             preferenceBindingFactory.getPreferenceBinding(metadata) ?: return@forEach
         val preference = preferenceBinding.createWidget(context)

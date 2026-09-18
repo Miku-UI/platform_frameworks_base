@@ -23,6 +23,7 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Bundle;
 import android.telecom.Call;
 import android.telecom.CallAudioState;
 import android.telecom.PhoneAccountHandle;
@@ -81,7 +82,9 @@ public class CrossDeviceCall {
         final String generatedId = UUID.randomUUID().toString();
         mId = predefinedId != null ? (generatedId + SEPARATOR + predefinedId) : generatedId;
         if (call != null) {
-            call.putExtra(CrossDeviceSyncController.EXTRA_CALL_ID, mId);
+            Bundle extras = new Bundle();
+            extras.putString(CrossDeviceSyncController.EXTRA_CALL_ID, mId);
+            call.putExtras(extras);
         }
         final PhoneAccountHandle handle = callDetails.getAccountHandle();
         mUserId = handle != null ? handle.getUserHandle().getIdentifier() : -1;

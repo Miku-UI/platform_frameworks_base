@@ -68,7 +68,7 @@ class FakeMobileIconInteractor(override val tableLogBuffer: TableLogBuffer) : Mo
 
     override val signalLevelIcon: MutableStateFlow<SignalIconModel> =
         MutableStateFlow(
-            SignalIconModel.Cellular(
+            SignalIconModel.CellularTypeIconModel.Cellular(
                 level = 0,
                 numberOfLevels = 4,
                 showExclamationMark = false,

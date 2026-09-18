@@ -21,21 +21,19 @@ import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
 import android.hardware.display.VirtualDisplayConfig
 import android.os.UserHandle
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.testing.TestableLooper
+import android.view.Display
 import android.view.View
 import android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Dependency
+import com.android.media.projection.flags.Flags
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.animation.DialogTransitionAnimator
-import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.display.data.repository.FakeDisplayWindowPropertiesRepository
 import com.android.systemui.mediaprojection.MediaProjectionMetricsLogger
 import com.android.systemui.mediaprojection.appselector.MediaProjectionAppSelectorActivity
@@ -43,27 +41,28 @@ import com.android.systemui.mediaprojection.permission.ENTIRE_SCREEN
 import com.android.systemui.mediaprojection.permission.SINGLE_APP
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.res.R
-import com.android.systemui.screenrecord.domain.interactor.screenRecordingStartStopInteractor
+import com.android.systemui.screenrecord.data.repository.screenRecordingStartStopRepository
 import com.android.systemui.shade.data.repository.shadeDialogContextInteractor
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import com.android.systemui.statusbar.phone.SystemUIDialog
-import com.android.systemui.statusbar.phone.SystemUIDialogManager
+import com.android.systemui.statusbar.phone.systemUIDialogDotFactory
 import com.android.systemui.testKosmos
-import com.android.systemui.util.mockito.argumentCaptor
-import com.android.systemui.util.mockito.mock
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
-import junit.framework.Assert.assertEquals
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
+import org.mockito.Mockito
 import org.mockito.Mockito.eq
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -72,14 +71,18 @@ class ScreenRecordPermissionDialogDelegateTest : SysuiTestCase() {
     @get:Rule val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
     @Mock private lateinit var starter: ActivityStarter
+
     @Mock private lateinit var controller: ScreenRecordUxController
+
     @Mock private lateinit var onStartRecordingClicked: Runnable
+
     @Mock private lateinit var mediaProjectionMetricsLogger: MediaProjectionMetricsLogger
     private val fakeDisplayWindowPropertiesRepository =
         FakeDisplayWindowPropertiesRepository(context)
 
     private val kosmos = testKosmos()
 
+    private lateinit var displayManager: DisplayManager
     private lateinit var dialog: SystemUIDialog
     private lateinit var underTest: ScreenRecordPermissionDialogDelegate
 
@@ -87,13 +90,7 @@ class ScreenRecordPermissionDialogDelegateTest : SysuiTestCase() {
     fun setUp() {
         MockitoAnnotations.initMocks(this)
 
-        val systemUIDialogFactory =
-            SystemUIDialog.Factory(
-                context,
-                Dependency.get(SystemUIDialogManager::class.java),
-                Dependency.get(BroadcastDispatcher::class.java),
-                Dependency.get(DialogTransitionAnimator::class.java),
-            )
+        displayManager = Mockito.spy(context.getSystemService(DisplayManager::class.java)!!)
 
         underTest =
             ScreenRecordPermissionDialogDelegate(
@@ -103,10 +100,10 @@ class ScreenRecordPermissionDialogDelegateTest : SysuiTestCase() {
                 starter,
                 onStartRecordingClicked,
                 mediaProjectionMetricsLogger,
-                systemUIDialogFactory,
+                kosmos.systemUIDialogDotFactory,
                 context,
-                context.getSystemService(DisplayManager::class.java)!!,
-                kosmos.screenRecordingStartStopInteractor,
+                displayManager,
+                kosmos.screenRecordingStartStopRepository,
                 kosmos.shadeDialogContextInteractor,
             )
         dialog = underTest.createDialog()
@@ -198,7 +195,7 @@ class ScreenRecordPermissionDialogDelegateTest : SysuiTestCase() {
         val spinner = dialog.requireViewById<Spinner>(R.id.screen_share_mode_options)
         val singleApp =
             context.getString(R.string.screenrecord_permission_dialog_option_text_single_app)
-        assertEquals(spinner.adapter.getItem(0), singleApp)
+        assertThat(spinner.adapter.getItem(0)).isEqualTo(singleApp)
     }
 
     @Test
@@ -242,10 +239,7 @@ class ScreenRecordPermissionDialogDelegateTest : SysuiTestCase() {
     }
 
     @Test
-    @RequiresFlagsEnabled(
-        com.android.media.projection.flags.Flags
-            .FLAG_MEDIA_PROJECTION_CONNECTED_DISPLAY_NO_VIRTUAL_DEVICE
-    )
+    @RequiresFlagsEnabled(Flags.FLAG_MEDIA_PROJECTION_CONNECTED_DISPLAY_NO_VIRTUAL_DEVICE)
     fun doNotShowVirtualDisplayInDialog() {
         val displayManager = context.getSystemService(DisplayManager::class.java)!!
         var virtualDisplay: VirtualDisplay? = null
@@ -270,7 +264,43 @@ class ScreenRecordPermissionDialogDelegateTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(ShadeWindowGoesAround.FLAG_NAME)
+    @RequiresFlagsEnabled(Flags.FLAG_MEDIA_PROJECTION_CONNECTED_DISPLAY)
+    fun connectedDisplayShown() {
+        val mainDisplay =
+            mock<Display> {
+                on { displayId } doReturn (Display.DEFAULT_DISPLAY)
+                on { name } doReturn ("Default Display")
+                on { type } doReturn (Display.TYPE_INTERNAL)
+            }
+
+        val connectedDisplay =
+            mock<Display> {
+                on { displayId } doReturn (1000)
+                on { name } doReturn ("Connected Display")
+                on { type } doReturn (Display.TYPE_EXTERNAL)
+            }
+        whenever(displayManager.displays).thenReturn(arrayOf(mainDisplay, connectedDisplay))
+
+        dialog = underTest.createDialog()
+        showDialog()
+
+        val spinner = dialog.requireViewById<Spinner>(R.id.screen_share_mode_options)
+        val optionsText =
+            (0 until spinner.adapter.count)
+                .map { spinner.adapter.getDropDownView(it, null, spinner) }
+                .mapNotNull { it.findViewById<TextView>(android.R.id.text1)?.text }
+
+        // check that the list contains the connected display (type EXTERNAL)
+        assertThat(optionsText)
+            .contains(
+                context.getString(
+                    R.string.screenrecord_permission_dialog_option_text_entire_screen_for_display,
+                    "Connected Display",
+                )
+            )
+    }
+
+    @Test
     fun createDialog_usesDisplayContextInsteadOfDefaultOne() {
         val shadeContext = context
         val displayManager = context.getSystemService(DisplayManager::class.java)!!
@@ -324,7 +354,7 @@ class ScreenRecordPermissionDialogDelegateTest : SysuiTestCase() {
         val intentCaptor = argumentCaptor<Intent>()
         verify(starter).startActivity(intentCaptor.capture(), /* dismissShade= */ eq(true))
 
-        val intent = intentCaptor.value
+        val intent = intentCaptor.firstValue
         assertThat(intent.extras!!.getInt(extraKey)).isEqualTo(value)
     }
 

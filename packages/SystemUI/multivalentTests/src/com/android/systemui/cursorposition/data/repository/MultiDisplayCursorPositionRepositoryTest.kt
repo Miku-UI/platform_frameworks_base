@@ -37,6 +37,7 @@ import com.android.systemui.display.data.repository.fakeDisplayInstanceLifecycle
 import com.android.systemui.display.data.repository.perDisplayDumpHelper
 import com.android.systemui.kosmos.backgroundScope
 import com.android.systemui.kosmos.runTest
+import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.shared.system.InputChannelCompat
 import com.android.systemui.shared.system.InputMonitorCompat
@@ -105,6 +106,7 @@ class MultiDisplayCursorPositionRepositoryTest(private val cursorEventSource: In
                         inputMonitorBuilder,
                     ),
                 displayLifecycleManager,
+                kosmos.testDispatcher,
                 kosmos.backgroundScope,
                 displayRepository,
                 kosmos.perDisplayDumpHelper,

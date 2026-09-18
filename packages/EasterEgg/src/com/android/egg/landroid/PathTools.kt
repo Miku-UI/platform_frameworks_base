@@ -17,6 +17,8 @@
 package com.android.egg.landroid
 
 import android.util.Log
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Path
 import kotlin.math.cos
 import kotlin.math.sin
@@ -53,18 +55,60 @@ fun createStar(radius1: Float, radius2: Float, points: Int): Path {
 }
 
 fun Path.parseSvgPathData(d: String) {
+    var lastx = 0f
+    var lasty = 0f
     Regex("([A-Za-z])\\s*([-.,0-9e ]+)").findAll(d.trim()).forEach {
         val cmd = it.groups[1]!!.value
         val args =
-            it.groups[2]?.value?.split(Regex("\\s+"))?.map { v -> v.toFloat() } ?: emptyList()
+            it.groups[2]?.value?.split(Regex("\\s+"))
+                ?.filter { v -> v.isNotEmpty() }
+                ?.map { v -> v.toFloat() }
+                ?: emptyList()
         // Log.d("Landroid", "cmd = $cmd, args = " + args.joinToString(","))
         when (cmd) {
-            "M" -> moveTo(args[0], args[1])
-            "C" -> cubicTo(args[0], args[1], args[2], args[3], args[4], args[5])
-            "L" -> lineTo(args[0], args[1])
-            "l" -> relativeLineTo(args[0], args[1])
+            "M" -> {
+                moveTo(args[0], args[1])
+                lastx = args[0]
+                lasty = args[1]
+            }
+            "C" -> {
+                cubicTo(args[0], args[1], args[2], args[3], args[4], args[5])
+                lastx = args[4]
+                lasty = args[5]
+            }
+            "L" -> {
+                lineTo(args[0], args[1])
+                lastx = args[0]
+                lasty = args[1]
+            }
+            "l" -> {
+                relativeLineTo(args[0], args[1])
+                lastx += args[0] // note: relative
+                lasty += args[1]
+            }
+            "H" -> {
+                lineTo(args[0], lasty)
+                lastx = args[0]
+            }
+            "h" -> {
+                relativeLineTo(args[0], 0f)
+                lastx += args[0] // note: relative
+            }
+            "V" -> {
+                lineTo(lastx, args[0])
+                lasty = args[0]
+            }
+            "v" -> {
+                relativeLineTo(0f, args[0])
+                lasty += args[0] // note: relative
+            }
             "Z" -> close()
             else -> Log.v("Landroid", "unsupported SVG command: $cmd")
         }
     }
+}
+
+fun Path.addCircle(center: Offset, radius: Float, direction: Path.Direction = Path.Direction.CounterClockwise) {
+    val hypot = Offset(radius, radius)
+    addOval(Rect(center - hypot, center + hypot), direction)
 }

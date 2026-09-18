@@ -21,7 +21,6 @@ import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.kairos.util.toNameData
 
 /** Returns a [State] that is `true` only when all of [states] are `true`. */
-@ExperimentalKairosApi
 fun allOf(vararg states: State<Boolean>): State<Boolean> =
     allOf(nameTag("allOf").toNameData("allOf"), *states)
 
@@ -29,7 +28,6 @@ internal fun allOf(nameData: NameData, vararg states: State<Boolean>): State<Boo
     combine(nameData, *states) { it.allTrue() }
 
 /** Returns a [State] that is `true` when any of [states] are `true`. */
-@ExperimentalKairosApi
 fun anyOf(vararg states: State<Boolean>): State<Boolean> =
     anyOf(nameTag("anyOf").toNameData("anyOf"), *states)
 
@@ -37,7 +35,6 @@ internal fun anyOf(nameData: NameData, vararg states: State<Boolean>): State<Boo
     combine(nameData, *states) { it.anyTrue() }
 
 /** Returns a [State] containing the inverse of the Boolean held by the original [State]. */
-@ExperimentalKairosApi
 fun not(state: State<Boolean>): State<Boolean> =
     not(nameTag("State.not").toNameData("State.not"), state)
 

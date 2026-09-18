@@ -53,6 +53,7 @@ class UserManagerServiceDemoModeTest {
         whenever(rule.mocks().systemConfig.getAndClearPackageToUserTypeAllowlist()).thenReturn(ArrayMap<String, Set<String>>())
         whenever(rule.mocks().systemConfig.getAndClearPackageToUserTypeDenylist()).thenReturn(ArrayMap<String, Set<String>>())
         whenever(rule.mocks().resources.getStringArray(com.android.internal.R.array.config_defaultFirstUserRestrictions)).thenReturn(arrayOf<String>())
+        whenever(rule.mocks().resources.getStringArray(com.android.internal.R.array.hsu_allowlist_activities)).thenReturn(arrayOf<String>())
         whenever(rule.mocks().resources.configuration).thenReturn(Configuration())
 
         ums = UserManagerService(rule.mocks().context)

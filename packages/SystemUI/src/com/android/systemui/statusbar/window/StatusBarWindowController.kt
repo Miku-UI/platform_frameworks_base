@@ -21,7 +21,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import com.android.systemui.animation.ActivityTransitionAnimator
-import com.android.systemui.fragments.FragmentHostManager
 import com.android.systemui.statusbar.data.repository.StatusBarConfigurationController
 import com.android.systemui.statusbar.layout.StatusBarContentInsetsProvider
 import java.util.Optional
@@ -44,9 +43,6 @@ interface StatusBarWindowController {
 
     /** Returns the status bar window's background view. */
     val backgroundView: View
-
-    /** Returns a fragment host manager for the status bar window view. */
-    val fragmentHostManager: FragmentHostManager
 
     /**
      * Provides an updated animation controller if we're animating a view in the status bar.

@@ -35,17 +35,40 @@ import android.util.SparseArrayMap;
 import android.util.SparseBooleanArray;
 import android.util.SparseLongArray;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
 
 import com.android.server.LocalServices;
 import com.android.server.job.controllers.JobStatus;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.util.Random;
 
-public class PendingJobQueueTest {
+@RunWith(AndroidJUnit4.class)
+public final class PendingJobQueueTest {
     private static final String TAG = PendingJobQueueTest.class.getSimpleName();
+    private static final int NO_ENTRY = -1;
+    private static final String DEFAULT_NAMESPACE = "PJQTest";
+    private static final String TEST_TAG_ADD = "testAdd";
+    private static final String TEST_TAG_ADD_ALL = "testAddAll";
+    private static final String TEST_TAG_CLEAR = "testClear";
+    private static final String TEST_TAG_CONTAINS = "testContains";
+    private static final String TEST_TAG_REMOVE = "testRemove";
+    private static final String TEST_TAG_PENDING_JOB_SORTING = "testPendingJobSorting";
+    private static final String NAMESPACE_X = null;
+    private static final String NAMESPACE_Y = "y";
+    private static final String NAMESPACE_Z = "z";
+    private static final int UID_1 = 1;
+    private static final int UID_2 = 2;
+    private static final int UID_3 = 3;
+    private static final int UID_4 = 4;
+    private static final int UID_5 = 5;
+    private static final int UID_6 = 6;
+    private static final int UID_7 = 7;
+    private static final int UID_8 = 8;
+
 
     private static final int[] sRegJobPriorities = {
             JobInfo.PRIORITY_HIGH, JobInfo.PRIORITY_DEFAULT,
@@ -58,7 +81,7 @@ public class PendingJobQueueTest {
 
     private JobStatus createJobStatus(String testTag, JobInfo.Builder jobInfoBuilder,
             int callingUid) {
-        return createJobStatus(testTag, jobInfoBuilder, callingUid, "PJQTest");
+        return createJobStatus(testTag, jobInfoBuilder, callingUid, DEFAULT_NAMESPACE);
     }
 
     private JobStatus createJobStatus(String testTag, JobInfo.Builder jobInfoBuilder,
@@ -70,11 +93,11 @@ public class PendingJobQueueTest {
     @Test
     public void testAdd() {
         ArraySet<JobStatus> jobs = new ArraySet<>();
-        jobs.add(createJobStatus("testAdd", createJobInfo(1), 1));
-        jobs.add(createJobStatus("testAdd", createJobInfo(2), 2));
-        jobs.add(createJobStatus("testAdd", createJobInfo(3).setExpedited(true), 3));
-        jobs.add(createJobStatus("testAdd", createJobInfo(4), 4));
-        jobs.add(createJobStatus("testAdd", createJobInfo(5).setExpedited(true), 5));
+        jobs.add(createJobStatus(TEST_TAG_ADD, createJobInfo(1), UID_1));
+        jobs.add(createJobStatus(TEST_TAG_ADD, createJobInfo(2), UID_2));
+        jobs.add(createJobStatus(TEST_TAG_ADD, createJobInfo(3).setExpedited(true), UID_3));
+        jobs.add(createJobStatus(TEST_TAG_ADD, createJobInfo(4), UID_4));
+        jobs.add(createJobStatus(TEST_TAG_ADD, createJobInfo(5).setExpedited(true), UID_5));
 
         PendingJobQueue jobQueue = new PendingJobQueue();
         for (int i = 0; i < jobs.size(); ++i) {
@@ -92,11 +115,11 @@ public class PendingJobQueueTest {
     @Test
     public void testAddAll() {
         ArraySet<JobStatus> jobs = new ArraySet<>();
-        jobs.add(createJobStatus("testAddAll", createJobInfo(1), 1));
-        jobs.add(createJobStatus("testAddAll", createJobInfo(2), 2));
-        jobs.add(createJobStatus("testAddAll", createJobInfo(3).setExpedited(true), 3));
-        jobs.add(createJobStatus("testAddAll", createJobInfo(4), 4));
-        jobs.add(createJobStatus("testAddAll", createJobInfo(5).setExpedited(true), 5));
+        jobs.add(createJobStatus(TEST_TAG_ADD_ALL, createJobInfo(1), UID_1));
+        jobs.add(createJobStatus(TEST_TAG_ADD_ALL, createJobInfo(2), UID_2));
+        jobs.add(createJobStatus(TEST_TAG_ADD_ALL, createJobInfo(3).setExpedited(true), UID_3));
+        jobs.add(createJobStatus(TEST_TAG_ADD_ALL, createJobInfo(4), UID_4));
+        jobs.add(createJobStatus(TEST_TAG_ADD_ALL, createJobInfo(5).setExpedited(true), UID_5));
 
         PendingJobQueue jobQueue = new PendingJobQueue();
         jobQueue.addAll(jobs);
@@ -112,11 +135,11 @@ public class PendingJobQueueTest {
     @Test
     public void testClear() {
         ArraySet<JobStatus> jobs = new ArraySet<>();
-        jobs.add(createJobStatus("testClear", createJobInfo(1), 1));
-        jobs.add(createJobStatus("testClear", createJobInfo(2), 2));
-        jobs.add(createJobStatus("testClear", createJobInfo(3).setExpedited(true), 3));
-        jobs.add(createJobStatus("testClear", createJobInfo(4), 4));
-        jobs.add(createJobStatus("testClear", createJobInfo(5).setExpedited(true), 5));
+        jobs.add(createJobStatus(TEST_TAG_CLEAR, createJobInfo(1), UID_1));
+        jobs.add(createJobStatus(TEST_TAG_CLEAR, createJobInfo(2), UID_2));
+        jobs.add(createJobStatus(TEST_TAG_CLEAR, createJobInfo(3).setExpedited(true), UID_3));
+        jobs.add(createJobStatus(TEST_TAG_CLEAR, createJobInfo(4), UID_4));
+        jobs.add(createJobStatus(TEST_TAG_CLEAR, createJobInfo(5).setExpedited(true), UID_5));
 
         PendingJobQueue jobQueue = new PendingJobQueue();
         jobQueue.addAll(jobs);
@@ -130,11 +153,12 @@ public class PendingJobQueueTest {
 
     @Test
     public void testContains() {
-        JobStatus joba1 = createJobStatus("testRemove", createJobInfo(1), 1);
-        JobStatus joba2 = createJobStatus("testRemove", createJobInfo(2), 1);
-        JobStatus jobb1 = createJobStatus("testRemove", createJobInfo(3).setExpedited(true), 2);
-        JobStatus jobb2 = createJobStatus("testRemove",
-                createJobInfo(4).setPriority(JobInfo.PRIORITY_MIN), 2);
+        JobStatus joba1 = createJobStatus(TEST_TAG_CONTAINS, createJobInfo(1), UID_1);
+        JobStatus joba2 = createJobStatus(TEST_TAG_CONTAINS, createJobInfo(2), UID_1);
+        JobStatus jobb1 = createJobStatus(TEST_TAG_CONTAINS,
+                createJobInfo(3).setExpedited(true), UID_2);
+        JobStatus jobb2 = createJobStatus(TEST_TAG_CONTAINS,
+                createJobInfo(4).setPriority(JobInfo.PRIORITY_MIN), UID_2);
 
         // Make joba1 and joba2 sort-equivalent
         joba1.enqueueTime = 3;
@@ -181,28 +205,23 @@ public class PendingJobQueueTest {
     @Test
     public void testRemove() {
         ArraySet<JobStatus> jobs = new ArraySet<>();
-        jobs.add(createJobStatus("testRemove", createJobInfo(1), 1));
-        jobs.add(createJobStatus("testRemove", createJobInfo(2), 2));
-        jobs.add(createJobStatus("testRemove", createJobInfo(3).setExpedited(true), 3));
-        jobs.add(createJobStatus("testRemove", createJobInfo(4), 4));
-        jobs.add(createJobStatus("testRemove", createJobInfo(5).setExpedited(true), 5));
+        jobs.add(createJobStatus(TEST_TAG_REMOVE, createJobInfo(1), UID_1));
+        jobs.add(createJobStatus(TEST_TAG_REMOVE, createJobInfo(2), UID_2));
+        jobs.add(createJobStatus(TEST_TAG_REMOVE, createJobInfo(3).setExpedited(true), UID_3));
+        jobs.add(createJobStatus(TEST_TAG_REMOVE, createJobInfo(4), UID_4));
+        jobs.add(createJobStatus(TEST_TAG_REMOVE, createJobInfo(5).setExpedited(true), UID_5));
 
         PendingJobQueue jobQueue = new PendingJobQueue();
         jobQueue.addAll(jobs);
 
         ArraySet<JobStatus> removed = new ArraySet<>();
-        JobStatus job;
         for (int i = 0; i < jobs.size(); ++i) {
             jobQueue.remove(jobs.valueAt(i));
             removed.add(jobs.valueAt(i));
 
             assertEquals(jobs.size() - i - 1, jobQueue.size());
 
-            jobQueue.resetIterator();
-            while ((job = jobQueue.next()) != null) {
-                assertFalse("Queue retained a removed job " + testJobToString(job),
-                        removed.contains(job));
-            }
+            assertQueueDoesNotContain(jobQueue, removed);
         }
         assertNull(jobQueue.next());
         assertEquals(0, jobQueue.size());
@@ -211,11 +230,11 @@ public class PendingJobQueueTest {
     @Test
     public void testRemove_duringIteration() {
         ArraySet<JobStatus> jobs = new ArraySet<>();
-        jobs.add(createJobStatus("testRemove", createJobInfo(1), 1));
-        jobs.add(createJobStatus("testRemove", createJobInfo(2), 2));
-        jobs.add(createJobStatus("testRemove", createJobInfo(3).setExpedited(true), 3));
-        jobs.add(createJobStatus("testRemove", createJobInfo(4), 4));
-        jobs.add(createJobStatus("testRemove", createJobInfo(5).setExpedited(true), 5));
+        jobs.add(createJobStatus(TEST_TAG_REMOVE, createJobInfo(1), UID_1));
+        jobs.add(createJobStatus(TEST_TAG_REMOVE, createJobInfo(2), UID_2));
+        jobs.add(createJobStatus(TEST_TAG_REMOVE, createJobInfo(3).setExpedited(true), UID_3));
+        jobs.add(createJobStatus(TEST_TAG_REMOVE, createJobInfo(4), UID_4));
+        jobs.add(createJobStatus(TEST_TAG_REMOVE, createJobInfo(5).setExpedited(true), UID_5));
 
         PendingJobQueue jobQueue = new PendingJobQueue();
         jobQueue.addAll(jobs);
@@ -223,6 +242,7 @@ public class PendingJobQueueTest {
         ArraySet<JobStatus> removed = new ArraySet<>();
         JobStatus job;
         jobQueue.resetIterator();
+        int originalSize = jobQueue.size();
         while ((job = jobQueue.next()) != null) {
             jobQueue.remove(job);
             removed.add(job);
@@ -231,17 +251,20 @@ public class PendingJobQueueTest {
         }
         assertNull(jobQueue.next());
         assertEquals(0, jobQueue.size());
+        assertEquals(originalSize, removed.size());
     }
 
     @Test
     public void testRemove_outOfOrder() {
         ArraySet<JobStatus> jobs = new ArraySet<>();
-        JobStatus job1 = createJobStatus("testRemove", createJobInfo(1), 1);
-        JobStatus job2 = createJobStatus("testRemove", createJobInfo(2), 1);
-        JobStatus job3 = createJobStatus("testRemove", createJobInfo(3).setExpedited(true), 1);
-        JobStatus job4 = createJobStatus("testRemove",
-                createJobInfo(4).setPriority(JobInfo.PRIORITY_MIN), 1);
-        JobStatus job5 = createJobStatus("testRemove", createJobInfo(5).setExpedited(true), 1);
+        JobStatus job1 = createJobStatus(TEST_TAG_REMOVE, createJobInfo(1), UID_1);
+        JobStatus job2 = createJobStatus(TEST_TAG_REMOVE, createJobInfo(2), UID_1);
+        JobStatus job3 = createJobStatus(TEST_TAG_REMOVE, createJobInfo(3).setExpedited(true),
+                UID_1);
+        JobStatus job4 = createJobStatus(TEST_TAG_REMOVE,
+                createJobInfo(4).setPriority(JobInfo.PRIORITY_MIN), UID_1);
+        JobStatus job5 = createJobStatus(TEST_TAG_REMOVE, createJobInfo(5).setExpedited(true),
+                UID_1);
 
         // Enqueue order (by ID): 4, 5, 3, {1,2 -- at the same time}
         job1.enqueueTime = 3;
@@ -275,11 +298,7 @@ public class PendingJobQueueTest {
 
             assertEquals(jobs.size() - i - 1, jobQueue.size());
 
-            jobQueue.resetIterator();
-            while ((job = jobQueue.next()) != null) {
-                assertFalse("Queue retained a removed job " + testJobToString(job),
-                        removed.contains(job));
-            }
+            assertQueueDoesNotContain(jobQueue, removed);
         }
         assertNull(jobQueue.next());
 
@@ -300,11 +319,7 @@ public class PendingJobQueueTest {
 
             assertEquals(jobs.size() - i - 1, jobQueue.size());
 
-            jobQueue.resetIterator();
-            while ((job = jobQueue.next()) != null) {
-                assertFalse("Queue retained a removed job " + testJobToString(job),
-                        removed.contains(job));
-            }
+            assertQueueDoesNotContain(jobQueue, removed);
         }
         assertNull(jobQueue.next());
 
@@ -325,11 +340,7 @@ public class PendingJobQueueTest {
 
             assertEquals(jobs.size() - i - 1, jobQueue.size());
 
-            jobQueue.resetIterator();
-            while ((job = jobQueue.next()) != null) {
-                assertFalse("Queue retained a removed job " + testJobToString(job),
-                        removed.contains(job));
-            }
+            assertQueueDoesNotContain(jobQueue, removed);
         }
         assertNull(jobQueue.next());
     }
@@ -352,28 +363,28 @@ public class PendingJobQueueTest {
         //   * F jobs test correct expedited/regular ordering doesn't push jobs too high in list
         //   * G jobs test correct ordering for regular jobs
         //   * H job tests correct behavior when enqueue times are the same
-        JobStatus rA1 = createJobStatus("testPendingJobSorting", createJobInfo(1), 1);
-        JobStatus rB2 = createJobStatus("testPendingJobSorting", createJobInfo(2), 2);
-        JobStatus eC3 = createJobStatus("testPendingJobSorting",
-                createJobInfo(3).setExpedited(true), 3);
-        JobStatus rD4 = createJobStatus("testPendingJobSorting", createJobInfo(4), 4);
-        JobStatus eE5 = createJobStatus("testPendingJobSorting",
-                createJobInfo(5).setExpedited(true), 5);
-        JobStatus eB6 = createJobStatus("testPendingJobSorting",
-                createJobInfo(6).setExpedited(true), 2);
-        JobStatus eA7 = createJobStatus("testPendingJobSorting",
-                createJobInfo(7).setExpedited(true), 1);
-        JobStatus rH8 = createJobStatus("testPendingJobSorting", createJobInfo(8), 8);
-        JobStatus rF8 = createJobStatus("testPendingJobSorting", createJobInfo(8), 6);
-        JobStatus eF9 = createJobStatus("testPendingJobSorting",
-                createJobInfo(9).setExpedited(true), 6);
-        JobStatus rC10 = createJobStatus("testPendingJobSorting", createJobInfo(10), 3);
-        JobStatus eC11 = createJobStatus("testPendingJobSorting",
-                createJobInfo(11).setExpedited(true), 3);
-        JobStatus rG12 = createJobStatus("testPendingJobSorting", createJobInfo(12), 7);
-        JobStatus rG13 = createJobStatus("testPendingJobSorting", createJobInfo(13), 7);
-        JobStatus eE14 = createJobStatus("testPendingJobSorting",
-                createJobInfo(14).setExpedited(true), 5);
+        JobStatus rA1 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING, createJobInfo(1), UID_1);
+        JobStatus rB2 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING, createJobInfo(2), UID_2);
+        JobStatus eC3 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(3).setExpedited(true), UID_3);
+        JobStatus rD4 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING, createJobInfo(4), UID_4);
+        JobStatus eE5 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(5).setExpedited(true), UID_5);
+        JobStatus eB6 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(6).setExpedited(true), UID_2);
+        JobStatus eA7 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(7).setExpedited(true), UID_1);
+        JobStatus rH8 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING, createJobInfo(8), UID_8);
+        JobStatus rF8 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING, createJobInfo(8), UID_6);
+        JobStatus eF9 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(9).setExpedited(true), UID_6);
+        JobStatus rC10 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING, createJobInfo(10), UID_3);
+        JobStatus eC11 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(11).setExpedited(true), UID_3);
+        JobStatus rG12 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING, createJobInfo(12), UID_7);
+        JobStatus rG13 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING, createJobInfo(13), UID_7);
+        JobStatus eE14 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(14).setExpedited(true), UID_5);
 
         rA1.enqueueTime = 10;
         rB2.enqueueTime = 20;
@@ -436,10 +447,7 @@ public class PendingJobQueueTest {
 
     @Test
     public void testPendingJobSorting_namespacing() {
-        // Used by JobStatus.
-        LocalServices.removeServiceForTest(JobSchedulerInternal.class);
-        JobSchedulerInternal jobSchedulerInternal = mock(JobSchedulerInternal.class);
-        LocalServices.addService(JobSchedulerInternal.class, jobSchedulerInternal);
+        setupMockJobSchedulerInternal();
         PendingJobQueue jobQueue = new PendingJobQueue();
 
         // First letter in job variable name indicate regular (r) or expedited (e).
@@ -453,29 +461,26 @@ public class PendingJobQueueTest {
         //   * B jobs test expedited is before regular, in the same namespace
         //   * C jobs test sorting by priority with different namespaces
         //   * E jobs test sorting by priority in the same namespace
-        final String namespaceX = null;
-        final String namespaceY = "y";
-        final String namespaceZ = "z";
-        JobStatus rAx1 = createJobStatus("testPendingJobSorting",
-                createJobInfo(1), 1, namespaceX);
-        JobStatus rBy2 = createJobStatus("testPendingJobSorting",
-                createJobInfo(2), 2, namespaceY);
-        JobStatus eCx3 = createJobStatus("testPendingJobSorting",
+        JobStatus rAx1 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(1), UID_1, NAMESPACE_X);
+        JobStatus rBy2 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(2), UID_2, NAMESPACE_Y);
+        JobStatus eCx3 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
                 createJobInfo(3).setExpedited(true).setPriority(JobInfo.PRIORITY_HIGH),
-                3, namespaceX);
-        JobStatus rDx4 = createJobStatus("testPendingJobSorting",
-                createJobInfo(4), 4, namespaceX);
-        JobStatus rEz5 = createJobStatus("testPendingJobSorting",
-                createJobInfo(5).setPriority(JobInfo.PRIORITY_LOW), 5, namespaceZ);
-        JobStatus eBy6 = createJobStatus("testPendingJobSorting",
-                createJobInfo(6).setExpedited(true), 2, namespaceY);
-        JobStatus eAy7 = createJobStatus("testPendingJobSorting",
-                createJobInfo(7).setExpedited(true), 1, namespaceY);
-        JobStatus eCy8 = createJobStatus("testPendingJobSorting",
+                UID_3, NAMESPACE_X);
+        JobStatus rDx4 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(4), UID_4, NAMESPACE_X);
+        JobStatus rEz5 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(5).setPriority(JobInfo.PRIORITY_LOW), UID_5, NAMESPACE_Z);
+        JobStatus eBy6 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(6).setExpedited(true), UID_2, NAMESPACE_Y);
+        JobStatus eAy7 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(7).setExpedited(true), UID_1, NAMESPACE_Y);
+        JobStatus eCy8 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
                 createJobInfo(8).setExpedited(true).setPriority(JobInfo.PRIORITY_MAX),
-                3, namespaceY);
-        JobStatus rEz9 = createJobStatus("testPendingJobSorting",
-                createJobInfo(9).setPriority(JobInfo.PRIORITY_HIGH), 5, namespaceZ);
+                UID_3, NAMESPACE_Y);
+        JobStatus rEz9 = createJobStatus(TEST_TAG_PENDING_JOB_SORTING,
+                createJobInfo(9).setPriority(JobInfo.PRIORITY_HIGH), UID_5, NAMESPACE_Z);
 
         rAx1.enqueueTime = 10;
         rBy2.enqueueTime = 20;
@@ -614,10 +619,7 @@ public class PendingJobQueueTest {
 
     @Test
     public void testPendingJobSorting_Random_WithPriority() {
-        // Used by JobStatus.
-        LocalServices.removeServiceForTest(JobSchedulerInternal.class);
-        JobSchedulerInternal jobSchedulerInternal = mock(JobSchedulerInternal.class);
-        LocalServices.addService(JobSchedulerInternal.class, jobSchedulerInternal);
+        setupMockJobSchedulerInternal();
 
         PendingJobQueue jobQueue = new PendingJobQueue();
         Random random = new Random(1); // Always use the same series of pseudo random values.
@@ -642,10 +644,7 @@ public class PendingJobQueueTest {
 
     @Test
     public void testPendingJobSortingTransitivity_WithPriority() {
-        // Used by JobStatus.
-        LocalServices.removeServiceForTest(JobSchedulerInternal.class);
-        JobSchedulerInternal jobSchedulerInternal = mock(JobSchedulerInternal.class);
-        LocalServices.addService(JobSchedulerInternal.class, jobSchedulerInternal);
+        setupMockJobSchedulerInternal();
 
         PendingJobQueue jobQueue = new PendingJobQueue();
         // Always use the same series of pseudo random values.
@@ -677,10 +676,7 @@ public class PendingJobQueueTest {
     @Test
     @LargeTest
     public void testPendingJobSortingTransitivity_Concentrated_WithPriority() {
-        // Used by JobStatus.
-        LocalServices.removeServiceForTest(JobSchedulerInternal.class);
-        JobSchedulerInternal jobSchedulerInternal = mock(JobSchedulerInternal.class);
-        LocalServices.addService(JobSchedulerInternal.class, jobSchedulerInternal);
+        setupMockJobSchedulerInternal();
 
         PendingJobQueue jobQueue = new PendingJobQueue();
         // Always use the same series of pseudo random values.
@@ -712,16 +708,42 @@ public class PendingJobQueueTest {
         }
     }
 
+    /**
+     * Asserts that the provided queue does not contain any of the specified jobs.
+     *
+     * @param queue The {@link PendingJobQueue} to check.
+     * @param jobs  A set of {@link JobStatus} objects that should not be in the queue.
+     */
+    private void assertQueueDoesNotContain(PendingJobQueue queue, ArraySet<JobStatus> jobs) {
+        queue.resetIterator();
+        JobStatus job;
+        while ((job = queue.next()) != null) {
+            assertFalse("Queue retained a removed job " + testJobToString(job),
+                    jobs.contains(job));
+        }
+    }
+
+    /**
+     * Sets up a mock {@link JobSchedulerInternal} instance and registers it with
+     * {@link LocalServices}.
+     * This is required for creating and manipulating {@link JobStatus} objects in tests.
+     */
+    private void setupMockJobSchedulerInternal() {
+        // Used by JobStatus.
+        LocalServices.removeServiceForTest(JobSchedulerInternal.class);
+        JobSchedulerInternal jobSchedulerInternal = mock(JobSchedulerInternal.class);
+        LocalServices.addService(JobSchedulerInternal.class, jobSchedulerInternal);
+    }
+
     private void checkPendingJobInvariants(PendingJobQueue jobQueue) {
-        final SparseBooleanArray eJobSeen = new SparseBooleanArray();
-        final SparseBooleanArray regJobSeen = new SparseBooleanArray();
+        final SparseBooleanArray hasSeenExpeditedJobForUid = new SparseBooleanArray();
+        final SparseBooleanArray hasSeenRegularJobForUid = new SparseBooleanArray();
         // Latest priority enqueue times seen for each priority+namespace for each app.
         final SparseArrayMap<String, SparseLongArray> latestPriorityRegEnqueueTimesPerUid =
                 new SparseArrayMap<>();
         final SparseArrayMap<String, SparseLongArray> latestPriorityEjEnqueueTimesPerUid =
                 new SparseArrayMap<>();
-        final int noEntry = -1;
-        int prevOverrideState = noEntry;
+        int prevOverrideState = NO_ENTRY;
 
         JobStatus job;
         jobQueue.resetIterator();
@@ -738,15 +760,15 @@ public class PendingJobQueueTest {
 
             // Invariant 1
             if (prevOverrideState != job.overrideState) {
-                if (prevOverrideState != noEntry) {
+                if (prevOverrideState != NO_ENTRY) {
                     assertTrue(prevOverrideState > job.overrideState);
                 }
                 // Override state can make ordering weird. Clear the other cached states
                 // to avoid confusion in the other checks.
                 latestPriorityEjEnqueueTimesPerUid.clear();
                 latestPriorityRegEnqueueTimesPerUid.clear();
-                eJobSeen.clear();
-                regJobSeen.clear();
+                hasSeenExpeditedJobForUid.clear();
+                hasSeenRegularJobForUid.clear();
                 prevOverrideState = job.overrideState;
             }
 
@@ -762,13 +784,13 @@ public class PendingJobQueueTest {
                 for (int p = priority - 1; p >= JobInfo.PRIORITY_MIN; --p) {
                     // If we haven't seen the priority, there shouldn't be an entry in the array.
                     assertEquals("Jobs not properly sorted by priority for uid " + uid,
-                            noEntry, latestPriorityEnqueueTimes.get(p, noEntry));
+                            NO_ENTRY, latestPriorityEnqueueTimes.get(p, NO_ENTRY));
                 }
 
                 // Invariant 3
                 final long lastSeenPriorityEnqueueTime =
-                        latestPriorityEnqueueTimes.get(priority, noEntry);
-                if (lastSeenPriorityEnqueueTime != noEntry) {
+                        latestPriorityEnqueueTimes.get(priority, NO_ENTRY);
+                if (lastSeenPriorityEnqueueTime != NO_ENTRY) {
                     assertTrue("Jobs with same priority for uid " + uid
                                     + " not sorted by enqueue time: "
                                     + lastSeenPriorityEnqueueTime + " before " + job.enqueueTime,
@@ -782,23 +804,23 @@ public class PendingJobQueueTest {
             latestPriorityEnqueueTimes.put(priority, job.enqueueTime);
 
             if (job.isRequestedExpeditedJob()) {
-                eJobSeen.put(uid, true);
+                hasSeenExpeditedJobForUid.put(uid, true);
             } else if (!job.getJob().isUserInitiated()) {
-                regJobSeen.put(uid, true);
+                hasSeenRegularJobForUid.put(uid, true);
             }
 
             // Invariant 4
             if (job.getJob().isUserInitiated()) {
-                if (eJobSeen.get(uid)) {
+                if (hasSeenExpeditedJobForUid.get(uid)) {
                     fail("UID " + uid + " had a UIJ ordered after an EJ");
                 }
-                if (regJobSeen.get(uid)) {
+                if (hasSeenRegularJobForUid.get(uid)) {
                     fail("UID " + uid + " had a UIJ ordered after a regular job");
                 }
             }
 
             // Invariant 5
-            if (job.isRequestedExpeditedJob() && regJobSeen.get(uid)) {
+            if (job.isRequestedExpeditedJob() && hasSeenRegularJobForUid.get(uid)) {
                 fail("UID " + uid + " had an EJ ordered after a regular job");
             }
         }

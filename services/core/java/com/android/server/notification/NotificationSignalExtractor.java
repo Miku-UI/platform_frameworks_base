@@ -51,7 +51,7 @@ public interface NotificationSignalExtractor {
      * @param helper Helper to determine what components of notifications should be blocked due to
      *               DND.
      */
-    void setZenHelper(ZenModeHelper helper);
+    default void setZenHelper(ZenModeHelper helper) {}
 
     default void setCompatChangeLogger(IPlatformCompat platformCompat){};
 
@@ -59,4 +59,6 @@ public interface NotificationSignalExtractor {
      * @param groupHelper Helper for auto-grouping notifications
      */
     default void setGroupHelper(GroupHelper groupHelper){};
+
+    default void setRuleManager(NotificationRuleManager ruleManager) {}
 }

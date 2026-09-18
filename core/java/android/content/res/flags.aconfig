@@ -92,17 +92,6 @@ flag {
 }
 
 flag {
-    name: "ignore_non_public_config_diff_for_resources_key"
-    namespace: "resource_manager"
-    description: "Only consider the resources related configuration fields to create ResourcesImpl"
-    bug: "413273054"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "system_context_handle_app_info_changed"
     is_exported: true
     namespace: "resource_manager"
@@ -132,6 +121,14 @@ flag {
     description: "Feature flag for allowing read/write flags on individual resources"
     bug: "420720496"
     is_fixed_read_only: true
+}
+
+flag {
+    name: "bag_readwrite_flags"
+    is_exported: false
+    namespace: "resource_manager"
+    description: "Feature flag for allowing read/write flags on bag items"
+    bug: "452682378"
 }
 
 flag {
@@ -213,4 +210,51 @@ flag {
     namespace: "resource_manager"
     description: "Merge per-package idmap verification and creation steps into a single binder transaction"
     bug: "422474410"
+}
+
+flag {
+    name: "xml_file_size_limit"
+    namespace: "resource_manager"
+    description: "Only allow reading xml resources under the set size limit"
+    bug: "443273051"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "generate_external_resource_idmaps"
+    namespace: "resource_manager"
+    description: "Generate and use idmaps for external resources referenced in APKs"
+    bug: "373535266"
+}
+
+flag {
+    name: "apply_font_weight_adjustment_on_cached_strings"
+    namespace: "resource_manager"
+    description: "Apply font weight adjustments on cached spannables if the weight has changed between caching and retrieving"
+    bug: "379962518"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "update_ams_service_appinfo"
+    namespace: "resource_manager"
+    description: "Update the application info object in AMS service records"
+    bug: "414686685"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "resources_manager_cache_leak_cleanup"
+    namespace: "resource_manager"
+    description: "Clean up the expired resource impls and apk assets on each retrieval in ResourcesManager"
+    bug: "489647127"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

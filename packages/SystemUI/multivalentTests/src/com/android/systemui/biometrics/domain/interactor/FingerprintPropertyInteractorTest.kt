@@ -69,8 +69,8 @@ class FingerprintPropertyInteractorTest : SysuiTestCase() {
                 sensorLocations =
                     mapOf(
                         Pair("", SensorLocationInternal("", 4, 4, 2)),
-                        Pair("otherDisplay", SensorLocationInternal("", 1, 1, 1))
-                    )
+                        Pair("otherDisplay", SensorLocationInternal("", 1, 1, 1)),
+                    ),
             )
             runCurrent()
             configurationRepository.setScaleForResolution(1f)
@@ -95,8 +95,8 @@ class FingerprintPropertyInteractorTest : SysuiTestCase() {
                 sensorLocations =
                     mapOf(
                         Pair("", SensorLocationInternal("", 4, 4, 2)),
-                        Pair("otherDisplay", SensorLocationInternal("", 1, 1, 1))
-                    )
+                        Pair("otherDisplay", SensorLocationInternal("", 1, 1, 1)),
+                    ),
             )
             runCurrent()
             configurationRepository.setScaleForResolution(2f)
@@ -105,5 +105,25 @@ class FingerprintPropertyInteractorTest : SysuiTestCase() {
             assertThat(currSensorLocation?.centerX).isEqualTo(4 * 2)
             assertThat(currSensorLocation?.centerY).isEqualTo(4 * 2)
             assertThat(currSensorLocation?.radius).isEqualTo(2 * 2)
+        }
+
+    @Test
+    fun sensorInfo_tracksUpdates() =
+        testScope.runTest {
+            // Assert initial value
+            assertThat(underTest.sensorInfo.value.type).isEqualTo(FingerprintSensorType.UNKNOWN)
+            assertThat(underTest.sensorInfo.value.strength).isEqualTo(SensorStrength.CONVENIENCE)
+
+            repository.setProperties(
+                sensorId = 0,
+                strength = SensorStrength.STRONG,
+                sensorType = FingerprintSensorType.UDFPS_ULTRASONIC,
+                sensorLocations = emptyMap(),
+            )
+            runCurrent()
+
+            val currSensorInfo = collectLastValue(underTest.sensorInfo).invoke()!!
+            assertThat(currSensorInfo.type).isEqualTo(FingerprintSensorType.UDFPS_ULTRASONIC)
+            assertThat(currSensorInfo.strength).isEqualTo(SensorStrength.STRONG)
         }
 }

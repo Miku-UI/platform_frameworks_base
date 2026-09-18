@@ -43,7 +43,7 @@
             android:layout_marginTop="@*android:dimen/chooser_edge_margin_normal"
             android:layout_marginBottom="@*android:dimen/chooser_edge_margin_normal"
             android:importantForAccessibility="no"
-            android:tint="?android:attr/textColorPrimary"
+            android:tint="@color/materialColorOnSurface"
             android:src="@drawable/ic_present_to_all"
             />
 
@@ -71,7 +71,7 @@
         android:layout_height="wrap_content"
         android:layout_alignParentTop="true"
         android:layout_centerHorizontal="true"
-        android:background="?android:attr/colorBackground">
+        android:background="@color/materialColorSurfaceContainer">
         <LinearLayout
             android:orientation="vertical"
             android:layout_width="match_parent"

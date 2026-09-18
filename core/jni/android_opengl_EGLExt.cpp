@@ -20,22 +20,20 @@
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 #pragma GCC diagnostic ignored "-Wunused-function"
 
-#include "jni.h"
-#include <nativehelper/JNIPlatformHelp.h>
-#include <android_runtime/AndroidRuntime.h>
-#include <android_runtime/android_view_Surface.h>
-#include <android_runtime/android_graphics_SurfaceTexture.h>
-#include <utils/misc.h>
-
-#include <assert.h>
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
-
-#include <gui/Surface.h>
+#include <android_runtime/AndroidRuntime.h>
+#include <android_runtime/android_graphics_SurfaceTexture.h>
+#include <android_runtime/android_hardware_HardwareBuffer.h>
+#include <android_runtime/android_view_Surface.h>
+#include <assert.h>
 #include <gui/GLConsumer.h>
 #include <gui/Surface.h>
-
+#include <nativehelper/JNIPlatformHelp.h>
 #include <ui/ANativeObjectBase.h>
+#include <utils/misc.h>
+
+#include "jni.h"
 
 static jclass egldisplayClass;
 static jclass eglsurfaceClass;
@@ -98,12 +96,22 @@ android_eglPresentationTimeANDROID
     return (jboolean)_returnValue;
 }
 
+/* EGLClientBuffer eglGetNativeClientBufferANDROID ( struct AHardwareBuffer const *buffer ) */
+static jlong android_eglGetNativeClientBufferANDROID(JNIEnv* _env, jobject, jobject buffer) {
+    auto ahb = android::android_hardware_HardwareBuffer_getNativeHardwareBuffer(_env, buffer);
+    return reinterpret_cast<jlong>(eglGetNativeClientBufferANDROID(ahb));
+}
+
 static const char *classPathName = "android/opengl/EGLExt";
 
 static const JNINativeMethod methods[] = {
-{"_nativeClassInit", "()V", (void*)nativeClassInit },
-{"eglPresentationTimeANDROID", "(Landroid/opengl/EGLDisplay;Landroid/opengl/EGLSurface;J)Z", (void *) android_eglPresentationTimeANDROID },
-{"eglDupNativeFenceFDANDROIDImpl", "(Landroid/opengl/EGLDisplay;Landroid/opengl/EGLSync;)I", (void *)android_eglDupNativeFenceFDANDROID },
+        {"_nativeClassInit", "()V", (void*)nativeClassInit},
+        {"eglPresentationTimeANDROID", "(Landroid/opengl/EGLDisplay;Landroid/opengl/EGLSurface;J)Z",
+         (void*)android_eglPresentationTimeANDROID},
+        {"eglDupNativeFenceFDANDROIDImpl", "(Landroid/opengl/EGLDisplay;Landroid/opengl/EGLSync;)I",
+         (void*)android_eglDupNativeFenceFDANDROID},
+        {"eglGetNativeClientBufferANDROID", "(Landroid/hardware/HardwareBuffer;)J",
+         (void*)android_eglGetNativeClientBufferANDROID},
 };
 
 int register_android_opengl_jni_EGLExt(JNIEnv *_env)

@@ -18,6 +18,7 @@ package com.android.systemui.volume.dialog.sliders.ui.viewmodel
 
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
+import com.android.systemui.volume.dialog.domain.interactor.expandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.shared.volumeDialogLogger
 import com.android.systemui.volume.dialog.sliders.dagger.volumeDialogSliderComponentFactory
 import com.android.systemui.volume.dialog.sliders.domain.interactor.volumeDialogSlidersInteractor
@@ -29,5 +30,6 @@ val Kosmos.volumeDialogSlidersViewModel by
             volumeDialogSlidersInteractor,
             volumeDialogSliderComponentFactory,
             volumeDialogLogger,
+            expandedAudioTileDetailsFeatureInteractor,
         )
     }

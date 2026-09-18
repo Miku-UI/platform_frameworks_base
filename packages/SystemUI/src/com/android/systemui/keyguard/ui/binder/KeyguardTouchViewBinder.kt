@@ -18,8 +18,6 @@
 package com.android.systemui.keyguard.ui.binder
 
 import android.view.View
-import android.view.accessibility.AccessibilityNodeInfo
-import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.android.app.tracing.coroutines.launchTraced as launch
@@ -53,11 +51,6 @@ object KeyguardTouchViewBinder {
         onSingleTap: (x: Int, y: Int) -> Unit,
         falsingManager: FalsingManager,
     ) {
-        view.accessibilityHintLongPressAction =
-            AccessibilityNodeInfo.AccessibilityAction(
-                AccessibilityNodeInfoCompat.ACTION_LONG_CLICK,
-                view.resources.getString(R.string.lock_screen_settings),
-            )
 
         view.repeatWhenAttached {
             val isLongPressHandlingEnabled = MutableStateFlow(false)
@@ -92,16 +85,12 @@ object KeyguardTouchViewBinder {
                                 view: View,
                                 x: Int,
                                 y: Int,
-                                isA11yAction: Boolean,
                             ) {
-                                if (
-                                    !isA11yAction &&
-                                        falsingManager.isFalseLongTap(FalsingManager.LOW_PENALTY)
-                                ) {
+                                if (falsingManager.isFalseLongTap(FalsingManager.LOW_PENALTY)) {
                                     return
                                 }
 
-                                viewModel.onLongPress(isA11yAction)
+                                viewModel.onLongPress()
                             }
 
                             override fun onSingleTapDetected(view: View, x: Int, y: Int) {

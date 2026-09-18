@@ -16,29 +16,51 @@
 
 package com.android.systemui.notetask.shortcut
 
+import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import com.android.systemui.Flags
 import com.android.systemui.notetask.NoteTaskController
 import com.android.systemui.notetask.NoteTaskEntryPoint
 import javax.inject.Inject
 
 /** Activity responsible for launching the note experience, and finish. */
-class LaunchNoteTaskActivity @Inject constructor(private val controller: NoteTaskController) :
-    ComponentActivity() {
+class LaunchNoteTaskActivity
+@Inject
+constructor(
+    private val controller: NoteTaskController,
+    private val windowingModeFetcher: WindowingModeFetcher,
+) : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val entryPoint =
-            if (isInMultiWindowMode) {
-                NoteTaskEntryPoint.WIDGET_PICKER_SHORTCUT_IN_MULTI_WINDOW_MODE
+            if (shouldLaunchInActivity()) {
+                NoteTaskEntryPoint.WIDGET_PICKER_SHORTCUT_LAUNCH_IN_ACTIVITY
             } else {
                 NoteTaskEntryPoint.WIDGET_PICKER_SHORTCUT
             }
         controller.showNoteTaskAsUser(entryPoint, user)
         finish()
+    }
+
+    /**
+     * Returns true if the default notes app should be launched in an activity.
+     *
+     * The default notes app is launched in an activity whenever this activity is running in a
+     * multi-window mode other than freeform.
+     */
+    private fun shouldLaunchInActivity(): Boolean {
+        val isInMultiWindowMode = windowingModeFetcher.isInMultiWindowMode(this)
+        return if (Flags.fixNotesRoleInFreeform()) {
+            val windowMode = windowingModeFetcher.getWindowingMode(this)
+            isInMultiWindowMode && windowMode != WINDOWING_MODE_FREEFORM
+        } else {
+            isInMultiWindowMode
+        }
     }
 
     companion object {

@@ -36,7 +36,6 @@ import android.graphics.drawable.Icon;
 import android.hardware.display.DisplayManager;
 import android.metrics.LogMaker;
 import android.os.UserHandle;
-import android.os.UserManager;
 import android.service.autofill.Dataset;
 import android.service.autofill.FillResponse;
 import android.service.autofill.InternalSanitizer;
@@ -114,6 +113,8 @@ public final class Helper {
      * Creates the context as the foreground user
      *
      * <p>Returns the current context as the current foreground user
+     *
+     * TODO(b/280116881): remove this method once support_multi_user_multi_display is enabled.
      */
     @RequiresPermission(INTERACT_ACROSS_USERS)
     public static Context getUserContext(Context context) {
@@ -407,15 +408,8 @@ public final class Helper {
 
     /**
      * Gets a context with the proper display id.
-     *
-     * <p>For most cases it will return the provided context, but on devices that
-     * {@link UserManager#isVisibleBackgroundUsersEnabled() support visible background users}, it
-     * will return a context with the display pased as parameter.
      */
     static Context getDisplayContext(Context context, int displayId) {
-        if (!UserManager.isVisibleBackgroundUsersEnabled()) {
-            return context;
-        }
         if (context.getDisplayId() == displayId) {
             if (sDebug) {
                 Slogf.d(TAG, "getDisplayContext(): context %s already has displayId %d", context,

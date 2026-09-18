@@ -740,6 +740,11 @@ public class MockContext extends Context {
     }
 
     @Override
+    public boolean shouldShowRequestPermissionRationale(@NonNull String permission) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void grantUriPermission(String toPackage, Uri uri, int modeFlags) {
         throw new UnsupportedOperationException();
     }

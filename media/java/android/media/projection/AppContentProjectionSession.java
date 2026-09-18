@@ -32,12 +32,15 @@ import com.android.media.projection.flags.Flags;
 public class AppContentProjectionSession {
 
     private final IAppContentProjectionSession mSessionInternal;
+    private final boolean mIsAudioRequested;
 
     /**
      * @hide
      */
-    public AppContentProjectionSession(IAppContentProjectionSession sessionInternal) {
+    public AppContentProjectionSession(IAppContentProjectionSession sessionInternal,
+            boolean isAudioRequested) {
         mSessionInternal = sessionInternal;
+        mIsAudioRequested = isAudioRequested;
     }
 
     /**
@@ -51,5 +54,13 @@ public class AppContentProjectionSession {
             throw new RuntimeException(e);
         }
 
+    }
+
+    /**
+     * If {@code true}, this means that the user has requested the audio to be shared along with the
+     * app content.
+     */
+    public boolean isAudioRequested() {
+        return mIsAudioRequested;
     }
 }

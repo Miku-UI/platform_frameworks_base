@@ -82,8 +82,8 @@ public class BatteryUsageStatsRule implements TestRule {
     private NetworkStats mNetworkStats;
     private String[] mCustomPowerComponentNames = new String[0];
     private Throwable mThrowable;
-    private final BatteryStatsImpl.BatteryStatsConfig.Builder mBatteryStatsConfigBuilder;
-    private BatteryStatsImpl.BatteryStatsConfig mBatteryStatsConfig;
+    private final BatteryStatsConfig.Builder mBatteryStatsConfigBuilder;
+    private BatteryStatsConfig mBatteryStatsConfig;
 
     public BatteryUsageStatsRule() {
         this(0);
@@ -97,7 +97,7 @@ public class BatteryUsageStatsRule implements TestRule {
         mCpusByPolicy.put(4, new int[]{4, 5, 6, 7});
         mFreqsByPolicy.put(0, new int[]{300000, 1000000, 2000000});
         mFreqsByPolicy.put(4, new int[]{300000, 1000000, 2500000, 3000000});
-        mBatteryStatsConfigBuilder = new BatteryStatsImpl.BatteryStatsConfig.Builder()
+        mBatteryStatsConfigBuilder = new BatteryStatsConfig.Builder()
                 .setPowerStatsThrottlePeriodMillis(
                         BatteryConsumer.powerComponentIdToString(
                                 BatteryConsumer.POWER_COMPONENT_CPU), 10000)
@@ -141,7 +141,7 @@ public class BatteryUsageStatsRule implements TestRule {
      * Returns the BatteryStatsConfig, which is wrapped into a Mockito.spy, so it can be
      * observed and/or mocked.
      */
-    public BatteryStatsImpl.BatteryStatsConfig getBatteryStatsConfig() {
+    public BatteryStatsConfig getBatteryStatsConfig() {
         if (mBatteryStatsConfig == null) {
             mBatteryStatsConfig = spy(mBatteryStatsConfigBuilder.build());
         }

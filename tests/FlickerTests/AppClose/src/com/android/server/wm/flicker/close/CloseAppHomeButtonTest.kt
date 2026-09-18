@@ -79,13 +79,13 @@ class CloseAppHomeButtonTest(flicker: FlickerTest) : CloseAppTransition(flicker)
     override val transition: FlickerBuilder.() -> Unit
         get() = {
             super.transition(this)
-            setup { tapl.setExpectedRotationCheckEnabled(false) }
+            setup { tapl.expectedRotationCheckEnabled = false }
             transitions {
                 // Can't use TAPL at the moment because of rotation test issues
                 // When pressing home, TAPL expects the orientation to remain constant
                 // However, when closing a landscape app back to a portrait-only launcher
                 // this causes an error in verifyActiveContainer();
-                tapl.goHome()
+                device.pressHome()
                 wmHelper.StateSyncBuilder().withHomeActivityVisible().waitForAndVerify()
             }
         }

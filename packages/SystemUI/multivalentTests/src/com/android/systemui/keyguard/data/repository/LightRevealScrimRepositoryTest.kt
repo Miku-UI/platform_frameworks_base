@@ -90,7 +90,7 @@ class LightRevealScrimRepositoryTest : SysuiTestCase() {
         // The source and sensor locations are still null, so we should still be using the
         // default reveal despite a biometric unlock.
         fakeKeyguardRepository.setBiometricUnlockState(
-            BiometricUnlockMode.WAKE_AND_UNLOCK,
+            BiometricUnlockMode.WAKE_AND_DISMISS,
             BiometricUnlockSource.FINGERPRINT_SENSOR,
         )
 
@@ -100,7 +100,7 @@ class LightRevealScrimRepositoryTest : SysuiTestCase() {
         // We got a source but still have no sensor locations, so should be sticking with
         // the default effect.
         fakeKeyguardRepository.setBiometricUnlockState(
-            BiometricUnlockMode.WAKE_AND_UNLOCK,
+            BiometricUnlockMode.WAKE_AND_DISMISS,
             BiometricUnlockSource.FINGERPRINT_SENSOR,
         )
 
@@ -118,7 +118,7 @@ class LightRevealScrimRepositoryTest : SysuiTestCase() {
         val fingerprintLocation = Point(500, 500)
         fakeKeyguardRepository.setFingerprintSensorLocation(fingerprintLocation)
         fakeKeyguardRepository.setBiometricUnlockState(
-            BiometricUnlockMode.WAKE_AND_UNLOCK_PULSING,
+            BiometricUnlockMode.WAKE_AND_DISMISS_PULSING,
             BiometricUnlockSource.FINGERPRINT_SENSOR,
         )
 
@@ -136,11 +136,11 @@ class LightRevealScrimRepositoryTest : SysuiTestCase() {
         // Subsequent wake and unlocks should not emit duplicate, identical CircleReveals.
         val valuesPrevSize = values.size
         fakeKeyguardRepository.setBiometricUnlockState(
-            BiometricUnlockMode.WAKE_AND_UNLOCK_PULSING,
+            BiometricUnlockMode.WAKE_AND_DISMISS_PULSING,
             BiometricUnlockSource.FINGERPRINT_SENSOR,
         )
         fakeKeyguardRepository.setBiometricUnlockState(
-            BiometricUnlockMode.WAKE_AND_UNLOCK_FROM_DREAM,
+            BiometricUnlockMode.WAKE_AND_DISMISS_FROM_DREAM,
             BiometricUnlockSource.FINGERPRINT_SENSOR,
         )
         assertEquals(valuesPrevSize, values.size)
@@ -165,7 +165,7 @@ class LightRevealScrimRepositoryTest : SysuiTestCase() {
         // We already have a face location, so switching to face source should update the
         // CircleReveal.
         fakeKeyguardRepository.setBiometricUnlockState(
-            BiometricUnlockMode.WAKE_AND_UNLOCK,
+            BiometricUnlockMode.WAKE_AND_DISMISS,
             BiometricUnlockSource.FACE_SENSOR,
         )
         runCurrent()

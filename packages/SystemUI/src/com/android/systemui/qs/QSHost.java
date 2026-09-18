@@ -22,7 +22,7 @@ import android.provider.Settings;
 import androidx.annotation.NonNull;
 
 import com.android.systemui.plugins.qs.QSTile;
-import com.android.systemui.qs.flags.QsInCompose;
+import com.android.systemui.qs.flags.QsSplitInternetTile;
 import com.android.systemui.res.R;
 
 import java.util.ArrayList;
@@ -42,7 +42,7 @@ public interface QSHost {
     static List<String> getDefaultSpecs(Resources res) {
         final ArrayList<String> tiles = new ArrayList();
 
-        int resource = QsInCompose.isEnabled() ? R.string.quick_settings_tiles_new_default
+        int resource = QsSplitInternetTile.isEnabled() ? R.string.quick_settings_tiles_default_split
                 : R.string.quick_settings_tiles_default;
 
         final String defaultTileList = res.getString(resource);
@@ -59,6 +59,11 @@ public interface QSHost {
     void removeCallback(Callback callback);
     void removeTile(String tileSpec);
     void removeTiles(Collection<String> specs);
+
+    /**
+     * Returns if the current user is the headless system user (i.e. not a full "human" user).
+     */
+    boolean isCurrentUserHeadlessSystemUser();
 
     List<String> getSpecs();
 

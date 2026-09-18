@@ -130,7 +130,7 @@ public class FabricatedOverlay {
          * @param owningPackage the name of the package that owns the fabricated overlay (must
          *                      be a package name of this UID).
          * @param name a name used to uniquely identify the fabricated overlay owned by
-         *             {@param owningPackageName}
+         *             {@code owningPackage}
          * @param targetPackage the name of the package to overlay
          */
         public Builder(@NonNull String owningPackage, @NonNull String name,
@@ -627,7 +627,6 @@ public class FabricatedOverlay {
      * @param configuration The string representation of the config this overlay is enabled for
      */
     @NonNull
-    @FlaggedApi(android.content.res.Flags.FLAG_NINE_PATCH_FRRO)
     public void setNinePatchResourceValue(
             @NonNull String resourceName,
             @NonNull ParcelFileDescriptor value,
@@ -647,7 +646,6 @@ public class FabricatedOverlay {
      * @param configuration The string representation of the config this overlay is enabled for
      */
     @NonNull
-    @FlaggedApi(android.content.res.Flags.FLAG_ASSET_FILE_DESCRIPTOR_FRRO)
     public void setResourceValue(
             @NonNull String resourceName,
             @NonNull AssetFileDescriptor value,

@@ -15,8 +15,6 @@
  */
 package android.util;
 
-import android.platform.test.ravenwood.RavenwoodDriver;
-
 public class EventLog_ravenwood {
     public static int writeEvent(int tag, int value) {
         return writeEvent(tag, (Object) value);
@@ -35,23 +33,21 @@ public class EventLog_ravenwood {
     }
 
     public static int writeEvent(int tag, Object... list) {
-        final StringBuilder sb = new StringBuilder();
-        sb.append("logd: [event] ");
-        final String tagName = android.util.EventLog.getTagName(tag);
-        if (tagName != null) {
-            sb.append(tagName);
-        } else {
-            sb.append(tag);
+        var tagName = android.util.EventLog.getTagName(tag);
+        if (tagName == null) {
+            tagName = "Event-" + tag;
         }
-        sb.append(": [");
+
+        final StringBuilder sb = new StringBuilder();
+        sb.append("[");
         for (int i = 0; i < list.length; i++) {
-            sb.append(String.valueOf(list[i]));
+            sb.append(list[i]);
             if (i < list.length - 1) {
                 sb.append(',');
             }
         }
         sb.append(']');
-        RavenwoodDriver.sRawStdOut.println(sb.toString());
+        Log_ravenwood.println_native(0, Log.INFO, tagName, sb.toString());
         return sb.length();
     }
 }

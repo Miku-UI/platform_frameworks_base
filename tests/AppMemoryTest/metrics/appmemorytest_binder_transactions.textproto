@@ -1,0 +1,70 @@
+query {
+  id: "testhelper_startup_binder_txns"
+  sql: {
+    column_names: "aidl_name"
+    column_names: "aidl_name_including_nulls"
+    sql:
+      "
+INCLUDE PERFETTO MODULE android.binder;
+INCLUDE PERFETTO MODULE android.startup.startups;
+WITH
+  testhelper_startup AS (
+    SELECT
+      ts,
+      (ts + dur) AS ts_end
+    FROM
+      android_startups
+    WHERE
+      package = 'android.app.memory.testhelper'
+    LIMIT 1
+  )
+SELECT
+  abt.aidl_name,
+  COALESCE(abt.aidl_name, abt.server_process, 'NULL') AS aidl_name_including_nulls
+FROM
+  android_binder_txns AS abt
+  JOIN testhelper_startup
+    ON (
+      abt.client_ts >= testhelper_startup.ts
+      AND abt.client_ts < testhelper_startup.ts_end
+    )
+WHERE
+  abt.client_process = 'android.app.memory.testhelper'
+  -- Exclude binder transactions that have shown to be noisy
+  -- We should work towards de-noising these calls; however,
+  -- for now we can simply omit them to avoid alerting on false
+  -- positives.
+  AND COALESCE(abt.aidl_name, abt.server_process, 'NULL') NOT IN (
+    '/system/bin/gpuservice',
+    'AIDL::cpp::android.graphicsenv.IGpuService::#1::server',
+    'AIDL::cpp::android.graphicsenv.IGpuService::#6::server',
+    'AIDL::cpp::android.ui.ISurfaceComposer::#8::server',
+    'AIDL::cpp::android.gui.IDisplayEventConnection::requestNextVsync::server',
+    'AIDL::cpp::android.gui.IDisplayEventConnection::stealReceiveChannel::server',
+    'AIDL::cpp::android.gui.ISurfaceComposerClient::createSurface::server',
+    'AIDL::java::IInputManager::getVelocityTrackerStrategy::server',
+    -- Legacy cpp naming convention from before go/libbinder-traces
+    -- refactor. Leaving them here for posterity
+    '/system/bin/surfaceflinger',
+    'AIDL::cpp::IDisplayEventConnection::requestNextVsync::cppServer',
+    'AIDL::cpp::IDisplayEventConnection::stealReceiveChannel::cppServer',
+    'AIDL::cpp::ISurfaceComposerClient::createSurface::cppServer',
+  )
+    "
+  }
+}
+
+metric_spec: {
+  id: "appmemorytest_binder_transaction_count"
+  value: "transaction_count"
+  query: {
+    inner_query_id: "testhelper_startup_binder_txns"
+    group_by: {
+      aggregates: {
+        column_name: "aidl_name_including_nulls"
+        op: COUNT
+        result_column_name: "transaction_count"
+      }
+    }
+  }
+}

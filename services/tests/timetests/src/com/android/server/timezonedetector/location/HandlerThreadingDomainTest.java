@@ -77,10 +77,12 @@ public class HandlerThreadingDomainTest {
 
         // Expect no exception (current thread == handler thread)
         AtomicBoolean exceptionThrown = new AtomicBoolean(true);
-        LatchedRunnable testCode = new LatchedRunnable(() -> {
-            domain.assertCurrentThread();
-            exceptionThrown.set(false);
-        });
+        LatchedRunnable testCode =
+                new LatchedRunnable(
+                        () -> {
+                            domain.assertCurrentThread();
+                            exceptionThrown.set(false);
+                        });
         mTestHandler.post(testCode);
         testCode.assertCompletesWithin(60, TimeUnit.SECONDS);
         assertFalse(exceptionThrown.get());
@@ -94,15 +96,17 @@ public class HandlerThreadingDomainTest {
         domain.assertNotCurrentThread();
 
         AtomicBoolean exceptionThrown = new AtomicBoolean(false);
-        LatchedRunnable testCode = new LatchedRunnable(() -> {
-            // Expect an exception (current thread == handler thread)
-            try {
-                domain.assertNotCurrentThread();
-                fail("Expected exception");
-            } catch (RuntimeException expected) {
-                exceptionThrown.set(true);
-            }
-        });
+        LatchedRunnable testCode =
+                new LatchedRunnable(
+                        () -> {
+                            // Expect an exception (current thread == handler thread)
+                            try {
+                                domain.assertNotCurrentThread();
+                                fail("Expected exception");
+                            } catch (RuntimeException expected) {
+                                exceptionThrown.set(true);
+                            }
+                        });
         mTestHandler.post(testCode);
         testCode.assertCompletesWithin(60, TimeUnit.SECONDS);
         assertTrue(exceptionThrown.get());
@@ -112,9 +116,12 @@ public class HandlerThreadingDomainTest {
     public void post() throws Exception {
         ThreadingDomain domain = new HandlerThreadingDomain(mTestHandler);
         AtomicBoolean ranOnExpectedThread = new AtomicBoolean(false);
-        LatchedRunnable testLogic = new LatchedRunnable(() -> {
-            ranOnExpectedThread.set(Thread.currentThread() == mTestHandler.getLooper().getThread());
-        });
+        LatchedRunnable testLogic =
+                new LatchedRunnable(
+                        () -> {
+                            ranOnExpectedThread.set(
+                                    Thread.currentThread() == mTestHandler.getLooper().getThread());
+                        });
         domain.post(testLogic);
         testLogic.assertCompletesWithin(60, TimeUnit.SECONDS);
         assertTrue(testLogic.isComplete());
@@ -130,10 +137,13 @@ public class HandlerThreadingDomainTest {
 
         AtomicReference<Long> executionNanosHolder = new AtomicReference<>();
         AtomicBoolean ranOnExpectedThread = new AtomicBoolean(false);
-        LatchedRunnable testLogic = new LatchedRunnable(() -> {
-            ranOnExpectedThread.set(Thread.currentThread() == mTestHandler.getLooper().getThread());
-            executionNanosHolder.set(System.nanoTime());
-        });
+        LatchedRunnable testLogic =
+                new LatchedRunnable(
+                        () -> {
+                            ranOnExpectedThread.set(
+                                    Thread.currentThread() == mTestHandler.getLooper().getThread());
+                            executionNanosHolder.set(System.nanoTime());
+                        });
 
         domain.postDelayed(testLogic, executionDelay.toMillis());
         long afterPostNanos = System.nanoTime();
@@ -166,16 +176,19 @@ public class HandlerThreadingDomainTest {
 
         Duration workDuration = Duration.ofSeconds(5);
         AtomicBoolean ranOnExpectedThread = new AtomicBoolean(false);
-        LatchedRunnable testLogic = new LatchedRunnable(() -> {
-            ranOnExpectedThread.set(Thread.currentThread() == mTestHandler.getLooper().getThread());
+        LatchedRunnable testLogic =
+                new LatchedRunnable(
+                        () -> {
+                            ranOnExpectedThread.set(
+                                    Thread.currentThread() == mTestHandler.getLooper().getThread());
 
-            // The work takes workDuration to complete.
-            try {
-                Thread.sleep(workDuration.toMillis());
-            } catch (InterruptedException e) {
-                throw new AssertionError(e);
-            }
-        });
+                            // The work takes workDuration to complete.
+                            try {
+                                Thread.sleep(workDuration.toMillis());
+                            } catch (InterruptedException e) {
+                                throw new AssertionError(e);
+                            }
+                        });
 
         long beforeExecutionNanos = System.nanoTime();
         domain.postAndWait(testLogic, workDuration.multipliedBy(10).toMillis());
@@ -194,20 +207,22 @@ public class HandlerThreadingDomainTest {
 
         long beforeExecutionNanos = System.nanoTime();
 
-        Runnable noOpRunnable = () -> {
-            // Deliberately do nothing
-        };
+        Runnable noOpRunnable =
+                () -> {
+                    // Deliberately do nothing
+                };
         LatchedRunnable firstRunnable = new LatchedRunnable(noOpRunnable);
         LatchedRunnable secondRunnable = new LatchedRunnable(noOpRunnable);
 
         // Calls to SingleRunnableQueue must be made on the handler thread it is associated with,
         // so this uses runWithScissors() to block until the runDelayedTestRunnable has completed.
-        Runnable runDelayedTestRunnable = () -> {
-            singleRunnableQueue.runDelayed(firstRunnable, TimeUnit.SECONDS.toMillis(10));
+        Runnable runDelayedTestRunnable =
+                () -> {
+                    singleRunnableQueue.runDelayed(firstRunnable, TimeUnit.SECONDS.toMillis(10));
 
-            // The second runnable posted must clear the first.
-            singleRunnableQueue.runDelayed(secondRunnable, TimeUnit.SECONDS.toMillis(10));
-        };
+                    // The second runnable posted must clear the first.
+                    singleRunnableQueue.runDelayed(secondRunnable, TimeUnit.SECONDS.toMillis(10));
+                };
         mTestHandler.runWithScissors(runDelayedTestRunnable, TimeUnit.SECONDS.toMillis(60));
 
         // Now wait for the second runnable to complete

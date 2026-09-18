@@ -22,10 +22,29 @@ import android.media.tv.extension.servicedb.IServiceListSetChannelListListener;
 import android.os.IBinder;
 
 /**
+ * Factory interface for creating Export, Import, and Service List Set sessions.
  * @hide
  */
 interface IServiceListTransferInterface {
+    /**
+     * Creates a new session for exporting the service list.
+     *
+     * @param listener Callback for export completion.
+     * @return An IBinder for {@link IServiceListExportSession}.
+     */
     IBinder createExportSession(in IServiceListExportListener listener);
+    /**
+     * Creates a new session for importing a service list.
+     *
+     * @param listener Callback for import completion.
+     * @return An IBinder for {@link IServiceListImportSession}.
+     */
     IBinder createImportSession(in IServiceListImportListener listener);
+    /**
+     * Creates a new session for setting the channel list.
+     *
+     * @param listener Callback for completion.
+     * @return An IBinder for {@link IServiceListSetChannelListSession}.
+     */
     IBinder createSetChannelListSession(in IServiceListSetChannelListListener listener);
 }

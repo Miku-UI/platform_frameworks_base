@@ -16,7 +16,8 @@
 
 package com.android.systemui.statusbar.events.data.repository
 
-import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
 import com.android.systemui.statusbar.events.SystemStatusAnimationScheduler
 import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState
 import javax.inject.Inject
@@ -27,9 +28,10 @@ interface SystemStatusEventAnimationRepository {
     val animationState: StateFlow<SystemEventAnimationState>
 }
 
-@SysUISingleton
+@PerDisplaySingleton
 class SystemStatusEventAnimationRepositoryImpl
 @Inject
-constructor(scheduler: SystemStatusAnimationScheduler) : SystemStatusEventAnimationRepository {
+constructor(@DisplayAware scheduler: SystemStatusAnimationScheduler) :
+    SystemStatusEventAnimationRepository {
     override val animationState = scheduler.animationState
 }

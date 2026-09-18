@@ -42,7 +42,6 @@ import com.android.systemui.model.SysUiState;
 import com.android.systemui.res.R;
 import com.android.systemui.settings.DisplayTracker;
 import com.android.systemui.settings.UserTracker;
-import com.android.systemui.shared.Flags;
 import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
 import com.android.systemui.topwindoweffects.data.repository.InvocationEffectEnabler;
@@ -306,7 +305,18 @@ public class AssistManager {
     }
 
     public void startAssist(Bundle args) {
-        if (mActivityManager.getLockTaskModeState() == ActivityManager.LOCK_TASK_MODE_LOCKED) {
+        startAssist(mContext, args);
+    }
+
+    /**
+     * Same as {@link #startAssist(Bundle)}, but with an option to pass a specific {@link Context}
+     * to be used when launching Assistant.
+     *
+     * <p>An example usage could be a display specific {@link Context}, to that Assistant is
+     * launched on that specific display.
+     */
+    public void startAssist(Context context, Bundle args) {
+        if (mActivityManager.getLockTaskModeState() != ActivityManager.LOCK_TASK_MODE_NONE) {
             return;
         }
         if (shouldOverrideAssist(args)) {
@@ -344,7 +354,7 @@ public class AssistManager {
                 legacyDeviceState);
         logStartAssistLegacy(legacyInvocationType, legacyDeviceState);
         mInteractor.onAssistantStarted(legacyInvocationType);
-        startAssistInternal(args, assistComponent, isService);
+        startAssistInternal(context, args, assistComponent, isService);
     }
 
     private boolean shouldOverrideAssist(Bundle args) {
@@ -408,16 +418,20 @@ public class AssistManager {
         mVisualQueryAttentionListeners.remove(listener);
     }
 
-    private void startAssistInternal(Bundle args, @NonNull ComponentName assistComponent,
+    private void startAssistInternal(
+            Context context,
+            Bundle args,
+            @NonNull ComponentName assistComponent,
             boolean isService) {
         if (isService) {
-            startVoiceInteractor(args);
+            startVoiceInteractor(context, args);
         } else {
-            startAssistActivity(args, assistComponent);
+            startAssistActivity(context, args, assistComponent);
         }
     }
 
-    private void startAssistActivity(Bundle args, @NonNull ComponentName assistComponent) {
+    private void startAssistActivity(
+            Context context, Bundle args, @NonNull ComponentName assistComponent) {
         if (!mDeviceProvisionedController.isDeviceProvisioned()) {
             return;
         }
@@ -431,7 +445,7 @@ public class AssistManager {
                 Settings.Secure.ASSIST_STRUCTURE_ENABLED, 1, UserHandle.USER_CURRENT) != 0;
 
         final SearchManager searchManager =
-                (SearchManager) mContext.getSystemService(Context.SEARCH_SERVICE);
+                (SearchManager) context.getSystemService(Context.SEARCH_SERVICE);
         if (searchManager == null) {
             return;
         }
@@ -442,18 +456,21 @@ public class AssistManager {
         intent.setComponent(assistComponent);
         intent.putExtras(args);
 
-        if (structureEnabled && AssistUtils.isDisclosureEnabled(mContext)) {
+        if (!android.permission.flags.Flags.assistSettingsPrivacyImprovementsEnabled()
+                && structureEnabled && AssistUtils.isDisclosureEnabled(context)) {
             showDisclosure();
         }
 
         try {
-            final ActivityOptions opts = ActivityOptions.makeCustomAnimation(mContext,
+            final ActivityOptions opts = ActivityOptions.makeCustomAnimation(context,
                     R.anim.search_launch_enter, R.anim.search_launch_exit);
+            opts.setLaunchDisplayId(context.getDisplayId());
+
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             AsyncTask.execute(new Runnable() {
                 @Override
                 public void run() {
-                    mContext.startActivityAsUser(intent, opts.toBundle(),
+                    context.startActivityAsUser(intent, opts.toBundle(),
                             mUserTracker.getUserHandle());
                 }
             });
@@ -462,17 +479,16 @@ public class AssistManager {
         }
     }
 
-    private void startVoiceInteractor(Bundle args) {
-        if (Flags.enableLppAssistInvocationEffect()) {
-            // Use background thread to prevent the binder call from blocking the UI thread
-            mBgHandler.post(() -> mAssistUtils.showSessionForActiveService(args,
-                    VoiceInteractionSession.SHOW_SOURCE_ASSIST_GESTURE,
-                    mContext.getAttributionTag(), null, null));
-        } else {
-            mAssistUtils.showSessionForActiveService(args,
-                    VoiceInteractionSession.SHOW_SOURCE_ASSIST_GESTURE,
-                    mContext.getAttributionTag(), null, null);
+    private void startVoiceInteractor(Context context, Bundle args) {
+        if (!args.containsKey(Intent.EXTRA_ASSIST_DISPLAY_ID)) {
+            // If a display id was not explicitly specified, let's use the display associated with
+            // the Context.
+            args.putInt(Intent.EXTRA_ASSIST_DISPLAY_ID, context.getDisplayId());
         }
+        // Use background thread to prevent the binder call from blocking the UI thread
+        mBgHandler.post(() -> mAssistUtils.showSessionForActiveService(args,
+                VoiceInteractionSession.SHOW_SOURCE_ASSIST_GESTURE,
+                context.getAttributionTag(), null, null));
     }
 
     private void registerVisualQueryRecognitionStatusListener() {

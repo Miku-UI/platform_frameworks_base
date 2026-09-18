@@ -17,15 +17,23 @@
 #include <gtest/gtest.h>
 
 #include "AnimationContext.h"
+#include "ColorArea.h"
 #include "FeatureFlags.h"
 #include "IContextFactory.h"
 #include "renderthread/CanvasContext.h"
 #include "renderthread/VulkanManager.h"
 #include "tests/common/TestUtils.h"
+#include "utils/Color.h"
 
 using namespace android;
 using namespace android::uirenderer;
 using namespace android::uirenderer::renderthread;
+
+// Helper to define colors for clarity
+const uirenderer::Lab COLOR_LIGHT_1 = {100, 10, 10};
+const uirenderer::Lab COLOR_LIGHT_2 = {100, 20, 20};
+const uirenderer::Lab COLOR_DARK_1 = {0, 10, 10};
+const uirenderer::Lab COLOR_DARK_2 = {0, 20, 20};
 
 class ContextFactory : public IContextFactory {
 public:
@@ -172,4 +180,68 @@ RENDERTHREAD_TEST(CanvasContext, forceInvertColorArea_detectsDarkTheme) {
 
     Properties::setIsForceInvertEnabled(false);
     renderThread.destroyRenderingContext();
+}
+
+TEST(CanvasContext, computeGradient_allLight_detectsLight) {
+    // Average L = 100
+    SkAndroidFrameworkUtils::LinearGradientInfo info;
+    SkColor4f colors[] = {LabToSRGB(COLOR_LIGHT_1, /* alpha= */ 1),
+                          LabToSRGB(COLOR_LIGHT_2, /* alpha= */ 1)};
+    float offsets[] = {0.0f, 1.0f};
+
+    info.fColorCount = 2;
+    info.fColors = colors;
+    info.fColorOffsets = offsets;
+
+    EXPECT_EQ(ColorArea::GradientLightness::Light, ColorArea::computeGradient(info));
+}
+
+TEST(CanvasContext, computeGradient_allDark_detectsDark) {
+    // Average L = 0
+    SkAndroidFrameworkUtils::LinearGradientInfo info;
+    SkColor4f colors[] = {LabToSRGB(COLOR_DARK_1, /* alpha= */ 1),
+                          LabToSRGB(COLOR_DARK_2, /* alpha= */ 1)};
+    float offsets[] = {0.0f, 1.0f};
+
+    info.fColorCount = 2;
+    info.fColors = colors;
+    info.fColorOffsets = offsets;
+
+    EXPECT_EQ(ColorArea::GradientLightness::Dark, ColorArea::computeGradient(info));
+}
+
+TEST(CanvasContext, computeGradient_respectsOffsets_DominantlyDark) {
+    // Gradient is Light -> Dark, but Light is only the first 10%.
+    // 0.0 to 0.1: Light to Dark (Avg L=50, Area=0.1) -> Contribution: 5
+    // 0.1 to 1.0: Dark to Dark (Avg L=0, Area=0.9)  -> Contribution: 0
+    // Total Avg L: 5. This should be Dark.
+    SkAndroidFrameworkUtils::LinearGradientInfo info;
+    SkColor4f colors[] = {LabToSRGB(COLOR_LIGHT_1, /* alpha= */ 1),
+                          LabToSRGB(COLOR_DARK_1, /* alpha= */ 1),
+                          LabToSRGB(COLOR_DARK_2, /* alpha= */ 1)};
+    float offsets[] = {0.0f, 0.1f, 1.0f};
+
+    info.fColorCount = 3;
+    info.fColors = colors;
+    info.fColorOffsets = offsets;
+
+    EXPECT_EQ(ColorArea::GradientLightness::Dark, ColorArea::computeGradient(info));
+}
+
+TEST(CanvasContext, computeGradient_respectsOffsets_DominantlyLight) {
+    // Gradient is Dark -> Light, but Light is 90% of the area.
+    // 0.0 to 0.1: Dark to Light (Avg L=50, Area=0.1) -> Contribution: 5
+    // 0.1 to 1.0: Light to Light (Avg L=100, Area=0.9) -> Contribution: 90
+    // Total Avg L: 95. This should be Light.
+    SkAndroidFrameworkUtils::LinearGradientInfo info;
+    SkColor4f colors[] = {LabToSRGB(COLOR_DARK_1, /* alpha= */ 1),
+                          LabToSRGB(COLOR_LIGHT_1, /* alpha= */ 1),
+                          LabToSRGB(COLOR_LIGHT_2, /* alpha= */ 1)};
+    float offsets[] = {0.0f, 0.1f, 1.0f};
+
+    info.fColorCount = 3;
+    info.fColors = colors;
+    info.fColorOffsets = offsets;
+
+    EXPECT_EQ(ColorArea::GradientLightness::Light, ColorArea::computeGradient(info));
 }

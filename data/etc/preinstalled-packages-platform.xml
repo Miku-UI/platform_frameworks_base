@@ -18,7 +18,8 @@
 This XML file declares which system packages should be initially installed for new users based on
 their user type. All system packages on the device should ideally have an entry in an xml file
 (keyed by its manifest name), except for static overlays which are instead treated automatically
-according to the entry for their corresponding overlay target package.
+according to the entry for their corresponding overlay target package if they don't have their own
+explicit entry.
 
 Base user-types (every user will be at least one of these types) are:
   SYSTEM    (user 0)
@@ -123,6 +124,18 @@ to pre-existing users, but cannot uninstall pre-existing system packages from pr
         <install-in user-type="FULL" />
     </install-in-user-type>
 
+    <!-- Local backup transport (LocalTransport) -->
+    <install-in-user-type package="com.android.localtransport">
+        <install-in user-type="FULL" />
+        <install-in user-type="android.os.usertype.profile.MANAGED" />
+    </install-in-user-type>
+
+    <!-- Backup/restore confirmation UI used by adb backup (BackupRestoreConfirmation) -->
+    <install-in-user-type package="com.android.backupconfirm">
+        <install-in user-type="FULL" />
+        <install-in user-type="android.os.usertype.profile.MANAGED" />
+    </install-in-user-type>
+
     <!-- AvatarPicker (AvatarPicker app)-->
     <install-in-user-type package="com.android.avatarpicker">
         <install-in user-type="FULL" />
@@ -150,6 +163,79 @@ to pre-existing users, but cannot uninstall pre-existing system packages from pr
     <!-- Cross device data sync app (CrossDeviceSync)  -->
     <install-in-user-type package="com.android.crossdevicesync">
         <install-in user-type="SYSTEM" />
+        <install-in user-type="FULL" />
     </install-in-user-type>
 
+    <!--E2EE ContactKeys Provider (E2eeContactKeysProvider)  -->
+    <install-in-user-type package="com.android.providers.contactkeys">
+        <install-in user-type="FULL" />
+    </install-in-user-type>
+
+    <!-- SoundPicker (RELEASE_PACKAGE_SOUND_PICKER) -->
+    <install-in-user-type package="com.android.soundpicker">
+        <install-in user-type="FULL" />
+        <install-in user-type="android.os.usertype.profile.MANAGED" />
+        <install-in user-type="android.os.usertype.profile.PRIVATE" />
+    </install-in-user-type>
+
+    <!--AiSeal for AppSearch configuration package (RELEASE_AISEAL_FRAMEWORK)  -->
+    <install-in-user-type package="com.android.appsearch.aiseal.config">
+        <install-in user-type="SYSTEM" />
+    </install-in-user-type>
+
+    <!-- System Chooser (IntentResolver) -->
+    <install-in-user-type package="com.android.intentresolver">
+        <install-in user-type="FULL" />
+        <install-in user-type="PROFILE" />
+    </install-in-user-type>
+
+    <!-- NFC (NfcNci/com.android.nfcservices) -->
+    <install-in-user-type package="com.android.nfc">
+        <install-in user-type="SYSTEM" />
+        <install-in user-type="FULL" />
+        <install-in user-type="PROFILE" />
+    </install-in-user-type>
+
+    <!-- NFC sub-module (SecureElement) -->
+    <install-in-user-type package="com.android.se">
+        <install-in user-type="SYSTEM" />
+        <install-in user-type="FULL" />
+        <install-in user-type="PROFILE" />
+    </install-in-user-type>
+
+    <!-- Download Provider (DownloadProvider) -->
+    <install-in-user-type package="com.android.providers.downloads">
+        <install-in user-type="SYSTEM" />
+        <install-in user-type="FULL" />
+        <install-in user-type="android.os.usertype.profile.MANAGED" />
+        <install-in user-type="android.os.usertype.profile.PRIVATE" />
+    </install-in-user-type>
+
+    <!--  Contacts provider app (ContactsProvider) -->
+    <install-in-user-type package="com.android.providers.contacts">
+        <install-in user-type="SYSTEM" />
+        <install-in user-type="FULL" />
+        <install-in user-type="PROFILE" />
+    </install-in-user-type>
+
+    <!--  Shell app (Shell) -->
+    <install-in-user-type package="com.android.shell">
+        <install-in user-type="SYSTEM" />
+        <install-in user-type="FULL" />
+        <install-in user-type="PROFILE" />
+    </install-in-user-type>
+
+    <!-- (CtsShimPrebuilt) -->
+    <install-in-user-type package="com.android.cts.ctsshim">
+        <install-in user-type="SYSTEM" />
+        <install-in user-type="FULL" />
+        <install-in user-type="PROFILE" />
+    </install-in-user-type>
+
+    <!-- (CtsShimPrivPrebuilt) -->
+    <install-in-user-type package="com.android.cts.priv.ctsshim">
+        <install-in user-type="SYSTEM" />
+        <install-in user-type="FULL" />
+        <install-in user-type="PROFILE" />
+    </install-in-user-type>
 </config>

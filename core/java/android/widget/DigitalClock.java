@@ -75,7 +75,7 @@ public class DigitalClock extends TextView {
 
         mHandler = new Handler();
 
-        /**
+        /*
          * requests a tick on the next hard-second boundary
          */
         mTicker = new Runnable() {

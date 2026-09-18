@@ -22,6 +22,7 @@ import android.annotation.Nullable;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.hardware.vibrator.IVibratorManager;
+import android.os.vibrator.HapticGeneratorSession;
 import android.os.vibrator.VendorVibrationSession;
 import android.os.vibrator.VibratorInfoFactory;
 import android.util.ArrayMap;
@@ -283,6 +284,30 @@ public class SystemVibrator extends Vibrator {
         }
         mVibratorManager.startVendorSession(vibratorIds, attrs, reason, cancellationSignal,
                 executor, callback);
+    }
+
+    @Override
+    public void startHapticGeneratorSession(
+            @NonNull HapticGeneratorSession.Config config,
+            @NonNull Executor executor,
+            @NonNull OutcomeReceiver<HapticGeneratorSession, Exception> callback) {
+        if (mVibratorManager == null) {
+            Log.w(TAG, "Failed to start haptic generator session; no vibrator manager.");
+            executor.execute(() -> callback.onError(new IllegalStateException()));
+            return;
+        }
+        int[] vibratorIds = getVibratorIds();
+        if (vibratorIds == null || vibratorIds.length == 0) {
+            Log.w(TAG, "Failed to start haptic generator session; error retrieving vibrator ids.");
+            executor.execute(() -> callback.onError(new IllegalStateException()));
+            return;
+        }
+        mVibratorManager.startHapticGeneratorSession(vibratorIds[0], config, executor, callback);
+    }
+
+    @Override
+    public boolean isHapticGeneratorSupported() {
+        return mVibratorManager.hasCapabilities(IVibratorManager.CAP_HAPTIC_GENERATOR);
     }
 
     @Nullable

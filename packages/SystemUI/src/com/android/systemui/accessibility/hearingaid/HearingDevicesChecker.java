@@ -27,6 +27,7 @@ import com.android.settingslib.bluetooth.BluetoothUtils;
 import com.android.settingslib.bluetooth.CachedBluetoothDevice;
 import com.android.settingslib.bluetooth.LocalBluetoothManager;
 import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.flags.SystemPropertiesHelper;
 
 import javax.inject.Inject;
 
@@ -40,15 +41,28 @@ import javax.inject.Inject;
 @SysUISingleton
 public class HearingDevicesChecker {
 
+    private static final String ASHA_PROFILE_CENTRAL_PROPERTY =
+            "bluetooth.profile.asha.central.enabled";
+    private static final String HAP_PROFILE_CLIENT_PROPERTY =
+            "bluetooth.profile.hap.client.enabled";
+
     private final Context mContext;
     private final LocalBluetoothManager mLocalBluetoothManager;
+    private final SystemPropertiesHelper mSystemPropertiesHelper;
 
     @Inject
     public HearingDevicesChecker(
             Context context,
-            @Nullable LocalBluetoothManager localBluetoothManager) {
+            @Nullable LocalBluetoothManager localBluetoothManager,
+            SystemPropertiesHelper systemPropertiesHelper) {
         mContext = context;
         mLocalBluetoothManager = localBluetoothManager;
+        mSystemPropertiesHelper = systemPropertiesHelper;
+    }
+
+    public boolean isHearingDeviceSupported() {
+        return mSystemPropertiesHelper.getBoolean(ASHA_PROFILE_CENTRAL_PROPERTY, false)
+                || mSystemPropertiesHelper.getBoolean(HAP_PROFILE_CLIENT_PROPERTY, false);
     }
 
     /**

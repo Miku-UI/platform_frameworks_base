@@ -23,7 +23,6 @@ import android.app.RemoteInput
 import android.content.Intent
 import android.graphics.drawable.Icon
 import android.net.Uri
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.SetFlagsRule
 import android.testing.TestableLooper.RunWithLooper
 import android.view.ContentInfo
@@ -34,7 +33,6 @@ import com.android.systemui.res.R
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notification.row.entryAdapterFactory
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.testKosmos
 import com.android.systemui.wmshell.BubblesTestActivity
 import com.google.common.truth.Truth.assertThat
@@ -42,63 +40,51 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentMatchers.anyString
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @RunWithLooper
-@EnableFlags(NotificationBundleUi.FLAG_NAME)
 class RemoteInputEntryAdapterTest : SysuiTestCase() {
     private val kosmos = testKosmos()
 
     private val factory: EntryAdapterFactory = kosmos.entryAdapterFactory
-    private lateinit var entry : NotificationEntry
+    private lateinit var entry: NotificationEntry
     private lateinit var underTest: RemoteInputEntryAdapter
 
     @get:Rule val setFlagsRule = SetFlagsRule()
 
     @Before
     fun before() {
-        entry =
-            NotificationEntryBuilder()
-                .setNotification(getConversationNotif().build())
-                .build()
+        entry = NotificationEntryBuilder().setNotification(getConversationNotif().build()).build()
 
         underTest = (factory.create(entry) as NotificationEntryAdapter).remoteInputEntryAdapter
     }
 
-    /** Creates a [Notification.Builder] that is a conversation.  */
+    /** Creates a [Notification.Builder] that is a conversation. */
     private fun getConversationNotif(): Notification.Builder {
         val timeContent = "content at ${System.currentTimeMillis()}"
         val intent = Intent(context, BubblesTestActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            context,
-            0,
-            intent,
-            PendingIntent.FLAG_MUTABLE
-        )
+        val pendingIntent =
+            PendingIntent.getActivity(context, 0, intent, PendingIntent.FLAG_MUTABLE)
 
-        val person = Person.Builder()
-            .setName("PERSON")
-            .build()
+        val person = Person.Builder().setName("PERSON").build()
         val remoteInput = RemoteInput.Builder("reply_key").setLabel("reply").build()
-        val inputIntent = PendingIntent.getActivity(
-            mContext,
-            0,
-            Intent().setPackage(mContext.packageName),
-            PendingIntent.FLAG_MUTABLE
-        )
-        val icon = Icon.createWithResource(
-            mContext,
-            R.drawable.ic_android
-        )
-        val replyAction = Notification.Action.Builder(
-            icon,
-            "Reply",
-            inputIntent
-        ).addRemoteInput(remoteInput)
-            .build()
+        val inputIntent =
+            PendingIntent.getActivity(
+                mContext,
+                0,
+                Intent().setPackage(mContext.packageName),
+                PendingIntent.FLAG_MUTABLE,
+            )
+        val icon = Icon.createWithResource(mContext, R.drawable.ic_android)
+        val replyAction =
+            Notification.Action.Builder(icon, "Reply", inputIntent)
+                .addRemoteInput(remoteInput)
+                .build()
 
         return Notification.Builder(context, "channel")
             .setSmallIcon(R.drawable.ic_android)
@@ -109,11 +95,7 @@ class RemoteInputEntryAdapterTest : SysuiTestCase() {
             .setStyle(
                 Notification.MessagingStyle(person)
                     .setConversationTitle("Chat")
-                    .addMessage(
-                        timeContent,
-                        System.currentTimeMillis(),
-                        person
-                    )
+                    .addMessage(timeContent, System.currentTimeMillis(), person)
             )
     }
 
@@ -137,7 +119,7 @@ class RemoteInputEntryAdapterTest : SysuiTestCase() {
 
     @Test
     fun getRow() {
-        val row : ExpandableNotificationRow = mock()
+        val row: ExpandableNotificationRow = mock()
         entry.row = row
 
         assertThat(underTest.row).isEqualTo(row)
@@ -145,7 +127,7 @@ class RemoteInputEntryAdapterTest : SysuiTestCase() {
 
     @Test
     fun closeRemoteInput() {
-        val row : ExpandableNotificationRow = mock()
+        val row: ExpandableNotificationRow = mock()
         entry.row = row
 
         underTest.closeRemoteInput()
@@ -187,7 +169,7 @@ class RemoteInputEntryAdapterTest : SysuiTestCase() {
 
     @Test
     fun getRemoteInputAttachment() {
-        val contentInfo : ContentInfo = mock()
+        val contentInfo: ContentInfo = mock()
         entry.remoteInputAttachment = contentInfo
 
         assertThat(underTest.remoteInputAttachment).isEqualTo(contentInfo)
@@ -195,7 +177,7 @@ class RemoteInputEntryAdapterTest : SysuiTestCase() {
 
     @Test
     fun setRemoteInputAttachment() {
-        val contentInfo : ContentInfo = mock()
+        val contentInfo: ContentInfo = mock()
 
         underTest.remoteInputAttachment = contentInfo
 
@@ -204,7 +186,7 @@ class RemoteInputEntryAdapterTest : SysuiTestCase() {
 
     @Test
     fun setRemoteInputUri() {
-        val uri : Uri = mock()
+        val uri: Uri = mock()
 
         underTest.remoteInputUri = uri
 
@@ -249,25 +231,23 @@ class RemoteInputEntryAdapterTest : SysuiTestCase() {
         assertThat(underTest.isSameEntryAs(entry)).isTrue()
 
         val entryCopy =
-            NotificationEntryBuilder()
-                .setNotification(getConversationNotif().build())
-                .build()
+            NotificationEntryBuilder().setNotification(getConversationNotif().build()).build()
 
         assertThat(underTest.isSameEntryAs(entryCopy)).isFalse()
     }
 
     @Test
     fun notifyHeightChanged() {
-        val row : ExpandableNotificationRow = mock()
+        val row: ExpandableNotificationRow = mock()
         entry.row = row
 
         underTest.notifyHeightChanged(true)
 
-        verify(row).notifyHeightChanged(true)
+        verify(row).notifyHeightChanged(eq(true), anyString())
     }
 
     fun setRemoteInputActive(headsUpManager: HeadsUpManager, isActive: Boolean) {
-        val headsUpManager : HeadsUpManager = mock()
+        val headsUpManager: HeadsUpManager = mock()
         val mockEntry: NotificationEntry = mock()
         underTest = (factory.create(mockEntry) as NotificationEntryAdapter).remoteInputEntryAdapter
 

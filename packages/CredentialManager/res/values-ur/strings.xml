@@ -69,7 +69,7 @@
     <string name="accessibility_close_button" msgid="1163435587545377687">"بند کریں"</string>
     <string name="accessibility_snackbar_dismiss" msgid="3456598374801836120">"برخاست کریں"</string>
     <string name="get_dialog_title_use_passkey_for" msgid="479261099705979148">"<xliff:g id="APP_NAME">%1$s</xliff:g> کے لیے اپنی محفوظ کردہ پاس کی استعمال کریں"</string>
-    <string name="get_dialog_title_use_password_for" msgid="688557784207167647">"<xliff:g id="APP_NAME">%1$s</xliff:g> کیلئے آپ کا محفوظ کردہ پاس ورڈ استعمال کریں"</string>
+    <string name="get_dialog_title_use_password_for" msgid="688557784207167647">"‫<xliff:g id="APP_NAME">%1$s</xliff:g> کیلئے آپ کا محفوظ کردہ پاس ورڈ استعمال کریں"</string>
     <string name="get_dialog_title_use_sign_in_for" msgid="4233553937542583226">"<xliff:g id="APP_NAME">%1$s</xliff:g> کے لیے اپنا اکاؤنٹ استعمال کریں"</string>
     <string name="get_dialog_description_single_tap" msgid="2797059565126030879">"<xliff:g id="USERNAME">%2$s</xliff:g> کے ساتھ <xliff:g id="APP_NAME">%1$s</xliff:g> میں سائن ان کرنے کے لیے اپنا اسکرین لاک استعمال کریں"</string>
     <string name="get_dialog_title_unlock_options_for" msgid="7096423827682163270">"<xliff:g id="APP_NAME">%1$s</xliff:g> کے لیے سائن ان کے اختیارات کو غیر مقفل کریں"</string>

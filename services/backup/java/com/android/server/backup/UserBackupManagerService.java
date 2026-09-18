@@ -31,11 +31,13 @@ import static com.android.server.backup.internal.BackupHandler.MSG_RUN_ADB_BACKU
 import static com.android.server.backup.internal.BackupHandler.MSG_RUN_ADB_RESTORE;
 import static com.android.server.backup.internal.BackupHandler.MSG_RUN_BACKUP;
 import static com.android.server.backup.internal.BackupHandler.MSG_RUN_CLEAR;
+import static com.android.server.backup.internal.BackupHandler.MSG_RUN_DELAYED_RESTORE;
 import static com.android.server.backup.internal.BackupHandler.MSG_RUN_RESTORE;
 import static com.android.server.backup.internal.BackupHandler.MSG_SCHEDULE_BACKUP_PACKAGE;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresPermission;
 import android.annotation.UserIdInt;
 import android.app.ActivityManager;
 import android.app.ActivityManagerInternal;
@@ -49,6 +51,7 @@ import android.app.backup.BackupAnnotations.BackupDestination;
 import android.app.backup.BackupManager;
 import android.app.backup.BackupManagerMonitor;
 import android.app.backup.BackupRestoreEventLogger;
+import android.app.backup.DelayedRestoreRequest;
 import android.app.backup.FullBackup;
 import android.app.backup.IBackupManager;
 import android.app.backup.IBackupManagerMonitor;
@@ -102,6 +105,7 @@ import com.android.internal.util.Preconditions;
 import com.android.server.AppWidgetBackupBridge;
 import com.android.server.EventLogTags;
 import com.android.server.LocalServices;
+import com.android.server.backup.BackupRestoreTask;
 import com.android.server.backup.BackupRestoreTask.CancellationReason;
 import com.android.server.backup.OperationStorage.OpState;
 import com.android.server.backup.OperationStorage.OpType;
@@ -121,9 +125,10 @@ import com.android.server.backup.params.AdbRestoreParams;
 import com.android.server.backup.params.BackupParams;
 import com.android.server.backup.params.ClearParams;
 import com.android.server.backup.params.ClearRetryParams;
+import com.android.server.backup.params.DelayedRestoreParams;
 import com.android.server.backup.params.RestoreParams;
 import com.android.server.backup.restore.ActiveRestoreSession;
-import com.android.server.backup.restore.PerformUnifiedRestoreTask;
+import com.android.server.backup.restore.DelayedRestoreJournal;
 import com.android.server.backup.transport.BackupTransportClient;
 import com.android.server.backup.transport.TransportConnection;
 import com.android.server.backup.transport.TransportNotAvailableException;
@@ -311,8 +316,14 @@ public class UserBackupManagerService {
     @GuardedBy("mPendingRestores")
     private boolean mIsRestoreInProgress;
 
+    // This queue is used to store BackupRestoreTask objects that are waiting for a restore
+    // operation to complete. Currently this is used for restore, delayed restore, and
+    // delayed restore cleanup tasks.
     @GuardedBy("mPendingRestores")
-    private final Queue<PerformUnifiedRestoreTask> mPendingRestores = new ArrayDeque<>();
+    private String mRestoreInProgressPackageName;
+
+    @GuardedBy("mPendingRestores")
+    private final Queue<BackupRestoreTask> mPendingRestores = new ArrayDeque<>();
 
     private ActiveRestoreSession mActiveRestoreSession;
 
@@ -327,6 +338,7 @@ public class UserBackupManagerService {
     private final File mDataDir;
     private final File mJournalDir;
     @Nullable private DataChangedJournal mJournal;
+    private final DelayedRestoreJournal mDelayedRestoreJournal;
     private final File mFullBackupScheduleFile;
 
     // Keep a log of all the apps we've ever backed up.
@@ -444,7 +456,8 @@ public class UserBackupManagerService {
             BackupHandler backupHandler,
             BackupManagerConstants backupManagerConstants,
             IActivityManager activityManager,
-            ActivityManagerInternal activityManagerInternal) {
+            ActivityManagerInternal activityManagerInternal,
+            DelayedRestoreJournal delayedRestoreJournal) {
         mUserId = userId;
         mContext = context;
 
@@ -467,6 +480,7 @@ public class UserBackupManagerService {
         mDataDir = null;
         mJournalDir = null;
         mFullBackupScheduleFile = null;
+        mDelayedRestoreJournal = delayedRestoreJournal;
         mSetupObserver = null;
         mRunInitReceiver = null;
         mRunInitIntent = null;
@@ -619,6 +633,8 @@ public class UserBackupManagerService {
         // Set up the various sorts of package tracking we do
         mFullBackupScheduleFile = new File(mBaseStateDir, "fb-schedule");
         initPackageTracking();
+
+        mDelayedRestoreJournal = new DelayedRestoreJournal(mBaseStateDir);
     }
 
     @VisibleForTesting
@@ -744,11 +760,19 @@ public class UserBackupManagerService {
         return mIsRestoreInProgress;
     }
 
+    public String getRestoreInProgressPackageName() {
+        return mRestoreInProgressPackageName;
+    }
+
     public void setRestoreInProgress(boolean restoreInProgress) {
         mIsRestoreInProgress = restoreInProgress;
     }
 
-    public Queue<PerformUnifiedRestoreTask> getPendingRestores() {
+    public void setRestoreInProgressPackageName(String restoreInProgressPackageName) {
+        mRestoreInProgressPackageName = restoreInProgressPackageName;
+    }
+
+    public Queue<BackupRestoreTask> getPendingRestores() {
         return mPendingRestores;
     }
 
@@ -776,6 +800,10 @@ public class UserBackupManagerService {
     @Nullable
     public DataChangedJournal getJournal() {
         return mJournal;
+    }
+
+    public DelayedRestoreJournal getDelayedRestoreJournal() {
+        return mDelayedRestoreJournal;
     }
 
     public void setJournal(@Nullable DataChangedJournal journal) {
@@ -1337,6 +1365,20 @@ public class UserBackupManagerService {
                             } catch (NameNotFoundException e) {
                                 Slog.w(TAG, mLogIdMsg + "Can't resolve new app " + packageName);
                             }
+
+                            if (replacing) {
+                                onDelayedRestoreConditionMet(
+                                        new DelayedRestoreRequest.Builder(
+                                                        DelayedRestoreRequest.TYPE_APP_UPDATE)
+                                                .setPackageName(packageName)
+                                                .build());
+                            } else {
+                                onDelayedRestoreConditionMet(
+                                        new DelayedRestoreRequest.Builder(
+                                                        DelayedRestoreRequest.TYPE_APP_INSTALL)
+                                                .setPackageName(packageName)
+                                                .build());
+                            }
                         }
 
                         // Whenever a package is added or updated we need to update the package
@@ -1356,6 +1398,12 @@ public class UserBackupManagerService {
                         for (String packageName : packageList) {
                             mBackupHandler.post(
                                     () -> mTransportManager.onPackageRemoved(packageName));
+                            if (!replacing && Flags.enableDelayedRestoreApi()) {
+                                mBackupHandler.post(
+                                        () ->
+                                                mDelayedRestoreJournal.clearAllRequestsForPackage(
+                                                        packageName));
+                            }
                         }
                     }
                 }
@@ -2188,7 +2236,6 @@ public class UserBackupManagerService {
                             PerformFullTransportBackupTask.newWithCurrentTransport(
                                     this,
                                     mOperationStorage,
-                                    /* observer */ null,
                                     pkg,
                                     /* updateSchedule */ true,
                                     scheduledJob,
@@ -2690,7 +2737,6 @@ public class UserBackupManagerService {
                         PerformFullTransportBackupTask.newWithCurrentTransport(
                                 this,
                                 mOperationStorage,
-                                /* observer */ null,
                                 pkgNames,
                                 /* updateSchedule */ false,
                                 /* runningJob */ null,
@@ -2836,6 +2882,190 @@ public class UserBackupManagerService {
                         transportConnection, /* caller */ "BMS.reportDelayedRestoreResult");
             }
         }
+    }
+
+    /**
+     * Schedules a restore request that is not yet possible due to some external dependency (for
+     * example, an app install).
+     *
+     * @param request The DelayedRestoreRequest to schedule
+     * @return boolean indicating the success of the scheduling request.
+     */
+    @RequiresPermission(android.Manifest.permission.INTERACT_ACROSS_USERS)
+    public boolean scheduleDelayedRestore(DelayedRestoreRequest request) {
+        if (!Flags.enableDelayedRestoreApi()) {
+            Slog.w(TAG, "Delayed restore API is not enabled.");
+            return false;
+        }
+        final int callingUid = Binder.getCallingUid();
+        String requesterPackageName = null;
+        synchronized (mPendingRestores) {
+            if (!mIsRestoreInProgress || mRestoreInProgressPackageName == null) {
+                Slog.e(
+                        TAG,
+                        "No restore in progress, scheduling delayed restore for "
+                                + request.getPackageName());
+                return false;
+            }
+            try {
+                int restoreUid =
+                        mPackageManager.getPackageUidAsUser(
+                                mRestoreInProgressPackageName, 0, mUserId);
+                if (callingUid != restoreUid) {
+                    Slog.w(
+                            TAG,
+                            "Cannot schedule delayed restore for "
+                                    + requesterPackageName
+                                    + " as it is not the package being restored.");
+                    Slog.i(
+                            TAG,
+                            "restoreInProgressPackageName: " + mRestoreInProgressPackageName);
+                    return false;
+                }
+                requesterPackageName = mRestoreInProgressPackageName;
+            } catch (NameNotFoundException e) {
+                Slog.e(
+                        TAG,
+                        "Unable to validate restore package " + mRestoreInProgressPackageName,
+                        e);
+            }
+        }
+        final long oldId = Binder.clearCallingIdentity();
+        try {
+            return scheduleDelayedRestore(request, requesterPackageName);
+        } finally {
+            Binder.restoreCallingIdentity(oldId);
+        }
+    }
+
+    @RequiresPermission(android.Manifest.permission.INTERACT_ACROSS_USERS)
+    private boolean scheduleDelayedRestore(
+            DelayedRestoreRequest request, String requesterPackageName) {
+        // We currently don't support managed profile provisioning dependencies for delayed restore.
+        if (request.getType() == DelayedRestoreRequest.TYPE_MANAGED_PROFILE_PROVISIONED) {
+            Slog.w(
+                    TAG,
+                    "Managed profile provisioning dependencies are not supported for delayed"
+                            + " restore yet.");
+            return false;
+        }
+
+        if (!mDelayedRestoreJournal.addRequest(request, requesterPackageName)) {
+            Slog.w(TAG, "Failed to schedule delayed restore");
+            return false;
+        }
+
+        Slog.i(TAG, "Scheduled delayed restore for " + request.getPackageName());
+
+        BackupManagerMonitorEventSender mBMMEventSender = getBMMEventSender(/* monitor= */ null);
+        PackageInfo packageInfo = getPackageInfoForBMMLogging(requesterPackageName);
+        TransportConnection transportConnection =
+                mTransportManager.getCurrentTransportClient("BMS.scheduleDelayedRestore()");
+        if (transportConnection != null) {
+            try {
+                BackupTransportClient transportClient =
+                        transportConnection.connectOrThrow("BMS.scheduleDelayedRestore()");
+                mBMMEventSender.setMonitor(transportClient.getBackupManagerMonitor());
+            } catch (TransportNotAvailableException | RemoteException e) {
+                Slog.w(TAG, "Failed to get BackupManagerMonitor from transport: " + e);
+                mBMMEventSender.monitorEvent(
+                        BackupManagerMonitor.LOG_EVENT_ID_TRANSPORT_IS_NULL,
+                        packageInfo,
+                        BackupManagerMonitor.LOG_EVENT_CATEGORY_TRANSPORT,
+                        null);
+                return false;
+            }
+        }
+
+        Bundle monitoringExtras = mBMMEventSender.putMonitoringExtra(
+                /* extras= */ null,
+                BackupManagerMonitor.EXTRA_LOG_IS_DELAYED_RESTORE,
+                true);
+        mBMMEventSender.monitorEvent(
+                BackupManagerMonitor.LOG_EVENT_ID_DELAYED_RESTORE_SCHEDULED,
+                packageInfo,
+                BackupManagerMonitor.LOG_EVENT_CATEGORY_BACKUP_MANAGER_POLICY,
+                monitoringExtras);
+
+        if (transportConnection != null) {
+            mTransportManager.disposeOfTransportClient(
+                    transportConnection, "BMS.scheduleDelayedRestore()");
+        }
+
+        // If the request is already met, we can just trigger it immediately.
+        if (isDelayedRestoreRequestAlreadyMet(request)) {
+            Slog.i(
+                    TAG,
+                    "Delayed restore request is already met for "
+                            + request.getPackageName()
+                            + ", triggering it immediately.");
+            onDelayedRestoreConditionMet(request);
+        }
+
+        return true;
+    }
+
+    @RequiresPermission(android.Manifest.permission.INTERACT_ACROSS_USERS)
+    private boolean isDelayedRestoreRequestAlreadyMet(DelayedRestoreRequest request) {
+        return switch (request.getType()) {
+            case DelayedRestoreRequest.TYPE_APP_INSTALL -> {
+                try {
+                    mPackageManager.getPackageInfoAsUser(request.getPackageName(), 0, mUserId);
+                    yield true;
+                } catch (NameNotFoundException e) {
+                    yield false;
+                }
+            }
+            case DelayedRestoreRequest.TYPE_APP_UPDATE -> false;
+            case DelayedRestoreRequest.TYPE_SETUP_COMPLETE -> mSetupComplete;
+            default -> false;
+        };
+    }
+
+    /**
+     * Triggers any previously scheduled delayed restore requests whose conditions are met.
+     *
+     * @param request The DelayedRestoreRequest to trigger.
+     */
+    public void onDelayedRestoreConditionMet(DelayedRestoreRequest request) {
+        if (!Flags.enableDelayedRestoreApi()) {
+            return;
+        }
+
+        Set<String> requesters = mDelayedRestoreJournal.getPackagesForRequest(request);
+        if (requesters == null || requesters.isEmpty()) {
+            Slog.i(
+                    TAG,
+                    "No delayed restore requests for the given dependency: "
+                            + request.getPackageName());
+            return;
+        }
+
+        Slog.i(
+                TAG,
+                "Triggering delayed restore for packages with dependency: "
+                        + request.getPackageName());
+
+        DelayedRestoreParams params = new DelayedRestoreParams(
+                request, new ArrayDeque<>(requesters));
+        Message msg = mBackupHandler.obtainMessage(MSG_RUN_DELAYED_RESTORE, params);
+        mBackupHandler.sendMessage(msg);
+    }
+
+    /**
+     * Clears any cached data for a delayed restore for the given package. This method is called by
+     * the system when the cached data (used for delayed restore) of a package has expired.
+     *
+     * @param packageName The package name for which the cached data should be cleared.
+     */
+    public void onDelayedRestoreCachedDataExpired(String packageName) {
+        if (!Flags.enableDelayedRestoreApi()) {
+            return;
+        }
+        Slog.i(TAG, "Clearing cached data for delayed restore for package: " + packageName);
+        mBackupHandler.sendMessage(
+                mBackupHandler.obtainMessage(
+                        BackupHandler.MSG_RUN_DELAYED_RESTORE_CLEANUP, packageName));
     }
 
     @SuppressWarnings("AndroidFrameworkRequiresPermission")
@@ -3987,6 +4217,8 @@ public class UserBackupManagerService {
             pw.println(
                     "    QuotaExceededTimeoutMillis: "
                             + mAgentTimeoutParameters.getQuotaExceededTimeoutMillis());
+
+            mDelayedRestoreJournal.dump(pw);
         }
     }
 

@@ -18,7 +18,6 @@ package com.android.systemui.volume.panel.component.devicesetting.ui.composable
 
 import android.view.Gravity
 import androidx.annotation.VisibleForTesting
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -109,12 +108,12 @@ constructor(
                     },
                     label = {
                         Text(
-                            modifier = Modifier.basicMarquee(),
+                            modifier = Modifier,
                             text = toggleModel.label,
                             style = MaterialTheme.typography.labelMedium,
                             color = LocalContentColor.current,
                             textAlign = TextAlign.Center,
-                            maxLines = 1,
+                            maxLines = 2,
                         )
                     },
                 )

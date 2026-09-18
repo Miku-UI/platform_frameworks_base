@@ -1470,7 +1470,6 @@ public class VibrationEffectXmlSerializationTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_VENDOR_VIBRATION_EFFECTS)
     public void testVendorEffect_allSucceed() throws Exception {
         PersistableBundle vendorData = new PersistableBundle();
         vendorData.putInt("id", 1);
@@ -1509,7 +1508,6 @@ public class VibrationEffectXmlSerializationTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_VENDOR_VIBRATION_EFFECTS)
     public void testInvalidVendorEffect_allFail() throws IOException {
         String emptyTag = "<vibration-effect><vendor-effect/></vibration-effect>";
         assertPublicApisParserFails(emptyTag);
@@ -1541,27 +1539,50 @@ public class VibrationEffectXmlSerializationTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_VENDOR_VIBRATION_EFFECTS)
-    public void testVendorEffect_featureFlagDisabled_allFail() throws Exception {
-        PersistableBundle vendorData = new PersistableBundle();
-        vendorData.putInt("id", 1);
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        vendorData.writeToStream(outputStream);
-        String vendorDataStr = Base64.getEncoder().encodeToString(outputStream.toByteArray());
-        String xml = "<vibration-effect><vendor-effect>"
-                + vendorDataStr
-                + "</vendor-effect></vibration-effect>";
-        VibrationEffect vendorEffect = VibrationEffect.createVendorEffect(vendorData);
+    public void testStartTimeMillis_allSucceed() throws Exception {
+        long startTime = 1234L;
+        String xml = """
+                <vibration-effect>
+                    <predefined-effect name="click" startTimeMs="1234"/>
+                </vibration-effect>
+                """;
+        VibrationEffect effect =
+                parseVibrationEffect(xml, VibrationXmlParser.FLAG_ALLOW_HIDDEN_APIS);
+        assertThat(effect).isInstanceOf(VibrationEffect.Composed.class);
+        VibrationEffect.Composed composed = (VibrationEffect.Composed) effect;
+        assertThat(composed.getSegments().get(0).getStartTimeMillis()).isEqualTo(startTime);
 
-        assertPublicApisParserFails(xml);
-        assertPublicApisSerializerFails(vendorEffect);
+        assertHiddenApisRoundTrip(effect);
 
-        assertHiddenApisParserFails(xml);
-        assertHiddenApisSerializerFails(vendorEffect);
+        xml = """
+                <vibration-effect>
+                    <waveform-effect>
+                        <waveform-entry durationMs="10" amplitude="255" startTimeMs="5678"/>
+                    </waveform-effect>
+                </vibration-effect>
+                """;
+        effect = parseVibrationEffect(xml, VibrationXmlParser.FLAG_ALLOW_HIDDEN_APIS);
+        composed = (VibrationEffect.Composed) effect;
+        assertThat(composed.getSegments().get(0).getStartTimeMillis()).isEqualTo(5678L);
+
+        assertHiddenApisRoundTrip(effect);
+
+        xml = """
+                <vibration-effect>
+                    <waveform-envelope-effect startTimeMs="9999">
+                        <control-point amplitude="0.2" frequencyHz="80.0" durationMs="10" />
+                        <control-point amplitude="0.5" frequencyHz="150.0" durationMs="10" />
+                    </waveform-envelope-effect>
+                </vibration-effect>
+                """;
+        effect = parseVibrationEffect(xml, VibrationXmlParser.FLAG_ALLOW_HIDDEN_APIS);
+        composed = (VibrationEffect.Composed) effect;
+        assertThat(composed.getSegments().get(0).getStartTimeMillis()).isEqualTo(9999L);
+
+        assertHiddenApisRoundTrip(effect);
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
     public void testPrimitiveDelayType_allSucceed() throws Exception {
         VibrationEffect effect = VibrationEffect.startComposition()
                 .addPrimitive(PRIMITIVE_TICK, 1.0f, 0, DELAY_TYPE_RELATIVE_START_OFFSET)
@@ -1595,7 +1616,6 @@ public class VibrationEffectXmlSerializationTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
     public void testPrimitiveInvalidDelayType_allFail() {
         String emptyAttribute = """
                 <vibration-effect>
@@ -1612,27 +1632,6 @@ public class VibrationEffectXmlSerializationTest {
                 """;
         assertPublicApisParserFails(invalidString);
         assertHiddenApisParserFails(invalidString);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
-    public void testPrimitiveDelayType_featureFlagDisabled_allFail() {
-        VibrationEffect effect = VibrationEffect.startComposition()
-                .addPrimitive(PRIMITIVE_TICK, 1.0f, 0, DELAY_TYPE_RELATIVE_START_OFFSET)
-                .addPrimitive(PRIMITIVE_CLICK, 0.123f, 10, DELAY_TYPE_PAUSE)
-                .compose();
-        String xml = """
-                <vibration-effect>
-                    <primitive-effect name="tick" delayType="relative_start_offset"/>
-                    <primitive-effect name="click" scale="0.123" delayMs="10" delayType="pause"/>
-                </vibration-effect>
-                """;
-
-        assertPublicApisParserFails(xml);
-        assertPublicApisSerializerFails(effect);
-
-        assertHiddenApisParserFails(xml);
-        assertHiddenApisSerializerFails(effect);
     }
 
     private void assertPublicApisParserFails(String xml) {

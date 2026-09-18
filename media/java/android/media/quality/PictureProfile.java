@@ -32,6 +32,9 @@ import androidx.annotation.RequiresPermission;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Profile for picture quality.
@@ -50,6 +53,8 @@ public final class PictureProfile implements Parcelable {
     @NonNull
     private final PersistableBundle mParams;
     private final PictureProfileHandle mHandle;
+    @NonNull
+    private final Map<String, PersistableBundle> mStreamStatusVariants;
 
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
@@ -73,18 +78,101 @@ public final class PictureProfile implements Parcelable {
      */
     public static final int TYPE_APPLICATION = 2;
 
-    /**
-     * Default profile name
-     * @hide
-     */
-    public static final String NAME_DEFAULT = "default";
-
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
     @StringDef(prefix = "NAME_", value = {
-            NAME_DEFAULT
+            NAME_DEFAULT,
+            NAME_STANDARD,
+            NAME_VIVID,
+            NAME_SPORTS,
+            NAME_GAME,
+            NAME_MOVIE,
+            NAME_ENERGY_SAVING,
+            NAME_USER,
+            NAME_UNKNOWN
     })
     public @interface ProfileName {}
+
+    /**
+     * Name for the default picture profile.
+     *
+     * <p>This profile represents the system's baseline configuration and is used when no
+     * specific profile is selected.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_DEFAULT = "default";
+
+    /**
+     * Name for the standard picture profile.
+     *
+     * <p>This profile is typically optimized for general viewing conditions and standard
+     * content types.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_STANDARD = "standard";
+
+    /**
+     * Name for the vivid picture profile.
+     *
+     * <p>This profile typically emphasizes color saturation and contrast to create a more
+     * vibrant image.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_VIVID = "vivid";
+
+    /**
+     * Name for the sports picture profile.
+     *
+     * <p>This profile is typically optimized for fast-motion content, such as sporting events,
+     * to reduce motion blur.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_SPORTS = "sports";
+
+    /**
+     * Name for the game picture profile.
+     *
+     * <p>This profile is typically optimized for gaming, often prioritizing low latency
+     * and minimizing post-processing effects.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_GAME = "game";
+
+    /**
+     * Name for the movie picture profile.
+     *
+     * <p>This profile is typically optimized for cinematic content, often aligning with
+     * standard cinema color temperatures and gamma curves.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_MOVIE = "movie";
+
+    /**
+     * Name for the energy saving picture profile.
+     *
+     * <p>This profile is optimized to reduce power consumption, often by lowering backlight
+     * intensity or brightness.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_ENERGY_SAVING = "energy_saving";
+
+    /**
+     * Name for the user-defined picture profile.
+     *
+     * <p>This profile represents custom settings configured by the user.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_USER = "user";
+
+    /**
+     * Name for an unknown picture profile.
+     *
+     * <p>This value is used to represent a profile name that is not recognized by the current
+     * version of the SDK. It serves as a fallback to ensure backwards compatibility when new
+     * profile names are introduced in future platform versions.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_UNKNOWN = "unknown";
 
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
@@ -230,20 +318,11 @@ public final class PictureProfile implements Parcelable {
      */
     public static final String STATUS_FMM_HDR_VIVID = "FMM_HDR_VIVID";
 
-    /** @hide */
-    public static final String NAME_STANDARD = "standard";
-    /** @hide */
-    public static final String NAME_VIVID = "vivid";
-    /** @hide */
-    public static final String NAME_SPORTS = "sports";
-    /** @hide */
-    public static final String NAME_GAME = "game";
-    /** @hide */
-    public static final String NAME_MOVIE = "movie";
-    /** @hide */
-    public static final String NAME_ENERGY_SAVING = "energy_saving";
-    /** @hide */
-    public static final String NAME_USER = "user";
+    /**
+     * Unknown status.
+     * @hide
+     */
+    public static final String STATUS_UNKNOWN = "UNKNOWN";
 
     private PictureProfile(@NonNull Parcel in) {
         mId = in.readString();
@@ -254,6 +333,19 @@ public final class PictureProfile implements Parcelable {
         mParams = in.readPersistableBundle();
         mHandle = in.readParcelable(PictureProfileHandle.class.getClassLoader(),
                 PictureProfileHandle.class);
+        if (in.dataAvail() > 0) {
+            int variantSize = in.readInt();
+            Map<String, PersistableBundle> variants = new HashMap<>(variantSize);
+            for (int i = 0; i < variantSize; i++) {
+                String key = in.readString();
+                PersistableBundle val = in.readPersistableBundle();
+                variants.put(key, val);
+            }
+            mStreamStatusVariants = Collections.unmodifiableMap(variants);
+        } else {
+            // Legacy case: Initialize to empty to satisfy @NonNull final contract
+            mStreamStatusVariants = Collections.emptyMap();
+        }
     }
 
     @Override
@@ -265,6 +357,11 @@ public final class PictureProfile implements Parcelable {
         dest.writeString(mPackageName);
         dest.writePersistableBundle(mParams);
         dest.writeParcelable(mHandle, flags);
+        dest.writeInt(mStreamStatusVariants.size());
+        for (Map.Entry<String, PersistableBundle> entry : mStreamStatusVariants.entrySet()) {
+            dest.writeString(entry.getKey());
+            dest.writePersistableBundle(entry.getValue());
+        }
     }
 
     @Override
@@ -306,6 +403,32 @@ public final class PictureProfile implements Parcelable {
         this.mPackageName = packageName;
         this.mParams = params;
         this.mHandle = handle;
+        // Initialize the final field to empty default
+        this.mStreamStatusVariants = Collections.emptyMap();
+    }
+
+    /**
+     * Internal constructor used by Builder with variants support.
+     * @hide
+     */
+    public PictureProfile(
+            @Nullable String id,
+            int type,
+            @NonNull String name,
+            @Nullable String inputId,
+            @NonNull String packageName,
+            @NonNull PersistableBundle params,
+            @NonNull PictureProfileHandle handle,
+            @NonNull Map<String, PersistableBundle> streamStatusVariants) {
+        this.mId = id;
+        this.mType = type;
+        this.mName = name;
+        this.mInputId = inputId;
+        this.mPackageName = packageName;
+        this.mParams = params;
+        this.mHandle = handle;
+        // Defensive copy and unmodifiable
+        this.mStreamStatusVariants = Map.copyOf(streamStatusVariants);
     }
 
     /**
@@ -389,6 +512,19 @@ public final class PictureProfile implements Parcelable {
     }
 
     /**
+     * Gets the stream status variant parameters.
+     * <p>Returns a map where the key is the stream status.
+     * {@link MediaQualityContract#STREAM_STATUS_HDR10}
+     * and the value is the parameter bundle associated with that status.
+     * @return A map of status variants. Returns empty map if no variants are defined.
+     */
+    @NonNull
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public Map<String, PersistableBundle> getStreamStatusVariants() {
+        return mStreamStatusVariants;
+    }
+
+    /**
      * Add a string parameter
      * Used by system only.
      * @hide
@@ -409,7 +545,8 @@ public final class PictureProfile implements Parcelable {
                 orig.mInputId,
                 orig.mPackageName,
                 new PersistableBundle(orig.mParams),
-                orig.mHandle);
+                orig.mHandle,
+                orig.mStreamStatusVariants);
     }
 
     /**
@@ -437,6 +574,8 @@ public final class PictureProfile implements Parcelable {
         @NonNull
         private PersistableBundle mParams;
         private PictureProfileHandle mHandle;
+        @NonNull
+        private Map<String, PersistableBundle> mStreamStatusVariants = new HashMap<>();
 
         /**
          * Creates a new Builder.
@@ -456,6 +595,7 @@ public final class PictureProfile implements Parcelable {
             mInputId = p.getInputId();
             mParams = p.getParameters();
             mHandle = p.getHandle();
+            mStreamStatusVariants = new HashMap<>(p.getStreamStatusVariants());
         }
 
         /**
@@ -533,6 +673,25 @@ public final class PictureProfile implements Parcelable {
         }
 
         /**
+         * Adds a stream status variant parameter set.
+         * * <p>Use this to define overrides for specific stream statuses (e.g., HDR10).
+         * These parameters will be applied by the HAL when the specific stream status is detected.
+         *
+         * @param status The stream status string
+         *               (e.g., {@link MediaQualityContract#STREAM_STATUS_HDR10}).
+         * @param params The parameters to apply for this status. The keys of commonly used
+         *               parameters can be found in {@link MediaQualityContract.PictureQuality}.
+         */
+        @NonNull
+        @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+        public Builder addStreamStatusVariant(
+                @NonNull @MediaQualityContract.StreamStatusValue String status,
+                @NonNull PersistableBundle params) {
+            mStreamStatusVariants.put(status, new PersistableBundle(params));
+            return this;
+        }
+
+        /**
          * Builds the instance.
          */
         @NonNull
@@ -545,7 +704,8 @@ public final class PictureProfile implements Parcelable {
                     mInputId,
                     mPackageName,
                     mParams,
-                    mHandle);
+                    mHandle,
+                    mStreamStatusVariants);
             return o;
         }
     }

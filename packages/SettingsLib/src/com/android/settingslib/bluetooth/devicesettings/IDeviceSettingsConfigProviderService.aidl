@@ -17,8 +17,10 @@
 package com.android.settingslib.bluetooth.devicesettings;
 
 import com.android.settingslib.bluetooth.devicesettings.DeviceInfo;
+import com.android.settingslib.bluetooth.devicesettings.DeviceSettingConfigOptions;
 import com.android.settingslib.bluetooth.devicesettings.IGetDeviceSettingsConfigCallback;
 
 interface IDeviceSettingsConfigProviderService {
    void getDeviceSettingsConfig(in DeviceInfo device, in IGetDeviceSettingsConfigCallback callback);
+   void getDeviceSettingsConfigWithOptions(in DeviceInfo device, in IGetDeviceSettingsConfigCallback callback, in DeviceSettingConfigOptions options);
 }

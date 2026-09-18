@@ -22,6 +22,7 @@ import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_OPT_OUT_EDGE_
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION;
 
 import static com.android.window.flags.Flags.currentAnimatorScaleUsesSharedMemory;
+import static com.android.window.flags.Flags.returnWindowlessRootViewsInWmglobalGetwindowview;
 
 import android.animation.ValueAnimator;
 import android.annotation.NonNull;
@@ -108,6 +109,11 @@ public final class WindowManagerGlobal {
     public static final int RELAYOUT_RES_CANCEL_AND_REDRAW = 1 << 3;
 
     /**
+     * The window manager has an ongoing buffer-sync that this relayout is part of.
+     */
+    public static final int RELAYOUT_RES_BUFFER_SYNC = 1 << 4;
+
+    /**
      * Flag for relayout: the client will be later giving
      * internal insets; as a result, the window will not impact other window
      * layouts until the insets are given.
@@ -176,6 +182,14 @@ public final class WindowManagerGlobal {
     @GuardedBy("mSurfaceControlInputReceivers")
     private final SparseArray<SurfaceControlInputReceiverInfo>
             mSurfaceControlInputReceivers = new SparseArray<>();
+
+    @GuardedBy("mLock")
+    @Nullable
+    private Consumer<List<View>> mViewAnimationDisableRequestsListener;
+
+    @GuardedBy("mLock")
+    private boolean mIsViewAnimationsDisabled;
+    private float mValueAnimatorDurationScaleWithoutOverride = 1.0f;
 
     private WindowManagerGlobal() {
     }
@@ -255,7 +269,7 @@ public final class WindowManagerGlobal {
                             new IWindowSessionCallback.Stub() {
                                 @Override
                                 public void onAnimatorScaleChanged(float scale) {
-                                    ValueAnimator.setDurationScale(scale);
+                                    WindowManagerGlobal.getInstance().onAnimatorScaleChanged(scale);
                                 }
                             });
                 } catch (RemoteException e) {
@@ -365,6 +379,14 @@ public final class WindowManagerGlobal {
                     return view;
                 }
             }
+            if (returnWindowlessRootViewsInWmglobalGetwindowview()) {
+                for (int i = 0; i < mWindowlessRoots.size(); ++i) {
+                    final ViewRootImpl root = mWindowlessRoots.get(i);
+                    if (root.getWindowToken() == windowToken) {
+                        return root.getView();
+                    }
+                }
+            }
         }
         return null;
     }
@@ -430,6 +452,9 @@ public final class WindowManagerGlobal {
                         synchronized (mLock) {
                             for (int i = mRoots.size() - 1; i >= 0; --i) {
                                 mRoots.get(i).loadSystemProperties();
+                            }
+                            for (int i = mWindowlessRoots.size() - 1; i >= 0; --i) {
+                                mWindowlessRoots.get(i).loadSystemProperties();
                             }
                         }
                     }
@@ -507,11 +532,16 @@ public final class WindowManagerGlobal {
                 root.setView(view, wparams, panelParentView, userId);
                 mWindowViewsListenerGroup.accept(getWindowViews());
             } catch (RuntimeException e) {
-                Log.e(TAG, "Couldn't add view: " + view, e);
                 final int viewIndex = (index >= 0) ? index : (mViews.size() - 1);
                 // BadTokenException or InvalidDisplayException, clean up.
                 if (viewIndex >= 0) {
-                    removeViewLocked(viewIndex, true);
+                    try {
+                        removeViewLocked(viewIndex, true);
+                    } catch (Exception innerEx) {
+                        Log.e(TAG, "Failed to clean up view after addView failed: " + view
+                                + ". initial error: ", e);
+                        throw innerEx;
+                    }
                 }
                 throw e;
             }
@@ -622,19 +652,7 @@ public final class WindowManagerGlobal {
                 final View view = mViews.remove(index);
                 mDyingViews.remove(view);
             }
-
-            int visibleRootCount = 0;
-            for (int i = mRoots.size() - 1; i >= 0; --i) {
-                View root_view = mRoots.get(i).getView();
-                if (root_view != null && root_view.getVisibility() == View.VISIBLE) {
-                    visibleRootCount++;
-                }
-            }
-            if (visibleRootCount == 1) {
-                ScrollOptimizer.disableOptimizer(false);
-            }
-
-            allViewsRemoved = mRoots.isEmpty();
+            allViewsRemoved = mRoots.isEmpty() && mWindowlessRoots.isEmpty();
             mWindowViewsListenerGroup.accept(getWindowViews());
 
             // If we don't have any views anymore in our process, stop watching
@@ -930,9 +948,15 @@ public final class WindowManagerGlobal {
             // TODO (b/329860681): Use INVALID_DISPLAY for now because the displayId will be
             // selected in  SurfaceFlinger. This should be cleaned up so grantInputChannel doesn't
             // take in a displayId at all
-            return WindowManagerGlobal.getWindowSession().grantInputChannel(INVALID_DISPLAY,
-                    surfaceControl, clientToken, hostToken, 0, 0, TYPE_APPLICATION, 0, null,
-                    inputTransferToken, surfaceControl.getName());
+            final WindowInputChannelParams params = new WindowInputChannelParams();
+            params.displayId = INVALID_DISPLAY;
+            params.clientToken = clientToken;
+            params.hostInputTransferToken = hostToken;
+            params.inputTransferToken = inputTransferToken;
+            params.surface = surfaceControl;
+            params.type = TYPE_APPLICATION;
+            params.inputHandleName = surfaceControl.getName();
+            return WindowManagerGlobal.getWindowSession().grantInputChannel(params);
         } catch (RemoteException e) {
             Log.e(TAG, "Failed to create input channel", e);
             e.rethrowAsRuntimeException();
@@ -1159,6 +1183,60 @@ public final class WindowManagerGlobal {
             // If the view has been attached, we should make sure the override type matches the
             // existing one. The window type can't be changed after the view was added.
             return fallbackWindowType == params.type;
+        }
+    }
+
+    /**
+     * Notifies the global window manager that a view root's preference for whether animations
+     * should be disabled has changed.
+     *
+     * Animations will be disabled for the process if, and only if, all view roots for this process
+     * want animations to be disabled. Otherwise, animations will be enabled to the system-global
+     * value.
+     */
+    public void onAnimationDisableRequestChangedForViewRoot() {
+        synchronized (mLock) {
+            if (mViewAnimationDisableRequestsListener != null) {
+                mViewAnimationDisableRequestsListener.accept(getWindowViews());
+                return;
+            }
+
+            mViewAnimationDisableRequestsListener = (views) -> {
+                int numViewsRequestingAnimationsDisabled = 0;
+                for (int i = 0; i < views.size(); i++) {
+                    final var root = views.get(i).getViewRootImpl();
+                    if (root != null && root.isDisablingViewAnimationsRequested()) {
+                        numViewsRequestingAnimationsDisabled++;
+                    }
+                }
+                final boolean shouldDisableAnimations =
+                        numViewsRequestingAnimationsDisabled == views.size();
+                synchronized (mLock) {
+                    if (numViewsRequestingAnimationsDisabled == 0) {
+                        // No views are now requesting animations disabled. Remove the listener.
+                        removeWindowViewsListener(mViewAnimationDisableRequestsListener);
+                        mViewAnimationDisableRequestsListener = null;
+                    }
+                    if (shouldDisableAnimations == mIsViewAnimationsDisabled) {
+                        return;
+                    }
+                    mIsViewAnimationsDisabled = shouldDisableAnimations;
+                    ValueAnimator.setDurationScale(
+                            shouldDisableAnimations ? 0.0f
+                                    : mValueAnimatorDurationScaleWithoutOverride);
+                }
+            };
+
+            addWindowViewsListener(Runnable::run, mViewAnimationDisableRequestsListener);
+        }
+    }
+
+    private void onAnimatorScaleChanged(float scale) {
+        synchronized (mLock) {
+            mValueAnimatorDurationScaleWithoutOverride = scale;
+            if (!mIsViewAnimationsDisabled) {
+                ValueAnimator.setDurationScale(scale);
+            }
         }
     }
 }

@@ -55,4 +55,7 @@
         packages/apps/Launcher3/quickstep/res/values/dimens.xml
      -->
     <dimen name="desktop_windowing_freeform_rounded_corner_radius">16dp</dimen>
+
+    <!-- Desktop Home Screen Peeking -->
+    <dimen name="desktop_home_screen_peeking_visible_peek_amount">100dp</dimen>
 </resources>

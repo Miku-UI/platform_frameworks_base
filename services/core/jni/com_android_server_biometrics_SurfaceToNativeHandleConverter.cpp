@@ -19,16 +19,24 @@
 #include <android_os_NativeHandle.h>
 #include <android_runtime/AndroidRuntime.h>
 #include <android_runtime/android_view_Surface.h>
+#include <com_android_graphics_libgui_flags.h>
 #include <gui/IGraphicBufferProducer.h>
 #include <gui/Surface.h>
-#include <gui/bufferqueue/1.0/WGraphicBufferProducer.h>
 #include <utils/Log.h>
+
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_BIOMETRICS)
+#include <gui/bufferqueue/1.0/Surface2HGraphicBufferProducer.h>
+#else
+#include <gui/bufferqueue/1.0/WGraphicBufferProducer.h>
+#endif
 
 #include "jni.h"
 
 namespace android {
 namespace {
 
+using HGraphicBufferProducer =
+        ::android::hardware::graphics::bufferqueue::V1_0::IGraphicBufferProducer;
 constexpr int WINDOW_HAL_TOKEN_SIZE_MAX = 256;
 
 native_handle_t* convertHalTokenToNativeHandle(const HalToken& halToken) {
@@ -77,8 +85,15 @@ jobject acquireSurfaceHandle(JNIEnv* env, jobject /* clazz */, jobject jSurface)
         return nullptr;
     }
 
+    sp<HGraphicBufferProducer> hgbp;
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_BIOMETRICS)
+    hgbp = sp<hardware::graphics::bufferqueue::V1_0::utils::Surface2HGraphicBufferProducer>::make(
+            surface);
+#else
     sp<IGraphicBufferProducer> igbp = surface->getIGraphicBufferProducer();
-    sp<HGraphicBufferProducer> hgbp = new TWGraphicBufferProducer<HGraphicBufferProducer>(igbp);
+    hgbp = sp<TWGraphicBufferProducer<HGraphicBufferProducer>>::make(igbp);
+#endif
+
     // The HAL token will be closed in releaseSurfaceHandle.
     HalToken halToken;
     createHalToken(hgbp, &halToken);

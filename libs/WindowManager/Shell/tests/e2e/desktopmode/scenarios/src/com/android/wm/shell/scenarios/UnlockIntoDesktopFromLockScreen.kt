@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,17 +40,28 @@ abstract class UnlockIntoDesktopFromLockScreen(
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
 
-    val testApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
+    private val simpleApp = SimpleAppHelper(instrumentation)
+    val testApp = DesktopModeAppHelper(simpleApp)
 
     @Before
     fun setup() {
         testApp.enterDesktopMode(wmHelper, device)
-        device.executeShellCommand("input keyevent ${KeyEvent.KEYCODE_LOCK}")
+        device.sleep()
     }
 
     @Test
     open fun unlockIntoDesktopFromLockScreen() {
+        device.wakeUp()
+        // wait for some time to find the button for unlocking from lock screen
+        device.waitForIdle()
         device.executeShellCommand("input keyevent ${KeyEvent.KEYCODE_MENU}")
+        wmHelper
+            .StateSyncBuilder()
+            .withFreeformApp(simpleApp.componentMatcher)
+            .withAppTransitionIdle()
+            .withLayerVisible(testApp)
+            .withTopVisibleApp(testApp)
+            .waitForAndVerify()
     }
 
     @After

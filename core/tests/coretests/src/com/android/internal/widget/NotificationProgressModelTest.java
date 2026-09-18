@@ -33,7 +33,6 @@ import org.junit.Test;
 import java.util.List;
 
 @SmallTest
-@EnableFlags(Flags.FLAG_API_RICH_ONGOING)
 public class NotificationProgressModelTest {
 
     @Rule

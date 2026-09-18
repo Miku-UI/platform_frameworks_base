@@ -62,7 +62,12 @@ public class ActivityConfigurationChangeItem extends ActivityTransactionItem {
         CompatibilityInfo.applyOverrideIfNeeded(mConfiguration, mDisplayId);
         // Notify the client of an upcoming change in the token configuration. This ensures that
         // batches of config change items only process the newest configuration.
-        client.updatePendingActivityConfiguration(getActivityToken(), mConfiguration);
+        if (!com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            client.updatePendingActivityConfiguration(getActivityToken(), mConfiguration);
+        } else {
+            client.updatePendingActivityConfiguration(
+                    getActivityToken(), mConfiguration, mActivityWindowInfo, INVALID_DISPLAY);
+        }
     }
 
     @Override
@@ -70,8 +75,12 @@ public class ActivityConfigurationChangeItem extends ActivityTransactionItem {
             @NonNull PendingTransactionActions pendingActions) {
         // TODO(lifecycler): detect if PIP or multi-window mode changed and report it here.
         Trace.traceBegin(TRACE_TAG_ACTIVITY_MANAGER, "activityConfigChanged");
-        client.handleActivityConfigurationChanged(r, mConfiguration, INVALID_DISPLAY,
-                mActivityWindowInfo);
+        if (!com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            client.handleActivityConfigurationChanged(r, mConfiguration, INVALID_DISPLAY,
+                    mActivityWindowInfo);
+        } else {
+            client.handleActivityConfigurationChanged(r);
+        }
         Trace.traceEnd(TRACE_TAG_ACTIVITY_MANAGER);
     }
 

@@ -39,6 +39,10 @@ class FakeCustomTileAddedRepository : CustomTileAddedRepository {
         tileAddedRegistry.removeIf { it.first == userId && it.second !in currentTiles }
     }
 
+    override fun removeTilesForPackage(packageName: String, userId: Int) {
+        tileAddedRegistry.removeIf { it.first == userId && it.second.packageName == packageName }
+    }
+
     override fun getVersion(userId: Int): Int {
         return version.getOrDefault(userId, 1)
     }

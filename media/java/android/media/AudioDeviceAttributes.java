@@ -22,6 +22,7 @@ import android.annotation.Nullable;
 import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -43,6 +44,7 @@ import java.util.Objects;
  * permission, APIs using one rely on MODIFY_AUDIO_ROUTING.
  */
 @SystemApi
+@RavenwoodKeepWholeClass
 public final class AudioDeviceAttributes implements Parcelable {
 
     /**

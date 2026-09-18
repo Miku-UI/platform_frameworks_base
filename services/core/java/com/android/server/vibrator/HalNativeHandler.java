@@ -20,11 +20,12 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.hardware.vibrator.CompositeEffect;
 import android.hardware.vibrator.CompositePwleV2;
+import android.hardware.vibrator.HapticGeneratorConfig;
 import android.hardware.vibrator.IVibrationSession;
 import android.hardware.vibrator.IVibrator;
 import android.hardware.vibrator.IVibratorManager;
-import android.hardware.vibrator.PrimitivePwle;
 import android.hardware.vibrator.VendorEffect;
+import android.hardware.vibrator.VibrationEffectContent;
 
 /** Handles interactions with vibrator HAL services through native. */
 interface HalNativeHandler {
@@ -98,18 +99,6 @@ interface HalNativeHandler {
             CompositeEffect[] effects);
 
     /**
-     * Call {@link IVibrator#composePwle} on single vibrator using vibration id for callbacks
-     * from HAL.
-     *
-     * <p>This should only be called if HAL has {@link IVibrator#CAP_COMPOSE_PWLE_EFFECTS}. The HAL
-     * might fail the request otherwise.
-     *
-     * @return max int value if successful, zero if unsupported or negative if failed.
-     */
-    int vibrateWithCallback(int vibratorId, long vibrationId, long stepId,
-            PrimitivePwle[] effects);
-
-    /**
      * Call {@link IVibrator#composePwleV2} on single vibrator using vibration id for callbacks
      * from HAL.
      *
@@ -120,4 +109,65 @@ interface HalNativeHandler {
      */
     int vibrateWithCallback(int vibratorId, long vibrationId, long stepId,
             CompositePwleV2 composite);
+
+    /**
+     * Call {@link IVibratorManager#startHapticGeneratorSession} on single vibrator using the given
+     * session id for callbacks from HAL.
+     *
+     * <p>This should only be called if HAL has {@link IVibratorManager#CAP_HAPTIC_GENERATOR}. The
+     *  HAL might fail the request otherwise.
+     *
+     * @return true if successfully, false otherwise.
+     */
+    boolean startHapticGeneratorSessionWithCallback(long sessionId, int vibratorId,
+            @NonNull HapticGeneratorConfig config);
+
+    /**
+     * Closes a haptic generator session using the session id.
+     *
+     * <p>This should only be called if HAL has {@link IVibratorManager#CAP_HAPTIC_GENERATOR}. The
+     *  HAL might fail the request otherwise.
+     *
+     * @return true if successfully, false otherwise.
+     */
+    boolean closeHapticGeneratorSession(long sessionId);
+
+    /**
+     * Clears the haptic generator session using the session id.
+     *
+     * <p>This should only be called if HAL has {@link IVibratorManager#CAP_HAPTIC_GENERATOR}. The
+     *  HAL might fail the request otherwise.
+     */
+    void clearHapticGeneratorSession(long sessionId);
+
+    /**
+     * Starts a native haptic generator stream for a given session.
+     *
+     * <p>This should only be called if HAL has {@link IVibratorManager#CAP_HAPTIC_GENERATOR}. The
+     *  HAL might fail the request otherwise.
+     *
+     * @return true if successfully, false otherwise.
+     */
+    boolean startHapticGeneratorStream(long sessionId, int vibratorId,
+            @NonNull VibrationEffectContent[] effect);
+
+    /**
+     * Reads PCM data from the haptic generator stream associated with the session and vibrator ids.
+     *
+     * <p>This should only be called if HAL has {@link IVibratorManager#CAP_HAPTIC_GENERATOR}. The
+     *  HAL might fail the request otherwise.
+     *
+     * @return The number of bytes read, or -1 for end of stream.
+     */
+    int readHapticGeneratorStream(long sessionId, int vibratorId, @NonNull byte[] buffer);
+
+    /**
+     * Stop the haptic generator stream associated with the session and vibrator ids.
+     *
+     * <p>This should only be called if HAL has {@link IVibratorManager#CAP_HAPTIC_GENERATOR}. The
+     *  HAL might fail the request otherwise.
+     *
+     * @return true if successfully, false otherwise.
+     */
+    boolean  stopHapticGeneratorStream(long sessionId, int vibratorId);
 }

@@ -19,7 +19,6 @@ import static com.android.wm.shell.bubbles.BubbleExpandedView.BACKGROUND_ALPHA;
 import static com.android.wm.shell.bubbles.BubbleExpandedView.BOTTOM_CLIP_PROPERTY;
 import static com.android.wm.shell.bubbles.BubbleExpandedView.CONTENT_ALPHA;
 import static com.android.wm.shell.bubbles.BubbleExpandedView.MANAGE_BUTTON_ALPHA;
-import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_BUBBLES;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
@@ -40,12 +39,12 @@ import androidx.dynamicanimation.animation.SpringAnimation;
 import androidx.dynamicanimation.animation.SpringForce;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.protolog.ProtoLog;
 import com.android.wm.shell.Flags;
 import com.android.wm.shell.animation.FlingAnimationUtils;
 import com.android.wm.shell.bubbles.BubbleExpandedView;
 import com.android.wm.shell.bubbles.BubblePositioner;
 import com.android.wm.shell.shared.animation.Interpolators;
+import com.android.wm.shell.shared.bubbles.logging.BubbleLog;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -137,14 +136,10 @@ public class ExpandedViewAnimationControllerImpl implements ExpandedViewAnimatio
         if (mExpandedView != null) {
             mDraggedAmount = OverScroll.dampedScroll(distance, mExpandedView.getContentHeight());
 
-            ProtoLog.d(WM_SHELL_BUBBLES,
-                    "updateDrag: distance=%f dragged=%d", distance, mDraggedAmount);
-
             setCollapsedAmount(mDraggedAmount);
 
             if (!mNotifiedAboutThreshold && isPastCollapseThreshold()) {
                 mNotifiedAboutThreshold = true;
-                ProtoLog.d(WM_SHELL_BUBBLES, "notifying over collapse threshold");
                 vibrateIfEnabled();
             }
         }
@@ -166,27 +161,26 @@ public class ExpandedViewAnimationControllerImpl implements ExpandedViewAnimatio
         if (mSwipeDownVelocity > mMinFlingVelocity) {
             // Swipe velocity is positive and over fling velocity.
             // This is a swipe down, always reset to expanded state, regardless of dragged amount.
-            ProtoLog.d(WM_SHELL_BUBBLES,
-                    "not collapsing expanded view, swipe down velocity=%f minV=%d",
+            BubbleLog.d("ExpandedViewAnimationControllerImpl.shouldCollapse() not collapsing"
+                    + " swipe down velocity=%f minV=%d",
                     mSwipeDownVelocity, mMinFlingVelocity);
             return false;
         }
 
         if (mSwipeUpVelocity > mMinFlingVelocity) {
             // Swiping up and over fling velocity, collapse the view.
-            ProtoLog.d(WM_SHELL_BUBBLES,
-                    "collapse expanded view, swipe up velocity=%f minV=%d",
-                    mSwipeUpVelocity, mMinFlingVelocity);
+            BubbleLog.d("ExpandedViewAnimationControllerImpl.shouldCollapse() collapse, swipe up "
+                            + "velocity=%f minV=%d", mSwipeUpVelocity, mMinFlingVelocity);
             return true;
         }
 
         if (isPastCollapseThreshold()) {
-            ProtoLog.d(WM_SHELL_BUBBLES,
-                    "collapse expanded view, past threshold, dragged=%d", mDraggedAmount);
+            BubbleLog.d("ExpandedViewAnimationControllerImpl.shouldCollapse() collapse "
+                    + " past threshold, dragged=%d", mDraggedAmount);
             return true;
         }
 
-        ProtoLog.d(WM_SHELL_BUBBLES, "not collapsing expanded view");
+        BubbleLog.d("ExpandedViewAnimationControllerImpl.shouldCollapse() not collapsing");
 
         return false;
     }
@@ -194,9 +188,9 @@ public class ExpandedViewAnimationControllerImpl implements ExpandedViewAnimatio
     @Override
     public void animateCollapse(Runnable startStackCollapse, Runnable after,
             PointF collapsePosition) {
-        ProtoLog.d(WM_SHELL_BUBBLES, "expandedView animate collapse swipeVel=%f minFlingVel=%d"
-                        + " collapsePosition=%f,%f", mSwipeUpVelocity, mMinFlingVelocity,
-                collapsePosition.x, collapsePosition.y);
+        BubbleLog.d("ExpandedViewAnimationControllerImpl.animateCollapse() swipeVel=%f "
+                        + "minFlingVel=%d collapsePosition=%f,%f", mSwipeUpVelocity,
+                mMinFlingVelocity, collapsePosition.x, collapsePosition.y);
         if (mExpandedView != null) {
             // Mark it as animating immediately to avoid updates to the view before animation starts
             mExpandedView.setAnimating(true);
@@ -229,7 +223,7 @@ public class ExpandedViewAnimationControllerImpl implements ExpandedViewAnimatio
 
     @Override
     public void animateBackToExpanded() {
-        ProtoLog.d(WM_SHELL_BUBBLES, "expandedView animate back to expanded");
+        BubbleLog.d("ExpandedViewAnimationControllerImpl.animateBackToExpanded()");
         BubbleExpandedView expandedView = mExpandedView;
         if (expandedView == null) {
             return;
@@ -259,8 +253,10 @@ public class ExpandedViewAnimationControllerImpl implements ExpandedViewAnimatio
     @Override
     public void animateForImeVisibilityChange(boolean visible) {
         if (mExpandedView != null) {
-            if (mBottomClipAnim != null) {
-                mBottomClipAnim.cancel();
+            cancelClipAnimation();
+            // IME state may change before the animation starts, check if positioner is visible.
+            if (Flags.fixBubbleImeClipping() && visible && !mPositioner.isImeVisible()) {
+                return;
             }
             int clip = 0;
             if (visible) {
@@ -281,6 +277,13 @@ public class ExpandedViewAnimationControllerImpl implements ExpandedViewAnimatio
     }
 
     @Override
+    public void cancelClipAnimation() {
+        if (mBottomClipAnim != null) {
+            mBottomClipAnim.cancel();
+        }
+    }
+
+    @Override
     public boolean shouldAnimateExpansion() {
         return false;
     }
@@ -293,7 +296,7 @@ public class ExpandedViewAnimationControllerImpl implements ExpandedViewAnimatio
 
     @Override
     public void reset() {
-        ProtoLog.d(WM_SHELL_BUBBLES, "reset expandedView collapsed state");
+        BubbleLog.d("ExpandedViewAnimationControllerImpl.reset()");
         if (mExpandedView == null) {
             return;
         }
@@ -305,8 +308,11 @@ public class ExpandedViewAnimationControllerImpl implements ExpandedViewAnimatio
         if (mBackToExpandedAnimation != null) {
             mBackToExpandedAnimation.cancel();
         }
-        mExpandedView.setContentAlpha(1);
-        mExpandedView.setBackgroundAlpha(1);
+        // if this expanded view is being cleaned up, don't reset its visibility state
+        if (!mExpandedView.isCleanupDeferred()) {
+            mExpandedView.setContentAlpha(1);
+            mExpandedView.setBackgroundAlpha(1);
+        }
         mExpandedView.setManageButtonAlpha(1);
         setCollapsedAmount(0);
         mExpandedView.setBottomClip(0);
@@ -377,7 +383,7 @@ public class ExpandedViewAnimationControllerImpl implements ExpandedViewAnimatio
         animatorSet.addListener(new AnimatorListenerAdapter() {
             @Override
             public void onAnimationCancel(Animator animation) {
-                if (Flags.fixBubblesCancelAnimation() && !notified[0]) {
+                if (!notified[0]) {
                     notified[0] = true;
                     startStackCollapse.run();
                 }

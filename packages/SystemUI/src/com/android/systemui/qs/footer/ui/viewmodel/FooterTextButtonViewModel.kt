@@ -19,12 +19,10 @@ package com.android.systemui.qs.footer.ui.viewmodel
 import android.content.Context
 import androidx.compose.runtime.Stable
 import com.android.systemui.animation.Expandable
-import com.android.systemui.common.shared.model.Icon
+import com.android.systemui.qs.footer.domain.model.FooterTextButtonModel
 
 @Stable
 interface FooterTextButtonViewModel {
-    val icon: Icon
-    val text: String
+    val model: FooterTextButtonModel
     val onClick: ((Context, Expandable) -> Unit)?
-    val hasNewChanges: Boolean
 }

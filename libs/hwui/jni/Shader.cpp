@@ -8,9 +8,8 @@
 #include "SkBlendMode.h"
 #include "SkColor.h"
 #include "SkColorFilter.h"
-#include "SkGradientShader.h"
+#include "SkGradient.h"
 #include "SkImage.h"
-#include "SkImagePriv.h"
 #include "SkMatrix.h"
 #include "SkPoint.h"
 #include "SkRefCnt.h"
@@ -23,14 +22,6 @@
 #include "include/effects/SkRuntimeEffect.h"
 
 using namespace android::uirenderer;
-
-/**
- * By default Skia gradients will interpolate their colors in unpremul space
- * and then premultiply each of the results. We must set this flag to preserve
- * backwards compatibility by premultiplying the colors of the gradient first,
- * and then interpolating between them.
- */
-static const uint32_t sGradientShaderFlags = SkGradientShader::kInterpolateColorsInPremul_Flag;
 
 #define ThrowIAE_IfNull(env, ptr)   \
     if (nullptr == ptr) {           \
@@ -93,8 +84,7 @@ static jlong BitmapShader_constructor(JNIEnv* env, jobject o, jlong matrixPtr, j
     }
 
     if (!image.get()) {
-        SkBitmap bitmap;
-        image = SkMakeImageFromRasterBitmap(bitmap, kNever_SkCopyPixelsMode);
+        return reinterpret_cast<jlong>(SkShaders::Empty().release());
     }
 
     sk_sp<SkShader> shader;
@@ -127,6 +117,40 @@ static std::vector<SkColor4f> convertColorLongs(JNIEnv* env, jlongArray colorArr
     return colors;
 }
 
+namespace {
+
+class AutoSkGradient {
+public:
+    AutoSkGradient(JNIEnv* env, jlongArray colorArray, jfloatArray posArray, jlong colorSpaceHandle,
+                   jint tileMode = static_cast<jint>(SkTileMode::kClamp))
+            : fColors(convertColorLongs(env, colorArray))
+            , fPos(env, posArray, fColors.size())
+            , fGradient({fColors,
+                         {fPos.ptr(), fPos.ptr() ? fColors.size() : 0},
+                         static_cast<SkTileMode>(tileMode),
+                         GraphicsJNI::getNativeColorSpace(colorSpaceHandle)},
+                        kGradientShaderInterpolation) {}
+
+    operator const SkGradient&() const { return fGradient; }
+
+private:
+    // By default Skia gradients will interpolate their colors in unpremul space
+    // and then premultiply each of the results. We must use explicit premul interpolation
+    // to preserve backwards compatibility by premultiplying the colors of the gradient first,
+    // and then interpolating between them.
+    static constexpr SkGradient::Interpolation kGradientShaderInterpolation = {
+            SkGradient::Interpolation::InPremul::kYes,
+            SkGradient::Interpolation::ColorSpace::kDestination,
+            SkGradient::Interpolation::HueMethod::kShorter,
+    };
+
+    const std::vector<SkColor4f> fColors;
+    const AutoJavaFloatArray fPos;
+    const SkGradient fGradient;
+};
+
+};  // namespace
+
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 static jlong LinearGradient_create(JNIEnv* env, jobject, jlong matrixPtr,
@@ -136,14 +160,9 @@ static jlong LinearGradient_create(JNIEnv* env, jobject, jlong matrixPtr,
     pts[0].set(x0, y0);
     pts[1].set(x1, y1);
 
-    std::vector<SkColor4f> colors = convertColorLongs(env, colorArray);
+    const AutoSkGradient grad(env, colorArray, posArray, colorSpaceHandle, tileMode);
 
-    AutoJavaFloatArray autoPos(env, posArray, colors.size());
-    SkScalar* pos = autoPos.ptr();
-
-    sk_sp<SkShader> shader(SkGradientShader::MakeLinear(pts, &colors[0],
-                GraphicsJNI::getNativeColorSpace(colorSpaceHandle), pos, colors.size(),
-                static_cast<SkTileMode>(tileMode), sGradientShaderFlags, nullptr));
+    sk_sp<SkShader> shader(SkShaders::LinearGradient(pts, grad));
     ThrowIAE_IfNull(env, shader);
 
     const SkMatrix* matrix = reinterpret_cast<const SkMatrix*>(matrixPtr);
@@ -176,16 +195,10 @@ static jlong RadialGradient_create(JNIEnv* env,
     SkPoint end;
     end.set(endX, endY);
 
-    std::vector<SkColor4f> colors = convertColorLongs(env, colorArray);
+    const AutoSkGradient grad(env, colorArray, posArray, colorSpaceHandle, tileMode);
 
-    AutoJavaFloatArray autoPos(env, posArray, colors.size());
-    SkScalar* pos = autoPos.ptr();
-
-    auto colorSpace = GraphicsJNI::getNativeColorSpace(colorSpaceHandle);
-    auto skTileMode = static_cast<SkTileMode>(tileMode);
-    sk_sp<SkShader> shader = SkGradientShader::MakeTwoPointConical(start, startRadius, end,
-                    endRadius, &colors[0], std::move(colorSpace), pos, colors.size(), skTileMode,
-                    sGradientShaderFlags, nullptr);
+    sk_sp<SkShader> shader =
+            SkShaders::TwoPointConicalGradient(start, startRadius, end, endRadius, grad);
     ThrowIAE_IfNull(env, shader);
 
     // Explicitly create a new shader with the specified matrix to match existing behavior.
@@ -204,14 +217,9 @@ static jlong RadialGradient_create(JNIEnv* env,
 
 static jlong SweepGradient_create(JNIEnv* env, jobject, jlong matrixPtr, jfloat x, jfloat y,
         jlongArray colorArray, jfloatArray jpositions, jlong colorSpaceHandle) {
-    std::vector<SkColor4f> colors = convertColorLongs(env, colorArray);
+    const AutoSkGradient grad(env, colorArray, jpositions, colorSpaceHandle);
 
-    AutoJavaFloatArray autoPos(env, jpositions, colors.size());
-    SkScalar* pos = autoPos.ptr();
-
-    sk_sp<SkShader> shader = SkGradientShader::MakeSweep(x, y, &colors[0],
-            GraphicsJNI::getNativeColorSpace(colorSpaceHandle), pos, colors.size(),
-            sGradientShaderFlags, nullptr);
+    sk_sp<SkShader> shader = SkShaders::SweepGradient({x, y}, grad);
     ThrowIAE_IfNull(env, shader);
 
     const SkMatrix* matrix = reinterpret_cast<const SkMatrix*>(matrixPtr);

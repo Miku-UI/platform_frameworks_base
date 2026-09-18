@@ -28,7 +28,6 @@
 #include <SkFont.h>
 #include <SkGraphics.h>
 #include <SkImage.h>
-#include <SkImagePriv.h>
 #include <SkMatrix.h>
 #include <SkPaint.h>
 #include <SkPicture.h>
@@ -508,7 +507,8 @@ void SkiaCanvas::drawPoints(const float* points, int count, const Paint& paint,
         points += 2;
     }
 
-    applyLooper(&paint, [&](const SkPaint& p) { mCanvas->drawPoints(mode, count, pts.get(), p); });
+    applyLooper(&paint,
+                [&](const SkPaint& p) { mCanvas->drawPoints(mode, {pts.get(), count}, p); });
 }
 
 void SkiaCanvas::drawPoint(float x, float y, const Paint& paint) {

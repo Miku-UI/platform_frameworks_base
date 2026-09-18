@@ -26,5 +26,5 @@ data class ClockMessageBuffers(
     /** Message buffer for large clock rendering */
     val largeClockMessageBuffer: MessageBuffer,
 ) {
-    constructor(buffer: MessageBuffer) : this(buffer, buffer, buffer) {}
+    constructor(buffer: MessageBuffer) : this(buffer, buffer, buffer)
 }

@@ -19,6 +19,7 @@ package com.android.systemui.accessibility;
 import static android.view.WindowManager.ScreenshotSource.SCREENSHOT_ACCESSIBILITY_ACTIONS;
 
 import android.accessibilityservice.AccessibilityService;
+import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.app.RemoteAction;
 import android.content.BroadcastReceiver;
@@ -49,6 +50,7 @@ import com.android.internal.util.ScreenshotHelper;
 import com.android.systemui.CoreStartable;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.recents.Recents;
+import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.settings.DisplayTracker;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.shade.ShadeController;
@@ -71,6 +73,7 @@ import javax.inject.Inject;
  * Class to register system actions with accessibility framework.
  */
 @SysUISingleton
+@SuppressLint("MissingPermission")
 public class SystemActions implements CoreStartable, ConfigurationController.ConfigurationListener {
     private static final String TAG = "SystemActions";
 
@@ -350,6 +353,11 @@ public class SystemActions implements CoreStartable, ConfigurationController.Con
     }
 
     private void registerOrUnregisterDismissNotificationShadeAction() {
+        if (SceneContainerFlag.isEnabled()) {
+            // [SystemActionsInteractor] handles this instead when scene container is enabled.
+            return;
+        }
+
         Assert.isMainThread();
 
         if (mPanelExpansionInteractor.get().isPanelExpanded()
@@ -470,7 +478,7 @@ public class SystemActions implements CoreStartable, ConfigurationController.Con
     }
 
     private RemoteAction createRemoteAction(int labelId, String intent) {
-        // TODO(b/148087487): update the icon used below to a valid one
+        // Using a generic icon because it is not used by accessibility services. See b/148087487.
         return new RemoteAction(
                 Icon.createWithResource(mContext, R.drawable.ic_info),
                 mContext.getString(labelId),
@@ -536,12 +544,23 @@ public class SystemActions implements CoreStartable, ConfigurationController.Con
     private void handleLockScreen() {
         IWindowManager windowManager = WindowManagerGlobal.getWindowManagerService();
 
-        mContext.getSystemService(PowerManager.class).goToSleep(SystemClock.uptimeMillis(),
-                PowerManager.GO_TO_SLEEP_REASON_ACCESSIBILITY, 0);
-        try {
-            windowManager.lockNow(null);
-        } catch (RemoteException e) {
-            Log.e(TAG, "failed to lock screen.");
+        Log.d(TAG, "going to sleep for accessibility");
+        if (Flags.fixA11yLockScreenJank()) {
+            try {
+                windowManager.lockNow(null);
+            } catch (RemoteException e) {
+                Log.e(TAG, "failed to lock screen.");
+            }
+            mContext.getSystemService(PowerManager.class).goToSleep(SystemClock.uptimeMillis(),
+                    PowerManager.GO_TO_SLEEP_REASON_ACCESSIBILITY, 0);
+        } else {
+            mContext.getSystemService(PowerManager.class).goToSleep(SystemClock.uptimeMillis(),
+                    PowerManager.GO_TO_SLEEP_REASON_ACCESSIBILITY, 0);
+            try {
+                windowManager.lockNow(null);
+            } catch (RemoteException e) {
+                Log.e(TAG, "failed to lock screen.");
+            }
         }
     }
 
@@ -622,7 +641,7 @@ public class SystemActions implements CoreStartable, ConfigurationController.Con
         private static final String INTENT_ACTION_ACCESSIBILITY_SHORTCUT =
                 "SYSTEM_ACTION_ACCESSIBILITY_SHORTCUT";
         private static final String INTENT_ACTION_ACCESSIBILITY_DISMISS_NOTIFICATION_SHADE =
-                "SYSTEM_ACTION_ACCESSIBILITY_DISMISS_NOTIFICATION_SHADE";
+                SystemActionsHelper.INTENT_ACTION_ACCESSIBILITY_DISMISS_NOTIFICATION_SHADE;
         private static final String INTENT_ACTION_DPAD_UP = "SYSTEM_ACTION_DPAD_UP";
         private static final String INTENT_ACTION_DPAD_DOWN = "SYSTEM_ACTION_DPAD_DOWN";
         private static final String INTENT_ACTION_DPAD_LEFT = "SYSTEM_ACTION_DPAD_LEFT";
@@ -654,9 +673,7 @@ public class SystemActions implements CoreStartable, ConfigurationController.Con
                 case INTENT_ACTION_DPAD_CENTER:
                 case INTENT_ACTION_MENU:
                 case INTENT_ACTION_MEDIA_PLAY_PAUSE: {
-                    Intent intent = new Intent(intentAction);
-                    intent.setPackage(context.getPackageName());
-                    intent.addFlags(Intent.FLAG_RECEIVER_FOREGROUND);
+                    Intent intent = SystemActionsHelper.createIntent(context, intentAction);
                     return PendingIntent.getBroadcast(context, 0, intent,
                             PendingIntent.FLAG_IMMUTABLE);
                 }
@@ -768,15 +785,11 @@ public class SystemActions implements CoreStartable, ConfigurationController.Con
                     break;
                 }
                 case INTENT_ACTION_MENU: {
-                    if (Flags.globalActionMenu()) {
-                        handleMenu();
-                    }
+                    handleMenu();
                     break;
                 }
                 case INTENT_ACTION_MEDIA_PLAY_PAUSE: {
-                    if (Flags.globalActionMediaPlayPause()) {
-                        handleMediaPlayPause();
-                    }
+                    handleMediaPlayPause();
                     break;
                 }
                 default:

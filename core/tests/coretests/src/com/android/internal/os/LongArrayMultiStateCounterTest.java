@@ -23,17 +23,13 @@ import static org.junit.Assert.assertThrows;
 import android.annotation.SuppressLint;
 import android.os.BadParcelableException;
 import android.os.Parcel;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.filters.SmallTest;
 
-import org.junit.Rule;
 import org.junit.Test;
 
 @SmallTest
 public class LongArrayMultiStateCounterTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     @Test
     public void setStateAndUpdateValue() {

@@ -122,7 +122,7 @@
     <string name="button_uninstall" msgid="6317309210023038915">"Desinstalar"</string>
     <string name="button_delete" msgid="1050833585936159792">"Eliminar"</string>
     <string name="button_reinstall" msgid="476377927808336418">"Reinstalar"</string>
-    <string name="button_manage_apps" msgid="957735904821659812">"Gestionar apps"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Gestionar aplicaciones"</string>
     <string name="button_archive" msgid="2719647830439699121">"Archivar"</string>
     <string name="button_restore" msgid="4388317532933866637">"Restaurar"</string>
     <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Desinstalar"</string>

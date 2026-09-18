@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#ifndef ANDROIDFW_ASSETMANAGER2_H_
-#define ANDROIDFW_ASSETMANAGER2_H_
+#pragma once
 
 #include <utils/RefBase.h>
 
@@ -43,6 +42,10 @@ using ApkAssetsCookie = int32_t;
 enum : ApkAssetsCookie {
   kInvalidCookie = -1,
 };
+
+// Right now we have to load the whole XML file into memory, and only then parse the whole thing.
+// Let's limit the maximum allowed file size here to minimize the chances of running out of memory.
+constexpr auto kMaxXmlAssetSize = 1024 * 1024 * 1024;
 
 // Holds a bag that has been merged with its parent, if one exists.
 struct ResolvedBag {
@@ -210,13 +213,14 @@ class AssetManager2 {
   //
   // NOTE: The loaded APKs are searched in reverse order.
   std::unique_ptr<Asset> OpenNonAsset(const std::string& filename, Asset::AccessMode mode,
-                                      ApkAssetsCookie* out_cookie = nullptr) const;
+                                      ApkAssetsCookie* out_cookie = nullptr,
+                                      int64_t max_size = -1) const;
 
   // Opens a file in the APK specified by `cookie`. `mode` controls how the file is opened.
   // This is typically used to open a specific AndroidManifest.xml, or a binary XML file
   // referenced by a resource lookup with GetResource().
   std::unique_ptr<Asset> OpenNonAsset(const std::string& filename, ApkAssetsCookie cookie,
-                                      Asset::AccessMode mode) const;
+                                      Asset::AccessMode mode, int64_t max_size = -1) const;
 
   // Returns the resource id of parent style of the specified theme.
   //
@@ -646,5 +650,3 @@ inline const ResolvedBag::Entry* end(const ResolvedBag* bag) {
 }
 
 }  // namespace android
-
-#endif /* ANDROIDFW_ASSETMANAGER2_H_ */

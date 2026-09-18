@@ -32,6 +32,7 @@ import java.util.Objects;
  * <p>Use {@link Builder} to create a new instance of this class.
  */
 @FlaggedApi(Flags.FLAG_HAPTIC_FEEDBACK_WITH_CUSTOM_USAGE)
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class HapticFeedbackRequest {
     private final int mFeedbackConstant;
     private final int mUsage;

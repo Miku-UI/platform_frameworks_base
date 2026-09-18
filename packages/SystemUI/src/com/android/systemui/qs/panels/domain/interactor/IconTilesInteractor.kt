@@ -54,6 +54,11 @@ constructor(
     fun isIconTile(spec: TileSpec): Boolean = !largeTilesSpecs.value.contains(spec)
 
     /** Set the large tiles to be [specs] */
+    fun addLargeTile(spec: TileSpec) {
+        preferencesInteractor.setLargeTilesSpecs(largeTilesSpecs.value + spec)
+    }
+
+    /** Set the large tiles to be [specs] */
     fun setLargeTiles(specs: Set<TileSpec>) {
         preferencesInteractor.setLargeTilesSpecs(specs)
     }

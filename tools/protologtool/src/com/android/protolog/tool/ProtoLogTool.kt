@@ -16,6 +16,7 @@
 
 package com.android.protolog.tool
 
+import com.android.internal.annotations.VisibleForTesting
 import com.android.internal.protolog.common.IProtoLog
 import com.android.internal.protolog.common.LogLevel
 import com.android.internal.protolog.common.ProtoLogToolInjected
@@ -59,13 +60,21 @@ import kotlin.math.absoluteValue
 import kotlin.system.exitProcess
 
 object ProtoLogTool {
+    // ANSI color codes are used here to improve the readability of the log output.
+    // This is acceptable as the build system forces color diagnostics (see -fcolor-diagnostics)
+    // and build tools like Ninja are capable of stripping the color codes when not in a terminal.
+    private const val ANSI_RESET = "\u001B[0m"
+    private const val ANSI_RED = "\u001B[31m"
+    private const val ANSI_YELLOW = "\u001B[33m"
+
     const val PROTOLOG_IMPL_SRC_PATH =
         "frameworks/base/core/java/com/android/internal/protolog/ProtoLogImpl.java"
 
-    private const val PROTOLOG_CLASS_NAME = "ProtoLog"; // ProtoLog::class.java.simpleName
+    private const val PROTOLOG_CLASS_NAME = "ProtoLog"
+    // ProtoLog::class.java.simpleName
 
-    private val PARSER_CONFIG = ParserConfiguration()
-        .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21)
+    val PARSER_CONFIG =
+        ParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21)
 
     data class LogCall(
         val messageString: String,
@@ -95,62 +104,80 @@ object ProtoLogTool {
     private fun processClasses(command: CommandOptions) {
         // A deterministic hash based on the group jar path and the source files we are processing.
         // The hash is required to make sure different ProtoLogImpls don't conflict.
-        val generationHash = (command.javaSourceArgs.toTypedArray() + command.protoLogGroupsJarArg)
-                .contentHashCode().absoluteValue
+        val generationHash =
+            (command.javaSourceArgs.toTypedArray() + command.protoLogGroupsJarArg)
+                .contentHashCode()
+                .absoluteValue
 
         // Need to generate a new impl class to inject static constants into the class.
         val generatedProtoLogImplClass =
             "com.android.internal.protolog.ProtoLogImpl_$generationHash"
 
-        val groups = injector.readLogGroups(
-                command.protoLogGroupsJarArg,
-                command.protoLogGroupsClassNameArg)
+        val groups =
+            injector.readLogGroups(command.protoLogGroupsJarArg, command.protoLogGroupsClassNameArg)
         val out = injector.fileOutputStream(command.outputSourceJarArg)
         val outJar = JarOutputStream(out)
-        val processor = ProtoLogCallProcessorImpl(
-            command.protoLogClassNameArg,
-            command.protoLogGroupsClassNameArg,
-            groups)
+        val processor =
+            ProtoLogCallProcessorImpl(
+                command.protoLogClassNameArg,
+                command.protoLogGroupsClassNameArg,
+                groups,
+            )
 
         val protologImplName = generatedProtoLogImplClass.split(".").last()
-        val protologImplPath = "gen/${generatedProtoLogImplClass.split(".")
+        val protologImplPath =
+            "gen/${generatedProtoLogImplClass.split(".")
                 .joinToString("/")}.java"
         outJar.putNextEntry(zipEntry(protologImplPath))
 
-        outJar.write(generateProtoLogImpl(protologImplName, command.viewerConfigFilePathArg,
-            groups, command.protoLogGroupsClassNameArg).toByteArray())
+        outJar.write(
+            generateProtoLogImpl(
+                    protologImplName,
+                    command.viewerConfigFilePathArg,
+                    groups,
+                    command.protoLogGroupsClassNameArg,
+                )
+                .toByteArray()
+        )
 
         val executor = newThreadPool()
 
         try {
-            command.javaSourceArgs.map { path ->
-                executor.submitCallable {
-                    val transformer = SourceTransformer(generatedProtoLogImplClass, processor)
-                    val file = File(path)
-                    val text = injector.readText(file)
-                    val outSrc = try {
-                        val code = tryParse(text, path)
-                        if (containsProtoLogText(text, PROTOLOG_CLASS_NAME)) {
-                            val (processedText, errors) = transformer.processClass(text, path, packagePath(file, code), code)
-                            errors.forEach { injector.reportProcessingError(it) }
-                            processedText
-                        } else {
-                            text
-                        }
-                    } catch (ex: ParsingException) {
-                        // If we cannot parse this file, skip it (and log why). Compilation will
-                        // fail in a subsequent build step.
-                        injector.reportProcessingError(ex)
-                        text
+            command.javaSourceArgs
+                .map { path ->
+                    executor.submitCallable {
+                        val transformer = SourceTransformer(generatedProtoLogImplClass, processor)
+                        val file = File(path)
+                        val text = injector.readText(file)
+                        val outSrc =
+                            try {
+                                val code = tryParse(text, path)
+                                if (containsProtoLogText(text, PROTOLOG_CLASS_NAME)) {
+                                    val (processedText, errors) =
+                                        transformer.processClass(
+                                            text,
+                                            path,
+                                            packagePath(file, code),
+                                            code,
+                                        )
+                                    errors.forEach { injector.reportProcessingError(it) }
+                                    processedText
+                                } else {
+                                    text
+                                }
+                            } catch (ex: ParsingException) {
+                                reportParsingException(text, ex, command.javacWrapperPathArg)
+                                text
+                            }
+                        path to outSrc
                     }
-                    path to outSrc
                 }
-            }.map { future ->
-                val (path, outSrc) = future.get()
-                outJar.putNextEntry(zipEntry(path))
-                outJar.write(outSrc.toByteArray())
-                outJar.closeEntry()
-            }
+                .map { future ->
+                    val (path, outSrc) = future.get()
+                    outJar.putNextEntry(zipEntry(path))
+                    outJar.write(outSrc.toByteArray())
+                    outJar.closeEntry()
+                }
         } finally {
             executor.shutdown()
         }
@@ -167,12 +194,15 @@ object ProtoLogTool {
     ): String {
         val file = File(PROTOLOG_IMPL_SRC_PATH)
 
-        val text = try {
-            injector.readText(file)
-        } catch (e: FileNotFoundException) {
-            throw RuntimeException("Expected to find '$PROTOLOG_IMPL_SRC_PATH' but file was not " +
-                    "included in source for the ProtoLog Tool to process.")
-        }
+        val text =
+            try {
+                injector.readText(file)
+            } catch (e: FileNotFoundException) {
+                throw RuntimeException(
+                    "Expected to find '$PROTOLOG_IMPL_SRC_PATH' but file was not " +
+                        "included in source for the ProtoLog Tool to process."
+                )
+            }
 
         val code = tryParse(text, PROTOLOG_IMPL_SRC_PATH)
 
@@ -194,74 +224,85 @@ object ProtoLogTool {
         classDeclaration: ClassOrInterfaceDeclaration,
         viewerConfigFilePath: String,
         groups: Map<String, LogGroup>,
-        protoLogGroupsClassName: String
+        protoLogGroupsClassName: String,
     ) {
         var needsCreateLogGroupsMap = false
         classDeclaration.fields.forEach { field ->
-            field.getAnnotationByClass(ProtoLogToolInjected::class.java)
-                    .ifPresent { annotationExpr ->
-                        if (annotationExpr.isSingleMemberAnnotationExpr) {
-                            val valueName = annotationExpr.asSingleMemberAnnotationExpr()
-                                    .memberValue.asNameExpr().name.asString()
-                            when (valueName) {
-                                ProtoLogToolInjected.Value.VIEWER_CONFIG_PATH.name -> {
-                                    field.setFinal(true)
-                                    field.variables.first()
-                                            .setInitializer(StringLiteralExpr(viewerConfigFilePath))
-                                }
-                                ProtoLogToolInjected.Value.LOG_GROUPS.name -> {
-                                    needsCreateLogGroupsMap = true
-                                    field.setFinal(true)
-                                    field.variables.first().setInitializer(
-                                        MethodCallExpr().setName("createLogGroupsMap"))
-                                }
-                                ProtoLogToolInjected.Value.CACHE_UPDATER.name -> {
-                                    field.setFinal(true)
-                                    field.variables.first().setInitializer(MethodReferenceExpr()
-                                            .setScope(NameExpr("Cache"))
-                                            .setIdentifier("update"))
-                                }
-                                else -> error("Unhandled ProtoLogToolInjected value: $valueName.")
-                            }
+            field.getAnnotationByClass(ProtoLogToolInjected::class.java).ifPresent { annotationExpr
+                ->
+                if (annotationExpr.isSingleMemberAnnotationExpr) {
+                    val valueName =
+                        annotationExpr
+                            .asSingleMemberAnnotationExpr()
+                            .memberValue
+                            .asNameExpr()
+                            .name
+                            .asString()
+                    when (valueName) {
+                        ProtoLogToolInjected.Value.VIEWER_CONFIG_PATH.name -> {
+                            field.setFinal(true)
+                            field.variables
+                                .first()
+                                .setInitializer(StringLiteralExpr(viewerConfigFilePath))
                         }
+                        ProtoLogToolInjected.Value.LOG_GROUPS.name -> {
+                            needsCreateLogGroupsMap = true
+                            field.setFinal(true)
+                            field.variables
+                                .first()
+                                .setInitializer(MethodCallExpr().setName("createLogGroupsMap"))
+                        }
+                        ProtoLogToolInjected.Value.CACHE_UPDATER.name -> {
+                            field.setFinal(true)
+                            field.variables
+                                .first()
+                                .setInitializer(
+                                    MethodReferenceExpr()
+                                        .setScope(NameExpr("Cache"))
+                                        .setIdentifier("update")
+                                )
+                        }
+                        else -> error("Unhandled ProtoLogToolInjected value: $valueName.")
                     }
+                }
+            }
         }
 
         if (needsCreateLogGroupsMap) {
             val body = BlockStmt()
-            body.addStatement(AssignExpr(
-                VariableDeclarationExpr(
-                    ClassOrInterfaceType("TreeMap<String, IProtoLogGroup>"),
-                    "result"
-                ),
-                ObjectCreationExpr().setType("TreeMap<String, IProtoLogGroup>"),
-                AssignExpr.Operator.ASSIGN
-            ))
+            body.addStatement(
+                AssignExpr(
+                    VariableDeclarationExpr(
+                        ClassOrInterfaceType("TreeMap<String, IProtoLogGroup>"),
+                        "result",
+                    ),
+                    ObjectCreationExpr().setType("TreeMap<String, IProtoLogGroup>"),
+                    AssignExpr.Operator.ASSIGN,
+                )
+            )
             for (group in groups) {
                 body.addStatement(
                     MethodCallExpr(
                         NameExpr("result"),
                         "put",
                         NodeList(
-                                StringLiteralExpr(group.key),
-                                FieldAccessExpr()
-                                        .setScope(
-                                            NameExpr(
-                                                protoLogGroupsClassName
-                                            ))
-                                        .setName(group.value.name)
-                        )
+                            StringLiteralExpr(group.key),
+                            FieldAccessExpr()
+                                .setScope(NameExpr(protoLogGroupsClassName))
+                                .setName(group.value.name),
+                        ),
                     )
                 )
             }
             body.addStatement(ReturnStmt(NameExpr("result")))
 
-            val method = classDeclaration.addMethod(
-                "createLogGroupsMap",
-                Modifier.Keyword.PRIVATE,
-                Modifier.Keyword.STATIC,
-                Modifier.Keyword.FINAL
-            )
+            val method =
+                classDeclaration.addMethod(
+                    "createLogGroupsMap",
+                    Modifier.Keyword.PRIVATE,
+                    Modifier.Keyword.STATIC,
+                    Modifier.Keyword.FINAL,
+                )
             method.setType("TreeMap<String, IProtoLogGroup>")
             method.setBody(body)
         }
@@ -272,10 +313,8 @@ object ProtoLogTool {
         groups: Map<String, LogGroup>,
         protoLogGroupsClassName: String,
     ) {
-        val cacheClass = ClassOrInterfaceDeclaration()
-            .setName("Cache")
-            .setPublic(true)
-            .setStatic(true)
+        val cacheClass =
+            ClassOrInterfaceDeclaration().setName("Cache").setPublic(true).setStatic(true)
         for (group in groups) {
             val nodeList = NodeList<Expression>()
             val defaultVal = BooleanLiteralExpr(group.value.textEnabled || group.value.enabled)
@@ -283,11 +322,11 @@ object ProtoLogTool {
             cacheClass.addFieldWithInitializer(
                 "boolean[]",
                 "${group.key}_enabled",
-                ArrayCreationExpr().setElementType("boolean").setInitializer(
-                    ArrayInitializerExpr().setValues(nodeList)
-                ),
+                ArrayCreationExpr()
+                    .setElementType("boolean")
+                    .setInitializer(ArrayInitializerExpr().setValues(nodeList)),
                 Modifier.Keyword.PUBLIC,
-                Modifier.Keyword.STATIC
+                Modifier.Keyword.STATIC,
             )
         }
 
@@ -300,24 +339,30 @@ object ProtoLogTool {
                             ArrayAccessExpr()
                                 .setName(NameExpr("${group.key}_enabled"))
                                 .setIndex(IntegerLiteralExpr(level.ordinal))
-                        ).setValue(
+                        )
+                        .setValue(
                             MethodCallExpr()
                                 .setName("isEnabled")
-                                .setArguments(NodeList(
-                                    NameExpr("protoLogInstance"),
-                                    FieldAccessExpr()
-                                        .setScope(NameExpr(protoLogGroupsClassName))
-                                        .setName(group.value.name),
-                                    FieldAccessExpr()
-                                        .setScope(NameExpr("LogLevel"))
-                                        .setName(level.toString()),
-                                ))
+                                .setArguments(
+                                    NodeList(
+                                        NameExpr("protoLogInstance"),
+                                        FieldAccessExpr()
+                                            .setScope(NameExpr(protoLogGroupsClassName))
+                                            .setName(group.value.name),
+                                        FieldAccessExpr()
+                                            .setScope(NameExpr("LogLevel"))
+                                            .setName(level.toString()),
+                                    )
+                                )
                         )
                 )
             }
         }
 
-        cacheClass.addMethod("update").setPrivate(true).setStatic(true)
+        cacheClass
+            .addMethod("update")
+            .setPrivate(true)
+            .setStatic(true)
             .addParameter(IProtoLog::class.java, "protoLogInstance")
             .setBody(updateBlockStmt)
 
@@ -330,10 +375,13 @@ object ProtoLogTool {
             return JavaParserAdapter(javaParser).parse(code)
         } catch (ex: ParseProblemException) {
             val problem = ex.problems.first()
-            throw ParsingException("Java parsing error: ${problem.verboseMessage}",
-                    ParsingContext(fileName, problem.location.orElse(null)
-                            ?.begin?.range?.orElse(null)?.begin?.line
-                            ?: 0))
+            throw ParsingException(
+                "Java parsing error: ${problem.verboseMessage}",
+                ParsingContext(
+                    fileName,
+                    problem.location.orElse(null)?.begin?.range?.orElse(null)?.begin?.line ?: 0,
+                ),
+            )
         }
     }
 
@@ -343,9 +391,15 @@ object ProtoLogTool {
         fun addLogCalls(calls: List<LogCall>) {
             calls.forEach { logCall ->
                 if (logCall.logGroup.enabled) {
-                    statements.putIfAbsent(logCall,
-                        CodeUtils.hash(logCall.position, logCall.messageString,
-                            logCall.logLevel, logCall.logGroup))
+                    statements.putIfAbsent(
+                        logCall,
+                        CodeUtils.hash(
+                            logCall.position,
+                            logCall.messageString,
+                            logCall.logLevel,
+                            logCall.logGroup,
+                        ),
+                    )
                 }
             }
         }
@@ -360,11 +414,14 @@ object ProtoLogTool {
     }
 
     private fun viewerConf(command: CommandOptions) {
-        val groups = injector.readLogGroups(
-                command.protoLogGroupsJarArg,
-                command.protoLogGroupsClassNameArg)
-        val processor = ProtoLogCallProcessorImpl(command.protoLogClassNameArg,
-                command.protoLogGroupsClassNameArg, groups)
+        val groups =
+            injector.readLogGroups(command.protoLogGroupsJarArg, command.protoLogGroupsClassNameArg)
+        val processor =
+            ProtoLogCallProcessorImpl(
+                command.protoLogClassNameArg,
+                command.protoLogGroupsClassNameArg,
+                groups,
+            )
 
         val configBuilder: ProtologViewerConfigBuilder = ViewerConfigProtoBuilder()
 
@@ -373,27 +430,25 @@ object ProtoLogTool {
         val logCallRegistry = LogCallRegistry()
 
         try {
-            command.javaSourceArgs.map { path ->
-                executor.submitCallable {
-                    val file = File(path)
-                    val text = injector.readText(file)
-                    if (containsProtoLogText(text, command.protoLogClassNameArg)) {
-                        try {
-                            val code = tryParse(text, path)
-                            findLogCalls(code, path, packagePath(file, code), processor)
-                        } catch (ex: ParsingException) {
-                            // If we cannot parse this file, skip it (and log why). Compilation will
-                            // fail in a subsequent build step.
-                            injector.reportProcessingError(ex)
+            command.javaSourceArgs
+                .map { path ->
+                    executor.submitCallable {
+                        val file = File(path)
+                        val text = injector.readText(file)
+                        if (containsProtoLogText(text, command.protoLogClassNameArg)) {
+                            try {
+                                val code = tryParse(text, path)
+                                findLogCalls(code, path, packagePath(file, code), processor)
+                            } catch (ex: ParsingException) {
+                                reportParsingException(text, ex, command.javacWrapperPathArg)
+                                null
+                            }
+                        } else {
                             null
                         }
-                    } else {
-                        null
                     }
                 }
-            }.forEach { future ->
-                logCallRegistry.addLogCalls(future.get() ?: return@forEach)
-            }
+                .forEach { future -> logCallRegistry.addLogCalls(future.get() ?: return@forEach) }
         } finally {
             executor.shutdown()
         }
@@ -407,31 +462,92 @@ object ProtoLogTool {
         unit: CompilationUnit,
         path: String,
         packagePath: String,
-        processor: ProtoLogCallProcessorImpl
+        processor: ProtoLogCallProcessorImpl,
     ): List<LogCall> {
         val calls = mutableListOf<LogCall>()
-        val logCallVisitor = object : ProtoLogCallVisitor {
-            override fun processCall(
-                call: MethodCallExpr,
-                messageString: String,
-                level: LogLevel,
-                group: LogGroup,
-                lineNumber: Int,
-            ) {
-                val logCall = LogCall(messageString, level, group, packagePath, lineNumber)
-                calls.add(logCall)
+        val logCallVisitor =
+            object : ProtoLogCallVisitor {
+                override fun processCall(
+                    call: MethodCallExpr,
+                    messageString: String,
+                    level: LogLevel,
+                    group: LogGroup,
+                    lineNumber: Int,
+                ) {
+                    val logCall = LogCall(messageString, level, group, packagePath, lineNumber)
+                    calls.add(logCall)
+                }
             }
-        }
         processor.process(unit, logCallVisitor, path)
 
         return calls
     }
 
     private fun packagePath(file: File, code: CompilationUnit): String {
-        val pack = if (code.packageDeclaration.isPresent) code.packageDeclaration
-                .get().nameAsString else ""
+        val pack =
+            if (code.packageDeclaration.isPresent) code.packageDeclaration.get().nameAsString
+            else ""
         val packagePath = pack.replace('.', '/') + '/' + file.name
         return packagePath
+    }
+
+    @VisibleForTesting
+    fun hasJavaSyntaxErrors(code: String, javacWrapperPath: String?): Boolean {
+        val tempFile = File.createTempFile("temp", ".java")
+        try {
+            tempFile.writeText(code)
+
+            val cmd = mutableListOf<String>()
+            if (javacWrapperPath != null) {
+                // The command wrapper is required because in the soong environment we can only use
+                // commands that have been provided through the tools build rule parameter.
+                cmd.add(javacWrapperPath)
+            }
+            cmd.addAll(
+                listOf(
+                    "javac",
+                    "-nowarn",
+                    "-Xlint:none",
+                    "-d",
+                    "/dev/null",
+                    "-sourcepath",
+                    "",
+                    "-classpath",
+                    "",
+                    "-XDshould-stop.at=PARSE",
+                    tempFile.absolutePath,
+                )
+            )
+
+            val process = ProcessBuilder(cmd).start()
+            val exitCode = process.waitFor()
+            return exitCode != 0
+        } finally {
+            tempFile.delete()
+        }
+    }
+
+    private fun reportParsingException(
+        code: String,
+        ex: ParsingException,
+        javacWrapperPathArg: String?,
+    ) {
+        if (injector.hasJavaSyntaxErrors(code, javacWrapperPathArg)) {
+            // It's a real syntax error, let javac handle it.
+            val warnMsg =
+                "Failed to parse ${ex.context.filePath}:${ex.context.lineNumber}.\n" +
+                    "This is likely a syntax error that will be reported by javac.\n" +
+                    "Skipping file..."
+            injector.reportWarning(ParsingException(warnMsg, ex.context, ex))
+        } else {
+            // javaparser failed, but javac thinks it's ok. This is a protologtool issue.
+            val errorMsg =
+                "Failed to parse ${ex.context.filePath}:${ex.context.lineNumber}.\n" +
+                    "The file appears to be valid Java, but the ProtoLogTool parser failed.\n" +
+                    "This might be due to new Java features not yet supported by the tool.\n" +
+                    "Please file a bug against the Winscope team."
+            injector.reportProcessingError(ParsingException(errorMsg, ex.context, ex))
+        }
     }
 
     @JvmStatic
@@ -440,10 +556,22 @@ object ProtoLogTool {
             val command = CommandOptions(args)
             invoke(command)
 
+            if (injector.processingWarnings.isNotEmpty()) {
+                injector.processingWarnings.forEachIndexed { index, it ->
+                    println(
+                        "${ANSI_YELLOW}WARNING: CodeProcessingException$ANSI_RESET " +
+                            "(${index + 1}/${injector.processingWarnings.size}): \n${it.message}\n"
+                    )
+                }
+            }
+
             if (injector.processingErrors.isNotEmpty()) {
                 injector.processingErrors.forEachIndexed { index, it ->
-                    println("CodeProcessingException " +
-                            "(${index + 1}/${injector.processingErrors.size}): \n${it.message}\n")
+                    println(
+                        "${ANSI_RED}ERROR: CodeProcessingException$ANSI_RESET " +
+                            "(${index + 1}/${injector.processingErrors.size}): \n${it.message}\n"
+                    )
+                    it.printStackTrace(System.out)
                 }
                 exitProcess(1)
             }
@@ -463,27 +591,49 @@ object ProtoLogTool {
         }
     }
 
-    var injector = object : Injector {
-        override val processingErrors: MutableList<CodeProcessingException> = mutableListOf()
-        override fun fileOutputStream(file: String) = FileOutputStream(file)
-        override fun readText(file: File) = file.readText()
-        override fun readLogGroups(jarPath: String, className: String) =
+    var injector =
+        object : Injector {
+            override val processingWarnings: MutableList<CodeProcessingException> = mutableListOf()
+            override val processingErrors: MutableList<CodeProcessingException> = mutableListOf()
+
+            override fun fileOutputStream(file: String) = FileOutputStream(file)
+
+            override fun readText(file: File) = file.readText()
+
+            override fun readLogGroups(jarPath: String, className: String) =
                 ProtoLogGroupReader().loadFromJar(jarPath, className)
-        override fun reportProcessingError(ex: CodeProcessingException) {
-            processingErrors.add(ex)
+
+            override fun reportWarning(ex: CodeProcessingException) {
+                processingWarnings.add(ex)
+            }
+
+            override fun reportProcessingError(ex: CodeProcessingException) {
+                processingErrors.add(ex)
+            }
+
+            override fun hasJavaSyntaxErrors(code: String, javacWrapperPath: String?) =
+                this@ProtoLogTool.hasJavaSyntaxErrors(code, javacWrapperPath)
         }
-    }
 
     interface Injector {
-        fun fileOutputStream(file: String): OutputStream
-        fun readText(file: File): String
-        fun readLogGroups(jarPath: String, className: String): Map<String, LogGroup>
-        fun reportProcessingError(ex: CodeProcessingException)
+        val processingWarnings: Collection<CodeProcessingException>
         val processingErrors: Collection<CodeProcessingException>
+
+        fun fileOutputStream(file: String): OutputStream
+
+        fun readText(file: File): String
+
+        fun readLogGroups(jarPath: String, className: String): Map<String, LogGroup>
+
+        fun reportWarning(ex: CodeProcessingException)
+
+        fun reportProcessingError(ex: CodeProcessingException)
+
+        fun hasJavaSyntaxErrors(code: String, javacWrapperPath: String?): Boolean
     }
 }
 
 private fun <T> ExecutorService.submitCallable(f: () -> T) = submit(f)
 
-private fun newThreadPool() = Executors.newFixedThreadPool(
-        Runtime.getRuntime().availableProcessors())
+private fun newThreadPool() =
+    Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())

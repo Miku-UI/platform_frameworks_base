@@ -20,6 +20,7 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.net.Uri
+import android.util.Log
 import android.view.Surface
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -53,7 +54,7 @@ constructor(
 
     suspend fun onSurfaceCreated(surface: Surface) {
         player =
-            createPlayer().apply {
+            createPlayer()?.apply {
                 setSurface(surface)
                 start()
             }
@@ -66,20 +67,25 @@ constructor(
         }
     }
 
-    private suspend fun createPlayer(): MediaPlayer =
+    private suspend fun createPlayer(): MediaPlayer? =
         withContext(backgroundContext) {
-            MediaPlayer(context).apply {
-                setAudioAttributes(
-                    AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .build()
-                )
-                setDataSource(context, uri)
-                prepare()
-                setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT)
-                setVolume(1.0f)
-                seekTo(0)
+            try {
+                MediaPlayer(context).apply {
+                    setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MOVIE)
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .build()
+                    )
+                    setDataSource(context, uri)
+                    prepare()
+                    setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT)
+                    setVolume(1.0f)
+                    seekTo(0)
+                }
+            } catch (throwable: Throwable) {
+                Log.e("VideoPlayerViewModel", "Failed to create a player", throwable)
+                null
             }
         }
 

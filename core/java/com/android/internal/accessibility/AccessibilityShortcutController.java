@@ -141,13 +141,15 @@ public class AccessibilityShortcutController {
     private boolean mIsShortcutEnabled;
     private boolean mEnabledOnLockScreen;
     private int mUserId;
+    @VisibleForTesting
+    public Ringtone mCurrentRingtone;
 
+    /** Denotes the user shortcut type. */
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({
             DialogStatus.NOT_SHOWN,
             DialogStatus.SHOWN,
     })
-    /** Denotes the user shortcut type. */
     public @interface DialogStatus {
         int NOT_SHOWN = 0;
         int SHOWN  = 1;
@@ -155,6 +157,26 @@ public class AccessibilityShortcutController {
 
     // Visible for testing
     public FrameworkObjectProvider mFrameworkObjectProvider = new FrameworkObjectProvider();
+
+    private static Boolean sSupportOneHandedModeForTesting = null;
+
+    /**
+     * Sets whether One-Handed mode is supported for testing.
+     *
+     * @param enabled {@code true} if supported.
+     */
+    @VisibleForTesting
+    public static void setSupportOneHandedModeForTesting(Boolean enabled) {
+        sSupportOneHandedModeForTesting = enabled;
+        // Clear the cache so it rebuilds on the next call to getFrameworkShortcutFeaturesMap
+        sFrameworkShortcutFeaturesMap = null;
+    }
+
+    private static boolean isOneHandedModeSupported() {
+        return sSupportOneHandedModeForTesting != null
+                ? sSupportOneHandedModeForTesting
+                : SUPPORT_ONE_HANDED_MODE;
+    }
 
     /**
      * @return An immutable map from placeholder component names to feature
@@ -185,7 +207,7 @@ public class AccessibilityShortcutController {
                             Settings.Secure.ACCESSIBILITY_MOUSE_KEYS_ENABLED,
                              "1" /* Value to enable */, "0" /* Value to disable */,
                             R.string.mouse_keys_feature_name));
-            if (SUPPORT_ONE_HANDED_MODE) {
+            if (isOneHandedModeSupported()) {
                 featuresMap.put(ONE_HANDED_COMPONENT_NAME,
                         new ToggleableFrameworkFeatureInfo(
                                 Settings.Secure.ONE_HANDED_MODE_ACTIVATED,
@@ -482,10 +504,19 @@ public class AccessibilityShortcutController {
         return mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK);
     }
 
-    private void playNotificationTone() {
-        Ringtone tone =
+    /**
+     * Play notification tone
+     * <p>
+     * This method is public solely for testing purposes.
+     */
+    @VisibleForTesting
+    public void playNotificationTone() {
+        if (mCurrentRingtone != null) {
+            mCurrentRingtone.stop();
+        }
+        mCurrentRingtone =
                 mFrameworkObjectProvider.getDefaultAccessibilityNotificationRingtone(mContext);
-        AccessibilityUtils.playNotificationTone(mContext, tone);
+        AccessibilityUtils.playNotificationTone(mContext, mCurrentRingtone);
     }
 
     /**
@@ -748,8 +779,7 @@ public class AccessibilityShortcutController {
          * @return True if the accessibility service is enabled, false otherwise.
          */
         public boolean activateShortcut(Context context, int userId) {
-            if (com.android.server.display.feature.flags.Flags.evenDimmer()
-                    && context.getResources().getBoolean(
+            if (context.getResources().getBoolean(
                     com.android.internal.R.bool.config_evenDimmerEnabled)) {
                 launchExtraDimDialog(context);
                 return true;

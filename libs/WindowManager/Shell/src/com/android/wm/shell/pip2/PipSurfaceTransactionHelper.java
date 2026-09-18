@@ -78,7 +78,7 @@ public class PipSurfaceTransactionHelper implements PipDisplayLayoutState.Displa
      * @param context the current context
      */
     public void onThemeChanged(Context context) {
-        if (Flags.enablePipBoxShadows()) {
+        if (Flags.enablePipBoxShadowsV2()) {
             if (PipUtils.isDarkSystemTheme(context)) {
                 mBoxShadowSettings = BoxShadowHelper.getBoxShadowSettings(context,
                         new int[]{R.style.BoxShadowParamsPIPDark1,
@@ -234,7 +234,7 @@ public class PipSurfaceTransactionHelper implements PipDisplayLayoutState.Displa
      */
     public PipSurfaceTransactionHelper shadow(SurfaceControl.Transaction tx, SurfaceControl leash,
             boolean applyShadowRadius) {
-        if (Flags.enablePipBoxShadows()) {
+        if (Flags.enablePipBoxShadowsV2()) {
             // Override and disable elevation shadows set by freeform transition.
             //
             // PiP uses box shadows but freeform windows use
@@ -258,7 +258,7 @@ public class PipSurfaceTransactionHelper implements PipDisplayLayoutState.Displa
     }
 
     /**
-     * Sets default transformations for mirrors a given mirror root of a PiP {@param leash}.
+     * Sets default transformations for mirrors a given mirror root of a PiP {@code leash}.
      */
     public PipSurfaceTransactionHelper setMirrorTransformations(SurfaceControl.Transaction tx,
             SurfaceControl leash) {

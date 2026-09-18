@@ -20,5 +20,5 @@
     <size
         android:height="10dp"
         android:width="10dp" />
-    <solid android:color="?androidprv:attr/colorAccentPrimaryVariant" />
+    <solid android:color="@color/materialColorPrimaryContainer" />
 </shape>

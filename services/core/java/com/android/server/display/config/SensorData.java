@@ -105,6 +105,32 @@ public class SensorData {
     }
 
     /**
+     * Loads color sensor data from DisplayConfiguration and if missing from resources xml
+     */
+    public static SensorData loadColorSensorConfig(DisplayConfiguration config,
+            Resources resources) {
+        SensorDetails sensorDetails = config.getColorSensor();
+        if (sensorDetails != null) {
+            return loadSensorData(sensorDetails);
+        } else {
+            return loadColorSensorConfig(resources);
+        }
+    }
+
+    /**
+     * Loads color sensor data from resources xml
+     */
+    public static SensorData loadColorSensorConfig(Resources resources) {
+        // config_displayWhiteBalanceColorTemperatureSensorName used to lookup sensor
+        // by type in SensorManager
+        return new SensorData(
+                resources.getString(
+                        com.android.internal.R.string
+                                .config_displayWhiteBalanceColorTemperatureSensorName),
+                /* name= */ "");
+    }
+
+    /**
      * Loads screen off brightness sensor data from DisplayConfiguration
      */
     public static SensorData loadScreenOffBrightnessSensorConfig(DisplayConfiguration config) {

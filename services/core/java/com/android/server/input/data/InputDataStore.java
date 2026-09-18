@@ -55,6 +55,10 @@ public final class InputDataStore {
     InputDataStore(FileInjector fileInjector) {
         mFileInjector = fileInjector;
         mPersistedDataMap.put(InputGestureData.class, new InputGesturePersistedData());
+        if (com.android.hardware.input.Flags.controllerRemapping()) {
+            mPersistedDataMap.put(InputDeviceRemappingData.class,
+                    new InputDeviceRemappingPersistedData());
+        }
     }
 
     /**

@@ -28,12 +28,13 @@ interface AppToWebRepository {
      * is received.
      */
     fun updateAppToWebEducationRequestTimestamp(
-        taskId: Int, latestOpenInBrowserEducationTimestamp: Long
+        taskId: Int,
+        latestOpenInBrowserEducationTimestamp: Long,
     ): Boolean
 
     /**
-     * Returns true if browser app and valid URI is available to switch to viewing app content
-     * on browser.
+     * Returns true if browser app and valid URI is available to switch to viewing app content on
+     * browser.
      */
     suspend fun isBrowserSessionAvailable(taskInfo: RunningTaskInfo): Boolean
 
@@ -47,13 +48,33 @@ interface AppToWebRepository {
     fun onCapturedLinkUsed(taskId: Int)
 
     /**
-     * Retrieves the latest webUri and genericLink  for the given task. If the task requesting the
+     * Retrieves the latest webUri and genericLink for the given task. If the task requesting the
      * intent [isBrowserApp], intent is created to switch to application if link was provided by
      * browser app and a relevant application exists to host the app. Otherwise, returns intent to
      * switch to browser if webUri, capturedLink, or genericLink is available.
      *
      * Note that the capturedLink should be updated separately using [setCapturedLink]
-     *
      */
     suspend fun getAppToWebIntent(taskInfo: RunningTaskInfo, isBrowserApp: Boolean): Intent?
+
+    /** Returns [true] if a first-run prompt should be shown on the given task. */
+    fun shouldShowFirstRunPrompt(taskInfo: RunningTaskInfo): Boolean
+
+    /** Returns [true] if a first-run prompt is/was shown on the given task. */
+    fun isFirstRunPromptShown(taskInfo: RunningTaskInfo): Boolean
+
+    /** Sets the first-run prompt as shown for the given task. */
+    fun onFirstRunPromptShown(taskInfo: RunningTaskInfo)
+
+    /**
+     * Sets the first-run prompt as acknowledged (i.e., a user does not dismiss the prompt) for the
+     * given task.
+     */
+    fun onFirstRunPromptAcked(taskInfo: RunningTaskInfo)
+
+    /** Clears the remembered first-run prompt acked packages for the given user and package. */
+    fun clearFirstRunPromptAckedPackages(userId: Int, packageName: String)
+
+    /** Clears all remembered first-run prompt acked packages for the given user. */
+    fun clearAllFirstRunPromptAckedPackages(userId: Int)
 }

@@ -58,6 +58,7 @@ cc_defaults_for_libandroid_runtime {
     cppflags: ["-Wno-conversion-null", "-O3"],
     header_libs: [
         "libhwui_internal_headers",
+        "libbinder_internal_headers",
     ],
 
     product_variables: {
@@ -98,6 +99,7 @@ cc_defaults_for_libandroid_runtime {
         "android_view_KeyCharacterMap.cpp",
         "android_view_KeyEvent.cpp",
         "android_view_MotionEvent.cpp",
+        "android_view_MotionPredictor.cpp",
         "android_view_Surface.cpp",
         "android_view_VelocityTracker.cpp",
         "android_view_VerifiedKeyEvent.cpp",
@@ -117,8 +119,10 @@ cc_defaults_for_libandroid_runtime {
 
     static_libs: [
         "android.content.res.flags-aconfig-cc-host-ro",
+        "libkernelconfigs",
         "libziparchive_for_incfs",
         "libguiflags",
+        "libPlatformProperties",
     ],
 
     export_include_dirs: [
@@ -165,7 +169,6 @@ cc_defaults_for_libandroid_runtime {
                 "android_view_InputEventReceiver.cpp",
                 "android_view_InputEventSender.cpp",
                 "android_view_InputQueue.cpp",
-                "android_view_MotionPredictor.cpp",
                 "android_view_PointerIcon.cpp",
                 "android_view_SurfaceControl.cpp",
                 "android_view_SurfaceControlActivePictureListener.cpp",
@@ -186,8 +189,6 @@ cc_defaults_for_libandroid_runtime {
                 "android_os_NativeHandle.cpp",
                 "android_os_MemoryFile.cpp",
                 "android_os_MessageQueue.cpp",
-                "android_os_PerfettoTrace.cpp",
-                "android_os_PerfettoTrackEventExtra.cpp",
                 "android_os_Parcel.cpp",
                 "android_os_PerformanceHintManager.cpp",
                 "android_os_SELinux.cpp",
@@ -207,6 +208,7 @@ cc_defaults_for_libandroid_runtime {
                 "android_media_audio_common_AidlConversion.cpp",
                 "android_media_AudioDeviceAttributes.cpp",
                 "android_media_AudioEffectDescriptor.cpp",
+                "android_media_AudioFormat.cpp",
                 "android_media_AudioRecord.cpp",
                 "android_media_AudioSystem.cpp",
                 "android_media_AudioTrackCallback.cpp",
@@ -230,6 +232,7 @@ cc_defaults_for_libandroid_runtime {
                 "android_hardware_display_DisplayViewport.cpp",
                 "android_hardware_display_DisplayTopology.cpp",
                 "android_hardware_HardwareBuffer.cpp",
+                "android_hardware_HubEndpoint.cpp",
                 "android_hardware_OverlayProperties.cpp",
                 "android_hardware_SensorManager.cpp",
                 "android_hardware_SerialPort.cpp",
@@ -284,9 +287,10 @@ cc_defaults_for_libandroid_runtime {
                 "android_tracing_PerfettoDataSource.cpp",
                 "android_tracing_PerfettoDataSourceInstance.cpp",
                 "android_tracing_PerfettoProducer.cpp",
+                "com_android_internal_protolog.cpp",
             ] + select(release_flag("RELEASE_NATIVE_FRAMEWORK_PROTOTYPE"), {
                 true: [
-                    "android_os_ZygoteProcess.cpp",
+                    "android_os_NativeZygoteProcess.cpp",
                 ],
                 default: [],
             }),
@@ -296,8 +300,12 @@ cc_defaults_for_libandroid_runtime {
                     "-DANDROID_NATIVE_FRAMEWORK_PROTOTYPE",
                 ],
                 default: [],
+            }) + select(release_flag("RELEASE_BUILD_EXECUTE_ONLY_MEMORY"), {
+                true: [
+                    "-DBUILD_EXECUTE_ONLY_MEMORY",
+                ],
+                default: [],
             }),
-
             static_libs: [
                 "android.os.flags-aconfig-cc",
                 "libasync_safe",
@@ -305,16 +313,21 @@ cc_defaults_for_libandroid_runtime {
                 "libdmabufinfo",
                 "libgenfslabelsversion.ffi",
                 "libgui_window_info_static",
-                "libkernelconfigs",
                 "libnativehelper_lazy",
                 "libseccomp_policy",
                 "libgrallocusage",
                 "libscrypt_static",
                 "libstatssocket_lazy",
                 "libskia",
+                "pw_status",
             ] + select(release_flag("RELEASE_NATIVE_FRAMEWORK_PROTOTYPE"), {
                 true: [
                     "libflatbuffers-cpp",
+                ],
+                default: [],
+            }) + select(release_flag("RELEASE_BUILD_EXECUTE_ONLY_MEMORY"), {
+                true: [
+                    "libtracing_perfetto",
                 ],
                 default: [],
             }),
@@ -326,6 +339,8 @@ cc_defaults_for_libandroid_runtime {
                 "libmediautils",
                 "libminikin",
                 "libz",
+                "libguiflags",
+                "aconfig_text_flags_c_lib",
                 "android.database.sqlite-aconfig-cc",
                 "android.media.audiopolicy-aconfig-cc",
                 "audioclient-types-aidl-cpp",
@@ -340,7 +355,9 @@ cc_defaults_for_libandroid_runtime {
                 "android.hardware.common-V2-cpp",
                 "android.hardware.common.fmq-V1-ndk",
                 "android.hardware.common-V2-ndk",
-                "libandroid_net",
+                "android.hardware.contexthub-V5-ndk",
+                "chre_flags_c_lib",
+                "contexthub_data_flow",
                 "libfmq",
                 "libbattery",
                 "libnetdutils",
@@ -361,12 +378,12 @@ cc_defaults_for_libandroid_runtime {
                 "libhwui",
                 "libmediandk",
                 "libpermission",
-                "libPlatformProperties",
                 "libsensor",
                 "libinput",
                 "libicu",
                 "libcamera_client",
                 "libcamera_metadata",
+                "libcore_jni_flags_c",
                 "libprocinfo",
                 "libsqlite",
                 "libEGL",
@@ -385,6 +402,7 @@ cc_defaults_for_libandroid_runtime {
                 "libmedia_helper",
                 "libmediametrics",
                 "libmeminfo",
+                "libaudiobase",
                 "libaudioclient",
                 "libaudioclient_aidl_conversion",
                 "libaudiofoundation",
@@ -394,6 +412,7 @@ cc_defaults_for_libandroid_runtime {
                 "libimg_utils",
                 "libnetd_client",
                 "libprocessgroup",
+                "libprocessgroup_platform",
                 "libnativebridge_lazy",
                 "libnativeloader_lazy",
                 "libmemunreachable",
@@ -411,6 +430,8 @@ cc_defaults_for_libandroid_runtime {
                 "libperfetto_c",
                 "libtracing_perfetto",
                 "libperfetto_framework_jni",
+                "libprotolog",
+                "pw_allocator",
             ],
             export_shared_lib_headers: [
                 // our headers include libnativewindow's public headers
@@ -425,14 +446,23 @@ cc_defaults_for_libandroid_runtime {
                 "dnsproxyd_protocol_headers",
                 "flatbuffer_headers",
                 "tensorflow_headers",
+                "bpf_prog_headers",
             ] + select(release_flag("RELEASE_NATIVE_FRAMEWORK_PROTOTYPE"), {
                 true: [
-                    "libzygote_schema_headers",
+                    "libzygote_messages_schema_headers",
                 ],
                 default: [],
             }),
             runtime_libs: [
                 "libidmap2",
+            ],
+        },
+        android_x86_64: {
+            srcs: [
+                "com_android_internal_os_KernelCpuCyclePerUidBpf.cpp",
+            ],
+            shared_libs: [
+                "libcycleperuid",
             ],
         },
         host: {
@@ -452,33 +482,13 @@ cc_defaults_for_libandroid_runtime {
             ],
             static_libs: [
                 "libandroidfw",
-                "libbinary_parse",
-                "libdng_sdk",
-                "libft2",
-                "libharfbuzz_ng",
                 "libhostgraphics",
-                "libhwui",
-                "libimage_type_recognition",
-                "libinput",
-                "libjpeg",
-                "libminikin",
                 "libnativehelper_jvm",
-                "libpiex",
-                "libpng",
-                "libsqlite",
-                "libtiff_directory",
                 "libui-types",
-                "libwebp-decode",
-                "libwebp-encode",
-                "libperfetto_c",
-                "libtracing_perfetto",
-                "libwuffs_mirror_release_c",
-                "libz",
-                "libimage_io",
-                "libjpegdecoder",
-                "libjpegencoder",
-                "libultrahdr",
-                "server_configurable_flags",
+            ],
+            header_libs: [
+                "flatbuffer_headers",
+                "tensorflow_headers",
             ],
             export_static_lib_headers: [
                 "libnativehelper_jvm",
@@ -502,10 +512,6 @@ cc_defaults_for_libandroid_runtime {
             static_libs: [
                 "libbinderthreadstateutils",
                 "libgui_window_info_static",
-                "libbinder",
-                "libbinder_ndk",
-                "libhidlbase", // libhwbinder is in here
-                "libaconfig_storage_read_api_cc",
             ],
         },
     },
@@ -517,18 +523,55 @@ cc_library_shared {
     target: {
         host: {
             static_libs: [
+                "aconfig_text_flags_c_lib",
+                "aconfig_view_accessibility_flags_c_lib",
+                "libaconfig_storage_read_api_cc",
                 "libbase",
+                "libbinary_parse",
                 "libcutils",
-                "liblog",
-                "libutils",
+                "libdng_sdk",
+                "libft2",
+                "libharfbuzz_ng",
+                "libhwui",
                 "libicui18n",
                 "libicuuc",
                 "libicuuc_stubdata",
+                "libimage_io",
+                "libimage_type_recognition",
+                "libinput",
+                "libjpeg",
+                "libjpegdecoder",
+                "libjpegencoder",
+                "liblog",
+                "libminikin",
+                "libperfetto_c",
+                "libpiex",
+                "libpng",
+                "libsqlite",
+                "libstatssocket-fake",
+                "libstatspull-fake",
+                "libtflite_static",
+                "libtiff_directory",
+                "libtinyxml2",
+                "libtracing_perfetto",
+                "libultrahdr",
+                "libutils",
+                "libwebp-decode",
+                "libwebp-encode",
+                "libwuffs_mirror_release_c",
+                "libz",
+                "server_configurable_flags",
             ],
             stl: "libc++_static",
         },
         host_linux: {
             version_script: "platform/linux/libandroid_runtime_export.txt",
+            static_libs: [
+                "libbinder",
+                "libbinder_ndk",
+                "libcore_jni_flags_c",
+                "libhidlbase",
+            ],
         },
         darwin: {
             host_ldlibs: [
@@ -549,24 +592,45 @@ cc_library_shared {
             },
         },
     },
-
-    lto: {
-        thin: true,
-    },
+    afdo: true,
 }
 
 cc_library_host_shared {
     name: "libandroid_runtime_ravenwood",
-    defaults: ["libandroid_runtime_defaults"],
     stem: "libandroid_runtime",
+    defaults: ["libandroid_runtime_defaults"],
     installable: false,
     visibility: ["//frameworks/base/ravenwood"],
+    cflags: [
+        "-D__RAVENWOOD__",
+    ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libbase",
+        "libbinder",
+        "libbinder_ndk",
+        "libcore_jni_flags_c",
         "libcutils",
+        "libharfbuzz_ng",
+        "libhidlbase",
+        "libhwui",
+        "libicui18n",
+        "libicuuc",
+        "libimage_io",
+        "libinput",
+        "libjpeg",
         "liblog",
+        "libminikin",
+        "libperfetto_c",
+        "libsqlite",
+        "libtracing_perfetto",
+        "libultrahdr",
         "libutils",
-        "libicu",
+        "libz",
+        "server_configurable_flags",
+    ],
+    static_libs: [
+        "libicuuc_stubdata",
     ],
 }
 
@@ -620,4 +684,22 @@ cc_library_shared {
         "-Wunused",
         "-Wunreachable-code",
     ],
+}
+
+aconfig_declarations {
+    name: "core_jni_flags",
+    package: "com.android.base.core.jni.flags",
+    container: "system",
+    srcs: ["flags.aconfig"],
+}
+
+cc_aconfig_library {
+    name: "libcore_jni_flags_c",
+    aconfig_declarations: "core_jni_flags",
+    host_supported: true,
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
 }

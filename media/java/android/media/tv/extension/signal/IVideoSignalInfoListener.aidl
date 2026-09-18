@@ -22,5 +22,13 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface IVideoSignalInfoListener {
+    /**
+     * Called when the video signal information has changed.
+     *
+     * @param sessionToken      A string used to identify the session for which the info has changed.
+     * @param changedSignalInfo A Bundle containing the updated video signal information. The keys
+     *                          in this bundle are a subset of those returned
+     *                          by {@link IVideoSignalInfo#getVideoSignalInfo(String)}.
+     */
     void onVideoSignalInfoChanged(String sessionToken, in Bundle changedSignalInfo);
 }

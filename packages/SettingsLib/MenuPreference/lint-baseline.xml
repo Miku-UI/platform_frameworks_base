@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues
+    type="baseline"
+    client=""
+    dependencies="true"
+    name=""
+    variant=""
+    version="">
+    <issue
+        id="NewApi"
+        message="Call requires API level 24 (current min is 23): `android.icu.text.NumberFormat#getNumberInstance`"
+        errorLine1="            NumberFormat.getNumberInstance(Locale.getDefault()).format(number)"
+        errorLine2="                         ~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/MenuPreference/src/com/android/settingslib/widget/OrderMenuPreference.kt"
+            line="99"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 24 (current min is 23): `android.icu.text.NumberFormat#getNumberInstance`"
+        errorLine1="            NumberFormat.getNumberInstance(Locale.getDefault()).format(number)"
+        errorLine2="                         ~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/MenuPreference/src/com/android/settingslib/widget/OrderMenuPreference.kt"
+            line="99"
+            column="26"/>
+    </issue>
+
+</issues>

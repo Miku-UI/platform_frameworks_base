@@ -19,6 +19,7 @@ package com.android.server.soundtrigger;
 import static com.android.server.soundtrigger.DeviceStateHandler.SoundTriggerDeviceState;
 import static com.android.server.soundtrigger.SoundTriggerEvent.SessionEvent.Type;
 import static com.android.server.utils.EventLogger.Event.ALOGW;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -37,23 +38,15 @@ import android.hardware.soundtrigger.SoundTrigger.RecognitionConfig;
 import android.hardware.soundtrigger.SoundTrigger.RecognitionEvent;
 import android.hardware.soundtrigger.SoundTrigger.SoundModel;
 import android.hardware.soundtrigger.SoundTriggerModule;
-import android.os.Binder;
-import android.os.DeadObjectException;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
-import android.os.Message;
 import android.os.RemoteException;
 import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.logging.MetricsLogger;
 import com.android.server.soundtrigger.SoundTriggerEvent.SessionEvent;
-import com.android.server.utils.EventLogger.Event;
 import com.android.server.utils.EventLogger;
 
-import java.io.FileDescriptor;
-import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -235,6 +228,7 @@ public class SoundTriggerHelper implements SoundTrigger.StatusListener {
     }
 
     private int prepareForRecognition(ModelData modelData) {
+        Slog.v(TAG, "prepareForRecognition");
         if (mModule == null) {
             Slog.w(TAG, "prepareForRecognition: cannot attach to sound trigger module");
             return STATUS_ERROR;
@@ -276,6 +270,7 @@ public class SoundTriggerHelper implements SoundTrigger.StatusListener {
             IRecognitionStatusCallback callback, RecognitionConfig recognitionConfig,
             int keyphraseId, boolean runInBatterySaverMode) {
         synchronized (mLock) {
+            Slog.v(TAG, "startRecognition");
             // TODO Remove previous callback handling
             IRecognitionStatusCallback oldCallback = modelData.getCallback();
             if (oldCallback != null && oldCallback.asBinder() != callback.asBinder()) {
@@ -860,6 +855,7 @@ public class SoundTriggerHelper implements SoundTrigger.StatusListener {
     @Override
     public void onResourcesAvailable() {
         synchronized (mLock) {
+            Slog.v(TAG, "onResourcesAvailable");
             onResourcesAvailableLocked();
         }
     }
@@ -983,9 +979,11 @@ public class SoundTriggerHelper implements SoundTrigger.StatusListener {
 
     @GuardedBy("mLock")
     private int updateRecognitionLocked(ModelData model, boolean notifyClientOnError) {
+        Slog.v(TAG, "updateRecognitionLocked");
         boolean shouldStartModel = model.isRequested() && isRecognitionAllowed(model);
         if (shouldStartModel == model.isModelStarted()) {
             // No-op.
+            Slog.v(TAG, "updateRecognitionLocked no-op");
             return STATUS_OK;
         }
         if (shouldStartModel) {
@@ -1203,9 +1201,13 @@ public class SoundTriggerHelper implements SoundTrigger.StatusListener {
      */
     @GuardedBy("mLock")
     private boolean isRecognitionAllowed(ModelData modelData) {
+        Slog.v(TAG, "isRecognitionAllowed");
+
         if (!mIsAppOpPermitted) {
             return false;
         }
+
+        Slog.v(TAG, "deviceState: " + mDeviceState);
         return switch (mDeviceState) {
             case DISABLE -> false;
             case CRITICAL -> modelData.shouldRunInBatterySaverMode();
@@ -1218,6 +1220,7 @@ public class SoundTriggerHelper implements SoundTrigger.StatusListener {
     // models.
     @GuardedBy("mLock")
     private int startRecognitionLocked(ModelData modelData, boolean notifyClientOnError) {
+        Slog.v(TAG, "startRecognitionLocked");
         IRecognitionStatusCallback callback = modelData.getCallback();
         RecognitionConfig config = modelData.getRecognitionConfig();
         if (callback == null || !modelData.isModelLoaded() || config == null) {
@@ -1235,6 +1238,7 @@ public class SoundTriggerHelper implements SoundTrigger.StatusListener {
         }
 
         if (mModule == null) {
+            Slog.w(TAG, "Failed to start recognition as mModule is null");
             return STATUS_ERROR;
         }
         int status = STATUS_OK;

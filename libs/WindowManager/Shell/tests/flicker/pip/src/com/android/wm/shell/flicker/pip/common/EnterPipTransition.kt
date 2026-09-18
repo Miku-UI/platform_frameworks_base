@@ -71,9 +71,7 @@ abstract class EnterPipTransition(flicker: FlickerTest) : PipTransition(flicker)
     @Presubmit
     @Test
     open fun pipLayerOrOverlayRemainInsideVisibleBounds() {
-        flicker.assertLayersVisibleRegion(
-            pipApp.or(ComponentNameMatcher.PIP_CONTENT_OVERLAY)
-        ) {
+        flicker.assertLayersVisibleRegion(pipApp.or(ComponentNameMatcher.PIP_CONTENT_OVERLAY)) {
             coversAtMost(displayBounds)
         }
     }
@@ -119,23 +117,19 @@ abstract class EnterPipTransition(flicker: FlickerTest) : PipTransition(flicker)
     @Presubmit
     @Test
     open fun focusChanges() {
-        flicker.assertEventLog {
-            this.focusChanges(pipApp.packageName, "NexusLauncherActivity")
-        }
+        flicker.assertEventLog { this.focusChanges(pipApp.packageName, "NexusLauncherActivity") }
     }
 
     companion object {
         /**
          * Creates the test configurations.
          *
-         * See [FlickerTestFactory.nonRotationTests] for configuring repetitions, screen
-         * orientation and navigation modes.
+         * See [FlickerTestFactory.nonRotationTests] for configuring repetitions, screen orientation
+         * and navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            FlickerTestFactory.nonRotationTests(
-                supportedRotations = listOf(Rotation.ROTATION_0)
-            )
+            FlickerTestFactory.nonRotationTests(supportedRotations = listOf(Rotation.ROTATION_0))
     }
 }

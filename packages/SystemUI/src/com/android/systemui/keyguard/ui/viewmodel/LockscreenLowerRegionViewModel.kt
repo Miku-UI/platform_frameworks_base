@@ -17,39 +17,28 @@
 package com.android.systemui.keyguard.ui.viewmodel
 
 import androidx.compose.runtime.getValue
-import com.android.systemui.keyguard.ui.composable.layout.UnfoldTranslations
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.keyguard.ui.composable.elements.UnfoldTranslations
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.unfold.domain.interactor.UnfoldTransitionInteractor
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 
 class LockscreenLowerRegionViewModel
 @AssistedInject
-constructor(unfoldTransitionInteractor: UnfoldTransitionInteractor) : ExclusiveActivatable() {
-
-    private val hydrator = Hydrator("LockscreenLowerRegionViewModel.hydrator")
+constructor(unfoldTransitionInteractor: UnfoldTransitionInteractor) : HydratedActivatable() {
 
     val unfoldTranslations: UnfoldTranslations =
         object : UnfoldTranslations {
             override val start: Float by
-                hydrator.hydratedStateOf(
-                    traceName = "unfoldTranslations.start",
-                    initialValue = 0f,
-                    source = unfoldTransitionInteractor.unfoldTranslationX(isOnStartSide = true),
-                )
+                unfoldTransitionInteractor
+                    .unfoldTranslationX(isOnStartSide = true)
+                    .hydratedStateOf(traceName = "unfoldTranslations.start", initialValue = 0f)
 
             override val end: Float by
-                hydrator.hydratedStateOf(
-                    traceName = "unfoldTranslations.end",
-                    initialValue = 0f,
-                    source = unfoldTransitionInteractor.unfoldTranslationX(isOnStartSide = false),
-                )
+                unfoldTransitionInteractor
+                    .unfoldTranslationX(isOnStartSide = false)
+                    .hydratedStateOf(traceName = "unfoldTranslations.end", initialValue = 0f)
         }
-
-    override suspend fun onActivated(): Nothing {
-        hydrator.activate()
-    }
 
     @AssistedFactory
     interface Factory {

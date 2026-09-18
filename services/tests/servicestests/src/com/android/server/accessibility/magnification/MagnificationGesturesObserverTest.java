@@ -20,23 +20,28 @@ package com.android.server.accessibility.magnification;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.Instrumentation;
 import android.content.Context;
+import android.os.SystemClock;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.view.Display;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
 
 import androidx.test.InstrumentationRegistry;
 
+import com.android.server.accessibility.Flags;
 import com.android.server.accessibility.utils.TouchEventGenerator;
 
 import junit.framework.Assert;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatcher;
@@ -50,6 +55,9 @@ import java.util.List;
  * Tests for MagnificationGesturesObserver.
  */
 public class MagnificationGesturesObserverTest {
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private static final float DEFAULT_X = 100f;
     private static final float DEFAULT_Y = 100f;
@@ -85,7 +93,22 @@ public class MagnificationGesturesObserverTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_FIX_WINDOW_MAGNIFICATION_INACTIVE_DOUBLE_TAP)
     public void onActionDown_shouldNotDetection_onGestureCanceled() {
+        when(mCallback.shouldStopDetection(any(MotionEvent.class))).thenReturn(true);
+        final MotionEvent downEvent = TouchEventGenerator.downEvent(Display.DEFAULT_DISPLAY,
+                DEFAULT_X , DEFAULT_Y);
+
+        mObserver.onMotionEvent(downEvent, downEvent, 0);
+
+        verify(mCallback).onGestureCancelled(eq(downEvent.getDownTime()),
+                mEventInfoArgumentCaptor.capture(), argThat(new MotionEventMatcher(downEvent)));
+        verifyCacheMotionEvents(mEventInfoArgumentCaptor.getValue(), downEvent);
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_FIX_WINDOW_MAGNIFICATION_INACTIVE_DOUBLE_TAP)
+    public void onActionDown_shouldNotDetection_flagDisabled_onGestureCanceled() {
         when(mCallback.shouldStopDetection(any(MotionEvent.class))).thenReturn(true);
         final MotionEvent downEvent = TouchEventGenerator.downEvent(Display.DEFAULT_DISPLAY,
                 DEFAULT_X , DEFAULT_Y);
@@ -102,11 +125,14 @@ public class MagnificationGesturesObserverTest {
         final MotionEvent downEvent = TouchEventGenerator.downEvent(Display.DEFAULT_DISPLAY,
                 DEFAULT_X, DEFAULT_Y);
         final int timeoutMillis = MagnificationGestureMatcher.getMagnificationMultiTapTimeout(
-                mContext) + 100;
+                mContext);
 
         mObserver.onMotionEvent(downEvent, downEvent, 0);
 
-        verify(mCallback, timeout(timeoutMillis)).onGestureCancelled(eq(downEvent.getDownTime()),
+        SystemClock.sleep(timeoutMillis + 100);
+        mInstrumentation.waitForIdleSync();
+
+        verify(mCallback).onGestureCancelled(eq(downEvent.getDownTime()),
                 mEventInfoArgumentCaptor.capture(), argThat(new MotionEventMatcher(downEvent)));
         verifyCacheMotionEvents(mEventInfoArgumentCaptor.getValue(), downEvent);
     }

@@ -25,8 +25,7 @@ import org.junit.runner.RunWith
 /**
  * Tests for [WindowContainerTransactionSupplier].
  *
- * Build/Install/Run:
- *  atest WMShellUnitTests:WindowContainerTransactionSupplierTest
+ * Build/Install/Run: atest WMShellUnitTests:WindowContainerTransactionSupplierTest
  */
 @RunWith(AndroidTestingRunner::class)
 @SmallTest

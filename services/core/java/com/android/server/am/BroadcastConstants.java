@@ -20,6 +20,7 @@ import static android.provider.DeviceConfig.NAMESPACE_ACTIVITY_MANAGER_NATIVE_BO
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.EnabledAfter;
@@ -31,6 +32,7 @@ import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.SystemProperties;
 import android.provider.DeviceConfig;
+import android.provider.DeviceConfig.Properties;
 import android.provider.Settings;
 import android.util.IndentingPrintWriter;
 import android.util.KeyValueListParser;
@@ -198,6 +200,16 @@ public class BroadcastConstants {
             ActivityManager.isLowRamDeviceStatic() ? 128 : 256;
 
     /**
+     * For {@link BroadcastQueueImpl}: Maximum number of pending
+     * broadcasts to hold for a UID before we start dropping new broadcasts.
+     */
+    public int MAX_PENDING_BROADCASTS_PER_SENDER_UID =
+            DEFAULT_MAX_PENDING_BROADCASTS_PER_SENDER_UID;
+    private static final String KEY_MAX_PENDING_BROADCASTS_PER_SENDER_UID =
+            "bcast_max_pending_broadcasts_per_sender_uid";
+    private static final int DEFAULT_MAX_PENDING_BROADCASTS_PER_SENDER_UID = 10_000;
+
+    /**
      * For {@link BroadcastQueueImpl}: Delay to apply to normal
      * broadcasts, giving a chance for debouncing of rapidly changing events.
      */
@@ -330,7 +342,8 @@ public class BroadcastConstants {
         mSettingsKey = settingsKey;
 
         // Load initial values at least once before we start observing below
-        updateDeviceConfigConstants();
+        updateDeviceConfigConstants(new Properties(NAMESPACE_ACTIVITY_MANAGER_NATIVE_BOOT,
+                null /* keyValueMap */));
     }
 
     /**
@@ -347,7 +360,8 @@ public class BroadcastConstants {
 
         DeviceConfig.addOnPropertiesChangedListener(NAMESPACE_ACTIVITY_MANAGER_NATIVE_BOOT,
                 new HandlerExecutor(handler), this::updateDeviceConfigConstants);
-        updateDeviceConfigConstants();
+        updateDeviceConfigConstants(DeviceConfig.getProperties(
+                NAMESPACE_ACTIVITY_MANAGER_NATIVE_BOOT));
     }
 
     public int getMaxRunningQueues() {
@@ -387,84 +401,132 @@ public class BroadcastConstants {
         return "persist.sys." + NAMESPACE_ACTIVITY_MANAGER_NATIVE_BOOT + "." + key;
     }
 
-    static boolean getDeviceConfigBoolean(@NonNull String key, boolean def) {
+    private static boolean getDeviceConfigBoolean(@NonNull Properties properties,
+            @NonNull String key, boolean def) {
         return SystemProperties.getBoolean(propertyOverrideFor(key),
-                SystemProperties.getBoolean(propertyFor(key), def));
+                properties.getBoolean(key, SystemProperties.getBoolean(propertyFor(key), def)));
     }
 
-    private int getDeviceConfigInt(@NonNull String key, int def) {
+    private int getDeviceConfigInt(@NonNull Properties properties, @NonNull String key, int def) {
         return SystemProperties.getInt(propertyOverrideFor(key),
-                SystemProperties.getInt(propertyFor(key), def));
+                properties.getInt(key, SystemProperties.getInt(propertyFor(key), def)));
     }
 
-    private long getDeviceConfigLong(@NonNull String key, long def) {
+    private long getDeviceConfigLong(@NonNull Properties properties,
+            @NonNull String key, long def) {
         return SystemProperties.getLong(propertyOverrideFor(key),
-                SystemProperties.getLong(propertyFor(key), def));
-    }
-
-    private void updateDeviceConfigConstants(@NonNull DeviceConfig.Properties properties) {
-        updateDeviceConfigConstants();
+                properties.getLong(key, SystemProperties.getLong(propertyFor(key), def)));
     }
 
     /**
      * Since our values are stored in a "native boot" namespace, we load them
      * directly from the system properties.
      */
-    private void updateDeviceConfigConstants() {
+    private void updateDeviceConfigConstants(@NonNull Properties properties) {
         synchronized (this) {
-            MAX_RUNNING_PROCESS_QUEUES = getDeviceConfigInt(KEY_MAX_RUNNING_PROCESS_QUEUES,
+            MAX_RUNNING_PROCESS_QUEUES = getDeviceConfigInt(properties,
+                    KEY_MAX_RUNNING_PROCESS_QUEUES,
                     DEFAULT_MAX_RUNNING_PROCESS_QUEUES);
-            EXTRA_RUNNING_URGENT_PROCESS_QUEUES = getDeviceConfigInt(
+            EXTRA_RUNNING_URGENT_PROCESS_QUEUES = getDeviceConfigInt(properties,
                     KEY_EXTRA_RUNNING_URGENT_PROCESS_QUEUES,
                     DEFAULT_EXTRA_RUNNING_URGENT_PROCESS_QUEUES);
-            MAX_CONSECUTIVE_URGENT_DISPATCHES = getDeviceConfigInt(
+            MAX_CONSECUTIVE_URGENT_DISPATCHES = getDeviceConfigInt(properties,
                     KEY_MAX_CONSECUTIVE_URGENT_DISPATCHES,
                     DEFAULT_MAX_CONSECUTIVE_URGENT_DISPATCHES);
-            MAX_CONSECUTIVE_NORMAL_DISPATCHES = getDeviceConfigInt(
+            MAX_CONSECUTIVE_NORMAL_DISPATCHES = getDeviceConfigInt(properties,
                     KEY_MAX_CONSECUTIVE_NORMAL_DISPATCHES,
                     DEFAULT_MAX_CONSECUTIVE_NORMAL_DISPATCHES);
-            MAX_RUNNING_ACTIVE_BROADCASTS = getDeviceConfigInt(KEY_MAX_RUNNING_ACTIVE_BROADCASTS,
+            MAX_RUNNING_ACTIVE_BROADCASTS = getDeviceConfigInt(properties,
+                    KEY_MAX_RUNNING_ACTIVE_BROADCASTS,
                     DEFAULT_MAX_RUNNING_ACTIVE_BROADCASTS);
-            MAX_CORE_RUNNING_BLOCKING_BROADCASTS = getDeviceConfigInt(
+            MAX_CORE_RUNNING_BLOCKING_BROADCASTS = getDeviceConfigInt(properties,
                     KEY_CORE_MAX_RUNNING_BLOCKING_BROADCASTS,
                     DEFAULT_MAX_CORE_RUNNING_BLOCKING_BROADCASTS);
-            MAX_CORE_RUNNING_NON_BLOCKING_BROADCASTS = getDeviceConfigInt(
+            MAX_CORE_RUNNING_NON_BLOCKING_BROADCASTS = getDeviceConfigInt(properties,
                     KEY_CORE_MAX_RUNNING_NON_BLOCKING_BROADCASTS,
                     DEFAULT_MAX_CORE_RUNNING_NON_BLOCKING_BROADCASTS);
-            MAX_PENDING_BROADCASTS = getDeviceConfigInt(KEY_MAX_PENDING_BROADCASTS,
+            MAX_PENDING_BROADCASTS = getDeviceConfigInt(properties,
+                    KEY_MAX_PENDING_BROADCASTS,
                     DEFAULT_MAX_PENDING_BROADCASTS);
-            DELAY_NORMAL_MILLIS = getDeviceConfigLong(KEY_DELAY_NORMAL_MILLIS,
+            MAX_PENDING_BROADCASTS_PER_SENDER_UID = getDeviceConfigInt(properties,
+                    KEY_MAX_PENDING_BROADCASTS_PER_SENDER_UID,
+                    DEFAULT_MAX_PENDING_BROADCASTS_PER_SENDER_UID);
+            DELAY_NORMAL_MILLIS = getDeviceConfigLong(properties,
+                    KEY_DELAY_NORMAL_MILLIS,
                     DEFAULT_DELAY_NORMAL_MILLIS);
-            DELAY_CACHED_MILLIS = getDeviceConfigLong(KEY_DELAY_CACHED_MILLIS,
+            DELAY_CACHED_MILLIS = getDeviceConfigLong(properties,
+                    KEY_DELAY_CACHED_MILLIS,
                     DEFAULT_DELAY_CACHED_MILLIS);
-            DELAY_URGENT_MILLIS = getDeviceConfigLong(KEY_DELAY_URGENT_MILLIS,
+            DELAY_URGENT_MILLIS = getDeviceConfigLong(properties,
+                    KEY_DELAY_URGENT_MILLIS,
                     DEFAULT_DELAY_URGENT_MILLIS);
-            DELAY_FOREGROUND_PROC_MILLIS = getDeviceConfigLong(KEY_DELAY_FOREGROUND_PROC_MILLIS,
+            DELAY_FOREGROUND_PROC_MILLIS = getDeviceConfigLong(properties,
+                    KEY_DELAY_FOREGROUND_PROC_MILLIS,
                     DEFAULT_DELAY_FOREGROUND_PROC_MILLIS);
-            DELAY_PERSISTENT_PROC_MILLIS = getDeviceConfigLong(KEY_DELAY_PERSISTENT_PROC_MILLIS,
+            DELAY_PERSISTENT_PROC_MILLIS = getDeviceConfigLong(properties,
+                    KEY_DELAY_PERSISTENT_PROC_MILLIS,
                     DEFAULT_DELAY_PERSISTENT_PROC_MILLIS);
-            MAX_HISTORY_COMPLETE_SIZE = getDeviceConfigInt(KEY_MAX_HISTORY_COMPLETE_SIZE,
+            MAX_HISTORY_COMPLETE_SIZE = getDeviceConfigInt(properties,
+                    KEY_MAX_HISTORY_COMPLETE_SIZE,
                     DEFAULT_MAX_HISTORY_COMPLETE_SIZE);
-            MAX_HISTORY_SUMMARY_SIZE = getDeviceConfigInt(KEY_MAX_HISTORY_SUMMARY_SIZE,
+            MAX_HISTORY_SUMMARY_SIZE = getDeviceConfigInt(properties,
+                    KEY_MAX_HISTORY_SUMMARY_SIZE,
                     DEFAULT_MAX_HISTORY_SUMMARY_SIZE);
-            CORE_DEFER_UNTIL_ACTIVE = getDeviceConfigBoolean(KEY_CORE_DEFER_UNTIL_ACTIVE,
+            CORE_DEFER_UNTIL_ACTIVE = getDeviceConfigBoolean(properties,
+                    KEY_CORE_DEFER_UNTIL_ACTIVE,
                     DEFAULT_CORE_DEFER_UNTIL_ACTIVE);
-            PENDING_COLD_START_CHECK_INTERVAL_MILLIS = getDeviceConfigLong(
+            PENDING_COLD_START_CHECK_INTERVAL_MILLIS = getDeviceConfigLong(properties,
                     KEY_PENDING_COLD_START_CHECK_INTERVAL_MILLIS,
                     DEFAULT_PENDING_COLD_START_CHECK_INTERVAL_MILLIS);
-            MAX_FROZEN_OUTGOING_BROADCASTS = getDeviceConfigInt(
+            MAX_FROZEN_OUTGOING_BROADCASTS = getDeviceConfigInt(properties,
                     KEY_MAX_FROZEN_OUTGOING_BROADCASTS,
                     DEFAULT_MAX_FROZEN_OUTGOING_BROADCASTS);
-            PENDING_COLD_START_ABANDON_TIMEOUT_MILLIS = getDeviceConfigLong(
+            PENDING_COLD_START_ABANDON_TIMEOUT_MILLIS = getDeviceConfigLong(properties,
                     KEY_PENDING_COLD_START_ABANDON_TIMEOUT_MILLIS,
                     DEFAULT_PENDING_COLD_START_ABANDON_TIMEOUT_MILLIS)
-                            * Build.HW_TIMEOUT_MULTIPLIER;
-            EXCESSIVE_PENDING_BROADCASTS = getDeviceConfigInt(KEY_EXCESSIVE_PENDING_BROADCASTS,
+                    * Build.HW_TIMEOUT_MULTIPLIER;
+            EXCESSIVE_PENDING_BROADCASTS = getDeviceConfigInt(properties,
+                    KEY_EXCESSIVE_PENDING_BROADCASTS,
                     DEFAULT_EXCESSIVE_PENDING_BROADCASTS);
         }
 
         // TODO: migrate BroadcastRecord to accept a BroadcastConstants
         BroadcastRecord.CORE_DEFER_UNTIL_ACTIVE = CORE_DEFER_UNTIL_ACTIVE;
+    }
+
+    @Nullable
+    Object getValue(@NonNull String key) {
+        // TODO: b/452064005 - Simplify the structuring of these constants to avoid having to map
+        // these in multiple places.
+        return switch (key) {
+            case KEY_TIMEOUT -> TIMEOUT;
+            case KEY_ALLOW_BG_ACTIVITY_START_TIMEOUT -> ALLOW_BG_ACTIVITY_START_TIMEOUT;
+            case KEY_MAX_RUNNING_PROCESS_QUEUES -> MAX_RUNNING_PROCESS_QUEUES;
+            case KEY_EXTRA_RUNNING_URGENT_PROCESS_QUEUES ->EXTRA_RUNNING_URGENT_PROCESS_QUEUES;
+            case KEY_MAX_CONSECUTIVE_URGENT_DISPATCHES -> MAX_CONSECUTIVE_URGENT_DISPATCHES;
+            case KEY_MAX_CONSECUTIVE_NORMAL_DISPATCHES -> MAX_CONSECUTIVE_NORMAL_DISPATCHES;
+            case KEY_MAX_RUNNING_ACTIVE_BROADCASTS -> MAX_RUNNING_ACTIVE_BROADCASTS;
+            case KEY_CORE_MAX_RUNNING_BLOCKING_BROADCASTS -> MAX_CORE_RUNNING_BLOCKING_BROADCASTS;
+            case KEY_CORE_MAX_RUNNING_NON_BLOCKING_BROADCASTS ->
+                    MAX_CORE_RUNNING_NON_BLOCKING_BROADCASTS;
+            case KEY_MAX_PENDING_BROADCASTS -> MAX_PENDING_BROADCASTS;
+            case KEY_MAX_PENDING_BROADCASTS_PER_SENDER_UID -> MAX_PENDING_BROADCASTS_PER_SENDER_UID;
+            case KEY_DELAY_NORMAL_MILLIS -> DELAY_NORMAL_MILLIS;
+            case KEY_DELAY_CACHED_MILLIS -> DELAY_CACHED_MILLIS;
+            case KEY_DELAY_URGENT_MILLIS -> DELAY_URGENT_MILLIS;
+            case KEY_DELAY_FOREGROUND_PROC_MILLIS -> DELAY_FOREGROUND_PROC_MILLIS;
+            case KEY_DELAY_PERSISTENT_PROC_MILLIS -> DELAY_PERSISTENT_PROC_MILLIS;
+            case KEY_MAX_HISTORY_COMPLETE_SIZE -> MAX_HISTORY_COMPLETE_SIZE;
+            case KEY_MAX_HISTORY_SUMMARY_SIZE -> MAX_HISTORY_SUMMARY_SIZE;
+            case KEY_CORE_DEFER_UNTIL_ACTIVE -> CORE_DEFER_UNTIL_ACTIVE;
+            case KEY_PENDING_COLD_START_CHECK_INTERVAL_MILLIS ->
+                    PENDING_COLD_START_CHECK_INTERVAL_MILLIS;
+            case KEY_MAX_FROZEN_OUTGOING_BROADCASTS -> MAX_FROZEN_OUTGOING_BROADCASTS;
+            case KEY_PENDING_COLD_START_ABANDON_TIMEOUT_MILLIS ->
+                    PENDING_COLD_START_ABANDON_TIMEOUT_MILLIS;
+            case KEY_EXCESSIVE_PENDING_BROADCASTS -> EXCESSIVE_PENDING_BROADCASTS;
+            default -> null;
+        };
     }
 
     /**
@@ -496,6 +558,8 @@ public class BroadcastConstants {
             pw.print(KEY_CORE_MAX_RUNNING_NON_BLOCKING_BROADCASTS,
                     MAX_CORE_RUNNING_NON_BLOCKING_BROADCASTS).println();
             pw.print(KEY_MAX_PENDING_BROADCASTS, MAX_PENDING_BROADCASTS).println();
+            pw.print(KEY_MAX_PENDING_BROADCASTS_PER_SENDER_UID,
+                    MAX_PENDING_BROADCASTS_PER_SENDER_UID).println();
             pw.print(KEY_DELAY_NORMAL_MILLIS,
                     TimeUtils.formatDuration(DELAY_NORMAL_MILLIS)).println();
             pw.print(KEY_DELAY_CACHED_MILLIS,

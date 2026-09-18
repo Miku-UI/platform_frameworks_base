@@ -21,6 +21,7 @@
 
 #include "RenderNode.h"
 #include "RenderNodeDrawable.h"
+#include "ReorderBarrierDrawables.h"
 #ifdef __ANDROID__
 #include "include/gpu/ganesh/SkImageGanesh.h"
 #endif
@@ -29,7 +30,7 @@ namespace android {
 namespace uirenderer {
 namespace skiapipeline {
 
-void BackdropFilterDrawable::onDraw(SkCanvas* canvas) {
+void BackdropFilterDrawable::forceDraw(SkCanvas* canvas) const {
     const RenderProperties& properties = mTargetRenderNode->properties();
     auto* backdropFilter = properties.layerProperties().getBackdropImageFilter();
     auto* surface = canvas->getSurface();
@@ -40,7 +41,7 @@ void BackdropFilterDrawable::onDraw(SkCanvas* canvas) {
     SkRect srcBounds = SkRect::MakeWH(properties.getWidth(), properties.getHeight());
 
     float alphaMultiplier = 1.0f;
-    RenderNodeDrawable::setViewProperties(properties, canvas, &alphaMultiplier, true);
+    RenderNodeDrawable::setViewProperties(mTargetRenderNode, canvas, &alphaMultiplier, true, false);
     SkPaint paint;
     paint.setAlpha(properties.layerProperties().alpha() * alphaMultiplier);
 
@@ -51,6 +52,15 @@ void BackdropFilterDrawable::onDraw(SkCanvas* canvas) {
     }
 
     auto backdropImage = surface->makeImageSnapshot(surfaceSubset.roundOut());
+
+    // Draw shadow and apply clips after snapshotting
+    if (mInReorderingSection && properties.getZ() > MathUtils::NON_ZERO_EPSILON) {
+        EndReorderBarrierDrawable::ShadowInfo shadowInfo;
+        if (EndReorderBarrierDrawable::computeShadowInfo(mTargetRenderNode, shadowInfo)) {
+            EndReorderBarrierDrawable::drawShadow(canvas, mTargetRenderNode, shadowInfo);
+        }
+    }
+    RenderNodeDrawable::applyViewClips(properties, canvas, properties.getClippingFlags());
 
     SkIRect imageBounds = SkIRect::MakeWH(backdropImage->width(), backdropImage->height());
     SkIPoint offset;
@@ -74,6 +84,12 @@ void BackdropFilterDrawable::onDraw(SkCanvas* canvas) {
                           SkSamplingOptions(SkFilterMode::kLinear), &paint,
                           SkCanvas::kFast_SrcRectConstraint);
     canvas->restore();
+}
+
+void BackdropFilterDrawable::onDraw(SkCanvas* canvas) {
+    if ((!mInReorderingSection) || MathUtils::isZero(mTargetRenderNode->properties().getZ())) {
+        this->forceDraw(canvas);
+    }
 }
 
 }  // namespace skiapipeline

@@ -38,6 +38,7 @@ import android.os.Message;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.os.TransactionTooLargeException;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.util.SparseArray;
@@ -50,8 +51,8 @@ import com.android.internal.appwidget.IAppWidgetService;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * AppWidgetHost provides the interaction with the AppWidget service for apps,
@@ -69,10 +70,8 @@ public class AppWidgetHost {
     static final int HANDLE_APP_WIDGET_REMOVED = 5;
     static final int HANDLE_VIEW_UPDATE_DEFERRED = 6;
 
-    final static Object sServiceLock = new Object();
     @UnsupportedAppUsage
     static IAppWidgetService sService;
-    static boolean sServiceInitialized = false;
     private DisplayMetrics mDisplayMetrics;
 
     private String mContextOpPackageName;
@@ -82,6 +81,35 @@ public class AppWidgetHost {
     private final Callbacks mCallbacks;
     private final SparseArray<AppWidgetHostListener> mListeners = new SparseArray<>();
     private InteractionHandler mInteractionHandler;
+    private final IAppWidgetService mService;
+
+    /**
+     * Default IAppWidgetService factory that does one-time initialization and returns a static
+     * reference.
+     */
+    private static final Function<Context, IAppWidgetService> sServiceFactory = new Function<>() {
+        private final Object mServiceLock = new Object();
+        private boolean mServiceInitialized = false;
+
+        @Override
+        public IAppWidgetService apply(Context context) {
+            synchronized (mServiceLock) {
+                if (mServiceInitialized) {
+                    return sService;
+                }
+                mServiceInitialized = true;
+                PackageManager packageManager = context.getPackageManager();
+                if (!packageManager.hasSystemFeature(PackageManager.FEATURE_APP_WIDGETS)
+                        && !context.getResources().getBoolean(
+                        R.bool.config_enableAppWidgetService)) {
+                    return null;
+                }
+                IBinder b = ServiceManager.getService(Context.APPWIDGET_SERVICE);
+                sService = IAppWidgetService.Stub.asInterface(b);
+                return sService;
+            }
+        }
+    };
 
     static class Callbacks extends IAppWidgetHost.Stub {
         private final WeakReference<Handler> mWeakHandler;
@@ -208,29 +236,21 @@ public class AppWidgetHost {
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public AppWidgetHost(Context context, int hostId, InteractionHandler handler, Looper looper) {
+        this(context, hostId, handler, looper, sServiceFactory);
+    }
+
+    /**
+     * @hide
+     */
+    public AppWidgetHost(Context context, int hostId, InteractionHandler handler, Looper looper,
+            Function<Context, IAppWidgetService> serviceFactory) {
         mContextOpPackageName = context.getOpPackageName();
         mHostId = hostId;
         mInteractionHandler = handler;
         mHandler = new UpdateHandler(looper);
         mCallbacks = new Callbacks(mHandler);
         mDisplayMetrics = context.getResources().getDisplayMetrics();
-        bindService(context);
-    }
-
-    private static void bindService(Context context) {
-        synchronized (sServiceLock) {
-            if (sServiceInitialized) {
-                return;
-            }
-            sServiceInitialized = true;
-            PackageManager packageManager = context.getPackageManager();
-            if (!packageManager.hasSystemFeature(PackageManager.FEATURE_APP_WIDGETS)
-                    && !context.getResources().getBoolean(R.bool.config_enableAppWidgetService)) {
-                return;
-            }
-            IBinder b = ServiceManager.getService(Context.APPWIDGET_SERVICE);
-            sService = IAppWidgetService.Stub.asInterface(b);
-        }
+        mService = serviceFactory.apply(context);
     }
 
     /**
@@ -238,7 +258,7 @@ public class AppWidgetHost {
      * becomes visible, i.e. from onStart() in your Activity.
      */
     public void startListening() {
-        if (sService == null) {
+        if (mService == null) {
             return;
         }
         final int[] idsToUpdate;
@@ -251,7 +271,7 @@ public class AppWidgetHost {
         }
         List<PendingHostUpdate> updates;
         try {
-            updates = sService.startListening(
+            updates = mService.startListening(
                     mCallbacks, mContextOpPackageName, mHostId, idsToUpdate).getList();
         }
         catch (RemoteException e) {
@@ -283,11 +303,11 @@ public class AppWidgetHost {
      * no longer visible, i.e. from onStop() in your Activity.
      */
     public void stopListening() {
-        if (sService == null) {
+        if (mService == null) {
             return;
         }
         try {
-            sService.stopListening(mContextOpPackageName, mHostId);
+            mService.stopListening(mContextOpPackageName, mHostId);
         }
         catch (RemoteException e) {
             throw new RuntimeException("system server dead?", e);
@@ -301,11 +321,11 @@ public class AppWidgetHost {
      * @return a appWidgetId
      */
     public int allocateAppWidgetId() {
-        if (sService == null) {
+        if (mService == null) {
             return -1;
         }
         try {
-            return sService.allocateAppWidgetId(mContextOpPackageName, mHostId);
+            return mService.allocateAppWidgetId(mContextOpPackageName, mHostId);
         }
         catch (RemoteException e) {
             throw new RuntimeException("system server dead?", e);
@@ -326,13 +346,13 @@ public class AppWidgetHost {
     @Nullable
     public final IntentSender getIntentSenderForConfigureActivity(int appWidgetId,
             int intentFlags)  {
-        if (sService == null) {
+        if (mService == null) {
             return null;
         }
 
         IntentSender intentSender;
         try {
-            intentSender = sService.createAppWidgetConfigIntentSender(mContextOpPackageName,
+            intentSender = mService.createAppWidgetConfigIntentSender(mContextOpPackageName,
                     appWidgetId, intentFlags);
         } catch (RemoteException e) {
             throw new RuntimeException("system server dead?", e);
@@ -365,7 +385,7 @@ public class AppWidgetHost {
      */
     public final void startAppWidgetConfigureActivityForResult(@NonNull Activity activity,
             int appWidgetId, int intentFlags, int requestCode, @Nullable Bundle options) {
-        if (sService == null) {
+        if (mService == null) {
             return;
         }
         try {
@@ -383,11 +403,11 @@ public class AppWidgetHost {
      * @hide
      */
     public void setAppWidgetHidden() {
-        if (sService == null) {
+        if (mService == null) {
             return;
         }
         try {
-            sService.setAppWidgetHidden(mContextOpPackageName, mHostId);
+            mService.setAppWidgetHidden(mContextOpPackageName, mHostId);
         } catch (RemoteException e) {
             throw new RuntimeException("System server dead?", e);
         }
@@ -407,11 +427,11 @@ public class AppWidgetHost {
      * Gets a list of all the appWidgetIds that are bound to the current host
      */
     public int[] getAppWidgetIds() {
-        if (sService == null) {
+        if (mService == null) {
             return new int[0];
         }
         try {
-            return sService.getAppWidgetIdsForHost(mContextOpPackageName, mHostId);
+            return mService.getAppWidgetIdsForHost(mContextOpPackageName, mHostId);
         } catch (RemoteException e) {
             throw new RuntimeException("system server dead?", e);
         }
@@ -421,12 +441,12 @@ public class AppWidgetHost {
      * Stop listening to changes for this AppWidget.
      */
     public void deleteAppWidgetId(int appWidgetId) {
-        if (sService == null) {
+        if (mService == null) {
             return;
         }
         removeListener(appWidgetId);
         try {
-            sService.deleteAppWidgetId(mContextOpPackageName, appWidgetId);
+            mService.deleteAppWidgetId(mContextOpPackageName, appWidgetId);
         } catch (RemoteException e) {
             throw new RuntimeException("system server dead?", e);
         }
@@ -441,11 +461,11 @@ public class AppWidgetHost {
      * </ul>
      */
     public void deleteHost() {
-        if (sService == null) {
+        if (mService == null) {
             return;
         }
         try {
-            sService.deleteHost(mContextOpPackageName, mHostId);
+            mService.deleteHost(mContextOpPackageName, mHostId);
         }
         catch (RemoteException e) {
             throw new RuntimeException("system server dead?", e);
@@ -478,7 +498,7 @@ public class AppWidgetHost {
      */
     public final AppWidgetHostView createView(Context context, int appWidgetId,
             AppWidgetProviderInfo appWidget) {
-        if (sService == null) {
+        if (mService == null) {
             return null;
         }
         AppWidgetHostView view = onCreateView(context, appWidgetId, appWidget);
@@ -548,7 +568,8 @@ public class AppWidgetHost {
         default void updateAppWidgetDeferred(String packageName, int appWidgetId) {
             RemoteViews latestViews = null;
             try {
-                latestViews = sService.getAppWidgetViews(packageName, appWidgetId);
+                latestViews = sService.getAppWidgetViews(packageName,
+                        appWidgetId);
             } catch (Exception e) {
                 Log.e(TAG, "updateAppWidgetDeferred: ", e);
             }
@@ -609,9 +630,11 @@ public class AppWidgetHost {
         }
         RemoteViews views = null;
         try {
-            views = sService.getAppWidgetViews(mContextOpPackageName, appWidgetId);
+            views = mService.getAppWidgetViews(mContextOpPackageName, appWidgetId);
+        } catch (TransactionTooLargeException e) {
+            Log.e(TAG, "setListener: Transaction too large for appWidgetId=" + appWidgetId, e);
         } catch (RemoteException e) {
-            throw new RuntimeException("system server dead?", e);
+            e.rethrowFromSystemServer();
         }
         listener.updateAppWidget(views);
     }
@@ -668,17 +691,19 @@ public class AppWidgetHost {
      * @hide
      */
     public void reportAllWidgetEvents() {
-        if (sService == null || !engagementMetrics()) {
+        if (mService == null || !engagementMetrics()) {
             return;
         }
 
-        List<AppWidgetEvent> eventList = new ArrayList<>();
+        SparseArray<AppWidgetHostListener> listeners;
         synchronized (mListeners) {
-            for (int i = 0; i < mListeners.size(); i++) {
-                AppWidgetEvent event = mListeners.valueAt(i).collectWidgetEvent();
-                if (event != null) {
-                    eventList.add(event);
-                }
+            listeners = mListeners.clone();
+        }
+        List<AppWidgetEvent> eventList = new ArrayList<>();
+        for (int i = 0; i < listeners.size(); i++) {
+            AppWidgetEvent event = listeners.valueAt(i).collectWidgetEvent();
+            if (event != null) {
+                eventList.add(event);
             }
         }
         if (eventList.isEmpty()) {
@@ -690,7 +715,7 @@ public class AppWidgetHost {
         }
 
         try {
-            sService.reportWidgetEvents(mContextOpPackageName, events);
+            mService.reportWidgetEvents(mContextOpPackageName, events);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -702,7 +727,7 @@ public class AppWidgetHost {
      * @hide
      */
     public void reportEventForWidget(int appWidgetId) {
-        if (sService == null || !engagementMetrics()) {
+        if (mService == null || !engagementMetrics()) {
             return;
         }
         AppWidgetHostListener listener = getListener(appWidgetId);
@@ -716,7 +741,7 @@ public class AppWidgetHost {
         AppWidgetEvent[] events = {event};
 
         try {
-            sService.reportWidgetEvents(mContextOpPackageName, events);
+            mService.reportWidgetEvents(mContextOpPackageName, events);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

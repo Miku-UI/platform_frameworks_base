@@ -17,6 +17,7 @@
 package android.hardware.fingerprint;
 
 import static android.hardware.fingerprint.FingerprintSensorProperties.TYPE_POWER_BUTTON;
+import static android.hardware.fingerprint.FingerprintSensorProperties.TYPE_STANDALONE;
 import static android.hardware.fingerprint.FingerprintSensorProperties.TYPE_UDFPS_OPTICAL;
 import static android.hardware.fingerprint.FingerprintSensorProperties.TYPE_UDFPS_ULTRASONIC;
 
@@ -143,6 +144,13 @@ public class FingerprintSensorPropertiesInternal extends SensorPropertiesInterna
             default:
                 return false;
         }
+    }
+
+    /**
+     * Returns if sensor type is standalone sensor
+     */
+    public boolean isStandalone() {
+        return sensorType == TYPE_STANDALONE;
     }
 
     /**

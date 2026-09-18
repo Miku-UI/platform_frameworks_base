@@ -70,7 +70,7 @@
             app:layout_constraintStart_toStartOf="@id/clock"
             app:layout_constraintTop_toBottomOf="@id/privacy_container"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/batteryRemainingIcon"
+            app:layout_constraintBottom_toTopOf="@id/statusIcons"
             />
         <PropertySet
             android:alpha="1"

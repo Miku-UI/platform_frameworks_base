@@ -42,12 +42,16 @@ private const val VolumePanelTestTag = "VolumePanel"
 private val padding = 24.dp
 
 @Composable
-fun VolumePanelRoot(viewModel: VolumePanelViewModel, modifier: Modifier = Modifier) {
+fun VolumePanelRoot(
+    viewModel: VolumePanelViewModel,
+    isExpandedAudioTileDetailsFeatureEnabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
     val accessibilityTitle = stringResource(R.string.accessibility_volume_settings)
     val state: VolumePanelState by viewModel.volumePanelState.collectAsStateWithLifecycle()
     val components by viewModel.componentsLayout.collectAsStateWithLifecycle()
 
-    with(VolumePanelComposeScope(state)) {
+    with(VolumePanelComposeScope(state, isExpandedAudioTileDetailsFeatureEnabled)) {
         components?.let { componentsState ->
             Components(
                 componentsState,

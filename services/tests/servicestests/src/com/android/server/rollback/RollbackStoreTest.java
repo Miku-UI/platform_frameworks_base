@@ -21,6 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import android.content.pm.PackageManager;
 import android.content.pm.VersionedPackage;
 import android.content.rollback.PackageRollbackInfo;
+import android.os.Process;
 import android.util.SparseIntArray;
 
 import com.google.common.truth.Correspondence;
@@ -64,13 +65,15 @@ public class RollbackStoreTest {
                 }
                 return a.userId == b.userId
                         && a.appId == b.appId
+                        && a.pccId == b.pccId
                         && Objects.equals(a.seInfo, b.seInfo);
             }, "is the same as");
 
     private static final String JSON_ROLLBACK_NO_EXT = "{'info':{'rollbackId':123,'packages':"
             + "[{'versionRolledBackFrom':{'packageName':'blah','longVersionCode':55},"
             + "'versionRolledBackTo':{'packageName':'blah1','longVersionCode':50},'pendingBackups':"
-            + "[59,1245,124544],'pendingRestores':[{'userId':498,'appId':32322,'seInfo':'wombles'},"
+            + "[59,1245,124544],'pendingRestores':[{'userId':498,'appId':32322,"
+            + "'pccId':12345,'seInfo':'wombles'},"
             + "{'userId':-895,'appId':1,'seInfo':'pingu'}],'isApex':false,'isApkInApex':false,"
             + "'installedUsers':"
             + "[498468432,1111,98464],'ceSnapshotInodes':[{'userId':1,'ceSnapshotInode':-6},"
@@ -88,10 +91,24 @@ public class RollbackStoreTest {
             + "'restoreUserDataInProgress':true, 'userId':0,"
             + "'installerPackageName':'some.installer'}";
 
+    private static final String JSON_ROLLBACK_MISSING_PCCID =
+            "{'info':{'rollbackId':123,'packages':"
+            + "[{'versionRolledBackFrom':{'packageName':'blah','longVersionCode':55},"
+            + "'versionRolledBackTo':{'packageName':'blah1','longVersionCode':50},'pendingBackups':"
+            + "[],'pendingRestores':[{'userId':498,'appId':32322,'seInfo':'wombles'}],"
+            + "'isApex':false,'isApkInApex':false,"
+            + "'installedUsers':[], 'ceSnapshotInodes':[]}]"
+            + ",'isStaged':false,'causePackages':[],'committedSessionId':-1},"
+            + "'timestamp':'2019-10-01T12:29:08.855Z',"
+            + "'originalSessionId':567,'state':'enabling','apkSessionId':-1,"
+            + "'restoreUserDataInProgress':true, 'userId':0,"
+            + "'installerPackageName':'some.installer'}";
+
     private static final String JSON_ROLLBACK = "{'info':{'rollbackId':123,'packages':"
             + "[{'versionRolledBackFrom':{'packageName':'blah','longVersionCode':55},"
             + "'versionRolledBackTo':{'packageName':'blah1','longVersionCode':50},'pendingBackups':"
-            + "[59,1245,124544],'pendingRestores':[{'userId':498,'appId':32322,'seInfo':'wombles'},"
+            + "[59,1245,124544],'pendingRestores':[{'userId':498,'appId':32322,"
+            + "'pccId':12345,'seInfo':'wombles'},"
             + "{'userId':-895,'appId':1,'seInfo':'pingu'}],'isApex':false,'isApkInApex':false,"
             + "'installedUsers':"
             + "[498468432,1111,98464],'ceSnapshotInodes':[{'userId':1,'ceSnapshotInode':-6},"
@@ -192,9 +209,9 @@ public class RollbackStoreTest {
         pkgInfo1.getPendingBackups().add(88885);
 
         pkgInfo1.getPendingRestores().add(
-                new PackageRollbackInfo.RestoreInfo(4980, 3442322, "seInfo"));
+                new PackageRollbackInfo.RestoreInfo(4980, 3442322, 54321, "seInfo"));
         pkgInfo1.getPendingRestores().add(
-                new PackageRollbackInfo.RestoreInfo(-89, 15, "otherSeInfo"));
+                new PackageRollbackInfo.RestoreInfo(-89, 15, 300015, "otherSeInfo"));
 
         pkgInfo1.getSnapshottedUsers().add(11);
         pkgInfo1.getSnapshottedUsers().add(1);
@@ -207,7 +224,7 @@ public class RollbackStoreTest {
         pkgInfo2.getPendingBackups().add(57);
 
         pkgInfo2.getPendingRestores().add(
-                new PackageRollbackInfo.RestoreInfo(180, -120, ""));
+                new PackageRollbackInfo.RestoreInfo(180, -120, 300015, ""));
 
         origRb.info.getPackages().add(pkgInfo1);
         origRb.info.getPackages().add(pkgInfo2);
@@ -243,9 +260,9 @@ public class RollbackStoreTest {
         pkgInfo1.getPendingBackups().add(124544);
 
         pkgInfo1.getPendingRestores().add(
-                new PackageRollbackInfo.RestoreInfo(498, 32322, "wombles"));
+                new PackageRollbackInfo.RestoreInfo(498, 32322, 12345, "wombles"));
         pkgInfo1.getPendingRestores().add(
-                new PackageRollbackInfo.RestoreInfo(-895, 1, "pingu"));
+                new PackageRollbackInfo.RestoreInfo(-895, 1, Process.INVALID_UID, "pingu"));
 
         pkgInfo1.getSnapshottedUsers().add(498468432);
         pkgInfo1.getSnapshottedUsers().add(1111);
@@ -257,7 +274,7 @@ public class RollbackStoreTest {
         pkgInfo2.getPendingBackups().add(5);
 
         pkgInfo2.getPendingRestores().add(
-                new PackageRollbackInfo.RestoreInfo(18, -12, ""));
+                new PackageRollbackInfo.RestoreInfo(18, -12, Process.INVALID_UID, ""));
 
         pkgInfo2.getSnapshottedUsers().add(55);
         pkgInfo2.getSnapshottedUsers().add(79);
@@ -268,6 +285,24 @@ public class RollbackStoreTest {
         Rollback parsedRb = RollbackStore.rollbackFromJson(
                 new JSONObject(JSON_ROLLBACK_NO_EXT), expectedRb.getBackupDir());
 
+        assertRollbacksAreEquivalent(parsedRb, expectedRb);
+    }
+
+    @Test
+    public void loadFromJsonMissingPccId() throws Exception {
+        Rollback expectedRb = mRollbackStore.createNonStagedRollback(
+                ID, 567, USER, INSTALLER, null, new SparseIntArray(0));
+        expectedRb.setTimestamp(Instant.parse("2019-10-01T12:29:08.855Z"));
+        expectedRb.setRestoreUserDataInProgress(true);
+        PackageRollbackInfo pkgInfo1 = new PackageRollbackInfo(new VersionedPackage("blah", 55),
+                new VersionedPackage("blah1", 50), new ArrayList<>(), new ArrayList<>(),
+                false, false, new ArrayList<>());
+        pkgInfo1.getPendingRestores().add(
+                new PackageRollbackInfo.RestoreInfo(498, 32322, Process.INVALID_UID, "wombles"));
+        expectedRb.info.getPackages().add(pkgInfo1);
+        expectedRb.info.setCommittedSessionId(-1);
+        Rollback parsedRb = RollbackStore.rollbackFromJson(
+                new JSONObject(JSON_ROLLBACK_MISSING_PCCID), expectedRb.getBackupDir());
         assertRollbacksAreEquivalent(parsedRb, expectedRb);
     }
 
@@ -293,9 +328,9 @@ public class RollbackStoreTest {
         pkgInfo1.getPendingBackups().add(124544);
 
         pkgInfo1.getPendingRestores().add(
-                new PackageRollbackInfo.RestoreInfo(498, 32322, "wombles"));
+                new PackageRollbackInfo.RestoreInfo(498, 32322, 12345, "wombles"));
         pkgInfo1.getPendingRestores().add(
-                new PackageRollbackInfo.RestoreInfo(-895, 1, "pingu"));
+                new PackageRollbackInfo.RestoreInfo(-895, 1, Process.INVALID_UID, "pingu"));
 
         pkgInfo1.getSnapshottedUsers().add(498468432);
         pkgInfo1.getSnapshottedUsers().add(1111);
@@ -307,7 +342,7 @@ public class RollbackStoreTest {
         pkgInfo2.getPendingBackups().add(5);
 
         pkgInfo2.getPendingRestores().add(
-                new PackageRollbackInfo.RestoreInfo(18, -12, ""));
+                new PackageRollbackInfo.RestoreInfo(18, -12, Process.INVALID_UID, ""));
 
         pkgInfo2.getSnapshottedUsers().add(55);
         pkgInfo2.getSnapshottedUsers().add(79);

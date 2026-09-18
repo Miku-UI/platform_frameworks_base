@@ -16,11 +16,8 @@
 package com.android.systemui.util.settings
 
 import android.database.ContentObserver
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.testScope
@@ -53,28 +50,16 @@ class SettingsProxyExtTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SETTINGS_EXT_REGISTER_CONTENT_OBSERVER_ON_BG_THREAD)
-    fun observeFlow_bgFlagEnabled_settingsProxy_registerContentObserverInvoked() =
+    fun observeFlow_settingsProxy_registerContentObserverInvoked() =
         testScope.runTest {
             val unused by collectLastValue(settingsProxy.observerFlow(SETTING_1, SETTING_2))
             runCurrent()
             verify(settingsProxy, times(2))
                 .registerContentObserver(any<String>(), any<ContentObserver>())
         }
-
+ 
     @Test
-    @DisableFlags(Flags.FLAG_SETTINGS_EXT_REGISTER_CONTENT_OBSERVER_ON_BG_THREAD)
-    fun observeFlow_bgFlagDisabled_multipleSettings_SettingsProxy_registerContentObserverInvoked() =
-        testScope.runTest {
-            val unused by collectLastValue(settingsProxy.observerFlow(SETTING_1, SETTING_2))
-            runCurrent()
-            verify(settingsProxy, times(2))
-                .registerContentObserverSync(any<String>(), any<ContentObserver>())
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_SETTINGS_EXT_REGISTER_CONTENT_OBSERVER_ON_BG_THREAD)
-    fun observeFlow_bgFlagEnabled_channelClosed_settingsProxy_unregisterContentObserverInvoked() =
+    fun observeFlow_channelClosed_settingsProxy_unregisterContentObserverInvoked() =
         testScope.runTest {
             val job = Job()
             val unused by
@@ -84,23 +69,9 @@ class SettingsProxyExtTest : SysuiTestCase() {
             runCurrent()
             verify(settingsProxy).unregisterContentObserverAsync(any<ContentObserver>())
         }
-
+ 
     @Test
-    @DisableFlags(Flags.FLAG_SETTINGS_EXT_REGISTER_CONTENT_OBSERVER_ON_BG_THREAD)
-    fun observeFlow_bgFlagDisabled_channelClosed_settingsProxy_unregisterContentObserverInvoked() =
-        testScope.runTest {
-            val job = Job()
-            val unused by
-                collectLastValue(settingsProxy.observerFlow(SETTING_1, SETTING_2), context = job)
-            runCurrent()
-            job.cancel()
-            runCurrent()
-            verify(settingsProxy).unregisterContentObserverSync(any<ContentObserver>())
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_SETTINGS_EXT_REGISTER_CONTENT_OBSERVER_ON_BG_THREAD)
-    fun observeFlow_bgFlagEnabled_userSettingsProxy_registerContentObserverForUserInvoked() =
+    fun observeFlow_userSettingsProxy_registerContentObserverForUserInvoked() =
         testScope.runTest {
             val unused by
                 collectLastValue(userSettingsProxy.observerFlow(userId = 0, SETTING_1, SETTING_2))
@@ -108,25 +79,9 @@ class SettingsProxyExtTest : SysuiTestCase() {
             verify(userSettingsProxy, times(2))
                 .registerContentObserverForUser(any<String>(), any<ContentObserver>(), any<Int>())
         }
-
+ 
     @Test
-    @DisableFlags(Flags.FLAG_SETTINGS_EXT_REGISTER_CONTENT_OBSERVER_ON_BG_THREAD)
-    fun observeFlow_bgFlagDisabled_userSettingsProxy_registerContentObserverForUserInvoked() =
-        testScope.runTest {
-            val unused by
-                collectLastValue(userSettingsProxy.observerFlow(userId = 0, SETTING_1, SETTING_2))
-            runCurrent()
-            verify(userSettingsProxy, times(2))
-                .registerContentObserverForUserSync(
-                    any<String>(),
-                    any<ContentObserver>(),
-                    any<Int>()
-                )
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_SETTINGS_EXT_REGISTER_CONTENT_OBSERVER_ON_BG_THREAD)
-    fun observeFlow_bgFlagEnabled_channelClosed_userSettingsProxy_unregisterContentObserverInvoked() =
+    fun observeFlow_channelClosed_userSettingsProxy_unregisterContentObserverInvoked() =
         testScope.runTest {
             val job = Job()
             val unused by
@@ -138,22 +93,6 @@ class SettingsProxyExtTest : SysuiTestCase() {
             job.cancel()
             runCurrent()
             verify(userSettingsProxy).unregisterContentObserverAsync(any<ContentObserver>())
-        }
-
-    @Test
-    @DisableFlags(Flags.FLAG_SETTINGS_EXT_REGISTER_CONTENT_OBSERVER_ON_BG_THREAD)
-    fun observeFlow_bgFlagDisabled_channelClosed_userSettingsProxy_unregisterContentObserverInvoked() =
-        testScope.runTest {
-            val job = Job()
-            val unused by
-                collectLastValue(
-                    userSettingsProxy.observerFlow(userId = 0, SETTING_1, SETTING_2),
-                    context = job
-                )
-            runCurrent()
-            job.cancel()
-            runCurrent()
-            verify(userSettingsProxy).unregisterContentObserverSync(any<ContentObserver>())
         }
 
     private companion object {

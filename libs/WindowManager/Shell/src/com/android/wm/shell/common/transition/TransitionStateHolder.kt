@@ -24,14 +24,11 @@ import com.android.wm.shell.recents.RecentsTransitionStateListener.isRunning
 import com.android.wm.shell.sysui.ShellInit
 import javax.inject.Inject
 
-/**
- * Holder for the state of the transitions.
- */
+/** Holder for the state of the transitions. */
 @WMSingleton
-class TransitionStateHolder @Inject constructor(
-    shellInit: ShellInit,
-    private val recentsTransitionHandler: RecentsTransitionHandler
-) {
+class TransitionStateHolder
+@Inject
+constructor(shellInit: ShellInit, private val recentsTransitionHandler: RecentsTransitionHandler) {
 
     @Volatile
     @RecentsTransitionState
@@ -47,7 +44,10 @@ class TransitionStateHolder @Inject constructor(
     private fun onInit() {
         recentsTransitionHandler.addTransitionStateListener(
             object : RecentsTransitionStateListener {
-                override fun onTransitionStateChanged(@RecentsTransitionState state: Int) {
+                override fun onTransitionStateChanged(
+                    @RecentsTransitionState state: Int,
+                    displayId: Int,
+                ) {
                     recentsTransitionState = state
                 }
             }

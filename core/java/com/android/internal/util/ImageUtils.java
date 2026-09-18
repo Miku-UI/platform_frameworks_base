@@ -32,6 +32,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Size;
 
 import java.io.IOException;
@@ -41,6 +42,7 @@ import java.io.IOException;
  *
  * @hide
  */
+@RavenwoodKeepWholeClass
 public class ImageUtils {
 
     // Amount (max is 255) that two channels can differ before the color is no longer "gray".

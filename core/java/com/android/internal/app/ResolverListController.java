@@ -155,15 +155,16 @@ public class ResolverListController {
                 flags |= PackageManager.MATCH_INSTANT;
             }
             // Because of AIDL bug, queryIntentActivitiesAsUser can't accept subclasses of Intent.
-            intent = (intent.getClass() == Intent.class) ? intent : new Intent(
-                    intent);
+            intent = (intent.getClass() == Intent.class) ? intent : new Intent(intent);
             final List<ResolveInfo> infos = mpm.queryIntentActivitiesAsUser(intent, flags,
                     userHandle);
+            final ResolveInfo preferredActivity = mpm.resolveActivity(intent,
+                    PackageManager.MATCH_DEFAULT_ONLY);
             if (infos != null) {
                 if (resolvedComponents == null) {
                     resolvedComponents = new ArrayList<>();
                 }
-                addResolveListDedupe(resolvedComponents, intent, infos);
+                addResolveListDedupe(resolvedComponents, intent, infos, preferredActivity);
             }
         }
         return resolvedComponents;
@@ -177,7 +178,8 @@ public class ResolverListController {
     @VisibleForTesting
     public void addResolveListDedupe(List<ResolverActivity.ResolvedComponentInfo> into,
             Intent intent,
-            List<ResolveInfo> from) {
+            List<ResolveInfo> from,
+            ResolveInfo preferredActivity) {
         final int fromCount = from.size();
         final int intoCount = into.size();
         for (int i = 0; i < fromCount; i++) {
@@ -203,6 +205,8 @@ public class ResolverListController {
                         new ResolverActivity.ResolvedComponentInfo(name, intent, newInfo);
                 rci.setPinned(isComponentPinned(name));
                 rci.setFixedAtTop(isFixedAtTop(name));
+                rci.setPreferredActivity(preferredActivity != null
+                        && isSameResolvedComponent(preferredActivity, rci));
                 into.add(rci);
             }
         }
@@ -238,7 +242,7 @@ public class ResolverListController {
                     .getResolveInfoAt(0).activityInfo;
             int granted = ActivityManager.checkComponentPermission(
                     ai.permission, mLaunchedFromUid,
-                    ai.applicationInfo.uid, ai.exported);
+                    ai.getUid(), ai.exported);
 
             if (granted != PackageManager.PERMISSION_GRANTED
                     || isComponentFiltered(ai.getComponentName())) {

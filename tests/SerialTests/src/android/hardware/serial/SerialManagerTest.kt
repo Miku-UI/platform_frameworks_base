@@ -16,19 +16,28 @@
 
 package android.hardware.serial
 
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.ParcelFileDescriptor
 import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import java.io.IOException
+import java.nio.ByteBuffer
 import java.util.concurrent.Executor
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentCaptor
+import org.mockito.ArgumentMatchers.anyBoolean
+import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Captor
 import org.mockito.Mock
 import org.mockito.junit.MockitoJUnit
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -54,7 +63,7 @@ class SerialManagerTest {
     @Captor
     private lateinit var serialPort: ArgumentCaptor<SerialPort>
 
-    private val context = InstrumentationRegistry.getInstrumentation().getContext()
+    private val context = InstrumentationRegistry.getInstrumentation().context
 
     @Test
     fun testSerialPorts() {
@@ -65,7 +74,7 @@ class SerialManagerTest {
         )
         whenever(backendService.serialPorts).thenReturn(infos)
 
-        val ports = serialManager.serialPorts
+        val ports = serialManager.ports
 
         assertEquals(ports.size, 2)
         assertSerialPortAttributes(ports[0], "test", -1, -1)
@@ -115,6 +124,217 @@ class SerialManagerTest {
         verify(listener1).onSerialPortDisconnected(any())
         verify(listener2, never()).onSerialPortConnected(any())
         verify(listener2, never()).onSerialPortDisconnected(any())
+    }
+
+    @Test
+    fun testCompatibleSerialPorts() {
+        val portInConfig = "ttyS0"
+        whenever(backendService.serialPortsInConfig).thenReturn(arrayOf(portInConfig))
+
+        val serialManager = SerialManager(context, backendService)
+        val paths = serialManager.serialPorts
+
+        assertEquals(1, paths.size)
+        assertEquals("/dev/$portInConfig", paths[0])
+    }
+
+    @Test(expected = SecurityException::class)
+    fun testCompatibleOpenSerialPort_NoPermission() {
+        val mockContext: Context = mock()
+        whenever(mockContext.checkSelfPermission(android.Manifest.permission.SERIAL_PORT))
+            .thenReturn(PackageManager.PERMISSION_DENIED)
+
+        val portInConfig = "ttyS0"
+        val speed = 9600
+
+        whenever(backendService.serialPortsInConfig).thenReturn(arrayOf(portInConfig))
+
+        val serialManager = SerialManager(mockContext, backendService)
+        serialManager.openSerialPort("/dev/$portInConfig", speed)
+    }
+
+    @Test(expected = IOException::class)
+    fun testCompatibleOpenSerialPort_PathOutOfDev() {
+        val mockContext: Context = mock()
+        whenever(mockContext.checkSelfPermission(android.Manifest.permission.SERIAL_PORT))
+            .thenReturn(PackageManager.PERMISSION_GRANTED)
+
+        val portInConfig = "ttyS0"
+        val speed = 9600
+
+        whenever(backendService.serialPortsInConfig).thenReturn(arrayOf(portInConfig))
+
+        val serialManager = SerialManager(mockContext, backendService)
+        serialManager.openSerialPort(portInConfig, speed)
+    }
+
+    @Test(expected = IOException::class)
+    fun testCompatibleOpenSerialPort_PortNotInConfig() {
+        val mockContext: Context = mock()
+        whenever(mockContext.checkSelfPermission(android.Manifest.permission.SERIAL_PORT))
+            .thenReturn(PackageManager.PERMISSION_GRANTED)
+
+        val portInConfig = "ttyS0"
+        val speed = 9600
+
+        whenever(backendService.serialPortsInConfig).thenReturn(arrayOf<String>())
+
+        val serialManager = SerialManager(mockContext, backendService)
+        serialManager.openSerialPort("/dev/$portInConfig", speed)
+    }
+
+    @Test(expected = IOException::class)
+    fun testCompatibleOpenSerialPort_RemoteIoException() {
+        val mockContext: Context = mock()
+        whenever(mockContext.checkSelfPermission(android.Manifest.permission.SERIAL_PORT))
+            .thenReturn(PackageManager.PERMISSION_GRANTED)
+
+        val packageName = context.packageName
+        whenever(mockContext.packageName).thenReturn(packageName)
+
+        val portInConfig = "ttyS0"
+        val speed = 9600
+
+        whenever(backendService.serialPortsInConfig).thenReturn(arrayOf(portInConfig))
+
+        doAnswer { invocation ->
+            val callback = invocation.getArgument<ISerialPortResponseCallback>(4)
+            callback.onError(
+                ISerialPortResponseCallback.ErrorCode.ERROR_OPENING_PORT, "message")
+        }.whenever(backendService).requestOpen(
+            any(),
+            anyInt(),
+            anyBoolean(),
+            any(),
+            any()
+        )
+
+        val serialManager = SerialManager(mockContext, backendService)
+        serialManager.openSerialPort("/dev/$portInConfig", speed)
+    }
+
+    @Test(expected = IOException::class)
+    fun testCompatibleOpenSerialPort_RemoteNonIoException() {
+        val mockContext: Context = mock()
+        whenever(mockContext.checkSelfPermission(android.Manifest.permission.SERIAL_PORT))
+            .thenReturn(PackageManager.PERMISSION_GRANTED)
+
+        val packageName = context.packageName
+        whenever(mockContext.packageName).thenReturn(packageName)
+
+        val portInConfig = "ttyS0"
+        val speed = 9600
+
+        whenever(backendService.serialPortsInConfig).thenReturn(arrayOf(portInConfig))
+
+        doAnswer { invocation ->
+            val callback = invocation.getArgument<ISerialPortResponseCallback>(4)
+            callback.onError(
+                ISerialPortResponseCallback.ErrorCode.ERROR_PORT_NOT_FOUND, "message")
+        }.whenever(backendService).requestOpen(
+            any(),
+            anyInt(),
+            anyBoolean(),
+            any(),
+            any()
+        )
+
+        val serialManager = SerialManager(mockContext, backendService)
+        serialManager.openSerialPort("/dev/$portInConfig", speed)
+    }
+
+    @Test(expected = SecurityException::class)
+    fun testCompatibleOpenSerialPort_RemoteSecurityException() {
+        val mockContext: Context = mock()
+        whenever(mockContext.checkSelfPermission(android.Manifest.permission.SERIAL_PORT))
+            .thenReturn(PackageManager.PERMISSION_GRANTED)
+
+        val packageName = context.packageName
+        whenever(mockContext.packageName).thenReturn(packageName)
+
+        val portInConfig = "ttyS0"
+        val speed = 9600
+
+        whenever(backendService.serialPortsInConfig).thenReturn(arrayOf(portInConfig))
+
+        doAnswer { invocation ->
+            val callback = invocation.getArgument<ISerialPortResponseCallback>(4)
+            callback.onError(
+                ISerialPortResponseCallback.ErrorCode.ERROR_ACCESS_DENIED, "message")
+        }.whenever(backendService).requestOpen(
+            any(),
+            anyInt(),
+            anyBoolean(),
+            any(),
+            any()
+        )
+
+        val serialManager = SerialManager(mockContext, backendService)
+        serialManager.openSerialPort("/dev/$portInConfig", speed)
+    }
+
+
+    @Test
+    fun testCompatibleOpenSerialPort_Success() {
+        val mockContext: Context = mock()
+        whenever(mockContext.checkSelfPermission(android.Manifest.permission.SERIAL_PORT))
+            .thenReturn(PackageManager.PERMISSION_GRANTED)
+
+        val packageName = context.packageName
+        whenever(mockContext.packageName).thenReturn(packageName)
+
+        val portInConfig = "ttyS0"
+        val speed = 9600
+
+        whenever(backendService.serialPortsInConfig).thenReturn(arrayOf(portInConfig))
+
+        // These aren't real serial ports, but the legacy native_open() doesn't give us troubles if
+        // any serial port specific operations fail.
+        val pfds = ParcelFileDescriptor.createPipe()
+        try {
+            doAnswer { invocation ->
+                val callback = invocation.getArgument<ISerialPortResponseCallback>(4)
+                callback.onResult(
+                    SerialPortInfo(
+                        invocation.getArgument(0),
+                        SerialPort.INVALID_ID,
+                        SerialPort.INVALID_ID
+                    ),
+                    pfds[1]
+                )
+            }.whenever(backendService).requestOpen(
+                    any(),
+                    anyInt(),
+                    anyBoolean(),
+                    any(),
+                    any()
+                )
+
+            val serialManager = SerialManager(mockContext, backendService)
+            val port = serialManager.openSerialPort("/dev/$portInConfig", speed)
+
+            verify(backendService).requestOpen(
+                eq(portInConfig),
+                eq(SerialPort.OPEN_FLAG_READ_WRITE),
+                eq(false),
+                eq(packageName),
+                any()
+            )
+
+            val data = 9064
+            val writeBuffer = ByteBuffer.allocate(4)
+            writeBuffer.putInt(data)
+            port.write(writeBuffer, 4)
+
+            val readBuffer = ByteBuffer.allocate(4)
+            ParcelFileDescriptor.AutoCloseInputStream(pfds[0]).use {
+                stream -> stream.read(readBuffer.array())
+            }
+            assertEquals(data, readBuffer.getInt())
+        } finally {
+            pfds[0].close()
+            pfds[1].close()
+        }
     }
 
     private fun assertSerialPortAttributes(

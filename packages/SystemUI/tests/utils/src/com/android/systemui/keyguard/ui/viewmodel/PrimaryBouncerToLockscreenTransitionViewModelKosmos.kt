@@ -20,10 +20,12 @@ import com.android.systemui.keyguard.ui.keyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.blurConfig
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.shade.domain.interactor.shadeInteractor
 
 val Kosmos.primaryBouncerToLockscreenTransitionViewModel by Fixture {
     PrimaryBouncerToLockscreenTransitionViewModel(
         animationFlow = keyguardTransitionAnimationFlow,
         blurConfig = blurConfig,
+        shadeInteractor = shadeInteractor,
     )
 }

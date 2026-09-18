@@ -18,6 +18,7 @@ package com.android.server.inputmethod;
 
 import static com.android.server.inputmethod.InputMethodUtils.NOT_A_SUBTYPE_INDEX;
 
+import android.annotation.DrawableRes;
 import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
@@ -28,6 +29,7 @@ import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.Printer;
 import android.util.Slog;
+import android.view.inputmethod.Flags;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodSubtype;
 
@@ -259,6 +261,7 @@ final class InputMethodSubtypeSwitchingController {
             final var subtypes = settings.getEnabledInputMethodSubtypeList(imi, true);
             if (subtypes.isEmpty()) {
                 res.add(new ImeSubtypeListItem(imeLabel, null /* subtypeName */,
+                        null /* subtypeShortLabel */, 0 /* subtypeIconResId */,
                         null /* layoutName */, imi, NOT_A_SUBTYPE_INDEX, showInImeSwitcherMenu,
                         false /* isAuxiliary */, true /* suitableForHardware */));
             } else {
@@ -282,7 +285,11 @@ final class InputMethodSubtypeSwitchingController {
                                     appInfo);
                     final var layoutName = subtype.overridesImplicitlyEnabledSubtype() ? null
                             : subtype.getLayoutDisplayName(userAwareContext, appInfo);
-                    res.add(new ImeSubtypeListItem(imeLabel, subtypeLabel, layoutName,
+                    final var subtypeShortLabel = Flags.imeSubtypeShortLabel()
+                            ? subtype.getSubtypeShortLabel() : null;
+                    final var subtypeIconResId = subtype.getIconResId();
+                    res.add(new ImeSubtypeListItem(imeLabel, subtypeLabel,
+                            subtypeShortLabel, subtypeIconResId, layoutName,
                             imi, j, showInImeSwitcherMenu, subtype.isAuxiliary(),
                             subtype.isSuitableForPhysicalKeyboardLayoutMapping()));
                 }
@@ -301,6 +308,20 @@ final class InputMethodSubtypeSwitchingController {
         /** The subtype's name, or {@code null} if this item doesn't have a subtype. */
         @Nullable
         final CharSequence mSubtypeName;
+
+        /**
+         * The subtype's short label, or {@code null} if this item doesn't have a subtype, or
+         * doesn't specify a short label.
+         */
+        @Nullable
+        final CharSequence mSubtypeShortLabel;
+
+        /**
+         * The resource ID of the subtype's icon, or {@code 0} if this item doesn't have a subtype,
+         * or doesn't specify an icon.
+         */
+        @DrawableRes
+        final int mSubtypeIconResId;
 
         /**
          * The subtype's layout name, or {@code null} if this item doesn't have a subtype,
@@ -332,10 +353,13 @@ final class InputMethodSubtypeSwitchingController {
         final boolean mSuitableForHardware;
 
         ImeSubtypeListItem(@NonNull CharSequence imeName, @Nullable CharSequence subtypeName,
+                @Nullable CharSequence subtypeShortLabel, @DrawableRes int subtypeIconResId,
                 @Nullable CharSequence layoutName, @NonNull InputMethodInfo imi, int subtypeIndex,
                 boolean showInImeSwitcherMenu, boolean isAuxiliary, boolean suitableForHardware) {
             mImeName = imeName;
             mSubtypeName = subtypeName;
+            mSubtypeShortLabel = subtypeShortLabel;
+            mSubtypeIconResId = subtypeIconResId;
             mLayoutName = layoutName;
             mImi = imi;
             mSubtypeIndex = subtypeIndex;
@@ -377,6 +401,8 @@ final class InputMethodSubtypeSwitchingController {
             return "ImeSubtypeListItem{"
                     + "mImeName=" + mImeName
                     + " mSubtypeName=" + mSubtypeName
+                    + " mSubtypeShortLabel=" + mSubtypeShortLabel
+                    + " mSubtypeIconResId=" + mSubtypeIconResId
                     + " mLayoutName=" + mLayoutName
                     + " mSubtypeIndex=" + mSubtypeIndex
                     + " mShowInImeSwitcherMenu=" + mShowInImeSwitcherMenu
@@ -395,6 +421,8 @@ final class InputMethodSubtypeSwitchingController {
             }
             return TextUtils.equals(mImeName, that.mImeName)
                     && TextUtils.equals(mSubtypeName, that.mSubtypeName)
+                    && TextUtils.equals(mSubtypeShortLabel, that.mSubtypeShortLabel)
+                    && mSubtypeIconResId == that.mSubtypeIconResId
                     && TextUtils.equals(mLayoutName, that.mLayoutName)
                     && mImi.equals(that.mImi)
                     && mSubtypeIndex == that.mSubtypeIndex
@@ -405,8 +433,9 @@ final class InputMethodSubtypeSwitchingController {
 
         @Override
         public int hashCode() {
-            return Objects.hash(mImeName, mSubtypeName, mLayoutName, mImi, mSubtypeIndex,
-                    mShowInImeSwitcherMenu, mIsAuxiliary, mSuitableForHardware);
+            return Objects.hash(mImeName, mSubtypeName, mSubtypeShortLabel, mSubtypeIconResId,
+                    mLayoutName, mImi, mSubtypeIndex, mShowInImeSwitcherMenu, mIsAuxiliary,
+                    mSuitableForHardware);
         }
 
         /**

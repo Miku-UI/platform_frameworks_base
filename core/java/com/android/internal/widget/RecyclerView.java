@@ -17,6 +17,7 @@
 package com.android.internal.widget;
 
 import android.annotation.CallSuper;
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -53,6 +54,7 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.animation.Interpolator;
+import android.view.flags.Flags;
 import android.widget.EdgeEffect;
 import android.widget.OverScroller;
 
@@ -431,6 +433,7 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
     // This value is used when handling generic motion events.
     private float mScrollFactor = Float.MIN_VALUE;
     private boolean mPreserveFocusAfterLayout = true;
+    private boolean mScrollToTopEnabled = true;
 
     final ViewFlinger mViewFlinger = new ViewFlinger();
 
@@ -573,6 +576,10 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
                     R.styleable.RecyclerView_descendantFocusability, -1);
             if (descendantFocusability == -1) {
                 setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+            }
+            if (Flags.scrollToTop()) {
+                mScrollToTopEnabled = a.getBoolean(
+                        R.styleable.RecyclerView_isScrollToTopEnabled, true);
             }
             a.recycle();
             createLayoutManager(context, layoutManagerName, attrs, defStyle, defStyleRes);
@@ -1541,6 +1548,45 @@ public class RecyclerView extends ViewGroup implements ScrollingView, NestedScro
      * @param position The adapter position to scroll to
      * @see LayoutManager#smoothScrollToPosition(RecyclerView, State, int)
      */
+    /**
+     * Sets whether this RecyclerView should consume system-level scroll-to-top events.
+     * <p>
+     * When set to true (default), this view will scroll to the top when a system trigger
+     * (e.g., status bar tap) occurs, provided the view is visible, and currently scrolled down.
+     *
+     * @param enabled true to enable scroll-to-top behavior, false to disable.
+     */
+    @FlaggedApi(Flags.FLAG_SCROLL_TO_TOP)
+    public void setScrollToTopEnabled(boolean enabled) {
+        mScrollToTopEnabled = enabled;
+    }
+
+    /**
+     * Indicates whether this RecyclerView allows system-level scroll-to-top event consumption.
+     *
+     * @return True if scroll-to-top consumption is enabled, false otherwise.
+     */
+    @FlaggedApi(Flags.FLAG_SCROLL_TO_TOP)
+    public boolean isScrollToTopEnabled() {
+        return mScrollToTopEnabled;
+    }
+
+    /**
+     * Called when a scroll-to-top command is received.
+     *
+     * @param x the x coordinate of the triggering event.
+     * @return true if the event was consumed and the view was scrolled to top.
+     */
+    @Override
+    @FlaggedApi(Flags.FLAG_SCROLL_TO_TOP)
+    public boolean onScrollToTop(int x) {
+        if (mScrollToTopEnabled && canScrollVertically(-1)) {
+            smoothScrollToPosition(0);
+            return true;
+        }
+        return super.onScrollToTop(x);
+    }
+
     public void smoothScrollToPosition(int position) {
         if (mLayoutFrozen) {
             return;

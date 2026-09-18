@@ -16,17 +16,19 @@
 
 #define LOG_TAG "KeyEvent-JNI"
 
-#include <nativehelper/JNIHelp.h>
+#include "android_view_KeyEvent.h"
 
 #include <android_runtime/AndroidRuntime.h>
 #include <android_runtime/Log.h>
 #include <attestation/HmacKeyManager.h>
 #include <input/Input.h>
+#include <nativehelper/JNIHelp.h>
 #include <nativehelper/ScopedPrimitiveArray.h>
 #include <nativehelper/ScopedUtfChars.h>
 #include <utils/Log.h>
+
 #include <optional>
-#include "android_view_KeyEvent.h"
+#include <string_view>
 
 #include "core_jni_helpers.h"
 
@@ -153,7 +155,8 @@ status_t android_view_KeyEvent_recycle(JNIEnv* env, jobject eventObj) {
 
 static jstring android_view_KeyEvent_nativeKeyCodeToString(JNIEnv* env, jobject clazz,
         jint keyCode) {
-    return env->NewStringUTF(KeyEvent::getLabel(keyCode));
+    const std::optional<std::string_view> label = KeyEvent::getLabel(keyCode);
+    return label.has_value() ? env->NewStringUTF(std::string(label.value()).c_str()) : nullptr;
 }
 
 static jint android_view_KeyEvent_nativeKeyCodeFromString(JNIEnv* env, jobject clazz,

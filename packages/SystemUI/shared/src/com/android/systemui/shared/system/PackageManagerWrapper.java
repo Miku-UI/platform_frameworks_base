@@ -45,7 +45,7 @@ public class PackageManagerWrapper {
     private PackageManagerWrapper() {}
 
     /**
-     * @return the activity info for a given {@param componentName} and {@param userId}.
+     * @return the activity info for a given {@code componentName} and {@code userId}.
      */
     public ActivityInfo getActivityInfo(ComponentName componentName, int userId) {
         try {

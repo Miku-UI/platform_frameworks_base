@@ -22,13 +22,11 @@ import static android.os.VibrationEffect.effectStrengthToString;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.hardware.vibrator.ActivePwle;
 import android.hardware.vibrator.CompositeEffect;
 import android.hardware.vibrator.CompositePwleV2;
 import android.hardware.vibrator.FrequencyAccelerationMapEntry;
 import android.hardware.vibrator.IVibrator;
 import android.hardware.vibrator.IVibratorManager;
-import android.hardware.vibrator.PrimitivePwle;
 import android.hardware.vibrator.PwleV2Primitive;
 import android.hardware.vibrator.VendorEffect;
 import android.os.BadParcelableException;
@@ -45,7 +43,6 @@ import android.os.VibratorInfo;
 import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.PrimitiveSegment;
 import android.os.vibrator.PwlePoint;
-import android.os.vibrator.RampSegment;
 import android.util.IndentingPrintWriter;
 import android.util.Slog;
 
@@ -438,43 +435,6 @@ class VintfHalVibrator {
         }
 
         @Override
-        public long on(long vibrationId, long stepId, RampSegment[] primitives) {
-            Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.onPwleV1");
-            try {
-                synchronized (mLock) {
-                    if (!mVibratorInfo.hasCapability(IVibrator.CAP_COMPOSE_PWLE_EFFECTS)) {
-                        return 0;
-                    }
-                    // Delegate vibrate with callback to native, to avoid creating a new
-                    // callback instance for each call, overloading the GC.
-                    PrimitivePwle[] effects = new PrimitivePwle[primitives.length];
-                    long durationMs = 0;
-                    for (int i = 0; i < primitives.length; i++) {
-                        ActivePwle pwle = new ActivePwle();
-                        pwle.startAmplitude = primitives[i].getStartAmplitude();
-                        pwle.startFrequency = primitives[i].getStartFrequencyHz();
-                        pwle.endAmplitude = primitives[i].getEndAmplitude();
-                        pwle.endFrequency = primitives[i].getEndFrequencyHz();
-                        pwle.duration = (int) primitives[i].getDuration();
-                        effects[i] = PrimitivePwle.active(pwle);
-                        durationMs += pwle.duration;
-                    }
-                    int result = mNativeHandler.vibrateWithCallback(mVibratorId, vibrationId,
-                            stepId, effects);
-                    if (result > 0) {
-                        updateStateAndNotifyListenersLocked(State.VIBRATING);
-                    }
-                    return result > 0 ? durationMs : result;
-                }
-            } catch (BadParcelableException e) {
-                logError("Error sending parcelable to JNI", e);
-                return -1;
-            } finally {
-                Trace.traceEnd(TRACE_TAG_VIBRATOR);
-            }
-        }
-
-        @Override
         public long on(long vibrationId, long stepId, PwlePoint[] pwlePoints) {
             Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.onPwleV2");
             try {
@@ -629,7 +589,6 @@ class VintfHalVibrator {
             }
 
             loadInfoForPrimitives(builder, capabilities);
-            loadInfoForPwleV1(builder, capabilities);
             loadInfoForPwleV2(builder, capabilities);
 
             float resonantFrequency;
@@ -667,19 +626,6 @@ class VintfHalVibrator {
                             e -> logError("Error loading duration for primitive " + primitive, e));
                 }
             }
-        }
-
-        @SuppressWarnings("deprecation") // Loading deprecated values for compatibility
-        private void loadInfoForPwleV1(VibratorInfo.Builder builder, int capabilities) {
-            if ((capabilities & IVibrator.CAP_COMPOSE_PWLE_EFFECTS) == 0) {
-                return;
-            }
-            getValue(IVibrator::getPwleCompositionSizeMax, builder::setPwleSizeMax,
-                    "Error loading PWLE V1 size max");
-            getValue(IVibrator::getPwlePrimitiveDurationMax, builder::setPwlePrimitiveDurationMax,
-                    "Error loading PWLE V1 duration max");
-            getValue(IVibrator::getSupportedBraking, builder::setSupportedBraking,
-                    "Error loading PWLE V1 supported braking");
         }
 
         private void loadInfoForPwleV2(VibratorInfo.Builder builder, int capabilities) {

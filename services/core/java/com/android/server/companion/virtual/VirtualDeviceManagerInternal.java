@@ -21,8 +21,7 @@ import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.companion.virtual.IVirtualDevice;
 import android.companion.virtual.VirtualDevice;
-import android.companion.virtual.VirtualDeviceManager;
-import android.companion.virtual.VirtualDeviceParams;
+import android.companion.virtual.VirtualDeviceManager.VirtualDeviceListener;
 import android.companion.virtual.sensor.VirtualSensor;
 import android.content.Context;
 import android.content.Intent;
@@ -69,6 +68,14 @@ public abstract class VirtualDeviceManagerInternal {
     public abstract void onAuthenticationPrompt(int uid);
 
     /**
+     * Notifies that biometric prompt is about to be shown for an app.
+     *
+     * @param displayId The display ID on which biometric authentication is requested.
+     * @param packageName Package name of the calling application.
+     */
+    public abstract void onAuthenticationPrompt(int displayId, String packageName);
+
+    /**
      * Gets the owner uid for a deviceId.
      *
      * @param deviceId which device we're asking about
@@ -95,6 +102,21 @@ public abstract class VirtualDeviceManagerInternal {
      * the app is running on the default device or not.
      */
     public abstract @NonNull ArraySet<Integer> getDeviceIdsForUid(int uid);
+
+    /**
+     * Returns whether the given UID is associated with the virtual device with the given ID.
+     *
+     * <p>A device association is valid when either of the following is true:
+     *
+     * <ul>
+     *   <li>The UID is "seen" on the virtual device, i.e. there's an activity running on one of
+     *       the device's displays. {@link #getDeviceIdForDisplayId(int)} will contain the device ID
+     *       for that UID.
+     *   <li>There exists a service binding or provider use between the UID and the owner of the
+     *       virtual device, with the virtual device owner being the client process.
+     * </ul>
+     */
+    public abstract boolean isDeviceIdAssociationValid(int uid, int deviceId);
 
     /**
      * Notifies that a virtual display was created.
@@ -129,8 +151,7 @@ public abstract class VirtualDeviceManagerInternal {
      * If an app is on multiple virtual devices, the locale of the virtual device created the
      * earliest will be returned.
      *
-     * See {@link android.hardware.input.VirtualKeyboardConfig#setLanguageTag() for how the locale
-     * is specified for virtual keyboard.
+     * @see android.hardware.input.VirtualKeyboardConfig.Builder#setLanguageTag(String)
      */
     @Nullable
     public abstract LocaleList getPreferredLocaleListForUid(int uid);
@@ -194,16 +215,6 @@ public abstract class VirtualDeviceManagerInternal {
     public abstract @NonNull Set<String> getAllPersistentDeviceIds();
 
     /**
-     * Creates a virtual device where applications can launch and receive input events injected by
-     * the creator.
-     *
-     * <p>A Companion Device Manager association is not required. Only the system may create such
-     * virtual devices.</p>
-     */
-    public abstract @NonNull VirtualDeviceManager.VirtualDevice createVirtualDevice(
-            @NonNull VirtualDeviceParams params);
-
-    /**
      * Returns the details of the virtual device with the given ID, if any.
      *
      * <p>The returned object is a read-only representation of the virtual device that expose its
@@ -240,4 +251,13 @@ public abstract class VirtualDeviceManagerInternal {
     public abstract Intent createAutomatedAppLaunchWarningIntent(
             @NonNull String packageName, @UserIdInt int userId, @Nullable String callingPackageName,
             int displayId);
+
+    /**
+     * Returns if the provided notification id and tag are used for a computer control session by
+     * the given package.
+     */
+    // TODO(b/483645569): Remove when agents start passing a notification as part of the
+    // ComputerControlSessionParams.
+    public abstract boolean isComputerControlNotification(int notificationId,
+            @Nullable String notificationTag, @NonNull String packageName);
 }

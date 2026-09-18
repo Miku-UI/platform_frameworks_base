@@ -17,22 +17,42 @@
 package com.android.server.lights;
 
 import android.annotation.Nullable;
-import android.hardware.light.V2_0.Type;
+import android.hardware.light.LightType;
 
 public abstract class LightsManager {
-    public static final int LIGHT_ID_BACKLIGHT = Type.BACKLIGHT;
-    public static final int LIGHT_ID_KEYBOARD = Type.KEYBOARD;
-    public static final int LIGHT_ID_BUTTONS = Type.BUTTONS;
-    public static final int LIGHT_ID_BATTERY = Type.BATTERY;
-    public static final int LIGHT_ID_NOTIFICATIONS = Type.NOTIFICATIONS;
-    public static final int LIGHT_ID_ATTENTION = Type.ATTENTION;
-    public static final int LIGHT_ID_BLUETOOTH = Type.BLUETOOTH;
-    public static final int LIGHT_ID_WIFI = Type.WIFI;
-    public static final int LIGHT_ID_COUNT = Type.COUNT;
+    public static final int LIGHT_ID_BACKLIGHT = LightType.BACKLIGHT;
+    public static final int LIGHT_ID_KEYBOARD = LightType.KEYBOARD;
+    public static final int LIGHT_ID_BUTTONS = LightType.BUTTONS;
+    public static final int LIGHT_ID_BATTERY = LightType.BATTERY;
+    public static final int LIGHT_ID_NOTIFICATIONS = LightType.NOTIFICATIONS;
+    public static final int LIGHT_ID_ATTENTION = LightType.ATTENTION;
+    public static final int LIGHT_ID_BLUETOOTH = LightType.BLUETOOTH;
+    public static final int LIGHT_ID_WIFI = LightType.WIFI;
+    public static final int LIGHT_ID_COUNT = 8;
+    /*
+     * The list of lights above is kept for backwards compatibility with HIDL
+     * based HALs. Specifically, COUNT should remain constant from now on since
+     * it only plays a role in HIDL.
+     * <p>
+     * New system lights can be added below without updating COUNT. On AIDL HALs
+     * the system accounts for gaps and interleaved system and non-system light
+     * types.
+     */
+    public static final int LIGHT_ID_PRIORITY_NOTIFICATIONS = LightType.PRIORITY_NOTIFICATIONS;
 
     /**
      * Returns the logical light with the given type, if it exists, or null.
      */
     @Nullable
     public abstract LogicalLight getLight(int id);
+
+    /**
+     * Set overall lights muted/unmuted state, when it is necessary to limit light emission to
+     * avoid interfering with use cases such as video recording.
+     * <p>
+     * Critical lights like backlight, keyboard or buttons won't be muted but user and the other
+     * system lights will be turned off until the muted state is set to false.
+     */
+    public abstract void setMutedState(boolean muted);
+
 }

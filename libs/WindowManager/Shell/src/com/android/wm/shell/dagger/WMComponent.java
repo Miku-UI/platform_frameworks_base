@@ -24,12 +24,13 @@ import com.android.wm.shell.appzoomout.AppZoomOut;
 import com.android.wm.shell.back.BackAnimation;
 import com.android.wm.shell.bubbles.Bubbles;
 import com.android.wm.shell.bubbles.bar.BubbleBarExpandedView;
-import com.android.wm.shell.desktopmode.DesktopMode;
+import com.android.wm.shell.desktopmode.api.DesktopMode;
 import com.android.wm.shell.displayareahelper.DisplayAreaHelper;
 import com.android.wm.shell.keyguard.KeyguardTransitions;
 import com.android.wm.shell.onehanded.OneHanded;
 import com.android.wm.shell.pip.Pip;
 import com.android.wm.shell.recents.RecentTasks;
+import com.android.wm.shell.scrolltotop.ScrollToTop;
 import com.android.wm.shell.shared.ShellTransitions;
 import com.android.wm.shell.shared.annotations.ShellMainThread;
 import com.android.wm.shell.splitscreen.SplitScreen;
@@ -38,10 +39,10 @@ import com.android.wm.shell.sysui.ShellInterface;
 import com.android.wm.shell.taskview.TaskViewFactory;
 import com.android.wm.shell.windowdecor.viewholder.AppHandles;
 
-import java.util.Optional;
-
 import dagger.BindsInstance;
 import dagger.Subcomponent;
+
+import java.util.Optional;
 
 /**
  * Dagger Subcomponent for WindowManager.  This class explicitly describes the interfaces exported
@@ -123,6 +124,9 @@ public interface WMComponent {
 
     @WMSingleton
     Optional<AppHandles> getAppHandles();
+
+    @WMSingleton
+    Optional<ScrollToTop> getScrollToTop();
 
     // Injector methods to support field injection
 

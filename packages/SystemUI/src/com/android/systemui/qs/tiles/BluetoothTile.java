@@ -18,7 +18,6 @@ package com.android.systemui.qs.tiles;
 
 import static com.android.settingslib.flags.Flags.refactorBatteryLevelDisplay;
 import static com.android.settingslib.satellite.SatelliteDialogUtils.TYPE_IS_BLUETOOTH;
-import static com.android.systemui.Flags.iconRefresh2025;
 import static com.android.systemui.util.PluralMessageFormaterKt.icuMessageFormat;
 
 import android.annotation.Nullable;
@@ -245,9 +244,7 @@ public class BluetoothTile extends QSTileImpl<BooleanState> {
                 state.icon = maybeLoadResourceIcon(R.drawable.qs_bluetooth_icon_search);
                 state.stateDescription = state.secondaryLabel;
             } else {
-                state.icon = maybeLoadResourceIcon(
-                        iconRefresh2025() ? R.drawable.qs_bluetooth_icon_disconnected
-                                : R.drawable.qs_bluetooth_icon_off);
+                state.icon = maybeLoadResourceIcon(R.drawable.qs_bluetooth_icon_disconnected);
                 state.stateDescription = mContext.getString(R.string.accessibility_not_connected);
             }
             state.state = Tile.STATE_ACTIVE;

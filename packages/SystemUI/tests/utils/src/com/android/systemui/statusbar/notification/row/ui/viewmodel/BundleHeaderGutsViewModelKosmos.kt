@@ -23,7 +23,7 @@ val Kosmos.bundleHeaderGutsViewModel by
     Kosmos.Fixture {
         BundleHeaderGutsViewModel(
             titleText = TEST_BUNDLE_SPEC.titleText,
-            summaryText = TEST_BUNDLE_SPEC.summaryText,
+            summaryTextRes = TEST_BUNDLE_SPEC.summaryTextRes,
             bundleIcon = TEST_BUNDLE_SPEC.icon,
         )
     }

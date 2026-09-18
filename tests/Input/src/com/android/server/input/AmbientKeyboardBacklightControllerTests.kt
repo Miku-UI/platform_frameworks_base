@@ -23,6 +23,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.hardware.display.DisplayManager
 import android.hardware.display.DisplayManagerInternal
 import android.hardware.input.InputSensorInfo
 import android.os.Handler
@@ -78,6 +79,8 @@ class AmbientKeyboardBacklightControllerTests {
     @Mock private lateinit var sensorManager: SensorManager
 
     @Mock private lateinit var displayManagerInternal: DisplayManagerInternal
+
+    @Mock private lateinit var displayManager: DisplayManager
     private lateinit var lightSensor: Sensor
 
     private var currentDisplayInfo = DisplayInfo()
@@ -89,6 +92,7 @@ class AmbientKeyboardBacklightControllerTests {
     fun setup() {
         context = spy(ContextWrapper(ApplicationProvider.getApplicationContext()))
         `when`(context.resources).thenReturn(resources)
+        `when`(context.getSystemService(eq(DisplayManager::class.java))).thenReturn(displayManager)
         setupBrightnessSteps()
         setupSensor()
         testLooper = TestLooper()
@@ -135,7 +139,7 @@ class AmbientKeyboardBacklightControllerTests {
         `when`(lightSensorInfo.name).thenReturn(SENSOR_NAME)
         `when`(lightSensorInfo.stringType).thenReturn(SENSOR_TYPE)
         lightSensor = Sensor(lightSensorInfo)
-        `when`(context.getSystemService(eq(Context.SENSOR_SERVICE))).thenReturn(sensorManager)
+        `when`(context.getSystemService(eq(SensorManager::class.java))).thenReturn(sensorManager)
         `when`(sensorManager.getSensorList(anyInt())).thenReturn(listOf(lightSensor))
         `when`(
                 sensorManager.registerListener(

@@ -19,7 +19,6 @@ package com.android.server.vibrator;
 import android.hardware.vibrator.IVibrator;
 import android.os.VibratorInfo;
 import android.os.vibrator.BasicPwleSegment;
-import android.os.vibrator.Flags;
 import android.os.vibrator.PwleSegment;
 import android.os.vibrator.VibrationEffectSegment;
 
@@ -49,28 +48,6 @@ final class PwleSegmentsValidator implements VibrationSegmentsValidator {
 
         boolean hasPwleCapability = info.hasCapability(IVibrator.CAP_COMPOSE_PWLE_EFFECTS_V2);
         VibratorInfo.FrequencyProfile frequencyProfile = info.getFrequencyProfile();
-
-        if (!Flags.decoupleFrequencyProfileFromResonance()) {
-            float minFrequency = frequencyProfile.getMinFrequencyHz();
-            float maxFrequency = frequencyProfile.getMaxFrequencyHz();
-
-            for (VibrationEffectSegment segment : segments) {
-                if (segment instanceof BasicPwleSegment && !hasPwleCapability) {
-                    return false;
-                }
-                if (segment instanceof PwleSegment pwleSegment) {
-                    if (!hasPwleCapability || pwleSegment.getStartFrequencyHz() < minFrequency
-                            || pwleSegment.getStartFrequencyHz() > maxFrequency
-                            || pwleSegment.getEndFrequencyHz() < minFrequency
-                            || pwleSegment.getEndFrequencyHz() > maxFrequency) {
-                        return false;
-                    }
-                }
-            }
-
-            return true;
-        }
-
 
         for (VibrationEffectSegment segment : segments) {
             if (segment instanceof BasicPwleSegment) {

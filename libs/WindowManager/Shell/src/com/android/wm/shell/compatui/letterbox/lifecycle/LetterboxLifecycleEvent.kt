@@ -43,9 +43,11 @@ data class LetterboxLifecycleEvent(
     val letterboxBounds: Rect? = null,
     val containerToken: WindowContainerToken? = null,
     val taskLeash: SurfaceControl? = null,
+    val activityLeash: SurfaceControl? = null,
     val isBubble: Boolean = false,
     val isTranslucent: Boolean = false,
     val supportsInput: Boolean = true,
+    val mainWindowHasRoundedCorners: Boolean = false,
 )
 
 /** Extract the [LetterboxKey] from the [LetterboxLifecycleEvent]. */
@@ -84,3 +86,8 @@ val TaskInfo.isALeafTask: Boolean
  */
 fun Change.isChangeForALeafTask(): Boolean =
     taskInfo?.appCompatTaskInfo?.isLeafTask ?: isActivityChange()
+
+/** Returns [true] if the main window has rounded corners applied. */
+fun Change.mainWindowHasRoundedCorners() =
+    (taskInfo?.appCompatTaskInfo?.hasMainWindowRoundedCorners() ?: false) ||
+        (activityTransitionInfo?.appCompatTransitionInfo?.isHasRoundedCorners ?: false)

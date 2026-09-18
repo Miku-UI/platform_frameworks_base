@@ -28,7 +28,6 @@ import com.android.systemui.navigationbar.NavigationBarComponent.NavigationBarSc
 import com.android.systemui.navigationbar.views.NavigationBarFrame;
 import com.android.systemui.navigationbar.views.NavigationBarView;
 import com.android.systemui.res.R;
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround;
 import com.android.systemui.utils.windowmanager.WindowManagerProvider;
 
 import dagger.Module;
@@ -77,12 +76,8 @@ public interface NavigationBarModule {
     static SysUiState provideSysUiState(@DisplayId Context context,
             SysUiState defaultState,
             PerDisplayRepository<SysUiState> repository) {
-        if (ShadeWindowGoesAround.isEnabled()) {
-            SysUiState displaySpecific = repository.get(context.getDisplayId());
-            if (displaySpecific == null) return defaultState;
-            return displaySpecific;
-        } else {
-            return defaultState;
-        }
+        SysUiState displaySpecific = repository.get(context.getDisplayId());
+        if (displaySpecific == null) return defaultState;
+        return displaySpecific;
     }
 }

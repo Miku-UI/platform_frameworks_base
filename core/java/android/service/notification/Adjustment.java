@@ -21,7 +21,11 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.StringDef;
 import android.annotation.SystemApi;
+import android.annotation.TestApi;
+import android.app.Flags;
 import android.app.Notification;
+import android.app.NotificationRule;
+import android.app.modes.ContextualMode;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcel;
@@ -51,6 +55,8 @@ public final class Adjustment implements Parcelable {
     private final Bundle mSignals;
     private final int mUser;
     @Nullable private String mIssuer;
+    private int mRuleId;
+    private int mRuleOrder;
 
     /** @hide */
     @StringDef (prefix = { "KEY_" }, value = {
@@ -181,7 +187,6 @@ public final class Adjustment implements Parcelable {
      * notifications differently depending on the type, and may change the alerting level of the
      * notification.
      */
-    @FlaggedApi(Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public static final String KEY_TYPE = "key_type";
 
     /** @hide */
@@ -199,29 +204,24 @@ public final class Adjustment implements Parcelable {
      * This notification can be categorized, but not into one of the other categories known to the
      * OS at a given version.
      */
-    @FlaggedApi(Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public static final int TYPE_OTHER = 0;
     /**
      * The type of this notification is a promotion/deal.
      */
-    @FlaggedApi(Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public static final int TYPE_PROMOTION = 1;
     /**
      * The type of this notification is social media content that isn't a
      * {@link Notification.Builder#setShortcutId(String) conversation}.
      */
-    @FlaggedApi(Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public static final int TYPE_SOCIAL_MEDIA = 2;
     /**
      * The type of this notification is news.
      */
-    @FlaggedApi(Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public static final int TYPE_NEWS = 3;
     /**
      * The type of this notification is content recommendation, for example new videos or books the
      * user may be interested in.
      */
-    @FlaggedApi(Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public static final int TYPE_CONTENT_RECOMMENDATION = 4;
 
     /**
@@ -229,7 +229,6 @@ public final class Adjustment implements Parcelable {
      * classification should be removed and the channel reverted to its original channel (provided).
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public static final String KEY_UNCLASSIFY = "key_unclassify";
 
     /**
@@ -237,8 +236,68 @@ public final class Adjustment implements Parcelable {
      * a group summary, a summarization of the text of all of the notificatrions in the group.
      * Send this key with a null value to remove an existing summarization.
      */
-    @FlaggedApi(android.app.Flags.FLAG_NM_SUMMARIZATION)
     public static final String KEY_SUMMARIZATION = "key_summarization";
+
+    /**
+     * Data type: A List of Integers, where each string is a {@link NotificationRule#getId()} of a
+     * rule that this notification currently matches.
+     */
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public static final String KEY_NOTIFICATION_RULES = "notification_rules";
+
+    /**
+     * Data type: Uri that points to the sound/vibration that should be played for this notification
+     * if this adjustment arrives before the notification has alerted.
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public static final String KEY_SOUND = "sound";
+
+    /**
+     * Data type: A List of Strings, where each string is a {@link ContextualMode#getId()} of a
+     * mode this notification should be allowed to bypass.
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public static final String KEY_MODE_BREAKTHROUGH_LIST = "mode_breakthrough";
+
+    /**
+     * Data type: Boolean. If true, this notification should break through all modes, regardless
+     * of the presence of absence of {@link #KEY_MODE_BREAKTHROUGH_LIST}.
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public static final String KEY_BREAKTHROUGH_ALL_MODES = "breakthrough_all_modes";
+
+    /**
+     * Data type: Boolean, true if the notification should be highlighted, false otherwise.
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public static final String KEY_HIGHLIGHT = "highlight";
+
+    /**
+     * Data type: a {@link android.annotation.ColorInt integer} that represents the notification
+     * light color that should flash if this adjustment arrives before the notification has alerted.
+     *
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public static final String KEY_LIGHT = "light";
+
+    /**
+     * Data type: a {@link NotificationRule.DynamicBundle} that represents the configuration of
+     * the dynamic bundle this notification should be added to.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public static final String KEY_DYNAMIC_BUNDLE = "dynamic_bundle";
 
     /**
      * Create a notification adjustment.
@@ -312,6 +371,8 @@ public final class Adjustment implements Parcelable {
         mSignals = in.readBundle();
         mUser = in.readInt();
         mIssuer = in.readString();
+        mRuleOrder = in.readInt();
+        mRuleId = in.readInt();
     }
 
     public static final @android.annotation.NonNull Creator<Adjustment> CREATOR = new Creator<Adjustment>() {
@@ -380,13 +441,18 @@ public final class Adjustment implements Parcelable {
         dest.writeBundle(mSignals);
         dest.writeInt(mUser);
         dest.writeString(mIssuer);
+        dest.writeInt(mRuleOrder);
+        dest.writeInt(mRuleId);
     }
 
     @NonNull
     @Override
     public String toString() {
         return "Adjustment{"
-                + "mSignals=" + mSignals
+                + "mSignals=" + mSignals.keySet()
+                + ", mUser=" + mUser
+                + ", mRuleId=" + mRuleId
+                + ", mRuleOrder=" + mRuleOrder
                 + '}';
     }
 
@@ -398,5 +464,46 @@ public final class Adjustment implements Parcelable {
     /** @hide */
     public @Nullable String getIssuer() {
         return mIssuer;
+    }
+
+    /**
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public void setOriginatingRuleId(int ruleId) {
+        mRuleId = ruleId;
+    }
+
+    /**
+     * When {@link #KEY_NOTIFICATION_RULES} is split into behavioral Adjustments, carry over the
+     * rule id that Adjustment originated from.
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public int getOriginatingRuleId() {
+        return mRuleId;
+    }
+
+    /**
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public void setOriginatingRuleOrder(int ruleOrder) {
+        mRuleOrder = ruleOrder;
+    }
+
+    /**
+     * When {@link #KEY_NOTIFICATION_RULES} is split into behavioral Adjustments, carry over the
+     * index of the rule id that Adjustment originated from, so rules can be applied in priority
+     * order.
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public int getOriginatingRuleOrder() {
+        return mRuleOrder;
     }
 }

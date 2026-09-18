@@ -72,8 +72,8 @@ public class HeadsUpViewBinderTest extends SysuiTestCase {
             return new CancellationSignal();
         });
 
-        mViewBinder.bindHeadsUpView(mEntry, /* isPinnedByUser= */ false, null);
-        verify(mLogger).startBindingHun(mEntry, /* isPinnedByUser= */ false);
+        mViewBinder.bindHeadsUpView(mEntry, /* isFromUserOpenAction= */ false, null);
+        verify(mLogger).startBindingHun(mEntry, /* isFromUserOpenAction= */ false);
         verifyNoMoreInteractions(mLogger);
         clearInvocations(mLogger);
 
@@ -82,8 +82,8 @@ public class HeadsUpViewBinderTest extends SysuiTestCase {
         verifyNoMoreInteractions(mLogger);
         clearInvocations(mLogger);
 
-        mViewBinder.bindHeadsUpView(mEntry, /* isPinnedByUser= */ true, null);
-        verify(mLogger).startBindingHun(mEntry, /* isPinnedByUser= */ true);
+        mViewBinder.bindHeadsUpView(mEntry, /* isFromUserOpenAction= */ true, null);
+        verify(mLogger).startBindingHun(mEntry, /* isFromUserOpenAction= */ true);
         verifyNoMoreInteractions(mLogger);
         clearInvocations(mLogger);
 
@@ -113,8 +113,8 @@ public class HeadsUpViewBinderTest extends SysuiTestCase {
             return new CancellationSignal();
         });
 
-        mViewBinder.bindHeadsUpView(mEntry, /* isPinnedByUser= */ false, null);
-        verify(mLogger).startBindingHun(mEntry, /* isPinnedByUser= */ false);
+        mViewBinder.bindHeadsUpView(mEntry, /* isFromUserOpenAction= */ false, null);
+        verify(mLogger).startBindingHun(mEntry, /* isFromUserOpenAction= */ false);
         verifyNoMoreInteractions(mLogger);
         clearInvocations(mLogger);
 
@@ -137,8 +137,8 @@ public class HeadsUpViewBinderTest extends SysuiTestCase {
             return new CancellationSignal();
         });
 
-        mViewBinder.bindHeadsUpView(mEntry, /* isPinnedByUser= */ true, null);
-        verify(mLogger).startBindingHun(mEntry, /* isPinnedByUser= */ true);
+        mViewBinder.bindHeadsUpView(mEntry, /* isFromUserOpenAction= */ true, null);
+        verify(mLogger).startBindingHun(mEntry, /* isFromUserOpenAction= */ true);
         verifyNoMoreInteractions(mLogger);
         clearInvocations(mLogger);
 
@@ -164,8 +164,8 @@ public class HeadsUpViewBinderTest extends SysuiTestCase {
             return new CancellationSignal();
         });
 
-        mViewBinder.bindHeadsUpView(mEntry, /* isPinnedByUser= */ false, null);
-        verify(mLogger).startBindingHun(mEntry, /* isPinnedByUser= */ false);
+        mViewBinder.bindHeadsUpView(mEntry, /* isFromUserOpenAction= */ false, null);
+        verify(mLogger).startBindingHun(mEntry, /* isFromUserOpenAction= */ false);
         verifyNoMoreInteractions(mLogger);
         clearInvocations(mLogger);
 

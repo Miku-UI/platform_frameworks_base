@@ -20,6 +20,7 @@ import androidx.compose.runtime.getValue
 import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.screencapture.common.shared.model.ScreenCaptureType
 import com.android.systemui.screencapture.common.shared.model.ScreenCaptureUiState
+import com.android.systemui.screencapture.domain.interactor.ScreenCaptureTracingInteractor
 import com.android.systemui.screencapture.domain.interactor.ScreenCaptureUiInteractor
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -30,6 +31,7 @@ class ScreenCaptureUiViewModel
 constructor(
     @Assisted private val type: ScreenCaptureType,
     private val interactor: ScreenCaptureUiInteractor,
+    private val tracingInteractor: ScreenCaptureTracingInteractor,
 ) : HydratedActivatable() {
 
     val state: ScreenCaptureUiState by
@@ -37,11 +39,15 @@ constructor(
             .uiState(type)
             .hydratedStateOf(
                 traceName = "ScreenCaptureUiViewModel#state",
-                initialValue = ScreenCaptureUiState.Invisible,
+                initialValue = ScreenCaptureUiState.Invisible(),
             )
 
     fun dismiss() {
         interactor.hide(type)
+    }
+
+    fun onFinishedChangingVisibility() {
+        tracingInteractor.endVisibilityChangeSection(state)
     }
 
     @AssistedFactory

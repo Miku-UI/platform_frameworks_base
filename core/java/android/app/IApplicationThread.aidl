@@ -94,6 +94,7 @@ oneway interface IApplicationThread {
             in CompatibilityInfo compatInfo, in Map services,
             in Bundle coreSettings, in String buildSerial, in AutofillOptions autofillOptions,
             in ContentCaptureOptions contentCaptureOptions, in long[] disabledCompatChanges,
+            in long[] enabledCompatChanges,
             in long[] loggableCompatChanges, in boolean logChangeChecksToStatsD,
             in SharedMemory serializedSystemFontMap, in FileDescriptor applicationSharedMemoryFd,
             long startRequestedElapsedTime, long startRequestedUptime);

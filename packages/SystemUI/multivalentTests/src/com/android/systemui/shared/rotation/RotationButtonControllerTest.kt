@@ -15,8 +15,6 @@
  */
 package com.android.systemui.shared.rotation
 
-import android.platform.test.annotations.EnableFlags
-import android.platform.test.flag.junit.SetFlagsRule
 import android.testing.TestableLooper.RunWithLooper
 import android.view.Display
 import android.view.Surface
@@ -28,7 +26,6 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.rotation.RotationPolicyWrapper
 import com.android.systemui.shared.rotation.RotationButton.RotationButtonUpdatesCallback
-import com.android.window.flags.Flags
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
 import org.junit.Rule
@@ -48,8 +45,6 @@ import org.mockito.kotlin.verify
 @SmallTest
 @RunWithLooper
 class RotationButtonControllerTest : SysuiTestCase() {
-    @get:Rule
-    val setFlagsRule: SetFlagsRule = SetFlagsRule()
     @get:Rule
     val mocks = MockitoJUnit.rule()
 
@@ -93,7 +88,6 @@ class RotationButtonControllerTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DEVICE_STATE_AUTO_ROTATE_SETTING_REFACTOR)
     fun onRotateSuggestionClick_rotationButtonClicked_setRotationAtAngleIfAllowedIsCalled() {
         clickRotationSuggestionButton()
 

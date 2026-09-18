@@ -165,7 +165,9 @@ public class RestrictedSelectorWithWidgetPreference extends SelectorWithWidgetPr
      *
      * @param admin details of the admin who enforced the restriction. If it is {@code null}, then
      *     this preference will be enabled. Otherwise, it will be disabled.
+     * @deprecated Use {@link #setDisabledByAdmin(EnforcingAdmin)} instead.
      */
+    @Deprecated
     public void setDisabledByAdmin(@Nullable EnforcedAdmin admin) {
         if (mHelper.setDisabledByAdmin(admin)) {
             notifyChanged();

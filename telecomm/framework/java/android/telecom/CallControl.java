@@ -21,14 +21,15 @@ import static android.telecom.CallException.TRANSACTION_EXCEPTION_KEY;
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.SuppressLint;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.OutcomeReceiver;
 import android.os.ParcelUuid;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
-import android.text.TextUtils;
 
 import com.android.internal.telecom.ICallControl;
 import com.android.server.telecom.flags.Flags;
@@ -106,7 +107,7 @@ public final class CallControl {
      * Request Telecom answer an incoming call.  For outgoing calls and calls that have been placed
      * on hold, use {@link CallControl#setActive(Executor, OutcomeReceiver)}.
      *
-     * @param videoState to report to Telecom. Telecom will store VideoState in the event another
+     * @param callType to report to Telecom. Telecom will store CallType in the event another
      *                   service/device requests it in order to continue the call on another screen.
      * @param executor   The {@link Executor} on which the {@link OutcomeReceiver} callback
      *                   will be called on.
@@ -120,14 +121,14 @@ public final class CallControl {
      *                   the call state to active.  A {@link CallException} will be passed
      *                   that details why the operation failed.
      */
-    public void answer(@android.telecom.CallAttributes.CallType int videoState,
+    public void answer(@android.telecom.CallAttributes.CallType int callType,
             @CallbackExecutor @NonNull Executor executor,
             @NonNull OutcomeReceiver<Void, CallException> callback) {
-        validateVideoState(videoState);
+        validateCallType(callType);
         Objects.requireNonNull(executor);
         Objects.requireNonNull(callback);
         try {
-            mServerInterface.answer(videoState, mCallId,
+            mServerInterface.answer(callType, mCallId,
                     new CallControlResultReceiver("answer", executor, callback));
 
         } catch (RemoteException e) {
@@ -301,7 +302,7 @@ public final class CallControl {
         }
     }
 
-     /**
+    /**
      * Request a new video state for the ongoing call. This can only be changed if the application
      * has registered a {@link PhoneAccount} with the
      * {@link PhoneAccount#CAPABILITY_SUPPORTS_VIDEO_CALLING} and set the
@@ -309,8 +310,8 @@ public final class CallControl {
      * {@link TelecomManager#addCall(CallAttributes, Executor, OutcomeReceiver,
      *                                                      CallControlCallback, CallEventCallback)}
      *
-     * @param videoState to report to Telecom. To see the valid argument to pass,
-      *                   see {@link CallAttributes.CallType}.
+     * @param callType to report to Telecom. To see the valid argument to pass,
+     *                   see {@link CallAttributes.CallType}.
      * @param executor   The {@link Executor} on which the {@link OutcomeReceiver} callback
      *                   will be called on.
      * @param callback   that will be completed on the Telecom side that details success or failure
@@ -325,20 +326,108 @@ public final class CallControl {
      * @throws IllegalArgumentException if the argument passed for videoState is invalid.  To see a
      * list of valid states, see {@link CallAttributes.CallType}.
      */
-     @FlaggedApi(Flags.FLAG_TRANSACTIONAL_VIDEO_STATE)
-     public void requestVideoState(@CallAttributes.CallType int videoState,
-             @CallbackExecutor @NonNull Executor executor,
-             @NonNull OutcomeReceiver<Void, CallException> callback) {
-         validateVideoState(videoState);
-         Objects.requireNonNull(executor);
-         Objects.requireNonNull(callback);
-         try {
-             mServerInterface.requestVideoState(videoState, mCallId,
-                     new CallControlResultReceiver("requestVideoState", executor, callback));
-         } catch (RemoteException e) {
-             throw e.rethrowAsRuntimeException();
-         }
-     }
+    @FlaggedApi(Flags.FLAG_TRANSACTIONAL_VIDEO_STATE)
+    public void requestVideoState(@CallAttributes.CallType int callType,
+            @CallbackExecutor @NonNull Executor executor,
+            @NonNull OutcomeReceiver<Void, CallException> callback) {
+        validateCallType(callType);
+        Objects.requireNonNull(executor);
+        Objects.requireNonNull(callback);
+        try {
+            mServerInterface.requestVideoState(callType, mCallId,
+                    new CallControlResultReceiver("requestVideoState", executor, callback));
+        } catch (RemoteException e) {
+            throw e.rethrowAsRuntimeException();
+        }
+    }
+
+    /**
+     * Sets the group call state for an ongoing call.
+     *
+     * <p>This method should be invoked by a VoIP application.
+     * when a call transitions to or from being a group call. For instance, if a one-on-one
+     * call adds more participants and becomes a conference, this method informs the system of that
+     * change.
+     *
+     * <p>Providing this state allows the Android system to correctly represent the call in the
+     * system's user interface, such as the native call log. As part of the integrated call logs
+     * feature, which provides a unified history for both carrier and VoIP calls, accurately
+     * identifying group calls is essential for a consistent user experience.
+     *
+     * @param isGroupCall {@code true} if the call is currently a group call, {@code false}
+     *                    otherwise.
+     * @param executor    The {@link Executor} on which the {@link OutcomeReceiver} callback
+     *                    will be called on.
+     * @param callback    that will be completed on the Telecom side that details success or failure
+     *                    of the requested operation.
+     *
+     *                    {@link OutcomeReceiver#onResult} will be called if Telecom has
+     *                    successfully switched the video state.
+     *
+     *                    {@link OutcomeReceiver#onError} will be called if Telecom has failed to
+     *                    set the new video state.  A {@link CallException} will be passed  that
+     *                    details why the operation failed.
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    public void setGroupCallState(boolean isGroupCall, @CallbackExecutor @NonNull Executor executor,
+            @NonNull OutcomeReceiver<Void, CallException> callback) {
+        Objects.requireNonNull(executor);
+        Objects.requireNonNull(callback);
+        try {
+            mServerInterface.setGroupCallState(mCallId, isGroupCall,
+                    new CallControlResultReceiver("setGroupCallState", executor, callback));
+        } catch (RemoteException e) {
+            throw e.rethrowAsRuntimeException();
+        }
+    }
+
+    /**
+     * Sets the VoIP contact URI for an ongoing call.
+     *
+     * <p>This method should be invoked by a VoIP application.
+     * when a call transitions to or from being a group call. For instance, if a one-on-one
+     * call adds more participants and becomes a conference. This should be used in par with
+     * {@link CallControl#setGroupCallState}.
+     *
+     * <p>Providing this state allows the Android system to correctly represent the call in the
+     * system's user interface, such as the native call log. As part of the integrated call logs
+     * feature, which provides a unified history for both carrier and VoIP calls, accurately
+     * associating the calls with a valid lookup URI is essential for a consistent user experience.
+     *
+     * <p>The {@code uri} parameter is crucial for linking the call to a specific group entity
+     * within the VoIP contact directory or a CP2 contact. This helps in associating the call log
+     * entry with the correct contact information, such as the group's name and avatar.
+     *
+     * @param uri        The content URI of the contact or group in the VoIP application's contact
+     *                   directory or a valid CP2 contact. This URI must be stable and resolvable
+     *                   by the system or null if unused.
+     * @param executor   The {@link Executor} on which the {@link OutcomeReceiver} callback
+     *                   will be called on.
+     * @param callback   that will be completed on the Telecom side that details success or failure
+     *                   of the requested operation.
+     *
+     *                   {@link OutcomeReceiver#onResult} will be called if Telecom has successfully
+     *                   switched the video state.
+     *
+     *                   {@link OutcomeReceiver#onError} will be called if Telecom has failed to set
+     *                   the new video state.  A {@link CallException} will be passed
+     *                   that details why the operation failed.
+     * @throws IllegalArgumentException if the provided {@code uri} is invalid or improperly
+     *                                  formatted.
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    public void setContactUri(@Nullable Uri uri, @CallbackExecutor @NonNull Executor executor,
+            @NonNull OutcomeReceiver<Void, CallException> callback) {
+        CallAttributes.validateVoipContactUri(uri);
+        Objects.requireNonNull(executor);
+        Objects.requireNonNull(callback);
+        try {
+            mServerInterface.setContactUri(mCallId, uri,
+                    new CallControlResultReceiver("setContactUri", executor, callback));
+        } catch (RemoteException e) {
+            throw e.rethrowAsRuntimeException();
+        }
+    }
 
     /**
      * Raises an event to the {@link android.telecom.InCallService} implementations tracking this
@@ -423,7 +512,7 @@ public final class CallControl {
         final int code = disconnectCause.getCode();
         if (code != DisconnectCause.LOCAL && code != DisconnectCause.REMOTE
                 && code != DisconnectCause.MISSED && code != DisconnectCause.REJECTED) {
-            throw new IllegalArgumentException(TextUtils.formatSimple(
+            throw new IllegalArgumentException(String.format(
                     "The DisconnectCause code provided, %d , is not a valid Disconnect code. Valid "
                             + "DisconnectCause codes are limited to [DisconnectCause.LOCAL, "
                             + "DisconnectCause.REMOTE, DisconnectCause.MISSED, or "
@@ -432,12 +521,12 @@ public final class CallControl {
     }
 
     /** @hide */
-    private void validateVideoState(@android.telecom.CallAttributes.CallType int videoState) {
-        if (videoState != CallAttributes.AUDIO_CALL && videoState != CallAttributes.VIDEO_CALL) {
-            throw new IllegalArgumentException(TextUtils.formatSimple(
+    private void validateCallType(@android.telecom.CallAttributes.CallType int callType) {
+        if (callType != CallAttributes.AUDIO_CALL && callType != CallAttributes.VIDEO_CALL) {
+            throw new IllegalArgumentException(String.format(
                     "The VideoState argument passed in, %d , is not a valid VideoState. The "
                             + "VideoState choices are limited to CallAttributes.AUDIO_CALL or"
-                            + "CallAttributes.VIDEO_CALL", videoState));
+                            + "CallAttributes.VIDEO_CALL", callType));
         }
     }
 }

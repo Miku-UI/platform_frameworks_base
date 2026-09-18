@@ -18,6 +18,7 @@ package com.android.internal.os;
 
 import android.app.ActivityManager;
 import android.app.ActivityThread;
+import android.app.AppCompatCallbacks;
 import android.app.ApplicationErrorReport;
 import android.app.IActivityManager;
 import android.compat.annotation.UnsupportedAppUsage;
@@ -369,7 +370,7 @@ public class RuntimeInit {
     }
 
     protected static Runnable applicationInit(int targetSdkVersion, long[] disabledCompatChanges,
-            String[] argv, ClassLoader classLoader) {
+            long[] enabledCompatChanges, String[] argv, ClassLoader classLoader) {
         // If the application calls System.exit(), terminate the process
         // immediately without running any shutdown hooks.  It is not possible to
         // shutdown an Android application gracefully.  Among other things, the
@@ -379,6 +380,14 @@ public class RuntimeInit {
 
         VMRuntime.getRuntime().setTargetSdkVersion(targetSdkVersion);
         VMRuntime.getRuntime().setDisabledCompatChanges(disabledCompatChanges);
+
+        // For apps started via Zygote, we install AppCompatCallbacks here early
+        // so that they are available during static initialization of the app.
+        // ActivityThread will re-install them with more complete data later.
+        if (disabledCompatChanges != null || enabledCompatChanges != null) {
+            AppCompatCallbacks.install(disabledCompatChanges, enabledCompatChanges, null, false,
+                    targetSdkVersion);
+        }
 
         final Arguments args = new Arguments(argv);
 

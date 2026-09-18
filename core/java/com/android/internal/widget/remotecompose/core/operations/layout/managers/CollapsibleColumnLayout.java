@@ -15,14 +15,20 @@
  */
 package com.android.internal.widget.remotecompose.core.operations.layout.managers;
 
+import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.FLOAT;
+import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.INT;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
+import com.android.internal.widget.remotecompose.core.CoreDocument;
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
 import com.android.internal.widget.remotecompose.core.PaintContext;
 import com.android.internal.widget.remotecompose.core.RemoteContext;
 import com.android.internal.widget.remotecompose.core.WireBuffer;
+import com.android.internal.widget.remotecompose.core.documentation.DocumentationBuilder;
+import com.android.internal.widget.remotecompose.core.operations.Header;
 import com.android.internal.widget.remotecompose.core.operations.layout.Component;
 import com.android.internal.widget.remotecompose.core.operations.layout.LayoutComponent;
 import com.android.internal.widget.remotecompose.core.operations.layout.measure.ComponentMeasure;
@@ -73,6 +79,22 @@ public class CollapsibleColumnLayout extends ColumnLayout {
                 horizontalPositioning,
                 verticalPositioning,
                 spacedBy);
+    }
+
+    /**
+     * Populate the documentation with a description of this operation
+     *
+     * @param doc to append the description to.
+     */
+    public static void documentation(@NonNull DocumentationBuilder doc) {
+        doc.operation("Layout Managers", id(), "CollapsibleColumn")
+                .additionalDocumentation("collapsible_column")
+                .description("A column layout that can hide children if space is insufficient")
+                .field(INT, "componentId", "Unique ID for this component")
+                .field(INT, "animationId", "ID for animation purposes")
+                .field(INT, "horizontalPositioning", "Horizontal positioning value")
+                .field(INT, "verticalPositioning", "Vertical positioning value")
+                .field(FLOAT, "spacedBy", "Vertical spacing between components");
     }
 
     @NonNull
@@ -139,18 +161,36 @@ public class CollapsibleColumnLayout extends ColumnLayout {
 
     @Override
     public float minIntrinsicHeight(@NonNull RemoteContext context) {
-        float height = computeModifierDefinedHeight(context);
+        float height = computeModifierDefinedHeight(context, true);
         if (!mChildrenComponents.isEmpty()) {
-            height += mChildrenComponents.get(0).minIntrinsicHeight(context);
+            Component c;
+            if (context.useFeature(Header.FEATURE_PRIORITY_FIX)) {
+                c = CollapsiblePriority.findLastStanding(
+                                mChildrenComponents, CollapsiblePriority.VERTICAL);
+            } else {
+                c = mChildrenComponents.get(0);
+            }
+            if (c != null) {
+                height += c.minIntrinsicHeight(context);
+            }
         }
         return height;
     }
 
     @Override
     public float minIntrinsicWidth(@NonNull RemoteContext context) {
-        float width = computeModifierDefinedWidth(context);
+        float width = computeModifierDefinedWidth(context, true);
         if (!mChildrenComponents.isEmpty()) {
-            width += mChildrenComponents.get(0).minIntrinsicWidth(context);
+            Component c;
+            if (context.useFeature(Header.FEATURE_PRIORITY_FIX)) {
+                c = CollapsiblePriority.findLastStanding(
+                                mChildrenComponents, CollapsiblePriority.VERTICAL);
+            } else {
+                c = mChildrenComponents.get(0);
+            }
+            if (c != null) {
+                width += c.minIntrinsicWidth(context);
+            }
         }
         return width;
     }
@@ -163,8 +203,8 @@ public class CollapsibleColumnLayout extends ColumnLayout {
     @Override
     public void computeWrapSize(
             @NonNull PaintContext context,
-            float maxWidth,
-            float maxHeight,
+            float minWidth, float maxWidth,
+            float minHeight, float maxHeight,
             boolean horizontalWrap,
             boolean verticalWrap,
             @NonNull MeasurePass measure,
@@ -233,7 +273,11 @@ public class CollapsibleColumnLayout extends ColumnLayout {
             }
         }
         if (!mChildrenComponents.isEmpty() && size != null) {
-            size.setHeight(size.getHeight() + (mSpacedBy * (visibleChildren - 1)));
+            float spacedBy = mSpacedBy;
+            if (context.getDensityBehavior() == CoreDocument.DENSITY_BEHAVIOR_DP) {
+                spacedBy *= context.getDensity();
+            }
+            size.setHeight(size.getHeight() + (spacedBy * (visibleChildren - 1)));
         }
 
         float childrenWidth = 0f;

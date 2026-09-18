@@ -56,6 +56,7 @@ import static com.android.server.job.controllers.JobStatus.NO_LATEST_RUNTIME;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -64,11 +65,13 @@ import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.when;
 
 import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
 import android.app.usage.UsageStatsManagerInternal;
 import android.content.ComponentName;
 import android.content.pm.PackageManagerInternal;
 import android.net.NetworkRequest;
 import android.net.Uri;
+import android.os.ParcelDuration;
 import android.os.SystemClock;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
@@ -77,11 +80,10 @@ import android.provider.MediaStore;
 import android.util.ArrayMap;
 import android.util.Pair;
 
-import androidx.test.runner.AndroidJUnit4;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.android.internal.util.IntPair;
 import com.android.server.LocalServices;
-import com.android.server.job.Flags;
 import com.android.server.job.JobSchedulerInternal;
 import com.android.server.job.JobSchedulerService;
 
@@ -95,8 +97,11 @@ import org.mockito.MockitoSession;
 import org.mockito.quality.Strictness;
 
 import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Set;
 
 @RunWith(AndroidJUnit4.class)
@@ -393,7 +398,6 @@ public class JobStatusTest {
         assertEffectiveBucketForMediaExemption(
                 createJobStatus(triggerContentJobBuilder.build()), false);
 
-        mSetFlagsRule.enableFlags(Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY);
         // High priority job from the cloud media package should be exempted.
         triggerContentJobBuilder.setPriority(JobInfo.PRIORITY_HIGH);
         assertEffectiveBucketForMediaExemption(
@@ -409,7 +413,6 @@ public class JobStatusTest {
         assertEffectiveBucketForMediaExemption(
                 createJobStatus(triggerContentJobBuilder.build()), false);
 
-        mSetFlagsRule.enableFlags(Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY);
         triggerContentJobBuilder.setPriority(JobInfo.PRIORITY_HIGH);
         // High priority job from the cloud media package should be exempted.
         assertEffectiveBucketForMediaExemption(
@@ -424,26 +427,12 @@ public class JobStatusTest {
         when(mJobSchedulerInternal.getCloudMediaProviderPackage(eq(0))).thenReturn(TEST_PACKAGE);
 
         assertEffectiveBucketForMediaExemption(createJobStatus(networkJobBuilder.build()), false);
-        mSetFlagsRule.enableFlags(Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY);
         networkJobBuilder.setPriority(JobInfo.PRIORITY_HIGH);
         // High priority job from the cloud media package should be exempted.
         assertEffectiveBucketForMediaExemption(createJobStatus(networkJobBuilder.build()), true);
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY)
-    public void testMediaBackupExemption_wrongSourcePackage_policyUpdateDisabled() {
-        final JobInfo networkContentJob = new JobInfo.Builder(42, TEST_JOB_COMPONENT)
-                .addTriggerContentUri(new JobInfo.TriggerContentUri(IMAGES_MEDIA_URI, 0))
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                .build();
-        when(mJobSchedulerInternal.getCloudMediaProviderPackage(eq(0)))
-                .thenReturn("not.test.package");
-        assertEffectiveBucketForMediaExemption(createJobStatus(networkContentJob), false);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY)
     public void testMediaBackupExemption_wrongSourcePackage() {
         final JobInfo networkContentJob = new JobInfo.Builder(42, TEST_JOB_COMPONENT)
                 .setPriority(JobInfo.PRIORITY_HIGH)
@@ -465,52 +454,12 @@ public class JobStatusTest {
 
         assertEffectiveBucketForMediaExemption(
                 createJobStatus(networkContentJobBuilder.build()), false);
-        mSetFlagsRule.enableFlags(Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY);
         networkContentJobBuilder.setPriority(JobInfo.PRIORITY_HIGH);
         assertEffectiveBucketForMediaExemption(
                 createJobStatus(networkContentJobBuilder.build()), true);
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY)
-    public void testMediaBackupExemption_lowPriorityJobs() {
-        when(mJobSchedulerInternal.getCloudMediaProviderPackage(eq(0)))
-                .thenReturn(TEST_PACKAGE);
-        final JobInfo.Builder jobBuilder = new JobInfo.Builder(42, TEST_JOB_COMPONENT)
-                .addTriggerContentUri(new JobInfo.TriggerContentUri(IMAGES_MEDIA_URI, 0))
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY);
-        assertEffectiveBucketForMediaExemption(
-                createJobStatus(jobBuilder.setPriority(JobInfo.PRIORITY_LOW).build()), false);
-        assertEffectiveBucketForMediaExemption(
-                createJobStatus(jobBuilder.setPriority(JobInfo.PRIORITY_MIN).build()), false);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_ALLOW_CMP_EXEMPTION_FOR_RESTRICTED_BUCKET)
-    @EnableFlags(Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY)
-    public void testMediaBackupExemption_priority_restrictedBucketDisabled_policyUpdateEnabled() {
-        when(mJobSchedulerInternal.getCloudMediaProviderPackage(eq(0))).thenReturn(TEST_PACKAGE);
-        final JobInfo.Builder jobBuilder = new JobInfo.Builder(42, TEST_JOB_COMPONENT);
-
-        // DEFAULT job priority.
-        assertEffectiveBucketForMediaExemption(createJobStatus(jobBuilder.build()), false, false);
-        // LOW priority.
-        assertEffectiveBucketForMediaExemption(
-                createJobStatus(jobBuilder.setPriority(JobInfo.PRIORITY_LOW).build()), false,
-                false);
-        // MIN priority.
-        assertEffectiveBucketForMediaExemption(
-                createJobStatus(jobBuilder.setPriority(JobInfo.PRIORITY_MIN).build()), false,
-                false);
-        // HIGH priority.
-        assertEffectiveBucketForMediaExemption(
-                createJobStatus(jobBuilder.setPriority(JobInfo.PRIORITY_HIGH).build()), true,
-                false);
-    }
-
-    @Test
-    @EnableFlags({Flags.FLAG_ALLOW_CMP_EXEMPTION_FOR_RESTRICTED_BUCKET,
-            Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY})
     public void testMediaBackupExemption_priority() {
         when(mJobSchedulerInternal.getCloudMediaProviderPackage(eq(0)))
                 .thenReturn(TEST_PACKAGE);
@@ -529,70 +478,7 @@ public class JobStatusTest {
                 createJobStatus(jobBuilder.setPriority(JobInfo.PRIORITY_HIGH).build()), true);
     }
 
-    @DisableFlags({Flags.FLAG_ALLOW_CMP_EXEMPTION_FOR_RESTRICTED_BUCKET,
-            Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY})
     @Test
-    public void testMediaBackupExemptionGranted_restrictedBucketDisabled_policyUpdateDisabled() {
-        when(mJobSchedulerInternal.getCloudMediaProviderPackage(eq(0))).thenReturn(TEST_PACKAGE);
-        final JobInfo imageUriJob = new JobInfo.Builder(42, TEST_JOB_COMPONENT)
-                .addTriggerContentUri(new JobInfo.TriggerContentUri(IMAGES_MEDIA_URI, 0))
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                .build();
-        assertEffectiveBucketForMediaExemption(createJobStatus(imageUriJob), true, false);
-
-        final JobInfo videoUriJob = new JobInfo.Builder(42, TEST_JOB_COMPONENT)
-                .addTriggerContentUri(new JobInfo.TriggerContentUri(VIDEO_MEDIA_URI, 0))
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                .build();
-        assertEffectiveBucketForMediaExemption(createJobStatus(videoUriJob), true, false);
-
-        final JobInfo bothUriJob = new JobInfo.Builder(42, TEST_JOB_COMPONENT)
-                .addTriggerContentUri(new JobInfo.TriggerContentUri(IMAGES_MEDIA_URI, 0))
-                .addTriggerContentUri(new JobInfo.TriggerContentUri(VIDEO_MEDIA_URI, 0))
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                .build();
-        assertEffectiveBucketForMediaExemption(createJobStatus(bothUriJob), true, false);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_ALLOW_CMP_EXEMPTION_FOR_RESTRICTED_BUCKET)
-    @EnableFlags(Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY)
-    public void testMediaBackupExemptionGranted_restrictedBucketDisabled_policyUpdateEnabled() {
-        when(mJobSchedulerInternal.getCloudMediaProviderPackage(eq(0))).thenReturn(TEST_PACKAGE);
-        final JobInfo job = new JobInfo.Builder(42, TEST_JOB_COMPONENT)
-                .setPriority(JobInfo.PRIORITY_HIGH)
-                .build();
-        assertEffectiveBucketForMediaExemption(createJobStatus(job), true, false);
-    }
-
-    @EnableFlags(Flags.FLAG_ALLOW_CMP_EXEMPTION_FOR_RESTRICTED_BUCKET)
-    @DisableFlags(Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY)
-    @Test
-    public void testMediaBackupExemptionGranted_restrictedBucketEnabled_policyUpdateDisabled() {
-        when(mJobSchedulerInternal.getCloudMediaProviderPackage(eq(0))).thenReturn(TEST_PACKAGE);
-        final JobInfo imageUriJob = new JobInfo.Builder(42, TEST_JOB_COMPONENT)
-                .addTriggerContentUri(new JobInfo.TriggerContentUri(IMAGES_MEDIA_URI, 0))
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                .build();
-        assertEffectiveBucketForMediaExemption(createJobStatus(imageUriJob), true);
-
-        final JobInfo videoUriJob = new JobInfo.Builder(42, TEST_JOB_COMPONENT)
-                .addTriggerContentUri(new JobInfo.TriggerContentUri(VIDEO_MEDIA_URI, 0))
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                .build();
-        assertEffectiveBucketForMediaExemption(createJobStatus(videoUriJob), true);
-
-        final JobInfo bothUriJob = new JobInfo.Builder(42, TEST_JOB_COMPONENT)
-                .addTriggerContentUri(new JobInfo.TriggerContentUri(IMAGES_MEDIA_URI, 0))
-                .addTriggerContentUri(new JobInfo.TriggerContentUri(VIDEO_MEDIA_URI, 0))
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-                .build();
-        assertEffectiveBucketForMediaExemption(createJobStatus(bothUriJob), true);
-    }
-
-    @Test
-    @EnableFlags({Flags.FLAG_ALLOW_CMP_EXEMPTION_FOR_RESTRICTED_BUCKET,
-            Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY})
     public void testMediaBackupExemptionGranted_policyUpdateEnabled() {
         when(mJobSchedulerInternal.getCloudMediaProviderPackage(eq(0))).thenReturn(TEST_PACKAGE);
         final JobInfo job = new JobInfo.Builder(42, TEST_JOB_COMPONENT)
@@ -1521,28 +1407,28 @@ public class JobStatusTest {
     }
 
     @Test
-    public void testJobName_NoTagNoNamespace() {
+    public void testJobName_WithoutTraceTagWithoutNamespaceWithoutTag() {
         final JobInfo jobInfo = new JobInfo.Builder(101, new ComponentName("foo", "bar")).build();
         JobStatus jobStatus = createJobStatus(jobInfo, null, -1, null, null);
         assertEquals("foo/bar", jobStatus.getBatteryName());
     }
 
     @Test
-    public void testJobName_NoTagWithNamespace() {
+    public void testJobName_WithoutTraceTagWithNamespaceWithoutTag() {
         final JobInfo jobInfo = new JobInfo.Builder(101, new ComponentName("foo", "bar")).build();
         JobStatus jobStatus = createJobStatus(jobInfo, null, -1, "TestNamespace", null);
         assertEquals("@TestNamespace@foo/bar", jobStatus.getBatteryName());
     }
 
     @Test
-    public void testJobName_WithTagNoNamespace() {
+    public void testJobName_WithoutTraceTagWithoutNamespaceWithTag() {
         final JobInfo jobInfo = new JobInfo.Builder(101, new ComponentName("foo", "bar")).build();
         JobStatus jobStatus = createJobStatus(jobInfo, SOURCE_PACKAGE, 0, null, "TestTag");
         assertEquals("TestTag:foo", jobStatus.getBatteryName());
     }
 
     @Test
-    public void testJobName_WithTagAndNamespace() {
+    public void testJobName_WithoutTraceTagWithNamespaceWithTag() {
         final JobInfo jobInfo = new JobInfo.Builder(101, new ComponentName("foo", "bar")).build();
         JobStatus jobStatus = createJobStatus(jobInfo, SOURCE_PACKAGE, 0,
                 "TestNamespace", "TestTag");
@@ -1550,11 +1436,7 @@ public class JobStatusTest {
     }
 
     @Test
-    @EnableFlags({
-        com.android.server.job.Flags.FLAG_INCLUDE_TRACE_TAG_IN_JOB_NAME,
-        android.app.job.Flags.FLAG_JOB_DEBUG_INFO_APIS
-    })
-    public void testJobName_NotTagNoNamespace_IncludeTraceTagInJobNameEnabled() {
+    public void testJobName_WithTraceTagWithoutNamespaceWithoutTag() {
         JobInfo jobInfo = new JobInfo.Builder(101, new ComponentName("foo", "bar"))
                         .setTraceTag("TestTraceTag")
                         .build();
@@ -1563,11 +1445,7 @@ public class JobStatusTest {
     }
 
     @Test
-    @EnableFlags({
-        com.android.server.job.Flags.FLAG_INCLUDE_TRACE_TAG_IN_JOB_NAME,
-        android.app.job.Flags.FLAG_JOB_DEBUG_INFO_APIS
-    })
-    public void testJobName_NoTagWithNamespace_IncludeTraceTagInJobNameEnabled() {
+    public void testJobName_WithTraceTagWithNamespaceWithoutTag() {
         JobInfo jobInfo = new JobInfo.Builder(101, new ComponentName("foo", "bar"))
                         .setTraceTag("TestTraceTag")
                         .build();
@@ -1576,11 +1454,7 @@ public class JobStatusTest {
     }
 
     @Test
-    @EnableFlags({
-        com.android.server.job.Flags.FLAG_INCLUDE_TRACE_TAG_IN_JOB_NAME,
-        android.app.job.Flags.FLAG_JOB_DEBUG_INFO_APIS
-    })
-    public void testJobName_WithTagNoNamespace_IncludeTraceTagInJobNameEnabled() {
+    public void testJobName_WithTraceTagWithoutNamespaceWithTag() {
         JobInfo jobInfo = new JobInfo.Builder(101, new ComponentName("foo", "bar"))
                         .setTraceTag("TestTraceTag")
                         .build();
@@ -1589,11 +1463,18 @@ public class JobStatusTest {
     }
 
     @Test
-    @EnableFlags({
-        com.android.server.job.Flags.FLAG_INCLUDE_TRACE_TAG_IN_JOB_NAME,
-        android.app.job.Flags.FLAG_JOB_DEBUG_INFO_APIS
-    })
-    public void testJobName_FilteredTraceTagEmail_IncludeTraceTagInJobNameEnabled() {
+    public void testJobName_WithTraceTagWithNamespaceWithTag() {
+        JobInfo jobInfo =
+                new JobInfo.Builder(101, new ComponentName("foo", "bar"))
+                        .setTraceTag("TestTraceTag")
+                        .build();
+        JobStatus jobStatus =
+                createJobStatus(jobInfo, SOURCE_PACKAGE, 0, "TestNamespace", "TestTag");
+        assertEquals("#TestTraceTag#@TestNamespace@TestTag:foo", jobStatus.getBatteryName());
+    }
+
+    @Test
+    public void testJobName_FilteredTraceTagEmail() {
         JobInfo jobInfo = new JobInfo.Builder(101, new ComponentName("foo", "bar"))
                         .setTraceTag("test@email.com")
                         .build();
@@ -1602,31 +1483,12 @@ public class JobStatusTest {
     }
 
     @Test
-    @EnableFlags({
-        com.android.server.job.Flags.FLAG_INCLUDE_TRACE_TAG_IN_JOB_NAME,
-        android.app.job.Flags.FLAG_JOB_DEBUG_INFO_APIS
-    })
-    public void testJobName_FilteredTraceTagPhone_IncludeTraceTagInJobNameEnabled() {
+    public void testJobName_FilteredTraceTagPhone() {
         JobInfo jobInfo = new JobInfo.Builder(101, new ComponentName("foo", "bar"))
                         .setTraceTag("123-456-7890")
                         .build();
         JobStatus jobStatus = createJobStatus(jobInfo, SOURCE_PACKAGE, 0, null, "TestTag");
         assertEquals("#[PHONE]#TestTag:foo", jobStatus.getBatteryName());
-    }
-
-    @Test
-    @EnableFlags({
-        com.android.server.job.Flags.FLAG_INCLUDE_TRACE_TAG_IN_JOB_NAME,
-        android.app.job.Flags.FLAG_JOB_DEBUG_INFO_APIS
-    })
-    public void testJobName_WithTagAndNamespace_IncludeTraceTagInJobNameEnabled() {
-        JobInfo jobInfo =
-                new JobInfo.Builder(101, new ComponentName("foo", "bar"))
-                        .setTraceTag("TestTraceTag")
-                        .build();
-        JobStatus jobStatus =
-                createJobStatus(jobInfo, SOURCE_PACKAGE, 0, "TestNamespace", "TestTag");
-        assertEquals("#TestTraceTag#@TestNamespace@TestTag:foo", jobStatus.getBatteryName());
     }
 
     @Test
@@ -1717,5 +1579,428 @@ public class JobStatusTest {
                         job, callingUid, packageName, SOURCE_USER_ID, namespace, tag);
         jobStatus.serviceProcessName = "testProcess";
         return jobStatus;
+    }
+
+    @Test
+    public void testPackStatesToBits_NoConstraints() {
+        final JobInfo jobInfo =
+                new JobInfo.Builder(101, new ComponentName("foo", "bar")).build();
+        final JobStatus jobStatus = createJobStatus(jobInfo);
+        final long states = JobStatus.packStatesToBits(jobStatus);
+
+        assertEquals("Default job should have flexibility constraint",
+                JobStatus.JOB_STATE_FLAG_HAS_FLEXIBILITY_CONSTRAINT, states);
+    }
+
+    @Test
+    public void testPackStatesToBits_WithConstraints() {
+        final JobInfo jobInfo =
+                new JobInfo.Builder(101, new ComponentName("foo", "bar"))
+                        .setRequiresCharging(true)
+                        .setRequiresDeviceIdle(true)
+                        .setRequiresBatteryNotLow(true)
+                        .setRequiresStorageNotLow(true)
+                        .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                        .addTriggerContentUri(
+                                new JobInfo.TriggerContentUri(
+                                        MediaStore.Images.Media.INTERNAL_CONTENT_URI, 0))
+                        .setMinimumLatency(1000)
+                        .setOverrideDeadline(5000)
+                        .build();
+        final JobStatus jobStatus = createJobStatus(jobInfo);
+        final long expected = JobStatus.JOB_STATE_FLAG_HAS_CHARGING_CONSTRAINT
+                | JobStatus.JOB_STATE_FLAG_HAS_IDLE_CONSTRAINT
+                | JobStatus.JOB_STATE_FLAG_HAS_BATTERY_NOT_LOW_CONSTRAINT
+                | JobStatus.JOB_STATE_FLAG_HAS_STORAGE_NOT_LOW_CONSTRAINT
+                | JobStatus.JOB_STATE_FLAG_HAS_CONNECTIVITY_CONSTRAINT
+                | JobStatus.JOB_STATE_FLAG_HAS_CONTENT_TRIGGER_CONSTRAINT
+                | JobStatus.JOB_STATE_FLAG_HAS_TIMING_DELAY_CONSTRAINT
+                | JobStatus.JOB_STATE_FLAG_HAS_DEADLINE_CONSTRAINT
+                | JobStatus.JOB_STATE_FLAG_CAN_APPLY_TRANSPORT_AFFINITIES
+                | JobStatus.JOB_STATE_FLAG_HAS_FLEXIBILITY_CONSTRAINT;
+
+        // A job with various constraints will also have the flexibility constraint.
+        assertEquals("Job with various constraints should also have flexibility constraint",
+                expected, JobStatus.packStatesToBits(jobStatus));
+    }
+
+    @Test
+    public void testPackStatesToBits_WithUserInitiatedJob() {
+        final JobInfo jobInfo =
+                new JobInfo.Builder(101, new ComponentName("foo", "bar"))
+                        .setUserInitiated(true)
+                        .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                        .build();
+        final JobStatus jobStatus = createJobStatus(jobInfo);
+        final long expected = JobStatus.JOB_STATE_FLAG_IS_REQUESTED_USER_INITIATED_JOB
+                | JobStatus.JOB_STATE_FLAG_IS_RUNNING_AS_USER_INITIATED_JOB
+                | JobStatus.JOB_STATE_FLAG_HAS_CONNECTIVITY_CONSTRAINT
+                | JobStatus.JOB_STATE_FLAG_CAN_APPLY_TRANSPORT_AFFINITIES;
+
+        // A user-initiated job will not have the flexibility constraint.
+        assertEquals("User-initiated job should not have flexibility constraint",
+                expected, JobStatus.packStatesToBits(jobStatus));
+    }
+
+    @Test
+    public void testPackStatesToBits_WithUserInitiatedJobDemoted() {
+        final JobInfo jobInfo =
+                new JobInfo.Builder(101, new ComponentName("foo", "bar"))
+                        .setUserInitiated(true)
+                        .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                        .build();
+        final JobStatus jobStatus = createJobStatus(jobInfo);
+        jobStatus.addInternalFlags(JobStatus.INTERNAL_FLAG_DEMOTED_BY_USER);
+        final long expected = JobStatus.JOB_STATE_FLAG_IS_REQUESTED_USER_INITIATED_JOB
+                | JobStatus.JOB_STATE_FLAG_HAS_CONNECTIVITY_CONSTRAINT
+                | JobStatus.JOB_STATE_FLAG_CAN_APPLY_TRANSPORT_AFFINITIES;
+
+        // A user-initiated job should not be present
+        assertEquals("Demoted user-initiated job should not have UIJ running flag",
+                expected, JobStatus.packStatesToBits(jobStatus));
+    }
+
+    @Test
+    public void testPackStatesToBits_WithPeriodicJob() {
+        final JobInfo jobInfo =
+                new JobInfo.Builder(101, new ComponentName("foo", "bar"))
+                        .setPeriodic(JobInfo.getMinPeriodMillis())
+                        .build();
+        final JobStatus jobStatus = createJobStatus(jobInfo);
+        final long expected = JobStatus.JOB_STATE_FLAG_IS_PERIODIC
+                | JobStatus.JOB_STATE_FLAG_HAS_TIMING_DELAY_CONSTRAINT
+                | JobStatus.JOB_STATE_FLAG_HAS_DEADLINE_CONSTRAINT
+                | JobStatus.JOB_STATE_FLAG_HAS_FLEXIBILITY_CONSTRAINT;
+
+        assertEquals("Periodic job should have periodic, timing, and deadline flags",
+                expected, JobStatus.packStatesToBits(jobStatus));
+    }
+
+    @Test
+    public void testPackStatesToBits_WithSatisfiedConstraints() {
+        final JobStatus jobStatus =
+                createJobStatus(new JobInfo.Builder(101, new ComponentName("foo", "bar")).build());
+        final long expected = JobStatus.JOB_STATE_FLAG_HAS_FLEXIBILITY_CONSTRAINT
+                | JobStatus.JOB_STATE_FLAG_IS_CONSTRAINT_CHARGING_SATISFIED
+                | JobStatus.JOB_STATE_FLAG_IS_CONSTRAINT_IDLE_SATISFIED
+                | JobStatus.JOB_STATE_FLAG_IS_CONSTRAINT_BATTERY_NOT_LOW_SATISFIED
+                | JobStatus.JOB_STATE_FLAG_IS_CONSTRAINT_STORAGE_NOT_LOW_SATISFIED
+                | JobStatus.JOB_STATE_FLAG_IS_CONSTRAINT_CONNECTIVITY_SATISFIED
+                | JobStatus.JOB_STATE_FLAG_IS_CONSTRAINT_CONTENT_TRIGGER_SATISFIED
+                | JobStatus.JOB_STATE_FLAG_IS_CONSTRAINT_TIMING_DELAY_SATISFIED
+                | JobStatus.JOB_STATE_FLAG_IS_CONSTRAINT_DEADLINE_SATISFIED
+                | JobStatus.JOB_STATE_FLAG_IS_CONSTRAINT_FLEXIBLE_SATISFIED;
+
+        // Now, satisfy all constraints, even if not requested by the job.
+        jobStatus.setChargingConstraintSatisfied(sElapsedRealtimeClock.millis(), true);
+        jobStatus.setIdleConstraintSatisfied(sElapsedRealtimeClock.millis(), true);
+        jobStatus.setBatteryNotLowConstraintSatisfied(sElapsedRealtimeClock.millis(), true);
+        jobStatus.setStorageNotLowConstraintSatisfied(sElapsedRealtimeClock.millis(), true);
+        jobStatus.setConnectivityConstraintSatisfied(sElapsedRealtimeClock.millis(), true);
+        jobStatus.setContentTriggerConstraintSatisfied(sElapsedRealtimeClock.millis(), true);
+        jobStatus.setTimingDelayConstraintSatisfied(sElapsedRealtimeClock.millis(), true);
+        jobStatus.setDeadlineConstraintSatisfied(sElapsedRealtimeClock.millis(), true);
+        jobStatus.setFlexibilityConstraintSatisfied(sElapsedRealtimeClock.millis(), true);
+
+        assertEquals("Job with all constraints satisfied should have all satisfied flags set",
+                expected, JobStatus.packStatesToBits(jobStatus));
+    }
+
+    @EnableFlags({
+            android.app.job.Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API
+    })
+    @Test
+    public void testGetPendingJobReasonStats() {
+        final TestClock testClock = new TestClock();
+        JobSchedulerService.sElapsedRealtimeClock = testClock;
+
+        JobInfo jobInfo = new JobInfo.Builder(1234, TEST_JOB_COMPONENT)
+                .setRequiresCharging(true)
+                .setRequiresBatteryNotLow(true)
+                .build();
+        JobStatus jobStatus = createJobStatus(jobInfo);
+        jobStatus.enqueueTime = testClock.millis();
+
+        // Initially both constraints are unsatisfied.
+        testClock.advanceTime(1000);
+        jobStatus.setChargingConstraintSatisfied(testClock.millis(), true);
+
+        testClock.advanceTime(2000);
+        jobStatus.setBatteryNotLowConstraintSatisfied(testClock.millis(), true);
+
+        Map<String, ParcelDuration> stats = jobStatus.getPendingJobReasonStats();
+        // Here 2 explicit constraints are following:
+        //  1. JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING
+        //  2. JobScheduler.PENDING_JOB_REASON_CONSTRAINT_BATTERY_NOT_LOW
+        // and the 4 implicit constraint are following:
+        //  1. JobScheduler.PENDING_JOB_REASON_DEVICE_STATE (DOZE mode)
+        //  2. JobScheduler.PENDING_JOB_REASON_DEVICE_STATE_BATTERY_SAVER
+        //  3. JobScheduler.PENDING_JOB_REASON_JOB_SCHEDULER_OPTIMIZATION
+        //  4. JobScheduler.PENDING_JOB_REASON_QUOTA
+        assertEquals(6, stats.size());
+        ParcelDuration chargingDuration = stats.get(
+                String.valueOf(JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING));
+        assertNotNull(chargingDuration);
+        assertEquals(1000, chargingDuration.getDuration().toMillis());
+
+        ParcelDuration batteryNotLowDuration = stats.get(
+                String.valueOf(JobScheduler.PENDING_JOB_REASON_CONSTRAINT_BATTERY_NOT_LOW));
+        assertNotNull(batteryNotLowDuration);
+        assertEquals(3000, batteryNotLowDuration.getDuration().toMillis());
+    }
+
+
+    @DisableFlags({
+            android.app.job.Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API
+    })
+    @Test
+    public void testDisabledFlagGetPendingJobReasonStats() {
+        final TestClock testClock = new TestClock();
+        JobSchedulerService.sElapsedRealtimeClock = testClock;
+
+        JobInfo jobInfo = new JobInfo.Builder(1234, TEST_JOB_COMPONENT)
+                .setRequiresCharging(true)
+                .setRequiresBatteryNotLow(true)
+                .build();
+        JobStatus jobStatus = createJobStatus(jobInfo);
+        jobStatus.enqueueTime = testClock.millis();
+
+        // Initially both constraints are unsatisfied.
+        testClock.advanceTime(1000);
+        jobStatus.setChargingConstraintSatisfied(testClock.millis(), true);
+
+        testClock.advanceTime(2000);
+        jobStatus.setBatteryNotLowConstraintSatisfied(testClock.millis(), true);
+
+        Map<String, ParcelDuration> stats = jobStatus.getPendingJobReasonStats();
+        // Here 2 explicit constraints are following:
+        //  1. JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING
+        //  2. JobScheduler.PENDING_JOB_REASON_CONSTRAINT_BATTERY_NOT_LOW
+        // and the 3 implicit constraint are following:
+        //  1. JobScheduler.PENDING_JOB_REASON_DEVICE_STATE
+        //  2. JobScheduler.PENDING_JOB_REASON_JOB_SCHEDULER_OPTIMIZATION
+        //  3. JobScheduler.PENDING_JOB_REASON_QUOTA
+        assertEquals(5, stats.size());
+        ParcelDuration chargingDuration = stats.get(
+                String.valueOf(JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING));
+        assertNotNull(chargingDuration);
+        assertEquals(1000, chargingDuration.getDuration().toMillis());
+
+        ParcelDuration batteryNotLowDuration = stats.get(
+                String.valueOf(JobScheduler.PENDING_JOB_REASON_CONSTRAINT_BATTERY_NOT_LOW));
+        assertNotNull(batteryNotLowDuration);
+        assertEquals(3000, batteryNotLowDuration.getDuration().toMillis());
+    }
+
+    @EnableFlags({
+            android.app.job.Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API
+    })
+    @Test
+    public void testGetPendingJobReasonStats_BatterySaver() {
+        final TestClock testClock = new TestClock();
+        JobSchedulerService.sElapsedRealtimeClock = testClock;
+
+        final JobInfo jobInfo =
+                new JobInfo.Builder(101, new ComponentName("foo", "bar")).build();
+        JobStatus job = createJobStatus(jobInfo);
+        job.enqueueTime = testClock.millis();
+
+        assertFalse(job.canRunInBatterySaver());
+        job.disallowRunInBatterySaverAndDoze();
+
+        // Constraint is unsatisfied.
+        testClock.advanceTime(5000);
+
+        Map<String, ParcelDuration> stats = job.getPendingJobReasonStats();
+        ParcelDuration batterySaverDuration = stats.get(
+                String.valueOf(JobScheduler.PENDING_JOB_REASON_DEVICE_STATE_BATTERY_SAVER));
+        assertNotNull(batterySaverDuration);
+        assertEquals(5000, batterySaverDuration.getDuration().toMillis());
+    }
+
+    @EnableFlags({
+            android.app.job.Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API
+    })
+    @Test
+    public void testGetPendingJobReasonStats_StillPending() {
+        final TestClock testClock = new TestClock();
+        JobSchedulerService.sElapsedRealtimeClock = testClock;
+
+        JobInfo jobInfo = new JobInfo.Builder(1234, TEST_JOB_COMPONENT)
+                .setRequiresCharging(true)
+                .build();
+        JobStatus jobStatus = createJobStatus(jobInfo);
+        jobStatus.enqueueTime = testClock.millis();
+
+        // Constraint is unsatisfied.
+        testClock.advanceTime(1000);
+
+        Map<String, ParcelDuration> stats = jobStatus.getPendingJobReasonStats();
+
+        // Here the only constraint is:
+        //  1. JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING
+        // and the 4 implicit constraint are following:
+        //  1. JobScheduler.PENDING_JOB_REASON_DEVICE_STATE (DOZE mode)
+        //  2. JobScheduler.PENDING_JOB_REASON_DEVICE_STATE_BATTERY_SAVER
+        //  3. JobScheduler.PENDING_JOB_REASON_JOB_SCHEDULER_OPTIMIZATION
+        //  4. JobScheduler.PENDING_JOB_REASON_QUOTA
+        assertEquals(5, stats.size());
+        ParcelDuration chargingDuration = stats.get(
+                String.valueOf(JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING));
+        assertNotNull(chargingDuration);
+        assertEquals(1000, chargingDuration.getDuration().toMillis());
+    }
+
+    @DisableFlags({
+            android.app.job.Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API
+    })
+    @Test
+    public void testDisabledFlagGetPendingJobReasonStats_StillPending() {
+        final TestClock testClock = new TestClock();
+        JobSchedulerService.sElapsedRealtimeClock = testClock;
+
+        JobInfo jobInfo = new JobInfo.Builder(1234, TEST_JOB_COMPONENT)
+                .setRequiresCharging(true)
+                .build();
+        JobStatus jobStatus = createJobStatus(jobInfo);
+        jobStatus.enqueueTime = testClock.millis();
+
+        // Constraint is unsatisfied.
+        testClock.advanceTime(1000);
+
+        Map<String, ParcelDuration> stats = jobStatus.getPendingJobReasonStats();
+
+        // Here the only constraint is:
+        //  1. JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING
+        // and the 3 implicit constraint are following:
+        //  1. JobScheduler.PENDING_JOB_REASON_DEVICE_STATE
+        //  2. JobScheduler.PENDING_JOB_REASON_JOB_SCHEDULER_OPTIMIZATION
+        //  3. JobScheduler.PENDING_JOB_REASON_QUOTA
+        assertEquals(4, stats.size());
+        ParcelDuration chargingDuration = stats.get(
+                String.valueOf(JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING));
+        assertNotNull(chargingDuration);
+        assertEquals(1000, chargingDuration.getDuration().toMillis());
+    }
+
+    @EnableFlags({
+            android.app.job.Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API
+    })
+    @Test
+    public void testGetPendingJobReasonStats_correctlyAccumulates() {
+        final TestClock testClock = new TestClock();
+        JobSchedulerService.sElapsedRealtimeClock = testClock;
+
+        JobInfo jobInfo = new JobInfo.Builder(1234, TEST_JOB_COMPONENT)
+                .setRequiresCharging(true)
+                .build();
+        JobStatus jobStatus = createJobStatus(jobInfo);
+        jobStatus.enqueueTime = testClock.millis();
+
+        testClock.advanceTime(1000);
+        jobStatus.setChargingConstraintSatisfied(testClock.millis(), true);
+
+        Map<String, ParcelDuration> stats = jobStatus.getPendingJobReasonStats();
+        // Here the only constraint is:
+        //  1. JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING
+        // and the 4 implicit constraint are following:
+        //  1. JobScheduler.PENDING_JOB_REASON_DEVICE_STATE (DOZE mode)
+        //  2. JobScheduler.PENDING_JOB_REASON_DEVICE_STATE_BATTERY_SAVER
+        //  3. JobScheduler.PENDING_JOB_REASON_JOB_SCHEDULER_OPTIMIZATION
+        //  4. JobScheduler.PENDING_JOB_REASON_QUOTA
+        assertEquals(5, stats.size());
+        ParcelDuration chargingDuration = stats.get(
+                String.valueOf(JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING));
+        assertNotNull(chargingDuration);
+        assertEquals(1000, chargingDuration.getDuration().toMillis());
+
+        // Unsatisfy the same constraint
+        testClock.advanceTime(1000); // now + 2000
+        jobStatus.setChargingConstraintSatisfied(testClock.millis(), false);
+
+        // Satisfy the same constraint again
+        testClock.advanceTime(1000); // now + 3000
+        jobStatus.setChargingConstraintSatisfied(testClock.millis(), true);
+
+        stats = jobStatus.getPendingJobReasonStats();
+        assertEquals(5, stats.size()); // no new constraints added
+        chargingDuration = stats.get(
+                String.valueOf(JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING));
+        assertNotNull(chargingDuration);
+        assertEquals(2000, chargingDuration.getDuration().toMillis());
+    }
+
+    @DisableFlags({
+            android.app.job.Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API
+    })
+    @Test
+    public void testDisabledFlagGetPendingJobReasonStats_correctlyAccumulates() {
+        final TestClock testClock = new TestClock();
+        JobSchedulerService.sElapsedRealtimeClock = testClock;
+
+        JobInfo jobInfo = new JobInfo.Builder(1234, TEST_JOB_COMPONENT)
+                .setRequiresCharging(true)
+                .build();
+        JobStatus jobStatus = createJobStatus(jobInfo);
+        jobStatus.enqueueTime = testClock.millis();
+
+        testClock.advanceTime(1000);
+        jobStatus.setChargingConstraintSatisfied(testClock.millis(), true);
+
+        Map<String, ParcelDuration> stats = jobStatus.getPendingJobReasonStats();
+        // Here the only constraint is:
+        //  1. JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING
+        // and the 3 implicit constraint are following:
+        //  1. JobScheduler.PENDING_JOB_REASON_DEVICE_STATE
+        //  2. JobScheduler.PENDING_JOB_REASON_JOB_SCHEDULER_OPTIMIZATION
+        //  3. JobScheduler.PENDING_JOB_REASON_QUOTA
+        assertEquals(4, stats.size());
+        ParcelDuration chargingDuration = stats.get(
+                String.valueOf(JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING));
+        assertNotNull(chargingDuration);
+        assertEquals(1000, chargingDuration.getDuration().toMillis());
+
+        // Unsatisfy the same constraint
+        testClock.advanceTime(1000); // now + 2000
+        jobStatus.setChargingConstraintSatisfied(testClock.millis(), false);
+
+        // Satisfy the same constraint again
+        testClock.advanceTime(1000); // now + 3000
+        jobStatus.setChargingConstraintSatisfied(testClock.millis(), true);
+
+        stats = jobStatus.getPendingJobReasonStats();
+        assertEquals(4, stats.size()); // no new constraints added
+        chargingDuration = stats.get(
+                String.valueOf(JobScheduler.PENDING_JOB_REASON_CONSTRAINT_CHARGING));
+        assertNotNull(chargingDuration);
+        assertEquals(2000, chargingDuration.getDuration().toMillis());
+    }
+
+    private static class TestClock extends Clock {
+        private long mCurrentTime = 0;
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public long millis() {
+            return mCurrentTime;
+        }
+
+        @Override
+        public Instant instant() {
+            return Instant.ofEpochMilli(mCurrentTime);
+        }
+
+        void advanceTime(long millis) {
+            mCurrentTime += millis;
+        }
     }
 }

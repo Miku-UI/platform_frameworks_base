@@ -17,6 +17,7 @@
 package com.android.systemui.shade.domain.interactor
 
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.shade.ShadeWindowLogger
 import com.android.systemui.shade.data.repository.ShadeAnimationRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,7 +29,8 @@ class ShadeAnimationInteractorEmptyImpl
 @Inject
 constructor(
     shadeAnimationRepository: ShadeAnimationRepository,
-) : ShadeAnimationInteractor(shadeAnimationRepository) {
+    shadeWindowLogger: ShadeWindowLogger,
+) : ShadeAnimationInteractor(shadeAnimationRepository, shadeWindowLogger) {
     override val isAnyCloseAnimationRunning = MutableStateFlow(false)
     override val isAnyFlingAnimationRunning = flowOf(false)
 }

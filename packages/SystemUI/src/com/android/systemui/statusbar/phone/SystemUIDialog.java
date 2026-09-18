@@ -16,8 +16,6 @@
 
 package com.android.systemui.statusbar.phone;
 
-import static com.android.systemui.Flags.moveTransitionAnimationLayer;
-
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.BroadcastReceiver;
@@ -28,19 +26,18 @@ import android.content.res.Configuration;
 import android.graphics.Insets;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.util.TypedValue;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewRootImpl;
 import android.view.Window;
 import android.view.WindowInsets.Type;
 import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StyleRes;
 
@@ -50,9 +47,12 @@ import com.android.systemui.broadcast.BroadcastDispatcher;
 import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.res.R;
 import com.android.systemui.util.DialogKt;
+import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 import javax.inject.Inject;
 
@@ -69,25 +69,37 @@ import javax.inject.Inject;
  * <p>The SystemUIDialog registers a listener for the screen off / close system dialogs broadcast,
  * and dismisses itself when it receives the broadcast.
  */
-public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigChangedCallback {
+public class SystemUIDialog extends AlertDialog {
     public static final int DEFAULT_THEME = R.style.Theme_SystemUI_Dialog;
     // TODO(b/203389579): Remove this once the dialog width on large screens has been agreed on.
     private static final String FLAG_TABLET_DIALOG_WIDTH =
             "persist.systemui.flag_tablet_dialog_width";
     public static final boolean DEFAULT_DISMISS_ON_DEVICE_LOCK = true;
+    public static final int DIALOG_WINDOW_TYPE = LayoutParams.TYPE_STATUS_BAR_SUB_PANEL;
 
     private final Context mContext;
     private final DialogTransitionAnimator mDialogTransitionAnimator;
+    @Nullable
+    private final WindowRootViewBlurInteractor mBlurInteractor;
     private final DialogDelegate<SystemUIDialog> mDelegate;
     @Nullable
     private final DismissReceiver mDismissReceiver;
-    private final Handler mHandler = new Handler();
     private final SystemUIDialogManager mDialogManager;
+    /**
+     * Whether the dialog background should be refreshed when the theme changes between light and
+     * dark mode. Note, when set to `true` the content of the dialog should also handle the
+     * configuration change. Composables usually handle this by default, but Views may need a manual
+     * update.
+     */
+    private final boolean mRefreshBackgroundOnThemeChange;
+
+    private final boolean mIsTransient;
 
     private int mLastWidth = Integer.MIN_VALUE;
     private int mLastHeight = Integer.MIN_VALUE;
     private int mLastConfigurationWidthDp = -1;
     private int mLastConfigurationHeightDp = -1;
+    private int mLastNightMode = -1;
 
     private final List<Runnable> mOnCreateRunnables = new ArrayList<>();
 
@@ -108,10 +120,17 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
         // TODO(b/219008720): Remove those calls to Dependency.get by introducing a
         // SystemUIDialogFactory and make all other dialogs create a SystemUIDialog to which we set
         // the content and attach listeners.
+        //
+        // When adding WindowRootViewBlurInteractor to Dependency.java, it causes this exception:
+        // Scoped provider was invoked recursively returning different results. Since this is what
+        // we want to deprecate and we only need blur for bottom sheet dialogs, we can make
+        // blurInteractor null here and disable that functionalitiy when constructed not from
+        // Factory.
         this(context, theme, dismissOnDeviceLock,
                 Dependency.get(SystemUIDialogManager.class),
                 Dependency.get(BroadcastDispatcher.class),
-                Dependency.get(DialogTransitionAnimator.class));
+                Dependency.get(DialogTransitionAnimator.class),
+                null /* blurInteractor */);
     }
 
     public static class Factory {
@@ -119,17 +138,20 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
         private final SystemUIDialogManager mSystemUIDialogManager;
         private final BroadcastDispatcher mBroadcastDispatcher;
         private final DialogTransitionAnimator mDialogTransitionAnimator;
+        private final WindowRootViewBlurInteractor mBlurInteractor;
 
         @Inject
         public Factory(
                 @Application Context context,
                 SystemUIDialogManager systemUIDialogManager,
                 BroadcastDispatcher broadcastDispatcher,
-                DialogTransitionAnimator dialogTransitionAnimator) {
+                DialogTransitionAnimator dialogTransitionAnimator,
+                WindowRootViewBlurInteractor blurInteractor) {
             mContext = context;
             mSystemUIDialogManager = systemUIDialogManager;
             mBroadcastDispatcher = broadcastDispatcher;
             mDialogTransitionAnimator = dialogTransitionAnimator;
+            mBlurInteractor = blurInteractor;
         }
 
         /**
@@ -139,7 +161,8 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
          */
         public SystemUIDialog create() {
             return create(new DialogDelegate<>() {
-            }, mContext, DEFAULT_THEME, true /* shouldAcsdDismissDialog */);
+            }, mContext, DEFAULT_THEME, DEFAULT_DISMISS_ON_DEVICE_LOCK,
+                    true /* shouldAcsdDismissDialog */);
         }
 
         /**
@@ -149,7 +172,8 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
          */
         public SystemUIDialog create(Context context) {
             return create(new DialogDelegate<>() {
-            }, context, DEFAULT_THEME, true /* shouldAcsdDismissDialog */);
+            }, context, DEFAULT_THEME, DEFAULT_DISMISS_ON_DEVICE_LOCK,
+                    true /* shouldAcsdDismissDialog */);
         }
 
         /**
@@ -171,29 +195,34 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
          */
         public SystemUIDialog create(Delegate delegate, Context context,
                 boolean shouldAcsdDismissDialog) {
-            return create(delegate, context, DEFAULT_THEME, shouldAcsdDismissDialog);
+            return create(delegate, context, DEFAULT_THEME, DEFAULT_DISMISS_ON_DEVICE_LOCK,
+                    shouldAcsdDismissDialog);
         }
 
         public SystemUIDialog create(Delegate delegate, Context context, @StyleRes int theme) {
             return create((DialogDelegate<SystemUIDialog>) delegate, context, theme,
-                    true /* shouldAcsdDismissDialog */);
+                    DEFAULT_DISMISS_ON_DEVICE_LOCK, true /* shouldAcsdDismissDialog */);
         }
 
         public SystemUIDialog create(Delegate delegate) {
             return create(delegate, mContext);
         }
 
-        private SystemUIDialog create(DialogDelegate<SystemUIDialog> dialogDelegate,
-                Context context, @StyleRes int theme, boolean shouldAcsdDismissDialog) {
+        public SystemUIDialog create(DialogDelegate<SystemUIDialog> dialogDelegate,
+                Context context, @StyleRes int theme, boolean dismissOnDeviceLock,
+                boolean shouldAcsdDismissDialog) {
             return new SystemUIDialog(
                     context,
                     theme,
-                    DEFAULT_DISMISS_ON_DEVICE_LOCK,
+                    dismissOnDeviceLock,
+                    false /* refreshBackgroundOnThemeChange */,
                     mSystemUIDialogManager,
                     mBroadcastDispatcher,
                     mDialogTransitionAnimator,
+                    mBlurInteractor,
                     dialogDelegate,
-                    shouldAcsdDismissDialog);
+                    shouldAcsdDismissDialog,
+                    false);
         }
     }
 
@@ -203,17 +232,21 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
             boolean dismissOnDeviceLock,
             SystemUIDialogManager dialogManager,
             BroadcastDispatcher broadcastDispatcher,
-            DialogTransitionAnimator dialogTransitionAnimator) {
+            DialogTransitionAnimator dialogTransitionAnimator,
+            WindowRootViewBlurInteractor blurInteractor) {
         this(
                 context,
                 theme,
                 dismissOnDeviceLock,
+                false /* refreshBackgroundOnThemeChange */,
                 dialogManager,
                 broadcastDispatcher,
                 dialogTransitionAnimator,
+                blurInteractor,
                 new DialogDelegate<>() {
                 },
-                true /* shouldAcsdDismissDialog */);
+                /* shouldAcsdDismissDialog= */ true,
+                /* isTransient= */ false);
     }
 
     public SystemUIDialog(
@@ -223,40 +256,52 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
             SystemUIDialogManager dialogManager,
             BroadcastDispatcher broadcastDispatcher,
             DialogTransitionAnimator dialogTransitionAnimator,
+            WindowRootViewBlurInteractor blurInteractor,
             Delegate delegate) {
         this(
                 context,
                 theme,
                 dismissOnDeviceLock,
+                false /* refreshBackgroundOnThemeChange */,
                 dialogManager,
                 broadcastDispatcher,
                 dialogTransitionAnimator,
+                blurInteractor,
                 delegate,
-                true /* shouldAcsdDismissDialog */);
+                /* shouldAcsdDismissDialog= */ true,
+                /* isTransient= */ false);
     }
 
     public SystemUIDialog(
             Context context,
             int theme,
             boolean dismissOnDeviceLock,
+            boolean refreshBackgroundOnThemeChange,
             SystemUIDialogManager dialogManager,
             BroadcastDispatcher broadcastDispatcher,
             DialogTransitionAnimator dialogTransitionAnimator,
+            WindowRootViewBlurInteractor blurInteractor,
             DialogDelegate<SystemUIDialog> delegate,
-            boolean shouldAcsdDismissDialog) {
+            boolean shouldAcsdDismissDialog,
+            boolean isTransient) {
         super(context, theme);
         mContext = context;
         mDialogTransitionAnimator = dialogTransitionAnimator;
+        mBlurInteractor = blurInteractor;
         mDelegate = delegate;
+        mIsTransient = isTransient;
 
         applyFlags(this);
         WindowManager.LayoutParams attrs = getWindow().getAttributes();
         attrs.setTitle(getClass().getSimpleName());
         getWindow().setAttributes(attrs);
+        mLastNightMode = context.getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK;
 
         mDismissReceiver = dismissOnDeviceLock ? new DismissReceiver(this, broadcastDispatcher,
                 dialogTransitionAnimator, shouldAcsdDismissDialog) : null;
         mDialogManager = dialogManager;
+        mRefreshBackgroundOnThemeChange = refreshBackgroundOnThemeChange;
     }
 
     @Override
@@ -268,35 +313,31 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
         Configuration config = getContext().getResources().getConfiguration();
         mLastConfigurationWidthDp = config.screenWidthDp;
         mLastConfigurationHeightDp = config.screenHeightDp;
-        updateWindowSize();
+        final Window window = getWindow();
+        updateWindowSize(window);
 
         for (int i = 0; i < mOnCreateRunnables.size(); i++) {
             mOnCreateRunnables.get(i).run();
         }
-        View targetView = getWindow().getDecorView();
+        View decorView = window.getDecorView();
+        if (decorView instanceof ViewGroup decorViewGroup) {
+            decorViewGroup.addView(
+                    new ConfigurationListenerView(getContext(), this::onConfigurationChanged));
+        }
         DialogKt.registerAnimationOnBackInvoked(
                 /* dialog = */ this,
-                /* targetView = */ targetView,
+                /* targetView = */ decorView,
                 /* backAnimationSpec= */mDelegate.getBackAnimationSpec(
-                        () -> targetView.getResources().getDisplayMetrics())
+                        () -> decorView.getResources().getDisplayMetrics())
         );
-
-        if (moveTransitionAnimationLayer()) {
-            // Elevation doesn't seem to be useful anymore (there are no more shadows below
-            // dialogs), and it creates a weird flickering behavior due to some obscure Window
-            // Manager treatment. See b/404508609#comment3 for more details.
-            // Note: can be moved to styles.xml once the flag is fully rolled out.
-            getWindow().setElevation(0);
-        }
     }
 
-    private void updateWindowSize() {
-        // Only the thread that created this dialog can update its window size.
-        if (Looper.myLooper() != mHandler.getLooper()) {
-            mHandler.post(this::updateWindowSize);
-            return;
-        }
-
+    /**
+     * Updates the size of the given window.
+     *
+     * @param window the window whose size to update.
+     */
+    private void updateWindowSize(@NonNull Window window) {
         int width = getWidth();
         int height = getHeight();
         if (width == mLastWidth && height == mLastHeight) {
@@ -305,17 +346,34 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
 
         mLastWidth = width;
         mLastHeight = height;
-        getWindow().setLayout(width, height);
+        window.setLayout(width, height);
     }
 
-    @Override
+    /**
+     * Called when the current configuration of the resources being used by the dialog has changed.
+     *
+     * @param configuration The new resource configuration.
+     */
     public void onConfigurationChanged(Configuration configuration) {
+        final Window window = getWindow();
+        if (window == null) {
+            return;
+        }
+
         if (mLastConfigurationWidthDp != configuration.screenWidthDp
                 || mLastConfigurationHeightDp != configuration.screenHeightDp) {
             mLastConfigurationWidthDp = configuration.screenWidthDp;
-            mLastConfigurationHeightDp = configuration.compatScreenWidthDp;
+            mLastConfigurationHeightDp = configuration.screenHeightDp;
 
-            updateWindowSize();
+            updateWindowSize(window);
+        }
+        int nightMode = configuration.uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        if (mLastNightMode != nightMode) {
+            mLastNightMode = nightMode;
+
+            if (mRefreshBackgroundOnThemeChange) {
+                refreshBackground(window);
+            }
         }
 
         mDelegate.onConfigurationChanged(this, configuration);
@@ -345,10 +403,10 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
             mDismissReceiver.register();
         }
 
-        // Listen for configuration changes to resize this dialog window. This is mostly necessary
-        // for foldables that often go from large <=> small screen when folding/unfolding.
-        ViewRootImpl.addConfigCallback(this);
-        mDialogManager.setShowing(/* dialog= */ this, /* showing= */ true);
+        if (!mIsTransient) {
+            // TODO(b/471161535) Register transient dialogs too
+            mDialogManager.setShowing(/* dialog= */ this, /* showing= */true);
+        }
 
         mDelegate.onStart(this);
         start();
@@ -371,8 +429,10 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
             mDismissReceiver.unregister();
         }
 
-        ViewRootImpl.removeConfigCallback(this);
-        mDialogManager.setShowing(/* dialog= */ this, /* showing= */ false);
+        if (!mIsTransient) {
+            // TODO(b/471161535) Register transient dialogs too
+            mDialogManager.setShowing(/* dialog= */ this, /* showing= */false);
+        }
 
         mDelegate.onStop(this);
         stop();
@@ -396,7 +456,10 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
             // correct when this dialog regains focus after another dialog was closed. This is
             // otherwise implicitly handled by the `SystemUIDialogManager.setShowing` call.
             // See b/386871258
-            mDialogManager.setShowing(/* dialog= */ this, /* showing= */ true);
+            if (!mIsTransient) {
+                // TODO(b/471161535) Register transient dialogs too
+                mDialogManager.setShowing(/* dialog= */ this, /* showing= */true);
+            }
         }
     }
 
@@ -471,10 +534,47 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
         }
     }
 
+    @Override
+    public boolean dispatchTouchEvent(@NonNull MotionEvent ev) {
+        if (mDelegate.dispatchTouchEvent(this, ev)) {
+            return true;
+        }
+        return super.dispatchTouchEvent(ev);
+    }
+
+    @Override
+    public boolean onTouchEvent(@NonNull MotionEvent motionEvent) {
+        if (mDelegate.onTouchEvent(this, motionEvent)) {
+            return true;
+        } else {
+            return super.onTouchEvent(motionEvent);
+        }
+    }
+
+    @Override
+    public void dismiss() {
+        mDelegate.beforeDismiss(this);
+        super.dismiss();
+    }
+
     /** Dismisses the dialog without animation. */
     public void dismissWithoutAnimation() {
         mDialogTransitionAnimator.disableAllCurrentDialogsExitAnimations();
         dismiss();
+    }
+
+    /**
+     * Set a dialog's elevation to 0. This is needed for dialogs that are not
+     * {@link SystemUIDialog}, as launching an activity from them will result in a weird flicker if
+     * they have an elevation, due to some legacy inner Window Manager behaviors.
+     */
+    public static void resetElevation(Dialog dialog) {
+        dialog.getWindow().setElevation(0);
+    }
+
+    @Nullable
+    public WindowRootViewBlurInteractor getBlurInteractor() {
+        return mBlurInteractor;
     }
 
     public static void setShowForAllUsers(Dialog dialog, boolean show) {
@@ -492,7 +592,7 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
      */
     public static void setWindowOnTop(Dialog dialog, boolean isKeyguardShowing) {
         final Window window = dialog.getWindow();
-        window.setType(LayoutParams.TYPE_STATUS_BAR_SUB_PANEL);
+        window.setType(DIALOG_WINDOW_TYPE);
         if (isKeyguardShowing) {
             window.getAttributes().setFitInsetsTypes(
                     window.getAttributes().getFitInsetsTypes() & ~Type.statusBars());
@@ -505,7 +605,7 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
 
     public static AlertDialog applyFlags(AlertDialog dialog, boolean showWhenLocked) {
         final Window window = dialog.getWindow();
-        window.setType(WindowManager.LayoutParams.TYPE_STATUS_BAR_SUB_PANEL);
+        window.setType(DIALOG_WINDOW_TYPE);
         window.addFlags(WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM);
         if (showWhenLocked) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED);
@@ -585,34 +685,70 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
     }
 
     /**
-     * Return the pixel width {@param dialog} should be so that it is {@param widthInDp} wide,
+     * Return the pixel width {@code dialog} should be so that it is {@code widthInDp} wide,
      * taking its background insets into consideration.
      */
-    private static int calculateDialogWidthWithInsets(Dialog dialog, int widthInDp) {
+    public static int calculateDialogWidthWithInsets(Dialog dialog, int widthInDp) {
         float widthInPixels = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, widthInDp,
                 dialog.getContext().getResources().getDisplayMetrics());
         return Math.round(widthInPixels + getHorizontalInsets(dialog));
     }
 
     private static int getHorizontalInsets(Dialog dialog) {
-        View decorView = dialog.getWindow().getDecorView();
-        if (decorView == null) {
+        final View viewWithBackground = getViewWithBackground(dialog);
+        if (viewWithBackground == null) {
             return 0;
         }
-
-        // We first look for the background on the dialogContentWithBackground added by
-        // DialogTransitionAnimator. If it's not there, we use the background of the DecorView.
-        View viewWithBackground = decorView.findViewByPredicate(
-                view -> view.getTag(
-                        com.android.systemui.animation.R.id.tag_dialog_background) != null);
-        Drawable background = viewWithBackground != null ? viewWithBackground.getBackground()
-                : decorView.getBackground();
+        Drawable background = viewWithBackground.getBackground();
         Insets insets = background != null ? background.getOpticalInsets() : Insets.NONE;
         return insets.left + insets.right;
     }
 
     static int getDefaultDialogHeight() {
         return ViewGroup.LayoutParams.WRAP_CONTENT;
+    }
+
+    /**
+     * Refreshes the background of the dialog, applying the theme change between light and dark
+     * mode.
+     *
+     * @param window the dialog window to refresh the background of.
+     */
+    private void refreshBackground(@NonNull Window window) {
+        final View viewWithBackground = getViewWithBackground(this);
+        if (viewWithBackground == null) {
+            return;
+        }
+        // Use the Window's Context as it already has the configuration change applied, the View's
+        // Context is updated with a delay.
+        final Context context = window.getContext();
+
+        final TypedValue outValue = new TypedValue();
+        context.getTheme().resolveAttribute(android.R.attr.windowBackground, outValue, true);
+        viewWithBackground.setBackground(context.getDrawable(outValue.resourceId));
+    }
+
+    /**
+     * Returns the view that draws the background of the dialog, or {@code null} if no suitable view
+     * was found. If non-{@code null}, this is either the view added by
+     * {@link DialogTransitionAnimator}, or the {@code decorView}.
+     *
+     * @param dialog the dialog to get the view with background for.
+     */
+    @Nullable
+    private static View getViewWithBackground(Dialog dialog) {
+        final Window window = dialog.getWindow();
+        if (window == null) {
+            return null;
+        }
+        final View decorView = window.getDecorView();
+        Objects.requireNonNull(decorView, "DecorView should not be null");
+        // We first look for the background on the dialogContentWithBackground added by
+        // DialogTransitionAnimator. If it's not there, we use the background of the DecorView.
+        final View viewWithBackground = decorView.findViewByPredicate(
+                view -> view.getTag(
+                        com.android.systemui.animation.R.id.tag_dialog_background) != null);
+        return viewWithBackground != null ? viewWithBackground : decorView;
     }
 
     private static class DismissReceiver extends BroadcastReceiver {
@@ -670,5 +806,27 @@ public class SystemUIDialog extends AlertDialog implements ViewRootImpl.ConfigCh
          * construction.
          */
         SystemUIDialog createDialog();
+    }
+
+    /** Empty view, used only to receive configuration changes. */
+    static final class ConfigurationListenerView extends View {
+
+        /** The callback to be invoked when the configuration changes. */
+        @NonNull
+        private final Consumer<Configuration> mConfigChangedCallback;
+
+        ConfigurationListenerView(Context context,
+                @NonNull Consumer<Configuration> configChangedCallback) {
+            super(context);
+            setWillNotDraw(true);
+            setVisibility(View.GONE);
+            mConfigChangedCallback = configChangedCallback;
+        }
+
+        @Override
+        public void onConfigurationChanged(Configuration newConfig) {
+            super.onConfigurationChanged(newConfig);
+            mConfigChangedCallback.accept(newConfig);
+        }
     }
 }

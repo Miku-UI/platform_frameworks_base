@@ -21,10 +21,8 @@ import android.view.InsetsSource
 import android.view.InsetsState
 import com.android.wm.shell.common.DisplayInsetsController.OnInsetsChangedListener
 
-abstract class ImeListener(
-    private val displayController: DisplayController,
-    val displayId: Int
-) : OnInsetsChangedListener {
+abstract class ImeListener(private val displayController: DisplayController, val displayId: Int) :
+    OnInsetsChangedListener {
     // The last insets state
     private val mInsetsState = InsetsState()
     private val mTmpBounds = Rect()
@@ -56,8 +54,6 @@ abstract class ImeListener(
         return Pair(visible, height)
     }
 
-    /**
-     * To be overridden by implementations to handle IME changes.
-     */
+    /** To be overridden by implementations to handle IME changes. */
     protected abstract fun onImeVisibilityChanged(imeVisible: Boolean, imeHeight: Int)
 }

@@ -19,11 +19,11 @@ package com.android.wm.shell.scenarios
 import android.app.Instrumentation
 import android.tools.NavBar
 import android.tools.Rotation
+import android.tools.helpers.RecentTasksUtils
 import android.tools.traces.parsers.WindowManagerStateHelper
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import com.android.launcher3.tapl.LauncherInstrumentation
-import android.tools.helpers.RecentTasksUtils
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.utils.SplitScreenUtils
 import org.junit.After
@@ -62,14 +62,14 @@ constructor(val rotation: Rotation = Rotation.ROTATION_0) {
                 device,
                 wmHelper,
                 dragToRight = false,
-                dragToBottom = true
+                dragToBottom = true,
             )
         } else {
             SplitScreenUtils.dragDividerToDismissSplit(
                 device,
                 wmHelper,
                 dragToRight = true,
-                dragToBottom = true
+                dragToBottom = true,
             )
         }
         wmHelper.StateSyncBuilder().withFullScreenApp(secondaryApp).waitForAndVerify()

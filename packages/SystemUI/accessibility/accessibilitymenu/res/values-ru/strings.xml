@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Вернуться на предыдущий экран"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Перейти на следующий экран"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Крупные кнопки в меню специальных возможностей помогут блокировать устройство, регулировать громкость звука и яркость экрана, сохранять скриншоты и делать многое другое."</string>
-    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Настраивайте громкость, яркость и другие параметры в большом меню"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Меню с крупными кнопками для настройки яркости, громкости и не только"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Настройки меню спец. возможностей"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Крупные кнопки"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Увеличить размер кнопок в меню специальных возможностей"</string>

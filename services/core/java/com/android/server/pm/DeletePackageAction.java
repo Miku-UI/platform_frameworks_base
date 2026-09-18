@@ -26,13 +26,15 @@ final class DeletePackageAction {
     public final PackageRemovedInfo mRemovedInfo;
     public final int mFlags;
     public final UserHandle mUser;
+    public final int mCallingUid;
 
     DeletePackageAction(PackageSetting deletingPs, PackageSetting disabledPs,
-            @NonNull PackageRemovedInfo removedInfo, int flags, UserHandle user) {
+            @NonNull PackageRemovedInfo removedInfo, int flags, UserHandle user, int callingUid) {
         mDeletingPs = deletingPs;
         mDisabledPs = disabledPs;
         mRemovedInfo = removedInfo;
         mFlags = flags;
         mUser = user;
+        mCallingUid = callingUid;
     }
 }

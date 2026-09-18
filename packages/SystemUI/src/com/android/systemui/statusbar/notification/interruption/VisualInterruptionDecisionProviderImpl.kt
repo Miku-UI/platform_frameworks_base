@@ -79,10 +79,6 @@ constructor(
     private val deviceProvisioningInteractor: DeviceProvisioningInteractor,
 ) : VisualInterruptionDecisionProvider {
 
-    init {
-        check(!VisualInterruptionRefactor.isUnexpectedlyInLegacyMode())
-    }
-
     interface Loggable {
         val uiEventId: UiEventEnum?
         val eventLogData: EventLogData?

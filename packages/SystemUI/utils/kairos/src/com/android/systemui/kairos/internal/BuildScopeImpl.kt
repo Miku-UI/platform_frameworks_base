@@ -42,8 +42,6 @@ import com.android.systemui.kairos.launchEffect
 import com.android.systemui.kairos.mergeLeft
 import com.android.systemui.kairos.takeUntil
 import com.android.systemui.kairos.util.Maybe
-import com.android.systemui.kairos.util.Maybe.Absent
-import com.android.systemui.kairos.util.Maybe.Present
 import com.android.systemui.kairos.util.NameData
 import com.android.systemui.kairos.util.NameTag
 import com.android.systemui.kairos.util.forceInit
@@ -51,6 +49,7 @@ import com.android.systemui.kairos.util.map
 import com.android.systemui.kairos.util.mapName
 import com.android.systemui.kairos.util.plus
 import com.android.systemui.kairos.util.toNameData
+import com.android.systemui.kairos.util.whenPresent
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.CoroutineContext
@@ -91,7 +90,7 @@ internal class BuildScopeImpl(
         return buildEvents(
             fullTag,
             constructEvents = { inputNode ->
-                val events = MutableEvents(network, fullTag, inputNode)
+                val events = MutableEvents(fullTag, network, inputNode)
                 events to EventProducerScope { value -> events.emit(value) }
             },
             builder = builder,
@@ -100,7 +99,7 @@ internal class BuildScopeImpl(
 
     override fun <In, Out> coalescingEvents(
         getInitialValue: KairosScope.() -> Out,
-        coalesce: (old: Out, new: In) -> Out,
+        coalesce: KairosScope.(old: Out, new: In) -> Out,
         name: NameTag?,
         builder: suspend CoalescingEventProducerScope<In>.() -> Unit,
     ): Events<Out> {
@@ -110,11 +109,11 @@ internal class BuildScopeImpl(
             constructEvents = { inputNode ->
                 val events =
                     CoalescingMutableEvents(
-                        nameData,
-                        coalesce = { old, new: In -> coalesce(old.value, new) },
+                        nameData = nameData,
+                        coalesce = { old: Lazy<Out>, new: In -> NoScope.coalesce(old.value, new) },
                         network = network,
                         getInitialValue = { NoScope.getInitialValue() },
-                        impl = inputNode,
+                        inputNode = inputNode,
                     )
                 events to CoalescingEventProducerScope { value -> events.emit(value) }
             },
@@ -177,7 +176,7 @@ internal class BuildScopeImpl(
         return EventsInit(
             constInit(
                 nameData,
-                mapImpl({ init.connect(evalScope = this) }, nameData) { spec, _ ->
+                mapImpl({ init.connect(initScope = this) }, nameData) { spec, _ ->
                         reenterBuildScope(outerScope = this@BuildScopeImpl, childScope)
                             .transform(spec)
                     }
@@ -211,7 +210,7 @@ internal class BuildScopeImpl(
         }
         val changesImpl: EventsImpl<Map<K, Maybe<A>>> =
             mapImpl(
-                upstream = { this@applyLatestSpecForKey.init.connect(evalScope = this) },
+                upstream = { this@applyLatestSpecForKey.init.connect(initScope = this) },
                 nameData + "changes",
             ) { upstreamMap, _ ->
                 reenterBuildScope(this@BuildScopeImpl, childCoroutineScope).run {
@@ -244,12 +243,10 @@ internal class BuildScopeImpl(
         val subRef = AtomicReference<Maybe<Output<A>>?>(null)
         val childScope: CoroutineScope = coroutineScope.childScope(context)
         val handle = DisposableHandle {
-            subRef.getAndSet(Absent)?.let { output ->
-                if (output is Present) {
+            subRef.getAndSet(Maybe.absent)?.let { output ->
+                output.whenPresent {
                     @Suppress("DeferredResultUnused")
-                    network.transaction("observeEffect cancelled") {
-                        scheduleDeactivation(output.value)
-                    }
+                    network.transaction("observeEffect cancelled") { scheduleDeactivation(it) }
                 }
             }
         }
@@ -257,11 +254,12 @@ internal class BuildScopeImpl(
         val outputNode =
             Output<A>(
                 nameData,
-                onDeath = { subRef.set(Absent) },
+                onDeath = { subRef.set(Maybe.absent) },
                 onEmit = onEmit@{ output ->
-                        if (subRef.get() !is Present) return@onEmit
-                        // Not cancelled, safe to emit]
-                        block(effectScope, output)
+                        subRef.get()?.whenPresent {
+                            // Not cancelled, safe to emit
+                            block(effectScope, output)
+                        }
                     },
             )
         // Defer, in case any EventsLoops / StateLoops still need to be set
@@ -274,7 +272,7 @@ internal class BuildScopeImpl(
             // Stop observing when this scope dies
             truncateToScope(this@observeInternal, nameData + "truncateToScope")
                 .init
-                .connect(evalScope = stateScope.evalScope)
+                .connect(initScope = stateScope.evalScope)
                 .activate(evalScope = stateScope.evalScope, outputNode.schedulable)
                 ?.let { (conn, needsEval) ->
                     outputNode.upstream = conn
@@ -379,7 +377,7 @@ internal class BuildScopeImpl(
 
     private fun newStopEmitter(nameData: NameData): CoalescingMutableEvents<Unit, Unit> =
         CoalescingMutableEvents(
-            nameData,
+            nameData = nameData,
             coalesce = { _, _: Unit -> },
             network = network,
             getInitialValue = {},

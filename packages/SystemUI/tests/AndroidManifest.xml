@@ -54,8 +54,13 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.REGISTER_WINDOW_MANAGER_LISTENERS" />
 
-    <application android:debuggable="true" android:largeHeap="true" android:testOnly="true"
-            android:enableOnBackInvokedCallback="true" >
+    <application
+        android:debuggable="true"
+        android:enableOnBackInvokedCallback="true"
+        android:largeHeap="true"
+        android:appComponentFactory="com.android.systemui.PhoneSystemUIAppComponentFactory"
+        tools:replace="android:appComponentFactory"
+        android:testOnly="true">
         <uses-library android:name="android.test.runner" />
 
         <receiver android:name="com.android.systemui.SliceBroadcastRelayHandlerTest$Receiver"
@@ -78,11 +83,6 @@
                 <action android:name="com.android.systemui.action.LAUNCH_EMERGENCY"/>
             </intent-filter>
         </activity>
-
-        <activity
-            android:name="com.android.systemui.globalactions.GlobalActionsImeTest$TestActivity"
-            android:excludeFromRecents="true"
-            android:exported="false" />
 
         <activity android:name="com.android.systemui.controls.management.TestControlsRequestDialog"
                   android:exported="false"
@@ -121,6 +121,12 @@
                   android:exported="false" />
 
         <!-- started from UsbDeviceSettingsManager -->
+        <activity android:name="com.android.systemui.usb.UsbConfirmActivityTest$UsbConfirmActivityTestable"
+            android:exported="false"
+            android:theme="@style/Theme.SystemUI.Dialog.Alert"
+            android:finishOnCloseSystemDialogs="true"
+            android:excludeFromRecents="true" />
+
         <activity android:name="com.android.systemui.usb.UsbPermissionActivityTest$UsbPermissionActivityTestable"
                   android:exported="false"
                   android:theme="@style/Theme.SystemUI.Dialog.Alert"
@@ -166,6 +172,12 @@
             tools:replace="android:authorities"
             tools:node="remove" />
 
+        <provider android:name="com.android.systemui.people.PeopleProvider"
+            android:authorities="com.android.systemui.tests.people.PeopleProvider"
+            android:enabled="false"
+            tools:replace="android:authorities"
+            tools:node="remove" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="com.android.systemui.test.fileprovider"
@@ -190,7 +202,8 @@
             android:name="com.android.systemui.notetask.shortcut.LaunchNoteTaskActivity"
             android:exported="false"
             android:permission="com.android.systemui.permission.SELF"
-            android:excludeFromRecents="true" />
+            android:excludeFromRecents="true"
+            tools:replace="android:exported" />
 
         <activity
             android:name="com.android.systemui.logcat.LogAccessDialogActivityTest$DialogTestable"
@@ -202,7 +215,8 @@
             android:name="com.android.systemui.notetask.LaunchNotesRoleSettingsTrampolineActivity"
             android:exported="false"
             android:permission="com.android.systemui.permission.SELF"
-            android:excludeFromRecents="true" >
+            android:excludeFromRecents="true"
+            tools:replace="android:exported" >
             <intent-filter>
                 <action android:name="com.android.systemui.action.MANAGE_NOTES_ROLE_FROM_QUICK_AFFORDANCE" />
                 <category android:name="android.intent.category.DEFAULT" />

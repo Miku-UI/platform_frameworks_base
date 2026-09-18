@@ -65,6 +65,11 @@ public class SyncOperation {
             "UserStart",
     };
 
+    // Limit for individual strings within the Bundle.
+    private static final int MAX_SYNC_EXTRA_STRING_LENGTH = 127;
+    // Limit for the number of elements in any array within the Bundle.
+    private static final int MAX_SYNC_EXTRA_ARRAY_LENGTH = 10;
+
     /** Identifying info for the target for this operation. */
     public final SyncStorageEngine.EndPoint target;
     public final int owningUid;
@@ -123,6 +128,15 @@ public class SyncOperation {
                 reason, source, extras, allowParallelSyncs, syncExemptionFlag);
     }
 
+    public SyncOperation(Account account, int userId, int owningUid, String owningPackage,
+            int reason, int source, String provider, Bundle extras,
+            boolean allowParallelSyncs, @SyncExemption int syncExemptionFlag,
+            boolean validateExtras) {
+        this(new SyncStorageEngine.EndPoint(account, provider, userId), owningUid, owningPackage,
+                reason, source, extras, allowParallelSyncs, false, NO_JOB_ID, 0, 0,
+                syncExemptionFlag, validateExtras);
+    }
+
     private SyncOperation(SyncStorageEngine.EndPoint info, int owningUid, String owningPackage,
             int reason, int source, Bundle extras, boolean allowParallelSyncs,
             @SyncExemption int syncExemptionFlag) {
@@ -146,7 +160,7 @@ public class SyncOperation {
         this.owningPackage = owningPackage;
         this.reason = reason;
         this.syncSource = source;
-        this.mImmutableExtras = new Bundle(extras);
+        this.mImmutableExtras = (extras != null) ? new Bundle(extras) : new Bundle();
         this.allowParallelSyncs = allowParallelSyncs;
         this.isPeriodic = isPeriodic;
         this.sourcePeriodicId = sourcePeriodicId;
@@ -155,6 +169,23 @@ public class SyncOperation {
         this.jobId = NO_JOB_ID;
         this.key = toKey();
         this.syncExemptionFlag = syncExemptionFlag;
+    }
+
+    public SyncOperation(SyncStorageEngine.EndPoint info, int owningUid, String owningPackage,
+            int reason, int source, Bundle extras, boolean allowParallelSyncs,
+            boolean isPeriodic, int sourcePeriodicId, long periodMillis,
+            long flexMillis, @SyncExemption int syncExemptionFlag, boolean validateExtras) {
+        this(info, owningUid, owningPackage, reason, source, extras, allowParallelSyncs,
+                isPeriodic, sourcePeriodicId, periodMillis, flexMillis, syncExemptionFlag);
+        if (validateExtras
+                && android.content.flags.Flags.syncoperationEnforceBundleSanitization()) {
+            try {
+                this.mImmutableExtras = sanitizeAndCheckSyncExtras(extras, owningPackage);
+            } catch (IllegalArgumentException e) {
+                Slog.e(TAG, "Invalid extras for SyncOperation: " + e.getMessage());
+                throw e;
+            }
+        }
     }
 
     /* Get a one off sync operation instance from a periodic sync. */
@@ -581,6 +612,94 @@ public class SyncOperation {
         final StringBuilder sb = new StringBuilder();
         extrasToStringBuilder(bundle, sb);
         return sb.toString();
+    }
+
+    private static Bundle sanitizeAndCheckSyncExtras(Bundle extras, String owningPackage) {
+        if (extras == null || extras.isEmpty()) {
+            return new Bundle();
+        }
+
+        final Bundle sanitizedExtras = new Bundle();
+        for (String key : extras.keySet()) {
+            Object value = extras.get(key);
+
+            if (value == null) {
+                sanitizedExtras.putParcelable(key, null);
+                continue;
+            }
+
+            if (value instanceof Bundle) {
+                throw new IllegalArgumentException(
+                    "Nested Bundles not allowed in sync extras, key: " + key);
+            } else if (value instanceof Account) {
+                Account acc = (Account) value;
+                sanitizedExtras.putParcelable(key, acc);
+            } else if (value instanceof String) {
+                String s = (String) value;
+                if (s.length() > MAX_SYNC_EXTRA_STRING_LENGTH) {
+                    Slog.w(TAG, "Truncating String extra " + key + " for " + owningPackage);
+                    s = s.substring(0, MAX_SYNC_EXTRA_STRING_LENGTH);
+                }
+                sanitizedExtras.putString(key, s);
+            } else if (value instanceof String[]) {
+                String[] arr = (String[]) value;
+                if (arr.length > MAX_SYNC_EXTRA_ARRAY_LENGTH) {
+                    throw new IllegalArgumentException("String array extra " + key + " length "
+                            + arr.length + " exceeds limit " + MAX_SYNC_EXTRA_ARRAY_LENGTH);
+                }
+                String[] sanitizedArr = new String[arr.length];
+                for (int i = 0; i < arr.length; i++) {
+                    String s = arr[i];
+                    if ((s != null) && (s.length() > MAX_SYNC_EXTRA_STRING_LENGTH)) {
+                        Slog.w(TAG, "Truncating String extra " + key + " for " + owningPackage);
+                        sanitizedArr[i] = s.substring(0, MAX_SYNC_EXTRA_STRING_LENGTH);
+                    } else {
+                        sanitizedArr[i] = s;
+                    }
+                }
+                sanitizedExtras.putStringArray(key, sanitizedArr);
+            } else if (value instanceof int[])  {
+                if (((int[]) value).length > MAX_SYNC_EXTRA_ARRAY_LENGTH) {
+                    throw new IllegalArgumentException("int[] extra " + key + " too long");
+                }
+                sanitizedExtras.putIntArray(key, (int[]) value);
+            } else if (value instanceof long[]) {
+                if (((long[]) value).length > MAX_SYNC_EXTRA_ARRAY_LENGTH) {
+                    throw new IllegalArgumentException("long[] extra " + key + " too long");
+                }
+                sanitizedExtras.putLongArray(key, (long[]) value);
+            } else if (value instanceof double[]) {
+                if (((double[]) value).length > MAX_SYNC_EXTRA_ARRAY_LENGTH) {
+                    throw new IllegalArgumentException("double[] extra " + key + " too long");
+                }
+                sanitizedExtras.putDoubleArray(key, (double[]) value);
+            } else if (value instanceof float[]) {
+                if (((float[]) value).length > MAX_SYNC_EXTRA_ARRAY_LENGTH) {
+                    throw new IllegalArgumentException("float[] extra " + key + " too long");
+                }
+                sanitizedExtras.putFloatArray(key, (float[]) value);
+            } else if (value instanceof boolean[]) {
+                if (((boolean[]) value).length > MAX_SYNC_EXTRA_ARRAY_LENGTH) {
+                    throw new IllegalArgumentException("boolean[] extra " + key + " too long");
+                }
+                sanitizedExtras.putBooleanArray(key, (boolean[]) value);
+            } else if (value instanceof Boolean) {
+                sanitizedExtras.putBoolean(key, (Boolean) value);
+            } else if (value instanceof Integer) {
+                sanitizedExtras.putInt(key, (Integer) value);
+            } else if (value instanceof Long) {
+                sanitizedExtras.putLong(key, (Long) value);
+            } else if (value instanceof Float) {
+                sanitizedExtras.putFloat(key, (Float) value);
+            } else if (value instanceof Double) {
+                sanitizedExtras.putDouble(key, (Double) value);
+            } else {
+                throw new IllegalArgumentException("Unsupported data type in sync extras, key: "
+                        + key + ", type: " + value.getClass().getName());
+            }
+        }
+
+        return sanitizedExtras;
     }
 
     String wakeLockName() {

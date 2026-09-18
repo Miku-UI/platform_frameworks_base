@@ -25,6 +25,7 @@ import com.android.systemui.keyguard.shared.model.StatusBarState
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.power.data.repository.fakePowerRepository
 import com.android.systemui.power.shared.model.WakefulnessState
+import com.android.systemui.shade.shadeTestUtil
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runCurrent
@@ -46,6 +47,7 @@ class NotificationStackInteractorTest : SysuiTestCase() {
 
             // WHEN shade is open
             kosmos.fakeKeyguardRepository.setStatusBarState(StatusBarState.SHADE)
+            kosmos.shadeTestUtil.setShadeExpansion(1f)
             runCurrent()
 
             // THEN notifications are not showing on lockscreen

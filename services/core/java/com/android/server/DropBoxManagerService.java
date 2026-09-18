@@ -16,6 +16,9 @@
 
 package com.android.server;
 
+import static com.android.server.DropBoxRestrictedConstants.DISABLED_BY_DEFAULT_TAGS;
+import static com.android.server.DropBoxRestrictedConstants.ENABLED_BY_DEFAULT_EXCEPTIONS;
+
 import android.Manifest;
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.NonNull;
@@ -86,7 +89,6 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.zip.GZIPOutputStream;
@@ -120,9 +122,6 @@ public final class DropBoxManagerService extends SystemService {
     // Size beyond which to force-compress newly added entries.
     private static final long COMPRESS_THRESHOLD_BYTES = 16_384;
 
-    // Tags that we should drop by default.
-    private static final List<String> DISABLED_BY_DEFAULT_TAGS =
-            List.of("data_app_wtf", "system_app_wtf", "system_server_wtf");
     // TODO: This implementation currently uses one file per entry, which is
     // inefficient for smallish entries -- consider using a single queue file
     // per tag (or even globally) instead.
@@ -201,6 +200,11 @@ public final class DropBoxManagerService extends SystemService {
         @Override
         public boolean isTagEnabled(String tag) {
             return DropBoxManagerService.this.isTagEnabled(tag);
+        }
+
+        @Override
+        public boolean isTagEnabledWithException(String tag, @Nullable String exceptionClassName) {
+            return DropBoxManagerService.this.isTagEnabled(tag, exceptionClassName);
         }
 
         @Override
@@ -434,7 +438,7 @@ public final class DropBoxManagerService extends SystemService {
 
                 mContentResolver.registerContentObserver(
                     Settings.Global.CONTENT_URI, true,
-                    new ContentObserver(new Handler()) {
+                    new ContentObserver(new Handler(Looper.getMainLooper())) {
                         @Override
                         public void onChange(boolean selfChange) {
                             mReceiver.onReceive(getContext(), (Intent) null);
@@ -587,9 +591,19 @@ public final class DropBoxManagerService extends SystemService {
     }
 
     public boolean isTagEnabled(String tag) {
+        return isTagEnabled(tag, /*exceptionClassName=*/null);
+    }
+
+    private boolean isTagEnabled(String tag, @Nullable String exceptionClassName) {
         final long token = Binder.clearCallingIdentity();
         try {
-            if (DISABLED_BY_DEFAULT_TAGS.contains(tag)) {
+            boolean disabledByDefault = DISABLED_BY_DEFAULT_TAGS.contains(tag);
+            if (disabledByDefault
+                    && exceptionClassName != null
+                    && ENABLED_BY_DEFAULT_EXCEPTIONS.contains(exceptionClassName)) {
+                disabledByDefault = false;
+            }
+            if (disabledByDefault) {
                 return "enabled".equals(Settings.Global.getString(
                     mContentResolver, Settings.Global.DROPBOX_TAG_PREFIX + tag));
             } else {

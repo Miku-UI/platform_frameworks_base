@@ -16,24 +16,24 @@
 
 package com.android.systemui.qs.panels.ui.viewmodel
 
-import com.android.systemui.haptics.msdl.tileHapticsViewModelFactoryProvider
+import com.android.systemui.haptics.msdl.tileHapticsViewModelFactory
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.qs.panels.domain.interactor.quickQuickSettingsRowInteractor
 import com.android.systemui.qs.pipeline.domain.interactor.currentTilesInteractor
 
 val Kosmos.quickQuickSettingsViewModelFactory by
-Kosmos.Fixture {
-    object : QuickQuickSettingsViewModel.Factory {
-        override fun create(): QuickQuickSettingsViewModel {
-            return QuickQuickSettingsViewModel(
-                currentTilesInteractor,
-                qsColumnsViewModelFactory,
-                quickQuickSettingsRowInteractor,
-                mediaInRowInLandscapeViewModelFactory,
-                tileSquishinessViewModel,
-                iconTilesViewModel,
-                tileHapticsViewModelFactoryProvider,
-            )
+    Kosmos.Fixture {
+        object : QuickQuickSettingsViewModel.Factory {
+            override fun create(): QuickQuickSettingsViewModel {
+                return QuickQuickSettingsViewModel(
+                    currentTilesInteractor,
+                    qsColumnsViewModelFactory,
+                    quickQuickSettingsRowInteractor,
+                    mediaInRowInLandscapeViewModelFactory,
+                    tileSquishinessViewModel,
+                    iconTilesViewModel,
+                    tileHapticsViewModelFactory,
+                )
+            }
         }
     }
-}

@@ -428,5 +428,15 @@ message SystemMessage {
     // Notify the user that USB is disabled when a USB device is connected.
     // Package: android
     NOTE_USB_DATA_PROTECTION_REMINDER = 1013;
+
+    // Notify the user that new USB devices are disabled until the device is
+    // unlocked.
+    // Package: android
+    NOTE_USB_AUTH_SCREEN_LOCKED_REMINDER = 1014;
+
+    // Notify the user to finish logging in to continue using the device they
+    // authorized at the login screen (or before-first-unlock).
+    // Package: android
+    NOTE_USB_AUTH_FINISH_LOGGING_IN_REMINDER = 1015;
   }
 }

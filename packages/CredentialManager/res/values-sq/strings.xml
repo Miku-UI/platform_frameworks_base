@@ -24,7 +24,7 @@
     <string name="string_learn_more" msgid="4541600451688392447">"Mëso më shumë"</string>
     <string name="content_description_show_password" msgid="3283502010388521607">"Shfaq fjalëkalimin"</string>
     <string name="content_description_hide_password" msgid="6841375971631767996">"Fshih fjalëkalimin"</string>
-    <string name="passkey_creation_intro_title" msgid="4251037543787718844">"Më e sigurt me çelësat e kalimit"</string>
+    <string name="passkey_creation_intro_title" msgid="4251037543787718844">"Më shumë siguri me çelësat e kalimit"</string>
     <string name="passkey_creation_intro_body_password" msgid="8825872426579958200">"Me çelësat e kalimit, nuk ka nevojë të krijosh ose të mbash mend fjalëkalime të ndërlikuara"</string>
     <string name="passkey_creation_intro_body_fingerprint" msgid="7331338631826254055">"Çelësat e kalimit janë çelësa dixhitalë të enkriptuar që ti i krijon duke përdorur gjurmën e gishtit, fytyrën ose kyçjen e ekranit"</string>
     <string name="passkey_creation_intro_body_device" msgid="1203796455762131631">"Ata ruhen te një menaxher fjalëkalimesh, në mënyrë që të mund të identifikohesh në pajisje të tjera"</string>

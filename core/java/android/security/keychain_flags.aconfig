@@ -1,0 +1,10 @@
+package: "android.security"
+container: "system"
+
+flag {
+  name: "enable_device_certificates"
+  namespace: "enterprise"
+  description: "Enables support for device-scoped certificates in KeyChainSystemService."
+  bug: "475733339"
+  is_exported: true
+}

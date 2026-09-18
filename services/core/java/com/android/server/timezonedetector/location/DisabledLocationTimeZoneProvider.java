@@ -51,12 +51,11 @@ class DisabledLocationTimeZoneProvider extends LocationTimeZoneProvider {
     }
 
     @Override
-    void onDestroy() {
-    }
+    void onDestroy() {}
 
     @Override
-    void onStartUpdates(@NonNull Duration initializationTimeout,
-            @NonNull Duration eventFilteringAgeThreshold) {
+    void onStartUpdates(
+            @NonNull Duration initializationTimeout, @NonNull Duration eventFilteringAgeThreshold) {
         throw new UnsupportedOperationException("Provider is disabled");
     }
 
@@ -78,8 +77,10 @@ class DisabledLocationTimeZoneProvider extends LocationTimeZoneProvider {
     public String toString() {
         synchronized (mSharedLock) {
             return "DisabledLocationTimeZoneProvider{"
-                    + "mProviderName=" + mProviderName
-                    + ", mCurrentState=" + mCurrentState
+                    + "mProviderName="
+                    + mProviderName
+                    + ", mCurrentState="
+                    + mCurrentState
                     + '}';
         }
     }

@@ -17,10 +17,12 @@
 package com.android.server.pm;
 
 import static android.app.admin.flags.Flags.crossUserSuspensionEnabledRo;
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
 import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DEFAULT;
 import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
 import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED;
 import static android.content.pm.PackageManager.INSTALL_FAILED_INSUFFICIENT_STORAGE;
+import static android.content.pm.PackageManager.INSTALL_FAILED_INTERNAL_ERROR;
 import static android.content.pm.PackageManager.INSTALL_FAILED_UID_CHANGED;
 import static android.content.pm.PackageManager.MATCH_DEFAULT_ONLY;
 import static android.content.pm.PackageManager.UNINSTALL_REASON_UNKNOWN;
@@ -29,6 +31,10 @@ import static android.os.Process.INVALID_UID;
 import static android.os.Process.PACKAGE_INFO_GID;
 import static android.os.Process.SYSTEM_UID;
 
+import static com.android.os.privatecompute.PrivateComputeAtomsLog.PCC_UID_ASSIGNMENT_REPORTED__ASSIGNMENT_STATUS__FAILURE_HAS_SHARED_USER;
+import static com.android.os.privatecompute.PrivateComputeAtomsLog.PCC_UID_ASSIGNMENT_REPORTED__ASSIGNMENT_STATUS__FAILURE_INTERNAL_ERROR;
+import static com.android.os.privatecompute.PrivateComputeAtomsLog.PCC_UID_ASSIGNMENT_REPORTED__ASSIGNMENT_STATUS__SUCCESS_EXISTING;
+import static com.android.os.privatecompute.PrivateComputeAtomsLog.PCC_UID_ASSIGNMENT_REPORTED__ASSIGNMENT_STATUS__SUCCESS_NEW;
 import static com.android.server.pm.PackageManagerService.PLATFORM_PACKAGE_NAME;
 import static com.android.server.pm.PackageManagerService.WRITE_USER_PACKAGE_RESTRICTIONS;
 import static com.android.server.pm.SharedUidMigration.BEST_EFFORT;
@@ -129,6 +135,7 @@ import com.android.server.pm.verify.developer.DeveloperVerificationStatusInterna
 import com.android.server.pm.verify.domain.DomainVerificationLegacySettings;
 import com.android.server.pm.verify.domain.DomainVerificationManagerInternal;
 import com.android.server.pm.verify.domain.DomainVerificationPersistence;
+import com.android.server.privatecompute.PrivateComputeStatsLogUtil;
 import com.android.server.utils.Slogf;
 import com.android.server.utils.Snappable;
 import com.android.server.utils.SnapshotCache;
@@ -338,6 +345,8 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
 
     private static final String ATTR_CE_DATA_INODE = "ceDataInode";
     private static final String ATTR_DE_DATA_INODE = "deDataInode";
+    private static final String ATTR_PCC_CE_DATA_INODE = "pccCeDataInode";
+    private static final String ATTR_PCC_DE_DATA_INODE = "pccDeDataInode";
     private static final String ATTR_INSTALLED = "inst";
     private static final String ATTR_STOPPED = "stopped";
     private static final String ATTR_NOT_LAUNCHED = "nl";
@@ -349,6 +358,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
     private static final String ATTR_SUSPENDED = "suspended";
     private static final String ATTR_SUSPENDING_PACKAGE = "suspending-package";
     private static final String ATTR_SUSPENDING_USER = "suspending-user";
+    private static final String ATTR_APP_LOCK_ENABLED = "app-lock-enabled";
 
     private static final String ATTR_OPTIONAL = "optional";
     /**
@@ -370,6 +380,8 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
     private static final String ATTR_HARMFUL_APP_WARNING = "harmful-app-warning";
     private static final String ATTR_SPLASH_SCREEN_THEME = "splash-screen-theme";
     private static final String ATTR_MIN_ASPECT_RATIO = "min-aspect-ratio";
+    private static final String ATTR_VIRTUAL_GAMEPAD_USER_OPTION = "virtual-gamepad-user-option";
+    private static final String ATTR_PERSONAL_CONTEXT_MODE = "personal-context-mode";
 
     private static final String ATTR_PACKAGE_NAME = "packageName";
     private static final String ATTR_BUILD_FINGERPRINT = "buildFingerprint";
@@ -550,6 +562,9 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
     @Watched(manual = true)
     private final AppIdSettingMap mAppIds;
 
+    @Watched(manual = true)
+    private final PccIdSettingMap mPccIds;
+
     // Packages that have been renamed since they were first installed.
     // Keys are the new names of the packages, values are the original
     // names.  The packages appear everywhere else under their original
@@ -633,6 +648,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         mCrossProfileIntentResolvers.registerObserver(mObserver);
         mSharedUsers.registerObserver(mObserver);
         mAppIds.registerObserver(mObserver);
+        mPccIds.registerObserver(mObserver);
         mRenamedPackages.registerObserver(mObserver);
         mNextAppLinkGeneration.registerObserver(mObserver);
         mPendingDefaultBrowser.registerObserver(mObserver);
@@ -673,6 +689,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         mLock = new PackageManagerTracedLock();
         mPackages.putAll(pkgSettings);
         mAppIds = new AppIdSettingMap();
+        mPccIds = new PccIdSettingMap();
         mSystemDir = null;
         mPermissions = null;
         mRuntimePermissionsPersistence = null;
@@ -726,6 +743,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         mHandler = handler;
         mLock = lock;
         mAppIds = new AppIdSettingMap();
+        mPccIds = new PccIdSettingMap();
         mPermissions = new LegacyPermissionSettings();
         mRuntimePermissionsPersistence = new RuntimePermissionPersistence(
                 runtimePermissionsPersistence, new Consumer<Integer>() {
@@ -808,6 +826,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
 
         mSharedUsers.snapshot(r.mSharedUsers);
         mAppIds = r.mAppIds.snapshot();
+        mPccIds = r.mPccIds.snapshot();
 
         mRenamedPackages.snapshot(r.mRenamedPackages);
         mNextAppLinkGeneration.snapshot(r.mNextAppLinkGeneration);
@@ -945,8 +964,8 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         p.getPkgState().setUpdatedSystemApp(false);
         final AndroidPackageInternal pkg = p.getPkg();
         PackageSetting ret = addPackageLPw(name, p.getRealName(), p.getPath(), p.getAppId(),
-                p.getFlags(), p.getPrivateFlags(), mDomainVerificationManager.generateNewId(),
-                pkg == null ? false : pkg.isSdkLibrary());
+                    p.getFlags(), p.getPrivateFlags(), mDomainVerificationManager.generateNewId(),
+                    pkg == null ? false : pkg.isSdkLibrary(), p.hasSharedUser());
         if (ret != null) {
             ret.setLegacyNativeLibraryPath(p.getLegacyNativeLibraryPath());
             ret.setPrimaryCpuAbi(p.getPrimaryCpuAbiLegacy());
@@ -966,6 +985,8 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
             ret.setRestrictUpdateHash(p.getRestrictUpdateHash());
             ret.setScannedAsStoppedSystemApp(p.isScannedAsStoppedSystemApp());
             ret.setInstallSource(p.getInstallSource());
+            ret.setSharedUserAppId(p.getSharedUserAppId());
+            ret.setApexModuleName(p.getApexModuleName());
         }
         mDisabledSysPackages.remove(name);
         return ret;
@@ -987,7 +1008,8 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
     }
 
     PackageSetting addPackageLPw(String name, String realName, File codePath, int uid,
-            int pkgFlags, int pkgPrivateFlags, @NonNull UUID domainSetId, boolean isSdkLibrary) {
+            int pkgFlags, int pkgPrivateFlags, @NonNull UUID domainSetId, boolean isSdkLibrary,
+            boolean hasSharedUser) {
         PackageSetting p = mPackages.get(name);
         if (p != null) {
             if (p.getAppId() == uid) {
@@ -1000,7 +1022,8 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         p = new PackageSetting(name, realName, codePath, pkgFlags, pkgPrivateFlags, domainSetId)
                 .setAppId(uid);
         if ((uid == Process.INVALID_UID && isSdkLibrary && Flags.disallowSdkLibsToBeApps())
-                || mAppIds.registerExistingAppId(uid, p, name)) {
+                || mAppIds.registerExistingAppId(uid, p, name)
+                || hasSharedUser) {
             mPackages.put(name, p);
             return p;
         }
@@ -1168,7 +1191,12 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                                     + "installed=%b)",
                                     pkgName, installUserId, user.toFullString(), installed);
                         }
-                        pkgSetting.setUserState(user.id, 0, 0, COMPONENT_ENABLED_STATE_DEFAULT,
+                        pkgSetting.setUserState(user.id,
+                                0 /*ceDataInode*/,
+                                0 /*deDataInode*/,
+                                0 /*pccCeDataInode*/,
+                                0 /*pccDeDataInode*/,
+                                COMPONENT_ENABLED_STATE_DEFAULT,
                                 installed,
                                 true /*stopped*/,
                                 true /*notLaunched*/,
@@ -1186,7 +1214,10 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                                 null /*splashscreenTheme*/,
                                 0 /*firstInstallTime*/,
                                 PackageManager.USER_MIN_ASPECT_RATIO_UNSET,
-                                null /*archiveState*/
+                                null /*archiveState*/,
+                                false /*appLockEnabled*/,
+                                PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_UNSET,
+                                PackageManager.PERSONAL_CONTEXT_MODE_UNSET
                         );
                     }
                 }
@@ -1275,12 +1306,6 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
 
         if (!oldCodePath.equals(codePath)) {
             final boolean isSystem = pkgSetting.isSystem();
-            Slog.i(PackageManagerService.TAG,
-                    "Update" + (isSystem ? " system" : "")
-                    + " package " + pkgName
-                    + " code path from " + pkgSetting.getPathString()
-                    + " to " + codePath.toString()
-                    + "; Retain data and using new");
             if (!isSystem) {
                 // The package isn't considered as installed if the application was
                 // first installed by another user. Update the installed flag when the
@@ -1378,8 +1403,54 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         if (p.getAppId() < 0) {
             PackageManagerService.reportSettingsProblem(Log.WARN,
                     "Package " + p.getPackageName() + " could not be assigned a valid UID");
-            throw new PackageManagerException(INSTALL_FAILED_INSUFFICIENT_STORAGE,
+            throw new PackageManagerException(INSTALL_FAILED_INTERNAL_ERROR,
                     "Package " + p.getPackageName() + " could not be assigned a valid UID");
+        }
+        return createdNew;
+    }
+
+
+    /**
+     * Registers a PCC app ID with the system. Potentially allocates a new PCC app ID.
+     * @return {@code true} if a new PCC app ID was created in the process. {@code false} can be
+     *         returned in the case that the explicit app ID is already registered.
+     * @throws PackageManagerException If a PCC app ID could not be allocated.
+     */
+    boolean registerPccIdLPw(PackageSetting p) throws PackageManagerException {
+        final boolean createdNew;
+        final AndroidPackage pkg = p.getPkg();
+        if (pkg == null || !pkg.hasPccComponents()) {
+            return false;
+        }
+        if (p.hasSharedUser()) {
+            Slog.w(TAG, "Not assigning a PCC UID to a package with a shared userId.");
+            PrivateComputeStatsLogUtil.logPccUidAssignment(
+                    PCC_UID_ASSIGNMENT_REPORTED__ASSIGNMENT_STATUS__FAILURE_HAS_SHARED_USER);
+
+            return false;
+        }
+        if (p.getPccId() == Process.INVALID_UID) {
+            // Assign new PCC UID
+            p.setPccId(mPccIds.acquireAndRegisterNewPccId(p));
+            createdNew = true;
+        } else {
+            // Add new setting to list of PCC UIDs
+            createdNew = mPccIds.registerExistingPccId(p.getPccId(), p, p.getPackageName());
+        }
+        if (p.getPccId() < 0) {
+            PackageManagerService.reportSettingsProblem(Log.WARN,
+                    "Package " + p.getPackageName() + " could not be assigned a valid PCC UID");
+            PrivateComputeStatsLogUtil.logPccUidAssignment(
+                    PCC_UID_ASSIGNMENT_REPORTED__ASSIGNMENT_STATUS__FAILURE_INTERNAL_ERROR);
+            throw new PackageManagerException(INSTALL_FAILED_INTERNAL_ERROR,
+                    "Package " + p.getPackageName() + " could not be assigned a valid PCC UID");
+        }
+        if (createdNew) {
+            PrivateComputeStatsLogUtil.logPccUidAssignment(
+                    PCC_UID_ASSIGNMENT_REPORTED__ASSIGNMENT_STATUS__SUCCESS_NEW);
+        } else {
+            PrivateComputeStatsLogUtil.logPccUidAssignment(
+                    PCC_UID_ASSIGNMENT_REPORTED__ASSIGNMENT_STATUS__SUCCESS_EXISTING);
         }
         return createdNew;
     }
@@ -1485,7 +1556,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
 
 
     /**
-     * Remove package from mPackages and its corresponding AppId.
+     * Remove package from mPackages and its corresponding AppId and PCC AppId.
      *
      * @return True if the AppId has been removed.
      * False if the app doesn't exist, or if the app has a shared UID and there are other apps that
@@ -1495,6 +1566,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         final PackageSetting p = mPackages.remove(name);
         if (p != null) {
             removeInstallerPackageStatus(name);
+            removePccIdLPw(p.getPccId());
             SharedUserSetting sharedUserSetting = getSharedUserSettingLPr(p);
             if (sharedUserSetting != null) {
                 sharedUserSetting.removePackage(p);
@@ -1508,7 +1580,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
     }
 
     /**
-     * Checks if {@param packageName} is an installer package and if so, clear the installer
+     * Checks if {@code packageName} is an installer package and if so, clear the installer
      * package name of the packages that are installed by this.
      */
     private void removeInstallerPackageStatus(String packageName) {
@@ -1527,9 +1599,20 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         return mAppIds.getSetting(appId);
     }
 
+    /** Gets the setting associated with the provided PCC App ID */
+    public SettingBase getPccSettingLPr(int pccId) {
+        return mPccIds.getSetting(pccId);
+    }
+
     /** Unregisters the provided app ID. */
     void removeAppIdLPw(int appId) {
         mAppIds.removeSetting(appId);
+    }
+
+    void removePccIdLPw(int pccId) {
+        if (pccId > 0) {
+            mPccIds.removeSetting(pccId);
+        }
     }
     /**
      * Transparently convert a SharedUserSetting into PackageSettings without changing appId.
@@ -1867,7 +1950,10 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                         // consider all applications to be installed.
                         for (PackageSetting pkg : mPackages.values()) {
                             pkg.setUserState(userId, pkg.getCeDataInode(userId),
-                                    pkg.getDeDataInode(userId), COMPONENT_ENABLED_STATE_DEFAULT,
+                                    pkg.getDeDataInode(userId),
+                                    pkg.getPccCeDataInode(userId),
+                                    pkg.getPccDeDataInode(userId),
+                                    COMPONENT_ENABLED_STATE_DEFAULT,
                                     true  /*installed*/,
                                     false /*stopped*/,
                                     false /*notLaunched*/,
@@ -1885,7 +1971,10 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                                     null /* splashScreenTheme*/,
                                     0 /*firstInstallTime*/,
                                     PackageManager.USER_MIN_ASPECT_RATIO_UNSET,
-                                    null /*archiveState*/
+                                    null /*archiveState*/,
+                                    false /*appLockEnabled*/,
+                                    PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_UNSET,
+                                    PackageManager.PERSONAL_CONTEXT_MODE_UNSET
                             );
                         }
                         return;
@@ -1932,6 +2021,10 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                                 parser.getAttributeLong(null, ATTR_CE_DATA_INODE, 0);
                         final long deDataInode =
                                 parser.getAttributeLong(null, ATTR_DE_DATA_INODE, 0);
+                        final long pccCeDataInode =
+                                parser.getAttributeLong(null, ATTR_PCC_CE_DATA_INODE, 0);
+                        final long pccDeDataInode =
+                                parser.getAttributeLong(null, ATTR_PCC_DE_DATA_INODE, 0);
                         final boolean installed =
                                 parser.getAttributeBoolean(null, ATTR_INSTALLED, true);
                         final boolean stopped =
@@ -1958,6 +2051,8 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                             oldSuspendingPackage = PLATFORM_PACKAGE_NAME;
                         }
 
+                        final boolean appLockEnabled = parser.getAttributeBoolean(null,
+                                ATTR_APP_LOCK_ENABLED, false);
                         final boolean blockUninstall =
                                 parser.getAttributeBoolean(null, ATTR_BLOCK_UNINSTALL, false);
                         final boolean instantApp =
@@ -1985,6 +2080,12 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                         final int minAspectRatio = parser.getAttributeInt(null,
                                 ATTR_MIN_ASPECT_RATIO,
                                 PackageManager.USER_MIN_ASPECT_RATIO_UNSET);
+                        final int virtualGamepadUserOption = parser.getAttributeInt(null,
+                                ATTR_VIRTUAL_GAMEPAD_USER_OPTION,
+                                PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_UNSET);
+                        final int personalContextMode = parser.getAttributeInt(null,
+                                ATTR_PERSONAL_CONTEXT_MODE,
+                                PackageManager.PERSONAL_CONTEXT_MODE_UNSET);
 
                         ArraySet<String> enabledComponents = null;
                         ArraySet<String> disabledComponents = null;
@@ -2059,14 +2160,16 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                             setBlockUninstallLPw(userId, name, true);
                         }
                         ps.setUserState(
-                                userId, ceDataInode, deDataInode, enabled, installed, stopped,
+                                userId, ceDataInode, deDataInode, pccCeDataInode, pccDeDataInode,
+                                enabled, installed, stopped,
                                 notLaunched, hidden, distractionFlags, suspendParamsMap, instantApp,
                                 virtualPreload, enabledCaller, enabledComponents,
                                 disabledComponents, installReason, uninstallReason,
                                 harmfulAppWarning, splashScreenTheme,
                                 firstInstallTime != 0 ? firstInstallTime
                                         : origFirstInstallTimes.getOrDefault(name, 0L),
-                                minAspectRatio, archiveState);
+                                minAspectRatio, archiveState, appLockEnabled,
+                                virtualGamepadUserOption, personalContextMode);
                         mDomainVerificationManager.setLegacyUserState(name, userId, verifState);
                     } else if (tagName.equals("preferred-activities")) {
                         readPreferredActivitiesLPw(parser, userId);
@@ -2429,6 +2532,14 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                             serializer.attributeLong(null, ATTR_DE_DATA_INODE,
                                     ustate.getDeDataInode());
                         }
+                        if (ustate.getPccCeDataInode() != 0) {
+                            serializer.attributeLong(null, ATTR_PCC_CE_DATA_INODE,
+                                    ustate.getPccCeDataInode());
+                        }
+                        if (ustate.getPccDeDataInode() != 0) {
+                            serializer.attributeLong(null, ATTR_PCC_DE_DATA_INODE,
+                                    ustate.getPccDeDataInode());
+                        }
                         if (!ustate.isInstalled()) {
                             serializer.attributeBoolean(null, ATTR_INSTALLED, false);
                         }
@@ -2447,6 +2558,9 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                         }
                         if (ustate.isSuspended()) {
                             serializer.attributeBoolean(null, ATTR_SUSPENDED, true);
+                        }
+                        if (ustate.isAppLockEnabled()) {
+                            serializer.attributeBoolean(null, ATTR_APP_LOCK_ENABLED, true);
                         }
                         if (ustate.isInstantApp()) {
                             serializer.attributeBoolean(null, ATTR_INSTANT_APP, true);
@@ -2484,6 +2598,16 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                                 != PackageManager.USER_MIN_ASPECT_RATIO_UNSET) {
                             serializer.attributeInt(null, ATTR_MIN_ASPECT_RATIO,
                                     ustate.getMinAspectRatio());
+                        }
+                        if (ustate.getVirtualGamepadUserOption()
+                                != PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_UNSET) {
+                            serializer.attributeInt(null, ATTR_VIRTUAL_GAMEPAD_USER_OPTION,
+                                    ustate.getVirtualGamepadUserOption());
+                        }
+                        if (ustate.getPersonalContextMode()
+                                != PackageManager.PERSONAL_CONTEXT_MODE_UNSET) {
+                            serializer.attributeInt(null, ATTR_PERSONAL_CONTEXT_MODE,
+                                    ustate.getPersonalContextMode());
                         }
                         if (ustate.isSuspended()) {
                             for (int i = 0; i < ustate.getSuspendParams().size(); i++) {
@@ -2829,13 +2953,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         }
     }
 
-    /** only for test */
     void writeLPr(@NonNull Computer computer, boolean sync) {
-        final List<UserInfo> activeUsers = getActiveUsers(UserManagerService.getInstance());
-        writeLPr(computer, activeUsers, sync);
-    }
-
-    void writeLPr(@NonNull Computer computer, List<UserInfo> users, boolean sync) {
         //Debug.startMethodTracing("/data/system/packageprof", 8 * 1024 * 1024);
 
         final long startTime = SystemClock.uptimeMillis();
@@ -2937,7 +3055,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                 atomicFile.finishWrite(str);
 
                 writeKernelMappingLPr();
-                writePackageListLPr(users);
+                writePackageListLPr();
                 writeAllUsersPackageRestrictionsLPr(sync);
                 writeAllRuntimePermissionsLPr();
                 com.android.internal.logging.EventLogTags.writeCommitSysConfigFile(
@@ -3054,11 +3172,11 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         }
     }
 
-    void writePackageListLPr(List<UserInfo> users) {
-        writePackageListLPr(users, -1);
+    void writePackageListLPr() {
+        writePackageListLPr(-1);
     }
 
-    void writePackageListLPr(List<UserInfo> users, int creatingUserId) {
+    void writePackageListLPr(int creatingUserId) {
         String filename = mPackageListFilename.getAbsolutePath();
         String ctx = SELinux.fileSelabelLookup(filename);
         if (ctx == null) {
@@ -3070,14 +3188,15 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
             Slog.wtf(TAG, "Failed to set packages.list SELinux context");
         }
         try {
-            writePackageListLPrInternal(users, creatingUserId);
+            writePackageListLPrInternal(creatingUserId);
         } finally {
             SELinux.setFSCreateContext(null);
         }
     }
 
-    private void writePackageListLPrInternal(List<UserInfo> users, int creatingUserId) {
+    private void writePackageListLPrInternal(int creatingUserId) {
         // Only derive GIDs for active users (not dying)
+        final List<UserInfo> users = getActiveUsers(UserManagerService.getInstance());
         int[] userIds = new int[users.size()];
         for (int i = 0; i < userIds.length; i++) {
             userIds[i] = users.get(i).id;
@@ -3292,6 +3411,9 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
             pkg.isScannedAsStoppedSystemApp());
         if (!pkg.hasSharedUser()) {
             serializer.attributeInt(null, "userId", pkg.getAppId());
+            if (pkg.getPccId() > 0) {
+                serializer.attributeInt(null, "pccId", pkg.getPccId());
+            }
 
             serializer.attributeBoolean(null, "isSdkLibrary",
                     pkg.getAndroidPackage() != null && pkg.getAndroidPackage().isSdkLibrary());
@@ -3304,6 +3426,10 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         }
         if (installSource.mInstallerPackageUid != INVALID_UID) {
             serializer.attributeInt(null, "installerUid", installSource.mInstallerPackageUid);
+        }
+        if (installSource.mOriginalInstallerUid != INVALID_UID) {
+            serializer.attributeInt(null, "originalInstallerUid",
+                    installSource.mOriginalInstallerUid);
         }
         if (installSource.mUpdateOwnerPackageName != null) {
             serializer.attribute(null, "updateOwner", installSource.mUpdateOwnerPackageName);
@@ -4146,6 +4272,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         String realName = null;
         int appId = 0;
         int sharedUserAppId = 0;
+        int pccId = INVALID_UID;
         String codePathStr = null;
         String legacyCpuAbiString = null;
         String legacyNativeLibraryPathStr = null;
@@ -4155,6 +4282,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         String systemStr = null;
         String installerPackageName = null;
         int installerPackageUid = INVALID_UID;
+        int originalInstallerUid = INVALID_UID;
         String updateOwnerPackageName = null;
         String installerAttributionTag = null;
         int packageSource = PackageInstaller.PACKAGE_SOURCE_UNSPECIFIED;
@@ -4194,6 +4322,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
             appId = parseAppId(parser);
             isSdkLibrary = parser.getAttributeBoolean(null, "isSdkLibrary", false);
             sharedUserAppId = parseSharedUserAppId(parser);
+            pccId = parser.getAttributeInt(null, "pccId", INVALID_UID);
             codePathStr = parser.getAttributeValue(null, "codePath");
 
             legacyCpuAbiString = parser.getAttributeValue(null, "requiredCpuAbi");
@@ -4218,6 +4347,8 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
             restrictUpdateHash = parser.getAttributeBytesBase64(null, "restrictUpdateHash", null);
             installerPackageName = parser.getAttributeValue(null, "installer");
             installerPackageUid = parser.getAttributeInt(null, "installerUid", INVALID_UID);
+            originalInstallerUid = parser.getAttributeInt(null, "originalInstallerUid",
+                    INVALID_UID);
             updateOwnerPackageName = parser.getAttributeValue(null, "updateOwner");
             installerAttributionTag = parser.getAttributeValue(null, "installerAttributionTag");
             packageSource = parser.getAttributeInt(null, "packageSource",
@@ -4332,7 +4463,8 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
             } else if (appId > 0 || (appId == Process.INVALID_UID && isSdkLibrary
                     && Flags.disallowSdkLibsToBeApps())) {
                 packageSetting = addPackageLPw(name.intern(), realName, new File(codePathStr),
-                        appId, pkgFlags, pkgPrivateFlags, domainSetId, isSdkLibrary);
+                        appId, pkgFlags, pkgPrivateFlags, domainSetId, isSdkLibrary,
+                        /* hasSharedUser= */ false);
                 if (PackageManagerService.DEBUG_SETTINGS)
                     Log.i(PackageManagerService.TAG, "Reading package " + name + ": appId="
                             + appId + " pkg=" + packageSetting);
@@ -4385,10 +4517,11 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         if (packageSetting != null) {
             InstallSource installSource = InstallSource.create(
                     installInitiatingPackageName, installOriginatingPackageName,
-                    installerPackageName, installerPackageUid, updateOwnerPackageName,
-                    installerAttributionTag, packageSource, isOrphaned,
+                    installerPackageName, installerPackageUid, originalInstallerUid,
+                    updateOwnerPackageName, installerAttributionTag, packageSource, isOrphaned,
                     installInitiatorUninstalled);
             packageSetting.setInstallSource(installSource)
+                    .setPccId(pccId)
                     .setVolumeUuid(volumeUuid)
                     .setCategoryOverride(categoryHint)
                     .setLegacyNativeLibraryPath(legacyNativeLibraryPathStr)
@@ -4839,10 +4972,11 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                     // installer after the mPackages lock has been released.
                     final String seInfo = ps.getSeInfo();
                     final boolean usesSdk = !ps.getPkg().getUsesSdkLibraries().isEmpty();
+                    final int pccId = enablePccFrameworkSupport() ? ps.getPccId() : INVALID_UID;
                     final CreateAppDataArgs args = Installer.buildCreateAppDataArgs(
                             ps.getVolumeUuid(), ps.getPackageName(), userHandle,
                             StorageManager.FLAG_STORAGE_DE, ps.getAppId(), seInfo,
-                            ps.getPkg().getTargetSdkVersion(), usesSdk);
+                            ps.getPkg().getTargetSdkVersion(), usesSdk, pccId);
                     batch.createAppData(args);
                 } else {
                     // Make sure the app is excluded from storage mapping for this user
@@ -4863,13 +4997,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         t.traceEnd(); // createNewUser
     }
 
-    /** only for test */
     void removeUserLPw(int userId) {
-        final List<UserInfo> activeUsers = getActiveUsers(UserManagerService.getInstance());
-        removeUserLPw(activeUsers, userId);
-    }
-
-    void removeUserLPw(List<UserInfo> users, int userId) {
         Set<Entry<String, PackageSetting>> entries = mPackages.entrySet();
         for (Entry<String, PackageSetting> entry : entries) {
             entry.getValue().removeUser(userId);
@@ -4886,7 +5014,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         mRuntimePermissionsPersistence.onUserRemoved(userId);
         mDomainVerificationManager.clearUser(userId);
 
-        writePackageListLPr(users);
+        writePackageListLPr();
 
         // Inform kernel that the user was removed, so that packages are marked uninstalled
         // for sdcardfs
@@ -4921,12 +5049,11 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         }
     }
 
-    public VerifierDeviceIdentity getVerifierDeviceIdentityLPw(@NonNull Computer computer,
-            List<UserInfo> users) {
+    public VerifierDeviceIdentity getVerifierDeviceIdentityLPw(@NonNull Computer computer) {
         if (mVerifierDeviceIdentity == null) {
             mVerifierDeviceIdentity = VerifierDeviceIdentity.generate();
 
-            writeLPr(computer, users, /*sync=*/false);
+            writeLPr(computer, /*sync=*/false);
         }
 
         return mVerifierDeviceIdentity;
@@ -5175,6 +5302,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
                 pw.print(userState.isInstalled() ? "I" : "i");
                 pw.print(userState.isHidden() ? "B" : "b");
                 pw.print(userState.isSuspended() ? "SU" : "su");
+                pw.print(userState.isAppLockEnabled() ? "ALE" : "ale");
                 pw.print(userState.isStopped() ? "S" : "s");
                 pw.print(userState.isNotLaunched() ? "l" : "L");
                 pw.print(userState.isInstantApp() ? "IA" : "ia");
@@ -5207,6 +5335,7 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
         }
 
         pw.print(prefix); pw.print("  appId="); pw.println(ps.getAppId());
+        pw.print(prefix); pw.print("  pccId="); pw.println(ps.getPccId());
 
         SharedUserSetting sharedUserSetting = getSharedUserSettingLPr(ps);
         if (sharedUserSetting != null) {
@@ -5254,6 +5383,12 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
             pw.print("]");
         }
         pw.println();
+        if(android.content.pm.Flags.verifiedDexopt()){
+            if (pkg != null ) {
+                pw.print(prefix); pw.print("  shouldVerifyCompilationArtifacts=");
+                pw.println(ps.shouldVerifyCompilationArtifacts());
+            }
+        }
         if (pkg != null) {
             pw.print(prefix); pw.print("  versionName="); pw.println(pkg.getVersionName());
             pw.print(prefix); pw.print("  hiddenApiEnforcementPolicy="); pw.println(
@@ -5564,12 +5699,18 @@ public final class Settings implements Watchable, Snappable, ResilientAtomicFile
             pw.print(userState.getCeDataInode());
             pw.print(" deDataInode=");
             pw.print(userState.getDeDataInode());
+            pw.print(" pccCeDataInode=");
+            pw.print(userState.getPccCeDataInode());
+            pw.print(" pccDeDataInode=");
+            pw.print(userState.getPccDeDataInode());
             pw.print(" installed=");
             pw.print(userState.isInstalled());
             pw.print(" hidden=");
             pw.print(userState.isHidden());
             pw.print(" suspended=");
             pw.print(userState.isSuspended());
+            pw.print(" appLockEnabled=");
+            pw.print(userState.isAppLockEnabled());
             pw.print(" distractionFlags=");
             pw.print(userState.getDistractionFlags());
             pw.print(" stopped=");

@@ -38,6 +38,7 @@ import android.os.PersistableBundle;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -67,11 +68,6 @@ import java.util.Map;
  * less strict. Requested requirements will not be affected by this change.
  * </p>
  *
- * {@see android.app.job.JobInfo.Builder#setRequiresBatteryNotLow(boolean)}
- * {@see android.app.job.JobInfo.Builder#setRequiresDeviceIdle(boolean)}
- * {@see android.app.job.JobInfo.Builder#setRequiresCharging(boolean)}
- * {@see android.app.job.JobInfo.Builder#setRequiredNetworkType(int)}
- *
  * <p>
  * While a job is running, the system holds a wakelock on behalf of your app.  For this reason,
  * you do not need to take any action to guarantee that the device stays awake for the
@@ -100,6 +96,11 @@ import java.util.Map;
  * Calling {@link #schedule(JobInfo)} and other such methods with very high frequency can have a
  * high cost and so, to make sure the system doesn't get overwhelmed, JobScheduler will begin
  * to throttle apps, regardless of target SDK version.
+ *
+ * @see android.app.job.JobInfo.Builder#setRequiresBatteryNotLow(boolean)
+ * @see android.app.job.JobInfo.Builder#setRequiresDeviceIdle(boolean)
+ * @see android.app.job.JobInfo.Builder#setRequiresCharging(boolean)
+ * @see android.app.job.JobInfo.Builder#setRequiredNetworkType(int)
  */
 @SystemService(Context.JOB_SCHEDULER_SERVICE)
 public abstract class JobScheduler {
@@ -219,9 +220,15 @@ public abstract class JobScheduler {
      */
     public static final int PENDING_JOB_REASON_CONSTRAINT_STORAGE_NOT_LOW = 11;
     /**
-     * The job is being deferred due to the device state (eg. Doze, battery saver, memory usage,
+     * The job is being deferred due to the device state (e.g., Doze, battery saver, memory usage,
      * thermal status, etc.).
+     * <p>
+     * Starting in a version of Android following
+     * {@link android.os.Build.VERSION_CODES#CINNAMON_BUN}, the system will provide more specific
+     * pending reasons when possible, such as {@link #PENDING_JOB_REASON_DEVICE_STATE_THERMAL} or
+     * {@link #PENDING_JOB_REASON_DEVICE_STATE_BATTERY_SAVER}
      */
+    // TODO: b/477457908 - Update to the correct android VERSION_CODES when 26Q4 is defined.
     public static final int PENDING_JOB_REASON_DEVICE_STATE = 12;
     /**
      * JobScheduler thinks it can defer this job to a more optimal running time.
@@ -244,8 +251,23 @@ public abstract class JobScheduler {
      *
      * @see JobInfo.Builder#setOverrideDeadline(long)
      */
-    @FlaggedApi(Flags.FLAG_GET_PENDING_JOB_REASONS_API)
     public static final int PENDING_JOB_REASON_CONSTRAINT_DEADLINE = 16;
+
+    /**
+     * The device is under thermal restriction.
+     * <p>
+     * This is a more specific version of {@link #PENDING_JOB_REASON_DEVICE_STATE}.
+     */
+    @FlaggedApi(Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API)
+    public static final int PENDING_JOB_REASON_DEVICE_STATE_THERMAL = 17;
+
+    /**
+     * The device is under battery saver mode.
+     * <p>
+     * This is a more specific version of {@link #PENDING_JOB_REASON_DEVICE_STATE}.
+     */
+    @FlaggedApi(Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API)
+    public static final int PENDING_JOB_REASON_DEVICE_STATE_BATTERY_SAVER = 18;
 
     /** @hide */
     @IntDef(prefix = {"PENDING_JOB_REASON_"}, value = {
@@ -268,6 +290,8 @@ public abstract class JobScheduler {
             PENDING_JOB_REASON_QUOTA,
             PENDING_JOB_REASON_USER,
             PENDING_JOB_REASON_CONSTRAINT_DEADLINE,
+            PENDING_JOB_REASON_DEVICE_STATE_THERMAL,
+            PENDING_JOB_REASON_DEVICE_STATE_BATTERY_SAVER,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface PendingJobReason {
@@ -480,12 +504,13 @@ public abstract class JobScheduler {
     /**
      * Returns potential reasons why the job with the given {@code jobId} may be pending
      * and not currently executing.
-     *
-     * The returned array will include {@link PendingJobReason reasons} composed of both
-     * explicitly set constraints on the job and implicit constraints imposed by the system.
+     * <p>
+     * The returned array will include reasons composed of both explicitly set constraints on the
+     * job and implicit constraints imposed by the system.
      * The results can be used to debug why a given job may not be currently executing.
+     * @see #getPendingJobReasonsHistory(int)
+     * @see #getPendingJobReasonStats(int)
      */
-    @FlaggedApi(Flags.FLAG_GET_PENDING_JOB_REASONS_API)
     @NonNull
     @PendingJobReason
     public int[] getPendingJobReasons(int jobId) {
@@ -496,15 +521,18 @@ public abstract class JobScheduler {
      * For the given {@code jobId}, returns a limited historical view of why the job may have
      * been pending execution. The returned list is composed of {@link PendingJobReasonsInfo}
      * objects, each of which include a timestamp since epoch along with an array of
-     * unsatisfied constraints represented by {@link PendingJobReason PendingJobReason constants}.
+     * unsatisfied constraints represented by {@code PENDING_JOB_REASON_*} constants.
      * <p>
      * These constants could either be explicitly set constraints on the job or implicit
      * constraints imposed by the system due to various reasons.
      * The results can be used to debug why a given job may have been pending execution.
      * <p>
-     * If the only {@link PendingJobReason} for the timestamp is
-     * {@link PendingJobReason#PENDING_JOB_REASON_UNDEFINED}, it could mean that
-     * the job was ready to be executed at that point in time.
+     * If {@code PENDING_JOB_REASON_UNDEFINED} is the only reason for the timestamp, it could mean
+     * that the job was ready to be executed at that point in time.
+     * <p>
+     * The length of the history returned is truncated so it's recommended to query this API
+     * periodically for debugging purposes. To get a holistic view of why the job has been pending,
+     * use {@link #getPendingJobReasonStats(int)}.
      * <p>
      * Note: there is no set interval for the timestamps in the returned list since
      * constraint changes occur based on device status and various other factors.
@@ -513,10 +541,47 @@ public abstract class JobScheduler {
      * <p>
      * @throws IllegalArgumentException if the {@code jobId} is invalid.
      * @see #getPendingJobReasons(int)
+     * @see #getPendingJobReasonStats(int)
      */
-    @FlaggedApi(Flags.FLAG_GET_PENDING_JOB_REASONS_HISTORY_API)
     @NonNull
     public List<PendingJobReasonsInfo> getPendingJobReasonsHistory(int jobId) {
+        throw new UnsupportedOperationException("Not implemented by " + getClass());
+    }
+
+    /**
+     * For the given {@code jobId}, returns an aggregated view of why the job has been pending
+     * execution over its lifetime. The returned map is composed of
+     * {@code PENDING_JOB_REASON_*} constants mapped to a duration representing the total time
+     * the job has been pending for that reason.
+     * <p>
+     * Note that the sum of these durations will often exceed the total duration the job was
+     * waiting, since a job could be pending due to multiple reasons simultaneously.
+     * <p>
+     * These pending job reasons represent either explicitly set constraints on the job or implicit
+     * constraints imposed by the system due to various reasons.
+     * The results can be used to debug which constraints contribute the most to why a given job
+     * has been pending execution.
+     * <p>
+     * If the returned map is empty, it could indicate that the job was executed immediately and
+     * never had to wait for any constraints to be met.
+     * <p>
+     * To get a more detailed and historical view of why a job was pending at a certain time,
+     * use {@link #getPendingJobReasonsHistory(int)} instead.
+     * <p>
+     * Note: The pending job reason stats are not persisted across device reboots. The stats are
+     * also cleared when the job successfully completes or is canceled. Apps should query this
+     * information when they observe a scheduled job is not executing as expected to understand
+     * the reasons for the delay.
+     * <p>
+     * @param jobId The ID of the job to query.
+     * @return A map of pending reasons to the total duration the job was pending for that reason.
+     * @throws IllegalArgumentException if the {@code jobId} does not correspond to a pending job.
+     * @see #getPendingJobReasons(int)
+     * @see #getPendingJobReasonsHistory(int)
+     */
+    @FlaggedApi(Flags.FLAG_GET_PENDING_JOB_REASON_STATS_API)
+    @NonNull
+    public Map<Integer, Duration> getPendingJobReasonStats(int jobId) {
         throw new UnsupportedOperationException("Not implemented by " + getClass());
     }
 

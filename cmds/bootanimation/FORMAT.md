@@ -143,6 +143,14 @@ Some animations benefit from being reduced to 256 colors:
 Note that the ZIP archive is not actually compressed! The PNG files are already as compressed
 as they can reasonably get, and there is unlikely to be any redundancy between files.
 
+### memory reduction
+
+If the animation images do not have any alpha color component, it is possible to force the decoding
+of the image to the RGB565 pixel format. This can be enabled by setting the system property:
+
+    PRODUCT_SYSTEM_DEFAULT_PROPERTIES += \
+        persist.sys.bootanim.decode.rgb565=true
+
 ### Dynamic coloring
 
 Dynamic coloring is a render mode that draws the boot animation using a color transition.

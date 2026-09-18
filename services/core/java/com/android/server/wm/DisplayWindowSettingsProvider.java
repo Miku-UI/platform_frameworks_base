@@ -17,10 +17,12 @@
 package com.android.server.wm;
 
 import static android.os.UserHandle.USER_SYSTEM;
+import static android.view.Display.TYPE_OVERLAY;
 import static android.view.Display.TYPE_VIRTUAL;
 
 import static com.android.server.wm.DisplayWindowSettingsXmlHelper.DisplayIdentifierType;
 import static com.android.server.wm.DisplayWindowSettingsXmlHelper.IDENTIFIER_PORT;
+import static com.android.server.wm.WindowManagerDebugConfig.DEBUG_DISPLAY_SETTINGS;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WITH_CLASS_NAME;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WM;
 
@@ -57,11 +59,12 @@ import java.util.Map;
  * @see DisplayWindowSettings
  */
 class DisplayWindowSettingsProvider implements SettingsProvider {
-    private static final String TAG = TAG_WITH_CLASS_NAME
-            ? "DisplayWindowSettingsProvider" : TAG_WM;
+    /** Logging tag, abbreviated for Logcat tag length limit if {@code TAG_WITH_CLASS_NAME}. */
+    private static final String TAG = TAG_WITH_CLASS_NAME ? "DispWinSettingsProvider" : TAG_WM;
 
-    private static final String DATA_DISPLAY_SETTINGS_FILE_PATH = "system/display_settings.xml";
-    private static final String VENDOR_DISPLAY_SETTINGS_FILE_PATH = "etc/display_settings.xml";
+    private static final String DISPLAY_SETTINGS_FILENAME = "display_settings.xml";
+    private static final String VENDOR_DISPLAY_SETTINGS_FILE_PATH =
+            "etc/" + DISPLAY_SETTINGS_FILENAME;
     private static final String WM_DISPLAY_COMMIT_TAG = "wm-displays";
     /**
      * Maximum number of display settings entries cached in LruCache. When limit is reached,
@@ -87,7 +90,7 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
     @NonNull
     private WritableSettings mOverrideSettings;
     @NonNull
-    private BackupManager mBackupManager;
+    private final BackupManager mBackupManager;
 
     DisplayWindowSettingsProvider(@NonNull Context context) {
         this(new AtomicFileStorage(getVendorSettingsFile()),
@@ -99,8 +102,8 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
     DisplayWindowSettingsProvider(@NonNull ReadableSettingsStorage baseSettingsStorage,
             @NonNull WritableSettingsStorage overrideSettingsStorage,
             @NonNull BackupManager backupManager) {
-        mBaseSettings = new ReadableSettings(baseSettingsStorage);
-        mOverrideSettings = new WritableSettings(overrideSettingsStorage);
+        setBaseSettingsStorage(baseSettingsStorage);
+        setOverrideSettingsStorage(overrideSettingsStorage);
         mBackupManager = backupManager;
     }
 
@@ -116,7 +119,8 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
         if (file != null && file.exists()) {
             settingsFile = new AtomicFile(file, WM_DISPLAY_COMMIT_TAG);
         } else {
-            Slog.w(TAG, "display settings " + path + " does not exist, using vendor defaults");
+            Slog.w(TAG, "Base display settings " + path + " does not exist, "
+                    + "using vendor defaults");
             settingsFile = getVendorSettingsFile();
         }
         setBaseSettingsStorage(new AtomicFileStorage(settingsFile));
@@ -129,13 +133,13 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
      */
     @VisibleForTesting
     void setBaseSettingsStorage(@NonNull ReadableSettingsStorage baseSettingsStorage) {
-        mBaseSettings = new ReadableSettings(baseSettingsStorage);
+        mBaseSettings = new ReadableSettings("base", baseSettingsStorage);
     }
 
     /**
      * Overrides the storage that should be used to save override settings for a user.
      *
-     * @see #DATA_DISPLAY_SETTINGS_FILE_PATH
+     * @see #getOverrideSettingsFileForUser
      */
     void setOverrideSettingsForUser(@UserIdInt int userId) {
         final AtomicFile settingsFile = getOverrideSettingsFileForUser(userId);
@@ -149,7 +153,7 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
      */
     @VisibleForTesting
     void setOverrideSettingsStorage(@NonNull WritableSettingsStorage overrideSettingsStorage) {
-        mOverrideSettings = new WritableSettings(overrideSettingsStorage);
+        mOverrideSettings = new WritableSettings("override", overrideSettingsStorage);
     }
 
     @Override
@@ -200,6 +204,9 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
      * {@link ReadableSettingsStorage}.
      */
     private static class ReadableSettings {
+        /** The name of these settings, used for logging. */
+        @NonNull
+        protected final String mName;
         /**
          * The preferred type of a display identifier to use when storing and retrieving entries
          * from the settings entries.
@@ -212,7 +219,8 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
         protected final LruCache<String, SettingsEntry> mSettings =
                 new LruCache<>(MAX_NUMBER_OF_DISPLAY_SETTINGS);
 
-        ReadableSettings(@NonNull ReadableSettingsStorage settingsStorage) {
+        ReadableSettings(@NonNull String name, @NonNull ReadableSettingsStorage settingsStorage) {
+            mName = name;
             loadSettings(settingsStorage);
         }
 
@@ -239,29 +247,30 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
         protected final String getIdentifier(@NonNull DisplayInfo displayInfo) {
             if (mIdentifierType == IDENTIFIER_PORT && displayInfo.address != null) {
                 // Config suggests using port as identifier for physical displays.
-                if (displayInfo.address instanceof DisplayAddress.Physical) {
-                    return "port:" + ((DisplayAddress.Physical) displayInfo.address).getPort();
+                if (displayInfo.address.getPort() != DisplayAddress.INVALID_PORT) {
+                    return "port:" + displayInfo.address.getPort();
                 }
             }
             return displayInfo.uniqueId;
         }
 
         private void loadSettings(@NonNull ReadableSettingsStorage settingsStorage) {
-            InputStream stream;
-            FileData fileData;
+            final InputStream stream;
             try {
                 stream = settingsStorage.openRead();
             } catch (IOException e) {
-                Slog.i(TAG, "No existing display settings, starting empty");
+                Slog.i(TAG, "No existing " + mName + " display settings at " + settingsStorage
+                        + ", starting empty");
                 return;
             }
 
-            fileData = FileData.readSettings(stream);
-            if (fileData != null) {
-                mIdentifierType = fileData.mIdentifierType;
-                for (final Map.Entry<String, SettingsEntry> entry : fileData.mSettings.entrySet()) {
-                    mSettings.put(entry.getKey(), entry.getValue());
-                }
+            final FileData fileData = FileData.readSettings(stream);
+            mIdentifierType = fileData.mIdentifierType;
+            for (final Map.Entry<String, SettingsEntry> entry : fileData.mSettings.entrySet()) {
+                mSettings.put(entry.getKey(), entry.getValue());
+            }
+            if (DEBUG_DISPLAY_SETTINGS) {
+                Slog.v(TAG, "Loaded " + mName + " display settings from " + settingsStorage);
             }
         }
     }
@@ -274,10 +283,10 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
         @NonNull
         private final WritableSettingsStorage mSettingsStorage;
         @NonNull
-        private final ArraySet<String> mVirtualDisplayIdentifiers = new ArraySet<>();
+        private final ArraySet<String> mNonPhysicalDisplayIdentifiers = new ArraySet<>();
 
-        WritableSettings(@NonNull WritableSettingsStorage settingsStorage) {
-            super(settingsStorage);
+        WritableSettings(@NonNull String name, @NonNull WritableSettingsStorage settingsStorage) {
+            super(name, settingsStorage);
             mSettingsStorage = settingsStorage;
         }
 
@@ -300,10 +309,10 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
 
             settings = new SettingsEntry();
             mSettings.put(identifier, settings);
-            if (info.type == TYPE_VIRTUAL) {
+            if (info.type == TYPE_VIRTUAL || info.type == TYPE_OVERLAY) {
                 // Keep track of virtual display. We don't want to write virtual display settings to
                 // file.
-                mVirtualDisplayIdentifiers.add(identifier);
+                mNonPhysicalDisplayIdentifiers.add(identifier);
             }
             return settings;
         }
@@ -311,7 +320,7 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
         void updateSettingsEntry(@NonNull DisplayInfo info, @NonNull SettingsEntry settings) {
             final SettingsEntry overrideSettings = getOrCreateSettingsEntry(info);
             final boolean changed = overrideSettings.setTo(settings);
-            if (changed && info.type != TYPE_VIRTUAL) {
+            if (changed && info.type != TYPE_VIRTUAL && info.type != TYPE_OVERLAY) {
                 writeSettings();
             }
         }
@@ -321,7 +330,7 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
             if (mSettings.get(identifier) == null) {
                 return;
             }
-            if (mVirtualDisplayIdentifiers.remove(identifier)
+            if (mNonPhysicalDisplayIdentifiers.remove(identifier)
                     || mSettings.get(identifier).isEmpty()) {
                 // Don't keep track of virtual display or empty settings to avoid growing the cached
                 // map.
@@ -332,7 +341,7 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
         void clearDisplaySettings(@NonNull DisplayInfo info) {
             final String identifier = getIdentifier(info);
             mSettings.remove(identifier);
-            mVirtualDisplayIdentifiers.remove(identifier);
+            mNonPhysicalDisplayIdentifiers.remove(identifier);
         }
 
         private void writeSettings() {
@@ -340,7 +349,7 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
             fileData.mIdentifierType = mIdentifierType;
             for (final Map.Entry<String, SettingsEntry> entry : mSettings.snapshot().entrySet()) {
                 final String identifier = entry.getKey();
-                if (mVirtualDisplayIdentifiers.contains(identifier)) {
+                if (mNonPhysicalDisplayIdentifiers.contains(identifier)) {
                     // Do not write virtual display settings to file.
                     continue;
                 }
@@ -352,10 +361,13 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
                 stream = mSettingsStorage.startWrite();
                 success = DisplayWindowSettingsXmlHelper.writeSettings(stream, fileData, false);
             } catch (IOException e) {
-                Slog.w(TAG, "Failed to write display settings: " + e);
+                Slog.w(TAG, "Failed to write " + mName + " display settings at " + this, e);
             } finally {
                 if (stream != null) {
                     mSettingsStorage.finishWrite(stream, success);
+                }
+                if (DEBUG_DISPLAY_SETTINGS && success) {
+                    Slog.v(TAG, "Wrote " + mName + " display settings at " + this);
                 }
             }
         }
@@ -374,22 +386,32 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
         return new AtomicFile(vendorFile, WM_DISPLAY_COMMIT_TAG);
     }
 
+    /**
+     * Returns the file used to store display settings for a given user.
+     *
+     * <p>The path is {@code /data/system/display_settings.xml} for the system user
+     * ({@code USER_SYSTEM}), used for the owner on phones/tablets and the login screen on desktop.
+     * For other users, it's {@code /data/system_de/<user_id>/display_settings.xml} when the flag is
+     * enabled, or {@code /data/system_ce/<user_id>/system/display_settings.xml} otherwise.
+     *
+     * @param userId The user to retrieve the settings file for.
+     * @return The file for storing override display settings.
+     */
     @NonNull
     static AtomicFile getOverrideSettingsFileForUser(@UserIdInt int userId) {
-        final File directory = (userId == USER_SYSTEM)
-                ? Environment.getDataDirectory()
-                : Environment.getDataSystemCeDirectory(userId);
-        final File overrideSettingsFile = new File(directory, DATA_DISPLAY_SETTINGS_FILE_PATH);
+        final File directory;
+        if (userId == USER_SYSTEM) {
+            directory = new File(Environment.getDataDirectory(), "system");
+        } else {
+            directory = Environment.getDataSystemDeDirectory(userId);
+        }
+        final File overrideSettingsFile = new File(directory, DISPLAY_SETTINGS_FILENAME);
         return new AtomicFile(overrideSettingsFile, WM_DISPLAY_COMMIT_TAG);
     }
 
-    private static final class AtomicFileStorage implements WritableSettingsStorage {
-        @NonNull
-        private final AtomicFile mAtomicFile;
-
-        AtomicFileStorage(@NonNull AtomicFile atomicFile) {
-            mAtomicFile = atomicFile;
-        }
+    /** Provides I/O stream access to the immutable {@code mAtomicFile} reference. */
+    private record AtomicFileStorage(@NonNull AtomicFile mAtomicFile) implements
+            WritableSettingsStorage {
 
         @Override
         public InputStream openRead() throws FileNotFoundException {
@@ -403,15 +425,19 @@ class DisplayWindowSettingsProvider implements SettingsProvider {
 
         @Override
         public void finishWrite(OutputStream os, boolean success) {
-            if (!(os instanceof FileOutputStream)) {
+            if (!(os instanceof FileOutputStream fos)) {
                 throw new IllegalArgumentException("Unexpected OutputStream as argument: " + os);
             }
-            FileOutputStream fos = (FileOutputStream) os;
             if (success) {
                 mAtomicFile.finishWrite(fos);
             } else {
                 mAtomicFile.failWrite(fos);
             }
+        }
+
+        @Override
+        public String toString() {
+            return "AtomicFileStorage[" + mAtomicFile.getBaseFile() + "]";
         }
     }
 }

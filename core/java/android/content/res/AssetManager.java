@@ -605,7 +605,6 @@ public final class AssetManager implements AutoCloseable {
 
     /** @hide */
     @NonNull
-    @RavenwoodThrow(blockedBy = ResourcesLoader.class)
     public List<ResourcesLoader> getLoaders() {
         return mLoaders == null ? Collections.emptyList() : Arrays.asList(mLoaders);
     }
@@ -1563,22 +1562,17 @@ public final class AssetManager implements AutoCloseable {
     }
 
     /**
+     * Return a subset of the fields of the resource configurations, including
+     * smallestScreenWidthDp, screenWidthDp, screenHeightDp, screenLayout, uiMode, keyboard,
+     * navigation, touchscreen and colorMode.
+     * Please note that this does not return all resource configurations.
+     *
      * @hide
      */
-    Configuration[] getSizeConfigurations() {
+    Configuration[] getResourceConfigurations() {
         synchronized (this) {
             ensureValidLocked();
-            return nativeGetSizeConfigurations(mObject);
-        }
-    }
-
-    /**
-     * @hide
-     */
-    Configuration[] getSizeAndUiModeConfigurations() {
-        synchronized (this) {
-            ensureValidLocked();
-            return nativeGetSizeAndUiModeConfigurations(mObject);
+            return nativeGetResourceConfigurations(mObject);
         }
     }
 
@@ -1777,8 +1771,7 @@ public final class AssetManager implements AutoCloseable {
     private static native @Nullable String nativeGetResourceTypeName(long ptr, @AnyRes int resid);
     private static native @Nullable String nativeGetResourceEntryName(long ptr, @AnyRes int resid);
     private static native @Nullable String[] nativeGetLocales(long ptr, boolean excludeSystem);
-    private static native @Nullable Configuration[] nativeGetSizeConfigurations(long ptr);
-    private static native @Nullable Configuration[] nativeGetSizeAndUiModeConfigurations(long ptr);
+    private static native @Nullable Configuration[] nativeGetResourceConfigurations(long ptr);
     private static native void nativeSetResourceResolutionLoggingEnabled(long ptr, boolean enabled);
     private static native @Nullable String nativeGetLastResourceResolution(long ptr);
 

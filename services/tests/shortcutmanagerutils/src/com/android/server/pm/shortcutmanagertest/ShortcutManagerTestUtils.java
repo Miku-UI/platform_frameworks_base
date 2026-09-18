@@ -259,6 +259,11 @@ public class ShortcutManagerTestUtils {
     }
 
     public static void setDefaultLauncher(Instrumentation instrumentation, String packageName) {
+        // Clear existing role holders with to prevent the system from killing the instrumentation
+        // process when role-restricted permissions are revoked during a role transition.
+        runCommandForNoOutput(instrumentation, "cmd role clear-role-holders --user "
+                + instrumentation.getContext().getUserId() + " " + RoleManager.ROLE_HOME + " "
+                + RoleManager.MANAGE_HOLDERS_FLAG_DONT_KILL_APP);
         runCommandForNoOutput(instrumentation, "cmd role add-role-holder --user "
                 + instrumentation.getContext().getUserId() + " " + RoleManager.ROLE_HOME + " "
                 + packageName + " 0");

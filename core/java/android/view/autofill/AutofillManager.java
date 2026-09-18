@@ -26,6 +26,7 @@ import static android.service.autofill.FillRequest.FLAG_SUPPORTS_FILL_DIALOG;
 import static android.service.autofill.FillRequest.FLAG_VIEW_NOT_FOCUSED;
 import static android.service.autofill.FillRequest.FLAG_VIEW_REQUESTS_CREDMAN_SERVICE;
 import static android.service.autofill.Flags.FLAG_FILL_DIALOG_IMPROVEMENTS;
+import static android.service.autofill.Flags.FLAG_STRING_REBUILD_API;
 import static android.service.autofill.Flags.improveFillDialogAconfig;
 import static android.service.autofill.Flags.relayoutFix;
 import static android.view.ContentInfo.SOURCE_AUTOFILL;
@@ -42,6 +43,7 @@ import android.annotation.RequiresFeature;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
+import android.annotation.UiThread;
 import android.app.ActivityOptions;
 import android.app.assist.AssistStructure.ViewNode;
 import android.app.assist.AssistStructure.ViewNodeBuilder;
@@ -67,6 +69,7 @@ import android.os.Parcelable;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.service.autofill.AutofillService;
+import android.service.autofill.Dataset;
 import android.service.autofill.FillEventHistory;
 import android.service.autofill.Flags;
 import android.service.autofill.UserData;
@@ -124,6 +127,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import sun.misc.Cleaner;
 
@@ -196,7 +200,7 @@ import sun.misc.Cleaner;
  *
  * <p>It is safe to call <code>AutofillManager</code> methods from any thread.
  */
-@SystemService(Context.AUTOFILL_MANAGER_SERVICE)
+@SystemService(Context.AUTOFILL_SERVICE)
 @RequiresFeature(PackageManager.FEATURE_AUTOFILL)
 public final class AutofillManager {
 
@@ -1531,6 +1535,15 @@ public final class AutofillManager {
             flags |= FLAG_VIEW_NOT_FOCUSED;
         }
         notifyViewEntered(view, flags);
+    }
+
+    /**
+     * Get next autofill view id from context of AutofillManager
+     *
+     * @hide
+     */
+    public int getNextAutofillViewId() {
+        return mContext.getNextAutofillId();
     }
 
     /**
@@ -4184,6 +4197,35 @@ public final class AutofillManager {
     }
 
     /**
+     * This method is use by SystemUI to notify AutofillManager of personal context suggestions for
+     * inline autofill.
+     *
+     * @hide
+     */
+    @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE)
+    public void notifySystemInlineSuggestions(
+            int sessionId, @NonNull List<Dataset> inlineSuggestionsData) {
+        if (android.service.personalcontext.Flags.enablePersonalContextService()
+                && mService != null) {
+            try {
+                if (sVerbose) {
+                    Log.v(TAG, "notifySystemInlineSuggestions() called on sessionId: "
+                            + sessionId);
+                }
+                mService.notifySystemInlineSuggestions(
+                        sessionId, inlineSuggestionsData, mContext.getUserId());
+            } catch (RemoteException e) {
+                // The failure could be a consequence of something going wrong on the
+                // server side. Just log the exception and move-on.
+                Log.w(
+                        TAG,
+                        "notifySystemInlineSuggestions(): RemoteException caught but ignored",
+                        e);
+            }
+        }
+    }
+
+    /**
      * If autofill suggestions for a
      * <a href="{@docRoot}reference/android/service/autofill/Dataset.html#FillDialogUI">
      * dialog-style UI</a> are available for virtual {@code view}, shows a dialog allowing the user
@@ -4251,6 +4293,29 @@ public final class AutofillManager {
             }
         }
         return false;
+    }
+
+    /**
+     * Gets the master seed used to generate noise for privacy-preserving autofill responses.
+     * This API is only expected to be used for CTS tests verifying the noise injection behaviors.
+     *
+     * @return The master seed, or {@code null} if the service is not available.
+     * @hide
+     */
+    @FlaggedApi(FLAG_STRING_REBUILD_API)
+    @TestApi
+    @Nullable
+    public String getNoiseInjectionMasterSeed() {
+        try {
+            final SyncResultReceiver receiver = new SyncResultReceiver(SYNC_CALLS_TIMEOUT_MS);
+            mService.getNoiseInjectionMasterSeed(receiver);
+            return receiver.getStringResult();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        } catch (SyncResultReceiver.TimeoutException e) {
+            Log.e(TAG, "Fail to get noise injection master seed", e);
+            return null;
+        }
     }
 
     /**
@@ -4344,7 +4409,7 @@ public final class AutofillManager {
             switch (type) {
                 case AccessibilityEvent.TYPE_VIEW_FOCUSED: {
                     synchronized (mLock) {
-                        if (mFocusedWindowId == event.getWindowId()
+                        if (mFocusedWindowId == event.getRealWindowId()
                                 && mFocusedNodeId == event.getSourceNodeId()) {
                             return event;
                         }
@@ -4355,7 +4420,7 @@ public final class AutofillManager {
                             mFocusedNodeId = AccessibilityNodeInfo.UNDEFINED_NODE_ID;
                             mFocusedBounds.set(0, 0, 0, 0);
                         }
-                        final int windowId = event.getWindowId();
+                        final int windowId = event.getRealWindowId();
                         final long nodeId = event.getSourceNodeId();
                         if (notifyViewEntered(windowId, nodeId, mFocusedBounds)) {
                             mFocusedWindowId = windowId;
@@ -4366,16 +4431,16 @@ public final class AutofillManager {
 
                 case AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED: {
                     synchronized (mLock) {
-                        if (mFocusedWindowId == event.getWindowId()
+                        if (mFocusedWindowId == event.getRealWindowId()
                                 && mFocusedNodeId == event.getSourceNodeId()) {
-                            notifyValueChanged(event.getWindowId(), event.getSourceNodeId());
+                            notifyValueChanged(event.getRealWindowId(), event.getSourceNodeId());
                         }
                     }
                 } break;
 
                 case AccessibilityEvent.TYPE_VIEW_CLICKED: {
                     synchronized (mLock) {
-                        notifyViewClicked(event.getWindowId(), event.getSourceNodeId());
+                        notifyViewClicked(event.getRealWindowId(), event.getSourceNodeId());
                     }
                 } break;
 
@@ -5088,6 +5153,24 @@ public final class AutofillManager {
             final AutofillManager afm = mAfm.get();
             if (afm == null) return null;
 
+            final AtomicReference<Rect> result = new AtomicReference<>();
+            final CountDownLatch latch = new CountDownLatch(1);
+            afm.post(() -> {
+                result.set(getViewCoordinates(afm, id));
+                latch.countDown();
+            });
+            try {
+                if (!latch.await(5000, TimeUnit.MILLISECONDS)) {
+                    Log.w(TAG, "getViewCoordinates timeout: " + id);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return result.get();
+        }
+
+        @UiThread // requires UI thread to avoid native crash when view.getLocationOnScreen
+        private Rect getViewCoordinates(@NonNull AutofillManager afm, @NonNull AutofillId id) {
             final View view = getView(afm, id);
             if (view == null) {
                 return null;

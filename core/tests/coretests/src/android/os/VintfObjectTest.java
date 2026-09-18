@@ -21,12 +21,10 @@ import static com.google.common.truth.Truth.assertThat;
 import static java.util.stream.Collectors.toList;
 
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.Pair;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.xml.sax.InputSource;
@@ -39,8 +37,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 @RunWith(AndroidJUnit4.class)
 @DisabledOnRavenwood(blockedBy = VintfObject.class)
 public class VintfObjectTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     /**
      * Quick check for {@link VintfObject#report VintfObject.report()}.

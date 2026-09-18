@@ -25,8 +25,21 @@ import android.media.tv.extension.cam.IMmiStatusCallback;
  * @hide
  */
 interface IMmiInterface {
-    // Open a session for MMI.
+    /**
+     * Opens a session for Man-Machine Interface (MMI) communication.
+     *
+     * @param slotId The ID of the CAM slot for communication.
+     * @param callback The callback to receive MMI status notifications.
+     * @return An {@link IMmiSession} binder interface for the session, or null if the
+     *         session could not be opened.
+     */
     IMmiSession openSession(int slotId, IMmiStatusCallback callback);
-    // Request to display CI Module setup screen.
+    /**
+     * Requests to display the CI Module setup screen (Enter Menu).
+     *
+     * @param slotId The ID of the CAM slot for communication.
+     * @param callback The IEnterMenuErrorCallback to receive notifications
+     *                 if displaying the setup screen fails.
+     */
     void appInfoEnterMenu(int slotId, IEnterMenuErrorCallback callback);
 }

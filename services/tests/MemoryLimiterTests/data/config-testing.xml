@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The values here are chosen to be applicable to a range of devices.
+     The assumption is that the available memory will always be within 2G
+     of the total installed RAM. So, a 16GB phone will have at least 14GB
+     of available memory.  The smallest configuration supported in this file
+     is a device with only 4GB of RAM.
+-->
+<MemoryLimiterConfig>
+  <version>1</version>
+  <configList>
+    <limitSet>
+      <!-- Limits for a phone with at least 14G of ram: 8G/4G/4G/4G -->
+      <minimumRequiredMemTotal>14336</minimumRequiredMemTotal>
+      <memVisible>8192</memVisible>
+      <memNotVisible>4096</memNotVisible>
+      <swapVisible>4096</swapVisible>
+      <swapNotVisible>4096</swapNotVisible>
+    </limitSet>
+    <limitSet>
+      <!-- Limits for a phone with at least 10G of ram: 6G/3G/3G/3G -->
+      <minimumRequiredMemTotal>10240</minimumRequiredMemTotal>
+      <memVisible>6144</memVisible>
+      <memNotVisible>3072</memNotVisible>
+      <swapVisible>3072</swapVisible>
+      <swapNotVisible>3072</swapNotVisible>
+    </limitSet>
+    <limitSet>
+      <!-- Limits for a phone with at least 6G of ram available. -->
+      <minimumRequiredMemTotal>6144</minimumRequiredMemTotal>
+      <memVisible>4096</memVisible>
+      <memNotVisible>2048</memNotVisible>
+      <swapVisible>2048</swapVisible>
+      <swapNotVisible>2048</swapNotVisible>
+    </limitSet>
+    <limitSet>
+      <!-- Limits for a test device regardless of ram available. -->
+      <minimumRequiredMemTotal>0</minimumRequiredMemTotal>
+      <memVisible>512</memVisible>
+      <memNotVisible>512</memNotVisible>
+      <swapVisible>512</swapVisible>
+      <swapNotVisible>512</swapNotVisible>
+    </limitSet>
+  </configList>
+</MemoryLimiterConfig>

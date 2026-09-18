@@ -17,7 +17,6 @@
 package com.android.wm.shell.compatui.letterbox.lifecycle
 
 import android.app.ActivityManager.RunningTaskInfo
-import com.android.window.flags.Flags.appCompatRefactoring
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.common.suppliers.TransactionSupplier
 import com.android.wm.shell.compatui.letterbox.MixedLetterboxController
@@ -42,9 +41,7 @@ constructor(
 ) : ShellTaskOrganizer.TaskVanishedListener {
 
     init {
-        if (appCompatRefactoring()) {
-            shellInit.addInitCallback({ shellTaskOrganizer.addTaskVanishedListener(this) }, this)
-        }
+        shellInit.addInitCallback({ shellTaskOrganizer.addTaskVanishedListener(this) }, this)
     }
 
     override fun onTaskVanished(taskInfo: RunningTaskInfo) {

@@ -35,8 +35,9 @@ public final class TimeZoneDetectorImpl implements TimeZoneDetector {
     private final ITimeZoneDetectorService mITimeZoneDetectorService;
 
     public TimeZoneDetectorImpl() throws ServiceNotFoundException {
-        mITimeZoneDetectorService = ITimeZoneDetectorService.Stub.asInterface(
-                ServiceManager.getServiceOrThrow(Context.TIME_ZONE_DETECTOR_SERVICE));
+        mITimeZoneDetectorService =
+                ITimeZoneDetectorService.Stub.asInterface(
+                        ServiceManager.getServiceOrThrow(Context.TIME_ZONE_DETECTOR_SERVICE));
     }
 
     @Override

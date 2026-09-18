@@ -17,7 +17,10 @@
 package com.android.server.display.brightness.clamper;
 
 import static android.service.notification.Flags.applyBrightnessClampingForModes;
+import static android.service.notification.Flags.enableBrightnessClampingForBedtime;
 import static android.view.Display.STATE_ON;
+
+import static com.android.server.display.feature.flags.Flags.refactorNormalBrightnessModeController;
 
 import android.annotation.FloatRange;
 import android.annotation.NonNull;
@@ -52,6 +55,7 @@ import com.android.server.display.plugin.PluginManager;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Executor;
 
 /**
@@ -289,6 +293,34 @@ public class BrightnessClamperController {
     }
 
     /**
+     * Set the current state of auto-brightness.
+     */
+    public void setAutoBrightnessState(int state) {
+        mModifiers.forEach(modifier -> modifier.setAutoBrightnessState(state));
+    }
+
+    /**
+     * Set whether High Brightness Mode is currently allowed.
+     */
+    public void setIsHbmAllowed(boolean isHbmAllowed) {
+        mModifiers.forEach(modifier -> modifier.setIsHbmAllowed(isHbmAllowed));
+    }
+
+    /**
+     * Returns the thermal throttling status of the brightness thermal modifier.
+     */
+    public @PowerManager.ThermalStatus int getBrightnessThermalThrottlingStatus() {
+        if (!mModifiers.isEmpty()) {
+            for (BrightnessStateModifier modifier : mModifiers) {
+                if (modifier instanceof BrightnessThermalModifier) {
+                    return ((BrightnessThermalModifier) modifier).getThermalStatus();
+                }
+            }
+        }
+        return PowerManager.THERMAL_STATUS_NONE;
+    }
+
+    /**
      * Clampers change listener
      */
     public interface ClamperChangeListener {
@@ -309,9 +341,9 @@ public class BrightnessClamperController {
                 DisplayDeviceData data, float currentBrightness) {
             List<BrightnessStateModifier> modifiers = new ArrayList<>();
             modifiers.add(new BrightnessThermalModifier(handler, listener, data));
-            if (flags.isBrightnessWearBedtimeModeClamperEnabled()) {
-                modifiers.add(new BrightnessWearBedtimeModeModifier(handler, context,
-                        listener, data));
+            if(!enableBrightnessClampingForBedtime()){
+                modifiers.add(
+                        new BrightnessWearBedtimeModeModifier(handler, context, listener, data));
             }
             if (applyBrightnessClampingForModes()) {
                 modifiers.add(new ExternalBrightnessModifier(handler, listener));
@@ -327,14 +359,19 @@ public class BrightnessClamperController {
 
             modifiers.add(new DisplayDimModifier(data.mDisplayId, context));
             modifiers.add(new BrightnessLowPowerModeModifier());
-            if (flags.isEvenDimmerEnabled() && data.mDisplayDeviceConfig.isEvenDimmerAvailable()) {
+            if (data.mDisplayDeviceConfig.isEvenDimmerAvailable()) {
                 modifiers.add(new BrightnessLowLuxModifier(handler, listener, context,
                         data.mDisplayDeviceConfig));
             }
             modifiers.add(new HdrBrightnessModifier(
                     handler, context, flags, pluginManager, listener, data));
+            modifiers.add(new BrightnessPluginModifier(
+                    handler, context, flags, pluginManager, listener, data));
             if (flags.isMinmodeCapBrightnessEnabled()) {
                 modifiers.add(new BrightnessMinModeModifier(handler, context, listener, data));
+            }
+            if (refactorNormalBrightnessModeController()) {
+                modifiers.add(new BrightnessMaxLuxModifier(handler, listener, data));
             }
             return modifiers;
         }
@@ -439,7 +476,10 @@ public class BrightnessClamperController {
 
         @Override
         public float getBrightnessWearBedtimeModeCap() {
-            return mDisplayDeviceConfig.getBrightnessCapForWearBedtimeMode();
+            if(!enableBrightnessClampingForBedtime()){
+                return mDisplayDeviceConfig.getBrightnessCapForWearBedtimeMode();
+            }
+            return PowerManager.BRIGHTNESS_MAX;
         }
 
         @Override
@@ -451,6 +491,11 @@ public class BrightnessClamperController {
         @Override
         public SensorData getTempSensor() {
             return mDisplayDeviceConfig.getTempSensor();
+        }
+
+        public Map<DisplayDeviceConfig.BrightnessLimitMapType, Map<Float, Float>>
+                getMaxBrightnessLimits() {
+            return mDisplayDeviceConfig.getLuxThrottlingData();
         }
 
         @NonNull

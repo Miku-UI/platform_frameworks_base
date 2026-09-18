@@ -23,31 +23,27 @@ import android.view.MotionEvent.ACTION_CANCEL
 import android.view.MotionEvent.ACTION_DOWN
 import android.view.MotionEvent.ACTION_MOVE
 import android.view.MotionEvent.ACTION_UP
-import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.settings.DisplayTracker
 
 /**
  * A class to detect a generic "swipe up" gesture. To be notified when the swipe up gesture is
  * detected, add a callback via [addOnGestureDetectedCallback].
  */
-@SysUISingleton
 abstract class SwipeUpGestureHandler(
     context: Context,
     displayTracker: DisplayTracker,
     private val logger: SwipeUpGestureLogger,
     private val loggerTag: String,
-) : GenericGestureDetector(
-        SwipeUpGestureHandler::class.simpleName!!,
-        displayTracker.defaultDisplayId
-) {
+) : GenericGestureDetector(SwipeUpGestureHandler::class.simpleName!!, context.displayId) {
 
     private var startY: Float = 0f
     private var startTime: Long = 0L
     private var monitoringCurrentTouch: Boolean = false
 
-    private var swipeDistanceThreshold: Int = context.resources.getDimensionPixelSize(
-        com.android.internal.R.dimen.system_gestures_distance_threshold
-    )
+    private var swipeDistanceThreshold: Int =
+        context.resources.getDimensionPixelSize(
+            com.android.internal.R.dimen.system_gestures_distance_threshold
+        )
 
     override fun onInputEvent(ev: InputEvent) {
         if (ev !is MotionEvent) {
@@ -56,9 +52,7 @@ abstract class SwipeUpGestureHandler(
 
         when (ev.actionMasked) {
             ACTION_DOWN -> {
-                if (
-                    startOfGestureIsWithinBounds(ev)
-                ) {
+                if (startOfGestureIsWithinBounds(ev)) {
                     logger.logGestureDetectionStarted(loggerTag, ev.y.toInt())
                     startY = ev.y
                     startTime = ev.eventTime
@@ -74,17 +68,18 @@ abstract class SwipeUpGestureHandler(
                 if (
                     // Gesture is up
                     ev.y < startY &&
-                    // Gesture went far enough
-                    (startY - ev.y) >= swipeDistanceThreshold &&
-                    // Gesture completed quickly enough
-                    (ev.eventTime - startTime) < SWIPE_TIMEOUT_MS
+                        // Gesture went far enough
+                        (startY - ev.y) >= swipeDistanceThreshold &&
+                        // Gesture completed quickly enough
+                        (ev.eventTime - startTime) < SWIPE_TIMEOUT_MS
                 ) {
                     monitoringCurrentTouch = false
                     logger.logGestureDetected(loggerTag, ev.y.toInt())
                     onGestureDetected(ev)
                 }
             }
-            ACTION_CANCEL, ACTION_UP -> {
+            ACTION_CANCEL,
+            ACTION_UP -> {
                 if (monitoringCurrentTouch) {
                     logger.logGestureDetectionEndedWithoutTriggering(loggerTag, ev.y.toInt())
                 }

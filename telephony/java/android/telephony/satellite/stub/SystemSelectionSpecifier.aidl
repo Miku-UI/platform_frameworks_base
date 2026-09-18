@@ -22,7 +22,13 @@ import android.telephony.satellite.stub.SatelliteInfo;
  * @hide
  */
 parcelable SystemSelectionSpecifier {
-    /** Network plmn associated with channel information. */
+    /**
+     * Network plmn associated with channel information.
+     * This value is populated from the first item in the {@link #mMccMncs} field if provided,
+     * for backward compatibility.
+     * This field is optional. The default value is an empty string.
+     * @deprecated Use the {@link #mMccMncs} field instead.
+     */
     String mMccMnc;
 
     /**
@@ -31,6 +37,8 @@ parcelable SystemSelectionSpecifier {
      * Maximum length of the vector is 8.
      * The values are populated from the mBands array within the SatelliteInfo[] array, which is
      * included in the SystemSelectionSpecifier, for backward compatibility.
+     * This field is optional. The default value is an empty array.
+     * @deprecated Use the bands field inside {@link #satelliteInfos} instead.
      */
     int[] mBands;
 
@@ -40,12 +48,36 @@ parcelable SystemSelectionSpecifier {
      * SatelliteInfo[], which is included in the SystemSelectionSpecifier, for backward
      * compatibility.
      * Maximum length of the vector is 32.
+     * This field is optional. The default value is an empty array.
      */
     int[] mEarfcs;
 
-    /* The list of satellites configured for the current location */
+    /*
+     * The list of satellites configured for the current location.
+     * This field is optional. The default value is an empty array.
+     */
     SatelliteInfo[] satelliteInfos;
 
-    /* The list of tag IDs associated with the current location */
+    /**
+     * The list of tag IDs associated with the current location.
+     * This field is optional and empty by default.
+     */
     int[] tagIds;
+
+    /**
+     * The ICC ID of the satellite subscription.
+     * This field is optional. The default value is an empty string.
+     */
+    String mIccId;
+
+    /**
+     * The list of satellite PLMNs supported by the carrier associated with the satellite
+     * subscription.
+     * <p>
+     * These PLMNs support manual-connect {@code NTRadioTechnology} types, such as
+     * {@code NTRadioTechnology#NB_IOT_NTN}.
+     * <p>
+     * This field is optional. The default value is an empty array.
+     */
+    String[] mMccMncs;
 }

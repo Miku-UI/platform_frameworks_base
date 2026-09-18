@@ -43,6 +43,8 @@ public final class CategoryKey {
     public static final String CATEGORY_SECURITY_ADVANCED_SETTINGS =
             "com.android.settings.category.ia.advanced_security";
     public static final String CATEGORY_ACCOUNT = "com.android.settings.category.ia.accounts";
+    public static final String CATEGORY_ACCOUNTS_AND_BACKUP =
+            "com.android.settings.category.ia.accounts_and_backup";
     public static final String CATEGORY_ACCOUNT_DETAIL =
             "com.android.settings.category.ia.account_detail";
     public static final String CATEGORY_SYSTEM = "com.android.settings.category.ia.system";
@@ -78,6 +80,18 @@ public final class CategoryKey {
             "com.android.settings.category.ia.media_controls_settings";
     public static final String CATEGORY_PRIVACY_CONTROLS =
             "com.android.settings.category.ia.privacy_controls";
+    public static final String CATEGORY_SC_APP_SECURITY =
+            "com.android.settings.category.ia.sc_app_security";
+    public static final String CATEGORY_SC_DEVICE_UNLOCK =
+            "com.android.settings.category.ia.sc_device_unlock";
+    public static final String CATEGORY_SC_ACCOUNT_SECURITY =
+            "com.android.settings.category.ia.sc_account_security";
+    public static final String CATEGORY_SC_DEVICE_FINDERS =
+            "com.android.settings.category.ia.sc_device_finders";
+    public static final String CATEGORY_SC_SYSTEM_AND_UPDATES =
+            "com.android.settings.category.ia.sc_system_and_updates";
+    public static final String CATEGORY_SC_CELLULAR_NETWORK_SECURITY =
+            "com.android.settings.category.ia.sc_cellular_network_security";
 
     public static final Map<String, String> KEY_COMPAT_MAP;
 

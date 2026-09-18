@@ -22,6 +22,7 @@ import android.app.admin.DevicePolicyManager
 import android.app.role.RoleManager
 import android.app.supervision.SupervisionManager
 import android.app.supervision.SupervisionManager.SupervisionListener
+import android.app.supervision.flags.Flags
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.UserInfo
@@ -87,6 +88,17 @@ constructor(
             )
         }
 
+        if (Flags.enableSupervisionSettingsUiUpdates()) {
+            return SupervisionModel(
+                isSupervisionEnabled = true,
+                label = context.getString(R.string.status_bar_supervision),
+                icon = context.getDrawable(R.drawable.ic_pin_supervision),
+                disclaimerText =
+                    context.getString(R.string.monitoring_description_parental_controls),
+                footerText = context.getString(R.string.quick_settings_disclosure_parental_controls),
+            )
+        }
+
         val systemSupervisionRoleHolders =
             roleManager.getRoleHoldersAsUser(RoleManager.ROLE_SYSTEM_SUPERVISION, userHandle)
         val supervisionRoleHolders =
@@ -118,8 +130,9 @@ constructor(
                 label = context.getString(R.string.status_bar_supervision),
                 icon = context.getDrawable(R.drawable.ic_supervision),
                 disclaimerText =
-                    context.getString(R.string.monitoring_description_parental_controls),
-                footerText = context.getString(R.string.quick_settings_disclosure_parental_controls),
+                    context.getString(R.string.monitoring_description_parental_controls_legacy),
+                footerText =
+                    context.getString(R.string.quick_settings_disclosure_parental_controls_legacy),
             )
         }
     }
@@ -162,7 +175,7 @@ constructor(
                     refreshState()
 
                     val listener = SupervisionStateListener()
-                    supervisionManager.registerSupervisionListener(listener)
+                    supervisionManager.registerSupervisionListenerForUser(userInfo.id, listener)
 
                     awaitClose { supervisionManager.unregisterSupervisionListener(listener) }
                 }

@@ -29,9 +29,9 @@ import android.tracing.perfetto.InitArguments;
 import android.tracing.perfetto.Producer;
 import android.tracing.transition.TransitionDataSource;
 import android.util.proto.ProtoOutputStream;
+import android.window.TransitionInfo;
 
 import java.io.PrintWriter;
-import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 class PerfettoTransitionTracer implements TransitionTracer {
@@ -59,10 +59,10 @@ class PerfettoTransitionTracer implements TransitionTracer {
      * transition.
      *
      * @param transition The transition that has been sent to Shell.
-     * @param targets Information about the target windows of the transition.
+     * @param info       Information about the target windows of the transition.
      */
     @Override
-    public void logSentTransition(Transition transition, ArrayList<Transition.ChangeInfo> targets) {
+    public void logSentTransition(Transition transition, TransitionInfo info) {
         if (!isTracing()) {
             return;
         }
@@ -70,14 +70,13 @@ class PerfettoTransitionTracer implements TransitionTracer {
         Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER,
                 TracingUtils.uiTracingSliceName("Transition::logSent"));
         try {
-            doLogSentTransition(transition, targets);
+            doLogSentTransition(transition, info);
         } finally {
             Trace.traceEnd(Trace.TRACE_TAG_WINDOW_MANAGER);
         }
     }
 
-    private void doLogSentTransition(
-            Transition transition, ArrayList<Transition.ChangeInfo> targets) {
+    private void doLogSentTransition(Transition transition, TransitionInfo info) {
         mDataSource.trace((ctx) -> {
             final ProtoOutputStream os = ctx.newTracePacket();
 
@@ -94,7 +93,9 @@ class PerfettoTransitionTracer implements TransitionTracer {
             os.write(ShellTransition.TYPE, transition.mType);
             os.write(ShellTransition.FLAGS, transition.getFlags());
 
-            addTransitionTargetsToProto(os, targets);
+            if (info != null) {
+                addTransitionTargetsToProto(os, info);
+            }
 
             os.end(token);
         });
@@ -215,24 +216,35 @@ class PerfettoTransitionTracer implements TransitionTracer {
 
     private void addTransitionTargetsToProto(
             ProtoOutputStream os,
-            ArrayList<Transition.ChangeInfo> targets
+            TransitionInfo info
     ) {
-        for (int i = 0; i < targets.size(); ++i) {
-            final Transition.ChangeInfo target = targets.get(i);
+        for (int i = 0; i < info.getChanges().size(); ++i) {
+            final TransitionInfo.Change change = info.getChanges().get(i);
 
             final int layerId;
-            if (target.mContainer.mSurfaceControl.isValid()) {
-                layerId = target.mContainer.mSurfaceControl.getLayerId();
+            if (change.getLeash() != null && change.getLeash().isValid()) {
+                layerId = change.getLeash().getLayerId();
             } else {
                 layerId = -1;
             }
-            final int windowId = System.identityHashCode(target.mContainer);
+            final int windowId =
+                    change.getContainer() != null ? change.getContainer().hashCode() : -1;
 
-            final long token = os.start(ShellTransition.TARGETS);
-            os.write(ShellTransition.Target.MODE, target.mReadyMode);
-            os.write(ShellTransition.Target.FLAGS, target.mReadyFlags);
-            os.write(ShellTransition.Target.LAYER_ID, layerId);
-            os.write(ShellTransition.Target.WINDOW_ID, windowId);
+            final long token = os.start(ShellTransition.CHANGES);
+            os.write(ShellTransition.Change.MODE, change.getMode());
+            os.write(ShellTransition.Change.FLAGS, change.getFlags());
+            os.write(ShellTransition.Change.LAYER_ID, layerId);
+            os.write(ShellTransition.Change.WINDOW_ID, windowId);
+
+            os.write(ShellTransition.Change.START_DISPLAY_ID, change.getStartDisplayId());
+            os.write(ShellTransition.Change.END_DISPLAY_ID, change.getEndDisplayId());
+
+            os.write(ShellTransition.Change.START_ROTATION, change.getStartRotation());
+            os.write(ShellTransition.Change.END_ROTATION, change.getEndRotation());
+
+            change.getStartAbsBounds().dumpDebug(os, ShellTransition.Change.START_ABSOLUTE_BOUNDS);
+            change.getEndAbsBounds().dumpDebug(os, ShellTransition.Change.END_ABSOLUTE_BOUNDS);
+
             os.end(token);
         }
     }

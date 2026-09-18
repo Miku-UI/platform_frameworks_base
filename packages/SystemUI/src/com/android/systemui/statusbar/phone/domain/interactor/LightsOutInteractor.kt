@@ -15,9 +15,10 @@
  */
 package com.android.systemui.statusbar.phone.domain.interactor
 
+import com.android.app.displaylib.PerDisplayRepository
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.statusbar.data.model.StatusBarMode
-import com.android.systemui.statusbar.data.repository.StatusBarModeRepositoryStore
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -32,10 +33,12 @@ import kotlinx.coroutines.flow.map
 @SysUISingleton
 class LightsOutInteractor
 @Inject
-constructor(private val repository: StatusBarModeRepositoryStore) {
+constructor(
+    private val displaySubcomponentRepo: PerDisplayRepository<SystemUIDisplaySubcomponent>
+) {
 
     fun isLowProfile(displayId: Int): Flow<Boolean>? =
-        repository.forDisplay(displayId)?.statusBarMode?.map {
+        displaySubcomponentRepo[displayId]?.statusBarModeRepo?.statusBarMode?.map {
             when (it) {
                 StatusBarMode.LIGHTS_OUT,
                 StatusBarMode.LIGHTS_OUT_TRANSPARENT -> true

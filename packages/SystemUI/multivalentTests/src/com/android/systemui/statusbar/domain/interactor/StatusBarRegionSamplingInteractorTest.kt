@@ -30,7 +30,7 @@ import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.statusbar.StatusBarAlwaysUseRegionSampling
 import com.android.systemui.statusbar.StatusBarRegionSampling
-import com.android.systemui.statusbar.data.repository.fakeStatusBarModeRepository
+import com.android.systemui.statusbar.data.repository.fakeStatusBarModePerDisplayRepository
 import com.android.systemui.testKosmos
 import com.android.systemui.uimode.data.repository.fakeForceInvertRepository
 import com.google.common.truth.Truth.assertThat
@@ -111,7 +111,7 @@ class StatusBarRegionSamplingInteractorTest : SysuiTestCase() {
 
             underTest.setSampledAppearanceRegions(Display.DEFAULT_DISPLAY, appearanceRegions)
 
-            assertThat(fakeStatusBarModeRepository.defaultDisplay.fakeSampledAppearanceRegions)
+            assertThat(fakeStatusBarModePerDisplayRepository.fakeSampledAppearanceRegions)
                 .containsExactly(firstRegion, thirdRegion)
         }
 
@@ -127,7 +127,7 @@ class StatusBarRegionSamplingInteractorTest : SysuiTestCase() {
 
             underTest.setSampledAppearanceRegions(Display.DEFAULT_DISPLAY, appearanceRegions)
 
-            assertThat(fakeStatusBarModeRepository.defaultDisplay.fakeSampledAppearanceRegions)
+            assertThat(fakeStatusBarModePerDisplayRepository.fakeSampledAppearanceRegions)
                 .containsExactly(firstRegion, thirdRegion)
         }
 
@@ -143,7 +143,7 @@ class StatusBarRegionSamplingInteractorTest : SysuiTestCase() {
 
             underTest.setSampledAppearanceRegions(Display.DEFAULT_DISPLAY, appearanceRegions)
 
-            assertThat(fakeStatusBarModeRepository.defaultDisplay.fakeSampledAppearanceRegions)
+            assertThat(fakeStatusBarModePerDisplayRepository.fakeSampledAppearanceRegions)
                 .containsExactly(firstRegion, thirdRegion)
         }
 
@@ -155,7 +155,6 @@ class StatusBarRegionSamplingInteractorTest : SysuiTestCase() {
 
             underTest.setSampledAppearanceRegions(Display.DEFAULT_DISPLAY, listOf(region))
 
-            assertThat(fakeStatusBarModeRepository.defaultDisplay.fakeSampledAppearanceRegions)
-                .isNull()
+            assertThat(fakeStatusBarModePerDisplayRepository.fakeSampledAppearanceRegions).isNull()
         }
 }

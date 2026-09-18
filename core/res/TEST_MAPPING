@@ -1,32 +1,21 @@
 {
-    "presubmit": [
+  "presubmit": [
+    {
+      "name": "CtsPermissionPolicyTestCases",
+      "options": [
         {
-            "name": "CtsPermissionPolicyTestCases",
-            "options": [
-                {
-                    "include-filter": "android.permissionpolicy.cts.PermissionPolicyTest#platformPermissionPolicyIsUnaltered"
-                },
-                {
-                    "include-filter": "android.permissionpolicy.cts.RuntimePermissionProperties"
-                }
-            ]
-        }
-    ],
-    // v2/sysui/suite/test-mapping-sysui-screenshot-test
-    "sysui-screenshot-test": [
+          "include-filter": "android.permissionpolicy.cts.PermissionPolicyTest#platformPermissionPolicyIsUnaltered"
+        },
         {
-        "name": "SystemUIGoogleScreenshotTests",
-        "options": [
-            {
-            "exclude-annotation": "org.junit.Ignore"
-            },
-            {
-            "exclude-annotation": "androidx.test.filters.FlakyTest"
-            },
-            {
-            "exclude-annotation": "android.platform.test.annotations.Postsubmit"
-            }
-        ]
+          "include-filter": "android.permissionpolicy.cts.RuntimePermissionProperties"
         }
-    ]
+      ]
+    }
+  ],
+  // v2/sysui/suite/test-mapping-sysui-screenshot-test
+  "sysui-screenshot-test": [
+    {
+      "name": "SystemUIGoogleScreenshotTests_Presubmit"
+    }
+  ]
 }

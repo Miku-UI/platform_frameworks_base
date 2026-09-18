@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@ package com.android.internal.widget.remotecompose.player.platform;
 
 import static com.android.internal.widget.remotecompose.core.operations.Utils.idFromNan;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.graphics.Path;
 import android.graphics.PathMeasure;
 
@@ -37,7 +39,8 @@ public class FloatsToPath {
      * @param start The starting percentage (0.0 to 1.0) of the path to include.
      * @param stop The ending percentage (0.0 to 1.0) of the path to include.
      */
-    public static void genPath(Path retPath, float[] floatPath, float start, float stop) {
+    public static void genPath(
+            @NonNull Path retPath, @Nullable float[] floatPath, float start, float stop) {
         int i = 0;
         Path path = new Path(); // todo this should be cached for performance
         while (i < floatPath.length) {
@@ -86,7 +89,7 @@ public class FloatsToPath {
                     i++;
                     break;
                 default:
-                    System.err.println(" Odd command " + idFromNan(floatPath[i]));
+                    throw new RuntimeException(" Odd command " + idFromNan(floatPath[i]));
             }
         }
 

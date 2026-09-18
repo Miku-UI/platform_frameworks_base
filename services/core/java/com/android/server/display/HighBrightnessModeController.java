@@ -39,6 +39,7 @@ import com.android.internal.util.FrameworkStatsLog;
 import com.android.server.display.DisplayManagerService.Clock;
 import com.android.server.display.config.HighBrightnessModeData;
 import com.android.server.display.feature.DisplayManagerFlags;
+import com.android.server.display.feature.flags.Flags;
 import com.android.server.display.utils.DebugUtils;
 
 import java.io.PrintWriter;
@@ -114,6 +115,7 @@ class HighBrightnessModeController {
     private float mAmbientLux;
     private int mDisplayStatsId;
     private int mHbmStatsState = FrameworkStatsLog.DISPLAY_HBM_STATE_CHANGED__STATE__HBM_OFF;
+    private final boolean mHbmControllerIsEnabled;
 
     /**
      * If HBM is currently running, this is the start time and set of all events,
@@ -156,6 +158,13 @@ class HighBrightnessModeController {
         mRecalcRunnable = this::recalculateTimeAllowance;
         mHdrListener = new HdrListener();
 
+        mHbmControllerIsEnabled = !(context.getResources().getBoolean(
+                com.android.internal.R.bool.config_highBrightnessModeControllerOverridden)
+                && mInjector.isMaxBrightnessCapOverridePluginTypeEnabled());
+        if (DEBUG) {
+            Slog.d(TAG, "Is HighBrightnessModeController enabled: " + mHbmControllerIsEnabled);
+        }
+
         resetHbmData(width, height, displayToken, displayUniqueId, hbmData, hdrBrightnessCfg);
     }
 
@@ -163,7 +172,7 @@ class HighBrightnessModeController {
         final boolean isEnabled = state == AutomaticBrightnessController.AUTO_BRIGHTNESS_ENABLED;
         mIsAutoBrightnessOffByState =
                 state == AutomaticBrightnessController.AUTO_BRIGHTNESS_OFF_DUE_TO_DISPLAY_STATE;
-        if (!deviceSupportsHbm() || isEnabled == mIsAutoBrightnessEnabled) {
+        if (isEnabled == mIsAutoBrightnessEnabled || !hbmControllerEnabled()) {
             return;
         }
         if (DEBUG) {
@@ -179,10 +188,10 @@ class HighBrightnessModeController {
     }
 
     float getCurrentBrightnessMax() {
-        if (!deviceSupportsHbm() || isHbmCurrentlyAllowed()) {
-            // Either the device doesn't support HBM, or HBM range is currently allowed (device
-            // it in a high-lux environment). In either case, return the highest brightness
-            // level supported by the device.
+        if (!hbmControllerEnabled() || isHbmCurrentlyAllowed()) {
+            // Either the device doesn't support HBM, or the HBM range is currently allowed
+            // (device is in a high-lux environment), or the HBM is being managed externally.
+            // In any case, return the highest brightness level supported by the device.
             return mBrightnessMax;
         } else {
             // Hbm is not allowed, only allow up to the brightness where we
@@ -192,7 +201,7 @@ class HighBrightnessModeController {
     }
 
     float getNormalBrightnessMax() {
-        return deviceSupportsHbm() ? mHbmData.transitionPoint : mBrightnessMax;
+        return hbmControllerEnabled() ? mHbmData.transitionPoint : mBrightnessMax;
     }
 
     float getHdrBrightnessValue() {
@@ -217,11 +226,13 @@ class HighBrightnessModeController {
 
     void onAmbientLuxChange(float ambientLux) {
         mAmbientLux = ambientLux;
-        if (!deviceSupportsHbm() || !mIsAutoBrightnessEnabled) {
+        if (!hbmControllerEnabled() || !mIsAutoBrightnessEnabled) {
             return;
         }
 
         final boolean isHighLux = (ambientLux >= mHbmData.minimumLux);
+        Slog.d(TAG, "onAmbientLuxChange: " + ambientLux + "/" + mHbmData.minimumLux
+                + ", IsHighLux: " + isHighLux);
         if (isHighLux != mIsInAllowedAmbientRange) {
             mIsInAllowedAmbientRange = isHighLux;
             recalculateTimeAllowance();
@@ -236,6 +247,11 @@ class HighBrightnessModeController {
         mBrightness = brightness;
         mUnthrottledBrightness = unthrottledBrightness;
         mThrottlingReason = throttlingReason;
+
+        if (!hbmControllerEnabled()) {
+            updateHbmMode();
+            return;
+        }
 
         // If we are starting or ending a high brightness mode session, store the current
         // session in mRunningStartTimeMillis, or the old one in mEvents.
@@ -267,7 +283,7 @@ class HighBrightnessModeController {
     }
 
     float getTransitionPoint() {
-        if (deviceSupportsHbm()) {
+        if (hbmControllerEnabled()) {
             return mHbmData.transitionPoint;
         } else {
             return HBM_TRANSITION_POINT_INVALID;
@@ -293,7 +309,7 @@ class HighBrightnessModeController {
 
         unregisterHdrListener();
         mSettingsObserver.stopObserving();
-        if (deviceSupportsHbm()) {
+        if (hbmControllerEnabled()) {
             registerHdrListener(displayToken);
             recalculateTimeAllowance();
             if (!mHbmData.allowInLowPowerMode) {
@@ -314,6 +330,7 @@ class HighBrightnessModeController {
 
     private void dumpLocal(PrintWriter pw) {
         pw.println("HighBrightnessModeController:");
+        pw.println("  mHbmControllerIsEnabled=" + mHbmControllerIsEnabled);
         pw.println("  mBrightness=" + mBrightness);
         pw.println("  mUnthrottledBrightness=" + mUnthrottledBrightness);
         pw.println("  mThrottlingReason=" + BrightnessInfo.briMaxReasonToString(mThrottlingReason));
@@ -378,9 +395,22 @@ class HighBrightnessModeController {
         // the MAX. HDR also needs to work under manual brightness which never adjusts the
         // brightness maximum; so we implement HDR-HBM in a way that doesn't adjust the max.
         // See {@link #getHdrBrightnessValue}.
+        if (!hbmControllerEnabled()) {
+            // If the controller is disabled (overridden), we just check
+            // for brightness being over the transition point.
+            // Assumed that HBM is being handled externally.
+            return mHbmData != null && mBrightness > mHbmData.transitionPoint;
+        }
         return !mIsHdrLayerPresent
                 && (mIsAutoBrightnessEnabled && mIsTimeAvailable && mIsInAllowedAmbientRange
                 && !mIsBlockedByLowPowerMode);
+    }
+
+    /**
+     * Check if the device supports HBM and if HBM Controller is enabled through config.
+     */
+    boolean  hbmControllerEnabled() {
+        return deviceSupportsHbm() && mHbmControllerIsEnabled;
     }
 
     boolean deviceSupportsHbm() {
@@ -405,7 +435,7 @@ class HighBrightnessModeController {
     }
 
     private long calculateRemainingTime(long currentTime) {
-        if (!deviceSupportsHbm()) {
+        if (!hbmControllerEnabled()) {
             return 0;
         }
 
@@ -729,6 +759,10 @@ class HighBrightnessModeController {
         public void reportHbmStateChange(int display, int state, int reason) {
             FrameworkStatsLog.write(
                     FrameworkStatsLog.DISPLAY_HBM_STATE_CHANGED, display, state, reason);
+        }
+
+        public boolean isMaxBrightnessCapOverridePluginTypeEnabled() {
+            return Flags.enableMaxBrightnessCapOverridePluginType();
         }
     }
 }

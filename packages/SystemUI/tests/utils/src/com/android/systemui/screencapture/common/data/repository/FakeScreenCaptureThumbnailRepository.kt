@@ -17,19 +17,22 @@
 package com.android.systemui.screencapture.common.data.repository
 
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import androidx.core.graphics.applyCanvas
 import androidx.core.graphics.createBitmap
 import kotlinx.coroutines.CompletableDeferred
 
 class FakeScreenCaptureThumbnailRepository : ScreenCaptureThumbnailRepository {
 
-    var fakeThumbnail: Result<Bitmap> = Result.success(createBitmap(100, 100))
+    var defaultFakeThumbnail: Result<Bitmap> = Result.success(createBitmap(100, 100))
+    private val thumbnailByTaskId: MutableMap<Int, Result<Bitmap>> = mutableMapOf()
     val loadThumbnailCalls = mutableListOf<Int>()
     private var loadThumbnailDeferred = CompletableDeferred(Unit)
 
     override suspend fun loadThumbnail(taskId: Int): Result<Bitmap> {
         loadThumbnailCalls.add(taskId)
         loadThumbnailDeferred.await()
-        return fakeThumbnail
+        return thumbnailByTaskId[taskId] ?: defaultFakeThumbnail
     }
 
     fun setLoadThumbnailSuspends(suspends: Boolean) {
@@ -44,4 +47,29 @@ class FakeScreenCaptureThumbnailRepository : ScreenCaptureThumbnailRepository {
     fun completeLoadThumbnail() {
         loadThumbnailDeferred.complete(Unit)
     }
+
+    fun putThumbnail(taskId: Int, thumbnail: Result<Bitmap>) {
+        thumbnailByTaskId[taskId] = thumbnail
+    }
+}
+
+fun FakeScreenCaptureThumbnailRepository.drawThumbnail(
+    taskId: Int,
+    width: Int = 100,
+    height: Int = 100,
+    draw: Canvas.() -> Unit,
+) {
+    putThumbnail(
+        taskId,
+        Result.success(createBitmap(width, height, Bitmap.Config.RGB_565).applyCanvas(draw)),
+    )
+}
+
+fun FakeScreenCaptureThumbnailRepository.drawThumbnail(
+    width: Int = 100,
+    height: Int = 100,
+    draw: Canvas.() -> Unit,
+) {
+    defaultFakeThumbnail =
+        Result.success(createBitmap(width, height, Bitmap.Config.RGB_565).applyCanvas(draw))
 }

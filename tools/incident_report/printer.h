@@ -25,7 +25,7 @@ public:
     explicit Out(int fd);
     ~Out();
 
-    void printf(const char* format, ...);
+    void printf(const char* format, ...) __attribute((__format__(printf, 2, 3)));
 
     void indent();
     void dedent();

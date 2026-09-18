@@ -32,6 +32,7 @@ import android.os.Environment;
 import android.os.Process;
 import android.os.flagging.AconfigPackage;
 import android.util.ArrayMap;
+import android.util.Singleton;
 import android.util.Slog;
 import android.util.Xml;
 
@@ -67,7 +68,18 @@ public class AconfigFlags {
     private final Map<String, Boolean> mFlagValues = new ArrayMap<>();
     private final Map<String, AconfigPackage> mAconfigPackages = new ConcurrentHashMap<>();
 
-    public AconfigFlags() {
+    public static AconfigFlags getInstance() {
+        return sAconfigFlags.get();
+    }
+
+    private static final Singleton<AconfigFlags> sAconfigFlags = new Singleton<>() {
+        @Override
+        protected AconfigFlags create() {
+            return new AconfigFlags();
+        }
+    };
+
+    private AconfigFlags() {
         if (!Flags.manifestFlagging()) {
             if (DEBUG) {
                 Slog.v(LOG_TAG, "Feature disabled, skipped all loading");

@@ -23,6 +23,7 @@ import static android.content.pm.PackageManager.FLAG_PERMISSION_REVOKED_COMPAT;
 import static android.content.pm.PackageManager.FLAG_PERMISSION_REVOKE_WHEN_REQUESTED;
 import static android.content.pm.PackageManager.FLAG_PERMISSION_USER_FIXED;
 import static android.content.pm.PackageManager.FLAG_PERMISSION_USER_SET;
+import static android.content.pm.PackageManager.RESTRICTION_CONFIRM_WITH_SPEEDBUMP;
 import static android.content.pm.PackageManager.RESTRICTION_HIDE_FROM_SUGGESTIONS;
 import static android.content.pm.PackageManager.RESTRICTION_HIDE_NOTIFICATIONS;
 import static android.content.pm.PackageManager.RESTRICTION_NONE;
@@ -108,6 +109,7 @@ import android.text.format.DateUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.IntArray;
+import android.util.Log;
 import android.util.Pair;
 import android.util.PrintWriterPrinter;
 import android.util.Slog;
@@ -128,6 +130,7 @@ import com.android.server.pm.PackageManagerShellCommandDataLoader.Metadata;
 import com.android.server.pm.permission.LegacyPermissionManagerInternal;
 import com.android.server.pm.permission.PermissionAllowlist;
 import com.android.server.pm.verify.domain.DomainVerificationShell;
+import com.android.server.utils.Slogf;
 
 import libcore.io.IoUtils;
 import libcore.io.Streams;
@@ -161,10 +164,10 @@ import java.util.concurrent.TimeUnit;
 class PackageManagerShellCommand extends ShellCommand {
     /** Path for streaming APK content */
     private static final String STDIN_PATH = "-";
-    /** Path where ART profiles snapshots are dumped for the shell user */
-    private final static String ART_PROFILE_SNAPSHOT_DEBUG_LOCATION = "/data/misc/profman/";
     private static final int DEFAULT_STAGED_READY_TIMEOUT_MS = 60 * 1000;
     private static final String TAG = "PackageManagerShellCommand";
+    @SuppressWarnings("IsLoggableTagLength") // TODO(b/487285689): shouldn't be needed
+    private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
     private static final Set<String> UNSUPPORTED_INSTALL_CMD_OPTS = Set.of(
             "--multi-package"
     );
@@ -751,7 +754,7 @@ class PackageManagerShellCommand extends ShellCommand {
     }
 
     private int runPath() throws RemoteException {
-        int userId = UserHandle.USER_SYSTEM;
+        int userId = UserHandle.USER_CURRENT_OR_SELF;
         String option = getNextOption();
         if (option != null && option.equals("--user")) {
             userId = UserHandle.parseUserArg(getNextArgRequired());
@@ -764,6 +767,8 @@ class PackageManagerShellCommand extends ShellCommand {
         }
         final int translatedUserId =
                 translateUserId(userId, UserHandle.USER_NULL, "runPath");
+        Slog.d(TAG, "runPath with userId: USER_CURRENT_OR_SELF translated to userId:"
+                + translatedUserId);
         return displayPackageFilePath(pkg, translatedUserId);
     }
 
@@ -1702,7 +1707,9 @@ class PackageManagerShellCommand extends ShellCommand {
             return 1;
         }
         if (!si.isStagedSessionReady() && !si.isStagedSessionFailed()) {
-            pw.println("Failure [timed out after " + timeoutMs + " ms]");
+            pw.println("Failure [timed out after " + timeoutMs + " ms]."
+                    + " Ending this command now but session is still being staged asynchronously."
+                    + " Use 'pm list staged-sessions' to check the session status later.");
             return 1;
         }
         if (!si.isStagedSessionReady()) {
@@ -2023,8 +2030,16 @@ class PackageManagerShellCommand extends ShellCommand {
             pw.println("Error: package name not specified");
             return 1;
         }
+
         final int translatedUserId =
                 translateUserId(userId, UserHandle.USER_NULL, "runInstallExisting");
+        UserManagerInternal umi =
+                LocalServices.getService(UserManagerInternal.class);
+        UserInfo userInfo = umi.getUserInfo(translatedUserId);
+        if (userInfo == null) {
+            throw new IllegalArgumentException(
+                    "The user " + translatedUserId + " doesn't exist");
+        }
 
         int installReason = PackageManager.INSTALL_REASON_UNKNOWN;
         try {
@@ -2244,8 +2259,10 @@ class PackageManagerShellCommand extends ShellCommand {
         if (userId == UserHandle.USER_ALL) {
             flags |= PackageManager.DELETE_ALL_USERS;
         }
+        // Note: if userId is USER_ALL, we rely on the DELETE_ALL_USERS flag to affect all users but
+        // must pass in some Admin user so that it can have the authority to downgrade sys apps.
         final int translatedUserId =
-                translateUserId(userId, UserHandle.USER_SYSTEM, "runUninstall");
+                translateUserId(userId, getAdminUserId(), "runUninstall");
         final LocalIntentReceiver receiver = new LocalIntentReceiver();
         final PackageManagerInternal internal =
                 LocalServices.getService(PackageManagerInternal.class);
@@ -2267,6 +2284,11 @@ class PackageManagerShellCommand extends ShellCommand {
                 // user set flag so it disables rather than reverting to system
                 // version of the app.
                 if (isSystem) {
+                    if (Binder.getCallingUid() != Process.ROOT_UID) {
+                        pw.println("Failure [only root can delete system app for a "
+                                + "particular user]");
+                        return 1;
+                    }
                     flags |= PackageManager.DELETE_SYSTEM_APP;
                 }
             }
@@ -2286,6 +2308,24 @@ class PackageManagerShellCommand extends ShellCommand {
                     + result.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) + "]");
             return 1;
         }
+    }
+
+    /** Returns an Admin user id, or USER_SYSTEM if no Admin can be found. */
+    private @UserIdInt int getAdminUserId() {
+        if (!android.multiuser.Flags.hsuNotAdmin()) {
+            // Pre-flag behaviour used hardcoded USER_SYSTEM value.
+            return UserHandle.USER_SYSTEM;
+        }
+        final UserManagerInternal umi = LocalServices.getService(UserManagerInternal.class);
+        final List<UserInfo> allUsers = umi.getUsers(true);
+        for (UserInfo user : allUsers) {
+            if (user.isAdmin()) {
+                return user.id;
+            }
+            // We failed to find an Admin. Return the historical assumption of SYSTEM, but note
+            // that the SYSTEM user may not actually be an Admin (as in the case of HSUM).
+        }
+        return UserHandle.USER_SYSTEM;
     }
 
     private int runRemoveSplits(String packageName, Collection<String> splitNames)
@@ -2492,6 +2532,9 @@ class PackageManagerShellCommand extends ShellCommand {
                         case "hide-from-suggestions":
                             flags |= PackageManager.RESTRICTION_HIDE_FROM_SUGGESTIONS;
                             break;
+                        case "speedbumps":
+                            flags |= PackageManager.RESTRICTION_CONFIRM_WITH_SPEEDBUMP;
+                            break;
                         default:
                             pw.println("Unrecognized flag: " + flag);
                             return 1;
@@ -2571,6 +2614,8 @@ class PackageManagerShellCommand extends ShellCommand {
                 return "HIDE_FROM_SUGGESTIONS";
             case RESTRICTION_HIDE_NOTIFICATIONS:
                 return "HIDE_NOTIFICATIONS";
+            case RESTRICTION_CONFIRM_WITH_SPEEDBUMP:
+                return "CONFIRM_WITH_SPEEDBUMP";
             default:
                 return "UNKNOWN";
         }
@@ -2832,7 +2877,9 @@ class PackageManagerShellCommand extends ShellCommand {
     private boolean isVendorApp(String pkg) {
         try {
             final PackageInfo info = mInterface.getPackageInfo(
-                     pkg, PackageManager.MATCH_ANY_USER, UserHandle.USER_SYSTEM);
+                     pkg, PackageManager.MATCH_KNOWN_PACKAGES
+                     | PackageManager.MATCH_HIDDEN_UNTIL_INSTALLED_COMPONENTS,
+                     UserHandle.USER_SYSTEM);
             return info != null && info.applicationInfo.isVendor();
         } catch (RemoteException e) {
             return false;
@@ -2842,7 +2889,9 @@ class PackageManagerShellCommand extends ShellCommand {
     private boolean isProductApp(String pkg) {
         try {
             final PackageInfo info = mInterface.getPackageInfo(
-                    pkg, PackageManager.MATCH_ANY_USER, UserHandle.USER_SYSTEM);
+                    pkg, PackageManager.MATCH_KNOWN_PACKAGES
+                    | PackageManager.MATCH_HIDDEN_UNTIL_INSTALLED_COMPONENTS,
+                    UserHandle.USER_SYSTEM);
             return info != null && info.applicationInfo.isProduct();
         } catch (RemoteException e) {
             return false;
@@ -2852,7 +2901,9 @@ class PackageManagerShellCommand extends ShellCommand {
     private boolean isSystemExtApp(String pkg) {
         try {
             final PackageInfo info = mInterface.getPackageInfo(
-                    pkg, PackageManager.MATCH_ANY_USER, UserHandle.USER_SYSTEM);
+                    pkg, PackageManager.MATCH_KNOWN_PACKAGES
+                    | PackageManager.MATCH_HIDDEN_UNTIL_INSTALLED_COMPONENTS,
+                    UserHandle.USER_SYSTEM);
             return info != null && info.applicationInfo.isSystemExt();
         } catch (RemoteException e) {
             return false;
@@ -2892,6 +2943,20 @@ class PackageManagerShellCommand extends ShellCommand {
     private String getPrivAppPermissionsString(@NonNull String packageName, boolean allowed) {
         final PermissionAllowlist permissionAllowlist =
                 SystemConfig.getInstance().getPermissionAllowlist();
+
+        final String apexPackageName = getApexPackageNameContainingPackage(packageName);
+        final String apexModuleName = apexPackageName != null
+                ? ApexManager.getInstance().getApexModuleNameForPackageName(apexPackageName)
+                : null;
+
+        if (apexModuleName != null && !(isVendorApp(packageName) || isSystemExtApp(packageName))) {
+            final ArrayMap<String, ArrayMap<String, Boolean>> apexAllowlistMap =
+                    permissionAllowlist.getApexPrivilegedAppAllowlists().get(apexModuleName);
+            if (apexAllowlistMap != null && apexAllowlistMap.get(packageName) != null) {
+                return formatPermissions(apexAllowlistMap.get(packageName), allowed);
+            }
+        }
+
         final ArrayMap<String, ArrayMap<String, Boolean>> privAppPermissions;
         if (isVendorApp(packageName)) {
             privAppPermissions = permissionAllowlist.getVendorPrivilegedAppAllowlist();
@@ -2899,16 +2964,18 @@ class PackageManagerShellCommand extends ShellCommand {
             privAppPermissions = permissionAllowlist.getProductPrivilegedAppAllowlist();
         } else if (isSystemExtApp(packageName)) {
             privAppPermissions = permissionAllowlist.getSystemExtPrivilegedAppAllowlist();
-        } else if (isApexApp(packageName)) {
-            final String moduleName = ApexManager.getInstance().getApexModuleNameForPackageName(
-                    getApexPackageNameContainingPackage(packageName));
-            privAppPermissions = permissionAllowlist.getApexPrivilegedAppAllowlists()
-                    .get(moduleName);
         } else {
             privAppPermissions = permissionAllowlist.getPrivilegedAppAllowlist();
         }
+
         final ArrayMap<String, Boolean> permissions = privAppPermissions != null
                 ? privAppPermissions.get(packageName) : null;
+
+        return formatPermissions(permissions, allowed);
+    }
+
+    @NonNull
+    private String formatPermissions(ArrayMap<String, Boolean> permissions, boolean allowed) {
         if (permissions == null) {
             return "{}";
         }
@@ -3096,6 +3163,8 @@ class PackageManagerShellCommand extends ShellCommand {
             } else if ("--for-testing".equals(opt)) {
                 flags |= UserInfo.FLAG_FOR_TESTING;
             } else if ("--pre-create-only".equals(opt)) {
+                // TODO(b/282987119): preCreated users is deprecated, we should remove this option
+                // and/or explicitly throw when passed on
                 preCreateOnly = true;
             } else if ("--user-type".equals(opt)) {
                 newUserType = getNextArgRequired();
@@ -3132,19 +3201,40 @@ class PackageManagerShellCommand extends ShellCommand {
             userType = UserInfo.getDefaultUserType(flags);
         }
         Trace.traceBegin(Trace.TRACE_TAG_PACKAGE_MANAGER, "shell_runCreateUser");
+        if (DEBUG) {
+            Slogf.d(TAG,
+                    "runCreateUser(): userId=%d, name=%s, userType=%s, flags=%d (%s)",
+                    userId, name, userType, flags, UserInfo.flagsToString(flags));
+        }
         try {
             if (UserManager.isUserTypeRestricted(userType)) {
                 // In non-split user mode, userId can only be SYSTEM
                 int parentUserId = userId >= 0 ? userId : UserHandle.USER_SYSTEM;
+                if (DEBUG) {
+                    Slogf.v(TAG, "runCreateUser(): calling "
+                            + "createRestrictedProfileWithThrow(%s, %d)", name, parentUserId);
+                }
                 info = um.createRestrictedProfileWithThrow(name, parentUserId);
                 accm.addSharedAccountsFromParentUser(parentUserId, userId,
                         (Process.myUid() == Process.ROOT_UID) ? "root" : "com.android.shell");
             } else if (userId < 0) {
-                info = preCreateOnly ?
-                        um.preCreateUserWithThrow(userType) :
-                        um.createUserWithThrow(name, userType, flags);
+                if (preCreateOnly) {
+                    Slogf.w(TAG, "runCreateUser(): calling preCreateUserWithThrow(%s), but "
+                            + "pre-created users is deprecated", userType);
+                    info = um.preCreateUserWithThrow(userType);
+                } else {
+                    if (DEBUG) {
+                        Slogf.v(TAG, "runCreateUser(): calling createUserWithThrow(%s, %s, %d)",
+                                name, userType, flags);
+                    }
+                    info =  um.createUserWithThrow(name, userType, flags);
+                }
             } else {
-                info = um.createProfileForUserWithThrow(name, userType, flags, userId, null);
+                Slogf.v(TAG, "runCreateUser(): calling "
+                        + "createProfileForUserWithThrow(%s, %s, %d, %d, null)",
+                        name, userType, flags, userId);
+                info = um.createProfileForUserWithThrow(name, userType, flags, userId,
+                        /* disallowedPackages=*/ null);
             }
         } catch (ServiceSpecificException e) {
             getErrPrintWriter().println("Error: " + e);
@@ -3153,6 +3243,9 @@ class PackageManagerShellCommand extends ShellCommand {
         }
 
         if (info != null) {
+            if (DEBUG) {
+                Slogf.d(TAG, "runCreateUser(): created %s", info.toFullString());
+            }
             getOutPrintWriter().println("Success: created user id " + info.id);
             return 0;
         } else {
@@ -3403,10 +3496,6 @@ class PackageManagerShellCommand extends ShellCommand {
         String opt;
         while ((opt = getNextOption()) != null) {
             if ("--user-type".equals(opt)) {
-                if (!android.multiuser.Flags.consistentMaxUsers()) {
-                    getErrPrintWriter().println("Error: consistent_max_users flag is not enabled");
-                    return 1;
-                }
                 if (userType != null) {
                     getErrPrintWriter().println("Error: more than one user type was specified");
                     return 1;
@@ -3432,10 +3521,6 @@ class PackageManagerShellCommand extends ShellCommand {
 
     /** Implementation of get-remaining-user-count */
     public int runGetRemainingCreatableUserCount() throws RemoteException {
-        if (!android.multiuser.Flags.consistentMaxUsers()) {
-            getErrPrintWriter().println("Error: consistent_max_users flag is not enabled");
-            return 1;
-        }
         String userType = null;
         String opt;
         while ((opt = getNextOption()) != null) {
@@ -3683,7 +3768,7 @@ class PackageManagerShellCommand extends ShellCommand {
                     sessionParams.setForceVerification();
                     break;
                 case "--disable-auto-install-dependencies":
-                    if (Flags.sdkDependencyInstaller()) {
+                    if (!Flags.sdkDependencyInstallerDeprecation()) {
                         sessionParams.setAutoInstallDependenciesEnabled(false);
                     } else {
                         throw new IllegalArgumentException("Unknown option " + opt);
@@ -4987,7 +5072,7 @@ class PackageManagerShellCommand extends ShellCommand {
                 + "#compiler_filters");
         pw.println("          or 'skip'");
         pw.println("      --force-verification: if set, enable the verification for this install");
-        if (Flags.sdkDependencyInstaller()) {
+        if (!Flags.sdkDependencyInstallerDeprecation()) {
             pw.println("      --disable-auto-install-dependencies: if set, any missing shared");
             pw.println("          library dependencies will not be auto-installed");
         }
@@ -5090,6 +5175,7 @@ class PackageManagerShellCommand extends ShellCommand {
         pw.println("      hide-notifications: Hides notifications from this package");
         pw.println("      hide-from-suggestions: Hides this package from suggestions");
         pw.println("        (by the launcher, etc.)");
+        pw.println("      speedbumps: Requires a speedbump to launch the package");
         pw.println("    Any existing flags are overwritten, which also means that if no flags are");
         pw.println("    specified then all existing flags will be cleared.");
         pw.println("");
@@ -5176,17 +5262,13 @@ class PackageManagerShellCommand extends ShellCommand {
         pw.println("      --all: display all restrictions for the given user");
         pw.println("          This option is used without restriction key");
         pw.println("");
-        if (android.multiuser.Flags.consistentMaxUsers()) {
-            pw.println("  get-max-users [--user-type USER_TYPE]");
-            pw.println("    Returns the current maximum allowed number of users of type USER_TYPE.");
-            pw.println("    If USER_TYPE is not specified, will instead return the number of");
-            pw.println("    supported regular switchable users (excluding guest and demo users).");
-            pw.println("");
-            pw.println("  get-remaining-user-count --user-type USER_TYPE");
-            pw.println("    Returns the number of users of the given USER_TYPE that can be created.");
-        } else {
-            pw.println("  get-max-users");
-        }
+        pw.println("  get-max-users [--user-type USER_TYPE]");
+        pw.println("    Returns the current maximum allowed number of users of type USER_TYPE.");
+        pw.println("    If USER_TYPE is not specified, will instead return the number of");
+        pw.println("    supported regular switchable users (excluding guest and demo users).");
+        pw.println("");
+        pw.println("  get-remaining-user-count --user-type USER_TYPE");
+        pw.println("    Returns the number of users of the given USER_TYPE that can be created.");
         pw.println("");
         pw.println("  get-max-running-users");
         pw.println("");

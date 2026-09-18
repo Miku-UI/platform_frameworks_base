@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import android.app.usage.UsageEvents.Event;
 import android.util.Log;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -35,9 +36,35 @@ import java.util.Random;
 public class EventListTest {
     private static final String TAG = EventListTest.class.getSimpleName();
 
-    private UsageEvents.Event getUsageEvent(long timeStamp) {
-        final UsageEvents.Event event = new UsageEvents.Event();
+    private static Event getUsageEvent(long timeStamp) {
+        return getUsageEvent(Event.SYSTEM_INTERACTION, timeStamp);
+    }
+
+    private static Event getUsageEvent(int eventType, long timeStamp) {
+        final Event event = new Event();
+        event.mEventType = eventType;
         event.mTimeStamp = timeStamp;
+        event.mPackage = "android";
+        return event;
+    }
+
+    private static Event getObfuscatedEvent(int eventType, long timeStamp) {
+        final Event event = new Event();
+        event.mEventType = eventType;
+        event.mTimeStamp = timeStamp;
+        event.mPackageToken = 1;
+        return event;
+    }
+
+    private static Event getActivityEvent(int eventType, long timeStamp, int instanceId) {
+        final Event event = getUsageEvent(eventType, timeStamp);
+        event.mInstanceId = instanceId;
+        return event;
+    }
+
+    private static Event getFgsEvent(int eventType, long timeStamp, String className) {
+        final Event event = getUsageEvent(eventType, timeStamp);
+        event.mClass = className;
         return event;
     }
 
@@ -127,5 +154,216 @@ public class EventListTest {
             listUnderTest.insert(getUsageEvent(i));
         }
         assertEquals(100, listUnderTest.size());
+    }
+
+    @Test
+    public void testInsert_obfuscatedEvents_overLimit_doesNotDropsInserts() {
+        final int numOfEventsToInsert = EventListRateLimiter.GENERAL_EVENTS_COUNT_LIMIT + 100;
+        final EventList events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insertObfuscated(getObfuscatedEvent(Event.APP_COMPONENT_USED, 1));
+        }
+        assertEquals(numOfEventsToInsert, events.size());
+    }
+
+    @Test
+    public void testInsert_generalEvents_overLimit_dropsInsert() {
+        final int numOfEventsToInsert = EventListRateLimiter.GENERAL_EVENTS_COUNT_LIMIT + 100;
+        final EventList events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getUsageEvent(Event.APP_COMPONENT_USED, 1));
+        }
+        assertEquals(EventListRateLimiter.GENERAL_EVENTS_COUNT_LIMIT, events.size());
+    }
+
+    @Test
+    public void testInsert_generalEvents_overLimit_replacesLastEvent() {
+        final EventList events = new EventList();
+        for (int i = 0; i < EventListRateLimiter.GENERAL_EVENTS_COUNT_LIMIT; i++) {
+            events.insert(getUsageEvent(Event.APP_COMPONENT_USED, 1));
+        }
+        assertEquals(EventListRateLimiter.GENERAL_EVENTS_COUNT_LIMIT, events.size());
+        assertEquals(1, events.get(events.size() - 1).mTimeStamp);
+
+        // This should replace the last event.
+        Event finalEvent = getUsageEvent(Event.APP_COMPONENT_USED, 2);
+        events.insert(finalEvent);
+
+        assertEquals(EventListRateLimiter.GENERAL_EVENTS_COUNT_LIMIT, events.size());
+        // Assert that the last event in the list is now the new event.
+        assertEquals(finalEvent.mTimeStamp, events.get(events.size() - 1).mTimeStamp);
+    }
+
+    @Test
+    public void testInsert_generalEvents_differentTypes_doesNotDropInserts() {
+        final int numOfEventsToInsert = EventListRateLimiter.GENERAL_EVENTS_COUNT_LIMIT - 1;
+        final EventList events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getUsageEvent(Event.APP_COMPONENT_USED, 1));
+        }
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getUsageEvent(Event.CONFIGURATION_CHANGE, 2));
+        }
+        assertEquals(numOfEventsToInsert * 2, events.size());
+    }
+
+    @Test
+    public void testInsert_generalEvents_afterThreshold_doesNotDropInserts() {
+        final int numOfEventsToInsert = EventListRateLimiter.GENERAL_EVENTS_COUNT_LIMIT - 1;
+        final long initialTimestamp = EventListRateLimiter.GENERAL_EVENT_THRESHOLD_WINDOW_MS;
+        final EventList events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getUsageEvent(Event.APP_COMPONENT_USED, initialTimestamp));
+        }
+
+        final long newTimestamp =
+                initialTimestamp + EventListRateLimiter.GENERAL_EVENT_THRESHOLD_WINDOW_MS + 1;
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getUsageEvent(Event.APP_COMPONENT_USED, newTimestamp));
+        }
+        assertEquals(numOfEventsToInsert * 2, events.size());
+    }
+
+    @Test
+    public void testInsert_userEvents_overLimit_dropsInsert() {
+        final int numOfEventsToInsert = EventListRateLimiter.USER_EVENTS_COUNT_LIMIT + 10;
+        EventList events = new EventList();
+        // activity-based events
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getActivityEvent(Event.ACTIVITY_RESUMED, 1, 100));
+        }
+        assertEquals(EventListRateLimiter.USER_EVENTS_COUNT_LIMIT, events.size());
+
+        // fgs-based events
+        events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getFgsEvent(Event.FOREGROUND_SERVICE_START, 1, "aClass"));
+        }
+        assertEquals(EventListRateLimiter.USER_EVENTS_COUNT_LIMIT, events.size());
+
+        // other user-based events
+        events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getUsageEvent(Event.USER_INTERACTION, 1));
+        }
+        assertEquals(EventListRateLimiter.USER_EVENTS_COUNT_LIMIT, events.size());
+    }
+
+    @Test
+    public void testInsert_userEvents_differentPackages_doesNotDropInserts() {
+        final int numOfEventsToInsert = EventListRateLimiter.USER_EVENTS_COUNT_LIMIT - 1;
+        final EventList events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getUsageEvent(Event.USER_INTERACTION, 1));
+        }
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            Event event = getUsageEvent(Event.USER_INTERACTION, 2);
+            event.mPackage = "other";
+            events.insert(event);
+        }
+        assertEquals(numOfEventsToInsert * 2, events.size());
+    }
+
+    @Test
+    public void testInsert_userEvents_afterThreshold_doesNotDropInserts() {
+        final int numOfEventsToInsert = EventListRateLimiter.USER_EVENTS_COUNT_LIMIT - 1;
+        final long initialTimestamp = EventListRateLimiter.USER_EVENT_THRESHOLD_WINDOW_MS;
+        final EventList events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getUsageEvent(Event.USER_INTERACTION, initialTimestamp));
+        }
+
+        final long newTimestamp = initialTimestamp
+                + EventListRateLimiter.USER_EVENT_THRESHOLD_WINDOW_MS + 1;
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getUsageEvent(Event.USER_INTERACTION, newTimestamp));
+        }
+        assertEquals(numOfEventsToInsert * 2, events.size());
+    }
+
+    @Test
+    public void testInsert_activityEvents_overLimit_dropsInsert() {
+        final Random random = new Random();
+        final int numOfEventsToInsert = EventListRateLimiter.USER_EVENTS_COUNT_LIMIT + 10;
+        final EventList events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            int eventType = random.nextBoolean() ? Event.ACTIVITY_RESUMED : Event.ACTIVITY_PAUSED;
+            events.insert(getActivityEvent(eventType, 1, 100));
+        }
+        assertEquals(EventListRateLimiter.USER_EVENTS_COUNT_LIMIT, events.size());
+    }
+
+    @Test
+    public void testInsert_activityEvents_differentInstanceIds_doesNotDropInserts() {
+        final int numOfEventsToInsert = EventListRateLimiter.USER_EVENTS_COUNT_LIMIT - 1;
+        final EventList events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getActivityEvent(Event.ACTIVITY_RESUMED, 1, 100));
+        }
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getActivityEvent(Event.ACTIVITY_RESUMED, 1, 101));
+        }
+        assertEquals(numOfEventsToInsert * 2, events.size());
+    }
+
+    @Test
+    public void testInsert_activityEvents_afterThreshold_doesNotDropInserts() { //
+        final int numOfEventsToInsert = EventListRateLimiter.USER_EVENTS_COUNT_LIMIT - 1;
+        final long initialTimestamp = EventListRateLimiter.USER_EVENT_THRESHOLD_WINDOW_MS;
+        final EventList events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getActivityEvent(Event.ACTIVITY_RESUMED, initialTimestamp, 100));
+        }
+
+        final long newTimestamp = initialTimestamp
+                + EventListRateLimiter.USER_EVENT_THRESHOLD_WINDOW_MS + 1;
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getActivityEvent(Event.ACTIVITY_RESUMED, newTimestamp, 100));
+        }
+        assertEquals(numOfEventsToInsert * 2, events.size());
+    }
+
+    @Test
+    public void testInsert_fgsEvents_overLimit_dropsInsert() {
+        final Random random = new Random();
+        final int numOfEventsToInsert = EventListRateLimiter.USER_EVENTS_COUNT_LIMIT + 10;
+        final EventList events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            int eventType = random.nextBoolean()
+                    ? Event.FOREGROUND_SERVICE_START
+                    : Event.FOREGROUND_SERVICE_STOP;
+            events.insert(getFgsEvent(eventType, 1, "aClass"));
+        }
+        assertEquals(EventListRateLimiter.USER_EVENTS_COUNT_LIMIT, events.size());
+    }
+
+    @Test
+    public void testInsert_fgsEvents_differentClasses_doesNotDropInserts() {
+        final int numOfEventsToInsert = EventListRateLimiter.USER_EVENTS_COUNT_LIMIT - 1;
+        final EventList events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getFgsEvent(Event.FOREGROUND_SERVICE_START, 1, "aClass"));
+        }
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getFgsEvent(Event.FOREGROUND_SERVICE_START, 1, "bClass"));
+        }
+        assertEquals(numOfEventsToInsert * 2, events.size());
+    }
+
+    @Test
+    public void testInsert_fgsEvents_afterThreshold_doesNotDropInserts() {
+        final int numOfEventsToInsert = EventListRateLimiter.USER_EVENTS_COUNT_LIMIT - 1;
+        final long initialTimestamp = EventListRateLimiter.USER_EVENT_THRESHOLD_WINDOW_MS;
+        final EventList events = new EventList();
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getFgsEvent(Event.FOREGROUND_SERVICE_START, initialTimestamp, "aClass"));
+        }
+
+        final long newTimestamp = initialTimestamp
+                + EventListRateLimiter.USER_EVENT_THRESHOLD_WINDOW_MS + 1;
+        for (int i = 0; i < numOfEventsToInsert; i++) {
+            events.insert(getFgsEvent(Event.FOREGROUND_SERVICE_START, newTimestamp, "aClass"));
+        }
+        assertEquals(numOfEventsToInsert * 2, events.size());
     }
 }

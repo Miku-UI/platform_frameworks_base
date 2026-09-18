@@ -22,4 +22,5 @@ import android.hardware.display.DisplayTopology;
 interface IDisplayManagerCallback {
     oneway void onDisplayEvent(int displayId, int event);
     oneway void onTopologyChanged(in DisplayTopology topology);
+    oneway void onDisplaySnapshot(in int[] connected, in int[] added);
 }

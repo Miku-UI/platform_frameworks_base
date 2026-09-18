@@ -16,6 +16,9 @@
 
 package com.android.server.backup.utils;
 
+import static android.app.backup.BackupAgent.FLAG_CLIENT_SIDE_ENCRYPTION_ENABLED;
+import static android.app.backup.BackupAgent.FLAG_DEVICE_TO_DEVICE_TRANSFER;
+
 import static com.android.server.backup.BackupManagerService.TAG;
 import static com.android.server.backup.UserBackupManagerService.PACKAGE_MANAGER_SENTINEL;
 import static com.android.server.backup.UserBackupManagerService.SETTINGS_PACKAGE;
@@ -41,6 +44,7 @@ import android.content.pm.PackageManagerInternal;
 import android.content.pm.Signature;
 import android.content.pm.SigningInfo;
 import android.os.Build;
+import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.util.Slog;
@@ -83,10 +87,10 @@ public class BackupEligibilityRules {
                     Sets.newArraySet(WALLPAPER_PACKAGE, SETTINGS_PACKAGE));
 
     /**
-     * List of system packages that are eligible for backup for the main user in Headless System
-     * User Mode (HSUM). In HSUM, certain packages are only backed up for the main user.
+     * List of system packages that are eligible for backup for the admin user in Headless System
+     * User Mode (HSUM). In HSUM, certain packages are only backed up for the admin user.
      */
-    private static final Set<String> systemPackagesAllowedForHsumMainUser =
+    private static final Set<String> systemPackagesAllowedForHsumAdminUser =
             SetUtils.union(
                     systemPackagesAllowedForNonSystemUsers,
                     Sets.newArraySet(TELEPHONY_PROVIDER_PACKAGE));
@@ -95,6 +99,7 @@ public class BackupEligibilityRules {
     private final PackageManagerInternal mPackageManagerInternal;
     private final UserManagerInternal mUserManagerInternal;
     private final int mUserId;
+    private final Context mContext;
     @BackupDestination private final int mBackupDestination;
     private final boolean mSkipRestoreForLaunchedApps;
 
@@ -151,6 +156,7 @@ public class BackupEligibilityRules {
         mPackageManager = packageManager;
         mPackageManagerInternal = packageManagerInternal;
         mUserId = userId;
+        mContext = context;
         mBackupDestination = backupDestination;
         mUserManagerInternal = LocalServices.getService(UserManagerInternal.class);
         mSkipRestoreForLaunchedApps = skipRestoreForLaunchedApps;
@@ -186,7 +192,7 @@ public class BackupEligibilityRules {
         if (UserHandle.isCore(app.uid)) {
             // System apps are additionally checked:
             // ...if not allowed for the current user (governed by user-specific allowlists)
-            if (!isSystemPackageAllowedForCurrentUser(app.packageName)) {
+            if (!isSystemPackageAllowedForCurrentUser(app)) {
                 return false;
             }
 
@@ -215,7 +221,8 @@ public class BackupEligibilityRules {
      * type (profile, HSUM main, etc.) and specific allowlists.
      */
     @SuppressWarnings("AndroidFrameworkRequiresPermission")
-    private boolean isSystemPackageAllowedForCurrentUser(String packageName) {
+    private boolean isSystemPackageAllowedForCurrentUser(ApplicationInfo app) {
+        String packageName = app.packageName;
         if (mUserId == UserHandle.USER_SYSTEM) {
             return true;
         }
@@ -224,11 +231,11 @@ public class BackupEligibilityRules {
             return systemPackagesAllowedForProfileUser.contains(packageName);
         }
 
-        // In Headless System User Mode, certain packages are only backed up for the main user.
+        // In Headless System User Mode, certain packages are only backed up for the admin users.
         if (UserManager.isHeadlessSystemUserMode()) {
-            int mainUserId = mUserManagerInternal.getMainUserId();
-            if (mainUserId != UserHandle.USER_NULL && mainUserId == mUserId) {
-                return systemPackagesAllowedForHsumMainUser.contains(packageName);
+            if (mUserManagerInternal.getUserInfo(mUserId).isAdmin()) {
+                return systemPackagesAllowedForHsumAdminUser.contains(packageName)
+                        || (UserHandle.getAppId(app.uid) == Process.BLUETOOTH_UID);
             }
         }
 
@@ -375,7 +382,9 @@ public class BackupEligibilityRules {
         try {
             Map<String, List<PlatformSpecificParams>> platformSpecificParams =
                     PlatformConfigParser.parsePlatformSpecificConfig(
-                            mPackageManager, applicationInfo);
+                            mContext.createContextAsUser(UserHandle.of(mUserId), /* flags= */ 0)
+                                    .getPackageManager(),
+                            applicationInfo);
             Slog.d(
                     TAG,
                     "Loaded cross-platform configuration for "
@@ -450,6 +459,17 @@ public class BackupEligibilityRules {
     }
 
     /**
+     * Checks if backup agent running in PCC is allowed to run based on the transport flags.
+     * PCC backup agent is allowed to run only if client side encryption enabled in case of cloud
+     * backups or it is a d2d transfer.
+     * See {@link ApplicationInfo#BACKUP_AGENT_PROCESS_PCC}
+     */
+    public boolean pccBackupAgentAllowed(int transportFlags) {
+        return (transportFlags
+                & (FLAG_CLIENT_SIDE_ENCRYPTION_ENABLED | FLAG_DEVICE_TO_DEVICE_TRANSFER)) != 0;
+    }
+
+    /**
      * Returns whether the app can get full backup. Does *not* check overall backup eligibility
      * policy!
      */
@@ -473,7 +493,7 @@ public class BackupEligibilityRules {
     }
 
     /**
-     * Returns whether the signatures stored {@param storedSigs}, coming from the source apk, match
+     * Returns whether the signatures stored {@code storedSigs}, coming from the source apk, match
      * the signatures of the apk installed on the device, the target apk. If the target resides in
      * the system partition we return true. Otherwise it's considered a match if both conditions
      * hold:
@@ -488,7 +508,7 @@ public class BackupEligibilityRules {
      * is only supported for apps ever signed with one key, and those apps will not be allowed to be
      * signed by more certificates in the future
      *
-     * <p>Note that if {@param target} is null we return false.
+     * <p>Note that if {@code target} is null we return false.
      */
     public boolean signaturesMatch(Signature[] storedSigs, PackageInfo target) {
         if (target == null || target.packageName == null) {

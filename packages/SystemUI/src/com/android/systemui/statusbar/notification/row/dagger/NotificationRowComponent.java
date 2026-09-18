@@ -22,10 +22,11 @@ import com.android.systemui.statusbar.notification.row.ActivatableNotificationVi
 import dagger.BindsInstance;
 import dagger.Subcomponent;
 
-/**
- * Dagger subcomponent for Notification related views.
- */
-@Subcomponent(modules = {ActivatableNotificationViewModule.class})
+/** Dagger subcomponent for Notification related views. */
+@Subcomponent(
+        modules = {
+            ActivatableNotificationViewModule.class,
+        })
 @NotificationRowScope
 public interface NotificationRowComponent {
     /**

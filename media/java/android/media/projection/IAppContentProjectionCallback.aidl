@@ -33,7 +33,8 @@ oneway interface IAppContentProjectionCallback {
         * @param thumbnailHeight The requested height of the app content thumbnail
         */
        @EnforcePermission(allOf = {"MANAGE_MEDIA_PROJECTION"})
-       void onContentRequest(in RemoteCallback newContentConsumer, int thumbnailWidth, int thumbnailHeight);
+       void onContentRequest(in RemoteCallback newContentConsumer, int thumbnailWidth,
+         int thumbnailHeight, int iconWidth, int iconHeight);
 
        /**
         * Called when the user picked a content to be shared within the requesting app.
@@ -43,7 +44,8 @@ oneway interface IAppContentProjectionCallback {
         * @return true if the request has been fulfilled, false otherwise.
         */
        @EnforcePermission(allOf = {"MANAGE_MEDIA_PROJECTION"})
-       void onLoopbackProjectionStarted(in IAppContentProjectionSession session, int contentId);
+       void onLoopbackProjectionStarted(in IAppContentProjectionSession session, int contentId,
+           boolean isAudioRequested);
 
       /**
        * Called when the sharing session has been ended by the user or the system. The shared

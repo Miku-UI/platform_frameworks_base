@@ -50,6 +50,8 @@ import androidx.lifecycle.MutableLiveData
 import com.android.packageinstaller.common.EventResultPersister
 import com.android.packageinstaller.common.EventResultPersister.OutOfIdsException
 import com.android.packageinstaller.common.InstallEventReceiver
+import com.android.packageinstaller.stats.StatsdLogger
+import com.android.packageinstaller.stats.PiaStagesLatencyTracker
 import com.android.packageinstaller.v2.model.InstallAborted.Companion.ABORT_REASON_DONE
 import com.android.packageinstaller.v2.model.InstallAborted.Companion.ABORT_REASON_INTERNAL_ERROR
 import com.android.packageinstaller.v2.model.InstallAborted.Companion.ABORT_REASON_POLICY
@@ -94,6 +96,10 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
     private val _installResult = MutableLiveData<InstallStage>()
     val installResult: LiveData<InstallStage>
         get() = _installResult
+
+    val piaStagesLatencyTracker: PiaStagesLatencyTracker = PiaStagesLatencyTracker(
+        StatsdLogger()
+    )
 
     /**
      * Session ID for a session created when caller uses PackageInstaller APIs
@@ -164,11 +170,18 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
                 || PackageInstaller.ACTION_CONFIRM_INSTALL == intent.action
                 || isConfirmDeveloperVerificationAction
 
-        sessionId = if (isSessionInstall)
-            intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, SessionInfo.INVALID_ID)
-        else SessionInfo.INVALID_ID
+        if (isSessionInstall) {
+            sessionId = intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, SessionInfo.INVALID_ID)
+            piaStagesLatencyTracker.setSessionId(sessionId)
+        } else {
+            sessionId = SessionInfo.INVALID_ID
+        }
 
         stagedSessionId = intent.getIntExtra(EXTRA_STAGED_SESSION_ID, SessionInfo.INVALID_ID)
+
+        if (stagedSessionId != SessionInfo.INVALID_ID) {
+            piaStagesLatencyTracker.setSessionId(stagedSessionId)
+        }
 
         callingPackage = callerInfo.packageName
         callingUid = callerInfo.uid
@@ -198,6 +211,11 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
             if (sessionId != SessionInfo.INVALID_ID)
                 packageInstaller.getSessionInfo(sessionId)
             else null
+
+        if (sessionInfo != null) {
+            // For session-based installs, the size is already known by the system
+            piaStagesLatencyTracker.setApkSize(sessionInfo.size.toInt())
+        }
 
         // This case is launching the extra intent that is included in the failure result received
         // by the installer when the installation failed because of developer verification.
@@ -253,7 +271,25 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
             return InstallAborted(ABORT_REASON_INTERNAL_ERROR)
         }
 
-        isTrustedSource = isInstallRequestFromTrustedSource(sourceInfo, this.intent, originatingUid)
+        val isPrivilegedAndKnown = sourceInfo != null && sourceInfo.isPrivilegedApp &&
+                intent.getBooleanExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, false)
+        val isInstallPkgPermissionGranted = originatingUid != Process.INVALID_UID &&
+                isPermissionGranted(context, Manifest.permission.INSTALL_PACKAGES, originatingUid)
+
+        // Bypass the unknown source user restrictions check when either of the following
+        // two conditions is met:
+        // 1. An installer with the INSTALL_PACKAGES permission initiated the
+        // installation via the PackageInstaller APIs and not via an
+        // ACTION_VIEW or ACTION_INSTALL_PACKAGE intent.
+        // 2. An installer is a privileged app and it has set the
+        // EXTRA_NOT_UNKNOWN_SOURCE flag to be true in the intent.
+        val isIntentInstall =
+            Intent.ACTION_VIEW == intent.action
+                    || Intent.ACTION_INSTALL_PACKAGE == intent.action
+
+        isTrustedSource =
+            (!isIntentInstall && isInstallPkgPermissionGranted) || isPrivilegedAndKnown
+
         // In general case, the originatingUid is callingUid. If callingUid is INVALID_UID, return
         // InstallAborted in the check above. When the originatingUid is INVALID_UID here, it means
         // the originatingUid is from the system download manager or the system documents manager,
@@ -288,19 +324,6 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
         } catch (ignored: PackageManager.NameNotFoundException) {
             null
         }
-    }
-
-    private fun isInstallRequestFromTrustedSource(
-        sourceInfo: ApplicationInfo?,
-        intent: Intent,
-        callingUid: Int,
-    ): Boolean {
-        val isPrivilegedAndKnown = sourceInfo != null && sourceInfo.isPrivilegedApp &&
-            intent.getBooleanExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, false)
-        val isInstallPkgPermissionGranted = callingUid != Process.INVALID_UID
-                && isPermissionGranted(context, Manifest.permission.INSTALL_PACKAGES, callingUid)
-
-        return isPrivilegedAndKnown || isInstallPkgPermissionGranted
     }
 
     private fun getDevicePolicyRestrictions(isTrustedSource: Boolean): String? {
@@ -347,6 +370,11 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
 
     @OptIn(DelicateCoroutinesApi::class)
     fun stageForInstall() {
+        if (!this::intent.isInitialized) {
+            Log.e(LOG_TAG, "intent not initialized")
+            _stagingResult.value = InstallAborted(ABORT_REASON_INTERNAL_ERROR)
+            return
+        }
         val uri = intent.data
         val action = intent.action
 
@@ -387,6 +415,7 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
                         val params: SessionParams =
                             createSessionParams(originatingUid, intent, pfd, uri.toString())
                         stagedSessionId = packageInstaller.createSession(params)
+                        piaStagesLatencyTracker.setSessionId(stagedSessionId)
                     }
                 } catch (e: Exception) {
                     Log.e(LOG_TAG, "Failed to create a staging session", e)
@@ -402,7 +431,7 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
                 }
             }
 
-            sessionStager = SessionStager(context, uri, stagedSessionId)
+            sessionStager = SessionStager(context, uri, stagedSessionId, piaStagesLatencyTracker)
             stagingJob = GlobalScope.launch(Dispatchers.Main) {
                 val wasFileStaged = sessionStager!!.execute()
 
@@ -512,6 +541,10 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
      *      * If AppOp grant is to be requested from the user
      */
     fun requestUserConfirmation(forceSourceCheck: Boolean = true): InstallStage? {
+        if (!this::intent.isInitialized) {
+            Log.e(LOG_TAG, "intent not initialized")
+            return InstallAborted(ABORT_REASON_INTERNAL_ERROR)
+        }
         return maybeDeferUserConfirmation(forceSourceCheck)
     }
 
@@ -535,6 +568,10 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
                     Log.i(LOG_TAG, "Install allowed")
                 }
             } else {
+                if (!this::appOpRequestInfo.isInitialized) {
+                    Log.e(LOG_TAG, "appOpRequestInfo not initialized")
+                    return InstallAborted(ABORT_REASON_INTERNAL_ERROR)
+                }
                 val unknownSourceStage = handleUnknownSources(appOpRequestInfo)
                 if (unknownSourceStage.stageCode != InstallStage.STAGE_READY) {
                     return unknownSourceStage
@@ -944,6 +981,10 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
      * doesn't have install permission.
      */
     fun reattemptInstall(): InstallStage {
+        if (!this::appOpRequestInfo.isInitialized) {
+            Log.e(LOG_TAG, "appOpRequestInfo not initialized")
+            return InstallAborted(ABORT_REASON_INTERNAL_ERROR)
+        }
         val unknownSourceStage = handleUnknownSources(appOpRequestInfo)
         return when (unknownSourceStage.stageCode) {
             InstallStage.STAGE_READY -> {
@@ -1021,6 +1062,11 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
      * signal the PackageInstaller that the user has granted permission to proceed with the install
      */
     fun initiateInstall() {
+        if (!this::intent.isInitialized || !this::appSnippet.isInitialized) {
+            Log.e(LOG_TAG, "intent or appSnippet not initialized")
+            _installResult.value = InstallAborted(ABORT_REASON_INTERNAL_ERROR)
+            return
+        }
         if (sessionId > 0) {
             packageInstaller.setPermissionsResult(sessionId, true)
             if (localLogv) {
@@ -1170,8 +1216,10 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
     }
 
     fun abortStaging() {
-        sessionStager!!.cancel()
-        stagingJob.cancel()
+        sessionStager?.cancel()
+        if (this::stagingJob.isInitialized) {
+            stagingJob.cancel()
+        }
         cleanupStagingSession()
     }
 
@@ -1184,6 +1232,7 @@ class InstallRepository(private val context: Context) : EventResultPersister.Eve
         legacyStatus: Int,
         message: String?,
         serviceId: Int,
+        intent: Intent?
     ) {
         setStageBasedOnResult(status, legacyStatus, message)
     }

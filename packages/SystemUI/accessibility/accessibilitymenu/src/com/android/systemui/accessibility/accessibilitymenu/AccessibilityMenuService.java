@@ -320,7 +320,7 @@ public class AccessibilityMenuService extends AccessibilityService
      * Adjusts brightness using the same logic and utils class as the SystemUI brightness slider.
      *
      * @see BrightnessUtils
-     * @see com.android.systemui.settings.brightness.BrightnessController
+     * @see com.android.systemui.brightness.domain.interactor.ScreenBrightnessInteractor
      * @param increment The increment amount in gamma-space
      */
     private void adjustBrightness(int increment) {

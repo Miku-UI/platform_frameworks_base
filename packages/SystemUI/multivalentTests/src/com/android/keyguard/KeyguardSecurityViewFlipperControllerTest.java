@@ -37,6 +37,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.keyguard.KeyguardSecurityModel.SecurityMode;
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.flags.DisableSceneContainer;
 import com.android.systemui.flags.FeatureFlags;
 import com.android.systemui.res.R;
 
@@ -99,6 +100,7 @@ public class KeyguardSecurityViewFlipperControllerTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableSceneContainer
     public void showSecurityScreen_canInflateAllModes() {
         SecurityMode[] modes = SecurityMode.values();
         // Always return an invalid controller so that we're always making a new one.
@@ -120,22 +122,26 @@ public class KeyguardSecurityViewFlipperControllerTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableSceneContainer
     public void getSecurityView_NotInflated() {
         mKeyguardSecurityViewFlipperController.clearViews();
         mKeyguardSecurityViewFlipperController.getSecurityView(SecurityMode.PIN,
                 mKeyguardSecurityCallback,
-                controller -> {});
+                controller -> {
+                });
         verify(mAsyncLayoutInflater).inflate(anyInt(), eq(mView), any(
                 AsyncLayoutInflater.OnInflateFinishedListener.class));
     }
 
     @Test
+    @DisableSceneContainer
     public void asynchronouslyInflateView_setNeedsInput() {
         mKeyguardSecurityViewFlipperController.clearViews();
         ArgumentCaptor<AsyncLayoutInflater.OnInflateFinishedListener> argumentCaptor =
                 ArgumentCaptor.forClass(AsyncLayoutInflater.OnInflateFinishedListener.class);
         mKeyguardSecurityViewFlipperController.getSecurityView(SecurityMode.PIN,
-                mKeyguardSecurityCallback, controller -> {});
+                mKeyguardSecurityCallback, controller -> {
+                });
         verify(mAsyncLayoutInflater).inflate(anyInt(), eq(mView), argumentCaptor.capture());
         argumentCaptor.getValue().onInflateFinished(
                 LayoutInflater.from(getContext()).inflate(R.layout.keyguard_pin_view, null),
@@ -143,6 +149,7 @@ public class KeyguardSecurityViewFlipperControllerTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableSceneContainer
     public void getSecurityView_multipleInvocations_callsAsyncInflateOnce() {
         mKeyguardSecurityViewFlipperController.clearViews();
         // Make 2 calls to get security view

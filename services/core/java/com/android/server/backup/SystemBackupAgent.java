@@ -34,7 +34,6 @@ import android.os.ServiceManager;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.util.Slog;
-import android.window.DesktopExperienceFlags;
 
 import com.android.server.display.DisplayBackupHelper;
 import com.android.server.notification.NotificationBackupHelper;
@@ -154,13 +153,9 @@ public class SystemBackupAgent extends BackupAgentHelper {
         addHelperIfEligibleForUser(SYSTEM_GENDER_HELPER,
                 new SystemGrammaticalGenderBackupHelper(mUserId));
         addHelperIfEligibleForUser(DISPLAY_HELPER, new DisplayBackupHelper(mUserId));
-        if (com.android.hardware.input.Flags.enableBackupAndRestoreForInputGestures()) {
-            addHelperIfEligibleForUser(INPUT_HELPER, new InputBackupHelper(mUserId));
-        }
-        if (DesktopExperienceFlags.ENABLE_BACKUP_AND_RESTORE_DISPLAY_WINDOW_SETTINGS.isTrue()) {
-            addHelperIfEligibleForUser(DISPLAY_WINDOW_HELPER,
-                    new DisplayWindowSettingsBackupHelper(mUserId));
-        }
+        addHelperIfEligibleForUser(INPUT_HELPER, new InputBackupHelper(mUserId));
+        addHelperIfEligibleForUser(DISPLAY_WINDOW_HELPER,
+                new DisplayWindowSettingsBackupHelper(mUserId));
         // Add Wear helper only if the device is a watch
         if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH)) {
             addHelperIfEligibleForUser(WEAR_BACKUP_HELPER, new WearBackupHelper());

@@ -20,6 +20,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -549,5 +550,26 @@ public class ArrayUtilsTest {
     public void testZeroize_acceptsNull() {
         ArrayUtils.zeroize((byte[]) null);
         ArrayUtils.zeroize((char[]) null);
+    }
+
+    // Test that copyOfArrayNonMovable() appears to behave like copyOf().
+    //
+    // Unfortunately it's not possible to test that the resulting array is actually non-movable, as
+    // that information isn't available to Java code.
+    @Test
+    @SmallTest
+    public void testCopyOfArrayNonMovable() {
+        byte[] original = new byte[] {'a', 'b', 'c'};
+
+        assertArrayEquals(ArrayUtils.copyOfArrayNonMovable(original, 0), new byte[0]);
+        assertArrayEquals(ArrayUtils.copyOfArrayNonMovable(original, 2), new byte[] {'a', 'b'});
+        assertArrayEquals(
+                ArrayUtils.copyOfArrayNonMovable(original, 3), new byte[] {'a', 'b', 'c'});
+        assertArrayEquals(
+                ArrayUtils.copyOfArrayNonMovable(original, 4), new byte[] {'a', 'b', 'c', 0});
+        assertThrows(NullPointerException.class, () -> ArrayUtils.copyOfArrayNonMovable(null, 4));
+        assertThrows(
+                NegativeArraySizeException.class,
+                () -> ArrayUtils.copyOfArrayNonMovable(original, -1));
     }
 }

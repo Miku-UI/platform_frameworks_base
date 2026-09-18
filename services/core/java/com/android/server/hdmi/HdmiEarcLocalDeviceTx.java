@@ -116,8 +116,7 @@ public class HdmiEarcLocalDeviceTx extends HdmiEarcLocalDevice {
 
     protected void handleEarcCapabilitiesReported(byte[] rawCapabilities) {
         synchronized (mLock) {
-            if (mEarcStatus == HDMI_EARC_STATUS_EARC_CONNECTED
-                    && mReportCapsHandler.hasCallbacks(mReportCapsRunnable)) {
+            if (mEarcStatus == HDMI_EARC_STATUS_EARC_CONNECTED) {
                 mReportCapsHandler.removeCallbacksAndMessages(null);
                 List<AudioDescriptor> audioDescriptors = parseCapabilities(rawCapabilities);
                 mService.notifyEarcStatusToAudioService(true, audioDescriptors);

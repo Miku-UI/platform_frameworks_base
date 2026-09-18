@@ -68,4 +68,9 @@ public class WindowlessWindowLayout extends WindowLayout {
         }
         return attrLength;
     }
+
+    @Override
+    boolean isLocallyManaged() {
+        return true;
+    }
 }

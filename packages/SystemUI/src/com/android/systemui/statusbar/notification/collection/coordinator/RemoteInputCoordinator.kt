@@ -16,7 +16,6 @@
 
 package com.android.systemui.statusbar.notification.collection.coordinator
 
-import android.app.Flags.lifetimeExtensionRefactor
 import android.app.Notification.FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY
 import android.os.Handler
 import android.service.notification.NotificationListenerService.REASON_CANCEL
@@ -73,11 +72,7 @@ constructor(
     private val mSmartReplyController: SmartReplyController,
 ) : Coordinator, RemoteInputListener, Dumpable {
 
-    @VisibleForTesting val mRemoteInputHistoryExtender = RemoteInputHistoryExtender()
-    @VisibleForTesting val mSmartReplyHistoryExtender = SmartReplyHistoryExtender()
     @VisibleForTesting val mRemoteInputActiveExtender = RemoteInputActiveExtender()
-    private val mRemoteInputLifetimeExtenders =
-        listOf(mRemoteInputHistoryExtender, mSmartReplyHistoryExtender, mRemoteInputActiveExtender)
 
     private lateinit var mNotifUpdater: InternalNotifUpdater
 
@@ -85,15 +80,9 @@ constructor(
         dumpManager.registerDumpable(this)
     }
 
-    fun getLifetimeExtenders(): List<NotifLifetimeExtender> = mRemoteInputLifetimeExtenders
-
     override fun attach(pipeline: NotifPipeline) {
         mNotificationRemoteInputManager.setRemoteInputListener(this)
-        if (lifetimeExtensionRefactor()) {
-            pipeline.addNotificationLifetimeExtender(mRemoteInputActiveExtender)
-        } else {
-            mRemoteInputLifetimeExtenders.forEach { pipeline.addNotificationLifetimeExtender(it) }
-        }
+        pipeline.addNotificationLifetimeExtender(mRemoteInputActiveExtender)
         mNotifUpdater = pipeline.getInternalNotifUpdater(TAG)
         pipeline.addCollectionListener(mCollectionListener)
     }
@@ -113,44 +102,38 @@ constructor(
                     )
                 }
                 if (source != UpdateSource.SystemUi) {
-                    if (lifetimeExtensionRefactor()) {
-                        if (
-                            (entry.getSbn().getNotification().flags and
+                    if (
+                        (entry.getSbn().getNotification().flags and
                                 FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY) > 0
+                    ) {
+                        // If we've received an update from the system and the entry is marked
+                        // as lifetime extended, that means system server has received a
+                        // cancelation in response to a direct reply, and sent an update to
+                        // let system ui know that it should rebuild the notification with
+                        // that direct reply.
+                        if (
+                            mNotificationRemoteInputManager.shouldKeepForSmartReplyHistory(
+                                entry
+                            )
                         ) {
-                            // If we've received an update from the system and the entry is marked
-                            // as lifetime extended, that means system server has received a
-                            // cancelation in response to a direct reply, and sent an update to
-                            // let system ui know that it should rebuild the notification with
-                            // that direct reply.
-                            if (
-                                mNotificationRemoteInputManager.shouldKeepForSmartReplyHistory(
-                                    entry
-                                )
-                            ) {
-                                val newSbn = mRebuilder.rebuildForCanceledSmartReplies(entry)
-                                mSmartReplyController.stopSending(entry)
-                                mNotifUpdater.onInternalNotificationUpdate(
-                                    newSbn,
-                                    "Extending lifetime of notification with smart reply",
-                                )
-                            } else {
-                                val newSbn = mRebuilder.rebuildForRemoteInputReply(entry)
-                                entry.onRemoteInputInserted()
-                                mNotifUpdater.onInternalNotificationUpdate(
-                                    newSbn,
-                                    "Extending lifetime of notification with remote input",
-                                )
-                            }
+                            val newSbn = mRebuilder.rebuildForCanceledSmartReplies(entry)
+                            mSmartReplyController.stopSending(entry)
+                            mNotifUpdater.onInternalNotificationUpdate(
+                                newSbn,
+                                "Extending lifetime of notification with smart reply",
+                            )
                         } else {
-                            // Notifications updated without FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY
-                            // should have their remote inputs list cleared.
-                            entry.remoteInputs = null
+                            val newSbn = mRebuilder.rebuildForRemoteInputReply(entry)
+                            entry.onRemoteInputInserted()
+                            mNotifUpdater.onInternalNotificationUpdate(
+                                newSbn,
+                                "Extending lifetime of notification with remote input",
+                            )
                         }
                     } else {
-                        // Mark smart replies as sent whenever a notification is updated by the app,
-                        // otherwise the smart replies are never marked as sent.
-                        mSmartReplyController.stopSending(entry)
+                        // Notifications updated without FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY
+                        // should have their remote inputs list cleared.
+                        entry.remoteInputs = null
                     }
                 }
             }
@@ -172,19 +155,11 @@ constructor(
         }
 
     override fun dump(pw: PrintWriter, args: Array<out String>) {
-        mRemoteInputLifetimeExtenders.forEach { it.dump(pw, args) }
+        mRemoteInputActiveExtender.dump(pw, args)
     }
 
     override fun onRemoteInputSent(entry: NotificationEntry) {
         if (DEBUG) Log.d(TAG, "onRemoteInputSent(entry=${entry.key})")
-        // These calls effectively ensure the freshness of the lifetime extensions.
-        // NOTE: This is some trickery! By removing the lifetime extensions when we know they should
-        // be immediately re-upped, we ensure that the side-effects of the lifetime extenders get to
-        // fire again, thus ensuring that we add subsequent replies to the notification.
-        if (!lifetimeExtensionRefactor()) {
-            mRemoteInputHistoryExtender.endLifetimeExtension(entry.key)
-            mSmartReplyHistoryExtender.endLifetimeExtension(entry.key)
-        }
 
         // If we're extending for remote input being active, then from the apps point of
         // view it is already canceled, so we'll need to cancel it on the apps behalf
@@ -215,24 +190,8 @@ constructor(
         mRemoteInputActiveExtender.endAllLifetimeExtensions()
     }
 
-    override fun isNotificationKeptForRemoteInputHistory(key: String) =
-        if (!lifetimeExtensionRefactor()) {
-            mRemoteInputHistoryExtender.isExtending(key) ||
-                mSmartReplyHistoryExtender.isExtending(key)
-        } else false
-
     override fun releaseNotificationIfKeptForRemoteInputHistory(entryKey: String) {
         if (DEBUG) Log.d(TAG, "releaseNotificationIfKeptForRemoteInputHistory(entry=${entryKey})")
-        if (!lifetimeExtensionRefactor()) {
-            mRemoteInputHistoryExtender.endLifetimeExtensionAfterDelay(
-                entryKey,
-                REMOTE_INPUT_EXTENDER_RELEASE_DELAY,
-            )
-            mSmartReplyHistoryExtender.endLifetimeExtensionAfterDelay(
-                entryKey,
-                REMOTE_INPUT_EXTENDER_RELEASE_DELAY,
-            )
-        }
         mRemoteInputActiveExtender.endLifetimeExtensionAfterDelay(
             entryKey,
             REMOTE_INPUT_EXTENDER_RELEASE_DELAY,
@@ -241,47 +200,6 @@ constructor(
 
     override fun setRemoteInputController(remoteInputController: RemoteInputController) {
         mSmartReplyController.setCallback(this::onSmartReplySent)
-    }
-
-    @VisibleForTesting
-    inner class RemoteInputHistoryExtender :
-        SelfTrackingLifetimeExtender(TAG, "RemoteInputHistory", DEBUG, mMainHandler) {
-
-        override fun queryShouldExtendLifetime(entry: NotificationEntry): Boolean =
-            mNotificationRemoteInputManager.shouldKeepForRemoteInputHistory(entry)
-
-        override fun onStartedLifetimeExtension(entry: NotificationEntry) {
-            val newSbn = mRebuilder.rebuildForRemoteInputReply(entry)
-            entry.onRemoteInputInserted()
-            mNotifUpdater.onInternalNotificationUpdate(
-                newSbn,
-                "Extending lifetime of notification with remote input",
-            )
-            // TODO: Check if the entry was removed due perhaps to an inflation exception?
-        }
-    }
-
-    @VisibleForTesting
-    inner class SmartReplyHistoryExtender :
-        SelfTrackingLifetimeExtender(TAG, "SmartReplyHistory", DEBUG, mMainHandler) {
-
-        override fun queryShouldExtendLifetime(entry: NotificationEntry): Boolean =
-            mNotificationRemoteInputManager.shouldKeepForSmartReplyHistory(entry)
-
-        override fun onStartedLifetimeExtension(entry: NotificationEntry) {
-            val newSbn = mRebuilder.rebuildForCanceledSmartReplies(entry)
-            mSmartReplyController.stopSending(entry)
-            mNotifUpdater.onInternalNotificationUpdate(
-                newSbn,
-                "Extending lifetime of notification with smart reply",
-            )
-            // TODO: Check if the entry was removed due perhaps to an inflation exception?
-        }
-
-        override fun onCanceledLifetimeExtension(entry: NotificationEntry) {
-            // TODO(b/145659174): track 'sending' state on the entry to avoid having to clear it.
-            mSmartReplyController.stopSending(entry)
-        }
     }
 
     @VisibleForTesting

@@ -1,4 +1,5 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package com.android.uiautomator.core {
 
   @Deprecated public final class Configurator {
@@ -67,8 +68,8 @@ package com.android.uiautomator.core {
     method @Deprecated public void setOrientationNatural() throws android.os.RemoteException;
     method @Deprecated public void setOrientationRight() throws android.os.RemoteException;
     method @Deprecated public void sleep() throws android.os.RemoteException;
-    method @Deprecated public boolean swipe(int, int, int, int, int);
     method @Deprecated public boolean swipe(android.graphics.Point[], int);
+    method @Deprecated public boolean swipe(int, int, int, int, int);
     method @Deprecated public boolean takeScreenshot(java.io.File);
     method @Deprecated public boolean takeScreenshot(java.io.File, float, int);
     method @Deprecated public void unfreezeRotation() throws android.os.RemoteException;
@@ -131,7 +132,7 @@ package com.android.uiautomator.core {
     field @Deprecated protected static final long WAIT_FOR_WINDOW_TMEOUT = 5500L; // 0x157cL
   }
 
-  @Deprecated public class UiObjectNotFoundException extends java.lang.Exception {
+  @Deprecated public class UiObjectNotFoundException extends Exception {
     ctor @Deprecated public UiObjectNotFoundException(String);
     ctor @Deprecated public UiObjectNotFoundException(String, Throwable);
     ctor @Deprecated public UiObjectNotFoundException(Throwable);
@@ -156,10 +157,10 @@ package com.android.uiautomator.core {
     method @Deprecated public boolean scrollIntoView(com.android.uiautomator.core.UiObject) throws com.android.uiautomator.core.UiObjectNotFoundException;
     method @Deprecated public boolean scrollIntoView(com.android.uiautomator.core.UiSelector) throws com.android.uiautomator.core.UiObjectNotFoundException;
     method @Deprecated public boolean scrollTextIntoView(String) throws com.android.uiautomator.core.UiObjectNotFoundException;
-    method @Deprecated public boolean scrollToBeginning(int, int) throws com.android.uiautomator.core.UiObjectNotFoundException;
     method @Deprecated public boolean scrollToBeginning(int) throws com.android.uiautomator.core.UiObjectNotFoundException;
-    method @Deprecated public boolean scrollToEnd(int, int) throws com.android.uiautomator.core.UiObjectNotFoundException;
+    method @Deprecated public boolean scrollToBeginning(int, int) throws com.android.uiautomator.core.UiObjectNotFoundException;
     method @Deprecated public boolean scrollToEnd(int) throws com.android.uiautomator.core.UiObjectNotFoundException;
+    method @Deprecated public boolean scrollToEnd(int, int) throws com.android.uiautomator.core.UiObjectNotFoundException;
     method @Deprecated public com.android.uiautomator.core.UiScrollable setAsHorizontalList();
     method @Deprecated public com.android.uiautomator.core.UiScrollable setAsVerticalList();
     method @Deprecated public com.android.uiautomator.core.UiScrollable setMaxSearchSwipes(int);
@@ -171,8 +172,8 @@ package com.android.uiautomator.core {
     method @Deprecated public com.android.uiautomator.core.UiSelector checkable(boolean);
     method @Deprecated public com.android.uiautomator.core.UiSelector checked(boolean);
     method @Deprecated public com.android.uiautomator.core.UiSelector childSelector(com.android.uiautomator.core.UiSelector);
-    method @Deprecated public com.android.uiautomator.core.UiSelector className(String);
     method @Deprecated public <T> com.android.uiautomator.core.UiSelector className(Class<T>);
+    method @Deprecated public com.android.uiautomator.core.UiSelector className(String);
     method @Deprecated public com.android.uiautomator.core.UiSelector classNameMatches(String);
     method @Deprecated public com.android.uiautomator.core.UiSelector clickable(boolean);
     method @Deprecated protected com.android.uiautomator.core.UiSelector cloneSelector();

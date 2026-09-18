@@ -33,23 +33,26 @@ import java.util.Objects;
 /**
  * A class that provides time zone detector state information for metrics.
  *
- * <p>
- * Regarding the use of time zone ID ordinals in metrics / telemetry:
- * <p>
- * For general metrics, we don't want to leak user location information by reporting time zone
+ * <p>Regarding the use of time zone ID ordinals in metrics / telemetry:
+ *
+ * <p>For general metrics, we don't want to leak user location information by reporting time zone
  * IDs. Instead, time zone IDs are consistently identified within a given instance of this class by
- * a numeric ID (ordinal). This allows comparison of IDs without revealing what those IDs are.
- * See {@link #isEnhancedMetricsCollectionEnabled()} for the setting that enables actual IDs to be
+ * a numeric ID (ordinal). This allows comparison of IDs without revealing what those IDs are. See
+ * {@link #isEnhancedMetricsCollectionEnabled()} for the setting that enables actual IDs to be
  * collected.
  */
 public final class MetricsTimeZoneDetectorState {
 
-    @IntDef(prefix = "DETECTION_MODE_",
-            value = { DETECTION_MODE_UNKNOWN, DETECTION_MODE_MANUAL, DETECTION_MODE_GEO,
-                    DETECTION_MODE_TELEPHONY }
-    )
+    @IntDef(
+            prefix = "DETECTION_MODE_",
+            value = {
+                DETECTION_MODE_UNKNOWN,
+                DETECTION_MODE_MANUAL,
+                DETECTION_MODE_GEO,
+                DETECTION_MODE_TELEPHONY
+            })
     @Retention(RetentionPolicy.SOURCE)
-    @Target({ ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
+    @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
     public @interface DetectionMode {};
 
     public static final @DetectionMode int DETECTION_MODE_UNKNOWN = 0;
@@ -105,13 +108,17 @@ public final class MetricsTimeZoneDetectorState {
         MetricsTimeZoneSuggestion latestCanonicalGeolocationSuggestion = null;
         if (latestLocationAlgorithmEvent != null) {
             GeolocationTimeZoneSuggestion suggestion = latestLocationAlgorithmEvent.getSuggestion();
-            latestCanonicalGeolocationSuggestion = createMetricsTimeZoneSuggestion(
-                    tzIdOrdinalGenerator, suggestion, includeZoneIds);
+            latestCanonicalGeolocationSuggestion =
+                    createMetricsTimeZoneSuggestion(
+                            tzIdOrdinalGenerator, suggestion, includeZoneIds);
         }
 
         return new MetricsTimeZoneDetectorState(
-                configurationInternal, deviceTimeZoneIdOrdinal, metricDeviceTimeZoneId,
-                latestCanonicalManualSuggestion, latestCanonicalTelephonySuggestion,
+                configurationInternal,
+                deviceTimeZoneIdOrdinal,
+                metricDeviceTimeZoneId,
+                latestCanonicalManualSuggestion,
+                latestCanonicalTelephonySuggestion,
                 latestCanonicalGeolocationSuggestion);
     }
 
@@ -177,8 +184,8 @@ public final class MetricsTimeZoneDetectorState {
     }
 
     /**
-     * Returns the ordinal for the device's current time zone ID.
-     * See {@link MetricsTimeZoneDetectorState} for information about ordinals.
+     * Returns the ordinal for the device's current time zone ID. See {@link
+     * MetricsTimeZoneDetectorState} for information about ordinals.
      */
     public int getDeviceTimeZoneIdOrdinal() {
         return mDeviceTimeZoneIdOrdinal;
@@ -194,25 +201,19 @@ public final class MetricsTimeZoneDetectorState {
         return mDeviceTimeZoneId;
     }
 
-    /**
-     * Returns a canonical form of the last manual suggestion received.
-     */
+    /** Returns a canonical form of the last manual suggestion received. */
     @Nullable
     public MetricsTimeZoneSuggestion getLatestManualSuggestion() {
         return mLatestManualSuggestion;
     }
 
-    /**
-     * Returns a canonical form of the last telephony suggestion received.
-     */
+    /** Returns a canonical form of the last telephony suggestion received. */
     @Nullable
     public MetricsTimeZoneSuggestion getLatestTelephonySuggestion() {
         return mLatestTelephonySuggestion;
     }
 
-    /**
-     * Returns a canonical form of last geolocation suggestion received.
-     */
+    /** Returns a canonical form of last geolocation suggestion received. */
     @Nullable
     public MetricsTimeZoneSuggestion getLatestGeolocationSuggestion() {
         return mLatestGeolocationSuggestion;
@@ -237,19 +238,30 @@ public final class MetricsTimeZoneDetectorState {
 
     @Override
     public int hashCode() {
-        return Objects.hash(mConfigurationInternal, mDeviceTimeZoneIdOrdinal, mDeviceTimeZoneId,
-                mLatestManualSuggestion, mLatestTelephonySuggestion, mLatestGeolocationSuggestion);
+        return Objects.hash(
+                mConfigurationInternal,
+                mDeviceTimeZoneIdOrdinal,
+                mDeviceTimeZoneId,
+                mLatestManualSuggestion,
+                mLatestTelephonySuggestion,
+                mLatestGeolocationSuggestion);
     }
 
     @Override
     public String toString() {
         return "MetricsTimeZoneDetectorState{"
-                + "mConfigurationInternal=" + mConfigurationInternal
-                + ", mDeviceTimeZoneIdOrdinal=" + mDeviceTimeZoneIdOrdinal
-                + ", mDeviceTimeZoneId=" + mDeviceTimeZoneId
-                + ", mLatestManualSuggestion=" + mLatestManualSuggestion
-                + ", mLatestTelephonySuggestion=" + mLatestTelephonySuggestion
-                + ", mLatestGeolocationSuggestion=" + mLatestGeolocationSuggestion
+                + "mConfigurationInternal="
+                + mConfigurationInternal
+                + ", mDeviceTimeZoneIdOrdinal="
+                + mDeviceTimeZoneIdOrdinal
+                + ", mDeviceTimeZoneId="
+                + mDeviceTimeZoneId
+                + ", mLatestManualSuggestion="
+                + mLatestManualSuggestion
+                + ", mLatestTelephonySuggestion="
+                + mLatestTelephonySuggestion
+                + ", mLatestGeolocationSuggestion="
+                + mLatestGeolocationSuggestion
                 + '}';
     }
 
@@ -263,8 +275,8 @@ public final class MetricsTimeZoneDetectorState {
         }
 
         String suggestionZoneId = manualSuggestion.getZoneId();
-        String[] metricZoneIds = includeFullZoneIds ? new String[] { suggestionZoneId } : null;
-        int[] zoneIdOrdinals = new int[] { zoneIdOrdinalGenerator.ordinal(suggestionZoneId) };
+        String[] metricZoneIds = includeFullZoneIds ? new String[] {suggestionZoneId} : null;
+        int[] zoneIdOrdinals = new int[] {zoneIdOrdinalGenerator.ordinal(suggestionZoneId)};
         return MetricsTimeZoneSuggestion.createCertain(metricZoneIds, zoneIdOrdinals);
     }
 
@@ -280,8 +292,8 @@ public final class MetricsTimeZoneDetectorState {
         if (suggestionZoneId == null) {
             return MetricsTimeZoneSuggestion.createUncertain();
         }
-        String[] metricZoneIds = includeFullZoneIds ? new String[] { suggestionZoneId } : null;
-        int[] zoneIdOrdinals = new int[] { zoneIdOrdinalGenerator.ordinal(suggestionZoneId) };
+        String[] metricZoneIds = includeFullZoneIds ? new String[] {suggestionZoneId} : null;
+        int[] zoneIdOrdinals = new int[] {zoneIdOrdinalGenerator.ordinal(suggestionZoneId)};
         return MetricsTimeZoneSuggestion.createCertain(metricZoneIds, zoneIdOrdinals);
     }
 
@@ -334,8 +346,8 @@ public final class MetricsTimeZoneDetectorState {
         }
 
         /**
-         * Returns ordinals for the time zone IDs contained in the suggestion.
-         * See {@link MetricsTimeZoneDetectorState} for information about ordinals.
+         * Returns ordinals for the time zone IDs contained in the suggestion. See {@link
+         * MetricsTimeZoneDetectorState} for information about ordinals.
          */
         @Nullable
         public int[] getZoneIdOrdinals() {
@@ -375,8 +387,10 @@ public final class MetricsTimeZoneDetectorState {
         @Override
         public String toString() {
             return "MetricsTimeZoneSuggestion{"
-                    + "mZoneIdOrdinals=" + Arrays.toString(mZoneIdOrdinals)
-                    + ", mZoneIds=" + Arrays.toString(mZoneIds)
+                    + "mZoneIdOrdinals="
+                    + Arrays.toString(mZoneIdOrdinals)
+                    + ", mZoneIds="
+                    + Arrays.toString(mZoneIds)
                     + '}';
         }
     }

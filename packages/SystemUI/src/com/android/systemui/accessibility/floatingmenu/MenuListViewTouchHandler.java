@@ -34,7 +34,7 @@ import java.util.Optional;
  * the {@link MenuView}. And then compute the gestures' velocity for fling and spring
  * animations.
  */
-class MenuListViewTouchHandler implements RecyclerView.OnItemTouchListener {
+public class MenuListViewTouchHandler implements RecyclerView.OnItemTouchListener {
     private static final int VELOCITY_UNIT_SECONDS = 1000;
     private final VelocityTracker mVelocityTracker = VelocityTracker.obtain();
     private final MenuAnimationController mMenuAnimationController;

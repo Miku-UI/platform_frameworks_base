@@ -33,6 +33,7 @@ import com.android.systemui.animation.ActivityTransitionAnimator
 import com.android.systemui.animation.Expandable
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.globalactions.GlobalActionsDialogLite
+import com.android.systemui.globalactions.shared.model.GlobalActionsEvent
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.qs.QSSecurityFooterUtils
 import com.android.systemui.qs.footer.FooterActionsTestUtils
@@ -106,7 +107,7 @@ class FooterActionsInteractorTest : SysuiTestCase() {
         val logs = uiEventLogger.logs
         assertThat(logs)
             .comparingElementsUsing(FakeUiEvent.EVENT_ID)
-            .containsExactly(GlobalActionsDialogLite.GlobalActionsEvent.GA_OPEN_QS.id)
+            .containsExactly(GlobalActionsEvent.GA_OPEN_QS.id)
 
         // Dialog is shown.
         verify(globalActionsDialogLite)
@@ -173,7 +174,6 @@ class FooterActionsInteractorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE)
     fun securityButtonConfig_flagEnabled_usesSupervisionModel() =
         testScope.runTest {
             val qsSecurityFooterUtils: QSSecurityFooterUtils = mock()
@@ -218,52 +218,5 @@ class FooterActionsInteractorTest : SysuiTestCase() {
 
             verify(qsSecurityFooterUtils)
                 .getButtonConfig(eq(securityModel), eq(supervisionRepository.getSupervisionModel()))
-        }
-
-    @Test
-    @DisableFlags(android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE)
-    fun securityButtonConfig_flagDisabled_doesNotUseSupervisionModel() =
-        testScope.runTest {
-            val qsSecurityFooterUtils: QSSecurityFooterUtils = mock()
-            val securityRepository: SecurityRepository = mock()
-            val securityModel =
-                SecurityModel(
-                    isDeviceManaged = false,
-                    hasWorkProfile = false,
-                    isWorkProfileOn = false,
-                    isProfileOwnerOfOrganizationOwnedDevice = false,
-                    deviceOwnerOrganizationName = null,
-                    workProfileOrganizationName = null,
-                    isNetworkLoggingEnabled = false,
-                    isVpnBranded = false,
-                    primaryVpnName = null,
-                    workProfileVpnName = null,
-                    hasCACertInCurrentUser = false,
-                    hasCACertInWorkProfile = false,
-                    isParentalControlsEnabled = false,
-                    deviceAdminIcon = null,
-                )
-            val securityModelFlow = MutableStateFlow(securityModel)
-            whenever(securityRepository.security).thenReturn(securityModelFlow)
-            val supervisionRepository = FakeSupervisionRepository()
-            supervisionRepository.updateState(
-                SupervisionModel(
-                    isSupervisionEnabled = true,
-                    label = "Test app",
-                    footerText = "This device is managed",
-                    disclaimerText = "Some settings are managed by Test app",
-                    icon = null,
-                )
-            )
-            val underTest =
-                utils.footerActionsInteractor(
-                    qsSecurityFooterUtils = qsSecurityFooterUtils,
-                    supervisionRepository = supervisionRepository,
-                )
-
-            collectLastValue(underTest.securityButtonConfig)
-            runCurrent()
-
-            verify(qsSecurityFooterUtils).getButtonConfig(eq(securityModel), eq(null))
         }
 }

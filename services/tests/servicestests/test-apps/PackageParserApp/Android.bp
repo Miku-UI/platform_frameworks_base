@@ -129,7 +129,7 @@ android_test_helper_app {
     },
     resource_dirs: ["res"],
     aaptflags: [
-        "--feature-flags my.flag1,my.flag2,my.flag3,my.flag4,unknown.flag",
+        "--feature-flags my.flag1=false,my.flag2=false,my.flag3=false,my.flag4=false,unknown.flag=false",
     ],
     manifest: "AndroidManifestApp8.xml",
 }
@@ -158,4 +158,133 @@ android_test_helper_app {
         enabled: false,
     },
     manifest: "AndroidManifestApp10.xml",
+}
+
+android_test_helper_app {
+    name: "PackageParserTestPcc",
+    sdk_version: "current",
+    srcs: ["**/*.java"],
+    dex_preopt: {
+        enabled: false,
+    },
+    optimize: {
+        enabled: false,
+    },
+    flags_packages: [
+        "android.app.privatecompute.flags-aconfig",
+    ],
+    manifest: "AndroidManifestPcc.xml",
+}
+
+android_test_helper_app {
+    name: "PackageParserTestPccAndIsolatedService",
+    sdk_version: "current",
+    srcs: ["**/*.java"],
+    dex_preopt: {
+        enabled: false,
+    },
+    optimize: {
+        enabled: false,
+    },
+    flags_packages: [
+        "android.app.privatecompute.flags-aconfig",
+    ],
+    manifest: "AndroidManifestPccAndIsolatedService.xml",
+}
+
+android_test_helper_app {
+    name: "PackageParserTestActivityAlias",
+    sdk_version: "current",
+    srcs: ["**/*.java"],
+    dex_preopt: {
+        enabled: false,
+    },
+    optimize: {
+        enabled: false,
+    },
+    manifest: "AndroidManifestActivityAlias.xml",
+}
+
+android_test_helper_app {
+    name: "PackageParserTestAllowComponentAccess",
+    sdk_version: "current",
+    srcs: ["**/*.java"],
+    dex_preopt: {
+        enabled: false,
+    },
+    optimize: {
+        enabled: false,
+    },
+    flags_packages: [
+        "android.app.privatecompute.flags-aconfig",
+    ],
+    manifest: "AndroidManifestAllowComponentAccess.xml",
+}
+
+android_test_helper_app {
+    name: "PackageParserAppAllowComponentAccessMultiCert",
+    sdk_version: "current",
+    srcs: ["**/*.java"],
+    dex_preopt: {
+        enabled: false,
+    },
+    optimize: {
+        enabled: false,
+    },
+    flags_packages: [
+        "android.app.privatecompute.flags-aconfig",
+    ],
+    manifest: "AndroidManifestAllowComponentAccessMultiCert.xml",
+}
+
+android_test_helper_app {
+    name: "PackageParserTestBackupAgentProcessPcc",
+    sdk_version: "current",
+    srcs: ["**/*.java"],
+    dex_preopt: {
+        enabled: false,
+    },
+    optimize: {
+        enabled: false,
+    },
+    manifest: "AndroidManifestBackupAgentProcessPcc.xml",
+}
+
+android_test_helper_app {
+    name: "PackageParserTestBackupAgentProcessPccNoPccComponents",
+    sdk_version: "current",
+    srcs: ["**/*.java"],
+    dex_preopt: {
+        enabled: false,
+    },
+    optimize: {
+        enabled: false,
+    },
+    manifest: "AndroidManifestBackupAgentProcessPccNoPccComponents.xml",
+}
+
+android_test_helper_app {
+    name: "PackageParserTestBackupAgentProcessMain",
+    sdk_version: "current",
+    srcs: ["**/*.java"],
+    dex_preopt: {
+        enabled: false,
+    },
+    optimize: {
+        enabled: false,
+    },
+    manifest: "AndroidManifestBackupAgentProcessMain.xml",
+}
+
+android_test_helper_app {
+    name: "PackageParserTestBackupAgentProcessNotSpecified",
+    sdk_version: "current",
+    srcs: ["**/*.java"],
+    dex_preopt: {
+        enabled: false,
+    },
+    optimize: {
+        enabled: false,
+    },
+    manifest: "AndroidManifestBackupAgentProcessNotSpecified.xml",
 }

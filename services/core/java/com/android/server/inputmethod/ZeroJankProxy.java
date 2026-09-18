@@ -39,6 +39,8 @@ import android.annotation.BinderThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.SpecialUsers.CanBeALL;
+import android.annotation.SpecialUsers.CanBeCURRENT;
 import android.annotation.UserIdInt;
 import android.os.Binder;
 import android.os.IBinder;
@@ -50,17 +52,20 @@ import android.view.inputmethod.CursorAnchorInfo;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.view.inputmethod.InputMethodManager.IMPickerEntryPoint;
 import android.view.inputmethod.InputMethodSubtype;
 
 import com.android.internal.inputmethod.DirectBootAwareness;
 import com.android.internal.inputmethod.IBooleanListener;
 import com.android.internal.inputmethod.IConnectionlessHandwritingCallback;
+import com.android.internal.inputmethod.IImeSwitcherMenu;
 import com.android.internal.inputmethod.IImeTracker;
 import com.android.internal.inputmethod.IInputMethodClient;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
 import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
 import com.android.internal.inputmethod.IRemoteInputConnection;
 import com.android.internal.inputmethod.InputMethodInfoSafeList;
+import com.android.internal.inputmethod.InputMethodSubtypeSafeList;
 import com.android.internal.inputmethod.StartInputFlags;
 import com.android.internal.inputmethod.StartInputReason;
 import com.android.internal.util.FunctionalUtils.ThrowingRunnable;
@@ -138,19 +143,9 @@ final class ZeroJankProxy implements IInputMethodManagerImpl.Callback {
         return mInner.getEnabledInputMethodList(userId);
     }
 
+    @NonNull
     @Override
-    public List<InputMethodInfo> getInputMethodListLegacy(
-            int userId, @DirectBootAwareness int directBootAwareness) {
-        return mInner.getInputMethodListLegacy(userId, directBootAwareness);
-    }
-
-    @Override
-    public List<InputMethodInfo> getEnabledInputMethodListLegacy(int userId) {
-        return mInner.getEnabledInputMethodListLegacy(userId);
-    }
-
-    @Override
-    public List<InputMethodSubtype> getEnabledInputMethodSubtypeList(String imiId,
+    public InputMethodSubtypeSafeList getEnabledInputMethodSubtypeList(String imiId,
             boolean allowsImplicitlyEnabledSubtypes, int userId) {
         return mInner.getEnabledInputMethodSubtypeList(imiId, allowsImplicitlyEnabledSubtypes,
                 userId);
@@ -159,6 +154,45 @@ final class ZeroJankProxy implements IInputMethodManagerImpl.Callback {
     @Override
     public InputMethodSubtype getLastInputMethodSubtype(int userId) {
         return mInner.getLastInputMethodSubtype(userId);
+    }
+
+    @Override
+    @IInputMethodManagerImpl.PermissionVerified(allOf = {
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.WRITE_SECURE_SETTINGS})
+    public boolean enableInputMethodForTesting(@NonNull String imeId,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        return mInner.enableInputMethodForTesting(imeId, userId);
+    }
+
+    @Override
+    @IInputMethodManagerImpl.PermissionVerified(allOf = {
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.WRITE_SECURE_SETTINGS})
+    public boolean disableInputMethodForTesting(@NonNull String imeId,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        return mInner.disableInputMethodForTesting(imeId, userId);
+    }
+
+    @Override
+    @IInputMethodManagerImpl.PermissionVerified(allOf = {
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.WRITE_SECURE_SETTINGS})
+    public boolean setInputMethodForTesting(@NonNull String imeId,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        return mInner.setInputMethodForTesting(imeId, userId);
+    }
+
+    @Override
+    @IInputMethodManagerImpl.PermissionVerified(allOf = {
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.WRITE_SECURE_SETTINGS})
+    public void resetInputMethodsForTesting(@CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        mInner.resetInputMethodsForTesting(userId);
     }
 
     @Override
@@ -197,14 +231,32 @@ final class ZeroJankProxy implements IInputMethodManagerImpl.Callback {
             Manifest.permission.INTERACT_ACROSS_USERS_FULL,
             Manifest.permission.WRITE_SECURE_SETTINGS})
     @Override
-    public void showInputMethodPickerFromSystem(int auxiliarySubtypeMode, int displayId) {
-        mInner.showInputMethodPickerFromSystem(auxiliarySubtypeMode, displayId);
+    public void showInputMethodPickerFromSystem(
+            int auxiliarySubtypeMode, @IMPickerEntryPoint int entryPoint, int displayId) {
+        mInner.showInputMethodPickerFromSystem(auxiliarySubtypeMode, entryPoint, displayId);
+    }
+
+    @IInputMethodManagerImpl.PermissionVerified(allOf = {
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.WRITE_SECURE_SETTINGS})
+    @Override
+    public void toggleInputMethodPickerFromSystem(
+            int auxiliarySubtypeMode, @IMPickerEntryPoint int entryPoint, int displayId) {
+        mInner.toggleInputMethodPickerFromSystem(auxiliarySubtypeMode, entryPoint, displayId);
+    }
+
+    @IInputMethodManagerImpl.PermissionVerified(allOf = {
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.WRITE_SECURE_SETTINGS})
+    @Override
+    public void hideInputMethodPickerFromSystem(int displayId) {
+        mInner.hideInputMethodPickerFromSystem(displayId);
     }
 
     @IInputMethodManagerImpl.PermissionVerified(Manifest.permission.TEST_INPUT_METHOD)
     @Override
-    public boolean isInputMethodPickerShownForTest() {
-        return mInner.isInputMethodPickerShownForTest();
+    public boolean isInputMethodPickerShownForTest(@UserIdInt int userId) {
+        return mInner.isInputMethodPickerShownForTest(userId);
     }
 
     @IInputMethodManagerImpl.PermissionVerified(allOf = {
@@ -219,6 +271,16 @@ final class ZeroJankProxy implements IInputMethodManagerImpl.Callback {
     @Override
     public boolean shouldShowImeSwitcherButtonForTest() {
         return mInner.shouldShowImeSwitcherButtonForTest();
+    }
+
+    @IInputMethodManagerImpl.PermissionVerified(allOf = {
+            Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.STATUS_BAR_SERVICE,
+    })
+    @Override
+    public void registerImeSwitcherMenu(@NonNull IImeSwitcherMenu imeSwitcherMenu) {
+        mInner.registerImeSwitcherMenu(imeSwitcherMenu);
     }
 
     @Override
@@ -351,6 +413,12 @@ final class ZeroJankProxy implements IInputMethodManagerImpl.Callback {
         mInner.setAllowedImesByPolicyForTest(client, allowedPackages);
     }
 
+    @IInputMethodManagerImpl.PermissionVerified("android.permission.TEST_INPUT_METHOD")
+    @Override
+    public void setPreventImeStartupBypassedAppsForTest(@NonNull List<String> allowedPackages) {
+        mInner.setPreventImeStartupBypassedAppsForTest(allowedPackages);
+    }
+
     @Override
     public IImeTracker getImeTrackerService() {
         return mInner.getImeTrackerService();
@@ -370,4 +438,3 @@ final class ZeroJankProxy implements IInputMethodManagerImpl.Callback {
         mInner.dump(fd, fout, args);
     }
 }
-

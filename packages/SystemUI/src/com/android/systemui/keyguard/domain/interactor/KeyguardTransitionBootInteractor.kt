@@ -22,7 +22,7 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
 import com.android.systemui.keyguard.data.repository.KeyguardTransitionRepository
-import com.android.systemui.keyguard.shared.model.KeyguardState.GONE
+import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.KeyguardState.LOCKSCREEN
 import com.android.systemui.keyguard.shared.model.KeyguardState.OFF
 import com.android.systemui.scene.domain.interactor.OnBootTransitionInteractor
@@ -42,6 +42,7 @@ constructor(
     val keyguardTransitionInteractor: KeyguardTransitionInteractor,
     val internalTransitionInteractor: InternalKeyguardTransitionInteractor,
     val onBootTransitionInteractor: OnBootTransitionInteractor,
+    val keyguardInteractor: KeyguardInteractor,
     val repository: KeyguardTransitionRepository,
 ) {
     fun start() {
@@ -56,9 +57,16 @@ constructor(
                 if (SceneContainerFlag.isEnabled) {
                     repository.emitInitialStepsFromOff(LOCKSCREEN)
                 } else {
-                    repository.emitInitialStepsFromOff(
-                        if (onBootTransitionInteractor.showLockscreenOnBoot()) LOCKSCREEN else GONE
-                    )
+                    val state =
+                        if (keyguardInteractor.primaryBouncerShowing.value) {
+                            // SIM bouncer may show first.
+                            KeyguardState.PRIMARY_BOUNCER
+                        } else if (onBootTransitionInteractor.showLockscreenOnBoot()) {
+                            KeyguardState.LOCKSCREEN
+                        } else {
+                            KeyguardState.GONE
+                        }
+                    repository.emitInitialStepsFromOff(state)
                 }
             }
         }

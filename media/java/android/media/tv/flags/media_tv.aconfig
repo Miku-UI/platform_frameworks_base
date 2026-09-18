@@ -122,6 +122,13 @@ flag {
 }
 
 flag {
+    name: "tunnel_mode_2"
+    namespace: "tv_os"
+    description: "Feature flag to enable APIs for Tunnel Mode 2.0"
+    bug: "452774778"
+}
+
+flag {
   name: "media_quality_fw_bugfix"
   namespace: "tv_os"
   description: "Bug fix flag for Media Quality framework"
@@ -139,8 +146,37 @@ flag {
 }
 
 flag {
+    name: "media_quality_fw_picture_post_processing"
+    namespace: "tv_os"
+    description: "Feature flag to enable picture post processing APIs in media quality framework for Android 17"
+    bug: "443329020"
+}
+
+flag {
     name: "tif_extension_standardization_c"
     namespace: "tv_os"
     description: "Continue efforts for standardizing AIDL Extension Interface of TIS in Android 17"
     bug: "443346064"
+}
+
+flag {
+    name: "agentic_ai_tv_os"
+    namespace: "tv_os"
+    description: "Feature flag to enable agentic AI for TV OS using AppFunctions"
+    bug: "447154316"
+}
+
+flag {
+    name: "media_quality_fw_c"
+    is_exported: true
+    namespace: "tv_os"
+    description: "Continue efforts for standardizing PQ/AQ Interfaces for Media Quality Framework in Android 17"
+    bug: "443329020"
+}
+
+flag {
+    name: "tv_audio_routing_improvements"
+    namespace: "tv_os"
+    description: "Improve the audio routing mechanism for assistant TVs"
+    bug: "457774675"
 }

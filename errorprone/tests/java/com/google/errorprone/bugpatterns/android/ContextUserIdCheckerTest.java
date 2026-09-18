@@ -36,7 +36,6 @@ public class ContextUserIdCheckerTest {
     @Test
     public void testValid() {
         compilationHelper
-                .addSourceFile("/android/annotation/SystemService.java")
                 .addSourceFile("/android/content/Context.java")
                 .addSourceFile("/android/content/Intent.java")
                 .addSourceFile("/android/foo/IFooService.java")
@@ -67,7 +66,6 @@ public class ContextUserIdCheckerTest {
     @Test
     public void testInvalid() {
         compilationHelper
-                .addSourceFile("/android/annotation/SystemService.java")
                 .addSourceFile("/android/content/Context.java")
                 .addSourceFile("/android/content/Intent.java")
                 .addSourceFile("/android/foo/IFooService.java")
@@ -98,7 +96,6 @@ public class ContextUserIdCheckerTest {
     @Test
     public void testDevicePolicyManager() {
         compilationHelper
-                .addSourceFile("/android/annotation/SystemService.java")
                 .addSourceFile("/android/content/Context.java")
                 .addSourceFile("/android/content/Intent.java")
                 .addSourceFile("/android/foo/IFooService.java")
@@ -125,7 +122,6 @@ public class ContextUserIdCheckerTest {
     @Test
     public void testShortcutManager() {
         compilationHelper
-                .addSourceFile("/android/annotation/SystemService.java")
                 .addSourceFile("/android/content/Context.java")
                 .addSourceFile("/android/content/Intent.java")
                 .addSourceFile("/android/foo/IFooService.java")
@@ -152,7 +148,6 @@ public class ContextUserIdCheckerTest {
     @Test
     public void testUserManager() {
         compilationHelper
-                .addSourceFile("/android/annotation/SystemService.java")
                 .addSourceFile("/android/content/Context.java")
                 .addSourceFile("/android/content/Intent.java")
                 .addSourceFile("/android/foo/IFooService.java")

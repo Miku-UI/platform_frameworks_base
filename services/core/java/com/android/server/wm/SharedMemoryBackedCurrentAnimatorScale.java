@@ -30,10 +30,6 @@ final class SharedMemoryBackedCurrentAnimatorScale {
     private boolean mAnimationsDisabled = false;
     private float mCurrentAnimatorScale = 1.f;
 
-    SharedMemoryBackedCurrentAnimatorScale() {
-        updateSharedMemoryValue();
-    }
-
     void setAnimationsDisabled(boolean disabled) {
         if (mAnimationsDisabled == disabled) {
             return;
@@ -58,6 +54,10 @@ final class SharedMemoryBackedCurrentAnimatorScale {
 
     boolean isAnimationsDisabled() {
         return mAnimationsDisabled;
+    }
+
+    void onSystemReady() {
+        updateSharedMemoryValue();
     }
 
     private void updateSharedMemoryValue() {

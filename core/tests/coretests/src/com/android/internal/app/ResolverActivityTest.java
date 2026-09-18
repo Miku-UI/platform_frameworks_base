@@ -1322,6 +1322,83 @@ public class ResolverActivityTest {
         }
     }
 
+    @Test
+    public void testAutoLaunchDisabled_noAutoLaunch() throws Exception {
+        mSetFlagsRule.enableFlags(
+                android.service.chooser.Flags.FLAG_RESOLVER_RESPECT_AUTO_LAUNCH_SINGLE_CHOICE);
+        Intent sendIntent = createSendImageIntent();
+        sendIntent.putExtra(Intent.EXTRA_AUTO_LAUNCH_SINGLE_CHOICE, false);
+        List<ResolvedComponentInfo> resolvedComponentInfos = createResolvedComponentsForTest(1,
+                PERSONAL_USER_HANDLE);
+
+        when(sOverrides.resolverListController.getResolversForIntent(Mockito.anyBoolean(),
+                Mockito.anyBoolean(),
+                Mockito.anyBoolean(),
+                Mockito.isA(List.class))).thenReturn(resolvedComponentInfos);
+
+        ResolveInfo[] chosen = new ResolveInfo[1];
+        sOverrides.onSafelyStartInternalCallback = result -> {
+            chosen[0] = result.first.getResolveInfo();
+            return true;
+        };
+
+        mActivityRule.launchActivity(sendIntent);
+        waitForIdle();
+
+        // Should NOT auto-launch
+        assertThat(chosen[0], is(org.hamcrest.CoreMatchers.nullValue()));
+    }
+
+    @Test
+    public void testAutoLaunchDisabled_preselectPreferred() throws Exception {
+        mSetFlagsRule.enableFlags(
+                android.service.chooser.Flags.FLAG_RESOLVER_RESPECT_AUTO_LAUNCH_SINGLE_CHOICE);
+        Intent sendIntent = createSendImageIntent();
+        sendIntent.putExtra(Intent.EXTRA_AUTO_LAUNCH_SINGLE_CHOICE, false);
+        List<ResolvedComponentInfo> resolvedComponentInfos = createResolvedComponentsForTest(2,
+                PERSONAL_USER_HANDLE);
+        // Set the second one as preferred
+        resolvedComponentInfos.get(1).setPreferredActivity(true);
+
+        when(sOverrides.resolverListController.getResolversForIntent(Mockito.anyBoolean(),
+                Mockito.anyBoolean(),
+                Mockito.anyBoolean(),
+                Mockito.isA(List.class))).thenReturn(resolvedComponentInfos);
+
+        mActivityRule.launchActivity(sendIntent);
+        waitForIdle();
+
+        // The "Once" button should be enabled because an item is pre-selected
+        onView(withId(R.id.button_once)).check(matches(isEnabled()));
+    }
+
+    @Test
+    public void testAutoLaunchDisabled_preselectPreferred_withWorkTab()
+            throws Exception {
+        mSetFlagsRule.enableFlags(
+                android.service.chooser.Flags.FLAG_RESOLVER_RESPECT_AUTO_LAUNCH_SINGLE_CHOICE);
+        ResolverActivity.ENABLE_TABBED_VIEW = true;
+        markWorkProfileUserAvailable();
+
+        Intent sendIntent = createSendImageIntent();
+        sendIntent.putExtra(Intent.EXTRA_AUTO_LAUNCH_SINGLE_CHOICE, false);
+
+        List<ResolvedComponentInfo> personalResolvedComponentInfos =
+                createResolvedComponentsForTest(2, PERSONAL_USER_HANDLE);
+        personalResolvedComponentInfos.get(1).setPreferredActivity(true);
+
+        List<ResolvedComponentInfo> workResolvedComponentInfos = createResolvedComponentsForTest(4,
+                sOverrides.workProfileUserHandle);
+
+        setupResolverControllers(personalResolvedComponentInfos, workResolvedComponentInfos);
+
+        mActivityRule.launchActivity(sendIntent);
+        waitForIdle();
+
+        // The "Once" button should be enabled because an item is pre-selected in the active tab
+        onView(withId(R.id.button_once)).check(matches(isEnabled()));
+    }
+
     private Intent createSendImageIntent() {
         Intent sendIntent = new Intent();
         sendIntent.setAction(Intent.ACTION_SEND);

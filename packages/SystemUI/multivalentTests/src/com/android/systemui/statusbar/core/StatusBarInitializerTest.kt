@@ -18,8 +18,6 @@ package com.android.systemui.statusbar.core
 
 import android.app.FragmentManager
 import android.app.FragmentTransaction
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.view.ViewGroup
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -27,16 +25,14 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.fragments.FragmentHostManager
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.statusbar.data.repository.fakeStatusBarModePerDisplayRepository
-import com.android.systemui.statusbar.phone.fragment.CollapsedStatusBarFragment
+import com.android.systemui.statusbar.multiDisplayStatusBarLogger
 import com.android.systemui.statusbar.phone.fragment.dagger.HomeStatusBarComponent
 import com.android.systemui.statusbar.pipeline.shared.ui.composable.StatusBarRootFactory
-import com.android.systemui.statusbar.policy.statusBarConfigurationController
 import com.android.systemui.statusbar.window.StatusBarWindowController
 import com.android.systemui.statusbar.window.StatusBarWindowControllerStore
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
-import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.runner.RunWith
 import org.mockito.Mockito.mock
@@ -66,54 +62,31 @@ class StatusBarInitializerTest : SysuiTestCase() {
         whenever(fragmentManager.beginTransaction()).thenReturn(transaction)
         whenever(transaction.replace(any(), any(), any())).thenReturn(transaction)
         whenever(windowControllerStore.defaultDisplay).thenReturn(windowController)
-        whenever(windowController.fragmentHostManager).thenReturn(fragmentHostManager)
         whenever(windowController.backgroundView).thenReturn(backgroundView)
     }
 
     val underTest =
         StatusBarInitializerImpl(
+            displayId = context.displayId,
             statusBarWindowController = windowController,
-            collapsedStatusBarFragmentProvider = { mock(CollapsedStatusBarFragment::class.java) },
+            statusBarModePerDisplayRepository = statusBarModePerDisplayRepository,
             statusBarRootFactory = mock(StatusBarRootFactory::class.java),
             componentFactory = mock(HomeStatusBarComponent.Factory::class.java),
             lifecycleListeners = setOf(),
-            statusBarModePerDisplayRepository = statusBarModePerDisplayRepository,
-            statusBarConfigurationController = kosmos.statusBarConfigurationController,
+            logger = kosmos.multiDisplayStatusBarLogger,
         )
 
     @Test
-    @EnableFlags(StatusBarRootModernization.FLAG_NAME)
-    fun flagOn_startsFromCoreStartable() {
+    fun startsFromCoreStartable() {
         underTest.start()
         assertThat(underTest.initialized).isTrue()
     }
 
     @Test
-    @EnableFlags(StatusBarRootModernization.FLAG_NAME)
-    fun flagOn_throwsIfInitializeIsCalled() {
-        assertThrows(IllegalStateException::class.java) { underTest.initializeStatusBar() }
-    }
-
-    @Test
-    @EnableFlags(StatusBarRootModernization.FLAG_NAME)
-    fun flagOn_flagEnabled_doesNotCreateFragment() {
+    fun doesNotCreateFragment() {
         underTest.start()
 
         verify(fragmentManager, never()).beginTransaction()
         verify(transaction, never()).replace(any(), any(), any())
-    }
-
-    @Test
-    @DisableFlags(StatusBarRootModernization.FLAG_NAME)
-    fun flagOff_startCalled_stillInitializes() {
-        underTest.start()
-        assertThat(underTest.initialized).isTrue()
-    }
-
-    @Test
-    @DisableFlags(StatusBarRootModernization.FLAG_NAME)
-    fun flagOff_doesNotThrowIfInitializeIsCalled() {
-        underTest.initializeStatusBar()
-        assertThat(underTest.initialized).isTrue()
     }
 }

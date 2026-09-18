@@ -56,8 +56,10 @@ import android.media.tv.interactive.ITvInteractiveAppService;
 import android.media.tv.interactive.ITvInteractiveAppServiceCallback;
 import android.media.tv.interactive.ITvInteractiveAppSession;
 import android.media.tv.interactive.ITvInteractiveAppSessionCallback;
+import android.media.tv.interactive.TvInteractiveAppInfo;
 import android.media.tv.interactive.TvInteractiveAppService;
 import android.media.tv.interactive.TvInteractiveAppServiceInfo;
+import android.media.tv.interactive.WebServiceClientInfo;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Bundle;
@@ -2077,6 +2079,31 @@ public class TvInteractiveAppManagerService extends SystemService {
         }
 
         @Override
+        public void startInteractiveAppWithHandle(IBinder sessionToken, int userId, int handle) {
+            if (DEBUG) {
+                Slogf.d(TAG, "BinderService#start(userId=%d)", userId);
+            }
+            final int callingUid = Binder.getCallingUid();
+            final int resolvedUserId = resolveCallingUserId(Binder.getCallingPid(), callingUid,
+                    userId, "startInteractiveAppWithHandle");
+            SessionState sessionState = null;
+            final long identity = Binder.clearCallingIdentity();
+            try {
+                synchronized (mLock) {
+                    try {
+                        sessionState = getSessionStateLocked(sessionToken, callingUid,
+                                resolvedUserId);
+                        getSessionLocked(sessionState).startInteractiveAppWithHandle(handle);
+                    } catch (RemoteException | SessionNotFoundException e) {
+                        Slogf.e(TAG, "error in start", e);
+                    }
+                }
+            } finally {
+                Binder.restoreCallingIdentity(identity);
+            }
+        }
+
+        @Override
         public void createBiInteractiveApp(
                 IBinder sessionToken, Uri biIAppUri, Bundle params, int userId) {
             if (DEBUG) {
@@ -2977,6 +3004,67 @@ public class TvInteractiveAppManagerService extends SystemService {
                         Slog.e(TAG, "error in removeMediaView", e);
                     }
                 }
+            } finally {
+                Binder.restoreCallingIdentity(identity);
+            }
+        }
+
+        @Override
+        public void requestWebServiceClients(IBinder sessionToken, int userId) {
+            final int callingUid = Binder.getCallingUid();
+            final int resolvedUserId = resolveCallingUserId(Binder.getCallingPid(), callingUid,
+                    userId, "requestWebServiceClients");
+
+            final long identity = Binder.clearCallingIdentity();
+            try {
+                synchronized (mLock) {
+                    SessionState sessionState = getSessionStateLocked(sessionToken, callingUid,
+                            resolvedUserId);
+                    getSessionLocked(sessionState).requestWebServiceClients();
+                }
+            } catch (RemoteException e) {
+                Slog.e(TAG, "error in requestWebServiceClients", e);
+            } finally {
+                Binder.restoreCallingIdentity(identity);
+            }
+        }
+
+        @Override
+        public void updateWebServiceClientState(IBinder sessionToken, int handle, int state,
+                int userId) {
+            final int callingUid = Binder.getCallingUid();
+            final int resolvedUserId = resolveCallingUserId(Binder.getCallingPid(), callingUid,
+                    userId, "updateWebServiceClientState");
+
+            final long identity = Binder.clearCallingIdentity();
+            try {
+                synchronized (mLock) {
+                    SessionState sessionState = getSessionStateLocked(sessionToken, callingUid,
+                            resolvedUserId);
+                    getSessionLocked(sessionState).updateWebServiceClientState(handle, state);
+                }
+            } catch (RemoteException e) {
+                Slog.e(TAG, "error in updateWebServiceClientState", e);
+            } finally {
+                Binder.restoreCallingIdentity(identity);
+            }
+        }
+
+        @Override
+        public void removeWebServiceClient(IBinder sessionToken, int handle, int userId) {
+            final int callingUid = Binder.getCallingUid();
+            final int resolvedUserId = resolveCallingUserId(Binder.getCallingPid(), callingUid,
+                    userId, "removeWebServiceClient");
+
+            final long identity = Binder.clearCallingIdentity();
+            try {
+                synchronized (mLock) {
+                    SessionState sessionState = getSessionStateLocked(sessionToken, callingUid,
+                            resolvedUserId);
+                    getSessionLocked(sessionState).removeWebServiceClient(handle);
+                }
+            } catch (RemoteException e) {
+                Slog.e(TAG, "error in removeWebServiceClient", e);
             } finally {
                 Binder.restoreCallingIdentity(identity);
             }
@@ -4290,6 +4378,24 @@ public class TvInteractiveAppManagerService extends SystemService {
         }
 
         @Override
+        public void onInteractiveAppInfoChanged(TvInteractiveAppInfo appInfo) {
+            synchronized (mLock) {
+                if (DEBUG) {
+                    Slogf.d(TAG,
+                            "onInteractiveAppInfoChanged");
+                }
+                if (mSessionState.mSession == null || mSessionState.mClient == null) {
+                    return;
+                }
+                try {
+                    mSessionState.mClient.onInteractiveAppInfoChanged(appInfo, mSessionState.mSeq);
+                } catch (RemoteException e) {
+                    Slogf.e(TAG, "error in onInteractiveAppInfoChanged", e);
+                }
+            }
+        }
+
+        @Override
         public void onBiInteractiveAppCreated(Uri biIAppUri, String biIAppId) {
             synchronized (mLock) {
                 if (DEBUG) {
@@ -4342,6 +4448,24 @@ public class TvInteractiveAppManagerService extends SystemService {
                     if (buffer != null) {
                         buffer.getSharedMemory().close();
                     }
+                }
+            }
+        }
+
+        @Override
+        public void onSendWebServiceClientList(List<WebServiceClientInfo> clientList) {
+            synchronized (mLock) {
+                if (DEBUG) {
+                    Slogf.d(TAG, "onSendWebServiceClientList");
+                }
+                if (mSessionState.mSession == null || mSessionState.mClient == null) {
+                    return;
+                }
+                try {
+                    mSessionState.mClient.onSendWebServiceClientList(clientList,
+                            mSessionState.mSeq);
+                } catch (RemoteException e) {
+                    Slogf.e(TAG, "error in onSendWebServiceClientList", e);
                 }
             }
         }

@@ -31,14 +31,15 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.Collections;
+import java.util.List;
 
 @RunWith(AndroidTestingRunner.class)
 public class ThemeStateTests {
     private static final float CONTRAST_DEFAULT = 0.0f;
     private static final float CONTRAST_HIGH = 1.0f;
 
-    private static final int SEED_COLOR_VALID = Color.BLUE;
-    private static final int SEED_COLOR_RED = Color.RED;
+    private static final List<Integer> SEED_COLORS_VALID = List.of(Color.BLUE, Color.CYAN);
+    private static final List<Integer> SEED_COLORS_RED = List.of(Color.RED);
 
     private static final Integer STYLE_VALID = ThemeStyle.TONAL_SPOT;
     private static final int STYLE_EXPRESSIVE = ThemeStyle.EXPRESSIVE;
@@ -49,16 +50,16 @@ public class ThemeStateTests {
 
     @Before
     public void setUp() {
-        mState = new ThemeState(USER_ID, false, SEED_COLOR_VALID, CONTRAST_DEFAULT,
+        mState = new ThemeState(USER_ID, false, SEED_COLORS_VALID, CONTRAST_DEFAULT,
                 STYLE_VALID, Collections.emptySet(), 0);
     }
 
     @Test
-    public void testWithSeedColor() {
+    public void testWithSeedColors() {
         ThemeState originalState = mState;
-        mState = mState.withSeedColor(SEED_COLOR_RED);
-        assertEquals(SEED_COLOR_RED, mState.seedColor());
-        Truth.assertThat(mState.seedColor()).isEqualTo(SEED_COLOR_RED);
+        mState = mState.withSeedColors(SEED_COLORS_RED);
+        assertEquals(SEED_COLORS_RED, mState.seedColors());
+        Truth.assertThat(mState.seedColors()).isEqualTo(SEED_COLORS_RED);
         verifyImmutability(originalState);
     }
 
@@ -106,4 +107,3 @@ public class ThemeStateTests {
         assertNotEquals(originalState, mState); // Verify immutability
     }
 }
-

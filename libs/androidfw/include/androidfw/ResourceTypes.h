@@ -17,8 +17,7 @@
 //
 // Definitions of resource data structures.
 //
-#ifndef _LIBS_UTILS_RESOURCE_TYPES_H
-#define _LIBS_UTILS_RESOURCE_TYPES_H
+#pragma once
 
 #include <android-base/expected.h>
 #include <android-base/unique_fd.h>
@@ -878,6 +877,7 @@ static inline bool operator==(const android::ResXMLParser::ResXMLPosition& lhs,
   return lhs.curNode == rhs.curNode;
 }
 
+class Asset;
 class DynamicRefTable;
 
 /**
@@ -896,20 +896,36 @@ public:
     ~ResXMLTree();
 
     status_t setTo(const void* data, size_t size, bool copyData=false);
+    status_t setTo(std::unique_ptr<uint8_t[]> data, size_t size);
+    status_t setTo(base::MappedFile&& mapping);
 
     status_t getError() const;
 
     void uninit();
 
+    template <class... Args>
+    static std::unique_ptr<ResXMLTree> fromAsset(std::unique_ptr<Asset>&& asset, Args&&... args) {
+      return fromAsset(std::move(asset), std::make_unique<ResXMLTree>(std::forward<Args>(args)...));
+    }
+
 private:
     friend class ResXMLParser;
+
+    static std::unique_ptr<ResXMLTree> fromAsset(std::unique_ptr<Asset>&& asset,
+                                                 std::unique_ptr<ResXMLTree> tree);
+
+    status_t preInit(const void* data, size_t size);
+    status_t init(const void* data, size_t size);
 
     status_t validateNode(const ResXMLTree_node* node) const;
 
     std::shared_ptr<const DynamicRefTable> mDynamicRefTable;
 
+    // In case when we took over or copied the passed in buffer, there could be one of these:
+    std::optional<base::MappedFile> mMapping;
+    std::unique_ptr<uint8_t[]>  mMovedInData;
+
     status_t                    mError;
-    void*                       mOwnedData;
     const ResXMLTree_header*    mHeader;
     size_t                      mSize;
     const uint8_t*              mDataEnd;
@@ -2482,5 +2498,3 @@ private:
 };
 
 }   // namespace android
-
-#endif // _LIBS_UTILS_RESOURCE_TYPES_H

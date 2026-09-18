@@ -28,8 +28,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 
-import com.android.systemui.Flags;
-
 /**
  * Detects single tap and drag gestures using the supplied {@link MotionEvent}s. The {@link
  * OnGestureListener} callback will notify users when a particular motion event has occurred. This
@@ -212,7 +210,7 @@ class MagnificationGestureDetector {
                 case MotionEvent.ACTION_UP:
                     float dx = 0;
                     float dy = 0;
-                    if (Flags.windowMagnificationMoveWithMouseOnEdge() && isMouseEvent(event)) {
+                    if (isMouseEvent(event)) {
                         // With mouse input, we use relative delta values so that user can drag
                         // even at the edge of the screen, where the pointer location doesn't change
                         // but input event still contain the delta value.

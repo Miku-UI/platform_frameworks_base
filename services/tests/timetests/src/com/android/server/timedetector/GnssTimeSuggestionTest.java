@@ -28,8 +28,7 @@ import org.junit.Test;
 
 public class GnssTimeSuggestionTest {
 
-    private static final UnixEpochTime ARBITRARY_TIME =
-            new UnixEpochTime(1111L, 2222L);
+    private static final UnixEpochTime ARBITRARY_TIME = new UnixEpochTime(1111L, 2222L);
 
     @Test
     public void testEquals() {
@@ -40,9 +39,10 @@ public class GnssTimeSuggestionTest {
         assertEquals(one, two);
         assertEquals(two, one);
 
-        UnixEpochTime differentTime = new UnixEpochTime(
-                ARBITRARY_TIME.getElapsedRealtimeMillis() + 1,
-                ARBITRARY_TIME.getUnixEpochTimeMillis());
+        UnixEpochTime differentTime =
+                new UnixEpochTime(
+                        ARBITRARY_TIME.getElapsedRealtimeMillis() + 1,
+                        ARBITRARY_TIME.getUnixEpochTimeMillis());
         GnssTimeSuggestion three = new GnssTimeSuggestion(differentTime);
         assertNotEquals(one, three);
         assertNotEquals(three, one);
@@ -55,22 +55,23 @@ public class GnssTimeSuggestionTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_noReferenceTime() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--unix_epoch_time 12345");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions("--unix_epoch_time 12345");
         GnssTimeSuggestion.parseCommandLineArg(testShellCommand);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_noUnixEpochTime() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--elapsed_realtime 54321");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions("--elapsed_realtime 54321");
         GnssTimeSuggestion.parseCommandLineArg(testShellCommand);
     }
 
     @Test
     public void testParseCommandLineArg_validSuggestion() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--elapsed_realtime 54321 --unix_epoch_time 12345");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        "--elapsed_realtime 54321 --unix_epoch_time 12345");
         UnixEpochTime timeSignal = new UnixEpochTime(54321L, 12345L);
         GnssTimeSuggestion expectedSuggestion = new GnssTimeSuggestion(timeSignal);
         GnssTimeSuggestion actualSuggestion =
@@ -80,8 +81,9 @@ public class GnssTimeSuggestionTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_unknownArgument() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--elapsed_realtime 54321 --unix_epoch_time 12345 --bad_arg 0");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        "--elapsed_realtime 54321 --unix_epoch_time 12345 --bad_arg 0");
         GnssTimeSuggestion.parseCommandLineArg(testShellCommand);
     }
 }

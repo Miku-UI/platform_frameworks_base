@@ -18,7 +18,6 @@ package com.android.server.display.brightness.strategy;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import android.hardware.display.DisplayManagerInternal;
 import android.hardware.display.DisplayManagerInternal.DisplayPowerRequest;
@@ -98,7 +97,6 @@ public class DozeBrightnessStrategyTest {
 
     @Test
     public void testUpdateBrightness_ManualDozeBrightness() {
-        when(mFlags.isDisplayOffloadEnabled()).thenReturn(true);
         DisplayPowerRequest displayPowerRequest = new DisplayPowerRequest();
         float currentScreenBrightness = 0.2f;
         BrightnessReason brightnessReason = new BrightnessReason();
@@ -136,7 +134,7 @@ public class DozeBrightnessStrategyTest {
                         new StrategyExecutionRequest(displayPowerRequest, DEFAULT_DOZE_BRIGHTNESS,
                                 /* userSetBrightnessChanged= */ false,
                                 /* isStylusBeingUsed= */ false,
-                                mock(DisplayManagerInternal.DisplayOffloadSession.class)));
+                                /* strategyOffloadSession= */ null));
         assertEquals(expectedDisplayBrightnessState, updatedDisplayBrightnessState);
     }
 }

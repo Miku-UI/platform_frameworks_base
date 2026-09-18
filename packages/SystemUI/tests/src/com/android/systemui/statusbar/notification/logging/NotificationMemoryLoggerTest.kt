@@ -45,6 +45,8 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4
 import platform.test.runner.parameterized.Parameters
 
@@ -83,7 +85,7 @@ class NotificationMemoryLoggerTest(flags: FlagsParameterization) : SysuiTestCase
         val logger = createLoggerWithNotifications(listOf())
         logger.init()
         verify(statsManager)
-            .setPullAtomCallback(SysUiStatsLog.NOTIFICATION_MEMORY_USE, null, bgExecutor, logger)
+            .setPullAtomCallback(eq(SysUiStatsLog.NOTIFICATION_MEMORY_USE), any(), eq(bgExecutor), eq(logger))
     }
 
     @Test
@@ -141,7 +143,7 @@ class NotificationMemoryLoggerTest(flags: FlagsParameterization) : SysuiTestCase
     fun onPullAtom_throwsInterruptedException_failsGracefully() {
         val pipeline: NotifPipeline = mock()
         whenever(pipeline.allNotifs).thenAnswer { throw InterruptedException("Timeout") }
-        val logger = NotificationMemoryLogger(pipeline, statsManager, immediate, bgExecutor)
+        val logger = NotificationMemoryLogger({ pipeline }, statsManager, immediate, bgExecutor)
         assertThat(logger.onPullAtom(SysUiStatsLog.NOTIFICATION_MEMORY_USE, mutableListOf()))
             .isEqualTo(StatsManager.PULL_SKIP)
     }
@@ -150,7 +152,7 @@ class NotificationMemoryLoggerTest(flags: FlagsParameterization) : SysuiTestCase
     fun onPullAtom_throwsRuntimeException_failsGracefully() {
         val pipeline: NotifPipeline = mock()
         whenever(pipeline.allNotifs).thenThrow(RuntimeException("Something broke!"))
-        val logger = NotificationMemoryLogger(pipeline, statsManager, immediate, bgExecutor)
+        val logger = NotificationMemoryLogger({ pipeline }, statsManager, immediate, bgExecutor)
         assertLogsWtf {
             assertThat(logger.onPullAtom(SysUiStatsLog.NOTIFICATION_MEMORY_USE, mutableListOf()))
                 .isEqualTo(StatsManager.PULL_SKIP)
@@ -283,7 +285,7 @@ class NotificationMemoryLoggerTest(flags: FlagsParameterization) : SysuiTestCase
                 NotificationEntryBuilder().setTag("test").setNotification(notification).build()
             }
         whenever(pipeline.allNotifs).thenReturn(notifications)
-        return NotificationMemoryLogger(pipeline, statsManager, immediate, bgExecutor)
+        return NotificationMemoryLogger({ pipeline }, statsManager, immediate, bgExecutor)
     }
 
     /**

@@ -23,7 +23,9 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 import androidx.preference.PreferenceScreen
+import com.android.settingslib.metadata.CatalystFlagProviderFactory
 import com.android.settingslib.metadata.EXTRA_BINDING_SCREEN_ARGS
+import com.android.settingslib.metadata.ValidatedKeyParameters
 import com.android.settingslib.metadata.PreferenceScreenRegistry
 import kotlinx.coroutines.CoroutineScope
 
@@ -86,6 +88,7 @@ class PreferenceScreenFactory {
      *
      * The screen must be registered in [PreferenceScreenFactory] and provide a complete hierarchy.
      */
+    @Deprecated("This method will be removed once the catalyst framework stops passing the arguments as a bundle. Use createBindingScreenWithKeyParameters instead.")
     fun createBindingScreen(
         context: Context,
         screenKey: String?,
@@ -93,6 +96,24 @@ class PreferenceScreenFactory {
         coroutineScope: CoroutineScope,
     ): PreferenceScreen? {
         val metadata = PreferenceScreenRegistry.create(context, screenKey, args) ?: return null
+        if (metadata is PreferenceScreenCreator && metadata.hasCompleteHierarchy()) {
+            return metadata.createPreferenceScreen(this, coroutineScope)
+        }
+        return null
+    }
+
+    /**
+     * Creates [PreferenceScreen] of given key.
+     *
+     * The screen must be registered in [PreferenceScreenFactory] and provide a complete hierarchy.
+     */
+    fun createBindingScreenWithKeyParameters(
+        context: Context,
+        screenKey: String?,
+        keyParameters: ValidatedKeyParameters?,
+        coroutineScope: CoroutineScope,
+    ): PreferenceScreen? {
+        val metadata = PreferenceScreenRegistry.createWithKeyParameters(context, screenKey, keyParameters) ?: return null
         if (metadata is PreferenceScreenCreator && metadata.hasCompleteHierarchy()) {
             return metadata.createPreferenceScreen(this, coroutineScope)
         }
@@ -108,14 +129,24 @@ class PreferenceScreenFactory {
         ): PreferenceScreen? {
             val context = preference.context
             val args = preference.peekExtras()?.getBundle(EXTRA_BINDING_SCREEN_ARGS)
-            val preferenceScreenCreator =
-                (PreferenceScreenRegistry.create(context, preference.key, args)
-                    as? PreferenceScreenCreator) ?: return null
+
+            val preferenceScreenMetadata = if (CatalystFlagProviderFactory.catalystUseKeyParameters()) {
+                val parametersSchema = PreferenceScreenRegistry.getScreenParametersSchema(preference.key)
+                val keyParameters = args?.let { parametersSchema?.prepare(it) }
+
+                PreferenceScreenRegistry.createWithKeyParameters(context, preference.key, keyParameters)
+            } else {
+                PreferenceScreenRegistry.create(context, preference.key, args)
+            }
+
+            val preferenceScreenCreator = (preferenceScreenMetadata as? PreferenceScreenCreator) ?: return null
+
             if (!preferenceScreenCreator.hasCompleteHierarchy()) return null
+
             val factory = PreferenceScreenFactory(context)
-            val preferenceScreen =
-                preferenceScreenCreator.createPreferenceScreen(factory, coroutineScope)
+            val preferenceScreen = preferenceScreenCreator.createPreferenceScreen(factory, coroutineScope)
             factory.preferenceManager.setPreferences(preferenceScreen)
+
             return preferenceScreen
         }
     }

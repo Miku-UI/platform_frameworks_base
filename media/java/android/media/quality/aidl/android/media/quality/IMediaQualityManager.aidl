@@ -17,6 +17,8 @@
 package android.media.quality;
 
 import android.media.quality.AmbientBacklightSettings;
+import android.media.quality.EqualizerCapabilities;
+import android.media.quality.EqualizerSettings;
 import android.media.quality.IActiveProcessingPictureListener;
 import android.media.quality.IAmbientBacklightCallback;
 import android.media.quality.IPictureProfileCallback;
@@ -37,7 +39,10 @@ interface IMediaQualityManager {
     void updatePictureProfile(in String id, in PictureProfile pp, int userId);
     void removePictureProfile(in String id, int userId);
     PictureProfile getDefaultPictureProfile();
+    SoundProfile getDefaultSoundProfile();
     boolean setDefaultPictureProfile(in String id, int userId);
+    void setMutedColor(int color, int userId);
+    void setColorMuteEnabled(boolean enable, int userId);
     // TODO: use Bundle for includeParams
     PictureProfile getPictureProfile(
             in int type, in String name, in boolean includeParams, int userId);
@@ -48,6 +53,7 @@ interface IMediaQualityManager {
     List<String> getPictureProfileAllowList(int userId);
     void setPictureProfileAllowList(in List<String> packages, int userId);
     List<PictureProfileHandle> getPictureProfileHandle(in String[] id, int userId);
+    List<PictureProfileHandle> getPictureProfileHandles(in String[] ids, int userId);
 
     void changeStreamStatus(in String profileId, in String newStatus, int userId);
 
@@ -56,6 +62,7 @@ interface IMediaQualityManager {
     void notifyPictureProfileHandleSelection(in long handle, int userId);
 
     long getPictureProfileForTvInput(in String inputId, int userId);
+    PictureProfileHandle getCurrentPictureProfileHandleForTvInput(in String inputId, int userId);
     PictureProfile getCurrentPictureProfileForTvInput(in String inputId, int userId);
     List<PictureProfile> getAllPictureProfilesForTvInput(in String inputId, int userId);
 
@@ -72,6 +79,7 @@ interface IMediaQualityManager {
     List<String> getSoundProfileAllowList(int userId);
     void setSoundProfileAllowList(in List<String> packages, int userId);
     List<SoundProfileHandle> getSoundProfileHandle(in String[] id, int userId);
+    List<SoundProfileHandle> getSoundProfileHandles(in String[] ids, int userId);
 
     void registerPictureProfileCallback(in IPictureProfileCallback cb);
     void registerSoundProfileCallback(in ISoundProfileCallback cb);
@@ -87,8 +95,13 @@ interface IMediaQualityManager {
     boolean isSuperResolutionEnabled(int userId);
     void setAutoSoundQualityEnabled(in boolean enabled, int userId);
     boolean isAutoSoundQualityEnabled(int userId);
+    boolean usesDisplayTechnology(in int panelTechnology, int userId);
 
     void setAmbientBacklightSettings(in AmbientBacklightSettings settings, int userId);
     void setAmbientBacklightEnabled(in boolean enabled, int userId);
     boolean isAmbientBacklightEnabled(int userId);
+
+    EqualizerCapabilities getEqualizerCapabilities(int userId);
+    EqualizerSettings getEqualizerSettings(int userId);
+    void setEqualizerSettings(in EqualizerSettings Settings, int userId);
 }

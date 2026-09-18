@@ -17,6 +17,7 @@
 package com.android.server.hdmi;
 
 import static android.hardware.hdmi.HdmiControlManager.ONE_TOUCH_RECORD_CHECK_RECORDER_CONNECTION;
+import static android.hardware.hdmi.HdmiControlManager.ONE_TOUCH_RECORD_OTHER_REASON;
 import static android.hardware.hdmi.HdmiControlManager.ONE_TOUCH_RECORD_RECORDING_ANALOGUE_SERVICE;
 import static android.hardware.hdmi.HdmiControlManager.ONE_TOUCH_RECORD_RECORDING_CURRENTLY_SELECTED_SOURCE;
 import static android.hardware.hdmi.HdmiControlManager.ONE_TOUCH_RECORD_RECORDING_DIGITAL_SERVICE;
@@ -84,6 +85,8 @@ public class OneTouchRecordAction extends HdmiCecFeatureAction {
         switch (cmd.getOpcode()) {
             case Constants.MESSAGE_RECORD_STATUS:
                 return handleRecordStatus(cmd);
+            case Constants.MESSAGE_FEATURE_ABORT:
+                return handleFeatureAbort(cmd);
         }
         return false;
     }
@@ -112,6 +115,22 @@ public class OneTouchRecordAction extends HdmiCecFeatureAction {
                 finish();
                 break;
         }
+        return true;
+    }
+
+    private boolean handleFeatureAbort(HdmiCecMessage cmd) {
+        byte[] params = cmd.getParams();
+        int messageType = params[0] & 0xFF;
+        switch (messageType) {
+            case Constants.MESSAGE_RECORD_ON:
+                break;
+            default:
+                return false;
+        }
+        int reason = params[1] & 0xFF;
+        Slog.i(TAG, "[Feature Abort] for " + messageType + " reason:" + reason);
+        tv().announceOneTouchRecordResult(mRecorderAddress, ONE_TOUCH_RECORD_OTHER_REASON);
+        finish();
         return true;
     }
 

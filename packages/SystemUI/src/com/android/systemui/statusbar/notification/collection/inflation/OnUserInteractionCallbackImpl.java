@@ -36,7 +36,6 @@ import com.android.systemui.statusbar.notification.collection.notifcollection.Di
 import com.android.systemui.statusbar.notification.collection.render.NotificationVisibilityProvider;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.notification.row.OnUserInteractionCallback;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import javax.inject.Inject;
 
@@ -81,13 +80,6 @@ public class OnUserInteractionCallbackImpl implements OnUserInteractionCallback 
                 dismissalSurface,
                 DISMISS_SENTIMENT_NEUTRAL,
                 mVisibilityProvider.obtain(entry, true));
-    }
-
-    @Override
-    public void onImportanceChanged(NotificationEntry entry) {
-        NotificationBundleUi.assertInLegacyMode();
-        mVisualStabilityCoordinator
-                .temporarilyAllowSectionChanges(entry, SystemClock.elapsedRealtime());
     }
 
     @NonNull

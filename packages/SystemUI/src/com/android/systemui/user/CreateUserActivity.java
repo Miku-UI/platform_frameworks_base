@@ -118,6 +118,7 @@ public class CreateUserActivity extends Activity {
                 this::startActivity,
                 (mUserCreator.canCreateAdminUser() && mUserCreator.isUserAdmin()
                         && !isKeyguardShowing),
+                /* canEditUserInfo= */ true,
                 this::addUserNow,
                 this::finish
         );

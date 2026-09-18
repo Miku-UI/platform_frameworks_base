@@ -23,6 +23,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.VibrationEffect;
 import android.os.VibratorInfo;
+import android.util.MathUtils;
 
 import com.android.internal.util.Preconditions;
 
@@ -36,6 +37,7 @@ import java.util.Objects;
  * @hide
  */
 @TestApi
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class PrimitiveSegment extends VibrationEffectSegment {
 
     /** @hide */
@@ -63,6 +65,7 @@ public final class PrimitiveSegment extends VibrationEffectSegment {
 
     /** @hide */
     public PrimitiveSegment(int id, float scale, int delay, int delayType) {
+        super(/* startTimeMillis= */ -1);
         mPrimitiveId = id;
         mScale = scale;
         mDelay = delay;
@@ -134,8 +137,8 @@ public final class PrimitiveSegment extends VibrationEffectSegment {
     /** @hide */
     @NonNull
     @Override
-    public PrimitiveSegment scaleLinearly(float scaleFactor) {
-        float newScale = VibrationEffect.scaleLinearly(mScale, scaleFactor);
+    public PrimitiveSegment applyAdaptiveScale(float scaleFactor) {
+        float newScale = MathUtils.constrain(mScale * scaleFactor, 0f, 1f);
         if (Float.compare(mScale, newScale) == 0) {
             return this;
         }
@@ -147,6 +150,14 @@ public final class PrimitiveSegment extends VibrationEffectSegment {
     @Override
     public PrimitiveSegment applyEffectStrength(int effectStrength) {
         return this;
+    }
+
+    /** @hide */
+    @NonNull
+    @Override
+    public PrimitiveSegment applyStartTime(long startTimeMillis) {
+        throw new UnsupportedOperationException(
+                "PrimitiveSegment does not support applying start time.");
     }
 
     /** @hide */
@@ -175,8 +186,7 @@ public final class PrimitiveSegment extends VibrationEffectSegment {
 
     @Override
     public String toString() {
-        return "Primitive{"
-                + "primitive=" + VibrationEffect.Composition.primitiveToString(mPrimitiveId)
+        return "Primitive{primitive=" + VibrationEffect.Composition.primitiveToString(mPrimitiveId)
                 + ", scale=" + mScale
                 + ", delay=" + mDelay
                 + ", delayType=" + VibrationEffect.Composition.delayTypeToString(mDelayType)

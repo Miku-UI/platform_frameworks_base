@@ -48,9 +48,6 @@ constructor(
     private var accessibilityActionsViewHandle: DisposableHandle? = null
 
     override fun addViews(constraintLayout: ConstraintLayout) {
-        if (!communalSettingsInteractor.isCommunalFlagEnabled()) {
-            return
-        }
         cachedConstraintLayout = constraintLayout
         val view =
             UdfpsAccessibilityOverlayOverlappingView(constraintLayout.context).apply { id = viewId }
@@ -58,9 +55,6 @@ constructor(
     }
 
     override fun bindData(constraintLayout: ConstraintLayout) {
-        if (!communalSettingsInteractor.isCommunalFlagEnabled()) {
-            return
-        }
         val view =
             constraintLayout.requireViewById<UdfpsAccessibilityOverlayOverlappingView>(viewId)
         accessibilityActionsViewHandle =

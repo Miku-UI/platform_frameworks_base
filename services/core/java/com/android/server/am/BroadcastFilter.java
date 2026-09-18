@@ -18,10 +18,8 @@ package com.android.server.am;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.compat.annotation.ChangeId;
 import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
-import android.os.Binder;
 import android.os.UserHandle;
 import android.util.PrintWriterPrinter;
 import android.util.Printer;
@@ -35,13 +33,6 @@ import dalvik.annotation.optimization.NeverCompile;
 import java.io.PrintWriter;
 
 public final class BroadcastFilter extends IntentFilter {
-    /**
-     * Limit priority values defined by non-system apps to
-     * ({@link IntentFilter#SYSTEM_LOW_PRIORITY}, {@link IntentFilter#SYSTEM_HIGH_PRIORITY}).
-     */
-    @ChangeId
-    @VisibleForTesting
-    static final long RESTRICT_PRIORITY_VALUES = 371309185L;
 
     // Back-pointer to the list this filter is in.
     final ReceiverList receiverList;
@@ -132,15 +123,6 @@ public final class BroadcastFilter extends IntentFilter {
     @VisibleForTesting
     static int calculateAdjustedPriority(int owningUid, int priority,
             ApplicationInfo applicationInfo, PlatformCompat platformCompat) {
-        final long token = Binder.clearCallingIdentity();
-        try {
-            if (!platformCompat.isChangeEnabledInternalNoLogging(
-                    RESTRICT_PRIORITY_VALUES, applicationInfo)) {
-                return priority;
-            }
-        } finally {
-            Binder.restoreCallingIdentity(token);
-        }
         if (!UserHandle.isCore(owningUid)) {
             if (priority >= SYSTEM_HIGH_PRIORITY) {
                 return SYSTEM_HIGH_PRIORITY - 1;

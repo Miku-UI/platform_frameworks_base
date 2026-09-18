@@ -67,8 +67,10 @@ public final class VirtualAudioController implements AudioPlaybackCallback, Audi
     private ArraySet<Integer> mPlayingAppUids = new ArraySet<>();
     private final Object mCallbackLock = new Object();
     @GuardedBy("mCallbackLock")
+    @Nullable
     private IAudioRoutingCallback mRoutingCallback;
     @GuardedBy("mCallbackLock")
+    @Nullable
     private IAudioConfigChangedCallback mConfigChangedCallback;
 
     public VirtualAudioController(Context context, AttributionSource attributionSource) {

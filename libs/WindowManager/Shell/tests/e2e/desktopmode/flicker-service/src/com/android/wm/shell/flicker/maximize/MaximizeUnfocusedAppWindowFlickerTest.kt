@@ -72,8 +72,7 @@ class MaximizeUnfocusedAppWindowFlickerTest(flicker: FlickerTest) : DesktopModeB
     @Test
     fun appLayerHasMaxDisplayWidthAtEnd() = flicker.appLayerHasMaxDisplayWidthAtEnd(unfocusedApp)
 
-    @Test
-    fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(unfocusedApp)
+    @Test fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(unfocusedApp)
 
     @Test
     fun resizeVeilKeepsIncreasingInSize() = flicker.resizeVeilKeepsIncreasingInSize(unfocusedApp)

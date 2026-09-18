@@ -26,6 +26,7 @@ import com.android.systemui.bouncer.ui.BouncerView
 import com.android.systemui.bouncer.ui.BouncerViewDelegate
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.securelockdevice.domain.interactor.SecureLockDeviceInteractor
 import dagger.Lazy
 import javax.inject.Inject
@@ -78,7 +79,7 @@ constructor(
 
     /** Whether keyguard has finished a transition to GONE. */
     val isTransitionToGoneFinished: Flow<Boolean> =
-        keyguardTransitionInteractor.get().isFinishedIn(KeyguardState.GONE)
+        keyguardTransitionInteractor.get().isFinishedIn(Scenes.Gone, KeyguardState.GONE)
 
     /** Last shown keyguard security mode. */
     val lastShownSecurityMode: StateFlow<KeyguardSecurityModel.SecurityMode?> =

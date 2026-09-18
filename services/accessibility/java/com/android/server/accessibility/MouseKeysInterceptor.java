@@ -19,11 +19,10 @@ package com.android.server.accessibility;
 import static android.accessibilityservice.AccessibilityTrace.FLAGS_INPUT_FILTER;
 import static android.util.MathUtils.sqrt;
 
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
-import android.companion.virtual.VirtualDeviceManager;
-import android.companion.virtual.VirtualDeviceParams;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.ContentObserver;
@@ -39,7 +38,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.provider.Settings;
-import android.util.Log;
 import android.util.Slog;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
@@ -48,9 +46,8 @@ import android.view.KeyEvent;
 
 import androidx.annotation.VisibleForTesting;
 
-import com.android.server.LocalServices;
-import com.android.server.companion.virtual.VirtualDeviceManagerInternal;
-
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.Objects;
 
 /**
@@ -75,12 +72,20 @@ import java.util.Objects;
  */
 public class MouseKeysInterceptor extends BaseEventStreamTransformation
         implements Handler.Callback, InputManager.InputDeviceListener {
-    private static final String LOG_TAG = "MouseKeysInterceptor";
+    private static final String LOG_TAG = MouseKeysInterceptor.class.getSimpleName();
 
-    // To enable these logs, run: 'adb shell setprop log.tag.MouseKeysInterceptor DEBUG'
-    // (requires restart)
-    private static final boolean DEBUG = Log.isLoggable(LOG_TAG, Log.DEBUG);
+    private static final boolean DEBUG = AccessibilityLogUtil.isDebugEnabled(LOG_TAG);
 
+    /** @hide */
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef(prefix = "MESSAGE_", value = {
+            MESSAGE_STOP_MOUSE_ACTION,
+            MESSAGE_MOVE_MOUSE_POINTER,
+            MESSAGE_SCROLL_MOUSE_POINTER
+    })
+    public @interface MouseKeyMessageType {}
+
+    private static final int MESSAGE_STOP_MOUSE_ACTION = -1;
     private static final int MESSAGE_MOVE_MOUSE_POINTER = 1;
     private static final int MESSAGE_SCROLL_MOUSE_POINTER = 2;
     private static final int KEY_NOT_SET = -1;
@@ -120,6 +125,12 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
      */
     private static final float CURSOR_MOVEMENT_PARAMETER = sqrt(2);
 
+    @VisibleForTesting
+    public static final int FAKE_DEVICE_GENERATION_ID = -1;
+
+    @VisibleForTesting
+    public static final int FAKE_NUMPAD_DEVICE_GENERATION_ID = -2;
+
     private final AccessibilityManagerService mAms;
     private final Handler mHandler;
 
@@ -143,8 +154,6 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
      */
     private final SparseArray<SparseArray<MouseKeyEvent>> mDeviceKeyCodeMap =
             new SparseArray<>();
-
-    VirtualDeviceManager.VirtualDevice mVirtualDevice = null;
 
     private VirtualMouse mVirtualMouse = null;
 
@@ -176,12 +185,8 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
     @VisibleForTesting
     float mAcceleration = 0.1f;
 
-    /**
-     * The keycodes to which the mouse keys functionality will be bound to can be either
-     * primary keycodes or numpad keycodes.
-     * This decides whether primary key bindings should be used for mouse keys.
-     */
-    private boolean mUserSetPrimaryKeys = true;
+    /** This decides whether primary key bindings should be included for mouse keys. */
+    private boolean mUsePrimaryKeys = true;
 
     /**
      * Cache to store whether a device (by its ID) has the required numpad keys.
@@ -194,6 +199,9 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
 
     /** Provides a source for obtaining uptime, used for precise timing calculations. */
     private final TimeSource mTimeSource;
+
+    /** Used to ensure that the names used when creating virtual mouse devices are unique. */
+    private static int sNextVirtualMouseId = 0;
 
     /**
      * Enum representing different types of mouse key events, each associated with a specific
@@ -217,10 +225,10 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
         DOWN_MOVE_OR_SCROLL(KeyEvent.KEYCODE_K, KeyEvent.KEYCODE_NUMPAD_2),
         DIAGONAL_DOWN_RIGHT_MOVE(KeyEvent.KEYCODE_L, KeyEvent.KEYCODE_NUMPAD_3),
         LEFT_CLICK(KeyEvent.KEYCODE_I, KeyEvent.KEYCODE_NUMPAD_5),
-        RIGHT_CLICK(KeyEvent.KEYCODE_SLASH, KeyEvent.KEYCODE_SLASH),
-        HOLD(KeyEvent.KEYCODE_M, KeyEvent.KEYCODE_M),
-        RELEASE(KeyEvent.KEYCODE_COMMA, KeyEvent.KEYCODE_COMMA),
-        SCROLL_TOGGLE(KeyEvent.KEYCODE_PERIOD, KeyEvent.KEYCODE_PERIOD);
+        RIGHT_CLICK(KeyEvent.KEYCODE_SLASH, KeyEvent.KEYCODE_NUMPAD_DOT),
+        HOLD(KeyEvent.KEYCODE_M, KeyEvent.KEYCODE_NUMPAD_MULTIPLY),
+        RELEASE(KeyEvent.KEYCODE_COMMA, KeyEvent.KEYCODE_NUMPAD_SUBTRACT),
+        SCROLL_TOGGLE(KeyEvent.KEYCODE_PERIOD, KeyEvent.KEYCODE_NUMPAD_0);
 
         private final int mPrimaryKeyCode;
         private final int mNumpadKeyCode;
@@ -246,25 +254,47 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
          * We check if the input device has been generated using {@link InputDevice#getGeneration()}
          * to test with the default {@link MouseKeyEvent} values in the unit tests.
          */
-        public int getKeyCode(InputDevice inputDevice, boolean usePrimaryKeys) {
+        private int getKeyCode(InputDevice inputDevice, boolean usePrimaryKeys) {
             int locationKeyCode = getKeyCodeValue(usePrimaryKeys);
-            if (inputDevice.getGeneration() == -1) {
+            // Fake devices used in tests.
+            if (inputDevice.getGeneration() == FAKE_DEVICE_GENERATION_ID
+                    || inputDevice.getGeneration() == FAKE_NUMPAD_DEVICE_GENERATION_ID) {
                 return locationKeyCode;
             }
             return inputDevice.getKeyCodeForKeyLocation(locationKeyCode);
         }
 
         /**
+         * Get the key code associated with the given primary key MouseKeyEvent for the given
+         * keyboard input device, taking into account its layout.
+         */
+        public int getPrimaryKeyCode(InputDevice inputDevice) {
+            return getKeyCode(inputDevice, /* usePrimaryKeys= */ true);
+        }
+
+        /**
+         * Get the key code associated with the given numpad MouseKeyEvent for the given  keyboard
+         * input device, taking into account its layout.
+         */
+        public int getNumpadKeyCode(InputDevice inputDevice) {
+            return getKeyCode(inputDevice, /* usePrimaryKeys= */ false);
+        }
+
+        /**
          * Get all the mouse key keycodes for all the {@link MouseKeyEvent}s depending on
          * whether the binding type uses primary keys or not.
          */
-        public static int[] getAllMouseKeys(boolean usePrimaryKeys) {
+        private static int[] getAllMouseKeys(boolean usePrimaryKeys) {
             int[] deviceKeys = new int[MouseKeyEvent.values().length];
             int i = 0;
             for (MouseKeyEvent event : MouseKeyEvent.values()) {
                 deviceKeys[i++] = event.getKeyCodeValue(usePrimaryKeys);
             }
             return deviceKeys;
+        }
+
+        private static int[] getAllNumpadMouseKeys() {
+            return getAllMouseKeys(/* usePrimaryKeys= */ false);
         }
 
         /**
@@ -284,18 +314,29 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
     }
 
     /**
-     * Create a map of key codes to their corresponding {@link MouseKeyEvent} values
-     * for a specific input device, for a specific key binding type (whether primary or numpad).
+     * Create a map of key codes to their corresponding {@link MouseKeyEvent} values for a specific
+     * input device.
      * The key for {@code mDeviceKeyCodeMap} is the deviceId.
      * The key for {@code keyCodeToEnumMap} is the keycode for each {@link MouseKeyEvent}
      * according to the keyboard layout of the input device and key binding type.
      */
-    public void initializeDeviceToEnumMap(InputDevice inputDevice, boolean usePrimaryKeys) {
+    public void initializeDeviceToEnumMap(InputDevice inputDevice) {
         int deviceId = inputDevice.getId();
+
+        // Checking for FAKE_NUMPAD_DEVICE_GENERATION_ID is only for tests.
+        boolean deviceHasNumpad = deviceHasNumpad(inputDevice)
+                || inputDevice.getGeneration() == FAKE_NUMPAD_DEVICE_GENERATION_ID;
         SparseArray<MouseKeyEvent> keyCodeToEnumMap = new SparseArray<>();
         for (MouseKeyEvent mouseKeyEventType : MouseKeyEvent.values()) {
-            int keyCode = mouseKeyEventType.getKeyCode(inputDevice, usePrimaryKeys);
-            keyCodeToEnumMap.put(keyCode, mouseKeyEventType);
+            if (mUsePrimaryKeys) {
+                keyCodeToEnumMap.put(mouseKeyEventType.getPrimaryKeyCode(inputDevice),
+                        mouseKeyEventType);
+            }
+
+            if (deviceHasNumpad) {
+                keyCodeToEnumMap.put(mouseKeyEventType.getNumpadKeyCode(inputDevice),
+                        mouseKeyEventType);
+            }
         }
         mDeviceKeyCodeMap.put(deviceId, keyCodeToEnumMap);
     }
@@ -307,7 +348,7 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
      * @param looper Looper to use for callbacks and messages
      * @param displayId Display ID to send mouse events to
      */
-    @RequiresPermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
+    @RequiresPermission(android.Manifest.permission.INJECT_EVENTS)
     public MouseKeysInterceptor(
             AccessibilityManagerService service,
             @NonNull Context context,
@@ -319,10 +360,10 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
         mAms = service;
         mHandler = new Handler(looper, this);
         mTimeSource = timeSource;
-        // Create the virtual mouse on a separate thread since virtual device creation
+        // Create the virtual mouse on a separate thread since virtual input device creation
         // should happen on an auxiliary thread, and not from the handler's thread.
         // This is because the handler thread is the same as the main thread,
-        // and the main thread will be blocked waiting for the virtual device to be created.
+        // and the main thread will be blocked waiting for the virtual mouse to be created.
         mCreateVirtualMouseThread = new Thread(() -> {
             mVirtualMouse = createVirtualMouse(displayId);
         });
@@ -350,7 +391,33 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
         }
     }
 
-    @RequiresPermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
+    /**
+     * Stop any active mouse movement or scroll loops and clear the associated state.
+     *
+     * This should be called on the handler thread. This ensures there are no race conditions
+     * from other threads trying to modify the active state variables. This prevents
+     * ghost movements, when a mouse pointer continues moving because another thread cleared the
+     * setting but did not cancel the movement messages already queued in the Handler's loop.
+     */
+    private void stopActiveMouseActions(@MouseKeyMessageType int messageType) {
+        //
+        if (!mHandler.getLooper().isCurrentThread()) {
+            throw new IllegalStateException(
+                    "stopActiveMouseActions must be called on the Handler thread. "
+                            + "Current thread: " + Thread.currentThread().getName());
+        }
+        if (messageType == MESSAGE_MOVE_MOUSE_POINTER
+                || messageType == MESSAGE_STOP_MOUSE_ACTION) {
+            mActiveMoveKey = KEY_NOT_SET;
+            mHandler.removeMessages(MESSAGE_MOVE_MOUSE_POINTER);
+        }
+        if (messageType == MESSAGE_SCROLL_MOUSE_POINTER
+                || messageType == MESSAGE_STOP_MOUSE_ACTION) {
+            mActiveScrollKey = KEY_NOT_SET;
+            mHandler.removeMessages(MESSAGE_SCROLL_MOUSE_POINTER);
+        }
+    }
+
     private void sendVirtualMouseRelativeEvent(float x, float y) {
         waitForVirtualMouseCreation();
         mVirtualMouse.sendRelativeEvent(new VirtualMouseRelativeEvent.Builder()
@@ -360,7 +427,6 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
         );
     }
 
-    @RequiresPermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
     private void sendVirtualMouseButtonEvent(int buttonCode, int actionCode) {
         waitForVirtualMouseCreation();
         mVirtualMouse.sendButtonEvent(new VirtualMouseButtonEvent.Builder()
@@ -370,7 +436,6 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
         );
     }
 
-    @RequiresPermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
     private void sendVirtualMouseScrollEvent(float x, float y) {
         waitForVirtualMouseCreation();
         mVirtualMouse.sendScrollEvent(new VirtualMouseScrollEvent.Builder()
@@ -393,10 +458,15 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
      *                  <li>{@link MouseKeysInterceptor.MouseKeyEvent#DOWN_MOVE_OR_SCROLL}
      *                </ul>
      */
-    @RequiresPermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
     private void performMouseScrollAction(int keyCode) {
         MouseKeyEvent mouseKeyEvent = MouseKeyEvent.from(
                 keyCode, mActiveInputDeviceId, mDeviceKeyCodeMap);
+        if (mouseKeyEvent == null) {
+            Slog.w(LOG_TAG, "Active key " + keyCode + " lost its mapping. Cleaning up state.");
+            stopActiveMouseActions(MESSAGE_SCROLL_MOUSE_POINTER);
+            return;
+        }
+
         float x = 0f;
         float y = 0f;
 
@@ -438,10 +508,15 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
      *                  Button)
      *                </ul>
      */
-    @RequiresPermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
     private void performMouseButtonAction(int keyCode) {
         MouseKeyEvent mouseKeyEvent = MouseKeyEvent.from(
                 keyCode, mActiveInputDeviceId, mDeviceKeyCodeMap);
+        if (mouseKeyEvent == null) {
+            Slog.w(LOG_TAG, "Active key " + keyCode + " lost its mapping. Cleaning up state.");
+            stopActiveMouseActions(MESSAGE_STOP_MOUSE_ACTION);
+            return;
+        }
+
         int buttonCode = switch (mouseKeyEvent) {
             case LEFT_CLICK -> VirtualMouseButtonEvent.BUTTON_PRIMARY;
             case RIGHT_CLICK -> VirtualMouseButtonEvent.BUTTON_SECONDARY;
@@ -485,7 +560,6 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
      *                  <li>{@link MouseKeysInterceptor.MouseKeyEvent#DIAGONAL_UP_RIGHT_MOVE}
      *                </ul>
      */
-    @RequiresPermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
     private void performMousePointerAction(int keyCode) {
         float x = 0f;
         float y = 0f;
@@ -501,8 +575,14 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
         } else {
             mCurrentMovementStep = MOUSE_POINTER_MOVEMENT_STEP;
         }
+
         MouseKeyEvent mouseKeyEvent = MouseKeyEvent.from(
                 keyCode, mActiveInputDeviceId, mDeviceKeyCodeMap);
+        if (mouseKeyEvent == null) {
+            Slog.w(LOG_TAG, "Active key " + keyCode + " lost its mapping. Cleaning up state.");
+            stopActiveMouseActions(MESSAGE_MOVE_MOUSE_POINTER);
+            return;
+        }
 
         switch (mouseKeyEvent) {
             case DIAGONAL_DOWN_LEFT_MOVE -> {
@@ -549,49 +629,12 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
         }
     }
 
-    /**
-     * Check whether primary key bindings should be used for mouse keys based on user preference
-     * and input device capabilities.
-     * If the user has chosen to use numpad keys, but the input device doesn't support all the
-     * numpad keys for mouse keys functionality, then the primary keys should be used as
-     * mouse keys for that input device.
-     *
-     * @param device Input device.
-     * @return True or false depending on whether primary keys should be used for the input device.
-     */
-    private boolean shouldUsePrimaryKeysForDevice(InputDevice device) {
-        // Skip the numpad keys check for the input device if it has been generated for
-        // tests, since generated input devices don't contain a KeyCharacterMapping
-        if (device.getGeneration() == -1) {
-            return mUserSetPrimaryKeys;
-        } else if (mUserSetPrimaryKeys) {
-            return true;
-        } else if (!deviceHasNumpad(device)) {
-            Slog.w(LOG_TAG, "Defaulting back to primary mouse key bindings "
-                    + "since not all numpad keys exist on device " + device.getName());
-            return true;
-        }
-        return false;
-    }
-
-
-    private boolean isMouseKey(int keyCode, int deviceId) {
-        SparseArray<MouseKeyEvent> keyCodeToEnumMap = mDeviceKeyCodeMap.get(deviceId);
-        return keyCodeToEnumMap.contains(keyCode);
-    }
-
-    private boolean isMouseButtonKey(int keyCode) {
-        MouseKeyEvent mouseKeyEvent = MouseKeyEvent.from(
-                keyCode, mActiveInputDeviceId, mDeviceKeyCodeMap
-        );
+    private boolean isMouseButtonKey(MouseKeyEvent mouseKeyEvent) {
         return mouseKeyEvent == MouseKeyEvent.LEFT_CLICK
                 || mouseKeyEvent == MouseKeyEvent.RIGHT_CLICK;
     }
 
-    private boolean isMouseScrollKey(int keyCode) {
-        MouseKeyEvent mouseKeyEvent = MouseKeyEvent.from(
-                keyCode, mActiveInputDeviceId, mDeviceKeyCodeMap
-        );
+    private boolean isMouseScrollKey(MouseKeyEvent mouseKeyEvent) {
         return  mouseKeyEvent == MouseKeyEvent.UP_MOVE_OR_SCROLL
                 || mouseKeyEvent == MouseKeyEvent.DOWN_MOVE_OR_SCROLL
                 || mouseKeyEvent == MouseKeyEvent.LEFT_MOVE_OR_SCROLL
@@ -599,22 +642,21 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
     }
 
     /**
-     * Create a virtual mouse using the VirtualDeviceManagerInternal.
+     * Create a virtual mouse using the InputManager.
      *
      * @return The created VirtualMouse.
      */
-    @RequiresPermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
+    @RequiresPermission(android.Manifest.permission.INJECT_EVENTS)
     private VirtualMouse createVirtualMouse(int displayId) {
-        final VirtualDeviceManagerInternal localVdm =
-                LocalServices.getService(VirtualDeviceManagerInternal.class);
-        mVirtualDevice = localVdm.createVirtualDevice(
-                new VirtualDeviceParams.Builder().setName("Mouse Keys Virtual Device").build());
-        VirtualMouse virtualMouse = mVirtualDevice.createVirtualMouse(
-                new VirtualMouseConfig.Builder()
-                .setInputDeviceName("Mouse Keys Virtual Mouse")
+        // Virtual input device names are expected to be unique, and since these operations are
+        // asynchronous it is possible to create a new virtual mouse before the old virtual mouse
+        // is cleaned up. To avoid using the same name for two virtual mouse devices we generate
+        // names using with an integer that is incremented each time a virtual mouse is created.
+        final String virtualMouseName = "Mouse Keys Virtual Device (" + sNextVirtualMouseId++ + ")";
+        return mInputManager.createVirtualMouse(new VirtualMouseConfig.Builder()
+                .setInputDeviceName(virtualMouseName)
                 .setAssociatedDisplayId(displayId)
                 .build());
-        return virtualMouse;
     }
 
     /**
@@ -623,7 +665,6 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
      * @param event The key event to handle.
      * @param policyFlags The policy flags associated with the key event.
      */
-    @RequiresPermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
     @Override
     public void onKeyEvent(KeyEvent event, int policyFlags) {
         if (mAms.getTraceManager().isA11yTracingEnabledForTypes(FLAGS_INPUT_FILTER)) {
@@ -646,7 +687,6 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
         });
     }
 
-    @RequiresPermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
     private void onKeyEventInternal(KeyEvent event, int policyFlags) {
         final boolean isDown = event.getAction() == KeyEvent.ACTION_DOWN;
         final int keyCode = event.getKeyCode();
@@ -659,19 +699,29 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
             return;
         }
         mActiveInputDeviceId = deviceId;
-        boolean usePrimaryKeys = shouldUsePrimaryKeysForDevice(inputDevice);
 
         if (!mDeviceKeyCodeMap.contains(mActiveInputDeviceId)) {
-            initializeDeviceToEnumMap(inputDevice, usePrimaryKeys);
+            initializeDeviceToEnumMap(inputDevice);
         }
+
         MouseKeyEvent mouseKeyEvent = MouseKeyEvent.from(
                 keyCode, mActiveInputDeviceId, mDeviceKeyCodeMap
         );
-
-        if (!isMouseKey(keyCode, mActiveInputDeviceId)) {
-            // Pass non-mouse key events to the next handler
+        if (mouseKeyEvent == null) {
+            // Pass non-mouse key events to the next handler.
             super.onKeyEvent(event, policyFlags);
-        } else if (isDown) {
+            return;
+        }
+
+        // If we are using numpad keys, they only work if Num Lock is on.
+        boolean isNumLockOn = (event.getMetaState() & KeyEvent.META_NUM_LOCK_ON) != 0;
+        if (keyCode == mouseKeyEvent.getNumpadKeyCode(inputDevice) && !isNumLockOn) {
+            // Pass non-mouse key events to the next handler.
+            super.onKeyEvent(event, policyFlags);
+            return;
+        }
+
+        if (isDown) {
             if (mouseKeyEvent == MouseKeyEvent.SCROLL_TOGGLE) {
                 mScrollToggleOn = !mScrollToggleOn;
                 if (DEBUG) {
@@ -687,9 +737,10 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
                         VirtualMouseButtonEvent.BUTTON_PRIMARY,
                         VirtualMouseButtonEvent.ACTION_BUTTON_RELEASE
                 );
-            } else if (isMouseButtonKey(keyCode)) {
+            } else if (isMouseButtonKey(mouseKeyEvent)) {
                 performMouseButtonAction(keyCode);
-            } else if (mScrollToggleOn && isMouseScrollKey(keyCode)) {
+            } else if (mScrollToggleOn && isMouseScrollKey(mouseKeyEvent)) {
+                stopActiveMouseActions(MESSAGE_STOP_MOUSE_ACTION);
                 // If the scroll key is pressed down and no other key is active,
                 // set it as the active key and send a message to scroll the pointer
                 if (mActiveScrollKey == KEY_NOT_SET) {
@@ -742,7 +793,7 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
             return mDeviceNumpadCapabilityCache.get(deviceId);
         }
 
-        int[] numpadKeys = MouseKeyEvent.getAllMouseKeys(/* usePrimaryKeys= */ false);
+        int[] numpadKeys = MouseKeyEvent.getAllNumpadMouseKeys();
         boolean[] resultsDeviceHasKeys = device.hasKeys(numpadKeys);
 
         for (int i = 0; i < resultsDeviceHasKeys.length; i++) {
@@ -765,7 +816,6 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
      * @param msg The message to handle.
      * @return True if the message was handled, false otherwise.
      */
-    @RequiresPermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
     @Override
     public boolean handleMessage(Message msg) {
         long currentProcessingTime = msg.getWhen();
@@ -820,7 +870,6 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
      *                      <li>{@link #MESSAGE_SCROLL_MOUSE_POINTER} - for scrolling mouse pointer.
      *                    </ul>
      */
-    @RequiresPermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
     public void handleMouseMessage(long currentTime, int activeKey, int messageType) {
         int delayMillis = INTERVAL_MILLIS;
 
@@ -849,7 +898,6 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
         }
     }
 
-    @RequiresPermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
     @Override
     public void onDestroy() {
         mHandler.post(() -> {
@@ -861,8 +909,8 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
         });
 
         mHandler.removeCallbacksAndMessages(null);
-        if (mVirtualDevice != null) {
-            mVirtualDevice.close();
+        if (mVirtualMouse != null) {
+            mVirtualMouse.close();
         }
         if (mMouseKeysSettingsObserver != null) {
             mMouseKeysSettingsObserver.stop();
@@ -885,6 +933,9 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
 
     @Override
     public void onInputDeviceRemoved(int deviceId) {
+        if (mActiveInputDeviceId == deviceId) {
+            mHandler.post(() -> stopActiveMouseActions(MESSAGE_STOP_MOUSE_ACTION));
+        }
         mDeviceKeyCodeMap.remove(deviceId);
         mDeviceNumpadCapabilityCache.delete(deviceId);
     }
@@ -905,7 +956,7 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
         final InputDevice inputDevice = mInputManager.getInputDevice(deviceId);
         // Update the enum mapping only if input device that changed is a physical keyboard
         if (isDeviceEligible(inputDevice)) {
-            initializeDeviceToEnumMap(inputDevice, shouldUsePrimaryKeysForDevice(inputDevice));
+            initializeDeviceToEnumMap(inputDevice);
             Slog.i(LOG_TAG, "Updating key code enum map for device ID: " + deviceId);
         }
     }
@@ -1003,19 +1054,26 @@ public class MouseKeysInterceptor extends BaseEventStreamTransformation
         public void onChange(boolean selfChange, Uri uri) {
             Slog.i(LOG_TAG, "onChange triggered. selfChange=" + selfChange + ", uri=" + uri);
             if (mPrimaryKeysSettingUri.equals(uri)) {
-                mUserSetPrimaryKeys =
+                // Setting this value to true/false does not effect the use of the numpad for
+                // mouse key control.
+                mUsePrimaryKeys =
                         Settings.Secure.getIntForUser(
                                 mContentResolver,
                                 Settings.Secure.ACCESSIBILITY_MOUSE_KEYS_USE_PRIMARY_KEYS,
                                 1,
                                 mUserId) == 1;
                 Slog.i(LOG_TAG, "Primary keys toggled. New value for using Primary keys  = "
-                        + mUserSetPrimaryKeys);
+                        + mUsePrimaryKeys);
 
                 // Clear the existing device keycode map.
+                // Stop repeating move/scroll loops before clearing the map to prevent
+                // recurring messages from processing invalid keycodes and crashing.
                 // The next call to onKeyEventInternal will force re-initialize the keycode map
                 // for the device according to the key binding selected by user.
-                mDeviceKeyCodeMap.clear();
+                mHandler.post(() -> {
+                    stopActiveMouseActions(MESSAGE_STOP_MOUSE_ACTION);
+                    mDeviceKeyCodeMap.clear();
+                });
             }
 
             if (mMaxSpeedSettingsUri.equals(uri)) {

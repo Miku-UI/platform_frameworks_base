@@ -47,16 +47,19 @@ static void android_server_UsbAlsaDevice_setVolume(JNIEnv* /*env*/, jobject /*th
     }
     if (ctl == nullptr) {
         ALOGW("%s(%d, %f) returned as no volume mixer is found", __func__, card, volume);
+        mixer_close(alsaMixer);
         return;
     }
     const unsigned int n = mixer_ctl_get_num_values(ctl);
     for (unsigned int id = 0; id < n; id++) {
         if (int error = mixer_ctl_set_percent(ctl, id, 100 * volume); error != 0) {
             ALOGE("%s(%d, %f) failed, error=%d", __func__, card, volume, error);
+            mixer_close(alsaMixer);
             return;
         }
     }
     ALOGD("%s(%d, %f) succeed", __func__, card, volume);
+    mixer_close(alsaMixer);
 }
 
 static JNINativeMethod method_table[] = {

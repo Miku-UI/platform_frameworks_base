@@ -21,7 +21,6 @@ import android.compat.annotation.UnsupportedAppUsage;
 import android.content.ComponentName;
 import android.os.Build;
 import android.os.RemoteException;
-import android.window.TaskSnapshot;
 
 /**
  * Classes interested in observing only a subset of changes using ITaskStackListener can extend
@@ -133,6 +132,11 @@ public abstract class TaskStackListener extends ITaskStackListener.Stub {
     public void onTaskRemovalStarted(int taskId) throws RemoteException {
     }
 
+    /**
+     * Called when the task description changes.
+     * Note: To optimize performance, the provided {@link RunningTaskInfo} may only contain
+     * essential fields: taskId, displayId, and taskDescription.
+     */
     @Override
     public void onTaskDescriptionChanged(RunningTaskInfo taskInfo)
             throws RemoteException {
@@ -168,33 +172,6 @@ public abstract class TaskStackListener extends ITaskStackListener.Stub {
             throws RemoteException {
     }
 
-    /**
-     * @deprecated Use {@link android.window.TaskSnapshotManager.TaskSnapshotListener} to receive
-     * callback.
-     */
-    @Deprecated
-    @Override
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public void onTaskSnapshotChanged(int taskId, TaskSnapshot snapshot) throws RemoteException {
-        if (!mIsRemote || snapshot == null) {
-            return;
-        }
-        if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-            snapshot.closeBuffer();
-        } else if (snapshot.getHardwareBuffer() != null) {
-            // Preemptively clear any reference to the buffer
-            snapshot.getHardwareBuffer().close();
-        }
-    }
-
-    /**
-     * @deprecated Use {@link android.window.SnapshotManager.TaskSnapshotListener} to receive
-     * callback.
-     */
-    @Deprecated
-    @Override
-    public void onTaskSnapshotInvalidated(int taskId) { }
-
     @Override
     public void onBackPressedOnTaskRoot(RunningTaskInfo taskInfo)
             throws RemoteException {
@@ -218,10 +195,6 @@ public abstract class TaskStackListener extends ITaskStackListener.Stub {
 
     @Override
     public void onTaskFocusChanged(int taskId, boolean focused) {
-    }
-
-    @Override
-    public void onTaskRequestedOrientationChanged(int taskId, int requestedOrientation) {
     }
 
     @Override

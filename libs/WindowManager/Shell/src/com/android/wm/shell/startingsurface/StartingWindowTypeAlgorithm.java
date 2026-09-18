@@ -27,4 +27,11 @@ public interface StartingWindowTypeAlgorithm {
      */
     @StartingWindowInfo.StartingWindowType
     int getSuggestedWindowType(StartingWindowInfo windowInfo);
+
+    /**
+     * @return The minimum duration to display the icon style splash screen.
+     */
+    default long getMinimumIconShowDuration() {
+        return 0;
+    }
 }

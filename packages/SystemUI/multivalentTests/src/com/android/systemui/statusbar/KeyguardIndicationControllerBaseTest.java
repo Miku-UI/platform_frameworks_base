@@ -62,6 +62,7 @@ import com.android.systemui.biometrics.AuthController;
 import com.android.systemui.biometrics.FaceHelpMessageDeferral;
 import com.android.systemui.biometrics.FaceHelpMessageDeferralFactory;
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor;
+import com.android.systemui.bouncer.domain.interactor.BouncerInteractor;
 import com.android.systemui.bouncer.domain.interactor.BouncerMessageInteractor;
 import com.android.systemui.broadcast.BroadcastDispatcher;
 import com.android.systemui.deviceentry.domain.interactor.BiometricMessageInteractor;
@@ -154,6 +155,8 @@ public class KeyguardIndicationControllerBaseTest extends SysuiTestCase {
     protected FaceHelpMessageDeferral mFaceHelpMessageDeferral;
     @Mock
     protected AlternateBouncerInteractor mAlternateBouncerInteractor;
+    @Mock
+    protected BouncerInteractor mBouncerInteractor;
     @Mock
     protected BiometricMessageInteractor mBiometricMessageInteractor;
     @Mock
@@ -253,7 +256,8 @@ public class KeyguardIndicationControllerBaseTest extends SysuiTestCase {
         when(mDeviceEntryFingerprintAuthInteractor.isEngaged()).thenReturn(mock(StateFlow.class));
         StateFlow mockLogoutEnabledFlow = mock(StateFlow.class);
         when(mockLogoutEnabledFlow.getValue()).thenReturn(false);
-        when(mUserLogoutInteractor.isLogoutEnabled()).thenReturn(mockLogoutEnabledFlow);
+        when(mUserLogoutInteractor.isPolicyManagerLogoutEnabled())
+                .thenReturn(mockLogoutEnabledFlow);
 
         mIndicationHelper = new IndicationHelper(mKeyguardUpdateMonitor);
 
@@ -293,12 +297,15 @@ public class KeyguardIndicationControllerBaseTest extends SysuiTestCase {
                 mKeyguardBypassController, mAccessibilityManager,
                 mFaceHelpMessageDeferralFactory, mock(KeyguardLogger.class),
                 mAlternateBouncerInteractor,
+                mBouncerInteractor,
                 mAlarmManager,
                 mUserTracker,
                 mock(BouncerMessageInteractor.class),
                 mIndicationHelper,
                 mDeviceEntryBiometricSettingsInteractor,
-                KeyguardInteractorFactory.create(mFlags).getKeyguardInteractor(),
+                KeyguardInteractorFactory
+                        .create(mKosmos.getTestDispatcher(), mContext, mFlags)
+                        .getKeyguardInteractor(),
                 mBiometricMessageInteractor,
                 mDeviceEntryFingerprintAuthInteractor,
                 mDeviceEntryFaceAuthInteractor,

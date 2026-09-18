@@ -67,11 +67,14 @@ import com.android.compose.animation.scene.MovableElement
 import com.android.compose.animation.scene.MovableElementContentScope
 import com.android.compose.animation.scene.MovableElementKey
 import com.android.compose.animation.scene.NestedSceneTransitionLayoutState
+import com.android.compose.animation.scene.Scale
 import com.android.compose.animation.scene.SceneTransitionLayoutForTesting
 import com.android.compose.animation.scene.SceneTransitionLayoutImpl
 import com.android.compose.animation.scene.SceneTransitionLayoutScope
 import com.android.compose.animation.scene.SceneTransitionLayoutState
 import com.android.compose.animation.scene.SharedValueType
+import com.android.compose.animation.scene.SwipeDetector
+import com.android.compose.animation.scene.SwipeSourceDetector
 import com.android.compose.animation.scene.UserAction
 import com.android.compose.animation.scene.UserActionResult
 import com.android.compose.animation.scene.ValueKey
@@ -82,7 +85,7 @@ import com.android.compose.animation.scene.element
 import com.android.compose.animation.scene.elementAlpha
 import com.android.compose.animation.scene.elementState
 import com.android.compose.animation.scene.getAllNestedTransitionStates
-import com.android.compose.animation.scene.modifiers.noResizeDuringTransitions
+import com.android.compose.animation.scene.getScale
 import com.android.compose.gesture.NestedScrollControlState
 import com.android.compose.gesture.NestedScrollableBound
 import com.android.compose.gesture.nestedScrollController
@@ -104,7 +107,19 @@ internal sealed class Content(
     val alwaysCompose: Boolean,
 ) {
     private val nestedScrollControlState = NestedScrollControlState()
-    internal val scope = ContentScopeImpl(layoutImpl, content = this, nestedScrollControlState)
+
+    internal val scope =
+        ContentScopeImpl(
+            layoutImpl = layoutImpl,
+            content = this,
+            nestedScrollControlStates =
+                // This ensures that if a child requests to disable swiping, the entire hierarchy
+                // respects it.
+                layoutImpl.ancestors.fastMap {
+                    it.layoutImpl.content(it.inContent).nestedScrollControlState
+                } + nestedScrollControlState,
+        )
+
     val containerState = ContainerState()
 
     // Important: All fields in this class should be backed by State given that contents are updated
@@ -296,7 +311,7 @@ internal class ContentEffects(factory: OverscrollFactory) {
 internal class ContentScopeImpl(
     private val layoutImpl: SceneTransitionLayoutImpl,
     private val content: Content,
-    private val nestedScrollControlState: NestedScrollControlState,
+    private val nestedScrollControlStates: List<NestedScrollControlState>,
 ) : InternalContentScope, ElementStateScope by layoutImpl.elementStateScope {
     override val contentKey: ContentKey
         get() = content.key
@@ -369,21 +384,28 @@ internal class ContentScopeImpl(
         )
     }
 
-    override fun Modifier.noResizeDuringTransitions(): Modifier {
-        return noResizeDuringTransitions(layoutState = layoutImpl.state)
-    }
-
     override fun Modifier.disableSwipesWhenScrolling(bounds: NestedScrollableBound): Modifier {
-        return nestedScrollController(nestedScrollControlState, bounds)
+        return nestedScrollController(nestedScrollControlStates, bounds)
     }
 
     @Composable
     override fun NestedSceneTransitionLayout(
         state: SceneTransitionLayoutState,
+        debugName: String,
         modifier: Modifier,
+        swipeSourceDetector: SwipeSourceDetector,
+        swipeDetector: SwipeDetector,
         builder: SceneTransitionLayoutScope<ContentScope>.() -> Unit,
     ) {
-        NestedSceneTransitionLayoutForTesting(state, modifier, null, builder)
+        NestedSceneTransitionLayoutForTesting(
+            state,
+            modifier,
+            null,
+            debugName,
+            swipeSourceDetector,
+            swipeDetector,
+            builder,
+        )
     }
 
     @Composable
@@ -391,6 +413,9 @@ internal class ContentScopeImpl(
         state: SceneTransitionLayoutState,
         modifier: Modifier,
         onLayoutImpl: ((SceneTransitionLayoutImpl) -> Unit)?,
+        debugName: String,
+        swipeSourceDetector: SwipeSourceDetector,
+        swipeDetector: SwipeDetector,
         builder: SceneTransitionLayoutScope<InternalContentScope>.() -> Unit,
     ) {
         val ancestors =
@@ -400,11 +425,14 @@ internal class ContentScopeImpl(
         SceneTransitionLayoutForTesting(
             state,
             modifier,
+            swipeDetector = swipeDetector,
+            swipeSourceDetector = swipeSourceDetector,
             onLayoutImpl = onLayoutImpl,
             builder = builder,
             sharedElementMap = layoutImpl.elements,
             ancestors = ancestors,
             lookaheadScope = layoutImpl.lookaheadScope,
+            debugName = debugName,
             implicitTestTags = layoutImpl.implicitTestTags,
         )
     }
@@ -435,6 +463,16 @@ internal class ContentScopeImpl(
                 ?: return null
         val transition = elementState as? TransitionState.Transition
         return elementAlpha(layoutImpl, element, transition, stateInContent)
+    }
+
+    override fun ElementKey.currentScale(): Scale? {
+        val element = layoutImpl.elements[this] ?: return null
+        val stateInContent = element.stateByContent[contentKey] ?: return null
+        val elementState =
+            elementState(layoutImpl, element, getAllNestedTransitionStates(layoutImpl))
+                ?: return null
+        val transition = elementState as? TransitionState.Transition
+        return getScale(layoutImpl, element, transition, stateInContent)
     }
 }
 

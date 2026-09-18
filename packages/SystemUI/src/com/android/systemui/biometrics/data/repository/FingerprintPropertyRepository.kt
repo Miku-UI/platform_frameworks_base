@@ -27,14 +27,16 @@ import android.hardware.fingerprint.FingerprintSensorPropertiesInternal
 import android.hardware.fingerprint.IFingerprintAuthenticatorsRegisteredCallback
 import android.util.Log
 import com.android.systemui.biometrics.shared.model.FingerprintSensorType
+import com.android.systemui.biometrics.shared.model.PeripheralFingerprintSensorLocation
 import com.android.systemui.biometrics.shared.model.SensorStrength
+import com.android.systemui.biometrics.shared.model.toPeripheralFingerprintSensorLocation
 import com.android.systemui.biometrics.shared.model.toSensorStrength
 import com.android.systemui.biometrics.shared.model.toSensorType
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -62,13 +64,16 @@ interface FingerprintPropertyRepository {
     val sensorId: Flow<Int>
 
     /** The security strength of sensor (convenience, weak, strong). */
-    val strength: Flow<SensorStrength>
+    val strength: StateFlow<SensorStrength>
 
     /** The types of fingerprint sensor (rear, ultrasonic, optical, etc.). */
     val sensorType: StateFlow<FingerprintSensorType>
 
     /** The sensor location relative to each physical display. */
     val sensorLocations: StateFlow<Map<String, SensorLocationInternal>>
+
+    /** The sensor peripheral location. */
+    val peripheralSensorLocation: StateFlow<PeripheralFingerprintSensorLocation>
 }
 
 @SysUISingleton
@@ -117,7 +122,14 @@ constructor(
 
     override val sensorId: Flow<Int> = props.map { it.sensorId }
 
-    override val strength: Flow<SensorStrength> = props.map { it.sensorStrength.toSensorStrength() }
+    override val strength: StateFlow<SensorStrength> =
+        props
+            .map { it.sensorStrength.toSensorStrength() }
+            .stateIn(
+                scope = applicationScope,
+                started = SharingStarted.WhileSubscribed(),
+                initialValue = props.value.sensorStrength.toSensorStrength(),
+            )
 
     override val sensorType: StateFlow<FingerprintSensorType> =
         props
@@ -126,6 +138,17 @@ constructor(
                 scope = applicationScope,
                 started = SharingStarted.WhileSubscribed(),
                 initialValue = props.value.sensorType.toSensorType(),
+            )
+
+    override val peripheralSensorLocation: StateFlow<PeripheralFingerprintSensorLocation> =
+        props
+            .map { it.location.physicalSensorLocation.toPeripheralFingerprintSensorLocation() }
+            .stateIn(
+                scope = applicationScope,
+                started = SharingStarted.WhileSubscribed(),
+                initialValue =
+                    props.value.location.physicalSensorLocation
+                        .toPeripheralFingerprintSensorLocation(),
             )
 
     override val sensorLocations: StateFlow<Map<String, SensorLocationInternal>> =

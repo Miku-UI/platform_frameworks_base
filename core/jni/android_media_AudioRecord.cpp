@@ -62,7 +62,7 @@ static struct {
     jfieldID  fieldFramePosition;     // AudioTimestamp.framePosition
     jfieldID  fieldNanoTime;          // AudioTimestamp.nanoTime
 } javaAudioTimestampFields;
-
+static ChannelMasks::fields_t gAudioChannelMasksFields;
 
 class AudioRecordJNIStorage : public AudioRecord::IAudioRecordCallback {
  private:
@@ -141,19 +141,16 @@ static sp<AudioRecord> getAudioRecord(JNIEnv* env, jobject thiz)
 }
 
 // ----------------------------------------------------------------------------
-static jint android_media_AudioRecord_setup(JNIEnv *env, jobject thiz, jobject weak_this,
-                                            jobject jaa, jintArray jSampleRate, jint channelMask,
-                                            jint channelIndexMask, jint audioFormat,
+static jint android_media_AudioRecord_setup(JNIEnv* env, jobject thiz, jobject weak_this,
+                                            jobject jaa, jintArray jSampleRate,
+                                            jobject jChannelMasks, jint audioFormat,
                                             jint buffSizeInBytes, jintArray jSession,
                                             jobject jAttributionSource, jlong nativeRecordInJavaObj,
-                                            jint sharedAudioHistoryMs,
-                                            jint halFlags) {
-    //ALOGV(">> Entering android_media_AudioRecord_setup");
-    //ALOGV("sampleRate=%d, audioFormat=%d, channel mask=%x, buffSizeInBytes=%d "
-    //     "nativeRecordInJavaObj=0x%llX",
-    //     sampleRateInHertz, audioFormat, channelMask, buffSizeInBytes, nativeRecordInJavaObj);
-    audio_channel_mask_t localChanMask = inChannelMaskToNative(channelMask);
-
+                                            jint sharedAudioHistoryMs, jint halFlags) {
+    // ALOGV(">> Entering android_media_AudioRecord_setup");
+    // ALOGV("sampleRate=%d, audioFormat=%d, buffSizeInBytes=%d "
+    //      "nativeRecordInJavaObj=0x%llX",
+    //      sampleRateInHertz, audioFormat, buffSizeInBytes, nativeRecordInJavaObj);
     if (jSession == NULL) {
         ALOGE("Error creating AudioRecord: invalid session ID pointer");
         return (jint) AUDIO_JAVA_ERROR;
@@ -191,15 +188,9 @@ static jint android_media_AudioRecord_setup(JNIEnv *env, jobject thiz, jobject w
         env->GetIntArrayRegion(jSampleRate, 0, 1, elements);
         int sampleRateInHertz = elements[0];
 
-        // channel index mask takes priority over channel position masks.
-        if (channelIndexMask) {
-            // Java channel index masks need the representation bits set.
-            localChanMask = audio_channel_mask_from_representation_and_bits(
-                    AUDIO_CHANNEL_REPRESENTATION_INDEX,
-                    channelIndexMask);
-        }
-        // Java channel position masks map directly to the native definition
-
+        audio_channel_mask_t localChanMask =
+                nativeChannelMaskFromJavaChannelMasks(env, gAudioChannelMasksFields, jChannelMasks,
+                                                      true /*isInput*/);
         if (!audio_is_input_channel(localChanMask)) {
             ALOGE("Error creating AudioRecord: channel mask %#x is not valid.", localChanMask);
             return (jint) AUDIORECORD_ERROR_SETUP_INVALIDCHANNELMASK;
@@ -268,7 +259,7 @@ static jint android_media_AudioRecord_setup(JNIEnv *env, jobject thiz, jobject w
         //  mSampleRate
         //  mRecordSource
         //  mAudioFormat
-        //  mChannelMask
+        //  mChannelMasks
         //  mChannelCount
         //  mState (?)
         //  mRecordingState (?)
@@ -824,14 +815,14 @@ static jint android_media_AudioRecord_get_port_id(JNIEnv *env,  jobject thiz) {
     return (jint)lpRecorder->getPortId();
 }
 
-
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
+// clang-format off
 static const JNINativeMethod gMethods[] = {
         // name,               signature,  funcPtr
         {"native_start", "(II)I", (void *)android_media_AudioRecord_start},
         {"native_stop", "()V", (void *)android_media_AudioRecord_stop},
-        {"native_setup", "(Ljava/lang/Object;Ljava/lang/Object;[IIIII[ILandroid/os/Parcel;JII)I",
+        {"native_setup", "(Ljava/lang/Object;Ljava/lang/Object;[ILjava/lang/Object;II[ILandroid/os/Parcel;JII)I",
          (void *)android_media_AudioRecord_setup},
         {"native_finalize", "()V", (void *)android_media_AudioRecord_finalize},
         {"native_release", "()V", (void *)android_media_AudioRecord_release},
@@ -874,6 +865,7 @@ static const JNINativeMethod gMethods[] = {
         {"native_shareAudioHistory", "(Ljava/lang/String;J)I",
          (void *)android_media_AudioRecord_shareAudioHistory},
 };
+// clang-format on
 
 // field names found in android/media/AudioRecord.java
 #define JAVA_POSTEVENT_CALLBACK_NAME  "postEventFromNative"
@@ -913,6 +905,8 @@ int register_android_media_AudioRecord(JNIEnv *env)
     jclass arrayListClass = FindClassOrDie(env, "java/util/ArrayList");
     gArrayListClass = MakeGlobalRefOrDie(env, arrayListClass);
     gArrayListMethods.add = GetMethodIDOrDie(env, arrayListClass, "add", "(Ljava/lang/Object;)Z");
+
+    gAudioChannelMasksFields.init(env);
 
     return RegisterMethodsOrDie(env, kClassPathName, gMethods, NELEM(gMethods));
 }

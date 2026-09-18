@@ -70,6 +70,8 @@ public final class BrightnessEvent {
     private float mUnclampedBrightness;
     private float mRecommendedBrightness;
     private float mPreThresholdBrightness;
+    private float mBrightnessMin;
+    private float mBrightnessMax;
     private int mHbmMode;
     private float mHbmMax;
     private int mRbcStrength;
@@ -84,6 +86,9 @@ public final class BrightnessEvent {
     private int mAutoBrightnessMode;
     private boolean mSlowChange;
     private float mRampSpeed;
+    private float mAmbientColorTemperature;
+    @PowerManager.ThermalStatus
+    private int mThermalStatus;
 
     public BrightnessEvent(BrightnessEvent that) {
         copyFrom(that);
@@ -122,6 +127,8 @@ public final class BrightnessEvent {
         mUnclampedBrightness = that.getUnclampedBrightness();
         mRecommendedBrightness = that.getRecommendedBrightness();
         mPreThresholdBrightness = that.getPreThresholdBrightness();
+        mBrightnessMin = that.mBrightnessMin;
+        mBrightnessMax = that.mBrightnessMax;
         // Different brightness modulations
         mHbmMode = that.getHbmMode();
         mHbmMax = that.getHbmMax();
@@ -137,6 +144,8 @@ public final class BrightnessEvent {
         mAutoBrightnessMode = that.mAutoBrightnessMode;
         mSlowChange = that.mSlowChange;
         mRampSpeed = that.mRampSpeed;
+        mAmbientColorTemperature = that.mAmbientColorTemperature;
+        mThermalStatus = that.mThermalStatus;
     }
 
     /**
@@ -164,6 +173,8 @@ public final class BrightnessEvent {
         mUnclampedBrightness = PowerManager.BRIGHTNESS_INVALID_FLOAT;
         mRecommendedBrightness = PowerManager.BRIGHTNESS_INVALID_FLOAT;
         mPreThresholdBrightness = PowerManager.BRIGHTNESS_INVALID_FLOAT;
+        mBrightnessMin = PowerManager.BRIGHTNESS_INVALID_FLOAT;
+        mBrightnessMax = PowerManager.BRIGHTNESS_INVALID_FLOAT;
         // Different brightness modulations
         mHbmMode = BrightnessInfo.HIGH_BRIGHTNESS_MODE_OFF;
         mHbmMax = PowerManager.BRIGHTNESS_MAX;
@@ -179,6 +190,8 @@ public final class BrightnessEvent {
         mAutoBrightnessMode = AUTO_BRIGHTNESS_MODE_DEFAULT;
         mSlowChange = false;
         mRampSpeed = 0;
+        mAmbientColorTemperature = PowerManager.BRIGHTNESS_INVALID_FLOAT;
+        mThermalStatus = PowerManager.THERMAL_STATUS_NONE;
     }
 
     /**
@@ -217,6 +230,10 @@ public final class BrightnessEvent {
                 == Float.floatToRawIntBits(that.mRecommendedBrightness)
                 && Float.floatToRawIntBits(mPreThresholdBrightness)
                 == Float.floatToRawIntBits(that.mPreThresholdBrightness)
+                && Float.floatToRawIntBits(mBrightnessMin)
+                == Float.floatToRawIntBits(that.mBrightnessMin)
+                && Float.floatToRawIntBits(mBrightnessMax)
+                == Float.floatToRawIntBits(that.mBrightnessMax)
                 && mHbmMode == that.mHbmMode
                 && Float.floatToRawIntBits(mHbmMax) == Float.floatToRawIntBits(that.mHbmMax)
                 && mRbcStrength == that.mRbcStrength
@@ -265,6 +282,9 @@ public final class BrightnessEvent {
                 + autoBrightnessModeToString(mAutoBrightnessMode) + ")"
                 // Throttling info
                 + ", unclampedBrt=" + mUnclampedBrightness
+                + (!BrightnessSynchronizer.floatEquals(mBrightnessMin, 0)
+                || !BrightnessSynchronizer.floatEquals(mBrightnessMax, getHbmMax()) ? ", brtRange=["
+                + mBrightnessMin + ", " + mBrightnessMax + "]" : "")
                 + ", hbmMax=" + mHbmMax
                 + ", hbmMode=" + BrightnessInfo.hbmToString(mHbmMode)
                 + ", thrmMax=" + mThermalMax
@@ -275,7 +295,9 @@ public final class BrightnessEvent {
                 + ", physDisp=" + mPhysicalDisplayName + "(" + mPhysicalDisplayId + ")"
                 + ", logicalId=" + mDisplayId
                 + ", slowChange=" + mSlowChange
-                + ", rampSpeed=" + mRampSpeed;
+                + ", rampSpeed=" + mRampSpeed
+                + ", colorTemp=" + mAmbientColorTemperature
+                + ", thermalStatus=" + thermalStatusToString(mThermalStatus);
     }
 
     @Override
@@ -333,6 +355,14 @@ public final class BrightnessEvent {
 
     public void setDisplayPolicy(int policy) {
         mDisplayPolicy = policy;
+    }
+
+    public @Display.StateReason int getDisplayStateReason() {
+        return mDisplayStateReason;
+    }
+
+    public int getDisplayPolicy() {
+        return mDisplayPolicy;
     }
 
     public float getLux() {
@@ -424,6 +454,14 @@ public final class BrightnessEvent {
 
     public void setPreThresholdBrightness(float preThresholdBrightness) {
         this.mPreThresholdBrightness = preThresholdBrightness;
+    }
+
+    public void setBrightnessMin(float brightnessMin) {
+        mBrightnessMin = brightnessMin;
+    }
+
+    public void setBrightnessMax(float brightnessMax) {
+        mBrightnessMax = brightnessMax;
     }
 
     public int getHbmMode() {
@@ -538,6 +576,22 @@ public final class BrightnessEvent {
         mRampSpeed = rampSpeed;
     }
 
+    public void setAmbientColorTemperature(float ambientColorTemperature) {
+        mAmbientColorTemperature = ambientColorTemperature;
+    }
+
+    public float getAmbientColorTemperature() {
+        return mAmbientColorTemperature;
+    }
+
+    public void setThermalStatus(@PowerManager.ThermalStatus int thermalStatus) {
+        mThermalStatus = thermalStatus;
+    }
+
+    public @PowerManager.ThermalStatus int getThermalStatus() {
+        return mThermalStatus;
+    }
+
     /**
      * A utility to stringify flags from a BrightnessEvent
      * @return Stringified flags from BrightnessEvent
@@ -550,5 +604,31 @@ public final class BrightnessEvent {
                 + ((mFlags & FLAG_DOZE_SCALE) != 0 ? "doze_scale " : "")
                 + ((mFlags & FLAG_LOW_POWER_MODE) != 0 ? "low_power_mode " : "")
                 + ((mFlags & FLAG_EVEN_DIMMER) != 0 ? "even_dimmer " : "");
+    }
+
+    /**
+     * A utility to stringify thermal status
+     * @return Stringified thermal status
+     */
+    @VisibleForTesting
+    public static String thermalStatusToString(@PowerManager.ThermalStatus int thermalStatus) {
+        switch (thermalStatus) {
+            case PowerManager.THERMAL_STATUS_NONE:
+                return "none";
+            case PowerManager.THERMAL_STATUS_LIGHT:
+                return "light";
+            case PowerManager.THERMAL_STATUS_MODERATE:
+                return "moderate";
+            case PowerManager.THERMAL_STATUS_SEVERE:
+                return "severe";
+            case PowerManager.THERMAL_STATUS_CRITICAL:
+                return "critical";
+            case PowerManager.THERMAL_STATUS_EMERGENCY:
+                return "emergency";
+            case PowerManager.THERMAL_STATUS_SHUTDOWN:
+                return "shutdown";
+            default:
+                return String.valueOf(thermalStatus);
+        }
     }
 }

@@ -39,3 +39,46 @@ aidl_interface {
         "media_permission-aidl",
     ],
 }
+
+aidl_interface {
+    name: "audio-aidl",
+    unstable: true,
+    local_include_dir: "aidl",
+    srcs: [
+        "aidl/android/media/audio/*.aidl",
+    ],
+    imports: [
+        "framework-permission-aidl",
+    ],
+    backend: {
+        java: {
+            sdk_version: "module_current",
+        },
+    },
+}
+
+genrule {
+    name: "statslog-audio-java-gen",
+    tools: ["stats-log-api-gen"],
+    cmd: "$(location stats-log-api-gen) --java $(out) --module audio" +
+        " --javaPackage com.android.media.audio.metrics --javaClass AudioAtomsLog",
+    out: ["com/android/server/audio/metrics/AudioAtomsLog.java"],
+}
+
+java_library_static {
+    name: "statsd_audio_java_gen",
+    srcs: [
+        ":statslog-audio-java-gen",
+    ],
+    libs: [
+        "androidx.annotation_annotation",
+    ],
+}
+
+// TODO: broken
+// java_atomslog_library {
+//     name: "statsd_audio_java_gen",
+//     atoms_module: "audio",
+//     package_name: "com.android.media.audio.metrics",
+//     class_name: "AudioAtomsLog",
+// }

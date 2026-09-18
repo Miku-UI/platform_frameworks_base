@@ -24,6 +24,7 @@ import static android.window.DisplayAreaOrganizer.FEATURE_IME_PLACEHOLDER;
 import static com.android.server.wm.DisplayAreaPolicyBuilder.Feature;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WM;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.util.Slog;
 
@@ -81,7 +82,7 @@ class RootDisplayArea extends DisplayArea.Dimmable {
      *
      * @return {@code true} if the IME container is reparented to this root.
      */
-    boolean placeImeContainer(DisplayArea.Tokens imeContainer) {
+    final boolean placeImeContainer(@NonNull ImeContainer imeContainer) {
         final RootDisplayArea previousRoot = imeContainer.getRootDisplayArea();
 
         List<Feature> features = mFeatures;
@@ -158,7 +159,7 @@ class RootDisplayArea extends DisplayArea.Dimmable {
         mFeatureToDisplayAreas = featureToDisplayAreas;
     }
 
-    private void updateImeContainerForLayers(@Nullable DisplayArea.Tokens imeContainer) {
+    private void updateImeContainerForLayers(@Nullable ImeContainer imeContainer) {
         final WindowManagerPolicy policy = mWmService.mPolicy;
         mAreaForLayer[policy.getWindowLayerFromTypeLw(TYPE_INPUT_METHOD)] = imeContainer;
         mAreaForLayer[policy.getWindowLayerFromTypeLw(TYPE_INPUT_METHOD_DIALOG)] = imeContainer;

@@ -23,7 +23,6 @@ import android.app.NotificationChannel.NEWS_ID
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.os.UserHandle
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.SetFlagsRule
 import android.service.notification.NotificationListenerService.REASON_CANCEL
 import android.testing.TestableLooper.RunWithLooper
@@ -41,7 +40,6 @@ import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notification.row.entryAdapterFactory
 import com.android.systemui.statusbar.notification.row.mockNotificationActionClickManager
 import com.android.systemui.statusbar.notification.row.onUserInteractionCallback
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.statusbar.notification.stack.BUCKET_ALERTING
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
@@ -59,7 +57,6 @@ import org.mockito.kotlin.whenever
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @RunWithLooper
-@EnableFlags(NotificationBundleUi.FLAG_NAME)
 class NotificationEntryAdapterTest : SysuiTestCase() {
     private val kosmos = testKosmos().apply { onUserInteractionCallback = mock() }
 

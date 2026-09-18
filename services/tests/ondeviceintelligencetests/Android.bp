@@ -13,25 +13,14 @@
 // limitations under the License.
 
 package {
-    // See: http://go/android-license-faq
-    // A large-scale-change added 'default_applicable_licenses' to import
-    // all of the 'license_kinds' from "frameworks_base_license"
-    // to get the below license kinds:
-    //   SPDX-license-identifier-Apache-2.0
     default_applicable_licenses: ["frameworks_base_license"],
 }
 
-android_test {
-    name: "FrameworksOnDeviceIntelligenceTests",
-    team: "trendy_team_machine_learning",
+java_defaults {
+    name: "FrameworksOnDeviceIntelligenceTestsDefaults",
     defaults: [
         "modules-utils-testable-device-config-defaults",
     ],
-
-    srcs: [
-        "src/**/*.java",
-    ],
-
     static_libs: [
         "androidx.test.core",
         "androidx.test.runner",
@@ -44,13 +33,7 @@ android_test {
         "truth",
         "frameworks-base-testutils",
         "androidx.test.rules",
-    ] + select(soong_config_variable("ANDROID", "release_ondevice_intelligence_module"), {
-        "true": [
-            "service-ondeviceintelligence.impl",
-        ],
-        default: [],
-    }),
-
+    ],
     libs: [
         "android.test.mock.stubs.system",
         "android.test.base.stubs.system",
@@ -59,8 +42,24 @@ android_test {
     certificate: "platform",
     platform_apis: true,
     test_suites: ["device-tests"],
-
     optimize: {
         enabled: false,
     },
+}
+
+android_test {
+    name: "FrameworksOnDeviceIntelligenceTests",
+    defaults: ["FrameworksOnDeviceIntelligenceTestsDefaults"],
+    team: "trendy_team_machine_learning",
+    srcs: select(soong_config_variable("ANDROID", "release_ondevice_intelligence_module"), {
+        "true": ["src/module/**/*.java"],
+        default: ["src/platform/**/*.java"],
+    }),
+    static_libs: select(soong_config_variable("ANDROID", "release_ondevice_intelligence_module"), {
+        "true": [
+            "service-ondeviceintelligence-internal",
+            "framework-ondeviceintelligence.impl",
+        ],
+        default: [],
+    }),
 }

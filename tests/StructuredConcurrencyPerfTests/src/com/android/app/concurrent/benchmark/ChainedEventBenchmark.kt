@@ -16,20 +16,22 @@
 package com.android.app.concurrent.benchmark
 
 import androidx.benchmark.BlackHole
-import androidx.benchmark.ExperimentalBlackHoleApi
 import com.android.app.concurrent.benchmark.base.ConcurrentBenchmarkRule
 import com.android.app.concurrent.benchmark.event.BaseEventBenchmark
+import com.android.app.concurrent.benchmark.event.BaseKairosEventBenchmark
 import com.android.app.concurrent.benchmark.event.EventBox
 import com.android.app.concurrent.benchmark.event.EventContextProvider
 import com.android.app.concurrent.benchmark.event.FlowWritableEventBuilder
+import com.android.app.concurrent.benchmark.event.KairosWritableEventBuilder
 import com.android.app.concurrent.benchmark.event.MapOperator
 import com.android.app.concurrent.benchmark.event.SimpleEvent
 import com.android.app.concurrent.benchmark.event.SimpleWritableEventBuilder
 import com.android.app.concurrent.benchmark.event.WritableEventFactory
-import com.android.app.concurrent.benchmark.util.ExecutorServiceCoroutineScopeBuilder
-import com.android.app.concurrent.benchmark.util.ExecutorThreadBuilder
-import com.android.app.concurrent.benchmark.util.ThreadFactory
+import com.android.app.concurrent.benchmark.util.ExecutorServiceThreadWithExecutorBuilder
+import com.android.app.concurrent.benchmark.util.ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder
+import com.android.app.concurrent.benchmark.util.ThreadBuilder
 import com.android.app.concurrent.benchmark.util.times
+import com.android.systemui.kairos.State as KairosState
 import java.util.concurrent.Executor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -88,7 +90,6 @@ private sealed interface ChainedEventBenchmark<T, E : Any>
                         return@result "$receivedVal == $n + $chainLength"
                     },
             )
-            @OptIn(ExperimentalBlackHoleApi::class)
             afterLastIteration { BlackHole.consume(receivedVal) }
         }
     }
@@ -97,7 +98,7 @@ private sealed interface ChainedEventBenchmark<T, E : Any>
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class SimpleChainedEventBenchmark(
-    threadParam: ThreadFactory<Any, Executor>,
+    threadParam: ThreadBuilder<Executor>,
     override val chainLength: Int,
 ) :
     BaseEventBenchmark<Executor, SimpleWritableEventBuilder>(
@@ -107,16 +108,16 @@ class SimpleChainedEventBenchmark(
     ChainedEventBenchmark<SimpleWritableEventBuilder, SimpleEvent<*>> {
 
     companion object {
-        @Parameters(name = "{0},{1}")
+        @Parameters(name = "{0}:chainLength={1}")
         @JvmStatic
-        fun getDispatchers() = listOf(ExecutorThreadBuilder) * CHAIN_LENGTHS
+        fun getParameters() = listOf(ExecutorServiceThreadWithExecutorBuilder) * CHAIN_LENGTHS
     }
 }
 
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class FlowChainedEventBenchmark(
-    threadParam: ThreadFactory<Any, CoroutineScope>,
+    threadParam: ThreadBuilder<CoroutineScope>,
     override val chainLength: Int,
 ) :
     BaseEventBenchmark<CoroutineScope, FlowWritableEventBuilder>(
@@ -126,8 +127,26 @@ class FlowChainedEventBenchmark(
     ChainedEventBenchmark<FlowWritableEventBuilder, Flow<*>> {
 
     companion object {
-        @Parameters(name = "{0},{1}")
+        @Parameters(name = "{0}:chainLength={1}")
         @JvmStatic
-        fun getDispatchers() = listOf(ExecutorServiceCoroutineScopeBuilder) * CHAIN_LENGTHS
+        fun getParameters() =
+            listOf(ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder) * CHAIN_LENGTHS
+    }
+}
+
+@RunWith(Parameterized::class)
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
+class KairosChainedEventBenchmark(
+    threadParam: ThreadBuilder<CoroutineScope>,
+    override val chainLength: Int,
+) :
+    BaseKairosEventBenchmark(threadParam),
+    ChainedEventBenchmark<KairosWritableEventBuilder, KairosState<*>> {
+
+    companion object {
+        @Parameters(name = "{0}:chainLength={1}")
+        @JvmStatic
+        fun getParameters() =
+            listOf(ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder) * CHAIN_LENGTHS
     }
 }

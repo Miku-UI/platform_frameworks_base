@@ -41,8 +41,12 @@ abstract class EnterDesktopViaMenuOfLiveOverviewTask : TestScenarioBase() {
 
     @Test
     open fun desktopViaMenuOfLiveOverviewTask() {
-        tapl.getLaunchedAppState().switchToOverview()
-            .getCurrentTask().tapMenu().tapDesktopMenuItem()
+        tapl
+            .getLaunchedAppState()
+            .switchToOverview()
+            .getCurrentTask()
+            .tapMenu()
+            .tapDesktopMenuItem()
     }
 
     @After

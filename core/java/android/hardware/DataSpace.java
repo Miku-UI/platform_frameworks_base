@@ -586,9 +586,9 @@ public final class DataSpace {
      */
     public static final int DATASPACE_JFIF = 146931712;
     /**
-     * ITU-R Recommendation 601 (BT.601) - 525-line
+     * ITU-R Recommendation 601 (BT.601) - 625-line
      *
-     * Standard-definition television, 525 Lines (NTSC).
+     * Standard-definition television, 625 Lines (PAL).
      *
      * <p>Composed of the following -</p>
      * <pre>
@@ -598,9 +598,9 @@ public final class DataSpace {
      */
     public static final int DATASPACE_BT601_625 = 281149440;
     /**
-     * ITU-R Recommendation 709 (BT.709)
+     * ITU-R Recommendation 601 (BT.601) - 525-line
      *
-     * High-definition television.
+     * Standard-definition television, 525 Lines (NTSC).
      *
      * <p>Composed of the following -</p>
      * <pre>

@@ -34,7 +34,7 @@ import androidx.collection.MutableIntObjectMap;
 import com.android.internal.statusbar.StatusBarIcon;
 import com.android.internal.statusbar.StatusBarIcon.Shape;
 import com.android.systemui.demomode.DemoModeCommandReceiver;
-import com.android.systemui.kairos.ExperimentalKairosApi;
+
 import com.android.systemui.kairos.KairosNetwork;
 import com.android.systemui.statusbar.BaseStatusBarFrameLayout;
 import com.android.systemui.statusbar.StatusBarIconView;
@@ -47,6 +47,7 @@ import com.android.systemui.statusbar.phone.StatusBarLocation;
 import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos;
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileUiAdapter;
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileUiAdapterKairos;
+import com.android.systemui.statusbar.pipeline.mobile.ui.MobileViewLogger;
 import com.android.systemui.statusbar.pipeline.mobile.ui.binder.MobileIconsBinder;
 import com.android.systemui.statusbar.pipeline.mobile.ui.view.ModernStatusBarMobileView;
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconsViewModel;
@@ -71,12 +72,11 @@ import java.util.Map;
 /**
  * Turns info from StatusBarIconController into ImageViews in a ViewGroup.
  */
-@OptIn(markerClass = ExperimentalKairosApi.class)
 public class IconManager implements DemoModeCommandReceiver {
     protected final ViewGroup mGroup;
     private final MobileContextProvider mMobileContextProvider;
     private final LocationBasedWifiViewModel mWifiViewModel;
-    private final MobileIconsViewModel mMobileIconsViewModel;
+    private final Lazy<MobileIconsViewModel> mMobileIconsViewModel;
 
     private final Lazy<MobileUiAdapterKairos> mMobileUiAdapterKairos;
     private final KairosNetwork mKairosNetwork;
@@ -124,8 +124,9 @@ public class IconManager implements DemoModeCommandReceiver {
         // This starts the flow for the new pipeline, and will notify us of changes via
         // {@link #setNewMobileIconIds}
         mMobileIconsViewModel = mobileUiAdapter.getMobileIconsViewModel();
-        MobileIconsBinder.bind(mGroup, mMobileIconsViewModel);
-
+        if (!StatusBarMobileIconKairos.isEnabled()) {
+            MobileIconsBinder.bind(mGroup, mMobileIconsViewModel.get());
+        }
 
         mMobileUiAdapterKairos = mobileUiAdapterKairos;
 
@@ -231,10 +232,10 @@ public class IconManager implements DemoModeCommandReceiver {
         if (mIsInDemoMode) {
             Context mobileContext = mMobileContextProvider
                     .getMobileContextForSub(subId, mContext);
-            mDemoStatusIcons.addModernMobileView(
-                    mobileContext,
-                    mMobileIconsViewModel.getLogger(),
-                    subId);
+            MobileViewLogger logger = StatusBarMobileIconKairos.isEnabled()
+                    ? mMobileUiAdapterKairos.get().getMobileIconsViewModel().getLogger()
+                    : mMobileIconsViewModel.get().getLogger();
+            mDemoStatusIcons.addModernMobileView(mobileContext, logger, subId);
         }
 
         return view;
@@ -270,9 +271,9 @@ public class IconManager implements DemoModeCommandReceiver {
             return ModernStatusBarMobileView
                     .constructAndBind(
                             mobileContext,
-                            mMobileIconsViewModel.getLogger(),
+                            mMobileIconsViewModel.get().getLogger(),
                             slot,
-                            mMobileIconsViewModel.viewModelForSub(subId, mLocation)
+                            mMobileIconsViewModel.get().viewModelForSub(subId, mLocation)
                     );
         }
     }
@@ -388,5 +389,16 @@ public class IconManager implements DemoModeCommandReceiver {
                 mKairosNetwork,
                 mAppScope
         );
+    }
+
+    /** Updates the layout params for an icon view. */
+    public void reloadIconLayoutParams(int viewIndex, StatusBarIconHolder holder) {
+        reloadDimens();
+        if (holder.getIcon() != null) {
+            View view = mGroup.getChildAt(viewIndex);
+            if (view != null) {
+                view.setLayoutParams(onCreateLayoutParams(holder.getIcon().shape));
+            }
+        }
     }
 }

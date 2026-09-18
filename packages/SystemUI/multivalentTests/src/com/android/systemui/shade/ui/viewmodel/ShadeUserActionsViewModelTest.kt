@@ -16,26 +16,22 @@
 
 package com.android.systemui.shade.ui.viewmodel
 
+import android.platform.test.annotations.DisableFlags
 import android.testing.TestableLooper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.Back
-import com.android.compose.animation.scene.ObservableTransitionState
-import com.android.compose.animation.scene.SceneKey
+import com.android.compose.animation.scene.Edge
 import com.android.compose.animation.scene.Swipe
-import com.android.compose.animation.scene.SwipeDirection
 import com.android.compose.animation.scene.UserActionResult
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.None
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Pin
-import com.android.systemui.deviceentry.data.repository.fakeDeviceEntryRepository
-import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
 import com.android.systemui.flags.EnableSceneContainer
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
+import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.domain.interactor.keyguardEnabledInteractor
-import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
-import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.collectValues
 import com.android.systemui.kosmos.runTest
@@ -43,6 +39,7 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.qs.panels.ui.viewmodel.editModeViewModel
+import com.android.systemui.scene.SceneHelper.setDeviceEntered
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.domain.resolver.homeSceneFamilyResolver
 import com.android.systemui.scene.domain.startable.sceneContainerStartable
@@ -52,11 +49,13 @@ import com.android.systemui.scene.shared.model.TransitionKeys.ToSplitShade
 import com.android.systemui.shade.domain.interactor.disableDualShade
 import com.android.systemui.shade.domain.interactor.enableSingleShade
 import com.android.systemui.shade.domain.interactor.enableSplitShade
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.shade.domain.startable.shadeStartable
+import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
-import kotlinx.coroutines.flow.flowOf
+import org.junit.Assume.assumeFalse
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -129,7 +128,7 @@ class ShadeUserActionsViewModelTest : SysuiTestCase() {
         kosmos.runTest {
             val actions by collectLastValue(underTest.actions)
             val homeScene by collectLastValue(kosmos.homeSceneFamilyResolver.resolvedScene)
-            fakeDeviceEntryRepository.setLockscreenEnabled(true)
+            fakeKeyguardRepository.setKeyguardEnabled(true)
             fakeAuthenticationRepository.setAuthenticationMethod(None)
             sceneInteractor.changeScene(Scenes.Lockscreen, "reason")
 
@@ -145,7 +144,7 @@ class ShadeUserActionsViewModelTest : SysuiTestCase() {
         kosmos.runTest {
             val actions by collectLastValue(underTest.actions)
             val homeScene by collectLastValue(kosmos.homeSceneFamilyResolver.resolvedScene)
-            fakeDeviceEntryRepository.setLockscreenEnabled(true)
+            fakeKeyguardRepository.setKeyguardEnabled(true)
             fakeAuthenticationRepository.setAuthenticationMethod(None)
             sceneInteractor.changeScene(Scenes.Gone, "reason")
 
@@ -157,6 +156,7 @@ class ShadeUserActionsViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun upOrBackTransitionKey_splitShadeEnabled_isGoneToSplitShade() =
         kosmos.runTest {
             val actions by collectLastValue(underTest.actions)
@@ -177,6 +177,7 @@ class ShadeUserActionsViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun downTransitionSceneKey_inSplitShade_null() =
         kosmos.runTest {
             enableSplitShade()
@@ -197,23 +198,18 @@ class ShadeUserActionsViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    fun upOrBackTransitionSceneKey_editing_noTransition() =
+    fun backTransitionSceneKey_editing_noTransition() =
         kosmos.runTest {
             val actions by collectLastValue(underTest.actions)
 
             editModeViewModel.startEditing()
-            assertThat(
-                    actions!!.keys.filterIsInstance<Swipe>().filter {
-                        it.direction == SwipeDirection.Up
-                    }
-                )
-                .isEmpty()
             assertThat(actions!!.keys.filterIsInstance<Back>()).isEmpty()
         }
 
     @Test
     fun upOrBackTransitionSceneKey_backToCommunal() =
         kosmos.runTest {
+            enableSingleShade()
             val actions by collectLastValue(underTest.actions)
             val currentScene by collectLastValue(sceneInteractor.currentScene)
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
@@ -229,6 +225,12 @@ class ShadeUserActionsViewModelTest : SysuiTestCase() {
     @Test
     fun upOrBackTransitionSceneKey_neverGoesBackToShadeScene() =
         kosmos.runTest {
+            val shadeMode by collectLastValue(shadeModeInteractor.shadeMode)
+            // Skip this test on configurations running Split Shade, where Scenes.QuickSettings is
+            // not available.
+            assumeFalse(shadeMode is ShadeMode.Split)
+
+            enableSingleShade()
             val actions by collectValues(underTest.actions)
             val currentScene by collectLastValue(sceneInteractor.currentScene)
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
@@ -253,19 +255,18 @@ class ShadeUserActionsViewModelTest : SysuiTestCase() {
             }
         }
 
-    private fun Kosmos.setDeviceEntered(isEntered: Boolean) {
-        if (isEntered) {
-            // Unlock the device marking the device has entered.
-            fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-                SuccessFingerprintAuthenticationStatus(0, true)
-            )
-        }
-        setScene(if (isEntered) Scenes.Gone else Scenes.Lockscreen)
-        assertThat(deviceEntryInteractor.isDeviceEntered.value).isEqualTo(isEntered)
-    }
+    @Test
+    fun upFromBottom_whenInEditMode_goesToGone() =
+        kosmos.runTest {
+            val actions by collectLastValue(underTest.actions)
 
-    private fun Kosmos.setScene(key: SceneKey) {
-        sceneInteractor.changeScene(key, "test")
-        sceneInteractor.setTransitionState(flowOf(ObservableTransitionState.Idle(key)))
-    }
+            editModeViewModel.startEditing()
+
+            assertThat(
+                    (actions?.get(Swipe.Up(fromSource = Edge.Bottom))
+                            as? UserActionResult.ChangeScene)
+                        ?.toScene
+                )
+                .isEqualTo(SceneFamilies.Home)
+        }
 }

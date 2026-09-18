@@ -151,6 +151,10 @@
     {
       "name": "CtsOsTestCasesRavenwood",
       "host": true
+    },
+    {
+      "name": "FrameworksVibratorCoreTestsRavenwood",
+      "host": true
     }
   ]
 }

@@ -65,7 +65,6 @@ public class NotificationPanelViewControllerTest extends NotificationPanelViewCo
     }
 
     @Test
-    @EnableFlags(com.android.systemui.Flags.FLAG_SHADE_EXPANDS_ON_STATUS_BAR_LONG_PRESS)
     public void onStatusBarLongPress_shadeExpands() {
         //TODO(b/394977231) delete this temporary workaround used only by tests
         Assume.assumeFalse(Build.HARDWARE.equals("cutf_cvm"));
@@ -93,7 +92,6 @@ public class NotificationPanelViewControllerTest extends NotificationPanelViewCo
     }
 
     @Test
-    @EnableFlags(com.android.systemui.Flags.FLAG_SHADE_EXPANDS_ON_STATUS_BAR_LONG_PRESS)
     public void onStatusBarLongPress_qsExpands() {
         //TODO(b/394977231) delete this temporary workaround used only by tests
         Assume.assumeFalse(Build.HARDWARE.equals("cutf_cvm"));
@@ -190,7 +188,6 @@ public class NotificationPanelViewControllerTest extends NotificationPanelViewCo
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
     public void updateSystemUiStateFlags_updatesSysuiStateInteractor() {
         var DISPLAY_ID = 10;
         mKosmos.getFakeShadeDisplaysRepository().setPendingDisplayId(DISPLAY_ID);
@@ -198,15 +195,6 @@ public class NotificationPanelViewControllerTest extends NotificationPanelViewCo
         mNotificationPanelViewController.updateSystemUiStateFlags();
 
         verify(mSysUIStateDisplaysInteractor).setFlagsExclusivelyToDisplay(eq(DISPLAY_ID), any());
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
-    public void updateSystemUiStateFlags_flagOff_doesNotUpdateSysuiStateInteractor() {
-        mNotificationPanelViewController.updateSystemUiStateFlags();
-
-        verify(mSysUIStateDisplaysInteractor, never()).setFlagsExclusivelyToDisplay(anyInt(),
-                any());
     }
 
 }

@@ -48,8 +48,8 @@ import android.os.Message;
 import android.os.Process;
 import android.os.UserHandle;
 import android.os.storage.StorageManager;
-import android.permission.flags.Flags;
 import android.permission.PermissionManager;
+import android.permission.flags.Flags;
 import android.print.PrintManager;
 import android.provider.CalendarContract;
 import android.provider.ContactsContract;
@@ -66,7 +66,7 @@ import android.util.SparseArray;
 import android.util.Xml;
 
 import com.android.internal.R;
-import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
+import com.android.internal.pm.pkg.component.AconfigFlags;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.XmlUtils;
 import com.android.modules.utils.TypedXmlPullParser;
@@ -621,11 +621,11 @@ final class DefaultPermissionGrantPolicy {
                 userId, STORAGE_PERMISSIONS, NOTIFICATION_PERMISSIONS);
 
         // Verifier
-        final String verifier = ArrayUtils.firstOrNull(getKnownPackages(
-                KnownPackages.PACKAGE_VERIFIER, userId));
-        grantSystemFixedPermissionsToSystemPackage(pm, verifier, userId, STORAGE_PERMISSIONS);
-        grantPermissionsToSystemPackage(pm, verifier, userId, PHONE_PERMISSIONS, SMS_PERMISSIONS,
-                NOTIFICATION_PERMISSIONS);
+        for (String verifier : getKnownPackages(KnownPackages.PACKAGE_VERIFIER, userId)) {
+            grantSystemFixedPermissionsToSystemPackage(pm, verifier, userId, STORAGE_PERMISSIONS);
+            grantPermissionsToSystemPackage(pm, verifier, userId, PHONE_PERMISSIONS,
+                    SMS_PERMISSIONS, NOTIFICATION_PERMISSIONS);
+        }
 
         // SetupWizard
         final String setupWizardPackage = ArrayUtils.firstOrNull(getKnownPackages(
@@ -663,6 +663,14 @@ final class DefaultPermissionGrantPolicy {
         grantSystemFixedPermissionsToSystemPackage(pm,
                 getDefaultProviderAuthorityPackage(MediaStore.AUTHORITY, userId), userId,
                 STORAGE_PERMISSIONS, NOTIFICATION_PERMISSIONS);
+
+        // Provide Camera and Microphone permission for Android System Photopicker for it's
+        // camera feature.
+        grantSystemFixedPermissionsToSystemPackage(pm,
+                getDefaultSystemHandlerActivityPackage(pm, MediaStore.ACTION_PICK_IMAGES, userId),
+                userId,
+                CAMERA_PERMISSIONS,
+                MICROPHONE_PERMISSIONS);
 
         // Downloads provider
         grantSystemFixedPermissionsToSystemPackage(pm,
@@ -760,6 +768,12 @@ final class DefaultPermissionGrantPolicy {
                 getDefaultSystemHandlerActivityPackageForCategory(pm,
                         Intent.CATEGORY_APP_CONTACTS, userId),
                 userId, CONTACTS_PERMISSIONS, PHONE_PERMISSIONS);
+
+        // Contacts picker
+        if (android.content.flags.Flags.enableSystemContactsPicker()) {
+            grantSystemFixedPermissionsToSystemPackage(pm,
+                    "com.android.contactspicker", userId, CONTACTS_PERMISSIONS);
+        }
 
         // Contacts provider sync adapters
         if (contactsSyncAdapterPackages != null) {
@@ -903,6 +917,13 @@ final class DefaultPermissionGrantPolicy {
                     COARSE_BACKGROUND_LOCATION_PERMISSIONS, CONTACTS_PERMISSIONS);
             revokeRuntimePermissions(pm, voiceSearchPackage,
                 FINE_LOCATION_PERMISSIONS, false, userId);
+        }
+
+        // WebApp Service
+        String webAppPackage = getDefaultSystemHandlerServicePackage(pm,
+                "com.android.webapp.IWebAppService", userId);
+        if (webAppPackage != null) {
+            grantPermissionsToSystemPackage(pm, webAppPackage, userId, NOTIFICATION_PERMISSIONS);
         }
 
         // Print Spooler
@@ -1399,6 +1420,25 @@ final class DefaultPermissionGrantPolicy {
                 final boolean changingGrantForSystemFixed = systemFixed
                         && (flags & PackageManager.FLAG_PERMISSION_SYSTEM_FIXED) != 0;
 
+                // Honor the fixed/user-set flags of the source permission when a permission split
+                // is for migrating the same functionality towards a different name. See also
+                // b/465842402
+                String sourcePermission =
+                        switch (permission) {
+                            case HealthPermissions.READ_HEART_RATE ->
+                                    Manifest.permission.BODY_SENSORS;
+                            case HealthPermissions.READ_HEALTH_DATA_IN_BACKGROUND ->
+                                    Manifest.permission.BODY_SENSORS_BACKGROUND;
+                            default -> null;
+                        };
+                boolean sourceGranted = false;
+                boolean sourceFixedOrUserSet = false;
+                if (sourcePermission != null) {
+                    sourceGranted = pm.isGranted(sourcePermission, pkg, user);
+                    sourceFixedOrUserSet =
+                            isFixedOrUserSet(pm.getPermissionFlags(sourcePermission, pkg, user));
+                }
+
                 // Certain flags imply that the permission's current state by the system or
                 // device/profile owner or the user. In these cases we do not want to clobber the
                 // current state.
@@ -1406,7 +1446,8 @@ final class DefaultPermissionGrantPolicy {
                 // Unless the caller wants to override user choices. The override is
                 // to make sure we can grant the needed permission to the default
                 // sms and phone apps after the user chooses this in the UI.
-                if (!isFixedOrUserSet(flags) || ignoreSystemPackage
+                if (!(isFixedOrUserSet(flags) || (!sourceGranted && sourceFixedOrUserSet))
+                        || ignoreSystemPackage
                         || changingGrantForSystemFixed) {
                     // Never clobber policy fixed permissions.
                     // We must allow the grant of a system-fixed permission because
@@ -1436,8 +1477,10 @@ final class DefaultPermissionGrantPolicy {
                         pm.grantPermission(permission, pkg, user);
                     }
 
-                    // clear the REVIEW_REQUIRED flag, if set
-                    int flagMask = newFlags | PackageManager.FLAG_PERMISSION_REVIEW_REQUIRED;
+                    // Create a mask to clear the REVIEW_REQUIRED and REVOKE_WHEN_REQUESTED flags.
+                    int flagMask = newFlags | PackageManager.FLAG_PERMISSION_REVIEW_REQUIRED |
+                            PackageManager.FLAG_PERMISSION_REVOKE_WHEN_REQUESTED;
+
                     pm.updatePermissionFlags(permission, pkg, flagMask, newFlags, user);
                 }
 
@@ -1646,7 +1689,7 @@ final class DefaultPermissionGrantPolicy {
 
                 // If the trunkstable feature flag is disabled for this
                 // exception, skip the tag.
-                if (ParsingPackageUtils.getAconfigFlags().skipCurrentElement(
+                if (AconfigFlags.getInstance().skipCurrentElement(
                         /* pkg= */ null, parser, /* allowNoNamespace= */ true)) {
                     XmlUtils.skipCurrentTag(parser);
                     continue;

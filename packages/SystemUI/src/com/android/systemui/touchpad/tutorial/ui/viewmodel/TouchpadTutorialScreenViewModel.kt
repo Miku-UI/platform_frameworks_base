@@ -18,11 +18,13 @@ package com.android.systemui.touchpad.tutorial.ui.viewmodel
 
 import android.view.MotionEvent
 import androidx.annotation.RawRes
+import com.android.systemui.Flags
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState
 import com.android.systemui.touchpad.tutorial.ui.gesture.GestureState
 import com.android.systemui.touchpad.tutorial.ui.gesture.GestureState.Finished
 import com.android.systemui.touchpad.tutorial.ui.gesture.GestureState.InProgress
 import com.android.systemui.touchpad.tutorial.ui.gesture.GestureState.NotStarted
+import com.android.systemui.touchpad.tutorial.ui.gesture.GestureState.PartialSuccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
@@ -70,6 +72,15 @@ fun GestureState.toTutorialActionState(
                 TutorialActionState.InProgressAfterError(inProgress)
             } else {
                 inProgress
+            }
+        }
+        is PartialSuccess -> {
+            if (Flags.touchpadGestureTutorialBugFixes()) {
+                TutorialActionState.PartialSuccess
+            } else {
+                // If we get a PartialSuccess state when the flag isn't enabled, treat is as a the
+                // Finished state
+                TutorialActionState.Finished(properties.successAnimation)
             }
         }
         is Finished -> TutorialActionState.Finished(properties.successAnimation)

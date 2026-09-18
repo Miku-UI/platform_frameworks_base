@@ -22,6 +22,7 @@ import com.android.systemui.qs.pipeline.domain.autoaddable.A11yShortcutAutoAddab
 import com.android.systemui.qs.pipeline.domain.autoaddable.AutoAddableSetting
 import com.android.systemui.qs.pipeline.domain.autoaddable.AutoAddableSettingList
 import com.android.systemui.qs.pipeline.domain.autoaddable.CastAutoAddable
+import com.android.systemui.qs.pipeline.domain.autoaddable.CellAutoAddable
 import com.android.systemui.qs.pipeline.domain.autoaddable.DataSaverAutoAddable
 import com.android.systemui.qs.pipeline.domain.autoaddable.DeviceControlsAutoAddable
 import com.android.systemui.qs.pipeline.domain.autoaddable.HotspotAutoAddable
@@ -63,6 +64,8 @@ interface BaseAutoAddableModule {
             )
         }
     }
+
+    @Binds @IntoSet fun bindCellAutoAddable(impl: CellAutoAddable): AutoAddable
 
     @Binds @IntoSet fun bindCastAutoAddable(impl: CastAutoAddable): AutoAddable
 

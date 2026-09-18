@@ -16,9 +16,16 @@
 
 package com.android.systemui.qs.tiles
 
+import android.app.admin.DevicePolicyManager
+import android.app.admin.DpcAuthority.DPC_AUTHORITY
+import android.app.admin.EnforcingAdmin
+import android.app.admin.PolicyEnforcementInfo
+import android.app.admin.flags.Flags
+import android.content.ComponentName
 import android.graphics.drawable.TestStubDrawable
 import android.os.Handler
 import android.os.UserManager
+import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.FlagsParameterization
 import android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf
@@ -68,6 +75,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
@@ -78,7 +86,6 @@ import org.mockito.kotlin.whenever
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4
 import platform.test.runner.parameterized.Parameters
 
-@EnableFlags(android.app.Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4::class)
 @RunWithLooper(setAsMainLooper = true)
@@ -248,7 +255,8 @@ class ModesTileTest(flags: FlagsParameterization) : SysuiTestCase() {
         }
 
     @Test
-    fun handleUpdateState_checksUserRestriction() =
+    @DisableFlags(Flags.FLAG_POLICY_TRANSPARENCY_REFACTOR_ENABLED)
+    fun handleUpdateState_checksUserRestriction_policyTransparencyRefactorDisabled() =
         testScope.runTest {
             val tileState = QSTile.State().apply { state = Tile.STATE_INACTIVE }
             val model =
@@ -276,5 +284,35 @@ class ModesTileTest(flags: FlagsParameterization) : SysuiTestCase() {
             assertThat(tileState.disabledByPolicy).isTrue()
             verify(userManager)
                 .getUserRestrictionSources(eq(UserManager.DISALLOW_ADJUST_VOLUME), any())
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_POLICY_TRANSPARENCY_REFACTOR_ENABLED)
+    fun handleUpdateState_checksUserRestriction_policyTransparencyRefactorEnabled() =
+        testScope.runTest {
+            val tileState = QSTile.State().apply { state = Tile.STATE_INACTIVE }
+            val model =
+                ModesTileModel(
+                    isActivated = false,
+                    activeModes = listOf(),
+                    icon = TestStubDrawable().asIcon(),
+                    quickMode = TestModeBuilder.MANUAL_DND,
+                )
+            val dpm = mock<DevicePolicyManager>()
+            val expectedAdmin =
+                EnforcingAdmin(
+                    "test",
+                    DPC_AUTHORITY,
+                    context.user,
+                    ComponentName("test", "test.class"),
+                )
+            whenever(dpm.getEnforcingAdminsForPolicy(any(), anyInt()))
+                .thenReturn(PolicyEnforcementInfo(listOf(expectedAdmin)))
+            context.addMockSystemService(DevicePolicyManager::class.java, dpm)
+            context.prepareCreatePackageContextAsUser(context.packageName, context.user, context)
+
+            underTest.handleUpdateState(tileState, model)
+
+            assertThat(tileState.disabledByPolicy).isTrue()
         }
 }

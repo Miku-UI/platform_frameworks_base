@@ -22,5 +22,12 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface ICamAppInfoListener {
+    /**
+     * Notify the application information change for a specific CICAM.
+     *
+     * @param slotId The ID of the corresponding CICAM slot.
+     * @param appInfo An input bundle to update CAM app information of the concerned slot with keys
+     *                defined as @CamConstants.CamAppInfoBundleKey.
+     */
     void onCamAppInfoChanged(int slotId, in Bundle appInfo);
 }

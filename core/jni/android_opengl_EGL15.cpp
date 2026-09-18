@@ -47,10 +47,6 @@ static jmethodID eglcontextConstructor;
 static jmethodID eglsurfaceConstructor;
 static jmethodID eglconfigConstructor;
 
-static jobject eglNoContextObject;
-static jobject eglNoDisplayObject;
-static jobject eglNoSurfaceObject;
-
 // classes from EGL 1.5
 static jclass eglimageClass;
 static jclass eglsyncClass;
@@ -89,23 +85,6 @@ nativeClassInit(JNIEnv *_env, jclass glImplClass)
     egldisplayConstructor = _env->GetMethodID(egldisplayClass, "<init>", "(J)V");
     eglsurfaceConstructor = _env->GetMethodID(eglsurfaceClass, "<init>", "(J)V");
 
-    jobject localeglNoContextObject = _env->NewObject(eglcontextClass, eglcontextConstructor, reinterpret_cast<jlong>(EGL_NO_CONTEXT));
-    eglNoContextObject = _env->NewGlobalRef(localeglNoContextObject);
-    jobject localeglNoDisplayObject = _env->NewObject(egldisplayClass, egldisplayConstructor, reinterpret_cast<jlong>(EGL_NO_DISPLAY));
-    eglNoDisplayObject = _env->NewGlobalRef(localeglNoDisplayObject);
-    jobject localeglNoSurfaceObject = _env->NewObject(eglsurfaceClass, eglsurfaceConstructor, reinterpret_cast<jlong>(EGL_NO_SURFACE));
-    eglNoSurfaceObject = _env->NewGlobalRef(localeglNoSurfaceObject);
-
-    jclass eglClass = _env->FindClass("android/opengl/EGL15");
-    jfieldID noContextFieldID = _env->GetStaticFieldID(eglClass, "EGL_NO_CONTEXT", "Landroid/opengl/EGLContext;");
-    _env->SetStaticObjectField(eglClass, noContextFieldID, eglNoContextObject);
-
-    jfieldID noDisplayFieldID = _env->GetStaticFieldID(eglClass, "EGL_NO_DISPLAY", "Landroid/opengl/EGLDisplay;");
-    _env->SetStaticObjectField(eglClass, noDisplayFieldID, eglNoDisplayObject);
-
-    jfieldID noSurfaceFieldID = _env->GetStaticFieldID(eglClass, "EGL_NO_SURFACE", "Landroid/opengl/EGLSurface;");
-    _env->SetStaticObjectField(eglClass, noSurfaceFieldID, eglNoSurfaceObject);
-
     // EGL 1.5 init
     jclass eglimageClassLocal = _env->FindClass("android/opengl/EGLImage");
     eglimageClass = (jclass) _env->NewGlobalRef(eglimageClassLocal);
@@ -118,11 +97,18 @@ nativeClassInit(JNIEnv *_env, jclass glImplClass)
     eglimageConstructor = _env->GetMethodID(eglimageClass, "<init>", "(J)V");
     eglsyncConstructor = _env->GetMethodID(eglsyncClass, "<init>", "(J)V");
 
+    jclass eglClass = _env->FindClass("android/opengl/EGL15");
+
     jfieldID noImageFieldID = _env->GetStaticFieldID(eglClass, "EGL_NO_IMAGE", "Landroid/opengl/EGLImage;");
-    _env->SetStaticObjectField(eglClass, noImageFieldID, eglNoImageObject);
+    jobject localeglNoImageObject = _env->GetStaticObjectField(eglClass, noImageFieldID);
+    eglNoImageObject = _env->NewGlobalRef(localeglNoImageObject);
 
     jfieldID noSyncFieldID = _env->GetStaticFieldID(eglClass, "EGL_NO_SYNC", "Landroid/opengl/EGLSync;");
-    _env->SetStaticObjectField(eglClass, noSyncFieldID, eglNoSyncObject);
+    jobject localeglNoSyncObject = _env->GetStaticObjectField(eglClass, noSyncFieldID);
+    eglNoSyncObject = _env->NewGlobalRef(localeglNoSyncObject);
+
+    // TODO: can/should we make this more consistent with EGL1.4 handling, with its
+    // reuse of null object wrappers?
 }
 
 static void *

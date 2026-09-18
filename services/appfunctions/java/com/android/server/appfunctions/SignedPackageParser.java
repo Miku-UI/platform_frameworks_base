@@ -17,9 +17,10 @@
 package com.android.server.appfunctions;
 
 import android.annotation.NonNull;
-import android.content.pm.Signature;
 import android.content.pm.SignedPackage;
 import android.util.Slog;
+
+import libcore.util.HexEncoding;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,7 +37,8 @@ public class SignedPackageParser {
      *     digest
      * @return the parsed {@link SignedPackage}, or {@code null} if the input is invalid
      */
-    private static SignedPackage parse(@NonNull String input) {
+    @NonNull
+    public static SignedPackage parse(@NonNull String input) {
         String packageName;
         byte[] certificate;
         int certificateSeparatorIndex = input.indexOf(CERTIFICATE_SEPARATOR);
@@ -44,7 +46,7 @@ public class SignedPackageParser {
             packageName = input.substring(0, certificateSeparatorIndex);
             String certificateString = input.substring(certificateSeparatorIndex + 1);
             try {
-                certificate = new Signature(certificateString).toByteArray();
+                certificate = HexEncoding.decode(certificateString, false);
             } catch (IllegalArgumentException e) {
                 Slog.w(TAG, "Cannot parse the signed package input of: " + input, e);
                 return null;

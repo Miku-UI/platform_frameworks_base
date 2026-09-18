@@ -61,6 +61,7 @@ import com.android.server.pm.pkg.PackageStateInternal;
 import com.android.server.pm.pkg.PackageStateUtils;
 import com.android.server.pm.pkg.SharedUserApi;
 import com.android.server.pm.pkg.mutate.PackageStateMutator;
+import com.android.server.pm.pkg.mutate.PackageStateWrite;
 
 import java.io.IOException;
 import java.util.List;
@@ -806,13 +807,22 @@ abstract class PackageManagerInternalBase extends PackageManagerInternal {
         return mService.recordInitialState();
     }
 
-    @Nullable
+    @NonNull
     @Override
     @Deprecated
     public final PackageStateMutator.Result commitPackageStateMutation(
             @Nullable PackageStateMutator.InitialState state,
             @NonNull Consumer<PackageStateMutator> consumer) {
         return mService.commitPackageStateMutation(state, consumer);
+    }
+
+    @NonNull
+    @Override
+    public PackageStateMutator.Result commitPackageStateMutation(
+            @Nullable PackageStateMutator.InitialState state,
+            @NonNull String packageName,
+            @NonNull Consumer<PackageStateWrite> consumer) {
+        return mService.commitPackageStateMutation(state, packageName, consumer);
     }
 
     @Override

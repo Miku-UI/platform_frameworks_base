@@ -15,9 +15,14 @@
  */
 package com.android.keyguard;
 
+import static android.security.Flags.lockscreenTimeoutDeactivatePinPad;
+
+import static com.android.keyguard.NumPadAnimatableKt.DISABLED_BACKGROUND_ALPHA;
+import static com.android.keyguard.NumPadAnimatableKt.DISABLED_FOREGROUND_ALPHA;
 import static com.android.systemui.bouncer.shared.constants.KeyguardBouncerConstants.ColorId.NUM_PAD_BACKGROUND;
 
 import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
 import android.animation.ArgbEvaluator;
 import android.animation.ValueAnimator;
@@ -28,6 +33,7 @@ import android.content.res.TypedArray;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.view.ContextThemeWrapper;
+import android.view.View;
 import android.widget.TextView;
 
 import androidx.annotation.StyleRes;
@@ -48,9 +54,12 @@ class NumPadAnimator {
     private AnimatorSet mExpandAnimatorSet;
     private ValueAnimator mContractAnimator;
     private AnimatorSet mContractAnimatorSet;
+    private ValueAnimator mEnableAnimator;
+    private ValueAnimator mDisableAnimator;
     private GradientDrawable mBackground;
     private Drawable mImageButton;
     private TextView mDigitTextView;
+    private NumPadAnimatable mAnimatable;
     private int mNormalBackgroundColor;
     private int mPressedBackgroundColor;
     private int mTextColorPrimary;
@@ -60,18 +69,27 @@ class NumPadAnimator {
     private float mEndRadius;
     private int mHeight;
     private int mWidth;
+    private final HardwareLayerResetListener mHardwareLayerResetListener =
+            new HardwareLayerResetListener();
 
     NumPadAnimator(Context context, final Drawable drawable,
-            @StyleRes int style, Drawable buttonImage) {
-        this(context, drawable, style, null, buttonImage);
+            @StyleRes int style, Drawable buttonImage, NumPadAnimatable animatable) {
+        this(context, drawable, style, null, buttonImage, animatable);
     }
 
-    NumPadAnimator(Context context, final Drawable drawable, @StyleRes int style,
-            @Nullable TextView digitTextView, @Nullable Drawable buttonImage) {
+    NumPadAnimator(
+            Context context,
+            final Drawable drawable,
+            @StyleRes int style,
+            @Nullable TextView digitTextView,
+            @Nullable Drawable buttonImage,
+            NumPadAnimatable animatable
+    ) {
         mStyle = style;
         mBackground = (GradientDrawable) drawable;
         mDigitTextView = digitTextView;
         mImageButton = buttonImage;
+        mAnimatable = animatable;
 
         reloadColors(context);
     }
@@ -88,7 +106,7 @@ class NumPadAnimator {
         mContractAnimatorSet.start();
     }
 
-    public void setProgress(float progress) {
+    public void setProgress(float progress, boolean isEnabled) {
         mBackground.setCornerRadius(mEndRadius + (mStartRadius - mEndRadius) * progress);
         int height = (int) (mHeight * 0.7f + mHeight * 0.3 * progress);
         int difference = mHeight - height;
@@ -98,6 +116,28 @@ class NumPadAnimator {
         int right = mWidth;
         int bottom = mHeight - difference / 2;
         mBackground.setBounds(left, top, right, bottom);
+
+        if (lockscreenTimeoutDeactivatePinPad()) {
+            float fgAlpha = progress * (isEnabled ? 1f : DISABLED_FOREGROUND_ALPHA);
+            float bgAlpha = progress * (isEnabled ? 1f : DISABLED_BACKGROUND_ALPHA);
+            mAnimatable.setAlpha(fgAlpha, bgAlpha);
+        }
+    }
+
+    public void enable() {
+        mEnableAnimator.cancel();
+        mDisableAnimator.cancel();
+
+        mHardwareLayerResetListener.onBeforeAnimation();
+        mEnableAnimator.start();
+    }
+
+    public void disable() {
+        mEnableAnimator.cancel();
+        mDisableAnimator.cancel();
+
+        mHardwareLayerResetListener.onBeforeAnimation();
+        mDisableAnimator.start();
     }
 
     void onLayout(int width, int height) {
@@ -239,6 +279,54 @@ class NumPadAnimator {
         }
         mContractAnimatorSet = new AnimatorSet();
         mContractAnimatorSet.playTogether(contractAnimators);
+
+        mEnableAnimator = ValueAnimator.ofFloat(0f, 1f);
+        mEnableAnimator.setInterpolator(Animation.enableInterpolator);
+        if (lockscreenTimeoutDeactivatePinPad()) {
+            mEnableAnimator.addUpdateListener(this::setEnabledAlpha);
+            mEnableAnimator.addListener(mHardwareLayerResetListener);
+        }
+
+        mDisableAnimator = ValueAnimator.ofFloat(1f, 0f);
+        mDisableAnimator.setInterpolator(Animation.disableInterpolator);
+        if (lockscreenTimeoutDeactivatePinPad()) {
+            mDisableAnimator.addUpdateListener(this::setEnabledAlpha);
+            mDisableAnimator.addListener(mHardwareLayerResetListener);
+        }
+    }
+
+    private void setEnabledAlpha(ValueAnimator animator) {
+        float progress = (float) animator.getAnimatedValue();
+        float fgAlpha = progress + DISABLED_FOREGROUND_ALPHA * (1 - progress);
+        float bgAlpha = progress + DISABLED_BACKGROUND_ALPHA * (1 - progress);
+        mAnimatable.setAlpha(fgAlpha, bgAlpha);
+    }
+
+    /**
+     * Handles setting the hardware layer type when animating the digit text view. This improves
+     * efficiency of alpha animation.
+     */
+    private final class HardwareLayerResetListener extends AnimatorListenerAdapter {
+        void onBeforeAnimation() {
+            if (mDigitTextView != null
+                    && mDigitTextView.getLayerType() != View.LAYER_TYPE_HARDWARE) {
+                mDigitTextView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+            }
+        }
+
+        @Override
+        public void onAnimationEnd(Animator animation) {
+            if (mDigitTextView != null && mDigitTextView.getLayerType() != View.LAYER_TYPE_NONE) {
+                mDigitTextView.setLayerType(View.LAYER_TYPE_NONE, null);
+            }
+        }
+
+        @Override
+        public void onAnimationCancel(Animator animation) {
+            if (mDigitTextView != null && mDigitTextView.getLayerType() != View.LAYER_TYPE_NONE) {
+                mDigitTextView.setLayerType(View.LAYER_TYPE_NONE, null);
+            }
+        }
     }
 }
 

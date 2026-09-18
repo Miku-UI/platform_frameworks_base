@@ -16,8 +16,10 @@
 
 package android.hardware.lights;
 
+import android.hardware.lights.ColorSequence;
 import android.hardware.lights.Light;
 import android.hardware.lights.LightState;
+import android.hardware.lights.MultiLightEffect;
 
 /**
  * API to lights manager service.
@@ -27,12 +29,22 @@ import android.hardware.lights.LightState;
 interface ILightsManager {
   @EnforcePermission("CONTROL_DEVICE_LIGHTS")
   List<Light> getLights();
+
   @EnforcePermission("CONTROL_DEVICE_LIGHTS")
   LightState getLightState(int lightId);
+
   @EnforcePermission("CONTROL_DEVICE_LIGHTS")
   void openSession(in IBinder sessionToken, in int priority);
+
   @EnforcePermission("CONTROL_DEVICE_LIGHTS")
   void closeSession(in IBinder sessionToken);
+
   @EnforcePermission("CONTROL_DEVICE_LIGHTS")
   void setLightStates(in IBinder sessionToken, in int[] lightIds, in LightState[] states);
+
+  @EnforcePermission("CONTROL_DEVICE_LIGHTS")
+  void setLightEffect(in IBinder sessionToken, in MultiLightEffect effect);
+
+  @EnforcePermission("CONTROL_DEVICE_LIGHTS")
+  ColorSequence getLightSequence(in int lightId);
 }

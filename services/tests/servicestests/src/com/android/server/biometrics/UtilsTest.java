@@ -39,8 +39,6 @@ import android.hardware.biometrics.BiometricPrompt;
 import android.hardware.biometrics.Flags;
 import android.hardware.biometrics.PromptInfo;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.annotations.RequiresFlagsDisabled;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
@@ -181,7 +179,12 @@ public class UtilsTest {
         for (int i = 8; i < 32; i++) {
             int authenticators = 1 << i;
             promptInfo.setAuthenticators(authenticators);
-            assertFalse(Utils.isBiometricRequested(promptInfo));
+            if (Flags.doubleAuth()
+                    && authenticators == Authenticators.DEVICE_CREDENTIAL_AND_IDENTITY_CHECK) {
+                assertThat(Utils.isBiometricRequested(promptInfo)).isTrue();
+            } else {
+                assertFalse(Utils.isBiometricRequested(promptInfo));
+            }
         }
     }
 
@@ -222,11 +225,21 @@ public class UtilsTest {
         assertTrue(Utils.isValidAuthenticatorConfig(mContext,
                 Authenticators.IDENTITY_CHECK));
 
+        if (Flags.doubleAuth()) {
+            assertThat(Utils.isValidAuthenticatorConfig(mContext,
+                    Authenticators.DEVICE_CREDENTIAL_AND_IDENTITY_CHECK)).isTrue();
+        } else {
+            assertThat(Utils.isValidAuthenticatorConfig(mContext,
+                    Authenticators.DEVICE_CREDENTIAL_AND_IDENTITY_CHECK)).isFalse();
+        }
+
         // The rest of the bits are not allowed to integrate with the public APIs
         for (int i = 8; i < 32; i++) {
             final int authenticator = 1 << i;
             if (authenticator == Authenticators.DEVICE_CREDENTIAL
-                    || authenticator == Authenticators.IDENTITY_CHECK) {
+                    || authenticator == Authenticators.IDENTITY_CHECK
+                    || (Flags.doubleAuth()
+                    && authenticator == Authenticators.DEVICE_CREDENTIAL_AND_IDENTITY_CHECK)) {
                 continue;
             }
             assertFalse(Utils.isValidAuthenticatorConfig(mContext, 1 << i));
@@ -260,36 +273,8 @@ public class UtilsTest {
         assertFalse(Utils.isAtLeastStrength(sensorStrength, requestedStrength));
     }
 
-    @Test
-    @RequiresFlagsDisabled(Flags.FLAG_BP_FALLBACK_OPTIONS)
-    public void testBiometricConstantsConversionLegacy() {
-        final int[][] testCases = {
-                {BiometricConstants.BIOMETRIC_SUCCESS,
-                        BiometricManager.BIOMETRIC_SUCCESS},
-                {BiometricConstants.BIOMETRIC_ERROR_NO_BIOMETRICS,
-                        BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED},
-                {BiometricConstants.BIOMETRIC_ERROR_NO_DEVICE_CREDENTIAL,
-                        BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED},
-                {BiometricConstants.BIOMETRIC_ERROR_HW_UNAVAILABLE,
-                        BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE},
-                {BiometricConstants.BIOMETRIC_ERROR_HW_NOT_PRESENT,
-                        BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE},
-                {BiometricConstants.BIOMETRIC_ERROR_LOCKOUT,
-                        BiometricManager.BIOMETRIC_ERROR_LOCKOUT},
-                {BiometricConstants.BIOMETRIC_ERROR_LOCKOUT_PERMANENT,
-                        BiometricManager.BIOMETRIC_ERROR_LOCKOUT},
-                {BiometricConstants.BIOMETRIC_ERROR_IDENTITY_CHECK_NOT_ACTIVE,
-                        BiometricManager.BIOMETRIC_ERROR_IDENTITY_CHECK_NOT_ACTIVE}
-        };
-
-        for (int i = 0; i < testCases.length; i++) {
-            assertEquals(testCases[i][1],
-                    Utils.biometricConstantsToBiometricManager(testCases[i][0]));
-        }
-    }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_BP_FALLBACK_OPTIONS)
     public void testBiometricConstantsConversion() {
         final int[][] testCases = {
                 {BiometricConstants.BIOMETRIC_SUCCESS,
@@ -350,14 +335,12 @@ public class UtilsTest {
     }
 
     @Test
-    @RequiresFlagsEnabled({Flags.FLAG_IDENTITY_CHECK_ALL_SURFACES, Flags.FLAG_BP_FALLBACK_OPTIONS})
     public void testShouldApplyIdentityCheck_singleAuthenticator_returnsTrue() {
         assertThat(Utils.shouldApplyIdentityCheck(Authenticators.IDENTITY_CHECK)).isTrue();
         assertThat(Utils.shouldApplyIdentityCheck(Authenticators.BIOMETRIC_WEAK)).isTrue();
     }
 
     @Test
-    @RequiresFlagsEnabled({Flags.FLAG_IDENTITY_CHECK_ALL_SURFACES, Flags.FLAG_BP_FALLBACK_OPTIONS})
     public void testShouldApplyIdentityCheck_combinationAuthenticators_returnsTrue() {
         assertThat(Utils.shouldApplyIdentityCheck(Authenticators.IDENTITY_CHECK
                 | Authenticators.DEVICE_CREDENTIAL)).isTrue();
@@ -370,7 +353,6 @@ public class UtilsTest {
     }
 
     @Test
-    @RequiresFlagsEnabled({Flags.FLAG_IDENTITY_CHECK_ALL_SURFACES, Flags.FLAG_BP_FALLBACK_OPTIONS})
     public void testShouldApplyIdentityCheck_returnsFalse() {
         assertThat(Utils.shouldApplyIdentityCheck(Authenticators.BIOMETRIC_STRONG
                 | Authenticators.IDENTITY_CHECK)).isFalse();

@@ -20,12 +20,13 @@ import android.content.applicationContext
 import android.media.session.MediaSessionManager
 import com.android.systemui.concurrency.fakeExecutor
 import com.android.systemui.kosmos.Kosmos
+import org.mockito.kotlin.mock
 
 val Kosmos.mediaSessionBasedFilter by
     Kosmos.Fixture {
         MediaSessionBasedFilter(
             context = applicationContext,
-            sessionManager = MediaSessionManager(applicationContext),
+            sessionManager = mock<MediaSessionManager>(),
             foregroundExecutor = fakeExecutor,
             backgroundExecutor = fakeExecutor,
         )

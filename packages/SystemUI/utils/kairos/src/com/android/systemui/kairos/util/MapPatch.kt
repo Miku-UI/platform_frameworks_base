@@ -18,7 +18,6 @@ package com.android.systemui.kairos.util
 
 import com.android.systemui.kairos.util.Either.First
 import com.android.systemui.kairos.util.Either.Second
-import com.android.systemui.kairos.util.Maybe.Present
 
 /** A "patch" that can be used to batch-update a [Map], via [applyPatch]. */
 typealias MapPatch<K, V> = Map<K, Maybe<V>>
@@ -27,16 +26,16 @@ typealias MapPatch<K, V> = Map<K, Maybe<V>>
  * Returns a new [Map] that has [patch] applied to the original map.
  *
  * For each entry in [patch]:
- * * a [Present] value will be included in the new map, replacing the entry in the original map with
- *   the same key, if present.
- * * a [Maybe.Absent] value will be omitted from the new map, excluding the entry in the original
- *   map with the same key, if present.
+ * * a [present][Maybe.present] value will be included in the new map, replacing the entry in the
+ *   original map with the same key, if present.
+ * * an [absent][Maybe.MissingValue] value will be omitted from the new map, removing the entry in
+ *   the original map with the same key, if present.
  */
 fun <K, V> Map<K, V>.applyPatch(patch: MapPatch<K, V>): Map<K, V> {
     val (adds: List<Pair<K, V>>, removes: List<K>) =
         patch
             .asSequence()
-            .map { (k, v) -> if (v is Present) First(k to v.value) else Second(k) }
+            .map { (k, v) -> v.map { First(k to it) }.orElseGet { Second(k) } }
             .partitionEithers()
     val removed: Map<K, V> = this - removes.toSet()
     val updated: Map<K, V> = removed + adds

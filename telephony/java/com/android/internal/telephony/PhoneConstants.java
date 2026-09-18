@@ -251,6 +251,23 @@ public class PhoneConstants {
     /** The key to specify the alternate emergency URNs */
     public static final String EXTRA_EMERGENCY_URNS = "emergency_urns";
 
-    /** The key to specify whether or not to use emergency routing */
-    public static final String EXTRA_USE_EMERGENCY_ROUTING = "use_emergency_routing";
+    /**
+     * The key to specify the cause of an emergency routing update.
+     */
+    public static final String EXTRA_EMERGENCY_ROUTING_UPDATE_CAUSE =
+            "emergency_routing_update_cause";
+
+    /**
+     * Values for the {@link EXTRA_EMERGENCY_ROUTING_UPDATE_CAUSE} extra.
+     *
+     * 0 : Indicates that the cause for an explicit update to the emergency call routing
+     * information is UNSPECIFIED. This is the default value when the extra is not provided.
+     * 1 : The cause is ALTERNATE_SERVICE: Emergency routing is required, AND the emergency
+     * number's source information MUST be modified (e.g., due to a 380 AS redial).
+     * 2 : The cause is DYNAMIC_ROUTING: Emergency routing is required, BUT the emergency number's
+     * source information MUST be kept as is (e.g., for dynamic routing).
+     */
+    public static final int EMERGENCY_ROUTING_UPDATE_CAUSE_UNSPECIFIED = 0;
+    public static final int EMERGENCY_ROUTING_UPDATE_CAUSE_ALTERNATE_SERVICE = 1;
+    public static final int EMERGENCY_ROUTING_UPDATE_CAUSE_DYNAMIC_ROUTING = 2;
 }

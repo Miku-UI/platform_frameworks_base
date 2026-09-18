@@ -16,17 +16,26 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 
 /**
  * Thrown if trying to use a cipher suite which isn't supported.
+ *
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public class CipherSuiteNotSupportedException extends IdentityCredentialException {
     /**
      * Constructs a new {@link CipherSuiteNotSupportedException} exception.
      *
      * @param message the detail message.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public CipherSuiteNotSupportedException(@NonNull String message) {
         super(message);
     }
@@ -36,7 +45,11 @@ public class CipherSuiteNotSupportedException extends IdentityCredentialExceptio
      *
      * @param message the detail message.
      * @param cause   the cause.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public CipherSuiteNotSupportedException(@NonNull String message, @NonNull Throwable cause) {
         super(message, cause);
     }

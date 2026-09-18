@@ -19,11 +19,13 @@ import com.android.systemui.biometrics.domain.model.BiometricPromptRequest
 import com.android.systemui.biometrics.promptInfo
 import com.android.systemui.biometrics.shared.model.BiometricUserInfo
 import com.android.systemui.flags.EnableSceneContainer
+import com.android.systemui.res.R
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat
+import java.time.Duration
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -42,6 +44,7 @@ private const val OWNER_ID = 10
 private const val PASSWORD_ID = 30
 private const val OPERATION_ID = 100L
 private const val MAX_ATTEMPTS = 5
+private const val OP_PACKAGE_NAME = "biometric.testapp"
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -157,8 +160,8 @@ class CredentialInteractorImplTest : SysuiTestCase() {
             .thenReturn(result)
         whenever(lockPatternUtils.verifyGatekeeperPasswordHandle(anyLong(), anyLong(), eq(USER_ID)))
             .thenReturn(result)
-        whenever(lockPatternUtils.setLockoutAttemptDeadline(anyInt(), anyInt())).thenAnswer {
-            systemClock.elapsedRealtime() + (it.arguments[1] as Int)
+        whenever(lockPatternUtils.getLockoutEndTime(anyInt())).thenAnswer {
+            Duration.ofMillis(systemClock.elapsedRealtime()).plus(result.timeout)
         }
 
         // wrap in an async block so the test can advance the clock if throttling credential
@@ -186,18 +189,23 @@ class CredentialInteractorImplTest : SysuiTestCase() {
             val failedResult = last as? CredentialStatus.Fail.Error
             assertThat(failedResult).isNotNull()
             assertThat(failedResult!!.remainingAttempts)
-                .isEqualTo(if (result.timeout > 0) null else MAX_ATTEMPTS - usedAttempts - 1)
+                .isEqualTo(if (result.timeout.isPositive) null else MAX_ATTEMPTS - usedAttempts - 1)
             assertThat(failedResult.urgentMessage).isNull()
 
-            if (result.timeout > 0) { // failed and throttled
+            if (result.timeout.isPositive) { // failed and throttled
                 // messages are in the throttled errors, so the final Error.error is empty
                 assertThat(failedResult.error).isEmpty()
                 assertThat(statusList).isNotEmpty()
-                assertThat(statusList.filterIsInstance(CredentialStatus.Fail.Throttled::class.java))
-                    .hasSize(statusList.size)
-
-                verify(lockPatternUtils)
-                    .setLockoutAttemptDeadline(eq(credentialOwner), eq(result.timeout))
+                val throttledStatuses =
+                    statusList.filterIsInstance(CredentialStatus.Fail.Throttled::class.java)
+                assertThat(throttledStatuses).hasSize(statusList.size)
+                assertThat(throttledStatuses.first().error)
+                    .isEqualTo(
+                        mContext.getString(
+                            R.string.biometric_dialog_credential_too_many_attempts,
+                            result.timeout.toSeconds(),
+                        )
+                    )
             } else { // failed
                 assertThat(failedResult.error)
                     .matches(Regex("(.*)try again(.*)", RegexOption.IGNORE_CASE).toPattern())
@@ -261,6 +269,7 @@ private fun pinRequest(credentialOwner: Int = USER_ID): BiometricPromptRequest.C
             userIdForPasswordEntry = PASSWORD_ID,
         ),
         BiometricOperationInfo(OPERATION_ID),
+        OP_PACKAGE_NAME,
     )
 
 private fun goodCredential(

@@ -20,12 +20,14 @@ import android.content.applicationContext
 import android.content.res.mainResources
 import com.android.systemui.common.ui.domain.interactor.configurationInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardClockInteractor
+import com.android.systemui.keyguard.domain.interactor.keyguardClockInteractorWithImpl
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.backgroundScope
 import com.android.systemui.log.logcatLogBuffer
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.statusbar.notification.icon.ui.viewmodel.notificationIconContainerAlwaysOnDisplayViewModel
+import com.android.systemui.statusbar.policy.domain.interactor.zenModeInteractor
 import com.android.systemui.statusbar.ui.systemBarUtilsProxy
 
 val Kosmos.keyguardClockViewModel by
@@ -38,6 +40,25 @@ val Kosmos.keyguardClockViewModel by
             aodNotificationIconViewModel = notificationIconContainerAlwaysOnDisplayViewModel,
             shadeModeInteractor = shadeModeInteractor,
             systemBarUtils = systemBarUtilsProxy,
+            zenModeInteractor = zenModeInteractor,
+            configurationInteractor = configurationInteractor,
+            resources = mainResources,
+            smallClockLogBuffer = logcatLogBuffer(name = "KeyguardSmallClockViewModel"),
+            largeClockLogBuffer = logcatLogBuffer(name = "KeyguardLargeClockViewModel"),
+        )
+    }
+
+val Kosmos.keyguardClockViewModelWithImpl by
+    Kosmos.Fixture {
+        KeyguardClockViewModel(
+            context = applicationContext,
+            keyguardClockInteractor = keyguardClockInteractorWithImpl,
+            applicationScope = applicationCoroutineScope,
+            backgroundScope = backgroundScope,
+            aodNotificationIconViewModel = notificationIconContainerAlwaysOnDisplayViewModel,
+            shadeModeInteractor = shadeModeInteractor,
+            systemBarUtils = systemBarUtilsProxy,
+            zenModeInteractor = zenModeInteractor,
             configurationInteractor = configurationInteractor,
             resources = mainResources,
             smallClockLogBuffer = logcatLogBuffer(name = "KeyguardSmallClockViewModel"),

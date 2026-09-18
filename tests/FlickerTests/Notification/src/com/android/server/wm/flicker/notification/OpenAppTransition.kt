@@ -22,6 +22,7 @@ import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.FlakyTest
 import com.android.server.wm.flicker.BaseTest
 import android.tools.helpers.RecentTasksUtils
+import androidx.test.uiautomator.UiDevice
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
 import org.junit.Test
 
@@ -33,7 +34,7 @@ abstract class OpenAppTransition(flicker: FlickerTest) : BaseTest(flicker) {
         // Close the app that posted the notification to trigger a cold start next time
         // it is open - can't just kill it because that would remove the notification.
         tapl.expectedRotationCheckEnabled = false
-        tapl.goHome()
+        UiDevice.getInstance(instrumentation).pressHome()
         RecentTasksUtils.clearAllVisibleRecentTasks(instrumentation)
     }
 

@@ -27,6 +27,7 @@ import com.android.systemui.demomode.DemoModeController
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.demo.DemoMobileConnectionsRepository
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.prod.MobileConnectionsRepositoryImpl
+import com.android.systemui.util.kotlin.mapDirect
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -35,7 +36,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 
 /**
@@ -99,7 +99,7 @@ constructor(
     @VisibleForTesting
     internal val activeRepo: StateFlow<MobileConnectionsRepository> =
         isDemoMode
-            .mapLatest { demoMode ->
+            .mapDirect { demoMode ->
                 if (demoMode) {
                     demoMobileConnectionsRepository
                 } else {
@@ -134,7 +134,7 @@ constructor(
     override val activeSubChangedInGroupEvent: Flow<Unit> =
         activeRepo.flatMapLatest { it.activeSubChangedInGroupEvent }
 
-    override val defaultDataSubRatConfig: StateFlow<MobileMappings.Config> =
+    override val defaultDataSubRatConfig: StateFlow<MobileMappings.Config?> =
         activeRepo
             .flatMapLatest { it.defaultDataSubRatConfig }
             .stateIn(

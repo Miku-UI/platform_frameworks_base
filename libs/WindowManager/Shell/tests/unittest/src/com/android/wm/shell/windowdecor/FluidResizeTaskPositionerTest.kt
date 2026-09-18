@@ -6,7 +6,9 @@ import android.content.Context
 import android.content.res.Resources
 import android.graphics.Point
 import android.graphics.Rect
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.testing.AndroidTestingRunner
 import android.view.Display
 import android.view.Surface
@@ -19,6 +21,7 @@ import android.window.WindowContainerToken
 import android.window.WindowContainerTransaction
 import android.window.WindowContainerTransaction.Change.CHANGE_DRAG_RESIZING
 import androidx.test.filters.SmallTest
+import com.android.internal.jank.InteractionJankMonitor
 import com.android.wm.shell.R
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.ShellTestCase
@@ -78,6 +81,8 @@ class FluidResizeTaskPositionerTest : ShellTestCase() {
     @Mock private lateinit var mockTransitionBinder: IBinder
     @Mock private lateinit var mockContext: Context
     @Mock private lateinit var mockResources: Resources
+    @Mock private lateinit var mockInteractionJankMonitor: InteractionJankMonitor
+    private val mainHandler = Handler(Looper.getMainLooper())
     private lateinit var taskPositioner: FluidResizeTaskPositioner
     private val desktopState = FakeDesktopState()
 
@@ -137,6 +142,8 @@ class FluidResizeTaskPositionerTest : ShellTestCase() {
                 mockDisplayController,
                 mockTransactionFactory,
                 desktopState,
+                mockInteractionJankMonitor,
+                mainHandler,
             )
     }
 

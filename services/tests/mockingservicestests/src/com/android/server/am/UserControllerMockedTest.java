@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -73,6 +74,8 @@ public final class UserControllerMockedTest {
         doReturn(mUserManagerInternal).when(mSpiedUserControllerInjector).getUserManagerInternal();
         doReturn(mHandler).when(mSpiedUserControllerInjector).getHandler(any());
         doReturn(mUiHandler).when(mSpiedUserControllerInjector).getUiHandler(any());
+        doNothing().when(mSpiedUserControllerInjector).setLastUserUnlockingUptime(any(long.class));
+        doReturn(0L).when(mSpiedUserControllerInjector).getLastUserUnlockingUptime();
         when(mSpiedUserControllerInjector.getContext()).thenReturn(mContext);
 
         mUserController = new UserController(mSpiedUserControllerInjector);

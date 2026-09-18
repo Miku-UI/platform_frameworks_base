@@ -22,6 +22,7 @@ import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.fail;
 
 import android.os.Parcel;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.notification.ZenPolicy;
 import android.service.notification.nano.DNDPolicyProto;
@@ -525,6 +526,41 @@ public class ZenPolicyTest extends UiServiceTestCase {
     }
 
     @Test
+    @EnableFlags(android.service.notification.Flags
+            .FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void testAllowAlarms_splitSoundVibration() {
+        ZenPolicy.Builder builder = new ZenPolicy.Builder();
+
+        // Allow both sound and vibration
+        builder.allowAlarms(true, true);
+        ZenPolicy policy = builder.build();
+        assertEquals(ZenPolicy.STATE_ALLOW, policy.getPriorityCategoryAlarms());
+        assertEquals(ZenPolicy.ALLOWED_INTERRUPTION_TYPE_ALL,
+                policy.getInterruptionTypeAlarms());
+
+        // Allow only sound
+        builder.allowAlarms(true, false);
+        policy = builder.build();
+        assertEquals(ZenPolicy.STATE_ALLOW, policy.getPriorityCategoryAlarms());
+        assertEquals(ZenPolicy.ALLOWED_INTERRUPTION_TYPE_SOUND_ONLY,
+                policy.getInterruptionTypeAlarms());
+
+        // Allow only vibration
+        builder.allowAlarms(false, true);
+        policy = builder.build();
+        assertEquals(ZenPolicy.STATE_ALLOW, policy.getPriorityCategoryAlarms());
+        assertEquals(ZenPolicy.ALLOWED_INTERRUPTION_TYPE_VIBRATION_ONLY,
+                policy.getInterruptionTypeAlarms());
+
+        // Disallow both
+        builder.allowAlarms(false, false);
+        policy = builder.build();
+        assertEquals(ZenPolicy.STATE_DISALLOW, policy.getPriorityCategoryAlarms());
+        assertEquals(ZenPolicy.ALLOWED_INTERRUPTION_TYPE_UNSET,
+                policy.getInterruptionTypeAlarms());
+    }
+
+    @Test
     public void testAllowMedia() {
         ZenPolicy.Builder builder = new ZenPolicy.Builder();
 
@@ -703,6 +739,39 @@ public class ZenPolicyTest extends UiServiceTestCase {
     }
 
     @Test
+    @EnableFlags(android.service.notification.Flags
+            .FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void testPolicyBuilder_constructFromPolicy_withInterruptionType() {
+        ZenPolicy policy = new ZenPolicy.Builder()
+                .allowAlarms(true, false) // Sound only
+                .allowEvents(true)
+                .build();
+        ZenPolicy newPolicy = new ZenPolicy.Builder(policy).build();
+        assertEquals(policy, newPolicy);
+        assertEquals(ZenPolicy.ALLOWED_INTERRUPTION_TYPE_SOUND_ONLY,
+                newPolicy.getInterruptionTypeAlarms());
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags
+            .FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void testParcelable_withInterruptionType() {
+        ZenPolicy policy = new ZenPolicy.Builder()
+                .allowAlarms(true, false) // Sound only
+                .allowEvents(true)
+                .build();
+
+        Parcel parcel = Parcel.obtain();
+        policy.writeToParcel(parcel, 0);
+        parcel.setDataPosition(0);
+        ZenPolicy fromParcel = ZenPolicy.CREATOR.createFromParcel(parcel);
+
+        assertEquals(policy, fromParcel);
+        assertEquals(ZenPolicy.ALLOWED_INTERRUPTION_TYPE_SOUND_ONLY,
+                fromParcel.getInterruptionTypeAlarms());
+    }
+
+    @Test
     public void testTooLongLists_fromParcel() {
         ArrayList<Integer> longList = new ArrayList<Integer>(50);
         for (int i = 0; i < 50; i++) {
@@ -760,6 +829,103 @@ public class ZenPolicyTest extends UiServiceTestCase {
         } catch (IllegalAccessException e) {
             fail(e.toString());
         }
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags
+            .FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void testIsSoundAllowed() {
+        ZenPolicy soundDisabledPolicy = new ZenPolicy.Builder()
+                .allowAlarms(false, true) // only disable sound
+                .build();
+        assertThat(soundDisabledPolicy.isSoundAllowed(ZenPolicy.PRIORITY_CATEGORY_ALARMS, true))
+                .isFalse();
+
+        ZenPolicy vibrationDisabledPolicy = new ZenPolicy.Builder()
+                .allowAlarms(true, false) // only disable vibration
+                .build();
+        assertThat(vibrationDisabledPolicy
+                .isSoundAllowed(ZenPolicy.PRIORITY_CATEGORY_ALARMS, false))
+                .isTrue();
+
+        ZenPolicy bothEnabledPolicy = new ZenPolicy.Builder()
+                .allowAlarms(true, true) // both enabled
+                .build();
+        assertThat(bothEnabledPolicy.isSoundAllowed(ZenPolicy.PRIORITY_CATEGORY_ALARMS, false))
+                .isTrue();
+
+        ZenPolicy bothDisabledPolicy = new ZenPolicy.Builder()
+                .allowAlarms(false, false) // both disabled
+                .build();
+        assertThat(bothDisabledPolicy.isSoundAllowed(ZenPolicy.PRIORITY_CATEGORY_ALARMS, true))
+                .isFalse();
+
+        ZenPolicy alarmsEnabledPolicy = new ZenPolicy.Builder()
+                .allowAlarms(true) // old API -- both enabled
+                .build();
+        // default value is ignored when priority category is set
+        assertThat(alarmsEnabledPolicy.isSoundAllowed(ZenPolicy.PRIORITY_CATEGORY_ALARMS, false))
+                .isTrue();
+
+        ZenPolicy alarmsDisabledPolicy = new ZenPolicy.Builder()
+                .allowAlarms(false) // old API -- both disabled
+                .build();
+        // default value is ignored when priority category is set
+        assertThat(alarmsDisabledPolicy.isSoundAllowed(ZenPolicy.PRIORITY_CATEGORY_ALARMS, true))
+                .isFalse();
+
+        ZenPolicy unsetPolicy = new ZenPolicy(); // state is unset -- use default value
+        assertThat(unsetPolicy.isSoundAllowed(ZenPolicy.PRIORITY_CATEGORY_ALARMS, false))
+                .isFalse();
+    }
+
+
+    @Test
+    @EnableFlags(android.service.notification.Flags
+            .FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void testIsVibrationAllowed() {
+        ZenPolicy soundDisabledPolicy = new ZenPolicy.Builder()
+                .allowAlarms(false, true) // only disable sound
+                .build();
+        assertThat(soundDisabledPolicy.isVibrationAllowed(
+                ZenPolicy.PRIORITY_CATEGORY_ALARMS, false)).isTrue();
+
+        ZenPolicy vibrationDisabledPolicy = new ZenPolicy.Builder()
+                .allowAlarms(true, false) // only disable vibration
+                .build();
+        assertThat(vibrationDisabledPolicy
+                .isVibrationAllowed(ZenPolicy.PRIORITY_CATEGORY_ALARMS, true))
+                .isFalse();
+
+        ZenPolicy bothEnabledPolicy = new ZenPolicy.Builder()
+                .allowAlarms(true, true) // both enabled
+                .build();
+        assertThat(bothEnabledPolicy.isVibrationAllowed(ZenPolicy.PRIORITY_CATEGORY_ALARMS, false))
+                .isTrue();
+
+        ZenPolicy bothDisabledPolicy = new ZenPolicy.Builder()
+                .allowAlarms(false, false) // both disabled
+                .build();
+        assertThat(bothDisabledPolicy.isVibrationAllowed(ZenPolicy.PRIORITY_CATEGORY_ALARMS, true))
+                .isFalse();
+
+        ZenPolicy alarmsEnabledPolicy = new ZenPolicy.Builder()
+                .allowAlarms(true) // old API -- both enabled
+                .build();
+        // default value is ignored when priority category is set
+        assertThat(alarmsEnabledPolicy.isVibrationAllowed(ZenPolicy.PRIORITY_CATEGORY_ALARMS,
+                false)).isTrue();
+
+        ZenPolicy alarmsDisabledPolicy = new ZenPolicy.Builder()
+                .allowAlarms(false) // old API -- both disabled
+                .build();
+        // default value is ignored when priority category is set
+        assertThat(alarmsDisabledPolicy.isVibrationAllowed(ZenPolicy.PRIORITY_CATEGORY_ALARMS,
+                true)).isFalse();
+
+        ZenPolicy unsetPolicy = new ZenPolicy(); // state is unset -- use default value
+        assertThat(unsetPolicy.isVibrationAllowed(ZenPolicy.PRIORITY_CATEGORY_ALARMS, false))
+                .isFalse();
     }
 
     private void assertAllPriorityCategoriesUnsetExcept(ZenPolicy policy, int except) {

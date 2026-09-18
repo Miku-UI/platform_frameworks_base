@@ -16,10 +16,10 @@
 
 package com.android.wm.shell.flicker.splitscreen.benchmark
 
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.ImeAppHelper
 import com.android.wm.shell.flicker.utils.SplitScreenUtils
@@ -32,9 +32,8 @@ import org.junit.runners.Parameterized
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-abstract class MultipleShowImeRequestsInSplitScreenBenchmark(
-        override val flicker: FlickerTest
-) : SplitScreenBase(flicker) {
+abstract class MultipleShowImeRequestsInSplitScreenBenchmark(override val flicker: FlickerTest) :
+    SplitScreenBase(flicker) {
     override val primaryApp = ImeAppHelper(instrumentation)
     override val defaultTeardown: FlickerBuilder.() -> Unit
         get() = {
@@ -48,12 +47,12 @@ abstract class MultipleShowImeRequestsInSplitScreenBenchmark(
         get() = {
             setup {
                 SplitScreenUtils.enterSplit(
-                        wmHelper,
-                        tapl,
-                        device,
-                        primaryApp,
-                        secondaryApp,
-                        flicker.scenario.startRotation
+                    wmHelper,
+                    tapl,
+                    device,
+                    primaryApp,
+                    secondaryApp,
+                    flicker.scenario.startRotation,
                 )
                 // initially open the IME
                 primaryApp.openIME(wmHelper)

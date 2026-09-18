@@ -225,6 +225,15 @@ public final class Debug
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
         public boolean hasSwappedOutPss;
 
+        /** @hide */
+        public long totalBitmapCount;
+        /** @hide */
+        public long totalBitmapSize;
+        /** @hide */
+        public long uniqueBitmapCount;
+        /** @hide */
+        public long uniqueBitmapSize;
+
         // LINT.IfChange
         /** @hide */
         public static final int HEAP_UNKNOWN = 0;
@@ -267,21 +276,23 @@ public final class Debug
         public static final int OTHER_GL = 15;
         /** @hide */
         public static final int OTHER_OTHER_MEMTRACK = 16;
+        /** @hide */
+        public static final int OTHER_MEMFD = 17;
 
         // Needs to be declared here for the DVK_STAT ranges below.
         /** @hide */
         @UnsupportedAppUsage
-        public static final int NUM_OTHER_STATS = 17;
+        public static final int NUM_OTHER_STATS = 18;
 
         // Dalvik subsections.
         /** @hide */
-        public static final int OTHER_DALVIK_NORMAL = 17;
+        public static final int OTHER_DALVIK_NORMAL = 18;
         /** @hide */
-        public static final int OTHER_DALVIK_LARGE = 18;
+        public static final int OTHER_DALVIK_LARGE = 19;
         /** @hide */
-        public static final int OTHER_DALVIK_ZYGOTE = 19;
+        public static final int OTHER_DALVIK_ZYGOTE = 20;
         /** @hide */
-        public static final int OTHER_DALVIK_NON_MOVING = 20;
+        public static final int OTHER_DALVIK_NON_MOVING = 21;
         // Section begins and ends for dumpsys, relative to the DALVIK categories.
         /** @hide */
         public static final int OTHER_DVK_STAT_DALVIK_START =
@@ -292,17 +303,17 @@ public final class Debug
 
         // Dalvik Other subsections.
         /** @hide */
-        public static final int OTHER_DALVIK_OTHER_LINEARALLOC = 21;
+        public static final int OTHER_DALVIK_OTHER_LINEARALLOC = 22;
         /** @hide */
-        public static final int OTHER_DALVIK_OTHER_ACCOUNTING = 22;
+        public static final int OTHER_DALVIK_OTHER_ACCOUNTING = 23;
         /** @hide */
-        public static final int OTHER_DALVIK_OTHER_ZYGOTE_CODE_CACHE = 23;
+        public static final int OTHER_DALVIK_OTHER_ZYGOTE_CODE_CACHE = 24;
         /** @hide */
-        public static final int OTHER_DALVIK_OTHER_APP_CODE_CACHE = 24;
+        public static final int OTHER_DALVIK_OTHER_APP_CODE_CACHE = 25;
         /** @hide */
-        public static final int OTHER_DALVIK_OTHER_COMPILER_METADATA = 25;
+        public static final int OTHER_DALVIK_OTHER_COMPILER_METADATA = 26;
         /** @hide */
-        public static final int OTHER_DALVIK_OTHER_INDIRECT_REFERENCE_TABLE = 26;
+        public static final int OTHER_DALVIK_OTHER_INDIRECT_REFERENCE_TABLE = 27;
         /** @hide */
         public static final int OTHER_DVK_STAT_DALVIK_OTHER_START =
                 OTHER_DALVIK_OTHER_LINEARALLOC - NUM_OTHER_STATS;
@@ -312,11 +323,11 @@ public final class Debug
 
         // Dex subsections (Boot vdex, App dex, and App vdex).
         /** @hide */
-        public static final int OTHER_DEX_BOOT_VDEX = 27;
+        public static final int OTHER_DEX_BOOT_VDEX = 28;
         /** @hide */
-        public static final int OTHER_DEX_APP_DEX = 28;
+        public static final int OTHER_DEX_APP_DEX = 29;
         /** @hide */
-        public static final int OTHER_DEX_APP_VDEX = 29;
+        public static final int OTHER_DEX_APP_VDEX = 30;
         /** @hide */
         public static final int OTHER_DVK_STAT_DEX_START = OTHER_DEX_BOOT_VDEX - NUM_OTHER_STATS;
         /** @hide */
@@ -324,9 +335,9 @@ public final class Debug
 
         // Art subsections (App image, boot image).
         /** @hide */
-        public static final int OTHER_ART_APP = 30;
+        public static final int OTHER_ART_APP = 31;
         /** @hide */
-        public static final int OTHER_ART_BOOT = 31;
+        public static final int OTHER_ART_BOOT = 32;
         // LINT.ThenChange(/system/memory/libmeminfo/include/meminfo/androidprocheaps.h)
         /** @hide */
         public static final int OTHER_DVK_STAT_ART_START = OTHER_ART_APP - NUM_OTHER_STATS;
@@ -400,6 +411,10 @@ public final class Debug
             otherSwappedOutPss = other.otherSwappedOutPss;
 
             hasSwappedOutPss = other.hasSwappedOutPss;
+            totalBitmapCount = other.totalBitmapCount;
+            totalBitmapSize = other.totalBitmapSize;
+            uniqueBitmapCount = other.uniqueBitmapCount;
+            uniqueBitmapSize = other.uniqueBitmapSize;
 
             System.arraycopy(other.otherStats, 0, otherStats, 0, otherStats.length);
         }
@@ -555,6 +570,7 @@ public final class Debug
                 case OTHER_GRAPHICS: return "EGL mtrack";
                 case OTHER_GL: return "GL mtrack";
                 case OTHER_OTHER_MEMTRACK: return "Other mtrack";
+                case OTHER_MEMFD: return "Memfd";
                 case OTHER_DALVIK_NORMAL: return ".Heap";
                 case OTHER_DALVIK_LARGE: return ".LOS";
                 case OTHER_DALVIK_ZYGOTE: return ".Zygote";
@@ -949,6 +965,10 @@ public final class Debug
             dest.writeInt(otherSwappedOut);
             dest.writeInt(hasSwappedOutPss ? 1 : 0);
             dest.writeInt(otherSwappedOutPss);
+            dest.writeLong(totalBitmapCount);
+            dest.writeLong(totalBitmapSize);
+            dest.writeLong(uniqueBitmapCount);
+            dest.writeLong(uniqueBitmapSize);
             dest.writeIntArray(otherStats);
         }
 
@@ -981,6 +1001,10 @@ public final class Debug
             otherSwappedOut = source.readInt();
             hasSwappedOutPss = source.readInt() != 0;
             otherSwappedOutPss = source.readInt();
+            totalBitmapCount = source.readLong();
+            totalBitmapSize = source.readLong();
+            uniqueBitmapCount = source.readLong();
+            uniqueBitmapSize = source.readLong();
             otherStats = source.createIntArray();
         }
 
@@ -2079,7 +2103,11 @@ public final class Debug
     /** @hide */
     public static final int MEMINFO_SWAP_CACHED = 26;
     /** @hide */
-    public static final int MEMINFO_COUNT = 27;
+    public static final int MEMINFO_SEC_PAGE_TABLES = 27;
+    /** @hide */
+    public static final int MEMINFO_PERCPU = 28;
+    /** @hide */
+    public static final int MEMINFO_COUNT = 29;
 
     /**
      * Retrieves /proc/meminfo.  outSizes is filled with fields
@@ -2844,12 +2872,12 @@ public final class Debug
     public static native long getDmabufHeapTotalExportedKb();
 
     /**
-     * Return memory size in kilobytes allocated for ION heaps or -1 if
-     * /sys/kernel/ion/total_heaps_kb could not be read.
+     * Return total DMA-BUF size referenced by all processes.
+     * @return a non-negative value or -1 on error.
      *
      * @hide
      */
-    public static native long getIonHeapsSizeKb();
+    public static native long getDmabufUserspaceKb();
 
     /**
      * Return memory size in kilobytes allocated for DMA-BUF heap pools or -1 if
@@ -2858,14 +2886,6 @@ public final class Debug
      * @hide
      */
     public static native long getDmabufHeapPoolsSizeKb();
-
-    /**
-     * Return memory size in kilobytes allocated for ION pools or -1 if
-     * /sys/kernel/ion/total_pools_kb could not be read.
-     *
-     * @hide
-     */
-    public static native long getIonPoolsSizeKb();
 
     /**
      * Returns the global total GPU-private memory in kB or -1 on error.

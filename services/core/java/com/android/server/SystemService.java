@@ -78,6 +78,7 @@ public abstract class SystemService {
      * The earliest boot phase the system send to system services on boot.
      */
     public static final int PHASE_WAIT_FOR_DEFAULT_DISPLAY = 100;
+    private static final int WAIT_FOR_DEFAULT_DISPLAY_FLAG = 1 << 1;
 
     /**
      * Boot phase that blocks on SensorService availability. The service gets started
@@ -86,33 +87,39 @@ public abstract class SystemService {
      * @hide
      */
     public static final int PHASE_WAIT_FOR_SENSOR_SERVICE = 200;
+    private static final int WAIT_FOR_SENSOR_SERVICE_FLAG = 1 << 2;
 
     /**
      * After receiving this boot phase, services can obtain lock settings data.
      */
     public static final int PHASE_LOCK_SETTINGS_READY = 480;
+    private static final int LOCK_SETTINGS_READY_FLAG = 1 << 3;
 
     /**
      * After receiving this boot phase, services can safely call into core system services
      * such as the PowerManager or PackageManager.
      */
     public static final int PHASE_SYSTEM_SERVICES_READY = 500;
+    private static final int SYSTEM_SERVICES_READY_FLAG = 1 << 4;
 
     /**
      * After receiving this boot phase, services can safely call into device specific services.
      */
     public static final int PHASE_DEVICE_SPECIFIC_SERVICES_READY = 520;
+    private static final int DEVICE_SPECIFIC_SERVICES_READY_FLAG = 1 << 5;
 
     /**
      * After receiving this boot phase, services can broadcast Intents.
      */
     public static final int PHASE_ACTIVITY_MANAGER_READY = 550;
+    private static final int ACTIVITY_MANAGER_READY_FLAG = 1 << 6;
 
     /**
      * After receiving this boot phase, services can start/bind to third party apps.
      * Apps will be able to make Binder calls into services at this point.
      */
     public static final int PHASE_THIRD_PARTY_APPS_CAN_START = 600;
+    private static final int THIRD_PARTY_APPS_CAN_START_FLAG = 1 << 7;
 
     /**
      * After receiving this boot phase, services can allow user interaction with the device.
@@ -122,6 +129,7 @@ public abstract class SystemService {
      * to reduce overall latency.
      */
     public static final int PHASE_BOOT_COMPLETED = 1000;
+    private static final int BOOT_COMPLETED_FLAG = 1 << 8;
 
     /** @hide */
     @IntDef(flag = true, prefix = { "PHASE_" }, value = {
@@ -138,6 +146,7 @@ public abstract class SystemService {
 
     private final Context mContext;
     private final List<Class<?>> mDependencies;
+    private int mSerialPhases = 0;
 
     /**
      * Class representing user in question in the lifecycle callbacks.
@@ -410,6 +419,52 @@ public abstract class SystemService {
      * {@link #publishBinderService(String, IBinder).}
      */
     public abstract void onStart();
+
+    private int getBootPhaseFlag(@BootPhase int phase) {
+        switch (phase) {
+            case PHASE_WAIT_FOR_DEFAULT_DISPLAY:
+                return WAIT_FOR_DEFAULT_DISPLAY_FLAG;
+            case PHASE_WAIT_FOR_SENSOR_SERVICE:
+                return WAIT_FOR_SENSOR_SERVICE_FLAG;
+            case PHASE_LOCK_SETTINGS_READY:
+                return LOCK_SETTINGS_READY_FLAG;
+            case PHASE_SYSTEM_SERVICES_READY:
+                return SYSTEM_SERVICES_READY_FLAG;
+            case PHASE_DEVICE_SPECIFIC_SERVICES_READY:
+                return DEVICE_SPECIFIC_SERVICES_READY_FLAG;
+            case PHASE_ACTIVITY_MANAGER_READY:
+                return ACTIVITY_MANAGER_READY_FLAG;
+            case PHASE_THIRD_PARTY_APPS_CAN_START:
+                return THIRD_PARTY_APPS_CAN_START_FLAG;
+            case PHASE_BOOT_COMPLETED:
+                return BOOT_COMPLETED_FLAG;
+            default:
+                return 0;
+        }
+    }
+
+    /**
+     * Called to declare that a given boot phase should be run in serial. This will happen before
+     * any boot phases are executed in parallel.
+     *
+     * @param phase The boot phase to run in serial.
+     *
+     * @hide
+     */
+    public void setBootPhaseSerial(@BootPhase int phase) {
+        mSerialPhases |= getBootPhaseFlag(phase);
+    }
+
+    /**
+     * Returns whether the given boot phase should be executed in serial.
+     *
+     * @param phase The boot phase in question.
+     *
+     * @hide
+     */
+    public boolean getBootPhaseSerial(@BootPhase int phase) {
+        return (mSerialPhases & getBootPhaseFlag(phase)) != 0;
+    }
 
     /**
      * Called on each phase of the boot process. Phases before the service's start phase

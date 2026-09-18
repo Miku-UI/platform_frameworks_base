@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MemoryLimiterConfig>
+  <version>1</version>
+  <configList>
+    <limitSet>
+      <minimumRequiredMemTotal>6</minimumRequiredMemTotal>
+      <memVisible>4</memVisible>
+      <!-- This attribute is not defined in the schema. -->
+      <badValue>2</badValue>
+      <swapVisible>2</swapVisible>
+      <swapNotVisible>2</swapNotVisible>
+    </limitSet>
+  </configList>
+</MemoryLimiterConfig>

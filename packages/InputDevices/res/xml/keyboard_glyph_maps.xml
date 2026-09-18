@@ -14,9 +14,140 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<keyboard-glyph-maps xmlns:android="http://schemas.android.com/apk/res/android">
-<!--    <key-glyph-map-->
-<!--        android:glyphMap="@xml/xyz_glyph_map"-->
-<!--        android:vendorId="0x1234"-->
-<!--        android:productId="0x3456" />-->
+<keyboard-glyph-maps xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
+    <!-- Nintendo Switch Joy-Con L controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/nintendo_game_controller_glyph_map"
+        androidprv:vendorId="0x057e"
+        androidprv:productId="0x2006" />
+    <!-- Nintendo Switch Joy-Con R controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/nintendo_game_controller_glyph_map"
+        androidprv:vendorId="0x057e"
+        androidprv:productId="0x2007" />
+    <!-- Nintendo Switch pro controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/nintendo_game_controller_glyph_map"
+        androidprv:vendorId="0x057e"
+        androidprv:productId="0x2009" />
+    <!-- Nintendo Switch Charging grip controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/nintendo_game_controller_glyph_map"
+        androidprv:vendorId="0x057e"
+        androidprv:productId="0x200e" />
+    <!-- Playstation DualShock 4 controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/playstation_controller_glyph_map"
+        androidprv:vendorId="0x054c"
+        androidprv:productId="0x05c4" />
+    <!-- Playstation DualShock 4 (Slim) controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/playstation_controller_glyph_map"
+        androidprv:vendorId="0x054c"
+        androidprv:productId="0x09cc" />
+    <!-- Playstation DualShock 4 controller (USB receiver) -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/playstation_controller_glyph_map"
+        androidprv:vendorId="0x054c"
+        androidprv:productId="0x0ba0" />
+    <!-- Playstation DualSense controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/playstation_controller_glyph_map"
+        androidprv:vendorId="0x054c"
+        androidprv:productId="0x0ce6" />
+    <!-- Playstation DualSense Edge controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/playstation_controller_glyph_map"
+        androidprv:vendorId="0x054c"
+        androidprv:productId="0x0df2" />
+    <!-- Xbox 360 wired controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x028e" />
+    <!-- Xbox 360 wireless controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x028f" />
+    <!-- Xbox 360 wireless receiver -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x0719" />
+    <!-- Xbox One wired controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x02d1" />
+    <!-- Xbox One wired controller (2015 FW) -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x02dd" />
+    <!-- Xbox One S controller (Bluetooth) -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x02e0" />
+    <!-- Xbox One S controller (USB) -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x02ea" />
+    <!-- Xbox One S controller (Bluetooth 2016 FW) -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x02fd" />
+    <!-- Xbox One S Controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x0b20" />
+    <!-- Xbox One Elite controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x02e3" />
+    <!-- Xbox One Elite 2 controller (USB) -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x0b00" />
+    <!-- Xbox One Elite 2 controller (Bluetooth) -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x0b05" />
+    <!-- Xbox One Elite 2 controller (Bluetooth) -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x0b22" />
+    <!-- Xbox Adaptive controller (USB) -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x0b0a" />
+    <!-- Xbox Adaptive controller (Bluetooth) -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x0b0c" />
+    <!-- Xbox Adaptive controller -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x0b21" />
+    <!-- Xbox Series X Controller (USB) -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x0b12" />
+    <!-- Xbox Series X Controller (Bluetooth) -->
+    <keyboard-glyph-map
+        androidprv:glyphMap="@xml/xbox_game_controller_glyph_map"
+        androidprv:vendorId="0x045e"
+        androidprv:productId="0x0b13" />
 </keyboard-glyph-maps>

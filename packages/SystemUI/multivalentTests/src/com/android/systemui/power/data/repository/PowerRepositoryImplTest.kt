@@ -17,165 +17,169 @@
 
 package com.android.systemui.power.data.repository
 
-import android.content.BroadcastReceiver
 import android.content.Intent
-import android.content.IntentFilter
 import android.os.PowerManager
 import android.os.powerManager
-import androidx.test.ext.junit.runners.AndroidJUnit4
+import android.platform.test.flag.junit.FlagsParameterization
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.broadcast.BroadcastDispatcher
+import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.concurrency.fakeExecutor
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.flags.andSceneContainer
 import com.android.systemui.keyguard.userActivityNotifier
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.collectValues
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
-import com.android.systemui.testKosmos
-import com.android.systemui.util.mockito.any
-import com.android.systemui.util.mockito.argumentCaptor
-import com.android.systemui.util.mockito.capture
-import com.android.systemui.util.mockito.eq
-import com.android.systemui.util.time.FakeSystemClock
+import com.android.systemui.testKosmosNew
+import com.android.systemui.util.time.fakeSystemClock
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.ArgumentCaptor
-import org.mockito.Captor
-import org.mockito.Mock
-import org.mockito.Mockito.anyInt
-import org.mockito.Mockito.isNull
-import org.mockito.Mockito.verify
-import org.mockito.Mockito.`when` as whenever
-import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4
+import platform.test.runner.parameterized.Parameters
 
 @SmallTest
-@RunWith(AndroidJUnit4::class)
-class PowerRepositoryImplTest : SysuiTestCase() {
-    private val kosmos = testKosmos()
-    private val testScope = kosmos.testScope
-    private val systemClock = FakeSystemClock()
+@RunWith(ParameterizedAndroidJunit4::class)
+class PowerRepositoryImplTest(flags: FlagsParameterization) : SysuiTestCase() {
+    init {
+        mSetFlagsRule.setFlagsParameterization(flags)
+    }
 
-    val manager: PowerManager = kosmos.powerManager
-    @Mock private lateinit var dispatcher: BroadcastDispatcher
-    @Captor private lateinit var receiverCaptor: ArgumentCaptor<BroadcastReceiver>
-    @Captor private lateinit var filterCaptor: ArgumentCaptor<IntentFilter>
-
-    private lateinit var underTest: PowerRepositoryImpl
+    private val kosmos = testKosmosNew()
 
     private var isInteractive = true
 
-    @Before
-    fun setUp() {
-        MockitoAnnotations.initMocks(this)
-        isInteractive = true
-        whenever(manager.isInteractive).then { isInteractive }
+    val manager: PowerManager =
+        kosmos.powerManager.apply {
+            whenever(this.isInteractive).then { this@PowerRepositoryImplTest.isInteractive }
+        }
 
-        underTest =
+    private val Kosmos.underTest by
+        Kosmos.Fixture {
             PowerRepositoryImpl(
                 manager,
                 context.applicationContext,
                 kosmos.testScope.backgroundScope,
-                systemClock,
-                dispatcher,
+                kosmos.testScope.backgroundScope,
+                kosmos.fakeSystemClock,
+                kosmos.broadcastDispatcher,
                 kosmos.userActivityNotifier,
             )
-    }
+        }
 
     @Test
     fun isInteractive_emitsInitialTrueValueIfScreenWasOn() =
-        testScope.runTest {
+        kosmos.runTest {
             isInteractive = true
             val value by collectLastValue(underTest.isInteractive)
-            runCurrent()
-            verifyRegistered()
 
+            verifyRegistered()
             assertThat(value).isTrue()
         }
 
     @Test
     fun isInteractive_emitsInitialFalseValueIfScreenWasOff() =
-        testScope.runTest {
+        kosmos.runTest {
             isInteractive = false
             val value by collectLastValue(underTest.isInteractive)
-            runCurrent()
-            verifyRegistered()
 
+            verifyRegistered()
             assertThat(value).isFalse()
         }
 
     @Test
     fun isInteractive_emitsTrueWhenTheScreenTurnsOn() =
-        testScope.runTest {
+        kosmos.runTest {
             val value by collectLastValue(underTest.isInteractive)
-            runCurrent()
             verifyRegistered()
 
             isInteractive = true
-            receiverCaptor.value.onReceive(context, Intent(Intent.ACTION_SCREEN_ON))
+
+            broadcastDispatcher.sendIntentToMatchingReceiversOnly(
+                context,
+                Intent(Intent.ACTION_SCREEN_ON),
+            )
 
             assertThat(value).isTrue()
         }
 
     @Test
     fun isInteractive_emitsFalseWhenTheScreenTurnsOff() =
-        testScope.runTest {
+        kosmos.runTest {
             val value by collectLastValue(underTest.isInteractive)
-            runCurrent()
             verifyRegistered()
 
             isInteractive = false
-            receiverCaptor.value.onReceive(context, Intent(Intent.ACTION_SCREEN_OFF))
+            broadcastDispatcher.sendIntentToMatchingReceiversOnly(
+                context,
+                Intent(Intent.ACTION_SCREEN_OFF),
+            )
 
             assertThat(value).isFalse()
         }
 
     @Test
     fun isInteractive_emitsCorrectlyOverTime() =
-        testScope.runTest {
+        kosmos.runTest {
+            isInteractive = true
             val values by collectValues(underTest.isInteractive)
-            runCurrent()
             verifyRegistered()
 
             isInteractive = false
-            receiverCaptor.value.onReceive(context, Intent(Intent.ACTION_SCREEN_OFF))
+            broadcastDispatcher.sendIntentToMatchingReceiversOnly(
+                context,
+                Intent(Intent.ACTION_SCREEN_OFF),
+            )
             isInteractive = true
-            receiverCaptor.value.onReceive(context, Intent(Intent.ACTION_SCREEN_ON))
+            broadcastDispatcher.sendIntentToMatchingReceiversOnly(
+                context,
+                Intent(Intent.ACTION_SCREEN_ON),
+            )
             isInteractive = false
-            receiverCaptor.value.onReceive(context, Intent(Intent.ACTION_SCREEN_OFF))
+            broadcastDispatcher.sendIntentToMatchingReceiversOnly(
+                context,
+                Intent(Intent.ACTION_SCREEN_OFF),
+            )
 
-            assertThat(values).isEqualTo(listOf(false, true, false))
+            assertThat(values).isEqualTo(listOf(true, false, true, false))
         }
 
     @Test
     fun wakeUp_notifiesPowerManager() {
-        systemClock.setUptimeMillis(345000)
+        kosmos.fakeSystemClock.setUptimeMillis(345000)
 
-        underTest.wakeUp("fakeWhy", PowerManager.WAKE_REASON_GESTURE)
+        kosmos.underTest.wakeUp("fakeWhy", PowerManager.WAKE_REASON_GESTURE)
 
         val reasonCaptor = argumentCaptor<String>()
         verify(manager)
-            .wakeUp(eq(345000L), eq(PowerManager.WAKE_REASON_GESTURE), capture(reasonCaptor))
-        assertThat(reasonCaptor.value).contains("fakeWhy")
+            .wakeUp(eq(345000L), eq(PowerManager.WAKE_REASON_GESTURE), reasonCaptor.capture())
+        assertThat(reasonCaptor.firstValue).contains("fakeWhy")
     }
 
     @Test
     fun wakeUp_usesApplicationPackageName() {
-        underTest.wakeUp("fakeWhy", PowerManager.WAKE_REASON_GESTURE)
+        kosmos.underTest.wakeUp("fakeWhy", PowerManager.WAKE_REASON_GESTURE)
 
         val reasonCaptor = argumentCaptor<String>()
-        verify(manager).wakeUp(any(), any(), capture(reasonCaptor))
-        assertThat(reasonCaptor.value).contains(context.applicationContext.packageName)
+        verify(manager).wakeUp(any(), any(), reasonCaptor.capture())
+        assertThat(reasonCaptor.firstValue).contains(context.applicationContext.packageName)
     }
 
     @Test
     fun userActivity_notifiesPowerManager() {
-        systemClock.setUptimeMillis(345000)
+        kosmos.fakeSystemClock.setUptimeMillis(345000)
 
-        underTest.userTouch()
+        kosmos.underTest.userTouch()
         kosmos.fakeExecutor.runAllReady()
 
         val flagsCaptor = argumentCaptor<Int>()
@@ -183,17 +187,18 @@ class PowerRepositoryImplTest : SysuiTestCase() {
             .userActivity(
                 eq(345000L),
                 eq(PowerManager.USER_ACTIVITY_EVENT_TOUCH),
-                capture(flagsCaptor),
+                flagsCaptor.capture(),
             )
-        assertThat(flagsCaptor.value).isNotEqualTo(PowerManager.USER_ACTIVITY_FLAG_NO_CHANGE_LIGHTS)
-        assertThat(flagsCaptor.value).isNotEqualTo(PowerManager.USER_ACTIVITY_FLAG_INDIRECT)
+        assertThat(flagsCaptor.firstValue)
+            .isNotEqualTo(PowerManager.USER_ACTIVITY_FLAG_NO_CHANGE_LIGHTS)
+        assertThat(flagsCaptor.firstValue).isNotEqualTo(PowerManager.USER_ACTIVITY_FLAG_INDIRECT)
     }
 
     @Test
     fun userActivity_notifiesPowerManager_noChangeLightsTrue() {
-        systemClock.setUptimeMillis(345000)
+        kosmos.fakeSystemClock.setUptimeMillis(345000)
 
-        underTest.userTouch(noChangeLights = true)
+        kosmos.underTest.userTouch(noChangeLights = true)
         kosmos.fakeExecutor.runAllReady()
 
         val flagsCaptor = argumentCaptor<Int>()
@@ -201,23 +206,21 @@ class PowerRepositoryImplTest : SysuiTestCase() {
             .userActivity(
                 eq(345000L),
                 eq(PowerManager.USER_ACTIVITY_EVENT_TOUCH),
-                capture(flagsCaptor),
+                flagsCaptor.capture(),
             )
-        assertThat(flagsCaptor.value).isEqualTo(PowerManager.USER_ACTIVITY_FLAG_NO_CHANGE_LIGHTS)
+        assertThat(flagsCaptor.firstValue)
+            .isEqualTo(PowerManager.USER_ACTIVITY_FLAG_NO_CHANGE_LIGHTS)
     }
 
-    private fun verifyRegistered() {
-        // We must verify with all arguments, even those that are optional because they have default
-        // values because Mockito is forcing us to. Once we can use mockito-kotlin, we should be
-        // able to remove this.
-        verify(dispatcher)
-            .registerReceiver(
-                capture(receiverCaptor),
-                capture(filterCaptor),
-                isNull(),
-                isNull(),
-                anyInt(),
-                isNull(),
-            )
+    private fun Kosmos.verifyRegistered() {
+        assertThat(broadcastDispatcher.numReceiversRegistered).isEqualTo(1)
+    }
+
+    private companion object {
+        @JvmStatic
+        @Parameters(name = "{0}")
+        fun getParams(): List<FlagsParameterization> {
+            return FlagsParameterization.allCombinationsOf().andSceneContainer()
+        }
     }
 }

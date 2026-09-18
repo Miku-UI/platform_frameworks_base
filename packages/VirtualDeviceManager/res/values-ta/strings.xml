@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_label" msgid="1092971641119916701">"விர்ச்சுவல் சாதன நிர்வாகி"</string>
+    <string name="request_computer_control_access_dialog_title" msgid="1970509993635617382">"ஸ்கிரீன் ஆட்டோமேஷனை உபயோகிக்க &lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; ஆப்ஸை அனுமதிக்கவா?"</string>
+    <string name="request_computer_control_access_per_app_consent_dialog_title" msgid="8118885324223570680">"&lt;strong&gt;<xliff:g id="AUTOMATABLE_APP_NAME">%2$s</xliff:g>&lt;/strong&gt; ஆப்ஸில் ஸ்கிரீன் ஆட்டோமேஷனை உபயோகிக்க &lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; ஆப்ஸை அனுமதிக்கவா?"</string>
+    <string name="request_computer_control_access_dialog_description" msgid="3423347516805473691">"பணிகளை நிறைவுசெய்ய உங்களுக்கு உதவ, இந்த ஆப்ஸால் பிற ஆப்ஸின் திரையில் உள்ளவற்றைப் பார்க்கவும் அவற்றுடன் இணைந்து செயல்படவும் முடியும் (பிற ஆப்ஸ் பின்னணியில் இயங்கும்போது கூட)"</string>
+    <string name="request_computer_control_access_dialog_button_allow" msgid="6210271960695301518">"இப்போது மட்டும்"</string>
+    <string name="request_computer_control_access_dialog_button_dont_allow" msgid="4793579155406896411">"அனுமதிக்காதே"</string>
+    <string name="request_computer_control_access_dialog_button_always_allow" msgid="1551784758130170359">"எப்போதும் அனுமதி"</string>
+    <string name="automated_app_launch_warning_dialog_title" msgid="5210938311581044737">"<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g> ஆப்ஸ் <xliff:g id="TARGET_APP_NAME">%2$s</xliff:g> ஆப்ஸைப் பயன்படுத்துகிறது"</string>
+    <string name="automated_app_launch_warning_dialog_description" msgid="5372128583106771831">"பணியின் செயல்நிலையைப் பார்க்க, <xliff:g id="AGENT_APP_NAME_0">%1$s</xliff:g> ஆப்ஸைத் திறக்கவும்.<xliff:g id="EMPTY_LINE">
+
+</xliff:g>இப்போது பணியை நிறுத்தினால், உங்கள் செயல்நிலையை இழக்கக்கூடும். மீண்டும் தொடங்க, <xliff:g id="AGENT_APP_NAME_1">%1$s</xliff:g> ஆப்ஸைத் திறக்கவும்."</string>
+    <string name="automated_app_launch_warning_dialog_stop" msgid="5255022618671675595">"பணியை நிறுத்தி ஆப்ஸைத் திற"</string>
+    <string name="automated_app_launch_warning_dialog_wait" msgid="3472782366270857170">"மூடு"</string>
+</resources>

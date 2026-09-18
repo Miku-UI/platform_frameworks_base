@@ -23,6 +23,7 @@ import static com.android.internal.config.sysui.SystemUiDeviceConfigFlags.BRIGHT
 import static com.android.internal.config.sysui.SystemUiDeviceConfigFlags.BRIGHTLINE_FALSING_DISTANCE_VERTICAL_FLING_THRESHOLD_IN;
 import static com.android.internal.config.sysui.SystemUiDeviceConfigFlags.BRIGHTLINE_FALSING_DISTANCE_VERTICAL_SWIPE_THRESHOLD_IN;
 import static com.android.systemui.classifier.Classifier.ALTERNATE_BOUNCER_SWIPE;
+import static com.android.systemui.classifier.Classifier.BOUNCER_SWIPE;
 import static com.android.systemui.classifier.Classifier.BRIGHTNESS_SLIDER;
 import static com.android.systemui.classifier.Classifier.GLANCEABLE_HUB_SWIPE;
 import static com.android.systemui.classifier.Classifier.MEDIA_CAROUSEL_SWIPE;
@@ -165,7 +166,8 @@ class DistanceClassifier extends FalsingClassifier {
                 || interactionType == Classifier.QS_SWIPE_SIDE
                 || interactionType == QS_SWIPE_NESTED
                 || interactionType == ALTERNATE_BOUNCER_SWIPE
-                || interactionType == GLANCEABLE_HUB_SWIPE) {
+                || interactionType == GLANCEABLE_HUB_SWIPE
+                || interactionType == BOUNCER_SWIPE) {
             return Result.passed(0);
         }
 

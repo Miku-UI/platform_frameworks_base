@@ -28,7 +28,7 @@ import static com.android.apps.inputmethod.simpleime.ims.InputMethodServiceWrapp
 import static com.android.compatibility.common.util.SystemUtil.eventually;
 import static com.android.cts.input.injectinputinprocess.InjectInputInProcessKt.clickOnViewCenter;
 import static com.android.internal.inputmethod.InputMethodNavButtonFlags.IME_DRAWS_IME_NAV_BAR;
-import static com.android.internal.inputmethod.InputMethodNavButtonFlags.SHOW_IME_SWITCHER_WHEN_IME_IS_SHOWN;
+import static com.android.internal.inputmethod.InputMethodNavButtonFlags.SHOW_IME_SWITCHER_BUTTON;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -53,6 +53,7 @@ import android.graphics.Insets;
 import android.os.Build;
 import android.os.RemoteException;
 import android.os.SystemClock;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.provider.Settings;
 import android.server.wm.DumpOnFailure;
 import android.server.wm.LockScreenSession;
@@ -63,6 +64,7 @@ import android.view.WindowInsets;
 import android.view.WindowInsetsAnimation;
 import android.view.WindowManagerGlobal;
 import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.Flags;
 import android.view.inputmethod.InputMethodManager;
 
 import androidx.annotation.NonNull;
@@ -141,6 +143,8 @@ public class InputMethodServiceTest {
     private final WindowManagerStateHelper mWmState = new WindowManagerStateHelper();
 
     private final GestureNavSwitchHelper mGestureNavSwitchHelper = new GestureNavSwitchHelper();
+
+    private final DeviceFlagsValueProvider mFlagsValueProvider = new DeviceFlagsValueProvider();
 
     @Rule
     public final TestName mName = new TestName();
@@ -828,7 +832,7 @@ public class InputMethodServiceTest {
 
         verifyInputViewStatusOnMainSync(
                 () -> {
-                    setDrawsImeNavBarAndSwitcherButton(true /* enable */);
+                    setDrawsImeNavBarAndImeSwitcherButton(true /* enable */);
                     mActivity.showImeWithWindowInsetsController();
                 },
                 EVENT_SHOW, true /* eventExpected */, true /* shown */, "IME is shown");
@@ -860,7 +864,7 @@ public class InputMethodServiceTest {
 
         verifyInputViewStatusOnMainSync(
                 () -> {
-                    setDrawsImeNavBarAndSwitcherButton(false /* enable */);
+                    setDrawsImeNavBarAndImeSwitcherButton(false /* enable */);
                     mActivity.showImeWithWindowInsetsController();
                 },
                 EVENT_SHOW, true /* eventExpected */, true /* shown */, "IME is shown");
@@ -956,7 +960,7 @@ public class InputMethodServiceTest {
         try (var ignored = mGestureNavSwitchHelper.withGestureNavigationMode()) {
             verifyInputViewStatusOnMainSync(
                     () -> {
-                        setDrawsImeNavBarAndSwitcherButton(true /* enable */);
+                        setDrawsImeNavBarAndImeSwitcherButton(true /* enable */);
                         mActivity.showImeWithWindowInsetsController();
                     },
                     EVENT_SHOW, true /* eventExpected */, true /* shown */, "IME is shown");
@@ -997,7 +1001,7 @@ public class InputMethodServiceTest {
         try (var ignored = mGestureNavSwitchHelper.withGestureNavigationMode()) {
             verifyInputViewStatusOnMainSync(
                     () -> {
-                        setDrawsImeNavBarAndSwitcherButton(true /* enable */);
+                        setDrawsImeNavBarAndImeSwitcherButton(true /* enable */);
                         mActivity.showImeWithWindowInsetsController();
                     },
                     EVENT_SHOW, true /* eventExpected */, true /* shown */, "IME is shown");
@@ -1032,14 +1036,21 @@ public class InputMethodServiceTest {
             final var info = mImm.getCurrentInputMethodInfo();
             assertEquals(mInputMethodId, info != null ? info.getId() : null);
 
-            final var container = mUiDevice.wait(Until.findObject(By.res("android:id/container")),
+
+            final String containerResId =
+                    mFlagsValueProvider.getBoolean(Flags.FLAG_IME_SWITCHER_MENU_SYSTEMUI)
+                            ? "container" : "android:id/container";
+            final var container = mUiDevice.wait(Until.findObject(By.res(containerResId)),
                     TIMEOUT_MS);
             assertNotNull("Container view should be found.", container);
 
             // Make sure the container starts at the top.
             container.scroll(Direction.UP, SCROLL_TOP_PERCENT);
+            final String buttonResId =
+                    mFlagsValueProvider.getBoolean(Flags.FLAG_IME_SWITCHER_MENU_SYSTEMUI)
+                            ? "settings_button" : "android:id/button1";
             final var languageSettingsButtonUiObject = container.scrollUntil(Direction.DOWN,
-                    Until.findObject(By.res("android:id/button1")));
+                    Until.findObject(By.res(buttonResId)));
             assertNotNull("Language settings button should be found",
                     languageSettingsButtonUiObject);
 
@@ -1088,14 +1099,20 @@ public class InputMethodServiceTest {
 
             showImeSwitcherMenu(true /* showWhenLocked */);
 
-            final var container = mUiDevice.wait(Until.findObject(By.res("android:id/container")),
+            final String containerResId =
+                    mFlagsValueProvider.getBoolean(Flags.FLAG_IME_SWITCHER_MENU_SYSTEMUI)
+                            ? "container" : "android:id/container";
+            final var container = mUiDevice.wait(Until.findObject(By.res(containerResId)),
                     TIMEOUT_MS);
             assertNotNull("Container view should be found.", container);
 
             // Make sure the container starts at the top.
             container.scroll(Direction.UP, SCROLL_TOP_PERCENT);
+            final String buttonResId =
+                    mFlagsValueProvider.getBoolean(Flags.FLAG_IME_SWITCHER_MENU_SYSTEMUI)
+                            ? "settings_button" : "android:id/button1";
             final boolean hasButton = container.scrollUntil(Direction.DOWN,
-                    Until.hasObject(By.res("android:id/button1")));
+                    Until.hasObject(By.res(buttonResId)));
             assertFalse("Language settings button should not be found", hasButton);
 
             context.sendBroadcast(
@@ -1126,14 +1143,20 @@ public class InputMethodServiceTest {
         try (var ignored = withDeviceProvisioned(context, false /* provisioned */)) {
             showImeSwitcherMenu(false /* showWhenLocked */);
 
-            final var container = mUiDevice.wait(Until.findObject(By.res("android:id/container")),
+            final String containerResId =
+                    mFlagsValueProvider.getBoolean(Flags.FLAG_IME_SWITCHER_MENU_SYSTEMUI)
+                            ? "container" : "android:id/container";
+            final var container = mUiDevice.wait(Until.findObject(By.res(containerResId)),
                     TIMEOUT_MS);
             assertNotNull("Container view should be found.", container);
 
             // Make sure the container starts at the top.
             container.scroll(Direction.UP, SCROLL_TOP_PERCENT);
+            final String buttonResId =
+                    mFlagsValueProvider.getBoolean(Flags.FLAG_IME_SWITCHER_MENU_SYSTEMUI)
+                            ? "settings_button" : "android:id/button1";
             final boolean hasButton = container.scrollUntil(Direction.DOWN,
-                    Until.hasObject(By.res("android:id/button1")));
+                    Until.hasObject(By.res(buttonResId)));
             assertFalse("Language settings button should not be found", hasButton);
 
             context.sendBroadcast(
@@ -1179,6 +1202,25 @@ public class InputMethodServiceTest {
                 "Input Method Dialog window should be focused on top of test activity");
         assertWithMessage("Input Method Switcher Menu should be shown")
                 .that(isInputMethodPickerShown(mImm)).isTrue();
+    }
+
+    /**
+     * Verifies that the IME Switcher menu can be shown and hidden via
+     * InputMethodManager#showInputMethodPickerFromSystem() and
+     * InputMethodManager#hideInputMethodPickerFromSystem().
+     */
+    @Test
+    public void testImeSwitcherMenu_showAndHideFromSystem() throws Exception {
+        // TODO: b/478352392 - Add test coverage.
+    }
+
+    /**
+     * Verifies that the IME Switcher menu can be toggled via
+     * InputMethodManager#toggleInputMethodPickerFromSystem().
+     */
+    @Test
+    public void testImeSwitcherMenu_toggleFromSystem() throws Exception {
+        // TODO: b/478352392 - Add test coverage.
     }
 
     static void setDeviceProvisioned(@NonNull Context context, boolean provisioned) {
@@ -1479,8 +1521,8 @@ public class InputMethodServiceTest {
      *
      * @param enable whether the IME nav bar and IME Switcher button are drawn.
      */
-    private void setDrawsImeNavBarAndSwitcherButton(boolean enable) {
-        final int flags = enable ? IME_DRAWS_IME_NAV_BAR | SHOW_IME_SWITCHER_WHEN_IME_IS_SHOWN : 0;
+    private void setDrawsImeNavBarAndImeSwitcherButton(boolean enable) {
+        final int flags = enable ? IME_DRAWS_IME_NAV_BAR | SHOW_IME_SWITCHER_BUTTON : 0;
         mInputMethodService.getInputMethodInternal().onNavButtonFlagsChanged(flags);
     }
 

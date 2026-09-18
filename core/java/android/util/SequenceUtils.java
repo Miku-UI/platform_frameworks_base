@@ -16,6 +16,8 @@
 
 package android.util;
 
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+
 /**
  * Utilities to manage an info change seq id to ensure the update is in sync between client and
  * system server. This should be used for info that can be updated though multiple IPC channel.
@@ -30,6 +32,7 @@ package android.util;
  *
  * @hide
  */
+@RavenwoodKeepWholeClass
 public final class SequenceUtils {
 
     private SequenceUtils() {

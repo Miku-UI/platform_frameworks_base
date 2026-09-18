@@ -93,6 +93,24 @@ class WindowDecorCaptionRepositoryTest : ShellTestCase() {
     }
 
     @Test
+    fun notifyCaptionChange_toFullscreenHeaderVisible_updatesStateWithCorrectData() = runTest {
+        val taskInfo = createTaskInfo(WINDOWING_MODE_FULLSCREEN, GMAIL_PACKAGE_NAME)
+        val fullscreenHeaderCaptionState =
+            CaptionState.FullscreenHeader(
+                runningTaskInfo = taskInfo,
+                isHeaderMenuExpanded = true,
+                globalAppChipBounds =
+                    Rect(/* left= */ 0, /* top= */ 1, /* right= */ 2, /* bottom= */ 3),
+                isFocused = true,
+            )
+
+        captionRepository.notifyCaptionChanged(fullscreenHeaderCaptionState)
+
+        assertThat(captionRepository.captionStateFlow.first())
+            .isEqualTo(fullscreenHeaderCaptionState)
+    }
+
+    @Test
     fun notifyCaptionChange_toNoCaption_updatesState() = runTest {
         captionRepository.notifyCaptionChanged(CaptionState.NoCaption())
 

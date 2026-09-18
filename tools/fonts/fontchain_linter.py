@@ -16,6 +16,7 @@ EMOJI_FONT_TO_UNICODE_MAP = {
     '2.034': 15.0,
     '2.042': 15.1,
     '2.047': 16.0,
+    '2.051': 17.0,
 }
 
 EMOJI_FLAG_FONT_TO_UNICODE_MAP = {

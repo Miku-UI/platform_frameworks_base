@@ -59,7 +59,8 @@ public class RequestRectangleVisible extends Activity {
 
             public void onClick(View v) {
                 rect.set(0, 0, childToMakeVisible.getLeft(), childToMakeVisible.getHeight());
-                childToMakeVisible.requestRectangleOnScreen(rect, true);
+                childToMakeVisible.requestRectangleOnScreen(rect, true,
+                        View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_SCROLL_ONLY);
             }
         });
 
@@ -67,7 +68,8 @@ public class RequestRectangleVisible extends Activity {
 
             public void onClick(View v) {
                 rect.set(0, 0, topBlob.getWidth(), topBlob.getHeight());
-                topBlob.requestRectangleOnScreen(rect, true);
+                topBlob.requestRectangleOnScreen(rect, true,
+                        View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_SCROLL_ONLY);
             }
         });
 
@@ -75,7 +77,8 @@ public class RequestRectangleVisible extends Activity {
 
             public void onClick(View v) {
                 rect.set(0, 0, childToMakeVisible.getLeft(), childToMakeVisible.getHeight());
-                childToMakeVisible.requestRectangleOnScreen(rect, true);
+                childToMakeVisible.requestRectangleOnScreen(rect, true,
+                        View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_SCROLL_ONLY);
             }
         });
 
@@ -83,7 +86,8 @@ public class RequestRectangleVisible extends Activity {
 
             public void onClick(View v) {
                 rect.set(0, 0, bottomBlob.getWidth(), bottomBlob.getHeight());
-                bottomBlob.requestRectangleOnScreen(rect, true);
+                bottomBlob.requestRectangleOnScreen(rect, true,
+                        View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_SCROLL_ONLY);
             }
         });
         

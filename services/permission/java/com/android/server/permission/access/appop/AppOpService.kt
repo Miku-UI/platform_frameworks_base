@@ -261,18 +261,17 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
             val oldMode =
                 service.getState { with(appIdPolicy) { getAppOpMode(appId, userId, appOpName) } }
             val wouldHaveChanged = oldMode != mode
-            val logMessage =
-                (if (wouldHaveChanged) "Blocked" else "Ignored") +
-                    " setUidMode call for runtime permission app op:" +
-                    " uid = $uid," +
-                    " code = ${AppOpsManager.opToName(code)}," +
-                    " mode = ${AppOpsManager.modeToName(mode)}," +
-                    " callingUid = ${Binder.getCallingUid()}," +
-                    " oldMode = ${AppOpsManager.modeToName(oldMode)}"
             if (wouldHaveChanged) {
-                Slog.e(LOG_TAG, logMessage, RuntimeException())
-            } else {
-                Slog.w(LOG_TAG, logMessage)
+                Slog.e(
+                    LOG_TAG,
+                    "Blocked setUidMode call for runtime permission app op:" +
+                        " uid = $uid," +
+                        " code = ${AppOpsManager.opToName(code)}," +
+                        " mode = ${AppOpsManager.modeToName(mode)}," +
+                        " callingUid = ${Binder.getCallingUid()}," +
+                        " oldMode = ${AppOpsManager.modeToName(oldMode)}",
+                    RuntimeException(),
+                )
             }
             return false
         }

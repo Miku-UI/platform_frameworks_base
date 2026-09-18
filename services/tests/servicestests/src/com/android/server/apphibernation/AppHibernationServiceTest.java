@@ -52,6 +52,7 @@ import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.IPackageManager;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageInfoList;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
 import android.content.pm.ParceledListSlice;
@@ -147,7 +148,7 @@ public final class AppHibernationServiceTest {
         packages.add(makePackageInfo(PACKAGE_NAME_1));
         packages.add(makePackageInfo(PACKAGE_NAME_2));
         packages.add(makePackageInfo(PACKAGE_NAME_3));
-        doReturn(new ParceledListSlice<>(packages)).when(mIPackageManager).getInstalledPackages(
+        doReturn(new PackageInfoList(packages)).when(mIPackageManager).getInstalledPackages(
                 longThat(arg -> (arg & MATCH_ANY_USER) != 0), anyInt());
         doReturn(mock(ApplicationInfo.class)).when(mIPackageManager).getApplicationInfo(
                 any(), anyLong(), anyInt());
@@ -517,7 +518,7 @@ public final class AppHibernationServiceTest {
     private UserInfo addUser(int userId, List<PackageInfo> userPackages) throws RemoteException {
         UserInfo userInfo = new UserInfo(userId, "user_" + userId, 0 /* flags */);
         mUserInfos.add(userInfo);
-        doReturn(new ParceledListSlice<>(userPackages)).when(mIPackageManager)
+        doReturn(new PackageInfoList(userPackages)).when(mIPackageManager)
                 .getInstalledPackages(longThat(arg -> (arg & MATCH_ANY_USER) == 0), eq(userId));
         return userInfo;
     }

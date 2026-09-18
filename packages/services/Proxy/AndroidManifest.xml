@@ -5,6 +5,12 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- These permissions are needed to allow other apps to interact with the
+         local proxy server started by this app.
+    -->
+    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS_FULL" />
+    <uses-permission android:name="android.permission.FORCE_USE_LOOPBACK_INTERFACE" />
+
     <application
         android:label="@string/app_label"
         android:process="com.android.proxyhandler"

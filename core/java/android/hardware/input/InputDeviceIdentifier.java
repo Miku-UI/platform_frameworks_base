@@ -21,6 +21,7 @@ import android.annotation.Nullable;
 import android.annotation.TestApi;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.text.TextUtils;
 
 import java.util.Objects;
@@ -31,6 +32,7 @@ import java.util.Objects;
  * @hide
  */
 @TestApi
+@RavenwoodKeepWholeClass
 public final class InputDeviceIdentifier implements Parcelable {
     private final String mDescriptor;
     private final int mVendorId;

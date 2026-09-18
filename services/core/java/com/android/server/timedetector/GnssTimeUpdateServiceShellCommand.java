@@ -25,18 +25,13 @@ import java.util.Objects;
 /** Implements the shell command interface for {@link GnssTimeUpdateService}. */
 class GnssTimeUpdateServiceShellCommand extends ShellCommand {
 
-    /**
-     * The name of the service.
-     */
+    /** The name of the service. */
     private static final String SHELL_COMMAND_SERVICE_NAME = "gnss_time_update_service";
 
-    /**
-     * A shell command that forces the service in to GNSS listening mode if it isn't already.
-     */
+    /** A shell command that forces the service in to GNSS listening mode if it isn't already. */
     private static final String SHELL_COMMAND_START_GNSS_LISTENING = "start_gnss_listening";
 
-    @NonNull
-    private final GnssTimeUpdateService mGnssTimeUpdateService;
+    @NonNull private final GnssTimeUpdateService mGnssTimeUpdateService;
 
     GnssTimeUpdateServiceShellCommand(GnssTimeUpdateService gnssTimeUpdateService) {
         mGnssTimeUpdateService = Objects.requireNonNull(gnssTimeUpdateService);
@@ -48,13 +43,10 @@ class GnssTimeUpdateServiceShellCommand extends ShellCommand {
             return handleDefaultCommands(cmd);
         }
 
-        switch (cmd) {
-            case SHELL_COMMAND_START_GNSS_LISTENING:
-                return runStartGnssListening();
-            default: {
-                return handleDefaultCommands(cmd);
-            }
-        }
+        return switch (cmd) {
+            case SHELL_COMMAND_START_GNSS_LISTENING -> runStartGnssListening();
+            default -> handleDefaultCommands(cmd);
+        };
     }
 
     private int runStartGnssListening() {

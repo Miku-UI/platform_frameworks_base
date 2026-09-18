@@ -21,6 +21,7 @@ package com.android.internal.vibrator.persistence;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class XmlSerializerException extends Exception {
 
     XmlSerializerException(String message) {

@@ -17,7 +17,10 @@
 package com.android.wm.shell.scenarios
 
 import android.tools.Rotation
+import android.view.Display.DEFAULT_DISPLAY
+import com.android.wm.shell.Utils
 import org.junit.After
+import org.junit.Assume
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
@@ -30,6 +33,8 @@ abstract class ExitDesktopWithDragToTopDragZone(
 ) : DesktopScenarioCustomAppTestBase(isResizeable, isLandscapeApp, rotation) {
     @Before
     fun setup() {
+        Assume.assumeFalse(Utils.isInDesktopFirstMode(wmHelper, DEFAULT_DISPLAY))
+
         testApp.enterDesktopMode(wmHelper, device)
     }
 

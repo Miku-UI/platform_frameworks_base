@@ -22,10 +22,6 @@ import android.app.admin.DevicePolicyResourcesManager
 import android.app.admin.EnforcingAdmin
 import android.content.Context
 import android.content.pm.ApplicationInfo
-import android.platform.test.annotations.RequiresFlagsDisabled
-import android.platform.test.annotations.RequiresFlagsEnabled
-import android.platform.test.flag.junit.CheckFlagsRule
-import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.security.Flags
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
@@ -62,10 +58,6 @@ import org.mockito.kotlin.whenever
 
 @RunWith(AndroidJUnit4::class)
 class TogglePermissionAppListPageTest {
-    @Rule
-    @JvmField
-    val mCheckFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
-
     @get:Rule
     val composeTestRule = createComposeRule()
 
@@ -138,28 +130,6 @@ class TogglePermissionAppListPageTest {
         assertThat(summary).isEqualTo(context.getPlaceholder())
     }
 
-    @RequiresFlagsDisabled(Flags.FLAG_AAPM_API)
-    @Test
-    fun summary_whenAllowedButAdminOverrideToNotAllowed() {
-        fakeRestrictionsProvider.restrictedMode =
-            BlockedByAdminImpl(context = context, enforcedAdmin = ENFORCED_ADMIN, userId = USER_ID)
-        val listModel =
-            TestTogglePermissionAppListModel(
-                isAllowed = true,
-                switchifBlockedByAdminOverrideCheckedValueTo = false,
-            )
-
-        val summary = getSummary(listModel)
-
-        assertThat(summary)
-            .isEqualTo(
-                context.getString(
-                    com.android.settingslib.widget.restricted.R.string.disabled_by_admin
-                )
-            )
-    }
-
-    @RequiresFlagsEnabled(Flags.FLAG_AAPM_API)
     @Test
     fun summary_disabledByAdvancedProtection_whenAllowedButAdminOverrideToNotAllowed() {
         whenever(devicePolicyManager.getEnforcingAdmin(USER_ID, RESTRICTION))
@@ -178,7 +148,6 @@ class TogglePermissionAppListPageTest {
         assertThat(summary).isEqualTo(context.getString(com.android.settingslib.R.string.disabled))
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_AAPM_API)
     @Test
     fun summary_notDisabledByAdvancedProtection_whenAllowedButAdminOverrideToNotAllowed() {
         val disabledByAdminText = context.getString(

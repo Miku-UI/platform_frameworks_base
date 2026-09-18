@@ -16,6 +16,7 @@
 
 package com.android.systemui.qs.panels.dagger
 
+import android.content.Context
 import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.log.LogBuffer
@@ -39,6 +40,8 @@ import com.android.systemui.qs.panels.ui.compose.PaginatedGridLayout
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.InfiniteGridLayout
 import com.android.systemui.qs.panels.ui.viewmodel.IconTilesViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.IconTilesViewModelImpl
+import com.android.systemui.res.R
+import com.android.systemui.shade.shared.flag.DualShadeFlag
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -46,6 +49,7 @@ import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
 import dagger.multibindings.IntoSet
 import javax.inject.Named
+import javax.inject.Provider
 
 @Module
 interface PanelsModuleBase {
@@ -58,8 +62,6 @@ interface PanelsModuleBase {
     @Binds
     @PaginatedBaseLayoutType
     fun bindPaginatedBaseGridLayout(impl: InfiniteGridLayout): PaginatableGridLayout
-
-    @Binds @Named("Default") fun bindDefaultGridLayout(impl: PaginatedGridLayout): GridLayout
 
     @Binds
     @IntoMap
@@ -77,6 +79,24 @@ interface PanelsModuleBase {
     ): AppIconRepository.Factory
 
     companion object {
+        @Provides
+        @SysUISingleton
+        @Named("Default")
+        fun provideDefaultGridLayout(
+            context: Context,
+            infinite: Provider<InfiniteGridLayout>,
+            paginated: Provider<PaginatedGridLayout>,
+        ): GridLayout {
+            return if (
+                DualShadeFlag.isEnabled &&
+                    context.resources.getBoolean(R.bool.config_useInfiniteGridLayoutAsDefault)
+            ) {
+                infinite.get()
+            } else {
+                paginated.get()
+            }
+        }
+
         @Provides
         @SysUISingleton
         @PanelsLog

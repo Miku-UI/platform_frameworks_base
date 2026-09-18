@@ -214,7 +214,7 @@ public final class CarrierRestrictionRules implements Parcelable {
      * Indicates if all carriers are allowed
      */
     public boolean isAllCarriersAllowed() {
-        if (Flags.carrierRestrictionStatus() && mCarrierRestrictionStatus
+        if (mCarrierRestrictionStatus
                 == TelephonyManager.CARRIER_RESTRICTION_STATUS_NOT_RESTRICTED) {
             return true;
         }
@@ -410,7 +410,6 @@ public final class CarrierRestrictionRules implements Parcelable {
      *      locking state is unavailable or radio does not supports the feature</li>
      * </ul>
      */
-    @FlaggedApi(Flags.FLAG_CARRIER_RESTRICTION_STATUS)
     public @CarrierRestrictionStatus int getCarrierRestrictionStatus() {
         return mCarrierRestrictionStatus;
     }
@@ -555,7 +554,6 @@ public final class CarrierRestrictionRules implements Parcelable {
          * @param carrierRestrictionStatus device restriction status
          */
         public @NonNull
-        @FlaggedApi(Flags.FLAG_SET_CARRIER_RESTRICTION_STATUS)
         Builder setCarrierRestrictionStatus(
                 @CarrierRestrictionStatus int carrierRestrictionStatus) {
             mRules.mCarrierRestrictionStatus = carrierRestrictionStatus;

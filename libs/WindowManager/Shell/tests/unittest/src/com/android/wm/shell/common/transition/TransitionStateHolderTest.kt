@@ -17,6 +17,7 @@
 package com.android.wm.shell.common.transition
 
 import android.testing.AndroidTestingRunner
+import android.view.Display.DEFAULT_DISPLAY
 import androidx.test.filters.SmallTest
 import com.android.wm.shell.TestShellExecutor
 import com.android.wm.shell.recents.RecentsTransitionHandler
@@ -82,19 +83,29 @@ class TransitionStateHolderTest {
 
         assertFalse(holder.isRecentsTransitionRunning())
 
-        recentsTransitionStateListener.onTransitionStateChanged(TRANSITION_STATE_NOT_RUNNING)
+        recentsTransitionStateListener.onTransitionStateChanged(
+            TRANSITION_STATE_NOT_RUNNING,
+            DEFAULT_DISPLAY,
+        )
         assertFalse(holder.isRecentsTransitionRunning())
 
-        recentsTransitionStateListener.onTransitionStateChanged(TRANSITION_STATE_REQUESTED)
+        recentsTransitionStateListener.onTransitionStateChanged(
+            TRANSITION_STATE_REQUESTED,
+            DEFAULT_DISPLAY,
+        )
         assertTrue(holder.isRecentsTransitionRunning())
 
-        recentsTransitionStateListener.onTransitionStateChanged(TRANSITION_STATE_ANIMATING)
+        recentsTransitionStateListener.onTransitionStateChanged(
+            TRANSITION_STATE_ANIMATING,
+            DEFAULT_DISPLAY,
+        )
         assertTrue(holder.isRecentsTransitionRunning())
     }
 
     private val recentsTransitionStateListener: RecentsTransitionStateListener
-        get() = ArgumentCaptor.forClass(RecentsTransitionStateListener::class.java).run {
-            verify(recentTransitionHandler).addTransitionStateListener(capture())
-            value
-        }
+        get() =
+            ArgumentCaptor.forClass(RecentsTransitionStateListener::class.java).run {
+                verify(recentTransitionHandler).addTransitionStateListener(capture())
+                value
+            }
 }

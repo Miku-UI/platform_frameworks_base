@@ -61,6 +61,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Flags;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Parcel;
@@ -718,10 +719,7 @@ public class LauncherApps {
     @RequiresPermission(conditional = true,
             anyOf = {ACCESS_HIDDEN_PROFILES_FULL, ACCESS_HIDDEN_PROFILES})
     public List<UserHandle> getProfiles() {
-        if (mUserManager.isManagedProfile()
-                || (android.os.Flags.allowPrivateProfile()
-                    && android.multiuser.Flags.enablePrivateSpaceFeatures()
-                    && mUserManager.isPrivateProfile())) {
+        if (mUserManager.isManagedProfile() || (mUserManager.isPrivateProfile())) {
             // If it's a managed or private profile, only return the current profile.
             final List result = new ArrayList(1);
             result.add(android.os.Process.myUserHandle());
@@ -1044,8 +1042,9 @@ public class LauncherApps {
         if (DEBUG) {
             Log.i(TAG, "StartMainActivity " + component + " " + user.getIdentifier());
         }
+        final IBinder caller = mContext.getActivityToken();
         try {
-            mService.startActivityAsUser(mContext.getIApplicationThread(),
+            mService.startActivityAsUser(caller, mContext.getIApplicationThread(),
                     mContext.getPackageName(), mContext.getAttributionTag(),
                     component, sourceBounds, opts, user);
         } catch (RemoteException re) {
@@ -1144,8 +1143,9 @@ public class LauncherApps {
      */
     public void startPackageInstallerSessionDetailsActivity(@NonNull SessionInfo sessionInfo,
             @Nullable Rect sourceBounds, @Nullable Bundle opts) {
+        final IBinder caller = mContext.getActivityToken();
         try {
-            mService.startSessionDetailsActivityAsUser(mContext.getIApplicationThread(),
+            mService.startSessionDetailsActivityAsUser(caller, mContext.getIApplicationThread(),
                     mContext.getPackageName(), mContext.getAttributionTag(), sessionInfo,
                     sourceBounds, opts, sessionInfo.getUser());
         } catch (RemoteException re) {
@@ -1174,8 +1174,9 @@ public class LauncherApps {
     public void startAppDetailsActivity(ComponentName component, UserHandle user,
             Rect sourceBounds, Bundle opts) {
         logErrorForInvalidProfileAccess(user);
+        final IBinder caller = mContext.getActivityToken();
         try {
-            mService.showAppDetailsAsUser(mContext.getIApplicationThread(),
+            mService.showAppDetailsAsUser(caller, mContext.getIApplicationThread(),
                     mContext.getPackageName(), mContext.getAttributionTag(),
                     component, sourceBounds, opts, user);
         } catch (RemoteException re) {
@@ -1514,19 +1515,6 @@ public class LauncherApps {
     public void registerDumpCallback(IDumpCallback cb) {
         try {
             mService.registerDumpCallback(cb);
-        } catch (RemoteException e) {
-            e.rethrowAsRuntimeException();
-        }
-    }
-
-    /**
-     * Saves view capture data to the default location.
-     * @hide
-     */
-    @RequiresPermission(READ_FRAME_BUFFER)
-    public void saveViewCaptureData() {
-        try {
-            mService.saveViewCaptureData();
         } catch (RemoteException e) {
             e.rethrowAsRuntimeException();
         }
@@ -1978,8 +1966,10 @@ public class LauncherApps {
     private void startShortcut(@NonNull String packageName, @NonNull String shortcutId,
             @Nullable Rect sourceBounds, @Nullable Bundle startActivityOptions,
             int userId) {
+        final IBinder caller = mContext.getActivityToken();
         try {
-            final boolean success = mService.startShortcut(mContext.getPackageName(), packageName,
+            final boolean success = mService.startShortcut(
+                    caller, mContext.getPackageName(), packageName,
                     null /* default featureId */, shortcutId, sourceBounds, startActivityOptions,
                     userId);
             if (!success) {
@@ -2236,8 +2226,7 @@ public class LauncherApps {
 
         public void onUserConfigChanged(LauncherUserInfo launcherUserInfo) {
             if (DEBUG) {
-                if (Flags.allowPrivateProfile()
-                        && android.multiuser.Flags.addLauncherUserConfig()) {
+                if (android.multiuser.Flags.addLauncherUserConfig()) {
                     Log.d(TAG, "OnUserConfigChanged for user type " + launcherUserInfo.getUserType()
                             + ", new userConfig: " + launcherUserInfo.getUserConfig());
                 }
@@ -2360,8 +2349,7 @@ public class LauncherApps {
                             info.mLoadingProgress);
                     break;
                 case MSG_USER_CONFIG_CHANGED:
-                    if (Flags.allowPrivateProfile()
-                            && android.multiuser.Flags.addLauncherUserConfig()) {
+                    if (android.multiuser.Flags.addLauncherUserConfig()) {
                         mCallback.onUserConfigChanged(Objects.requireNonNull(
                                 info.launcherExtras.getParcelable(LAUNCHER_USER_INFO_EXTRA_KEY,
                                         LauncherUserInfo.class)));

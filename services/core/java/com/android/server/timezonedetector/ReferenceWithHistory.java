@@ -32,19 +32,19 @@ import java.util.Iterator;
  * that can be dumped for debugging with {@link #dump(IndentingPrintWriter)}.
  *
  * <pre>{@code
- *     private static class Ref<V> {
- *         private V mValue;
+ * private static class Ref<V> {
+ *     private V mValue;
  *
- *         public V get() {
- *             return mValue;
- *         }
- *
- *         public V set(V value) {
- *             V previous = mValue;
- *             mValue = value;
- *             return previous;
- *         }
+ *     public V get() {
+ *         return mValue;
  *     }
+ *
+ *     public V set(V value) {
+ *         V previous = mValue;
+ *         mValue = value;
+ *         return previous;
+ *     }
+ * }
  * }</pre>
  *
  * <p>This class is not thread-safe.
@@ -60,12 +60,9 @@ public final class ReferenceWithHistory<V> {
     private int mSetCount;
 
     /** The history storage. */
-    @Nullable
-    private ArrayDeque<TimestampedValue<V>> mValues;
+    @Nullable private ArrayDeque<TimestampedValue<V>> mValues;
 
-    /**
-     * Creates an instance that records, at most, the specified number of values.
-     */
+    /** Creates an instance that records, at most, the specified number of values. */
     public ReferenceWithHistory(@IntRange(from = 1) int maxHistorySize) {
         if (maxHistorySize < 1) {
             throw new IllegalArgumentException("maxHistorySize < 1: " + maxHistorySize);
@@ -106,9 +103,7 @@ public final class ReferenceWithHistory<V> {
         return previous;
     }
 
-    /**
-     * Dumps the content of the reference, including historic values, using the supplied writer.
-     */
+    /** Dumps the content of the reference, including historic values, using the supplied writer. */
     public void dump(@NonNull IndentingPrintWriter ipw) {
         if (mValues == null) {
             ipw.println("{Empty}");
@@ -127,9 +122,7 @@ public final class ReferenceWithHistory<V> {
         ipw.flush();
     }
 
-    /**
-     * Returns the number of historic entries stored currently.
-     */
+    /** Returns the number of historic entries stored currently. */
     public int getHistoryCount() {
         return mValues == null ? 0 : mValues.size();
     }

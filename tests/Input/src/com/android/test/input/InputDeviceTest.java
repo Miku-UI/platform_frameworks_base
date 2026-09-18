@@ -77,6 +77,17 @@ public class InputDeviceTest {
                     device.getViewBehavior().shouldSmoothScroll(axis, source),
                     outDevice.getViewBehavior().shouldSmoothScroll(axis, source));
         }
+
+        boolean hasPrimaryDirectionalMotionAxis =
+                device.getViewBehavior().hasPrimaryDirectionalMotionAxis();
+        assertEquals(
+            hasPrimaryDirectionalMotionAxis,
+            outDevice.getViewBehavior().hasPrimaryDirectionalMotionAxis());
+        if (hasPrimaryDirectionalMotionAxis) {
+            assertEquals(
+                    device.getViewBehavior().getPrimaryDirectionalMotionAxis(),
+                    outDevice.getViewBehavior().getPrimaryDirectionalMotionAxis());
+        }
     }
 
     private void assertInputDeviceParcelUnparcel(KeyCharacterMap keyCharacterMap) {
@@ -101,6 +112,7 @@ public class InputDeviceTest {
                 .setKeyboardLayoutType("qwerty")
                 .setUsiVersion(new HostUsiVersion(2, 0))
                 .setShouldSmoothScroll(true)
+                .setPrimaryDirectionalMotionAxis(MotionEvent.AXIS_X)
                 .setAssociatedDisplayId(Display.DEFAULT_DISPLAY)
                 .setEnabled(false);
 

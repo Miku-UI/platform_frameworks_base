@@ -37,7 +37,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 @ProvidesInterface(version = QSTile.VERSION)
-@DependsOn(target = QSIconView.class)
 @DependsOn(target = Callback.class)
 @DependsOn(target = Icon.class)
 @DependsOn(target = State.class)

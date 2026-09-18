@@ -100,7 +100,8 @@ class FoldAodAnimationControllerTest : SysuiTestCase() {
             onActionStarted.run()
         }
 
-        val withDeps = KeyguardInteractorFactory.create(featureFlags = FakeFeatureFlags())
+        val withDeps =
+            KeyguardInteractorFactory.create(context = context, featureFlags = FakeFeatureFlags())
         val keyguardInteractor = withDeps.keyguardInteractor
         keyguardRepository = withDeps.repository
 

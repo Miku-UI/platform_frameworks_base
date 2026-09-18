@@ -152,8 +152,9 @@ constructor(
     }
 
     /**
-     * Avoid SeekBar flickers when changing font scale. See the description from Setting at {@link
-     * TextReadingPreviewController#postCommitDelayed} for the reasons of flickers.
+     * Avoid SeekBar flickers when changing font scale (b/148192402). See the description from
+     * Setting at {@link DebounceConfigurationChangeCommitController#MIN_COMMIT_DELAY} for the
+     * reasons of flickers.
      */
     @MainThread
     fun updateFontScaleDelayed(delayMsFromSource: Long) {

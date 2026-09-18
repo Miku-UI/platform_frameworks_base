@@ -146,9 +146,9 @@ public class PowerWhitelistManager {
     /** @hide */
     public static final int REASON_FGS_BINDING = PowerExemptionManager.REASON_FGS_BINDING;
     /** @hide */
-    public static final int REASON_DEVICE_OWNER = PowerExemptionManager.REASON_DEVICE_OWNER;
+    public static final int REASON_DEVICE_DPC = PowerExemptionManager.REASON_DEVICE_DPC;
     /** @hide */
-    public static final int REASON_PROFILE_OWNER = PowerExemptionManager.REASON_PROFILE_OWNER;
+    public static final int REASON_USER_DPC = PowerExemptionManager.REASON_USER_DPC;
     /** @hide */
     public static final int REASON_COMPANION_DEVICE_MANAGER =
             PowerExemptionManager.REASON_COMPANION_DEVICE_MANAGER;
@@ -336,8 +336,8 @@ public class PowerWhitelistManager {
             REASON_ACTIVITY_STARTER,
             REASON_START_ACTIVITY_FLAG,
             REASON_FGS_BINDING,
-            REASON_DEVICE_OWNER,
-            REASON_PROFILE_OWNER,
+            REASON_DEVICE_DPC,
+            REASON_USER_DPC,
             REASON_COMPANION_DEVICE_MANAGER,
             REASON_BACKGROUND_ACTIVITY_PERMISSION,
             REASON_BACKGROUND_FGS_PERMISSION,

@@ -16,6 +16,8 @@
 
 package com.android.server.display.mode;
 
+import static android.view.DisplayEventReceiver.EVENT_REGISTRATION_MODE_REJECTED_FLAG;
+
 import android.hardware.display.DisplayManager;
 import android.os.Handler;
 import android.os.Looper;
@@ -103,10 +105,12 @@ final class ModeChangeObserver {
                     DisplayManager.EVENT_TYPE_DISPLAY_ADDED
                             | DisplayManager.EVENT_TYPE_DISPLAY_CHANGED
                             | DisplayManager.EVENT_TYPE_DISPLAY_REMOVED);
-        mModeChangeListener = new DisplayEventReceiver(mLooper) {
+        mModeChangeListener = new DisplayEventReceiver(mLooper,
+                EVENT_REGISTRATION_MODE_REJECTED_FLAG) {
             @Override
             public void onModeRejected(long physicalDisplayId, int modeId) {
-                Slog.d(TAG, "Mode Rejected event received");
+                Slog.d(TAG, "[Display " + physicalDisplayId + "] Mode Rejected event received,"
+                        + " mode id = " + modeId);
                 updateRejectedModesListByDisplay(physicalDisplayId, modeId);
                 if (mPhysicalIdToLogicalIdMap.indexOfKey(physicalDisplayId) < 0) {
                     Slog.d(TAG, "Rejected Modes Vote will be updated after display is added");
@@ -129,8 +133,9 @@ final class ModeChangeObserver {
             return;
         }
         DisplayAddress address = display.getAddress();
-        if (address instanceof DisplayAddress.Physical physical) {
-            long physicalDisplayId = physical.getPhysicalDisplayId();
+        if (address != null
+                && address.getPhysicalDisplayId() != DisplayAddress.INVALID_DISPLAY_ID) {
+            long physicalDisplayId = address.getPhysicalDisplayId();
             mPhysicalIdToLogicalIdMap.put(physicalDisplayId, displayId);
             Set<Integer> modes = mRejectedModesMap.get(physicalDisplayId);
             mVotesStorage.updateVote(displayId, Vote.PRIORITY_REJECTED_MODES,
@@ -146,8 +151,9 @@ final class ModeChangeObserver {
                 continue;
             }
             DisplayAddress address = display.getAddress();
-            if (address instanceof DisplayAddress.Physical physical) {
-                mPhysicalIdToLogicalIdMap.put(physical.getPhysicalDisplayId(),
+            if (address != null
+                    && address.getPhysicalDisplayId() != DisplayAddress.INVALID_DISPLAY_ID) {
+                mPhysicalIdToLogicalIdMap.put(address.getPhysicalDisplayId(),
                         display.getDisplayId());
             }
         }

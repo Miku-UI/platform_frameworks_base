@@ -41,6 +41,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -52,8 +53,12 @@ import android.app.AppGlobals;
 import android.app.BackgroundStartPrivileges;
 import android.app.IActivityManager;
 import android.app.job.JobInfo;
+import android.app.job.JobParameters;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.IPackageManager;
 import android.content.pm.UserInfo;
 import android.content.res.Resources;
@@ -61,6 +66,8 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.DeviceConfig;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -81,8 +88,10 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoSession;
 import org.mockito.quality.Strictness;
@@ -107,6 +116,9 @@ public final class JobConcurrencyManagerTest {
     private Resources mResources;
     private PendingJobQueue mPendingJobQueue;
     private DeviceConfig.Properties.Builder mConfigBuilder;
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock
     private IPackageManager mIPackageManager;
@@ -1061,5 +1073,43 @@ public final class JobConcurrencyManagerTest {
     private void resetConfig() throws Exception {
         mConfigBuilder = new DeviceConfig.Properties.Builder(DeviceConfig.NAMESPACE_JOB_SCHEDULER);
         updateDeviceConfig();
+    }
+
+    /**
+     * Tests that a job is stopped with the reason "battery saver" when it has run past its
+     * minimum execution guarantee and Battery Saver is enabled.
+     */
+    @EnableFlags({
+            android.app.job.Flags.FLAG_ENHANCED_PENDING_AND_STOP_REASONS_API
+    })
+    @Test
+    public void testBatterySaverStopsOvertimeJob() {
+        final int uid = mDefaultUserId * UserHandle.PER_USER_RANGE;
+        final JobStatus job = createJob(uid, 1);
+        mJobConcurrencyManager.addRunningJobForTesting(job);
+
+        JobServiceContext jsc = mInjector.contexts.keySet().stream()
+                .filter(c -> c.getRunningJobLocked() == job)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Job not running on any context"));
+
+        doReturn(false).when(jsc).isWithinExecutionGuaranteeTime();
+
+        ArgumentCaptor<BroadcastReceiver> receiverCaptor =
+                ArgumentCaptor.forClass(BroadcastReceiver.class);
+        verify(mContext).registerReceiver(receiverCaptor.capture(), any(IntentFilter.class));
+        BroadcastReceiver managerReceiver = receiverCaptor.getValue();
+
+        PowerManager powerManager = mContext.getSystemService(PowerManager.class);
+        when(powerManager.isPowerSaveMode()).thenReturn(true);
+
+        Intent intent = new Intent(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED);
+        managerReceiver.onReceive(mContext, intent);
+
+        verify(jsc).cancelExecutingJobLocked(
+                eq(JobParameters.STOP_REASON_DEVICE_STATE_BATTERY_SAVER),
+                eq(JobParameters.INTERNAL_STOP_REASON_TIMEOUT),
+                eq("battery saver")
+        );
     }
 }

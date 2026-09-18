@@ -329,6 +329,16 @@ public class KeyGestureEventTests extends ShortcutKeyTestBase {
     }
 
     @Test
+    public void testKeyGestureBrightnessChange_overrideShowsToast() {
+        mSetFlagsRule.enableFlags(Flags.FLAG_BRIGHTNESS_DIALOG_OVERRIDE_TOAST);
+        mPhoneWindowManager.prepareBrightnessOverride();
+        sendKeyGestureEventComplete(KeyGestureEvent.KEY_GESTURE_TYPE_BRIGHTNESS_UP);
+        mPhoneWindowManager.assertToastShown(
+                com.android.internal.R.string.brightness_unable_adjust_msg
+        );
+    }
+
+    @Test
     public void testKeyGestureRecentAppSwitcher() {
         sendKeyGestureEventStart(KeyGestureEvent.KEY_GESTURE_TYPE_RECENT_APPS_SWITCHER);
         mPhoneWindowManager.assertShowRecentApps();

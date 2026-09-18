@@ -67,7 +67,7 @@ import java.util.function.Function;
  * Braille Display using the Braille Display HID standard (usage page 0x41).
  */
 class BrailleDisplayConnection extends IBrailleDisplayConnection.Stub {
-    private static final String LOG_TAG = "BrailleDisplayConnection";
+    private static final String LOG_TAG = BrailleDisplayConnection.class.getSimpleName();
 
     /**
      * Represents the connection type of a Braille display.

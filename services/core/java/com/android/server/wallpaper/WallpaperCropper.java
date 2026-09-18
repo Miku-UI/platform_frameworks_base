@@ -16,7 +16,6 @@
 
 package com.android.server.wallpaper;
 
-import static android.app.Flags.fixWallpaperCropsOnRestore;
 import static android.app.WallpaperManager.ORIENTATION_LANDSCAPE;
 import static android.app.WallpaperManager.ORIENTATION_PORTRAIT;
 import static android.app.WallpaperManager.ORIENTATION_UNKNOWN;
@@ -28,9 +27,10 @@ import static com.android.server.wallpaper.WallpaperUtils.RECORD_FILE;
 import static com.android.server.wallpaper.WallpaperUtils.RECORD_LOCK_FILE;
 import static com.android.server.wallpaper.WallpaperUtils.WALLPAPER;
 import static com.android.server.wallpaper.WallpaperUtils.getWallpaperDir;
-import static com.android.window.flags.Flags.multiCrop;
 
+import android.annotation.NonNull;
 import android.app.WallpaperManager;
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.ImageDecoder;
@@ -43,7 +43,6 @@ import android.util.Slog;
 import android.util.SparseArray;
 import android.view.DisplayInfo;
 import android.view.View;
-import android.window.DesktopExperienceFlags;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.utils.TimingsTraceAndSlog;
@@ -53,6 +52,9 @@ import libcore.io.IoUtils;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.util.Locale;
 
 /**
@@ -125,17 +127,15 @@ public class WallpaperCropper {
             Point bitmapSize, SparseArray<Rect> suggestedCrops, boolean rtl) {
 
         // Case 0: if we're looking for the crop of an external display, use external display logic
-        if (DesktopExperienceFlags.ENABLE_CONNECTED_DISPLAYS_WALLPAPER.isTrue()) {
-            boolean isExternalDisplay = true;
-            for (int i = 0; i < defaultDisplayInfo.defaultDisplaySizes.size(); i++) {
-                if (defaultDisplayInfo.defaultDisplaySizes.valueAt(i).equals(displaySize)) {
-                    isExternalDisplay = false;
-                }
+        boolean isExternalDisplay = true;
+        for (int i = 0; i < defaultDisplayInfo.defaultDisplaySizes.size(); i++) {
+            if (defaultDisplayInfo.defaultDisplaySizes.valueAt(i).equals(displaySize)) {
+                isExternalDisplay = false;
             }
-            if (isExternalDisplay) {
-                return getCropForExternalDisplay(
-                        displaySize, defaultDisplayInfo, bitmapSize, suggestedCrops, rtl);
-            }
+        }
+        if (isExternalDisplay) {
+            return getCropForExternalDisplay(
+                    displaySize, defaultDisplayInfo, bitmapSize, suggestedCrops, rtl);
         }
 
         int orientation = getOrientation(displaySize);
@@ -238,8 +238,7 @@ public class WallpaperCropper {
         // exists. In that case we'd rather go to case 6 and use the portrait suggested crop. This
         // is in order to have a consistent wallpaper position on both SQUARE_PORTRAIT and
         // SQUARE_LANDSCAPE orientations.
-        boolean skip = fixWallpaperCropsOnRestore()
-                && foldedOrientation == ORIENTATION_LANDSCAPE
+        boolean skip = foldedOrientation == ORIENTATION_LANDSCAPE
                 && suggestedCrops.contains(ORIENTATION_PORTRAIT);
         suggestedDisplaySize = defaultDisplayInfo.defaultDisplaySizes.get(foldedOrientation);
         if (suggestedCrop != null && !skip) {
@@ -285,8 +284,8 @@ public class WallpaperCropper {
         Rect adjustedCrop = getAdjustedCrop(crop, bitmapSize, displaySize, true, rtl, ADD);
         // only keep the visible part (without parallax)
         float suggestedDisplayRatio = 1f * displaySize.x / displaySize.y;
-        int widthToRemove = (int) (adjustedCrop.width()
-                - (((float) adjustedCrop.height()) * suggestedDisplayRatio) + 0.5f);
+        int widthToRemove = (int) Math.max(0, (adjustedCrop.width()
+                - (((float) adjustedCrop.height()) * suggestedDisplayRatio) + 0.5f));
         if (rtl) {
             adjustedCrop.left += widthToRemove;
         } else {
@@ -368,7 +367,7 @@ public class WallpaperCropper {
                 adjustedCrop.left = 0;
                 adjustedCrop.right = bitmapSize.x;
             }
-            int heightToRemove = (int) (crop.height() - (adjustedCrop.width() / screenRatio));
+            int heightToRemove = Math.round(crop.height() - (adjustedCrop.width() / screenRatio));
             adjustedCrop.top += heightToRemove / 2 + heightToRemove % 2;
             adjustedCrop.bottom -= heightToRemove / 2;
         }
@@ -494,6 +493,60 @@ public class WallpaperCropper {
         t.traceEnd();
     }
 
+    /**
+     * Generates a centered crop of the default wallpaper to the destination file,
+     */
+    void generateDefaultWallpaperCrop(@NonNull Context context, @NonNull File dest, int which,
+            int targetWidth, int targetHeight) {
+        TimingsTraceAndSlog t = new TimingsTraceAndSlog(TAG);
+        t.traceBegin("WPMS.generateDefaultWallpaperCrop");
+
+        try (InputStream is = WallpaperManager.openRawDefaultWallpaper(context, which);
+             FileOutputStream fos = new FileOutputStream(dest);
+             BufferedOutputStream bos = new BufferedOutputStream(fos, 64 * 1024)) {
+            if (is == null) {
+                Slog.e(TAG, "generateDefaultWallpaperCrop: Default wallpaper stream is null");
+                return;
+            }
+
+            // Using ImageDecoder for better quality and modern API support
+            byte[] imageBytes = is.readAllBytes();
+            ImageDecoder.Source source = ImageDecoder.createSource(ByteBuffer.wrap(imageBytes));
+
+            Bitmap cropped = ImageDecoder.decodeBitmap(source, (decoder, info, src) -> {
+                int width = info.getSize().getWidth();
+                int height = info.getSize().getHeight();
+
+                // Calculate scale to fit the target dimensions while preserving aspect ratio
+                float scale = Math.max((float) targetWidth / width, (float) targetHeight / height);
+                int scaledWidth = Math.round(width * scale);
+                int scaledHeight = Math.round(height * scale);
+                decoder.setTargetSize(scaledWidth, scaledHeight);
+
+                // Center crop to target dimensions
+                int left = (scaledWidth - targetWidth) / 2;
+                int top = (scaledHeight - targetHeight) / 2;
+                Rect cropRect = new Rect(left, top, left + targetWidth, top + targetHeight);
+                decoder.setCrop(cropRect);
+
+                Slog.i(TAG, "generateDefaultWallpaperCrop: (" + width + "x" + height
+                        + ") -> target: " + targetWidth + "x" + targetHeight
+                        + " scaled: " + scaledWidth + "x" + scaledHeight
+                        + " crop: " + cropRect.toShortString());
+            });
+
+            if (cropped != null) {
+                cropped.compress(Bitmap.CompressFormat.JPEG, 90, bos);
+                bos.flush();
+                Slog.i(TAG, "generateDefaultWallpaperCrop: Success");
+            }
+        } catch (IOException e) {
+            Slog.e(TAG, "Failed to generate default wallpaper crop", e);
+        } finally {
+            t.traceEnd();
+        }
+    }
+
     private void generateCropInternal(WallpaperData wallpaper) {
         boolean success = false;
 
@@ -518,18 +571,16 @@ public class WallpaperCropper {
             Point bitmapSize = new Point(options.outWidth, options.outHeight);
             Rect bitmapRect = new Rect(0, 0, bitmapSize.x, bitmapSize.y);
 
-            if (multiCrop()) {
-                // Check that the suggested crops per screen orientation are all within the bitmap.
-                for (int i = 0; i < wallpaper.mCropHints.size(); i++) {
-                    int orientation = wallpaper.mCropHints.keyAt(i);
-                    Rect crop = wallpaper.mCropHints.valueAt(i);
-                    if (crop.isEmpty() || !bitmapRect.contains(crop)) {
-                        Slog.w(TAG, "Invalid crop " + crop + " for orientation " + orientation
-                                + " and bitmap size " + bitmapSize + "; clearing suggested crops.");
-                        wallpaper.mCropHints.clear();
-                        wallpaper.cropHint.set(bitmapRect);
-                        break;
-                    }
+            // Check that the suggested crops per screen orientation are all within the bitmap.
+            for (int i = 0; i < wallpaper.mCropHints.size(); i++) {
+                int orientation = wallpaper.mCropHints.keyAt(i);
+                Rect crop = wallpaper.mCropHints.valueAt(i);
+                if (crop.isEmpty() || !bitmapRect.contains(crop)) {
+                    Slog.w(TAG, "Invalid crop " + crop + " for orientation " + orientation
+                            + " and bitmap size " + bitmapSize + "; clearing suggested crops.");
+                    wallpaper.mCropHints.clear();
+                    wallpaper.cropHint.set(bitmapRect);
+                    break;
                 }
             }
             final Rect cropHint;
@@ -538,11 +589,11 @@ public class WallpaperCropper {
             // A wallpaper with cropHints = Map.of(ORIENTATION_UNKNOWN, rect) is treated like
             // a wallpaper with cropHints = null and  cropHint = rect.
             Rect tempCropHint = wallpaper.mCropHints.get(ORIENTATION_UNKNOWN);
-            if (multiCrop() && tempCropHint != null) {
+            if (tempCropHint != null) {
                 wallpaper.cropHint.set(tempCropHint);
                 wallpaper.mCropHints.clear();
             }
-            if (multiCrop() && wallpaper.mCropHints.size() > 0) {
+            if (wallpaper.mCropHints.size() > 0) {
                 // Some suggested crops per screen orientation were provided,
                 // use them to compute the default crops for this device
                 defaultCrops = getDefaultCrops(wallpaper.mCropHints, bitmapSize);
@@ -564,7 +615,7 @@ public class WallpaperCropper {
                     Slog.d(TAG, "Generated default crops for wallpaper: " + defaultCrops
                             + " based on suggested crops: " + wallpaper.mCropHints);
                 }
-            } else if (multiCrop()) {
+            } else {
                 // No crops per screen orientation were provided, but an overall cropHint may be
                 // defined in wallpaper.cropHint. Compute the default crops for the sub-image
                 // defined by the cropHint, then recompute the cropHint based on the default crops.
@@ -583,9 +634,6 @@ public class WallpaperCropper {
                 if (DEBUG) {
                     Slog.d(TAG, "Generated default crops for wallpaper: " + defaultCrops);
                 }
-            } else {
-                cropHint = new Rect(wallpaper.cropHint);
-                defaultCrops = null;
             }
 
             if (DEBUG) {
@@ -594,27 +642,6 @@ public class WallpaperCropper {
                         + " to " + wallpaper.getCropFile().getName()
                         + " crop=(" + cropHint.width() + 'x' + cropHint.height()
                         + ") dim=(" + wpData.mWidth + 'x' + wpData.mHeight + ')');
-            }
-
-            // Empty crop means use the full image
-            if (!multiCrop() && cropHint.isEmpty()) {
-                cropHint.left = cropHint.top = 0;
-                cropHint.right = options.outWidth;
-                cropHint.bottom = options.outHeight;
-            } else if (!multiCrop()) {
-                // force the crop rect to lie within the measured bounds
-                int dx = cropHint.right > options.outWidth ? options.outWidth - cropHint.right : 0;
-                int dy = cropHint.bottom > options.outHeight
-                        ? options.outHeight - cropHint.bottom : 0;
-                cropHint.offset(dx, dy);
-
-                // If the crop hint was larger than the image we just overshot. Patch things up.
-                if (cropHint.left < 0) {
-                    cropHint.left = 0;
-                }
-                if (cropHint.top < 0) {
-                    cropHint.top = 0;
-                }
             }
 
             // Don't bother cropping if what we're left with is identity
@@ -627,48 +654,33 @@ public class WallpaperCropper {
                     || cropHint.width() > GLHelper.getMaxTextureSize();
 
             float sampleSize = Float.MAX_VALUE;
-            if (multiCrop()) {
-                // If all crops for all orientations have more width and height in pixel
-                // than the display for this orientation, downsample the image
-                for (int i = 0; i < defaultCrops.size(); i++) {
-                    int orientation = defaultCrops.keyAt(i);
-                    Rect crop = defaultCrops.valueAt(i);
-                    Point displayForThisOrientation = mWallpaperDisplayHelper
-                            .getDefaultDisplaySizes().get(orientation);
-                    if (displayForThisOrientation == null) continue;
-                    float sampleSizeForThisOrientation = Math.max(1f, Math.min(
-                            (float) crop.width() / displayForThisOrientation.x,
-                            (float) crop.height() / displayForThisOrientation.y));
-                    sampleSize = Math.min(sampleSize, sampleSizeForThisOrientation);
-                }
-                // If the total crop has more width or height than either the max texture size
-                // or twice the largest display dimension, downsample the image
-                int maxCropSize = Math.min(
-                        2 * mWallpaperDisplayHelper.getDefaultDisplayLargestDimension(),
-                        GLHelper.getMaxTextureSize());
-                float minimumSampleSize = Math.max(1f, Math.max(
-                        (float) cropHint.height() / maxCropSize,
-                        (float) cropHint.width()) / maxCropSize);
-                sampleSize = Math.max(sampleSize, minimumSampleSize);
-                needScale = sampleSize > 1f;
+            // If all crops for all orientations have more width and height in pixel
+            // than the display for this orientation, downsample the image
+            for (int i = 0; i < defaultCrops.size(); i++) {
+                int orientation = defaultCrops.keyAt(i);
+                Rect crop = defaultCrops.valueAt(i);
+                Point displayForThisOrientation = mWallpaperDisplayHelper
+                        .getDefaultDisplaySizes().get(orientation);
+                if (displayForThisOrientation == null) continue;
+                float sampleSizeForThisOrientation = Math.max(1f, Math.min(
+                        (float) crop.width() / displayForThisOrientation.x,
+                        (float) crop.height() / displayForThisOrientation.y));
+                sampleSize = Math.min(sampleSize, sampleSizeForThisOrientation);
             }
-
-            //make sure screen aspect ratio is preserved if width is scaled under screen size
-            if (needScale && !multiCrop()) {
-                final float scaleByHeight = (float) wpData.mHeight / (float) cropHint.height();
-                final int newWidth = (int) (cropHint.width() * scaleByHeight);
-                if (newWidth < displayInfo.logicalWidth) {
-                    final float screenAspectRatio =
-                            (float) displayInfo.logicalHeight / (float) displayInfo.logicalWidth;
-                    cropHint.bottom = (int) (cropHint.width() * screenAspectRatio);
-                    needCrop = true;
-                }
-            }
+            // If the total crop has more width or height than either the max texture size
+            // or twice the largest display dimension, downsample the image
+            int maxCropSize = Math.min(
+                    2 * mWallpaperDisplayHelper.getDefaultDisplayLargestDimension(),
+                    GLHelper.getMaxTextureSize());
+            float minimumSampleSize = Math.max(1f, Math.max(
+                    (float) cropHint.height() / maxCropSize,
+                    (float) cropHint.width()) / maxCropSize);
+            sampleSize = Math.max(sampleSize, minimumSampleSize);
+            needScale = sampleSize > 1f;
 
             if (DEBUG_CROP) {
                 Slog.v(TAG, "crop: w=" + cropHint.width() + " h=" + cropHint.height());
-                if (multiCrop()) Slog.v(TAG, "defaultCrops: " + defaultCrops);
-                if (!multiCrop()) Slog.v(TAG, "dims: w=" + wpData.mWidth + " h=" + wpData.mHeight);
+                Slog.v(TAG, "defaultCrops: " + defaultCrops);
                 Slog.v(TAG, "meas: w=" + options.outWidth + " h=" + options.outHeight);
                 Slog.v(TAG, "crop?=" + needCrop + " scale?=" + needScale);
             }
@@ -711,61 +723,27 @@ public class WallpaperCropper {
                     options.inJustDecodeBounds = false;
 
                     final Rect estimateCrop = new Rect(cropHint);
-                    if (!multiCrop()) estimateCrop.scale(1f / options.inSampleSize);
-                    else {
-                        estimateCrop.left = (int) Math.floor(estimateCrop.left / sampleSize);
-                        estimateCrop.top = (int) Math.floor(estimateCrop.top / sampleSize);
-                        estimateCrop.right = (int) Math.ceil(estimateCrop.right / sampleSize);
-                        estimateCrop.bottom = (int) Math.ceil(estimateCrop.bottom / sampleSize);
-                    }
+                    estimateCrop.left = (int) Math.floor(estimateCrop.left / sampleSize);
+                    estimateCrop.top = (int) Math.floor(estimateCrop.top / sampleSize);
+                    estimateCrop.right = (int) Math.ceil(estimateCrop.right / sampleSize);
+                    estimateCrop.bottom = (int) Math.ceil(estimateCrop.bottom / sampleSize);
                     float hRatio = (float) wpData.mHeight / estimateCrop.height();
                     final int destHeight = (int) (estimateCrop.height() * hRatio);
                     final int destWidth = (int) (estimateCrop.width() * hRatio);
 
-                    // We estimated an invalid crop, try to adjust the cropHint to get a valid one.
-                    if (!multiCrop() && destWidth > GLHelper.getMaxTextureSize()) {
-                        if (DEBUG) {
-                            Slog.w(TAG, "Invalid crop dimensions, trying to adjust.");
-                        }
-
-                        int newHeight = (int) (wpData.mHeight / hRatio);
-                        int newWidth = (int) (wpData.mWidth / hRatio);
-
-                        estimateCrop.set(cropHint);
-                        estimateCrop.left += (cropHint.width() - newWidth) / 2;
-                        estimateCrop.top += (cropHint.height() - newHeight) / 2;
-                        estimateCrop.right = estimateCrop.left + newWidth;
-                        estimateCrop.bottom = estimateCrop.top + newHeight;
-                        cropHint.set(estimateCrop);
-                        estimateCrop.scale(1f / options.inSampleSize);
-                    }
-
                     // We've got the safe cropHint; now we want to scale it properly to
                     // the desired rectangle.
                     // That's a height-biased operation: make it fit the hinted height.
-                    final int safeHeight = !multiCrop()
-                            ? (int) (estimateCrop.height() * hRatio + 0.5f)
-                            : (int) (cropHint.height() / sampleSize + 0.5f);
-                    final int safeWidth = !multiCrop()
-                            ? (int) (estimateCrop.width() * hRatio + 0.5f)
-                            : (int) (cropHint.width() / sampleSize + 0.5f);
+                    final int safeHeight = (int) (cropHint.height() / sampleSize + 0.5f);
+                    final int safeWidth = (int) (cropHint.width() / sampleSize + 0.5f);
 
                     if (DEBUG_CROP) {
                         Slog.v(TAG, "Decode parameters:");
-                        if (!multiCrop()) {
-                            Slog.v(TAG,
-                                    "  cropHint=" + cropHint + ", estimateCrop=" + estimateCrop);
-                            Slog.v(TAG, "  down sampling=" + options.inSampleSize
-                                    + ", hRatio=" + hRatio);
-                            Slog.v(TAG, "  dest=" + destWidth + "x" + destHeight);
-                        }
-                        if (multiCrop()) {
-                            Slog.v(TAG, "  cropHint=" + cropHint);
-                            Slog.v(TAG, "  estimateCrop=" + estimateCrop);
-                            Slog.v(TAG, "  sampleSize=" + sampleSize);
-                            Slog.v(TAG, "  user defined crops: " + wallpaper.mCropHints);
-                            Slog.v(TAG, "  all crops: " + defaultCrops);
-                        }
+                        Slog.v(TAG, "  cropHint=" + cropHint);
+                        Slog.v(TAG, "  estimateCrop=" + estimateCrop);
+                        Slog.v(TAG, "  sampleSize=" + sampleSize);
+                        Slog.v(TAG, "  user defined crops: " + wallpaper.mCropHints);
+                        Slog.v(TAG, "  all crops: " + defaultCrops);
                         Slog.v(TAG, "  targetSize=" + safeWidth + "x" + safeHeight);
                         Slog.v(TAG, "  maxTextureSize=" + GLHelper.getMaxTextureSize());
                     }
@@ -781,45 +759,32 @@ public class WallpaperCropper {
 
                     final ImageDecoder.Source srcData =
                             ImageDecoder.createSource(wallpaper.getWallpaperFile());
-                    final int finalScale = scale;
                     final int rescaledBitmapWidth = (int) Math.ceil(bitmapSize.x / sampleSize);
                     final int rescaledBitmapHeight = (int) Math.ceil(bitmapSize.y / sampleSize);
                     Bitmap cropped = ImageDecoder.decodeBitmap(srcData, (decoder, info, src) -> {
-                        if (!multiCrop()) decoder.setTargetSampleSize(finalScale);
-                        if (multiCrop()) {
-                            decoder.setTargetSize(rescaledBitmapWidth, rescaledBitmapHeight);
-                        }
+                        decoder.setTargetSize(rescaledBitmapWidth, rescaledBitmapHeight);
                         decoder.setCrop(estimateCrop);
                     });
 
                     record.delete();
 
-                    if (!multiCrop() && cropped == null) {
-                        Slog.e(TAG, "Could not decode new wallpaper");
-                    } else {
-                        // We are safe to create final crop with safe dimensions now.
-                        final Bitmap finalCrop = multiCrop() ? cropped
-                                : Bitmap.createScaledBitmap(cropped, safeWidth, safeHeight, true);
+                    // We are safe to create final crop with safe dimensions now.
+                    wallpaper.mSampleSize = sampleSize;
 
-                        if (multiCrop()) {
-                            wallpaper.mSampleSize = sampleSize;
-                        }
-
-                        if (DEBUG) {
-                            Slog.v(TAG, "Final extract:");
-                            Slog.v(TAG, "  dims: w=" + wpData.mWidth
-                                    + " h=" + wpData.mHeight);
-                            Slog.v(TAG, "  out: w=" + finalCrop.getWidth()
-                                    + " h=" + finalCrop.getHeight());
-                        }
-
-                        f = new FileOutputStream(wallpaper.getCropFile());
-                        bos = new BufferedOutputStream(f, 32 * 1024);
-                        finalCrop.compress(Bitmap.CompressFormat.PNG, 100, bos);
-                        // don't rely on the implicit flush-at-close when noting success
-                        bos.flush();
-                        success = true;
+                    if (DEBUG) {
+                        Slog.v(TAG, "Final extract:");
+                        Slog.v(TAG, "  dims: w=" + wpData.mWidth
+                                + " h=" + wpData.mHeight);
+                        Slog.v(TAG, "  out: w=" + cropped.getWidth()
+                                + " h=" + cropped.getHeight());
                     }
+
+                    f = new FileOutputStream(wallpaper.getCropFile());
+                    bos = new BufferedOutputStream(f, 32 * 1024);
+                    cropped.compress(Bitmap.CompressFormat.PNG, 100, bos);
+                    // don't rely on the implicit flush-at-close when noting success
+                    bos.flush();
+                    success = true;
                 } catch (Exception e) {
                     Slog.e(TAG, "Error decoding crop", e);
                 } finally {

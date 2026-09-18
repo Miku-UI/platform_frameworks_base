@@ -24,6 +24,7 @@ import static com.android.server.devicepolicy.DeviceStateCacheImpl.NO_DEVICE_OWN
 import android.annotation.Nullable;
 import android.app.ActivityManagerInternal;
 import android.app.AppOpsManagerInternal;
+import android.app.admin.DevicePolicyManager.MultiuserManagedDeviceProvisioningState;
 import android.app.admin.DevicePolicyManager.DeviceOwnerType;
 import android.app.admin.SystemUpdateInfo;
 import android.app.admin.SystemUpdatePolicy;
@@ -113,6 +114,9 @@ class Owners {
             for (int userId : usersIds) {
                 mDeviceStateCache.setHasProfileOwner(userId, hasProfileOwner(userId));
             }
+            mDeviceStateCache.setDeviceManaged(mData.mDeviceManaged);
+            mDeviceStateCache.setMultiuserManagedDeviceProvisioningState(
+                    mData.mMultiuserManagedDeviceProvisioningState);
 
             notifyChangeLocked();
             pushDeviceOwnerUidToActivityTaskManagerLocked();
@@ -144,9 +148,21 @@ class Owners {
         for (int i = mData.mProfileOwners.size() - 1; i >= 0; i--) {
             po.put(mData.mProfileOwners.keyAt(i), mData.mProfileOwners.valueAt(i).packageName);
         }
-        final String doPackage = mData.mDeviceOwner != null ? mData.mDeviceOwner.packageName : null;
-        mPackageManagerInternal.setDeviceAndProfileOwnerPackages(
-                mData.mDeviceOwnerUserId, doPackage, po);
+        if (android.app.admin.flags.Flags.pushDpcPackagesToSystemServices()) {
+            // TODO(b/481619042): Rename po to dpcPackages during flag clean-up.
+            final SparseArray<String> dpcPackages = po;
+            if (mData.mDeviceOwner != null) {
+                dpcPackages.put(mData.mDeviceOwnerUserId, mData.mDeviceOwner.packageName);
+            }
+            mPackageManagerInternal.setDevicePolicyControllerPackages(dpcPackages);
+        } else {
+            final String doPackage =
+                    mData.mDeviceOwner != null ? mData.mDeviceOwner.packageName : null;
+            // TODO(b/481619042): Remove PackageManagerInternal.setDeviceAndProfileOwnerPackages
+            //  during flag clean-up. This is the only usage of the method.
+            mPackageManagerInternal.setDeviceAndProfileOwnerPackages(mData.mDeviceOwnerUserId,
+                    doPackage, po);
+        }
     }
 
     @GuardedBy("mData")
@@ -429,6 +445,22 @@ class Owners {
     void setDeviceManaged(boolean deviceManaged) {
         synchronized (mData) {
             mData.mDeviceManaged = deviceManaged;
+            mDeviceStateCache.setDeviceManaged(deviceManaged);
+        }
+    }
+
+    @MultiuserManagedDeviceProvisioningState int getMultiuserManagedDeviceProvisioningState() {
+        synchronized (mData) {
+            return mData.mMultiuserManagedDeviceProvisioningState;
+        }
+    }
+
+    void setMultiuserManagedDeviceProvisioningState(
+            @MultiuserManagedDeviceProvisioningState int state) {
+        synchronized (mData) {
+            mData.mMultiuserManagedDeviceProvisioningState = state;
+            mDeviceStateCache.setMultiuserManagedDeviceProvisioningState(state);
+            writeDeviceOwner();
         }
     }
 
@@ -702,6 +734,32 @@ class Owners {
     boolean isSetKeyguardDisabledFeaturesMigrated() {
         synchronized (mData) {
             return mData.mSetKeyguardDisabledFeaturesMigrated;
+        }
+    }
+
+    void markCommonCriteriaModeMigrated() {
+        synchronized (mData) {
+            mData.mCommonCriteriaModeMigrated = true;
+            mData.writeDeviceOwner();
+        }
+    }
+
+    boolean isCommonCriteriaModeMigrated() {
+        synchronized (mData) {
+            return mData.mCommonCriteriaModeMigrated;
+        }
+    }
+
+    void markLockScreenInfoMigrated() {
+        synchronized (mData) {
+            mData.mLockScreenInfoMigrated = true;
+            mData.writeDeviceOwner();
+        }
+    }
+
+    boolean isLockScreenInfoMigrated() {
+        synchronized (mData) {
+            return mData.mLockScreenInfoMigrated;
         }
     }
 

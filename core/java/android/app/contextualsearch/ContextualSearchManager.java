@@ -20,6 +20,7 @@ import static android.Manifest.permission.ACCESS_CONTEXTUAL_SEARCH;
 
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
+import android.annotation.SuppressLint;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
@@ -220,6 +221,15 @@ public final class ContextualSearchManager {
     public static final int ENTRYPOINT_LONG_PRESS_META = 10;
 
     /**
+     * Entrypoint to be used by keyboard shortcuts.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(com.android.hardware.input.Flags.FLAG_ENABLE_CONTEXTUAL_SEARCH_DESKTOP_ENTRYPOINTS)
+    public static final int ENTRYPOINT_KEYBOARD_SHORTCUT = 11;
+
+    /**
      * The {@link Entrypoint} annotation is used to standardize the entrypoints supported by
      * {@link #startContextualSearch(int entrypoint)} method.
      *
@@ -232,7 +242,8 @@ public final class ContextualSearchManager {
             ENTRYPOINT_OVERVIEW_ACTION,
             ENTRYPOINT_OVERVIEW_MENU,
             ENTRYPOINT_SYSTEM_ACTION,
-            ENTRYPOINT_LONG_PRESS_META
+            ENTRYPOINT_LONG_PRESS_META,
+            ENTRYPOINT_KEYBOARD_SHORTCUT
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface Entrypoint {}
@@ -244,7 +255,8 @@ public final class ContextualSearchManager {
             ENTRYPOINT_OVERVIEW_ACTION,
             ENTRYPOINT_OVERVIEW_MENU,
             ENTRYPOINT_SYSTEM_ACTION,
-            ENTRYPOINT_LONG_PRESS_META
+            ENTRYPOINT_LONG_PRESS_META,
+            ENTRYPOINT_KEYBOARD_SHORTCUT
     ));
 
     private static final String TAG = ContextualSearchManager.class.getSimpleName();
@@ -338,7 +350,8 @@ public final class ContextualSearchManager {
     @SystemApi
     public void startContextualSearch(@Entrypoint int entrypoint,
             @Nullable ContextualSearchConfig config) {
-        startContextualSearchInternal(entrypoint, config);
+        startContextualSearchInternal(entrypoint,
+                config != null ? config : ContextualSearchConfig.DEFAULT_CONFIG);
     }
 
     /**
@@ -390,11 +403,50 @@ public final class ContextualSearchManager {
     public void startContextualSearch(@NonNull Activity activity,
             @Nullable ContextualSearchConfig config) {
         Objects.requireNonNull(activity);
-        if (DEBUG) Log.d(TAG, "startContextualSearchForActivity(" + activity + ", " + config + ")");
+        ContextualSearchConfig.Builder builder = new ContextualSearchConfig.Builder(
+                config != null ? config : ContextualSearchConfig.DEFAULT_CONFIG);
+        if (config == null || config.getDisplayId() == Display.INVALID_DISPLAY) {
+            int displayId = activity.getDisplayId();
+            if (displayId == Display.INVALID_DISPLAY) {
+                displayId = Display.DEFAULT_DISPLAY;
+            }
+            builder.setDisplayId(displayId);
+        }
+        startContextualSearch(builder.build());
+    }
+
+    /**
+     * Used to start Contextual Search from within an app that has a foreground window (e.g. an
+     * Activity or a System Alert Window). This will send a screenshot of the specified display to
+     * the Contextual Search app.
+     *
+     * <p>Prior to calling this method or showing any UI related to it, you should verify that
+     * Contextual Search is available on the device by using {@link #isContextualSearchAvailable()}.
+     * Otherwise, this method will fail silently.
+     *
+     * <p>Note: A valid display ID must be specified in the config. Use
+     * {@link ContextualSearchConfig.Builder#setDisplayId(int)}.
+     *
+     * @see #isContextualSearchAvailable()
+     * @param config the invocation configuration parameters. Must not be null and must have a
+     *               valid display ID.
+     * @throws IllegalArgumentException if config is null or has an invalid display ID.
+     * @throws SecurityException if the caller is not in the foreground.
+     *
+     * @hide
+     */
+    @SuppressLint("UnflaggedApi")
+    @SystemApi
+    public void startContextualSearch(@NonNull ContextualSearchConfig config) {
+        Objects.requireNonNull(config);
+        if (config.getDisplayId() == Display.INVALID_DISPLAY) {
+            throw new IllegalArgumentException("A valid display ID must be specified in config.");
+        }
+        if (DEBUG) Log.d(TAG, "startContextualSearch(" + config + ")");
         try {
-            mService.startContextualSearchForActivity(activity.getActivityToken(), config);
+            mService.startContextualSearchForApp(config);
         } catch (RemoteException e) {
-            if (DEBUG) Log.d(TAG, "Failed to startContextualSearchForActivity", e);
+            if (DEBUG) Log.d(TAG, "Failed to startContextualSearchForApp", e);
             e.rethrowFromSystemServer();
         }
     }

@@ -16,6 +16,8 @@
 
 package android.security.keystore2;
 
+import android.security.keystore2.Flags;
+
 import java.security.Provider;
 
 /**
@@ -241,6 +243,20 @@ class AndroidKeyStoreBCWorkaroundProvider extends Provider {
         // ecdsa-with-SHA512(4)
         put("Alg.Alias.Signature.1.2.840.10045.4.3.4", "SHA512withECDSA");
         put("Alg.Alias.Signature.2.16.840.1.101.3.4.2.3with1.2.840.10045.2.1", "SHA512withECDSA");
+
+        if (Flags.mldsaSupport()) {
+            putSignatureImpl("ML-DSA", PACKAGE_NAME + ".AndroidKeyStoreMlDsaSignatureSpi$MLDSA");
+
+            putSignatureImpl("ML-DSA-65", PACKAGE_NAME
+                    + ".AndroidKeyStoreMlDsaSignatureSpi$MLDSA65");
+            put("Alg.Alias.Signature.2.16.840.1.101.3.4.3.18", "ML-DSA-65");
+            put("Alg.Alias.Signature.OID.2.16.840.1.101.3.4.3.18", "ML-DSA-65");
+
+            putSignatureImpl("ML-DSA-87", PACKAGE_NAME
+                    + ".AndroidKeyStoreMlDsaSignatureSpi$MLDSA87");
+            put("Alg.Alias.Signature.2.16.840.1.101.3.4.3.19", "ML-DSA-87");
+            put("Alg.Alias.Signature.OID.2.16.840.1.101.3.4.3.19", "ML-DSA-87");
+        }
     }
 
     private void putMacImpl(String algorithm, String implClass) {

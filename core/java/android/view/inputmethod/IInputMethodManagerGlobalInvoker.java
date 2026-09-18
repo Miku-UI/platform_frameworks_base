@@ -25,6 +25,8 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresNoPermission;
 import android.annotation.RequiresPermission;
+import android.annotation.SpecialUsers.CanBeALL;
+import android.annotation.SpecialUsers.CanBeCURRENT;
 import android.annotation.UserIdInt;
 import android.content.Context;
 import android.os.IBinder;
@@ -33,17 +35,20 @@ import android.os.ResultReceiver;
 import android.os.ServiceManager;
 import android.util.ExceptionUtils;
 import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager.IMPickerEntryPoint;
 
 import com.android.internal.infra.AndroidFuture;
 import com.android.internal.inputmethod.DirectBootAwareness;
 import com.android.internal.inputmethod.IBooleanListener;
 import com.android.internal.inputmethod.IConnectionlessHandwritingCallback;
+import com.android.internal.inputmethod.IImeSwitcherMenu;
 import com.android.internal.inputmethod.IImeTracker;
 import com.android.internal.inputmethod.IInputMethodClient;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
 import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
 import com.android.internal.inputmethod.IRemoteInputConnection;
 import com.android.internal.inputmethod.InputMethodInfoSafeList;
+import com.android.internal.inputmethod.InputMethodSubtypeSafeList;
 import com.android.internal.inputmethod.SoftInputShowHideReason;
 import com.android.internal.inputmethod.StartInputFlags;
 import com.android.internal.inputmethod.StartInputReason;
@@ -209,12 +214,8 @@ final class IInputMethodManagerGlobalInvoker {
             return new ArrayList<>();
         }
         try {
-            if (Flags.useInputMethodInfoSafeList()) {
-                return InputMethodInfoSafeList.extractFrom(
-                        service.getInputMethodList(userId, directBootAwareness));
-            } else {
-                return service.getInputMethodListLegacy(userId, directBootAwareness);
-            }
+            return InputMethodInfoSafeList.extractFrom(
+                    service.getInputMethodList(userId, directBootAwareness));
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -229,12 +230,8 @@ final class IInputMethodManagerGlobalInvoker {
             return new ArrayList<>();
         }
         try {
-            if (Flags.useInputMethodInfoSafeList()) {
-                return InputMethodInfoSafeList.extractFrom(
-                        service.getEnabledInputMethodList(userId));
-            } else {
-                return service.getEnabledInputMethodListLegacy(userId);
-            }
+            return InputMethodInfoSafeList.extractFrom(
+                    service.getEnabledInputMethodList(userId));
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -250,8 +247,9 @@ final class IInputMethodManagerGlobalInvoker {
             return new ArrayList<>();
         }
         try {
-            return service.getEnabledInputMethodSubtypeList(imiId,
-                    allowsImplicitlyEnabledSubtypes, userId);
+            return InputMethodSubtypeSafeList.extractFrom(
+                    service.getEnabledInputMethodSubtypeList(imiId,
+                            allowsImplicitlyEnabledSubtypes, userId));
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -341,13 +339,47 @@ final class IInputMethodManagerGlobalInvoker {
     @RequiresPermission(allOf = {
             Manifest.permission.WRITE_SECURE_SETTINGS,
             Manifest.permission.INTERACT_ACROSS_USERS_FULL})
-    static void showInputMethodPickerFromSystem(int auxiliarySubtypeMode, int displayId) {
+    static void showInputMethodPickerFromSystem(
+            int auxiliarySubtypeMode, @IMPickerEntryPoint int entryPoint, int displayId) {
         final IInputMethodManager service = getService();
         if (service == null) {
             return;
         }
         try {
-            service.showInputMethodPickerFromSystem(auxiliarySubtypeMode, displayId);
+            service.showInputMethodPickerFromSystem(auxiliarySubtypeMode, entryPoint, displayId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @AnyThread
+    @RequiresPermission(allOf = {
+            Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL})
+    static void toggleInputMethodPickerFromSystem(
+            int auxiliarySubtypeMode, @IMPickerEntryPoint int entryPoint, int displayId) {
+        final IInputMethodManager service = getService();
+        if (service == null) {
+            return;
+        }
+        try {
+            service.toggleInputMethodPickerFromSystem(auxiliarySubtypeMode, entryPoint, displayId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @AnyThread
+    @RequiresPermission(allOf = {
+            Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL})
+    static void hideInputMethodPickerFromSystem(int displayId) {
+        final IInputMethodManager service = getService();
+        if (service == null) {
+            return;
+        }
+        try {
+            service.hideInputMethodPickerFromSystem(displayId);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -355,13 +387,13 @@ final class IInputMethodManagerGlobalInvoker {
 
     @AnyThread
     @RequiresPermission(Manifest.permission.TEST_INPUT_METHOD)
-    static boolean isInputMethodPickerShownForTest() {
+    static boolean isInputMethodPickerShownForTest(@UserIdInt int userId) {
         final IInputMethodManager service = getService();
         if (service == null) {
             return false;
         }
         try {
-            return service.isInputMethodPickerShownForTest();
+            return service.isInputMethodPickerShownForTest(userId);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -392,6 +424,24 @@ final class IInputMethodManagerGlobalInvoker {
         }
         try {
             return service.shouldShowImeSwitcherButtonForTest();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @AnyThread
+    @RequiresPermission(allOf = {
+            Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.STATUS_BAR_SERVICE,
+    })
+    static void registerImeSwitcherMenu(@NonNull IImeSwitcherMenu imeSwitcherMenu) {
+        final IInputMethodManager service = getService();
+        if (service == null) {
+            return;
+        }
+        try {
+            service.registerImeSwitcherMenu(imeSwitcherMenu);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -633,19 +683,104 @@ final class IInputMethodManagerGlobalInvoker {
         }
     }
 
+    @AnyThread
+    @RequiresPermission(Manifest.permission.TEST_INPUT_METHOD)
+    static void setPreventImeStartupBypassedAppsForTest(@Nullable List<String> allowedPackages) {
+        final IInputMethodManager service = getService();
+        if (service == null) {
+            return;
+        }
+        try {
+            service.setPreventImeStartupBypassedAppsForTest(allowedPackages);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @AnyThread
+    @RequiresPermission(allOf = {Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL},
+            conditional = true)
+    static boolean enableInputMethodForTesting(@NonNull String imeId,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        final IInputMethodManager service = getService();
+        if (service == null) {
+            return false;
+        }
+        try {
+            return service.enableInputMethodForTesting(imeId, userId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @AnyThread
+    @RequiresPermission(allOf = {Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL},
+            conditional = true)
+    static boolean disableInputMethodForTesting(@NonNull String imeId,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        final IInputMethodManager service = getService();
+        if (service == null) {
+            return false;
+        }
+        try {
+            return service.disableInputMethodForTesting(imeId, userId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @AnyThread
+    @RequiresPermission(allOf = {Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL},
+            conditional = true)
+    static boolean setInputMethodForTesting(@NonNull String imeId,
+            @UserIdInt @CanBeALL @CanBeCURRENT int userId) {
+        final IInputMethodManager service = getService();
+        if (service == null) {
+            return false;
+        }
+        try {
+            return service.setInputMethodForTesting(imeId, userId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @AnyThread
+    @RequiresPermission(allOf = {Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL},
+            conditional = true)
+    static void resetInputMethodsForTesting(@CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        final IInputMethodManager service = getService();
+        if (service == null) {
+            return;
+        }
+        try {
+            service.resetInputMethodsForTesting(userId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
     /** @see com.android.server.inputmethod.ImeTrackerService#onStart */
     @AnyThread
     static void onStart(@NonNull ImeTracker.Token statsToken, int uid, @ImeTracker.Type int type,
             @ImeTracker.Origin int origin, @SoftInputShowHideReason int reason, boolean fromUser,
-            @CurrentTimeMillisLong long startWallTimeMs,
+            @UserIdInt int userId, int displayId, @CurrentTimeMillisLong long startWallTimeMs,
             @ElapsedRealtimeLong long startTimestampMs) {
         final var service = getImeTrackerService();
         if (service == null) {
             return;
         }
         try {
-            service.onStart(statsToken, uid, type, origin, reason, fromUser, startWallTimeMs,
-                    startTimestampMs);
+            service.onStart(statsToken, uid, type, origin, reason, fromUser, userId, displayId,
+                    startWallTimeMs, startTimestampMs);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

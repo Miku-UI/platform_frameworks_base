@@ -22,6 +22,7 @@ import static android.app.ITaskStackListener.FORCED_RESIZEABLE_REASON_SECONDARY_
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
+import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doAnswer;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doCallRealMethod;
@@ -49,20 +50,19 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 
-import android.annotation.NonNull;
 import android.app.ActivityOptions;
+import android.app.TaskInfo;
 import android.app.WaitResult;
-import android.app.WindowConfiguration;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
-import android.graphics.Rect;
 import android.os.Binder;
 import android.os.ConditionVariable;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.view.Display;
 
@@ -223,11 +223,11 @@ public class ActivityTaskSupervisorTests extends WindowTestsBase {
         activity1.setVisible(false);
         activity1.finishing = true;
         activity1.setState(ActivityRecord.State.STOPPING, "test");
-        activity1.addToStopping(false /* scheduleIdle */, false /* idleDelayed */, "test");
+        activity1.addToStopping(false /* scheduleIdle */, "test");
         final ActivityRecord activity2 = new ActivityBuilder(mAtm).setCreateTask(true).build();
         activity2.setState(ActivityRecord.State.RESUMED, "test");
         // The state can happen from ActivityRecord#makeInvisible.
-        activity2.addToStopping(false /* scheduleIdle */, false /* idleDelayed */, "test");
+        activity2.addToStopping(false /* scheduleIdle */, "test");
         mSupervisor.removeTask(activity1.getTask(), true /* killProcess */,
                 true /* removeFromRecents */, "testRemoveTask");
         mSupervisor.removeTask(activity2.getTask(), true /* killProcess */,
@@ -349,14 +349,20 @@ public class ActivityTaskSupervisorTests extends WindowTestsBase {
         doReturn(true).when(display).isTrusted();
         final boolean allowedOnTrusted = mSupervisor.isCallerAllowedToLaunchOnDisplay(callingPid,
                 callingUid, display.getDisplayId(), activityInfo);
+        final boolean allowedOnTrustedNullAinfo = mSupervisor.isCallerAllowedToLaunchOnDisplay(
+                callingPid, callingUid, display.getDisplayId(), null);
 
         assertThat(allowedOnTrusted).isTrue();
+        assertThat(allowedOnTrustedNullAinfo).isTrue();
 
         doReturn(false).when(display).isTrusted();
         final boolean allowedOnUntrusted = mSupervisor.isCallerAllowedToLaunchOnDisplay(callingPid,
                 callingUid, display.getDisplayId(), activityInfo);
+        final boolean allowedOnUntrustedNullAinfo = mSupervisor.isCallerAllowedToLaunchOnDisplay(
+                callingPid, callingUid, display.getDisplayId(), null);
 
         assertThat(allowedOnUntrusted).isFalse();
+        assertThat(allowedOnUntrustedNullAinfo).isFalse();
     }
 
     /**
@@ -364,10 +370,7 @@ public class ActivityTaskSupervisorTests extends WindowTestsBase {
      * cannot be launched on a display that cannot host tasks.
      */
     @Test
-    @RequiresFlagsEnabled({
-            FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
-            Flags.FLAG_ENABLE_MIRROR_DISPLAY_NO_ACTIVITY
-    })
+    @RequiresFlagsEnabled(FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT)
     public void testDisplayCanLaunchActivities_canHostTasksDisplay() {
         final Display display = mDisplayContent.mDisplay;
         // An empty info without FLAG_ALLOW_EMBEDDED.
@@ -453,14 +456,70 @@ public class ActivityTaskSupervisorTests extends WindowTestsBase {
     }
 
     /**
+     * Verifies that a top-resumed state gain is scheduled after resume is no longer deferred.
+     */
+    @Test
+    public void testTopResumedActivity_deferResume_gainState() {
+        final ActivityRecord activity = new ActivityBuilder(mAtm).setCreateTask(true).build();
+        doReturn(true).when(activity).scheduleTopResumedActivityChanged(anyBoolean());
+
+        // Defer resume, then resume an activity.
+        mSupervisor.beginDeferResume();
+        activity.setState(ActivityRecord.State.RESUMED, "test");
+
+        // Verify that no top-resumed state change is sent while resume is deferred.
+        verify(activity, never()).scheduleTopResumedActivityChanged(anyBoolean());
+
+        // End deferring resume.
+        mSupervisor.endDeferResume();
+
+        // Verify that the top-resumed state gain is sent.
+        verify(activity).scheduleTopResumedActivityChanged(eq(true));
+    }
+
+    /**
+     * Verifies that top-resumed state loss is scheduled for a transiently visible activity.
+     */
+    @Test
+    public void testTopResumedStateLoss_transientlyVisible() {
+        final TransitionController transitionController =
+                mAtm.mWindowOrganizerController.getTransitionController();
+        spyOn(transitionController);
+        doReturn(true).when(transitionController).isTransientVisible(any());
+
+        final ActivityRecord activity1 = new ActivityBuilder(mAtm).setCreateTask(true).build();
+        doReturn(true).when(activity1).scheduleTopResumedActivityChanged(anyBoolean());
+        activity1.setState(ActivityRecord.State.RESUMED, "test");
+
+        // Resume another activity, which should trigger top resumed state loss for activity1.
+        final ActivityRecord activity2 = new ActivityBuilder(mAtm).setCreateTask(true).build();
+        activity2.setState(ActivityRecord.State.RESUMED, "test");
+    }
+
+    /**
      * We need to launch home again after user unlocked for those displays that do not have
      * encryption aware home app.
      */
     @Test
+    @RequiresFlagsDisabled(Flags.FLAG_HOME_ACTIVITY_ALWAYS_PRESENT)
     public void testStartHomeAfterUserUnlocked() {
         mSupervisor.onUserUnlocked(0);
         waitHandlerIdle(mAtm.mH);
-        verify(mRootWindowContainer, timeout(TIMEOUT_MS)).startHomeOnEmptyDisplays("userUnlocked");
+        verify(mRootWindowContainer, timeout(TIMEOUT_MS))
+                .startHomeOnEmptyDisplays("userUnlocked");
+    }
+
+    /**
+     * We need to launch home again after user unlocked for those displays that do not have
+     * encryption aware home app.
+     */
+    @Test
+    @EnableFlags(Flags.FLAG_HOME_ACTIVITY_ALWAYS_PRESENT)
+    public void testStartHomeAfterUserUnlockedWithHomeAlwaysPresent() {
+        mSupervisor.onUserUnlocked(0);
+        waitHandlerIdle(mAtm.mH);
+        verify(mRootWindowContainer, timeout(TIMEOUT_MS))
+                .startHomeOnDisplaysIfNeeded("userUnlocked");
     }
 
     /** Verifies that launch from recents sets the launch cookie on the activity. */
@@ -552,138 +611,133 @@ public class ActivityTaskSupervisorTests extends WindowTestsBase {
         verify(fullscreenRootTask.getDisplayArea()).moveHomeRootTaskToFront(any());
     }
 
+    /**
+     * Verifies that launch from recents doesn't reparent an automated task to the default display
+     * and instead falls back to startActivity (where the ActivityStartInterceptor can intercept).
+     */
     @Test
-    public void testOpaque_leafTask_occludingActivity_isOpaque() {
-        final ActivityRecord activity = new ActivityBuilder(mAtm).setCreateTask(true).build();
-        activity.setOccludesParent(true);
-        final TaskFragment tf = activity.getTaskFragment();
+    @EnableFlags(android.companion.virtualdevice.flags.Flags.FLAG_COMPUTER_CONTROL_ACCESS)
+    public void testStartActivityFromRecents_automatedTask_launchesWarning() {
+        final DisplayContent newDisplay = addNewDisplayContentAt(DisplayContent.POSITION_TOP);
+        final Task stack = new TaskBuilder(mSupervisor)
+                .setDisplay(newDisplay).setCreateActivity(true).build();
+        final ActivityRecord activity = stack.getTopNonFinishingActivity();
+        final Task task = activity.getTask();
+        final ActivityStartController startController = mAtm.getActivityStartController();
+        spyOn(startController);
+        doNothing().when(mSupervisor.mService).moveTaskToFrontLocked(eq(null), eq(null), anyInt(),
+                anyInt(), any());
+        doReturn(0).when(startController).startActivityInPackage(anyInt(),
+                    anyInt(), anyInt(), any(), any(), any(), any(), any(),
+                    any(), anyInt(), anyInt(), any(), anyInt(), any(), any(),
+                    anyBoolean(), any(), anyBoolean());
 
-        assertThat(mSupervisor.mOpaqueContainerHelper.isOpaque(tf)).isTrue();
+        doReturn(new Intent()).when(mSupervisor)
+                .createAutomatedAppLaunchWarningIntent(any(), anyInt(), any(), anyInt());
+
+        SafeActivityOptions safeOptions = SafeActivityOptions.fromBundle(
+                ActivityOptions.makeBasic()
+                        .setLaunchDisplayId(mDisplayContent.getDisplayId()).toBundle(),
+                Binder.getCallingPid(), Binder.getCallingUid());
+
+        mSupervisor.startActivityFromRecents(DEFAULT_CALLING_PID, DEFAULT_CALLING_UID,
+                activity.getRootTaskId(), safeOptions);
+
+        assertThat(task.getDisplayContent()).isEqualTo(newDisplay);
+        verify(startController).startActivityInPackage(anyInt(),
+                    anyInt(), anyInt(), any(), any(), eq(task.intent), any(), any(),
+                    any(), anyInt(), anyInt(), any(), anyInt(), any(),
+                    eq("startActivityFromRecents"), anyBoolean(), any(), anyBoolean());
     }
 
     @Test
-    public void testOpaque_leafTask_nonOccludingActivity_isTranslucent() {
-        final ActivityRecord activity = new ActivityBuilder(mAtm).setCreateTask(true).build();
-        activity.setOccludesParent(false);
-        final TaskFragment tf = activity.getTaskFragment();
-
-        assertThat(mSupervisor.mOpaqueContainerHelper.isOpaque(tf)).isFalse();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    public void testOpaque_rootTask_translucentFillingChild_isTranslucent() {
-        final Task rootTask = new TaskBuilder(mSupervisor).setOnTop(true).build();
-        createChildTaskFragment(/* parent */ rootTask,
-                WINDOWING_MODE_FREEFORM, /* opaque */ false, /* filling */ true);
-
-        assertThat(mSupervisor.mOpaqueContainerHelper.isOpaque(rootTask)).isFalse();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    public void testOpaque_rootTask_opaqueAndNotFillingChild_isTranslucent() {
-        final Task rootTask = new TaskBuilder(mSupervisor).setOnTop(true).build();
-        createChildTaskFragment(/* parent */ rootTask,
-                WINDOWING_MODE_FREEFORM, /* opaque */ true, /* filling */ false);
-
-        assertThat(mSupervisor.mOpaqueContainerHelper.isOpaque(rootTask)).isFalse();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    public void testOpaque_rootTask_opaqueAndFillingChild_isOpaque() {
-        final Task rootTask = new TaskBuilder(mSupervisor).setOnTop(true).build();
-        createChildTaskFragment(/* parent */ rootTask,
-                WINDOWING_MODE_FREEFORM, /* opaque */ true, /* filling */ true);
-
-        assertThat(mSupervisor.mOpaqueContainerHelper.isOpaque(rootTask)).isTrue();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    public void testOpaque_rootTask_nonFillingOpaqueAdjacentChildren_isOpaque() {
-        final Task rootTask = new TaskBuilder(mSupervisor).setOnTop(true).build();
-        final TaskFragment tf1 = createChildTaskFragment(/* parent */ rootTask,
-                WINDOWING_MODE_MULTI_WINDOW, /* opaque */ true, /* filling */ false);
-        final TaskFragment tf2 = createChildTaskFragment(/* parent */ rootTask,
-                WINDOWING_MODE_MULTI_WINDOW, /* opaque */ true, /* filling */ false);
-        tf1.setAdjacentTaskFragments(new TaskFragment.AdjacentSet(tf1, tf2));
-
-        assertThat(mSupervisor.mOpaqueContainerHelper.isOpaque(rootTask)).isTrue();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    public void testOpaque_rootTask_nonFillingOpaqueAdjacentChildren_multipleAdjacent_isOpaque() {
-        final Task rootTask = new TaskBuilder(mSupervisor).setOnTop(true).build();
-        final TaskFragment tf1 = createChildTaskFragment(/* parent */ rootTask,
-                WINDOWING_MODE_MULTI_WINDOW, /* opaque */ true, /* filling */ false);
-        final TaskFragment tf2 = createChildTaskFragment(/* parent */ rootTask,
-                WINDOWING_MODE_MULTI_WINDOW, /* opaque */ true, /* filling */ false);
-        final TaskFragment tf3 = createChildTaskFragment(/* parent */ rootTask,
-                WINDOWING_MODE_MULTI_WINDOW, /* opaque */ true, /* filling */ false);
-        tf1.setAdjacentTaskFragments(new TaskFragment.AdjacentSet(tf1, tf2, tf3));
-
-        assertThat(mSupervisor.mOpaqueContainerHelper.isOpaque(rootTask)).isTrue();
-    }
-
-    @Test
-    public void testOpaque_nonLeafTaskFragmentWithDirectActivity_opaque() {
-        final ActivityRecord directChildActivity = new ActivityBuilder(mAtm).setCreateTask(true)
-                .build();
-        directChildActivity.setOccludesParent(true);
-        final Task nonLeafTask = directChildActivity.getTask();
-        final TaskFragment directChildFragment = new TaskFragment(mAtm, new Binder(),
-                true /* createdByOrganizer */, false /* isEmbedded */);
-        nonLeafTask.addChild(directChildFragment, 0);
-
-        assertThat(mSupervisor.mOpaqueContainerHelper.isOpaque(nonLeafTask)).isTrue();
-    }
-
-    @Test
-    public void testOpaque_nonLeafTaskFragmentWithDirectActivity_transparent() {
-        final ActivityRecord directChildActivity = new ActivityBuilder(mAtm).setCreateTask(true)
-                .build();
-        directChildActivity.setOccludesParent(false);
-        final Task nonLeafTask = directChildActivity.getTask();
-        final TaskFragment directChildFragment = new TaskFragment(mAtm, new Binder(),
-                true /* createdByOrganizer */, false /* isEmbedded */);
-        nonLeafTask.addChild(directChildFragment, 0);
-
-        assertThat(mSupervisor.mOpaqueContainerHelper.isOpaque(nonLeafTask)).isFalse();
-    }
-
-    @Test
-    public void testOpaque_leafTaskUpdated() {
+    @RequiresFlagsDisabled(Flags.FLAG_ENABLE_BUBBLE_ROOT_TASK)
+    public void testTaskInfoHelper_fillAndReturnTop_flagDisabled_cookieAddedForOrganizedTask() {
+        // Setup a task created by an organizer with an activity that has a launch cookie.
         final Task rootTask = new TaskBuilder(mSupervisor).setCreatedByOrganizer(true).build();
-        final TaskFragment opaqueTask = createChildTaskFragment(rootTask,
-                WINDOWING_MODE_FREEFORM, /* opaque */ true, /* filling */ true);
-        final Task childTask = new TaskBuilder(mSupervisor).setParentTask(rootTask).build();
-        final ActivityRecord directChildActivity = new ActivityBuilder(mAtm).setTask(childTask)
-                .build();
+        final Task childTask = createLeafTaskWithActivity(rootTask,
+                WINDOWING_MODE_UNDEFINED, /* opaque */ true, /* filling */ true);
+        final ActivityRecord activity = childTask.getTopMostActivity();
+        final IBinder launchCookie = new Binder();
+        activity.mLaunchCookie = launchCookie;
 
-        directChildActivity.setOccludesParent(false);
+        final ActivityTaskSupervisor.TaskInfoHelper helper =
+                new ActivityTaskSupervisor.TaskInfoHelper();
+        final TaskInfo taskInfo = new TaskBuilder(mSupervisor).build().getTaskInfo();
+        taskInfo.launchCookies.clear();
 
-        assertThat(mSupervisor.mOpaqueContainerHelper.isOpaque(childTask)).isFalse();
-        assertThat(mSupervisor.mOpaqueContainerHelper.isOpaque(opaqueTask)).isTrue();
+        // Execute the method to be tested.
+        helper.fillAndReturnTop(rootTask, taskInfo);
 
-        directChildActivity.setOccludesParent(true);
-
-        assertThat(mSupervisor.mOpaqueContainerHelper.isOpaque(childTask)).isTrue();
+        // When the flag is disabled, the cookie should be added even if the task is created by an
+        // organizer.
+        assertThat(taskInfo.launchCookies).containsExactly(launchCookie);
     }
 
-    @NonNull
-    private TaskFragment createChildTaskFragment(@NonNull Task parent,
-            @WindowConfiguration.WindowingMode int windowingMode,
-            boolean opaque,
-            boolean filling) {
-        final ActivityRecord activity = new ActivityBuilder(mAtm)
-                .setCreateTask(true).setParentTask(parent).build();
-        activity.setOccludesParent(opaque);
-        final TaskFragment tf = activity.getTaskFragment();
-        tf.setWindowingMode(windowingMode);
-        tf.setBounds(filling ? new Rect() : new Rect(100, 100, 200, 200));
-        return tf;
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_BUBBLE_ROOT_TASK)
+    public void testTaskInfoHelper_fillAndReturnTop_flagEnabled_notByOrganizer_cookieAdded() {
+        // Setup a task NOT created by an organizer with an activity that has a launch cookie.
+        final Task rootTask = new TaskBuilder(mSupervisor).setCreatedByOrganizer(false).build();
+        final Task childTask = createLeafTaskWithActivity(rootTask,
+                WINDOWING_MODE_UNDEFINED, /* opaque */ true, /* filling */ true);
+        final ActivityRecord activity = childTask.getTopMostActivity();
+        final IBinder launchCookie = new Binder();
+        activity.mLaunchCookie = launchCookie;
+
+        final ActivityTaskSupervisor.TaskInfoHelper helper =
+                new ActivityTaskSupervisor.TaskInfoHelper();
+        final TaskInfo taskInfo = new TaskBuilder(mSupervisor).build().getTaskInfo();
+        taskInfo.launchCookies.clear();
+
+        // Execute the method to be tested.
+        helper.fillAndReturnTop(rootTask, taskInfo);
+
+        // When the flag is enabled, the cookie should be added if the task is not created by an
+        // organizer.
+        assertThat(taskInfo.launchCookies).containsExactly(launchCookie);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_BUBBLE_ROOT_TASK)
+    public void testTaskInfoHelper_fillAndReturnTop_flagEnabled_byOrganizer_cookieNotAdded() {
+        // Setup a task created by an organizer with an activity that has a launch cookie.
+        final Task rootTask = new TaskBuilder(mSupervisor).setCreatedByOrganizer(true).build();
+        final Task childTask = createLeafTaskWithActivity(rootTask,
+                WINDOWING_MODE_UNDEFINED, /* opaque */ true, /* filling */ true);
+        final ActivityRecord activity = childTask.getTopMostActivity();
+        final IBinder launchCookie = new Binder();
+        activity.mLaunchCookie = launchCookie;
+
+        final ActivityTaskSupervisor.TaskInfoHelper helper =
+                new ActivityTaskSupervisor.TaskInfoHelper();
+        final TaskInfo taskInfo = new TaskBuilder(mSupervisor).build().getTaskInfo();
+        taskInfo.launchCookies.clear();
+
+        // Execute the method to be tested.
+        helper.fillAndReturnTop(rootTask, taskInfo);
+
+        // When the flag is enabled, the cookie should NOT be added if the task is created by an
+        // organizer.
+        assertThat(taskInfo.launchCookies).isEmpty();
+    }
+
+    @Test
+    public void testTaskInfoHelper_fillAndReturnTop_noCookie_isEmpty() {
+        // Setup a task with an activity that does not have a launch cookie.
+        final Task rootTask = new TaskBuilder(mSupervisor).setCreatedByOrganizer(true).build();
+        createLeafTaskWithActivity(rootTask,
+                WINDOWING_MODE_UNDEFINED, /* opaque */ true, /* filling */ true);
+
+        final ActivityTaskSupervisor.TaskInfoHelper helper =
+                new ActivityTaskSupervisor.TaskInfoHelper();
+        final TaskInfo taskInfo = new TaskBuilder(mSupervisor).build().getTaskInfo();
+        taskInfo.launchCookies.clear();
+
+        // Execute the method to be tested.
+        helper.fillAndReturnTop(rootTask, taskInfo);
+
+        // If there's no cookie, the list should be empty.
+        assertThat(taskInfo.launchCookies).isEmpty();
     }
 }

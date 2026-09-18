@@ -66,9 +66,7 @@ class DismissSplitScreenByDividerTest(override val flicker: FlickerTest) :
     @Presubmit
     @Test
     fun primaryAppBoundsBecomesInvisible() {
-        flicker.assertLayersEnd {
-            this.visibleRegion(primaryApp).isEmpty()
-        }
+        flicker.assertLayersEnd { this.visibleRegion(primaryApp).isEmpty() }
     }
 
     @Presubmit

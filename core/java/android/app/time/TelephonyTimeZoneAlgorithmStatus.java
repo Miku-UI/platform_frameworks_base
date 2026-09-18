@@ -39,9 +39,7 @@ public final class TelephonyTimeZoneAlgorithmStatus implements Parcelable {
         mAlgorithmStatus = requireValidDetectionAlgorithmStatus(algorithmStatus);
     }
 
-    /**
-     * Returns the status of the detection algorithm.
-     */
+    /** Returns the status of the detection algorithm. */
     public @DetectionAlgorithmStatus int getAlgorithmStatus() {
         return mAlgorithmStatus;
     }
@@ -49,23 +47,25 @@ public final class TelephonyTimeZoneAlgorithmStatus implements Parcelable {
     @Override
     public String toString() {
         return "TelephonyTimeZoneAlgorithmStatus{"
-                + "mAlgorithmStatus=" + detectionAlgorithmStatusToString(mAlgorithmStatus)
+                + "mAlgorithmStatus="
+                + detectionAlgorithmStatusToString(mAlgorithmStatus)
                 + '}';
     }
 
     @NonNull
-    public static final Creator<TelephonyTimeZoneAlgorithmStatus> CREATOR = new Creator<>() {
-        @Override
-        public TelephonyTimeZoneAlgorithmStatus createFromParcel(Parcel in) {
-            @DetectionAlgorithmStatus int algorithmStatus = in.readInt();
-            return new TelephonyTimeZoneAlgorithmStatus(algorithmStatus);
-        }
+    public static final Creator<TelephonyTimeZoneAlgorithmStatus> CREATOR =
+            new Creator<>() {
+                @Override
+                public TelephonyTimeZoneAlgorithmStatus createFromParcel(Parcel in) {
+                    @DetectionAlgorithmStatus int algorithmStatus = in.readInt();
+                    return new TelephonyTimeZoneAlgorithmStatus(algorithmStatus);
+                }
 
-        @Override
-        public TelephonyTimeZoneAlgorithmStatus[] newArray(int size) {
-            return new TelephonyTimeZoneAlgorithmStatus[size];
-        }
-    };
+                @Override
+                public TelephonyTimeZoneAlgorithmStatus[] newArray(int size) {
+                    return new TelephonyTimeZoneAlgorithmStatus[size];
+                }
+            };
 
     @Override
     public int describeContents() {

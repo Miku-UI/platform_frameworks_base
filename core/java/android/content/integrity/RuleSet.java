@@ -39,13 +39,13 @@ public class RuleSet {
         mRules = Collections.unmodifiableList(rules);
     }
 
-    /** @see Builder#setVersion(String). */
+    /** @see Builder#setVersion(String) */
     @NonNull
     public String getVersion() {
         return mVersion;
     }
 
-    /** @see Builder#addRules(List). */
+    /** @see Builder#addRules(List) */
     @NonNull
     public List<Rule> getRules() {
         return mRules;

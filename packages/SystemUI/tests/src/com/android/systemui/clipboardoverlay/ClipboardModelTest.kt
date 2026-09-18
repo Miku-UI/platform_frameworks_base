@@ -99,4 +99,17 @@ class ClipboardModelTest : SysuiTestCase() {
         assertEquals(ClipboardModel.Type.IMAGE, model.type)
         assertEquals(testBitmap, model.loadThumbnail(mMockContext))
     }
+
+    @Test
+    fun test_nullMimeType() {
+        val testBitmap = Bitmap.createBitmap(50, 50, Bitmap.Config.ARGB_8888)
+        whenever(mMockContext.contentResolver).thenReturn(mMockContentResolver)
+        whenever(mMockContext.resources).thenReturn(mContext.resources)
+        whenever(mMockContentResolver.loadThumbnail(any(), any(), any())).thenReturn(testBitmap)
+        whenever(mMockContentResolver.getType(any())).thenReturn("text")
+        val imageClipData = ClipData("Test", arrayOf(), ClipData.Item(Uri.parse("test")))
+        val model = ClipboardModel.fromClipData(mMockContext, mClipboardUtils, imageClipData, "")
+        assertEquals(ClipboardModel.Type.URI, model.type)
+        assertEquals(null, model.loadThumbnail(mMockContext))
+    }
 }

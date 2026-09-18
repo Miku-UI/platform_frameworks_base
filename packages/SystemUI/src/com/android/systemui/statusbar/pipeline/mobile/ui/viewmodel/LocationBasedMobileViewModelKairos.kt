@@ -17,7 +17,6 @@
 package com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel
 
 import android.graphics.Color
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.combine
 import com.android.systemui.statusbar.phone.StatusBarLocation
@@ -33,7 +32,6 @@ import com.android.systemui.statusbar.pipeline.mobile.ui.VerboseMobileViewLogger
  * @property location the [StatusBarLocation] of this VM.
  * @property verboseLogger an optional logger to log extremely verbose view updates.
  */
-@ExperimentalKairosApi
 abstract class LocationBasedMobileViewModelKairos(
     val commonImpl: MobileIconViewModelKairosCommon,
     val location: StatusBarLocation,
@@ -59,7 +57,6 @@ abstract class LocationBasedMobileViewModelKairos(
     }
 }
 
-@ExperimentalKairosApi
 class HomeMobileIconViewModelKairos(
     commonImpl: MobileIconViewModelKairosCommon,
     verboseMobileViewLogger: VerboseMobileViewLogger,
@@ -71,7 +68,6 @@ class HomeMobileIconViewModelKairos(
         verboseMobileViewLogger,
     )
 
-@ExperimentalKairosApi
 class QsMobileIconViewModelKairos(commonImpl: MobileIconViewModelKairosCommon) :
     MobileIconViewModelKairosCommon,
     LocationBasedMobileViewModelKairos(
@@ -81,7 +77,6 @@ class QsMobileIconViewModelKairos(commonImpl: MobileIconViewModelKairosCommon) :
         verboseLogger = null,
     )
 
-@ExperimentalKairosApi
 class ShadeCarrierGroupMobileIconViewModelKairos(
     commonImpl: MobileIconViewModelKairosCommon,
     private val interactor: MobileIconInteractorKairos,
@@ -106,7 +101,6 @@ class ShadeCarrierGroupMobileIconViewModelKairos(
         }
 }
 
-@ExperimentalKairosApi
 class KeyguardMobileIconViewModelKairos(commonImpl: MobileIconViewModelKairosCommon) :
     MobileIconViewModelKairosCommon,
     LocationBasedMobileViewModelKairos(

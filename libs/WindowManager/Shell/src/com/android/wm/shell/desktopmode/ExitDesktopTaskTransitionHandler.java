@@ -45,6 +45,7 @@ import com.android.wm.shell.desktopmode.animation.DesktopToFullscreenTaskAnimato
 import com.android.wm.shell.shared.annotations.ShellMainThread;
 import com.android.wm.shell.shared.desktopmode.DesktopModeTransitionSource;
 import com.android.wm.shell.transition.Transitions;
+import com.android.wm.shell.windowdecor.OnTaskResizeAnimationListener;
 
 import kotlin.Unit;
 import kotlin.jvm.functions.Function0;
@@ -71,7 +72,7 @@ public class ExitDesktopTaskTransitionHandler implements Transitions.TransitionH
     private Function0<Unit> mOnAnimationFinishedCallback;
     private final Supplier<SurfaceControl.Transaction> mTransactionSupplier;
     private Point mPosition;
-
+    private @Nullable OnTaskResizeAnimationListener mOnTaskResizeAnimationListener;
     private final DisplayController mDisplayController;
 
     public ExitDesktopTaskTransitionHandler(
@@ -99,6 +100,11 @@ public class ExitDesktopTaskTransitionHandler implements Transitions.TransitionH
         mLatencyTracker = LatencyTracker.getInstance(mContext);
         mHandler = handler;
         mDisplayController = displayController;
+    }
+
+    /** Sets a listener to invoke on animation changes during exit. */
+    void setOnTaskResizeAnimationListener(@NonNull OnTaskResizeAnimationListener listener) {
+        mOnTaskResizeAnimationListener = listener;
     }
 
     /**
@@ -171,7 +177,7 @@ public class ExitDesktopTaskTransitionHandler implements Transitions.TransitionH
             mInteractionJankMonitor
                     .begin(change.getLeash(), mContext, mHandler, Cuj.CUJ_DESKTOP_MODE_EXIT_MODE);
             new DesktopToFullscreenTaskAnimator(mContext, mTransactionSupplier::get,
-                    mDisplayController)
+                    mDisplayController, mOnTaskResizeAnimationListener)
                     .animate(
                             /* change = */ change,
                             /* startTransaction = */ startT,

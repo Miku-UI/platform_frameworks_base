@@ -40,6 +40,7 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.content.res.Resources;
 import android.hardware.display.BrightnessInfo;
 import android.os.Binder;
 import android.os.Handler;
@@ -737,6 +738,63 @@ public class HighBrightnessModeControllerTest {
 
         hbmc.onHdrBoostApplied(true);
         assertTrue(hbmc.mIsHdrLayerPresent);
+    }
+
+    @Test
+    public void testHbmDisabled_FlagEnabled() {
+        // Mock resources to disable HBM
+        Resources mockResources = mock(Resources.class);
+        when(mContextSpy.getResources()).thenReturn(mockResources);
+        when(mockResources.getBoolean(anyInt())).thenReturn(true);
+
+        // Mock flag enabled
+        when(mInjectorMock.isMaxBrightnessCapOverridePluginTypeEnabled()).thenReturn(true);
+
+        initHandler(null);
+        mHighBrightnessModeMetadata = new HighBrightnessModeMetadata();
+        final HighBrightnessModeController hbmc = new HighBrightnessModeController(
+                mInjectorMock, mHandler, DISPLAY_WIDTH, DISPLAY_HEIGHT, mDisplayToken,
+                mDisplayUniqueId, DEFAULT_MIN, DEFAULT_MAX, DEFAULT_HBM_DATA, null, () -> {},
+                mHighBrightnessModeMetadata, mContextSpy);
+
+        // Verify max brightness is returned as mBrightnessMax (DEFAULT_MAX)
+        assertEquals(DEFAULT_MAX, hbmc.getCurrentBrightnessMax(), EPSILON);
+
+        // Verify onBrightnessChanged doesn't recalculate HBM budget
+        // and sets HIGH_BRIGHTNESS_MODE_SUNLIGHT when brightness is over transition point
+
+        // Initial brightness is DEFAULT_MIN
+        // DEFAULT_MAX is over transition point
+        hbmc.onBrightnessChanged(DEFAULT_MAX, DEFAULT_MAX,
+                BrightnessInfo.BRIGHTNESS_MAX_REASON_NONE);
+
+        // Check metadata
+        assertEquals(-1, mHighBrightnessModeMetadata.getRunningStartTimeMillis());
+        assertEquals(0, mHighBrightnessModeMetadata.getHbmEventQueue().size());
+
+        // Also check that HBM mode is SUNLIGHT
+        assertEquals(HIGH_BRIGHTNESS_MODE_SUNLIGHT, hbmc.getHighBrightnessMode());
+    }
+
+    @Test
+    public void testHbmDisabled_FlagDisabled() {
+        // Mock resources to disable HBM
+        Resources mockResources = mock(Resources.class);
+        when(mContextSpy.getResources()).thenReturn(mockResources);
+        when(mockResources.getBoolean(anyInt())).thenReturn(true);
+
+        // Mock flag disabled
+        when(mInjectorMock.isMaxBrightnessCapOverridePluginTypeEnabled()).thenReturn(false);
+
+        initHandler(null);
+        mHighBrightnessModeMetadata = new HighBrightnessModeMetadata();
+        final HighBrightnessModeController hbmc = new HighBrightnessModeController(
+                mInjectorMock, mHandler, DISPLAY_WIDTH, DISPLAY_HEIGHT, mDisplayToken,
+                mDisplayUniqueId, DEFAULT_MIN, DEFAULT_MAX, DEFAULT_HBM_DATA, null, () -> {},
+                mHighBrightnessModeMetadata, mContextSpy);
+
+        // Verify max brightness is transition point
+        assertEquals(TRANSITION_POINT, hbmc.getCurrentBrightnessMax(), EPSILON);
     }
 
     private void assertState(HighBrightnessModeController hbmc,

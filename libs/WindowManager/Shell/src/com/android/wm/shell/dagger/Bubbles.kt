@@ -19,6 +19,4 @@ package com.android.wm.shell.dagger
 import javax.inject.Qualifier
 
 /** Disambiguating annotation for Bubbles bindings. */
-@Qualifier
-@Retention(AnnotationRetention.RUNTIME)
-annotation class Bubbles
+@Qualifier @Retention(AnnotationRetention.RUNTIME) annotation class Bubbles

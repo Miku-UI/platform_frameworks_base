@@ -265,7 +265,7 @@ public abstract class ApexManager {
 
     /**
      * Returns null if there were no errors when installing apk-in-apex inside
-     * {@param apexPackageName}, otherwise returns the error as string
+     * {@code apexPackageName}, otherwise returns the error as string
      *
      * @param apexPackageName Package name of the apk container of apex
      */

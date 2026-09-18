@@ -24,7 +24,6 @@ import android.testing.TestableLooper.RunWithLooper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.server.notification.Flags.FLAG_SCREENSHARE_NOTIFICATION_HIDING
-import com.android.systemui.Flags.FLAG_SCREENSHARE_NOTIFICATION_HIDING_BUG_FIX
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.notification.collection.BundleEntry
@@ -143,7 +142,7 @@ class StackCoordinatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_SCREENSHARE_NOTIFICATION_HIDING, FLAG_SCREENSHARE_NOTIFICATION_HIDING_BUG_FIX)
+    @EnableFlags(FLAG_SCREENSHARE_NOTIFICATION_HIDING)
     fun testSetNotificationStats_isSensitiveStateActive_nonClearableAlerting() {
         whenever(sensitiveNotificationProtectionController.isSensitiveStateActive).thenReturn(true)
         whenever(section.bucket).thenReturn(BUCKET_ALERTING)
@@ -175,7 +174,7 @@ class StackCoordinatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_SCREENSHARE_NOTIFICATION_HIDING, FLAG_SCREENSHARE_NOTIFICATION_HIDING_BUG_FIX)
+    @EnableFlags(FLAG_SCREENSHARE_NOTIFICATION_HIDING)
     fun testSetNotificationStats_isSensitiveStateActive_nonClearableSilent() {
         whenever(sensitiveNotificationProtectionController.isSensitiveStateActive).thenReturn(true)
         whenever(section.bucket).thenReturn(BUCKET_SILENT)

@@ -26,6 +26,7 @@ import com.android.systemui.keyguard.shared.model.CameraLaunchSourceModel
 import com.android.systemui.keyguard.shared.model.DismissAction
 import com.android.systemui.keyguard.shared.model.DozeTransitionModel
 import com.android.systemui.keyguard.shared.model.KeyguardDone
+import com.android.systemui.keyguard.shared.model.LockAfterDelayTimerState
 import com.android.systemui.keyguard.shared.model.StatusBarState
 import dagger.Binds
 import dagger.Module
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.getAndUpdate
 
 /** Fake implementation of [KeyguardRepository] */
 @SysUISingleton
@@ -89,7 +91,7 @@ class FakeKeyguardRepository @Inject constructor() : KeyguardRepository {
     override val statusBarState: StateFlow<StatusBarState> = _statusBarState
 
     private val _dozeTransitionModel = MutableStateFlow(DozeTransitionModel())
-    override val dozeTransitionModel: Flow<DozeTransitionModel> = _dozeTransitionModel
+    override val dozeTransitionModel: StateFlow<DozeTransitionModel> = _dozeTransitionModel
 
     private val _isUdfpsSupported = MutableStateFlow(false)
 
@@ -127,12 +129,13 @@ class FakeKeyguardRepository @Inject constructor() : KeyguardRepository {
 
     override val topClippingBounds = MutableStateFlow<Int?>(null)
 
-    private var isShowKeyguardWhenReenabled: Boolean = false
-
     private val _canIgnoreAuthAndReturnToGone = MutableStateFlow(false)
     override val canIgnoreAuthAndReturnToGone = _canIgnoreAuthAndReturnToGone.asStateFlow()
 
     override val onCameraLaunchDetected = MutableStateFlow(CameraLaunchSourceModel())
+
+    override val lockAfterDelayState =
+        MutableStateFlow<LockAfterDelayTimerState>(LockAfterDelayTimerState.INACTIVE)
 
     private var _isSignOutButtonOnStatusBarEnabledInConfig: Boolean = false
     override val isSignOutButtonOnStatusBarEnabledInConfig: Boolean
@@ -182,8 +185,8 @@ class FakeKeyguardRepository @Inject constructor() : KeyguardRepository {
         _dozeTimeTick.value = _dozeTimeTick.value + 1
     }
 
-    override fun setDismissAction(dismissAction: DismissAction) {
-        _dismissAction.value = dismissAction
+    override fun setDismissAction(dismissAction: DismissAction): DismissAction {
+        return _dismissAction.getAndUpdate { dismissAction }
     }
 
     override suspend fun setKeyguardDone(timing: KeyguardDone) {
@@ -274,14 +277,6 @@ class FakeKeyguardRepository @Inject constructor() : KeyguardRepository {
 
     fun setIsEncryptedOrLockdown(value: Boolean) {
         _isEncryptedOrLockdown.value = value
-    }
-
-    override fun setShowKeyguardWhenReenabled(isShowKeyguardWhenReenabled: Boolean) {
-        this.isShowKeyguardWhenReenabled = isShowKeyguardWhenReenabled
-    }
-
-    override fun isShowKeyguardWhenReenabled(): Boolean {
-        return isShowKeyguardWhenReenabled
     }
 
     override fun setCanIgnoreAuthAndReturnToGone(canWake: Boolean) {

@@ -34,7 +34,6 @@ import android.os.Build;
 
 import com.android.internal.R;
 import com.android.internal.pm.pkg.parsing.ParsingPackage;
-import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
 import com.android.internal.pm.pkg.parsing.ParsingUtils;
 import com.android.internal.util.XmlUtils;
 
@@ -107,7 +106,19 @@ public class ParsedServiceUtils {
                             | flag(ServiceInfo.FLAG_ALLOW_SHARED_ISOLATED_PROCESS,
                             R.styleable.AndroidManifestService_allowSharedIsolatedProcess, sa)
                             | flag(ServiceInfo.FLAG_SINGLE_USER,
-                            R.styleable.AndroidManifestService_singleUser, sa)));
+                            R.styleable.AndroidManifestService_singleUser, sa)
+                            | flag(ServiceInfo.FLAG_NATIVE_SERVICE,
+                            R.styleable.AndroidManifestService_nativeService, sa)));
+
+            if (android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()) {
+                service.setFlags(service.getFlags() | flag(ServiceInfo.FLAG_RUN_IN_PCC_SANDBOX,
+                         R.styleable.AndroidManifestService_privateComputeCore, sa));
+                if ((service.getFlags() & ServiceInfo.FLAG_ISOLATED_PROCESS) != 0
+                         && (service.getFlags() & ServiceInfo.FLAG_RUN_IN_PCC_SANDBOX) != 0) {
+                    return input.error("Service has both isIsolatedProcess and "
+                        + "privateComputeCore set.");
+                }
+            }
 
             if (Flags.enableSystemUserOnlyForServicesAndProviders()) {
                 service.setFlags(service.getFlags() | flag(ServiceInfo.FLAG_SYSTEM_USER_ONLY,
@@ -140,7 +151,7 @@ public class ParsedServiceUtils {
             if (type != XmlPullParser.START_TAG) {
                 continue;
             }
-            if (ParsingPackageUtils.getAconfigFlags().skipCurrentElement(pkg, parser)) {
+            if (AconfigFlags.getInstance().skipCurrentElement(pkg, parser)) {
                 XmlUtils.skipCurrentTag(parser);
                 continue;
             }

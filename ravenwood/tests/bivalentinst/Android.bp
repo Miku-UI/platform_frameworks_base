@@ -11,10 +11,10 @@ android_ravenwood_test {
     name: "RavenwoodBivalentInstTest_self_inst",
 
     srcs: [
-        "test/**/*.java",
+        "src/**/*.java",
     ],
     exclude_srcs: [
-        "test/**/*_nonself.java",
+        "src/**/*_nonself.java",
     ],
 
     static_libs: [
@@ -36,10 +36,10 @@ android_ravenwood_test {
     name: "RavenwoodBivalentInstTest_nonself_inst",
 
     srcs: [
-        "test/**/*.java",
+        "src/**/*.java",
     ],
     exclude_srcs: [
-        "test/**/*_self.java",
+        "src/**/*_self.java",
     ],
 
     static_libs: [
@@ -75,10 +75,10 @@ android_test {
     name: "RavenwoodBivalentInstTest_self_inst_device",
 
     srcs: [
-        "test/**/*.java",
+        "src/**/*.java",
     ],
     exclude_srcs: [
-        "test/**/*_nonself.java",
+        "src/**/*_nonself.java",
     ],
     static_libs: [
         "junit",
@@ -104,10 +104,10 @@ android_test {
     name: "RavenwoodBivalentInstTest_nonself_inst_device",
 
     srcs: [
-        "test/**/*.java",
+        "src/**/*.java",
     ],
     exclude_srcs: [
-        "test/**/*_self.java",
+        "src/**/*_self.java",
     ],
     static_libs: [
         "junit",

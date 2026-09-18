@@ -52,6 +52,19 @@ public class ZenAdapters {
                 .allowSystem(policy.allowSystem())
                 .allowPriorityChannels(policy.allowPriorityChannels());
 
+        if (Flags.splitSoundVibrationForNotificationBreakthrough()
+            && policy.allowSoundForPriorityCategory
+                    != Policy.ALLOWED_INTERRUPTION_TYPE_UNSET
+            && policy.allowVibrationForPriorityCategory
+                    != Policy.ALLOWED_INTERRUPTION_TYPE_UNSET) {
+            // Currently only alarms supported
+            zenPolicyBuilder.allowAlarms(
+                    (policy.allowSoundForPriorityCategory & Policy.PRIORITY_CATEGORY_ALARMS)
+                            != 0,
+                    (policy.allowVibrationForPriorityCategory & Policy.PRIORITY_CATEGORY_ALARMS)
+                            != 0);
+        }
+
         if (policy.suppressedVisualEffects != Policy.SUPPRESSED_EFFECTS_UNSET) {
             zenPolicyBuilder.showBadges(policy.showBadges())
                     .showFullScreenIntent(policy.showFullScreenIntents())
@@ -111,6 +124,25 @@ public class ZenAdapters {
             default:
                 return defaultResult;
         }
+    }
+
+    /** Maps {@link Policy}'s priority category to {@link ZenPolicy.PriorityCategory}. */
+    @ZenPolicy.PriorityCategory
+    public static int notificationPolicyCategoryToZenPolicyCategory(int category) {
+        return switch (category) {
+            case Policy.PRIORITY_CATEGORY_ALARMS -> ZenPolicy.PRIORITY_CATEGORY_ALARMS;
+            case Policy.PRIORITY_CATEGORY_MEDIA -> ZenPolicy.PRIORITY_CATEGORY_MEDIA;
+            case Policy.PRIORITY_CATEGORY_SYSTEM -> ZenPolicy.PRIORITY_CATEGORY_SYSTEM;
+            case Policy.PRIORITY_CATEGORY_REMINDERS -> ZenPolicy.PRIORITY_CATEGORY_REMINDERS;
+            case Policy.PRIORITY_CATEGORY_EVENTS -> ZenPolicy.PRIORITY_CATEGORY_EVENTS;
+            case Policy.PRIORITY_CATEGORY_MESSAGES -> ZenPolicy.PRIORITY_CATEGORY_MESSAGES;
+            case Policy.PRIORITY_CATEGORY_CALLS -> ZenPolicy.PRIORITY_CATEGORY_CALLS;
+            case Policy.PRIORITY_CATEGORY_REPEAT_CALLERS ->
+                    ZenPolicy.PRIORITY_CATEGORY_REPEAT_CALLERS;
+            case Policy.PRIORITY_CATEGORY_CONVERSATIONS ->
+                    ZenPolicy.PRIORITY_CATEGORY_CONVERSATIONS;
+            default -> throw new IllegalArgumentException("Provided invalid category: " + category);
+        };
     }
 
     /** Maps {@link Policy.ConversationSenders} enum to {@link ZenPolicy.ConversationSenders}. */

@@ -45,6 +45,7 @@ import android.Manifest.permission;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.WorkerThread;
 import android.app.ActivityManager;
 import android.app.ActivityManagerInternal;
 import android.app.AppOpsManager;
@@ -308,7 +309,11 @@ public class LocationManagerService extends ILocationManager.Stub implements
                 () -> refreshAppOpsRestrictions(UserHandle.USER_ALL));
         mInjector.getUserInfoHelper().addListener((userId, change) -> {
             if (change == UserInfoHelper.UserListener.USER_STARTED) {
-                refreshAppOpsRestrictions(userId);
+                if (Flags.fixAppOpsRestrictionForEmergencyMode()) {
+                    FgThread.getHandler().post(() -> refreshAppOpsRestrictions(userId));
+                } else {
+                    refreshAppOpsRestrictions(userId);
+                }
             }
         });
         mInjector.getEmergencyHelper().addOnEmergencyStateChangedListener(
@@ -384,7 +389,7 @@ public class LocationManagerService extends ILocationManager.Stub implements
                             mContext.getContentResolver(),
                             Settings.Global.LOCATION_ENABLE_STATIONARY_THROTTLE,
                             defaultStationaryThrottlingSetting) != 0;
-                    if (Flags.disableStationaryThrottling() && !(
+                    if (!(
                             Flags.keepGnssStationaryThrottling() && enableStationaryThrottling
                                     && GPS_PROVIDER.equals(manager.getName()))) {
                         enableStationaryThrottling = false;
@@ -402,17 +407,11 @@ public class LocationManagerService extends ILocationManager.Stub implements
 
     @VisibleForTesting
     protected void setProxyPopulationDensityProvider(ProxyPopulationDensityProvider provider) {
-        if (Flags.populationDensityProvider()) {
-            mPopulationDensityProvider = provider;
-        }
+        mPopulationDensityProvider = provider;
     }
 
     @VisibleForTesting
     protected void setLocationFudgerCache(LocationFudgerCache cache) {
-        if (!Flags.densityBasedCoarseLocations()) {
-            return;
-        }
-
         mLocationFudgerCache = cache;
         for (LocationProviderManager manager : mProviderManagers) {
             manager.setLocationFudgerCache(cache);
@@ -443,6 +442,52 @@ public class LocationManagerService extends ILocationManager.Stub implements
                             Log.w(TAG, "location noteOp with location off - "
                                     + CallerIdentity.forTest(uid, 0, packageName, attributionTag));
                         }
+                    });
+        }
+
+        if (Flags.locationAuditing()) {
+            AppOpsManager appOps =
+                    Objects.requireNonNull(mContext.getSystemService(AppOpsManager.class));
+            appOps.startWatchingNoted(
+                    new int[] {
+                        AppOpsManager.OP_FINE_LOCATION,
+                        AppOpsManager.OP_COARSE_LOCATION,
+                        AppOpsManager.OP_EMERGENCY_LOCATION
+                    },
+                    (opCode, uid, packageName, attributionTag, appOpsFlags, appOpsResult) -> {
+                        /*
+                         * opCode: The specific app operation code that was noted (e.g.,
+                         * AppOpsManager.OP_FINE_LOCATION).
+                         * uid: The User ID (UID) of the application that performed the operation.
+                         * packageName: The package name of the application that performed the
+                         * operation.
+                         * attributionTag: An optional string provided by the application to further
+                         * specify the source of the operation within its package.
+                         * appOpsFlags: Flags from AppOpsManager.OnNotedCallback. This is a bitmask
+                         *     of the OP_FLAG_* constants defined in AppOpsManager.OpFlags,
+                         *     indicating whether the operation is on behalf of the app itself
+                         *     (OP_FLAG_SELF), or proxied by a trusted (OP_FLAG_TRUSTED_PROXY) or
+                         *     untrusted (OP_FLAG_UNTRUSTED_PROXY) app, or blamed on the app by a
+                         *     trusted (OP_FLAG_TRUSTED_PROXIED) or untrusted
+                         *     (OP_FLAG_UNTRUSTED_PROXIED) app. See
+                         *     {@link android.app.AppOpsManager.OpFlags} for more details.
+                         * appOpsResult: Result from AppOpsManager.OnNotedCallback. This is one of
+                         *     the MODE_* constants defined in AppOpsManager.Mode, indicating the
+                         *     result of the operation. Possible values include MODE_ALLOWED,
+                         *     MODE_IGNORED (silently fail), MODE_ERRORED (fatal error),
+                         *     MODE_DEFAULT (use default security check), and MODE_FOREGROUND
+                         *     (allow only when app is in foreground). See
+                         *     {@link android.app.AppOpsManager.Mode} for more details.
+                         */
+                        mInjector
+                                .getLocationUsageLogger()
+                                .logLocationOpNoted(
+                                        opCode,
+                                        uid,
+                                        packageName,
+                                        attributionTag,
+                                        appOpsFlags,
+                                        appOpsResult);
                     });
         }
     }
@@ -537,19 +582,17 @@ public class LocationManagerService extends ILocationManager.Stub implements
             Log.e(TAG, "no geocoder provider found");
         }
 
-        if (Flags.populationDensityProvider()) {
-            long startTime = System.currentTimeMillis();
-            setProxyPopulationDensityProvider(
-                    ProxyPopulationDensityProvider.createAndRegister(mContext));
-            int duration = (int) (System.currentTimeMillis() - startTime);
-            if (mPopulationDensityProvider == null) {
-                Log.e(TAG, "no population density provider found");
-            }
-            FrameworkStatsLog.write(FrameworkStatsLog.POPULATION_DENSITY_PROVIDER_LOADING_REPORTED,
-                /* provider_null= */ (mPopulationDensityProvider == null),
-                /* provider_start_time_millis= */ duration);
+        long startTime = System.currentTimeMillis();
+        setProxyPopulationDensityProvider(
+                ProxyPopulationDensityProvider.createAndRegister(mContext));
+        int duration = (int) (System.currentTimeMillis() - startTime);
+        if (mPopulationDensityProvider == null) {
+            Log.e(TAG, "no population density provider found");
         }
-        if (mPopulationDensityProvider != null && Flags.densityBasedCoarseLocations()) {
+        FrameworkStatsLog.write(FrameworkStatsLog.POPULATION_DENSITY_PROVIDER_LOADING_REPORTED,
+            /* provider_null= */ (mPopulationDensityProvider == null),
+            /* provider_start_time_millis= */ duration);
+        if (mPopulationDensityProvider != null) {
             setLocationFudgerCache(new LocationFudgerCache(mPopulationDensityProvider));
         }
 
@@ -635,6 +678,9 @@ public class LocationManagerService extends ILocationManager.Stub implements
 
     private void onEmergencyStateChanged() {
         this.logEmergencyState();
+        if (Flags.fixAppOpsRestrictionForEmergencyMode()) {
+            FgThread.getHandler().post(() -> refreshAppOpsRestrictions(UserHandle.USER_ALL));
+        }
     }
 
     private void logEmergencyState() {
@@ -832,18 +878,13 @@ public class LocationManagerService extends ILocationManager.Stub implements
                 listenerId);
         int permissionLevel = LocationPermissions.getPermissionLevel(mContext, identity.getUid(),
                 identity.getPid());
-        if (Flags.enableLocationBypass()) {
-            if (permissionLevel == PERMISSION_NONE) {
-                if (mContext.checkCallingPermission(LOCATION_BYPASS) != PERMISSION_GRANTED) {
-                    LocationPermissions.enforceLocationPermission(
-                            identity.getUid(), permissionLevel, PERMISSION_COARSE);
-                } else {
-                    permissionLevel = PERMISSION_FINE;
-                }
+        if (permissionLevel == PERMISSION_NONE) {
+            if (mContext.checkCallingPermission(LOCATION_BYPASS) != PERMISSION_GRANTED) {
+                LocationPermissions.enforceLocationPermission(
+                        identity.getUid(), permissionLevel, PERMISSION_COARSE);
+            } else {
+                permissionLevel = PERMISSION_FINE;
             }
-        } else {
-            LocationPermissions.enforceLocationPermission(identity.getUid(), permissionLevel,
-                    PERMISSION_COARSE);
         }
 
         // clients in the system process must have an attribution tag set
@@ -871,18 +912,13 @@ public class LocationManagerService extends ILocationManager.Stub implements
                 listenerId);
         int permissionLevel = LocationPermissions.getPermissionLevel(mContext, identity.getUid(),
                 identity.getPid());
-        if (Flags.enableLocationBypass()) {
-            if (permissionLevel == PERMISSION_NONE) {
-                if (mContext.checkCallingPermission(LOCATION_BYPASS) != PERMISSION_GRANTED) {
-                    LocationPermissions.enforceLocationPermission(
-                            identity.getUid(), permissionLevel, PERMISSION_COARSE);
-                } else {
-                    permissionLevel = PERMISSION_FINE;
-                }
+        if (permissionLevel == PERMISSION_NONE) {
+            if (mContext.checkCallingPermission(LOCATION_BYPASS) != PERMISSION_GRANTED) {
+                LocationPermissions.enforceLocationPermission(
+                        identity.getUid(), permissionLevel, PERMISSION_COARSE);
+            } else {
+                permissionLevel = PERMISSION_FINE;
             }
-        } else {
-            LocationPermissions.enforceLocationPermission(identity.getUid(), permissionLevel,
-                    PERMISSION_COARSE);
         }
 
         // clients in the system process should have an attribution tag set
@@ -906,18 +942,13 @@ public class LocationManagerService extends ILocationManager.Stub implements
                 AppOpsManager.toReceiverId(pendingIntent));
         int permissionLevel = LocationPermissions.getPermissionLevel(mContext, identity.getUid(),
                 identity.getPid());
-        if (Flags.enableLocationBypass()) {
-            if (permissionLevel == PERMISSION_NONE) {
-                if (mContext.checkCallingPermission(LOCATION_BYPASS) != PERMISSION_GRANTED) {
-                    LocationPermissions.enforceLocationPermission(
-                            identity.getUid(), permissionLevel, PERMISSION_COARSE);
-                } else {
-                    permissionLevel = PERMISSION_FINE;
-                }
+        if (permissionLevel == PERMISSION_NONE) {
+            if (mContext.checkCallingPermission(LOCATION_BYPASS) != PERMISSION_GRANTED) {
+                LocationPermissions.enforceLocationPermission(
+                        identity.getUid(), permissionLevel, PERMISSION_COARSE);
+            } else {
+                permissionLevel = PERMISSION_FINE;
             }
-        } else {
-            LocationPermissions.enforceLocationPermission(identity.getUid(), permissionLevel,
-                    PERMISSION_COARSE);
         }
 
         // clients in the system process must have an attribution tag set
@@ -1066,18 +1097,13 @@ public class LocationManagerService extends ILocationManager.Stub implements
         CallerIdentity identity = CallerIdentity.fromBinder(mContext, packageName, attributionTag);
         int permissionLevel = LocationPermissions.getPermissionLevel(mContext, identity.getUid(),
                 identity.getPid());
-        if (Flags.enableLocationBypass()) {
-            if (permissionLevel == PERMISSION_NONE) {
-                if (mContext.checkCallingPermission(LOCATION_BYPASS) != PERMISSION_GRANTED) {
-                    LocationPermissions.enforceLocationPermission(
-                            identity.getUid(), permissionLevel, PERMISSION_COARSE);
-                } else {
-                    permissionLevel = PERMISSION_FINE;
-                }
+        if (permissionLevel == PERMISSION_NONE) {
+            if (mContext.checkCallingPermission(LOCATION_BYPASS) != PERMISSION_GRANTED) {
+                LocationPermissions.enforceLocationPermission(
+                        identity.getUid(), permissionLevel, PERMISSION_COARSE);
+            } else {
+                permissionLevel = PERMISSION_FINE;
             }
-        } else {
-            LocationPermissions.enforceLocationPermission(identity.getUid(), permissionLevel,
-                    PERMISSION_COARSE);
         }
 
         // clients in the system process must have an attribution tag set
@@ -1733,6 +1759,7 @@ public class LocationManagerService extends ILocationManager.Stub implements
         }
     }
 
+    @WorkerThread
     private void refreshAppOpsRestrictions(int userId) {
         if (userId == UserHandle.USER_ALL) {
             final int[] runningUserIds = mInjector.getUserInfoHelper().getRunningUserIds();
@@ -1755,10 +1782,21 @@ public class LocationManagerService extends ILocationManager.Stub implements
                     builder.add(identity.getPackageName(), identity.getAttributionTag());
                 }
             }
-            builder.addAll(mInjector.getSettingsHelper().getIgnoreSettingsAllowlist());
+            if (Flags.fixAppOpsRestrictionForEmergencyMode()) {
+                boolean isInEmergency =
+                        mInjector.getEmergencyHelper().isInEmergency(/* extensionTimeMs= */0);
+                if (isInEmergency) {
+                    // Allowlisted apps can be allowed to ignore settings only in emergency mode
+                    builder.addAll(mInjector.getSettingsHelper().getIgnoreSettingsAllowlist());
+                }
+            } else {
+                builder.addAll(mInjector.getSettingsHelper().getIgnoreSettingsAllowlist());
+            }
             builder.addAll(mInjector.getSettingsHelper().getAdasAllowlist());
             allowedPackages = builder.build();
         }
+
+        Log.d(TAG, "allowedPackages=" + allowedPackages);
 
         AppOpsManager appOpsManager = Objects.requireNonNull(
                 mContext.getSystemService(AppOpsManager.class));
@@ -1933,7 +1971,7 @@ public class LocationManagerService extends ILocationManager.Stub implements
             mScreenInteractiveHelper = new SystemScreenInteractiveHelper(context);
             mDeviceStationaryHelper = new SystemDeviceStationaryHelper();
             mDeviceIdleHelper = new SystemDeviceIdleHelper(context);
-            mLocationUsageLogger = new LocationUsageLogger();
+            mLocationUsageLogger = new LocationUsageLogger(context);
             mPackageResetHelper = new SystemPackageResetHelper(context);
         }
 

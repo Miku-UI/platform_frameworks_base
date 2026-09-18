@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import com.android.settingslib.spa.framework.theme.SettingsSpace
@@ -40,25 +41,26 @@ import com.android.settingslib.spa.framework.theme.SettingsTheme
 fun CategoryButton(
     icon: ImageVector,
     text: String,
+    contentColor: Color = MaterialTheme.colorScheme.primary,
     onClick: () -> Unit,
 ) {
     val size = ButtonDefaults.MediumContainerHeight
     TextButton(
         onClick = onClick,
         shapes = ButtonDefaults.shapes(),
-        modifier = Modifier
-            .heightIn(size)
-            .padding(horizontal = SettingsSpace.small1),
-        colors = ButtonDefaults.textButtonColors().copy(
-            containerColor = MaterialTheme.colorScheme.surfaceBright,
-            contentColor = MaterialTheme.colorScheme.primary,
-        ),
-        contentPadding = ButtonDefaults.contentPaddingFor(size)
+        modifier = Modifier.heightIn(size).padding(horizontal = SettingsSpace.small1),
+        colors =
+            ButtonDefaults.textButtonColors()
+                .copy(
+                    containerColor = MaterialTheme.colorScheme.surfaceBright,
+                    contentColor = contentColor,
+                ),
+        contentPadding = ButtonDefaults.contentPaddingFor(size),
     ) {
         Icon(
             icon,
             contentDescription = null,
-            modifier = Modifier.size(ButtonDefaults.iconSizeFor(size))
+            modifier = Modifier.size(ButtonDefaults.iconSizeFor(size)),
         )
         Spacer(Modifier.size(ButtonDefaults.iconSpacingFor(size)))
         Text(text = text, style = ButtonDefaults.textStyleFor(size))
@@ -68,7 +70,5 @@ fun CategoryButton(
 @Preview
 @Composable
 private fun CategoryButtonPreview() {
-    SettingsTheme {
-        CategoryButton(icon = Icons.Outlined.Add, text = "Add SIM") {}
-    }
+    SettingsTheme { CategoryButton(icon = Icons.Outlined.Add, text = "Add SIM") {} }
 }

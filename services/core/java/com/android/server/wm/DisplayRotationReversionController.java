@@ -61,7 +61,7 @@ final class DisplayRotationReversionController {
     }
 
     boolean isRotationReversionEnabled() {
-        return mDisplayContent.mAppCompatCameraPolicy.hasDisplayRotationPolicy()
+        return mDisplayContent.mWmService.mAppCompatCameraPolicy.hasDisplayRotationPolicy()
                 || mDisplayContent.getDisplayRotation().mFoldController != null
                 || mDisplayContent.getIgnoreOrientationRequest();
     }

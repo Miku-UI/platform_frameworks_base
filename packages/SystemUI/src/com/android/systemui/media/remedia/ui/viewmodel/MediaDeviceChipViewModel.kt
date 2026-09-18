@@ -21,7 +21,9 @@ import com.android.systemui.common.shared.model.Icon
 
 data class MediaDeviceChipViewModel(
     val icon: Icon,
-    val text: String? = null,
+    val text: CharSequence? = null,
     val isConnecting: Boolean = false,
     val onClick: (Expandable) -> Unit,
+    /** Fallback for chip's content description if [text] is null */
+    val defaultDescription: String,
 )

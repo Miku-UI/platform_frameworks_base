@@ -19,6 +19,7 @@ package com.android.settingslib.widget
 import android.content.Context
 import android.os.Build
 import android.view.Gravity
+import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.PopupMenu
@@ -35,6 +36,7 @@ interface MenuHandler {
     var menuItemClickListener: OnMenuItemClickListener?
     var menuButton: MaterialButton?
     var preference: Preference?
+    var onPostInflateListener: OnPostInflateListener?
     var showIconsInPopupMenu: Boolean
 
     /** Provides a content description for the menu button. */
@@ -42,6 +44,10 @@ interface MenuHandler {
 
     interface OnMenuItemClickListener {
         fun onMenuItemClick(item: MenuItem, pref: Preference): Boolean
+    }
+
+    interface OnPostInflateListener {
+        fun onMenuPostInflate(menu: Menu, pref: Preference)
     }
 
     /**
@@ -54,6 +60,7 @@ interface MenuHandler {
             popupMenu =
                 PopupMenu(context, view, Gravity.END, 0, R.style.SettingslibPopupMenuStyle).apply {
                     menuInflater.inflate(menuResId, menu)
+                    onPostInflateListener?.onMenuPostInflate(menu, preference!!)
                     setOnMenuItemClickListener { item ->
                         menuItemClickListener?.onMenuItemClick(item, preference!!) ?: false
                     }

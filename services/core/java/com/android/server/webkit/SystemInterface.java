@@ -48,7 +48,7 @@ public interface SystemInterface {
     PackageInfo getPackageInfoForProvider(WebViewProviderInfo configInfo)
             throws NameNotFoundException;
     /**
-     * Get the PackageInfos of all users for the package represented by {@param configInfo}.
+     * Get the PackageInfos of all users for the package represented by {@code configInfo}.
      * @return an array of UserPackages for a certain package, each UserPackage being belonging to a
      *         certain user. The returned array can contain null PackageInfos if the given package
      *         is uninstalled for some user.

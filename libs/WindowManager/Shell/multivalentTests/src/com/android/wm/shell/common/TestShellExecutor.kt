@@ -36,9 +36,7 @@ class TestShellExecutor : ShellExecutor {
 
     override fun hasCallback(runnable: Runnable?): Boolean = false
 
-    /**
-     * Execute all posted runnables sequentially
-     */
+    /** Execute all posted runnables sequentially */
     fun flushAll() {
         while (runnables.isNotEmpty()) {
             runnables.removeAt(0).run()

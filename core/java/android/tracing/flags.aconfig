@@ -2,35 +2,11 @@ package: "android.tracing"
 container: "system"
 
 flag {
-    name: "perfetto_wm_tracing"
-    namespace: "windowing_tools"
-    description: "Migrate WindowManager tracing to Perfetto"
-    is_fixed_read_only: true
-    bug: "323165543"
-}
-
-flag {
-    name: "perfetto_wm_dump_cts"
-    namespace: "windowing_tools"
-    description: "Migrate WindowManager dump in CTS tests to Perfetto"
-    is_fixed_read_only: true
-    bug: "323165543"
-}
-
-flag {
     name: "imetracker_protolog"
     namespace: "windowing_tools"
     description: "Execute protologging in IMETracker"
     is_fixed_read_only: true
     bug: "410517697"
-}
-
-flag {
-    name: "sysui_large_perfetto_shmem_buffer"
-    namespace: "windowing_tools"
-    description: "Large perfetto shmem buffer in sysui"
-    is_fixed_read_only: true
-    bug: "420587648"
 }
 
 flag {
@@ -46,4 +22,39 @@ flag {
     namespace: "windowing_tools"
     description: "Clear incremental state when protolog is enabled"
     bug: "441704171"
+}
+
+flag {
+    name: "surface_control_registry_protolog"
+    namespace: "windowing_tools"
+    description: "Enable protologging for SurfaceControlRegistry"
+    bug: "399468864"
+}
+
+flag {
+    name: "java_native_protolog"
+    namespace: "windowing_tools"
+    description: "Enables java native protologging through JNI calls"
+    bug: "450529294"
+}
+
+flag {
+    name: "protolog_async_init"
+    namespace: "windowing_tools"
+    description: "Push protolog initialization to background thread"
+    bug: "434072453"
+}
+
+flag {
+    name: "perfetto_ime_fine_grained_config"
+    namespace: "windowing_tools"
+    description: "Fine-grained tracing configuration (client, IMS, IMMS)"
+    bug: "470926070"
+}
+
+flag {
+    name: "perfetto_ime_service_tracing_aot"
+    namespace: "windowing_tools"
+    description: "Always-on IME service (IMS) tracing"
+    bug: "470926070"
 }

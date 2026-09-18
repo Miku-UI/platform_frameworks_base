@@ -21,7 +21,6 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
 import androidx.annotation.VisibleForTesting
 import com.android.app.tracing.traceSection
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.row.shared.IconData
 import com.android.systemui.statusbar.notification.row.shared.ImageModel
 import com.android.systemui.statusbar.notification.row.shared.ImageModelProvider
@@ -77,18 +76,13 @@ interface RowImageInflater {
      */
     fun getNewImageIndex(): ImageModelIndex?
 
-    companion object {
-        @Suppress("NOTHING_TO_INLINE")
-        @JvmStatic
-        inline fun featureFlagEnabled() = PromotedNotificationUi.isEnabled
+    /** Returns a debug string with the results of loading all images. */
+    fun toDebugString(): String
 
+    companion object {
         @JvmStatic
         fun newInstance(previousIndex: ImageModelIndex?, reinflating: Boolean): RowImageInflater =
-            if (featureFlagEnabled()) {
-                RowImageInflaterImpl(previousIndex, reinflating)
-            } else {
-                RowImageInflaterStub
-            }
+            RowImageInflaterImpl(previousIndex, reinflating)
     }
 }
 
@@ -101,18 +95,10 @@ private object ImageModelProviderStub : ImageModelProvider {
     ): ImageModel? = null
 }
 
-/** A no-op implementation that does nothing */
-private object RowImageInflaterStub : RowImageInflater {
-    override fun useForContentModel(): ImageModelProvider = ImageModelProviderStub
-
-    override fun loadImagesSynchronously(context: Context) = Unit
-
-    override fun getNewImageIndex(): ImageModelIndex? = null
-}
-
 class RowImageInflaterImpl(private val previousIndex: ImageModelIndex?, val reinflating: Boolean) :
     RowImageInflater {
     private val providedImages = mutableListOf<LazyImage>()
+    private val stats = Stats()
 
     /**
      * For now there is only one way we use this, so we don't need to track which "model" it was
@@ -130,11 +116,14 @@ class RowImageInflaterImpl(private val previousIndex: ImageModelIndex?, val rein
                 sizeClass: ImageSizeClass,
                 transform: ImageTransform,
             ): ImageModel? {
+                stats.numModelsRequested++
                 val iconData = IconData.fromIcon(icon) ?: return null
                 // if we've already provided an equivalent image, return it again.
                 providedImages.firstOrNull(iconData, sizeClass, transform)?.let {
+                    stats.numModelsDuped++
                     return it
                 }
+                stats.numModelsCreated++
                 // create and return a new entry
                 return LazyImage(iconData, sizeClass, transform).also { newImage ->
                     // ensure all entries are stored
@@ -169,12 +158,39 @@ class RowImageInflaterImpl(private val previousIndex: ImageModelIndex?, val rein
             // TODO: use the sizeClass to load the drawable into a correctly sized bitmap,
             //  and be sure to respect [lazyImage.transform.requiresSoftwareBitmapInput]
             val iconDrawable =
-                icon.toIcon().loadDrawable(context)
+                icon.toIcon().loadDrawable(context).also { stats.numDrawablesLoaded++ }
                     ?: return ImageResult.Empty("Icon.loadDrawable() returned null for $icon")
-            return transform.transformDrawable(iconDrawable)?.let { ImageResult.Image(it) }
-                ?: return ImageResult.Empty("Transform ${transform.key} returned null")
+                        .also { stats.numDrawablesNull++ }
+            return transform.transformDrawable(iconDrawable)?.let {
+                ImageResult.Image(it).also { stats.numTransformsProduced++ }
+            }
+                ?: return ImageResult.Empty("Transform ${transform.key} returned null").also {
+                    stats.numTransformsNull++
+                }
         }
     }
+
+    override fun toDebugString(): String = buildString {
+        append("RowImageInflater(reinflating=")
+        append(reinflating)
+        append(", wasUsed=")
+        append(wasUsed)
+        append(", results=")
+        append(getNewImageIndex()?.toDebugString())
+        append(", stats=")
+        append(stats)
+        append(")")
+    }
+
+    private data class Stats(
+        var numModelsRequested: Int = 0,
+        var numModelsDuped: Int = 0,
+        var numModelsCreated: Int = 0,
+        var numDrawablesLoaded: Int = 0,
+        var numDrawablesNull: Int = 0,
+        var numTransformsProduced: Int = 0,
+        var numTransformsNull: Int = 0,
+    )
 
     override fun getNewImageIndex(): ImageModelIndex? =
         if (wasUsed) ImageModelIndex(providedImages) else previousIndex
@@ -192,6 +208,8 @@ class ImageModelIndex internal constructor(data: Collection<LazyImage>) {
     @VisibleForTesting
     val contentsForTesting: MutableList<LazyImage>
         get() = images
+
+    fun toDebugString(): String = "ImageModelIndex(images=$images)"
 }
 
 private fun Collection<LazyImage>.firstOrNull(

@@ -37,7 +37,6 @@ import com.android.systemui.statusbar.InflationTask;
 import com.android.systemui.statusbar.notification.collection.BundleEntry;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.PipelineEntry;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.util.time.SystemClock;
 
 import java.util.concurrent.Executor;
@@ -184,11 +183,7 @@ public class RowInflaterTask implements InflationTask, AsyncRowInflater.OnInflat
 
             final long startMs = mSystemClock.elapsedRealtime();
             ExpandableNotificationRow row = null;
-            if (NotificationBundleUi.isEnabled()) {
-                row = new ExpandableNotificationRow(context, attrs, mTargetUser);
-            } else {
-                row = new ExpandableNotificationRow(context, attrs, mEntry);
-            }
+            row = new ExpandableNotificationRow(context, attrs, mTargetUser);
             final long elapsedMs = mSystemClock.elapsedRealtime() - startMs;
 
             if (mEntry != null) {

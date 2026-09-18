@@ -35,6 +35,7 @@ import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.common.pip.PhoneSizeSpecSource;
 import com.android.wm.shell.common.pip.PipBoundsAlgorithm;
 import com.android.wm.shell.common.pip.PipBoundsState;
+import com.android.wm.shell.common.pip.PipDesktopState;
 import com.android.wm.shell.common.pip.PipDisplayLayoutState;
 import com.android.wm.shell.common.pip.PipKeepClearAlgorithmInterface;
 import com.android.wm.shell.common.pip.PipSnapAlgorithm;
@@ -92,6 +93,9 @@ public class PipTouchHandlerTest extends ShellTestCase {
     @Mock
     private DisplayController mDisplayController;
 
+    @Mock
+    private PipDesktopState mPipDesktopState;
+
     private PipBoundsState mPipBoundsState;
     private PipBoundsAlgorithm mPipBoundsAlgorithm;
     private PipSnapAlgorithm mPipSnapAlgorithm;
@@ -120,7 +124,8 @@ public class PipTouchHandlerTest extends ShellTestCase {
         mPipBoundsState = new PipBoundsState(mContext, mSizeSpecSource, mPipDisplayLayoutState);
         mPipSnapAlgorithm = new PipSnapAlgorithm();
         mPipBoundsAlgorithm = new PipBoundsAlgorithm(mContext, mPipBoundsState, mPipSnapAlgorithm,
-                new PipKeepClearAlgorithmInterface() {}, mPipDisplayLayoutState, mSizeSpecSource);
+                new PipKeepClearAlgorithmInterface() {}, mPipDisplayLayoutState, mPipDesktopState,
+                mSizeSpecSource);
         PipMotionHelper pipMotionHelper = new PipMotionHelper(mContext, mMainExecutor,
                 mPipBoundsState, mPipTaskOrganizer, mPhonePipMenuController, mPipSnapAlgorithm,
                 mMockPipTransitionController, mFloatingContentCoordinator,

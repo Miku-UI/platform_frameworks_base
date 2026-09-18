@@ -88,19 +88,6 @@ public class CarrierMessagingClientServiceFinder
     }
 
     @Override
-    @Deprecated
-    public String getTargetPackage(int userId) {
-        final String ret = CollectionUtils.firstOrNull(mRoleManager.getRoleHoldersAsUser(
-                RoleManager.ROLE_SMS, UserHandle.of(userId)));
-
-        if (DEBUG) {
-            Slog.d(TAG, "getTargetPackage()=" + ret);
-        }
-
-        return ret;
-    }
-
-    @Override
     public Set<String> getTargetPackages(int userId) {
         String targetPackage = CollectionUtils.firstOrNull(mRoleManager.getRoleHoldersAsUser(
                 RoleManager.ROLE_SMS, UserHandle.of(userId)));

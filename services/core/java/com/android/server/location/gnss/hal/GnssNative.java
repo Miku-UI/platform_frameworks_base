@@ -31,7 +31,6 @@ import android.location.GnssNavigationMessage;
 import android.location.GnssSignalType;
 import android.location.GnssStatus;
 import android.location.Location;
-import android.location.flags.Flags;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.SystemClock;
@@ -515,9 +514,6 @@ public class GnssNative {
 
     /** Sets GnssAssistanceCallbacks. */
     public void setGnssAssistanceCallbacks(GnssAssistanceCallbacks callbacks) {
-        if (!Flags.gnssAssistanceInterfaceJni()) {
-            return;
-        }
         Preconditions.checkState(mGnssAssistanceCallbacks == null);
         mGnssAssistanceCallbacks = Objects.requireNonNull(callbacks);
     }
@@ -1075,9 +1071,6 @@ public class GnssNative {
      * Injects GNSS assistance data into the GNSS HAL.
      */
     public void injectGnssAssistance(GnssAssistance assistance) {
-        if (!Flags.gnssAssistanceInterfaceJni()) {
-            return;
-        }
         Preconditions.checkState(mRegistered);
         mGnssHal.injectGnssAssistance(assistance);
     }
@@ -1145,12 +1138,15 @@ public class GnssNative {
     }
 
     @NativeEntryPoint
-    void reportSvStatus(int svCount, int[] svidWithFlags, float[] cn0DbHzs,
-            float[] elevations, float[] azimuths, float[] carrierFrequencies,
-            float[] basebandCn0DbHzs) {
+    void reportSvStatus(int svCount, int[] svFlags, int[] svids, int[] constellationTypes,
+            float[] cn0DbHzs, float[] elevations, float[] azimuths, float[] carrierFrequencies,
+            float[] basebandCn0DbHzs, String[] codetypes, long[] elapsedRealtimeNanos,
+            double[] elapsedRealtimeUncertaintyNanos) {
         Binder.withCleanCallingIdentity(() -> {
-            GnssStatus gnssStatus = GnssStatus.wrap(svCount, svidWithFlags, cn0DbHzs, elevations,
-                    azimuths, carrierFrequencies, basebandCn0DbHzs);
+            GnssStatus gnssStatus = GnssStatus.create(svCount, svFlags, svids,
+                    constellationTypes, cn0DbHzs, elevations, azimuths, carrierFrequencies,
+                    basebandCn0DbHzs, codetypes, elapsedRealtimeNanos,
+                    elapsedRealtimeUncertaintyNanos);
             for (int i = 0; i < mSvStatusCallbacks.length; i++) {
                 mSvStatusCallbacks[i].onReportSvStatus(gnssStatus);
             }
@@ -1299,7 +1295,7 @@ public class GnssNative {
 
     @NativeEntryPoint
     void gnssAssistanceInjectRequest() {
-        if (!Flags.gnssAssistanceInterfaceJni() || mGnssAssistanceCallbacks == null) {
+        if (mGnssAssistanceCallbacks == null) {
             return;
         }
         Binder.withCleanCallingIdentity(

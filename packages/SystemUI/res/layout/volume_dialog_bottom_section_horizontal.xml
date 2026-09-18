@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Copyright (C) 2026 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
+
+    <com.android.systemui.volume.CaptionsToggleImageButton
+        android:id="@+id/odi_captions_icon"
+        android:src="@drawable/ic_volume_odi_captions_disabled"
+        android:layout_width="@dimen/volume_dialog_button_size"
+        android:layout_height="@dimen/volume_dialog_button_size"
+        android:layout_marginEnd="-4dp"
+        android:tint="@color/materialColorPrimary"
+        android:background="@drawable/volume_dialog_captions_button_transition_bg_horizontal"
+        android:scaleType="centerInside"
+        android:padding="12dp"
+        android:soundEffectsEnabled="false"
+        android:visibility="gone"/>
+
+    <ImageButton
+        android:id="@+id/volume_dialog_settings"
+        android:layout_width="@dimen/volume_dialog_button_size"
+        android:layout_height="@dimen/volume_dialog_button_size"
+        android:layout_gravity="center"
+        android:background="@drawable/volume_dialog_settings_bg_horizontal"
+        android:contentDescription="@string/accessibility_volume_settings"
+        android:scaleType="centerInside"
+        android:soundEffectsEnabled="false"
+        android:padding="12dp"
+        android:tint="@color/materialColorOnSurface" />
+</merge>

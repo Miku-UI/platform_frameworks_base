@@ -35,7 +35,7 @@ public interface IProtoLog {
      * @param args The arguments of the message.
      */
     void log(@NonNull LogLevel logLevel, @NonNull IProtoLogGroup group, long messageHash,
-            int paramsMask, @Nullable Object[] args);
+            long paramsMask, @Nullable Object[] args);
 
     /**
      * Log a ProtoLog message

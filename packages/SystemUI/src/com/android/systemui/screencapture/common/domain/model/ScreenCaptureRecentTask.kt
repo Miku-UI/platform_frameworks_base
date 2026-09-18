@@ -18,6 +18,7 @@ package com.android.systemui.screencapture.common.domain.model
 
 import android.annotation.UserIdInt
 import android.content.ComponentName
+import android.content.Intent
 import androidx.annotation.ColorInt
 import com.android.systemui.mediaprojection.appselector.data.RecentTask
 import com.android.wm.shell.shared.split.SplitBounds
@@ -30,7 +31,9 @@ data class ScreenCaptureRecentTask(
     val component: ComponentName?,
     @ColorInt val backgroundColor: Int?,
     val splitBounds: SplitBounds?,
-) {
+    val baseIntent: Intent?,
+    val isForegroundTask: Boolean,
+) : TargetModel {
     constructor(
         task: RecentTask
     ) : this(
@@ -40,5 +43,9 @@ data class ScreenCaptureRecentTask(
         component = task.baseIntentComponent,
         backgroundColor = task.colorBackground,
         splitBounds = task.splitBounds,
+        baseIntent = task.baseIntent,
+        isForegroundTask = task.isForegroundTask,
     )
+
+    override val traceTag: String = "RecentTask($taskId)"
 }

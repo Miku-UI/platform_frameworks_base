@@ -165,13 +165,16 @@ public class UsbDialogHelper {
 
     /**
      * Grants USB permission to the device / accessory to the calling uid.
+     *
+     * @param isPersistent Whether the permission should be persistent. This parameter is applicable
+     *     only for {@link UsbDevice}.
      */
-    public void grantUidAccessPermission() {
+    public void grantUidAccessPermission(boolean isPersistent) {
         try {
             if (mIsUsbDevice) {
-                mUsbService.grantDevicePermission(mDevice, mUid);
+                mUsbService.grantDevicePermission(mDevice, mPackageName, mUid, isPersistent);
             } else {
-                mUsbService.grantAccessoryPermission(mAccessory, mUid);
+                mUsbService.grantAccessoryPermission(mAccessory, mPackageName, mUid);
             }
         } catch (RemoteException e) {
             Log.e(TAG, "IUsbService connection failed", e);

@@ -22,12 +22,15 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.session.MediaSession
+import android.os.UserHandle
 import android.provider.Settings
 import android.util.Log
 import com.android.internal.jank.Cuj
 import com.android.internal.logging.InstanceId
+import com.android.media.flags.Flags.fixOutputSwitcherMultiuserSupport
 import com.android.settingslib.media.LocalMediaManager.MediaDeviceState
 import com.android.systemui.ActivityIntentHelper
+import com.android.systemui.Flags
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
@@ -36,6 +39,9 @@ import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.common.shared.model.asIcon
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
+import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
+import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.media.controls.domain.pipeline.MediaDataProcessor
 import com.android.systemui.media.controls.domain.pipeline.getNotificationActions
 import com.android.systemui.media.controls.shared.model.MediaAction
@@ -54,6 +60,12 @@ import com.android.systemui.res.R
 import com.android.systemui.statusbar.NotificationLockscreenUserManager
 import com.android.systemui.statusbar.policy.KeyguardStateController
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 
 /**
  * Defines interface for classes that can provide business logic in the domain of the media controls
@@ -70,11 +82,25 @@ interface MediaInteractor {
     /** Whether media carousel should show first media session. */
     val shouldScrollToFirst: Boolean
 
+    /** Whether guts state should show on carousel. */
+    val isGutsVisible: Boolean
+
+    /** Are there any media notifications active? */
+    val hasActiveMedia: Boolean
+
+    /** Are there any media entries, including inactive ones? */
+    val hasAnyMedia: Boolean
+
+    val allowMediaOnLockscreen: Boolean
+
+    /** Is the device on lockscreen? */
+    val isOnLockscreen: Flow<Boolean>
+
     /** Seek to [to], in milliseconds on the media session with the given [sessionKey]. */
-    fun seek(sessionKey: Any, to: Long)
+    fun seek(sessionKey: InstanceId, to: Long)
 
     /** Hide the representation of the media session with the given [sessionKey]. */
-    fun hide(sessionKey: Any, delayMs: Long)
+    fun hide(sessionKey: InstanceId, delayMs: Long, userInitiated: Boolean)
 
     /** Open media settings. */
     fun openMediaSettings()
@@ -84,6 +110,8 @@ interface MediaInteractor {
     fun storeCurrentCarouselIndex(index: Int)
 
     fun resetScrollToFirst()
+
+    fun setIsGutsVisible(isGutsVisible: Boolean)
 }
 
 @SysUISingleton
@@ -91,6 +119,7 @@ class MediaInteractorImpl
 @Inject
 constructor(
     @Application val applicationContext: Context,
+    @Application val applicationScope: CoroutineScope,
     val repository: MediaRepository,
     val mediaDataProcessor: MediaDataProcessor,
     private val keyguardStateController: KeyguardStateController,
@@ -98,10 +127,20 @@ constructor(
     private val activityIntentHelper: ActivityIntentHelper,
     private val lockscreenUserManager: NotificationLockscreenUserManager,
     private val mediaOutputDialogManager: MediaOutputDialogManager,
+    private val deviceEntryInteractor: DeviceEntryInteractor,
+    private val keyguardTransitionInteractor: KeyguardTransitionInteractor,
 ) : MediaInteractor {
 
     override val sessions: List<MediaSessionModel>
-        get() = repository.currentMedia.map { toMediaSessionModel(it) }
+        get() =
+            repository.currentMedia.mapNotNull {
+                if (it.needsImmediateRemoval) {
+                    hide(it.instanceId, 0, repository.isSwipedAway)
+                    null
+                } else {
+                    toMediaSessionModel(it)
+                }
+            }
 
     override val currentCarouselIndex: Int
         get() = repository.currentCarouselIndex
@@ -109,12 +148,54 @@ constructor(
     override val shouldScrollToFirst: Boolean
         get() = repository.shouldScrollToFirst
 
-    override fun seek(sessionKey: Any, to: Long) {
-        repository.seek(sessionKey as InstanceId, to)
+    override val isGutsVisible: Boolean
+        get() = repository.isGutsVisible
+
+    /** Are there any media notifications active? */
+    override val hasActiveMedia: Boolean
+        get() = repository.currentMedia.any { dataModel -> dataModel.isActive }
+
+    /** Are there any media entries, including inactive ones? */
+    override val hasAnyMedia: Boolean
+        get() = repository.currentMedia.isNotEmpty()
+
+    override val allowMediaOnLockscreen: Boolean
+        get() = repository.allowMediaOnLockscreen
+
+    override val isOnLockscreen: Flow<Boolean> = deviceEntryInteractor.isDeviceEntered.map { !it }
+
+    init {
+        if (Flags.mediaControlsInCompose() && !Flags.sceneContainer()) {
+            applicationScope.launch {
+                keyguardTransitionInteractor.isFinishedIn(KeyguardState.LOCKSCREEN).collect {
+                    currentlyInLockscreen ->
+                    if (!currentlyInLockscreen && repository.isReorderingAllowed) {
+                        resetState()
+                    }
+                }
+            }
+        }
+        repository.visualStabilityListenerFlow.onEach { resetState() }.launchIn(applicationScope)
     }
 
-    override fun hide(sessionKey: Any, delayMs: Long) {
-        mediaDataProcessor.dismissMediaData(sessionKey as InstanceId, delayMs, userInitiated = true)
+    /**
+     * Clear players that are due for removal and reset the carousel state. This method is intended
+     * to happen off screen.
+     */
+    private fun resetState() {
+        repository.keysNeedRemoval.forEach { key ->
+            hide(key, delayMs = 0, repository.isUserInitiatedRemovalQueued)
+        }
+        repository.cleanKeysNeedRemoval()
+        reorderMedia()
+    }
+
+    override fun seek(sessionKey: InstanceId, to: Long) {
+        repository.seek(sessionKey, to)
+    }
+
+    override fun hide(sessionKey: InstanceId, delayMs: Long, userInitiated: Boolean) {
+        mediaDataProcessor.dismissMediaData(sessionKey, delayMs, userInitiated)
     }
 
     override fun openMediaSettings() {
@@ -133,10 +214,20 @@ constructor(
         repository.resetScrollToFirst()
     }
 
+    override fun setIsGutsVisible(isGutsVisible: Boolean) {
+        repository.storeIsGutsVisible(isGutsVisible)
+    }
+
     private fun toMediaSessionModel(dataModel: MediaDataModel): MediaSessionModel {
         return object : MediaSessionModel {
             override val key
                 get() = dataModel.instanceId
+
+            override val uid: Int
+                get() = dataModel.appUid
+
+            override val packageName: String
+                get() = dataModel.packageName
 
             override val appName
                 get() = dataModel.appName
@@ -156,6 +247,9 @@ constructor(
             override val subtitle: String
                 get() = dataModel.subtitle
 
+            override val isExplicit: Boolean
+                get() = dataModel.isExplicit
+
             override val onClick: (Expandable) -> Unit
                 get() = { expandable ->
                     dataModel.clickIntent?.let { startClickIntent(expandable, it) }
@@ -166,6 +260,9 @@ constructor(
 
             override val canBeHidden: Boolean
                 get() = dataModel.canBeDismissed
+
+            override val canShowSeekbar: Boolean
+                get() = dataModel.canShowSeekbar
 
             override val canBeScrubbed: Boolean
                 get() = dataModel.canBeScrubbed
@@ -183,7 +280,7 @@ constructor(
                 get() =
                     with(dataModel.outputDevice) {
                         MediaOutputDeviceModel(
-                            name = this?.name.toString(),
+                            name = this?.name,
                             // Set home devices icon as default.
                             icon =
                                 this?.icon?.let { Icon.Loaded(it, contentDescription = null) }
@@ -205,17 +302,21 @@ constructor(
                 get() =
                     dataModel.playbackStateActions?.let {
                         MediaCardActionButtonLayout.WithPlayPause
-                    } ?: MediaCardActionButtonLayout.SecondaryActionsOnly
+                    }
+                        ?: MediaCardActionButtonLayout.SecondaryActionsOnly(
+                            dataModel.notificationActionsCompressed
+                        )
 
             override val playPauseAction: MediaActionModel
                 get() =
-                    dataModel.playbackStateActions?.playOrPause?.getMediaActionModel()
-                        ?: MediaActionModel.None
+                    dataModel.playbackStateActions
+                        ?.playOrPause
+                        ?.getMediaActionModel(R.id.actionPlayPause) ?: MediaActionModel.None
 
             override val leftAction: MediaActionModel
                 get() =
                     dataModel.playbackStateActions?.let {
-                        it.prevOrCustom?.getMediaActionModel()
+                        it.prevOrCustom?.getMediaActionModel(R.id.actionPrev)
                             ?: if (it.reservePrev) {
                                 MediaActionModel.ReserveSpace
                             } else {
@@ -226,7 +327,7 @@ constructor(
             override val rightAction: MediaActionModel
                 get() =
                     dataModel.playbackStateActions?.let {
-                        it.nextOrCustom?.getMediaActionModel()
+                        it.nextOrCustom?.getMediaActionModel(R.id.actionNext)
                             ?: if (it.reserveNext) {
                                 MediaActionModel.ReserveSpace
                             } else {
@@ -238,20 +339,30 @@ constructor(
                 get() =
                     dataModel.playbackStateActions?.let { playbackActions ->
                         listOfNotNull(
-                            playbackActions.custom0?.getMediaActionModel()
+                            playbackActions.custom0?.getMediaActionModel(R.id.action0)
                                 as? MediaActionModel.Action,
-                            playbackActions.custom1?.getMediaActionModel()
+                            playbackActions.custom1?.getMediaActionModel(R.id.action1)
                                 as? MediaActionModel.Action,
                         )
                     }
                         ?: getNotificationActions(dataModel.notificationActions, activityStarter)
                             .mapNotNull { it.getMediaActionModel() as? MediaActionModel.Action }
+
+            override val onSessionVisible: (areDeviceChipsVisible: Boolean) -> Unit
+                get() = { areDeviceChipsVisible ->
+                    // The device suggestion chip is not show in the resumption player or when the
+                    // presentation mode is compact or thumbnail.
+                    if (!dataModel.isResume && areDeviceChipsVisible) {
+                        dataModel.suggestionData?.onSuggestionSpaceVisible?.run()
+                    }
+                }
         }
     }
 
-    private fun MediaAction.getMediaActionModel(): MediaActionModel {
+    private fun MediaAction.getMediaActionModel(id: Int? = null): MediaActionModel {
         return icon?.let { drawable ->
             MediaActionModel.Action(
+                id = id ?: -1,
                 icon =
                     Icon.Loaded(
                         drawable = drawable,
@@ -319,22 +430,38 @@ constructor(
         return false
     }
 
-    private fun startOutputSwitcherClick(dataModel: MediaDataModel, expandable: Expandable) {
+    private fun startOutputSwitcherClick(dataModel: MediaDataModel, expandable: Expandable?) {
         dataModel.outputDevice?.intent?.let { startDeviceIntent(dataModel.instanceId, it) }
-            ?: startMediaOutputDialog(expandable, dataModel.packageName, dataModel.token)
+            ?: startMediaOutputDialog(
+                expandable,
+                dataModel.packageName,
+                dataModel.appUid,
+                dataModel.token,
+            )
     }
 
     private fun startMediaOutputDialog(
-        expandable: Expandable,
+        expandable: Expandable?,
         packageName: String,
+        appUid: Int,
         token: MediaSession.Token? = null,
     ) {
-        mediaOutputDialogManager.createAndShowWithController(
-            packageName,
-            true,
-            expandable.dialogController(),
-            token = token,
-        )
+        if (fixOutputSwitcherMultiuserSupport()) {
+            mediaOutputDialogManager.createAndShowWithController(
+                packageName,
+                aboveStatusBar = true,
+                expandable?.dialogController(),
+                token = token,
+                userHandle = UserHandle.getUserHandleForUid(appUid),
+            )
+        } else {
+            mediaOutputDialogManager.createAndShowWithController(
+                packageName,
+                aboveStatusBar = true,
+                expandable?.dialogController(),
+                token = token,
+            )
+        }
     }
 
     private fun Expandable.dialogController(): DialogTransitionAnimator.Controller? {

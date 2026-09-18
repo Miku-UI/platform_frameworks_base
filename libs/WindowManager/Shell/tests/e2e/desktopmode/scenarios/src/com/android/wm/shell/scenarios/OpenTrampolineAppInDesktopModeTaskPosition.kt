@@ -31,8 +31,9 @@ import org.junit.Ignore
 import org.junit.Test
 
 @Ignore("Test Base Class")
-abstract class OpenTrampolineAppInDesktopModeTaskPosition(val rotation: Rotation =
-    Rotation.ROTATION_0) : TestScenarioBase(rotation) {
+abstract class OpenTrampolineAppInDesktopModeTaskPosition(
+    val rotation: Rotation = Rotation.ROTATION_0
+) : TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
@@ -40,11 +41,12 @@ abstract class OpenTrampolineAppInDesktopModeTaskPosition(val rotation: Rotation
 
     private val testApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
 
-    private val trampolineApp = SimpleAppHelper(
-        instrumentation,
-        launcherName = ActivityOptions.TrampolineStartActivity.LABEL,
-        component = ActivityOptions.TrampolineStartActivity.COMPONENT.toFlickerComponent()
-    )
+    private val trampolineApp =
+        SimpleAppHelper(
+            instrumentation,
+            launcherName = ActivityOptions.TrampolineStartActivity.LABEL,
+            component = ActivityOptions.TrampolineStartActivity.COMPONENT.toFlickerComponent(),
+        )
 
     @Before
     fun setup() {

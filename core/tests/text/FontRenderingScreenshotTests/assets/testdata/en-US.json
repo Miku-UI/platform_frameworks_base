@@ -1,0 +1,8 @@
+{
+  "golden_id": "English",
+  "locale": "en-Latn-US",
+  "test_strings": {
+    "alphabet_lowercase": "abcdefghijklmnopqrstuvwxyz",
+    "alphabet_uppercase": "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  }
+}

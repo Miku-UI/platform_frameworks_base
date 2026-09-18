@@ -26,11 +26,9 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.os.Bundle;
 import android.os.UserHandle;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.notification.Adjustment;
 import android.service.notification.StatusBarNotification;
-
-import android.platform.test.annotations.EnableFlags;
-import android.platform.test.flag.junit.SetFlagsRule;
 
 import com.android.server.UiServiceTestCase;
 
@@ -178,7 +176,6 @@ public class NotificationRecordExtractorDataTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(android.app.Flags.FLAG_NM_SUMMARIZATION)
     public void testHasDiffs_summarization() {
         NotificationRecord r = generateRecord();
 

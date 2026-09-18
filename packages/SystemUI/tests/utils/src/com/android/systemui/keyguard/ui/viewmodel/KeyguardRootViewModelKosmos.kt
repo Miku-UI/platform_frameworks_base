@@ -101,5 +101,8 @@ val Kosmos.keyguardRootViewModel by Fixture {
         primaryBouncerToDozingTransitionViewModel = primaryBouncerToDozingTransitionViewModel,
         alternateBouncerToDozingTransitionViewModel = alternateBouncerToDozingTransitionViewModel,
         glanceableHubToDozingTransitionViewModel = glanceableHubToDozingTransitionViewModel,
+        toLockscreenEndStateTransitionViewModel = toLockscreenEndStateTransitionViewModel,
+        toAodEndStateTransitionViewModel = toAodEndStateTransitionViewModel,
+        toDozingEndStateTransitionViewModel = toDozingEndStateTransitionViewModel,
     )
 }

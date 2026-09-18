@@ -127,6 +127,7 @@ public abstract class DataService extends Service {
     private static final int DATA_SERVICE_REQUEST_SET_USER_DATA_ENABLED                = 18;
     private static final int DATA_SERVICE_REQUEST_SET_USER_DATA_ROAMING_ENABLED        = 19;
     private static final int DATA_SERVICE_REQUEST_NOTIFY_IMS_DATA_NETWORK              = 20;
+    private static final int DATA_SERVICE_INDICATION_DATA_CALL_LIST_UPDATED            = 21;
 
 
     private final HandlerThread mHandlerThread;
@@ -497,6 +498,25 @@ public abstract class DataService extends Service {
         }
 
         /**
+         * Notify the system that current data call list changed. the framework should not treat
+         * removal from the list as a disconnect, but wait for LinkStatus.INACTIVE.
+         *
+         * @param dataCallList List of the current active data call.
+         *
+         * @hide
+         */
+        public final void notifyDataCallListUpdated(List<DataCallResponse> dataCallList) {
+            synchronized (mDataCallListChangedCallbacks) {
+                for (IDataServiceCallback callback : mDataCallListChangedCallbacks) {
+                    mHandler.obtainMessage(
+                            DATA_SERVICE_INDICATION_DATA_CALL_LIST_UPDATED,
+                            mSlotIndex, 0, new DataCallListUpdatedIndication(dataCallList,
+                                    callback)).sendToTarget();
+                }
+            }
+        }
+
+        /**
          * Notify the system that a given APN was unthrottled.
          *
          * @param apn Access Point Name defined by the carrier.
@@ -642,6 +662,16 @@ public abstract class DataService extends Service {
         public final IDataServiceCallback callback;
         DataCallListChangedIndication(List<DataCallResponse> dataCallList,
                                       IDataServiceCallback callback) {
+            this.dataCallList = dataCallList;
+            this.callback = callback;
+        }
+    }
+
+    private static final class DataCallListUpdatedIndication {
+        public final List<DataCallResponse> dataCallList;
+        public final IDataServiceCallback callback;
+        DataCallListUpdatedIndication(List<DataCallResponse> dataCallList,
+                IDataServiceCallback callback) {
             this.dataCallList = dataCallList;
             this.callback = callback;
         }
@@ -823,6 +853,18 @@ public abstract class DataService extends Service {
                         loge("Failed to call onDataCallListChanged. " + e);
                     }
                     break;
+                case DATA_SERVICE_INDICATION_DATA_CALL_LIST_UPDATED:
+                    if (serviceProvider == null) break;
+                    DataCallListUpdatedIndication dataCallListUpdatedIndication =
+                            (DataCallListUpdatedIndication) message.obj;
+                    try {
+                        dataCallListUpdatedIndication.callback.onDataCallListUpdated(
+                                dataCallListUpdatedIndication.dataCallList
+                        );
+                    } catch (RemoteException e) {
+                        loge("Failed to call onDataCallListUpdated. " + e);
+                    }
+                    break;
                 case DATA_SERVICE_REQUEST_START_HANDOVER:
                     if (serviceProvider == null) break;
                     BeginCancelHandoverRequest bReq = (BeginCancelHandoverRequest) message.obj;
@@ -932,7 +974,7 @@ public abstract class DataService extends Service {
      * will call this method after binding the data service for each active SIM slot id.
      *
      * This methead is guaranteed to be invoked in {@link DataService}'s internal handler thread
-     * whose looper can be retrieved with {@link Looper.myLooper()} when override this method.
+     * whose looper can be retrieved with {@link Looper#myLooper()} when override this method.
      *
      * @param slotIndex SIM slot id the data service associated with.
      * @return Data service object. Null if failed to create the provider (e.g. invalid slot index)

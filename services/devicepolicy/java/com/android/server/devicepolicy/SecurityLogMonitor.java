@@ -24,7 +24,6 @@ import android.app.admin.DeviceAdminReceiver;
 import android.app.admin.IAuditLogEventsCallback;
 import android.app.admin.SecurityLog;
 import android.app.admin.SecurityLog.SecurityEvent;
-import android.app.admin.flags.Flags;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Process;
@@ -371,9 +370,6 @@ class SecurityLogMonitor implements Runnable {
                 break;
             }
         }
-        if (!Flags.internalLogEventListener()) {
-            SecurityLog.redactEvents(newLogs, mEnabledUser);
-        }
         if (DEBUG) Slog.d(TAG, "Got " + newLogs.size() + " new events.");
     }
 
@@ -449,7 +445,7 @@ class SecurityLogMonitor implements Runnable {
 
         dedupedLogs.addAll(newLogs.subList(curPos, newLogs.size()));
 
-        if (Flags.internalLogEventListener() && !dedupedLogs.isEmpty()) {
+        if (!dedupedLogs.isEmpty()) {
             if (mInternalEventsCallback != null) {
                 final ArrayList<SecurityEvent> events = new ArrayList<>(dedupedLogs);
                 final Consumer<List<SecurityEvent>> callback = mInternalEventsCallback;
@@ -740,10 +736,6 @@ class SecurityLogMonitor implements Runnable {
     }
 
     public void setInternalEventsCallback(@Nullable Consumer<List<SecurityEvent>> callback) {
-        if (!Flags.internalLogEventListener()) {
-            Slog.wtf(TAG, "Internal callbacks not enabled");
-            return;
-        }
         mLock.lock();
         try {
             this.mInternalEventsCallback = callback;

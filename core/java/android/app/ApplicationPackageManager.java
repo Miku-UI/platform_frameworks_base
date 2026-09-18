@@ -29,6 +29,7 @@ import static android.content.pm.Checksum.TYPE_WHOLE_MERKLE_ROOT_4K_SHA256;
 import static android.content.pm.Checksum.TYPE_WHOLE_SHA1;
 import static android.content.pm.Checksum.TYPE_WHOLE_SHA256;
 import static android.content.pm.Checksum.TYPE_WHOLE_SHA512;
+import static android.content.pm.Flags.isDeviceUpgradingUsesSharedMemory;
 
 import android.annotation.CallbackExecutor;
 import android.annotation.DrawableRes;
@@ -67,6 +68,7 @@ import android.content.pm.IntentFilterVerificationInfo;
 import android.content.pm.KeySet;
 import android.content.pm.ModuleInfo;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageInfoList;
 import android.content.pm.PackageInstaller;
 import android.content.pm.PackageItemInfo;
 import android.content.pm.PackageManager;
@@ -114,8 +116,14 @@ import android.os.storage.VolumeInfo;
 import android.permission.PermissionControllerManager;
 import android.permission.PermissionManager;
 import android.provider.Settings;
+import android.ravenwood.annotation.RavenwoodIgnore;
+import android.ravenwood.annotation.RavenwoodKeep;
 import android.ravenwood.annotation.RavenwoodKeepPartialClass;
+import android.ravenwood.annotation.RavenwoodKeepStaticInitializer;
+import android.ravenwood.annotation.RavenwoodRedirect;
+import android.ravenwood.annotation.RavenwoodRedirectionClass;
 import android.ravenwood.annotation.RavenwoodReplace;
+import android.ravenwood.annotation.RavenwoodSupported.RavenwoodProvidingImplementation;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
@@ -132,6 +140,7 @@ import android.window.DesktopExperienceFlags;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.os.ApplicationSharedMemory;
 import com.android.internal.os.SomeArgs;
 import com.android.internal.pm.RoSystemFeatures;
 import com.android.internal.util.UserIcons;
@@ -163,6 +172,9 @@ import java.util.function.Function;
 
 /** @hide */
 @RavenwoodKeepPartialClass
+@RavenwoodKeepStaticInitializer
+@RavenwoodProvidingImplementation(target = PackageManager.class)
+@RavenwoodRedirectionClass(value = "ApplicationPackageManager_ravenwood")
 public class ApplicationPackageManager extends PackageManager {
     private static final String TAG = "ApplicationPackageManager";
     private static final boolean DEBUG_ICONS = false;
@@ -791,6 +803,7 @@ public class ApplicationPackageManager extends PackageManager {
     }
 
     @Override
+    @RavenwoodKeep
     public boolean hasSystemFeature(String name) {
         return hasSystemFeature(name, 0);
     }
@@ -826,6 +839,7 @@ public class ApplicationPackageManager extends PackageManager {
             };
 
     @Override
+    @RavenwoodRedirect
     public boolean hasSystemFeature(String name, int version) {
         // We check for system features in the following order:
         //    * Build time-defined system features (constant, very efficient)
@@ -1281,7 +1295,7 @@ public class ApplicationPackageManager extends PackageManager {
     @SuppressWarnings("unchecked")
     public List<PackageInfo> getInstalledPackagesAsUser(PackageInfoFlags flags, int userId) {
         try {
-            ParceledListSlice<PackageInfo> parceledList =
+            PackageInfoList parceledList =
                     mPM.getInstalledPackages(updateFlagsForPackage(flags.getValue(), userId),
                             userId);
             if (parceledList == null) {
@@ -1840,6 +1854,7 @@ public class ApplicationPackageManager extends PackageManager {
     }
 
     @Override
+    @RavenwoodReplace
     public InstrumentationInfo getInstrumentationInfo(
         ComponentName className, int flags)
             throws NameNotFoundException {
@@ -1854,6 +1869,11 @@ public class ApplicationPackageManager extends PackageManager {
         }
 
         throw new NameNotFoundException(className.toString());
+    }
+
+    private InstrumentationInfo getInstrumentationInfo$ravenwood(
+            ComponentName className, int flags) {
+        return new InstrumentationInfo();
     }
 
     @Override
@@ -2191,8 +2211,7 @@ public class ApplicationPackageManager extends PackageManager {
                 app.resourceDirs, app.overlayPaths, app.sharedLibraryFiles,
                 mContext.mPackageInfo, configuration);
         if (r != null) {
-            if (android.content.res.Flags.defaultLocale()
-                    && r.getConfiguration().getLocales().size() > 1) {
+            if (r.getConfiguration().getLocales().size() > 1) {
                 LocaleConfig lc = new LocaleConfig(app, r);
                 r.setLocaleConfig(lc);
             }
@@ -2255,7 +2274,7 @@ public class ApplicationPackageManager extends PackageManager {
     }
 
     @UnsupportedAppUsage
-    @RavenwoodReplace(reason = "<cinit> crashes due to unsupported class PropertyInvalidatedCache")
+    @RavenwoodKeep
     static void configurationChanged() {
         synchronized (sSync) {
             sIconCache.clear();
@@ -2263,17 +2282,15 @@ public class ApplicationPackageManager extends PackageManager {
         }
     }
 
-    private static void configurationChanged$ravenwood() {
-        /* no-op */
-    }
-
     @UnsupportedAppUsage
+    @RavenwoodKeep
     protected ApplicationPackageManager(ContextImpl context, IPackageManager pm) {
         mContext = context;
         mPM = pm;
         mUseSystemFeaturesCache = isSystemFeaturesCacheAvailable();
     }
 
+    @RavenwoodIgnore
     private static boolean isSystemFeaturesCacheAvailable() {
         if (ActivityThread.isSystem() && !SystemFeaturesCache.hasInstance()) {
             // There are a handful of utility "system" processes that are neither system_server nor
@@ -2966,7 +2983,8 @@ public class ApplicationPackageManager extends PackageManager {
     public void clearApplicationUserData(String packageName,
                                          IPackageDataObserver observer) {
         try {
-            mPM.clearApplicationUserData(packageName, observer, getUserId());
+            mPM.clearApplicationUserData(packageName, observer, getUserId(),
+                    /* restorePregrantedPermissions */ true);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -3083,6 +3101,33 @@ public class ApplicationPackageManager extends PackageManager {
     public boolean isPackageSuspendedForUser(String packageName, int userId) {
         try {
             return mPM.isPackageSuspendedForUser(packageName, userId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @Override
+    public PendingIntent getEnableAppLockIntentForPackage(String packageName, boolean enabled) {
+        try {
+            return mPM.getEnableAppLockIntentForPackage(packageName, enabled);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @Override
+    public boolean setPackageAppLockEnabled(@NonNull String packageName, boolean enabled) {
+        try {
+            return mPM.setPackageAppLockEnabled(packageName, getUserId(), enabled);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @Override
+    public boolean isPackageAppLockEnabled(@NonNull String packageName) {
+        try {
+            return mPM.isPackageAppLockEnabled(packageName, getUserId());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -3443,6 +3488,15 @@ public class ApplicationPackageManager extends PackageManager {
 
     @Override
     public boolean isDeviceUpgrading() {
+        if (isDeviceUpgradingUsesSharedMemory()) {
+            int deviceUpgrading = ApplicationSharedMemory.getInstance().getIsDeviceUpgrading();
+
+            if (deviceUpgrading != ApplicationSharedMemory.PM_DEVICE_UPGRADING_UNSET) {
+                return deviceUpgrading == ApplicationSharedMemory.PM_DEVICE_UPGRADING_TRUE;
+            }
+            // When deviceUpgrading is UNSET the value was not yet set by packageManagerService,
+            // fallthrough and do a normal binder call to read the value instantly.
+        }
         try {
             return mPM.isDeviceUpgrading();
         } catch (RemoteException e) {
@@ -4371,5 +4425,14 @@ public class ApplicationPackageManager extends PackageManager {
             return;
         }
         sQueryIntentActivitiesCache.invalidateCache();
+    }
+
+    @Override
+    public int getAppUidForPrivateComputeCoreUid(int pccUid) {
+        try {
+            return mPM.getAppUidForPrivateComputeCoreUid(pccUid);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
     }
 }

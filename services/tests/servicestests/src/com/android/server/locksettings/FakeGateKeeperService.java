@@ -29,6 +29,8 @@ import java.util.Arrays;
 import java.util.Random;
 
 public class FakeGateKeeperService implements IGateKeeperService {
+    private boolean mFailOnNextGetSecureUserId = false;
+
     static class VerifyHandle {
         public byte[] password;
         public long sid;
@@ -178,11 +180,23 @@ public class FakeGateKeeperService implements IGateKeeperService {
 
     @Override
     public long getSecureUserId(int userId) throws RemoteException {
+        if (mFailOnNextGetSecureUserId) {
+            mFailOnNextGetSecureUserId = false;
+            throw new RemoteException("RemoteException triggered!");
+        }
         if (sidMap.containsKey(userId)) {
             return sidMap.get(userId);
         } else {
             return 0L;
         }
+    }
+
+    /**
+     * Trigger a {@link RemoteException} on the next call to {@link #getSecureUserId(int)}. Clears
+     * after one call.
+     */
+    public void setFailOnNextGetSecureUserId() {
+        mFailOnNextGetSecureUserId = true;
     }
 
     private void refreshSid(int uid, long sid, boolean force) {

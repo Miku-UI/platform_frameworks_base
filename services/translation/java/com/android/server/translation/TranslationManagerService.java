@@ -30,10 +30,11 @@ import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
+import android.content.pm.ServiceInfo;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.IRemoteCallback;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.os.ShellCallback;
@@ -134,15 +135,10 @@ public final class TranslationManagerService
             return false;
         }
 
-        final String servicePackageName = serviceComponent.getPackageName();
-        final PackageManager pm = getContext().getPackageManager();
-        final int serviceUid;
-        try {
-            serviceUid = pm.getPackageUidAsUser(servicePackageName, userId);
-        } catch (PackageManager.NameNotFoundException e) {
-            Slog.w(TAG, methodName + ": could not verify UID for " + serviceName);
-            return false;
-        }
+        final TranslationManagerServiceImpl service = getServiceForUserLocked(userId);
+        final ServiceInfo serviceInfo = (service != null) ? service.getServiceInfo() : null;
+        final int serviceUid = (serviceInfo != null) ? serviceInfo.getUid() : Process.INVALID_UID;
+
         if (callingUid != serviceUid) {
             Slog.e(TAG, methodName + ": called by UID " + callingUid + ", but service UID is "
                     + serviceUid);

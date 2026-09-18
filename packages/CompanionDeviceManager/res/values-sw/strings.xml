@@ -33,22 +33,22 @@
     <string name="profile_name_glasses" msgid="3506504967216601277">"kifaa"</string>
     <string name="summary_glasses" msgid="5469208629679579157">"Programu hii itaruhusiwa kufikia ruhusa hizi kwenye <xliff:g id="DEVICE_TYPE">%1$s</xliff:g> yako"</string>
     <string name="profile_name_medical" msgid="5617160509499466400">"kifaa cha matibabu"</string>
-    <string name="title_app_streaming" msgid="237666000400427614">"Ungependa kuruhusu &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; itiririshe programu na vipengele vya mfumo kati ya <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> na &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; yako?"</string>
+    <string name="title_app_streaming" msgid="237666000400427614">"Ungependa kuruhusu &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; itiririshe programu na vipengele vya mfumo kati ya <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> na &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
     <string name="summary_app_streaming" msgid="8346968726357732862">"<xliff:g id="APP_NAME">%1$s</xliff:g> itapewa ruhusa zifuatazo:"</string>
-    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"Programu ya <xliff:g id="APP_NAME_0">%1$s</xliff:g> itafikia chochote kinachoonekana au kuchezwa kwenye <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> yako, ikiwa ni pamoja na sauti, picha, maelezo ya malipo, manenosiri na ujumbe.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_1">%1$s</xliff:g> itaweza kutiririsha programu kwenye <xliff:g id="DEVICE_NAME">%3$s</xliff:g> hadi utakapoondoa ruhusa hii."</string>
     <string name="helper_summary_app_streaming" msgid="160149899100957545">"Programu ya <xliff:g id="APP_NAME">%1$s</xliff:g> inaomba ruhusa kwa niaba ya <xliff:g id="DEVICE_NAME">%2$s</xliff:g> ili itiririshe programu na vipengele vya mfumo kati ya vifaa vyako"</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
     <string name="title_computer" msgid="5040395223341777259">"Ruhusu &lt;strong&gt;<xliff:g id="DISPLAY_NAME">%3$s</xliff:g>&lt;/strong&gt; ifikie maelezo haya kutoka kwenye <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> yako"</string>
     <string name="helper_summary_computer" msgid="2298803016482139668">"Programu ya <xliff:g id="APP_NAME">%1$s</xliff:g> inaomba ruhusa kwa niaba ya <xliff:g id="DEVICE_NAME">%2$s</xliff:g> yako ili ifikie picha, maudhui na arifa za <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> yako"</string>
-    <string name="title_nearby_device_streaming" msgid="5342768208699657581">"Ungependa kuruhusu &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; itiririshe programu na vipengele vya mfumo kati ya <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> na &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; yako?"</string>
+    <string name="title_nearby_device_streaming" msgid="5342768208699657581">"Ungependa kuruhusu &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; itiririshe programu na vipengele vya mfumo kati ya <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> na &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
     <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"<xliff:g id="APP_NAME">%1$s</xliff:g> itapewa ruhusa zifuatazo:"</string>
-    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"Programu ya <xliff:g id="APP_NAME_0">%1$s</xliff:g> itafikia chochote kinachoonekana au kuchezwa kwenye <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>, ikiwa ni pamoja na sauti, picha, maelezo ya malipo, manenosiri na ujumbe.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%1$s</xliff:g> itaweza kutiririsha programu kwenye <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> hadi utakapoondoa ruhusa hii."</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"Programu ya <xliff:g id="APP_NAME">%1$s</xliff:g> inaomba ruhusa kwa niaba ya <xliff:g id="DEVICE_NAME">%2$s</xliff:g> ili itiririshe programu kwenye <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> yako"</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"Ungependa kuruhusu &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; itiririshe sauti na vipengele vya mfumo kati ya <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> na &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt; yako?"</string>
     <string name="summary_virtual_device" msgid="1062189396947962635">"<xliff:g id="APP_NAME">%2$s</xliff:g> itapewa ruhusa zifuatazo:"</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"kifaa"</string>
     <string name="summary_generic" msgid="1761976003668044801">"Programu hii itaweza kusawazisha maelezo, kama vile jina la mtu anayepiga simu, kati ya simu yako na kifaa ulichochagua"</string>
+    <string name="summary_generic_with_remote_ai_capability" msgid="5053633566439056634">"Ruhusu &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; isawazishe maelezo kama vile maelezo ya anayepiga simu na itekeleze vitendo mahiri kwenye <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> yako"</string>
+    <string name="summary_with_permissions_and_remote_ai_capability" msgid="5240771314596527096">"Ruhusu &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; isawazishe maelezo kama vile maelezo ya anayepiga simu na itekeleze vitendo mahiri kwenye <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> yako"</string>
     <string name="consent_yes" msgid="8344487259618762872">"Ruhusu"</string>
     <string name="consent_no" msgid="2640796915611404382">"Usiruhusu"</string>
     <string name="consent_cancel" msgid="5655005528379285841">"Ghairi"</string>
@@ -70,6 +70,7 @@
     <string name="permission_media_routing_control" msgid="5498639511586715253">"Badilisha tokeo la maudhui"</string>
     <string name="permission_storage" msgid="6831099350839392343">"Picha na maudhui"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"Arifa"</string>
+    <string name="permission_app_streaming" msgid="4488910074894929222">"Kuangalia skrini na kutiririsha programu"</string>
     <string name="permission_create_virtual_device" msgid="1102905050922460040">"Kutiririsha data kwenye <xliff:g id="DEVICE_TYPE">%1$s</xliff:g>"</string>
     <string name="permission_add_mirror_display" msgid="3743433250535606288">"Kuakisi skrini yako"</string>
     <string name="permission_add_trusted_display" msgid="9052824856626276723">"Kutiririsha programu"</string>
@@ -81,17 +82,18 @@
     <string name="permission_contacts_summary" msgid="2840800622763086808">"Kufikia anwani zako"</string>
     <string name="permission_calendar_summary" msgid="8430353935747336165">"Kufikia kalenda yako"</string>
     <string name="permission_microphone_summary" msgid="4862628553869973259">"Kurekodi sauti"</string>
-    <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"Kutafuta, kuunganisha na kubaini nafasi inayokadiriwa ya vifaa vilivyo karibu"</string>
+    <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"Kutafuta, kuunganisha na kubaini umbali wa vifaa vilivyo karibu"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"Kusoma arifa zote, ikiwa ni pamoja na maelezo kama vile anwani, ujumbe na picha"</string>
-    <string name="permission_notifications_summary" msgid="6819393427371255636">"• Kusoma arifa zote, ikiwa ni pamoja na maelezo kama vile anwani, ujumbe na picha&lt;br/&gt;• Kukutumia arifa&lt;br/&gt;&lt;br/&gt;Unaweza kudhibiti uwezo wa programu hii wa kusoma na kutuma arifa wakati wowote katika Mipangilio &gt; Arifa."</string>
-    <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_notifications_summary" msgid="7491920318334824691">"• Kusoma arifa zote, ikiwa ni pamoja na maelezo kama vile anwani, ujumbe na picha&lt;br/&gt;• Kukutumia arifa&lt;br/&gt;&lt;br/&gt;Unaweza kudhibiti uwezo wa programu hii wa kusoma na kutuma arifa wakati wowote katika Mipangilio › Arifa."</string>
+    <string name="permission_storage_summary" msgid="3779040306012319942">"Kutuma picha na maudhui yaliyo kwenye simu yako katika vifaa vyako vingine."</string>
     <string name="permission_post_notifications_summary" msgid="1099188848900200165">"Kukutumia arifa"</string>
+    <string name="permission_app_streaming_summary" msgid="4114223538437344105">"Kuonyesha skrini ya simu yako, ikiwa ni pamoja na programu, kwenye vifaa vyako. Vifaa vyako vitafikia chochote kinachoonekana kwenye simu yako, ikiwa ni pamoja na sauti, picha, maelezo ya malipo, manenosiri na ujumbe, hata wakati umefunga simu yako.&lt;br/&gt;&lt;br/&gt;Kuruhusu data ya maikrofoni, kamera na vitambuzi vingine kutoka kwenye vifaa vyako ifikiwe na simu yako, ikiwa ni pamoja na matukio kama vile miguso na mibofyo ya kipanya."</string>
     <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"Tiririsha maikrofoni, kamera na data ya vitambuzi vingine kutoka &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; kwenda katika <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>."</string>
     <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"Rekodi, tuma au uruhusu ufikiaji wa skrini ya <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> kwenye &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> itafikia chochote kinachoonekana au kinachochezwa kwenye <xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g>, ikiwa ni pamoja na sauti, picha, maelezo ya malipo, manenosiri na ujumbe."</string>
     <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"Tiririsha programu za <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> yako kwenye &lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> itafikia chochote kinachoonekana au kinachochezwa kwenye <xliff:g id="DEVICE_NAME_2">%3$s</xliff:g>, ikiwa ni pamoja na sauti, picha, maelezo ya malipo, manenosiri na ujumbe, hata wakati umefunga <xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g> yako."</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"Fikia orodha ya vifaa vinavyopatikana na udhibiti unavyotumia kutiririsha au kutuma maudhui ya sauti au video kutoka kwenye programu nyingine`"</string>
-    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
-    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="4263728689361283271">"Kukutumia arifa"</string>
+    <string name="permission_bypass_dnd_summary" msgid="3649231048838415756">"Kukutumia arifa hata wakati umewasha hali ya Usinisumbue"</string>
     <string name="device_type" product="default" msgid="8268703872070046263">"simu"</string>
     <string name="device_type" product="tablet" msgid="5038791954983067774">"kompyuta kibao"</string>
     <string name="device_type" product="tv" msgid="5355611506659405636">"TV"</string>

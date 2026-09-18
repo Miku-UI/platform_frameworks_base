@@ -82,12 +82,16 @@ class WindowWakeUpPolicy {
      * @param eventTime the timestamp of the event in {@link SystemClock#uptimeMillis()}.
      * @param keyCode the {@link android.view.KeyEvent} key code of the key event.
      * @param isDown {@code true} if the event's action is {@link KeyEvent#ACTION_DOWN}.
+     * @param keyEventFlags flags associated with the event (see {@link KeyEvent#getFlags()}).
+     *     This is not applicable for cases when the wake up occurred due to multiple key presses.
      * @return {@code true} if the policy allows the requested wake up and the request has been
-     *      executed; {@code false} otherwise.
+     *     executed; {@code false} otherwise.
      */
-    boolean wakeUpFromKey(int displayId, long eventTime, int keyCode, boolean isDown) {
+    boolean wakeUpFromKey(
+            int displayId, long eventTime, int keyCode, boolean isDown, int keyEventFlags) {
         if (mInputWakeUpDelegate != null
-                && mInputWakeUpDelegate.wakeUpFromKey(eventTime, keyCode, isDown)) {
+                && mInputWakeUpDelegate.wakeUpFromKey(
+                        displayId, eventTime, keyCode, isDown, keyEventFlags)) {
             return true;
         }
         if (perDisplayWakeByTouch()) {
@@ -122,7 +126,7 @@ class WindowWakeUpPolicy {
             boolean deviceGoingToSleep) {
         if (mInputWakeUpDelegate != null
                 && mInputWakeUpDelegate.wakeUpFromMotion(
-                        eventTime, source, isDown, deviceGoingToSleep)) {
+                        displayId, eventTime, source, isDown, deviceGoingToSleep)) {
             return true;
         }
         if (perDisplayWakeByTouch()) {
@@ -202,7 +206,6 @@ class WindowWakeUpPolicy {
         // When there is a request to wakeup a default display, we would want to wakeup the displays
         // in the default and the adjacent groups
         if (com.android.server.display.feature.flags.Flags.separateTimeouts()
-                && com.android.server.power.feature.flags.Flags.wakeAdjacentDisplaysOnWakeupCall()
                 && displayIdToWake == Display.DEFAULT_DISPLAY) {
             wakeUp(wakeTime, reason, details);
             return;

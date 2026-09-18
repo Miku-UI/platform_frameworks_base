@@ -28,7 +28,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 import android.provider.SettingsStringUtil;
@@ -105,7 +104,6 @@ public class SettingsHelperRestoreTest {
         assertThat(Settings.Secure.getInt(mContentResolver, settingName, 0)).isEqualTo(1);
     }
 
-    @EnableFlags(com.android.graphics.hwui.flags.Flags.FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     @Test
     public void restoreHighTextContrastEnabled_currentlyDisabled_enableInRestoredFromVanilla_sendNotification_hctKeepsDisabled()
             throws ExecutionException, InterruptedException {

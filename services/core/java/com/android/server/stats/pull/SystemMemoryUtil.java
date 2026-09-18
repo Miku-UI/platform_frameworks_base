@@ -26,7 +26,6 @@ final class SystemMemoryUtil {
     private SystemMemoryUtil() {}
 
     static Metrics getMetrics() {
-        int totalIonKb = (int) Debug.getDmabufHeapTotalExportedKb();
         int gpuTotalUsageKb = (int) Debug.getGpuTotalUsageKb();
         int gpuPrivateAllocationsKb = (int) Debug.getGpuPrivateMemoryKb();
         int dmaBufTotalExportedKb = (int) Debug.getDmabufTotalExportedKb();
@@ -71,9 +70,6 @@ final class SystemMemoryUtil {
             accountedKb += Math.max(0, gpuTotalUsageKb);
             if (dmaBufTotalExportedKb >= 0) {
                 accountedKb += dmaBufTotalExportedKb;
-            } else if (totalIonKb >= 0) {
-                // ION is a subset of total exported dmabuf memory.
-                accountedKb += totalIonKb;
             }
         }
 
@@ -96,7 +92,6 @@ final class SystemMemoryUtil {
         result.swapFreeKb = (int) mInfos[Debug.MEMINFO_SWAP_FREE];
         result.cmaTotalKb = (int) mInfos[Debug.MEMINFO_CMA_TOTAL];
         result.cmaFreeKb = (int) mInfos[Debug.MEMINFO_CMA_FREE];
-        result.totalIonKb = totalIonKb;
         result.gpuTotalUsageKb = gpuTotalUsageKb;
         result.gpuPrivateAllocationsKb = gpuPrivateAllocationsKb;
         result.dmaBufTotalExportedKb = dmaBufTotalExportedKb;
@@ -123,7 +118,6 @@ final class SystemMemoryUtil {
         public int swapFreeKb;
         public int cmaTotalKb;
         public int cmaFreeKb;
-        public int totalIonKb;
         public int gpuTotalUsageKb;
         public int gpuPrivateAllocationsKb;
         public int dmaBufTotalExportedKb;

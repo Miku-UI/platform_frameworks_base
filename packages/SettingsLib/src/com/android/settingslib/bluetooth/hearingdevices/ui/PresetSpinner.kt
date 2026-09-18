@@ -20,6 +20,7 @@ import android.bluetooth.BluetoothHapClient
 import android.bluetooth.BluetoothHapPresetInfo
 import android.content.Context
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import android.widget.AdapterView
 import android.widget.LinearLayout
@@ -64,6 +65,7 @@ constructor(
     private val spinnerView: Spinner = findViewById(R.id.preset_spinner)
     private var onChangeListener: OnChangeListener? = null
     private var presetInfos: List<BluetoothHapPresetInfo>? = null
+    private var selectedPresetIndex: Int = BluetoothHapClient.PRESET_INDEX_UNAVAILABLE
 
     init {
         spinnerView.adapter = spinnerAdapter
@@ -76,8 +78,13 @@ constructor(
                     id: Long,
                 ) {
                     spinnerAdapter.setSelected(position)
-                    presetInfos?.let { infos ->
-                        onChangeListener?.onValueChange(this@PresetSpinner, infos[position].index)
+                    presetInfos?.getOrNull(position)?.let { info ->
+                        if (info.index == selectedPresetIndex) {
+                            Log.d(TAG, "onItemSelected: Programmatic change, ignored")
+                            return
+                        }
+                        selectedPresetIndex = info.index
+                        onChangeListener?.onValueChange(this@PresetSpinner, info.index)
                     }
                 }
 
@@ -129,7 +136,6 @@ constructor(
      */
     fun setList(infos: List<BluetoothHapPresetInfo>) {
         presetInfos = infos
-
         spinnerAdapter.clear()
         spinnerAdapter.addAll(infos.map { info -> info.name }.toList())
     }
@@ -149,12 +155,16 @@ constructor(
      * @param index The preset index to select.
      */
     fun setValue(index: Int) {
-        presetInfos?.apply {
-            val position = indexOfFirst { it.index == index }
-            if (position != -1) {
-                spinnerView.setSelection(position, false)
-                spinnerAdapter.setSelected(position)
-            }
+        val infos = presetInfos ?: return
+        val position = infos.indexOfFirst { it.index == index }
+        if (position < 0) {
+            return
+        }
+
+        spinnerAdapter.setSelected(position)
+        if (spinnerView.selectedItemPosition != position) {
+            selectedPresetIndex = index
+            spinnerView.setSelection(position, false)
         }
     }
 
@@ -180,6 +190,7 @@ constructor(
     }
 
     companion object {
+        private const val TAG = "PresetSpinner"
         private const val ENABLED_ALPHA = 1f
         private const val DISABLED_ALPHA = 0.38f
     }

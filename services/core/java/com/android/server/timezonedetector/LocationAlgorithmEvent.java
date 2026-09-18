@@ -38,15 +38,14 @@ import java.util.StringTokenizer;
  * <p>Events have the following properties:
  *
  * <ul>
- *     <li>{@code algorithmStatus}: The current status of the location-based time zone detection
- *     algorithm.</li>
- *     <li>{@code suggestion}: The latest time zone suggestion, if there is one.</li>
- *     <li>{@code debugInfo} contains debugging metadata associated with the suggestion. This is
- *     used to record why the event exists and how information contained within it was obtained.
- *     This information exists only to aid in debugging and therefore is used by
- *     {@link #toString()}, but it is not for use in detection logic and is not considered in
- *     {@link #hashCode()} or {@link #equals(Object)}.
- *     </li>
+ *   <li>{@code algorithmStatus}: The current status of the location-based time zone detection
+ *       algorithm.
+ *   <li>{@code suggestion}: The latest time zone suggestion, if there is one.
+ *   <li>{@code debugInfo} contains debugging metadata associated with the suggestion. This is used
+ *       to record why the event exists and how information contained within it was obtained. This
+ *       information exists only to aid in debugging and therefore is used by {@link #toString()},
+ *       but it is not for use in detection logic and is not considered in {@link #hashCode()} or
+ *       {@link #equals(Object)}.
  * </ul>
  */
 public final class LocationAlgorithmEvent {
@@ -63,9 +62,7 @@ public final class LocationAlgorithmEvent {
         mSuggestion = suggestion;
     }
 
-    /**
-     * Returns the status of the location time zone detector algorithm.
-     */
+    /** Returns the status of the location time zone detector algorithm. */
     @NonNull
     public LocationTimeZoneAlgorithmStatus getAlgorithmStatus() {
         return mAlgorithmStatus;
@@ -84,13 +81,14 @@ public final class LocationAlgorithmEvent {
     @NonNull
     public List<String> getDebugInfo() {
         return mDebugInfo == null
-                ? Collections.emptyList() : Collections.unmodifiableList(mDebugInfo);
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(mDebugInfo);
     }
 
     /**
      * Associates information with the instance that can be useful for debugging / logging. The
-     * information is present in {@link #toString()} but is not considered for
-     * {@link #equals(Object)} and {@link #hashCode()}.
+     * information is present in {@link #toString()} but is not considered for {@link
+     * #equals(Object)} and {@link #hashCode()}.
      */
     public void addDebugInfo(String... debugInfos) {
         if (mDebugInfo == null) {
@@ -120,9 +118,12 @@ public final class LocationAlgorithmEvent {
     @Override
     public String toString() {
         return "LocationAlgorithmEvent{"
-                + "mAlgorithmStatus=" + mAlgorithmStatus
-                + ", mSuggestion=" + mSuggestion
-                + ", mDebugInfo=" + mDebugInfo
+                + "mAlgorithmStatus="
+                + mAlgorithmStatus
+                + ", mSuggestion="
+                + mSuggestion
+                + ", mDebugInfo="
+                + mDebugInfo
                 + '}';
     }
 
@@ -132,18 +133,12 @@ public final class LocationAlgorithmEvent {
         String opt;
         while ((opt = cmd.getNextArg()) != null) {
             switch (opt) {
-                case "--status": {
-                    algorithmStatus = LocationTimeZoneAlgorithmStatus.parseCommandlineArg(
-                            cmd.getNextArgRequired());
-                    break;
-                }
-                case "--suggestion": {
-                    suggestionString  = cmd.getNextArgRequired();
-                    break;
-                }
-                default: {
-                    throw new IllegalArgumentException("Unknown option: " + opt);
-                }
+                case "--status" ->
+                        algorithmStatus =
+                                LocationTimeZoneAlgorithmStatus.parseCommandlineArg(
+                                        cmd.getNextArgRequired());
+                case "--suggestion" -> suggestionString = cmd.getNextArgRequired();
+                default -> throw new IllegalArgumentException("Unknown option: " + opt);
             }
         }
 
@@ -156,11 +151,13 @@ public final class LocationAlgorithmEvent {
             List<String> zoneIds = parseZoneIds(suggestionString);
             long elapsedRealtimeMillis = SystemClock.elapsedRealtime();
             if (zoneIds == null) {
-                suggestion = GeolocationTimeZoneSuggestion.createUncertainSuggestion(
-                        elapsedRealtimeMillis);
+                suggestion =
+                        GeolocationTimeZoneSuggestion.createUncertainSuggestion(
+                                elapsedRealtimeMillis);
             } else {
-                suggestion = GeolocationTimeZoneSuggestion.createCertainSuggestion(
-                        elapsedRealtimeMillis, zoneIds);
+                suggestion =
+                        GeolocationTimeZoneSuggestion.createCertainSuggestion(
+                                elapsedRealtimeMillis, zoneIds);
             }
         }
 

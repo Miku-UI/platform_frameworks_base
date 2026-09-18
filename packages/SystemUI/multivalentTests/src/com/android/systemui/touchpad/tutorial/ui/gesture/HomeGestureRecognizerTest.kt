@@ -16,9 +16,11 @@
 
 package com.android.systemui.touchpad.tutorial.ui.gesture
 
+import android.platform.test.annotations.EnableFlags
 import android.view.MotionEvent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.testKosmos
 import com.android.systemui.touchpad.tutorial.ui.gesture.GestureState.Error
@@ -74,6 +76,20 @@ class HomeGestureRecognizerTest : SysuiTestCase() {
         assertProgressWhileMovingFingers(deltaY = SWIPE_DISTANCE / 2, expectedProgress = 0f)
         // going further than required distance
         assertProgressWhileMovingFingers(deltaY = -SWIPE_DISTANCE * 2, expectedProgress = 1f)
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_TOUCHPAD_GESTURE_TUTORIAL_BUG_FIXES)
+    fun triggersPartialSuccessBeforeSuccess() {
+        val events = ThreeFingerGesture.swipeUp()
+
+        // Swipe up once to trigger partial success
+        events.forEach { gestureRecognizer.accept(it) }
+        assertThat(gestureState).isEqualTo(GestureState.PartialSuccess)
+
+        // Swipe up again to trigger success
+        events.forEach { gestureRecognizer.accept(it) }
+        assertThat(gestureState).isEqualTo(GestureState.Finished)
     }
 
     private fun assertProgressWhileMovingFingers(deltaY: Float, expectedProgress: Float) {

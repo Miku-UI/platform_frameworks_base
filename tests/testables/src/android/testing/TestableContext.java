@@ -61,7 +61,7 @@ import java.util.concurrent.Executor;
  * public final TestableContext mContext = new TestableContext(InstrumentationRegister.getContext());
  * </pre>
  */
-public class TestableContext extends ContextWrapper implements TestRule {
+public class TestableContext extends ContextWrapper implements TestRule, AutoCloseable {
 
     private TestableContentResolver mTestableContentResolver;
     private TestableSettingsProvider mSettingsProvider;
@@ -542,10 +542,15 @@ public class TestableContext extends ContextWrapper implements TestRule {
         return new TestWatcher() {
             @Override
             protected void finished(Description description) {
-                if (mSettingsProvider != null) {
-                    mSettingsProvider.unregister();
-                }
+                TestableContext.this.close();
             }
         }.apply(base, description);
+    }
+
+    @Override
+    public void close() {
+        if (mSettingsProvider != null) {
+            mSettingsProvider.unregister();
+        }
     }
 }

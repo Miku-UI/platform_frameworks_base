@@ -75,12 +75,6 @@ public final class ContentCaptureOptions implements Parcelable {
     public final int logHistorySize;
 
     /**
-     * Disable flush when receiving a VIEW_TREE_APPEARING event.
-     * @hide
-     */
-    public final boolean disableFlushForViewTreeAppearing;
-
-    /**
      * Is the content capture receiver enabled.
      *
      * @hide
@@ -120,7 +114,6 @@ public final class ContentCaptureOptions implements Parcelable {
                 /* idleFlushingFrequencyMs= */ 0,
                 /* textChangeFlushingFrequencyMs= */ 0,
                 /* logHistorySize= */ 0,
-                /* disableFlushForViewTreeAppearing= */ false,
                 /* enableReceiver= */ false,
                 new ContentProtectionOptions(
                         /* enableReceiver= */ false,
@@ -147,7 +140,6 @@ public final class ContentCaptureOptions implements Parcelable {
                 idleFlushingFrequencyMs,
                 textChangeFlushingFrequencyMs,
                 logHistorySize,
-                ContentCaptureManager.DEFAULT_DISABLE_FLUSH_FOR_VIEW_TREE_APPEARING,
                 ContentCaptureManager.DEFAULT_ENABLE_CONTENT_CAPTURE_RECEIVER,
                 new ContentProtectionOptions(),
                 whitelistedComponents);
@@ -160,7 +152,6 @@ public final class ContentCaptureOptions implements Parcelable {
             int idleFlushingFrequencyMs,
             int textChangeFlushingFrequencyMs,
             int logHistorySize,
-            boolean disableFlushForViewTreeAppearing,
             boolean enableReceiver,
             @NonNull ContentProtectionOptions contentProtectionOptions,
             @SuppressLint({"ConcreteCollection", "NullableCollection"}) @Nullable
@@ -172,7 +163,6 @@ public final class ContentCaptureOptions implements Parcelable {
                 idleFlushingFrequencyMs,
                 textChangeFlushingFrequencyMs,
                 logHistorySize,
-                disableFlushForViewTreeAppearing,
                 enableReceiver,
                 contentProtectionOptions,
                 whitelistedComponents);
@@ -187,7 +177,6 @@ public final class ContentCaptureOptions implements Parcelable {
                 ContentCaptureManager.DEFAULT_IDLE_FLUSHING_FREQUENCY_MS,
                 ContentCaptureManager.DEFAULT_TEXT_CHANGE_FLUSHING_FREQUENCY_MS,
                 ContentCaptureManager.DEFAULT_LOG_HISTORY_SIZE,
-                ContentCaptureManager.DEFAULT_DISABLE_FLUSH_FOR_VIEW_TREE_APPEARING,
                 ContentCaptureManager.DEFAULT_ENABLE_CONTENT_CAPTURE_RECEIVER,
                 new ContentProtectionOptions(),
                 whitelistedComponents);
@@ -200,7 +189,6 @@ public final class ContentCaptureOptions implements Parcelable {
             int idleFlushingFrequencyMs,
             int textChangeFlushingFrequencyMs,
             int logHistorySize,
-            boolean disableFlushForViewTreeAppearing,
             boolean enableReceiver,
             @NonNull ContentProtectionOptions contentProtectionOptions,
             @SuppressLint({"ConcreteCollection", "NullableCollection"}) @Nullable
@@ -211,7 +199,6 @@ public final class ContentCaptureOptions implements Parcelable {
         this.idleFlushingFrequencyMs = idleFlushingFrequencyMs;
         this.textChangeFlushingFrequencyMs = textChangeFlushingFrequencyMs;
         this.logHistorySize = logHistorySize;
-        this.disableFlushForViewTreeAppearing = disableFlushForViewTreeAppearing;
         this.enableReceiver = enableReceiver;
         this.contentProtectionOptions = contentProtectionOptions;
         this.whitelistedComponents = whitelistedComponents;
@@ -268,8 +255,6 @@ public final class ContentCaptureOptions implements Parcelable {
                 .append(textChangeFlushingFrequencyMs)
                 .append(", logHistorySize=")
                 .append(logHistorySize)
-                .append(", disableFlushForViewTreeAppearing=")
-                .append(disableFlushForViewTreeAppearing)
                 .append(", enableReceiver=")
                 .append(enableReceiver)
                 .append(", contentProtectionOptions=")
@@ -295,8 +280,6 @@ public final class ContentCaptureOptions implements Parcelable {
         pw.print(textChangeFlushingFrequencyMs);
         pw.print(", logSize=");
         pw.print(logHistorySize);
-        pw.print(", disableFlushForViewTreeAppearing=");
-        pw.print(disableFlushForViewTreeAppearing);
         pw.print(", enableReceiver=");
         pw.print(enableReceiver);
         pw.print(", contentProtectionOptions=[");
@@ -322,7 +305,6 @@ public final class ContentCaptureOptions implements Parcelable {
         parcel.writeInt(idleFlushingFrequencyMs);
         parcel.writeInt(textChangeFlushingFrequencyMs);
         parcel.writeInt(logHistorySize);
-        parcel.writeBoolean(disableFlushForViewTreeAppearing);
         parcel.writeBoolean(enableReceiver);
         contentProtectionOptions.writeToParcel(parcel);
         parcel.writeArraySet(whitelistedComponents);
@@ -342,7 +324,6 @@ public final class ContentCaptureOptions implements Parcelable {
                     final int idleFlushingFrequencyMs = parcel.readInt();
                     final int textChangeFlushingFrequencyMs = parcel.readInt();
                     final int logHistorySize = parcel.readInt();
-                    final boolean disableFlushForViewTreeAppearing = parcel.readBoolean();
                     final boolean enableReceiver = parcel.readBoolean();
                     final ContentProtectionOptions contentProtectionOptions =
                             ContentProtectionOptions.createFromParcel(parcel);
@@ -355,7 +336,6 @@ public final class ContentCaptureOptions implements Parcelable {
                             idleFlushingFrequencyMs,
                             textChangeFlushingFrequencyMs,
                             logHistorySize,
-                            disableFlushForViewTreeAppearing,
                             enableReceiver,
                             contentProtectionOptions,
                             whitelistedComponents);

@@ -35,7 +35,7 @@ import androidx.compose.ui.platform.PlatformTextInputMethodRequest
  * ```
  * @Composable
  * fun YourFunction(viewModel: YourViewModel) {
- *     val selectedUserId by viewModel.selectedUserId.collectAsStateWithLifecycle()
+ *     val selectedUserId = viewModel.selectedUserId
  *
  *     SelectedUserAwareInputConnection(selectedUserId) {
  *         TextField(...)
@@ -57,8 +57,7 @@ fun SelectedUserAwareInputConnection(
                         val inputConnection = request.createInputConnection(outAttributes)
                         // After the original request finishes initializing the EditorInfo we can
                         // customize it. If we needed to we could also wrap the InputConnection
-                        // before
-                        // returning it.
+                        // before returning it.
                         updateEditorInfo(outAttributes)
                         return inputConnection
                     }

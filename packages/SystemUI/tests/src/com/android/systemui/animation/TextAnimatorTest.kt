@@ -19,50 +19,40 @@ package com.android.systemui.animation
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.graphics.Typeface
-import android.text.Layout
-import android.text.StaticLayout
-import android.text.TextPaint
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.animation.TextInterpolatorTest.Companion.makeLayout
 import com.google.common.truth.Truth.assertThat
-import kotlin.math.ceil
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.ArgumentCaptor
-import org.mockito.Mockito.inOrder
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.never
-import org.mockito.Mockito.times
-import org.mockito.Mockito.verify
-import org.mockito.Mockito.`when`
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.inOrder
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.spy
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
-@RunWith(AndroidJUnit4::class)
 @SmallTest
+@RunWith(AndroidJUnit4::class)
 class TextAnimatorTest : SysuiTestCase() {
-
     private val typeface = Typeface.createFromFile("/system/fonts/Roboto-Regular.ttf")
 
-    private fun makeLayout(text: String, paint: TextPaint): Layout {
-        val width = ceil(Layout.getDesiredWidth(text, 0, text.length, paint)).toInt()
-        return StaticLayout.Builder.obtain(text, 0, text.length, paint, width).build()
-    }
+    val layout = makeLayout("Hello, World", PAINT)
+    val paint = spy(PAINT)
+    val valueAnimator = mock<ValueAnimator>()
+    val textInterpolator = mock<TextInterpolator> { whenever(mock.targetPaint).thenReturn(paint) }
+    val textAnimator =
+        TextAnimator(layout, TypefaceVariantCacheImpl(typeface, 20)).apply {
+            textInterpolator = this@TextAnimatorTest.textInterpolator
+            createAnimator = { valueAnimator }
+            animator = valueAnimator
+        }
 
     @Test
     fun testAnimationStarted() {
-        val layout = makeLayout("Hello, World", PAINT)
-        val valueAnimator = mock(ValueAnimator::class.java)
-        val textInterpolator = mock(TextInterpolator::class.java)
-        val paint = mock(TextPaint::class.java)
-        `when`(textInterpolator.targetPaint).thenReturn(paint)
-
-        val textAnimator =
-            TextAnimator(layout, TypefaceVariantCacheImpl(typeface, 20)).apply {
-                this.textInterpolator = textInterpolator
-                this.createAnimator = { valueAnimator }
-                this.animator = valueAnimator
-            }
-
         textAnimator.setTextStyle(TextAnimator.Style("'wght' 400"), TextAnimator.Animation())
 
         // If animation is requested, the base state should be rebased and the target state should
@@ -81,19 +71,6 @@ class TextAnimatorTest : SysuiTestCase() {
 
     @Test
     fun testAnimationNotStarted() {
-        val layout = makeLayout("Hello, World", PAINT)
-        val valueAnimator = mock(ValueAnimator::class.java)
-        val textInterpolator = mock(TextInterpolator::class.java)
-        val paint = mock(TextPaint::class.java)
-        `when`(textInterpolator.targetPaint).thenReturn(paint)
-
-        val textAnimator =
-            TextAnimator(layout, TypefaceVariantCacheImpl(typeface, 20)).apply {
-                this.textInterpolator = textInterpolator
-                this.createAnimator = { valueAnimator }
-                this.animator = valueAnimator
-            }
-
         textAnimator.setTextStyle(TextAnimator.Style("'wght' 400"))
 
         // If animation is not requested, the progress should be 1 which is end of animation and the
@@ -109,19 +86,7 @@ class TextAnimatorTest : SysuiTestCase() {
 
     @Test
     fun testAnimationEnded() {
-        val layout = makeLayout("Hello, World", PAINT)
-        val valueAnimator = mock(ValueAnimator::class.java)
-        val textInterpolator = mock(TextInterpolator::class.java)
-        val paint = mock(TextPaint::class.java)
-        `when`(textInterpolator.targetPaint).thenReturn(paint)
-        val animationEndCallback = mock(Runnable::class.java)
-
-        val textAnimator =
-            TextAnimator(layout, TypefaceVariantCacheImpl(typeface, 20)).apply {
-                this.textInterpolator = textInterpolator
-                this.createAnimator = { valueAnimator }
-                this.animator = valueAnimator
-            }
+        val animationEndCallback = mock<Runnable>()
 
         textAnimator.setTextStyle(
             TextAnimator.Style("'wght' 400"),
@@ -129,7 +94,7 @@ class TextAnimatorTest : SysuiTestCase() {
         )
 
         // Verify animationEnd callback has been added.
-        val captor = ArgumentCaptor.forClass(AnimatorListenerAdapter::class.java)
+        val captor = argumentCaptor<AnimatorListenerAdapter>()
         verify(valueAnimator, times(2)).addListener(captor.capture())
         for (callback in captor.allValues) {
             callback.onAnimationEnd(valueAnimator)
@@ -141,19 +106,6 @@ class TextAnimatorTest : SysuiTestCase() {
 
     @Test
     fun testCacheTypeface() {
-        val layout = makeLayout("Hello, World", PAINT)
-        val valueAnimator = mock(ValueAnimator::class.java)
-        val textInterpolator = mock(TextInterpolator::class.java)
-        val paint = TextPaint().apply { this.typeface = typeface }
-        `when`(textInterpolator.targetPaint).thenReturn(paint)
-
-        val textAnimator =
-            TextAnimator(layout, TypefaceVariantCacheImpl(typeface, 20)).apply {
-                this.textInterpolator = textInterpolator
-                this.createAnimator = { valueAnimator }
-                this.animator = valueAnimator
-            }
-
         val animation = TextAnimator.Animation(animate = true)
         textAnimator.setTextStyle(TextAnimator.Style("'wght' 400"), animation)
 

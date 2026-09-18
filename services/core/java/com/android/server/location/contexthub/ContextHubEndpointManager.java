@@ -20,6 +20,8 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.content.Context;
 import android.hardware.contexthub.ContextHubInfo;
+import android.hardware.contexthub.DataFlowId;
+import android.hardware.contexthub.DataFlowSinkContext;
 import android.hardware.contexthub.EndpointInfo;
 import android.hardware.contexthub.ErrorCode;
 import android.hardware.contexthub.HubEndpointInfo;
@@ -56,7 +58,8 @@ import java.util.function.Consumer;
  * @hide
  */
 /* package */ class ContextHubEndpointManager
-        implements ContextHubHalEndpointCallback.IEndpointSessionCallback {
+        implements ContextHubHalEndpointCallback.IEndpointSessionCallback,
+                ContextHubHalEndpointCallback.IEndpointDataFlowCallback {
     /** The range of session IDs to use for endpoints */
     public static final int SERVICE_SESSION_RANGE = 1024;
 
@@ -224,7 +227,7 @@ import java.util.function.Consumer;
             info.hubDetails = HubInfo.HubDetails.contextHubInfo(contextHubInfo);
             mHubInterface =
                     mContextHubProxy.registerEndpointHub(
-                            new ContextHubHalEndpointCallback(mHubInfoRegistry, this), info);
+                            new ContextHubHalEndpointCallback(mHubInfoRegistry, this, this), info);
             if (mHubInterface == null) {
                 throw new IllegalStateException("Received null IEndpointCommunication");
             }
@@ -264,6 +267,16 @@ import java.util.function.Consumer;
             mNextSessionId = mMinSessionId;
         }
         mIsRegistered = true;
+
+        PccAccessList.getInstance()
+                .registerPccAccessChangeCallback(
+                        (endpointId) -> {
+                            synchronized (mHalRestartLock) {
+                                for (ContextHubEndpointBroker broker : mEndpointMap.values()) {
+                                    broker.onPccAccessChanged(endpointId);
+                                }
+                            }
+                        });
     }
 
     /**
@@ -283,7 +296,7 @@ import java.util.function.Consumer;
             throws RemoteException {
         synchronized (mHalRestartLock) {
             if (!mIsRegistered) {
-                throw new IllegalStateException("ContextHubEndpointManager failed to initialize");
+                throw new IllegalStateException("ContextHubEndpointManager not registered");
             }
             ContextHubEndpointBroker broker;
             long endpointId = getNewEndpointId();
@@ -376,10 +389,21 @@ import java.util.function.Consumer;
     }
 
     /** Invoked by the service when the Context Hub HAL restarts. */
+    /* package */ void onHalDeath() {
+        Log.d(TAG, "onHalDeath");
+        synchronized (mHalRestartLock) {
+            mIsRegistered = false;
+
+            for (ContextHubEndpointBroker broker : mEndpointMap.values()) {
+                broker.onHalDeath();
+            }
+        }
+    }
+
+    /** Invoked by the service when the Context Hub HAL restarts. */
     /* package */ void onHalRestart() {
         synchronized (mHalRestartLock) {
             Log.d(TAG, "onHalRestart");
-            mIsRegistered = false;
             try {
                 initLocked();
             } catch (IllegalStateException
@@ -496,6 +520,44 @@ import java.util.function.Consumer;
                                         sessionId, sequenceNumber, errorCode));
         if (!callbackInvoked) {
             Log.w(TAG, "onMessageDeliveryStatusReceived: unknown session ID " + sessionId);
+        }
+    }
+
+    @Override
+    public void onDataFlowHostSinkRegistered(
+            DataFlowSinkContext context,
+            HubEndpointInfo.HubEndpointIdentifier sourceId,
+            HubEndpointInfo.HubEndpointIdentifier sinkId,
+            HubMessage msg,
+            int sessionId) {
+        ContextHubEndpointBroker broker = mEndpointMap.get(sinkId.getEndpoint());
+        if (broker == null) {
+            Log.w(
+                    TAG,
+                    "onDataFlowHostSinkRegistered: unknown sink endpoint ID "
+                            + sinkId.getEndpoint());
+            return;
+        }
+        broker.onDataFlowHostSinkRegistered(
+                context, mHubInfoRegistry.getEndpointInfo(sourceId), msg, sessionId);
+    }
+
+    @Override
+    public void onDataFlowOffloadEndpointUnregistered(
+            DataFlowId dataFlowId,
+            HubEndpointInfo.HubEndpointIdentifier endpointId,
+            HubEndpointInfo.HubEndpointIdentifier[] destinationIds) {
+        for (HubEndpointInfo.HubEndpointIdentifier destinationId : destinationIds) {
+            ContextHubEndpointBroker broker = mEndpointMap.get(destinationId.getEndpoint());
+            if (broker == null) {
+                Log.w(
+                        TAG,
+                        "onDataFlowOffloadEndpointUnregistered: unknown endpoint ID "
+                                + destinationId.getEndpoint());
+                continue;
+            }
+            broker.onDataFlowOffloadEndpointUnregistered(
+                    dataFlowId, mHubInfoRegistry.getEndpointInfo(endpointId));
         }
     }
 

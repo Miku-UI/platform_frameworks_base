@@ -573,6 +573,9 @@ public class SpatializerHelper {
             updatedDevice = new AdiDeviceState(canonicalDeviceType, ada.getInternalType(),
                     ada.getAddress());
             initSAState(updatedDevice);
+            if (forceEnable) {
+                updatedDevice.setSAEnabled(true);
+            }
             mDeviceBroker.addOrUpdateDeviceSAStateInInventory(
                     updatedDevice, true /*syncInventory*/);
         }
@@ -1654,6 +1657,8 @@ public class SpatializerHelper {
         pw.println("\thas FEATURE_AUDIO_SPATIAL_HEADTRACKING_LOW_LATENCY:"
                 + mAudioService.mContext.getPackageManager().hasSystemFeature(
                 PackageManager.FEATURE_AUDIO_SPATIAL_HEADTRACKING_LOW_LATENCY));
+        pw.println("\tmBinauralEnabledDefault:" + mBinauralEnabledDefault);
+        pw.println("\tmTransauralEnabledDefault:" + mTransauralEnabledDefault);
     }
 
     private static String spatStateString(int state) {

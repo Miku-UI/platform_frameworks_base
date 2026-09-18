@@ -61,7 +61,7 @@ public class DeveloperVerifierServiceTest {
         mSession = new DeveloperVerificationSession(TEST_ID, TEST_INSTALL_SESSION_ID,
                 TEST_PACKAGE_NAME, TEST_PACKAGE_URI, TEST_SIGNING_INFO,
                 new ArrayList<>(), new PersistableBundle(), TEST_POLICY, Mockito.mock(
-                IDeveloperVerificationSessionInterface.class));
+                IDeveloperVerificationSessionInterface.class), /*verificationFlags=*/ 0);
     }
 
     @Test

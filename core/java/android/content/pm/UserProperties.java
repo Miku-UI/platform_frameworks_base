@@ -72,12 +72,12 @@ public final class UserProperties implements Parcelable {
     private static final String ATTR_ALWAYS_VISIBLE = "alwaysVisible";
     private static final String ATTR_ALLOW_STOPPING_USER_WITH_DELAYED_LOCKING =
             "allowStoppingUserWithDelayedLocking";
-
     private static final String ATTR_CROSS_PROFILE_CONTENT_SHARING_STRATEGY =
             "crossProfileContentSharingStrategy";
     private static final String ATTR_PROFILE_API_VISIBILITY = "profileApiVisibility";
-    private static final String ITEMS_RESTRICTED_ON_HOME_SCREEN =
+    private static final String ATTR_ITEMS_RESTRICTED_ON_HOME_SCREEN =
             "itemsRestrictedOnHomeScreen";
+
     /** Index values of each property (to indicate whether they are present in this object). */
     @IntDef(prefix = "INDEX_", value = {
             INDEX_SHOW_IN_LAUNCHER,
@@ -1231,7 +1231,7 @@ public final class UserProperties implements Parcelable {
                 case ATTR_PROFILE_API_VISIBILITY:
                     setProfileApiVisibility(parser.getAttributeInt(i));
                     break;
-                case ITEMS_RESTRICTED_ON_HOME_SCREEN:
+                case ATTR_ITEMS_RESTRICTED_ON_HOME_SCREEN:
                     setItemsRestrictedOnHomeScreen(parser.getAttributeBoolean(i));
                     break;
                 default:
@@ -1321,7 +1321,7 @@ public final class UserProperties implements Parcelable {
                     mProfileApiVisibility);
         }
         if (isPresent(INDEX_ITEMS_RESTRICTED_ON_HOME_SCREEN)) {
-            serializer.attributeBoolean(null, ITEMS_RESTRICTED_ON_HOME_SCREEN,
+            serializer.attributeBoolean(null, ATTR_ITEMS_RESTRICTED_ON_HOME_SCREEN,
                     mItemsRestrictedOnHomeScreen);
         }
     }

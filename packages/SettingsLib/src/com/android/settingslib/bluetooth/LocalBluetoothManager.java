@@ -58,7 +58,8 @@ public class LocalBluetoothManager {
     public static synchronized LocalBluetoothManager getInstance(Context context,
             BluetoothManagerCallback onInitCallback) {
         if (sInstance == null) {
-            LocalBluetoothAdapter adapter = LocalBluetoothAdapter.getInstance();
+            LocalBluetoothAdapter adapter =
+                    LocalBluetoothAdapter.getInstance(context, context.getUser());
             if (adapter == null) {
                 return null;
             }
@@ -80,7 +81,7 @@ public class LocalBluetoothManager {
      */
     @Nullable
     public static LocalBluetoothManager create(Context context, Handler handler) {
-        LocalBluetoothAdapter adapter = LocalBluetoothAdapter.getInstance();
+        LocalBluetoothAdapter adapter = LocalBluetoothAdapter.getInstance(context);
         if (adapter == null) {
             return null;
         }
@@ -99,12 +100,11 @@ public class LocalBluetoothManager {
     @RequiresPermission(android.Manifest.permission.INTERACT_ACROSS_USERS_FULL)
     public static LocalBluetoothManager create(Context context, Handler handler,
             UserHandle userHandle) {
-        LocalBluetoothAdapter adapter = LocalBluetoothAdapter.getInstance();
+        LocalBluetoothAdapter adapter = LocalBluetoothAdapter.getInstance(context, userHandle);
         if (adapter == null) {
             return null;
         }
-        return new LocalBluetoothManager(adapter, context, handler,
-                userHandle);
+        return new LocalBluetoothManager(adapter, context, handler, userHandle);
     }
 
     private LocalBluetoothManager(LocalBluetoothAdapter adapter, Context context, Handler handler,

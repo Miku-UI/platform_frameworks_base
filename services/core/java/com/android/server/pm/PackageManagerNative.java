@@ -86,6 +86,7 @@ final class PackageManagerNative extends IPackageManagerNative.Stub {
 
         if (BuildFlags.SUPPORT_AVF_ADVANCE_MULTITENANCY && pInfo.applicationInfo != null) {
             result.sourceDir = pInfo.applicationInfo.sourceDir;
+            result.splitSourceDirs = pInfo.applicationInfo.splitSourceDirs;
         }
         if (pInfo.signingInfo == null) {
             return result;

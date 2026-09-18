@@ -71,6 +71,14 @@ class SwitchAppsGestureRecognizerTest : SysuiTestCase() {
         )
     }
 
+    @Test
+    fun triggersFinishedGestureOnFirstSwipe() {
+        val events = FourFingerGesture.eventsForFullGesture { move(deltaX = SWIPE_DISTANCE) }
+
+        events.forEach { gestureRecognizer.accept(it) }
+        assertThat(gestureState).isEqualTo(GestureState.Finished)
+    }
+
     private fun assertProgressWhileMovingFingers(deltaX: Float, expected: InProgress) {
         assertStateAfterEvents(
             events = FourFingerGesture.eventsForGestureInProgress { move(deltaX = deltaX) },

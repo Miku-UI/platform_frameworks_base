@@ -36,7 +36,6 @@ public class RethrowFromSystemCheckerTest {
     @Test
     public void testValid() {
         compilationHelper
-                .addSourceFile("/android/annotation/SystemService.java")
                 .addSourceFile("/android/foo/IFooService.java")
                 .addSourceFile("/android/os/IInterface.java")
                 .addSourceFile("/android/os/RemoteException.java")
@@ -60,7 +59,6 @@ public class RethrowFromSystemCheckerTest {
     @Test
     public void testInvalid() {
         compilationHelper
-                .addSourceFile("/android/annotation/SystemService.java")
                 .addSourceFile("/android/foo/IFooService.java")
                 .addSourceFile("/android/os/IInterface.java")
                 .addSourceFile("/android/os/RemoteException.java")
@@ -85,7 +83,6 @@ public class RethrowFromSystemCheckerTest {
     @Test
     public void testIgnored() {
         compilationHelper
-                .addSourceFile("/android/annotation/SystemService.java")
                 .addSourceFile("/android/foo/IFooService.java")
                 .addSourceFile("/android/os/IInterface.java")
                 .addSourceFile("/android/os/RemoteException.java")
@@ -109,7 +106,6 @@ public class RethrowFromSystemCheckerTest {
     @Test
     public void testTelephony() {
         compilationHelper
-                .addSourceFile("/android/annotation/SystemService.java")
                 .addSourceFile("/com/android/internal/telephony/ITelephony.java")
                 .addSourceFile("/android/os/IInterface.java")
                 .addSourceFile("/android/os/RemoteException.java")

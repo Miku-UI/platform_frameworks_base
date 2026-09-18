@@ -46,11 +46,13 @@ public final class PackageRollbackInfo implements Parcelable {
     public static class RestoreInfo {
         public final int userId;
         public final int appId;
+        public final int pccId;
         public final String seInfo;
 
-        public RestoreInfo(int userId, int appId, String seInfo) {
+        public RestoreInfo(int userId, int appId, int pccId, String seInfo) {
             this.userId = userId;
             this.appId = appId;
+            this.pccId = pccId;
             this.seInfo = seInfo;
         }
     }

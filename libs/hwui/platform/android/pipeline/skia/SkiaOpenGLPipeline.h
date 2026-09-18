@@ -65,6 +65,8 @@ public:
 
     static void invokeFunctor(const renderthread::RenderThread& thread, Functor* functor);
 
+    ANativeWindow* getSurface() override { return mNativeWindow.get(); }
+
 protected:
     void onContextDestroyed() override;
 

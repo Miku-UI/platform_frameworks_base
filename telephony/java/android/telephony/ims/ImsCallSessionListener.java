@@ -16,7 +16,6 @@
 
 package android.telephony.ims;
 
-import android.annotation.FlaggedApi;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -32,7 +31,6 @@ import android.telephony.ims.stub.ImsCallSessionImplBase.MediaStreamType;
 import android.util.Log;
 
 import com.android.ims.internal.IImsCallSession;
-import com.android.internal.telephony.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.Objects;
@@ -805,7 +803,6 @@ public class ImsCallSessionListener {
     /**
      * Notifies the result of transfer request.
      */
-    @FlaggedApi(Flags.FLAG_SUPPORT_IMS_MMTEL_INTERFACE)
     public void callSessionTransferred() {
         try {
             mListener.callSessionTransferred();
@@ -820,7 +817,6 @@ public class ImsCallSessionListener {
      * @param reasonInfo {@link ImsReasonInfo} containing a reason for the
      * session transfer failure
      */
-    @FlaggedApi(Flags.FLAG_SUPPORT_IMS_MMTEL_INTERFACE)
     public void callSessionTransferFailed(@NonNull ImsReasonInfo reasonInfo) {
         try {
             mListener.callSessionTransferFailed(reasonInfo);
@@ -842,7 +838,6 @@ public class ImsCallSessionListener {
      *        RTP CMR, RTCPAPP or TMMBR, and ImsStack converts this value to the MAC bitrate
      *        (defined in TS36.321, range: 0 ~ 8000 kbit/s).
      */
-    @FlaggedApi(Flags.FLAG_SUPPORT_IMS_MMTEL_INTERFACE)
     public final void callSessionSendAnbrQuery(@MediaStreamType int mediaType,
                 @MediaStreamDirection int direction, @IntRange(from = 0) int bitsPerSecond) {
         Log.d(TAG, "callSessionSendAnbrQuery in imscallsessonListener");

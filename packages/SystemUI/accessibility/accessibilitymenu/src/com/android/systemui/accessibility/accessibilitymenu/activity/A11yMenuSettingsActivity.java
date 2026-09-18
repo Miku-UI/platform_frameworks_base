@@ -25,12 +25,16 @@ import android.os.Bundle;
 import android.provider.Browser;
 import android.provider.Settings;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceManager;
 
 import com.android.settingslib.collapsingtoolbar.CollapsingToolbarBaseActivity;
-import com.android.settingslib.widget.SettingsBasePreferenceFragment;
+import com.android.settingslib.preference.PreferenceFragment;
+import com.android.systemui.accessibility.accessibilitymenu.Flags;
 import com.android.systemui.accessibility.accessibilitymenu.R;
+import com.android.systemui.accessibility.accessibilitymenu.settings.TopLevelSettingsScreen;
 
 /**
  * Settings activity for AccessibilityMenu.
@@ -51,11 +55,19 @@ public class A11yMenuSettingsActivity extends CollapsingToolbarBaseActivity {
     /**
      * Settings/preferences fragment for AccessibilityMenu.
      */
-    public static class A11yMenuPreferenceFragment extends SettingsBasePreferenceFragment {
+    public static class A11yMenuPreferenceFragment extends PreferenceFragment {
         @Override
-        public void onCreatePreferences(Bundle bundle, String s) {
-            setPreferencesFromResource(R.xml.accessibilitymenu_preferences, s);
-            initializeHelpAndFeedbackPreference();
+        public void onCreatePreferences(
+                @Nullable Bundle savedInstanceState, @Nullable String rootKey) {
+            super.onCreatePreferences(savedInstanceState, rootKey);
+            if (!Flags.catalystA11yMenu()) {
+                initializeHelpAndFeedbackPreference();
+            }
+        }
+
+        @Override
+        protected int getPreferenceScreenResId(@NonNull Context context) {
+            return R.xml.accessibilitymenu_preferences;
         }
 
         /**
@@ -93,6 +105,12 @@ public class A11yMenuSettingsActivity extends CollapsingToolbarBaseActivity {
                 }
                 prefHelp.setIntent(intent);
             }
+        }
+
+        @Override
+        @Nullable
+        public String getPreferenceScreenBindingKey(@NonNull Context context) {
+            return TopLevelSettingsScreen.KEY;
         }
     }
 }

@@ -87,9 +87,9 @@ public class SystemZenRulesTest extends UiServiceTestCase {
 
         assertThat(timeRule.type).isEqualTo(AutomaticZenRule.TYPE_SCHEDULE_TIME);
         assertThat(timeRule.triggerDescription).isNotEmpty();
-        assertThat(calendarRule.type).isEqualTo(AutomaticZenRule.TYPE_SCHEDULE_CALENDAR);
-        assertThat(timeRule.triggerDescription).isNotEmpty();
         assertThat(timeRule.allowManualInvocation).isTrue();
+        assertThat(calendarRule.type).isEqualTo(AutomaticZenRule.TYPE_SCHEDULE_CALENDAR);
+        assertThat(calendarRule.triggerDescription).isNotEmpty();
         assertThat(calendarRule.allowManualInvocation).isTrue();
     }
 
@@ -122,6 +122,31 @@ public class SystemZenRulesTest extends UiServiceTestCase {
         SystemZenRules.maybeUpgradeRules(mContext, config);
 
         assertThat(timeRule).isEqualTo(original);
+    }
+
+    @Test
+    public void maybeUpgradeRules_systemRulesWithSettingsOwner_upgraded() {
+        ZenModeConfig config = new ZenModeConfig();
+        ZenRule timeRule = new ZenRule();
+        timeRule.pkg = "com.android.settings";
+        timeRule.component = ZenModeConfig.getScheduleConditionProvider();
+        timeRule.conditionId = ZenModeConfig.toScheduleConditionId(SCHEDULE_INFO);
+        config.automaticRules.put("weird_time", timeRule);
+        ZenRule calendarRule = new ZenRule();
+        calendarRule.pkg = SystemZenRules.PACKAGE_ANDROID;
+        calendarRule.component = ZenModeConfig.getEventConditionProvider();
+        calendarRule.conditionId = ZenModeConfig.toEventConditionId(EVENT_INFO);
+        config.automaticRules.put("weird_calendar", calendarRule);
+
+        SystemZenRules.maybeUpgradeRules(mContext, config);
+
+        assertThat(timeRule.pkg).isEqualTo(SystemZenRules.PACKAGE_ANDROID);
+        assertThat(timeRule.type).isEqualTo(AutomaticZenRule.TYPE_SCHEDULE_TIME);
+        assertThat(timeRule.allowManualInvocation).isTrue();
+
+        assertThat(calendarRule.pkg).isEqualTo(SystemZenRules.PACKAGE_ANDROID);
+        assertThat(calendarRule.type).isEqualTo(AutomaticZenRule.TYPE_SCHEDULE_CALENDAR);
+        assertThat(calendarRule.allowManualInvocation).isTrue();
     }
 
     @Test

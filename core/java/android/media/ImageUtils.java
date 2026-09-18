@@ -64,6 +64,7 @@ class ImageUtils {
             case PixelFormat.RGBA_8888:
             case PixelFormat.RGBX_8888:
             case PixelFormat.RGB_888:
+            case PixelFormat.RGBA_1010102:
             case ImageFormat.JPEG:
             case ImageFormat.YUY2:
             case ImageFormat.Y8:
@@ -72,6 +73,7 @@ class ImageUtils {
             case ImageFormat.RAW_PRIVATE:
             case ImageFormat.RAW10:
             case ImageFormat.RAW12:
+            case ImageFormat.RAW14:
             case ImageFormat.DEPTH16:
             case ImageFormat.DEPTH_POINT_CLOUD:
             case ImageFormat.RAW_DEPTH:
@@ -266,6 +268,9 @@ class ImageUtils {
             case ImageFormat.PRIVATE: // A rough estimate because the real size is unknown.
                 estimatedBytePerPixel = 1.5;
                 break;
+            case ImageFormat.RAW14:
+                estimatedBytePerPixel = 1.75;
+                break;
             case ImageFormat.NV16:
             case PixelFormat.RGB_565:
             case ImageFormat.YUY2:
@@ -331,6 +336,7 @@ class ImageUtils {
             case ImageFormat.RAW_SENSOR:
             case ImageFormat.RAW10:
             case ImageFormat.RAW12:
+            case ImageFormat.RAW14:
             case ImageFormat.RAW_DEPTH:
             case ImageFormat.RAW_DEPTH10:
             case ImageFormat.HEIC:

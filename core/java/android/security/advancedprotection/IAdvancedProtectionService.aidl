@@ -18,6 +18,7 @@ package android.security.advancedprotection;
 
 import android.security.advancedprotection.AdvancedProtectionFeature;
 import android.security.advancedprotection.IAdvancedProtectionCallback;
+import android.security.advancedprotection.IAdvancedProtectionFeatureCallback;
 
 /**
  * Binder interface for apps to communicate with system server implementations of
@@ -25,8 +26,7 @@ import android.security.advancedprotection.IAdvancedProtectionCallback;
  * @hide
  */
 interface IAdvancedProtectionService {
-    @EnforcePermission("QUERY_ADVANCED_PROTECTION_MODE")
-    boolean isAdvancedProtectionEnabled();
+    @EnforcePermission("QUERY_ADVANCED_PROTECTION_MODE") boolean isAdvancedProtectionEnabled();
     @EnforcePermission("QUERY_ADVANCED_PROTECTION_MODE")
     void registerAdvancedProtectionCallback(IAdvancedProtectionCallback callback);
     @EnforcePermission("QUERY_ADVANCED_PROTECTION_MODE")
@@ -34,7 +34,18 @@ interface IAdvancedProtectionService {
     @EnforcePermission("MANAGE_ADVANCED_PROTECTION_MODE")
     void setAdvancedProtectionEnabled(boolean enabled);
     @EnforcePermission("MANAGE_ADVANCED_PROTECTION_MODE")
-    List<AdvancedProtectionFeature> getAdvancedProtectionFeatures();
+    List<AdvancedProtectionFeature> getAdvancedProtectionFeatures(in @nullable int[] featureIds);
+    @EnforcePermission("MANAGE_ADVANCED_PROTECTION_MODE")
+    List<AdvancedProtectionFeature> updateAdvancedProtectionFeaturesProvisioning(
+            in @nullable int[] featuresToProvision,
+            in @nullable int[] featuresToDeprovision);
+    @EnforcePermission("MANAGE_ADVANCED_PROTECTION_MODE")
+    void registerAdvancedProtectionFeatureCallback(
+            in int[] featureIds,
+            in IAdvancedProtectionFeatureCallback callback);
+    @EnforcePermission("MANAGE_ADVANCED_PROTECTION_MODE")
+    void unregisterAdvancedProtectionFeatureCallback(
+            IAdvancedProtectionFeatureCallback callback);
     @EnforcePermission("MANAGE_ADVANCED_PROTECTION_MODE")
     void logDialogShown(int featureId, int type, boolean learnMoreClicked);
 }

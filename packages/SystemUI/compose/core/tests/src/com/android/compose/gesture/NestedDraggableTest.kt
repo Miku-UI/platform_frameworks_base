@@ -16,6 +16,8 @@
 
 package com.android.compose.gesture
 
+import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.SetFlagsRule
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.rememberScrollableState
@@ -36,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollDispatcher
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerInputChange
@@ -55,9 +58,12 @@ import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeWithVelocity
 import androidx.compose.ui.unit.Velocity
+import com.android.systemui.Flags
 import com.google.common.truth.Truth.assertThat
 import kotlin.math.ceil
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
@@ -77,6 +83,8 @@ class NestedDraggableTest(override val orientation: Orientation) : OrientationAw
     }
 
     @get:Rule val rule = createComposeRule()
+
+    @get:Rule val setFlagsRule = SetFlagsRule()
 
     @Test
     fun simpleDrag() {
@@ -1059,6 +1067,160 @@ class NestedDraggableTest(override val orientation: Orientation) : OrientationAw
 
         consumeScrolls = false
         rule.onRoot().performTouchInput { moveBy(1f.toOffset()) }
+
+        assertThat(draggable.onDragStoppedCalled).isTrue()
+    }
+
+    @Test
+    // Regression test for b/458382766.
+    fun twoNestedScrollablesWithBadTiming() = runTest {
+        val draggable = TestDraggable()
+        val dispatcher = NestedScrollDispatcher()
+        val connection = object : NestedScrollConnection {}
+
+        /**
+         * Emulates a nested scroll through calls to [dispatcher] using the expected order of calls:
+         * - preScroll(source=UserInput)
+         * - postScroll(source=UserInput)
+         * - ...
+         * - preFling()
+         * - preScroll(source=SideEffect)
+         * - postScroll(source=SideEffect)
+         * - ...
+         * - postFling()
+         */
+        suspend fun emulateNestedScroll(
+            beforePreFling: suspend () -> Unit = {},
+            afterPreFling: suspend () -> Unit = {},
+        ) {
+            // Scroll.
+            val scroll = 20f.toOffset()
+            val preConsumed = dispatcher.dispatchPreScroll(scroll, NestedScrollSource.UserInput)
+            dispatcher.dispatchPostScroll(
+                preConsumed,
+                scroll - preConsumed,
+                NestedScrollSource.UserInput,
+            )
+
+            // Fling.
+            beforePreFling()
+            val velocity = 10f.toVelocity()
+            dispatcher.dispatchPreFling(velocity)
+            afterPreFling()
+
+            // Assumes the remaining velocity translates into a scroll of 5f.
+            val flingScroll = 5f.toOffset()
+            val flingPreConsumed =
+                dispatcher.dispatchPreScroll(flingScroll, NestedScrollSource.SideEffect)
+            dispatcher.dispatchPostScroll(
+                flingPreConsumed,
+                flingScroll - flingPreConsumed,
+                NestedScrollSource.SideEffect,
+            )
+            dispatcher.dispatchPostFling(Velocity.Zero, Velocity.Zero)
+        }
+
+        rule.setContent {
+            Box(
+                Modifier.fillMaxSize()
+                    .nestedDraggable(draggable, orientation)
+                    .nestedScroll(connection, dispatcher)
+            )
+        }
+
+        // Start a real touch down (otherwise nested scrolls are ignored).
+        rule.onRoot().performTouchInput { down(center) }
+
+        // Do one normal nested scroll to check that the drag is correctly started when emulating a
+        // nested scroll.
+        emulateNestedScroll()
+        assertThat(draggable.onDragStartedCalled).isTrue()
+        assertThat(draggable.onDragStoppedCalled).isTrue()
+
+        // Do one nested scroll and simulate bad timing where a second nested scroll is started
+        // right between the preFling() and preScroll(SideEffect) calls of the first scroll.
+        emulateNestedScroll(
+            afterPreFling = {
+                coroutineScope {
+                    val latch = CompletableDeferred<Unit>()
+                    val job = launch {
+                        emulateNestedScroll(
+                            beforePreFling = {
+                                // Unlock the first scroll and block this preFling so that
+                                // the firstScroll preScroll(SideEffect) runs.
+                                latch.complete(Unit)
+                                awaitCancellation()
+                            }
+                        )
+                    }
+
+                    latch.await()
+                    job.cancel()
+                }
+            }
+        )
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NESTEDDRAGGABLE_GESTURE_PICKUP)
+    fun gesturePickup_continuesDragWhenChildScrollableIsRemoved() {
+        var showChildScrollable by mutableStateOf(true)
+        val draggable = TestDraggable()
+
+        val touchSlop =
+            rule.setContentWithTouchSlop {
+                Box(Modifier.fillMaxSize().nestedDraggable(draggable, orientation)) {
+                    if (showChildScrollable) {
+                        Box(
+                            Modifier.fillMaxSize()
+                                // Return 0f so the scroll bubbles up to the parent NestedDraggable
+                                .scrollable(rememberScrollableState { 0f }, orientation)
+                        )
+                    }
+                }
+            }
+
+        // 1. Start the gesture on the child scrollable.
+        rule.onRoot().performTouchInput {
+            down(center)
+            moveBy((touchSlop + 10f).toOffset())
+        }
+
+        assertThat(draggable.onDragStartedCalled).isTrue()
+        assertThat(draggable.onDragStoppedCalled).isFalse()
+        assertThat(draggable.onDragDelta).isEqualTo(10f)
+
+        // Reset the tracker so we can explicitly see the pickup happen.
+        draggable.onDragStartedCalled = false
+
+        // 2. Remove the child scrollable mid-gesture.
+        showChildScrollable = false
+        rule.waitForIdle()
+
+        // 3. Continue the gesture, the parent pointerInput loop picks up the raw touch events.
+        rule.onRoot().performTouchInput {
+            // Wakes up the Final pass loop.
+            moveBy(20f.toOffset())
+
+            // Evaluated by the slop detector, immediately passing slop and starting a new drag.
+            moveBy(30f.toOffset())
+        }
+
+        // Because the nested scroll node was removed, it cleanly aborts the nested scroll and calls
+        // onDragStopped on the parent.
+        assertThat(draggable.onDragStoppedCalled).isTrue()
+        // Reset to verify the final stop
+        draggable.onDragStoppedCalled = false
+
+        // The parent started a new drag seamlessly!
+        assertThat(draggable.onDragStartedCalled).isTrue()
+
+        // The picked-up drag recalculates slop relative to the original down event.
+        // Total movement = 10f (initial) + 20f (wake up) + 30f (slop trigger) = 60f.
+        assertThat(draggable.onDragDelta).isEqualTo(60f)
+
+        // 4. Finish the gesture normally
+        rule.onRoot().performTouchInput { up() }
 
         assertThat(draggable.onDragStoppedCalled).isTrue()
     }

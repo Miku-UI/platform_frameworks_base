@@ -17,6 +17,7 @@
 package com.android.server.companion.virtual.audio;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.content.Context;
 import android.media.AudioManager;
 import android.media.AudioRecordingConfiguration;
@@ -39,6 +40,7 @@ final class AudioRecordingDetector extends AudioManager.AudioRecordingCallback {
     }
 
     private final AudioManager mAudioManager;
+    @Nullable
     private AudioRecordingCallback mAudioRecordingCallback;
 
     AudioRecordingDetector(Context context) {

@@ -21,6 +21,7 @@ import android.content.pm.PackageManager
 import android.content.pm.SharedLibraryInfo
 import android.content.pm.VersionedPackage
 import android.os.Build
+import android.os.Process
 import android.os.UserHandle
 import android.os.storage.StorageManager
 import android.util.ArrayMap
@@ -131,7 +132,7 @@ class SharedLibrariesImplTest {
         doAnswer { mComputer }.`when`(mPms).snapshotComputer()
         doAnswer { STATIC_LIB_PACKAGE_NAME }.`when`(mComputer).resolveInternalPackageName(
             eq(STATIC_LIB_DECLARING_PACKAGE_NAME), eq(STATIC_LIB_VERSION))
-        whenever(mDeletePackageHelper.deletePackageX(any(), any(), any(), any(), any()))
+        whenever(mDeletePackageHelper.deletePackageX(any(), any(), any(), any(), any(), any()))
             .thenReturn(PackageManager.DELETE_SUCCEEDED)
         whenever(mMockSystem.mocks().injector.compatibility).thenReturn(mPlatformCompat)
         wheneverStatic { HexEncoding.decode(STATIC_LIB_NAME, false) }
@@ -189,6 +190,40 @@ class SharedLibrariesImplTest {
     }
 
     @Test
+    fun commitSharedLibraryInfo_withMultipleStaticSharedLibsSamePackage_overwriteBug() {
+        val libA = libOfStatic("com.example", "libA", 1L)
+        val libB = libOfStatic("com.example", "libB", 2L)
+
+        mSharedLibrariesImpl.commitSharedLibraryInfoLPw(libA)
+        mSharedLibrariesImpl.commitSharedLibraryInfoLPw(libB)
+
+        val sharedLibInfos = mSharedLibrariesImpl.getStaticLibraryInfos("com.example")
+
+        assertThat(sharedLibInfos).isNotNull()
+        // This will fail if the overwrite bug exists
+        assertThat(sharedLibInfos!!.get(1L)).isEqualTo(libA)
+        assertThat(sharedLibInfos.get(2L)).isEqualTo(libB)
+    }
+
+    @Test
+    fun removeSharedLibrary_withMultipleStaticSharedLibsSamePackage_removalBug() {
+        val libA = libOfStatic("com.example", "libA", 1L)
+        val libB = libOfStatic("com.example", "libB", 2L)
+
+        mSharedLibrariesImpl.commitSharedLibraryInfoLPw(libA)
+        mSharedLibrariesImpl.commitSharedLibraryInfoLPw(libB)
+
+        // This currently removes the entry for "com.example" from mStaticLibsByDeclaringPackage
+        // if libB was the last one committed and libB is removed.
+        mSharedLibrariesImpl.removeSharedLibrary("libB", 2L)
+
+        val sharedLibInfos = mSharedLibrariesImpl.getStaticLibraryInfos("com.example")
+        // This will fail if the removal bug exists (should still contain libA)
+        assertThat(sharedLibInfos).isNotNull()
+        assertThat(sharedLibInfos!!.get(1L)).isEqualTo(libA)
+    }
+
+    @Test
     fun removeSharedLibrary() {
         val staticInfo = mSharedLibrariesImpl
             .getSharedLibraryInfo(STATIC_LIB_NAME, STATIC_LIB_VERSION)!!
@@ -206,20 +241,7 @@ class SharedLibrariesImplTest {
             Long.MAX_VALUE, 0)
 
         verify(mDeletePackageHelper)
-            .deletePackageX(eq(STATIC_LIB_PACKAGE_NAME), any(), any(), any(), any())
-    }
-
-    @Test
-    fun getLatestSharedLibraVersion() {
-        val pair = createBasicAndroidPackage(STATIC_LIB_PACKAGE_NAME + "_" + 10, 10L,
-            staticLibrary = STATIC_LIB_NAME, staticLibraryVersion = 10L)
-
-        val latestInfo =
-            mSharedLibrariesImpl.getLatestStaticSharedLibraVersion(pair.second)!!
-
-        assertThat(latestInfo).isNotNull()
-        assertThat(latestInfo.name).isEqualTo(STATIC_LIB_NAME)
-        assertThat(latestInfo.longVersion).isEqualTo(STATIC_LIB_VERSION)
+            .deletePackageX(eq(STATIC_LIB_PACKAGE_NAME), any(), any(), any(), any(), any())
     }
 
     @Test
@@ -230,13 +252,47 @@ class SharedLibrariesImplTest {
         val scanRequest = ScanRequest(parsedPackage, null, null, null, null,
             null, null, null, 0, 0, false, null, null, false)
         val scanResult = ScanResult(scanRequest, null, false, 0, null, null, null)
-        var installRequest = InstallRequest(parsedPackage, 0, 0, UserHandle(0), scanResult, null)
+        var installRequest =
+            InstallRequest(parsedPackage, 0, 0, UserHandle(0), scanResult, null, null, false)
 
         val latestInfoSetting =
             mSharedLibrariesImpl.getStaticSharedLibLatestVersionSetting(installRequest)!!
 
         assertThat(latestInfoSetting).isNotNull()
         assertThat(latestInfoSetting.packageName).isEqualTo(STATIC_LIB_PACKAGE_NAME)
+    }
+
+    @Test
+    fun getStaticSharedLibLatestVersionSetting_withOlderVersion_returnsExistingSetting() {
+        // First, commit version 10
+        // Declaring package name is STATIC_LIB_DECLARING_PACKAGE_NAME
+        // Synthetic package name for this version is STATIC_LIB_PACKAGE_NAME
+        val testInfo10 = libOfStatic(STATIC_LIB_DECLARING_PACKAGE_NAME, STATIC_LIB_NAME, 10L)
+        // We need to make sure the library info points to the synthetic package name
+        // that exists in mSettings (STATIC_LIB_PACKAGE_NAME)
+        val testInfo10WithSynthetic = SharedLibraryInfo(null, STATIC_LIB_PACKAGE_NAME, null,
+                testInfo10.name, testInfo10.longVersion, testInfo10.type,
+                testInfo10.declaringPackage, null, null, false)
+        mSharedLibrariesImpl.commitSharedLibraryInfoLPw(testInfo10WithSynthetic)
+
+        // Now, simulate installing version 5 (older than 10)
+        // It MUST have the same declaring package name (STATIC_LIB_DECLARING_PACKAGE_NAME)
+        val pair5 = createBasicAndroidPackage(STATIC_LIB_DECLARING_PACKAGE_NAME, 5L,
+            staticLibrary = STATIC_LIB_NAME, staticLibraryVersion = 5L)
+        val parsedPackage5 = pair5.second as ParsedPackage
+        val scanRequest = ScanRequest(parsedPackage5, null, null, null, null,
+            null, null, null, 0, 0, false, null, null, false)
+        val scanResult = ScanResult(scanRequest, null, false, 0, null, null, null)
+        val installRequest =
+            InstallRequest(parsedPackage5, 0, 0, UserHandle(0), scanResult, null, null, false)
+
+        // This should still return the PackageSetting for version 10, because they share
+        // the same package name, and we need to check signatures against it.
+        val latestInfoSetting =
+            mSharedLibrariesImpl.getStaticSharedLibLatestVersionSetting(installRequest)
+
+        assertThat(latestInfoSetting).isNotNull()
+        assertThat(latestInfoSetting!!.packageName).isEqualTo(STATIC_LIB_PACKAGE_NAME)
     }
 
     @Test
@@ -314,7 +370,8 @@ class SharedLibrariesImplTest {
     fun getAllowedSharedLibInfos_withStaticSharedLibInfo() {
         val testInfo = libOfStatic(TEST_LIB_PACKAGE_NAME, TEST_LIB_NAME, 1L)
         val scanResult = ScanResult(mock(), null, false, 0, null, testInfo, null)
-        var installRequest = InstallRequest(mock(), 0, 0, UserHandle(0), scanResult, null)
+        var installRequest =
+            InstallRequest(mock(), 0, 0, UserHandle(0), scanResult, null, null, false)
 
         val allowedInfos = mSharedLibrariesImpl.getAllowedSharedLibInfos(installRequest)
 
@@ -337,7 +394,8 @@ class SharedLibrariesImplTest {
             null, null, null, 0, 0, false, null, null, false)
         val scanResult = ScanResult(scanRequest, packageSetting, false, 0, null, null,
             listOf(testInfo))
-        var installRequest = InstallRequest(parsedPackage, 0, 0, UserHandle(0), scanResult, null)
+        var installRequest =
+            InstallRequest(parsedPackage, 0, 0, UserHandle(0), scanResult, null, null, false)
 
         val allowedInfos = mSharedLibrariesImpl.getAllowedSharedLibInfos(installRequest)
 

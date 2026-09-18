@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.notification.stack.domain.interactor
 
 import android.app.iNotificationManager
 import android.app.notificationManager
+import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.statusbar.notification.data.repository.activeNotificationListRepository
@@ -31,5 +32,6 @@ val Kosmos.summarizationOnboardingInteractor by
             userInteractor = selectedUserInteractor,
             notificationManager = iNotificationManager,
             bgDispatcher = testDispatcher,
+            broadcastDispatcher = broadcastDispatcher,
         )
     }

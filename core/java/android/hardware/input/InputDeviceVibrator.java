@@ -59,7 +59,6 @@ final class InputDeviceVibrator extends Vibrator {
                 // The supported effect and braking lists are known to be empty for input devices,
                 // which is different from not being set (that means the device support is unknown).
                 .setSupportedEffects(new int[0])
-                .setSupportedBraking(new int[0])
                 .build();
         mToken = new Binder();
     }

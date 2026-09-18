@@ -16,6 +16,8 @@
 
 package com.android.server.pm;
 
+import static android.content.pm.Flags.ignoreMacPermissionsPackage;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.compat.annotation.ChangeId;
@@ -203,10 +205,10 @@ public final class SELinuxMMAC {
                 sb.append(macPermission);
                 sb.append(":");
                 sb.append(ex);
-                Slog.w(TAG, sb.toString());
+                Slog.e(TAG, sb.toString());
                 return false;
             } catch (IOException ioe) {
-                Slog.w(TAG, "Exception parsing " + macPermission, ioe);
+                Slog.e(TAG, "Exception parsing " + macPermission, ioe);
                 return false;
             } finally {
                 IoUtils.closeQuietly(policyFile);
@@ -217,8 +219,7 @@ public final class SELinuxMMAC {
         PolicyComparator policySort = new PolicyComparator();
         Collections.sort(policies, policySort);
         if (policySort.foundDuplicate()) {
-            Slog.w(TAG, "ERROR! Duplicate entries found parsing mac_permissions.xml files");
-            return false;
+            Slog.e(TAG, "ERROR! Duplicate entries found parsing mac_permissions.xml files");
         }
 
         synchronized (sPolicies) {
@@ -274,7 +275,13 @@ public final class SELinuxMMAC {
                 pb.setGlobalSeinfoOrThrow(seinfo);
                 readSeinfo(parser);
             } else if ("package".equals(tagName)) {
-                readPackageOrThrow(parser, pb);
+                if (ignoreMacPermissionsPackage()) {
+                    Slog.e(TAG, "<package> tag found but flag ignore_mac_permissions_package "
+                            + "is enabled. This tag will be ignored.");
+                    skip(parser);
+                } else {
+                    readPackageOrThrow(parser, pb);
+                }
             } else if ("cert".equals(tagName)) {
                 String sig = parser.getAttributeValue(null, "signature");
                 pb.addSignature(sig);

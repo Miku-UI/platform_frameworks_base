@@ -20,10 +20,9 @@ import android.annotation.SuppressLint
 import android.media.AudioManager.RINGER_MODE_NORMAL
 import android.media.AudioManager.RINGER_MODE_SILENT
 import android.os.Handler
+import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.plugins.VolumeDialogController
-import com.android.systemui.volume.dialog.dagger.scope.VolumeDialogPlugin
-import com.android.systemui.volume.dialog.dagger.scope.VolumeDialogPluginScope
 import com.android.systemui.volume.dialog.domain.model.VolumeDialogEventModel
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -44,12 +43,12 @@ private const val BUFFER_CAPACITY = 16
  *
  * @see VolumeDialogController.Callbacks
  */
-@VolumeDialogPluginScope
+@SysUISingleton
 class VolumeDialogCallbacksInteractor
 @Inject
 constructor(
     private val volumeDialogController: VolumeDialogController,
-    @VolumeDialogPlugin private val coroutineScope: CoroutineScope,
+    @Background private val coroutineScope: CoroutineScope,
     @Background private val bgHandler: Handler?,
 ) {
 

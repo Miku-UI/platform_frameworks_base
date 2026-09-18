@@ -18,19 +18,33 @@ package com.android.systemui.screencapture.record.domain.interactor
 
 import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.screencapture.data.repository.ScreenCaptureDeviceStateRepository
+import javax.inject.Inject
 
 @SysUISingleton
-object ScreenCaptureRecordFeaturesInteractor {
+class ScreenCaptureRecordFeaturesInteractor
+@Inject
+constructor(private val screenCaptureDeviceStateRepository: ScreenCaptureDeviceStateRepository) {
 
-    val isNewScreenRecordToolbarEnabled: Boolean
-        get() = Flags.newScreenRecordToolbar()
+    val isSmallScreenRecordingEnabled: Boolean
+        get() =
+            Flags.newScreenRecordToolbar() &&
+                screenCaptureDeviceStateRepository.isLargeScreen.value != true
 
     val isLargeScreenScreencaptureEnabled: Boolean
-        get() = Flags.largeScreenScreencapture()
+        get() =
+            Flags.largeScreenScreencapture() &&
+                screenCaptureDeviceStateRepository.isLargeScreen.value == true
 
     val isLargeScreenRecordingEnabled: Boolean
         get() = isLargeScreenScreencaptureEnabled && Flags.largeScreenRecording()
 
-    val shouldShowNewToolbar: Boolean
-        get() = isNewScreenRecordToolbarEnabled || isLargeScreenRecordingEnabled
+    val shouldShowNewRecordingToolbar: Boolean
+        get() = isSmallScreenRecordingEnabled || isLargeScreenRecordingEnabled
+
+    val isMarkupAvailable: Boolean
+        get() = Flags.newScreenRecordToolbarMarkup()
+
+    val isSelfieAvailable: Boolean
+        get() = Flags.newScreenRecordToolbarSelfie()
 }

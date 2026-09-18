@@ -24,6 +24,7 @@ import com.android.internal.jank.InteractionJankMonitor;
 import com.android.systemui.animation.DialogCuj;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.animation.Expandable;
+import com.android.systemui.animation.TransitionAnimator;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
@@ -102,8 +103,20 @@ public class HearingDevicesDialogManager {
                                     new DialogCuj(InteractionJankMonitor.CUJ_SHADE_DIALOG_OPEN,
                                             INTERACTION_JANK_TAG));
                     if (controller != null) {
-                        mDialogTransitionAnimator.show(mDialog,
-                                controller, /* animateBackgroundBoundsChange= */ true);
+                        if (TransitionAnimator.Companion.dynamicTargetResolutionEnabled()) {
+                            mDialogTransitionAnimator.show(
+                                    mDialog,
+                                    expandable::dialogTransitionController,
+                                    controller.getCuj(),
+                                    /* animateBackgroundBoundsChange= */  true
+                            );
+                        } else {
+                            mDialogTransitionAnimator.show(
+                                    mDialog,
+                                    controller,
+                                    /* animateBackgroundBoundsChange= */ true
+                            );
+                        }
                         return;
                     }
                 }

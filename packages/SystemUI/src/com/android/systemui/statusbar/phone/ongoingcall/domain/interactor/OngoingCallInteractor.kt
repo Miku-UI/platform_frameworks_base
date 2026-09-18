@@ -16,22 +16,15 @@
 
 package com.android.systemui.statusbar.phone.ongoingcall.domain.interactor
 
-import androidx.annotation.VisibleForTesting
-import com.android.systemui.CoreStartable
 import com.android.systemui.activity.data.repository.ActivityManagerRepository
-import com.android.systemui.ambient.statusbar.shared.flag.OngoingActivityChipsOnDream
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
-import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.Logger
-import com.android.systemui.statusbar.data.repository.StatusBarModeRepositoryStore
-import com.android.systemui.statusbar.gesture.SwipeStatusBarAwayGestureHandler
 import com.android.systemui.statusbar.notification.domain.interactor.ActiveNotificationsInteractor
 import com.android.systemui.statusbar.notification.shared.ActiveNotificationModel
 import com.android.systemui.statusbar.phone.ongoingcall.OngoingCallLog
 import com.android.systemui.statusbar.phone.ongoingcall.shared.model.OngoingCallModel
-import com.android.systemui.statusbar.window.StatusBarWindowControllerStore
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -40,20 +33,22 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 
 /**
- * Interactor for determining whether to show a chip in the status bar for ongoing phone calls.
+ * The central interactor for ongoing call state.
  *
- * This class monitors call notifications and the visibility of call apps to determine the
- * appropriate chip state. It emits:
- * * - [OngoingCallModel.NoCall] when there is no call notification
- * * - [OngoingCallModel.InCall] when there is a call notification
+ * This class is a global singleton that monitors call notifications and the visibility of call apps
+ * to determine the state of an ongoing call. It emits:
+ * - [OngoingCallModel.NoCall] when there is no call notification.
+ * - [OngoingCallModel.InCall] when there is a call notification.
+ *
+ * The UI logic for showing, hiding, and interacting with the ongoing call chip in the status bar is
+ * handled on a per-display basis by [OngoingCallStatusBarInteractor].
+ *
+ * @see OngoingCallStatusBarInteractor
  */
 @SysUISingleton
 class OngoingCallInteractor
@@ -61,13 +56,9 @@ class OngoingCallInteractor
 constructor(
     @Application private val scope: CoroutineScope,
     private val activityManagerRepository: ActivityManagerRepository,
-    private val statusBarModeRepositoryStore: StatusBarModeRepositoryStore,
-    private val statusBarWindowControllerStore: StatusBarWindowControllerStore,
-    private val swipeStatusBarAwayGestureHandler: SwipeStatusBarAwayGestureHandler,
     activeNotificationsInteractor: ActiveNotificationsInteractor,
-    keyguardInteractor: KeyguardInteractor,
     @OngoingCallLog private val logBuffer: LogBuffer,
-) : CoreStartable {
+) {
     private val logger = Logger(logBuffer, TAG)
 
     /** Tracks whether the call chip has been swiped away. */
@@ -85,32 +76,6 @@ constructor(
                 started = SharingStarted.WhileSubscribed(),
                 initialValue = OngoingCallModel.NoCall,
             )
-
-    // TODO(b/400720280): maybe put this inside [OngoingCallModel].
-    @VisibleForTesting
-    val isStatusBarRequiredForOngoingCall =
-        combine(ongoingCallState, isChipSwipedAway, keyguardInteractor.isDreamingWithOverlay) {
-            callState,
-            chipSwipedAway,
-            isDreamingWithOverlay ->
-            callState.willCallChipBeVisible() &&
-                // Don't force-show the status bar if the user has already swiped it away.
-                !chipSwipedAway &&
-                // Don't force-show the status bar if currently dreaming with overlay, as the
-                // overlay render its own status bar
-                !(OngoingActivityChipsOnDream.isEnabled && isDreamingWithOverlay)
-        }
-
-    // TODO(b/400720280): maybe put this inside [OngoingCallModel].
-    @VisibleForTesting
-    val isGestureListeningEnabled =
-        combine(
-            ongoingCallState,
-            statusBarModeRepositoryStore.defaultDisplay.isInFullscreenMode,
-            isChipSwipedAway,
-        ) { callState, isFullscreen, chipSwipedAway ->
-            callState.willCallChipBeVisible() && !chipSwipedAway && isFullscreen
-        }
 
     private fun OngoingCallModel.willCallChipBeVisible() =
         this is OngoingCallModel.InCall && !isAppVisible
@@ -133,28 +98,6 @@ constructor(
         ) { model, isVisible ->
             deriveOngoingCallState(model, isVisible)
         }
-    }
-
-    override fun start() {
-        ongoingCallState
-            .filterIsInstance<OngoingCallModel.NoCall>()
-            .onEach { _isChipSwipedAway.value = false }
-            .launchIn(scope)
-
-        isStatusBarRequiredForOngoingCall
-            .onEach { statusBarRequired -> setStatusBarRequiredForOngoingCall(statusBarRequired) }
-            .launchIn(scope)
-
-        isGestureListeningEnabled
-            .onEach { isEnabled -> updateGestureListening(isEnabled) }
-            .launchIn(scope)
-    }
-
-    /** Callback that must run when the status bar is swiped while gesture listening is active. */
-    @VisibleForTesting
-    fun onStatusBarSwiped() {
-        logger.d("Status bar chip swiped away")
-        _isChipSwipedAway.value = true
     }
 
     private fun deriveOngoingCallState(
@@ -181,29 +124,6 @@ constructor(
             notificationInstanceId = model.instanceId,
             packageName = model.packageName,
         )
-    }
-
-    private fun setStatusBarRequiredForOngoingCall(statusBarRequired: Boolean) {
-        // TODO(b/382808183): Create a single repository that can be utilized in
-        //  `statusBarModeRepositoryStore` and `statusBarWindowControllerStore` so we do not need
-        //  two separate calls to force the status bar to stay visible.
-        statusBarModeRepositoryStore.defaultDisplay.setOngoingProcessRequiresStatusBarVisible(
-            statusBarRequired
-        )
-        statusBarWindowControllerStore.defaultDisplay.setOngoingProcessRequiresStatusBarVisible(
-            statusBarRequired,
-            source = "OngoingCallInteractor",
-        )
-    }
-
-    private fun updateGestureListening(isEnabled: Boolean) {
-        if (isEnabled) {
-            swipeStatusBarAwayGestureHandler.addOnGestureDetectedCallback(TAG) { _ ->
-                onStatusBarSwiped()
-            }
-        } else {
-            swipeStatusBarAwayGestureHandler.removeOnGestureDetectedCallback(TAG)
-        }
     }
 
     companion object {

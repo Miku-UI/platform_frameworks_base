@@ -99,7 +99,12 @@ public class QuickAccessWalletClientImpl implements QuickAccessWalletClient, Ser
 
     @Override
     public boolean isWalletServiceAvailable() {
-        return ensureServiceInfo() != null;
+        boolean result = ensureServiceInfo() != null;
+        Settings.Secure.putInt(
+                mContext.getContentResolver(),
+                Settings.Secure.IS_WALLET_SERVICE_AVAILABLE,
+                result ? 1 : 0);
+        return result;
     }
 
     @Override

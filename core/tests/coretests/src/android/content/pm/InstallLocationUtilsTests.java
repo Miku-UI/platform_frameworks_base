@@ -19,6 +19,7 @@ package android.content.pm;
 import static android.os.storage.VolumeInfo.STATE_MOUNTED;
 
 import android.content.Context;
+import android.content.pm.parsing.PackageLite;
 import android.os.storage.StorageManager;
 import android.os.storage.VolumeInfo;
 import android.platform.test.annotations.Presubmit;
@@ -26,12 +27,15 @@ import android.test.AndroidTestCase;
 import android.util.Log;
 
 import com.android.internal.content.InstallLocationUtils;
+import com.android.internal.content.NativeLibraryHelper;
 
 import org.mockito.Mockito;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -479,5 +483,133 @@ public class InstallLocationUtilsTests extends AndroidTestCase {
         volume = InstallLocationUtils.resolveInstallVolume(getContext(), "package.name",
             1 /*install location internal only*/, 1000 /*size bytes*/, mockedInterface);
         assertEquals(sAdoptedVolUuid, volume);
+    }
+
+    public void testCalculateInstalledSize_monolithic_validApk() throws Exception {
+        // This test covers the code path for monolithic installs (single APK).
+        // It's valid whether the 'alternativeForDexoptCleanup' flag is enabled or not,
+        // as both code paths should correctly sum the size of the base APK.
+        final File apk = createTempFile("base.apk", 123);
+        try {
+            final PackageLite pkg = Mockito.mock(PackageLite.class);
+            Mockito.when(pkg.isExtractNativeLibs()).thenReturn(false);
+            // For monolithic, getPath() is not a directory.
+            Mockito.when(pkg.getPath()).thenReturn(apk.getAbsolutePath());
+            Mockito.when(pkg.getBaseApkPath()).thenReturn(apk.getAbsolutePath());
+            // Also mock for the old code path
+            Mockito.when(pkg.getAllApkPaths()).thenReturn(Collections.singletonList(apk.getAbsolutePath()));
+
+
+            final long size = InstallLocationUtils.calculateInstalledSize(pkg,
+                    (NativeLibraryHelper.Handle) null, null);
+            assertEquals(apk.length(), size);
+        } finally {
+            apk.delete();
+        }
+    }
+
+    public void testCalculateInstalledSize_monolithic_nonExistentApk()
+            throws Exception {
+        // This test verifies that if an APK path does not exist or is inaccessible,
+        // its size is treated as 0 and no exception is thrown. This is the behavior
+        // of File.length(), which the code under test was changed to use.
+        // This test is valid regardless of the 'alternativeForDexoptCleanup' flag state,
+        // as both old and new code paths now use File.length() and exhibit this behavior.
+        final String nonExistentPath = new File(getContext().getCacheDir(), "nonexistent.apk")
+                .getAbsolutePath();
+
+        final PackageLite pkg = Mockito.mock(PackageLite.class);
+        Mockito.when(pkg.isExtractNativeLibs()).thenReturn(false);
+        // For monolithic, getPath() is not a directory.
+        Mockito.when(pkg.getPath()).thenReturn(nonExistentPath);
+        Mockito.when(pkg.getBaseApkPath()).thenReturn(nonExistentPath);
+        // Also mock for the old code path
+        Mockito.when(pkg.getAllApkPaths()).thenReturn(Collections.singletonList(nonExistentPath));
+
+        // calculateInstalledSize should not throw IOException for a non-existent file,
+        // and instead should return 0 for its size.
+        final long size = InstallLocationUtils.calculateInstalledSize(pkg,
+                (NativeLibraryHelper.Handle) null, null);
+        assertEquals(0L, size);
+    }
+
+    public void testCalculateInstalledSize_cluster_validApks() throws Exception {
+        // This test covers the code path for cluster installs (split APKs).
+        // It's valid whether the 'alternativeForDexoptCleanup' flag is enabled or not.
+        final File clusterDir = new File(getContext().getCacheDir(), "cluster");
+        clusterDir.mkdir();
+        final File apk1 = createTempFileInDir(clusterDir, "base.apk", 123);
+        final File apk2 = createTempFileInDir(clusterDir, "split1.apk", 456);
+
+        try {
+            final PackageLite pkg = Mockito.mock(PackageLite.class);
+            Mockito.when(pkg.isExtractNativeLibs()).thenReturn(false);
+            // For cluster, getPath() is a directory.
+            Mockito.when(pkg.getPath()).thenReturn(clusterDir.getAbsolutePath());
+            // Mock for the old code path
+            List<String> apkPaths = new ArrayList<>();
+            apkPaths.add(apk1.getAbsolutePath());
+            apkPaths.add(apk2.getAbsolutePath());
+            Mockito.when(pkg.getAllApkPaths()).thenReturn(apkPaths);
+
+            final long size = InstallLocationUtils.calculateInstalledSize(pkg,
+                    (NativeLibraryHelper.Handle) null, null);
+            assertEquals(apk1.length() + apk2.length(), size);
+        } finally {
+            apk1.delete();
+            apk2.delete();
+            clusterDir.delete();
+        }
+    }
+
+    public void testCalculateInstalledSize_cluster_withSubDir() throws Exception {
+        // This test verifies that for cluster installs, subdirectories are ignored
+        // when calculating the total size. This behavior is consistent across both the
+        // old and new code paths given the correct mocks.
+        final File clusterDir = new File(getContext().getCacheDir(), "cluster_with_subdir");
+        clusterDir.mkdir();
+        final File subDir = new File(clusterDir, "subdir");
+        subDir.mkdir();
+
+        final File apk1 = createTempFileInDir(clusterDir, "base.apk", 123);
+        final File apkInSubDir = createTempFileInDir(subDir, "other.apk", 789);
+
+        try {
+            final PackageLite pkg = Mockito.mock(PackageLite.class);
+            Mockito.when(pkg.isExtractNativeLibs()).thenReturn(false);
+            Mockito.when(pkg.getPath()).thenReturn(clusterDir.getAbsolutePath());
+            // Mock for the old code path to only include the top-level APK
+            Mockito.when(pkg.getAllApkPaths()).thenReturn(Collections.singletonList(apk1.getAbsolutePath()));
+
+
+            // If the new code path is active, calculateInstalledSize should only sum up files
+            // in the top-level directory, ignoring subdirectories.
+            // If the old code path is active, it depends on getAllApkPaths(), which we've mocked
+            // to return only the top-level APK.
+            final long size = InstallLocationUtils.calculateInstalledSize(pkg,
+                    (NativeLibraryHelper.Handle) null, null);
+            assertEquals(apk1.length(), size);
+        } finally {
+            apk1.delete();
+            apkInSubDir.delete();
+            subDir.delete();
+            clusterDir.delete();
+        }
+    }
+
+    private File createTempFile(String fileName, long size) throws IOException {
+        final File file = new File(getContext().getCacheDir(), fileName);
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            fos.write(new byte[(int) size]);
+        }
+        return file;
+    }
+
+    private File createTempFileInDir(File dir, String fileName, long size) throws IOException {
+        final File file = new File(dir, fileName);
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            fos.write(new byte[(int) size]);
+        }
+        return file;
     }
 }

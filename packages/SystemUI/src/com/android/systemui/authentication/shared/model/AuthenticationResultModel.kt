@@ -16,10 +16,14 @@
 
 package com.android.systemui.authentication.shared.model
 
+import kotlin.time.Duration
+
 /** Models the result of an authentication attempt. */
 data class AuthenticationResultModel(
     /** Whether authentication was successful. */
     val isSuccessful: Boolean = false,
     /** If [isSuccessful] is `false`, how long the user must wait before trying again. */
-    val lockoutDurationMs: Int = 0,
+    val lockoutDuration: Duration = Duration.ZERO,
+    /** If [isSuccessful] is `false`, whether the attempt was a duplicate. */
+    val isDuplicate: Boolean = false,
 )

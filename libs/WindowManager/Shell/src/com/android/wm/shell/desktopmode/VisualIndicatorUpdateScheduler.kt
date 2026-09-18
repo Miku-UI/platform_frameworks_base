@@ -97,7 +97,7 @@ class VisualIndicatorUpdateScheduler(
     ) {
         if (!isPotentialCrossDisplayDrag(displayId, indicatorType, inputX, inputY)) {
             updateJob?.cancel()
-            visualIndicator?.updateIndicatorWithType(indicatorType)
+            visualIndicator?.updateIndicatorWithType(displayId, indicatorType)
             return
         }
 
@@ -109,7 +109,7 @@ class VisualIndicatorUpdateScheduler(
                     delay(timeMillis = DELAY_MILLIS)
                     withContext(mainDispatcher) {
                         if (!isActive) return@withContext
-                        visualIndicator?.updateIndicatorWithType(indicatorType)
+                        visualIndicator?.updateIndicatorWithType(displayId, indicatorType)
                     }
                 }
         }

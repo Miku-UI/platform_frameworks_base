@@ -118,7 +118,7 @@ public class AccessibilityClickableSpan extends ClickableSpan
      */
     public void copyConnectionDataFrom(AccessibilityNodeInfo accessibilityNodeInfo) {
         mConnectionId = accessibilityNodeInfo.getConnectionId();
-        mWindowId = accessibilityNodeInfo.getWindowId();
+        mWindowId = accessibilityNodeInfo.getRealWindowId();
         mSourceNodeId = accessibilityNodeInfo.getSourceNodeId();
     }
 

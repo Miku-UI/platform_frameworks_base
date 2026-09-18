@@ -23,8 +23,8 @@ import android.testing.TestableResources
 import androidx.test.filters.SmallTest
 import com.android.wm.shell.R
 import com.android.wm.shell.ShellTestCase
-import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.apptoweb.AppToWebGenericLinksParser.Companion.FLAG_GENERIC_LINKS
+import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.shared.desktopmode.FakeDesktopConfig
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertNull
@@ -60,7 +60,7 @@ class AppToWebGenericLinksParserTests : ShellTestCase() {
             NAMESPACE,
             FLAG_GENERIC_LINKS,
             SERVER_SIDE_LIST,
-            false /* makeDefault */
+            false, /* makeDefault */
         )
     }
 
@@ -93,14 +93,15 @@ class AppToWebGenericLinksParserTests : ShellTestCase() {
         desktopConfig.useAppToWebBuildTimeGenericLinks = true
         val packageName2 = "com.google.android.slides"
         val url2 = "https://docs.google.com"
-        resources.addOverride(R.string.generic_links_list,
-                "$PACKAGE_NAME_1:$URL_B error $packageName2:$url2")
+        resources.addOverride(
+            R.string.generic_links_list,
+            "$PACKAGE_NAME_1:$URL_B error $packageName2:$url2",
+        )
         genericLinksParser = AppToWebGenericLinksParser(mContext, mockExecutor, desktopConfig)
         // Assert generics links list correctly parsed
         assertEquals(URL_B, genericLinksParser.getGenericLink(PACKAGE_NAME_1))
         assertEquals(url2, genericLinksParser.getGenericLink(packageName2))
     }
-
 
     @Test
     fun onlySavesValidPackageToUrlMaps() {

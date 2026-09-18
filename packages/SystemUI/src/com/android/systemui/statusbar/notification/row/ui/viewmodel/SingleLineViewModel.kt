@@ -18,36 +18,45 @@ package com.android.systemui.statusbar.notification.row.ui.viewmodel
 
 import android.annotation.ColorInt
 import android.graphics.drawable.Drawable
+import com.android.systemui.statusbar.notification.shared.Metric
 
 /**
  * ViewModel for SingleLine Notification View.
  *
  * @property titleText the text of notification view title
  * @property contentText the text of view content
- * @property conversationData the data that is needed specifically for conversation single-line
- *   views. Null conversationData shows that the notification is not conversation. Legacy
- *   MessagingStyle Notifications doesn't have this member.
+ * @property summarization the summarization text, if any
+ * @property payload the data payload, which varies based on notification type (e.g. standard,
+ *   conversation, or metric).
  */
 data class SingleLineViewModel(
     var titleText: CharSequence?,
     var contentText: CharSequence?,
-    var conversationData: ConversationData?,
-) {
-    fun isConversation(): Boolean {
-        return conversationData != null
-    }
-}
+    var summarization: CharSequence?,
+    var payload: SingleLineViewPayload,
+)
 
 /**
- * @property conversationSenderName the name of sender to show in the single-line view. Only group
- *   conversation single-line views show the sender name.
- * @property avatar the avatar to show for the conversation
+ * A sealed interface representing the different types of data that a single-line notification can
+ * display. This provides a type-safe way to handle mutually exclusive notification styles (e.g.
+ * standard, conversation, metric).
  */
-data class ConversationData(
-    val conversationSenderName: CharSequence?,
-    val avatar: ConversationAvatar,
-    val summarization: CharSequence?
-)
+sealed interface SingleLineViewPayload {
+    /**
+     * @property conversationSenderName the name of sender to show in the single-line view. Only
+     *   group conversation single-line views show the sender name.
+     * @property avatar the avatar to show for the conversation
+     */
+    data class ConversationData(
+        val conversationSenderName: CharSequence?,
+        val avatar: ConversationAvatar,
+        val summarization: CharSequence?,
+    ) : SingleLineViewPayload
+
+    data class MetricPayload(val data: Metric) : SingleLineViewPayload
+
+    data object StandardPayload : SingleLineViewPayload
+}
 
 /**
  * An avatar to show for a single-line conversation notification, it can be either a single icon or
@@ -64,5 +73,5 @@ data class SingleIcon(val iconDrawable: Drawable?) : ConversationAvatar()
 data class FacePile(
     val topIconDrawable: Drawable?,
     val bottomIconDrawable: Drawable?,
-    @ColorInt val bottomBackgroundColor: Int
+    @ColorInt val bottomBackgroundColor: Int,
 ) : ConversationAvatar()

@@ -4,6 +4,7 @@ import android.content.res.Resources
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.qs.QSHost
 import com.android.systemui.qs.pipeline.data.model.AllowedTiles
+import com.android.systemui.qs.pipeline.shared.InternetTileMigration.migrateInternetTile
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.shade.ShadeDisplayAware
 import javax.inject.Inject
@@ -33,11 +34,13 @@ constructor(
 
     override fun getDefaultTiles(isHeadlessSystemUser: Boolean): List<TileSpec> {
         return if (
-            isHeadlessSystemUser && hsuTilesRepository.allowedTiles is AllowedTiles.SpecificTiles
-        ) {
-            hsuTilesRepository.allowedTiles.tiles
-        } else {
-            defaultTiles
-        }
+                isHeadlessSystemUser &&
+                    hsuTilesRepository.allowedTiles is AllowedTiles.SpecificTiles
+            ) {
+                hsuTilesRepository.allowedTiles.tiles
+            } else {
+                defaultTiles
+            }
+            .migrateInternetTile()
     }
 }

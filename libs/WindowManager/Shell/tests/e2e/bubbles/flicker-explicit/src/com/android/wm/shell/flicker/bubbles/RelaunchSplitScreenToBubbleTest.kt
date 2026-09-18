@@ -17,94 +17,82 @@
 package com.android.wm.shell.flicker.bubbles
 
 import android.platform.test.annotations.Presubmit
+import android.platform.test.annotations.RequiresFlagsDisabled
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.tools.NavBar
 import android.tools.Rotation
 import android.tools.device.apphelpers.StandardAppHelper
-import androidx.test.filters.FlakyTest
 import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.ShowWhenLockedAppHelper
 import com.android.wm.shell.Flags
-import com.android.wm.shell.Utils
+import com.android.wm.shell.Utils.testSetupRule
 import com.android.wm.shell.flicker.bubbles.testcase.EnterBubbleTestCases
-import com.android.wm.shell.flicker.bubbles.utils.ApplyPerParameterRule
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.launchBubbleViaBubbleMenu
 import com.android.wm.shell.flicker.bubbles.utils.RecordTraceWithTransitionRule
+import com.android.wm.shell.flicker.bubbles.utils.RunOncePerParameterRule
 import com.android.wm.shell.flicker.utils.SplitScreenUtils.enterSplit
 import org.junit.FixMethodOrder
 import org.junit.Rule
-import org.junit.Test
 import org.junit.runners.MethodSorters
 
 /**
  * Test entering bubble via clicking bubble menu while the app task was in split-screen.
  *
- * To run this test:
- *     `atest WMShellExplicitFlickerTestsBubbles:RelaunchSplitScreenToBubbleTest`
+ * To run this test: `atest WMShellExplicitFlickerTestsBubbles:RelaunchSplitScreenToBubbleTest`
  *
  * Pre-steps:
  * ```
  *     Put two apps to split-screen and move the splits to background.
  * ```
+ *
  * Actions:
  * ```
  *     Click the bubble menu to launch [testApp] into bubble.
  * ```
+ *
  * Verified tests:
  * - [BubbleFlickerTestBase]
  * - [EnterBubbleTestCases]
  */
+// TODO(b/479182156) Remove this when bubbling is supported in desktop mode.
+@RequiresFlagsDisabled(Flags.FLAG_DISABLE_BUBBLE_ANYTHING_DESKTOP_WINDOWING)
 @RequiresFlagsEnabled(Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE)
 @RequiresDevice
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 @Presubmit
-class RelaunchSplitScreenToBubbleTest : BubbleFlickerTestBase(),
-    EnterBubbleTestCases {
+class RelaunchSplitScreenToBubbleTest : BubbleFlickerTestBase(), EnterBubbleTestCases {
 
     companion object {
         val testApp2: StandardAppHelper = ShowWhenLockedAppHelper(instrumentation)
 
-        private val recordTraceWithTransitionRule = RecordTraceWithTransitionRule(
-            setUpBeforeTransition = {
-                enterSplit(
-                    wmHelper,
-                    tapl,
-                    uiDevice,
-                    primaryApp = testApp,
-                    secondaryApp = testApp2,
-                    Rotation.ROTATION_0,
-                )
-                tapl.goHome()
-            },
-            transition = {
-                launchBubbleViaBubbleMenu(
-                    testApp,
-                    tapl,
-                    wmHelper,
-                )
-            },
-            tearDownAfterTransition = {
-                testApp.exit(wmHelper)
-                testApp2.exit(wmHelper)
-            }
-        )
+        private val recordTraceWithTransitionRule =
+            RecordTraceWithTransitionRule(
+                setUpBeforeTransition = {
+                    enterSplit(
+                        wmHelper,
+                        tapl,
+                        uiDevice,
+                        primaryApp = testApp,
+                        secondaryApp = testApp2,
+                        Rotation.ROTATION_0,
+                    )
+                    tapl.goHome()
+                },
+                transition = { launchBubbleViaBubbleMenu(testApp, tapl, wmHelper) },
+                tearDownAfterTransition = {
+                    testApp.exit(wmHelper)
+                    testApp2.exit(wmHelper)
+                },
+            )
     }
 
-    @get:Rule
-    val setUpRule = ApplyPerParameterRule(
-        Utils.testSetupRule(NavBar.MODE_GESTURAL).around(recordTraceWithTransitionRule),
-    )
+    @get:Rule(order = 1)
+    val setUpRule =
+        RunOncePerParameterRule(
+            testClass = this::class,
+            wrappedRule = testSetupRule(NavBar.MODE_GESTURAL).around(recordTraceWithTransitionRule),
+        )
 
     override val traceDataReader
         get() = recordTraceWithTransitionRule.reader
-
-    @Test
-    @FlakyTest(bugId = 437224803)
-    override fun launcherWindowIsAlwaysVisible() {
-    }
-
-    @Test
-    @FlakyTest(bugId = 437224803)
-    override fun launcherLayerIsAlwaysVisible() {
-    }
 }

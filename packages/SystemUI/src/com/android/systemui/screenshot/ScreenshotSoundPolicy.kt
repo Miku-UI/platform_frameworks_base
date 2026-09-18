@@ -18,10 +18,15 @@ package com.android.systemui.screenshot
 
 import android.hardware.camera2.CameraManager
 import android.media.MediaActionSound
-import com.android.systemui.Flags.screenshotForceShutterSound
+import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import java.util.concurrent.Executor
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Policy class to determine if a shutter sound should be forced when taking a screenshot. */
 open class ScreenshotSoundPolicy
@@ -30,11 +35,13 @@ constructor(
     cameraManager: CameraManager,
     private val shutterPolicy: MediaShutterSoundPolicy,
     @Main private val mainExecutor: Executor,
+    @Background private val bgDispatcher: CoroutineDispatcher,
+    @Application private val applicationScope: CoroutineScope,
 ) {
     private var cameraOpen: Boolean = false
 
     init {
-        if (screenshotForceShutterSound()) {
+        applicationScope.launch(bgDispatcher) {
             cameraManager.registerAvailabilityCallback(
                 mainExecutor,
                 object : CameraManager.AvailabilityCallback() {
@@ -50,13 +57,15 @@ constructor(
         }
     }
 
-    fun shouldForceShutterSound(): Boolean {
-        return screenshotForceShutterSound() && shutterPolicy.mustPlayShutterSound() && cameraOpen
+    suspend fun shouldForceShutterSound(): Boolean {
+        return shutterPolicy.mustPlayShutterSound() && cameraOpen
     }
 }
 
-class MediaShutterSoundPolicy @Inject constructor() {
-    fun mustPlayShutterSound(): Boolean {
-        return MediaActionSound.mustPlayShutterSound()
+class MediaShutterSoundPolicy
+@Inject
+constructor(@Background private val bgDispatcher: CoroutineDispatcher) {
+    suspend fun mustPlayShutterSound(): Boolean {
+        return withContext(bgDispatcher) { MediaActionSound.mustPlayShutterSound() }
     }
 }

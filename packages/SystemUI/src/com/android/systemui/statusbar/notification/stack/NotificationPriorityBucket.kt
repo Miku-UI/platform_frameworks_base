@@ -24,8 +24,10 @@ import android.annotation.IntDef
             BUCKET_SOCIAL,
             BUCKET_RECS,
             BUCKET_PROMO,
-            BUCKET_SILENT
-        ]
+            BUCKET_SILENT,
+            BUCKET_HIGHLIGHTS,
+            BUCKET_DYNAMIC_BUNDLE,
+        ],
 )
 annotation class PriorityBucket {
     companion object {
@@ -36,6 +38,7 @@ annotation class PriorityBucket {
                 BUCKET_HEADS_UP,
                 BUCKET_TOP_UNSEEN,
                 BUCKET_FOREGROUND_SERVICE,
+                BUCKET_HIGHLIGHTS,
                 BUCKET_PRIORITY_PEOPLE,
                 BUCKET_PEOPLE,
                 BUCKET_ALERTING,
@@ -44,6 +47,7 @@ annotation class PriorityBucket {
                 BUCKET_RECS,
                 BUCKET_PROMO,
                 BUCKET_SILENT,
+                BUCKET_DYNAMIC_BUNDLE,
             )
     }
 }
@@ -62,4 +66,5 @@ const val BUCKET_SOCIAL = 11
 const val BUCKET_RECS = 12
 const val BUCKET_PROMO = 13
 const val BUCKET_SILENT = 6
-
+const val BUCKET_HIGHLIGHTS = 14
+const val BUCKET_DYNAMIC_BUNDLE = 15

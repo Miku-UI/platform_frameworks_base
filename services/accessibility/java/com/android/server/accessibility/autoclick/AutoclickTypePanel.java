@@ -41,6 +41,7 @@ import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.R;
 import com.android.internal.policy.SystemBarUtils;
+import com.android.server.accessibility.Flags;
 
 /**
  * Manages the UI panel for selecting autoclick types.
@@ -51,7 +52,7 @@ import com.android.internal.policy.SystemBarUtils;
  */
 public class AutoclickTypePanel {
 
-    private final String TAG = AutoclickTypePanel.class.getSimpleName();
+    private static final String TAG = AutoclickTypePanel.class.getSimpleName();
 
     public static final int AUTOCLICK_TYPE_LEFT_CLICK = 0;
     public static final int AUTOCLICK_TYPE_RIGHT_CLICK = 1;
@@ -72,12 +73,17 @@ public class AutoclickTypePanel {
     protected static final String POSITION_DELIMITER = ",";
 
     // Distance between panel and screen edge.
-    // TODO(b/396402941): Finalize horizontal margin.
-    private static final int PANEL_HORIZONTAL_MARGIN = 15;
-    // TODO(b/396402941): Finalize vertical margin.
+    // TODO(b/397681794): Finalize horizontal margin.
+    @VisibleForTesting
+    static final int PANEL_HORIZONTAL_MARGIN = 15;
+    // TODO(b/397681794): Finalize vertical margin.
     // Using 30 as the panel's vertical margin to keep it same with the panel position after
     // clicking position button on the panel that moves it to next corner.
-    private static final int PANEL_VERTICAL_MARGIN = 30;
+    @VisibleForTesting
+    static final int PANEL_VERTICAL_MARGIN = 30;
+
+    // The default visible height of the panel once filled with elements.
+    private static final int DEFAULT_PANEL_HEIGHT = 94;
 
     // Touch point when drag starts, it can be anywhere inside the panel.
     private float mTouchStartX, mTouchStartY;
@@ -276,7 +282,6 @@ public class AutoclickTypePanel {
      */
     private void snapToNearestEdge(WindowManager.LayoutParams params) {
         // Get screen width to determine which side to snap to.
-        // TODO(b/397944891): Handle device rotation case.
         int screenWidth = mContext.getResources().getDisplayMetrics().widthPixels;
         int screenHeight = mContext.getResources().getDisplayMetrics().heightPixels;
         int taskbarHeight = SystemBarUtils.getTaskbarHeight(mContext.getResources());
@@ -304,10 +309,12 @@ public class AutoclickTypePanel {
 
         // Apply final position: set params.x to be edge margin, params.y to maintain vertical
         // position, with a minimal margin of PANEL_VERTICAL_MARGIN with taskbar and status bar.
-        final int bottomPosition = screenHeight - taskbarHeight - panelHeight - mStatusBarHeight
-                - PANEL_VERTICAL_MARGIN;
+        final int bottomPosition = Flags.enableAutoclickPanelBugFixes() ? getPanelBottomPosition() :
+                screenHeight - taskbarHeight - panelHeight - mStatusBarHeight
+                        - PANEL_VERTICAL_MARGIN;
         params.x = PANEL_HORIZONTAL_MARGIN;
-        params.y = Math.min(Math.max(PANEL_VERTICAL_MARGIN, yPosition), bottomPosition);
+        params.y = Math.min(Math.max(PANEL_VERTICAL_MARGIN + mStatusBarHeight, yPosition),
+                bottomPosition);
         mWindowManager.updateViewLayout(mContentView, params);
 
         // Use actual position for icon (not mCurrentCorner which is mainly used for rotation
@@ -600,26 +607,53 @@ public class AutoclickTypePanel {
      * @param corner The corner to position the panel in.
      */
     private void setPanelPositionForCorner(WindowManager.LayoutParams params, @Corner int corner) {
-        // TODO(b/396402941): Current values are experimental and may not work correctly across
+        // TODO(b/397681794): Current values are experimental and may not work correctly across
         // different device resolutions and configurations.
         params.x = PANEL_HORIZONTAL_MARGIN;
         params.y = PANEL_VERTICAL_MARGIN;
+        int taskbarHeight = SystemBarUtils.getTaskbarHeight(mContext.getResources());
         switch (corner) {
             case CORNER_BOTTOM_RIGHT:
-                params.gravity = Gravity.END | Gravity.BOTTOM;
+                if (Flags.enableAutoclickPanelBugFixes()) {
+                    params.gravity = Gravity.END | Gravity.TOP;
+                    params.y = getPanelBottomPosition();
+                } else {
+                    params.gravity = Gravity.END | Gravity.BOTTOM;
+                    params.y += taskbarHeight;
+                }
                 break;
             case CORNER_BOTTOM_LEFT:
-                params.gravity = Gravity.START | Gravity.BOTTOM;
+                if (Flags.enableAutoclickPanelBugFixes()) {
+                    params.gravity = Gravity.START | Gravity.TOP;
+                    params.y = getPanelBottomPosition();
+                } else {
+                    params.gravity = Gravity.START | Gravity.BOTTOM;
+                    params.y += taskbarHeight;
+                }
                 break;
             case CORNER_TOP_LEFT:
                 params.gravity = Gravity.START | Gravity.TOP;
+                params.y += mStatusBarHeight;
                 break;
             case CORNER_TOP_RIGHT:
                 params.gravity = Gravity.END | Gravity.TOP;
+                params.y += mStatusBarHeight;
                 break;
             default:
                 throw new IllegalArgumentException("Invalid corner: " + corner);
         }
+    }
+
+    // Get the lowest position the panel can be based on the current UI elements.
+    private int getPanelBottomPosition() {
+        // The default panel height is used when the panel's current height can't be evaluated at
+        // creation.
+        int panelHeight =
+                mContentView == null || mContentView.getMeasuredHeight() == 0 ? DEFAULT_PANEL_HEIGHT
+                        : mContentView.getMeasuredHeight();
+        int screenHeight = mContext.getResources().getDisplayMetrics().heightPixels;
+        int taskbarHeight = SystemBarUtils.getTaskbarHeight(mContext.getResources());
+        return screenHeight - taskbarHeight - panelHeight - PANEL_VERTICAL_MARGIN;
     }
 
     /**
@@ -825,6 +859,13 @@ public class AutoclickTypePanel {
         mPanelStartX = location[0];
         mPanelStartY = location[1];
 
+        if (Flags.enableAutoclickPanelBugFixes()) {
+            // Save the starting location of the panel.
+            mParams.gravity = Gravity.LEFT | Gravity.TOP;
+            mParams.x = mPanelStartX;
+            mParams.y = mPanelStartY;
+        }
+
         // Show grabbing cursor when dragging starts.
         mCurrentCursor = PointerIcon.getSystemIcon(mContext, PointerIcon.TYPE_GRABBING);
         mContentView.setPointerIcon(mCurrentCursor);
@@ -845,12 +886,7 @@ public class AutoclickTypePanel {
 
         // Update panel position, based on Top-Left absolute positioning.
         mParams.x = mPanelStartX + (int) deltaX;
-
-        // Adjust Y by status bar height:
-        // Note: mParams.y is relative to the content area (below the status bar),
-        // but mPanelStartY uses absolute screen coordinates. Subtract status bar
-        // height to align coordinates properly.
-        mParams.y = Math.max(0, mPanelStartY + (int) deltaY - mStatusBarHeight);
+        mParams.y = mPanelStartY + (int) deltaY;
         mWindowManager.updateViewLayout(mContentView, mParams);
 
         // Keep grabbing cursor during drag.
@@ -997,6 +1033,11 @@ public class AutoclickTypePanel {
     @VisibleForTesting
     void setIsExpandedPanelWiderThanScreenForTesting(boolean isExpandedPanelWiderThanScreen) {
         mIsExpandedPanelWiderThanScreen = isExpandedPanelWiderThanScreen;
+    }
+
+    @VisibleForTesting
+    int getPanelBottomPositionForTesting() {
+        return getPanelBottomPosition();
     }
 
     /**

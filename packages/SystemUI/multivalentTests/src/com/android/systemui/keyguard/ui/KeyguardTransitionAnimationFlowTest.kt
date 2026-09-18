@@ -24,7 +24,7 @@ import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.FakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.Edge
-import com.android.systemui.keyguard.shared.model.KeyguardState.DREAMING
+import com.android.systemui.keyguard.shared.model.KeyguardState.AOD
 import com.android.systemui.keyguard.shared.model.KeyguardState.LOCKSCREEN
 import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionStep
@@ -35,8 +35,8 @@ import com.android.systemui.kosmos.runTest
 import com.android.systemui.shade.shadeTestUtil
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import org.junit.Assert.assertThrows
 import kotlin.time.Duration.Companion.milliseconds
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -58,9 +58,9 @@ class KeyguardTransitionAnimationFlowTest : SysuiTestCase() {
             animationFlow
                 .setup(
                     duration = 1000.milliseconds,
-                    edge = Edge.create(from = LOCKSCREEN, to = DREAMING),
+                    edge = Edge.create(from = LOCKSCREEN, to = AOD),
                 )
-                .setupWithoutSceneContainer(edge = Edge.create(from = LOCKSCREEN, to = DREAMING))
+                .setupWithoutSceneContainer(edge = Edge.create(from = LOCKSCREEN, to = AOD))
     }
 
     @Test
@@ -212,7 +212,7 @@ class KeyguardTransitionAnimationFlowTest : SysuiTestCase() {
                 .isEqualTo(
                     StateToValue(
                         from = LOCKSCREEN,
-                        to = DREAMING,
+                        to = AOD,
                         transitionState = TransitionState.STARTED,
                         value = 0f,
                     )
@@ -222,7 +222,7 @@ class KeyguardTransitionAnimationFlowTest : SysuiTestCase() {
                 .isEqualTo(
                     StateToValue(
                         from = LOCKSCREEN,
-                        to = DREAMING,
+                        to = AOD,
                         transitionState = TransitionState.RUNNING,
                         value = 0.6f,
                     )
@@ -232,7 +232,7 @@ class KeyguardTransitionAnimationFlowTest : SysuiTestCase() {
                 .isEqualTo(
                     StateToValue(
                         from = LOCKSCREEN,
-                        to = DREAMING,
+                        to = AOD,
                         transitionState = TransitionState.RUNNING,
                         value = 1.2f,
                     )
@@ -242,7 +242,7 @@ class KeyguardTransitionAnimationFlowTest : SysuiTestCase() {
                 .isEqualTo(
                     StateToValue(
                         from = LOCKSCREEN,
-                        to = DREAMING,
+                        to = AOD,
                         transitionState = TransitionState.RUNNING,
                         value = 1.6f,
                     )
@@ -252,7 +252,7 @@ class KeyguardTransitionAnimationFlowTest : SysuiTestCase() {
                 .isEqualTo(
                     StateToValue(
                         from = LOCKSCREEN,
-                        to = DREAMING,
+                        to = AOD,
                         transitionState = TransitionState.RUNNING,
                         value = 2f,
                     )
@@ -262,7 +262,7 @@ class KeyguardTransitionAnimationFlowTest : SysuiTestCase() {
                 .isEqualTo(
                     StateToValue(
                         from = LOCKSCREEN,
-                        to = DREAMING,
+                        to = AOD,
                         transitionState = TransitionState.FINISHED,
                         value = null,
                     )
@@ -382,10 +382,10 @@ class KeyguardTransitionAnimationFlowTest : SysuiTestCase() {
     ): TransitionStep {
         return TransitionStep(
             from = LOCKSCREEN,
-            to = DREAMING,
+            to = AOD,
             value = value,
             transitionState = state,
-            ownerName = "GoneToDreamingTransitionViewModelTest",
+            ownerName = "KeyguardTransitionAnimationFlowTest",
         )
     }
 }

@@ -16,6 +16,8 @@
 
 package com.android.server.wm;
 
+import static android.app.FullscreenRequestHandler.REMOTE_CALLBACK_RESULT_KEY;
+import static android.app.FullscreenRequestHandler.RESULT_FAILED_NOT_SUPPORTED;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
@@ -35,6 +37,8 @@ import static android.view.WindowManager.TRANSIT_CLOSE;
 import static android.view.WindowManager.TRANSIT_FLAG_DISPLAY_LEVEL_TRANSITION;
 import static android.view.WindowManager.TRANSIT_OPEN;
 import static android.view.WindowManager.TRANSIT_TO_BACK;
+import static android.view.WindowManager.TRANSIT_TO_FRONT;
+import static android.window.TransitionInfo.FLAG_ALWAYS_ON_TOP;
 import static android.window.TransitionInfo.FLAG_CROSS_PROFILE_OWNER_THUMBNAIL;
 import static android.window.TransitionInfo.FLAG_FILLS_TASK;
 import static android.window.TransitionInfo.FLAG_IN_TASK_WITH_EMBEDDED_ACTIVITY;
@@ -67,6 +71,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
@@ -79,13 +84,20 @@ import static org.mockito.Mockito.verify;
 import static java.lang.Integer.MAX_VALUE;
 
 import android.app.ActivityManager;
+import android.app.TaskInfo;
+import android.app.WindowConfiguration;
+import android.content.ComponentName;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.os.IBinder;
+import android.os.RemoteException;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.view.SurfaceControl;
@@ -213,6 +225,7 @@ public class TransitionTests extends WindowTestsBase {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_APP_COMPAT_REFACTORING_USE_ACTIVITY_LEASH_FOR_LETTERBOXING)
     public void testCreateInfo_Activity() {
         final Task theTask = createTask(mDisplayContent);
         final ActivityRecord closing = createActivityRecord(theTask);
@@ -232,7 +245,7 @@ public class TransitionTests extends WindowTestsBase {
                 new ActivityTransitionInfo(closing.mActivityComponent, theTask.mTaskId);
         final ActivityTransitionInfo openingActivityTransitionInfo = new ActivityTransitionInfo(
                 opening.mActivityComponent, theTask.mTaskId,
-                new AppCompatTransitionInfo(letterboxBounds));
+                new AppCompatTransitionInfo(letterboxBounds, /* hasRoundedCorners */ false));
         final ArrayMap<WindowContainer, Transition.ChangeInfo> changes = new ArrayMap<>();
         // Start states.
         changes.put(theTask, new Transition.ChangeInfo(theTask, true /* vis */, false /* exChg */));
@@ -262,6 +275,40 @@ public class TransitionTests extends WindowTestsBase {
         assertEquals(closing.mActivityComponent, closingChange.getActivityComponent());
         assertEquals(closingActivityTransitionInfo, closingChange.getActivityTransitionInfo());
         assertNull(closingChange.getActivityTransitionInfo().getAppCompatTransitionInfo());
+        assertNull(openingChange.getTopCompatActivityLeash());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_APP_COMPAT_REFACTORING_USE_ACTIVITY_LEASH_FOR_LETTERBOXING)
+    public void testCreateInfo_ActivityWithLeash() {
+        final Task theTask = createTask(mDisplayContent);
+        final ActivityRecord opening = createActivityRecord(theTask);
+        opening.getRequestedOverrideConfiguration().windowConfiguration.setBounds(
+                new Rect(10, 10, 200, 300));
+        opening.onRequestedOverrideConfigurationChanged(
+                opening.getRequestedOverrideConfiguration());
+        final WindowState appWindow = newWindowBuilder("appWindow",
+                TYPE_BASE_APPLICATION).setWindowToken(opening).build();
+        opening.mAppCompatController.getLetterboxPolicy().start(appWindow);
+        final ArrayMap<WindowContainer, Transition.ChangeInfo> changes = new ArrayMap<>();
+        // Start states.
+        changes.put(theTask,
+                new Transition.ChangeInfo(theTask, false /* vis */, false /* exChg */));
+        fillChangeMap(changes, theTask);
+        // End states.
+        theTask.setVisibleRequested(true);
+        final ArraySet<WindowContainer> participants =
+                new ArraySet<>(new WindowContainer[]{theTask});
+        final ArrayList<Transition.ChangeInfo> targets =
+                Transition.calculateTargets(participants, changes);
+
+        final TransitionInfo info =
+                Transition.calculateTransitionInfo(TRANSIT_OPEN, 0 /* flags */, targets, mMockT);
+
+        final List<TransitionInfo.Change> transitionChanges = info.getChanges();
+        final TransitionInfo.Change openingChange = transitionChanges.get(0);
+        assertEquals(TRANSIT_TO_FRONT, openingChange.getMode());
+        assertNotNull(openingChange.getTopCompatActivityLeash());
     }
 
     @Test
@@ -460,7 +507,8 @@ public class TransitionTests extends WindowTestsBase {
         }
 
         final WallpaperWindowToken wallpaperWindowToken = spy(new WallpaperWindowToken(mWm,
-                mock(IBinder.class), true, mDisplayContent, true /* ownerCanManageAppTokens */));
+                mock(IBinder.class), null /* options */));
+        mDisplayContent.addWindowToken(wallpaperWindowToken);
         final WindowState wallpaperWindow = newWindowBuilder("wallpaperWindow",
                 TYPE_WALLPAPER).setWindowToken(wallpaperWindowToken).build();
         wallpaperWindowToken.setVisibleRequested(false);
@@ -656,13 +704,15 @@ public class TransitionTests extends WindowTestsBase {
         ArrayMap<WindowContainer, Transition.ChangeInfo> changes = transition.mChanges;
         ArraySet<WindowContainer> participants = transition.mParticipants;
 
-        final WallpaperWindowToken wallpaper1 =  new WallpaperWindowToken(mWm,
-                mock(IBinder.class), true, otherDisplay, true /* ownerCanManageAppTokens */);
+        final WallpaperWindowToken wallpaper1 =  new WallpaperWindowToken(mWm, mock(IBinder.class),
+                null /* options */);
+        otherDisplay.addWindowToken(wallpaper1);
         final WindowState wallpaperWindow1 = newWindowBuilder("closing",
                 TYPE_WALLPAPER).setWindowToken(wallpaper1).build();
 
-        final WallpaperWindowToken wallpaper2 =  new WallpaperWindowToken(mWm,
-                mock(IBinder.class), true, otherDisplay, true /* ownerCanManageAppTokens */);
+        final WallpaperWindowToken wallpaper2 =  new WallpaperWindowToken(mWm, mock(IBinder.class),
+                null /* options */);
+        otherDisplay.addWindowToken(wallpaper2);
         final WindowState wallpaperWindow2 = newWindowBuilder("opening",
                 TYPE_WALLPAPER).setWindowToken(wallpaper2).build();
 
@@ -700,7 +750,8 @@ public class TransitionTests extends WindowTestsBase {
         final Transition transition = createTestTransition(TRANSIT_OPEN);
 
         final WallpaperWindowToken wallpaperWindowToken = new WallpaperWindowToken(mWm,
-                mock(IBinder.class), true, mDisplayContent, true /* ownerCanManageAppTokens */);
+                mock(IBinder.class), null /* options */);
+        mDisplayContent.addWindowToken(wallpaperWindowToken);
         // Make DA organized so we can check that they don't get included.
         WindowContainer parent = wallpaperWindowToken.getParent();
         makeDisplayAreaOrganized(parent, mDisplayContent);
@@ -1192,8 +1243,8 @@ public class TransitionTests extends WindowTestsBase {
         final WindowState navBar = newWindowBuilder("navBar", TYPE_NAVIGATION_BAR).build();
         final WindowState ime = newWindowBuilder("ime", TYPE_INPUT_METHOD).build();
         final WindowToken decorToken = new WindowToken.Builder(mWm, mock(IBinder.class),
-                TYPE_NAVIGATION_BAR_PANEL).setDisplayContent(mDisplayContent)
-                .setRoundedCornerOverlay(true).build();
+                TYPE_NAVIGATION_BAR_PANEL).setRoundedCornerOverlay(true).build();
+        mDisplayContent.addWindowToken(decorToken);
         final WindowState screenDecor = newWindowBuilder("screenDecor",
                 decorToken.windowType).setWindowToken(decorToken).build();
         final WindowState[] windows = {statusBar, navBar, ime, screenDecor};
@@ -1323,24 +1374,19 @@ public class TransitionTests extends WindowTestsBase {
         final InsetsSourceProvider navBarInsetsProvider = navBar.getControllableInsetProvider();
         assertNotNull(navBarInsetsProvider);
         final ActivityRecord app = createActivityRecord(mDisplayContent);
-        final Transition transition = app.mTransitionController.createTransition(TRANSIT_OPEN);
-        app.mTransitionController.requestStartTransition(transition, app.getTask(),
-                null /* remoteTransition */, null /* displayChange */);
-        transition.collectExistenceChange(app.getTask());
+        // Pretend there's an OPEN transition.
+        final TransitionController transitionController = mDisplayContent.mTransitionController;
+        spyOn(transitionController);
+        doReturn(TRANSIT_OPEN).when(transitionController).getCollectingTransitionType();
         mDisplayContent.setFixedRotationLaunchingAppUnchecked(app);
+        doCallRealMethod().when(transitionController).getCollectingTransitionType();
         final AsyncRotationController asyncRotationController =
                 mDisplayContent.getAsyncRotationController();
         assertNotNull(asyncRotationController);
         assertTrue(asyncRotationController.shouldFreezeInsetsPosition(statusBar));
-        assertTrue(app.getTask().inTransition());
 
-        player.start();
-        player.finish();
-        app.getTask().finishSync(mWm.mTransactionFactory.get(), app.getTask().getSyncGroup(),
-                false /* cancel */);
-
-        // The open transition is finished. Continue to play seamless display change transition,
-        // so the previous async rotation controller should still exist.
+        // Assume that the open transition is finished. The previous async rotation controller
+        // should exist when performing seamless display change transition.
         mDisplayContent.getDisplayRotation().setRotation(mDisplayContent.getRotation() + 1);
         mDisplayContent.setLastHasContent();
         mDisplayContent.requestChangeTransition(1 /* changes */, null /* displayChange */,
@@ -1349,11 +1395,11 @@ public class TransitionTests extends WindowTestsBase {
         assertNotNull(mDisplayContent.getAsyncRotationController());
 
         // The app is still in transition, so the callback should be no-op.
-        mDisplayContent.mTransitionController.dispatchLegacyAppTransitionFinished(app);
+        transitionController.dispatchLegacyAppTransitionFinished(app);
         assertTrue(mDisplayContent.hasTopFixedRotationLaunchingApp());
 
         // The bar was invisible so it is not handled by the controller. But if it becomes visible
-        // and drawn before the transition starts,
+        // and drawn before the transition starts, it should be hidden and fade in later.
         assertFalse(asyncRotationController.isTargetToken(navBar.mToken));
         navBar.finishDrawing(null /* postDrawTransaction */, Integer.MAX_VALUE);
         assertTrue(asyncRotationController.isTargetToken(navBar.mToken));
@@ -1361,9 +1407,11 @@ public class TransitionTests extends WindowTestsBase {
 
         player.startTransition();
         // Non-app windows should not be collected.
-        assertFalse(mDisplayContent.mTransitionController.isCollecting(statusBar.mToken));
+        assertFalse(transitionController.isCollecting(statusBar.mToken));
         // Avoid DeviceStateController disturbing the test by triggering another rotation change.
         doReturn(false).when(mDisplayContent).updateRotationUnchecked();
+        // Wait for the display change due to transition.shouldApplyOnDisplayThread().
+        waitHandlerIdle(mWm.mH);
 
         clearInvocations(mTransaction);
         onRotationTransactionReady(player, mTransaction).onTransactionCommitted();
@@ -1372,6 +1420,8 @@ public class TransitionTests extends WindowTestsBase {
         spyOn(navBarInsetsProvider);
         player.finish();
 
+        // An unrelated transition should not affect the controller.
+        requestTransition(app, TRANSIT_CHANGE);
         // The controller should be cleared if the target windows are drawn.
         statusBar.finishDrawing(mWm.mTransactionFactory.get(), Integer.MAX_VALUE);
         assertNull(mDisplayContent.getAsyncRotationController());
@@ -1571,6 +1621,23 @@ public class TransitionTests extends WindowTestsBase {
     }
 
     @Test
+    public void testPendingFullscreenRequest_fallbackResultReportedOnTransitStart()
+            throws RemoteException {
+        final TransitionController controller = new TestTransitionController(mAtm);
+        controller.setSyncEngine(mWm.mSyncEngine);
+        final ITransitionPlayer player = new ITransitionPlayer.Default();
+        controller.registerTransitionPlayer(player, null /* playerProc */);
+        final ObservedRemoteCallback callback = mock(ObservedRemoteCallback.class);
+        final Transition transition = controller.createTransition(TRANSIT_OPEN);
+        transition.addPendingFullscreenRequest(callback);
+
+        transition.start();
+
+        verify(callback).sendFallbackResult(argThat((b) ->
+                b.getInt(REMOTE_CALLBACK_RESULT_KEY) == RESULT_FAILED_NOT_SUPPORTED), any());
+    }
+
+    @Test
     public void testTransientLaunch() {
         spyOn(mWm.mSnapshotController.mTaskSnapshotController);
         final ArrayList<ActivityRecord> enteringAnimReports = new ArrayList<>();
@@ -1635,8 +1702,6 @@ public class TransitionTests extends WindowTestsBase {
         // Make sure the unrelated activity is NOT collected.
         final Transition.ChangeInfo activity1ChangeInfo = closeTransition.mChanges.get(activity1);
         assertNull(activity1ChangeInfo);
-        // No need to wait for the activity in transient hide task.
-        assertEquals(WindowContainer.SYNC_STATE_NONE, activity1.mSyncState);
 
         // An active transient launch overrides idle state to avoid clearing power mode before the
         // transition is finished.
@@ -1787,10 +1852,12 @@ public class TransitionTests extends WindowTestsBase {
         // to complete pause.
         assertEquals(recent, taskRecent.getResumedActivity());
         assertFalse(taskRecent.startPausing(false /* uiSleeping */, appB /* resuming */, "test"));
-        // ActivityRecord#makeInvisible will add the invisible recent to the stopping list.
-        // So when the transition finished, the recent can still be notified to pause and stop.
+        // When the transition finished, the recent can still be notified to pause and stop.
+        controller.flushRunningTransitions();
         mDisplayContent.ensureActivitiesVisible(null /* starting */, true /* notifyClients */);
-        assertTrue(mSupervisor.mStoppingActivities.contains(recent));
+        // The invisible recent is immediately paused
+        assertEquals(null, taskRecent.getResumedActivity());
+        assertEquals(ActivityRecord.State.PAUSING, recent.getState());
     }
 
     @Test
@@ -1822,6 +1889,31 @@ public class TransitionTests extends WindowTestsBase {
     }
 
     @Test
+    public void testRecentsTransientLaunchSyncState() {
+        final ActivityRecord recent = new ActivityBuilder(mAtm)
+                .setTask(mDisplayContent.getDefaultTaskDisplayArea().getRootHomeTask())
+                .setVisible(false).build();
+        final ActivityRecord app = new ActivityBuilder(mAtm).setCreateTask(true).build();
+        final RecentTasks recentTasks = mAtm.getRecentTasks();
+        spyOn(recentTasks);
+        doReturn(true).when(recentTasks).isCallerRecents(anyInt());
+        doReturn(new ComponentName("pkg", "cls")).when(recentTasks).getRecentsComponent();
+        requestTransition(recent, TRANSIT_TO_FRONT);
+        final Transition transition = recent.mTransitionController.getCollectingTransition();
+        transition.mParallelCollectType = Transition.PARALLEL_TYPE_RECENTS;
+
+        assertTrue(mAtm.getActivityStartController().startExistingRecentsIfPossible(
+                recent.intent, null /* options */));
+        assertTrue(transition.hasTransientLaunch());
+        assertThat(transition.mParticipants).contains(recent);
+        assertThat(transition.mParticipants).contains(app.getTask());
+        // No need to wait for the activity in transient hide task.
+        assertEquals(WindowContainer.SYNC_STATE_NONE, app.mSyncState);
+        // The recents transition can play without waiting for the redraw to complete.
+        assertEquals(WindowContainer.SYNC_STATE_NONE, recent.mSyncState);
+    }
+
+    @Test
     public void testNotReadyPushPop() {
         final TransitionController controller = new TestTransitionController(mAtm);
         controller.setSyncEngine(mWm.mSyncEngine);
@@ -1838,18 +1930,10 @@ public class TransitionTests extends WindowTestsBase {
         openTransition.setAllReady();
 
         final Transition.ReadyCondition testCondition = new Transition.ReadyCondition("test");
-        if (Flags.migrateBasicLegacyReady()) {
-            openTransition.mReadyTracker.add(testCondition);
-        } else {
-            openTransition.deferTransitionReady();
-        }
+        openTransition.mReadyTracker.add(testCondition);
         assertFalse(openTransition.allReady());
 
-        if (Flags.migrateBasicLegacyReady()) {
-            testCondition.meet();
-        } else {
-            openTransition.continueTransitionReady();
-        }
+        testCondition.meet();
         assertTrue(openTransition.allReady());
     }
 
@@ -2465,21 +2549,13 @@ public class TransitionTests extends WindowTestsBase {
         assertTrue(mSyncEngine.isReady(transition.getSyncId()));
 
         final Transition.ReadyCondition testCondition = new Transition.ReadyCondition("test");
-        if (Flags.migrateBasicLegacyReady()) {
-            transition.mReadyTracker.add(testCondition);
-        } else {
-            transition.deferTransitionReady();
-        }
+        transition.mReadyTracker.add(testCondition);
 
         // Both transition ready tracker and sync engine should be deferred.
         assertFalse(transition.allReady());
         assertFalse(mSyncEngine.isReady(transition.getSyncId()));
 
-        if (Flags.migrateBasicLegacyReady()) {
-            testCondition.meet();
-        } else {
-            transition.continueTransitionReady();
-        }
+        testCondition.meet();
 
         assertTrue(transition.allReady());
         assertTrue(mSyncEngine.isReady(transition.getSyncId()));
@@ -2579,12 +2655,97 @@ public class TransitionTests extends WindowTestsBase {
         transition.collectOrderChanges(true);
         targets = Transition.calculateTargets(participants, changes);
         assertEquals(1, targets.size());
+        // rootTaskA and leafTaskA are in changes.
+        assertNotNull(changes.get(leafTaskA));
+        assertNotNull(changes.get(rootTaskA));
 
         // Make sure the flag is set
         final TransitionInfo info = Transition.calculateTransitionInfo(
                 transition.mType, 0 /* flags */, targets, mMockT);
         assertTrue((info.getChanges().get(0).getFlags() & TransitionInfo.FLAG_MOVED_TO_TOP) != 0);
         assertEquals(TRANSIT_CHANGE, info.getChanges().get(0).getMode());
+    }
+
+    @Test
+    public void testMoveTaskToTopWhileLeafNotVisible() {
+        final Transition transition = createTestTransition(TRANSIT_OPEN);
+        final ArrayMap<WindowContainer, Transition.ChangeInfo> changes = transition.mChanges;
+        final ArraySet<WindowContainer> participants = transition.mParticipants;
+
+        // Start with taskB on top and taskA on bottom but both visible.
+        final Task rootTaskA = createTask(mDisplayContent);
+        final Task leafTaskA = createTaskInRootTask(rootTaskA, 0 /* userId */);
+        final Task taskB = createTask(mDisplayContent);
+        // Set leafTaskA not visible.
+        leafTaskA.setVisibleRequested(false);
+        rootTaskA.setVisibleRequested(true);
+        taskB.setVisibleRequested(true);
+        // manually collect since this is a test transition and not known by transitionController.
+        transition.collect(rootTaskA);
+        rootTaskA.moveToFront("test");
+
+        // Test has order changes, a shallow check of order changes
+        assertTrue(transition.hasOrderChanges());
+
+        // All the tasks were already visible, so there shouldn't be any changes
+        ArrayList<Transition.ChangeInfo> targets = Transition.calculateTargets(
+                participants, changes);
+        assertTrue(targets.isEmpty());
+
+        // After collecting order changes, it should recognize that a task moved to top.
+        transition.collectOrderChanges(true);
+        targets = Transition.calculateTargets(participants, changes);
+        assertEquals(1, targets.size());
+        // leafTaskA is not in changes as it is not visible.
+        assertNull(changes.get(leafTaskA));
+        assertNotNull(changes.get(rootTaskA));
+
+        // Make sure the flag is set
+        final TransitionInfo info = Transition.calculateTransitionInfo(
+                transition.mType, 0 /* flags */, targets, mMockT);
+        assertTrue((info.getChanges().get(0).getFlags() & TransitionInfo.FLAG_MOVED_TO_TOP) != 0);
+        assertEquals(TRANSIT_CHANGE, info.getChanges().get(0).getMode());
+    }
+
+    @Test
+    public void testMoveTaskToTopWhileNotVisible() {
+        final Transition transition = createTestTransition(TRANSIT_OPEN);
+        final ArrayMap<WindowContainer, Transition.ChangeInfo> changes = transition.mChanges;
+        final ArraySet<WindowContainer> participants = transition.mParticipants;
+
+        // Start with taskB on top and taskA on bottom but only taskB visible.
+        final Task rootTaskA = createTask(mDisplayContent);
+        final Task leafTaskA = createTaskInRootTask(rootTaskA, 0 /* userId */);
+        final Task taskB = createTask(mDisplayContent);
+        // Set rootTaskA not visible.
+        rootTaskA.setVisibleRequested(false);
+        taskB.setVisibleRequested(true);
+        // manually collect since this is a test transition and not known by transitionController.
+        transition.collect(rootTaskA);
+        rootTaskA.moveToFront("test");
+
+        // Test has order changes, a shallow check of order changes
+        assertFalse(transition.hasOrderChanges());
+
+        // All the tasks were already visible, so there shouldn't be any changes
+        ArrayList<Transition.ChangeInfo> targets = Transition.calculateTargets(
+                participants, changes);
+        assertTrue(targets.isEmpty());
+
+        // After collecting order changes, it should recognize that no task moved to top.
+        transition.collectOrderChanges(true);
+        targets = Transition.calculateTargets(participants, changes);
+        assertTrue(targets.isEmpty());
+        // leafTaskA is not in changes as it is not visible.
+        assertNull(changes.get(leafTaskA));
+        assertNotNull(changes.get(rootTaskA));
+        assertFalse((changes.get(rootTaskA).mFlags
+                & Transition.ChangeInfo.FLAG_CHANGE_MOVED_TO_TOP) != 0);
+
+        // Make sure the flag is set
+        final TransitionInfo info = Transition.calculateTransitionInfo(
+                transition.mType, 0 /* flags */, targets, mMockT);
+        assertTrue(info.getChanges().isEmpty());
     }
 
     @Test
@@ -3109,12 +3270,15 @@ public class TransitionTests extends WindowTestsBase {
 
         final OnStartCollect openAppCollectStartedCallback = mock(OnStartCollect.class);
         final Transition queuedTransition = createTestTransition(TRANSIT_OPEN, controller);
-        controller.startCollectOrQueue(queuedTransition, openAppCollectStartedCallback, true);
+        controller.startCollectOrQueueExternal(queuedTransition, openAppCollectStartedCallback,
+                true /* noopDuringDisplayChange */);
 
         // Finish display transition
+        final List<DisplayChange> displayChanges = new ArrayList<>();
+        displayChanges.add(new DisplayChange(mDefaultDisplay.mDisplayId));
         controller.requestStartTransition(displayTransition, /* startTask= */ null,
                 /* remoteTransition= */ null,
-                /* displayChange= */ new DisplayChange(mDefaultDisplay.mDisplayId));
+                /* displayChanges= */ displayChanges);
         player.start();
         player.finish();
         waitHandlerIdle(mWm.mAtmService.mH);
@@ -3134,14 +3298,17 @@ public class TransitionTests extends WindowTestsBase {
         displayTransition.collect(mDefaultDisplay);
 
         // Start the display transition
+        final List<DisplayChange> displayChanges = new ArrayList<>();
+        displayChanges.add(new DisplayChange(mDefaultDisplay.mDisplayId));
         controller.requestStartTransition(displayTransition, /* startTask= */ null,
                 /* remoteTransition= */ null,
-                /* displayChange= */ new DisplayChange(mDefaultDisplay.mDisplayId));
+                /* displayChanges= */ displayChanges);
         player.start();
 
         final OnStartCollect openAppCollectStartedCallback = mock(OnStartCollect.class);
         final Transition queuedTransition = createTestTransition(TRANSIT_OPEN, controller);
-        controller.startCollectOrQueue(queuedTransition, openAppCollectStartedCallback, true);
+        controller.startCollectOrQueueExternal(queuedTransition, openAppCollectStartedCallback,
+                true /* noopDuringDisplayChange */);
 
         // Finish the display transition
         player.finish();
@@ -3167,9 +3334,11 @@ public class TransitionTests extends WindowTestsBase {
         controller.startCollectOrQueue(queuedTransition, queuedTransitionStartedCallback);
 
         // Finish display transition
+        final List<DisplayChange> displayChanges = new ArrayList<>();
+        displayChanges.add(new DisplayChange(mDefaultDisplay.mDisplayId));
         controller.requestStartTransition(displayTransition, /* startTask= */ null,
                 /* remoteTransition= */ null,
-                /* displayChange= */ new DisplayChange(mDefaultDisplay.mDisplayId));
+                /* displayChanges= */ displayChanges);
         player.start();
         player.finish();
         waitHandlerIdle(mWm.mAtmService.mH);
@@ -3215,7 +3384,8 @@ public class TransitionTests extends WindowTestsBase {
 
         final OnStartCollect queuedTransitionStartedCallback = mock(OnStartCollect.class);
         final Transition queuedTransition = createTestTransition(TRANSIT_OPEN, controller);
-        controller.startCollectOrQueue(queuedTransition, queuedTransitionStartedCallback, true);
+        controller.startCollectOrQueueExternal(queuedTransition, queuedTransitionStartedCallback,
+                true /* noopDuringDisplayChange */);
 
         // Finish the first transition
         controller.requestStartTransition(nonDisplayTransition, /* startTask= */ null,
@@ -3298,8 +3468,7 @@ public class TransitionTests extends WindowTestsBase {
 
     @Test
     public void testReadyTrackerBasics() {
-        final TransitionController controller = new TestTransitionController(
-                mock(ActivityTaskManagerService.class));
+        final TransitionController controller = new TestTransitionController(mAtm);
         controller.setFullReadyTrackingForTest(true);
         Transition transit = createTestTransition(TRANSIT_OPEN, controller);
         // Not ready if nothing has happened yet
@@ -3322,8 +3491,7 @@ public class TransitionTests extends WindowTestsBase {
 
     @Test
     public void testReadyTrackerAlternate() {
-        final TransitionController controller = new TestTransitionController(
-                mock(ActivityTaskManagerService.class));
+        final TransitionController controller = new TestTransitionController(mAtm);
         controller.setFullReadyTrackingForTest(true);
         Transition transit = createTestTransition(TRANSIT_OPEN, controller);
 
@@ -3357,6 +3525,431 @@ public class TransitionTests extends WindowTestsBase {
 
         WindowContainer ancestor = Transition.findCommonAncestor(sortedTargets, display1Task);
         assertTrue(ancestor.isDescendantOf(otherDisplay.getParent()));
+    }
+
+
+    @Test
+    @EnableFlags(Flags.FLAG_REFINE_ANCESTOR_SEARCH_AND_BOUNDS)
+    public void testCommonAncestor_afterReparentToDisplay() {
+        final Task rootTask = createTask(mDisplayContent);
+        final Task toBackNestedTask = createTaskInRootTask(rootTask, 0);
+        final TaskFragment closeTaskFragment = createTaskFragmentWithActivity(toBackNestedTask);
+        final Task openNestedTask = createTaskInRootTask(rootTask, 0);
+        final TaskFragment openTaskFragment = createTaskFragmentWithActivity(openNestedTask);
+
+        final TaskDisplayArea tda = mDisplayContent.getDefaultTaskDisplayArea();
+        rootTask.setVisibleRequested(true);
+
+        final Transition.ChangeInfo taskChange = new Transition.ChangeInfo(toBackNestedTask,
+                true /* vis */, false /* exChg */);
+        taskChange.mStartParent = rootTask;
+        toBackNestedTask.reparent(tda, false /* onTop */);
+        toBackNestedTask.setVisibleRequested(false);
+        final ArrayList<Transition.ChangeInfo> sortedTargets = new ArrayList<>();
+        sortedTargets.add(new Transition.ChangeInfo(openTaskFragment, true /* vis*/ ,
+                false /* exChg */));
+        sortedTargets.add(new Transition.ChangeInfo(openNestedTask, true /* vis*/ ,
+                false /* exChg */));
+        sortedTargets.add(new Transition.ChangeInfo(closeTaskFragment, true /* vis*/ ,
+                false /* exChg */));
+        sortedTargets.add(taskChange);
+
+        WindowContainer ancestor = Transition.findCommonAncestor(sortedTargets, toBackNestedTask);
+        assertEquals(rootTask, ancestor);
+    }
+
+    @Test
+    public void testSetAlwaysOnTopChange() {
+        final TransitionController controller = mDisplayContent.mTransitionController;
+        controller.setFullReadyTrackingForTest(true);
+
+        final TestTransitionPlayer player = registerTestTransitionPlayer();
+        final Transition transition = createTestTransition(TRANSIT_CHANGE, controller);
+
+        // Create task and make it visible.
+        final Task task = createTask(mDisplayContent);
+        task.setVisibleRequested(true);
+
+        // Start collecting to get a snapshot before changing the AoT.
+        controller.moveToCollecting(transition);
+        transition.collect(task);
+
+        // Change AoT, since it's a spy, need to do a bit of mocking.
+        task.setAlwaysOnTop(true);
+        doReturn(true).when(task).isAlwaysOnTop();
+
+        controller.requestStartTransition(transition, task, null /* remote */, null /* display */);
+
+        // Make a transition ready manually with a test condition. This will force
+        // TransitionController to collect order changes.
+        final Transition.ReadyCondition testCondition = new Transition.ReadyCondition("test");
+        transition.mReadyTracker.add(testCondition);
+        transition.mReadyTracker.meet(testCondition);
+
+        player.start();
+
+        // Make sure there's only AoT change.
+        final TransitionInfo info = player.mLastReady;
+        assertTrue((info.getChanges().get(0).getFlags() & TransitionInfo.FLAG_ALWAYS_ON_TOP) != 0);
+        assertEquals(TRANSIT_CHANGE, info.getChanges().get(0).getMode());
+        assertTrue(
+                info.getChanges().stream()
+                        .noneMatch(change -> (change.getFlags() & FLAG_MOVED_TO_TOP) == 1));
+        player.finish();
+    }
+
+    @Test
+    public void testOrderChangesWhenExitAlwaysOnTop() {
+        final TransitionController controller = mDisplayContent.mTransitionController;
+        controller.setFullReadyTrackingForTest(true);
+
+        final TestTransitionPlayer player = registerTestTransitionPlayer();
+        final Transition transition = createTestTransition(TRANSIT_CHANGE, controller);
+
+        // Start with always-on-top task and a regular task.
+        final Task task = createTask(mDisplayContent);
+        task.setVisibleRequested(true);
+
+        // Change AoT, since it's a spy, need to do a bit of mocking.
+        final Task alwaysOnTopTask = createTask(mDisplayContent);
+        final WindowConfiguration wc = mock(WindowConfiguration.class);
+        doReturn(wc).when(alwaysOnTopTask).getWindowConfiguration();
+        alwaysOnTopTask.setVisibleRequested(true);
+        alwaysOnTopTask.setAlwaysOnTop(true);
+        doReturn(true).when(wc).isAlwaysOnTop();
+        doReturn(true).when(alwaysOnTopTask).isAlwaysOnTop();
+
+        // Start collecting to get a snapshot before changing the AoT.
+        controller.moveToCollecting(transition);
+        transition.collect(task);
+        transition.collect(alwaysOnTopTask);
+
+        // Change AoT back.
+        alwaysOnTopTask.setAlwaysOnTop(false);
+        doReturn(false).when(wc).isAlwaysOnTop();
+        doReturn(false).when(alwaysOnTopTask).isAlwaysOnTop();
+
+        controller.requestStartTransition(transition, task, null /* remote */, null /* display */);
+
+        // Make a transition ready manually with a test condition. This will force
+        // TransitionController to collect order changes.
+        final Transition.ReadyCondition testCondition = new Transition.ReadyCondition("test");
+        transition.mReadyTracker.add(testCondition);
+        transition.mReadyTracker.meet(testCondition);
+
+        player.start();
+
+        // Make sure there's only a move to top change.
+        final TransitionInfo info = player.mLastReady;
+        assertTrue((info.getChanges().get(0).getFlags() & TransitionInfo.FLAG_MOVED_TO_TOP) != 0);
+        assertTrue(
+                info.getChanges().stream()
+                        .noneMatch(change -> (change.getFlags() & FLAG_ALWAYS_ON_TOP) == 1));
+        assertEquals(TRANSIT_CHANGE, info.getChanges().get(0).getMode());
+        player.finish();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_INTERACTIVE_PICTURE_IN_PICTURE)
+    public void testFocusChange() {
+        final TransitionController controller = mDisplayContent.mTransitionController;
+        controller.setFullReadyTrackingForTest(true);
+        final TestTransitionPlayer player = registerTestTransitionPlayer();
+        final Transition transition = createTestTransition(TRANSIT_CHANGE, controller);
+
+        // Create two activities and focus on the first one.
+        final ActivityRecord activity1 = createActivityRecord(mDisplayContent);
+        final ActivityRecord activity2 = createActivityRecord(mDisplayContent);
+        mDisplayContent.mFocusedApp = activity1;
+
+        // Start collecting to get a snapshot before changing the focus.
+        controller.moveToCollecting(transition);
+        transition.collect(activity2.getTask());
+
+        // Change focus and proceed with transition
+        mDisplayContent.mFocusedApp = activity2;
+        controller.requestStartTransition(transition, activity2.getTask(),
+            null /* remote */, null /* display */);
+
+        // Make a transition ready manually with a test condition. This will force
+        // TransitionController to collect order changes.
+        final Transition.ReadyCondition testCondition = new Transition.ReadyCondition("test");
+        transition.mReadyTracker.add(testCondition);
+        transition.mReadyTracker.meet(testCondition);
+        player.start();
+
+        // Make sure there is only focus change without any moves to top.
+        final TransitionInfo info = player.mLastReady;
+        assertEquals(1, info.getChanges().size());
+        final TransitionInfo.Change change = info.getChanges().get(0);
+        assertTrue(change.getTaskInfo().isFocused);
+        assertEquals(activity2.getTask().mTaskId, change.getTaskInfo().taskId);
+        assertTrue(
+                info.getChanges().stream()
+                        .noneMatch(c -> (c.getFlags() & FLAG_MOVED_TO_TOP) == 1));
+        player.finish();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(com.android.graphics.surfaceflinger.flags
+                                                .Flags.FLAG_SET_CLIENT_DRAWN_CORNER_RADII)
+    public void testToggleClientDrawnRoundedCornersDuringTransition() {
+        final TransitionController controller = mDisplayContent.mTransitionController;
+        final TestTransitionPlayer player = registerTestTransitionPlayer();
+
+        final Task task = createTask(mDisplayContent);
+        doReturn(mMockT).when(task).getSyncTransaction();
+
+        final Transition transition = createTestTransition(TRANSIT_OPEN, controller);
+        controller.moveToCollecting(transition);
+        transition.collect(task);
+        transition.mChanges.get(task).mVisible = true;
+
+        controller.requestStartTransition(transition, task /*startTask*/,
+                null /*remote*/, null /*displayChange*/);
+
+        transition.onTransactionReady(transition.getSyncId(), mMockT);
+
+        // Verify that the optimization was disabled
+        verify(mMockT).toggleClientDrawnRoundedCornersOpt(eq(task.getSurfaceControl()), eq(false));
+        assertThat(controller.mRoundedCornerOptTasks).contains(task);
+
+        player.finish();
+
+        // Verify that the optimization was re-enabled
+        verify(mMockT).toggleClientDrawnRoundedCornersOpt(eq(task.getSurfaceControl()), eq(true));
+        assertThat(controller.mRoundedCornerOptTasks).isEmpty();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(com.android.graphics.surfaceflinger.flags
+                                                .Flags.FLAG_SET_CLIENT_DRAWN_CORNER_RADII)
+    public void testCleanupRoundedCornerTasksOnAbort() {
+        final TransitionController controller = mDisplayContent.mTransitionController;
+        registerTestTransitionPlayer();
+
+        final Task task = createTask(mDisplayContent);
+        doReturn(mMockT).when(task).getSyncTransaction();
+
+        final Transition transition = createTestTransition(TRANSIT_OPEN, controller);
+        controller.moveToCollecting(transition);
+        transition.start();
+
+        transition.collect(task);
+        controller.onRoundedCornerOptDisabled(task);
+
+        // Abort the transition
+        transition.abort();
+
+        // Verify cleanup happened even on abort
+        verify(mMockT).toggleClientDrawnRoundedCornersOpt(eq(task.getSurfaceControl()), eq(true));
+        assertThat(controller.mRoundedCornerOptTasks).isEmpty();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(com.android.graphics.surfaceflinger.flags
+                                                .Flags.FLAG_SET_CLIENT_DRAWN_CORNER_RADII)
+    public void testCleanupRoundedCornerTasksOnFlushRunningTransitions() {
+        final TransitionController controller = mDisplayContent.mTransitionController;
+        registerTestTransitionPlayer();
+
+        final Task task = createTask(mDisplayContent);
+        doReturn(mMockT).when(task).getSyncTransaction();
+
+        final Transition transition = createTestTransition(TRANSIT_OPEN, controller);
+        controller.moveToCollecting(transition);
+        transition.start();
+
+        transition.collect(task);
+        transition.mChanges.get(task).mVisible = true;
+        transition.onTransactionReady(transition.getSyncId(), mMockT);
+
+        controller.flushRunningTransitions();
+
+        // Verify cleanup happened even on abort
+        verify(mMockT).toggleClientDrawnRoundedCornersOpt(eq(task.getSurfaceControl()), eq(true));
+        assertThat(controller.mRoundedCornerOptTasks).isEmpty();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(com.android.graphics.surfaceflinger.flags
+                                                .Flags.FLAG_SET_CLIENT_DRAWN_CORNER_RADII)
+    public void testDisableRoundedCornerOpt_ActivityTarget() {
+        final TransitionController controller = mDisplayContent.mTransitionController;
+        registerTestTransitionPlayer();
+
+        final Task task = createTask(mDefaultDisplay);
+        final ActivityRecord activity = createActivityRecord(task);
+
+        doReturn(mMockT).when(task).getSyncTransaction();
+
+        final Transition transition = createTestTransition(TRANSIT_OPEN, controller);
+        controller.moveToCollecting(transition);
+
+        // Setup change state so it is kept as a target
+        transition.collect(activity);
+        activity.setVisibleRequested(true);
+        transition.mChanges.get(activity).mVisible = false;
+
+        controller.requestStartTransition(transition, null /*startTask*/,
+                null /*remote*/, null /*displayChange*/);
+
+        transition.onTransactionReady(transition.getSyncId(), mMockT);
+
+        // Verify that the optimization was disabled on the parent Task
+        verify(mMockT).toggleClientDrawnRoundedCornersOpt(eq(task.getSurfaceControl()), eq(false));
+        assertThat(controller.mRoundedCornerOptTasks).contains(task);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_DRAG_AND_DROP_WHEN_INTERACTIVE_BUGFIX)
+    public void testInteractiveStateChanges_resumedAndPausedTasksAreReported() {
+        final TransitionController controller = mDisplayContent.mTransitionController;
+        final TestTransitionPlayer player = registerTestTransitionPlayer();
+        final Transition transition = createTestTransition(TRANSIT_CHANGE, controller);
+
+        final Task taskA = createTask(mDisplayContent);
+        final Task taskB = createTask(mDisplayContent);
+        final Task taskC = createTask(mDisplayContent);
+
+        // Current state: A and B are resumed, C is paused.
+        taskA.setInteractive(true);
+        taskA.setVisibleRequested(true);
+        taskB.setInteractive(true);
+        taskB.setVisibleRequested(true);
+        taskC.setInteractive(false);
+        taskC.setVisibleRequested(true);
+
+        // Run transition
+        controller.moveToCollecting(transition);
+        controller.recordLifecycle(taskA);
+        controller.recordLifecycle(taskB);
+        controller.recordLifecycle(taskC);
+
+        // Change state: B is paused, C is resumed.
+        taskB.setInteractive(false);
+        taskC.setInteractive(true);
+
+        // Force ready to trigger onTransactionReady
+        controller.requestStartTransition(transition, taskB, null /* remote */, null /* display */);
+
+        // Make a transition ready manually with a test condition. This will force
+        // TransitionController to collect order changes.
+        final Transition.ReadyCondition testCondition = new Transition.ReadyCondition("test");
+        transition.mReadyTracker.add(testCondition);
+        transition.mReadyTracker.meet(testCondition);
+        player.start();
+
+        final TransitionInfo info = player.mLastReady;
+        assertNotNull(info);
+
+        // Only B and C should change.
+        assertEquals(2, info.getChanges().size());
+
+        // Task A: Resumed -> Resumed => no changes.
+        final TransitionInfo.Change changeA =
+                info.getChange(taskA.mRemoteToken.toWindowContainerToken());
+        assertNull("Task A should not change.", changeA);
+
+        // Task B: Resumed -> Paused.
+        final TransitionInfo.Change changeB =
+                info.getChange(taskB.mRemoteToken.toWindowContainerToken());
+        assertNotNull("Task B should have a change.", changeB);
+
+        final TaskInfo taskBInfo = changeB.getTaskInfo();
+        assertNotNull(taskBInfo);
+        assertFalse("Task B should be paused.", taskBInfo.isInteractive);
+
+        // Task C: Stopped -> Resumed.
+        final TransitionInfo.Change changeC =
+                info.getChange(taskC.mRemoteToken.toWindowContainerToken());
+        assertNotNull(changeC);
+
+        final TaskInfo taskCInfo = changeC.getTaskInfo();
+        assertNotNull("Task C should have a change.", taskCInfo);
+        assertTrue("Task C should be resumed", taskCInfo.isInteractive);
+
+        player.finish();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_DRAG_AND_DROP_WHEN_INTERACTIVE_BUGFIX)
+    public void testRecordLifecycle_doesNotBlockTransition() {
+        final TransitionController controller = mDisplayContent.mTransitionController;
+        final Transition transition = createTestTransition(TRANSIT_CHANGE, controller);
+
+        // Task on first display
+        final Task task0 = createTask(mDisplayContent);
+        // Task on second display
+        final DisplayContent dc1 = createNewDisplay();
+        final Task task1 = dc1.getDefaultTaskDisplayArea().createRootTask(
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD, true /* onTop */);
+
+        controller.moveToCollecting(transition);
+
+        // Actively collect task0 on Display 0. This registers Display 0 in mReadyGroups.
+        transition.collect(task0);
+
+        // Passively record lifecycle for task1 on Display 1.
+        // This should NOT register Display 1 in mReadyGroups (the fix).
+        controller.recordLifecycle(task1);
+
+        // Mark only Display 0 as ready.
+        transition.setReady(mDisplayContent, true);
+
+        // The transition should be all ready because Display 1 was never added to groups.
+        assertTrue("Transition should be ready as secondary display was recorded passively.",
+                transition.allReady());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ALLOW_DRAG_AND_DROP_WHEN_INTERACTIVE_BUGFIX)
+    public void testTransientHideInteractivity() {
+        final TransitionController controller = mDisplayContent.mTransitionController;
+        final TestTransitionPlayer player = registerTestTransitionPlayer();
+        final Transition transition = createTestTransition(TRANSIT_TO_FRONT, controller);
+
+        final Task taskA = createTask(mDisplayContent);
+        final Task taskHome = createTask(mDisplayContent);
+        final ActivityRecord activityHome = createActivityRecord(taskHome);
+
+        // Current state: A is interactive and visible.
+        taskA.setInteractive(true);
+        taskA.setVisibleRequested(true);
+        activityHome.setVisibleRequested(false);
+
+        // Run transition
+        controller.moveToCollecting(transition);
+
+        // Transient launch home activity, effectively transient-hiding taskA
+        transition.setTransientLaunch(activityHome, taskA);
+
+        // Force ready to trigger onTransactionReady
+        controller.requestStartTransition(transition, taskA, null /* remote */, null /* display */);
+
+        // Make a transition ready manually with a test condition. This will force
+        // TransitionController to collect order changes.
+        final Transition.ReadyCondition testCondition = new Transition.ReadyCondition("test");
+        transition.mReadyTracker.add(testCondition);
+        transition.mReadyTracker.meet(testCondition);
+        player.start();
+
+        final TransitionInfo info = player.mLastReady;
+        assertNotNull(info);
+
+        final TransitionInfo.Change changeA =
+                info.getChange(taskA.mRemoteToken.toWindowContainerToken());
+        assertNotNull("Task A should have a change.", changeA);
+
+        final TaskInfo taskAInfo = changeA.getTaskInfo();
+        assertNotNull(taskAInfo);
+
+        // Core state must remain unchanged.
+        assertTrue("Core state of taskA must remain interactive.", taskA.isInteractive());
+        // Changes should lie about the current Core state.
+        assertFalse("Shell state of taskA must be non-interactive.", taskAInfo.isInteractive);
+
+        player.finish();
     }
 
     private void tryFinishTransitionSyncSet(Transition transition) {

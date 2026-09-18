@@ -31,6 +31,7 @@ import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.volume.data.repository.audioSharingRepository
+import com.android.systemui.volume.dialog.domain.interactor.expandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.localMediaController
 import com.android.systemui.volume.localMediaRepository
 import com.android.systemui.volume.mediaControllerRepository
@@ -63,13 +64,14 @@ class MediaOutputViewModelTest : SysuiTestCase() {
                     mediaOutputActionsInteractor,
                     mediaOutputComponentInteractor,
                     uiEventLogger,
+                    expandedAudioTileDetailsFeatureInteractor,
                 )
 
             with(context.orCreateTestableResources) {
                 addOverride(R.string.media_output_label_title, "media_output_label_title")
                 addOverride(
                     R.string.media_output_title_without_playing,
-                    "media_output_title_without_playing"
+                    "media_output_title_without_playing",
                 )
                 addOverride(R.string.audio_sharing_description, "audio_sharing")
             }

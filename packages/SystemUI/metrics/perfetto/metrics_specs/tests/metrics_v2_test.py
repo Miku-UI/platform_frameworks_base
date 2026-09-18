@@ -18,6 +18,7 @@ from metrics_specs.tests.utils import android_sf_critical_work_main_thread_trace
 from metrics_specs.tests.utils import android_dmabuf_per_process_metric_trace
 from metrics_specs.tests.utils import android_sf_critical_work_region_sampling_trace
 from metrics_specs.tests.utils import android_gralloc_buffers_per_process_metric_trace
+from metrics_specs.tests.utils import android_consecutive_missed_frames_per_cuj_metric_trace
 from metrics_specs.tests.utils import test_helper
 import unittest
 
@@ -83,6 +84,18 @@ class MetricsV2Test(unittest.TestCase):
                 "android_gralloc_buffers_per_process_metric_min_val",
                 "android_gralloc_buffers_per_process_metric_max_val",
                 "android_gralloc_buffers_per_process_metric_avg_val",
+            ]
+        )
+
+    def test_android_consecutive_missed_frames_per_cuj_metric(self):
+        self.helper.verify_metric(
+            spec_file="android_consecutive_missed_frames_per_cuj_metric.textproto",
+            trace_proto_bytes = android_consecutive_missed_frames_per_cuj_metric_trace.get_proto(),
+            expected_output_file = "android_consecutive_missed_frames_per_cuj_metric_output.txt",
+            metric_ids = [
+                "max_consecutive_missed_frames",
+                "max_consecutive_missed_sf_frames",
+                "max_consecutive_missed_app_frames",
             ]
         )
 

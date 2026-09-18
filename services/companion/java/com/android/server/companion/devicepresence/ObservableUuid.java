@@ -19,36 +19,34 @@ package com.android.server.companion.devicepresence;
 import android.annotation.NonNull;
 import android.annotation.UserIdInt;
 import android.os.ParcelUuid;
+import android.os.PersistableBundle;
 
-public class ObservableUuid {
-    private final int mUserId;
-    private final String mPackageName;
+public record ObservableUuid(
+        @UserIdInt int userId,
+        @NonNull ParcelUuid uuid,
+        @NonNull String packageName,
+        long timeApprovedMs) {
 
-    private final ParcelUuid mUuid;
+    private static final String KEY_USER_ID = "USER_ID";
+    private static final String KEY_UUID = "UUID";
+    static final String KEY_PACKAGE_NAME = "PACKAGE_NAME";
+    private static final String KEY_TIME_APPROVED = "TIME_APPROVED";
 
-    private final long mTimeApprovedMs;
+    /** Convert to a PersistableBundle. */
+    public PersistableBundle toPersistableBundle() {
+        final PersistableBundle bundle = new PersistableBundle();
+        bundle.putInt(KEY_USER_ID, userId);
+        bundle.putString(KEY_UUID, uuid.toString());
+        bundle.putString(KEY_PACKAGE_NAME, packageName);
+        bundle.putLong(KEY_TIME_APPROVED, timeApprovedMs);
 
-    public ObservableUuid(@UserIdInt int userId, @NonNull ParcelUuid uuid,
-            @NonNull String packageName, Long timeApprovedMs) {
-        mUserId = userId;
-        mUuid = uuid;
-        mPackageName = packageName;
-        mTimeApprovedMs = timeApprovedMs;
+        return bundle;
     }
 
-    public int getUserId() {
-        return mUserId;
-    }
-
-    public ParcelUuid getUuid() {
-        return mUuid;
-    }
-
-    public String getPackageName() {
-        return mPackageName;
-    }
-
-    public long getTimeApprovedMs() {
-        return mTimeApprovedMs;
+    public ObservableUuid(PersistableBundle bundle) {
+        this(bundle.getInt(KEY_USER_ID),
+                ParcelUuid.fromString(bundle.getString(KEY_UUID)),
+                bundle.getString(KEY_PACKAGE_NAME),
+                bundle.getLong(KEY_TIME_APPROVED));
     }
 }

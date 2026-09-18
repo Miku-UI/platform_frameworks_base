@@ -66,10 +66,6 @@ public class MouseToTouchProcessor extends InputEventCompatProcessor {
      * - adb shell am compat enable|disable OVERRIDE_MOUSE_TO_TOUCH [pkg_name]
      */
     public static boolean isCompatibilityNeeded(Context context) {
-        if (!com.android.hardware.input.Flags.mouseToTouchPerAppCompat()) {
-            return false;
-        }
-
         return InputEventCompatHandler.isPcInputCompatibilityNeeded(
                 context, ActivityInfo.OVERRIDE_MOUSE_TO_TOUCH);
     }

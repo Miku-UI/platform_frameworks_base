@@ -33,11 +33,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.Chat
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.LockReset
 import androidx.compose.material.icons.outlined.Password
 import androidx.compose.material.icons.outlined.QrCode2
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.SupervisedUserCircle
 import androidx.compose.material.icons.outlined.ViewStream
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
@@ -53,16 +57,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.LinkInteractionListener
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
@@ -71,6 +76,8 @@ import com.android.compose.theme.PlatformTheme
 import com.android.systemui.biometrics.shared.model.IconType
 import com.android.systemui.biometrics.ui.binder.Spaghetti
 import com.android.systemui.biometrics.ui.viewmodel.PromptViewModel
+import com.android.systemui.compose.modifiers.sysUiResTagContainer
+import com.android.systemui.compose.modifiers.sysuiResTag
 import com.android.systemui.res.R
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -85,6 +92,8 @@ fun BiometricPromptFallbackView(promptViewModel: PromptViewModel, callback: Spag
 
     val showManageIdentityCheck by
         fallbackViewModel.showManageIdentityCheck.collectAsStateWithLifecycle(false)
+    val showIdentityCheckCredentialFallback by
+        fallbackViewModel.showIdentityCheckCredentialFallback.collectAsStateWithLifecycle(false)
     val icCredentialButtonEnabled by
         fallbackViewModel.icCredentialButtonEnabled.collectAsStateWithLifecycle(false)
     val icCredentialSubtitle by
@@ -95,7 +104,9 @@ fun BiometricPromptFallbackView(promptViewModel: PromptViewModel, callback: Spag
     val scrollState = rememberScrollState()
 
     PlatformTheme {
-        Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
+        Column(
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp).sysUiResTagContainer()
+        ) {
             Row(
                 modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -121,12 +132,26 @@ fun BiometricPromptFallbackView(promptViewModel: PromptViewModel, callback: Spag
                     color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.titleLargeEmphasized,
                     modifier =
-                        Modifier.padding(start = 16.dp).semantics {
+                        Modifier.padding(horizontal = 16.dp).weight(1f).semantics {
                             heading()
                             // TODO(391644182): Use paneTitle once prompt is moved to compose
                             liveRegion = LiveRegionMode.Polite
                         },
                 )
+
+                FilledIconButton(
+                    onClick = { callback.onUserCanceled() },
+                    colors =
+                        IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = stringResource(R.string.cancel),
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
             Column(
@@ -142,7 +167,7 @@ fun BiometricPromptFallbackView(promptViewModel: PromptViewModel, callback: Spag
                             text = stringResource(credentialText),
                             index = index,
                             total = total,
-                            modifier = Modifier.testTag("fallback_credential_button"),
+                            modifier = Modifier.sysuiResTag("fallback_credential_button"),
                             onClick = {
                                 promptViewModel.onSwitchToCredential()
                                 callback.onUseDeviceCredential()
@@ -157,6 +182,7 @@ fun BiometricPromptFallbackView(promptViewModel: PromptViewModel, callback: Spag
                             text = stringResource(R.string.biometric_dialog_manage_identity_check),
                             index = index,
                             total = total,
+                            modifier = Modifier.sysuiResTag("manage_identity_check"),
                             onClick = {
                                 fallbackViewModel.manageIdentityCheck(context)
                                 callback.onUserCanceled()
@@ -175,7 +201,7 @@ fun BiometricPromptFallbackView(promptViewModel: PromptViewModel, callback: Spag
                         )
                     }
                 }
-                if (showManageIdentityCheck) {
+                if (showIdentityCheckCredentialFallback) {
                     options.add { index, total ->
                         OptionItem(
                             icon = credentialIcon,
@@ -195,7 +221,7 @@ fun BiometricPromptFallbackView(promptViewModel: PromptViewModel, callback: Spag
                 val total = options.size
                 options.forEachIndexed { index, optionComposable -> optionComposable(index, total) }
 
-                if (showManageIdentityCheck && icShowFooter) {
+                if (showIdentityCheckCredentialFallback && icShowFooter) {
                     IdentityCheckFooter(callback, context)
                 }
             }
@@ -216,16 +242,30 @@ private fun IdentityCheckFooter(callback: Spaghetti.Callback, context: Context) 
         }
     }
 
+    val linkStyle =
+        SpanStyle(
+            color = MaterialTheme.colorScheme.primary,
+            textDecoration = TextDecoration.Underline,
+        )
+
+    val focusedLinkStyle =
+        linkStyle.copy(background = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+
     val url = stringResource(R.string.biometric_dialog_identity_check_learn_more_link)
     val linkText = stringResource(R.string.biometric_dialog_identity_check_footer_link_text)
     val formatString = stringResource(R.string.biometric_dialog_identity_check_footer)
 
     val annotatedString = buildAnnotatedString {
-        // TODO: Has to be a better way to handle this
+        // TODO(b/461833412): Has to be a better way to handle this
         val placeholderIndex = formatString.indexOf("%1\$s")
         append(formatString.substring(0, placeholderIndex))
 
-        val link = LinkAnnotation.Url(url, linkInteractionListener = linkListener)
+        val link =
+            LinkAnnotation.Url(
+                url,
+                styles = TextLinkStyles(style = linkStyle, focusedStyle = focusedLinkStyle),
+                linkInteractionListener = linkListener,
+            )
         withLink(link) { append(linkText) }
     }
 
@@ -249,9 +289,10 @@ private fun OptionItem(
     onClick: () -> Unit,
 ) {
     val shape =
-        when (index) {
-            0 -> RoundedCornerShape(28.dp, 28.dp, 4.dp, 4.dp)
-            total - 1 -> RoundedCornerShape(4.dp, 4.dp, 28.dp, 28.dp)
+        when {
+            total == 1 -> RoundedCornerShape(28.dp)
+            index == 0 -> RoundedCornerShape(28.dp, 28.dp, 4.dp, 4.dp)
+            index == total - 1 -> RoundedCornerShape(4.dp, 4.dp, 28.dp, 28.dp)
             else -> RoundedCornerShape(4.dp)
         }
 
@@ -259,11 +300,10 @@ private fun OptionItem(
         modifier =
             modifier
                 .fillMaxWidth()
-                .semantics { testTagsAsResourceId = true }
                 .clickable(onClick = onClick, enabled = enabled)
                 .alpha(if (enabled) 1f else 0.4f),
         shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
@@ -295,6 +335,9 @@ private fun getIcon(iconType: IconType): ImageVector {
         IconType.SETTING -> Icons.Outlined.Settings
         IconType.QR_CODE -> Icons.Outlined.QrCode2
         IconType.PASSWORD -> Icons.Outlined.Password
+        IconType.RESET -> Icons.Outlined.LockReset
+        IconType.MESSAGE -> Icons.AutoMirrored.Outlined.Chat
+        IconType.SUPERVISED -> Icons.Outlined.SupervisedUserCircle
         else -> Icons.Outlined.ViewStream // Generic Icon //TODO: This one is a placeholder
     }
 }

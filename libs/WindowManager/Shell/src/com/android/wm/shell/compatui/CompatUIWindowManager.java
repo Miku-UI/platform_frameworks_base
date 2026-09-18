@@ -27,7 +27,6 @@ import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.SurfaceControl;
 import android.view.View;
-import android.window.DesktopModeFlags;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.wm.shell.R;
@@ -88,8 +87,7 @@ class CompatUIWindowManager extends CompatUIWindowManagerAbstract {
         super(context, taskInfo, syncQueue, taskListener, displayLayout);
         mCallback = callback;
         mHasSizeCompat = taskInfo.appCompatTaskInfo.isTopActivityInSizeCompat();
-        if (desktopState.canEnterDesktopMode()
-                && DesktopModeFlags.ENABLE_WINDOWING_DYNAMIC_INITIAL_BOUNDS.isTrue()) {
+        if (desktopState.canEnterDesktopMode()) {
             // Don't show the SCM button for freeform tasks
             mHasSizeCompat &= !taskInfo.isFreeform();
         }
@@ -146,8 +144,7 @@ class CompatUIWindowManager extends CompatUIWindowManagerAbstract {
             boolean canShow) {
         final boolean prevHasSizeCompat = mHasSizeCompat;
         mHasSizeCompat = taskInfo.appCompatTaskInfo.isTopActivityInSizeCompat();
-        if (mDesktopState.canEnterDesktopMode()
-                && DesktopModeFlags.ENABLE_WINDOWING_DYNAMIC_INITIAL_BOUNDS.isTrue()) {
+        if (mDesktopState.canEnterDesktopMode()) {
             // Don't show the SCM button for freeform tasks
             mHasSizeCompat &= !taskInfo.isFreeform();
         }

@@ -17,22 +17,23 @@
 package com.android.systemui.screenshot
 
 import android.content.ComponentName
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.content.pm.ResolveInfo
+import android.database.Cursor
 import android.net.Uri
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
+import android.provider.DocumentsContract
+import android.provider.MediaStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.ext.truth.content.IntentSubject.assertThat as assertThatIntent
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.res.R
-import com.android.systemui.shared.Flags
-import com.android.systemui.util.mockito.eq
-import com.android.systemui.util.mockito.mock
+import com.android.systemui.screencapture.record.largescreen.data.repository.ParentUriRepositoryImpl
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlinx.coroutines.test.TestCoroutineScheduler
@@ -41,8 +42,11 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mockito.`when` as whenever
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -52,8 +56,16 @@ class ActionIntentCreatorTest : SysuiTestCase() {
     private val testScope = TestScope(mainDispatcher)
     val context = mock<Context>()
     val packageManager = mock<PackageManager>()
+
+    private val parentUriRepository = ParentUriRepositoryImpl(context, mainDispatcher)
     private val actionIntentCreator =
-        ActionIntentCreator(context, packageManager, testScope.backgroundScope, mainDispatcher)
+        ActionIntentCreator(
+            context,
+            packageManager,
+            testScope.backgroundScope,
+            mainDispatcher,
+            parentUriRepository,
+        )
 
     @Test
     fun testCreateShare() {
@@ -139,55 +151,6 @@ class ActionIntentCreatorTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_USE_PREFERRED_IMAGE_EDITOR)
-    fun testCreateEditLegacy() = runTest {
-        val uri = Uri.parse("content://fake")
-
-        whenever(context.getString(eq(R.string.config_screenshotEditor))).thenReturn("")
-
-        val output = actionIntentCreator.createEdit(uri)
-
-        assertThatIntent(output).hasAction(Intent.ACTION_EDIT)
-        assertThatIntent(output).hasData(uri)
-        assertThatIntent(output).hasType("image/png")
-        assertWithMessage("getComponent()").that(output.component).isNull()
-        assertThat(output.getStringExtra("edit_source")).isEqualTo("screenshot")
-        assertThatIntent(output)
-            .hasFlags(
-                Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
-                    Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_CLEAR_TASK
-            )
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_USE_PREFERRED_IMAGE_EDITOR)
-    fun testCreateEditLegacy_embeddedUserIdRemoved() = runTest {
-        val uri = Uri.parse("content://555@fake")
-        whenever(context.getString(eq(R.string.config_screenshotEditor))).thenReturn("")
-
-        val output = actionIntentCreator.createEdit(uri)
-
-        assertThatIntent(output).hasData(Uri.parse("content://fake"))
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_USE_PREFERRED_IMAGE_EDITOR)
-    fun testCreateEditLegacy_withEditor() = runTest {
-        val uri = Uri.parse("content://fake")
-        val component = ComponentName("com.android.foo", "com.android.foo.Something")
-
-        whenever(context.getString(eq(R.string.config_screenshotEditor)))
-            .thenReturn(component.flattenToString())
-
-        val output = actionIntentCreator.createEdit(uri)
-
-        assertThatIntent(output).hasComponent(component)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_USE_PREFERRED_IMAGE_EDITOR)
     fun testCreateEdit() = runTest {
         val uri = Uri.parse("content://fake")
 
@@ -210,7 +173,6 @@ class ActionIntentCreatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_USE_PREFERRED_IMAGE_EDITOR)
     fun testCreateEdit_embeddedUserIdRemoved() = runTest {
         val uri = Uri.parse("content://555@fake")
         whenever(context.getString(eq(R.string.config_screenshotEditor))).thenReturn("")
@@ -221,7 +183,6 @@ class ActionIntentCreatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_USE_PREFERRED_IMAGE_EDITOR)
     fun testCreateEdit_withPreferredEditorEnabled() = runTest {
         val uri = Uri.parse("content://fake")
         val fallbackComponent = ComponentName("com.android.foo", "com.android.foo.Something")
@@ -250,7 +211,6 @@ class ActionIntentCreatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_USE_PREFERRED_IMAGE_EDITOR)
     fun testCreateEdit_withPreferredEditorDisabled() = runTest {
         val uri = Uri.parse("content://fake")
         val fallbackComponent = ComponentName("com.android.foo", "com.android.foo.Something")
@@ -273,7 +233,6 @@ class ActionIntentCreatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_USE_PREFERRED_IMAGE_EDITOR)
     fun testCreateEdit_withFallbackEditor() = runTest {
         val uri = Uri.parse("content://fake")
         val component = ComponentName("com.android.foo", "com.android.foo.Something")
@@ -284,5 +243,44 @@ class ActionIntentCreatorTest : SysuiTestCase() {
         val output = actionIntentCreator.createEdit(uri)
 
         assertThatIntent(output).hasComponent(component)
+    }
+
+    @Test
+    fun testCreateOpenInFiles() = runTest {
+        val uri = Uri.parse("content://10@media/external/images/media/93")
+        val relativePath = "Pictures/Screenshots"
+        val documentId = "primary:" + relativePath
+        val parentUri =
+            DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", documentId)
+        val cursor = mock<Cursor>()
+        val contentResolver = mock<ContentResolver>()
+        val resolveInfo = mock<ResolveInfo>()
+
+        whenever(context.getContentResolver()).thenReturn(contentResolver)
+        whenever(
+                contentResolver.query(
+                    eq(uri),
+                    eq(arrayOf(MediaStore.MediaColumns.RELATIVE_PATH)),
+                    eq(null),
+                    eq(null),
+                    eq(null),
+                )
+            )
+            .thenReturn(cursor)
+        whenever(cursor.moveToFirst()).thenReturn(true)
+        whenever(cursor.getString(0)).thenReturn(relativePath)
+        whenever(packageManager.resolveActivity(any(), anyInt())).thenReturn(resolveInfo)
+
+        val output = actionIntentCreator.createOpenInFiles(uri)
+
+        assertThatIntent(output).hasAction(Intent.ACTION_VIEW)
+        assertThatIntent(output).hasData(parentUri)
+        assertThatIntent(output).hasType(DocumentsContract.Document.MIME_TYPE_DIR)
+        assertThatIntent(output)
+            .hasFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION and
+                    Intent.FLAG_ACTIVITY_NEW_TASK and
+                    Intent.FLAG_ACTIVITY_CLEAR_TASK
+            )
     }
 }

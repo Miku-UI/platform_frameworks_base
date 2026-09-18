@@ -43,12 +43,26 @@ import libcore.util.NativeAllocationRegistry;
 public class RuntimeXfermode extends Xfermode {
 
     private static class NoImagePreloadHolder {
-        public static final NativeAllocationRegistry sRegistry =
+        public static final NativeAllocationRegistry sBuilderRegistry =
                 NativeAllocationRegistry.createMalloced(
-                        RuntimeXfermode.class.getClassLoader(), nativeGetFinalizer());
+                        RuntimeXfermode.class.getClassLoader(), nativeGetBuilderFinalizer());
+        public static final NativeAllocationRegistry sXfermodeRegistry =
+                NativeAllocationRegistry.createMalloced(
+                        RuntimeXfermode.class.getClassLoader(), nativeGetXfermodeFinalizer());
     }
 
     private long mBuilderNativeInstance;
+    private long mXfermodeNativeInstance;
+    private Runnable mXfermodeCleaner;
+
+    // Synchronized to ensure we don't clear during getNativeInstance
+    private synchronized void invalidateXfermode() {
+        if (mXfermodeNativeInstance != 0) {
+            mXfermodeCleaner.run();
+            mXfermodeCleaner = null;
+            mXfermodeNativeInstance = 0;
+        }
+    }
 
     /**
      * Creates a new RuntimeBlender.
@@ -57,12 +71,13 @@ public class RuntimeXfermode extends Xfermode {
      */
     public RuntimeXfermode(@NonNull String agsl) {
         if (agsl == null) {
-            throw new NullPointerException("RuntimeShader requires a non-null AGSL string");
+            throw new NullPointerException("RuntimeXfermode requires a non-null AGSL string");
         }
         mBuilderNativeInstance = nativeCreateBlenderBuilder(agsl);
-        RuntimeXfermode.NoImagePreloadHolder.sRegistry.registerNativeAllocation(
+        NoImagePreloadHolder.sBuilderRegistry.registerNativeAllocation(
                 this, mBuilderNativeInstance);
     }
+
     /**
      * Sets the uniform color value corresponding to this color filter.  If the effect does not have
      * a uniform with that name or if the uniform is declared with a type other than vec3 or vec4
@@ -170,6 +185,7 @@ public class RuntimeXfermode extends Xfermode {
         }
         nativeUpdateUniforms(mBuilderNativeInstance, uniformName, value1, value2, value3, value4,
                 count);
+        invalidateXfermode();
     }
 
     private void setUniform(@NonNull String uniformName, @NonNull float[] values, boolean isColor) {
@@ -180,6 +196,7 @@ public class RuntimeXfermode extends Xfermode {
             throw new NullPointerException("The uniform values parameter must not be null");
         }
         nativeUpdateUniforms(mBuilderNativeInstance, uniformName, values, isColor);
+        invalidateXfermode();
     }
 
     /**
@@ -243,6 +260,7 @@ public class RuntimeXfermode extends Xfermode {
             throw new NullPointerException("The uniform values parameter must not be null");
         }
         nativeUpdateUniforms(mBuilderNativeInstance, uniformName, values);
+        invalidateXfermode();
     }
 
     private void setIntUniform(@NonNull String uniformName, int value1, int value2, int value3,
@@ -252,6 +270,7 @@ public class RuntimeXfermode extends Xfermode {
         }
         nativeUpdateUniforms(mBuilderNativeInstance, uniformName, value1, value2, value3, value4,
                 count);
+        invalidateXfermode();
     }
 
     /**
@@ -269,6 +288,7 @@ public class RuntimeXfermode extends Xfermode {
             throw new NullPointerException("The shader parameter must not be null");
         }
         nativeUpdateChild(mBuilderNativeInstance, shaderName, shader.getNativeInstance());
+        invalidateXfermode();
     }
 
     /**
@@ -288,6 +308,7 @@ public class RuntimeXfermode extends Xfermode {
         }
         nativeUpdateColorFilter(mBuilderNativeInstance, filterName,
                 colorFilter.getNativeInstance());
+        invalidateXfermode();
     }
 
     /**
@@ -304,16 +325,25 @@ public class RuntimeXfermode extends Xfermode {
         if (xfermode == null) {
             throw new NullPointerException("The xfermode parameter must not be null");
         }
-        nativeUpdateChild(mBuilderNativeInstance, xfermodeName, xfermode.createNativeInstance());
+        nativeUpdateChild(mBuilderNativeInstance, xfermodeName, xfermode.getNativeInstance());
+        invalidateXfermode();
     }
 
     /** @hide */
-    public long createNativeInstance() {
-        return nativeCreateNativeInstance(mBuilderNativeInstance);
+    public synchronized long getNativeInstance() {
+        if (mXfermodeNativeInstance == 0) {
+            mXfermodeNativeInstance = nativeCreateNativeInstance(mBuilderNativeInstance);
+            if (mXfermodeNativeInstance != 0) {
+                mXfermodeCleaner = NoImagePreloadHolder.sXfermodeRegistry
+                        .registerNativeAllocation(this, mXfermodeNativeInstance);
+            }
+        }
+        return mXfermodeNativeInstance;
     }
 
     /** @hide */
-    private static native long nativeGetFinalizer();
+    private static native long nativeGetBuilderFinalizer();
+    private static native long nativeGetXfermodeFinalizer();
     private static native long nativeCreateBlenderBuilder(String agsl);
     private static native long nativeCreateNativeInstance(long builder);
     private static native void nativeUpdateUniforms(

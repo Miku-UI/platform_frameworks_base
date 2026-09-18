@@ -21,6 +21,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.service.quicksettings.Tile
 import android.util.Log
+import androidx.core.content.edit
 import com.android.internal.annotations.VisibleForTesting
 import com.android.systemui.dagger.qualifiers.Application
 import javax.inject.Inject
@@ -31,6 +32,16 @@ data class TileServiceKey(val componentName: ComponentName, val user: Int) {
     private val string = "${componentName.flattenToString()}:$user"
 
     override fun toString() = string
+
+    companion object {
+        fun fromStringKey(key: String): TileServiceKey {
+            val split = key.split(":", limit = 2)
+            check(split.size == 2)
+            val componentName = ComponentName.unflattenFromString(split[0])!!
+            val userId = split[1].toInt()
+            return TileServiceKey(componentName, userId)
+        }
+    }
 }
 
 private const val STATE = "state"
@@ -72,6 +83,8 @@ interface CustomTileStatePersister {
      * Used when the tile is removed by the user.
      */
     fun removeState(key: TileServiceKey)
+
+    fun removeStateForPackageAndUser(packageName: String, user: Int)
 }
 
 // TODO(b/299909989) Merge this class into into CustomTileRepository
@@ -101,6 +114,18 @@ class CustomTileStatePersisterImpl @Inject constructor(@Application context: Con
 
     override fun removeState(key: TileServiceKey) {
         sharedPreferences.edit().remove(key.toString()).apply()
+    }
+
+    override fun removeStateForPackageAndUser(packageName: String, user: Int) {
+        sharedPreferences.edit {
+            sharedPreferences.all.keys
+                .filter { stringKey ->
+                    TileServiceKey.fromStringKey(stringKey).let {
+                        it.componentName.packageName == packageName && it.user == user
+                    }
+                }
+                .forEach { remove(it.toString()) }
+        }
     }
 }
 

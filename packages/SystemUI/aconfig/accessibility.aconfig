@@ -1,15 +1,41 @@
 package: "com.android.systemui"
 container: "system"
 
-# NOTE: Keep alphabetized to help limit merge conflicts from multiple simultaneous editors.
+# go/keep-sorted start block=yes newline_separated=yes by_regex=name:\s*"([^"]+)"
+flag {
+    name: "accessibility_menu_inputs_for_hiding"
+    namespace: "accessibility"
+    bug: "470300647"
+    description: "allows escape key and Back system action to close A11y menu."
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
 
 flag {
-    name: "cleanup_instances_when_display_removed"
+    name: "bouncer_accessibility_button_for_desktop"
     namespace: "accessibility"
-    description: "When a specific display is removed, cleanup the cached instances related to it."
-    bug: "437868750"
+    description: "Adds an accessibility button on the bouncer screen for desktop for accessing accessibility services."
+    bug: "446014706"
+}
+
+flag {
+    name: "edt_not_allowed_on_status_bar"
+    namespace: "accessibility"
+    description: "Prevents EDT from applying to the status bar and incorrectly inverting icons"
+    bug: "482405546"
     metadata {
-        purpose: PURPOSE_BUGFIX
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "floating_menu_adjust_cutout_avoidance"
+    namespace: "accessibility"
+    description: "Makes cutout avoidance behave less erratically with larger menus."
+    bug: "491674801"
+    metadata {
+      purpose: PURPOSE_BUGFIX
     }
 }
 
@@ -28,20 +54,51 @@ flag {
 }
 
 flag {
-    name: "floating_menu_radii_animation"
+    name: "floating_menu_magnification_status"
     namespace: "accessibility"
-    description: "Animates the floating menu's transition between curved and jagged edges."
-    bug: "281140482"
-}
-
-flag {
-    name: "hearing_devices_dialog_related_tools"
-    namespace: "accessibility"
-    description: "Shows the related tools for hearing devices dialog."
-    bug: "341648471"
+    description: "Exposes magnification activated status to floating menu magnification targets"
+    bug: "449812613"
     metadata {
       purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "floating_menu_more_options"
+    namespace: "accessibility"
+    description: "Adds a 'More Options' button to the accessibility floating menu, which reveals additional actions like Edit, Move, and Remove all."
+    bug: "440413395"
+}
+
+flag {
+    name: "floating_menu_on_headless_user"
+    namespace: "accessibility"
+    description: "adds condition that allows the FAB to display on bouncer for headless system user."
+    bug: "452113149"
+}
+
+flag {
+    name: "floating_menu_uniform_padding"
+    namespace: "accessibility"
+    description: "Normalizes padding across all FAB buttons to ensure a minimum touch target size"
+    bug: "474236415"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "hearing_device_status_notification"
+    namespace: "accessibility"
+    description: "Display a notification to show the status of a hearing device when it's connected"
+    bug: "467224908"
+}
+
+flag {
+    name: "launch_accessibility_quick_access_dialog_permission"
+    namespace: "accessibility"
+    description: "Adds a permission to allow applications to launch the accessibility quick access dialog."
+    bug: "446014706"
 }
 
 flag {
@@ -67,23 +124,4 @@ flag {
     description: "Uses region sampling in the Status Bar to avoid contrast bugs in the status bar when expanded dark theme is enabled"
     bug: "379760792"
 }
-
-flag {
-    name: "update_window_magnifier_bottom_boundary_with_mouse"
-    namespace: "accessibility"
-    description:  "Update the window magnification behavior with bottom gesture insets with mouse."
-    bug: "419389153"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "window_magnification_move_with_mouse_on_edge"
-    namespace: "accessibility"
-    description: "Allows window magnification to be moved by mouse further on the edge of the screen."
-    bug: "420776720"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
+# go/keep-sorted end

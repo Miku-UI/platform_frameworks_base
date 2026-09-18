@@ -58,6 +58,7 @@ import android.widget.TextView;
 
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.internal.util.Preconditions;
+import com.android.internal.compat.CompatibilityRules;
 
 import dalvik.system.VMRuntime;
 import dalvik.system.ZygoteHooks;
@@ -146,6 +147,7 @@ public class ZygoteInit {
         Trace.traceEnd(Trace.TRACE_TAG_DALVIK);
         preloadSharedLibraries();
         preloadTextResources();
+        preloadCompatConfig();
 
         // TODO: remove the try/catch and the flag read as soon as the flag is ramped and 25Q2
         // starts building from source.
@@ -234,6 +236,11 @@ public class ZygoteInit {
     private static void preloadTextResources() {
         Hyphenator.init();
         TextView.preloadFontCache();
+    }
+
+    private static void preloadCompatConfig() {
+        Log.i(TAG, "Preloading compat config...");
+        CompatibilityRules.loadSystemRules();
     }
 
     /**
@@ -561,6 +568,7 @@ public class ZygoteInit {
              */
             return ZygoteInit.zygoteInit(parsedArgs.mTargetSdkVersion,
                     parsedArgs.mDisabledCompatChanges,
+                    parsedArgs.mEnabledCompatChanges,
                     parsedArgs.mRemainingArgs, cl);
         }
 
@@ -709,7 +717,9 @@ public class ZygoteInit {
                 (1L << OsConstants.CAP_SYS_TIME) |
                 (1L << OsConstants.CAP_SYS_TTY_CONFIG) |
                 (1L << OsConstants.CAP_WAKE_ALARM) |
-                (1L << OsConstants.CAP_BLOCK_SUSPEND);
+                (1L << OsConstants.CAP_BLOCK_SUSPEND) |
+                /* Required for system server to manage the safesetid UID policy */
+                (1L << OsConstants.CAP_MAC_ADMIN);
         /* Containers run without some capabilities, so drop any caps that are not available. */
         StructCapUserHeader header = new StructCapUserHeader(
                 OsConstants._LINUX_CAPABILITY_VERSION_3, 0);
@@ -978,7 +988,7 @@ public class ZygoteInit {
      * @param argv             arg strings
      */
     public static Runnable zygoteInit(int targetSdkVersion, long[] disabledCompatChanges,
-            String[] argv, ClassLoader classLoader) {
+            long[] enabledCompatChanges, String[] argv, ClassLoader classLoader) {
         if (RuntimeInit.DEBUG) {
             Slog.d(RuntimeInit.TAG, "RuntimeInit: Starting application from zygote");
         }
@@ -988,8 +998,8 @@ public class ZygoteInit {
 
         RuntimeInit.commonInit();
         ZygoteInit.nativeZygoteInit();
-        return RuntimeInit.applicationInit(targetSdkVersion, disabledCompatChanges, argv,
-                classLoader);
+        return RuntimeInit.applicationInit(targetSdkVersion, disabledCompatChanges,
+                enabledCompatChanges, argv, classLoader);
     }
 
     /**

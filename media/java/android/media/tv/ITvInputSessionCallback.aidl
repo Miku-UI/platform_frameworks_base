@@ -35,6 +35,7 @@ oneway interface ITvInputSessionCallback {
     void onSessionCreated(ITvInputSession session, in IBinder hardwareSessionToken);
     void onSessionEvent(in String name, in Bundle args);
     void onChannelRetuned(in Uri channelUri);
+    void onChannelRetunedWithExtraInfo(in Uri channelUri, in Bundle args);
     void onAudioPresentationsChanged(in List<AudioPresentation> tvAudioPresentations);
     void onAudioPresentationSelected(int presentationId, int programId);
     void onTracksChanged(in List<TvTrackInfo> tracks);

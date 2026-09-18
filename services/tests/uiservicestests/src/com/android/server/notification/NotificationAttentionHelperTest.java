@@ -64,6 +64,7 @@ import static org.mockito.Mockito.when;
 import android.Manifest.permission;
 import android.annotation.SuppressLint;
 import android.app.ActivityManager;
+import android.app.ActivityTaskManager;
 import android.app.KeyguardManager;
 import android.app.Notification;
 import android.app.Notification.Builder;
@@ -98,6 +99,8 @@ import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
+import android.testing.TestWithLooperRule;
+import android.testing.TestableLooper;
 import android.util.Pair;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
@@ -118,6 +121,7 @@ import com.android.internal.util.VibrationStatsWriter;
 import com.android.server.UiServiceTestCase;
 import com.android.server.lights.LightsManager;
 import com.android.server.lights.LogicalLight;
+import android.app.Person;
 import com.android.server.pm.PackageManagerService;
 
 import org.junit.Before;
@@ -138,16 +142,18 @@ import java.util.Set;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 @SuppressLint("GuardedBy")
+@TestableLooper.RunWithLooper
 public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule(order = Integer.MAX_VALUE)
+    public TestWithLooperRule mLooperRule = new TestWithLooperRule();
 
     @Mock AudioManager mAudioManager;
     @Mock Vibrator mVibrator;
     @Mock android.media.IRingtonePlayer mRingtonePlayer;
     @Mock LogicalLight mLight;
-    @Mock
-    NotificationManagerService.WorkerHandler mHandler;
+    @Mock LogicalLight mPriorityNotificationLight;
     @Mock
     NotificationUsageStats mUsageStats;
     @Mock
@@ -160,11 +166,10 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     private PackageManager mPackageManager;
     @Mock
     private VibrationStatsWriter mVibrationStatsWriter;
-    NotificationRecordLoggerFake mNotificationRecordLogger = new NotificationRecordLoggerFake();
-    private InstanceIdSequence mNotificationInstanceIdSequence = new InstanceIdSequenceFake(
-        1 << 30);
+    @Mock
+    private ActivityTaskManager mActivityTaskManager;
 
-    private NotificationManagerService mService;
+    private TestableNotificationManagerService mService;
     private String mPkg = "com.android.server.notification";
     private int mId = 1001;
     private int mOtherId = 1002;
@@ -206,6 +211,7 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
         MockitoAnnotations.initMocks(this);
         getContext().addMockSystemService(Vibrator.class, mVibrator);
         getContext().addMockSystemService(PackageManager.class, mPackageManager);
+        getContext().addMockSystemService(ActivityTaskManager.class, mActivityTaskManager);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)).thenReturn(false);
         when(mPackageManager.checkPermission(eq(permission.RECEIVE_EMERGENCY_BROADCAST),
                 anyString())).thenReturn(PERMISSION_DENIED);
@@ -250,12 +256,11 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
         // TODO (b/291907312): remove feature flag
         // Disable feature flags by default. Tests should enable as needed.
         mSetFlagsRule.disableFlags(Flags.FLAG_POLITE_NOTIFICATIONS,
-                Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS,
-                Flags.FLAG_VIBRATE_WHILE_UNLOCKED,
-                Flags.FLAG_POLITE_NOTIFICATIONS_ATTN_UPDATE);
+                Flags.FLAG_VIBRATE_WHILE_UNLOCKED);
 
-        mService = spy(new NotificationManagerService(getContext(), mNotificationRecordLogger,
-            mNotificationInstanceIdSequence));
+        mService = spy(new TestableNotificationManagerService(getContext(),
+                TestableLooper.get(this)));
+        mService.init();
 
         initAttentionHelper(mTestFlagResolver);
 
@@ -263,43 +268,46 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     }
 
     private void initAttentionHelper(TestableFlagResolver flagResolver) {
+        LightsManager lightsManager = mock(LightsManager.class);
+        when(lightsManager.getLight(eq(LightsManager.LIGHT_ID_NOTIFICATIONS))).thenReturn(mLight);
+        when(lightsManager.getLight(eq(LightsManager.LIGHT_ID_ATTENTION))).thenReturn(mLight);
+        when(lightsManager.getLight(eq(LightsManager.LIGHT_ID_PRIORITY_NOTIFICATIONS)))
+                .thenReturn(mPriorityNotificationLight);
+
         mAttentionHelper = new NotificationAttentionHelper(getContext(), new Object(),
-                mock(LightsManager.class),mAccessibilityManager, mPackageManager,
+                lightsManager, mAccessibilityManager, mPackageManager,
                 mUserManager, mUsageStats, mService.mNotificationManagerPrivate,
                 mock(ZenModeHelper.class), flagResolver, mVibrationStatsWriter);
         mAttentionHelper.onSystemReady();
         mAttentionHelper.setVibratorHelper(spy(new VibratorHelper(getContext())));
         mAttentionHelper.setAudioManager(mAudioManager);
         mAttentionHelper.setSystemReady(true);
-        mAttentionHelper.setLights(mLight);
         mAttentionHelper.setScreenOn(false);
         mAttentionHelper.setAccessibilityManager(mAccessibilityManager);
         mAttentionHelper.setKeyguardManager(mKeyguardManager);
         mAttentionHelper.setScreenOn(false);
         mAttentionHelper.setInCallStateOffHook(false);
 
-        if (Flags.crossAppPoliteNotifications()) {
-            // Capture BroadcastReceiver for avalanche triggers
-            ArgumentCaptor<BroadcastReceiver> broadcastReceiverCaptor =
-                    ArgumentCaptor.forClass(BroadcastReceiver.class);
-            ArgumentCaptor<IntentFilter> intentFilterCaptor =
-                    ArgumentCaptor.forClass(IntentFilter.class);
-            verify(getContext(), atLeastOnce()).registerReceiverAsUser(
-                    broadcastReceiverCaptor.capture(),
-                    any(), intentFilterCaptor.capture(), any(), any());
-            List<BroadcastReceiver> broadcastReceivers = broadcastReceiverCaptor.getAllValues();
-            List<IntentFilter> intentFilters = intentFilterCaptor.getAllValues();
+        // Capture BroadcastReceiver for avalanche triggers
+        ArgumentCaptor<BroadcastReceiver> broadcastReceiverCaptor =
+                ArgumentCaptor.forClass(BroadcastReceiver.class);
+        ArgumentCaptor<IntentFilter> intentFilterCaptor =
+                ArgumentCaptor.forClass(IntentFilter.class);
+        verify(getContext(), atLeastOnce()).registerReceiverAsUser(
+                broadcastReceiverCaptor.capture(),
+                any(), intentFilterCaptor.capture(), any(), any());
+        List<BroadcastReceiver> broadcastReceivers = broadcastReceiverCaptor.getAllValues();
+        List<IntentFilter> intentFilters = intentFilterCaptor.getAllValues();
 
-            assertThat(broadcastReceivers.size()).isAtLeast(1);
-            assertThat(intentFilters.size()).isAtLeast(1);
-            for (int i = 0; i < intentFilters.size(); i++) {
-                final IntentFilter filter = intentFilters.get(i);
-                if (filter.hasAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)) {
-                    mAvalancheBroadcastReceiver = broadcastReceivers.get(i);
-                }
+        assertThat(broadcastReceivers.size()).isAtLeast(1);
+        assertThat(intentFilters.size()).isAtLeast(1);
+        for (int i = 0; i < intentFilters.size(); i++) {
+            final IntentFilter filter = intentFilters.get(i);
+            if (filter.hasAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)) {
+                mAvalancheBroadcastReceiver = broadcastReceivers.get(i);
             }
-            assertThat(mAvalancheBroadcastReceiver).isNotNull();
         }
+        assertThat(mAvalancheBroadcastReceiver).isNotNull();
     }
 
     //
@@ -713,6 +721,31 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
         verify(mAccessibilityService, times(1)).sendAccessibilityEvent(any(), anyInt());
         assertTrue(r.isInterruptive());
         assertNotEquals(-1, r.getLastAudiblyAlertedMs());
+    }
+
+    @Test
+    public void testMuteAccessibilityWhenInLockTaskMode() throws Exception {
+        when(mActivityTaskManager.isInLockTaskMode()).thenReturn(true);
+        NotificationRecord r = getBeepyNotification();
+
+        mAttentionHelper.buzzBeepBlinkLocked(r, DEFAULT_SIGNALS);
+
+        verifyBeepUnlooped();
+        verify(mAccessibilityService, never()).sendAccessibilityEvent(any(), anyInt());
+    }
+
+    @Test
+    public void testMuteWhenUnprovisioned() throws Exception {
+        Settings.Global.putInt(getContext().getContentResolver(),
+                Settings.Global.DEVICE_PROVISIONED, 0);
+        initAttentionHelper(mTestFlagResolver);
+
+        NotificationRecord r = getBeepyNotification();
+
+        mAttentionHelper.buzzBeepBlinkLocked(r, DEFAULT_SIGNALS);
+
+        verifyNeverBeep();
+        verify(mAccessibilityService, never()).sendAccessibilityEvent(any(), anyInt());
     }
 
     @Test
@@ -1630,6 +1663,7 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testLightsNoLightOnDevice() {
         mAttentionHelper.mHasLight = false;
+        mAttentionHelper.setLights(null);
         NotificationRecord r = getLightsNotification();
         mAttentionHelper.buzzBeepBlinkLocked(r, DEFAULT_SIGNALS);
         verifyNeverLights();
@@ -1657,6 +1691,7 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
                 com.android.internal.R.bool.config_intrusiveNotificationLed)).thenReturn(false);
         when(getContext().getResources()).thenReturn(resources);
         initAttentionHelper(mTestFlagResolver);
+        mAttentionHelper.setPriorityNotificationLight(null);
 
         NotificationRecord r = getLightsNotification();
         mAttentionHelper.buzzBeepBlinkLocked(r, DEFAULT_SIGNALS);
@@ -2289,89 +2324,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testBeepVolume_politeNotif_AvalancheStrategy() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
-        TestableFlagResolver flagResolver = new TestableFlagResolver();
-        flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
-        flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
-        initAttentionHelper(flagResolver);
-
-        triggerAvalancheEvent();
-
-        NotificationRecord r = getBeepyNotification();
-
-        // set up internal state
-        mAttentionHelper.buzzBeepBlinkLocked(r, DEFAULT_SIGNALS);
-        assertNotEquals(-1, r.getLastAudiblyAlertedMs());
-        Mockito.reset(mRingtonePlayer);
-
-        // Use different package for next notifications
-        NotificationRecord r2 = getNotificationRecord(mId, false /* insistent */, false /* once */,
-                true /* noisy */, false /* buzzy*/, false /* lights */, true, true,
-                false, null, Notification.GROUP_ALERT_ALL, false, mUser, "anotherPkg");
-
-        // update should beep at 50% volume
-        mAttentionHelper.buzzBeepBlinkLocked(r2, DEFAULT_SIGNALS);
-        verifyBeepVolume(0.5f);
-        assertNotEquals(-1, r2.getLastAudiblyAlertedMs());
-
-        // Use different package for next notifications
-        NotificationRecord r3 = getNotificationRecord(mId, false /* insistent */, false /* once */,
-                true /* noisy */, false /* buzzy*/, false /* lights */, true, true,
-                false, null, Notification.GROUP_ALERT_ALL, false, mUser, "yetAnotherPkg");
-
-        // 2nd update should beep at 0% volume
-        Mockito.reset(mRingtonePlayer);
-        int buzzBeepBlink = mAttentionHelper.buzzBeepBlinkLocked(r3, DEFAULT_SIGNALS);
-        verifyNeverBeep();
-        assertThat(buzzBeepBlink).isEqualTo(MetricsEvent.ALERT_MUTED | MUTE_REASON_COOLDOWN);
-
-        verify(mAccessibilityService, times(3)).sendAccessibilityEvent(any(), anyInt());
-        assertEquals(-1, r3.getLastAudiblyAlertedMs());
-    }
-
-    @Test
-    public void testBeepVolume_politeNotif_AvalancheStrategy_ChannelHasUserSound()
-            throws Exception {
-        mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
-        TestableFlagResolver flagResolver = new TestableFlagResolver();
-        flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
-        flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
-        initAttentionHelper(flagResolver);
-
-        triggerAvalancheEvent();
-
-        NotificationRecord r = getBeepyNotification();
-
-        // set up internal state
-        mAttentionHelper.buzzBeepBlinkLocked(r, DEFAULT_SIGNALS);
-        Mockito.reset(mRingtonePlayer);
-
-        // Use package with user-set sounds for next notifications
-        mChannel = new NotificationChannel("test2", "test2", IMPORTANCE_DEFAULT);
-        mChannel.lockFields(NotificationChannel.USER_LOCKED_SOUND);
-        NotificationRecord r2 = getNotificationRecord(mId, false /* insistent */, false /* once */,
-                true /* noisy */, false /* buzzy*/, false /* lights */, true, true,
-                false, null, Notification.GROUP_ALERT_ALL, false, mUser, "anotherPkg");
-
-        // update should beep at 100% volume
-        mAttentionHelper.buzzBeepBlinkLocked(r2, DEFAULT_SIGNALS);
-        verifyBeepVolume(1.0f);
-
-        // 2nd update should beep at 50% volume
-        Mockito.reset(mRingtonePlayer);
-        mAttentionHelper.buzzBeepBlinkLocked(r2, DEFAULT_SIGNALS);
-        verifyBeepVolume(0.5f);
-
-        verify(mAccessibilityService, times(3)).sendAccessibilityEvent(any(), anyInt());
-        assertNotEquals(-1, r.getLastAudiblyAlertedMs());
-    }
-
-    @Test
-    public void testBeepVolume_politeNotif_AvalancheStrategy_AttnUpdate() throws Exception {
-        mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS_ATTN_UPDATE);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -2413,11 +2365,9 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     }
 
     @Test
-    public void testBeepVolume_politeNotif_AvalancheStrategy_exempt_AttnUpdate()
+    public void testBeepVolume_politeNotif_AvalancheStrategy_exempt()
             throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS_ATTN_UPDATE);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -2489,8 +2439,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testBeepVolume_politeNotif_AvalancheStrategy_mixedNotif() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS_ATTN_UPDATE);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -2556,8 +2504,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testBeepVolume_politeNotif_Avalanche_exemptEmergency() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS_ATTN_UPDATE);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -2581,8 +2527,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testBeepVolume_politeNotif_Avalanche_exemptCategories() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS_ATTN_UPDATE);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -2622,8 +2566,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testBeepVolume_politeNotif_AvalancheStrategy_exempt_msgCategory() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS_ATTN_UPDATE);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -2686,8 +2628,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testBeepVolume_politeNotif_exemptEmergency() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.disableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS_ATTN_UPDATE);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -2724,8 +2664,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testBeepVolume_politeNotif_exemptCategories() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.disableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS_ATTN_UPDATE);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -2791,7 +2729,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testBeepVolume_politeNotif_justSummaries() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.disableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -2829,7 +2766,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testBeepVolume_politeNotif_autogroupSummary() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.disableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -2865,7 +2801,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testBeepVolume_politeNotif_applyPerApp() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.disableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -2913,7 +2848,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testBeepVolume_politeNotif_applyPerApp_ChannelHasUserSound() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.disableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -2962,7 +2896,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testBeepVolume_politeNotif_groupAlertSummary() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.disableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -3006,7 +2939,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testBeepVolume_politeNotif_groupAlertChildren() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.disableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME1, 50);
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_VOLUME2, 0);
@@ -3214,7 +3146,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testAvalancheStrategyTriggers() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         final int avalancheTimeoutMs = 100;
         flagResolver.setFlagOverride(NotificationFlags.NOTIF_AVALANCHE_TIMEOUT, avalancheTimeoutMs);
@@ -3245,7 +3176,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testAvalancheStrategyTriggers_disabledExtras() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         initAttentionHelper(flagResolver);
 
@@ -3269,7 +3199,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     @Test
     public void testAvalancheStrategyTriggers_nonAvalancheIntents() throws Exception {
         mSetFlagsRule.enableFlags(Flags.FLAG_POLITE_NOTIFICATIONS);
-        mSetFlagsRule.enableFlags(Flags.FLAG_CROSS_APP_POLITE_NOTIFICATIONS);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         initAttentionHelper(flagResolver);
 
@@ -3343,6 +3272,335 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
         verify(mVibrationStatsWriter).logCustomVibrationPatternEventIfNeeded(
                 VibrationStatsWriter.VIBRATION_PATTERN_PLAYED,
                 RingtoneManager.TYPE_NOTIFICATION, ringtoneNotification.getSound());
+    }
+
+    private NotificationRecord getScreeningCallRecord(int id, boolean isStarred) {
+        PendingIntent pi =
+                PendingIntent.getActivity(
+                        getContext(), 0, new Intent(), PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder builder =
+                new Builder(getContext(), mChannel.getId())
+                        .setContentTitle("call")
+                        .setSmallIcon(android.R.drawable.sym_def_app_icon)
+                        .setStyle(
+                                Notification.CallStyle.forScreeningCall(
+                                        new Person.Builder().setName("caller").build(), pi, pi));
+
+        Notification n = builder.build();
+
+        StatusBarNotification sbn =
+                new StatusBarNotification(mPkg, mPkg, id, mTag, mUid,mPid,
+                        n, mUser, null,System.currentTimeMillis());
+
+        NotificationRecord r = new NotificationRecord(getContext(), sbn, mChannel);
+        if (isStarred) {
+            r.setContactAffinity(ValidateNotificationPeople.STARRED_CONTACT);
+        } else {
+            r.setContactAffinity(ValidateNotificationPeople.NONE);
+        }
+        r.setIsRealCallIncomingNotification(false);
+        mService.addNotification(r);
+        return r;
+    }
+
+    private NotificationRecord getIncomingCallRecord(int id, boolean isStarred) {
+        PendingIntent pi =
+                PendingIntent.getActivity(
+                        getContext(), 0, new Intent(), PendingIntent.FLAG_IMMUTABLE);
+        Notification.Builder builder =
+                new Builder(getContext(), mChannel.getId())
+                        .setContentTitle("call")
+                        .setSmallIcon(android.R.drawable.sym_def_app_icon)
+                        .setStyle(
+                                Notification.CallStyle.forIncomingCall(
+                                        new Person.Builder().setName("caller").build(), pi, pi));
+
+        Notification n = builder.build();
+
+        StatusBarNotification sbn =
+                new StatusBarNotification(mPkg, mPkg, id, mTag, mUid,mPid,
+                        n, mUser, null,System.currentTimeMillis());
+
+        NotificationRecord r = new NotificationRecord(getContext(), sbn, mChannel);
+        if (isStarred) {
+            r.setContactAffinity(ValidateNotificationPeople.STARRED_CONTACT);
+        } else {
+            r.setContactAffinity(ValidateNotificationPeople.NONE);
+        }
+        r.setIsRealCallIncomingNotification(true);
+        mService.addNotification(r);
+        return r;
+    }
+
+    private NotificationRecord getNonCallStyleRecord(int id, boolean isStarred, String category) {
+        Notification.Builder builder =
+                new Builder(getContext(), mChannel.getId())
+                        .setContentTitle("call")
+                        .setSmallIcon(android.R.drawable.sym_def_app_icon);
+        if (category != null) {
+            builder.setCategory(category);
+        }
+        Notification n = builder.build();
+        StatusBarNotification sbn =
+                new StatusBarNotification(mPkg, mPkg, id, mTag, mUid,mPid,
+                        n, mUser, null,System.currentTimeMillis());
+
+        NotificationRecord r = new NotificationRecord(getContext(), sbn, mChannel);
+        r.setContactAffinity(
+                isStarred
+                        ? ValidateNotificationPeople.STARRED_CONTACT
+                        : ValidateNotificationPeople.NONE);
+        r.setIsRealCallIncomingNotification(false);
+        mService.addNotification(r);
+        return r;
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FAVORITES_INCOMING_CALL_LIGHTS)
+    public void testBuzzBeepBlinkLocked_incomingCall_favorite() {
+        Settings.Secure.putInt(
+                getContext().getContentResolver(),
+                Settings.Secure.LIGHT_ANIMATION_FAVORITE_CALLS_ENABLED,
+                1);
+
+        initAttentionHelper(mTestFlagResolver);
+
+        mAttentionHelper.setScreenOn(false);
+        mAttentionHelper.setUserPresent(false);
+
+        NotificationRecord r = getIncomingCallRecord(mId, true);
+
+        mAttentionHelper.buzzBeepBlinkLocked(r, DEFAULT_SIGNALS);
+
+        verify(mPriorityNotificationLight)
+                .setFlashing(
+                        eq(Color.WHITE), eq(LogicalLight.LIGHT_FLASH_TIMED), eq(500), eq(2000));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FAVORITES_INCOMING_CALL_LIGHTS)
+    public void testBuzzBeepBlinkLocked_incomingCall_notFavorite() {
+        Settings.Secure.putInt(
+                getContext().getContentResolver(),
+                Settings.Secure.LIGHT_ANIMATION_FAVORITE_CALLS_ENABLED,
+                1);
+
+        initAttentionHelper(mTestFlagResolver);
+
+        mAttentionHelper.setScreenOn(false);
+        mAttentionHelper.setUserPresent(false);
+
+        NotificationRecord r = getIncomingCallRecord(mId, false);
+
+        mAttentionHelper.buzzBeepBlinkLocked(r, DEFAULT_SIGNALS);
+
+        verify(mPriorityNotificationLight, never())
+                .setFlashing(anyInt(), anyInt(), anyInt(), anyInt());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FAVORITES_INCOMING_CALL_LIGHTS)
+    public void testEvaluateLateCallLightLocked_incomingCall_favorite_screenOff() {
+        Settings.Secure.putInt(
+                getContext().getContentResolver(),
+                Settings.Secure.LIGHT_ANIMATION_FAVORITE_CALLS_ENABLED,
+                1);
+
+        initAttentionHelper(mTestFlagResolver);
+
+        mAttentionHelper.setScreenOn(false);
+        mAttentionHelper.setUserPresent(false);
+
+        NotificationRecord r = getIncomingCallRecord(mId, true);
+
+        mAttentionHelper.evaluateLateCallLightLocked(r, DEFAULT_SIGNALS);
+
+        verify(mPriorityNotificationLight)
+                .setFlashing(
+                        eq(Color.WHITE), eq(LogicalLight.LIGHT_FLASH_TIMED), eq(500), eq(2000));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FAVORITES_INCOMING_CALL_LIGHTS)
+    public void testEvaluateLateCallLightLocked_incomingCall_notFavorite() {
+        Settings.Secure.putInt(
+                getContext().getContentResolver(),
+                Settings.Secure.LIGHT_ANIMATION_FAVORITE_CALLS_ENABLED,
+                1);
+
+        initAttentionHelper(mTestFlagResolver);
+
+        mAttentionHelper.setScreenOn(false);
+        mAttentionHelper.setUserPresent(false);
+
+        NotificationRecord r = getIncomingCallRecord(mId, false);
+
+        mAttentionHelper.evaluateLateCallLightLocked(r, DEFAULT_SIGNALS);
+
+        verify(mPriorityNotificationLight, never())
+                .setFlashing(anyInt(), anyInt(), anyInt(), anyInt());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FAVORITES_INCOMING_CALL_LIGHTS)
+    public void testEvaluateLateCallLightLocked_incomingCall_favorite_disabledSettings() {
+        Settings.Secure.putInt(
+                getContext().getContentResolver(),
+                Settings.Secure.LIGHT_ANIMATION_FAVORITE_CALLS_ENABLED,
+                0);
+
+        initAttentionHelper(mTestFlagResolver);
+
+        mAttentionHelper.setScreenOn(false);
+        mAttentionHelper.setUserPresent(false);
+
+        NotificationRecord r = getIncomingCallRecord(mId, true);
+
+        mAttentionHelper.evaluateLateCallLightLocked(r, DEFAULT_SIGNALS);
+
+        verify(mPriorityNotificationLight, never())
+                .setFlashing(anyInt(), anyInt(), anyInt(), anyInt());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FAVORITES_INCOMING_CALL_LIGHTS)
+    public void testEvaluateLateCallLightLocked_incomingCall_favorite_userPresent() {
+        Settings.Secure.putInt(
+                getContext().getContentResolver(),
+                Settings.Secure.LIGHT_ANIMATION_FAVORITE_CALLS_ENABLED,
+                1);
+
+        initAttentionHelper(mTestFlagResolver);
+
+        mAttentionHelper.setScreenOn(true);
+        mAttentionHelper.setUserPresent(true);
+
+        NotificationRecord r = getIncomingCallRecord(mId, true);
+
+        mAttentionHelper.evaluateLateCallLightLocked(r, DEFAULT_SIGNALS);
+
+        verify(mPriorityNotificationLight, never())
+                .setFlashing(anyInt(), anyInt(), anyInt(), anyInt());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FAVORITES_INCOMING_CALL_LIGHTS)
+    public void testEvaluateLateCallLightLocked_stopLight() {
+        Settings.Secure.putInt(
+                getContext().getContentResolver(),
+                Settings.Secure.LIGHT_ANIMATION_FAVORITE_CALLS_ENABLED,
+                1);
+
+        initAttentionHelper(mTestFlagResolver);
+
+        mAttentionHelper.setScreenOn(false);
+        mAttentionHelper.setUserPresent(false);
+
+        NotificationRecord r = getIncomingCallRecord(mId, true);
+
+        // Start light
+        mAttentionHelper.evaluateLateCallLightLocked(r, DEFAULT_SIGNALS);
+        verify(mPriorityNotificationLight)
+                .setFlashing(
+                        eq(Color.WHITE), eq(LogicalLight.LIGHT_FLASH_TIMED), eq(500), eq(2000));
+
+        // Stop light
+        mAttentionHelper.setUserPresent(true);
+        mAttentionHelper.updateLightsLocked();
+
+        verify(mPriorityNotificationLight, atLeastOnce()).turnOff();
+    }
+
+
+    @Test
+    @EnableFlags(Flags.FLAG_FAVORITES_INCOMING_CALL_LIGHTS)
+    public void testCallLight_UpdateToScreeningCallCancelsLight() {
+        Settings.Secure.putInt(
+                getContext().getContentResolver(),
+                Settings.Secure.LIGHT_ANIMATION_FAVORITE_CALLS_ENABLED,
+                1);
+
+        initAttentionHelper(mTestFlagResolver);
+
+        mAttentionHelper.setScreenOn(false);
+        mAttentionHelper.setUserPresent(false);
+
+        // 1. Initial valid call notification
+        NotificationRecord r = getIncomingCallRecord(mId, true);
+        mAttentionHelper.evaluateLateCallLightLocked(r, DEFAULT_SIGNALS);
+        verify(mPriorityNotificationLight)
+                .setFlashing(
+                        eq(Color.WHITE), eq(LogicalLight.LIGHT_FLASH_TIMED), eq(500), eq(2000));
+
+
+        // 2. Update to screening call
+        NotificationRecord screeningCall = getScreeningCallRecord(mId, true);
+        mAttentionHelper.evaluateLateCallLightLocked(screeningCall, DEFAULT_SIGNALS);
+
+        // Light should turn off because it's no longer an incoming call
+        verify(mPriorityNotificationLight, atLeastOnce()).turnOff();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FAVORITES_INCOMING_CALL_LIGHTS)
+    public void testCallLight_UpdateToIncomingCallDoesNotRestartLight() {
+        Settings.Secure.putInt(
+                getContext().getContentResolver(),
+                Settings.Secure.LIGHT_ANIMATION_FAVORITE_CALLS_ENABLED,
+                1);
+
+        initAttentionHelper(mTestFlagResolver);
+
+        mAttentionHelper.setScreenOn(false);
+        mAttentionHelper.setUserPresent(false);
+
+        // 1. Initial valid call notification
+        NotificationRecord r = getIncomingCallRecord(mId, true);
+        mAttentionHelper.evaluateLateCallLightLocked(r, DEFAULT_SIGNALS);
+        verify(mPriorityNotificationLight)
+                .setFlashing(
+                        eq(Color.WHITE), eq(LogicalLight.LIGHT_FLASH_TIMED), eq(500), eq(2000));
+
+        Mockito.reset(mPriorityNotificationLight);
+
+        // 2. Update with another incoming call notification
+        NotificationRecord r2 = getIncomingCallRecord(mId, true);
+        mAttentionHelper.evaluateLateCallLightLocked(r2, DEFAULT_SIGNALS);
+
+        // Light should NOT be restarted (flashing again)
+        verify(mPriorityNotificationLight, never())
+                .setFlashing(anyInt(), anyInt(), anyInt(), anyInt());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FAVORITES_INCOMING_CALL_LIGHTS)
+    public void testCallLight_MissedCallCancelsLight() {
+        Settings.Secure.putInt(
+                getContext().getContentResolver(),
+                Settings.Secure.LIGHT_ANIMATION_FAVORITE_CALLS_ENABLED,
+                1);
+
+        initAttentionHelper(mTestFlagResolver);
+
+        mAttentionHelper.setScreenOn(false);
+        mAttentionHelper.setUserPresent(false);
+
+        // 1. Initial valid call notification
+        NotificationRecord r = getIncomingCallRecord(mId, true);
+        mAttentionHelper.evaluateLateCallLightLocked(r, DEFAULT_SIGNALS);
+        verify(mPriorityNotificationLight)
+                .setFlashing(
+                        eq(Color.WHITE), eq(LogicalLight.LIGHT_FLASH_TIMED), eq(500), eq(2000));
+
+        Mockito.reset(mPriorityNotificationLight);
+
+        // 2. Update with Missed Call category
+        NotificationRecord missedCall =
+                getNonCallStyleRecord(mId, true, Notification.CATEGORY_MISSED_CALL);
+        mAttentionHelper.evaluateLateCallLightLocked(missedCall, DEFAULT_SIGNALS);
+
+        // Light should turn off because missed call clears cache
+        verify(mPriorityNotificationLight).turnOff();
     }
 
     static class VibrateRepeatMatcher implements ArgumentMatcher<VibrationEffect> {

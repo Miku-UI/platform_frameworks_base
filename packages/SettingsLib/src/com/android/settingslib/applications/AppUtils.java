@@ -16,6 +16,8 @@
 
 package com.android.settingslib.applications;
 
+import static com.android.settingslib.flags.Flags.enableLimitedAppInfoMetadataForApex;
+
 import android.app.Application;
 import android.content.ComponentName;
 import android.content.Context;
@@ -29,6 +31,7 @@ import android.content.pm.ResolveInfo;
 import android.graphics.drawable.Drawable;
 import android.hardware.usb.IUsbManager;
 import android.net.Uri;
+import android.os.Bundle;
 import android.os.Environment;
 import android.os.RemoteException;
 import android.os.SystemProperties;
@@ -36,6 +39,8 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.text.TextUtils;
 import android.util.Log;
+
+import androidx.annotation.VisibleForTesting;
 
 import com.android.settingslib.R;
 import com.android.settingslib.Utils;
@@ -153,9 +158,18 @@ public class AppUtils {
     }
 
     /**
-     * Returns a boolean indicating whether a given package is a mainline module.
+     * Returns a boolean indicating whether a given package is an APEX or an APK-in-APEX.
+     *
+     * <p>This method was previously called {@code isMainlineModule}, but it has been renamed
+     * to reflect the fact that it doesn't actually distinguish between mainline modules and
+     * other APEXes.
+     *
+     * <p>NOTE: Use {@link #isLimitedAppInfoPackage} to determine if an APK's AppInfo UI
+     * behavior should be limited (limited AppInfo is shown for all APKs-in-APEX, not only
+     * those in mainline modules).
      */
-    public static boolean isMainlineModule(PackageManager pm, String packageName) {
+    @VisibleForTesting
+    static boolean isModulePackage(PackageManager pm, String packageName) {
         // Check if the package is listed among the system modules.
         try {
             pm.getModuleInfo(packageName, 0 /* flags */);
@@ -176,6 +190,47 @@ public class AppUtils {
                 return pkg.applicationInfo.sourceDir.startsWith(
                         Environment.getApexDirectory().getAbsolutePath());
             }
+        } catch (PackageManager.NameNotFoundException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Returns whether AppInfo UI behavior should be limited for the specified package.
+     *
+     * <p>Limited AppInfo behavior is used by default for all APKs-in-APEX, but individual
+     * APEXes can opt out by specifying the following in their AndroidManifest.xml:
+     *
+     * <pre>
+     * &lt;application&gt;
+     *   &lt;meta-data
+     *       android:name="com.android.settings.limited_app_info"
+     *       android:value="false" /&gt;
+     * &lt;/application&gt;
+     * </pre>
+     */
+    public static boolean isLimitedAppInfoPackage(PackageManager pm, String packageName) {
+        if (!enableLimitedAppInfoMetadataForApex()) {
+            return isModulePackage(pm, packageName);
+        }
+        try {
+            final PackageInfo pkgInfo = pm.getPackageInfo(packageName, PackageManager.MATCH_APEX);
+            if (pkgInfo.isApex) {
+                // APEX packages themselves are always limited.
+                return true;
+            }
+            final String apexPackageName = pkgInfo.getApexPackageName();
+            if (apexPackageName == null) {
+                // Not an APK-in-APEX, never limited.
+                return false;
+            }
+            final Bundle apexMetaData =
+                    pm.getPackageInfo(
+                            apexPackageName,
+                            PackageManager.MATCH_APEX | PackageManager.GET_META_DATA)
+                            .applicationInfo.metaData;
+            return (apexMetaData == null
+                    || apexMetaData.getBoolean("com.android.settings.limited_app_info", true));
         } catch (PackageManager.NameNotFoundException e) {
             return false;
         }

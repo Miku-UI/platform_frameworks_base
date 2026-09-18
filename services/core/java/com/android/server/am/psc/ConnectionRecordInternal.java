@@ -16,12 +16,13 @@
 
 package com.android.server.am.psc;
 
+import android.annotation.NonNull;
+import android.app.ActivityManager.ProcessState;
 import android.content.Context;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Slog;
 
-import com.android.server.am.OomAdjuster;
-import com.android.server.am.OomAdjusterImpl;
+import com.android.server.am.Flags;
 import com.android.server.wm.ActivityServiceConnectionsHolder;
 
 /**
@@ -36,6 +37,13 @@ public abstract class ConnectionRecordInternal implements OomAdjusterImpl.Connec
     private long mFlags;
     /** Whether there are currently ongoing transactions over this service connection. */
     private boolean mOngoingCalls;
+    /** The associated bound service session if created. */
+    private BoundServiceSession mBoundServiceSession;
+    /**
+     * The service binding edge from the service client to the host.
+     * This is {@code null} unless {@link Flags#enableCapabilityControllerComputation} is true.
+     */
+    private final ServiceBindingEdge mServiceBindingEdge;
 
     /** Returns the {@link ActivityServiceConnectionsHolder} associated with this connection. */
     public abstract ActivityServiceConnectionsHolder getActivity();
@@ -44,7 +52,7 @@ public abstract class ConnectionRecordInternal implements OomAdjusterImpl.Connec
     public abstract ServiceRecordInternal getService();
 
     /** Returns the client process associated with this connection. */
-    public abstract ProcessRecordInternal getClient();
+    public abstract @NonNull ProcessRecordInternal getClient();
 
     /**
      * Returns the attributed client process associated with this connection, if applicable (e.g.,
@@ -53,10 +61,19 @@ public abstract class ConnectionRecordInternal implements OomAdjusterImpl.Connec
     public abstract ProcessRecordInternal getAttributedClient();
 
     /** Tracks the current process state and sequence number for association management. */
-    public abstract void trackProcState(int procState, int seq);
+    public abstract void trackProcState(@ProcessState int procState, int seq);
+
+    /** Returns a concise string representation of this record for logging and debugging. */
+    public abstract String toShortString();
 
     public ConnectionRecordInternal(long flags) {
         this.mFlags = flags;
+
+        if (Flags.enableCapabilityControllerComputation()) {
+            mServiceBindingEdge = new ServiceBindingEdge(this);
+        } else {
+            mServiceBindingEdge = null;
+        }
     }
 
     public long getFlags() {
@@ -99,7 +116,7 @@ public abstract class ConnectionRecordInternal implements OomAdjusterImpl.Connec
      *
      * @return The combined set of flags that were modified.
      */
-    public boolean updateFlags(final long newFlags) {
+    boolean updateFlags(final long newFlags) {
         final long updatedFlags = mFlags ^ newFlags;
         if (updatedFlags != (updatedFlags & Context.BIND_UPDATEABLE_FLAGS)) {
             Slog.wtf(TAG, "Attempt to update flags outside of BIND_UPDATEABLE_FLAGS with "
@@ -111,17 +128,40 @@ public abstract class ConnectionRecordInternal implements OomAdjusterImpl.Connec
         return updatedFlags != 0;
     }
 
+    /** Checks if this connection is binding to the same process. */
+    public boolean isBindingToSelf() {
+        final ProcessRecordInternal host = getService().getHostProcessInternal();
+        if (host == null) {
+            return false;
+        }
+        // Check if the host process is the same as the client process.
+        return host == getClient();
+    }
+
     public boolean getOngoingCalls() {
         return mOngoingCalls;
     }
 
     /** Sets the ongoing calls status for this connection. Returns true if the status is changed. */
-    public boolean setOngoingCalls(boolean ongoingCalls) {
+    boolean setOngoingCalls(boolean ongoingCalls) {
         if (mOngoingCalls != ongoingCalls) {
             mOngoingCalls = ongoingCalls;
             return true;
         }
         return false;
+    }
+
+    public BoundServiceSession getBoundServiceSession() {
+        return mBoundServiceSession;
+    }
+
+    void setBoundServiceSession(BoundServiceSession boundServiceSession) {
+        mBoundServiceSession = boundServiceSession;
+    }
+
+    /** This is {@code null} unless {@link Flags#enableCapabilityControllerComputation} is true. */
+    final ServiceBindingEdge getServiceBindingEdge() {
+        return mServiceBindingEdge;
     }
 
     @Override

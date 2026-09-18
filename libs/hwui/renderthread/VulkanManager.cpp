@@ -20,6 +20,7 @@
 #include <EGL/eglext.h>
 #include <android/sync.h>
 #include <gui/TraceUtils.h>
+#include <include/android/vk/AndroidVulkanMemoryAllocator.h>
 #include <include/gpu/ganesh/GrBackendSemaphore.h>
 #include <include/gpu/ganesh/GrBackendSurface.h>
 #include <include/gpu/ganesh/GrDirectContext.h>
@@ -30,6 +31,7 @@
 #include <include/gpu/ganesh/vk/GrVkDirectContext.h>
 #include <include/gpu/ganesh/vk/GrVkTypes.h>
 #include <include/gpu/vk/VulkanBackendContext.h>
+#include <include/gpu/vk/VulkanMemoryAllocator.h>
 #include <ui/FatVector.h>
 
 #include <sstream>
@@ -549,6 +551,8 @@ sk_sp<GrDirectContext> VulkanManager::createContext(GrContextOptions& options,
     backendContext.fDeviceLostProc = (contextType == ContextType::kRenderThread)
                                              ? deviceLostProcRenderThread
                                              : deviceLostProcUploadThread;
+    SkiaVMA::Options opts{.fThreadSafe = false};
+    backendContext.fMemoryAllocator = SkiaVMA::Make(backendContext, opts);
 
     LOG_ALWAYS_FATAL_IF(options.fContextDeleteProc != nullptr, "Conflicting fContextDeleteProcs!");
     this->incStrong((void*)onGrContextReleased);

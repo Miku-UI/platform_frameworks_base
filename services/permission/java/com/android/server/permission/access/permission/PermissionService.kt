@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package com.android.server.permission.access.permission
 
 import android.Manifest
@@ -55,12 +57,15 @@ import android.util.IntArray as GrowingIntArray
 import android.util.Slog
 import android.util.SparseArray
 import android.util.SparseBooleanArray
+import android.util.SparseIntArray
 import com.android.internal.annotations.GuardedBy
 import com.android.internal.compat.IPlatformCompat
 import com.android.internal.logging.MetricsLogger
 import com.android.internal.logging.nano.MetricsProto
 import com.android.internal.util.DumpUtils
 import com.android.internal.util.Preconditions
+import com.android.os.privatecompute.PrivateComputeAtomsLog.PCC_PERMISSION_CHECK_RESULT__RESULT__PERMISSION_DENIED_NOT_IN_PCC_ALLOWLIST
+import com.android.os.privatecompute.PrivateComputeAtomsLog.PCC_PERMISSION_CHECK_RESULT__RESULT__PERMISSION_INHERITED_FROM_MAIN_APP
 import com.android.server.FgThread
 import com.android.server.LocalManagerRegistry
 import com.android.server.LocalServices
@@ -68,6 +73,7 @@ import com.android.server.PermissionThread
 import com.android.server.ServiceThread
 import com.android.server.SystemConfig
 import com.android.server.companion.virtual.VirtualDeviceManagerInternal
+import com.android.server.permission.PermissionBpfMap
 import com.android.server.permission.access.AccessCheckingService
 import com.android.server.permission.access.AccessState
 import com.android.server.permission.access.AppOpUri
@@ -77,8 +83,8 @@ import com.android.server.permission.access.MutateStateScope
 import com.android.server.permission.access.PermissionUri
 import com.android.server.permission.access.UidUri
 import com.android.server.permission.access.appop.AppIdAppOpPolicy
-import com.android.server.permission.access.collection.* // ktlint-disable no-wildcard-imports
-import com.android.server.permission.access.immutable.* // ktlint-disable no-wildcard-imports
+import com.android.server.permission.access.collection.*
+import com.android.server.permission.access.immutable.*
 import com.android.server.permission.access.util.PermissionEnforcer
 import com.android.server.permission.access.util.andInv
 import com.android.server.permission.access.util.hasAnyBit
@@ -99,6 +105,7 @@ import com.android.server.pm.permission.PermissionManagerServiceInterface
 import com.android.server.pm.permission.PermissionManagerServiceInternal
 import com.android.server.pm.pkg.AndroidPackage
 import com.android.server.pm.pkg.PackageState
+import com.android.server.privatecompute.PrivateComputeStatsLogUtil
 import java.io.FileDescriptor
 import java.io.PrintWriter
 import java.util.concurrent.CompletableFuture
@@ -138,9 +145,12 @@ class PermissionService(private val service: AccessCheckingService) :
 
     private var virtualDeviceManagerInternal: VirtualDeviceManagerInternal? = null
 
-    /**
-     * Cache of PermissionControllerManager instances, keyed by user ID.
-     */
+    private val bpfMapPermissionNamesLock = Any()
+    @GuardedBy("bpfMapPermissionNamesLock")
+    @Volatile
+    private var bpfMapPermissionNames = ArrayMap<PermissionBpfMap, List<String>>()
+
+    /** Cache of PermissionControllerManager instances, keyed by user ID. */
     private val permissionControllerManagers = SparseArray<PermissionControllerManager>()
 
     /**
@@ -169,7 +179,8 @@ class PermissionService(private val service: AccessCheckingService) :
         // Disable the package info and package permission caches locally but leave the
         // checkPermission cache active.
         PackageManagerService.invalidatePackageInfoCache(
-                PackageMetrics.INVALIDATION_REASON_PERMISSION_SERVICE_INIT)
+            PackageMetrics.INVALIDATION_REASON_PERMISSION_SERVICE_INIT
+        )
         PermissionManager.disablePackageNamePermissionCache()
 
         handlerThread =
@@ -554,6 +565,27 @@ class PermissionService(private val service: AccessCheckingService) :
         val userId = UserHandle.getUserId(uid)
         if (!userManagerInternal.exists(userId)) {
             return PackageManager.PERMISSION_DENIED
+        }
+
+        if (
+            android.app.privatecompute.flags.Flags.enablePccFrameworkSupport() &&
+                Process.isPrivateComputeCoreUid(uid)
+        ) {
+            val permission = service.getState { with(policy) { getPermissions()[permissionName] } }
+            if (permission?.isAllowedInPrivateComputeCore != true) {
+                PrivateComputeStatsLogUtil.logPccPermissionCheckResult(
+                    PCC_PERMISSION_CHECK_RESULT__RESULT__PERMISSION_DENIED_NOT_IN_PCC_ALLOWLIST,
+                    permissionName,
+                    uid,
+                )
+                return PackageManager.PERMISSION_DENIED
+            } else {
+                PrivateComputeStatsLogUtil.logPccPermissionCheckResult(
+                    PCC_PERMISSION_CHECK_RESULT__RESULT__PERMISSION_INHERITED_FROM_MAIN_APP,
+                    permissionName,
+                    uid,
+                )
+            }
         }
 
         // PackageManagerInternal.getPackage(int) already checks package visibility and enforces
@@ -1950,9 +1982,15 @@ class PermissionService(private val service: AccessCheckingService) :
         }
     }
 
-    override fun resetRuntimePermissions(androidPackage: AndroidPackage, userId: Int) {
+    override fun resetRuntimePermissions(
+        androidPackage: AndroidPackage,
+        userId: Int,
+        restorePregrants: Boolean,
+    ) {
         service.mutateState {
-            with(policy) { resetRuntimePermissions(androidPackage.packageName, userId) }
+            with(policy) {
+                resetRuntimePermissions(androidPackage.packageName, userId, restorePregrants)
+            }
             with(devicePolicy) { resetRuntimePermissions(androidPackage.packageName, userId) }
         }
     }
@@ -1964,7 +2002,7 @@ class PermissionService(private val service: AccessCheckingService) :
                     if (packageState.isApex) {
                         return@forEach
                     }
-                    with(policy) { resetRuntimePermissions(packageState.packageName, userId) }
+                    with(policy) { resetRuntimePermissions(packageState.packageName, userId, true) }
                     with(devicePolicy) { resetRuntimePermissions(packageState.packageName, userId) }
                 }
             }
@@ -1989,9 +2027,9 @@ class PermissionService(private val service: AccessCheckingService) :
         onPermissionsChangeListeners.removeListener(listener)
     }
 
-    override fun getSplitPermissions(): List<SplitPermissionInfoParcelable> {
+    override fun getSplitPermissions(includeDisabled: Boolean): List<SplitPermissionInfoParcelable> {
         return PermissionManager.splitPermissionInfoListToParcelableList(
-            systemConfig.splitPermissions
+            systemConfig.getSplitPermissions(includeDisabled)
         )
     }
 
@@ -2044,11 +2082,12 @@ class PermissionService(private val service: AccessCheckingService) :
     override fun backupRuntimePermissions(userId: Int): ByteArray? {
         Preconditions.checkArgumentNonnegative(userId, "userId cannot be null")
         val backup = CompletableFuture<ByteArray>()
-        getPermissionControllerManager(userId).getRuntimePermissionBackup(
-            UserHandle.of(userId),
-            PermissionThread.getExecutor(),
-            backup::complete,
-        )
+        getPermissionControllerManager(userId)
+            ?.getRuntimePermissionBackup(
+                UserHandle.of(userId),
+                PermissionThread.getExecutor(),
+                backup::complete,
+            ) ?: return null
 
         return try {
             backup.get(BACKUP_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
@@ -2072,10 +2111,8 @@ class PermissionService(private val service: AccessCheckingService) :
         synchronized(isDelayedPermissionBackupFinished) {
             isDelayedPermissionBackupFinished -= userId
         }
-        getPermissionControllerManager(userId).stageAndApplyRuntimePermissionsBackup(
-            backup,
-            UserHandle.of(userId),
-        )
+        getPermissionControllerManager(userId)
+            ?.stageAndApplyRuntimePermissionsBackup(backup, UserHandle.of(userId))
     }
 
     override fun restoreDelayedRuntimePermissions(packageName: String, userId: Int) {
@@ -2087,7 +2124,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 return
             }
         }
-        getPermissionControllerManager(userId).applyStagedRuntimePermissionBackup(
+        getPermissionControllerManager(userId)?.applyStagedRuntimePermissionBackup(
             packageName,
             UserHandle.of(userId),
             PermissionThread.getExecutor(),
@@ -2101,12 +2138,22 @@ class PermissionService(private val service: AccessCheckingService) :
         }
     }
 
-    private fun getPermissionControllerManager(userId: Int): PermissionControllerManager =
+    private fun getPermissionControllerManager(userId: Int): PermissionControllerManager? =
         synchronized(permissionControllerManagers) {
-            permissionControllerManagers.getOrPut(userId) {
-                val userContext = context.createContextAsUser(UserHandle.of(userId), 0)
-                PermissionControllerManager(userContext, PermissionThread.getHandler())
-            }
+            permissionControllerManagers[userId]
+                ?: try {
+                    val userContext = context.createContextAsUser(UserHandle.of(userId), 0)
+                    PermissionControllerManager(userContext, PermissionThread.getHandler()).also {
+                        permissionControllerManagers[userId] = it
+                    }
+                } catch (e: IllegalStateException) {
+                    Slog.w(
+                        LOG_TAG,
+                        "Failed to create PermissionControllerManager for user $userId",
+                        e,
+                    )
+                    null
+                }
         }
 
     override fun dump(fd: FileDescriptor, pw: PrintWriter, args: Array<out String>?) {
@@ -2530,6 +2577,141 @@ class PermissionService(private val service: AccessCheckingService) :
         }
     }
 
+    fun registerBpfMap(bpfMap: PermissionBpfMap, permissionNames: List<String>) {
+        require(permissionNames.isNotEmpty()) { "permissionNames cannot be empty" }
+        require(permissionNames.size <= MAX_ALLOWED_BPF_PERMISSIONS) {
+            "Too many permissions, max of $MAX_ALLOWED_BPF_PERMISSIONS allowed, provided " +
+                "${permissionNames.size}"
+        }
+        require(bpfMap !in bpfMapPermissionNames) { "BPF map already registered" }
+        require(
+            permissionNames.allIndexed { _, permissionName ->
+                permissionName in ALLOWED_BPF_PERMISSIONS
+            }
+        ) {
+            "Permission ${permissionNames.first { it !in ALLOWED_BPF_PERMISSIONS }} is not " +
+                "allowed for BPF map registration"
+        }
+
+        synchronized(bpfMapPermissionNamesLock) {
+            bpfMapPermissionNames =
+                ArrayMap(bpfMapPermissionNames).apply { this[bpfMap] = permissionNames }
+        }
+        val uidsPermissionBits = getBpfMapUidsPermissionBits(permissionNames)
+        bpfMap.setUidsPermissionBits(uidsPermissionBits)
+    }
+
+    private fun getBpfMapUidsPermissionBits(permissionNames: List<String>) =
+        service.getState {
+            SparseIntArray().apply {
+                state.userStates.forEachIndexed { _, userId, _ ->
+                    getBpfMapUidsPermissionBitsForUser(userId, permissionNames, true, this)
+                }
+            }
+        }
+
+    private fun getBpfMapNonAppUidsPermissionBitsForUser(
+        userId: Int,
+        permissionNames: List<String>,
+    ) =
+        SparseIntArray().apply {
+            getBpfMapUidsPermissionBitsForUser(userId, permissionNames, false, this)
+        }
+
+    private fun getBpfMapUidsPermissionBitsForUser(
+        userId: Int,
+        permissionNames: List<String>,
+        includeAppUids: Boolean,
+        uidsPermissionBits: SparseIntArray,
+    ): SparseIntArray =
+        service.getState {
+            val appIds = MutableIntSet()
+            if (includeAppUids) {
+                state.userStates[userId]!!.appIdPermissionFlags.forEachIndexed { _, appId, _ ->
+                    appIds += appId
+                }
+            }
+            systemConfig.systemPermissions.forEachIndexed { _, appId, _ -> appIds += appId }
+            appIds.forEachIndexed { _, appId ->
+                val permissionBits = getBpfMapPermissionBits(appId, userId, permissionNames)
+                if (permissionBits != 0) {
+                    val uid = UserHandle.getUid(userId, appId)
+                    uidsPermissionBits[uid] = permissionBits
+                }
+            }
+            val allGrantedPermissionsBits = getAllGrantedPermissionsBits(permissionNames)
+            uidsPermissionBits[UserHandle.getUid(userId, Process.ROOT_UID)] =
+                allGrantedPermissionsBits
+            uidsPermissionBits[UserHandle.getUid(userId, Process.SYSTEM_UID)] =
+                allGrantedPermissionsBits
+
+            uidsPermissionBits
+        }
+
+    private fun GetStateScope.getBpfMapPermissionBits(
+        appId: Int,
+        userId: Int,
+        permissionNames: List<String>,
+    ): Int {
+        if (isRootOrSystemAppId(appId)) {
+            return getAllGrantedPermissionsBits(permissionNames)
+        }
+        val packageNames = state.externalState.appIdPackageNames[appId]
+        val hasAnyPackage = packageNames?.isNotEmpty() ?: false
+        // Note that instant apps can't have shared UIDs, so we only need to check the
+        // first package state.
+        val isInstantApp =
+            if (hasAnyPackage) {
+                state.externalState.packageStates[packageNames.first()]
+                    ?.getUserStateOrDefault(userId)
+                    ?.isInstantApp ?: false
+            } else {
+                false
+            }
+        var permissionBits = 0
+        permissionNames.forEachIndexed { index, permissionName ->
+            val isGranted =
+                if (hasAnyPackage) {
+                    isBpfMapPermissionGranted(appId, userId, isInstantApp, permissionName) ||
+                        getFullerPermission(permissionName).let {
+                            it != null && isBpfMapPermissionGranted(appId, userId, isInstantApp, it)
+                        }
+                } else {
+                    isSystemUidPermissionGranted(appId, permissionName)
+                }
+            if (isGranted) {
+                permissionBits = permissionBits or (1 shl index)
+            }
+        }
+        return permissionBits
+    }
+
+    private fun GetStateScope.isBpfMapPermissionGranted(
+        appId: Int,
+        userId: Int,
+        isInstantApp: Boolean,
+        permissionName: String,
+    ): Boolean {
+        if (isInstantApp) {
+            val permission = state.systemState.permissions[permissionName] ?: return false
+            if (!permission.isInstant) {
+                return false
+            }
+        }
+        val flags = with(policy) { getPermissionFlags(appId, userId, permissionName) }
+        return PermissionFlags.isAppOpGranted(flags)
+    }
+
+    /** Generate a bitmap representing all permissions being granted. */
+    private fun getAllGrantedPermissionsBits(permissionNames: List<String>) =
+        ((1L shl permissionNames.size) - 1).toInt()
+
+    fun unregisterBpfMap(bpfMap: PermissionBpfMap) {
+        synchronized(bpfMapPermissionNamesLock) {
+            bpfMapPermissionNames = ArrayMap(bpfMapPermissionNames).apply { this -= bpfMap }
+        }
+    }
+
     private inline fun <T> withCorkedPackageInfoCache(block: () -> T): T {
         PackageManager.corkPackageInfoCache()
         try {
@@ -2540,8 +2722,11 @@ class PermissionService(private val service: AccessCheckingService) :
     }
 
     /** Check whether a UID is root or system UID. */
-    private fun isRootOrSystemUid(uid: Int) =
-        when (UserHandle.getAppId(uid)) {
+    private fun isRootOrSystemUid(uid: Int) = isRootOrSystemAppId(UserHandle.getAppId(uid))
+
+    /** Check whether an app ID is root or system app ID. */
+    private fun isRootOrSystemAppId(appId: Int) =
+        when (appId) {
             Process.ROOT_UID,
             Process.SYSTEM_UID -> true
             else -> false
@@ -2629,6 +2814,10 @@ class PermissionService(private val service: AccessCheckingService) :
         // Mapping from UID to whether only notifications permissions are revoked.
         private val runtimePermissionRevokedUids = SparseBooleanArray()
         private val gidsChangedUids = MutableIntSet()
+        private val permissionChangedBpfMapUids = ArrayMap<PermissionBpfMap, MutableIntSet>()
+        private val addedUserIds = MutableIntSet()
+        private val removedUserIds = MutableIntSet()
+        private val removedAppIds = MutableIntSet()
 
         private var isKillRuntimePermissionRevokedUidsSkipped = false
         private val killRuntimePermissionRevokedUidsReasons = ArraySet<String>()
@@ -2690,14 +2879,77 @@ class PermissionService(private val service: AccessCheckingService) :
             if (permission.hasGids && (wasPermissionGranted != isPermissionGranted)) {
                 gidsChangedUids += uid
             }
+
+            if (
+                deviceId == VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT &&
+                    PermissionFlags.isAppOpGranted(oldFlags) !=
+                        PermissionFlags.isAppOpGranted(newFlags)
+            ) {
+                bpfMapPermissionNames.forEachIndexed { _, bpfMap, permissionNames ->
+                    if (permissionName in permissionNames) {
+                        permissionChangedBpfMapUids.getOrPut(bpfMap) { MutableIntSet() } +=
+                            UserHandle.getUid(userId, appId)
+                    }
+                }
+            }
+        }
+
+        override fun onUserAdded(userId: Int) {
+            addedUserIds += userId
+        }
+
+        override fun onUserRemoved(userId: Int) {
+            removedUserIds += userId
+        }
+
+        override fun onAppIdRemoved(appId: Int) {
+            removedAppIds += appId
         }
 
         override fun onStateMutated() {
             if (isPermissionFlagsChanged) {
                 PackageManagerService.invalidatePackageInfoCache(
-                        PackageMetrics.INVALIDATION_REASON_PERMISSION_FLAG_CHANGED)
+                    PackageMetrics.INVALIDATION_REASON_PERMISSION_FLAG_CHANGED
+                )
                 isPermissionFlagsChanged = false
             }
+
+            // Perform synchronous calls to update the BPF map. This ensures the new permission
+            // state is reflected in the map before clients are notified via onPermissionsChanged.
+            addedUserIds.forEachIndexed { _, userId ->
+                bpfMapPermissionNames.forEachIndexed { _, bpfMap, permissionNames ->
+                    val uidsPermissionBits =
+                        getBpfMapNonAppUidsPermissionBitsForUser(userId, permissionNames)
+                    bpfMap.setUidsPermissionBits(uidsPermissionBits)
+                }
+            }
+            addedUserIds.clear()
+
+            permissionChangedBpfMapUids.forEachIndexed { _, bpfMap, uids ->
+                val permissionNames = bpfMapPermissionNames[bpfMap]!!
+                val uidsPermissionBits =
+                    service.getState {
+                        SparseIntArray(uids.size).apply {
+                            uids.forEachIndexed { _, uid ->
+                                val appId = UserHandle.getAppId(uid)
+                                val userId = UserHandle.getUserId(uid)
+                                this[uid] = getBpfMapPermissionBits(appId, userId, permissionNames)
+                            }
+                        }
+                    }
+                bpfMap.setUidsPermissionBits(uidsPermissionBits)
+            }
+            permissionChangedBpfMapUids.clear()
+
+            removedUserIds.forEachIndexed { _, userId ->
+                bpfMapPermissionNames.forEachIndexed { _, bpfMap, _ -> bpfMap.removeUser(userId) }
+            }
+            removedUserIds.clear()
+
+            removedAppIds.forEachIndexed { _, appId ->
+                bpfMapPermissionNames.forEachIndexed { _, bpfMap, _ -> bpfMap.removeAppId(appId) }
+            }
+            removedAppIds.clear()
 
             runtimePermissionChangedUidDevices.forEachIndexed { _, uid, persistentDeviceIds ->
                 persistentDeviceIds.forEach { deviceId ->
@@ -2763,19 +3015,18 @@ class PermissionService(private val service: AccessCheckingService) :
             ) {
                 return false
             }
-
             val userId = UserHandle.getUserId(uid)
-
-            val isInSetup = getSecureInt(Settings.Secure.USER_SETUP_COMPLETE, userId) == 0
-            if (isInSetup) return true
-
+            val isInSetup = getSecureSettingInt(Settings.Secure.USER_SETUP_COMPLETE, userId) == 0
+            if (isInSetup) {
+                return true
+            }
             val isInDeferredSetup =
-                getSecureInt(Settings.Secure.USER_SETUP_PERSONALIZATION_STATE, userId) ==
+                getSecureSettingInt(Settings.Secure.USER_SETUP_PERSONALIZATION_STATE, userId) ==
                     Settings.Secure.USER_SETUP_PERSONALIZATION_STARTED
             return isInDeferredSetup
         }
 
-        private fun getSecureInt(settingName: String, userId: Int): Int? =
+        private fun getSecureSettingInt(settingName: String, userId: Int): Int? =
             try {
                 Settings.Secure.getIntForUser(context.contentResolver, settingName, userId)
             } catch (e: Settings.SettingNotFoundException) {
@@ -2869,5 +3120,21 @@ class PermissionService(private val service: AccessCheckingService) :
 
         fun getFullerPermission(permissionName: String): String? =
             FULLER_PERMISSIONS[permissionName]
+
+        private val ALLOWED_BPF_PERMISSIONS =
+            ArraySet<String>().apply {
+                this += Manifest.permission.INTERNET
+                this += Manifest.permission.ACCESS_LOCAL_NETWORK
+                this += Manifest.permission.UPDATE_DEVICE_STATS
+                this += Manifest.permission.USE_LOOPBACK_INTERFACE
+                this += Manifest.permission.FORCE_USE_LOOPBACK_INTERFACE
+                this += Manifest.permission.INTERACT_ACROSS_PROFILES
+                this += Manifest.permission.INTERACT_ACROSS_USERS
+                this += Manifest.permission.INTERACT_ACROSS_USERS_FULL
+                this += android.net.NetworkStack.PERMISSION_MAINLINE_NETWORK_STACK
+                this += Manifest.permission.ACCESS_NETWORK_STATE
+            }
+
+        private const val MAX_ALLOWED_BPF_PERMISSIONS = Int.SIZE_BITS
     }
 }

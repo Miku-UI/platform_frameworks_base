@@ -26,26 +26,39 @@ import android.hardware.DisplayLuts
 import android.hardware.HardwareBuffer
 import android.hardware.LutProperties
 import android.os.Bundle
+import android.view.Display
 import android.view.SurfaceControl
 import android.view.SurfaceView
 import android.view.SurfaceHolder
 import androidx.appcompat.app.AppCompatActivity
+import android.widget.TextView
 import android.widget.RadioGroup
 import android.util.Log
 import com.android.test.silkfx.R
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.function.Consumer
+import kotlin.math.log2
+import kotlin.math.roundToInt
+import java.io.ByteArrayOutputStream
 
 class LutTestActivity : AppCompatActivity() {
 
     private lateinit var surfaceView: SurfaceView
+    private lateinit var propertiesTextView: TextView
     private var surfaceControl: SurfaceControl? = null
     private var currentBitmap: Bitmap? = null
     private var renderNode = RenderNode("LutRenderNode")
-    private var currentLutType: Int = R.id.no_lut // Store current LUT type
+    private var currentLutType: Int = R.id.agtm_rwtmo // Store current LUT type
     private val TAG = "LutTestActivity"
     private val renderExecutor = Executors.newSingleThreadExecutor()
+
+    private val hdrSdrRatioListener = Consumer<Display> { display ->
+        if (surfaceControl != null) {
+             applyCurrentLut()
+        }
+    }
 
     /** Called when the activity is first created. */
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,13 +66,27 @@ class LutTestActivity : AppCompatActivity() {
         setContentView(R.layout.lut_test)
 
         surfaceView = findViewById(R.id.surfaceView)
+        propertiesTextView = findViewById(R.id.lut_properties_text)
+
+        val overlayProperties = display.overlaySupport
+        val lutProperties = overlayProperties.lutProperties
+        val sb = StringBuilder("Supported LUTs:\n")
+        if (lutProperties != null) {
+            for (prop in lutProperties) {
+                sb.append(prop.toString()).append("\n")
+            }
+        } else {
+            sb.append("None")
+        }
+        propertiesTextView.text = sb.toString()
 
         surfaceView.holder.addCallback(object : SurfaceHolder.Callback {
             override fun surfaceCreated(holder: SurfaceHolder) {
+                surfaceView.display?.registerHdrSdrRatioChangedListener(mainExecutor, hdrSdrRatioListener)
                 createChildSurfaceControl()
                 loadImage("gainmaps/lamps.jpg", holder)
                 currentBitmap?.let {
-                    createAndRenderHardwareBuffer(holder, it, getCurrentLut())
+                    createAndRenderHardwareBuffer(holder, it, getCurrentLut(), currentLutType == R.id.agtm_rwtmo)
                 }
             }
 
@@ -72,6 +99,7 @@ class LutTestActivity : AppCompatActivity() {
             }
 
             override fun surfaceDestroyed(holder: SurfaceHolder) {
+                surfaceView.display?.unregisterHdrSdrRatioChangedListener(hdrSdrRatioListener)
             }
         })
 
@@ -88,32 +116,17 @@ class LutTestActivity : AppCompatActivity() {
     }
 
     private fun applyCurrentLut() {
-        when (currentLutType) {
-            R.id.lut_1d -> {
-                currentBitmap?.let {
-                    createAndRenderHardwareBuffer(surfaceView.holder, it, get1DLut())
-                }
-            }
-            R.id.lut_3d -> {
-                currentBitmap?.let {
-                    createAndRenderHardwareBuffer(surfaceView.holder, it, get3DLut())
-                }
-            }
-            R.id.no_lut -> {
-                currentBitmap?.let {
-                    createAndRenderHardwareBuffer(surfaceView.holder, it, null)
-                }
-            }
+        currentBitmap?.let {
+            createAndRenderHardwareBuffer(surfaceView.holder, it, getCurrentLut(), currentLutType == R.id.agtm_rwtmo)
         }
     }
 
-    private fun getCurrentLut(): DisplayLuts {
-        when (currentLutType) {
-            R.id.lut_1d -> return get1DLut()
-            R.id.lut_3d -> return get3DLut()
-            R.id.no_lut -> return DisplayLuts()
+    private fun getCurrentLut(): DisplayLuts? {
+        return when (currentLutType) {
+            R.id.lut_1d -> get1DLut()
+            R.id.lut_3d -> get3DLut()
+            else -> null
         }
-        return DisplayLuts()
     }
 
     private fun get3DLut(): DisplayLuts {
@@ -355,44 +368,108 @@ class LutTestActivity : AppCompatActivity() {
         }
     }
 
-    private fun createAndRenderHardwareBuffer(holder: SurfaceHolder, bitmap: Bitmap, luts: DisplayLuts?) {
-        val imageWidth = bitmap.width
-        val imageHeight = bitmap.height
+    private fun createAndRenderHardwareBuffer(holder: SurfaceHolder, bitmap: Bitmap, luts: DisplayLuts?, applyAgtm: Boolean) {
+
+        val surfaceWidth = holder.surfaceFrame.width()
+        val surfaceHeight = holder.surfaceFrame.height()
 
         val buffer = HardwareBuffer.create(
-            imageWidth,
-            imageHeight,
-            HardwareBuffer.RGBA_8888,
+            surfaceWidth,
+            surfaceHeight,
+            HardwareBuffer.RGBA_1010102,
             1, // layers
             HardwareBuffer.USAGE_GPU_COLOR_OUTPUT or HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE
         )
+
+        // Apply AGTM (Adaptive Global Tonemapping)
+        if (applyAgtm) {
+            val agtmBlob = createAgtmBlob(log2(bitmap.gainmap!!.displayRatioForFullHdr))
+            buffer.setSmpte2094_50(agtmBlob, 0, agtmBlob.size)
+        } else {
+            buffer.clearSmpte2094_50()
+        }
+
         val renderer = HardwareBufferRenderer(buffer)
         renderNode.setPosition(0, 0, buffer.width, buffer.height)
         renderer.setContentRoot(renderNode)
 
         val canvas = renderNode.beginRecording()
 
-        // calculate the scale to match the screen
-        val surfaceWidth = holder.surfaceFrame.width()
-        val surfaceHeight = holder.surfaceFrame.height()
-
-        val scaleX = surfaceWidth.toFloat() / imageWidth.toFloat()
-        val scaleY = surfaceHeight.toFloat() / imageHeight.toFloat()
+        // Scale from a large bitmap down to the surface destination
+        val scaleX = surfaceWidth.toFloat() / bitmap.width.toFloat()
+        val scaleY = surfaceHeight.toFloat() / bitmap.height.toFloat()
         val scale = minOf(scaleX, scaleY)
 
         val matrix = Matrix().apply{ postScale(scale, scale) }
         canvas.drawBitmap(bitmap, matrix, null)
         renderNode.endRecording()
 
-        val colorSpace = ColorSpace.get(ColorSpace.Named.BT2020_HLG)
+        val colorSpace = ColorSpace.get(ColorSpace.Named.BT2020_PQ)
         val latch = CountDownLatch(1)
         renderer.obtainRenderRequest().setColorSpace(colorSpace).draw(renderExecutor) { renderResult ->
             surfaceControl?.let {
-                SurfaceControl.Transaction().setBuffer(it, buffer, renderResult.fence).setLuts(it, luts).apply()
+                SurfaceControl.Transaction().setBuffer(it, buffer, renderResult.fence)
+                        .setDataSpace(it, colorSpace.getDataSpace())
+                        .setLuts(it, luts).apply()
             }
             latch.countDown()
         }
         latch.await() // Wait for the fence to complete.
         buffer.close()
+    }
+
+    private fun createAgtmBlob(baselineHdrHeadroom: Float, hdrReferenceWhite: Float = 203f): ByteArray {
+        val stream = ByteArrayOutputStream()
+
+        // Application Version (0)
+        stream.write(0)
+
+        // Color Volume Transform
+        val writer = BitfieldWriter(stream)
+        val hasCustomWhite = hdrReferenceWhite != 203f
+        val hasAdaptive = true
+
+        writer.writeBits(if (hasCustomWhite) 1 else 0, 1)
+        writer.writeBits(if (hasAdaptive) 1 else 0, 1)
+        writer.padAndWriteToStream()
+
+        if (hasCustomWhite) {
+            writeU16BE(stream, floatToUint16(hdrReferenceWhite, 1, 50000, 0, 5.0f))
+        }
+
+        // Adaptive Tone Map
+        writeU16BE(stream, floatToUint16(baselineHdrHeadroom, 0, 60000, 0, 10000.0f))
+        val adaptiveWriter = BitfieldWriter(stream)
+        adaptiveWriter.writeBits(1, 1) // use_reference_white_tone_mapping_flag
+        adaptiveWriter.padAndWriteToStream()
+
+        return stream.toByteArray()
+    }
+
+    private fun floatToUint16(v: Float, min: Int, max: Int, offset: Int, scale: Float): Int {
+        val converted = ((v * scale).roundToInt() + offset)
+        return converted.coerceIn(min, max)
+    }
+
+    private fun writeU16BE(stream: ByteArrayOutputStream, value: Int) {
+        stream.write((value ushr 8) and 0xFF)
+        stream.write(value and 0xFF)
+    }
+
+    private class BitfieldWriter(val stream: ByteArrayOutputStream) {
+        var fBits = 0
+        var fBitsWritten = 0
+
+        fun writeBits(value: Int, bits: Int) {
+            fBits = (fBits shl bits) or (value and ((1 shl bits) - 1))
+            fBitsWritten += bits
+        }
+
+        fun padAndWriteToStream() {
+            fBits = fBits shl (8 - fBitsWritten)
+            stream.write(fBits)
+            fBits = 0
+            fBitsWritten = 0
+        }
     }
 }

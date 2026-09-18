@@ -15,7 +15,6 @@
   -->
 
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/internet_connectivity_details"
@@ -39,8 +38,8 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
             android:paddingTop="@dimen/settingslib_expressive_space_extrasmall3"
-            android:progressBackgroundTint="@androidprv:color/materialColorSecondaryContainer"
-            android:progressTint="@androidprv:color/materialColorPrimary"
+            android:progressBackgroundTint="@color/materialColorSecondaryContainer"
+            android:progressTint="@color/materialColorPrimary"
             android:splitTrack="false"
             android:visibility="gone" />
     </LinearLayout>
@@ -64,9 +63,9 @@
                 <LinearLayout
                     android:id="@+id/ethernet_layout"
                     android:baselineAligned="false"
-                    android:layout_height="@dimen/tile_details_toggle_row_height"
+                    android:layout_height="@dimen/internet_dialog_wifi_network_height"
                     style="@style/InternetDialog.Network"
-                    android:background="@drawable/settingslib_switch_bar_bg_on"
+                    android:background="@drawable/settingslib_entry_bg_on"
                     android:visibility="gone">
 
                     <FrameLayout
@@ -76,13 +75,14 @@
                         android:clickable="false">
 
                         <ImageView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
                             android:contentDescription="@string/ethernet_label"
+                            android:scaleType="fitCenter"
                             android:layout_gravity="center"
                             android:autoMirrored="true"
                             android:src="@drawable/stat_sys_ethernet_fully"
-                            android:tint="@color/connected_network_primary_color" />
+                            android:tint="@color/materialColorOnPrimary" />
                     </FrameLayout>
 
                     <LinearLayout
@@ -115,7 +115,7 @@
                         android:baselineAligned="false"
                         android:layout_height="@dimen/tile_details_toggle_row_height"
                         android:clickable="false"
-                        android:focusable="false"
+                        android:focusable="true"
                         android:gravity="center">
 
                         <LinearLayout
@@ -149,7 +149,6 @@
                                 android:scaleY="0.77"
                                 android:layout_gravity="center_vertical"
                                 android:focusable="false"
-                                android:clickable="false"
                                 android:theme="@style/Theme.Material3.DynamicColors.DayNight"
                                 style="@style/SettingslibSwitchStyle.Expressive"
                                 tools:ignore="UseSwitchCompatOrMaterialXml" />
@@ -171,7 +170,7 @@
                             <ImageView
                                 android:id="@+id/signal_icon"
                                 android:contentDescription="@string/mobile_data"
-                                android:tint="@androidprv:color/materialColorOnSurface"
+                                android:tint="@color/materialColorOnSurface"
                                 android:autoMirrored="true"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
@@ -219,7 +218,7 @@
                     android:layout_height="@dimen/internet_dialog_wifi_network_height"
                     android:gravity="center"
                     android:clickable="false"
-                    android:focusable="false">
+                    android:focusable="true">
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -261,7 +260,6 @@
                             android:scaleY="0.77"
                             android:layout_gravity="center_vertical"
                             android:focusable="false"
-                            android:clickable="false"
                             android:theme="@style/Theme.Material3.DynamicColors.DayNight"
                             style="@style/SettingslibSwitchStyle.Expressive"
                             tools:ignore="UseSwitchCompatOrMaterialXml" />
@@ -275,7 +273,7 @@
                     android:layout_height="@dimen/internet_dialog_wifi_network_height"
                     android:paddingStart="20dp"
                     android:paddingEnd="24dp"
-                    android:background="@drawable/settingslib_switch_bar_bg_on"
+                    android:background="@drawable/settingslib_entry_bg_on"
                     android:visibility="gone">
 
                     <FrameLayout
@@ -290,7 +288,8 @@
                             android:layout_width="match_parent"
                             android:layout_height="match_parent"
                             android:scaleType="fitCenter"
-                            android:layout_gravity="center" />
+                            android:layout_gravity="center"
+                            android:tint="@color/materialColorOnPrimary" />
                     </FrameLayout>
 
                     <LinearLayout
@@ -325,7 +324,8 @@
                             android:src="@drawable/ic_settings_24dp"
                             android:layout_width="24dp"
                             android:layout_gravity="end|center_vertical"
-                            android:layout_height="wrap_content" />
+                            android:layout_height="wrap_content"
+                            android:tint="@color/materialColorOnPrimary" />
                     </FrameLayout>
                 </LinearLayout>
 
@@ -341,12 +341,12 @@
                 android:id="@+id/see_all_layout"
                 style="@style/InternetDialog.Network"
                 android:layout_marginTop="@dimen/tile_details_entry_gap"
-                android:layout_height="64dp"
+                android:layout_height="@dimen/tile_details_entry_height"
                 android:paddingStart="20dp">
 
                 <FrameLayout
-                    android:layout_width="24dp"
-                    android:layout_height="24dp"
+                    android:layout_width="@dimen/tile_details_entry_icon_size"
+                    android:layout_height="@dimen/tile_details_entry_icon_size"
                     android:layout_gravity="center_vertical|start"
                     android:clickable="false">
 
@@ -391,12 +391,11 @@
                     android:clickable="false">
 
                     <ImageView
-                        android:contentDescription="@string/add_network_button_text"
                         android:src="@drawable/ic_add"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center"
-                        android:tint="@androidprv:color/materialColorOnSurface" />
+                        android:tint="@color/materialColorOnSurface" />
                 </FrameLayout>
 
                 <FrameLayout
@@ -414,33 +413,6 @@
                         android:textAppearance="@style/TextAppearance.TileDetailsEntryTitle"
                         android:textSize="14sp" />
                 </FrameLayout>
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/login_screen_change_connected_wifi_notify_layout"
-                style="@style/InternetDialog.Network"
-                android:layout_height="wrap_content"
-                android:clickable="false"
-                android:focusable="false"
-                android:orientation="horizontal"
-                android:paddingBottom="4dp"
-                android:paddingTop="8dp"
-                android:gravity="start|center_vertical"
-                android:visibility="gone">
-
-                <ImageView
-                    android:contentDescription="@string/change_connected_wifi_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:src="@drawable/ic_info_outline"
-                    android:tint="?android:attr/textColorTertiary" />
-
-                <TextView
-                    android:text="@string/change_connected_wifi_text"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:paddingStart="4dp"
-                    android:textAppearance="@style/TextAppearance.TileDetailsEntrySubTitle" />
             </LinearLayout>
 
             <LinearLayout
@@ -464,11 +436,10 @@
                     android:paddingTop="16dp">
 
                     <ImageView
-                        android:contentDescription="@string/turn_on_wifi"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:src="@drawable/ic_info_outline"
-                        android:tint="?android:attr/textColorTertiary" />
+                        android:tint="@color/materialColorOutline" />
                 </LinearLayout>
 
                 <LinearLayout
@@ -483,7 +454,7 @@
                         android:clickable="true"
                         android:paddingBottom="8dp"
                         android:paddingTop="16dp"
-                        android:textColor="?android:attr/textColorSecondary" />
+                        android:textColor="@color/materialColorOnSurfaceVariant" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -521,7 +492,7 @@
                             android:src="@drawable/qs_airplane_icon_on"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:tint="@androidprv:color/materialColorOnSurface" />
+                            android:tint="@color/materialColorOnSurface" />
                     </FrameLayout>
 
                     <FrameLayout
@@ -564,7 +535,7 @@
                             android:src="@drawable/ic_screenshot_share"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:tint="@androidprv:color/materialColorOnSurface" />
+                            android:tint="@color/materialColorOnSurface" />
                     </FrameLayout>
 
                     <FrameLayout

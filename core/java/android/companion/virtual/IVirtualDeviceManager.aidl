@@ -16,6 +16,7 @@
 
 package android.companion.virtual;
 
+import android.app.IApplicationThread;
 import android.companion.virtual.IVirtualDevice;
 import android.companion.virtual.IVirtualDeviceActivityListener;
 import android.companion.virtual.IVirtualDeviceListener;
@@ -24,8 +25,10 @@ import android.companion.virtual.VirtualDevice;
 import android.companion.virtual.VirtualDeviceParams;
 import android.companion.virtual.computercontrol.ComputerControlSessionParams;
 import android.companion.virtual.computercontrol.IAutomatedPackageListener;
+import android.companion.virtual.computercontrol.IComputerControlConsentManager;
 import android.companion.virtual.computercontrol.IComputerControlSessionCallback;
 import android.content.AttributionSource;
+import android.content.Intent;
 
 /**
  * Interface for communication between VirtualDeviceManager and VirtualDeviceManagerService.
@@ -56,10 +59,15 @@ interface IVirtualDeviceManager {
     /**
      * Requests a new computer control session.
      */
-    @EnforcePermission("ACCESS_COMPUTER_CONTROL")
+    @PermissionManuallyEnforced
     void requestComputerControlSession(
-            in AttributionSource attributionSource, in ComputerControlSessionParams params,
-            in IComputerControlSessionCallback callback);
+            in IApplicationThread appThread, in AttributionSource attributionSource,
+            in ComputerControlSessionParams params, in IComputerControlSessionCallback callback);
+
+    /**
+     * Returns the consent manager for computer control.
+     */
+    IComputerControlConsentManager getComputerControlConsentManager();
 
     /**
      * Returns the details of all available virtual devices.
@@ -69,7 +77,7 @@ interface IVirtualDeviceManager {
     /**
      * Returns the details of the virtual device with the given ID, if any.
      */
-    VirtualDevice getVirtualDevice(int deviceId);
+    @nullable VirtualDevice getVirtualDevice(int deviceId);
 
     /**
      * Registers a virtual device listener to receive notifications for virtual device events.
@@ -92,6 +100,17 @@ interface IVirtualDeviceManager {
     void unregisterAutomatedPackageListener(in IAutomatedPackageListener listener);
 
     /**
+     * Validates the intent to warn the user about launching an application that is being automated.
+     */
+    boolean validateAutomatedAppLaunchWarningIntent(in Intent intent);
+
+    /**
+     * Returns whether the computer control functionality is available for the caller.
+     */
+    boolean isComputerControlAvailable(in AttributionSource attributionSource,
+            int targetComputerControlVersion);
+
+    /**
      * Returns the ID of the device which owns the display with the given ID.
      */
     int getDeviceIdForDisplayId(int displayId);
@@ -106,8 +125,8 @@ interface IVirtualDeviceManager {
      * {@link VirtualDeviceManager#DEVICE_ID_DEFAULT} is not valid as it is the ID of the default
      * device which is not a virtual device. {@code deviceId} must correspond to a virtual device
      * created by {@link VirtualDeviceManager#createVirtualDevice(int, VirtualDeviceParams)}.
-    */
-   boolean isValidVirtualDeviceId(int deviceId);
+     */
+    boolean isValidVirtualDeviceId(int deviceId);
 
     /**
      * Returns the device policy for the given virtual device and policy type.
@@ -151,4 +170,22 @@ interface IVirtualDeviceManager {
      * exists, as long as one may have existed or can be created.
      */
     List<String> getAllPersistentDeviceIds();
+
+    /**
+     * Returns the audio focus environment IBinder token for a virtual device or null if there is
+     * no separate audio focus environment for the device.
+     */
+    @nullable IBinder getAudioFocusEnvironment(int deviceId);
+
+    /**
+     * Returns whether the given package is allowed to be a computer control agent.
+     */
+    @EnforcePermission("MANAGE_COMPUTER_CONTROL_CONSENT")
+    boolean isPackageApprovedToRunComputerControlAutomation(in String packageName, int userId);
+
+    /**
+     * Returns whether the given package is allowed to be automated by a computer control agent.
+     */
+    @EnforcePermission("MANAGE_COMPUTER_CONTROL_CONSENT")
+    boolean isPackageTargetableForComputerControlAutomation(in String packageName, int userId);
 }

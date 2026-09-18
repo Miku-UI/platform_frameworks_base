@@ -25,4 +25,9 @@ interface TileDetailsViewModel {
     val title: String
 
     val subTitle: String
+
+    // Determines if the tile's content needs to be loaded asynchronously. For example, the Internet
+    // tile needs to retrieve network connectivity data before its content can be fully rendered.
+    val requiresAsyncLoading: Boolean
+        get() = false
 }

@@ -20,8 +20,12 @@ import android.app.Service;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.ColorMatrix;
+import android.graphics.ColorMatrixColorFilter;
 import android.graphics.Matrix;
+import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.pdf.PdfEditor;
 import android.graphics.pdf.PdfRenderer;
@@ -33,9 +37,13 @@ import android.print.PrintAttributes;
 import android.print.PrintAttributes.Margins;
 import android.util.Log;
 import android.view.View;
-import com.android.printspooler.util.PageRangeUtils;
-import libcore.io.IoUtils;
+
+import com.android.printspooler.flags.Flags;
 import com.android.printspooler.util.BitmapSerializeUtils;
+import com.android.printspooler.util.PageRangeUtils;
+
+import libcore.io.IoUtils;
+
 import java.io.IOException;
 
 /**
@@ -160,6 +168,23 @@ public final class PdfManipulationService extends Service {
                         Bitmap bitmap = getBitmapForSize(bitmapWidth, bitmapHeight);
                         page.render(bitmap, clip, matrix, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
 
+                        if (Flags.grayscalePreview()
+                                && attributes.getColorMode()
+                                        == PrintAttributes.COLOR_MODE_MONOCHROME) {
+                            Bitmap grayScale =
+                                    Bitmap.createBitmap(
+                                            bitmapWidth, bitmapHeight, Bitmap.Config.ARGB_8888);
+                            Canvas c = new Canvas(grayScale);
+                            Paint p = new Paint();
+                            ColorMatrix cm = new ColorMatrix();
+                            cm.setSaturation(0);
+                            ColorMatrixColorFilter f = new ColorMatrixColorFilter(cm);
+                            p.setColorFilter(f);
+                            c.drawBitmap(bitmap, 0, 0, p);
+                            mBitmap.recycle();
+                            mBitmap = grayScale;
+                            bitmap = mBitmap;
+                        }
                         BitmapSerializeUtils.writeBitmapPixels(bitmap, destination);
                     }
                 } catch (Throwable e) {

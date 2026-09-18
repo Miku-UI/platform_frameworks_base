@@ -41,7 +41,6 @@ import java.util.Objects;
 public class VirtualCameraSessionConfigTest {
 
     @Test
-    @EnableFlags(Flags.FLAG_VIRTUAL_CAMERA_METADATA)
     public void testSessionParamsKeysEqual() {
         CameraMetadataNative metadataNative = new CameraMetadataNative();
         metadataNative.set(CaptureRequest.CONTROL_AE_MODE, CONTROL_AE_MODE_ON);

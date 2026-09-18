@@ -44,6 +44,7 @@ import com.android.systemui.desktop.domain.interactor.DesktopInteractor;
 import com.android.systemui.res.R;
 import com.android.systemui.scene.domain.interactor.SceneInteractor;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
+import com.android.systemui.scene.shared.model.Overlays;
 import com.android.systemui.scene.shared.model.Scenes;
 import com.android.systemui.shade.ShadeOverlayBoundsListener;
 import com.android.systemui.shade.domain.interactor.ShadeInteractor;
@@ -78,6 +79,7 @@ public final class ShadeTouchableRegionManager implements Dumpable {
     private final NotificationShadeWindowController mNotificationShadeWindowController;
     private final UnlockedScreenOffAnimationController mUnlockedScreenOffAnimationController;
     private final ShadeInteractor mShadeInteractor;
+    private SceneInteractor mSceneInteractor = null;
     private final PrimaryBouncerInteractor mPrimaryBouncerInteractor;
     private final AlternateBouncerInteractor mAlternateBouncerInteractor;
     private final Provider<ShadeModeInteractor> mShadeModeInteractorProvider;
@@ -170,11 +172,12 @@ public final class ShadeTouchableRegionManager implements Dumpable {
         mUnlockedScreenOffAnimationController = unlockedScreenOffAnimationController;
 
         if (SceneContainerFlag.isEnabled()) {
+            mSceneInteractor = sceneInteractor.get();
             javaAdapter.alwaysCollectFlow(
-                    sceneInteractor.get().getTransitionState(),
+                    mSceneInteractor.getTransitionStateFlow(),
                     this::onSceneContainerTransition);
             javaAdapter.alwaysCollectFlow(
-                    sceneInteractor.get().isRemoteUserInteractionOngoing(),
+                    mSceneInteractor.isRemoteUserInteractionOngoing(),
                     this::onRemoteUserInteractionOngoingChanged);
             if (StatusBarForDesktop.isEnabled()) {
                 javaAdapter.alwaysCollectFlow(shadeModeInteractor.get().getShadeMode(),
@@ -319,7 +322,7 @@ public final class ShadeTouchableRegionManager implements Dumpable {
         final List<Rect> touchableRects = new ArrayList<>();
         if (mShadeBounds != null && mIsSceneGone) {
             touchableRects.add(mShadeBounds);
-        } else {
+        } else if (!mIsSceneGone) {
             touchableRects.add(
                     new Rect(
                             /* left= */ 0,
@@ -447,7 +450,11 @@ public final class ShadeTouchableRegionManager implements Dumpable {
         // underneath.
         return mIsAnyShadeExpanded
                 || (SceneContainerFlag.isEnabled()
-                && (!mIsSceneContainerUiEmpty || mIsRemoteUserInteractionOngoing))
+                    && (!mIsSceneContainerUiEmpty || mIsRemoteUserInteractionOngoing)
+                    // Allow touch events to fall through to the underlying Activities
+                    && (mSceneInteractor.getCurrentOverlays().getValue().contains(Overlays.Bouncer)
+                        || (!mSceneInteractor.getCurrentSceneAsState().equals(Scenes.Occluded)))
+                )
                 || mPrimaryBouncerInteractor.isShowing().getValue()
                 || mAlternateBouncerInteractor.isVisibleState()
                 // The glanceable hub is a full-screen UI within the notification shade window. When

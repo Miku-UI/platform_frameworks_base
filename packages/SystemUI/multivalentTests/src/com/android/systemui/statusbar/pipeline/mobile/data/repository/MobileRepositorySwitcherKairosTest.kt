@@ -24,7 +24,6 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.demomode.DemoMode
 import com.android.systemui.kairos.ActivatedKairosFixture
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosTestScope
 import com.android.systemui.kairos.runKairosTest
 import com.android.systemui.kosmos.Kosmos
@@ -50,7 +49,6 @@ import org.mockito.kotlin.stub
  * interface it's switching on. These tests just need to verify that the entire interface properly
  * switches over when the value of `demoMode` changes
  */
-@OptIn(ExperimentalKairosApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class MobileRepositorySwitcherKairosTest : SysuiTestCase() {

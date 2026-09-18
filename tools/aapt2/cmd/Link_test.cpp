@@ -1234,7 +1234,7 @@ TEST_F(LinkTest, FeatureFlagWithNoValue_SdkAfterUDC) {
   auto app_link_args = LinkCommandBuilder(this)
                            .SetManifestFile(app_manifest)
                            .AddParameter("-I", android_apk)
-                           .AddParameter("--feature-flags", "flag=");
+                           .AddParameter("--feature-flags", "flag=false");
 
   const std::string app_apk = GetTestPath("app.apk");
   BuildApk({}, app_apk, std::move(app_link_args), this, &diag);

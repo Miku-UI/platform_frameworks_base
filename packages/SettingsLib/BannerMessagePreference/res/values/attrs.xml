@@ -34,5 +34,12 @@
         <attr format="string" name="collapseKey" />
         <attr format="string" name="collapseTitle" />
         <attr format="reference" name="collapseIcon" />
+        <!-- Dismissed preferences -->
+        <attr format="boolean" name="showDismissedPreferences" />
+        <attr format="string" name="expandDismissedKey" />
+        <attr format="string" name="expandDismissedTitle" />
+        <attr format="string" name="collapseDismissedKey" />
+        <attr format="string" name="collapseDismissedTitle" />
+        <attr format="reference" name="collapseDismissedIcon" />
     </declare-styleable>
 </resources>

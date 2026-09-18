@@ -69,6 +69,8 @@ import org.w3c.dom.Node
  * </pre>
  */
 object SystemFeaturesGenerator {
+    private const val OUTPUT_ARG = "--output="
+    private const val PROGUARD_RULES_ARG = "--output-proguard-rules="
     private const val FEATURE_ARG = "--feature="
     private const val FEATURE_XML_FILES_ARG = "--feature-xml-files="
     private const val UNAVAILABLE_FEATURE_XML_FILES_ARG = "--unavailable-feature-xml-files="
@@ -87,6 +89,9 @@ object SystemFeaturesGenerator {
     private fun usage() {
         println("Usage: SystemFeaturesGenerator <outputClassName> [options]")
         println(" Options:")
+        println("  --output=\$OUTPUT_FILE   The output file. If unspecified, stdout will be used.")
+        println("  --output-proguard-rules=\$OUTPUT_FILE")
+        println("                           Optional output file for companion Proguard rules.")
         println("  --readonly=true|false    Whether to encode features as build-time constants")
         println("  --feature=\$NAME:\$VER     A feature+version pair, where \$VER can be:")
         println("                             * blank/empty == undefined (variable API)")
@@ -118,7 +123,7 @@ object SystemFeaturesGenerator {
     /** Main entrypoint for build-time system feature codegen. */
     @JvmStatic
     fun main(args: Array<String>) {
-        generate(args, System.out)
+        generate(args)
     }
 
     /**
@@ -128,7 +133,7 @@ object SystemFeaturesGenerator {
      * but it's primarily used for testing as opposed to direct production usage.
      */
     @JvmStatic
-    fun generate(args: Array<String>, output: Appendable) {
+    fun generate(args: Array<String>, output: Appendable? = null) {
         if (args.size < 1) {
             usage()
             return
@@ -141,8 +146,14 @@ object SystemFeaturesGenerator {
         // We could just as easily hardcode this list, as the static API surface should change
         // somewhat infrequently, but this decouples the codegen from the framework completely.
         val featureApiArgs = mutableSetOf<String>()
+        var outputFile: String? = null
+        var proguardRulesFile: String? = null
         for (arg in args) {
             when {
+                arg.startsWith(OUTPUT_ARG) ->
+                    outputFile = arg.substring(OUTPUT_ARG.length)
+                arg.startsWith(PROGUARD_RULES_ARG) ->
+                    proguardRulesFile = arg.substring(PROGUARD_RULES_ARG.length)
                 arg.startsWith(READONLY_ARG) ->
                     readonly = arg.substring(READONLY_ARG.length).toBoolean()
                 arg.startsWith(METADATA_ONLY_ARG) ->
@@ -222,13 +233,29 @@ object SystemFeaturesGenerator {
         }
 
         // TODO(b/203143243): Add validation of build vs runtime values to ensure consistency.
-        JavaFile.builder(outputClassName.packageName(), classBuilder.build())
+        val javaFileArgs = args.filter { !it.startsWith(PROGUARD_RULES_ARG) }
+        val javaFile = JavaFile.builder(outputClassName.packageName(), classBuilder.build())
             .indent("    ")
             .skipJavaLangImports(true)
             .addFileComment("This file is auto-generated. DO NOT MODIFY.\n")
-            .addFileComment("Args: ${args.joinToString(" \\\n           ")}")
+            .addFileComment("Args: ${javaFileArgs.joinToString(" \\\n           ")}")
             .build()
-            .writeTo(output)
+
+        if (output != null) {
+            javaFile.writeTo(output)
+        } else if (outputFile != null) {
+            // Be careful to use .bufferedWriter(), otherwise javaPoet will create a directory
+            // and write to a file under directories for the class's package.
+            File(outputFile).bufferedWriter().use {
+                writer -> javaFile.writeTo(writer)
+            }
+        } else {
+            javaFile.writeTo(System.out)
+        }
+
+        if (proguardRulesFile != null) {
+            writeProguardRules(proguardRulesFile, features.values)
+        }
     }
 
     /*
@@ -421,7 +448,11 @@ object SystemFeaturesGenerator {
                 // As an optimization, only create the switch block if needed. Even an empty
                 // switch-on-string block can induce a hash, which we can avoid if readonly
                 // support is completely disabled.
+                // Note that we insert the null check as a defensive measure; this shouldn't happen
+                // in production (and is disallowed by public APIs), but can occur in testing and
+                // we don't want this optimization to surface the NPE.
                 hasSwitchBlock = true
+                methodBuilder.addStatement("if (featureName == null) return null")
                 methodBuilder.beginControlFlow("switch (featureName)")
             }
             methodBuilder.addCode("case \$T.\$N: ", PACKAGEMANAGER_CLASS, feature.name)
@@ -499,6 +530,40 @@ object SystemFeaturesGenerator {
 
         builder.addMethod(methodBuilder.build())
     }
+
+    private fun writeProguardRules(outputFile: String, features: Collection<FeatureInfo>) {
+        val readOnlyFeatures = features.filter { it.readonly }
+        if (readOnlyFeatures.isEmpty()) {
+            File(outputFile)
+                .writeText("# No read-only system features for -assumevalues rule generation.\n")
+            return
+        }
+
+        val pkgManagerName = PACKAGEMANAGER_CLASS.reflectionName()
+        val fileContent = buildString {
+            appendLine("-assumevalues class $pkgManagerName {")
+            for (feature in readOnlyFeatures) {
+                appendLine(feature.toR8Rule(pkgManagerName))
+            }
+            appendLine("}")
+        }
+        File(outputFile).writeText(fileContent)
+    }
+
+    private fun FeatureInfo.toR8Rule(pkgManagerR8Name: String): String {
+        val field = "$pkgManagerR8Name.$name"
+        val hasBasicFeature = (version ?: -1) >= 0
+        val basicRule =
+            "  public boolean hasSystemFeature(java.lang.String = $field) return $hasBasicFeature;"
+        val versionRule =
+            if (version != null) {
+                "  public boolean hasSystemFeature(java.lang.String = $field, int = ${Integer.MIN_VALUE}..$version) return true;"
+            } else {
+                "  public boolean hasSystemFeature(java.lang.String = $field, int) return false;"
+            }
+        return "$basicRule\n$versionRule"
+    }
+
 
     private data class FeatureInfo(val name: String, val version: Int?, val readonly: Boolean) {
         // Turn "FEATURE_FOO" into "hasFeatureFoo".

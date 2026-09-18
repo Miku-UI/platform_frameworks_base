@@ -1,7 +1,7 @@
 # Remain no owner because multiple modules may touch this file.
 per-file Context.java = *
 per-file ContextWrapper.java = *
-per-file *Content* = varunshah@google.com, yamasani@google.com
+per-file *Content* = yamasani@google.com, rajekumar@google.com
 per-file *Sync* = file:/apex/jobscheduler/JOB_OWNERS
 per-file IntentFilter.java = file:/PACKAGE_MANAGER_OWNERS
 per-file UriRelativeFilter* = file:/PACKAGE_MANAGER_OWNERS

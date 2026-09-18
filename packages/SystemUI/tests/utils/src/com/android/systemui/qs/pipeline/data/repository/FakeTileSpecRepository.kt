@@ -18,6 +18,7 @@ package com.android.systemui.qs.pipeline.data.repository
 
 import com.android.systemui.qs.pipeline.data.model.RestoreData
 import com.android.systemui.qs.pipeline.data.repository.TileSpecRepository.Companion.POSITION_AT_END
+import com.android.systemui.qs.pipeline.shared.InternetTileMigration.migrateInternetTile
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.pipeline.shared.TilesUpgradePath
 import kotlinx.coroutines.channels.Channel
@@ -39,25 +40,31 @@ class FakeTileSpecRepository(
         if (tile == TileSpec.Invalid) return
         with(getFlow(userId)) {
             value =
-                value.toMutableList().apply {
-                    if (position == POSITION_AT_END) {
-                        add(tile)
-                    } else {
-                        add(position, tile)
+                value
+                    .toMutableList()
+                    .apply {
+                        if (position == POSITION_AT_END) {
+                            add(tile)
+                        } else {
+                            add(position, tile)
+                        }
                     }
-                }
+                    .migrateInternetTile()
         }
     }
 
     override suspend fun removeTiles(userId: Int, tiles: Collection<TileSpec>) {
         with(getFlow(userId)) {
             value =
-                value.toMutableList().apply { removeAll(tiles.filter { it != TileSpec.Invalid }) }
+                value
+                    .toMutableList()
+                    .apply { removeAll(tiles.filter { it != TileSpec.Invalid }) }
+                    .migrateInternetTile()
         }
     }
 
     override suspend fun setTiles(userId: Int, tiles: List<TileSpec>) {
-        getFlow(userId).value = tiles.filter { it != TileSpec.Invalid }
+        getFlow(userId).value = tiles.filter { it != TileSpec.Invalid }.migrateInternetTile()
     }
 
     private fun getFlow(userId: Int): MutableStateFlow<List<TileSpec>> =
@@ -68,20 +75,41 @@ class FakeTileSpecRepository(
         currentAutoAdded: Set<TileSpec>,
     ) {
         with(getFlow(restoreData.userId)) {
-            value = UserTileSpecRepository.reconcileTiles(value, currentAutoAdded, restoreData)
+            value =
+                UserTileSpecRepository.reconcileTiles(value, currentAutoAdded, restoreData)
+                    .migrateInternetTile()
         }
     }
 
     override suspend fun prependDefault(userId: Int) {
-        with(getFlow(userId)) { value = defaultTilesRepository.getDefaultTiles(false) + value }
+        with(getFlow(userId)) {
+            value = (defaultTilesRepository.getDefaultTiles(false) + value).migrateInternetTile()
+        }
     }
 
     override suspend fun resetToDefault(userId: Int): List<TileSpec> {
-        with(getFlow(userId)) { value = defaultTilesRepository.getDefaultTiles(false) }
-        return defaultTilesRepository.getDefaultTiles(false)
+        with(getFlow(userId)) {
+            value = defaultTilesRepository.getDefaultTiles(false).migrateInternetTile()
+        }
+        return defaultTilesRepository.getDefaultTiles(false).migrateInternetTile()
     }
 
     override val tilesUpgradePath: Channel<Pair<TilesUpgradePath, Int>> = Channel(capacity = 10)
+
+    override suspend fun removePackage(packageName: String, userId: Int) {
+        with(getFlow(userId)) {
+            value =
+                value
+                    .toMutableList()
+                    .apply {
+                        removeIf {
+                            it is TileSpec.CustomTileSpec &&
+                                it.componentName.packageName == packageName
+                        }
+                    }
+                    .migrateInternetTile()
+        }
+    }
 
     suspend fun sendTilesFromUpgradePath(upgradePath: TilesUpgradePath, userId: Int) {
         tilesUpgradePath.send(upgradePath to userId)

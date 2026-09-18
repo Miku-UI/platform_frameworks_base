@@ -21,79 +21,28 @@ import android.content.Context;
 import android.hardware.weaver.IWeaver;
 import android.os.RemoteException;
 import android.os.UserManager;
-import android.util.ArrayMap;
 
-import junit.framework.AssertionFailedError;
-
-import java.nio.ByteBuffer;
+import java.security.KeyStore;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
-import java.util.Arrays;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
 
 public class MockSyntheticPasswordManager extends SyntheticPasswordManager {
 
-    private FakeGateKeeperService mGateKeeper;
     private MockWeaverService mWeaverService;
     private IWeaver mWeaverAidl;
     private android.hardware.weaver.V1_0.IWeaver mWeaverHidl;
 
-    public MockSyntheticPasswordManager(Context context, LockSettingsStorage storage,
-            FakeGateKeeperService gatekeeper, UserManager userManager,
-            PasswordSlotManager passwordSlotManager) {
-        super(context, storage, userManager, passwordSlotManager);
-        mGateKeeper = gatekeeper;
-    }
-
-    private final ArrayMap<String, byte[]> mBlobs = new ArrayMap<>();
-
-    @Override
-    protected byte[] decryptSpBlob(String protectorKeyAlias, byte[] blob, byte[] protectorSecret) {
-        if (mBlobs.containsKey(protectorKeyAlias) &&
-                !Arrays.equals(mBlobs.get(protectorKeyAlias), blob)) {
-            throw new AssertionFailedError("Blob was overwritten; protectorKeyAlias="
-                    + protectorKeyAlias);
-        }
-        ByteBuffer buffer = ByteBuffer.allocate(blob.length);
-        buffer.put(blob, 0, blob.length);
-        buffer.flip();
-        int len;
-        len = buffer.getInt();
-        byte[] data = new byte[len];
-        buffer.get(data);
-        len = buffer.getInt();
-        byte[] storedProtectorSecret = new byte[len];
-        buffer.get(storedProtectorSecret);
-        long sid = buffer.getLong();
-        if (!Arrays.equals(storedProtectorSecret, protectorSecret)) {
-            throw new AssertionFailedError("Invalid protector secret");
-        }
-        if (sid != 0 && mGateKeeper.getAuthTokenForSid(sid) == null) {
-            throw new AssertionFailedError("No valid auth token");
-        }
-        return data;
-    }
-
-    @Override
-    protected byte[] createSpBlob(String protectorKeyAlias, byte[] data, byte[] protectorSecret,
-            long sid) {
-        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES + data.length + Integer.BYTES
-                + protectorSecret.length + Long.BYTES);
-        buffer.putInt(data.length);
-        buffer.put(data);
-        buffer.putInt(protectorSecret.length);
-        buffer.put(protectorSecret);
-        buffer.putLong(sid);
-        byte[] result = buffer.array();
-        mBlobs.put(protectorKeyAlias, result);
-        return result;
-    }
-
-    @Override
-    protected void destroyProtectorKey(String keyAlias) {
+    public MockSyntheticPasswordManager(
+            Context context,
+            LockSettingsStorage storage,
+            UserManager userManager,
+            PasswordSlotManager passwordSlotManager,
+            KeyStore keyStore) {
+        super(context, storage, userManager, passwordSlotManager, keyStore);
     }
 
     @Override
@@ -157,5 +106,10 @@ public class MockSyntheticPasswordManager extends SyntheticPasswordManager {
     /** Injects a response to be returned by the next read from Weaver. */
     public void injectWeaverReadResponse(int status, Duration timeout) {
         mWeaverService.injectReadResponse(status, timeout);
+    }
+
+    /** Injects a timeout to be returned by the next getTimeout call to Weaver. */
+    public void injectWeaverTimeout(Duration timeout) {
+        mWeaverService.injectTimeout(timeout);
     }
 }

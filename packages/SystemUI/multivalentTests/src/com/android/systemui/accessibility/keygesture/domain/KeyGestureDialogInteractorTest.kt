@@ -17,15 +17,14 @@
 package com.android.systemui.accessibility.keygesture.domain
 
 import android.content.Intent
-import android.content.applicationContext
 import android.hardware.input.KeyGestureEvent
-import android.os.fakeExecutorHandler
 import android.view.Display.DEFAULT_DISPLAY
 import android.view.Display.INVALID_DISPLAY
 import android.view.KeyEvent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.accessibility.common.KeyGestureEventConstants
+import com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.KEY_GESTURE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.accessibility.data.repository.AccessibilityShortcutsRepository
 import com.android.systemui.broadcast.broadcastDispatcher
@@ -60,23 +59,17 @@ class KeyGestureDialogInteractorTest : SysuiTestCase() {
 
     @Before
     fun setUp() {
-        underTest =
-            KeyGestureDialogInteractor(
-                kosmos.applicationContext,
-                mockRepository,
-                broadcastDispatcher,
-                testDispatcher,
-                kosmos.fakeExecutorHandler,
-            )
+        underTest = KeyGestureDialogInteractor(mockRepository, broadcastDispatcher, testDispatcher)
     }
 
     @Test
     fun enableShortcutsForTargets_enabledShortcutsForFakeTarget() {
         val enabledTargetName = "fakeTargetName"
 
-        underTest.enableShortcutsForTargets(/* enable= */ true, enabledTargetName)
+        underTest.enableShortcutsForTargets(enable = true, enabledTargetName)
 
-        verify(mockRepository).enableShortcutsForTargets(eq(true), eq(enabledTargetName))
+        verify(mockRepository)
+            .enableShortcutsForTargets(eq(true), eq(KEY_GESTURE), eq(setOf(enabledTargetName)))
     }
 
     @Test
@@ -101,7 +94,7 @@ class KeyGestureDialogInteractorTest : SysuiTestCase() {
             )
             runCurrent()
 
-            assertThat(keyGestureConfirmInfo).isNull()
+            assertThat(keyGestureConfirmInfo?.second).isNull()
         }
     }
 
@@ -120,7 +113,7 @@ class KeyGestureDialogInteractorTest : SysuiTestCase() {
             )
             runCurrent()
 
-            assertThat(keyGestureConfirmInfo).isNull()
+            assertThat(keyGestureConfirmInfo?.second).isNull()
         }
     }
 
@@ -139,7 +132,7 @@ class KeyGestureDialogInteractorTest : SysuiTestCase() {
             )
             runCurrent()
 
-            assertThat(keyGestureConfirmInfo).isNull()
+            assertThat(keyGestureConfirmInfo?.second).isNull()
         }
     }
 
@@ -158,7 +151,7 @@ class KeyGestureDialogInteractorTest : SysuiTestCase() {
             )
             runCurrent()
 
-            assertThat(keyGestureConfirmInfo).isNull()
+            assertThat(keyGestureConfirmInfo?.second).isNull()
         }
     }
 
@@ -177,7 +170,7 @@ class KeyGestureDialogInteractorTest : SysuiTestCase() {
             )
             runCurrent()
 
-            assertThat(keyGestureConfirmInfo).isNull()
+            assertThat(keyGestureConfirmInfo?.second).isNull()
         }
     }
 
@@ -195,11 +188,12 @@ class KeyGestureDialogInteractorTest : SysuiTestCase() {
             runCurrent()
 
             verify(mockRepository)
-                .getTitleToContentForKeyGestureDialog(
+                .getKeyGestureConfirmInfo(
                     eq(keyGestureType),
                     eq(metaState),
                     eq(keyCode),
                     eq(testTargetName),
+                    eq(DEFAULT_DISPLAY),
                 )
         }
     }
@@ -213,7 +207,7 @@ class KeyGestureDialogInteractorTest : SysuiTestCase() {
     ) {
         val intent =
             Intent().apply {
-                action = KeyGestureDialogInteractor.ACTION
+                action = KeyGestureDialogInteractor.LAUNCH_DIALOG_ACTION
                 putExtra(KeyGestureEventConstants.KEY_GESTURE_TYPE, keyGestureType)
                 putExtra(KeyGestureEventConstants.META_STATE, metaState)
                 putExtra(KeyGestureEventConstants.KEY_CODE, keyCode)

@@ -18,6 +18,7 @@ package com.android.server.security.advancedprotection.features;
 
 import static android.security.advancedprotection.AdvancedProtectionManager.ADVANCED_PROTECTION_SYSTEM_ENTITY;
 import static android.security.advancedprotection.AdvancedProtectionManager.FEATURE_ID_DISALLOW_INSTALL_UNKNOWN_SOURCES;
+import static android.security.advancedprotection.AdvancedProtectionManager.FeatureId;
 
 import android.annotation.NonNull;
 import android.app.admin.DevicePolicyManager;
@@ -31,9 +32,6 @@ public final class DisallowInstallUnknownSourcesAdvancedProtectionHook
         extends AdvancedProtectionHook {
     private static final String TAG = "AdvancedProtectionDisallowInstallUnknown";
 
-    private final AdvancedProtectionFeature mFeature = new AdvancedProtectionFeature(
-            FEATURE_ID_DISALLOW_INSTALL_UNKNOWN_SOURCES);
-
     private final DevicePolicyManager mDevicePolicyManager;
 
     public DisallowInstallUnknownSourcesAdvancedProtectionHook(@NonNull Context context,
@@ -44,10 +42,9 @@ public final class DisallowInstallUnknownSourcesAdvancedProtectionHook
         onAdvancedProtectionChanged(enabled);
     }
 
-    @NonNull
     @Override
-    public AdvancedProtectionFeature getFeature() {
-        return mFeature;
+    public @FeatureId int getFeatureId() {
+        return FEATURE_ID_DISALLOW_INSTALL_UNKNOWN_SOURCES;
     }
 
     @Override

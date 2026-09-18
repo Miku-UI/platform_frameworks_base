@@ -69,8 +69,8 @@ public class DisplayInfoOverrides {
                     DisplayInfo.DisplayInfoGroup.DIMENSIONS_AND_SHAPES);
 
     /**
-     * Gets {@param base} DisplayInfo, overrides WindowManager-specific overrides using
-     * {@param override} and writes the result to {@param out}
+     * Gets {@code base} DisplayInfo, overrides WindowManager-specific overrides using
+     * {@code override} and writes the result to {@code out}
      */
     public static void copyDisplayInfoFields(@NonNull DisplayInfo out,
             @NonNull DisplayInfo base,
@@ -88,7 +88,7 @@ public class DisplayInfoOverrides {
      */
     public interface DisplayInfoFieldsUpdater {
         /**
-         * Copies a subset of fields from {@param source} to {@param out}
+         * Copies a subset of fields from {@code source} to {@code out}
          *
          * @param out    resulting DisplayInfo object
          * @param source source DisplayInfo to copy fields from

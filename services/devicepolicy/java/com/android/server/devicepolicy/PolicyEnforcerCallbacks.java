@@ -31,6 +31,7 @@ import android.app.admin.IntentFilterPolicyKey;
 import android.app.admin.LockTaskPolicy;
 import android.app.admin.PackagePermissionPolicyKey;
 import android.app.admin.PackagePolicyKey;
+import android.app.admin.PolicyIdentifier;
 import android.app.admin.PolicyKey;
 import android.app.admin.UserRestrictionPolicyKey;
 import android.app.admin.flags.Flags;
@@ -59,26 +60,29 @@ import android.view.IWindowManager;
 import com.android.internal.infra.AndroidFuture;
 import com.android.internal.os.BackgroundThread;
 import com.android.internal.util.ArrayUtils;
+import com.android.internal.widget.LockPatternUtils;
+import com.android.server.contentrestriction.ContentRestrictionManagerInternal;
 import com.android.server.LocalServices;
 import com.android.server.pm.UserManagerInternal;
 import com.android.server.utils.Slogf;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-final class PolicyEnforcerCallbacks {
+public final class PolicyEnforcerCallbacks {
 
     private static final String LOG_TAG = "PolicyEnforcerCallbacks";
 
-    static <T> CompletableFuture<Boolean> noOp(T value, Context context, Integer userId,
+    public static <T> CompletableFuture<Boolean> noOp(T value, Context context, Integer userId,
             PolicyKey policyKey) {
         return AndroidFuture.completedFuture(true);
     }
 
-    static CompletableFuture<Boolean> setAutoTimeZonePolicy(
+    public static CompletableFuture<Boolean> setAutoTimeZonePolicy(
             @Nullable Integer policy, @NonNull Context context, int userId,
             @NonNull PolicyKey policyKey) {
         if (!Flags.setAutoTimeZoneEnabledCoexistence()) {
@@ -91,11 +95,12 @@ final class PolicyEnforcerCallbacks {
                     policy == DevicePolicyManager.AUTO_TIME_ZONE_NOT_CONTROLLED_BY_POLICY) {
                 return AndroidFuture.completedFuture(false);
             }
-            int enabled = policy != null &&
-                    policy == DevicePolicyManager.AUTO_TIME_ZONE_ENABLED ? 1 : 0;
-            return AndroidFuture.completedFuture(Settings.Global.putInt(
-                    context.getContentResolver(), Settings.Global.AUTO_TIME_ZONE,
-                    enabled));
+            boolean enabled = isAutoTimeZoneEnabled(policy);
+            return AndroidFuture.completedFuture(
+                    Settings.Global.putInt(
+                            context.getContentResolver(),
+                            Settings.Global.AUTO_TIME_ZONE,
+                            enabled ? 1 : 0));
         });
     }
 
@@ -218,10 +223,12 @@ final class PolicyEnforcerCallbacks {
                     && policy == DevicePolicyManager.AUTO_TIME_NOT_CONTROLLED_BY_POLICY) {
                 return AndroidFuture.completedFuture(false);
             }
-            int enabled = policy != null && policy == DevicePolicyManager.AUTO_TIME_ENABLED ? 1 : 0;
-            return AndroidFuture.completedFuture(
-                    Settings.Global.putInt(
-                            context.getContentResolver(), Settings.Global.AUTO_TIME,  enabled));
+            boolean enabled = isAutoTimeEnabled(policy);
+                    return AndroidFuture.completedFuture(
+                            Settings.Global.putInt(
+                                    context.getContentResolver(),
+                                    Settings.Global.AUTO_TIME,
+                                    enabled ? 1 : 0));
         });
     }
 
@@ -294,6 +301,30 @@ final class PolicyEnforcerCallbacks {
                 DevicePolicyManagerService.setBgUsageAppOp(appOpsManager, appInfo);
             }
         }
+    }
+
+    private static boolean isAutoTimeEnabled(Integer policy) {
+        if (policy == null) {
+            return false;
+        }
+        if (Flags.policyStreamliningAutoTime()) {
+            return policy == PolicyIdentifier.AUTO_TIME_ENABLED_UNENFORCED
+                    || policy == PolicyIdentifier.AUTO_TIME_ENABLED;
+        }
+
+        return policy == DevicePolicyManager.AUTO_TIME_ENABLED;
+    }
+
+    private static boolean isAutoTimeZoneEnabled(Integer policy) {
+        if (policy == null) {
+            return false;
+        }
+        if (Flags.policyStreamliningAutoTimeZone()) {
+            return policy == PolicyIdentifier.AUTO_TIME_ZONE_ENABLED_UNENFORCED
+                    || policy == PolicyIdentifier.AUTO_TIME_ZONE_ENABLED;
+        }
+
+        return policy == DevicePolicyManager.AUTO_TIME_ZONE_ENABLED;
     }
 
     static CompletableFuture<Boolean> addPersistentPreferredActivity(
@@ -492,5 +523,40 @@ final class PolicyEnforcerCallbacks {
         }
 
         return AndroidFuture.completedFuture(true);
+    }
+
+    public static CompletableFuture<Boolean> setLockScreenInfoPolicy(
+            @Nullable String info, @NonNull Context context, int userId,
+            @NonNull PolicyKey policyKey) {
+        if (!Flags.lockscreenInfoCoexistence()) {
+            Slogf.w(LOG_TAG, "Trying to enforce setLockScreenInfoPolicy while flag is off.");
+            return AndroidFuture.completedFuture(true);
+        }
+
+        return Binder.withCleanCallingIdentity(() -> {
+            Objects.requireNonNull(context);
+            LockPatternUtils lockPatternUtils = new LockPatternUtils(context);
+            lockPatternUtils.setDeviceOwnerInfo(info);
+            return AndroidFuture.completedFuture(true);
+        });
+    }
+
+    public static CompletableFuture<Boolean> setContentRestrictionApps(
+            @Nullable List<String> packages, @NonNull Context context, int userId,
+            @NonNull PolicyKey policyKey) {
+        if (!android.app.contentrestriction.flags.Flags.contentRestrictionApi()) {
+            return AndroidFuture.completedFuture(false);
+        }
+        return Binder.withCleanCallingIdentity(() -> {
+            ContentRestrictionManagerInternal crm =
+                    LocalServices.getService(ContentRestrictionManagerInternal.class);
+            if (crm != null) {
+                List<String> pkgList = packages == null
+                        ? Collections.emptyList()
+                        : new ArrayList<>(packages);
+                crm.setContentRestrictionPackages(userId, pkgList, "device_policy");
+            }
+            return AndroidFuture.completedFuture(true);
+        });
     }
 }

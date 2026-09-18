@@ -16,6 +16,8 @@
 
 package android.service.notification;
 
+import static android.app.NotificationLoggingConstants.DATA_TYPE_ZEN_RULES;
+import static android.app.NotificationManager.Policy.ALL_PRIORITY_CATEGORIES;
 import static android.app.NotificationManager.Policy.CONVERSATION_SENDERS_IMPORTANT;
 import static android.app.NotificationManager.Policy.CONVERSATION_SENDERS_NONE;
 import static android.app.NotificationManager.Policy.SUPPRESSED_EFFECT_AMBIENT;
@@ -23,12 +25,15 @@ import static android.app.NotificationManager.Policy.SUPPRESSED_EFFECT_FULL_SCRE
 import static android.app.NotificationManager.Policy.SUPPRESSED_EFFECT_LIGHTS;
 import static android.app.NotificationManager.Policy.SUPPRESSED_EFFECT_PEEK;
 import static android.app.NotificationManager.Policy.SUPPRESSED_EFFECT_SCREEN_OFF;
-import static android.app.backup.NotificationLoggingConstants.DATA_TYPE_ZEN_RULES;
 import static android.provider.Settings.Global.ZEN_MODE_IMPORTANT_INTERRUPTIONS;
 import static android.service.notification.SystemZenRules.PACKAGE_ANDROID;
+import static android.service.notification.ZenAdapters.notificationPolicyCategoryToZenPolicyCategory;
 import static android.service.notification.ZenAdapters.peopleTypeToPrioritySenders;
 import static android.service.notification.ZenAdapters.prioritySendersToPeopleType;
 import static android.service.notification.ZenAdapters.zenPolicyConversationSendersToNotificationPolicy;
+import static android.service.notification.ZenPolicy.ALLOWED_INTERRUPTION_TYPE_SOUND_ONLY;
+import static android.service.notification.ZenPolicy.ALLOWED_INTERRUPTION_TYPE_UNSET;
+import static android.service.notification.ZenPolicy.ALLOWED_INTERRUPTION_TYPE_VIBRATION_ONLY;
 import static android.service.notification.ZenPolicy.PEOPLE_TYPE_STARRED;
 import static android.service.notification.ZenPolicy.PRIORITY_CATEGORY_CALLS;
 import static android.service.notification.ZenPolicy.PRIORITY_CATEGORY_EVENTS;
@@ -48,7 +53,6 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.AutomaticZenRule;
-import android.app.Flags;
 import android.app.NotificationManager;
 import android.app.NotificationManager.Policy;
 import android.app.backup.BackupRestoreEventLogger;
@@ -261,6 +265,7 @@ public class ZenModeConfig implements Parcelable {
     private static final String ALLOW_ATT_CONV = "convos";
     private static final String ALLOW_ATT_CONV_FROM = "convosFrom";
     private static final String ALLOW_ATT_CHANNELS = "priorityChannelsAllowed";
+    private static final String ALLOW_ATT_INTERRUPTION_TYPE_ALARMS = "interruptionTypeAlarms";
     private static final String POLICY_USER_MODIFIED_FIELDS = "policyUserModifiedFields";
     private static final String DISALLOW_ATT_VISUAL_EFFECTS = "visualEffects";
     private static final String STATE_TAG = "state";
@@ -362,8 +367,7 @@ public class ZenModeConfig implements Parcelable {
     }
 
     public static ZenPolicy getDefaultZenPolicy() {
-        ZenPolicy policy = new ZenPolicy.Builder()
-                .allowAlarms(true)
+        ZenPolicy.Builder policyBuilder = new ZenPolicy.Builder()
                 .allowMedia(true)
                 .allowSystem(false)
                 .allowCalls(PEOPLE_TYPE_STARRED)
@@ -377,9 +381,15 @@ public class ZenModeConfig implements Parcelable {
                 .showVisualEffect(VISUAL_EFFECT_LIGHTS, false)
                 .showVisualEffect(VISUAL_EFFECT_PEEK, false)
                 .showVisualEffect(VISUAL_EFFECT_AMBIENT, false)
-                .allowPriorityChannels(true)
-                .build();
-        return policy;
+                .allowPriorityChannels(true);
+
+        if (android.service.notification.Flags.splitSoundVibrationForNotificationBreakthrough()) {
+            policyBuilder.allowAlarms(true, true);
+        } else {
+            policyBuilder.allowAlarms(true);
+        }
+
+        return policyBuilder.build();
     }
 
     public static ZenModeConfig getDefaultConfig() {
@@ -416,6 +426,9 @@ public class ZenModeConfig implements Parcelable {
             newRule.allowManualInvocation = true;
             newRule.zenPolicy = getDefaultZenPolicy();
             newRule.pkg = PACKAGE_ANDROID;
+            if (Flags.enableDndSync()) {
+                newRule.id = MANUAL_RULE_ID;
+            }
             manualRule = newRule;
         }
     }
@@ -723,6 +736,9 @@ public class ZenModeConfig implements Parcelable {
                     rt.manualRule = readRuleXml(parser);
                     // manualRule.enabled can never be false, but it was broken in some builds.
                     rt.manualRule.enabled = true;
+                    if (Flags.enableDndSync()) {
+                        rt.manualRule.id = MANUAL_RULE_ID;
+                    }
                     // Manual rule may be present prior to modes_ui if it were on, but in that
                     // case it would not have a set policy, so make note of the need to set
                     // it up later.
@@ -755,11 +771,22 @@ public class ZenModeConfig implements Parcelable {
             if (type == XmlPullParser.END_TAG && ZEN_TAG.equals(tag)) {
                 if (!readManualRule || readManualRuleWithoutPolicy) {
                     // migrate from fields on config into manual rule
-                    rt.manualRule.zenPolicy = migrateToManualRuleZenPolicy(oldAllowAlarms,
-                            oldAllowMedia, oldAllowSystem, oldAllowCalls, oldAllowRepeatCallers,
-                            oldAllowMessages, oldAllowReminders, oldAllowEvents, oldAllowCallsFrom,
-                            oldAllowMessagesFrom, oldAllowConversations, oldAllowConversationsFrom,
-                            oldSuppressedVisualEffects, oldAllowPriorityChannels);
+                    rt.manualRule.zenPolicy =
+                            migrateToManualRuleZenPolicy(
+                                    oldAllowAlarms,
+                                    oldAllowMedia,
+                                    oldAllowSystem,
+                                    oldAllowCalls,
+                                    oldAllowRepeatCallers,
+                                    oldAllowMessages,
+                                    oldAllowReminders,
+                                    oldAllowEvents,
+                                    oldAllowCallsFrom,
+                                    oldAllowMessagesFrom,
+                                    oldAllowConversations,
+                                    oldAllowConversationsFrom,
+                                    oldSuppressedVisualEffects,
+                                    oldAllowPriorityChannels);
                     if (readManualRuleWithoutPolicy) {
                         // indicates that the xml represents a pre-modes_ui XML with an enabled
                         // manual rule; set rule active, and fill in other fields as would be done
@@ -785,11 +812,21 @@ public class ZenModeConfig implements Parcelable {
         throw new IllegalStateException("Failed to reach END_DOCUMENT");
     }
 
-    private static ZenPolicy migrateToManualRuleZenPolicy(boolean allowAlarms, boolean allowMedia,
-            boolean allowSystem, boolean allowCalls, boolean allowRepeatCallers,
-            boolean allowMessages, boolean allowReminders, boolean allowEvents, int allowCallsFrom,
-            int allowMessagesFrom, boolean allowConversations, int allowConversationsFrom,
-            int suppressedVisualEffects, boolean allowPriorityChannels) {
+    private static ZenPolicy migrateToManualRuleZenPolicy(
+            boolean allowAlarms,
+            boolean allowMedia,
+            boolean allowSystem,
+            boolean allowCalls,
+            boolean allowRepeatCallers,
+            boolean allowMessages,
+            boolean allowReminders,
+            boolean allowEvents,
+            int allowCallsFrom,
+            int allowMessagesFrom,
+            boolean allowConversations,
+            int allowConversationsFrom,
+            int suppressedVisualEffects,
+            boolean allowPriorityChannels) {
         ZenPolicy.Builder builder = new ZenPolicy.Builder()
                 .allowCalls(allowCalls
                         ? prioritySendersToPeopleType(allowCallsFrom)
@@ -800,11 +837,17 @@ public class ZenModeConfig implements Parcelable {
                         : ZenPolicy.PEOPLE_TYPE_NONE)
                 .allowReminders(allowReminders)
                 .allowEvents(allowEvents)
-                .allowAlarms(allowAlarms)
                 .allowMedia(allowMedia)
                 .allowSystem(allowSystem)
                 .allowConversations(allowConversations ? allowConversationsFrom
                         : ZenPolicy.CONVERSATION_SENDERS_NONE);
+
+        if (android.service.notification.Flags.splitSoundVibrationForNotificationBreakthrough()) {
+            builder.allowAlarms(allowAlarms, allowAlarms);
+        } else {
+            builder.allowAlarms(allowAlarms);
+        }
+
         if (suppressedVisualEffects == 0) {
             builder.showAllVisualEffects();
         } else {
@@ -927,14 +970,11 @@ public class ZenModeConfig implements Parcelable {
         rt.conditionOverride = safeInt(parser, RULE_ATT_CONDITION_OVERRIDE,
                 ZenRule.OVERRIDE_NONE);
         rt.lastActivation = safeInstant(parser, RULE_ATT_LAST_ACTIVATION, null);
-        if (Flags.modesUiTileReactivatesLast()) {
-            rt.lastManualActivation = safeInstant(parser, RULE_ATT_LAST_MANUAL_ACTIVATION,
-                    null);
-            rt.lastDeactivation = safeInstant(parser, RULE_ATT_LAST_DEACTIVATION, null);
-            rt.lastManualDeactivation = safeInstant(parser, RULE_ATT_LAST_MANUAL_DEACTIVATION,
-                    null);
-        }
-
+        rt.lastManualActivation = safeInstant(parser, RULE_ATT_LAST_MANUAL_ACTIVATION,
+                null);
+        rt.lastDeactivation = safeInstant(parser, RULE_ATT_LAST_DEACTIVATION, null);
+        rt.lastManualDeactivation = safeInstant(parser, RULE_ATT_LAST_MANUAL_DEACTIVATION,
+                null);
         return rt;
     }
 
@@ -991,14 +1031,10 @@ public class ZenModeConfig implements Parcelable {
             out.attributeInt(null, RULE_ATT_CONDITION_OVERRIDE, rule.conditionOverride);
         }
         writeXmlAttributeInstant(out, RULE_ATT_LAST_ACTIVATION, rule.lastActivation);
-        if (Flags.modesUiTileReactivatesLast()) {
-            writeXmlAttributeInstant(out, RULE_ATT_LAST_MANUAL_ACTIVATION,
-                    rule.lastManualActivation);
-            writeXmlAttributeInstant(out, RULE_ATT_LAST_DEACTIVATION,
-                    rule.lastDeactivation);
-            writeXmlAttributeInstant(out, RULE_ATT_LAST_MANUAL_DEACTIVATION,
-                    rule.lastManualDeactivation);
-        }
+        writeXmlAttributeInstant(out, RULE_ATT_LAST_MANUAL_ACTIVATION, rule.lastManualActivation);
+        writeXmlAttributeInstant(out, RULE_ATT_LAST_DEACTIVATION, rule.lastDeactivation);
+        writeXmlAttributeInstant(out, RULE_ATT_LAST_MANUAL_DEACTIVATION,
+                rule.lastManualDeactivation);
     }
 
     private static void writeXmlAttributeInstant(TypedXmlSerializer out, String att,
@@ -1056,6 +1092,16 @@ public class ZenModeConfig implements Parcelable {
         final int events = safeInt(parser, ALLOW_ATT_EVENTS, ZenPolicy.STATE_UNSET);
         final int reminders = safeInt(parser, ALLOW_ATT_REMINDERS, ZenPolicy.STATE_UNSET);
         final int channels = safeInt(parser, ALLOW_ATT_CHANNELS, ZenPolicy.STATE_UNSET);
+        final int interruptionTypeAlarms;
+        if (android.service.notification.Flags.splitSoundVibrationForNotificationBreakthrough()) {
+            interruptionTypeAlarms = safeInt(
+                    parser,
+                    ALLOW_ATT_INTERRUPTION_TYPE_ALARMS,
+                    ALLOWED_INTERRUPTION_TYPE_UNSET
+            );
+        } else {
+            interruptionTypeAlarms = ALLOWED_INTERRUPTION_TYPE_UNSET;
+        }
 
         if (channels != ZenPolicy.STATE_UNSET) {
             builder.allowPriorityChannels(channels == STATE_ALLOW);
@@ -1096,6 +1142,12 @@ public class ZenModeConfig implements Parcelable {
         }
         if (reminders != ZenPolicy.STATE_UNSET) {
             builder.allowReminders(reminders == STATE_ALLOW);
+            policySet = true;
+        }
+        if (interruptionTypeAlarms != ZenPolicy.ALLOWED_INTERRUPTION_TYPE_UNSET) {
+            builder.allowAlarms(
+                    interruptionTypeAlarms != ALLOWED_INTERRUPTION_TYPE_VIBRATION_ONLY,
+                    interruptionTypeAlarms != ALLOWED_INTERRUPTION_TYPE_SOUND_ONLY);
             policySet = true;
         }
 
@@ -1160,6 +1212,11 @@ public class ZenModeConfig implements Parcelable {
         writeZenPolicyState(ALLOW_ATT_REMINDERS, policy.getPriorityCategoryReminders(), out);
         writeZenPolicyState(ALLOW_ATT_EVENTS, policy.getPriorityCategoryEvents(), out);
 
+        if (android.service.notification.Flags.splitSoundVibrationForNotificationBreakthrough()) {
+            writeZenPolicyState(
+                    ALLOW_ATT_INTERRUPTION_TYPE_ALARMS, policy.getInterruptionTypeAlarms(), out);
+        }
+
         writeZenPolicyState(SHOW_ATT_FULL_SCREEN_INTENT, policy.getVisualEffectFullScreenIntent(),
                 out);
         writeZenPolicyState(SHOW_ATT_LIGHTS, policy.getVisualEffectLights(), out);
@@ -1185,6 +1242,10 @@ public class ZenModeConfig implements Parcelable {
             }
         } else if (Objects.equals(attr, ALLOW_ATT_CHANNELS)) {
             if (val != ZenPolicy.STATE_UNSET) {
+                out.attributeInt(null, attr, val);
+            }
+        } else if (Objects.equals(attr, ALLOW_ATT_INTERRUPTION_TYPE_ALARMS)) {
+            if (val != ZenPolicy.ALLOWED_INTERRUPTION_TYPE_UNSET) {
                 out.attributeInt(null, attr, val);
             }
         } else {
@@ -1424,6 +1485,8 @@ public class ZenModeConfig implements Parcelable {
         int callSenders = defaultPolicy.priorityCallSenders;
         int messageSenders = defaultPolicy.priorityMessageSenders;
         int conversationSenders = defaultPolicy.priorityConversationSenders;
+        int allowSoundForPriorityCategory = 0;
+        int allowVibrationForPriorityCategory = 0;
 
         if (zenPolicy.isCategoryAllowed(ZenPolicy.PRIORITY_CATEGORY_REMINDERS,
                 isPriorityCategoryEnabled(Policy.PRIORITY_CATEGORY_REMINDERS, defaultPolicy))) {
@@ -1477,6 +1540,49 @@ public class ZenModeConfig implements Parcelable {
         if (zenPolicy.isCategoryAllowed(ZenPolicy.PRIORITY_CATEGORY_SYSTEM,
                 isPriorityCategoryEnabled(Policy.PRIORITY_CATEGORY_SYSTEM, defaultPolicy))) {
             priorityCategories |= Policy.PRIORITY_CATEGORY_SYSTEM;
+        }
+
+        if (android.service.notification.Flags.splitSoundVibrationForNotificationBreakthrough()) {
+            for (int category : ALL_PRIORITY_CATEGORIES) {
+                int zenPolicyCategory = notificationPolicyCategoryToZenPolicyCategory(category);
+                boolean categoryAllowed = (priorityCategories & category) != 0;
+                boolean defaultCategoryAllowed = (defaultPolicy.priorityCategories & category)
+                        != 0;
+
+                boolean allowSound;
+                boolean allowVibration;
+                if (!categoryAllowed) {
+                    // Not allowed.
+                    allowSound = false;
+                    allowVibration = false;
+                } else if (zenPolicy.getInterruptionTypeForPriorityCategory(zenPolicyCategory)
+                        != ALLOWED_INTERRUPTION_TYPE_UNSET) {
+                    // New policy has interruption type. Use new values.
+                    allowSound = zenPolicy.isSoundAllowed(zenPolicyCategory,
+                            /* defaultVal= */ false);
+                    allowVibration = zenPolicy.isVibrationAllowed(zenPolicyCategory,
+                            /* defaultVal= */ false);
+                } else if (defaultCategoryAllowed) {
+                    // New policy has no interruption type but default policy has it.
+                    // Use default policy values.
+                    allowSound = defaultPolicy.allowSoundFor(category);
+                    allowVibration = defaultPolicy.allowVibrationFor(category);
+                } else {
+                    // Neither new policy nor default policy has interruption type.
+                    allowSound = true;
+                    allowVibration = true;
+                }
+
+                if (allowSound) {
+                    allowSoundForPriorityCategory |= category;
+                }
+                if (allowVibration) {
+                    allowVibrationForPriorityCategory |= category;
+                }
+            }
+        } else {
+            allowSoundForPriorityCategory = Policy.ALLOWED_INTERRUPTION_TYPE_UNSET;
+            allowVibrationForPriorityCategory = Policy.ALLOWED_INTERRUPTION_TYPE_UNSET;
         }
 
         boolean suppressFullScreenIntent = !zenPolicy.isVisualEffectAllowed(
@@ -1539,8 +1645,15 @@ public class ZenModeConfig implements Parcelable {
                 ZenPolicy.stateToBoolean(zenPolicy.getPriorityChannelsAllowed(),
                         DEFAULT_ALLOW_PRIORITY_CHANNELS));
 
-        return new NotificationManager.Policy(priorityCategories, callSenders,
-                messageSenders, suppressedVisualEffects, state, conversationSenders);
+        return new NotificationManager.Policy(
+                priorityCategories,
+                callSenders,
+                messageSenders,
+                suppressedVisualEffects,
+                state,
+                conversationSenders,
+                allowSoundForPriorityCategory,
+                allowVibrationForPriorityCategory);
     }
 
     private boolean isPriorityCategoryEnabled(int categoryType, Policy policy) {
@@ -1562,6 +1675,8 @@ public class ZenModeConfig implements Parcelable {
         int priorityConversationSenders = Policy.CONVERSATION_SENDERS_IMPORTANT;
         int state = 0;
         int suppressedVisualEffects = 0;
+        int allowSoundForPriorityCategory = 0;
+        int allowVibrationForPriorityCategory = 0;
 
         if (manualRule.zenPolicy.isCategoryAllowed(ZenPolicy.PRIORITY_CATEGORY_EVENTS, false)) {
             priorityCategories |= Policy.PRIORITY_CATEGORY_EVENTS;
@@ -1600,6 +1715,26 @@ public class ZenModeConfig implements Parcelable {
         }
         priorityMessageSenders = peopleTypeToPrioritySenders(
                 manualRule.zenPolicy.getPriorityMessageSenders(), DEFAULT_SOURCE);
+
+        if (android.service.notification.Flags.splitSoundVibrationForNotificationBreakthrough()) {
+            for (int category : ALL_PRIORITY_CATEGORIES) {
+                boolean allowSound = manualRule.zenPolicy.isSoundAllowed(
+                                notificationPolicyCategoryToZenPolicyCategory(category),
+                                /* defaultVal= */ false);
+                boolean allowVibration = manualRule.zenPolicy.isVibrationAllowed(
+                                notificationPolicyCategoryToZenPolicyCategory(category),
+                                /* defaultVal= */ false);
+                if (allowSound) {
+                    allowSoundForPriorityCategory |= category;
+                }
+                if (allowVibration) {
+                    allowVibrationForPriorityCategory |= category;
+                }
+            }
+        } else {
+            allowSoundForPriorityCategory = Policy.ALLOWED_INTERRUPTION_TYPE_UNSET;
+            allowVibrationForPriorityCategory = Policy.ALLOWED_INTERRUPTION_TYPE_UNSET;
+        }
 
         state = Policy.policyState(hasPriorityChannels,
                 manualRule.zenPolicy.getPriorityChannelsAllowed() != STATE_DISALLOW);
@@ -1668,8 +1803,15 @@ public class ZenModeConfig implements Parcelable {
         suppressedVisualEffects |=
                 (LEGACY_SUPPRESSED_EFFECTS & manualRule.legacySuppressedEffects);
 
-        return new Policy(priorityCategories, priorityCallSenders, priorityMessageSenders,
-                suppressedVisualEffects, state, priorityConversationSenders);
+        return new Policy(
+                priorityCategories,
+                priorityCallSenders,
+                priorityMessageSenders,
+                suppressedVisualEffects,
+                state,
+                priorityConversationSenders,
+                allowSoundForPriorityCategory,
+                allowVibrationForPriorityCategory);
     }
 
     /**
@@ -2270,16 +2412,14 @@ public class ZenModeConfig implements Parcelable {
             if (source.readInt() == 1) {
                 lastActivation = Instant.ofEpochMilli(source.readLong());
             }
-            if (Flags.modesUiTileReactivatesLast()) {
-                if (source.readInt() == 1) {
-                    lastManualActivation = Instant.ofEpochMilli(source.readLong());
-                }
-                if (source.readInt() == 1) {
-                    lastDeactivation = Instant.ofEpochMilli(source.readLong());
-                }
-                if (source.readInt() == 1) {
-                    lastManualDeactivation = Instant.ofEpochMilli(source.readLong());
-                }
+            if (source.readInt() == 1) {
+                lastManualActivation = Instant.ofEpochMilli(source.readLong());
+            }
+            if (source.readInt() == 1) {
+                lastDeactivation = Instant.ofEpochMilli(source.readLong());
+            }
+            if (source.readInt() == 1) {
+                lastManualDeactivation = Instant.ofEpochMilli(source.readLong());
             }
         }
 
@@ -2347,11 +2487,9 @@ public class ZenModeConfig implements Parcelable {
             dest.writeInt(legacySuppressedEffects);
             dest.writeInt(conditionOverride);
             writeInstantToParcel(dest, lastActivation);
-            if (Flags.modesUiTileReactivatesLast()) {
-                writeInstantToParcel(dest, lastManualActivation);
-                writeInstantToParcel(dest, lastDeactivation);
-                writeInstantToParcel(dest, lastManualDeactivation);
-            }
+            writeInstantToParcel(dest, lastManualActivation);
+            writeInstantToParcel(dest, lastDeactivation);
+            writeInstantToParcel(dest, lastManualDeactivation);
         }
 
         private static void writeInstantToParcel(Parcel dest, @Nullable Instant instant) {
@@ -2406,12 +2544,9 @@ public class ZenModeConfig implements Parcelable {
             sb.append(",disabledOrigin=").append(disabledOrigin);
             sb.append(",legacySuppressedEffects=").append(legacySuppressedEffects);
             sb.append(",lastActivation=").append(lastActivation);
-            if (Flags.modesUiTileReactivatesLast()) {
-                sb.append(",lastManualActivation=").append(lastManualActivation);
-                sb.append(",lastDeactivation=").append(lastDeactivation);
-                sb.append(",lastManualDeactivation=").append(lastManualDeactivation);
-            }
-
+            sb.append(",lastManualActivation=").append(lastManualActivation);
+            sb.append(",lastDeactivation=").append(lastDeactivation);
+            sb.append(",lastManualDeactivation=").append(lastManualDeactivation);
             return sb.append(']').toString();
         }
 
@@ -2453,10 +2588,9 @@ public class ZenModeConfig implements Parcelable {
 
         @Override
         public boolean equals(@Nullable Object o) {
-            if (!(o instanceof ZenRule)) return false;
+            if (!(o instanceof ZenRule other)) return false;
             if (o == this) return true;
-            final ZenRule other = (ZenRule) o;
-            boolean finalEquals = other.enabled == enabled
+            return other.enabled == enabled
                     && Objects.equals(other.name, name)
                     && other.zenMode == zenMode
                     && Objects.equals(other.conditionId, conditionId)
@@ -2480,38 +2614,21 @@ public class ZenModeConfig implements Parcelable {
                     && other.disabledOrigin == disabledOrigin
                     && other.legacySuppressedEffects == legacySuppressedEffects
                     && other.conditionOverride == conditionOverride
-                    && Objects.equals(other.lastActivation, lastActivation);
-
-            if (Flags.modesUiTileReactivatesLast()) {
-                finalEquals = finalEquals
-                        && Objects.equals(other.lastManualActivation, lastManualActivation)
-                        && Objects.equals(other.lastDeactivation, lastDeactivation)
-                        && Objects.equals(other.lastManualDeactivation, lastManualDeactivation);
-            }
-
-            return finalEquals;
+                    && Objects.equals(other.lastActivation, lastActivation)
+                    && Objects.equals(other.lastManualActivation, lastManualActivation)
+                    && Objects.equals(other.lastDeactivation, lastDeactivation)
+                    && Objects.equals(other.lastManualDeactivation, lastManualDeactivation);
         }
 
         @Override
         public int hashCode() {
-            if (Flags.modesUiTileReactivatesLast()) {
-                return Objects.hash(enabled, name, zenMode, conditionId, condition,
-                        component, configurationActivity, pkg, id, enabler, zenPolicy,
-                        zenDeviceEffects, allowManualInvocation, iconResName,
-                        triggerDescription, type, userModifiedFields,
-                        zenPolicyUserModifiedFields, zenDeviceEffectsUserModifiedFields,
-                        deletionInstant, disabledOrigin, legacySuppressedEffects,
-                        conditionOverride, lastActivation, lastManualActivation,
-                        lastDeactivation, lastManualDeactivation);
-            } else {
-                return Objects.hash(enabled, name, zenMode, conditionId, condition,
-                        component, configurationActivity, pkg, id, enabler, zenPolicy,
-                        zenDeviceEffects, allowManualInvocation, iconResName,
-                        triggerDescription, type, userModifiedFields,
-                        zenPolicyUserModifiedFields, zenDeviceEffectsUserModifiedFields,
-                        deletionInstant, disabledOrigin, legacySuppressedEffects,
-                        conditionOverride, lastActivation);
-            }
+            return Objects.hash(enabled, name, zenMode, conditionId, condition, component,
+                    configurationActivity, pkg, id, enabler, zenPolicy, zenDeviceEffects,
+                    allowManualInvocation, iconResName, triggerDescription, type,
+                    userModifiedFields, zenPolicyUserModifiedFields,
+                    zenDeviceEffectsUserModifiedFields, deletionInstant, disabledOrigin,
+                    legacySuppressedEffects, conditionOverride, lastActivation,
+                    lastManualActivation, lastDeactivation, lastManualDeactivation);
         }
 
         /** Returns a deep copy of the {@link ZenRule}. */

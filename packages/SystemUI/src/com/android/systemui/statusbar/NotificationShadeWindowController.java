@@ -145,6 +145,14 @@ public interface NotificationShadeWindowController extends RemoteInputController
     default void setDozeScreenBrightness(float value) {}
 
     /**
+     * Sets the screen brightness level whenever SysUI needs to override screen brightness.
+     * This takes precedence over the dozeScreenBrightness.
+     * @param value The brightness value between {@link PowerManager#BRIGHTNESS_MIN} and
+     * {@link PowerManager#BRIGHTNESS_MAX}
+     */
+    default void setScreenBrightnessOverride(float value) {}
+
+    /**
      * Sets whether the screen brightness is forced to the value we use for doze mode by the status
      * bar window. No-op if the device does not support dozing.
      */

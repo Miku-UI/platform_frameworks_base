@@ -25,6 +25,7 @@ import android.annotation.SuppressLint;
 import android.app.ondeviceintelligence.IResponseCallback;
 import android.app.ondeviceintelligence.IStreamingResponseCallback;
 import android.app.ondeviceintelligence.ITokenInfoCallback;
+import android.app.ondeviceintelligence.InferenceInfo;
 import android.app.ondeviceintelligence.OnDeviceIntelligenceManager.InferenceParams;
 import android.app.ondeviceintelligence.OnDeviceIntelligenceManager.ResponseParams;
 import android.app.ondeviceintelligence.OnDeviceIntelligenceManager.StateParams;
@@ -32,7 +33,9 @@ import android.app.ondeviceintelligence.TokenInfo;
 import android.database.CursorWindow;
 import android.graphics.Bitmap;
 import android.os.BadParcelableException;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Flags;
 import android.os.ParcelFileDescriptor;
 import android.os.Parcelable;
 import android.os.PersistableBundle;
@@ -63,12 +66,11 @@ public class BundleUtil {
      *
      * @throws BadParcelableException when the bundle does not meet the read-only requirements.
      */
-    public static void sanitizeInferenceParams(
-            @InferenceParams Bundle bundle) {
+    public static void sanitizeInferenceParams(@InferenceParams Bundle bundle) {
         ensureValidBundle(bundle);
 
         if (!bundle.hasFileDescriptors()) {
-            return; //safe to exit if there are no FDs and Binders
+            return; // safe to exit if there are no FDs and Binders
         }
 
         for (String key : bundle.keySet()) {
@@ -86,7 +88,7 @@ public class BundleUtil {
                 continue;
             }
             if (obj instanceof Bundle) {
-              sanitizeInferenceParams((Bundle) obj);
+                sanitizeInferenceParams((Bundle) obj);
             } else if (obj instanceof ParcelFileDescriptor) {
                 validatePfdReadOnly((ParcelFileDescriptor) obj);
             } else if (obj instanceof SharedMemory) {
@@ -109,12 +111,11 @@ public class BundleUtil {
      *
      * @throws BadParcelableException when the bundle does not meet the read-only requirements.
      */
-    public static void sanitizeResponseParams(
-            @ResponseParams Bundle bundle) {
+    public static void sanitizeResponseParams(@ResponseParams Bundle bundle) {
         ensureValidBundle(bundle);
 
         if (!bundle.hasFileDescriptors()) {
-            return; //safe to exit if there are no FDs and Binders
+            return; // safe to exit if there are no FDs and Binders
         }
 
         for (String key : bundle.keySet()) {
@@ -149,18 +150,15 @@ public class BundleUtil {
     }
 
     /**
-     * Validation of the inference request payload as described in {@link StateParams}
-     * description.
+     * Validation of the inference request payload as described in {@link StateParams} description.
      *
      * @throws BadParcelableException when the bundle does not meet the read-only requirements.
-     * TODO: b/429180295 - Change to custom exception so callers are forced to handle it.
      */
-    public static void sanitizeStateParams(
-            @StateParams Bundle bundle) {
+    public static void sanitizeStateParams(@StateParams Bundle bundle) {
         ensureValidBundle(bundle);
 
         if (!bundle.hasFileDescriptors()) {
-            return; //safe to exit if there are no FDs and Binders
+            return; // safe to exit if there are no FDs and Binders
         }
 
         for (String key : bundle.keySet()) {
@@ -188,26 +186,25 @@ public class BundleUtil {
         }
     }
 
-
     public static IStreamingResponseCallback wrapWithValidation(
             IStreamingResponseCallback streamingResponseCallback,
             Executor resourceClosingExecutor,
             AndroidFuture future,
-            InferenceInfoStore inferenceInfoStore) {
+            InferenceInfoStore inferenceInfoStore,
+            boolean shouldForwardInferenceInfo) {
         return new IStreamingResponseCallback.Stub() {
             @Override
-            public void onNewContent(Bundle processedResult) throws RemoteException {
+            public void onPartialResult(Bundle processedResult) throws RemoteException {
                 try {
                     sanitizeResponseParams(processedResult);
-                    streamingResponseCallback.onNewContent(processedResult);
+                    streamingResponseCallback.onPartialResult(processedResult);
                 } finally {
                     resourceClosingExecutor.execute(() -> tryCloseResource(processedResult));
                 }
             }
 
             @Override
-            public void onSuccess(Bundle resultBundle)
-                    throws RemoteException {
+            public void onSuccess(Bundle resultBundle) throws RemoteException {
                 try {
                     sanitizeResponseParams(resultBundle);
                     streamingResponseCallback.onSuccess(resultBundle);
@@ -219,20 +216,23 @@ public class BundleUtil {
             }
 
             @Override
-            public void onFailure(int errorCode, String errorMessage,
-                    PersistableBundle errorParams) throws RemoteException {
-                streamingResponseCallback.onFailure(errorCode, errorMessage, errorParams);
-                inferenceInfoStore.addInferenceInfoFromBundle(errorParams);
-                future.completeExceptionally(new TimeoutException());
+            public void onFailure(int errorCode, String errorMessage, PersistableBundle errorParams)
+                    throws RemoteException {
+                try {
+                    streamingResponseCallback.onFailure(errorCode, errorMessage, errorParams);
+                    inferenceInfoStore.addInferenceInfoFromBundle(errorParams);
+                } finally {
+                    future.complete(null);
+                }
             }
 
             @Override
-            public void onDataAugmentRequest(Bundle processedContent,
-                    RemoteCallback remoteCallback)
+            public void onDataAugmentRequest(Bundle processedContent, RemoteCallback remoteCallback)
                     throws RemoteException {
                 try {
                     sanitizeResponseParams(processedContent);
-                    streamingResponseCallback.onDataAugmentRequest(processedContent,
+                    streamingResponseCallback.onDataAugmentRequest(
+                            processedContent,
                             new RemoteCallback(
                                     augmentedData -> {
                                         try {
@@ -247,17 +247,26 @@ public class BundleUtil {
                     resourceClosingExecutor.execute(() -> tryCloseResource(processedContent));
                 }
             }
+
+            @Override
+            public void onInferenceInfo(InferenceInfo info) throws RemoteException {
+                inferenceInfoStore.add(info);
+                if (shouldForwardInferenceInfo) {
+                    streamingResponseCallback.onInferenceInfo(info);
+                }
+            }
         };
     }
 
-    public static IResponseCallback wrapWithValidation(IResponseCallback responseCallback,
+    public static IResponseCallback wrapWithValidation(
+            IResponseCallback responseCallback,
             Executor resourceClosingExecutor,
             AndroidFuture future,
-            InferenceInfoStore inferenceInfoStore) {
+            InferenceInfoStore inferenceInfoStore,
+            boolean shouldForwardInferenceInfo) {
         return new IResponseCallback.Stub() {
             @Override
-            public void onSuccess(Bundle resultBundle)
-                    throws RemoteException {
+            public void onSuccess(Bundle resultBundle) throws RemoteException {
                 try {
                     sanitizeResponseParams(resultBundle);
                     responseCallback.onSuccess(resultBundle);
@@ -269,54 +278,74 @@ public class BundleUtil {
             }
 
             @Override
-            public void onFailure(int errorCode, String errorMessage,
-                    PersistableBundle errorParams) throws RemoteException {
-                responseCallback.onFailure(errorCode, errorMessage, errorParams);
-                inferenceInfoStore.addInferenceInfoFromBundle(errorParams);
-                future.completeExceptionally(new TimeoutException());
+            public void onFailure(int errorCode, String errorMessage, PersistableBundle errorParams)
+                    throws RemoteException {
+                try {
+                    responseCallback.onFailure(errorCode, errorMessage, errorParams);
+                    inferenceInfoStore.addInferenceInfoFromBundle(errorParams);
+                } finally {
+                    future.complete(null);
+                }
             }
 
             @Override
-            public void onDataAugmentRequest(Bundle processedContent,
-                    RemoteCallback remoteCallback)
+            public void onDataAugmentRequest(Bundle processedContent, RemoteCallback remoteCallback)
                     throws RemoteException {
                 try {
                     sanitizeResponseParams(processedContent);
-                    responseCallback.onDataAugmentRequest(processedContent, new RemoteCallback(
-                            augmentedData -> {
-                                try {
-                                    sanitizeInferenceParams(augmentedData);
-                                    remoteCallback.sendResult(augmentedData);
-                                } finally {
-                                    resourceClosingExecutor.execute(
-                                            () -> tryCloseResource(augmentedData));
-                                }
-                            }));
+                    responseCallback.onDataAugmentRequest(
+                            processedContent,
+                            new RemoteCallback(
+                                    augmentedData -> {
+                                        try {
+                                            sanitizeInferenceParams(augmentedData);
+                                            remoteCallback.sendResult(augmentedData);
+                                        } finally {
+                                            resourceClosingExecutor.execute(
+                                                    () -> tryCloseResource(augmentedData));
+                                        }
+                                    }));
                 } finally {
                     resourceClosingExecutor.execute(() -> tryCloseResource(processedContent));
+                }
+            }
+
+            @Override
+            public void onInferenceInfo(InferenceInfo info) throws RemoteException {
+                inferenceInfoStore.add(info);
+                if (shouldForwardInferenceInfo) {
+                    responseCallback.onInferenceInfo(info);
                 }
             }
         };
     }
 
-
-    public static ITokenInfoCallback wrapWithValidation(ITokenInfoCallback responseCallback,
+    public static ITokenInfoCallback wrapWithValidation(
+            ITokenInfoCallback responseCallback,
             AndroidFuture future,
             InferenceInfoStore inferenceInfoStore) {
         return new ITokenInfoCallback.Stub() {
             @Override
             public void onSuccess(TokenInfo tokenInfo) throws RemoteException {
-                responseCallback.onSuccess(tokenInfo);
-                inferenceInfoStore.addInferenceInfoFromBundle(tokenInfo.getInfoParams());
-                future.complete(null);
+                try {
+                    responseCallback.onSuccess(tokenInfo);
+                    if (tokenInfo.getInfoParams() != null) {
+                        inferenceInfoStore.addInferenceInfoFromBundle(tokenInfo.getInfoParams());
+                    }
+                } finally {
+                    future.complete(null);
+                }
             }
 
             @Override
             public void onFailure(int errorCode, String errorMessage, PersistableBundle errorParams)
                     throws RemoteException {
-                responseCallback.onFailure(errorCode, errorMessage, errorParams);
-                inferenceInfoStore.addInferenceInfoFromBundle(errorParams);
-                future.completeExceptionally(new TimeoutException());
+                try {
+                    responseCallback.onFailure(errorCode, errorMessage, errorParams);
+                    inferenceInfoStore.addInferenceInfoFromBundle(errorParams);
+                } finally {
+                    future.complete(null);
+                }
             }
         };
     }
@@ -336,22 +365,19 @@ public class BundleUtil {
             throw new IllegalArgumentException("Request passed is expected to be non-null");
         }
 
-        if (bundle.hasBinders() != Bundle.STATUS_BINDERS_NOT_PRESENT) {
+        if (Flags.enableHasBinders() && bundle.hasBinders() != Bundle.STATUS_BINDERS_NOT_PRESENT) {
             throw new BadParcelableException("Bundle should not contain IBinder objects.");
         }
     }
 
     private static void validateParcelableArray(Parcelable[] parcelables) {
-        if (parcelables.length > 0
-                && parcelables[0] instanceof ParcelFileDescriptor) {
+        if (parcelables.length > 0 && parcelables[0] instanceof ParcelFileDescriptor) {
             // Safe to cast
             validatePfdsReadOnly(parcelables);
-        } else if (parcelables.length > 0
-                && parcelables[0] instanceof Bitmap) {
+        } else if (parcelables.length > 0 && parcelables[0] instanceof Bitmap) {
             validateBitmapsImmutable(parcelables);
         } else {
-            throw new BadParcelableException(
-                    "Could not cast to any known parcelable array");
+            throw new BadParcelableException("Could not cast to any known parcelable array");
         }
     }
 
@@ -372,8 +398,7 @@ public class BundleUtil {
                         "Bundle contains a parcel file descriptor which is not read-only.");
             }
         } catch (ErrnoException e) {
-            throw new BadParcelableException(
-                    "Invalid File descriptor passed in the Bundle.");
+            throw new BadParcelableException("Invalid File descriptor passed in the Bundle.");
         }
     }
 
@@ -390,8 +415,22 @@ public class BundleUtil {
         }
     }
 
+    private static void tryCloseParcelableArray(Parcelable[] parcelables) {
+        for (Parcelable p : parcelables) {
+            try {
+                if (p instanceof ParcelFileDescriptor pfd) {
+                    pfd.close();
+                } else if (p instanceof Bitmap bitmap) {
+                    bitmap.recycle();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error closing a resource in a Parcelable array", e);
+            }
+        }
+    }
+
     public static void tryCloseResource(Bundle bundle) {
-        if (bundle == null || bundle.isEmpty() || !bundle.hasFileDescriptors()) {
+        if (bundle == null || bundle.isEmpty()) {
             return;
         }
 
@@ -400,13 +439,19 @@ public class BundleUtil {
 
             try {
                 // TODO(b/329898589) : This can be cleaned up after the flag passing is fixed.
-                if (obj instanceof ParcelFileDescriptor) {
-                    ((ParcelFileDescriptor) obj).close();
-                } else if (obj instanceof CursorWindow) {
-                    ((CursorWindow) obj).close();
-                } else if (obj instanceof SharedMemory) {
+                if (obj instanceof ParcelFileDescriptor pfd) {
+                    pfd.close();
+                } else if (obj instanceof CursorWindow cursorWindow) {
+                    cursorWindow.close();
+                } else if (obj instanceof SharedMemory sharedMemory) {
                     // TODO(b/331796886) : Shared memory should honour parcelable flags.
-                    ((SharedMemory) obj).close();
+                    sharedMemory.close();
+                } else if (obj instanceof Bitmap bitmap) {
+                    bitmap.recycle();
+                } else if (obj instanceof Parcelable[] parcelables) {
+                    tryCloseParcelableArray(parcelables);
+                } else if (obj instanceof Bundle nestedBundle) {
+                    tryCloseResource(nestedBundle);
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Error closing resource with key: " + key, e);

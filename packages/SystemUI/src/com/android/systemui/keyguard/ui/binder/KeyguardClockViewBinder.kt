@@ -163,29 +163,27 @@ object KeyguardClockViewBinder {
                         }
                     }
 
-                    if (com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout()) {
-                        launch("$TAG#clockViewModel.shouldDateWeatherBeBelowSmallClock") {
-                            viewModel.shouldDateWeatherBeBelowSmallClock.collect {
-                                blueprintInteractor.refreshBlueprint(
-                                    Config(
-                                        Type.SmartspaceVisibility,
-                                        checkPriority = false,
-                                        terminatePrevious = false,
-                                    )
+                    launch("$TAG#clockViewModel.shouldDateWeatherBeBelowSmallClock") {
+                        viewModel.shouldDateWeatherBeBelowSmallClock.collect {
+                            blueprintInteractor.refreshBlueprint(
+                                Config(
+                                    Type.SmartspaceVisibility,
+                                    checkPriority = false,
+                                    terminatePrevious = false,
                                 )
-                            }
+                            )
                         }
+                    }
 
-                        launch("$TAG#clockViewModel.shouldDateWeatherBeBelowLargeClock") {
-                            viewModel.shouldDateWeatherBeBelowLargeClock.collect {
-                                blueprintInteractor.refreshBlueprint(
-                                    Config(
-                                        Type.SmartspaceVisibility,
-                                        checkPriority = false,
-                                        terminatePrevious = false,
-                                    )
+                    launch("$TAG#clockViewModel.shouldDateWeatherBeBelowLargeClock") {
+                        viewModel.shouldDateWeatherBeBelowLargeClock.collect {
+                            blueprintInteractor.refreshBlueprint(
+                                Config(
+                                    Type.SmartspaceVisibility,
+                                    checkPriority = false,
+                                    terminatePrevious = false,
                                 )
-                            }
+                            )
                         }
                     }
                 }

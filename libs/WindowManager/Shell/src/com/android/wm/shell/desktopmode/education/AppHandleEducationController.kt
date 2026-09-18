@@ -23,7 +23,6 @@ import android.content.res.Resources
 import android.graphics.Point
 import android.os.SystemProperties
 import android.view.View.LAYOUT_DIRECTION_RTL
-import android.window.DesktopExperienceFlags
 import com.android.window.flags.Flags
 import com.android.wm.shell.R
 import com.android.wm.shell.desktopmode.CaptionState
@@ -177,12 +176,7 @@ class AppHandleEducationController(
             block()
     }
 
-    private fun isCaptionFocused(captionState: CaptionState) =
-        if (!DesktopExperienceFlags.ENABLE_APP_HANDLE_POSITION_REPORTING.isTrue) {
-            captionState !is CaptionState.NoCaption
-        } else {
-            captionState.isFocused
-        }
+    private fun isCaptionFocused(captionState: CaptionState) = captionState.isFocused
 
     private fun showEducation(captionState: CaptionState) {
         val appHandleBounds = (captionState as CaptionState.AppHandle).globalAppHandleBounds

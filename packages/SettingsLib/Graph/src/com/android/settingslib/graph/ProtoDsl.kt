@@ -20,6 +20,7 @@ import com.android.settingslib.graph.proto.BundleProto
 import com.android.settingslib.graph.proto.BundleProto.BundleValue
 import com.android.settingslib.graph.proto.BundleProtoOrBuilder
 import com.android.settingslib.graph.proto.IntentProto
+import com.android.settingslib.graph.proto.KeyParametersProto
 import com.android.settingslib.graph.proto.ParameterizedPreferenceScreenProto
 import com.android.settingslib.graph.proto.PreferenceGraphProto
 import com.android.settingslib.graph.proto.PreferenceGroupProto
@@ -34,8 +35,12 @@ import com.android.settingslib.graph.proto.PreferenceScreenProto
 import com.android.settingslib.graph.proto.PreferenceScreenProtoOrBuilder
 import com.android.settingslib.graph.proto.PreferenceValueDescriptorProto
 import com.android.settingslib.graph.proto.PreferenceValueProto
+import com.android.settingslib.graph.proto.PreferenceErrorProto
+import com.android.settingslib.graph.proto.PossibleValueProto
 import com.android.settingslib.graph.proto.RangeValueProto
+import com.android.settingslib.graph.proto.SetWarningProto
 import com.android.settingslib.graph.proto.TextProto
+import com.android.settingslib.metadata.KeyParameters
 
 /** Returns root or null. */
 val PreferenceScreenProtoOrBuilder.rootOrNull
@@ -97,6 +102,10 @@ val ActionTargetOrBuilder.keyOrNull
 val ActionTargetOrBuilder.argsOrNull
     get() = if (hasArgs()) args else null
 
+/** Returns keyParameters or null. */
+val ActionTargetOrBuilder.keyParametersOrNull
+    get() = if (hasKeyParameters()) keyParameters else null
+
 /** Kotlin DSL-style builder for [PreferenceProto]. */
 @JvmSynthetic
 inline fun preferenceProto(init: PreferenceProto.Builder.() -> Unit): PreferenceProto =
@@ -116,6 +125,17 @@ inline fun actionTargetProto(init: ActionTarget.Builder.() -> Unit): ActionTarge
 inline fun preferenceValueProto(
     init: PreferenceValueProto.Builder.() -> Unit
 ): PreferenceValueProto = PreferenceValueProto.newBuilder().also(init).build()
+
+/** Kotlin DSL-style builder for [PreferenceErrorProto]. */
+@JvmSynthetic
+inline fun preferenceErrorProto(
+    init: PreferenceErrorProto.Builder.() -> Unit
+): PreferenceErrorProto = PreferenceErrorProto.newBuilder().also(init).build()
+
+/** Kotlin DSL-style builder for [PossibleValueProto]. */
+@JvmSynthetic
+inline fun possibleValueProto(init: PossibleValueProto.Builder.() -> Unit): PossibleValueProto =
+    PossibleValueProto.newBuilder().also(init).build()
 
 /** Kotlin DSL-style builder for [PreferenceValueDescriptorProto]. */
 @JvmSynthetic
@@ -166,3 +186,50 @@ fun PreferenceGraphProto.Builder.mergeForLazyMode(
     }
     putScreens(screenKey, screenBuilder.build())
 }
+
+/**
+ * Merges a [PreferenceScreenProto] into this graph builder, with behavior tailored for lazy
+ * loading scenarios.
+ *
+ * If no screen exists for the given [screenKey], the new [screen] is added to the graph.
+ *
+ * If a screen already exists, the merge strategy depends on [keyParameters]:
+ * - If [keyParameters] is `null`, a full merge of the [screen] proto is performed, updating all
+ *   fields of the existing screen.
+ * - If [keyParameters] is not `null`, only the `parameterized_screens` list from the new [screen]
+ *   is added to the existing screen. This is used to add data for a specific set of parameters
+ *   without re-fetching the base screen information.
+ *
+ * @param screen The new [PreferenceScreenProto] data to merge.
+ * @param screenKey The key identifying the screen within the preference graph.
+ * @param keyParameters A map of parameters that dictates the merge strategy. If null, a full
+ *     merge is performed.
+ */
+fun PreferenceGraphProto.Builder.mergeForLazyMode(
+    screen: PreferenceScreenProto,
+    screenKey: String,
+    keyParameters: KeyParameters?,
+) {
+    val oldScreen = getScreensOrDefault(screenKey, null)
+    if (oldScreen == null) {
+        putScreens(screenKey, screen)
+        return
+    }
+    val screenBuilder = oldScreen.toBuilder()
+    if (keyParameters == null) {
+        screenBuilder.mergeFrom(screen)
+    } else {
+        screenBuilder.addAllParameterizedScreens(screen.parameterizedScreensList)
+    }
+    putScreens(screenKey, screenBuilder.build())
+}
+
+/** Kotlin DSL-style builder for [com.android.settingslib.graph.proto.KeyParametersProto]. */
+@JvmSynthetic
+inline fun keyParametersProto(init: KeyParametersProto.Builder.() -> Unit): KeyParametersProto =
+    KeyParametersProto.newBuilder().also(init).build()
+
+/** Kotlin DSL-style builder for [com.android.settingslib.graph.proto.SetWarningProto]. */
+@JvmSynthetic
+inline fun setWarningProto(init: SetWarningProto.Builder.() -> Unit): SetWarningProto =
+    SetWarningProto.newBuilder().also(init).build()

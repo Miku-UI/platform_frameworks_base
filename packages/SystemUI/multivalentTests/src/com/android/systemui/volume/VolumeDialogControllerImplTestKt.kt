@@ -23,14 +23,19 @@ import android.content.applicationContext
 import android.content.packageManager
 import android.content.testableContext
 import android.media.AudioManager
+import android.media.session.MediaSession
 import android.os.Handler
+import android.os.Process
 import android.os.looper
 import android.os.testableLooper
 import android.platform.test.flag.junit.SetFlagsRule
 import android.testing.TestableLooper
 import android.view.accessibility.accessibilityManager
+import androidx.core.util.isEmpty
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.settingslib.volume.MediaSessions
+import com.android.settingslib.volume.MediaSessions.SessionId.Companion.from
 import com.android.settingslib.volume.data.model.VolumeControllerEvent
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.broadcast.broadcastDispatcher
@@ -39,9 +44,10 @@ import com.android.systemui.dump.dumpManager
 import com.android.systemui.keyguard.WakefulnessLifecycle
 import com.android.systemui.keyguard.wakefulnessLifecycle
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.plugins.VolumeDialogController
-import com.android.systemui.testKosmos
+import com.android.systemui.testKosmosNew
 import com.android.systemui.util.RingerModeLiveData
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.concurrency.FakeThreadFactory
@@ -49,13 +55,17 @@ import com.android.systemui.util.kotlin.javaAdapter
 import com.android.systemui.util.time.fakeSystemClock
 import com.android.systemui.volume.data.repository.audioRepository
 import com.android.systemui.volume.domain.interactor.FakeAudioSharingInteractor
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.KArgumentCaptor
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -67,9 +77,10 @@ class VolumeDialogControllerImplTestKt : SysuiTestCase() {
 
     @get:Rule val setFlagsRule = SetFlagsRule()
 
-    private val kosmos: Kosmos = testKosmos()
+    private val kosmos: Kosmos = testKosmosNew()
     private val audioManager: AudioManager = mock {}
     private val callbacks: VolumeDialogController.Callbacks = mock {}
+    private val stateCaptor: KArgumentCaptor<VolumeDialogController.State> = argumentCaptor()
     private val fakeAudioSharingInteractor: FakeAudioSharingInteractor =
         FakeAudioSharingInteractor()
 
@@ -103,6 +114,8 @@ class VolumeDialogControllerImplTestKt : SysuiTestCase() {
                         wakefulnessLifecycle,
                         keyguardManager,
                         activityManager,
+                        mock {},
+                        mock {},
                         mock { on { userContext }.thenReturn(applicationContext) },
                         dumpManager,
                         fakeAudioSharingInteractor,
@@ -117,20 +130,17 @@ class VolumeDialogControllerImplTestKt : SysuiTestCase() {
 
     @Test
     fun broadcastEvent_sendsChangesOnce() =
-        with(kosmos) {
-            testScope.runTest {
-                whenever(audioManager.getLastAudibleStreamVolume(any())).thenReturn(1)
-                broadcastDispatcher.sendIntentToMatchingReceiversOnly(
-                    applicationContext,
-                    Intent(AudioManager.ACTION_VOLUME_CHANGED).apply {
-                        putExtra(AudioManager.EXTRA_VOLUME_STREAM_TYPE, AudioManager.STREAM_SYSTEM)
-                    },
-                )
-                testableLooper.processAllMessages()
-                testScheduler.advanceUntilIdle()
+        kosmos.runTest {
+            whenever(audioManager.getLastAudibleStreamVolume(any())).thenReturn(1)
+            broadcastDispatcher.sendIntentToMatchingReceiversOnly(
+                applicationContext,
+                Intent(AudioManager.ACTION_VOLUME_CHANGED).apply {
+                    putExtra(AudioManager.EXTRA_VOLUME_STREAM_TYPE, AudioManager.STREAM_SYSTEM)
+                },
+            )
+            testableLooper.processAllMessages()
 
-                verify(callbacks) { 1 * { onStateChanged(any()) } }
-            }
+            verify(callbacks) { 1 * { onStateChanged(any()) } }
         }
 
     @Test
@@ -138,6 +148,24 @@ class VolumeDialogControllerImplTestKt : SysuiTestCase() {
         audioRepository.sendVolumeControllerEvent(
             VolumeControllerEvent.VolumeChanged(streamType = stream, flags = flags)
         )
+    }
+
+    @Test
+    fun testOnRemoteRemove_oldStream_removed() {
+        kosmos.runTest {
+            val sessionId = from(MediaSession.Token(Process.myUid(), null))
+            underTest.mMediaSessionsCallbacksW.onRemoteUpdate(
+                sessionId,
+                "test-remote",
+                MediaSessions.VolumeInfo(50, 100),
+            )
+
+            underTest.mMediaSessionsCallbacksW.onRemoteRemoved(sessionId)
+            testableLooper.processAllMessages()
+
+            verify(callbacks, atLeastOnce()).onStateChanged(stateCaptor.capture())
+            assertThat(stateCaptor.lastValue.states.isEmpty()).isTrue()
+        }
     }
 
     private fun testVolumeController(

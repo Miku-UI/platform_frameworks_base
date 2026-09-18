@@ -22,6 +22,7 @@ import com.android.internal.jank.InteractionJankMonitor
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
+import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
@@ -31,13 +32,15 @@ import com.android.systemui.qs.pipeline.domain.interactor.PanelInteractor
 import com.android.systemui.qs.tiles.base.domain.interactor.QSTileUserActionInteractor
 import com.android.systemui.qs.tiles.base.domain.model.QSTileInput
 import com.android.systemui.qs.tiles.base.shared.model.QSTileUserAction
-import com.android.systemui.screencapture.common.shared.model.ScreenCaptureType
+import com.android.systemui.qs.tiles.impl.screenrecord.domain.model.ScreenRecordTileModel
 import com.android.systemui.screencapture.common.shared.model.ScreenCaptureUiParameters
+import com.android.systemui.screencapture.common.shared.model.ScreenCaptureUiSource
 import com.android.systemui.screencapture.domain.interactor.ScreenCaptureUiInteractor
 import com.android.systemui.screencapture.record.domain.interactor.ScreenCaptureRecordFeaturesInteractor
 import com.android.systemui.screenrecord.ScreenRecordUxController
 import com.android.systemui.screenrecord.data.model.ScreenRecordModel
 import com.android.systemui.screenrecord.data.repository.ScreenRecordRepository
+import com.android.systemui.screenrecord.domain.interactor.ScreenRecordingServiceInteractor
 import com.android.systemui.statusbar.phone.KeyguardDismissUtil
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
@@ -60,35 +63,36 @@ constructor(
     private val panelInteractor: PanelInteractor,
     private val screenCaptureUiInteractor: ScreenCaptureUiInteractor,
     private val mediaProjectionMetricsLogger: MediaProjectionMetricsLogger,
-) : QSTileUserActionInteractor<ScreenRecordModel> {
-    override suspend fun handleInput(input: QSTileInput<ScreenRecordModel>): Unit =
+    private val screenRecordingServiceInteractor: ScreenRecordingServiceInteractor,
+    private val screenCaptureRecordFeaturesInteractor: ScreenCaptureRecordFeaturesInteractor,
+) : QSTileUserActionInteractor<ScreenRecordTileModel> {
+    override suspend fun handleInput(input: QSTileInput<ScreenRecordTileModel>): Unit =
         with(input) {
             when (action) {
                 is QSTileUserAction.Click -> {
-                    if (ScreenCaptureRecordFeaturesInteractor.shouldShowNewToolbar) {
-                        withContext(mainDispatcher) {
-                            // TODO(b/412723197): pass actual params here.
-                            activityStarter.executeRunnableDismissingKeyguard(
-                                {
-                                    screenCaptureUiInteractor.show(
-                                        ScreenCaptureUiParameters(
-                                            ScreenCaptureType.RECORD,
-                                            isUserConsentRequired = false,
-                                            resultReceiver = null,
-                                            mediaProjection = null,
-                                            hostAppUserHandle = user,
-                                            hostAppUid = 0,
+                    val screenRecordState = input.data.screenRecordModel
+                    if (screenCaptureRecordFeaturesInteractor.shouldShowNewRecordingToolbar) {
+                        if (screenRecordState is ScreenRecordModel.DoingNothing) {
+                            withContext(mainDispatcher) {
+                                // TODO(b/412723197): pass actual params here.
+                                activityStarter.executeRunnableDismissingKeyguard(
+                                    {
+                                        screenCaptureUiInteractor.show(
+                                            ScreenCaptureUiParameters.Record(),
+                                            ScreenCaptureUiSource.QUICK_SETTINGS_TILE,
                                         )
-                                    )
-                                },
-                                /* cancelAction= */ null,
-                                /* dismissShade= */ true,
-                                /* afterKeyguardGone= */ true,
-                                /* deferred= */ false,
-                            )
+                                    },
+                                    /* cancelAction= */ null,
+                                    /* dismissShade= */ true,
+                                    /* afterKeyguardGone= */ true,
+                                    /* deferred= */ false,
+                                )
+                            }
+                        } else {
+                            screenRecordingServiceInteractor.stopRecording(StopReason.STOP_QS_TILE)
                         }
                     } else {
-                        when (data) {
+                        when (screenRecordState) {
                             is ScreenRecordModel.Starting -> {
                                 Log.d(TAG, "Cancelling countdown")
                                 withContext(backgroundContext) {
@@ -96,7 +100,9 @@ constructor(
                                 }
                             }
                             is ScreenRecordModel.Recording -> {
-                                screenRecordRepository.stopRecording(StopReason.STOP_QS_TILE)
+                                withContext(backgroundContext) {
+                                    screenRecordRepository.stopRecording(StopReason.STOP_QS_TILE)
+                                }
                             }
                             is ScreenRecordModel.DoingNothing ->
                                 withContext(mainContext) {
@@ -142,11 +148,20 @@ constructor(
                             )
                         )
                     controller?.let {
-                        dialogTransitionAnimator.show(
-                            dialog,
-                            controller,
-                            animateBackgroundBoundsChange = true,
-                        )
+                        if (TransitionAnimator.dynamicTargetResolutionEnabled()) {
+                            dialogTransitionAnimator.show(
+                                dialog,
+                                expandable::dialogTransitionController,
+                                it.cuj,
+                                animateBackgroundBoundsChange = true,
+                            )
+                        } else {
+                            dialogTransitionAnimator.show(
+                                dialog,
+                                it,
+                                animateBackgroundBoundsChange = true,
+                            )
+                        }
                     } ?: dialog.show()
                 } else {
                     dialog.show()

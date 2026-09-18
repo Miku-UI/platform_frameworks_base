@@ -18,6 +18,7 @@ package com.android.server;
 
 import static com.android.internal.util.ArrayUtils.appendInt;
 
+import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
@@ -47,7 +48,7 @@ import android.util.Xml;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.pm.RoSystemFeatures;
-import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
+import com.android.internal.pm.pkg.component.AconfigFlags;
 import com.android.internal.util.XmlUtils;
 import com.android.modules.utils.build.UnboundedSdkLevel;
 import com.android.server.pm.permission.PermissionAllowlist;
@@ -100,6 +101,7 @@ public class SystemConfig {
     private static final int ALLOW_IMPLICIT_BROADCASTS = 0x200;
     private static final int ALLOW_VENDOR_APEX = 0x400;
     private static final int ALLOW_SIGNATURE_PERMISSIONS = 0x800;
+    private static final int ALLOW_VENDOR_ASSIGN_PERMISSIONS = 0x1000;
     private static final int ALLOW_ALL = ~0;
 
     // property for runtime configuration differentiation
@@ -113,6 +115,11 @@ public class SystemConfig {
 
     private static final ArrayMap<String, ArraySet<String>> EMPTY_PERMISSIONS =
             new ArrayMap<>();
+
+    private static final Set<String> VENDOR_ASSIGNABLE_PERMISSIONS = Set.of(
+            Manifest.permission.INTERNET,
+            Manifest.permission.ACCESS_LOCAL_NETWORK
+    );
 
     // Group-ids that are given to all packages as read from etc/permissions/*.xml.
     int[] mGlobalGids = EmptyArray.INT;
@@ -319,6 +326,9 @@ public class SystemConfig {
     final ArrayMap<String, ArrayMap<String, Boolean>> mPackageComponentEnabledState =
             new ArrayMap<>();
 
+    // These are the packages that cannot enable App Lock
+    final ArraySet<String> mAppLockExemptPackages = new ArraySet<>();
+
     // Package names that are exempted from private API blacklisting
     final ArraySet<String> mHiddenApiPackageWhitelist = new ArraySet<>();
 
@@ -354,7 +364,7 @@ public class SystemConfig {
     // These packages will be set as 'prevent disable', where they are no longer possible
     // for the end user to disable via settings. This flag should only be used for packages
     // which meet the 'force or keep enabled apps' policy.
-    private final ArrayList<String> mPreventUserDisablePackages = new ArrayList<>();
+    private final ArraySet<String> mPreventUserDisablePackages = new ArraySet<>();
 
     // Map of packagesNames to userTypes. Stored temporarily until cleared by UserManagerService().
     private ArrayMap<String, Set<String>> mPackageToUserTypeAllowlist = new ArrayMap<>();
@@ -386,6 +396,11 @@ public class SystemConfig {
     // A set of pre-installed package names that requires strict signature verification once
     // updated to avoid cached/potentially tampered results.
     private final Set<String> mPreinstallPackagesWithStrictSignatureCheck = new ArraySet<>();
+
+
+    // A set of packages that will be dexopted in a PVM. The compilation of these artifacts will
+    // be verified on each boot.
+    private final Set<String> mPreinstalledPackagesWithVerifiedCompilation = new ArraySet<>();
 
     // A set of packages that should be considered "trusted packages" by ECM (Enhanced
     // Confirmation Mode). "Trusted packages" are exempt from ECM (i.e., they will never be
@@ -438,7 +453,27 @@ public class SystemConfig {
     }
 
     public ArrayList<SplitPermissionInfo> getSplitPermissions() {
-        return mSplitPermissions;
+        return getSplitPermissions(false);
+    }
+
+    /**
+     * @param includeDisabled if true, include split permissions that are disabled by feature flags.
+     * @return All split permissions.
+     */
+    public ArrayList<SplitPermissionInfo> getSplitPermissions(boolean includeDisabled) {
+        if (includeDisabled) {
+            return mSplitPermissions;
+        }
+        ArrayList<SplitPermissionInfo> filteredSplitPermissions = new ArrayList<>();
+        for (int i = 0; i < mSplitPermissions.size(); i++) {
+            SplitPermissionInfo info = mSplitPermissions.get(i);
+            String featureFlag = info.getFeatureFlag();
+            if (featureFlag == null || !AconfigFlags.getInstance().skip(
+                    /* pkg= */ null, featureFlag, info.isFeatureFlagNegated())) {
+                filteredSplitPermissions.add(info);
+            }
+        }
+        return filteredSplitPermissions;
     }
 
     public ArrayMap<String, SharedLibraryEntry> getSharedLibraries() {
@@ -487,6 +522,10 @@ public class SystemConfig {
 
     public ArraySet<String> getLinkedApps() {
         return mLinkedApps;
+    }
+
+    public ArraySet<String> getAppLockExemptPackages() {
+        return mAppLockExemptPackages;
     }
 
     public ArraySet<String> getHiddenApiWhitelistedApps() {
@@ -561,7 +600,7 @@ public class SystemConfig {
         return mAppDataIsolationWhitelistedApps;
     }
 
-    public @NonNull ArrayList<String> getPreventUserDisablePackages() {
+    public @NonNull ArraySet<String> getPreventUserDisablePackages() {
         return mPreventUserDisablePackages;
     }
 
@@ -629,6 +668,10 @@ public class SystemConfig {
         return mOemDefinedUids;
     }
 
+    public Set<String> getPreinstallPackagesWithVerifiedCompilation() {
+        return mPreinstalledPackagesWithVerifiedCompilation;
+    }
+
     /**
      * Only use for testing. Do NOT use in production code.
      * @param readPermissions false to create an empty SystemConfig; true to read the permissions.
@@ -694,7 +737,8 @@ public class SystemConfig {
 
         // Vendors are only allowed to customize these
         int vendorPermissionFlag = ALLOW_LIBS | ALLOW_FEATURES | ALLOW_PRIVAPP_PERMISSIONS
-                | ALLOW_SIGNATURE_PERMISSIONS | ALLOW_ASSOCIATIONS | ALLOW_VENDOR_APEX;
+                | ALLOW_SIGNATURE_PERMISSIONS | ALLOW_ASSOCIATIONS | ALLOW_VENDOR_APEX
+                | ALLOW_VENDOR_ASSIGN_PERMISSIONS;
         if (Build.VERSION.DEVICE_INITIAL_SDK_INT <= Build.VERSION_CODES.O_MR1) {
             // For backward compatibility
             vendorPermissionFlag |= (ALLOW_PERMISSIONS | ALLOW_APP_CONFIGS);
@@ -788,6 +832,8 @@ public class SystemConfig {
             if (f.isFile() || f.getPath().contains("@")) {
                 continue;
             }
+            readPermissions(parser, Environment.buildPath(f, "etc", "sysconfig"),
+                    apexPermissionFlag);
             readPermissions(parser, Environment.buildPath(f, "etc", "permissions"),
                     apexPermissionFlag);
         }
@@ -879,6 +925,8 @@ public class SystemConfig {
             final boolean allowFeatures = (permissionFlag & ALLOW_FEATURES) != 0;
             final boolean allowPermissions = (permissionFlag & ALLOW_PERMISSIONS) != 0;
             final boolean allowAppConfigs = (permissionFlag & ALLOW_APP_CONFIGS) != 0;
+            final boolean allowVendorAssignPermissions =
+                    (permissionFlag & ALLOW_VENDOR_ASSIGN_PERMISSIONS) != 0;
             final boolean allowPrivappPermissions = (permissionFlag & ALLOW_PRIVAPP_PERMISSIONS)
                     != 0;
             final boolean allowSignaturePermissions = (permissionFlag & ALLOW_SIGNATURE_PERMISSIONS)
@@ -911,7 +959,8 @@ public class SystemConfig {
                         readPermission(parser, permFile, allowPermissions);
                         break;
                     case "assign-permission":
-                        readAssignPermission(parser, permFile, allowPermissions);
+                        readAssignPermission(parser, permFile, allowPermissions,
+                                allowVendorAssignPermissions);
                         break;
                     case "split-permission":
                         readSplitPermission(parser, permFile, allowPermissions);
@@ -993,6 +1042,9 @@ public class SystemConfig {
                         break;
                     case "oem-permissions":
                         readOemPermissions(parser, permFile, allowOemPermissions);
+                        break;
+                    case "app-lock-exempt":
+                        readAppLockExemptApps(parser, permFile, name);
                         break;
                     case "hidden-api-whitelisted-app":
                         readHiddenApiWhitelistedApp(parser, permFile, allowApiWhitelisting, name);
@@ -1112,20 +1164,21 @@ public class SystemConfig {
         }
     }
 
-    private void readAssignPermission(XmlPullParser parser, File permFile, boolean allowPermissions)
+    private void readAssignPermission(XmlPullParser parser, File permFile, boolean allowPermissions,
+            boolean allowVendorAssignPermissions)
             throws IOException, XmlPullParserException {
-        if (allowPermissions) {
-            readAssignPermission(parser, permFile);
+        if (allowPermissions || allowVendorAssignPermissions) {
+            readAssignPermission(parser, permFile, !allowPermissions);
         } else {
             logNotAllowedInPartition("assign-permission", permFile, parser);
             XmlUtils.skipCurrentTag(parser);
         }
     }
 
-    private void readAssignPermission(XmlPullParser parser, File permFile)
+    private void readAssignPermission(XmlPullParser parser, File permFile, boolean isVendor)
             throws IOException, XmlPullParserException {
         // If trunkstable feature flag disabled for this permission, skip this tag.
-        if (ParsingPackageUtils.getAconfigFlags()
+        if (AconfigFlags.getInstance()
                 .skipCurrentElement(/* pkg= */ null, parser, /* allowNoNamespace= */ true)) {
             XmlUtils.skipCurrentTag(parser);
             return;
@@ -1135,6 +1188,12 @@ public class SystemConfig {
         if (perm == null) {
             Slog.w(TAG, "<assign-permission> without name in " + permFile
                     + " at " + parser.getPositionDescription());
+            XmlUtils.skipCurrentTag(parser);
+            return;
+        }
+        if (isVendor && !VENDOR_ASSIGNABLE_PERMISSIONS.contains(perm)) {
+            Slog.w(TAG, "<assign-permission> for vendor unavailable permission " + perm + " in "
+                    + permFile + " at " + parser.getPositionDescription());
             XmlUtils.skipCurrentTag(parser);
             return;
         }
@@ -1672,6 +1731,20 @@ public class SystemConfig {
         }
     }
 
+    private void readAppLockExemptApps(XmlPullParser parser, File permFile, String name)
+            throws IOException, XmlPullParserException {
+        if (android.security.Flags.appLockApis()) {
+            String pkgName = parser.getAttributeValue(null, "package");
+            if (pkgName == null) {
+                Slog.w(TAG, "<" + name + "> without package in "
+                        + permFile + " at " + parser.getPositionDescription());
+            } else {
+                mAppLockExemptPackages.add(pkgName);
+            }
+        }
+        XmlUtils.skipCurrentTag(parser);
+    }
+
     private void readHiddenApiWhitelistedApp(XmlPullParser parser, File permFile, boolean allow,
             String name) throws IOException, XmlPullParserException {
         if (allow) {
@@ -1971,6 +2044,11 @@ public class SystemConfig {
                     + " at " + parser.getPositionDescription());
         } else {
             mPreinstallPackagesWithStrictSignatureCheck.add(packageName);
+      if(android.content.pm.Flags.verifiedDexopt()){
+            if (parser.getAttributeValue(null, "verified-compilation-enabled") != null){
+              mPreinstalledPackagesWithVerifiedCompilation.add(packageName);
+            }
+      }
         }
         XmlUtils.skipCurrentTag(parser);
     }
@@ -2279,11 +2357,18 @@ public class SystemConfig {
 
     private void readSplitPermission(XmlPullParser parser, File permFile)
             throws IOException, XmlPullParserException {
-        // If trunkstable feature flag disabled for this split permission, skip this tag.
-        if (ParsingPackageUtils.getAconfigFlags()
-            .skipCurrentElement(/* pkg= */ null, parser, /* allowNoNamespace= */ true)) {
-            XmlUtils.skipCurrentTag(parser);
-            return;
+        String featureFlag = parser.getAttributeValue(
+                "http://schemas.android.com/apk/res/android", "featureFlag");
+        if (featureFlag == null) {
+            featureFlag = parser.getAttributeValue(null, "featureFlag");
+        }
+        boolean isFeatureFlagNegated = false;
+        if (featureFlag != null) {
+            featureFlag = featureFlag.strip();
+            if (featureFlag.startsWith("!")) {
+                isFeatureFlagNegated = true;
+                featureFlag = featureFlag.substring(1).strip();
+            }
         }
 
         String splitPerm = parser.getAttributeValue(null, "name");
@@ -2322,7 +2407,8 @@ public class SystemConfig {
             }
         }
         if (!newPermissions.isEmpty()) {
-            mSplitPermissions.add(new SplitPermissionInfo(splitPerm, newPermissions, targetSdk));
+            mSplitPermissions.add(new SplitPermissionInfo(splitPerm, newPermissions, targetSdk,
+                    featureFlag, isFeatureFlagNegated));
         }
     }
 

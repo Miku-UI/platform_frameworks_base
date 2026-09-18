@@ -26,9 +26,9 @@ import android.os.Looper
 import android.os.SystemClock
 import android.platform.test.annotations.Postsubmit
 import android.tools.device.apphelpers.MapsAppHelper
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.subject.layers.LayersTraceSubject.Companion.VISIBLE_FOR_MORE_THAN_ONE_ENTRY_IGNORE_LAYERS
 import android.tools.traces.component.ComponentRegexMatcher
 import androidx.test.filters.RequiresDevice
@@ -103,7 +103,7 @@ open class MapsEnterPipTest(flicker: FlickerTest) : AppsEnterPipTransition(flick
                 false,
                 false,
                 Criteria.POWER_LOW,
-                Criteria.ACCURACY_FINE
+                Criteria.ACCURACY_FINE,
             )
             locationManager.setTestProviderEnabled(LocationManager.GPS_PROVIDER, true)
             mockLocationEnabled = true
@@ -119,7 +119,7 @@ open class MapsEnterPipTest(flicker: FlickerTest) : AppsEnterPipTransition(flick
 
             pipApp.launchViaIntent(
                 wmHelper,
-                MapsAppHelper.getMapIntent(MapsAppHelper.INTENT_NAVIGATION)
+                MapsAppHelper.getMapIntent(MapsAppHelper.INTENT_NAVIGATION),
             )
 
             pipApp.waitForNavigationToStart()
@@ -137,7 +137,7 @@ open class MapsEnterPipTest(flicker: FlickerTest) : AppsEnterPipTransition(flick
         }
     }
 
-    override val thisTransition: FlickerBuilder.() -> Unit = { transitions { tapl.goHome() } }
+    override val thisTransition: FlickerBuilder.() -> Unit = { transitions { device.pressHome() } }
 
     /** Checks [pipApp] layer remains visible throughout the animation */
     @Postsubmit
@@ -162,8 +162,13 @@ open class MapsEnterPipTest(flicker: FlickerTest) : AppsEnterPipTransition(flick
     override fun visibleLayersShownMoreThanOneConsecutiveEntry() {
         flicker.assertLayers {
             this.visibleLayersShownMoreThanOneConsecutiveEntry(
-                ignoreLayers = VISIBLE_FOR_MORE_THAN_ONE_ENTRY_IGNORE_LAYERS
-                    + ComponentRegexMatcher(Regex("Background for .* SurfaceView\\[com\\.google\\.android\\.apps\\.maps/com\\.google\\.android\\.maps\\.MapsActivity\\]\\#\\d+"))
+                ignoreLayers =
+                    VISIBLE_FOR_MORE_THAN_ONE_ENTRY_IGNORE_LAYERS +
+                        ComponentRegexMatcher(
+                            Regex(
+                                "Background for .* SurfaceView\\[com\\.google\\.android\\.apps\\.maps/com\\.google\\.android\\.maps\\.MapsActivity\\]\\#\\d+"
+                            )
+                        )
             )
         }
     }

@@ -22,7 +22,6 @@ import com.android.settingslib.SignalIcon.MobileIconGroup
 import com.android.settingslib.mobile.MobileMappings
 import com.android.settingslib.mobile.MobileMappings.Config
 import com.android.systemui.kairos.Events
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.Incremental
 import com.android.systemui.kairos.State
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
@@ -31,7 +30,6 @@ import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionMod
  * Repo for monitoring the complete active subscription info list, to be consumed and filtered based
  * on various policy
  */
-@ExperimentalKairosApi
 interface MobileConnectionsRepositoryKairos {
 
     /** All active mobile connections. */
@@ -82,12 +80,14 @@ interface MobileConnectionsRepositoryKairos {
      * In the case of [MobileMappings], it's hard-coded to check the default data subscription's
      * config, so this will apply to every icon that we care about.
      *
+     * Starts as null until the first configuration is fetched.
+     *
      * Relevant bits in the config are things like
      * [CarrierConfigManager.KEY_SHOW_4G_FOR_LTE_DATA_ICON_BOOL]
      *
      * This flow will produce whenever the default data subscription or the carrier config changes.
      */
-    val defaultDataSubRatConfig: State<Config>
+    val defaultDataSubRatConfig: State<Config?>
 
     /** The icon mapping from network type to [MobileIconGroup] for the default subscription */
     val defaultMobileIconMapping: State<Map<String, MobileIconGroup>>

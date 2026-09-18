@@ -19,6 +19,7 @@ package com.android.server.wm.flicker.helpers
 import android.app.Instrumentation
 import android.os.SystemClock
 import android.view.ContentInfo.Source
+import android.view.Display
 import android.view.InputDevice.SOURCE_MOUSE
 import android.view.InputDevice.SOURCE_STYLUS
 import android.view.InputDevice.SOURCE_TOUCHSCREEN
@@ -37,7 +38,8 @@ import android.view.MotionEvent.ToolType
  */
 class MotionEventHelper(
     private val instr: Instrumentation,
-    val inputMethod: InputMethod
+    val inputMethod: InputMethod,
+    val displayId: Int = Display.DEFAULT_DISPLAY,
 ) {
     enum class InputMethod(@ToolType val toolType: Int, @Source val source: Int) {
         STYLUS(TOOL_TYPE_STYLUS, SOURCE_STYLUS),
@@ -100,6 +102,33 @@ class MotionEventHelper(
         actionUp(endX, endY, downTime)
     }
 
+    /**
+     * Performs a fast double click.
+     * This is different from [androidx.test.uiautomator.UiDevice.click] as it won't wait for the
+     * animations after inject the input event ([android.app.UiAutomation.injectInputEvent] with
+     * `waitForAnimations=false`).
+     * In other words, it allows a faster double click if needed by setting [singleClickLength]
+     * and [doubleClickGap]
+     */
+    fun doubleClick(
+        x: Int,
+        y: Int,
+        singleClickLength: Long = REGULAR_CLICK_LENGTH,
+        doubleClickGap: Long = REGULAR_CLICK_LENGTH
+    ) {
+        val downTime = SystemClock.uptimeMillis()
+        actionDown(x, y, downTime)
+        SystemClock.sleep(singleClickLength)
+        actionUp(x, y, downTime)
+
+        SystemClock.sleep(doubleClickGap)
+
+        val secondDownTime = SystemClock.uptimeMillis()
+        actionDown(x, y, secondDownTime)
+        SystemClock.sleep(singleClickLength)
+        actionUp(x, y, secondDownTime)
+    }
+
     private fun injectMotionEvent(
         action: Int,
         x: Int,
@@ -149,7 +178,7 @@ class MotionEventHelper(
                 inputMethod.source,
                 /* flags = */ 0
             )
-        event.displayId = 0
+        event.displayId = displayId
         return event
     }
 

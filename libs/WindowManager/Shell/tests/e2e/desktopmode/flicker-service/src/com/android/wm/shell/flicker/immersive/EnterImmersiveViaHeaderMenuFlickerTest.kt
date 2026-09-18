@@ -19,17 +19,17 @@ package com.android.wm.shell.flicker.immersive
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher
 import android.tools.traces.component.IComponentNameMatcher
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
-import com.android.wm.shell.flicker.utils.appWindowOnTopAtEnd
 import com.android.wm.shell.flicker.utils.appWindowKeepVisible
+import com.android.wm.shell.flicker.utils.appWindowOnTopAtEnd
 import com.android.wm.shell.flicker.utils.layerBecomesInvisible
 import com.android.wm.shell.flicker.utils.resizeVeilKeepsIncreasingInSize
 import com.android.wm.shell.scenarios.EnterImmersiveViaHeaderMenu
@@ -55,7 +55,7 @@ class EnterImmersiveViaHeaderMenuFlickerTest(flicker: FlickerTest) : DesktopMode
                 "taskBarWindowIsAlwaysVisible",
                 "statusBarLayerIsVisibleAtStartAndEnd",
                 "statusBarLayerPositionAtStartAndEnd",
-                "statusBarWindowIsAlwaysVisible"
+                "statusBarWindowIsAlwaysVisible",
             )
 
     inner class EnterImmersiveViaHeaderMenuScenario :
@@ -63,8 +63,7 @@ class EnterImmersiveViaHeaderMenuFlickerTest(flicker: FlickerTest) : DesktopMode
 
     @Rule
     @JvmField
-    val testSetupRule =
-        Utils.testSetupRule(NavBar.MODE_GESTURAL, flicker.scenario.startRotation)
+    val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, flicker.scenario.startRotation)
     val scenario = EnterImmersiveViaHeaderMenuScenario()
     private val immersiveApp = scenario.immersiveApp
     private val navBarMatcher: IComponentNameMatcher = ComponentNameMatcher.NAV_BAR
@@ -77,20 +76,16 @@ class EnterImmersiveViaHeaderMenuFlickerTest(flicker: FlickerTest) : DesktopMode
             teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(immersiveApp)
+    @Test fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(immersiveApp)
 
-    @Test
-    fun appWindowKeepVisible() = flicker.appWindowKeepVisible(immersiveApp)
+    @Test fun appWindowKeepVisible() = flicker.appWindowKeepVisible(immersiveApp)
 
     @Test
     fun resizeVeilKeepsIncreasingInSize() = flicker.resizeVeilKeepsIncreasingInSize(immersiveApp)
 
-    @Test
-    fun statusBarLayerBecomesInvisible() = flicker.layerBecomesInvisible(statusBarMatcher)
+    @Test fun statusBarLayerBecomesInvisible() = flicker.layerBecomesInvisible(statusBarMatcher)
 
-    @Test
-    fun taskBarLayerBecomesInvisible() = flicker.layerBecomesInvisible(navBarMatcher)
+    @Test fun taskBarLayerBecomesInvisible() = flicker.layerBecomesInvisible(navBarMatcher)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

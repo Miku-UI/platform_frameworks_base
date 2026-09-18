@@ -27,7 +27,6 @@ import android.os.UserHandle
 import android.util.Log
 import android.view.accessibility.AccessibilityManager
 import com.android.internal.logging.UiEventLogger
-import com.android.systemui.Flags
 import com.android.systemui.communal.dagger.CommunalModule.Companion.LAUNCHER_PACKAGE
 import com.android.systemui.communal.data.model.CommunalWidgetCategories
 import com.android.systemui.communal.domain.interactor.CommunalInteractor
@@ -91,6 +90,7 @@ constructor(
     mediaCarouselController: MediaCarouselController,
     mediaViewModelFactory: MediaViewModel.Factory,
     mediaCarouselInteractorLazy: Lazy<MediaCarouselInteractor>,
+    val resizeableItemFrameViewModelFactory: ResizeableItemFrameViewModel.Factory,
 ) :
     BaseCommunalViewModel(
         communalSceneInteractor,
@@ -108,8 +108,7 @@ constructor(
     private val editModeShowing =
         communalSceneInteractor.editModeState.map { it == EditModeState.SHOWING }
 
-    override val isCommunalContentVisible: Flow<Boolean> =
-        if (Flags.hubEditModeTransition()) flowOf(true) else editModeShowing
+    override val isCommunalContentVisible: Flow<Boolean> = flowOf(true)
 
     override val shouldShowEditModeLayout: Flow<Boolean> = flowOf(true)
 
@@ -146,6 +145,9 @@ constructor(
 
     override val reorderingWidgets: StateFlow<Boolean>
         get() = _reorderingWidgets
+
+    override val addingWidgetDragAction: StateFlow<Boolean>
+        get() = _addingWidgetDragAction
 
     override fun onAddWidget(
         componentName: ComponentName,
@@ -204,6 +206,14 @@ constructor(
         if (!_reorderingWidgets.value && firstVisibleItemScroll != savedFirstScrollOffset) {
             setSelectedKey(null)
         }
+    }
+
+    override fun onAddWidgetDragAndDropStart() {
+        _addingWidgetDragAction.value = true
+    }
+
+    override fun onAddWidgetDragAndDropEnd() {
+        _addingWidgetDragAction.value = false
     }
 
     val isIdleOnCommunal: StateFlow<Boolean> = communalInteractor.isIdleOnCommunal

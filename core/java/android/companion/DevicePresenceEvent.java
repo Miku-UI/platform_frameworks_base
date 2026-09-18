@@ -133,7 +133,10 @@ public final class DevicePresenceEvent implements Parcelable {
 
     /**
      * Create a new DevicePresenceEvent.
+     * @deprecated Third party apps should not construct this API.
      */
+    @FlaggedApi(Flags.FLAG_ENABLE_DATA_SYNC)
+    @Deprecated
     public DevicePresenceEvent(
             int associationId, @Event int event, @Nullable ParcelUuid uuid) {
         mAssociationId = associationId;

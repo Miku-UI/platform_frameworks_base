@@ -20,12 +20,15 @@ import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.compose.animation.scene.OverlayKey
 import com.android.compose.animation.scene.SceneKey
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.scene.data.model.peek
+import com.android.systemui.scene.domain.interactor.SceneBackInteractor
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.data.repository.ShadeDisplaysRepository
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
+import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
+import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_BOUNCER_SHOWING
 import com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_COMMUNAL_HUB_SHOWING
 import com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_NOTIFICATION_PANEL_EXPANDED
@@ -54,8 +57,10 @@ interface SceneContainerPlugin {
 
     data class SceneContainerPluginState(
         val scene: SceneKey,
+        val sceneBehind: SceneKey? = null,
         val overlays: Set<OverlayKey>,
         val isVisible: Boolean,
+        val shadeMode: ShadeMode,
     )
 }
 
@@ -64,8 +69,17 @@ class SceneContainerPluginImpl
 @Inject
 constructor(
     private val sceneInteractor: Lazy<SceneInteractor>,
+    private val sceneBackInteractor: Lazy<SceneBackInteractor>,
     private val shadeDisplaysRepository: Lazy<ShadeDisplaysRepository>,
+    private val shadeModeInteractor: Lazy<ShadeModeInteractor>,
 ) : SceneContainerPlugin {
+
+    private val flagsHandledBySceneContainerForAllDisplays =
+        setOf(
+            SYSUI_STATE_BOUNCER_SHOWING,
+            SYSUI_STATE_STATUS_BAR_KEYGUARD_SHOWING,
+            SYSUI_STATE_STATUS_BAR_KEYGUARD_SHOWING_OCCLUDED,
+        )
 
     private val shadeDisplayId: StateFlow<Int> by lazy {
         shadeDisplaysRepository.get().pendingDisplayId
@@ -76,25 +90,44 @@ constructor(
             return null
         }
 
-        if (ShadeWindowGoesAround.isEnabled && shadeDisplayId.value != displayId) {
-            // The shade is in another display. All flags related to the shade container will map to
-            // false on other displays now.
-            //
-            // Note that this assumes there is only one SceneContainer and it is only on the shade
-            // window display. If there will be more, this will need to be revisited
+        val evaluator = EvaluatorByFlag[flag] ?: return null
+
+        if (
+            shadeDisplayId.value != displayId &&
+                !flagsHandledBySceneContainerForAllDisplays.contains(flag)
+        ) {
+            // The shade is in another display. All flags related to the shade will map to false on
+            // other displays. Flags that are not shade-specific (keyguard, bouncer, etc.) will be
+            // respected.
             return false
         }
-        val transitionState = sceneInteractor.get().transitionState.value
+        val transitionState = sceneInteractor.get().transitionStateFlow.value
         val idleTransitionStateOrNull = transitionState as? ObservableTransitionState.Idle
-        return idleTransitionStateOrNull?.let { idleState ->
-            EvaluatorByFlag[flag]?.invoke(
-                SceneContainerPlugin.SceneContainerPluginState(
-                    scene = idleState.currentScene,
-                    overlays = idleState.currentOverlays,
-                    isVisible = sceneInteractor.get().isVisible.value,
+        if (idleTransitionStateOrNull != null) {
+            val sceneBehind = sceneBackInteractor.get().backStack.value.peek()
+            val shadeMode = shadeModeInteractor.get().shadeMode.value
+            return idleTransitionStateOrNull.let { idleState ->
+                evaluator.invoke(
+                    SceneContainerPlugin.SceneContainerPluginState(
+                        scene = idleState.currentScene,
+                        sceneBehind = sceneBehind,
+                        overlays = idleState.currentOverlays,
+                        isVisible = sceneInteractor.get().isVisibleFlow.value,
+                        shadeMode = shadeMode,
+                    )
                 )
-            )
+            }
+        } else if (
+            flag == SYSUI_STATE_NOTIFICATION_PANEL_EXPANDED &&
+                transitionState is ObservableTransitionState.Transition
+        ) {
+            // The one scene container state that activates at the start of a transition instead of
+            // an Idle scene is that the SYSUI_STATE_NOTIFICATION_PANEL_EXPANDED flag should be set
+            // as soon at the notification shade (note: does not include QS) starts expanding
+            return transitionState.toContent == Overlays.NotificationsShade ||
+                transitionState.toContent == Scenes.Shade
         }
+        return null
     }
 
     companion object {
@@ -114,8 +147,12 @@ constructor(
                     {
                         when {
                             !it.isVisible -> false
+                            Overlays.NotificationsShade in it.overlays -> true
+                            Overlays.QuickSettingsShade in it.overlays -> true
+                            it.scene == Scenes.Lockscreen && Overlays.Bouncer in it.overlays ->
+                                false
+                            it.scene.isOccluded() -> false
                             it.scene != Scenes.Gone -> true
-                            it.overlays.isNotEmpty() -> true
                             else -> false
                         }
                     },
@@ -123,9 +160,11 @@ constructor(
                     {
                         when {
                             !it.isVisible -> false
-                            it.scene == Scenes.Lockscreen -> true
-                            it.scene == Scenes.Shade -> true
+                            it.scene == Scenes.Shade && it.shadeMode !is ShadeMode.Split -> true
                             Overlays.NotificationsShade in it.overlays -> true
+                            it.scene == Scenes.Lockscreen &&
+                                Overlays.Bouncer !in it.overlays &&
+                                Overlays.QuickSettingsShade !in it.overlays -> true
                             else -> false
                         }
                     },
@@ -134,6 +173,7 @@ constructor(
                         when {
                             !it.isVisible -> false
                             it.scene == Scenes.QuickSettings -> true
+                            it.scene == Scenes.Shade && it.shadeMode is ShadeMode.Split -> true
                             Overlays.QuickSettingsShade in it.overlays -> true
                             else -> false
                         }
@@ -141,10 +181,21 @@ constructor(
                 SYSUI_STATE_BOUNCER_SHOWING to { it.isVisible && Overlays.Bouncer in it.overlays },
                 SYSUI_STATE_STATUS_BAR_KEYGUARD_SHOWING to
                     {
-                        it.isVisible && it.scene == Scenes.Lockscreen
+                        when {
+                            !it.isVisible -> false
+                            it.scene == Scenes.Lockscreen -> true
+                            it.sceneBehind == Scenes.Lockscreen -> true
+                            Overlays.Bouncer in it.overlays -> true
+                            else -> false
+                        }
                     },
-                SYSUI_STATE_STATUS_BAR_KEYGUARD_SHOWING_OCCLUDED to { it.scene == Scenes.Occluded },
+                SYSUI_STATE_STATUS_BAR_KEYGUARD_SHOWING_OCCLUDED to
+                    {
+                        it.scene.isOccluded() || it.sceneBehind?.isOccluded() == true
+                    },
                 SYSUI_STATE_COMMUNAL_HUB_SHOWING to { it.isVisible && it.scene == Scenes.Communal },
             )
     }
 }
+
+private fun SceneKey.isOccluded() = this == Scenes.Occluded || this == Scenes.Dream

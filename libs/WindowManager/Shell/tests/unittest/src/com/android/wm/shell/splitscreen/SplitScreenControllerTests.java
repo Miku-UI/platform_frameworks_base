@@ -153,7 +153,7 @@ public class SplitScreenControllerTests extends ShellTestCase {
                 Optional.empty(),
                 mStageCoordinator, mMultiInstanceHelper, mSplitState, mMainExecutor, mMainHandler,
                 mRootDisplayAreaOrganizer, mDesktopState, activityTaskManager, mMSDLPlayer,
-                Optional.empty()));
+                Optional.empty(), Optional.empty(), Optional.empty()));
     }
 
     @Test
@@ -383,6 +383,7 @@ public class SplitScreenControllerTests extends ShellTestCase {
         info.configuration.windowConfiguration.setActivityType(actType);
         info.configuration.windowConfiguration.setWindowingMode(winMode);
         info.supportsMultiWindow = true;
+        info.supportsMultiWindowWithoutConstraints = true;
         info.baseIntent = strIntent;
         info.baseActivity = strIntent.getComponent();
         info.token = new WindowContainerToken(mock(IWindowContainerToken.class));

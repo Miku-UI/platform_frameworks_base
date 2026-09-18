@@ -383,4 +383,76 @@ public class TestMain {
             Assert.assertEquals(true, Thread.holdsLock(target.scopedLock()));
         }
     }
+
+    @Test
+    public void testTraceInjection() {
+        TestTarget.resetCount();
+        TestTarget t = new TestTarget();
+
+        Assert.assertEquals(TestTarget.traceBeforeAcquireCount, 0);
+        Assert.assertEquals(TestTarget.traceAfterAcquireCount, 0);
+        Assert.assertEquals(TestTarget.traceBeforeReleaseCount, 0);
+        Assert.assertEquals(TestTarget.traceAfterReleaseCount, 0);
+
+        synchronized (t) {
+            Assert.assertEquals(TestTarget.traceBeforeAcquireCount, 1);
+            Assert.assertEquals(TestTarget.traceAfterAcquireCount, 1);
+            Assert.assertEquals(TestTarget.traceBeforeReleaseCount, 0);
+            Assert.assertEquals(TestTarget.traceAfterReleaseCount, 0);
+            TestTarget.invoke();
+        }
+
+        Assert.assertEquals(TestTarget.traceBeforeAcquireCount, 1);
+        Assert.assertEquals(TestTarget.traceAfterAcquireCount, 1);
+        Assert.assertEquals(TestTarget.traceBeforeReleaseCount, 1);
+        Assert.assertEquals(TestTarget.traceAfterReleaseCount, 1);
+        Assert.assertEquals(TestTarget.invokeCount, 1);
+    }
+
+    @Test
+    public void testTraceInjectionWithException() {
+        TestTarget.resetCount();
+        TestTarget t = new TestTarget();
+
+        try {
+            synchronized (t) {
+                Assert.assertEquals(1, TestTarget.traceBeforeAcquireCount);
+                Assert.assertEquals(1, TestTarget.traceAfterAcquireCount);
+
+                throw new RuntimeException("Crash!");
+            }
+        } catch (RuntimeException ignored) {
+            // Expected
+        }
+
+        Assert.assertEquals("Trace before release missed the exception path!",
+                1, TestTarget.traceBeforeReleaseCount);
+
+        // TraceAfterRelease usually does NOT fire on exception paths
+        // because the exception is re-thrown immediately after the unlock.
+        Assert.assertEquals(1, TestTarget.traceAfterReleaseCount);
+    }
+
+    @Test
+    public void testOnlyTraceInjection() {
+        TestOnlyTraceTarget.resetCount();
+        TestOnlyTraceTarget t = new TestOnlyTraceTarget();
+
+        Assert.assertEquals(TestOnlyTraceTarget.traceBeforeAcquireCount, 0);
+        Assert.assertEquals(TestOnlyTraceTarget.traceAfterAcquireCount, 0);
+        Assert.assertEquals(TestOnlyTraceTarget.traceBeforeReleaseCount, 0);
+        Assert.assertEquals(TestOnlyTraceTarget.traceAfterReleaseCount, 0);
+
+        synchronized (t) {
+            Assert.assertEquals(TestOnlyTraceTarget.traceBeforeAcquireCount, 1);
+            Assert.assertEquals(TestOnlyTraceTarget.traceAfterAcquireCount, 1);
+            Assert.assertEquals(TestOnlyTraceTarget.traceBeforeReleaseCount, 0);
+            Assert.assertEquals(TestOnlyTraceTarget.traceAfterReleaseCount, 0);
+        }
+
+        Assert.assertEquals(TestOnlyTraceTarget.traceBeforeAcquireCount, 1);
+        Assert.assertEquals(TestOnlyTraceTarget.traceAfterAcquireCount, 1);
+        Assert.assertEquals(TestOnlyTraceTarget.traceBeforeReleaseCount, 1);
+        Assert.assertEquals(TestOnlyTraceTarget.traceAfterReleaseCount, 1);
+    }
 }

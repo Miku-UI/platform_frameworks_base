@@ -103,7 +103,7 @@ public class HearingDevicePhoneCallNotificationController {
             TelephonyCallback.CallStateListener {
 
         private static final String TAG =
-                "HearingDevice_CallStateListener";
+                CallStateListener.class.getSimpleName();
         private static final String ACTION_SWITCH_TO_BUILTIN_MIC =
                 "com.android.server.accessibility.hearingdevice.action.SWITCH_TO_BUILTIN_MIC";
         private static final String ACTION_SWITCH_TO_HEARING_MIC =
@@ -324,9 +324,9 @@ public class HearingDevicePhoneCallNotificationController {
                     bundle.putString(KEY_BLUETOOTH_ADDRESS, mHearingDevice.getAddress());
                     intent.putExtra(EXTRA_SHOW_FRAGMENT_ARGUMENTS, bundle);
                     intent.addFlags(
-                            Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                            Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
                     return PendingIntent.getActivity(mContext, /* requestCode = */ 0, intent,
-                            PendingIntent.FLAG_IMMUTABLE);
+                            PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
                 }
             }
             return null;

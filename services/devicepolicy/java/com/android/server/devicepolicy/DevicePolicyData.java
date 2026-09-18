@@ -84,6 +84,7 @@ class DevicePolicyData {
             "device-provisioning-config-applied";
     private static final String ATTR_DEVICE_PAIRED = "device-paired";
     private static final String ATTR_NEW_USER_DISCLAIMER = "new-user-disclaimer";
+    private static final String ATTR_PACKAGE_NAME = "package-name";
 
     // Values of ATTR_NEW_USER_DISCLAIMER
     static final String NEW_USER_DISCLAIMER_ACKNOWLEDGED = "acked";
@@ -123,6 +124,9 @@ class DevicePolicyData {
     final ArrayMap<ComponentName, ActiveAdmin> mAdminMap = new ArrayMap<>();
     final ArrayList<ActiveAdmin> mAdminList = new ArrayList<>();
     final ArrayList<ComponentName> mRemovingAdmins = new ArrayList<>();
+
+    // Map from package name to the admin record.
+    final ArrayMap<String, AdminRecord> mAdminRecordMap = new ArrayMap<>();
 
     // TODO(b/35385311): Keep track of metadata in TrustedCertificateStore instead.
     final ArraySet<String> mAcceptedCaCertificates = new ArraySet<>();
@@ -261,6 +265,13 @@ class DevicePolicyData {
                     ap.writeToXml(out);
                     out.endTag(null, "admin");
                 }
+            }
+
+            for (AdminRecord adminRecord : policyData.mAdminRecordMap.values()) {
+                out.startTag(null, "admin-record");
+                out.attribute(null, ATTR_PACKAGE_NAME, adminRecord.mPackageName);
+                adminRecord.writeToXml(out);
+                out.endTag(null, "admin-record");
             }
 
             if (policyData.mPasswordOwner >= 0) {
@@ -497,6 +508,11 @@ class DevicePolicyData {
                     } catch (RuntimeException e) {
                         Slogf.w(TAG, e, "Failed loading admin %s", name);
                     }
+                } else if ("admin-record".equals(tag)) {
+                    String pkgName = parser.getAttributeValue(null, ATTR_PACKAGE_NAME);
+                    AdminRecord ar = new AdminRecord(pkgName);
+                    ar.readFromXml(parser);
+                    policy.mAdminRecordMap.put(ar.mPackageName, ar);
                 } else if ("delegation".equals(tag)) {
                     // Parse delegation info.
                     final String delegatePackage = parser.getAttributeValue(null,
@@ -662,6 +678,14 @@ class DevicePolicyData {
                 pw.increaseIndent();
                 ap.dump(pw);
                 pw.decreaseIndent();
+                pw.decreaseIndent();
+            }
+        }
+        for (int i = 0; i < mAdminRecordMap.size(); i++) {
+            AdminRecord ar = mAdminRecordMap.get(mAdminRecordMap.keyAt(i));
+            if (ar != null) {
+                pw.increaseIndent();
+                ar.dump(pw);
                 pw.decreaseIndent();
             }
         }

@@ -456,18 +456,11 @@ public class SecurityControllerImpl implements SecurityController {
 
     @Override
     public void setSupervisionModel(@Nullable SupervisionModel supervisionModel) {
-        if (!android.app.supervision.flags.Flags.enableSupervisionAppService()) {
-            return;
-        }
         mSupervisionModel = supervisionModel;
     }
 
     @Override
     public SupervisionModel getSupervisionModel() {
-        if (!android.app.supervision.flags.Flags.enableSupervisionAppService()) {
-            return null;
-        }
-
         return mSupervisionModel;
     }
 

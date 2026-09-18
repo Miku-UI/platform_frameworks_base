@@ -1,0 +1,10 @@
+{
+  "presubmit": [
+    {
+      "name": "adb_jni_pairing_server_v1_test"
+    },
+    {
+      "name": "adb_jni_pairing_server_v2_test"
+    }
+  ]
+}

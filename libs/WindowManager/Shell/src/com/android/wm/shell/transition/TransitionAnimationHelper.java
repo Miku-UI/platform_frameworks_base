@@ -47,7 +47,6 @@ import android.view.InsetsSource;
 import android.view.InsetsState;
 import android.view.SurfaceControl;
 import android.view.WindowManager;
-import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
 import android.window.TransitionInfo;
 
@@ -165,17 +164,10 @@ public class TransitionAnimationHelper {
         }
 
         Animation a = null;
-        if (com.android.window.flags.Flags.polishCloseWallpaperIncludesOpenChange()) {
-            if (animAttr == R.styleable.WindowAnimation_wallpaperCloseExitAnimation) {
-                // A closing wallpaper doesn't need an animation.
-                if (change.hasFlags(FLAG_IS_WALLPAPER)) {
-                    animAttr = 0;
-                } else {
-                    // TODO (b/421436197): Modify wallpaper_close_exit.xml when clean up the flag.
-                    a = new AlphaAnimation(1.0f /* fromAlpha */, 0.0f /* toAlpha */);
-                    a.setDuration(275 /* durationMillis */);
-                    return a;
-                }
+        if (animAttr == R.styleable.WindowAnimation_wallpaperCloseExitAnimation) {
+            // A closing wallpaper doesn't need an animation.
+            if (change.hasFlags(FLAG_IS_WALLPAPER)) {
+                animAttr = 0;
             }
         }
         if (animAttr != 0) {
@@ -244,7 +236,7 @@ public class TransitionAnimationHelper {
             boolean hasOpenTransit = false;
             for (TransitionInfo.Change change : info.getChanges()) {
                 if ((change.getTaskInfo() != null || change.hasFlags(FLAG_IS_DISPLAY))
-                        && !TransitionUtil.isOrderOnly(change)) {
+                        && !TransitionUtil.isStationary(change)) {
                     // This isn't an activity-level transition.
                     return type;
                 }

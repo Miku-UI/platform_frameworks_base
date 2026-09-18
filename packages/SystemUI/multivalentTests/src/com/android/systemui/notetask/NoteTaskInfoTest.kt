@@ -20,7 +20,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.notetask.NoteTaskEntryPoint.QS_NOTES_TILE
-import com.android.systemui.notetask.NoteTaskEntryPoint.WIDGET_PICKER_SHORTCUT_IN_MULTI_WINDOW_MODE
+import com.android.systemui.notetask.NoteTaskEntryPoint.WIDGET_PICKER_SHORTCUT_LAUNCH_IN_ACTIVITY
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,7 +39,7 @@ internal class NoteTaskInfoTest : SysuiTestCase() {
 
     @Test
     fun launchMode_multiWindowMode_launchModeActivity() {
-        val underTest = DEFAULT_INFO.copy(entryPoint = WIDGET_PICKER_SHORTCUT_IN_MULTI_WINDOW_MODE)
+        val underTest = DEFAULT_INFO.copy(entryPoint = WIDGET_PICKER_SHORTCUT_LAUNCH_IN_ACTIVITY)
 
         assertThat(underTest.launchMode).isEqualTo(NoteTaskLaunchMode.Activity)
     }

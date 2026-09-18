@@ -42,6 +42,11 @@ public class MediaOutputConstants {
     public static final String EXTRA_PACKAGE_NAME = "package_name";
 
     /**
+     * A string extra specifying a user handle.
+     */
+    public static final String EXTRA_USER_HANDLE = "user_handle";
+
+    /**
      * An intent action to launch media output dialog.
      */
     public static final String ACTION_LAUNCH_MEDIA_OUTPUT_DIALOG =

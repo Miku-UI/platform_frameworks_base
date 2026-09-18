@@ -68,7 +68,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="24dp"
                     android:layout_marginHorizontal="48dp"
-                    android:textColor="?androidprv:attr/textColorPrimary"
+                    android:textColor="@color/materialColorOnSurface"
                     android:textAlignment="center"/>
 
                 <include layout="@layout/wallet_empty_state"/>

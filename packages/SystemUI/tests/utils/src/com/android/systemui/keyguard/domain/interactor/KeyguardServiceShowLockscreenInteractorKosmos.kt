@@ -19,17 +19,15 @@ package com.android.systemui.keyguard.domain.interactor
 import com.android.systemui.keyguard.data.repository.keyguardServiceShowLockscreenRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
-import com.android.systemui.settings.userTracker
 import com.android.systemui.user.domain.interactor.selectedUserInteractor
 
-val Kosmos.keyguardServiceShowLockscreenInteractor by
+val Kosmos.keyguardServiceShowLockscreenInteractor: KeyguardServiceShowLockscreenInteractor by
     Kosmos.Fixture {
         KeyguardServiceShowLockscreenInteractor(
-            backgroundScope = testScope,
+            backgroundScope = testScope.backgroundScope,
             selectedUserInteractor = selectedUserInteractor,
             repository = keyguardServiceShowLockscreenRepository,
-            userTracker = userTracker,
             wmLockscreenVisibilityInteractor = { windowManagerLockscreenVisibilityInteractor },
-            keyguardEnabledInteractor = keyguardEnabledInteractor,
+            keyguardEnabledInteractor = { keyguardEnabledInteractor },
         )
     }

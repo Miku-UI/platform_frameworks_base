@@ -26,12 +26,20 @@ import android.util.SparseArray;
 import android.view.Display;
 import android.view.DisplayInfo;
 import android.view.SurfaceControl;
+import android.view.SurfaceControl.WorkDuration;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.BackgroundThread;
+import com.android.server.display.DisplayDeviceConfig;
+import com.android.server.display.config.ThermalThrottlingData;
+import com.android.server.display.feature.flags.Flags;
 
 import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 final class SkinThermalStatusObserver extends IThermalEventListener.Stub implements
         DisplayManager.DisplayListener {
@@ -43,6 +51,8 @@ final class SkinThermalStatusObserver extends IThermalEventListener.Stub impleme
     private boolean mLoggingEnabled;
 
     private final Handler mHandler;
+
+    private final DisplayModeDirector.DisplayDeviceConfigProvider mDisplayDeviceConfigProvider;
     private final Object mThermalObserverLock = new Object();
     @GuardedBy("mThermalObserverLock")
     @Temperature.ThrottlingStatus
@@ -51,23 +61,42 @@ final class SkinThermalStatusObserver extends IThermalEventListener.Stub impleme
     private final SparseArray<SparseArray<SurfaceControl.RefreshRateRange>>
             mThermalThrottlingByDisplay = new SparseArray<>();
 
+    @GuardedBy("mThermalObserverLock")
+    private final SparseArray<SparseArray<SurfaceControl.WorkDuration>>
+            mThermalWorkDurationsByDisplay = new SparseArray<>();
+    public SparseArray<Map<String, SparseArray<WorkDuration>>> workDurations =
+            new SparseArray<>();
+
     SkinThermalStatusObserver(DisplayModeDirector.Injector injector,
-            VotesStorage votesStorage) {
-        this(injector, votesStorage, BackgroundThread.getHandler());
+                              VotesStorage votesStorage,
+                              DisplayModeDirector.DisplayDeviceConfigProvider
+                                      displayDeviceConfigProvider) {
+        this(injector, votesStorage, displayDeviceConfigProvider, BackgroundThread.getHandler());
     }
 
     @VisibleForTesting
     SkinThermalStatusObserver(DisplayModeDirector.Injector injector,
-            VotesStorage votesStorage, Handler handler) {
+                              VotesStorage votesStorage,
+                              DisplayModeDirector.DisplayDeviceConfigProvider
+                                      displayDeviceConfigProvider, Handler handler) {
         mInjector = injector;
         mVotesStorage = votesStorage;
         mHandler = handler;
+        mDisplayDeviceConfigProvider = displayDeviceConfigProvider;
     }
 
     @Nullable
     public static SurfaceControl.RefreshRateRange findBestMatchingRefreshRateRange(
             @Temperature.ThrottlingStatus int currentStatus,
             SparseArray<SurfaceControl.RefreshRateRange> throttlingMap) {
+        if (throttlingMap == null || throttlingMap.size() == 0) {
+            if (currentStatus >= Temperature.THROTTLING_CRITICAL) {
+                return new SurfaceControl.RefreshRateRange(0f, 60f); // default values
+            } else {
+                return null;
+            }
+        }
+
         SurfaceControl.RefreshRateRange foundRange = null;
         for (int status = currentStatus; status >= 0; status--) {
             foundRange = throttlingMap.get(status);
@@ -78,9 +107,25 @@ final class SkinThermalStatusObserver extends IThermalEventListener.Stub impleme
         return foundRange;
     }
 
+    @Nullable
+    public static SurfaceControl.WorkDuration findBestMatchingWorkDurations(
+            @Temperature.ThrottlingStatus int currentStatus,
+            SparseArray<SurfaceControl.WorkDuration> throttlingWorkDurationsMap) {
+        SurfaceControl.WorkDuration foundWorkDurations = null;
+        if (throttlingWorkDurationsMap != null) {
+            for (int status = currentStatus; status >= 0; status--) {
+                foundWorkDurations = throttlingWorkDurationsMap.get(status);
+                if (foundWorkDurations != null) {
+                    break;
+                }
+            }
+        }
+        return foundWorkDurations;
+    }
+
     void observe() {
         // if failed to register thermal service listener, don't register display listener
-        if (!mInjector.registerThermalServiceListener(this)) {
+        if (!mInjector.registerThermalEventListener(this)) {
             return;
         }
         registerDisplayListener();
@@ -119,7 +164,7 @@ final class SkinThermalStatusObserver extends IThermalEventListener.Stub impleme
     //region DisplayManager.DisplayListener
     @Override
     public void onDisplayAdded(int displayId) {
-        updateThermalRefreshRateThrottling(displayId);
+        updateThermalThrottlingConfigs(displayId);
         if (mLoggingEnabled) {
             Slog.d(TAG, "Display added:" + displayId);
         }
@@ -139,7 +184,7 @@ final class SkinThermalStatusObserver extends IThermalEventListener.Stub impleme
 
     @Override
     public void onDisplayChanged(int displayId) {
-        updateThermalRefreshRateThrottling(displayId);
+        updateThermalThrottlingConfigs(displayId);
         if (mLoggingEnabled) {
             Slog.d(TAG, "Display changed:" + displayId);
         }
@@ -150,31 +195,39 @@ final class SkinThermalStatusObserver extends IThermalEventListener.Stub impleme
         DisplayInfo info = new DisplayInfo();
         Display[] displays = mInjector.getDisplays();
         int size = displays.length;
-        SparseArray<SparseArray<SurfaceControl.RefreshRateRange>> localMap = new SparseArray<>(
-                size);
+        SparseArray<SparseArray<SurfaceControl.RefreshRateRange>> localRefreshRateRangesMap =
+                new SparseArray<>(size);
         for (Display d : displays) {
             final int displayId = d.getDisplayId();
             d.getDisplayInfo(info);
-            localMap.put(displayId, info.thermalRefreshRateThrottling);
+            localRefreshRateRangesMap.put(displayId, info.thermalRefreshRateThrottling);
         }
         synchronized (mThermalObserverLock) {
             for (int i = 0; i < size; i++) {
-                mThermalThrottlingByDisplay.put(localMap.keyAt(i), localMap.valueAt(i));
+                mThermalThrottlingByDisplay.put(localRefreshRateRangesMap.keyAt(i),
+                        localRefreshRateRangesMap.valueAt(i));
             }
         }
         if (mLoggingEnabled) {
-            Slog.d(TAG, "Display initial info:" + localMap);
+            Slog.d(TAG, "Display initial info:" + localRefreshRateRangesMap);
         }
     }
 
-    private void updateThermalRefreshRateThrottling(int displayId) {
+    private void updateThermalThrottlingConfigs(int displayId) {
         DisplayInfo displayInfo = new DisplayInfo();
         mInjector.getDisplayInfo(displayId, displayInfo);
         SparseArray<SurfaceControl.RefreshRateRange> throttlingMap =
                 displayInfo.thermalRefreshRateThrottling;
 
+        SparseArray<SurfaceControl.WorkDuration> workDurationMap = new SparseArray<>();
+        if (Flags.enableWorkDurations()) {
+            workDurationMap = getThermalWorkDurations(displayId,
+                    displayInfo.thermalBrightnessThrottlingDataId);
+        }
+
         synchronized (mThermalObserverLock) {
             mThermalThrottlingByDisplay.put(displayId, throttlingMap);
+            mThermalWorkDurationsByDisplay.put(displayId, workDurationMap);
             mHandler.post(() -> updateVoteForDisplay(displayId));
         }
         if (mLoggingEnabled) {
@@ -186,89 +239,110 @@ final class SkinThermalStatusObserver extends IThermalEventListener.Stub impleme
     //region in mHandler thread
     private void updateVotes() {
         @Temperature.ThrottlingStatus int localStatus;
-        SparseArray<SparseArray<SurfaceControl.RefreshRateRange>> localMap;
+        SparseArray<SparseArray<SurfaceControl.RefreshRateRange>> localRefreshRateRangesMap;
+        SparseArray<SparseArray<SurfaceControl.WorkDuration>> localWorkDurationsMap;
 
         synchronized (mThermalObserverLock) {
             localStatus = mStatus;
-            localMap = mThermalThrottlingByDisplay.clone();
+            localRefreshRateRangesMap = mThermalThrottlingByDisplay.clone();
+            localWorkDurationsMap = mThermalWorkDurationsByDisplay.clone();
         }
         if (mLoggingEnabled) {
-            Slog.d(TAG, "Updating votes for status=" + localStatus + ", map=" + localMap);
+            Slog.d(TAG, "Updating votes for status=" + localStatus + ","
+                    + " refreshRateRangesMap=" + localRefreshRateRangesMap
+                    + ", workDurationsMap=" + localWorkDurationsMap);
         }
-        int size = localMap.size();
-        for (int i = 0; i < size; i++) {
-            reportThrottlingIfNeeded(localMap.keyAt(i), localStatus, localMap.valueAt(i));
+
+        Set<Integer> allIds = new HashSet<>();
+        for (int i = 0; i < localRefreshRateRangesMap.size(); i++) {
+            allIds.add(localRefreshRateRangesMap.keyAt(i));
+        }
+        for (int i = 0; i < localWorkDurationsMap.size(); i++) {
+            allIds.add(localWorkDurationsMap.keyAt(i));
+        }
+
+        for (int displayId : allIds) {
+            reportThrottlingIfNeeded(displayId, localStatus,
+                    localRefreshRateRangesMap.get(displayId), localWorkDurationsMap.get(displayId));
         }
     }
 
     private void updateVoteForDisplay(int displayId) {
         @Temperature.ThrottlingStatus int localStatus;
-        SparseArray<SurfaceControl.RefreshRateRange> localMap;
+        SparseArray<SurfaceControl.RefreshRateRange> localRefreshRateRangesMap;
+        SparseArray<SurfaceControl.WorkDuration> localWorkDurationsMap;
 
         synchronized (mThermalObserverLock) {
             localStatus = mStatus;
-            localMap = mThermalThrottlingByDisplay.get(displayId);
+            localRefreshRateRangesMap = mThermalThrottlingByDisplay.get(displayId);
+            localWorkDurationsMap = mThermalWorkDurationsByDisplay.get(displayId);
         }
-        if (localMap == null) {
+        if (localRefreshRateRangesMap == null) {
             Slog.d(TAG, "Updating votes, display already removed, display=" + displayId);
             return;
         }
         if (mLoggingEnabled) {
             Slog.d(TAG, "Updating votes for status=" + localStatus + ", display =" + displayId
-                    + ", map=" + localMap);
+                    + ", refreshRateRangesMap=" + localRefreshRateRangesMap
+                    + ", workDurationsMap=" + localWorkDurationsMap);
         }
-        reportThrottlingIfNeeded(displayId, localStatus, localMap);
+        reportThrottlingIfNeeded(displayId, localStatus, localRefreshRateRangesMap,
+                localWorkDurationsMap);
     }
 
     private void reportThrottlingIfNeeded(int displayId,
-            @Temperature.ThrottlingStatus int currentStatus,
-            SparseArray<SurfaceControl.RefreshRateRange> throttlingMap) {
+                                          @Temperature.ThrottlingStatus int currentStatus,
+                                          @Nullable SparseArray<SurfaceControl.RefreshRateRange>
+                                                  throttlingMap,
+                                          @Nullable SparseArray<SurfaceControl.WorkDuration>
+                                                  throttlingWorkDurationsMap) {
         if (currentStatus == -1) { // no throttling status reported from thermal sensor yet
-            return;
-        }
-
-        if (throttlingMap.size() == 0) { // map is not configured, using default behaviour
-            fallbackReportThrottlingIfNeeded(displayId, currentStatus);
             return;
         }
 
         SurfaceControl.RefreshRateRange foundRange = findBestMatchingRefreshRateRange(currentStatus,
                 throttlingMap);
-        // if status <= currentStatus not found in the map reset vote
-        Vote vote = null;
-        if (foundRange != null) { // otherwise vote with found range
-            vote = Vote.forRenderFrameRates(foundRange.min, foundRange.max);
-        }
+        SurfaceControl.WorkDuration foundWorkDurations =
+                findBestMatchingWorkDurations(currentStatus, throttlingWorkDurationsMap);
+
+        Vote vote = Vote.forVotes(Arrays.asList(Vote.forRenderFrameRates(foundRange),
+                Vote.forWorkDurations(foundWorkDurations)));
         mVotesStorage.updateVote(displayId, Vote.PRIORITY_SKIN_TEMPERATURE, vote);
         if (mLoggingEnabled) {
             Slog.d(TAG, "Voted: vote=" + vote + ", display =" + displayId);
         }
     }
 
-    private void fallbackReportThrottlingIfNeeded(int displayId,
-            @Temperature.ThrottlingStatus int currentStatus) {
-        Vote vote = null;
-        if (currentStatus >= Temperature.THROTTLING_CRITICAL) {
-            vote = Vote.forRenderFrameRates(0f, 60f);
-        }
-        mVotesStorage.updateVote(displayId, Vote.PRIORITY_SKIN_TEMPERATURE, vote);
-        if (mLoggingEnabled) {
-            Slog.d(TAG, "Voted(fallback): vote=" + vote + ", display =" + displayId);
-        }
+    private SparseArray<SurfaceControl.WorkDuration> getThermalWorkDurations(
+            int displayId, String thermalThrottlingId) {
+        DisplayDeviceConfig config = mDisplayDeviceConfigProvider != null
+                ? mDisplayDeviceConfigProvider.getDisplayDeviceConfig(displayId)
+                : null;
+        ThermalThrottlingData thermalThrottlingData = config != null
+                ? config.getThermalThrottlingData()
+                : null;
+        Map<String, SparseArray<SurfaceControl.WorkDuration>> workDurationMap =
+                thermalThrottlingData != null
+                        ? thermalThrottlingData.getThermalThrottlingWorkDurations()
+                        : null;
+        return workDurationMap != null ? workDurationMap.get(thermalThrottlingId) : null;
     }
     //endregion
 
     void dumpLocked(PrintWriter writer) {
         @Temperature.ThrottlingStatus int localStatus;
-        SparseArray<SparseArray<SurfaceControl.RefreshRateRange>> localMap;
+        SparseArray<SparseArray<SurfaceControl.RefreshRateRange>> localRefreshRateRangesMap;
+        SparseArray<SparseArray<SurfaceControl.WorkDuration>> localWorkDurationsMap;
 
         synchronized (mThermalObserverLock) {
             localStatus = mStatus;
-            localMap = mThermalThrottlingByDisplay.clone();
+            localRefreshRateRangesMap = mThermalThrottlingByDisplay.clone();
+            localWorkDurationsMap = mThermalWorkDurationsByDisplay.clone();
         }
 
         writer.println("  SkinThermalStatusObserver:");
         writer.println("    mStatus: " + localStatus);
-        writer.println("    mThermalThrottlingByDisplay: " + localMap);
+        writer.println("    mThermalThrottlingByDisplay: " + localRefreshRateRangesMap);
+        writer.println("    mThermalWorkDurationsByDisplay: " + localWorkDurationsMap);
     }
 }

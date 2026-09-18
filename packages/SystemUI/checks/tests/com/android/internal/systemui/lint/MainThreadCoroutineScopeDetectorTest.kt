@@ -16,6 +16,7 @@
 
 package com.android.internal.systemui.lint
 
+import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.lint.checks.infrastructure.TestFiles
 import com.android.tools.lint.detector.api.Detector
 import com.android.tools.lint.detector.api.Issue
@@ -196,6 +197,46 @@ class MainThreadCoroutineScopeDetectorTest : SystemUILintDetectorTest() {
     }
 
     companion object {
+        val backgroundQualifierStub: TestFile =
+            TestFiles.kotlin(
+                    """
+                    package com.android.systemui.dagger.qualifiers
+
+                    @Qualifier @MustBeDocumented @Retention(AnnotationRetention.RUNTIME) annotation class Background
+                """
+                )
+                .indented()
+
+        val uiBackgroundQualifierStub: TestFile =
+            TestFiles.kotlin(
+                    """
+                    package com.android.systemui.dagger.qualifiers
+
+                    @Qualifier @MustBeDocumented @Retention(AnnotationRetention.RUNTIME) annotation class UiBackground
+                """
+                )
+                .indented()
+
+        val applicationQualifierStub: TestFile =
+            TestFiles.kotlin(
+                    """
+                    package com.android.systemui.dagger.qualifiers
+
+                    @Qualifier @MustBeDocumented @Retention(AnnotationRetention.RUNTIME) annotation class Application
+                """
+                )
+                .indented()
+
+        val mainQualifierStub: TestFile =
+            TestFiles.kotlin(
+                    """
+                    package com.android.systemui.dagger.qualifiers
+
+                    @Qualifier @MustBeDocumented @Retention(AnnotationRetention.RUNTIME) annotation class Main
+                """
+                )
+                .indented()
+
         private val DEPENDENCIES =
             arrayOf(
                 TestFiles.kotlin(
@@ -206,22 +247,8 @@ class MainThreadCoroutineScopeDetectorTest : SystemUILintDetectorTest() {
                 """
                     )
                     .indented(),
-                TestFiles.kotlin(
-                        """
-                    package com.android.systemui.dagger.qualifiers
-
-                    @Qualifier @MustBeDocumented @Retention(AnnotationRetention.RUNTIME) annotation class Application
-                """
-                    )
-                    .indented(),
-                TestFiles.kotlin(
-                        """
-                    package com.android.systemui.dagger.qualifiers
-
-                    @Qualifier @MustBeDocumented @Retention(AnnotationRetention.RUNTIME) annotation class Background
-                """
-                    )
-                    .indented(),
+                applicationQualifierStub,
+                backgroundQualifierStub,
             )
     }
 }

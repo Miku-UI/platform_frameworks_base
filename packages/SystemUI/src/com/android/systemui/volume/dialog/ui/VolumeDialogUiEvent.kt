@@ -51,6 +51,8 @@ enum class VolumeDialogUiEvent(val metricId: Int) : UiEventLogger.UiEventEnum {
         doc = "The volume dialog was dismissed because the usb high temperature alarm " + "changed"
     )
     VOLUME_DIALOG_DISMISS_USB_TEMP_ALARM_CHANGED(142),
+    @UiEvent(doc = "The volume dialog was dismissed because the brightness dialog was shown")
+    VOLUME_DIALOG_DISMISS_BRIGHTNESS_DIALOG_SHOWING(2663),
     @UiEvent(doc = "The right-most slider started tracking touch")
     VOLUME_DIALOG_SLIDER_STARTED_TRACKING_TOUCH(1620),
     @UiEvent(doc = "The right-most slider stopped tracking touch")

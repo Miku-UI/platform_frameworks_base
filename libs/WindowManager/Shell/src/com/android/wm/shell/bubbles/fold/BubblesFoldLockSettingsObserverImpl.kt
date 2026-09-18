@@ -23,9 +23,10 @@ import javax.inject.Inject
 
 /** An implementation of [BubblesFoldLockSettingsObserver] that uses [FoldLockSettingsObserver]. */
 @WMSingleton
-class BubblesFoldLockSettingsObserverImpl @Inject constructor(
-    @Bubbles private val foldLockSettingsObserver: FoldLockSettingsObserver
-) : BubblesFoldLockSettingsObserver {
+class BubblesFoldLockSettingsObserverImpl
+@Inject
+constructor(@Bubbles private val foldLockSettingsObserver: FoldLockSettingsObserver) :
+    BubblesFoldLockSettingsObserver {
 
     override fun isStayAwakeOnFold() = foldLockSettingsObserver.isStayAwakeOnFold
 }

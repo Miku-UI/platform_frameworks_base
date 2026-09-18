@@ -17,8 +17,8 @@
 package android.content;
 
 import static android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_MANAGER;
+import static android.app.lskfreset.flags.Flags.FLAG_ENABLE_LSKF_RESET_MANAGER;
 import static android.app.ondeviceintelligence.flags.Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE_MODULE;
-import static android.app.userrecovery.flags.Flags.FLAG_ENABLE_USER_RECOVERY_MANAGER;
 import static android.content.flags.Flags.FLAG_ENABLE_BIND_PACKAGE_ISOLATED_PROCESS;
 import static android.content.flags.Flags.FLAG_ENABLE_UPDATE_SERVICE_BINDINGS;
 import static android.security.Flags.FLAG_SECURE_LOCKDOWN;
@@ -92,6 +92,7 @@ import android.os.Looper;
 import android.os.StatFs;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.os.allowlist.AllowlistManager;
 import android.os.storage.StorageManager;
 import android.provider.E2eeContactKeysManager;
 import android.provider.MediaStore;
@@ -763,6 +764,8 @@ public abstract class Context {
      *
      * @hide
      */
+    @TestApi
+    @SuppressWarnings("UnflaggedApi") // @TestApi without associated feature.
     public static final long BIND_ALLOW_FREEZE = 0x4_0000_0000L;
 
     /**
@@ -1042,6 +1045,8 @@ public abstract class Context {
     public abstract PackageManager getPackageManager();
 
     /** Return a ContentResolver instance for your application's package. */
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl",
+            comment = "only content://settings/ is understood for now", bug = 457841012)
     public abstract ContentResolver getContentResolver();
 
     /**
@@ -1447,6 +1452,7 @@ public abstract class Context {
      */
     @Deprecated
     @UnsupportedAppUsage
+    @RavenwoodKeep
     public File getSharedPrefsFile(String name) {
         return getSharedPreferencesPath(name);
     }
@@ -1475,6 +1481,7 @@ public abstract class Context {
      *
      * @see #MODE_PRIVATE
      */
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl")
     public abstract SharedPreferences getSharedPreferences(String name, @PreferencesMode int mode);
 
     /**
@@ -1497,6 +1504,7 @@ public abstract class Context {
      * @removed
      */
     @SuppressWarnings("HiddenAbstractMethod")
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl")
     public abstract SharedPreferences getSharedPreferences(File file, @PreferencesMode int mode);
 
     /**
@@ -4451,12 +4459,16 @@ public abstract class Context {
      * Only flags returned from {@link #getUpdateableFlags} may be added
      * or removed.
      *
-     * @param params The list of bindings to be updated.
+     * <p>This API behaves as if the {@link #rebindService(ServiceConnection, BindServiceFlags)} and
+     * {@link #unbindService(ServiceConnection)} API are called in the same order as the params are
+     * iterated.
+     *
+     * @param params The collection of bindings to be updated.
      * @throws IllegalArgumentException Any invalid additions or removals
      * will trigger an exception.
      */
     @FlaggedApi(FLAG_ENABLE_UPDATE_SERVICE_BINDINGS)
-    public void updateServiceBindings(@NonNull java.util.List<UpdateBindingParams> params) {
+    public void updateServiceBindings(@NonNull Collection<UpdateBindingParams> params) {
         throw new RuntimeException("Not implemented. Must override in a subclass.");
     }
 
@@ -4528,6 +4540,7 @@ public abstract class Context {
                 ACTIVITY_SERVICE,
                 ALARM_SERVICE,
                 NOTIFICATION_SERVICE,
+                // @hide: CONTEXTUAL_MODE_SERVICE,
                 ACCESSIBILITY_SERVICE,
                 CAPTIONING_SERVICE,
                 KEYGUARD_SERVICE,
@@ -4541,6 +4554,7 @@ public abstract class Context {
                 STORAGE_STATS_SERVICE,
                 WALLPAPER_SERVICE,
                 VIBRATOR_MANAGER_SERVICE,
+                MULTISENSORY_MANAGER_SERVICE,
                 VIBRATOR_SERVICE,
                 // @hide: STATUS_BAR_SERVICE,
                 THREAD_NETWORK_SERVICE,
@@ -4668,121 +4682,120 @@ public abstract class Context {
                 MEDIA_QUALITY_SERVICE,
                 ADVANCED_PROTECTION_SERVICE,
                 ANOMALY_DETECTOR_SERVICE,
+                TASK_CONTINUITY_SERVICE,
+                NPU_SERVICE,
+                WEB_APP_SERVICE,
+                D2D_CONNECTIVITY_SERVICE,
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ServiceName {}
 
     /**
-     * Return the handle to a system-level service by name. The class of the
-     * returned object varies by the requested name. Currently available names
-     * are:
+     * Return the handle to a system-level service by name. The class of the returned object varies
+     * by the requested name. Currently available names are:
      *
      * <dl>
-     *  <dt> {@link #WINDOW_SERVICE} ("window")
-     *  <dd> The top-level window manager in which you can place custom
-     *  windows.  The returned object is a {@link android.view.WindowManager}. Must only be obtained
-     *  from a visual context such as Activity or a Context created with
-     *  {@link #createWindowContext(int, Bundle)}, which are adjusted to the configuration and
-     *  visual bounds of an area on screen.
-     *  <dt> {@link #LAYOUT_INFLATER_SERVICE} ("layout_inflater")
-     *  <dd> A {@link android.view.LayoutInflater} for inflating layout resources
-     *  in this context. Must only be obtained from a visual context such as Activity or a Context
-     *  created with {@link #createWindowContext(int, Bundle)}, which are adjusted to the
-     *  configuration and visual bounds of an area on screen.
-     *  <dt> {@link #ACTIVITY_SERVICE} ("activity")
-     *  <dd> A {@link android.app.ActivityManager} for interacting with the
-     *  global activity state of the system.
-     *  <dt> {@link #WALLPAPER_SERVICE} ("wallpaper")
-     *  <dd> A {@link android.service.wallpaper.WallpaperService} for accessing wallpapers in this
-     *  context. Must only be obtained from a visual context such as Activity or a Context created
-     *  with {@link #createWindowContext(int, Bundle)}, which are adjusted to the configuration and
-     *  visual bounds of an area on screen.
-     *  <dt> {@link #POWER_SERVICE} ("power")
-     *  <dd> A {@link android.os.PowerManager} for controlling power
-     *  management.
-     *  <dt> {@link #ALARM_SERVICE} ("alarm")
-     *  <dd> A {@link android.app.AlarmManager} for receiving intents at the
-     *  time of your choosing.
-     *  <dt> {@link #NOTIFICATION_SERVICE} ("notification")
-     *  <dd> A {@link android.app.NotificationManager} for informing the user
-     *   of background events.
-     *  <dt> {@link #KEYGUARD_SERVICE} ("keyguard")
-     *  <dd> A {@link android.app.KeyguardManager} for controlling keyguard.
-     *  <dt> {@link #LOCATION_SERVICE} ("location")
-     *  <dd> A {@link android.location.LocationManager} for controlling location
-     *   (e.g., GPS) updates.
-     *  <dt> {@link #SEARCH_SERVICE} ("search")
-     *  <dd> A {@link android.app.SearchManager} for handling search.
-     *  <dt> {@link #VIBRATOR_MANAGER_SERVICE} ("vibrator_manager")
-     *  <dd> A {@link android.os.VibratorManager} for accessing the device vibrators, interacting
-     *  with individual ones and playing synchronized effects on multiple vibrators.
-     *  <dt> {@link #VIBRATOR_SERVICE} ("vibrator")
-     *  <dd> A {@link android.os.Vibrator} for interacting with the vibrator hardware.
-     *  <dt> {@link #CONNECTIVITY_SERVICE} ("connectivity")
-     *  <dd> A {@link android.net.ConnectivityManager ConnectivityManager} for
-     *  handling management of network connections.
-     *  <dt> {@link #IPSEC_SERVICE} ("ipsec")
-     *  <dd> A {@link android.net.IpSecManager IpSecManager} for managing IPSec on
-     *  sockets and networks.
-     *  <dt> {@link #WIFI_SERVICE} ("wifi")
-     *  <dd> A {@link android.net.wifi.WifiManager WifiManager} for management of Wi-Fi
-     *  connectivity.  On releases before Android 7, it should only be obtained from an application
-     *  context, and not from any other derived context to avoid memory leaks within the calling
-     *  process.
-     *  <dt> {@link #WIFI_AWARE_SERVICE} ("wifiaware")
-     *  <dd> A {@link android.net.wifi.aware.WifiAwareManager WifiAwareManager} for management of
-     * Wi-Fi Aware discovery and connectivity.
-     *  <dt> {@link #WIFI_P2P_SERVICE} ("wifip2p")
-     *  <dd> A {@link android.net.wifi.p2p.WifiP2pManager WifiP2pManager} for management of
-     * Wi-Fi Direct connectivity.
-     * <dt> {@link #INPUT_METHOD_SERVICE} ("input_method")
-     * <dd> An {@link android.view.inputmethod.InputMethodManager InputMethodManager}
-     * for management of input methods.
-     * <dt> {@link #UI_MODE_SERVICE} ("uimode")
-     * <dd> An {@link android.app.UiModeManager} for controlling UI modes.
-     * <dt> {@link #DOWNLOAD_SERVICE} ("download")
-     * <dd> A {@link android.app.DownloadManager} for requesting HTTP downloads
-     * <dt> {@link #BATTERY_SERVICE} ("batterymanager")
-     * <dd> A {@link android.os.BatteryManager} for managing battery state
-     * <dt> {@link #JOB_SCHEDULER_SERVICE} ("taskmanager")
-     * <dd>  A {@link android.app.job.JobScheduler} for managing scheduled tasks
-     * <dt> {@link #NETWORK_STATS_SERVICE} ("netstats")
-     * <dd> A {@link android.app.usage.NetworkStatsManager NetworkStatsManager} for querying network
-     * usage statistics.
-     * <dt> {@link #HARDWARE_PROPERTIES_SERVICE} ("hardware_properties")
-     * <dd> A {@link android.os.HardwarePropertiesManager} for accessing hardware properties.
-     * <dt> {@link #DOMAIN_VERIFICATION_SERVICE} ("domain_verification")
-     * <dd> A {@link android.content.pm.verify.domain.DomainVerificationManager} for accessing
-     * web domain approval state.
-     * <dt> {@link #DISPLAY_HASH_SERVICE} ("display_hash")
-     * <dd> A {@link android.view.displayhash.DisplayHashManager} for management of display hashes.
-     * <dt> {@link #AUTHENTICATION_POLICY_SERVICE} ("authentication_policy")
-     * <dd> A {@link android.security.authenticationpolicy.AuthenticationPolicyManager}
-     * for managing authentication related policies on the device.
+     *   <dt>{@link #WINDOW_SERVICE} ("window")
+     *   <dd>The top-level window manager in which you can place custom windows. The returned object
+     *       is a {@link android.view.WindowManager}. Must only be obtained from a visual context
+     *       such as Activity or a Context created with {@link #createWindowContext(int, Bundle)},
+     *       which are adjusted to the configuration and visual bounds of an area on screen.
+     *   <dt>{@link #LAYOUT_INFLATER_SERVICE} ("layout_inflater")
+     *   <dd>A {@link android.view.LayoutInflater} for inflating layout resources in this context.
+     *       Must only be obtained from a visual context such as Activity or a Context created with
+     *       {@link #createWindowContext(int, Bundle)}, which are adjusted to the configuration and
+     *       visual bounds of an area on screen.
+     *   <dt>{@link #ACTIVITY_SERVICE} ("activity")
+     *   <dd>A {@link android.app.ActivityManager} for interacting with the global activity state of
+     *       the system.
+     *   <dt>{@link #WALLPAPER_SERVICE} ("wallpaper")
+     *   <dd>A {@link android.service.wallpaper.WallpaperService} for accessing wallpapers in this
+     *       context. Must only be obtained from a visual context such as Activity or a Context
+     *       created with {@link #createWindowContext(int, Bundle)}, which are adjusted to the
+     *       configuration and visual bounds of an area on screen.
+     *   <dt>{@link #POWER_SERVICE} ("power")
+     *   <dd>A {@link android.os.PowerManager} for controlling power management.
+     *   <dt>{@link #ALARM_SERVICE} ("alarm")
+     *   <dd>A {@link android.app.AlarmManager} for receiving intents at the time of your choosing.
+     *   <dt>{@link #NOTIFICATION_SERVICE} ("notification")
+     *   <dd>A {@link android.app.NotificationManager} for informing the user of background events.
+     *   <dt>{@link #KEYGUARD_SERVICE} ("keyguard")
+     *   <dd>A {@link android.app.KeyguardManager} for controlling keyguard.
+     *   <dt>{@link #LOCATION_SERVICE} ("location")
+     *   <dd>A {@link android.location.LocationManager} for controlling location (e.g., GPS)
+     *       updates.
+     *   <dt>{@link #SEARCH_SERVICE} ("search")
+     *   <dd>A {@link android.app.SearchManager} for handling search.
+     *   <dt>{@link #VIBRATOR_MANAGER_SERVICE} ("vibrator_manager")
+     *   <dd>A {@link android.os.VibratorManager} for accessing the device vibrators, interacting
+     *       with individual ones and playing synchronized effects on multiple vibrators.
+     *   <dt>{@link #MULTISENSORY_MANAGER_SERVICE} ("multisensory_manager")
+     *   <dd>A {@link android.os.multisensory.MultisensoryManager} for delivering audio-haptic
+     *       feedback in the Multisensory Design System
+     *   <dt>{@link #VIBRATOR_SERVICE} ("vibrator")
+     *   <dd>A {@link android.os.Vibrator} for interacting with the vibrator hardware.
+     *   <dt>{@link #CONNECTIVITY_SERVICE} ("connectivity")
+     *   <dd>A {@link android.net.ConnectivityManager ConnectivityManager} for handling management
+     *       of network connections.
+     *   <dt>{@link #IPSEC_SERVICE} ("ipsec")
+     *   <dd>A {@link android.net.IpSecManager IpSecManager} for managing IPSec on sockets and
+     *       networks.
+     *   <dt>{@link #WIFI_SERVICE} ("wifi")
+     *   <dd>A {@link android.net.wifi.WifiManager WifiManager} for management of Wi-Fi
+     *       connectivity. On releases before Android 7, it should only be obtained from an
+     *       application context, and not from any other derived context to avoid memory leaks
+     *       within the calling process.
+     *   <dt>{@link #WIFI_AWARE_SERVICE} ("wifiaware")
+     *   <dd>A {@link android.net.wifi.aware.WifiAwareManager WifiAwareManager} for management of
+     *       Wi-Fi Aware discovery and connectivity.
+     *   <dt>{@link #WIFI_P2P_SERVICE} ("wifip2p")
+     *   <dd>A {@link android.net.wifi.p2p.WifiP2pManager WifiP2pManager} for management of Wi-Fi
+     *       Direct connectivity.
+     *   <dt>{@link #INPUT_METHOD_SERVICE} ("input_method")
+     *   <dd>An {@link android.view.inputmethod.InputMethodManager InputMethodManager} for
+     *       management of input methods.
+     *   <dt>{@link #UI_MODE_SERVICE} ("uimode")
+     *   <dd>An {@link android.app.UiModeManager} for controlling UI modes.
+     *   <dt>{@link #DOWNLOAD_SERVICE} ("download")
+     *   <dd>A {@link android.app.DownloadManager} for requesting HTTP downloads
+     *   <dt>{@link #BATTERY_SERVICE} ("batterymanager")
+     *   <dd>A {@link android.os.BatteryManager} for managing battery state
+     *   <dt>{@link #JOB_SCHEDULER_SERVICE} ("taskmanager")
+     *   <dd>A {@link android.app.job.JobScheduler} for managing scheduled tasks
+     *   <dt>{@link #NETWORK_STATS_SERVICE} ("netstats")
+     *   <dd>A {@link android.app.usage.NetworkStatsManager NetworkStatsManager} for querying
+     *       network usage statistics.
+     *   <dt>{@link #HARDWARE_PROPERTIES_SERVICE} ("hardware_properties")
+     *   <dd>A {@link android.os.HardwarePropertiesManager} for accessing hardware properties.
+     *   <dt>{@link #DOMAIN_VERIFICATION_SERVICE} ("domain_verification")
+     *   <dd>A {@link android.content.pm.verify.domain.DomainVerificationManager} for accessing web
+     *       domain approval state.
+     *   <dt>{@link #DISPLAY_HASH_SERVICE} ("display_hash")
+     *   <dd>A {@link android.view.displayhash.DisplayHashManager} for management of display hashes.
+     *   <dt>{@link #AUTHENTICATION_POLICY_SERVICE} ("authentication_policy")
+     *   <dd>A {@link android.security.authenticationpolicy.AuthenticationPolicyManager} for
+     *       managing authentication related policies on the device.
      * </dl>
      *
-     * <p>Note:  System services obtained via this API may be closely associated with
-     * the Context in which they are obtained from.  In general, do not share the
-     * service objects between various different contexts (Activities, Applications,
-     * Services, Providers, etc.)
+     * <p>Note: System services obtained via this API may be closely associated with the Context in
+     * which they are obtained from. In general, do not share the service objects between various
+     * different contexts (Activities, Applications, Services, Providers, etc.)
      *
-     * <p>Note: Instant apps, for which {@link PackageManager#isInstantApp()} returns true,
-     * don't have access to the following system services: {@link #DEVICE_POLICY_SERVICE},
-     * {@link #FINGERPRINT_SERVICE}, {@link #KEYGUARD_SERVICE}, {@link #SHORTCUT_SERVICE},
-     * {@link #USB_SERVICE}, {@link #WALLPAPER_SERVICE}, {@link #WIFI_P2P_SERVICE},
-     * {@link #WIFI_SERVICE}, {@link #WIFI_AWARE_SERVICE}. For these services this method will
-     * return <code>null</code>.  Generally, if you are running as an instant app you should always
-     * check whether the result of this method is {@code null}.
+     * <p>Note: Instant apps, for which {@link PackageManager#isInstantApp()} returns true, don't
+     * have access to the following system services: {@link #DEVICE_POLICY_SERVICE}, {@link
+     * #FINGERPRINT_SERVICE}, {@link #KEYGUARD_SERVICE}, {@link #SHORTCUT_SERVICE}, {@link
+     * #USB_SERVICE}, {@link #WALLPAPER_SERVICE}, {@link #WIFI_P2P_SERVICE}, {@link #WIFI_SERVICE},
+     * {@link #WIFI_AWARE_SERVICE}. For these services this method will return <code>null</code>.
+     * Generally, if you are running as an instant app you should always check whether the result of
+     * this method is {@code null}.
      *
      * <p>Note: When implementing this method, keep in mind that new services can be added on newer
      * Android releases, so if you're looking for just the explicit names mentioned above, make sure
-     * to return {@code null} when you don't recognize the name &mdash; if you throw a
-     * {@link RuntimeException} exception instead, your app might break on new Android releases.
+     * to return {@code null} when you don't recognize the name &mdash; if you throw a {@link
+     * RuntimeException} exception instead, your app might break on new Android releases.
      *
      * @param name The name of the desired service.
-     *
      * @return The service or {@code null} if the name does not exist.
-     *
      * @see #WINDOW_SERVICE
      * @see android.view.WindowManager
      * @see #LAYOUT_INFLATER_SERVICE
@@ -4807,6 +4820,8 @@ public abstract class Context {
      * @see android.os.storage.StorageManager
      * @see #VIBRATOR_MANAGER_SERVICE
      * @see android.os.VibratorManager
+     * @see #MULTISENSORY_MANAGER_SERVICE
+     * @see android.os.multisensory.MultisensoryManager
      * @see #VIBRATOR_SERVICE
      * @see android.os.Vibrator
      * @see #CONNECTIVITY_SERVICE
@@ -4929,6 +4944,17 @@ public abstract class Context {
     public static final String POWER_STATS_SERVICE = "powerstats";
 
     /**
+     * Use with {@link #getSystemService(String)} to retrieve a {@link
+     * android.uilatencystats.UiLatencyStatsManager} for accessing UI latency stats
+     * service.
+     *
+     * @hide
+     * @see #getSystemService(String)
+     */
+    @FlaggedApi(com.android.server.ui_latency_stats.Flags.FLAG_UI_LATENCY_STATS_SERVICE)
+    public static final String UI_LATENCY_STATS_SERVICE = "ui_latency_stats";
+
+    /**
      * Use with {@link #getSystemService(String)} to retrieve a
      * {@link android.os.RecoverySystem} for accessing the recovery system
      * service.
@@ -5013,6 +5039,16 @@ public abstract class Context {
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve a
+     * {@link android.os.storage.FileManager} for handling file operations.
+     *
+     * @see #getSystemService(String)
+     * @see android.os.storage.FileManager
+     */
+    @FlaggedApi(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public static final String FILE_SERVICE = "file";
+
+    /**
+     * Use with {@link #getSystemService(String)} to retrieve a
      * {@link android.app.AlarmManager} for receiving intents at a
      * time of your choosing.
      *
@@ -5030,6 +5066,17 @@ public abstract class Context {
      * @see android.app.NotificationManager
      */
     public static final String NOTIFICATION_SERVICE = "notification";
+
+    /**
+     * Use with {@link #getSystemService(String)} to retrieve a
+     * {@link android.app.modes.ContextualModeManager} for controlling modes.
+     *
+     * @see #getSystemService(String)
+     * @see android.app.modes.ContextualModeManager
+     * @hide
+     */
+    @FlaggedApi(android.service.notification.Flags.FLAG_ENABLE_DND_SYNC)
+    public static final String CONTEXTUAL_MODE_SERVICE = "contextual_mode";
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve a
@@ -5166,6 +5213,14 @@ public abstract class Context {
      */
     @SuppressLint("ServiceName")
     public static final String VIBRATOR_MANAGER_SERVICE = "vibrator_manager";
+
+    /**
+     * Use with {@link #getSystemService(String)} to retrieve the service that plays multisensory
+     * feedback.
+     */
+    @FlaggedApi(android.os.multisensory.Flags.FLAG_ENABLE_MULTISENSORY_FEEDBACK)
+    @SuppressLint("ServiceName")
+    public static final String MULTISENSORY_MANAGER_SERVICE = "multisensory_manager";
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve a {@link android.os.Vibrator} for
@@ -5537,6 +5592,7 @@ public abstract class Context {
      * {@link android.hardware.fingerprint.FingerprintManager} for handling management
      * of fingerprints.
      *
+     * @removed See {@link android.hardware.biometrics.BiometricPrompt}
      * @see #getSystemService(String)
      * @see android.hardware.fingerprint.FingerprintManager
      */
@@ -5725,12 +5781,13 @@ public abstract class Context {
     /**
      * Use with {@link #getSystemService(String)} to retrieve a
      * {@link com.android.server.attention.AttentionManagerService} for attention services.
+     * @hide
      *
      * @see #getSystemService(String)
-     * @see android.server.attention.AttentionManagerService
-     * @hide
+     * @see com.android.server.attention.AttentionManagerService
      */
-    @TestApi
+    @SystemApi
+    @FlaggedApi(com.android.input.flags.Flags.FLAG_ENABLE_ATTENTION_SERVICE_APIS)
     public static final String ATTENTION_SERVICE = "attention";
 
     /**
@@ -5778,12 +5835,13 @@ public abstract class Context {
     public static final String VOICE_INTERACTION_MANAGER_SERVICE = "voiceinteraction";
 
     /**
-     * Official published name of the (internal) autofill service.
+     * Use with {@link #getSystemService(String)} to retrieve an
+     *      {@link android.view.autofill.AutofillManager}.
      *
-     * @hide
      * @see #getSystemService(String)
      */
-    public static final String AUTOFILL_MANAGER_SERVICE = "autofill";
+    @FlaggedApi(android.service.autofill.Flags.FLAG_PUBLIC_AUTOFILL_SERVICE_NAME)
+    public static final String AUTOFILL_SERVICE = "autofill";
 
     /**
      * Official published name of the (internal) text to speech manager service.
@@ -6479,8 +6537,8 @@ public abstract class Context {
      * @see #getSystemService(String)
      * @hide
      */
-    @FlaggedApi(FLAG_ENABLE_USER_RECOVERY_MANAGER)
-    public static final String USER_RECOVERY_SERVICE = "user_recovery";
+    @FlaggedApi(FLAG_ENABLE_LSKF_RESET_MANAGER)
+    public static final String LSKF_RESET_SERVICE = "lskf_reset";
 
 
     /**
@@ -6555,6 +6613,12 @@ public abstract class Context {
      * @hide
      */
     public static final String STATS_BOOTSTRAP_ATOM_SERVICE = "statsbootstrap";
+
+    /**
+     * Service to assist libbinder in logging atoms to statsd.
+     * @hide
+     */
+    public static final String BINDER_STATS_CONSUMER_SERVICE = "binder_stats_consumer";
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve an {@link android.app.StatsManager}.
@@ -6793,12 +6857,12 @@ public abstract class Context {
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve an
-     * {@link android.security.talisman.TalismanManager}.
+     * {@link android.security.trusttoken.TrustTokenManager}.
      * @see #getSystemService(String)
-     * @see android.security.talisman.TalismanManager
+     * @see android.security.trusttoken.TrustTokenManager
      * @hide
      */
-    public static final String TALISMAN_SERVICE = "talisman";
+    public static final String TRUST_TOKEN_SERVICE = "trust_token";
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve an
@@ -6806,7 +6870,6 @@ public abstract class Context {
      * @see #getSystemService(String)
      * @see android.security.advancedprotection.AdvancedProtectionManager
      */
-    @FlaggedApi(android.security.Flags.FLAG_AAPM_API)
     public static final String ADVANCED_PROTECTION_SERVICE = "advanced_protection";
 
     /**
@@ -6824,6 +6887,13 @@ public abstract class Context {
      * @hide
      */
     public static final String REMOTE_PROVISIONING_SERVICE = "remote_provisioning";
+
+    /**
+     * Use with {@link #getSystemService(String)} to retrieve a
+     * {@link android.app.privatecompute.PccSandboxManager}.
+     */
+    @FlaggedApi(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public static final String PCC_SANDBOX_SERVICE = "pcc_sandbox";
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve a
@@ -6865,6 +6935,17 @@ public abstract class Context {
      */
     @TestApi
     public static final String DREAM_SERVICE = "dream";
+
+    /**
+     * Use with {@link #getSystemService(String)} to retrieve a
+     * {@link android.service.personalcontext.PersonalContextManager} for controlling
+     * PersonalContext.
+     *
+     * @see #getSystemService(String)
+
+     * @hide
+     */
+    public static final String PERSONAL_CONTEXT_SERVICE = "personal_context";
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve a
@@ -7011,16 +7092,6 @@ public abstract class Context {
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve a
-     * {@link android.companion.datatransfer.continuity.UniversalClipboardManager}.
-     *
-     * @see #getSystemService(String)
-     * @see UniversalClipboardManager
-     * @hide
-     */
-    public static final String UNIVERSAL_CLIPBOARD_SERVICE = "universal_clipboard";
-
-    /**
-     * Use with {@link #getSystemService(String)} to retrieve a
      * {@link android.app.ondeviceintelligence.OnDeviceIntelligenceManager}.
      *
      * @see #getSystemService(String)
@@ -7029,6 +7100,18 @@ public abstract class Context {
      */
     @SystemApi
     public static final String ON_DEVICE_INTELLIGENCE_SERVICE = "on_device_intelligence";
+
+    /**
+     * Use with {@link #getSystemService(String)} to retrieve a {@link
+     * android.app.contentsafety.ContentSafetyManager}.
+     *
+     * @see #getSystemService(String)
+     * @see android.app.contentsafety.ContentSafetyManager
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.app.contentsafety.flags.Flags.FLAG_ENABLE_CONTENTSAFETY)
+    public static final String CONTENT_SAFETY_SERVICE = "content_safety";
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve a
@@ -7047,6 +7130,24 @@ public abstract class Context {
      * @see CredentialManager
      */
     public static final String CREDENTIAL_SERVICE = "credential";
+
+    /**
+     * Use with {@link #getSystemService(String)} to retrieve a
+     * {@link android.npumanager.NpuManager}.
+     *
+     * @see #getSystemService(String)
+     */
+    @FlaggedApi(com.android.npumanager.Flags.FLAG_NPUMANAGER_ENABLED)
+    public static final String NPU_SERVICE = "npu";
+
+    /**
+     * Use with {@link #getSystemService(String)} to retrieve a
+     * {@link android.content.pm.webapp.WebAppManager}.
+     *
+     * @see #getSystemService(String)
+     */
+    @FlaggedApi(com.android.webapp.flags.Flags.FLAG_ENABLE_WEB_APP_SERVICE_V2)
+    public static final String WEB_APP_SERVICE = "web_app";
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve a
@@ -7188,6 +7289,16 @@ public abstract class Context {
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve a
+     * {@link android.app.contentrestriction.ContentRestrictionManager}.
+     *
+     * @see #getSystemService(String)
+     * @see android.app.contentrestriction.ContentRestrictionManager
+     */
+    @FlaggedApi(android.app.contentrestriction.flags.Flags.FLAG_CONTENT_RESTRICTION_API)
+    public static final String CONTENT_RESTRICTION_SERVICE = "content_restriction";
+
+    /**
+     * Use with {@link #getSystemService(String)} to retrieve a
      * {@link android.app.supervision.SupervisionManager}.
      *
      * @see #getSystemService(String)
@@ -7216,6 +7327,14 @@ public abstract class Context {
     public static final String DYNAMIC_INSTRUMENTATION_SERVICE = "dynamic_instrumentation";
 
     /**
+     * Bridge service used by uprobestats.
+     * @hide
+     */
+    @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
+    @FlaggedApi(android.security.Flags.FLAG_UPROBESTATS_BRIDGE_SERVICE)
+    public static final String UPROBESTATS_BRIDGE_SERVICE = "uprobestats_bridge";
+
+    /**
      * Use with {@link #getSystemService(String)} to retrieve a
      * {@link android.service.chooser.ChooserManager}.
      *
@@ -7231,15 +7350,53 @@ public abstract class Context {
 
     /**
      * Use with {@link #getSystemService(String)} to retrieve an
-     * {@link android.os.AnomalyDetectorManager}.
+     * {@link android.os.profiling.anomaly.AnomalyDetectorManager}.
      *
      * @see #getSystemService(String)
      *
      * @hide
      */
     @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
-    @FlaggedApi(android.os.profiling.anomaly.flags.Flags.FLAG_ANOMALY_DETECTOR_CORE)
+    @FlaggedApi(android.os.profiling.anomaly.flags.Flags.FLAG_ANOMALY_DETECTOR_CORE_C)
     public static final String ANOMALY_DETECTOR_SERVICE = "anomaly_detector";
+
+    /**
+     * Use with {@link #getSystemService(String)} to retrieve a
+     * {@link android.aiseal.AiSealManager}.
+     *
+     * <p>On devices without {@link PackageManager#FEATURE_AISEAL} system
+     * feature the {@link #getSystemService(String)} will return {@code null}.
+     *
+     * @see #getSystemService(String)
+     * @see android.aiseal.AiSealManager
+     * @hide
+     */
+    @FlaggedApi(android.aiseal.Flags.FLAG_AISEAL_HOST_APIS)
+    @SystemApi
+    public static final String AISEAL_HOST_SERVICE = "aiseal_host";
+
+    /**
+     * Use with {@link #getSystemService(String)} to retrieve an
+     * {@link AllowlistManager}.
+     *
+     * @see #getSystemService(String)
+     * @hide
+     */
+    @FlaggedApi(android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_PERMISSION_V2)
+    @SystemApi
+    public static final String ALLOWLIST_SERVICE = "allowlist";
+
+    /**
+     * Use with {@link #getSystemService(String)} to retrieve a
+     * {@link android.bettertogether.D2dConnectivityManager}.
+     *
+     * @see #getSystemService(String)
+     * @see android.bettertogether.D2dConnectivityManager
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.bettertogether.flags.Flags.FLAG_ENABLE_D2D_CONNECTIVITY_SERVICE)
+    public static final String D2D_CONNECTIVITY_SERVICE = "d2d_connectivity";
 
     /**
      * Determine whether the given permission is allowed for a particular
@@ -7260,6 +7417,8 @@ public abstract class Context {
     @CheckResult(suggest="#enforcePermission(String,int,int,String)")
     @PackageManager.PermissionResult
     @PermissionMethod
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl",
+            comment = "Returns PERMISSION_DENIED by default on Ravenwood")
     public abstract int checkPermission(
             @NonNull @PermissionName String permission, int pid, int uid);
 
@@ -7267,6 +7426,8 @@ public abstract class Context {
     @SuppressWarnings("HiddenAbstractMethod")
     @PackageManager.PermissionResult
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl",
+            comment = "Returns PERMISSION_DENIED by default on Ravenwood")
     public abstract int checkPermission(@NonNull String permission, int pid, int uid,
             IBinder callerToken);
 
@@ -7294,6 +7455,8 @@ public abstract class Context {
     @CheckResult(suggest="#enforceCallingPermission(String,String)")
     @PackageManager.PermissionResult
     @PermissionMethod
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl",
+            comment = "Returns PERMISSION_DENIED by default on Ravenwood")
     public abstract int checkCallingPermission(@NonNull @PermissionName String permission);
 
     /**
@@ -7315,6 +7478,8 @@ public abstract class Context {
     @CheckResult(suggest="#enforceCallingOrSelfPermission(String,String)")
     @PackageManager.PermissionResult
     @PermissionMethod(orSelf = true)
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl",
+            comment = "Returns PERMISSION_DENIED by default on Ravenwood")
     public abstract int checkCallingOrSelfPermission(@NonNull @PermissionName String permission);
 
     /**
@@ -7329,6 +7494,8 @@ public abstract class Context {
      * @see #checkCallingPermission(String)
      */
     @PackageManager.PermissionResult
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl",
+            comment = "Returns PERMISSION_DENIED by default on Ravenwood")
     public abstract int checkSelfPermission(@NonNull String permission);
 
     /**
@@ -7344,6 +7511,8 @@ public abstract class Context {
      * @see #checkPermission(String, int, int)
      */
     @PermissionMethod
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl",
+            comment = "Returns PERMISSION_DENIED by default on Ravenwood")
     public abstract void enforcePermission(
             @NonNull @PermissionName String permission, int pid, int uid, @Nullable String message);
 
@@ -7366,6 +7535,8 @@ public abstract class Context {
      * @see #checkCallingPermission(String)
      */
     @PermissionMethod
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl",
+            comment = "Returns PERMISSION_DENIED by default on Ravenwood")
     public abstract void enforceCallingPermission(
             @NonNull @PermissionName String permission, @Nullable String message);
 
@@ -7383,6 +7554,8 @@ public abstract class Context {
      * @see #checkCallingOrSelfPermission(String)
      */
     @PermissionMethod(orSelf = true)
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl",
+            comment = "Returns PERMISSION_DENIED by default on Ravenwood")
     public abstract void enforceCallingOrSelfPermission(
             @NonNull @PermissionName String permission, @Nullable String message);
 
@@ -7408,6 +7581,24 @@ public abstract class Context {
     @CheckResult
     @PermissionRequestState
     public int getPermissionRequestState(@NonNull String permission) {
+        throw new RuntimeException("Not implemented. Must override in a subclass.");
+    }
+
+    /**
+     * Gets whether you should show UI with rationale before requesting a permission. If the
+     * permission does not exist on this SDK level or is not visible to this app, the method will
+     * return {@code false}.
+     *
+     * @param permission A permission your app wants to request.
+     * @return Whether you should show permission rationale UI.
+     *
+     * @see Activity#checkSelfPermission
+     * @see Activity#requestPermissions(String[], int)
+     * @see Activity#onRequestPermissionsResult(int, String[], int[])
+     */
+    @FlaggedApi(
+            android.permission.flags.Flags.FLAG_SHOULD_SHOW_PERMISSION_RATIONALE_IN_CONTEXT_ENABLED)
+    public boolean shouldShowRequestPermissionRationale(@NonNull String permission) {
         throw new RuntimeException("Not implemented. Must override in a subclass.");
     }
 
@@ -8047,6 +8238,7 @@ public abstract class Context {
      *
      * @return A {@link Context} with the given configuration override.
      */
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl")
     public abstract Context createConfigurationContext(
             @NonNull Configuration overrideConfiguration);
 
@@ -8373,6 +8565,7 @@ public abstract class Context {
      * @hide
      */
     @SuppressWarnings("HiddenAbstractMethod")
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl")
     public abstract DisplayAdjustments getDisplayAdjustments(int displayId);
 
     /**
@@ -8396,6 +8589,8 @@ public abstract class Context {
      * @hide
      */
     @Nullable
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl",
+            comment = "Always returns null for now, until we fully support Display")
     public Display getDisplayNoVerify() {
         throw new RuntimeException("Not implemented. Must override in a subclass.");
     }
@@ -8409,6 +8604,8 @@ public abstract class Context {
      */
     @SuppressWarnings("HiddenAbstractMethod")
     @TestApi
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl",
+            comment = "Always returns DEFAULT_DISPLAY for now, until we fully support Display")
     public abstract int getDisplayId();
 
     /**
@@ -8736,6 +8933,7 @@ public abstract class Context {
      * @see #getSystemService(String)
      * @see android.os.StrictMode.VmPolicy.Builder#detectIncorrectContextUse()
      */
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "ContextImpl")
     public boolean isUiContext() {
         throw new RuntimeException("Not implemented. Must override in a subclass.");
     }

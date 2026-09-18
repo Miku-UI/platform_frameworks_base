@@ -38,8 +38,8 @@ import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * Holds configuration values that affect user-facing time behavior and some associated logic.
- * Some configuration is global, some is user scoped, but this class deliberately doesn't make a
+ * Holds configuration values that affect user-facing time behavior and some associated logic. Some
+ * configuration is global, some is user scoped, but this class deliberately doesn't make a
  * distinction for simplicity.
  */
 public final class ConfigurationInternal {
@@ -58,8 +58,7 @@ public final class ConfigurationInternal {
     private ConfigurationInternal(Builder builder) {
         mAutoDetectionSupported = builder.mAutoDetectionSupported;
         mSystemClockUpdateThresholdMillis = builder.mSystemClockUpdateThresholdMillis;
-        mSystemClockConfidenceThresholdMillis =
-                builder.mSystemClockConfidenceThresholdMillis;
+        mSystemClockConfidenceThresholdMillis = builder.mSystemClockConfidenceThresholdMillis;
         mAutoSuggestionLowerBound = Objects.requireNonNull(builder.mAutoSuggestionLowerBound);
         mManualSuggestionLowerBound = Objects.requireNonNull(builder.mManualSuggestionLowerBound);
         mSuggestionUpperBound = Objects.requireNonNull(builder.mSuggestionUpperBound);
@@ -97,9 +96,9 @@ public final class ConfigurationInternal {
 
     /**
      * Returns the lower bound for valid automatic time suggestions. It is guaranteed to be in the
-     * past, i.e. it is unrelated to the current system clock time.
-     * It holds no other meaning; it could be related to when the device system image was built,
-     * or could be updated by a mainline module.
+     * past, i.e. it is unrelated to the current system clock time. It holds no other meaning; it
+     * could be related to when the device system image was built, or could be updated by a mainline
+     * module.
      */
     @NonNull
     public Instant getAutoSuggestionLowerBound() {
@@ -115,17 +114,15 @@ public final class ConfigurationInternal {
         return mManualSuggestionLowerBound;
     }
 
-    /**
-     * Returns the upper bound for valid time suggestions (manual and automatic).
-     */
+    /** Returns the upper bound for valid time suggestions (manual and automatic). */
     @NonNull
     public Instant getSuggestionUpperBound() {
         return mSuggestionUpperBound;
     }
 
     /**
-     * Returns the order to look at time suggestions when automatically detecting time.
-     * See {@code #ORIGIN_} constants
+     * Returns the order to look at time suggestions when automatically detecting time. See {@code
+     * #ORIGIN_} constants
      */
     public @Origin int[] getAutoOriginPriorities() {
         return mOriginPriorities;
@@ -137,8 +134,8 @@ public final class ConfigurationInternal {
     }
 
     /**
-     * Returns true if auto time detection behavior is actually enabled, which can be distinct
-     * from the raw setting value.
+     * Returns true if auto time detection behavior is actually enabled, which can be distinct from
+     * the raw setting value.
      */
     public boolean getAutoDetectionEnabledBehavior() {
         return isAutoDetectionSupported() && mAutoDetectionEnabledSetting;
@@ -156,11 +153,11 @@ public final class ConfigurationInternal {
     }
 
     /**
-     * Returns true if the user is allowed to modify time configuration, e.g. can be false due
-     * to device policy (enterprise).
+     * Returns true if the user is allowed to modify time configuration, e.g. can be false due to
+     * device policy (enterprise).
      *
-     * <p>See also {@link #createCapabilitiesAndConfig(boolean)} for situations where this
-     * value are ignored.
+     * <p>See also {@link #createCapabilitiesAndConfig(boolean)} for situations where this value are
+     * ignored.
      */
     public boolean isUserConfigAllowed() {
         return mUserConfigAllowed;
@@ -170,7 +167,7 @@ public final class ConfigurationInternal {
      * Returns a {@link TimeCapabilitiesAndConfig} objects based on configuration values.
      *
      * @param bypassUserPolicyChecks {@code true} for device policy manager use cases where device
-     *   policy restrictions that should apply to actual users can be ignored
+     *     policy restrictions that should apply to actual users can be ignored
      */
     public TimeCapabilitiesAndConfig createCapabilitiesAndConfig(boolean bypassUserPolicyChecks) {
         return new TimeCapabilitiesAndConfig(
@@ -242,10 +239,11 @@ public final class ConfigurationInternal {
         ConfigurationInternal that = (ConfigurationInternal) o;
         return mAutoDetectionSupported == that.mAutoDetectionSupported
                 && mAutoDetectionEnabledSetting == that.mAutoDetectionEnabledSetting
-                && mUserId == that.mUserId && mUserConfigAllowed == that.mUserConfigAllowed
+                && mUserId == that.mUserId
+                && mUserConfigAllowed == that.mUserConfigAllowed
                 && mSystemClockUpdateThresholdMillis == that.mSystemClockUpdateThresholdMillis
                 && mSystemClockConfidenceThresholdMillis
-                == that.mSystemClockConfidenceThresholdMillis
+                        == that.mSystemClockConfidenceThresholdMillis
                 && mAutoSuggestionLowerBound.equals(that.mAutoSuggestionLowerBound)
                 && mManualSuggestionLowerBound.equals(that.mManualSuggestionLowerBound)
                 && mSuggestionUpperBound.equals(that.mSuggestionUpperBound)
@@ -254,10 +252,17 @@ public final class ConfigurationInternal {
 
     @Override
     public int hashCode() {
-        int result = Objects.hash(mAutoDetectionSupported, mAutoDetectionEnabledSetting, mUserId,
-                mUserConfigAllowed, mSystemClockUpdateThresholdMillis,
-                mSystemClockConfidenceThresholdMillis, mAutoSuggestionLowerBound,
-                mManualSuggestionLowerBound, mSuggestionUpperBound);
+        int result =
+                Objects.hash(
+                        mAutoDetectionSupported,
+                        mAutoDetectionEnabledSetting,
+                        mUserId,
+                        mUserConfigAllowed,
+                        mSystemClockUpdateThresholdMillis,
+                        mSystemClockConfidenceThresholdMillis,
+                        mAutoSuggestionLowerBound,
+                        mManualSuggestionLowerBound,
+                        mSuggestionUpperBound);
         result = 31 * result + Arrays.hashCode(mOriginPriorities);
         return result;
     }
@@ -269,20 +274,35 @@ public final class ConfigurationInternal {
                         .mapToObj(TimeDetectorStrategy::originToString)
                         .collect(joining(",", "[", "]"));
         return "ConfigurationInternal{"
-                + "mAutoDetectionSupported=" + mAutoDetectionSupported
-                + ", mSystemClockUpdateThresholdMillis=" + mSystemClockUpdateThresholdMillis
+                + "mAutoDetectionSupported="
+                + mAutoDetectionSupported
+                + ", mSystemClockUpdateThresholdMillis="
+                + mSystemClockUpdateThresholdMillis
                 + ", mSystemClockConfidenceThresholdMillis="
                 + mSystemClockConfidenceThresholdMillis
-                + ", mAutoSuggestionLowerBound=" + mAutoSuggestionLowerBound
-                + "(" + mAutoSuggestionLowerBound.toEpochMilli() + ")"
-                + ", mManualSuggestionLowerBound=" + mManualSuggestionLowerBound
-                + "(" + mManualSuggestionLowerBound.toEpochMilli() + ")"
-                + ", mSuggestionUpperBound=" + mSuggestionUpperBound
-                + "(" + mSuggestionUpperBound.toEpochMilli() + ")"
-                + ", mOriginPriorities=" + originPrioritiesString
-                + ", mAutoDetectionEnabled=" + mAutoDetectionEnabledSetting
-                + ", mUserId=" + mUserId
-                + ", mUserConfigAllowed=" + mUserConfigAllowed
+                + ", mAutoSuggestionLowerBound="
+                + mAutoSuggestionLowerBound
+                + "("
+                + mAutoSuggestionLowerBound.toEpochMilli()
+                + ")"
+                + ", mManualSuggestionLowerBound="
+                + mManualSuggestionLowerBound
+                + "("
+                + mManualSuggestionLowerBound.toEpochMilli()
+                + ")"
+                + ", mSuggestionUpperBound="
+                + mSuggestionUpperBound
+                + "("
+                + mSuggestionUpperBound.toEpochMilli()
+                + ")"
+                + ", mOriginPriorities="
+                + originPrioritiesString
+                + ", mAutoDetectionEnabled="
+                + mAutoDetectionEnabledSetting
+                + ", mUserId="
+                + mUserId
+                + ", mUserConfigAllowed="
+                + mUserConfigAllowed
                 + '}';
     }
 
@@ -303,9 +323,7 @@ public final class ConfigurationInternal {
             mUserId = userId;
         }
 
-        /**
-         * Creates a new Builder by copying values from an existing instance.
-         */
+        /** Creates a new Builder by copying values from an existing instance. */
         Builder(ConfigurationInternal toCopy) {
             this.mUserId = toCopy.mUserId;
             this.mUserConfigAllowed = toCopy.mUserConfigAllowed;
@@ -378,5 +396,4 @@ public final class ConfigurationInternal {
             return new ConfigurationInternal(this);
         }
     }
-
 }

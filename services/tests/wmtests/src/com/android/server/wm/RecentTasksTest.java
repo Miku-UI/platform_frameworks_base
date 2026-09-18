@@ -54,6 +54,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -75,6 +76,8 @@ import android.os.Bundle;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.UserManager;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.ArraySet;
@@ -668,6 +671,41 @@ public class RecentTasksTest extends WindowTestsBase {
     }
 
     @Test
+    public void testTrimToGlobalMaxNumRecents_withNonTrimmableTask_expectNotTrimmed() {
+        mRecentTasks.setGlobalMaxNumTasks(1);
+        Task nonTrimmableTask = mTasks.get(0);
+        nonTrimmableTask.mIsTrimmableFromRecents = false;
+        // Move home to front so the other task can satisfy the condition in
+        // RecentTasks#isTrimmable.
+        mRootWindowContainer.getDefaultTaskDisplayArea().getRootHomeTask().moveToFront("test");
+
+        mRecentTasks.add(nonTrimmableTask);
+        mRecentTasks.add(mTasks.get(1));
+
+        // The non-trimmable task is the oldest, so the newer (but trimmable) task should be
+        // removed instead to meet the size limit.
+        triggerTrimAndAssertTrimmed(mTasks.get(1));
+        assertRecentTasksOrder(nonTrimmableTask);
+    }
+
+    @Test
+    public void testTrimToGlobalMaxNumRecents_withHomeTask_expectNotTrimmed() {
+        mRecentTasks.setGlobalMaxNumTasks(1);
+
+        Task homeTask = createTaskBuilder(".HomeTask")
+                .setParentTask(mTaskContainer.getRootHomeTask())
+                .build();
+
+        mRecentTasks.add(mTasks.get(0));
+        mRecentTasks.add(homeTask);
+        mRecentTasks.add(mTasks.get(1));
+
+        // The home task should not be trimmed, so the other two tasks should be.
+        triggerTrimAndAssertTrimmed(mTasks.get(0), mTasks.get(1));
+        assertRecentTasksOrder(homeTask);
+    }
+
+    @Test
     public void testTrimQuietProfileTasks() {
         mRecentTasks.setOnlyTestVisibleRange();
         Task qt1 = createTaskBuilder(".QuietTask1").setUserId(TEST_QUIET_USER_ID).build();
@@ -727,7 +765,7 @@ public class RecentTasksTest extends WindowTestsBase {
     }
 
     @Test
-    public void testVisibleTasks_excludedFromRecents_withRefactorFlag() {
+    public void testVisibleTasks_excludedFromRecents() {
         mRecentTasks.setParameters(-1 /* min */, 4 /* max */, -1 /* ms */);
 
         Task invisibleExcludedTask = createTaskBuilder(".ExcludedTask1")
@@ -765,7 +803,7 @@ public class RecentTasksTest extends WindowTestsBase {
     }
 
     @Test
-    public void testVisibleTasks_excludedFromRecents_visibleTaskNotFirstTask_withRefactorFlag() {
+    public void testVisibleTasks_excludedFromRecents_visibleTaskNotFirstTask() {
         mRecentTasks.setParameters(-1 /* min */, 4 /* max */, -1 /* ms */);
 
         Task invisibleExcludedTask = createTaskBuilder(".ExcludedTask1")
@@ -803,7 +841,7 @@ public class RecentTasksTest extends WindowTestsBase {
     }
 
     @Test
-    public void testVisibleTasks_excludedFromRecents_firstTaskNotVisible_withRefactorFlag() {
+    public void testVisibleTasks_excludedFromRecents_visibleExcludedTaskVisible() {
         // Create some set of tasks, some of which are visible and some are not
         Task homeTask = createTaskBuilder("com.android.pkg1", ".HomeTask")
                 .setParentTask(mTaskContainer.getRootHomeTask())
@@ -822,21 +860,26 @@ public class RecentTasksTest extends WindowTestsBase {
     }
 
     @Test
-    public void testVisibleTasks_excludedFromRecents_nonDefaultDisplayTaskNotVisible() {
-        Task excludedTaskOnVirtualDisplay = createTaskBuilder(".excludedTaskOnVirtualDisplay")
-                .setFlags(FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                .build();
+    public void testVisibleTasks_excludedFromRecents_virtualDisplayTaskNotVisible() {
+        final DisplayContent displayContent = addNewDisplayContentAt(DisplayContent.POSITION_TOP);
+        doReturn(false).when(displayContent).canShowTasksInHostDeviceRecents();
+        Task excludedTaskOnVirtualDisplay =
+                createTaskBuilder(".ExcludedTask1")
+                        .setTaskDisplayArea(displayContent.getDefaultTaskDisplayArea())
+                        .setFlags(FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                        .setCreateActivity(true)
+                        .build();
         excludedTaskOnVirtualDisplay.mUserSetupComplete = true;
         doReturn(false).when(excludedTaskOnVirtualDisplay).isOnHomeDisplay();
         mRecentTasks.add(mTasks.get(0));
         mRecentTasks.add(excludedTaskOnVirtualDisplay);
 
-        // Expect that the first visible excluded-from-recents task is visible
+        // Expect that the visible excluded-from-recents task from virtual display is not visible
         assertGetRecentTasksOrder(0 /* flags */, mTasks.get(0));
     }
 
     @Test
-    public void testVisibleTasks_excludedFromRecents_withExcluded() {
+    public void testVisibleTasks_excludedFromRecents_withExcluded_excludedTasksVisible() {
         // Create some set of tasks, some of which are visible and some are not
         Task t1 = createTaskBuilder("com.android.pkg1", ".Task1").build();
         t1.mUserSetupComplete = true;
@@ -861,6 +904,38 @@ public class RecentTasksTest extends WindowTestsBase {
         mRecentTasks.add(t2);
 
         assertGetRecentTasksOrder(RECENT_WITH_EXCLUDED, t2, excludedTask2, excludedTask1, t1);
+    }
+
+    @Test
+    public void testVisibleTasks_excludedFromRecents_externalDisplay_visibleExcludedTaskVisible() {
+        mRecentTasks.add(mTasks.get(0));
+
+        Task visibleExcludedTask1 = createTaskBuilder(".excludedTaskOnExternalDisplay1")
+                .setFlags(FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                .setCreateActivity(true)
+                .build();
+        visibleExcludedTask1.mUserSetupComplete = true;
+        doReturn(false).when(visibleExcludedTask1).isOnHomeDisplay();
+        mRecentTasks.add(visibleExcludedTask1);
+
+        Task visibleExcludedTask2 = createTaskBuilder(".excludedTaskOnExternalDisplay2")
+                .setFlags(FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                .setCreateActivity(true)
+                .build();
+        visibleExcludedTask2.mUserSetupComplete = true;
+        doReturn(false).when(visibleExcludedTask2).isOnHomeDisplay();
+        mRecentTasks.add(visibleExcludedTask2);
+
+        Task invisibleExcludedTask = createTaskBuilder(".excludedTaskOnExternalDisplay3")
+                .setFlags(FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                .build();
+        invisibleExcludedTask.mUserSetupComplete = true;
+        doReturn(false).when(invisibleExcludedTask).isOnHomeDisplay();
+        mRecentTasks.add(invisibleExcludedTask);
+
+        // Expect that the visible excluded-from-recents task is visible
+        assertGetRecentTasksOrder(
+                0 /* flags */, visibleExcludedTask2, visibleExcludedTask1, mTasks.get(0));
     }
 
     @Test
@@ -934,7 +1009,7 @@ public class RecentTasksTest extends WindowTestsBase {
     }
 
     @Test
-    public void testVisibleTask_displayCanNotShowTaskFromRecents_expectNotVisible() {
+    public void testVisibleTask_displayCannotShowTaskFromRecents_expectNotVisible() {
         final DisplayContent displayContent = addNewDisplayContentAt(DisplayContent.POSITION_TOP);
         doReturn(false).when(displayContent).canShowTasksInHostDeviceRecents();
         final Task task = displayContent.getDefaultTaskDisplayArea().createRootTask(
@@ -1457,6 +1532,65 @@ public class RecentTasksTest extends WindowTestsBase {
         assertTrue(info.supportsMultiWindow);
     }
 
+    @DisableFlags(android.security.Flags.FLAG_APP_LOCK_CORE)
+    @Test
+    public void testOnPackageAppLockEnabledChanged_appLockFlagOff() {
+        testOnPackageAppLockEnabledChangedInternal(false /* expectTaskUpdated */);
+    }
+
+    @EnableFlags(android.security.Flags.FLAG_APP_LOCK_CORE)
+    @Test
+    public void testOnPackageAppLockEnabledChanged() {
+        testOnPackageAppLockEnabledChangedInternal(true /* expectTaskUpdated */);
+    }
+
+    private void testOnPackageAppLockEnabledChangedInternal(boolean expectTaskUpdated) {
+        final String pkg1 = "com.android.pkg1";
+        final String pkg2 = "com.android.pkg2";
+        final int userId = TEST_USER_0_ID;
+
+        final Task task1 = createTaskBuilder(pkg1, ".Task1").setUserId(userId).build();
+        final Task task2 = createTaskBuilder(pkg1, ".Task2").setUserId(TEST_USER_1_ID).build();
+        final Task task3 = createTaskBuilder(pkg2, ".Task3").setUserId(userId).build();
+        mRecentTasks.add(task1);
+        mRecentTasks.add(task2);
+        mRecentTasks.add(task3);
+
+        // Verify initial state
+        assertThat(task1.mRealActivityAppLockEnabled).isFalse();
+        assertThat(task2.mRealActivityAppLockEnabled).isFalse();
+        assertThat(task3.mRealActivityAppLockEnabled).isFalse();
+
+        clearInvocations(mTaskPersister);
+
+        // Enable app lock for pkg1 and user 0
+        mRecentTasks.onPackageAppLockEnabledChanged(pkg1, userId, true);
+
+        // Verify only task1's app lock state is updated, if expected
+        assertThat(task1.mRealActivityAppLockEnabled).isEqualTo(expectTaskUpdated);
+        assertThat(task2.mRealActivityAppLockEnabled).isFalse();
+        assertThat(task3.mRealActivityAppLockEnabled).isFalse();
+
+        final int expectedInvocations = expectTaskUpdated ? 1 : 0;
+        verify(mTaskPersister, times(expectedInvocations)).wakeup(eq(task1), anyBoolean());
+        verify(mTaskPersister, never()).wakeup(eq(task2), anyBoolean());
+        verify(mTaskPersister, never()).wakeup(eq(task3), anyBoolean());
+
+        clearInvocations(mTaskPersister);
+
+        // Disable app lock for pkg1 and user 0
+        mRecentTasks.onPackageAppLockEnabledChanged(pkg1, userId, false);
+
+        // Verify task1's app lock state is reverted
+        assertThat(task1.mRealActivityAppLockEnabled).isFalse();
+        assertThat(task2.mRealActivityAppLockEnabled).isFalse();
+        assertThat(task3.mRealActivityAppLockEnabled).isFalse();
+
+        verify(mTaskPersister, times(expectedInvocations)).wakeup(eq(task1), anyBoolean());
+        verify(mTaskPersister, never()).wakeup(eq(task2), anyBoolean());
+        verify(mTaskPersister, never()).wakeup(eq(task3), anyBoolean());
+    }
+
     private TaskSnapshot createSnapshot(Point taskSize, Point bufferSize) {
         HardwareBuffer buffer = null;
         if (bufferSize != null) {
@@ -1533,7 +1667,6 @@ public class RecentTasksTest extends WindowTestsBase {
         });
         assertSecurityException(expectCallable,
                 () -> mAtm.startActivityFromRecents(0, new Bundle()));
-        assertSecurityException(expectCallable, () -> mAtm.getTaskSnapshot(0, true));
         assertSecurityException(expectCallable, () -> mAtm.registerTaskStackListener(null));
         assertSecurityException(expectCallable,
                 () -> mAtm.unregisterTaskStackListener(null));
@@ -1634,7 +1767,8 @@ public class RecentTasksTest extends WindowTestsBase {
         }
 
         @Override
-        public void onRecentTaskRemoved(Task task, boolean wasTrimmed, boolean killProcess) {
+        public void onRecentTaskRemoved(Task task, boolean wasTrimmed, boolean killProcess,
+                Task replacingTask) {
             if (wasTrimmed) {
                 mTrimmed.add(task);
             }

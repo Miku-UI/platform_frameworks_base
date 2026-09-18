@@ -16,29 +16,18 @@
 
 package com.android.server.wm;
 
-import static android.app.CameraCompatTaskInfo.CAMERA_COMPAT_PORTRAIT_DEVICE_IN_LANDSCAPE;
-import static android.view.Surface.ROTATION_270;
-
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doAnswer;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 import android.annotation.Nullable;
-import android.app.CameraCompatTaskInfo;
-import android.app.CameraCompatTaskInfo.CameraCompatMode;
 import android.app.TaskInfo;
 import android.graphics.Rect;
-import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
-import android.view.DisplayInfo;
-import android.view.Surface;
 import android.window.AppCompatTransitionInfo;
 
 import androidx.annotation.NonNull;
@@ -166,6 +155,64 @@ public class AppCompatUtilsTest extends WindowTestsBase {
             robot.checkTaskInfoEligibleForUserAspectRatioButton(true);
         });
     }
+    @Test
+    public void testTopFullyTransparentActivityEligibleForRestartButton() {
+        // Transparent activity in size compat mode and TransparentPolicy NOT running
+        runTestScenario((robot) -> {
+            robot.conf().enableTranslucentPolicy(true);
+            robot.applyOnActivity((a) -> {
+                a.createActivityWithComponentInNewTask();
+                a.setTopActivityVisible(true);
+                robot.setTopTaskAsOrganized();
+                a.setTopActivityInSizeCompatMode(true);
+                robot.setTopActivityTransparentPolicyRunning(false);
+            });
+
+            robot.checkTaskInfoTopActivityAsInSizeCompatMode(true);
+        });
+
+        // Transparent activity in size compat mode and TransparentPolicy running
+        runTestScenario((robot) -> {
+            robot.conf().enableTranslucentPolicy(true);
+            robot.applyOnActivity((a) -> {
+                a.createActivityWithComponentInNewTask();
+                a.setTopActivityVisible(true);
+                robot.setTopTaskAsOrganized();
+                a.setTopActivityInSizeCompatMode(true);
+                robot.setTopActivityTransparentPolicyRunning(true);
+            });
+
+            robot.checkTaskInfoTopActivityAsInSizeCompatMode(false);
+        });
+
+        // Transparent activity NOT in size compat mode and TransparentPolicy NOT running
+        runTestScenario((robot) -> {
+            robot.conf().enableTranslucentPolicy(true);
+            robot.applyOnActivity((a) -> {
+                a.createActivityWithComponentInNewTask();
+                a.setTopActivityVisible(true);
+                robot.setTopTaskAsOrganized();
+                a.setTopActivityInSizeCompatMode(false);
+                robot.setTopActivityTransparentPolicyRunning(false);
+            });
+
+            robot.checkTaskInfoTopActivityAsInSizeCompatMode(false);
+        });
+
+        // Transparent activity NOT in size compat mode and TransparentPolicy running
+        runTestScenario((robot) -> {
+            robot.conf().enableTranslucentPolicy(true);
+            robot.applyOnActivity((a) -> {
+                a.createActivityWithComponentInNewTask();
+                a.setTopActivityVisible(true);
+                robot.setTopTaskAsOrganized();
+                a.setTopActivityInSizeCompatMode(false);
+                robot.setTopActivityTransparentPolicyRunning(true);
+            });
+
+            robot.checkTaskInfoTopActivityAsInSizeCompatMode(false);
+        });
+    }
 
     @Test
     public void testTopActivityEligibleForUserAspectRatioButton_disabled_notEligible() {
@@ -210,39 +257,6 @@ public class AppCompatUtilsTest extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING)
-    @DisableFlags(Flags.FLAG_ENABLE_CAMERA_COMPAT_COMPATIBILITY_INFO_ROTATE_AND_CROP_BUGFIX)
-    public void getTaskInfoPropagatesCameraCompatMode() {
-        runTestScenario((robot) -> {
-            robot.dw().allowEnterDesktopMode(/* isAllowed= */ true);
-            robot.applyOnActivity(
-                    AppCompatActivityRobot::createActivityWithComponentInNewTaskAndDisplay);
-            robot.setCameraCompatTreatmentEnabledForActivity(/* enabled= */ true);
-
-            robot.setCameraCompatMode(CAMERA_COMPAT_PORTRAIT_DEVICE_IN_LANDSCAPE);
-            robot.checkTaskInfoCameraCompatMode(
-                    CAMERA_COMPAT_PORTRAIT_DEVICE_IN_LANDSCAPE);
-        });
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING)
-    @DisableFlags(Flags.FLAG_ENABLE_CAMERA_COMPAT_COMPATIBILITY_INFO_ROTATE_AND_CROP_BUGFIX)
-    public void testTopActivityInCameraCompatMode_rotationSet() {
-        runTestScenario((robot) -> {
-            robot.dw().allowEnterDesktopMode(/* isAllowed= */ true);
-            robot.applyOnActivity(
-                    AppCompatActivityRobot::createActivityWithComponentInNewTaskAndDisplay);
-            robot.setCameraCompatTreatmentEnabledForActivity(/* enabled= */ true);
-            robot.setCameraCompatMode(CAMERA_COMPAT_PORTRAIT_DEVICE_IN_LANDSCAPE);
-
-            final int expectedDisplayRotation = ROTATION_270;
-            robot.activity().rotateDisplayForTopActivity(expectedDisplayRotation);
-            robot.checkTaskInfoCameraCompatDisplayRotationSet(expectedDisplayRotation);
-        });
-    }
-
-    @Test
     public void testTopActivityLetterboxed_hasBounds() {
         runTestScenario((robot) -> {
             robot.applyOnActivity((a) -> {
@@ -254,7 +268,7 @@ public class AppCompatUtilsTest extends WindowTestsBase {
             robot.setLetterboxPolicyLetterboxBounds(new Rect(20, 30, 520, 630));
             robot.setIsLetterboxedForAspectRatioOnly(/* forAspectRatio */ true);
 
-
+            robot.checkTopActivityIsLetterboxed(true);
             robot.checkTaskInfoTopActivityHasBounds(/* expected */ new Rect(20, 30, 520, 630));
         });
     }
@@ -267,6 +281,7 @@ public class AppCompatUtilsTest extends WindowTestsBase {
                 a.setIgnoreOrientationRequest(true);
             });
 
+            robot.checkTopActivityIsLetterboxed(false);
             robot.checkTaskInfoTopActivityHasBounds(/* expected */ null);
         });
     }
@@ -334,15 +349,7 @@ public class AppCompatUtilsTest extends WindowTestsBase {
             spyOn(activity.mAppCompatController.getAspectRatioPolicy());
             spyOn(activity.mAppCompatController.getSafeRegionPolicy());
             spyOn(activity.mAppCompatController.getLetterboxPolicy());
-        }
-
-        @Override
-        void onPostDisplayContentCreation(@NonNull DisplayContent displayContent) {
-            super.onPostDisplayContentCreation(displayContent);
-            mockPortraitDisplay(displayContent);
-            if (displayContent.mAppCompatCameraPolicy.hasSimReqOrientationPolicy()) {
-                spyOn(displayContent.mAppCompatCameraPolicy.mSimReqOrientationPolicy);
-            }
+            spyOn(activity.mAppCompatController.getTransparentPolicy());
         }
 
         void transparentActivity(@NonNull Consumer<AppCompatTransparentActivityRobot> consumer) {
@@ -355,7 +362,7 @@ public class AppCompatUtilsTest extends WindowTestsBase {
                 boolean forFixedOrientationAndAspectRatio) {
             when(activity().top().mAppCompatController.getAspectRatioPolicy()
                     .isLetterboxedForFixedOrientationAndAspectRatio())
-                        .thenReturn(forFixedOrientationAndAspectRatio);
+                    .thenReturn(forFixedOrientationAndAspectRatio);
         }
 
         void setIsLetterboxedForAspectRatioOnly(boolean forAspectRatio) {
@@ -372,6 +379,11 @@ public class AppCompatUtilsTest extends WindowTestsBase {
                     .thenReturn(isLetterboxRunning);
         }
 
+        void setTopActivityTransparentPolicyRunning(boolean isTransparentPolicyRunning) {
+            when(activity().top().mAppCompatController.getTransparentPolicy().isRunning())
+                    .thenReturn(isTransparentPolicyRunning);
+        }
+
         void setLetterboxPolicyLetterboxBounds(@NonNull Rect expectedBounds) {
             doAnswer(invocation -> {
                 Rect bounds = invocation.getArgument(0);
@@ -386,9 +398,8 @@ public class AppCompatUtilsTest extends WindowTestsBase {
                     .isLetterboxedForSafeRegionOnlyAllowed()).thenReturn(safeRegionOnly);
         }
 
-        void setCameraCompatMode(@CameraCompatMode int mode) {
-            doReturn(mode).when(activity().top().mDisplayContent.mAppCompatCameraPolicy
-                    .mSimReqOrientationPolicy).getCameraCompatMode(activity().top());
+        void setTopTaskAsOrganized() {
+            doReturn(activity().top().getTask()).when(activity().top()).getOrganizedTask();
         }
 
         void checkTopActivityLetterboxReason(@NonNull String expected) {
@@ -423,38 +434,19 @@ public class AppCompatUtilsTest extends WindowTestsBase {
                     .eligibleForUserAspectRatioButton());
         }
 
-        void checkTaskInfoCameraCompatMode(@CameraCompatTaskInfo.CameraCompatMode int mode) {
-            Assert.assertEquals(mode, getTopTaskInfo().appCompatTaskInfo.cameraCompatTaskInfo
-                    .cameraCompatMode);
+        void checkTaskInfoTopActivityAsInSizeCompatMode(boolean eligible) {
+            Assert.assertEquals(eligible, getTopTaskInfo().appCompatTaskInfo
+                    .isTopActivityInSizeCompat());
         }
 
-        void checkTaskInfoCameraCompatDisplayRotationSet(@Surface.Rotation int expectedRotation) {
-            Assert.assertEquals(expectedRotation, getTopTaskInfo().appCompatTaskInfo
-                    .cameraCompatTaskInfo.displayRotation);
+        void checkTopActivityIsLetterboxed(boolean expected) {
+            Assert.assertEquals(expected,
+                    getTopTaskInfo().appCompatTaskInfo.isTopActivityLetterboxed());
         }
 
         void checkTaskInfoTopActivityHasBounds(Rect bounds) {
             Assert.assertEquals(bounds, getTopTaskInfo().appCompatTaskInfo
                     .topActivityLetterboxBounds);
-        }
-
-        void setCameraCompatTreatmentEnabledForActivity(boolean enabled) {
-            doReturn(enabled).when(activity().displayContent().mAppCompatCameraPolicy
-                    .mSimReqOrientationPolicy).isCompatibilityTreatmentEnabledForActivity(
-                            eq(activity().top()), anyBoolean());
-        }
-
-        private void mockPortraitDisplay(DisplayContent displayContent) {
-            doAnswer(invocation -> {
-                DisplayInfo displayInfo = new DisplayInfo();
-                displayContent.getDisplay().getDisplayInfo(displayInfo);
-                displayInfo.rotation = Surface.ROTATION_90;
-                // Set height and width so that the natural orientation (when rotation is 0) is
-                // portrait.
-                displayInfo.logicalHeight = 600;
-                displayInfo.logicalWidth =  800;
-                return displayInfo;
-            }).when(displayContent.mWmService.mDisplayManagerInternal).getDisplayInfo(anyInt());
         }
     }
 }

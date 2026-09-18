@@ -50,6 +50,8 @@ int getBufferWidth(BufferItem *buffer);
 
 int getBufferHeight(BufferItem *buffer);
 
+void checkAndClearBlobFooter(BufferItem* buffer, sp<Fence>& releaseFence);
+
 // Must be in sync with AIDL CameraBlob : android.hardware.camera.device.CameraBlob
 // HALs must NOT copy this definition.
 // for details: http://b/229688810

@@ -21,8 +21,8 @@ package {
     default_applicable_licenses: ["frameworks_base_license"],
 }
 
-cc_library_shared {
-    name: "libjnigraphics",
+cc_defaults {
+    name: "libjnigraphics_common",
     defaults: [
         "bug_24465209_workaround",
     ],
@@ -39,6 +39,7 @@ cc_library_shared {
     ],
 
     shared_libs: [
+        "libbase",
         "libhwui",
         "liblog",
     ],
@@ -61,20 +62,41 @@ cc_library_shared {
                 "aassetstreamadaptor.cpp",
                 "bitmap.cpp",
             ],
-            shared_libs: [
-                "libandroid",
-            ],
             static_libs: [
                 "libstatslog_hwui",
                 "libstatspull_lazy",
                 "libstatssocket_lazy",
             ],
-            version_script: "libjnigraphics.map.txt",
         },
         host: {
             header_libs: [
                 "libnativewindow_headers",
             ],
+        },
+    },
+}
+
+cc_library_shared {
+    name: "libjnigraphics_preapex",
+    defaults: ["libjnigraphics_common"],
+    target: {
+        android: {
+            shared_libs: [
+                "libandroid_preapex",
+            ],
+        },
+    },
+}
+
+cc_library_shared {
+    name: "libjnigraphics",
+    defaults: ["libjnigraphics_common"],
+    target: {
+        android: {
+            shared_libs: [
+                "libandroid",
+            ],
+            version_script: "libjnigraphics.map.txt",
         },
     },
     stubs: {

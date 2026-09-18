@@ -16,8 +16,6 @@
 
 package com.android.systemui.statusbar.notification.collection.render
 
-import com.android.systemui.statusbar.notification.FeedbackIcon
-
 /** A view controller for a notification row */
 interface NotifRowController {
     /**
@@ -33,7 +31,4 @@ interface NotifRowController {
      * show a bell icon in the header which indicates to the user which notification made a noise.
      */
     fun setLastAudibleMs(lastAudibleMs: Long)
-
-    /** Shows the given feedback icon, or hides the icon if null. */
-    fun setFeedbackIcon(icon: FeedbackIcon?)
 }

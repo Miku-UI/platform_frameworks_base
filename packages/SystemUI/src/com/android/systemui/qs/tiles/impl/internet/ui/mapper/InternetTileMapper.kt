@@ -69,7 +69,7 @@ constructor(
                         )
                 }
 
-                is InternetTileIconModel.Cellular -> {
+                is InternetTileIconModel.SignalLevel -> {
                     val signalDrawable = SignalDrawable(context, handler)
                     signalDrawable.setLevel(dataIcon.level)
                     icon = Icon.Loaded(signalDrawable, contentDescription = null)

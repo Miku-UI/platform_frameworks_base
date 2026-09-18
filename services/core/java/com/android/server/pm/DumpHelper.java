@@ -266,6 +266,12 @@ final class DumpHelper {
                 }
             } else if ("protected-broadcasts".equals(cmd)) {
                 dumpState.setDump(DumpState.DUMP_PROTECTED_BROADCASTS);
+            } else if ("apex".equals(cmd)) {
+                if (opti < args.length) {
+                    dumpState.setTargetPackageName(args[opti]);
+                    opti++;
+                }
+                dumpState.setDump(DumpState.DUMP_APEX);
             }
         }
 

@@ -275,33 +275,8 @@ public class SecurityControllerTest extends SysuiTestCase {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS)
-    @RequiresFlagsDisabled(android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE)
-    public void isParentalControlsEnabled_usingSupervisionManager_supervisionIsEnabled() {
-        mSupervisionRepository.setIsSupervisionEnabled(false);
-        when(mSupervisionManager.isSupervisionEnabledForUser(anyInt()))
-                .thenReturn(true);
-        mSecurityController.setSupervisionModel(mSupervisionRepository.getSupervisionModel());
-
-        assertTrue(mSecurityController.isParentalControlsEnabled());
-    }
-
-    @Test
-    @RequiresFlagsEnabled(android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS)
-    @RequiresFlagsDisabled(android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE)
-    public void isParentalControlsEnabled_usingSupervisionManager_supervisionIsNotEnabled() {
-        mSupervisionRepository.setIsSupervisionEnabled(true);
-        when(mSupervisionManager.isSupervisionEnabledForUser(anyInt()))
-                .thenReturn(false);
-        mSecurityController.setSupervisionModel(mSupervisionRepository.getSupervisionModel());
-
-        assertFalse(mSecurityController.isParentalControlsEnabled());
-    }
-
-    @Test
     @RequiresFlagsEnabled({
-        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS,
-        android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE
+        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS
     })
     public void isParentalControlsEnabled_usingSupervisionModel_supervisionIsEnabled() {
         mSupervisionRepository.setIsSupervisionEnabled(true);
@@ -314,8 +289,7 @@ public class SecurityControllerTest extends SysuiTestCase {
 
     @Test
     @RequiresFlagsEnabled({
-        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS,
-        android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE
+        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS
     })
     public void isParentalControlsEnabled_usingSupervisionModel_supervisionIsNotEnabled() {
         mSupervisionRepository.setIsSupervisionEnabled(false);
@@ -327,18 +301,8 @@ public class SecurityControllerTest extends SysuiTestCase {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS)
-    @RequiresFlagsDisabled(android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE)
-    public void getSupervisionModel_flagDisabled_returnsNull() {
-        mSecurityController.setSupervisionModel(mSupervisionRepository.getSupervisionModel());
-
-        assertNull(mSecurityController.getSupervisionModel());
-    }
-
-    @Test
     @RequiresFlagsEnabled({
-        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS,
-        android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE
+        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS
     })
     public void getSupervisionModel_returnsSupervisionModel() {
         SupervisionModel supervisionModel = mSupervisionRepository.getSupervisionModel();

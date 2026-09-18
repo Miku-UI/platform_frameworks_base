@@ -187,23 +187,6 @@ class DesktopBackNavTransitionObserver(
         val taskInfo = change.taskInfo ?: return null
         if (taskInfo.taskId == -1) return null
         val repository = desktopUserRepositories.getProfile(taskInfo.userId)
-        if (!DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-            val deskId = repository.getActiveDeskId(taskInfo.displayId)
-            if (
-                deskId != null &&
-                    repository.isDesktopTask(taskInfo) &&
-                    backAnimationController.latestTriggerBackTask == taskInfo.taskId &&
-                    !repository.isClosingTask(taskInfo.taskId)
-            ) {
-                return TaskToMinimize(
-                    taskInfo = taskInfo,
-                    deskId = deskId,
-                    isLastTask = hasWallpaperClosing,
-                    shouldReparentToDesk = false,
-                )
-            }
-            return null
-        }
         val deskId = repository.getDeskIdForTask(taskInfo.taskId)
         if (
             deskId != null &&
@@ -234,18 +217,6 @@ class DesktopBackNavTransitionObserver(
         if (taskInfo.taskId == -1) return null
         if (change.mode != TRANSIT_TO_BACK) return null
         val repository = desktopUserRepositories.getProfile(taskInfo.userId)
-        if (!DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-            val deskId = repository.getActiveDeskId(taskInfo.displayId)
-            if (deskId != null && repository.isDesktopTask(taskInfo)) {
-                return TaskToMinimize(
-                    taskInfo = taskInfo,
-                    deskId = deskId,
-                    isLastTask = repository.isLastTask(taskInfo, deskId),
-                    shouldReparentToDesk = false,
-                )
-            }
-            return null
-        }
         val deskId = repository.getDeskIdForTask(taskInfo.taskId)
         if (deskId == null) {
             return null
@@ -262,32 +233,22 @@ class DesktopBackNavTransitionObserver(
     }
 
     private fun DesktopRepository.isDesktopTask(task: RunningTaskInfo): Boolean =
-        if (DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-            isActiveTask(task.taskId)
-        } else {
-            task.isFreeform
-        }
+        isActiveTask(task.taskId)
 
     private fun DesktopRepository.isExitingDesktopTask(change: TransitionInfo.Change): Boolean {
         val task = change.taskInfo ?: return false
-        return if (DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-            isActiveTask(task.taskId) && desksOrganizer.getDeskAtEnd(change) == null
-        } else {
-            isActiveTask(task.taskId) && !task.isFreeform
-        }
+        return isActiveTask(task.taskId) && desksOrganizer.getDeskAtEnd(change) == null
     }
 
     private fun DesktopRepository.isLastTask(taskInfo: RunningTaskInfo, deskId: Int): Boolean =
-        if (!DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-            hasOnlyOneVisibleTask(taskInfo.displayId)
-        } else {
-            isOnlyVisibleTaskInDesk(taskInfo.taskId, deskId)
-        }
+        isOnlyVisibleTaskInDesk(taskInfo.taskId, deskId)
 
     private fun TransitionInfo.taskChanges(): List<TransitionInfo.Change> {
         return changes.filter { change -> change.taskInfo != null && change.taskInfo?.taskId != -1 }
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logD(msg: String, vararg arguments: Any?) {
         ProtoLog.d(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }

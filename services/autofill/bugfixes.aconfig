@@ -50,13 +50,6 @@ flag {
 }
 
 flag {
-  name: "remote_fill_service_use_weak_reference"
-  namespace: "autofill"
-  description: "Use weak reference to address binder leak problem"
-  bug: "307972253"
-}
-
-flag {
   name: "add_last_focused_id_to_client_state"
   namespace: "autofill"
   description: "Include the current view id into the FillEventHistory events as part of ClientState"
@@ -101,27 +94,10 @@ flag {
   name: "metrics_fixes"
   namespace: "autofill"
   description: "Fixes various framework reported metrics"
-  bug: "362581326, 363011343"
+  bug: "362581326"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
-}
-
-flag {
-  name: "add_accessibility_title_for_augmented_autofill_dropdown"
-  namespace: "autofill"
-  description: "Add accessibility title for augmented autofill dropdown"
-  bug: "375284244"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "log_augmented_service_uid"
-  namespace: "autofill"
-  description: "Log the UID of the augmented autofill service in FillRequest events"
-  bug: "411232512"
 }
 
 flag {
@@ -129,6 +105,86 @@ flag {
   namespace: "autofill"
   description: "Disable fill dialog on automotive multi-window target"
   bug: "420943436"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "use_focused_view_to_get_afm_in_view_root"
+  namespace: "autofill"
+  description: "Use focused view context to get autofill manager, for fixing dropdown suggestion blocking physical keyboard input"
+  bug: "329678461"
+  metadata {
+      purpose: PURPOSE_BUGFIX
+   }
+}
+
+flag {
+  name: "get_autofill_view_id_from_autofill_manager"
+  namespace: "autofill"
+  description: "Use autofill manager to get autofill view id if view has non-activity context"
+  bug: "390180715"
+  metadata {
+      purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "use_candidate_save_value_when_update_save_assist_structure"
+  namespace: "autofill"
+  description: "To fix app resetting field value before leaving page, use the candidate save value when creating assist structure for save"
+  bug: "419303541"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "return_when_window_destroyed"
+  namespace: "autofill"
+  description: "Check whether window is destroyed inside hide(). If it's destroyed, then hide() returns without throwing exception. This prevents exception from thrown"
+  bug: "392539682"
+  metadata {
+      purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "string_rebuild_persistent_masterseed"
+  namespace: "autofill"
+  description: "make string rebuild masterseeed persistent across reboots but different per user profile."
+  bug: "456535350"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "add_dialog_presentation_check"
+  namespace: "autofill"
+  description: "Add check for dialog presentation in when setting authentication inFillResponse."
+  bug: "486879419"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "set_locale_for_text_view"
+  namespace: "autofill"
+  description: "Let TextView set the locale field when providing AssistStructure for autofill"
+  bug: "487046283"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "destroy_save_ui_before_showing_next_one"
+  namespace: "autofill"
+  description: "Destroy the current showing save dialog before showing the next one to fix device unresponsive issue"
+  bug: "484831460"
   metadata {
     purpose: PURPOSE_BUGFIX
   }

@@ -19,6 +19,7 @@ package com.android.internal.inputmethod;
 import static android.internal.perfetto.protos.Inputconnection.InputConnectionProto.CURSOR_CAPS_MODE;
 import static android.internal.perfetto.protos.Inputconnection.InputConnectionProto.SELECTED_TEXT_END;
 import static android.internal.perfetto.protos.Inputconnection.InputConnectionProto.SELECTED_TEXT_START;
+import static android.view.accessibility.Flags.a11yTextChangeTypesApi;
 
 import android.annotation.CallbackExecutor;
 import android.annotation.NonNull;
@@ -48,6 +49,7 @@ import android.view.inputmethod.PreviewableHandwritingGesture;
 import android.view.inputmethod.RemoveSpaceGesture;
 import android.view.inputmethod.SelectGesture;
 import android.view.inputmethod.SelectRangeGesture;
+import android.view.inputmethod.TextAttribute;
 import android.view.inputmethod.TextBoundsInfo;
 import android.view.inputmethod.TextBoundsInfoResult;
 import android.widget.TextView;
@@ -212,15 +214,80 @@ public final class EditableInputConnection extends BaseInputConnection
     }
 
     @Override
+    public boolean setComposingText(CharSequence text, int newCursorPosition) {
+        if (DEBUG) {
+            Log.v(TAG, "setComposingText text=" + text
+                    + " newCursorPosition=" + newCursorPosition);
+        }
+        return super.setComposingText(text, newCursorPosition);
+    }
+
+    @Override
+    public boolean setComposingText(@NonNull CharSequence text,
+            int newCursorPosition, @Nullable TextAttribute textAttribute) {
+        if (DEBUG) {
+            Log.v(TAG, "setComposingText text=" + text
+                    + " newCursorPosition=" + newCursorPosition
+                    + " textAttribute=" + textAttribute);
+        }
+        if (a11yTextChangeTypesApi() && textAttribute != null) {
+            mTextView.setSuggestionSelection(textAttribute.isTextSuggestionSelected());
+        }
+        return super.setComposingText(text, newCursorPosition, textAttribute);
+    }
+
+    @Override
     public boolean commitText(CharSequence text, int newCursorPosition) {
+        if (DEBUG) {
+            Log.v(TAG, "commitText text=" + text
+                    + " newCursorPosition=" + newCursorPosition);
+        }
         if (mTextView == null) {
             return super.commitText(text, newCursorPosition);
+        }
+        if (a11yTextChangeTypesApi()) {
+            mTextView.beginCommitText();
         }
         mTextView.resetErrorChangedFlag();
         boolean success = super.commitText(text, newCursorPosition);
         mTextView.hideErrorIfUnchanged();
+        if (a11yTextChangeTypesApi()) {
+            mTextView.endCommitText();
+            // When a text commit is finished, reset the suggestion selection flag.
+            mTextView.setSuggestionSelection(false);
+        }
 
         return success;
+    }
+
+    @Override
+    public boolean commitText(@NonNull CharSequence text, int newCursorPosition,
+            @Nullable TextAttribute textAttribute) {
+        if (DEBUG) {
+            Log.v(TAG, "commitText text=" + text
+                    + " newCursorPosition=" + newCursorPosition
+                    + " textAttribute=" + textAttribute);
+        }
+        if (a11yTextChangeTypesApi()) {
+            if (mTextView == null) {
+                return super.commitText(text, newCursorPosition, textAttribute);
+            }
+            if (a11yTextChangeTypesApi() && textAttribute != null) {
+                mTextView.setSuggestionSelection(textAttribute.isTextSuggestionSelected());
+            }
+
+            mTextView.beginCommitText();
+            mTextView.resetErrorChangedFlag();
+            boolean success = super.commitText(text, newCursorPosition, textAttribute);
+            mTextView.hideErrorIfUnchanged();
+            mTextView.endCommitText();
+            // When a text commit is finished, reset the suggestion selection flag.
+            mTextView.setSuggestionSelection(false);
+
+            return success;
+        } else {
+            return super.commitText(text, newCursorPosition, textAttribute);
+        }
     }
 
     @Override

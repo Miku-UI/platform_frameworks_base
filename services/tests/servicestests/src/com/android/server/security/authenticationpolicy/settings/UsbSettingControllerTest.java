@@ -185,7 +185,8 @@ public class UsbSettingControllerTest {
         } else {
             Slog.e(TAG, "UsbPortStatus is null");
         }
-
+        verify(mUsbManagerInternal).enableUsbDataSignal(true,
+                USB_DISABLE_REASON_LOCKDOWN_MODE);
     }
 
     @Test
@@ -206,5 +207,7 @@ public class UsbSettingControllerTest {
         } else {
             Slog.e(TAG, "UsbPortStatus is null");
         }
+        verify(mUsbManagerInternal).enableUsbDataSignal(true,
+                USB_DISABLE_REASON_LOCKDOWN_MODE);
     }
 }

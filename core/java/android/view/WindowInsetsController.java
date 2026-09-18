@@ -166,7 +166,7 @@ public interface WindowInsetsController {
      *
      * <p>When system bars are hidden in this mode, they can be revealed temporarily with system
      * gestures, such as swiping from the edge of the screen where the bar is hidden from. These
-     * transient system bars will overlay app’s content, may have some degree of transparency, and
+     * transient system bars will overlay app's content, may have some degree of transparency, and
      * will automatically hide after a short timeout.</p>
      */
     int BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE = 2;

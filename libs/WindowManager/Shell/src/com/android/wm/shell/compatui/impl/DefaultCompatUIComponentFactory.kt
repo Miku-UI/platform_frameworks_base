@@ -21,27 +21,30 @@ import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.SyncTransactionQueue
 import com.android.wm.shell.compatui.api.CompatUIComponent
 import com.android.wm.shell.compatui.api.CompatUIComponentFactory
+import com.android.wm.shell.compatui.api.CompatUIComponentRepository
 import com.android.wm.shell.compatui.api.CompatUIInfo
+import com.android.wm.shell.compatui.api.CompatUISharedStateRepository
 import com.android.wm.shell.compatui.api.CompatUISpec
-import com.android.wm.shell.compatui.api.CompatUIState
 
 /** Default {@link CompatUIComponentFactory } implementation */
 class DefaultCompatUIComponentFactory(
     private val context: Context,
     private val syncQueue: SyncTransactionQueue,
     private val displayController: DisplayController,
+    private val componentUIComponentRepository: CompatUIComponentRepository,
+    private val sharedStateRepository: CompatUISharedStateRepository,
 ) : CompatUIComponentFactory {
     override fun create(
         spec: CompatUISpec,
         compId: String,
-        state: CompatUIState,
         compatUIInfo: CompatUIInfo,
     ): CompatUIComponent =
         CompatUIComponent(
             spec,
             compId,
             context,
-            state,
+            sharedStateRepository,
+            componentUIComponentRepository,
             compatUIInfo,
             syncQueue,
             displayController.getDisplayLayout(compatUIInfo.taskInfo.displayId),

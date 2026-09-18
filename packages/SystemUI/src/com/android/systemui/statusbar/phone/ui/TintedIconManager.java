@@ -21,7 +21,7 @@ import android.view.ViewGroup;
 
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Application;
-import com.android.systemui.kairos.ExperimentalKairosApi;
+
 import com.android.systemui.kairos.KairosNetwork;
 import com.android.systemui.statusbar.StatusIconDisplayable;
 import com.android.systemui.statusbar.connectivity.ui.MobileContextProvider;
@@ -43,7 +43,6 @@ import javax.inject.Inject;
 /**
  * Version of {@link IconManager} that can tint the icons to a particular color.
  */
-@OptIn(markerClass = ExperimentalKairosApi.class)
 public class TintedIconManager extends IconManager {
     // The main tint, used as the foreground in non layer drawables
     private int mColor;

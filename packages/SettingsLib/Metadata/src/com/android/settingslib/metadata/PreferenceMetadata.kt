@@ -19,9 +19,30 @@ package com.android.settingslib.metadata
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
+import android.provider.Settings
 import androidx.annotation.AnyThread
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import com.android.settingslib.metadata.preferencesapi.ApiPreference
+import com.android.settingslib.metadata.preferencesapi.PreferencesApiScreen
+import com.android.settingslib.metadata.preferencesapi.preconditions.Allowed
+import com.android.settingslib.metadata.preferencesapi.preconditions.Disallowed
+import com.android.settingslib.metadata.preferencesapi.preconditions.PreconditionStability
+import com.android.settingslib.utils.applications.AppUtils
+
+/** Indicates how sensitive of the data. */
+@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.TYPE)
+annotation class SensitivityLevel {
+    companion object {
+        const val DO_NOT_EXPOSE = 0
+        const val NO_SENSITIVITY = 1
+        const val MUST_PROVIDE_UNDO = 2
+        const val REQUIRES_CONFIRMATION = 3
+        const val DEEP_LINK_ONLY = 4
+    }
+}
 
 /**
  * Interface provides preference metadata (title, summary, icon, etc.).
@@ -62,6 +83,20 @@ interface PreferenceMetadata {
     /** Preference key. */
     val key: String
 
+    /**
+     * The purpose of the preference. This string should be understandable in English without
+     * additional context beyond the rest of the preference definition. It should not just repeat
+     * the name of the preference. For example, if the preference name is "enable airplane mode" the
+     * purpose may be "Controls airplane mode. When enabled this will turn off all wireless
+     * communications on the device.".
+     *
+     * When this preference is parameterised, the purpose must be understandable regardless of
+     * parameters. For example, if this is a preference for enabling picture-in-picture, the purpose
+     * may be "Controls whether a specific app is allowed to enter picture-in-picture mode". We can
+     * assume clients will look at the parameters to understand how to specify the app.
+     */
+    @get:StringRes val purpose: Int
+
     /** Preference key when attached to preference hierarchy. */
     val bindingKey: String
         get() = key
@@ -73,6 +108,10 @@ interface PreferenceMetadata {
      */
     val title: Int
         @StringRes get() = 0
+
+    /** The sensitivity level of the preference. */
+    val sensitivityLevel: @SensitivityLevel Int
+        get() = SensitivityLevel.DO_NOT_EXPOSE
 
     /**
      * Preference summary resource id.
@@ -148,6 +187,24 @@ interface PreferenceMetadata {
     fun isEnabled(context: Context): Boolean = true
 
     /**
+     * Returns a human readable description of the enabled state of the preference.
+     *
+     * This should describe any preconditions that must be met for the preference to be enabled.
+     *
+     * It does not need to be set if [isEnabled] always returns `true`.
+     */
+    fun getEnabledDescription(): String? = null
+
+    /**
+     * Returns the stability of the enabled state of the preference.
+     *
+     * This should describe whether the enabled state can be cached.
+     *
+     * It does not need to be set if [isEnabled] always returns `true`.
+     */
+    fun getEnabledStability() : PreconditionStability? = PreconditionStability.STABLE_UNTIL_APK_UPDATE
+
+    /**
      * Returns the keys of depended preferences.
      *
      * Keep in mind that the dependency is effective only on the same screen. For cross screen
@@ -170,6 +227,54 @@ interface PreferenceMetadata {
     fun intent(context: Context): Intent? = null
 }
 
+/**
+ * If this metadata can be exposed to the user
+ */
+fun PreferenceMetadata.isExposable(context: Context) : Boolean {
+    val showUiOnlyPreferences=
+        AppUtils.isDebuggable() && (Settings.Global.getInt(
+            context.contentResolver,
+            "com.android.settings.EXCLUDE_UI_ONLY_PREFERENCES",
+            1,
+        ) == 0)
+    val showDoNotExposePreferences =
+        AppUtils.isDebuggable() && (Settings.Global.getInt(
+            context.contentResolver,
+            "com.android.settings.UNKNOWN_SENSITIVITY_IS_AVAILABLE",
+            0,
+        ) == 1)
+    return (this.isExposureAllowed() || showDoNotExposePreferences)
+            && (!this.isUiOnlyPreference(context) || showUiOnlyPreferences)
+}
+
+/**
+ * If this metadata object has a sensitivity which allows exposure
+ */
+fun PreferenceMetadata.isExposureAllowed() : Boolean = listOf(
+    SensitivityLevel.NO_SENSITIVITY,
+    SensitivityLevel.MUST_PROVIDE_UNDO,
+    SensitivityLevel.REQUIRES_CONFIRMATION,
+    SensitivityLevel.DEEP_LINK_ONLY
+).contains(sensitivityLevel)
+
+/**
+ * If this metadata is allowed to have a get value
+ */
+fun PreferenceMetadata.isGetAllowed() : Boolean = listOf(
+    SensitivityLevel.NO_SENSITIVITY,
+    SensitivityLevel.MUST_PROVIDE_UNDO,
+    SensitivityLevel.REQUIRES_CONFIRMATION,
+    SensitivityLevel.DEEP_LINK_ONLY
+).contains(sensitivityLevel)
+
+/**
+ * If this metadata is allowed to have a set value
+ */
+fun PreferenceMetadata.isSetAllowed() : Boolean = listOf(
+    SensitivityLevel.NO_SENSITIVITY,
+    SensitivityLevel.MUST_PROVIDE_UNDO
+).contains(sensitivityLevel)
+
 /** Metadata of preference group. */
 @AnyThread
 interface PreferenceGroup : PreferenceMetadata {
@@ -180,4 +285,238 @@ interface PreferenceGroup : PreferenceMetadata {
 
 /** Metadata of preference category. */
 @AnyThread
-open class PreferenceCategory(override val key: String, override val title: Int) : PreferenceGroup
+open class PreferenceCategory(
+    override val key: String,
+    override val purpose: Int,
+    override val title: Int,
+) : PreferenceGroup {
+    override fun tags(context: Context) = arrayOf(UI_ONLY_PREFERENCE)
+}
+
+/** Tag representing a preference that is ui only */
+const val UI_ONLY_PREFERENCE = "ui_only_preference"
+
+/**
+ * Tag representing a pure metadata object in a UI screen.
+ *
+ * Marking a preference with this tag will prevent it from being bound to a UI object, thus allowing
+ * for adding pure metadata objects in a fully migrated to the UI screen.
+ */
+const val METADATA_IN_UI="metadata_in_ui"
+
+/** Tag representing a preference that is considered `hero` and must be gettable*/
+const val HERO = "hero"
+
+/** Tag representing a preference that is considered `hero` and must be gettable and settable*/
+const val HERO_SET = "hero_set"
+
+/** Tag representing a preference that is considered `must pass` and must be gettable*/
+const val MUSTPASS = "mustpass"
+
+/** Tag representing a preference that is considered `must pass` and must be gettable and settable*/
+const val MUSTPASS_SET = "mustpass_set"
+
+/** Returns a string describing the preconditions for accessing the preference. */
+fun PreferenceMetadata.accessPreconditionsAsString(context: Context): String? {
+    val preconditions =
+        if (this is ApiPreference<*, *>) {
+            listOfNotNull(
+                    screenPreconditions?.getDescription(context),
+                    preconditions?.getDescription(context),
+                )
+                .joinToString(", ")
+        } else if (this is PreferencesApiScreen) {
+            screenPreconditions?.getDescription(context) ?: ""
+        } else if (this is PreferenceScreenMetadata && getEnabledDescription() != null) {
+            getEnabledDescription() ?: ""
+        } else if (this is PreferenceAvailabilityProvider) {
+            availabilityDescription
+        } else {
+            ""
+        }
+
+    return if (preconditions.isEmpty()) null else "Preconditions to accessing: $preconditions."
+}
+
+/** Returns a string describing the preconditions for accessing the preference as well as the status of them. */
+suspend fun PreferenceMetadata.resolvedAccessAndGetPreconditionsAsString(context: Context): String? {
+    return if (this is ApiPreference<*, *>) {
+            val operationContext = getApiOperationContext(context)
+
+            val screenPreconditionsResult = screenPreconditions?.check(operationContext)
+            val preconditionsResult = preconditions?.check(operationContext)
+            val getPreconditionsResult = get?.preconditions?.check(operationContext)
+
+            val preconditionFailures = listOfNotNull(
+                if (screenPreconditionsResult is Disallowed) screenPreconditionsResult.getReason(context) else null,
+                if (preconditionsResult is Disallowed) preconditionsResult.getReason(context) else null,
+                if (getPreconditionsResult is Disallowed) getPreconditionsResult.getReason(context) else null,
+            )
+
+            val preconditionPasses = listOfNotNull(
+                if (screenPreconditionsResult is Allowed) screenPreconditions?.getDescription(context) else null,
+                if (preconditionsResult is Allowed) preconditions?.getDescription(context) else null,
+                if (getPreconditionsResult is Allowed) get?.preconditions?.getDescription(context) else null,
+            )
+
+            val preconditionFailuresString = if (preconditionFailures.isEmpty()) {
+                null
+            } else {
+                "Failing get preconditions: ${preconditionFailures.joinToString(", ")}"
+            }
+
+            val preconditionPassesString = if (preconditionPasses.isEmpty()) {
+                null
+            } else {
+                "Passing get preconditions: ${preconditionPasses.joinToString(", ")}"
+            }
+
+            listOfNotNull(preconditionFailuresString, preconditionPassesString).joinToString(", ").takeIf { it.isNotEmpty() }
+        } else if (this is PreferencesApiScreen && screenPreconditions != null) {
+            val screenPreconditionsResult = evaluatePreconditions(context)
+
+            if (screenPreconditionsResult is Disallowed) "Failing screen access preconditions: ${screenPreconditionsResult.getReason(context)}"
+            else "Passing screen access preconditions: ${screenPreconditions?.getDescription(context)}"
+        } else if (this is PreferenceScreenMetadata && getEnabledDescription() != null) {
+            // For screens, enabled means accessible
+            if (isEnabled(context)) {
+                "Passing get preconditions: ${getEnabledDescription()}"
+            } else {
+                "Failing get preconditions: ${getEnabledDescription()}"
+            }
+        } else if (this is PreferenceAvailabilityProvider) {
+            if (isAvailable(context)) {
+                "Passing get preconditions: ${availabilityDescription}"
+            } else {
+                "Failing get preconditions: ${availabilityDescription}"
+            }
+        } else {
+            null
+        }
+}
+
+/** Returns a string describing the preconditions for setting the preference as well as the status of them. */
+suspend fun PreferenceMetadata.resolvedSetPreconditionsAsString(context: Context): String? {
+    return if (this is ApiPreference<*, *>) {
+            val operationContext = getApiOperationContext(context)
+            val setPreconditionsResult = set?.preconditions?.check(operationContext)
+            if (setPreconditionsResult is Disallowed) "Failing set preconditions: ${setPreconditionsResult.getReason(context)}"
+            else if (setPreconditionsResult is Allowed) "Passing set preconditions: ${set?.preconditions?.getDescription(context)}"
+            else null
+        } else if (getEnabledDescription() != null && this !is PreferenceScreenMetadata) {
+            // Screens are not settable so no need to communicate set preconditions.
+            if (isEnabled(context)) {
+                "Passing set preconditions: ${getEnabledDescription()}"
+            } else {
+                "Failing set preconditions: ${getEnabledDescription()}"
+            }
+        } else {
+            null
+        }
+}
+
+suspend fun PreferenceMetadata.stableAccessPreconditionFailuresAsString(context: Context): String? {
+    val preconditions =
+        if (this is ApiPreference<*, *>) {
+            val failure = this.evaluatePreconditions(context, this.get.preconditions)
+            if (failure is Disallowed && failure.stability == PreconditionStability.STABLE_UNTIL_APK_UPDATE) {
+                failure.getReason(context)
+            } else ""
+        } else if (this is PreferencesApiScreen) {
+            val failure = this.evaluatePreconditions(context)
+            if (failure is Disallowed && failure.stability == PreconditionStability.STABLE_UNTIL_APK_UPDATE) {
+                failure.getReason(context)
+            } else ""
+        } else if (this is PreferenceScreenMetadata && getEnabledDescription() != null && !isEnabled(context) && getEnabledStability() == PreconditionStability.STABLE_UNTIL_APK_UPDATE) {
+            "Failed precondition: ${getEnabledDescription()}"
+        } else if (this is PreferenceAvailabilityProvider && getAvailabilityStability() == PreconditionStability.STABLE_UNTIL_APK_UPDATE && !isAvailable(context)) {
+                "Failed precondition: ${availabilityDescription}"
+        } else {
+            ""
+        }
+    return if (preconditions.isEmpty()) null else "This is permanently unavailable on this device due to: $preconditions."
+}
+
+/** Returns a string describing the preconditions for reading the preference. */
+fun PreferenceMetadata.getPreconditionsAsString(context: Context): String? {
+    return (this as? ApiPreference<*, *>)?.get?.preconditions?.getDescription(context)?.let {
+        "Preconditions to getting: $it."
+    }
+}
+
+/** Returns a string describing the preconditions for writing the preference. */
+fun PreferenceMetadata.setPreconditionsAsString(context: Context): String? {
+    if (this is ApiPreference<*, *>) {
+        val preconditions = listOfNotNull(
+                set?.preconditions?.getDescription(context),
+                set?.valuePreconditions?.getDescription(context),
+            )
+            .joinToString(", ")
+        return if (preconditions.isEmpty()) null else "Preconditions to setting: $preconditions."
+    } else {
+        if (this !is PreferenceScreenMetadata && getEnabledDescription() != null) {
+            // Screens are not settable so no need to communicate set preconditions.
+            return "Preconditions to setting: ${getEnabledDescription()}."
+        }
+    }
+    return null
+}
+
+suspend fun PreferenceMetadata.stableSetPreconditionFailuresAsString(context: Context): String? {
+    val preconditions =
+        if (this is ApiPreference<*, *>) {
+            val failure = this.evaluatePreconditions(context, this.set?.preconditions)
+            if (failure is Disallowed && failure.stability == PreconditionStability.STABLE_UNTIL_APK_UPDATE) {
+                failure.getReason(context)
+            } else ""
+        } else if (this !is PreferenceScreenMetadata && getEnabledDescription() != null) {
+            // Screens are not settable so no need to communicate set preconditions.
+            if (getEnabledStability() == PreconditionStability.STABLE_UNTIL_APK_UPDATE && !isEnabled(context)) {
+                "Failed precondition: ${getEnabledDescription()}"
+            } else ""
+        } else {
+            ""
+        }
+    return if (preconditions.isEmpty()) null else "Setting this preference is permanently unavailable on this device due to: $preconditions."
+}
+
+/** Returns a string describing the warning for writing the preference. */
+fun PreferenceMetadata.setWarningAsString(context: Context): String? {
+    val warningInfo = when (this) {
+        is ApiPreference<*, *> -> {
+            this.set?.warning?.let { warningConfig ->
+                val warningMessage = warningConfig.getWarning(context)
+
+                val preconditionsDescription = when {
+                    warningConfig.preconditions != null ->
+                        warningConfig.preconditions.getDescription(context)
+
+                    warningConfig.valuePreconditions != null ->
+                        warningConfig.valuePreconditions.getDescription(context)
+
+                    else -> null
+                }
+
+                WarningInfo(preconditionsDescription, warningMessage)
+            }
+        }
+
+        is PreferenceSetWarningProvider -> {
+            this.setWarning
+        }
+
+        else -> {
+            null
+        }
+    }
+
+    return warningInfo?.let { warning ->
+        // Compute the set warning as a string message
+        val conditionalText =
+            warning.preconditionsDescription?.takeIf { it.isNotBlank() }?.let { description ->
+                " (if preconditions are met: $description)"
+            } ?: ""
+
+        "[Must show to user]: ${warning.warningMessage}$conditionalText."
+    }
+}

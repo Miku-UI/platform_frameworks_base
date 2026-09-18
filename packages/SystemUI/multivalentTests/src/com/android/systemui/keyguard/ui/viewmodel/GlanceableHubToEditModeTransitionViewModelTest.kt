@@ -16,11 +16,8 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags.FLAG_HUB_EDIT_MODE_TRANSITION
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.communal.domain.interactor.communalSceneInteractor
 import com.android.systemui.communal.shared.model.EditModeState
@@ -49,7 +46,6 @@ class GlanceableHubToEditModeTransitionViewModelTest : SysuiTestCase() {
             GlanceableHubToEditModeTransitionViewModel(blurConfig, kosmos.communalSceneInteractor)
     }
 
-    @EnableFlags(FLAG_HUB_EDIT_MODE_TRANSITION)
     @Test
     fun testWindowBlurRadius_doesNotEmitUntilValueChanges() =
         with(kosmos) {
@@ -61,17 +57,16 @@ class GlanceableHubToEditModeTransitionViewModelTest : SysuiTestCase() {
                 assertThat(windowBlurRadius).isNull()
 
                 setEditModeState(EditModeState.STARTING)
-                assertThat(windowBlurRadius).isNull()
+                assertThat(windowBlurRadius).isEqualTo(100f)
 
                 setEditModeState(EditModeState.CREATED)
-                assertThat(windowBlurRadius).isNull()
+                assertThat(windowBlurRadius).isEqualTo(100f)
 
                 setEditModeState(EditModeState.READY_TO_SHOW)
                 assertThat(windowBlurRadius).isEqualTo(0f)
             }
         }
 
-    @EnableFlags(FLAG_HUB_EDIT_MODE_TRANSITION)
     @Test
     fun testWindowBlurRadius_minBlurWhenEditModeIsShowing() =
         with(kosmos) {
@@ -81,7 +76,7 @@ class GlanceableHubToEditModeTransitionViewModelTest : SysuiTestCase() {
                 setEditModeState(EditModeState.SHOWING)
 
                 setEditModeState(null)
-                assertThat(windowBlurRadius).isEqualTo(100f)
+                assertThat(windowBlurRadius).isNull()
 
                 setEditModeState(EditModeState.STARTING)
                 assertThat(windowBlurRadius).isEqualTo(100f)
@@ -97,35 +92,7 @@ class GlanceableHubToEditModeTransitionViewModelTest : SysuiTestCase() {
                 assertThat(windowBlurRadius).isEqualTo(0f)
 
                 setEditModeState(null)
-                assertThat(windowBlurRadius).isEqualTo(100f)
-            }
-        }
-
-    @DisableFlags(FLAG_HUB_EDIT_MODE_TRANSITION)
-    @Test
-    fun testWindowBlurRadius_flagDisabled_doesNotEmit() =
-        with(kosmos) {
-            runTest {
-                val windowBlurRadius by collectLastValue(underTest.windowBlurRadius)
-                assertThat(windowBlurRadius).isNull()
-
-                setEditModeState(null)
-                assertThat(windowBlurRadius).isNull()
-
-                setEditModeState(EditModeState.STARTING)
-                assertThat(windowBlurRadius).isNull()
-
-                setEditModeState(EditModeState.CREATED)
-                assertThat(windowBlurRadius).isNull()
-
-                setEditModeState(EditModeState.READY_TO_SHOW)
-                assertThat(windowBlurRadius).isNull()
-
-                setEditModeState(EditModeState.SHOWING)
-                assertThat(windowBlurRadius).isNull()
-
-                setEditModeState(null)
-                assertThat(windowBlurRadius).isNull()
+                assertThat(windowBlurRadius).isEqualTo(0f)
             }
         }
 

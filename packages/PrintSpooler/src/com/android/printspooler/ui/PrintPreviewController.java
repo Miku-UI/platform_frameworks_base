@@ -131,9 +131,14 @@ class PrintPreviewController implements MutexFileProvider.OnReleaseRequestCallba
         return mPageAdapter.getRequestedPages();
     }
 
-    public void onContentUpdated(boolean documentChanged, int documentPageCount,
-            PageRange[] writtenPages, PageRange[] selectedPages, MediaSize mediaSize,
-            Margins minMargins) {
+    public void onContentUpdated(
+            boolean documentChanged,
+            int documentPageCount,
+            PageRange[] writtenPages,
+            PageRange[] selectedPages,
+            MediaSize mediaSize,
+            Margins minMargins,
+            int colorMode) {
         boolean contentChanged = false;
 
         if (documentChanged) {
@@ -166,6 +171,7 @@ class PrintPreviewController implements MutexFileProvider.OnReleaseRequestCallba
         args.arg2 = selectedPages;
         args.arg3 = mediaSize;
         args.arg4 = minMargins;
+        args.arg5 = colorMode;
         args.argi1 = documentPageCount;
 
         Message operation = mHandler.obtainMessage(MyHandler.MSG_UPDATE, args);
@@ -308,12 +314,17 @@ class PrintPreviewController implements MutexFileProvider.OnReleaseRequestCallba
                     PageRange[] selectedPages = (PageRange[]) args.arg2;
                     MediaSize mediaSize = (MediaSize) args.arg3;
                     Margins margins = (Margins) args.arg4;
+                    final int colorMode = (int) args.arg5;
                     final int pageCount = args.argi1;
                     args.recycle();
 
-                    mPageAdapter.update(writtenPages, selectedPages, pageCount,
-                            mediaSize, margins);
-
+                    mPageAdapter.update(
+                            writtenPages,
+                            selectedPages,
+                            pageCount,
+                            mediaSize,
+                            margins,
+                            colorMode);
                 } break;
 
                 case MSG_START_PRELOAD: {

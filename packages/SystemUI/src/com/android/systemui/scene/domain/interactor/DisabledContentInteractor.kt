@@ -21,7 +21,7 @@ import com.android.compose.animation.scene.UserAction
 import com.android.compose.animation.scene.UserActionResult
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
-import com.android.systemui.statusbar.disableflags.domain.interactor.DisableFlagsInteractor
+import com.android.systemui.shade.domain.interactor.ShadeStatusBarComponentsInteractor
 import com.android.systemui.statusbar.disableflags.shared.model.DisableFlagsModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
@@ -32,12 +32,12 @@ import kotlinx.coroutines.flow.map
 
 class DisabledContentInteractor
 @Inject
-constructor(private val disableFlagsInteractor: DisableFlagsInteractor) {
+constructor(private val shadeStatusBarComponentsInteractor: ShadeStatusBarComponentsInteractor) {
 
     /** Returns `true` if the given [key] is disabled; `false` if it's enabled */
     fun isDisabled(
         key: ContentKey,
-        disabledFlags: DisableFlagsModel = disableFlagsInteractor.disableFlags.value,
+        disabledFlags: DisableFlagsModel = shadeStatusBarComponentsInteractor.disableFlags.value,
     ): Boolean {
         return with(disabledFlags) {
             when (key) {
@@ -52,7 +52,7 @@ constructor(private val disableFlagsInteractor: DisableFlagsInteractor) {
 
     /** Runs the given [block] each time that [key] becomes disabled. */
     suspend fun repeatWhenDisabled(key: ContentKey, block: suspend (disabled: ContentKey) -> Unit) {
-        disableFlagsInteractor.disableFlags
+        shadeStatusBarComponentsInteractor.disableFlags
             .map { isDisabled(key) }
             .distinctUntilChanged()
             .collectLatest { isDisabled ->
@@ -69,7 +69,7 @@ constructor(private val disableFlagsInteractor: DisableFlagsInteractor) {
     fun filteredUserActions(
         unfiltered: Flow<Map<UserAction, UserActionResult>>
     ): Flow<Map<UserAction, UserActionResult>> {
-        return combine(disableFlagsInteractor.disableFlags, unfiltered) {
+        return combine(shadeStatusBarComponentsInteractor.disableFlags, unfiltered) {
             disabledFlags,
             unfilteredMap ->
             unfilteredMap.filterValues { actionResult ->

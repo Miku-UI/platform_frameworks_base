@@ -16,8 +16,10 @@
 
 package com.android.systemui.statusbar.systemstatusicons.ui.viewmodel
 
+import com.android.internal.statusbar.StatusBarIcon
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconsViewModel
+import com.android.systemui.lifecycle.Activatable
+import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconsState
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.StackedMobileIconViewModel
 
 /** Common interface for all system status icon view models. */
@@ -36,8 +38,28 @@ sealed interface SystemStatusIconViewModel {
         val icon: Icon?
     }
 
-    interface MobileIcons : SystemStatusIconViewModel {
-        val mobileIconsViewModel: MobileIconsViewModel
+    /** Model for the wifi icon, which could also contain activity in/out indicators. */
+    interface Wifi : SystemStatusIconViewModel {
+        /**
+         * [Icon] to be displayed on the right side of the status bar. This should be implemented as
+         * a hydrated value.
+         */
+        val icon: Icon?
+        /** True if we should always reserve space for the activity in/out indicators. */
+        val isActivityContainerVisible: Boolean
+        /** True if the activity in arrow should be visible. */
+        val isActivityInVisible: Boolean
+        /** True if the activity out arrow should be visible. */
+        val isActivityOutVisible: Boolean
+    }
+
+    interface MobileIcons : SystemStatusIconViewModel, Activatable {
+        val mobileIcons: MobileIconsState
         val stackedMobileIconViewModel: StackedMobileIconViewModel
+    }
+
+    /** Used for icons that come from an external process. */
+    interface External : SystemStatusIconViewModel {
+        val statusBarIcon: StatusBarIcon
     }
 }

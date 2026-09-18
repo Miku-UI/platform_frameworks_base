@@ -36,12 +36,13 @@ enum class DesktopTaskToFrontReason : Parcelable {
 
     companion object {
         @JvmField
-        val CREATOR = object : Parcelable.Creator<DesktopTaskToFrontReason> {
-            override fun createFromParcel(parcel: Parcel): DesktopTaskToFrontReason {
-                return parcel.readString()?.let { valueOf(it) } ?: UNKNOWN
-            }
+        val CREATOR =
+            object : Parcelable.Creator<DesktopTaskToFrontReason> {
+                override fun createFromParcel(parcel: Parcel): DesktopTaskToFrontReason {
+                    return parcel.readString()?.let { valueOf(it) } ?: UNKNOWN
+                }
 
-            override fun newArray(size: Int) = arrayOfNulls<DesktopTaskToFrontReason>(size)
-        }
+                override fun newArray(size: Int) = arrayOfNulls<DesktopTaskToFrontReason>(size)
+            }
     }
 }

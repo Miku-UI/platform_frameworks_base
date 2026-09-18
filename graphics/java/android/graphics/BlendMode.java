@@ -286,9 +286,9 @@ public enum BlendMode {
      *      C_{out} =
      *      \begin{cases}
      *          C_{src} * (1 - \alpha_{dst}) & C_{dst} = 0 \\
-     *          C_{src} + \alpha_{dst}*(1 - \alpha_{src}) & C_{src} = \alpha_{src} \\
+     *          C_{src} + \C_{dst}*(1 - \alpha_{src}) & C_{src} = \alpha_{src} \\
      *          \alpha_{src} * min(\alpha_{dst}, C_{dst} * \alpha_{src}/(\alpha_{src} - C_{src}))
-     *              + C_{src} *(1 - \alpha_{dst} + \alpha_{dst}*(1 - \alpha_{src}) & otherwise
+     *              + C_{src} *(1 - \alpha_{dst} + \C_{dst}*(1 - \alpha_{src}) & otherwise
      *      \end{cases}
      *      \end{equation}
      * </p>
@@ -310,10 +310,10 @@ public enum BlendMode {
      *     C_{out} =
      *     \begin{cases}
      *         C_{dst} + C_{src}*(1 - \alpha_{dst}) & C_{dst} = \alpha_{dst} \\
-     *         \alpha_{dst}*(1 - \alpha_{src}) & C_{src} = 0 \\
+     *         C_{dst}*(1 - \alpha_{src}) & C_{src} = 0 \\
      *         \alpha_{src}*(\alpha_{dst} - min(\alpha_{dst}, (\alpha_{dst}
      *         - C_{dst})*\alpha_{src}/C_{src}))
-     *         + C_{src} * (1 - \alpha_{dst}) + \alpha_{dst}*(1-\alpha_{src}) & otherwise
+     *         + C_{src} * (1 - \alpha_{dst}) + \C{dst}*(1-\alpha_{src}) & otherwise
      *     \end{cases}
      *     \end{equation}
      * </p>

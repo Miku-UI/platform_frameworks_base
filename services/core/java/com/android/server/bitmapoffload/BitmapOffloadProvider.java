@@ -26,6 +26,7 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.ParcelFileDescriptor;
 import android.os.Process;
+import android.os.Trace;
 import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
@@ -158,29 +159,34 @@ public class BitmapOffloadProvider extends ContentProvider {
     @Override
     public AssetFileDescriptor openAssetFile(@NonNull Uri uri, @NonNull String mode)
             throws FileNotFoundException {
-        BitmapEntry entry;
-        final BitmapData bitmapData;
-        synchronized (mLock) {
-            entry = mEntries.get(uri);
-            if (entry == null) {
-                Slog.w(TAG, "Could not retrieve bitmap for " + uri);
+        try {
+            Trace.traceBegin(Trace.TRACE_TAG_SYSTEM_SERVER, "BitmapOffloadProvider#openAssetFile");
+            BitmapEntry entry;
+            final BitmapData bitmapData;
+            synchronized (mLock) {
+                entry = mEntries.get(uri);
+                if (entry == null) {
+                    Slog.w(TAG, "Could not retrieve bitmap for " + uri);
+                    return null;
+                }
+                bitmapData = entry.mBitmapData;
+            }
+
+            final int callingUid = Binder.getCallingUid();
+            enforcePermissions(uri, bitmapData, callingUid);
+
+            if (!entry.waitForCompletion()) {
                 return null;
             }
-            bitmapData = entry.mBitmapData;
+
+            entry.mNumOpens.incrementAndGet();
+
+            ParcelFileDescriptor pfd = ParcelFileDescriptor.open(
+                    new File(bitmapData.filePath), ParcelFileDescriptor.parseMode(mode));
+            return new AssetFileDescriptor(pfd, 0, -1);
+        } finally {
+            Trace.traceEnd(Trace.TRACE_TAG_SYSTEM_SERVER);
         }
-
-        final int callingUid = Binder.getCallingUid();
-        enforcePermissions(uri, bitmapData, callingUid);
-
-        if (!entry.waitForCompletion()) {
-            return null;
-        }
-
-        entry.mNumOpens.incrementAndGet();
-
-        ParcelFileDescriptor pfd = ParcelFileDescriptor.open(
-                new File(bitmapData.filePath), ParcelFileDescriptor.parseMode(mode));
-        return new AssetFileDescriptor(pfd, 0, -1);
     }
 
 
@@ -227,7 +233,14 @@ public class BitmapOffloadProvider extends ContentProvider {
 
         synchronized (mLock) {
             BitmapEntry entry = mEntries.remove(uri);
-            return entry != null ? 1 : 0;
+            if (entry != null) {
+                if (!new File(entry.mBitmapData.filePath).delete()) {
+                    Slog.w(TAG, "Failed to delete offloaded bitmap file: "
+                            + entry.mBitmapData.filePath);
+                }
+                return 1;
+            }
+            return 0;
         }
     }
 

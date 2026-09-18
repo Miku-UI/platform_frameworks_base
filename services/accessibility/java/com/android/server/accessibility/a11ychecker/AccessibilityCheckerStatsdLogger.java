@@ -29,7 +29,7 @@ import java.util.Set;
  */
 public class AccessibilityCheckerStatsdLogger {
     private static final int ATOM_ID = 910;
-    private static final String LOG_TAG = "AccessibilityCheckerStatsdLogger";
+    private static final String LOG_TAG = AccessibilityCheckerStatsdLogger.class.getSimpleName();
 
     /**
      * Writes results to statsd.

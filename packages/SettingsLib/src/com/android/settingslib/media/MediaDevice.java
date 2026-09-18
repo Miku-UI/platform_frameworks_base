@@ -50,6 +50,7 @@ import static android.media.RouteListingPreference.Item.SUBTEXT_TRACK_UNSUPPORTE
 import static android.media.RouteListingPreference.Item.SUBTEXT_UNAUTHORIZED;
 
 import static com.android.settingslib.media.LocalMediaManager.MediaDeviceState.STATE_SELECTED;
+import static com.android.settingslib.media.MediaDevice.SelectionBehavior.SELECTION_BEHAVIOR_NONE;
 import static com.android.settingslib.media.MediaDevice.SelectionBehavior.SELECTION_BEHAVIOR_TRANSFER;
 
 import android.annotation.NonNull;
@@ -287,8 +288,17 @@ public abstract class MediaDevice implements Comparable<MediaDevice> {
      */
     @SelectionBehavior
     public int getSelectionBehavior() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && mRlpItem != null
-                ? mRlpItem.getSelectionBehavior() : SELECTION_BEHAVIOR_TRANSFER;
+        if (Flags.makeDeviceSelectionBehaviourRespectRouteListingPreference()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                    && mRlpItem != null) {
+                return mRlpItem.getSelectionBehavior();
+            }
+            return isTransferable() ? SELECTION_BEHAVIOR_TRANSFER : SELECTION_BEHAVIOR_NONE;
+        } else {
+            return Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                    && mRlpItem != null ? mRlpItem.getSelectionBehavior()
+                    : SELECTION_BEHAVIOR_TRANSFER;
+        }
     }
 
     /**

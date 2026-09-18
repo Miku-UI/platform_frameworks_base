@@ -19,6 +19,8 @@ package com.android.server.graphics.fonts;
 import static com.android.server.graphics.fonts.FontManagerService.SystemFontException;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
+import android.graphics.Typeface;
 import android.graphics.fonts.FontManager;
 import android.graphics.fonts.FontUpdateRequest;
 import android.graphics.fonts.SystemFonts;
@@ -31,6 +33,10 @@ import android.util.ArrayMap;
 import android.util.AtomicFile;
 import android.util.Base64;
 import android.util.Slog;
+
+import androidx.annotation.VisibleForTesting;
+
+import com.android.text.flags.Flags;
 
 import org.xmlpull.v1.XmlPullParserException;
 
@@ -62,6 +68,10 @@ final class UpdatableFontDir {
     private static final String RANDOM_DIR_PREFIX = "~~";
 
     private static final String FONT_SIGNATURE_FILE = "font.fsv_sig";
+    private static final String EMOJI_LANG = "und-Zsye";
+    private static final String EMOJI_DEFAULT_POSTSCRIPT_NAME = "NotoColorEmoji";
+    // This is from frameworks/minikin/include/minikin/FontCollection.h
+    private static final int MAX_FAMILY_COUNT = 254;
 
     /** Interface to mock font file access in tests. */
     interface FontFileParser {
@@ -161,6 +171,21 @@ final class UpdatableFontDir {
         mConfigSupplier = configSupplier;
     }
 
+    private @Nullable FontUpdateRequest.Family findPrioritizedFamily(
+            List<PersistentSystemFontConfig.PrioritizedFamily> prioritizedFamilyList,
+            FontFileInfo fontFileInfo) {
+        for (PersistentSystemFontConfig.PrioritizedFamily prioritizedFamily
+                : prioritizedFamilyList) {
+            List<FontUpdateRequest.Font> fonts = prioritizedFamily.family.getFonts();
+            for (FontUpdateRequest.Font font: fonts) {
+                if (font.getPostScriptName().equals(fontFileInfo.getPostScriptName())) {
+                    return prioritizedFamily.family;
+                }
+            }
+        }
+        return null;
+    }
+
     /**
      * Loads fonts from file system, validate them, and delete obsolete font files.
      * Note that this method may be called by multiple times in integration tests via {@link
@@ -173,6 +198,8 @@ final class UpdatableFontDir {
         boolean success = false;
         try {
             PersistentSystemFontConfig.Config config = readPersistentConfig();
+            List<PersistentSystemFontConfig.PrioritizedFamily> prioritizedFamilyList =
+                    config.prioritizedFamilyList;
             mLastModifiedMillis = config.lastModifiedMillis;
 
             File[] dirs = mFilesDir.listFiles();
@@ -224,7 +251,12 @@ final class UpdatableFontDir {
                     // Use preinstalled font config for checking revision number.
                     fontConfig = mConfigSupplier.apply(Collections.emptyMap());
                 }
-                addFileToMapIfSameOrNewer(fontFileInfo, fontConfig, true /* deleteOldFile */);
+                FontUpdateRequest.Family prioritizedFamily = null;
+                if (Flags.insertFontFamily()) {
+                    prioritizedFamily = findPrioritizedFamily(prioritizedFamilyList, fontFileInfo);
+                }
+                addFileToMapIfSameOrNewer(fontFileInfo, prioritizedFamily, fontConfig,
+                        /* deleteOldFile= */ true);
             }
 
             // Treat as error if post script name of font family was not installed.
@@ -267,12 +299,22 @@ final class UpdatableFontDir {
         }
     }
 
-    /**
-     * Applies multiple {@link FontUpdateRequest}s in transaction.
-     * If one of the request fails, the fonts and config are rolled back to the previous state
-     * before this method is called.
-     */
-    public void update(List<FontUpdateRequest> requests) throws SystemFontException {
+    private static class UpdateBackup {
+        final ArrayMap<String, FontFileInfo> mBackupMap;
+        final PersistentSystemFontConfig.Config mCurConfig;
+        final long mBackupLastModifiedDate;
+
+        UpdateBackup(ArrayMap<String, FontFileInfo> backupMap,
+                PersistentSystemFontConfig.Config curConfig,
+                long backupLastModifiedDate) {
+            this.mBackupMap = backupMap;
+            this.mCurConfig = curConfig;
+            this.mBackupLastModifiedDate = backupLastModifiedDate;
+        }
+    }
+
+    private UpdateBackup validateRequestsAndBackup(List<FontUpdateRequest> requests)
+            throws SystemFontException {
         for (FontUpdateRequest request : requests) {
             switch (request.getType()) {
                 case FontUpdateRequest.TYPE_UPDATE_FONT_FILE:
@@ -288,13 +330,27 @@ final class UpdatableFontDir {
         // Backup the mapping for rollback.
         ArrayMap<String, FontFileInfo> backupMap = new ArrayMap<>(mFontFileInfoMap);
         PersistentSystemFontConfig.Config curConfig = readPersistentConfig();
+        long backupLastModifiedDate = mLastModifiedMillis;
+        return new UpdateBackup(backupMap, curConfig, backupLastModifiedDate);
+    }
+
+    /**
+     * Applies multiple {@link FontUpdateRequest}s in transaction.
+     * If one of the request fails, the fonts and config are rolled back to the previous state
+     * before this method is called.
+     */
+    public void update(List<FontUpdateRequest> requests) throws SystemFontException {
+        UpdateBackup backup = validateRequestsAndBackup(requests);
+        ArrayMap<String, FontFileInfo> backupMap = backup.mBackupMap;
+        PersistentSystemFontConfig.Config curConfig = backup.mCurConfig;
+        long backupLastModifiedDate = backup.mBackupLastModifiedDate;
+
         Map<String, FontUpdateRequest.Family> familyMap = new HashMap<>();
         for (int i = 0; i < curConfig.fontFamilies.size(); ++i) {
             FontUpdateRequest.Family family = curConfig.fontFamilies.get(i);
             familyMap.put(family.getName(), family);
         }
 
-        long backupLastModifiedDate = mLastModifiedMillis;
         boolean success = false;
         try {
             for (FontUpdateRequest request : requests) {
@@ -328,11 +384,179 @@ final class UpdatableFontDir {
                 newConfig.updatedFontDirs.add(info.getRandomizedFontDir().getName());
             }
             newConfig.fontFamilies.addAll(familyMap.values());
+            newConfig.prioritizedFamilyList.addAll(curConfig.prioritizedFamilyList);
             writePersistentConfig(newConfig);
             mConfigVersion++;
             success = true;
         } finally {
             if (!success) {
+                mFontFileInfoMap.clear();
+                mFontFileInfoMap.putAll(backupMap);
+                mLastModifiedMillis = backupLastModifiedDate;
+            }
+        }
+    }
+
+    private FontConfig.FontFamily resolveFontFilesForUnnamedFamily(
+            FontUpdateRequest.Family fontFamily) {
+        List<FontUpdateRequest.Font> fontList = fontFamily.getFonts();
+        if (fontFamily.getLang() == null || fontList.isEmpty()) {
+            Slog.e(TAG, "font family doesn't have a lang tag or font list is empty.");
+            return null;
+        }
+        List<FontConfig.Font> resolvedFonts = new ArrayList<>(fontList.size());
+        for (int i = 0; i < fontList.size(); i++) {
+            FontUpdateRequest.Font font = fontList.get(i);
+            FontFileInfo info = mFontFileInfoMap.get(font.getPostScriptName());
+            File fontFile = null;
+            String postScriptName = font.getPostScriptName();
+
+            if (info != null) {
+                fontFile = info.mFile;
+            } else {
+                // If not found in updatable fonts, check preinstalled system fonts.
+                FontConfig systemFontConfig = mConfigSupplier.apply(Collections.emptyMap());
+                FontConfig.Font systemFont = getFontByPostScriptName(
+                        postScriptName, systemFontConfig);
+                if (systemFont != null) {
+                    fontFile = systemFont.getFile();
+                }
+            }
+
+            if (fontFile == null) {
+                Slog.e(TAG, "Failed to lookup font file that has " + postScriptName);
+                return null;
+            }
+
+            resolvedFonts.add(new FontConfig.Font(fontFile, null, postScriptName,
+                    font.getFontStyle(), font.getIndex(), font.getFontVariationSettings(),
+                    null /* family name */, FontConfig.Font.VAR_TYPE_AXES_NONE));
+        }
+        return new FontConfig.FontFamily(resolvedFonts,
+                fontFamily.getLang(), FontConfig.FontFamily.VARIANT_DEFAULT,
+                fontFamily.getPriority());
+    }
+
+    /**
+     * Atomically adds a new dynamic font fallback chain to the system.
+     *
+     * This method adds a new prioritized font family list to the existing set of dynamic fallbacks.
+     * The order of the families within the fallback list determines their fallback priority. For
+     * any given language script (e.g., "und-Zsye"), the families in this list will be checked
+     * before the system's preinstalled fallback fonts for that script.
+     *
+     * The {@link android.graphics.fonts.FallbackFontUpdateRequest} has the priority attribute to
+     * represent the priority of the new fallback. The new font family fallback can only be added
+     * with a higher priority value than any existing ones.
+     *
+     * This operation is transactional. If any font referenced in the families does not exist
+     * or if the request is invalid, the entire operation will fail and the existing dynamic
+     * fallback configuration will be preserved.
+     *
+     * @param fallbackRequests A list of {@link android.graphics.fonts.FallbackFontUpdateRequest}
+     *                         objects. Each request must contain an unnamed family with a 'lang'
+     *                         tag. For the requests with the same 'lang' tag, they have to be
+     *                         sorted by their priorities from low to high, otherwise
+     *                         {@link FontManager#RESULT_ERROR_DOWNGRADING} error will be returned.
+     *                         Font files referenced by these families must already be installed via
+     *                         the update() method.
+     * @throws SystemFontException if the update fails due to a downgrade or invalid configuration.
+     */
+    public void updateFontFallbacks(List<FontUpdateRequest> fallbackRequests)
+            throws SystemFontException {
+        // 1. Validate and Backup
+        UpdateBackup backup = validateRequestsAndBackup(Collections.emptyList());
+        ArrayMap<String, FontFileInfo> backupMap = backup.mBackupMap;
+        PersistentSystemFontConfig.Config curConfig = backup.mCurConfig;
+        long backupLastModifiedDate = backup.mBackupLastModifiedDate;
+
+        // Additional validation for fallback requests
+        for (FontUpdateRequest request : fallbackRequests) {
+            if (request.getType() != FontUpdateRequest.TYPE_UPDATE_FONT_FAMILY) {
+                throw new SystemFontException(FontManager.RESULT_ERROR_INVALID_ARGUMENT,
+                        "Only font family updates are allowed for fallback configuration.");
+            }
+            FontUpdateRequest.Family family = request.getFontFamily();
+            if (family.getName() != null && !family.getName().isEmpty()) {
+                throw new SystemFontException(FontManager.RESULT_ERROR_INVALID_ARGUMENT,
+                        "Fallback families must be unnamed.");
+            }
+            if (family.getLang() == null) {
+                throw new SystemFontException(FontManager.RESULT_ERROR_INVALID_ARGUMENT,
+                        "Fallback families must have a 'lang' attribute.");
+            }
+        }
+        FontConfig preinstalledFontConfig = mConfigSupplier.apply(Collections.emptyMap());
+        int maxCount = getMaxPrioritizedUnnamedFamilyCount(preinstalledFontConfig);
+        if (curConfig.prioritizedFamilyList.size() + fallbackRequests.size() > maxCount) {
+            throw new SystemFontException(FontManager.RESULT_ERROR_INVALID_ARGUMENT,
+                    "Too many fallback font update requests: " + fallbackRequests.size()
+                            + ", current: " + curConfig.prioritizedFamilyList.size()
+                            + ", max: " + maxCount);
+        }
+
+        boolean success = false;
+        try {
+            // 2. Prepare for update
+            List<PersistentSystemFontConfig.PrioritizedFamily> newFallbackList =
+                    new ArrayList<>(curConfig.prioritizedFamilyList);
+            Map<String, Integer> maxPriorities = new HashMap<>();
+            for (PersistentSystemFontConfig.PrioritizedFamily prioritizedFamily : newFallbackList) {
+                FontUpdateRequest.Family family = prioritizedFamily.family;
+                String lang = family.getLang().toLanguageTags();
+                maxPriorities.put(lang, Math.max(maxPriorities.getOrDefault(lang, 0),
+                        prioritizedFamily.priority));
+            }
+
+            // 3. Process Requests
+            for (FontUpdateRequest request : fallbackRequests) {
+                FontUpdateRequest.Family newFamily = request.getFontFamily();
+                String lang = newFamily.getLang().toLanguageTags();
+                // -1 if no existing fallback
+                int currentMaxPriority = maxPriorities.getOrDefault(lang, -1);
+
+                if (newFamily.getPriority() <= currentMaxPriority) {
+                    throw new SystemFontException(
+                            FontManager.RESULT_ERROR_DOWNGRADING,
+                            "Fallback priority must be higher than existing ones for " + lang
+                                    + ". New: " + newFamily.getPriority()
+                                    + ", Existing Max: " + currentMaxPriority);
+                }
+
+                // Verify that all fonts in the family are available.
+                if (resolveFontFilesForUnnamedFamily(newFamily) == null) {
+                    throw new SystemFontException(
+                            FontManager.RESULT_ERROR_FONT_NOT_FOUND,
+                            "A font in the fallback family for '" + lang + "' was not found.");
+                }
+
+                // Add the new family to our list
+                PersistentSystemFontConfig.PrioritizedFamily prioritizedFamily =
+                        new PersistentSystemFontConfig.PrioritizedFamily();
+                prioritizedFamily.priority = newFamily.getPriority();
+                prioritizedFamily.family = newFamily;
+                newFallbackList.add(prioritizedFamily);
+
+                // Update the max priority for this language tag for subsequent checks in this
+                // transaction
+                maxPriorities.put(lang, newFamily.getPriority());
+            }
+
+            // 4. Commit Changes
+            mLastModifiedMillis = mCurrentTimeSupplier.get();
+            PersistentSystemFontConfig.Config newConfig = new PersistentSystemFontConfig.Config();
+            newConfig.lastModifiedMillis = mLastModifiedMillis;
+            newConfig.updatedFontDirs.addAll(curConfig.updatedFontDirs);
+            newConfig.fontFamilies.addAll(curConfig.fontFamilies); // Keep named families
+            newConfig.prioritizedFamilyList.addAll(newFallbackList); // Add the new fallbacks
+
+            writePersistentConfig(newConfig);
+            mConfigVersion++;
+            success = true;
+        } finally {
+            // 5. Rollback on Failure
+            if (!success) {
+                Slog.w(TAG, "updateFontFallbacks failed, configuration is not changed.");
                 mFontFileInfoMap.clear();
                 mFontFileInfoMap.putAll(backupMap);
                 mLastModifiedMillis = backupLastModifiedDate;
@@ -441,7 +665,8 @@ final class UpdatableFontDir {
             }
 
             FontConfig fontConfig = getSystemFontConfig();
-            if (!addFileToMapIfSameOrNewer(fontFileInfo, fontConfig, false)) {
+            if (!addFileToMapIfSameOrNewer(fontFileInfo, /* prioritizedFamily= */null, fontConfig,
+                    /* deleteOldFile= */ false)) {
                 throw new SystemFontException(
                         FontManager.RESULT_ERROR_DOWNGRADING,
                         "Downgrading font file is forbidden.");
@@ -480,24 +705,61 @@ final class UpdatableFontDir {
         mFontFileInfoMap.put(info.getPostScriptName(), info);
     }
 
+    private long getPreinstalledDefaultEmojiRevision(FontConfig fontConfig) {
+        for (FontConfig.FontFamily fontFamily : fontConfig.getFontFamilies()) {
+            if (EMOJI_LANG.equals(fontFamily.getLocaleList().toLanguageTags())) {
+                for (FontConfig.Font font : fontFamily.getFontList()) {
+                    if (font.getPostScriptName().equals(EMOJI_DEFAULT_POSTSCRIPT_NAME)) {
+                        return getPreinstalledFontRevision(font.getPostScriptName(), fontConfig);
+                    }
+                }
+            }
+        }
+        return -1; // Not found
+    }
+
+    // check if the font file has the prioritizedFamily, if the prioritizedFamily is an
+    // emoji font, we need to verify the revision of the font.
+    private boolean isValidEmojiFontUpdate(FontFileInfo fontFileInfo,
+            @Nullable FontUpdateRequest.Family prioritizedFamily,
+            FontConfig fontConfig) {
+        if (prioritizedFamily != null
+                && prioritizedFamily.getLang() != null
+                && EMOJI_LANG.equals(prioritizedFamily.getLang().toLanguageTags())) {
+            long preInstalledDefaultFontRev = getPreinstalledDefaultEmojiRevision(fontConfig);
+            if (preInstalledDefaultFontRev != -1) {
+                return preInstalledDefaultFontRev <= fontFileInfo.getRevision();
+            }
+        }
+        return true;
+    }
+
     /**
      * Add the given {@link FontFileInfo} to {@link #mFontFileInfoMap} if its font revision is
      * equal to or higher than the revision of currently used font file (either in
      * {@link #mFontFileInfoMap} or {@code fontConfig}).
      */
-    private boolean addFileToMapIfSameOrNewer(FontFileInfo fontFileInfo, FontConfig fontConfig,
+    private boolean addFileToMapIfSameOrNewer(FontFileInfo fontFileInfo,
+            @Nullable FontUpdateRequest.Family prioritizedFamily, FontConfig fontConfig,
             boolean deleteOldFile) {
         FontFileInfo existingInfo = lookupFontFileInfo(fontFileInfo.getPostScriptName());
-        final boolean shouldAddToMap;
+        boolean shouldAddToMap;
         if (existingInfo == null) {
             // We got a new updatable font. We need to check if it's newer than preinstalled fonts.
             // Note that getPreinstalledFontRevision() returns -1 if there is no preinstalled font
             // with 'name'.
-            long preInstalledRev = getPreinstalledFontRevision(fontFileInfo, fontConfig);
+            long preInstalledRev = getPreinstalledFontRevision(
+                    fontFileInfo.getPostScriptName(), fontConfig);
             shouldAddToMap = preInstalledRev <= fontFileInfo.getRevision();
         } else {
             shouldAddToMap = existingInfo.getRevision() <= fontFileInfo.getRevision();
         }
+
+        if (Flags.insertFontFamily()) {
+            shouldAddToMap = shouldAddToMap
+                    && isValidEmojiFontUpdate(fontFileInfo, prioritizedFamily, fontConfig);
+        }
+
         if (shouldAddToMap) {
             if (deleteOldFile && existingInfo != null) {
                 FileUtils.deleteContentsAndDir(existingInfo.getRandomizedFontDir());
@@ -539,8 +801,7 @@ final class UpdatableFontDir {
         return targetFont;
     }
 
-    private long getPreinstalledFontRevision(FontFileInfo info, FontConfig fontConfig) {
-        String psName = info.getPostScriptName();
+    private long getPreinstalledFontRevision(String psName, FontConfig fontConfig) {
         FontConfig.Font targetFont = getFontByPostScriptName(psName, fontConfig);
 
         if (targetFont == null) {
@@ -628,11 +889,86 @@ final class UpdatableFontDir {
         return map;
     }
 
+    private static class PrioritizedResolvedUnnamedFamily {
+        public int priority;
+        public FontConfig.FontFamily family;
+    }
+
+    void addEmojiFontsToFallbackFamilyList(
+            List<PrioritizedResolvedUnnamedFamily> prioritizedFamilyList,
+            List<FontConfig.FontFamily> newFallbackFamilies) {
+        // Sort by priority in reverse order to process them in order.
+        // Because we are inserting emoji font based on the emoji postscript name, if we insert
+        // emoji font based on the reverse order, the highest priority font will come before the
+        // lowest priority font.
+        prioritizedFamilyList.sort((a, b) -> Integer.compare(b.priority, a.priority));
+
+        for (PrioritizedResolvedUnnamedFamily prioritizedResolvedUnnamedFamily
+                : prioritizedFamilyList) {
+            FontConfig.FontFamily resolvedFontFamily = prioritizedResolvedUnnamedFamily.family;
+            if (!Objects.equals(resolvedFontFamily.getLocaleList().toLanguageTags(), EMOJI_LANG)) {
+                continue;
+            }
+            int insertionIndex = -1;
+            // Find the insertion point: right before the "NotoColorEmoji" font family.
+            outer:
+            for (int i = 0; i < newFallbackFamilies.size(); i++) {
+                FontConfig.FontFamily fontFamily = newFallbackFamilies.get(i);
+                for (FontConfig.Font font : fontFamily.getFontList()) {
+                    if (EMOJI_DEFAULT_POSTSCRIPT_NAME.equals(font.getPostScriptName())) {
+                        insertionIndex = i;
+                        break outer;
+                    }
+                }
+            }
+            if (insertionIndex != -1) {
+                // Insert the resolved font family at the calculated position.
+                newFallbackFamilies.add(insertionIndex, resolvedFontFamily);
+            } else {
+                // If no NotoColorEmoji font is found, just add it to the end of the list.
+                newFallbackFamilies.add(resolvedFontFamily);
+            }
+        }
+    }
+
+    void addGeneralFontsToFallbackFamilyList(
+            List<PrioritizedResolvedUnnamedFamily> prioritizedFamilyList,
+            List<FontConfig.FontFamily> newFallbackFamilies) {
+        // Sort by priority to process them in order.
+        prioritizedFamilyList.sort((a, b) -> Integer.compare(a.priority, b.priority));
+
+        for (PrioritizedResolvedUnnamedFamily prioritizedResolvedUnnamedFamily
+                : prioritizedFamilyList) {
+            FontConfig.FontFamily resolvedFontFamily = prioritizedResolvedUnnamedFamily.family;
+            String lang = resolvedFontFamily.getLocaleList().toLanguageTags();
+            if (Objects.equals(lang, EMOJI_LANG)) {
+                continue;
+            }
+
+            int insertionIndex = -1;
+            // General case: insert before the first family with the same language tag.
+            for (int i = 0; i < newFallbackFamilies.size(); i++) {
+                if (lang.equals(newFallbackFamilies.get(i).getLocaleList().toLanguageTags())) {
+                    insertionIndex = i;
+                    break;
+                }
+            }
+            if (insertionIndex != -1) {
+                // Insert the resolved font family at the calculated position.
+                newFallbackFamilies.add(insertionIndex, resolvedFontFamily);
+            } else {
+                // If matching lang found, just add it to the end of the list.
+                newFallbackFamilies.add(resolvedFontFamily);
+            }
+        }
+    }
+
     /* package */ FontConfig getSystemFontConfig() {
         FontConfig config = mConfigSupplier.apply(getPostScriptMap());
         PersistentSystemFontConfig.Config persistentConfig = readPersistentConfig();
-        List<FontUpdateRequest.Family> families = persistentConfig.fontFamilies;
 
+        // First, handle the named families.
+        List<FontUpdateRequest.Family> families = persistentConfig.fontFamilies;
         List<FontConfig.NamedFamilyList> mergedFamilies =
                 new ArrayList<>(config.getNamedFamilyLists().size() + families.size());
         // We should keep the first font family (config.getFontFamilies().get(0)) because it's used
@@ -648,12 +984,63 @@ final class UpdatableFontDir {
             }
         }
 
+        if (Flags.insertFontFamily()) {
+            // Now, handle the fallback families, inserting the dynamic ones at the correct
+            // position. In general we insert updated fallback fonts before the corresponding
+            // fallback fonts based on lang. For Emoji, vendors may have put custom emojis before
+            // AOSP NotoColorEmoji. In that case, we insert updated emoji fonts between custom
+            // emojis and AOSP NotoColorEmoji.
+            List<FontConfig.FontFamily> newFallbackFamilies =
+                    new ArrayList<>(config.getFontFamilies());
+            List<PersistentSystemFontConfig.PrioritizedFamily> prioritizedFamilyList =
+                    persistentConfig.prioritizedFamilyList;
+
+            // Resolve all dynamic fallbacks into a single list.
+            List<PrioritizedResolvedUnnamedFamily> prioritizedUnnamedFamilies = new ArrayList<>();
+            for (PersistentSystemFontConfig.PrioritizedFamily prioritizedFamily :
+                    prioritizedFamilyList) {
+                FontUpdateRequest.Family family = prioritizedFamily.family;
+                FontConfig.FontFamily resolvedFontFamily = resolveFontFilesForUnnamedFamily(family);
+                if (resolvedFontFamily == null) {
+                    continue;
+                }
+                PrioritizedResolvedUnnamedFamily resolvedUnnamedFamily =
+                        new PrioritizedResolvedUnnamedFamily();
+                resolvedUnnamedFamily.priority = prioritizedFamily.priority;
+                resolvedUnnamedFamily.family = resolvedFontFamily;
+                prioritizedUnnamedFamilies.add(resolvedUnnamedFamily);
+            }
+
+            int maxCount = getMaxPrioritizedUnnamedFamilyCount(config);
+            if (prioritizedUnnamedFamilies.size() > maxCount) {
+                Slog.w(TAG, "Too many prioritized unnamed families: "
+                        + prioritizedUnnamedFamilies.size()
+                        + " > " + maxCount);
+                // Trim prioritizedUnnamedFamilies to maxCount.
+                prioritizedUnnamedFamilies
+                        .subList(maxCount, prioritizedUnnamedFamilies.size())
+                        .clear();
+            }
+            addEmojiFontsToFallbackFamilyList(
+                    prioritizedUnnamedFamilies, newFallbackFamilies);
+            addGeneralFontsToFallbackFamilyList(
+                    prioritizedUnnamedFamilies, newFallbackFamilies);
+            return new FontConfig(
+                    newFallbackFamilies, // Use the modified fallback list
+                    config.getAliases(),
+                    mergedFamilies,
+                    config.getLocaleFallbackCustomizations(),
+                    mLastModifiedMillis,
+                    mConfigVersion);
+        }
+
         return new FontConfig(
                 config.getFontFamilies(), config.getAliases(), mergedFamilies,
                 config.getLocaleFallbackCustomizations(), mLastModifiedMillis, mConfigVersion);
     }
 
-    private PersistentSystemFontConfig.Config readPersistentConfig() {
+    @VisibleForTesting
+    PersistentSystemFontConfig.Config readPersistentConfig() {
         PersistentSystemFontConfig.Config config = new PersistentSystemFontConfig.Config();
         try (FileInputStream fis = mConfigFile.openRead()) {
             PersistentSystemFontConfig.loadFromXml(fis, config);
@@ -710,5 +1097,46 @@ final class UpdatableFontDir {
         } catch (Throwable t) {
             Slog.w(TAG, "Failed to delete " + filesDir);
         }
+    }
+
+    private static int getMaxPrioritizedUnnamedFamilyCount(FontConfig config) {
+        int maxCount = MAX_FAMILY_COUNT
+                - getMaxNamedFamilyCount(config)
+                - getPreinstalledFallbackFamilyCount(config)
+                - Typeface.CustomFallbackBuilder.getMaxCustomFallbackCount();
+        return Math.max(maxCount, 0);
+    }
+
+    /** Returns the maximum possible number of named families in a Typeface object. */
+    private static int getMaxNamedFamilyCount(FontConfig config) {
+        int count = 0;
+        List<FontConfig.NamedFamilyList> namedFamilyLists = config.getNamedFamilyLists();
+        for (int i = 0; i < namedFamilyLists.size(); ++i) {
+            FontConfig.NamedFamilyList namedFamilyList = namedFamilyLists.get(i);
+            count = Math.max(count, namedFamilyList.getFamilies().size());
+        }
+        return count;
+    }
+
+    /** Returns the number of preinstalled fallback families in a Typeface object. */
+    private static int getPreinstalledFallbackFamilyCount(FontConfig config) {
+        int count = 0;
+        List<FontConfig.FontFamily> families = config.getFontFamilies();
+        for (int i = 0; i < families.size(); ++i) {
+            FontConfig.FontFamily fontFamily = families.get(i);
+            if (fontFamily.getPriority() <= 0) {
+                count++;
+            }
+        }
+        List<FontConfig.Customization.LocaleFallback> localeFallbacks =
+                config.getLocaleFallbackCustomizations();
+        for (int i = 0; i < localeFallbacks.size(); ++i) {
+            FontConfig.Customization.LocaleFallback localeFallback = localeFallbacks.get(i);
+            if (localeFallback.getOperation()
+                    != FontConfig.Customization.LocaleFallback.OPERATION_REPLACE) {
+                count++;
+            }
+        }
+        return count;
     }
 }

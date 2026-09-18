@@ -43,7 +43,6 @@ constructor(
     displayRepository: DisplayRepository,
     private val factory: LightBarControllerImpl.Factory,
     private val displayScopeRepository: PerDisplayRepository<CoroutineScope>,
-    private val statusBarModeRepositoryStore: StatusBarModeRepositoryStore,
     private val displaySubComponentRepository: PerDisplayRepository<SystemUIDisplaySubcomponent>,
 ) :
     LightBarControllerStore,
@@ -55,8 +54,7 @@ constructor(
     override fun createInstanceForDisplay(displayId: Int): LightBarController? {
         val displaySubComponent = displaySubComponentRepository[displayId] ?: return null
         val darkIconDispatcher = displaySubComponent.darkIconDispatcher
-        val statusBarModePerDisplayRepository =
-            statusBarModeRepositoryStore.forDisplay(displayId) ?: return null
+        val statusBarModePerDisplayRepository = displaySubComponent.statusBarModeRepo
         val displayScope = displayScopeRepository[displayId] ?: return null
         return factory
             .create(displayId, displayScope, darkIconDispatcher, statusBarModePerDisplayRepository)

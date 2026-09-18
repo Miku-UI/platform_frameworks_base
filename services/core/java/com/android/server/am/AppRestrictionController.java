@@ -69,20 +69,20 @@ import static android.os.PowerExemptionManager.REASON_CARRIER_PRIVILEGED_APP;
 import static android.os.PowerExemptionManager.REASON_COMPANION_DEVICE_MANAGER;
 import static android.os.PowerExemptionManager.REASON_DENIED;
 import static android.os.PowerExemptionManager.REASON_DEVICE_DEMO_MODE;
-import static android.os.PowerExemptionManager.REASON_DEVICE_OWNER;
+import static android.os.PowerExemptionManager.REASON_DEVICE_DPC;
 import static android.os.PowerExemptionManager.REASON_DISALLOW_APPS_CONTROL;
 import static android.os.PowerExemptionManager.REASON_DPO_PROTECTED_APP;
 import static android.os.PowerExemptionManager.REASON_OP_ACTIVATE_PLATFORM_VPN;
 import static android.os.PowerExemptionManager.REASON_OP_ACTIVATE_VPN;
 import static android.os.PowerExemptionManager.REASON_PROC_STATE_PERSISTENT;
 import static android.os.PowerExemptionManager.REASON_PROC_STATE_PERSISTENT_UI;
-import static android.os.PowerExemptionManager.REASON_PROFILE_OWNER;
 import static android.os.PowerExemptionManager.REASON_ROLE_DIALER;
 import static android.os.PowerExemptionManager.REASON_ROLE_EMERGENCY;
 import static android.os.PowerExemptionManager.REASON_SYSTEM_ALLOW_LISTED;
 import static android.os.PowerExemptionManager.REASON_SYSTEM_EXEMPT_APP_OP;
 import static android.os.PowerExemptionManager.REASON_SYSTEM_MODULE;
 import static android.os.PowerExemptionManager.REASON_SYSTEM_UID;
+import static android.os.PowerExemptionManager.REASON_USER_DPC;
 import static android.os.PowerExemptionManager.getExemptionReasonForStatsd;
 import static android.os.PowerExemptionManager.reasonCodeToString;
 import static android.os.Process.SYSTEM_UID;
@@ -138,6 +138,7 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Message;
 import android.os.PowerExemptionManager.ReasonCode;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -2833,14 +2834,20 @@ public final class AppRestrictionController {
     }
 
     boolean isOnDeviceIdleAllowlist(int uid) {
-        final int appId = UserHandle.getAppId(uid);
+        int appId = UserHandle.getAppId(uid);
+        if (Process.isPrivateComputeCoreUid(appId)) {
+            appId = UserHandle.getAppId(Process.getAppUidForPrivateComputeCoreUid(appId));
+        }
 
         return Arrays.binarySearch(mDeviceIdleAllowlist, appId) >= 0
                 || Arrays.binarySearch(mDeviceIdleExceptIdleAllowlist, appId) >= 0;
     }
 
     boolean isOnSystemDeviceIdleAllowlist(int uid) {
-        final int appId = UserHandle.getAppId(uid);
+        int appId = UserHandle.getAppId(uid);
+        if (Process.isPrivateComputeCoreUid(appId)) {
+            appId = UserHandle.getAppId(Process.getAppUidForPrivateComputeCoreUid(appId));
+        }
 
         return mSystemDeviceIdleAllowlist.contains(appId)
                 || mSystemDeviceIdleExceptIdleAllowlist.contains(appId);
@@ -2908,10 +2915,10 @@ public final class AppRestrictionController {
         }
         final ActivityManagerInternal am = mInjector.getActivityManagerInternal();
         if (am.isDeviceOwner(uid)) {
-            return REASON_DEVICE_OWNER;
+            return REASON_DEVICE_DPC;
         }
         if (am.isProfileOwner(uid)) {
-            return REASON_PROFILE_OWNER;
+            return REASON_USER_DPC;
         }
         final int uidProcState = am.getUidProcessState(uid);
         if (uidProcState <= PROCESS_STATE_PERSISTENT) {

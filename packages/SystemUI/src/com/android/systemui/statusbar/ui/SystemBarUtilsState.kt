@@ -46,7 +46,7 @@ constructor(
     @Assisted configurationController: ConfigurationController,
     proxy: SystemBarUtilsProxy,
 ) {
-    /** @see SystemBarUtils.getStatusBarHeight */
+    /** Returns the height of the status bar in px. @see SystemBarUtils.getStatusBarHeight */
     val statusBarHeight: Flow<Int> =
         configurationController.onConfigChanged
             .onStart<Any> { emit(Unit) }
@@ -57,6 +57,7 @@ constructor(
             .flowOn(bgContext)
             .conflate()
 
+    /** Returns the height of the status bar on keyguard in px. */
     val statusBarHeaderHeightKeyguard: Flow<Int> =
         configurationController.onConfigChanged
             .onStart<Any> { emit(Unit) }

@@ -27,6 +27,7 @@ class FakeBluetoothController : BluetoothController {
 
     private var callbacks = mutableListOf<Callback>()
     private var enabled = false
+    private var supportedProfiles = emptyList<Int>()
 
     override fun addCallback(listener: Callback) {
         callbacks += listener

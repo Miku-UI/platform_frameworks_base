@@ -293,6 +293,22 @@ public class IllustrationPreferenceTest {
     }
 
     @Test
+    public void onBindViewHolder_default_shouldNotApplyIlloColors() {
+        mPreference.onBindViewHolder(mViewHolder);
+
+        assertThat(mPreference.isApplyIlloColors()).isFalse();
+    }
+
+    @Test
+    public void onBindViewHolder_applyIlloColors_shouldReturnTrue() {
+        mPreference.applyIlloColors();
+
+        mPreference.onBindViewHolder(mViewHolder);
+
+        assertThat(mPreference.isApplyIlloColors()).isTrue();
+    }
+
+    @Test
     public void setContentDescription_getContentDescription_isEqual() {
         final String contentDesc = "content desc";
         mPreference.setContentDescription(contentDesc);

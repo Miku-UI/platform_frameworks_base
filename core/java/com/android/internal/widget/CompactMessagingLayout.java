@@ -16,11 +16,12 @@
 
 package com.android.internal.widget;
 
-import static com.android.internal.widget.flags.Flags.notificationTransparentBadgeRing;
+import static android.app.Flags.notificationTransparentBadgeRing;
 
 import android.app.Notification;
 import android.app.Notification.MessagingStyle;
 import android.app.Person;
+import android.app.SetNotificationBackgroundColorRefactor;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.drawable.Drawable;
@@ -121,6 +122,7 @@ public class CompactMessagingLayout extends FrameLayout {
      */
     @RemotableViewMethod
     public void setNotificationBackgroundColor(int color) {
+        SetNotificationBackgroundColorRefactor.assertInLegacyMode();
         mNotificationBackgroundColor =
                 notificationTransparentBadgeRing() ? android.R.color.transparent : color;
     }
@@ -191,7 +193,10 @@ public class CompactMessagingLayout extends FrameLayout {
 
             facePileTop.setImageDrawable(secondLastIconDrawable);
             facePileBottom.setImageDrawable(lastIconDrawable);
-            facePileBottomBg.setImageTintList(ColorStateList.valueOf(mNotificationBackgroundColor));
+            facePileBottomBg.setImageTintList(
+                ColorStateList.valueOf(SetNotificationBackgroundColorRefactor.isEnabled()
+                    ? android.R.color.transparent
+                    : mNotificationBackgroundColor));
             setSize(conversationFacePile, mFacePileSize);
             setSize(facePileBottom, mFacePileAvatarSize);
             setSize(facePileTop, mFacePileAvatarSize);

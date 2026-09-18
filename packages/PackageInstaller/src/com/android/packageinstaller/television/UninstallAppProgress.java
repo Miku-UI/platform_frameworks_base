@@ -35,8 +35,8 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.util.Log;
 import android.util.TypedValue;
-import android.view.KeyEvent;
 import android.widget.Toast;
+import android.window.OnBackInvokedDispatcher;
 
 import androidx.annotation.Nullable;
 
@@ -241,6 +241,18 @@ public class UninstallAppProgress extends Activity implements
     public void onCreate(Bundle icicle) {
         super.onCreate(icicle);
 
+        getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                () -> {
+                    if (mResultCode != -1) {
+                        // If installation is done, just set the result code
+                        setResult(mResultCode);
+                        finish();
+                    } else {
+                        // Ignore back key when installation is in progress
+                    }
+                });
+
         Intent intent = getIntent();
         mAppInfo = intent.getParcelableExtra(PackageUtil.INTENT_ATTR_APPLICATION_INFO);
         mCallback = intent.getParcelableExtra(PackageInstaller.EXTRA_CALLBACK,
@@ -298,7 +310,7 @@ public class UninstallAppProgress extends Activity implements
         } catch (EventResultPersister.OutOfIdsException e) {
             Log.e(TAG, "Fails to start uninstall", e);
             onResult(PackageInstaller.STATUS_FAILURE, PackageManager.DELETE_FAILED_INTERNAL_ERROR,
-                    null, 0);
+                    null, 0, null);
         }
 
         mHandler.sendMessageDelayed(mHandler.obtainMessage(UNINSTALL_IS_SLOW),
@@ -310,7 +322,8 @@ public class UninstallAppProgress extends Activity implements
     }
 
     @Override
-    public void onResult(int status, int legacyStatus, @Nullable String message, int serviceId) {
+    public void onResult(int status, int legacyStatus, @Nullable String message, int serviceId,
+            Intent intent) {
         Message msg = mHandler.obtainMessage(UNINSTALL_COMPLETE);
         msg.arg1 = legacyStatus;
         msg.obj = mAppInfo.packageName;
@@ -351,20 +364,6 @@ public class UninstallAppProgress extends Activity implements
         getFragmentManager().beginTransaction()
                 .add(android.R.id.content, new UninstallAppProgressFragment(), FRAGMENT_TAG)
                 .commitNowAllowingStateLoss();
-    }
-
-    @Override
-    public boolean dispatchKeyEvent(KeyEvent ev) {
-        if (ev.getKeyCode() == KeyEvent.KEYCODE_BACK) {
-            if (mResultCode == -1) {
-                // Ignore back key when installation is in progress
-                return true;
-            } else {
-                // If installation is done, just set the result code
-                setResult(mResultCode);
-            }
-        }
-        return super.dispatchKeyEvent(ev);
     }
 
     private ProgressFragment getProgressFragment() {

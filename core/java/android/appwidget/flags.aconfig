@@ -17,16 +17,6 @@ flag {
 }
 
 flag {
-  name: "remove_app_widget_service_io_from_critical_path"
-  namespace: "app_widgets"
-  description: "Move state file IO to non-critical path"
-  bug: "312949280"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "draw_data_parcel"
   is_exported: true
   namespace: "app_widgets"
@@ -112,11 +102,16 @@ flag {
 }
 
 flag {
-  name: "play_store_pin_widgets"
+  name: "app_lock_widget_removal"
   namespace: "app_widgets"
-  description: "Allow apps with INSTALL_PACKAGES to pin widgets for other packages"
-  bug: "414841181"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
+  description: "Remove app widgets from app-locked packages"
+  bug: "447547850"
+}
+
+flag {
+  name: "widget_display_changes"
+  namespace: "app_widgets"
+  description: "Adds better support for widgets on connected displays"
+  bug: "454438561"
+  is_exported: true
 }

@@ -37,8 +37,8 @@ import com.android.systemui.qs.panels.ui.compose.toolbar.TextFeedback.tag
 import com.android.systemui.qs.panels.ui.viewmodel.TextFeedbackViewModel
 
 @Composable
-fun TextFeedback(model: TextFeedbackViewModel, modifier: Modifier = Modifier) {
-    if (model is TextFeedbackViewModel.LoadedTextFeedback) {
+fun TextFeedback(viewModel: TextFeedbackViewModel, modifier: Modifier = Modifier) {
+    if (viewModel is TextFeedbackViewModel.LoadedTextFeedback) {
         Row(
             horizontalArrangement = spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -53,12 +53,12 @@ fun TextFeedback(model: TextFeedbackViewModel, modifier: Modifier = Modifier) {
                     .padding(horizontal = 8.dp),
         ) {
             Icon(
-                model.icon,
+                viewModel.model.icon,
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = model.text,
+                text = viewModel.model.text,
                 color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.labelMedium,
                 overflow = TextOverflow.Ellipsis,

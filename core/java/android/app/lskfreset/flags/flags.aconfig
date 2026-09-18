@@ -1,0 +1,9 @@
+package: "android.app.lskfreset.flags"
+container: "system"
+
+flag {
+    name: "enable_lskf_reset_manager"
+    namespace: "lskf_reset_manager"
+    description: "Enables LSKF Reset Manager service."
+    bug: "415960504"
+}

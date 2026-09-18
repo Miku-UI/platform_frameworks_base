@@ -17,13 +17,11 @@ package com.android.systemui.biometrics
 
 import android.content.packageManager
 import android.content.pm.PackageInfo
-import android.content.res.Configuration
 import android.content.testableContext
 import android.hardware.biometrics.BiometricAuthenticator
 import android.hardware.biometrics.BiometricConstants
 import android.hardware.biometrics.BiometricManager
 import android.hardware.biometrics.BiometricPrompt
-import android.hardware.biometrics.Flags
 import android.hardware.biometrics.PromptContentViewWithMoreOptionsButton
 import android.hardware.biometrics.PromptInfo
 import android.hardware.biometrics.PromptVerticalListContentView
@@ -48,9 +46,10 @@ import com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_PASSWORD
 import com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_PATTERN
 import com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_PIN
 import com.android.internal.widget.lockPatternUtils
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.biometrics.domain.interactor.promptSelectorInteractor
-import com.android.systemui.biometrics.ui.viewmodel.credentialViewModel
+import com.android.systemui.biometrics.ui.viewmodel.credentialViewModelFactory
 import com.android.systemui.biometrics.ui.viewmodel.fallbackViewModelFactory
 import com.android.systemui.biometrics.ui.viewmodel.promptViewModel
 import com.android.systemui.concurrency.fakeExecutor
@@ -196,24 +195,12 @@ open class AuthContainerViewTest : SysuiTestCase() {
 
         verify(callback, never()).onDialogAnimatedIn(anyLong(), anyBoolean())
 
-        container.addToView()
+        ViewUtils.attachView(container)
         waitForIdleSync()
 
         // attaching the view resets the state and allows this to happen again
         verify(callback)
             .onDialogAnimatedIn(authContainer?.requestId ?: 0L, true /* startFingerprintNow */)
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_BP_FALLBACK_OPTIONS)
-    @Ignore("b/430630633")
-    fun testIgnoresAnimatedInWhenDialogAnimatingOut() {
-        val container = initializeFingerprintContainer(addToView = false)
-        container.mContainerState = 4 // STATE_ANIMATING_OUT
-        container.addToView()
-        waitForIdleSync()
-
-        verify(callback, never()).onDialogAnimatedIn(anyLong(), anyBoolean())
     }
 
     @Test
@@ -295,7 +282,6 @@ open class AuthContainerViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_BP_FALLBACK_OPTIONS)
     fun testActionFallbackOption_sendsFallbackOption() {
         val container =
             initializeFingerprintContainer(
@@ -331,7 +317,6 @@ open class AuthContainerViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_BP_FALLBACK_OPTIONS)
     fun testActionCredentialMatched_doesNotDismissWhenCredentialNotAllowed() {
         val container =
             initializeFingerprintContainer(
@@ -378,60 +363,6 @@ open class AuthContainerViewTest : SysuiTestCase() {
 
         verify(callback).onDeviceCredentialPressed(authContainer?.requestId ?: 0L)
         assertThat(container.hasCredentialView()).isTrue()
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_BP_FALLBACK_OPTIONS)
-    @Ignore("b/430630633")
-    fun testAnimateToCredentialUI_invokesStartTransitionToCredentialUI() {
-        val container =
-            initializeFingerprintContainer(
-                authenticators =
-                    BiometricManager.Authenticators.BIOMETRIC_WEAK or
-                        BiometricManager.Authenticators.DEVICE_CREDENTIAL
-            )
-        container.animateToCredentialUI(false)
-        waitForIdleSync()
-
-        assertThat(container.hasCredentialView()).isTrue()
-        assertThat(container.hasBiometricPrompt()).isFalse()
-
-        // Check credential view persists after new attachment
-        container.onAttachedToWindow()
-
-        assertThat(container.hasCredentialView()).isTrue()
-        assertThat(container.hasBiometricPrompt()).isFalse()
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_BP_FALLBACK_OPTIONS)
-    @Ignore("b/430630633")
-    fun testAnimateToCredentialUI_rotateCredentialUI() {
-        val container =
-            initializeFingerprintContainer(
-                authenticators =
-                    BiometricManager.Authenticators.BIOMETRIC_WEAK or
-                        BiometricManager.Authenticators.DEVICE_CREDENTIAL
-            )
-        container.animateToCredentialUI(false)
-        waitForIdleSync()
-
-        assertThat(container.hasCredentialView()).isTrue()
-        assertThat(container.hasBiometricPrompt()).isFalse()
-
-        // Check credential view persists after new attachment
-        container.onAttachedToWindow()
-
-        assertThat(container.hasCredentialView()).isTrue()
-        assertThat(container.hasBiometricPrompt()).isFalse()
-
-        val configuration = Configuration(context.resources.configuration)
-        configuration.orientation = Configuration.ORIENTATION_LANDSCAPE
-        container.dispatchConfigurationChanged(configuration)
-        waitForIdleSync()
-
-        assertThat(container.hasCredentialView()).isTrue()
-        assertThat(container.hasBiometricPrompt()).isFalse()
     }
 
     @Test
@@ -511,11 +442,16 @@ open class AuthContainerViewTest : SysuiTestCase() {
             )
         waitForIdleSync()
 
-        assertThat(container.hasCredentialPatternView()).isTrue()
+        if (Flags.largeScreenBp()) {
+            assertThat(container.hasCredentialView()).isTrue()
+        } else {
+            assertThat(container.hasCredentialPatternView()).isTrue()
+        }
         assertThat(container.hasBiometricPrompt()).isFalse()
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_LARGE_SCREEN_BP)
     fun testCredentialUI_disablesClickingOnBackground() {
         val container = initializeCredentialPasswordContainer()
         assertThat(container.hasBiometricPrompt()).isFalse()
@@ -525,8 +461,127 @@ open class AuthContainerViewTest : SysuiTestCase() {
         container.findViewById<View>(R.id.background)?.performClick()
         waitForIdleSync()
 
-        assertThat(container.hasCredentialPasswordView()).isTrue()
+        if (Flags.largeScreenBp()) {
+            assertThat(container.hasCredentialView()).isTrue()
+        } else {
+            assertThat(container.hasCredentialPasswordView()).isTrue()
+        }
         assertThat(container.hasBiometricPrompt()).isFalse()
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LARGE_SCREEN_BP)
+    fun testWearDeviceUsesLegacyCredentialPatternView() {
+        testDeviceFeatureUsesLegacyCredentialPatternView(
+            android.content.pm.PackageManager.FEATURE_WATCH
+        )
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LARGE_SCREEN_BP)
+    fun testAutomotiveDeviceUsesLegacyCredentialPatternView() {
+        testDeviceFeatureUsesLegacyCredentialPatternView(
+            android.content.pm.PackageManager.FEATURE_AUTOMOTIVE
+        )
+    }
+
+    fun testDeviceFeatureUsesLegacyCredentialPatternView(deviceFeature: String) {
+        whenever(packageManager.hasSystemFeature(deviceFeature)).thenReturn(true)
+
+        whenever(userManager.getCredentialOwnerProfile(anyInt())).thenReturn(20)
+        whenever(lockPatternUtils.getCredentialTypeForUser(eq(20)))
+            .thenReturn(CREDENTIAL_TYPE_PATTERN)
+
+        // initializeFingerprintContainer handles boilerplate of creating the Config object, but we
+        // override authenticators with DEVICE_CREDENTIAL (non biometric) to end up with
+        // CREDENTIAL_TYPE_PATTERN
+        val container =
+            initializeFingerprintContainer(
+                authenticators = BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            )
+
+        assertThat(container.hasCredentialPatternView()).isTrue()
+        // compose view is not visible
+        assertThat(container.findViewById<View>(R.id.compose_credential_view)?.visibility)
+            .isNotEqualTo(View.VISIBLE)
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LARGE_SCREEN_BP)
+    fun testWearDeviceUsesLegacyCredentialViewPinView() {
+        // Test a watch device
+        testDeviceFeatureUsesLegacyCredentialViewPinView(
+            android.content.pm.PackageManager.FEATURE_WATCH
+        )
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LARGE_SCREEN_BP)
+    fun testAutomotiveDeviceUsesLegacyCredentialViewPinView() {
+        // Test an automotive device
+        testDeviceFeatureUsesLegacyCredentialViewPinView(
+            android.content.pm.PackageManager.FEATURE_AUTOMOTIVE
+        )
+    }
+
+    fun testDeviceFeatureUsesLegacyCredentialViewPinView(deviceFeature: String) {
+        // GIVEN a specific device feature
+        whenever(packageManager.hasSystemFeature(deviceFeature)).thenReturn(true)
+
+        whenever(userManager.getCredentialOwnerProfile(anyInt())).thenReturn(20)
+        whenever(lockPatternUtils.getCredentialTypeForUser(eq(20))).thenReturn(CREDENTIAL_TYPE_PIN)
+
+        // initializeFingerprintContainer handles boilerplate of creating the Config object, but we
+        // override authenticators with DEVICE_CREDENTIAL (non biometric) to end up with
+        // CREDENTIAL_TYPE_PIN
+        val container =
+            initializeFingerprintContainer(
+                authenticators = BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            )
+
+        // legacy PIN view is shown (checked via lockPassword ID)
+        assertThat(container.hasCredentialPasswordView()).isTrue()
+        // compose view is not visible
+        assertThat(container.findViewById<View>(R.id.compose_credential_view)?.visibility)
+            .isNotEqualTo(View.VISIBLE)
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LARGE_SCREEN_BP)
+    fun testWearDevicePanelNotConstrainedToComposeView() {
+        testDeviceFeaturePanelNotConstrainedToComposeView(
+            android.content.pm.PackageManager.FEATURE_WATCH
+        )
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LARGE_SCREEN_BP)
+    fun testAutomotiveDevicePanelNotConstrainedToComposeView() {
+        testDeviceFeaturePanelNotConstrainedToComposeView(
+            android.content.pm.PackageManager.FEATURE_AUTOMOTIVE
+        )
+    }
+
+    fun testDeviceFeaturePanelNotConstrainedToComposeView(deviceFeature: String) {
+        whenever(packageManager.hasSystemFeature(deviceFeature)).thenReturn(true)
+        whenever(userManager.getCredentialOwnerProfile(anyInt())).thenReturn(20)
+        whenever(lockPatternUtils.getCredentialTypeForUser(eq(20))).thenReturn(CREDENTIAL_TYPE_PIN)
+
+        val container =
+            initializeFingerprintContainer(
+                authenticators = BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            )
+        waitForIdleSync()
+
+        val panel = container.findViewById<View>(R.id.panel)
+        val params = panel.layoutParams as ConstraintLayout.LayoutParams
+        val composeViewId = R.id.compose_credential_view
+
+        // The panel should NOT be constrained to the compose view.
+        assertThat(params.topToTop).isNotEqualTo(composeViewId)
+        assertThat(params.bottomToBottom).isNotEqualTo(composeViewId)
+        assertThat(params.startToStart).isNotEqualTo(composeViewId)
+        assertThat(params.endToEnd).isNotEqualTo(composeViewId)
     }
 
     @Test
@@ -580,6 +635,17 @@ open class AuthContainerViewTest : SysuiTestCase() {
         verify(callback).onTryAgainPressed(authContainer?.requestId ?: 0L)
     }
 
+    @Test
+    fun testDelayedFingerprintStartWhenFaceFastFails() {
+        val container = initializeCoexContainer(addToView = false)
+
+        container.onAuthenticationFailed(BiometricAuthenticator.TYPE_FACE, "failed")
+
+        container.addToView()
+
+        verify(callback).onDialogAnimatedIn(authContainer?.requestId ?: 0L, true)
+    }
+
     private fun initializeCredentialPasswordContainer(
         addToView: Boolean = true
     ): TestAuthContainerView {
@@ -596,7 +662,11 @@ open class AuthContainerViewTest : SysuiTestCase() {
             )
         waitForIdleSync()
 
-        assertThat(container.hasCredentialPasswordView()).isTrue()
+        if (Flags.largeScreenBp()) {
+            assertThat(container.hasCredentialView()).isTrue()
+        } else {
+            assertThat(container.hasCredentialPasswordView()).isTrue()
+        }
         return container
     }
 
@@ -678,7 +748,7 @@ open class AuthContainerViewTest : SysuiTestCase() {
             kosmos.promptViewModel.apply {
                 this.iconViewModel.internal.activateIn(kosmos.testScope)
             },
-            { kosmos.credentialViewModel },
+            kosmos.credentialViewModelFactory,
             kosmos.fakeExecutor,
             kosmos.vibratorHelper,
             kosmos.msdlPlayer,
@@ -726,12 +796,12 @@ private fun AuthContainerView.hasConstraintBiometricPrompt() =
 private fun AuthContainerView.hasBiometricPrompt() =
     (findViewById<ScrollView>(R.id.biometric_scrollview)?.childCount ?: 0) > 0
 
-private fun AuthContainerView.hasCredentialView() =
-    if (Flags.bpFallbackOptions()) {
-        (findViewById<View>(R.id.credential_view)?.visibility ?: View.GONE) == View.VISIBLE
-    } else {
-        hasCredentialPatternView() || hasCredentialPasswordView()
-    }
+private fun AuthContainerView.hasCredentialView(): Boolean {
+    val legacy = findViewById<View>(R.id.credential_view)
+    val compose = findViewById<View>(R.id.compose_credential_view)
+
+    return (legacy?.visibility == View.VISIBLE) || (compose?.visibility == View.VISIBLE)
+}
 
 private fun AuthContainerView.hasCredentialPatternView() =
     findViewById<View>(R.id.lockPattern) != null

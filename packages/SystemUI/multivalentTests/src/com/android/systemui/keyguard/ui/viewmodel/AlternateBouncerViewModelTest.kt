@@ -28,6 +28,8 @@ import com.android.systemui.bouncer.domain.interactor.primaryBouncerInteractor
 import com.android.systemui.concurrency.fakeExecutor
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.flags.DisableSceneContainer
+import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFaceAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.dismissCallbackRegistry
@@ -60,7 +62,7 @@ class AlternateBouncerViewModelTest : SysuiTestCase() {
     private val testScope = kosmos.testScope
     private val transitionRepository = kosmos.fakeKeyguardTransitionRepository
     private val statusBarKeyguardViewManager = kosmos.statusBarKeyguardViewManager
-    private val underTest = kosmos.alternateBouncerViewModel
+    private val underTest: AlternateBouncerViewModel by lazy { kosmos.alternateBouncerViewModel }
 
     @Test
     fun onTapped() =
@@ -74,7 +76,7 @@ class AlternateBouncerViewModelTest : SysuiTestCase() {
     fun onRemovedFromWindow() =
         testScope.runTest {
             underTest.onRemovedFromWindow()
-            verify(statusBarKeyguardViewManager).hideAlternateBouncer(any())
+            verify(statusBarKeyguardViewManager).hideAlternateBouncer(any(), eq(false))
         }
 
     @Test
@@ -91,7 +93,7 @@ class AlternateBouncerViewModelTest : SysuiTestCase() {
 
             underTest.onBackRequested()
             kosmos.fakeExecutor.runAllReady()
-            verify(statusBarKeyguardViewManager).hideAlternateBouncer(any())
+            verify(statusBarKeyguardViewManager).hideAlternateBouncer(any(), eq(true))
             verify(dismissCallback).onDismissCancelled()
             assertThat(kosmos.primaryBouncerInteractor.bouncerDismissAction).isNull()
         }
@@ -163,8 +165,9 @@ class AlternateBouncerViewModelTest : SysuiTestCase() {
             assertThat(registerForDismissGestures).isFalse()
         }
 
+    @EnableSceneContainer
     @Test
-    fun strongFaceAuthLockout_showPrimaryBouncer() =
+    fun activate_strongFaceAuthLockout_showPrimaryBouncer() =
         testScope.runTest {
             underTest.activateIn(this)
             setFaceAuthSensor(strength = SensorStrength.STRONG)
@@ -176,8 +179,18 @@ class AlternateBouncerViewModelTest : SysuiTestCase() {
                 .showPrimaryBouncer(anyBoolean(), anyString())
         }
 
+    @DisableSceneContainer
     @Test
-    fun weakFaceAuthLockout_doNotShowPrimaryBouncer() =
+    fun strongFaceAuthLockout_showPrimaryBouncer() =
+        testScope.runTest {
+            underTest.onStrongFaceAuthLockout()
+            verify(kosmos.statusBarKeyguardViewManager)
+                .showPrimaryBouncer(anyBoolean(), anyString())
+        }
+
+    @EnableSceneContainer
+    @Test
+    fun activate_weakFaceAuthLockout_doNotShowPrimaryBouncer() =
         testScope.runTest {
             underTest.activateIn(this)
             setFaceAuthSensor(strength = SensorStrength.WEAK)
@@ -189,6 +202,7 @@ class AlternateBouncerViewModelTest : SysuiTestCase() {
                 .showPrimaryBouncer(anyBoolean(), anyString())
         }
 
+    @EnableSceneContainer
     @Test
     fun convenienceFaceAuthLockout_doNotShowPrimaryBouncer() =
         testScope.runTest {

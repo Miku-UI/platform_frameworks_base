@@ -207,6 +207,198 @@ public final class AidlConversionUnitTests {
     }
 
     @Test
+    public void testAudioFormatConversionAidlDefaultBuilder() {
+        final AudioConfigBase aidl = AidlConversion.api2aidl_AudioFormat_AudioConfigBase(
+                new AudioFormat.Builder().build(), false /*isInput*/);
+        final AudioConfigBase aidlInput = AidlConversion.api2aidl_AudioFormat_AudioConfigBase(
+                new AudioFormat.Builder().build(), true /*isInput*/);
+        assertEquals(aidl, aidlInput);
+        // TODO(b/460406727): use AIDL constants once they're available
+        assertEquals(0, aidl.sampleRate);
+        assertEquals(AudioFormatType.SYS_RESERVED_INVALID, aidl.format.type);
+        assertEquals(AudioChannelLayout.none(0), aidl.channelMask);
+    }
+
+    @Test
+    public void testAudioFormatConversionAidlSampleRateAndEncodingUnspecified() {
+        final AudioFormat api = new AudioFormat.Builder()
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .build();
+        final AudioConfigBase aidl = AidlConversion.api2aidl_AudioFormat_AudioConfigBase(
+                api, false /*isInput*/);
+        // TODO(b/460406727): use AIDL constants once they're available
+        assertEquals(0, aidl.sampleRate);
+        assertEquals(AudioFormatType.SYS_RESERVED_INVALID, aidl.format.type);
+        assertEquals(AudioChannelLayout.layoutMask(AudioChannelLayout.LAYOUT_MONO),
+                aidl.channelMask);
+    }
+
+    @Test
+    public void testAudioFormatConversionAidlChannelIndexMask() {
+        final int testSampleRate = 10000;
+        final int testChannelIndexMask = (1 << 6) - 1; // 6 channels
+        final AudioFormat api = new AudioFormat.Builder()
+                .setSampleRate(testSampleRate)
+                .setChannelIndexMask(testChannelIndexMask)
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .build();
+        final AudioConfigBase aidl = AidlConversion.api2aidl_AudioFormat_AudioConfigBase(
+                api, false /*isInput*/);
+        final AudioConfigBase aidlInput = AidlConversion.api2aidl_AudioFormat_AudioConfigBase(
+                api, true /*isInput*/);
+        assertEquals(aidl, aidlInput);
+        assertEquals(testSampleRate, aidl.sampleRate);
+        assertEquals(AudioChannelLayout.indexMask(AudioChannelLayout.INDEX_MASK_6),
+                aidl.channelMask);
+        assertEquals(createPcm16FormatAidl(), aidl.format);
+    }
+
+    @Test
+    public void testAudioFormatConversionAidlChannelLayoutOutputMask() {
+        final int testSampleRate = 8000;
+        final AudioFormat api = new AudioFormat.Builder()
+                .setSampleRate(testSampleRate)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO | AudioFormat.CHANNEL_OUT_HAPTIC_A)
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .build();
+        final AudioConfigBase aidl = AidlConversion.api2aidl_AudioFormat_AudioConfigBase(
+                api, false /*isInput*/);
+        assertEquals(testSampleRate, aidl.sampleRate);
+        assertEquals(AudioChannelLayout.layoutMask(AudioChannelLayout.LAYOUT_MONO_HAPTIC_A),
+                aidl.channelMask);
+        assertEquals(createPcm16FormatAidl(), aidl.format);
+    }
+
+    @Test
+    public void testAudioFormatConversionAidlChannelLayoutInputMask() {
+        final int testSampleRate = 9000;
+        final AudioFormat api = new AudioFormat.Builder()
+                .setSampleRate(testSampleRate)
+                .setChannelMask(AudioFormat.CHANNEL_IN_MONO)
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .build();
+        final AudioConfigBase aidl = AidlConversion.api2aidl_AudioFormat_AudioConfigBase(
+                api, true /*isInput*/);
+        assertEquals(testSampleRate, aidl.sampleRate);
+        assertEquals(AudioChannelLayout.layoutMask(AudioChannelLayout.LAYOUT_MONO),
+                aidl.channelMask);
+        assertEquals(createPcm16FormatAidl(), aidl.format);
+    }
+
+    @Test
+    public void testAudioFormatConversionAidlVoiceChannel() {
+        final int testSampleRate = 11000;
+        final AudioFormat api = new AudioFormat.Builder()
+                .setSampleRate(testSampleRate)
+                .setChannelMask(AudioFormat.CHANNEL_IN_MONO | AudioFormat.CHANNEL_IN_VOICE_UPLINK)
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .build();
+        final AudioConfigBase aidl = AidlConversion.api2aidl_AudioFormat_AudioConfigBase(
+                api, true /*isInput*/);
+        assertEquals(testSampleRate, aidl.sampleRate);
+        assertEquals(AudioChannelLayout.voiceMask(AudioChannelLayout.VOICE_UPLINK_MONO),
+                aidl.channelMask);
+        assertEquals(createPcm16FormatAidl(), aidl.format);
+    }
+
+    @Test
+    public void testAudioFormatConversionAidlChannelIndexAndLayoutMasks() {
+        final int testSampleRate = 11000;
+        final int testChannelIndexMask = (1 << 6) - 1; // 6 channels
+        final AudioFormat api = new AudioFormat.Builder()
+                .setSampleRate(testSampleRate)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_5POINT1)
+                .setChannelIndexMask(testChannelIndexMask)
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .build();
+        final AudioConfigBase aidl = AidlConversion.api2aidl_AudioFormat_AudioConfigBase(
+                api, false /*isInput*/);
+        final AudioConfigBase aidlInput = AidlConversion.api2aidl_AudioFormat_AudioConfigBase(
+                api, true /*isInput*/);
+        // Index Mask takes precedence over Layout Mask, isInput is irrelevant for index masks.
+        assertEquals(aidl, aidlInput);
+        assertEquals(testSampleRate, aidl.sampleRate);
+        assertEquals(AudioChannelLayout.indexMask(AudioChannelLayout.INDEX_MASK_6),
+                aidl.channelMask);
+        assertEquals(createPcm16FormatAidl(), aidl.format);
+    }
+
+    @Test
+    public void testAudioChannelConversionApiAcn() {
+        // Full sphere, Order 1 -> 4 channels
+        final int channelCount = AudioChannelLayout.Ambisonics.FULL_SPHERE_CHANNEL_COUNT_ORDER_1;
+        // Layout FULL_SPHERE is 0, so acnValue is just the channel count
+        final int acnValue = channelCount;
+        final AudioChannelLayout aidl = AudioChannelLayout.acnMask(acnValue);
+
+        final int api = AidlConversion.aidl2api_AudioChannelLayout_AudioFormatChannelMask(
+                aidl, false /*isInput*/);
+        // Should match CHANNEL_ACN_ORDER_1 (4)
+        assertEquals(AudioFormat.CHANNEL_ACN_ORDER_1, api);
+    }
+
+    @Test
+    public void testAudioChannelConversionApiAcnHorizontal() {
+        // Horizontal, Order 1 -> 3 channels
+        final int channelCount = AudioChannelLayout.Ambisonics.HORIZONTAL_CHANNEL_COUNT_ORDER_1;
+        final int layout = AudioChannelLayout.Ambisonics.SourceLayout.HORIZONTAL;
+        final int acnValue = channelCount
+                | (layout << AudioChannelLayout.ACN_SOURCE_LAYOUT_BIT_SHIFT);
+        final AudioChannelLayout aidl = AudioChannelLayout.acnMask(acnValue);
+
+        final int api = AidlConversion.aidl2api_AudioChannelLayout_AudioFormatChannelMask(
+                aidl, false /*isInput*/);
+        // Should match CHANNEL_ACN_ORDER_1_HRZ (515)
+        assertEquals(AudioFormat.CHANNEL_ACN_ORDER_1_HRZ, api);
+    }
+
+    @Test
+    public void testAudioConfigConversionApiAcn() {
+        final AudioConfig aidl = new AudioConfig();
+        aidl.base = new AudioConfigBase();
+        aidl.base.sampleRate = 48000;
+
+        // Full sphere, Order 2 -> 9 channels
+        final int acnValue = AudioChannelLayout.Ambisonics.FULL_SPHERE_CHANNEL_COUNT_ORDER_2;
+        aidl.base.channelMask = AudioChannelLayout.acnMask(acnValue);
+        aidl.base.format = createPcm16FormatAidl();
+
+        final AudioFormat api = AidlConversion.aidl2api_AudioConfig_AudioFormat(
+                aidl, false /*isInput*/);
+
+        assertEquals(48000, api.getSampleRate());
+        assertEquals(AudioFormat.CHANNEL_ACN_ORDER_2, api.getChannelAcnMask());
+        assertEquals(AudioFormat.ENCODING_PCM_16BIT, api.getEncoding());
+
+        // Verify other mask types are not set
+        assertEquals(AudioFormat.CHANNEL_INVALID, api.getChannelMask());
+        assertEquals(0, api.getChannelIndexMask());
+    }
+
+    @Test
+    public void testAudioFormatConversionAidlChannelAcnMask() {
+        final int testSampleRate = 44100;
+        final AudioFormat api = new AudioFormat.Builder()
+                .setSampleRate(testSampleRate)
+                .setChannelAcnMask(AudioFormat.CHANNEL_ACN_ORDER_1) // 4 channels
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .build();
+
+        final AudioConfigBase aidl = AidlConversion.api2aidl_AudioFormat_AudioConfigBase(
+                api, false /*isInput*/);
+        final AudioConfigBase aidlInput = AidlConversion.api2aidl_AudioFormat_AudioConfigBase(
+                api, true /*isInput*/);
+
+        // Check equality
+        assertEquals(aidl, aidlInput);
+        assertEquals(testSampleRate, aidl.sampleRate);
+
+        // Verify AIDL channel mask
+        assertEquals(AudioChannelLayout.acnMask(4), aidl.channelMask);
+        assertEquals(createPcm16FormatAidl(), aidl.format);
+    }
+
+    @Test
     public void testAudioFormatConversionApiDefault() {
         final AudioFormatDescription aidl = new AudioFormatDescription();
         final int api = AidlConversion.aidl2api_AudioFormat_AudioFormatEncoding(aidl);
@@ -227,6 +419,33 @@ public final class AidlConversionUnitTests {
         aidl.encoding = MediaFormat.MIMETYPE_AUDIO_AAC_LC;
         final int api = AidlConversion.aidl2api_AudioFormat_AudioFormatEncoding(aidl);
         assertEquals(AudioFormat.ENCODING_AAC_LC, api);
+    }
+
+    @Test
+    public void testAudioFormatConversionApiIamfBaseAac() {
+        final AudioFormatDescription aidl = new AudioFormatDescription();
+        aidl.type = AudioFormatType.NON_PCM;
+        aidl.encoding = MediaFormat.MIMETYPE_AUDIO_IAMF + ".base.aac";
+        final int api = AidlConversion.aidl2api_AudioFormat_AudioFormatEncoding(aidl);
+        assertEquals(AudioFormat.ENCODING_IAMF_BASE_PROFILE_AAC, api);
+    }
+
+    @Test
+    public void testAudioFormatConversionApiIamfBaseEnhancedAac() {
+        final AudioFormatDescription aidl = new AudioFormatDescription();
+        aidl.type = AudioFormatType.NON_PCM;
+        aidl.encoding = MediaFormat.MIMETYPE_AUDIO_IAMF + ".base_enhanced.aac";
+        final int api = AidlConversion.aidl2api_AudioFormat_AudioFormatEncoding(aidl);
+        assertEquals(AudioFormat.ENCODING_IAMF_BASE_ENHANCED_PROFILE_AAC, api);
+    }
+
+    @Test
+    public void testAudioFormatConversionApiIamfSimpleAac() {
+        final AudioFormatDescription aidl = new AudioFormatDescription();
+        aidl.type = AudioFormatType.NON_PCM;
+        aidl.encoding = MediaFormat.MIMETYPE_AUDIO_IAMF + ".simple.aac";
+        final int api = AidlConversion.aidl2api_AudioFormat_AudioFormatEncoding(aidl);
+        assertEquals(AudioFormat.ENCODING_IAMF_SIMPLE_PROFILE_AAC, api);
     }
 
     @Test
@@ -542,6 +761,7 @@ public final class AidlConversionUnitTests {
         final AudioFormatDescription aidl = new AudioFormatDescription();
         aidl.type = AudioFormatType.PCM;
         aidl.pcm = PcmType.INT_16_BIT;
+        aidl.encoding = "";
         return aidl;
     }
 

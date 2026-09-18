@@ -25,6 +25,6 @@ interface ProtoLogCallVisitor {
         messageString: String,
         level: LogLevel,
         group: LogGroup,
-        lineNumber: Int
+        lineNumber: Int,
     )
 }

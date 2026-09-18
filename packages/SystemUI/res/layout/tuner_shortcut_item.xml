@@ -35,7 +35,7 @@
         android:layout_weight="1"
         android:layout_gravity="center_vertical"
         android:textAppearance="?android:attr/textAppearanceListItem"
-        android:textColor="?android:attr/textColorPrimary" />
+        android:textColor="@color/materialColorOnSurface" />
 
     <com.android.systemui.statusbar.phone.ExpandableIndicator
         android:id="@+id/expand"

@@ -24,6 +24,7 @@ import com.android.systemui.communal.CommunalMetricsStartable
 import com.android.systemui.communal.CommunalOngoingContentStartable
 import com.android.systemui.communal.CommunalSceneStartable
 import com.android.systemui.communal.CommunalSuppressionStartable
+import com.android.systemui.communal.ContextualSetupCoordinator
 import com.android.systemui.communal.DevicePosturingListener
 import com.android.systemui.communal.log.CommunalLoggerStartable
 import com.android.systemui.communal.widgets.CommunalAppWidgetHostStartable
@@ -85,4 +86,9 @@ interface CommunalStartableModule {
     @IntoMap
     @ClassKey(CommunalSuppressionStartable::class)
     fun bindCommunalSuppressionStartable(impl: CommunalSuppressionStartable): CoreStartable
+
+    @Binds
+    @IntoMap
+    @ClassKey(ContextualSetupCoordinator::class)
+    fun bindContextualSetupCoordinator(impl: ContextualSetupCoordinator): CoreStartable
 }

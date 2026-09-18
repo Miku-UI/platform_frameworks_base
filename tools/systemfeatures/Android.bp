@@ -88,19 +88,22 @@ genrule {
     ],
     cmd: "$(location systemfeatures-gen-tool) com.android.systemfeatures.RwNoFeatures --readonly=false > $(location RwNoFeatures.java) && " +
         "$(location systemfeatures-gen-tool) com.android.systemfeatures.RoNoFeatures --readonly=true --feature-apis=WATCH > $(location RoNoFeatures.java) && " +
-        "$(location systemfeatures-gen-tool) com.android.systemfeatures.RwFeatures --readonly=false --feature=WATCH:1 --feature=WIFI:0 --feature=VULKAN:UNAVAILABLE --feature=AUTO: > $(location RwFeatures.java) && " +
-        "$(location systemfeatures-gen-tool) com.android.systemfeatures.RoFeatures --readonly=true --feature=WATCH:1 --feature=WIFI:0 --feature=VULKAN:UNAVAILABLE --feature=AUTO: --feature-apis=WATCH,PC > $(location RoFeatures.java) && " +
+        "$(location systemfeatures-gen-tool) com.android.systemfeatures.RwFeatures --readonly=false --feature=WATCH:1 --feature=WIFI:0 --feature=VULKAN:UNAVAILABLE --feature=AUTO: --output-proguard-rules=$(location RwFeatures.proguard) > $(location RwFeatures.java) && " +
+        "$(location systemfeatures-gen-tool) com.android.systemfeatures.RoFeatures --readonly=true --feature=WATCH:1 --feature=WIFI:0 --feature=VULKAN:UNAVAILABLE --feature=AUTO: --feature-apis=WATCH,PC --output-proguard-rules=$(location RoFeatures.proguard) > $(location RoFeatures.java) && " +
         "$(location systemfeatures-gen-tool) com.android.systemfeatures.RwFeaturesFromXml --readonly=false --feature-xml-files=$(location tests/data/features-1.xml),$(location tests/data/features-2.xml) > $(location RwFeaturesFromXml.java) && " +
         "$(location systemfeatures-gen-tool) com.android.systemfeatures.RoFeaturesFromXml --readonly=true --feature-xml-files=$(location tests/data/features-1.xml),$(location tests/data/features-2.xml) > $(location RoFeaturesFromXml.java) && " +
-        "$(location systemfeatures-gen-tool) com.android.systemfeatures.RoUnavailableFeaturesFromXml --readonly=true --unavailable-feature-xml-files=$(location tests/data/features-1.xml),$(location tests/data/features-2.xml) > $(location RoUnavailableFeaturesFromXml.java)",
+        "$(location systemfeatures-gen-tool) com.android.systemfeatures.RoUnavailableFeaturesFromXml --readonly=true --unavailable-feature-xml-files=$(location tests/data/features-1.xml),$(location tests/data/features-2.xml) --output-proguard-rules=$(location RoUnavailableFeaturesFromXml.proguard) > $(location RoUnavailableFeaturesFromXml.java)",
     out: [
         "RwNoFeatures.java",
         "RoNoFeatures.java",
         "RwFeatures.java",
+        "RwFeatures.proguard",
         "RoFeatures.java",
+        "RoFeatures.proguard",
         "RwFeaturesFromXml.java",
         "RoFeaturesFromXml.java",
         "RoUnavailableFeaturesFromXml.java",
+        "RoUnavailableFeaturesFromXml.proguard",
     ],
     tools: ["systemfeatures-gen-tool"],
 }
@@ -143,10 +146,13 @@ genrule {
         "tests/gen/RwNoFeatures.java.gen",
         "tests/gen/RoNoFeatures.java.gen",
         "tests/gen/RwFeatures.java.gen",
+        "tests/gen/RwFeatures.proguard.gen",
         "tests/gen/RoFeatures.java.gen",
+        "tests/gen/RoFeatures.proguard.gen",
         "tests/gen/RwFeaturesFromXml.java.gen",
         "tests/gen/RoFeaturesFromXml.java.gen",
         "tests/gen/RoUnavailableFeaturesFromXml.java.gen",
+        "tests/gen/RoUnavailableFeaturesFromXml.proguard.gen",
     ],
 }
 
@@ -158,7 +164,7 @@ sh_test_host {
     filename: "systemfeatures-gen-golden-tests.sh",
     test_config: "tests/systemfeatures-gen-golden-tests.xml",
     data: [
-        "tests/golden/**/*.java*",
+        "tests/golden/**/*",
         ":systemfeatures-gen-tests-golden-srcs",
     ],
     test_options: {

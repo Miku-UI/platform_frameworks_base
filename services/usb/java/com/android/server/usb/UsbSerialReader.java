@@ -42,6 +42,7 @@ class UsbSerialReader extends IUsbSerialReader.Stub {
     private final @NonNull UsbPermissionManager mPermissionManager;
 
     private Object mDevice;
+    private UsbDeviceFingerprint mFingerprint;
 
     /**
      * Create an new {@link UsbSerialReader}. It is mandatory to call {@link #setDevice(Object)}
@@ -65,6 +66,15 @@ class UsbSerialReader extends IUsbSerialReader.Stub {
      */
     public void setDevice(@NonNull Object device) {
         mDevice = device;
+    }
+
+    /**
+     * Set the {@link UsbDeviceFingerprint} for UsbDevice.
+     *
+     * @param fingerprint The fingerprint
+     */
+    public void setDeviceFingerprint(UsbDeviceFingerprint fingerprint) {
+        mFingerprint = fingerprint;
     }
 
     @Override
@@ -94,11 +104,17 @@ class UsbSerialReader extends IUsbSerialReader.Stub {
 
                         int userId = UserHandle.getUserId(uid);
                         if (mDevice instanceof UsbDevice) {
-                            mPermissionManager.getPermissionsForUser(userId)
-                                    .checkPermission((UsbDevice) mDevice, packageName, pid, uid);
+                            mPermissionManager
+                                    .getPermissionsForUser(userId)
+                                    .checkPermission(
+                                            (UsbDevice) mDevice,
+                                            mFingerprint,
+                                            packageName,
+                                            pid,
+                                            uid);
                         } else {
                             mPermissionManager.getPermissionsForUser(userId)
-                                    .checkPermission((UsbAccessory) mDevice, pid, uid);
+                                    .checkPermission((UsbAccessory) mDevice, packageName, pid, uid);
                         }
                     }
                 }

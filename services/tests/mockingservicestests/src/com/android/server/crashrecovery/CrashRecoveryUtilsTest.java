@@ -40,13 +40,15 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.os.Environment;
+import android.platform.test.flag.junit.FlagsParameterization;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.IndentingPrintWriter;
 import android.util.Log;
 import android.util.SparseArray;
 
 import androidx.test.core.app.ApplicationProvider;
-import androidx.test.runner.AndroidJUnit4;
 
+import com.android.crashrecovery.flags.Flags;
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 
 import org.junit.After;
@@ -60,6 +62,9 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.MockitoSession;
 
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
+import platform.test.runner.parameterized.Parameters;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -72,37 +77,56 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
 
-
 /**
  * Test CrashRecovery Utils.
  */
-@RunWith(AndroidJUnit4.class)
+@RunWith(ParameterizedAndroidJunit4.class)
 public class CrashRecoveryUtilsTest {
 
-    private MockitoSession mStaticMockSession;
     private final String mLogMsg = "Logging from test";
     private final String mCrashrecoveryEventTag = "CrashRecovery Events: ";
+    @Rule
+    public SetFlagsRule mSetFlagsRule;
+    @Rule
+    public TemporaryFolder tempFolder = new TemporaryFolder();
+    private MockitoSession mStaticMockSession;
     private File mCacheDir;
     private String mOriginalApexDirValue;
     private Field mApexDirField;
     private String mTempApexDir;
-
-    @Rule
-    public TemporaryFolder tempFolder = new TemporaryFolder();
-
+    private Set<String> mNamespacesAlwaysMonitored;
     @Mock
     private Context mMockContext;
     @Mock
     private PackageManager mMockPackageManager;
 
+    public CrashRecoveryUtilsTest(FlagsParameterization flags) {
+        mSetFlagsRule = new SetFlagsRule(flags);
+    }
+
+    @Parameters(name = "{0}")
+    public static List<FlagsParameterization> getParams() {
+        return FlagsParameterization.allCombinationsOf(
+                Flags.FLAG_ADDITIONAL_DEVICE_CONFIG_NAMESPACES);
+    }
+
     @Before
     public void setup() throws Exception {
+        mNamespacesAlwaysMonitored = new HashSet<>();
+        mNamespacesAlwaysMonitored.add("com_android_networkstack");
+        mNamespacesAlwaysMonitored.add("com_android_captiveportallogin");
+        if (Flags.additionalDeviceConfigNamespaces()) {
+            mNamespacesAlwaysMonitored.add("computer_control");
+            mNamespacesAlwaysMonitored.add("machine_learning");
+        }
+
         Context context = ApplicationProvider.getApplicationContext();
         mCacheDir = context.getCacheDir();
         mStaticMockSession = ExtendedMockito.mockitoSession()
@@ -181,18 +205,17 @@ public class CrashRecoveryUtilsTest {
     }
 
     @Test
-    public void getFlagNamespacesInModules_noApexDir() {
+    public void getFlagNamespacesToMonitor_noApexDir() {
         File apexDirInTemp = new File(mTempApexDir);
         apexDirInTemp.delete();
 
-        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesInModules();
-        assertThat(namespaces).hasSize(2);
-        assertThat(namespaces).containsExactly("com_android_networkstack",
-                "com_android_captiveportallogin");
+        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesToMonitor();
+        assertThat(namespaces).hasSize(mNamespacesAlwaysMonitored.size());
+        assertThat(namespaces).containsExactlyElementsIn(mNamespacesAlwaysMonitored);
     }
 
     @Test
-    public void getFlagNamespacesInModules_emptyApexDir() {
+    public void getFlagNamespacesToMonitor_emptyApexDir() {
         File apexDir = new File(mTempApexDir);
         if (apexDir.exists()) {
             for (File f : apexDir.listFiles()) {
@@ -207,42 +230,38 @@ public class CrashRecoveryUtilsTest {
             apexDir.mkdirs();
         }
 
-        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesInModules();
-        assertThat(namespaces).hasSize(2);
-        assertThat(namespaces).containsExactly("com_android_networkstack",
-                "com_android_captiveportallogin");
+        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesToMonitor();
+        assertThat(namespaces).hasSize(mNamespacesAlwaysMonitored.size());
+        assertThat(namespaces).containsExactlyElementsIn(mNamespacesAlwaysMonitored);
     }
 
     @Test
-    public void getFlagNamespacesInModules_apexWithNoProtoFile() throws IOException {
+    public void getFlagNamespacesToMonitor_apexWithNoProtoFile() throws IOException {
         createApexModule("com.android.foomodule", null);
 
-        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesInModules();
-        assertThat(namespaces).hasSize(2);
-        assertThat(namespaces).containsExactly("com_android_networkstack",
-                "com_android_captiveportallogin");
+        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesToMonitor();
+        assertThat(namespaces).hasSize(mNamespacesAlwaysMonitored.size());
+        assertThat(namespaces).containsExactlyElementsIn(mNamespacesAlwaysMonitored);
     }
 
     @Test
-    public void getFlagNamespacesInModules_malformedProtoFile() throws IOException {
+    public void getFlagNamespacesToMonitor_malformedProtoFile() throws IOException {
         byte[] malformedBytes = "this is not a protobuf".getBytes();
         createApexModule("com.android.badproto", malformedBytes);
 
-        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesInModules();
-        assertThat(namespaces).hasSize(2);
-        assertThat(namespaces).containsExactly("com_android_networkstack",
-                "com_android_captiveportallogin");
+        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesToMonitor();
+        assertThat(namespaces).hasSize(mNamespacesAlwaysMonitored.size());
+        assertThat(namespaces).containsExactlyElementsIn(mNamespacesAlwaysMonitored);
     }
 
     @Test
-    public void getFlagNamespacesInModules_emptyProtoFile() throws IOException {
+    public void getFlagNamespacesToMonitor_emptyProtoFile() throws IOException {
         byte[] emptyProtoBytes = parsed_flags.newBuilder().build().toByteArray();
         createApexModule("com.android.emptyproto", emptyProtoBytes);
 
-        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesInModules();
-        assertThat(namespaces).hasSize(2);
-        assertThat(namespaces).containsExactly("com_android_networkstack",
-                "com_android_captiveportallogin");
+        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesToMonitor();
+        assertThat(namespaces).hasSize(mNamespacesAlwaysMonitored.size());
+        assertThat(namespaces).containsExactlyElementsIn(mNamespacesAlwaysMonitored);
     }
 
     @Test
@@ -251,14 +270,13 @@ public class CrashRecoveryUtilsTest {
         byte[] pbContent = createAconfigPb(Map.of("namespace.ignored", UNSPECIFIED));
         createApexModule("com.android.ignoredstorage", pbContent);
 
-        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesInModules();
-        assertThat(namespaces).hasSize(2);
-        assertThat(namespaces).containsExactly("com_android_networkstack",
-                "com_android_captiveportallogin");
+        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesToMonitor();
+        assertThat(namespaces).hasSize(mNamespacesAlwaysMonitored.size());
+        assertThat(namespaces).containsExactlyElementsIn(mNamespacesAlwaysMonitored);
     }
 
     @Test
-    public void getFlagNamespacesInModules_mixedStorageFlags() throws IOException {
+    public void getFlagNamespacesToMonitor_mixedStorageFlags() throws IOException {
         Map<String, flag_metadata.flag_storage_backend> flagData = new LinkedHashMap<>();
         flagData.put("namespace.device_config", DEVICE_CONFIG);
         flagData.put("namespace.unspecified_storage", UNSPECIFIED);
@@ -268,35 +286,35 @@ public class CrashRecoveryUtilsTest {
         byte[] pbContent = createAconfigPb(flagData);
         createApexModule("com.android.mixedstorage", pbContent);
 
-        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesInModules();
-        assertThat(namespaces).hasSize(3);
-        assertThat(namespaces).containsExactly("com_android_networkstack",
-                "com_android_captiveportallogin", "namespace.device_config");
+        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesToMonitor();
+        assertThat(namespaces).hasSize(mNamespacesAlwaysMonitored.size() + 1);
+        assertThat(namespaces).containsAtLeastElementsIn(mNamespacesAlwaysMonitored);
+        assertThat(namespaces).contains("namespace.device_config");
     }
 
     @Test
-    public void getFlagNamespacesInModules_apexWithVersionedDir_shouldBeSkipped()
+    public void getFlagNamespacesToMonitor_apexWithVersionedDir_shouldBeSkipped()
             throws IOException {
         createApexModule("com.android.foomodule@12345",
                 createAconfigPb("ns.versioned"));
         createApexModule("com.android.foomodule",
                 createAconfigPb("ns.good"));
 
-        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesInModules();
-        assertThat(namespaces).hasSize(3);
-        assertThat(namespaces).containsExactly("com_android_networkstack",
-                "com_android_captiveportallogin", "ns.good");
+        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesToMonitor();
+        assertThat(namespaces).hasSize(mNamespacesAlwaysMonitored.size() + 1);
+        assertThat(namespaces).containsAtLeastElementsIn(mNamespacesAlwaysMonitored);
+        assertThat(namespaces).contains("ns.good");
     }
 
     @Test
-    public void getFlagNamespacesInModules_singleApexWithOneNamespace() throws IOException {
+    public void getFlagNamespacesToMonitor_singleApexWithOneNamespace() throws IOException {
         createApexModule("com.android.foomodule",
                 createAconfigPb("namespace.one"));
 
-        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesInModules();
-        assertThat(namespaces).hasSize(3);
-        assertThat(namespaces).containsExactly("com_android_networkstack",
-                "com_android_captiveportallogin", "namespace.one");
+        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesToMonitor();
+        assertThat(namespaces).hasSize(mNamespacesAlwaysMonitored.size() + 1);
+        assertThat(namespaces).containsAtLeastElementsIn(mNamespacesAlwaysMonitored);
+        assertThat(namespaces).contains("namespace.one");
     }
 
     @Test
@@ -304,10 +322,10 @@ public class CrashRecoveryUtilsTest {
         createApexModule("com.android.foomodule",
                 createAconfigPb("namespace.a", "namespace.b"));
 
-        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesInModules();
-        assertThat(namespaces).hasSize(4);
-        assertThat(namespaces).containsExactly("com_android_networkstack",
-                "com_android_captiveportallogin", "namespace.a", "namespace.b");
+        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesToMonitor();
+        assertThat(namespaces).hasSize(mNamespacesAlwaysMonitored.size() + 2);
+        assertThat(namespaces).containsAtLeastElementsIn(mNamespacesAlwaysMonitored);
+        assertThat(namespaces).containsAtLeast("namespace.a", "namespace.b");
     }
 
     @Test
@@ -318,10 +336,10 @@ public class CrashRecoveryUtilsTest {
         createApexModule("com.android.moduleB",
                 createAconfigPb("namespace.B1"));
 
-        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesInModules();
-        assertThat(namespaces).hasSize(5);
-        assertThat(namespaces).containsExactly("com_android_networkstack",
-                "com_android_captiveportallogin", "namespace.A1", "namespace.A2", "namespace.B1");
+        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesToMonitor();
+        assertThat(namespaces).hasSize(mNamespacesAlwaysMonitored.size() + 3);
+        assertThat(namespaces).containsAtLeastElementsIn(mNamespacesAlwaysMonitored);
+        assertThat(namespaces).containsAtLeast("namespace.A1", "namespace.A2", "namespace.B1");
     }
 
     @Test
@@ -332,10 +350,10 @@ public class CrashRecoveryUtilsTest {
         createApexModule("com.android.moduleB",
                 createAconfigPb("common.ns", "unique.B"));
 
-        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesInModules();
-        assertThat(namespaces).hasSize(5);
-        assertThat(namespaces).containsExactly("com_android_networkstack",
-                "com_android_captiveportallogin", "common.ns", "unique.A", "unique.B");
+        Set<String> namespaces = CrashRecoveryUtils.getFlagNamespacesToMonitor();
+        assertThat(namespaces).hasSize(mNamespacesAlwaysMonitored.size() + 3);
+        assertThat(namespaces).containsAtLeastElementsIn(mNamespacesAlwaysMonitored);
+        assertThat(namespaces).containsAtLeast("common.ns", "unique.A", "unique.B");
     }
 
     @Test

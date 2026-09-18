@@ -19,6 +19,8 @@ package com.android.systemui.touchpad.tutorial.ui.gesture
 sealed interface GestureState {
     data object NotStarted : GestureState
 
+    data object PartialSuccess : GestureState
+
     data object Finished : GestureState
 
     data class InProgress(val progress: Float = 0f, val direction: GestureDirection? = null) :

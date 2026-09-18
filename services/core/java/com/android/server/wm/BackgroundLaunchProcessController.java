@@ -49,6 +49,7 @@ import android.util.IntArray;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.wm.BackgroundActivityStartController.BalVerdict;
+import com.android.window.flags.Flags;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -71,8 +72,16 @@ class BackgroundLaunchProcessController {
     @Overridable
     private static final long DEFAULT_RESCIND_BAL_FG_PRIVILEGES_BOUND_SERVICE = 261072174;
 
+    /** If enabled the callback is a noop and it is safe to skip calling it. */
+    @ChangeId
+    @EnabledSince(targetSdkVersion = Build.VERSION_CODES.TIRAMISU)
+    private static final long CALLBACK_IS_NOOP = 447255745;
+
     /** It is {@link ActivityTaskManagerService#hasActiveVisibleWindow(int)}. */
     private final IntPredicate mUidHasActiveVisibleWindowPredicate;
+
+    /** It is {@link ActivityTaskManagerService#hasActiveVisibleNotPinnedWindow(int)}. */
+    private final IntPredicate mUidHasActiveVisibleNotPinnedWindowPredicate;
 
     private final @Nullable BackgroundActivityStartCallback mBackgroundActivityStartCallback;
 
@@ -91,8 +100,10 @@ class BackgroundLaunchProcessController {
     private @Nullable IntArray mBalOptInBoundClientUids;
 
     BackgroundLaunchProcessController(@NonNull IntPredicate uidHasActiveVisibleWindowPredicate,
+            @NonNull IntPredicate uidHasActiveVisibleNotPinnedWindowPredicate,
             @Nullable BackgroundActivityStartCallback callback) {
         mUidHasActiveVisibleWindowPredicate = uidHasActiveVisibleWindowPredicate;
+        mUidHasActiveVisibleNotPinnedWindowPredicate = uidHasActiveVisibleNotPinnedWindowPredicate;
         mBackgroundActivityStartCallback = callback;
     }
 
@@ -140,7 +151,9 @@ class BackgroundLaunchProcessController {
         // Allow if the caller is bound by a UID that's currently foreground.
         // But still respect the appSwitchState.
         if (checkConfiguration.checkVisibility && appSwitchState != APP_SWITCH_DISALLOW
-                && isBoundByForegroundUid()) {
+                && isBoundByForegroundUid(checkConfiguration.isCheckingForFgsStart
+                ? mUidHasActiveVisibleWindowPredicate
+                : mUidHasActiveVisibleNotPinnedWindowPredicate)) {
             return new BalVerdict(BAL_ALLOW_BOUND_BY_FOREGROUND, "process bound by foreground uid")
                     .allowNewTask().setVisibleOrForeground();
         }
@@ -186,43 +199,44 @@ class BackgroundLaunchProcessController {
                 // no tokens to allow anything
                 return BalVerdict.BLOCK;
             }
-            if (isCheckingForFgsStart) {
-                // check if any token allows foreground service starts
-                for (int i = mBackgroundStartPrivileges.size(); i-- > 0; ) {
-                    if (mBackgroundStartPrivileges.valueAt(i).allowsBackgroundFgsStarts()) {
-                        return new BalVerdict(BAL_ALLOW_TOKEN, "process allowed by token");
+            List<IBinder> binderTokens = new ArrayList<>();
+            for (int i = mBackgroundStartPrivileges.size(); i-- > 0; ) {
+                BackgroundStartPrivileges backgroundStartPrivileges =
+                        mBackgroundStartPrivileges.valueAt(i);
+                if (isCheckingForFgsStart) {
+                    if (!backgroundStartPrivileges.allowsBackgroundFgsStarts()) {
+                        continue;
                     }
+                    return new BalVerdict(BAL_ALLOW_TOKEN, "process allowed by token");
                 }
-                return BalVerdict.BLOCK;
-            }
-            if (mBackgroundActivityStartCallback == null) {
-                // without a callback just check if any token allows background activity starts
-                for (int i = mBackgroundStartPrivileges.size(); i-- > 0; ) {
-                    if (mBackgroundStartPrivileges.valueAt(i)
-                            .allowsBackgroundActivityStarts()) {
-                        return new BalVerdict(BAL_ALLOW_TOKEN, "process allowed by token")
-                                .allowNewTask();
-                    }
+                if (!backgroundStartPrivileges.allowsBackgroundActivityStarts()) {
+                    continue;
                 }
-                return BalVerdict.BLOCK;
+                if (backgroundStartPrivileges.getOriginatingToken() == null) {
+                    // internal token - always allow
+                    return new BalVerdict(BAL_ALLOW_TOKEN, "process allowed by token")
+                            .allowNewTask();
+                }
+                if (mBackgroundActivityStartCallback == null) {
+                    // without a callback accept any token
+                    return new BalVerdict(BAL_ALLOW_TOKEN, "process allowed by token")
+                            .allowNewTask();
+                }
+                if (!(Flags.balIgnoreCallback() && CompatChanges.isChangeEnabled(CALLBACK_IS_NOOP,
+                        packageName, UserHandle.getUserHandleForUid(uid)))) {
+                    binderTokens.add(backgroundStartPrivileges.getOriginatingToken());
+                }
             }
-            List<IBinder> binderTokens = getOriginatingTokensThatAllowBal();
             if (binderTokens.isEmpty()) {
                 // no tokens to allow anything
                 return BalVerdict.BLOCK;
             }
-
-            // The callback will decide.
+            // The callback will decide if the token is accepted.
             BackgroundActivityStartCallback.BackgroundActivityStartCallbackResult
                     activityStartAllowed = mBackgroundActivityStartCallback.isActivityStartAllowed(
                     binderTokens, uid, packageName);
             if (!activityStartAllowed.allowed()) {
                 return BalVerdict.BLOCK;
-            }
-            if (activityStartAllowed.token() == null) {
-                return new BalVerdict(BAL_ALLOW_TOKEN,
-                        "process allowed by callback (token ignored) tokens: " + binderTokens)
-                        .allowNewTask();
             }
             return new BalVerdict(BAL_ALLOW_NOTIFICATION_TOKEN,
                     "process allowed by callback (token: " + activityStartAllowed.token()
@@ -242,11 +256,11 @@ class BackgroundLaunchProcessController {
         return originatingTokens;
     }
 
-    private boolean isBoundByForegroundUid() {
+    private boolean isBoundByForegroundUid(IntPredicate uidVisibilityPredicate) {
         synchronized (this) {
             if (mBalOptInBoundClientUids != null) {
                 for (int i = mBalOptInBoundClientUids.size() - 1; i >= 0; i--) {
-                    if (mUidHasActiveVisibleWindowPredicate.test(mBalOptInBoundClientUids.get(i))) {
+                    if (uidVisibilityPredicate.test(mBalOptInBoundClientUids.get(i))) {
                         return true;
                     }
                 }

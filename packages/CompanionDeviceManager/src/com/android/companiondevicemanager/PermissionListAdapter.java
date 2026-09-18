@@ -24,6 +24,8 @@ import static com.android.companiondevicemanager.Utils.getIcon;
 
 import android.content.Context;
 import android.text.Spanned;
+import android.util.SparseBooleanArray;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -37,12 +39,13 @@ import androidx.recyclerview.widget.RecyclerView;
 import java.util.List;
 
 class PermissionListAdapter extends RecyclerView.Adapter<PermissionListAdapter.ViewHolder> {
-    // Add the expand buttons if permissions are more than PERMISSION_SIZE in the permission list.
     public static final int PERMISSION_SIZE = 2;
     private final Context mContext;
     private List<Integer> mPermissions;
     private CharSequence mAppLabel;
     private CharSequence mDeviceName;
+
+    private final SparseBooleanArray mExpandedPositions = new SparseBooleanArray();
 
     PermissionListAdapter(Context context) {
         mContext = context;
@@ -52,72 +55,98 @@ class PermissionListAdapter extends RecyclerView.Adapter<PermissionListAdapter.V
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext()).inflate(
                 R.layout.list_item_permission, parent, false);
-        ViewHolder viewHolder = new ViewHolder(view);
-        viewHolder.mPermissionIcon.setImageDrawable(
-                getIcon(mContext, PERMISSION_ICONS.get(viewType)));
-
-        if (viewHolder.mExpandButton.getTag() == null) {
-            viewHolder.mExpandButton.setTag(R.drawable.btn_expand_more);
-        }
-
-        // Add expand buttons if the permissions are more than PERMISSION_SIZE in this list also
-        // make the summary invisible by default.
-        if (mPermissions.size() > PERMISSION_SIZE) {
-            setAccessibility(view, viewType,
-                    AccessibilityNodeInfo.ACTION_CLICK, R.string.permission_expand, 0);
-
-            viewHolder.mPermissionSummary.setVisibility(View.GONE);
-
-            view.setOnClickListener(v -> {
-                if ((Integer) viewHolder.mExpandButton.getTag() == R.drawable.btn_expand_more) {
-                    viewHolder.mExpandButton.setImageResource(R.drawable.btn_expand_less);
-                    viewHolder.mPermissionSummary.setVisibility(View.VISIBLE);
-                    viewHolder.mExpandButton.setTag(R.drawable.btn_expand_less);
-                    setAccessibility(view, viewType,
-                            AccessibilityNodeInfo.ACTION_CLICK,
-                            R.string.permission_collapse, R.string.permission_expand);
-                } else {
-                    viewHolder.mExpandButton.setImageResource(R.drawable.btn_expand_more);
-                    viewHolder.mPermissionSummary.setVisibility(View.GONE);
-                    viewHolder.mExpandButton.setTag(R.drawable.btn_expand_more);
-                    setAccessibility(view, viewType,
-                            AccessibilityNodeInfo.ACTION_CLICK,
-                            R.string.permission_expand, R.string.permission_collapse);
-                }
-            });
-        } else {
-            // Remove expand buttons if the permissions are less than PERMISSION_SIZE in this list
-            // also show the summary by default.
-            viewHolder.mPermissionSummary.setVisibility(View.VISIBLE);
-            viewHolder.mExpandButton.setVisibility(View.GONE);
-        }
-
-        return viewHolder;
+        return new ViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(ViewHolder holder, int position) {
         int type = getItemViewType(position);
+        holder.mPermissionIcon.setImageDrawable(getIcon(mContext, PERMISSION_ICONS.get(type)));
+
         final Spanned title = getHtmlFromResources(mContext, PERMISSION_TITLES.get(type),
                 mContext.getString(R.string.device_type));
         holder.mPermissionName.setText(title);
-        if (PERMISSION_SUMMARIES.containsKey(type)) {
+
+        boolean hasSummary = PERMISSION_SUMMARIES.containsKey(type);
+        if (hasSummary) {
             final Spanned summary = getHtmlFromResources(mContext, PERMISSION_SUMMARIES.get(type),
                     mAppLabel, mContext.getString(R.string.device_type), mDeviceName);
             holder.mPermissionSummary.setText(summary);
+        }
+
+        boolean isExpandable = mPermissions.size() > PERMISSION_SIZE && hasSummary;
+
+        if (isExpandable) {
+            holder.itemView.setClickable(true);
+            holder.itemView.setFocusable(true);
+            boolean isExpanded = mExpandedPositions.get(position);
+            // Set listener for keyboard event.
+            holder.itemView.setOnKeyListener((view, keyCode, event) -> {
+                if (event.getAction() == KeyEvent.ACTION_UP
+                        && (keyCode == KeyEvent.KEYCODE_ENTER
+                                || keyCode == KeyEvent.KEYCODE_DPAD_CENTER)) {
+                    view.performClick();
+                    return true;
+                }
+                return false;
+            });
+
+            holder.mPermissionSummary.setVisibility(isExpanded ? View.VISIBLE : View.GONE);
+            holder.mExpandButton.setVisibility(View.VISIBLE);
+            holder.mExpandButton.setImageResource(isExpanded
+                    ? R.drawable.btn_expand_less
+                    : R.drawable.btn_expand_more);
+
+            int statusRes = isExpanded ? R.string.permission_collapse : R.string.permission_expand;
+            setAccessibility(holder.itemView, type, AccessibilityNodeInfo.ACTION_CLICK, statusRes);
+
+            holder.itemView.setOnClickListener(v -> {
+                boolean willExpand = !isExpanded;
+                mExpandedPositions.put(position, willExpand);
+
+                boolean hadHardwareFocus = v.isFocused();
+
+                if (hadHardwareFocus) {
+                    v.clearFocus();
+                }
+                notifyItemChanged(position);
+
+                if (willExpand) {
+                    RecyclerView recyclerView = (RecyclerView) v.getParent();
+                    if (recyclerView != null) {
+                        recyclerView.postDelayed(() -> {
+                            RecyclerView.ViewHolder currentHolder =
+                                    recyclerView.findViewHolderForAdapterPosition(position);
+                            if (currentHolder != null) {
+                                View summaryView = currentHolder.itemView.findViewById(
+                                        R.id.permission_summary);
+                                if (summaryView != null
+                                        && summaryView.getVisibility() == View.VISIBLE) {
+                                    summaryView.performAccessibilityAction(
+                                            AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null);
+                                }
+                            }
+                            if (hadHardwareFocus) {
+                                currentHolder.itemView.requestFocus();
+                            }
+                        }, 200);
+                    }
+                }
+            });
         } else {
-            holder.mPermissionSummary.setVisibility(View.GONE);
+            holder.itemView.setOnClickListener(null);
+            holder.itemView.setClickable(false);
+            holder.itemView.setFocusable(false);
+            holder.itemView.setAccessibilityDelegate(null);
+            holder.mExpandButton.setVisibility(View.GONE);
+            holder.mPermissionSummary.setVisibility(View.VISIBLE);
+
         }
     }
 
     @Override
     public int getItemViewType(int position) {
         return mPermissions.get(position);
-    }
-
-    @Override
-    public long getItemId(int position) {
-        return position;
     }
 
     @Override
@@ -140,16 +169,10 @@ class PermissionListAdapter extends RecyclerView.Adapter<PermissionListAdapter.V
         }
     }
 
-    private void setAccessibility(View view, int viewType, int action, int statusResourceId,
-            int actionResourceId) {
+    private void setAccessibility(View view, int viewType, int action, int statusResourceId) {
         final String permission = mContext.getString(PERMISSION_TITLES.get(viewType));
-
-        if (actionResourceId != 0) {
-            view.announceForAccessibility(
-                    getHtmlFromResources(mContext, actionResourceId, permission));
-        }
-
         view.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override
             public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
                 super.onInitializeAccessibilityNodeInfo(host, info);
                 info.addAction(new AccessibilityNodeInfo.AccessibilityAction(action,

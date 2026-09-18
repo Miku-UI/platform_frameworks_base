@@ -37,12 +37,10 @@ import java.util.Objects;
  * is a change. This is necessary because the sysfs nodes may only be configured after an input
  * device is already added, with no way for the native code to detect any changes afterwards.
  */
+// To enable debug logs, run:
+// 'adb shell setprop log.tag.SysfsNodeMonitor DEBUG'
 final class SysfsNodeMonitor {
     private static final String TAG = SysfsNodeMonitor.class.getSimpleName();
-
-    // To enable these logs, run:
-    // 'adb shell setprop log.tag.SysfsNodeMonitor DEBUG' (requires restart)
-    private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
 
     private static final long SYSFS_NODE_MONITORING_TIMEOUT_MS = 60_000; // 1 minute
 
@@ -92,10 +90,11 @@ final class SysfsNodeMonitor {
     private void startMonitoring(int deviceId) {
         final var inputDevice = mInputManager.getInputDevice(deviceId);
         if (inputDevice == null) {
+            Log.w(TAG, "Input device not found, skipping monitoring for deviceId: " + deviceId);
             return;
         }
         if (!inputDevice.isExternal()) {
-            if (DEBUG) {
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
                 Log.d(TAG, "Not listening to sysfs node changes for internal input device: "
                         + deviceId);
             }
@@ -103,12 +102,12 @@ final class SysfsNodeMonitor {
         }
         final var sysfsRootPath = formatDevPath(mNative.getSysfsRootPath(deviceId));
         if (sysfsRootPath == null) {
-            if (DEBUG) {
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
                 Log.d(TAG, "Sysfs node not found for external input device: " + deviceId);
             }
             return;
         }
-        if (DEBUG) {
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
             Log.d(TAG, "Start listening to sysfs node changes for input device: " + deviceId
                     + ", node: " + sysfsRootPath);
         }
@@ -137,7 +136,7 @@ final class SysfsNodeMonitor {
         if (listener == null) {
             return;
         }
-        if (DEBUG) {
+        if (Log.isLoggable(TAG, Log.DEBUG)) {
             Log.d(TAG, "Stop listening to sysfs node changes for input device: " + deviceId);
         }
         mUEventManager.removeListener(listener);
@@ -156,7 +155,7 @@ final class SysfsNodeMonitor {
         }
 
         private void handleUEvent(UEventObserver.UEvent event) {
-            if (DEBUG) {
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
                 Slog.d(TAG, "UEventListener: Received UEvent: " + event);
             }
             final var subsystem = event.get("SUBSYSTEM");
@@ -175,7 +174,7 @@ final class SysfsNodeMonitor {
 
             if ("LEDS".equalsIgnoreCase(subsystem) && "ADD".equalsIgnoreCase(action)) {
                 // An LED node was added. Notify native code to reconfigure the sysfs node.
-                if (DEBUG) {
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
                     Slog.d(TAG,
                             "Reconfiguring sysfs node because 'leds' node was added: " + devPath);
                 }
@@ -191,7 +190,7 @@ final class SysfsNodeMonitor {
                 // Notify native code that the battery node may have been added. The power_supply
                 // subsystem does not seem to be sending ADD events, so use use the first event
                 // with any action as a proxy for a new power_supply node being created.
-                if (DEBUG) {
+                if (Log.isLoggable(TAG, Log.DEBUG)) {
                     Slog.d(TAG, "Reconfiguring sysfs node because 'power_supply' node had action '"
                             + action + "': " + devPath);
                 }

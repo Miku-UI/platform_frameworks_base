@@ -23,6 +23,8 @@ import android.app.IServiceConnection;
 import android.content.Context;
 import android.platform.test.annotations.Presubmit;
 
+import com.android.server.am.psc.OomAdjuster;
+import com.android.server.am.psc.ProcessStateController;
 import com.android.server.wm.ActivityServiceConnectionsHolder;
 
 import org.junit.Test;
@@ -31,12 +33,11 @@ import org.junit.Test;
 public class ProcessStateControllerTest {
 
     private static ProcessStateController createProcessStateController() {
-        final ActivityManagerService ams = mock(ActivityManagerService.class);
-        ams.mAppProfiler = mock(AppProfiler.class);
-        ams.mConstants = mock(ActivityManagerConstants.class);
+        final ProcessList pl = mock(ProcessList.class);
         final ActiveUids au = new ActiveUids(null);
         final OomAdjuster.Callback callback = mock(OomAdjuster.Callback.class);
-        return new ProcessStateController.Builder(ams, ams.mProcessList, au, callback).build();
+        return new ProcessStateController.Builder(pl, au,
+                new OomAdjuster.Constants(), callback).build();
     }
 
     private static ConnectionRecord createConnectionRecord(long flags) {

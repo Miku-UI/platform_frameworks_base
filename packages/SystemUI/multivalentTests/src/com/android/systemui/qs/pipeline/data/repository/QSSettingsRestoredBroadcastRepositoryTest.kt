@@ -1,12 +1,16 @@
 package com.android.systemui.qs.pipeline.data.repository
 
 import android.content.Intent
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.broadcast.FakeBroadcastDispatcher
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.qs.flags.QsSplitInternetTile
+import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.pipeline.shared.logging.QSPipelineLogger
 import com.android.systemui.statusbar.policy.FakeDeviceProvisionedController
 import com.google.common.truth.Truth.assertThat
@@ -52,12 +56,7 @@ class QSSettingsRestoredBroadcastRepositoryTest : SysuiTestCase() {
             val restoreData by collectLastValue(underTest.restoreData)
             val user = 0
 
-            val tilesIntent =
-                createRestoreIntent(
-                    RestoreType.TILES,
-                    CURRENT_TILES,
-                    RESTORED_TILES,
-                )
+            val tilesIntent = createRestoreIntent(RestoreType.TILES, CURRENT_TILES, RESTORED_TILES)
 
             val autoAddIntent =
                 createRestoreIntent(
@@ -88,12 +87,7 @@ class QSSettingsRestoredBroadcastRepositoryTest : SysuiTestCase() {
             val restoreData by collectLastValue(underTest.restoreData)
             val user = 0
 
-            val tilesIntent =
-                createRestoreIntent(
-                    RestoreType.TILES,
-                    CURRENT_TILES,
-                    RESTORED_TILES,
-                )
+            val tilesIntent = createRestoreIntent(RestoreType.TILES, CURRENT_TILES, RESTORED_TILES)
 
             val autoAddIntent =
                 createRestoreIntent(
@@ -131,12 +125,7 @@ class QSSettingsRestoredBroadcastRepositoryTest : SysuiTestCase() {
             val currentAutoAdded10 = "f"
             val restoredAutoAdded10 = "f,g"
 
-            val tilesIntent0 =
-                createRestoreIntent(
-                    RestoreType.TILES,
-                    CURRENT_TILES,
-                    RESTORED_TILES,
-                )
+            val tilesIntent0 = createRestoreIntent(RestoreType.TILES, CURRENT_TILES, RESTORED_TILES)
             val autoAddIntent0 =
                 createRestoreIntent(
                     RestoreType.AUTOADD,
@@ -144,17 +133,9 @@ class QSSettingsRestoredBroadcastRepositoryTest : SysuiTestCase() {
                     RESTORED_AUTO_ADDED_TILES,
                 )
             val tilesIntent10 =
-                createRestoreIntent(
-                    RestoreType.TILES,
-                    currentTiles10,
-                    restoredTiles10,
-                )
+                createRestoreIntent(RestoreType.TILES, currentTiles10, restoredTiles10)
             val autoAddIntent10 =
-                createRestoreIntent(
-                    RestoreType.AUTOADD,
-                    currentAutoAdded10,
-                    restoredAutoAdded10,
-                )
+                createRestoreIntent(RestoreType.AUTOADD, currentAutoAdded10, restoredAutoAdded10)
 
             sendIntentForUser(tilesIntent0, user0)
             sendIntentForUser(autoAddIntent10, user10)
@@ -184,12 +165,7 @@ class QSSettingsRestoredBroadcastRepositoryTest : SysuiTestCase() {
             val restoreData by collectLastValue(underTest.restoreData)
             val user = 0
 
-            val tilesIntent =
-                createRestoreIntent(
-                    RestoreType.TILES,
-                    CURRENT_TILES,
-                    RESTORED_TILES,
-                )
+            val tilesIntent = createRestoreIntent(RestoreType.TILES, CURRENT_TILES, RESTORED_TILES)
 
             sendIntentForUser(tilesIntent, user)
 
@@ -230,12 +206,7 @@ class QSSettingsRestoredBroadcastRepositoryTest : SysuiTestCase() {
             val restoreData by collectLastValue(underTest.restoreData)
             val user = 0
 
-            val tilesIntent =
-                createRestoreIntent(
-                    RestoreType.TILES,
-                    CURRENT_TILES,
-                    RESTORED_TILES,
-                )
+            val tilesIntent = createRestoreIntent(RestoreType.TILES, CURRENT_TILES, RESTORED_TILES)
 
             sendIntentForUser(tilesIntent, user)
 
@@ -251,12 +222,7 @@ class QSSettingsRestoredBroadcastRepositoryTest : SysuiTestCase() {
             val restoreData by collectLastValue(underTest.restoreData)
             val user = 0
 
-            val tilesIntent =
-                createRestoreIntent(
-                    RestoreType.TILES,
-                    CURRENT_TILES,
-                    RESTORED_TILES,
-                )
+            val tilesIntent = createRestoreIntent(RestoreType.TILES, CURRENT_TILES, RESTORED_TILES)
 
             sendIntentForUser(tilesIntent, user)
 
@@ -271,11 +237,64 @@ class QSSettingsRestoredBroadcastRepositoryTest : SysuiTestCase() {
             }
         }
 
+    @Test
+    @EnableFlags(QsSplitInternetTile.FLAG_NAME)
+    @DisableFlags(QsSplitInternetTile.SUPPRESSION_FLAG_NAME)
+    fun flagEnabled_internetTileRestored_replacedByWifi() =
+        testScope.runTest {
+            runCurrent()
+            val restoreData by collectLastValue(underTest.restoreData)
+            val user = 0
+
+            val tilesIntent =
+                createRestoreIntent(RestoreType.TILES, CURRENT_TILES, "$RESTORED_TILES,internet")
+
+            val autoAddIntent =
+                createRestoreIntent(
+                    RestoreType.AUTOADD,
+                    CURRENT_AUTO_ADDED_TILES,
+                    RESTORED_AUTO_ADDED_TILES,
+                )
+
+            sendIntentForUser(tilesIntent, user)
+            runCurrent()
+            sendIntentForUser(autoAddIntent, user)
+
+            assertThat(restoreData!!.restoredTiles)
+                .isEqualTo(RESTORED_TILES.toTilesList() + TileSpec.create("wifi"))
+        }
+
+    @Test
+    @DisableFlags(QsSplitInternetTile.FLAG_NAME)
+    fun flagEnabled_wifiTileRestored_replacedByInternet() =
+        testScope.runTest {
+            runCurrent()
+            val restoreData by collectLastValue(underTest.restoreData)
+            val user = 0
+
+            val tilesIntent =
+                createRestoreIntent(RestoreType.TILES, CURRENT_TILES, "$RESTORED_TILES,wifi")
+
+            val autoAddIntent =
+                createRestoreIntent(
+                    RestoreType.AUTOADD,
+                    CURRENT_AUTO_ADDED_TILES,
+                    RESTORED_AUTO_ADDED_TILES,
+                )
+
+            sendIntentForUser(tilesIntent, user)
+            runCurrent()
+            sendIntentForUser(autoAddIntent, user)
+
+            assertThat(restoreData!!.restoredTiles)
+                .isEqualTo(RESTORED_TILES.toTilesList() + TileSpec.create("internet"))
+        }
+
     private fun sendIntentForUser(intent: Intent, userId: Int) {
         fakeBroadcastDispatcher.sendIntentToMatchingReceiversOnly(
             context,
             intent,
-            FakeBroadcastDispatcher.fakePendingResultForUser(userId)
+            FakeBroadcastDispatcher.fakePendingResultForUser(userId),
         )
     }
 

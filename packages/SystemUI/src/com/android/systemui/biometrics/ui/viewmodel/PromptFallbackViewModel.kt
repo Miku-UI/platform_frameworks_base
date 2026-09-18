@@ -50,6 +50,9 @@ constructor(val promptSelectorInteractor: PromptSelectorInteractor) {
 
     private val identityCheckActive: Flow<Boolean> = promptSelectorInteractor.isIdentityCheckActive
 
+    private val clearIdentityCheckFallback: Flow<Boolean> =
+        promptSelectorInteractor.clearIdentityCheckFallback
+
     private val credentialAllowed: Flow<Boolean> = promptSelectorInteractor.isCredentialAllowed
 
     private val credentialKind: Flow<PromptKind> = promptSelectorInteractor.credentialKind
@@ -87,10 +90,19 @@ constructor(val promptSelectorInteractor: PromptSelectorInteractor) {
             credentialAllowed && !identityCheckActive
         }
 
-    /** Whether to show the manage identity check button */
-    val showManageIdentityCheck: Flow<Boolean> =
+    /** Whether to show disabled credential fallback */
+    val showIdentityCheckCredentialFallback: Flow<Boolean> =
         combine(credentialAllowed, identityCheckActive) { credentialAllowed, identityCheckActive ->
             credentialAllowed && identityCheckActive
+        }
+
+    /** Whether to show the manage identity check button */
+    val showManageIdentityCheck: Flow<Boolean> =
+        combine(credentialAllowed, identityCheckActive, clearIdentityCheckFallback) {
+            credentialAllowed,
+            identityCheckActive,
+            clearIdentityCheckFallback ->
+            credentialAllowed && identityCheckActive && !clearIdentityCheckFallback
         }
 
     /** Icon to be used for the credential kind */

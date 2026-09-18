@@ -21,6 +21,7 @@ import android.os.Build;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.MessageQueue;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Log;
 import android.util.SparseIntArray;
 
@@ -34,6 +35,7 @@ import java.lang.ref.WeakReference;
  * Provides a low-level mechanism for an application to receive input events.
  * @hide
  */
+@RavenwoodKeepWholeClass
 public abstract class InputEventReceiver {
     private static final String TAG = "InputEventReceiver";
 
@@ -41,9 +43,8 @@ public abstract class InputEventReceiver {
 
     private long mReceiverPtr;
 
-    // We keep references to the input channel and message queue objects here so that
-    // they are not GC'd while the native peer of the receiver is using them.
-    private InputChannel mInputChannel;
+    // We keep a reference to the looper object here so that it is not GC'd while the native peer
+    // of the receiver is using it.
     private Looper mLooper;
 
     // Map from InputEvent sequence numbers to dispatcher sequence numbers.
@@ -64,7 +65,8 @@ public abstract class InputEventReceiver {
     /**
      * Creates an input event receiver bound to the specified input channel.
      *
-     * @param inputChannel The input channel.
+     * @param inputChannel The input channel. This channel will be consumed, so if you want to reuse
+     *                     it, make a copy before passing it to this constructor.
      * @param looper The looper to use when invoking callbacks.
      */
     public InputEventReceiver(InputChannel inputChannel, Looper looper) {
@@ -75,10 +77,9 @@ public abstract class InputEventReceiver {
             throw new IllegalArgumentException("looper must not be null");
         }
 
-        mInputChannel = inputChannel;
         mLooper = looper;
         mReceiverPtr = nativeInit(new WeakReference<InputEventReceiver>(this),
-                mInputChannel, mLooper.getQueue());
+                inputChannel, mLooper.getQueue());
 
         mCloseGuard.open("InputEventReceiver.dispose");
     }
@@ -108,6 +109,13 @@ public abstract class InputEventReceiver {
      * Must be called on the same Looper thread to which the receiver is attached.
      */
     public void dispose() {
+        if (mLooper == null) {
+            // dispose() should only be called once on each PointerEventDispatcher. For example,
+            // perhaps some code is expecting that the receiver is still alive, so it expects the
+            // events to continue to come in. And another piece of code disposes it. That would
+            // indicate a design problem in the system.
+            throw new IllegalStateException("dispose() called on an already-disposed receiver");
+        }
         if (Thread.currentThread() != mLooper.getThread()) {
             throw new IllegalStateException("Must call dispose() on the Looper thread");
         }
@@ -127,10 +135,6 @@ public abstract class InputEventReceiver {
             mReceiverPtr = 0;
         }
 
-        if (mInputChannel != null) {
-            mInputChannel.dispose();
-            mInputChannel = null;
-        }
         mLooper = null;
         Reference.reachabilityFence(this);
     }
@@ -284,7 +288,6 @@ public abstract class InputEventReceiver {
      */
     public void dump(String prefix, PrintWriter writer) {
         writer.println(prefix + getClass().getName());
-        writer.println(prefix + " mInputChannel: " + mInputChannel);
         writer.println(prefix + " mSeqMap: " + mSeqMap);
         writer.println(prefix + " mReceiverPtr:\n" + nativeDump(mReceiverPtr, prefix + "  "));
     }

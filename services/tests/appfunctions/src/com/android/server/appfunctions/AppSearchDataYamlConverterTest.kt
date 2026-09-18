@@ -193,4 +193,33 @@ class AppSearchDataYamlConverterTest {
         """.trimIndent()
         assertThat(yaml.trim()).isEqualTo(expectedYaml)
     }
+
+    @Test
+    fun convertGenericDocumentToYaml_withSpecialCharacters_escapesStrings() {
+        val doc = GenericDocument.Builder<GenericDocument.Builder<*>>("ns", "id", "Schema")
+          .setPropertyString("withNewline", "multi\nline")
+          .setPropertyString("withColon", "key: value")
+          .setPropertyString("withQuote", "contains \"double quote\"")
+          .setPropertyString("withBracket", "[starts with bracket]")
+          .setPropertyString("withTab", "contains\ttab")
+          .setPropertyString("withLookalike", "true")
+          .build()
+
+        val yaml = AppSearchDataYamlConverter.convertGenericDocumentToYaml(
+          doc,
+          /* keepEmptyValues= */ true,
+          /* keepNullValues= */ true,
+          /* keepGenericDocumentProperties= */ false
+        )
+
+        val expectedYaml = """
+                  withNewline: "multi\nline"
+                  withColon: "key: value"
+                  withQuote: "contains \"double quote\""
+                  withBracket: "[starts with bracket]"
+                  withTab: "contains\ttab"
+                  withLookalike: "true"
+            """.trimIndent()
+        assertThat(yaml.trim()).isEqualTo(expectedYaml)
+    }
 }

@@ -41,12 +41,14 @@ import com.android.internal.protolog.IProtoLogClient;
  * @hide
  */
 interface IProtoLogConfigurationService {
+    @JavaDerive(equals = true, toString = true)
     parcelable RegisterClientArgs {
         String[] groups;
         boolean[] groupsDefaultLogcatStatus;
         String viewerConfigFile;
     }
 
+    @JavaDerive(equals = true, toString = true)
     parcelable RegisterGroupsArgs {
         String[] groups;
         boolean[] groupsDefaultLogcatStatus;

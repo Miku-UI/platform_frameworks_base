@@ -33,16 +33,16 @@ public final class TimeCapabilitiesAndConfig implements Parcelable {
 
     public static final @NonNull Creator<TimeCapabilitiesAndConfig> CREATOR =
             new Creator<TimeCapabilitiesAndConfig>() {
-        @Override
-        public TimeCapabilitiesAndConfig createFromParcel(Parcel source) {
-            return TimeCapabilitiesAndConfig.readFromParcel(source);
-        }
+                @Override
+                public TimeCapabilitiesAndConfig createFromParcel(Parcel source) {
+                    return TimeCapabilitiesAndConfig.readFromParcel(source);
+                }
 
-        @Override
-        public TimeCapabilitiesAndConfig[] newArray(int size) {
-            return new TimeCapabilitiesAndConfig[size];
-        }
-    };
+                @Override
+                public TimeCapabilitiesAndConfig[] newArray(int size) {
+                    return new TimeCapabilitiesAndConfig[size];
+                }
+            };
 
     @NonNull private final TimeCapabilities mCapabilities;
     @NonNull private final TimeConfiguration mConfiguration;
@@ -52,7 +52,8 @@ public final class TimeCapabilitiesAndConfig implements Parcelable {
      *
      * @hide
      */
-    public TimeCapabilitiesAndConfig(@NonNull TimeCapabilities timeCapabilities,
+    public TimeCapabilitiesAndConfig(
+            @NonNull TimeCapabilities timeCapabilities,
             @NonNull TimeConfiguration timeConfiguration) {
         mCapabilities = Objects.requireNonNull(timeCapabilities);
         mConfiguration = Objects.requireNonNull(timeConfiguration);
@@ -60,8 +61,10 @@ public final class TimeCapabilitiesAndConfig implements Parcelable {
 
     @NonNull
     private static TimeCapabilitiesAndConfig readFromParcel(Parcel in) {
-        TimeCapabilities capabilities = in.readParcelable(null, android.app.time.TimeCapabilities.class);
-        TimeConfiguration configuration = in.readParcelable(null, android.app.time.TimeConfiguration.class);
+        TimeCapabilities capabilities =
+                in.readParcelable(null, android.app.time.TimeCapabilities.class);
+        TimeConfiguration configuration =
+                in.readParcelable(null, android.app.time.TimeConfiguration.class);
         return new TimeCapabilitiesAndConfig(capabilities, configuration);
     }
 
@@ -71,17 +74,13 @@ public final class TimeCapabilitiesAndConfig implements Parcelable {
         dest.writeParcelable(mConfiguration, flags);
     }
 
-    /**
-     * Returns the user's time behaviour capabilities.
-     */
+    /** Returns the user's time behaviour capabilities. */
     @NonNull
     public TimeCapabilities getCapabilities() {
         return mCapabilities;
     }
 
-    /**
-     * Returns the user's time behaviour configuration.
-     */
+    /** Returns the user's time behaviour configuration. */
     @NonNull
     public TimeConfiguration getConfiguration() {
         return mConfiguration;
@@ -109,8 +108,10 @@ public final class TimeCapabilitiesAndConfig implements Parcelable {
     @Override
     public String toString() {
         return "TimeCapabilitiesAndConfig{"
-                + "mCapabilities=" + mCapabilities
-                + ", mConfiguration=" + mConfiguration
+                + "mCapabilities="
+                + mCapabilities
+                + ", mConfiguration="
+                + mConfiguration
                 + '}';
     }
 }

@@ -49,6 +49,7 @@
         <activity android:name=".ImeActivity"
                   android:taskAffinity="com.android.server.wm.flicker.testapp.ImeActivity"
                   android:label="ImeActivity"
+                  android:resizeableActivity="true"
                   android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
@@ -440,6 +441,57 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".MoveToBackOnBackPressedActivity"
+            android:exported="true"
+            android:label="MoveToBackOnBackPressedActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <activity android:name=".StaticShortcutsActivity"
+            android:exported="true"
+            android:label="Static Shortcuts">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <meta-data android:name="android.app.shortcuts"
+                android:resource="@xml/ssa_shortcuts" />
+        </activity>
+        <activity android:name=".RequestFullscreenModeActivity"
+            android:resizeableActivity="true"
+            android:taskAffinity="com.android.server.wm.flicker.testapp.RequestFullscreenModeActivity"
+            android:label="RequestFullscreenModeActivity"
+            android:exported="true"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <activity android:name=".ClickToFinishActivity"
+            android:taskAffinity="com.android.server.wm.flicker.testapp.ClickToFinishActivity"
+            android:label="ClickToFinishActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <activity android:name=".WebIntentActivity"
+                  android:taskAffinity="com.android.server.wm.flicker.testapp.WebIntentActivity"
+                  android:label="WebIntentActivity"
+                  android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" android:host="www.android.com" />
+                <data android:scheme="https" android:host="www.android.com" />
             </intent-filter>
         </activity>
         <service

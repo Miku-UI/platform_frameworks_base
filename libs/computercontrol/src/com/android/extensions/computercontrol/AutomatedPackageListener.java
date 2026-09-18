@@ -25,6 +25,7 @@ import java.util.List;
 /**
  * Listener to get notified when the packages being automated within a
  * {@link ComputerControlSession} changes.
+ * @hide
  */
 public interface AutomatedPackageListener {
     /**

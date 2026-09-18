@@ -245,7 +245,7 @@ class Tokenizer {
                 mHandledLen++;
             if (mHandledLen < mLine.length()) {
                 String[] parts;
-                /**
+                /*
                  * Collect annotations and end-tags to closing >.  Collect tag
                  * name to closing bracket or next white-space.
                  */

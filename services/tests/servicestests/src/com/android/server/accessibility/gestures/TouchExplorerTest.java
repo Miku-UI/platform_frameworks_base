@@ -46,12 +46,14 @@ import android.content.Context;
 import android.graphics.PointF;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.testing.DexmakerShareClassLoaderRule;
 import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
@@ -59,6 +61,7 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.server.accessibility.AccessibilityManagerService;
 import com.android.server.accessibility.AccessibilityTraceManager;
 import com.android.server.accessibility.EventStreamTransformation;
+import com.android.server.accessibility.Flags;
 import com.android.server.accessibility.utils.GestureLogParser;
 import com.android.server.testutils.OffsettableClock;
 
@@ -465,6 +468,9 @@ public class TouchExplorerTest {
 
     @Test
     public void testSendHoverExitIfNeeded_lastSentHoverEnter_sendsHoverExit_withCorrectRawEvent() {
+        // In touch exploration, a DOWN event is received and synthesized into a HOVER_ENTER event.
+        // We must provide a raw event (e.g., DOWN) here; otherwise, the follow-up
+        // sendHoverExitAndTouchExplorationGestureEndIfNeeded will fail due to a missing raw event.
         final MotionEvent rawEvent = downEvent();
         final MotionEvent modifiedEvent = hoverEnterEvent();
         // Use different display IDs just so that we can differentiate between the raw event and
@@ -489,6 +495,33 @@ public class TouchExplorerTest {
         assertThat(sentEvent.getDisplayId()).isEqualTo(modifiedDisplayId);
         // ... while passing along the original raw (unmodified) event
         assertThat(sentRawEvent.getDisplayId()).isEqualTo(rawDisplayId);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SEND_HOVER_EXIT_ON_GESTURE_INTERRUPTION)
+    public void testDoubleTap_duringHover_sendsHoverExit() {
+        MotionEvent event = setupHoverStateWithCachedRawDown();
+
+        // Mock the AccessibilityManagerService to return true for ACTION_CLICK so it
+        // doesn't fall back to injecting ACTION_DOWN and ACTION_UP.
+        when(mMockAms.performActionOnAccessibilityFocusedItem(
+                AccessibilityNodeInfo.AccessibilityAction.ACTION_CLICK)).thenReturn(true);
+
+        mTouchExplorer.onDoubleTap(event, event, 0);
+
+        // Verify that the HOVER_EXIT was dispatched to close the hover stream
+        assertCapturedEvents(ACTION_HOVER_EXIT);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SEND_HOVER_EXIT_ON_GESTURE_INTERRUPTION)
+    public void testGestureStarted_duringHover_sendsHoverExit() {
+        setupHoverStateWithCachedRawDown();
+
+        mTouchExplorer.onGestureStarted();
+
+        // Verify that the HOVER_EXIT was dispatched to close the stream.
+        assertCapturedEvents(ACTION_HOVER_EXIT);
     }
 
     @Test
@@ -546,6 +579,26 @@ public class TouchExplorerTest {
         for (int i = 0; i < actions.size(); i++) {
             assertEquals((int) actions.get(i), motionEvents.get(i).getAction());
         }
+    }
+
+    /**
+     * Simulates the state where a HOVER_ENTER has been injected but HOVER_EXIT is pending.
+     *
+     * <p>In touch exploration, a DOWN event is received and synthesized into a HOVER_ENTER event.
+     * We must provide a raw event (e.g., DOWN) here; otherwise, the follow-up
+     * sendHoverExitAndTouchExplorationGestureEndIfNeeded will fail due to a missing raw event.
+     *
+     * @return The synthesized HOVER_ENTER event that was injected.
+     */
+    private MotionEvent setupHoverStateWithCachedRawDown() {
+        // Register an initial down event so TouchState has a valid "raw event" cached.
+        MotionEvent downEvent = downEvent();
+        mTouchExplorer.getState().onReceivedMotionEvent(downEvent, downEvent, 0);
+
+        MotionEvent event = hoverEnterEvent();
+        mTouchExplorer.getState().onInjectedMotionEvent(event);
+
+        return event;
     }
 
     private static MotionEvent fromTouchscreen(MotionEvent ev) {

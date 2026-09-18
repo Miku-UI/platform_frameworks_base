@@ -17,7 +17,6 @@ package com.android.systemui.keyguard.ui.composable.elements
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -30,15 +29,11 @@ import com.android.systemui.plugins.keyguard.VRectF
 import com.android.systemui.plugins.keyguard.ui.composable.elements.BaseLockscreenElement
 import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElement
 import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementFactory
-import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementProvider
 import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenScope
 import com.android.systemui.plugins.keyguard.ui.composable.elements.MovableLockscreenElement
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import kotlin.collections.filterNotNull
-import kotlin.collections.flatMap
-import kotlin.sequences.associateBy
 
 @Immutable
 class LockscreenElementFactoryImpl
@@ -88,21 +83,5 @@ constructor(
     @AssistedFactory
     interface Builder {
         fun create(elements: Map<Key, BaseLockscreenElement>): LockscreenElementFactoryImpl
-    }
-
-    companion object {
-        @Composable
-        fun Builder.createRemembered(
-            vararg providers: LockscreenElementProvider?
-        ): LockscreenElementFactoryImpl {
-            return remember(providers) {
-                create(
-                    providers
-                        .filterNotNull()
-                        .flatMap { provider -> provider.elements }
-                        .associateBy { element -> element.key }
-                )
-            }
-        }
     }
 }

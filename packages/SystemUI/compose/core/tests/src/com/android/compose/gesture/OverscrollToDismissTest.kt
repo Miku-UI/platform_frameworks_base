@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -32,14 +31,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.test.TouchInjectionScope
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.mechanics.debug.LocalMotionValueDebugController
@@ -49,14 +46,13 @@ import kotlin.math.sin
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import platform.test.motion.compose.ComposeFeatureCaptures.x as xPositionInRoot
 import platform.test.motion.compose.ComposeRecordingSpec
 import platform.test.motion.compose.MotionControl
-import platform.test.motion.compose.asDataPoint
 import platform.test.motion.compose.createFixedConfigurationComposeMotionTestRule
 import platform.test.motion.compose.feature
 import platform.test.motion.compose.recordMotion
 import platform.test.motion.compose.runTest
-import platform.test.motion.golden.FeatureCapture
 import platform.test.motion.testing.createGoldenPathManager
 
 @RunWith(AndroidJUnit4::class)
@@ -78,7 +74,7 @@ class OverscrollToDismissTest {
                             swipeRight(startX = centerX, endX = centerX + 100.dp.toPx())
                         }
                     ) {
-                        feature(hasTestTag("Page0"), xPositionInRoot)
+                        feature(hasTestTag("Page0"), xPositionInRoot, name = "position")
                     },
                 )
             assertThat(motion).timeSeriesMatchesGolden()
@@ -96,7 +92,7 @@ class OverscrollToDismissTest {
                             swipeLeft(startX = centerX, endX = centerX - 100.dp.toPx())
                         }
                     ) {
-                        feature(hasTestTag("Page1"), xPositionInRoot)
+                        feature(hasTestTag("Page1"), xPositionInRoot, name = "position")
                     },
                 )
             assertThat(motion).timeSeriesMatchesGolden()
@@ -141,7 +137,58 @@ class OverscrollToDismissTest {
                             )
                         }
                     ) {
-                        feature(hasTestTag("Page0"), xPositionInRoot)
+                        feature(hasTestTag("Page0"), xPositionInRoot, name = "position")
+                    },
+                )
+            assertThat(motion).timeSeriesMatchesGolden()
+        }
+
+    @Test
+    fun draggingBack_contentNotScrollable_overdragsInOtherDirection() =
+        motionTestRule.runTest {
+            val motion =
+                recordMotion(
+                    { UnderTest(pageCount = 1) },
+                    ComposeRecordingSpec(
+                        performGesture {
+                            val gestureDurationMillis = 300L
+                            swipe(
+                                curve = {
+                                    val progress = it / gestureDurationMillis.toFloat()
+                                    val x = sin(progress * Math.PI * 2).toFloat() * 100.dp.toPx()
+                                    Offset(centerX + x, centerY)
+                                },
+                                gestureDurationMillis,
+                            )
+                        }
+                    ) {
+                        feature(hasTestTag("Page0"), xPositionInRoot, name = "position")
+                    },
+                )
+            assertThat(motion).timeSeriesMatchesGolden()
+        }
+
+    @Test
+    fun draggingBack_contentScrollable_stopsOverdrag() =
+        motionTestRule.runTest {
+            val motion =
+                recordMotion(
+                    { UnderTest(pageCount = 2) },
+                    ComposeRecordingSpec(
+                        performGesture {
+                            val gestureDurationMillis = 300L
+                            swipe(
+                                curve = {
+                                    val progress = it / gestureDurationMillis.toFloat()
+                                    val x = sin(progress * Math.PI * 2).toFloat() * 100.dp.toPx()
+                                    Offset(centerX + x, centerY)
+                                },
+                                gestureDurationMillis,
+                            )
+                        }
+                    ) {
+                        feature(hasTestTag("Page0"), xPositionInRoot, "page0")
+                        feature(hasTestTag("Page1"), xPositionInRoot, "page1")
                     },
                 )
             assertThat(motion).timeSeriesMatchesGolden()
@@ -151,7 +198,7 @@ class OverscrollToDismissTest {
         val debugInspector = debugger.observed.single().debugInspector()
         try {
             performTouchInputAsync(onNodeWithTag("DismissContainer")) { gestureControl() }
-            awaitCondition { !debugInspector.isAnimating && !pagerState.isScrollInProgress }
+            awaitIdle()
         } finally {
             debugInspector.dispose()
         }
@@ -159,7 +206,6 @@ class OverscrollToDismissTest {
 
     private var isDismissed = false
     private val debugger = MotionValueDebugController()
-    private lateinit var pagerState: PagerState
 
     @Composable
     fun UnderTest(
@@ -168,7 +214,6 @@ class OverscrollToDismissTest {
         pageCount: Int = 2,
         isSwipingEnabled: Boolean = true,
     ) {
-        pagerState = rememberPagerState(initialPage) { pageCount }
         CompositionLocalProvider(LocalMotionValueDebugController provides debugger) {
             Box(
                 modifier =
@@ -181,7 +226,7 @@ class OverscrollToDismissTest {
                         )
             ) {
                 HorizontalPager(
-                    state = pagerState,
+                    state = rememberPagerState(initialPage) { pageCount },
                     userScrollEnabled = isSwipingEnabled,
                     pageSpacing = 8.dp,
                     key = { it },
@@ -197,12 +242,5 @@ class OverscrollToDismissTest {
                 }
             }
         }
-    }
-
-    companion object {
-        val xPositionInRoot =
-            FeatureCapture<SemanticsNode, Dp>("position") {
-                with(it.layoutInfo.density) { it.positionInRoot.x.toDp().asDataPoint() }
-            }
     }
 }

@@ -26,6 +26,7 @@ import android.graphics.Color
 import android.graphics.Rect
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.View.OnLongClickListener
 import android.view.accessibility.AccessibilityEvent
@@ -42,8 +43,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.withStyledAttributes
 import androidx.core.view.ViewCompat
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat
-import androidx.core.view.isGone
 import androidx.core.view.isVisible
+import androidx.core.view.marginStart
 import androidx.core.view.postDelayed
 import com.android.internal.R.color.materialColorOnSecondaryContainer
 import com.android.internal.R.color.materialColorOnSurface
@@ -52,6 +53,7 @@ import com.android.internal.R.color.materialColorSurfaceContainerHigh
 import com.android.internal.R.color.materialColorSurfaceContainerLow
 import com.android.internal.R.color.materialColorSurfaceDim
 import com.android.internal.util.FrameworkStatsLog
+import com.android.window.flags.Flags
 import com.android.wm.shell.R
 import com.android.wm.shell.desktopmode.DesktopModeEventLogger.Companion.InputMethod
 import com.android.wm.shell.desktopmode.DesktopModeUiEventLogger
@@ -62,6 +64,8 @@ import com.android.wm.shell.desktopmode.DesktopModeUiEventLogger.DesktopUiEventE
 import com.android.wm.shell.desktopmode.DesktopModeUiEventLogger.DesktopUiEventEnum.A11Y_APP_WINDOW_MAXIMIZE_RESTORE_BUTTON
 import com.android.wm.shell.desktopmode.DesktopModeUiEventLogger.DesktopUiEventEnum.A11Y_APP_WINDOW_MINIMIZE_BUTTON
 import com.android.wm.shell.desktopmode.common.ToggleTaskSizeInteraction.AmbiguousSource
+import com.android.wm.shell.shared.FocusTransitionListener
+import com.android.wm.shell.transition.FocusTransitionObserver
 import com.android.wm.shell.windowdecor.MaximizeButtonView
 import com.android.wm.shell.windowdecor.WindowDecorLinearLayout
 import com.android.wm.shell.windowdecor.WindowDecorationActions
@@ -76,9 +80,7 @@ import com.android.wm.shell.windowdecor.extension.identityHashCode
 import com.android.wm.shell.windowdecor.extension.isLightCaptionBarAppearance
 import com.android.wm.shell.windowdecor.extension.isTransparentCaptionBarAppearance
 import com.android.wm.shell.windowdecor.extension.throttleFirstClicks
-import com.android.wm.shell.windowdecor.viewholder.util.AppHeaderDimensions
-import com.android.wm.shell.windowdecor.viewholder.util.DefaultAppHeaderDimensions
-import com.android.wm.shell.windowdecor.viewholder.util.LargeAppHeaderDimensions
+import com.android.wm.shell.windowdecor.viewholder.util.HeaderDimensions
 
 /**
  * A desktop mode window decoration used when the window is floating (i.e. freeform). It hosts finer
@@ -88,12 +90,14 @@ class AppHeaderViewHolder(
     appHeaderView: View?,
     private val context: Context,
     windowDecorationActions: WindowDecorationActions,
-    onCaptionTouchListener: View.OnTouchListener,
-    onCaptionButtonClickListener: View.OnClickListener,
+    gestureInterceptor: WindowDecorLinearLayout.GestureInterceptor,
     private val onLongClickListener: OnLongClickListener,
     onCaptionGenericMotionListener: View.OnGenericMotionListener,
     onMaximizeHoverAnimationFinishedListener: () -> Unit,
     private val desktopModeUiEventLogger: DesktopModeUiEventLogger,
+    private val dimensions: HeaderDimensions,
+    private val focusTransitionObserver: FocusTransitionObserver,
+    decorThemeUtilFactory: DecorThemeUtil.Factory,
 ) : WindowDecorationViewHolder<AppHeaderViewHolder.HeaderData>() {
 
     data class HeaderData(
@@ -105,15 +109,9 @@ class AppHeaderViewHolder(
         val isCaptionVisible: Boolean,
     ) : Data()
 
-    private val decorThemeUtil = DecorThemeUtil(context)
+    private val decorThemeUtil = decorThemeUtilFactory.create(context)
     private val lightColors = dynamicLightColorScheme(context)
     private val darkColors = dynamicDarkColorScheme(context)
-    private val dimensions: AppHeaderDimensions =
-        if (DesktopExperienceFlags.ENABLE_TALL_APP_HEADERS.isTrue) {
-            LargeAppHeaderDimensions(context.resources)
-        } else {
-            DefaultAppHeaderDimensions(context.resources)
-        }
 
     override val rootView =
         appHeaderView
@@ -123,7 +121,8 @@ class AppHeaderViewHolder(
             } else {
                 error("App Header root view should not be null")
             }
-    private val captionView: View = rootView.requireViewById(R.id.desktop_mode_caption)
+    private val captionView: WindowDecorLinearLayout =
+        rootView.requireViewById(R.id.desktop_mode_caption)
     private val captionHandle: View = rootView.requireViewById(R.id.caption_handle)
     private val openMenuButton: View = rootView.requireViewById(R.id.open_menu_button)
     private val closeWindowButton: ImageButton = rootView.requireViewById(R.id.close_window)
@@ -137,9 +136,11 @@ class AppHeaderViewHolder(
     private val expandMenuErrorImageView: ImageView =
         rootView.requireViewById(R.id.expand_menu_error)
 
+    /** The width of the application name. */
     val appNameTextWidth: Int
         get() = appNameTextView.width
 
+    /** The width of the maximize button view. */
     val maximizeButtonWidth: Int
         get() = maximizeButtonView.width
 
@@ -148,39 +149,71 @@ class AppHeaderViewHolder(
     private val a11yAnnounceTextRestore: String =
         context.getString(R.string.app_header_talkback_action_restore_button_text)
 
-    private val a11yAnnounceTextOpening: String =
-        context.getString(R.string.desktop_mode_talkback_state_opening)
     private val a11yAnnounceTextMinimizing: String =
         context.getString(R.string.desktop_mode_talkback_state_minimizing)
     private val a11yAnnounceTextClosing: String =
         context.getString(R.string.desktop_mode_talkback_state_closing)
-    private lateinit var a11yAnnounceTextFocused: String
-    private lateinit var a11yAnnounceTextNotFocused: String
+    private var a11yAnnounceTextFocused: String? = null
+    private var a11yAnnounceTextNotFocused: String? = null
 
     private lateinit var sizeToggleDirection: SizeToggleDirection
     private lateinit var a11yTextMaximize: String
     private lateinit var a11yTextRestore: String
     private lateinit var currentTaskInfo: RunningTaskInfo
+    private var isTaskInFullImmersiveState: Boolean = false
 
     init {
-        captionView.setOnTouchListener(onCaptionTouchListener)
-        captionHandle.setOnTouchListener(onCaptionTouchListener)
-        openMenuButton.setOnClickListener(onCaptionButtonClickListener)
-        openMenuButton.setOnTouchListener(onCaptionTouchListener)
+        if (Flags.interceptTouchEventForAppHeaderDragMove()) {
+            captionView.setGestureInterceptor(gestureInterceptor)
+            val onTouch =
+                View.OnTouchListener { _, event ->
+                    // Only move to front on down to prevent 2+ tasks from fighting
+                    // (and thus flickering) for front status when drag-moving them simultaneously
+                    // with
+                    // two pointers.
+                    if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                        windowDecorationActions.onCaptionViewReceivedInteraction(currentTaskInfo)
+                    }
+                    return@OnTouchListener false
+                }
+            closeWindowButton.setOnTouchListener(onTouch)
+            maximizeWindowButton.setOnTouchListener(onTouch)
+            minimizeWindowButton.setOnTouchListener(onTouch)
+            openMenuButton.setOnTouchListener(onTouch)
+        } else {
+            captionView.setOnTouchListener(gestureInterceptor)
+            captionHandle.setOnTouchListener(gestureInterceptor)
+            closeWindowButton.setOnTouchListener(gestureInterceptor)
+            maximizeWindowButton.setOnTouchListener(gestureInterceptor)
+            minimizeWindowButton.setOnTouchListener(gestureInterceptor)
+            openMenuButton.setOnTouchListener(gestureInterceptor)
+        }
+
         closeWindowButton.throttleFirstClicks(CLICK_DELAY) { v ->
-            onCaptionButtonClickListener.onClick(v)
+            windowDecorationActions.onClose(currentTaskInfo)
         }
         maximizeWindowButton.throttleFirstClicks(CLICK_DELAY) { v ->
-            onCaptionButtonClickListener.onClick(v)
+            if (isTaskInFullImmersiveState) {
+                // Task is in immersive and should exit.
+                windowDecorationActions.onImmersiveOrRestore(currentTaskInfo)
+            } else {
+                // Just toggle between maximize/restore states.
+                windowDecorationActions.onMaximizeOrRestore(
+                    currentTaskInfo.taskId,
+                    AmbiguousSource.HEADER_BUTTON,
+                    InputMethod.MOUSE,
+                )
+            }
         }
-        maximizeWindowButton.setOnTouchListener(onCaptionTouchListener)
+        minimizeWindowButton.throttleFirstClicks(CLICK_DELAY) { v ->
+            windowDecorationActions.onMinimize(currentTaskInfo)
+        }
+        openMenuButton.throttleFirstClicks(CLICK_DELAY) { v ->
+            windowDecorationActions.onOpenHandleMenu(currentTaskInfo.taskId)
+        }
+
         maximizeWindowButton.setOnGenericMotionListener(onCaptionGenericMotionListener)
         maximizeWindowButton.onLongClickListener = onLongClickListener
-        closeWindowButton.setOnTouchListener(onCaptionTouchListener)
-        minimizeWindowButton.throttleFirstClicks(CLICK_DELAY) { v ->
-            onCaptionButtonClickListener.onClick(v)
-        }
-        minimizeWindowButton.setOnTouchListener(onCaptionTouchListener)
         maximizeButtonView.onHoverAnimationFinishedListener =
             onMaximizeHoverAnimationFinishedListener
 
@@ -298,10 +331,8 @@ class AppHeaderViewHolder(
                     when (action) {
                         AccessibilityAction.ACTION_CLICK.id -> {
                             // clear focus before clicking so that focus can be captured by resize
-                            // veil
-                            // necessary due to a race condition bug where after clicking maximize,
-                            // a11y
-                            // focus wouldn't go back to maximize button
+                            // veil, which is necessary due to a race condition bug where after
+                            // clicking maximize, a11y focus wouldn't go back to maximize button
                             host.clearFocus()
                             host.clearAccessibilityFocus()
                             host.requestFocus()
@@ -309,7 +340,6 @@ class AppHeaderViewHolder(
                                 currentTaskInfo,
                                 A11Y_APP_WINDOW_MAXIMIZE_RESTORE_BUTTON,
                             )
-                            host.performClick()
                         }
                         R.id.action_snap_left -> {
                             desktopModeUiEventLogger.log(currentTaskInfo, A11Y_ACTION_RESIZE_LEFT)
@@ -436,8 +466,13 @@ class AppHeaderViewHolder(
         )
 
     /** Announces app window name as "focused" via Talkback */
-    fun a11yAnnounceFocused() {
-        captionHandle.stateDescription = a11yAnnounceTextFocused
+    private fun updateA11yFocus(isFocused: Boolean) {
+        captionHandle.stateDescription =
+            if (isFocused) {
+                a11yAnnounceTextFocused
+            } else {
+                a11yAnnounceTextNotFocused
+            }
     }
 
     /** Sets the app's name in the header. */
@@ -451,7 +486,7 @@ class AppHeaderViewHolder(
     /** Populates string variables from string templates which rely on app name */
     private fun populateA11yStrings(name: CharSequence) {
         openMenuButton.contentDescription =
-            context.getString(R.string.desktop_mode_app_header_chip_text, name)
+            context.getString(R.string.desktop_mode_header_chip_text, name)
 
         closeWindowButton.contentDescription = context.getString(R.string.close_button_text, name)
         minimizeWindowButton.contentDescription =
@@ -494,18 +529,15 @@ class AppHeaderViewHolder(
     ) {
         logDisplayCompatRestartButtonEventReported(taskInfo)
         currentTaskInfo = taskInfo
-        if (DesktopModeFlags.ENABLE_THEMED_APP_HEADERS.isTrue) {
-            bindDataWithThemedHeaders(
-                taskInfo,
-                isTaskMaximized,
-                inFullImmersiveState,
-                hasGlobalFocus,
-                enableMaximizeLongClick,
-                isCaptionVisible,
-            )
-        } else {
-            bindDataLegacy(taskInfo, hasGlobalFocus, isCaptionVisible)
-        }
+        isTaskInFullImmersiveState = inFullImmersiveState
+        bindDataWithThemedHeaders(
+            taskInfo,
+            isTaskMaximized,
+            inFullImmersiveState,
+            hasGlobalFocus,
+            enableMaximizeLongClick,
+            isCaptionVisible,
+        )
     }
 
     fun logDisplayCompatRestartButtonEventReported(newTaskInfo: RunningTaskInfo) {
@@ -531,48 +563,6 @@ class AppHeaderViewHolder(
         }
     }
 
-    private fun bindDataLegacy(
-        taskInfo: RunningTaskInfo,
-        hasGlobalFocus: Boolean,
-        isCaptionVisible: Boolean,
-    ) {
-        if (DesktopModeFlags.ENABLE_DESKTOP_APP_HANDLE_ANIMATION.isTrue()) {
-            setCaptionVisibility(isCaptionVisible)
-        }
-        captionView.setBackgroundColor(getCaptionBackgroundColor(taskInfo, hasGlobalFocus))
-        val color = getAppNameAndButtonColor(taskInfo, hasGlobalFocus)
-        val alpha = Color.alpha(color)
-        closeWindowButton.imageTintList = ColorStateList.valueOf(color)
-        maximizeWindowButton.imageTintList = ColorStateList.valueOf(color)
-        minimizeWindowButton.imageTintList = ColorStateList.valueOf(color)
-        expandMenuButton.imageTintList = ColorStateList.valueOf(color)
-        appNameTextView.isVisible = !taskInfo.isTransparentCaptionBarAppearance
-        appNameTextView.setTextColor(color)
-        appIconImageView.imageAlpha = alpha
-        maximizeWindowButton.imageAlpha = alpha
-        minimizeWindowButton.imageAlpha = alpha
-        closeWindowButton.imageAlpha = alpha
-        expandMenuButton.imageAlpha = alpha
-        expandMenuErrorImageView.imageAlpha = alpha
-        context.withStyledAttributes(
-            set = null,
-            attrs =
-                intArrayOf(
-                    android.R.attr.selectableItemBackground,
-                    android.R.attr.selectableItemBackgroundBorderless,
-                ),
-            defStyleAttr = 0,
-            defStyleRes = 0,
-        ) {
-            openMenuButton.background = getDrawable(0)
-            maximizeWindowButton.background = getDrawable(1)
-            closeWindowButton.background = getDrawable(1)
-            minimizeWindowButton.background = getDrawable(1)
-        }
-        maximizeButtonView.setAnimationTints(isDarkMode())
-        minimizeWindowButton.isGone = !DesktopModeFlags.ENABLE_MINIMIZE_BUTTON.isTrue
-    }
-
     private fun bindDataWithThemedHeaders(
         taskInfo: RunningTaskInfo,
         isTaskMaximized: Boolean,
@@ -587,6 +577,8 @@ class AppHeaderViewHolder(
         if (DesktopModeFlags.ENABLE_DESKTOP_APP_HANDLE_ANIMATION.isTrue()) {
             setCaptionVisibility(isCaptionVisible)
         }
+
+        updateA11yFocus(hasGlobalFocus)
 
         // Caption Background
         when (headerStyle.background) {
@@ -616,7 +608,6 @@ class AppHeaderViewHolder(
             expandMenuErrorImageView.visibility =
                 if (isRestartMenuEnabledForDisplayMove) View.VISIBLE else View.GONE
             appNameTextView.apply {
-                isVisible = header.type == Header.Type.DEFAULT
                 setTextColor(colorStateList)
                 maxWidth =
                     if (isRestartMenuEnabledForDisplayMove) {
@@ -626,6 +617,7 @@ class AppHeaderViewHolder(
                     } else {
                         dimensions.appNameMaxWidth
                     }
+                isVisible = shouldAddAppName(header.type)
             }
             appIconImageView.imageAlpha = foregroundAlpha
             defaultFocusHighlightEnabled = false
@@ -640,7 +632,6 @@ class AppHeaderViewHolder(
                     drawableInsets = dimensions.minimizeBackgroundInsets,
                 )
         }
-        minimizeWindowButton.isGone = !DesktopModeFlags.ENABLE_MINIMIZE_BUTTON.isTrue
         // Maximize button.
         maximizeButtonView.apply {
             setAnimationTints(
@@ -701,9 +692,29 @@ class AppHeaderViewHolder(
             if (enableMaximizeLongClick) {
                 onLongClickListener
             } else {
-                // Disable long-click to open maximize menu when in immersive.
+                // Disable long-click to open layout menu when in immersive.
                 null
             }
+    }
+
+    private fun shouldAddAppName(headerType: Header.Type): Boolean {
+        if (headerType != Header.Type.DEFAULT) {
+            return false
+        }
+        val openMenuWidthWithText =
+            if (appNameTextView.isVisible) {
+                openMenuButton.width
+            } else {
+                // If app name is not visible, add its max possible width to the expected width
+                // of the open menu button to assure there is room for it.
+                openMenuButton.width + appNameTextView.maxWidth + appNameTextView.marginStart
+            }
+
+        val controlButtonsWidth: Int =
+            (dimensions.windowControlButtonWidth + dimensions.windowControlButtonMarginEnd) *
+                WINDOW_CONTROLS_BUTTONS_COUNT
+
+        return (openMenuWidthWithText + controlButtonsWidth) <= captionView.width
     }
 
     private fun setCaptionVisibility(visible: Boolean) {
@@ -720,7 +731,11 @@ class AppHeaderViewHolder(
     }
 
     fun onMaximizeWindowHoverEnter() {
-        if (!currentTaskInfo.isFocused) return
+        if (FocusTransitionListener.isDisplayLocalIsFocusedMigrationEnabled()) {
+            if (!focusTransitionObserver.isFocusedOnDisplay(currentTaskInfo)) return
+        } else {
+            if (!currentTaskInfo.isFocused) return
+        }
         maximizeButtonView.startHoverAnimation()
     }
 
@@ -770,9 +785,7 @@ class AppHeaderViewHolder(
     private fun shouldShowExitFullImmersiveOrMaximizeIcon(
         isTaskMaximized: Boolean,
         inFullImmersiveState: Boolean,
-    ): Boolean =
-        (DesktopModeFlags.ENABLE_FULLY_IMMERSIVE_IN_DESKTOP.isTrue && inFullImmersiveState) ||
-            isTaskMaximized
+    ): Boolean = inFullImmersiveState || isTaskMaximized
 
     private fun getHeaderStyle(header: Header): HeaderStyle {
         return HeaderStyle(
@@ -990,30 +1003,53 @@ class AppHeaderViewHolder(
         private const val LIGHT_THEME_UNFOCUSED_OPACITY = 166 // 65%
         private const val FOCUSED_OPACITY = 255
         private const val CLICK_DELAY: Long = 500
+        private const val WINDOW_CONTROLS_BUTTONS_COUNT = 3
     }
 
-    class Factory {
+    /** Factory for creating [AppHeaderViewHolder] instances. */
+    interface Factory {
         fun create(
             rootView: View?,
             context: Context,
             windowDecorationActions: WindowDecorationActions,
-            onCaptionTouchListener: View.OnTouchListener,
-            onCaptionButtonClickListener: View.OnClickListener,
+            gestureInterceptor: WindowDecorLinearLayout.GestureInterceptor,
             onLongClickListener: OnLongClickListener,
             onCaptionGenericMotionListener: View.OnGenericMotionListener,
             onMaximizeHoverAnimationFinishedListener: () -> Unit,
             desktopModeUiEventLogger: DesktopModeUiEventLogger,
+            dimensions: HeaderDimensions,
+            focusTransitionObserver: FocusTransitionObserver,
+            decorThemeUtilFactory: DecorThemeUtil.Factory,
+        ): AppHeaderViewHolder
+    }
+
+    /** The default factory for creating [AppHeaderViewHolder] instances. */
+    class DefaultFactory : Factory {
+        override fun create(
+            rootView: View?,
+            context: Context,
+            windowDecorationActions: WindowDecorationActions,
+            gestureInterceptor: WindowDecorLinearLayout.GestureInterceptor,
+            onLongClickListener: OnLongClickListener,
+            onCaptionGenericMotionListener: View.OnGenericMotionListener,
+            onMaximizeHoverAnimationFinishedListener: () -> Unit,
+            desktopModeUiEventLogger: DesktopModeUiEventLogger,
+            dimensions: HeaderDimensions,
+            focusTransitionObserver: FocusTransitionObserver,
+            decorThemeUtilFactory: DecorThemeUtil.Factory,
         ): AppHeaderViewHolder =
             AppHeaderViewHolder(
                 rootView,
                 context,
                 windowDecorationActions,
-                onCaptionTouchListener,
-                onCaptionButtonClickListener,
+                gestureInterceptor,
                 onLongClickListener,
                 onCaptionGenericMotionListener,
                 onMaximizeHoverAnimationFinishedListener,
                 desktopModeUiEventLogger,
+                dimensions,
+                focusTransitionObserver,
+                decorThemeUtilFactory,
             )
     }
 }

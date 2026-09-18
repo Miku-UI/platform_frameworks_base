@@ -161,7 +161,7 @@ public class NfcExecutionEnvironment {
      * @throws EeInitializationException if the Secure Element could not be initialized
      * @throws EeListenModeException if the NFCC or Secure Element is activated in listen mode
      * @throws EeExternalFieldException if the NFCC is in the presence of a remote-powered field
-     * @throws EeIoException if an unknown error occurs
+     * @throws EeIOException if an unknown error occurs
      */
     public void open() throws EeIOException {
         try {

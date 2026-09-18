@@ -23,10 +23,15 @@ import static android.app.Notification.CATEGORY_MESSAGE;
 import static android.app.Notification.CATEGORY_REMINDER;
 import static android.app.Notification.FLAG_FSI_REQUESTED_BUT_DENIED;
 import static android.app.Notification.FLAG_PROMOTED_ONGOING;
+import static android.app.NotificationChannel.NEWS_ID;
 import static android.app.NotificationManager.Policy.SUPPRESSED_EFFECT_AMBIENT;
 
 import static com.android.systemui.statusbar.NotificationEntryHelper.modifyRanking;
 import static com.android.systemui.statusbar.NotificationEntryHelper.modifySbn;
+import static com.android.systemui.statusbar.notification.stack.NotificationPriorityBucketKt.BUCKET_DYNAMIC_BUNDLE;
+import static com.android.systemui.statusbar.notification.stack.NotificationPriorityBucketKt.BUCKET_NEWS;
+
+import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -45,7 +50,6 @@ import android.os.Bundle;
 import android.os.UserHandle;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.notification.NotificationListenerService.Ranking;
 import android.service.notification.SnoozeCriterion;
 import android.service.notification.StatusBarNotification;
@@ -54,19 +58,21 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.res.R;
 import com.android.systemui.statusbar.RankingBuilder;
 import com.android.systemui.statusbar.SbnBuilder;
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi;
+import com.android.systemui.statusbar.notification.NmSummarizationAllFlag;
+import com.android.systemui.statusbar.notification.shared.NmContextualDisplay;
 import com.android.systemui.util.time.FakeSystemClock;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
@@ -82,9 +88,7 @@ public class NotificationEntryTest extends SysuiTestCase {
     private NotificationEntry mEntry;
     private NotificationChannel mChannel = Mockito.mock(NotificationChannel.class);
     private final FakeSystemClock mClock = new FakeSystemClock();
-
-    @Rule
-    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
 
     @Before
     public void setup() {
@@ -245,7 +249,6 @@ public class NotificationEntryTest extends SysuiTestCase {
                 .setKey(sbn.getKey())
                 .setSmartActions(systemGeneratedSmartActions)
                 .setChannel(NOTIFICATION_CHANNEL)
-                .setUserSentiment(Ranking.USER_SENTIMENT_NEGATIVE)
                 .setSnoozeCriteria(snoozeCriterions)
                 .build();
 
@@ -254,7 +257,6 @@ public class NotificationEntryTest extends SysuiTestCase {
 
         assertEquals(systemGeneratedSmartActions, entry.getSmartActions());
         assertEquals(NOTIFICATION_CHANNEL, entry.getChannel());
-        assertEquals(Ranking.USER_SENTIMENT_NEGATIVE, entry.getUserSentiment());
         assertEquals(snoozeCriterions, entry.getSnoozeCriteria());
     }
 
@@ -289,7 +291,6 @@ public class NotificationEntryTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     public void isPromotedOngoing_flagOnNotif_true() {
         mEntry.getSbn().getNotification().flags |= FLAG_PROMOTED_ONGOING;
 
@@ -297,17 +298,8 @@ public class NotificationEntryTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     public void isPromotedOngoing_noFlagOnNotif_false() {
         mEntry.getSbn().getNotification().flags &= ~FLAG_PROMOTED_ONGOING;
-
-        assertFalse(mEntry.isPromotedOngoing());
-    }
-
-    @Test
-    @DisableFlags(PromotedNotificationUi.FLAG_NAME)
-    public void isPromotedOngoing_flagOff_false() {
-        mEntry.getSbn().getNotification().flags |= FLAG_PROMOTED_ONGOING;
 
         assertFalse(mEntry.isPromotedOngoing());
     }
@@ -436,6 +428,79 @@ public class NotificationEntryTest extends SysuiTestCase {
         entry.isLastMessageFromReply();
 
         // no crash, good
+    }
+
+    @Test
+    public void getSummarization_onlyRankingSummarization() {
+        NotificationEntry entry = mKosmos.buildNotificationEntry(builder -> {
+            builder.updateRanking(rankingBuilder -> rankingBuilder.setSummarization("nas"));
+            return builder.done();
+        });
+        assertThat(entry.getSummarization()).isEqualTo("nas");
+    }
+
+    @Test
+    @EnableFlags(NmSummarizationAllFlag.FLAG_NAME)
+    public void getSummarization_onlyAppSummarization() {
+        NotificationEntry entry = mKosmos.buildNotificationEntry(builder -> {
+            builder.modifyNotification(mContext).setSummarizedContent("app");
+            return builder.done();
+        });
+        assertThat(entry.getSummarization()).isEqualTo("app");
+    }
+
+    @Test
+    @EnableFlags(NmSummarizationAllFlag.FLAG_NAME)
+    public void getSummarization_preferAppGeneratedSummarization() {
+        NotificationEntry entry = mKosmos.buildNotificationEntry(builder -> {
+            builder.modifyNotification(mContext).setSummarizedContent("app");
+            builder.updateRanking(rankingBuilder -> rankingBuilder.setSummarization("nas"));
+            return builder.done();
+        });
+        assertThat(entry.getSummarization()).isEqualTo("app");
+    }
+
+    @Test
+    @DisableFlags(NmSummarizationAllFlag.FLAG_NAME)
+    public void getSummarization_rankingSummarization() {
+        NotificationEntry entry = mKosmos.buildNotificationEntry(builder -> {
+            builder.modifyNotification(mContext).setSummarizedContent("app");
+            builder.updateRanking(rankingBuilder -> rankingBuilder.setSummarization("nas"));
+            return builder.done();
+        });
+        assertThat(entry.getSummarization()).isEqualTo("nas");
+    }
+
+    @Test
+    @EnableFlags(NmContextualDisplay.FLAG_NAME)
+    public void getLoggingBucket_notBundled() {
+        NotificationEntry entry = mKosmos.createPeopleNotification();
+
+        assertThat(entry.getBucketForLogging()).isEqualTo(entry.getBucket());
+    }
+
+    @Test
+    @EnableFlags(NmContextualDisplay.FLAG_NAME)
+    public void getLoggingBucket_staticBundle() {
+        NotificationEntry entry = mKosmos.buildNotificationEntry(builder -> {
+            builder.setChannel(new NotificationChannel(NEWS_ID, "news", 2));
+            return builder.done();
+        });
+
+        assertThat(entry.getBucketForLogging()).isEqualTo(BUCKET_NEWS);
+    }
+
+    @Test
+    @EnableFlags(NmContextualDisplay.FLAG_NAME)
+    public void getLoggingBucket_dynamicBundle() {
+        NotificationChannel channel = new NotificationChannel("dynamic", "news", 2);
+        channel.setIsBundleChannel(true);
+        NotificationEntry entry = mKosmos.buildNotificationEntry(builder -> {
+            builder.setChannel(channel);
+            return builder.done();
+        });
+
+        assertThat(entry.getBucketForLogging()).isEqualTo(BUCKET_DYNAMIC_BUNDLE);
     }
 
     private Notification.Action createContextualAction(String title) {

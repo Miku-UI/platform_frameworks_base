@@ -18,6 +18,7 @@ package com.android.server.contentprotection;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doThrow;
@@ -27,6 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import android.annotation.SuppressLint;
 import android.os.Handler;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
@@ -48,6 +50,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Test for {@link ContentProtectionAllowlistManager}.
@@ -57,6 +60,7 @@ import java.util.List;
  */
 @RunWith(AndroidJUnit4.class)
 @SmallTest
+@SuppressLint("VisibleForTests") // Suppress "method should only be accessed from tests"
 public class ContentProtectionAllowlistManagerTest {
 
     private static final String FIRST_PACKAGE_NAME = "com.test.first.package.name";
@@ -123,7 +127,7 @@ public class ContentProtectionAllowlistManagerTest {
         mTestLooper.dispatchNext();
 
         assertThat(mHandler.hasMessagesOrCallbacks()).isFalse();
-        verify(mMockContentCaptureManagerService).createRemoteContentProtectionService();
+        verify(mMockContentCaptureManagerService).createRemoteContentProtectionService(anyInt());
         verify(mMockPackageMonitor).register(any(), eq(UserHandle.ALL), eq(mHandler));
         verify(mMockPackageMonitor, never()).unregister();
         verifyNoMoreInteractions(mMockRemoteContentProtectionService);
@@ -139,7 +143,7 @@ public class ContentProtectionAllowlistManagerTest {
         mContentProtectionAllowlistManager.start(DELAY_MS);
 
         assertThat(mHandler.hasMessagesOrCallbacks()).isFalse();
-        verify(mMockContentCaptureManagerService).createRemoteContentProtectionService();
+        verify(mMockContentCaptureManagerService).createRemoteContentProtectionService(anyInt());
         verify(mMockPackageMonitor).register(any(), eq(UserHandle.ALL), eq(mHandler));
         verify(mMockPackageMonitor, never()).unregister();
         verifyNoMoreInteractions(mMockRemoteContentProtectionService);
@@ -185,7 +189,7 @@ public class ContentProtectionAllowlistManagerTest {
         mContentProtectionAllowlistManager.stop();
 
         assertThat(mHandler.hasMessagesOrCallbacks()).isFalse();
-        verify(mMockContentCaptureManagerService).createRemoteContentProtectionService();
+        verify(mMockContentCaptureManagerService).createRemoteContentProtectionService(anyInt());
         verify(mMockPackageMonitor).register(any(), eq(UserHandle.ALL), eq(mHandler));
         verify(mMockPackageMonitor).unregister();
         verifyNoMoreInteractions(mMockRemoteContentProtectionService);
@@ -275,7 +279,7 @@ public class ContentProtectionAllowlistManagerTest {
 
         manager.mPackageMonitor.onSomePackagesChanged();
 
-        verify(mMockContentCaptureManagerService).createRemoteContentProtectionService();
+        verify(mMockContentCaptureManagerService).createRemoteContentProtectionService(anyInt());
         verifyNoMoreInteractions(mMockRemoteContentProtectionService);
         verifyNoMoreInteractions(mMockAllowlistCallback);
     }
@@ -284,7 +288,7 @@ public class ContentProtectionAllowlistManagerTest {
     public void handlePackagesChanged_withService() {
         mUseMockPackageMonitor = false;
         ContentProtectionAllowlistManager manager = new TestContentProtectionAllowlistManager();
-        when(mMockContentCaptureManagerService.createRemoteContentProtectionService())
+        when(mMockContentCaptureManagerService.createRemoteContentProtectionService(anyInt()))
                 .thenReturn(mMockRemoteContentProtectionService);
 
         manager.mPackageMonitor.onSomePackagesChanged();
@@ -298,7 +302,7 @@ public class ContentProtectionAllowlistManagerTest {
     public void handlePackagesChanged_withServiceException() {
         mUseMockPackageMonitor = false;
         ContentProtectionAllowlistManager manager = new TestContentProtectionAllowlistManager();
-        when(mMockContentCaptureManagerService.createRemoteContentProtectionService())
+        when(mMockContentCaptureManagerService.createRemoteContentProtectionService(anyInt()))
                 .thenReturn(mMockRemoteContentProtectionService);
         doThrow(new RuntimeException("TEST EXCEPTION"))
                 .when(mMockRemoteContentProtectionService)
@@ -320,7 +324,8 @@ public class ContentProtectionAllowlistManagerTest {
         manager.mPackageMonitor.onSomePackagesChanged();
         manager.mPackageMonitor.onSomePackagesChanged();
 
-        verify(mMockContentCaptureManagerService, times(2)).createRemoteContentProtectionService();
+        verify(mMockContentCaptureManagerService, times(2))
+                .createRemoteContentProtectionService(anyInt());
         verifyNoMoreInteractions(mMockRemoteContentProtectionService);
         verifyNoMoreInteractions(mMockAllowlistCallback);
     }
@@ -329,13 +334,13 @@ public class ContentProtectionAllowlistManagerTest {
     public void handlePackagesChanged_rateLimit_beforeTimeout() {
         mUseMockPackageMonitor = false;
         ContentProtectionAllowlistManager manager = new TestContentProtectionAllowlistManager();
-        when(mMockContentCaptureManagerService.createRemoteContentProtectionService())
+        when(mMockContentCaptureManagerService.createRemoteContentProtectionService(anyInt()))
                 .thenReturn(mMockRemoteContentProtectionService);
 
         manager.mPackageMonitor.onSomePackagesChanged();
         manager.mPackageMonitor.onSomePackagesChanged();
 
-        verify(mMockContentCaptureManagerService).createRemoteContentProtectionService();
+        verify(mMockContentCaptureManagerService).createRemoteContentProtectionService(anyInt());
         verify(mMockRemoteContentProtectionService)
                 .onUpdateAllowlistRequest(mMockAllowlistCallback);
         verifyNoMoreInteractions(mMockAllowlistCallback);
@@ -346,13 +351,14 @@ public class ContentProtectionAllowlistManagerTest {
         mUseMockPackageMonitor = false;
         ContentProtectionAllowlistManager manager =
                 new TestContentProtectionAllowlistManager(/* timeoutMs= */ 0L);
-        when(mMockContentCaptureManagerService.createRemoteContentProtectionService())
+        when(mMockContentCaptureManagerService.createRemoteContentProtectionService(anyInt()))
                 .thenReturn(mMockRemoteContentProtectionService);
 
         manager.mPackageMonitor.onSomePackagesChanged();
         manager.mPackageMonitor.onSomePackagesChanged();
 
-        verify(mMockContentCaptureManagerService, times(2)).createRemoteContentProtectionService();
+        verify(mMockContentCaptureManagerService, times(2))
+                .createRemoteContentProtectionService(anyInt());
         verify(mMockRemoteContentProtectionService, times(2))
                 .onUpdateAllowlistRequest(mMockAllowlistCallback);
         verifyNoMoreInteractions(mMockAllowlistCallback);
@@ -363,7 +369,7 @@ public class ContentProtectionAllowlistManagerTest {
         mUseMockPackageMonitor = false;
         mUseMockAllowlistCallback = false;
         ContentProtectionAllowlistManager manager = new TestContentProtectionAllowlistManager();
-        when(mMockContentCaptureManagerService.createRemoteContentProtectionService())
+        when(mMockContentCaptureManagerService.createRemoteContentProtectionService(anyInt()))
                 .thenReturn(mMockRemoteContentProtectionService);
 
         manager.mPackageMonitor.onSomePackagesChanged();
@@ -371,9 +377,149 @@ public class ContentProtectionAllowlistManagerTest {
         mTestLooper.dispatchNext();
         manager.mPackageMonitor.onSomePackagesChanged();
 
-        verify(mMockContentCaptureManagerService, times(2)).createRemoteContentProtectionService();
+        verify(mMockContentCaptureManagerService, times(2))
+                .createRemoteContentProtectionService(anyInt());
         verify(mMockRemoteContentProtectionService, times(2))
                 .onUpdateAllowlistRequest(manager.mAllowlistCallback);
+    }
+
+    @Test
+    public void setContentProtectionAllowlist_oldEmpty_newEmpty() {
+        Set<String> actual =
+                mContentProtectionAllowlistManager.setContentProtectionAllowlist(List.of());
+
+        assertThat(actual).isEmpty();
+        assertThat(mContentProtectionAllowlistManager.isAllowed(FIRST_PACKAGE_NAME)).isFalse();
+        assertThat(mContentProtectionAllowlistManager.isAllowed(SECOND_PACKAGE_NAME)).isFalse();
+        assertThat(mHandler.hasMessagesOrCallbacks()).isFalse();
+        verifyNoMoreInteractions(mMockContentCaptureManagerService);
+        verifyNoMoreInteractions(mMockPackageMonitor);
+        verifyNoMoreInteractions(mMockRemoteContentProtectionService);
+        verifyNoMoreInteractions(mMockAllowlistCallback);
+    }
+
+    @Test
+    public void setContentProtectionAllowlist_oldEmpty_newNotEmpty() {
+        Set<String> actual = mContentProtectionAllowlistManager.setContentProtectionAllowlist(
+                List.of(FIRST_PACKAGE_NAME));
+
+        assertThat(actual).containsExactly(FIRST_PACKAGE_NAME);
+        assertThat(mContentProtectionAllowlistManager.isAllowed(FIRST_PACKAGE_NAME)).isTrue();
+        assertThat(mContentProtectionAllowlistManager.isAllowed(SECOND_PACKAGE_NAME)).isFalse();
+        assertThat(mHandler.hasMessagesOrCallbacks()).isFalse();
+        verifyNoMoreInteractions(mMockContentCaptureManagerService);
+        verifyNoMoreInteractions(mMockPackageMonitor);
+        verifyNoMoreInteractions(mMockRemoteContentProtectionService);
+        verifyNoMoreInteractions(mMockAllowlistCallback);
+    }
+
+    @Test
+    public void setContentProtectionAllowlist_oldNotEmpty_newEmpty() {
+        mContentProtectionAllowlistManager.setContentProtectionAllowlist(
+                List.of(FIRST_PACKAGE_NAME));
+
+        Set<String> actual =
+                mContentProtectionAllowlistManager.setContentProtectionAllowlist(List.of());
+
+        assertThat(actual).containsExactly(FIRST_PACKAGE_NAME);
+        assertThat(mContentProtectionAllowlistManager.isAllowed(FIRST_PACKAGE_NAME)).isFalse();
+        assertThat(mContentProtectionAllowlistManager.isAllowed(SECOND_PACKAGE_NAME)).isFalse();
+        assertThat(mHandler.hasMessagesOrCallbacks()).isFalse();
+        verifyNoMoreInteractions(mMockContentCaptureManagerService);
+        verifyNoMoreInteractions(mMockPackageMonitor);
+        verifyNoMoreInteractions(mMockRemoteContentProtectionService);
+        verifyNoMoreInteractions(mMockAllowlistCallback);
+    }
+
+    @Test
+    public void setContentProtectionAllowlist_oldNotEmpty_newNotEmpty_same() {
+        List<String> oldList = List.of(FIRST_PACKAGE_NAME);
+        mContentProtectionAllowlistManager.setContentProtectionAllowlist(oldList);
+
+        Set<String> actual =
+                mContentProtectionAllowlistManager.setContentProtectionAllowlist(oldList);
+
+        assertThat(actual).isEmpty();
+        assertThat(mContentProtectionAllowlistManager.isAllowed(FIRST_PACKAGE_NAME)).isTrue();
+        assertThat(mContentProtectionAllowlistManager.isAllowed(SECOND_PACKAGE_NAME)).isFalse();
+        assertThat(mHandler.hasMessagesOrCallbacks()).isFalse();
+        verifyNoMoreInteractions(mMockContentCaptureManagerService);
+        verifyNoMoreInteractions(mMockPackageMonitor);
+        verifyNoMoreInteractions(mMockRemoteContentProtectionService);
+        verifyNoMoreInteractions(mMockAllowlistCallback);
+    }
+
+    @Test
+    public void setContentProtectionAllowlist_oldNotEmpty_newNotEmpty_addition() {
+        mContentProtectionAllowlistManager.setContentProtectionAllowlist(
+                List.of(FIRST_PACKAGE_NAME));
+
+        Set<String> actual = mContentProtectionAllowlistManager.setContentProtectionAllowlist(
+                List.of(FIRST_PACKAGE_NAME, SECOND_PACKAGE_NAME));
+
+        assertThat(actual).containsExactly(SECOND_PACKAGE_NAME);
+        assertThat(mContentProtectionAllowlistManager.isAllowed(FIRST_PACKAGE_NAME)).isTrue();
+        assertThat(mContentProtectionAllowlistManager.isAllowed(SECOND_PACKAGE_NAME)).isTrue();
+        assertThat(mHandler.hasMessagesOrCallbacks()).isFalse();
+        verifyNoMoreInteractions(mMockContentCaptureManagerService);
+        verifyNoMoreInteractions(mMockPackageMonitor);
+        verifyNoMoreInteractions(mMockRemoteContentProtectionService);
+        verifyNoMoreInteractions(mMockAllowlistCallback);
+    }
+
+    @Test
+    public void setContentProtectionAllowlist_oldNotEmpty_newNotEmpty_subtraction() {
+        mContentProtectionAllowlistManager.setContentProtectionAllowlist(
+                List.of(FIRST_PACKAGE_NAME, SECOND_PACKAGE_NAME));
+
+        Set<String> actual = mContentProtectionAllowlistManager.setContentProtectionAllowlist(
+                List.of(SECOND_PACKAGE_NAME));
+
+        assertThat(actual).containsExactly(FIRST_PACKAGE_NAME);
+        assertThat(mContentProtectionAllowlistManager.isAllowed(FIRST_PACKAGE_NAME)).isFalse();
+        assertThat(mContentProtectionAllowlistManager.isAllowed(SECOND_PACKAGE_NAME)).isTrue();
+        assertThat(mHandler.hasMessagesOrCallbacks()).isFalse();
+        verifyNoMoreInteractions(mMockContentCaptureManagerService);
+        verifyNoMoreInteractions(mMockPackageMonitor);
+        verifyNoMoreInteractions(mMockRemoteContentProtectionService);
+        verifyNoMoreInteractions(mMockAllowlistCallback);
+    }
+
+    @Test
+    public void setContentProtectionAllowlist_swap_singleCall() {
+        mContentProtectionAllowlistManager.setContentProtectionAllowlist(
+                List.of(FIRST_PACKAGE_NAME));
+
+        Set<String> actual = mContentProtectionAllowlistManager.setContentProtectionAllowlist(
+                List.of(SECOND_PACKAGE_NAME));
+
+        assertThat(actual).containsExactly(FIRST_PACKAGE_NAME, SECOND_PACKAGE_NAME);
+        assertThat(mContentProtectionAllowlistManager.isAllowed(FIRST_PACKAGE_NAME)).isFalse();
+        assertThat(mContentProtectionAllowlistManager.isAllowed(SECOND_PACKAGE_NAME)).isTrue();
+        assertThat(mHandler.hasMessagesOrCallbacks()).isFalse();
+        verifyNoMoreInteractions(mMockContentCaptureManagerService);
+        verifyNoMoreInteractions(mMockPackageMonitor);
+        verifyNoMoreInteractions(mMockRemoteContentProtectionService);
+        verifyNoMoreInteractions(mMockAllowlistCallback);
+    }
+
+    @Test
+    public void setContentProtectionAllowlist_swap_multipleCalls() {
+        mContentProtectionAllowlistManager.setContentProtectionAllowlist(List.of());
+        mContentProtectionAllowlistManager.setContentProtectionAllowlist(
+                List.of(SECOND_PACKAGE_NAME));
+
+        Set<String> actual = mContentProtectionAllowlistManager.setContentProtectionAllowlist(
+                List.of(FIRST_PACKAGE_NAME));
+
+        assertThat(actual).containsExactly(FIRST_PACKAGE_NAME, SECOND_PACKAGE_NAME);
+        assertThat(mContentProtectionAllowlistManager.isAllowed(FIRST_PACKAGE_NAME)).isTrue();
+        assertThat(mContentProtectionAllowlistManager.isAllowed(SECOND_PACKAGE_NAME)).isFalse();
+        assertThat(mHandler.hasMessagesOrCallbacks()).isFalse();
+        verifyNoMoreInteractions(mMockContentCaptureManagerService);
+        verifyNoMoreInteractions(mMockPackageMonitor);
+        verifyNoMoreInteractions(mMockRemoteContentProtectionService);
+        verifyNoMoreInteractions(mMockAllowlistCallback);
     }
 
     private class TestContentProtectionAllowlistManager extends ContentProtectionAllowlistManager {

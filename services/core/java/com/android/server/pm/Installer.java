@@ -16,6 +16,9 @@
 
 package com.android.server.pm;
 
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
+import static android.os.Process.INVALID_UID;
+
 import android.annotation.AppIdInt;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -168,7 +171,7 @@ public class Installer extends SystemService {
     // Manually override previousAppId after building CreateAppDataArgs for specific behaviors.
     static CreateAppDataArgs buildCreateAppDataArgs(String uuid, String packageName,
             int userId, int flags, int appId, String seInfo, int targetSdkVersion,
-            boolean usesSdk) {
+            boolean usesSdk, int pccId) {
         final CreateAppDataArgs args = new CreateAppDataArgs();
         args.uuid = uuid;
         args.packageName = packageName;
@@ -180,6 +183,7 @@ public class Installer extends SystemService {
         args.appId = appId;
         args.seInfo = seInfo;
         args.targetSdkVersion = targetSdkVersion;
+        args.pccId = pccId;
         return args;
     }
 
@@ -187,6 +191,8 @@ public class Installer extends SystemService {
         final CreateAppDataResult result = new CreateAppDataResult();
         result.ceDataInode = -1;
         result.deDataInode = -1;
+        result.pccCeDataInode = -1;
+        result.pccDeDataInode = -1;
         result.exceptionCode = 0;
         result.exceptionMessage = null;
         return result;
@@ -214,6 +220,7 @@ public class Installer extends SystemService {
         }
         // Hardcode previousAppId to 0 to disable any data migration (http://b/221088088)
         args.previousAppId = 0;
+        args.previousPccId = enablePccFrameworkSupport() ? 0 : INVALID_UID;
         try {
             return mInstalld.createAppData(args);
         } catch (Exception e) {
@@ -356,10 +363,10 @@ public class Installer extends SystemService {
     }
 
     public void clearAppData(String uuid, String packageName, int userId, int flags,
-            long ceDataInode) throws InstallerException {
+            long ceDataInode, long pccCeDataInode) throws InstallerException {
         if (!checkBeforeRemote()) return;
         try {
-            mInstalld.clearAppData(uuid, packageName, userId, flags, ceDataInode);
+            mInstalld.clearAppData(uuid, packageName, userId, flags, ceDataInode, pccCeDataInode);
 
             final StackTraceElement[] elements = Thread.currentThread().getStackTrace();
             String className;
@@ -386,10 +393,10 @@ public class Installer extends SystemService {
     }
 
     public void destroyAppData(String uuid, String packageName, int userId, int flags,
-            long ceDataInode) throws InstallerException {
+            long ceDataInode, long pccCeDataInode) throws InstallerException {
         if (!checkBeforeRemote()) return;
         try {
-            mInstalld.destroyAppData(uuid, packageName, userId, flags, ceDataInode);
+            mInstalld.destroyAppData(uuid, packageName, userId, flags, ceDataInode, pccCeDataInode);
         } catch (Exception e) {
             throw InstallerException.from(e);
         }
@@ -420,18 +427,42 @@ public class Installer extends SystemService {
 
     public void moveCompleteApp(String fromUuid, String toUuid, String packageName,
             int appId, String seInfo, int targetSdkVersion,
-            String fromCodePath) throws InstallerException {
+            String fromCodePath, int pccId) throws InstallerException {
         if (!checkBeforeRemote()) return;
         try {
-            mInstalld.moveCompleteApp(fromUuid, toUuid, packageName, appId, seInfo,
+            mInstalld.moveCompleteApp(fromUuid, toUuid, packageName, appId, pccId, seInfo,
                     targetSdkVersion, fromCodePath);
         } catch (Exception e) {
             throw InstallerException.from(e);
         }
     }
 
+    public void moveAppDataPath(String uuid, String fromPath, String toPath, int userId, int appId,
+            String seInfo, int flags, int callerUid, IInstalld.IAppDataOperationCallback callback)
+            throws InstallerException {
+        if (!checkBeforeRemote()) return;
+        try {
+            mInstalld.moveAppDataPath(uuid, fromPath, toPath, userId, appId, seInfo, flags,
+                    callerUid, callback);
+        } catch (Exception e) {
+            throw InstallerException.from(e);
+        }
+    }
+
+    public void copyAppDataPath(String uuid, String fromPath, String toPath, int userId, int appId,
+            String seInfo, int flags, int callerUid, IInstalld.IAppDataOperationCallback callback)
+            throws InstallerException {
+        if (!checkBeforeRemote()) return;
+        try {
+            mInstalld.copyAppDataPath(uuid, fromPath, toPath, userId, appId, seInfo, flags,
+                    callerUid, callback);
+        } catch (Exception e) {
+            throw InstallerException.from(e);
+        }
+    }
+
     public void getAppSize(String uuid, String[] packageNames, int userId, int flags, int appId,
-            long[] ceDataInodes, String[] codePaths, PackageStats stats)
+            int pccId, long[] ceDataInodes, String[] codePaths, PackageStats stats)
             throws InstallerException {
         if (!checkBeforeRemote()) return;
         if (codePaths != null) {
@@ -441,7 +472,7 @@ public class Installer extends SystemService {
         }
         try {
             final long[] res = mInstalld.getAppSize(uuid, packageNames, userId, flags,
-                    appId, ceDataInodes, codePaths);
+                    appId, pccId, ceDataInodes, codePaths);
             stats.codeSize += res[0];
             stats.dataSize += res[1];
             stats.cacheSize += res[2];
@@ -453,11 +484,14 @@ public class Installer extends SystemService {
         }
     }
 
-    public void getUserSize(String uuid, int userId, int flags, int[] appIds, PackageStats stats)
-            throws InstallerException {
+    /**
+     * Populates stats for a user.
+     */
+    public void getUserSize(String uuid, int userId, int flags, int[] appIds, int[] pccIds,
+            PackageStats stats) throws InstallerException {
         if (!checkBeforeRemote()) return;
         try {
-            final long[] res = mInstalld.getUserSize(uuid, userId, flags, appIds);
+            final long[] res = mInstalld.getUserSize(uuid, userId, flags, appIds, pccIds);
             stats.codeSize += res[0];
             stats.dataSize += res[1];
             stats.cacheSize += res[2];
@@ -701,6 +735,7 @@ public class Installer extends SystemService {
      *
      * @param pkg name of the package to restore user data for.
      * @param appId id of the package to restore user data for.
+     * @param pccId pccId of the package to restore user data for
      * @param userId id of the user whose data to restore.
      * @param snapshotId id of the snapshot to restore.
      * @param storageFlags flags controlling which data (CE or DE) to restore.
@@ -710,12 +745,13 @@ public class Installer extends SystemService {
      *
      * @throws InstallerException if failed to restore user data.
      */
-    public boolean restoreAppDataSnapshot(String pkg, @AppIdInt  int appId, String seInfo,
+    public boolean restoreAppDataSnapshot(String pkg, @AppIdInt  int appId, int pccId,
+            String seInfo,
             @UserIdInt int userId, int snapshotId, int storageFlags) throws InstallerException {
         if (!checkBeforeRemote()) return false;
 
         try {
-            mInstalld.restoreAppDataSnapshot(null, pkg, appId, seInfo, userId, snapshotId,
+            mInstalld.restoreAppDataSnapshot(null, pkg, appId, pccId, seInfo, userId, snapshotId,
                     storageFlags);
             return true;
         } catch (Exception e) {
@@ -743,6 +779,17 @@ public class Installer extends SystemService {
         try {
             mInstalld.destroyAppDataSnapshot(null, pkg, userId, 0, snapshotId, storageFlags);
             return true;
+        } catch (Exception e) {
+            throw InstallerException.from(e);
+        }
+    }
+
+    /** Deletes PCC directories of the given package. */
+    public void destroyPccData(String uuid, String packageName, int userId, int flags,
+            long ceDataInode) throws InstallerException {
+        if (!checkBeforeRemote()) return;
+        try {
+            mInstalld.destroyPccData(uuid, packageName, userId, flags, ceDataInode);
         } catch (Exception e) {
             throw InstallerException.from(e);
         }

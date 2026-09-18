@@ -15,6 +15,9 @@
  */
 package com.android.server.devicepolicy;
 
+import static android.app.admin.DevicePolicyManager.MULTIUSER_MANAGED_DEVICE_PROVISIONING_STATE_UNMANAGED;
+import static android.app.admin.DevicePolicyManager.MultiuserManagedDeviceProvisioningState;
+
 import android.annotation.UserIdInt;
 import android.app.admin.DevicePolicyManager;
 import android.app.admin.DeviceStateCache;
@@ -48,6 +51,13 @@ public class DeviceStateCacheImpl extends DeviceStateCache {
     @GuardedBy("mLock")
     private boolean mIsDeviceProvisioned = false;
 
+    @GuardedBy("mLock")
+    private boolean mIsDeviceManaged = false;
+
+    @GuardedBy("mLock")
+    private @MultiuserManagedDeviceProvisioningState int mMultiuserManagedDeviceProvisioningState =
+            MULTIUSER_MANAGED_DEVICE_PROVISIONING_STATE_UNMANAGED;
+
     @Override
     public boolean isDeviceProvisioned() {
         return mIsDeviceProvisioned;
@@ -57,6 +67,34 @@ public class DeviceStateCacheImpl extends DeviceStateCache {
     public void setDeviceProvisioned(boolean provisioned) {
         synchronized (mLock) {
             mIsDeviceProvisioned = provisioned;
+        }
+    }
+
+    @Override
+    public boolean isDeviceManaged() {
+        return mIsDeviceManaged;
+    }
+
+    /** Update the device managed flag */
+    public void setDeviceManaged(boolean managed) {
+        synchronized (mLock) {
+            mIsDeviceManaged = managed;
+        }
+    }
+
+    @Override
+    public @MultiuserManagedDeviceProvisioningState int
+            getMultiuserManagedDeviceProvisioningState() {
+        synchronized (mLock) {
+            return mMultiuserManagedDeviceProvisioningState;
+        }
+    }
+
+    /** Update the device management state for multiuser devices */
+    public void setMultiuserManagedDeviceProvisioningState(
+            @MultiuserManagedDeviceProvisioningState int state) {
+        synchronized (mLock) {
+            mMultiuserManagedDeviceProvisioningState = state;
         }
     }
 

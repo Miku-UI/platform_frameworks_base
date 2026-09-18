@@ -16,11 +16,17 @@
 
 package android.telephony.data;
 
+import android.annotation.FlaggedApi;
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import com.android.internal.telephony.flags.Flags;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Objects;
@@ -31,11 +37,155 @@ import java.util.regex.Pattern;
 
 /**
  * A traffic descriptor, as defined in 3GPP TS 24.526 Section 5.2. It is used for UE Route Selection
- * Policy(URSP) traffic matching as described in 3GPP TS 24.526 Section 4.2.2. It includes an
- * optional Data Network Name(DNN), which, if present, must be used for traffic matching; it does
- * not specify the end point to be used for the data call.
+ * Policy(URSP) traffic matching as described in 3GPP TS 24.526 Section 4.2.2. It includes
+ * optional components like Data Network Name (DNN), an OS/App ID, and/or Connection Capabilities,
+ * which, if present, must be used for traffic matching. This descriptor does not specify the
+ * end point to be used for the data call.
  */
 public final class TrafficDescriptor implements Parcelable {
+
+    /**
+     * @hide
+     * Constants defining the connection capabilities of the traffic.
+     * These are defined in 3GPP TS 124.526 table 5.2.1.
+     *   Bits
+     *   8 7 6 5 4 3 2 1
+     *   0 0 0 0 0 0 0 1 IMS
+     *   0 0 0 0 0 0 1 0 MMS
+     *   0 0 0 0 0 1 0 0 SUPL
+     *   0 0 0 0 1 0 0 0 Internet
+     *   0 0 0 1 0 0 0 0 LCS user plane positioning
+     *   1 0 1 0 0 0 0 1 IoT delay-tolerant
+     *   1 0 1 0 0 0 1 0 IoT non-delay-tolerant
+     *   1 0 1 0 0 0 1 1 Downlink streaming
+     *   1 0 1 0 0 1 0 0 Uplink streaming
+     *   1 0 1 0 0 1 0 1 Vehicular communications
+     *   1 0 1 0 0 1 1 0 Real time interactive
+     *   1 0 1 0 0 1 1 1 Unified communications
+     *   1 0 1 0 1 0 0 0 Background
+     *   1 0 1 0 1 0 0 1 Mission critical communications
+     *   1 0 1 0 1 0 1 0 Time critical communications
+     *   1 0 1 0 1 0 1 1 Low latency loss tolerant communications in unacknowledged mode
+     */
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef(prefix = { "CONNECTION_CAPABILITY_" }, value = {
+            CONNECTION_CAPABILITY_UNKNOWN,
+            CONNECTION_CAPABILITY_IMS,
+            CONNECTION_CAPABILITY_MMS,
+            CONNECTION_CAPABILITY_SUPL,
+            CONNECTION_CAPABILITY_INTERNET,
+            CONNECTION_CAPABILITY_LCS_USER_PLANE_POSITIONING,
+            CONNECTION_CAPABILITY_IOT_DELAY_TOLERANT,
+            CONNECTION_CAPABILITY_IOT_NON_DELAY_TOLERANT,
+            CONNECTION_CAPABILITY_DOWNLINK_STREAMING,
+            CONNECTION_CAPABILITY_UPLINK_STREAMING,
+            CONNECTION_CAPABILITY_VEHICULAR_COMMUNICATIONS,
+            CONNECTION_CAPABILITY_REAL_TIME_INTERACTIVE,
+            CONNECTION_CAPABILITY_UNIFIED_COMMUNICATIONS,
+            CONNECTION_CAPABILITY_BACKGROUND,
+            CONNECTION_CAPABILITY_MISSION_CRITICAL_COMMUNICATIONS,
+            CONNECTION_CAPABILITY_TIME_CRITICAL_COMMUNICATIONS,
+            CONNECTION_CAPABILITY_LOW_LATENCY_LOSS_TOLERANT_UNACK
+    })
+    public @interface ConnectionCapability {}
+
+    /** Unknown connection capability. */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_UNKNOWN = 0b00000000;
+
+    /**
+     * IMS Voice + Video comprising voice, video telephony and multimedia communications over IP
+     * networks. Voice, Video and SMS over IMS DNN, as well as RCS (Rich Communication Services)
+     * are included in this traffic category.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_IMS = 0b00000001;
+
+    /** MMS (Multimedia Messaging Service) */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_MMS = 0b00000010;
+
+    /** SUPL (Secure User Plane Location) */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_SUPL = 0b00000100;
+
+    /**
+     * Internet data traffic with wide availability but no critical requirements on latency or
+     * data rates.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_INTERNET = 0b00001000;
+
+    /** LCS user plane positioning */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_LCS_USER_PLANE_POSITIONING = 0b00010000;
+
+    /** Delay-tolerant, low sustained data rate IoT traffic. */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_IOT_DELAY_TOLERANT = 0b10100001;
+
+    /** Non-delay-tolerant, low sustained data rate IoT traffic */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_IOT_NON_DELAY_TOLERANT = 0b10100010;
+
+    /** Downlink streaming, characterized as downlink high data rates content and low latency. */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_DOWNLINK_STREAMING = 0b10100011;
+
+    /** Uplink streaming, characterized as uplink high data rates content and low latency */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_UPLINK_STREAMING = 0b10100100;
+
+    /**
+     * Vehicle-to-Everything (V2X) traffic comprising V2X messages,
+     * characterized by low latency, high reliability, and high availability.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_VEHICULAR_COMMUNICATIONS = 0b10100101;
+
+    /** Real time interactive traffic, for example, for gaming or AR/VR. */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_REAL_TIME_INTERACTIVE = 0b10100110;
+
+    /**
+     * Unified communications traffic, which comprise communications through a single user
+     * interface at the UE, for instance instant messaging, VoIP, and video collaboration through
+     * the same application.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_UNIFIED_COMMUNICATIONS = 0b10100111;
+
+    /**
+     * Any traffic that is not time-sensitive, e.g., firmware/software updates over the air. This
+     * traffic has no critical requirements from latency or data rates perspective. This traffic
+     * should/can be subject of scheduling (e.g., at specific time of day) by the
+     * applications/networks.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_BACKGROUND = 0b10101000;
+
+    /**
+     * Mission-critical communications, may include MC-PTT, MC
+     * video, and MC data.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_MISSION_CRITICAL_COMMUNICATIONS = 0b10101001;
+
+    /**
+     * Time Critical Communications, with bounded, low to very low
+     * latency requirements, and high availability.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_TIME_CRITICAL_COMMUNICATIONS = 0b10101010;
+
+    /**
+     * Traffic which has low latency requirements and is tolerant to some loss, hence using
+     * un-acknowledged mode at the Radio Link Control (RLC) layer. E.g., for certain real time
+     * voice or video traffic.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public static final int CONNECTION_CAPABILITY_LOW_LATENCY_LOSS_TOLERANT_UNACK = 0b10101011;
+
     /**
      * The OS/App id
      *
@@ -200,6 +350,7 @@ public final class TrafficDescriptor implements Parcelable {
 
     private final String mDnn;
     private final OsAppId mOsAppId;
+    private final @ConnectionCapability int mConnectionCapability;
 
     private TrafficDescriptor(@NonNull Parcel in) {
         mDnn = in.readString();
@@ -209,6 +360,11 @@ public final class TrafficDescriptor implements Parcelable {
             osAppId = new OsAppId(osAppIdBytes);
         }
         mOsAppId = osAppId;
+        if (Flags.enableTrafficDescriptorConnectionCapability()) {
+            mConnectionCapability = in.readInt();
+        } else {
+            mConnectionCapability = CONNECTION_CAPABILITY_UNKNOWN;
+        }
 
         enforceAllowedIds();
     }
@@ -221,12 +377,30 @@ public final class TrafficDescriptor implements Parcelable {
      * @hide
      */
     public TrafficDescriptor(String dnn, @Nullable byte[] osAppIdRawBytes) {
+        this(dnn, osAppIdRawBytes, CONNECTION_CAPABILITY_UNKNOWN);
+    }
+
+    /**
+     * Create a traffic descriptor, as defined in 3GPP TS 24.526 Section 5.2
+     * @param dnn optional DNN, which must be used for traffic matching, if present
+     * @param osAppIdRawBytes Raw bytes of OsId + osAppId of the traffic descriptor
+     * @param connectionCapability The connection capability of the traffic.
+     *
+     * @hide
+     */
+    private TrafficDescriptor(String dnn, @Nullable byte[] osAppIdRawBytes,
+            @ConnectionCapability int connectionCapability) {
         mDnn = dnn;
         OsAppId osAppId = null;
         if (osAppIdRawBytes != null) {
             osAppId = new OsAppId(osAppIdRawBytes);
         }
         mOsAppId = osAppId;
+        if (Flags.enableTrafficDescriptorConnectionCapability()) {
+            mConnectionCapability = connectionCapability;
+        } else {
+            mConnectionCapability = CONNECTION_CAPABILITY_UNKNOWN;
+        }
 
         enforceAllowedIds();
     }
@@ -267,6 +441,27 @@ public final class TrafficDescriptor implements Parcelable {
         return mOsAppId != null ? mOsAppId.getBytes() : null;
     }
 
+    /**
+     * Get the connection capability of the traffic.
+     *
+     * <p>The connection capability indicates the type of traffic. The values are defined in
+     * 3GPP TS 24.526, Table 5.2.1. This is used by the network for UE Route Selection
+     * Policy (URSP) traffic matching.
+     *
+     * <p>When used to request a data connection, the framework may only use one specific
+     * connection capability to match a network capability, even if the underlying APN supports
+     * multiple (e.g., both internet and MMS). In such cases, only the single matched
+     * connection capability from the network request will be sent to the modem.
+     *
+     * @return The connection capability, as one of the {@code CONNECTION_CAPABILITY_*} constants.
+     *         Returns {@link #CONNECTION_CAPABILITY_UNKNOWN} if not specified.
+     * @see Builder#setConnectionCapability(int)
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+    public @ConnectionCapability int getConnectionCapability() {
+        return mConnectionCapability;
+    }
+
     @Override
     public int describeContents() {
         return 0;
@@ -274,13 +469,23 @@ public final class TrafficDescriptor implements Parcelable {
 
     @NonNull @Override
     public String toString() {
-        return "TrafficDescriptor={mDnn=" + mDnn + ", " + mOsAppId + "}";
+        StringBuilder sb = new StringBuilder();
+        sb.append("TrafficDescriptor={mDnn=").append(mDnn);
+        sb.append(", mOsAppId=").append(mOsAppId);
+        if (Flags.enableTrafficDescriptorConnectionCapability()) {
+            sb.append(", mConnectionCapability=").append(mConnectionCapability);
+        }
+        sb.append("}");
+        return sb.toString();
     }
 
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeString(mDnn);
         dest.writeByteArray(mOsAppId != null ? mOsAppId.getBytes() : null);
+        if (Flags.enableTrafficDescriptorConnectionCapability()) {
+            dest.writeInt(mConnectionCapability);
+        }
     }
 
     public static final @NonNull Parcelable.Creator<TrafficDescriptor> CREATOR =
@@ -301,12 +506,22 @@ public final class TrafficDescriptor implements Parcelable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         TrafficDescriptor that = (TrafficDescriptor) o;
-        return Objects.equals(mDnn, that.mDnn) && Objects.equals(mOsAppId, that.mOsAppId);
+        if (Flags.enableTrafficDescriptorConnectionCapability()) {
+            return Objects.equals(mDnn, that.mDnn)
+                    && Objects.equals(mOsAppId, that.mOsAppId)
+                    && mConnectionCapability == that.mConnectionCapability;
+        } else {
+            return Objects.equals(mDnn, that.mDnn) && Objects.equals(mOsAppId, that.mOsAppId);
+        }
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(mDnn, mOsAppId);
+        if (Flags.enableTrafficDescriptorConnectionCapability()) {
+            return Objects.hash(mDnn, mOsAppId, mConnectionCapability);
+        } else {
+            return Objects.hash(mDnn, mOsAppId);
+        }
     }
 
     /**
@@ -318,7 +533,8 @@ public final class TrafficDescriptor implements Parcelable {
      * <pre><code>
      *
      * TrafficDescriptor response = new TrafficDescriptor.Builder()
-     *     .setDnn("")
+     *     .setDataNetworkName("example_dnn")
+     *     .setConnectionCapability(TrafficDescriptor.CONNECTION_CAPABILITY_***)
      *     .build();
      * </code></pre>
      *
@@ -326,6 +542,7 @@ public final class TrafficDescriptor implements Parcelable {
     public static final class Builder {
         private String mDnn = null;
         private byte[] mOsAppId = null;
+        private int mConnectionCapability = CONNECTION_CAPABILITY_UNKNOWN;
 
         /**
          * Default constructor for Builder.
@@ -356,14 +573,37 @@ public final class TrafficDescriptor implements Parcelable {
         }
 
         /**
+         * Set the connection capability of the traffic.
+         *
+         * @param connectionCapability The connection capability constant to set.
+         * @return The same instance of the builder.
+         */
+        @FlaggedApi(Flags.FLAG_ENABLE_TRAFFIC_DESCRIPTOR_CONNECTION_CAPABILITY)
+        @NonNull
+        public Builder setConnectionCapability(@ConnectionCapability int connectionCapability) {
+            this.mConnectionCapability = connectionCapability;
+            return this;
+        }
+
+        /**
          * Build the {@link TrafficDescriptor}.
          *
-         * @throws IllegalArgumentException if DNN and OS App ID are null.
+         * @throws IllegalArgumentException if DNN, OS App ID are null and Connection Capability
+         *         is UNKNOWN.
          *
          * @return the {@link TrafficDescriptor} object.
          */
         @NonNull
         public TrafficDescriptor build() {
+            if (Flags.enableTrafficDescriptorConnectionCapability()) {
+                if (this.mDnn == null
+                        && this.mOsAppId == null
+                        && this.mConnectionCapability == CONNECTION_CAPABILITY_UNKNOWN) {
+                    throw new IllegalArgumentException(
+                            "DNN, OS App ID are null and Connection Capability is not set");
+                }
+                return new TrafficDescriptor(this.mDnn, this.mOsAppId, this.mConnectionCapability);
+            }
             if (this.mDnn == null && this.mOsAppId == null) {
                 throw new IllegalArgumentException("DNN and OS App ID are null");
             }

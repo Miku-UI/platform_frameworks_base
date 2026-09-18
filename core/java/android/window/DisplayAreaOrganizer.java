@@ -73,16 +73,16 @@ public class DisplayAreaOrganizer extends WindowOrganizer {
     public static final int FEATURE_ONE_HANDED = FEATURE_SYSTEM_FIRST + 3;
 
     /**
-     * Display area that can be magnified in
-     * {@link Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_WINDOW}. It contains all windows
+     * Display area that can be zoomed out. It contains all windows
      * below {@link WindowManager.LayoutParams#TYPE_ACCESSIBILITY_MAGNIFICATION_OVERLAY}.
+     * @hide
      */
-    public static final int FEATURE_WINDOWED_MAGNIFICATION = FEATURE_SYSTEM_FIRST + 4;
+    public static final int FEATURE_TOP_LEVEL_ZOOM = FEATURE_SYSTEM_FIRST + 4;
 
     /**
      * Display area that can be magnified in
-     * {@link Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN}. This is different from
-     * {@link #FEATURE_WINDOWED_MAGNIFICATION} that the whole display will be magnified.
+     * {@link Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN}. The whole display will
+     * be magnified with this.
      * @hide
      */
     public static final int FEATURE_FULLSCREEN_MAGNIFICATION = FEATURE_SYSTEM_FIRST + 5;
@@ -101,10 +101,11 @@ public class DisplayAreaOrganizer extends WindowOrganizer {
     public static final int FEATURE_IME_PLACEHOLDER = FEATURE_SYSTEM_FIRST + 7;
 
     /**
-     * Display area hosting IME window tokens (@see ImeContainer). By default, IMEs are parented
-     * to FEATURE_IME_PLACEHOLDER but can be reparented under other RootDisplayArea.
+     * Display area hosting IME window tokens (see {@link com.android.server.wm.ImeContainer}).
+     * By default, IMEs are parented to {@link #FEATURE_IME_PLACEHOLDER} but can be reparented under
+     * other {@link com.android.server.wm.RootDisplayArea}.
      *
-     * This feature can register organizers in order to disable the reparenting logic and manage
+     * <p>This feature can register organizers in order to disable the reparenting logic and manage
      * the position and settings of the container manually. This is useful for foldable devices
      * which require custom UX rules for the IME position (e.g. IME on one screen and the focused
      * app on another screen).
@@ -115,7 +116,7 @@ public class DisplayAreaOrganizer extends WindowOrganizer {
      * Display area that includes all areas which can have windows. It is used to separate the
      * window content to provide the ability of display level animation and display recording.
      * It is usually only a placeholder that organizer should not control it. This only exists
-     * if {@link #FEATURE_WINDOWED_MAGNIFICATION} is not available to be the windowing layer.
+     * if {@link #FEATURE_TOP_LEVEL_ZOOM} is not available to be the windowing layer.
      * @hide
      */
     public static final int FEATURE_WINDOWING_LAYER = FEATURE_SYSTEM_FIRST + 9;

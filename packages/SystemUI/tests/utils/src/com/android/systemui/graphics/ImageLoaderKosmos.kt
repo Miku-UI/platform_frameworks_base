@@ -20,4 +20,4 @@ import android.content.testableContext
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testDispatcher
 
-var Kosmos.imageLoader by Kosmos.Fixture { ImageLoader(testableContext, testDispatcher) }
+var Kosmos.imageLoader by Kosmos.Fixture { ImageLoaderImpl(testableContext, testDispatcher) }

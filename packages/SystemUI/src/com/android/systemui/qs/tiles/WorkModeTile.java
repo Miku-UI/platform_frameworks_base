@@ -18,8 +18,6 @@ package com.android.systemui.qs.tiles;
 
 import static android.app.admin.DevicePolicyResources.Strings.SystemUi.QS_WORK_PROFILE_LABEL;
 
-import static com.android.systemui.Flags.iconRefresh2025;
-
 import android.app.admin.DevicePolicyManager;
 import android.content.Intent;
 import android.os.Handler;
@@ -131,17 +129,8 @@ public class WorkModeTile extends QSTileImpl<BooleanState> implements
             state.value = mProfileController.isWorkModeEnabled();
         }
 
-        if (iconRefresh2025()) {
-            state.icon = maybeLoadResourceIcon(state.value ? R.drawable.qs_work_mode_icon_on
-                    : R.drawable.qs_work_mode_icon_off);
-        } else {
-            if (mIcon == null) {
-                mIcon = maybeLoadResourceIcon(
-                        com.android.internal.R.drawable.stat_sys_managed_profile_status);
-            }
-            state.icon = mIcon;
-        }
-
+        state.icon = maybeLoadResourceIcon(state.value ? R.drawable.qs_work_mode_icon_on
+                : R.drawable.qs_work_mode_icon_off);
         state.label = getTileLabel();
         state.contentDescription = state.label;
         state.expandedAccessibilityClassName = Switch.class.getName();

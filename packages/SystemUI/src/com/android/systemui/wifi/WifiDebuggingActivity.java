@@ -59,6 +59,7 @@ public class WifiDebuggingActivity extends AlertActivity
     private WifiChangeReceiver mWifiChangeReceiver;
     private WifiManager mWifiManager;
     private String mBssid;
+    private String mSsid;
     private boolean mClicked = false;
 
     @Override
@@ -75,17 +76,17 @@ public class WifiDebuggingActivity extends AlertActivity
         mWifiChangeReceiver = new WifiChangeReceiver(this);
 
         Intent intent = getIntent();
-        String ssid = intent.getStringExtra("ssid");
+        mSsid = intent.getStringExtra("ssid");
         mBssid = intent.getStringExtra("bssid");
 
-        if (ssid == null || mBssid == null) {
+        if (mSsid == null || mBssid == null) {
             finish();
             return;
         }
 
         final AlertController.AlertParams ap = mAlertParams;
         ap.mTitle = getString(R.string.wifi_debugging_title);
-        ap.mMessage = getString(R.string.wifi_debugging_message, ssid, mBssid);
+        ap.mMessage = getString(R.string.wifi_debugging_message, mSsid, mBssid);
         ap.mPositiveButtonText = getString(R.string.wifi_debugging_allow);
         ap.mNegativeButtonText = getString(android.R.string.cancel);
         ap.mPositiveButtonListener = this;
@@ -214,7 +215,7 @@ public class WifiDebuggingActivity extends AlertActivity
             IBinder b = ServiceManager.getService(ADB_SERVICE);
             IAdbManager service = IAdbManager.Stub.asInterface(b);
             if (allow) {
-                service.allowWirelessDebugging(alwaysAllow, mBssid);
+                service.allowWirelessDebugging(alwaysAllow, mBssid, mSsid);
             } else {
                 service.denyWirelessDebugging();
             }

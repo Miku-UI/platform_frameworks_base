@@ -624,7 +624,7 @@ StorageId IncrementalService::createStorage(std::string_view mountPoint,
         return kInvalidStorageId;
     }
 
-    if (!path::isEmptyDir(mountNorm)) {
+    if (!path::isEmptyDir(mountNorm).value_or(true)) {
         LOG(ERROR) << "Mounting over existing non-empty directory is not supported: " << mountNorm;
         return kInvalidStorageId;
     }

@@ -16,8 +16,12 @@
 
 package com.android.systemui.deviceentry.domain.interactor
 
+import com.android.systemui.biometrics.data.repository.facePropertyRepository
+import com.android.systemui.biometrics.domain.interactor.peripheralFpsInteractor
+import com.android.systemui.biometrics.domain.interactor.sideFpsSensorInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.testScope
 
 val Kosmos.authRippleInteractor by
     Kosmos.Fixture {
@@ -25,5 +29,9 @@ val Kosmos.authRippleInteractor by
             deviceEntrySourceInteractor = deviceEntrySourceInteractor,
             deviceEntryUdfpsInteractor = deviceEntryUdfpsInteractor,
             keyguardInteractor = keyguardInteractor,
+            sideFpsSensorInteractor = sideFpsSensorInteractor,
+            facePropertyRepository = facePropertyRepository,
+            peripheralFpsInteractor = peripheralFpsInteractor,
+            backgroundScope = testScope.backgroundScope,
         )
     }

@@ -16,16 +16,23 @@
 
 package com.android.systemui.communal.ui.viewmodel
 
+import android.content.ComponentName
+import android.platform.test.annotations.EnableFlags
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.internal.logging.testing.UiEventLoggerFake
+import com.android.internal.logging.uiEventLoggerFake
+import com.android.systemui.Flags.FLAG_COMMUNAL_ACCESSIBILITY_RESIZE
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.communal.ui.metrics.CommunalUiEvent
 import com.android.systemui.compose.runTestWithSnapshots
-import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -39,7 +46,9 @@ import org.junit.runner.RunWith
 class ResizeableItemFrameViewModelTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
-    private val underTest = kosmos.resizeableItemFrameViewModel
+
+    private lateinit var uiEventLogger: UiEventLoggerFake
+    private lateinit var underTest: ResizeableItemFrameViewModel
 
     /** Total viewport height of the entire grid */
     private val viewportHeightPx = 100
@@ -61,6 +70,8 @@ class ResizeableItemFrameViewModelTest : SysuiTestCase() {
 
     @Before
     fun setUp() {
+        uiEventLogger = kosmos.uiEventLoggerFake
+        underTest = ResizeableItemFrameViewModel(uiEventLogger, ComponentName("pkg", "cls"))
         underTest.activateIn(testScope)
     }
 
@@ -230,49 +241,93 @@ class ResizeableItemFrameViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun testTwoSpanGrid_expandElementFromBottom() =
         testScope.runTestWithSnapshots {
-            val resizeInfo by collectLastValue(underTest.resizeInfo)
+            var resizeInfo: ResizeInfo? = null
+            backgroundScope.launch { underTest.observeResize { resizeInfo = it } }
 
             val adjustedGridLayout = singleSpanGrid.copy(resizeMultiple = 1, totalSpans = 2)
 
             updateGridLayout(adjustedGridLayout)
 
             underTest.bottomDragState.anchoredDrag { dragTo(45f) }
+            runCurrent()
 
-            assertThat(resizeInfo).isEqualTo(ResizeInfo(1, DragHandle.BOTTOM))
+            assertThat(resizeInfo).isEqualTo(ResizeInfo(1, ResizeHandle.BOTTOM))
         }
 
     @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @EnableFlags(FLAG_COMMUNAL_ACCESSIBILITY_RESIZE)
+    fun testRepeatedResizeOperations_emitsCorrectly() =
+        testScope.runTestWithSnapshots {
+            val collectedResizeInfo = mutableListOf<ResizeInfo>()
+            backgroundScope.launch { underTest.observeResize { collectedResizeInfo.add(it) } }
+
+            val grid =
+                singleSpanGrid.copy(
+                    currentRow = 0,
+                    currentSpan = 1,
+                    resizeMultiple = 1,
+                    totalSpans = 3,
+                )
+            updateGridLayout(grid)
+
+            // First expansion
+            underTest.bottomDragState.anchoredDrag { dragTo(30f) }
+            runCurrent()
+
+            // Second expansion (same gesture)
+            underTest.bottomDragState.anchoredDrag { dragTo(30f) }
+            runCurrent()
+
+            assertThat(collectedResizeInfo)
+                .containsExactly(
+                    ResizeInfo(1, ResizeHandle.BOTTOM),
+                    ResizeInfo(1, ResizeHandle.BOTTOM),
+                )
+        }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun testThreeSpanGrid_expandMiddleElementUpwards() =
         testScope.runTestWithSnapshots {
-            val resizeInfo by collectLastValue(underTest.resizeInfo)
+            var resizeInfo: ResizeInfo? = null
+            backgroundScope.launch { underTest.observeResize { resizeInfo = it } }
             updateGridLayout(singleSpanGrid.copy(currentRow = 1, totalSpans = 3))
 
             underTest.topDragState.anchoredDrag { dragTo(-30f) }
-            assertThat(resizeInfo).isEqualTo(ResizeInfo(1, DragHandle.TOP))
+            runCurrent()
+            assertThat(resizeInfo).isEqualTo(ResizeInfo(1, ResizeHandle.TOP))
         }
 
     @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun testThreeSpanGrid_expandTopElementDownBy2Spans() =
         testScope.runTestWithSnapshots {
-            val resizeInfo by collectLastValue(underTest.resizeInfo)
+            var resizeInfo: ResizeInfo? = null
+            backgroundScope.launch { underTest.observeResize { resizeInfo = it } }
             updateGridLayout(singleSpanGrid.copy(totalSpans = 3))
 
             assertThat(resizeInfo).isNull()
             underTest.bottomDragState.anchoredDrag { dragTo(60f) }
-            assertThat(resizeInfo).isEqualTo(ResizeInfo(2, DragHandle.BOTTOM))
+            runCurrent()
+            assertThat(resizeInfo).isEqualTo(ResizeInfo(2, ResizeHandle.BOTTOM))
         }
 
     @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun testTwoSpanGrid_shrinkElementFromBottom() =
         testScope.runTestWithSnapshots {
-            val resizeInfo by collectLastValue(underTest.resizeInfo)
+            var resizeInfo: ResizeInfo? = null
+            backgroundScope.launch { underTest.observeResize { resizeInfo = it } }
             updateGridLayout(singleSpanGrid.copy(totalSpans = 2, currentSpan = 2))
 
             assertThat(resizeInfo).isNull()
             underTest.bottomDragState.anchoredDrag { dragTo(-45f) }
-            assertThat(resizeInfo).isEqualTo(ResizeInfo(-1, DragHandle.BOTTOM))
+            runCurrent()
+            assertThat(resizeInfo).isEqualTo(ResizeInfo(-1, ResizeHandle.BOTTOM))
         }
 
     @Test
@@ -450,48 +505,59 @@ class ResizeableItemFrameViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun testResizeByAccessibility_expandFromBottom_usesTopDragState() =
         testScope.runTestWithSnapshots {
-            val resizeInfo by collectLastValue(underTest.resizeInfo)
+            var resizeInfo: ResizeInfo? = null
+            backgroundScope.launch { underTest.observeResize { resizeInfo = it } }
 
             val twoSpanGrid = singleSpanGrid.copy(totalSpans = 2, currentSpan = 1, currentRow = 1)
             updateGridLayout(twoSpanGrid)
 
             underTest.expandToNextAnchor()
+            runCurrent()
 
-            assertThat(resizeInfo).isEqualTo(ResizeInfo(1, DragHandle.TOP))
+            assertThat(resizeInfo).isEqualTo(ResizeInfo(1, ResizeHandle.TOP))
         }
 
     @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun testResizeByAccessibility_expandFromTop_usesBottomDragState() =
         testScope.runTestWithSnapshots {
-            val resizeInfo by collectLastValue(underTest.resizeInfo)
+            var resizeInfo: ResizeInfo? = null
+            backgroundScope.launch { underTest.observeResize { resizeInfo = it } }
 
             val twoSpanGrid = singleSpanGrid.copy(totalSpans = 2, currentSpan = 1, currentRow = 0)
             updateGridLayout(twoSpanGrid)
 
             underTest.expandToNextAnchor()
+            runCurrent()
 
-            assertThat(resizeInfo).isEqualTo(ResizeInfo(1, DragHandle.BOTTOM))
+            assertThat(resizeInfo).isEqualTo(ResizeInfo(1, ResizeHandle.BOTTOM))
         }
 
     @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun testResizeByAccessibility_shrinkFromFull_usesBottomDragState() =
         testScope.runTestWithSnapshots {
-            val resizeInfo by collectLastValue(underTest.resizeInfo)
+            var resizeInfo: ResizeInfo? = null
+            backgroundScope.launch { underTest.observeResize { resizeInfo = it } }
 
             val twoSpanGrid = singleSpanGrid.copy(totalSpans = 2, currentSpan = 2, currentRow = 0)
             updateGridLayout(twoSpanGrid)
 
             underTest.shrinkToNextAnchor()
+            runCurrent()
 
-            assertThat(resizeInfo).isEqualTo(ResizeInfo(-1, DragHandle.BOTTOM))
+            assertThat(resizeInfo).isEqualTo(ResizeInfo(-1, ResizeHandle.BOTTOM))
         }
 
     @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun testResizeByAccessibility_cannotResizeAtMinSize() =
         testScope.runTestWithSnapshots {
-            val resizeInfo by collectLastValue(underTest.resizeInfo)
+            var resizeInfo: ResizeInfo? = null
+            backgroundScope.launch { underTest.observeResize { resizeInfo = it } }
 
             // Set up grid at minimum size
             val minSizeGrid =
@@ -504,6 +570,7 @@ class ResizeableItemFrameViewModelTest : SysuiTestCase() {
             updateGridLayout(minSizeGrid)
 
             underTest.shrinkToNextAnchor()
+            runCurrent()
 
             assertThat(resizeInfo).isNull()
         }
@@ -521,7 +588,8 @@ class ResizeableItemFrameViewModelTest : SysuiTestCase() {
     fun testIllegalState_currentSpanExceedsTotalSpans() {
         Assert.assertThrows(IllegalArgumentException::class.java) {
             testScope.runTest {
-                updateGridLayout(singleSpanGrid.copy(currentSpan = 3, totalSpans = 2)) }
+                updateGridLayout(singleSpanGrid.copy(currentSpan = 3, totalSpans = 2))
+            }
         }
     }
 
@@ -551,6 +619,124 @@ class ResizeableItemFrameViewModelTest : SysuiTestCase() {
             assertThat(bottomState.anchors.toList()).containsExactly(0 to 0f)
         }
 
+    @Test
+    fun testMinHeightRounding_absorbsSubPixelDiscrepancy() =
+        testScope.runTest {
+            // Replicates the scenario on Rango devices where 651px min height is slightly larger
+            // than the 650.5px height per span, which previously caused rounding up to 2 spans.
+            // With the rounding fix, it should round down to 1 span.
+            val grid =
+                singleSpanGrid.copy(
+                    viewportHeightPx = 1301,
+                    verticalContentPaddingPx = 0f,
+                    verticalItemSpacingPx = 0f,
+                    totalSpans = 2,
+                    minHeightPx = 651,
+                    currentSpan = 2,
+                )
+            updateGridLayout(grid)
+
+            // If rounding works correctly (1 span min), we should be able to shrink.
+            // If it fails (2 span min), we would be stuck at min size and unable to shrink.
+            assertThat(underTest.canShrink()).isTrue()
+        }
+
+    @Test
+    @EnableFlags(FLAG_COMMUNAL_ACCESSIBILITY_RESIZE)
+    fun toggleAccessibilityResizeHandle_togglesState() {
+        assertThat(underTest.visibleAccessibilityResizeHandle.value).isNull()
+
+        underTest.toggleAccessibilityResizeHandle(ResizeHandle.TOP)
+        assertThat(underTest.visibleAccessibilityResizeHandle.value).isEqualTo(ResizeHandle.TOP)
+
+        underTest.toggleAccessibilityResizeHandle(ResizeHandle.TOP)
+        assertThat(underTest.visibleAccessibilityResizeHandle.value).isNull()
+
+        underTest.toggleAccessibilityResizeHandle(ResizeHandle.BOTTOM)
+        assertThat(underTest.visibleAccessibilityResizeHandle.value).isEqualTo(ResizeHandle.BOTTOM)
+
+        underTest.toggleAccessibilityResizeHandle(ResizeHandle.TOP)
+        assertThat(underTest.visibleAccessibilityResizeHandle.value).isEqualTo(ResizeHandle.TOP)
+    }
+
+    @Test
+    @EnableFlags(FLAG_COMMUNAL_ACCESSIBILITY_RESIZE)
+    fun toggleAccessibilityResizeHandle_logsShowAndHide() {
+        val componentName = ComponentName("pkg", "cls")
+
+        // Show
+        underTest.toggleAccessibilityResizeHandle(ResizeHandle.TOP)
+        assertThat(uiEventLogger.numLogs()).isEqualTo(1)
+        assertThat(uiEventLogger.eventId(0))
+            .isEqualTo(CommunalUiEvent.COMMUNAL_HUB_WIDGET_SHOW_ACCESSIBILITY_RESIZE_BUTTONS.id)
+        assertThat(uiEventLogger.logs[0].packageName).isEqualTo(componentName.packageName)
+
+        // Hide
+        underTest.toggleAccessibilityResizeHandle(ResizeHandle.TOP)
+        assertThat(uiEventLogger.numLogs()).isEqualTo(2)
+        assertThat(uiEventLogger.eventId(1))
+            .isEqualTo(CommunalUiEvent.COMMUNAL_HUB_WIDGET_HIDE_ACCESSIBILITY_RESIZE_BUTTONS.id)
+        assertThat(uiEventLogger.logs[1].packageName).isEqualTo(componentName.packageName)
+    }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @EnableFlags(FLAG_COMMUNAL_ACCESSIBILITY_RESIZE)
+    fun reset_clearsStateAndResetsDragState() =
+        testScope.runTestWithSnapshots {
+            // Set up some state
+            underTest.toggleAccessibilityResizeHandle(ResizeHandle.BOTTOM)
+
+            // Simulate drag state (cannot easily simulate drag without anchors, but we can verify
+            // it calls snapTo(0))
+            // Actually, we can update anchors and drag to simulate non-zero state.
+            updateGridLayout(singleSpanGrid.copy(totalSpans = 2))
+            underTest.bottomDragState.anchoredDrag { dragTo(45f) }
+            runCurrent()
+
+            assertThat(underTest.visibleAccessibilityResizeHandle.value).isNotNull()
+            assertThat(underTest.bottomDragState.currentValue).isNotEqualTo(0)
+
+            underTest.reset()
+            runCurrent()
+
+            assertThat(underTest.visibleAccessibilityResizeHandle.value).isNull()
+            assertThat(underTest.bottomDragState.currentValue).isEqualTo(0)
+            assertThat(underTest.topDragState.currentValue).isEqualTo(0)
+
+            // Verify logging
+            val componentName = ComponentName("pkg", "cls")
+            assertThat(uiEventLogger.numLogs()).isEqualTo(2)
+            assertThat(uiEventLogger.eventId(1))
+                .isEqualTo(CommunalUiEvent.COMMUNAL_HUB_WIDGET_HIDE_ACCESSIBILITY_RESIZE_BUTTONS.id)
+            assertThat(uiEventLogger.logs[1].packageName).isEqualTo(componentName.packageName)
+        }
+
+    @Test
+    fun expand_logsExpandEvent() =
+        testScope.runTest {
+            val componentName = ComponentName("pkg", "cls")
+
+            underTest.expand(ResizeHandle.TOP)
+            assertThat(uiEventLogger.numLogs()).isEqualTo(1)
+            assertThat(uiEventLogger.eventId(0))
+                .isEqualTo(CommunalUiEvent.COMMUNAL_HUB_WIDGET_EXPAND_BY_ACCESSIBILITY_BUTTON.id)
+            assertThat(uiEventLogger.logs[0].packageName).isEqualTo(componentName.packageName)
+        }
+
+    @Test
+    fun shrink_logsShrinkEvent() =
+        testScope.runTest {
+            val componentName = ComponentName("pkg", "cls")
+
+            underTest.shrink(ResizeHandle.BOTTOM)
+            assertThat(uiEventLogger.numLogs()).isEqualTo(1)
+            assertThat(uiEventLogger.eventId(0))
+                .isEqualTo(CommunalUiEvent.COMMUNAL_HUB_WIDGET_SHRINK_BY_ACCESSIBILITY_BUTTON.id)
+            assertThat(uiEventLogger.logs[0].packageName).isEqualTo(componentName.packageName)
+        }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun TestScope.updateGridLayout(gridLayout: GridLayout) {
         underTest.setGridLayoutInfo(
             verticalItemSpacingPx = gridLayout.verticalItemSpacingPx,

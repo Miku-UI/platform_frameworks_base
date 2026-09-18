@@ -22,5 +22,14 @@ import android.os.Bundle;
  * @hide
  */
 interface IProgramRatingInfoListener {
+    /**
+     * Called when program rating information for the currently-viewed program is updated.
+     *
+     * @param sessionToken The token that associates this update with a specific viewing session.
+     * @param changedProgramInfo A Bundle containing the program's rating information,
+     *                           the Bundle must contain the following key:
+     *                           <ul><li>KEY_CONTENT_RATINGS: The content ratings applicable to the
+     *                           current channel.</li></ul>
+     */
     void onProgramInfoChanged(String sessionToken,in Bundle changedProgramInfo);
 }

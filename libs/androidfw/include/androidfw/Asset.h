@@ -18,11 +18,11 @@
 // Class providing access to a read-only asset.  Asset objects are NOT
 // thread-safe, and should not be shared across threads.
 //
-#ifndef __LIBS_ASSET_H
-#define __LIBS_ASSET_H
+#pragma once
 
 #include <stdio.h>
 #include <sys/types.h>
+#include <functional>
 #include <memory>
 #include <optional>
 
@@ -129,6 +129,17 @@ public:
     virtual bool isAllocated(void) const { return false; }
 
     /*
+     * Extract the internal data from the asset. This object isn't usable after the call.
+     *
+     * Note: this function is not virtual because some 3rd party apps hook into the JNI calls and
+     * replace the vtable pointer for these classes. Changing the set of virtual functions in
+     * this class would cause them to crash, so we have to work around that by making own virtual
+     * function implementation.
+     */
+    using Data = std::variant<base::MappedFile, std::unique_ptr<uint8_t[]>, std::monostate>;
+    Data takeData() && { return mTakeData(); }
+
+    /*
      * Get a string identifying the asset's source.  This might be a full
      * path, it might be a colon-separated list of identifiers.
      *
@@ -165,6 +176,8 @@ protected:
     void setAssetSource(const String8& path) { mAssetSource = path; }
 
     AccessMode getAccessMode(void) const { return mAccessMode; }
+
+    std::function<Data()> mTakeData = [] { return std::monostate{}; };
 
 private:
     /* AssetManager needs access to our "create" functions */
@@ -282,6 +295,8 @@ public:
     bool isAllocated(void) const override { return mBuf != NULL; }
 
 private:
+    Data takeDataImpl();
+
     incfs::map_ptr<void> ensureAlignment(const incfs::IncFsFileMap& map);
 
     off64_t         mStart;         // absolute file offset of start of chunk
@@ -340,6 +355,8 @@ public:
     virtual bool isAllocated(void) const { return mBuf != NULL; }
 
 private:
+    Data takeDataImpl();
+
     off64_t mStart;           // offset to start of compressed data
     off64_t mCompressedLen;   // length of the compressed data
     off64_t mUncompressedLen; // length of the uncompressed data
@@ -355,4 +372,3 @@ private:
 
 }; // namespace android
 
-#endif // __LIBS_ASSET_H

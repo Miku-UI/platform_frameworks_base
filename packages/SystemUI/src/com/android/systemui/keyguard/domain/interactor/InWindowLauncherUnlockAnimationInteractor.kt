@@ -47,6 +47,7 @@ constructor(
     transitionInteractor: KeyguardTransitionInteractor,
     surfaceBehindRepository: dagger.Lazy<KeyguardSurfaceBehindRepository>,
     private val activityManager: ActivityManagerWrapper,
+    wakeDirectlyToGoneInteractor: KeyguardWakeDirectlyToGoneInteractor,
 ) {
     val startedUnlockAnimation = repository.startedUnlockAnimation.asStateFlow()
 
@@ -60,7 +61,13 @@ constructor(
                 edge = Edge.create(to = Scenes.Gone),
                 edgeWithoutSceneContainer = Edge.create(to = GONE),
             )
-            .map { transitioningToGone -> transitioningToGone && isLauncherUnderneath() }
+            .map { transitioningToGone ->
+                transitioningToGone &&
+                    // The going away transition doesn't run if we're waking directly to Gone
+                    // (keyguard is disabled, we're wake and unlocking, etc).
+                    !wakeDirectlyToGoneInteractor.canWakeDirectlyToGone.value &&
+                    isLauncherUnderneath()
+            }
             .stateIn(scope, SharingStarted.Eagerly, false)
 
     /**
@@ -86,13 +93,12 @@ constructor(
             // crashes, etc.) the worst case is that we fall back to the normal unlock animation (or
             // unnecessarily play the animation on Launcher when there's an app over it), which is
             // not a big deal.
-            transitionInteractor.isCurrentlyIn(Scenes.Gone, GONE)
-                .distinctUntilChanged()
-                .collect { gone ->
-                    if (!gone) {
-                        updateIsLauncherUnderneath()
-                    }
+            transitionInteractor.isCurrentlyIn(Scenes.Gone, GONE).distinctUntilChanged().collect {
+                gone ->
+                if (!gone) {
+                    updateIsLauncherUnderneath()
                 }
+            }
         }
     }
 

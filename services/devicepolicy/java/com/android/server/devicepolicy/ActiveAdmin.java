@@ -259,7 +259,7 @@ class ActiveAdmin {
     // The list of permitted accessibility services package namesas set by a profile
     // or device owner. Null means all accessibility services are allowed, empty means
     // none except system services are allowed.
-    List<String> permittedAccessiblityServices;
+    List<String> mPermittedAccessibilityServices;
 
     // The list of permitted input methods package names as set by a profile or device owner.
     // Null means all input methods are allowed, empty means none except system imes are
@@ -558,7 +558,7 @@ class ActiveAdmin {
                     crossProfileWidgetProviders);
         }
         writePackageListToXml(out, TAG_PERMITTED_ACCESSIBILITY_SERVICES,
-                permittedAccessiblityServices);
+                mPermittedAccessibilityServices);
         writePackageListToXml(out, TAG_PERMITTED_IMES, permittedInputMethods);
         writePackageListToXml(out, TAG_PERMITTED_NOTIFICATION_LISTENERS,
                 permittedNotificationListeners);
@@ -861,7 +861,7 @@ class ActiveAdmin {
                 crossProfileWidgetProviders = new ArrayList<>();
                 readAttributeValues(parser, TAG_PROVIDER, crossProfileWidgetProviders);
             } else if (TAG_PERMITTED_ACCESSIBILITY_SERVICES.equals(tag)) {
-                permittedAccessiblityServices = readPackageList(parser, tag);
+                mPermittedAccessibilityServices = readPackageList(parser, tag);
             } else if (TAG_PERMITTED_IMES.equals(tag)) {
                 permittedInputMethods = readPackageList(parser, tag);
             } else if (TAG_PERMITTED_NOTIFICATION_LISTENERS.equals(tag)) {
@@ -1326,9 +1326,9 @@ class ActiveAdmin {
         pw.print("crossProfileWidgetProviders=");
         pw.println(crossProfileWidgetProviders);
 
-        if (permittedAccessiblityServices != null) {
+        if (mPermittedAccessibilityServices != null) {
             pw.print("permittedAccessibilityServices=");
-            pw.println(permittedAccessiblityServices);
+            pw.println(mPermittedAccessibilityServices);
         }
 
         if (permittedNotificationListeners != null) {

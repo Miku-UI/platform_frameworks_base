@@ -21,20 +21,20 @@ import android.tools.PlatformConsts.DEFAULT_DISPLAY
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.rules.ChangeDisplayOrientationRule
 import androidx.test.uiautomator.UiDevice
-
-import org.junit.Assume
-import org.junit.Before
-import org.junit.Test
-import org.junit.Rule
-import org.junit.rules.TestName
 import com.android.server.wm.flicker.entireScreenCovered
 import com.android.server.wm.flicker.statusBarLayerIsVisibleAtStartAndEnd
 import com.android.server.wm.flicker.statusBarLayerPositionAtStartAndEnd
 import com.android.server.wm.flicker.statusBarWindowIsAlwaysVisible
 import com.android.server.wm.flicker.taskBarLayerIsVisibleAtStartAndEnd
 import com.android.server.wm.flicker.taskBarWindowIsAlwaysVisible
+import com.android.wm.shell.Utils
 import com.android.wm.shell.shared.desktopmode.DesktopState
+import org.junit.Assume
+import org.junit.Before
 import org.junit.ClassRule
+import org.junit.Rule
+import org.junit.Test
+import org.junit.rules.TestName
 
 /**
  * The base class that all Desktop Mode Flicker tests should inherit from.
@@ -43,13 +43,10 @@ import org.junit.ClassRule
  */
 @ScreenRecordRule.ScreenRecord
 abstract class DesktopModeBaseTest(flicker: FlickerTest) : BaseBenchmarkTest(flicker) {
-    @get:Rule
-    val testName = TestName()
+    @get:Rule val testName = TestName()
 
     companion object {
-        @get:ClassRule
-        @JvmStatic
-        val screenRecordRule = ScreenRecordRule()
+        @get:ClassRule @JvmStatic val screenRecordRule = ScreenRecordRule()
     }
 
     // Override this set with the test method names that you want to exclude from the test
@@ -70,29 +67,25 @@ abstract class DesktopModeBaseTest(flicker: FlickerTest) : BaseBenchmarkTest(fli
         device.executeShellCommand(
             "dumpsys activity service SystemUIService WMShell desktopmode removeAllDesks"
         )
+        Utils.clearAllRememberedDesktopBounds()
 
         val currentTestMethodName = testName.methodName
         Assume.assumeFalse(
             "Skipping test: $currentTestMethodName as it is in the exclusion list.",
-            excludedTests.any { currentTestMethodName.startsWith(it) }
+            excludedTests.any { currentTestMethodName.startsWith(it) },
         )
     }
 
-    @Test
-    fun entireScreenCovered() = flicker.entireScreenCovered()
+    @Test fun entireScreenCovered() = flicker.entireScreenCovered()
 
-    @Test
-    fun taskBarLayerIsVisibleAtStartAndEnd() = flicker.taskBarLayerIsVisibleAtStartAndEnd()
+    @Test fun taskBarLayerIsVisibleAtStartAndEnd() = flicker.taskBarLayerIsVisibleAtStartAndEnd()
 
-    @Test
-    fun taskBarWindowIsAlwaysVisible() = flicker.taskBarWindowIsAlwaysVisible()
+    @Test fun taskBarWindowIsAlwaysVisible() = flicker.taskBarWindowIsAlwaysVisible()
 
     @Test
     fun statusBarLayerIsVisibleAtStartAndEnd() = flicker.statusBarLayerIsVisibleAtStartAndEnd()
 
-    @Test
-    fun statusBarLayerPositionAtStartAndEnd() = flicker.statusBarLayerPositionAtStartAndEnd()
+    @Test fun statusBarLayerPositionAtStartAndEnd() = flicker.statusBarLayerPositionAtStartAndEnd()
 
-    @Test
-    fun statusBarWindowIsAlwaysVisible() = flicker.statusBarWindowIsAlwaysVisible()
+    @Test fun statusBarWindowIsAlwaysVisible() = flicker.statusBarWindowIsAlwaysVisible()
 }

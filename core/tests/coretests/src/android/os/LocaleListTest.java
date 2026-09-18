@@ -20,12 +20,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.fail;
 
-import android.platform.test.ravenwood.RavenwoodRule;
-
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -33,8 +30,6 @@ import java.util.Locale;
 
 @RunWith(AndroidJUnit4.class)
 public class LocaleListTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     @Test
     @SmallTest

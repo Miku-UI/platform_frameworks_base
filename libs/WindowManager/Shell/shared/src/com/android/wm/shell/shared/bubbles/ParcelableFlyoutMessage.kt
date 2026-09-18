@@ -17,39 +17,10 @@
 package com.android.wm.shell.shared.bubbles
 
 import android.graphics.drawable.Icon
-import android.os.Parcel
 import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
 
 /** The contents of the flyout message to be passed to launcher for rendering in the bubble bar. */
-class ParcelableFlyoutMessage(
-    val icon: Icon?,
-    val title: String?,
-    val message: String?,
-) : Parcelable {
-
-    constructor(
-        parcel: Parcel
-    ) : this(
-        icon = parcel.readParcelable(Icon::class.java.classLoader),
-        title = parcel.readString(),
-        message = parcel.readString(),
-    )
-
-    override fun writeToParcel(parcel: Parcel, flags: Int) {
-        parcel.writeParcelable(icon, flags)
-        parcel.writeString(title)
-        parcel.writeString(message)
-    }
-
-    override fun describeContents() = 0
-
-    companion object {
-        @JvmField
-        val CREATOR =
-            object : Parcelable.Creator<ParcelableFlyoutMessage> {
-                override fun createFromParcel(parcel: Parcel) = ParcelableFlyoutMessage(parcel)
-
-                override fun newArray(size: Int) = arrayOfNulls<ParcelableFlyoutMessage>(size)
-            }
-    }
-}
+@Parcelize
+class ParcelableFlyoutMessage(val icon: Icon?, val title: String?, val message: String?) :
+    Parcelable

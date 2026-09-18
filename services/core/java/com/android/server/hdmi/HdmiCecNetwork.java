@@ -798,6 +798,14 @@ public class HdmiCecNetwork {
         if (type == HdmiDeviceInfo.DEVICE_AUDIO_SYSTEM) {
             mCecSwitches.add(path);
         }
+        for (int i = 0; i < mDeviceInfos.size(); i++) {
+            int key = mDeviceInfos.keyAt(i);
+            int physicalAddress = mDeviceInfos.get(key).getPhysicalAddress();
+            if (isParentPath(path, physicalAddress)) {
+                invokeDeviceEventListener(mDeviceInfos.get(key),
+                        HdmiControlManager.DEVICE_EVENT_ADD_DEVICE);
+            }
+        }
         return false;
     }
 

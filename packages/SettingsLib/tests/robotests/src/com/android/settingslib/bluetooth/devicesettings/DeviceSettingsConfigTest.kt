@@ -61,6 +61,11 @@ class DeviceSettingsConfigTest {
                     highlighted = false,
                     extras = Bundle(),
                 ),
+                settingGroups =
+                    listOf(
+                        DeviceSettingGroup(preferenceCategoryTitle = "group1"),
+                        DeviceSettingGroup(preferenceCategoryTitle = "group2"),
+                    ),
                 extras = Bundle().apply { putString("key1", "value1") },
             )
 
@@ -86,6 +91,9 @@ class DeviceSettingsConfigTest {
         assertThat(fromParcel.moreSettingsHelpItem?.packageName).isEqualTo("package_name_2")
         assertThat(fromParcel.moreSettingsHelpItem?.className).isEqualTo("class_name_2")
         assertThat(fromParcel.moreSettingsHelpItem?.intentAction).isEqualTo("intent_action_2")
+        assertThat(fromParcel.settingGroups).hasSize(2)
+        assertThat(fromParcel.settingGroups?.get(0)?.preferenceCategoryTitle).isEqualTo("group1")
+        assertThat(fromParcel.settingGroups?.get(1)?.preferenceCategoryTitle).isEqualTo("group2")
         assertThat(fromParcel.extras.getString("key1")).isEqualTo("value1")
     }
 

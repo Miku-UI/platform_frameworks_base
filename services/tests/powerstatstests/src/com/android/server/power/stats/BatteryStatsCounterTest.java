@@ -21,6 +21,8 @@ import android.os.Parcel;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.power.stats.counters.TimeBase;
+
 import junit.framework.TestCase;
 
 /**
@@ -31,7 +33,7 @@ public class BatteryStatsCounterTest extends TestCase {
     @SmallTest
     public void testCounter() throws Exception {
         final MockClock clocks = new MockClock(); // holds realtime and uptime in ms
-        final BatteryStatsImpl.TimeBase timeBase = new BatteryStatsImpl.TimeBase();
+        final TimeBase timeBase = new TimeBase();
         timeBase.init(clocks.uptimeMillis(), clocks.elapsedRealtime());
 
         final BatteryStatsImpl.Counter counter = new BatteryStatsImpl.Counter(timeBase);
@@ -71,7 +73,7 @@ public class BatteryStatsCounterTest extends TestCase {
     @SmallTest
     public void testParceling() throws Exception {
         final MockClock clocks = new MockClock(); // holds realtime and uptime in ms
-        final BatteryStatsImpl.TimeBase timeBase = new BatteryStatsImpl.TimeBase();
+        final TimeBase timeBase = new TimeBase();
         timeBase.init(clocks.uptimeMillis(), clocks.elapsedRealtime());
 
         final BatteryStatsImpl.Counter origCounter = new BatteryStatsImpl.Counter(timeBase);

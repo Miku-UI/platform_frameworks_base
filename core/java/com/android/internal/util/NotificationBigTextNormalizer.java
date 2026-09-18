@@ -20,16 +20,11 @@ package com.android.internal.util;
 import android.annotation.NonNull;
 import android.os.Trace;
 
-import java.util.regex.Pattern;
-
 /**
  * Utility class that normalizes BigText style Notification content.
  * @hide
  */
 public class NotificationBigTextNormalizer {
-
-    private static final Pattern MULTIPLE_NEWLINES = Pattern.compile("\\v(\\s*\\v)?");
-    private static final Pattern HORIZONTAL_WHITESPACES = Pattern.compile("\\h+");
 
     // Private constructor to prevent instantiation
     private NotificationBigTextNormalizer() {}
@@ -43,81 +38,124 @@ public class NotificationBigTextNormalizer {
     public static String normalizeBigText(@NonNull String text) {
         try {
             Trace.beginSection("NotifBigTextNormalizer#normalizeBigText");
-            text = MULTIPLE_NEWLINES.matcher(text).replaceAll("\n");
-            text = HORIZONTAL_WHITESPACES.matcher(text).replaceAll(" ");
-            text = normalizeLines(text);
-            return text;
+            return normalizeLines(text);
         } finally {
             Trace.endSection();
         }
     }
 
     /**
-     * Normalizes lines in a text by removing zero-width characters, invisible formatting
-     * characters, and collapsing consecutive whitespace into single space.
+     * Normalizes lines in a text by removing useless zero-width characters, invisible formatting
+     * characters, and collapsing consecutive whitespace.
      *
-     * <p>
-     * This method processes the input text line by line. It eliminates zero-width
-     * characters (U+200B to U+200D, U+FEFF, U+034F), invisible formatting
-     * characters (U+2060 to U+2065, U+206A to U+206F, U+FFF9 to U+FFFB),
-     * and replaces any sequence of consecutive whitespace characters with a single space.
-     * </p>
+     * <p>This method processes every unicode codepoint of the input text, It:
      *
-     * <p>
-     * Additionally, the method trims trailing whitespace from each line and removes any
-     * resulting empty lines.
-     * </p>
+     * <ul>
+     *   <li>Removes useless characters.
+     *   <li>Removes any blank lines.
+     *   <li>Trims any leading/trailing whitespace.
+     *   <li>Merges multiple consecutive whitespace characters into one, even if zero-width
+     *       characters break them up.
+     * </ul>
      */
     @NonNull
     private static String normalizeLines(@NonNull String text) {
-        String[] lines = text.split("\n");
-        final StringBuilder textSB = new StringBuilder(text.length());
-        for (int i = 0; i < lines.length; i++) {
-            final String line = lines[i];
-            final StringBuilder lineSB = new StringBuilder(line.length());
-            boolean spaceSeen = false;
-            for (int j = 0; j < line.length(); j++) {
-                final char character = line.charAt(j);
+        final StringBuilder sb = new StringBuilder(text.length());
+        int cp;
+        boolean previousCharWasRenderable = false;
+        boolean renderableCharThisLine = false;
+        int spaceCharToAddNext = 0;
+        for (int j = 0; j < text.length(); j += Character.charCount(cp)) {
+            cp = Character.codePointAt(text, j);
 
-                // Skip ZERO WIDTH characters
-                if ((character >= '\u200B' && character <= '\u200D')
-                        || character == '\uFEFF' || character == '\u034F') {
-                    continue;
-                }
-                // Skip INVISIBLE_FORMATTING_CHARACTERS
-                if ((character >= '\u2060' && character <= '\u2065')
-                        || (character >= '\u206A' && character <= '\u206F')
-                        || (character >= '\uFFF9' && character <= '\uFFFB')) {
-                    continue;
-                }
-
-                if (isSpace(character)) {
-                    // eliminate consecutive spaces....
-                    if (!spaceSeen) {
-                        lineSB.append(" ");
-                    }
-                    spaceSeen = true;
-                } else {
-                    spaceSeen = false;
-                    lineSB.append(character);
-                }
+            // Skip ZERO WIDTH characters that have no valid use
+            if (isUselessZeroWidth(cp)) {
+                continue;
             }
-            // trim line.
-            final String currentLine = lineSB.toString().trim();
 
-            // don't add empty lines after trim.
-            if (currentLine.length() > 0) {
-                if (textSB.length() > 0) {
-                    textSB.append("\n");
+            if (isVerticalSpace(cp)) {
+                boolean isLastCharacter = j >= text.length() - Character.charCount(cp);
+                if (renderableCharThisLine && !isLastCharacter) {
+                    sb.append('\n');
+                    renderableCharThisLine = false; // Avoids consecutive newlines
+                    spaceCharToAddNext = 0; // Avoids trailing spaces
+                    previousCharWasRenderable = false; // Avoids leading spaces
                 }
-                textSB.append(currentLine);
+                continue;
+            }
+
+            if (isHorizontalSpace(cp)) {
+                if (previousCharWasRenderable) {
+                    spaceCharToAddNext = cp;
+                }
+                previousCharWasRenderable = false;
+            } else {
+                if (spaceCharToAddNext != 0) {
+                    sb.appendCodePoint(spaceCharToAddNext);
+                    spaceCharToAddNext = 0;
+                }
+                sb.appendCodePoint(cp);
+                // Zero width characters don't count when removing whitespace/newlines
+                if (isUsefulZeroWidth(cp)) {
+                    continue;
+                }
+                previousCharWasRenderable = true;
+                renderableCharThisLine = true;
             }
         }
-
-        return textSB.toString();
+        return sb.toString();
     }
 
-    private static boolean isSpace(char ch) {
-        return ch != '\n' && Character.isSpaceChar(ch);
+    private static boolean isUselessZeroWidth(int cp) {
+        // Zero Width characters that are deprecated, unused, or do no formatting.
+        return cp == '\uFEFF' // Deprecated zero width space
+                || (cp >= '\u2061' && cp <= '\u2065') // Invisible math
+                // Interlinear annotator symbols: (Unicode discourages use of these)
+                || (cp >= '\uFFF9' && cp <= '\uFFFB')
+                // Musical Note control characters:
+                || cp == 0x1D150
+                || cp == 0x1D159
+                || (cp >= 0x1D173 && cp <= 0x1D17A);
+    }
+
+    private static boolean isUsefulZeroWidth(int cp) {
+        // Zero Width characters that do formatting.
+        return cp == '\u00AD' // Soft hyphen
+                || cp == '\u034F' // Combining Grapheme Joiner
+                // Khmer Vowel characters:
+                || cp == '\u17B4'
+                || cp == '\u17B5'
+                // Mongolian vowel separators:
+                || (cp >= '\u180B' && cp <= '\u180E')
+                || cp == '\uFFFC' // Object replacement character
+                || (cp >= '\u200B' && cp <= '\u200D') // Zero width space & joiners
+                || cp == '\u2060' // Word joiner (same as zero width space)
+                // Characters related to writing direction:
+                || cp == '\u200E'
+                || cp == '\u200F'
+                || cp == '\u061C'
+                || (cp >= '\u202A' && cp <= '\u202E')
+                || (cp >= '\u206A' && cp <= '\u206F')
+                || (cp >= '\u2066' && cp <= '\u2069');
+    }
+
+    private static boolean isHorizontalSpace(int cp) {
+        return Character.isSpaceChar(cp)
+                || cp == '\t'
+                || cp == '\u2800' // Braille Pattern Blank
+                || cp == '\u3164' // Hangul Filler
+                || cp == '\u115F' // Hangul Choseong Filler
+                || cp == '\u1160' // Hangul Jungseong Filler
+                || cp == '\uFFA0'; // Hangul Halfwidth Filler
+    }
+
+    private static boolean isVerticalSpace(int cp) {
+        return cp == '\n'
+                || cp == '\r'
+                || cp == '\f'
+                || cp == '\u000B'
+                || cp == '\u0085'
+                || cp == '\u2028'
+                || cp == '\u2029';
     }
 }

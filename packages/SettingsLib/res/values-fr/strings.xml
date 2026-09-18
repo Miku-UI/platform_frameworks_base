@@ -97,7 +97,7 @@
     <string name="bluetooth_connected_no_a2dp_battery_level" msgid="6499078454894324287">"Connecté (aucun contenu multimédia), batterie à <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g><xliff:g id="ACTIVE_DEVICE">%2$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp_battery_level" msgid="8477440576953067242">"Connecté (aucun téléphone ni contenu multimédia), batterie à <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g><xliff:g id="ACTIVE_DEVICE">%2$s</xliff:g>"</string>
     <string name="bluetooth_active_battery_level" msgid="2685517576209066008">"Actif. <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batterie."</string>
-    <string name="bluetooth_active_battery_level_untethered" msgid="4961338936672922617">"Actif. Gauche : <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> de batterie, droit : <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> de batterie."</string>
+    <string name="bluetooth_active_battery_level_untethered" msgid="4961338936672922617">"Actif. G : <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> de batterie, D : <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> de batterie."</string>
     <string name="bluetooth_active_battery_level_untethered_left" msgid="2895644748625343977">"Actif. G : <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batterie."</string>
     <string name="bluetooth_active_battery_level_untethered_right" msgid="7407517998880370179">"Actif. D : <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batterie."</string>
     <string name="bluetooth_battery_level" msgid="2893696778200201555">"<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batterie"</string>
@@ -160,7 +160,7 @@
     <string name="bluetooth_le_audio_profile_summary_connected" msgid="6916226974453480650">"Connecté à LE Audio"</string>
     <string name="bluetooth_a2dp_profile_summary_connected" msgid="7422607970115444153">"Connecté aux paramètres audio du média"</string>
     <string name="bluetooth_headset_profile_summary_connected" msgid="2420981566026949688">"Connecté aux paramètres audio du téléphone"</string>
-    <string name="bluetooth_opp_profile_summary_connected" msgid="2393521801478157362">"Connexion au serveur de transfert de fichiers"</string>
+    <string name="bluetooth_opp_profile_summary_connected" msgid="2393521801478157362">"Connecté au serveur de transfert de fichiers"</string>
     <string name="bluetooth_map_profile_summary_connected" msgid="4141725591784669181">"Connecté à la carte"</string>
     <string name="bluetooth_sap_profile_summary_connected" msgid="1280297388033001037">"Connecté au point d\'accès au service"</string>
     <string name="bluetooth_opp_profile_summary_not_connected" msgid="3959741824627764954">"Connexion au serveur de transfert de fichiers non établie"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Signal Wi-Fi bon"</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Signal Wi-Fi excellent"</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Connecté à votre appareil."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Visible par tous les utilisateurs de cet appareil, qui peuvent s\'y connecter."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Réseau ouvert"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Réseau sécurisé"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"OS Android"</string>
@@ -217,7 +218,7 @@
     <string name="launch_defaults_none" msgid="8049374306261262709">"Aucun paramètre par défaut défini"</string>
     <string name="tts_settings" msgid="8130616705989351312">"Paramètres de la synthèse vocale"</string>
     <string name="tts_settings_title" msgid="7602210956640483039">"Sortie de la synthèse vocale"</string>
-    <string name="tts_default_rate_title" msgid="3964187817364304022">"Débit"</string>
+    <string name="tts_default_rate_title" msgid="3964187817364304022">"Vitesse d\'élocution"</string>
     <string name="tts_default_rate_summary" msgid="3781937042151716987">"Modifie la vitesse à laquelle le texte est énoncé"</string>
     <string name="tts_default_pitch_title" msgid="6988592215554485479">"Ton"</string>
     <string name="tts_default_pitch_summary" msgid="9132719475281551884">"Modifie le ton utilisé pour la synthèse vocale"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Les paramètres de point d\'accès ne sont pas disponibles pour cet utilisateur."</string>
     <string name="enable_adb" msgid="8072776357237289039">"Débogage USB"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Mode de débogage en connexion USB"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Révoquer les autorisations de débogage USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Révoquer les autorisations de débogage adb"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Débogage sans fil"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Mode de débogage en connexion Wi-Fi"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Erreur"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Association de l\'appareil…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Échec de l\'association à l\'appareil. Le QR code est incorrect, ou l\'appareil n\'est pas connecté au même réseau."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"Adresse IP et port"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Indisponible (non autorisé)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Indisponible (Wi‑Fi déconnecté)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Scanner un QR code"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Associez l\'appareil via le Wi‑Fi à l\'aide d\'un QR code"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Connectez-vous à un réseau Wi-Fi"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"Le débogage USB est conçu uniquement pour le développement. Utilisez-le pour copier des données entre votre ordinateur et votre appareil, installer des applications sur votre appareil sans notification et lire les données de journal."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Autoriser le débogage sans fil ?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Le débogage sans fil est conçu uniquement pour le développement. Utilisez-le pour copier des données entre votre ordinateur et votre appareil, installer des applications sur votre appareil sans notification et lire les données des journaux."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Voulez-vous vraiment désactiver l\'accès au débogage USB de tous les ordinateurs précédemment autorisés ?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Révoquer l\'accès au débogage adb pour tous les ordinateurs et réseaux auxquels vous avez précédemment accordé l\'autorisation ?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Activer les paramètres de développement ?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Ces paramètres sont en cours de développement. Ils peuvent endommager votre appareil et les applications qui s\'y trouvent, ou provoquer leur dysfonctionnement."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Vérifier les applis via USB"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet déconnecté"</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Pas d\'appels."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Clavier physique"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Sélectionner disposition du clavier"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Par défaut"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Commande d\'activation de l\'écran"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Autoriser l\'activation de l\'écran"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Vous permet d\'autoriser une appli à activer l\'écran. Si elle y est autorisée, l\'appli pourra activer l\'écran à tout moment sans que vous le lui demandiez."</string>

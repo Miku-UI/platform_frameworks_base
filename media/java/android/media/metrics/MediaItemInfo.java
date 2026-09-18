@@ -27,6 +27,7 @@ import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.hardware.DataSpace;
 import android.media.MediaCodec;
+import android.media.metrics.reported.ReportedMediaItemInfo;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.Size;
@@ -554,6 +555,81 @@ public final class MediaItemInfo implements Parcelable {
         mVideoDataSpace = in.readInt();
         mVideoFrameRate = in.readFloat();
         mVideoSampleCount = in.readLong();
+    }
+
+    /** @hide */
+    public ReportedMediaItemInfo toReportable() {
+        ReportedMediaItemInfo reportable =
+                        new ReportedMediaItemInfo();
+        int n;
+
+        // copy mii into reportable
+        reportable.sourceType = getSourceType();
+        reportable.dataTypes = getDataTypes();
+        reportable.durationMillis = getDurationMillis();
+        reportable.clipDurationMillis = getClipDurationMillis();
+        reportable.containerMimeType = getContainerMimeType();
+
+        List<String> localSampleMimeTypes = getSampleMimeTypes();
+        n = localSampleMimeTypes.size();
+        reportable.sampleMimeTypes = new String[n];
+        for (int i = 0; i < n; i++) {
+            reportable.sampleMimeTypes[i] = localSampleMimeTypes.get(i);
+        }
+
+        List<String> localCodecNames = getCodecNames();
+        n = localCodecNames.size();
+        reportable.codecNames = new String[n];
+        for (int i = 0; i < n; i++) {
+            reportable.codecNames[i] = localCodecNames.get(i);
+        }
+
+        reportable.audioSampleRateHz = getAudioSampleRateHz();
+        reportable.audioChannelCount = getAudioChannelCount();
+        reportable.audioSampleCount = getAudioSampleCount();
+
+        reportable.videoSize = new ReportedMediaItemInfo.Size();
+        reportable.videoSize.height =  getVideoSize().getHeight();
+        reportable.videoSize.width =  getVideoSize().getWidth();
+
+        reportable.videoDataSpace = getVideoDataSpace();
+        reportable.videoFrameRate = getVideoFrameRate();
+        reportable.videoSampleCount = getVideoSampleCount();
+
+        return reportable;
+    }
+
+    /** @hide */
+    public MediaItemInfo(@NonNull ReportedMediaItemInfo in) {
+        int n;
+
+        mSourceType = in.sourceType;
+        mDataTypes = in.dataTypes;
+        mDurationMillis = in.durationMillis;
+        mClipDurationMillis = in.clipDurationMillis;
+        mContainerMimeType = in.containerMimeType;
+
+        mSampleMimeTypes = new ArrayList<>();
+        n = in.sampleMimeTypes.length;
+        for (int i = 0; i < n; i++) {
+            mSampleMimeTypes.add(in.sampleMimeTypes[i]);
+        }
+
+        mCodecNames = new ArrayList<>();
+        n = in.codecNames.length;
+        for (int i = 0; i < n; i++) {
+            mCodecNames.add(in.codecNames[i]);
+        }
+
+        mAudioSampleRateHz = in.audioSampleRateHz;
+        mAudioChannelCount = in.audioChannelCount;
+        mAudioSampleCount = in.audioSampleCount;
+        //int videoSizeWidth = in.mVideoSize.mWidth;
+        //int videoSizeHeight = in.mVideoSize.mHeight;
+        mVideoSize = new Size(in.videoSize.width, in.videoSize.height);
+        mVideoDataSpace = in.videoDataSpace;
+        mVideoFrameRate = in.videoFrameRate;
+        mVideoSampleCount = in.videoSampleCount;
     }
 
     public static final @NonNull Creator<MediaItemInfo> CREATOR =

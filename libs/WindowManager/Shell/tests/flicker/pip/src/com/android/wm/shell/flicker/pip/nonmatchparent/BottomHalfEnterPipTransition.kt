@@ -23,16 +23,10 @@ import com.android.server.wm.flicker.helpers.PipAppHelper
 import com.android.wm.shell.flicker.pip.common.EnterPipTransition
 import org.junit.Test
 
-/**
- * The base class to test enter PIP animation on bottom half activity.
- */
-abstract class BottomHalfEnterPipTransition(flicker: FlickerTest) :
-    EnterPipTransition(flicker)
-{
-    override val pipApp: PipAppHelper = BottomHalfPipAppHelper(
-        instrumentation,
-        useLaunchingActivity = true
-    )
+/** The base class to test enter PIP animation on bottom half activity. */
+abstract class BottomHalfEnterPipTransition(flicker: FlickerTest) : EnterPipTransition(flicker) {
+    override val pipApp: PipAppHelper =
+        BottomHalfPipAppHelper(instrumentation, useLaunchingActivity = true)
 
     @Presubmit
     @Test

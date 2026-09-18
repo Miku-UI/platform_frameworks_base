@@ -15,9 +15,11 @@
  */
 
 package android.service.ondeviceintelligence;
+import static android.app.ondeviceintelligence.flags.Flags.FLAG_ON_DEVICE_INTELLIGENCE_25Q4;
 
 import android.annotation.CallSuper;
 import android.annotation.CallbackExecutor;
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SdkConstant;
@@ -87,18 +89,6 @@ import java.util.function.LongConsumer;
  */
 @SystemApi
 public abstract class OnDeviceIntelligenceService extends Service {
-    private static final int MSG_ON_READY = 1;
-    private static final int MSG_GET_VERSION = 2;
-    private static final int MSG_LIST_FEATURES = 3;
-    private static final int MSG_GET_FEATURE = 4;
-    private static final int MSG_GET_FEATURE_DETAILS = 5;
-    private static final int MSG_DOWNLOAD_FEATURE = 6;
-    private static final int MSG_GET_READ_ONLY_FILE_DESCRIPTOR = 7;
-    private static final int MSG_GET_READ_ONLY_FEATURE_FILE_DESCRIPTOR_MAP = 8;
-    private static final int MSG_REGISTER_REMOTE_SERVICES = 9;
-    private static final int MSG_INFERENCE_SERVICE_CONNECTED = 10;
-    private static final int MSG_INFERENCE_SERVICE_DISCONNECTED = 11;
-
     private static final String TAG = OnDeviceIntelligenceService.class.getSimpleName();
 
     private volatile IRemoteProcessingService mRemoteProcessingService;
@@ -108,71 +98,18 @@ public abstract class OnDeviceIntelligenceService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        mHandler = new Handler(Looper.getMainLooper()) {
-            @Override
-            public void handleMessage(@NonNull Message msg) {
-                switch (msg.what) {
-                    case MSG_ON_READY:
-                        OnDeviceIntelligenceService.this.onReady();
-                        break;
-                    case MSG_GET_VERSION:
-                        OnDeviceIntelligenceService.this.onGetVersion(
-                                (LongConsumer) msg.obj);
-                        break;
-                    case MSG_LIST_FEATURES:
-                        OnDeviceIntelligenceService.this.onListFeatures(
-                                msg.arg1,
-                                (OutcomeReceiver<List<Feature>, OnDeviceIntelligenceException>) msg.obj);
-                        break;
-                    case MSG_GET_FEATURE:
-                        GetFeatureParams params = (GetFeatureParams) msg.obj;
-                        OnDeviceIntelligenceService.this.onGetFeature(
-                                msg.arg1,
-                                msg.arg2,
-                                params.callback);
-                        break;
-                    case MSG_GET_FEATURE_DETAILS:
-                        FeatureDetailsParams detailsParams = (FeatureDetailsParams) msg.obj;
-                        OnDeviceIntelligenceService.this.onGetFeatureDetails(
-                                msg.arg1,
-                                detailsParams.feature,
-                                detailsParams.callback);
-                        break;
-                    case MSG_DOWNLOAD_FEATURE:
-                        DownloadParams downloadParams = (DownloadParams) msg.obj;
-                        OnDeviceIntelligenceService.this.onDownloadFeature(
-                                msg.arg1,
-                                downloadParams.feature,
-                                downloadParams.cancellationSignal,
-                                downloadParams.callback);
-                        break;
-                    case MSG_GET_READ_ONLY_FILE_DESCRIPTOR:
-                        FileDescriptorParams fdParams = (FileDescriptorParams) msg.obj;
-                        OnDeviceIntelligenceService.this.onGetReadOnlyFileDescriptor(
-                                fdParams.fileName,
-                                fdParams.future);
-                        break;
-                    case MSG_GET_READ_ONLY_FEATURE_FILE_DESCRIPTOR_MAP:
-                        FeatureFileDescriptorParams ffdParams =
-                                (FeatureFileDescriptorParams) msg.obj;
-                        OnDeviceIntelligenceService.this.onGetReadOnlyFeatureFileDescriptorMap(
-                                ffdParams.feature,
-                                ffdParams.consumer);
-                        break;
-                    case MSG_REGISTER_REMOTE_SERVICES:
-                        mRemoteProcessingService = (IRemoteProcessingService) msg.obj;
-                        break;
-                    case MSG_INFERENCE_SERVICE_CONNECTED:
-                        OnDeviceIntelligenceService.this.onInferenceServiceConnected();
-                        break;
-                    case MSG_INFERENCE_SERVICE_DISCONNECTED:
-                        OnDeviceIntelligenceService.this.onInferenceServiceDisconnected();
-                        break;
-                }
-            }
-        };
+        mHandler = new Handler(Looper.getMainLooper());
     }
 
+    /**
+     * The {@link Intent} that must be declared as handled by the service. To be supported, the
+     * service must also require the
+     * {@link android.Manifest.permission#BIND_ON_DEVICE_INTELLIGENCE_SERVICE}
+     * permission so that other applications can not abuse it.
+     */
+    @SdkConstant(SdkConstant.SdkConstantType.SERVICE_ACTION)
+    public static final String SERVICE_INTERFACE =
+            "android.service.ondeviceintelligence.OnDeviceIntelligenceService";
 
     /**
      * @hide
@@ -185,37 +122,43 @@ public abstract class OnDeviceIntelligenceService extends Service {
                 /** {@inheritDoc} */
                 @Override
                 public void ready() {
-                    mHandler.sendEmptyMessage(MSG_ON_READY);
+                    mHandler.post(() -> OnDeviceIntelligenceService.this.onReady());
                 }
 
                 @Override
                 public void getVersion(RemoteCallback remoteCallback) {
                     Objects.requireNonNull(remoteCallback);
-                    Message msg = Message.obtain(mHandler, MSG_GET_VERSION,
-                            (LongConsumer) (l -> {
+                    mHandler.post(() -> OnDeviceIntelligenceService.this.onGetVersion(
+                            l -> {
                                 Bundle b = new Bundle();
                                 b.putLong(OnDeviceIntelligenceManager.API_VERSION_BUNDLE_KEY, l);
                                 remoteCallback.sendResult(b);
                             }));
-                    mHandler.sendMessage(msg);
                 }
 
                 @Override
                 public void listFeatures(int callerUid,
                         IListFeaturesCallback listFeaturesCallback) {
                     Objects.requireNonNull(listFeaturesCallback);
-                    Message msg = Message.obtain(mHandler, MSG_LIST_FEATURES,
-                            callerUid, 0, wrapListFeaturesCallback(listFeaturesCallback));
-                    mHandler.sendMessage(msg);
+                    mHandler.post(() -> OnDeviceIntelligenceService.this.onListFeatures(callerUid,
+                            wrapListFeaturesCallback(listFeaturesCallback)));
+                }
+
+                @Override
+                public void listFeaturesWithFilter(int callerUid,
+                        PersistableBundle featureParamsFilter,
+                        IListFeaturesCallback listFeaturesCallback) {
+                    Objects.requireNonNull(featureParamsFilter);
+                    Objects.requireNonNull(listFeaturesCallback);
+                    mHandler.post(() -> OnDeviceIntelligenceService.this.onListFeatures(callerUid,
+                            featureParamsFilter, wrapListFeaturesCallback(listFeaturesCallback)));
                 }
 
                 @Override
                 public void getFeature(int callerUid, int id, IFeatureCallback featureCallback) {
                     Objects.requireNonNull(featureCallback);
-                    Message msg = Message.obtain(mHandler, MSG_GET_FEATURE,
-                            callerUid, id,
-                            new GetFeatureParams(wrapFeatureCallback(featureCallback)));
-                    mHandler.sendMessage(msg);
+                    mHandler.post(() -> OnDeviceIntelligenceService.this.onGetFeature(callerUid, id,
+                            wrapFeatureCallback(featureCallback)));
                 }
 
 
@@ -224,11 +167,9 @@ public abstract class OnDeviceIntelligenceService extends Service {
                         IFeatureDetailsCallback featureDetailsCallback) {
                     Objects.requireNonNull(feature);
                     Objects.requireNonNull(featureDetailsCallback);
-                    Message msg = Message.obtain(mHandler, MSG_GET_FEATURE_DETAILS,
-                            new FeatureDetailsParams(feature,
-                                    wrapFeatureDetailsCallback(featureDetailsCallback)));
-                    msg.arg1 = callerUid;
-                    mHandler.sendMessage(msg);
+                    mHandler.post(() -> OnDeviceIntelligenceService.this.onGetFeatureDetails(
+                            callerUid,
+                            feature, wrapFeatureDetailsCallback(featureDetailsCallback)));
                 }
 
                 @Override
@@ -249,12 +190,10 @@ public abstract class OnDeviceIntelligenceService extends Service {
                         cancellationSignalFuture.complete(transport);
                     }
 
-                    Message msg = Message.obtain(mHandler, MSG_DOWNLOAD_FEATURE,
-                            new DownloadParams(feature,
-                                    cancellationSignalFuture != null ? cancellationSignal : null,
-                                    wrapDownloadCallback(downloadCallback)));
-                    msg.arg1 = callerUid;
-                    mHandler.sendMessage(msg);
+                    mHandler.post(() -> OnDeviceIntelligenceService.this.onDownloadFeature(
+                            callerUid, feature,
+                            cancellationSignalFuture != null ? cancellationSignal : null,
+                            wrapDownloadCallback(downloadCallback)));
                 }
 
                 @Override
@@ -262,9 +201,9 @@ public abstract class OnDeviceIntelligenceService extends Service {
                         AndroidFuture<ParcelFileDescriptor> future) {
                     Objects.requireNonNull(fileName);
                     Objects.requireNonNull(future);
-                    Message msg = Message.obtain(mHandler, MSG_GET_READ_ONLY_FILE_DESCRIPTOR,
-                            new FileDescriptorParams(fileName, future));
-                    mHandler.sendMessage(msg);
+                    mHandler.post(
+                            () -> OnDeviceIntelligenceService.this.onGetReadOnlyFileDescriptor(
+                                    fileName, future));
                 }
 
                 @Override
@@ -272,31 +211,42 @@ public abstract class OnDeviceIntelligenceService extends Service {
                         Feature feature, RemoteCallback remoteCallback) {
                     Objects.requireNonNull(feature);
                     Objects.requireNonNull(remoteCallback);
-                    Message msg = Message.obtain(mHandler,
-                            MSG_GET_READ_ONLY_FEATURE_FILE_DESCRIPTOR_MAP,
-                            new FeatureFileDescriptorParams(feature, parcelFileDescriptorMap -> {
-                                Bundle bundle = new Bundle();
-                                parcelFileDescriptorMap.forEach(bundle::putParcelable);
-                                remoteCallback.sendResult(bundle);
-                                tryClosePfds(parcelFileDescriptorMap.values());
-                            }));
-                    mHandler.sendMessage(msg);
+                    mHandler.post(() -> OnDeviceIntelligenceService.this
+                            .onGetReadOnlyFeatureFileDescriptorMap(
+                                    feature, parcelFileDescriptorMap -> {
+                                        Bundle bundle = new Bundle();
+                                        parcelFileDescriptorMap.forEach(bundle::putParcelable);
+                                        remoteCallback.sendResult(bundle);
+                                        tryClosePfds(parcelFileDescriptorMap.values());
+                                    }));
                 }
 
                 @Override
                 public void registerRemoteServices(
                         IRemoteProcessingService remoteProcessingService) {
-                    mRemoteProcessingService = remoteProcessingService;
+                    mHandler.post(() -> mRemoteProcessingService = remoteProcessingService);
                 }
 
                 @Override
                 public void notifyInferenceServiceConnected() {
-                    mHandler.sendEmptyMessage(MSG_INFERENCE_SERVICE_CONNECTED);
+                    mHandler.post(
+                            () -> OnDeviceIntelligenceService.this.onInferenceServiceConnected());
                 }
 
                 @Override
                 public void notifyInferenceServiceDisconnected() {
-                    mHandler.sendEmptyMessage(MSG_INFERENCE_SERVICE_DISCONNECTED);
+                    mHandler.post(() -> OnDeviceIntelligenceService.this
+                            .onInferenceServiceDisconnected());
+                }
+
+                @Override
+                public void getFeatureMetadata(
+                        Feature feature, RemoteCallback remoteCallback) {
+                    Objects.requireNonNull(feature);
+                    Objects.requireNonNull(remoteCallback);
+                    mHandler.post(() -> OnDeviceIntelligenceService.this.onGetFeatureMetadata(
+                            feature,
+                            remoteCallback::sendResult));
                 }
             };
         }
@@ -305,77 +255,10 @@ public abstract class OnDeviceIntelligenceService extends Service {
     }
 
     /**
-     * The {@link Intent} that must be declared as handled by the service. To be supported, the
-     * service must also require the
-     * {@link android.Manifest.permission#BIND_ON_DEVICE_INTELLIGENCE_SERVICE}
-     * permission so that other applications can not abuse it.
-     */
-    @SdkConstant(SdkConstant.SdkConstantType.SERVICE_ACTION)
-    public static final String SERVICE_INTERFACE =
-            "android.service.ondeviceintelligence.OnDeviceIntelligenceService";
-
-    // Parameter holder classes
-    private static class GetFeatureParams {
-        final OutcomeReceiver<Feature, OnDeviceIntelligenceException> callback;
-
-        GetFeatureParams(OutcomeReceiver<Feature, OnDeviceIntelligenceException> callback) {
-            this.callback = callback;
-        }
-    }
-
-    private static class FeatureDetailsParams {
-        final Feature feature;
-        final OutcomeReceiver<FeatureDetails, OnDeviceIntelligenceException> callback;
-
-        FeatureDetailsParams(Feature feature,
-                OutcomeReceiver<FeatureDetails, OnDeviceIntelligenceException> callback) {
-            this.feature = feature;
-            this.callback = callback;
-        }
-    }
-
-    private static class DownloadParams {
-        final Feature feature;
-        final CancellationSignal cancellationSignal;
-        final DownloadCallback callback;
-
-        DownloadParams(Feature feature, CancellationSignal cancellationSignal,
-                DownloadCallback callback) {
-            this.feature = feature;
-            this.cancellationSignal = cancellationSignal;
-            this.callback = callback;
-        }
-    }
-
-    private static class FileDescriptorParams {
-        final String fileName;
-        final AndroidFuture<ParcelFileDescriptor> future;
-
-        FileDescriptorParams(String fileName, AndroidFuture<ParcelFileDescriptor> future) {
-            this.fileName = fileName;
-            this.future = future;
-        }
-    }
-
-    private static class FeatureFileDescriptorParams {
-        final Feature feature;
-        final Consumer<Map<String, ParcelFileDescriptor>> consumer;
-
-        FeatureFileDescriptorParams(Feature feature,
-                Consumer<Map<String, ParcelFileDescriptor>> consumer) {
-            this.feature = feature;
-            this.consumer = consumer;
-        }
-    }
-
-    /**
      * Using this signal to assertively a signal each time service binds successfully, used only in
      * tests to get a signal that service instance is ready. This is needed because we cannot rely
      * on {@link #onCreate} or {@link #onBind} to be invoke on each binding.
-     *
-     * @hide
      */
-    @SystemApi
     public void onReady() {
     }
 
@@ -408,7 +291,8 @@ public abstract class OnDeviceIntelligenceService extends Service {
      */
     public final void updateProcessingState(@NonNull @StateParams Bundle processingState,
             @NonNull @CallbackExecutor Executor callbackExecutor,
-            @NonNull OutcomeReceiver<PersistableBundle, OnDeviceIntelligenceException> statusReceiver) {
+            @NonNull OutcomeReceiver<PersistableBundle,
+                    OnDeviceIntelligenceException> statusReceiver) {
         Objects.requireNonNull(callbackExecutor);
         if (mRemoteProcessingService == null) {
             throw new IllegalStateException("Remote processing service is unavailable.");
@@ -438,84 +322,56 @@ public abstract class OnDeviceIntelligenceService extends Service {
         }
     }
 
-    private OutcomeReceiver<Feature,
-            OnDeviceIntelligenceException> wrapFeatureCallback(
+    @FunctionalInterface
+    private interface RemoteSuccessCallback<T> {
+        void accept(T value) throws RemoteException;
+    }
+
+    @FunctionalInterface
+    private interface RemoteFailureCallback {
+        void accept(int errorCode, String errorMessage, PersistableBundle errorParams)
+                throws RemoteException;
+    }
+
+    private <T> OutcomeReceiver<T, OnDeviceIntelligenceException> wrapCallback(
+            RemoteSuccessCallback<T> success, RemoteFailureCallback failure) {
+        return new OutcomeReceiver<>() {
+            @Override
+            public void onResult(T result) {
+                try {
+                    success.accept(result);
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending result", e);
+                }
+            }
+
+            @Override
+            public void onError(OnDeviceIntelligenceException error) {
+                try {
+                    failure.accept(error.getErrorCode(), error.getMessage(),
+                            error.getErrorParams());
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending error", e);
+                }
+            }
+        };
+    }
+
+    private OutcomeReceiver<Feature, OnDeviceIntelligenceException> wrapFeatureCallback(
             IFeatureCallback featureCallback) {
-        return new OutcomeReceiver<>() {
-            @Override
-            public void onResult(@NonNull Feature feature) {
-                try {
-                    featureCallback.onSuccess(feature);
-                } catch (RemoteException e) {
-                    Slog.e(TAG, "Error sending feature: " + e);
-                }
-            }
-
-            @Override
-            public void onError(
-                    @NonNull OnDeviceIntelligenceException exception) {
-                try {
-                    featureCallback.onFailure(exception.getErrorCode(), exception.getMessage(),
-                            exception.getErrorParams());
-                } catch (RemoteException e) {
-                    Slog.e(TAG, "Error sending download feature: " + e);
-                }
-            }
-        };
+        return wrapCallback(featureCallback::onSuccess, featureCallback::onFailure);
     }
 
-    private OutcomeReceiver<List<Feature>,
-            OnDeviceIntelligenceException> wrapListFeaturesCallback(
+    private OutcomeReceiver<List<Feature>, OnDeviceIntelligenceException> wrapListFeaturesCallback(
             IListFeaturesCallback listFeaturesCallback) {
-        return new OutcomeReceiver<>() {
-            @Override
-            public void onResult(@NonNull List<Feature> features) {
-                try {
-                    listFeaturesCallback.onSuccess(features);
-                } catch (RemoteException e) {
-                    Slog.e(TAG, "Error sending feature: " + e);
-                }
-            }
-
-            @Override
-            public void onError(
-                    @NonNull OnDeviceIntelligenceException exception) {
-                try {
-                    listFeaturesCallback.onFailure(exception.getErrorCode(), exception.getMessage(),
-                            exception.getErrorParams());
-                } catch (RemoteException e) {
-                    Slog.e(TAG, "Error sending download feature: " + e);
-                }
-            }
-        };
+        return wrapCallback(listFeaturesCallback::onSuccess, listFeaturesCallback::onFailure);
     }
 
-    private OutcomeReceiver<FeatureDetails,
-            OnDeviceIntelligenceException> wrapFeatureDetailsCallback(
-            IFeatureDetailsCallback featureStatusCallback) {
-        return new OutcomeReceiver<>() {
-            @Override
-            public void onResult(FeatureDetails result) {
-                try {
-                    featureStatusCallback.onSuccess(result);
-                } catch (RemoteException e) {
-                    Slog.e(TAG, "Error sending feature status: " + e);
-                }
-            }
-
-            @Override
-            public void onError(
-                    @NonNull OnDeviceIntelligenceException exception) {
-                try {
-                    featureStatusCallback.onFailure(exception.getErrorCode(),
-                            exception.getMessage(), exception.getErrorParams());
-                } catch (RemoteException e) {
-                    Slog.e(TAG, "Error sending feature status: " + e);
-                }
-            }
-        };
+    private OutcomeReceiver<FeatureDetails, OnDeviceIntelligenceException>
+            wrapFeatureDetailsCallback(
+            IFeatureDetailsCallback featureDetailsCallback) {
+        return wrapCallback(featureDetailsCallback::onSuccess, featureDetailsCallback::onFailure);
     }
-
 
     private DownloadCallback wrapDownloadCallback(IDownloadCallback downloadCallback) {
         return new DownloadCallback() {
@@ -598,6 +454,17 @@ public abstract class OnDeviceIntelligenceService extends Service {
         });
     }
 
+
+    /**
+     * Provide implementation for a scenario when caller wants to get feature-specific metadata.
+     *
+     * @param feature the feature for which metadata needs to be fetched.
+     * @param metadataConsumer callback to be populated with the corresponding metadata bundle.
+     */
+    @FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_25Q4)
+    public void onGetFeatureMetadata(
+            @NonNull Feature feature, @NonNull Consumer<Bundle> metadataConsumer) {}
+
     /**
      * Provide implementation for a scenario when caller wants to get all feature related
      * file-descriptors that might be required for processing a request for the corresponding the
@@ -617,7 +484,7 @@ public abstract class OnDeviceIntelligenceService extends Service {
      * the download completes successfully, success callback should be populated.
      *
      * @param callerUid          UID of the caller that initiated this call chain.
-     * @param feature            the feature for which files need to be downlaoded.
+     * @param feature            the feature for which files need to be downloaded.
      *                           process.
      * @param cancellationSignal signal to attach a listener to, and receive cancellation signals
      *                           from thw client.
@@ -661,6 +528,23 @@ public abstract class OnDeviceIntelligenceService extends Service {
      */
     public abstract void onListFeatures(int callerUid, @NonNull OutcomeReceiver<List<Feature>,
             OnDeviceIntelligenceException> listFeaturesCallback);
+
+    /**
+     * List all features which are available in the remote implementation which match the given
+     * filter. The implementation might choose to provide only a certain list of features based on
+     * the caller.
+     *
+     * @param callerUid            UID of the caller that initiated this call chain.
+     * @param featureParamsFilter  params to filter the features.
+     * @param listFeaturesCallback callback to populate the features list.
+     */
+    @FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_25Q4)
+    public void onListFeatures(int callerUid,
+            @NonNull PersistableBundle featureParamsFilter,
+            @NonNull OutcomeReceiver<List<Feature>,
+                    OnDeviceIntelligenceException> listFeaturesCallback) {
+    }
+
 
     /**
      * Provides a long value representing the version of the remote implementation processing

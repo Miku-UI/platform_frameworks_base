@@ -94,9 +94,15 @@ public class RelativeFrameTimeHistogram {
         return Arrays.copyOf(sBucketEndpoints, sBucketEndpoints.length);
     }
 
-    // This takes the relative frame time and returns what bucket it belongs to in the counters
-    // array.
-    private int getRelativeFrameTimeBucketIndex(int relativeFrameTime) {
+
+
+    /**
+     *  This takes the relative frame time and returns what bucket it belongs to in the counters
+     *   array.
+     *
+     * @hide
+     */
+    public static int getRelativeFrameTimeBucketIndex(int relativeFrameTime) {
         if (relativeFrameTime < 20) {
             if (relativeFrameTime >= -20) {
                 return (relativeFrameTime + 20) / 2 + 12;
@@ -124,6 +130,17 @@ public class RelativeFrameTimeHistogram {
         if (relativeFrameTime < 1000) {
             return (relativeFrameTime - 200) / 100 + 43;
         }
-        return mBucketCounts.length - 1;
+        // The mBucketCounts array has a size of sBucketEndpoints.length - 1, so its last index is
+        // sBucketEndpoints.length - 2. Which is the index of the last bucket.
+        return sBucketEndpoints.length - 2;
+    }
+
+    /**
+     * Returns the number of predefined buckets in the histogram.
+     *
+     * @hide
+     */
+    public static int getHistogramBucketCount() {
+        return sBucketEndpoints.length - 1;
     }
 }

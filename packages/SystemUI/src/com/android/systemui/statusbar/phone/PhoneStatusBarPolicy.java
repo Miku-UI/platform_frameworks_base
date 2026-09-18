@@ -557,17 +557,12 @@ public class PhoneStatusBarPolicy
                     if (iconResId != Resources.ID_NULL && (!mKeyguardStateController.isShowing()
                             || mKeyguardStateController.isOccluded())) {
                         String accessibilityString = "";
-                        if (android.os.Flags.allowPrivateProfile()
-                                && android.multiuser.Flags.enablePrivateSpaceFeatures()) {
-                            try {
-                                accessibilityString =
-                                        mUserManager.getProfileAccessibilityString(userId);
-                            } catch (Resources.NotFoundException nfe) {
-                                Log.e(TAG, "Accessibility string not found for userId:"
-                                        + userId);
-                            }
-                        } else {
-                            accessibilityString = getManagedProfileAccessibilityString();
+                        try {
+                            accessibilityString =
+                                    mUserManager.getProfileAccessibilityString(userId);
+                        } catch (Resources.NotFoundException nfe) {
+                            Log.e(TAG, "Accessibility string not found for userId:"
+                                    + userId);
                         }
                         showIcon = true;
                         mIconController.setIcon(mSlotManagedProfile,

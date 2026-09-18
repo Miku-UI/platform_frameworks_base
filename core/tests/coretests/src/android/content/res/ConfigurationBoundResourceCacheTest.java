@@ -21,7 +21,6 @@ import static org.junit.Assert.assertNull;
 
 import android.content.Context;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.TypedValue;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -32,7 +31,6 @@ import com.android.frameworks.coretests.R;
 
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -40,9 +38,6 @@ import org.junit.runner.RunWith;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class ConfigurationBoundResourceCacheTest {
-
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule.Builder().build();
 
     private ConfigurationBoundResourceCache<Float> mCache;
     private Context mContext;

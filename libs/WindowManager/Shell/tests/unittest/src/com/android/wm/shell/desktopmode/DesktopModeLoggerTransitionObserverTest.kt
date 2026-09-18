@@ -43,6 +43,7 @@ import android.window.WindowContainerToken
 import androidx.test.filters.SmallTest
 import com.android.dx.mockito.inline.extended.ExtendedMockito
 import com.android.modules.utils.testing.ExtendedMockitoRule
+import com.android.testing.wm.util.TransitionInfoBuilder
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.desktopmode.DesktopModeEventLogger.Companion.EnterReason
@@ -64,7 +65,6 @@ import com.android.wm.shell.desktopmode.DesktopModeTransitionTypes.TRANSIT_EXIT_
 import com.android.wm.shell.desktopmode.multidesks.DesksOrganizer
 import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.android.wm.shell.sysui.ShellInit
-import com.android.wm.shell.transition.TransitionInfoBuilder
 import com.android.wm.shell.transition.Transitions.TRANSIT_MINIMIZE
 import java.util.Optional
 import kotlin.test.assertFalse
@@ -961,10 +961,6 @@ class DesktopModeLoggerTransitionObserverTest : ShellTestCase() {
     }
 
     private fun verifyTaskAddedAndEnterLogging(enterReason: EnterReason, taskUpdate: TaskUpdate) {
-        if (!DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-            assertTrue(transitionObserver.isSessionActive)
-            verify(desktopModeEventLogger, times(1)).logSessionEnter(eq(enterReason))
-        }
         verify(desktopModeEventLogger, times(1)).logTaskAdded(eq(taskUpdate), any())
         ExtendedMockito.verify {
             Trace.setCounter(
@@ -985,10 +981,6 @@ class DesktopModeLoggerTransitionObserverTest : ShellTestCase() {
 
     private fun verifyTaskRemovedAndExitLogging(exitReason: ExitReason, taskUpdate: TaskUpdate) {
         verify(desktopModeEventLogger, times(1)).logTaskRemoved(eq(taskUpdate), any())
-        if (!DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-            assertFalse(transitionObserver.isSessionActive)
-            verify(desktopModeEventLogger, times(1)).logSessionExit(eq(exitReason))
-        }
         verify(desktopModeEventLogger, times(1)).logSessionExitIfNeeded()
         verifyNoMoreInteractions(desktopModeEventLogger)
     }

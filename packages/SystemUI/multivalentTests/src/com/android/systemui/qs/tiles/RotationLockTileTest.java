@@ -46,7 +46,6 @@ import com.android.systemui.qs.tileimpl.QSTileImpl;
 import com.android.systemui.res.R;
 import com.android.systemui.rotation.RotationPolicyWrapper;
 import com.android.systemui.statusbar.policy.BatteryController;
-import com.android.systemui.statusbar.policy.DeviceStateRotationLockSettingController;
 import com.android.systemui.statusbar.policy.RotationLockController;
 import com.android.systemui.statusbar.policy.RotationLockControllerImpl;
 import com.android.systemui.util.concurrency.FakeExecutor;
@@ -61,18 +60,12 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.Optional;
-
 @RunWith(AndroidJUnit4.class)
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
 @SmallTest
 public class RotationLockTileTest extends SysuiTestCase {
 
     private static final String PACKAGE_NAME = "package_name";
-    private static final String[] DEFAULT_SETTINGS = new String[]{
-            "0:0",
-            "1:2"
-    };
 
     @Mock
     private PackageManager mPackageManager;
@@ -90,8 +83,6 @@ public class RotationLockTileTest extends SysuiTestCase {
     private SensorPrivacyManager mPrivacyManager;
     @Mock
     private BatteryController mBatteryController;
-    @Mock
-    Optional<DeviceStateRotationLockSettingController> mDeviceStateRotationLockSettingController;
     @Mock
     RotationPolicyWrapper mRotationPolicyWrapper;
     @Mock
@@ -119,8 +110,6 @@ public class RotationLockTileTest extends SysuiTestCase {
         mController = new RotationLockControllerImpl(
                 mRotationPolicyWrapper,
                 mCameraRotationSettingProvider,
-                mDeviceStateRotationLockSettingController,
-                DEFAULT_SETTINGS,
                 mFakeExecutor,
                 mFakeExecutor
         );

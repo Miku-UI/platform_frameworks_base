@@ -54,7 +54,7 @@ import java.util.regex.Pattern;
 public final class BluetoothLeDeviceFilter implements DeviceFilter<ScanResult> {
 
     private static final boolean DEBUG = false;
-    private static final String LOG_TAG = "CDM_BluetoothLeDeviceFilter";
+    private static final String LOG_TAG = "CDM_BLEDeviceFilter";
 
     private static final int RENAME_PREFIX_LENGTH_LIMIT = 10;
 
@@ -70,21 +70,19 @@ public final class BluetoothLeDeviceFilter implements DeviceFilter<ScanResult> {
     private final int mRenameNameLength;
     private final boolean mRenameBytesReverseOrder;
 
-    private BluetoothLeDeviceFilter(Pattern namePattern, ScanFilter scanFilter,
-            byte[] rawDataFilter, byte[] rawDataFilterMask, String renamePrefix,
-            String renameSuffix, int renameBytesFrom, int renameBytesLength,
-            int renameNameFrom, int renameNameLength, boolean renameBytesReverseOrder) {
-        mNamePattern = namePattern;
-        mScanFilter = ObjectUtils.firstNotNull(scanFilter, new ScanFilter.Builder().build());
-        mRawDataFilter = rawDataFilter;
-        mRawDataFilterMask = rawDataFilterMask;
-        mRenamePrefix = renamePrefix;
-        mRenameSuffix = renameSuffix;
-        mRenameBytesFrom = renameBytesFrom;
-        mRenameBytesLength = renameBytesLength;
-        mRenameNameFrom = renameNameFrom;
-        mRenameNameLength = renameNameLength;
-        mRenameBytesReverseOrder = renameBytesReverseOrder;
+    private BluetoothLeDeviceFilter(Builder builder) {
+        mNamePattern = builder.mNamePattern;
+        mScanFilter = ObjectUtils.firstNotNull(builder.mScanFilter,
+                new ScanFilter.Builder().build());
+        mRawDataFilter = builder.mRawDataFilter;
+        mRawDataFilterMask = builder.mRawDataFilterMask;
+        mRenamePrefix = builder.mRenamePrefix;
+        mRenameSuffix = builder.mRenameSuffix;
+        mRenameBytesFrom = builder.mRenameBytesFrom;
+        mRenameBytesLength = builder.mRenameBytesLength;
+        mRenameNameFrom = builder.mRenameNameFrom;
+        mRenameNameLength = builder.mRenameNameLength;
+        mRenameBytesReverseOrder = builder.mRenameBytesReverseOrder;
     }
 
     /** @hide */
@@ -420,17 +418,12 @@ public final class BluetoothLeDeviceFilter implements DeviceFilter<ScanResult> {
             return this;
         }
 
-        /** @inheritDoc */
+        /** {@inheritDoc} */
         @Override
         @NonNull
         public BluetoothLeDeviceFilter build() {
             markUsed();
-            return new BluetoothLeDeviceFilter(mNamePattern, mScanFilter,
-                    mRawDataFilter, mRawDataFilterMask,
-                    mRenamePrefix, mRenameSuffix,
-                    mRenameBytesFrom, mRenameBytesLength,
-                    mRenameNameFrom, mRenameNameLength,
-                    mRenameBytesReverseOrder);
+            return new BluetoothLeDeviceFilter(this);
         }
     }
 }

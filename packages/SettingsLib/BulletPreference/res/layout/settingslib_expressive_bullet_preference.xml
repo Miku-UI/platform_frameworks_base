@@ -15,28 +15,77 @@
   limitations under the License.
   -->
 
-<LinearLayout
+<androidx.constraintlayout.widget.ConstraintLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:minHeight="?android:attr/listPreferredItemHeightSmall"
+    android:paddingTop="@dimen/settingslib_expressive_space_small1"
+    android:paddingBottom="@dimen/settingslib_expressive_space_small1"
     android:paddingStart="?android:attr/listPreferredItemPaddingStart"
     android:paddingEnd="?android:attr/listPreferredItemPaddingEnd"
     android:background="?android:attr/selectableItemBackground"
+    android:baselineAligned="false"
     android:clipToPadding="false"
-    android:baselineAligned="false">
+    android:minHeight="?android:attr/listPreferredItemHeightSmall">
 
-    <include layout="@layout/settingslib_expressive_bullet_icon_frame"/>
+    <include
+        android:id="@+id/settingslib_expressive_bullet_icon_frame"
+        layout="@layout/settingslib_expressive_bullet_icon_frame"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-    <include layout="@layout/settingslib_expressive_preference_text_frame"/>
+    <LinearLayout
+        android:id="@+id/settingslib_expressive_bullet_text_frame"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:paddingEnd="@dimen/settingslib_expressive_space_extrasmall4"
+        app:layout_constraintEnd_toStartOf="@android:id/widget_frame"
+        app:layout_constraintStart_toEndOf="@id/settingslib_expressive_bullet_icon_frame"
+        app:layout_constraintVertical_chainStyle="packed"
+        app:layout_constraintVertical_bias="0"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/settingslib_learn_more"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@android:id/title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            style="@style/TextAppearance.SettingsLib.Bullet.Title"/>
+
+        <TextView
+            android:id="@android:id/summary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            style="@style/TextAppearance.SettingsLib.Bullet.Summary"/>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/settingslib_learn_more"
+        style="@style/TextAppearance.SettingsLib.Bullet.LearnMore"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingTop="@dimen/settingslib_expressive_space_small1"
+        android:linksClickable="true"
+        android:visibility="gone"
+        app:layout_constraintHorizontal_bias="0"
+        app:layout_constraintEnd_toStartOf="@android:id/widget_frame"
+        app:layout_constraintStart_toEndOf="@id/settingslib_expressive_bullet_icon_frame"
+        app:layout_constraintTop_toBottomOf="@id/settingslib_expressive_bullet_text_frame"
+        app:layout_constraintBottom_toBottomOf="parent"/>
 
     <!-- Preference should place its actual preference widget here. -->
     <LinearLayout
         android:id="@android:id/widget_frame"
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
-        android:gravity="end|center_vertical"
         android:minWidth="@dimen/settingslib_expressive_space_medium4"
-        android:orientation="vertical"/>
+        android:orientation="vertical"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -17,9 +17,7 @@ package com.android.wm.shell
 
 import com.android.wm.shell.common.ShellExecutor
 
-/**
- * Test ShellExecutor that runs everything synchronously.
- */
+/** Test ShellExecutor that runs everything synchronously. */
 class TestSyncExecutor : ShellExecutor {
     override fun execute(runnable: Runnable) {
         runnable.run()
@@ -29,8 +27,7 @@ class TestSyncExecutor : ShellExecutor {
         runnable.run()
     }
 
-    override fun removeCallbacks(runnable: Runnable) {
-    }
+    override fun removeCallbacks(runnable: Runnable) {}
 
     override fun hasCallback(runnable: Runnable): Boolean {
         return false

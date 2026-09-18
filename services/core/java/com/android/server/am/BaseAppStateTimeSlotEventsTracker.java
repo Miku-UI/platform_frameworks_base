@@ -142,7 +142,7 @@ abstract class BaseAppStateTimeSlotEventsTracker
         return events.getTotalEvents(now, SimpleAppStateTimeslotEvents.DEFAULT_INDEX);
     }
 
-    private void trimEvents() {
+    void trimEvents() {
         final long now = SystemClock.elapsedRealtime();
         trim(Math.max(0, now - mInjector.getPolicy().getMaxTrackingDuration()));
     }

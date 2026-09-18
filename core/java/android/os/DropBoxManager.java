@@ -387,6 +387,28 @@ public class DropBoxManager {
     }
 
     /**
+     * Checks any denylists (set in system settings) to see whether a certain
+     * tag and exception type is allowed.  Entries with disabled tags and/or exception types will be
+     * dropped immediately, so you can save the work of actually constructing and sending the data.
+     *
+     * @param tag that would be used in {@link #addText} or {@link #addFile}
+     * @param exceptionClassName an optional exception class name corresponding to any possible
+     *     {@link ApplicationErrorReport$CrashInfo#exceptionClassName}) association for an entry
+     * @return whether events with that tag would be accepted
+     *
+     * @hide
+     * <p class="note">This is intended only for internal use as a way of selectively allowing an
+     * explicit subset of error types that may normally be disabled by default.
+     */
+    public boolean isTagEnabled(String tag, @Nullable String exceptionClassName) {
+        try {
+            return mService.isTagEnabledWithException(tag, exceptionClassName);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * Gets the next entry from the drop box <em>after</em> the specified time.
      * You must always call {@link Entry#close()} on the return value!
      * {@link android.Manifest.permission#READ_LOGS} permission is

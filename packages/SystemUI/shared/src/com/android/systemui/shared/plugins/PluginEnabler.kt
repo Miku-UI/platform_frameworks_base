@@ -47,4 +47,23 @@ interface PluginEnabler {
      * - It should return [DisableReason.DISABLED_UNKNOWN] if the plugin is off for unknown reasons.
      */
     fun getDisableReason(componentName: ComponentName): DisableReason
+
+    /**
+     * This is provided for ease of integration, but it should be replaced at some point with an
+     * implementation that persists enabled status to avoid consistent crashes from bad plugins.
+     */
+    @Deprecated("Prefer to use an implementation which persists plugin status")
+    class AlwaysEnabled() : PluginEnabler {
+        override fun setEnabled(component: ComponentName) {}
+
+        override fun setDisabled(component: ComponentName, reason: DisableReason) {}
+
+        override fun isEnabled(component: ComponentName): Boolean {
+            return true
+        }
+
+        override fun getDisableReason(componentName: ComponentName): DisableReason {
+            return DisableReason.ENABLED
+        }
+    }
 }

@@ -2,10 +2,13 @@ package com.android.systemui.shade.transition
 
 import android.testing.AndroidTestingRunner
 import androidx.test.filters.SmallTest
-import com.android.systemui.res.R
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.kosmos.testScope
+import com.android.systemui.res.R
+import com.android.systemui.shade.domain.interactor.fakeShadeModeInteractor
 import com.android.systemui.statusbar.policy.FakeConfigurationController
 import com.android.systemui.statusbar.policy.ResourcesSplitShadeStateController
+import com.android.systemui.testKosmos
 import com.google.common.truth.Expect
 import org.junit.Rule
 import org.junit.Test
@@ -16,16 +19,23 @@ import org.junit.runner.RunWith
 class LargeScreenShadeInterpolatorImplTest : SysuiTestCase() {
     @get:Rule val expect: Expect = Expect.create()
 
+    private val kosmos = testKosmos()
+
+    private var fakeShadeModeInteractor = kosmos.fakeShadeModeInteractor
+
     private val portraitShadeInterpolator = LargeScreenPortraitShadeInterpolator()
     private val splitShadeInterpolator = SplitShadeInterpolator()
     private val configurationController = FakeConfigurationController()
+    private val testScope = kosmos.testScope
     private val impl =
         LargeScreenShadeInterpolatorImpl(
             configurationController,
             context,
             splitShadeInterpolator,
             portraitShadeInterpolator,
-            ResourcesSplitShadeStateController()
+            ResourcesSplitShadeStateController(),
+            fakeShadeModeInteractor,
+            testScope.backgroundScope,
         )
 
     @Test
@@ -34,7 +44,7 @@ class LargeScreenShadeInterpolatorImplTest : SysuiTestCase() {
 
         assertInterpolation(
             actual = { fraction -> impl.getBehindScrimAlpha(fraction) },
-            expected = { fraction -> splitShadeInterpolator.getBehindScrimAlpha(fraction) }
+            expected = { fraction -> splitShadeInterpolator.getBehindScrimAlpha(fraction) },
         )
     }
 
@@ -44,7 +54,7 @@ class LargeScreenShadeInterpolatorImplTest : SysuiTestCase() {
 
         assertInterpolation(
             actual = { fraction -> impl.getBehindScrimAlpha(fraction) },
-            expected = { fraction -> portraitShadeInterpolator.getBehindScrimAlpha(fraction) }
+            expected = { fraction -> portraitShadeInterpolator.getBehindScrimAlpha(fraction) },
         )
     }
 
@@ -54,16 +64,17 @@ class LargeScreenShadeInterpolatorImplTest : SysuiTestCase() {
 
         assertInterpolation(
             actual = { fraction -> impl.getNotificationScrimAlpha(fraction) },
-            expected = { fraction -> splitShadeInterpolator.getNotificationScrimAlpha(fraction) }
+            expected = { fraction -> splitShadeInterpolator.getNotificationScrimAlpha(fraction) },
         )
     }
+
     @Test
     fun getNotificationScrimAlpha_inPortraitShade_usesPortraitShadeValue() {
         setSplitShadeEnabled(false)
 
         assertInterpolation(
             actual = { fraction -> impl.getNotificationScrimAlpha(fraction) },
-            expected = { fraction -> portraitShadeInterpolator.getNotificationScrimAlpha(fraction) }
+            expected = { fraction -> portraitShadeInterpolator.getNotificationScrimAlpha(fraction) },
         )
     }
 
@@ -73,7 +84,7 @@ class LargeScreenShadeInterpolatorImplTest : SysuiTestCase() {
 
         assertInterpolation(
             actual = { fraction -> impl.getNotificationContentAlpha(fraction) },
-            expected = { fraction -> splitShadeInterpolator.getNotificationContentAlpha(fraction) }
+            expected = { fraction -> splitShadeInterpolator.getNotificationContentAlpha(fraction) },
         )
     }
 
@@ -85,7 +96,7 @@ class LargeScreenShadeInterpolatorImplTest : SysuiTestCase() {
             actual = { fraction -> impl.getNotificationContentAlpha(fraction) },
             expected = { fraction ->
                 portraitShadeInterpolator.getNotificationContentAlpha(fraction)
-            }
+            },
         )
     }
 
@@ -95,9 +106,10 @@ class LargeScreenShadeInterpolatorImplTest : SysuiTestCase() {
 
         assertInterpolation(
             actual = { fraction -> impl.getNotificationFooterAlpha(fraction) },
-            expected = { fraction -> splitShadeInterpolator.getNotificationFooterAlpha(fraction) }
+            expected = { fraction -> splitShadeInterpolator.getNotificationFooterAlpha(fraction) },
         )
     }
+
     @Test
     fun getNotificationFooterAlpha_inPortraitShade_usesPortraitShadeValue() {
         setSplitShadeEnabled(false)
@@ -106,37 +118,38 @@ class LargeScreenShadeInterpolatorImplTest : SysuiTestCase() {
             actual = { fraction -> impl.getNotificationFooterAlpha(fraction) },
             expected = { fraction ->
                 portraitShadeInterpolator.getNotificationFooterAlpha(fraction)
-            }
+            },
         )
     }
 
     @Test
     fun getQsAlpha_inSplitShade_usesSplitShadeValue() {
         setSplitShadeEnabled(true)
-
         assertInterpolation(
             actual = { fraction -> impl.getQsAlpha(fraction) },
-            expected = { fraction -> splitShadeInterpolator.getQsAlpha(fraction) }
+            expected = { fraction -> splitShadeInterpolator.getQsAlpha(fraction) },
         )
     }
+
     @Test
     fun getQsAlpha_inPortraitShade_usesPortraitShadeValue() {
         setSplitShadeEnabled(false)
 
         assertInterpolation(
             actual = { fraction -> impl.getQsAlpha(fraction) },
-            expected = { fraction -> portraitShadeInterpolator.getQsAlpha(fraction) }
+            expected = { fraction -> portraitShadeInterpolator.getQsAlpha(fraction) },
         )
     }
 
     private fun setSplitShadeEnabled(enabled: Boolean) {
+        impl.inSplitShade = enabled
         overrideResource(R.bool.config_use_split_notification_shade, enabled)
         configurationController.notifyConfigurationChanged()
     }
 
     private fun assertInterpolation(
         actual: (fraction: Float) -> Float,
-        expected: (fraction: Float) -> Float
+        expected: (fraction: Float) -> Float,
     ) {
         for (i in 0..10) {
             val fraction = i / 10f

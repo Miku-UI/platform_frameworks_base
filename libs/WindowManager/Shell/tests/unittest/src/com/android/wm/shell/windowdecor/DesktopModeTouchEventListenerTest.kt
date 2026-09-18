@@ -18,6 +18,7 @@ package com.android.wm.shell.windowdecor
 
 import android.app.ActivityManager
 import android.graphics.Rect
+import android.graphics.Region
 import android.hardware.display.DisplayManager
 import android.os.Looper
 import android.os.SystemClock
@@ -35,12 +36,21 @@ import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.MultiDisplayTestUtil.TestDisplay.DISPLAY_0
 import com.android.wm.shell.desktopmode.DesktopTasksController
 import com.android.wm.shell.desktopmode.DesktopUserRepositories
+import com.android.wm.shell.pinnedlayer.phone.PinnedLayerController
 import com.android.wm.shell.shared.desktopmode.FakeDesktopConfig
 import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.android.wm.shell.splitscreen.SplitScreenController
 import com.android.wm.shell.sysui.ShellInit
+import com.android.wm.shell.windowdecor.WindowDecorationTestHelper.TestAppHeaderViewHolderFactory
+import com.android.wm.shell.windowdecor.WindowDecorationTestHelper.TestHeaderDimensions
+import com.android.wm.shell.windowdecor.WindowDecorationTestHelper.TestHeaderDimensions.Companion.APP_HEADER_HEIGHT
+import com.android.wm.shell.windowdecor.WindowDecorationTestHelper.TestHeaderDimensions.Companion.CUSTOMIZABLE_REGION_MARGIN_START
+import com.android.wm.shell.windowdecor.WindowDecorationTestHelper.TestInputPilferer
 import com.android.wm.shell.windowdecor.WindowDecorationTestHelper.TestWindowDecoration
 import com.android.wm.shell.windowdecor.WindowDecorationTestHelper.createAppHeaderTask
+import com.android.wm.shell.windowdecor.WindowDecorationTestHelper.createCustomAppHeaderTask
+import com.android.wm.shell.windowdecor.common.CaptionVisibilityHelper
+import com.android.wm.shell.windowdecor.common.WindowDecorationGestureExclusionTracker
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertNotNull
 import kotlinx.coroutines.Dispatchers
@@ -78,11 +88,16 @@ class DesktopModeTouchEventListenerTest : ShellTestCase() {
     private val mockTaskOperations = mock<TaskOperations>()
     private val mockWindowDecorationActions = mock<WindowDecorationActions>()
     private val mockDisplayController = mock<DisplayController>()
+    private val mockWindowDecorationExclusionTracker =
+        mock<WindowDecorationGestureExclusionTracker>()
+    private val mockCaptionVisibilityHelper = mock<CaptionVisibilityHelper>()
+    private val mockPinnedLayerController = mock<PinnedLayerController>()
 
     private val testDispatcher = StandardTestDispatcher(TestCoroutineScheduler())
     private val testHandler = TestHandler(Looper.getMainLooper())
     private val testExecutor = TestShellExecutor()
     private val testScope = TestScope(testDispatcher)
+    private val testInputPilferer = TestInputPilferer()
 
     private val shellInit = ShellInit(testExecutor)
     private val desktopState = FakeDesktopState()
@@ -90,6 +105,7 @@ class DesktopModeTouchEventListenerTest : ShellTestCase() {
 
     private val windowDecorations = mutableMapOf<Int, WindowDecorationWrapper>()
     private lateinit var userRepositories: DesktopUserRepositories
+    private val defaultDisplayExclusionRegion = Region.obtain()
 
     @Before
     fun setUp() {
@@ -99,6 +115,9 @@ class DesktopModeTouchEventListenerTest : ShellTestCase() {
         val displayLayout = DISPLAY_0.getSpyDisplayLayout(mContext.resources)
         whenever(mockDisplayController.getDisplay(DEFAULT_DISPLAY)).thenReturn(display)
         whenever(mockDisplayController.getDisplayLayout(DEFAULT_DISPLAY)).thenReturn(displayLayout)
+        whenever(mockWindowDecorationExclusionTracker.getExclusionRegion(DEFAULT_DISPLAY))
+            .thenReturn(defaultDisplayExclusionRegion)
+        whenever(mockCaptionVisibilityHelper.shouldCreateCaption(any(), eq(false))).thenReturn(true)
         userRepositories =
             DesktopUserRepositories(
                 shellInit,
@@ -115,6 +134,8 @@ class DesktopModeTouchEventListenerTest : ShellTestCase() {
 
     @After
     fun tearDown() {
+        defaultDisplayExclusionRegion.setEmpty()
+        testInputPilferer.reset()
         windowDecorations.forEach { (_, decor) -> decor.close() }
         windowDecorations.clear()
         testScope.cancel()
@@ -122,108 +143,7 @@ class DesktopModeTouchEventListenerTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR,
-        Flags.FLAG_FIX_LEAKING_VISUAL_INDICATOR,
-    )
-    fun testAppHeaderClick_closesTask() =
-        testScope.runTest {
-            val decor = setUpWindowDecoration(createAppHeaderTask(TASK_BOUNDS))
-            val closeBtn =
-                assertNotNull(
-                    decor.findViewById(com.android.wm.shell.R.id.close_window),
-                    "Expected decoration to have a close button",
-                )
-            val x = closeBtn.x + 1f
-            val y = closeBtn.y + 1f
-
-            val startTime = SystemClock.uptimeMillis()
-            closeBtn.dispatchTouchEvent(
-                MotionEvent.obtain(
-                    /* downTime = */ startTime,
-                    /* eventTime = */ startTime,
-                    /* action = */ MotionEvent.ACTION_DOWN,
-                    /* x = */ x,
-                    /* y = */ y,
-                    /* metaState = */ 0,
-                )
-            )
-            closeBtn.dispatchTouchEvent(
-                MotionEvent.obtain(
-                    /* downTime = */ startTime,
-                    /* eventTime = */ startTime + 20,
-                    /* action = */ MotionEvent.ACTION_UP,
-                    /* x = */ x,
-                    /* y = */ y,
-                    /* metaState = */ 0,
-                )
-            )
-            flushAll()
-
-            verify(mockWindowDecorationActions)
-                .onClose(taskId = decor.defaultWindowDecoration.taskInfo.taskId)
-        }
-
-    @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR,
-        Flags.FLAG_FIX_LEAKING_VISUAL_INDICATOR,
-    )
-    fun testAppHeaderClick_withActionMoveButNoBoundsChange_closesTask() =
-        testScope.runTest {
-            val decor = setUpWindowDecoration(createAppHeaderTask(TASK_BOUNDS))
-            val closeBtn =
-                assertNotNull(
-                    decor.findViewById(com.android.wm.shell.R.id.close_window),
-                    "Expected decoration to have a close button",
-                )
-            val x = closeBtn.x + 1f
-            val y = closeBtn.y + 1f
-
-            val startTime = SystemClock.uptimeMillis()
-            closeBtn.dispatchTouchEvent(
-                MotionEvent.obtain(
-                    /* downTime = */ startTime,
-                    /* eventTime = */ startTime,
-                    /* action = */ MotionEvent.ACTION_DOWN,
-                    /* x = */ x,
-                    /* y = */ y,
-                    /* metaState = */ 0,
-                )
-            )
-            // Add an ACTION_MOVE event without actual position/bounds change, to make sure the
-            // handler doesn't get stuck thinking this view is being dragged. See b/364990718.
-            closeBtn.dispatchTouchEvent(
-                MotionEvent.obtain(
-                    /* downTime = */ startTime,
-                    /* eventTime = */ startTime + 10,
-                    /* action = */ MotionEvent.ACTION_MOVE,
-                    /* x = */ x,
-                    /* y = */ y,
-                    /* metaState = */ 0,
-                )
-            )
-            closeBtn.dispatchTouchEvent(
-                MotionEvent.obtain(
-                    /* downTime = */ startTime,
-                    /* eventTime = */ startTime + 20,
-                    /* action = */ MotionEvent.ACTION_UP,
-                    /* x = */ x,
-                    /* y = */ y,
-                    /* metaState = */ 0,
-                )
-            )
-            flushAll()
-
-            verify(mockWindowDecorationActions)
-                .onClose(taskId = decor.defaultWindowDecoration.taskInfo.taskId)
-        }
-
-    @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR,
-        Flags.FLAG_FIX_LEAKING_VISUAL_INDICATOR,
-    )
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR)
     fun testAppHeaderClick_withActionMoveButNoBoundsChange_invokesDragPositioningEndCallback() =
         testScope.runTest {
             val decor = setUpWindowDecoration(createAppHeaderTask(TASK_BOUNDS))
@@ -232,8 +152,8 @@ class DesktopModeTouchEventListenerTest : ShellTestCase() {
                     decor.findViewById(com.android.wm.shell.R.id.desktop_mode_caption),
                     "Expected decoration to have an app header view",
                 )
-            val x = 300f
-            val y = 50f
+            val x = TASK_BOUNDS.left + 100f
+            val y = TASK_BOUNDS.top + (APP_HEADER_HEIGHT / 2f)
 
             // Simulate a click on the app header that includes an ACTION_MOVE event with no bounds
             // change.
@@ -277,13 +197,102 @@ class DesktopModeTouchEventListenerTest : ShellTestCase() {
                 .onDragPositioningEnd(
                     taskInfo = eq(decor.defaultWindowDecoration.taskInfo),
                     taskSurface = any(),
-                    displayId = eq(decor.defaultWindowDecoration.taskInfo.displayId),
                     inputCoordinate = any(),
                     currentDragBounds = any(),
                     validDragArea = any(),
                     dragStartBounds = eq(TASK_BOUNDS),
                     motionEvent = eq(upEvent),
                 )
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR)
+    fun testCustomAppHeaderClick_inCustomizedRegion_doesNotPilfer() =
+        testScope.runTest {
+            val decor =
+                setUpWindowDecoration(createCustomAppHeaderTask(TASK_BOUNDS)).apply {
+                    addCustomCaptionContent(
+                        outRegion = defaultDisplayExclusionRegion,
+                        contentWidth = 100,
+                    )
+                }
+            val appHeader =
+                assertNotNull(
+                    decor.findViewById(com.android.wm.shell.R.id.desktop_mode_caption),
+                    "Expected decoration to have an app header view",
+                )
+            val x = TASK_BOUNDS.left + CUSTOMIZABLE_REGION_MARGIN_START + 50f
+            val y = TASK_BOUNDS.top + (APP_HEADER_HEIGHT / 2f)
+            val startTime = SystemClock.uptimeMillis()
+            appHeader.dispatchTouchEvent(
+                MotionEvent.obtain(
+                    /* downTime = */ startTime,
+                    /* eventTime = */ startTime,
+                    /* action = */ MotionEvent.ACTION_DOWN,
+                    /* x = */ x,
+                    /* y = */ y,
+                    /* metaState = */ 0,
+                )
+            )
+            appHeader.dispatchTouchEvent(
+                MotionEvent.obtain(
+                    /* downTime = */ startTime,
+                    /* eventTime = */ startTime + 20,
+                    /* action = */ MotionEvent.ACTION_UP,
+                    /* x = */ x,
+                    /* y = */ y,
+                    /* metaState = */ 0,
+                )
+            )
+            flushAll()
+
+            assertThat(testInputPilferer.pilferCallCount).isEqualTo(0)
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DECORATION_REFACTOR)
+    fun testCustomAppHeaderClick_inSystemRegion_pilfers() =
+        testScope.runTest {
+            val decor =
+                setUpWindowDecoration(createCustomAppHeaderTask(TASK_BOUNDS)).apply {
+                    addCustomCaptionContent(
+                        outRegion = defaultDisplayExclusionRegion,
+                        contentWidth = 100,
+                    )
+                }
+            val appHeader =
+                assertNotNull(
+                    decor.findViewById(com.android.wm.shell.R.id.desktop_mode_caption),
+                    "Expected decoration to have an app header view",
+                )
+            val x = TASK_BOUNDS.left + (CUSTOMIZABLE_REGION_MARGIN_START / 2f)
+            val y = TASK_BOUNDS.top + (APP_HEADER_HEIGHT / 2f)
+
+            val startTime = SystemClock.uptimeMillis()
+            appHeader.dispatchTouchEvent(
+                MotionEvent.obtain(
+                    /* downTime = */ startTime,
+                    /* eventTime = */ startTime,
+                    /* action = */ MotionEvent.ACTION_DOWN,
+                    /* x = */ x,
+                    /* y = */ y,
+                    /* metaState = */ 0,
+                )
+            )
+            appHeader.dispatchTouchEvent(
+                MotionEvent.obtain(
+                    /* downTime = */ startTime,
+                    /* eventTime = */ startTime + 20,
+                    /* action = */ MotionEvent.ACTION_UP,
+                    /* x = */ x,
+                    /* y = */ y,
+                    /* metaState = */ 0,
+                )
+            )
+            flushAll()
+
+            assertThat(testInputPilferer.pilferCallCount).isEqualTo(1)
+            assertThat(testInputPilferer.lastPilferedView).isEqualTo(appHeader)
         }
 
     private fun setUpWindowDecoration(
@@ -298,12 +307,18 @@ class DesktopModeTouchEventListenerTest : ShellTestCase() {
                 scope = testScope.backgroundScope,
                 handler = testHandler,
                 executor = testExecutor,
+                inputPilferer = testInputPilferer,
                 displayController = mockDisplayController,
                 desktopUserRepositories = userRepositories,
                 splitScreenController = mockSplitScreenController,
                 desktopTasksController = mockDesktopTasksController,
                 taskOperations = mockTaskOperations,
                 windowDecorationActions = mockWindowDecorationActions,
+                captionVisibilityHelper = mockCaptionVisibilityHelper,
+                appHeaderViewHolderFactory =
+                    TestAppHeaderViewHolderFactory(TestHeaderDimensions(context.resources)),
+                windowDecorationExclusionTracker = mockWindowDecorationExclusionTracker,
+                pinnedLayerController = mockPinnedLayerController,
             )
             .also {
                 assertThat(windowDecorations[taskInfo.taskId]).isNull()
@@ -318,6 +333,6 @@ class DesktopModeTouchEventListenerTest : ShellTestCase() {
     }
 
     private companion object {
-        private val TASK_BOUNDS = Rect(200, 200, 800, 600)
+        private val TASK_BOUNDS = Rect(200, 200, 800, 600) // 600x400
     }
 }

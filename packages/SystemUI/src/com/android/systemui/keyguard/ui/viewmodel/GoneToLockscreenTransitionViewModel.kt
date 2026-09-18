@@ -31,9 +31,7 @@ import kotlinx.coroutines.flow.Flow
 @SysUISingleton
 class GoneToLockscreenTransitionViewModel
 @Inject
-constructor(
-    animationFlow: KeyguardTransitionAnimationFlow,
-) : DeviceEntryIconTransition {
+constructor(animationFlow: KeyguardTransitionAnimationFlow) : DeviceEntryIconTransition {
 
     private val transitionAnimation =
         animationFlow
@@ -41,16 +39,10 @@ constructor(
                 duration = TO_LOCKSCREEN_DURATION,
                 edge = Edge.create(from = Scenes.Gone, to = LOCKSCREEN),
             )
-            .setupWithoutSceneContainer(
-                edge = Edge.create(from = GONE, to = LOCKSCREEN),
-            )
+            .setupWithoutSceneContainer(edge = Edge.create(from = GONE, to = LOCKSCREEN))
 
     val shortcutsAlpha: Flow<Float> =
-        transitionAnimation.sharedFlow(
-            duration = 250.milliseconds,
-            onStep = { it },
-            onCancel = { 1f },
-        )
+        transitionAnimation.sharedFlow(duration = 250.milliseconds, onStep = { it })
 
     val lockscreenAlpha: Flow<Float> = shortcutsAlpha
 

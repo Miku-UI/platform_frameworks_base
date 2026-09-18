@@ -10,6 +10,12 @@
         {"exclude-annotation": "androidx.test.filters.FlakyTest"},
         {"exclude-annotation": "org.junit.Ignore"}
       ]
+    },
+    {
+      "file_patterns": [
+        ".*MemoryLimiter.*"
+      ],
+      "name": "MemoryLimiterTests"
     }
   ]
 }

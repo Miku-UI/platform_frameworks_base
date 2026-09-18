@@ -23,6 +23,7 @@ import android.content.pm.PackageStats;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.util.Log;
+import android.util.Pair;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
@@ -35,7 +36,9 @@ import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 @RunWith(AndroidJUnit4.class)
 public class InstallerTest {
@@ -119,12 +122,12 @@ public class InstallerTest {
 
             mManual.start();
             mInstaller.getAppSize(app.volumeUuid, packageNames, userId, 0,
-                    appId, ceDataInodes, codePaths, stats);
+                    appId, 0, ceDataInodes, codePaths, stats);
             mManual.stop();
 
             mQuota.start();
             mInstaller.getAppSize(app.volumeUuid, packageNames, userId, Installer.FLAG_USE_QUOTA,
-                    appId, ceDataInodes, codePaths, quotaStats);
+                    appId, 0, ceDataInodes, codePaths, quotaStats);
             mQuota.stop();
 
             checkEquals(Arrays.toString(packageNames) + " UID=" + app.uid, stats, quotaStats);
@@ -134,19 +137,25 @@ public class InstallerTest {
     @Test
     @Ignore("b/68819006")
     public void testGetUserSize() throws Exception {
-        final int[] appIds = getAppIds(UserHandle.USER_SYSTEM);
+        final List<Pair<Integer, Integer>> appAndPccIds = getAppAndPccIds(UserHandle.USER_SYSTEM);
+        final int[] appIds = new int[appAndPccIds.size()];
+        final int[] pccIds = new int[appAndPccIds.size()];
+        for (int i = 0; i < appAndPccIds.size(); i++) {
+            appIds[i] = appAndPccIds.get(i).first;
+            pccIds[i] = appAndPccIds.get(i).second;
+        }
 
         final PackageStats stats = new PackageStats("android");
         final PackageStats quotaStats = new PackageStats("android");
 
         mManual.start();
         mInstaller.getUserSize(null, UserHandle.USER_SYSTEM, 0,
-                appIds, stats);
+                appIds, pccIds, stats);
         mManual.stop();
 
         mQuota.start();
         mInstaller.getUserSize(null, UserHandle.USER_SYSTEM, Installer.FLAG_USE_QUOTA,
-                appIds, quotaStats);
+                appIds, pccIds, quotaStats);
         mQuota.stop();
 
         checkEquals(Arrays.toString(appIds), stats, quotaStats);
@@ -181,6 +190,19 @@ public class InstallerTest {
             }
         }
         return appIds;
+    }
+
+    private List<Pair<Integer, Integer>> getAppAndPccIds(int userId) {
+        List<Pair<Integer, Integer>> appAndPccIds = new ArrayList<>();
+        for (ApplicationInfo app : getContext().getPackageManager().getInstalledApplicationsAsUser(
+                PackageManager.MATCH_UNINSTALLED_PACKAGES, userId)) {
+            final int appId = UserHandle.getAppId(app.uid);
+            final int pccId = app.pccUid != -1 ? UserHandle.getAppId(app.pccUid) : -1;
+            if (!ArrayUtils.contains(appAndPccIds, Pair.create(appId, pccId))) {
+                appAndPccIds.add(Pair.create(appId, pccId));
+            }
+        }
+        return appAndPccIds;
     }
 
     private static Context getContext() {

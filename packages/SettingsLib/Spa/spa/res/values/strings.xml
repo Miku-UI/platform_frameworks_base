@@ -20,4 +20,6 @@
     <string name="spa_unavailable">Unavailable</string>
     <!-- An action, to learn more. [CHAR LIMIT=NONE]-->
     <string name="spa_learn_more">Learn more</string>
+    <!-- Content description for the selected item of Spinner. [CHAR LIMIT=NONE]-->
+    <string name="spa_spinner_selected_item">Selected</string>
 </resources>

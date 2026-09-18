@@ -151,7 +151,7 @@
     <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"Мэдээллийг дуудлагын мэдэгдэл болон бусад зүйлд ашиглана"</string>
     <string name="bluetooth_profile_pan_nap" msgid="7871974753822470050">"Интернэт холболтыг хуваалцах"</string>
     <string name="bluetooth_profile_map" msgid="8907204701162107271">"Мессеж"</string>
-    <string name="bluetooth_profile_sap" msgid="8304170950447934386">"SIM Хандалт"</string>
+    <string name="bluetooth_profile_sap" msgid="8304170950447934386">"SIM хандалт"</string>
     <string name="bluetooth_profile_a2dp_high_quality" msgid="4739440941324792775">"HD аудио: <xliff:g id="CODEC_NAME">%1$s</xliff:g>"</string>
     <string name="bluetooth_profile_a2dp_high_quality_unknown_codec" msgid="2477639096903834374">"HD аудио"</string>
     <string name="bluetooth_profile_hearing_aid" msgid="2607867572569689732">"Сонсголын төхөөрөмж"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wifi сүлжээний дохио гурван баганатай байна."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Wifi-н дохио дүүрэн байна."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Таны төхөөрөмжид холбогдсон."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Энэ төхөөрөмж дээрх бүх хэрэглэгч харах, холбогдох боломжтой."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Нээлттэй сүлжээ"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Аюулгүй сүлжээ"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Андройд OS"</string>
@@ -220,7 +221,7 @@
     <string name="tts_default_rate_title" msgid="3964187817364304022">"Ярианы түвшин"</string>
     <string name="tts_default_rate_summary" msgid="3781937042151716987">"Текстийг унших хурд"</string>
     <string name="tts_default_pitch_title" msgid="6988592215554485479">"Авиа тон"</string>
-    <string name="tts_default_pitch_summary" msgid="9132719475281551884">"Авоматаар үүссэн ярианы дуудлаганд нөлөөлдөг"</string>
+    <string name="tts_default_pitch_summary" msgid="9132719475281551884">"Автоматаар үүссэн ярианы хөгт нөлөөлдөг"</string>
     <string name="tts_default_lang_title" msgid="4698933575028098940">"Хэл"</string>
     <string name="tts_lang_use_system" msgid="6312945299804012406">"Системийн хэлийг ашиглах"</string>
     <string name="tts_lang_not_selected" msgid="7927823081096056147">"Хэл сонгогдоогүй байна"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Энэ хэрэглэгчийн хувьд Хандалтын цэгийн нэрийн тохиргоог ашиглах боломжгүй"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB дебаг"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"USB холбогдсон үеийн согог засах горим"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"USB дебагийн зөвшөөрлийг цуцлах"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"ADB-н дебагийн зөвшөөрлийг цуцлах"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Wireless debugging"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Wi-Fi холбогдсон үед дебаг хийх горим"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Алдаа"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Төхөөрөмжийг хослуулж байна…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Төхөөрөмжийг хослуулж чадсангүй. QR код буруу эсвэл төхөөрөмжийг ижил сүлжээнд холбоогүй байна."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP хаяг ба порт"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Боломжгүй (зөвшөөрөөгүй)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Боломжгүй (Wi‑Fi салгасан)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"QR кодыг скан хийх"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"QR кодыг скан хийж Wi-Fi-р төхөөрөмжийг хослуулна уу"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Wi-Fi сүлжээнд холбогдоно уу"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB дебаг нь зөвхөн хөгжүүлэлтийн зорилготой. Үүнийг өөрийн компьютер болон төхөөрөмжийн хооронд өгөгдөл хуулах, өөрийн төхөөрөмж дээр мэдэгдэлгүйгээр аппликейшн суулгах, лог датаг унших зэрэгт ашиглаж болно."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Wireless debugging-г зөвшөөрөх үү?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Wireless debugging нь зөвхөн хөгжүүлэлтийн зориулалттай. Үүнийг компьютер болон төхөөрөмж хооронд өгөгдөл хуулах, төхөөрөмждөө мэдэгдэлгүйгээр аппууд суулгах болон лог өгөгдлийг унших зэрэгт ашиглана уу."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Таны өмнө нь зөвшөөрөл өгсөн бүх компьютерээс USB дебаг хандалтыг нь хураах уу?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Таны өмнө нь зөвшөөрөл өгсөн бүх компьютер, сүлжээнээс adb дебагт хандах эрхийг цуцлах уу?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Хөгжлийн тохиргоог зөвшөөрөх үү?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Эдгээр тохиргоо нь зөвхөн хөгжүүлэлтэд ашиглах зорилготой. Эдгээр нь таны төхөөрөмж буюу түүн дээрх аппликейшнүүдийг эвдрэх, буруу ажиллах шалтгаан нь болж болно."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Аппыг USB-р баталгаажуулах"</string>
@@ -575,7 +578,7 @@
     <string name="retail_demo_reset_next" msgid="3688129033843885362">"Дараагийн"</string>
     <string name="retail_demo_reset_title" msgid="1866911701095959800">"Нууц үг шаардлагатай"</string>
     <string name="active_input_method_subtypes" msgid="4232680535471633046">"Оруулах аргуудыг идэвхжүүлэх"</string>
-    <string name="use_system_language_to_select_input_method_subtypes" msgid="4865195835541387040">"Системийн хэлүүдийг ашиглах"</string>
+    <string name="use_system_language_to_select_input_method_subtypes" msgid="4865195835541387040">"Системийн хэлнүүдийг ашиглах"</string>
     <string name="failed_to_open_app_settings_toast" msgid="764897252657692092">"<xliff:g id="SPELL_APPLICATION_NAME">%1$s</xliff:g>-н тохиргоог нээж чадсангүй"</string>
     <string name="ime_security_warning" msgid="6547562217880551450">"Энэ оруулах арга нь таны нууц үгс, зээлийн картын дугаар гэх мэт бичсэн хувийн мэдээллийг цуглуулах боломжтой байж болно. Үүнийг <xliff:g id="IME_APPLICATION_NAME">%1$s</xliff:g> апп нийлүүлдэг. Энэ оруулах аргыг ашиглах уу?"</string>
     <string name="direct_boot_unaware_dialog_message" msgid="7845398276735021548">"Санамж: Дахин асаасны дараа энэ апп нь таныг утасны түгжээгээ тайлах хүртэл эхлэх боломжгүй"</string>
@@ -663,7 +666,7 @@
     <string name="user_add_user_item_title" msgid="2394272381086965029">"Хэрэглэгч"</string>
     <string name="user_add_profile_item_title" msgid="3111051717414643029">"Хязгаарлагдсан профайл"</string>
     <string name="user_add_user_title" msgid="5457079143694924885">"Шинэ хэрэглэгч нэмэх үү?"</string>
-    <string name="user_add_user_message_long" msgid="1527434966294733380">"Та нэмэлт хэрэглэгч үүсгэх замаар бусад хүмүүстэй энэ төхөөрөмжийг хуваалцаж болно. Хэрэглэгч тус бүр апп, дэлгэцийн зураг болон бусад зүйлээ өөрчлөх боломжтой хувийн орон зайтай байна. Түүнчлэн хэрэглэгч нь бүх хэрэглэгчид нөлөөлөх боломжтой Wi-Fi зэрэг төхөөрөмжийн тохиргоог өөрчлөх боломжтой.\n\nХэрэв та шинэ хэрэглэгч нэмэх бол тухайн хүн хувийн орон зайгаа бүрдүүлэх ёстой.\n\nХэрэглэгч бүр бусад бүх хэрэглэгчийн өмнөөс апп шинэчилж болно. Хандалтын тохиргоо болон үйлчилгээг шинэ хэрэглэгчид шилжүүлэх боломжгүй байж болзошгүй."</string>
+    <string name="user_add_user_message_long" msgid="1527434966294733380">"Та нэмэлт хэрэглэгч үүсгэх замаар бусад хүмүүстэй энэ төхөөрөмжийг хуваалцаж болно. Хэрэглэгч тус бүр апп, дэлгэцийн зураг болон бусад зүйлээ өөрчлөх боломжтой хувийн орон зайтай байна. Түүнчлэн хэрэглэгч нь бүх хэрэглэгчид нөлөөлөх боломжтой Wi-Fi зэрэг төхөөрөмжийн тохиргоог өөрчлөх боломжтой.\n\nХэрэв та шинэ хэрэглэгч нэмэх бол тухайн хүн хувийн орон зайгаа бүрдүүлэх ёстой.\n\nХэрэглэгч бүр бусад бүх хэрэглэгчийн өмнөөс апп шинэчилж болно. Хүртээмжтэй тохиргоо болон үйлчилгээг шинэ хэрэглэгчид шилжүүлэх боломжгүй байж болзошгүй."</string>
     <string name="user_add_user_message_short" msgid="3295959985795716166">"Та шинэ хэрэглэгч нэмбэл тухайн хүн өөрийн орон зайг тохируулах шаардлагатай.\n\nАль ч хэрэглэгч бусад бүх хэрэглэгчийн аппуудыг шинэчлэх боломжтой."</string>
     <string name="user_grant_admin_title" msgid="5157031020083343984">"Энэ хэрэглэгчийг админ болгох уу?"</string>
     <string name="user_grant_admin_message" msgid="1673791931033486709">"Админууд бусад хэрэглэгчид байхгүй тусгай эрхтэй байдаг. Админ нь бүх хэрэглэгчийг удирдах, энэ төхөөрөмжийг шинэчлэх, сэргээх, тохиргоог өөрчлөх, бүх суулгасан аппыг харах болон бусад хэрэглэгчид админы эрх өгөх эсвэл эрхийг нь цуцлах боломжтой."</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet саллаа."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Этернэт."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Дуудлага байхгүй."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Биет гар"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Гарын бүдүүвчийг сонгох"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Өгөгдмөл"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Дэлгэц асаах тохиргоо"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Дэлгэцийг асаахыг зөвшөөрөх"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Аппад дэлгэцийг асаахыг зөвшөөрнө үү. Зөвшөөрсөн тохиолдолд тухайн апп таны тодорхой оролцоогүйгээр ямар ч үед дэлгэцийг асааж болно."</string>

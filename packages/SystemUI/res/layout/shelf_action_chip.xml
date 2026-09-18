@@ -17,7 +17,7 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
-    android:theme="@style/FloatingOverlay"
+    android:theme="@android:style/Theme.DeviceDefault.DayNight"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
@@ -27,7 +27,7 @@
     >
     <ImageView
         android:id="@+id/overlay_action_chip_icon"
-        android:tint="@androidprv:color/materialColorOnSecondary"
+        android:tint="@color/materialColorOnSecondary"
         android:tintMode="src_in"
         android:layout_width="@dimen/overlay_action_chip_icon_size"
         android:layout_height="@dimen/overlay_action_chip_icon_size"/>
@@ -37,5 +37,5 @@
         android:layout_height="wrap_content"
         android:fontFamily="@*android:string/config_headlineFontFamilyMedium"
         android:textSize="@dimen/overlay_action_chip_text_size"
-        android:textColor="@androidprv:color/materialColorOnSecondary"/>
+        android:textColor="@color/materialColorOnSecondary"/>
 </LinearLayout>

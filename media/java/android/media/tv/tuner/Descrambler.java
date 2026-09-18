@@ -112,10 +112,10 @@ public class Descrambler implements AutoCloseable {
     /**
      * Set a key token to link descrambler to a key slot. Use {@link isValidKeyToken(byte[])} to
      * validate the key token format. Invalid key token would cause no-op and return
-     * {@link Tuner.RESULT_INVALID_ARGUMENT}.
+     * {@link Tuner#RESULT_INVALID_ARGUMENT}.
      *
      * <p>A descrambler instance can have only one key slot to link, but a key slot can hold a few
-     * keys for different purposes. {@link Tuner.VOID_KEYTOKEN} is considered valid.
+     * keys for different purposes. {@link Tuner#VOID_KEYTOKEN} is considered valid.
      *
      * @param keyToken the token to be used to link the key slot. Use {@link Tuner#VOID_KEYTOKEN}
      *        to remove the current key from descrambler. If the current keyToken comes from a

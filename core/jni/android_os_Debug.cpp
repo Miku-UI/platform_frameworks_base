@@ -27,7 +27,7 @@
 #include <bionic/malloc.h>
 #include <ctype.h>
 #include <debuggerd/client.h>
-#include <dmabufinfo/dmabuf_sysfs_stats.h>
+#include <dmabufinfo/dmabuf_per_buffer_stats.h>
 #include <dmabufinfo/dmabufinfo.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -101,6 +101,11 @@ static stat_field_names stat_field_names[_NUM_CORE_HEAP] = {
 
 static jfieldID otherStats_field;
 static jfieldID hasSwappedOutPss_field;
+
+static jfieldID totalBitmapCount_field;
+static jfieldID totalBitmapSize_field;
+static jfieldID uniqueBitmapCount_field;
+static jfieldID uniqueBitmapSize_field;
 
 #define BINDER_STATS "/proc/binder/stats"
 
@@ -190,8 +195,9 @@ static jboolean android_os_Debug_getDirtyPagesPid(JNIEnv *env, jobject clazz,
     bool foundSwapPss;
     AndroidHeapStats stats[_NUM_HEAP];
     memset(&stats, 0, sizeof(stats));
+    AndroidBitmapStats bitmap_stats;
 
-    if (!ExtractAndroidHeapStats(pid, stats, &foundSwapPss)) {
+    if (!ExtractAndroidHeapStats(pid, stats, &foundSwapPss, &bitmap_stats)) {
         return JNI_FALSE;
     }
 
@@ -234,6 +240,11 @@ static jboolean android_os_Debug_getDirtyPagesPid(JNIEnv *env, jobject clazz,
 
 
     env->SetBooleanField(object, hasSwappedOutPss_field, foundSwapPss);
+    env->SetLongField(object, totalBitmapCount_field, (jlong)bitmap_stats.total_count);
+    env->SetLongField(object, totalBitmapSize_field, (jlong)bitmap_stats.total_size_kb);
+    env->SetLongField(object, uniqueBitmapCount_field, (jlong)bitmap_stats.unique_count);
+    env->SetLongField(object, uniqueBitmapSize_field, (jlong)bitmap_stats.unique_size_kb);
+
     jintArray otherIntArray = (jintArray)env->GetObjectField(object, otherStats_field);
 
     jint* otherArray = (jint*)env->GetPrimitiveArrayCritical(otherIntArray, 0);
@@ -409,6 +420,8 @@ enum {
     MEMINFO_CMA_TOTAL,
     MEMINFO_CMA_FREE,
     MEMINFO_SWAP_CACHED,
+    MEMINFO_SEC_PAGE_TABLES,
+    MEMINFO_PERCPU,
     MEMINFO_COUNT
 };
 
@@ -638,25 +651,20 @@ static jlong android_os_Debug_getFreeZramKb(JNIEnv* env, jobject clazz) {
     return zramFreeKb;
 }
 
-static jlong android_os_Debug_getIonHeapsSizeKb(JNIEnv* env, jobject clazz) {
-    jlong heapsSizeKb = -1;
-    uint64_t size;
-
-    if (meminfo::ReadIonHeapsSizeKb(&size)) {
-        heapsSizeKb = size;
+static jlong android_os_Debug_getDmabufTotalExportedKb(JNIEnv* env, jobject clazz) {
+    if (dmabufinfo::DmabufPerBufferStats stats; dmabufinfo::GetDmabufPerBufferStats(stats)) {
+        return stats.total_size() / 1024;
     }
 
-    return heapsSizeKb;
+    return -1;
 }
 
-static jlong android_os_Debug_getDmabufTotalExportedKb(JNIEnv* env, jobject clazz) {
-    jlong dmabufTotalSizeKb = -1;
-    uint64_t size;
-
-    if (dmabufinfo::GetDmabufTotalExportedKb(&size)) {
-        dmabufTotalSizeKb = size;
+static jlong android_os_Debug_getDmabufUserspaceKb(JNIEnv* env, jobject clazz) {
+    if (uint64_t size; dmabufinfo::GetDmabufUserspaceKb(size)) {
+        return static_cast<jlong>(size);
     }
-    return dmabufTotalSizeKb;
+
+    return -1;
 }
 
 static jlong android_os_Debug_getDmabufHeapTotalExportedKb(JNIEnv* env, jobject clazz) {
@@ -667,17 +675,6 @@ static jlong android_os_Debug_getDmabufHeapTotalExportedKb(JNIEnv* env, jobject 
         dmabufHeapTotalSizeKb = size;
     }
     return dmabufHeapTotalSizeKb;
-}
-
-static jlong android_os_Debug_getIonPoolsSizeKb(JNIEnv* env, jobject clazz) {
-    jlong poolsSizeKb = -1;
-    uint64_t size;
-
-    if (meminfo::ReadIonPoolsSizeKb(&size)) {
-        poolsSizeKb = size;
-    }
-
-    return poolsSizeKb;
 }
 
 static jlong android_os_Debug_getDmabufHeapPoolsSizeKb(JNIEnv* env, jobject clazz) {
@@ -753,6 +750,11 @@ static jlong android_os_Debug_getDmabufMappedSizeKb(JNIEnv* env, jobject clazz) 
         return false;
     }
 
+    android::dmabufinfo::DmabufPerBufferStats stats;
+    if (!android::dmabufinfo::GetDmabufPerBufferStats(stats)) {
+        LOG(ERROR) << "Failed to read dmabuf per-buffer stats";
+    }
+
     struct dirent* dent;
     while ((dent = readdir(dir.get()))) {
         if (dent->d_type != DT_DIR) continue;
@@ -762,7 +764,7 @@ static jlong android_os_Debug_getDmabufMappedSizeKb(JNIEnv* env, jobject clazz) 
             continue;
         }
 
-        if (!ReadDmaBufMapRefs(pid, &dmabufs)) {
+        if (!ReadDmaBufMapRefs(pid, dmabufs, stats)) {
             LOG(ERROR) << "Failed to read maps for pid " << pid;
         }
     }
@@ -839,12 +841,11 @@ static const JNINativeMethod gMethods[] = {
         {"getUnreachableMemory", "(IZ)Ljava/lang/String;",
          (void*)android_os_Debug_getUnreachableMemory},
         {"getZramFreeKb", "()J", (void*)android_os_Debug_getFreeZramKb},
-        {"getIonHeapsSizeKb", "()J", (void*)android_os_Debug_getIonHeapsSizeKb},
         {"getDmabufTotalExportedKb", "()J", (void*)android_os_Debug_getDmabufTotalExportedKb},
         {"getGpuPrivateMemoryKb", "()J", (void*)android_os_Debug_getGpuPrivateMemoryKb},
         {"getDmabufHeapTotalExportedKb", "()J",
          (void*)android_os_Debug_getDmabufHeapTotalExportedKb},
-        {"getIonPoolsSizeKb", "()J", (void*)android_os_Debug_getIonPoolsSizeKb},
+        {"getDmabufUserspaceKb", "()J", (void*)android_os_Debug_getDmabufUserspaceKb},
         {"getDmabufMappedSizeKb", "()J", (void*)android_os_Debug_getDmabufMappedSizeKb},
         {"getDmabufHeapPoolsSizeKb", "()J", (void*)android_os_Debug_getDmabufHeapPoolsSizeKb},
         {"getGpuTotalUsageKb", "()J", (void*)android_os_Debug_getGpuTotalUsageKb},
@@ -872,6 +873,11 @@ int register_android_os_Debug(JNIEnv *env)
 
     otherStats_field = env->GetFieldID(clazz, "otherStats", "[I");
     hasSwappedOutPss_field = env->GetFieldID(clazz, "hasSwappedOutPss", "Z");
+
+    totalBitmapCount_field = env->GetFieldID(clazz, "totalBitmapCount", "J");
+    totalBitmapSize_field = env->GetFieldID(clazz, "totalBitmapSize", "J");
+    uniqueBitmapCount_field = env->GetFieldID(clazz, "uniqueBitmapCount", "J");
+    uniqueBitmapSize_field = env->GetFieldID(clazz, "uniqueBitmapSize", "J");
 
     for (int i=0; i<_NUM_CORE_HEAP; i++) {
         stat_fields[i].pss_field =

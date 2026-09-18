@@ -50,6 +50,7 @@ import android.content.IntentFilter;
 import android.content.PermissionChecker;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.content.pm.PackageManagerInternal;
 import android.content.pm.ResolveInfo;
 import android.hardware.soundtrigger.ConversionUtil;
 import android.hardware.soundtrigger.IRecognitionStatusCallback;
@@ -100,6 +101,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.app.ISoundTriggerService;
 import com.android.internal.app.ISoundTriggerSession;
 import com.android.internal.util.DumpUtils;
+import com.android.server.LocalServices;
 import com.android.server.SoundTriggerInternal;
 import com.android.server.SystemService;
 import com.android.server.soundtrigger.SoundTriggerEvent.ServiceEvent;
@@ -238,6 +240,7 @@ public class SoundTriggerService extends SystemService {
     private PhoneCallStateHandler mPhoneCallStateHandler;
     private AppOpsManager mAppOpsManager;
     private PackageManager mPackageManager;
+    private PackageManagerInternal mPackageManagerInternal;
 
     public SoundTriggerService(Context context) {
         super(context);
@@ -267,6 +270,7 @@ public class SoundTriggerService extends SystemService {
             mDbHelper = new SoundTriggerDbHelper(mContext);
             mAppOpsManager = mContext.getSystemService(AppOpsManager.class);
             mPackageManager = mContext.getPackageManager();
+            mPackageManagerInternal = LocalServices.getService(PackageManagerInternal.class);
             final PowerManager powerManager = mContext.getSystemService(PowerManager.class);
             // Hook up power state listener
             mContext.registerReceiver(
@@ -368,17 +372,13 @@ public class SoundTriggerService extends SystemService {
             mOriginatorIdentity = Objects.requireNonNull(originatorIdentity);
             mOnOpModeChanged = Objects.requireNonNull(onOpModeChanged);
             // Validate package name
-            try {
-                int uid = mPackageManager.getPackageUid(mOriginatorIdentity.packageName,
-                        PackageManager.PackageInfoFlags.of(PackageManager.MATCH_ANY_USER));
-                if (!UserHandle.isSameApp(uid, mOriginatorIdentity.uid)) {
-                    throw new SecurityException("Uid " + mOriginatorIdentity.uid +
-                            " attempted to spoof package name " +
-                            mOriginatorIdentity.packageName + " with uid: " + uid);
-                }
-            } catch (PackageManager.NameNotFoundException e) {
-                throw new SecurityException("Package name not found: "
-                        + mOriginatorIdentity.packageName);
+            int callerUid = mOriginatorIdentity.uid;
+            if ((mPackageManagerInternal == null)
+                    || !mPackageManagerInternal.isSameApp(
+                        mOriginatorIdentity.packageName, callerUid,
+                        UserHandle.getUserId(callerUid))) {
+                throw new SecurityException("Uid " + callerUid
+                        + " attempted to spoof package name " + mOriginatorIdentity.packageName);
             }
         }
 

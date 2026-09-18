@@ -441,10 +441,7 @@ class AppHandleEducationControllerTest : ShellTestCase() {
         }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_HANDLE_EDUCATION,
-        Flags.FLAG_ENABLE_APP_HANDLE_POSITION_REPORTING,
-    )
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_HANDLE_EDUCATION)
     fun init_taskNotFocused_shouldNotCallShowEducationTooltip() =
         testScope.runTest {
             setShouldShowDesktopModeEducation(true)

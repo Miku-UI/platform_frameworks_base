@@ -18,7 +18,6 @@ package com.android.systemui.communal.widgets
 
 import android.appwidget.AppWidgetProviderInfo
 import com.android.systemui.CoreStartable
-import com.android.systemui.Flags.restrictCommunalAppWidgetHostListening
 import com.android.systemui.communal.domain.interactor.CommunalInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
 import com.android.systemui.communal.shared.model.CommunalWidgetContentModel
@@ -97,15 +96,7 @@ constructor(
             !glanceableHubMultiUserHelper.glanceableHubHsumFlagEnabled ||
                 !glanceableHubMultiUserHelper.isHeadlessSystemUserMode()
         ) {
-            val listenFlow =
-                if (restrictCommunalAppWidgetHostListening()) {
-                    // Listen whenever any part of the hub is visible so that widgets show up during
-                    // transitions too.
-                    communalInteractor.isCommunalVisible
-                } else {
-                    communalInteractor.isCommunalAvailable
-                }
-            anyOf(listenFlow, communalInteractor.editModeOpen)
+            anyOf(communalInteractor.isCommunalVisible, communalInteractor.editModeOpen)
                 // Only trigger updates on state changes, ignoring the initial false value.
                 .dropWhile { !it }
                 .onEach { shouldListen -> updateAppWidgetHostActive(shouldListen) }

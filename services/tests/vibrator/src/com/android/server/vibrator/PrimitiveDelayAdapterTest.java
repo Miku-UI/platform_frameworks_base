@@ -29,7 +29,7 @@ import android.os.VibratorInfo;
 import android.os.vibrator.Flags;
 import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.PrimitiveSegment;
-import android.os.vibrator.RampSegment;
+import android.os.vibrator.PwleSegment;
 import android.os.vibrator.StepSegment;
 import android.os.vibrator.VibrationEffectSegment;
 import android.platform.test.annotations.DisableFlags;
@@ -61,26 +61,10 @@ public class PrimitiveDelayAdapterTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
-    public void testPrimitiveSegments_flagDisabled_keepsListUnchanged() {
-        List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
-                new PrimitiveSegment(PRIMITIVE_CLICK, 1f, 100, DELAY_TYPE_RELATIVE_START_OFFSET),
-                new PrimitiveSegment(PRIMITIVE_TICK, 0.5f, 10, DELAY_TYPE_PAUSE)));
-        List<VibrationEffectSegment> originalSegments = new ArrayList<>(segments);
-
-        assertEquals(-1, mAdapter.adaptToVibrator(EMPTY_VIBRATOR_INFO, segments, -1));
-        assertEquals(1, mAdapter.adaptToVibrator(BASIC_VIBRATOR_INFO, segments, 1));
-
-        assertEquals(originalSegments, segments);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
     public void testNonPrimitiveSegments_keepsListUnchanged() {
         List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
-                new StepSegment(/* amplitude= */ 0, /* frequencyHz= */ 1, /* duration= */ 10),
-                new RampSegment(/* startAmplitude= */ 0.8f, /* endAmplitude= */ 0.2f,
-                        /* startFrequencyHz= */ 100, /* endFrequencyHz= */ 1, /* duration= */ 20),
+                new StepSegment(/* amplitude= */ 0, /* duration= */ 10),
+                new StepSegment(/* amplitude= */ 0.8f, /* duration= */ 20),
                 new PrebakedSegment(VibrationEffect.EFFECT_CLICK, false,
                         VibrationEffect.EFFECT_STRENGTH_LIGHT)));
         List<VibrationEffectSegment> originalSegments = new ArrayList<>(segments);
@@ -92,7 +76,6 @@ public class PrimitiveDelayAdapterTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
     public void testPrimitiveWithPause_keepsListUnchanged() {
         List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
                 new PrimitiveSegment(PRIMITIVE_CLICK, 1f, 100, DELAY_TYPE_PAUSE),
@@ -106,7 +89,6 @@ public class PrimitiveDelayAdapterTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
     public void testPrimitiveWithRelativeDelay_afterPrimitive_usesPrimitiveStartTimeForDelay() {
         VibratorInfo info = createVibratorInfoWithPrimitives(
                 new int[] { PRIMITIVE_CLICK }, new int[] { 20 });
@@ -128,7 +110,6 @@ public class PrimitiveDelayAdapterTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
     public void testPrimitiveWithRelativeDelay_afterRepeatIndex_usesPauseAsFirstDelay() {
         VibratorInfo info = createVibratorInfoWithPrimitives(
                 new int[] { PRIMITIVE_CLICK }, new int[] { 20 });
@@ -150,14 +131,13 @@ public class PrimitiveDelayAdapterTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
     public void testPrimitiveWithRelativeDelayAfter_afterStep_usesSegmentStartTimeForDelay() {
         List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
-                new StepSegment(/* amplitude= */ 0, /* frequencyHz= */ 1, /* duration= */ 10),
+                new StepSegment(/* amplitude= */ 0, /* duration= */ 10),
                 new PrimitiveSegment(PRIMITIVE_CLICK, 1f, 10, DELAY_TYPE_RELATIVE_START_OFFSET)));
 
         List<VibrationEffectSegment> expectedSegments = new ArrayList<>(Arrays.asList(
-                new StepSegment(/* amplitude= */ 0, /* frequencyHz= */ 1, /* duration= */ 10),
+                new StepSegment(/* amplitude= */ 0, /* duration= */ 10),
                 new PrimitiveSegment(PRIMITIVE_CLICK, 1f, 0, DELAY_TYPE_PAUSE)));
 
         assertEquals(-1, mAdapter.adaptToVibrator(BASIC_VIBRATOR_INFO, segments, -1));
@@ -165,7 +145,6 @@ public class PrimitiveDelayAdapterTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
     public void testPrimitiveWithRelativeDelayAfter_afterUnknownDuration_usesZeroAsDuration() {
         List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
                 new PrebakedSegment(VibrationEffect.EFFECT_POP, false,

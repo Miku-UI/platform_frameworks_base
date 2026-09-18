@@ -26,6 +26,7 @@ import com.android.systemui.doze.util.BurnInHelperWrapper
 import com.android.systemui.keyguard.shared.model.BurnInModel
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.util.kotlin.mapDirect
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -35,7 +36,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 
 /** Encapsulates business-logic related to Ambient Display burn-in offsets. */
@@ -57,7 +57,7 @@ constructor(
             .stateIn(scope, SharingStarted.WhileSubscribed(), 0)
     val udfpsProgress: StateFlow<Float> =
         keyguardInteractor.dozeTimeTick
-            .mapLatest { burnInHelperWrapper.burnInProgressOffset() }
+            .mapDirect { burnInHelperWrapper.burnInProgressOffset() }
             .stateIn(
                 scope,
                 SharingStarted.WhileSubscribed(),
@@ -89,7 +89,7 @@ constructor(
         return configurationInteractor.onAnyConfigurationChange.flatMapLatest {
             val maxBurnInOffsetPixels =
                 context.resources.getDimensionPixelSize(maxBurnInOffsetResourceId)
-            keyguardInteractor.dozeTimeTick.mapLatest {
+            keyguardInteractor.dozeTimeTick.mapDirect {
                 calculateOffset(maxBurnInOffsetPixels, isXAxis)
             }
         }
@@ -107,7 +107,7 @@ constructor(
         return configurationInteractor.scaleForResolution.flatMapLatest { scale ->
             val maxBurnInOffsetPixels =
                 context.resources.getDimensionPixelSize(maxBurnInOffsetResourceId)
-            keyguardInteractor.dozeTimeTick.mapLatest {
+            keyguardInteractor.dozeTimeTick.mapDirect {
                 calculateOffset(maxBurnInOffsetPixels, isXAxis, scale)
             }
         }

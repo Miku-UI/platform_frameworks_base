@@ -22,7 +22,6 @@ import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.FrameLayout
 import android.window.OnBackInvokedDispatcher
-import com.android.systemui.Flags
 import com.android.systemui.animation.back.BackAnimationSpec
 import com.android.systemui.animation.back.BackTransformation
 import com.android.systemui.animation.back.applyTo
@@ -121,12 +120,11 @@ fun Dialog.maybeForceFullscreen():
     dialogContentWithBackground.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     touchInterceptorView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
 
-    if (Flags.qsTileTransitionInteractionRefinement()) {
-        fullscreenTransparentBackground.addView(
-            touchInterceptorView,
-            ViewGroup.MarginLayoutParams(window.attributes.width, window.attributes.width),
-        )
-    }
+    fullscreenTransparentBackground.addView(
+        touchInterceptorView,
+        ViewGroup.MarginLayoutParams(window.attributes.width, window.attributes.width),
+    )
+
     fullscreenTransparentBackground.addView(
         dialogContentWithBackground,
         FrameLayout.LayoutParams(

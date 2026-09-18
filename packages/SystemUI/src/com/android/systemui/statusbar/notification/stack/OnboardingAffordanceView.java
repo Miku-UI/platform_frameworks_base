@@ -24,6 +24,7 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
 
 import com.android.systemui.animation.LaunchableView;
 import com.android.systemui.res.R;
@@ -40,6 +41,7 @@ public class OnboardingAffordanceView extends StackScrollerDecorView implements 
     @Nullable private View.OnClickListener mTurnOnClickListener = null;
     @Nullable private View.OnClickListener mOnDismissClickListener = null;
     @Nullable private Runnable mOnActivityLaunchEndListener = null;
+    private TextView mMessage;
 
     public OnboardingAffordanceView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -62,6 +64,7 @@ public class OnboardingAffordanceView extends StackScrollerDecorView implements 
         if (mTurnOnClickListener != null) {
             mTurnOnButton.setOnClickListener(mTurnOnClickListener);
         }
+        mMessage = requireViewById(R.id.message);
     }
 
     @Override
@@ -136,5 +139,9 @@ public class OnboardingAffordanceView extends StackScrollerDecorView implements 
         if (mOnActivityLaunchEndListener != null) {
             mOnActivityLaunchEndListener.run();
         }
+    }
+
+    public void setMessage(@StringRes int message) {
+        mMessage.setText(message);
     }
 }

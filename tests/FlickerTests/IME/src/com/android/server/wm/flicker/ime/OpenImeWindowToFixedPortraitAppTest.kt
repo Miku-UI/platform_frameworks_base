@@ -29,8 +29,6 @@ import android.tools.traces.component.ComponentNameMatcher
 import com.android.server.wm.flicker.BaseTest
 import com.android.server.wm.flicker.helpers.ImeShownOnAppStartHelper
 import com.android.server.wm.flicker.testapp.ActivityOptions.Ime.Default.ACTION_TOGGLE_ORIENTATION
-import com.android.window.flags.Flags
-import org.junit.Assume
 import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -95,8 +93,6 @@ class OpenImeWindowToFixedPortraitAppTest(flicker: FlickerTest) : BaseTest(flick
     @Presubmit
     @Test
     fun appWindowWithLetterboxCoversExactlyOnScreen() {
-        // TODO(b/409043134): Remove assumption when Shell handles setRequestedOrientation().
-        Assume.assumeFalse(Flags.appCompatRefactoring())
         val displayBounds = WindowUtils.getDisplayBounds(flicker.scenario.startRotation)
         flicker.assertLayersEnd {
             this.visibleRegion(testApp.or(ComponentNameMatcher.LETTERBOX))

@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.notification.row
 
 import android.app.Notification
+import android.app.NotificationChannel
 import android.content.applicationContext
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testCase
@@ -60,4 +61,9 @@ fun Kosmos.createPromotedOngoingRow(): ExpandableNotificationRow {
 /** An notification backed ExpandableNotificationRow with 4 children. */
 fun Kosmos.createRowGroup(childCount: Int = 4): ExpandableNotificationRow {
     return expandableNotificationRowBuilder.createRowGroup(childCount)
+}
+
+/** An notification backed ExpandableNotificationRow with 4 children. */
+fun Kosmos.createRowGroup(childCount: Int = 4, channel: NotificationChannel): ExpandableNotificationRow {
+    return expandableNotificationRowBuilder.createRowGroup(childCount, channel)
 }

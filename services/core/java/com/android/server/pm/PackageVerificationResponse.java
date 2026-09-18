@@ -21,6 +21,23 @@ public class PackageVerificationResponse {
 
     public final int callerUid;
 
+    // This is only used in PackageManager#extendVerificationTimeout when removing messages by the
+    // same callerUid. We'll only compare the callerUid when checking for equality.
+    // This is so that if extendVerificationTimeout is called multiple times with different code,
+    // only the code from the last method call will take place.
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof PackageVerificationResponse)) {
+            return false;
+        }
+        return ((PackageVerificationResponse) obj).callerUid == this.callerUid;
+    }
+
+    @Override
+    public int hashCode() {
+        return Integer.hashCode(callerUid);
+    }
+
     public PackageVerificationResponse(int code, int callerUid) {
         this.code = code;
         this.callerUid = callerUid;

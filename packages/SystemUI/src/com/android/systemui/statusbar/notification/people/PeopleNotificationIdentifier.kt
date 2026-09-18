@@ -27,7 +27,6 @@ import com.android.systemui.statusbar.notification.people.PeopleNotificationIden
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier.Companion.TYPE_IMPORTANT_PERSON
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier.Companion.TYPE_NON_PERSON
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier.Companion.TYPE_PERSON
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import javax.inject.Inject
 import kotlin.math.max
 
@@ -100,19 +99,11 @@ constructor(private val groupManager: GroupMembershipManager) : PeopleNotificati
             }
 
     private fun getPeopleTypeOfSummary(entry: NotificationEntry): Int {
-        if (NotificationBundleUi.isEnabled) {
-            val parent = entry.parent as? GroupEntry
-            if (!entry.sbn.notification.isGroupSummary || parent?.summary != entry) {
-                return TYPE_NON_PERSON
-            }
-            return getPeopleTypeForChildList(parent.children)
-        } else {
-            if (!groupManager.isGroupSummary(entry)) {
-                return TYPE_NON_PERSON
-            }
-
-            return getPeopleTypeForChildList(groupManager.getChildren(entry))
+        val parent = entry.parent as? GroupEntry
+        if (!entry.sbn.notification.isGroupSummary || parent?.summary != entry) {
+            return TYPE_NON_PERSON
         }
+        return getPeopleTypeForChildList(parent.children)
     }
 
     private fun getPeopleTypeForChildList(children: List<NotificationEntry>?): Int {

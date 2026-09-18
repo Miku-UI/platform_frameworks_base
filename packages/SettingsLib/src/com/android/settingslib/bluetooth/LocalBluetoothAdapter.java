@@ -18,15 +18,19 @@ package com.android.settingslib.bluetooth;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.content.Context;
 import android.os.ParcelUuid;
+import android.os.UserHandle;
 import android.util.Log;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -49,7 +53,7 @@ public class LocalBluetoothAdapter {
 
     private LocalBluetoothProfileManager mProfileManager;
 
-    private static LocalBluetoothAdapter sInstance;
+    private static Map<UserHandle, LocalBluetoothAdapter> sInstances = new HashMap<>();
 
     private int mState = BluetoothAdapter.ERROR;
 
@@ -66,20 +70,35 @@ public class LocalBluetoothAdapter {
     }
 
     /**
-     * Get the singleton instance of the LocalBluetoothAdapter. If this device
-     * doesn't support Bluetooth, then null will be returned. Callers must be
-     * prepared to handle a null return value.
+     * See {@link #getInstance(Context, UserHandle)}
+     *
+     * @deprecated use {@link #getInstance(Context, UserHandle)} instead.
+     */
+    @Deprecated
+    static synchronized LocalBluetoothAdapter getInstance(Context context) {
+        return getInstance(context, context.getUser());
+    }
+
+    /**
+     * Get the singleton instance of the LocalBluetoothAdapter. If this device doesn't support
+     * Bluetooth, then null will be returned. Callers must be prepared to handle a null return
+     * value.
+     *
      * @return the LocalBluetoothAdapter object, or null if not supported
      */
-    static synchronized LocalBluetoothAdapter getInstance() {
-        if (sInstance == null) {
-            BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-            if (adapter != null) {
-                sInstance = new LocalBluetoothAdapter(adapter);
+    static synchronized LocalBluetoothAdapter getInstance(Context context, UserHandle userHandle) {
+        return sInstances.computeIfAbsent(userHandle, k -> {
+            BluetoothManager manager = context.createContextAsUser(userHandle, 0)
+                    .getSystemService(BluetoothManager.class);
+            if (manager == null) {
+                return null;
             }
-        }
-
-        return sInstance;
+            BluetoothAdapter adapter = manager.getAdapter();
+            if (adapter == null) {
+                return null;
+            }
+            return new LocalBluetoothAdapter(adapter);
+        });
     }
 
     // Pass-through BluetoothAdapter methods that we can intercept if necessary

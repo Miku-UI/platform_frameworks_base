@@ -111,8 +111,6 @@ public class NetworkScan {
         }
         try {
             telephony.stopNetworkScan(mSubId, mScanId);
-        } catch (IllegalArgumentException ex) {
-            Rlog.d(TAG,  "stopNetworkScan - no active scan for ScanID=" + mScanId);
         } catch (RemoteException ex) {
             Rlog.e(TAG, "stopNetworkScan  RemoteException", ex);
         } catch (RuntimeException ex) {

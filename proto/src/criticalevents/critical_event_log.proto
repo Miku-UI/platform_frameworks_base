@@ -22,11 +22,11 @@ option java_multiple_files = true;
 // Output proto containing recent critical events for inclusion in logs such as ANR files.
 // Do not change the field names since this data is dumped to ANR files in textproto format.
 message CriticalEventLogProto {
-  // Timestamp when the log snapshot was generated.
+  // System uptime when the log snapshot was generated.
   // Required.
   optional int64 timestamp_ms = 1;
 
-  // Max age of events that are included in this proto.
+  // Max age of events (in uptime) that are included in this proto.
   // Required.
   optional int32 window_ms = 2;
 
@@ -48,7 +48,7 @@ message CriticalEventLogStorageProto {
 // A "critical" event such as an ANR or watchdog.
 // Do not change the field names since this data is dumped to ANR files in textproto format.
 message CriticalEventProto {
-  // Timestamp of the event.
+  // System uptime of the event.
   // Required.
   optional int64 timestamp_ms = 1;
 
@@ -71,7 +71,11 @@ message CriticalEventProto {
 
   message InstallPackages {}
 
-  message SystemServerStarted {}
+  message SystemServerStarted {
+    // The number of times system server has started since the last reboot.
+    // Equal to the system property "sys.system_server.start_count".
+    optional int32 start_count = 1;
+  }
 
   message Watchdog {
     // The watchdog subject.

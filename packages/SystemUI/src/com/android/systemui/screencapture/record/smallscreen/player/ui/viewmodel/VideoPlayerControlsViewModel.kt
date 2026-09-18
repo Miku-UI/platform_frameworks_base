@@ -16,14 +16,19 @@
 
 package com.android.systemui.screencapture.record.smallscreen.player.ui.viewmodel
 
+import android.content.Context
+import android.icu.text.MeasureFormat.FormatWidth
 import android.media.MediaPlayer
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.android.settingslib.utils.StringUtil
+import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.kairos.awaitClose
 import com.android.systemui.lifecycle.HydratedActivatable
+import com.android.systemui.res.R
 import com.android.systemui.screencapture.common.ui.viewmodel.DrawableLoaderViewModel
-import com.android.systemui.screencapture.common.ui.viewmodel.DrawableLoaderViewModelImpl
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -47,8 +52,9 @@ class VideoPlayerControlsViewModel
 @AssistedInject
 constructor(
     @Assisted private val mediaPlayer: MediaPlayer,
-    private val drawableLoaderViewModelImpl: DrawableLoaderViewModelImpl,
-) : HydratedActivatable(), DrawableLoaderViewModel by drawableLoaderViewModelImpl {
+    @Main private val context: Context,
+    private val drawableLoaderViewModel: DrawableLoaderViewModel,
+) : HydratedActivatable(), DrawableLoaderViewModel by drawableLoaderViewModel {
 
     val videoDurationMillis: Int
         get() = mediaPlayer.callSafe { duration } ?: 0
@@ -57,6 +63,26 @@ constructor(
         mediaPlayer
             .currentPositionFlow(10.milliseconds)
             .hydratedStateOf("VideoPlayerControlsViewModel#videoPositionMillis", 0)
+
+    val a11yProgressDescription: String by derivedStateOf {
+        context.getString(
+            R.string.screen_record_video_preview_elapsed_time_a11y_template,
+            StringUtil.formatElapsedTime(
+                /* context= */ context,
+                /* millis= */ videoPositionMillis.toDouble(),
+                /* withSeconds= */ true,
+                /* collapseTimeUnit= */ false,
+                /* formatWidth= */ FormatWidth.WIDE,
+            ),
+            StringUtil.formatElapsedTime(
+                /* context= */ context,
+                /* millis= */ videoDurationMillis.toDouble(),
+                /* withSeconds= */ true,
+                /* collapseTimeUnit= */ false,
+                /* formatWidth= */ FormatWidth.WIDE,
+            ),
+        )
+    }
 
     val playing: Boolean
         get() = mediaPlayer.callSafe { isPlaying } ?: false

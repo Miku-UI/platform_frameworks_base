@@ -17,6 +17,7 @@
 package com.android.systemui.display
 
 import android.graphics.Rect
+import android.util.DisplayUtils
 import android.view.Display
 import android.view.DisplayInfo
 
@@ -44,4 +45,21 @@ val Display.naturalHeight: Int
         val outDisplayInfo = DisplayInfo()
         getDisplayInfo(outDisplayInfo)
         return outDisplayInfo.naturalHeight
+    }
+
+/** Returns the scale factor representing the user's current resolution. */
+val Display.displayScaleFactor: Float
+    get() {
+        val displayInfo = DisplayInfo()
+        getDisplayInfo(displayInfo)
+        val maxDisplayMode =
+            DisplayUtils.getMaximumResolutionDisplayMode(displayInfo.supportedModes) ?: return 1f
+        val scaleFactor =
+            DisplayUtils.getPhysicalPixelDisplaySizeRatio(
+                maxDisplayMode.getPhysicalWidth(),
+                maxDisplayMode.getPhysicalHeight(),
+                displayInfo.getNaturalWidth(),
+                displayInfo.getNaturalHeight(),
+            )
+        return if (scaleFactor == Float.POSITIVE_INFINITY) 1f else scaleFactor
     }

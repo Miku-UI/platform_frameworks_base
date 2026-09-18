@@ -24,6 +24,7 @@ import android.os.Looper
 import android.testing.AndroidTestingRunner
 import android.view.IWindowSession
 import android.view.InputChannel
+import android.view.WindowInputChannelParams
 import androidx.test.filters.SmallTest
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.suppliers.WindowSessionSupplier
@@ -32,11 +33,13 @@ import com.android.wm.shell.compatui.letterbox.LetterboxMatchers.asAnyMode
 import com.android.wm.shell.compatui.letterbox.events.ReachabilityGestureListener
 import com.android.wm.shell.compatui.letterbox.events.ReachabilityGestureListenerFactory
 import com.android.wm.shell.windowdecor.DesktopModeWindowDecorViewModelTestsBase.Companion.TAG
+import com.google.common.truth.Truth.assertThat
 import java.util.function.Consumer
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -160,19 +163,7 @@ class LetterboxInputControllerTest : ShellTestCase() {
             windowSession = mock<IWindowSession>()
             doReturn(windowSession).`when`(windowSessionSupplier).get()
             whenever(
-                    windowSession.grantInputChannel(
-                        any(),
-                        any(),
-                        any(),
-                        anyOrNull(),
-                        any(),
-                        any(),
-                        any(),
-                        any(),
-                        anyOrNull(),
-                        any(),
-                        any(),
-                    )
+                    windowSession.grantInputChannel(any())
                 )
                 .thenAnswer {
                     val inputChannels =
@@ -208,17 +199,15 @@ class LetterboxInputControllerTest : ShellTestCase() {
         }
 
         fun checkUpdateSessionRegion(times: Int = 1, displayId: Int = DISPLAY_ID, region: Region) {
-            verify(windowSession, times(times))
-                .updateInputChannel(
-                    any(),
-                    anyOrNull(),
-                    eq(displayId),
-                    any(),
-                    any(),
-                    any(),
-                    any(),
-                    eq(region),
-                )
+            val paramsCaptor = argumentCaptor<WindowInputChannelParams>()
+
+            verify(windowSession, times(times)).updateInputChannel(paramsCaptor.capture())
+
+            if (times > 0) {
+                val params = paramsCaptor.firstValue
+                assertThat(params.displayId).isEqualTo(displayId)
+                assertThat(params.region).isEqualTo(region)
+            }
         }
     }
 }

@@ -22,6 +22,7 @@ import static com.android.server.display.layout.Layout.Display.POSITION_UNKNOWN;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.os.SystemProperties;
 import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.Slog;
@@ -49,13 +50,21 @@ public class Layout {
     private final List<Display> mDisplays = new ArrayList<>(2);
 
     private final String mName;
+    private final boolean mStableEdidsFlag;
 
     public Layout() {
         this(null);
     }
 
     public Layout(String name) {
+        this(name, Boolean.parseBoolean(
+                SystemProperties.get("persist.debug.sf.stable_edid_ids", "false"))
+                || com.android.graphics.surfaceflinger.flags.Flags.stableEdidIds());
+    }
+
+    public Layout(String name, boolean stableEdidsFlag) {
         mName = name;
+        mStableEdidsFlag = stableEdidsFlag;
     }
 
     @Override
@@ -240,7 +249,8 @@ public class Layout {
             if (address.equals(display.getAddress())) {
                 return display;
             }
-            if (DisplayAddress.Physical.isPortMatch(address, display.getAddress())) {
+            if (DisplayAddress.matchInternalDisplays(address, display.getAddress(),
+                    mStableEdidsFlag)) {
                 return display;
             }
         }

@@ -138,6 +138,24 @@ class CustomTileAddedSharedPreferencesRepositoryTest : SysuiTestCase() {
         assertThat(underTest.isTileAdded(OTHER_TEST_COMPONENT, userId)).isTrue()
     }
 
+    @Test
+    fun removeAllFromPackage_multipleTiles_allDeleted() {
+        val userId = 10
+        val sharedPrefs = FakeSharedPreferences()
+        val userFileManager = FakeUserFileManager(mapOf(userId to sharedPrefs))
+        underTest = CustomTileAddedSharedPrefsRepository(userFileManager)
+
+        underTest.setTileAdded(TEST_COMPONENT, userId, true)
+        underTest.setTileAdded(OTHER_TEST_COMPONENT, userId, true)
+        underTest.setTileAdded(OTHER_PACKAGE_COMPONENT, userId, true)
+
+        underTest.removeTilesForPackage(TEST_COMPONENT.packageName, userId)
+
+        assertThat(underTest.isTileAdded(TEST_COMPONENT, userId)).isFalse()
+        assertThat(underTest.isTileAdded(OTHER_TEST_COMPONENT, userId)).isFalse()
+        assertThat(underTest.isTileAdded(OTHER_PACKAGE_COMPONENT, userId)).isTrue()
+    }
+
     private fun SharedPreferences.getForComponentName(componentName: ComponentName): Boolean {
         return getBoolean(componentName.flattenToString(), false)
     }
@@ -152,6 +170,7 @@ class CustomTileAddedSharedPreferencesRepositoryTest : SysuiTestCase() {
     companion object {
         private val TEST_COMPONENT = ComponentName("pkg", "cls")
         private val OTHER_TEST_COMPONENT = ComponentName("pkg", "other")
+        private val OTHER_PACKAGE_COMPONENT = ComponentName("pkg2", "cls")
     }
 }
 

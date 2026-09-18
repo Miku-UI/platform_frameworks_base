@@ -1,0 +1,35 @@
+<!--
+Copyright (C) 2025 The Android Open Source Project
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108.0"
+    android:viewportHeight="108.0"
+    android:tint="?android:attr/colorControlNormal">
+  <group
+    android:name="scaled_icon"
+    android:pivotX="54.0"
+    android:pivotY="54.0"
+    android:scaleX="1.73"
+    android:scaleY="1.73">
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M40.91,36h31.77c-0.79,-2.33 -2.99,-4 -5.59,-4h-33.18c-3.26,0 -5.91,2.65 -5.91,5.91v20.18c0,2.95 2.17,5.39 5,5.83v-20.01c0,-4.36 3.55,-7.91 7.91,-7.91Z" />
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M74.09,38h-33.18c-3.26,0 -5.91,2.65 -5.91,5.91v31.72c0,1.89 2.12,3.02 3.69,1.96l11.11,-7.59h24.29c3.26,0 5.91,-2.65 5.91,-5.91v-20.18c0,-3.26 -2.65,-5.91 -5.91,-5.91ZM55.25,46.21c0,-1.24 1.01,-2.25 2.25,-2.25s2.25,1.01 2.25,2.25v9.5c0,1.24 -1.01,2.25 -2.25,2.25s-2.25,-1.01 -2.25,-2.25v-9.5ZM57.5,65c-1.38,0 -2.5,-1.12 -2.5,-2.5s1.12,-2.5 2.5,-2.5 2.5,1.12 2.5,2.5 -1.12,2.5 -2.5,2.5Z" />
+  </group>
+</vector>

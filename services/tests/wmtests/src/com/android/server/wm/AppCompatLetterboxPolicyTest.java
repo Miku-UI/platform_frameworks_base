@@ -29,7 +29,6 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 
 import android.graphics.Rect;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.view.InsetsSource;
 import android.view.InsetsState;
@@ -43,7 +42,6 @@ import androidx.annotation.Nullable;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
-import com.android.window.flags.Flags;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -148,6 +146,20 @@ public class AppCompatLetterboxPolicyTest extends WindowTestsBase {
     }
 
     @Test
+    public void testGetCropBoundsIfNeeded_appliesCropWithSurfaceInsets() {
+        runTestScenario((robot) -> {
+            robot.configureWindowStateWithSurfaceInsets(new Rect(78, 78, 78, 78));
+            robot.activity().createActivityWithComponent();
+            robot.activity().setTopActivityVisible(/* isVisible */ true);
+            robot.setIsLetterboxedForFixedOrientationAndAspectRatio(/* inLetterbox */ true);
+            robot.conf().setLetterboxActivityCornersRounded(/* rounded */ true);
+
+            robot.activity().configureTopActivityBounds(new Rect(50, 0, 150, 100));
+            robot.checkWindowStateHasCropBoundsWithSurfaceInsets();
+        });
+    }
+
+    @Test
     public void testGetRoundedCornersRadius_withRoundedCornersFromInsets() {
         runTestScenario((robot) -> {
             robot.conf().setLetterboxActivityCornersRadius(-1);
@@ -216,7 +228,6 @@ public class AppCompatLetterboxPolicyTest extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_EXCLUDE_CAPTION_FROM_APP_BOUNDS)
     public void testGetRoundedCornersRadius_letterboxBoundsMatchHeightInFreeform_notRounded() {
         runTestScenario((robot) -> {
             robot.conf().setLetterboxActivityCornersRadius(15);
@@ -239,7 +250,6 @@ public class AppCompatLetterboxPolicyTest extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_EXCLUDE_CAPTION_FROM_APP_BOUNDS)
     public void testGetRoundedCornersRadius_letterboxBoundsNotMatchHeightInFreeform_rounded() {
         runTestScenario((robot) -> {
             robot.conf().setLetterboxActivityCornersRadius(15);
@@ -257,6 +267,56 @@ public class AppCompatLetterboxPolicyTest extends WindowTestsBase {
             robot.startLetterbox();
 
             robot.checkWindowStateRoundedCornersRadius(/* expected */ 15);
+        });
+    }
+
+    @Test
+    public void testGetRoundedCornersRadius_isCaptionInsetsExcluded_notRounded() {
+        runTestScenario((robot) -> {
+            robot.conf().setLetterboxActivityCornersRadius(15);
+            robot.configureWindowState();
+            robot.activity().createActivityWithComponent();
+            robot.activity().setTopActivityVisible(/* isVisible */ true);
+            robot.setIsLetterboxedForFixedOrientationAndAspectRatio(/* inLetterbox */ true);
+            robot.conf().setLetterboxActivityCornersRounded(/* rounded */ true);
+            robot.resources().configureGetDimensionPixelSize(R.dimen.taskbar_frame_height, 20);
+
+            robot.activity().setTaskWindowingMode(WINDOWING_MODE_FREEFORM);
+            robot.configureWindowStateFrame(new Rect(0, 0, 500, 200));
+            robot.activity().configureTaskAppBounds(new Rect(0, 0, 500, 500));
+            robot.setTaskIsCaptionInsetsExcluded(true);
+
+            robot.startLetterbox();
+
+            robot.checkWindowStateRoundedCornersRadius(/* expected */ 0);
+        });
+    }
+
+    @Test
+    public void testHide_clearsLetterboxInsets_shellPolicy() {
+        runTestScenario((robot) -> {
+            // Setup: configure window state and create a visible activity.
+            robot.configureWindowState();
+            robot.activity().createActivityWithComponent();
+            robot.activity().setTopActivityVisible(true);
+
+            final Rect windowFrame = new Rect(robot.activity().top().getTask().getBounds());
+            final Rect expectedInsets =
+                    new Rect(/* left */10, /* top */20, /* right */10, /* bottom */20);
+            windowFrame.inset(expectedInsets);
+            robot.configureWindowStateFrame(windowFrame);
+
+            // Trigger letterbox layout. This should calculate and store the letterbox bounds.
+            robot.startLetterbox();
+
+            // Verify initial state: letterbox is active and insets are non-empty.
+            robot.checkLetterboxInsets(expectedInsets);
+
+            // Hide the letterbox. This should clear the stored bounds.
+            robot.hideLetterbox();
+
+            // Verify final state: letterbox is hidden and insets are now empty.
+            robot.checkLetterboxInsets(new Rect());
         });
     }
 
@@ -300,6 +360,19 @@ public class AppCompatLetterboxPolicyTest extends WindowTestsBase {
 
         void startLetterbox() {
             getAppCompatLetterboxPolicy().start(mWindowState);
+        }
+
+        void hideLetterbox() {
+            getAppCompatLetterboxPolicy().mLetterboxPolicyState.hide();
+        }
+
+        void checkLetterboxInsets(@NonNull Rect expected) {
+            assertEquals(expected, getAppCompatLetterboxPolicy().getLetterboxInsets());
+        }
+
+        private void configureWindowStateWithSurfaceInsets(@NonNull Rect surfaceInsets) {
+            configureWindowState();
+            mWindowState.mAttrs.surfaceInsets.set(surfaceInsets);
         }
 
         void configureWindowStateWithTaskBar(boolean hasInsetsRoundedCorners) {
@@ -353,6 +426,11 @@ public class AppCompatLetterboxPolicyTest extends WindowTestsBase {
                     .isLetterboxedForFixedOrientationAndAspectRatio();
         }
 
+        void setTaskIsCaptionInsetsExcluded(boolean excluded) {
+            final Task task = activity().top().getTask();
+            doReturn(excluded).when(task).getIsCaptionInsetsExcluded();
+        }
+
         void resizeMainWindow(int newWidth, int newHeight) {
             mWindowState.mRequestedWidth = newWidth;
             mWindowState.mRequestedHeight = newHeight;
@@ -374,6 +452,16 @@ public class AppCompatLetterboxPolicyTest extends WindowTestsBase {
             } else {
                 assertNull(cropBounds);
             }
+        }
+
+        void checkWindowStateHasCropBoundsWithSurfaceInsets() {
+            final Rect expected = Rect.copyOrNull(activity().top().getBounds());
+            AppCompatUtils.adjustCropBoundsForSurfaceInsets(expected, mWindowState);
+            final Rect actual = getAppCompatLetterboxPolicy().getCropBoundsIfNeeded(
+                    mWindowState);
+            assertNotNull(actual);
+            assertEquals(expected.width(), actual.width());
+            assertEquals(expected.height(), actual.height());
         }
 
         void checkTaskBarIsExpanded(boolean expected) {

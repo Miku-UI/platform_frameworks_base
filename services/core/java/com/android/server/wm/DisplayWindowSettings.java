@@ -43,6 +43,7 @@ import android.window.DesktopExperienceFlags;
 
 import com.android.server.policy.WindowManagerPolicy;
 import com.android.server.wm.DisplayContent.ForceScalingMode;
+import com.android.window.flags.Flags;
 
 import java.io.PrintWriter;
 import java.util.Objects;
@@ -156,7 +157,8 @@ class DisplayWindowSettings {
         }
         // No record is present so use default windowing mode policy.
         final boolean forceFreeForm = mService.mAtmService.mSupportsFreeformWindowManagement
-                && (mService.mIsPc || dc.isPublicSecondaryDisplayWithDesktopModeForceEnabled());
+                && ((mService.mIsPc && !Flags.disableDisplayForceFreeformOnPc())
+                || dc.isPublicSecondaryDisplayWithDesktopModeForceEnabled());
         if (forceFreeForm) {
             return WindowConfiguration.WINDOWING_MODE_FREEFORM;
         }
@@ -334,6 +336,24 @@ class DisplayWindowSettings {
                 mSettingsProvider.getOverrideSettings(displayInfo);
         overrideSettings.mIgnoreActivitySizeRestrictions = enabled;
         mSettingsProvider.updateOverrideSettings(displayInfo, overrideSettings);
+    }
+
+    void setCanStealTopFocus(@NonNull DisplayContent dc, boolean canStealTopFocus) {
+        final DisplayInfo displayInfo = dc.getDisplayInfo();
+        final SettingsProvider.SettingsEntry overrideSettings =
+                mSettingsProvider.getOverrideSettings(displayInfo);
+        overrideSettings.mCanStealTopFocus = canStealTopFocus;
+        mSettingsProvider.updateOverrideSettings(displayInfo, overrideSettings);
+    }
+
+    boolean canStealTopFocus(@NonNull DisplayContent dc) {
+        // This is a dynamic override for Display flag FLAG_STEAL_TOP_FOCUS_DISABLED, and since this
+        // method inverts the condition, the default value is 'true' when the flag is not set.
+        if (dc.getDisplayId() == Display.DEFAULT_DISPLAY) {
+            return true;
+        }
+        final var settings = mSettingsProvider.getSettings(dc.getDisplayInfo());
+        return settings.mCanStealTopFocus != null ? settings.mCanStealTopFocus : true;
     }
 
     void clearDisplaySettings(@NonNull String displayUniqueId, int displayType) {
@@ -570,6 +590,8 @@ class DisplayWindowSettings {
             Boolean mDontMoveToTop;
             @Nullable
             Boolean mIgnoreActivitySizeRestrictions;
+            @Nullable
+            Boolean mCanStealTopFocus;
 
             SettingsEntry() {}
 
@@ -660,6 +682,10 @@ class DisplayWindowSettings {
                 if (!Objects.equals(other.mIgnoreActivitySizeRestrictions,
                         mIgnoreActivitySizeRestrictions)) {
                     mIgnoreActivitySizeRestrictions = other.mIgnoreActivitySizeRestrictions;
+                    changed = true;
+                }
+                if (!Objects.equals(other.mCanStealTopFocus, mCanStealTopFocus)) {
+                    mCanStealTopFocus = other.mCanStealTopFocus;
                     changed = true;
                 }
                 return changed;
@@ -764,6 +790,11 @@ class DisplayWindowSettings {
                     mIgnoreActivitySizeRestrictions = delta.mIgnoreActivitySizeRestrictions;
                     changed = true;
                 }
+                if (delta.mCanStealTopFocus != null && !Objects.equals(
+                        delta.mCanStealTopFocus, mCanStealTopFocus)) {
+                    mCanStealTopFocus = delta.mCanStealTopFocus;
+                    changed = true;
+                }
                 return changed;
             }
 
@@ -784,7 +815,8 @@ class DisplayWindowSettings {
                         && mIgnoreOrientationRequest == null
                         && mIgnoreDisplayCutout == null
                         && mDontMoveToTop == null
-                        && mIgnoreActivitySizeRestrictions == null;
+                        && mIgnoreActivitySizeRestrictions == null
+                        && mCanStealTopFocus == null;
             }
 
             @Override
@@ -811,7 +843,9 @@ class DisplayWindowSettings {
                         && Objects.equals(mIgnoreDisplayCutout, that.mIgnoreDisplayCutout)
                         && Objects.equals(mDontMoveToTop, that.mDontMoveToTop)
                         && Objects.equals(mIgnoreActivitySizeRestrictions,
-                                that.mIgnoreActivitySizeRestrictions);
+                        that.mIgnoreActivitySizeRestrictions)
+                        && Objects.equals(mCanStealTopFocus,
+                        that.mCanStealTopFocus);
             }
 
             @Override
@@ -821,7 +855,7 @@ class DisplayWindowSettings {
                         mRemoveContentMode, mShouldShowWithInsecureKeyguard,
                         mShouldShowSystemDecors, mIsHomeSupported, mImePolicy, mFixedToUserRotation,
                         mIgnoreOrientationRequest, mIgnoreDisplayCutout, mDontMoveToTop,
-                        mIgnoreActivitySizeRestrictions);
+                        mIgnoreActivitySizeRestrictions, mCanStealTopFocus);
             }
 
             @Override
@@ -845,6 +879,7 @@ class DisplayWindowSettings {
                         + ", mIgnoreDisplayCutout=" + mIgnoreDisplayCutout
                         + ", mDontMoveToTop=" + mDontMoveToTop
                         + ", mForceAppsUniversalResizable=" + mIgnoreActivitySizeRestrictions
+                        + ", mCanStealTopFocus=" + mCanStealTopFocus
                         + '}';
             }
         }

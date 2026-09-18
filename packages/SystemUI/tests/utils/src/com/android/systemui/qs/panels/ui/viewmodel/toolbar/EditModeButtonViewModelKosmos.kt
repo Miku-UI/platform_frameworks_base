@@ -21,7 +21,8 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.plugins.activityStarter
 import com.android.systemui.qs.panels.domain.interactor.qsPreferencesInteractor
 import com.android.systemui.qs.panels.ui.viewmodel.editModeViewModel
-import com.android.systemui.user.domain.interactor.headlessSystemUserMode
+import com.android.systemui.scene.domain.interactor.dualShadeEducationInteractor
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.user.domain.interactor.selectedUserInteractor
 
 val Kosmos.editModeButtonViewModelFactory by
@@ -32,9 +33,10 @@ val Kosmos.editModeButtonViewModelFactory by
                     editModeViewModel,
                     falsingInteractor,
                     activityStarter,
-                    headlessSystemUserMode,
                     qsPreferencesInteractor,
                     selectedUserInteractor,
+                    dualShadeEducationInteractor,
+                    shadeModeInteractor,
                     ignoreTestHarness,
                 )
             }

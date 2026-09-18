@@ -57,7 +57,7 @@ public class CreateUserActivityTest {
 
     @Test
     public void startActivity_startsActivityForResult() {
-        Intent activityIntent = CreateUserActivity.createIntentForStart(mContext, true, "");
+        Intent activityIntent = CreateUserActivity.createIntentForStart(mContext, true, true, "");
         mCreateUserActivity.startActivity(activityIntent, null);
 
         assertThat(shadowOf(mCreateUserActivity).getNextStartedActivityForResult().intent)

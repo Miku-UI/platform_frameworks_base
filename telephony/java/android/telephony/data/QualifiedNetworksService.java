@@ -38,8 +38,6 @@ import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.IIntegerConsumer;
-import com.android.internal.telephony.flags.FeatureFlags;
-import com.android.internal.telephony.flags.FeatureFlagsImpl;
 import com.android.internal.util.FunctionalUtils;
 import com.android.telephony.Rlog;
 
@@ -82,9 +80,6 @@ public abstract class QualifiedNetworksService extends Service {
     private static final int QNS_EMERGENCY_DATA_NETWORK_PREFERRED_TRANSPORT_CHANGED = 6;
     private static final int QNS_REQUEST_NETWORK_VALIDATION                         = 7;
     private static final int QNS_RECONNECT_QUALIFIED_NETWORK                        = 8;
-
-    /** Feature flags */
-    private static final FeatureFlags sFeatureFlag = new FeatureFlagsImpl();
 
     private final HandlerThread mHandlerThread;
 

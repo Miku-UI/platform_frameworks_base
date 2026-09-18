@@ -1,0 +1,16 @@
+# Rename all classes in services.jar (services.core.jar, etc) to prevent
+# class name conflicts with test jars.
+# On a real device, services.jar runs in a separate process, so it
+# never conflicts with classes in test APKs. OTOH, on Ravenwood,
+# we load services.jar in the same process, so it would conflict.
+#
+# services.jar contains not only `com.android.server.*`, but also
+# statically linked libraries, so we need to rename all classes.
+#
+# We use HostStubGen for this rename, not jarjar, because
+# jarjar would try to rename all class names, including the ones
+# that do not exist in the jar file, meaning all calls
+# to android.* APIs would also be renamed, which we don't want.
+# HostStubGen will only rename classes that exist in the jar file.
+
+rename .* repackaged/ravenwood/services/

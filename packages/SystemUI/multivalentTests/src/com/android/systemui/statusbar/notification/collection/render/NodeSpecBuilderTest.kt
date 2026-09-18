@@ -55,7 +55,7 @@ class NodeSpecBuilderTest : SysuiTestCase() {
     private val sectionHeaderVisibilityProvider: SectionHeaderVisibilityProvider = mock()
     private val viewBarn: NotifViewBarn = mock()
     private val bundleBarn: BundleBarn = mock()
-    private val logger = NodeSpecBuilderLogger(mock(), logcatLogBuffer())
+    private val logger = NodeSpecBuilderLogger(logcatLogBuffer())
 
     private val bundleOnboardingMgr =
         OnboardingAffordanceManager("bundles", sectionHeaderVisibilityProvider)

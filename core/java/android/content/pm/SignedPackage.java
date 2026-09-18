@@ -20,10 +20,12 @@ import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
-import android.annotation.TestApi;
-import android.permission.flags.Flags;
+import android.app.appfunctions.flags.Flags;
+import android.os.Parcel;
+import android.os.Parcelable;
 
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.Objects;
 
 /**
@@ -31,56 +33,102 @@ import java.util.Objects;
  *
  * @hide
  */
-@SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
-@TestApi
-@FlaggedApi(Flags.FLAG_ENHANCED_CONFIRMATION_MODE_APIS_ENABLED)
-public class SignedPackage {
+@SystemApi
+@FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTION_PERMISSION_V2)
+public final class SignedPackage implements Parcelable {
+
     @NonNull
-    private final SignedPackageParcel mData;
+    private final String mPackageName;
+    @Nullable
+    private final byte[] mCertificateDigest;
+
+    /**
+     * Create a new instance of SignedPackage
+     * @param packageName The name of the package
+     * @param certificateDigest The sha-256 hash of the package's signing certificate, or null if
+     *                          none
+     */
+    public SignedPackage(@NonNull String packageName, @Nullable byte[] certificateDigest) {
+        mPackageName = packageName;
+        mCertificateDigest = certificateDigest;
+    }
 
     /** @hide */
-    public SignedPackage(@NonNull String packageName, @Nullable byte[] certificateDigest) {
-        SignedPackageParcel data = new SignedPackageParcel();
-        data.packageName = packageName;
-        data.certificateDigest = certificateDigest;
-        mData = data;
+    public SignedPackage(@NonNull Parcel data) {
+        mPackageName = Objects.requireNonNull(data.readString8());
+        mCertificateDigest = data.createByteArray();
     }
 
     /** @hide */
     public SignedPackage(@NonNull SignedPackageParcel data) {
-        mData = data;
+        mPackageName = data.packageName;
+        mCertificateDigest = data.certificateDigest;
     }
 
     /** @hide */
-    public final @NonNull SignedPackageParcel getData() {
-        return mData;
+    public SignedPackageParcel toSignedPackageParcel() {
+        SignedPackageParcel parcel = new SignedPackageParcel();
+        parcel.packageName = mPackageName;
+        parcel.certificateDigest = mCertificateDigest;
+        return parcel;
     }
+
+
+    public static final @NonNull Creator<SignedPackage> CREATOR = new Creator<>() {
+        @Override
+        public SignedPackage createFromParcel(Parcel in) {
+            return new SignedPackage(in);
+        }
+
+        @Override
+        public SignedPackage[] newArray(int size) {
+            return new SignedPackage[size];
+        }
+    };
 
     public @NonNull String getPackageName() {
-        return mData.packageName;
+        return mPackageName;
     }
 
-    /** @return the certificate digest. If none was provided, an empty array will be returned */
+    /** @return the certificate digest. If none was provided, the method will throw an Exception */
     public @NonNull byte[] getCertificateDigest() {
-        return Objects.requireNonNullElseGet(mData.certificateDigest, () -> new byte[0]);
+        return Objects.requireNonNull(mCertificateDigest);
     }
 
-    /** @return the certificate digest. If none was provided, null will be returned */
-    @FlaggedApi(Flags.FLAG_APP_FUNCTION_ACCESS_API_ENABLED)
-    public @Nullable byte[] getCertificateDigestOrNull() {
-        return mData.certificateDigest;
+    /** @return true if this SignedPackage has a certificate attached, false otherwise */
+    public boolean hasCertificateDigest() {
+        return mCertificateDigest != null;
     }
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof SignedPackage that)) return false;
-        return mData.packageName.equals(that.mData.packageName) && Arrays.equals(
-                mData.certificateDigest, that.mData.certificateDigest);
+        return mPackageName.equals(that.mPackageName) && Arrays.equals(
+                mCertificateDigest, that.mCertificateDigest);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(mData.packageName, Arrays.hashCode(mData.certificateDigest));
+        return Objects.hash(mPackageName, Arrays.hashCode(mCertificateDigest));
+    }
+
+    @Override
+    public String toString() {
+        return "SignedPackage{"
+                + "packageName=" + mPackageName
+                + ", certificateDigest=" + (mCertificateDigest == null ? "null"
+                : HexFormat.of().formatHex(mCertificateDigest)) + "}";
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(@androidx.annotation.NonNull Parcel dest, int flags) {
+        dest.writeString8(mPackageName);
+        dest.writeByteArray(mCertificateDigest);
     }
 }

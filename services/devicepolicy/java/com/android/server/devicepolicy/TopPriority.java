@@ -27,11 +27,11 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-final class TopPriority<V> extends ResolutionMechanism<V> {
+public final class TopPriority<V> extends ResolutionMechanism<V> {
 
     private final List<String> mHighestToLowestPriorityAuthorities;
 
-    TopPriority(@NonNull List<String> highestToLowestPriorityAuthorities) {
+    public TopPriority(@NonNull List<String> highestToLowestPriorityAuthorities) {
         Objects.requireNonNull(highestToLowestPriorityAuthorities);
         mHighestToLowestPriorityAuthorities = highestToLowestPriorityAuthorities;
     }

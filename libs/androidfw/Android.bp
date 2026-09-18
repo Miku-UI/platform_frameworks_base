@@ -35,6 +35,16 @@ cc_aconfig_library {
     name: "backup_flags_cc_lib",
     host_supported: true,
     aconfig_declarations: "backup_flags",
+    min_sdk_version: "apex_inherit",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.webapp",
+    ],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
 }
 
 cc_defaults {
@@ -43,9 +53,6 @@ cc_defaults {
     cflags: [
         "-Werror",
         "-Wunreachable-code",
-    ],
-    header_libs: [
-        "native_headers",
     ],
     target: {
         windows: {
@@ -130,9 +137,6 @@ cc_library {
                 "libziparchive_for_incfs",
                 "backup_flags_cc_lib",
             ],
-            static: {
-                enabled: false,
-            },
         },
         host: {
             shared: {
@@ -156,6 +160,11 @@ cc_library {
     sanitize: {
         blocklist: "libandroidfw_blocklist.txt",
     },
+    min_sdk_version: "apex_inherit",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.webapp",
+    ],
 }
 
 cc_library_static {
@@ -177,6 +186,11 @@ cc_library_static {
     visibility: [
         ":__subpackages__",
         "//frameworks/base/tools/aapt",
+    ],
+    min_sdk_version: "apex_inherit",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.webapp",
     ],
 }
 
@@ -226,6 +240,7 @@ cc_test {
         "tests/LocaleDataLookup_test.cpp",
         "tests/NinePatch_test.cpp",
         "tests/ResourceTimer_test.cpp",
+        "tests/ResourceTypes_test.cpp",
         "tests/ResourceUtils_test.cpp",
         "tests/ResTable_test.cpp",
         "tests/sorted_vector_set_test.cpp",

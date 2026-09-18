@@ -29,6 +29,7 @@ import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.development.data.repository.DevelopmentSettingRepository
 import com.android.systemui.development.shared.model.BuildNumber
 import com.android.systemui.res.R as SystemUIR
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.user.data.repository.UserRepository
 import com.android.systemui.user.utils.UserScopedService
 import javax.inject.Inject
@@ -64,13 +65,21 @@ constructor(
             .map { enabled -> buildText.takeIf { enabled } }
             .stateIn(applicationScope, WhileSubscribed(), null)
 
+    // Special indicator for FG.
+    // TODO(b/456808886): remove once we are closer to launch.
+    val sceneContainerPrefix =
+        if (SceneContainerFlag.isEnabled) {
+            "🥃 "
+        } else ""
+
     private val buildText =
         BuildNumber(
-            resources.getString(
-                InternalR.string.bugreport_status,
-                Build.VERSION.RELEASE_OR_CODENAME,
-                Build.ID,
-            )
+            sceneContainerPrefix +
+                resources.getString(
+                    InternalR.string.bugreport_status,
+                    Build.VERSION.RELEASE_OR_CODENAME,
+                    Build.ID,
+                )
         )
 
     private val clipLabel = resources.getString(SystemUIR.string.build_number_clip_data_label)

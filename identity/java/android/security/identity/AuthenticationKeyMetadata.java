@@ -16,6 +16,7 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 
@@ -23,11 +24,21 @@ import java.time.Instant;
 
 /**
  * Data about authentication keys.
+ *
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public final class AuthenticationKeyMetadata {
     private int mUsageCount;
     private Instant mExpirationDate;
 
+    /**
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
+     */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     AuthenticationKeyMetadata(int usageCount, @NonNull Instant expirationDate) {
         mUsageCount = usageCount;
         mExpirationDate = expirationDate;
@@ -37,7 +48,11 @@ public final class AuthenticationKeyMetadata {
      * Gets usage count for the authentication key.
      *
      * @return the usage count
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @IntRange(from = 0) int getUsageCount() {
         return mUsageCount;
     }
@@ -46,7 +61,11 @@ public final class AuthenticationKeyMetadata {
      * Gets expiration date for the authentication key.
      *
      * @return the expiration date of the authentication key.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @NonNull Instant getExpirationDate() {
         return mExpirationDate;
     }

@@ -21,7 +21,6 @@ import static android.app.usage.UsageEvents.Event.MAX_EVENT_TYPE;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
-import android.app.usage.Flags;
 import android.app.usage.UsageEvents.Event;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
@@ -150,15 +149,13 @@ public class UsageStatsDatabaseTest {
                 case Event.LOCUS_ID_SET ->
                     event.mLocusId = "locus" + (i % 7); // "random" locus
                 case Event.USER_INTERACTION -> {
-                    if (Flags.userInteractionTypeApi()) {
-                        // "random" user interaction extras.
-                        PersistableBundle extras = new PersistableBundle();
-                        extras.putString(UsageStatsManager.EXTRA_EVENT_CATEGORY,
-                                "fake.namespace.category" + (i % 13));
-                        extras.putString(UsageStatsManager.EXTRA_EVENT_ACTION,
-                                "fakeaction" + (i % 13));
-                        event.mExtras = extras;
-                    }
+                    // "random" user interaction extras.
+                    PersistableBundle extras = new PersistableBundle();
+                    extras.putString(UsageStatsManager.EXTRA_EVENT_CATEGORY,
+                            "fake.namespace.category" + (i % 13));
+                    extras.putString(UsageStatsManager.EXTRA_EVENT_ACTION,
+                            "fakeaction" + (i % 13));
+                    event.mExtras = extras;
                 }
             }
 
@@ -277,18 +274,16 @@ public class UsageStatsDatabaseTest {
                             assertWithMessage("Usage event " + debugId)
                                     .that(e1.mLocusIdToken).isEqualTo(e2.mLocusIdToken);
                     case Event.USER_INTERACTION -> {
-                        if (Flags.userInteractionTypeApi()) {
-                            PersistableBundle extras1 = e1.getExtras();
-                            PersistableBundle extras2 = e2.getExtras();
-                            assertWithMessage("Usage event " + debugId)
-                                    .that(extras1.getString(UsageStatsManager.EXTRA_EVENT_CATEGORY))
-                                    .isEqualTo(extras2.getString(
-                                            UsageStatsManager.EXTRA_EVENT_CATEGORY));
-                            assertWithMessage("Usage event " + debugId)
-                                    .that(extras1.getString(UsageStatsManager.EXTRA_EVENT_ACTION))
-                                    .isEqualTo(extras2.getString(
-                                            UsageStatsManager.EXTRA_EVENT_ACTION));
-                        }
+                        PersistableBundle extras1 = e1.getExtras();
+                        PersistableBundle extras2 = e2.getExtras();
+                        assertWithMessage("Usage event " + debugId)
+                                .that(extras1.getString(UsageStatsManager.EXTRA_EVENT_CATEGORY))
+                                .isEqualTo(extras2.getString(
+                                        UsageStatsManager.EXTRA_EVENT_CATEGORY));
+                        assertWithMessage("Usage event " + debugId)
+                                .that(extras1.getString(UsageStatsManager.EXTRA_EVENT_ACTION))
+                                .isEqualTo(extras2.getString(
+                                        UsageStatsManager.EXTRA_EVENT_ACTION));
                     }
                 }
                 // fallthrough

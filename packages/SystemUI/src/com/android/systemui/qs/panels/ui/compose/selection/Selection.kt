@@ -26,6 +26,7 @@ import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.anchoredDraggable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,12 +38,12 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.State
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -50,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -74,7 +76,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.zIndex
 import com.android.compose.modifiers.thenIf
-import com.android.systemui.qs.panels.ui.compose.infinitegrid.CommonTileDefaults.InactiveCornerRadius
+import com.android.systemui.common.ui.compose.gestures.dragSpy
+import com.android.systemui.compose.modifiers.sysuiResTag
+import com.android.systemui.qs.flags.QsEditModeFocusFixes
+import com.android.systemui.qs.flags.QsEditModeHoverFixes
+import com.android.systemui.qs.panels.ui.compose.infinitegrid.CommonTileDefaults.InactiveTileCornerRadius
 import com.android.systemui.qs.panels.ui.compose.selection.SelectionDefaults.BADGE_ANGLE_RAD
 import com.android.systemui.qs.panels.ui.compose.selection.SelectionDefaults.BadgeIconSize
 import com.android.systemui.qs.panels.ui.compose.selection.SelectionDefaults.BadgeSize
@@ -83,6 +89,7 @@ import com.android.systemui.qs.panels.ui.compose.selection.SelectionDefaults.Bad
 import com.android.systemui.qs.panels.ui.compose.selection.SelectionDefaults.SelectedBorderWidth
 import com.android.systemui.qs.panels.ui.compose.selection.SelectionDefaults.decoration
 import com.android.systemui.qs.panels.ui.compose.selection.TileState.GreyedOut
+import com.android.systemui.qs.panels.ui.compose.selection.TileState.New
 import com.android.systemui.qs.panels.ui.compose.selection.TileState.None
 import com.android.systemui.qs.panels.ui.compose.selection.TileState.Placeable
 import com.android.systemui.qs.panels.ui.compose.selection.TileState.Removable
@@ -125,62 +132,82 @@ fun InteractiveTileContainer(
     val selectionBorderAlpha by transition.animateFloat { it.borderAlpha }
     val isIdle = transition.currentState == transition.targetState
     val isDraggable = tileState == Selected
+    val isClickable = tileState == Selected || tileState == Removable
 
     Box(
         modifier.resizable(tileState == Selected, resizingState).selectionBorder(
-            MaterialTheme.colorScheme.primary,
-            SelectedBorderWidth,
+            selectionColor = MaterialTheme.colorScheme.primary,
+            selectionBorderWidth = SelectedBorderWidth,
+            cornerRadius = InactiveTileCornerRadius,
         ) {
             selectionBorderAlpha
         }
     ) {
         content()
 
-        MinimumInteractiveSizeComponent(
-            angle = { decorationAngle },
-            offset = { decorationOffset },
-            excludeSystemGesture = isIdle && isDraggable,
-        ) {
-            Box(
-                Modifier.fillMaxSize()
-                    .drawWithCache {
-                        val radius = min(decorationSize.width, decorationSize.height) / 2f
-                        val cornerRadius = CornerRadius(radius)
-                        val path = Path()
-                        onDrawWithContent {
-                            val rect = Rect(center - decorationSize.center, decorationSize)
-
-                            drawRoundRect(
-                                color = decorationColor,
-                                topLeft = rect.topLeft,
-                                size = rect.size,
-                                cornerRadius = cornerRadius,
-                            )
-
-                            path.reset()
-                            path.addRoundRect(RoundRect(rect, cornerRadius))
-                            clipPath(path) { this@onDrawWithContent.drawContent() }
-                        }
-                    }
-                    .graphicsLayer { this.alpha = decorationAlpha }
-                    .anchoredDraggable(
-                        enabled = isDraggable,
-                        state = resizingState.anchoredDraggableState,
-                        orientation = Orientation.Horizontal,
-                    )
-                    .clickable(enabled = tileState != None, onClick = onClick)
-                    .semantics { contentDescription?.let { this.contentDescription = it } }
+        /**
+         * We need to hide the decoration if there is none this prevents the decoration from
+         * blocking a hover/click of the tile
+         */
+        if (!QsEditModeHoverFixes.isEnabled || tileState.decoration() !is NoDecoration) {
+            MinimumInteractiveSizeComponent(
+                angle = { decorationAngle },
+                offset = { decorationOffset },
+                excludeSystemGesture = isIdle && isDraggable,
+                isClickable = isClickable,
+                onClick = onClick,
+                rippleRadius = tileState.decoration().rippleRadius,
+                modifier = Modifier.sysuiResTag("EditTileDecoration"),
             ) {
-                val size = with(LocalDensity.current) { BadgeIconSize.toDp() }
-                Icon(
-                    Icons.Default.Remove,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier =
-                        Modifier.size(size).align(Alignment.Center).graphicsLayer {
-                            this.alpha = badgeIconAlpha
-                        },
-                )
+                Box(
+                    Modifier.fillMaxSize()
+                        .drawWithCache {
+                            val radius = min(decorationSize.width, decorationSize.height) / 2f
+                            val cornerRadius = CornerRadius(radius)
+                            val path = Path()
+                            onDrawWithContent {
+                                val rect = Rect(center - decorationSize.center, decorationSize)
+
+                                drawRoundRect(
+                                    color = decorationColor,
+                                    topLeft = rect.topLeft,
+                                    size = rect.size,
+                                    cornerRadius = cornerRadius,
+                                )
+
+                                path.reset()
+                                path.addRoundRect(RoundRect(rect, cornerRadius))
+                                clipPath(path) { this@onDrawWithContent.drawContent() }
+                            }
+                        }
+                        .graphicsLayer { this.alpha = decorationAlpha }
+                        .anchoredDraggable(
+                            enabled = isDraggable,
+                            state = resizingState.anchoredDraggableState,
+                            orientation = Orientation.Horizontal,
+                        )
+                        .thenIf(!QsEditModeHoverFixes.isEnabled) {
+                            Modifier.clickable(enabled = isClickable, onClick = onClick)
+                        }
+                        .thenIf(tileState == Selected) {
+                            Modifier.dragSpy(
+                                onDragStart = resizingState::dragStarted,
+                                onDragEnd = resizingState::dragEnded,
+                            )
+                        }
+                        .semantics { contentDescription?.let { this.contentDescription = it } }
+                ) {
+                    val size = with(LocalDensity.current) { BadgeIconSize.toDp() }
+                    Icon(
+                        Icons.Default.Remove,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier =
+                            Modifier.size(size).align(Alignment.Center).graphicsLayer {
+                                this.alpha = badgeIconAlpha
+                            },
+                    )
+                }
             }
         }
     }
@@ -189,6 +216,7 @@ fun InteractiveTileContainer(
 private fun Modifier.selectionBorder(
     selectionColor: Color,
     selectionBorderWidth: Dp,
+    cornerRadius: Dp,
     selectionAlpha: () -> Float = { 0f },
 ): Modifier {
     return drawWithContent {
@@ -198,7 +226,7 @@ private fun Modifier.selectionBorder(
         val borderWidth = selectionBorderWidth.toPx()
         drawRoundRect(
             SolidColor(selectionColor),
-            cornerRadius = CornerRadius(InactiveCornerRadius.toPx()),
+            cornerRadius = CornerRadius(cornerRadius.toPx()),
             topLeft = Offset(borderWidth / 2, borderWidth / 2),
             size = Size(size.width - borderWidth, size.height - borderWidth),
             style = Stroke(borderWidth),
@@ -208,35 +236,36 @@ private fun Modifier.selectionBorder(
 }
 
 /**
- * Draws a clickable badge in the top end corner of the parent composable.
+ * Draws a badge in the top end corner of the parent composable.
  *
  * The badge will fade in and fade out based on whether or not it's enabled.
  *
  * @param icon the [ImageVector] to display in the badge
  * @param contentDescription the content description for the icon
- * @param enabled Whether the badge should be visible and clickable
- * @param onClick the callback when the badge is clicked
+ * @param enabled Whether the badge should be visible
  */
 @Composable
 fun StaticTileBadge(
     icon: ImageVector,
     contentDescription: String?,
     enabled: Boolean,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onClick: () -> Unit = {},
 ) {
     val offset = with(LocalDensity.current) { Offset(BadgeXOffset.toPx(), BadgeYOffset.toPx()) }
     val alpha by animateFloatAsState(if (enabled) 1f else 0f)
     MinimumInteractiveSizeComponent(
         angle = { BADGE_ANGLE_RAD },
         offset = { offset },
-        modifier = modifier,
+        modifier =
+            modifier.sysuiResTag("EditTileDecoration").thenIf(QsEditModeFocusFixes.isEnabled) {
+                Modifier.focusProperties { canFocus = false }
+            },
+        isClickable = enabled,
+        onClick = onClick,
+        rippleRadius = BadgeSize / 2,
     ) {
-        Box(
-            Modifier.fillMaxSize()
-                .graphicsLayer { this.alpha = alpha }
-                .thenIf(enabled) { Modifier.clickable(onClick = onClick) }
-        ) {
+        Box(Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha }) {
             val size = with(LocalDensity.current) { BadgeIconSize.toDp() }
             val primaryColor = MaterialTheme.colorScheme.primary
             Icon(
@@ -258,11 +287,16 @@ private fun MinimumInteractiveSizeComponent(
     offset: () -> Offset,
     modifier: Modifier = Modifier,
     excludeSystemGesture: Boolean = false,
+    isClickable: Boolean,
+    onClick: () -> Unit = {},
+    rippleRadius: Dp,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     // Use a higher zIndex than the tile to draw over it, and manually create the touch target
     // as we're drawing over neighbor tiles as well.
     val minTouchTargetSize = LocalMinimumInteractiveComponentSize.current
+
+    val interactionSource = remember { MutableInteractionSource() }
     Box(
         contentAlignment = Alignment.Center,
         modifier =
@@ -284,20 +318,32 @@ private fun MinimumInteractiveSizeComponent(
                 .thenIf(excludeSystemGesture) {
                     Modifier.systemGestureExclusion { Rect(Offset.Zero, it.size.toSize()) }
                 }
-                .borderOnFocus(MaterialTheme.colorScheme.secondary, CornerSize(50)),
+                .borderOnFocus(
+                    color = MaterialTheme.colorScheme.secondary,
+                    cornerSize = CornerSize(50),
+                    // Negative padding is needed on the focus ring to offset the touch target
+                    paddingHorizontal = if (QsEditModeFocusFixes.isEnabled) (-8).dp else 2.dp,
+                    paddingVertical = if (QsEditModeFocusFixes.isEnabled) (-8).dp else 2.dp,
+                )
+                .thenIf(QsEditModeHoverFixes.isEnabled) {
+                    Modifier.clickable(
+                        enabled = isClickable,
+                        onClick = onClick,
+                        interactionSource = interactionSource,
+                        indication = ripple(radius = rippleRadius),
+                    )
+                },
         content = content,
     )
 }
 
 @Composable
 private fun Modifier.resizable(selected: Boolean, state: ResizingState): Modifier {
-    if (!selected) return zIndex(1f)
-
-    return zIndex(2f).layout { measurable, constraints ->
-        val isIdle by derivedStateOf { state.progress().let { it == 0f || it == 1f } }
-        // Grab the width from the resizing state if a resize is in progress
+    return zIndex(if (selected) 2f else 1f).layout { measurable, constraints ->
+        // Grab the width from the resizing state regardless of if the tile is selected or not to
+        // animate undo actions
         val width =
-            state.anchoredDraggableState.requireOffset().roundToInt().takeIf { !isIdle }
+            state.anchoredDraggableState.offset.takeIf { !it.isNaN() }?.roundToInt()
                 ?: constraints.maxWidth
         val placeable = measurable.measure(constraints.copy(minWidth = width, maxWidth = width))
         layout(constraints.maxWidth, placeable.height) { placeable.placeRelative(0, 0) }
@@ -305,6 +351,8 @@ private fun Modifier.resizable(selected: Boolean, state: ResizingState): Modifie
 }
 
 enum class TileState {
+    /** Tile is newly composed. This should not be assigned manually afterwards. */
+    New,
     /** Tile is displayed as-is, no additional decoration needed. */
     None,
     /** Tile can be removed by the user. This is displayed by a badge in the upper end corner. */
@@ -316,7 +364,7 @@ enum class TileState {
     Selected,
     /**
      * Tile placeable. This state means that the grid is in placement mode and this tile is
-     * selected. It should be highlighted to stand out in the grid.
+     * selected. It should have an highlighted border to stand out in the grid.
      */
     Placeable,
     /**
@@ -382,6 +430,7 @@ sealed interface Decoration {
     val iconAlpha: Float
     val borderAlpha: Float
     val size: Size
+    val rippleRadius: Dp
     val offset: Offset
 }
 
@@ -390,6 +439,7 @@ private data class VisibleDecoration(
     override val iconAlpha: Float,
     override val borderAlpha: Float,
     override val size: Size,
+    override val rippleRadius: Dp,
     override val offset: Offset,
     val color: Color,
     val angle: Float,
@@ -400,6 +450,7 @@ private data object NoDecoration : Decoration {
     override val iconAlpha: Float = 0f
     override val borderAlpha: Float = 0f
     override val size: Size = Size.Zero
+    override val rippleRadius: Dp = 0.dp
     override val offset: Offset = Offset.Zero
 }
 
@@ -411,6 +462,7 @@ private object SelectionDefaults {
     val BadgeYOffset = 4.dp
     val ResizingPillWidth = 8.dp
     val ResizingPillHeight = 16.dp
+    val ResizingPillRippleRadius = 16.dp
     const val BADGE_ANGLE_RAD = -.8f
     const val RESIZING_PILL_ANGLE_RAD = 0f
 
@@ -420,8 +472,9 @@ private object SelectionDefaults {
         return when (this) {
             Removable -> removalBadge()
             Selected -> resizingHandle()
+            Placeable -> placeable()
+            New,
             None,
-            Placeable,
             GreyedOut -> NoDecoration
         }
     }
@@ -435,6 +488,7 @@ private object SelectionDefaults {
                 borderAlpha = 0f,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 size = Size(BadgeSize.toPx()),
+                rippleRadius = BadgeSize / 2,
                 angle = BADGE_ANGLE_RAD,
                 offset = Offset(BadgeXOffset.toPx(), BadgeYOffset.toPx()),
             )
@@ -450,9 +504,24 @@ private object SelectionDefaults {
                 borderAlpha = 1f,
                 color = MaterialTheme.colorScheme.primary,
                 size = Size(ResizingPillWidth.toPx(), ResizingPillHeight.toPx()),
+                rippleRadius = ResizingPillRippleRadius,
                 angle = RESIZING_PILL_ANGLE_RAD,
                 offset = Offset(-SelectedBorderWidth.toPx(), 0f),
             )
         }
+    }
+
+    @Composable
+    @ReadOnlyComposable
+    fun placeable(): VisibleDecoration {
+        return VisibleDecoration(
+            iconAlpha = 0f,
+            borderAlpha = 1f,
+            color = MaterialTheme.colorScheme.primary,
+            size = Size.Zero,
+            rippleRadius = 0.dp,
+            angle = 0f,
+            offset = Offset.Zero,
+        )
     }
 }

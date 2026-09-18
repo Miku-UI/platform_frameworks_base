@@ -5,15 +5,17 @@ import android.database.ContentObserver
 import android.provider.Settings
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.Flags.hsuQsChanges
-import com.android.systemui.common.coroutine.ConflatedCallbackFlow
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.qs.pipeline.data.model.RestoreData
+import com.android.systemui.qs.pipeline.shared.InternetTileMigration.migrateInternetTile
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.pipeline.shared.TilesUpgradePath
 import com.android.systemui.qs.pipeline.shared.logging.QSPipelineLogger
+import com.android.systemui.user.data.repository.UserRepository
 import com.android.systemui.user.domain.interactor.HeadlessSystemUserMode
 import com.android.systemui.util.settings.SecureSettings
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -49,6 +51,7 @@ constructor(
     private val secureSettings: SecureSettings,
     private val hsum: HeadlessSystemUserMode,
     private val logger: QSPipelineLogger,
+    private val userRepository: UserRepository,
     @Application private val applicationScope: CoroutineScope,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
 ) {
@@ -69,13 +72,17 @@ constructor(
     suspend fun tiles(): Flow<List<TileSpec>> {
         if (!::_tiles.isInitialized) {
             withContext(backgroundDispatcher) {
-              isHeadlessSystemUser = hsuQsChanges() && hsum.isHeadlessSystemUser(userId)
+                isHeadlessSystemUser = hsuQsChanges() && hsum.isHeadlessSystemUser(userId)
             }
             _tiles =
                 changeEvents
                     .scan(loadTilesFromSettingsAndParse(userId)) { current, change ->
                         change
                             .apply(current)
+                            // Apply this here in case a Change operation produced an `internet`
+                            // tile. We know that that should never happen and it should always
+                            // be replaced with `wifi`.
+                            .migrateInternetTile()
                             .also { afterRestore ->
                                 if (current != afterRestore) {
                                     if (change is RestoreTiles) {
@@ -114,7 +121,7 @@ constructor(
                 // user, we don't want anyone to change the underlying setting. Therefore, if there
                 // are any changes that don't match with the source of truth (this class), we
                 // overwrite them with the current value.
-                ConflatedCallbackFlow.conflatedCallbackFlow {
+                conflatedCallbackFlow {
                         val observer =
                             object : ContentObserver(null) {
                                 override fun onChange(selfChange: Boolean) {
@@ -161,6 +168,10 @@ constructor(
         changeEvents.emit(ChangeTiles(tiles))
     }
 
+    suspend fun onPackageRemoved(packageName: String) {
+        changeEvents.emit(PackageRemoved(packageName))
+    }
+
     private fun parseTileSpecs(fromSettings: List<TileSpec>, user: Int): List<TileSpec> {
         return if (fromSettings.isNotEmpty()) {
             fromSettings.also { logger.logParsedTiles(it, false, user) }
@@ -184,6 +195,13 @@ constructor(
                 secureSettings.getStringForUser(SETTING, userId) ?: ""
             }
             .toTilesList()
+            .run {
+                migrateInternetTile().also { migrated ->
+                    if (migrated != this) {
+                        logger.logInternetTileMigrationOnTileLoad(userId)
+                    }
+                }
+            }
     }
 
     suspend fun reconcileRestore(restoreData: RestoreData, currentAutoAdded: Set<TileSpec>) {
@@ -252,6 +270,14 @@ constructor(
 
         override fun apply(currentTiles: List<TileSpec>): List<TileSpec> {
             return reconcileTiles(currentTiles, currentAutoAdded, restoreData)
+        }
+    }
+
+    private data class PackageRemoved(val packageName: String) : ChangeAction {
+        override fun apply(currentTiles: List<TileSpec>): List<TileSpec> {
+            return currentTiles.filterNot {
+                it is TileSpec.CustomTileSpec && it.componentName.packageName == packageName
+            }
         }
     }
 

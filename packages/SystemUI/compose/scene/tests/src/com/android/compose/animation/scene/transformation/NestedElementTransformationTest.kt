@@ -115,34 +115,32 @@ class NestedElementTransformationTest {
         (states: List<MutableSceneTransitionLayoutState>) -> Unit =
         { states ->
             SceneTransitionLayoutForTesting(states[0]) {
-                scene(TestScenes.SceneA, content = { TestElement(elementVariant0A) })
-                scene(
-                    TestScenes.SceneB,
-                    content = {
-                        Box(Modifier.fillMaxSize()) {
-                            TestElement(elementVariant0B)
-                            NestedSceneTransitionLayout(states[1], modifier = Modifier) {
-                                scene(Scenes.NestedSceneA) {
-                                    Box(Modifier.fillMaxSize()) {
-                                        TestElement(elementVariant1A)
-                                        NestedSceneTransitionLayout(
-                                            state = states[2],
-                                            modifier = Modifier,
-                                        ) {
-                                            scene(Scenes.NestedNestedSceneA) {
-                                                TestElement(elementVariant2A)
-                                            }
-                                            scene(Scenes.NestedNestedSceneB) {
-                                                TestElement(elementVariant2B)
-                                            }
+                scene(TestScenes.SceneA) { TestElement(elementVariant0A) }
+                scene(TestScenes.SceneB) {
+                    Box(Modifier.fillMaxSize()) {
+                        TestElement(elementVariant0B)
+                        NestedSceneTransitionLayout(states[1], debugName = "NestedStl") {
+                            scene(Scenes.NestedSceneA) {
+                                Box(Modifier.fillMaxSize()) {
+                                    TestElement(elementVariant1A)
+                                    NestedSceneTransitionLayout(
+                                        state = states[2],
+                                        debugName = "NestedNestedStl",
+                                    ) {
+                                        scene(Scenes.NestedNestedSceneA) {
+                                            TestElement(elementVariant2A)
+                                        }
+                                        scene(Scenes.NestedNestedSceneB) {
+                                            TestElement(elementVariant2B)
                                         }
                                     }
                                 }
-                                scene(Scenes.NestedSceneB) { TestElement(elementVariant1B) }
                             }
+                            scene(Scenes.NestedSceneB) { TestElement(elementVariant1B) }
                         }
-                    },
-                )
+                    }
+                }
+                scene(TestScenes.SceneC) {}
             }
         }
 
@@ -171,19 +169,29 @@ class NestedElementTransformationTest {
         ) {
             before { onElement(elementVariant2A.key).assertElementVariant(elementVariant2A) }
             atAllFrames(4) {
+                // The scaling is done a the graphics layer level, so it does not impact the
+                // measured size but it impacts the coordinates (see http://shortn/_coqoiLi3aH).
+                val expectedWidth = interpolate(elementVariant2A.width, elementVariant2A.width * 2f)
+                val expectedHeight =
+                    interpolate(elementVariant2A.height, elementVariant2A.height * 0.5f)
+                val expectedScale = interpolate(Scale(1f, 1f), Scale(4f, 0.25f))
+
+                val scaledWidth = expectedWidth * expectedScale.scaleX
+                val scaledHeight = expectedHeight * expectedScale.scaleY
+                val deltaWidth = scaledWidth - expectedWidth
+                val deltaHeight = scaledHeight - expectedHeight
+
                 onElement(elementVariant2A.key)
                     .assertPositionInRootIsEqualTo(
-                        interpolate(elementVariant2A.x, elementVariant2A.x + 100.dp),
-                        interpolate(elementVariant2A.y, elementVariant2A.y + 50.dp),
+                        interpolate(elementVariant2A.x, elementVariant2A.x + 100.dp) -
+                            deltaWidth / 2f,
+                        interpolate(elementVariant2A.y, elementVariant2A.y + 50.dp) -
+                            deltaHeight / 2f,
                     )
-                    .assertSizeIsEqualTo(
-                        interpolate(elementVariant2A.width, elementVariant2A.width * 2f),
-                        interpolate(elementVariant2A.height, elementVariant2A.height * 0.5f),
-                    )
+                    .assertSizeIsEqualTo(expectedWidth, expectedHeight)
                 val semanticNode = onElement(elementVariant2A.key).fetchSemanticsNode()
                 assertThat(semanticNode.lastAlphaForTesting).isEqualTo(interpolate(1f, 0f))
-                assertThat(semanticNode.lastScaleForTesting)
-                    .isEqualTo(interpolate(Scale(1f, 1f), Scale(4f, 0.25f)))
+                assertThat(semanticNode.lastScaleForTesting).isEqualTo(expectedScale)
             }
             after { onElement(elementVariant2A.key).isNotDisplayed() }
         }
@@ -403,6 +411,73 @@ class NestedElementTransformationTest {
                     )
             }
             after { onElement(elementVariant2A.key).isNotDisplayed() }
+        }
+    }
+
+    @Test
+    fun transitionInMultipleStls_ancestor_without_transformation_defers_to_nestedSTL() {
+        rule.testNestedTransition(
+            states =
+                listOf(
+                    createState(
+                        TestScenes.SceneA,
+                        transitions {
+                            to(TestScenes.SceneB) {
+                                spec = tween(16 * 4, easing = LinearEasing)
+                                translate(elementVariant1A.key, x = 100.dp)
+                            }
+                            to(TestScenes.SceneC) { spec = tween(16 * 4, easing = LinearEasing) }
+                        },
+                    ),
+                    createState(
+                        Scenes.NestedSceneB,
+                        transitions {
+                            to(Scenes.NestedSceneA) {
+                                spec = tween(16 * 4, easing = LinearEasing)
+                                translate(elementVariant1A.key, y = 200.dp)
+                            }
+                        },
+                    ),
+                    createState(Scenes.NestedNestedSceneA),
+                ),
+            transitionLayout = threeNestedStls,
+            changeState = {
+                // We start nestedA -> nestedB. e1A is contained in nested1A and will therefore run
+                it[1].setTargetScene(Scenes.NestedSceneA, this)
+
+                // We start A -> B. This has a transformation for e1A and it is contained in sceneB
+                // (via NestedSceneA). This ancestor transition has priority and therefore will
+                // take over responsibility from previous [nestedA -> nestedB].
+                it[0].setTargetScene(TestScenes.SceneB, this)
+            },
+        ) {
+            before { onElement(elementVariant1A.key).isNotDisplayed() }
+            at(16) {
+                onElement(elementVariant1A.key)
+                    .assertPositionInRootIsEqualTo(elementVariant1A.x + 75.dp, elementVariant1A.y)
+
+                // We interrupt [A -> B] with [B -> C]. Both have no transformation for e1A. But
+                // B contains e1A within a NestedSTL, so this should now defer to the NestedSTL
+                // transition, so picked transition now becomes [nestedA -> nestedB].
+                // Note: Before b/460412329 the problem was that A -> B is interrupted but still
+                // in the transition stack, so this would wrongfully take the responsibility after
+                // no transformation in B -> C was found.
+                changeState { it[0].setTargetScene(TestScenes.SceneC, this) }
+            }
+            at(32) {
+                changeState {}
+                onElement(elementVariant1A.key)
+                    .assertPositionInRootIsEqualTo(elementVariant1A.x + 75.dp, elementVariant1A.y)
+            }
+            at(48) {
+                changeState {}
+                onElement(elementVariant1A.key)
+                    .assertPositionInRootIsEqualTo(
+                        elementVariant1A.x + 75.dp,
+                        elementVariant1A.y - 50.dp,
+                    )
+            }
+            after { onElement(elementVariant1A.key).isNotDisplayed() }
         }
     }
 

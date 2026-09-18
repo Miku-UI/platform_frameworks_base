@@ -20,9 +20,8 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.backgroundScope
 import com.android.systemui.qs.pipeline.data.repository.customTileAddedRepository
 import com.android.systemui.qs.pipeline.shared.logging.qsLogger
-import java.util.Optional
 
-var Kosmos.customTileAddedUpgradeSet by Kosmos.Fixture<Set<Optional<CustomTileAddedUpgrade>>>()
+var Kosmos.customTileAddedUpgradeSet by Kosmos.Fixture<Set<CustomTileAddedUpgrade>>()
 
 val Kosmos.customTileAddedRepositoryUpgrader by
     Kosmos.Fixture {

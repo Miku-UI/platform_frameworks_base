@@ -21,6 +21,6 @@
         <size
             android:width="@dimen/volume_dialog_ringer_drawer_button_size"
             android:height="@dimen/volume_dialog_ringer_drawer_button_size" />
-        <solid android:color="@androidprv:color/materialColorPrimary" />
+        <solid android:color="@color/materialColorPrimary" />
     </shape>
 </inset>

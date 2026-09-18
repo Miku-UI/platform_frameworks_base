@@ -229,6 +229,10 @@ public class FaceProvider implements IBinder.DeathRecipient, ServiceProvider {
     }
 
     private void initSensors(boolean resetLockoutRequiresChallenge, SensorProps[] props) {
+        if (props == null) {
+            Slog.wtfStack(TAG, "Face properties is null");
+            return;
+        }
         if (resetLockoutRequiresChallenge) {
             Slog.d(getTag(), "Adding HIDL configs");
             for (SensorProps prop : props) {
@@ -340,11 +344,7 @@ public class FaceProvider implements IBinder.DeathRecipient, ServiceProvider {
 
         for (int i = 0; i < mFaceSensors.size(); i++) {
             final int sensorId = mFaceSensors.keyAt(i);
-            if (Flags.internalCleanupForAllProfiles()) {
-                processFaceForProfiles(sensorId);
-            } else {
-                scheduleLoadAuthenticatorIds(sensorId);
-            }
+            processFaceForProfiles(sensorId);
             scheduleInternalCleanup(sensorId, ActivityManager.getCurrentUser(),
                     null /* callback */);
         }

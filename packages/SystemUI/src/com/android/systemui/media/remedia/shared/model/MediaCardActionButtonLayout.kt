@@ -16,9 +16,11 @@
 
 package com.android.systemui.media.remedia.shared.model
 
-enum class MediaCardActionButtonLayout {
+sealed interface MediaCardActionButtonLayout {
     /** Shows the play/pause button and left/right buttons in privileged positions on the card */
-    WithPlayPause,
-    /** Shows all action buttons along the bottom row. */
-    SecondaryActionsOnly,
+    data object WithPlayPause : MediaCardActionButtonLayout
+
+    /** Shows only small action buttons. */
+    data class SecondaryActionsOnly(val indicesForCompressed: List<Int>) :
+        MediaCardActionButtonLayout
 }

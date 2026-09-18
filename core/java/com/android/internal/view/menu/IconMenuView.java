@@ -223,7 +223,7 @@ public final class IconMenuView extends ViewGroup implements ItemInvoker, MenuVi
     private void layoutItemsUsingGravity(int numRows, int numItems) {
         int numBaseItemsPerRow = numItems / numRows;
         int numLeftoverItems = numItems % numRows;
-        /**
+        /*
          * The bottom rows will each get a leftover item. Rows (indexed at 0)
          * that are >= this get a leftover item. Note: if there are 0 leftover
          * items, no rows will get them since this value will be greater than

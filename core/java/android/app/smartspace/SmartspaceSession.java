@@ -66,7 +66,7 @@ import java.util.function.Consumer;
  *        mSmartspaceSession.close();
  *    }
  *
- * }</pre>
+ * }}</pre>
  *
  * @hide
  */

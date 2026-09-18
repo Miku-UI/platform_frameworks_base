@@ -48,6 +48,8 @@ import com.android.compose.animation.scene.TestOverlays.OverlayA
 import com.android.compose.animation.scene.TestOverlays.OverlayB
 import com.android.compose.animation.scene.TestScenes.SceneA
 import com.android.compose.animation.scene.TestScenes.SceneB
+import com.android.compose.animation.scene.TestScenes.SceneC
+import com.android.compose.animation.scene.TestScenes.SceneD
 import com.android.compose.animation.scene.content.state.TransitionState
 import com.android.compose.animation.scene.subjects.assertThat
 import com.android.compose.test.assertSizeIsEqualTo
@@ -55,6 +57,7 @@ import com.android.compose.test.setContentAndCreateMainScope
 import com.android.compose.test.transition
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.launch
+import org.junit.Assert.assertThrows
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -440,5 +443,55 @@ class MovableElementTest {
         // Show overlay B. This shouldn't have any impact on Foo that should still be composed in A.
         scope.launch { state.startTransition(transition(SceneA, OverlayB)) }
         rule.onNode(hasTestTag(fooContentTag)).assertIsDisplayed().assertSizeIsEqualTo(100.dp)
+    }
+
+    @Test
+    fun defaultContentPicker() {
+        val key = TestElements.Foo
+        val defaultPicker = DefaultElementContentPicker(setOf(SceneA, SceneB))
+        val aToB = transition(SceneA, SceneB)
+
+        // Pick SceneB when SceneB zIndex is higher.
+        assertThat(
+                defaultPicker.contentDuringTransition(
+                    key,
+                    aToB,
+                    fromContentZIndex = 0,
+                    toContentZIndex = 1,
+                )
+            )
+            .isEqualTo(SceneB)
+
+        // Pick SceneA when SceneA zIndex is higher.
+        assertThat(
+                defaultPicker.contentDuringTransition(
+                    key,
+                    aToB,
+                    fromContentZIndex = 1,
+                    toContentZIndex = 0,
+                )
+            )
+            .isEqualTo(SceneA)
+
+        // Pick the only scene that contains the element, even if it has a lower zIndex.
+        assertThat(
+                defaultPicker.contentDuringTransition(
+                    key,
+                    transition(SceneA, SceneC),
+                    fromContentZIndex = 0,
+                    toContentZIndex = 1,
+                )
+            )
+            .isEqualTo(SceneA)
+
+        // Throw if the transition should not be picked for the element.
+        assertThrows(IllegalStateException::class.java) {
+            defaultPicker.contentDuringTransition(
+                key,
+                transition(SceneC, SceneD),
+                fromContentZIndex = 0,
+                toContentZIndex = 1,
+            )
+        }
     }
 }

@@ -15,6 +15,7 @@ java_defaults {
     name: "FrameworksMockingServicesTests-jni-defaults",
     jni_libs: [
         "libmockingservicestestjni",
+        "libbpf",
     ],
 }
 
@@ -41,6 +42,7 @@ android_test {
     ],
 
     static_libs: [
+        "TestParameterInjector",
         "androidx.test.core",
         "androidx.test.runner",
         "androidx.test.espresso.core",
@@ -52,6 +54,7 @@ android_test {
         "hamcrest-library",
         "kotlin-test",
         "mockingservicestests-utils-mockito",
+        "mockito-kotlin2",
         "mockito-target-extended-minus-junit4",
         "platform-compat-test-rules",
         "platform-parametric-runner-lib",
@@ -64,14 +67,19 @@ android_test {
         "service-sdksandbox.impl",
         "services.backup",
         "services.companion",
+        "services.contentrestriction",
         "services.core",
+        "service-crashrecovery-pre-jarjar",
         "services.devicepolicy",
         "services.net",
+        "services.supervision",
         "services.usage",
         "services.wallpapereffectsgeneration",
         "servicestests-assert-utils",
         "servicestests-core-utils",
+        "servicestests-psc-utils",
         "servicestests-utils-mockito-extended",
+        "StatsdTestUtils",
         "testables",
         "truth",
         // TODO: remove once Android migrates to JUnit 4.12, which provides assertThrows
@@ -80,10 +88,7 @@ android_test {
         "am_flags_lib",
         "device_policy_aconfig_flags_lib",
         "android.content.pm.flags-aconfig-java",
-    ] + select(soong_config_variable("ANDROID", "release_crashrecovery_module"), {
-        "true": ["service-crashrecovery-pre-jarjar"],
-        default: [],
-    }),
+    ],
 
     libs: [
         "android.test.mock.stubs.system",
@@ -242,6 +247,7 @@ test_module_config {
         "com.android.server.am.BroadcastQueueTest",
         "com.android.server.am.BroadcastRecordTest",
         "com.android.server.am.BroadcastQueueImplTest",
+        "com.android.server.am.BroadcastControllerTest",
     ],
 }
 
@@ -418,4 +424,38 @@ test_module_config {
     base: "FrameworksMockingServicesTests",
     test_suites: ["device-tests"],
     include_filters: ["com.android.server.security.advancedprotection.features.UsbDataAdvancedProtectionHookTest"],
+}
+
+test_module_config {
+    name: "FrameworksMockingServicesTests_android_server_am_app_start_info",
+    base: "FrameworksMockingServicesTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.am.ApplicationStartInfoTest"],
+}
+
+test_module_config {
+    name: "FrameworksMockingServicesTests_contentrestriction",
+    base: "FrameworksMockingServicesTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.contentrestriction"],
+}
+
+test_module_config {
+    name: "FrameworksMockingServicesTests_supervision",
+    base: "FrameworksMockingServicesTests",
+    test_suites: [
+        "automotive-tests",
+        "device-tests",
+    ],
+    include_filters: ["com.android.server.supervision"],
+}
+
+test_module_config {
+    name: "FrameworksMockingServicesTests_service_masterClearReceiverTest",
+    base: "FrameworksMockingServicesTests",
+    test_suites: [
+        "automotive-tests",
+        "device-tests",
+    ],
+    include_filters: ["com.android.server.MasterClearReceiverTest"],
 }

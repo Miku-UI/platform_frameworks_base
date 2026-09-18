@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.android.servicestests.apps.packageparserapp">
+    <application>
+      <service android:name=".PccAndIsolatedService" android:privateComputeCore="true"
+        android:isolatedProcess="true" />
+    </application>
+</manifest>
+

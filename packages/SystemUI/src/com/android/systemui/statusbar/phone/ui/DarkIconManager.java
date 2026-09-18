@@ -20,7 +20,7 @@ import android.widget.LinearLayout;
 
 import com.android.internal.statusbar.StatusBarIcon;
 import com.android.systemui.dagger.qualifiers.Application;
-import com.android.systemui.kairos.ExperimentalKairosApi;
+
 import com.android.systemui.kairos.KairosNetwork;
 import com.android.systemui.plugins.DarkIconDispatcher;
 import com.android.systemui.statusbar.StatusIconDisplayable;
@@ -42,7 +42,6 @@ import kotlin.OptIn;
 import kotlinx.coroutines.CoroutineScope;
 
 /** Version of {@link IconManager} that observes state from the {@link DarkIconDispatcher}. */
-@OptIn(markerClass = ExperimentalKairosApi.class)
 public class DarkIconManager extends IconManager {
     private final DarkIconDispatcher mDarkIconDispatcher;
     private final int mIconHorizontalMargin;

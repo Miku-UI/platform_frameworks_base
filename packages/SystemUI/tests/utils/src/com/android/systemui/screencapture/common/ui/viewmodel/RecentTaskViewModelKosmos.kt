@@ -25,9 +25,9 @@ import com.android.systemui.screencapture.common.domain.model.ScreenCaptureRecen
 var Kosmos.recentTaskViewModelFactory by
     Kosmos.Fixture<RecentTaskViewModel.Factory> {
         object : RecentTaskViewModel.Factory {
-            override fun create(task: ScreenCaptureRecentTask): RecentTaskViewModel =
+            override fun create(model: ScreenCaptureRecentTask): RecentTaskViewModel =
                 RecentTaskViewModel(
-                    task = task,
+                    model = model,
                     iconInteractor = screenCaptureIconInteractor,
                     labelInteractor = screenCaptureLabelInteractor,
                     thumbnailInteractor = screenCaptureThumbnailInteractor,

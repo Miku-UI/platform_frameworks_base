@@ -441,7 +441,6 @@ public class CaptureResult extends CameraMetadata<CaptureResult.Key<?>> {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_VIRTUAL_CAMERA_METADATA)
     public static final class Builder {
         private final CameraMetadataNative mNativeMetadata;
 
@@ -2565,7 +2564,8 @@ public class CaptureResult extends CameraMetadata<CaptureResult.Key<?>> {
      * <p>Some camera devices support additional digital sensitivity boosting in the
      * camera processing pipeline after sensor RAW image is captured.
      * Such a boost will be applied to YUV/JPEG format output images but will not
-     * have effect on RAW output formats like RAW_SENSOR, RAW10, RAW12 or RAW_OPAQUE.</p>
+     * have effect on RAW output formats like RAW_SENSOR, RAW10, RAW12, RAW14
+     * or RAW_OPAQUE.</p>
      * <p>This key will be <code>null</code> for devices that do not support any RAW format
      * outputs. For devices that do support RAW format outputs, this key will always
      * present, and if a device does not support post RAW sensitivity boost, it will
@@ -5836,6 +5836,50 @@ public class CaptureResult extends CameraMetadata<CaptureResult.Key<?>> {
             new Key<Boolean>("android.led.transmit", boolean.class);
 
     /**
+     * <p>A classification of the underlying hardware and source of image data for this
+     * camera device, or for a specific camera output frame.</p>
+     * <p>Historically, camera devices listed by the camera2 API could be assumed to be built-in
+     * cameras on the Android device, or in the case of the <code>EXTERNAL</code>
+     * <code>{@link CameraCharacteristics#INFO_SUPPORTED_HARDWARE_LEVEL android.info.supportedHardwareLevel}</code>, USB webcams.</p>
+     * <p>However, it is increasingly possible for camera devices to not be restricted to
+     * device-internal sensors and processing pipelines. Such devices can provide a wide range
+     * of useful capabilities to applications, but may also not be suitable for all camera use
+     * cases.</p>
+     * <p>This key provides a basic classification of the type of camera this camera ID
+     * represents, so that applications may decide on the appropriate level of trust to extend
+     * to the image data produced by it.</p>
+     * <p>Note that in some cases, it is possible for the user to swap the definition of a camera
+     * ID to a different one, such as when connecting a remote camera to act as the front
+     * camera of the device. This is normally transparent to the camera-using application to
+     * minimize user friction, but applications that care about this possibility should always
+     * verify the value of this key in the
+     * {@link android.hardware.camera2.CameraCharacteristics CameraCharacteristics} before opening
+     * a camera, instead of caching it, and should also watch the value of this key in
+     * {@link android.hardware.camera2.CaptureResult CaptureResults} as well, since it may
+     * change mid-session.</p>
+     * <p><b>Possible values:</b></p>
+     * <ul>
+     *   <li>{@link #INFO_DEVICE_TYPE_BUILT_IN BUILT_IN}</li>
+     *   <li>{@link #INFO_DEVICE_TYPE_EXTERNAL EXTERNAL}</li>
+     *   <li>{@link #INFO_DEVICE_TYPE_VIRTUAL VIRTUAL}</li>
+     *   <li>{@link #INFO_DEVICE_TYPE_UNKNOWN UNKNOWN}</li>
+     * </ul>
+     *
+     * <p>This key is available on all devices.</p>
+     *
+     * @see CameraCharacteristics#INFO_SUPPORTED_HARDWARE_LEVEL
+     * @see #INFO_DEVICE_TYPE_BUILT_IN
+     * @see #INFO_DEVICE_TYPE_EXTERNAL
+     * @see #INFO_DEVICE_TYPE_VIRTUAL
+     * @see #INFO_DEVICE_TYPE_UNKNOWN
+     */
+    @PublicKey
+    @NonNull
+    @FlaggedApi(Flags.FLAG_CAMERA_DEVICE_TYPE_API)
+    public static final Key<Integer> INFO_DEVICE_TYPE =
+            new Key<Integer>("android.info.deviceType", int.class);
+
+    /**
      * <p>Whether black-level compensation is locked
      * to its current values, or is free to vary.</p>
      * <p>Whether the black level offset was locked for this frame.  Should be
@@ -6046,6 +6090,30 @@ public class CaptureResult extends CameraMetadata<CaptureResult.Key<?>> {
     @NonNull
     public static final Key<android.graphics.Rect> LOGICAL_MULTI_CAMERA_ACTIVE_PHYSICAL_SENSOR_CROP_REGION =
             new Key<android.graphics.Rect>("android.logicalMultiCamera.activePhysicalSensorCropRegion", android.graphics.Rect.class);
+
+    /**
+     * <p>Controls whether the camera device could also return additional
+     * physical cameras' metadata in the results.</p>
+     * <p>This control must only be turned on when device is using logical camera,
+     * which are devices that have
+     * {@link android.hardware.camera2.CameraMetadata#REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA }
+     * capability and the key is supported in the device's
+     * {@link android.hardware.camera2.CameraCharacteristics#getAvailableCaptureRequestKeys }.
+     * Once this key is set to ON, if the camera device has
+     * multiple physical cameras active, the TotalCaptureResult will contain
+     * additional physical camera metadata in the result. One of such
+     * scenario is at the time of lens switch during zoom, where in addition
+     * to the active physical camera, a secondary physical camera runs as a
+     * "follower" and produces an additional physical camera CaptureResult.
+     * The application can call {@link android.hardware.camera2.TotalCaptureResult#getPhysicalCameraTotalResults }
+     * to get the additional results.</p>
+     * <p><b>Optional</b> - The value for this key may be {@code null} on some devices.</p>
+     */
+    @PublicKey
+    @NonNull
+    @FlaggedApi(Flags.FLAG_LOGICAL_MULTI_CAMERA_ADDITIONAL_RESULTS)
+    public static final Key<Boolean> LOGICAL_MULTI_CAMERA_ADDITIONAL_RESULTS =
+            new Key<Boolean>("android.logicalMultiCamera.additionalResults", boolean.class);
 
     /**
      * <p>Mode of operation for the lens distortion correction block.</p>

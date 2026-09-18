@@ -78,6 +78,15 @@
                 android:textDirection="locale"
                 android:text="@string/notification_delegate_header"
                 android:maxLines="1" />
+            <TextView
+                android:id="@+id/summarized_by"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/TextAppearance.NotificationImportanceHeader"
+                android:ellipsize="end"
+                android:textDirection="locale"
+                android:visibility="gone"
+                android:maxLines="1" />
 
         </LinearLayout>
 
@@ -91,7 +100,7 @@
             android:contentDescription="@string/notification_guts_bundle_feedback"
             android:src="@*android:drawable/ic_feedback"
             android:padding="@*android:dimen/notification_2025_margin"
-            android:tint="@androidprv:color/materialColorPrimary"/>
+            android:tint="@color/materialColorPrimary"/>
 
         <!-- Optional link to app. Only appears if the channel is not disabled and the app
         asked for it -->
@@ -104,7 +113,7 @@
             android:contentDescription="@string/notification_app_settings"
             android:src="@drawable/ic_info"
             android:padding="@*android:dimen/notification_2025_margin"
-            android:tint="@androidprv:color/materialColorPrimary"/>
+            android:tint="@color/materialColorPrimary"/>
 
         <!-- System notification settings -->
         <ImageButton
@@ -115,7 +124,7 @@
             android:background="@drawable/ripple_drawable"
             android:src="@drawable/ic_settings"
             android:padding="@*android:dimen/notification_2025_margin"
-            android:tint="@androidprv:color/materialColorPrimary" />
+            android:tint="@color/materialColorPrimary" />
 
     </LinearLayout>
 
@@ -154,7 +163,7 @@
                         android:focusable="false"
                         android:fontFamily="@*android:string/config_headlineFontFamilyMedium"
                         android:textSize="16sp"
-                        android:textColor="@androidprv:color/materialColorOnSecondaryContainer"
+                        android:textColor="@color/materialColorOnSecondaryContainer"
                         android:lineSpacingExtra="4sp"
                         android:ellipsize="end"
                         android:text="@string/notification_guts_single_bundle_notif_title"/>
@@ -167,7 +176,7 @@
                         android:maxLines="1"
                         android:fontFamily="@*android:string/config_headlineFontFamilyMedium"
                         android:textSize="14sp"
-                        android:textColor="@androidprv:color/materialColorOnSecondaryContainer"
+                        android:textColor="@color/materialColorOnSecondaryContainer"
                         android:ellipsize="end"
                         android:lineSpacingExtra="4sp" />
                 </LinearLayout>

@@ -24,9 +24,14 @@ import com.android.systemui.ProtoDumpable
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.table.TableLogBuffer
+import com.android.systemui.testKosmosNew
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.eq
 import com.google.common.truth.Truth.assertThat
+import java.io.FileDescriptor
+import java.io.PrintWriter
+import java.io.StringWriter
+import javax.inject.Provider
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -35,58 +40,45 @@ import org.mockito.Mockito.anyInt
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
-import java.io.FileDescriptor
-import java.io.PrintWriter
-import java.io.StringWriter
-import javax.inject.Provider
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class DumpHandlerTest : SysuiTestCase() {
 
+    private val kosmos = testKosmosNew()
+
     private lateinit var dumpHandler: DumpHandler
 
-    @Mock
-    private lateinit var logBufferEulogizer: LogBufferEulogizer
+    @Mock private lateinit var logBufferEulogizer: LogBufferEulogizer
 
-    @Mock
-    private lateinit var pw: PrintWriter
-    @Mock
-    private lateinit var fd: FileDescriptor
+    @Mock private lateinit var pw: PrintWriter
+    @Mock private lateinit var fd: FileDescriptor
 
-    @Mock
-    private lateinit var dumpable1: Dumpable
-    @Mock
-    private lateinit var dumpable2: Dumpable
-    @Mock
-    private lateinit var dumpable3: Dumpable
+    @Mock private lateinit var dumpable1: Dumpable
+    @Mock private lateinit var dumpable2: Dumpable
+    @Mock private lateinit var dumpable3: Dumpable
 
-    @Mock
-    private lateinit var protoDumpable1: ProtoDumpable
-    @Mock
-    private lateinit var protoDumpable2: ProtoDumpable
+    @Mock private lateinit var protoDumpable1: ProtoDumpable
+    @Mock private lateinit var protoDumpable2: ProtoDumpable
 
-    @Mock
-    private lateinit var buffer1: LogBuffer
-    @Mock
-    private lateinit var buffer2: LogBuffer
+    @Mock private lateinit var buffer1: LogBuffer
+    @Mock private lateinit var buffer2: LogBuffer
 
-    @Mock
-    private lateinit var table1: TableLogBuffer
-    @Mock
-    private lateinit var table2: TableLogBuffer
+    @Mock private lateinit var table1: TableLogBuffer
+    @Mock private lateinit var table2: TableLogBuffer
 
-    private val dumpManager = DumpManager()
+    private val dumpManager = kosmos.realDumpManager
 
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
 
-        val config = SystemUIConfigDumpable(
+        val config =
+            SystemUIConfigDumpable(
                 dumpManager,
                 mContext,
                 mutableMapOf(EmptyCoreStartable::class.java to Provider { EmptyCoreStartable() }),
-        )
+            )
         dumpHandler = DumpHandler(dumpManager, logBufferEulogizer, config)
     }
 
@@ -107,9 +99,8 @@ class DumpHandlerTest : SysuiTestCase() {
 
         // THEN only the requested ones have their dump() method called
         verify(dumpable1).dump(pw, args)
-        verify(dumpable2, never()).dump(
-            any(PrintWriter::class.java),
-            any(Array<String>::class.java))
+        verify(dumpable2, never())
+            .dump(any(PrintWriter::class.java), any(Array<String>::class.java))
         verify(dumpable3).dump(pw, args)
         verify(buffer1, never()).dump(any(PrintWriter::class.java), anyInt())
         verify(buffer2).dump(pw, 0)
@@ -148,9 +139,8 @@ class DumpHandlerTest : SysuiTestCase() {
         // THEN only critical modules are dumped (and no buffers)
         verify(dumpable1).dump(pw, args)
         verify(dumpable2).dump(pw, args)
-        verify(dumpable3, never()).dump(
-            any(PrintWriter::class.java),
-            any(Array<String>::class.java))
+        verify(dumpable3, never())
+            .dump(any(PrintWriter::class.java), any(Array<String>::class.java))
         verify(buffer1, never()).dump(any(PrintWriter::class.java), anyInt())
         verify(buffer2, never()).dump(any(PrintWriter::class.java), anyInt())
         verify(table1, never()).dump(any(), any())
@@ -173,12 +163,17 @@ class DumpHandlerTest : SysuiTestCase() {
         dumpHandler.dump(fd, pw, args)
 
         // THEN the normal module and all buffers are dumped
-        verify(dumpable1, never()).dump(
-                any(PrintWriter::class.java),
-                any(Array<String>::class.java))
-        verify(dumpable2, never()).dump(
-                any(PrintWriter::class.java),
-                any(Array<String>::class.java))
+        if (DumpHandler.DUMP_ALL_WHEN_NORMAL) {
+            // Critical modules are dumped when DUMP_ALL_WHEN_NORMAL is true
+            verify(dumpable1).dump(pw, args)
+            verify(dumpable2).dump(pw, args)
+        } else {
+            // Critical modules are not dumped when DUMP_ALL_WHEN_NORMAL is false
+            verify(dumpable1, never())
+                .dump(any(PrintWriter::class.java), any(Array<String>::class.java))
+            verify(dumpable2, never())
+                .dump(any(PrintWriter::class.java), any(Array<String>::class.java))
+        }
         verify(dumpable3).dump(pw, args)
         verify(buffer1).dump(pw, 0)
         verify(buffer2).dump(pw, 0)
@@ -275,10 +270,8 @@ class DumpHandlerTest : SysuiTestCase() {
 
     @Test
     fun testDumpAllProtoDumpables() {
-        @Suppress("DEPRECATION")
-        dumpManager.registerDumpable("protoDumpable1", protoDumpable1)
-        @Suppress("DEPRECATION")
-        dumpManager.registerDumpable("protoDumpable2", protoDumpable2)
+        @Suppress("DEPRECATION") dumpManager.registerDumpable("protoDumpable1", protoDumpable1)
+        @Suppress("DEPRECATION") dumpManager.registerDumpable("protoDumpable2", protoDumpable2)
 
         val args = arrayOf(DumpHandler.PROTO)
         dumpHandler.dump(fd, pw, args)
@@ -289,10 +282,8 @@ class DumpHandlerTest : SysuiTestCase() {
 
     @Test
     fun testDumpSingleProtoDumpable() {
-        @Suppress("DEPRECATION")
-        dumpManager.registerDumpable("protoDumpable1", protoDumpable1)
-        @Suppress("DEPRECATION")
-        dumpManager.registerDumpable("protoDumpable2", protoDumpable2)
+        @Suppress("DEPRECATION") dumpManager.registerDumpable("protoDumpable1", protoDumpable1)
+        @Suppress("DEPRECATION") dumpManager.registerDumpable("protoDumpable2", protoDumpable2)
 
         val args = arrayOf(DumpHandler.PROTO, "protoDumpable1")
         dumpHandler.dump(fd, pw, args)
@@ -416,7 +407,6 @@ class DumpHandlerTest : SysuiTestCase() {
         verify(buffer1).dump(pw, tailLength = 14)
         verify(buffer2, never()).dump(any(), anyInt())
     }
-
 
     private class EmptyCoreStartable : CoreStartable {
         override fun start() {}

@@ -18,6 +18,8 @@ package android.view;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
+import android.annotation.TestApi;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -25,7 +27,20 @@ import android.os.Parcelable;
  *
  * @hide
  */
+// @TestApi without associated feature.
+@SuppressLint({"UnflaggedApi", "ParcelNotFinal", "ParcelCreator"})
+@TestApi
 public abstract class DisplayAddress implements Parcelable {
+
+    /**
+     * @hide
+     */
+    public static final int INVALID_PORT = -1;
+    /**
+     * @hide
+     */
+    public static final int INVALID_DISPLAY_ID = -1;
+
     /**
      * Creates an address for a physical display given its stable ID.
      *
@@ -34,10 +49,32 @@ public abstract class DisplayAddress implements Parcelable {
      * @param physicalDisplayId A physical display ID.
      * @return The {@link Physical} address.
      * @see com.android.server.display.DisplayControl#getPhysicalDisplayIds
+     *
+     * @hide
      */
     @NonNull
     public static Physical fromPhysicalDisplayId(long physicalDisplayId) {
         return new Physical(physicalDisplayId);
+    }
+
+    /**
+     * Creates a DisplayAddress, of either type StablePhysical or Physical
+     * If a Physical display address is created - the port parameter will be ignored, and
+     * calculated from the physical display id instead.
+     * @param physicalDisplayId used to identify the display uniquely.
+     * @param port              the connection point of this display
+     * @return DisplayAddress
+     *
+     * @hide
+     */
+    @NonNull
+    public static DisplayAddress fromPhysicalDisplayId(long physicalDisplayId, int port,
+            boolean stableEdidsFlag) {
+        if (stableEdidsFlag) {
+            return new StablePhysical(physicalDisplayId, port);
+        } else {
+            return new Physical(physicalDisplayId);
+        }
     }
 
     /**
@@ -46,6 +83,8 @@ public abstract class DisplayAddress implements Parcelable {
      * @param port A port in the range [0, 255].
      * @param model A positive integer, or {@code null} if the model cannot be identified.
      * @return The {@link Physical} address.
+     *
+     * @hide
      */
     @NonNull
     public static Physical fromPortAndModel(int port, Long model) {
@@ -57,10 +96,123 @@ public abstract class DisplayAddress implements Parcelable {
      *
      * @param macAddress A MAC address in colon notation.
      * @return The {@link Network} address.
+     *
+     * @hide
      */
     @NonNull
     public static Network fromMacAddress(String macAddress) {
         return new Network(macAddress);
+    }
+
+    /**
+     * The port of the display if the display is connected to a physical connector. If the display
+     * is not physically connected to the device - e.g. when the display is a Network display -
+     * then {@link #INVALID_PORT} is returned.
+     * @return The port of the display.
+     *
+     * @hide
+     */
+    public int getPort() {
+        return INVALID_PORT;
+    }
+
+    /**
+     * If the display is not physically connected - it will not have a physical display id and
+     * therefore {@link #INVALID_DISPLAY_ID} will be returned.
+     * @return The physical display id of the display.
+     *
+     * @hide
+     */
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+    @TestApi
+    public long getPhysicalDisplayId() {
+        return INVALID_DISPLAY_ID;
+    }
+
+    /**
+     * @param one first display address to compare
+     * @param two second display address to compare
+     * @return whether the displays are equal - if using Physical display addresses, allow ports to
+     * be used instead to match. If using StablePhysical, match only their physical display ids.
+     *
+     * @hide
+     */
+    public static boolean matchInternalDisplays(DisplayAddress one, DisplayAddress two,
+            boolean stableEdidsFlag) {
+        if (stableEdidsFlag && one instanceof StablePhysical oneStable
+                && two instanceof StablePhysical twoStable) {
+            return (oneStable.getPhysicalDisplayId()
+                    == twoStable.getPhysicalDisplayId());
+        }
+
+        if (!stableEdidsFlag && one instanceof Physical onePhysical
+                && two instanceof Physical twoPhysical) {
+            return onePhysical.equals(twoPhysical) || Physical.isPortMatch(one, two);
+        }
+
+        return false;
+    }
+
+    /**
+     * @hide
+     */
+    public static final class StablePhysical extends DisplayAddress {
+        private final long mPhysicalDisplayId;
+        private final int mPort;
+
+        @Override
+        public long getPhysicalDisplayId() {
+            return mPhysicalDisplayId;
+        }
+
+        @Override
+        public int getPort() {
+            return mPort;
+        }
+
+        @Override
+        public boolean equals(@Nullable Object other) {
+            return other instanceof StablePhysical
+                    && mPhysicalDisplayId == ((StablePhysical) other).mPhysicalDisplayId;
+        }
+
+        @Override
+        public String toString() {
+            final StringBuilder builder = new StringBuilder("StablePhysical{")
+                    .append("id=").append(mPhysicalDisplayId)
+                    .append(", port=").append(getPort());
+
+            return builder.append("}").toString();
+        }
+
+        @Override
+        public int hashCode() {
+            return Long.hashCode(mPhysicalDisplayId);
+        }
+
+        @Override
+        public void writeToParcel(Parcel out, int flags) {
+            out.writeLong(mPhysicalDisplayId);
+            out.writeInt(mPort);
+        }
+
+        private StablePhysical(long physicalDisplayId, int port) {
+            mPhysicalDisplayId = physicalDisplayId;
+            mPort = port;
+        }
+
+        public static final @NonNull Parcelable.Creator<StablePhysical> CREATOR =
+                new Parcelable.Creator<>() {
+                    @Override
+                    public StablePhysical createFromParcel(Parcel in) {
+                        return new StablePhysical(in.readLong(), in.readInt());
+                    }
+
+                    @Override
+                    public StablePhysical[] newArray(int size) {
+                        return new StablePhysical[size];
+                    }
+                };
     }
 
     /**
@@ -72,6 +224,8 @@ public abstract class DisplayAddress implements Parcelable {
      * bits, uniquely identifies a display model across manufacturers by encoding EDID information.
      * While the port is always stable, the model may not be available if EDID identification is not
      * supported by the platform, in which case the address is not unique.
+     *
+     * @hide
      */
     public static final class Physical extends DisplayAddress {
         private static final long UNKNOWN_MODEL = 0;
@@ -85,6 +239,7 @@ public abstract class DisplayAddress implements Parcelable {
          * @return An ID in the range [0, 2^64) interpreted as signed.
          * @see com.android.server.display.DisplayControl#getPhysicalDisplayIds
          */
+        @Override
         public long getPhysicalDisplayId() {
             return mPhysicalDisplayId;
         }
@@ -94,6 +249,7 @@ public abstract class DisplayAddress implements Parcelable {
          *
          * @return A port in the range [0, 255].
          */
+        @Override
         public int getPort() {
             return (int) (mPhysicalDisplayId & 0xFF);
         }
@@ -117,8 +273,9 @@ public abstract class DisplayAddress implements Parcelable {
 
         @Override
         public String toString() {
-            final StringBuilder builder = new StringBuilder("{")
-                    .append("port=").append(getPort());
+            final StringBuilder builder = new StringBuilder("Physical{")
+                    .append("id=").append(mPhysicalDisplayId)
+                    .append(", port=").append(getPort());
 
             final Long model = getModel();
             if (model != null) {
@@ -148,11 +305,9 @@ public abstract class DisplayAddress implements Parcelable {
          */
         public static boolean isPortMatch(DisplayAddress a1, DisplayAddress a2) {
             // Both displays must be of type Physical
-            if (!(a1 instanceof Physical && a2 instanceof Physical)) {
+            if (!(a1 instanceof Physical p1 && a2 instanceof Physical p2)) {
                 return false;
             }
-            Physical p1 = (Physical) a1;
-            Physical p2 = (Physical) a2;
 
             // If both addresses specify a model, fallback to a basic match check (which
             // also checks the port).
@@ -190,6 +345,8 @@ public abstract class DisplayAddress implements Parcelable {
 
     /**
      * Address for a network-connected display.
+     *
+     * @hide
      */
     public static final class Network extends DisplayAddress {
         private final String mMacAddress;
@@ -232,6 +389,10 @@ public abstract class DisplayAddress implements Parcelable {
                 };
     }
 
+    /**
+     * @hide
+     */
+    @SuppressLint("UnflaggedApi")
     @Override
     public int describeContents() {
         return 0;

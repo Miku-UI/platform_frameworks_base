@@ -69,11 +69,13 @@ import android.widget.TextView;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
+import androidx.core.content.ContextCompat;
 
 import com.android.internal.jank.InteractionJankMonitor;
 import com.android.systemui.animation.DialogCuj;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.animation.Expandable;
+import com.android.systemui.animation.TransitionAnimator;
 import com.android.systemui.common.shared.model.ContentDescription;
 import com.android.systemui.common.shared.model.Icon;
 import com.android.systemui.dagger.SysUISingleton;
@@ -87,6 +89,7 @@ import com.android.systemui.security.data.model.SecurityModel;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.shade.ShadeDisplayAware;
 import com.android.systemui.shade.domain.interactor.ShadeDialogContextInteractor;
+import com.android.systemui.statusbar.phone.DialogDelegate;
 import com.android.systemui.statusbar.phone.SystemUIDialog;
 import com.android.systemui.statusbar.policy.SecurityController;
 import com.android.systemui.supervision.data.model.SupervisionModel;
@@ -115,6 +118,7 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
     private final UserTracker mUserTracker;
     private final DialogTransitionAnimator mDialogTransitionAnimator;
     private final ShadeDialogContextInteractor mShadeDialogContextInteractor;
+    private final SystemUIDialog.Factory mSystemUIDialogFactory;
 
     private final AtomicBoolean mShouldUseSettingsButton = new AtomicBoolean(false);
 
@@ -184,7 +188,8 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
             UserTracker userTracker, @Main Handler mainHandler, ActivityStarter activityStarter,
             SecurityController securityController, @Background Looper bgLooper,
             DialogTransitionAnimator dialogTransitionAnimator,
-            ShadeDialogContextInteractor shadeDialogContextInteractor) {
+            ShadeDialogContextInteractor shadeDialogContextInteractor,
+            SystemUIDialog.Factory systemUIDialogFactory) {
         mContext = context;
         mDpm = devicePolicyManager;
         mUserTracker = userTracker;
@@ -194,6 +199,7 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
         mBgHandler = new Handler(bgLooper);
         mDialogTransitionAnimator = dialogTransitionAnimator;
         mShadeDialogContextInteractor = shadeDialogContextInteractor;
+        mSystemUIDialogFactory = systemUIDialogFactory;
     }
 
     /** Show the device monitoring dialog. */
@@ -298,7 +304,7 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
             boolean isProfileOwnerOfOrganizationOwnedDevice, boolean isParentalControlsEnabled,
             boolean isWorkProfileOn) {
         if (isParentalControlsEnabled) {
-            return mContext.getString(R.string.quick_settings_disclosure_parental_controls);
+            return mContext.getString(R.string.quick_settings_disclosure_parental_controls_legacy);
         }
         if (isDeviceManaged || DEBUG_FORCE_VISIBLE) {
             return getManagedDeviceFooterText(hasCACerts, hasCACertsInWorkProfile,
@@ -476,7 +482,9 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
             String settingsButtonText = getSettingsButton();
             final View dialogView = createDialogView(quickSettingsContext);
             mMainHandler.post(() -> {
-                mDialog = new SystemUIDialog(mShadeDialogContextInteractor.getContext(), 0);
+                mDialog = mSystemUIDialogFactory.create(new DialogDelegate<>() {
+                        }, mShadeDialogContextInteractor.getContext(), 0 /* theme */,
+                        true /* dismissOnDeviceLock */, true /* shouldAcsdDismissDialog */);
                 mDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
                 mDialog.setButton(DialogInterface.BUTTON_POSITIVE, getPositiveButton(), this);
                 mDialog.setButton(DialogInterface.BUTTON_NEGATIVE, mShouldUseSettingsButton.get()
@@ -488,7 +496,12 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
                                 InteractionJankMonitor.CUJ_SHADE_DIALOG_OPEN, INTERACTION_JANK_TAG))
                                 : null;
                 if (controller != null) {
-                    mDialogTransitionAnimator.show(mDialog, controller);
+                    if (TransitionAnimator.Companion.dynamicTargetResolutionEnabled()) {
+                        mDialogTransitionAnimator.show(mDialog,
+                                expandable::dialogTransitionController, controller.getCuj());
+                    } else {
+                        mDialogTransitionAnimator.show(mDialog, controller);
+                    }
                 } else {
                     mDialog.show();
                 }
@@ -629,6 +642,10 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
 
         if (icon != null) {
             ImageView imageView = (ImageView) dialogView.findViewById(R.id.parental_controls_icon);
+            icon.setTintList(
+                    ContextCompat.getColorStateList(
+                            quickSettingsContext,
+                            com.android.internal.R.color.materialColorPrimary));
             imageView.setImageDrawable(icon);
         }
 

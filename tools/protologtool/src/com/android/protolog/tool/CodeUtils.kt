@@ -22,67 +22,77 @@ import com.github.javaparser.ast.ImportDeclaration
 import com.github.javaparser.ast.expr.BinaryExpr
 import com.github.javaparser.ast.expr.Expression
 import com.github.javaparser.ast.expr.StringLiteralExpr
+import com.github.javaparser.ast.expr.TextBlockLiteralExpr
 import java.util.UUID
 
 object CodeUtils {
     /**
-     * Returns a stable hash of a string.
-     * We reimplement String::hashCode() for readability reasons.
+     * Returns a stable hash of a string. We reimplement String::hashCode() for readability reasons.
      */
     fun hash(
         position: String,
         messageString: String,
         logLevel: LogLevel,
-        logGroup: LogGroup
+        logGroup: LogGroup,
     ): Long {
         val fullStringIdentifier = position + messageString + logLevel.name + logGroup.name
         return UUID.nameUUIDFromBytes(fullStringIdentifier.toByteArray()).mostSignificantBits
     }
 
     fun checkWildcardStaticImported(code: CompilationUnit, className: String, fileName: String) {
-        code.findAll(ImportDeclaration::class.java)
-                .forEach { im ->
-                    if (im.isStatic && im.isAsterisk && im.name.toString() == className) {
-                        throw IllegalImportException("Wildcard static imports of $className " +
-                                "methods are not supported.", ParsingContext(fileName, im))
-                    }
-                }
+        code.findAll(ImportDeclaration::class.java).forEach { im ->
+            if (im.isStatic && im.isAsterisk && im.name.toString() == className) {
+                throw IllegalImportException(
+                    "Wildcard static imports of $className " + "methods are not supported.",
+                    ParsingContext(fileName, im),
+                )
+            }
+        }
     }
 
     fun isClassImportedOrSamePackage(code: CompilationUnit, className: String): Boolean {
         val packageName = className.substringBeforeLast('.')
         return code.packageDeclaration.isPresent &&
-                code.packageDeclaration.get().nameAsString == packageName ||
-                code.findAll(ImportDeclaration::class.java)
-                        .any { im ->
-                            !im.isStatic &&
-                                    ((!im.isAsterisk && im.name.toString() == className) ||
-                                            (im.isAsterisk && im.name.toString() == packageName))
-                        }
+            code.packageDeclaration.get().nameAsString == packageName ||
+            code.findAll(ImportDeclaration::class.java).any { im ->
+                !im.isStatic &&
+                    ((!im.isAsterisk && im.name.toString() == className) ||
+                        (im.isAsterisk && im.name.toString() == packageName))
+            }
     }
 
     fun staticallyImportedMethods(code: CompilationUnit, className: String): Set<String> {
-        return code.findAll(ImportDeclaration::class.java)
-                .filter { im ->
-                    im.isStatic &&
-                            im.name.toString().substringBeforeLast('.') == className
-                }
-                .map { im -> im.name.toString().substringAfterLast('.') }.toSet()
+        return code
+            .findAll(ImportDeclaration::class.java)
+            .filter { im ->
+                im.isStatic && im.name.toString().substringBeforeLast('.') == className
+            }
+            .map { im -> im.name.toString().substringAfterLast('.') }
+            .toSet()
     }
 
     fun concatMultilineString(expr: Expression, context: ParsingContext): String {
         return when (expr) {
             is StringLiteralExpr -> expr.asString()
-            is BinaryExpr -> when {
-                expr.operator == BinaryExpr.Operator.PLUS ->
-                    concatMultilineString(expr.left, context) +
+            is TextBlockLiteralExpr -> expr.value
+            is BinaryExpr ->
+                when {
+                    expr.operator == BinaryExpr.Operator.PLUS ->
+                        concatMultilineString(expr.left, context) +
                             concatMultilineString(expr.right, context)
-                else -> throw InvalidProtoLogCallException(
-                        "expected a string literal " +
-                                "or concatenation of string literals, got: $expr", context)
-            }
-            else -> throw InvalidProtoLogCallException("expected a string literal " +
-                    "or concatenation of string literals, got: $expr", context)
+                    else ->
+                        throw InvalidProtoLogCallException(
+                            "expected a string literal, text block, " +
+                                "or concatenation of string literals, got: $expr",
+                            context,
+                        )
+                }
+            else ->
+                throw InvalidProtoLogCallException(
+                    "expected a string literal, text block, " +
+                        "or concatenation of string literals, got: $expr",
+                    context,
+                )
         }
     }
 }

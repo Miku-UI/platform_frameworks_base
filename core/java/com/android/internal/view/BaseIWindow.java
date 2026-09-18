@@ -23,7 +23,6 @@ import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
 import android.view.DragEvent;
 import android.view.IScrollCaptureResponseListener;
-import android.view.IWindow;
 import android.view.IWindowSession;
 import android.view.InsetsSourceControl;
 import android.view.InsetsState;
@@ -36,7 +35,7 @@ import com.android.internal.os.IResultReceiver;
 
 import java.io.IOException;
 
-public class BaseIWindow extends IWindow.Stub {
+public class BaseIWindow extends WindowClientTransactionHandler {
 
     @UnsupportedAppUsage(maxTargetSdk = android.os.Build.VERSION_CODES.P)
     public BaseIWindow() {}
@@ -120,10 +119,6 @@ public class BaseIWindow extends IWindow.Stub {
     }
 
     @Override
-    public void dispatchWindowShown() {
-    }
-
-    @Override
     public void requestAppKeyboardShortcuts(IResultReceiver receiver, int deviceId) {
     }
 
@@ -141,5 +136,21 @@ public class BaseIWindow extends IWindow.Stub {
     @Override
     public void dumpWindow(ParcelFileDescriptor pfd) {
 
+    }
+
+    @Override
+    public void requestHardwareRendererOutputDisabled(boolean disabled) {
+    }
+
+    @Override
+    public void requestViewAnimationsDisabled(boolean disabled) {
+    }
+
+    @Override
+    public void dispatchScrollToTop(int x) {
+    }
+
+    @Override
+    public void requestAccessibilityEmbeddedConnection(IResultReceiver receiver) {
     }
 }

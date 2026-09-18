@@ -31,7 +31,6 @@ import android.util.FloatProperty;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.Surface;
-import android.view.inputmethod.Flags;
 
 /**
  * The "dead zone" consumes unintentional taps along the top edge of the navigation bar.
@@ -120,10 +119,8 @@ final class DeadZone {
 
         mSizeMin = dpToPx(NAVIGATION_BAR_DEADZONE_SIZE, res);
         mSizeMax = dpToPx(NAVIGATION_BAR_DEADZONE_SIZE_MAX, res);
-        if (Flags.fixNavbarDeadZone()) {
-            mSizeMax = mSizeMax / 2;
-            mSizeMin = mSizeMin / 2;
-        }
+        mSizeMax = mSizeMax / 2;
+        mSizeMin = mSizeMin / 2;
         mVertical = (res.getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE);
 
         if (DEBUG) {

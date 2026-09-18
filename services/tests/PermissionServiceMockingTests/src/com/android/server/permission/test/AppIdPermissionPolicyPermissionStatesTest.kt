@@ -16,8 +16,12 @@
 
 package com.android.server.permission.test
 
+import android.Manifest
 import android.content.pm.PermissionInfo
 import android.os.Build
+import android.permission.flags.Flags
+import android.platform.test.annotations.RequiresFlagsEnabled
+import com.android.internal.pm.pkg.component.ParsedUsesPermission
 import com.android.server.permission.access.MutableAccessState
 import com.android.server.permission.access.MutateStateScope
 import com.android.server.permission.access.immutable.IndexedListSet
@@ -212,7 +216,7 @@ class AppIdPermissionPolicyPermissionStatesTest : BasePermissionPolicyTest() {
         ) {
             val platformPackage =
                 mockPackageState(PLATFORM_APP_ID, mockAndroidPackage(PLATFORM_PACKAGE_NAME))
-            setupAllowlist(PACKAGE_NAME_1, false)
+            setupAllowlist(PACKAGE_NAME_1, allowlistStateForProductApp = false)
             addPackageState(platformPackage)
         }
 
@@ -245,7 +249,7 @@ class AppIdPermissionPolicyPermissionStatesTest : BasePermissionPolicyTest() {
                     PLATFORM_APP_ID,
                     mockAndroidPackage(PLATFORM_PACKAGE_NAME, isSignatureMatching = true),
                 )
-            setupAllowlist(PACKAGE_NAME_1, false)
+            setupAllowlist(PACKAGE_NAME_1, allowlistStateForProductApp = false)
             addPackageState(platformPackage)
         }
 
@@ -273,7 +277,7 @@ class AppIdPermissionPolicyPermissionStatesTest : BasePermissionPolicyTest() {
         ) {
             val platformPackage =
                 mockPackageState(PLATFORM_APP_ID, mockAndroidPackage(PLATFORM_PACKAGE_NAME))
-            setupAllowlist(PACKAGE_NAME_1, true)
+            setupAllowlist(PACKAGE_NAME_1, allowlistStateForProductApp = true)
             addPackageState(platformPackage)
         }
 
@@ -290,7 +294,11 @@ class AppIdPermissionPolicyPermissionStatesTest : BasePermissionPolicyTest() {
 
     private fun setupAllowlist(
         packageName: String,
-        allowlistState: Boolean,
+        allowlistStateForSystemExtApp: Boolean? = null,
+        allowlistStateForProductApp: Boolean? = null,
+        allowlistStateForVendorApp: Boolean? = null,
+        allowlistStateForOtherApp: Boolean? = null,
+        allowlistStateForApkInApex: Boolean? = null,
         state: MutableAccessState = oldState,
     ) {
         state
@@ -300,8 +308,22 @@ class AppIdPermissionPolicyPermissionStatesTest : BasePermissionPolicyTest() {
             )
         val mockAllowlist =
             mock<PermissionAllowlist> {
+                whenever(getPrivilegedAppAllowlistState(packageName, PERMISSION_NAME_0))
+                    .thenReturn(allowlistStateForOtherApp)
                 whenever(getProductPrivilegedAppAllowlistState(packageName, PERMISSION_NAME_0))
-                    .thenReturn(allowlistState)
+                    .thenReturn(allowlistStateForProductApp)
+                whenever(
+                    getSystemExtPrivilegedAppAllowlistState(packageName, PERMISSION_NAME_0))
+                    .thenReturn(allowlistStateForSystemExtApp)
+                whenever(getVendorPrivilegedAppAllowlistState(packageName, PERMISSION_NAME_0))
+                    .thenReturn(allowlistStateForVendorApp)
+                whenever(
+                    getApexPrivilegedAppAllowlistState(
+                        APEX_MODULE_ID,
+                        packageName,
+                        PERMISSION_NAME_0,
+                    ))
+                    .thenReturn(allowlistStateForApkInApex)
             }
         state.mutateExternalState().setPermissionAllowlist(mockAllowlist)
     }
@@ -975,6 +997,159 @@ class AppIdPermissionPolicyPermissionStatesTest : BasePermissionPolicyTest() {
     }
 
     @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ACCESS_LOCAL_NETWORK_PERMISSION_ENABLED)
+    fun testUpgradePackageState_nearbyDevicesPermissionsRevoked_userFlagsCleared() {
+        val packageState = mockPackageState(
+            APP_ID_0, mockAndroidPackage(
+                PACKAGE_NAME_0,
+                requestedPermissions = NEARBY_DEVICES_PERMISSIONS
+            )
+        )
+        addPackageState(packageState)
+        NEARBY_DEVICES_PERMISSIONS.forEachIndexed { _, permissionName ->
+            setPermissionFlags(
+                APP_ID_0,
+                USER_ID_0,
+                permissionName,
+                PermissionFlags.USER_SET or PermissionFlags.USER_FIXED
+            )
+        }
+
+        mutateState {
+            with(appIdPermissionPolicy) {
+                upgradePackageState(packageState, USER_ID_0, 18)
+            }
+        }
+
+        NEARBY_DEVICES_PERMISSIONS.forEachIndexed { _, permissionName ->
+            val actualFlags = getPermissionFlags(APP_ID_0, USER_ID_0, permissionName)
+            val userFlags = actualFlags and (PermissionFlags.USER_SET or PermissionFlags.USER_FIXED)
+            assertWithMessage("User flags for $permissionName should be cleared")
+                .that(userFlags).isEqualTo(0)
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ACCESS_LOCAL_NETWORK_PERMISSION_ENABLED)
+    fun testOnPackageAdded_nearbyDevicesPermissionsRevoked_userFlagsCleared() {
+        val oldPackage = mockAndroidPackage(
+            PACKAGE_NAME_0,
+            requestedPermissions = NEARBY_DEVICES_PERMISSIONS
+        )
+        addPackageState(mockPackageState(APP_ID_0, oldPackage), oldState)
+
+        NEARBY_DEVICES_PERMISSIONS.forEachIndexed { _, permissionName ->
+            val permissionFlags = if (permissionName == Manifest.permission.ACCESS_LOCAL_NETWORK) {
+                PermissionFlags.IMPLICIT or PermissionFlags.USER_SET or PermissionFlags.USER_FIXED
+            } else {
+                PermissionFlags.USER_SET or PermissionFlags.USER_FIXED
+            }
+            setPermissionFlags(APP_ID_0, USER_ID_0, permissionName, permissionFlags, oldState)
+        }
+
+        val newPackage = mockAndroidPackage(
+            PACKAGE_NAME_0,
+            requestedPermissions = NEARBY_DEVICES_PERMISSIONS
+        )
+        val newPackageState = mockPackageState(APP_ID_0, newPackage)
+
+        mutateState {
+            with(appIdPermissionPolicy) {
+                onPackageAdded(newPackageState)
+            }
+        }
+
+        NEARBY_DEVICES_PERMISSIONS.forEachIndexed { _, permissionName ->
+            val actualFlags = getPermissionFlags(APP_ID_0, USER_ID_0, permissionName)
+            val userFlags = actualFlags and (PermissionFlags.USER_SET or PermissionFlags.USER_FIXED)
+            assertWithMessage("User flags for $permissionName should be cleared")
+                .that(userFlags).isEqualTo(0)
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_LOCATION_BUTTON_ENABLED)
+    fun testUpgradePackageState_locationButtonRevokesPreciseLocation() {
+        val packageState = mockPackageState(
+            APP_ID_0, mockAndroidPackage(
+                PACKAGE_NAME_0,
+                requestedPermissions = setOf(Manifest.permission.ACCESS_FINE_LOCATION)
+            )
+        )
+        addPackageState(packageState)
+        setPermissionFlags(
+            APP_ID_0,
+            USER_ID_0,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            PermissionFlags.RUNTIME_GRANTED
+        )
+        val parsedUsesPermission = mockParsedUsesPermission(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            ParsedUsesPermission.FLAG_ONLY_FOR_LOCATION_BUTTON
+        )
+        val newPackageState = mockPackageState(
+            APP_ID_0, mockAndroidPackage(
+                PACKAGE_NAME_0,
+                requestedPermissions = setOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                usesPermissionMapping =
+                    mapOf(Manifest.permission.ACCESS_FINE_LOCATION to parsedUsesPermission)
+            )
+        )
+
+        mutateState {
+            addPackageState(newPackageState, newState)
+            with(appIdPermissionPolicy) {
+                upgradePackageState(newPackageState, USER_ID_0, 18)
+            }
+        }
+
+        val actualFlags = getPermissionFlags(APP_ID_0, USER_ID_0,
+            Manifest.permission.ACCESS_FINE_LOCATION)
+        assertWithMessage("ACCESS_FINE_LOCATION should be revoked")
+            .that(PermissionFlags.isAppOpGranted(actualFlags)).isFalse()
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_LOCATION_BUTTON_ENABLED)
+    fun testOnPackageAdded_locationButtonRevokesPreciseLocation() {
+        val oldPackage = mockAndroidPackage(
+            PACKAGE_NAME_0,
+            requestedPermissions = setOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        )
+        addPackageState(mockPackageState(APP_ID_0, oldPackage), oldState)
+
+        setPermissionFlags(
+            APP_ID_0,
+            USER_ID_0,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            PermissionFlags.RUNTIME_GRANTED
+        )
+
+        val parsedUsesPermission = mockParsedUsesPermission(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            ParsedUsesPermission.FLAG_ONLY_FOR_LOCATION_BUTTON
+        )
+        val newPackageState = mockPackageState(APP_ID_0, mockAndroidPackage(
+            PACKAGE_NAME_0,
+            requestedPermissions = setOf(Manifest.permission.ACCESS_FINE_LOCATION),
+            usesPermissionMapping =
+                mapOf(Manifest.permission.ACCESS_FINE_LOCATION to parsedUsesPermission)
+        ))
+
+        mutateState {
+            addPackageState(newPackageState, newState)
+            with(appIdPermissionPolicy) {
+                onPackageAdded(newPackageState)
+            }
+        }
+
+        val actualFlags = getPermissionFlags(APP_ID_0, USER_ID_0,
+            Manifest.permission.ACCESS_FINE_LOCATION)
+        assertWithMessage("ACCESS_FINE_LOCATION should be revoked")
+            .that(PermissionFlags.isAppOpGranted(actualFlags)).isFalse()
+    }
+
+    @Test
     fun testEvaluatePermissionState_noLongerImplicitSystemOrPolicyFixedWasGranted_runtimeGranted() {
         val oldFlags =
             PermissionFlags.IMPLICIT_GRANTED or
@@ -1230,6 +1405,161 @@ class AppIdPermissionPolicyPermissionStatesTest : BasePermissionPolicyTest() {
         }
     }
 
+    @Test
+    fun testEvaluatePermissionState_apkInProductApex_privilegedPermissionAllowlistedForApex_isGranted() {
+        val oldFlags = 0
+
+        val actualFlags = testEvaluatePermissionStateForApkInApex(
+            oldFlags,
+            isInstalledPackageProduct = true,
+            allowlistStateForProductApp = false,
+            allowlistStateForApkInApex = true,
+        )
+
+        val expectedNewFlags = PermissionFlags.PROTECTION_GRANTED
+        assertWithMessage(
+                "After $action is called for an APK-in-APEX package that requests a privileged" +
+                    " permission that's allowlisted in the APEX, the actual permission flags " +
+                    " $actualFlags should match the expected flags $expectedNewFlags"
+            )
+            .that(actualFlags)
+            .isEqualTo(expectedNewFlags)
+    }
+
+    @Test
+    fun testEvaluatePermissionState_apkInProductApex_privilegedPermissionAllowlistedForProduct_isGranted() {
+        val oldFlags = 0
+
+        val actualFlags = testEvaluatePermissionStateForApkInApex(
+            oldFlags,
+            isInstalledPackageProduct = true,
+            allowlistStateForProductApp = true,
+            allowlistStateForApkInApex = null,
+        )
+
+        val expectedNewFlags = PermissionFlags.PROTECTION_GRANTED
+        assertWithMessage(
+                "After $action is called for an APK-in-APEX package that requests a privileged" +
+                    " permission that's allowlisted in the /product partition, the actual" +
+                    " permission flags $actualFlags should match the expected flags" +
+                    " $expectedNewFlags"
+            )
+            .that(actualFlags)
+            .isEqualTo(expectedNewFlags)
+    }
+
+    @Test
+    fun testEvaluatePermissionState_apkInSystemExtApex_privilegedPermissionAllowlistedForSystemExt_isGranted() {
+        val oldFlags = 0
+
+        val actualFlags = testEvaluatePermissionStateForApkInApex(
+            oldFlags,
+            isInstalledPackageSystemExt = true,
+            allowlistStateForSystemExtApp = true,
+            allowlistStateForApkInApex = null,
+        )
+
+        val expectedNewFlags = PermissionFlags.PROTECTION_GRANTED
+        assertWithMessage(
+                "After $action is called for a system_ext APK-in-APEX package that requests a" +
+                    " privileged permission that's allowlisted in the /system_ext partition, the" +
+                    " actual permission flags $actualFlags should match the expected flags" +
+                    " $expectedNewFlags"
+            )
+            .that(actualFlags)
+            .isEqualTo(expectedNewFlags)
+    }
+
+    @Test
+    fun testEvaluatePermissionState_apkInVendorApex_privilegedPermissionAllowlistedForApex_isNotGranted() {
+        val oldFlags = 0
+
+        val actualFlags = testEvaluatePermissionStateForApkInApex(
+            oldFlags,
+            isInstalledPackageVendor = true,
+            allowlistStateForVendorApp = null,
+            allowlistStateForApkInApex = true,
+        )
+
+        val expectedNewFlags = oldFlags
+        assertWithMessage(
+                "After $action is called for a vendor APK-in-APEX package that requests a" +
+                    " privileged permission that's allowlisted in the APEX, the actual" +
+                    " permission flags $actualFlags should match the expected flags" +
+                    " $expectedNewFlags"
+            )
+            .that(actualFlags)
+            .isEqualTo(expectedNewFlags)
+    }
+
+    @Test
+    fun testEvaluatePermissionState_apkInVendorApex_privilegedPermissionAllowlistedForVendor_isGranted() {
+        val oldFlags = 0
+
+        val actualFlags = testEvaluatePermissionStateForApkInApex(
+            oldFlags,
+            isInstalledPackageVendor = true,
+            allowlistStateForVendorApp = true,
+            allowlistStateForApkInApex = false,
+        )
+
+        val expectedNewFlags = PermissionFlags.PROTECTION_GRANTED
+        assertWithMessage(
+                "After $action is called for a vendor APK-in-APEX package that requests a" +
+                    " privileged permission that's allowlisted in the /vendor partition, the" +
+                    " actual permission flags $actualFlags should match the expected flags" +
+                    " $expectedNewFlags"
+            )
+            .that(actualFlags)
+            .isEqualTo(expectedNewFlags)
+    }
+
+    private fun testEvaluatePermissionStateForApkInApex(
+        oldFlags: Int,
+        isInstalledPackageSystemExt: Boolean = false,
+        isInstalledPackageProduct: Boolean = false,
+        isInstalledPackageVendor: Boolean = false,
+        allowlistStateForSystemExtApp: Boolean? = null,
+        allowlistStateForProductApp: Boolean? = null,
+        allowlistStateForVendorApp: Boolean? = null,
+        allowlistStateForApkInApex: Boolean? = null,
+        state: MutableAccessState = oldState,
+    ): Int {
+        testEvaluatePermissionState(
+            oldFlags,
+            PermissionInfo.PROTECTION_SIGNATURE or
+                PermissionInfo.PROTECTION_FLAG_PRIVILEGED or
+                PermissionInfo.PROTECTION_FLAG_VENDOR_PRIVILEGED,
+            isInstalledPackageSystem = true,
+            isInstalledPackagePrivileged = true,
+            isInstalledPackageSystemExt = isInstalledPackageSystemExt,
+            isInstalledPackageProduct = isInstalledPackageProduct,
+            isInstalledPackageVendor = isInstalledPackageVendor,
+            isInstalledPackageApkInApex = true,
+        ) {
+            val platformPackage =
+                mockPackageState(PLATFORM_APP_ID, mockAndroidPackage(PLATFORM_PACKAGE_NAME))
+            setupAllowlist(
+                PACKAGE_NAME_1,
+                allowlistStateForSystemExtApp = allowlistStateForSystemExtApp,
+                allowlistStateForProductApp = allowlistStateForProductApp,
+                allowlistStateForVendorApp = allowlistStateForVendorApp,
+                allowlistStateForApkInApex = allowlistStateForApkInApex,
+                state = state,
+            )
+            // testEvaluatePermissionState() assigns ownership of the permission to APP_ID_0,
+            // so it must also be included in the allowlist.
+            state
+                .mutateExternalState()
+                .setPrivilegedPermissionAllowlistPackages(
+                    MutableIndexedListSet<String>().apply { add(PACKAGE_NAME_0) }
+                )
+            addPackageState(platformPackage)
+        }
+
+        return getPermissionFlags(APP_ID_1, getUserIdEvaluated(), PERMISSION_NAME_0)
+    }
+
     /**
      * Setup simple package states for testing evaluatePermissionState().
      * permissionOwnerPackageState is definer of permissionName with APP_ID_0. installedPackageState
@@ -1254,9 +1584,11 @@ class AppIdPermissionPolicyPermissionStatesTest : BasePermissionPolicyTest() {
         permissionInfoFlags: Int = 0,
         isInstalledPackageSystem: Boolean = false,
         isInstalledPackagePrivileged: Boolean = false,
+        isInstalledPackageSystemExt: Boolean = false,
         isInstalledPackageProduct: Boolean = false,
-        isInstalledPackageSignatureMatching: Boolean = false,
         isInstalledPackageVendor: Boolean = false,
+        isInstalledPackageApkInApex: Boolean = false,
+        isInstalledPackageSignatureMatching: Boolean = false,
         installedPackageTargetSdkVersion: Int = Build.VERSION_CODES.UPSIDE_DOWN_CAKE,
         isNewInstall: Boolean = false,
         additionalSetup: () -> Unit,
@@ -1286,8 +1618,10 @@ class AppIdPermissionPolicyPermissionStatesTest : BasePermissionPolicyTest() {
                 ),
                 isSystem = isInstalledPackageSystem,
                 isPrivileged = isInstalledPackagePrivileged,
+                isSystemExt = isInstalledPackageSystemExt,
                 isProduct = isInstalledPackageProduct,
                 isVendor = isInstalledPackageVendor,
+                apexModuleName = if (isInstalledPackageApkInApex) APEX_MODULE_ID else null,
             )
         addPackageState(permissionOwnerPackageState)
         if (!isNewInstall) {
@@ -1335,5 +1669,19 @@ class AppIdPermissionPolicyPermissionStatesTest : BasePermissionPolicyTest() {
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun data(): Array<Action> = Action.values()
+
+        private val NEARBY_DEVICES_PERMISSIONS =
+            setOf(
+                Manifest.permission.BLUETOOTH_ADVERTISE,
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.BLUETOOTH_SCAN,
+                Manifest.permission.NEARBY_WIFI_DEVICES,
+            ).let {
+                if (Flags.accessLocalNetworkPermissionEnabled()) {
+                    it + Manifest.permission.ACCESS_LOCAL_NETWORK
+                } else {
+                    it
+                }
+            }
     }
 }

@@ -15,9 +15,6 @@
  */
 package com.android.internal.widget.remotecompose.core.operations;
 
-import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.INT;
-import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.SHORT;
-
 import android.annotation.NonNull;
 
 import com.android.internal.widget.remotecompose.core.Operation;
@@ -28,13 +25,15 @@ import com.android.internal.widget.remotecompose.core.RemoteContext;
 import com.android.internal.widget.remotecompose.core.VariableSupport;
 import com.android.internal.widget.remotecompose.core.WireBuffer;
 import com.android.internal.widget.remotecompose.core.documentation.DocumentationBuilder;
+import com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation;
 import com.android.internal.widget.remotecompose.core.serialize.MapSerializer;
 import com.android.internal.widget.remotecompose.core.serialize.Serializable;
 
 import java.util.List;
 
 /** Operation to perform Color related calculation TODO support color update */
-public class ColorAttribute extends PaintOperation implements VariableSupport, Serializable {
+public class ColorAttribute extends PaintOperation implements VariableSupport, Serializable,
+        ComponentData {
     private static final int OP_CODE = Operations.ATTRIBUTE_COLOR;
     private static final String CLASS_NAME = "ColorAttribute";
     public int mId;
@@ -65,9 +64,9 @@ public class ColorAttribute extends PaintOperation implements VariableSupport, S
     /**
      * creates a new operation
      *
-     * @param id to write value to
+     * @param id      to write value to
      * @param colorId of long to calculate on
-     * @param type the type of calculation
+     * @param type    the type of calculation
      */
     public ColorAttribute(int id, int colorId, short type) {
         this.mId = id;
@@ -107,9 +106,9 @@ public class ColorAttribute extends PaintOperation implements VariableSupport, S
      * Writes out the operation to the buffer
      *
      * @param buffer write command to this buffer
-     * @param id the id
+     * @param id     the id
      * @param textId the id
-     * @param type the value of the float
+     * @param type   the value of the float
      */
     public static void apply(@NonNull WireBuffer buffer, int id, int textId, short type) {
         buffer.start(OP_CODE);
@@ -121,7 +120,7 @@ public class ColorAttribute extends PaintOperation implements VariableSupport, S
     /**
      * Read this operation and add it to the list of operations
      *
-     * @param buffer the buffer to read
+     * @param buffer     the buffer to read
      * @param operations the list of operations that will be added to
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
@@ -137,11 +136,18 @@ public class ColorAttribute extends PaintOperation implements VariableSupport, S
      * @param doc to append the description to.
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
-        doc.operation("Color Operations", OP_CODE, CLASS_NAME)
-                .description("Calculate Information about a Color")
-                .field(INT, "id", "id to output")
-                .field(INT, "longId", "id of color")
-                .field(SHORT, "type", "the type information to extract");
+        doc.operation("Paint & Styles Operations", OP_CODE, CLASS_NAME)
+                .description("Extract components (Hue, RGB, Alpha) from a color")
+                .field(DocumentedOperation.INT, "id", "The ID to output the result to")
+                .field(DocumentedOperation.INT, "colorId", "The ID of the source color")
+                .field(DocumentedOperation.SHORT, "type", "The component to extract")
+                .possibleValues("COLOR_HUE", COLOR_HUE)
+                .possibleValues("COLOR_SATURATION", COLOR_SATURATION)
+                .possibleValues("COLOR_BRIGHTNESS", COLOR_BRIGHTNESS)
+                .possibleValues("COLOR_RED", COLOR_RED)
+                .possibleValues("COLOR_GREEN", COLOR_GREEN)
+                .possibleValues("COLOR_BLUE", COLOR_BLUE)
+                .possibleValues("COLOR_ALPHA", COLOR_ALPHA);
     }
 
     @NonNull
@@ -215,19 +221,16 @@ public class ColorAttribute extends PaintOperation implements VariableSupport, S
     /**
      * Call to allow an operator to register interest in variables. Typically they call
      * context.listensTo(id, this)
-     *
-     * @param context
      */
     @Override
     public void registerListening(@NonNull RemoteContext context) {
-        context.listensTo(Utils.idFromNan(mColorId), this);
+        context.listensTo(mColorId, this);
     }
 
     /**
      * Called to be notified that the variables you are interested have changed.
-     *
-     * @param context
      */
     @Override
-    public void updateVariables(@NonNull RemoteContext context) {}
+    public void updateVariables(@NonNull RemoteContext context) {
+    }
 }

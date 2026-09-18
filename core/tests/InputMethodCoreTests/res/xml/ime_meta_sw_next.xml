@@ -18,7 +18,6 @@
 
 <input-method
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:settingsActivity="com.android.inputmethod.latin.settings.SettingsActivity"
     android:supportsSwitchingToNextInputMethod="true"
 >
   <subtype

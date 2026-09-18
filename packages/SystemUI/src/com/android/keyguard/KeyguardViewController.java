@@ -82,10 +82,9 @@ public interface KeyguardViewController {
     /**
      * Sets whether the keyguard is occluded by another window.
      *
-     * @param occluded
-     * @param animate
+     * @param occluded the new occluded state.
      */
-    void setOccluded(boolean occluded, boolean animate);
+    void setOccluded(boolean occluded);
 
     /**
      * Dismisses the keyguard by going to the next screen or making it gone.
@@ -176,14 +175,6 @@ public interface KeyguardViewController {
      * Report when the UI is ready for dismissing the whole Keyguard.
      */
     void readyForKeyguardDone();
-
-    /**
-     * Stop showing the alternate bouncer, if showing.
-     *
-     * <p>Should be like calling {@link #hideAlternateBouncer(boolean, boolean)} with a {@code true}
-     * {@code clearDismissAction} parameter.
-     */
-    void hideAlternateBouncer(boolean updateScrim);
 
     /**
      * Stop showing the alternate bouncer, if showing.

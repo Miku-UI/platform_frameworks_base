@@ -35,33 +35,34 @@ import com.android.systemui.plugins.keyguard.ui.clocks.ClockPickerConfig
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockProviderPlugin
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockSettings
 import com.android.systemui.util.ThreadAssert
-import junit.framework.Assert.assertEquals
-import junit.framework.Assert.fail
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import org.json.JSONArray
 import org.json.JSONObject
+import org.junit.Assert.assertEquals
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
-import org.mockito.Mockito.never
-import org.mockito.Mockito.spy
-import org.mockito.Mockito.times
-import org.mockito.Mockito.verify
-import org.mockito.Mockito.`when` as whenever
 import org.mockito.junit.MockitoJUnit
+import org.mockito.junit.MockitoRule
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.never
+import org.mockito.kotlin.spy
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
-@RunWith(AndroidJUnit4::class)
 @SmallTest
+@RunWith(AndroidJUnit4::class)
 class ClockRegistryTest : SysuiTestCase() {
 
-    @JvmField @Rule val mockito = MockitoJUnit.rule()
+    @JvmField @Rule val mockitoRule: MockitoRule = MockitoJUnit.rule()
     private lateinit var scheduler: TestCoroutineScheduler
     private lateinit var dispatcher: CoroutineDispatcher
     private lateinit var scope: TestScope
@@ -189,7 +190,6 @@ class ClockRegistryTest : SysuiTestCase() {
                     scope = scope.backgroundScope,
                     mainDispatcher = dispatcher,
                     bgDispatcher = dispatcher,
-                    isEnabled = true,
                     handleAllUsers = true,
                     defaultClockProvider = fakeDefaultProvider,
                     keepAllLoaded = false,

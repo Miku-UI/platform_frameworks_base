@@ -20,7 +20,7 @@ import static android.Manifest.permission.POST_NOTIFICATIONS;
 import static android.annotation.SystemApi.Client.MODULE_LIBRARIES;
 import static android.app.NotificationChannel.DEFAULT_CHANNEL_ID;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
-import static android.service.notification.Flags.notificationClassification;
+import static android.service.notification.Flags.splitSoundVibrationForNotificationBreakthrough;
 
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
@@ -69,6 +69,7 @@ import android.provider.Settings;
 import android.provider.Settings.Global;
 import android.service.notification.Adjustment;
 import android.service.notification.Condition;
+import android.service.notification.DynamicBundle;
 import android.service.notification.RateEstimator;
 import android.service.notification.StatusBarNotification;
 import android.service.notification.ZenDeviceEffects;
@@ -83,6 +84,7 @@ import android.util.proto.ProtoOutputStream;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.notification.NotificationChannelGroupsHelper;
+import com.android.internal.util.ArrayUtils;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -140,6 +142,99 @@ import java.util.concurrent.Executor;
 public class NotificationManager {
     private static String TAG = "NotificationManager";
     private static boolean localLOGV = false;
+
+    /**
+     * Intent that is broadcast when the set of Adjustment keys the
+     * {@link android.service.notification.NotificationAssistantService} supports changes
+     *
+     * This broadcast is only sent to SystemUI
+     *
+     * Input: nothing
+     * Output: nothing
+     * @hide
+     */
+    @SdkConstant(SdkConstant.SdkConstantType.BROADCAST_INTENT_ACTION)
+    public static final String SUPPORTED_NAS_ADJUSTMENT_KEYS_CHANGED =
+            "android.app.action.SUPPORTED_NAS_ADJUSTMENT_KEYS_CHANGED";
+
+    /**
+     * Intent that is broadcast when the set of Adjustment keys the
+     * {@link android.service.notification.NotificationAssistantService} the user allows changes
+     *
+     * This broadcast is only sent to SystemUI
+     *
+     * Input: nothing
+     * Output: {@link Intent#EXTRA_USER_ID}
+     * @hide
+     */
+    @SdkConstant(SdkConstant.SdkConstantType.BROADCAST_INTENT_ACTION)
+    public static final String ALLOWED_NAS_ADJUSTMENT_KEYS_CHANGED =
+            "android.app.action.ALLOWED_NAS_ADJUSTMENT_KEYS_CHANGED";
+
+    /**
+     * Intent that is broadcast when a dynamic bundle has been modified.
+     *
+     * This broadcast is only sent to SystemUI
+     *
+     * Input: nothing
+     * Output: {@link #EXTRA_DYNAMIC_BUNDLE}
+     * Output: {@link #EXTRA_DYNAMIC_BUNDLE_MODIFICATION_TYPE}
+     * @hide
+     */
+    @SdkConstant(SdkConstant.SdkConstantType.BROADCAST_INTENT_ACTION)
+    public static final String ACTION_DYNAMIC_BUNDLE_MODIFIED =
+            "android.app.action.DYNAMIC_BUNDLE_MODIFIED";
+
+    /** @hide */
+    @IntDef(prefix = { "DYNAMIC_BUNDLE_MODIFICATION_TYPE" }, value = {
+            DYNAMIC_BUNDLE_MODIFICATION_TYPE_ADDED, DYNAMIC_BUNDLE_MODIFICATION_TYPE_MODIFIED,
+            DYNAMIC_BUNDLE_MODIFICATION_TYPE_REMOVED
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface DynamicBundleModificationType {}
+
+    /**
+     * Extra for {@link #ACTION_DYNAMIC_BUNDLE_MODIFIED}
+     * containing the type of modification that has occurred. See
+     * {@link #DYNAMIC_BUNDLE_MODIFICATION_TYPE_ADDED},
+     * {@link #DYNAMIC_BUNDLE_MODIFICATION_TYPE_MODIFIED},
+     * {@link #DYNAMIC_BUNDLE_MODIFICATION_TYPE_REMOVED}.
+     *
+     * @hide
+     */
+    public static final String EXTRA_DYNAMIC_BUNDLE_MODIFICATION_TYPE =
+            "android.app.extra.EXTRA_DYNAMIC_BUNDLE_MODIFICATION_TYPE";
+
+    /**
+     * Value for {@link #EXTRA_DYNAMIC_BUNDLE_MODIFICATION_TYPE}
+     * A dynamic bundle has been added
+     * @hide
+     */
+    public static final @DynamicBundleModificationType int DYNAMIC_BUNDLE_MODIFICATION_TYPE_ADDED
+            = 1;
+    /**
+     * Value for {@link #EXTRA_DYNAMIC_BUNDLE_MODIFICATION_TYPE}.
+     * A dynamic bundle has been updated, for example with a new name.
+     * @hide
+     */
+    public static final @DynamicBundleModificationType int DYNAMIC_BUNDLE_MODIFICATION_TYPE_MODIFIED
+            = 2;
+    /**
+     * Value for {@link #EXTRA_DYNAMIC_BUNDLE_MODIFICATION_TYPE}
+     * A dynamic bundle has been removed,
+     * @hide
+     */
+    public static final @DynamicBundleModificationType int DYNAMIC_BUNDLE_MODIFICATION_TYPE_REMOVED
+            = 3;
+
+    /**
+     * Extra for {@link #ACTION_DYNAMIC_BUNDLE_MODIFIED}
+     * containing the {@link DynamicBundle} that has been added, edited, or removed
+     *
+     * @hide
+     */
+    public static final String EXTRA_DYNAMIC_BUNDLE =
+            "android.app.extra.EXTRA_DYNAMIC_BUNDLE";
 
     /**
      * Intent that is broadcast when an application is blocked or unblocked.
@@ -643,7 +738,9 @@ public class NotificationManager {
     public static final int IMPORTANCE_HIGH = 4;
 
     /**
-     * Unused.
+     * Higher notification importance: shows everywhere, makes noise and peeks. May use full screen
+     * intents. May have elevated prominence in appearance or shade ranking. Usage is reserved by
+     * OS; app usage is capped at {@link #IMPORTANCE_HIGH}.
      */
     public static final int IMPORTANCE_MAX = 5;
 
@@ -842,39 +939,23 @@ public class NotificationManager {
      */
     private boolean discardNotify(UserHandle user, String pkg, @Nullable String tag, int id,
             Notification notification) {
-        if (notificationClassification()
-                && NotificationChannel.SYSTEM_RESERVED_IDS.contains(notification.getChannelId())) {
+        if (NotificationChannel.SYSTEM_RESERVED_IDS.contains(notification.getChannelId())) {
             return true;
         }
 
-        if (Flags.nmBinderPerfThrottleNotify()) {
-            NotificationKey key = new NotificationKey(user, pkg, tag, id);
-            synchronized (mThrottleLock) {
-                KnownNotification status = mKnownNotifications.get(key);
-                if (Flags.notificationUpdateSheddingAllowProgressCompletion()) {
-                    if (status != null && status.knownStatus == KNOWN_STATUS_ENQUEUED
-                            && status.progressState.orElse(-1) == notification.getProgressState()) {
-                        if (mUpdateRateLimiter.eventExceedsRate()) {
-                            mUpdateRateLimiter.recordRejected(key);
-                            return true;
-                        }
-                        mUpdateRateLimiter.recordAccepted();
-                    }
-                    mKnownNotifications.put(key, new KnownNotification(KNOWN_STATUS_ENQUEUED,
-                                OptionalInt.of(notification.getProgressState())));
-                } else {
-                    if (status != null && status.knownStatus == KNOWN_STATUS_ENQUEUED
-                            && !notification.hasCompletedProgress()) {
-                        if (mUpdateRateLimiter.eventExceedsRate()) {
-                            mUpdateRateLimiter.recordRejected(key);
-                            return true;
-                        }
-                        mUpdateRateLimiter.recordAccepted();
-                    }
-                    mKnownNotifications.put(key, new KnownNotification(KNOWN_STATUS_ENQUEUED,
-                            OptionalInt.empty()));
+        NotificationKey key = new NotificationKey(user, pkg, tag, id);
+        synchronized (mThrottleLock) {
+            KnownNotification status = mKnownNotifications.get(key);
+            if (status != null && status.knownStatus == KNOWN_STATUS_ENQUEUED
+                    && status.progressState.orElse(-1) == notification.getProgressState()) {
+                if (mUpdateRateLimiter.eventExceedsRate()) {
+                    mUpdateRateLimiter.recordRejected(key);
+                    return true;
                 }
+                mUpdateRateLimiter.recordAccepted();
             }
+            mKnownNotifications.put(key, new KnownNotification(KNOWN_STATUS_ENQUEUED,
+                        OptionalInt.of(notification.getProgressState())));
         }
 
         return false;
@@ -1005,7 +1086,7 @@ public class NotificationManager {
      *
      * @param targetPackage The package to cancel the notification as. If this package is not your
      *                      package, you can only cancel notifications you posted with
-     *                      {@link #notifyAsPackage(String, String, int, Notification).
+     *                      {@link #notifyAsPackage(String, String, int, Notification)}.
      * @param tag A string identifier for this notification.  May be {@code null}.
      * @param id An identifier for this notification.
      */
@@ -1050,20 +1131,18 @@ public class NotificationManager {
      * metadata to use in future decisions.
      */
     private boolean discardCancel(UserHandle user, String pkg, @Nullable String tag, int id) {
-        if (Flags.nmBinderPerfThrottleNotify()) {
-            NotificationKey key = new NotificationKey(user, pkg, tag, id);
-            synchronized (mThrottleLock) {
-                KnownNotification status = mKnownNotifications.get(key);
-                if (status != null && status.knownStatus == KNOWN_STATUS_CANCELLED) {
-                    if (mUnnecessaryCancelRateLimiter.eventExceedsRate()) {
-                        mUnnecessaryCancelRateLimiter.recordRejected(key);
-                        return true;
-                    }
-                    mUnnecessaryCancelRateLimiter.recordAccepted();
+        NotificationKey key = new NotificationKey(user, pkg, tag, id);
+        synchronized (mThrottleLock) {
+            KnownNotification status = mKnownNotifications.get(key);
+            if (status != null && status.knownStatus == KNOWN_STATUS_CANCELLED) {
+                if (mUnnecessaryCancelRateLimiter.eventExceedsRate()) {
+                    mUnnecessaryCancelRateLimiter.recordRejected(key);
+                    return true;
                 }
-                mKnownNotifications.put(key, new KnownNotification(KNOWN_STATUS_CANCELLED,
-                        OptionalInt.empty()));
+                mUnnecessaryCancelRateLimiter.recordAccepted();
             }
+            mKnownNotifications.put(key, new KnownNotification(KNOWN_STATUS_CANCELLED,
+                    OptionalInt.empty()));
         }
 
         return false;
@@ -1079,13 +1158,11 @@ public class NotificationManager {
         String pkg = mContext.getPackageName();
         UserHandle user = mContext.getUser();
 
-        if (Flags.nmBinderPerfThrottleNotify()) {
-            synchronized (mThrottleLock) {
-                for (NotificationKey key : mKnownNotifications.snapshot().keySet()) {
-                    if (key.pkg.equals(pkg) && key.user.equals(user)) {
-                        mKnownNotifications.put(key, new KnownNotification(KNOWN_STATUS_CANCELLED,
-                                OptionalInt.empty()));
-                    }
+        synchronized (mThrottleLock) {
+            for (NotificationKey key : mKnownNotifications.snapshot().keySet()) {
+                if (key.pkg.equals(pkg) && key.user.equals(user)) {
+                    mKnownNotifications.put(key, new KnownNotification(KNOWN_STATUS_CANCELLED,
+                            OptionalInt.empty()));
                 }
             }
         }
@@ -1178,7 +1255,6 @@ public class NotificationManager {
      * Apps can request this permission by sending the user to the activity that matches the system
      * intent action {@link android.provider.Settings#ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS}.
      */
-    @FlaggedApi(android.app.Flags.FLAG_API_RICH_ONGOING)
     public boolean canPostPromotedNotifications() {
         INotificationManager service = service();
         try {
@@ -1193,7 +1269,6 @@ public class NotificationManager {
      * @hide
      */
     @TestApi
-    @FlaggedApi(android.app.Flags.FLAG_API_RICH_ONGOING)
     public void setCanPostPromotedNotifications(@NonNull String pkg, int uid, boolean allowed) {
         INotificationManager service = service();
         try {
@@ -1292,21 +1367,11 @@ public class NotificationManager {
      */
     @UserHandleAware(specialUsersAllowed = SpecialUser.DISALLOW_EVERY)
     public NotificationChannel getNotificationChannel(String channelId) {
-        if (Flags.nmBinderPerfCacheChannels()) {
-            return getChannelFromList(channelId,
-                    mNotificationChannelListCache.query(new NotificationChannelQuery(
-                            mContext.getOpPackageName(),
-                            mContext.getPackageName(),
-                            mContext.getUserId())));
-        } else {
-            INotificationManager service = service();
-            try {
-                return service.getNotificationChannel(mContext.getOpPackageName(),
-                        mContext.getUserId(), mContext.getPackageName(), channelId);
-            } catch (RemoteException e) {
-                throw e.rethrowFromSystemServer();
-            }
-        }
+        return getChannelFromList(channelId,
+                mNotificationChannelListCache.query(new NotificationChannelQuery(
+                        mContext.getOpPackageName(),
+                        mContext.getPackageName(),
+                        mContext.getUserId())));
     }
 
     /**
@@ -1325,22 +1390,11 @@ public class NotificationManager {
     @UserHandleAware(specialUsersAllowed = SpecialUser.DISALLOW_EVERY)
     public @Nullable NotificationChannel getNotificationChannel(@NonNull String channelId,
             @NonNull String conversationId) {
-        if (Flags.nmBinderPerfCacheChannels()) {
-            return getConversationChannelFromList(channelId, conversationId,
-                    mNotificationChannelListCache.query(new NotificationChannelQuery(
-                            mContext.getOpPackageName(),
-                            mContext.getPackageName(),
-                            mContext.getUserId())));
-        } else {
-            INotificationManager service = service();
-            try {
-                return service.getConversationNotificationChannel(mContext.getOpPackageName(),
-                        mContext.getUserId(), mContext.getPackageName(), channelId, true,
-                        conversationId);
-            } catch (RemoteException e) {
-                throw e.rethrowFromSystemServer();
-            }
-        }
+        return getConversationChannelFromList(channelId, conversationId,
+                mNotificationChannelListCache.query(new NotificationChannelQuery(
+                        mContext.getOpPackageName(),
+                        mContext.getPackageName(),
+                        mContext.getUserId())));
     }
 
     /**
@@ -1353,26 +1407,16 @@ public class NotificationManager {
      */
     @UserHandleAware(specialUsersAllowed = SpecialUser.DISALLOW_EVERY)
     public List<NotificationChannel> getNotificationChannels() {
-        if (Flags.nmBinderPerfCacheChannels()) {
-            List<NotificationChannel> channelList = mNotificationChannelListCache.query(
-                    new NotificationChannelQuery(mContext.getOpPackageName(),
-                            mContext.getPackageName(), mContext.getUserId()));
-            List<NotificationChannel> out = new ArrayList();
-            if (channelList != null) {
-                for (NotificationChannel c : channelList) {
-                    out.add(c.copy());
-                }
-            }
-            return out;
-        } else {
-            INotificationManager service = service();
-            try {
-                return service.getNotificationChannels(mContext.getOpPackageName(),
-                        mContext.getPackageName(), mContext.getUserId()).getList();
-            } catch (RemoteException e) {
-                throw e.rethrowFromSystemServer();
+        List<NotificationChannel> channelList = mNotificationChannelListCache.query(
+                new NotificationChannelQuery(mContext.getOpPackageName(),
+                        mContext.getPackageName(), mContext.getUserId()));
+        List<NotificationChannel> out = new ArrayList();
+        if (channelList != null) {
+            for (NotificationChannel c : channelList) {
+                out.add(c.copy());
             }
         }
+        return out;
     }
 
     // channel list assumed to be associated with the appropriate package & user id already.
@@ -1423,8 +1467,7 @@ public class NotificationManager {
      * had before it was deleted.
      */
     public void deleteNotificationChannel(String channelId) {
-        if (notificationClassification()
-                && NotificationChannel.SYSTEM_RESERVED_IDS.contains(channelId)) {
+        if (NotificationChannel.SYSTEM_RESERVED_IDS.contains(channelId)) {
             return;
         }
         INotificationManager service = service();
@@ -1442,25 +1485,15 @@ public class NotificationManager {
      */
     @UserHandleAware(specialUsersAllowed = SpecialUser.DISALLOW_EVERY)
     public NotificationChannelGroup getNotificationChannelGroup(String channelGroupId) {
-        if (Flags.nmBinderPerfCacheChannels()) {
-            String pkgName = mContext.getPackageName();
-            // getNotificationChannelGroup may only be called by the same package.
-            List<NotificationChannel> channelList = mNotificationChannelListCache.query(
-                    new NotificationChannelQuery(pkgName, pkgName, mContext.getUserId()));
-            Map<String, NotificationChannelGroup> groupHeaders =
-                    mNotificationChannelGroupsCache.query(pkgName);
-            NotificationChannelGroup ncg = NotificationChannelGroupsHelper.getGroupWithChannels(
-                    channelGroupId, channelList, groupHeaders, /* includeDeleted= */ false);
-            return ncg != null ? ncg.clone() : null;
-        } else {
-            INotificationManager service = service();
-            try {
-                return service.getNotificationChannelGroup(mContext.getPackageName(),
-                        channelGroupId);
-            } catch (RemoteException e) {
-                throw e.rethrowFromSystemServer();
-            }
-        }
+        String pkgName = mContext.getPackageName();
+        // getNotificationChannelGroup may only be called by the same package.
+        List<NotificationChannel> channelList = mNotificationChannelListCache.query(
+                new NotificationChannelQuery(pkgName, pkgName, mContext.getUserId()));
+        Map<String, NotificationChannelGroup> groupHeaders =
+                mNotificationChannelGroupsCache.query(pkgName);
+        NotificationChannelGroup ncg = NotificationChannelGroupsHelper.getGroupWithChannels(
+                channelGroupId, channelList, groupHeaders, /* includeDeleted= */ false);
+        return ncg != null ? ncg.clone() : null;
     }
 
     /**
@@ -1468,33 +1501,19 @@ public class NotificationManager {
      */
     @UserHandleAware(specialUsersAllowed = SpecialUser.DISALLOW_EVERY)
     public List<NotificationChannelGroup> getNotificationChannelGroups() {
-        if (Flags.nmBinderPerfCacheChannels()) {
-            String pkgName = mContext.getPackageName();
-            List<NotificationChannel> channelList = mNotificationChannelListCache.query(
-                    new NotificationChannelQuery(pkgName, pkgName, mContext.getUserId()));
-            Map<String, NotificationChannelGroup> groupHeaders =
-                    mNotificationChannelGroupsCache.query(pkgName);
-            List<NotificationChannelGroup> populatedGroupList =
-                    NotificationChannelGroupsHelper.getGroupsWithChannels(channelList, groupHeaders,
-                            NotificationChannelGroupsHelper.Params.forAllGroups());
-            List<NotificationChannelGroup> out = new ArrayList<>();
-            for (NotificationChannelGroup g : populatedGroupList) {
-                out.add(g.clone());
-            }
-            return out;
-        } else {
-            INotificationManager service = service();
-            try {
-                final ParceledListSlice<NotificationChannelGroup> parceledList =
-                        service.getNotificationChannelGroups(mContext.getPackageName());
-                if (parceledList != null) {
-                    return parceledList.getList();
-                }
-            } catch (RemoteException e) {
-                throw e.rethrowFromSystemServer();
-            }
-            return new ArrayList<>();
+        String pkgName = mContext.getPackageName();
+        List<NotificationChannel> channelList = mNotificationChannelListCache.query(
+                new NotificationChannelQuery(pkgName, pkgName, mContext.getUserId()));
+        Map<String, NotificationChannelGroup> groupHeaders =
+                mNotificationChannelGroupsCache.query(pkgName);
+        List<NotificationChannelGroup> populatedGroupList =
+                NotificationChannelGroupsHelper.getGroupsWithChannels(channelList, groupHeaders,
+                        NotificationChannelGroupsHelper.Params.forAllGroups());
+        List<NotificationChannelGroup> out = new ArrayList<>();
+        for (NotificationChannelGroup g : populatedGroupList) {
+            out.add(g.clone());
         }
+        return out;
     }
 
     /**
@@ -1545,13 +1564,6 @@ public class NotificationManager {
 
                 @Override
                 public boolean shouldBypassCache(@NonNull NotificationChannelQuery query) {
-                    // Other locations should also not be querying the cache in the first place if
-                    // the flag is not enabled, but this is an extra precaution.
-                    if (!Flags.nmBinderPerfCacheChannels()) {
-                        Log.wtf(TAG,
-                                "shouldBypassCache called when nm_binder_perf_cache_channels off");
-                        return true;
-                    }
                     return false;
                 }
             };
@@ -1591,11 +1603,6 @@ public class NotificationManager {
                 public boolean shouldBypassCache(@NonNull String query) {
                     // Other locations should also not be querying the cache in the first place if
                     // the flag is not enabled, but this is an extra precaution.
-                    if (!Flags.nmBinderPerfCacheChannels()) {
-                        Log.wtf(TAG,
-                                "shouldBypassCache called when nm_binder_perf_cache_channels off");
-                        return true;
-                    }
                     return false;
                 }
             };
@@ -1610,26 +1617,15 @@ public class NotificationManager {
      * @hide
      */
     public static void invalidateNotificationChannelCache() {
-        if (Flags.nmBinderPerfCacheChannels()) {
-            IpcDataCache.invalidateCache(IpcDataCache.MODULE_SYSTEM,
-                    NOTIFICATION_CHANNELS_CACHE_API);
-        } else {
-            // if we are here, we have failed to flag something
-            Log.wtf(TAG, "invalidateNotificationChannelCache called without flag");
-        }
+        IpcDataCache.invalidateCache(IpcDataCache.MODULE_SYSTEM, NOTIFICATION_CHANNELS_CACHE_API);
     }
 
     /**
      * @hide
      */
     public static void invalidateNotificationChannelGroupCache() {
-        if (Flags.nmBinderPerfCacheChannels()) {
-            IpcDataCache.invalidateCache(IpcDataCache.MODULE_SYSTEM,
-                    NOTIFICATION_CHANNEL_GROUPS_CACHE_API);
-        } else {
-            // if we are here, we have failed to flag something
-            Log.wtf(TAG, "invalidateNotificationChannelGroupCache called without flag");
-        }
+        IpcDataCache.invalidateCache(IpcDataCache.MODULE_SYSTEM,
+                NOTIFICATION_CHANNEL_GROUPS_CACHE_API);
     }
 
     /**
@@ -2018,16 +2014,7 @@ public class NotificationManager {
      * Returns whether notifications from the calling package are enabled.
      */
     public boolean areNotificationsEnabled() {
-        if (Flags.nmBinderPerfPermissionCheck()) {
-            return mContext.checkSelfPermission(POST_NOTIFICATIONS) == PERMISSION_GRANTED;
-        } else {
-            INotificationManager service = service();
-            try {
-                return service.areNotificationsEnabled(mContext.getPackageName());
-            } catch (RemoteException e) {
-                throw e.rethrowFromSystemServer();
-            }
-        }
+        return mContext.checkSelfPermission(POST_NOTIFICATIONS) == PERMISSION_GRANTED;
     }
 
     /**
@@ -2236,7 +2223,6 @@ public class NotificationManager {
      * @hide
      */
     @TestApi
-    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public void allowAssistantAdjustment(@NonNull String capability) {
         INotificationManager service = service();
         try {
@@ -2250,11 +2236,24 @@ public class NotificationManager {
      * @hide
      */
     @TestApi
-    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public void disallowAssistantAdjustment(@NonNull String capability) {
         INotificationManager service = service();
         try {
             service.disallowAssistantAdjustment(mContext.getUserId(), capability);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE)
+    public void requestSystemAdjustments(@NonNull List<Adjustment> adjustments) {
+        INotificationManager service = service();
+        try {
+            service.requestSystemAdjustments(adjustments);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -2272,19 +2271,19 @@ public class NotificationManager {
     }
 
     /**
+     * This can be an {@link Adjustment.Types} type or a {@link DynamicBundle} type.
      * @hide
      */
     @TestApi
-    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
-    public void setAssistantAdjustmentKeyTypeState(@Adjustment.Types int type, boolean enabled) {
+    public void setAssistantAdjustmentKeyTypeState(int type, boolean enabled) {
         setAssistantClassificationTypeState(type, enabled);
     }
 
     /**
+     * This can be an {@link Adjustment.Types} type or a {@link DynamicBundle} type.
      * @hide
      */
-    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
-    public void setAssistantClassificationTypeState(@Adjustment.Types int type, boolean enabled) {
+    public void setAssistantClassificationTypeState(int type, boolean enabled) {
         INotificationManager service = service();
         try {
             service.setAssistantClassificationTypeState(type, enabled);
@@ -2300,6 +2299,18 @@ public class NotificationManager {
         INotificationManager service = service();
         try {
             return service.getEnabledNotificationListenerPackages();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * @hide
+     */
+    public List<String> getEnabledZenPackages() {
+        INotificationManager service = service();
+        try {
+            return service.getEnabledZenPackages();
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -2592,6 +2603,19 @@ public class NotificationManager {
                 PRIORITY_CATEGORY_CONVERSATIONS,
         };
 
+        /**
+         * @hide
+         */
+        public static final int ALL_PRIORITY_CATEGORIES_MASK = buildAllCategoriesMask();
+
+        private static int buildAllCategoriesMask() {
+            int mask = 0;
+            for (int category : ALL_PRIORITY_CATEGORIES) {
+                mask |= category;
+            }
+            return mask;
+        }
+
         /** @hide */
         @IntDef(prefix = { "PRIORITY_SENDERS_" }, value = {
                 PRIORITY_SENDERS_ANY,
@@ -2767,6 +2791,37 @@ public class NotificationManager {
          */
         public final int state;
 
+        /** @hide */
+        public static final int ALLOWED_INTERRUPTION_TYPE_UNSET = -1;
+
+        /**
+         * The priority categories whose sound is allowed in Do Not Disturb mode.
+         * Bitmask of PRIORITY_CATEGORIES_* constants. Use this
+         * with{@link allowVibrationForPriorityCategory} to achieve a granular control over the
+         * bypass dnd effect for selected categories.
+         *
+         * <p>
+         *      Note: Currently only the following categories respect this mask:
+         *      {@link PRIORITY_CATEGORY_ALARMS}
+         *
+         * @hide
+         */
+        public final int allowSoundForPriorityCategory;
+
+        /**
+         * The priority categories whose vibration is allowed in Do Not Disturb mode.
+         * Bitmask of PRIORITY_CATEGORIES_* constants. Use this with
+         * {@link allowSoundForPriorityCategory} to achieve a granular control over the bypass
+         * dnd effect for selected categories.
+         *
+         * <p>
+         *      Note: Currently only the following categories respect this mask:
+         *      {@link PRIORITY_CATEGORY_ALARMS}
+         *
+         * @hide
+         */
+        public final int allowVibrationForPriorityCategory;
+
         /**
          * Constructs a policy for Do Not Disturb priority mode behavior.
          *
@@ -2871,13 +2926,94 @@ public class NotificationManager {
             this.suppressedVisualEffects = suppressedVisualEffects;
             this.state = state;
             this.priorityConversationSenders = priorityConversationSenders;
+            this.allowSoundForPriorityCategory = ALLOWED_INTERRUPTION_TYPE_UNSET;
+            this.allowVibrationForPriorityCategory = ALLOWED_INTERRUPTION_TYPE_UNSET;
         }
 
+        /**
+         * Constructs a policy for Do Not Disturb priority mode behavior.
+         *
+         * <p>
+         *      This is the only constructor that allows setting
+         *      {@link #allowSoundForPriorityCategory} and
+         *      {@link #allowVibrationForPriorityCategory}.
+         * <p>
+         *      When these bitmasks are set (i.e., they are not
+         *      {@link #ALLOWED_INTERRUPTION_TYPE_UNSET}), they explicitly determine whether sound
+         *      or vibration can bypass Do Not Disturb for the specified priority categories.
+         * <p>
+         *      If {@link #allowSoundForPriorityCategory} and
+         *      {@link #allowVibrationForPriorityCategory} are set (i.e., not
+         *      {@link #ALLOWED_INTERRUPTION_TYPE_UNSET}), the {@code priorityCategories} bitmask
+         *      must equal the logical inclusive OR of the sound and vibration bitmasks. Otherwise,
+         *      an {@link IllegalArgumentException} will be thrown.
+         *
+         * @param priorityCategories bitmask of categories of notifications that can bypass DND.
+         * @param priorityCallSenders which callers can bypass DND.
+         * @param priorityMessageSenders which message senders can bypass DND.
+         * @param suppressedVisualEffects which visual interruptions should be suppressed from
+         *                                notifications that are filtered by DND.
+         * @param state the internal state of the policy.
+         * @param priorityConversationSenders which conversation senders can bypass DND.
+         * @param allowSoundForPriorityCategory bitmask of categories of notifications that can
+         *                                      bypass DND with sound.
+         * @param allowVibrationForPriorityCategory bitmask of categories of notifications that can
+         *                                          bypass DND with vibration.
+         * @hide
+         */
+        @FlaggedApi(android.service.notification.Flags
+                .FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+        public Policy(
+                int priorityCategories,
+                int priorityCallSenders,
+                int priorityMessageSenders,
+                int suppressedVisualEffects,
+                int state,
+                int priorityConversationSenders,
+                int allowSoundForPriorityCategory,
+                int allowVibrationForPriorityCategory) {
+            this.priorityCategories = priorityCategories;
+            this.priorityCallSenders = priorityCallSenders;
+            this.priorityMessageSenders = priorityMessageSenders;
+            this.suppressedVisualEffects = suppressedVisualEffects;
+            this.state = state;
+            this.priorityConversationSenders = priorityConversationSenders;
+            this.allowSoundForPriorityCategory = allowSoundForPriorityCategory;
+            this.allowVibrationForPriorityCategory = allowVibrationForPriorityCategory;
+            validate();
+        }
 
-        /** @hide */
-        public Policy(Parcel source) {
-            this(source.readInt(), source.readInt(), source.readInt(), source.readInt(),
-                    source.readInt(), source.readInt());
+        private void validate() {
+            boolean soundUnset = allowSoundForPriorityCategory
+                    == ALLOWED_INTERRUPTION_TYPE_UNSET;
+            boolean vibrationUnset = allowVibrationForPriorityCategory
+                    == ALLOWED_INTERRUPTION_TYPE_UNSET;
+
+            if (soundUnset != vibrationUnset) {
+                throw new IllegalArgumentException(
+                        "Cannot define policy -- allowSound and allowVibration must both "
+                                + "be initialized or unset");
+            }
+
+            if (!splitSoundVibrationForNotificationBreakthrough() || soundUnset) {
+                return;
+            }
+
+            for (int category : ALL_PRIORITY_CATEGORIES) {
+                boolean allowed = (category & priorityCategories) != 0;
+                boolean soundAllowed = (category & allowSoundForPriorityCategory) != 0;
+                boolean vibrationAllowed = (category & allowVibrationForPriorityCategory) != 0;
+                if ((vibrationAllowed || soundAllowed) != allowed) {
+                    throw new IllegalArgumentException(
+                            "Cannot define policy with priority categories: "
+                                    + priorityCategoriesToString(priorityCategories)
+                                    + ", allowed sound: "
+                                    + priorityCategoriesToString(allowSoundForPriorityCategory)
+                                    + ", allowed vibration: "
+                                    + priorityCategoriesToString(
+                                            allowVibrationForPriorityCategory));
+                }
+            }
         }
 
         @Override
@@ -2888,6 +3024,10 @@ public class NotificationManager {
             dest.writeInt(suppressedVisualEffects);
             dest.writeInt(state);
             dest.writeInt(priorityConversationSenders);
+            if (splitSoundVibrationForNotificationBreakthrough()) {
+                dest.writeInt(allowSoundForPriorityCategory);
+                dest.writeInt(allowVibrationForPriorityCategory);
+            }
         }
 
         @Override
@@ -2897,8 +3037,15 @@ public class NotificationManager {
 
         @Override
         public int hashCode() {
-            return Objects.hash(priorityCategories, priorityCallSenders, priorityMessageSenders,
-                    suppressedVisualEffects, state, priorityConversationSenders);
+            return Objects.hash(
+                        priorityCategories,
+                        priorityCallSenders,
+                        priorityMessageSenders,
+                        suppressedVisualEffects,
+                        state,
+                        priorityConversationSenders,
+                        allowSoundForPriorityCategory,
+                        allowVibrationForPriorityCategory);
         }
 
         @Override
@@ -2909,10 +3056,13 @@ public class NotificationManager {
             return other.priorityCategories == priorityCategories
                     && other.priorityCallSenders == priorityCallSenders
                     && other.priorityMessageSenders == priorityMessageSenders
-                    && suppressedVisualEffectsEqual(suppressedVisualEffects,
-                    other.suppressedVisualEffects)
+                    && suppressedVisualEffectsEqual(
+                            suppressedVisualEffects, other.suppressedVisualEffects)
                     && other.state == this.state
-                    && other.priorityConversationSenders == this.priorityConversationSenders;
+                    && other.priorityConversationSenders == this.priorityConversationSenders
+                    && other.allowSoundForPriorityCategory == this.allowSoundForPriorityCategory
+                    && other.allowVibrationForPriorityCategory
+                    == this.allowVibrationForPriorityCategory;
         }
 
         private boolean suppressedVisualEffectsEqual(int suppressedEffects,
@@ -2970,7 +3120,8 @@ public class NotificationManager {
 
         @Override
         public String toString() {
-            return new StringBuilder().append("NotificationManager.Policy[")
+            return new StringBuilder()
+                    .append("NotificationManager.Policy[")
                     .append("priorityCategories=")
                     .append(priorityCategoriesToString(priorityCategories))
                     .append(",priorityCallSenders=")
@@ -2982,15 +3133,30 @@ public class NotificationManager {
                     .append(",suppressedVisualEffects=")
                     .append(suppressedEffectsToString(suppressedVisualEffects))
                     .append(",hasPriorityChannels=")
-                    .append((state == STATE_UNSET
-                            ? "unset"
-                            : ((state & STATE_HAS_PRIORITY_CHANNELS) != 0)
-                                    ? "true"
-                                    : "false"))
+                    .append(
+                            (state == STATE_UNSET
+                                    ? "unset"
+                                    : ((state & STATE_HAS_PRIORITY_CHANNELS) != 0)
+                                            ? "true"
+                                            : "false"))
                     .append(",allowPriorityChannels=")
-                    .append((state == STATE_UNSET
-                            ? "unset"
-                            : (allowPriorityChannels() ? "true" : "false")))
+                    .append(
+                            (state == STATE_UNSET
+                                    ? "unset"
+                                    : (allowPriorityChannels() ? "true" : "false")))
+                    .append(
+                            allowSoundForPriorityCategory != ALLOWED_INTERRUPTION_TYPE_UNSET
+                                    ? ",allowSoundFor="
+                                            + priorityCategoriesToString(
+                                                    allowSoundForPriorityCategory)
+                                    : "")
+                    .append(
+                            allowVibrationForPriorityCategory
+                                            != ALLOWED_INTERRUPTION_TYPE_UNSET
+                                    ? ",allowVibrationFor="
+                                            + priorityCategoriesToString(
+                                                    allowVibrationForPriorityCategory)
+                                    : "")
                     .append("]")
                     .toString();
         }
@@ -3159,7 +3325,16 @@ public class NotificationManager {
                 = new Parcelable.Creator<Policy>() {
             @Override
             public Policy createFromParcel(Parcel in) {
-                return new Policy(in);
+                return (splitSoundVibrationForNotificationBreakthrough())
+                        ?  new Policy(
+                            in.readInt(), in.readInt(), in.readInt(),
+                            in.readInt(), in.readInt(), in.readInt(),
+                            in.readInt(), in.readInt()
+                        )
+                        : new Policy(
+                            in.readInt(), in.readInt(), in.readInt(),
+                            in.readInt(), in.readInt(), in.readInt()
+                        );
             }
 
             @Override
@@ -3211,6 +3386,28 @@ public class NotificationManager {
         /** @hide **/
         public boolean allowReminders() {
             return (priorityCategories & PRIORITY_CATEGORY_REMINDERS) != 0;
+        }
+
+        /** @hide **/
+        public boolean allowSoundFor(int priorityCategory) {
+            if (!ArrayUtils.contains(ALL_PRIORITY_CATEGORIES, priorityCategory)) {
+                throw new IllegalArgumentException("Invalid priorityCategory");
+            }
+
+            return (priorityCategories & priorityCategory) != 0
+                    && (allowSoundForPriorityCategory == ALLOWED_INTERRUPTION_TYPE_UNSET
+                    || (allowSoundForPriorityCategory & priorityCategory) != 0);
+        }
+
+        /** @hide **/
+        public boolean allowVibrationFor(int priorityCategory) {
+            if (!ArrayUtils.contains(ALL_PRIORITY_CATEGORIES, priorityCategory)) {
+                throw new IllegalArgumentException("Invalid priorityCategory");
+            }
+
+            return (priorityCategories & priorityCategory) != 0
+                    && (allowVibrationForPriorityCategory == ALLOWED_INTERRUPTION_TYPE_UNSET
+                    || (allowVibrationForPriorityCategory & priorityCategory) != 0);
         }
 
         /** @hide **/
@@ -3301,7 +3498,7 @@ public class NotificationManager {
             try {
                 writeToParcel(parcel, 0);
                 parcel.setDataPosition(0);
-                return new Policy(parcel);
+                return CREATOR.createFromParcel(parcel);
             } finally {
                 parcel.recycle();
             }
@@ -3603,7 +3800,6 @@ public class NotificationManager {
      * @hide
      */
     @TestApi
-    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public @NonNull Set<String> getUnsupportedAdjustmentTypes() {
         INotificationManager service = service();
         try {
@@ -3613,14 +3809,100 @@ public class NotificationManager {
         }
     }
 
-    /** @hide */
-    public void forcePulseLedLight(int color, int onTime, int offTime) {
-        final INotificationManager service = getService();
+    /**
+     * Returns the list of {@link NotificationRule notification rules}.
+     *
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(android.app.Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public @NonNull List<NotificationRule> getNotificationRules() {
+        INotificationManager service = service();
         try {
-            service.forcePulseLedLight(color, onTime, offTime);
+            return service.getNotificationRules(null, mContext.getUserId()).getList();
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
     }
 
+    /**
+     * Returns the created {@link NotificationRule notification rule} or null if the rule could not
+     * be created.
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(android.app.Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public @Nullable NotificationRule addNotificationRule(@NonNull NotificationRule rule,
+            int position) {
+        Objects.requireNonNull(rule);
+        final INotificationManager service = service();
+        try {
+            return service.addNotificationRule(mContext.getUserId(), rule, position);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Returns the updated {@link NotificationRule notification rule} or null if the rule could not
+     * be updated.
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public @Nullable NotificationRule updateNotificationRule(@NonNull NotificationRule rule) {
+        Objects.requireNonNull(rule);
+        final INotificationManager service = service();
+        try {
+            return service.updateNotificationRule(mContext.getUserId(), rule);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Removes the notification rule with the specified rule ID. Returns true if a rule was removed.
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public boolean removeNotificationRule(int ruleId) {
+        final INotificationManager service = service();
+        try {
+            return service.removeNotificationRule(mContext.getUserId(), ruleId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    // TODO(b/414326600): use @IntDef for @AllowlistStatus (currently its' defined on system-server
+    /**
+     * Notifies the metrics system that a notification was posted to the HSU (Headless System User).
+     *
+     * @param sbn notification posted
+     * @param status status of the post request
+     *
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.STATUS_BAR_SERVICE)
+    public void logHsuNotificationPostStatus(StatusBarNotification sbn, int status) {
+        if (localLOGV) {
+            String sender = mContext.getPackageName();
+            // TODO(b/414326600): convert status to user-friendly string
+            Log.v(TAG, sender + ": logHsuNotificationPostStatus(" + sbn + ", " + status + ")");
+        }
+
+        Objects.requireNonNull(sbn, "sbn cannot be null");
+        INotificationManager service = service();
+        try {
+            // TODO(b/414326600): it would be more efficient to create a smaller parcel instead of
+            // passing the whole StatusBarNotification, so it might be changed once the design is
+            // finalized (for example, right now the StatusBarNotification is converted to a
+            // MultiuserNonComplianceLogger.HsuNotification in the server; in the long term, we
+            // should create that DTO here).
+            service.logHsuNotificationPostStatus(sbn, status);
+        } catch (RemoteException e) {
+            e.rethrowFromSystemServer();
+        }
+    }
 }

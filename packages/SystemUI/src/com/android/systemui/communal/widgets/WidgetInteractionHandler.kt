@@ -23,7 +23,6 @@ import android.view.View
 import android.widget.RemoteViews
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.keyguard.KeyguardUpdateMonitor
-import com.android.systemui.Flags.communalWidgetTrampolineFix
 import com.android.systemui.animation.ActivityTransitionAnimator
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
 import com.android.systemui.communal.domain.interactor.WidgetTrampolineInteractor
@@ -50,6 +49,7 @@ constructor(
     private val keyguardUpdateMonitor: KeyguardUpdateMonitor,
     communalSceneInteractor: CommunalSceneInteractor,
     private val widgetTrampolineInteractor: WidgetTrampolineInteractor,
+    controllerFactory: CommunalTransitionAnimatorController.Factory,
     @CommunalLog val logBuffer: LogBuffer,
 ) : RemoteViews.InteractionHandler {
 
@@ -60,6 +60,7 @@ constructor(
     private val delegate =
         InteractionHandlerDelegate(
             communalSceneInteractor,
+            controllerFactory,
             findViewToAnimate = { view -> view is CommunalAppWidgetHostView },
             intentStarter =
                 object : InteractionHandlerDelegate.IntentStarter {
@@ -69,14 +70,14 @@ constructor(
                         intent: PendingIntent,
                         fillInIntent: Intent,
                         activityOptions: ActivityOptions,
-                        controller: ActivityTransitionAnimator.Controller?
+                        controller: ActivityTransitionAnimator.Controller?,
                     ): Boolean {
                         cancelTrampolineMonitoring()
                         return startActivityIntent(
                             intent,
                             fillInIntent,
                             activityOptions,
-                            controller
+                            controller,
                         )
                     }
 
@@ -84,21 +85,18 @@ constructor(
                         view: View,
                         pendingIntent: PendingIntent,
                         fillInIntent: Intent,
-                        activityOptions: ActivityOptions
+                        activityOptions: ActivityOptions,
                     ): Boolean {
                         cancelTrampolineMonitoring()
-                        if (communalWidgetTrampolineFix()) {
-                            job =
-                                applicationScope.launch("$TAG#monitorForActivityStart") {
-                                    widgetTrampolineInteractor
-                                        .waitForActivityStartAndDismissKeyguard()
-                                }
-                        }
+                        job =
+                            applicationScope.launch("$TAG#monitorForActivityStart") {
+                                widgetTrampolineInteractor.waitForActivityStartAndDismissKeyguard()
+                            }
                         return super.startPendingIntent(
                             view,
                             pendingIntent,
                             fillInIntent,
-                            activityOptions
+                            activityOptions,
                         )
                     }
 
@@ -113,14 +111,14 @@ constructor(
     override fun onInteraction(
         view: View,
         pendingIntent: PendingIntent,
-        response: RemoteViews.RemoteResponse
+        response: RemoteViews.RemoteResponse,
     ): Boolean = delegate.onInteraction(view, pendingIntent, response)
 
     private fun startActivityIntent(
         pendingIntent: PendingIntent,
         fillInIntent: Intent,
         extraOptions: ActivityOptions,
-        controller: ActivityTransitionAnimator.Controller?
+        controller: ActivityTransitionAnimator.Controller?,
     ): Boolean {
         activityStarter.startPendingIntentMaybeDismissingKeyguard(
             pendingIntent,

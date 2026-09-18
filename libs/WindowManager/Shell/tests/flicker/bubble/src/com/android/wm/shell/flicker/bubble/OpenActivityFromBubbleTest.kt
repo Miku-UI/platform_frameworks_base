@@ -17,9 +17,9 @@
 package com.android.wm.shell.flicker.bubble
 
 import android.platform.test.annotations.Presubmit
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import androidx.test.filters.RequiresDevice
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Until
@@ -55,7 +55,7 @@ class OpenActivityFromBubbleTest(flicker: FlickerTest) : BaseBubbleScreen(flicke
                 val showBubble =
                     device.wait(
                         Until.findObject(By.res("com.android.systemui", "bubble_view")),
-                        FIND_OBJECT_TIMEOUT
+                        FIND_OBJECT_TIMEOUT,
                     )
                 showBubble?.run { showBubble.click() } ?: error("Bubble notify not found")
             }

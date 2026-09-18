@@ -66,15 +66,11 @@ public class BigPictureNotificationImageView extends ImageView implements
     public BigPictureNotificationImageView(@NonNull Context context, @Nullable AttributeSet attrs,
             @AttrRes int defStyleAttr, @StyleRes int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
-        boolean isLowRam = ActivityManager.isLowRamDeviceStatic();
         mMaximumDrawableWidth = context.getResources().getDimensionPixelSize(
-                isLowRam ? R.dimen.notification_big_picture_max_width_low_ram
-                        : R.dimen.notification_big_picture_max_width);
+                R.dimen.notification_big_picture_max_width);
         mMaximumDrawableHeight = context.getResources().getDimensionPixelSize(
-                isLowRam ? R.dimen.notification_big_picture_max_height_low_ram
-                        : R.dimen.notification_big_picture_max_height);
+                R.dimen.notification_big_picture_max_height);
     }
-
 
     /**
      * Sets an {@link NotificationIconManager} on this ImageView, which handles the loading of

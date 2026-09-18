@@ -20,6 +20,7 @@ import static com.android.server.net.NetworkPolicyManagerService.UidBlockedState
 import static com.android.server.net.NetworkPolicyManagerService.UidBlockedState.getEffectiveBlockedReasons;
 
 import android.annotation.Nullable;
+import android.app.ActivityManager.ProcessState;
 import android.net.Network;
 import android.os.PowerExemptionManager.ReasonCode;
 import android.telephony.SubscriptionPlan;
@@ -82,7 +83,7 @@ public abstract class NetworkPolicyManagerInternal {
      * Sets a list of packages which are restricted by admin from accessing metered data.
      *
      * @param packageNames the list of restricted packages.
-     * @param userId the userId in which {@param packagesNames} are restricted.
+     * @param userId the userId in which {@code packageNames} are restricted.
      */
     public abstract void setMeteredRestrictedPackages(
             Set<String> packageNames, int userId);
@@ -101,7 +102,8 @@ public abstract class NetworkPolicyManagerInternal {
     public abstract void setLowPowerStandbyAllowlist(int[] uids);
 
     /** Update the {@code blockedReasons} taking into account the {@code procState} of the uid */
-    public static int updateBlockedReasonsWithProcState(int blockedReasons, int procState) {
+    public static int updateBlockedReasonsWithProcState(int blockedReasons,
+            @ProcessState int procState) {
         final int allowedReasons = getAllowedReasonsForProcState(procState);
         return getEffectiveBlockedReasons(blockedReasons, allowedReasons);
     }

@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#include "GraphicsJNI.h"
-
+#include <Path.h>
 #include <PathParser.h>
 #include <SkPath.h>
+#include <android/log.h>
 #include <utils/VectorDrawableUtils.h>
 
-#include <android/log.h>
+#include "GraphicsJNI.h"
 
 namespace android {
 
@@ -29,7 +29,7 @@ using namespace uirenderer;
 static void parseStringForPath(JNIEnv* env, jobject, jlong skPathHandle, jstring inputPathStr,
         jint strLength) {
     const char* pathString = env->GetStringUTFChars(inputPathStr, NULL);
-    SkPath* skPath = reinterpret_cast<SkPath*>(skPathHandle);
+    SkPath* skPath = AsSkPath(skPathHandle);
 
     PathParser::ParseResult result;
     PathParser::parseAsciiStringForSkPath(skPath, &result, pathString, strLength);
@@ -93,7 +93,7 @@ static void setPathData(JNIEnv*, jobject, jlong outPathDataPtr, jlong fromPathDa
 
 static void setSkPathFromPathData(JNIEnv*, jobject, jlong outPathPtr, jlong pathDataPtr) {
     PathData* pathData = reinterpret_cast<PathData*>(pathDataPtr);
-    SkPath* skPath = reinterpret_cast<SkPath*>(outPathPtr);
+    SkPath* skPath = AsSkPath(outPathPtr);
     VectorDrawableUtils::verbsToPath(skPath, *pathData);
 }
 

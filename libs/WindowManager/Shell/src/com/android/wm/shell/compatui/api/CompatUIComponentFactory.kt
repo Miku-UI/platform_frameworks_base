@@ -19,10 +19,5 @@ package com.android.wm.shell.compatui.api
 /** Abstracts the component responsible for the creation of a component */
 interface CompatUIComponentFactory {
 
-    fun create(
-        spec: CompatUISpec,
-        compId: String,
-        state: CompatUIState,
-        compatUIInfo: CompatUIInfo,
-    ): CompatUIComponent
+    fun create(spec: CompatUISpec, compId: String, compatUIInfo: CompatUIInfo): CompatUIComponent
 }

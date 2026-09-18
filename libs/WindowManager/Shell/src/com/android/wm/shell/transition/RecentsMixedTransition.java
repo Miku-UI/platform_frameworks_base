@@ -31,8 +31,11 @@ import android.window.TransitionInfo;
 import android.window.WindowContainerTransaction;
 
 import com.android.internal.protolog.ProtoLog;
+import com.android.wm.shell.bubbles.BubbleHelper;
+import com.android.wm.shell.bubbles.transitions.BubbleTransitions;
 import com.android.wm.shell.desktopmode.DesktopTasksController;
 import com.android.wm.shell.keyguard.KeyguardTransitionHandler;
+import com.android.wm.shell.pinnedlayer.phone.PinnedLayerHandler;
 import com.android.wm.shell.pip.PipTransitionController;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
 import com.android.wm.shell.recents.RecentsTransitionHandler;
@@ -49,13 +52,15 @@ class RecentsMixedTransition extends DefaultMixedHandler.MixedTransition {
     @Nullable
     private final Integer mActiveDeskIdOnStart;
 
-    RecentsMixedTransition(int type, IBinder transition, Transitions player,
+    RecentsMixedTransition(@MixedTransitionType int type, IBinder transition, Transitions player,
             MixedTransitionHandler mixedHandler, PipTransitionController pipHandler,
             StageCoordinator splitHandler, KeyguardTransitionHandler keyguardHandler,
-            RecentsTransitionHandler recentsHandler,
-            DesktopTasksController desktopTasksController,
+            RecentsTransitionHandler recentsHandler, DesktopTasksController desktopTasksController,
+            BubbleTransitions bubbleTransitions, BubbleHelper bubbleHelper,
+            PinnedLayerHandler pinnedLayerHandler,
             int displayId) {
-        super(type, transition, player, mixedHandler, pipHandler, splitHandler, keyguardHandler);
+        super(type, transition, player, mixedHandler, pipHandler, splitHandler, keyguardHandler,
+                bubbleTransitions, bubbleHelper, pinnedLayerHandler);
         mRecentsHandler = recentsHandler;
         mDesktopTasksController = desktopTasksController;
         mLeftoversHandler = mRecentsHandler;
@@ -159,7 +164,7 @@ class RecentsMixedTransition extends DefaultMixedHandler.MixedTransition {
                     != SPLIT_POSITION_UNDEFINED) {
                 return animateEnterPipFromSplit(this, info, startTransaction, finishTransaction,
                         finishCallback, mPlayer, mMixedHandler, mPipHandler, mSplitHandler,
-                        /*replacingPip*/ false);
+                        mPinnedLayerHandler, /*replacingPip*/ false);
             }
         }
 
@@ -179,7 +184,7 @@ class RecentsMixedTransition extends DefaultMixedHandler.MixedTransition {
                 if (!splitNotifiedByRecents) {
                     mSplitHandler.onRecentsInSplitAnimationFinishing(
                             mSplitHandler.wctIsReorderingSplitToTop(wct),
-                            wct, finishTransaction);
+                            wct, finishTransaction, mInfo);
                 }
             } else {
                 // notify pair-to-pair recents animation finish
@@ -193,7 +198,7 @@ class RecentsMixedTransition extends DefaultMixedHandler.MixedTransition {
         final boolean handled = mLeftoversHandler.startAnimation(
                 mTransition, info, startTransaction, finishTransaction, finishCB);
         if (!handled) {
-            mSplitHandler.onRecentsInSplitAnimationCanceled();
+            mSplitHandler.onRecentsInSplitAnimationCanceled(mInfo);
         }
         return handled;
     }
@@ -205,7 +210,8 @@ class RecentsMixedTransition extends DefaultMixedHandler.MixedTransition {
             @NonNull WindowContainerTransaction finishWct,
             @NonNull SurfaceControl.Transaction finishT) {
         if (mAnimType != ANIM_TYPE_PAIR_TO_PAIR) {
-            mSplitHandler.onRecentsInSplitAnimationFinishing(returnToApp, finishWct, finishT);
+            mSplitHandler.onRecentsInSplitAnimationFinishing(
+                    returnToApp, finishWct, finishT, mInfo);
         }
     }
 

@@ -136,21 +136,9 @@ class FaceScanningOverlay(
             requestLayout()
         }
 
-        if (!Flags.faceScanningAnimationNpeFix()) {
-            cameraProtectionAnimator?.cancel()
-            cameraProtectionAnimator = cameraProtectionAnimator(faceAuthSucceeded)
-        }
-
         rimAnimator?.cancel()
         rimAnimator =
-            faceScanningRimAnimator(
-                faceAuthSucceeded,
-                if (Flags.faceScanningAnimationNpeFix()) {
-                    cameraProtectionAnimator(faceAuthSucceeded)
-                } else {
-                    cameraProtectionAnimator
-                },
-            )
+            faceScanningRimAnimator(faceAuthSucceeded, cameraProtectionAnimator(faceAuthSucceeded))
         rimAnimator?.start()
     }
 
@@ -204,9 +192,6 @@ class FaceScanningOverlay(
                 addListener(
                     object : AnimatorListenerAdapter() {
                         override fun onAnimationEnd(animation: Animator) {
-                            if (!Flags.faceScanningAnimationNpeFix()) {
-                                cameraProtectionAnimator = null
-                            }
                             if (!showScanningAnim) {
                                 hide()
                             }

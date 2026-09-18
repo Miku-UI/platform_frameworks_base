@@ -24,14 +24,32 @@ import com.android.wm.shell.transition.Transitions.TransitionHandler
  * resizing a task is starting, updating, and finishing the animation.
  */
 interface OnTaskResizeAnimationListener {
-    /** Notifies that a transition animation is about to be started with the given bounds. */
-    fun onAnimationStart(taskId: Int, t: SurfaceControl.Transaction, bounds: Rect)
+    /**
+     * Notifies that a transition animation is about to be started with the given bounds.
+     *
+     * @param taskId a task that's being animated.
+     * @param t a start animation [SurfaceControl.Transaction] to apply operations to.
+     * @param bounds task bounds on the animation start.
+     * @return `true` when [SurfaceControl.Transaction.apply] on the [t] was called, otherwise
+     *   `false`.
+     */
+    fun onAnimationStart(taskId: Int, t: SurfaceControl.Transaction, bounds: Rect): Boolean
 
     /**
      * Notifies that a transition animation is expanding or shrinking the task to the given bounds.
+     *
+     * @param taskId a task that's being animated.
+     * @param t an ongoing animation [SurfaceControl.Transaction] to apply operations to.
+     * @param bounds task's changed bounds while animations is progressing.
+     * @return `true` when [SurfaceControl.Transaction.apply] on the [t] was called, otherwise
+     *   `false`.
      */
-    fun onBoundsChange(taskId: Int, t: SurfaceControl.Transaction, bounds: Rect)
+    fun onBoundsChange(taskId: Int, t: SurfaceControl.Transaction, bounds: Rect): Boolean
 
-    /** Notifies that a transition animation is about to be finished. */
+    /**
+     * Notifies that a transition animation is about to be finished.
+     *
+     * @param taskId a task that's being animated.
+     */
     fun onAnimationEnd(taskId: Int)
 }

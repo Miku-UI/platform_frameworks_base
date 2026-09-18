@@ -35,11 +35,13 @@ oneway interface IImeTracker {
      * @param origin the origin of the request.
      * @param reason the reason for starting the request.
      * @param fromUser whether this request was created directly from user interaction.
+     * @param userId the ID of the user that started the request.
+     * @param displayId the ID of the display where the IME would show.
      * @param startWallTimeMs the wall time in milliseconds when the request was started.
      * @param startTimestampMs the time since boot in milliseconds when the request was started.
      */
     void onStart(in ImeTracker.Token statsToken, int uid, int type, int origin, int reason,
-        boolean fromUser, long startWallTimeMs, long startTimestampMs);
+        boolean fromUser, int userId, int displayId, long startWallTimeMs, long startTimestampMs);
 
     /**
      * Called when the IME request progresses to a further phase.

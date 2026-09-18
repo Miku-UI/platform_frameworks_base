@@ -246,11 +246,16 @@ fun NavBarPill(
             modifier =
                 Modifier.graphicsLayer {
                         alpha = enterProgress * expansionAlpha
-                        scaleY = enterProgress
+                        // b/470164522 - scale is not working as expected.
+                        // When the pill is collapsed, sometimes the scale is 0. In this case, the
+                        // touch event may report a "Offset(Infinity, Infinity)", which will block
+                        // all the downstream events. This is a short term fix to make sure the
+                        // scale is always greater than 0.
+                        scaleY = enterProgress.coerceAtLeast(0.001f)
                         scaleX =
                             if (expandedSize.width != 0) {
                                 val initialScale = collapsedWidthPx / expandedSize.width
-                                lerp(initialScale, 1f, enterProgress)
+                                lerp(initialScale, 1f, enterProgress).coerceAtLeast(0.001f)
                             } else {
                                 1f
                             }
@@ -418,33 +423,39 @@ fun NavBarPill(
                 )
             }
 
-            // Expand the clickable area.
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier =
-                    Modifier.size(closeButtonTouchTargetSize)
-                        .clickable(
-                            onClick = onCloseClick,
-                            interactionSource = null,
-                            indication = null,
-                        ),
-            ) {
-                // Close button
-                FilledIconButton(
-                    onClick = onCloseClick,
-                    modifier = Modifier.size(closeButtonSize),
-                    colors =
-                        IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer
-                        ),
+            if (expanded) {
+                Spacer(modifier = Modifier.size(closeButtonTouchTargetSize))
+            } else {
+                // Expand the clickable area.
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier =
+                        Modifier.size(closeButtonTouchTargetSize)
+                            .clickable(
+                                onClick = onCloseClick,
+                                interactionSource = null,
+                                indication = null,
+                            ),
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_close_white_rounded),
-                        contentDescription =
-                            stringResource(id = R.string.underlay_close_button_content_description),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(6.dp),
-                    )
+                    // Close button
+                    FilledIconButton(
+                        onClick = onCloseClick,
+                        modifier = Modifier.size(closeButtonSize),
+                        colors =
+                            IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer
+                            ),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_close_white_rounded),
+                            contentDescription =
+                                stringResource(
+                                    id = R.string.underlay_close_button_content_description
+                                ),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(6.dp),
+                        )
+                    }
                 }
             }
         }

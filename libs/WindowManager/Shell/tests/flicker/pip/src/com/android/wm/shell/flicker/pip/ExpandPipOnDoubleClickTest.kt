@@ -19,10 +19,10 @@ package com.android.wm.shell.flicker.pip
 import android.platform.test.annotations.Presubmit
 import android.platform.test.annotations.RequiresFlagsDisabled
 import android.tools.Rotation
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.RequiresDevice
 import com.android.wm.shell.Flags
@@ -152,8 +152,6 @@ class ExpandPipOnDoubleClickTest(flicker: FlickerTest) : PipTransition(flicker) 
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            FlickerTestFactory.nonRotationTests(
-                supportedRotations = listOf(Rotation.ROTATION_0)
-            )
+            FlickerTestFactory.nonRotationTests(supportedRotations = listOf(Rotation.ROTATION_0))
     }
 }

@@ -25,6 +25,7 @@ java_library {
     srcs: [":wmtests-support-sources"],
     static_libs: [
         "com.android.window.flags.window-aconfig-java",
+        "com.android.server.flags.services-aconfig-java",
         "kotlin-stdlib",
         "services.core",
     ],
@@ -46,6 +47,16 @@ filegroup {
     visibility: ["//visibility:private"],
 }
 
+// Protologtool doesn't pre-process Kotlin files, so string interning happens at runtime.
+// See b/317337621 for details.
+filegroup {
+    name: "wmtests-sources-kt",
+    srcs: ["src/**/*.kt"],
+    exclude_srcs: [":wmtests-support-sources"],
+    path: "src",
+    visibility: ["//visibility:private"],
+}
+
 java_genrule {
     name: "wmtests.protologsrc",
     srcs: [
@@ -53,11 +64,15 @@ java_genrule {
         ":protolog-impl",
         ":wmtests-sources",
     ],
-    tools: ["protologtool"],
+    tools: [
+        "protologtool",
+        "soong_javac_wrapper",
+    ],
     cmd: "$(location protologtool) transform-protolog-calls " +
         "--protolog-class com.android.internal.protolog.ProtoLog " +
         "--loggroups-class com.android.internal.protolog.WmProtoLogGroups " +
         "--loggroups-jar $(location :protolog-groups) " +
+        "--javac-wrapper-path $(location soong_javac_wrapper) " +
         // Used for the ProtoLogIntegrationTest, where don't test decoding or writing to file
         // so the parameters below are irrelevant.
         "--viewer-config-file-path /some/unused/file/path.pb " +
@@ -70,18 +85,23 @@ java_genrule {
 android_test {
     name: "WmTests",
 
+    team: "trendy_team_window_manager_other",
+
     // We only want this apk build for tests.
     srcs: [
         ":wmtests-sources",
+        ":wmtests-sources-kt",
         "src/**/*.aidl",
     ],
 
     static_libs: [
+        "WmTestUtils",
         "CtsSurfaceValidatorLib",
         "android.view.inputmethod.flags-aconfig-java",
         "androidx.test.rules",
         "androidx.test.runner",
         "com.android.window.flags.window-aconfig-java",
+        "com.android.server.flags.services-aconfig-java",
         "flag-junit",
         "flickerlib",
         "frameworks-base-testutils",
@@ -299,6 +319,7 @@ test_module_config {
         "com.android.server.wm.SafeActivityOptionsTest",
         "com.android.server.wm.ScreenshotTests",
         "com.android.server.wm.SensitiveContentPackagesTest",
+        "com.android.server.wm.SessionTest",
         "com.android.server.wm.SizeCompatTests",
         "com.android.server.wm.SplashScreenExceptionListTest",
         "com.android.server.wm.SurfaceAnimationRunnerTest",
@@ -343,7 +364,6 @@ test_module_config {
         "com.android.server.wm.WindowProcessControllerTests",
         "com.android.server.wm.WindowStateTests",
         "com.android.server.wm.WindowTokenTests",
-        "com.android.server.wm.WindowTracingLegacyTest",
         "com.android.server.wm.WindowTracingPerfettoTest",
         "com.android.server.wm.ZOrderingTests",
         "com.android.server.wm.testing.AssertTest",
@@ -1164,6 +1184,13 @@ test_module_config {
 }
 
 test_module_config {
+    name: "WmTests-wm-SessionTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SessionTest"],
+}
+
+test_module_config {
     name: "WmTests-wm-SizeCompatTests",
     base: "WmTests",
     test_suites: ["device-tests"],
@@ -1469,13 +1496,6 @@ test_module_config {
     base: "WmTests",
     test_suites: ["device-tests"],
     include_filters: ["com.android.server.wm.WindowTokenTests"],
-}
-
-test_module_config {
-    name: "WmTests-wm-WindowTracingLegacyTest",
-    base: "WmTests",
-    test_suites: ["device-tests"],
-    include_filters: ["com.android.server.wm.WindowTracingLegacyTest"],
 }
 
 test_module_config {

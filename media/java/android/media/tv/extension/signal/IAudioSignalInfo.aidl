@@ -20,17 +20,42 @@ import android.media.tv.extension.signal.IAudioSignalInfoListener;
 import android.os.Bundle;
 
 /**
+ * Audio signal info extracted from driver module.
+ * Client app should use TvTrackInfo to obatin information from SI/PSI tables.
  * @hide
  */
 interface IAudioSignalInfo {
-    // Get audio signal information.
+    /**
+     * Gets audio signal information for the session.
+     *
+     * @param sessionToken A unique token created by the TIS to identify the session.
+     * @return A Bundle containing the audio signal information from driver module and must contain
+     *         keys defined in @SignalConstant.AudioSignalInfoKeys.
+     */
     Bundle getAudioSignalInfo(String sessionToken);
-    // Notify TIS whether user selects audio track via mts button on the remote control.
+    /**
+     * Notify TIS whether user selects audio track via mts button on the remote control.
+     *
+     * @param mtsFlag true if the current track was selected via the MTS button, false otherwise.
+     */
     void notifyMtsSelectTrackFlag(boolean mtsFlag);
-    // Get the audio track id selected via mts.
+    /**
+     * Gets the audio track id selected via mts.
+     *
+     * @return The string ID of the MTS-selected audio track.
+     */
     String getMtsSelectedTrackId();
-    // Register a listener to receive the updated audio signal information.
+    /**
+     * Registers a listener to receive notifications when audio signal information is updated.
+     *
+     * @param clientToken A token to identify the client registering the listener.
+     * @param listener    The listener instance to be called with updates.
+     */
     void addAudioSignalInfoListener(String clientToken, in IAudioSignalInfoListener listener);
-    // Remove a listener for audio signal information update notifications.
+    /**
+     * Unregisters a previously added listener for audio signal information updates.
+     *
+     * @param listener The listener instance to remove.
+     */
     void removeAudioSignalInfoListener(in IAudioSignalInfoListener listener);
 }

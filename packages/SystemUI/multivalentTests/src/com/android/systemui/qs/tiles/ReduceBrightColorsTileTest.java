@@ -26,8 +26,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.os.Handler;
-import android.platform.test.annotations.RequiresFlagsDisabled;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.provider.Settings;
@@ -39,7 +37,6 @@ import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
 import com.android.internal.logging.MetricsLogger;
-import com.android.server.display.feature.flags.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.accessibility.extradim.ExtraDimDialogManager;
 import com.android.systemui.classifier.FalsingManagerFake;
@@ -155,10 +152,9 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
     }
 
     @Test
-    @RequiresFlagsDisabled(Flags.FLAG_EVEN_DIMMER)
     public void testActive_clicked_featureIsActivated() {
         mSecureSettings.putIntForUser(Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
-                /* value= */ 1, mTile.getCurrentTileUser());
+                /* value= */ 0, mTile.getCurrentTileUser());
         mTile.refreshState();
         mTestableLooper.processAllMessages();
         // Validity check
@@ -171,7 +167,6 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_EVEN_DIMMER)
     public void testDialogueShownOnClick() {
         mSecureSettings.putIntForUser(Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
                 /* value= */ 1, mTile.getCurrentTileUser());
@@ -209,7 +204,6 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_EVEN_DIMMER)
     public void testDialogueShownOnLongClick() {
         mSecureSettings.putIntForUser(Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
                 /* value= */ 1, mTile.getCurrentTileUser());

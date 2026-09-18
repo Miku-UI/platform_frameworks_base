@@ -17,9 +17,7 @@
 package com.android.systemui.keyguard.ui.viewmodel
 
 //noinspection CleanArchitectureDependencyViolation
-import com.android.systemui.Flags
-import com.android.systemui.keyguard.ui.binder.KeyguardBottomAreaVibrations
-import com.android.systemui.statusbar.VibratorHelper
+
 import com.google.android.msdl.data.model.MSDLToken
 import com.google.android.msdl.domain.MSDLPlayer
 import dagger.assisted.AssistedFactory
@@ -27,7 +25,7 @@ import dagger.assisted.AssistedInject
 
 class KeyguardQuickAffordanceHapticViewModel
 @AssistedInject
-constructor(private val msdlPlayer: MSDLPlayer, private val vibratorHelper: VibratorHelper) {
+constructor(private val msdlPlayer: MSDLPlayer) {
     var longPressed = false
         private set
 
@@ -37,33 +35,15 @@ constructor(private val msdlPlayer: MSDLPlayer, private val vibratorHelper: Vibr
         val toggleOn = !activated && isActivated
         val toggleOff = activated && !isActivated
         activated = isActivated
-
-        if (Flags.msdlFeedback()) {
-            playMSDLToggleHaptics(toggleOn, toggleOff)
-        }
+        playMSDLToggleHaptics(toggleOn, toggleOff)
     }
 
     fun onQuickAffordanceLongPress(isActivated: Boolean) {
         longPressed = true
-        if (!Flags.msdlFeedback()) {
-            // Without MSDL, we need to play haptics on long-press instead of when the activated
-            // history updates.
-            val vibration =
-                if (isActivated) {
-                    KeyguardBottomAreaVibrations.Activated
-                } else {
-                    KeyguardBottomAreaVibrations.Deactivated
-                }
-            vibratorHelper.vibrate(vibration)
-        }
     }
 
     fun onQuickAffordanceClick() {
-        if (Flags.msdlFeedback()) {
-            msdlPlayer.playToken(MSDLToken.FAILURE)
-        } else {
-            vibratorHelper.vibrate(KeyguardBottomAreaVibrations.Shake)
-        }
+        msdlPlayer.playToken(MSDLToken.FAILURE)
     }
 
     private fun playMSDLToggleHaptics(toggleOn: Boolean, toggleOff: Boolean) {

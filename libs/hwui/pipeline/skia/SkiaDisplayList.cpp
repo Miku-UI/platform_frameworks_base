@@ -16,7 +16,6 @@
 
 #include "SkiaDisplayList.h"
 
-#include <SkImagePriv.h>
 #include <SkPathOps.h>
 
 // clang-format off
@@ -93,7 +92,7 @@ static bool intersects(const SkISize screenSize, const Matrix4& mat, const SkRec
 
 bool SkiaDisplayList::prepareListAndChildren(
         TreeObserver& observer, TreeInfo& info, bool functorsNeedLayer,
-        std::function<void(RenderNode*, TreeObserver&, TreeInfo&, bool)> childFn) {
+        std::function<void(RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool)> childFn) {
     // If the prepare tree is triggered by the UI thread and no previous call to
     // pinImages has failed then we must pin all mutable images in the GPU cache
     // until the next UI thread draw.
@@ -120,7 +119,7 @@ bool SkiaDisplayList::prepareListAndChildren(
         Matrix4 mat4(child.getRecordedMatrix());
         info.damageAccumulator->pushTransform(&mat4);
         info.hasBackwardProjectedNodes = false;
-        childFn(childNode, observer, info, functorsNeedLayer);
+        childFn(childNode, mat4, observer, info, functorsNeedLayer);
         hasBackwardProjectedNodesHere |= child.getNodeProperties().getProjectBackwards();
         hasBackwardProjectedNodesSubtree |= info.hasBackwardProjectedNodes;
         info.damageAccumulator->popTransform();

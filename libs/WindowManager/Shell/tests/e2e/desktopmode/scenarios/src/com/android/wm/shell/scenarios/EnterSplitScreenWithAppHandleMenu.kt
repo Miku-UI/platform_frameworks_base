@@ -27,10 +27,18 @@ import com.android.launcher3.tapl.LauncherInstrumentation
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.KeyEventHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
+import com.android.wm.shell.flicker.utils.SplitScreenUtils
 import org.junit.After
 import org.junit.Ignore
 import org.junit.Test
 
+/**
+ * This test focuses on entering split screen from fullscreen state via app handle. Test focusing on
+ * entering split screen from desktop via app handle is covered by
+ * ExitDesktopToSplitScreenWithAppHeaderMenu
+ *
+ * @see ExitDesktopToSplitScreenWithAppHeaderMenu
+ */
 @Ignore("Test Base Class")
 abstract class EnterSplitScreenWithAppHandleMenu(val rotation: Rotation = Rotation.ROTATION_0) :
     TestScenarioBase(rotation) {
@@ -39,20 +47,20 @@ abstract class EnterSplitScreenWithAppHandleMenu(val rotation: Rotation = Rotati
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
     private val keyEventHelper = KeyEventHelper(InstrumentationRegistry.getInstrumentation())
-    private val simpleAppHelper = SimpleAppHelper(instrumentation)
     val calculatorApp = CalculatorAppHelper(instrumentation)
-    val testApp = DesktopModeAppHelper(simpleAppHelper)
+    val testApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
 
     @Test
     open fun enterSplitScreenFromAppHandle() {
-        // Launch app in order to enter split screen
-        simpleAppHelper.launchViaIntent(wmHelper)
+        testApp.launchViaIntent(wmHelper)
+        // Split-screen from desktop mode is covered by another test case, this test case focus
+        // on entering from fullscreen on both desktop-first and touch-first
+        testApp.exitDesktopModeToFullScreenIfNeeded(wmHelper, device)
         testApp.enterSplitScreenFromAppHandleMenu(wmHelper, device)
         // Open allApps via keyboard shortcut
         keyEventHelper.press(KEYCODE_META_RIGHT)
-        tapl.allApps
-            .getAppIcon(calculatorApp.appName)
-            .launch(calculatorApp.packageName)
+        tapl.allApps.getAppIcon(calculatorApp.appName).launch(calculatorApp.packageName)
+        SplitScreenUtils.waitForSplitComplete(wmHelper, testApp, calculatorApp)
     }
 
     @After

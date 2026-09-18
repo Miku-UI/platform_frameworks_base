@@ -16,17 +16,18 @@
 package com.android.systemui.lowlight
 
 import android.content.res.mockResources
+import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
-import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_LOW_LIGHT_SENSOR_WHILE_SCREEN_ON
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.common.data.repository.batteryRepositoryDeprecated
-import com.android.systemui.common.data.repository.fake
-import com.android.systemui.common.domain.interactor.batteryInteractorDeprecated
 import com.android.systemui.display.data.repository.displayRepository
 import com.android.systemui.display.domain.interactor.displayStateInteractor
+import com.android.systemui.dreams.data.repository.dreamSettingsRepository
+import com.android.systemui.dreams.data.repository.fake
 import com.android.systemui.dreams.domain.interactor.dreamSettingsInteractorKosmos
+import com.android.systemui.dreams.shared.model.WhenToDream
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.keyguard.shared.model.DozeStateModel
@@ -53,14 +54,12 @@ import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.se
 import com.android.systemui.power.domain.interactor.powerInteractor
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.pipeline.battery.domain.interactor.batteryInteractor
-import com.android.systemui.statusbar.pipeline.battery.shared.StatusBarUniversalBatteryDataSource
 import com.android.systemui.statusbar.policy.batteryController
 import com.android.systemui.statusbar.policy.fake
 import com.android.systemui.testKosmos
 import com.android.systemui.user.data.repository.fakeUserRepository
 import com.android.systemui.user.domain.interactor.selectedUserInteractor
 import com.android.systemui.user.domain.interactor.userLockedInteractor
-import com.android.systemui.util.settings.fakeSettings
 import com.google.common.truth.Truth.assertThat
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.runBlocking
@@ -75,7 +74,8 @@ import org.mockito.kotlin.whenever
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @EnableFlags(android.os.Flags.FLAG_LOW_LIGHT_DREAM_BEHAVIOR)
-class LowLightBehaviorCoreStartableTest : SysuiTestCase() {
+class LowLightBehaviorCoreStartableTest() : SysuiTestCase() {
+
     val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
     private val Kosmos.logger: LowLightLogger by
@@ -97,7 +97,6 @@ class LowLightBehaviorCoreStartableTest : SysuiTestCase() {
                 lowLightBehaviorShellCommand = lowLightBehaviorShellCommand,
                 lowLightShellCommand = lowLightShellCommand,
                 scope = backgroundScope,
-                batteryInteractorDeprecated = batteryInteractorDeprecated,
                 batteryInteractor = batteryInteractor,
             )
         }
@@ -107,19 +106,11 @@ class LowLightBehaviorCoreStartableTest : SysuiTestCase() {
     }
 
     private fun Kosmos.setBatteryPluggedIn(pluggedIn: Boolean) {
-        if (StatusBarUniversalBatteryDataSource.isEnabled) {
-            batteryController.fake._isPluggedIn = pluggedIn
-        } else {
-            batteryRepositoryDeprecated.fake.setDevicePluggedIn(pluggedIn)
-        }
+        batteryController.fake._isPluggedIn = pluggedIn
     }
 
     private fun Kosmos.setDreamEnabled(enabled: Boolean) {
-        fakeSettings.putBoolForUser(
-            Settings.Secure.SCREENSAVER_ENABLED,
-            enabled,
-            selectedUserInteractor.getSelectedUserId(),
-        )
+        dreamSettingsRepository.fake.setDreamsEnabled(enabled)
     }
 
     private fun Kosmos.debounce() {
@@ -154,24 +145,7 @@ class LowLightBehaviorCoreStartableTest : SysuiTestCase() {
         kosmos.setUserUnlocked(true)
         kosmos.powerInteractor.setAwakeForTest()
         kosmos.fakeKeyguardRepository.setKeyguardShowing(true)
-
-        // Activate dreams on charge by default
-        mContext.orCreateTestableResources.addOverride(
-            com.android.internal.R.bool.config_dreamsEnabledByDefault,
-            true,
-        )
-        mContext.orCreateTestableResources.addOverride(
-            com.android.internal.R.bool.config_dreamsActivatedOnSleepByDefault,
-            true,
-        )
-        mContext.orCreateTestableResources.addOverride(
-            com.android.internal.R.bool.config_dreamsActivatedOnDockByDefault,
-            false,
-        )
-        mContext.orCreateTestableResources.addOverride(
-            com.android.internal.R.bool.config_dreamsActivatedOnPosturedByDefault,
-            false,
-        )
+        kosmos.dreamSettingsRepository.fake.setWhenToDream(WhenToDream.WHILE_CHARGING)
 
         runBlocking {
             kosmos.lowLightSettingsRepository.setLowLightDisplayBehaviorEnabled(true)
@@ -208,9 +182,10 @@ class LowLightBehaviorCoreStartableTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_LOW_LIGHT_SENSOR_WHILE_SCREEN_ON)
     fun testDreamDebounce() =
         kosmos.runTest {
-            kosmos.fakeKeyguardRepository.setKeyguardShowing(false)
+            fakeKeyguardRepository.setKeyguardShowing(false)
             setUserUnlocked(true)
             setDreamEnabled(true)
             setAllowLowLightWhenLocked(true)
@@ -224,6 +199,47 @@ class LowLightBehaviorCoreStartableTest : SysuiTestCase() {
             setDreaming(false)
             assertThat(action.cancellationCount).isEqualTo(0)
             debounce()
+            assertThat(action.cancellationCount).isEqualTo(1)
+        }
+
+    @Test
+    @EnableFlags(FLAG_LOW_LIGHT_SENSOR_WHILE_SCREEN_ON)
+    fun testLowLightDreamStart_dreamSettingsDisabled() =
+        testLowLightDream_activationConditionNotMet({ setDreamEnabled(false) })
+
+    @Test
+    @EnableFlags(FLAG_LOW_LIGHT_SENSOR_WHILE_SCREEN_ON)
+    fun testLowLightDream_notPluggedIn() =
+        testLowLightDream_activationConditionNotMet({ setBatteryPluggedIn(false) })
+
+    @Test
+    @EnableFlags(FLAG_LOW_LIGHT_SENSOR_WHILE_SCREEN_ON)
+    fun testLowLightDream_screenOff() =
+        testLowLightDream_activationConditionNotMet({ setDisplayOn(false) })
+
+    @Test
+    @EnableFlags(FLAG_LOW_LIGHT_SENSOR_WHILE_SCREEN_ON)
+    fun testLowLightDream_deviceDozing() =
+        testLowLightDream_activationConditionNotMet({
+            fakeKeyguardRepository.setDozeTransitionModel(
+                DozeTransitionModel(from = DozeStateModel.UNINITIALIZED, to = DozeStateModel.DOZE)
+            )
+        })
+
+    @Test
+    @EnableFlags(FLAG_LOW_LIGHT_SENSOR_WHILE_SCREEN_ON)
+    fun testLowLightDreamStart_conditionsActivated() =
+        kosmos.runTest {
+            fakeKeyguardRepository.setKeyguardShowing(false)
+            setUserUnlocked(true)
+            setDreamEnabled(true)
+            setAllowLowLightWhenLocked(true)
+            setDisplayOn(true)
+            setLowLightFromSensor(true)
+            start()
+            setDreaming(true)
+            assertThat(action.activationCount).isEqualTo(1)
+            setLowLightFromSensor(false)
             assertThat(action.cancellationCount).isEqualTo(1)
         }
 
@@ -320,58 +336,6 @@ class LowLightBehaviorCoreStartableTest : SysuiTestCase() {
         }
 
     @Test
-    fun testSubscribeIfScreenIsOffForScreenOffBehaviorWhenStarting() =
-        kosmos.runTest {
-            lowLightRepository.addAction(LowLightDisplayBehavior.SCREEN_OFF, action)
-            lowLightSettingsRepository.setLowLightDisplayBehavior(
-                LowLightDisplayBehavior.SCREEN_OFF
-            )
-
-            setDisplayOn(true)
-
-            start()
-            assertThat(ambientLightModeMonitor.fake.started).isTrue()
-        }
-
-    @Test
-    fun testSubscribeIfDozingForScreenOffBehavior() =
-        kosmos.runTest {
-            lowLightRepository.addAction(LowLightDisplayBehavior.SCREEN_OFF, action)
-            lowLightSettingsRepository.setLowLightDisplayBehavior(
-                LowLightDisplayBehavior.SCREEN_OFF
-            )
-
-            setBatteryPluggedIn(true)
-            setDisplayOn(false)
-
-            fakeKeyguardRepository.setDozeTransitionModel(
-                DozeTransitionModel(from = DozeStateModel.UNINITIALIZED, to = DozeStateModel.DOZE)
-            )
-
-            start()
-            assertThat(ambientLightModeMonitor.fake.started).isTrue()
-        }
-
-    @Test
-    fun testDoNotSubscribeIfDozingForScreenOffBehaviorUnplugged() =
-        kosmos.runTest {
-            lowLightRepository.addAction(LowLightDisplayBehavior.SCREEN_OFF, action)
-            lowLightSettingsRepository.setLowLightDisplayBehavior(
-                LowLightDisplayBehavior.SCREEN_OFF
-            )
-
-            setBatteryPluggedIn(false)
-            setDisplayOn(true)
-
-            fakeKeyguardRepository.setDozeTransitionModel(
-                DozeTransitionModel(from = DozeStateModel.UNINITIALIZED, to = DozeStateModel.DOZE)
-            )
-
-            start()
-            assertThat(ambientLightModeMonitor.fake.started).isFalse()
-        }
-
-    @Test
     fun testDoNotSubscribeIfDozeForLowLightBehaviorPluggedIn() =
         kosmos.runTest {
             lowLightRepository.addAction(LowLightDisplayBehavior.LOW_LIGHT_DREAM, action)
@@ -390,23 +354,23 @@ class LowLightBehaviorCoreStartableTest : SysuiTestCase() {
             assertThat(ambientLightModeMonitor.fake.started).isFalse()
         }
 
-    @Test
-    fun testDoNotSubscribeIfScreenOnNonIdleForScreenOffBehaviorPluggedIn() =
+    private fun testLowLightDream_activationConditionNotMet(
+        conditionTestCase: Kosmos.() -> Unit
+    ) =
         kosmos.runTest {
-            lowLightRepository.addAction(LowLightDisplayBehavior.SCREEN_OFF, action)
-            lowLightSettingsRepository.setLowLightDisplayBehavior(
-                LowLightDisplayBehavior.SCREEN_OFF
-            )
-
-            fakeKeyguardRepository.setDozeTransitionModel(
-                DozeTransitionModel(from = DozeStateModel.UNINITIALIZED, to = DozeStateModel.DOZE)
-            )
-
-            setBatteryPluggedIn(true)
+            fakeKeyguardRepository.setKeyguardShowing(false)
+            setUserUnlocked(true)
+            setDreamEnabled(true)
+            setAllowLowLightWhenLocked(true)
             setDisplayOn(true)
+            setLowLightFromSensor(true)
+
+            // Apply the specific condition for this test case.
+            conditionTestCase(this)
 
             start()
-            assertThat(ambientLightModeMonitor.fake.started).isFalse()
+            setDreaming(true)
+            assertThat(action.activationCount).isEqualTo(0)
         }
 
     private fun Kosmos.setLowLightFromSensor(lowlight: Boolean) {

@@ -18,8 +18,10 @@ package android.view;
 
 import static android.view.WindowInsetsAnimation.Callback.DISPATCH_MODE_CONTINUE_ON_SUBTREE;
 import static android.view.WindowInsetsAnimation.Callback.DISPATCH_MODE_STOP;
+import static android.view.accessibility.Flags.a11yExtraRenderingInfoColorAdditions;
+import static android.view.accessibility.Flags.restrictViewgroupAccessibilityEventPopulation;
+import static android.view.flags.Flags.FLAG_SCROLL_TO_TOP;
 import static android.view.flags.Flags.FLAG_TOOLKIT_VIEWGROUP_SET_REQUESTED_FRAME_RATE_API;
-import static android.view.flags.Flags.scrollCaptureTargetZOrderFix;
 import static android.view.flags.Flags.toolkitViewgroupSetRequestedFrameRateApi;
 
 import android.animation.LayoutTransition;
@@ -83,6 +85,7 @@ import com.android.internal.R;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -457,6 +460,9 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
 
     private static boolean sToolkitViewGroupFrameRateApiFlagValue =
             toolkitViewgroupSetRequestedFrameRateApi();
+
+    private static boolean sRestrictViewGroupAccessibilityEventPopulation =
+            restrictViewgroupAccessibilityEventPopulation();
 
     /**
      * Indicates which types of drawing caches are to be kept in memory.
@@ -893,7 +899,7 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
     }
 
     /**
-     * Clears the default-focus chain from {@param child} up to the first parent which has another
+     * Clears the default-focus chain from {@code child} up to the first parent which has another
      * default-focusable branch below it or until there is no default-focus chain.
      *
      * @param child
@@ -1802,34 +1808,32 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
             // Find the [possibly new] drag target
             View target = findFrontmostDroppableChildAt(event.mX, event.mY, localPoint);
 
-            if (target != mCurrentDragChild) {
-                if (sCascadedDragDrop) {
-                    // For pre-Nougat apps, make sure that the whole hierarchy of views that contain
-                    // the drag location is kept in the state between ENTERED and EXITED events.
-                    // (Starting with N, only the innermost view will be in that state).
+            if (target != mCurrentDragChild && sCascadedDragDrop) {
+                // For pre-Nougat apps, make sure that the whole hierarchy of views that contain
+                // the drag location is kept in the state between ENTERED and EXITED events.
+                // (Starting with N, only the innermost view will be in that state).
 
-                    final int action = event.mAction;
-                    // Position should not be available for ACTION_DRAG_ENTERED and
-                    // ACTION_DRAG_EXITED.
-                    event.mX = 0;
-                    event.mY = 0;
-                    event.mClipData = null;
+                final int action = event.mAction;
+                // Position should not be available for ACTION_DRAG_ENTERED and
+                // ACTION_DRAG_EXITED.
+                event.mX = 0;
+                event.mY = 0;
+                event.mClipData = null;
 
-                    if (mCurrentDragChild != null) {
-                        event.mAction = DragEvent.ACTION_DRAG_EXITED;
-                        mCurrentDragChild.dispatchDragEnterExitInPreN(event);
-                    }
-
-                    if (target != null) {
-                        event.mAction = DragEvent.ACTION_DRAG_ENTERED;
-                        target.dispatchDragEnterExitInPreN(event);
-                    }
-
-                    event.mAction = action;
-                    event.mX = tx;
-                    event.mY = ty;
-                    event.mClipData = td;
+                if (mCurrentDragChild != null) {
+                    event.mAction = DragEvent.ACTION_DRAG_EXITED;
+                    mCurrentDragChild.dispatchDragEnterExitInPreN(event);
                 }
+
+                if (target != null) {
+                    event.mAction = DragEvent.ACTION_DRAG_ENTERED;
+                    target.dispatchDragEnterExitInPreN(event);
+                }
+
+                event.mAction = action;
+                event.mX = tx;
+                event.mY = ty;
+                event.mClipData = td;
                 mCurrentDragChild = target;
             }
 
@@ -2004,6 +2008,112 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
             return mFocused.dispatchKeyShortcutEvent(event);
         }
         return false;
+    }
+
+    @Override
+    @FlaggedApi(FLAG_SCROLL_TO_TOP)
+    public boolean dispatchScrollToTop(int x) {
+        // 1. Parent First: Give the ViewGroup itself a chance to consume the event.
+        if (super.dispatchScrollToTop(x)) {
+            return true;
+        }
+
+        final int count = mChildrenCount;
+        if (count == 0) {
+            return false;
+        }
+
+        // 2. Establish baseline order: Z-order (low to high)
+        ArrayList<View> list = buildTouchDispatchChildList();
+
+        if (list == null) {
+            // Fallback: Use standard drawing order if Z-ordering isn't active
+            if (mPreSortedChildren == null) {
+                mPreSortedChildren = new ArrayList<>(count);
+            } else {
+                mPreSortedChildren.clear();
+                mPreSortedChildren.ensureCapacity(count);
+            }
+
+            final View[] children = mChildren;
+            final boolean customOrder = isChildrenDrawingOrderEnabled();
+            for (int i = 0; i < count; i++) {
+                final int childIndex = getAndVerifyPreorderedIndex(count, i, customOrder);
+                final View child = getAndVerifyPreorderedView(null, children, childIndex);
+                mPreSortedChildren.add(child);
+            }
+            list = mPreSortedChildren;
+        }
+
+        try {
+            // 3. Sort by "Scroll to Top" heuristics
+            list.sort(getScrollToTopComparator(x));
+
+            // 4. Dispatch backwards: Best candidates (Intersecting, Top Y, High Z) are at the end
+            for (int i = list.size() - 1; i >= 0; i--) {
+                final View child = list.get(i);
+
+                if (!child.canReceivePointerEvents()) {
+                    continue;
+                }
+
+                final float[] point = getTempLocationF();
+                point[0] = x;
+                point[1] = mScrollY;
+                transformPointToViewLocal(point, child);
+
+                if (child.dispatchScrollToTop((int) point[0])) {
+                    return true;
+                }
+            }
+        } finally {
+            list.clear();
+        }
+
+        return false;
+    }
+
+    @NonNull
+    private Comparator<View> getScrollToTopComparator(int x) {
+        final RectF tempRect = new RectF();
+        final float scrolledX = x + mScrollX;
+
+        // Comparator sorts in descending order, i.e. last list entry will receive scroll-to-top
+        // event first.
+        return (v1, v2) -> {
+            // Calculate properties for View 1
+            projectToParentSpace(v1, tempRect);
+            final float v1Top = tempRect.top;
+            final boolean v1Intersects = scrolledX >= tempRect.left && scrolledX < tempRect.right;
+
+            // Calculate properties for View 2
+            projectToParentSpace(v2, tempRect);
+            final float v2Top = tempRect.top;
+            final boolean v2Intersects = scrolledX >= tempRect.left && scrolledX < tempRect.right;
+
+            // Sorting priority 1: Horizontal Intersection
+            // We want intersecting views to handle events before non-intersecting
+            if (v1Intersects != v2Intersects) {
+                return v1Intersects ? 1 : -1;
+            }
+
+            // Sorting priority 2: Visual Y-Coordinate
+            // We want the smallest Y to win over larger y coordinates
+            return Float.compare(v2Top, v1Top);
+
+            // Sorting priority 3: Z-Order
+            // Handled implicitly by stable sort preserving the baseline Z-order
+        };
+    }
+
+    private static void projectToParentSpace(View v, RectF outRect) {
+        outRect.set(0, 0, v.getWidth(), v.getHeight());
+
+        if (!v.getMatrix().isIdentity()) {
+            v.getMatrix().mapRect(outRect);
+        }
+
+        outRect.offset(v.getLeft(), v.getTop());
     }
 
     @Override
@@ -3558,7 +3668,7 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
     @Override
     public boolean dispatchPopulateAccessibilityEventInternal(AccessibilityEvent event) {
         boolean handled = false;
-        if (includeForAccessibility(false)) {
+        if (includeForAccessibility(sRestrictViewGroupAccessibilityEventPopulation)) {
             handled = super.dispatchPopulateAccessibilityEventInternal(event);
             if (handled) {
                 return handled;
@@ -3571,7 +3681,24 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
             for (int i = 0; i < childCount; i++) {
                 View child = children.getChildAt(i);
                 if ((child.mViewFlags & VISIBILITY_MASK) == VISIBLE) {
-                    handled = child.dispatchPopulateAccessibilityEvent(event);
+                    if (sRestrictViewGroupAccessibilityEventPopulation) {
+                        // Further restrict population of events to children based on accessibility
+                        // importance and data sensitivity.  We intentionally consider the
+                        // isAccessibilityDataSensitive property here since each child is not the
+                        // source of the event, and therefore is not subject to filtering performed
+                        // by AccessibilityManagerService.
+                        if (child.includeForAccessibility(true)) {
+                            handled = child.dispatchPopulateAccessibilityEvent(event);
+                        } else if (child instanceof ViewGroup group) {
+                            // If the child is a ViewGroup, it may contain children that are
+                            // included for accessibility, even if the ViewGroup itself is not.
+                            // We call the internal method to traverse the children without
+                            // potentially populating the event with the ViewGroup's content itself.
+                            handled = group.dispatchPopulateAccessibilityEventInternal(event);
+                        }
+                    } else {
+                        handled = child.dispatchPopulateAccessibilityEvent(event);
+                    }
                     if (handled) {
                         return handled;
                     }
@@ -3848,11 +3975,22 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
     @Override
     public void addExtraDataToAccessibilityNodeInfo(@NonNull AccessibilityNodeInfo info,
             @NonNull String extraDataKey, @Nullable Bundle arguments) {
+        super.addExtraDataToAccessibilityNodeInfo(info, extraDataKey, arguments);
         if (extraDataKey.equals(AccessibilityNodeInfo.EXTRA_DATA_RENDERING_INFO_KEY)) {
-            final AccessibilityNodeInfo.ExtraRenderingInfo extraRenderingInfo =
-                    AccessibilityNodeInfo.ExtraRenderingInfo.obtain();
-            extraRenderingInfo.setLayoutSize(getLayoutParams().width, getLayoutParams().height);
-            info.setExtraRenderingInfo(extraRenderingInfo);
+            if (a11yExtraRenderingInfoColorAdditions()) {
+                AccessibilityNodeInfo.ExtraRenderingInfo original = info.getExtraRenderingInfo();
+                final AccessibilityNodeInfo.ExtraRenderingInfo.Builder builder =
+                        original == null
+                                ? new AccessibilityNodeInfo.ExtraRenderingInfo.Builder()
+                                : new AccessibilityNodeInfo.ExtraRenderingInfo.Builder(original);
+                builder.setLayoutSize(getLayoutParams().width, getLayoutParams().height);
+                info.setExtraRenderingInfo(builder.build());
+            } else {
+                final AccessibilityNodeInfo.ExtraRenderingInfo extraRenderingInfo =
+                        AccessibilityNodeInfo.ExtraRenderingInfo.obtain();
+                extraRenderingInfo.setLayoutSize(getLayoutParams().width, getLayoutParams().height);
+                info.setExtraRenderingInfo(extraRenderingInfo);
+            }
         }
     }
 
@@ -7686,22 +7824,13 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
         }
         final Rect tmpRect = getTempRect();
 
-        ArrayList<View> preorderedList = null;
-        boolean customOrder = false;
-        if (scrollCaptureTargetZOrderFix()) {
-            preorderedList = buildOrderedChildList();
-            customOrder = preorderedList == null && isChildrenDrawingOrderEnabled();
-        }
+        ArrayList<View> preorderedList = buildOrderedChildList();
+        boolean customOrder = preorderedList == null && isChildrenDrawingOrderEnabled();
         final View[] children = mChildren;
         for (int i = 0; i < childrenCount; i++) {
-            View child;
-            if (scrollCaptureTargetZOrderFix()) {
-                // Traverse children in the same order they will be drawn (honors Z if set)
-                final int childIndex = getAndVerifyPreorderedIndex(childrenCount, i, customOrder);
-                child = getAndVerifyPreorderedView(preorderedList, children, childIndex);
-            } else {
-                child = children[i];
-            }
+            // Traverse children in the same order they will be drawn (honors Z if set)
+            final int childIndex = getAndVerifyPreorderedIndex(childrenCount, i, customOrder);
+            View child = getAndVerifyPreorderedView(preorderedList, children, childIndex);
 
             // Only visible views can be captured.
             if (child.getVisibility() != View.VISIBLE) {
@@ -8096,7 +8225,7 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     @Override
     public boolean onStartNestedScroll(View child, View target, int nestedScrollAxes) {
@@ -8104,7 +8233,7 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     @Override
     public void onNestedScrollAccepted(View child, View target, int axes) {
@@ -8112,7 +8241,7 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      *
      * <p>The default implementation of onStopNestedScroll calls
      * {@link #stopNestedScroll()} to halt any recursive nested scrolling in progress.</p>
@@ -8125,7 +8254,7 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     @Override
     public void onNestedScroll(View target, int dxConsumed, int dyConsumed,
@@ -8135,7 +8264,7 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     @Override
     public void onNestedPreScroll(View target, int dx, int dy, int[] consumed) {
@@ -8144,7 +8273,7 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     @Override
     public boolean onNestedFling(View target, float velocityX, float velocityY, boolean consumed) {
@@ -8153,7 +8282,7 @@ public abstract class ViewGroup extends View implements ViewParent, ViewManager 
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     @Override
     public boolean onNestedPreFling(View target, float velocityX, float velocityY) {

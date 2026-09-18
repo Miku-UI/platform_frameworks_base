@@ -16,6 +16,7 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import androidx.compose.runtime.getValue
 import com.android.systemui.common.ui.domain.interactor.configurationInteractor
 import com.android.systemui.keyguard.domain.interactor.burnInInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
@@ -27,6 +28,7 @@ import com.android.systemui.kosmos.applicationCoroutineScope
 var Kosmos.aodBurnInViewModel by Fixture {
     AodBurnInViewModel(
         applicationScope = applicationCoroutineScope,
+        bgScope = applicationCoroutineScope,
         burnInInteractor = burnInInteractor,
         configurationInteractor = configurationInteractor,
         keyguardInteractor = keyguardInteractor,

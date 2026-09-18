@@ -36,17 +36,17 @@ internal class Init<out A>(val nameData: NameData, initBlock: InitScope.() -> A)
      */
     private val cache = CompletableLazy<Initialized<A>>()
 
-    fun connect(evalScope: InitScope): A {
+    fun connect(initScope: InitScope): A {
         val block = block
         if (block == null) {
             // Read from cache
             val (networkId, result) = cache.value
-            check(networkId == evalScope.networkId) { "Network mismatch" }
+            check(networkId == initScope.networkId) { "Network mismatch" }
             return result
         } else {
             // Write to cache
-            return block(evalScope).also {
-                cache.setValue(Initialized(evalScope.networkId, it))
+            return block(initScope).also {
+                cache.setValue(Initialized(initScope.networkId, it))
                 this.block = null
             }
         }

@@ -519,8 +519,12 @@ public final class ParcelableCall implements Parcelable {
     public VideoCallImpl getVideoCallImpl(String callingPackageName, int targetSdkVersion) {
         if (mVideoCall == null && mVideoCallProvider != null) {
             try {
+                // Pass mId to the constructor of VideoCallImpl. Until
+                // Android M, the constructor received an mCall, which was then
+                // used to get the call ID. After Android N, that parameter has
+                // been removed but we still need the call ID.
                 mVideoCall = new VideoCallImpl(mVideoCallProvider, callingPackageName,
-                        targetSdkVersion);
+                        targetSdkVersion, mId);
             } catch (RemoteException ignored) {
                 // Ignore RemoteException.
             }
@@ -630,7 +634,7 @@ public final class ParcelableCall implements Parcelable {
      * ATIS-1000082.
      * @return the verification status.
      */
-    public @Connection.VerificationStatus int getCallerNumberVerificationStatus() {
+    public @Annotation.VerificationStatus int getCallerNumberVerificationStatus() {
         return mCallerNumberVerificationStatus;
     }
 

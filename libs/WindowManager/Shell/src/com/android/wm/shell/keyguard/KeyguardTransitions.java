@@ -19,6 +19,7 @@ package com.android.wm.shell.keyguard;
 import android.annotation.NonNull;
 import android.window.IRemoteTransition;
 
+import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.shared.annotations.ExternalThread;
 
 /**
@@ -51,4 +52,12 @@ public interface KeyguardTransitions {
      * @param aodShowing whether aod is showing or not.
      */
     default void startKeyguardTransition(boolean keyguardShowing, boolean aodShowing) {}
+
+    /** Registers a listener for occluding task changes. */
+    default void registerOccludingTaskListener(
+            @NonNull ShellTaskOrganizer.KeyguardOccludingTaskListener listener) {}
+
+    /** Unregisters a previously registered listener. */
+    default void unregisterOccludingTaskListener(
+            @NonNull ShellTaskOrganizer.KeyguardOccludingTaskListener listener) {}
 }

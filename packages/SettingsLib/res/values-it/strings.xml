@@ -77,7 +77,7 @@
     <string name="osu_sign_up_failed" msgid="5605453599586001793">"Impossibile completare la registrazione. Tocca per riprovare."</string>
     <string name="osu_sign_up_complete" msgid="7640183358878916847">"Registrazione completata. Connessione…"</string>
     <string name="speed_label_slow" msgid="6069917670665664161">"Lenta"</string>
-    <string name="speed_label_okay" msgid="1253594383880810424">"OK"</string>
+    <string name="speed_label_okay" msgid="1253594383880810424">"Ok"</string>
     <string name="speed_label_fast" msgid="2677719134596044051">"Veloce"</string>
     <string name="speed_label_very_fast" msgid="8215718029533182439">"Molto veloce"</string>
     <string name="wifi_passpoint_expired" msgid="6540867261754427561">"Scaduta"</string>
@@ -114,7 +114,7 @@
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Destra: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Attivo"</string>
     <string name="bluetooth_saved_device" msgid="4895871321722311428">"Dispositivo salvato"</string>
-    <string name="bluetooth_hearing_aid_left_active" msgid="8330226430756799572">"Attiva (solo sinistra)"</string>
+    <string name="bluetooth_hearing_aid_left_active" msgid="8330226430756799572">"Attivo (solo sinistro)"</string>
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Attivo (solo destro)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Attivi (destro e sinistro)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Impossibile aggiornare audio ambientale"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wi-Fi: tre barre."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Segnale Wi-Fi completo."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Connessione al dispositivo effettuata."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Tutti gli utenti di questo dispositivo possono visualizzare e connettersi."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Rete aperta"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Rete protetta"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Sistema operativo Android"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Le impostazioni del nome punto di accesso non sono disponibili per questo utente"</string>
     <string name="enable_adb" msgid="8072776357237289039">"Debug USB"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Modalità debug in caso di connessione USB"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Revoca autorizzazioni debug USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Revoca autorizzazioni debug ADB"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Debug wireless"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Modalità debug in caso di connessione Wi-Fi"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Errore"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Accoppiamento dispositivo…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Impossibile accoppiare il dispositivo. Il codice QR non era corretto oppure il dispositivo non è connesso alla stessa rete."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"Indirizzo IP e porta"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Non disponibile (non consentita)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Non disponibile (Wi‑Fi disconnesso)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Scansiona codice QR"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Accoppia il dispositivo tramite Wi-Fi scansionando un codice QR"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Collegati a una rete Wi-Fi"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"Il debug USB è solo a scopo di sviluppo. Utilizzalo per copiare dati tra il computer e il dispositivo, per installare applicazioni sul tuo dispositivo senza notifica e per leggere i dati dei log."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Consentire debug wireless?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Il debug wireless è solo a scopo di sviluppo. Utilizzalo per copiare dati tra il computer e il dispositivo, per installare app sul tuo dispositivo senza notifica e per leggere i dati dei log."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Revocare l\'accesso al debug USB da tutti i computer precedentemente autorizzati?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Revocare l\'accesso al debug ADB da tutti i computer e le reti precedentemente autorizzati?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Consentire impostazioni di sviluppo?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Queste impostazioni sono utilizzabili solo a scopo di sviluppo. Possono causare l\'arresto o il comportamento anomalo del dispositivo e delle applicazioni su di esso."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Verifica app tramite USB"</string>
@@ -544,7 +547,7 @@
     <string name="battery_info_status_charging_on_hold" msgid="6364355145521694438">"Ricarica in sospeso"</string>
     <string name="battery_info_status_charging_v2" msgid="6118522107222245505">"In carica"</string>
     <string name="battery_info_status_charging_fast_v2" msgid="1825439848151256589">"Ricarica rapida"</string>
-    <string name="disabled_by_admin_summary_text" msgid="5343911767402923057">"Gestita dall\'amministratore"</string>
+    <string name="disabled_by_admin_summary_text" msgid="5343911767402923057">"Impostazione gestita dall\'amministratore"</string>
     <string name="disabled_by_app_ops_text" msgid="8373595926549098012">"Gestita tramite impostazioni con restrizioni"</string>
     <string name="disabled_in_phone_call_text" msgid="6568931334337318320">"Non disponibile durante le chiamate"</string>
     <string name="disabled" msgid="8017887509554714950">"Disattivato"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Connessione Ethernet annullata."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Chiamate non disponibili."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Tastiera fisica"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Scegli layout tastiera"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Predefinito"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Controllo di attivazione dello schermo"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Consenti l\'attivazione dello schermo"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Consenti a un\'app di attivare lo schermo. Se la autorizzi, l\'app può attivare lo schermo in qualsiasi momento senza la tua autorizzazione esplicita."</string>

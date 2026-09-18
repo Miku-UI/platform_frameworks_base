@@ -21,16 +21,19 @@ import android.util.IndentingPrintWriter
 import android.util.MathUtils
 import androidx.annotation.FloatRange
 import androidx.annotation.Px
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.plugins.qs.QS
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.SplitShadeStateController
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import kotlin.math.max
+import kotlinx.coroutines.CoroutineScope
 
 /** Responsible for the QS components during the lockscreen shade transition. */
 class LockscreenShadeQsTransitionController
@@ -40,13 +43,17 @@ constructor(
     configurationController: ConfigurationController,
     dumpManager: DumpManager,
     @Assisted private val qsProvider: () -> QS?,
-    splitShadeStateController: SplitShadeStateController
+    splitShadeStateController: SplitShadeStateController,
+    shadeModeInteractor: ShadeModeInteractor,
+    @Background private val backgroundScope: CoroutineScope,
 ) :
     AbstractLockscreenShadeTransitionController(
         context,
         configurationController,
         dumpManager,
-        splitShadeStateController
+        splitShadeStateController,
+        shadeModeInteractor,
+        backgroundScope,
     ) {
 
     private val qs: QS?
@@ -133,13 +140,13 @@ constructor(
             MathUtils.lerp(
                 /* start= */ qsSquishStartFraction,
                 /* stop= */ 1f,
-                /* amount= */ MathUtils.saturate(qsDragDownAmount / qsSquishTransitionDistance)
+                /* amount= */ MathUtils.saturate(qsDragDownAmount / qsSquishTransitionDistance),
             )
         isTransitioningToFullShade = dragDownAmount > 0.0f
         qs?.setTransitionToFullShadeProgress(
             isTransitioningToFullShade,
             qsTransitionFraction,
-            qsSquishTransitionFraction
+            qsSquishTransitionFraction,
         )
     }
 

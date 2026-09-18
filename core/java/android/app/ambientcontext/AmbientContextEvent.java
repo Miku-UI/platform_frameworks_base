@@ -16,6 +16,7 @@
 
 package android.app.ambientcontext;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
@@ -68,6 +69,15 @@ public final class AmbientContextEvent implements Parcelable {
     public static final int EVENT_BACK_DOUBLE_TAP = 3;
 
     /**
+     * Integer indicating an emergency event was detected.
+     *
+     * An emergency event is an incident that necessitates immediate attention from first responders
+     * or a user’s emergency network.
+     */
+    @Event @FlaggedApi(android.app.Flags.FLAG_AMBIENT_CONTEXT_EMERGENCY_EVENT)
+    public static final int EVENT_EMERGENCY = 4;
+
+    /**
      * Integer indicating the start of wearable vendor defined events that can be detected.
      * These depend on the vendor implementation.
      */
@@ -85,6 +95,7 @@ public final class AmbientContextEvent implements Parcelable {
             EVENT_COUGH,
             EVENT_SNORE,
             EVENT_BACK_DOUBLE_TAP,
+            EVENT_EMERGENCY,
             EVENT_VENDOR_WEARABLE_START,
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -191,6 +202,7 @@ public final class AmbientContextEvent implements Parcelable {
         EVENT_COUGH,
         EVENT_SNORE,
         EVENT_BACK_DOUBLE_TAP,
+        EVENT_EMERGENCY,
         EVENT_VENDOR_WEARABLE_START
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -209,6 +221,8 @@ public final class AmbientContextEvent implements Parcelable {
                     return "EVENT_SNORE";
             case EVENT_BACK_DOUBLE_TAP:
                     return "EVENT_BACK_DOUBLE_TAP";
+            case EVENT_EMERGENCY:
+                    return "EVENT_EMERGENCY";
             case EVENT_VENDOR_WEARABLE_START:
                     return "EVENT_VENDOR_WEARABLE_START";
             default: return Integer.toHexString(value);
@@ -567,10 +581,10 @@ public final class AmbientContextEvent implements Parcelable {
     }
 
     @DataClass.Generated(
-            time = 1709014715064L,
+            time = 1769823049838L,
             codegenVersion = "1.0.23",
             sourceFile = "frameworks/base/core/java/android/app/ambientcontext/AmbientContextEvent.java",
-            inputSignatures = "public static final  int EVENT_UNKNOWN\npublic static final  int EVENT_COUGH\npublic static final  int EVENT_SNORE\npublic static final  int EVENT_BACK_DOUBLE_TAP\npublic static final  int EVENT_VENDOR_WEARABLE_START\npublic static final  java.lang.String KEY_VENDOR_WEARABLE_EVENT_NAME\npublic static final  int LEVEL_UNKNOWN\npublic static final  int LEVEL_LOW\npublic static final  int LEVEL_MEDIUM_LOW\npublic static final  int LEVEL_MEDIUM\npublic static final  int LEVEL_MEDIUM_HIGH\npublic static final  int LEVEL_HIGH\nprivate final @android.app.ambientcontext.AmbientContextEvent.EventCode int mEventType\nprivate final @com.android.internal.util.DataClass.ParcelWith(com.android.internal.util.Parcelling.BuiltIn.ForInstant.class) @android.annotation.NonNull java.time.Instant mStartTime\nprivate final @com.android.internal.util.DataClass.ParcelWith(com.android.internal.util.Parcelling.BuiltIn.ForInstant.class) @android.annotation.NonNull java.time.Instant mEndTime\nprivate final @android.app.ambientcontext.AmbientContextEvent.LevelValue int mConfidenceLevel\nprivate final @android.app.ambientcontext.AmbientContextEvent.LevelValue int mDensityLevel\nprivate final @android.annotation.NonNull android.os.PersistableBundle mVendorData\nprivate static  int defaultEventType()\nprivate static @android.annotation.NonNull java.time.Instant defaultStartTime()\nprivate static @android.annotation.NonNull java.time.Instant defaultEndTime()\nprivate static  int defaultConfidenceLevel()\nprivate static  int defaultDensityLevel()\nprivate static  android.os.PersistableBundle defaultVendorData()\nclass AmbientContextEvent extends java.lang.Object implements [android.os.Parcelable]\n@com.android.internal.util.DataClass(genBuilder=true, genConstructor=false, genHiddenConstDefs=true, genParcelable=true, genToString=true)")
+            inputSignatures = "public static final  int EVENT_UNKNOWN\npublic static final  int EVENT_COUGH\npublic static final  int EVENT_SNORE\npublic static final  int EVENT_BACK_DOUBLE_TAP\npublic static final @android.app.ambientcontext.AmbientContextEvent.Event @android.annotation.FlaggedApi int EVENT_EMERGENCY\npublic static final  int EVENT_VENDOR_WEARABLE_START\npublic static final  java.lang.String KEY_VENDOR_WEARABLE_EVENT_NAME\npublic static final  int LEVEL_UNKNOWN\npublic static final  int LEVEL_LOW\npublic static final  int LEVEL_MEDIUM_LOW\npublic static final  int LEVEL_MEDIUM\npublic static final  int LEVEL_MEDIUM_HIGH\npublic static final  int LEVEL_HIGH\nprivate final @android.app.ambientcontext.AmbientContextEvent.EventCode int mEventType\nprivate final @com.android.internal.util.DataClass.ParcelWith(com.android.internal.util.Parcelling.BuiltIn.ForInstant.class) @android.annotation.NonNull java.time.Instant mStartTime\nprivate final @com.android.internal.util.DataClass.ParcelWith(com.android.internal.util.Parcelling.BuiltIn.ForInstant.class) @android.annotation.NonNull java.time.Instant mEndTime\nprivate final @android.app.ambientcontext.AmbientContextEvent.LevelValue int mConfidenceLevel\nprivate final @android.app.ambientcontext.AmbientContextEvent.LevelValue int mDensityLevel\nprivate final @android.annotation.NonNull android.os.PersistableBundle mVendorData\nprivate static  int defaultEventType()\nprivate static @android.annotation.NonNull java.time.Instant defaultStartTime()\nprivate static @android.annotation.NonNull java.time.Instant defaultEndTime()\nprivate static  int defaultConfidenceLevel()\nprivate static  int defaultDensityLevel()\nprivate static  android.os.PersistableBundle defaultVendorData()\nclass AmbientContextEvent extends java.lang.Object implements [android.os.Parcelable]\n@com.android.internal.util.DataClass(genBuilder=true, genConstructor=false, genHiddenConstDefs=true, genParcelable=true, genToString=true)")
     @Deprecated
     private void __metadata() {}
 

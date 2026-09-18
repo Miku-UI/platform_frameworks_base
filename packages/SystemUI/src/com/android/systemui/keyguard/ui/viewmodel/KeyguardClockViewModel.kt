@@ -40,6 +40,7 @@ import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
 import com.android.systemui.statusbar.notification.icon.ui.viewmodel.NotificationIconContainerAlwaysOnDisplayViewModel
+import com.android.systemui.statusbar.policy.domain.interactor.ZenModeInteractor
 import com.android.systemui.statusbar.ui.SystemBarUtilsProxy
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -47,7 +48,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -62,6 +62,7 @@ constructor(
     aodNotificationIconViewModel: NotificationIconContainerAlwaysOnDisplayViewModel,
     private val shadeModeInteractor: ShadeModeInteractor,
     private val systemBarUtils: SystemBarUtilsProxy,
+    private val zenModeInteractor: ZenModeInteractor,
     @ShadeDisplayAware configurationInteractor: ConfigurationInteractor,
     // TODO: b/374267505 - Use ShadeDisplayAware resources here.
     @Main private val resources: Resources,
@@ -192,50 +193,40 @@ constructor(
 
     /** Calculates the top margin for the large clock. */
     fun getLargeClockTopMargin(): Int {
-        return if (com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout()) {
-            systemBarUtils.getStatusBarHeight() / 2 +
-                resources.getDimensionPixelSize(clocksR.dimen.keyguard_smartspace_top_offset)
-        } else {
-            systemBarUtils.getStatusBarHeight() +
-                resources.getDimensionPixelSize(clocksR.dimen.small_clock_padding_top) +
-                resources.getDimensionPixelSize(clocksR.dimen.keyguard_smartspace_top_offset)
-        }
+        return systemBarUtils.getStatusBarHeight() / 2 +
+            resources.getDimensionPixelSize(clocksR.dimen.keyguard_smartspace_top_offset)
     }
 
     val largeClockTextSize: Flow<Int> =
         configurationInteractor.dimensionPixelSize(clocksR.dimen.large_clock_text_size)
 
     val shouldDateWeatherBeBelowLargeClock: StateFlow<Boolean> =
-        if (com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout()) {
-                combine(
-                    shadeModeInteractor.isFullWidthShade,
-                    configurationInteractor.configurationValues,
-                    keyguardClockInteractor.currentClock,
-                ) { isFullWidthShade, configurationValues, currentClock ->
-                    val screenWidthDp = configurationValues.screenWidthDp
-                    val fontScale = configurationValues.fontScale
+        combine(
+                shadeModeInteractor.isFullWidthShade,
+                configurationInteractor.configurationValues,
+                keyguardClockInteractor.currentClock,
+            ) { isFullWidthShade, configurationValues, currentClock ->
+                val screenWidthDp = configurationValues.screenWidthDp
+                val fontScale = configurationValues.fontScale
 
-                    var belowLargeClock =
-                        !isFontAndDisplaySizeBreaking(
-                            currentClock = currentClock,
-                            screenWidthDp = screenWidthDp,
-                            fontScale = fontScale,
-                            isFullWidthShade = isFullWidthShade,
-                        )
-                    largeClockLogBuffer.log(
-                        TAG,
-                        LogLevel.INFO,
-                        {
-                            int1 = screenWidthDp
-                            double1 = fontScale.toDouble()
-                            bool1 = belowLargeClock
-                        },
-                        { "belowLargeClock:$bool1, Width:$int1, FontScale:$double1" },
+                var belowLargeClock =
+                    !isFontAndDisplaySizeBreaking(
+                        currentClock = currentClock,
+                        screenWidthDp = screenWidthDp,
+                        fontScale = fontScale,
+                        isFullWidthShade = isFullWidthShade,
                     )
-                    belowLargeClock
-                }
-            } else {
-                flowOf(false)
+                largeClockLogBuffer.log(
+                    TAG,
+                    LogLevel.INFO,
+                    {
+                        int1 = screenWidthDp
+                        double1 = fontScale.toDouble()
+                        bool1 = belowLargeClock
+                    },
+                    { "belowLargeClock:$bool1, Width:$int1, FontScale:$double1" },
+                )
+                belowLargeClock
             }
             .stateIn(
                 scope = backgroundScope,
@@ -244,59 +235,60 @@ constructor(
             )
 
     val shouldDateWeatherBeBelowSmallClock: StateFlow<Boolean> =
-        if (com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout()) {
-                combine(
-                    hasCustomWeatherDataDisplay,
-                    shadeModeInteractor.isFullWidthShade,
-                    configurationInteractor.configurationValues,
-                    keyguardClockInteractor.currentClock,
-                ) { hasCustomWeatherDataDisplay, isFullWidthShade, configurationValues, currentClock
-                    ->
-                    val isRtlLayout = configurationValues.layoutDirection == LayoutDirection.RTL
+        combine(
+                hasCustomWeatherDataDisplay,
+                shadeModeInteractor.isFullWidthShade,
+                configurationInteractor.configurationValues,
+                keyguardClockInteractor.currentClock,
+                zenModeInteractor.hasNextAlarm,
+            ) {
+                hasCustomWeatherDataDisplay,
+                isFullWidthShade,
+                configurationValues,
+                currentClock,
+                hasNextAlarm ->
+                val isRtlLayout = configurationValues.layoutDirection == LayoutDirection.RTL
 
-                    if (hasCustomWeatherDataDisplay || isRtlLayout) {
+                if (hasCustomWeatherDataDisplay || isRtlLayout || hasNextAlarm) {
+                    return@combine true
+                }
+
+                keyguardClockInteractor.currentClockFontAxesWidth?.let { fontWidth ->
+                    if (fontWidth >= FONT_WIDTH_MAX_CUTOFF) {
+                        smallClockLogBuffer.log(
+                            TAG,
+                            LogLevel.INFO,
+                            { int1 = FONT_WIDTH_MAX_CUTOFF },
+                            { "fallBelowClock:true, FontAxesWidth:$int1" },
+                        )
                         return@combine true
                     }
-
-                    keyguardClockInteractor.currentClockFontAxesWidth?.let { fontWidth ->
-                        if (fontWidth >= FONT_WIDTH_MAX_CUTOFF) {
-                            smallClockLogBuffer.log(
-                                TAG,
-                                LogLevel.INFO,
-                                { int1 = FONT_WIDTH_MAX_CUTOFF },
-                                { "fallBelowClock:true, FontAxesWidth:$int1" },
-                            )
-                            return@combine true
-                        }
-                    }
-
-                    val screenWidthDp = configurationValues.screenWidthDp
-                    val fontScale = configurationValues.fontScale
-                    var fallBelow =
-                        isFontAndDisplaySizeBreaking(
-                            currentClock = currentClock,
-                            screenWidthDp = screenWidthDp,
-                            fontScale = fontScale,
-                            isFullWidthShade = isFullWidthShade,
-                        )
-                    smallClockLogBuffer.log(
-                        TAG,
-                        LogLevel.INFO,
-                        {
-                            int1 = screenWidthDp
-                            double1 = fontScale.toDouble()
-                            bool1 = fallBelow
-                            bool2 = !isFullWidthShade
-                        },
-                        {
-                            "fallBelowClock:$bool1, isShadeWide:$bool2, " +
-                                "Width:$int1, FontScale:$double1"
-                        },
-                    )
-                    fallBelow
                 }
-            } else {
-                flowOf(true)
+
+                val screenWidthDp = configurationValues.screenWidthDp
+                val fontScale = configurationValues.fontScale
+                var fallBelow =
+                    isFontAndDisplaySizeBreaking(
+                        currentClock = currentClock,
+                        screenWidthDp = screenWidthDp,
+                        fontScale = fontScale,
+                        isFullWidthShade = isFullWidthShade,
+                    )
+                smallClockLogBuffer.log(
+                    TAG,
+                    LogLevel.INFO,
+                    {
+                        int1 = screenWidthDp
+                        double1 = fontScale.toDouble()
+                        bool1 = fallBelow
+                        bool2 = !isFullWidthShade
+                    },
+                    {
+                        "fallBelowClock:$bool1, isShadeWide:$bool2, " +
+                            "Width:$int1, FontScale:$double1"
+                    },
+                )
+                fallBelow
             }
             .stateIn(scope = backgroundScope, started = SharingStarted.Eagerly, initialValue = true)
 
@@ -308,8 +300,9 @@ constructor(
     ): Boolean {
         val breakingPairs: List<Pair<Float, Int>> =
             when (currentClock?.config?.id) {
-                NUMBER_OVERLAP_CLOCK_ID -> NUMBER_OVERLAP_BREAKING_PAIRS
-                METRO_CLOCK_ID -> METRO_CLOCK_BREAKING_PAIRS
+                CALLIGRAPHY_CLOCK_ID,
+                METRO_CLOCK_ID,
+                NUMBER_OVERLAP_CLOCK_ID -> OVERSIZED_CLOCK_BREAKING_PAIRS
                 else -> DEFAULT_BREAKING_PAIRS
             }
 
@@ -341,28 +334,23 @@ constructor(
                 0.85f to 320, // tiny font size but large display size
                 1f to 346,
                 1.15f to 346,
-                1.5f to 376,
-                1.8f to 411, // large font size but tiny display size
+                1.5f to 411, // large font size but tiny display size
             )
 
         private const val NUMBER_OVERLAP_CLOCK_ID = "DIGITAL_CLOCK_NUMBEROVERLAP"
         private const val METRO_CLOCK_ID = "DIGITAL_CLOCK_METRO"
 
-        private val NUMBER_OVERLAP_BREAKING_PAIRS =
+        private const val CALLIGRAPHY_CLOCK_ID = "DIGITAL_CLOCK_CALLIGRAPHY"
+
+        // This set of breaking pairs are for "oversized" clocks.
+        // These clocks, small or large, are larger than expected and need to have this fallback
+        // happen sooner due to size constraints.
+        private val OVERSIZED_CLOCK_BREAKING_PAIRS =
             listOf(
                 0.85f to 376, // tiny font size but large display size
                 1f to 376,
                 1.15f to 411,
-                1.3f to 411,
-                1.5f to 411, // large font size but tiny display size
-            )
-
-        private val METRO_CLOCK_BREAKING_PAIRS =
-            listOf(
-                0.85f to 376, // tiny font size but large display size
-                1f to 376,
-                1.15f to 376,
-                1.3f to 376, // large font size but tiny display size
+                1.3f to 411, // large font size but tiny display size
             )
 
         // Font axes width max cutoff

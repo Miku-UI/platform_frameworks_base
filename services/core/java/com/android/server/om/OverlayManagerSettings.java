@@ -98,7 +98,8 @@ final class OverlayManagerSettings {
         return true;
     }
 
-    @NonNull OverlayInfo getOverlayInfo(@NonNull final OverlayIdentifier overlay, final int userId)
+    @NonNull
+    OverlayInfo getOverlayInfo(@NonNull final OverlayIdentifier overlay, final int userId)
             throws BadKeyException {
         final int idx = select(overlay, userId);
         if (idx < 0) {
@@ -114,6 +115,16 @@ final class OverlayManagerSettings {
             return null;
         }
         return mItems.get(idx).getOverlayInfo();
+    }
+
+    @NonNull
+    List<OverlayConstraint> getOverlayConstraints(@NonNull final String baseCodePath,
+            final int userId) throws BadKeyException {
+        final int idx = select(baseCodePath, userId);
+        if (idx < 0) {
+            throw new BadKeyException(baseCodePath, userId);
+        }
+        return mItems.get(idx).getOverlayInfo().constraints;
     }
 
     /**
@@ -793,6 +804,17 @@ final class OverlayManagerSettings {
         return -1;
     }
 
+    private int select(@NonNull final String baseCodePath, final int userId) {
+        final int n = mItems.size();
+        for (int i = 0; i < n; i++) {
+            final SettingsItem item = mItems.get(i);
+            if (item.mUserId == userId && Objects.equals(item.mBaseCodePath, baseCodePath)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     private List<SettingsItem> selectWhereUser(final int userId) {
         final List<SettingsItem> selectedItems = new ArrayList<>();
         CollectionUtils.addIf(mItems, selectedItems, i -> i.mUserId == userId);
@@ -815,7 +837,11 @@ final class OverlayManagerSettings {
 
     static final class BadKeyException extends Exception {
         BadKeyException(@NonNull final OverlayIdentifier overlay, final int userId) {
-            super("Bad key '" + overlay + "' for user " + userId );
+            super("Bad key (overlayIdentifier) '" + overlay + "' for user " + userId);
+        }
+
+        BadKeyException(@NonNull final String baseCodePath, final int userId) {
+            super("Bad key (overlayBaseCodePath) '" + baseCodePath + "' for user " + userId);
         }
     }
 }

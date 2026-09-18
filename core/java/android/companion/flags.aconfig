@@ -66,9 +66,9 @@ flag {
 }
 
 flag {
-    name: "enable_task_continuity"
+    name: "task_continuity"
     is_exported: true
-    namespace: "desktop_better_together"
+    namespace: "companion"
     description: "Enable task continuity API"
     bug: "400970610"
 }
@@ -122,8 +122,47 @@ flag {
 }
 
 flag {
-    name: "enable_universal_clipboard"
-    namespace: "desktop_better_together"
+    name: "universal_clipboard"
+    namespace: "companion"
     description: "Enable Universal Clipboard feature"
     bug: "432068758"
+}
+
+flag {
+    name: "association_extra_permission"
+    namespace: "companion"
+    description: "Enables unified association extra permissions"
+    bug: "440175468"
+    is_exported: true
+}
+
+flag {
+    name: "trusted_devices"
+    is_exported: true
+    namespace: "companion"
+    description: "Enable APIs to support trusted devices"
+    bug: "437224522"
+}
+
+flag {
+    name: "expand_app_streaming_role_permissions"
+    is_exported: true
+    namespace: "companion"
+    description: "Enable storage and notification permissions for the APP_STREAMING role."
+    bug: "459812815"
+}
+
+flag {
+    name: "support_ai_agent"
+    namespace: "companion"
+    is_exported: true
+    description: "Add a new field in AssociationRequest to indicate if the device supports AI agent automation."
+    bug: "474639153"
+}
+
+flag {
+    name: "cmd_options"
+    namespace: "companion"
+    description: "Move the rest cmd optional args to options."
+    bug: "478509624"
 }

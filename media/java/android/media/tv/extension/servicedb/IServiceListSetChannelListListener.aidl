@@ -17,8 +17,15 @@
 package android.media.tv.extension.servicedb;
 
 /**
+ * Listener interface for receiving callbacks when setting a channel list directly.
  * @hide
  */
 oneway interface IServiceListSetChannelListListener {
+    /**
+     * Called when the request to set the channel list has completed.
+     *
+     * @param setChannelListResult The result of the set channel list operation,
+     *                             @ServicedbConstants.ResultCode.
+     */
     void onCompleted(int setChannelListResult);
 }

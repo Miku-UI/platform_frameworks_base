@@ -18,6 +18,7 @@ package com.android.internal.widget.remotecompose.core.operations;
 import static com.android.internal.widget.remotecompose.core.PaintContext.TEXT_MEASURE_FONT_HEIGHT;
 import static com.android.internal.widget.remotecompose.core.PaintContext.TEXT_MEASURE_MONOSPACE_WIDTH;
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.INT;
+import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.SHORT;
 
 import android.annotation.NonNull;
 
@@ -123,11 +124,12 @@ public class TextAttribute extends PaintOperation implements Serializable {
      * @param doc to append the description to.
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
-        doc.operation("Expressions Operations", OP_CODE, CLASS_NAME)
-                .description("Measure text")
-                .field(INT, "id", "id of float result of the measure")
-                .field(INT, "textId", "id of text")
-                .field(INT, "type", "type: measure 0=width,1=height");
+        doc.operation("Text Operations", OP_CODE, CLASS_NAME)
+                .description("Extract text-related properties (width, length, etc.)")
+                .field(INT, "id", "The ID of the float variable to store the result")
+                .field(INT, "textId", "The ID of the text variable to measure")
+                .field(SHORT, "type", "The type of property to extract")
+                .field(SHORT, "unused", "unused field");
     }
 
     @NonNull

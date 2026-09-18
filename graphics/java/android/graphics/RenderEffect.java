@@ -263,8 +263,8 @@ public final class RenderEffect {
      * output are provided from elsewhere and the input or output {@link RenderEffect} need to be
      * changed.
      *
-     * @param outer {@link RenderEffect} that consumes the output of {@param inner} as its input
-     * @param inner {@link RenderEffect} that is consumed as input by {@param outer}
+     * @param outer {@link RenderEffect} that consumes the output of {@code inner} as its input
+     * @param inner {@link RenderEffect} that is consumed as input by {@code outer}
      */
     @NonNull
     public static RenderEffect createChainEffect(

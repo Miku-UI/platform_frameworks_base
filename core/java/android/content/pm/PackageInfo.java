@@ -20,10 +20,19 @@ import android.annotation.CurrentTimeMillisLong;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SystemApi;
+import android.app.Activity;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.util.Log;
+
+import com.android.internal.util.CollectionUtils;
+
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * Overall information about the contents of a package.  This corresponds
@@ -31,6 +40,8 @@ import android.os.Parcelable;
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class PackageInfo implements Parcelable {
+    private static final String TAG = PackageInfo.class.getSimpleName();
+
     /**
      * The name of this package.  From the &lt;manifest&gt; tag's "name"
      * attribute.
@@ -238,6 +249,19 @@ public class PackageInfo implements Parcelable {
     public int[] requestedPermissionsFlags;
 
     /**
+     * Map of object containing info related to purposes for all {@link
+     * android.R.styleable#AndroidManifestUsesPermission &lt;uses-permission&gt;} that have purpose
+     * related info. This is only filled in if the flag {@link PackageManager#GET_PERMISSIONS}
+     * was set.
+     *
+     * @hide
+     */
+    @NonNull
+    @SystemApi
+    @FlaggedApi(android.permission.flags.Flags.FLAG_PPD_MANIFEST_ENABLED)
+    public Map<String, UsesPermissionPurposeInfo> requestedPermissionsPurposes = Collections.emptyMap();
+
+    /**
      * Array of all {@link android.R.styleable#AndroidManifestAttribution
      * &lt;attribution&gt;} tags included under &lt;manifest&gt;, or null if there were none. This
      * is only filled if the flag {@link PackageManager#GET_ATTRIBUTIONS_LONG} was set.
@@ -278,6 +302,15 @@ public class PackageInfo implements Parcelable {
      * {@link android.Manifest.permission#ACCESS_COARSE_LOCATION} being granted.
      */
     public static final int REQUESTED_PERMISSION_NEVER_FOR_LOCATION = 0x00010000;
+
+    /**
+     * Flag for {@link #requestedPermissionsFlags}: It only applies to {@link
+     * android.Manifest.permission#ACCESS_FINE_LOCATION}. When this flag is set, apps cannot request
+     * that permission through {@link Activity#requestPermissions(String[], int)}, and can only use
+     * location button to obtain it temporarily.
+     */
+    @FlaggedApi(android.permission.flags.Flags.FLAG_LOCATION_BUTTON_ENABLED)
+    public static final int REQUESTED_PERMISSION_ONLY_FOR_LOCATION_BUTTON = 0x00020000;
 
     /**
      * Flag for {@link #requestedPermissionsFlags}: the requested permission was
@@ -597,6 +630,7 @@ public class PackageInfo implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int parcelableFlags) {
+        final int preWriteSize = dest.dataSize();
         // Allow ApplicationInfo to be squashed.
         final boolean prevAllowSquashing = dest.allowSquashing();
         dest.writeString8(packageName);
@@ -617,19 +651,20 @@ public class PackageInfo implements Parcelable {
         dest.writeLong(firstInstallTime);
         dest.writeLong(lastUpdateTime);
         dest.writeIntArray(gids);
-        dest.writeTypedArray(activities, parcelableFlags);
-        dest.writeTypedArray(receivers, parcelableFlags);
-        dest.writeTypedArray(services, parcelableFlags);
-        dest.writeTypedArray(providers, parcelableFlags);
+        final int activitiesSize = writeAndCount(dest, activities, parcelableFlags);
+        final int receiversSize = writeAndCount(dest, receivers, parcelableFlags);
+        final int servicesSize = writeAndCount(dest, services, parcelableFlags);
+        final int providersSize = writeAndCount(dest, providers, parcelableFlags);
         dest.writeTypedArray(instrumentation, parcelableFlags);
-        dest.writeTypedArray(permissions, parcelableFlags);
-        dest.writeString8Array(requestedPermissions);
+        final int permissionsSize = writeAndCount(dest, permissions, parcelableFlags);
+        final int requestedPermissionsSize = writeAndCount(dest, requestedPermissions);
         dest.writeIntArray(requestedPermissionsFlags);
-        dest.writeTypedArray(signatures, parcelableFlags);
+        writeRequestedPermissionsPurposes(dest);
+        final int signaturesSize = writeAndCount(dest, signatures, parcelableFlags);
         dest.writeTypedArray(configPreferences, parcelableFlags);
         dest.writeTypedArray(reqFeatures, parcelableFlags);
         dest.writeTypedArray(featureGroups, parcelableFlags);
-        dest.writeTypedArray(attributions, parcelableFlags);
+        final int attributionsSize = writeAndCount(dest, attributions, parcelableFlags);
         dest.writeInt(installLocation);
         dest.writeInt(isStub ? 1 : 0);
         dest.writeInt(coreApp ? 1 : 0);
@@ -659,6 +694,81 @@ public class PackageInfo implements Parcelable {
         }
         dest.writeBoolean(mIsAppMetadataVerified);
         dest.restoreAllowSquashing(prevAllowSquashing);
+
+        final int elmSize = dest.dataSize() - preWriteSize;
+        // The warning threshold is consistent with BaseParceledListSlice implementation
+        if (elmSize > 16 * 1024) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Large parcel: size=").append(elmSize)
+                    .append(" pkg=").append(packageName);
+
+            if (applicationInfo != null) {
+                sb.append(" uid=").append(applicationInfo.uid);
+            }
+            if (activities != null) {
+                sb.append(" actv=").append(activitiesSize);
+                sb.append("(").append(activities.length).append(")");
+            }
+            if (receivers != null) {
+                sb.append(" recv=").append(receiversSize);
+                sb.append("(").append(receivers.length).append(")");
+            }
+            if (services != null) {
+                sb.append(" serv=").append(servicesSize);
+                sb.append("(").append(services.length).append(")");
+            }
+            if (providers != null) {
+                sb.append(" prov=").append(providersSize);
+                sb.append("(").append(providers.length).append(")");
+            }
+            if (permissions != null) {
+                sb.append(" perm=").append(permissionsSize);
+                sb.append("(").append(permissions.length).append(")");
+            }
+            if (requestedPermissions != null) {
+                sb.append(" reqPerm=").append(requestedPermissionsSize);
+                sb.append("(").append(requestedPermissions.length).append(")");
+            }
+            if (signatures != null) {
+                sb.append(" sig=").append(signaturesSize);
+                sb.append("(").append(signatures.length).append(")");
+            }
+            if (attributions != null) {
+                sb.append(" attr=").append(attributionsSize);
+                sb.append("(").append(attributions.length).append(")");
+            }
+            sb.append(" prevAllowSquashing=").append(prevAllowSquashing);
+            // Notice that if string de-duplication is enabled (such as when the object is parcelled
+            // as an element of a PackageInfoList), the parcel size might be smaller than when the
+            // object is parcelled alone without string de-duplication.
+            // When the object is parcelled as an element of a PackageInfoList, the parcel size
+            // might be different even though the object is the same, depending on other elements in
+            // the PackageInfoList.
+            Log.w(TAG, sb.toString());
+        }
+    }
+
+    private <T extends Parcelable> int writeAndCount(Parcel dest, @Nullable T[] val,
+            int parcelableFlags) {
+        final int preWriteSize = dest.dataSize();
+        dest.writeTypedArray(val, parcelableFlags);
+        return dest.dataSize() - preWriteSize;
+    }
+
+    private int writeAndCount(Parcel dest, String[] val) {
+        final int preWriteSize = dest.dataSize();
+        dest.writeString8Array(val);
+        return dest.dataSize() - preWriteSize;
+    }
+
+    private void writeRequestedPermissionsPurposes(@NonNull Parcel dest) {
+        if (requestedPermissionsPurposes.isEmpty()) {
+            dest.writeBundle(null);
+            return;
+        }
+        final Bundle bundle = new Bundle();
+        requestedPermissionsPurposes.forEach(bundle::putParcelable);
+        dest.writeBundle(bundle);
     }
 
     public static final @android.annotation.NonNull Parcelable.Creator<PackageInfo> CREATOR
@@ -700,6 +810,7 @@ public class PackageInfo implements Parcelable {
         permissions = source.createTypedArray(PermissionInfo.CREATOR);
         requestedPermissions = source.createString8Array();
         requestedPermissionsFlags = source.createIntArray();
+        readRequestedPermissionsPurposes(source);
         signatures = source.createTypedArray(Signature.CREATOR);
         configPreferences = source.createTypedArray(ConfigurationInfo.CREATOR);
         reqFeatures = source.createTypedArray(FeatureInfo.CREATOR);
@@ -729,5 +840,19 @@ public class PackageInfo implements Parcelable {
             mApexPackageName = source.readString8();
         }
         mIsAppMetadataVerified = source.readBoolean();
+    }
+
+    private void readRequestedPermissionsPurposes(@NonNull Parcel in) {
+        final Bundle bundle = in.readBundle(UsesPermissionPurposeInfo.class.getClassLoader());
+        Map<String, UsesPermissionPurposeInfo> purposeInfos = Collections.emptyMap();
+        if (bundle == null) {
+            requestedPermissionsPurposes = purposeInfos;
+            return;
+        }
+        for (String key : bundle.keySet()) {
+            purposeInfos = CollectionUtils.add(purposeInfos, key, bundle.getParcelable(
+                    key, UsesPermissionPurposeInfo.class));
+        }
+        requestedPermissionsPurposes = purposeInfos;
     }
 }

@@ -62,7 +62,7 @@ constructor(blurConfig: BlurConfig, animationFlow: KeyguardTransitionAnimationFl
                     blurConfig.maxBlurRadiusPx
                 } else {
                     transitionProgressToBlurRadius(
-                        blurConfig.maxBlurRadiusPx,
+                        startBlurRadius = blurConfig.maxBlurRadiusPx,
                         endBlurRadius = blurConfig.minBlurRadiusPx,
                         transitionProgress = progress,
                     )

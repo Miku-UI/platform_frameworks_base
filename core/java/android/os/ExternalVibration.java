@@ -31,6 +31,7 @@ import java.util.NoSuchElementException;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class ExternalVibration implements Parcelable {
     private static final String TAG = "ExternalVibration";
     private int mUid;

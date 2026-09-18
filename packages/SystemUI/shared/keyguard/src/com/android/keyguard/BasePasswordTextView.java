@@ -18,18 +18,23 @@ package com.android.keyguard;
 
 import android.annotation.CallSuper;
 import android.content.Context;
+import android.os.Flags;
 import android.text.InputType;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.view.View;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.AccessibilityNodeInfo;
-import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.TextView;
 
 /**
  * A View similar to a textView which contains password text and can animate when the text is
- * changed
+ * changed.
+ *
+ * <p>Autofill is disabled on this view and its descendants since this view is only used on the
+ * Keyguard.
  */
 public abstract class BasePasswordTextView extends FrameLayout {
     private String mText = "";
@@ -62,6 +67,10 @@ public abstract class BasePasswordTextView extends FrameLayout {
     public BasePasswordTextView(
             Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
+
+        if (Flags.fixMainThreadBlockingOnFirstUnlock()) {
+            setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+        }
     }
 
     protected abstract PinShapeInput inflatePinShapeInput(boolean isPinHinting);
@@ -220,7 +229,7 @@ public abstract class BasePasswordTextView extends FrameLayout {
     public void onInitializeAccessibilityEvent(AccessibilityEvent event) {
         super.onInitializeAccessibilityEvent(event);
 
-        event.setClassName(EditText.class.getName());
+        event.setClassName(TextView.class.getName());
         event.setPassword(true);
     }
 
@@ -228,11 +237,11 @@ public abstract class BasePasswordTextView extends FrameLayout {
     public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
         super.onInitializeAccessibilityNodeInfo(info);
 
-        info.setClassName(EditText.class.getName());
+        info.setClassName(TextView.class.getName());
         info.setPassword(true);
         info.setText(getTransformedText());
         info.setSelected(false);
-        info.setEditable(true);
+        info.setEditable(false);
 
         info.setInputType(InputType.TYPE_NUMBER_VARIATION_PASSWORD);
     }

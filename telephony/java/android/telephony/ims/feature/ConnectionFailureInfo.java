@@ -16,15 +16,12 @@
 
 package android.telephony.ims.feature;
 
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.SparseArray;
-
-import com.android.internal.telephony.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -34,7 +31,6 @@ import java.lang.annotation.RetentionPolicy;
  *
  * @hide
  */
-@FlaggedApi(Flags.FLAG_SUPPORT_IMS_MMTEL_INTERFACE)
 @SystemApi
 public final class ConnectionFailureInfo implements Parcelable {
 

@@ -16,15 +16,15 @@
 
 package com.android.server.wm;
 
-import static android.Manifest.permission.REPOSITION_SELF_WINDOWS;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
+import static android.content.pm.ActivityInfo.PERSIST_ACROSS_REBOOTS;
 import static android.content.pm.ActivityInfo.RESIZE_MODE_RESIZEABLE;
 import static android.content.pm.ActivityInfo.RESIZE_MODE_UNRESIZEABLE;
-import static android.content.pm.PackageManager.PERMISSION_DENIED;
-import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
+import static android.service.dreams.Flags.FLAG_DREAMS_QUERY_APPLICATION_INFO;
 
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.doAnswer;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mock;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
@@ -39,7 +39,6 @@ import static com.android.server.wm.ActivityRecord.State.PAUSING;
 import static com.android.server.wm.ActivityRecord.State.RESUMED;
 import static com.android.server.wm.ActivityRecord.State.STOPPING;
 import static com.android.window.flags.Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM;
-import static com.android.window.flags.Flags.FLAG_ENABLE_WINDOW_REPOSITIONING_API;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -52,38 +51,55 @@ import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.ActivityManager.TaskDescription;
+import android.app.ActivityManagerInternal;
+import android.app.AppGlobals;
+import android.app.ApplicationExitInfo;
 import android.app.HandoffActivityData;
+import android.app.HandoffActivityParams;
 import android.app.HandoffFailureCode;
+import android.app.IAppTask;
 import android.app.IApplicationThread;
 import android.app.IHandoffTaskDataReceiver;
 import android.app.PictureInPictureParams;
+import android.app.PictureInPictureUiState;
 import android.app.servertransaction.ClientTransactionItem;
 import android.app.servertransaction.EnterPipRequestedItem;
 import android.content.ComponentName;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.IPackageManager;
+import android.content.pm.PackageManagerInternal;
+import android.content.pm.ParceledListSlice;
+import android.content.pm.ResolveInfo;
 import android.content.res.Configuration;
 import android.graphics.Rect;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.LocaleList;
 import android.os.PowerManagerInternal;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.util.TypedValue;
 import android.view.Display;
 import android.view.DisplayInfo;
 import android.view.IDisplayWindowListener;
@@ -91,12 +107,17 @@ import android.view.WindowManager;
 
 import androidx.test.filters.MediumTest;
 
+import com.android.server.LocalServices;
+import com.android.server.am.psc.ProcessRecordInternal;
+import com.android.server.wm.utils.StubOrganizer;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -192,6 +213,8 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
     @Before
     public void setUp() throws Exception {
         setBooted(mAtm);
+        // Because the booted state is set, avoid starting real home if there is no task.
+        doReturn(false).when(mRootWindowContainer).resumeHomeActivity(any(), anyString(), any());
     }
 
     /** Verify that activity is finished correctly upon request. */
@@ -255,38 +278,39 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
     }
 
     @Test
+    @DisableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
     public void testAddHandoffEnablementListener_doesNotNotifyIfFlagDisabled() {
         ActivityTaskManagerInternal.HandoffEnablementListener handoffEnablementListener =
                 mock(ActivityTaskManagerInternal.HandoffEnablementListener.class);
         final Task task = new TaskBuilder(mSupervisor).setCreateActivity(true).build();
         final ActivityRecord activity = task.getTopNonFinishingActivity();
         mAtm.getAtmInternal().registerHandoffEnablementListener(handoffEnablementListener);
-        activity.setHandoffEnabled(true, true);
+        setHandoffEnabled(activity, true, null);
         verify(handoffEnablementListener, never())
             .onHandoffEnabledChanged(activity.getRootTaskId(), true);
-        activity.setHandoffEnabled(false, true);
+        setHandoffEnabled(activity, false, null);
         verify(handoffEnablementListener, never())
             .onHandoffEnabledChanged(activity.getRootTaskId(), false);
     }
 
     @Test
-    @EnableFlags(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
     public void testRegisterHandoffEnablementListener_notifiesListenerOnChange() {
         ActivityTaskManagerInternal.HandoffEnablementListener handoffEnablementListener =
                 mock(ActivityTaskManagerInternal.HandoffEnablementListener.class);
         final Task task = new TaskBuilder(mSupervisor).setCreateActivity(true).build();
         final ActivityRecord activity = task.getTopNonFinishingActivity();
         mAtm.getAtmInternal().registerHandoffEnablementListener(handoffEnablementListener);
-        activity.setHandoffEnabled(true, true);
+        setHandoffEnabled(activity, true, null);
         verify(handoffEnablementListener)
             .onHandoffEnabledChanged(anyInt(), anyBoolean());
-        activity.setHandoffEnabled(false, true);
+        setHandoffEnabled(activity, false, null);
         verify(handoffEnablementListener)
             .onHandoffEnabledChanged(activity.getRootTaskId(), false);
     }
 
     @Test
-    @EnableFlags(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
     public void testUnregisterHandoffEnablementListener_doesNotNotifyListenerOnChange() {
         ActivityTaskManagerInternal.HandoffEnablementListener handoffEnablementListener =
                 mock(ActivityTaskManagerInternal.HandoffEnablementListener.class);
@@ -294,15 +318,16 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         final ActivityRecord activity = task.getTopNonFinishingActivity();
         mAtm.getAtmInternal().registerHandoffEnablementListener(handoffEnablementListener);
         mAtm.getAtmInternal().unregisterHandoffEnablementListener(handoffEnablementListener);
-        activity.setHandoffEnabled(true, true);
+        setHandoffEnabled(activity, true, null);
         verify(handoffEnablementListener, never())
             .onHandoffEnabledChanged(activity.getRootTaskId(), true);
-        activity.setHandoffEnabled(false, true);
+        setHandoffEnabled(activity, false, null);
         verify(handoffEnablementListener, never())
             .onHandoffEnabledChanged(activity.getRootTaskId(), false);
     }
 
     @Test
+    @DisableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
     public void testIsHandoffEnabledForTask_returnsFalseIfFlagDisabled() {
         final Task task = new TaskBuilder(mSupervisor).setCreateActivity(true).build();
         final ActivityRecord activity = task.getTopNonFinishingActivity();
@@ -311,23 +336,90 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
     public void testIsHandoffEnabledForTask_returnsTrueIfHandoffEnabled() {
         final Task task = new TaskBuilder(mSupervisor).setCreateActivity(true).build();
         final ActivityRecord activity = task.getTopNonFinishingActivity();
-        activity.setHandoffEnabled(true, true);
+        setHandoffEnabled(activity, true, null);
         assertTrue(mAtm.getAtmInternal().isHandoffEnabledForTask(task.getRootTaskId()));
-        activity.setHandoffEnabled(false, true);
+        setHandoffEnabled(activity, false, null);
         assertFalse(mAtm.getAtmInternal().isHandoffEnabledForTask(task.getRootTaskId()));
     }
 
+    private void setHandoffEnabled(
+        ActivityRecord r, boolean enabled, HandoffActivityParams handoffActivityParams) {
+        r.setHandoffEnabled(enabled, handoffActivityParams);
+        // HandoffEnablementListener#onHandoffEnabledChanged runs on handler.
+        waitHandlerIdle(mAtm.mH);
+    }
+
     @Test
-    @EnableFlags(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
     public void testIsHandoffEnabledForTask_returnsFalseIfNoSuchTask() {
         assertFalse(mAtm.getAtmInternal().isHandoffEnabledForTask(1000));
     }
 
     @Test
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
+    public void testGetHandoffActivityParamsForTask_returnsNullIfNoSuchTask() {
+        assertNull(mAtm.getAtmInternal().getHandoffActivityParamsForTask(1000));
+    }
+
+    @Test
+    @DisableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
+    public void testGetHandoffActivityParamsForTask_returnsNullIfFlagDisabled() {
+        HandoffActivityParams handoffActivityParams =
+        new HandoffActivityParams.Builder()
+                .build();
+        final Task task = new TaskBuilder(mSupervisor).setCreateActivity(true).build();
+        final ActivityRecord activity = task.getTopNonFinishingActivity();
+        setHandoffActivityParams(activity, handoffActivityParams);
+
+        HandoffActivityParams result = mAtm
+            .getAtmInternal()
+            .getHandoffActivityParamsForTask(task.getRootTaskId());
+        assertNull(result);
+    }
+
+    @Test
+    public void testGetHandoffActivityParamsForTask_returnsNullIfHandoffDisabled() {
+        HandoffActivityParams params = new HandoffActivityParams.Builder().build();
+        final Task task = new TaskBuilder(mSupervisor).setCreateActivity(true).build();
+        final ActivityRecord activity = task.getTopNonFinishingActivity();
+        activity.setHandoffEnabled(false, params);
+        // HandoffEnablementListener#onHandoffEnabledChanged runs on handler.
+        waitHandlerIdle(mAtm.mH);
+
+        HandoffActivityParams result = mAtm
+            .getAtmInternal()
+            .getHandoffActivityParamsForTask(task.getRootTaskId());
+        assertNull(result);
+    }
+
+    @Test
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
+    public void testGetHandoffActivityParamsForTask_returnsSpecifiedOptions() {
+        HandoffActivityParams params = new HandoffActivityParams.Builder().build();
+        final Task task = new TaskBuilder(mSupervisor).setCreateActivity(true).build();
+        final ActivityRecord activity = task.getTopNonFinishingActivity();
+        setHandoffActivityParams(activity, params);
+
+        assertEquals(
+            params,
+            mAtm.getAtmInternal().getHandoffActivityParamsForTask(
+                task.getRootTaskId()));
+    }
+
+    private void setHandoffActivityParams(
+            ActivityRecord r,
+            HandoffActivityParams handoffActivityParams) {
+        r.setHandoffEnabled(true, handoffActivityParams);
+        // HandoffEnablementListener#onHandoffEnabledChanged runs on handler.
+        waitHandlerIdle(mAtm.mH);
+    }
+
+    @Test
+    @DisableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
     public void testRequestHandoffTaskData_failsIfFlagDisabled() {
         // Create a test task.
         final Task task = new TaskBuilder(mSupervisor).setCreateActivity(true).build();
@@ -336,27 +428,27 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         TestHandoffTaskDataReceiver receiver = new TestHandoffTaskDataReceiver();
 
         // Request Handoff
-        mAtm.requestHandoffTaskData(task.getRootTaskId(), receiver);
+        requestHandoffTaskData(task.getRootTaskId(), receiver);
 
         // Verify that the result code is failure.
         receiver.verifyFailed(task.getRootTaskId(),
                 HandoffFailureCode.HANDOFF_FAILURE_UNSUPPORTED_DEVICE);
     }
 
-    @EnableFlags(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
     @Test
     public void testRequestHandoffTaskData_failsIfNoTaskWithId() {
         // Setup a fake receiver to receive the result.
         TestHandoffTaskDataReceiver receiver = new TestHandoffTaskDataReceiver();
 
         // Request Handoff
-        mAtm.requestHandoffTaskData(0, receiver);
+        requestHandoffTaskData(0 /* taskId */, receiver);
 
         // Verify that the result code is failure.
         receiver.verifyFailed(0, HandoffFailureCode.HANDOFF_FAILURE_UNKNOWN_TASK);
     }
 
-    @EnableFlags(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
     @Test
     public void testRequestHandoffTaskData_failsIfNoActivityInTask() {
         // Create a test task.
@@ -366,7 +458,7 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         TestHandoffTaskDataReceiver receiver = new TestHandoffTaskDataReceiver();
 
         // Request Handoff
-        mAtm.requestHandoffTaskData(task.getRootTaskId(), receiver);
+        requestHandoffTaskData(task.getRootTaskId(), receiver);
 
         // Verify that the result code is failure.
         receiver.verifyFailed(
@@ -374,7 +466,7 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
             HandoffFailureCode.HANDOFF_FAILURE_EMPTY_TASK);
     }
 
-    @EnableFlags(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
     @Test
     public void testRequestHandoffTaskData_failsIfHandoffDisabledForActivity() {
         // Create a test task.
@@ -386,7 +478,7 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         TestHandoffTaskDataReceiver receiver = new TestHandoffTaskDataReceiver();
 
         // Request Handoff
-        mAtm.requestHandoffTaskData(task.getRootTaskId(), receiver);
+        requestHandoffTaskData(task.getRootTaskId(), receiver);
 
         // Verify that the result code is failure.
         receiver.verifyFailed(
@@ -394,12 +486,14 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
             HandoffFailureCode.HANDOFF_FAILURE_UNSUPPORTED_TASK);
     }
 
-    @EnableFlags(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
     @Test
     public void testRequestHandoffTaskData_succeedsWithActivityInForeground()
         throws Exception{
         // Create a test task.
-        final Task task = new TaskBuilder(mSupervisor).setCreateActivity(true).build();
+        final Task task = new TaskBuilder(mSupervisor)
+                              .setComponent(new ComponentName("pkg", "cls"))
+                              .setCreateActivity(true).build();
         final ActivityRecord activity = task.getTopNonFinishingActivity();
         doReturn(true).when(activity).attachedToProcess();
         doReturn(true).when(activity).isState(RESUMED);
@@ -414,7 +508,7 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         TestHandoffTaskDataReceiver receiver = new TestHandoffTaskDataReceiver();
 
         // Request Handoff
-        mAtm.requestHandoffTaskData(task.getRootTaskId(), receiver);
+        requestHandoffTaskData(task.getRootTaskId(), receiver);
 
         ArgumentCaptor<IBinder> requestTokenCaptor = ArgumentCaptor.forClass(IBinder.class);
         ArgumentCaptor<List<IBinder>> activityTokenCaptor = ArgumentCaptor.forClass(List.class);
@@ -435,7 +529,7 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         receiver.verifySucceeded(task.getRootTaskId(), handoffActivityData);
     }
 
-    @EnableFlags(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
     @Test
     public void testRequestHandoffTaskData_succeedsWithActivityInBackground()
         throws Exception{
@@ -443,7 +537,9 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         final HandoffActivityData handoffActivityData
             = new HandoffActivityData.Builder(new ComponentName("pkg", "cls"))
                 .build();
-        final Task task = new TaskBuilder(mSupervisor).setCreateActivity(true).build();
+        final Task task = new TaskBuilder(mSupervisor)
+                         .setComponent(new ComponentName("pkg", "cls"))
+                         .setCreateActivity(true).build();
         final ActivityRecord activity = task.getTopNonFinishingActivity();
         doReturn(false).when(activity).attachedToProcess();
         doReturn(handoffActivityData).when(activity).getHandoffActivityData();
@@ -454,13 +550,55 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         final TestHandoffTaskDataReceiver receiver = new TestHandoffTaskDataReceiver();
 
         // Request Handoff
-        mAtm.requestHandoffTaskData(task.getRootTaskId(), receiver);
+        requestHandoffTaskData(task.getRootTaskId(), receiver);
 
         // Verify that the result code is success.
         receiver.verifySucceeded(task.getRootTaskId(), handoffActivityData);
     }
 
-    @EnableFlags(android.companion.Flags.FLAG_ENABLE_TASK_CONTINUITY)
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
+    @Test
+    public void testRequestHandoffTaskData_succeedsWhenPassingURL()
+        throws Exception{
+        // Create a test task.
+        final Task task = new TaskBuilder(mSupervisor)
+                              .setComponent(new ComponentName("pkg", "cls"))
+                              .setCreateActivity(true).build();
+        final ActivityRecord activity = task.getTopNonFinishingActivity();
+        doReturn(true).when(activity).attachedToProcess();
+        doReturn(true).when(activity).isState(RESUMED);
+        WindowProcessController mockWindowProcessController = mock(WindowProcessController.class);
+        activity.app = mockWindowProcessController;
+        IApplicationThread mockThread = mock(IApplicationThread.class);
+        doReturn(mockThread).when(mockWindowProcessController).getThread();
+        doReturn(true).when(activity).isProcessRunning();
+        doReturn(true).when(activity).isHandoffEnabled();
+
+        // Setup a fake receiver to receive the result.
+        TestHandoffTaskDataReceiver receiver = new TestHandoffTaskDataReceiver();
+
+        // Request Handoff
+        requestHandoffTaskData(task.getRootTaskId(), receiver);
+
+        ArgumentCaptor<IBinder> requestTokenCaptor = ArgumentCaptor.forClass(IBinder.class);
+        ArgumentCaptor<List<IBinder>> activityTokenCaptor = ArgumentCaptor.forClass(List.class);
+        verify(mockThread).requestHandoffActivityData(
+            requestTokenCaptor.capture(),
+            activityTokenCaptor.capture());
+
+        // Finish the request
+        HandoffActivityData handoffActivityData
+            = HandoffActivityData.createWebHandoff(Uri.parse("https://www.google.com"));
+
+        mAtm.reportHandoffActivityData(
+            requestTokenCaptor.getValue(),
+            List.of(handoffActivityData));
+
+        // Verify that the result code is success.
+        receiver.verifySucceeded(task.getRootTaskId(), handoffActivityData);
+    }
+
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
     @Test
     public void testRequestHandoffTaskData_failsIfNoDataReturned()
         throws Exception{
@@ -480,7 +618,7 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         TestHandoffTaskDataReceiver receiver = new TestHandoffTaskDataReceiver();
 
         // Request Handoff
-        mAtm.requestHandoffTaskData(task.getRootTaskId(), receiver);
+        requestHandoffTaskData(task.getRootTaskId(), receiver);
 
         ArgumentCaptor<IBinder> requestTokenCaptor = ArgumentCaptor.forClass(IBinder.class);
         ArgumentCaptor<List<IBinder>> activityTokenCaptor
@@ -500,6 +638,91 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         receiver.verifyFailed(
             task.getRootTaskId(),
             HandoffFailureCode.HANDOFF_FAILURE_APP_DID_NOT_REPORT_HANDOFF_DATA);
+    }
+
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
+    @Test
+    public void testRequestHandoffTaskData_failsMismatchedComponentNameInBacground()
+            throws Exception {
+        // Create a test task.
+        final ComponentName generatingComponent =
+                new ComponentName("com.example.generating", "TestActivity");
+        final Task task = new TaskBuilder(mSupervisor)
+                            .setComponent(generatingComponent)
+                            .setCreateActivity(true)
+                            .build();
+        final ActivityRecord activity = task.getTopNonFinishingActivity();
+
+        // Create HandoffActivityData with a different package name
+        final HandoffActivityData handoffActivityData = new HandoffActivityData.Builder(
+                new ComponentName("com.example.different", "SomeActivity")).build();
+
+        doReturn(false).when(activity).attachedToProcess();
+        doReturn(handoffActivityData).when(activity).getHandoffActivityData();
+        doReturn(false).when(activity).isProcessRunning();
+        doReturn(true).when(activity).isHandoffEnabled();
+
+        // Setup a fake receiver to receive the result.
+        final TestHandoffTaskDataReceiver receiver = new TestHandoffTaskDataReceiver();
+
+        // Request Handoff
+        requestHandoffTaskData(task.getRootTaskId(), receiver);
+
+        // Verify that the result code is failure.
+        receiver.verifyFailed(task.getRootTaskId(),
+                HandoffFailureCode.HANDOFF_FAILURE_APP_DID_NOT_REPORT_HANDOFF_DATA);
+    }
+
+    @EnableFlags(android.companion.Flags.FLAG_TASK_CONTINUITY)
+    @Test
+    public void testRequestHandoffTaskData_failsMismatchedComponentNameRunningActivity()
+            throws Exception {
+        // Create a test task.
+        final ComponentName generatingComponent =
+                new ComponentName("com.example.generating", "TestActivity");
+        final Task task = new TaskBuilder(mSupervisor)
+                            .setComponent(generatingComponent)
+                            .setCreateActivity(true)
+                            .build();
+        final ActivityRecord activity = task.getTopNonFinishingActivity();
+        doReturn(true).when(activity).attachedToProcess();
+        WindowProcessController mockWindowProcessController = mock(WindowProcessController.class);
+        activity.app = mockWindowProcessController;
+        IApplicationThread mockThread = mock(IApplicationThread.class);
+        doReturn(mockThread).when(mockWindowProcessController).getThread();
+        doReturn(true).when(activity).isProcessRunning();
+        doReturn(true).when(activity).isHandoffEnabled();
+
+        // Setup a fake receiver to receive the result.
+        TestHandoffTaskDataReceiver receiver = new TestHandoffTaskDataReceiver();
+
+        // Request Handoff
+        requestHandoffTaskData(task.getRootTaskId(), receiver);
+
+        ArgumentCaptor<IBinder> requestTokenCaptor = ArgumentCaptor.forClass(IBinder.class);
+        ArgumentCaptor<List<IBinder>> activityTokenCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(mockThread).requestHandoffActivityData(
+                requestTokenCaptor.capture(),
+                activityTokenCaptor.capture());
+
+        // Finish the request with mismatched package name
+        HandoffActivityData handoffActivityData = new HandoffActivityData.Builder(
+                new ComponentName("com.example.different", "SomeActivity")).build();
+        mAtm.reportHandoffActivityData(
+                requestTokenCaptor.getValue(),
+                List.of(handoffActivityData));
+
+        // Verify that the result code is failure.
+        receiver.verifyFailed(
+                task.getRootTaskId(),
+                HandoffFailureCode.HANDOFF_FAILURE_APP_DID_NOT_REPORT_HANDOFF_DATA);
+    }
+
+    private void requestHandoffTaskData(int taskId, IHandoffTaskDataReceiver receiver) {
+        mAtm.requestHandoffTaskData(taskId, receiver);
+        // IHandoffTaskDataReceiver runs on handler.
+        waitHandlerIdle(mAtm.mH);
     }
 
     @Test
@@ -826,8 +1049,10 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         assertTopNonSleeping.accept(topActivity);
 
         // Sleep all displays.
-        mWm.mRoot.forAllDisplays(display -> doReturn(true).when(display).shouldSleep());
-        mAtm.updateSleepIfNeededLocked();
+        mWm.mRoot.forAllDisplays(display -> {
+            doReturn(true).when(display).shouldSleep();
+            display.sleepIfNeeded();
+        });
         // Simulate holding sleep wake lock if it is acquired.
         verify(mSupervisor.mGoingToSleepWakeLock).acquire();
         doReturn(true).when(mSupervisor.mGoingToSleepWakeLock).isHeld();
@@ -862,8 +1087,10 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         assertEquals(homeActivity.app, mAtm.mInternal.getTopApp());
 
         // Wake all displays.
-        mWm.mRoot.forAllDisplays(display -> doReturn(false).when(display).shouldSleep());
-        mAtm.updateSleepIfNeededLocked();
+        mWm.mRoot.forAllDisplays(display -> {
+            doReturn(false).when(display).shouldSleep();
+            display.wakeIfNeeded();
+        });
 
         assertTopNonSleeping.accept(homeActivity);
     }
@@ -976,15 +1203,12 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
 
     @Test
     public void testSupportsMultiWindow_activityMinWidthHeight_largerThanSupport() {
-        final float density = mContext.getResources().getDisplayMetrics().density;
         final ActivityInfo.WindowLayout windowLayout =
-                new ActivityInfo.WindowLayout(0, 0, 0, 0, 0,
-                        // This is larger than the min dimensions device support in multi window,
-                        // the activity will not be supported in multi window if the device respects
-                        /* minWidth= */
-                        (int) (WindowManager.LARGE_SCREEN_SMALLEST_SCREEN_WIDTH_DP * density),
-                        /* minHeight= */
-                        (int) (WindowManager.LARGE_SCREEN_SMALLEST_SCREEN_WIDTH_DP * density));
+                createWindowLayoutWithMinSize(
+                        WindowManager.LARGE_SCREEN_SMALLEST_SCREEN_WIDTH_DP,
+                        WindowManager.LARGE_SCREEN_SMALLEST_SCREEN_WIDTH_DP,
+                        mContext.getResources().getDisplayMetrics(),
+                        TypedValue.COMPLEX_UNIT_DIP);
         final ActivityRecord activity = new ActivityBuilder(mAtm)
                 .setCreateTask(true)
                 .setWindowLayout(windowLayout)
@@ -1032,13 +1256,13 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
     public void testSupportsMultiWindow_landscape_checkActivityMinWidth() {
         // This is smaller than the min dimensions device support in multi window,
         // the activity will be supported in multi window
-        final float density = mContext.getResources().getDisplayMetrics().density;
-        final int supportedWidth = (int) (WindowManager.LARGE_SCREEN_SMALLEST_SCREEN_WIDTH_DP
-                * mAtm.mMinPercentageMultiWindowSupportWidth * density);
         final ActivityInfo.WindowLayout windowLayout =
-                new ActivityInfo.WindowLayout(0, 0, 0, 0, 0,
-                        /* minWidth= */ supportedWidth,
-                        /* minHeight= */ 0);
+                createWindowLayoutWithMinSize(
+                        (int) (WindowManager.LARGE_SCREEN_SMALLEST_SCREEN_WIDTH_DP
+                                * mAtm.mMinPercentageMultiWindowSupportWidth),
+                        0,
+                        mContext.getResources().getDisplayMetrics(),
+                        TypedValue.COMPLEX_UNIT_DIP);
         final ActivityRecord activity = new ActivityBuilder(mAtm)
                 .setCreateTask(true)
                 .setWindowLayout(windowLayout)
@@ -1067,13 +1291,13 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
     public void testSupportsMultiWindow_portrait_checkActivityMinHeight() {
         // This is smaller than the min dimensions device support in multi window,
         // the activity will be supported in multi window
-        final float density = mContext.getResources().getDisplayMetrics().density;
-        final int supportedHeight = (int) (WindowManager.LARGE_SCREEN_SMALLEST_SCREEN_WIDTH_DP
-                * mAtm.mMinPercentageMultiWindowSupportHeight * density);
         final ActivityInfo.WindowLayout windowLayout =
-                new ActivityInfo.WindowLayout(0, 0, 0, 0, 0,
-                        /* minWidth= */ 0,
-                        /* minHeight= */ supportedHeight);
+                createWindowLayoutWithMinSize(
+                        0,
+                        (int) (WindowManager.LARGE_SCREEN_SMALLEST_SCREEN_WIDTH_DP
+                                * mAtm.mMinPercentageMultiWindowSupportHeight),
+                        mContext.getResources().getDisplayMetrics(),
+                        TypedValue.COMPLEX_UNIT_DIP);
         final ActivityRecord activity = new ActivityBuilder(mAtm)
                 .setCreateTask(true)
                 .setWindowLayout(windowLayout)
@@ -1104,6 +1328,8 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         addNewDisplayContentAt(DisplayContent.POSITION_TOP);
         final DisplayContent dc0 = mRootWindowContainer.getChildAt(0);
         final DisplayContent dc1 = mRootWindowContainer.getChildAt(1);
+        new TaskBuilder(mSupervisor).setCreateActivity(true).setDisplay(dc0).build();
+        new TaskBuilder(mSupervisor).setCreateActivity(true).setDisplay(dc1).build();
         dc0.setLastHasContent();
         dc1.setLastHasContent();
         final Configuration config = new Configuration();
@@ -1473,13 +1699,65 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
                 .setNightMode(Configuration.UI_MODE_NIGHT_UNDEFINED).commit());
     }
 
+    @Test
+    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_APP_RESTART_AFTER_UPDATE)
+    public void testStopAndKillAppForUpdate_processWithActivities_callsOrganizer() {
+        class PackageUpdateOrganizer extends StubOrganizer {
+            List<ActivityManager.RunningTaskInfo> mUpdatingTaskInfos = new ArrayList<>();
+            @Override
+            public void onPackageUpdateRequested(
+                    List<ActivityManager.RunningTaskInfo> updatingTaskInfos) {
+                mUpdatingTaskInfos = updatingTaskInfos;
+            }
+        }
+        PackageUpdateOrganizer o = new PackageUpdateOrganizer();
+        mWm.mAtmService.mTaskOrganizerController.registerTaskOrganizer(o);
+        mAtm.mAmInternal = mock(ActivityManagerInternal.class);
+        final ActivityRecord activity = new ActivityBuilder(mAtm).setCreateTask(true).build();
+        activity.getTask().mHandlePackageUpdate = true;
+        activity.info.persistableMode = PERSIST_ACROSS_REBOOTS;
+        activity.app.addPackage(activity.packageName);
+        mAtm.mProcessMap.put(activity.app.getPid(), activity.app);
+        String packageName = activity.packageName;
+        int userId = activity.mUserId;
+        int appId = activity.app.mUid;
+        doReturn(true).when(mAtm).isCallerSystem(anyInt());
+
+        mAtm.mInternal.stopAndKillAppForUpdate(packageName, userId, appId);
+
+        assertEquals(o.mUpdatingTaskInfos.get(0).taskId, activity.getTask().mTaskId);
+    }
+
+    @Test
+    public void testStopAndKillAppForUpdate_noActiveProcesses_killsImmediately() {
+        final String packageName = "com.example.test";
+        final int uid = 10001;
+        final int appId = 20001;
+        WindowProcessController wpc = createWindowProcessController(packageName, uid);
+        mAtm.mAmInternal = mock(ActivityManagerInternal.class);
+        doReturn(true).when(mAtm).isCallerSystem(anyInt());
+        mAtm.mProcessMap.put(wpc.getPid(), wpc);
+
+        mAtm.mInternal.stopAndKillAppForUpdate(packageName, uid, appId);
+        waitHandlerIdle(mAtm.mH);
+
+        verify(mAtm.mAmInternal).killApplicationSync(
+                packageName,
+                appId,
+                uid,
+                "killDueToPackageUpdate",
+                ApplicationExitInfo.REASON_PACKAGE_UPDATED
+        );
+    }
+
     private WindowProcessController createWindowProcessController(String packageName,
             int userId) {
         WindowProcessListener mMockListener = Mockito.mock(WindowProcessListener.class);
+        ProcessRecordInternal owner = mock(ProcessRecordInternal.class);
         ApplicationInfo info = mock(ApplicationInfo.class);
         info.packageName = packageName;
         WindowProcessController wpc = new WindowProcessController(
-                mAtm, info, packageName, 0, userId, null, mMockListener);
+                mAtm, info, packageName, 0, userId, owner, mMockListener);
         mAtm.mInternal.preBindApplication(wpc, info);
         mAtm.mInternal.onProcessAdded(wpc);
         wpc.setThread(mock(IApplicationThread.class));
@@ -1677,51 +1955,406 @@ public class ActivityTaskManagerServiceTests extends WindowTestsBase {
         assertFalse(record.inPinnedWindowingMode());
     }
 
-    @EnableFlags(FLAG_ENABLE_WINDOW_REPOSITIONING_API)
     @Test
-    public void testIsTaskMoveAllowedOnDisplay_permissionGranted() {
-        final int displayId = Display.DEFAULT_DISPLAY;
-        final DisplayContent dc = mRootWindowContainer.getDisplayContent(displayId);
+    public void testStartActivitiesAsPackage_passesCallingActivityToken() {
+        final IBinder callingActivityToken = new Binder();
+        final ActivityStartController mockStartController = mock(ActivityStartController.class);
+        doReturn(mockStartController).when(mAtm).getActivityStartController();
 
-        MockitoSession session =
-                mockitoSession().spyStatic(ActivityTaskManagerService.class).startMocking();
+        mAtm.mInternal.startActivitiesAsPackage(callingActivityToken,
+                DEFAULT_COMPONENT_PACKAGE_NAME, null /* featureId */, DEFAULT_USER_ID,
+                new Intent[]{}, null /* bOptions */);
+
+        verify(mockStartController).startActivitiesInPackage(
+                anyInt(), eq(DEFAULT_COMPONENT_PACKAGE_NAME), any(), any(), any(),
+                eq(callingActivityToken), any(), eq(DEFAULT_USER_ID), anyBoolean(), any(),
+                anyBoolean());
+    }
+
+    @Test
+    public void onPictureInPictureUiStateChanged_defaultDisplay_sendsToPinnedTask() {
+        // Spy on the client controller to verify the call.
+        spyOn(mAtm.mActivityClientController);
+
+        // Create a pinned task with an activity on the default display.
+        final Task pinnedTask = new TaskBuilder(mSupervisor)
+                .setWindowingMode(WINDOWING_MODE_PINNED)
+                .setCreateActivity(true)
+                .build();
+        final ActivityRecord pinnedActivity = pinnedTask.getTopMostActivity();
+        final PictureInPictureUiState pipState = new PictureInPictureUiState.Builder().build();
+
+        // Call the method under test for the default display.
+        mAtm.onPictureInPictureUiStateChanged(pipState, Display.DEFAULT_DISPLAY);
+
+        // Verify the state is dispatched to the correct activity.
+        verify(mAtm.mActivityClientController).onPictureInPictureUiStateChanged(
+                eq(pinnedActivity), eq(pipState));
+    }
+
+    @Test
+    public void onPictureInPictureUiStateChanged_defaultDisplay_sendsToStandardTaskIfNoPinned() {
+        // Spy on the client controller to verify the call.
+        spyOn(mAtm.mActivityClientController);
+
+        // Create a standard task with an activity on the default display.
+        final Task standardTask = new TaskBuilder(mSupervisor)
+                .setCreateActivity(true)
+                .build();
+        final ActivityRecord standardActivity = standardTask.getTopMostActivity();
+        final PictureInPictureUiState pipState = new PictureInPictureUiState.Builder().build();
+
+        // Ensure no pinned task exists on the default display.
+        assertNull(mDefaultDisplay.getDefaultTaskDisplayArea().getRootPinnedTask());
+
+        // Call the method under test for the default display.
+        mAtm.onPictureInPictureUiStateChanged(pipState, Display.DEFAULT_DISPLAY);
+
+        // Verify the state is dispatched to the correct activity.
+        verify(mAtm.mActivityClientController).onPictureInPictureUiStateChanged(
+                eq(standardActivity), eq(pipState));
+    }
+
+    @Test
+    public void onPictureInPictureUiStateChanged_secondaryDisplay_sendsToPinnedTask() {
+        // Spy on the client controller to verify the call.
+        spyOn(mAtm.mActivityClientController);
+
+        // Create a secondary display.
+        final DisplayContent secondaryDisplay = new TestDisplayContent.Builder(mAtm, 1000, 1500)
+                .build();
+
+        // Create a pinned task with an activity on the secondary display.
+        final Task pinnedTask = new TaskBuilder(mSupervisor)
+                .setWindowingMode(WINDOWING_MODE_PINNED)
+                .setCreateActivity(true)
+                .setDisplay(secondaryDisplay)
+                .build();
+        final ActivityRecord pinnedActivity = pinnedTask.getTopMostActivity();
+        final PictureInPictureUiState pipState = new PictureInPictureUiState.Builder().build();
+
+        // Call the method under test for the secondary display.
+        mAtm.onPictureInPictureUiStateChanged(pipState, secondaryDisplay.getDisplayId());
+
+        // Verify the state is dispatched to the correct activity.
+        verify(mAtm.mActivityClientController).onPictureInPictureUiStateChanged(
+                eq(pinnedActivity), eq(pipState));
+    }
+
+    @Test
+    public void onPictureInPictureUiStateChanged_secondaryDisplay_sendsToStandardTaskIfNoPinned() {
+        // Spy on the client controller to verify the call.
+        spyOn(mAtm.mActivityClientController);
+
+        // Create a secondary display.
+        final DisplayContent secondaryDisplay = new TestDisplayContent.Builder(mAtm, 1000, 1500)
+                .build();
+
+        // Create a standard task with an activity on the secondary display.
+        final Task standardTask = new TaskBuilder(mSupervisor)
+                .setCreateActivity(true)
+                .setDisplay(secondaryDisplay)
+                .build();
+        final ActivityRecord standardActivity = standardTask.getTopMostActivity();
+        final PictureInPictureUiState pipState = new PictureInPictureUiState.Builder().build();
+
+        // Ensure no pinned task exists on the secondary display.
+        assertNull(secondaryDisplay.getDefaultTaskDisplayArea().getRootPinnedTask());
+
+        // Call the method under test for the secondary display.
+        mAtm.onPictureInPictureUiStateChanged(pipState, secondaryDisplay.getDisplayId());
+
+        // Verify the state is dispatched to the correct activity.
+        verify(mAtm.mActivityClientController).onPictureInPictureUiStateChanged(
+                eq(standardActivity), eq(pipState));
+    }
+
+    @Test
+    public void onPictureInPictureUiStateChanged_invalidDisplay_doesNothing() {
+        // Spy on the client controller to verify no calls are made.
+        spyOn(mAtm.mActivityClientController);
+
+        final int invalidDisplayId = 999;
+        final PictureInPictureUiState pipState = new PictureInPictureUiState.Builder().build();
+
+        // Call the method under test with an invalid display ID.
+        mAtm.onPictureInPictureUiStateChanged(pipState, invalidDisplayId);
+
+        // Verify the controller is never called.
+        verify(mAtm.mActivityClientController, never()).onPictureInPictureUiStateChanged(any(),
+                any());
+    }
+
+    private static final String DREAM_PACKAGE_NAME = "com.android.dream";
+    private static final int DREAM_UID = 1000;
+    private static final int DREAM_PID = 2000;
+
+    @Test
+    @EnableFlags(FLAG_DREAMS_QUERY_APPLICATION_INFO)
+    public void startDreamActivity_flagEnabled_usesFreshApplicationInfo() throws Exception {
+        // Depends on the mocked package manager set in SystemServicesTestRule#setUpLocalServices.
+        final PackageManagerInternal pmi = LocalServices.getService(PackageManagerInternal.class);
+        // Setup mocks for fresh app info
+        final ApplicationInfo freshAppInfo = new ApplicationInfo();
+        freshAppInfo.packageName = DREAM_PACKAGE_NAME;
+        freshAppInfo.uid = DREAM_UID;
+        freshAppInfo.flags = ApplicationInfo.FLAG_SYSTEM; // A different flag for verification.
+        final int userId = UserHandle.getUserId(DREAM_UID);
+        doReturn(freshAppInfo).when(pmi).getApplicationInfo(
+                eq(DREAM_PACKAGE_NAME), anyLong(), eq(DREAM_UID), eq(userId));
+
+        // Setup process with stale app info
+        final ApplicationInfo staleAppInfo = new ApplicationInfo();
+        staleAppInfo.packageName = DREAM_PACKAGE_NAME;
+        staleAppInfo.uid = DREAM_UID;
+        staleAppInfo.flags = ApplicationInfo.FLAG_PERSISTENT;
+        setupDreamProcess(DREAM_PACKAGE_NAME, DREAM_UID, DREAM_PID, staleAppInfo);
+
+        // Capture what is passed to ActivityStarter
+        final ActivityStarter starter = setupStarterMock();
+
+        // Call the method
+        final Intent intent = new Intent().setPackage(DREAM_PACKAGE_NAME);
+        final IAppTask task = mAtm.mInternal.startDreamActivity(intent, DREAM_UID, DREAM_PID);
+
+        // Verify
+        assertNotNull("startDreamActivity should return a non-null task", task);
+        final ArgumentCaptor<ActivityInfo> activityInfoCaptor =
+                ArgumentCaptor.forClass(ActivityInfo.class);
+        verify(starter).setActivityInfo(activityInfoCaptor.capture());
+        final ApplicationInfo usedAppInfo = activityInfoCaptor.getValue().applicationInfo;
+        assertEquals("Fresh ApplicationInfo should be used", freshAppInfo.flags, usedAppInfo.flags);
+    }
+
+    @Test
+    @DisableFlags(FLAG_DREAMS_QUERY_APPLICATION_INFO)
+    public void startDreamActivity_flagDisabled_usesProcessApplicationInfo() throws Exception {
+        // Depends on the mocked package manager set in SystemServicesTestRule#setUpLocalServices.
+        final PackageManagerInternal pmi = LocalServices.getService(PackageManagerInternal.class);
+
+        // Setup process with its app info
+        final ApplicationInfo processAppInfo = new ApplicationInfo();
+        processAppInfo.packageName = DREAM_PACKAGE_NAME;
+        processAppInfo.uid = DREAM_UID;
+        processAppInfo.flags = ApplicationInfo.FLAG_PERSISTENT;
+        setupDreamProcess(DREAM_PACKAGE_NAME, DREAM_UID, DREAM_PID, processAppInfo);
+
+        // Capture what is passed to ActivityStarter
+        final ActivityStarter starter = setupStarterMock();
+
+        // Call the method
+        final Intent intent = new Intent().setPackage(DREAM_PACKAGE_NAME);
+        final IAppTask task = mAtm.mInternal.startDreamActivity(intent, DREAM_UID, DREAM_PID);
+
+        // Verify
+        assertNotNull("startDreamActivity should return a non-null task", task);
+        verify(pmi, never()).getApplicationInfo(anyString(), anyInt(), anyInt(), anyInt());
+        final ArgumentCaptor<ActivityInfo> activityInfoCaptor =
+                ArgumentCaptor.forClass(ActivityInfo.class);
+        verify(starter).setActivityInfo(activityInfoCaptor.capture());
+        final ApplicationInfo usedAppInfo = activityInfoCaptor.getValue().applicationInfo;
+        assertEquals("Process's ApplicationInfo should be used",
+                processAppInfo.flags, usedAppInfo.flags);
+    }
+
+    @Test
+    @EnableFlags(FLAG_DREAMS_QUERY_APPLICATION_INFO)
+    public void startDreamActivity_flagEnabled_noProcess_returnsNull() {
+        // No process is set up, so getProcess will return null.
+
+        // Call and verify
+        final Intent intent = new Intent().setPackage(DREAM_PACKAGE_NAME);
+        assertNull(mAtm.mInternal.startDreamActivity(intent, DREAM_UID, DREAM_PID));
+    }
+
+    @Test
+    @EnableFlags(FLAG_DREAMS_QUERY_APPLICATION_INFO)
+    public void startDreamActivity_flagEnabled_noAppInfo_returnsNull() {
+        // Depends on the mocked package manager set in SystemServicesTestRule#setUpLocalServices.
+        final PackageManagerInternal pmi = LocalServices.getService(PackageManagerInternal.class);
+        final int userId = UserHandle.getUserId(DREAM_UID);
+        doReturn(null).when(pmi).getApplicationInfo(
+                eq(DREAM_PACKAGE_NAME), anyInt(), eq(DREAM_UID), eq(userId));
+
+        // Setup process
+        final ApplicationInfo appInfo = new ApplicationInfo();
+        appInfo.packageName = DREAM_PACKAGE_NAME;
+        appInfo.uid = DREAM_UID;
+        setupDreamProcess(DREAM_PACKAGE_NAME, DREAM_UID, DREAM_PID, appInfo);
+
+        // Call and verify
+        final Intent intent = new Intent().setPackage(DREAM_PACKAGE_NAME);
+        assertNull(mAtm.mInternal.startDreamActivity(intent, DREAM_UID, DREAM_PID));
+    }
+
+    @Test
+    public void testStartNextMatchingActivity_differentAppId_propagatesIntermediary()
+            throws RemoteException {
+        // App A (Original Caller)
+        final int appAUid = 10001;
+        final String appAPackage = "com.app.a";
+
+        // App B (Intermediary - untrusted different UID)
+        final int appBUid = 10002;
+        final String appBPackage = "com.app.b";
+
+        ActivityStarter starter =
+                setupStartNextMatchingActivityMock(appAUid, appAPackage, appBUid, appBPackage);
+
+        // Intermediary is untrusted, so identity is squashed to App B
+        verify(starter).setCallingUid(eq(appBUid));
+        verify(starter).setCallingPackage(eq(appBPackage));
+        verify(starter, never()).setCallingUid(eq(appAUid));
+    }
+
+    @Test
+    public void testStartNextMatchingActivity_sameAppId_propagatesOriginalCaller()
+            throws RemoteException {
+        // App A (Original Caller)
+        final int appAUid = 10001;
+        final String appAPackage = "com.app.a";
+
+        // App B (Intermediary - shares same App ID)
+        final int appBUid = 10001; // Same UID
+        final String appBPackage = "com.app.b";
+
+        ActivityStarter starter =
+                setupStartNextMatchingActivityMock(appAUid, appAPackage, appBUid, appBPackage);
+
+        // Intermediary is trusted (same app), so propagate App A
+        verify(starter).setCallingUid(eq(appAUid));
+        verify(starter).setCallingPackage(eq(appAPackage));
+    }
+
+    @Test
+    public void testStartNextMatchingActivity_systemUid_propagatesOriginalCaller()
+            throws RemoteException {
+        // App A (Original Caller)
+        final int appAUid = 10001;
+        final String appAPackage = "com.app.a";
+
+        // App B (Intermediary - SYSTEM UID like ChooserActivity)
+        final int appBUid = android.os.Process.SYSTEM_UID;
+        final String appBPackage = "android";
+
+        ActivityStarter starter =
+                setupStartNextMatchingActivityMock(appAUid, appAPackage, appBUid, appBPackage);
+
+        // Intermediary is trusted (System), so propagate App A
+        verify(starter).setCallingUid(eq(appAUid));
+        verify(starter).setCallingPackage(eq(appAPackage));
+    }
+
+    private ActivityStarter setupStartNextMatchingActivityMock(
+            int origUid, String origPackage, int intermediaryUid, String intermediaryPackage)
+            throws RemoteException {
+        final ComponentName intermediaryComponent =
+                new ComponentName(intermediaryPackage, "IntermediaryActivity");
+        final Intent intent = new Intent("TEST_ACTION")
+                .setPackage(intermediaryPackage)
+                .setComponent(intermediaryComponent);
+
+        ActivityRecord intermediaryApp = new ActivityBuilder(mAtm)
+                .setComponent(intermediaryComponent)
+                .setUid(intermediaryUid)
+                .setCreateTask(true)
+                .setLaunchedFromPackage(origPackage)
+                .setLaunchedFromUid(origUid)
+                .setIntent(intent)
+                .build();
+
+        intermediaryApp.app = mock(WindowProcessController.class);
+        when(intermediaryApp.app.getThread()).thenReturn(mock(IApplicationThread.class));
+        when(intermediaryApp.app.hasThread()).thenReturn(true);
+
+        List<ResolveInfo> resolves = new ArrayList<>();
+
+        // Intermediary ResolveInfo (the current activity)
+        ResolveInfo res = new ResolveInfo();
+        res.activityInfo = new ActivityInfo();
+        res.activityInfo.packageName = intermediaryPackage;
+        res.activityInfo.name = intermediaryComponent.getClassName();
+        res.activityInfo.applicationInfo = new ApplicationInfo();
+        res.activityInfo.applicationInfo.packageName = intermediaryPackage;
+        res.activityInfo.applicationInfo.uid = intermediaryUid;
+        resolves.add(res);
+
+        // Target ResolveInfo (the victim/next activity)
+        ResolveInfo nextRes = new ResolveInfo();
+        nextRes.activityInfo = new ActivityInfo();
+        nextRes.activityInfo.packageName = "com.app.target";
+        nextRes.activityInfo.name = "TargetActivity";
+        nextRes.activityInfo.applicationInfo = new ApplicationInfo();
+        nextRes.activityInfo.applicationInfo.packageName = "com.app.target";
+        nextRes.activityInfo.applicationInfo.uid = 10003;
+        resolves.add(nextRes);
+
+        final IPackageManager mockIPackageManager = mock(IPackageManager.class);
+
+        final MockitoSession session = mockitoSession()
+                .spyStatic(AppGlobals.class)
+                .strictness(Strictness.LENIENT)
+                .startMocking();
         try {
-            doReturn(PERMISSION_GRANTED).when(() -> {
-                return ActivityTaskManagerService.checkPermission(
-                        eq(REPOSITION_SELF_WINDOWS), anyInt(), anyInt());
-            });
+            doReturn(mockIPackageManager).when(AppGlobals::getPackageManager);
+            doReturn(new ParceledListSlice<>(resolves)).when(mockIPackageManager)
+                    .queryIntentActivities(any(Intent.class), any(), anyLong(), anyInt());
 
-            doReturn(true).when(dc).isTaskMoveAllowedOnDisplay();
-            assertTrue(mAtm.isTaskMoveAllowedOnDisplay(displayId));
+            ActivityStartController startController = spy(mAtm.getActivityStartController());
+            doReturn(startController).when(mAtm).getActivityStartController();
 
-            doReturn(false).when(dc).isTaskMoveAllowedOnDisplay();
-            assertFalse(mAtm.isTaskMoveAllowedOnDisplay(displayId));
+            ActivityStarter starter = spy(new ActivityStarter(startController, mAtm,
+                    mSupervisor, mock(ActivityStartInterceptor.class), mock(UserHelper.class)));
+            doReturn(starter).when(startController).obtainStarter(any(Intent.class), anyString());
+            doReturn(ActivityManager.START_SUCCESS).when(starter).execute();
+
+            mAtm.startNextMatchingActivity(intermediaryApp.token, intent, null);
+
+            return starter;
         } finally {
             session.finishMocking();
         }
     }
 
-    @EnableFlags(FLAG_ENABLE_WINDOW_REPOSITIONING_API)
-    @Test
-    public void testIsTaskMoveAllowedOnDisplay_permissionDenied() {
-        final int displayId = Display.DEFAULT_DISPLAY;
-        final DisplayContent dc = mRootWindowContainer.getDisplayContent(displayId);
+    private WindowProcessController setupDreamProcess(String packageName, int uid, int pid,
+            ApplicationInfo appInfo) {
+        final int userId = UserHandle.getUserId(uid);
 
-        MockitoSession session =
-                mockitoSession().spyStatic(ActivityTaskManagerService.class).startMocking();
-        try {
-            doReturn(PERMISSION_DENIED).when(() -> {
-                return ActivityTaskManagerService.checkPermission(
-                        eq(REPOSITION_SELF_WINDOWS), anyInt(), anyInt());
-            });
+        final WindowProcessController wpc = new WindowProcessController(mAtm, appInfo,
+                packageName, uid, userId, mock(ProcessRecordInternal.class) /* owner */,
+                mock(WindowProcessListener.class));
+        wpc.setPid(pid);
+        wpc.setThread(mock(IApplicationThread.class));
 
-            doReturn(true).when(dc).isTaskMoveAllowedOnDisplay();
-            assertFalse(mAtm.isTaskMoveAllowedOnDisplay(displayId));
+        mAtm.mProcessMap.put(pid, wpc);
+        mAtm.mProcessNames.put(packageName, uid, wpc);
+        return wpc;
+    }
 
-            doReturn(false).when(dc).isTaskMoveAllowedOnDisplay();
-            assertFalse(mAtm.isTaskMoveAllowedOnDisplay(displayId));
-        } finally {
-            session.finishMocking();
-        }
+    private ActivityStarter setupStarterMock() {
+        final ActivityStartController startController = mock(ActivityStartController.class);
+        doReturn(startController).when(mAtm).getActivityStartController();
+        final ActivityStarter starter = mock(ActivityStarter.class, Mockito.RETURNS_DEEP_STUBS);
+        doReturn(starter).when(startController).obtainStarter(any(), anyString());
+
+        // Ensure builder methods return the starter mock
+        doReturn(starter).when(starter).setCallingUid(anyInt());
+        doReturn(starter).when(starter).setCallingPid(anyInt());
+        doReturn(starter).when(starter).setCallingPackage(any());
+        doReturn(starter).when(starter).setActivityInfo(any());
+        doReturn(starter).when(starter).setActivityOptions(any());
+        doReturn(starter).when(starter).setRealCallingUid(anyInt());
+        doReturn(starter).when(starter).setAllowBalExemptionForSystemProcess(anyBoolean());
+
+        // We need to return a real task for AppTaskImpl.
+        final ActivityRecord activityRecord = new ActivityBuilder(mAtm).setCreateTask(true).build();
+        doAnswer(invocation -> {
+            Object[] args = invocation.getArguments();
+            ((ActivityRecord[]) args[0])[0] = activityRecord;
+            return starter;
+        }).when(starter).setOutActivity(any());
+
+        doReturn(ActivityManager.START_SUCCESS).when(starter).execute();
+        return starter;
     }
 }

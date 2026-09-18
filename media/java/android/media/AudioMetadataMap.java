@@ -26,7 +26,7 @@ import android.annotation.Nullable;
  * unless the underlying implementation for the {@code AudioMetadataMap}
  * states it as thread safe.
  *
- * {@see AudioMetadataReadMap}
+ * @see AudioMetadataReadMap
  */
 // TODO: Create a wrapper like java.util.Collections.synchronizedMap?
 

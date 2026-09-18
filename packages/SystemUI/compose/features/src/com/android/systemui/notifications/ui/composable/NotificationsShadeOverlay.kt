@@ -18,8 +18,10 @@ package com.android.systemui.notifications.ui.composable
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -32,6 +34,10 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.paneTitle
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import com.android.compose.animation.scene.ContentScope
 import com.android.compose.animation.scene.ElementKey
 import com.android.compose.animation.scene.UserAction
@@ -40,19 +46,23 @@ import com.android.compose.lifecycle.DisposableEffectWithLifecycle
 import com.android.compose.lifecycle.LaunchedEffectWithLifecycle
 import com.android.internal.jank.InteractionJankMonitor
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.keyguard.ui.composable.elements.LockscreenElements
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.media.remedia.ui.compose.Media
 import com.android.systemui.media.remedia.ui.compose.MediaPresentationStyle
+import com.android.systemui.notifications.intelligence.rules.shared.NmContextualDisplayLaunch
+import com.android.systemui.notifications.intelligence.rules.ui.viewmodel.NotificationRulesParentViewModel
 import com.android.systemui.notifications.ui.viewmodel.NotificationsShadeOverlayActionsViewModel
 import com.android.systemui.notifications.ui.viewmodel.NotificationsShadeOverlayContentViewModel
+import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementKeys
 import com.android.systemui.res.R
 import com.android.systemui.scene.session.ui.composable.SaveableSession
 import com.android.systemui.scene.shared.model.Overlays
+import com.android.systemui.scene.ui.composable.LocalSceneContainerPreloadedResources
 import com.android.systemui.scene.ui.composable.Overlay
 import com.android.systemui.shade.ui.composable.ChipHighlightModel
 import com.android.systemui.shade.ui.composable.OverlayShade
 import com.android.systemui.shade.ui.composable.OverlayShadeHeader
-import com.android.systemui.shade.ui.composable.isFullWidthShade
 import com.android.systemui.statusbar.notification.stack.ui.view.NotificationScrollView
 import dagger.Lazy
 import javax.inject.Inject
@@ -64,6 +74,8 @@ class NotificationsShadeOverlay
 constructor(
     private val actionsViewModelFactory: NotificationsShadeOverlayActionsViewModel.Factory,
     private val contentViewModelFactory: NotificationsShadeOverlayContentViewModel.Factory,
+    private val notificationRulesParentViewModelFactory: NotificationRulesParentViewModel.Factory,
+    private val lockscreenElements: LockscreenElements,
     private val shadeSession: SaveableSession,
     private val stackScrollView: Lazy<NotificationScrollView>,
     private val jankMonitor: InteractionJankMonitor,
@@ -84,7 +96,8 @@ constructor(
 
     @Composable
     override fun ContentScope.Content(modifier: Modifier) {
-        val notificationStackPadding = dimensionResource(id = R.dimen.notification_side_paddings)
+        val notificationStackPadding =
+            dimensionResource(id = R.dimen.notification_side_paddings_dual)
 
         val viewModel =
             rememberViewModel("NotificationsShadeOverlay-viewModel") {
@@ -92,14 +105,24 @@ constructor(
             }
         val placeholderViewModel =
             rememberViewModel("NotificationsShadeOverlay-notifPlaceholderViewModel") {
-                viewModel.notificationsPlaceholderViewModelFactory.create()
+                viewModel.notificationsPlaceholderViewModelFactory.create(
+                    Overlays.NotificationsShade
+                )
+            }
+        val notificationRulesParentViewModel =
+            if (NmContextualDisplayLaunch.isEnabled) {
+                rememberViewModel("NotificationsShadeOverlay-notifRulesParentViewModel") {
+                    notificationRulesParentViewModelFactory.create()
+                }
+            } else {
+                null
             }
 
         DisposableEffectWithLifecycle(Unit) {
             onDispose { viewModel.onShadeOverlayBoundsChanged(null) }
         }
 
-        val isFullWidth = isFullWidthShade()
+        val isFullWidth = LocalSceneContainerPreloadedResources.current.isFullWidthShade
 
         val targetBlurRadiusPx: Float by
             remember(layoutState) {
@@ -111,6 +134,7 @@ constructor(
         OverlayShade(
             panelElement = NotificationsShade.Elements.Panel,
             alignmentOnWideScreens = viewModel.alignmentOnWideScreens,
+            statusBarHeightPx = viewModel.statusBarHeightPx,
             enableTransparency = viewModel.isTransparencyEnabled,
             modifier = modifier.blur(with(LocalDensity.current) { animatedBlurRadiusPx.toDp() }),
             onScrimClicked = viewModel::onScrimClicked,
@@ -140,42 +164,63 @@ constructor(
                 focusRequester.requestFocus()
             }
 
-            Column(modifier = Modifier.focusRequester(focusRequester).focusable()) {
-                if (viewModel.showMedia) {
-                    Element(
-                        key = Media.Elements.mediaCarousel,
-                        modifier =
-                            Modifier.padding(
-                                top = notificationStackPadding,
-                                start = notificationStackPadding,
-                                end = notificationStackPadding,
-                            ),
-                    ) {
-                        Media(
-                            viewModelFactory = viewModel.mediaViewModelFactory,
-                            presentationStyle = MediaPresentationStyle.Default,
-                            behavior = viewModel.mediaUiBehavior,
-                            onDismissed = viewModel::onMediaSwipeToDismiss,
+            val accessibilityTitle = stringResource(R.string.accessibility_desc_notification_shade)
+
+            Column(
+                modifier =
+                    Modifier.focusRequester(focusRequester).focusable().semantics {
+                        paneTitle = accessibilityTitle
+                    }
+            ) {
+                if (isFullWidth) {
+                    Box(
+                        Modifier.padding(
+                            start = notificationStackPadding,
+                            end = notificationStackPadding,
+                            bottom = 8.dp,
                         )
+                    ) {
+                        with(lockscreenElements) {
+                            LockscreenElement(
+                                LockscreenElementKeys.Clock.Small,
+                                Modifier.height(88.dp),
+                            )
+                        }
                     }
                 }
 
                 val stackScrollView = stackScrollView.get()
-                NotificationScrollingStack(
+                ScrollingNotificationPanel(
+                    tag = "NotifShadeOverlay",
                     shadeSession = shadeSession,
                     stackScrollView = stackScrollView,
                     viewModel = placeholderViewModel,
+                    notificationRulesParentViewModel = notificationRulesParentViewModel,
                     jankMonitor = jankMonitor,
-                    maxScrimTop = { 0f },
                     shouldPunchHoleBehindScrim = false,
+                    isTransparencyEnabled = viewModel.isTransparencyEnabled,
                     stackTopPadding = notificationStackPadding,
-                    stackBottomPadding = notificationStackPadding,
-                    shouldFillMaxSize = false,
-                    shouldShowScrim = false,
-                    supportNestedScrolling = false,
+                    stackBottomPadding = { notificationStackPadding },
+                    aboveNotifications = { modifier ->
+                        if (viewModel.showMedia) {
+                            Element(
+                                key = Media.Elements.MediaCarousel,
+                                modifier = modifier.padding(horizontal = notificationStackPadding),
+                            ) {
+                                Media(
+                                    viewModelFactory = viewModel.mediaViewModelFactory,
+                                    presentationStyle = MediaPresentationStyle.Default,
+                                    behavior = viewModel.mediaUiBehavior,
+                                    onDismissed = viewModel::onMediaSwipeToDismiss,
+                                    location = Media.Location.SHADE,
+                                )
+                            }
+                        }
+                    },
+                    shouldDrawScrimBackground = false,
                     modifier =
                         Modifier.fillMaxWidth().focusProperties {
-                            // The `NotificationScrollingStack` is a compose placeholder. Therefore,
+                            // The `ScrollingNotificationPanel` is a compose placeholder. Therefore,
                             // focus on the view that actually shows notifications.
                             onEnter = { stackScrollView.asView().requestFocus() }
                         },

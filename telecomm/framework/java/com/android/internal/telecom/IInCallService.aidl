@@ -46,6 +46,8 @@ oneway interface IInCallService {
 
     void onCallEndpointChanged(in CallEndpoint callEndpoint);
 
+    void onCallEndpointRequested(in CallEndpoint callEndpoint);
+
     void onAvailableCallEndpointsChanged(in List<CallEndpoint> availableCallEndpoints);
 
     void onMuteStateChanged(boolean isMuted);

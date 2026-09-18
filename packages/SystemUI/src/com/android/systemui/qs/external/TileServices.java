@@ -20,10 +20,12 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ServiceInfo;
 import android.graphics.drawable.Icon;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.RemoteException;
 import android.os.UserHandle;
 import android.service.quicksettings.IQSService;
 import android.service.quicksettings.Tile;
@@ -65,6 +67,10 @@ public class TileServices extends IQSService.Stub {
     static final int DEFAULT_MAX_BOUND = 3;
     static final int REDUCED_MAX_BOUND = 1;
     private static final String TAG = "TileServices";
+    private static final int META_DATA_QUERY_FLAGS = PackageManager.GET_META_DATA
+            | PackageManager.MATCH_UNINSTALLED_PACKAGES
+            | PackageManager.MATCH_DIRECT_BOOT_UNAWARE
+            | PackageManager.MATCH_DIRECT_BOOT_AWARE;
 
     private final ArrayMap<CustomTileInterface, TileServiceManager> mServices = new ArrayMap<>();
     private final SparseArrayMap<ComponentName, CustomTileInterface> mTiles =
@@ -76,6 +82,7 @@ public class TileServices extends IQSService.Stub {
     private final QSHost mHost;
     private final KeyguardStateController mKeyguardStateController;
     private final BroadcastDispatcher mBroadcastDispatcher;
+    private final PackageManagerAdapter mPackageManagerAdapter;
     private final CommandQueue mCommandQueue;
     private final UserTracker mUserTracker;
     private final StatusBarIconController mStatusBarIconController;
@@ -91,6 +98,7 @@ public class TileServices extends IQSService.Stub {
             QSHost host,
             @Main Provider<Handler> handlerProvider,
             BroadcastDispatcher broadcastDispatcher,
+            PackageManagerAdapter packageManagerAdapter,
             UserTracker userTracker,
             KeyguardStateController keyguardStateController,
             CommandQueue commandQueue,
@@ -103,6 +111,7 @@ public class TileServices extends IQSService.Stub {
         mKeyguardStateController = keyguardStateController;
         mContext = mHost.getContext();
         mBroadcastDispatcher = broadcastDispatcher;
+        mPackageManagerAdapter = packageManagerAdapter;
         mHandlerProvider = handlerProvider;
         mMainHandler = mHandlerProvider.get();
         mUserTracker = userTracker;
@@ -189,14 +198,14 @@ public class TileServices extends IQSService.Stub {
 
     private int verifyCaller(CustomTileInterface tile) {
         try {
-            String packageName = tile.getComponent().getPackageName();
-            int uid = mContext.getPackageManager().getPackageUidAsUser(packageName,
-                    Binder.getCallingUserHandle().getIdentifier());
+            ServiceInfo serviceInfo = mPackageManagerAdapter.getServiceInfo(
+                    tile.getComponent(), META_DATA_QUERY_FLAGS, tile.getUser());
+            int uid = serviceInfo.getUid();
             if (Binder.getCallingUid() != uid) {
                 throw new SecurityException("Component outside caller's uid");
             }
             return uid;
-        } catch (PackageManager.NameNotFoundException e) {
+        } catch (RemoteException e) {
             throw new SecurityException(e);
         }
     }

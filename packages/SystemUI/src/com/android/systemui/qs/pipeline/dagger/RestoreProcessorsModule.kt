@@ -17,6 +17,7 @@
 package com.android.systemui.qs.pipeline.dagger
 
 import com.android.systemui.qs.pipeline.data.model.RestoreProcessor
+import com.android.systemui.qs.pipeline.data.restoreprocessors.CellTileRestoreProcessor
 import com.android.systemui.qs.pipeline.data.restoreprocessors.WorkTileRestoreProcessor
 import dagger.Binds
 import dagger.Module
@@ -28,4 +29,8 @@ interface RestoreProcessorsModule {
     @Binds
     @IntoSet
     fun bindWorkTileRestoreProcessor(impl: WorkTileRestoreProcessor): RestoreProcessor
+
+    @Binds
+    @IntoSet
+    fun bindCellTileRestoreProcessor(impl: CellTileRestoreProcessor): RestoreProcessor
 }

@@ -20,6 +20,8 @@ import android.os.BatteryStats;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.power.stats.counters.TimeBase;
+
 import junit.framework.TestCase;
 
 /**
@@ -32,7 +34,7 @@ public class BatteryStatsStopwatchTimerTest extends TestCase {
     @SmallTest
     public void testCount() throws Exception {
         final MockClock clocks = new MockClock(); // holds realtime and uptime in ms
-        final BatteryStatsImpl.TimeBase timeBase = new BatteryStatsImpl.TimeBase();
+        final TimeBase timeBase = new TimeBase();
         timeBase.init(clocks.uptimeMillis(), clocks.elapsedRealtime());
         final BatteryStatsImpl.StopwatchTimer timer = new BatteryStatsImpl.StopwatchTimer(clocks,
                 null, BatteryStats.SENSOR, null, timeBase);

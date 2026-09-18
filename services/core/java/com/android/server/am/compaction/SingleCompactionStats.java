@@ -18,10 +18,10 @@ package com.android.server.am.compaction;
 
 import android.app.ActivityManagerInternal;
 
-import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.server.am.CachedAppOptimizer;
-import com.android.server.am.OomAdjuster;
+import com.android.server.am.Flags;
+import com.android.server.am.psc.OomAdjuster;
 
 import dalvik.annotation.optimization.NeverCompile;
 
@@ -85,7 +85,7 @@ public final class SingleCompactionStats {
     }
 
     void sendStat() {
-        if (mRandom.nextFloat() < STATSD_SAMPLE_RATE) {
+        if (mRandom.nextFloat() < STATSD_SAMPLE_RATE || Flags.unsampledCompactAtomLogging()) {
             FrameworkStatsLog.write(FrameworkStatsLog.APP_COMPACTED_V2, mUid, mProcState,
                     mOomAdj, mDeltaAnonRssKBs, mZramConsumedKBs, mCpuTimeMillis, mOrigAnonRss,
                     mOomAdjReason);

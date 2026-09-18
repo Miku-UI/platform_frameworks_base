@@ -23,8 +23,8 @@ import android.content.pm.PackageManager
 import android.os.ServiceManager
 import android.tools.Rotation
 import android.tools.flicker.FlickerBuilder
-import android.tools.flicker.FlickerTestData
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestData
 import android.tools.flicker.FlickerTestFactory
 import android.tools.helpers.SYSTEMUI_PACKAGE
 import androidx.test.uiautomator.By
@@ -59,12 +59,12 @@ abstract class BaseBubbleScreen(flicker: FlickerTest) : BaseTest(flicker) {
             setup {
                 MultiWindowUtils.executeShellCommand(
                     instrumentation,
-                    "settings put secure force_hide_bubbles_user_education 1"
+                    "settings put secure force_hide_bubbles_user_education 1",
                 )
                 notifyManager.setBubblesAllowed(
                     testApp.packageName,
                     uid,
-                    NotificationManager.BUBBLE_PREFERENCE_ALL
+                    NotificationManager.BUBBLE_PREFERENCE_ALL,
                 )
                 testApp.launchViaIntent(wmHelper)
                 waitAndGetAddBubbleBtn()
@@ -74,16 +74,16 @@ abstract class BaseBubbleScreen(flicker: FlickerTest) : BaseTest(flicker) {
             teardown {
                 MultiWindowUtils.executeShellCommand(
                     instrumentation,
-                    "settings put secure force_hide_bubbles_user_education 0"
+                    "settings put secure force_hide_bubbles_user_education 0",
                 )
                 notifyManager.setBubblesAllowed(
                     testApp.packageName,
                     uid,
-                    NotificationManager.BUBBLE_PREFERENCE_NONE
+                    NotificationManager.BUBBLE_PREFERENCE_NONE,
                 )
                 device.wait(
                     Until.gone(By.res(SYSTEM_UI_PACKAGE, BUBBLE_RES_NAME)),
-                    FIND_OBJECT_TIMEOUT
+                    FIND_OBJECT_TIMEOUT,
                 )
                 testApp.exit(wmHelper)
             }
@@ -94,6 +94,7 @@ abstract class BaseBubbleScreen(flicker: FlickerTest) : BaseTest(flicker) {
 
     protected fun FlickerTestData.waitAndGetAddBubbleBtn(): UiObject2? =
         device.wait(Until.findObject(By.text("Add Bubble")), FIND_OBJECT_TIMEOUT)
+
     protected fun FlickerTestData.waitAndGetCancelAllBtn(): UiObject2? =
         device.wait(Until.findObject(By.text("Cancel All Bubble")), FIND_OBJECT_TIMEOUT)
 
@@ -101,9 +102,7 @@ abstract class BaseBubbleScreen(flicker: FlickerTest) : BaseTest(flicker) {
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            FlickerTestFactory.nonRotationTests(
-                supportedRotations = listOf(Rotation.ROTATION_0)
-            )
+            FlickerTestFactory.nonRotationTests(supportedRotations = listOf(Rotation.ROTATION_0))
 
         const val FIND_OBJECT_TIMEOUT = 4000L
         const val SYSTEM_UI_PACKAGE = SYSTEMUI_PACKAGE

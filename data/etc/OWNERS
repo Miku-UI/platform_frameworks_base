@@ -3,10 +3,11 @@ include /PACKAGE_MANAGER_OWNERS
 hackbod@android.com
 hackbod@google.com
 jeffv@google.com
-jsharkey@android.com
 lorenzo@google.com
 yamasani@google.com
 
+per-file app-lock-exempt.xml = file:/core/java/android/content/pm/APP_LOCK_OWNERS
 per-file preinstalled-packages* = file:/MULTIUSER_OWNERS
 per-file services.core.protolog.json =  file:/services/core/java/com/android/server/wm/OWNERS
 per-file core.protolog.pb = file:/services/core/java/com/android/server/wm/OWNERS
+per-file advanced-protection-config.xml = file:/core/java/android/security/advancedprotection/OWNERS

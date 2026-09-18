@@ -26,10 +26,8 @@ import android.os.SystemClock;
 import android.os.UserHandle;
 import android.util.Log;
 import android.util.TimeUtils;
-
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
-
 import java.io.PrintWriter;
 
 /**
@@ -499,7 +497,7 @@ public abstract class PersistentConnection<T> {
     }
 
     @VisibleForTesting
-    ServiceConnection getServiceConnectionForTest() {
+    public ServiceConnection getServiceConnectionForTest() {
         return mServiceConnection;
     }
 

@@ -41,17 +41,6 @@ flag {
 
 flag {
     namespace: "windowing_sdk"
-    name: "rear_display_disable_force_desktop_system_decorations"
-    description: "Block system decorations from being added to a rear display when desktop mode is forced"
-    bug: "346103150"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    namespace: "windowing_sdk"
     name: "touch_pass_through_opt_in"
     description: "Requires apps to opt-in to overlay pass through touches and provide APIs to opt-in"
     bug: "358129114"
@@ -59,20 +48,20 @@ flag {
 }
 
 flag {
-    namespace: "windowing_sdk"
-    name: "activity_embedding_delay_task_fragment_finish_for_activity_launch"
-    description: "Fixes a race condition that we finish the TaskFragment too early when there is a pending activity launch."
-    bug: "390452023"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     namespace: "aaos_core_contrib"
     name: "safe_region_letterboxing_v1"
     description: "Enables letterboxing for a safe region"
     bug: "425949809"
+}
+
+flag {
+    namespace: "aaos_core_contrib"
+    name: "current_user_access_unassigned_displays"
+    description: "Allows the current user to access unassigned displays in MUMD"
+    bug: "474129122"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -91,26 +80,17 @@ flag {
 
 flag {
     namespace: "windowing_sdk"
-    name: "root_task_for_bubble"
+    name: "enable_bubble_root_task"
     description: "Using a root task to manage Bubble tasks"
     bug: "407669465"
-    is_fixed_read_only: true
 }
 
-flag {
-    namespace: "windowing_sdk"
-    name: "fallback_to_focused_display"
-    description: "Use the focused display as the fallback"
-    bug: "406967985"
-    is_fixed_read_only: true
-}
 
 flag {
-    namespace: "windowing_sdk"
-    name: "task_fragment_companion_activity"
-    description: "Track the activity to be finished with tf in core"
-    bug: "433459536"
-    is_fixed_read_only: true
+    namespace: "aaos_core_contrib"
+    name: "home_activity_always_present"
+    description: "Ensure home activity is always present in the system."
+    bug: "445954436"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -118,17 +98,9 @@ flag {
 
 flag {
     namespace: "windowing_sdk"
-    name: "support_gemini_on_multi_display"
-    description: "Launch Gemini on a multi-display environment"
-    bug: "400351723"
-    is_fixed_read_only: true
-}
-
-flag {
-    namespace: "windowing_sdk"
-    name: "fix_bubble_trampoline_animation"
-    description: "Fix the animation for Bubble Task Trampoline"
-    bug: "417848405"
+    name: "fix_tf_adjacent_focus"
+    description: "Fix ANR issue caused by one TaskFragment being non-focusable in an adjacent pair."
+    bug: "454729152"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -136,10 +108,55 @@ flag {
 
 flag {
     namespace: "windowing_sdk"
-    name: "return_all_visible_activities_for_vis"
-    description: "Return all visible activities in multi-tasking feature to VIS"
-    bug: "434114340"
-    is_fixed_read_only: true
+    name: "virtual_gamepad_override"
+    description: "Enables the virtual gamepad override on allowlisted games on foldables."
+    bug: "447093535"
+}
+
+flag {
+    namespace: "windowing_sdk"
+    name: "virtual_gamepad_developer_opt_out"
+    is_exported: true
+    description: "Whether the WindowManager.PROPERTY_COMPAT_ALLOW_VIRTUAL_GAMEPAD_OVERRIDE property is public."
+    bug: "458739902"
+}
+
+flag {
+    namespace: "windowing_sdk"
+    name: "device_engagement_mode"
+    description: "Track and report device engagement modes, indicating the device's current interaction capabilities (e.g. audio-only)."
+    bug: "423990404"
+    is_exported: true
+}
+
+flag {
+    name: "assist_display_id_public"
+    namespace: "windowing_sdk"
+    description: "Make the preferred display id extra for launching assistant public."
+    bug: "428619705"
+    is_exported: true
+}
+
+flag {
+    name: "always_move_task_to_back_on_back_pressed_feature_flag"
+    namespace: "watch_software_performance"
+    description: "Enable the alwaysMoveTaskToBackOnBackPressed feature"
+    bug: "444439703"
+}
+
+
+flag {
+    name: "track_launch_originator"
+    namespace: "windowing_sdk"
+    description: "Track origination for the consecutive launch among trampoline activities"
+    bug: "456621541"
+}
+
+flag {
+    namespace: "large_screen_experiences_app_compat"
+    name: "defer_resume_end_before_ensure_activity_configuration_bugfix"
+    description: "End defer resume before ensureActivityConfiguration()."
+    bug: "477215847"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -147,9 +164,9 @@ flag {
 
 flag {
     namespace: "windowing_sdk"
-    name: "activity_embedding_abort_cross_uid_launch_in_finishing_task_fragment"
-    description: "Aborts cross-uid activity launch from a finishing TaskFragment to avoid race conditions"
-    bug: "427881773"
+    name: "pause_activity_by_tf"
+    description: "Pause the activity via TF#startPausing"
+    bug: "445844186"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -157,9 +174,20 @@ flag {
 
 flag {
     namespace: "windowing_sdk"
-    name: "refactor_match_parent_bounds"
-    description: "Consolidate fillsParentBounds with matchParentBounds."
-    bug: "409417223"
+    name: "inherit_consecutive_launch_caller_uid"
+    description: "Allows the original caller UID to be inherited from a previous launching state when a consecutive launch is detected."
+    bug: "477475375"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+
+flag {
+    namespace: "windowing_sdk"
+    name: "fix_multi_window_task_focus_change"
+    description: "Avoid changing focus to a lower z-ordering multi-window task"
+    bug: "479335798"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -167,9 +195,9 @@ flag {
 
 flag {
     namespace: "windowing_sdk"
-    name: "fix_bal_reparent_existing_task"
-    description: "Avoid reparent existing task when the background launch is not allowed."
-    bug: "434047695"
+    name: "idempotent_wct_resolution"
+    description: "Decouples requested policy from resolved configuration to ensure WCT operations are order-independent."
+    bug: "487350507"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -177,10 +205,46 @@ flag {
 
 flag {
     namespace: "windowing_sdk"
-    name: "fix_rapid_top_resumed_switch"
-    description: "Prevent top-resumed-activity rapidly switched in multi-window mode."
-    bug: "417956804"
+    name: "quick_bubble_switch"
+    description: "Fix the animation when doing quick bubble switch"
+    bug: "488433153"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    namespace: "windowing_sdk"
+    name: "partial_translucent_activity_embedding"
+    description: "Make the bottom most partial translucent ae pair opaque"
+    bug: "491678669"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    namespace: "windowing_sdk"
+    name: "add_bg_color_for_transparent_bubbles"
+    description: "Adds a background color to bubbles to prevent transparent layer issues"
+    bug: "457312170"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    namespace: "windowing_sdk"
+    name: "engagement_control_api"
+    description: "Engagement Control APIs for requesting visual state changes."
+    bug: "477386067"
+    is_exported: true
+}
+
+flag {
+    namespace: "windowing_sdk"
+    name: "activity_start_interceptor_speedbumps"
+    is_exported: true
+    description: "Feature flag for Activity Start Interceptor Speedbumps"
+    bug: "492347206"
 }

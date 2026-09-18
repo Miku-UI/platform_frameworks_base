@@ -16,16 +16,11 @@
 
 package com.android.systemui.qs.tiles.impl.cell.ui.mapper
 
-import android.content.Context
 import android.content.res.Resources
-import android.os.Handler
-import com.android.settingslib.graph.SignalDrawable
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.qs.tiles.base.shared.model.QSTileConfig
 import com.android.systemui.qs.tiles.base.shared.model.QSTileState
 import com.android.systemui.qs.tiles.base.ui.model.QSTileDataToStateMapper
-import com.android.systemui.qs.tiles.impl.cell.domain.model.MobileDataTileIcon
 import com.android.systemui.qs.tiles.impl.cell.domain.model.MobileDataTileModel
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
@@ -36,43 +31,46 @@ class MobileDataTileMapper
 constructor(
     @ShadeDisplayAware private val resources: Resources,
     private val theme: Resources.Theme,
-    @ShadeDisplayAware private val context: Context,
-    @Main private val handler: Handler,
 ) : QSTileDataToStateMapper<MobileDataTileModel> {
 
     override fun map(config: QSTileConfig, data: MobileDataTileModel): QSTileState =
         QSTileState.build(resources, theme, config.uiConfig) {
             val label = resources.getString(R.string.quick_settings_cellular_detail_title)
+            contentDescription = label
 
-            when (val dataIcon = data.icon) {
-                is MobileDataTileIcon.SignalIcon -> {
-                    val signalDrawable = SignalDrawable(context, handler)
-                    signalDrawable.setLevel(dataIcon.level)
-                    icon = Icon.Loaded(signalDrawable, contentDescription = null)
+            val iconResId: Int
+            if (data.isAirplaneModeEnabled) {
+                activationState = QSTileState.ActivationState.INACTIVE
+                secondaryLabel = resources.getString(R.string.status_bar_airplane)
+                iconResId = R.drawable.ic_cell_off
+            } else if (data.isSimActive) {
+                if (data.isEnabled) {
+                    activationState = QSTileState.ActivationState.ACTIVE
+                    secondaryLabel = data.secondaryLabel
+                    iconResId = R.drawable.ic_cell_on
+                } else {
+                    activationState = QSTileState.ActivationState.INACTIVE
+                    secondaryLabel = null
+                    iconResId = R.drawable.ic_cell_off
                 }
-
-                is MobileDataTileIcon.ResourceIcon -> {
-                    icon =
-                        Icon.Loaded(
-                            resources.getDrawable(dataIcon.resourceIcon.resId, theme),
-                            contentDescription = null,
-                            dataIcon.resourceIcon.resId,
-                        )
-                }
+            } else {
+                activationState = QSTileState.ActivationState.UNAVAILABLE
+                secondaryLabel = null
+                iconResId = R.drawable.ic_cell_off
             }
 
-            contentDescription = "$label".toString()
-            activationState =
-                if (data.isSimActive) {
-                    if (data.isEnabled) {
-                        QSTileState.ActivationState.ACTIVE
-                    } else {
-                        QSTileState.ActivationState.INACTIVE
-                    }
-                } else {
-                    QSTileState.ActivationState.UNAVAILABLE
+            icon =
+                Icon.Loaded(
+                    resources.getDrawable(iconResId, theme),
+                    contentDescription = null,
+                    iconResId,
+                )
+            supportedActions = buildSet {
+                add(QSTileState.UserAction.CLICK)
+                add(QSTileState.UserAction.LONG_CLICK)
+                if (data.isSimActive && !data.isAirplaneModeEnabled) {
+                    add(QSTileState.UserAction.TOGGLE_CLICK)
                 }
-            supportedActions =
-                setOf(QSTileState.UserAction.CLICK, QSTileState.UserAction.LONG_CLICK)
+            }
         }
 }

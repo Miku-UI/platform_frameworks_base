@@ -22,16 +22,21 @@ package com.android.settingslib.metadata
  * The annotated class must satisfy either condition:
  * - the primary constructor has no parameter
  * - the primary constructor has a single [android.content.Context] parameter
- * - (parameterized) the primary constructor has a single [android.os.Bundle] parameter to override
+ * - (parameterized (Deprecated)) the primary constructor has a single [android.os.Bundle] parameter to override
  *   [PreferenceScreenMetadata.arguments]
- * - (parameterized) the primary constructor has a [android.content.Context] and a
+ * - (parameterized (Deprecated)) the primary constructor has a [android.content.Context] and a
  *   [android.os.Bundle] parameter to override [PreferenceScreenMetadata.arguments]
+ * - (parameterized) the primary constructor has a single [ValidatedKeyParameters] parameter to override
+ *   [PreferenceScreenMetadata.keyParameters]
+ * - (parameterized) the primary constructor has a [android.content.Context] and a
+ *   [ValidatedKeyParameters] parameter to override [PreferenceScreenMetadata.keyParameters]
  *
  * @param value unique preference screen key
  * @param overlay if true, current annotated screen will overlay the screen that has identical key
  * @param parameterized if true, the screen relies on additional arguments to build its content
  * @param parameterizedMigration whether the parameterized screen was a normal screen, in which case
- *   `Bundle.EMPTY` will be passed as arguments to take care of backward compatibility
+ *   `Bundle.EMPTY`/empty [ValidatedKeyParameters] will be passed as arguments to take care of backward
+ *   compatibility
  * @see PreferenceScreenMetadata
  */
 @Retention(AnnotationRetention.SOURCE)

@@ -17,6 +17,10 @@
 package com.android.compose.animation.scene
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.android.compose.animation.scene.TestOverlays.OverlayA
+import com.android.compose.animation.scene.TestOverlays.OverlayB
+import com.android.compose.animation.scene.TestOverlays.OverlayC
+import com.android.compose.animation.scene.TestOverlays.OverlayD
 import com.android.compose.animation.scene.TestScenes.SceneA
 import com.android.compose.animation.scene.TestScenes.SceneB
 import com.android.compose.animation.scene.TestScenes.SceneC
@@ -68,5 +72,60 @@ class NestedSceneTransitionLayoutStateTest {
         assertThat(nestedState.isTransitioningFromOrTo(SceneC)).isFalse()
         assertThat(nestedState.isTransitioningFromOrTo(SceneD)).isFalse()
         assertThat(nestedState.isTransitioningFromOrTo(SceneE)).isTrue()
+    }
+
+    @Test
+    fun isCurrentScene() = runTest {
+        val ancestors =
+            listOf(
+                MutableSceneTransitionLayoutStateForTests(SceneA),
+                MutableSceneTransitionLayoutStateForTests(SceneB),
+                MutableSceneTransitionLayoutStateForTests(SceneC),
+            )
+        val state = MutableSceneTransitionLayoutStateForTests(SceneD)
+        val nestedState = NestedSceneTransitionLayoutState(ancestors, state)
+
+        // Idle.
+        assertThat(nestedState.isCurrentScene(SceneA)).isTrue()
+        assertThat(nestedState.isCurrentScene(SceneB)).isTrue()
+        assertThat(nestedState.isCurrentScene(SceneC)).isTrue()
+        assertThat(nestedState.isCurrentScene(SceneD)).isTrue()
+        assertThat(nestedState.isCurrentScene(SceneE)).isFalse()
+
+        // Transition. Change one of the nested scenes.
+        ancestors[1].startTransitionImmediately(backgroundScope, transition(SceneB, SceneE))
+
+        assertThat(nestedState.isCurrentScene(SceneA)).isTrue()
+        assertThat(nestedState.isCurrentScene(SceneB)).isFalse()
+        assertThat(nestedState.isCurrentScene(SceneC)).isTrue()
+        assertThat(nestedState.isCurrentScene(SceneD)).isTrue()
+        assertThat(nestedState.isCurrentScene(SceneE)).isTrue()
+    }
+
+    @Test
+    fun isInCurrentOverlays() = runTest {
+        val ancestors =
+            listOf(
+                MutableSceneTransitionLayoutStateForTests(SceneA),
+                MutableSceneTransitionLayoutStateForTests(SceneB),
+                MutableSceneTransitionLayoutStateForTests(SceneC),
+            )
+        val overlays = setOf(OverlayA, OverlayB)
+        val state = MutableSceneTransitionLayoutStateForTests(SceneD, initialOverlays = overlays)
+        val nestedState = NestedSceneTransitionLayoutState(ancestors, state)
+
+        // Idle.
+        assertThat(nestedState.isInCurrentOverlays(OverlayA)).isTrue()
+        assertThat(nestedState.isInCurrentOverlays(OverlayB)).isTrue()
+        assertThat(nestedState.isInCurrentOverlays(OverlayC)).isFalse()
+        assertThat(nestedState.isInCurrentOverlays(OverlayD)).isFalse()
+
+        // Transition. Add an Overlay to a nested Scene.
+        ancestors[1].startTransitionImmediately(backgroundScope, transition(SceneB, OverlayC))
+
+        assertThat(nestedState.isInCurrentOverlays(OverlayA)).isTrue()
+        assertThat(nestedState.isInCurrentOverlays(OverlayB)).isTrue()
+        assertThat(nestedState.isInCurrentOverlays(OverlayC)).isTrue()
+        assertThat(nestedState.isInCurrentOverlays(OverlayD)).isFalse()
     }
 }

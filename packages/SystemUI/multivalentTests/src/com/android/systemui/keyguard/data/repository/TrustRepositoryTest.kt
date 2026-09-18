@@ -18,6 +18,7 @@ package com.android.systemui.keyguard.data.repository
 
 import android.app.trust.TrustManager
 import android.content.pm.UserInfo
+import android.os.UserManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.keyguard.logging.TrustRepositoryLogger
@@ -27,6 +28,7 @@ import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.LogcatEchoTracker
 import com.android.systemui.user.data.repository.FakeUserRepository
+import com.android.systemui.user.data.repository.UserIconProvider
 import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -47,6 +49,7 @@ import org.mockito.MockitoAnnotations
 @RunWith(AndroidJUnit4::class)
 class TrustRepositoryTest : SysuiTestCase() {
     @Mock private lateinit var trustManager: TrustManager
+    @Mock private lateinit var userManager: UserManager
     @Captor private lateinit var listener: ArgumentCaptor<TrustManager.TrustListener>
     private lateinit var userRepository: FakeUserRepository
     private lateinit var testScope: TestScope
@@ -61,7 +64,7 @@ class TrustRepositoryTest : SysuiTestCase() {
         MockitoAnnotations.initMocks(this)
         val testDispatcher = StandardTestDispatcher()
         testScope = TestScope(testDispatcher)
-        userRepository = FakeUserRepository()
+        userRepository = FakeUserRepository(UserIconProvider(context, userManager, testDispatcher))
         userRepository.setUserInfos(users)
         val logger =
             TrustRepositoryLogger(

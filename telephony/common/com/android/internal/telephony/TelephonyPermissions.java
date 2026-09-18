@@ -825,6 +825,17 @@ public final class TelephonyPermissions {
     }
 
     /**
+     * Checks if the current build is userdebug or eng. Throws SecurityException otherwise.
+     *
+     * @param operationName the operation name for which userdebug or eng build is enforced for.
+     */
+    public static void enforceDebugBuildsOnly(String operationName) {
+        if (!Build.TYPE.equals("userdebug") && !Build.TYPE.equals("eng")) {
+            throw new SecurityException(operationName + " allowed only on userdebug or eng builds");
+        }
+    }
+
+    /**
      * Returns the target SDK version number for a given package name.
      *
      * This call MUST be invoked before clearing the calling UID.
@@ -855,13 +866,13 @@ public final class TelephonyPermissions {
      * and return false if user is not associated with the subscription.
      */
     public static boolean checkSubscriptionAssociatedWithUser(@NonNull Context context, int subId,
-            @NonNull UserHandle callerUserHandle, @NonNull String destAddr) {
+            @NonNull UserHandle callerUserHandle, @Nullable String destAddr) {
         // Skip subscription-user association check for emergency numbers
         TelephonyManager tm = (TelephonyManager) context.getSystemService(
                 Context.TELEPHONY_SERVICE);
         final long token = Binder.clearCallingIdentity();
         try {
-            if (tm != null && tm.isEmergencyNumber(destAddr)) {
+            if (tm != null && destAddr != null && tm.isEmergencyNumber(destAddr)) {
                 Log.d(LOG_TAG, "checkSubscriptionAssociatedWithUser:"
                         + " destAddr is emergency number");
                 return true;
@@ -931,5 +942,19 @@ public final class TelephonyPermissions {
      */
     public static boolean isShell(int uid) {
         return UserHandle.isSameApp(uid, Process.SHELL_UID);
+    }
+
+    /**
+     * Make sure either called from same process as self (phone) or IPC caller has the permission
+     * to control SIM PIN auto-management.
+     *
+     * @throws SecurityException if the caller does not have the required permission
+     */
+    @VisibleForTesting
+    @RequiresPermission(Manifest.permission.CONTROL_SIM_AUTO_PIN_MANAGEMENT)
+    public static void enforceControlSimAutoPinManagementPermission(Context context,
+            String message) {
+        context.enforceCallingOrSelfPermission(Manifest.permission.CONTROL_SIM_AUTO_PIN_MANAGEMENT,
+                message);
     }
 }

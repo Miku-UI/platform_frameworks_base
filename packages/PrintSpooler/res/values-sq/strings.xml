@@ -44,6 +44,7 @@
     <string name="expand_handle" msgid="7282974448109280522">"Zgjero dorezën"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"Shpalos dorezën"</string>
     <string name="print_button" msgid="645164566271246268">"Printo"</string>
+    <string name="setup_button" msgid="323390526074568450">"Konfiguro"</string>
     <string name="savetopdf_button" msgid="2976186791686924743">"Ruaj në PDF"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"Opsionet e printimit u zgjeruan"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"Opsionet e printimit u shpalosën"</string>

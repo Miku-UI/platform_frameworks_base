@@ -19,9 +19,9 @@ package com.android.server.timezonedetector;
 import android.annotation.NonNull;
 
 /**
- * The interface for the class that is responsible for detecting device activities relevant to
- * time zone detection. This interface exists to decouple parts of the time zone detector from each
- * other and to enable easier testing.
+ * The interface for the class that is responsible for detecting device activities relevant to time
+ * zone detection. This interface exists to decouple parts of the time zone detector from each other
+ * and to enable easier testing.
  *
  * @hide
  */

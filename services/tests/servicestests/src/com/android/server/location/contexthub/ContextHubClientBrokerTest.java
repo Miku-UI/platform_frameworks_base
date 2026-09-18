@@ -18,20 +18,26 @@ package com.android.server.location.contexthub;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManagerInternal;
 import android.hardware.location.ContextHubInfo;
 import android.hardware.location.IContextHubClientCallback;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.RemoteException;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+
+import com.android.server.LocalServices;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -55,13 +61,21 @@ public class ContextHubClientBrokerTest {
     @Mock private IContextHubWrapper mMockContextHubWrapper;
     @Mock private ContextHubInfo mMockContextHubInfo;
     @Mock private IContextHubClientCallback mMockCallback;
+    @Mock private PackageManagerInternal mMockPackageManagerInternal;
     @Rule public final MockitoRule mockito = MockitoJUnit.rule();
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Before
     public void setUp() throws RemoteException {
         mContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         mClientManager = new ContextHubClientManager(mContext, mMockContextHubWrapper);
         when(mMockCallback.asBinder()).thenReturn(new Binder());
+
+        LocalServices.removeServiceForTest(PackageManagerInternal.class);
+        LocalServices.addService(PackageManagerInternal.class, mMockPackageManagerInternal);
+        when(mMockPackageManagerInternal.isSameApp(anyString(), anyInt(), anyInt()))
+                .thenReturn(true);
     }
 
     private ContextHubClientBroker createFromCallback() {
@@ -239,5 +253,23 @@ public class ContextHubClientBrokerTest {
 
         assertThat(broker.isWakelockUsable()).isFalse();
         assertThat(broker.getWakeLock().isHeld()).isFalse();
+    }
+
+    @Test
+    public void testPendingIntentCanceled() throws InterruptedException {
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(mContext, 0, new Intent(), 0);
+        CountDownLatch latch = new CountDownLatch(1);
+        ContextHubClientBroker broker = createFromPendingIntent(pendingIntent);
+        broker.replacePendingIntentCancelListener(intent -> {
+            broker.onPendingIntentCanceled();
+            latch.countDown();
+        });
+        assertThat(broker.isPendingIntentCancelled()).isFalse();
+
+        pendingIntent.cancel();
+
+        boolean isListenerTriggered = latch.await(5, TimeUnit.SECONDS);
+        assertThat(isListenerTriggered).isTrue();
+        assertThat(broker.isPendingIntentCancelled()).isTrue();
     }
 }

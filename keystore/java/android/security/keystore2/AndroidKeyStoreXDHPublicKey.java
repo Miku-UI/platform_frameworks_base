@@ -98,18 +98,8 @@ public class AndroidKeyStoreXDHPublicKey extends AndroidKeyStorePublicKey implem
     }
 
     @Override
-    public byte[] getEncoded() {
-        return mEncodedKey.clone();
-    }
-
-    @Override
     public String getAlgorithm() {
         return "XDH";
-    }
-
-    @Override
-    public String getFormat() {
-        return "x.509";
     }
 
     @Override

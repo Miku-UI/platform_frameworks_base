@@ -1,7 +1,5 @@
 package com.android.systemui.statusbar.policy;
 
-import static android.app.Flags.notificationsRedesignTemplates;
-
 import static java.lang.Float.NaN;
 
 import android.annotation.ColorInt;
@@ -34,9 +32,9 @@ import androidx.annotation.NonNull;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ContrastColorUtil;
-import com.android.systemui.Flags;
 import com.android.systemui.res.R;
 import com.android.systemui.statusbar.notification.NotificationUtils;
+import com.android.systemui.statusbar.notification.row.AnimatedActionBackgroundDrawable;
 
 import java.text.BreakIterator;
 import java.util.ArrayList;
@@ -114,13 +112,12 @@ public class SmartReplyView extends ViewGroup {
         super(context, attrs);
 
         mHeightUpperLimit = NotificationUtils.getFontScaledHeight(mContext,
-            R.dimen.smart_reply_button_max_height);
+                R.dimen.smart_reply_button_max_height);
 
         // The default color is white, as it helps us ensure ideal contrast. However, the actual
         // color will be based on the notification background (set in setBackgroundTintColor).
-        // When notificationsRedesignTemplates is on, we use that color to calculate the colors of
-        // the other elements, but we make the button transparent so that the translucent
-        // background of the notification is visible.
+        // We use that color to calculate the colors of the other elements, but we make the button
+        // transparent so that the translucent background of the notification is visible.
         mDefaultBackgroundColor = context.getColor(R.color.smart_reply_button_background);
         mTransparentBackgroundColor = context.getColor(R.color.transparent);
         mDefaultTextColor = mContext.getColor(R.color.smart_reply_button_text);
@@ -174,7 +171,7 @@ public class SmartReplyView extends ViewGroup {
      * invoked before onMeasure, so it doesn't do any analysis on the contents of the buttons.
      */
     public int getHeightUpperLimit() {
-       return mHeightUpperLimit;
+        return mHeightUpperLimit;
     }
 
     private void reallocateCandidateButtonQueueForSqueezing() {
@@ -262,15 +259,11 @@ public class SmartReplyView extends ViewGroup {
         //
         // A prioritized list of all potential suggestion buttons (`smartSuggestions`) is
         // constructed to define the *selection priority* for fitting buttons onto a single line.
-        // When `Flags.notificationAnimatedActionsTreatment()` is enabled, this selection
-        // priority is:
+        // This selection priority is:
         //   1. Animated Replies
         //   2. Animated Actions
         //   3. Standard Actions
         //   4. Standard Replies
-        // Otherwise, if the flag is disabled, the selection priority is:
-        //   1. Standard Actions
-        //   2. Standard Replies
         //
         // Buttons are iterated in this selection priority order. If a button fits (possibly after
         // squeezing preceding, lower-priority, single-line buttons that are candidates for
@@ -284,14 +277,10 @@ public class SmartReplyView extends ViewGroup {
         List<View> smartSuggestions = new ArrayList<>();
         List<View> smartActions = filterActionsOrReplies(SmartButtonType.ACTION);
         List<View> smartReplies = filterActionsOrReplies(SmartButtonType.REPLY);
-        List<View> animatedReplies = new ArrayList<>();
-        List<View> animatedActions = new ArrayList<>();
-        if (Flags.notificationAnimatedActionsTreatment()) {
-            animatedReplies = filterActionsOrReplies(SmartButtonType.ANIMATED_REPLY);
-            animatedActions = filterActionsOrReplies(SmartButtonType.ANIMATED_ACTION);
-            smartSuggestions.addAll(animatedReplies);
-            smartSuggestions.addAll(animatedActions);
-        }
+        List<View> animatedReplies = filterActionsOrReplies(SmartButtonType.ANIMATED_REPLY);
+        List<View> animatedActions = filterActionsOrReplies(SmartButtonType.ANIMATED_ACTION);
+        smartSuggestions.addAll(animatedReplies);
+        smartSuggestions.addAll(animatedActions);
 
         smartSuggestions.addAll(smartActions);
         smartSuggestions.addAll(smartReplies);
@@ -430,7 +419,7 @@ public class SmartReplyView extends ViewGroup {
                         Math.max(getSuggestedMinimumWidth(), accumulatedMeasures.mMeasuredWidth),
                         widthMeasureSpec),
                 resolveSize(buttonHeight, heightMeasureSpec));
-        if (Flags.notificationAnimatedActionsTreatment() && mSmartRepliesGeneratedByAssistant) {
+        if (mSmartRepliesGeneratedByAssistant) {
             logAnimatedRepliesAndActionsImpressions(animatedReplies, animatedActions);
         }
         mLastMeasureTime = SystemClock.elapsedRealtime();
@@ -498,8 +487,8 @@ public class SmartReplyView extends ViewGroup {
         pw.decreaseIndent();
     }
 
-  @VisibleForTesting
-  void setSmartReplyLogger(SmartReplyLogger smartReplyLogger) {
+    @VisibleForTesting
+    void setSmartReplyLogger(SmartReplyLogger smartReplyLogger) {
         mSmartReplyLogger = smartReplyLogger;
     }
 
@@ -696,7 +685,7 @@ public class SmartReplyView extends ViewGroup {
         clearLayoutLineCount(button);
         final int widthMeasureSpec = MeasureSpec.makeMeasureSpec(
                 button.getPaddingStart() + button.getPaddingEnd() + textWidth
-                      + getStartCompoundDrawableWidthWithPadding(button), MeasureSpec.AT_MOST);
+                        + getStartCompoundDrawableWidthWithPadding(button), MeasureSpec.AT_MOST);
         button.measure(widthMeasureSpec, heightMeasureSpec);
         if (button.getLayout() == null) {
             Log.wtf(TAG, "Button layout is null after measure.");
@@ -811,7 +800,7 @@ public class SmartReplyView extends ViewGroup {
     public void setBackgroundTintColor(int backgroundColor, boolean colorized) {
         if (backgroundColor == mCurrentBackgroundColor && colorized == mCurrentColorized) {
             // Same color ignoring.
-           return;
+            return;
         }
         mCurrentBackgroundColor = backgroundColor;
         mCurrentColorized = colorized;
@@ -832,10 +821,19 @@ public class SmartReplyView extends ViewGroup {
     }
 
     private void setButtonColors(Button button) {
+        // Check if this is a phishing animated button that manages its own colors.
+        if (Boolean.TRUE.equals(button.getTag(R.id.is_phishing_animated_action))) {
+            return; // Skip the dynamic override
+        }
+
         Drawable drawable = button.getBackground();
         if (drawable instanceof RippleDrawable) {
             // Mutate in case other notifications are using this drawable.
-            drawable = drawable.mutate();
+            if (!(drawable instanceof AnimatedActionBackgroundDrawable)) {
+                // AnimatedActionBackgroundDrawable explicitly creates inner Drawable without
+                // fetching from cache. Thus, it should not be mutated.
+                drawable = drawable.mutate();
+            }
             RippleDrawable ripple = (RippleDrawable) drawable;
             ripple.setColor(ColorStateList.valueOf(mCurrentRippleColor));
             Drawable inset = ripple.getDrawable(0);
@@ -843,11 +841,10 @@ public class SmartReplyView extends ViewGroup {
                 Drawable background = ((InsetDrawable) inset).getDrawable();
                 if (background instanceof GradientDrawable) {
                     GradientDrawable gradientDrawable = (GradientDrawable) background;
-                    // With the redesign, we let the background be transparent (so the notification
-                    // surface gets through), but all other colors are calculated and applied
-                    // as usual to ensure contrast.
-                    gradientDrawable.setColor(notificationsRedesignTemplates()
-                            ? mTransparentBackgroundColor : mCurrentBackgroundColor);
+                    // We let the background be transparent (so the notification surface gets
+                    // through), but all other colors are calculated and applied as usual to ensure
+                    // contrast.
+                    gradientDrawable.setColor(mTransparentBackgroundColor);
                     gradientDrawable.setStroke(mStrokeWidth, mCurrentStrokeColor);
                 }
             }
@@ -856,7 +853,7 @@ public class SmartReplyView extends ViewGroup {
         button.setTextColor(mCurrentTextColor);
     }
 
-    enum SmartButtonType {
+    public enum SmartButtonType {
         REPLY,
         ACTION,
         ANIMATED_ACTION,
@@ -865,7 +862,7 @@ public class SmartReplyView extends ViewGroup {
     }
 
     @VisibleForTesting
-    static class LayoutParams extends ViewGroup.LayoutParams {
+    public static class LayoutParams extends ViewGroup.LayoutParams {
 
         /** Button is not squeezed. */
         private static final int SQUEEZE_STATUS_NONE = 0;
@@ -889,7 +886,7 @@ public class SmartReplyView extends ViewGroup {
 
         private boolean show = false;
         private int squeezeStatus = SQUEEZE_STATUS_NONE;
-        SmartButtonType mButtonType = SmartButtonType.REPLY;
+        public SmartButtonType mButtonType = SmartButtonType.REPLY;
         String mNoShowReason = "new";
 
         private LayoutParams(Context c, AttributeSet attrs) {

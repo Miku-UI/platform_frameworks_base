@@ -44,24 +44,35 @@ public class TimeZoneDetectorStatusTest {
     private static final LocationTimeZoneAlgorithmStatus ARBITRARY_LOCATION_ALGORITHM_STATUS =
             new LocationTimeZoneAlgorithmStatus(
                     DETECTION_ALGORITHM_STATUS_RUNNING,
-                    LocationTimeZoneAlgorithmStatus.PROVIDER_STATUS_NOT_READY, null,
-                    LocationTimeZoneAlgorithmStatus.PROVIDER_STATUS_NOT_PRESENT, null);
+                    LocationTimeZoneAlgorithmStatus.PROVIDER_STATUS_NOT_READY,
+                    null,
+                    LocationTimeZoneAlgorithmStatus.PROVIDER_STATUS_NOT_PRESENT,
+                    null);
 
     @Test
     public void testEquals() {
-        TimeZoneDetectorStatus one = new TimeZoneDetectorStatus(DETECTOR_STATUS_RUNNING,
-                ARBITRARY_TELEPHONY_ALGORITHM_STATUS, ARBITRARY_LOCATION_ALGORITHM_STATUS);
+        TimeZoneDetectorStatus one =
+                new TimeZoneDetectorStatus(
+                        DETECTOR_STATUS_RUNNING,
+                        ARBITRARY_TELEPHONY_ALGORITHM_STATUS,
+                        ARBITRARY_LOCATION_ALGORITHM_STATUS);
         assertEqualsAndHashCode(one, one);
 
         {
-            TimeZoneDetectorStatus two = new TimeZoneDetectorStatus(DETECTOR_STATUS_RUNNING,
-                    ARBITRARY_TELEPHONY_ALGORITHM_STATUS, ARBITRARY_LOCATION_ALGORITHM_STATUS);
+            TimeZoneDetectorStatus two =
+                    new TimeZoneDetectorStatus(
+                            DETECTOR_STATUS_RUNNING,
+                            ARBITRARY_TELEPHONY_ALGORITHM_STATUS,
+                            ARBITRARY_LOCATION_ALGORITHM_STATUS);
             assertEqualsAndHashCode(one, two);
         }
 
         {
-            TimeZoneDetectorStatus three = new TimeZoneDetectorStatus(DETECTOR_STATUS_NOT_RUNNING,
-                    ARBITRARY_TELEPHONY_ALGORITHM_STATUS, ARBITRARY_LOCATION_ALGORITHM_STATUS);
+            TimeZoneDetectorStatus three =
+                    new TimeZoneDetectorStatus(
+                            DETECTOR_STATUS_NOT_RUNNING,
+                            ARBITRARY_TELEPHONY_ALGORITHM_STATUS,
+                            ARBITRARY_LOCATION_ALGORITHM_STATUS);
             assertNotEquals(one, three);
             assertNotEquals(three, one);
         }
@@ -71,8 +82,11 @@ public class TimeZoneDetectorStatusTest {
                     new TelephonyTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_NOT_RUNNING);
             assertNotEquals(telephonyAlgorithmStatus, ARBITRARY_TELEPHONY_ALGORITHM_STATUS);
 
-            TimeZoneDetectorStatus three = new TimeZoneDetectorStatus(DETECTOR_STATUS_NOT_RUNNING,
-                    telephonyAlgorithmStatus, ARBITRARY_LOCATION_ALGORITHM_STATUS);
+            TimeZoneDetectorStatus three =
+                    new TimeZoneDetectorStatus(
+                            DETECTOR_STATUS_NOT_RUNNING,
+                            telephonyAlgorithmStatus,
+                            ARBITRARY_LOCATION_ALGORITHM_STATUS);
             assertNotEquals(one, three);
             assertNotEquals(three, one);
         }
@@ -81,12 +95,17 @@ public class TimeZoneDetectorStatusTest {
             LocationTimeZoneAlgorithmStatus locationAlgorithmStatus =
                     new LocationTimeZoneAlgorithmStatus(
                             DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
-                            LocationTimeZoneAlgorithmStatus.PROVIDER_STATUS_NOT_READY, null,
-                            LocationTimeZoneAlgorithmStatus.PROVIDER_STATUS_NOT_READY, null);
+                            LocationTimeZoneAlgorithmStatus.PROVIDER_STATUS_NOT_READY,
+                            null,
+                            LocationTimeZoneAlgorithmStatus.PROVIDER_STATUS_NOT_READY,
+                            null);
             assertNotEquals(locationAlgorithmStatus, ARBITRARY_LOCATION_ALGORITHM_STATUS);
 
-            TimeZoneDetectorStatus three = new TimeZoneDetectorStatus(DETECTOR_STATUS_NOT_RUNNING,
-                    ARBITRARY_TELEPHONY_ALGORITHM_STATUS, locationAlgorithmStatus);
+            TimeZoneDetectorStatus three =
+                    new TimeZoneDetectorStatus(
+                            DETECTOR_STATUS_NOT_RUNNING,
+                            ARBITRARY_TELEPHONY_ALGORITHM_STATUS,
+                            locationAlgorithmStatus);
             assertNotEquals(one, three);
             assertNotEquals(three, one);
         }
@@ -96,16 +115,19 @@ public class TimeZoneDetectorStatusTest {
     public void testParcelable() {
         // Detector running.
         {
-            TimeZoneDetectorStatus locationAlgorithmStatus = new TimeZoneDetectorStatus(
-                    DETECTOR_STATUS_RUNNING, ARBITRARY_TELEPHONY_ALGORITHM_STATUS,
-                    ARBITRARY_LOCATION_ALGORITHM_STATUS);
+            TimeZoneDetectorStatus locationAlgorithmStatus =
+                    new TimeZoneDetectorStatus(
+                            DETECTOR_STATUS_RUNNING,
+                            ARBITRARY_TELEPHONY_ALGORITHM_STATUS,
+                            ARBITRARY_LOCATION_ALGORITHM_STATUS);
             assertRoundTripParcelable(locationAlgorithmStatus);
         }
 
         // Detector not running.
         {
             TimeZoneDetectorStatus locationAlgorithmStatus =
-                    new TimeZoneDetectorStatus(DETECTOR_STATUS_NOT_RUNNING,
+                    new TimeZoneDetectorStatus(
+                            DETECTOR_STATUS_NOT_RUNNING,
                             ARBITRARY_TELEPHONY_ALGORITHM_STATUS,
                             ARBITRARY_LOCATION_ALGORITHM_STATUS);
             assertRoundTripParcelable(locationAlgorithmStatus);

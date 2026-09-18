@@ -33,7 +33,7 @@ public final class HsumBootUserInitializerDesignateMainUserOnBootTest
     private final boolean mIsDebuggable;
     private final boolean mSysPropDesignateMainUser;
     private final boolean mFlagDemoteMainUser;
-    private final boolean mConfigCreateInitialUser;
+    private final boolean mConfigCreateInitialAdminUser;
     private final boolean mConfigDesignateMainUser;
     private final boolean mConfigIsMainUserPermanentAdmin;
     private final boolean mResult;
@@ -163,19 +163,19 @@ public final class HsumBootUserInitializerDesignateMainUserOnBootTest
 
     public HsumBootUserInitializerDesignateMainUserOnBootTest(boolean isDebuggable,
             boolean sysPropDesignateMainUser, boolean flagDemoteMainUser,
-            boolean configCreateInitialUser, boolean configDesignateMainUser,
+            boolean configCreateInitialAdminUser, boolean configDesignateMainUser,
             boolean configIsMainUserPermanentAdmin,  boolean result) {
         mSysPropDesignateMainUser = sysPropDesignateMainUser;
         mIsDebuggable = isDebuggable;
         mFlagDemoteMainUser = flagDemoteMainUser;
-        mConfigCreateInitialUser = configCreateInitialUser;
+        mConfigCreateInitialAdminUser = configCreateInitialAdminUser;
         mConfigDesignateMainUser = configDesignateMainUser;
         mConfigIsMainUserPermanentAdmin = configIsMainUserPermanentAdmin;
         mResult = result;
         Log.v(mTag, "Constructor: isDebuggable=" + isDebuggable
                 + ", sysPropDesignateMainUser=" + sysPropDesignateMainUser
                 + ", flagDemoteMainUser=" + flagDemoteMainUser
-                + ", configCreateInitialUser=" + configCreateInitialUser
+                + ", configCreateInitialAdminUser=" + configCreateInitialAdminUser
                 + ", configDesignateMainUser=" + configDesignateMainUser
                 + ", configIsMainUserPermanentAdmin=" + configIsMainUserPermanentAdmin
                 + ", result=" + result);
@@ -188,7 +188,7 @@ public final class HsumBootUserInitializerDesignateMainUserOnBootTest
         setDemoteMainUserFlag(mFlagDemoteMainUser);
         mockConfigDesignateMainUser(mConfigDesignateMainUser);
         mockConfigIsMainUserPermanentAdmin(mConfigIsMainUserPermanentAdmin);
-        mockConfigCreateInitialUser(mConfigCreateInitialUser);
+        mockConfigCreateInitialAdminUserOnHsum(mConfigCreateInitialAdminUser);
 
         boolean result = designateMainUserOnBoot(mMockContext);
 

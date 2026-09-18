@@ -45,6 +45,7 @@ import android.os.storage.StorageManager;
 import android.ravenwood.annotation.RavenwoodIgnore;
 import android.util.ArrayMap;
 import android.util.ArraySet;
+import android.util.Log;
 import android.util.Printer;
 import android.util.SparseArray;
 import android.util.proto.ProtoOutputStream;
@@ -75,6 +76,7 @@ import java.util.UUID;
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class ApplicationInfo extends PackageItemInfo implements Parcelable {
+    private static final String TAG = ApplicationInfo.class.getSimpleName();
     private static final ForBoolean sForBoolean = Parcelling.Cache.getOrCreate(ForBoolean.class);
     private static final Parcelling.BuiltIn.ForStringSet sForStringSet =
             Parcelling.Cache.getOrCreate(Parcelling.BuiltIn.ForStringSet.class);
@@ -135,6 +137,36 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      * <p>If android:allowBackup is set to false, this attribute is ignored.
      */
     public String backupAgentName;
+
+    /**
+     * Specifies the process that the backup agent will run in.
+     * @hide
+     */
+    public @BackupAgentProcess int backupAgentProcess = BACKUP_AGENT_PROCESS_MAIN;
+
+    /**
+     * Specifies that the backup agent should run in the default main process of the application
+     * that runs under the regular uid of the application.
+     * @hide
+     */
+    public static final int BACKUP_AGENT_PROCESS_MAIN = 0;
+
+    /**
+     * Specifies that the backup agent should run in a private compute core process of
+     * the application.
+     * @hide
+     */
+    public static final int BACKUP_AGENT_PROCESS_PCC = 1;
+
+    /** @hide */
+    @IntDef(
+            prefix = {"BACKUP_AGENT_PROCESS_"},
+            value = {
+                    BACKUP_AGENT_PROCESS_MAIN,
+                    BACKUP_AGENT_PROCESS_PCC,
+            })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface BackupAgentProcess {}
 
     /**
      * An optional attribute that indicates the app supports automatic backup of app data.
@@ -860,13 +892,6 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      */
     public static final int PRIVATE_FLAG_EXT_NOT_LAUNCHED = 1 << 6;
 
-    /**
-     * Whether the app should run in the Private Compute Core sandbox
-     * @hide
-     * @see android.R.styleable.AndroidManifestApplication_runInPccSandbox
-     */
-    public static final int PRIVATE_FLAG_EXT_RUN_IN_PCC_SANDBOX = 1 << 7;
-
     /** @hide */
     @IntDef(flag = true, prefix = { "PRIVATE_FLAG_EXT_" }, value = {
             PRIVATE_FLAG_EXT_PROFILEABLE,
@@ -876,7 +901,6 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
             PRIVATE_FLAG_EXT_ALLOWLISTED_FOR_HIDDEN_APIS,
             PRIVATE_FLAG_EXT_CPU_OVERRIDE,
             PRIVATE_FLAG_EXT_NOT_LAUNCHED,
-            PRIVATE_FLAG_EXT_RUN_IN_PCC_SANDBOX,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ApplicationInfoPrivateFlagsExt {}
@@ -1225,6 +1249,15 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      * the same uid).
      */
     public int uid;
+
+    /**
+     * The pcc UID that has been assigned to this application. The PCC
+     * will be -1 in case the application does not have any PCC components
+     * inside of it.
+     *
+     * @hide
+     */
+    public int pccUid;
 
     /**
      * The minimum SDK version this application can run on. It will not run
@@ -1585,6 +1618,12 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
     /** @hide */
     public String zygotePreloadName;
 
+    /** @hide */
+    public String zygotePreloadNativeLib;
+
+    /** @hide */
+    public String zygotePreloadNativeFunc;
+
     /**
      * Default (unspecified) setting of GWP-ASan.
      */
@@ -1703,6 +1742,28 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      */
     public boolean allowCrossUidActivitySwitchFromBelow = true;
 
+
+    /**
+     * If {@code true} this app supports App Lock. This field is only set if the
+     * {@link PackageManager#GET_APP_LOCK_INFO} was used when retrieving the application info and
+     * the caller has the {@link Manifest.permission#LOCK_APPS} permission, and will default to
+     * {@code false}. To enable App Lock for a package, call
+     * {@link PackageManager#getEnableAppLockIntentForPackage}.
+     */
+    @FlaggedApi(android.security.Flags.FLAG_APP_LOCK_APIS)
+    public boolean isAppLockSupported = false;
+
+
+    /**
+     * App lock enablement state of an application. This field is only set if the
+     * {@link PackageManager#GET_APP_LOCK_INFO} was used when retrieving the application info and
+     * the caller has the {@link Manifest.permission#LOCK_APPS} permission and will default to
+     * {@code false}. To enable App Lock for a package, call
+     * {@link PackageManager#getEnableAppLockIntentForPackage}.
+     */
+    @FlaggedApi(android.security.Flags.FLAG_APP_LOCK_APIS)
+    public boolean isAppLockEnabled = false;
+
     /**
      * Represents the default policy. The actual policy used will depend on other properties of
      * the application, e.g. the target SDK version.
@@ -1800,9 +1861,15 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         if ((dumpFlags & DUMP_FLAG_DETAILS) != 0) {
             pw.println(prefix + "taskAffinity=" + taskAffinity);
         }
-        pw.println(prefix + "uid=" + uid + " flags=0x" + Integer.toHexString(flags)
-                + " privateFlags=0x" + Integer.toHexString(privateFlags)
-                + " theme=0x" + Integer.toHexString(theme));
+        final StringBuilder sb = new StringBuilder();
+        sb.append(prefix).append("uid=").append(uid);
+        if (pccUid > 0) {
+            sb.append(" pccUid=").append(pccUid);
+        }
+        sb.append(" flags=0x").append(Integer.toHexString(flags))
+                .append(" privateFlags=0x").append(Integer.toHexString(privateFlags))
+                .append(" theme=0x").append(Integer.toHexString(theme));
+        pw.println(sb.toString());
         if ((dumpFlags & DUMP_FLAG_DETAILS) != 0) {
             pw.println(prefix + "requiresSmallestWidthDp=" + requiresSmallestWidthDp
                     + " compatibleWidthLimitDp=" + compatibleWidthLimitDp
@@ -1902,6 +1969,8 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
             pw.println(prefix + "allowCrossUidActivitySwitchFromBelow="
                     + allowCrossUidActivitySwitchFromBelow);
             pw.println(prefix + "mPageSizeAppCompatFlags=" + mPageSizeAppCompatFlags);
+            pw.println(prefix + "isAppLockSupported=" + isAppLockSupported);
+            pw.println(prefix + "isAppLockEnabled=" + isAppLockEnabled);
         }
         pw.println(prefix + "createTimestamp=" + createTimestamp);
         if (mKnownActivityEmbeddingCerts != null) {
@@ -2025,6 +2094,9 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
             proto.write(ApplicationInfoProto.Detail.ENABLE_PAGE_SIZE_APP_COMPAT,
                         mPageSizeAppCompatFlags);
 
+            proto.write(ApplicationInfoProto.Detail.IS_APP_LOCK_SUPPORTED, isAppLockSupported);
+            proto.write(ApplicationInfoProto.Detail.IS_APP_LOCK_ENABLED, isAppLockEnabled);
+
             proto.end(detailToken);
         }
         if (!ArrayUtils.isEmpty(mKnownActivityEmbeddingCerts)) {
@@ -2121,6 +2193,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         deviceProtectedDataDir = orig.deviceProtectedDataDir;
         credentialProtectedDataDir = orig.credentialProtectedDataDir;
         uid = orig.uid;
+        pccUid = orig.pccUid;
         minSdkVersion = orig.minSdkVersion;
         targetSdkVersion = orig.targetSdkVersion;
         setVersionCode(orig.longVersionCode);
@@ -2131,6 +2204,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         descriptionRes = orig.descriptionRes;
         uiOptions = orig.uiOptions;
         backupAgentName = orig.backupAgentName;
+        backupAgentProcess = orig.backupAgentProcess;
         fullBackupContent = orig.fullBackupContent;
         dataExtractionRulesRes = orig.dataExtractionRulesRes;
         crossProfile = orig.crossProfile;
@@ -2147,6 +2221,8 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         mHiddenApiPolicy = orig.mHiddenApiPolicy;
         hiddenUntilInstalled = orig.hiddenUntilInstalled;
         zygotePreloadName = orig.zygotePreloadName;
+        zygotePreloadNativeLib = orig.zygotePreloadNativeLib;
+        zygotePreloadNativeFunc = orig.zygotePreloadNativeFunc;
         gwpAsanMode = orig.gwpAsanMode;
         memtagMode = orig.memtagMode;
         nativeHeapZeroInitialized = orig.nativeHeapZeroInitialized;
@@ -2155,6 +2231,8 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         allowCrossUidActivitySwitchFromBelow = orig.allowCrossUidActivitySwitchFromBelow;
         createTimestamp = SystemClock.uptimeMillis();
         mPageSizeAppCompatFlags = orig.mPageSizeAppCompatFlags;
+        isAppLockSupported = orig.isAppLockSupported;
+        isAppLockEnabled = orig.isAppLockEnabled;
         this.unalignedNativeLibraries = orig.unalignedNativeLibraries;
     }
 
@@ -2173,6 +2251,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         if (dest.maybeWriteSquashed(this)) {
             return;
         }
+        final int preWriteSize = dest.dataSize();
         super.writeToParcel(dest, parcelableFlags);
         dest.writeString8(taskAffinity);
         dest.writeString8(permission);
@@ -2219,6 +2298,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         dest.writeString8(deviceProtectedDataDir);
         dest.writeString8(credentialProtectedDataDir);
         dest.writeInt(uid);
+        dest.writeInt(pccUid);
         dest.writeInt(minSdkVersion);
         dest.writeInt(targetSdkVersion);
         dest.writeLong(longVersionCode);
@@ -2227,6 +2307,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         dest.writeInt(installLocation);
         dest.writeString8(manageSpaceActivityName);
         dest.writeString8(backupAgentName);
+        dest.writeInt(backupAgentProcess);
         dest.writeInt(descriptionRes);
         dest.writeInt(uiOptions);
         dest.writeInt(fullBackupContent);
@@ -2245,6 +2326,8 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         dest.writeInt(mHiddenApiPolicy);
         dest.writeInt(hiddenUntilInstalled ? 1 : 0);
         dest.writeString8(zygotePreloadName);
+        dest.writeString8(zygotePreloadNativeLib);
+        dest.writeString8(zygotePreloadNativeFunc);
         dest.writeInt(gwpAsanMode);
         dest.writeInt(memtagMode);
         dest.writeInt(nativeHeapZeroInitialized);
@@ -2263,9 +2346,28 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         dest.writeInt(localeConfigRes);
         dest.writeInt(allowCrossUidActivitySwitchFromBelow ? 1 : 0);
         dest.writeInt(mPageSizeAppCompatFlags);
+        dest.writeBoolean(isAppLockSupported);
+        dest.writeBoolean(isAppLockEnabled);
         dest.writeTypedArray(unalignedNativeLibraries, parcelableFlags);
 
         sForStringSet.parcel(mKnownActivityEmbeddingCerts, dest, flags);
+
+        final int elmSize = dest.dataSize() - preWriteSize;
+        // The warning threshold is consistent with BaseParceledListSlice implementation
+        if (elmSize > 16 * 1024) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("Large ApplicationInfo parcel: size=").append(elmSize)
+                    .append(" package=").append(packageName);
+
+            if (splitSourceDirs != null) sb.append(" splits=").append(splitSourceDirs.length);
+            if (sharedLibraryFiles != null) {
+                sb.append(" sharedLibs=").append(sharedLibraryFiles.length);
+            }
+            if (resourceDirs != null) sb.append(" resDirs=").append(resourceDirs.length);
+            if (overlayPaths != null) sb.append(" overlayPaths=").append(resourceDirs.length);
+
+            Log.w(TAG, sb.toString());
+        }
     }
 
     public static final @android.annotation.NonNull Parcelable.Creator<ApplicationInfo> CREATOR
@@ -2326,6 +2428,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         deviceProtectedDataDir = source.readString8();
         credentialProtectedDataDir = source.readString8();
         uid = source.readInt();
+        pccUid = source.readInt();
         minSdkVersion = source.readInt();
         targetSdkVersion = source.readInt();
         setVersionCode(source.readLong());
@@ -2334,6 +2437,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         installLocation = source.readInt();
         manageSpaceActivityName = source.readString8();
         backupAgentName = source.readString8();
+        backupAgentProcess = source.readInt();
         descriptionRes = source.readInt();
         uiOptions = source.readInt();
         fullBackupContent = source.readInt();
@@ -2352,6 +2456,8 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         mHiddenApiPolicy = source.readInt();
         hiddenUntilInstalled = source.readInt() != 0;
         zygotePreloadName = source.readString8();
+        zygotePreloadNativeLib = source.readString8();
+        zygotePreloadNativeFunc = source.readString8();
         gwpAsanMode = source.readInt();
         memtagMode = source.readInt();
         nativeHeapZeroInitialized = source.readInt();
@@ -2367,6 +2473,8 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         localeConfigRes = source.readInt();
         allowCrossUidActivitySwitchFromBelow = source.readInt() != 0;
         mPageSizeAppCompatFlags = source.readInt();
+        isAppLockSupported = source.readBoolean();
+        isAppLockEnabled = source.readBoolean();
         unalignedNativeLibraries = source.createTypedArray(LibraryAlignmentInfo.CREATOR);
 
         mKnownActivityEmbeddingCerts = sForStringSet.unparcel(source);
@@ -2838,15 +2946,6 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
     }
 
     /**
-     * Returns whether the app should run in the Private Compute Core sandbox.
-     * @hide
-     * @see android.R.styleable#AndroidManifestApplication_runInPccSandbox
-     */
-    public boolean shouldRunInPccSandbox() {
-        return (privateFlagsExt & ApplicationInfo.PRIVATE_FLAG_EXT_RUN_IN_PCC_SANDBOX) != 0;
-    }
-
-    /**
      * Checks if a changeId is enabled for the current user
      * @param changeId The changeId to verify
      * @return True of the changeId is enabled
@@ -3088,5 +3187,47 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         }
     }
 
-    /** {@hide} */ public int canOverrideRes() { return overrideRes; }
+    /** @hide */
+    public boolean isBundledApp() {
+        boolean bundled = isSystemApp() && !isUpdatedSystemApp();
+
+        // Vendor apks are treated as bundled only when /vendor/lib is in the default search
+        // paths. If not, they are treated as unbundled; access to system libs is limited.
+        // Having /vendor/lib in the default search paths means that all system processes
+        // are allowed to use any vendor library, which in turn means that system is dependent
+        // on vendor partition. In the contrary, not having /vendor/lib in the default search
+        // paths mean that the two partitions are separated and thus we can treat vendor apks
+        // as unbundled.
+        final String defaultSearchPaths = System.getProperty("java.library.path");
+        final boolean treatVendorApkAsUnbundled = !defaultSearchPaths.contains("/vendor/lib");
+        if (getCodePath() != null && isVendor() && treatVendorApkAsUnbundled) {
+            bundled = false;
+        }
+
+        // Similar to vendor apks, we should add /product/lib for apks from product partition
+        // when product apps are marked as unbundled. Product is separated as long as the
+        // partition exists, so it can be handled with same approach from the vendor partition.
+        if (getCodePath() != null && isProduct()) {
+            bundled = false;
+        }
+
+        return bundled;
+    }
+
+    /**
+     * Returns whether the backup agent should run in pcc process.
+     * @hide
+     */
+    public boolean shouldBackupAgentRunInPccProcess() {
+        return android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()
+                && backupAgentProcess == BACKUP_AGENT_PROCESS_PCC;
+    }
+
+    /**
+     * Returns the uid that the backup agent should run under.
+     * @hide
+     */
+    public int getBackupAgentUid() {
+        return shouldBackupAgentRunInPccProcess() ? pccUid : uid;
+    }
 }

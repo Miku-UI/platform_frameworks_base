@@ -1,0 +1,24 @@
+// Signature format: 6.0
+// - style=java
+package android.security.patches {
+
+  public class SecurityPatches {
+    ctor public SecurityPatches();
+    method public java.util.List<android.security.patches.SecurityPatches.Patch> getPatch();
+  }
+
+  public static class SecurityPatches.Patch {
+    ctor public SecurityPatches.Patch();
+    method public String getId();
+    method public void setId(String);
+  }
+
+  public class XmlParser {
+    ctor public XmlParser();
+    method public static android.security.patches.SecurityPatches read(java.io.InputStream) throws javax.xml.datatype.DatatypeConfigurationException, java.io.IOException, org.xmlpull.v1.XmlPullParserException;
+    method public static String readText(org.xmlpull.v1.XmlPullParser) throws java.io.IOException, org.xmlpull.v1.XmlPullParserException;
+    method public static void skip(org.xmlpull.v1.XmlPullParser) throws java.io.IOException, org.xmlpull.v1.XmlPullParserException;
+  }
+
+}
+

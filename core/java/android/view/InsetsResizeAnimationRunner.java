@@ -108,6 +108,11 @@ public class InsetsResizeAnimationRunner implements InsetsAnimationControlRunner
         return ANIMATION_TYPE_RESIZE;
     }
 
+    @Override
+    public boolean hasAnimationCallback() {
+        return false;
+    }
+
     @NonNull
     @Override
     public SurfaceParamsApplier getSurfaceParamsApplier() {

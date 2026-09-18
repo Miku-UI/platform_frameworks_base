@@ -20,54 +20,111 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="dock_alignment_slow_charging" product="default" msgid="6997633396534416792">"Zarovnejte telefon, aby se nabíjel rychleji"</string>
+    <string name="dock_alignment_slow_charging" product="desktop" msgid="3407039002024253081">"Zarovnejte zařízení, aby se nabíjelo rychleji"</string>
     <string name="dock_alignment_not_charging" product="default" msgid="3980752926226749808">"Zarovnejte telefon, aby se nabíjel bezdrátově"</string>
+    <string name="dock_alignment_not_charging" product="desktop" msgid="1650693501464120367">"Zarovnejte zařízení, aby se nabíjelo bezdrátově"</string>
     <string name="inattentive_sleep_warning_message" product="tv" msgid="6844464574089665063">"Zařízení Android TV se brzy vypne, stisknutím tlačítka ho ponecháte zapnuté."</string>
     <string name="inattentive_sleep_warning_message" product="default" msgid="5693904520452332224">"Zařízení se brzy vypne, stisknutím ho ponecháte zapnuté."</string>
     <string name="keyguard_missing_sim_message" product="tablet" msgid="408124574073032188">"V tabletu není SIM karta."</string>
     <string name="keyguard_missing_sim_message" product="default" msgid="2605468359948247208">"V telefonu není SIM karta."</string>
+    <string name="keyguard_missing_sim_message" product="desktop" msgid="6678465505993388400">"V zařízení není SIM karta."</string>
     <string name="kg_invalid_confirm_pin_hint" product="default" msgid="6278551068943958651">"Kódy PIN se neshodují"</string>
     <string name="kg_failed_attempts_almost_at_wipe" product="tablet" msgid="302165994845009232">"Již <xliff:g id="NUMBER_0">%1$d</xliff:g>krát jste se pokusili odemknout tablet nesprávným způsobem. Po <xliff:g id="NUMBER_1">%2$d</xliff:g> dalších neúspěšných pokusech bude tablet resetován, čímž se z něj smažou všechna data."</string>
     <string name="kg_failed_attempts_almost_at_wipe" product="default" msgid="2594813176164266847">"Již <xliff:g id="NUMBER_0">%1$d</xliff:g>krát jste se pokusili odemknout telefon nesprávným způsobem. Po <xliff:g id="NUMBER_1">%2$d</xliff:g> dalších neúspěšných pokusech bude telefon resetován, čímž se z něj smažou všechna data."</string>
+    <string name="kg_failed_attempts_almost_at_wipe" product="desktop" msgid="6414651766868767274">"Už <xliff:g id="NUMBER_0">%1$d</xliff:g>krát jste se pokusili odemknout zařízení nesprávným způsobem. Po <xliff:g id="NUMBER_1">%2$d</xliff:g> dalších neúspěšných pokusech se zařízení resetuje, čímž se z něj smažou všechna data."</string>
     <string name="kg_failed_attempts_now_wiping" product="tablet" msgid="8710104080409538587">"Již <xliff:g id="NUMBER">%d</xliff:g>krát jste se pokusili odemknout tablet nesprávným způsobem. Tablet bude resetován, čímž z něj budou smazána všechna data."</string>
     <string name="kg_failed_attempts_now_wiping" product="default" msgid="6381835450014881813">"Již <xliff:g id="NUMBER">%d</xliff:g>krát jste se pokusili odemknout telefon nesprávným způsobem. Telefon bude resetován, čímž z něj budou smazána všechna data."</string>
+    <string name="kg_failed_attempts_now_wiping" product="desktop" msgid="2277485562881116948">"Už <xliff:g id="NUMBER">%d</xliff:g>krát jste se neúspěšně pokusili odemknout zařízení. Zařízení se resetuje, čímž z něj budou smazána všechna data."</string>
     <string name="kg_failed_attempts_almost_at_erase_user" product="tablet" msgid="7325071812832605911">"Již <xliff:g id="NUMBER_0">%1$d</xliff:g>krát jste se pokusili odemknout tablet nesprávným způsobem. Po <xliff:g id="NUMBER_1">%2$d</xliff:g> dalších neúspěšných pokusech bude tento uživatel odstraněn, čímž se smažou všechna jeho data."</string>
     <string name="kg_failed_attempts_almost_at_erase_user" product="default" msgid="8110939900089863103">"Již <xliff:g id="NUMBER_0">%1$d</xliff:g>krát jste se pokusili odemknout telefon nesprávným způsobem. Po <xliff:g id="NUMBER_1">%2$d</xliff:g> dalších neúspěšných pokusech bude tento uživatel odstraněn, čímž se smažou všechna jeho data."</string>
+    <string name="kg_failed_attempts_almost_at_erase_user" product="desktop" msgid="6685285863549889535">"Už <xliff:g id="NUMBER_0">%1$d</xliff:g>krát jste se pokusili odemknout zařízení nesprávným způsobem. Po <xliff:g id="NUMBER_1">%2$d</xliff:g> dalších neúspěšných pokusech bude tento uživatel odstraněn, čímž se smažou všechna jeho data."</string>
     <string name="kg_failed_attempts_now_erasing_user" product="tablet" msgid="8509811676952707883">"Již <xliff:g id="NUMBER">%d</xliff:g>krát jste se pokusili odemknout tablet nesprávným způsobem. Uživatel bude odstraněn, čímž budou smazána všechna jeho data."</string>
     <string name="kg_failed_attempts_now_erasing_user" product="default" msgid="3051962486994265014">"Již <xliff:g id="NUMBER">%d</xliff:g>krát jste se pokusili odemknout telefon nesprávným způsobem. Uživatel bude odstraněn, čímž budou smazána všechna jeho data."</string>
+    <string name="kg_failed_attempts_now_erasing_user" product="desktop" msgid="3003054879895735837">"Už <xliff:g id="NUMBER">%d</xliff:g>krát jste se neúspěšně pokusili odemknout zařízení. Uživatel bude odstraněn, čímž budou smazána všechna jeho data."</string>
     <string name="kg_failed_attempts_almost_at_erase_profile" product="tablet" msgid="1049523640263353830">"Již <xliff:g id="NUMBER_0">%1$d</xliff:g>krát jste se pokusili odemknout tablet nesprávným způsobem. Po <xliff:g id="NUMBER_1">%2$d</xliff:g> dalších neúspěšných pokusech bude pracovní profil odstraněn, čímž se smažou všechna jeho data."</string>
     <string name="kg_failed_attempts_almost_at_erase_profile" product="default" msgid="3280816298678433681">"Již <xliff:g id="NUMBER_0">%1$d</xliff:g>krát jste se pokusili odemknout telefon nesprávným způsobem. Po <xliff:g id="NUMBER_1">%2$d</xliff:g> dalších neúspěšných pokusech bude pracovní profil odstraněn, čímž se smažou všechna jeho data."</string>
+    <string name="kg_failed_attempts_almost_at_erase_profile" product="desktop" msgid="6020310710703619275">"Už <xliff:g id="NUMBER_0">%1$d</xliff:g>krát jste se pokusili odemknout zařízení nesprávným způsobem. Po <xliff:g id="NUMBER_1">%2$d</xliff:g> dalších neúspěšných pokusech bude pracovní profil odstraněn, čímž se smažou všechna jeho data."</string>
     <string name="kg_failed_attempts_now_erasing_profile" product="tablet" msgid="4417100487251371559">"Již <xliff:g id="NUMBER">%d</xliff:g>krát jste se pokusili odemknout tablet nesprávným způsobem. Pracovní profil bude odstraněn, čímž budou smazána všechna jeho data."</string>
     <string name="kg_failed_attempts_now_erasing_profile" product="default" msgid="4682221342671290678">"Již <xliff:g id="NUMBER">%d</xliff:g>krát jste se pokusili odemknout telefon nesprávným způsobem. Pracovní profil bude odstraněn, čímž budou smazána všechna jeho data."</string>
+    <string name="kg_failed_attempts_now_erasing_profile" product="desktop" msgid="2786666082798973358">"Už <xliff:g id="NUMBER">%d</xliff:g>krát jste se neúspěšně pokusili odemknout zařízení. Pracovní profil bude odstraněn, čímž budou smazána všechna jeho data."</string>
     <string name="kg_failed_attempts_almost_at_login" product="tablet" msgid="1860049973474855672">"Již <xliff:g id="NUMBER_0">%1$d</xliff:g>krát jste nesprávně zadali své bezpečnostní gesto. Po <xliff:g id="NUMBER_1">%2$d</xliff:g>dalších neúspěšných pokusech budete požádáni o odemčení tabletu pomocí e-mailového účtu.\n\n Zkuste to znovu za <xliff:g id="NUMBER_2">%3$d</xliff:g> s."</string>
     <string name="kg_failed_attempts_almost_at_login" product="default" msgid="44112553371516141">"Již <xliff:g id="NUMBER_0">%1$d</xliff:g>krát jste nesprávně zadali své bezpečnostní gesto. Po <xliff:g id="NUMBER_1">%2$d</xliff:g> dalších neúspěšných pokusech budete požádáni o odemčení telefonu pomocí e-mailového účtu.\n\n Zkuste to znovu za <xliff:g id="NUMBER_2">%3$d</xliff:g> s."</string>
+    <string name="kg_failed_attempts_almost_at_login" product="desktop" msgid="1821951547429595155">"Už <xliff:g id="NUMBER_0">%1$d</xliff:g>krát jste nesprávně zadali bezpečnostní gesto. Po <xliff:g id="NUMBER_1">%2$d</xliff:g> dalších neúspěšných pokusech budete zařízení muset odblokovat pomocí e‑mailového účtu.\n\nZkuste to znovu za <xliff:g id="NUMBER_2">%3$d</xliff:g> s."</string>
     <string name="thermal_shutdown_title" product="default" msgid="8039593017174903505">"Telefon se vypnul z důvodu zahřátí"</string>
+    <string name="thermal_shutdown_title" product="desktop" msgid="2954206342842856379">"Zařízení se vypnulo z důvodu zahřátí"</string>
     <string name="thermal_shutdown_title" product="device" msgid="2954206342842856379">"Zařízení se vypnulo z důvodu zahřátí"</string>
     <string name="thermal_shutdown_title" product="tablet" msgid="8941033526856177533">"Tablet se vypnul z důvodu zahřátí"</string>
     <string name="thermal_shutdown_message" product="default" msgid="6685194547904051408">"Nyní telefon funguje jako obvykle.\nKlepnutím zobrazíte další informace"</string>
     <string name="thermal_shutdown_message" product="device" msgid="3039675532521590478">"Nyní zařízení funguje jako obvykle.\nKlepnutím zobrazíte další informace"</string>
     <string name="thermal_shutdown_message" product="tablet" msgid="5285898074484811386">"Nyní tablet funguje jako obvykle.\nKlepnutím zobrazíte další informace"</string>
+    <string name="thermal_shutdown_message" product="desktop" msgid="3039675532521590478">"Nyní zařízení funguje jako obvykle.\nKlepnutím zobrazíte další informace"</string>
     <string name="thermal_shutdown_dialog_message" product="default" msgid="6145923570358574186">"Telefon byl příliš zahřátý, proto se vypnul, aby vychladl. Nyní telefon funguje jako obvykle.\n\nTelefon se může příliš zahřát v těchto případech:\n	• používání náročných aplikací (např. her, videí nebo navigace),\n	• stahování nebo nahrávání velkých souborů,\n	• používání telefonu při vysokých teplotách."</string>
     <string name="thermal_shutdown_dialog_message" product="device" msgid="3647879000909527365">"Zařízení bylo příliš zahřáté, proto se vypnulo, aby vychladlo. Nyní zařízení funguje jako obvykle.\n\nZařízení se může příliš zahřát v těchto případech:\n	• používání náročných aplikací (např. her, videí nebo navigace),\n	• stahování nebo nahrávání velkých souborů,\n	• používání zařízení při vysokých teplotách."</string>
     <string name="thermal_shutdown_dialog_message" product="tablet" msgid="8274487811928782165">"Tablet byl příliš zahřátý, proto se vypnul, aby vychladl. Nyní tablet funguje jako obvykle.\n\nTablet se může příliš zahřát v těchto případech:\n	• používání náročných aplikací (např. her, videí nebo navigace),\n	• stahování nebo nahrávání velkých souborů,\n	• používání tabletu při vysokých teplotách."</string>
+    <string name="thermal_shutdown_dialog_message" product="desktop" msgid="3647879000909527365">"Zařízení bylo příliš zahřáté, proto se vypnulo, aby vychladlo. Nyní zařízení funguje jako obvykle.\n\nZařízení se může příliš zahřát v těchto případech:\n	• používání náročných aplikací (např. her, videí nebo navigace),\n	• stahování nebo nahrávání velkých souborů,\n	• používání zařízení při vysokých teplotách."</string>
     <string name="high_temp_title" product="default" msgid="5365000411304924115">"Telefon se zahřívá"</string>
     <string name="high_temp_title" product="device" msgid="6622009907401563664">"Zařízení se zahřívá"</string>
     <string name="high_temp_title" product="tablet" msgid="9039733706606446616">"Tablet se zahřívá"</string>
+    <string name="high_temp_title" product="desktop" msgid="6622009907401563664">"Zařízení se zahřívá"</string>
     <string name="high_temp_notif_message" product="default" msgid="3928947950087257452">"Některé funkce jsou při chladnutí telefonu omezeny.\nKlepnutím zobrazíte další informace"</string>
     <string name="high_temp_notif_message" product="device" msgid="6105125771372547292">"Některé funkce jsou při chladnutí zařízení omezeny.\nKlepnutím zobrazíte další informace"</string>
     <string name="high_temp_notif_message" product="tablet" msgid="7799279192797476850">"Některé funkce jsou při chladnutí tabletu omezeny.\nKlepnutím zobrazíte další informace"</string>
+    <string name="high_temp_notif_message" product="desktop" msgid="6105125771372547292">"Některé funkce jsou při chladnutí zařízení omezeny.\nKlepnutím zobrazíte další informace"</string>
     <string name="high_temp_dialog_message" product="default" msgid="4272882413847595625">"Telefon se automaticky pokusí vychladnout. Lze jej nadále používat, ale může být pomalejší.\n\nAž telefon vychladne, bude fungovat normálně."</string>
     <string name="high_temp_dialog_message" product="device" msgid="263861943935989046">"Zařízení se automaticky pokusí vychladnout. Lze jej nadále používat, ale může být pomalejší.\n\nAž zařízení vychladne, bude fungovat normálně."</string>
     <string name="high_temp_dialog_message" product="tablet" msgid="5613713326841935537">"Tablet se automaticky pokusí vychladnout. Lze jej nadále používat, ale může být pomalejší.\n\nAž tablet vychladne, bude fungovat normálně."</string>
+    <string name="high_temp_dialog_message" product="desktop" msgid="263861943935989046">"Zařízení se automaticky pokusí vychladnout. Lze jej nadále používat, ale může být pomalejší.\n\nAž zařízení vychladne, bude fungovat normálně."</string>
     <string name="security_settings_sfps_enroll_find_sensor_message" product="tablet" msgid="3726972508570143945">"Snímač otisků prstů je na vypínači. Je to ploché tlačítko vedle vystouplého tlačítka hlasitosti na hraně tabletu."</string>
     <string name="security_settings_sfps_enroll_find_sensor_message" product="device" msgid="2929467060295094725">"Snímač otisků prstů je na vypínači. Je to ploché tlačítko vedle vystouplého tlačítka hlasitosti na hraně zařízení."</string>
     <string name="security_settings_sfps_enroll_find_sensor_message" product="default" msgid="8582726566542997639">"Snímač otisků prstů je na vypínači. Je to ploché tlačítko vedle vystouplého tlačítka hlasitosti na hraně telefonu."</string>
+    <string name="security_settings_sfps_enroll_find_sensor_message" product="desktop" msgid="2929467060295094725">"Snímač otisků prstů je na vypínači. Je to ploché tlačítko vedle vystouplého tlačítka hlasitosti na hraně zařízení."</string>
     <string name="global_action_lock_message" product="default" msgid="7092460751050168771">"Chcete-li zobrazit další možnosti, odemkněte telefon"</string>
     <string name="global_action_lock_message" product="tablet" msgid="1024230056230539493">"Chcete-li zobrazit další možnosti, odemkněte tablet"</string>
     <string name="global_action_lock_message" product="device" msgid="3165224897120346096">"Chcete-li zobrazit další možnosti, odemkněte zařízení"</string>
+    <string name="global_action_lock_message" product="desktop" msgid="3165224897120346096">"Chcete-li zobrazit další možnosti, odemkněte zařízení"</string>
     <string name="media_transfer_playing_this_device" product="default" msgid="5795784619523545556">"Přehrávání na tomto telefonu"</string>
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Přehrávání na tomto tabletu"</string>
+    <string name="media_transfer_playing_this_device" product="desktop" msgid="3299409636487714269">"Přehrávání na tomto zařízení"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Tento telefon můžete pomocí funkce Najdi moje zařízení najít, i když je vypnutý"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Tento tablet můžete pomocí funkce Najdi moje zařízení najít, i když je vypnutý"</string>
+    <string name="finder_active" product="desktop" msgid="924749965418452906">"Tohle zařízení můžete pomocí funkce Najdi moje zařízení najít, i když je vypnuté"</string>
     <string name="find_hub_active" product="default" msgid="8884083861904230143">"Tento telefon můžete pomocí Pátracího centra najít, i když je vypnutý"</string>
     <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Tento tablet můžete pomocí Pátracího centra najít, i když je vypnutý"</string>
+    <string name="find_hub_active" product="desktop" msgid="5324909071852240549">"Tohle zařízení můžete pomocí Pátracího centra najít, i když je vypnuté"</string>
+    <string name="dream_setup_description" product="default" msgid="5167691612621831552">"Při nabíjení telefonu se zobrazí hodiny, fotky nebo počasí"</string>
+    <string name="dream_setup_description" product="tablet" msgid="6296793330727926553">"Při nabíjení tabletu se zobrazí hodiny, fotky nebo počasí"</string>
+    <string name="dream_setup_description" product="device" msgid="3098487756905462324">"Při nabíjení zařízení se zobrazí hodiny, fotky nebo počasí"</string>
+    <string name="dream_setup_description" product="desktop" msgid="3098487756905462324">"Při nabíjení zařízení se zobrazí hodiny, fotky nebo počasí"</string>
+    <string name="accessibility_retry_face_auth" product="default" msgid="92100916134164459">"Zopakovat odemknutí obličejem"</string>
+    <string name="accessibility_retry_face_auth" product="desktop" msgid="5630058255754932537">"Zopakovat odemknutí obličejem"</string>
+    <string name="face_re_enroll_notification_title" product="default" msgid="1533872824718008968">"Nastavte odemknutí obličejem znovu"</string>
+    <string name="face_re_enroll_notification_title" product="desktop" msgid="5218710819864377084">"Nastavte odemknutí obličejem znovu"</string>
+    <string name="biometric_dialog_tap_confirm_with_face" product="default" msgid="2261934158598458578">"Odemknuto obličejem"</string>
+    <string name="biometric_dialog_tap_confirm_with_face" product="desktop" msgid="2066067154465078068">"Odemknuto obličejem"</string>
+    <string name="biometric_dialog_tap_confirm_with_face_alt_1" product="default" msgid="1268255053915789297">"Odemknuto obličejem. Pokračujte stisknutím."</string>
+    <string name="biometric_dialog_tap_confirm_with_face_alt_1" product="desktop" msgid="1514178179652703156">"Odemknuto obličejem. Pokračujte stisknutím."</string>
+    <string name="biometric_dialog_tap_confirm_with_face_sfps" product="default" msgid="2492608775606333432">"Odemknuto obličejem. Pokračujte klepnutím."</string>
+    <string name="biometric_dialog_tap_confirm_with_face_sfps" product="desktop" msgid="7918648092655463233">"Odemknuto obličejem. Pokračujte klepnutím."</string>
+    <string name="face_re_enroll_notification_name" product="default" msgid="5965443249759045602">"Odemknutí obličejem"</string>
+    <string name="face_re_enroll_notification_name" product="desktop" msgid="3705121888554395242">"Odemknutí obličejem"</string>
+    <string name="face_re_enroll_dialog_title" product="default" msgid="2719988247243428771">"Nastavení odemknutí obličejem"</string>
+    <string name="face_re_enroll_dialog_title" product="desktop" msgid="4217639465392210803">"Nastavení odemknutí obličejem"</string>
+    <string name="face_re_enroll_dialog_content" product="default" msgid="7290782487464426692">"Aby bylo možné znovu nastavit odemknutí obličejem, aktuální model obličeje se smaže.\n\nFunkci bude nutné nastavit znovu, aby telefon bylo možné odemykat obličejem."</string>
+    <string name="face_re_enroll_dialog_content" product="desktop" msgid="7718739738665960268">"Aby bylo možné znovu nastavit odemknutí obličejem, aktuální model obličeje se smaže.\n\nFunkci bude nutné nastavit znovu, aby zařízení bylo možné odemykat obličejem."</string>
+    <string name="face_reenroll_failure_dialog_content" product="default" msgid="6318784230085101323">"Odemknutí obličejem se nepodařilo nastavit. Pokud to chcete zkusit znovu, přejděte do Nastavení."</string>
+    <string name="face_reenroll_failure_dialog_content" product="desktop" msgid="1206573626798969692">"Odemknutí obličejem se nepodařilo nastavit. Zkuste to znovu v nastavení."</string>
+    <string name="keyguard_face_unlock_unavailable" product="default" msgid="3188895702987679056">"Odemknutí obličejem není k dispozici"</string>
+    <string name="keyguard_face_unlock_unavailable" product="desktop" msgid="7088502865328130614">"Odemknutí obličejem není k dispozici"</string>
+    <string name="accesssibility_keyguard_retry" product="default" msgid="5017097587017783548">"Přejeďte nahoru a zopakujte odemknutí obličejem"</string>
+    <string name="accesssibility_keyguard_retry" product="desktop" msgid="5084769005671288179">"Přejeďte nahoru a zopakujte odemknutí obličejem"</string>
+    <string name="keyguard_face_successful_unlock_swipe" product="default" msgid="1358318947548832086">"Odemknuto obličejem. Otevřete přejetím prstem nahoru."</string>
+    <string name="keyguard_face_successful_unlock_swipe" product="desktop" msgid="4016445068612817741">"Odemknuto obličejem. Otevřete přejetím prstem nahoru."</string>
+    <string name="keyguard_face_successful_unlock_confirm_button" product="default" msgid="4883782574761031564">"Odemknuto obličejem. Pokračujte stisknutím potvrzení."</string>
+    <string name="keyguard_face_successful_unlock_confirm_button" product="desktop" msgid="7268520979450633978">"Odemknuto obličejem. Pokračujte stisknutím potvrzení."</string>
+    <string name="keyguard_face_successful_unlock_press" product="default" msgid="7293890116185253825">"Odemknuto obličejem. Klepněte na ikonu odemknutí."</string>
+    <string name="keyguard_face_successful_unlock_press" product="desktop" msgid="6158498006084899116">"Odemknuto obličejem. Klepněte na ikonu odemknutí."</string>
+    <string name="keyguard_face_successful_unlock_press_alt_1" product="default" msgid="6269966346565076951">"Odemknuto obličejem. Stisknutím otevřete."</string>
+    <string name="keyguard_face_successful_unlock_press_alt_1" product="desktop" msgid="1612731733090835687">"Odemknuto obličejem. Stisknutím otevřete."</string>
+    <string name="keyguard_face_successful_unlock" product="default" msgid="5544493091450184889">"Odemknuto obličejem"</string>
+    <string name="keyguard_face_successful_unlock" product="desktop" msgid="5348626087316804379">"Odemknuto obličejem"</string>
 </resources>

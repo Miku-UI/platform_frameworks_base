@@ -25,7 +25,7 @@ val Kosmos.shadeStatusBarComponentsInteractor by
     Kosmos.Fixture {
         ShadeStatusBarComponentsInteractor(
             applicationCoroutineScope,
-            { shadeDisplaysInteractor },
+            shadeDisplaysInteractor,
             homeStatusBarComponentsRepository,
             displaySubcomponentPerDisplayRepository,
         )

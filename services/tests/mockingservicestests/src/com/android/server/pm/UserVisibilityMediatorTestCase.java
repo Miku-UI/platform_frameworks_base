@@ -38,9 +38,12 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.junit.Assert.assertThrows;
 
+import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.os.Handler;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.text.TextUtils;
+import android.util.ImmutableIntArray;
 import android.util.IntArray;
 import android.util.Log;
 
@@ -48,9 +51,14 @@ import com.android.server.DumpableDumperRule;
 import com.android.server.ExpectableTestCase;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
 import java.util.Arrays;
+import java.util.Collection;
 
 /**
  * Base class for {@link UserVisibilityMediator} tests.
@@ -64,6 +72,7 @@ import java.util.Arrays;
  * is visible, display associated to the user, etc...) for each scenario (full user started on fg,
  * profile user started on bg, etc...).
  */
+@RunWith(Parameterized.class)
 abstract class UserVisibilityMediatorTestCase extends ExpectableTestCase {
 
     private static final String TAG = UserVisibilityMediatorTestCase.class.getSimpleName();
@@ -116,19 +125,47 @@ abstract class UserVisibilityMediatorTestCase extends ExpectableTestCase {
 
     private final boolean mBackgroundUsersOnDisplaysEnabled;
     private final boolean mBackgroundUserOnDefaultDisplayAllowed;
+    private final boolean mFlagCacheEnabled;
 
     protected UserVisibilityMediator mMediator;
 
-    protected UserVisibilityMediatorTestCase(boolean backgroundUsersOnDisplaysEnabled,
-            boolean backgroundUserOnDefaultDisplayAllowed) {
-        mBackgroundUsersOnDisplaysEnabled = backgroundUsersOnDisplaysEnabled;
-        mBackgroundUserOnDefaultDisplayAllowed = backgroundUserOnDefaultDisplayAllowed;
+    protected final DumpableDumperRule mDumpableDumperRule = new DumpableDumperRule();
+
+    @Rule
+    public final SetFlagsRule setFlagsRule = new SetFlagsRule();
+
+    /** Useless javadoc to make checkstyle happy... */
+    @Parameters(name = "{index}: cacheEnabled={0}")
+    public static Collection<Object[]> flagParameters() {
+        return Arrays.asList(new Object[][] {
+            { false },
+            { true }
+        });
     }
 
-    protected final DumpableDumperRule mDumpableDumperRule = new DumpableDumperRule();
+    protected UserVisibilityMediatorTestCase(boolean backgroundUsersOnDisplaysEnabled,
+            boolean backgroundUserOnDefaultDisplayAllowed, boolean flagCacheEnabled) {
+        mBackgroundUsersOnDisplaysEnabled = backgroundUsersOnDisplaysEnabled;
+        mBackgroundUserOnDefaultDisplayAllowed = backgroundUserOnDefaultDisplayAllowed;
+        mFlagCacheEnabled = flagCacheEnabled;
+    }
+
+    @SuppressWarnings("deprecation")
+    private void setFlags() {
+        String flag = android.multiuser.Flags.FLAG_HSU_ALLOWLIST_ACTIVITIES;
+        Log.i(TAG, "Setting flag " + flag + " to " + mFlagCacheEnabled + ". Before: "
+                + android.multiuser.Flags.hsuAllowlistActivities());
+        if (mFlagCacheEnabled) {
+            setFlagsRule.enableFlags(new String[]{flag});
+        } else {
+            setFlagsRule.disableFlags(new String[]{flag});
+        }
+        Log.d(TAG, "after: " + android.multiuser.Flags.hsuAllowlistActivities());
+    }
 
     @Before
     public final void setFixtures() {
+        setFlags();
         mHandler = Handler.getMain();
         Thread thread = mHandler.getLooper().getThread();
         Log.i(TAG, "setFixtures(): using thread " + thread + " (from handler " + mHandler + ")");
@@ -643,7 +680,34 @@ abstract class UserVisibilityMediatorTestCase extends ExpectableTestCase {
     protected void expectVisibleUsers(@UserIdInt Integer... userIds) {
         IntArray visibleUsers = mMediator.getVisibleUsers();
         expectWithMessage("getVisibleUsers()").that(visibleUsers).isNotNull();
+        if (visibleUsers == null) {
+            return;
+        }
         expectWithMessage("getVisibleUsers()").that(visibleUsers.toArray()).asList()
+                .containsExactlyElementsIn(Arrays.asList(userIds));
+    }
+
+    @Nullable
+    private ImmutableIntArray getVisibleUsersOnDisplayIfFlagEnabled(String when, int displayId) {
+        if (!mFlagCacheEnabled) {
+            assertThrows(IllegalStateException.class, () -> mMediator.getVisibleUsers(displayId));
+            return null;
+        }
+        String suffix = TextUtils.isEmpty(when) ? "" : " on " + when;
+        ImmutableIntArray visibleUsers = mMediator.getVisibleUsers(displayId);
+        expectWithMessage("getVisibleUsers(%s)%s", displayId, suffix)
+                .that(visibleUsers)
+                .isNotNull();
+        return visibleUsers;
+    }
+
+    protected void expectVisibleUsersOnDisplay(int displayId, @UserIdInt Integer... userIds) {
+        ImmutableIntArray visibleUsers =
+                getVisibleUsersOnDisplayIfFlagEnabled(/* when= */ "", displayId);
+        if (visibleUsers == null) {
+            return;
+        }
+        expectWithMessage("getVisibleUsers(%s)", displayId).that(visibleUsers.toArray()).asList()
                 .containsExactlyElementsIn(Arrays.asList(userIds));
     }
 
@@ -651,12 +715,27 @@ abstract class UserVisibilityMediatorTestCase extends ExpectableTestCase {
         expectWithMessage("isUserVisible(%s, %s)", userId, displayId)
                 .that(mMediator.isUserVisible(userId, displayId))
                 .isTrue();
+        expectUserVisibleOnVisibleUsersForDisplay(/* when= */ "", userId, displayId);
+    }
+
+    private void expectUserVisibleOnVisibleUsersForDisplay(String when, @UserIdInt int userId,
+            int displayId) {
+        ImmutableIntArray visibleUsersOnDisplay = getVisibleUsersOnDisplayIfFlagEnabled(when,
+                displayId);
+        if (visibleUsersOnDisplay == null) {
+            return;
+        }
+        String suffix = TextUtils.isEmpty(when) ? "" : " on " + when;
+        expectWithMessage("getVisibleUsers(%s) contains %s%s", displayId, userId, suffix)
+                .that(visibleUsersOnDisplay.toArray())
+                .asList().contains(userId);
     }
 
     protected void expectUserIsNotVisibleOnDisplay(@UserIdInt int userId, int displayId) {
         expectWithMessage("isUserVisible(%s, %s)", userId, displayId)
                 .that(mMediator.isUserVisible(userId, displayId))
                 .isFalse();
+        expectUserNotVisibleOnVisibleUsersForDisplay(/* when= */ "", userId, displayId);
     }
 
     protected void expectUserIsNotVisibleOnDisplay(String when, @UserIdInt int userId,
@@ -665,6 +744,20 @@ abstract class UserVisibilityMediatorTestCase extends ExpectableTestCase {
         expectWithMessage("isUserVisible(%s, %s)%s", userId, displayId, suffix)
                 .that(mMediator.isUserVisible(userId, displayId))
                 .isFalse();
+        expectUserNotVisibleOnVisibleUsersForDisplay(when, userId, displayId);
+    }
+
+    private void expectUserNotVisibleOnVisibleUsersForDisplay(String when, @UserIdInt int userId,
+            int displayId) {
+        ImmutableIntArray visibleUsersOnDisplay =
+                getVisibleUsersOnDisplayIfFlagEnabled(when, displayId);
+        if (visibleUsersOnDisplay == null) {
+            return;
+        }
+        String suffix = TextUtils.isEmpty(when) ? "" : " on " + when;
+        expectWithMessage("getVisibleUsers(%s) contains %s%s", displayId, userId, suffix)
+                .that(visibleUsersOnDisplay.toArray())
+                .asList().doesNotContain(userId);
     }
 
     protected void expectUserIsNotVisibleAtAll(@UserIdInt int userId) {
@@ -675,6 +768,11 @@ abstract class UserVisibilityMediatorTestCase extends ExpectableTestCase {
         expectUserIsNotVisibleOnDisplay(userId, INVALID_DISPLAY);
         expectUserIsNotVisibleOnDisplay(userId, SECONDARY_DISPLAY_ID);
         expectUserIsNotVisibleOnDisplay(userId, OTHER_SECONDARY_DISPLAY_ID);
+        String when = "";
+        expectUserNotVisibleOnVisibleUsersForDisplay(when, userId, DEFAULT_DISPLAY);
+        expectUserNotVisibleOnVisibleUsersForDisplay(when, userId, INVALID_DISPLAY);
+        expectUserNotVisibleOnVisibleUsersForDisplay(when, userId, SECONDARY_DISPLAY_ID);
+        expectUserNotVisibleOnVisibleUsersForDisplay(when, userId, OTHER_SECONDARY_DISPLAY_ID);
         expectDisplaysAssignedToUserIsEmpty(userId);
     }
 

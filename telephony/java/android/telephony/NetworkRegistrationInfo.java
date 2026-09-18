@@ -16,19 +16,30 @@
 
 package android.telephony;
 
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_EMTC_NTN;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_LTE_DTC;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_NB_IOT_NTN;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_NR_DTC;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_NR_NTN;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_PROPRIETARY;
+import static android.telephony.satellite.SatelliteManager.NT_RADIO_TECHNOLOGY_UNKNOWN;
+
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
 import android.app.compat.CompatChanges;
 import android.compat.annotation.ChangeId;
+import android.Manifest;
 import android.compat.annotation.EnabledSince;
 import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.telephony.AccessNetworkConstants.TransportType;
 import android.telephony.Annotation.NetworkType;
+import android.telephony.satellite.SatelliteManager.NTRadioTechnology;
 import android.text.TextUtils;
 
 import com.android.internal.telephony.flags.Flags;
@@ -173,7 +184,8 @@ public final class NetworkRegistrationInfo implements Parcelable {
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(prefix = "SERVICE_TYPE_",
             value = {SERVICE_TYPE_UNKNOWN, SERVICE_TYPE_VOICE, SERVICE_TYPE_DATA, SERVICE_TYPE_SMS,
-                    SERVICE_TYPE_VIDEO, SERVICE_TYPE_EMERGENCY, SERVICE_TYPE_MMS})
+                    SERVICE_TYPE_VIDEO, SERVICE_TYPE_EMERGENCY, SERVICE_TYPE_MMS,
+                    SERVICE_TYPE_EMERGENCY_SMS})
     public @interface ServiceType {}
 
     /**
@@ -211,11 +223,17 @@ public final class NetworkRegistrationInfo implements Parcelable {
      */
     public static final int SERVICE_TYPE_MMS = 6;
 
+    /**
+     * Emergency SMS service
+     */
+    @FlaggedApi(Flags.FLAG_SATELLITE_26Q2_APIS)
+    public static final int SERVICE_TYPE_EMERGENCY_SMS = 7;
+
     /** @hide  */
     public static final int FIRST_SERVICE_TYPE = SERVICE_TYPE_VOICE;
 
     /** @hide  */
-    public static final int LAST_SERVICE_TYPE = SERVICE_TYPE_MMS;
+    public static final int LAST_SERVICE_TYPE = SERVICE_TYPE_EMERGENCY_SMS;
 
     @Domain
     private final int mDomain;
@@ -274,6 +292,11 @@ public final class NetworkRegistrationInfo implements Parcelable {
     // Set to {@code true} when network is a non-terrestrial network.
     private boolean mIsNonTerrestrialNetwork;
 
+    // Set to {@link NTRadioTechnology#NT_RADIO_TECHNOLOGY_UNKNOWN} if the device
+    // is connected to a terrestrial network or the satellite technology is unknown.
+    @NTRadioTechnology
+    private int mSatelliteTech = NT_RADIO_TECHNOLOGY_UNKNOWN;
+
     /**
      * @param domain Network domain. Must be a {@link Domain}. For transport type
      * {@link AccessNetworkConstants#TRANSPORT_TYPE_WLAN}, this must set to {@link #DOMAIN_PS}.
@@ -306,7 +329,7 @@ public final class NetworkRegistrationInfo implements Parcelable {
             @Nullable CellIdentity cellIdentity, @Nullable String rplmn,
             @Nullable VoiceSpecificRegistrationInfo voiceSpecificInfo,
             @Nullable DataSpecificRegistrationInfo dataSpecificInfo,
-            boolean isNonTerrestrialNetwork) {
+            boolean isNonTerrestrialNetwork, @NTRadioTechnology int satelliteTech) {
         mDomain = domain;
         mTransportType = transportType;
         mRegistrationState = registrationState;
@@ -324,6 +347,7 @@ public final class NetworkRegistrationInfo implements Parcelable {
         mVoiceSpecificInfo = voiceSpecificInfo;
         mDataSpecificInfo = dataSpecificInfo;
         mIsNonTerrestrialNetwork = isNonTerrestrialNetwork;
+        mSatelliteTech = satelliteTech;
 
         updateNrState();
     }
@@ -342,7 +366,8 @@ public final class NetworkRegistrationInfo implements Parcelable {
         this(domain, transportType, registrationState, accessNetworkTechnology, rejectCause,
                 emergencyOnly, availableServices, cellIdentity, rplmn,
                 new VoiceSpecificRegistrationInfo(cssSupported, roamingIndicator,
-                        systemIsInPrl, defaultRoamingIndicator), null, false);
+                        systemIsInPrl, defaultRoamingIndicator),
+                null, false, NT_RADIO_TECHNOLOGY_UNKNOWN);
     }
 
     /**
@@ -364,7 +389,7 @@ public final class NetworkRegistrationInfo implements Parcelable {
                         .setNrAvailable(isNrAvailable)
                         .setEnDcAvailable(isEndcAvailable)
                         .setVopsSupportInfo(vopsSupportInfo)
-                        .build(), false);
+                        .build(), false, NT_RADIO_TECHNOLOGY_UNKNOWN);
     }
 
     private NetworkRegistrationInfo(Parcel source) {
@@ -387,6 +412,7 @@ public final class NetworkRegistrationInfo implements Parcelable {
         mRplmn = source.readString();
         mIsUsingCarrierAggregation = source.readBoolean();
         mIsNonTerrestrialNetwork = source.readBoolean();
+        mSatelliteTech = source.readInt();
     }
 
     /**
@@ -425,6 +451,7 @@ public final class NetworkRegistrationInfo implements Parcelable {
         }
         mNrState = nri.mNrState;
         mRplmn = nri.mRplmn;
+        mSatelliteTech = nri.mSatelliteTech;
     }
 
     /**
@@ -708,12 +735,39 @@ public final class NetworkRegistrationInfo implements Parcelable {
     }
 
     /**
+     * Set satellite technology type
+     *
+     * @param satelliteTechnology {@link NTRadioTechnology} satellite technology type
+     * @hide
+     */
+    public void setSatelliteTechnology(@NTRadioTechnology int satelliteTechnology) {
+        mSatelliteTech = satelliteTechnology;
+    }
+
+    /**
      * Get whether the network is a non-terrestrial network.
      *
      * @return {@code true} if network is a non-terrestrial network else {@code false}.
      */
     public boolean isNonTerrestrialNetwork() {
         return mIsNonTerrestrialNetwork;
+    }
+
+    /**
+     * Returns the satellite technology (such as NB-IoT NTN, LTE DTC, or NR NTN) of the registered
+     * network.
+     *
+     * <p>Returns {@link NTRadioTechnology#NT_RADIO_TECHNOLOGY_UNKNOWN} if the registered
+     * network is terrestrial or if the satellite technology is not specified by the network.
+     *
+     * @return The satellite technology.
+     * @hide
+     */
+    @SystemApi
+    @RequiresPermission(Manifest.permission.SATELLITE_COMMUNICATION)
+    @FlaggedApi(Flags.FLAG_SYSTEM_SELECTION_SPECIFIER_ENHANCEMENT)
+    @NTRadioTechnology public int getSatelliteTechnology() {
+        return mSatelliteTech;
     }
 
     /**
@@ -816,6 +870,27 @@ public final class NetworkRegistrationInfo implements Parcelable {
         return isNonTerrestrialNetwork ? "NON-TERRESTRIAL" : "TERRESTRIAL";
     }
 
+    /**
+     * Convert satelliteTechnology to string
+     *
+     * @param satelliteTechnology boolean indicating whether network is a non-terrestrial
+     *                                network
+     * @return string format of isNonTerrestrialNetwork.
+     * @hide
+     */
+    public static String satelliteTechnologyToString(@NTRadioTechnology int satelliteTechnology) {
+        switch(satelliteTechnology) {
+            case NT_RADIO_TECHNOLOGY_NB_IOT_NTN: return "NT_RADIO_TECHNOLOGY_NB_IOT_NTN";
+            case NT_RADIO_TECHNOLOGY_NR_NTN: return "NT_RADIO_TECHNOLOGY_NR_NTN";
+            case NT_RADIO_TECHNOLOGY_EMTC_NTN: return "NT_RADIO_TECHNOLOGY_EMTC_NTN";
+            case NT_RADIO_TECHNOLOGY_PROPRIETARY: return "NT_RADIO_TECHNOLOGY_PROPRIETARY";
+            case NT_RADIO_TECHNOLOGY_LTE_DTC: return "NT_RADIO_TECHNOLOGY_LTE_DTC";
+            case NT_RADIO_TECHNOLOGY_NR_DTC: return "NT_RADIO_TECHNOLOGY_NR_DTC";
+            case NT_RADIO_TECHNOLOGY_UNKNOWN:
+            default: return "NT_RADIO_TECHNOLOGY_UNKNOWN";
+        }
+    }
+
     @NonNull
     @Override
     public String toString() {
@@ -843,6 +918,8 @@ public final class NetworkRegistrationInfo implements Parcelable {
                 .append(" isUsingCarrierAggregation=").append(mIsUsingCarrierAggregation)
                 .append(" isNonTerrestrialNetwork=").append(
                         isNonTerrestrialNetworkToString(mIsNonTerrestrialNetwork))
+                .append(" satelliteTechnology=").append(
+                        satelliteTechnologyToString(mSatelliteTech))
                 .append("}").toString();
     }
 
@@ -878,7 +955,8 @@ public final class NetworkRegistrationInfo implements Parcelable {
                 && Objects.equals(mDataSpecificInfo, other.mDataSpecificInfo)
                 && TextUtils.equals(mRplmn, other.mRplmn)
                 && mNrState == other.mNrState
-                && mIsNonTerrestrialNetwork == other.mIsNonTerrestrialNetwork;
+                && mIsNonTerrestrialNetwork == other.mIsNonTerrestrialNetwork
+                && mSatelliteTech == other.mSatelliteTech;
     }
 
     /**
@@ -903,6 +981,7 @@ public final class NetworkRegistrationInfo implements Parcelable {
         dest.writeString(mRplmn);
         dest.writeBoolean(mIsUsingCarrierAggregation);
         dest.writeBoolean(mIsNonTerrestrialNetwork);
+        dest.writeInt(mSatelliteTech);
     }
 
     /**
@@ -1014,6 +1093,9 @@ public final class NetworkRegistrationInfo implements Parcelable {
 
         private boolean mIsNonTerrestrialNetwork;
 
+        @NTRadioTechnology
+        private int mSatelliteTech;
+
         /**
          * Default constructor for Builder.
          */
@@ -1043,6 +1125,7 @@ public final class NetworkRegistrationInfo implements Parcelable {
                         nri.mVoiceSpecificInfo);
             }
             mIsNonTerrestrialNetwork = nri.mIsNonTerrestrialNetwork;
+            mSatelliteTech = nri.mSatelliteTech;
         }
 
         /**
@@ -1202,6 +1285,18 @@ public final class NetworkRegistrationInfo implements Parcelable {
         }
 
         /**
+         * Set satellite technology type
+         *
+         * @param satelliteTech satellite technology type
+         * @return The builder.
+         * @hide
+         */
+        public @NonNull Builder setSatelliteTechnology(@NTRadioTechnology int satelliteTech) {
+            mSatelliteTech = satelliteTech;
+            return this;
+        }
+
+        /**
          * Build the NetworkRegistrationInfo.
          * @return the NetworkRegistrationInfo object.
          * @hide
@@ -1211,7 +1306,7 @@ public final class NetworkRegistrationInfo implements Parcelable {
             return new NetworkRegistrationInfo(mDomain, mTransportType, mNetworkRegistrationState,
                     mAccessNetworkTechnology, mRejectCause, mEmergencyOnly, mAvailableServices,
                     mCellIdentity, mRplmn, mVoiceSpecificRegistrationInfo,
-                    mDataSpecificRegistrationInfo, mIsNonTerrestrialNetwork);
+                    mDataSpecificRegistrationInfo, mIsNonTerrestrialNetwork, mSatelliteTech);
         }
     }
 }

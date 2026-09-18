@@ -25,7 +25,7 @@ import android.annotation.Nullable;
 public interface TransportConnectionListener {
     /**
      * Called when {@link TransportConnection} has a transport client available or that it decided
-     * it couldn't obtain one, in which case {@param transport} is null.
+     * it couldn't obtain one, in which case {@code transport} is null.
      *
      * @param transportClient A {@link BackupTransportClient} transport or null.
      * @param transportConnection The {@link TransportConnection} used to retrieve this transport

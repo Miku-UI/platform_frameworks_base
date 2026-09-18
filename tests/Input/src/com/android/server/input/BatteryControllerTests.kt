@@ -32,6 +32,7 @@ import android.hardware.input.InputManagerGlobal
 import android.os.Binder
 import android.os.IBinder
 import android.os.test.TestLooper
+import android.platform.test.annotations.DisabledOnRavenwood
 import android.platform.test.annotations.Presubmit
 import android.testing.TestableContext
 import android.view.InputDevice
@@ -697,6 +698,7 @@ class BatteryControllerTests {
     }
 
     @Test
+    @DisabledOnRavenwood(blockedBy = [BluetoothManager::class])
     fun testRegisterBluetoothListenerForMonitoredBluetoothDevices() {
         `when`(inputManagerRule.mock.getInputDeviceBluetoothAddress(BT_DEVICE_ID))
             .thenReturn("AA:BB:CC:DD:EE:FF")
@@ -735,6 +737,7 @@ class BatteryControllerTests {
     }
 
     @Test
+    @DisabledOnRavenwood(blockedBy = [BluetoothManager::class])
     fun testNotifiesBluetoothBatteryChanges() {
         `when`(inputManagerRule.mock.getInputDeviceBluetoothAddress(BT_DEVICE_ID))
             .thenReturn("AA:BB:CC:DD:EE:FF")
@@ -755,6 +758,7 @@ class BatteryControllerTests {
     }
 
     @Test
+    @DisabledOnRavenwood(blockedBy = [BluetoothManager::class])
     fun testBluetoothBatteryIsPrioritized() {
         `when`(native.getBatteryDevicePath(BT_DEVICE_ID)).thenReturn("/sys/dev/bt_device")
         `when`(inputManagerRule.mock.getInputDeviceBluetoothAddress(BT_DEVICE_ID))
@@ -790,6 +794,7 @@ class BatteryControllerTests {
     }
 
     @Test
+    @DisabledOnRavenwood(blockedBy = [BluetoothManager::class])
     fun testFallBackToNativeBatteryStateWhenBluetoothStateInvalid() {
         `when`(native.getBatteryDevicePath(BT_DEVICE_ID)).thenReturn("/sys/dev/bt_device")
         `when`(inputManagerRule.mock.getInputDeviceBluetoothAddress(BT_DEVICE_ID))
@@ -828,6 +833,7 @@ class BatteryControllerTests {
     }
 
     @Test
+    @DisabledOnRavenwood(blockedBy = [BluetoothManager::class])
     fun testRegisterBluetoothMetadataListenerForMonitoredBluetoothDevices() {
         `when`(inputManagerRule.mock.getInputDeviceBluetoothAddress(BT_DEVICE_ID))
             .thenReturn("AA:BB:CC:DD:EE:FF")
@@ -873,6 +879,7 @@ class BatteryControllerTests {
     }
 
     @Test
+    @DisabledOnRavenwood(blockedBy = [BluetoothManager::class])
     fun testNotifiesBluetoothMetadataBatteryChanges() {
         `when`(inputManagerRule.mock.getInputDeviceBluetoothAddress(BT_DEVICE_ID))
             .thenReturn("AA:BB:CC:DD:EE:FF")
@@ -936,6 +943,7 @@ class BatteryControllerTests {
     }
 
     @Test
+    @DisabledOnRavenwood(blockedBy = [BluetoothManager::class])
     fun testBluetoothMetadataBatteryIsPrioritized() {
         `when`(inputManagerRule.mock.getInputDeviceBluetoothAddress(BT_DEVICE_ID))
             .thenReturn("AA:BB:CC:DD:EE:FF")

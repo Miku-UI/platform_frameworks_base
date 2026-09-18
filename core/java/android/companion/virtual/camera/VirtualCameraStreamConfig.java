@@ -41,16 +41,20 @@ public final class VirtualCameraStreamConfig implements Parcelable {
     private final int mHeight;
     private final int mFormat;
     private final int mMaxFps;
+    private final int mStreamIndex;
 
     /**
      * Construct a new instance of {@link VirtualCameraStreamConfig} initialized with the provided
      * width, height and {@link ImageFormat}.
      *
-     * @param width The width of the stream.
+     * @param width  The width of the stream.
      * @param height The height of the stream.
      * @param format The {@link ImageFormat} of the stream.
      * @param maxFps The maximum frame rate (in frames per second) for the stream.
-     *
+     * @param streamIndex The index of this stream, corresponding to the number of added stream
+     *                    to the config when
+     *                    {@link VirtualCameraConfig.Builder#addStreamConfig(int, int, int, int)}
+     *                    was called.
      * @hide
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
@@ -58,11 +62,13 @@ public final class VirtualCameraStreamConfig implements Parcelable {
             @IntRange(from = 1) int width,
             @IntRange(from = 1) int height,
             @ImageFormat.Format int format,
-            @IntRange(from = 1) int maxFps) {
+            @IntRange(from = 1) int maxFps,
+            int streamIndex) {
         this.mWidth = width;
         this.mHeight = height;
         this.mFormat = format;
         this.mMaxFps = maxFps;
+        this.mStreamIndex = streamIndex;
     }
 
     private VirtualCameraStreamConfig(@NonNull Parcel in) {
@@ -70,6 +76,7 @@ public final class VirtualCameraStreamConfig implements Parcelable {
         mHeight = in.readInt();
         mFormat = in.readInt();
         mMaxFps = in.readInt();
+        mStreamIndex = in.readInt();
     }
 
     @Override
@@ -83,6 +90,7 @@ public final class VirtualCameraStreamConfig implements Parcelable {
         dest.writeInt(mHeight);
         dest.writeInt(mFormat);
         dest.writeInt(mMaxFps);
+        dest.writeInt(mStreamIndex);
     }
 
     @NonNull
@@ -135,5 +143,12 @@ public final class VirtualCameraStreamConfig implements Parcelable {
     @IntRange(from = 1)
     public int getMaximumFramesPerSecond() {
         return mMaxFps;
+    }
+
+    /**
+     * @hide
+     */
+    public int getStreamIndex() {
+        return mStreamIndex;
     }
 }

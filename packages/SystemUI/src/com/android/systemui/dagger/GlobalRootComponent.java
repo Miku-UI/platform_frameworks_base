@@ -42,10 +42,15 @@ public interface GlobalRootComponent {
      * Builder for a GlobalRootComponent.
      */
     interface Builder {
+        /** */
         @BindsInstance
         Builder context(Context context);
+
+        /** */
         @BindsInstance
         Builder instrumentationTest(@InstrumentationTest boolean test);
+
+        /** */
         GlobalRootComponent build();
     }
 

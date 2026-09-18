@@ -20,7 +20,6 @@ import static android.app.StatusBarManager.EXTRA_KM_PRIVATE_NOTIFS_ALLOWED;
 import static android.app.admin.DevicePolicyManager.ACTION_DEVICE_POLICY_MANAGER_STATE_CHANGED;
 import static android.app.admin.DevicePolicyManager.KEYGUARD_DISABLE_SECURE_NOTIFICATIONS;
 import static android.app.admin.DevicePolicyManager.KEYGUARD_DISABLE_UNREDACTED_NOTIFICATIONS;
-import static android.os.Flags.allowPrivateProfile;
 import static android.os.UserHandle.USER_ALL;
 import static android.os.UserHandle.USER_NULL;
 import static android.provider.Settings.Secure.OTP_NOTIFICATION_REDACTION_LOCK_TIME;
@@ -492,10 +491,8 @@ public class NotificationLockscreenUserManagerImpl implements
         filter.addAction(Intent.ACTION_USER_UNLOCKED);
         filter.addAction(Intent.ACTION_MANAGED_PROFILE_AVAILABLE);
         filter.addAction(Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE);
-        if (privateSpaceFlagsEnabled()) {
-            filter.addAction(Intent.ACTION_PROFILE_AVAILABLE);
-            filter.addAction(Intent.ACTION_PROFILE_UNAVAILABLE);
-        }
+        filter.addAction(Intent.ACTION_PROFILE_AVAILABLE);
+        filter.addAction(Intent.ACTION_PROFILE_UNAVAILABLE);
         mBroadcastDispatcher.registerReceiver(mBaseBroadcastReceiver, filter,
                 null /* executor */, UserHandle.ALL);
 
@@ -892,7 +889,14 @@ public class NotificationLockscreenUserManagerImpl implements
     @Override
     public void onStateChanged(int newState) {
         mState = newState;
-        updatePublicMode();
+        if (!SceneContainerFlag.isEnabled()) {
+            // The Flexiglass implementation doesn't read the mState value in updatePublicMode, so
+            // this code path doesn't need to trigger updatePublicMode. Moreover, updatePublicMode
+            // can issue a lot of blocking binder calls, so it should be avoided here.
+            //
+            // For more info, see b/495683101.
+            updatePublicMode();
+        }
     }
 
     public void updatePublicMode() {
@@ -972,15 +976,8 @@ public class NotificationLockscreenUserManagerImpl implements
     }
 
     private boolean profileAvailabilityActions(String action){
-        return privateSpaceFlagsEnabled()?
-                Objects.equals(action,Intent.ACTION_PROFILE_AVAILABLE)||
-                        Objects.equals(action,Intent.ACTION_PROFILE_UNAVAILABLE):
-                Objects.equals(action,Intent.ACTION_MANAGED_PROFILE_AVAILABLE)||
-                        Objects.equals(action,Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE);
-    }
-
-    private static boolean privateSpaceFlagsEnabled() {
-        return allowPrivateProfile() && android.multiuser.Flags.enablePrivateSpaceFeatures();
+        return Objects.equals(action,Intent.ACTION_PROFILE_AVAILABLE)||
+                        Objects.equals(action,Intent.ACTION_PROFILE_UNAVAILABLE);
     }
 
     @Override

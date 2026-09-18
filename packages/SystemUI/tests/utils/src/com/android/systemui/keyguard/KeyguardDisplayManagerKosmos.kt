@@ -21,11 +21,12 @@ import com.android.keyguard.ConnectedDisplayKeyguardPresentationFactory
 import com.android.keyguard.KeyguardDisplayManager
 import com.android.keyguard.KeyguardDisplayManager.DeviceStateHelper
 import com.android.systemui.concurrency.fakeExecutor
+import com.android.systemui.display.data.repository.displayRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.navigationbar.navigationBarController
 import com.android.systemui.settings.displayTracker
-import com.android.systemui.shade.data.repository.shadeDisplaysRepository
+import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
 import com.android.systemui.statusbar.policy.keyguardStateController
 import org.mockito.kotlin.mock
 
@@ -40,8 +41,9 @@ var Kosmos.keyguardDisplayManager by
             mock<DeviceStateHelper>(),
             keyguardStateController,
             mock<ConnectedDisplayKeyguardPresentationFactory>(),
-            { shadeDisplaysRepository },
+            { fakeShadeDisplaysRepository },
             applicationCoroutineScope,
             /* isCentralizedWallpaperPresentationEnabled= */ true,
+            displayRepository,
         )
     }

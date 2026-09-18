@@ -42,6 +42,7 @@ import com.android.systemui.biometrics.AuthController;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryFingerprintAuthInteractor;
+import com.android.systemui.display.DisplayExtensionsKt;
 import com.android.systemui.doze.DozeHost;
 import com.android.systemui.doze.DozeLog;
 import com.android.systemui.doze.DozeReceiver;
@@ -61,6 +62,7 @@ import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.notification.headsup.OnHeadsUpChangedListener;
 import com.android.systemui.statusbar.policy.BatteryController;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
+import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
 import com.android.systemui.util.Assert;
 import com.android.systemui.util.CopyOnLoopListenerSet;
 import com.android.systemui.util.IListenerSet;
@@ -127,6 +129,7 @@ public final class DozeServiceHost implements DozeHost {
     private final Context mContext;
     private final AmbientDisplayConfiguration mAmbientDisplayConfiguration;
     private final AodDimInteractor mAodDimInteractor;
+    private final SelectedUserInteractor mSelectedUserInteractor;
 
     @Inject
     public DozeServiceHost(DozeLog dozeLog, PowerManager powerManager,
@@ -148,7 +151,8 @@ public final class DozeServiceHost implements DozeHost {
             @Application CoroutineScope scope,
             Context context,
             AmbientDisplayConfiguration ambientDisplayConfiguration,
-            AodDimInteractor aodDimInteractor) {
+            AodDimInteractor aodDimInteractor,
+            SelectedUserInteractor selectedUserInteractor) {
         super();
         mDozeLog = dozeLog;
         mPowerManager = powerManager;
@@ -174,6 +178,7 @@ public final class DozeServiceHost implements DozeHost {
         mContext = context;
         mAmbientDisplayConfiguration = ambientDisplayConfiguration;
         mAodDimInteractor = aodDimInteractor;
+        mSelectedUserInteractor = selectedUserInteractor;
     }
 
     // TODO: we should try to not pass status bar in here if we can avoid it.
@@ -204,14 +209,12 @@ public final class DozeServiceHost implements DozeHost {
             callback.onPowerSaveChanged(active);
         }
 
-        if (com.android.systemui.Flags.newDozingKeyguardStates()) {
-            if (active) {
-                // listen for screen off fingerprint pulse events when battery saver
-                // is suppressing AOD
-                startCollectingScreenOffFingerprintPulseEvents();
-            } else if (!listenForScreenOffFingerprintPulseEvents()) {
-                stopCollectingUsUdfpsScreenOffPulseEvents();
-            }
+        if (active) {
+            // listen for screen off fingerprint pulse events when battery saver
+            // is suppressing AOD
+            startCollectingScreenOffFingerprintPulseEvents();
+        } else if (!listenForScreenOffFingerprintPulseEvents()) {
+            stopCollectingUsUdfpsScreenOffPulseEvents();
         }
     }
 
@@ -290,7 +293,7 @@ public final class DozeServiceHost implements DozeHost {
         // When in wake-and-unlock we may not have received a change to StatusBarState
         // but we still should not be dozing, manually set to false.
         if (mBiometricUnlockControllerLazy.get().getMode()
-                == BiometricUnlockController.MODE_WAKE_AND_UNLOCK) {
+                == BiometricUnlockController.MODE_WAKE_AND_DISMISS) {
             dozing = false;
         }
 
@@ -399,7 +402,7 @@ public final class DozeServiceHost implements DozeHost {
     @Override
     public boolean isPulsingBlocked() {
         return mBiometricUnlockControllerLazy.get().getMode()
-                == BiometricUnlockController.MODE_WAKE_AND_UNLOCK;
+                == BiometricUnlockController.MODE_WAKE_AND_DISMISS;
     }
 
     @Override
@@ -439,6 +442,11 @@ public final class DozeServiceHost implements DozeHost {
     @Override
     public void onSlpiTap(float screenX, float screenY) {
         if (screenX < 0 || screenY < 0) return;
+        // Coordinates are reported in the highest resolution;
+        // scale the coordinates to the current resolution
+        float scaleFactor = DisplayExtensionsKt.getDisplayScaleFactor(mContext.getDisplay());
+        screenX *= scaleFactor;
+        screenY *= scaleFactor;
         dispatchTouchEventToAmbientIndicationContainer(screenX, screenY);
 
         mDozeInteractor.setLastTapToWakePosition(new Point((int) screenX, (int) screenY));
@@ -592,27 +600,26 @@ public final class DozeServiceHost implements DozeHost {
 
     private boolean listenForScreenOffFingerprintPulseEvents() {
         return mDeviceEntryFingerprintAuthInteractor.isSensorUnderDisplay().getValue()
-                && mAmbientDisplayConfiguration.screenOffUdfpsEnabled(mContext.getUserId())
-                && (!mAmbientDisplayConfiguration.alwaysOnEnabled(mContext.getUserId())
+                && mAmbientDisplayConfiguration.screenOffUdfpsEnabled(
+                        mSelectedUserInteractor.getSelectedUserId())
+                && (!mAmbientDisplayConfiguration.alwaysOnEnabled(
+                        mSelectedUserInteractor.getSelectedUserId())
                 || isPowerSaveActive());
     }
 
     private void startCollectingScreenOffFingerprintPulseEvents() {
-        if (com.android.systemui.Flags.newDozingKeyguardStates()) {
-            if (listenForScreenOffFingerprintPulseEvents()) {
-                if (mUdfpsScreenOffFingerprintPulseEventCollectingJob != null) return;
-                mUdfpsScreenOffFingerprintPulseEventCollectingJob = JavaAdapterKt.collectFlow(
-                        mScope,
-                        mScope.getCoroutineContext(),
-                        mDeviceEntryFingerprintAuthInteractor.getFingerprintHelp(),
-                        state -> {
-                            for (Callback callback : mCallbacks) {
-                                callback.onFingerprintPulseWhileScreenOff(state);
-                            }
+        if (listenForScreenOffFingerprintPulseEvents()) {
+            if (mUdfpsScreenOffFingerprintPulseEventCollectingJob != null) return;
+            mUdfpsScreenOffFingerprintPulseEventCollectingJob = JavaAdapterKt.collectFlow(
+                    mScope,
+                    mScope.getCoroutineContext(),
+                    mDeviceEntryFingerprintAuthInteractor.getFingerprintHelp(),
+                    state -> {
+                        for (Callback callback : mCallbacks) {
+                            callback.onFingerprintPulseWhileScreenOff(state);
                         }
-                );
-            }
-            return;
+                    }
+            );
         }
     }
 

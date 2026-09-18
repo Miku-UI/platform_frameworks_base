@@ -20,6 +20,7 @@ import static android.view.contentcapture.ContentCaptureHelper.sDebug;
 import static android.view.contentcapture.ContentCaptureHelper.sVerbose;
 import static android.view.contentcapture.ContentCaptureManager.NO_SESSION_ID;
 import static android.view.contentcapture.flags.Flags.FLAG_CCAPI_BAKLAVA_ENABLED;
+import static android.view.contentcapture.flags.Flags.FLAG_CONTENT_INTERACTION_API_ENABLED;
 
 import android.annotation.CallSuper;
 import android.annotation.FlaggedApi;
@@ -233,9 +234,7 @@ public abstract class ContentCaptureSession implements AutoCloseable {
     /**
      * Guard use to ignore events after it's destroyed.
      */
-    @NonNull
-    @GuardedBy("mLock")
-    private boolean mDestroyed;
+    private volatile boolean mDestroyed;
 
     /** @hide */
     @Nullable
@@ -510,8 +509,6 @@ public abstract class ContentCaptureSession implements AutoCloseable {
         if (CompatChanges.isChangeEnabled(NOTIFY_NODES_DISAPPEAR_NOW_SENDS_TREE_EVENTS)) {
             internalNotifyViewTreeEvent(mId, /* started= */ true);
         }
-        // TODO(b/123036895): use a internalNotifyViewsDisappeared that optimizes how the event is
-        // parcelized
         for (long id : virtualIds) {
             internalNotifyViewDisappeared(mId, new AutofillId(hostId, id, mId));
         }
@@ -579,6 +576,24 @@ public abstract class ContentCaptureSession implements AutoCloseable {
     /** @hide */
     abstract void internalNotifySessionFlushEvent(int sessionId);
 
+    /**
+     * Notifies the Intelligence Service that a view has been interacted.
+     *
+     * <p>The view must have appeared before sending the interaction event.
+     *
+     * @param autofillId id of the node.
+     */
+    @FlaggedApi(FLAG_CONTENT_INTERACTION_API_ENABLED)
+    public void notifyContentInteractionEvent(@NonNull AutofillId autofillId) {
+        if (!isContentCaptureEnabled()) return;
+
+        internalNotifyContentInteractionEvent(mId, autofillId);
+    }
+
+    /** @hide */
+    abstract void internalNotifyContentInteractionEvent(int sessionId, AutofillId autofillId);
+
+
     /** @hide */
     public void notifyViewTreeEvent(boolean started) {
         internalNotifyViewTreeEvent(mId, started);
@@ -623,6 +638,10 @@ public abstract class ContentCaptureSession implements AutoCloseable {
     /** @hide */
     public abstract void notifyContentCaptureEvents(
             @NonNull SparseArray<ArrayList<Object>> contentCaptureEvents);
+
+    /** @hide */
+    public abstract void notifyContentCaptureInteractionEvents(
+            @NonNull SparseArray<ArrayList<Object>> contentCaptureInteractionEvents);
 
     /**
      * Creates a {@link ViewStructure} for a "standard" view.
@@ -708,9 +727,7 @@ public abstract class ContentCaptureSession implements AutoCloseable {
     }
 
     boolean isContentCaptureEnabled() {
-        synchronized (mLock) {
-            return !mDestroyed;
-        }
+        return !mDestroyed;
     }
 
     @CallSuper

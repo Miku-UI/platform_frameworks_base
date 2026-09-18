@@ -16,12 +16,9 @@
 
 package com.android.systemui.model
 
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.view.Display
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
@@ -47,7 +44,6 @@ class SysUIStateDispatcherTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun registerUnregisterListener_notifiedOfChanges_receivedForAllDisplayIdsWithOneCallback() {
         underTest.registerListener(callback)
 
@@ -62,20 +58,6 @@ class SysUIStateDispatcherTest : SysuiTestCase() {
 
         // Didn't change
         assertThat(flagsChanges).containsExactly(DISPLAY_1, FLAG_1, DISPLAY_2, FLAG_2)
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
-    fun registerUnregisterListener_notifiedOfChangesForNonDefaultDisplay_NotPropagated() {
-        underTest.registerListener(callback)
-
-        state1.setFlag(FLAG_1, true).commitUpdate()
-
-        assertThat(flagsChanges).isEmpty()
-
-        state0.setFlag(FLAG_1, true).commitUpdate()
-
-        assertThat(flagsChanges).containsExactly(Display.DEFAULT_DISPLAY, FLAG_1)
     }
 
     private companion object {

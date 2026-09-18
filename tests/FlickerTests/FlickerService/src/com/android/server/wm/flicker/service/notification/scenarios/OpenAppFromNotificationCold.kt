@@ -57,8 +57,8 @@ abstract class OpenAppFromNotificationCold(
 
         // Close the app that posted the notification to trigger a cold start next time
         // it is open - can't just kill it because that would remove the notification.
-        tapl.setExpectedRotationCheckEnabled(false)
-        tapl.goHome()
+        tapl.expectedRotationCheckEnabled = false
+        device.pressHome()
         RemoveAllTasksButHomeRule.removeAllTasksButHome()
     }
 

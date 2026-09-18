@@ -32,6 +32,7 @@ toolSources = [
 
 cc_defaults {
     name: "aapt2_defaults",
+    host_supported: true,
     cpp_std: "gnu++2b",
     cflags: [
         "-Wall",
@@ -44,7 +45,17 @@ cc_defaults {
         "-fno-rtti",
         "-Wno-deprecated-declarations",
     ],
+    proto: {
+        type: "lite",
+    },
     target: {
+        host: {
+            static_libs: [
+                "liblog",
+                "libz",
+                "libziparchive",
+            ],
+        },
         windows: {
             compile_multilib: "64",
             enabled: true,
@@ -62,23 +73,37 @@ cc_defaults {
                 "-framework CoreFoundation",
             ],
         },
+        android: {
+            proto: {
+                static: true,
+            },
+            static_libs: [
+                "libcom.android.sysprop.incremental",
+                "libincfs",
+                "libziparchive_for_incfs",
+            ],
+            // Libraries with stable ABIs are forbidden from being statically linked
+            // into Android device executables (b/151051671). Therefore Android target
+            // executable has to be dynamically linked. Do not add more shared libs
+            // unless they cannot be statically linked due to stable ABIs.
+            shared_libs: [
+                "liblog",
+                "libz",
+            ],
+        },
     },
     header_libs: [
         "jni_headers",
-        "native_headers",
     ],
     static_libs: [
         "android.content.res.flags-aconfig-cc-host-ro",
         "libandroidfw",
         "libutils",
-        "liblog",
         "libcutils",
         "libexpat",
-        "libziparchive",
         "libpng",
         "libbase",
-        "libprotobuf-cpp-full",
-        "libz",
+        "libprotobuf-cpp-lite",
         "libbuildversion",
         "libidmap2_policies",
     ],
@@ -86,15 +111,15 @@ cc_defaults {
 }
 
 // ==========================================================
-// NOTE: Do not add any shared libraries.
+// NOTE: Do not add any shared libraries for host targets.
 // AAPT2 is built to run on many environments
 // that may not have the required dependencies.
 // ==========================================================
 
 // ==========================================================
-// Build the host static library: aapt2
+// Build the static library: aapt2
 // ==========================================================
-cc_library_host_static {
+cc_library_static {
     name: "libaapt2",
     srcs: [
         "compile/IdAssigner.cpp",
@@ -174,9 +199,11 @@ cc_library_host_static {
     ],
     proto: {
         export_proto_headers: true,
-        type: "full",
+        type: "lite",
     },
     defaults: ["aapt2_defaults"],
+    min_sdk_version: "apex_inherit",
+    apex_available: ["com.android.webapp"],
 }
 
 // ==========================================================
@@ -206,9 +233,9 @@ cc_test_host {
 }
 
 // ==========================================================
-// Build the host executable: aapt2
+// Build the host and device executable: aapt2
 // ==========================================================
-cc_binary_host {
+cc_binary {
     name: "aapt2",
     srcs: ["Main.cpp"] + toolSources,
     use_version_lib: true,
@@ -217,6 +244,8 @@ cc_binary_host {
     dist: {
         targets: ["aapt2_artifacts"],
     },
+    min_sdk_version: "apex_inherit",
+    apex_available: ["com.android.webapp"],
 }
 
 // ==========================================================

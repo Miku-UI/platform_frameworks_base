@@ -17,40 +17,41 @@
 package com.android.systemui.screencapture.sharescreen.largescreen.ui.compose
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
-import com.android.systemui.screencapture.common.ui.viewmodel.RecentTaskViewModel
-import com.android.systemui.screencapture.sharescreen.largescreen.ui.viewmodel.AudioSwitchViewModel
-import com.android.systemui.screencapture.sharescreen.largescreen.ui.viewmodel.PreShareToolbarViewModel
-import com.android.systemui.screencapture.sharescreen.largescreen.ui.viewmodel.ShareContentListViewModel
+import com.android.systemui.screencapture.sharescreen.ui.viewmodel.ScreenCaptureShareScreenViewModel
 
 /** Main component for the screen share UI. */
 @Composable
-fun PreShareUI(
-    preShareToolbarViewModel: PreShareToolbarViewModel,
-    shareContentListViewModel: ShareContentListViewModel,
-    audioSwitchViewModel: AudioSwitchViewModel,
-    recentTaskViewModelFactory: RecentTaskViewModel.Factory,
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.width(560.dp),
+fun PreShareUI(shareScreenViewModel: ScreenCaptureShareScreenViewModel) {
+    Box(
+        contentAlignment = Alignment.TopCenter,
+        modifier =
+            Modifier.fillMaxSize().padding(top = 16.dp).semantics { testTagsAsResourceId = true },
     ) {
-        PreShareToolbar(
-            preShareToolbarViewModel = preShareToolbarViewModel,
-            expanded = true,
-            onCloseClick = { preShareToolbarViewModel.onCloseClicked() },
-            shareButtonEnabled = shareContentListViewModel.selectedRecentTaskViewModel != null,
-        )
-        ShareContentSelector(
-            shareContentListViewModel = shareContentListViewModel,
-            recentTaskViewModelFactory = recentTaskViewModelFactory,
-            audioSwitchViewModel = audioSwitchViewModel,
-        )
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.wrapContentWidth(),
+        ) {
+            val targetsViewModel = shareScreenViewModel.currentTargetsModel
+
+            PreShareToolbar(
+                shareScreenViewModel = shareScreenViewModel,
+                expanded = true,
+                onCloseClick = { shareScreenViewModel.onCloseClicked() },
+                shareButtonEnabled = targetsViewModel.selectedTarget.value != null,
+            )
+            ShareContentSelector(shareScreenViewModel)
+        }
     }
 }

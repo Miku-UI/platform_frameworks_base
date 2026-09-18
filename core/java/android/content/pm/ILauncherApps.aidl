@@ -55,10 +55,12 @@ interface ILauncherApps {
             String callingPackage, String packageName, in UserHandle user);
     LauncherActivityInfoInternal resolveLauncherActivityInternal(
             String callingPackage, in ComponentName component, in UserHandle user);
-    void startSessionDetailsActivityAsUser(in IApplicationThread caller, String callingPackage,
-                String callingFeatureId, in PackageInstaller.SessionInfo sessionInfo,
-                in Rect sourceBounds, in Bundle opts, in UserHandle user);
-    void startActivityAsUser(in IApplicationThread caller, String callingPackage,
+    void startSessionDetailsActivityAsUser(in @nullable IBinder callingActivityToken,
+            in IApplicationThread caller, String callingPackage,
+            String callingFeatureId, in PackageInstaller.SessionInfo sessionInfo,
+            in Rect sourceBounds, in Bundle opts, in UserHandle user);
+    void startActivityAsUser(in @nullable IBinder callingActivityToken,
+            in IApplicationThread caller, String callingPackage,
             String callingFeatureId, in ComponentName component, in Rect sourceBounds,
             in Bundle opts, in UserHandle user);
     PendingIntent getActivityLaunchIntent(String callingPackage, in ComponentName component,
@@ -68,7 +70,8 @@ interface ILauncherApps {
     IntentSender getAppMarketActivityIntent(String callingPackage, String packageName,
             in UserHandle user);
     IntentSender getPrivateSpaceSettingsIntent();
-    void showAppDetailsAsUser(in IApplicationThread caller, String callingPackage,
+    void showAppDetailsAsUser(in @nullable IBinder callingActivityToken,
+            in IApplicationThread caller, String callingPackage,
             String callingFeatureId, in ComponentName component, in Rect sourceBounds,
             in Bundle opts, in UserHandle user);
     boolean isPackageEnabled(String callingPackage, String packageName, in UserHandle user);
@@ -85,7 +88,8 @@ interface ILauncherApps {
             in UserHandle user);
     void pinShortcuts(String callingPackage, String packageName, in List<String> shortcutIds,
             in UserHandle user);
-    boolean startShortcut(String callingPackage, String packageName, String featureId, String id,
+    boolean startShortcut(in @nullable IBinder callingActivityToken,
+            String callingPackage, String packageName, String featureId, String id,
             in Rect sourceBounds, in Bundle startActivityOptions, int userId);
 
     int getShortcutIconResId(String callingPackage, String packageName, String id,
@@ -131,9 +135,6 @@ interface ILauncherApps {
     void setArchiveCompatibilityOptions(boolean enableIconOverlay, boolean enableUnarchivalConfirmation);
 
     List<UserHandle> getUserProfiles();
-
-    /** Saves view capture data to the wm trace directory. */
-    void saveViewCaptureData();
 
     ParceledListSlice getAvailableShortcuts(String callingPackage, in UserHandle user);
 

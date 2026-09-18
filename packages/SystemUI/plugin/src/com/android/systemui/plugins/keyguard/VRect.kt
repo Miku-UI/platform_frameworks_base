@@ -16,6 +16,7 @@
 
 package com.android.systemui.plugins.keyguard
 
+import android.annotation.SuppressLint
 import android.graphics.Rect as AndroidRect
 import android.graphics.RectF as AndroidRectF
 import android.util.Half
@@ -105,6 +106,7 @@ value class VRectF(val data: ULong) {
     companion object {
         private fun toBits(value: Float): Short = Half.halfToShortBits(Half.toHalf(value))
 
+        @SuppressLint("HalfFloat")
         private fun fromBits(value: Short): Float = Half.toFloat(Half.intBitsToHalf(value.toInt()))
 
         fun fromLong(data: Long) = VRectF(data.toULong())

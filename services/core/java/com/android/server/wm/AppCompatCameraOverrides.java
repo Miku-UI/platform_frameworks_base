@@ -38,10 +38,12 @@ import static com.android.server.wm.AppCompatUtils.isChangeEnabled;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
+import android.content.pm.PackageManager;
+import android.hardware.camera2.CameraManager;
 import android.util.proto.ProtoOutputStream;
-import android.window.DesktopModeFlags;
 
 import com.android.server.wm.utils.OptPropFactory;
+import com.android.window.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -89,6 +91,10 @@ class AppCompatCameraOverrides {
     private final OptPropFactory.OptProp mCameraCompatAllowForceRotationOptProp;
     @NonNull
     private final OptPropFactory.OptProp mCameraCompatAllowOrientationTreatmentOptProp;
+    @NonNull
+    private final OptPropFactory.OptProp mCameraCompatAllowOrientationTreatmentLegacyOptProp;
+    @NonNull
+    private final OptPropFactory.OptProp mCameraCompatAllowLandscapeToPortraitTreatmentOptProp;
 
     AppCompatCameraOverrides(@NonNull ActivityRecord activityRecord,
             @NonNull AppCompatConfiguration appCompatConfiguration,
@@ -102,7 +108,10 @@ class AppCompatCameraOverrides {
                 mAppCompatConfiguration::isCameraCompatForceRotateTreatmentEnabled);
         final BooleanSupplier isCameraCompatSimulateRequestedOrientationTreatmentEnabled =
                 AppCompatUtils.asLazy(mAppCompatConfiguration
-                        ::isCameraCompatSimulateRequestedOrientationTreatmentEnabled);
+                        ::isCameraCompatSimReqOrientationTreatmentEnabled);
+        final BooleanSupplier isCameraCompatLandscapeToPortraitTreatmentEnabled =
+                AppCompatUtils.asLazy(mAppCompatConfiguration
+                        ::isCameraCompatLandscapeTreatmentEnabled);
         final BooleanSupplier isAnyCameraCompatTreatmentEnabled = AppCompatUtils.asLazy(
                 mAppCompatConfiguration::isAnyCameraCompatTreatmentEnabled);
 
@@ -118,6 +127,14 @@ class AppCompatCameraOverrides {
         mCameraCompatAllowOrientationTreatmentOptProp = optPropBuilder.create(
                 PROPERTY_CAMERA_COMPAT_ALLOW_SIMULATE_REQUESTED_ORIENTATION,
                 isCameraCompatSimulateRequestedOrientationTreatmentEnabled);
+        // Respect legacy opt-outs - PROPERTY_CAMERA_COMPAT_ALLOW_FORCE_ROTATION - in the new camera
+        // orientation treatment.
+        mCameraCompatAllowOrientationTreatmentLegacyOptProp = optPropBuilder.create(
+                PROPERTY_CAMERA_COMPAT_ALLOW_FORCE_ROTATION,
+                isCameraCompatSimulateRequestedOrientationTreatmentEnabled);
+        mCameraCompatAllowLandscapeToPortraitTreatmentOptProp = optPropBuilder.create(
+                PackageManager.PROPERTY_COMPAT_OVERRIDE_LANDSCAPE_TO_PORTRAIT,
+                isCameraCompatLandscapeToPortraitTreatmentEnabled);
     }
 
     /**
@@ -199,35 +216,45 @@ class AppCompatCameraOverrides {
      * provides changes to the camera and display orientation signals to match those expected on a
      * portrait device in that orientation (for example, on a standard phone).
      *
-     * <p>The treatment is enabled when the following conditions are met:
+     * <p>The treatment is enabled if either of the following conditions is met:
      * <ul>
-     * <li>Feature flag gating the camera compatibility free-form treatment is enabled.
-     * <li>Activity is opted-in using per-app override, or the treatment is enabled for all apps.
+     * <li>Camera compatibility is enabled via device config, and the activity is not opted-out
+     * via per-app override,
+     * <li>The treatment is force-enabled for all apps for testing.
      * </ul>
      */
     boolean shouldApplyCameraCompatSimReqOrientationTreatment() {
-        return DesktopModeFlags.ENABLE_CAMERA_COMPAT_SIMULATE_REQUESTED_ORIENTATION.isTrue()
-                && (shouldEnableCameraCompatSimulateRequestedOrientationTreatmentForApp()
-                || shouldForceEnableCameraCompatSimulateRequestedOrientationTreatment());
+        if (!mAppCompatConfiguration.isCameraCompatSimReqOrientationTreatmentEnabled()) {
+            return false;
+        }
+        if (!mCameraCompatAllowOrientationTreatmentOptProp
+                    .shouldEnableWithOptOutOverrideAndProperty(isChangeEnabled(mActivityRecord,
+                            OVERRIDE_CAMERA_COMPAT_DISABLE_SIMULATE_REQUESTED_ORIENTATION))) {
+            return false;
+        }
+        // If the app was opted-out from force-rotate camera compat treatment, respect that
+        // for the simulate-requested-orientation treatment. The app is either handling
+        // different rotations well without camera compat treatment, or it has severe issues
+        // when force-rotate treatment is applied, and simulate-requested-orientation
+        // treatment would likely cause the same issues.
+        // For a more granular control, use a separate per-app override for simulate-requested-
+        // -orientation treatment.
+        return !Flags.cameraCompatUnifyCameraPolicies()
+                || mCameraCompatAllowOrientationTreatmentLegacyOptProp
+                .shouldEnableWithOptOutOverrideAndProperty(isChangeEnabled(
+                        mActivityRecord,
+                        OVERRIDE_CAMERA_COMPAT_DISABLE_SIMULATE_REQUESTED_ORIENTATION));
     }
 
-    private boolean shouldEnableCameraCompatSimulateRequestedOrientationTreatmentForApp() {
-        return mAppCompatConfiguration
-                .isCameraCompatSimulateRequestedOrientationTreatmentEnabled()
-                && mCameraCompatAllowOrientationTreatmentOptProp
-                        .shouldEnableWithOptOutOverrideAndProperty(isChangeEnabled(mActivityRecord,
-                                OVERRIDE_CAMERA_COMPAT_DISABLE_SIMULATE_REQUESTED_ORIENTATION));
-    }
+    boolean shouldApplyCameraCompatSimReqOrientationTreatmentForLandscapeCamera() {
+        if (!Flags.cameraCompatLandscapeCameraSupport()) {
+            return false;
+        }
 
-    /**
-     * Returns whether camera compat treatment should be enabled for all apps targeted for treatment
-     * (usually fixed-orientation apps).
-     *
-     * <p>This can be enabled via adb only.
-     */
-    private boolean shouldForceEnableCameraCompatSimulateRequestedOrientationTreatment() {
-        return mActivityRecord.mWmService.mAppCompatConfiguration
-                .isCameraCompatSimReqOrientationTreatmentForceEnabled();
+        return shouldApplyCameraCompatSimReqOrientationTreatment()
+                && mCameraCompatAllowLandscapeToPortraitTreatmentOptProp
+                .shouldEnableWithOptInOverrideAndOptOutProperty(isChangeEnabled(mActivityRecord,
+                        CameraManager.OVERRIDE_CAMERA_LANDSCAPE_TO_PORTRAIT));
     }
 
     boolean isOverrideOrientationOnlyForCameraEnabled() {

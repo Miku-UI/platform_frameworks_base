@@ -17,6 +17,7 @@
 package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
+import android.platform.test.annotations.WithDesktopTest
 import android.tools.Rotation
 import android.tools.traces.parsers.WindowManagerStateHelper
 import androidx.test.platform.app.InstrumentationRegistry
@@ -30,8 +31,10 @@ import org.junit.Ignore
 import org.junit.Test
 
 @Ignore("Test Base Class")
-abstract class ExitDesktopToFullScreenWithAppHeaderMenu(val rotation: Rotation = Rotation.ROTATION_0) :
-    TestScenarioBase(rotation) {
+@WithDesktopTest
+abstract class ExitDesktopToFullScreenWithAppHeaderMenu(
+    val rotation: Rotation = Rotation.ROTATION_0
+) : TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val tapl = LauncherInstrumentation()
@@ -49,7 +52,7 @@ abstract class ExitDesktopToFullScreenWithAppHeaderMenu(val rotation: Rotation =
 
     @Test
     open fun exitDesktopToFullScreenWithAppHeaderMenu() {
-        testApp.exitDesktopModeToFullScreenWithAppHeader(wmHelper)
+        testApp.exitDesktopModeToFullScreenWithDesktopLayoutMenu(wmHelper, device)
     }
 
     @After

@@ -31,6 +31,7 @@ import com.android.systemui.res.R;
 import com.android.systemui.statusbar.notification.PhysicsPropertyAnimator;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.row.ExpandableView;
+import com.android.systemui.statusbar.notification.shared.FixCollapsingOvershootTiming;
 
 /**
  * A state of an expandable view
@@ -179,6 +180,16 @@ public class ExpandableViewState extends ViewState {
         }
     }
 
+    private float calculateMaxOvershoot(ExpandableView expandableView) {
+        float maxOvershoot = Float.POSITIVE_INFINITY;
+        float targetHeight = this.height;
+        float currentHeight = expandableView.getActualHeight();
+        if (targetHeight < currentHeight && targetHeight > 0) {
+            maxOvershoot = targetHeight / 4f;
+        }
+        return maxOvershoot;
+    }
+
     @Override
     public void animateTo(View child, AnimationProperties properties) {
         super.animateTo(child, properties);
@@ -195,6 +206,9 @@ public class ExpandableViewState extends ViewState {
                 float maxOvershoot = Float.POSITIVE_INFINITY;
                 if (animateHeight) {
                     expandableView.setActualHeightAnimating(true);
+                    if (FixCollapsingOvershootTiming.isEnabled()) {
+                        maxOvershoot = calculateMaxOvershoot(expandableView);
+                    }
                 }
                 DynamicAnimation.OnAnimationEndListener endListener = null;
                 if (!ViewState.isAnimating(expandableView, HEIGHT_PROPERTY)) {
@@ -205,18 +219,8 @@ public class ExpandableViewState extends ViewState {
                             row.setGroupExpansionChanging(false /* isExpansionChanging */);
                         }
                     };
-
-                    float targetHeight = this.height;
-                    float currentHeight = expandableView.getActualHeight();
-                    if (targetHeight < currentHeight && targetHeight > 0) {
-                        // Avoid elements become invisible / very squished when collapsing a large
-                        // list, for example bundle headers. In cases where the start height is
-                        // large, the resulting overshoot could render the collapsed element
-                        // temporarily invisible.
-
-                        // This heuristic to limits the overshoot when collapsing an element to
-                        // never squish it by more than a quarter of its target size.
-                        maxOvershoot = targetHeight / 4f;
+                    if (!FixCollapsingOvershootTiming.isEnabled()) {
+                        maxOvershoot = calculateMaxOvershoot(expandableView);
                     }
                 }
                 PhysicsPropertyAnimator.setProperty(child, HEIGHT_PROPERTY, this.height, properties,

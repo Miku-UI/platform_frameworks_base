@@ -28,7 +28,6 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.Flags
 import com.android.systemui.flags.fake
 import com.android.systemui.flags.featureFlagsClassic
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosTestScope
 import com.android.systemui.kairos.runKairosTest
 import com.android.systemui.kosmos.Kosmos
@@ -38,7 +37,6 @@ import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.statusbar.core.NewStatusBarIcons
-import com.android.systemui.statusbar.core.StatusBarRootModernization
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.fake
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.fakeMobileConnectionsRepositoryKairos
@@ -55,7 +53,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.whenever
 
-@OptIn(ExperimentalKairosApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class MobileIconsInteractorKairosTest : SysuiTestCase() {
@@ -470,6 +467,23 @@ class MobileIconsInteractorKairosTest : SysuiTestCase() {
         }
 
     @Test
+    fun defaultDataIconInteractor_tracksDefaultDataSubId() = runTest {
+        val latest by underTest.defaultDataIconInteractor.collectLastValue()
+
+        mobileConnectionsRepositoryKairos.fake.setDefaultDataSubId(SUB_1_ID)
+
+        assertThat(latest?.subscriptionId).isEqualTo(SUB_1_ID)
+
+        mobileConnectionsRepositoryKairos.fake.setDefaultDataSubId(SUB_2_ID)
+
+        assertThat(latest?.subscriptionId).isEqualTo(SUB_2_ID)
+
+        mobileConnectionsRepositoryKairos.fake.setDefaultDataSubId(INVALID_SUBSCRIPTION_ID)
+
+        assertThat(latest).isNull()
+    }
+
+    @Test
     fun activeDataConnection_turnedOn() = runTest {
         val connection1 =
             mobileConnectionsRepositoryKairos.fake.mobileConnectionsBySubId.sample()[SUB_1_ID]!!
@@ -834,7 +848,7 @@ class MobileIconsInteractorKairosTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isStackable_tracksNumberOfSubscriptions() = runTest {
         val latest by underTest.isStackable.collectLastValue()
 
@@ -851,7 +865,7 @@ class MobileIconsInteractorKairosTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isStackable_checksForTerrestrialConnections() = runTest {
         val latest by underTest.isStackable.collectLastValue()
 
@@ -869,7 +883,7 @@ class MobileIconsInteractorKairosTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isStackable_checksForNumberOfBars() = runTest {
         val latest by underTest.isStackable.collectLastValue()
 

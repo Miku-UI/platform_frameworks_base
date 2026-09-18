@@ -28,10 +28,9 @@ import com.android.systemui.mediaprojection.permission.SINGLE_APP
 import com.android.systemui.mediaprojection.permission.ScreenShareMode
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.res.R
-import com.android.systemui.screenrecord.domain.interactor.ScreenRecordingStartStopInteractor
+import com.android.systemui.screenrecord.data.repository.ScreenRecordingStartStopRepository
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.domain.interactor.ShadeDialogContextInteractor
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import com.android.systemui.statusbar.phone.SystemUIDialog
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -48,12 +47,13 @@ class ScreenRecordPermissionDialogDelegate(
     private val systemUIDialogFactory: SystemUIDialog.Factory,
     @ScreenShareMode defaultSelectedMode: Int,
     @StyleRes private val theme: Int,
-    private val context: Context,
+    context: Context,
     private val displayManager: DisplayManager,
-    private val screenRecordingStartStopInteractor: ScreenRecordingStartStopInteractor,
+    private val screenRecordingStartStopRepository: ScreenRecordingStartStopRepository,
     private val shadeDialogContextInteractor: ShadeDialogContextInteractor,
 ) :
-    BaseMediaProjectionPermissionDialogDelegate<SystemUIDialog>(
+    BaseMediaProjectionPermissionDialogDelegate(
+        context,
         ScreenRecordPermissionContentManager.createOptionList(displayManager),
         appName = null,
         hostUid = hostUid,
@@ -61,8 +61,8 @@ class ScreenRecordPermissionDialogDelegate(
         R.drawable.ic_screenrecord,
         R.color.screenrecord_icon_color,
         defaultSelectedMode,
-    ),
-    SystemUIDialog.Delegate {
+        systemUIDialogFactory,
+    ) {
     @AssistedInject
     constructor(
         @Assisted hostUserHandle: UserHandle,
@@ -74,7 +74,7 @@ class ScreenRecordPermissionDialogDelegate(
         systemUIDialogFactory: SystemUIDialog.Factory,
         @ShadeDisplayAware context: Context,
         displayManager: DisplayManager,
-        screenRecordingStartStopInteractor: ScreenRecordingStartStopInteractor,
+        screenRecordingStartStopRepository: ScreenRecordingStartStopRepository,
         shadeDialogContextInteractor: ShadeDialogContextInteractor,
     ) : this(
         hostUserHandle,
@@ -88,7 +88,7 @@ class ScreenRecordPermissionDialogDelegate(
         theme = SystemUIDialog.DEFAULT_THEME,
         context,
         displayManager,
-        screenRecordingStartStopInteractor,
+        screenRecordingStartStopRepository,
         shadeDialogContextInteractor,
     )
 
@@ -112,22 +112,17 @@ class ScreenRecordPermissionDialogDelegate(
             controller,
             activityStarter,
             onStartRecordingClicked,
-            screenRecordingStartStopInteractor,
+            screenRecordingStartStopRepository,
         )
     }
 
     override fun createDialog(): SystemUIDialog {
-        val displayContext =
-            if (ShadeWindowGoesAround.isEnabled) {
-                shadeDialogContextInteractor.context
-            } else {
-                context
-            }
+        val displayContext = shadeDialogContextInteractor.context
         return systemUIDialogFactory.create(this, displayContext, theme)
     }
 
     override fun onCreate(dialog: SystemUIDialog, savedInstanceState: Bundle?) {
-        super<BaseMediaProjectionPermissionDialogDelegate>.onCreate(dialog, savedInstanceState)
+        super.onCreate(dialog, savedInstanceState)
         setDialogTitle(R.string.screenrecord_permission_dialog_title)
         dialog.setTitle(R.string.screenrecord_title)
         setStartButtonOnClickListener { v: View? ->

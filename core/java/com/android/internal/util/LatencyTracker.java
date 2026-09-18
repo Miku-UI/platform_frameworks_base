@@ -56,6 +56,7 @@ import static com.android.internal.util.FrameworkStatsLog.UIACTION_LATENCY_REPOR
 import static com.android.internal.util.FrameworkStatsLog.UIACTION_LATENCY_REPORTED__ACTION__ACTION_UDFPS_ILLUMINATE;
 import static com.android.internal.util.FrameworkStatsLog.UIACTION_LATENCY_REPORTED__ACTION__ACTION_USER_SWITCH;
 import static com.android.internal.util.FrameworkStatsLog.UIACTION_LATENCY_REPORTED__ACTION__UNKNOWN_ACTION;
+import static com.android.internal.util.FrameworkStatsLog.UIACTION_LATENCY_REPORTED__ACTION__ACTION_LOCATION_BUTTON_OPEN_SESSION;
 import static com.android.internal.util.LatencyTracker.ActionProperties.ENABLE_SUFFIX;
 import static com.android.internal.util.LatencyTracker.ActionProperties.LEGACY_TRACE_THRESHOLD_SUFFIX;
 import static com.android.internal.util.LatencyTracker.ActionProperties.SAMPLE_INTERVAL_SUFFIX;
@@ -337,6 +338,17 @@ public class LatencyTracker {
      */
     public static final int ACTION_UDFPS_OVERLAY_ATTACHED_AFTER_GOING_TO_SLEEP = 35;
 
+    /**
+     * Time it takes for opening LocationButton session and return surface package to host app.
+     * <p>
+     * LocationButton allow apps to get precise location permission, the button is rendered by
+     * SystemUI and displayed in a host app using SurfaceView.
+     * </p>
+     *
+     * @see com.android.systemui.locationbutton.LocationButtonRenderService
+     */
+    public static final int ACTION_LOCATION_BUTTON_OPEN_SESSION = 36;
+
     private static final int[] ACTIONS_ALL = {
         ACTION_EXPAND_PANEL,
         ACTION_TOGGLE_RECENTS,
@@ -374,6 +386,7 @@ public class LatencyTracker {
         ACTION_DESKTOP_MODE_EXIT_MODE_ON_LAST_WINDOW_CLOSE,
         ACTION_SWITCH_DISPLAY_FOLD,
         ACTION_UDFPS_OVERLAY_ATTACHED_AFTER_GOING_TO_SLEEP,
+        ACTION_LOCATION_BUTTON_OPEN_SESSION,
     };
 
     /** @hide */
@@ -414,6 +427,7 @@ public class LatencyTracker {
         ACTION_DESKTOP_MODE_EXIT_MODE_ON_LAST_WINDOW_CLOSE,
         ACTION_SWITCH_DISPLAY_FOLD,
         ACTION_UDFPS_OVERLAY_ATTACHED_AFTER_GOING_TO_SLEEP,
+        ACTION_LOCATION_BUTTON_OPEN_SESSION,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface Action {}
@@ -456,6 +470,8 @@ public class LatencyTracker {
             UIACTION_LATENCY_REPORTED__ACTION__ACTION_DESKTOP_MODE_EXIT_MODE_ON_LAST_WINDOW_CLOSE,
             UIACTION_LATENCY_REPORTED__ACTION__ACTION_SWITCH_DISPLAY_FOLD,
             UIACTION_LATENCY_REPORTED__ACTION__ACTION_UDFPS_OVERLAY_ATTACHED_AFTER_GOING_TO_SLEEP,
+            UIACTION_LATENCY_REPORTED__ACTION__ACTION_LOCATION_BUTTON_OPEN_SESSION,
+
     };
 
     private final Object mLock = new Object();
@@ -684,6 +700,8 @@ public class LatencyTracker {
                 return "ACTION_SWITCH_DISPLAY_FOLD";
             case UIACTION_LATENCY_REPORTED__ACTION__ACTION_UDFPS_OVERLAY_ATTACHED_AFTER_GOING_TO_SLEEP:
                 return "ACTION_UDFPS_OVERLAY_ATTACHED_AFTER_GOING_TO_SLEEP";
+            case UIACTION_LATENCY_REPORTED__ACTION__ACTION_LOCATION_BUTTON_OPEN_SESSION:
+                return "ACTION_LOCATION_BUTTON_OPEN_SESSION";
             default:
                 throw new IllegalArgumentException("Invalid action");
         }

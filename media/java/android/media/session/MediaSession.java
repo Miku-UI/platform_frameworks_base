@@ -16,9 +16,13 @@
 
 package android.media.session;
 
+import static com.android.media.mediasession.flags.Flags.FLAG_EXPOSE_BITMAP_SIZE_LIMIT_API;
+
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
 import android.app.Activity;
 import android.app.PendingIntent;
@@ -50,6 +54,7 @@ import android.service.media.MediaBrowserService;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
+import android.util.Size;
 import android.view.KeyEvent;
 import android.view.ViewConfiguration;
 
@@ -188,6 +193,58 @@ public final class MediaSession {
      */
     public MediaSession(@NonNull Context context, @NonNull String tag,
             @Nullable Bundle sessionInfo) {
+        this(
+                context,
+                tag,
+                sessionInfo,
+                /* overridePackageName= */ null,
+                /* isOverridePackageNameNullable= */ true);
+    }
+
+    /**
+     * Creates a new session with a different session owner from the calling app. The session will
+     * automatically be registered with the system, but will not be published until {@link
+     * #setActive(boolean) setActive(true)} is called. You must call {@link #release()} when
+     * finished with the session.
+     *
+     * <p>If the package of caller app is same as that of {@code overridePackageName}, prefer using
+     * {@link MediaSession#MediaSession(Context, String, Bundle)}.
+     *
+     * <p>The {@code sessionInfo} can include additional unchanging information about this session.
+     * For example, it can include the version of the application, or the list of the custom
+     * commands that this session supports.
+     *
+     * <p>Note that {@link RuntimeException} will be thrown if an app creates too many sessions.
+     *
+     * @param context The context to use to create the session.
+     * @param tag A short name for debugging purposes.
+     * @param overridePackageName Package name override for the session.
+     * @param sessionInfo A bundle for additional information about this session. Controllers can
+     *     get this information by calling {@link MediaController#getSessionInfo()}. An {@link
+     *     IllegalArgumentException} will be thrown if this contains any non-framework Parcelable
+     *     objects.
+     */
+    @FlaggedApi(com.android.media.mediasession.flags.Flags.FLAG_OVERRIDE_MEDIA_SESSION_OWNER)
+    @RequiresPermission(android.Manifest.permission.OVERRIDE_MEDIA_SESSION_OWNER)
+    public MediaSession(
+            @NonNull Context context,
+            @NonNull String tag,
+            @Nullable Bundle sessionInfo,
+            @NonNull String overridePackageName) {
+        this(
+                context,
+                tag,
+                sessionInfo,
+                overridePackageName,
+                /* isOverridePackageNameNullable= */ false);
+    }
+
+    private MediaSession(
+            @NonNull Context context,
+            @NonNull String tag,
+            @Nullable Bundle sessionInfo,
+            @Nullable String overridePackageName,
+            boolean isOverridePackageNameNullable) {
         if (context == null) {
             throw new IllegalArgumentException("context cannot be null.");
         }
@@ -195,23 +252,44 @@ public final class MediaSession {
             throw new IllegalArgumentException("tag cannot be null or empty");
         }
         if (hasCustomParcelable(sessionInfo)) {
-            throw new IllegalArgumentException("sessionInfo shouldn't contain any custom "
-                    + "parcelables");
+            throw new IllegalArgumentException(
+                    "sessionInfo shouldn't contain any custom parcelables");
         }
-
+        if (!isOverridePackageNameNullable && TextUtils.isEmpty(overridePackageName)) {
+            throw new IllegalArgumentException("overridePackageName cannot be null or empty");
+        }
+        if (!isOverridePackageNameNullable
+                && overridePackageName.equals(context.getPackageName())) {
+            throw new IllegalArgumentException("overridePackageName cannot be same as calling app");
+        }
         mContext = context;
-        mMaxBitmapSize = context.getResources().getDimensionPixelSize(
-                com.android.internal.R.dimen.config_mediaMetadataBitmapMaxSize);
+        mMaxBitmapSize =
+                context.getResources()
+                        .getDimensionPixelSize(
+                                com.android.internal.R.dimen.config_mediaMetadataBitmapMaxSize);
         mCbStub = new CallbackStub(this);
-        MediaSessionManager manager = (MediaSessionManager) context
-                .getSystemService(Context.MEDIA_SESSION_SERVICE);
+        MediaSessionManager manager =
+                (MediaSessionManager) context.getSystemService(Context.MEDIA_SESSION_SERVICE);
         try {
-            mBinder = manager.createSession(mCbStub, tag, sessionInfo);
+            mBinder = manager.createSession(mCbStub, tag, sessionInfo, overridePackageName);
             mSessionToken = new Token(Process.myUid(), mBinder.getController());
             mController = new MediaController(context, mSessionToken);
         } catch (RemoteException e) {
             throw new RuntimeException("Remote error creating session.", e);
         }
+    }
+
+    /**
+     * Gets the media metadata bitmap size limit from a specified context
+     *
+     * @param context The context to get the bitmap size limit from
+     */
+    @FlaggedApi(FLAG_EXPOSE_BITMAP_SIZE_LIMIT_API)
+    @NonNull
+    public static Size getBitmapSizeLimit(@NonNull Context context) {
+        int limit = context.getResources().getDimensionPixelSize(
+                com.android.internal.R.dimen.config_mediaMetadataBitmapMaxSize);
+        return new Size(limit, limit);
     }
 
     /**

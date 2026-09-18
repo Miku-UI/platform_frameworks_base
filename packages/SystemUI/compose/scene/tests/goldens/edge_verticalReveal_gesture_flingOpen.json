@@ -35,8 +35,7 @@
     512,
     528,
     544,
-    560,
-    576
+    560
   ],
   "features": [
     {
@@ -65,7 +64,8 @@
           "type": "not_found"
         },
         {
-          "type": "not_found"
+          "x": 18.8,
+          "y": 5.2
         },
         {
           "x": 17.6,
@@ -85,10 +85,6 @@
         },
         {
           "x": 10,
-          "y": 5.2
-        },
-        {
-          "x": 7.6,
           "y": 5.2
         },
         {
@@ -211,7 +207,8 @@
           "type": "not_found"
         },
         {
-          "type": "not_found"
+          "width": 122.8,
+          "height": 0.4
         },
         {
           "width": 125.2,
@@ -238,64 +235,60 @@
           "height": 16.8
         },
         {
-          "width": 145.6,
-          "height": 16.8
+          "width": 150,
+          "height": 29.6
         },
         {
           "width": 150,
-          "height": 29.2
+          "height": 60.4
         },
         {
           "width": 150,
-          "height": 59.6
+          "height": 94
         },
         {
           "width": 150,
-          "height": 93.2
+          "height": 127.2
         },
         {
           "width": 150,
-          "height": 126.4
+          "height": 158
         },
         {
           "width": 150,
-          "height": 157.2
+          "height": 185.2
         },
         {
           "width": 150,
-          "height": 184.8
+          "height": 208.8
         },
         {
           "width": 150,
-          "height": 208.4
+          "height": 228.8
         },
         {
           "width": 150,
-          "height": 228.4
+          "height": 245.2
         },
         {
           "width": 150,
-          "height": 244.8
+          "height": 258.4
         },
         {
           "width": 150,
-          "height": 258
+          "height": 268.8
         },
         {
           "width": 150,
-          "height": 268.4
+          "height": 277.2
         },
         {
           "width": 150,
-          "height": 276.8
+          "height": 283.6
         },
         {
           "width": 150,
-          "height": 283.2
-        },
-        {
-          "width": 150,
-          "height": 288
+          "height": 288.4
         },
         {
           "width": 150,
@@ -303,7 +296,7 @@
         },
         {
           "width": 150,
-          "height": 294.4
+          "height": 294.8
         },
         {
           "width": 150,
@@ -319,7 +312,7 @@
         },
         {
           "width": 150,
-          "height": 299.2
+          "height": 299.6
         },
         {
           "width": 150,
@@ -356,13 +349,10 @@
         {
           "type": "not_found"
         },
-        {
-          "type": "not_found"
-        },
         0,
         0,
-        0.008216977,
-        0.0747174,
+        0,
+        0.024841428,
         0.19032806,
         0.39281356,
         0.57081985,

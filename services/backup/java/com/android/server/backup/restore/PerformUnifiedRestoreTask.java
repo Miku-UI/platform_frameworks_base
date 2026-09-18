@@ -31,6 +31,8 @@ import static com.android.server.pm.PackageManagerService.PLATFORM_PACKAGE_NAME;
 import android.annotation.Nullable;
 import android.app.ApplicationThreadConstants;
 import android.app.IBackupAgent;
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
 import android.app.backup.BackupDataInput;
 import android.app.backup.BackupDataOutput;
 import android.app.backup.BackupManagerMonitor;
@@ -38,6 +40,8 @@ import android.app.backup.BackupTransport;
 import android.app.backup.IBackupManagerMonitor;
 import android.app.backup.IRestoreObserver;
 import android.app.backup.RestoreDescription;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -47,6 +51,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Message;
 import android.os.ParcelFileDescriptor;
+import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
@@ -63,6 +68,7 @@ import com.android.server.backup.BackupAgentTimeoutParameters;
 import com.android.server.backup.BackupAndRestoreFeatureFlags;
 import com.android.server.backup.BackupRestoreTask;
 import com.android.server.backup.BackupUtils;
+import com.android.server.backup.DelayedRestoreCleanupJobService;
 import com.android.server.backup.Flags;
 import com.android.server.backup.OperationStorage;
 import com.android.server.backup.OperationStorage.OpType;
@@ -845,6 +851,7 @@ public class PerformUnifiedRestoreTask implements BackupRestoreTask {
     // Guts of a key/value restore operation
     private void initiateOneRestore(PackageInfo app, long appVersionCode) {
         final String packageName = app.packageName;
+        backupManagerService.setRestoreInProgressPackageName(packageName);
 
         Slog.d(TAG, "initiateOneRestore packageName=" + packageName);
 
@@ -928,6 +935,8 @@ public class PerformUnifiedRestoreTask implements BackupRestoreTask {
                             ParcelFileDescriptor.MODE_READ_WRITE
                                     | ParcelFileDescriptor.MODE_CREATE
                                     | ParcelFileDescriptor.MODE_TRUNCATE);
+
+            scheduleDelayedRestoreCleanupJobForPackage(app);
 
             // Kick off the restore, checking for hung agents.  The timeout or
             // the operationComplete() callback will schedule the next step,
@@ -1032,6 +1041,8 @@ public class PerformUnifiedRestoreTask implements BackupRestoreTask {
                 mCurrentPackage,
                 BackupManagerMonitor.LOG_EVENT_CATEGORY_BACKUP_MANAGER_POLICY,
                 /* extras= */ addRestoreOperationTypeToEvent(/* extras= */ null));
+        backupManagerService.setRestoreInProgressPackageName(mCurrentPackage.packageName);
+        scheduleDelayedRestoreCleanupJobForPackage(mCurrentPackage);
         try {
             StreamFeederThread feeder = new StreamFeederThread();
             if (DEBUG) {
@@ -1389,9 +1400,10 @@ public class PerformUnifiedRestoreTask implements BackupRestoreTask {
         }
 
         synchronized (backupManagerService.getPendingRestores()) {
+            backupManagerService.setRestoreInProgressPackageName(null);
             if (backupManagerService.getPendingRestores().size() > 0) {
                 Slog.d(TAG, "Starting next pending restore.");
-                PerformUnifiedRestoreTask task = backupManagerService.getPendingRestores().remove();
+                BackupRestoreTask task = backupManagerService.getPendingRestores().remove();
                 backupManagerService
                         .getBackupHandler()
                         .sendMessage(
@@ -1762,6 +1774,39 @@ public class PerformUnifiedRestoreTask implements BackupRestoreTask {
         packageInfo.packageName = packageName;
 
         return packageInfo;
+    }
+
+    private void scheduleDelayedRestoreCleanupJobForPackage(PackageInfo app) {
+        // Schedule cleanup job for delayed restore cached data (if any) and requests.
+        final String packageName = app.packageName;
+        if (Flags.enableDelayedRestoreApi()
+                && backupManagerService.getContext().getPackageManager().checkPermission(
+                android.Manifest.permission.SCHEDULE_DELAYED_RESTORE, packageName)
+                == PackageManager.PERMISSION_GRANTED) {
+            final int delayedRestoreCleanupJobId =
+                    DelayedRestoreCleanupJobService.getJobIdForUserId(app.applicationInfo.uid);
+            ComponentName serviceComponent =
+                    new ComponentName(
+                            backupManagerService.getContext(),
+                            DelayedRestoreCleanupJobService.class);
+            PersistableBundle extras = new PersistableBundle();
+            extras.putString("packageName", packageName);
+            extras.putInt("userId", mUserId);
+
+            final long minLatency =
+                    backupManagerService.getConstants().getDelayedRestoreCacheTtlMillis();
+            JobInfo jobInfo = new JobInfo.Builder(delayedRestoreCleanupJobId, serviceComponent)
+                    .setExtras(extras)
+                    .setMinimumLatency(minLatency)
+                    .build();
+            JobScheduler jobScheduler = (JobScheduler) backupManagerService.getContext()
+                    .getSystemService(Context.JOB_SCHEDULER_SERVICE);
+            jobScheduler.schedule(jobInfo);
+            Slog.i(TAG, "Scheduled cleanup job for delayed restore for package: "
+                    + packageName
+                    + " with job id: "
+                    + delayedRestoreCleanupJobId);
+        }
     }
 
     @VisibleForTesting

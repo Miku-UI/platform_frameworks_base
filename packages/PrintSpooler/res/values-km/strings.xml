@@ -44,6 +44,7 @@
     <string name="expand_handle" msgid="7282974448109280522">"ពង្រីក​​ចំណុច​ទាញ"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"បង្រួម​ចំណុច​ទាញ"</string>
     <string name="print_button" msgid="645164566271246268">"បោះពុម្ព"</string>
+    <string name="setup_button" msgid="323390526074568450">"រៀបចំ"</string>
     <string name="savetopdf_button" msgid="2976186791686924743">"រក្សាទុក​ជា PDF"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"បាន​ពង្រីក​ជម្រើស​បោះពុម្ព"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"បាន​បង្រួម​ជម្រើស​បោះពុម្ព"</string>

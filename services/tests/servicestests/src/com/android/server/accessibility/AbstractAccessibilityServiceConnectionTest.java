@@ -16,6 +16,7 @@
 
 package com.android.server.accessibility;
 
+import static android.Manifest.permission.ACCESSIBILITY_MOTION_EVENT_OBSERVING;
 import static android.accessibilityservice.AccessibilityService.ERROR_TAKE_SCREENSHOT_INVALID_DISPLAY;
 import static android.accessibilityservice.AccessibilityService.ERROR_TAKE_SCREENSHOT_NO_ACCESSIBILITY_ACCESS;
 import static android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME;
@@ -91,9 +92,11 @@ import android.os.Process;
 import android.os.RemoteCallback;
 import android.os.RemoteException;
 import android.os.test.FakePermissionEnforcer;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.Pair;
 import android.view.Display;
+import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.MagnificationSpec;
 import android.view.SurfaceControl;
@@ -330,6 +333,24 @@ public class AbstractAccessibilityServiceConnectionTest {
 
         // isAccessibilityTool should not be dynamically updatable
         assertFalse(mSpyServiceInfo.isAccessibilityTool());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_RESET_MOTION_EVENT_SOURCES_ON_DENIED_PERMISSION)
+    public void setServiceInfo_deniedObserverPermission_clearsGenericMotionEvents() {
+        final AccessibilityServiceInfo serviceInfo = new AccessibilityServiceInfo();
+        updateServiceInfo(serviceInfo, 0, 0, A11Y_SERVICE_FLAG, null, 0);
+        serviceInfo.setMotionEventSources(InputDevice.SOURCE_TOUCHSCREEN);
+        serviceInfo.setObservedMotionEventSources(InputDevice.SOURCE_TOUCHSCREEN);
+
+        when(mMockContext.checkCallingPermission(ACCESSIBILITY_MOTION_EVENT_OBSERVING))
+                .thenReturn(PackageManager.PERMISSION_DENIED);
+
+        mServiceConnection.setServiceInfo(serviceInfo);
+
+        assertThat(mServiceConnection.getServiceInfo().getObservedMotionEventSources())
+                .isEqualTo(0);
+        assertThat(mServiceConnection.getServiceInfo().getMotionEventSources()).isEqualTo(0);
     }
 
     @Test

@@ -36,6 +36,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.Manifest;
 import android.app.ActivityManagerInternal;
@@ -44,6 +45,7 @@ import android.content.Context;
 import android.content.pm.InstallSourceInfo;
 import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
+import android.content.pm.PackageManagerInternal;
 import android.os.Binder;
 import android.os.LocaleList;
 import android.provider.Settings;
@@ -53,9 +55,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.android.internal.content.PackageMonitor;
 import com.android.internal.util.FrameworkStatsLog;
+import com.android.server.LocalServices;
 import com.android.server.wm.ActivityTaskManagerInternal;
 import com.android.server.wm.ActivityTaskManagerInternal.PackageConfig;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -89,6 +93,8 @@ public class LocaleManagerServiceTest {
     @Mock
     private PackageManager mMockPackageManager;
     @Mock
+    private PackageManagerInternal mMockPackageManagerInternal;
+    @Mock
     private FakePackageConfigurationUpdater mFakePackageConfigurationUpdater;
     @Mock
     private ActivityTaskManagerInternal mMockActivityTaskManager;
@@ -103,7 +109,24 @@ public class LocaleManagerServiceTest {
         mMockActivityTaskManager = mock(ActivityTaskManagerInternal.class);
         mMockActivityManager = mock(ActivityManagerInternal.class);
         mMockPackageManager = mock(PackageManager.class);
+        mMockPackageManagerInternal = mock(PackageManagerInternal.class);
         mMockPackageMonitor = mock(PackageMonitor.class);
+
+        LocalServices.removeServiceForTest(PackageManagerInternal.class);
+        LocalServices.addService(PackageManagerInternal.class, mMockPackageManagerInternal);
+
+        when(mMockPackageManagerInternal.isSameApp(anyString(), anyInt(), anyInt()))
+                .thenAnswer(inv -> {
+                    String pkg = inv.getArgument(0);
+                    int uid = inv.getArgument(1);
+                    int userId = inv.getArgument(2);
+                    try {
+                        return uid == mMockPackageManager.getPackageUidAsUser(pkg,
+                                PackageManager.PackageInfoFlags.of(0), userId);
+                    } catch (PackageManager.NameNotFoundException e) {
+                        return false;
+                    }
+                });
 
         doReturn(mMockContext).when(mMockContext).createContextAsUser(any(), anyInt());
         // For unit tests, set the default installer info
@@ -128,6 +151,11 @@ public class LocaleManagerServiceTest {
         mLocaleManagerService = new LocaleManagerService(mMockContext, mMockActivityTaskManager,
                 mMockActivityManager, mMockPackageManager,
                 mMockBackupHelper, mMockPackageMonitor);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        LocalServices.removeServiceForTest(PackageManagerInternal.class);
     }
 
     @Test(expected = SecurityException.class)

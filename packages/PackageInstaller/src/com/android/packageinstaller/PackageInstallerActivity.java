@@ -55,6 +55,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.window.OnBackInvokedDispatcher;
 
 import androidx.annotation.NonNull;
 
@@ -369,6 +370,15 @@ public class PackageInstallerActivity extends Activity {
         getWindow().addSystemFlags(SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS);
 
         super.onCreate(null);
+
+        getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                () -> {
+                    if (mSessionId != -1) {
+                        setActivityResult(RESULT_CANCELED);
+                    }
+                    finish();
+                });
 
         if (icicle != null) {
             mAllowUnknownSources = icicle.getBoolean(ALLOW_UNKNOWN_SOURCES_KEY);
@@ -696,14 +706,6 @@ public class PackageInstallerActivity extends Activity {
         }
 
         return false;
-    }
-
-    @Override
-    public void onBackPressed() {
-        if (mSessionId != -1) {
-            setActivityResult(RESULT_CANCELED);
-        }
-        super.onBackPressed();
     }
 
     private void startInstall() {

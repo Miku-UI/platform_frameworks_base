@@ -111,6 +111,7 @@ class BundleEntryAdapter(
         return null
     }
 
+    @Deprecated("Use SelfTrackingLifetimeExtender in coordinators instead")
     override fun endLifetimeExtension(
         callback: NotifLifetimeExtender.OnEndLifetimeExtensionCallback?,
         extender: NotifLifetimeExtender,
@@ -156,6 +157,10 @@ class BundleEntryAdapter(
 
     override fun getSectionBucket(): Int {
         return entry.bucket
+    }
+
+    override fun getLoggingBucket(): Int {
+        return entry.bucketForLogging
     }
 
     override fun isAmbient(): Boolean {

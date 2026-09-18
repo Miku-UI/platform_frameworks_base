@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 The Android Open Source Project
+ * Copyright (C) 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,53 +18,40 @@ package com.android.systemui.animation
 
 import android.os.IBinder
 import android.view.SurfaceControl
-import android.window.IRemoteTransition
 import android.window.IRemoteTransitionFinishedCallback
 import android.window.TransitionInfo
 import android.window.WindowAnimationState
 
 /**
- * Delegates transition handling to the remote transition returned by [remoteTransitionPicker].
+ * A component capable of running remote transitions
  *
- * The remote transition is updated in [#startAnimation] - after that the same remote transition is
- * used throughout the transition lifecycle.
+ * It expands [IRemoteTransition] API to accommodate specialized callbacks extending
+ * [IRemoteTransitionFinishedCallback] callback API.
  */
-class RemoteTransitionDelegate(
-    private val remoteTransitionPicker: Function1<TransitionInfo, IRemoteTransition>
-) : IRemoteTransition.Stub() {
-    private var currentRemoteTransition: IRemoteTransition? = null
+interface RemoteTransitionDelegate<in T : IRemoteTransitionFinishedCallback> {
 
-    override fun startAnimation(
-        token: IBinder,
-        info: TransitionInfo,
-        t: SurfaceControl.Transaction,
-        finishCallback: IRemoteTransitionFinishedCallback,
-    ) {
-        currentRemoteTransition = remoteTransitionPicker.invoke(info)
-        currentRemoteTransition?.startAnimation(token, info, t, finishCallback)
-    }
+    fun startAnimation(
+        transition: IBinder?,
+        info: TransitionInfo?,
+        transaction: SurfaceControl.Transaction?,
+        finishedCallback: T?,
+    )
 
-    override fun mergeAnimation(
-        token: IBinder,
-        info: TransitionInfo,
-        t: SurfaceControl.Transaction,
-        mergeTarget: IBinder,
-        finishCallback: IRemoteTransitionFinishedCallback,
-    ) {
-        currentRemoteTransition?.mergeAnimation(token, info, t, mergeTarget, finishCallback)
-    }
+    fun mergeAnimation(
+        transition: IBinder?,
+        info: TransitionInfo?,
+        transaction: SurfaceControl.Transaction?,
+        mergeTarget: IBinder?,
+        finishedCallback: T?,
+    ) {}
 
-    override fun takeOverAnimation(
-        token: IBinder,
-        info: TransitionInfo,
-        t: SurfaceControl.Transaction,
-        finishCallback: IRemoteTransitionFinishedCallback,
-        states: Array<WindowAnimationState>,
-    ) {
-        currentRemoteTransition?.takeOverAnimation(token, info, t, finishCallback, states)
-    }
+    fun takeOverAnimation(
+        transition: IBinder?,
+        info: TransitionInfo?,
+        transaction: SurfaceControl.Transaction?,
+        finishedCallback: T?,
+        windowStates: Array<out WindowAnimationState>?,
+    ) {}
 
-    override fun onTransitionConsumed(token: IBinder, aborted: Boolean) {
-        currentRemoteTransition?.onTransitionConsumed(token, aborted)
-    }
+    fun onTransitionConsumed(transition: IBinder?, aborted: Boolean) {}
 }

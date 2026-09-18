@@ -133,7 +133,7 @@ public abstract class ImsFeature {
     public static final int STATE_INITIALIZING = 1;
     /**
      * This {@link ImsFeature} is ready for communication. Do not attempt to call framework methods
-     * until {@see #onFeatureReady()} is called.
+     * until {@link #onFeatureReady()} is called.
      * @hide
      */
     @SystemApi

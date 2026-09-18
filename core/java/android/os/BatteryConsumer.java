@@ -667,7 +667,7 @@ public abstract class BatteryConsumer {
 
     /**
      * Returns the equivalent PowerModel enum for the specified power model.
-     * {@see BatteryUsageStatsAtomsProto.BatteryConsumerData.PowerComponentUsage.PowerModel}
+     * @see BatteryUsageStatsAtomsProto.BatteryConsumerData.PowerComponentUsage.PowerModel
      */
     public static int powerModelToProtoEnum(@BatteryConsumer.PowerModel int powerModel) {
         switch (powerModel) {

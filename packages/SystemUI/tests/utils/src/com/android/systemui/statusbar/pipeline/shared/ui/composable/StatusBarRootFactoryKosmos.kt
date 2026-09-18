@@ -18,14 +18,13 @@ package com.android.systemui.statusbar.pipeline.shared.ui.composable
 
 import com.android.systemui.clock.ui.viewmodel.clockViewModelFactory
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.media.controls.ui.controller.mediaHierarchyManager
-import com.android.systemui.media.controls.ui.view.qsMediaHost
-import com.android.systemui.media.remedia.ui.viewmodel.factory.mediaViewModelFactory
 import com.android.systemui.plugins.fakeDarkIconDispatcher
+import com.android.systemui.scene.ui.view.mockShadeRootView
 import com.android.systemui.statusbar.events.domain.interactor.systemStatusEventAnimationInteractor
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.connectedDisplaysStatusBarNotificationIconViewStoreFactory
 import com.android.systemui.statusbar.phone.ui.statusBarIconController
 import com.android.systemui.statusbar.pipeline.shared.ui.viewmodel.defaultDisplayHomeStatusBarViewModelFactory
+import com.android.systemui.statusbar.pipeline.shared.ui.viewmodel.displayAwareHeadlineViewModelImplFactory
 import com.android.systemui.statusbar.pipeline.shared.ui.viewmodel.homeStatusBarViewBinder
 import com.android.systemui.statusbar.ui.viewmodel.statusBarRegionSamplingViewModelFactory
 import org.mockito.kotlin.mock
@@ -34,19 +33,18 @@ val Kosmos.statusBarRootFactory by
     Kosmos.Fixture {
         StatusBarRootFactory(
             notificationIconsBinder = mock(),
+            shadeWindowRootView = mockShadeRootView,
             iconViewStoreFactory = connectedDisplaysStatusBarNotificationIconViewStoreFactory,
             clockViewModelFactory = clockViewModelFactory,
             darkIconManagerFactory = mock(),
             tintedIconManagerFactory = mock(),
+            headlineComposer = mock(),
             iconController = statusBarIconController,
-            ongoingCallController = mock(),
             eventAnimationInteractor = systemStatusEventAnimationInteractor,
-            mediaHierarchyManager = mediaHierarchyManager,
-            mediaHost = qsMediaHost,
-            mediaViewModelFactory = mediaViewModelFactory,
             darkIconDispatcher = fakeDarkIconDispatcher,
             homeStatusBarViewBinder = homeStatusBarViewBinder,
             homeStatusBarViewModelFactory = defaultDisplayHomeStatusBarViewModelFactory,
             statusBarRegionSamplingViewModelFactory = statusBarRegionSamplingViewModelFactory,
+            headlineViewModelFactory = displayAwareHeadlineViewModelImplFactory,
         )
     }

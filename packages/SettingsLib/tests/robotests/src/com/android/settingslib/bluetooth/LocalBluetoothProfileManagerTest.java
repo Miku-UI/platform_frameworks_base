@@ -87,7 +87,7 @@ public class LocalBluetoothProfileManagerTest {
     public void setUp() {
         MockitoAnnotations.initMocks(this);
         mContext = spy(RuntimeEnvironment.application);
-        mLocalBluetoothAdapter = LocalBluetoothAdapter.getInstance();
+        mLocalBluetoothAdapter = LocalBluetoothAdapter.getInstance(mContext);
         mEventManager =
                 spy(
                         new BluetoothEventManager(

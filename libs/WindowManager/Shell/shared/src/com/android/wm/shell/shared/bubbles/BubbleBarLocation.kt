@@ -66,7 +66,7 @@ enum class BubbleBarLocation : Parcelable {
         fun isDifferentSides(
             first: BubbleBarLocation?,
             second: BubbleBarLocation?,
-            isRtl: Boolean
+            isRtl: Boolean,
         ): Boolean {
             return first != null &&
                 second != null &&
@@ -115,5 +115,8 @@ enum class BubbleBarLocation : Parcelable {
     }
 
     /** A request to update the location of the bubble bar. */
-    data class UpdateLocationRequest(val location: BubbleBarLocation, @UpdateSource val source: Int)
+    data class UpdateLocationRequest(
+        val location: BubbleBarLocation,
+        @UpdateSource val source: Int,
+    )
 }

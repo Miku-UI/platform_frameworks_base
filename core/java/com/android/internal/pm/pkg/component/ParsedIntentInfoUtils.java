@@ -100,7 +100,7 @@ public class ParsedIntentInfoUtils {
             if (type != XmlPullParser.START_TAG) {
                 continue;
             }
-            if (ParsingPackageUtils.getAconfigFlags().skipCurrentElement(pkg, parser)) {
+            if (AconfigFlags.getInstance().skipCurrentElement(pkg, parser)) {
                 XmlUtils.skipCurrentTag(parser);
                 continue;
             }
@@ -202,7 +202,7 @@ public class ParsedIntentInfoUtils {
             if (type != XmlPullParser.START_TAG) {
                 continue;
             }
-            if (ParsingPackageUtils.getAconfigFlags().skipCurrentElement(pkg, parser)) {
+            if (AconfigFlags.getInstance().skipCurrentElement(pkg, parser)) {
                 XmlUtils.skipCurrentTag(parser);
                 continue;
             }

@@ -21,6 +21,7 @@ import static com.android.internal.widget.remotecompose.core.documentation.Docum
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
+import com.android.internal.widget.remotecompose.core.Limits;
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
 import com.android.internal.widget.remotecompose.core.RemoteContext;
@@ -36,8 +37,6 @@ public class DataMapIds extends Operation {
     private static final String CLASS_NAME = "DataMapIds";
     int mId;
     final DataMap mDataMap;
-
-    private static final int MAX_MAP = 2000;
 
     public static final byte TYPE_STRING = 0;
     public static final byte TYPE_INT = 1;
@@ -94,10 +93,10 @@ public class DataMapIds extends Operation {
      * Write this operation to the buffer
      *
      * @param buffer the buffer to apply the operation to
-     * @param id the id
-     * @param names the names of the variables
-     * @param type the types of the variables
-     * @param ids the ids of the variables
+     * @param id     the id
+     * @param names  the names of the variables
+     * @param type   the types of the variables
+     * @param ids    the ids of the variables
      */
     public static void apply(
             @NonNull WireBuffer buffer,
@@ -118,14 +117,15 @@ public class DataMapIds extends Operation {
     /**
      * Read this operation and add it to the list of operations
      *
-     * @param buffer the buffer to read
+     * @param buffer     the buffer to read
      * @param operations the list of operations that will be added to
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
         int id = buffer.readInt();
         int len = buffer.readInt();
-        if (len > MAX_MAP) {
-            throw new RuntimeException(len + " map entries more than max = " + MAX_MAP);
+        if (len > Limits.MAX_DATA_MAP_SIZE) {
+            throw new RuntimeException(len + " map entries more than max = "
+                    + Limits.MAX_DATA_MAP_SIZE);
         }
         String[] names = new String[len];
         int[] ids = new int[len];
@@ -146,11 +146,15 @@ public class DataMapIds extends Operation {
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
         doc.operation("Data Operations", OP_CODE, CLASS_NAME)
-                .description("Encode a collection of name id pairs")
-                .field(INT, "id", "id the array")
-                .field(INT, "length", "number of entries")
-                .field(INT, "names[0]", "length", "path encoded as floats")
-                .field(UTF8, "id[0]", "length", "path encoded as floats");
+                .description("Encode a collection of named variable IDs")
+                .field(INT, "id", "The ID of the map")
+                .field(INT, "length", "Number of entries")
+                .startSubsection("REPEATED DATA")
+                .field(UTF8, "name", "The name of the entry")
+                .field(INT, "type", "The type of the entry")
+                .field(INT, "id", "The ID of the variable")
+                .endSubsection()
+        ;
     }
 
     @NonNull

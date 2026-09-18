@@ -61,6 +61,7 @@ import java.io.PrintWriter
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
+import kotlin.collections.map
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.asExecutor
@@ -303,27 +304,23 @@ constructor(
             .broadcastFlow(IntentFilter(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED))
             .onEach { logger.logActionCarrierConfigChanged() }
 
-    override val defaultDataSubRatConfig: StateFlow<Config> =
+    override val defaultDataSubRatConfig: StateFlow<Config?> =
         merge(defaultDataSubId, carrierConfigChangedEvent)
             .onStart { emit(Unit) }
             .mapLatest { Config.readConfig(context) }
             .distinctUntilChanged()
             .onEach { logger.logDefaultDataSubRatConfig(it) }
-            .stateIn(
-                scope,
-                SharingStarted.WhileSubscribed(),
-                initialValue = Config.readConfig(context),
-            )
+            .stateIn(scope, SharingStarted.WhileSubscribed(), initialValue = null)
 
     override val defaultMobileIconMapping: Flow<Map<String, MobileIconGroup>> =
         defaultDataSubRatConfig
-            .map { mobileMappingsProxy.mapIconSets(it) }
+            .mapNotNull { config -> config?.let { mobileMappingsProxy.mapIconSets(it) } }
             .distinctUntilChanged()
             .onEach { logger.logDefaultMobileIconMapping(it) }
 
     override val defaultMobileIconGroup: Flow<MobileIconGroup> =
         defaultDataSubRatConfig
-            .map { mobileMappingsProxy.getDefaultIcons(it) }
+            .mapNotNull { config -> config?.let { mobileMappingsProxy.getDefaultIcons(it) } }
             .distinctUntilChanged()
             .onEach { logger.logDefaultMobileIconGroup(it) }
 

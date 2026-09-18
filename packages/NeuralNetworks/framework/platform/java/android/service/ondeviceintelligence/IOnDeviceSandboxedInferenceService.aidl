@@ -29,6 +29,11 @@ import android.os.Bundle;
 import com.android.internal.infra.AndroidFuture;
 import android.service.ondeviceintelligence.IRemoteStorageService;
 import android.service.ondeviceintelligence.IProcessingUpdateStatusCallback;
+import android.app.ondeviceintelligence.embedding.IEmbeddingCallback;
+import android.app.ondeviceintelligence.embedding.EmbeddingRequest;
+import android.app.ondeviceintelligence.Content;
+import android.app.ondeviceintelligence.imagedescription.IImageDescriptionCallback;
+import android.app.ondeviceintelligence.imagedescription.ImageDescriptionRequest;
 
 /**
  * Interface for a concrete implementation to provide on-device sandboxed inference.
@@ -52,4 +57,9 @@ oneway interface IOnDeviceSandboxedInferenceService {
     void updateProcessingState(in Bundle processingState,
                                      in IProcessingUpdateStatusCallback callback) = 4;
     void registerInferenceServiceLifecycleListener(in ILifecycleListener listener) = 5;
+    void generateEmbeddings(int callerUid, in Feature feature, in EmbeddingRequest request, in AndroidFuture cancellationSignal, in IEmbeddingCallback callback) = 6;
+    void generateImageDescription(int callerUid, in Feature feature, in ImageDescriptionRequest request, in AndroidFuture cancellationSignal, in IImageDescriptionCallback callback) = 7;
+    void requestTokenInfoWithContent(int callerUid, in Feature feature, in Content request,
+                            in AndroidFuture cancellationSignal,
+                            in ITokenInfoCallback tokenInfoCallback) = 8;
 }

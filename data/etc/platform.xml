@@ -171,6 +171,8 @@
     <assign-permission name="android.permission.REGISTER_STATS_PULL_ATOM" uid="media" />
     <assign-permission name="android.permission.INTERACT_ACROSS_USERS" uid="media" />
     <assign-permission name="android.permission.LOG_FOREGROUND_RESOURCE_USE" uid="media" />
+    <assign-permission name="android.permission.ACCESS_LOCAL_NETWORK" uid="media"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
 
     <assign-permission name="android.permission.INTERNET" uid="media" />
 
@@ -224,6 +226,41 @@
     <assign-permission name="android.permission.SET_ACTIVITY_WATCHER" uid="uprobestats" />
     <assign-permission name="android.permission.INTERACT_ACROSS_USERS_FULL" uid="uprobestats" />
     <assign-permission name="android.permission.REAL_GET_TASKS" uid="uprobestats" />
+
+    <!-- These UIDs need unrestricted network access, even if they don't in general need local
+     network access permission. And when adding a UID here for the first time we also have to
+     add the INTERNET permission to maintain the previous behavior of allowing INTERNET for
+     system UIDs without any entries here. -->
+    <assign-permission name="android.permission.ACCESS_LOCAL_NETWORK" uid="bluetooth"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.INTERNET" uid="bluetooth"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.ACCESS_LOCAL_NETWORK" uid="clat"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.INTERNET" uid="clat"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.ACCESS_LOCAL_NETWORK" uid="dns"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.INTERNET" uid="dns"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.ACCESS_LOCAL_NETWORK" uid="dns_tether"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.INTERNET" uid="dns_tether"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.ACCESS_LOCAL_NETWORK" uid="shell"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.ACCESS_LOCAL_NETWORK" uid="wifi"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.INTERNET" uid="wifi"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.ACCESS_LOCAL_NETWORK" uid="thread_network"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.INTERNET" uid="thread_network"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.ACCESS_LOCAL_NETWORK" uid="radio"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
+    <assign-permission name="android.permission.INTERNET" uid="radio"
+        featureFlag="android.permission.flags.access_local_network_permission_enabled" />
 
     <split-permission name="android.permission.ACCESS_FINE_LOCATION">
         <new-permission name="android.permission.ACCESS_COARSE_LOCATION" />
@@ -284,12 +321,10 @@
         <new-permission name="android.permission.BODY_SENSORS_BACKGROUND" />
     </split-permission>
     <split-permission name="android.permission.BODY_SENSORS"
-                      featureFlag="android.permission.flags.replace_body_sensor_permission_enabled"
                       targetSdk="36">
         <new-permission name="android.permission.health.READ_HEART_RATE" />
     </split-permission>
     <split-permission name="android.permission.BODY_SENSORS_BACKGROUND"
-                      featureFlag="android.permission.flags.replace_body_sensor_permission_enabled"
                       targetSdk="36">
         <new-permission name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
     </split-permission>

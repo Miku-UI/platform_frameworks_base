@@ -20,7 +20,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:clipChildren="false"
-    android:tag="big"
+    android:tag="metric"
     >
 
     <LinearLayout
@@ -48,13 +48,6 @@
                 android:layout_marginEnd="@dimen/notification_2025_margin"
                 android:orientation="vertical"
                 >
-
-                <include
-                    android:layout_width="match_parent"
-                    android:layout_height="@dimen/notification_progress_bar_height"
-                    android:layout_marginTop="@dimen/notification_progress_margin_top"
-                    layout="@layout/notification_template_progress"
-                    />
                 <include layout="@layout/notification_2025_expanded_metric" />
             </LinearLayout>
 

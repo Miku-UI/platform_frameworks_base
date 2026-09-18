@@ -54,8 +54,6 @@ import static androidx.window.extensions.embedding.SplitPresenter.sanitizeBounds
 import static androidx.window.extensions.embedding.SplitPresenter.shouldShowSplit;
 import static androidx.window.extensions.embedding.TaskFragmentContainer.OverlayContainerRestoreParams;
 
-import static com.android.window.flags.Flags.activityEmbeddingDelayTaskFragmentFinishForActivityLaunch;
-
 import android.annotation.CallbackExecutor;
 import android.app.Activity;
 import android.app.ActivityClient;
@@ -78,6 +76,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.OperationCanceledException;
 import android.os.RemoteException;
+import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -242,6 +241,12 @@ public class SplitController implements JetpackTaskFragmentOrganizer.TaskFragmen
         mActivityStartMonitor = new ActivityStartMonitor();
         instrumentation.addMonitor(mActivityStartMonitor);
         foldingFeatureProducer.addDataChangedCallback(new FoldingFeatureListener());
+
+        // Load override rules if applicable.
+        if (com.android.window.flags.Flags.virtualGamepadOverride()) {
+            AppCompatEmbeddingRuleController.init(application);
+            setEmbeddingRules(AppCompatEmbeddingRuleController.loadAppCompatRules(application));
+        }
 
         synchronized (mLock) {
             // Abort the restoration if any and the application already has running activities.
@@ -809,8 +814,7 @@ public class SplitController implements JetpackTaskFragmentOrganizer.TaskFragmen
                         .setOriginType(TASK_FRAGMENT_TRANSIT_CLOSE);
                 mPresenter.cleanupContainer(wct, container, false /* shouldFinishDependent */);
             } else if (!container.isWaitingActivityAppear()) {
-                if (activityEmbeddingDelayTaskFragmentFinishForActivityLaunch()
-                        && container.hasActivityLaunchHint()) {
+                if (container.hasActivityLaunchHint()) {
                     // If we have recently attempted to launch a new activity into this
                     // TaskFragment, we schedule delayed cleanup. If the new activity appears in
                     // this TaskFragment, we no longer need to finish the TaskFragment.
@@ -2250,9 +2254,13 @@ public class SplitController implements JetpackTaskFragmentOrganizer.TaskFragmen
             return false;
         }
 
+        // Create a copy of the placeholder intent so that we can add special extras to it
+        Intent placeholderActivityIntent = new Intent(placeholderRule.getPlaceholderIntent());
+        placeholderActivityIntent.putExtra(Intent.EXTRA_START_TIME, SystemClock.elapsedRealtime());
+
         // TODO(b/190433398): Handle failed request
         final Bundle options = getPlaceholderOptions(activity, isOnCreated);
-        startActivityToSide(wct, activity, placeholderRule.getPlaceholderIntent(), options,
+        startActivityToSide(wct, activity, placeholderActivityIntent, options,
                 placeholderRule, splitAttributes, null /* failureCallback */,
                 true /* isPlaceholder */);
         return true;
@@ -3187,9 +3195,7 @@ public class SplitController implements JetpackTaskFragmentOrganizer.TaskFragmen
                     // the dedicated container.
                     final IBinder tfToken = launchedInTaskFragment.getTaskFragmentToken();
                     options.putBinder(KEY_LAUNCH_TASK_FRAGMENT_TOKEN, tfToken);
-                    if (activityEmbeddingDelayTaskFragmentFinishForActivityLaunch()) {
-                        launchedInTaskFragment.setActivityLaunchHint();
-                    }
+                    launchedInTaskFragment.setActivityLaunchHint();
                     if (!allExistingTFTokens.contains(tfToken)) {
                         // When we are creating a new TaskFragment for this Intent, keep track of it
                         // in case the startActivity fails, so that we can cleanup early.

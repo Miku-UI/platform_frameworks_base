@@ -17,6 +17,7 @@
 package com.android.wm.shell.bubbles;
 
 import static android.app.ActivityTaskManager.INVALID_TASK_ID;
+import static android.app.PendingIntent.FLAG_IMMUTABLE;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -29,6 +30,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.ActivityManager;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.TaskInfo;
@@ -49,6 +51,8 @@ import androidx.test.filters.SmallTest;
 
 import com.android.wm.shell.R;
 import com.android.wm.shell.ShellTestCase;
+import com.android.wm.shell.bubbles.BubbleTaskView;
+import com.android.wm.shell.bubbles.BubbleTaskViewFactory;
 import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.shared.bubbles.BubbleInfo;
 
@@ -71,7 +75,9 @@ public class BubbleTest extends ShellTestCase {
     @Mock
     private ShellExecutor mMainExecutor;
     @Mock
-    private ShellExecutor mBgExecutor;
+    private BubbleTaskView mBubbleTaskView;
+    @Mock
+    private BubbleTaskViewFactory mTaskViewFactory;
 
     private Bundle mExtras;
 
@@ -103,8 +109,7 @@ public class BubbleTest extends ShellTestCase {
         when(mRanking.getConversationShortcutInfo()).thenReturn(shortcutInfo);
 
         mBubbleEntry = new BubbleEntry(mSbn, mRanking, true, false, false, false);
-        mChatBubble = new Bubble(mBubbleEntry, mBubbleMetadataFlagListener, null, mMainExecutor,
-                mBgExecutor);
+        mChatBubble = new Bubble(mBubbleEntry, mBubbleMetadataFlagListener, null, mMainExecutor);
     }
 
     @Test
@@ -201,8 +206,7 @@ public class BubbleTest extends ShellTestCase {
     @Test
     public void testBubbleType_note() {
         Bubble bubble = Bubble.createNotesBubble(createIntent(), UserHandle.of(0),
-                mock(Icon.class),
-                mMainExecutor, mBgExecutor);
+                mock(Icon.class));
         assertThat(bubble.isNote()).isTrue();
     }
 
@@ -211,15 +215,14 @@ public class BubbleTest extends ShellTestCase {
         ShortcutInfo shortcutInfo = new ShortcutInfo.Builder(mContext)
                 .setId("mockShortcutId")
                 .build();
-        Bubble bubble = Bubble.createShortcutBubble(shortcutInfo, mMainExecutor, mBgExecutor);
+        Bubble bubble = Bubble.createShortcutBubble(shortcutInfo);
         assertThat(bubble.isShortcut()).isTrue();
     }
 
     @Test
     public void testBubbleType_intent() {
         Bubble bubble = Bubble.createAppBubble(createIntent(), UserHandle.of(0),
-                mock(Icon.class),
-                mMainExecutor, mBgExecutor);
+                mock(Icon.class));
         assertThat(bubble.isApp()).isTrue();
     }
 
@@ -232,8 +235,7 @@ public class BubbleTest extends ShellTestCase {
         info.baseActivity = componentName;
         info.baseIntent = createIntent();
         Bubble bubble = Bubble.createTaskBubble(info, UserHandle.of(0),
-                mock(Icon.class),
-                mMainExecutor, mBgExecutor);
+                mock(Icon.class));
         assertThat(bubble.isApp()).isTrue();
         assertThat(bubble.getIntent()).isNotNull();
     }
@@ -248,8 +250,7 @@ public class BubbleTest extends ShellTestCase {
     @Test
     public void testShowAppBadge_note() {
         Bubble bubble = Bubble.createNotesBubble(createIntent(), UserHandle.of(0),
-                mock(Icon.class),
-                mMainExecutor, mBgExecutor);
+                mock(Icon.class));
         assertThat(bubble.isNote()).isTrue();
         assertThat(bubble.showAppBadge()).isTrue();
     }
@@ -257,8 +258,7 @@ public class BubbleTest extends ShellTestCase {
     @Test
     public void testShowAppBadge_app() {
         Bubble bubble = Bubble.createAppBubble(createIntent(), UserHandle.of(0),
-                mock(Icon.class),
-                mMainExecutor, mBgExecutor);
+                mock(Icon.class));
         assertThat(bubble.isApp()).isTrue();
         assertThat(bubble.showAppBadge()).isFalse();
     }
@@ -268,8 +268,7 @@ public class BubbleTest extends ShellTestCase {
         ShortcutInfo shortcutInfo = new ShortcutInfo.Builder(mContext)
                 .setId("mockShortcutId")
                 .build();
-        Bubble bubble = Bubble.createShortcutBubble(shortcutInfo,
-                mMainExecutor, mBgExecutor);
+        Bubble bubble = Bubble.createShortcutBubble(shortcutInfo);
         assertThat(bubble.isShortcut()).isTrue();
         assertThat(bubble.showAppBadge()).isTrue();
     }
@@ -292,7 +291,7 @@ public class BubbleTest extends ShellTestCase {
         Intent intent = new Intent(mContext, BubblesTestActivity.class);
         intent.setPackage(mContext.getPackageName());
         Bubble bubble = Bubble.createAppBubble(intent, new UserHandle(1 /* userId */),
-                null /* icon */, mMainExecutor, mBgExecutor);
+                null /* icon */);
         BubbleInfo bubbleInfo = bubble.asBubbleBarBubble();
 
         assertThat(bubble.getShortcutInfo()).isNull();
@@ -309,7 +308,7 @@ public class BubbleTest extends ShellTestCase {
         info.taskId = 123;
         info.baseActivity = new ComponentName(mContext, "SomeActivity");
         Bubble bubble = Bubble.createTaskBubble(info, new UserHandle(1),
-                null /* icon */, mMainExecutor, mBgExecutor);
+                null /* icon */);
         assertThat(bubble.getTaskId()).isEqualTo(123);
 
         bubble.cleanupTaskView();
@@ -343,6 +342,114 @@ public class BubbleTest extends ShellTestCase {
         assertThat(bubbleInfo.getParcelableFlyoutMessage()).isNotNull();
     }
 
+    @Test
+    public void testCategoryLauncher_falseForChat_backUp() {
+        ShortcutInfo shortcutInfo = new ShortcutInfo.Builder(mContext)
+                .setId("mockShortcutId")
+                .build();
+        Bubble b = new Bubble("mockKey", shortcutInfo, 10, Resources.ID_NULL,
+                "mockTitle", 0 /* taskId */, "mockLocus", true /* isDismissible */,
+                mBubbleMetadataFlagListener);
+        assertThat(b.isHasLauncherCategory()).isFalse();
+    }
+
+    @Test
+    public void testCategoryLauncher_falseForChat_notifEntry() {
+        Bubble b = new Bubble(mBubbleEntry, mBubbleMetadataFlagListener, null, mMainExecutor);
+        assertThat(b.isHasLauncherCategory()).isFalse();
+    }
+
+    @Test
+    public void testCategoryLauncher_falseForShortcut() {
+        ShortcutInfo shortcutInfo = new ShortcutInfo.Builder(mContext)
+                .setId("mockShortcutId")
+                .build();
+        Bubble b = Bubble.createShortcutBubble(shortcutInfo);
+        assertThat(b.isHasLauncherCategory()).isFalse();
+    }
+
+    @Test
+    public void testCategoryLauncher_falseForIntent() {
+        Intent intent = new Intent(mContext, BubblesTestActivity.class);
+        intent.setPackage("pkg");
+        Bubble b = Bubble.createAppBubble(intent, UserHandle.of(10), null /* icon */);
+        assertThat(b.isHasLauncherCategory()).isFalse();
+    }
+
+    @Test
+    public void testCategoryLauncher_trueForIntent() {
+        Intent intent = new Intent(mContext, BubblesTestActivity.class);
+        intent.setPackage("pkg");
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        Bubble b = Bubble.createAppBubble(intent, UserHandle.of(10), null /* icon */);
+        assertThat(b.isHasLauncherCategory()).isTrue();
+    }
+
+    @Test
+    public void testCategoryLauncher_falseForPendingIntent() {
+        Intent intent = new Intent(mContext, BubblesTestActivity.class);
+        intent.setPackage("pkg");
+        PendingIntent pi = PendingIntent.getActivity(mContext, 0, intent, FLAG_IMMUTABLE, null);
+        Bubble b = Bubble.createAppBubble(pi, UserHandle.of(10));
+        assertThat(b.isHasLauncherCategory()).isFalse();
+    }
+
+    @Test
+    public void testCategoryLauncher_trueForPendingIntent() {
+        Intent intent = new Intent(mContext, BubblesTestActivity.class);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        intent.setPackage("pkg");
+        PendingIntent pi = PendingIntent.getActivity(mContext, 0, intent, FLAG_IMMUTABLE, null);
+        Bubble b = Bubble.createAppBubble(pi, UserHandle.of(10));
+        assertThat(b.isHasLauncherCategory()).isTrue();
+    }
+
+    @Test
+    public void testCategoryLauncher_falseForTaskInfo() {
+        Intent intent = new Intent(mContext, BubblesTestActivity.class);
+        intent.setPackage("pkg");
+        TaskInfo info = new ActivityManager.RunningTaskInfo();
+        info.baseIntent = intent;
+        info.baseActivity = new ComponentName(mContext, BubblesTestActivity.class);
+        Bubble b = Bubble.createTaskBubble(info, UserHandle.of(10), null);
+        assertThat(b.isHasLauncherCategory()).isFalse();
+    }
+
+    @Test
+    public void testCategoryLauncher_trueForTaskInfo() {
+        Intent intent = new Intent(mContext, BubblesTestActivity.class);
+        intent.addCategory(Intent.CATEGORY_LAUNCHER);
+        intent.setPackage("pkg");
+        TaskInfo info = new ActivityManager.RunningTaskInfo();
+        info.baseIntent = intent;
+        info.baseActivity = new ComponentName(mContext, BubblesTestActivity.class);
+        Bubble b = Bubble.createTaskBubble(info, UserHandle.of(10), null);
+        assertThat(b.isHasLauncherCategory()).isTrue();
+    }
+
+    @Test
+    public void testSetTaskShouldBeRemoved_withTaskView() {
+        Bubble bubble = createChatBubble(true /* useShortcut */);
+        when(mTaskViewFactory.create()).thenReturn(mBubbleTaskView);
+        bubble.getOrCreateBubbleTaskView(mTaskViewFactory);
+
+        bubble.setTaskShouldBeRemoved(true);
+
+        verify(mBubbleTaskView).setTaskShouldBeRemoved(true);
+
+        bubble.setTaskShouldBeRemoved(false);
+
+        verify(mBubbleTaskView).setTaskShouldBeRemoved(false);
+    }
+
+    @Test
+    public void testSetTaskShouldBeRemoved_nullTaskView() {
+        Bubble bubble = createChatBubble(true /* useShortcut */);
+
+        // Call the method, verify that it should not crash.
+        bubble.setTaskShouldBeRemoved(true);
+    }
+
     private Bubble.FlyoutMessage createFlyoutMessage() {
         Bubble.FlyoutMessage flyout = new Bubble.FlyoutMessage();
         flyout.senderIcon = mock(Icon.class);
@@ -365,10 +472,9 @@ public class BubbleTest extends ShellTestCase {
                     .build();
             return new Bubble("mockKey", shortcutInfo, 10, Resources.ID_NULL,
                     "mockTitle", 0 /* taskId */, "mockLocus", true /* isDismissible */,
-                    mMainExecutor, mBgExecutor, mBubbleMetadataFlagListener);
+                    mBubbleMetadataFlagListener);
         } else {
-            return new Bubble(mBubbleEntry, mBubbleMetadataFlagListener, null, mMainExecutor,
-                    mBgExecutor);
+            return new Bubble(mBubbleEntry, mBubbleMetadataFlagListener, null, mMainExecutor);
         }
     }
 }

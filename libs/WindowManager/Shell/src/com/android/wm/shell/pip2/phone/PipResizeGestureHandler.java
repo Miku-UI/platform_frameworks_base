@@ -132,7 +132,8 @@ public class PipResizeGestureHandler implements
             PipDisplayLayoutState pipDisplayLayoutState,
             PipDesktopState pipDesktopState,
             ShellExecutor mainExecutor,
-            @Nullable PipPerfHintController pipPerfHintController) {
+            @Nullable PipPerfHintController pipPerfHintController,
+            PipInteractionHandler pipInteractionHandler) {
         mContext = context;
         mInputManager = mContext.getSystemService(InputManager.class);
         mSurfaceTransactionHelper = pipSurfaceTransactionHelper;
@@ -155,7 +156,7 @@ public class PipResizeGestureHandler implements
         mPipDragToResizeHandler = new PipDragToResizeHandler(context, this, pipBoundsState,
                 menuActivityController, pipBoundsAlgorithm, pipScheduler, movementBoundsSupplier);
         mPipPinchToResizeHandler = new PipPinchToResizeHandler(this, pipBoundsState,
-                menuActivityController, pipScheduler);
+                menuActivityController, pipScheduler, pipInteractionHandler);
 
     }
 

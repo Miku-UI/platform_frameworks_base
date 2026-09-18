@@ -16,15 +16,20 @@
 
 package com.android.systemui.statusbar.pipeline.shared.domain.interactor
 
+import android.app.StatusBarManager.CAMERA_LAUNCH_SOURCE_POWER_DOUBLE_TAP
 import android.app.StatusBarManager.DISABLE2_NONE
 import android.app.StatusBarManager.DISABLE_CLOCK
 import android.app.StatusBarManager.DISABLE_NONE
 import android.app.StatusBarManager.DISABLE_NOTIFICATION_ICONS
 import android.app.StatusBarManager.DISABLE_SYSTEM_INFO
+import android.platform.test.flag.junit.FlagsParameterization
 import android.telephony.CarrierConfigManager
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.flags.andSceneContainer
+import com.android.systemui.keyguard.data.repository.keyguardOcclusionRepository
+import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
+import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
@@ -38,20 +43,29 @@ import com.android.systemui.statusbar.pipeline.mobile.data.repository.configWith
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.fake
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.fakeMobileIconsInteractor
 import com.android.systemui.statusbar.pipeline.shared.connectivityConstants
+import com.android.systemui.statusbar.pipeline.shared.domain.HomeStatusBarHelper.launchSecureCamera
+import com.android.systemui.statusbar.pipeline.shared.domain.HomeStatusBarHelper.setStatusBarWindowState
+import com.android.systemui.statusbar.pipeline.shared.domain.HomeStatusBarHelper.transitionKeyguardToGone
 import com.android.systemui.statusbar.pipeline.shared.fake
-import com.android.systemui.testKosmos
+import com.android.systemui.statusbar.window.shared.model.StatusBarWindowState
+import com.android.systemui.testKosmosNew
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
 import org.junit.runner.RunWith
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4
+import platform.test.runner.parameterized.Parameters
 
 @SmallTest
-@RunWith(AndroidJUnit4::class)
-class HomeStatusBarInteractorTest : SysuiTestCase() {
-    val kosmos = testKosmos()
-    val testScope = kosmos.testScope
-    val disableFlagsRepo = kosmos.fakeDisableFlagsRepository
+@RunWith(ParameterizedAndroidJunit4::class)
+class HomeStatusBarInteractorTest(flags: FlagsParameterization) : SysuiTestCase() {
+    init {
+        mSetFlagsRule.setFlagsParameterization(flags)
+    }
 
-    val underTest = kosmos.homeStatusBarInteractor
+    val kosmos = testKosmosNew()
+    val testScope = kosmos.testScope
+    private val disableFlagsRepo by lazy { kosmos.fakeDisableFlagsRepository }
+    private val Kosmos.underTest by Kosmos.Fixture { kosmos.homeStatusBarInteractor }
 
     @Test
     fun visibilityViaDisableFlags_allDisabled() =
@@ -206,4 +220,108 @@ class HomeStatusBarInteractorTest : SysuiTestCase() {
             // THEN we should not show the operator name
             assertThat(latest).isFalse()
         }
+
+    @Test
+    fun secureCamera_firstPartOfLaunch_shouldHideTrue() =
+        kosmos.runTest {
+            setStatusBarWindowState(StatusBarWindowState.Showing)
+
+            val latest by collectLastValue(underTest.shouldHideStatusBarForSecureCamera)
+
+            // In the first part of the secure camera launch, the gesture is invoked but we aren't
+            // yet fully occluding and the status bar window is still showing
+            keyguardInteractor.onCameraLaunchDetected(
+                CAMERA_LAUNCH_SOURCE_POWER_DOUBLE_TAP,
+                isSecureCamera = true,
+            )
+
+            assertThat(latest).isTrue()
+        }
+
+    @Test
+    fun secureCamera_secondPartOfLaunch_shouldHideTrue() =
+        kosmos.runTest {
+            setStatusBarWindowState(StatusBarWindowState.Showing)
+
+            val latest by collectLastValue(underTest.shouldHideStatusBarForSecureCamera)
+
+            // In the second part of the secure camera launch, the gesture is invoked and we know
+            // we're occluding but the status bar window is still showing
+            launchSecureCamera()
+
+            assertThat(latest).isTrue()
+        }
+
+    @Test
+    fun secureCamera_lastPartOfLaunch_shouldHideTrue() =
+        kosmos.runTest {
+            setStatusBarWindowState(StatusBarWindowState.Showing)
+
+            val latest by collectLastValue(underTest.shouldHideStatusBarForSecureCamera)
+
+            // In the last part of the secure camera launch, the gesture is invoked and we know
+            // we're occluding and the status bar window is hidden
+            launchSecureCamera()
+            setStatusBarWindowState(StatusBarWindowState.Hidden)
+
+            assertThat(latest).isTrue()
+        }
+
+    @Test
+    fun secureCamera_andStatusBarWindowShowing_shouldHideFalse() =
+        kosmos.runTest {
+            setStatusBarWindowState(StatusBarWindowState.Showing)
+
+            val latest by collectLastValue(underTest.shouldHideStatusBarForSecureCamera)
+
+            // Initial launch
+            launchSecureCamera()
+            setStatusBarWindowState(StatusBarWindowState.Hidden)
+
+            assertThat(latest).isTrue()
+
+            // WHEN user swipes down to show status bar
+            setStatusBarWindowState(StatusBarWindowState.Showing)
+
+            // THEN we don't hide the icons
+            assertThat(latest).isFalse()
+
+            // WHEN the status bar disappears after a few seconds
+            setStatusBarWindowState(StatusBarWindowState.Hidden)
+
+            // THEN we hide the icons
+            assertThat(latest).isTrue()
+        }
+
+    @Test
+    fun secureCamera_showsIconsOnceCameraClosedAndAuthenticated() =
+        kosmos.runTest {
+            setStatusBarWindowState(StatusBarWindowState.Showing)
+
+            val latest by collectLastValue(underTest.shouldHideStatusBarForSecureCamera)
+
+            // Initial launch
+            launchSecureCamera()
+            setStatusBarWindowState(StatusBarWindowState.Hidden)
+
+            assertThat(latest).isTrue()
+
+            // WHEN keyguard gets unlocked
+            keyguardOcclusionRepository.setOccludedFromRemoteAnimation(
+                onTop = false,
+                taskInfo = null,
+            )
+            transitionKeyguardToGone()
+
+            // THEN the icons can show again
+            assertThat(latest).isFalse()
+        }
+
+    companion object {
+        @JvmStatic
+        @Parameters(name = "{0}")
+        fun getParams(): List<FlagsParameterization> {
+            return FlagsParameterization.allCombinationsOf().andSceneContainer()
+        }
+    }
 }

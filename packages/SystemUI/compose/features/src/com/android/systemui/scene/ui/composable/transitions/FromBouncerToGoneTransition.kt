@@ -7,5 +7,7 @@ import com.android.systemui.bouncer.ui.composable.Bouncer
 fun TransitionBuilder.bouncerToGoneTransition() {
     spec = tween(durationMillis = 500)
 
+    fromBouncerTransition(translateUpwards = true)
+
     fade(Bouncer.Elements.Root)
 }

@@ -16,6 +16,7 @@
 
 package com.android.server.display;
 
+import static android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_ALLOWS_CONTENT_MODE_SWITCH;
 import static android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_ALWAYS_UNLOCKED;
 import static android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR;
 import static android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_CAN_SHOW_WITH_INSECURE_KEYGUARD;
@@ -64,6 +65,8 @@ import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.display.brightness.BrightnessUtils;
 import com.android.server.display.feature.DisplayManagerFlags;
+import com.android.server.display.feature.flags.Flags;
+import com.android.server.display.utils.DebugTransactionDetails;
 
 import java.io.PrintWriter;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -90,7 +93,6 @@ public class VirtualDisplayAdapter extends DisplayAdapter {
     private static final AtomicInteger sNextUniqueIndex = new AtomicInteger(0);
 
     private final ArrayMap<IBinder, VirtualDisplayDevice> mVirtualDisplayDevices = new ArrayMap<>();
-
     // When a virtual display is created, the mapping (appToken -> ownerUid) is stored here. That
     // way, when the display is released later, we can retrieve the ownerUid and decrement
     // the number of virtual displays that exist for that ownerUid. We can't use
@@ -111,9 +113,9 @@ public class VirtualDisplayAdapter extends DisplayAdapter {
         this(syncRoot, context, handler, listener, new SurfaceControlDisplayFactory() {
             @Override
             public IBinder createDisplay(String name, boolean secure, boolean optimizeForPower,
-                    String uniqueId, float requestedRefreshRate) {
+                    String uniqueId, int ownerUid, float requestedRefreshRate) {
                 return DisplayControl.createVirtualDisplay(name, secure, optimizeForPower, uniqueId,
-                        requestedRefreshRate);
+                        ownerUid, requestedRefreshRate);
             }
 
             @Override
@@ -193,7 +195,7 @@ public class VirtualDisplayAdapter extends DisplayAdapter {
         // As a result, such displays should optimize for power instead of performance when it is
         // powered on.
         IBinder displayToken = mSurfaceControlDisplayFactory.createDisplay(name, secure, neverBlank,
-                uniqueId, virtualDisplayConfig.getRequestedRefreshRate());
+                uniqueId, ownerUid, virtualDisplayConfig.getRequestedRefreshRate());
         MediaProjectionCallback mediaProjectionCallback =  null;
         if (projection != null) {
             mediaProjectionCallback = new MediaProjectionCallback(appToken);
@@ -363,6 +365,7 @@ public class VirtualDisplayAdapter extends DisplayAdapter {
         private final float mDimBrightness;
         private float mCurrentBrightness;
         private final IBrightnessListener mBrightnessListener;
+        private final boolean mHasUniqueId;
 
         public VirtualDisplayDevice(IBinder displayToken, IBinder appToken,
                 int ownerUid, String ownerPackageName, Surface surface, int flags,
@@ -390,19 +393,19 @@ public class VirtualDisplayAdapter extends DisplayAdapter {
             mProjection = projection;
             mMediaProjectionCallback = mediaProjectionCallback;
             mNeverBlank = isNeverBlank(flags);
-            if (android.companion.virtualdevice.flags.Flags.correctVirtualDisplayPowerState()
-                    && !mNeverBlank) {
+            if (mNeverBlank) {
+                mDisplayState = Display.STATE_ON;
+            } else {
                 // The display's power state depends on the power state of the state of its
                 // display / power group, which we don't know here. Initializing to UNKNOWN allows
                 // the first call to requestDisplayStateLocked() to set the correct state.
                 // This also triggers VirtualDisplay.Callback to tell the owner the initial state.
                 mDisplayState = Display.STATE_UNKNOWN;
-            } else {
-                mDisplayState = Display.STATE_ON;
             }
             mPendingChanges |= PENDING_SURFACE_CHANGE;
             mDisplayIdToMirror = virtualDisplayConfig.getDisplayIdToMirror();
             mIsWindowManagerMirroring = virtualDisplayConfig.isWindowManagerMirroringEnabled();
+            mHasUniqueId = virtualDisplayConfig.getUniqueId() != null;
         }
 
         @Override
@@ -485,7 +488,7 @@ public class VirtualDisplayAdapter extends DisplayAdapter {
 
         @Override
         public boolean hasStableUniqueId() {
-            return false;
+            return Flags.virtualDisplaysSupportDesktopMode() && mHasUniqueId;
         }
 
         @Override
@@ -509,17 +512,14 @@ public class VirtualDisplayAdapter extends DisplayAdapter {
                     mCallback.dispatchDisplayResumed();
                 }
 
-                if (android.companion.virtualdevice.flags.Flags.correctVirtualDisplayPowerState()) {
-                    final IBinder token = getDisplayTokenLocked();
-                    runnable = () -> {
-                        final int mode = getPowerModeForState(state);
-                        Slog.d(TAG, "Requesting power mode for display " + mName + " to " + mode);
-                        mSurfaceControlDisplayFactory.setDisplayPowerMode(token, mode);
-                    };
-                }
+                final IBinder token = getDisplayTokenLocked();
+                runnable = () -> {
+                    final int mode = getPowerModeForState(state);
+                    Slog.d(TAG, "Requesting power mode for display " + mName + " to " + mode);
+                    mSurfaceControlDisplayFactory.setDisplayPowerMode(token, mode);
+                };
             }
-            if (android.companion.virtualdevice.flags.Flags.deviceAwareDisplayPower()
-                    && mBrightnessListener != null
+            if (mBrightnessListener != null
                     && BrightnessUtils.isValidBrightnessValue(brightnessState)
                     && brightnessState != mCurrentBrightness) {
                 mCurrentBrightness = brightnessState;
@@ -537,9 +537,10 @@ public class VirtualDisplayAdapter extends DisplayAdapter {
         }
 
         @Override
-        public void configureDisplaySizeLocked(SurfaceControl.Transaction t) {
+        public void configureDisplaySizeLocked(SurfaceControl.Transaction t,
+                DebugTransactionDetails debugTransactionDetails) {
             if ((mPendingChanges & PENDING_RESIZE) != 0) {
-                setDisplaySizeLocked(t, mWidth, mHeight);
+                setDisplaySizeLocked(t, mWidth, mHeight, debugTransactionDetails);
                 mPendingChanges &= ~PENDING_RESIZE;
             }
         }
@@ -565,6 +566,9 @@ public class VirtualDisplayAdapter extends DisplayAdapter {
                     sendDisplayDeviceEventLocked(this, DISPLAY_DEVICE_EVENT_CHANGED);
                 }
                 sendTraversalRequestLocked();
+                if (mSurface != null) {
+                    mSurface.release();
+                }
                 mSurface = surface;
                 mPendingChanges |= PENDING_SURFACE_CHANGE;
             }
@@ -620,8 +624,12 @@ public class VirtualDisplayAdapter extends DisplayAdapter {
                 if ((mFlags & VIRTUAL_DISPLAY_FLAG_PUBLIC) == 0) {
                     mInfo.flags |= DisplayDeviceInfo.FLAG_PRIVATE;
                 }
-                if ((mFlags & VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR) == 0) {
+                if ((mFlags & VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR) == 0
+                        && (mFlags & VIRTUAL_DISPLAY_FLAG_ALLOWS_CONTENT_MODE_SWITCH) == 0) {
                     mInfo.flags |= DisplayDeviceInfo.FLAG_OWN_CONTENT_ONLY;
+                }
+                if ((mFlags & VIRTUAL_DISPLAY_FLAG_ALLOWS_CONTENT_MODE_SWITCH) != 0) {
+                    mInfo.flags |= DisplayDeviceInfo.FLAG_ALLOWS_CONTENT_MODE_SWITCH;
                 }
                 if (mNeverBlank) {
                     mInfo.flags |= DisplayDeviceInfo.FLAG_NEVER_BLANK;
@@ -805,6 +813,7 @@ public class VirtualDisplayAdapter extends DisplayAdapter {
          *                         it to be shown and rendered, and that display will optimize for
          *                         performance when it is on.
          * @param uniqueId The unique ID for the display.
+         * @param ownerUid The owner Uid for the display.
          * @param requestedRefreshRate
          *     The refresh rate, frames per second, to request on the virtual display.
          *     It should be a divisor of refresh rate of the leader physical display
@@ -814,7 +823,7 @@ public class VirtualDisplayAdapter extends DisplayAdapter {
          * @return The token reference for the display in SurfaceFlinger.
          */
         IBinder createDisplay(String name, boolean secure, boolean optimizeForPower,
-                String uniqueId, float requestedRefreshRate);
+                String uniqueId, int ownerUid, float requestedRefreshRate);
 
         /**
          * Destroy a display in SurfaceFlinger.

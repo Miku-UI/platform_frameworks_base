@@ -33,8 +33,7 @@
     </style>
 
     <style name="ExpressiveTwoTargetPreferenceRootStyle">
-        <item name="android:minHeight">?android:attr/listPreferredItemHeightSmall</item>
-        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">vertical</item>
         <item name="android:background">@drawable/settingslib_round_background_stateful</item>
         <item name="android:paddingStart">?android:attr/listPreferredItemPaddingStart</item>
         <item name="android:paddingEnd">?android:attr/listPreferredItemPaddingEnd</item>

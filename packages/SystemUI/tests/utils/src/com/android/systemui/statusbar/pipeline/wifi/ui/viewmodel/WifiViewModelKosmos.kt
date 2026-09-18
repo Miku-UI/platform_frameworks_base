@@ -20,23 +20,19 @@ import android.content.applicationContext
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.log.table.logcatTableLogBuffer
-import com.android.systemui.statusbar.pipeline.airplane.ui.viewmodel.airplaneModeViewModel
 import com.android.systemui.statusbar.pipeline.shared.ConnectivityConstants
 import com.android.systemui.statusbar.pipeline.wifi.domain.interactor.wifiInteractor
 import com.android.systemui.statusbar.pipeline.wifi.shared.WifiConstants
-import kotlinx.coroutines.flow.flowOf
 import org.mockito.kotlin.mock
 
 val Kosmos.wifiViewModel by
-  Kosmos.Fixture {
-      WifiViewModel(
-          airplaneModeViewModel,
-          { flowOf(false) },
-          mock<ConnectivityConstants>(),
-          applicationContext,
-          logcatTableLogBuffer(this, "WifiViewModelTest"),
-          wifiInteractor,
-          applicationCoroutineScope,
-          mock<WifiConstants>(),
-      )
-  }
+    Kosmos.Fixture {
+        WifiViewModel(
+            mock<ConnectivityConstants>(),
+            applicationContext,
+            logcatTableLogBuffer(this, "WifiViewModelTest"),
+            wifiInteractor,
+            applicationCoroutineScope,
+            mock<WifiConstants>(),
+        )
+    }

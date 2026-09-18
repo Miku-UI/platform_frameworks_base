@@ -21,6 +21,7 @@ import static com.android.settingslib.drawer.TileUtils.META_DATA_KEY_PROFILE;
 import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_ICON;
 import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_ICON_URI;
 import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_KEYHINT;
+import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_KEYWORDS;
 import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_PENDING_INTENT;
 import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_SUMMARY;
 import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_SUMMARY_URI;
@@ -433,6 +434,29 @@ public class TileUtilsTest {
                 UserHandle.CURRENT, pendingIntent, new UserHandle(10), pendingIntent);
     }
 
+    @Test
+    public void getTilesForIntent_shouldReadMetadataKeywordAsString() {
+        String[] expectedValue = new String[]{"keyword1", "keyword2"};
+        Map<Pair<String, String>, Tile> addedCache = new ArrayMap<>();
+        List<Tile> outTiles = new ArrayList<>();
+        List<ResolveInfo> info = new ArrayList<>();
+        ResolveInfo resolveInfo = newInfo(true, null /* category */, null, URI_GET_ICON,
+                URI_GET_SUMMARY, "my title", 0, PROFILE_ALL);
+        info.add(resolveInfo);
+
+        when(mPackageManager.queryIntentActivitiesAsUser(any(Intent.class), anyInt(), anyInt()))
+                .thenReturn(info);
+        when(mPackageManager.queryIntentContentProvidersAsUser(any(Intent.class), anyInt(),
+                anyInt())).thenReturn(info);
+
+        TileUtils.loadTilesForAction(mContext, UserHandle.CURRENT, IA_SETTINGS_ACTION, addedCache,
+                null /* defaultCategory */, outTiles, false /* usePriority */);
+
+        assertThat(outTiles).hasSize(2);
+        assertThat(outTiles.get(0).getKeywords(mContext)).isEqualTo(expectedValue);
+        assertThat(outTiles.get(1).getKeywords(mContext)).isEqualTo(expectedValue);
+    }
+
     public static ResolveInfo newInfo(boolean systemApp, String category) {
         return newInfo(systemApp, category, null);
     }
@@ -481,6 +505,8 @@ public class TileUtilsTest {
         metaData.putString("com.android.settings.category", category);
         metaData.putInt(META_DATA_PREFERENCE_ICON, 314159);
         metaData.putString(META_DATA_PREFERENCE_SUMMARY, "static-summary");
+        metaData.putStringArray(META_DATA_PREFERENCE_KEYWORDS,
+                new String[]{"keyword1", "keyword2"});
         if (keyHint != null) {
             metaData.putString(META_DATA_PREFERENCE_KEYHINT, keyHint);
         }

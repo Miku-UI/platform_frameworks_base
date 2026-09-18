@@ -26,7 +26,6 @@ import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.VibrationEffectSegment;
 import android.util.SparseArray;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.IntFunction;
@@ -194,13 +193,6 @@ final class HalVibration extends Vibration {
                     ((CombinedVibration.Stereo) effect).getEffects();
             for (int i = 0; i < effects.size(); i++) {
                 fillFallbacksForEffect(effects.valueAt(i), fallbackProvider);
-            }
-        // TODO(b/421857859): remove this once flag remove_sequential_combination is removed
-        } else if (effect instanceof CombinedVibration.Sequential) {
-            List<CombinedVibration> effects =
-                    ((CombinedVibration.Sequential) effect).getEffects();
-            for (int i = 0; i < effects.size(); i++) {
-                fillFallbacksForEffect(effects.get(i), fallbackProvider);
             }
         }
     }

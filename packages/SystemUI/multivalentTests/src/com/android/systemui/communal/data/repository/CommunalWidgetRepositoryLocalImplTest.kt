@@ -30,6 +30,7 @@ import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.FlagsParameterization
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.Flags.FLAG_COMMUNAL_RESPONSIVE_GRID
 import com.android.systemui.Flags.FLAG_COMMUNAL_WIDGET_RESIZING
 import com.android.systemui.Flags.communalResponsiveGrid
@@ -41,6 +42,11 @@ import com.android.systemui.communal.data.db.CommunalItemRank
 import com.android.systemui.communal.data.db.CommunalWidgetDao
 import com.android.systemui.communal.data.db.CommunalWidgetItem
 import com.android.systemui.communal.data.db.defaultWidgetPopulation
+import com.android.systemui.communal.data.model.CommunalWidgetId
+import com.android.systemui.communal.data.model.FEATURE_ENABLED
+import com.android.systemui.communal.data.model.SuppressionReason
+import com.android.systemui.communal.data.repository.CommunalSettingsRepository
+import com.android.systemui.communal.data.repository.communalSettingsRepository
 import com.android.systemui.communal.nano.CommunalHubState
 import com.android.systemui.communal.proto.toByteArray
 import com.android.systemui.communal.shared.model.CommunalWidgetContentModel
@@ -61,12 +67,14 @@ import com.android.systemui.res.R
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mockito.eq
 import org.mockito.Mockito.never
+import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
@@ -134,6 +142,7 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
                 fakePackageChangeRepository,
                 userManager,
                 defaultWidgetPopulation,
+                communalSettingsRepository,
             )
         }
 
@@ -144,10 +153,130 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
     @Before
     fun setUp() {
         kosmos.userManager = mock<UserManager> { on { mainUser } doReturn mainUser }
+        kosmos.communalSettingsRepository.setSuppressionReasons(
+            listOf(SuppressionReason.ReasonUnknown(FEATURE_ENABLED))
+        )
         setAppWidgetIds(emptyList())
         overrideResource(R.array.config_communalWidgetAllowlist, fakeAllowlist.toTypedArray())
         restoreUser(mainUser)
     }
+
+    @Test
+    @EnableFlags(Flags.FLAG_COMMUNAL_WIDGET_POPULATION_OPTIMIZATION)
+    fun hydration_bindsWidgetsWhenEnabled() =
+        kosmos.runTest {
+            // Setup: Disabled initially, widget with ID -1 in DB
+            kosmos.communalSettingsRepository.setSuppressionReasons(emptyList())
+            val fakeWidget =
+                CommunalWidgetItem(
+                    uid = 1L,
+                    widgetId = CommunalWidgetId(-1),
+                    componentName = "pkg/cls",
+                    itemId = 1L,
+                    userSerialNumber = 0,
+                    spanY = 1,
+                    spanYNew = 1,
+                )
+            fakeWidgets.value = mapOf(CommunalItemRank(1L, 1) to fakeWidget)
+            whenever(communalWidgetDao.getWidgetsNow()).thenReturn(fakeWidgets.value)
+
+            // Trigger init
+            underTest.allocateWidgets()
+
+            runCurrent()
+
+            // Verify widget binding
+            verify(communalWidgetHost).allocateIdAndBindWidget(any<ComponentName>(), eq(mainUser))
+            verify(communalWidgetDao).updateWidget(any<CommunalWidgetItem>())
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_COMMUNAL_WIDGET_POPULATION_OPTIMIZATION)
+    fun hydration_doesNotBindWidgetsWhenFlagDisabled() =
+        kosmos.runTest {
+            // Setup: Disabled initially, widget with ID -1 in DB
+            kosmos.communalSettingsRepository.setSuppressionReasons(emptyList())
+            val fakeWidget =
+                CommunalWidgetItem(
+                    uid = 1L,
+                    widgetId = CommunalWidgetId(-1),
+                    componentName = "pkg/cls",
+                    itemId = 1L,
+                    userSerialNumber = 0,
+                    spanY = 1,
+                    spanYNew = 1,
+                )
+            fakeWidgets.value = mapOf(CommunalItemRank(1L, 1) to fakeWidget)
+
+            // Trigger init
+            underTest.allocateWidgets()
+
+            runCurrent()
+
+            // Verify widget binding is NOT called
+            verify(communalWidgetHost, never())
+                .allocateIdAndBindWidget(any<ComponentName>(), any<UserHandle>())
+            verify(communalWidgetDao, never()).updateWidget(any<CommunalWidgetItem>())
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_COMMUNAL_WIDGET_POPULATION_OPTIMIZATION)
+    fun hydration_multipleCalls_allocatesOnce() =
+        kosmos.runTest {
+            // Setup: Widget with ID -1 (placeholder)
+            kosmos.communalSettingsRepository.setSuppressionReasons(emptyList())
+            val fakeWidget =
+                CommunalWidgetItem(
+                    uid = 1L,
+                    widgetId = CommunalWidgetId(-1),
+                    componentName = "pkg/cls",
+                    itemId = 1L,
+                    userSerialNumber = 0,
+                    spanY = 1,
+                    spanYNew = 1,
+                )
+
+            // Backing map for fake widgets
+            val widgetsMap = mutableMapOf(CommunalItemRank(1L, 1) to fakeWidget)
+            fakeWidgets.value = widgetsMap
+
+            // Mock getWidgetsNow to return current map values
+            whenever(communalWidgetDao.getWidgetsNow()).thenAnswer { widgetsMap }
+
+            // Mock updateWidget to update the map
+            whenever(communalWidgetDao.updateWidget(any<CommunalWidgetItem>())).thenAnswer {
+                invocation ->
+                val updatedWidget = invocation.arguments[0] as CommunalWidgetItem
+                // Find entry by item_id (uid) and update it
+                val key = widgetsMap.keys.find { it.uid == updatedWidget.itemId }
+                if (key != null) {
+                    widgetsMap[key] = updatedWidget
+                }
+                null
+            }
+
+            // Mock allocateIdAndBindWidget to return a new ID
+            whenever(
+                    communalWidgetHost.allocateIdAndBindWidget(
+                        any<ComponentName>(),
+                        any<UserHandle>(),
+                    )
+                )
+                .thenReturn(100)
+
+            // Trigger allocation twice
+            underTest.allocateWidgets()
+            underTest.allocateWidgets()
+
+            runCurrent()
+
+            // Verify widget binding called ONLY ONCE
+            verify(communalWidgetHost, times(1))
+                .allocateIdAndBindWidget(any<ComponentName>(), eq(mainUser))
+
+            // Verify DB update called
+            verify(communalWidgetDao, times(1)).updateWidget(any<CommunalWidgetItem>())
+        }
 
     @Test
     fun communalWidgets_queryWidgetsFromDb() =
@@ -156,7 +285,7 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
             val communalWidgetItemEntry =
                 CommunalWidgetItem(
                     uid = 1L,
-                    widgetId = 1,
+                    widgetId = CommunalWidgetId(1),
                     componentName = "pk_name/cls_name",
                     itemId = 1L,
                     userSerialNumber = 0,
@@ -171,7 +300,7 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
             assertThat(communalWidgets)
                 .containsExactly(
                     CommunalWidgetContentModel.Available(
-                        appWidgetId = communalWidgetItemEntry.widgetId,
+                        appWidgetId = communalWidgetItemEntry.widgetId.value,
                         providerInfo = providerInfoA,
                         rank = communalItemRankEntry.rank,
                         spanY =
@@ -196,7 +325,7 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
                     CommunalItemRank(uid = 1L, rank = 1) to
                         CommunalWidgetItem(
                             uid = 1L,
-                            widgetId = 1,
+                            widgetId = CommunalWidgetId(1),
                             componentName = "pk_1/cls_1",
                             itemId = 1L,
                             userSerialNumber = 0,
@@ -206,7 +335,7 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
                     CommunalItemRank(uid = 2L, rank = 2) to
                         CommunalWidgetItem(
                             uid = 2L,
-                            widgetId = 2,
+                            widgetId = CommunalWidgetId(2),
                             componentName = "pk_2/cls_2",
                             itemId = 2L,
                             userSerialNumber = 0,
@@ -216,7 +345,7 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
                     CommunalItemRank(uid = 3L, rank = 3) to
                         CommunalWidgetItem(
                             uid = 3L,
-                            widgetId = 3,
+                            widgetId = CommunalWidgetId(3),
                             componentName = "pk_3/cls_3",
                             itemId = 3L,
                             userSerialNumber = 0,
@@ -226,7 +355,7 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
                     CommunalItemRank(uid = 4L, rank = 4) to
                         CommunalWidgetItem(
                             uid = 4L,
-                            widgetId = 4,
+                            widgetId = CommunalWidgetId(4),
                             componentName = "pk_4/cls_4",
                             itemId = 4L,
                             userSerialNumber = 0,
@@ -264,7 +393,7 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
                     CommunalItemRank(uid = 1L, rank = 1) to
                         CommunalWidgetItem(
                             uid = 1L,
-                            widgetId = 1,
+                            widgetId = CommunalWidgetId(1),
                             componentName = "pk_1/cls_1",
                             itemId = 1L,
                             userSerialNumber = 0,
@@ -274,7 +403,7 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
                     CommunalItemRank(uid = 2L, rank = 2) to
                         CommunalWidgetItem(
                             uid = 2L,
-                            widgetId = 2,
+                            widgetId = CommunalWidgetId(2),
                             componentName = "pk_2/cls_2",
                             itemId = 2L,
                             userSerialNumber = 0,
@@ -345,7 +474,13 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
 
             verify(communalWidgetHost).allocateIdAndBindWidget(provider, mainUser)
             verify(communalWidgetDao)
-                .addWidget(id, provider, rank, testUserSerialNumber(mainUser), SpanValue.Fixed(3))
+                .addWidget(
+                    CommunalWidgetId(id),
+                    provider,
+                    rank,
+                    testUserSerialNumber(mainUser),
+                    SpanValue.Fixed(3),
+                )
 
             // Verify backup requested
             verify(backupManager).dataChanged()
@@ -371,7 +506,13 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
 
             verify(communalWidgetHost).allocateIdAndBindWidget(provider, mainUser)
             verify(communalWidgetDao, never())
-                .addWidget(anyInt(), any<ComponentName>(), anyInt(), anyInt(), any())
+                .addWidget(
+                    any<CommunalWidgetId>(),
+                    any<ComponentName>(),
+                    any<Int>(),
+                    any<Int>(),
+                    any<SpanValue>(),
+                )
             verify(appWidgetHost).deleteAppWidgetId(id)
 
             // Verify backup not requested
@@ -400,7 +541,13 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
 
             verify(communalWidgetHost).allocateIdAndBindWidget(provider, mainUser)
             verify(communalWidgetDao, never())
-                .addWidget(anyInt(), any<ComponentName>(), anyInt(), anyInt(), any())
+                .addWidget(
+                    any<CommunalWidgetId>(),
+                    any<ComponentName>(),
+                    anyInt(),
+                    anyInt(),
+                    any<SpanValue>(),
+                )
             verify(appWidgetHost).deleteAppWidgetId(id)
 
             // Verify backup not requested
@@ -427,7 +574,13 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
 
             verify(communalWidgetHost).allocateIdAndBindWidget(provider, mainUser)
             verify(communalWidgetDao)
-                .addWidget(id, provider, rank, testUserSerialNumber(mainUser), SpanValue.Fixed(3))
+                .addWidget(
+                    CommunalWidgetId(id),
+                    provider,
+                    rank,
+                    testUserSerialNumber(mainUser),
+                    SpanValue.Fixed(3),
+                )
 
             // Verify backup requested
             verify(backupManager).dataChanged()
@@ -437,11 +590,11 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
     fun deleteWidget_deleteFromDbTrue_alsoDeleteFromHost() =
         kosmos.runTest {
             val id = 1
-            whenever(communalWidgetDao.deleteWidgetById(eq(id))).thenReturn(true)
+            whenever(communalWidgetDao.deleteWidgetById(CommunalWidgetId(id))).thenReturn(true)
             underTest.deleteWidget(id)
             runCurrent()
 
-            verify(communalWidgetDao).deleteWidgetById(id)
+            verify(communalWidgetDao).deleteWidgetById(CommunalWidgetId(id))
             verify(appWidgetHost).deleteAppWidgetId(id)
 
             // Verify backup requested
@@ -452,11 +605,11 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
     fun deleteWidget_deleteFromDbFalse_doesNotDeleteFromHost() =
         kosmos.runTest {
             val id = 1
-            whenever(communalWidgetDao.deleteWidgetById(eq(id))).thenReturn(false)
+            whenever(communalWidgetDao.deleteWidgetById(CommunalWidgetId(id))).thenReturn(false)
             underTest.deleteWidget(id)
             runCurrent()
 
-            verify(communalWidgetDao).deleteWidgetById(id)
+            verify(communalWidgetDao).deleteWidgetById(CommunalWidgetId(id))
             verify(appWidgetHost, never()).deleteAppWidgetId(id)
 
             // Verify backup not requested
@@ -716,11 +869,11 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
             // Verify work profile widget is manually bound
             verify(communalWidgetDao)
                 .addWidget(
-                    eq(newWidgetId),
+                    eq(CommunalWidgetId(newWidgetId)),
                     componentNameCaptor.capture(),
                     eq(2),
                     eq(testUserSerialNumber(workProfile)),
-                    any(),
+                    any<SpanValue>(),
                 )
 
             assertThat(componentNameCaptor.firstValue)
@@ -735,7 +888,7 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
                     CommunalItemRank(uid = 1L, rank = 1) to
                         CommunalWidgetItem(
                             uid = 1L,
-                            widgetId = 1,
+                            widgetId = CommunalWidgetId(1),
                             componentName = "pk_1/cls_1",
                             itemId = 1L,
                             userSerialNumber = 0,
@@ -745,7 +898,7 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
                     CommunalItemRank(uid = 2L, rank = 2) to
                         CommunalWidgetItem(
                             uid = 2L,
-                            widgetId = 2,
+                            widgetId = CommunalWidgetId(2),
                             componentName = "pk_2/cls_2",
                             itemId = 2L,
                             userSerialNumber = 0,
@@ -798,7 +951,7 @@ class CommunalWidgetRepositoryLocalImplTest(flags: FlagsParameterization) : Sysu
                     CommunalItemRank(uid = 1L, rank = 1) to
                         CommunalWidgetItem(
                             uid = 1L,
-                            widgetId = 1,
+                            widgetId = CommunalWidgetId(1),
                             componentName = "pk_1/cls_1",
                             itemId = 1L,
                             userSerialNumber = 0,

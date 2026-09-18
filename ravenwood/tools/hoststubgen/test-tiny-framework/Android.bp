@@ -128,6 +128,9 @@ java_test_host {
         "hoststubgen-test-tiny-framework-host",
     ],
     test_suites: ["general-tests"],
+    test_options: {
+        unit_test: true,
+    },
 }
 
 // Dump the original and processed jars as text files.
@@ -232,6 +235,7 @@ python_test_host {
     ],
     data: [
         "golden-output/*.txt",
+        ":hoststubgen-build-flags",
         ":hoststubgen-test-tiny-framework-pta-output-normalized",
         ":hoststubgen-test-tiny-framework-mm-output-normalized",
     ],
@@ -241,4 +245,7 @@ python_test_host {
         "hoststubgen-test-tiny-framework-stats-flatten",
     ],
     test_suites: ["general-tests"],
+    test_options: {
+        unit_test: true,
+    },
 }

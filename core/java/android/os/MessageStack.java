@@ -133,11 +133,12 @@ public final class MessageStack {
      * Iterates through messages and creates a reverse-ordered chain of messages to remove.
      * @return true if any messages were removed, false otherwise
      */
-    public boolean moveMatchingToFreelist(Message.MessageCompare compare, Handler h, int what,
+    public int moveMatchingToFreelist(Message.MessageCompare compare, Handler h, int what,
             Object object, Runnable r, long when) {
         Message current = (Message) sTop.getAcquire(this);
         Message prev = null;
         Message firstRemoved = null;
+        int numRemoved = 0;
 
         while (current != null) {
             if (messageMatches(current, compare, h, what, object, r, when)
@@ -149,6 +150,7 @@ public final class MessageStack {
                 // nextFree links each to-be-removed message to the one processed before.
                 current.nextFree = prev;
                 prev = current;
+                numRemoved++;
             }
             current = current.next;
         }
@@ -160,11 +162,36 @@ public final class MessageStack {
                 firstRemoved.nextFree = freelist;
             // prev points to the last to-be-removed message that was processed.
             } while (!sFreelistHead.compareAndSet(this, freelist, prev));
-
-            return true;
         }
 
-        return false;
+        return numRemoved;
+    }
+
+    /**
+     * Moves the sync barrier with the matching token to the freelist.
+     * This is a special case of {@link #moveMatchingToFreelist()} that only removes a single sync
+     * barrier with a matching token.
+     */
+    public boolean moveSyncBarrierToFreelist(int token) {
+        Message current = (Message) sTop.getAcquire(this);
+        while (current != null) {
+            if (current.target == null && current.arg1 == token && current.markRemoved()) {
+                break;
+            }
+            current = current.next;
+        }
+
+        // We didn't find a sync barrier with a matching token.
+        if (current == null) {
+            return false;
+        }
+
+        Message freelist;
+        do {
+            freelist = mFreelistHeadValue;
+            current.nextFree = freelist;
+        } while (!sFreelistHead.compareAndSet(this, freelist, current));
+        return true;
     }
 
     /**
@@ -228,13 +255,28 @@ public final class MessageStack {
      * Iterate through the freelist and unlink Messages.
      */
     public void drainFreelist() {
+        boolean shrinkSyncHeap = false;
+        boolean shrinkAsyncHeap = false;
         Message current = (Message) sFreelistHead.getAndSetAcquire(this, null);
         while (current != null) {
             Message nextFree = current.nextFree;
             current.nextFree = null;
-            maybeRemoveFromHeap(current);
+            if (maybeRemoveFromHeap(current)) {
+                if (current.isAsynchronous()) {
+                    shrinkAsyncHeap = true;
+                } else {
+                    shrinkSyncHeap = true;
+                }
+            }
             removeFromStack(current);
             current = nextFree;
+        }
+
+        if (shrinkSyncHeap) {
+            mSyncHeap.maybeShrink();
+        }
+        if (shrinkAsyncHeap) {
+            mAsyncHeap.maybeShrink();
         }
     }
 
@@ -258,23 +300,14 @@ public final class MessageStack {
         return m;
     }
 
-    /**
-     * Create all missing backlinks in the stack.
-     */
-    private void createBackLinks() {
-        Message current = (Message) sTop.getAcquire(this);
-        while (current != null && current.next != null && current.next.prev == null) {
-            current.next.prev = current;
-            current = current.next;
-        }
-    }
-
-    private void maybeRemoveFromHeap(Message m) {
+    private boolean maybeRemoveFromHeap(Message m) {
         // An out of range heapIndex means that we've already removed this message from the heap, or
         // it was never added to the heap in the first place.
         if (m.heapIndex >= 0) {
             getHeap(m).removeMessage(m);
+            return true;
         }
+        return false;
     }
 
     /**
@@ -283,38 +316,43 @@ public final class MessageStack {
     private void removeFromStack(Message m) {
         // mLooperProcessed must be updated to the next message.
         if (m == mLooperProcessed) {
-            mLooperProcessed = mLooperProcessed.next;
+            mLooperProcessed = m.next;
         }
 
-        // If prev is null, m was the top at the time the previous heapSweep was called.
         if (m.prev == null) {
-            // Check whether m is still the top. If so, we can just unlink it.
-            // Since only the looper thread can pop or drain the freelist, if this CAS fails, it
-            // can only be due to a push or quit.
-            if (sTop.compareAndSet(this, m, m.next)) {
-                unlinkFromNext(m);
-                m.prev = null;
-                return;
+            // If prev is null, m was the top or had not yet been added at the time the previous
+            // heapSweep was called.
+            // Check whether m is the top and try to pop it. If so, m has no predecessor node and we
+            // can just unlink from its successor. Since only the looper thread can pop or drain
+            // the freelist, if this CAS fails, it can only be due to pushes or quits, either of
+            // which would mean that the current node is no longer the top of the stack.
+            if (!sTop.compareAndSet(this, m, m.next)) {
+                // New messages were pushed to the stack between the previous backlink creation pass
+                // (heapSweep or removeFromStack) and now. We must find m's predecessor to unlink m.
+                // To ensure amortized O(1) runtime, create backlinks for all nodes between the
+                // current top and the last-created backlink. After that we can remove m the normal
+                // way.
+                Message current = (Message) sTop.getAcquire(this);
+                // Note that current can't start as null, since at least the element we're removing
+                // must be in the stack.
+                while (current.next != null && current.next.prev == null) {
+                    current.next.prev = current;
+                    current = current.next;
+                }
             }
-            // New messages are pushed to the stack between the previous heapSweep and now.
-            // We must find m's predecessor and create backlinks before continuing to
-            // remove the message the normal way.
-            createBackLinks();
         }
-        unlinkFromNext(m);
-        unlinkFromPrev(m);
+
+        // Unlink from next and previous
+        Message next = m.next;
+        Message prev = m.prev;
         m.prev = null;
-    }
-
-    private static void unlinkFromNext(Message m) {
-        if (m.next != null) {
-            m.next.prev = m.prev;
+        if (next != null) {
+            next.prev = prev;
         }
-    }
 
-    private static void unlinkFromPrev(Message m) {
-        if (m.prev != null) {
-            m.prev.next = m.next;
+
+        if (prev != null) {
+            prev.next = next;
         }
     }
 
@@ -344,7 +382,10 @@ public final class MessageStack {
      * This is suitable to use with the output of peek().
      */
     public void remove(Message m) {
-        maybeRemoveFromHeap(m);
+        if (maybeRemoveFromHeap(m)) {
+            MessageHeap heap = m.isAsynchronous() ? mAsyncHeap : mSyncHeap;
+            heap.maybeShrink();
+        }
         removeFromStack(m);
     }
 
@@ -352,7 +393,7 @@ public final class MessageStack {
         Message lastMsg = null;
         Message current = (Message) sTop.getAcquire(this);
         while (current != null) {
-            if (lastMsg == null || (current.when > lastMsg.when && !lastMsg.isRemoved())) {
+            if (!current.isRemoved() && (lastMsg == null || current.when > lastMsg.when)) {
                 lastMsg = current;
             }
             current = current.next;
@@ -393,6 +434,13 @@ public final class MessageStack {
      */
     public int combinedHeapSizesForTest() {
         return mSyncHeap.size() + mAsyncHeap.size();
+    }
+
+    /**
+     * Returns the total capacity in the underlying MessageHeaps.
+     */
+    public int combinedHeapCapacitiesForTest() {
+        return mSyncHeap.capacity() + mAsyncHeap.capacity();
     }
 
     @NeverCompile

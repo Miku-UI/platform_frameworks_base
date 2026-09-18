@@ -21,22 +21,32 @@ import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
 import static android.view.Display.DEFAULT_DISPLAY;
 
 import static com.android.wm.shell.shared.split.SplitScreenConstants.SNAP_TO_2_50_50;
+import static com.android.wm.shell.shared.split.SplitScreenConstants.SPLIT_POSITION_BOTTOM_OR_RIGHT;
 
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.app.ActivityManager;
+import android.content.Context;
 import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.graphics.Rect;
 import android.os.Handler;
+import android.util.DisplayMetrics;
+import android.view.Display;
+import android.view.SurfaceControl;
+import android.window.WindowContainerToken;
 import android.window.WindowContainerTransaction;
 
 import androidx.test.annotation.UiThreadTest;
@@ -48,6 +58,7 @@ import com.android.wm.shell.ShellTestCase;
 import com.android.wm.shell.TestRunningTaskInfoBuilder;
 import com.android.wm.shell.common.DisplayController;
 import com.android.wm.shell.common.DisplayImeController;
+import com.android.wm.shell.common.DisplayLayout;
 import com.android.wm.shell.shared.desktopmode.FakeDesktopState;
 import com.android.wm.shell.splitscreen.SplitStatusBarHider;
 
@@ -83,6 +94,10 @@ public class SplitLayoutTests extends ShellTestCase {
     public void setup() {
         MockitoAnnotations.initMocks(this);
         mDesktopState = new FakeDesktopState();
+
+        DisplayLayout displayLayout = new DisplayLayout();
+        when(mDisplayController.getDisplayLayout(anyInt())).thenReturn(displayLayout);
+
         mSplitLayout = spy(new SplitLayout(
                 "TestSplitLayout",
                 mContext,
@@ -98,6 +113,71 @@ public class SplitLayoutTests extends ShellTestCase {
                 mStatusBarHider,
                 mDesktopState,
                 mMSDLPlayer));
+    }
+
+    @Test
+    @UiThreadTest
+    public void testAdjustSurfaceLayoutForIme_suppressesDimmingDuringRecents() {
+        // force dimming to be enabled.
+        mContext.getOrCreateTestableResources().addOverride(
+                com.android.wm.shell.R.bool.config_dimNonImeAttachedSide, true);
+
+        // re-create SplitLayout with resource change
+        mSplitLayout = new SplitLayout(
+                "TestSplitLayout",
+                mContext,
+                getConfiguration(),
+                mSplitLayoutHandler,
+                mCallbacks,
+                mDisplayController,
+                mDisplayImeController,
+                mTaskOrganizer,
+                SplitLayout.PARALLAX_NONE,
+                mSplitState,
+                mHandler,
+                mStatusBarHider,
+                mDesktopState,
+                mMSDLPlayer);
+
+        // focus on bottom/right stage to trigger dimming on the other side.
+        WindowContainerToken mockToken = mock(WindowContainerToken.class);
+        when(mTaskOrganizer.getImeLayeringTarget(anyInt())).thenReturn(mockToken);
+        when(mSplitLayoutHandler.getSplitItemPosition(mockToken))
+                .thenReturn(SPLIT_POSITION_BOTTOM_OR_RIGHT);
+
+        mSplitLayout.init();
+        SplitLayout.ImePositionProcessor processor =
+                (SplitLayout.ImePositionProcessor) mSplitLayout.getImePositionProcessor();
+
+        // set up internal dimming state
+        SurfaceControl.Transaction t = mock(SurfaceControl.Transaction.class);
+        when(t.setAlpha(any(), anyFloat())).thenReturn(t);
+        when(t.setVisibility(any(), anyBoolean())).thenReturn(t);
+
+        // picking values so as to get mDimLayer1, mDimLayer2 > 0.001f
+        processor.onImeStartPositioning(mContext.getDisplayId(), 0 /* hiddenTop */,
+                100 /* shownTop */, true /* showing */, true /* isFloating */, t);
+        processor.onImePositionChanged(mContext.getDisplayId(), 100 /* imeTop */, t);
+
+        final SurfaceControl dimLayer1 = mock(SurfaceControl.class);
+        final SurfaceControl dimLayer2 = mock(SurfaceControl.class);
+
+        // recents are animating: alpha should not be set.
+        mSplitLayout.setRecentsAnimating(true);
+        boolean result = processor.adjustSurfaceLayoutForIme(t,
+                mock(SurfaceControl.class), mock(SurfaceControl.class),
+                mock(SurfaceControl.class), dimLayer1, dimLayer2);
+        assertThat(result).isFalse();
+        verify(t, never()).setAlpha(any(), anyFloat());
+
+        // recents not animating: alpha should be set.
+        mSplitLayout.setRecentsAnimating(false);
+        result = processor.adjustSurfaceLayoutForIme(t,
+                mock(SurfaceControl.class), mock(SurfaceControl.class),
+                mock(SurfaceControl.class), dimLayer1, dimLayer2);
+        assertThat(result).isTrue();
+        verify(t).setAlpha(eq(dimLayer1), anyFloat());
+        verify(t).setAlpha(eq(dimLayer2), anyFloat());
     }
 
     @Test
@@ -127,6 +207,55 @@ public class SplitLayoutTests extends ShellTestCase {
         // Verify updateConfiguration checks the current DisplayLayout
         verify(mDisplayController, times(5)) // init * 1 + updateConfiguration * 4
                 .getDisplayLayout(anyInt());
+    }
+
+    @Test
+    public void testUpdateConfiguration_displayIdChanged_recreatesDisplayDependentComponents()
+            throws Exception {
+        int newDisplayId = 2; // Different from DEFAULT_DISPLAY 0
+        mSplitLayout.mInitialized = true;
+
+        // Mock Context, Resources, and Display for the new display
+        Context mockDisplayContext = mock(Context.class);
+        Resources mockResources = mock(Resources.class);
+        when(mockResources.getDisplayMetrics()).thenReturn(new DisplayMetrics());
+        when(mockResources.getConfiguration()).thenReturn(new Configuration());
+        when(mockResources.getIntArray(anyInt())).thenReturn(new int[0]);
+        when(mockDisplayContext.getResources()).thenReturn(mockResources);
+
+        DisplayLayout mockDisplayLayout = mock(DisplayLayout.class);
+        when(mockDisplayLayout.stableInsets()).thenReturn(new Rect());
+        when(mDisplayController.getDisplayLayout(newDisplayId)).thenReturn(mockDisplayLayout);
+
+        // Mock Display
+        Display mockDisplay = mock(Display.class);
+        when(mockDisplay.getDisplayId()).thenReturn(newDisplayId);
+        when(mockDisplayContext.getDisplay()).thenReturn(mockDisplay);
+
+        // Configure DisplayController to return our mocked context
+        when(mDisplayController.getDisplayContext(newDisplayId)).thenReturn(mockDisplayContext);
+        when(mockDisplayContext.createConfigurationContext(any())).thenReturn(mockDisplayContext);
+        when(mockDisplayContext.getDisplayId()).thenReturn(newDisplayId);
+
+        Object oldPolicy = mSplitLayout.mSurfaceEffectPolicy;
+
+        mSplitLayout.updateConfiguration(getConfiguration(), newDisplayId);
+
+        assertThat(mSplitLayout.mSurfaceEffectPolicy).isNotEqualTo(oldPolicy);
+    }
+
+    @Test
+    public void testUpdateConfiguration_sameDisplayId_preservesDisplayDependentComponents()
+            throws Exception {
+        int sameDisplayId = DEFAULT_DISPLAY;
+
+        mSplitLayout.mInitialized = true;
+        Object oldPolicy = mSplitLayout.mSurfaceEffectPolicy;
+
+        // Pass the same configuration and display ID.
+        mSplitLayout.updateConfiguration(getConfiguration(), sameDisplayId);
+
+        assertThat(mSplitLayout.mSurfaceEffectPolicy).isEqualTo(oldPolicy);
     }
 
     @Test
@@ -170,7 +299,8 @@ public class SplitLayoutTests extends ShellTestCase {
 
         mSplitLayout.snapToTarget(mSplitLayout.getDividerPosition(), snapTarget);
         waitDividerFlingFinished();
-        verify(mSplitLayoutHandler).onSnappedToDismiss(eq(false), anyInt());
+        verify(mSplitLayoutHandler).onSnappedToDismiss(eq(false), anyInt(),
+                any(WindowContainerTransaction.class));
     }
 
     @Test
@@ -182,7 +312,8 @@ public class SplitLayoutTests extends ShellTestCase {
 
         mSplitLayout.snapToTarget(mSplitLayout.getDividerPosition(), snapTarget);
         waitDividerFlingFinished();
-        verify(mSplitLayoutHandler).onSnappedToDismiss(eq(true), anyInt());
+        verify(mSplitLayoutHandler).onSnappedToDismiss(eq(true), anyInt(),
+                any(WindowContainerTransaction.class));
     }
 
     @Test

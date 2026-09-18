@@ -29,7 +29,7 @@ android_library {
     optimize: {
         enabled: false,
     },
-    srcs: ["src/**/*.kt"],
+    srcs: ["src/**/scenarios/*.kt"],
     static_libs: [
         "WMShellFlickerTestsBase",
         "WMShellTestUtils",
@@ -37,11 +37,31 @@ android_library {
         "androidx.test.ext.junit",
         "flickertestapplib",
         "flickerlib-helpers",
-        "flickerlib-trace_processor_shell",
         "platform-test-annotations",
         "wm-flicker-common-app-helpers",
         "wm-flicker-common-assertions",
         "launcher-helper-lib",
         "launcher-aosp-tapl",
     ],
+}
+
+android_test {
+    name: "FunctionalTestsSplitScreen",
+    defaults: ["WMShellFlickerTestsDefault"],
+    manifest: "AndroidManifest.xml",
+    test_config_template: "AndroidTestTemplate.xml",
+    srcs: ["src/com/android/wm/shell/functional/**/*.kt"],
+    static_libs: [
+        "WMShellFlickerTestsBase",
+        "WMShellScenariosSplitScreen",
+        "WMShellTestUtils",
+    ],
+    data: ["trace_config/*"],
+}
+
+test_module_config {
+    name: "FunctionalTestsSplitScreen-FullscreenModeRequestFromSplitAndBackTest",
+    base: "FunctionalTestsSplitScreen",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.wm.shell.functional.FullscreenModeRequestFromSplitAndBackTest"],
 }

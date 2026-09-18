@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.graphics.Bitmap
 import android.graphics.Insets
 import android.graphics.Rect
+import android.net.Uri
 import android.os.UserHandle
 import android.view.Display
 import android.view.WindowManager
@@ -25,6 +26,8 @@ data class ScreenshotData(
     val originalInsets: Insets,
     var bitmap: Bitmap?,
     val displayId: Int,
+    val customSaveUri: Uri? = null,
+    val suppressLongScreenshot: Boolean = false,
 ) {
     val packageNameString
         get() = topComponent?.packageName ?: ""
@@ -42,6 +45,7 @@ data class ScreenshotData(
                 originalInsets = request.insets,
                 bitmap = request.bitmap,
                 displayId = displayId,
+                customSaveUri = request.customSaveUri,
             )
 
         @VisibleForTesting
@@ -50,6 +54,7 @@ data class ScreenshotData(
             source: Int = ScreenshotSource.SCREENSHOT_KEY_CHORD,
             topComponent: ComponentName? = null,
             bitmap: Bitmap? = null,
+            customSaveUri: Uri? = null,
         ) =
             ScreenshotData(
                 type = WindowManager.TAKE_SCREENSHOT_FULLSCREEN,
@@ -61,6 +66,7 @@ data class ScreenshotData(
                 originalInsets = Insets.NONE,
                 bitmap = bitmap,
                 displayId = Display.DEFAULT_DISPLAY,
+                customSaveUri = customSaveUri,
             )
     }
 }

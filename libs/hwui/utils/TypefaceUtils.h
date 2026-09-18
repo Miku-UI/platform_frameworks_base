@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "Properties.h"
 #include "SkFontMgr.h"
 #include "SkRefCnt.h"
 
@@ -23,5 +24,7 @@ namespace android {
 
 // Create new SkTypeface.
 sk_sp<SkTypeface> makeSkTypeface(std::unique_ptr<SkStreamAsset>, const SkFontArguments&);
+
+bool setFontRenderingBackend(uirenderer::SkTypefaceBackend backend);
 
 }  // namespace android

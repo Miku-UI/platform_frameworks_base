@@ -25,7 +25,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.app.iUriGrantsManager
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.biometrics.ui.viewmodel.iconProvider
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.runTest
@@ -91,9 +90,9 @@ class TileRequestDialogViewModelTest : SysuiTestCase() {
             with(underTest.uiState) {
                 expect.that(label).isEqualTo(TEST_LABEL)
                 expect.that(secondaryLabel).isEmpty()
-                expect.that(this.state).isEqualTo(expectedState.state)
-                expect.that(handlesLongClick).isFalse()
-                expect.that(handlesSecondaryClick).isFalse()
+                expect.that(this.visualState).isEqualTo(expectedState.visualState)
+                expect.that(handlesSettingsClick).isFalse()
+                expect.that(handlesToggleClick).isFalse()
                 expect.that(sideDrawable).isNull()
                 expect.that(accessibilityUiState).isEqualTo(expectedState.accessibilityUiState)
             }
@@ -116,9 +115,9 @@ class TileRequestDialogViewModelTest : SysuiTestCase() {
             with(underTest.uiState) {
                 expect.that(label).isEqualTo(TEST_LABEL)
                 expect.that(secondaryLabel).isEmpty()
-                expect.that(this.state).isEqualTo(expectedState.state)
-                expect.that(handlesLongClick).isFalse()
-                expect.that(handlesSecondaryClick).isFalse()
+                expect.that(this.visualState).isEqualTo(expectedState.visualState)
+                expect.that(handlesSettingsClick).isFalse()
+                expect.that(handlesToggleClick).isFalse()
                 expect.that(sideDrawable).isNull()
                 expect.that(accessibilityUiState).isEqualTo(expectedState.accessibilityUiState)
             }

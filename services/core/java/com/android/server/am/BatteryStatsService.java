@@ -33,6 +33,7 @@ import android.annotation.EnforcePermission;
 import android.annotation.NonNull;
 import android.annotation.RequiresNoPermission;
 import android.annotation.SuppressLint;
+import android.app.ActivityManager.ProcessState;
 import android.app.AlarmManager;
 import android.app.StatsManager;
 import android.app.usage.NetworkStatsManager;
@@ -100,6 +101,7 @@ import android.util.AtomicFile;
 import android.util.IndentingPrintWriter;
 import android.util.Slog;
 import android.util.StatsEvent;
+import android.view.Display;
 
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
@@ -121,9 +123,9 @@ import com.android.server.LocalServices;
 import com.android.server.Watchdog;
 import com.android.server.net.BaseNetworkObserver;
 import com.android.server.pm.UserManagerInternal;
-import com.android.server.power.feature.PowerManagerFlags;
 import com.android.server.power.optimization.Flags;
 import com.android.server.power.stats.BatteryExternalStatsWorker;
+import com.android.server.power.stats.BatteryStatsConfig;
 import com.android.server.power.stats.BatteryStatsDumpHelperImpl;
 import com.android.server.power.stats.BatteryStatsImpl;
 import com.android.server.power.stats.BatteryUsageStatsProvider;
@@ -178,7 +180,7 @@ public final class BatteryStatsService extends IBatteryStats.Stub
     private final PowerProfile mPowerProfile;
     private final CpuScalingPolicies mCpuScalingPolicies;
     private final MonotonicClock mMonotonicClock;
-    private final BatteryStatsImpl.BatteryStatsConfig mBatteryStatsConfig;
+    private final BatteryStatsConfig mBatteryStatsConfig;
     final BatteryStatsImpl mStats;
     final CpuWakeupStats mCpuWakeupStats;
     private final PowerStatsStore mPowerStatsStore;
@@ -191,7 +193,10 @@ public final class BatteryStatsService extends IBatteryStats.Stub
     private final BatteryStats.BatteryStatsDumpHelper mDumpHelper;
     private final PowerStatsUidResolver mPowerStatsUidResolver = new PowerStatsUidResolver();
     private final PowerAttributor mPowerAttributor;
-    private final PowerManagerFlags mPowerManagerFlags = new PowerManagerFlags();
+
+    private final Object mDisplayStatesLock = new Object();
+    @GuardedBy("mDisplayStatesLock")
+    private int[] mDisplayStates;
 
     private volatile boolean mMonitorEnabled = true;
     private boolean mRailsStatsCollectionEnabled = true;
@@ -376,8 +381,8 @@ public final class BatteryStatsService extends IBatteryStats.Stub
                 com.android.internal.R.bool.config_batteryStatsResetOnUnplugAfterSignificantCharge);
         final int batteryHistoryStorageSize = context.getResources().getInteger(
                 com.android.internal.R.integer.config_batteryHistoryStorageSize);
-        BatteryStatsImpl.BatteryStatsConfig.Builder batteryStatsConfigBuilder =
-                new BatteryStatsImpl.BatteryStatsConfig.Builder()
+        BatteryStatsConfig.Builder batteryStatsConfigBuilder =
+                new BatteryStatsConfig.Builder()
                         .setResetOnUnplugHighBatteryLevel(resetOnUnplugHighBatteryLevel)
                         .setHighBatteryLevelAfterCharge(highBatteryLevelAfterCharge)
                         .setResetOnUnplugAfterSignificantCharge(
@@ -389,6 +394,9 @@ public final class BatteryStatsService extends IBatteryStats.Stub
         mStats = new BatteryStatsImpl(mBatteryStatsConfig, Clock.SYSTEM_CLOCK, mMonotonicClock,
                 systemDir, mHandler, this, this, mUserManagerUserInfoProvider, mPowerProfile,
                 mCpuScalingPolicies, mPowerStatsUidResolver);
+        if (mStats.getDisplayCount() > 0) {
+            mDisplayStates = new int[mStats.getDisplayCount()];
+        }
         mWorker = new BatteryExternalStatsWorker(context, mStats, mHandler, mClock);
         mStats.setExternalStatsSyncLocked(mWorker);
         mStats.setRadioScanningTimeoutLocked(mContext.getResources().getInteger(
@@ -425,7 +433,7 @@ public final class BatteryStatsService extends IBatteryStats.Stub
                 mMonotonicClock, () -> mStats.getHistory().getStartTime(), mHandler);
     }
 
-    private void setPowerStatsThrottlePeriods(BatteryStatsImpl.BatteryStatsConfig.Builder builder,
+    private void setPowerStatsThrottlePeriods(BatteryStatsConfig.Builder builder,
             String configString) {
         if (configString == null) {
             return;
@@ -522,9 +530,6 @@ public final class BatteryStatsService extends IBatteryStats.Stub
         mStats.setPowerStatsCollectorEnabled(BatteryConsumer.POWER_COMPONENT_ANY, true);
         attributor.setPowerComponentSupported(BatteryConsumer.POWER_COMPONENT_ANY, true);
 
-        mStats.setMoveWscLoggingToNotifierEnabled(
-                mPowerManagerFlags.isMoveWscLoggingToNotifierEnabled());
-
         mWorker.systemServicesReady();
         mStats.systemServicesReady(mContext);
         mCpuWakeupStats.systemServicesReady();
@@ -592,7 +597,7 @@ public final class BatteryStatsService extends IBatteryStats.Stub
             BatteryStatsService.this.noteJobsDeferred(uid, numDeferred, sinceLast);
         }
 
-        private int transportToSubsystem(NetworkCapabilities nc) {
+        private @CpuWakeupSubsystem int transportToSubsystem(NetworkCapabilities nc) {
             if (nc.hasTransport(TRANSPORT_WIFI)) {
                 return CPU_WAKEUP_SUBSYSTEM_WIFI;
             } else if (nc.hasTransport(TRANSPORT_CELLULAR)) {
@@ -611,7 +616,7 @@ public final class BatteryStatsService extends IBatteryStats.Stub
             }
             final ConnectivityManager cm = mContext.getSystemService(ConnectivityManager.class);
             final NetworkCapabilities nc = cm.getNetworkCapabilities(network);
-            final int subsystem = transportToSubsystem(nc);
+            final @CpuWakeupSubsystem int subsystem = transportToSubsystem(nc);
 
             if (subsystem == CPU_WAKEUP_SUBSYSTEM_UNKNOWN) {
                 Slog.wtf(TAG, "Could not map transport for network: " + network
@@ -664,6 +669,13 @@ public final class BatteryStatsService extends IBatteryStats.Stub
      */
     void noteCpuWakingActivity(@CpuWakeupSubsystem int subsystem, long elapsedMillis, int... uids) {
         Objects.requireNonNull(uids);
+        if (Integer.bitCount(subsystem) != 1) {
+            throw new IllegalArgumentException(
+                    "Exactly one subsystem expected while reporting cpu waking activity. Received"
+                            + " subsystem: 0x" + Integer.toHexString(subsystem)
+                            + " elapsedMillis: " + elapsedMillis
+                            + " uids: " + Arrays.toString(uids));
+        }
         mHandler.post(() -> mCpuWakeupStats.noteWakingActivity(subsystem, elapsedMillis, uids));
     }
 
@@ -687,6 +699,23 @@ public final class BatteryStatsService extends IBatteryStats.Stub
             } catch (InterruptedException e) {
                 // Keep looping
             }
+        }
+    }
+
+    /**
+     * Sets the number of displays to track in BatteryStats. Mainly for testing.
+     *
+     * @param displayCount The number of displays.
+     * @hide
+     */
+    // TODO(b/467244575) : Use stricter checks to restrict for test usage only.
+    @VisibleForTesting
+    void setDisplayCount(final int displayCount) {
+        synchronized (mDisplayStatesLock) {
+            mDisplayStates = new int[displayCount];
+        }
+        synchronized (mStats) {
+            mStats.setDisplayCountLocked(displayCount);
         }
     }
 
@@ -904,7 +933,7 @@ public final class BatteryStatsService extends IBatteryStats.Stub
     }
 
     /** @param state Process state from ActivityManager.java. */
-    void noteUidProcessState(int uid, int state) {
+    void noteUidProcessState(int uid, @ProcessState int state) {
         synchronized (mClock) {
             final long elapsedRealtime = mClock.elapsedRealtime();
             final long uptime = mClock.uptimeMillis();
@@ -1785,7 +1814,30 @@ public final class BatteryStatsService extends IBatteryStats.Stub
     @EnforcePermission(UPDATE_DEVICE_STATS)
     public void noteScreenState(final int displayId, final int state, final int reason) {
         super.noteScreenState_enforcePermission();
-        FrameworkStatsLog.write(FrameworkStatsLog.SCREEN_STATE_CHANGED, state);
+        int combinedState = Display.STATE_UNKNOWN;
+        synchronized (mDisplayStatesLock) {
+            if (mDisplayStates == null) {
+                Slog.w(TAG, "noteScreenState called with displayId: " + displayId
+                        + ", but mDisplayStates is null.");
+                return;
+            }
+            if (displayId < 0 || displayId >= mDisplayStates.length) {
+                Slog.w(TAG, "noteScreenState called with out of bounds displayId: " + displayId
+                        + ", mDisplayStates.length=" + mDisplayStates.length);
+                return;
+            }
+            mDisplayStates[displayId] = BatteryStatsImpl.getSanitizedDisplayState(state);
+            combinedState = mDisplayStates[displayId];
+            int currentPriority = BatteryStatsImpl.getDisplayStatePriority(combinedState);
+            for (int i = 0; i < mDisplayStates.length; i++) {
+                if (BatteryStatsImpl.getDisplayStatePriority(mDisplayStates[i])
+                        > currentPriority) {
+                    combinedState = mDisplayStates[i];
+                    currentPriority = BatteryStatsImpl.getDisplayStatePriority(combinedState);
+                }
+            }
+        }
+        FrameworkStatsLog.write(FrameworkStatsLog.SCREEN_STATE_CHANGED, combinedState);
 
         synchronized (mClock) {
             final long elapsedRealtime = mClock.elapsedRealtime();
@@ -3102,16 +3154,14 @@ public final class BatteryStatsService extends IBatteryStats.Stub
                 if ("--checkin".equals(arg)) {
                     useCheckinFormat = true;
                     isRealCheckin = true;
-                    if (Flags.realCheckinHistoryStartTime()) {
-                        long realCheckinDurationLimit = mContext.getResources().getInteger(
-                                com.android.internal.R.integer
-                                .config_batteryHistoryDumpRealCheckinWindowSize);
-                        if (realCheckinDurationLimit > 0) {
-                            monotonicClockStartTime =
-                                mMonotonicClock.monotonicTime() - realCheckinDurationLimit;
-                            if (monotonicClockStartTime < 0) {
-                                monotonicClockStartTime = 0;
-                            }
+                    long realCheckinDurationLimit = mContext.getResources().getInteger(
+                            com.android.internal.R.integer
+                            .config_batteryHistoryDumpRealCheckinWindowSize);
+                    if (realCheckinDurationLimit > 0) {
+                        monotonicClockStartTime =
+                            mMonotonicClock.monotonicTime() - realCheckinDurationLimit;
+                        if (monotonicClockStartTime < 0) {
+                            monotonicClockStartTime = 0;
                         }
                     }
                 } else if ("--history".equals(arg)) {
@@ -3143,16 +3193,14 @@ public final class BatteryStatsService extends IBatteryStats.Stub
                 } else if ("-c".equals(arg)) {
                     useCheckinFormat = true;
                     flags |= BatteryStats.DUMP_INCLUDE_HISTORY;
-                    if (Flags.checkinHistoryStartTime()) {
-                        long checkinDurationLimit = mContext.getResources().getInteger(
-                                com.android.internal.R.integer
-                                .config_batteryHistoryDumpCheckinWindowSize);
-                        if (checkinDurationLimit > 0) {
-                            monotonicClockStartTime =
-                                mMonotonicClock.monotonicTime() - checkinDurationLimit;
-                            if (monotonicClockStartTime < 0) {
-                                monotonicClockStartTime = 0;
-                            }
+                    long checkinDurationLimit = mContext.getResources().getInteger(
+                            com.android.internal.R.integer
+                            .config_batteryHistoryDumpCheckinWindowSize);
+                    if (checkinDurationLimit > 0) {
+                        monotonicClockStartTime =
+                            mMonotonicClock.monotonicTime() - checkinDurationLimit;
+                        if (monotonicClockStartTime < 0) {
+                            monotonicClockStartTime = 0;
                         }
                     }
                 } else if ("--proto".equals(arg)) {

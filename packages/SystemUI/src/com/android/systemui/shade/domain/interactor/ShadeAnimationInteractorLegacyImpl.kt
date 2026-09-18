@@ -17,6 +17,7 @@
 package com.android.systemui.shade.domain.interactor
 
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.shade.ShadeWindowLogger
 import com.android.systemui.shade.data.repository.ShadeAnimationRepository
 import com.android.systemui.shade.data.repository.ShadeRepository
 import javax.inject.Inject
@@ -29,7 +30,8 @@ class ShadeAnimationInteractorLegacyImpl
 constructor(
     shadeAnimationRepository: ShadeAnimationRepository,
     shadeRepository: ShadeRepository,
-) : ShadeAnimationInteractor(shadeAnimationRepository) {
+    shadeWindowLogger: ShadeWindowLogger,
+) : ShadeAnimationInteractor(shadeAnimationRepository, shadeWindowLogger) {
     override val isAnyCloseAnimationRunning = shadeRepository.legacyIsClosing
     override val isAnyFlingAnimationRunning = shadeRepository.currentFling.map { it != null }
 }

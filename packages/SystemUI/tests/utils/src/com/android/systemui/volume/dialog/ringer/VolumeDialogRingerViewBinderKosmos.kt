@@ -20,8 +20,13 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.volume.dialog.ringer.ui.binder.VolumeDialogRingerViewBinder
 import com.android.systemui.volume.dialog.ringer.ui.viewmodel.volumeDialogRingerDrawerViewModel
 import com.android.systemui.volume.dialog.ui.viewmodel.volumeDialogViewModel
+import com.android.systemui.window.domain.interactor.windowRootViewBlurInteractor
 
 val Kosmos.volumeDialogRingerViewBinder by
     Kosmos.Fixture {
-        VolumeDialogRingerViewBinder(volumeDialogRingerDrawerViewModel, volumeDialogViewModel)
+        VolumeDialogRingerViewBinder(
+            volumeDialogRingerDrawerViewModel,
+            volumeDialogViewModel,
+            windowRootViewBlurInteractor,
+        )
     }

@@ -29,7 +29,9 @@ import android.view.WindowManager.TRANSIT_CHANGE
 import android.view.WindowManager.TRANSIT_CLOSE
 import android.view.WindowManager.TRANSIT_OPEN
 import androidx.test.filters.SmallTest
+import com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn
 import com.android.internal.policy.DesktopModeCompatPolicy
+import com.android.testing.wm.util.TransitionInfoBuilder
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.desktopmode.DesktopTestHelpers.createFullscreenTask
@@ -41,7 +43,6 @@ import com.android.wm.shell.desktopmode.DesktopUserRepositories
 import com.android.wm.shell.desktopmode.DesktopWallpaperActivity
 import com.android.wm.shell.desktopmode.data.DesktopRepository
 import com.android.wm.shell.sysui.ShellInit
-import com.android.wm.shell.transition.TransitionInfoBuilder
 import com.android.wm.shell.transition.Transitions
 import com.android.wm.shell.windowdecor.DesktopModeWindowDecorViewModelTestsBase.Companion.HOME_LAUNCHER_PACKAGE_NAME
 import com.google.common.truth.Truth.assertThat
@@ -86,9 +87,10 @@ class SystemModalsTransitionHandlerTest : ShellTestCase() {
         whenever(desktopUserRepositories.current).thenReturn(desktopRepository)
         whenever(desktopRepository.isAnyDeskActive(anyInt())).thenReturn(true)
         whenever(spyContext.packageManager).thenReturn(packageManager)
-        whenever(componentName.packageName).thenReturn(HOME_LAUNCHER_PACKAGE_NAME)
-        whenever(packageManager.getHomeActivities(ArrayList())).thenReturn(componentName)
-        desktopModeCompatPolicy = DesktopModeCompatPolicy(spyContext)
+        desktopModeCompatPolicy = spy(DesktopModeCompatPolicy(spyContext))
+        doReturn(HOME_LAUNCHER_PACKAGE_NAME)
+            .whenever(desktopModeCompatPolicy)
+            .getDefaultHomePackage(any())
         transitionHandler = createTransitionHandler()
         allowOverlayPermissionForAllUsers(arrayOf(SYSTEM_ALERT_WINDOW))
     }
@@ -203,6 +205,8 @@ class SystemModalsTransitionHandlerTest : ShellTestCase() {
     fun allowOverlayPermissionForAllUsers(permissions: Array<String>) {
         val packageInfo = mock<PackageInfo>()
         packageInfo.requestedPermissions = permissions
+        packageInfo.requestedPermissionsFlags =
+            IntArray(permissions.size) { PackageInfo.REQUESTED_PERMISSION_GRANTED }
         whenever(
                 packageManager.getPackageInfoAsUser(
                     anyString(),

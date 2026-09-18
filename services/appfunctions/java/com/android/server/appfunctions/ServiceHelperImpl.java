@@ -18,6 +18,7 @@ package com.android.server.appfunctions;
 
 import android.Manifest;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.appfunctions.AppFunctionService;
 import android.content.ComponentName;
 import android.content.Context;
@@ -38,8 +39,20 @@ class ServiceHelperImpl implements ServiceHelper {
     @Override
     public Intent resolveAppFunctionService(
             @NonNull String targetPackageName, @NonNull UserHandle targetUser) {
+        return resolveAppFunctionService(
+                targetPackageName, /* serviceClassName= */ null, targetUser);
+    }
+
+    @Override
+    public Intent resolveAppFunctionService(
+            @NonNull String targetPackageName,
+            @Nullable String serviceClassName,
+            @NonNull UserHandle targetUser) {
         Intent serviceIntent = new Intent(AppFunctionService.SERVICE_INTERFACE);
         serviceIntent.setPackage(targetPackageName);
+        if (serviceClassName != null) {
+            serviceIntent.setClassName(targetPackageName, serviceClassName);
+        }
         ResolveInfo resolveInfo =
                 mContext.createContextAsUser(targetUser, /* flags= */ 0)
                         .getPackageManager()

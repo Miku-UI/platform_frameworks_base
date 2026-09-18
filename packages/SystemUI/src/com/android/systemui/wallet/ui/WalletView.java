@@ -162,7 +162,7 @@ public class WalletView extends FrameLayout implements WalletCardCarousel.OnCard
     /**
      * Render and show card carousel view.
      *
-     * <p>This is called only when {@param data} is not empty.</p>
+     * <p>This is called only when {@code data} is not empty.</p>
      *
      * @param data a list of wallet cards information.
      * @param selectedIndex index of the current selected card

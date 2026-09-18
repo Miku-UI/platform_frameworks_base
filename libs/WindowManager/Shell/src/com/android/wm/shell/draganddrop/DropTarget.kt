@@ -21,33 +21,28 @@ import android.window.WindowContainerToken
 import com.android.internal.logging.InstanceId
 
 /**
- * Interface to be implemented by classes which want to provide drop targets
- * for DragAndDrop in Shell
+ * Interface to be implemented by classes which want to provide drop targets for DragAndDrop in
+ * Shell
  */
 interface DropTarget {
     // TODO(b/349828130) Delete after flexible split launches
-    /**
-     * Called at the start of a Drag, before input events are processed.
-     */
+    /** Called at the start of a Drag, before input events are processed. */
     fun start(dragSession: DragSession, logSessionId: InstanceId)
-    /**
-     * @return [SplitDragPolicy.Target] corresponding to the given coords in display bounds.
-     */
-    fun getTargetAtLocation(x: Int, y: Int) : SplitDragPolicy.Target
-    /**
-     * @return total number of drop targets for the current drag session.
-     */
-    fun getNumTargets() : Int
+
+    /** @return [SplitDragPolicy.Target] corresponding to the given coords in display bounds. */
+    fun getTargetAtLocation(x: Int, y: Int): SplitDragPolicy.Target
+
+    /** @return total number of drop targets for the current drag session. */
+    fun getNumTargets(): Int
+
     // TODO(b/349828130)
 
-    /**
-     * @return [List<SplitDragPolicy.Target>] to show for the current drag session.
-     */
-    fun getTargets(insets: Insets) : List<SplitDragPolicy.Target>
-    /**
-     * Called when user is hovering Drag object over the given Target
-     */
+    /** @return [List<SplitDragPolicy.Target>] to show for the current drag session. */
+    fun getTargets(insets: Insets): List<SplitDragPolicy.Target>
+
+    /** Called when user is hovering Drag object over the given Target */
     fun onHoveringOver(target: SplitDragPolicy.Target?) {}
+
     /**
      * Called when the user has dropped the provided target (need not be the same target as
      * [onHoveringOver])

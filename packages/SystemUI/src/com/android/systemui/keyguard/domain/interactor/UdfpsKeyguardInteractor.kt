@@ -21,6 +21,7 @@ import android.animation.FloatEvaluator
 import android.animation.IntEvaluator
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.shared.model.StatusBarState
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.shade.domain.interactor.ShadeLockscreenInteractor
 import com.android.systemui.statusbar.phone.SystemUIDialogManager
@@ -28,6 +29,7 @@ import com.android.systemui.statusbar.phone.hideAffordancesRequest
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 
@@ -53,7 +55,7 @@ constructor(
             keyguardInteractor.dozeAmount,
             burnInInteractor.deviceEntryIconXOffset,
             burnInInteractor.deviceEntryIconYOffset,
-            burnInInteractor.udfpsProgress
+            burnInInteractor.udfpsProgress,
         ) { dozeAmount, fullyDozingBurnInX, fullyDozingBurnInY, fullyDozingBurnInProgress ->
             Offsets(
                 intEvaluator.evaluate(dozeAmount, 0, fullyDozingBurnInX),
@@ -68,6 +70,7 @@ constructor(
         shadeInteractor.qsExpansion // swipe from top of LS
             .map { (it * 2).coerceIn(0f, 1f) }
             .onStart { emit(0f) }
+            .let { if (SceneContainerFlag.isEnabled) it.distinctUntilChanged() else it }
 
     val shadeExpansion: Flow<Float> =
         combine(

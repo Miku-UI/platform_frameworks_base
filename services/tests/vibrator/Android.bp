@@ -16,7 +16,7 @@ android_test {
     ],
 
     libs: [
-        "android.hardware.vibrator-V3-java",
+        "android.hardware.vibrator-V4-java",
         "android.test.mock.stubs.system",
         "android.test.base.stubs.system",
         "android.test.runner.stubs.system",

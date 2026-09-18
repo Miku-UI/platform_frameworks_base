@@ -20,8 +20,7 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.policy.domain.interactor.DataSaverStatusInteractor
 import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
@@ -37,33 +36,26 @@ import dagger.assisted.AssistedInject
 class DataSaverIconViewModel
 @AssistedInject
 constructor(@Assisted context: Context, interactor: DataSaverStatusInteractor) :
-    SystemStatusIconViewModel.Default, ExclusiveActivatable() {
+    SystemStatusIconViewModel.Default, HydratedActivatable() {
     init {
         SystemStatusIconsInCompose.expectInNewMode()
     }
 
-    private val hydrator = Hydrator("DataSaverIconViewModel.hydrator")
-
     override val slotName = context.getString(com.android.internal.R.string.status_bar_data_saver)
 
     override val visible: Boolean by
-        hydrator.hydratedStateOf(
+        interactor.isEnabled.hydratedStateOf(
             traceName = "SystemStatus.dataSaverVisible",
             initialValue = false,
-            source = interactor.isEnabled,
         )
 
     override val icon: Icon?
         get() = visible.toUiState()
 
-    override suspend fun onActivated(): Nothing {
-        hydrator.activate()
-    }
-
     private fun Boolean.toUiState(): Icon? =
         if (this) {
             Icon.Resource(
-                resId = R.drawable.ic_data_saver,
+                resId = R.drawable.stat_sys_data_saver,
                 contentDescription =
                     ContentDescription.Resource(R.string.accessibility_data_saver_on),
             )

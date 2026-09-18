@@ -19,7 +19,6 @@ package com.android.server.power.stats;
 import static android.os.BatteryStats.STATS_SINCE_CHARGED;
 
 import static com.android.server.power.stats.BatteryStatsImpl.LongSamplingCounterArray;
-import static com.android.server.power.stats.BatteryStatsImpl.TimeBase;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.mockito.Mockito.verify;
@@ -30,6 +29,8 @@ import android.os.Parcel;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
+
+import com.android.server.power.stats.counters.TimeBase;
 
 import org.junit.Before;
 import org.junit.Test;

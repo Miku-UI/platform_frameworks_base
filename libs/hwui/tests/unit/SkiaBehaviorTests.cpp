@@ -74,9 +74,9 @@ TEST(SkiaBehavior, porterDuffCreateIsCached) {
 }
 
 TEST(SkiaBehavior, pathIntersection) {
-    SkPath p0, p1, result;
-    p0.addRect(SkRect::MakeXYWH(-5.0f, 0.0f, 1080.0f, 242.0f));
-    p1.addRect(SkRect::MakeXYWH(0.0f, 0.0f, 1080.0f, 242.0f));
+    const SkPath p0 = SkPath::Rect(SkRect::MakeXYWH(-5.0f, 0.0f, 1080.0f, 242.0f));
+    const SkPath p1 = SkPath::Rect(SkRect::MakeXYWH(0.0f, 0.0f, 1080.0f, 242.0f));
+    SkPath result;
     Op(p0, p1, kIntersect_SkPathOp, &result);
     SkRect resultRect;
     ASSERT_TRUE(result.isRect(&resultRect));

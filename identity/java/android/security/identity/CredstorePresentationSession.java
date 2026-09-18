@@ -16,7 +16,7 @@
 
 package android.security.identity;
 
-
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -36,6 +36,11 @@ import java.security.cert.CertificateException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
+ */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 class CredstorePresentationSession extends PresentationSession {
     private static final String TAG = "CredstorePresentationSession";
 
@@ -192,8 +197,12 @@ class CredstorePresentationSession extends PresentationSession {
      * Called by android.hardware.biometrics.CryptoObject#getOpId() to get an
      * operation handle.
      *
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      * @hide
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     @Override
     public long getCredstoreOperationHandle() {
         if (!mOperationHandleSet) {

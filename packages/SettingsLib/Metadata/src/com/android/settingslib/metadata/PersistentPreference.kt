@@ -42,7 +42,7 @@ annotation class ReadWritePermit {
         /** Require explicit user agreement (e.g. terms of service). */
         const val REQUIRE_USER_AGREEMENT = 3
 
-        private const val READ_PERMIT_BITS = 15
+        private const val READ_PERMIT_BITS = 16
         private const val READ_PERMIT_MASK = (1 shl 16) - 1
 
         /** Wraps given read and write permit into an integer. */
@@ -75,28 +75,12 @@ annotation class PreferenceChangeReason {
     }
 }
 
-/** Indicates how sensitive of the data. */
-@Retention(AnnotationRetention.SOURCE)
-@Target(AnnotationTarget.TYPE)
-annotation class SensitivityLevel {
-    companion object {
-        const val UNKNOWN_SENSITIVITY = 0
-        const val NO_SENSITIVITY = 1
-        const val LOW_SENSITIVITY = 2
-        const val MEDIUM_SENSITIVITY = 3
-        const val HIGH_SENSITIVITY = 4
-    }
-}
 
 /** Preference metadata that has a value persisted in datastore. */
 interface PersistentPreference<T> : PreferenceMetadata {
 
     /** The value type the preference is associated with. */
     val valueType: Class<T>
-
-    /** The sensitivity level of the preference. */
-    val sensitivityLevel: @SensitivityLevel Int
-        get() = SensitivityLevel.UNKNOWN_SENSITIVITY
 
     override fun isPersistent(context: Context) = true
 
@@ -122,6 +106,9 @@ interface PersistentPreference<T> : PreferenceMetadata {
      */
     fun getReadPermit(context: Context, callingPid: Int, callingUid: Int): @ReadWritePermit Int =
         PreferenceScreenRegistry.defaultReadPermit
+
+    /** Returns true if the preference supports write in any circumstances. */
+    val supportsWrite: Boolean
 
     /** Returns the required permissions to write preference value. */
     fun getWritePermissions(context: Context): Permissions? = null
@@ -160,6 +147,9 @@ sealed interface ValueDescriptor {
 
     /** Returns if given value (represented by index) is valid. */
     fun isValidValue(context: Context, index: Int): Boolean
+
+    /** Returns the unit of measurement for the value. E.g. milliseconds, pixels, etc. */
+    fun getUnitOfMeasurement(): String? = null
 }
 
 /** Value falls into a given array. */

@@ -19,13 +19,12 @@ in SystemUI. Many of the methods have an empty default implementation and are op
 implementations if the related event is not interesting to your use case.
 
 [DefaultClockProvider](../customization/src/com/android/systemui/shared/clocks/DefaultClockProvider.kt) and
-[DefaultClockController](../customization/src/com/android/systemui/shared/clocks/DefaultClockController.kt)
+[FlexClockController](../customization/src/com/android/systemui/shared/clocks/controller/FlexClockController.kt)
 implement these interfaces for the default lockscreen clock. They handle relevant events from the
-lockscreen to update and control the small and large clock view as appropriate.
-[AnimatableClockView](../customization/src/com/android/systemui/shared/clocks/AnimatableClockView.kt)
-is the view that DefaultClockController uses to render both the small and large clock.
-AnimatableClockView has moved location within the repo, but is largely unchanged from previous
-versions of android.
+lockscreen to update and control the small and large clock view as appropriate. They forward events
+to [FlexClockTextView](../customization/src/com/android/systemui/shared/clocks/view/FlexClockTextView.kt)
+and [FlexClockViewGroup](../customization/src/com/android/systemui/shared/clocks/view/FlexClockViewGroup.kt)
+for rendering (depending on whether the large or small clock layout is being rendered)
 
 The [ClockRegistry](../customization/src/com/android/systemui/shared/clocks/ClockRegistry.kt)
 determines which clock should be shown, and handles creating them. It does this by maintaining a

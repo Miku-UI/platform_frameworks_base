@@ -239,6 +239,7 @@ class TvPipMenuEduTextDrawer extends FrameLayout {
             final ViewGroup.LayoutParams params = getLayoutParams();
             params.height = (int) animator.getAnimatedValue();
             setLayoutParams(params);
+            mListener.onCloseEduTextAnimationUpdate();
         });
         heightAnimator.addListener(new Animator.AnimatorListener() {
             @Override
@@ -297,6 +298,7 @@ class TvPipMenuEduTextDrawer extends FrameLayout {
      */
     interface Listener {
         void onCloseEduTextAnimationStart();
+        void onCloseEduTextAnimationUpdate();
         void onCloseEduTextAnimationEnd();
     }
 

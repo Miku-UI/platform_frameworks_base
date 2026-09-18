@@ -16,6 +16,7 @@
 
 package com.android.systemui.statusbar.phone
 
+import android.view.View
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -55,6 +56,29 @@ class ActivityStarterUtilsTest : SysuiTestCase() {
         assertEquals(
             ActivityTransitionAnimator.TransitionCookie("$controller"),
             controllerWithCookie.transitionCookie,
+        )
+    }
+
+    @Test
+    fun addCookieIfNeeded_cookiesMatchWhenIdentityMatches() {
+        // GIVEN two controllers with no cookie and the same identity object.
+        whenever(controller.transitionCookie).thenReturn(null)
+        val otherController = mock<ActivityTransitionAnimator.Controller>()
+        whenever(otherController.transitionCookie).thenReturn(null)
+        val identity = mock<View>()
+
+        // WHEN addCookieIfNeeded() is called with the given controller.
+        val controllerWithCookie = addCookieIfNeeded(controller, identity)
+        val otherControllerWithCookie = addCookieIfNeeded(controller, identity)
+
+        // THEN the returned controllers have the same cookie.
+        assertNotNull(controllerWithCookie)
+        assertNotNull(controllerWithCookie.transitionCookie)
+        assertNotNull(otherControllerWithCookie)
+        assertNotNull(otherControllerWithCookie.transitionCookie)
+        assertEquals(
+            controllerWithCookie.transitionCookie,
+            otherControllerWithCookie.transitionCookie,
         )
     }
 

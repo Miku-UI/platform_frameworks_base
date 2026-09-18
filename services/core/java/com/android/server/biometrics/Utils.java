@@ -25,6 +25,7 @@ import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STR
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_DPM_LOCK_NOW;
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_USER_LOCKDOWN;
 import static com.android.server.biometrics.PreAuthInfo.AUTHENTICATOR_OK;
+import static com.android.server.biometrics.PreAuthInfo.BIOMETRIC_COMPUTER_CONTROLLED;
 import static com.android.server.biometrics.PreAuthInfo.BIOMETRIC_DISABLED_BY_DEVICE_POLICY;
 import static com.android.server.biometrics.PreAuthInfo.BIOMETRIC_HARDWARE_NOT_DETECTED;
 import static com.android.server.biometrics.PreAuthInfo.BIOMETRIC_INSUFFICIENT_STRENGTH;
@@ -156,19 +157,13 @@ public class Utils {
      * @return true if Identity Check requirements should be applied depending on the authenticators
      */
     static boolean shouldApplyIdentityCheck(@Authenticators.Types int authenticators) {
-        final boolean isIdentityCheckAllSurfacesEnabled =
-                Flags.identityCheckAllSurfaces() && Flags.bpFallbackOptions();
         final boolean isMandatoryOrBiometricRequested =
                 isMandatoryBiometricsRequested(authenticators)
                         || isBiometricRequested(authenticators);
         final boolean isOnlyStrongBiometricRequested =
                 isOnlyStrongBiometricRequested(authenticators);
 
-        if (isIdentityCheckAllSurfacesEnabled) {
-            return isMandatoryOrBiometricRequested && !isOnlyStrongBiometricRequested;
-        }
-
-        return isMandatoryBiometricsRequested(authenticators);
+        return isMandatoryOrBiometricRequested && !isOnlyStrongBiometricRequested;
     }
 
     private static boolean isOnlyStrongBiometricRequested(
@@ -269,8 +264,13 @@ public class Utils {
     /**
      * Checks if the authenticator configuration is a valid combination of the public APIs.
      *
-     * throws {@link SecurityException} if the caller requests for mandatory biometrics without
-     * {@link SET_BIOMETRIC_DIALOG_ADVANCED} permission
+     * throws {@link SecurityException} if the caller requests for
+     * {@link Authenticators.IDENTITY_CHECK} without {@link SET_BIOMETRIC_DIALOG_ADVANCED}
+     * permission
+     *
+     * throws {@link SecurityException} if the caller requests for
+     * {@link Authenticators.DEVICE_CREDENTIAL_AND_IDENTITY_CHECK} without
+     * {@link USE_BIOMETRIC_INTERNAL} permission
      */
     static boolean isValidAuthenticatorConfig(Context context, int authenticators) {
         // The caller is not required to set the authenticators. But if they do, check the below.
@@ -280,10 +280,18 @@ public class Utils {
 
         // Check if any of the non-biometric and non-credential bits are set. If so, this is
         // invalid.
-        final int testBits;
-        testBits = ~(Authenticators.DEVICE_CREDENTIAL
-                | Authenticators.BIOMETRIC_MIN_STRENGTH
-                | Authenticators.IDENTITY_CHECK);
+        int testBits;
+
+        if (Flags.doubleAuth()) {
+            testBits = ~(Authenticators.DEVICE_CREDENTIAL
+                    | Authenticators.BIOMETRIC_MIN_STRENGTH
+                    | Authenticators.IDENTITY_CHECK
+                    | Authenticators.DEVICE_CREDENTIAL_AND_IDENTITY_CHECK);
+        } else {
+            testBits = ~(Authenticators.DEVICE_CREDENTIAL
+                    | Authenticators.BIOMETRIC_MIN_STRENGTH
+                    | Authenticators.IDENTITY_CHECK);
+        }
 
         if ((authenticators & testBits) != 0) {
             Slog.e(BiometricService.TAG, "Non-biometric, non-credential bits found."
@@ -306,6 +314,11 @@ public class Utils {
             context.enforceCallingOrSelfPermission(SET_BIOMETRIC_DIALOG_ADVANCED,
                     "Must have SET_BIOMETRIC_DIALOG_ADVANCED permission");
             return true;
+        } else if (Flags.doubleAuth()
+                && authenticators == Authenticators.DEVICE_CREDENTIAL_AND_IDENTITY_CHECK) {
+            context.enforceCallingOrSelfPermission(USE_BIOMETRIC_INTERNAL,
+                    "Must have USE_BIOMETRIC_INTERNAL permission");
+            return true;
         }
 
         Slog.e(BiometricService.TAG, "Unsupported biometric flags. Authenticators: "
@@ -327,14 +340,16 @@ public class Utils {
         final int biometricManagerCode;
 
         switch (biometricConstantsCode) {
-            case BiometricConstants.BIOMETRIC_SUCCESS:
+            case BiometricConstants.BIOMETRIC_SUCCESS, BiometricConstants.BIOMETRIC_ERROR_LOCKOUT,
+                 BiometricConstants.BIOMETRIC_ERROR_LOCKOUT_PERMANENT:
                 biometricManagerCode = BiometricManager.BIOMETRIC_SUCCESS;
                 break;
             case BiometricConstants.BIOMETRIC_ERROR_NO_BIOMETRICS:
             case BiometricConstants.BIOMETRIC_ERROR_NO_DEVICE_CREDENTIAL:
                 biometricManagerCode = BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED;
                 break;
-            case BiometricConstants.BIOMETRIC_ERROR_HW_UNAVAILABLE:
+            case BiometricConstants.BIOMETRIC_ERROR_HW_UNAVAILABLE,
+                 BiometricConstants.BIOMETRIC_ERROR_SENSOR_PRIVACY_ENABLED:
                 biometricManagerCode = BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE;
                 break;
             case BiometricConstants.BIOMETRIC_ERROR_HW_NOT_PRESENT:
@@ -342,15 +357,6 @@ public class Utils {
                 break;
             case BiometricConstants.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED:
                 biometricManagerCode = BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED;
-                break;
-            case BiometricConstants.BIOMETRIC_ERROR_LOCKOUT:
-            case BiometricConstants.BIOMETRIC_ERROR_LOCKOUT_PERMANENT:
-                biometricManagerCode = Flags.bpFallbackOptions()
-                        ? BiometricManager.BIOMETRIC_SUCCESS
-                        : BiometricManager.BIOMETRIC_ERROR_LOCKOUT;
-                break;
-            case BiometricConstants.BIOMETRIC_ERROR_SENSOR_PRIVACY_ENABLED:
-                biometricManagerCode = BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE;
                 break;
             case BiometricConstants.BIOMETRIC_ERROR_IDENTITY_CHECK_NOT_ACTIVE:
                 biometricManagerCode = BiometricManager.BIOMETRIC_ERROR_IDENTITY_CHECK_NOT_ACTIVE;
@@ -425,6 +431,7 @@ public class Utils {
                 return BiometricConstants.BIOMETRIC_ERROR_NOT_ENABLED_FOR_APPS;
             case BIOMETRIC_DISABLED_BY_DEVICE_POLICY:
             case BIOMETRIC_HARDWARE_NOT_DETECTED:
+            case BIOMETRIC_COMPUTER_CONTROLLED:
             default:
                 return BiometricConstants.BIOMETRIC_ERROR_HW_UNAVAILABLE;
         }
@@ -543,7 +550,7 @@ public class Utils {
      * @return Whether the given package matches the Android system.
      */
     public static boolean isSystem(@NonNull Context context, @Nullable String clientPackage) {
-        return hasInternalPermission(context) && "android".equals(clientPackage);
+        return "android".equals(clientPackage) && hasInternalPermission(context);
     }
 
     /**
@@ -554,7 +561,18 @@ public class Utils {
      * @return Whether the given package matches Settings.
      */
     public static boolean isSettings(@NonNull Context context, @Nullable String clientPackage) {
-        return hasInternalPermission(context) && "com.android.settings".equals(clientPackage);
+        return "com.android.settings".equals(clientPackage) && hasInternalPermission(context);
+    }
+
+    /**
+     * Checks if a client package matches SystemUI and can perform internal biometric operations.
+     *
+     * @param context The system context.
+     * @param clientPackage The name of the package to be checked against SystemUI.
+     * @return Whether the given package matches SystemUI.
+     */
+    public static boolean isSystemUI(@NonNull Context context, @Nullable String clientPackage) {
+        return "com.android.systemui".equals(clientPackage) && hasInternalPermission(context);
     }
 
     private static boolean hasInternalPermission(@NonNull Context context) {

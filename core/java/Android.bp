@@ -23,19 +23,26 @@ filegroup {
         ":messagequeue-gen",
         ":ranging_stack_mock_initializer",
         ":anomaly_detector_mock_initializer",
+        ":npumanager_mock_initializer",
+        ":uprobestats_mock_initializer",
+        ":webapp_mock_initializer",
         ":systemfeatures-gen-srcs",
         ":framework-network-security-config-sources",
+        ":GeneratedPolicyMetadata",
     ],
     // Exactly one MessageQueue.java will be added to srcs by messagequeue-gen
     exclude_srcs: [
         ":framework-ravenwood-sources",
+        ":aisealhostservice_aidl_sources",
         ":dropboxmanager_aidl_sources",
         ":dynamic_instrumentation_manager_aidl_sources",
         "android/os/*MessageQueue/**/*.java",
         "android/os/DeliQueue/**/*.java",
         "android/os/IProcessInfoService.aidl",
+        "android/os/profiling/anomaly/mock/*.java",
         "android/ranging/**/*.java",
-        "android/os/mock/*.java",
+        "android/npumanager/mock/**/*.java",
+        "android/content/pm/webapp/mock/**/*.java",
     ],
     visibility: ["//frameworks/base"],
 }
@@ -111,11 +118,48 @@ anomaly_detector_framework_mock_init {
         release_anomaly_detector: {
             cmd: "touch $(out)",
             // Adding an empty file as out is mandatory.
-            out: ["android/os/empty_anomaly_detector.txt"],
+            out: ["android/os/profiling/anomaly/empty_anomaly_detector.txt"],
             conditions_default: {
-                srcs: ["android/os/mock/AnomalyDetectorFrameworkInitializer.java"],
+                srcs: ["android/os/profiling/anomaly/mock/AnomalyDetectorFrameworkInitializer.java"],
                 cmd: "mkdir -p android/os/; cp $(in) $(out);",
-                out: ["android/os/AnomalyDetectorFrameworkInitializer.java"],
+                out: ["android/os/profiling/anomaly/AnomalyDetectorFrameworkInitializer.java"],
+            },
+        },
+    },
+}
+
+// Mock to allow service registry for NPU Manager.
+// TODO(b/416283422): Remove this after RELEASE_NPUMANAGER_MODULE is ramped up to next.
+soong_config_module_type {
+    name: "npumanager_framework_mock_init",
+    module_type: "genrule",
+    config_namespace: "bootclasspath",
+    bool_variables: [
+        "release_npumanager_module",
+    ],
+    properties: [
+        "cmd",
+        "out",
+        "srcs",
+    ],
+}
+
+// The actual NpuManagerFrameworkInitializer is present in
+// packages/modules/NpuManager/framework.
+// Mock NpuManagerFrameworkInitializer does nothing and allows to successfully build
+// SystemServiceRegistry after registering for system service in SystemServiceRegistry both with
+// and without build flag RELEASE_NPUMANAGER_MODULE enabled.
+npumanager_framework_mock_init {
+    name: "npumanager_mock_initializer",
+    soong_config_variables: {
+        release_npumanager_module: {
+            cmd: "touch $(out)",
+            // Adding an empty file as out is mandatory.
+            out: ["android/npumanager/empty_npumanager_fw.txt"],
+            conditions_default: {
+                srcs: ["android/npumanager/mock/NpuManagerFrameworkInitializer.java"],
+                cmd: "mkdir -p android/npumanager/; cp $(in) $(out);",
+                out: ["android/npumanager/NpuManagerFrameworkInitializer.java"],
             },
         },
     },
@@ -132,6 +176,79 @@ soong_config_module_type {
     ],
 }
 
+// Mock to allow service registry for anomaly detector.
+// TODO(b/453094410): Remove this after RELEASE_UPROBESTATS_BRIDGE_SERVICE is ramped up to next.
+soong_config_module_type {
+    name: "uprobestats_mock_init",
+    module_type: "genrule",
+    config_namespace: "bootclasspath",
+    bool_variables: [
+        "release_uprobestats_bridge_service",
+    ],
+    properties: [
+        "cmd",
+        "out",
+        "srcs",
+    ],
+}
+
+// The actual UprobestatsFrameworkInitializer is present in
+// packages/modules/Uprobestats/framework.
+// Mock UprobestatsFrameworkInitializer does nothing and allows to successfully build
+// SystemServiceRegistry after registering for system service in SystemServiceRegistry both with
+// and without build flag RELEASE_UPROBESTATS_BRIDGE_SERVICE enabled.
+uprobestats_mock_init {
+    name: "uprobestats_mock_initializer",
+    soong_config_variables: {
+        release_uprobestats_bridge_service: {
+            cmd: "touch $(out)",
+            // Adding an empty file as out is mandatory.
+            out: ["android/service/uprobestats/empty_uprobestats.txt"],
+            conditions_default: {
+                srcs: ["android/service/uprobestats/UprobestatsFrameworkInitializer.java.mock"],
+                cmd: "mkdir -p android/service/uprobestats/; cp $(in) $(out);",
+                out: ["android/service/uprobestats/UprobestatsFrameworkInitializer.java"],
+            },
+        },
+    },
+}
+
+// Mock to allow service registry for WebApp.
+// TODO(b/400883716): Remove this once RELEASE_WEBAPP_MODULE is ramped up to next.
+soong_config_module_type {
+    name: "webapp_framework_mock_init",
+    module_type: "genrule",
+    config_namespace: "bootclasspath",
+    bool_variables: [
+        "release_webapp_module",
+    ],
+    properties: [
+        "cmd",
+        "out",
+        "srcs",
+    ],
+}
+
+// The actual WebAppFrameworkInitializer is present in packages/modules/WebApp/framework.
+// Mock WebAppFrameworkInitializer does nothing and allows to successfully build
+// SystemServiceRegistry after registering for system service in SystemServiceRegistry both with
+// and without build flag RELEASE_WEBAPP_MODULE enabled.
+webapp_framework_mock_init {
+    name: "webapp_mock_initializer",
+    soong_config_variables: {
+        release_webapp_module: {
+            cmd: "touch $(out)",
+            // Adding an empty file as out is mandatory.
+            out: ["android/content/pm/webapp/empty_webapp_fw.txt"],
+            conditions_default: {
+                srcs: ["android/content/pm/webapp/mock/WebAppFrameworkInitializer.java"],
+                cmd: "mkdir -p android/content/pm/webapp/; cp $(in) $(out);",
+                out: ["android/content/pm/webapp/WebAppFrameworkInitializer.java"],
+            },
+        },
+    },
+}
+
 // Output the selected android/os/MessageQueue.java implementation
 release_package_messagequeue_implementation_srcs {
     name: "messagequeue-gen",
@@ -145,6 +262,22 @@ release_package_messagequeue_implementation_srcs {
     },
     cmd: "mkdir -p android/os/; cp $(in) $(out);",
     out: ["android/os/MessageQueue.java"],
+}
+
+filegroup {
+    name: "aisealhostservice_aidl_sources",
+    srcs: ["android/aiseal/IAiSealHostService.aidl"],
+}
+
+aidl_interface {
+    name: "aisealhostservice_aidl",
+    srcs: [":aisealhostservice_aidl_sources"],
+    unstable: true,
+    backend: {
+        rust: {
+            enabled: true,
+        },
+    },
 }
 
 aidl_interface {
@@ -195,6 +328,15 @@ aidl_interface {
     name: "dynamic_instrumentation_manager_aidl",
     srcs: [":dynamic_instrumentation_manager_aidl_sources"],
     unstable: true,
+}
+
+filegroup {
+    name: "pcc_sandbox_manager_native_aidl",
+    srcs: ["android/app/privatecompute/IPccSandboxManagerNative.aidl"],
+    visibility: [
+        "//frameworks/native/libs/binder",
+        "//cts/tests/privatecompute/native",
+    ],
 }
 
 aidl_interface {
@@ -309,6 +451,7 @@ filegroup {
 
 aidl_interface {
     name: "android.os.hintmanager_aidl",
+    host_supported: true,
     defaults: [
         "android.hardware.power-aidl",
     ],
@@ -408,17 +551,8 @@ filegroup {
     srcs: [
         "android/util/EmptyArray.java",
         "android/util/CharsetUtils.java",
-        "android/util/XmlPullAttributes.java",
-        "android/util/Xml.java",
         "com/android/internal/util/ArrayUtils.java",
-        "com/android/internal/util/ArtFastDataInput.java",
-        "com/android/internal/util/ArtFastDataOutput.java",
-        "com/android/internal/util/ArtBinaryXmlPullParser.java",
-        "com/android/internal/util/ArtBinaryXmlSerializer.java",
         "com/android/internal/util/HexDump.java",
-        "com/android/internal/util/XmlSerializerWrapper.java",
-        "com/android/internal/util/XmlPullParserWrapper.java",
-        "com/android/internal/util/XmlUtils.java",
     ],
 }
 
@@ -438,7 +572,6 @@ filegroup {
         "com/android/internal/util/ParseUtils.java",
         "com/android/internal/util/RingBufferIndices.java",
         "com/android/internal/util/StatLogger.java",
-        "com/android/internal/util/XmlUtils.java",
     ],
 }
 
@@ -663,6 +796,25 @@ aidl_interface {
     },
 }
 
+// Build Rust bindings as usbauthservice depends on this.
+aidl_interface {
+    name: "android.hardware.usb.auth",
+    unstable: true,
+    host_supported: true,
+    srcs: [
+        "android/hardware/usb/UsbAuthorizationStatus.aidl",
+        "android/hardware/usb/UsbAuthorizationSystemState.aidl",
+        "android/hardware/usb/UsbAuthDeviceInfo.aidl",
+        "android/hardware/usb/IUsbAuthEventsListener.aidl",
+        "android/hardware/usb/IUsbAuthManager.aidl",
+    ],
+    backend: {
+        rust: {
+            enabled: true,
+        },
+    },
+}
+
 aidl_interface {
     name: "android.companion.virtual.virtualdevice_aidl",
     unstable: true,
@@ -676,6 +828,14 @@ aidl_interface {
 filegroup {
     name: "frameworks-base-java-overview",
     srcs: ["overview.html"],
+}
+
+filegroup {
+    name: "framework-telecom-core-shared-srcs",
+    srcs: [
+        "android/util/IndentingPrintWriter.java",
+        "com/android/internal/os/SomeArgs.java",
+    ],
 }
 
 // Avoid including Parcelable classes as we don't want to have two copies of
@@ -720,12 +880,28 @@ filegroup {
     ],
 }
 
-filegroup {
-    name: "android-os-statsbootstrap-aidl",
+aidl_interface {
+    name: "android.os.statsbootstrap_aidl",
+    unstable: true,
     srcs: [
         "android/os/IStatsBootstrapAtomService.aidl",
         "android/os/StatsBootstrapAtom.aidl",
         "android/os/StatsBootstrapAtomValue.aidl",
+    ],
+    backend: {
+        cpp: {
+            enabled: true,
+        },
+    },
+}
+
+filegroup {
+    name: "android-os-binderstatsconsumer-aidl",
+    srcs: [
+        "android/os/binder/IBinderStatsConsumerService.aidl",
+        "android/os/binder/BinderCallsStats.aidl",
+        "android/os/binder/BinderSpamStats.aidl",
+        "android/os/binder/SingleSecondBinderStats.aidl",
     ],
     visibility: ["//frameworks/native/libs/binder"],
 }
@@ -818,6 +994,15 @@ java_system_features_srcs {
     visibility: ["//visibility:private"],
 }
 
+// Set of proguard flags that may be implicitly applied to bundled targets built
+// against private SDK APIs. We don't inject these into framework targets
+// directly as we don't want them propagating across any library boundaries.
+filegroup {
+    name: "framework-private-proguard",
+    srcs: [":systemfeatures-gen-srcs{.proguardFlagsFiles}"],
+    visibility: ["//visibility:private"],
+}
+
 aidl_interface {
     name: "activitymanager_structured_aidl",
     unstable: true,
@@ -862,6 +1047,49 @@ aidl_interface {
     ],
     host_supported: true,
     unstable: true,
+    backend: {
+        java: {
+            // java code is generated through framework-core-sources.
+            enabled: false,
+        },
+        rust: {
+            enabled: true,
+        },
+    },
+}
+
+filegroup {
+    name: "framework-device-policy-metadata-sources",
+    srcs: [
+        "android/app/admin/metadata/*.java",
+    ],
+}
+
+aidl_interface {
+    name: "attentionmanager_native_aidl",
+    srcs: [
+        "android/attention/InteractionState.aidl",
+    ],
+    host_supported: true,
+    unstable: true,
+    backend: {
+        java: {
+            enabled: true,
+        },
+        cpp: {
+            enabled: true,
+        },
+    },
+}
+
+// Build rust bindings for hidservice
+aidl_interface {
+    name: "android.hardware.hid",
+    host_supported: true,
+    unstable: true,
+    srcs: [
+        "android/hardware/hid/IHidManager.aidl",
+    ],
     backend: {
         java: {
             // java code is generated through framework-core-sources.

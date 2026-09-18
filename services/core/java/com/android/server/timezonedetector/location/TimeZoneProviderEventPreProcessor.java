@@ -30,5 +30,4 @@ public interface TimeZoneProviderEventPreProcessor {
      * time zone IDs.
      */
     TimeZoneProviderEvent preProcess(@NonNull TimeZoneProviderEvent timeZoneProviderEvent);
-
 }

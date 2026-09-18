@@ -469,4 +469,55 @@ public class PaintTest {
 
         assertThat(first.getDerivedFrom()).isSameInstanceAs(second.getDerivedFrom());
     }
+
+    @SmallTest
+    @Test
+    public void testGetTextPath() {
+        Paint paint = new Paint();
+        paint.setTextSize(100);
+        Path path = new Path();
+
+        // Test with a string
+        assertTrue("Path should be empty initially", path.isEmpty());
+        paint.getTextPath("A", 0, 1, 0, 0, path);
+        assertFalse("getTextPath with String should make the path not empty", path.isEmpty());
+
+        // Test with a char array
+        path.reset();
+        assertTrue("Path should be empty after reset", path.isEmpty());
+        char[] text = new char[]{'B'};
+        paint.getTextPath(text, 0, 1, 0, 0, path);
+        assertFalse("getTextPath with char[] should make the path not empty", path.isEmpty());
+    }
+
+    @SmallTest
+    @Test
+    public void testGetFillPath() {
+        Paint paint = new Paint();
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(10);
+
+        Path src = new Path();
+        src.addRect(0, 0, 20, 20, Path.Direction.CW);
+
+        Path dst = new Path();
+        assertTrue("Destination path should be empty initially", dst.isEmpty());
+
+        assertTrue("getFillPath should succeed", paint.getFillPath(src, dst));
+        assertFalse("Destination path should not be empty after getFillPath", dst.isEmpty());
+
+        RectF srcBounds = new RectF();
+        src.computeBounds(srcBounds, true);
+
+        RectF dstBounds = new RectF();
+        dst.computeBounds(dstBounds, true);
+
+        // The destination path should be the outline of the source path.
+        // Its bounds should be larger than the source path's bounds by roughly strokeWidth / 2.
+        float halfStroke = paint.getStrokeWidth() / 2;
+        assertEquals(srcBounds.left - halfStroke, dstBounds.left, 0.1f);
+        assertEquals(srcBounds.top - halfStroke, dstBounds.top, 0.1f);
+        assertEquals(srcBounds.right + halfStroke, dstBounds.right, 0.1f);
+        assertEquals(srcBounds.bottom + halfStroke, dstBounds.bottom, 0.1f);
+    }
 }

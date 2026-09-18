@@ -32,6 +32,9 @@ import android.hardware.biometrics.BiometricPrompt.DISMISSED_REASON_USER_CANCEL
 import android.hardware.biometrics.PromptInfo
 import android.util.Log
 import com.android.internal.logging.InstanceId
+import com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_PASSWORD
+import com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_PATTERN
+import com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_PIN
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.log.SessionTracker
 import com.android.systemui.shared.system.SysUiStatsLog
@@ -39,6 +42,9 @@ import com.android.systemui.shared.system.SysUiStatsLog.BIOMETRIC_PROMPT_ENDED__
 import com.android.systemui.shared.system.SysUiStatsLog.BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_BIOMETRIC_CONFIRM_NOT_REQUIRED
 import com.android.systemui.shared.system.SysUiStatsLog.BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_CONTENT_VIEW_MORE_OPTIONS
 import com.android.systemui.shared.system.SysUiStatsLog.BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_CREDENTIAL_CONFIRMED
+import com.android.systemui.shared.system.SysUiStatsLog.BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_CREDENTIAL_PASSWORD_CONFIRMED
+import com.android.systemui.shared.system.SysUiStatsLog.BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_CREDENTIAL_PATTERN_CONFIRMED
+import com.android.systemui.shared.system.SysUiStatsLog.BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_CREDENTIAL_PIN_CONFIRMED
 import com.android.systemui.shared.system.SysUiStatsLog.BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_ERROR
 import com.android.systemui.shared.system.SysUiStatsLog.BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_ERROR_NO_WM
 import com.android.systemui.shared.system.SysUiStatsLog.BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_FALLBACK_OPTION
@@ -92,11 +98,17 @@ class BiometricPromptLogger @Inject constructor() {
             hasCustomNegativeButtonText,
             promptInfo.fallbackOptions.size,
             promptInfo.isIdentityCheckActive,
+            promptInfo.isSystemCaller,
+            promptInfo.identityCheckInactiveReason,
         )
     }
 
     /** Logs Biometric Prompt end and reason */
-    fun logPromptEnd(sessionId: InstanceId?, @BiometricPrompt.DismissedReason reason: Int) {
+    fun logPromptEnd(
+        sessionId: InstanceId?,
+        @BiometricPrompt.DismissedReason reason: Int,
+        credentialType: Int,
+    ) {
         if (sessionId == null) {
             Log.d(TAG, "Failed to log PromptEnd - SessionId null")
             return
@@ -105,11 +117,14 @@ class BiometricPromptLogger @Inject constructor() {
         SysUiStatsLog.write(
             SysUiStatsLog.BIOMETRIC_PROMPT_ENDED,
             sessionId.id,
-            toBiometricPromptEndedReason(reason),
+            toBiometricPromptEndedReason(reason, credentialType),
         )
     }
 
-    private fun toBiometricPromptEndedReason(@BiometricPrompt.DismissedReason reason: Int): Int {
+    private fun toBiometricPromptEndedReason(
+        @BiometricPrompt.DismissedReason reason: Int,
+        credentialType: Int,
+    ): Int {
         return when (reason) {
             // Check if the reason is within the fallback option range
             in DISMISSED_REASON_FALLBACK_OPTION_BASE until DISMISSED_REASON_FALLBACK_OPTION_MAX ->
@@ -127,7 +142,15 @@ class BiometricPromptLogger @Inject constructor() {
             DISMISSED_REASON_SERVER_REQUESTED ->
                 BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_SERVER_REQUESTED
             DISMISSED_REASON_CREDENTIAL_CONFIRMED ->
-                BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_CREDENTIAL_CONFIRMED
+                when (credentialType) {
+                    CREDENTIAL_TYPE_PATTERN ->
+                        BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_CREDENTIAL_PATTERN_CONFIRMED
+                    CREDENTIAL_TYPE_PASSWORD ->
+                        BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_CREDENTIAL_PASSWORD_CONFIRMED
+                    CREDENTIAL_TYPE_PIN ->
+                        BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_CREDENTIAL_PIN_CONFIRMED
+                    else -> BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_CREDENTIAL_CONFIRMED
+                }
             DISMISSED_REASON_CONTENT_VIEW_MORE_OPTIONS ->
                 BIOMETRIC_PROMPT_ENDED__REASON__PROMPT_ENDED_REASON_CONTENT_VIEW_MORE_OPTIONS
             DISMISSED_REASON_ERROR_NO_WM ->
@@ -137,13 +160,18 @@ class BiometricPromptLogger @Inject constructor() {
     }
 
     /** Logs an event in Biometric Prompt */
-    fun logPromptEvent(sessionId: InstanceId?, event: Int) {
+    fun logPromptEvent(sessionId: InstanceId?, event: Int, watchRangingErrorCode: Int) {
         if (sessionId == null) {
             Log.d(TAG, "Failed to log PromptEvent - SessionId null")
             return
         }
 
-        SysUiStatsLog.write(SysUiStatsLog.BIOMETRIC_PROMPT_EVENT, sessionId.id, event)
+        SysUiStatsLog.write(
+            SysUiStatsLog.BIOMETRIC_PROMPT_EVENT,
+            sessionId.id,
+            event,
+            watchRangingErrorCode,
+        )
     }
 
     companion object {

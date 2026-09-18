@@ -20,6 +20,7 @@ import static android.appwidget.AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY;
 import static android.appwidget.AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD;
 import static android.appwidget.flags.Flags.FLAG_ENGAGEMENT_METRICS;
 import static android.appwidget.flags.Flags.engagementMetrics;
+import static android.appwidget.flags.Flags.widgetDisplayChanges;
 import static android.content.res.Flags.selfTargetingAndroidResourceFrro;
 
 import android.annotation.FlaggedApi;
@@ -446,6 +447,10 @@ public class AppWidgetHostView extends FrameLayout implements AppWidgetHost.AppW
         options.putInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, (int) maxWidth);
         options.putInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, (int) maxHeight);
         options.putParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES, paddedSizes);
+        if (widgetDisplayChanges() && getDisplay() != null) {
+            options.putInt(AppWidgetManager.OPTION_APPWIDGET_DISPLAY_ID,
+                    getDisplay().getDisplayId());
+        }
         updateAppWidgetOptions(options);
     }
 

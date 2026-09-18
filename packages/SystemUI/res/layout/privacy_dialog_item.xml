@@ -56,7 +56,7 @@
         android:layout_width="24dp"
         android:layout_gravity="center_vertical"
         android:src="@*android:drawable/ic_chevron_end"
-        android:tint="?android:attr/textColorPrimary"
+        android:tint="@color/materialColorOnSurface"
         />
 
 </LinearLayout>

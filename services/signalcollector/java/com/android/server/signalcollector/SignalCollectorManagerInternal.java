@@ -16,9 +16,8 @@
 
 package com.android.server.signalcollector;
 
-import android.annotation.Nullable;
-
-import com.android.server.signalcollector.binder.BinderSpamSignalCollector;
+import android.os.binder.BinderCallsStats;
+import android.os.binder.SingleSecondBinderStats;
 
 /**
  * Internal interface for the SignalCollectorService.
@@ -27,8 +26,15 @@ import com.android.server.signalcollector.binder.BinderSpamSignalCollector;
  */
 public abstract class SignalCollectorManagerInternal {
     /**
-     * Gets the binder call signal collector.
+     * Report some binder stats that is in ~5-second granularity to the collector.
+     * Between this and {@link #reportBinderStats(SingleSecondBinderStats[])}, only one will receive
+     * stats.
      */
-    @Nullable
-    public abstract BinderSpamSignalCollector getBinderSpamSignalCollector();
+    public abstract void reportBinderStats(BinderCallsStats[] statsArray);
+
+    /**
+     * Report a list of single-second binder call stats to the collector.
+     * Between this and {@link #reportBinderStats(BinderCallsStats[])}, only one will receive stats.
+     */
+    public abstract void reportBinderStats(SingleSecondBinderStats[] statsArray);
 }

@@ -164,28 +164,16 @@
 
     <!-- Titles for Bluetooth MAP Versions -->
     <string-array name="bluetooth_map_versions">
-        <item>MAP 1.2 (Default)</item>
+        <item>MAP 1.4 (Default)</item>
         <item>MAP 1.3</item>
-        <item>MAP 1.4</item>
+        <item>MAP 1.2</item>
     </string-array>
 
     <!-- Values for Bluetooth MAP Versions -->
     <string-array name="bluetooth_map_version_values">
-        <item>map12</item>
-        <item>map13</item>
         <item>map14</item>
-    </string-array>
-
-    <!-- Titles for Bluetooth Audio Codec selection preference. [CHAR LIMIT=50] -->
-    <string-array name="bluetooth_a2dp_codec_titles">
-        <item>Use System Selection (Default)</item>
-        <item>SBC</item>
-        <item>AAC</item>
-        <item><xliff:g id="qualcomm">Qualcomm®</xliff:g> <xliff:g id="aptx">aptX™</xliff:g> audio</item>
-        <item><xliff:g id="qualcomm">Qualcomm®</xliff:g> <xliff:g id="aptx_hd">aptX™ HD</xliff:g> audio</item>
-        <item>LDAC</item>
-        <item>LC3</item>
-        <item>Opus</item>
+        <item>map13</item>
+        <item>map12</item>
     </string-array>
 
     <!-- Summaries for Bluetooth Audio Codec selection preference. [CHAR LIMIT=50]-->
@@ -196,7 +184,6 @@
         <item><xliff:g id="qualcomm">Qualcomm®</xliff:g> <xliff:g id="aptx">aptX™</xliff:g> audio</item>
         <item><xliff:g id="qualcomm">Qualcomm®</xliff:g> <xliff:g id="aptx_hd">aptX™ HD</xliff:g> audio</item>
         <item>LDAC</item>
-        <item>LC3</item>
         <item>Opus</item>
     </string-array>
 
@@ -408,32 +395,32 @@
     <string-array name="overlay_display_devices_entries">
         <item>None</item>
         <item>480p</item>
-        <item>480p (secure)</item>
+        <item>480p (external, secure)</item>
         <item>720p</item>
-        <item>720p (secure)</item>
+        <item>720p (external, secure)</item>
         <item>1080p</item>
-        <item>1080p (secure)</item>
+        <item>1080p (external, secure)</item>
         <item>4K</item>
-        <item>4K (secure)</item>
+        <item>4K (secure, external)</item>
         <item>4K (upscaled)</item>
-        <item>4K (upscaled, secure)</item>
-        <item>720p, 1080p (dual screen)</item>
+        <item>4K (upscaled, external, secure)</item>
+        <item>720p, 1080p (dual screen, external, secure)</item>
     </string-array>
 
     <!-- Values for overlay display devices preference. -->
     <string-array name="overlay_display_devices_values" translatable="false" >
         <item></item>
-        <item>720x480/142</item>
-        <item>720x480/142,secure</item>
-        <item>1280x720/213</item>
-        <item>1280x720/213,secure</item>
-        <item>1920x1080/320</item>
-        <item>1920x1080/320,secure</item>
-        <item>3840x2160/320</item>
-        <item>3840x2160/320,secure</item>
-        <item>1920x1080/320|3840x2160/640</item>
-        <item>1920x1080/320|3840x2160/640,secure</item>
-        <item>1280x720/213;1920x1080/320</item>
+        <item>720x480/142,unique_id=720x480</item>
+        <item>720x480/142,unique_id=720x480,external,secure</item>
+        <item>1280x720/213,unique_id=1280x720</item>
+        <item>1280x720/213,unique_id=1280x720,external,secure</item>
+        <item>1920x1080/320,unique_id=1920x1080</item>
+        <item>1920x1080/320,unique_id=1920x1080,external,secure</item>
+        <item>3840x2160/320,unique_id=3840x2160</item>
+        <item>3840x2160/320,unique_id=3840x2160,external,secure</item>
+        <item>1920x1080/320|3840x2160/640,unique_id=1920x1080_3840x2160</item>
+        <item>1920x1080/320|3840x2160/640,unique_id=1920x1080_3840x2160,external,secure</item>
+        <item>1280x720/213,unique_id=1280x720,external,secure;1920x1080/320,unique_id=1920x1080,external,secure</item>
     </string-array>
 
     <!-- Titles for OpenGL traces preference. [CHAR LIMIT=35] -->

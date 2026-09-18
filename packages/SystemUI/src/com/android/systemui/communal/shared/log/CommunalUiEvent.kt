@@ -69,7 +69,11 @@ enum class CommunalUiEvent(private val id: Int) : UiEventEnum {
     @UiEvent(doc = "A transition from Dream to Communal Hub starts due to dream awakening")
     DREAM_TO_COMMUNAL_HUB_DREAM_AWAKE_START(1866),
     @UiEvent(doc = "User tapped the button on Communal Hub to go to Dream")
-    COMMUNAL_HUB_SHOW_DREAM_BUTTON_TAP(2065);
+    COMMUNAL_HUB_SHOW_DREAM_BUTTON_TAP(2065),
+    @UiEvent(doc = "Device has become postured (upright and charging)")
+    COMMUNAL_DEVICE_POSTURED(2628),
+    @UiEvent(doc = "Device is no longer postured (upright and charging)")
+    COMMUNAL_DEVICE_UNPOSTURED(2629);
 
     override fun getId(): Int {
         return id

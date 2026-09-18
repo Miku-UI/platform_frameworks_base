@@ -27,17 +27,16 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.util.fastMap
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.compose.animation.scene.ContentScope
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.grid.ui.compose.VerticalSpannedGrid
-import com.android.systemui.haptics.msdl.qs.TileHapticsViewModelFactoryProvider
+import com.android.systemui.haptics.msdl.qs.TileHapticsViewModel
 import com.android.systemui.lifecycle.rememberViewModel
-import com.android.systemui.qs.flags.QSMaterialExpressiveTiles
 import com.android.systemui.qs.panels.shared.model.SizedTileImpl
-import com.android.systemui.qs.panels.ui.compose.ButtonGroupGrid
 import com.android.systemui.qs.panels.ui.compose.EditTileListState
 import com.android.systemui.qs.panels.ui.compose.PaginatableGridLayout
 import com.android.systemui.qs.panels.ui.compose.TileListener
@@ -52,6 +51,7 @@ import com.android.systemui.qs.panels.ui.viewmodel.TileViewModel
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.shared.ui.QuickSettings.Elements.toElementKey
 import com.android.systemui.res.R
+import com.android.systemui.shade.shared.flag.DualShadeFlag
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 
@@ -63,7 +63,7 @@ constructor(
     private val iconTilesViewModel: IconTilesViewModel,
     override val viewModelFactory: InfiniteGridViewModel.Factory,
     private val textFeedbackContentViewModelFactory: TextFeedbackContentViewModel.Factory,
-    private val tileHapticsViewModelFactoryProvider: TileHapticsViewModelFactoryProvider,
+    private val tileHapticsViewModelFactory: TileHapticsViewModel.Factory,
 ) : PaginatableGridLayout {
 
     @Composable
@@ -97,66 +97,40 @@ constructor(
         val squishiness by viewModel.squishinessViewModel.squishiness.collectAsStateWithLifecycle()
         val scope = rememberCoroutineScope()
 
-        if (QSMaterialExpressiveTiles.isEnabled) {
-            ButtonGroupGrid(
-                sizedTiles = sizedTiles,
-                columns = columns,
-                keys = { it.spec },
-                elementKey = { it.spec.toElementKey() },
-                horizontalPadding = dimensionResource(R.dimen.qs_tile_margin_horizontal),
-                modifier = modifier,
-            ) { sizedTile, interactionSource ->
+        val bounceables =
+            remember(sizedTiles) { List(sizedTiles.size) { BounceableTileViewModel() } }
+        val spans by remember(sizedTiles) { derivedStateOf { sizedTiles.fastMap { it.width } } }
+        VerticalSpannedGrid(
+            columns = columns,
+            columnSpacing = dimensionResource(R.dimen.qs_tile_margin_horizontal),
+            rowSpacing = dimensionResource(R.dimen.qs_tile_margin_vertical),
+            spans = spans,
+            keys = { sizedTiles[it].tile.spec },
+            modifier = modifier,
+        ) { spanIndex, column, isFirstInColumn, isLastInColumn ->
+            val it = sizedTiles[spanIndex]
+
+            Element(it.tile.spec.toElementKey(), Modifier) {
                 Tile(
-                    tile = sizedTile.tile,
-                    iconOnly = iconTilesViewModel.isIconTile(sizedTile.tile.spec),
+                    tile = it.tile,
+                    iconOnly = iconTilesViewModel.isIconTile(it.tile.spec),
                     squishiness = { squishiness },
-                    tileHapticsViewModelFactoryProvider = tileHapticsViewModelFactoryProvider,
+                    tileHapticsViewModelFactory = tileHapticsViewModelFactory,
                     coroutineScope = scope,
+                    bounceableInfo =
+                        bounceables.bounceableInfo(
+                            it,
+                            index = spanIndex,
+                            column = column,
+                            columns = columns,
+                            isFirstInRow = isFirstInColumn,
+                            isLastInRow = isLastInColumn,
+                        ),
                     detailsViewModel = detailsViewModel,
                     isVisible = listening,
                     requestToggleTextFeedback = textFeedbackViewModel::requestShowFeedback,
                     enableRevealEffect = enableRevealEffect,
-                    bounceableInfo = null,
-                    interactionSource = interactionSource,
                 )
-            }
-        } else {
-            val bounceables =
-                remember(sizedTiles) { List(sizedTiles.size) { BounceableTileViewModel() } }
-            val spans by remember(sizedTiles) { derivedStateOf { sizedTiles.fastMap { it.width } } }
-            VerticalSpannedGrid(
-                columns = columns,
-                columnSpacing = dimensionResource(R.dimen.qs_tile_margin_horizontal),
-                rowSpacing = dimensionResource(R.dimen.qs_tile_margin_vertical),
-                spans = spans,
-                keys = { sizedTiles[it].tile.spec },
-                modifier = modifier,
-            ) { spanIndex, column, isFirstInColumn, isLastInColumn ->
-                val it = sizedTiles[spanIndex]
-
-                Element(it.tile.spec.toElementKey(), Modifier) {
-                    Tile(
-                        tile = it.tile,
-                        iconOnly = iconTilesViewModel.isIconTile(it.tile.spec),
-                        squishiness = { squishiness },
-                        tileHapticsViewModelFactoryProvider = tileHapticsViewModelFactoryProvider,
-                        coroutineScope = scope,
-                        bounceableInfo =
-                            bounceables.bounceableInfo(
-                                it,
-                                index = spanIndex,
-                                column = column,
-                                columns = columns,
-                                isFirstInRow = isFirstInColumn,
-                                isLastInRow = isLastInColumn,
-                            ),
-                        detailsViewModel = detailsViewModel,
-                        isVisible = listening,
-                        requestToggleTextFeedback = textFeedbackViewModel::requestShowFeedback,
-                        enableRevealEffect = enableRevealEffect,
-                        interactionSource = null,
-                    )
-                }
             }
         }
 
@@ -200,8 +174,15 @@ constructor(
                     coroutineScope.launch { scrollState.animateScrollTo(0) }
                 }
             }
+        val showDualShadeSetting =
+            DualShadeFlag.isEnabled &&
+                LocalResources.current.getBoolean(
+                    com.android.settingslib.R.bool.config_useDualShadeSetting
+                )
         val actions =
-            remember(topBarActionsViewModel) { topBarActionsViewModel.actions.toMutableStateList() }
+            remember(topBarActionsViewModel, showDualShadeSetting) {
+                topBarActionsViewModel.actions(showDualShadeSetting).toMutableStateList()
+            }
         val columns = columnsViewModel.columns
         val largeTilesSpan = columnsViewModel.largeSpan
         val largeTiles by viewModel.iconTilesViewModel.largeTilesState

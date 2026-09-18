@@ -20,6 +20,7 @@ import android.hardware.biometrics.BiometricPrompt
 import android.hardware.biometrics.PromptInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.internal.widget.LockPatternUtils
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.biometrics.AuthController
 import com.android.systemui.biometrics.shared.model.BiometricModalities
@@ -87,7 +88,10 @@ class PromptRepositoryImplTest : SysuiTestCase() {
                 runCurrent()
                 assertThat(values).containsExactly(true, true)
 
-                value.onBiometricPromptDismissed(BiometricPrompt.DISMISSED_REASON_USER_CANCEL)
+                value.onBiometricPromptDismissed(
+                    BiometricPrompt.DISMISSED_REASON_USER_CANCEL,
+                    LockPatternUtils.CREDENTIAL_TYPE_PIN,
+                )
                 runCurrent()
                 assertThat(values).containsExactly(true, true, false).inOrder()
 

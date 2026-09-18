@@ -16,6 +16,8 @@
 
 package android.text;
 
+import android.annotation.FlaggedApi;
+import android.view.accessibility.Flags;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.TextAttribute;
 import android.view.inputmethod.TextAttribute.Builder;
@@ -209,6 +211,24 @@ public interface InputType {
      * {@link InputConnection#commitText(CharSequence, int, TextAttribute)}.
      */
     public static final int TYPE_TEXT_FLAG_ENABLE_TEXT_CONVERSION_SUGGESTIONS = 0x00100000;
+
+    /**
+     * Flag for {@link #TYPE_CLASS_TEXT}: Let the IME know that conversion candidate
+     * selection information is requested by the application.
+     * Text conversion suggestion is for the transliteration languages, which have the notions of
+     * pronunciation and target characters. When the user actively selects a candidate
+     * from the conversion suggestions, notifying when candidate selection is occurring helps
+     * assistive technologies generate more effective feedback.
+     * When this flag is set, and there is an active selected suggestion, the IME should set that
+     * a conversion suggestion is selected {@link Builder#setSuggestionSelected(boolean)} when
+     * initializing the {@link TextAttribute}.
+     * To receive this information, the application should implement
+     * {@link InputConnection#setComposingText(CharSequence, int, TextAttribute)},
+     * {@link InputConnection#setComposingRegion(int, int, TextAttribute)}, and
+     * {@link InputConnection#commitText(CharSequence, int, TextAttribute)}.
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_TEXT_CHANGE_TYPES_API)
+    public static final int TYPE_TEXT_FLAG_ENABLE_TEXT_SUGGESTION_SELECTED = 0x00200000;
 
     // ----------------------------------------------------------------------
 

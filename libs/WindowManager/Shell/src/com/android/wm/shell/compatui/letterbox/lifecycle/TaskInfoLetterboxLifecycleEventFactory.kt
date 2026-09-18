@@ -17,6 +17,7 @@
 package com.android.wm.shell.compatui.letterbox.lifecycle
 
 import android.graphics.Rect
+import android.view.SurfaceControl
 import android.window.TransitionInfo.Change
 import com.android.window.flags.Flags
 import com.android.wm.shell.compatui.letterbox.config.LetterboxDependenciesHelper
@@ -37,7 +38,7 @@ class TaskInfoLetterboxLifecycleEventFactory(
 
     override fun createLifecycleEvent(change: Change): LetterboxLifecycleEvent? {
         change.taskInfo?.let { ti ->
-            val isLetterboxed = ti.appCompatTaskInfo?.isTopActivityLetterboxed ?: false
+            val isLetterboxed = ti.appCompatTaskInfo?.isTopActivityLetterboxRunning ?: false
             val taskBoundsAbs = change.endAbsBounds
             // The bounds are absolute to the screen but we need them relative to the Task.
             val taskBounds =
@@ -50,58 +51,48 @@ class TaskInfoLetterboxLifecycleEventFactory(
                     Rect(absBounds).apply { offset(-taskBoundsAbs.left, -taskBoundsAbs.top) }
                 }
             val shouldSupportInput = letterboxDependenciesHelper.shouldSupportInputSurface(change)
-            if (Flags.appCompatRefactoringRoundedCorners()) {
-                // Sometimes the [TransitionObserver] is notified before than the
-                // [TaskAppearedListener] and the related information (e.g. [Configuration])
-                // are required soon. This is the case, for instance, of rounded corners
-                // implementation which require the [Configuration] when the related surfaces
-                // are created.
-                letterboxTaskInfoRepository.updateConfiguration(ti, change.leash)
+            var activityLeash: SurfaceControl? = null
+            if (Flags.appCompatRefactoringUseActivityLeashForLetterboxing()) {
+                activityLeash = change.topCompatActivityLeash
             }
-            if (Flags.appCompatRefactoringFixMultiwindowTaskHierarchy()) {
-                // Because the [TransitionObserver] is invoked before the [OnTaskAppearedListener]s
-                // it's important to store the information about the Task to be reused below for the
-                // actual Task resolution given its id and parentId. Only Leaf tasks are stored
-                // because they are the only ones with the capability of containing letterbox
-                // surfaces.
-                letterboxTaskInfoRepository.updateTaskLeafState(ti, change.leash)
-                // If the task is not a leaf task the related entry is not present in the
-                // Repository. The taskIdResolver will then search for a task which is a direct
-                // child. If no Task is found the same id will be used later and the event
-                // will be null resulting in a skipped event.
-                // If the task is a leaf task the related entry will be present in the Repository
-                // and the effectiveTaskId will be the correct taskId to use for the event.
-                val effectiveTaskId = taskIdResolver.getLetterboxTaskId(ti)
-                // The effectiveTaskId will then be the taskId of a leaf task (using parentId or
-                // not) or the id of a missing task (no leaf). In the former case we need to use the
-                // related token and leash. In the latter case the method returns null as mentioned
-                // above.
-                letterboxTaskInfoRepository.find(effectiveTaskId)?.let { item ->
-                    return LetterboxLifecycleEvent(
-                        type = change.asLetterboxLifecycleEventType(),
-                        displayId = ti.displayId,
-                        taskId = effectiveTaskId,
-                        taskBounds = taskBounds,
-                        letterboxBounds = letterboxBounds,
-                        containerToken = item.containerToken,
-                        taskLeash = item.containerLeash,
-                        isBubble = ti.isAppBubble,
-                        isTranslucent = change.isTranslucent(),
-                        supportsInput = shouldSupportInput,
-                    )
-                }
-            } else {
+            val mainWindowHasRoundedCorners = change.mainWindowHasRoundedCorners()
+            // Sometimes the [TransitionObserver] is notified before than the
+            // [TaskAppearedListener] and the related information (e.g. [Configuration])
+            // are required soon. This is the case, for instance, of rounded corners
+            // implementation which require the [Configuration] when the related surfaces
+            // are created.
+            letterboxTaskInfoRepository.updateConfiguration(ti, change.leash)
+            // Because the [TransitionObserver] is invoked before the [OnTaskAppearedListener]s
+            // it's important to store the information about the Task to be reused below for the
+            // actual Task resolution given its id and parentId. Only Leaf tasks are stored
+            // because they are the only ones with the capability of containing letterbox
+            // surfaces.
+            letterboxTaskInfoRepository.updateTaskLeafState(ti, change.leash)
+            // If the task is not a leaf task the related entry is not present in the
+            // Repository. The taskIdResolver will then search for a task which is a direct
+            // child. If no Task is found the same id will be used later and the event
+            // will be null resulting in a skipped event.
+            // If the task is a leaf task the related entry will be present in the Repository
+            // and the effectiveTaskId will be the correct taskId to use for the event.
+            val effectiveTaskId = taskIdResolver.getLetterboxTaskId(ti)
+            // The effectiveTaskId will then be the taskId of a leaf task (using parentId or
+            // not) or the id of a missing task (no leaf). In the former case we need to use the
+            // related token and leash. In the latter case the method returns null as mentioned
+            // above.
+            letterboxTaskInfoRepository.find(effectiveTaskId)?.let { item ->
                 return LetterboxLifecycleEvent(
                     type = change.asLetterboxLifecycleEventType(),
                     displayId = ti.displayId,
-                    taskId = ti.taskId,
+                    taskId = effectiveTaskId,
                     taskBounds = taskBounds,
                     letterboxBounds = letterboxBounds,
-                    containerToken = ti.token,
-                    taskLeash = change.leash,
+                    containerToken = item.containerToken,
+                    taskLeash = item.containerLeash,
+                    activityLeash = activityLeash,
                     isBubble = ti.isAppBubble,
                     isTranslucent = change.isTranslucent(),
                     supportsInput = shouldSupportInput,
+                    mainWindowHasRoundedCorners = mainWindowHasRoundedCorners,
                 )
             }
         }

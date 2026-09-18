@@ -36,8 +36,9 @@ interface RemoteTransitionHelper {
     }
 
     /**
-     * Applies transactions common to all remote transitions, such as setting up the alpha and
-     * rotation of various changes. Invoked before the animation starts.
+     * Queues up transactions common to all remote transitions, such as setting up the alpha and
+     * rotation of various changes. Invoked before the animation starts. Note: caller must make sure
+     * that the transaction is applied, as this method does not guarantee it.
      */
     fun setUpAnimation(
         token: IBinder,
@@ -47,8 +48,26 @@ interface RemoteTransitionHelper {
     )
 
     /**
-     * Cleans up any state leftover after [setUpAnimation] is called. Invoked right before the
-     * transition's finish callback.
+     * Performs the operations necessary when a merge request comes in. Depending on the intended
+     * behavior, these can include terminating the original transition so the new one can take over,
+     * terminating the new transition and letting the original carry on, or doing nothing.
+     *
+     * @return True if the merge was successful, and false otherwise.
      */
-    fun cleanUpAnimation(token: IBinder, transaction: SurfaceControl.Transaction)
+    fun mergeAnimation(
+        info: TransitionInfo?,
+        transaction: SurfaceControl.Transaction?,
+        mergeTarget: IBinder?,
+    ): Boolean
+
+    /** Performs the cleanup necessary when a transition is consumed. */
+    fun onTransitionConsumed(token: IBinder) {}
+
+    /**
+     * Terminates a transition and cleans up the leftover state. This includes invoking the finished
+     * callback.
+     *
+     * @return True if the finished callback was invoked successfully, and false otherwise.
+     */
+    fun cleanUpAnimation(token: IBinder, transaction: SurfaceControl.Transaction?): Boolean
 }

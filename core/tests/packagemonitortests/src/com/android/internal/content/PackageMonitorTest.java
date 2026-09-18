@@ -28,15 +28,22 @@ import static org.mockito.Mockito.verify;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.os.UserHandle;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
+import android.security.Flags;
 
-import androidx.test.runner.AndroidJUnit4;
+import com.google.testing.junit.testparameterinjector.TestParameter;
+import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -47,8 +54,11 @@ import org.mockito.MockitoAnnotations;
 /**
  * A unit test for PackageMonitor implementation.
  */
-@RunWith(AndroidJUnit4.class)
+@RunWith(TestParameterInjector.class)
 public class PackageMonitorTest {
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     private static final String FAKE_PACKAGE_NAME = "com.android.internal.content.fakeapp";
     private static final String FAKE_EXTRA_REASON = "android.intent.extra.fakereason";
     private static final int FAKE_PACKAGE_UID = 123;
@@ -276,6 +286,45 @@ public class PackageMonitorTest {
         verify(spyPackageMonitor, times(1))
                 .onPackageDataCleared(eq(FAKE_PACKAGE_NAME), eq(FAKE_PACKAGE_UID));
         verify(spyPackageMonitor, times(1)).onFinishPackageChanges();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_APP_LOCK_APIS)
+    public void testPackageMonitorDoHandlePackageEventAppLock(@TestParameter Boolean newState)
+            throws Exception {
+        PackageMonitor spyPackageMonitor = spy(new TestPackageMonitor());
+
+        Intent intent = new Intent(PackageManager.ACTION_PACKAGE_APP_LOCK_ENABLED_STATE_CHANGED);
+        intent.setData(Uri.fromParts("package", FAKE_PACKAGE_NAME, null));
+        intent.putExtra(Intent.EXTRA_USER_HANDLE, FAKE_USER_ID);
+        intent.putExtra(PackageManager.EXTRA_APP_LOCK_NEW_STATE, newState);
+        spyPackageMonitor.doHandlePackageEvent(intent);
+
+        verify(spyPackageMonitor).onBeginPackageChanges();
+        if (newState) {
+            verify(spyPackageMonitor).onPackageAppLockEnabled(eq(FAKE_PACKAGE_NAME));
+        } else {
+            verify(spyPackageMonitor).onPackageAppLockDisabled(eq(FAKE_PACKAGE_NAME));
+        }
+        verify(spyPackageMonitor).onSomePackagesChanged();
+        verify(spyPackageMonitor).onFinishPackageChanges();
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_APP_LOCK_APIS)
+    public void testPackageMonitorDoHandlePackageEventAppLock_flagDisabled_noCallback(
+            @TestParameter Boolean newState) throws Exception {
+        PackageMonitor spyPackageMonitor = spy(new TestPackageMonitor());
+
+        Intent intent = new Intent(PackageManager.ACTION_PACKAGE_APP_LOCK_ENABLED_STATE_CHANGED);
+        intent.setData(Uri.fromParts("package", FAKE_PACKAGE_NAME, null));
+        intent.putExtra(Intent.EXTRA_USER_HANDLE, FAKE_USER_ID);
+        intent.putExtra(PackageManager.EXTRA_APP_LOCK_NEW_STATE, newState);
+        spyPackageMonitor.doHandlePackageEvent(intent);
+
+        verify(spyPackageMonitor, never()).onPackageAppLockEnabled(eq(FAKE_PACKAGE_NAME));
+        verify(spyPackageMonitor, never()).onPackageAppLockDisabled(eq(FAKE_PACKAGE_NAME));
+        verify(spyPackageMonitor, never()).onSomePackagesChanged();
     }
 
     @Test

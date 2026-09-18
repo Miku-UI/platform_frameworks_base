@@ -29,7 +29,6 @@ import com.android.systemui.statusbar.chips.StatusBarChipsLog
 import com.android.systemui.statusbar.chips.notification.domain.model.NotificationChipModel
 import com.android.systemui.statusbar.notification.domain.interactor.ActiveNotificationsInteractor
 import com.android.systemui.statusbar.notification.domain.interactor.ActiveNotificationsInteractor.Companion.isOngoingCallNotification
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.util.kotlin.pairwise
 import com.android.systemui.util.time.SystemClock
 import javax.inject.Inject
@@ -76,7 +75,6 @@ constructor(
         _promotedNotificationChipTapEvent.asSharedFlow()
 
     suspend fun onPromotedNotificationChipTapped(key: String) {
-        PromotedNotificationUi.unsafeAssertInNewMode()
         _promotedNotificationChipTapEvent.emit(key)
     }
 
@@ -101,10 +99,6 @@ constructor(
         activeNotificationsInteractor.promotedOngoingNotifications
 
     override fun start() {
-        if (!PromotedNotificationUi.isEnabled) {
-            return
-        }
-
         backgroundScope.launch("StatusBarNotificationChipsInteractor") {
             promotedOngoingNotifications.pairwise(initialValue = emptyList()).collect {
                 (oldNotifs, currentNotifs) ->
@@ -144,23 +138,20 @@ constructor(
      * hide chips that have [NotificationChipModel.isAppVisible] as true.
      */
     val allNotificationChips: Flow<List<NotificationChipModel>> =
-        if (PromotedNotificationUi.isEnabled) {
-                // For all our current interactors...
-                promotedNotificationInteractors.flatMapLatest { interactors ->
-                    if (interactors.isNotEmpty()) {
-                        // Combine each interactor's [notificationChip] flow...
-                        val allNotificationChips: List<Flow<NotificationChipModel?>> =
-                            interactors.map { interactor -> interactor.notificationChip }
-                        combine(allNotificationChips) {
-                            // ... and emit just the non-null & sorted chips
-                            it.filterNotNull().sortedWith(chipComparator)
-                        }
-                    } else {
-                        flowOf(emptyList())
+        // For all our current interactors...
+        promotedNotificationInteractors
+            .flatMapLatest { interactors ->
+                if (interactors.isNotEmpty()) {
+                    // Combine each interactor's [notificationChip] flow...
+                    val allNotificationChips: List<Flow<NotificationChipModel?>> =
+                        interactors.map { interactor -> interactor.notificationChip }
+                    combine(allNotificationChips) {
+                        // ... and emit just the non-null & sorted chips
+                        it.filterNotNull().sortedWith(chipComparator)
                     }
+                } else {
+                    flowOf(emptyList())
                 }
-            } else {
-                flowOf(emptyList())
             }
             .distinctUntilChanged()
             .logSort()

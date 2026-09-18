@@ -158,7 +158,6 @@ public class BackupAgentTest {
 
     @Test
     public void doRestoreFile_agentOverrideIgnoresFile_consumesAllBytesInBuffer() throws Exception {
-        mSetFlagsRule.enableFlags(Flags.FLAG_ENABLE_CLEAR_PIPE_AFTER_RESTORE_FILE);
         BackupAgent agent = new TestRestoreIgnoringFullBackupAgent();
         agent.attach(mContext);
         agent.onCreate(USER_HANDLE, BackupDestination.CLOUD, OperationType.RESTORE);

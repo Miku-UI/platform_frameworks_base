@@ -16,7 +16,7 @@
 
 package com.android.systemui.volume.dialog.data.repository
 
-import com.android.systemui.volume.dialog.dagger.scope.VolumeDialogPlugin
+import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.volume.dialog.shared.model.VolumeDialogStateModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
@@ -25,7 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /** Holds current [VolumeDialogStateModel]. */
-@VolumeDialogPlugin
+@SysUISingleton
 class VolumeDialogStateRepository @Inject constructor() {
 
     private val mutableState = MutableStateFlow(VolumeDialogStateModel())

@@ -18,26 +18,21 @@
 
 #define LOG_NDEBUG 0
 
-#include <condition_variable>
-#include <mutex>
-#include <optional>
-
-#include <adb/pairing/pairing_server.h>
 #include <android-base/properties.h>
 #include <jni.h>
 #include <nativehelper/JNIHelp.h>
 #include <nativehelper/utils.h>
 #include <utils/Log.h>
 
+#include "adb/IPairingServer.h"
+
 namespace android {
+
+using namespace adb::pairing;
 
 // ----------------------------------------------------------------------------
 namespace {
 
-struct ServerDeleter {
-    void operator()(PairingServerCtx* p) { pairing_server_destroy(p); }
-};
-using PairingServerPtr = std::unique_ptr<PairingServerCtx, ServerDeleter>;
 struct PairingResultWaiter {
     std::mutex mutex_;
     std::condition_variable cv_;
@@ -57,13 +52,32 @@ struct PairingResultWaiter {
     }
 };
 
-PairingServerPtr sServer;
-std::unique_ptr<PairingResultWaiter> sWaiter;
+struct PairingSession {
+    std::unique_ptr<IPairingServer> server;
+    std::unique_ptr<PairingResultWaiter> waiter;
+
+    ~PairingSession() {
+        // Since PairingServer holds a reference to PairingResultWaiter, the order of destruction
+        // matters.
+        // TODO(b/474373608): Move the waiter into IPairingServer so we don't have to worry
+        // about order.
+        server.reset();
+        waiter.reset();
+    }
+};
+
 } // namespace
 
-static jint native_pairing_start(JNIEnv* env, jobject thiz, jstring javaGuid, jstring javaPassword) {
+using android::PairingSession;
+
+// Returns an opaque handle on success. Returns 0 on failure. Clean up with `native_pairing_destroy`
+// once pairing is finished.
+static jlong native_pairing_start(JNIEnv* env, jobject thiz, jstring javaGuid,
+                                  jstring javaPassword) {
+    auto session = std::make_unique<PairingSession>();
+
     // Server-side only sends its GUID on success.
-    PeerInfo system_info = { .type = ADB_DEVICE_GUID };
+    PeerInfo system_info = {.type = ADB_DEVICE_GUID};
 
     ScopedUtfChars guid = GET_UTF_OR_RETURN(env, javaGuid);
     memcpy(system_info.data, guid.c_str(), guid.size());
@@ -71,48 +85,74 @@ static jint native_pairing_start(JNIEnv* env, jobject thiz, jstring javaGuid, js
     ScopedUtfChars password = GET_UTF_OR_RETURN(env, javaPassword);
 
     // Create the pairing server
-    sServer = PairingServerPtr(
-            pairing_server_new_no_cert(reinterpret_cast<const uint8_t*>(password.c_str()),
-                                       password.size(), &system_info, 0));
+    session->server = std::unique_ptr<IPairingServer>(
+            IPairingServer::CreateNoCert(reinterpret_cast<const uint8_t*>(password.c_str()),
+                                         password.size(), &system_info));
 
-    sWaiter.reset(new PairingResultWaiter);
-    uint16_t port = pairing_server_start(sServer.get(), sWaiter->ResultCallback, sWaiter.get());
+    session->waiter = std::make_unique<PairingResultWaiter>();
+    uint16_t port = session->server->Start(session->waiter->ResultCallback, session->waiter.get());
     if (port == 0) {
         ALOGE("Failed to start pairing server");
         return -1;
     }
 
-    return port;
+    // Java layer now owns the PairingSession and is responsible for cleanup via
+    // `pairing_server_destroy`.
+    return reinterpret_cast<jlong>(session.release());
 }
 
-static void native_pairing_cancel(JNIEnv* /* env */, jclass /* clazz */) {
-    if (sServer != nullptr) {
-        sServer.reset();
-    }
+// Cancels the pairing session. If another thread is blocked on `native_pairing_wait`, calling this
+// function will unblock it. Subsequent calls to `native_pairing_cancel` is a no-op.
+static void native_pairing_cancel(JNIEnv* /* env */, jclass /* clazz */, jlong sessionHandle) {
+    auto* s = reinterpret_cast<PairingSession*>(sessionHandle);
+    s->server->StopListening();
 }
 
-static jstring native_pairing_wait(JNIEnv* env, jobject thiz) {
+// Blocks until pairing completes. `native_pairing_cancel` can be called on a separate thread
+// to unblock this call. On success, returns a string containing the public key on the paired
+// device, null on failure.
+static jstring native_pairing_wait(JNIEnv* env, jobject thiz, jlong sessionHandle) {
+    auto* s = reinterpret_cast<PairingSession*>(sessionHandle);
     ALOGI("Waiting for pairing server to complete");
-    std::unique_lock<std::mutex> lock(sWaiter->mutex_);
-    if (!sWaiter->is_valid_.has_value()) {
-        sWaiter->cv_.wait(lock, [&]() { return sWaiter->is_valid_.has_value(); });
+    // Wait until pairing server triggers the PairingResultWaiter callback indicating a result has
+    // been obtained.
+    std::unique_lock<std::mutex> lock(s->waiter->mutex_);
+    if (!s->waiter->is_valid_.has_value()) {
+        s->waiter->cv_.wait(lock, [s]() { return s->waiter->is_valid_.has_value(); });
     }
-    if (!*(sWaiter->is_valid_)) {
+
+    // Pairing failed or was cancelled.
+    if (!*(s->waiter->is_valid_)) {
         return nullptr;
     }
 
-    char* peer_public_key = reinterpret_cast<char*>(sWaiter->peer_info_.data);
+    // Pairing succeed, and pairing server gave us the public key of the paired device.
+    char* peer_public_key = reinterpret_cast<char*>(s->waiter->peer_info_.data);
     return env->NewStringUTF(peer_public_key);
 }
 
+// Returns the port number opened for pairing.
+static jint native_pairing_get_port(JNIEnv* /* env */, jclass /* clazz */, jlong sessionHandle) {
+    auto* s = reinterpret_cast<PairingSession*>(sessionHandle);
+    return s->server->GetPort();
+}
+
+// Destroys the pairing session handle `sessionHandle`. Subsequent usage of `sessionHandle` is
+// undefined.
+static void native_pairing_destroy(JNIEnv* /* env */, jclass /* clazz */, jlong sessionHandle) {
+    auto* s = reinterpret_cast<PairingSession*>(sessionHandle);
+    delete s;
+}
 // ----------------------------------------------------------------------------
 
 static const JNINativeMethod gPairingThreadMethods[] = {
         /* name, signature, funcPtr */
-        {"native_pairing_start", "(Ljava/lang/String;Ljava/lang/String;)I",
+        {"native_pairing_start", "(Ljava/lang/String;Ljava/lang/String;)J",
          (void*)native_pairing_start},
-        {"native_pairing_cancel", "()V", (void*)native_pairing_cancel},
-        {"native_pairing_wait", "()Ljava/lang/String;", (void*)native_pairing_wait},
+        {"native_pairing_cancel", "(J)V", (void*)native_pairing_cancel},
+        {"native_pairing_wait", "(J)Ljava/lang/String;", (void*)native_pairing_wait},
+        {"native_pairing_get_port", "(J)I", (void*)native_pairing_get_port},
+        {"native_pairing_destroy", "(J)V", (void*)native_pairing_destroy},
 };
 
 int register_android_server_AdbDebuggingManager(JNIEnv* env) {

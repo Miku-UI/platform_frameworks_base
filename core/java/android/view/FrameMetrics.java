@@ -192,7 +192,7 @@ public final class FrameMetrics {
     /**
      * Identifiers for metrics available for each frame.
      *
-     * {@see #getMetric(int)}
+     * @see #getMetric(int)
      * @hide
      */
     @IntDef({
@@ -260,19 +260,20 @@ public final class FrameMetrics {
         int FRAME_START_TIME = 10;
         int FRAME_INTERVAL = 11;
         int WORKLOAD_TARGET = 12;
-        int SYNC_QUEUED = 13;
-        int SYNC_START = 14;
-        int ISSUE_DRAW_COMMANDS_START = 15;
-        int SWAP_BUFFERS = 16;
-        int FRAME_COMPLETED = 17;
-        int DEQUEUE_BUFFER_DURATION = 18;
-        int QUEUE_BUFFER_DURATION = 19;
-        int GPU_COMPLETED = 20;
-        int SWAP_BUFFERS_COMPLETED = 21;
-        int DISPLAY_PRESENT_TIME = 22;
-        int COMMAND_SUBMISSION_COMPLETED = 23;
+        int ANIMATION_TIME = 13;
+        int SYNC_QUEUED = 14;
+        int SYNC_START = 15;
+        int ISSUE_DRAW_COMMANDS_START = 16;
+        int SWAP_BUFFERS = 17;
+        int FRAME_COMPLETED = 18;
+        int DEQUEUE_BUFFER_DURATION = 19;
+        int QUEUE_BUFFER_DURATION = 20;
+        int GPU_COMPLETED = 21;
+        int SWAP_BUFFERS_COMPLETED = 22;
+        int DISPLAY_PRESENT_TIME = 23;
+        int COMMAND_SUBMISSION_COMPLETED = 24;
 
-        int FRAME_STATS_COUNT = 24; // must always be last and in sync with
+        int FRAME_STATS_COUNT = 25; // must always be last and in sync with
                                     // FrameInfoIndex::NumIndexes in libs/hwui/FrameInfo.h
     }
 

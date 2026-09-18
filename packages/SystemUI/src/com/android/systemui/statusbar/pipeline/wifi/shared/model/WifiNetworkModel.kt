@@ -24,8 +24,6 @@ import androidx.annotation.VisibleForTesting
 import com.android.systemui.log.table.Diffable
 import com.android.systemui.log.table.TableRowLogger
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionRepository
-import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel.Active.Companion.MAX_VALID_LEVEL
-import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel.Active.Companion.isValid
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel.Active.Companion.of
 import com.android.wifitrackerlib.HotspotNetworkEntry.DeviceType
 import com.android.wifitrackerlib.WifiEntry
@@ -56,7 +54,7 @@ sealed class WifiNetworkModel : Diffable<WifiNetworkModel> {
         override fun logFull(row: TableRowLogger) {
             row.logChange(COL_NETWORK_TYPE, TYPE_UNAVAILABLE)
             row.logChange(COL_SUB_ID, SUB_ID_DEFAULT)
-            row.logChange(COL_VALIDATED, false)
+            row.logChange(COL_SHOW_EXCLAMATION, false)
             row.logChange(COL_LEVEL, LEVEL_DEFAULT)
             row.logChange(COL_NUM_LEVELS, NUM_LEVELS_DEFAULT)
             row.logChange(COL_SSID, null)
@@ -67,7 +65,7 @@ sealed class WifiNetworkModel : Diffable<WifiNetworkModel> {
     /** A model representing that the wifi information we received was invalid in some way. */
     data class Invalid(
         /** A description of why the wifi information was invalid. */
-        val invalidReason: String,
+        val invalidReason: String
     ) : WifiNetworkModel() {
         override fun toString() = "WifiNetwork.Invalid[reason=$invalidReason]"
 
@@ -85,7 +83,7 @@ sealed class WifiNetworkModel : Diffable<WifiNetworkModel> {
         override fun logFull(row: TableRowLogger) {
             row.logChange(COL_NETWORK_TYPE, "$TYPE_UNAVAILABLE[reason=$invalidReason]")
             row.logChange(COL_SUB_ID, SUB_ID_DEFAULT)
-            row.logChange(COL_VALIDATED, false)
+            row.logChange(COL_SHOW_EXCLAMATION, false)
             row.logChange(COL_LEVEL, LEVEL_DEFAULT)
             row.logChange(COL_NUM_LEVELS, NUM_LEVELS_DEFAULT)
             row.logChange(COL_SSID, null)
@@ -96,7 +94,7 @@ sealed class WifiNetworkModel : Diffable<WifiNetworkModel> {
     /** A model representing that we have no active wifi network. */
     data class Inactive(
         /** An optional description of why the wifi information was inactive. */
-        val inactiveReason: String? = null,
+        val inactiveReason: String? = null
     ) : WifiNetworkModel() {
         override fun toString() = "WifiNetwork.Inactive[reason=$inactiveReason]"
 
@@ -114,7 +112,7 @@ sealed class WifiNetworkModel : Diffable<WifiNetworkModel> {
         override fun logFull(row: TableRowLogger) {
             row.logChange(COL_NETWORK_TYPE, "$TYPE_INACTIVE[reason=$inactiveReason]")
             row.logChange(COL_SUB_ID, SUB_ID_DEFAULT)
-            row.logChange(COL_VALIDATED, false)
+            row.logChange(COL_SHOW_EXCLAMATION, false)
             row.logChange(COL_LEVEL, LEVEL_DEFAULT)
             row.logChange(COL_NUM_LEVELS, NUM_LEVELS_DEFAULT)
             row.logChange(COL_SSID, null)
@@ -157,7 +155,7 @@ sealed class WifiNetworkModel : Diffable<WifiNetworkModel> {
             fun of(
                 subscriptionId: Int,
                 level: Int,
-                numberOfLevels: Int = MobileConnectionRepository.DEFAULT_NUM_LEVELS
+                numberOfLevels: Int = MobileConnectionRepository.DEFAULT_NUM_LEVELS,
             ): WifiNetworkModel {
                 if (!subscriptionId.isSubscriptionIdValid()) {
                     return Invalid(INVALID_SUB_ID_ERROR_STRING)
@@ -215,7 +213,7 @@ sealed class WifiNetworkModel : Diffable<WifiNetworkModel> {
         override fun logFull(row: TableRowLogger) {
             row.logChange(COL_NETWORK_TYPE, TYPE_CARRIER_MERGED)
             row.logChange(COL_SUB_ID, subscriptionId)
-            row.logChange(COL_VALIDATED, true)
+            row.logChange(COL_SHOW_EXCLAMATION, false)
             row.logChange(COL_LEVEL, level)
             row.logChange(COL_NUM_LEVELS, numberOfLevels)
             row.logChange(COL_SSID, null)
@@ -231,8 +229,8 @@ sealed class WifiNetworkModel : Diffable<WifiNetworkModel> {
      */
     data class Active
     private constructor(
-        /** See [android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED]. */
-        val isValidated: Boolean,
+        /** See [com.android.wifitrackerlib.WifiEntry.shouldShowXLevelIcon]. */
+        val showExclamation: Boolean,
 
         /** The wifi signal level, required to be 0 <= level <= 4. */
         val level: Int,
@@ -253,7 +251,7 @@ sealed class WifiNetworkModel : Diffable<WifiNetworkModel> {
              */
             @JvmStatic
             fun of(
-                isValidated: Boolean = false,
+                showExclamation: Boolean = false,
                 level: Int,
                 ssid: String? = null,
                 hotspotDeviceType: HotspotDeviceType = HotspotDeviceType.NONE,
@@ -261,7 +259,7 @@ sealed class WifiNetworkModel : Diffable<WifiNetworkModel> {
                 if (!level.isValid()) {
                     return Inactive(getInvalidLevelErrorString(level))
                 }
-                return Active(isValidated, level, ssid, hotspotDeviceType)
+                return Active(showExclamation, level, ssid, hotspotDeviceType)
             }
 
             private fun Int.isValid(): Boolean {
@@ -294,8 +292,8 @@ sealed class WifiNetworkModel : Diffable<WifiNetworkModel> {
                 return
             }
 
-            if (prevVal.isValidated != isValidated) {
-                row.logChange(COL_VALIDATED, isValidated)
+            if (prevVal.showExclamation != showExclamation) {
+                row.logChange(COL_SHOW_EXCLAMATION, showExclamation)
             }
             if (prevVal.level != level) {
                 row.logChange(COL_LEVEL, level)
@@ -311,7 +309,7 @@ sealed class WifiNetworkModel : Diffable<WifiNetworkModel> {
         override fun logFull(row: TableRowLogger) {
             row.logChange(COL_NETWORK_TYPE, TYPE_ACTIVE)
             row.logChange(COL_SUB_ID, null)
-            row.logChange(COL_VALIDATED, isValidated)
+            row.logChange(COL_SHOW_EXCLAMATION, showExclamation)
             row.logChange(COL_LEVEL, level)
             row.logChange(COL_NUM_LEVELS, null)
             row.logChange(COL_SSID, ssid)
@@ -365,7 +363,7 @@ const val TYPE_ACTIVE = "Active"
 
 const val COL_NETWORK_TYPE = "type"
 const val COL_SUB_ID = "subscriptionId"
-const val COL_VALIDATED = "isValidated"
+const val COL_SHOW_EXCLAMATION = "showExclamation"
 const val COL_LEVEL = "level"
 const val COL_NUM_LEVELS = "maxLevel"
 const val COL_SSID = "ssid"

@@ -85,6 +85,54 @@ class LetterboxControllerStrategyTest : ShellTestCase() {
         }
     }
 
+    @Test
+    fun `NO rounded corners support when radius is 0`() {
+        runTestScenario { r ->
+            r.configureRoundedCornerRadius(false)
+            r.configureLetterboxMode(r.SIMPLE_TEST_EVENT.copy(isTranslucent = true))
+            r.checkShouldRoundedCorners(expected = false)
+        }
+    }
+
+    @Test
+    fun `NO rounded corners support when activity is opaque`() {
+        runTestScenario { r ->
+            r.configureRoundedCornerRadius(true)
+            r.configureLetterboxMode(r.SIMPLE_TEST_EVENT.copy(isTranslucent = false))
+            r.checkShouldRoundedCorners(expected = false)
+        }
+    }
+
+    @Test
+    fun `Rounded corners support when activity is transparent and radius is not 0`() {
+        runTestScenario { r ->
+            // Transparent activity and rounded corners enabled but not present already.
+            r.configureRoundedCornerRadius(true)
+            r.configureLetterboxMode(
+                r.SIMPLE_TEST_EVENT.copy(isTranslucent = true, mainWindowHasRoundedCorners = false)
+            )
+            r.checkShouldRoundedCorners(expected = true)
+            // Transparent activity and rounded corners disabled and not present already.
+            r.configureRoundedCornerRadius(false)
+            r.configureLetterboxMode(
+                r.SIMPLE_TEST_EVENT.copy(isTranslucent = true, mainWindowHasRoundedCorners = false)
+            )
+            r.checkShouldRoundedCorners(expected = false)
+            // Opaque activity and rounded corners enabled and not present already.
+            r.configureRoundedCornerRadius(true)
+            r.configureLetterboxMode(
+                r.SIMPLE_TEST_EVENT.copy(isTranslucent = false, mainWindowHasRoundedCorners = false)
+            )
+            r.checkShouldRoundedCorners(expected = false)
+            // Transparent activity and rounded corners enabled but present already.
+            r.configureRoundedCornerRadius(true)
+            r.configureLetterboxMode(
+                r.SIMPLE_TEST_EVENT.copy(isTranslucent = true, mainWindowHasRoundedCorners = true)
+            )
+            r.checkShouldRoundedCorners(expected = false)
+        }
+    }
+
     /** Runs a test scenario providing a Robot. */
     fun runTestScenario(consumer: Consumer<LetterboxStrategyRobotTest>) {
         val robot = LetterboxStrategyRobotTest(mContext)
@@ -131,6 +179,10 @@ class LetterboxControllerStrategyTest : ShellTestCase() {
         fun checkLetterboxModeIsMultiple(expected: Boolean = true) {
             val expectedMode = if (expected) MULTIPLE_SURFACES else SINGLE_SURFACE
             assertEquals(expectedMode, letterboxStrategy.getLetterboxImplementationMode())
+        }
+
+        fun checkShouldRoundedCorners(expected: Boolean = true) {
+            assertEquals(expected, letterboxStrategy.shouldSupportShellRoundedCorners())
         }
     }
 }

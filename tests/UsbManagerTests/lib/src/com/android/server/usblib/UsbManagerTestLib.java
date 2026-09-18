@@ -48,6 +48,7 @@ public class UsbManagerTestLib {
     private static final String TAG = UsbManagerTestLib.class.getSimpleName();
 
     private Context mContext;
+    private String mPackageName;
 
     private UsbManager mUsbManagerSys;
     private UsbManager mUsbManagerMock;
@@ -84,6 +85,7 @@ public class UsbManagerTestLib {
     public UsbManagerTestLib(Context context) {
         MockitoAnnotations.initMocks(this);
         mContext = context;
+        mPackageName = mContext.getPackageName();
 
         assertNotNull(mUsbManagerSys = mContext.getSystemService(UsbManager.class));
         assertNotNull(mUsbManagerMock = new UsbManager(mContext, mMockUsbService));
@@ -107,7 +109,8 @@ public class UsbManagerTestLib {
 
     private InputStream openAccessoryInputStream(UsbAccessory accessory) {
         try {
-            when(mMockUsbService.openAccessory(accessory)).thenReturn(mTestParcelFileDescriptor);
+            when(mMockUsbService.openAccessory(accessory, mPackageName))
+                    .thenReturn(mTestParcelFileDescriptor);
         } catch (RemoteException remEx) {
             Log.w(TAG, "RemoteException");
         }
@@ -121,7 +124,8 @@ public class UsbManagerTestLib {
 
     private OutputStream openAccessoryOutputStream(UsbAccessory accessory) {
         try {
-            when(mMockUsbService.openAccessory(accessory)).thenReturn(mTestParcelFileDescriptor);
+            when(mMockUsbService.openAccessory(accessory, mPackageName))
+                    .thenReturn(mTestParcelFileDescriptor);
         } catch (RemoteException remEx) {
             Log.w(TAG, "RemoteException");
         }

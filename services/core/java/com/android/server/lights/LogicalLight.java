@@ -16,8 +16,8 @@
 
 package com.android.server.lights;
 
-import android.hardware.light.V2_0.Brightness;
-import android.hardware.light.V2_0.Flash;
+import android.hardware.light.BrightnessMode;
+import android.hardware.light.FlashMode;
 
 /**
  * Allow control over a logical light of a given type. The mapping of logical lights to physical
@@ -27,32 +27,32 @@ public abstract class LogicalLight {
     /**
      * Keep the light steady on or off.
      */
-    public static final int LIGHT_FLASH_NONE = Flash.NONE;
+    public static final int LIGHT_FLASH_NONE = FlashMode.NONE;
 
     /**
      * Flash the light at specified rate.
      */
-    public static final int LIGHT_FLASH_TIMED = Flash.TIMED;
+    public static final int LIGHT_FLASH_TIMED = FlashMode.TIMED;
 
     /**
      * Flash the light using hardware assist.
      */
-    public static final int LIGHT_FLASH_HARDWARE = Flash.HARDWARE;
+    public static final int LIGHT_FLASH_HARDWARE = FlashMode.HARDWARE;
 
     /**
      * Light brightness is managed by a user setting.
      */
-    public static final int BRIGHTNESS_MODE_USER = Brightness.USER;
+    public static final int BRIGHTNESS_MODE_USER = BrightnessMode.USER;
 
     /**
      * Light brightness is managed by a light sensor.
      */
-    public static final int BRIGHTNESS_MODE_SENSOR = Brightness.SENSOR;
+    public static final int BRIGHTNESS_MODE_SENSOR = BrightnessMode.SENSOR;
 
     /**
      * Low-persistence light mode.
      */
-    public static final int BRIGHTNESS_MODE_LOW_PERSISTENCE = Brightness.LOW_PERSISTENCE;
+    public static final int BRIGHTNESS_MODE_LOW_PERSISTENCE = BrightnessMode.LOW_PERSISTENCE;
 
     /**
      * Set the brightness of a display.

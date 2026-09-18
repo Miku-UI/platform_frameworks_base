@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_label" msgid="1092971641119916701">"Manager de dispozitive virtuale"</string>
+    <string name="request_computer_control_access_dialog_title" msgid="1970509993635617382">"Permiți ca &lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; să folosească automatizarea ecranului?"</string>
+    <string name="request_computer_control_access_per_app_consent_dialog_title" msgid="8118885324223570680">"Permiți ca &lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; să folosească automatizarea ecranului în &lt;strong&gt;<xliff:g id="AUTOMATABLE_APP_NAME">%2$s</xliff:g>&lt;/strong&gt;?"</string>
+    <string name="request_computer_control_access_dialog_description" msgid="3423347516805473691">"Aplicația va putea să vadă conținutul de pe ecran din alte aplicații și să interacționeze cu acesta pentru a te ajuta să finalizezi activități, chiar și atunci când aplicațiile sunt în fundal."</string>
+    <string name="request_computer_control_access_dialog_button_allow" msgid="6210271960695301518">"Doar de data aceasta"</string>
+    <string name="request_computer_control_access_dialog_button_dont_allow" msgid="4793579155406896411">"Nu permite"</string>
+    <string name="request_computer_control_access_dialog_button_always_allow" msgid="1551784758130170359">"Permite întotdeauna"</string>
+    <string name="automated_app_launch_warning_dialog_title" msgid="5210938311581044737">"<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g> folosește <xliff:g id="TARGET_APP_NAME">%2$s</xliff:g>"</string>
+    <string name="automated_app_launch_warning_dialog_description" msgid="5372128583106771831">"Pentru a vedea progresul activității, deschide aplicația <xliff:g id="AGENT_APP_NAME_0">%1$s</xliff:g>.<xliff:g id="EMPTY_LINE">
+
+</xliff:g>Dacă oprești acum activitatea, poți pierde progresul. Pentru a o reporni, deschide aplicația <xliff:g id="AGENT_APP_NAME_1">%1$s</xliff:g>."</string>
+    <string name="automated_app_launch_warning_dialog_stop" msgid="5255022618671675595">"Oprește activitatea și deschide aplicația"</string>
+    <string name="automated_app_launch_warning_dialog_wait" msgid="3472782366270857170">"Închide"</string>
+</resources>

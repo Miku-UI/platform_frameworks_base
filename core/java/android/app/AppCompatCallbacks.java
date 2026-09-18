@@ -19,6 +19,7 @@ package android.app;
 import android.compat.Compatibility;
 import android.os.Process;
 
+import com.android.internal.compat.CompatibilityRules;
 import com.android.internal.compat.ChangeReporter;
 
 import java.util.Arrays;
@@ -31,43 +32,73 @@ import java.util.Arrays;
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class AppCompatCallbacks implements Compatibility.BehaviorChangeDelegate {
     private final long[] mDisabledChanges;
+    private final long[] mEnabledChanges;
     private final long[] mLoggableChanges;
+    private final int mTargetSdkVersion;
     private final ChangeReporter mChangeReporter;
     private boolean mLogChangeChecksToStatsD = false;
 
     /**
      * Install this class into the current process using the disabled and loggable changes lists.
      *
-     * @param disabledChanges Set of compatibility changes that are disabled for this process.
-     * @param loggableChanges Set of compatibility changes that we want to log.
+     * @param disabledChangesSorted Sorted set of compatibility changes that are disabled for
+     * this process. MUST be sorted.
+     * @param loggableChangesSorted Sorted set of compatibility changes that we want to log.
+     * MUST be sorted.
      */
-    public static void install(
-            long[] disabledChanges, long[] loggableChanges) {
+    public static void install(long[] disabledChangesSorted, long[] loggableChangesSorted) {
         Compatibility.setBehaviorChangeDelegate(
-                new AppCompatCallbacks(disabledChanges, loggableChanges, false));
+                new AppCompatCallbacks(disabledChangesSorted, null, loggableChangesSorted,
+                        false, -1));
     }
 
     /**
      * Install this class into the current process using the disabled and loggable changes lists.
      *
-     * @param disabledChanges Set of compatibility changes that are disabled for this process.
-     * @param loggableChanges Set of compatibility changes that we want to log.
+     * @param disabledChangesSorted Sorted set of compatibility changes that are disabled for
+     * this process. MUST be sorted.
+     * @param loggableChangesSorted Sorted set of compatibility changes that we want to log.
+     * MUST be sorted.
      * @param logChangeChecksToStatsD Whether to log change checks to statsd.
      */
-    public static void install(
-            long[] disabledChanges, long[] loggableChanges, boolean logChangeChecksToStatsD) {
+    public static void install(long[] disabledChangesSorted, long[] loggableChangesSorted,
+            boolean logChangeChecksToStatsD) {
         Compatibility.setBehaviorChangeDelegate(
-                new AppCompatCallbacks(disabledChanges, loggableChanges, logChangeChecksToStatsD));
+                new AppCompatCallbacks(
+                        disabledChangesSorted,
+                        null,
+                        loggableChangesSorted,
+                        logChangeChecksToStatsD,
+                        -1));
     }
 
-    private AppCompatCallbacks(
-            long[] disabledChanges, long[] loggableChanges, boolean logChangeChecksToStatsD) {
-        mDisabledChanges = Arrays.copyOf(disabledChanges, disabledChanges.length);
-        mLoggableChanges = Arrays.copyOf(loggableChanges, loggableChanges.length);
-        Arrays.sort(mDisabledChanges);
-        Arrays.sort(mLoggableChanges);
+    /**
+     * Install this class into the current process.
+     *
+     * @param disabledChangesSorted Sorted set of compatibility changes that are disabled for
+     * this process. MUST be sorted.
+     * @param enabledChangesSorted Sorted set of compatibility changes that are enabled for
+     * this process (overrides). MUST be sorted.
+     * @param loggableChangesSorted Sorted set of compatibility changes that we want to log.
+     * MUST be sorted.
+     * @param logChangeChecksToStatsD Whether to log change checks to statsd.
+     * @param targetSdkVersion The target SDK version of the app.
+     */
+    public static void install(long[] disabledChangesSorted, long[] enabledChangesSorted,
+            long[] loggableChangesSorted, boolean logChangeChecksToStatsD, int targetSdkVersion) {
+        Compatibility.setBehaviorChangeDelegate(
+                new AppCompatCallbacks(disabledChangesSorted, enabledChangesSorted,
+                        loggableChangesSorted, logChangeChecksToStatsD, targetSdkVersion));
+    }
+
+    private AppCompatCallbacks(long[] disabledChangesSorted, long[] enabledChangesSorted,
+            long[] loggableChangesSorted, boolean logChangeChecksToStatsD, int targetSdkVersion) {
+        mDisabledChanges = disabledChangesSorted;
+        mEnabledChanges = enabledChangesSorted;
+        mLoggableChanges = loggableChangesSorted;
         mChangeReporter = new ChangeReporter(ChangeReporter.SOURCE_APP_PROCESS);
         mLogChangeChecksToStatsD = logChangeChecksToStatsD;
+        mTargetSdkVersion = targetSdkVersion;
     }
 
     /**
@@ -78,6 +109,9 @@ public final class AppCompatCallbacks implements Compatibility.BehaviorChangeDel
      * @return true if the given changeId is found in the provided array.
      */
     private boolean changeIdInChangeList(long[] list, long changeId) {
+        if (list == null) {
+            return false;
+        }
         return Arrays.binarySearch(list, changeId) >= 0;
     }
 
@@ -89,16 +123,32 @@ public final class AppCompatCallbacks implements Compatibility.BehaviorChangeDel
         boolean isLoggable = mLogChangeChecksToStatsD ||
             changeIdInChangeList(mLoggableChanges, changeId);
         if (!isLoggable) {
-            boolean isEnabled = !changeIdInChangeList(mDisabledChanges, changeId);
-            return isEnabled;
+            return isChangeEnabledInternal(changeId);
         }
         return isChangeEnabledAndReport(changeId, mLogChangeChecksToStatsD);
     }
 
+    private boolean isChangeEnabledInternal(long changeId) {
+        // Evaluation hierarchy:
+        // 1. Process-level Disabled Overrides (explicitly disabled via command-line)
+        // 2. Process-level Enabled Overrides (explicitly enabled via command-line/debugging)
+        // 3. Preloaded System Rules (based on targetSdkVersion/static XMLs)
+        // 4. Fallback to Enabled (unknown changes are typically permitted)
+        if (changeIdInChangeList(mDisabledChanges, changeId)) {
+            return false;
+        }
+        if (mEnabledChanges != null && changeIdInChangeList(mEnabledChanges, changeId)) {
+            return true;
+        }
+        if (mTargetSdkVersion != -1) {
+            return CompatibilityRules.isChangeEnabled(changeId, mTargetSdkVersion);
+        }
+        return true;
+    }
+
     private boolean isChangeEnabledAndReport(long changeId, boolean doStatsLog) {
-        boolean isEnabled = !changeIdInChangeList(mDisabledChanges, changeId);
+        boolean isEnabled = isChangeEnabledInternal(changeId);
         if (isEnabled) {
-            // Not present in the disabled changeId array
             reportChange(changeId, ChangeReporter.STATE_ENABLED, doStatsLog);
             return true;
         }

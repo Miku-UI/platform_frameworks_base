@@ -15,13 +15,14 @@
   limitations under the License.
   -->
 
-<LinearLayout
+<com.android.settingslib.widget.ResponsiveActionButtonLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="@dimen/settingslib_expressive_space_extrasmall4"
     android:paddingHorizontal="@dimen/settingslib_expressive_space_extrasmall4"
-    android:orientation="horizontal">
+    android:orientation="horizontal"
+    android:filterTouchesWhenObscured="true">
 
     <LinearLayout
         android:id="@+id/action1"
@@ -41,7 +42,9 @@
             android:id="@+id/text1"
             style="@style/SettingsLibActionButton.Expressive.Label"
             android:layout_marginTop="@dimen/settingslib_expressive_space_extrasmall3"
-            android:importantForAccessibility="no"/>
+            android:importantForAccessibility="no"
+            android:lineBreakWordStyle="phrase"
+            android:hyphenationFrequency="normalFast"/>
 
     </LinearLayout>
 
@@ -63,7 +66,9 @@
             android:id="@+id/text2"
             style="@style/SettingsLibActionButton.Expressive.Label"
             android:layout_marginTop="@dimen/settingslib_expressive_space_extrasmall3"
-            android:importantForAccessibility="no"/>
+            android:importantForAccessibility="no"
+            android:lineBreakWordStyle="phrase"
+            android:hyphenationFrequency="normalFast"/>
 
     </LinearLayout>
 
@@ -85,7 +90,9 @@
             android:id="@+id/text3"
             style="@style/SettingsLibActionButton.Expressive.Label"
             android:layout_marginTop="@dimen/settingslib_expressive_space_extrasmall3"
-            android:importantForAccessibility="no"/>
+            android:importantForAccessibility="no"
+            android:lineBreakWordStyle="phrase"
+            android:hyphenationFrequency="normalFast"/>
 
     </LinearLayout>
 
@@ -107,6 +114,8 @@
             android:id="@+id/text4"
             style="@style/SettingsLibActionButton.Expressive.Label"
             android:layout_marginTop="@dimen/settingslib_expressive_space_extrasmall3"
-            android:importantForAccessibility="no"/>
+            android:importantForAccessibility="no"
+            android:lineBreakWordStyle="phrase"
+            android:hyphenationFrequency="normalFast"/>
     </LinearLayout>
-</LinearLayout>
+</com.android.settingslib.widget.ResponsiveActionButtonLayout>

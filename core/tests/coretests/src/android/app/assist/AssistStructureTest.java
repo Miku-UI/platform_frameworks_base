@@ -16,6 +16,7 @@
 
 package android.app.assist;
 
+import static android.app.assist.AssistStructure.FLAG_OMIT_SCREEN_CONTENT;
 import static android.view.View.AUTOFILL_TYPE_TEXT;
 import static android.view.View.IMPORTANT_FOR_AUTOFILL_AUTO;
 import static android.view.View.IMPORTANT_FOR_AUTOFILL_YES;
@@ -367,6 +368,21 @@ public class AssistStructureTest {
 
         // No throw any exception.
         assertTrue(true);
+    }
+
+    @Test
+    public void testOmitScreenContent_emptyRootViewNode() {
+        mActivity.addView(newSmallView());
+        waitUntilViewsAreLaidOff();
+
+        AssistStructure structure = new AssistStructure(mActivity, FOR_AUTOFILL,
+                FLAG_OMIT_SCREEN_CONTENT);
+
+        assertThat(structure.getWindowNodeCount()).isEqualTo(1);
+        assertThat(structure.getFlags()).isEqualTo(FLAG_OMIT_SCREEN_CONTENT);
+
+        ViewNode rootView = structure.getWindowNodeAt(0).getRootViewNode();
+        assertThat(rootView.getChildCount()).isEqualTo(0);
     }
 
     private EditText newSmallView() {

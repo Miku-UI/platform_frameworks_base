@@ -16,17 +16,13 @@
 
 package com.android.systemui.keyguard.data.quickaffordance
 
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.haptics.FakeVibratorHelper
 import com.android.systemui.haptics.msdl.fakeMSDLPlayer
 import com.android.systemui.haptics.vibratorHelper
 import com.android.systemui.keyguard.domain.interactor.keyguardQuickAffordanceHapticViewModelFactory
-import com.android.systemui.keyguard.ui.binder.KeyguardBottomAreaVibrations
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.testKosmos
 import com.google.android.msdl.data.model.MSDLToken
@@ -46,18 +42,6 @@ class KeyguardQuickAffordanceHapticViewModelTest : SysuiTestCase() {
 
     private val underTest = kosmos.keyguardQuickAffordanceHapticViewModelFactory.create()
 
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    @Test
-    fun onQuickAffordanceClick_playsShadeEffect() =
-        testScope.runTest {
-            underTest.onQuickAffordanceClick()
-
-            assertThat(vibratorHelper.hasVibratedWithEffects(KeyguardBottomAreaVibrations.Shake))
-                .isTrue()
-            assertThat(msdlPlayer.tokensPlayed.isEmpty()).isTrue()
-        }
-
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     @Test
     fun onQuickAffordanceClick_playsFailureToken() =
         testScope.runTest {
@@ -67,7 +51,6 @@ class KeyguardQuickAffordanceHapticViewModelTest : SysuiTestCase() {
             assertThat(vibratorHelper.totalVibrations).isEqualTo(0)
         }
 
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     @Test
     fun onUpdateActivatedHistory_withoutLongPress_whenToggling_doesNotPlayHaptics() =
         testScope.runTest {
@@ -81,7 +64,6 @@ class KeyguardQuickAffordanceHapticViewModelTest : SysuiTestCase() {
             assertThat(vibratorHelper.totalVibrations).isEqualTo(0)
         }
 
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     @Test
     fun onUpdateActivatedHistory_togglesToActivated_playsMSDLSwitchOnToken() =
         testScope.runTest {
@@ -93,7 +75,6 @@ class KeyguardQuickAffordanceHapticViewModelTest : SysuiTestCase() {
             assertThat(vibratorHelper.totalVibrations).isEqualTo(0)
         }
 
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     @Test
     fun onUpdateActivatedHistory_togglesToDeactivated_playsMSDLSwitchOffToken() =
         testScope.runTest {
@@ -103,36 +84,6 @@ class KeyguardQuickAffordanceHapticViewModelTest : SysuiTestCase() {
             // THEN the switch off token plays
             assertThat(msdlPlayer.latestTokenPlayed).isEqualTo(MSDLToken.SWITCH_OFF)
             assertThat(vibratorHelper.totalVibrations).isEqualTo(0)
-        }
-
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    @Test
-    fun onUpdateActivatedHistory_togglesToActivated__playsActivatedEffect() =
-        testScope.runTest {
-            // GIVEN that an affordance toggles from deactivated to activated
-            toggleQuickAffordance(on = true)
-
-            // THEN the activated effect plays
-            assertThat(
-                    vibratorHelper.hasVibratedWithEffects(KeyguardBottomAreaVibrations.Activated)
-                )
-                .isTrue()
-            assertThat(msdlPlayer.tokensPlayed.isEmpty()).isTrue()
-        }
-
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    @Test
-    fun onUpdateActivatedHistory_togglesToDeactivated_playsDeactivatedEffect() =
-        testScope.runTest {
-            // GIVEN that an affordance toggles from activated to deactivated
-            toggleQuickAffordance(on = false)
-
-            // THEN the deactivated effect plays
-            assertThat(
-                    vibratorHelper.hasVibratedWithEffects(KeyguardBottomAreaVibrations.Deactivated)
-                )
-                .isTrue()
-            assertThat(msdlPlayer.tokensPlayed.isEmpty()).isTrue()
         }
 
     private fun toggleQuickAffordance(on: Boolean) {

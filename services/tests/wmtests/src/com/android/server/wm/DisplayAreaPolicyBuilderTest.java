@@ -32,12 +32,11 @@ import static android.window.DisplayAreaOrganizer.FEATURE_FULLSCREEN_MAGNIFICATI
 import static android.window.DisplayAreaOrganizer.FEATURE_IME_PLACEHOLDER;
 import static android.window.DisplayAreaOrganizer.FEATURE_ONE_HANDED;
 import static android.window.DisplayAreaOrganizer.FEATURE_ROOT;
+import static android.window.DisplayAreaOrganizer.FEATURE_TOP_LEVEL_ZOOM;
 import static android.window.DisplayAreaOrganizer.FEATURE_VENDOR_FIRST;
 import static android.window.DisplayAreaOrganizer.FEATURE_VENDOR_LAST;
-import static android.window.DisplayAreaOrganizer.FEATURE_WINDOWED_MAGNIFICATION;
 import static android.window.DisplayAreaOrganizer.KEY_ROOT_DISPLAY_AREA_ID;
 
-import static com.android.server.wm.DisplayArea.Type.ABOVE_TASKS;
 import static com.android.server.wm.DisplayAreaPolicyBuilder.Feature;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -57,6 +56,8 @@ import android.os.IBinder;
 import android.platform.test.annotations.Presubmit;
 import android.view.SurfaceControl;
 import android.window.WindowContainerToken;
+
+import androidx.annotation.NonNull;
 
 import com.google.android.collect.Lists;
 
@@ -92,7 +93,7 @@ public class DisplayAreaPolicyBuilderTest {
     private TestWindowManagerPolicy mPolicy = new TestWindowManagerPolicy();
     private WindowManagerService mWms;
     private RootDisplayArea mRoot;
-    private DisplayArea.Tokens mImeContainer;
+    private ImeContainer mImeContainer;
     private DisplayContent mDisplayContent;
     private TaskDisplayArea mDefaultTaskDisplayArea;
     private List<TaskDisplayArea> mTaskDisplayAreaList;
@@ -105,7 +106,7 @@ public class DisplayAreaPolicyBuilderTest {
     public void setup() {
         mWms = mSystemServices.getWindowManagerService();
         mRoot = new SurfacelessDisplayAreaRoot(mWms);
-        mImeContainer = new DisplayArea.Tokens(mWms, ABOVE_TASKS, "ImeContainer");
+        mImeContainer = new ImeContainer(mWms);
         mDisplayContent = mock(DisplayContent.class);
         doReturn(true).when(mDisplayContent).isTrusted();
         doReturn(DEFAULT_DISPLAY).when(mDisplayContent).getDisplayId();
@@ -155,22 +156,21 @@ public class DisplayAreaPolicyBuilderTest {
                 policy.getDisplayAreas(bar.getId()));
 
         // There is a DA of TYPE_STATUS_BAR below foo, but not below bar
-        assertThat(fooDescendantMatcher.matches(
-                policy.findAreaForToken(tokenOfType(TYPE_STATUS_BAR)))).isTrue();
-        assertThat(barDescendantMatcher.matches(
-                policy.findAreaForToken(tokenOfType(TYPE_STATUS_BAR)))).isFalse();
+        final WindowToken statusBarToken = tokenOfType(TYPE_STATUS_BAR);
+        assertThat(fooDescendantMatcher.matches(policy.findAreaForToken(statusBarToken))).isTrue();
+        assertThat(barDescendantMatcher.matches(policy.findAreaForToken(statusBarToken))).isFalse();
 
         // The TDA is below both foo and bar.
         assertThat(fooDescendantMatcher.matches(mDefaultTaskDisplayArea)).isTrue();
         assertThat(barDescendantMatcher.matches(mDefaultTaskDisplayArea)).isTrue();
 
         // The IME is below both foo and bar.
+        final WindowToken imeToken = tokenOfType(TYPE_INPUT_METHOD);
+        final WindowToken imeDialogToken = tokenOfType(TYPE_INPUT_METHOD_DIALOG);
         assertThat(fooDescendantMatcher.matches(mImeContainer)).isTrue();
         assertThat(barDescendantMatcher.matches(mImeContainer)).isTrue();
-        assertThat(policy.findAreaForToken(tokenOfType(TYPE_INPUT_METHOD)))
-                .isEqualTo(mImeContainer);
-        assertThat(policy.findAreaForToken(tokenOfType(TYPE_INPUT_METHOD_DIALOG)))
-                .isEqualTo(mImeContainer);
+        assertThat(policy.findAreaForToken(imeToken)).isEqualTo(mImeContainer);
+        assertThat(policy.findAreaForToken(imeDialogToken)).isEqualTo(mImeContainer);
 
         List<DisplayArea<?>> actualOrder = collectLeafAreas(mRoot);
         Map<DisplayArea<?>, Set<Integer>> zSets = calculateZSets(policy, mImeContainer,
@@ -213,17 +213,30 @@ public class DisplayAreaPolicyBuilderTest {
                 (DisplayAreaPolicyBuilder.Result) defaultProvider.instantiate(mWms, mDisplayContent,
                         mRoot, mImeContainer);
         final List<Feature> features = defaultPolicy.getFeatures();
-        boolean hasWindowedMagnificationFeature = false;
         boolean hasFullscreenMagnificationFeature = false;
         for (Feature feature : features) {
-            hasWindowedMagnificationFeature |= feature.getId() == FEATURE_WINDOWED_MAGNIFICATION;
             hasFullscreenMagnificationFeature |=
                     feature.getId() == FEATURE_FULLSCREEN_MAGNIFICATION;
         }
 
-        assertThat(hasWindowedMagnificationFeature).isTrue();
         assertThat(hasFullscreenMagnificationFeature).isEqualTo(
                 DisplayAreaPolicy.USE_DISPLAY_AREA_FOR_FULLSCREEN_MAGNIFICATION);
+    }
+
+    @Test
+    public void testBuilder_defaultPolicy_hasTopLevelZoomFeature() {
+        final DisplayAreaPolicy.Provider defaultProvider = DisplayAreaPolicy.Provider.fromResources(
+                resourcesWithProvider(""));
+        final DisplayAreaPolicyBuilder.Result defaultPolicy =
+                (DisplayAreaPolicyBuilder.Result) defaultProvider.instantiate(mWms, mDisplayContent,
+                        mRoot, mImeContainer);
+        final List<Feature> features = defaultPolicy.getFeatures();
+        boolean hasTopLevelZoomFeature = false;
+        for (Feature feature : features) {
+            hasTopLevelZoomFeature |= feature.getId() == FEATURE_TOP_LEVEL_ZOOM;
+        }
+
+        assertThat(hasTopLevelZoomFeature).isTrue();
     }
 
     @Test
@@ -572,7 +585,6 @@ public class DisplayAreaPolicyBuilderTest {
 
         final WindowToken token = new WindowToken.Builder(mWms, mock(IBinder.class),
                 TYPE_STATUS_BAR)
-                .setDisplayContent(mDisplayContent)
                 .setPersistOnEmpty(true)
                 .setOwnerCanManageAppTokens(true)
                 .build();
@@ -589,7 +601,6 @@ public class DisplayAreaPolicyBuilderTest {
         options.putInt(KEY_ROOT_DISPLAY_AREA_ID, mGroupRoot2.mFeatureId);
         final WindowToken token2 = new WindowToken.Builder(mWms, mock(IBinder.class),
                 TYPE_STATUS_BAR)
-                .setDisplayContent(mDisplayContent)
                 .setPersistOnEmpty(true)
                 .setOwnerCanManageAppTokens(true)
                 .setOptions(options)
@@ -623,13 +634,11 @@ public class DisplayAreaPolicyBuilderTest {
 
         final WindowToken token1 = new WindowToken.Builder(mWms, mock(IBinder.class),
                 TYPE_STATUS_BAR)
-                .setDisplayContent(mDisplayContent)
                 .setPersistOnEmpty(true)
                 .setOwnerCanManageAppTokens(true)
                 .build();
         final WindowToken token2 = new WindowToken.Builder(mWms, mock(IBinder.class),
                 TYPE_WALLPAPER)
-                .setDisplayContent(mDisplayContent)
                 .setPersistOnEmpty(true)
                 .setOwnerCanManageAppTokens(true)
                 .build();
@@ -678,20 +687,17 @@ public class DisplayAreaPolicyBuilderTest {
         options2.putInt("HIERARCHY_ROOT_ID", mGroupRoot2.mFeatureId);
         final WindowToken token0 = new WindowToken.Builder(mWms, mock(IBinder.class),
                 TYPE_STATUS_BAR)
-                .setDisplayContent(mDisplayContent)
                 .setPersistOnEmpty(true)
                 .setOwnerCanManageAppTokens(true)
                 .build();
         final WindowToken token1 = new WindowToken.Builder(mWms, mock(IBinder.class),
                 TYPE_STATUS_BAR)
-                .setDisplayContent(mDisplayContent)
                 .setPersistOnEmpty(true)
                 .setOwnerCanManageAppTokens(true)
                 .setOptions(options1)
                 .build();
         final WindowToken token2 = new WindowToken.Builder(mWms, mock(IBinder.class),
                 TYPE_STATUS_BAR)
-                .setDisplayContent(mDisplayContent)
                 .setPersistOnEmpty(true)
                 .setOwnerCanManageAppTokens(true)
                 .setOptions(options2)
@@ -990,9 +996,9 @@ public class DisplayAreaPolicyBuilderTest {
         return da1.getParent() != null && da1.getParent() == da2.getParent();
     }
 
+    @NonNull
     private WindowToken tokenOfType(int type) {
-        return new WindowToken.Builder(mWms, new Binder(), type)
-                .setDisplayContent(mDisplayContent).build();
+        return new WindowToken.Builder(mWms, new Binder(), type).build();
     }
 
     private static void assertMatchLayerOrder(List<DisplayArea<?>> actualOrder,

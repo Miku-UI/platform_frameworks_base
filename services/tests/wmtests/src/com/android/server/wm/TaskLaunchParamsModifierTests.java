@@ -35,6 +35,7 @@ import static com.android.server.wm.LaunchParamsController.LaunchParamsModifier.
 import static com.android.server.wm.LaunchParamsController.LaunchParamsModifier.RESULT_SKIP;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -679,6 +680,7 @@ public class TaskLaunchParamsModifierTests extends
 
         assertEquivalentWindowingMode(WINDOWING_MODE_FREEFORM, mResult.mWindowingMode,
                 WINDOWING_MODE_FULLSCREEN);
+        assertFalse(mResult.mIsTaskMoveDisallowed);
     }
 
     @Test
@@ -827,6 +829,7 @@ public class TaskLaunchParamsModifierTests extends
 
         assertEquivalentWindowingMode(WINDOWING_MODE_FULLSCREEN, mResult.mWindowingMode,
                 WINDOWING_MODE_FREEFORM);
+        assertTrue(mResult.mIsTaskMoveDisallowed);
     }
 
     @Test
@@ -1018,6 +1021,56 @@ public class TaskLaunchParamsModifierTests extends
 
         assertEquivalentWindowingMode(WINDOWING_MODE_FULLSCREEN, mResult.mWindowingMode,
                 WINDOWING_MODE_FULLSCREEN);
+    }
+
+    @Test
+    public void testCalculate_relaunchFromHomeToReparent_setsFullscreenAndFlag() {
+        final TestDisplayContent fullscreenDisplay =
+                createNewDisplayContent(WINDOWING_MODE_FULLSCREEN);
+        // Source activity is in a fullscreen trampoline task.
+        final ActivityRecord source = createSourceActivity(fullscreenDisplay);
+        // The task to be launched is a bubble task
+        final Task bubbleTask = new TaskBuilder(mSupervisor)
+                .setTaskDisplayArea(fullscreenDisplay.getDefaultTaskDisplayArea())
+                .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                .build();
+        bubbleTask.getRootTask().mReparentLeafTaskIfRelaunchFromHome = true;
+        final int homeUid = 51121;
+        final Task homeTask = mRootWindowContainer.getDefaultTaskDisplayArea().getRootHomeTask();
+        final ActivityRecord homeActivity = new ActivityBuilder(mAtm).setTask(homeTask).build();
+        mAtm.mHomeProcess = mSystemServicesTestRule.addProcess(homeActivity.packageName,
+                homeActivity.processName, 114514 /* pid */, homeUid);
+        final Request request = new Request();
+        request.mOriginalCallerUid = homeUid;
+
+        assertEquals(RESULT_CONTINUE,
+                new CalculateRequestBuilder().setRequest(request)
+                        .setSource(source).setTask(bubbleTask).calculate());
+
+        assertEquivalentWindowingMode(WINDOWING_MODE_FULLSCREEN, mResult.mWindowingMode,
+                WINDOWING_MODE_MULTI_WINDOW /* parentWindowingMode */);
+        assertTrue(mResult.mIsRelaunchFromHomeToReparent);
+    }
+
+    @Test
+    public void testCalculate_preserveLeafTaskIfRelaunch_doesNotInheritFromSource() {
+        final TestDisplayContent fullscreenDisplay =
+                createNewDisplayContent(WINDOWING_MODE_FULLSCREEN);
+        // Source activity is a freeform desktop task.
+        final ActivityRecord source = createSourceActivity(fullscreenDisplay);
+        source.getTask().setWindowingMode(WINDOWING_MODE_FREEFORM);
+        // The task to be launched is a bubble task.
+        final Task bubbleTask = new TaskBuilder(mSupervisor)
+                .setTaskDisplayArea(fullscreenDisplay.getDefaultTaskDisplayArea())
+                .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW)
+                .build();
+        bubbleTask.getRootTask().mCreatedByOrganizer = true;
+        bubbleTask.getRootTask().mPreserveLeafTaskIfRelaunch = true;
+
+        assertEquals(RESULT_CONTINUE,
+                new CalculateRequestBuilder().setSource(source).setTask(bubbleTask).calculate());
+
+        assertEquals(WINDOWING_MODE_MULTI_WINDOW, mResult.mWindowingMode);
     }
 
     // ================================
@@ -1948,7 +2001,7 @@ public class TaskLaunchParamsModifierTests extends
                 .createRootTask(display.getWindowingMode(), ACTIVITY_TYPE_STANDARD, true);
         rootTask.setWindowingMode(WINDOWING_MODE_FREEFORM);
         final Task task = new TaskBuilder(mSupervisor).setParentTask(rootTask)
-                .setCreateActivity(true).build();
+                .setDisplay(display).setCreateActivity(true).build();
         task.getRootActivity().setVisibility(isVisible);
         // Just work around the unnecessary adjustments for bounds.
         task.getWindowConfiguration().setBounds(bounds);

@@ -648,19 +648,14 @@ public final class AccessibilityInteractionController {
 
     private void getWindowSurfaceInfoUiThread(IWindowSurfaceInfoCallback callback) {
         try {
-            if (Flags.copySurfaceControlForWindowScreenshots()) {
-                SurfaceControl sc = mViewRootImpl.getSurfaceControl();
-                if (sc.isValid()) {
-                    SurfaceControl copiedSc = new SurfaceControl(sc,
-                            "AccessibilityInteractionController"
-                                    + "#getWindowSurfaceInfoUiThread");
-                    callback.provideWindowSurfaceInfo(mViewRootImpl.getWindowFlags(),
-                            Process.myUid(),
-                            copiedSc);
-                }
-            } else {
-                callback.provideWindowSurfaceInfo(mViewRootImpl.getWindowFlags(), Process.myUid(),
-                        mViewRootImpl.getSurfaceControl());
+            SurfaceControl sc = mViewRootImpl.getSurfaceControl();
+            if (sc.isValid()) {
+                SurfaceControl copiedSc = new SurfaceControl(sc,
+                        "AccessibilityInteractionController"
+                                + "#getWindowSurfaceInfoUiThread");
+                callback.provideWindowSurfaceInfo(mViewRootImpl.getWindowFlags(),
+                        Process.myUid(),
+                        copiedSc);
             }
         } catch (RemoteException re) {
             // ignore - the other side will time out
@@ -987,15 +982,7 @@ public final class AccessibilityInteractionController {
         if (!isVisibleToAccessibilityService(mViewRootImpl.mView)) {
             return null;
         }
-        if (Flags.ignoreUnimportantRoot()) {
-            if (mViewRootImpl.mView == null || !mViewRootImpl.mView.includeForAccessibility()) {
-                return null;
-            } else {
-                return mViewRootImpl.mView;
-            }
-        } else {
-            return mViewRootImpl.mView;
-        }
+        return mViewRootImpl.mView;
     }
 
     private void setAccessibilityFetchFlags(int flags) {
@@ -1076,6 +1063,13 @@ public final class AccessibilityInteractionController {
                 mViewRootImpl.mAttachInfo.mLeashedParentAccessibilityViewId);
     }
 
+    private void associateEmbeddingHostWindowId(AccessibilityNodeInfo info) {
+        if (info == null) {
+            return;
+        }
+        info.setEmbeddingHostWindowId(mViewRootImpl.mAttachInfo.mEmbeddingHostWindowId);
+    }
+
     private boolean shouldBypassAssociateLeashedParent() {
         return (mViewRootImpl.mAttachInfo.mLeashedParentToken == null
                 && mViewRootImpl.mAttachInfo.mLeashedParentAccessibilityViewId == View.NO_ID);
@@ -1096,6 +1090,9 @@ public final class AccessibilityInteractionController {
     private void updateInfoForViewPort(AccessibilityNodeInfo info, MagnificationSpec spec,
             float[] matrixValues, Region interactiveRegion) {
         associateLeashedParentIfNeeded(info);
+        if (android.view.accessibility.Flags.embeddedUiUsesHostWindowId()) {
+            associateEmbeddingHostWindowId(info);
+        }
 
         applyHostWindowMatrixIfNeeded(info);
         // Transform view bounds from window coordinates to screen coordinates.

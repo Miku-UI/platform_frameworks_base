@@ -20,6 +20,7 @@ import android.app.Instrumentation
 import android.tools.Rotation
 import android.tools.traces.parsers.WindowManagerStateHelper
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.UiDevice
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
 import org.junit.After
@@ -27,16 +28,20 @@ import org.junit.Ignore
 import org.junit.Test
 
 @Ignore("Test Base Class")
-abstract class EnterDesktopFromKeyboardShortcut(val rotation: Rotation = Rotation.ROTATION_0) : TestScenarioBase(rotation) {
+abstract class EnterDesktopFromKeyboardShortcut(val rotation: Rotation = Rotation.ROTATION_0) :
+    TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
+    private val device = UiDevice.getInstance(instrumentation)
     private val simpleAppHelper = SimpleAppHelper(instrumentation)
     val testApp = DesktopModeAppHelper(simpleAppHelper)
 
     @Test
     open fun enterDesktopFromKeyboardShortcut() {
         simpleAppHelper.launchViaIntent(wmHelper)
+        // Ensure app starts from fullscreen to verify the switch to desktop
+        testApp.exitDesktopModeToFullScreenIfNeeded(wmHelper, device)
         testApp.enterDesktopModeViaKeyboard(wmHelper)
     }
 

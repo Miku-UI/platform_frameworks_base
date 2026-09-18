@@ -51,7 +51,7 @@ class SecondaryActivityEnterPipTest(flicker: FlickerTest) :
     ActivityEmbeddingTestBase(flicker) {
     override val transition: FlickerBuilder.() -> Unit = {
         setup {
-            tapl.setExpectedRotationCheckEnabled(false)
+            tapl.expectedRotationCheckEnabled = false
             testApp.launchViaIntent(wmHelper)
             testApp.launchSecondaryActivity(wmHelper)
             startDisplayBounds =
@@ -60,7 +60,7 @@ class SecondaryActivityEnterPipTest(flicker: FlickerTest) :
         }
         transitions { testApp.secondaryActivityEnterPip(wmHelper) }
         teardown {
-            tapl.goHome()
+            device.pressHome()
             testApp.exit(wmHelper)
         }
     }

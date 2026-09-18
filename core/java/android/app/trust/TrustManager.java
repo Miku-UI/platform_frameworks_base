@@ -89,7 +89,7 @@ public class TrustManager {
     }
 
     /**
-     * Reports that user {@param userId} has tried to unlock the device.
+     * Reports that user {@code userId} has tried to unlock the device.
      *
      * @param successful if true, the unlock attempt was successful.
      *
@@ -133,7 +133,7 @@ public class TrustManager {
     }
 
     /**
-     * Reports that user {@param userId} has entered a temporary device lockout.
+     * Reports that user {@code userId} has entered a temporary device lockout.
      *
      * This generally occurs when  the user has unsuccessfully tried to unlock the device too many
      * times. The user will then be unable to unlock the device until a set amount of time has
@@ -153,7 +153,7 @@ public class TrustManager {
     }
 
     /**
-     * Reports that the list of enabled trust agents changed for user {@param userId}.
+     * Reports that the list of enabled trust agents changed for user {@code userId}.
      *
      * Requires the {@link android.Manifest.permission#ACCESS_KEYGUARD_SECURE_STORAGE} permission.
      */
@@ -290,7 +290,7 @@ public class TrustManager {
     }
 
     /**
-     * @return whether {@param userId} has enabled and configured trust agents. Ignores short-term
+     * @return whether {@code userId} has enabled and configured trust agents. Ignores short-term
      * unavailability of trust due to {@link LockPatternUtils.StrongAuthTracker}.
      */
     @RequiresPermission(android.Manifest.permission.TRUST_LISTENER)

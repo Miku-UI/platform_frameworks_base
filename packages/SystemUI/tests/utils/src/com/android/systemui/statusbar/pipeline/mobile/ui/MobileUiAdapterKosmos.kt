@@ -23,10 +23,10 @@ import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.mobileIconsVi
 
 val Kosmos.mobileUiAdapter by
     Kosmos.Fixture {
-      MobileUiAdapter(
-          statusBarIconController,
-          mobileIconsViewModel,
-          mobileViewLogger,
-          applicationCoroutineScope,
-      )
+        MobileUiAdapter(
+            statusBarIconController,
+            { mobileIconsViewModel },
+            mobileViewLogger,
+            applicationCoroutineScope,
+        )
     }

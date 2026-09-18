@@ -13,26 +13,53 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package android.media.tv.extension.event;
 
 import android.net.Uri;
 import android.os.Bundle;
 
 /**
+ * Interface for managing a dedicated tuning session for downloading broadcast event and metadata.
+ * This interface controls the lifecycle of a background or foreground data acquisition process.
+ * It is used to fetch DVB/ATSC tables without necessarily rendering videos.
+ *
  * @hide
  */
 interface IEventDownloadSession {
-    // Determine to execute barker channel or silent tune flow for related service type
+    /**
+     * Determine to execute barker channel or silent tune flow for related service type
+     *
+     * @param eventDownloadParams A Bundle containing parameters for the session, keys should follow
+     *                            {@link EventConstants.EventDownloadKeys}.
+     * @return {@link EventConstants.FlowType} value indicating is barker channel or slient tune
+     */
     int isBarkerOrSequentialDownloadByServiceType(in Bundle eventDownloadParams);
-    // Determine whether to start barker channel or silent tune flow.
+    /**
+     * Determine whether to start barker channel or silent tune flow for related service record.
+     *
+     * @param eventDownloadParams A Bundle containing parameters for the session, keys should follow
+     *                            {@link EventConstants.EventDownloadKeys}.
+     * @return {@link EventConstants.FlowType} value indicating is barker channel or slient tune
+     */
     int isBarkerOrSequentialDownloadByServiceRecord(in Bundle eventDownloadParams);
-    // Start event download.
+    /**
+     * Starts multiplex tuning process for a specific channel.
+     *
+     * @param channelUri The URI identifying the channel, format defined by TvContract.
+     */
     void startTuningMultiplex(in Uri channelUri);
-    // Set active window channels.
+    /**
+     * Sets active window channels.
+     *
+     * @param activeWinChannelInfos A list of channel URIs to be set in the active window.
+     */
     void setActiveWindowChannelInfo(in Uri[] activeWinChannelInfos);
-    // Cancel barker channel or silent tune flow.
+    /**
+     * Cancels the currently running event download flow (either barker channel or silent tune).
+     */
     void cancel();
-    // Release barker channel or silent tune flow.
+    /**
+     * Releases all resources associated with the event download flow.
+     */
     void release();
 }

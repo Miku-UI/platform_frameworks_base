@@ -24,6 +24,7 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.content.pm.UserInfo;
 import android.content.pm.UserProperties;
+import android.content.ComponentName;
 import android.content.IntentSender;
 import android.content.RestrictionEntry;
 import android.graphics.Bitmap;
@@ -67,7 +68,7 @@ interface IUserManager {
     List<UserInfo> getUsers(boolean excludeDying);
     List<UserInfo> getProfiles(int userId, boolean enabledOnly);
     int[] getProfileIds(int userId, boolean enabledOnly);
-    boolean isUserTypeEnabled(in String userType);
+    boolean isUserTypeSupportedIncludingSystem(in String userType);
     int getCurrentAllowedNumberOfUsers(in String userType);
     boolean canAddMoreUsersOfType(in String userType);
     int getRemainingCreatableUserCount(in String userType);
@@ -89,7 +90,6 @@ interface IUserManager {
     int getUserLogoutability(int userId);
     boolean isRestricted(int userId);
     boolean canHaveRestrictedProfile(int userId);
-    boolean canAddPrivateProfile(int userId);
     int getUserSerialNumber(int userId);
     int getUserHandle(int userSerialNumber);
     int getUserRestrictionSource(String restrictionKey, int userId);
@@ -157,4 +157,6 @@ interface IUserManager {
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(anyOf = {android.Manifest.permission.MANAGE_USERS, android.Manifest.permission.CREATE_USERS})")
     int getBootUser();
     int[] getProfileIdsExcludingHidden(int userId, boolean enabledOnly);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(anyOf = {android.Manifest.permission.MANAGE_USERS, android.Manifest.permission.MANAGE_HEADLESS_SYSTEM_USER_ALLOWLISTS})")
+    void setTemporaryActivitiesAllowlist(String userType, in List<ComponentName> componentNames);
 }

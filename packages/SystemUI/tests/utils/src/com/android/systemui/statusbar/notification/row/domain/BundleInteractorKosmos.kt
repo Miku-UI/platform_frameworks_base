@@ -19,9 +19,9 @@ package com.android.systemui.statusbar.notification.row.domain
 import android.content.applicationContext
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testDispatcher
+import com.android.systemui.notifications.content.icon.appIconProvider
 import com.android.systemui.statusbar.notification.row.data.repository.testBundleRepository
 import com.android.systemui.statusbar.notification.row.domain.interactor.BundleInteractor
-import com.android.systemui.statusbar.notification.row.icon.appIconProvider
 import com.android.systemui.util.time.systemClock
 
 val Kosmos.bundleInteractor by

@@ -28,7 +28,7 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.log.logcatLogBuffer
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.testKosmos
-import com.android.systemui.user.data.repository.FakeUserRepository
+import com.android.systemui.user.data.repository.fakeUserRepository
 import com.android.systemui.util.settings.fakeSettings
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
@@ -46,7 +46,7 @@ class CommunalTutorialRepositoryImplTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
     private val secureSettings = kosmos.fakeSettings
-    private lateinit var userRepository: FakeUserRepository
+    private val userRepository = kosmos.fakeUserRepository
 
     private lateinit var underTest: CommunalTutorialRepositoryImpl
 
@@ -54,7 +54,6 @@ class CommunalTutorialRepositoryImplTest : SysuiTestCase() {
     fun setUp() {
         MockitoAnnotations.initMocks(this)
 
-        userRepository = FakeUserRepository()
         val listOfUserInfo = listOf(MAIN_USER_INFO)
         userRepository.setUserInfos(listOfUserInfo)
 
@@ -132,7 +131,7 @@ class CommunalTutorialRepositoryImplTest : SysuiTestCase() {
 
     private fun setTutorialStateSetting(
         @Settings.Secure.HubModeTutorialState state: Int,
-        user: UserInfo = MAIN_USER_INFO
+        user: UserInfo = MAIN_USER_INFO,
     ) {
         secureSettings.putIntForUser(Settings.Secure.HUB_MODE_TUTORIAL_STATE, state, user.id)
     }

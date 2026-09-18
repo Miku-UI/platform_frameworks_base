@@ -294,7 +294,7 @@ public class TvPipMenuView extends FrameLayout implements TvPipActionsProvider.L
      */
     void setPipBounds(Rect updatedPipBounds) {
         ProtoLog.d(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
-                "%s: updateLayout, width: %s, height: %s", TAG, updatedPipBounds.width(),
+                "%s: updateLayout, width: %d, height: %d", TAG, updatedPipBounds.width(),
                 updatedPipBounds.height());
         if (updatedPipBounds.equals(mCurrentPipBounds)) return;
 
@@ -482,7 +482,13 @@ public class TvPipMenuView extends FrameLayout implements TvPipActionsProvider.L
     }
 
     @Override
+    public void onCloseEduTextAnimationUpdate() {
+        mListener.onCloseEduTextMenuBoundsChange();
+    }
+
+    @Override
     public void onCloseEduTextAnimationEnd() {
+        mListener.onCloseEduTextMenuBoundsChange();
         mEduTextDrawer.setVisibility(GONE);
         mPipFrameView.setVisibility(GONE);
         mEduTextContainer.setVisibility(GONE);
@@ -659,5 +665,10 @@ public class TvPipMenuView extends FrameLayout implements TvPipActionsProvider.L
          *  how it is positioned on the screen.
          */
         void onCloseEduText();
+
+        /**
+         * Called when the edu text drawer animation updates the menu bounds.
+         */
+        void onCloseEduTextMenuBoundsChange();
     }
 }

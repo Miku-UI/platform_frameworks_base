@@ -24,8 +24,7 @@ import com.android.internal.view.AppearanceRegion
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.kairos.awaitClose
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.statusbar.StatusBarRegionSampling
 import com.android.systemui.statusbar.domain.interactor.StatusBarRegionSamplingInteractor
 import com.android.systemui.util.boundsOnScreen
@@ -35,17 +34,14 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import java.util.concurrent.Executor
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 
 /**
@@ -81,16 +77,10 @@ constructor(
     private val statusBarRegionSamplingInteractor: StatusBarRegionSamplingInteractor,
     @Main private val mainExecutor: Executor,
     @Background private val backgroundExecutor: Executor,
-    @Background private val backgroundScope: CoroutineScope,
-) : ExclusiveActivatable() {
-    private val hydrator = Hydrator(traceName = "StatusBarRegionSamplingViewModel.hydrator")
+) : HydratedActivatable() {
 
     private val isRegionSamplingEnabled =
-        statusBarRegionSamplingInteractor.isRegionSamplingEnabled.stateIn(
-            scope = backgroundScope,
-            started = SharingStarted.WhileSubscribed(),
-            initialValue = false,
-        )
+        statusBarRegionSamplingInteractor.isRegionSamplingEnabled.onStart { emit(false) }
 
     private data class Bounds(val sampling: Rect, val appearanceRegion: Rect)
 
@@ -115,25 +105,23 @@ constructor(
                 startSideContainerView.addOnLayoutChangeListener(layoutListener)
                 awaitClose { startSideContainerView.removeOnLayoutChangeListener(layoutListener) }
             }
-            .stateIn(
-                backgroundScope,
-                SharingStarted.WhileSubscribed(),
-                initialValue = Bounds(Rect(), Rect()),
-            )
+            .onStart { emit(Bounds(Rect(), Rect())) }
 
     private val startSideSamplingBounds: Rect by
-        hydrator.hydratedStateOf(
-            traceName = "StatusBarRegionSamplingViewModel.startSideSamplingBounds",
-            initialValue = Rect(),
-            source = _startSideBounds.map { it.sampling },
-        )
+        _startSideBounds
+            .map { it.sampling }
+            .hydratedStateOf(
+                traceName = "StatusBarRegionSamplingViewModel.startSideSamplingBounds",
+                initialValue = Rect(),
+            )
 
     private val startSideAppearanceRegionBounds: Rect by
-        hydrator.hydratedStateOf(
-            traceName = "StatusBarRegionSamplingViewModel.startSideAppearanceRegionBounds",
-            initialValue = Rect(),
-            source = _startSideBounds.map { it.appearanceRegion },
-        )
+        _startSideBounds
+            .map { it.appearanceRegion }
+            .hydratedStateOf(
+                traceName = "StatusBarRegionSamplingViewModel.startSideAppearanceRegionBounds",
+                initialValue = Rect(),
+            )
 
     private val _endSideBounds: Flow<Bounds> =
         conflatedCallbackFlow {
@@ -154,25 +142,23 @@ constructor(
                 endSideContainerView.addOnLayoutChangeListener(layoutListener)
                 awaitClose { endSideContainerView.removeOnLayoutChangeListener(layoutListener) }
             }
-            .stateIn(
-                backgroundScope,
-                SharingStarted.WhileSubscribed(),
-                initialValue = Bounds(Rect(), Rect()),
-            )
+            .onStart { emit(Bounds(Rect(), Rect())) }
 
     private val endSideSamplingBounds: Rect by
-        hydrator.hydratedStateOf(
-            traceName = "StatusBarRegionSamplingViewModel.endSideSamplingBounds",
-            initialValue = Rect(),
-            source = _endSideBounds.map { it.sampling },
-        )
+        _endSideBounds
+            .map { it.sampling }
+            .hydratedStateOf(
+                traceName = "StatusBarRegionSamplingViewModel.endSideSamplingBounds",
+                initialValue = Rect(),
+            )
 
     private val endSideAppearanceRegionBounds: Rect by
-        hydrator.hydratedStateOf(
-            traceName = "StatusBarRegionSamplingViewModel.endSideAppearanceRegionBounds",
-            initialValue = Rect(),
-            source = _endSideBounds.map { it.appearanceRegion },
-        )
+        _endSideBounds
+            .map { it.appearanceRegion }
+            .hydratedStateOf(
+                traceName = "StatusBarRegionSamplingViewModel.endSideAppearanceRegionBounds",
+                initialValue = Rect(),
+            )
 
     private val startSideSampledAppearanceRegion: Flow<AppearanceRegion> = conflatedCallbackFlow {
         val samplingRegion =
@@ -219,15 +205,13 @@ constructor(
             }
         }
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         coroutineScope {
             launch {
                 topLevelSamplingRegions.collect { value ->
                     statusBarRegionSamplingInteractor.setSampledAppearanceRegions(displayId, value)
                 }
             }
-            launch { hydrator.activate() }
-            awaitCancellation()
         }
     }
 

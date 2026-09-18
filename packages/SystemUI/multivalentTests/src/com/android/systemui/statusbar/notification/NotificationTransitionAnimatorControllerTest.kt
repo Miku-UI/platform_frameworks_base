@@ -7,6 +7,7 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.jank.interactionJankMonitor
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.notification.collection.GroupEntry
@@ -80,126 +81,151 @@ class NotificationTransitionAnimatorControllerTest : SysuiTestCase() {
 
     @Test
     fun testHunIsRemovedAndCallbackIsInvokedIfWeDontAnimateLaunch() {
-        flagNotificationAsHun()
-        controller.onIntentStarted(willAnimate = false)
+        kosmos.runTest {
+            flagNotificationAsHun()
+            controller.onIntentStarted(willAnimate = false)
 
-        assertTrue(HeadsUpUtil.isClickedHeadsUpNotification(notification))
-        assertFalse(notification.isLaunchAnimationRunning)
-        val isExpandAnimationRunning by
-            testScope.collectLastValue(
-                notificationLaunchAnimationInteractor.isLaunchAnimationRunning
-            )
-        assertFalse(isExpandAnimationRunning!!)
+            assertTrue(HeadsUpUtil.isClickedHeadsUpNotification(notification))
+            assertFalse(notification.isLaunchAnimationRunning)
+            val isExpandAnimationRunning by
+                testScope.collectLastValue(
+                    notificationLaunchAnimationInteractor.isLaunchAnimationRunning
+                )
+            assertFalse(isExpandAnimationRunning!!)
 
-        verify(headsUpManager)
-            .removeNotification(
-                notificationKey,
-                /* releaseImmediately= */ true,
-                /* animate= */ true,
-                /* reason= */ "onIntentStarted(willAnimate=false)",
-            )
-        verify(onFinishAnimationCallback).run()
+            verify(headsUpManager)
+                .removeNotification(
+                    notificationKey,
+                    /* releaseImmediately= */ true,
+                    /* animate= */ true,
+                    /* reason= */ "onIntentStarted(willAnimate=false) isCancelled=false",
+                )
+            verify(onFinishAnimationCallback).run()
+        }
     }
 
     @Test
     fun testHunIsRemovedAndCallbackIsInvokedWhenAnimationIsCancelled() {
-        flagNotificationAsHun()
-        controller.onTransitionAnimationCancelled()
+        kosmos.runTest {
+            flagNotificationAsHun()
+            controller.onTransitionAnimationCancelled()
 
-        assertTrue(HeadsUpUtil.isClickedHeadsUpNotification(notification))
-        assertFalse(notification.isLaunchAnimationRunning)
-        val isExpandAnimationRunning by
-            testScope.collectLastValue(
-                notificationLaunchAnimationInteractor.isLaunchAnimationRunning
-            )
-        assertFalse(isExpandAnimationRunning!!)
+            assertTrue(HeadsUpUtil.isClickedHeadsUpNotification(notification))
+            assertFalse(notification.isLaunchAnimationRunning)
+            val isExpandAnimationRunning by
+                testScope.collectLastValue(
+                    notificationLaunchAnimationInteractor.isLaunchAnimationRunning
+                )
+            assertFalse(isExpandAnimationRunning!!)
 
-        verify(headsUpManager)
-            .removeNotification(
-                notificationKey,
-                /* releaseImmediately= */ true,
-                /* animate= */ true,
-                /* reason= */ "onLaunchAnimationCancelled()",
-            )
-        verify(onFinishAnimationCallback).run()
+            verify(headsUpManager)
+                .removeNotification(
+                    notificationKey,
+                    /* releaseImmediately= */ true,
+                    /* animate= */ true,
+                    /* reason= */ "onLaunchAnimationCancelled()",
+                )
+            verify(onFinishAnimationCallback).run()
+        }
     }
 
     @Test
     fun testHunIsRemovedAndCallbackIsInvokedWhenAnimationEnds() {
-        flagNotificationAsHun()
-        controller.onTransitionAnimationEnd(isExpandingFullyAbove = true)
+        kosmos.runTest {
+            flagNotificationAsHun()
+            controller.onTransitionAnimationEnd(isExpandingFullyAbove = true)
 
-        assertFalse(HeadsUpUtil.isClickedHeadsUpNotification(notification))
-        assertFalse(notification.isLaunchAnimationRunning)
-        val isExpandAnimationRunning by
-            testScope.collectLastValue(
-                notificationLaunchAnimationInteractor.isLaunchAnimationRunning
-            )
-        assertFalse(isExpandAnimationRunning!!)
+            assertFalse(HeadsUpUtil.isClickedHeadsUpNotification(notification))
+            assertFalse(notification.isLaunchAnimationRunning)
+            val isExpandAnimationRunning by
+                testScope.collectLastValue(
+                    notificationLaunchAnimationInteractor.isLaunchAnimationRunning
+                )
+            assertFalse(isExpandAnimationRunning!!)
 
-        verify(headsUpManager)
-            .removeNotification(
-                notificationKey,
-                /* releaseImmediately= */ true,
-                /* animate= */ false,
-                /* reason= */ "onLaunchAnimationEnd()",
-            )
-        verify(onFinishAnimationCallback).run()
+            verify(headsUpManager)
+                .removeNotification(
+                    notificationKey,
+                    /* releaseImmediately= */ true,
+                    /* animate= */ false,
+                    /* reason= */ "onLaunchAnimationEnd()",
+                )
+            verify(onFinishAnimationCallback).run()
+        }
     }
 
     @Test
     fun testAlertingSummaryHunRemovedOnNonAlertingChildLaunch() {
-        val GROUP_KEY = "test_group_key"
+        kosmos.runTest {
+            val GROUP_KEY = "test_group_key"
 
-        val summary =
-            NotificationEntryBuilder()
-                .setGroup(mContext, GROUP_KEY)
-                .setId(0)
-                .apply { modifyNotification(mContext).setSmallIcon(R.drawable.ic_person) }
-                .build()
-        assertNotSame(summary.key, entry.key)
+            val summary =
+                NotificationEntryBuilder()
+                    .setGroup(mContext, GROUP_KEY)
+                    .setId(0)
+                    .apply { modifyNotification(mContext).setSmallIcon(R.drawable.ic_person) }
+                    .build()
+            assertNotSame(summary.key, entry.key)
 
-        kosmos.createRowWithEntry(summary)
+            kosmos.createRowWithEntry(summary)
 
-        GroupEntryBuilder().setKey(GROUP_KEY).setSummary(summary).addChild(entry).build()
+            GroupEntryBuilder().setKey(GROUP_KEY).setSummary(summary).addChild(entry).build()
 
-        val parentSummary =
-            if (entry.parent is GroupEntry) (entry.parent as GroupEntry).summary else null
-        assertSame(summary, parentSummary)
+            val parentSummary =
+                if (entry.parent is GroupEntry) (entry.parent as GroupEntry).summary else null
+            assertSame(summary, parentSummary)
 
-        `when`(headsUpManager.isHeadsUpEntry(notificationKey)).thenReturn(false)
-        `when`(headsUpManager.isHeadsUpEntry(summary.key)).thenReturn(true)
+            `when`(headsUpManager.isHeadsUpEntry(notificationKey)).thenReturn(false)
+            `when`(headsUpManager.isHeadsUpEntry(summary.key)).thenReturn(true)
 
-        assertNotSame(GROUP_ALERT_SUMMARY, summary.sbn.notification.groupAlertBehavior)
-        assertNotSame(GROUP_ALERT_SUMMARY, entry.sbn.notification.groupAlertBehavior)
+            assertNotSame(GROUP_ALERT_SUMMARY, summary.sbn.notification.groupAlertBehavior)
+            assertNotSame(GROUP_ALERT_SUMMARY, entry.sbn.notification.groupAlertBehavior)
 
-        controller.onTransitionAnimationEnd(isExpandingFullyAbove = true)
+            controller.onTransitionAnimationEnd(isExpandingFullyAbove = true)
 
-        verify(headsUpManager)
-            .removeNotification(
-                summary.key,
-                /* releaseImmediately= */ true,
-                /* animate= */ false,
-                /* reason= */ "onLaunchAnimationEnd()",
-            )
-        verify(headsUpManager, never())
-            .removeNotification(
-                entry.key,
-                /* releaseImmediately= */ true,
-                /* animate= */ false,
-                /* reason= */ "onLaunchAnimationEnd()",
-            )
+            verify(headsUpManager)
+                .removeNotification(
+                    summary.key,
+                    /* releaseImmediately= */ true,
+                    /* animate= */ false,
+                    /* reason= */ "onLaunchAnimationEnd()",
+                )
+            verify(headsUpManager, never())
+                .removeNotification(
+                    entry.key,
+                    /* releaseImmediately= */ true,
+                    /* animate= */ false,
+                    /* reason= */ "onLaunchAnimationEnd()",
+                )
+        }
     }
 
     @Test
     fun testNotificationIsExpandingDuringAnimation() {
-        controller.onIntentStarted(willAnimate = true)
+        kosmos.runTest {
+            controller.onIntentStarted(willAnimate = true)
 
-        assertTrue(notification.isLaunchAnimationRunning)
-        val isExpandAnimationRunning by
-            testScope.collectLastValue(
-                notificationLaunchAnimationInteractor.isLaunchAnimationRunning
-            )
-        assertTrue(isExpandAnimationRunning!!)
+            assertTrue(notification.isLaunchAnimationRunning)
+            val isExpandAnimationRunning by
+                testScope.collectLastValue(
+                    notificationLaunchAnimationInteractor.isLaunchAnimationRunning
+                )
+            assertTrue(isExpandAnimationRunning!!)
+        }
+    }
+
+    @Test
+    fun testAnimationIsCancelledBeforeOnIntentStarted() {
+        kosmos.runTest {
+            controller.onTransitionAnimationCancelled()
+            controller.onIntentStarted(willAnimate = true)
+
+            assertFalse(notification.isLaunchAnimationRunning)
+            val isExpandAnimationRunning by
+                testScope.collectLastValue(
+                    notificationLaunchAnimationInteractor.isLaunchAnimationRunning
+                )
+            assertFalse(isExpandAnimationRunning!!)
+        }
     }
 }

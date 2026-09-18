@@ -43,8 +43,7 @@ import com.android.server.timezonedetector.location.LocationTimeZoneProviderCont
 final class RealControllerMetricsLogger
         implements LocationTimeZoneProviderController.MetricsLogger {
 
-    RealControllerMetricsLogger() {
-    }
+    RealControllerMetricsLogger() {}
 
     @Override
     public void onStateChange(@State String state) {
@@ -54,27 +53,27 @@ final class RealControllerMetricsLogger
     }
 
     private static int metricsState(@State String state) {
-        switch (state) {
-            case STATE_PROVIDERS_INITIALIZING:
-                // Disable lint check (line length) for generated long constant name.
-                // CHECKSTYLE:OFF Generated code
-                return LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__PROVIDERS_INITIALIZING;
-                // CHECKSTYLE:ON Generated code
-            case STATE_STOPPED:
-                return LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__STOPPED;
-            case STATE_INITIALIZING:
-                return LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__INITIALIZING;
-            case STATE_CERTAIN:
-                return LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__CERTAIN;
-            case STATE_UNCERTAIN:
-                return LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__UNCERTAIN;
-            case STATE_DESTROYED:
-                return LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__DESTROYED;
-            case STATE_FAILED:
-                return LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__FAILED;
-            case STATE_UNKNOWN:
-            default:
-                return LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__UNKNOWN;
-        }
+        return switch (state) {
+            case STATE_PROVIDERS_INITIALIZING ->
+                    // Disable lint check (line length) for generated long constant name.
+                    // CHECKSTYLE:OFF Generated code
+                    LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__PROVIDERS_INITIALIZING;
+                    // CHECKSTYLE:ON
+            case STATE_STOPPED ->
+                    LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__STOPPED;
+            case STATE_INITIALIZING ->
+                    LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__INITIALIZING;
+            case STATE_CERTAIN ->
+                    LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__CERTAIN;
+            case STATE_UNCERTAIN ->
+                    LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__UNCERTAIN;
+            case STATE_DESTROYED ->
+                    LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__DESTROYED;
+            case STATE_FAILED ->
+                    LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__FAILED;
+            case STATE_UNKNOWN ->
+                    LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__UNKNOWN;
+            default -> LOCATION_TIME_ZONE_PROVIDER_CONTROLLER_STATE_CHANGED__STATE__UNKNOWN;
+        };
     }
 }

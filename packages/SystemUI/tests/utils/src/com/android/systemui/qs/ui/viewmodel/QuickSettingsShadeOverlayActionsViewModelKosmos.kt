@@ -17,14 +17,29 @@
 package com.android.systemui.qs.ui.viewmodel
 
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.qs.panels.ui.viewmodel.editModeViewModel
-import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 
-val Kosmos.quickSettingsShadeOverlayActionsViewModel:
-    QuickSettingsShadeOverlayActionsViewModel by Fixture {
-    QuickSettingsShadeOverlayActionsViewModel(
-        editModeViewModel = editModeViewModel,
-        shadeModeInteractor = shadeModeInteractor,
-    )
-}
+val Kosmos.quickSettingsShadeOverlayActionsViewModelFactory by
+    Kosmos.Fixture {
+        object : QuickSettingsShadeOverlayActionsViewModel.Factory {
+            override fun create(): QuickSettingsShadeOverlayActionsViewModel {
+                return QuickSettingsShadeOverlayActionsViewModel(
+                    editModeViewModel = editModeViewModel
+                )
+            }
+        }
+    }
+
+val Kosmos.quickSettingsShadeOverlayViewModelFactory by
+    Kosmos.Fixture {
+        object : QuickSettingsShadeOverlayActionsViewModel.Factory {
+            override fun create(): QuickSettingsShadeOverlayActionsViewModel {
+                return QuickSettingsShadeOverlayActionsViewModel(
+                    editModeViewModel = editModeViewModel
+                )
+            }
+        }
+    }
+
+val Kosmos.quickSettingsShadeOverlayActionsViewModel by
+    Kosmos.Fixture { quickSettingsShadeOverlayViewModelFactory.create() }

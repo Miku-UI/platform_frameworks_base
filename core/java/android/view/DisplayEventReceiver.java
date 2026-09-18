@@ -48,22 +48,6 @@ import java.lang.ref.WeakReference;
 public abstract class DisplayEventReceiver {
 
     /**
-     * When retrieving vsync events, this specifies that the vsync event should happen at the normal
-     * vsync-app tick.
-     * <p>
-     * Keep in sync with frameworks/native/libs/gui/aidl/android/gui/ISurfaceComposer.aidl
-     */
-    public static final int VSYNC_SOURCE_APP = 0;
-
-    /**
-     * When retrieving vsync events, this specifies that the vsync event should happen whenever
-     * Surface Flinger is processing a frame.
-     * <p>
-     * Keep in sync with frameworks/native/libs/gui/aidl/android/gui/ISurfaceComposer.aidl
-     */
-    public static final int VSYNC_SOURCE_SURFACE_FLINGER = 1;
-
-    /**
      * Specifies to generate mode changed events from Surface Flinger.
      * <p>
      * Keep in sync with frameworks/native/libs/gui/aidl/android/gui/ISurfaceComposer.aidl
@@ -97,7 +81,7 @@ public abstract class DisplayEventReceiver {
 
     private static native long nativeInit(WeakReference<DisplayEventReceiver> receiver,
             WeakReference<VsyncEventData> vsyncEventData,
-            MessageQueue messageQueue, int vsyncSource, int eventRegistration, long layerHandle);
+            MessageQueue messageQueue, int eventRegistration, long layerHandle);
     private static native long nativeGetDisplayEventReceiverFinalizer();
     @FastNative
     private static native void nativeScheduleVsync(long receiverPtr);
@@ -116,23 +100,22 @@ public abstract class DisplayEventReceiver {
      */
     @UnsupportedAppUsage
     public DisplayEventReceiver(Looper looper) {
-        this(looper, VSYNC_SOURCE_APP, /* eventRegistration */ 0, /* layerHandle */ 0L);
+        this(looper, /* eventRegistration */ 0, /* layerHandle */ 0L);
     }
 
-    public DisplayEventReceiver(Looper looper, int vsyncSource, int eventRegistration) {
-        this(looper, vsyncSource, eventRegistration, /* layerHandle */ 0L);
+    public DisplayEventReceiver(Looper looper, int eventRegistration) {
+        this(looper, eventRegistration, /* layerHandle */ 0L);
     }
 
     /**
      * Creates a display event receiver.
      *
      * @param looper The looper to use when invoking callbacks.
-     * @param vsyncSource The source of the vsync tick. Must be on of the VSYNC_SOURCE_* values.
      * @param eventRegistration Which events to dispatch. Must be a bitfield consist of the
      * EVENT_REGISTRATION_*_FLAG values.
      * @param layerHandle Layer to which the current instance is attached to
      */
-    public DisplayEventReceiver(Looper looper, int vsyncSource, int eventRegistration,
+    public DisplayEventReceiver(Looper looper, int eventRegistration,
             long layerHandle) {
         if (looper == null) {
             throw new IllegalArgumentException("looper must not be null");
@@ -142,7 +125,7 @@ public abstract class DisplayEventReceiver {
         mReceiverPtr = nativeInit(new WeakReference<DisplayEventReceiver>(this),
                 new WeakReference<VsyncEventData>(mVsyncEventData),
                 mMessageQueue,
-                vsyncSource, eventRegistration, layerHandle);
+                eventRegistration, layerHandle);
         mFreeNativeResources = sNativeAllocationRegistry.registerNativeAllocation(this,
                 mReceiverPtr);
     }

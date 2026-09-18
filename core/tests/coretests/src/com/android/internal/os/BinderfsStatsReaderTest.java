@@ -33,6 +33,7 @@ import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.nio.file.Files;
+import java.util.Arrays;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
@@ -94,7 +95,7 @@ public class BinderfsStatsReaderTest {
             """;
     private File mStatsDirectory;
     private int mFreezerBinderAsyncThreshold;
-    private IntArray mValidPids; // The pool of valid pids
+    private int[] mValidPids; // The pool of valid pids
     private IntArray mStatsPids; // The pids read from binderfs stats that are also valid
     private IntArray mStatsFree; // The free async space of the above pids
     private boolean mHasError;
@@ -103,7 +104,8 @@ public class BinderfsStatsReaderTest {
     public void setUp() throws Exception {
         mStatsDirectory = Files.createTempDirectory("BinderfsStatsReaderTest").toFile();
         mFreezerBinderAsyncThreshold = 1024;
-        mValidPids = IntArray.fromArray(new int[]{14505, 14461, 542, 540}, 4);
+        mValidPids = new int[]{14505, 14461, 542, 540};
+        Arrays.sort(mValidPids);
         mStatsPids = new IntArray();
         mStatsFree = new IntArray();
         mHasError = false;
@@ -159,7 +161,7 @@ public class BinderfsStatsReaderTest {
 
     @Test
     public void testInvalidProc() throws Exception {
-        mValidPids = new IntArray();
+        mValidPids = new int[0];
         runHandleBlockingFileLocks(BINDER_LOGS_STATS_HEADER + BINDER_LOGS_STATS_PROC1
                 + BINDER_LOGS_STATS_PROC2 + BINDER_LOGS_STATS_PROC3 + BINDER_LOGS_STATS_PROC4);
         assertFalse(mHasError);
@@ -172,7 +174,7 @@ public class BinderfsStatsReaderTest {
         Files.write(tempFile.toPath(), fileContents.getBytes());
         new BinderfsStatsReader(tempFile.toString()).handleFreeAsyncSpace(
                 // Check if the current process is a valid one
-                mValidPids::contains,
+                mValidPids,
 
                 // Check if the current process is running out of async binder space
                 (pid, free) -> {

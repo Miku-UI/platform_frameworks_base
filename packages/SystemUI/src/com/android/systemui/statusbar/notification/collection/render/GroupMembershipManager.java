@@ -39,34 +39,8 @@ public interface GroupMembershipManager {
     boolean isGroupRoot(@NonNull EntryAdapter entry);
 
     /**
-     * @return whether a given notification is the summary in a group which has children
-     */
-    boolean isGroupSummary(@NonNull NotificationEntry entry);
-
-    /**
-     * Get the summary of a specified status bar notification. For an isolated notification this
-     * returns null, but if called directly on a summary it returns itself.
-     */
-    @Nullable
-    NotificationEntry getGroupSummary(@NonNull NotificationEntry entry);
-
-    /**
-     * @return whether a given notification is a child in a group
-     */
-    boolean isChildInGroup(@NonNull NotificationEntry entry);
-
-    /**
      * @return whether a given notification is a child in a group. The group may be a notification
      * group or a bundle.
      */
     boolean isChildInGroup(@NonNull EntryAdapter entry);
-
-    /**
-     * Get the children that are in the summary's group, not including those isolated.
-     *
-     * @param summary summary of a group
-     * @return list of the children
-     */
-    @Nullable
-    List<NotificationEntry> getChildren(@NonNull PipelineEntry summary);
 }

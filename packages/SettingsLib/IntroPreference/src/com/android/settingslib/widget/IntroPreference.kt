@@ -17,9 +17,15 @@
 package com.android.settingslib.widget
 
 import android.content.Context
+import android.content.res.ColorStateList
+import android.graphics.drawable.Drawable
 import android.text.TextUtils
 import android.util.AttributeSet
 import android.view.View
+import android.widget.ImageView
+import androidx.annotation.DrawableRes
+import androidx.core.content.ContextCompat
+import androidx.core.content.withStyledAttributes
 import androidx.preference.Preference
 import androidx.preference.PreferenceViewHolder
 import com.android.settingslib.widget.preference.intro.R
@@ -40,10 +46,28 @@ constructor(
     private var hyperlinkListener: View.OnClickListener? = null
     private var learnMoreListener: View.OnClickListener? = null
     private var learnMoreText: CharSequence? = null
+    private var iconType: IconType = IconType.APP_ICON
+    private var isInitialized = false
+    private var useExpressiveIconFromXml: Boolean = false
 
     init {
         layoutResource = R.layout.settingslib_expressive_preference_intro
         isSelectable = false
+        isInitialized = true
+
+        if (attrs != null) {
+            context.withStyledAttributes(attrs, R.styleable.IntroPreference) {
+                useExpressiveIconFromXml = getBoolean(
+                    R.styleable.IntroPreference_useExpressiveIcon, false
+                )
+            }
+
+            this.iconType = if (useExpressiveIconFromXml) {
+                IconType.EXPRESSIVE_ICON
+            } else {
+                IconType.APP_ICON
+            }
+        }
     }
 
     override fun onBindViewHolder(holder: PreferenceViewHolder) {
@@ -60,6 +84,45 @@ constructor(
             learnMoreListener?.let {
                 setLearnMoreText(learnMoreText)
                 setLearnMoreAction(it)
+            }
+        }
+
+        val iconView: ImageView? = holder.findViewById(android.R.id.icon) as? ImageView
+        val iconBackgroundView: ImageView? =
+            holder.findViewById(R.id.icon_background) as? ImageView
+
+        val bottomSpacer = holder.findViewById(R.id.entity_header_bottom_spacer)
+        bottomSpacer?.visibility = if (summary.isNullOrEmpty()) View.VISIBLE else View.GONE
+
+        if (icon != null) {
+            iconView?.let { iv ->
+                val layoutParams = iconView.layoutParams
+                var size: Int
+
+                when (iconType) {
+                    IconType.APP_ICON -> {
+                        iconBackgroundView?.visibility = View.GONE
+                        size = context.resources.getDimensionPixelSize(
+                            com.android.settingslib.widget.theme.R.dimen.settingslib_expressive_space_large3
+                        )
+                    }
+                    IconType.EXPRESSIVE_ICON -> {
+                        iconBackgroundView?.visibility = View.VISIBLE
+
+                        iv.imageTintList = ColorStateList.valueOf(
+                            ContextCompat.getColor(
+                                context, com.android.settingslib.widget.theme.R.color.settingslib_materialColorOnSecondaryContainer
+                            )
+                        )
+
+                        size = context.resources.getDimensionPixelSize(
+                            com.android.settingslib.widget.theme.R.dimen.settingslib_expressive_space_medium3
+                        )
+                    }
+                }
+                layoutParams?.width = size
+                layoutParams?.height = size
+                iv.layoutParams = layoutParams
             }
         }
     }
@@ -119,6 +182,65 @@ constructor(
             learnMoreText = text
             notifyChanged()
         }
+    }
+
+    /**
+     * Sets the icon as an app icon (without background).
+     *
+     * @param icon The drawable to be used as the icon.
+     */
+    fun setAppIcon(icon: Drawable) {
+        if (icon != getIcon()) {
+            this.iconType = IconType.APP_ICON
+            super.setIcon(icon)
+        } else if (iconType != IconType.APP_ICON) {
+            this.iconType = IconType.APP_ICON
+            notifyChanged()
+        }
+    }
+
+    /**
+     * Sets the icon as an expressive icon (with background).
+     *
+     * @param icon The drawable to be used as the icon.
+     */
+    fun setExpressiveIcon(icon: Drawable) {
+        if (icon != getIcon()) {
+            this.iconType = IconType.EXPRESSIVE_ICON
+            super.setIcon(icon)
+        } else if (iconType != IconType.EXPRESSIVE_ICON) {
+            this.iconType = IconType.EXPRESSIVE_ICON
+            notifyChanged()
+        }
+    }
+
+    /**
+     * Sets the icon as an expressive icon (with background).
+     *
+     * @param iconResId The resource ID of the drawable to be used as the icon.
+     */
+    fun setExpressiveIcon(@DrawableRes iconResId: Int) {
+        ContextCompat.getDrawable(context, iconResId)?.let {
+            setExpressiveIcon(it)
+        }
+    }
+
+    /** @suppress */
+    @Deprecated("Use setAppIcon or setExpressiveIcon instead.", ReplaceWith(""))
+    override fun setIcon(icon: Drawable?) {
+        val newIconType = IconType.APP_ICON
+        if (icon != getIcon()) {
+            this.iconType = newIconType
+            super.setIcon(icon)
+        } else if (iconType != newIconType) {
+            this.iconType = newIconType
+            notifyChanged()
+        }
+    }
+
+    private enum class IconType {
+        APP_ICON,
+        EXPRESSIVE_ICON,
     }
 
     companion object {

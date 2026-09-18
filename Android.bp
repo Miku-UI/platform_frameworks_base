@@ -80,7 +80,7 @@ filegroup {
         ":framework-opengl-sources",
         ":framework-rs-sources",
         ":framework-sax-sources",
-        ":framework-telecomm-sources",
+        ":framework-telecom-annotation-sources",
         ":framework-telephony-common-sources",
         ":framework-telephony-sources",
         ":framework-wifi-annotations",
@@ -89,6 +89,8 @@ filegroup {
         ":ProxyHandler-aidl-sources",
         ":vcn-utils-platform-sources",
         ":net-utils-framework-common-srcs",
+        // Temporary dependencies during Telecom Mainline launch
+        ":telecom_mainline_deps_srcs",
 
         // AIDL from frameworks/base/native/
         ":platform-compat-native-aidl",
@@ -99,7 +101,7 @@ filegroup {
         ":android.hardware.biometrics.fingerprint-V5-java-source",
         ":android.hardware.biometrics.fingerprint.virtualhal-java-source",
         ":android.hardware.biometrics.face.virtualhal-java-source",
-        ":android.hardware.biometrics.face-V4-java-source",
+        ":android.hardware.biometrics.face-V5-java-source",
         ":android.hardware.gnss-V2-java-source",
         ":android.hardware.graphics.common-V3-java-source",
         ":android.hardware.keymaster-V4-java-source",
@@ -107,7 +109,7 @@ filegroup {
         ":android.hardware.radio.data-V5-java-source",
         ":android.hardware.radio.network-V5-java-source",
         ":android.hardware.radio.voice-V5-java-source",
-        ":android.hardware.security.keymint-V4-java-source",
+        ":android.hardware.security.keymint-V5-java-source",
         ":android.hardware.security.secureclock-V1-java-source",
         ":android.hardware.thermal-V3-java-source",
         ":android.hardware.tv.tuner-V3-java-source",
@@ -116,7 +118,7 @@ filegroup {
         ":android.security.legacykeystore-java-source",
         ":android.security.maintenance-java-source",
         ":android.security.metrics-java-source",
-        ":android.system.keystore2-V5-java-source",
+        ":android.system.keystore2-V6-java-source",
         ":android.hardware.cas-V1-java-source",
         ":credstore_aidl",
         ":dumpstate_aidl",
@@ -190,7 +192,6 @@ java_defaults {
             "opengl/java",
             "rs/java",
             "sax/java",
-            "telecomm/framework/java",
 
             // TODO(b/147699819): remove this
             "telephony/java",
@@ -220,7 +221,7 @@ java_library {
         "android.hardware.contexthub-V1.0-java",
         "android.hardware.contexthub-V1.1-java",
         "android.hardware.contexthub-V1.2-java",
-        "android.hardware.contexthub-V4-java",
+        "android.hardware.contexthub-V5-java",
         "android.hardware.gnss-V1.0-java",
         "android.hardware.gnss-V2.1-java",
         "android.hardware.health-V1.0-java-constants",
@@ -244,7 +245,7 @@ java_library {
         "android.hardware.usb.gadget-V1.0-java",
         "android.hardware.usb.gadget-V1.1-java",
         "android.hardware.usb.gadget-V1.2-java",
-        "android.hardware.vibrator-V3-java",
+        "android.hardware.vibrator-V4-java",
         "android.se.omapi-V1-java",
         "android.system.suspend.control.internal-java",
         "devicepolicyprotosnano",
@@ -269,6 +270,7 @@ filegroup {
 java_defaults {
     name: "framework-minus-apex-defaults",
     defaults: [
+        "android-api-contributor-defaults",
         "framework-aidl-export-defaults",
         "latest_android_hardware_soundtrigger3_java_static",
         "framework-minus-apex-aconfig-libraries",
@@ -300,7 +302,6 @@ java_defaults {
             ":framework-opengl-sources",
             ":framework-rs-sources",
             ":framework-sax-sources",
-            ":framework-telecomm-sources",
             ":framework-telephony-common-sources",
             ":framework-telephony-sources",
             ":framework-wifi-annotations",
@@ -337,6 +338,7 @@ java_defaults {
         include_dirs: [
             "frameworks/av/media/aidl",
             "frameworks/native/libs/permission/aidl",
+            "frameworks/base/telecomm/framework/aidl-export",
             "packages/modules/Bluetooth/framework/aidl-export",
             "packages/modules/Connectivity/framework/aidl-export",
             "packages/modules/Media/apex/aidl/stable",
@@ -344,6 +346,7 @@ java_defaults {
             "hardware/interfaces/biometrics/fingerprint/aidl",
             "hardware/interfaces/common/aidl",
             "hardware/interfaces/common/fmq/aidl",
+            "hardware/interfaces/contexthub/aidl",
             "hardware/interfaces/graphics/common/aidl",
             "hardware/interfaces/keymaster/aidl",
             "hardware/interfaces/power/aidl",
@@ -377,6 +380,9 @@ java_defaults {
         // TODO(b/120066492): remove default_television.xml when the build system
         // propagates "required" properly.
         "default_television.xml",
+        // TODO(b/120066492): remove advanced-protection-config.xml when the build system
+        // propagates "required" properly.
+        "advanced-protection-config.xml",
         // TODO(b/120066492): remove gps_debug and protolog.conf.json when the build
         // system propagates "required" properly.
         "gps_debug.conf",
@@ -398,20 +404,22 @@ java_defaults {
         "aconfig_storage_reader_java",
         "android.hardware.common.fmq-V1-java",
         "bouncycastle-repackaged-unbundled",
-        "com.android.sysprop.foldlockbehavior",
         "com.android.sysprop.view",
-        "com.android.sysprop.nativebinderstats",
         "framework-internal-utils",
+        "aisealhostservice_aidl-java",
         "dropboxmanager_aidl-java",
         "dynamic_instrumentation_manager_aidl-java",
         "process_info_service_aidl-java",
         // If MimeMap ever becomes its own APEX, then this dependency would need to be removed
         // in favor of an API stubs dependency in java_library "framework" below.
         "mimemap",
+        "libsensor_aidl-java",
         "av-types-aidl-java",
         "tv_tuner_resource_manager_aidl_interface-java",
         "media_quality_aidl_interface-java",
         "soundtrigger_middleware-aidl-java",
+        "media_metrics_aidl_interface-V1-java",
+        "audio-aidl-java",
         "modules-utils-binary-xml",
         "modules-utils-build",
         "modules-utils-fastxmlserializer",
@@ -420,6 +428,7 @@ java_defaults {
         "modules-utils-os",
         "modules-utils-ravenwood",
         "modules-utils-uieventlogger-interface",
+        "modules-utils-xml",
         "framework-permission-aidl-java",
         "spatializer-aidl-java",
         "audiopolicy-aidl-java",
@@ -440,10 +449,10 @@ java_library {
     static_libs: [
         "framework-location.impl",
         "framework-virtualization.impl",
-    ] + select(soong_config_variable("ANDROID", "release_crashrecovery_module"), {
-        "true": [],
+    ] + select(release_flag("RELEASE_TELECOM_MAINLINE_MODULE"), {
+        true: [],
         default: [
-            "framework-platformcrashrecovery.impl",
+            "framework-telecom.impl",
         ],
     }) + select(release_flag("RELEASE_ONDEVICE_INTELLIGENCE_MODULE"), {
         true: [],
@@ -451,6 +460,9 @@ java_library {
     }) + select(release_flag("RELEASE_TELEPHONY_MODULE"), {
         true: [],
         default: ["framework-platformtelephony.impl"],
+    }) + select(release_flag("RELEASE_CONSCRYPT_NSC"), {
+        true: [],
+        default: ["framework-network-security-config.impl"],
     }),
     sdk_version: "core_platform",
     installable: false,
@@ -468,7 +480,10 @@ java_defaults {
 java_defaults {
     name: "framework-non-updatable-lint-defaults",
     lint: {
-        extra_check_modules: ["AndroidFrameworkLintChecker"],
+        extra_check_modules: [
+            "AndroidFrameworkLintChecker",
+            "ProtoLogLintChecker",
+        ],
         disabled_checks: ["ApiMightLeakAppVisibility"],
         error_checks: [
             "ClearIdentityCallNotFollowedByTryFinally",
@@ -479,6 +494,27 @@ java_defaults {
             "UnusedTokenOfOriginalCallingIdentity",
             "UseOfCallerAwareMethodsWithClearedIdentity",
         ],
+    },
+}
+
+soong_config_module_type {
+    name: "telecom_framework_minus_apex_visibility_defaults",
+    module_type: "java_defaults",
+    config_namespace: "ANDROID",
+    bool_variables: [
+        "release_telecom_mainline_module",
+    ],
+    properties: [
+        "visibility",
+    ],
+}
+
+telecom_framework_minus_apex_visibility_defaults {
+    name: "telecom_framework_minus_apex_visibility_default",
+    soong_config_variables: {
+        release_telecom_mainline_module: {
+            visibility: ["//packages/services/Telecomm"],
+        },
     },
 }
 
@@ -495,9 +531,15 @@ java_library {
         "//frameworks/base:__subpackages__",
         "//packages/modules/NeuralNetworks:__subpackages__",
         // TODO(b/429127828): Clean this up along with RELEASE_TELEPHONY_MODULE
-        "//packages/modules/Telephony/framework:__subpackages__",
+        "//packages/modules/Telephony:__subpackages__",
         "//packages/modules/Virtualization:__subpackages__",
     ],
+    libs: select(release_flag("RELEASE_TELECOM_MAINLINE_MODULE"), {
+        true: [],
+        default: [
+            "framework-telecom.stubs.module_lib",
+        ],
+    }),
     compile_dex: false,
     headers_only: true,
 }
@@ -507,6 +549,7 @@ java_library {
     defaults: [
         "framework-minus-apex-with-libs-defaults",
         "framework-non-updatable-lint-defaults",
+        "telecom_framework_minus_apex_visibility_default",
     ],
     installable: true,
     // For backwards compatibility.
@@ -536,6 +579,9 @@ java_library {
     header_jar_override: "framework-minus-apex-headers",
     jarjar_prefix: "com.android.internal.hidden_from_bootclasspath",
     jarjar_shards: "10",
+    optimize: {
+        force_disabled_with_source_stubs: true,
+    },
 }
 
 java_library {
@@ -578,6 +624,23 @@ java_library {
     apex_available: ["//apex_available:platform"],
 }
 
+// "framework-minus-internal-res" is identical to "framework.jar", except that
+// com.android.internal.R is removed. This module is used only by the build
+// system for product apps which are allowlisted to use select hidden APIs.
+// Internal resources must not be used when the target app may be unbundled,
+// so this module explicitly removes such internal resources, while retaining
+// hidden APIs as-is.
+java_library {
+    name: "framework-minus-internal-res",
+    installable: false,
+    static_libs: [
+        "framework",
+    ],
+    jarjar_rules: "framework-minus-internal-res-jarjar-rules.txt",
+    sdk_version: "core_platform",
+    apex_available: ["//apex_available:platform"],
+}
+
 java_library {
     name: "framework-minus-apex-install-dependencies",
     required: [
@@ -591,17 +654,18 @@ java_library {
         "calendar-provider-compat-config",
         "contacts-provider-platform-compat-config",
         "SystemUI-application-compat-config",
-    ] + select(soong_config_variable("ANDROID", "release_crashrecovery_module"), {
-        "true": [],
-        default: [
-            "framework-platformcrashrecovery-compat-config",
-        ],
-    }) + select(release_flag("RELEASE_ONDEVICE_INTELLIGENCE_MODULE"), {
+    ] + select(release_flag("RELEASE_ONDEVICE_INTELLIGENCE_MODULE"), {
         true: [],
         default: ["framework-ondeviceintelligence-platform-compat-config"],
     }) + select(release_flag("RELEASE_TELEPHONY_MODULE"), {
         true: [],
         default: ["framework-platformtelephony-compat-config"],
+    }) + select(release_flag("RELEASE_CONSCRYPT_NSC"), {
+        true: [],
+        default: ["framework-network-security-config-compat-config"],
+    }) + select(release_flag("RELEASE_TELECOM_MAINLINE_MODULE"), {
+        true: [],
+        default: ["framework-telecom-compat-config"],
     }),
 }
 
@@ -621,9 +685,23 @@ filegroup {
 }
 
 filegroup {
+    name: "framework-telecom-ext-annotation-srcs",
+    srcs: [
+        "telephony/java/android/telephony/Annotation.java",
+    ],
+}
+
+filegroup {
     name: "framework-android-os-unit-testable-src",
     srcs: [
         "core/java/android/os/DdmSyncState.java",
+    ],
+}
+
+filegroup {
+    name: "framework-telecom-shared-srcs",
+    srcs: [
+        "core/java/android/util/IndentingPrintWriter.java",
     ],
 }
 
@@ -692,6 +770,7 @@ filegroup {
         ":framework-non-updatable-sources",
         ":opt-telephony-srcs",
         ":opt-net-voip-srcs",
+        ":modules-utils-xml-shared-srcs",
         "core/java/**/*.logtags",
         "**/package.html",
     ],
@@ -714,3 +793,10 @@ build = [
     "TestProtoLibraries.bp",
     "Ravenwood.bp",
 ]
+
+filegroup {
+    name: "docs_samples_redirect",
+    srcs: [
+        "docs/docs-samples-redirect.html",
+    ],
+}

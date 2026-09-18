@@ -18,6 +18,7 @@ package com.android.wm.shell.pip.tv;
 
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
+import static android.content.pm.PackageManager.FEATURE_PICTURE_IN_PICTURE;
 import static android.view.KeyEvent.KEYCODE_DPAD_LEFT;
 import static android.view.KeyEvent.KEYCODE_DPAD_RIGHT;
 
@@ -151,7 +152,10 @@ public class TvPipController implements PipTransitionController.PipTransitionCal
     private int mResizeAnimationDuration;
     private int mEduTextWindowExitAnimationDuration;
 
-    public static Pip create(
+    /**
+     * Instantiates {@link TvPipController}, returns {@code null} if the feature not supported.
+     */
+    public static TvPipImpl create(
             Context context,
             ShellInit shellInit,
             ShellController shellController,
@@ -172,6 +176,11 @@ public class TvPipController implements PipTransitionController.PipTransitionCal
             WindowManagerShellWrapper wmShell,
             Handler mainHandler,
             ShellExecutor mainExecutor) {
+        if (!context.getPackageManager().hasSystemFeature(FEATURE_PICTURE_IN_PICTURE)) {
+            ProtoLog.w(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
+                    "%s: Device doesn't support Pip feature", TAG);
+            return null;
+        }
         return new TvPipController(
                 context,
                 shellInit,
@@ -397,8 +406,8 @@ public class TvPipController implements PipTransitionController.PipTransitionCal
         ProtoLog.d(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                 "%s: togglePipExpansion()", TAG);
         boolean expanding = !mTvPipBoundsState.isTvPipExpanded();
-        mTvPipBoundsAlgorithm.updateGravityOnExpansionToggled(expanding);
         mTvPipBoundsState.setTvPipManuallyCollapsed(!expanding);
+        mTvPipBoundsAlgorithm.updateGravityOnExpansionToggled(expanding);
         mTvPipBoundsState.setTvPipExpanded(expanding);
 
         updatePinnedStackBounds();
@@ -805,7 +814,7 @@ public class TvPipController implements PipTransitionController.PipTransitionCal
         }
     }
 
-    private class TvPipImpl implements Pip {
+    public class TvPipImpl implements Pip {
         // Not used
     }
 }

@@ -15,7 +15,7 @@
  */
 package com.android.internal.widget.remotecompose.player.accessibility;
 
-
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.graphics.PointF;
 import android.os.Bundle;
@@ -47,7 +47,7 @@ public interface RemoteComposeDocumentAccessibility {
      * @param arguments Optional arguments for the action.
      * @return {@code true} if the action was performed successfully, {@code false} otherwise.
      */
-    boolean performAction(Component component, int action, Bundle arguments);
+    boolean performAction(@NonNull Component component, int action, @Nullable Bundle arguments);
 
     /**
      * Retrieves the string value associated with the given ID.
@@ -55,7 +55,8 @@ public interface RemoteComposeDocumentAccessibility {
      * @param id The ID to retrieve the string value for.
      * @return The string value associated with the ID, or {@code null} if no such value exists.
      */
-    @Nullable String stringValue(int id);
+    @Nullable
+    String stringValue(int id);
 
     /**
      * Retrieves a list of child view IDs semantically contained within the given component/virtual
@@ -67,7 +68,9 @@ public interface RemoteComposeDocumentAccessibility {
      * @param useUnmergedTree Whether to include merged children
      * @return A list of integer IDs representing the child views of the component.
      */
-    List<Integer> semanticallyRelevantChildComponents(Component component, boolean useUnmergedTree);
+    @NonNull
+    List<Integer> semanticallyRelevantChildComponents(
+            @NonNull Component component, boolean useUnmergedTree);
 
     /**
      * Retrieves the semantic modifiers associated with a given component.
@@ -75,7 +78,8 @@ public interface RemoteComposeDocumentAccessibility {
      * @param component The component for which to retrieve semantic modifiers.
      * @return A list of semantic modifiers applicable to the component.
      */
-    List<AccessibilitySemantics> semanticModifiersForComponent(Component component);
+    @NonNull
+    List<AccessibilitySemantics> semanticModifiersForComponent(@NonNull Component component);
 
     /**
      * Gets all applied merge modes of the given component. A Merge mode is one of Set, Merge or
@@ -84,7 +88,8 @@ public interface RemoteComposeDocumentAccessibility {
      * @param component The component to merge the mode for.
      * @return The effective merge modes, potentially conflicting but resolved to a single value.
      */
-    CoreSemantics.Mode mergeMode(Component component);
+    @NonNull
+    CoreSemantics.Mode mergeMode(@NonNull Component component);
 
     /**
      * Finds a component by its ID.
@@ -92,7 +97,8 @@ public interface RemoteComposeDocumentAccessibility {
      * @param id the ID of the component to find
      * @return the component with the given ID, or {@code null} if no such component exists
      */
-    @Nullable Component findComponentById(int id);
+    @Nullable
+    Component findComponentById(int id);
 
     /**
      * Finds the id of the component located at point
@@ -100,5 +106,6 @@ public interface RemoteComposeDocumentAccessibility {
      * @param point where to look up for the component
      * @return the component id or -1 if not found
      */
-    @Nullable Integer getComponentIdAt(PointF point);
+    @Nullable
+    Integer getComponentIdAt(@NonNull PointF point);
 }

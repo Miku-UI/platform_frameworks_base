@@ -22,8 +22,9 @@ import java.util.function.BiConsumer
 interface DragZoneAnimator {
     /**
      * Each consumer will be called for the corresponding DropZoneView.
-     * This must match the number of targets in [.mTargets] otherwise will
-     * throw an [IllegalStateException]
+     *
+     * This must match the number of targets in [.mTargets] otherwise will throw an
+     * [IllegalStateException]
      */
     fun animateDragTargets(viewsToAnimate: List<BiConsumer<SplitDragPolicy.Target, View>>)
 }

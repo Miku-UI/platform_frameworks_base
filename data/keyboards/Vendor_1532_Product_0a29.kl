@@ -1,0 +1,52 @@
+# Copyright (C) 2025 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Razer Wolverine V2 controller
+
+# Standard face buttons
+key 0x130   BUTTON_A  # BTN_SOUTH (A)
+key 0x131   BUTTON_B  # BTN_EAST (B)
+key 0x133   BUTTON_X  # BTN_WEST (X)
+key 0x134   BUTTON_Y  # BTN_NORTH (Y)
+
+# Shoulder Buttons
+key 0x136   BUTTON_L1
+key 0x137   BUTTON_R1
+
+# Special Buttons
+key 0x13a   BUTTON_SELECT   # View button
+key 0x13b   BUTTON_START    # Menu button
+key 0x13c   BUTTON_MODE     # Xbox/Guide button
+
+# Thumbstick Buttons
+key 0x13d   BUTTON_THUMBL
+key 0x13e   BUTTON_THUMBR
+
+
+# The reported value for flat is 128 out of a range from -32767 to 32768, which is absurd.
+# This confuses applications that rely on the flat value because the joystick actually
+# settles in a flat range of +/- 4096 or so.
+# Left and Right Stick
+axis 0x00 X flat 4096  # ABS_X
+axis 0x01 Y flat 4096  # ABS_Y
+axis 0x03 Z flat 4096  # ABS_RX
+axis 0x04 RZ flat 4096 # ABS_RY
+
+# Triggers
+axis 0x02 LTRIGGER  # ABS_Z
+axis 0x05 RTRIGGER  # ABS_RZ
+
+# D-Pad
+axis 0x10 HAT_X
+axis 0x11 HAT_Y

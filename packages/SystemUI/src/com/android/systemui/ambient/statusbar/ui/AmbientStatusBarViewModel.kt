@@ -18,7 +18,6 @@ package com.android.systemui.ambient.statusbar.ui
 
 import android.graphics.RectF
 import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
 import com.android.systemui.statusbar.chips.ui.model.MultipleOngoingActivityChipsModel
 import com.android.systemui.statusbar.chips.ui.viewmodel.OngoingActivityChipsViewModel
 import dagger.assisted.Assisted
@@ -32,8 +31,6 @@ class AmbientStatusBarViewModel
 constructor(@Assisted private val ongoingActivityChipsViewModel: OngoingActivityChipsViewModel) :
     ExclusiveActivatable() {
 
-    private val hydrator = Hydrator("AmbientStatusBarViewModel.hydrator")
-
     /** A flow of all the ongoing activity chips including active, overflow, and inactive chips. */
     val ongoingActivityChips: StateFlow<MultipleOngoingActivityChipsModel> =
         ongoingActivityChipsViewModel.chips
@@ -41,10 +38,6 @@ constructor(@Assisted private val ongoingActivityChipsViewModel: OngoingActivity
     /** Invoked each time a chip's on-screen bounds have changed. */
     fun onChipBoundsChanged(key: String, bounds: RectF) {
         ongoingActivityChipsViewModel.onChipBoundsChanged(key, bounds)
-    }
-
-    override suspend fun onActivated(): Nothing {
-        hydrator.activate()
     }
 
     @AssistedFactory

@@ -27,15 +27,13 @@ import android.service.timezone.TimeZoneProviderStatus;
 import com.android.i18n.timezone.ZoneInfoDb;
 
 /**
- * {@link TimeZoneProviderEventPreProcessor} implementation which makes validations against
- * {@link ZoneInfoDb}.
+ * {@link TimeZoneProviderEventPreProcessor} implementation which makes validations against {@link
+ * ZoneInfoDb}.
  */
 public class ZoneInfoDbTimeZoneProviderEventPreProcessor
         implements TimeZoneProviderEventPreProcessor {
 
-    /**
-     * Returns uncertain event if {@code event} has at least one unsupported time zone ID.
-     */
+    /** Returns uncertain event if {@code event} has at least one unsupported time zone ID. */
     @Override
     public TimeZoneProviderEvent preProcess(@NonNull TimeZoneProviderEvent event) {
         if (event.getSuggestion() == null || event.getSuggestion().getTimeZoneIds().isEmpty()) {
@@ -63,7 +61,8 @@ public class ZoneInfoDbTimeZoneProviderEventPreProcessor
             } else {
                 providerStatusBuilder = new TimeZoneProviderStatus.Builder();
             }
-            return TimeZoneProviderEvent.createUncertainEvent(event.getCreationElapsedMillis(),
+            return TimeZoneProviderEvent.createUncertainEvent(
+                    event.getCreationElapsedMillis(),
                     providerStatusBuilder
                             .setTimeZoneResolutionOperationStatus(OPERATION_STATUS_FAILED)
                             .build());
@@ -82,5 +81,4 @@ public class ZoneInfoDbTimeZoneProviderEventPreProcessor
 
         return false;
     }
-
 }

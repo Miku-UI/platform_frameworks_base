@@ -46,6 +46,7 @@ import static android.app.usage.UsageStatsManager.STANDBY_BUCKET_RESTRICTED;
 import static android.app.usage.UsageStatsManager.STANDBY_BUCKET_WORKING_SET;
 import static android.content.pm.PackageManager.PERMISSION_DENIED;
 
+import static com.android.server.usage.AppStandbyController.ConstantsObserver.KEY_NOTIFICATION_SEEN_PROMOTED_BUCKET;
 import static com.android.server.usage.AppStandbyController.DEFAULT_ELAPSED_TIME_THRESHOLDS;
 import static com.android.server.usage.AppStandbyController.DEFAULT_SCREEN_TIME_THRESHOLDS;
 import static com.android.server.usage.AppStandbyController.MINIMUM_ELAPSED_TIME_THRESHOLDS;
@@ -91,7 +92,10 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.DeviceConfig;
 import android.util.ArraySet;
 import android.util.Pair;
@@ -104,11 +108,13 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.internal.util.ArrayUtils;
 import com.android.server.LocalServices;
 import com.android.server.SystemService;
+import com.android.server.deviceidle.Flags;
 import com.android.server.usage.AppStandbyInternal.AppIdleStateChangeListener;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -135,6 +141,8 @@ import java.util.stream.Collectors;
 @SmallTest
 public class AppStandbyControllerTests {
 
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     private static final String PACKAGE_1 = "com.example.foo.1";
     private static final int UID_1 = 10000;
     private static final String PACKAGE_2 = "com.example.foo.2";
@@ -923,6 +931,7 @@ public class AppStandbyControllerTests {
         assertFalse(mController.isAppIdleFiltered(PACKAGE_1, UID_1, USER_ID, 0));
     }
 
+    @DisableFlags(Flags.FLAG_REMOVE_NOTIFICATION_SEEN_ELEVATION)
     @Test
     public void testNotificationEvent_bucketPromotion() throws Exception {
         mInjector.mPropertiesChangedListener
@@ -941,8 +950,32 @@ public class AppStandbyControllerTests {
         assertFalse(mQuotaBumpLatch.await(1, TimeUnit.SECONDS));
     }
 
+    @EnableFlags(Flags.FLAG_REMOVE_NOTIFICATION_SEEN_ELEVATION)
     @Test
-    public void testNotificationEvent_bucketPromotion_changePromotedBucket() throws Exception {
+    public void testNotificationEvent_noBucketPromotion() throws Exception {
+
+        mInjector.mSettingsBuilder
+                .setInt(KEY_NOTIFICATION_SEEN_PROMOTED_BUCKET, STANDBY_BUCKET_RARE);
+        mInjector.mPropertiesChangedListener
+                .onPropertiesChanged(mInjector.getDeviceConfigProperties());
+
+        mController.forceIdleState(PACKAGE_1, USER_ID, true);
+        waitAndAssertBucket("Setup: App should start in RARE", STANDBY_BUCKET_RARE, PACKAGE_1);
+
+        mInjector.mElapsedRealtime += 1000;
+
+        // Simulate a NOTIFICATION_SEEN event
+        reportEvent(mController, NOTIFICATION_SEEN, mInjector.mElapsedRealtime, PACKAGE_1);
+
+        // Verify the bucket is NOT elevated (remains RARE)
+        waitAndAssertBucket("App should stay in RARE when flag is enabled",
+                STANDBY_BUCKET_RARE, PACKAGE_1);
+    }
+
+    @DisableFlags(Flags.FLAG_REMOVE_NOTIFICATION_SEEN_ELEVATION)
+    @Test
+    public void testNotificationEvent_bucketPromotion_changePromotedBucket_flagDisabled()
+            throws Exception {
         mInjector.mPropertiesChangedListener
                 .onPropertiesChanged(mInjector.getDeviceConfigProperties());
         mInjector.mElapsedRealtime += RARE_THRESHOLD + 1;
@@ -950,8 +983,30 @@ public class AppStandbyControllerTests {
         reportEvent(mController, NOTIFICATION_SEEN, mInjector.mElapsedRealtime, PACKAGE_1);
         waitAndAssertBucket(STANDBY_BUCKET_WORKING_SET, PACKAGE_1);
 
+        mInjector.mSettingsBuilder.setInt(KEY_NOTIFICATION_SEEN_PROMOTED_BUCKET,
+                STANDBY_BUCKET_FREQUENT);
+        mInjector.mPropertiesChangedListener.onPropertiesChanged(
+                mInjector.getDeviceConfigProperties());
+        mController.forceIdleState(PACKAGE_1, USER_ID, true);
+        reportEvent(mController, NOTIFICATION_SEEN, mInjector.mElapsedRealtime, PACKAGE_1);
+        waitAndAssertBucket(STANDBY_BUCKET_FREQUENT, PACKAGE_1);
+    }
+
+    @EnableFlags(Flags.FLAG_REMOVE_NOTIFICATION_SEEN_ELEVATION)
+    @Test
+    public void testNotificationEvent_bucketPromotion_changePromotedBucket_flagEnabled()
+            throws Exception {
+        mInjector.mSettingsBuilder
+                .setInt(KEY_NOTIFICATION_SEEN_PROMOTED_BUCKET, STANDBY_BUCKET_RARE);
+        mInjector.mPropertiesChangedListener
+                .onPropertiesChanged(mInjector.getDeviceConfigProperties());
+        mInjector.mElapsedRealtime += RARE_THRESHOLD + 1;
+        mController.forceIdleState(PACKAGE_1, USER_ID, true);
+        reportEvent(mController, NOTIFICATION_SEEN, mInjector.mElapsedRealtime, PACKAGE_1);
+        waitAndAssertBucket(STANDBY_BUCKET_RARE, PACKAGE_1);
+
         // TODO: Avoid hardcoding these string constants.
-        mInjector.mSettingsBuilder.setInt("notification_seen_promoted_bucket",
+        mInjector.mSettingsBuilder.setInt(KEY_NOTIFICATION_SEEN_PROMOTED_BUCKET,
                 STANDBY_BUCKET_FREQUENT);
         mInjector.mPropertiesChangedListener.onPropertiesChanged(
                 mInjector.getDeviceConfigProperties());
@@ -965,7 +1020,7 @@ public class AppStandbyControllerTests {
         mInjector.mSettingsBuilder
                 .setBoolean("trigger_quota_bump_on_notification_seen", true);
         mInjector.mSettingsBuilder
-                .setInt("notification_seen_promoted_bucket", STANDBY_BUCKET_NEVER);
+                .setInt(KEY_NOTIFICATION_SEEN_PROMOTED_BUCKET, STANDBY_BUCKET_NEVER);
         mInjector.mPropertiesChangedListener
                 .onPropertiesChanged(mInjector.getDeviceConfigProperties());
 
@@ -1400,8 +1455,9 @@ public class AppStandbyControllerTests {
         waitAndAssertBucket(STANDBY_BUCKET_RESTRICTED, PACKAGE_1);
     }
 
+    @DisableFlags(Flags.FLAG_REMOVE_NOTIFICATION_SEEN_ELEVATION)
     @Test
-    public void testCascadingTimeouts() throws Exception {
+    public void testCascadingTimeouts_flagDisabled() throws Exception {
         mInjector.mPropertiesChangedListener
                 .onPropertiesChanged(mInjector.getDeviceConfigProperties());
 
@@ -1426,8 +1482,35 @@ public class AppStandbyControllerTests {
         waitAndAssertBucket(STANDBY_BUCKET_FREQUENT, PACKAGE_1);
     }
 
+    @EnableFlags(Flags.FLAG_REMOVE_NOTIFICATION_SEEN_ELEVATION)
     @Test
-    public void testOverlappingTimeouts() throws Exception {
+    public void testCascadingTimeouts_flagEnabled() throws Exception {
+        mInjector.mSettingsBuilder
+                .setInt(KEY_NOTIFICATION_SEEN_PROMOTED_BUCKET, STANDBY_BUCKET_RARE);
+        mInjector.mPropertiesChangedListener
+                .onPropertiesChanged(mInjector.getDeviceConfigProperties());
+
+        reportEvent(mController, USER_INTERACTION, 0, PACKAGE_1);
+        waitAndAssertBucket(STANDBY_BUCKET_ACTIVE, PACKAGE_1);
+
+        reportEvent(mController, NOTIFICATION_SEEN, 1000, PACKAGE_1);
+        waitAndAssertBucket(STANDBY_BUCKET_ACTIVE, PACKAGE_1);
+
+        mController.setAppStandbyBucket(PACKAGE_1, USER_ID, STANDBY_BUCKET_WORKING_SET,
+                REASON_MAIN_PREDICTED);
+        waitAndAssertBucket(STANDBY_BUCKET_ACTIVE, PACKAGE_1);
+
+        // Advance time past the strong usage timeout. Since NOTIFICATION_SEEN doesn't elevate
+        // with the flag enabled, the app will fall to the predicted bucket (FREQUENT).
+        mInjector.mElapsedRealtime = 2000 + mController.mStrongUsageTimeoutMillis;
+        mController.setAppStandbyBucket(PACKAGE_1, USER_ID, STANDBY_BUCKET_FREQUENT,
+                REASON_MAIN_PREDICTED);
+        waitAndAssertBucket(STANDBY_BUCKET_FREQUENT, PACKAGE_1);
+    }
+
+    @DisableFlags(Flags.FLAG_REMOVE_NOTIFICATION_SEEN_ELEVATION)
+    @Test
+    public void testOverlappingTimeouts_flagDisabled() throws Exception {
         mInjector.mPropertiesChangedListener
                 .onPropertiesChanged(mInjector.getDeviceConfigProperties());
 
@@ -1453,6 +1536,46 @@ public class AppStandbyControllerTests {
         mController.setAppStandbyBucket(PACKAGE_1, USER_ID, STANDBY_BUCKET_FREQUENT,
                 REASON_MAIN_PREDICTED);
         waitAndAssertBucket(STANDBY_BUCKET_WORKING_SET, PACKAGE_1);
+
+        mInjector.mElapsedRealtime = mController.mNotificationSeenTimeoutMillis + 2000;
+        mController.setAppStandbyBucket(PACKAGE_1, USER_ID, STANDBY_BUCKET_RARE,
+                REASON_MAIN_PREDICTED);
+        waitAndAssertBucket(STANDBY_BUCKET_RARE, PACKAGE_1);
+    }
+
+    @EnableFlags(Flags.FLAG_REMOVE_NOTIFICATION_SEEN_ELEVATION)
+    @Test
+    public void testOverlappingTimeouts_flagEnabled() throws Exception {
+        mInjector.mSettingsBuilder
+                .setInt(KEY_NOTIFICATION_SEEN_PROMOTED_BUCKET, STANDBY_BUCKET_RARE);
+        mInjector.mPropertiesChangedListener
+                .onPropertiesChanged(mInjector.getDeviceConfigProperties());
+
+        reportEvent(mController, USER_INTERACTION, 0, PACKAGE_1);
+        waitAndAssertBucket(STANDBY_BUCKET_ACTIVE, PACKAGE_1);
+
+        reportEvent(mController, NOTIFICATION_SEEN, 1000, PACKAGE_1);
+        waitAndAssertBucket(STANDBY_BUCKET_ACTIVE, PACKAGE_1);
+
+        // Overlapping USER_INTERACTION before previous one times out
+        reportEvent(mController, USER_INTERACTION, mController.mStrongUsageTimeoutMillis - 1000,
+                PACKAGE_1);
+        waitAndAssertBucket(STANDBY_BUCKET_ACTIVE, PACKAGE_1);
+
+        // Still in ACTIVE after first USER_INTERACTION times out
+        mInjector.mElapsedRealtime = mController.mStrongUsageTimeoutMillis + 1000;
+        mController.setAppStandbyBucket(PACKAGE_1, USER_ID, STANDBY_BUCKET_FREQUENT,
+                REASON_MAIN_PREDICTED);
+        waitAndAssertBucket(STANDBY_BUCKET_ACTIVE, PACKAGE_1);
+
+        // Both USER_INTERACTION timeouts have passed. Since flag is enabled,
+        // NOTIFICATION_SEEN does not cause bucket elevation. The app falls to
+        // STANDBY_BUCKET_FREQUENT based on prediction, which is higher priority (better)
+        // than the RARE (40) bucket configured for notification promotion
+        mInjector.mElapsedRealtime = mController.mStrongUsageTimeoutMillis * 2 + 2000;
+        mController.setAppStandbyBucket(PACKAGE_1, USER_ID, STANDBY_BUCKET_FREQUENT,
+                REASON_MAIN_PREDICTED);
+        waitAndAssertBucket(STANDBY_BUCKET_FREQUENT, PACKAGE_1);
 
         mInjector.mElapsedRealtime = mController.mNotificationSeenTimeoutMillis + 2000;
         mController.setAppStandbyBucket(PACKAGE_1, USER_ID, STANDBY_BUCKET_RARE,

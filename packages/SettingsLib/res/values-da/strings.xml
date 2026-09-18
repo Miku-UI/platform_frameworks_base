@@ -56,7 +56,7 @@
     <string name="wifi_disabled_password_failure" msgid="6892387079613226738">"Problem med godkendelse"</string>
     <string name="wifi_cant_connect" msgid="5718417542623056783">"Kan ikke forbinde"</string>
     <string name="wifi_cant_connect_to_ap" msgid="3099667989279700135">"Der kan ikke oprettes forbindelse til \"<xliff:g id="AP_NAME">%1$s</xliff:g>\""</string>
-    <string name="wifi_check_password_try_again" msgid="8817789642851605628">"Tjek adgangskoden, og prøv igen"</string>
+    <string name="wifi_check_password_try_again" msgid="8817789642851605628">"Tjek adgangs­koden, og prøv igen"</string>
     <string name="wifi_not_in_range" msgid="1541760821805777772">"Ikke inden for rækkevidde"</string>
     <string name="wifi_no_internet_no_reconnect" msgid="821591791066497347">"Der oprettes ikke automatisk forbindelse"</string>
     <string name="wifi_no_internet" msgid="1774198889176926299">"Ingen internetadgang"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wi-Fi har tre bjælker."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Wi-Fi har fuldt signal."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Der er oprettet forbindelse til din enhed."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Alle brugere på denne enhed kan se og oprette forbindelse."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Åbent netværk"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Sikkert netværk"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Indstillingerne for adgangspunktet (APN) er ikke tilgængelige for denne bruger"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB-fejlretning"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Fejlretningstilstand, når USB er tilsluttet"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Tilbagekald tilladelser for USB-fejlretning"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Tilbagekald tilladelser til adb-fejlretning"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Trådløs fejlretning"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Fejlfindingstilstand, når der er Wi-Fi-forbindelse"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Fejl"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Parrer enhed…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Enheden blev ikke parret. Det skyldes enten, at QR-koden var forkert, eller at enheden ikke er forbundet til det samme netværk."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP-adresse og port"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Ikke tilgængelig (ikke tilladt)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Ikke tilgængelig (Wi-Fi-forbindelsen er afbrudt)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Scan QR-kode"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Par en enhed via Wi-Fi ved at scanne en QR-kode"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Opret forbindelse til et Wi-Fi-netværk"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB-fejlretning er kun beregnet til udvikling og kan bruges til at kopiere data mellem din computer og enheden, installere apps på enheden uden notifikation og læse logdata."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Vil du tillade trådløs fejlretning?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Trådløs fejlretning er kun beregnet til udvikling og kan bruges til at kopiere data mellem din computer og enheden, installere apps på enheden uden notifikation og læse logdata."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Vil du ophæve adgangen til USB-fejlretning for alle computere, du tidligere har godkendt?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Vil du tilbagekalde adgangen til adb-fejlretning for alle computere og netværk, du tidligere har godkendt?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Vil du tillade udviklingsindstillinger?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Disse indstillinger er kun beregnet til brug i forbindelse med udvikling. De kan forårsage, at din enhed og dens apps går ned eller ikke fungerer korrekt."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Verificer apps via USB"</string>
@@ -544,7 +547,7 @@
     <string name="battery_info_status_charging_on_hold" msgid="6364355145521694438">"Opladningen er blevet sat på pause"</string>
     <string name="battery_info_status_charging_v2" msgid="6118522107222245505">"Opladning"</string>
     <string name="battery_info_status_charging_fast_v2" msgid="1825439848151256589">"Lynopladning"</string>
-    <string name="disabled_by_admin_summary_text" msgid="5343911767402923057">"Kontrolleret af administratoren"</string>
+    <string name="disabled_by_admin_summary_text" msgid="5343911767402923057">"Administreret af administratoren"</string>
     <string name="disabled_by_app_ops_text" msgid="8373595926549098012">"Styres af en begrænset indstilling"</string>
     <string name="disabled_in_phone_call_text" msgid="6568931334337318320">"Kan ikke bruges under opkald"</string>
     <string name="disabled" msgid="8017887509554714950">"Deaktiveret"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet er ikke tilsluttet."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Opkald er deaktiveret."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Fysisk tastatur"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Vælg tastaturlayout"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Standard"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Indstillinger for aktivering af skærm"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Tillad aktivering af skærmen"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Tillad, at en app aktiverer skærmen. Hvis du giver denne tilladelse, kan appen til enhver tid aktivere skærmen, uden at du eksplicit har bedt om det."</string>

@@ -84,8 +84,7 @@ constructor(
     /** @see SecureLockDeviceInteractor.shouldListenForBiometricAuth */
     val shouldListenForBiometricAuth: Boolean by
         secureLockDeviceInteractor.shouldListenForBiometricAuth.hydratedStateOf(
-            traceName = "shouldListenForBiometricAuth",
-            initialValue = false,
+            initialValue = false
         )
 
     /** @see SecureLockDeviceInteractor.enrolledStrongBiometricModalities */
@@ -224,6 +223,8 @@ constructor(
         authenticateAfterError: Boolean,
         hapticFeedback: Boolean = true,
         failedModality: BiometricModality = BiometricModality.None,
+        // False for screenshot testing only - displays an error without clearing it
+        clearError: Boolean = true,
     ) = coroutineScope {
         if (_isAuthenticated.value.isAuthenticated) {
             return@coroutineScope
@@ -238,12 +239,14 @@ constructor(
         }
 
         displayErrorJob?.cancel()
-        displayErrorJob = launch {
-            delay(displayErrorLength)
-            if (authenticateAfterError) {
-                showAuthenticating()
-            } else {
-                showHelp()
+        if (clearError) {
+            displayErrorJob = launch {
+                delay(displayErrorLength)
+                if (authenticateAfterError) {
+                    showAuthenticating()
+                } else {
+                    showHelp()
+                }
             }
         }
     }
@@ -431,8 +434,9 @@ constructor(
      * lock device.
      */
     fun onTryAgainButtonClicked() {
+        // Update state when try again is clicked and then request for authentication
+        secureLockDeviceInteractor.onUserRequestedRetry()
         showAuthenticating(isRetry = true)
-        secureLockDeviceInteractor.onRetryBiometricAuth()
     }
 
     /**

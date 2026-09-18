@@ -22,6 +22,8 @@ import android.os.SystemClock;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.power.stats.counters.TimeBase;
+
 import junit.framework.TestCase;
 
 import org.mockito.Mockito;
@@ -32,7 +34,7 @@ public class BatteryStatsSamplingTimerTest extends TestCase {
     public void testSettingStalePreservesData() throws Exception {
         final MockClock clocks = new MockClock();
         final BatteryStatsImpl.SamplingTimer timer = new BatteryStatsImpl.SamplingTimer(clocks,
-                Mockito.mock(BatteryStatsImpl.TimeBase.class));
+                Mockito.mock(TimeBase.class));
 
         timer.onTimeStarted(100, 100, 100);
 
@@ -58,7 +60,7 @@ public class BatteryStatsSamplingTimerTest extends TestCase {
     @SmallTest
     public void testEndSampleAndContinueWhenTimeOrCountDecreases() throws Exception {
         final MockClock clocks = new MockClock();
-        final BatteryStatsImpl.TimeBase timeBase = Mockito.mock(BatteryStatsImpl.TimeBase.class);
+        final TimeBase timeBase = Mockito.mock(TimeBase.class);
         final BatteryStatsImpl.SamplingTimer timer = new BatteryStatsImpl.SamplingTimer(clocks,
                 timeBase);
 
@@ -108,7 +110,7 @@ public class BatteryStatsSamplingTimerTest extends TestCase {
     @SmallTest
     public void testFirstUpdateIsAbsorbed() throws Exception {
         final MockClock clocks = new MockClock();
-        final BatteryStatsImpl.TimeBase timeBase = Mockito.mock(BatteryStatsImpl.TimeBase.class);
+        final TimeBase timeBase = Mockito.mock(TimeBase.class);
 
         BatteryStatsImpl.SamplingTimer timer = new BatteryStatsImpl.SamplingTimer(clocks, timeBase);
 
@@ -150,7 +152,7 @@ public class BatteryStatsSamplingTimerTest extends TestCase {
         clocks.realtime = 0;
         clocks.uptime = 0;
 
-        final BatteryStatsImpl.TimeBase timeBase = new BatteryStatsImpl.TimeBase();
+        final TimeBase timeBase = new TimeBase();
         timeBase.init(clocks.uptimeMillis(), clocks.elapsedRealtime());
 
         BatteryStatsImpl.SamplingTimer timer = new BatteryStatsImpl.SamplingTimer(clocks, timeBase);

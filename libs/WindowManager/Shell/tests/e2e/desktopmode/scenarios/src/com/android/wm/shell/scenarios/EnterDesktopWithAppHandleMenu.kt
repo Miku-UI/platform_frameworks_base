@@ -21,10 +21,10 @@ import android.tools.Rotation
 import android.tools.traces.parsers.WindowManagerStateHelper
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
-import com.android.launcher3.tapl.LauncherInstrumentation
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
 import org.junit.After
+import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 
@@ -33,15 +33,18 @@ abstract class EnterDesktopWithAppHandleMenu(val rotation: Rotation = Rotation.R
     TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
-    private val tapl = LauncherInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
-    private val simpleAppHelper = SimpleAppHelper(instrumentation)
-    val testApp = DesktopModeAppHelper(simpleAppHelper)
+    val testApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
+
+    @Before
+    fun setup() {
+        testApp.launchViaIntent(wmHelper)
+        testApp.exitDesktopModeToFullScreenIfNeeded(wmHelper, device)
+    }
 
     @Test
     open fun enterDesktopWithAppHandleMenu() {
-        simpleAppHelper.launchViaIntent(wmHelper)
         testApp.enterDesktopModeFromAppHandleMenu(wmHelper, device)
     }
 

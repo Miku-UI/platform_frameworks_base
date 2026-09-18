@@ -62,6 +62,8 @@ public:
     static sk_sp<Bitmap> allocateHardwareBitmap(renderthread::RenderThread& thread,
                                                 SkBitmap& skBitmap);
 
+    ANativeWindow* getSurface() override { return mNativeWindow.get(); }
+
 protected:
     void onContextDestroyed() override;
 

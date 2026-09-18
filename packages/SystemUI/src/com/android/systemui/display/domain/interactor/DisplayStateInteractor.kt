@@ -72,6 +72,12 @@ interface DisplayStateInteractor {
     val isLargeScreen: StateFlow<Boolean>
 
     /**
+     * Provides whether the current display is an extra large screen (i.e. all edges are >= 1200dp).
+     * This is agnostic of display rotation.
+     */
+    val isExtraLargeScreen: StateFlow<Boolean>
+
+    /**
      * Provides whether the display's current horizontal width is large (>= 600dp).
      *
      * Note: Unlike [isLargeScreen], which checks whether either one of the screen's width or height
@@ -123,6 +129,8 @@ constructor(
     override val isDefaultDisplayOff = displayRepository.defaultDisplayOff
 
     override val isLargeScreen: StateFlow<Boolean> = displayStateRepository.isLargeScreen
+
+    override val isExtraLargeScreen: StateFlow<Boolean> = displayStateRepository.isExtraLargeScreen
 
     override val isWideScreen: StateFlow<Boolean> = displayStateRepository.isWideScreen
 

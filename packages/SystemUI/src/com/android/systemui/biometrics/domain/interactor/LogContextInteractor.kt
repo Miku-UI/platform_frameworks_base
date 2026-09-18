@@ -19,14 +19,16 @@ package com.android.systemui.biometrics.domain.interactor
 import android.hardware.biometrics.AuthenticateOptions
 import android.hardware.biometrics.IBiometricContextListener
 import android.util.Log
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
-import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
 import com.android.systemui.display.data.repository.DeviceStateRepository
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionStep
+import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Scenes
 import dagger.Lazy
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -41,7 +43,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 /**
  * Aggregates UI/device state that is not directly related to biometrics, but is often useful for
@@ -81,26 +82,27 @@ constructor(
     deviceStateRepository: DeviceStateRepository,
     keyguardTransitionInteractor: KeyguardTransitionInteractor,
     udfpsOverlayInteractor: UdfpsOverlayInteractor,
-    deviceEntryInteractor: Lazy<DeviceEntryInteractor>,
+    sceneInteractor: Lazy<SceneInteractor>,
 ) : LogContextInteractor {
 
     override val displayState: Flow<Int> by lazy {
         if (SceneContainerFlag.isEnabled) {
             combine(
-                deviceEntryInteractor.get().isDeviceEntered,
+                sceneInteractor.get().currentScene,
                 keyguardTransitionInteractor.startedKeyguardTransitionStep,
-            ) { isDeviceEntered, transitionStep ->
-                if (isDeviceEntered) {
-                    AuthenticateOptions.DISPLAY_STATE_UNKNOWN
-                } else {
-                    transitionStep.toAuthenticateOptions(
-                        // Here when isDeviceEntered=false which always means that the device is on
-                        // top of the keyguard. Therefore, any KeyguardState that doesn't have a
-                        // more specific mapping as a sub-state of keyguard, maps to LOCKSCREEN
-                        // instead of UNKNOWN, because it _is_ a known display state and that
-                        // display state is undeniably LOCKSCREEN.
-                        default = AuthenticateOptions.DISPLAY_STATE_LOCKSCREEN
-                    )
+            ) { currentScene, transitionStep ->
+                when (currentScene) {
+                    Scenes.Lockscreen ->
+                        transitionStep.toAuthenticateOptions(
+                            default = AuthenticateOptions.DISPLAY_STATE_LOCKSCREEN
+                        )
+                    Scenes.Dream -> AuthenticateOptions.DISPLAY_STATE_SCREENSAVER
+                    Scenes.Communal,
+                    Scenes.Occluded,
+                    Scenes.Shade,
+                    Scenes.QuickSettings -> AuthenticateOptions.DISPLAY_STATE_LOCKSCREEN
+                    Scenes.Gone -> AuthenticateOptions.DISPLAY_STATE_UNKNOWN
+                    else -> AuthenticateOptions.DISPLAY_STATE_UNKNOWN
                 }
             }
         } else {
@@ -174,8 +176,8 @@ constructor(
     private fun TransitionStep.toAuthenticateOptions(default: Int): Int {
         return when (this.to) {
             KeyguardState.LOCKSCREEN,
-            KeyguardState.OCCLUDED,
             KeyguardState.ALTERNATE_BOUNCER,
+            KeyguardState.OCCLUDED,
             KeyguardState.GLANCEABLE_HUB,
             KeyguardState.PRIMARY_BOUNCER -> AuthenticateOptions.DISPLAY_STATE_LOCKSCREEN
             KeyguardState.AOD -> AuthenticateOptions.DISPLAY_STATE_AOD

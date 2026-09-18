@@ -49,15 +49,39 @@ public class StringUtil {
      * Returns elapsed time for the given millis, in the following format:
      * 2 days, 5 hr, 40 min, 29 sec
      *
-     * @param context     the application context
-     * @param millis      the elapsed time in milli seconds
-     * @param withSeconds include seconds?
+     * @param context          the application context
+     * @param millis           the elapsed time in milli seconds
+     * @param withSeconds      include seconds?
      * @param collapseTimeUnit limit the output to top 2 time unit
-     *                         e.g 2 days, 5 hr, 40 min, 29 sec will convert to 2 days, 5 hr
+     *                         e.g. 2 days, 5 hr, 40 min, 29 sec will convert to 2 days, 5 hr
      * @return the formatted elapsed time
      */
     public static CharSequence formatElapsedTime(Context context, double millis,
             boolean withSeconds, boolean collapseTimeUnit) {
+        return formatElapsedTime(
+                context, millis, withSeconds, collapseTimeUnit, FormatWidth.SHORT);
+    }
+
+
+    /**
+     * Returns elapsed time for the given millis, in the following format:
+     * 2 days, 5 hr, 40 min, 29 sec
+     *
+     * @param context          the application context
+     * @param millis           the elapsed time in milli seconds
+     * @param withSeconds      include seconds?
+     * @param collapseTimeUnit limit the output to top 2 time unit
+     *                         e.g. 2 days, 5 hr, 40 min, 29 sec will convert to 2 days, 5 hr
+     * @param formatWidth      determines formatted string length
+     * @return the formatted elapsed time
+     */
+    public static CharSequence formatElapsedTime(
+            Context context,
+            double millis,
+            boolean withSeconds,
+            boolean collapseTimeUnit,
+            FormatWidth formatWidth
+    ) {
         SpannableStringBuilder sb = new SpannableStringBuilder();
         int seconds = (int) Math.floor(millis / 1000);
         if (!withSeconds) {
@@ -106,7 +130,7 @@ public class StringUtil {
 
         final Locale locale = context.getResources().getConfiguration().locale;
         final MeasureFormat measureFormat = MeasureFormat.getInstance(
-                locale, FormatWidth.SHORT);
+                locale, formatWidth);
         sb.append(measureFormat.formatMeasures(measureArray));
 
         if (measureArray.length == 1 && MeasureUnit.MINUTE.equals(measureArray[0].getUnit())) {

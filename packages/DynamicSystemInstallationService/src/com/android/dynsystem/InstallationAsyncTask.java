@@ -697,7 +697,9 @@ class InstallationAsyncTask extends AsyncTask<String, Long, Throwable> {
                         SharedMemory.create("dsu_buffer_" + partitionName, mSharedMemorySize);
                 MappedMemoryBuffer mappedBuffer =
                         new MappedMemoryBuffer(sharedMemory.mapReadWrite())) {
-            mInstallationSession.setAshmem(sharedMemory.getFdDup(), sharedMemory.getSize());
+            if (!mInstallationSession.setAshmem(sharedMemory.getFdDup(), sharedMemory.getSize())) {
+                throw new IOException("Failed to set ashmem fd to DynamicSystemManager");
+            }
 
             initPartitionProgress(partitionName, partitionSize, /* readonly = */ true);
             publishProgress(/* installedSize = */ 0L);

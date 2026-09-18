@@ -16,12 +16,15 @@
 
 package com.android.systemui.keyboard.shortcut.data.source
 
+import android.app.role.RoleManager
 import android.content.res.Resources
 import android.hardware.input.InputManager
 import android.hardware.input.KeyGlyphMap
+import android.view.KeyEvent.KEYCODE_A
 import android.view.KeyEvent.KEYCODE_BACK
 import android.view.KeyEvent.KEYCODE_DPAD_LEFT
 import android.view.KeyEvent.KEYCODE_ESCAPE
+import android.view.KeyEvent.KEYCODE_G
 import android.view.KeyEvent.KEYCODE_H
 import android.view.KeyEvent.KEYCODE_HOME
 import android.view.KeyEvent.KEYCODE_I
@@ -39,6 +42,9 @@ import android.view.KeyEvent.META_META_ON
 import android.view.KeyEvent.META_SHIFT_ON
 import android.view.KeyboardShortcutGroup
 import android.view.KeyboardShortcutInfo
+import com.android.hardware.input.Flags.enableContextualCursorDesktopEntrypoints
+import com.android.hardware.input.Flags.enableContextualSearchDesktopEntrypoints
+import com.android.hardware.input.Flags.enableNoteTakingKeyboardShortcut
 import com.android.hardware.input.Flags.enablePartialScreenshotKeyboardShortcut
 import com.android.hardware.input.Flags.enableQuickSettingsPanelShortcut
 import com.android.systemui.Flags.shortcutHelperKeyGlyph
@@ -50,8 +56,11 @@ import javax.inject.Inject
 
 class SystemShortcutsSource
 @Inject
-constructor(@Main private val resources: Resources, private val inputManager: InputManager) :
-    KeyboardShortcutGroupsSource {
+constructor(
+    @Main private val resources: Resources,
+    private val inputManager: InputManager,
+    private val roleManager: RoleManager,
+) : KeyboardShortcutGroupsSource {
 
     override suspend fun shortcutGroups(deviceId: Int) =
         listOf(
@@ -222,17 +231,50 @@ constructor(@Main private val resources: Resources, private val inputManager: In
         )
     }
 
-    private fun systemAppsShortcuts() =
-        listOf(
-            // Access system settings:
-            //  - Meta + I
+    private fun systemAppsShortcuts() = buildList {
+        // Access system settings:
+        //  - Meta + I
+        add(
             shortcutInfo(resources.getString(R.string.group_system_access_system_settings)) {
                 command(META_META_ON, KEYCODE_I)
-            },
-            // Access Assistant:
-            //  - Meta + Space
+            }
+        )
+        // Access Assistant:
+        //  - Meta + Space
+        add(
             shortcutInfo(resources.getString(R.string.group_system_access_google_assistant)) {
                 command(META_META_ON, KEYCODE_SPACE)
-            },
+            }
         )
+        // Contextual search:
+        // - Meta + A
+        if (enableContextualSearchDesktopEntrypoints()) {
+            add(
+                shortcutInfo(resources.getString(R.string.group_system_access_contextual_search)) {
+                    command(META_META_ON, KEYCODE_A)
+                }
+            )
+        }
+        // Pull up Notes app for quick memo:
+        //  - Meta + Ctrl + N
+        if (
+            enableNoteTakingKeyboardShortcut() &&
+                roleManager.isRoleAvailable(RoleManager.ROLE_NOTES)
+        ) {
+            add(
+                shortcutInfo(resources.getString(R.string.group_system_quick_memo)) {
+                    command(META_META_ON or META_CTRL_ON, KEYCODE_N)
+                }
+            )
+        }
+        // Contextual Cursor
+        // - Meta + G
+        if (enableContextualCursorDesktopEntrypoints()) {
+            add(
+                shortcutInfo(resources.getString(R.string.group_system_access_contextual_search)) {
+                    command(META_META_ON, KEYCODE_G)
+                }
+            )
+        }
+    }
 }

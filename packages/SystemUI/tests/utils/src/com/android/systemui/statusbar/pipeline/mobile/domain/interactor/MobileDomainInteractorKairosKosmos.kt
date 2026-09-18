@@ -19,7 +19,6 @@ package com.android.systemui.statusbar.pipeline.mobile.domain.interactor
 import android.content.applicationContext
 import com.android.systemui.flags.featureFlagsClassic
 import com.android.systemui.kairos.ActivatedKairosFixture
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.mobileConnectionsRepositoryKairos
@@ -27,7 +26,6 @@ import com.android.systemui.statusbar.pipeline.shared.data.repository.connectivi
 import com.android.systemui.statusbar.policy.data.repository.userSetupRepository
 import com.android.systemui.util.carrierConfigTracker
 
-@ExperimentalKairosApi
 val Kosmos.mobileIconsInteractorKairos by ActivatedKairosFixture {
     MobileIconsInteractorKairosImpl(
         mobileConnectionsRepositoryKairos,

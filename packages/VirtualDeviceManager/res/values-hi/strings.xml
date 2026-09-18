@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_label" msgid="1092971641119916701">"वर्चुअल डिवाइस मैनेजर"</string>
+    <string name="request_computer_control_access_dialog_title" msgid="1970509993635617382">"क्या &lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; को स्क्रीन ऑटोमेशन का इस्तेमाल करने की अनुमति देनी है?"</string>
+    <string name="request_computer_control_access_per_app_consent_dialog_title" msgid="8118885324223570680">"क्या &lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; को &lt;strong&gt;<xliff:g id="AUTOMATABLE_APP_NAME">%2$s</xliff:g>&lt;/strong&gt; के साथ स्क्रीन ऑटोमेशन का इस्तेमाल करने की अनुमति देनी है?"</string>
+    <string name="request_computer_control_access_dialog_description" msgid="3423347516805473691">"यह ऐप्लिकेशन, अन्य ऐप्लिकेशन की स्क्रीन पर मौजूद कॉन्टेंट को देख पाएगा और उससे इंटरैक्ट कर पाएगा. इससे आपको टास्क पूरे करने में मदद मिलेगी. ऐसा तब भी होगा, जब ऐप्लिकेशन बैकग्राउंड में चल रहे हों"</string>
+    <string name="request_computer_control_access_dialog_button_allow" msgid="6210271960695301518">"सिर्फ़ इस बार अनुमति दें"</string>
+    <string name="request_computer_control_access_dialog_button_dont_allow" msgid="4793579155406896411">"अनुमति न दें"</string>
+    <string name="request_computer_control_access_dialog_button_always_allow" msgid="1551784758130170359">"हमेशा के लिए अनुमति दें"</string>
+    <string name="automated_app_launch_warning_dialog_title" msgid="5210938311581044737">"<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>, <xliff:g id="TARGET_APP_NAME">%2$s</xliff:g> का इस्तेमाल कर रहा है"</string>
+    <string name="automated_app_launch_warning_dialog_description" msgid="5372128583106771831">"टास्क की प्रोग्रेस देखने के लिए, <xliff:g id="AGENT_APP_NAME_0">%1$s</xliff:g> ऐप्लिकेशन खोलें.<xliff:g id="EMPTY_LINE">
+
+</xliff:g>अगर आपने टास्क को अभी रोका, तो आपकी प्रोग्रेस खत्म हो सकती है. रीस्टार्ट करने के लिए, <xliff:g id="AGENT_APP_NAME_1">%1$s</xliff:g> ऐप्लिकेशन खोलें."</string>
+    <string name="automated_app_launch_warning_dialog_stop" msgid="5255022618671675595">"टास्क बंद करें और ऐप्लिकेशन खोलें"</string>
+    <string name="automated_app_launch_warning_dialog_wait" msgid="3472782366270857170">"बंद करें"</string>
+</resources>

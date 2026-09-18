@@ -30,7 +30,6 @@ val Kosmos.lightBarControllerStoreImpl by
             displayRepository = displayRepository,
             factory = { _, _, _, _ -> mock() },
             displayScopeRepository = displayScopeRepository,
-            statusBarModeRepositoryStore = statusBarModeRepository,
             displaySubComponentRepository = displaySubcomponentPerDisplayRepository,
         )
     }

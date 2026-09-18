@@ -51,7 +51,6 @@ import com.android.systemui.statusbar.notification.collection.NotificationEntryA
 import com.android.systemui.statusbar.notification.collection.render.GroupExpansionManager;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.row.NotificationContentView;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.util.concurrency.FakeExecutor;
@@ -93,24 +92,34 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-        mDependency.injectTestDependency(DeviceProvisionedController.class,
-                mDeviceProvisionedController);
+        mDependency.injectTestDependency(
+                DeviceProvisionedController.class, mDeviceProvisionedController);
         mDependency.injectTestDependency(ShadeController.class, mShadeController);
-        mDependency.injectTestDependency(NotificationLockscreenUserManager.class,
-                mNotificationLockscreenUserManager);
+        mDependency.injectTestDependency(
+                NotificationLockscreenUserManager.class, mNotificationLockscreenUserManager);
 
         if (SceneContainerFlag.isEnabled()) {
             when(mDeviceUnlockedInteractorLazy.get()).thenReturn(mDeviceUnlockedInteractor);
             when(mSceneInteractorLazy.get()).thenReturn(mSceneInteractor);
         }
 
-        mRemoteInputCallback = spy(new StatusBarRemoteInputCallback(mContext,
-                mGroupExpansionManager, mNotificationLockscreenUserManager,
-                mKeyguardStateController, mStatusBarStateController, mStatusBarKeyguardViewManager,
-                mActivityStarter, mShadeController,
-                new CommandQueue(mContext, new FakeDisplayTracker(mContext)),
-                mock(ActionClickLogger.class), mFakeExecutor, mDeviceUnlockedInteractorLazy,
-                mSceneInteractorLazy, mJavaAdapter));
+        mRemoteInputCallback =
+                spy(
+                        new StatusBarRemoteInputCallback(
+                                mContext,
+                                mGroupExpansionManager,
+                                mNotificationLockscreenUserManager,
+                                mKeyguardStateController,
+                                mStatusBarStateController,
+                                mStatusBarKeyguardViewManager,
+                                mActivityStarter,
+                                mShadeController,
+                                new CommandQueue(mContext, new FakeDisplayTracker(mContext)),
+                                mock(ActionClickLogger.class),
+                                mFakeExecutor,
+                                mDeviceUnlockedInteractorLazy,
+                                mSceneInteractorLazy,
+                                mJavaAdapter));
         mRemoteInputCallback.mChallengeReceiver = mRemoteInputCallback.new ChallengeReceiver();
     }
 
@@ -118,9 +127,10 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
     public void testActionDeviceLockedChangedWithDifferentUserIdCallsOnWorkChallengeChanged() {
         when(mNotificationLockscreenUserManager.getCurrentUserId()).thenReturn(mCurrentUserId);
         when(mNotificationLockscreenUserManager.isCurrentProfile(anyInt())).thenReturn(true);
-        Intent intent = new Intent()
-                .setAction(ACTION_DEVICE_LOCKED_CHANGED)
-                .putExtra(Intent.EXTRA_USER_HANDLE, mCurrentUserId + 1);
+        Intent intent =
+                new Intent()
+                        .setAction(ACTION_DEVICE_LOCKED_CHANGED)
+                        .putExtra(Intent.EXTRA_USER_HANDLE, mCurrentUserId + 1);
         mRemoteInputCallback.mChallengeReceiver.onReceive(mContext, intent);
         verify(mRemoteInputCallback, times(1)).onWorkChallengeChanged();
     }
@@ -130,9 +140,10 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
         mRemoteInputCallback.onLockedRemoteInput(
                 mock(ExpandableNotificationRow.class), mock(View.class));
 
-        verify(mStatusBarKeyguardViewManager).showBouncer(true,
-                "StatusBarRemoteInputCallback#onLockedRemoteInput");
+        verify(mStatusBarKeyguardViewManager)
+                .showBouncer(true, "StatusBarRemoteInputCallback#onLockedRemoteInput");
     }
+
     @Test
     @DisableFlags(ExpandHeadsUpOnInlineReply.FLAG_NAME)
     public void onMakeExpandedVisibleForRemoteInput_collapsedGroup_expandGroupExpansion() {
@@ -145,11 +156,7 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
         final NotificationEntryAdapter enrEntryAdapter = mock(NotificationEntryAdapter.class);
 
         when(enr.getPrivateLayout()).thenReturn(privateLayout);
-        if (NotificationBundleUi.isEnabled()) {
-            when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
-        } else {
-            when(enr.getEntryLegacy()).thenReturn(enrEntry);
-        }
+        when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
         when(enr.isChildInGroup()).thenReturn(true);
         when(enr.areChildrenExpanded()).thenReturn(false);
 
@@ -158,11 +165,7 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
                 enr, mock(View.class), false, onExpandedVisibleRunner);
 
         // THEN
-        if (NotificationBundleUi.isEnabled()) {
-            verify(mGroupExpansionManager).toggleGroupExpansion(enrEntryAdapter);
-        } else {
-            verify(mGroupExpansionManager).toggleGroupExpansion(enrEntry);
-        }
+        verify(mGroupExpansionManager).toggleGroupExpansion(enrEntryAdapter);
         verify(enr).setUserExpanded(true);
         verify(privateLayout).setOnExpandedVisibleListener(onExpandedVisibleRunner);
     }
@@ -179,11 +182,7 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
         final NotificationEntryAdapter enrEntryAdapter = mock(NotificationEntryAdapter.class);
 
         when(enr.getPrivateLayout()).thenReturn(privateLayout);
-        if (NotificationBundleUi.isEnabled()) {
-            when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
-        } else {
-            when(enr.getEntryLegacy()).thenReturn(enrEntry);
-        }
+        when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
         when(enr.isChildInGroup()).thenReturn(true);
         when(enr.areChildrenExpanded()).thenReturn(true);
 
@@ -192,8 +191,8 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
                 enr, mock(View.class), false, onExpandedVisibleRunner);
 
         // THEN
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(any(NotificationEntry.class));
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(any(NotificationEntryAdapter.class));
+        verify(mGroupExpansionManager, never())
+                .toggleGroupExpansion(any(NotificationEntryAdapter.class));
         verify(enr).setUserExpanded(true);
         verify(privateLayout).setOnExpandedVisibleListener(onExpandedVisibleRunner);
     }
@@ -210,11 +209,7 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
         final NotificationEntryAdapter enrEntryAdapter = mock(NotificationEntryAdapter.class);
 
         when(enr.getPrivateLayout()).thenReturn(privateLayout);
-        if (NotificationBundleUi.isEnabled()) {
-            when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
-        } else {
-            when(enr.getEntryLegacy()).thenReturn(enrEntry);
-        }
+        when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
         when(enr.isChildInGroup()).thenReturn(false);
 
         // WHEN
@@ -222,8 +217,8 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
                 enr, mock(View.class), false, onExpandedVisibleRunner);
 
         // THEN
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(any(NotificationEntry.class));
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(any(NotificationEntryAdapter.class));
+        verify(mGroupExpansionManager, never())
+                .toggleGroupExpansion(any(NotificationEntryAdapter.class));
         verify(enr).setUserExpanded(true);
         verify(privateLayout).setOnExpandedVisibleListener(onExpandedVisibleRunner);
     }
@@ -240,11 +235,7 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
         final NotificationEntryAdapter enrEntryAdapter = mock(NotificationEntryAdapter.class);
 
         when(enr.getPrivateLayout()).thenReturn(privateLayout);
-        if (NotificationBundleUi.isEnabled()) {
-            when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
-        } else {
-            when(enr.getEntryLegacy()).thenReturn(enrEntry);
-        }
+        when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
         when(enr.isChildInGroup()).thenReturn(true);
         when(enr.areChildrenExpanded()).thenReturn(false);
 
@@ -253,11 +244,7 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
                 enr, mock(View.class), false, onExpandedVisibleRunner);
 
         // THEN
-        if (NotificationBundleUi.isEnabled()) {
-            verify(mGroupExpansionManager).toggleGroupExpansion(enrEntryAdapter);
-        } else {
-            verify(mGroupExpansionManager).toggleGroupExpansion(enrEntry);
-        }
+        verify(mGroupExpansionManager).toggleGroupExpansion(enrEntryAdapter);
         verify(privateLayout).setOnExpandedVisibleListener(any());
         verify(enr, never()).setUserExpanded(anyBoolean());
     }
@@ -274,11 +261,7 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
         final NotificationEntryAdapter enrEntryAdapter = mock(NotificationEntryAdapter.class);
 
         when(enr.getPrivateLayout()).thenReturn(privateLayout);
-        if (NotificationBundleUi.isEnabled()) {
-            when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
-        } else {
-            when(enr.getEntryLegacy()).thenReturn(enrEntry);
-        }
+        when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
         when(enr.isChildInGroup()).thenReturn(true);
         when(enr.areChildrenExpanded()).thenReturn(true);
 
@@ -288,8 +271,8 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
 
         // THEN
         verify(privateLayout).setOnExpandedVisibleListener(any());
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(enrEntry);
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(any(NotificationEntryAdapter.class));
+        verify(mGroupExpansionManager, never())
+                .toggleGroupExpansion(any(NotificationEntryAdapter.class));
         verify(enr, never()).setUserExpanded(anyBoolean());
     }
 
@@ -305,11 +288,7 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
         final NotificationEntryAdapter enrEntryAdapter = mock(NotificationEntryAdapter.class);
 
         when(enr.getPrivateLayout()).thenReturn(privateLayout);
-        if (NotificationBundleUi.isEnabled()) {
-            when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
-        } else {
-            when(enr.getEntryLegacy()).thenReturn(enrEntry);
-        }
+        when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
         when(enr.isChildInGroup()).thenReturn(false);
         when(enr.isPinned()).thenReturn(false);
         when(enr.isExpanded()).thenReturn(false);
@@ -322,8 +301,8 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
         verify(enr).toggleExpansionState();
         verify(privateLayout).setOnExpandedVisibleListener(onExpandedVisibleRunner);
         verify(enr, never()).setUserExpanded(anyBoolean());
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(any(NotificationEntry.class));
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(any(NotificationEntryAdapter.class));
+        verify(mGroupExpansionManager, never())
+                .toggleGroupExpansion(any(NotificationEntryAdapter.class));
     }
 
     @Test
@@ -338,11 +317,7 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
         final NotificationEntryAdapter enrEntryAdapter = mock(NotificationEntryAdapter.class);
 
         when(enr.getPrivateLayout()).thenReturn(privateLayout);
-        if (NotificationBundleUi.isEnabled()) {
-            when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
-        } else {
-            when(enr.getEntryLegacy()).thenReturn(enrEntry);
-        }
+        when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
         when(enr.isChildInGroup()).thenReturn(false);
         when(enr.isPinned()).thenReturn(false);
         when(enr.isExpanded()).thenReturn(true);
@@ -355,8 +330,8 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
         verify(enr, never()).toggleExpansionState();
         verify(privateLayout).setOnExpandedVisibleListener(onExpandedVisibleRunner);
         verify(enr, never()).setUserExpanded(anyBoolean());
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(any(NotificationEntry.class));
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(any(NotificationEntryAdapter.class));
+        verify(mGroupExpansionManager, never())
+                .toggleGroupExpansion(any(NotificationEntryAdapter.class));
     }
 
     @Test
@@ -367,15 +342,10 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
 
         final ExpandableNotificationRow enr = mock(ExpandableNotificationRow.class);
         final NotificationContentView privateLayout = mock(NotificationContentView.class);
-        final NotificationEntry enrEntry = mock(NotificationEntry.class);
         final NotificationEntryAdapter enrEntryAdapter = mock(NotificationEntryAdapter.class);
 
         when(enr.getPrivateLayout()).thenReturn(privateLayout);
-        if (NotificationBundleUi.isEnabled()) {
-            when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
-        } else {
-            when(enr.getEntryLegacy()).thenReturn(enrEntry);
-        }
+        when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
         when(enr.isChildInGroup()).thenReturn(false);
         when(enr.isPinned()).thenReturn(true);
         when(enr.isPinnedAndExpanded()).thenReturn(false);
@@ -388,8 +358,8 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
         verify(enr).toggleExpansionState();
         verify(privateLayout).setOnExpandedVisibleListener(onExpandedVisibleRunner);
         verify(enr, never()).setUserExpanded(anyBoolean());
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(any(NotificationEntry.class));
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(any(NotificationEntryAdapter.class));
+        verify(mGroupExpansionManager, never())
+                .toggleGroupExpansion(any(NotificationEntryAdapter.class));
     }
 
     @Test
@@ -404,11 +374,7 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
         final NotificationEntryAdapter enrEntryAdapter = mock(NotificationEntryAdapter.class);
 
         when(enr.getPrivateLayout()).thenReturn(privateLayout);
-        if (NotificationBundleUi.isEnabled()) {
-            when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
-        } else {
-            when(enr.getEntryLegacy()).thenReturn(enrEntry);
-        }
+        when(enr.getEntryAdapter()).thenReturn(enrEntryAdapter);
         when(enr.isChildInGroup()).thenReturn(false);
         when(enr.isPinned()).thenReturn(true);
         when(enr.isPinnedAndExpanded()).thenReturn(true);
@@ -421,7 +387,7 @@ public class StatusBarRemoteInputCallbackTest extends SysuiTestCase {
         verify(enr, never()).toggleExpansionState();
         verify(privateLayout).setOnExpandedVisibleListener(onExpandedVisibleRunner);
         verify(enr, never()).setUserExpanded(anyBoolean());
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(any(NotificationEntry.class));
-        verify(mGroupExpansionManager, never()).toggleGroupExpansion(any(NotificationEntryAdapter.class));
+        verify(mGroupExpansionManager, never())
+                .toggleGroupExpansion(any(NotificationEntryAdapter.class));
     }
 }

@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.4.0-alpha08" type="baseline" client="" dependencies="true" name="" variant="all" version="8.4.0-alpha08">
+
+    <issue
+        id="ChildInNonViewGroup"
+        message="A View should have no children declared in XML"
+        errorLine1="    &lt;View"
+        errorLine2="     ~~~~">
+        <location
+            file="frameworks/base/tools/aapt2/integration-tests/AutoVersionTest/res/layout/layout2.xml"
+            line="19"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="ChildInNonViewGroup"
+        message="A View should have no children declared in XML"
+        errorLine1="    &lt;View"
+        errorLine2="     ~~~~">
+        <location
+            file="frameworks/base/tools/aapt2/integration-tests/AutoVersionTest/res/layout/layout2.xml"
+            line="21"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="ChildInNonViewGroup"
+        message="A View should have no children declared in XML"
+        errorLine1="    &lt;View"
+        errorLine2="     ~~~~">
+        <location
+            file="frameworks/base/tools/aapt2/integration-tests/AutoVersionTest/res/layout/layout2.xml"
+            line="25"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="ChildInNonViewGroup"
+        message="A View should have no children declared in XML"
+        errorLine1="    &lt;View"
+        errorLine2="     ~~~~">
+        <location
+            file="frameworks/base/tools/aapt2/integration-tests/AutoVersionTest/res/layout/layout2.xml"
+            line="29"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="ChildInNonViewGroup"
+        message="A View should have no children declared in XML"
+        errorLine1="    &lt;View"
+        errorLine2="     ~~~~">
+        <location
+            file="frameworks/base/tools/aapt2/integration-tests/AutoVersionTest/res/layout/layout2.xml"
+            line="31"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="ChildInNonViewGroup"
+        message="A View should have no children declared in XML"
+        errorLine1="    &lt;View"
+        errorLine2="     ~~~~">
+        <location
+            file="frameworks/base/tools/aapt2/integration-tests/AutoVersionTest/res/layout/layout2.xml"
+            line="35"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="ChildInNonViewGroup"
+        message="A View should have no children declared in XML"
+        errorLine1="    &lt;View"
+        errorLine2="     ~~~~">
+        <location
+            file="frameworks/base/tools/aapt2/integration-tests/AutoVersionTest/res/layout/layout2.xml"
+            line="37"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="ChildInNonViewGroup"
+        message="A View should have no children declared in XML"
+        errorLine1="    &lt;View"
+        errorLine2="     ~~~~">
+        <location
+            file="frameworks/base/tools/aapt2/integration-tests/AutoVersionTest/res/layout/layout2.xml"
+            line="41"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="ChildInNonViewGroup"
+        message="A View should have no children declared in XML"
+        errorLine1="    &lt;View"
+        errorLine2="     ~~~~">
+        <location
+            file="frameworks/base/tools/aapt2/integration-tests/AutoVersionTest/res/layout/layout2.xml"
+            line="43"
+            column="6"/>
+    </issue>
+
+</issues>

@@ -33,6 +33,7 @@ import com.android.compose.animation.scene.SceneTransitionLayoutImpl
 import com.android.compose.animation.scene.TransformationSpec
 import com.android.compose.animation.scene.TransformationSpecImpl
 import com.android.compose.animation.scene.TransitionKey
+import com.android.compose.animation.scene.TransitionSpecImpl
 import com.android.internal.jank.Cuj.CujType
 import com.android.mechanics.GestureContext
 import kotlinx.coroutines.CoroutineScope
@@ -121,7 +122,7 @@ sealed interface TransitionState {
                 }
 
             override fun toString(): String {
-                return "ChangeScene(fromScene=$fromScene, toScene=$toScene)"
+                return "ChangeScene(fromScene=${fromScene.debugName}, toScene=${toScene.debugName})"
             }
         }
 
@@ -190,8 +191,8 @@ sealed interface TransitionState {
 
             override fun toString(): String {
                 val isShowing = overlay == toContent
-                return "ShowOrHideOverlay(overlay=$overlay, fromOrToScene=$fromOrToScene, " +
-                    "isShowing=$isShowing)"
+                return "ShowOrHideOverlay(overlay=${overlay.debugName}, " +
+                    "fromOrToScene=${fromOrToScene.debugName}, isShowing=$isShowing)"
             }
         }
 
@@ -245,7 +246,8 @@ sealed interface TransitionState {
             }
 
             override fun toString(): String {
-                return "ReplaceOverlay(fromOverlay=$fromOverlay, toOverlay=$toOverlay)"
+                return "ReplaceOverlay(fromOverlay=${fromOverlay.debugName}, " +
+                    "toOverlay=${toOverlay.debugName})"
             }
         }
 
@@ -254,8 +256,8 @@ sealed interface TransitionState {
          * when this transition is started in
          * [com.android.compose.animation.scene.MutableSceneTransitionLayoutStateImpl.startTransition].
          */
-        internal lateinit var currentSceneWhenTransitionStarted: SceneKey
-        internal lateinit var currentOverlaysWhenTransitionStarted: Set<OverlayKey>
+        lateinit var currentSceneWhenTransitionStarted: SceneKey
+        lateinit var currentOverlaysWhenTransitionStarted: Set<OverlayKey>
 
         /**
          * The key of this transition. This should usually be null, but it can be specified to use a
@@ -279,8 +281,14 @@ sealed interface TransitionState {
         /** Whether user input is currently driving the transition. */
         abstract val isUserInputOngoing: Boolean
 
-        /** Additional gesture context whenever the transition is driven by a user gesture. */
-        abstract val gestureContext: GestureContext?
+        /**
+         * Provides contextual information to fine-tune animations.
+         *
+         * This is used to adjust motion based on details that cannot be inferred from the states
+         * alone, such as gesture velocity or the direction of the animation.
+         */
+        open val gestureContext: GestureContext?
+            get() = transformationSpec.defaultGestureContext
 
         /**
          * True when the transition reached the end and the progress won't be updated anymore.
@@ -296,29 +304,57 @@ sealed interface TransitionState {
         val cuj: Int?
             get() = _cuj
 
+        /** The tag appended to the CUJ covered by this transition. */
+        val cujTag: String?
+            get() = _cujTag
+
         /**
          * The progress of the preview transition. This is usually in the `[0; 1]` range, but it can
          * also be less than `0` or greater than `1` when using transitions with a spring
          * AnimationSpec or when flinging quickly during a swipe gesture.
          */
-        internal open val previewProgress: Float = 0f
+        open val previewProgress: Float = 0f
 
         /** The current velocity of [previewProgress], in progress units. */
-        internal open val previewProgressVelocity: Float = 0f
+        open val previewProgressVelocity: Float = 0f
 
         /** Whether the transition is currently in the preview stage */
-        internal open val isInPreviewStage: Boolean = false
+        open val isInPreviewStage: Boolean = false
 
         /**
          * The current [TransformationSpecImpl] and other values associated to this transition from
          * the spec.
          *
          * Important: These will be set exactly once, when this transition is
-         * [started][MutableSceneTransitionLayoutStateImpl.startTransition].
+         * [prepared][com.android.compose.animation.scene.MutableSceneTransitionLayoutStateImpl.prepareTransitionBeforeStarting].
          */
+        private var isPrepared: Boolean = false
         internal var transformationSpec: TransformationSpecImpl = TransformationSpec.Empty
+            get() {
+                checkIsPrepared("transformationSpec")
+                return field
+            }
+
         internal var previewTransformationSpec: TransformationSpecImpl? = null
+            private set
+            get() {
+                checkIsPrepared("previewTransformationSpec")
+                return field
+            }
+
         internal var _cuj: Int? = null
+            private set
+            get() {
+                checkIsPrepared("_cuj")
+                return field
+            }
+
+        internal var _cujTag: String? = null
+            private set
+            get() {
+                checkIsPrepared("_cujTag")
+                return field
+            }
 
         /**
          * An animatable that animates from 1f to 0f. This will be used to nicely animate the sudden
@@ -426,15 +462,43 @@ sealed interface TransitionState {
          */
         abstract fun freezeAndAnimateToCurrentState()
 
-        internal suspend fun runInternal() {
+        internal suspend fun runInternal(onTransitionReady: () -> Unit) {
             check(_coroutineScope == null) { "A Transition can be started only once." }
             coroutineScope {
                 _coroutineScope = this
                 try {
+                    onTransitionReady()
                     run()
                 } finally {
                     isProgressStable = true
                 }
+            }
+        }
+
+        /**
+         * Set the attributes of this transition coming from the transition spec that was picked
+         * from the transition definitions.
+         */
+        internal fun prepare(spec: TransitionSpecImpl) {
+            this.transformationSpec = spec.transformationSpec(this)
+            this.previewTransformationSpec = spec.previewTransformationSpec(this)
+            this._cuj = spec.cuj
+            this._cujTag = spec.cujTag
+
+            isPrepared = true
+            onTransitionPrepared()
+        }
+
+        /**
+         * Called right after this transition is prepared, i.e. after [transformationSpec] is set,
+         * and before it is [run].
+         */
+        internal open fun onTransitionPrepared() {}
+
+        private fun checkIsPrepared(field: String) {
+            check(isPrepared) {
+                "TransitionState.Transition.$field can be accessed only after the transition is " +
+                    "prepared"
             }
         }
 
@@ -449,9 +513,9 @@ sealed interface TransitionState {
                     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
                     animatable.animateTo(
                         targetValue = 0f,
-                        // Quickly animate (use fast) the current transition and without bounces
-                        // (use effects). A new transition will start soon.
-                        animationSpec = layoutImpl.state.motionScheme.fastEffectsSpec(),
+                        // Animate the current transition and without bounces (use effects). A new
+                        // transition will start soon.
+                        animationSpec = layoutImpl.state.motionScheme.defaultEffectsSpec(),
                     )
                 }
 

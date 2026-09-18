@@ -27,7 +27,9 @@ import androidx.test.uiautomator.UiDevice
 import com.android.launcher3.tapl.LauncherInstrumentation
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.MailAppHelper
+import com.android.wm.shell.shared.desktopmode.DesktopConfig
 import org.junit.After
+import org.junit.Assume
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
@@ -40,6 +42,7 @@ abstract class TabTearingDesktopWindowingLimit(val rotation: Rotation = Rotation
     private val tapl = LauncherInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
+    private val desktopConfig = DesktopConfig.fromContext(instrumentation.context)
     private val mailAppHelper = MailAppHelper(instrumentation)
     private val mailAppDesktopHelper = DesktopModeAppHelper(mailAppHelper)
     private val calculatorHelper = CalculatorAppHelper(instrumentation)
@@ -49,6 +52,8 @@ abstract class TabTearingDesktopWindowingLimit(val rotation: Rotation = Rotation
 
     @Before
     fun setup() {
+        Assume.assumeTrue(desktopConfig.maxTaskLimit > 0)
+
         tapl.showTaskbarIfHidden()
 
         mailAppDesktopHelper.enterDesktopMode(wmHelper, device)
@@ -65,17 +70,20 @@ abstract class TabTearingDesktopWindowingLimit(val rotation: Rotation = Rotation
         browserDesktopAppHelper.dragWindowTopLeftCorner(
             device,
             wmHelper,
-            DesktopModeAppHelper.WindowDraggingDirection.CENTER
+            DesktopModeAppHelper.WindowDraggingDirection.CENTER,
         )
         browserAppHelper.performTabTearing(
             wmHelper,
-            BrowserAppHelper.Companion.TabDraggingDirection.TOP_LEFT
+            BrowserAppHelper.Companion.TabDraggingDirection.TOP_LEFT,
         )
         wmHelper
             .StateSyncBuilder()
             .withWindowSurfaceDisappeared(mailAppHelper.componentMatcher)
             // We need to verify that after tab tearing we have 2 browser windows
-            .withTopVisibleApps(browserAppHelper.componentMatcher, browserAppHelper.componentMatcher)
+            .withTopVisibleApps(
+                browserAppHelper.componentMatcher,
+                browserAppHelper.componentMatcher,
+            )
             .waitForAndVerify()
     }
 

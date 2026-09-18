@@ -17,4 +17,6 @@
 <resources>
     <!-- How much extra space should be left around the autofill dialog -->
     <dimen name="autofill_dialog_offset">56dp</dimen>
+    <!-- The minimum horizontal margin for the autofill dialog. -->
+    <dimen name="autofill_dialog_min_margin_horizontal">56dp</dimen>
 </resources>

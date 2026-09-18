@@ -22,9 +22,7 @@ import android.annotation.Nullable;
 import java.time.Duration;
 import java.util.Objects;
 
-/**
- * This class encapsulates a request to a provider.
- */
+/** This class encapsulates a request to a provider. */
 final class TimeZoneProviderRequest {
 
     @NonNull
@@ -36,14 +34,13 @@ final class TimeZoneProviderRequest {
 
     private final boolean mSendUpdates;
 
-    @Nullable
-    private final Duration mInitializationTimeout;
+    @Nullable private final Duration mInitializationTimeout;
 
-    @Nullable
-    private final Duration mEventFilteringAgeThreshold;
+    @Nullable private final Duration mEventFilteringAgeThreshold;
 
     private TimeZoneProviderRequest(
-            boolean sendUpdates, @Nullable Duration initializationTimeout,
+            boolean sendUpdates,
+            @Nullable Duration initializationTimeout,
             @Nullable Duration eventFilteringAgeThreshold) {
         mSendUpdates = sendUpdates;
         mInitializationTimeout = initializationTimeout;
@@ -52,9 +49,9 @@ final class TimeZoneProviderRequest {
 
     /** Creates a request to start updates with the specified timeout. */
     public static TimeZoneProviderRequest createStartUpdatesRequest(
-            @NonNull Duration initializationTimeout,
-            @NonNull Duration eventFilteringAgeThreshold) {
-        return new TimeZoneProviderRequest(true,
+            @NonNull Duration initializationTimeout, @NonNull Duration eventFilteringAgeThreshold) {
+        return new TimeZoneProviderRequest(
+                true,
                 Objects.requireNonNull(initializationTimeout),
                 Objects.requireNonNull(eventFilteringAgeThreshold));
     }
@@ -65,8 +62,8 @@ final class TimeZoneProviderRequest {
     }
 
     /**
-     * Returns {@code true} if the provider should send updates related to the device's current
-     * time zone, {@code false} otherwise.
+     * Returns {@code true} if the provider should send updates related to the device's current time
+     * zone, {@code false} otherwise.
      */
     public boolean sendUpdates() {
         return mSendUpdates;
@@ -116,9 +113,12 @@ final class TimeZoneProviderRequest {
     @Override
     public String toString() {
         return "TimeZoneProviderRequest{"
-                + "mSendUpdates=" + mSendUpdates
-                + ", mInitializationTimeout=" + mInitializationTimeout
-                + ", mEventFilteringAgeThreshold=" + mEventFilteringAgeThreshold
+                + "mSendUpdates="
+                + mSendUpdates
+                + ", mInitializationTimeout="
+                + mInitializationTimeout
+                + ", mEventFilteringAgeThreshold="
+                + mEventFilteringAgeThreshold
                 + "}";
     }
 }

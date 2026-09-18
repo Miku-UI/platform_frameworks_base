@@ -16,6 +16,8 @@
 
 package com.android.server.display.brightness;
 
+import static com.android.server.display.BrightnessMappingStrategy.INVALID_NITS;
+
 import android.annotation.Nullable;
 import android.content.Context;
 import android.hardware.SensorManager;
@@ -35,8 +37,9 @@ import com.android.server.display.BrightnessMappingStrategy;
 import com.android.server.display.BrightnessSetting;
 import com.android.server.display.DisplayBrightnessState;
 import com.android.server.display.DisplayDeviceConfig;
+import com.android.server.display.ScreenOffBrightnessSensorController;
 import com.android.server.display.brightness.strategy.AutoBrightnessFallbackStrategy;
-import com.android.server.display.brightness.strategy.AutomaticBrightnessStrategy2;
+import com.android.server.display.brightness.strategy.AutomaticBrightnessStrategy;
 import com.android.server.display.brightness.strategy.DisplayBrightnessStrategy;
 import com.android.server.display.feature.DisplayManagerFlags;
 
@@ -173,12 +176,14 @@ public final class DisplayBrightnessController {
             DisplayManagerInternal.DisplayPowerRequest displayPowerRequest,
             int targetDisplayState,
             DisplayManagerInternal.DisplayOffloadSession displayOffloadSession,
-            boolean isBedtimeModeWearEnabled) {
+            boolean isBedtimeModeWearEnabled,
+            boolean isChargingModeEnabled) {
         DisplayBrightnessState state;
         synchronized (mLock) {
             mDisplayBrightnessStrategy = mDisplayBrightnessStrategySelector.selectStrategy(
                     constructStrategySelectionRequest(displayPowerRequest, targetDisplayState,
-                            displayOffloadSession, isBedtimeModeWearEnabled));
+                            displayOffloadSession, isBedtimeModeWearEnabled,
+                            isChargingModeEnabled));
             state = mDisplayBrightnessStrategy
                         .updateBrightness(constructStrategyExecutionRequestLocked(
                                 displayPowerRequest, displayOffloadSession));
@@ -377,7 +382,8 @@ public final class DisplayBrightnessController {
             // stored value is greater. On multi-screen device, when switching between a
             // screen with a wider brightness range and one with a narrower brightness range,
             // the stored value shouldn't change.
-            if (nits >= 0 && !(brightnessValue >= maxBrightness && currentlyStoredNits > nits)) {
+            if (nits != INVALID_NITS && !(brightnessValue >= maxBrightness
+                    && currentlyStoredNits > nits)) {
                 mBrightnessSetting.setBrightnessNitsForDefaultDisplay(nits);
             }
         }
@@ -456,10 +462,27 @@ public final class DisplayBrightnessController {
                 brightnessMappingStrategy, isDisplayEnabled, leadDisplayId);
     }
 
+    public ScreenOffBrightnessSensorController getScreenOffBrightnessSensorController() {
+        return mDisplayBrightnessStrategySelector.getAutoBrightnessFallbackStrategy()
+                .getScreenOffBrightnessSensorController();
+    }
+
+    /**
+     * Remove the Automatic Brightness Controller.
+     */
+    public void resetAutoBrightness() {
+        setAutomaticBrightnessController(null);
+        AutoBrightnessFallbackStrategy autoBrightnessFallbackStrategy =
+                getAutoBrightnessFallbackStrategy();
+        if (autoBrightnessFallbackStrategy != null) {
+            autoBrightnessFallbackStrategy.stop();
+        }
+    }
+
     /**
      * TODO(b/253226419): Remove once auto-brightness is a fully-functioning strategy.
      */
-    public AutomaticBrightnessStrategy2 getAutomaticBrightnessStrategy() {
+    public AutomaticBrightnessStrategy getAutomaticBrightnessStrategy() {
         return mDisplayBrightnessStrategySelector.getAutomaticBrightnessStrategy();
     }
 
@@ -469,12 +492,12 @@ public final class DisplayBrightnessController {
      * passing the brightness value to follower displays.
      *
      * @param brightness The float scale value
-     * @return The nit value or {@link BrightnessMappingStrategy.INVALID_NITS} if no conversion is
+     * @return The nit value or {@link INVALID_NITS} if no conversion is
      * possible.
      */
     public float convertToNits(float brightness) {
         if (mAutomaticBrightnessController == null) {
-            return BrightnessMappingStrategy.INVALID_NITS;
+            return INVALID_NITS;
         }
         return mAutomaticBrightnessController.convertToNits(brightness);
     }
@@ -485,12 +508,12 @@ public final class DisplayBrightnessController {
      * {@link com.android.server.display.BrightnessTracker}.
      *
      * @param brightness The float scale value
-     * @return The nit value or {@link BrightnessMappingStrategy.INVALID_NITS} if no conversion is
+     * @return The nit value or {@link INVALID_NITS} if no conversion is
      * possible.
      */
     public float convertToAdjustedNits(float brightness) {
         if (mAutomaticBrightnessController == null) {
-            return BrightnessMappingStrategy.INVALID_NITS;
+            return INVALID_NITS;
         }
         return mAutomaticBrightnessController.convertToAdjustedNits(brightness);
     }
@@ -656,8 +679,7 @@ public final class DisplayBrightnessController {
     /**
      * Returns the current selected DisplayBrightnessStrategy
      */
-    @VisibleForTesting
-    DisplayBrightnessStrategy getCurrentDisplayBrightnessStrategy() {
+    public DisplayBrightnessStrategy getCurrentDisplayBrightnessStrategy() {
         synchronized (mLock) {
             return mDisplayBrightnessStrategy;
         }
@@ -670,11 +692,13 @@ public final class DisplayBrightnessController {
      */
     @VisibleForTesting
     void setAutomaticBrightnessController(
-            AutomaticBrightnessController automaticBrightnessController) {
+            @Nullable AutomaticBrightnessController automaticBrightnessController) {
         mAutomaticBrightnessController = automaticBrightnessController;
         getAutomaticBrightnessStrategy()
                 .setAutomaticBrightnessController(automaticBrightnessController);
-        loadNitBasedBrightnessSetting();
+        if (automaticBrightnessController != null) {
+            loadNitBasedBrightnessSetting();
+        }
     }
 
     private void setUpAutoBrightnessFallbackStrategy(SensorManager sensorManager,
@@ -694,7 +718,7 @@ public final class DisplayBrightnessController {
      * TODO(b/253226419): Remove once auto-brightness is a fully-functioning strategy.
      */
     private DisplayBrightnessState addAutomaticBrightnessState(DisplayBrightnessState state) {
-        AutomaticBrightnessStrategy2 autoStrat = getAutomaticBrightnessStrategy();
+        AutomaticBrightnessStrategy autoStrat = getAutomaticBrightnessStrategy();
 
         DisplayBrightnessState.Builder builder = DisplayBrightnessState.Builder.from(state);
         builder.setShouldUseAutoBrightness(
@@ -721,7 +745,7 @@ public final class DisplayBrightnessController {
         if (mDisplayId == Display.DEFAULT_DISPLAY && mPersistBrightnessNitsForDefaultDisplay) {
             float brightnessNitsForDefaultDisplay =
                     mBrightnessSetting.getBrightnessNitsForDefaultDisplay();
-            if (brightnessNitsForDefaultDisplay >= 0) {
+            if (brightnessNitsForDefaultDisplay != INVALID_NITS) {
                 float brightnessForDefaultDisplay = getBrightnessFromNits(
                         brightnessNitsForDefaultDisplay);
                 if (BrightnessUtils.isValidBrightnessValue(brightnessForDefaultDisplay)) {
@@ -744,7 +768,7 @@ public final class DisplayBrightnessController {
             DisplayManagerInternal.DisplayPowerRequest displayPowerRequest,
             int targetDisplayState,
             DisplayManagerInternal.DisplayOffloadSession displayOffloadSession,
-            boolean isBedtimeModeEnabled) {
+            boolean isBedtimeModeEnabled, boolean isChargingModeEnabled) {
         boolean userSetBrightnessChanged = updateUserSetScreenBrightness();
         float lastUserSetScreenBrightness;
         synchronized (mLock) {
@@ -752,7 +776,7 @@ public final class DisplayBrightnessController {
         }
         return new StrategySelectionRequest(displayPowerRequest, targetDisplayState,
                 lastUserSetScreenBrightness, userSetBrightnessChanged, displayOffloadSession,
-                mIsStylusBeingUsed, isBedtimeModeEnabled);
+                mIsStylusBeingUsed, isBedtimeModeEnabled, isChargingModeEnabled);
     }
 
     @GuardedBy("mLock")

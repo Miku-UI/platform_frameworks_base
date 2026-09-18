@@ -1,0 +1,36 @@
+package: "android.bluetooth.platform.flags"
+container: "system"
+
+# This file contains aconfig flags used from platform code
+# Flags used for module APIs must be in aconfig files under each modules
+
+flag {
+    name: "strict_configuration_in_system_server"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Enforce system config at boot and enforce tag attribution when enabling Bluetooth"
+    bug: "467963541"
+}
+
+flag {
+    name: "grant_permission_via_module_protection_level"
+    namespace: "bluetooth"
+    description: "Grant permission to Bluetooth using the module protection level instead of relying on a runtime race condition to provide the Bluetooth ROLE by the permission module"
+    bug: "395709071"
+}
+
+flag {
+  name: "autonomous_repairing_initiation"
+  is_exported: true
+  namespace: "bluetooth"
+  description: "Enable Autonomous repairing changes for Android Bluetooth from 26Q2"
+  bug: "459761960"
+}
+
+flag {
+  name: "bluetooth_pairing_hardening"
+  is_exported: true
+  namespace: "bluetooth"
+  description: "Stricter checks for Bluetooth pairing APIs from 26Q2"
+  bug: "401333807"
+}

@@ -104,6 +104,12 @@ public abstract class IContextHubWrapper {
                 List<String> nanoappPermissions, List<String> messagePermissions);
 
         /**
+         * Handles the HAL service death.
+         */
+        void handleServiceDied();
+
+
+        /**
          * Handles a restart of the service.
          */
         void handleServiceRestart();
@@ -451,6 +457,7 @@ public abstract class IContextHubWrapper {
         private final Map<Integer, ContextHubAidlCallback> mAidlCallbackMap =
                     new HashMap<>();
 
+        private Runnable mHandleServiceDeathCallback = null;
         private Runnable mHandleServiceRestartCallback = null;
 
         // Use this thread in case where the execution requires to be on a service thread.
@@ -559,6 +566,11 @@ public abstract class IContextHubWrapper {
         @Override
         public void binderDied() {
             Log.i(TAG, "Context Hub AIDL HAL died");
+            if (mHandleServiceDeathCallback != null) {
+                mHandleServiceDeathCallback.run();
+            } else {
+                Log.e(TAG, "mHandleServiceDeathCallback is not set");
+            }
 
             setHub(maybeConnectToAidlGetProxy());
             if (getHub() == null) {
@@ -607,16 +619,23 @@ public abstract class IContextHubWrapper {
             for (android.hardware.contexthub.HubInfo halHub : halHubs) {
                 /* HAL -> API Type conversion */
                 final HubInfo hubInfo;
+                boolean dataFlowsSupported = false;
+                if (Flags.fmcqImplementation()) {
+                    android.hardware.contexthub.SharedDataCapabilities capabilities =
+                            halHub.sharedDataCapabilities;
+                    dataFlowsSupported =
+                            capabilities != null ? capabilities.dataFlowsSupported : false;
+                }
                 switch (halHub.hubDetails.getTag()) {
                     case android.hardware.contexthub.HubInfo.HubDetails.contextHubInfo:
                         ContextHubInfo contextHubInfo =
                                 new ContextHubInfo(halHub.hubDetails.getContextHubInfo());
-                        hubInfo = new HubInfo(halHub.hubId, contextHubInfo);
+                        hubInfo = new HubInfo(halHub.hubId, contextHubInfo, dataFlowsSupported);
                         break;
                     case android.hardware.contexthub.HubInfo.HubDetails.vendorHubInfo:
                         VendorHubInfo vendorHubInfo =
                                 new VendorHubInfo(halHub.hubDetails.getVendorHubInfo());
-                        hubInfo = new HubInfo(halHub.hubId, vendorHubInfo);
+                        hubInfo = new HubInfo(halHub.hubId, vendorHubInfo, dataFlowsSupported);
                         break;
                     default:
                         Log.w(TAG, "getHubs: invalid hub: " + halHub);
@@ -942,6 +961,7 @@ public abstract class IContextHubWrapper {
                 return;
             }
 
+            mHandleServiceDeathCallback = callback::handleServiceDied;
             mHandleServiceRestartCallback = callback::handleServiceRestart;
             mAidlCallbackMap.put(contextHubId, new ContextHubAidlCallback(contextHubId, callback));
             registerExistingCallback(contextHubId);

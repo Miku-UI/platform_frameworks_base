@@ -26,7 +26,7 @@ class FakeScreenRecordRepository : ScreenRecordRepository {
 
     var stopRecordingInvoked = false
 
-    override suspend fun stopRecording(@StopReason stopReason: Int) {
+    override fun stopRecording(@StopReason stopReason: Int) {
         stopRecordingInvoked = true
     }
 }

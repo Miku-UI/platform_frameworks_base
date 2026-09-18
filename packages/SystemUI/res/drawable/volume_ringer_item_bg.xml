@@ -18,6 +18,6 @@
     android:inset="4dp">
     <shape android:shape="rectangle">
         <corners android:radius="@dimen/volume_dialog_background_square_corner_radius" />
-        <solid android:color="@androidprv:color/materialColorSurfaceContainerHighest" />
+        <solid android:color="@color/materialColorSurfaceContainerHighest" />
     </shape>
 </inset>

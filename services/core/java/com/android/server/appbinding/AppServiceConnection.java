@@ -20,7 +20,6 @@ import android.annotation.NonNull;
 import android.app.supervision.flags.Flags;
 import android.content.ComponentName;
 import android.content.Context;
-import android.os.ConditionVariable;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.IInterface;
@@ -45,14 +44,20 @@ public class AppServiceConnection extends PersistentConnection<IInterface> {
     private final AppBindingConstants mConstants;
     private final AppServiceFinder mFinder;
     private final String mPackageName;
-    private final ConditionVariable mConditionVariable = new ConditionVariable();
     private final Handler mHandler;
+    @GuardedBy("mLock")
+    private final Queue<AppServiceCallback> mAppServiceCallbacks = new ArrayDeque<>();
     @GuardedBy("mLock")
     private final Queue<Consumer<AppServiceConnection>> mCallbacks = new ArrayDeque<>();
     private final Object mLock = new Object();
 
-    AppServiceConnection(Context context, int userId, AppBindingConstants constants,
-            Handler handler, AppServiceFinder finder, String packageName,
+    public AppServiceConnection(
+            Context context,
+            int userId,
+            AppBindingConstants constants,
+            Handler handler,
+            AppServiceFinder finder,
+            String packageName,
             @NonNull ComponentName componentName) {
         super(TAG, context, handler, userId, componentName,
                 constants.SERVICE_RECONNECT_BACKOFF_SEC,
@@ -81,18 +86,8 @@ public class AppServiceConnection extends PersistentConnection<IInterface> {
 
     @Override
     protected void onConnected(@NonNull IInterface service) {
-        if (Flags.enableAppServiceConnectionCallback()) {
-            scheduleCallbacks();
-        } else {
-            mConditionVariable.open();
-        }
-    }
-
-    @Override
-    protected void onDisconnected() {
-        if (!Flags.enableAppServiceConnectionCallback()) {
-            mConditionVariable.close();
-        }
+        scheduleCallbacksNoTimeout();
+        scheduleCallbacks();
     }
 
     public AppServiceFinder getFinder() {
@@ -109,12 +104,26 @@ public class AppServiceConnection extends PersistentConnection<IInterface> {
      * @param callback The action to be executed
      */
     public void addCallback(Consumer<AppServiceConnection> callback) {
-        if (Flags.enableAppServiceConnectionCallback()) {
-            synchronized (mLock) {
-                mCallbacks.add(callback);
-            }
-            scheduleCallbacks();
+        if (Flags.enableTimeoutInDispatchAppServiceEvent()) {
+            addCallback(callback, 0);
+            return;
         }
+        synchronized (mLock) {
+            mCallbacks.add(callback);
+        }
+        scheduleCallbacksNoTimeout();
+    }
+    /**
+     * Adds a callback to the queue and tries to schedule it immediately
+     *
+     * @param action The action to be executed
+     * @param timeoutMillis Time to wait for the connection to be established
+     */
+    public void addCallback(Consumer<AppServiceConnection> action, long timeoutMillis) {
+        synchronized (mLock) {
+            mAppServiceCallbacks.add(new AppServiceCallback(action, timeoutMillis));
+        }
+        scheduleCallbacks();
     }
 
     /**
@@ -122,6 +131,20 @@ public class AppServiceConnection extends PersistentConnection<IInterface> {
      * already established
      */
     private void scheduleCallbacks() {
+        if (isConnected()) {
+            ArrayList<AppServiceCallback> callbacks;
+            synchronized (mLock) {
+                callbacks = new ArrayList<>(mAppServiceCallbacks);
+                mAppServiceCallbacks.clear();
+            }
+
+            for (AppServiceCallback callback : callbacks) {
+                callback.postAction();
+            }
+        }
+    }
+
+    private void scheduleCallbacksNoTimeout() {
         if (isConnected()) {
             ArrayList<Consumer<AppServiceConnection>> callbacks;
             synchronized (mLock) {
@@ -138,16 +161,27 @@ public class AppServiceConnection extends PersistentConnection<IInterface> {
     }
 
     /**
-     * Establishes the service connection and blocks until the service is connected
-     * or a timeout occurs.
-     *
-     * @return true if the service connected successfully within the timeout, false otherwise.
+     * Internal class to track the lifecycle of a single dispatch request.
      */
-    public boolean awaitConnection() {
-        if (!Flags.enableAppServiceConnectionCallback()) {
-            long timeoutMs = mConstants.SERVICE_RECONNECT_MAX_BACKOFF_SEC * 10 * 1000L;
-            return mConditionVariable.block(timeoutMs) && isConnected();
+    private class AppServiceCallback {
+        final Consumer<AppServiceConnection> mAction;
+
+        AppServiceCallback(Consumer<AppServiceConnection> action,
+                long timeoutMillis) {
+            this.mAction = action;
+            if (timeoutMillis > 0) {
+                mHandler.postDelayed(this::run, timeoutMillis);
+            }
         }
-        return isConnected();
+
+        void postAction() {
+            mHandler.post(this::run);
+        }
+
+        void run() {
+            mHandler.removeCallbacks(this::run);
+            mAction.accept(AppServiceConnection.this);
+        }
     }
+
 }

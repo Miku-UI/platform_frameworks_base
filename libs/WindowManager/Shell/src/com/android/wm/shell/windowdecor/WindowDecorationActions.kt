@@ -34,13 +34,27 @@ interface WindowDecorationActions {
     fun onMinimize(taskInfo: RunningTaskInfo)
 
     /** Close the task */
-    fun onClose(taskId: Int)
+    fun onClose(taskInfo: RunningTaskInfo)
+
+    /**
+     * Closes the task.
+     *
+     * @param taskInfo the task requesting to close.
+     * @param preventDesktopCleanup if true, the desktop cleanup will be skipped forcefully.
+     */
+    fun onClose(taskInfo: RunningTaskInfo, preventDesktopCleanup: Boolean)
 
     /**
      * Moves task to immersive mode or exits immersive and restores task to previous size if task is
      * already in immersive.
      */
     fun onImmersiveOrRestore(taskInfo: RunningTaskInfo)
+
+    /**
+     * On any caption views received user interactions. This likely brings the relevant task to
+     * front.
+     */
+    fun onCaptionViewReceivedInteraction(taskInfo: RunningTaskInfo)
 
     /** Snaps task to left half of the screen. */
     fun onLeftSnap(taskId: Int, inputMethod: InputMethod)
@@ -68,6 +82,13 @@ interface WindowDecorationActions {
     fun onOpenInBrowser(taskId: Int, intent: Intent)
 
     /**
+     * Opens app content in browser and close the task.
+     *
+     * @param intent to be used to launch browser application.
+     */
+    fun onSwitchToBrowser(taskInfo: RunningTaskInfo, intent: Intent)
+
+    /**
      * Opens existing instance.
      *
      * @param taskInfo the task requesting to open the instance.
@@ -84,9 +105,19 @@ interface WindowDecorationActions {
     /** Launches aspect ratio settings. */
     fun onChangeAspectRatio(taskInfo: RunningTaskInfo)
 
+    /** Launches game controls. */
+    fun onLaunchGameControls(taskInfo: RunningTaskInfo)
+
     /** Creates new instance of task. */
     fun onNewWindow(taskId: Int)
 
     /** Opens the handle menu. */
     fun onOpenHandleMenu(taskId: Int)
+
+    /**
+     * Opens an arbitrary Intent.
+     *
+     * @param intent to be launched
+     */
+    fun onOpenIntent(taskId: Int, intent: Intent)
 }

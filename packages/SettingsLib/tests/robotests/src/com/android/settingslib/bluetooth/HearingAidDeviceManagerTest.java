@@ -20,6 +20,7 @@ import static android.bluetooth.BluetoothLeAudio.AUDIO_LOCATION_FRONT_LEFT;
 
 import static com.android.settingslib.bluetooth.HapClientProfile.HearingAidType.TYPE_BINAURAL;
 import static com.android.settingslib.bluetooth.HapClientProfile.HearingAidType.TYPE_INVALID;
+import static com.android.settingslib.bluetooth.HearingAidAudioRoutingConstants.RoutingValue;
 import static com.android.settingslib.bluetooth.HearingAidProfile.DeviceMode.MODE_BINAURAL;
 import static com.android.settingslib.bluetooth.HearingAidProfile.DeviceSide.SIDE_RIGHT;
 
@@ -32,6 +33,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -50,14 +52,16 @@ import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.media.audiopolicy.AudioProductStrategy;
 import android.os.Parcel;
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
+import android.provider.Settings;
 import android.util.FeatureFlagUtils;
 
 import androidx.test.core.app.ApplicationProvider;
 
 import com.android.settingslib.bluetooth.HearingAidDeviceManager.ConnectionStatus;
+
+import com.google.common.util.concurrent.MoreExecutors;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -75,8 +79,7 @@ import java.util.List;
 public class HearingAidDeviceManagerTest {
     @Rule
     public MockitoRule mMockitoRule = MockitoJUnit.rule();
-    @Rule
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private static final long HISYNCID1 = 10;
     private static final long HISYNCID2 = 11;
@@ -136,7 +139,6 @@ public class HearingAidDeviceManagerTest {
 
     @Before
     public void setUp() {
-        FeatureFlagUtils.setEnabled(mContext, FeatureFlagUtils.SETTINGS_AUDIO_ROUTING, true);
         when(mDevice1.getAddress()).thenReturn(DEVICE_ADDRESS_1);
         when(mDevice2.getAddress()).thenReturn(DEVICE_ADDRESS_2);
         when(mDevice1.getName()).thenReturn(DEVICE_NAME_1);
@@ -156,6 +158,7 @@ public class HearingAidDeviceManagerTest {
                 AudioManager.STREAM_MUSIC))
                 .thenReturn((new AudioAttributes.Builder()).build());
         doReturn(List.of(mAudioStrategy)).when(mHelper).getSupportedStrategies(any(int[].class));
+        doNothing().when(mHelper).removeDevicesStrategies(any(), any());
 
         mHearingDeviceAttribute = new AudioDeviceAttributes(
                 AudioDeviceAttributes.ROLE_OUTPUT,
@@ -741,6 +744,7 @@ public class HearingAidDeviceManagerTest {
 
     @Test
     public void onActiveDeviceChanged_connected_callSetStrategies() {
+        FeatureFlagUtils.setEnabled(mContext, FeatureFlagUtils.SETTINGS_AUDIO_ROUTING, true);
         when(mCachedDevice1.isConnectedHearingAidDevice()).thenReturn(true);
         when(mHelper.getMatchedHearingDeviceAttributesForOutput(mCachedDevice1)).thenReturn(
                 mHearingDeviceAttribute);
@@ -756,6 +760,7 @@ public class HearingAidDeviceManagerTest {
 
     @Test
     public void onActiveDeviceChanged_disconnected_callSetStrategiesWithAutoValue() {
+        FeatureFlagUtils.setEnabled(mContext, FeatureFlagUtils.SETTINGS_AUDIO_ROUTING, true);
         when(mCachedDevice1.isConnectedHearingAidDevice()).thenReturn(false);
         when(mHelper.getMatchedHearingDeviceAttributesForOutput(mCachedDevice1)).thenReturn(
                 mHearingDeviceAttribute);
@@ -767,7 +772,7 @@ public class HearingAidDeviceManagerTest {
 
         verify(mHelper, atLeastOnce()).setPreferredDeviceRoutingStrategies(
                 eq(List.of(mAudioStrategy)), /* hearingDevice= */ isNull(),
-                eq(HearingAidAudioRoutingConstants.RoutingValue.AUTO));
+                eq(RoutingValue.AUTO));
     }
 
     @Test
@@ -932,7 +937,7 @@ public class HearingAidDeviceManagerTest {
         mCachedDeviceManager.mCachedDevices.add(mCachedDevice1);
 
         mHearingAidDeviceManager.registerConnectionStatusListener(
-                mConnectionStatusListener, mContext.getMainExecutor());
+                mConnectionStatusListener, MoreExecutors.directExecutor());
         mHearingAidDeviceManager.unregisterConnectionStatusListener(
                 mConnectionStatusListener);
         mHearingAidDeviceManager.notifyDevicesConnectionStatusChanged();
@@ -948,10 +953,11 @@ public class HearingAidDeviceManagerTest {
         mCachedDeviceManager.mCachedDevices.add(mCachedDevice1);
 
         mHearingAidDeviceManager.registerConnectionStatusListener(
-                mConnectionStatusListener, mContext.getMainExecutor());
+                mConnectionStatusListener, MoreExecutors.directExecutor());
         mHearingAidDeviceManager.registerConnectionStatusListener(
-                mConnectionStatusListener2, mContext.getMainExecutor());
+                mConnectionStatusListener2, MoreExecutors.directExecutor());
         mHearingAidDeviceManager.notifyDevicesConnectionStatusChanged();
+//        ShadowLooper.idleMainLooper();
 
         verify(mConnectionStatusListener).onDevicesConnectionStatusChanged(
                 ConnectionStatus.CONNECTED);
@@ -960,7 +966,7 @@ public class HearingAidDeviceManagerTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(
+    @EnableFlags(
             com.android.settingslib.flags.Flags.FLAG_HEARING_DEVICES_INPUT_ROUTING_CONTROL)
     public void onActiveDeviceChanged_activeHearingAidProfile_callSetInputDeviceForCalls() {
         when(mCachedDevice1.isConnectedHearingAidDevice()).thenReturn(true);
@@ -972,15 +978,14 @@ public class HearingAidDeviceManagerTest {
         mHearingAidDeviceManager.onActiveDeviceChanged(mCachedDevice1);
 
         verify(mHelper).setPreferredInputDeviceForCalls(
-                eq(mCachedDevice1), eq(HearingAidAudioRoutingConstants.RoutingValue.AUTO));
+                eq(mCachedDevice1), eq(RoutingValue.AUTO));
 
     }
 
     @Test
-    @RequiresFlagsEnabled(
+    @EnableFlags(
             com.android.settingslib.flags.Flags.FLAG_HEARING_DEVICES_INPUT_ROUTING_CONTROL)
     public void onActiveDeviceChanged_notActiveHearingAidProfile_callClearInputDeviceForCalls() {
-        when(mCachedDevice1.isConnectedHearingAidDevice()).thenReturn(true);
         when(mCachedDevice1.isActiveDevice(BluetoothProfile.HEARING_AID)).thenReturn(false);
         when(mDevice1.isMicrophonePreferredForCalls()).thenReturn(true);
         doReturn(true).when(mHelper).setPreferredDeviceRoutingStrategies(anyList(), any(),
@@ -989,6 +994,40 @@ public class HearingAidDeviceManagerTest {
         mHearingAidDeviceManager.onActiveDeviceChanged(mCachedDevice1);
 
         verify(mHelper).clearPreferredInputDeviceForCalls();
+    }
+
+    @Test
+    @EnableFlags(com.android.settingslib.flags.Flags.FLAG_HEARING_DEVICES_GRANULAR_OUTPUT_ROUTING)
+    public void onActiveDeviceChanged_activeHearingAidProfile_callConfigureRoutingStrategies() {
+        when(mCachedDevice1.getProfiles()).thenReturn(List.of(mHearingAidProfile));
+        when(mHelper.getMatchedHearingDeviceAttributesForOutput(mCachedDevice1)).thenReturn(
+                mHearingDeviceAttribute);
+        when(mCachedDevice1.isActiveDevice(BluetoothProfile.HEARING_AID)).thenReturn(true);
+        doReturn(true).when(mHelper).configureRoutingStrategies(anyList(), any(),
+                anyInt());
+
+        mHearingAidDeviceManager.onActiveDeviceChanged(mCachedDevice1);
+
+        final int ringtoneRoutingValue = Settings.Secure.getInt(mContext.getContentResolver(),
+                Settings.Secure.HEARING_AID_RINGTONE_ROUTING, RoutingValue.AUTO);
+        verify(mHelper, atLeastOnce()).configureRoutingStrategies(eq(List.of(mAudioStrategy)),
+                any(AudioDeviceAttributes.class), eq(ringtoneRoutingValue));
+    }
+
+    @Test
+    @EnableFlags(com.android.settingslib.flags.Flags.FLAG_HEARING_DEVICES_GRANULAR_OUTPUT_ROUTING)
+    public void onActiveDeviceChanged_notActive_callConfigureRoutingStrategiesWithAutoValue() {
+        when(mCachedDevice1.getProfiles()).thenReturn(List.of(mHearingAidProfile));
+        when(mHelper.getMatchedHearingDeviceAttributesForOutput(mCachedDevice1)).thenReturn(
+                mHearingDeviceAttribute);
+        when(mCachedDevice1.isActiveDevice(BluetoothProfile.HEARING_AID)).thenReturn(false);
+        doReturn(true).when(mHelper).configureRoutingStrategies(anyList(), any(),
+                anyInt());
+
+        mHearingAidDeviceManager.onActiveDeviceChanged(mCachedDevice1);
+
+        verify(mHelper, atLeastOnce()).removeDevicesStrategies(
+                eq(List.of(mAudioStrategy)), eq(mCachedDevice1));
     }
 
     private HearingAidInfo getLeftAshaHearingAidInfo(long hiSyncId) {

@@ -358,7 +358,7 @@ public class SurfaceControlViewHost {
      * Construct a new SurfaceControlViewHost. The root Surface will be
      * allocated internally and is accessible via getSurfacePackage().
      *
-     * The {@param hostToken} parameter, primarily used for ANR reporting,
+     * The {@code hostToken} parameter, primarily used for ANR reporting,
      * must be obtained from whomever will be hosting the embedded hierarchy.
      * It's accessible from {@link SurfaceView#getHostToken}.
      *
@@ -394,7 +394,7 @@ public class SurfaceControlViewHost {
      * Construct a new SurfaceControlViewHost. The root Surface will be
      * allocated internally and is accessible via getSurfacePackage().
      *
-     * The {@param hostToken} parameter, primarily used for ANR reporting,
+     * The {@code hostToken} parameter, primarily used for ANR reporting,
      * must be obtained from whomever will be hosting the embedded hierarchy.
      * It's accessible from {@link SurfaceView#getHostToken}.
      *
@@ -408,7 +408,7 @@ public class SurfaceControlViewHost {
             @Nullable InputTransferToken hostToken, @NonNull String callsite) {
         mSurfaceControl = new SurfaceControl.Builder()
                 .setContainerLayer()
-                .setName("SurfaceControlViewHost")
+                .setName("SurfaceControlViewHost[" + context.getPackageName() + "]")
                 .setCallsite("SurfaceControlViewHost[" + callsite + "]")
                 .build();
         mOwnsSurfaceControl = true;
@@ -495,7 +495,7 @@ public class SurfaceControlViewHost {
      * @param view The {@link View} to add
      * @param attrs The {@link LayoutParams} parameters for the {@link View}.
      */
-    @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+    @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE_API)
     public void setView(@NonNull View view, @NonNull LayoutParams attrs) {
         Objects.requireNonNull(attrs);
         setView(view, attrs.toWindowManagerLayoutParams());
@@ -523,11 +523,19 @@ public class SurfaceControlViewHost {
     }
 
     /**
-     * @return the ViewRootImpl wrapped by this host.
+     * @return the window token of the ViewRootImpl wrapped by this host.
      * @hide
      */
     public IWindow getWindowToken() {
         return mViewRoot.mWindow;
+    }
+
+    /**
+     * @return the ViewRootImpl wrapped by this host.
+     * @hide
+     */
+    public ViewRootImpl getViewRoot() {
+        return mViewRoot;
     }
 
     /**
@@ -570,7 +578,7 @@ public class SurfaceControlViewHost {
     /**
      * Modifies the {@link LayoutParams} of the root view.
      */
-    @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+    @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE_API)
     public void relayout(@NonNull LayoutParams attrs) {
         Objects.requireNonNull(attrs);
         relayout(attrs.toWindowManagerLayoutParams());
@@ -579,7 +587,7 @@ public class SurfaceControlViewHost {
     /**
      * Returns the {@link LayoutParams} of the root view.
      */
-    @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+    @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE_API)
     public @NonNull LayoutParams getLayoutParams() {
         return LayoutParams.from(mViewRoot.mWindowAttributes);
     }
@@ -670,11 +678,12 @@ public class SurfaceControlViewHost {
      * SurfaceControlViewHost}. This is a subset of {@link WindowManager.LayoutParams} that are
      * applicable for {@link View}s hosted by {@code SurfaceControlViewHost}.
      */
-    @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+    @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE_API)
     public static class LayoutParams {
         private final boolean mFocusable;
         private final int mWidth;
         private final int mHeight;
+        private String mTitle = new String();
 
         /**
          * Creates a new set of layout parameters. If {@code focusable} is set to false,
@@ -686,7 +695,7 @@ public class SurfaceControlViewHost {
          * @param height The height, in pixels, of the bounds for the {@link View}.
          * @param focusable Whether the {@link View} can receive key input focus.
          */
-        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE_API)
         public LayoutParams(int width, int height, boolean focusable) {
             mWidth = width;
             mHeight = height;
@@ -696,7 +705,7 @@ public class SurfaceControlViewHost {
         /**
          * Returns {@code true} if this {@link View} can receive key input focus.
          */
-        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE_API)
         public boolean isFocusable() {
             return mFocusable;
         }
@@ -704,7 +713,7 @@ public class SurfaceControlViewHost {
         /**
          * Returns the width, in pixels, of the bounds for the {@link View}.
          */
-        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE_API)
         public int getWidth() {
             return mWidth;
         }
@@ -712,9 +721,28 @@ public class SurfaceControlViewHost {
         /**
          * Returns the height, in pixels, of the bounds for the {@link View}.
          */
-        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE_API)
         public int getHeight() {
             return mHeight;
+        }
+
+        /**
+         * Sets the title for the SurfaceControlViewHost.
+         * This is used for debugging purposes to identify the SurfaceControl in tools.
+         *
+         * @param title The title to set.
+         */
+        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE_API)
+        public void setTitle(@NonNull String title) {
+            mTitle = title;
+        }
+
+        /**
+         * @return The title for the SurfaceControlViewHost.
+         */
+        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE_API)
+        public @NonNull String getTitle() {
+            return mTitle;
         }
 
         /**
@@ -735,6 +763,7 @@ public class SurfaceControlViewHost {
             if (!mFocusable) {
                 wmLayoutParams.flags |= WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
             }
+            wmLayoutParams.setTitle(mTitle);
             return wmLayoutParams;
         }
 
@@ -748,6 +777,7 @@ public class SurfaceControlViewHost {
                     (wmLayoutParams.flags & WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE) == 0;
             final LayoutParams layoutParams =
                     new LayoutParams(wmLayoutParams.width, wmLayoutParams.height, focusable);
+            layoutParams.mTitle = wmLayoutParams.getTitle().toString();
             return layoutParams;
         }
     }

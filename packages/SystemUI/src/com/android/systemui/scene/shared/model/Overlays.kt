@@ -17,6 +17,7 @@
 package com.android.systemui.scene.shared.model
 
 import com.android.compose.animation.scene.OverlayKey
+import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenMovableParentKeys
 
 /**
  * Keys of all known overlays.
@@ -40,8 +41,19 @@ object Overlays {
      * swipe down again the to expand quick settings) or in the "split" shade configuration (on
      * large screens or unfolded foldables, where notifications and quick settings are shown
      * side-by-side in their own columns).
+     *
+     * This key is defined within the plugin lib so that plugins can use MovableElement keys which
+     * are part of this scene. This is necessary due to the dependency order of the plugin lib and
+     * the need to use MovableElement for animating our legacy views.
      */
-    @JvmField val NotificationsShade = OverlayKey("notifications_shade")
+    @JvmField val NotificationsShade = LockscreenMovableParentKeys.NotificationsShade
+
+    /**
+     * The quick actions overlay hosts QuickActionPanels. These are anchored panels that are shown
+     * when a [QuickActionChip] is selected in the status bar. Examples include: Media Controls,
+     * Video Conferencing controls. This feature is only available on large screens.
+     */
+    @JvmField val QuickActions = OverlayKey("quick_actions")
 
     /**
      * The quick settings shade overlay shows the quick settings tiles UI.

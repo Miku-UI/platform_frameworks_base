@@ -16,7 +16,7 @@
 package com.android.systemui.notetask
 
 import android.os.UserHandle
-import com.android.systemui.notetask.NoteTaskEntryPoint.WIDGET_PICKER_SHORTCUT_IN_MULTI_WINDOW_MODE
+import com.android.systemui.notetask.NoteTaskEntryPoint.WIDGET_PICKER_SHORTCUT_LAUNCH_IN_ACTIVITY
 
 /** Contextual information required to launch a Note Task by [NoteTaskController]. */
 data class NoteTaskInfo(
@@ -28,7 +28,7 @@ data class NoteTaskInfo(
 ) {
 
     val launchMode: NoteTaskLaunchMode =
-        if (isKeyguardLocked || entryPoint == WIDGET_PICKER_SHORTCUT_IN_MULTI_WINDOW_MODE) {
+        if (isKeyguardLocked || entryPoint == WIDGET_PICKER_SHORTCUT_LAUNCH_IN_ACTIVITY) {
             NoteTaskLaunchMode.Activity
         } else {
             if (entryPoint == NoteTaskEntryPoint.QS_NOTES_TILE) {

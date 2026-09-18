@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues
+    type="baseline"
+    client=""
+    dependencies="true"
+    name=""
+    variant=""
+    version="">
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 23): `android.view.View#setStateDescription`"
+        errorLine1="            mSlider.setStateDescription(mSliderStateDescription);"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/SliderPreference/src/com/android/settingslib/widget/SliderPreference.java"
+            line="374"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 23): `android.view.View#setStateDescription`"
+        errorLine1="            mSlider.setStateDescription(null);"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/SliderPreference/src/com/android/settingslib/widget/SliderPreference.java"
+            line="376"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 23): `android.view.View#setStateDescription`"
+        errorLine1="            mSlider.setStateDescription(stateDescription);"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/SliderPreference/src/com/android/settingslib/widget/SliderPreference.java"
+            line="632"
+            column="21"/>
+    </issue>
+
+</issues>

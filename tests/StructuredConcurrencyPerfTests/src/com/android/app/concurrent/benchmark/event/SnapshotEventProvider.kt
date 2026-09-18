@@ -21,7 +21,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.SnapshotStateObserver
-import com.android.app.concurrent.benchmark.util.ThreadFactory
+import com.android.app.concurrent.benchmark.util.ThreadBuilder
 import java.io.Closeable
 import java.util.concurrent.Executor
 import kotlinx.coroutines.CoroutineScope
@@ -145,7 +145,7 @@ class SnapshotWritableEventExecutorBuilder(val executor: Executor) :
 class SnapshotWritableEventCoroutineBuilder(val scope: CoroutineScope) :
     SnapshotWritableEventBuilder() {
     override fun startObservation(block: () -> Unit): Closeable {
-        return SnapshotStateCoroutineObserver(scope) { with(stateReader) { block() } }.start()
+        return SnapshotStateCoroutineObserver(scope) { block() }.start()
     }
 }
 
@@ -213,15 +213,13 @@ private class SnapshotStateCoroutineObserver(
     }
 }
 
-abstract class BaseExecutorSnapshotEventBenchmark(threadParam: ThreadFactory<Any, Executor>) :
+abstract class BaseExecutorSnapshotEventBenchmark(threadParam: ThreadBuilder<Executor>) :
     BaseEventBenchmark<Executor, SnapshotWritableEventExecutorBuilder>(
         threadParam,
         { SnapshotWritableEventExecutorBuilder(it) },
     )
 
-abstract class BaseCoroutineSnapshotEventBenchmark(
-    threadParam: ThreadFactory<Any, CoroutineScope>
-) :
+abstract class BaseCoroutineSnapshotEventBenchmark(threadParam: ThreadBuilder<CoroutineScope>) :
     BaseEventBenchmark<CoroutineScope, SnapshotWritableEventCoroutineBuilder>(
         threadParam,
         { SnapshotWritableEventCoroutineBuilder(it) },

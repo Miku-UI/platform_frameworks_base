@@ -16,14 +16,10 @@
 
 package com.android.systemui.statusbar.notification.stack
 
-import android.os.VibrationEffect
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper.RunWithLooper
 import androidx.dynamicanimation.animation.SpringForce
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.haptics.fakeVibratorHelper
 import com.android.systemui.haptics.msdl.fakeMSDLPlayer
@@ -316,7 +312,6 @@ class MagneticNotificationRowManagerImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     fun onMagneticInteractionEnd_whenPulling_fromDismiss_playsMSDLThresholdHaptics() =
         kosmos.testScope.runTest {
             // GIVEN a threshold of 100 px
@@ -334,31 +329,6 @@ class MagneticNotificationRowManagerImplTest : SysuiTestCase() {
 
             // THEN threshold haptics play to indicate the dismissal
             assertThat(msdlPlayer.latestTokenPlayed).isEqualTo(MSDLToken.SWIPE_THRESHOLD_INDICATOR)
-        }
-
-    @Test
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    fun onMagneticInteractionEnd_whenPulling_fromDismiss_playsThresholdVibration() =
-        kosmos.testScope.runTest {
-            // GIVEN a threshold of 100 px
-            val threshold = 100f
-            underTest.onDensityChange(
-                threshold / MagneticNotificationRowManager.MAGNETIC_DETACH_THRESHOLD_DP
-            )
-
-            // GIVEN that targets are set and the swiped row is being pulled
-            setTargets()
-            underTest.setMagneticRowTranslation(swipedRow, translation = 100f)
-
-            // WHEN the interaction ends on the row because it was dismissed
-            underTest.onMagneticInteractionEnd(swipedRow, dismissing = true, velocity = null)
-
-            // THEN threshold haptics play to indicate the dismissal
-            val composition =
-                VibrationEffect.startComposition()
-                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.7f)
-                    .compose()
-            assertThat(vibratorHelper.hasVibratedWithEffects(composition)).isTrue()
         }
 
     @Test

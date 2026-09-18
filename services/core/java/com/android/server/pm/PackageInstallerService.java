@@ -33,6 +33,8 @@ import static android.content.pm.PackageManager.INSTALL_UNARCHIVE_DRAFT;
 import static android.os.Process.INVALID_UID;
 import static android.os.Process.SYSTEM_UID;
 
+import static com.android.internal.app.LockedAppActivity.createLockedAppActivityUninstallIntent;
+import static com.android.internal.pm.pkg.component.ParsedAttribution.MAX_ATTRIBUTION_TAG_LEN;
 import static com.android.server.pm.PackageArchiver.isArchivingEnabled;
 import static com.android.server.pm.PackageInstallerSession.isValidVerificationPolicy;
 import static com.android.server.pm.PackageManagerService.SHELL_PACKAGE_NAME;
@@ -47,6 +49,7 @@ import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.app.ActivityManager;
 import android.app.AppGlobals;
+import android.app.AppLockInternal;
 import android.app.AppOpsManager;
 import android.app.BroadcastOptions;
 import android.app.Notification;
@@ -679,6 +682,12 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
         // Increment the number of sessions by this installerUid.
         mHistoricalSessionsByInstaller.put(installerUid,
                 mHistoricalSessionsByInstaller.get(installerUid) + 1);
+
+        int originalInstallerUid = session.getOriginalInstallerUid();
+        if (originalInstallerUid != installerUid) {
+            mHistoricalSessionsByInstaller.put(originalInstallerUid,
+                    mHistoricalSessionsByInstaller.get(originalInstallerUid) + 1);
+        }
     }
 
     private boolean writeSessions() {
@@ -1037,6 +1046,14 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
                 // For now, installs to adopted media are treated as internal from
                 // an install flag point-of-view.
                 params.installFlags |= PackageManager.INSTALL_INTERNAL;
+                // Check if volumeUuid value is valid, else fail.
+                try {
+                    StorageManager.convert(params.volumeUuid);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("Invalid volumeUuid value in session "
+                            + "params: "
+                            + params.volumeUuid);
+                }
             } else {
                 params.installFlags |= PackageManager.INSTALL_INTERNAL;
 
@@ -1073,6 +1090,12 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
                             + MAX_PERMISSION_STATES_SIZE + " in length");
         }
 
+        if (installerAttributionTag != null
+                && installerAttributionTag.length() > MAX_ATTRIBUTION_TAG_LEN) {
+            throw new IllegalArgumentException(
+                    "Attribution tag exceeds " + MAX_ATTRIBUTION_TAG_LEN + " length limit");
+        }
+
         int requestedInstallerPackageUid = INVALID_UID;
         if (requestedInstallerPackageName != null) {
             requestedInstallerPackageUid = snapshot.getPackageUid(requestedInstallerPackageName,
@@ -1086,23 +1109,8 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
         final int sessionId;
         final PackageInstallerSession session;
         synchronized (mSessions) {
-            // Check that the installer does not have too many active sessions.
-            final int activeCount = getSessionCount(mSessions, callingUid);
-            if (mContext.checkCallingOrSelfPermission(Manifest.permission.INSTALL_PACKAGES)
-                    == PackageManager.PERMISSION_GRANTED) {
-                if (activeCount >= MAX_ACTIVE_SESSIONS_WITH_PERMISSION) {
-                    throw new IllegalStateException(
-                            "Too many active sessions for UID " + callingUid);
-                }
-            } else if (activeCount >= MAX_ACTIVE_SESSIONS_NO_PERMISSION) {
-                throw new IllegalStateException(
-                        "Too many active sessions for UID " + callingUid);
-            }
-            final int historicalCount = mHistoricalSessionsByInstaller.get(callingUid);
-            if (historicalCount >= MAX_HISTORICAL_SESSIONS) {
-                throw new IllegalStateException(
-                        "Too many historical sessions for UID " + callingUid);
-            }
+            checkSessionQuotaLocked(callingUid);
+
             final int existingDraftSessionId =
                     getExistingDraftSessionId(requestedInstallerPackageUid, params, userId);
 
@@ -1130,6 +1138,8 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
         }
 
         final var dpmi = LocalServices.getService(DevicePolicyManagerInternal.class);
+        // Only the system should be able to set this flag - so ensure it is unset when not needed.
+        params.installFlags &= ~PackageManager.INSTALL_FROM_MANAGED_USER_OR_PROFILE;
         if (dpmi != null && dpmi.isUserOrganizationManaged(userId)) {
             params.installFlags |= PackageManager.INSTALL_FROM_MANAGED_USER_OR_PROFILE;
         }
@@ -1141,7 +1151,8 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
 
         InstallSource installSource = InstallSource.create(installerPackageName,
                 originatingPackageName, requestedInstallerPackageName, requestedInstallerPackageUid,
-                requestedInstallerPackageName, installerAttributionTag, params.packageSource);
+                /* originalInstallerUid= */ callingUid, requestedInstallerPackageName,
+                installerAttributionTag, params.packageSource);
         final int verificationPolicy;
         synchronized (mDeveloperVerificationPolicyPerUser) {
             verificationPolicy = mDeveloperVerificationPolicyPerUser.get(
@@ -1149,7 +1160,8 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
         }
         session = new PackageInstallerSession(mInternalCallback, mContext, mPm, this,
                 mSilentUpdatePolicy, mInstallThread.getLooper(), mStagingManager, sessionId,
-                userId, callingUid, installSource, params, createdMillis, 0L, stageDir, stageCid,
+                userId, /* installerUid= */ callingUid, installSource,
+                params, createdMillis, 0L, stageDir, stageCid,
                 null, null, false, false, false, false, null, SessionInfo.INVALID_ID,
                 false, false, false, PackageManager.INSTALL_UNKNOWN, "", null,
                 mDeveloperVerifierController, verificationPolicy, verificationPolicy,
@@ -1511,6 +1523,7 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
             }
         }
         result.removeIf(info -> shouldFilterSession(snapshot, callingUid, info));
+
         return new ParceledListSlice<>(result);
     }
 
@@ -1591,6 +1604,33 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
         final PackageDeleteObserverAdapter adapter = new PackageDeleteObserverAdapter(mContext,
                 statusReceiver, versionedPackage.getPackageName(),
                 canSilentlyInstallPackage, userId, mPackageArchiver, flags);
+
+        // App Lock enabled apps require user authentication before uninstall.
+        if (android.security.Flags.appLockApis() && android.security.Flags.appLockCore()) {
+            final String packageName = versionedPackage.getPackageName();
+            final boolean isAppLockEnabled = LocalServices.getService(AppLockInternal.class)
+                    .isPackageAppLockEnabled(packageName, userId);
+            if (isAppLockEnabled && callingUid != SYSTEM_UID) {
+                final long identity = Binder.clearCallingIdentity();
+                try {
+                    final Intent uninstallAuthIntent = createLockedAppActivityUninstallIntent(
+                            versionedPackage, userId, flags, statusReceiver);
+                    PendingIntent pendingIntent = PendingIntent.getActivity(
+                            mContext,
+                            /* requestCode= */ 0,
+                            uninstallAuthIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                    );
+                    Intent wrapperIntent = new Intent();
+                    wrapperIntent.putExtra(Intent.EXTRA_INTENT, pendingIntent);
+                    adapter.onUserActionRequired(wrapperIntent);
+                    return;
+                } finally {
+                    Binder.restoreCallingIdentity(identity);
+                }
+            }
+        }
+
         if (mContext.checkPermission(Manifest.permission.DELETE_PACKAGES, callingPid, callingUid)
                 == PackageManager.PERMISSION_GRANTED) {
             // Sweet, call straight through!
@@ -2097,10 +2137,7 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
         if (verifierPackageName == null) {
             return false;
         }
-        // Here we only care about the UID of the verifier app, so we don't do apps filter
-        final int verifierUid = snapshot.getPackageUidInternal(
-                verifierPackageName, 0 /* flags */, userId, SYSTEM_UID);
-        return UserHandle.isSameApp(callingUid, verifierUid);
+        return snapshot.isCallerSameApp(verifierPackageName, callingUid);
     }
 
     private boolean isCallerDeveloperVerificationPolicyDelegate(
@@ -2109,10 +2146,7 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
         if (delegatePackageName == null) {
             return false;
         }
-        // Here we only care about the UID of the delegate app, so we don't do apps filter
-        final int delegateUid = snapshot.getPackageUidInternal(
-                delegatePackageName, 0 /* flags */, userId, SYSTEM_UID);
-        return UserHandle.isSameApp(callingUid, delegateUid);
+        return snapshot.isCallerSameApp(delegatePackageName, callingUid);
     }
 
     @Override
@@ -2135,6 +2169,10 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
     @Override
     public void addDeveloperVerificationExperiment(String packageName, int verificationPolicy,
             int[] results) {
+        final int callerUid = Binder.getCallingUid();
+        if (!PackageManagerServiceUtils.isRootOrShell(callerUid)) {
+            throw new SecurityException("Not allowed to add developer verification experiment");
+        }
         List<Integer> resultsList = new ArrayList<>(results.length);
         for (int i = 0; i < results.length; i++) {
             resultsList.add(results[i]);
@@ -2144,6 +2182,10 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
 
     @Override
     public void clearDeveloperVerificationExperiment(String packageName) {
+        final int callerUid = Binder.getCallingUid();
+        if (!PackageManagerServiceUtils.isRootOrShell(callerUid)) {
+            throw new SecurityException("Not allowed to clear developer verification experiment");
+        }
         mDeveloperVerifierController.clearExperiment(packageName);
     }
 
@@ -2175,13 +2217,40 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
         }
     }
 
+    @GuardedBy("mSessions")
+    private void checkSessionQuotaLocked(int installerUid) {
+        final int activeCount = getSessionCount(mSessions, installerUid);
+        if (mContext.checkPermission(Manifest.permission.INSTALL_PACKAGES, -1, installerUid)
+                == PackageManager.PERMISSION_GRANTED) {
+            if (activeCount >= MAX_ACTIVE_SESSIONS_WITH_PERMISSION) {
+                throw new IllegalStateException(
+                        "Too many active sessions for UID " + installerUid);
+            }
+        } else if (activeCount >= MAX_ACTIVE_SESSIONS_NO_PERMISSION) {
+            throw new IllegalStateException(
+                    "Too many active sessions for UID " + installerUid);
+        }
+        final int historicalCount = mHistoricalSessionsByInstaller.get(installerUid);
+        if (historicalCount >= MAX_HISTORICAL_SESSIONS) {
+            throw new IllegalStateException(
+                    "Too many historical sessions for UID " + installerUid);
+        }
+    }
+
     private static int getSessionCount(SparseArray<PackageInstallerSession> sessions,
             int installerUid) {
         int count = 0;
         final int size = sessions.size();
         for (int i = 0; i < size; i++) {
             final PackageInstallerSession session = sessions.valueAt(i);
-            if (session.getInstallerUid() == installerUid) {
+            if (session.isStagedAndInTerminalState()) {
+                // No need to count sessions that are staged and in terminal state because they
+                // can't be abandoned and they will be cleared in the next reboot.
+                continue;
+            }
+            // Check both current and original installer UID to prevent quota bypass via transfer
+            if (session.getInstallerUid() == installerUid
+                    || session.getOriginalInstallerUid() == installerUid) {
                 count++;
             }
         }
@@ -2264,7 +2333,12 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
             fillIn.putExtra(PackageInstaller.EXTRA_PACKAGE_NAME, mPackageName);
             fillIn.putExtra(PackageInstaller.EXTRA_STATUS,
                     PackageInstaller.STATUS_PENDING_USER_ACTION);
-            fillIn.putExtra(Intent.EXTRA_INTENT, intent);
+            PendingIntent pi = intent.getParcelableExtra(Intent.EXTRA_INTENT, PendingIntent.class);
+            if (pi != null) {
+                fillIn.putExtra(Intent.EXTRA_INTENT, pi);
+            } else {
+                fillIn.putExtra(Intent.EXTRA_INTENT, intent);
+            }
             try {
                 final BroadcastOptions options = BroadcastOptions.makeBasic();
                 options.setPendingIntentBackgroundActivityLaunchAllowed(false);
@@ -2579,6 +2653,15 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
     public class InternalCallback {
+        /**
+         * Check if the given UID has exceeded its session quota.
+         */
+        public void checkSessionQuota(int installerUid) {
+            synchronized (mSessions) {
+                PackageInstallerService.this.checkSessionQuotaLocked(installerUid);
+            }
+        }
+
         public void onSessionBadgingChanged(PackageInstallerSession session) {
             mCallbacks.notifySessionBadgingChanged(session.sessionId, session.userId);
             mSettingsWriteRequest.schedule();
@@ -2639,7 +2722,7 @@ public class PackageInstallerService extends IPackageInstaller.Stub implements
                             }
                         }
 
-                        if (Flags.sdkDependencyInstaller()) {
+                        if (!Flags.sdkDependencyInstallerDeprecation()) {
                             mInstallDependencyHelper.notifySessionComplete(session.sessionId);
                         }
 

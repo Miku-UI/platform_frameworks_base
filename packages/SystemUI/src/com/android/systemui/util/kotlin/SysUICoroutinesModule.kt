@@ -17,13 +17,13 @@
 package com.android.systemui.util.kotlin
 
 import android.os.Handler
-import com.android.systemui.Flags
 import com.android.systemui.coroutines.newTracingContext
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.NotifInflation
 import com.android.systemui.dagger.qualifiers.UiBackground
+import com.android.systemui.util.compose.state.SnapshotFlowBuilder
 import com.android.systemui.util.kotlin.dispatchers.newIntrinsicLockFixedThreadPoolContext
 import com.android.systemui.util.settings.SettingsSingleThreadBackground
 import dagger.Module
@@ -36,7 +36,6 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.android.asCoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.newFixedThreadPoolContext
 import kotlinx.coroutines.plus
 
 private const val LIMIT_BACKGROUND_DISPATCHER_THREADS = true
@@ -74,17 +73,12 @@ class SysUICoroutinesModule {
             // would share those threads with other dependencies using Dispatchers.IO.
             // Using a dedicated thread pool we have guarantees only SystemUI is able to schedule
             // code on those.
-            if (Flags.sysuiIntrinsicLockDispatcher()) {
-                newIntrinsicLockFixedThreadPoolContext(
-                    nThreads = Runtime.getRuntime().availableProcessors(),
-                    name ="SystemUIBg",
-                )
-            } else {
-                newFixedThreadPoolContext(
-                    nThreads = Runtime.getRuntime().availableProcessors(),
-                    name = "SystemUIBg",
-                )
-            }
+            // We now use a custom thread pool dispatcher, where producers are not susceptible to
+            // lock contentions and priority inversion
+            newIntrinsicLockFixedThreadPoolContext(
+                nThreads = Runtime.getRuntime().availableProcessors(),
+                name = "SystemUIBg",
+            )
         } else {
             Dispatchers.IO
         }
@@ -143,4 +137,9 @@ class SysUICoroutinesModule {
     ): CoroutineDispatcher {
         return notifInflationExecutor.asCoroutineDispatcher()
     }
+
+    @Provides
+    @Background
+    @SysUISingleton
+    fun backgroundSnapshotFlowBuilder() = SnapshotFlowBuilder.createOnNewBackgroundThread()
 }

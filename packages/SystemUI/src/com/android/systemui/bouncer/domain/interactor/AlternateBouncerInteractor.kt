@@ -16,20 +16,27 @@
 
 package com.android.systemui.bouncer.domain.interactor
 
+import android.app.StatusBarManager
 import android.util.Log
-import com.android.systemui.biometrics.data.repository.FingerprintPropertyRepository
+import com.android.internal.logging.UiEventLogger
+import com.android.systemui.Flags
+import com.android.systemui.biometrics.domain.interactor.FingerprintPropertyInteractor
 import com.android.systemui.bouncer.data.repository.KeyguardBouncerRepository
+import com.android.systemui.bouncer.shared.logging.BouncerUiEvent
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryBiometricsAllowedInteractor
 import com.android.systemui.display.domain.interactor.DisplayStateInteractor
+import com.android.systemui.display.domain.interactor.DisplayTypeInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
+import com.android.systemui.log.SessionTracker
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.securelockdevice.domain.interactor.SecureLockDeviceInteractor
+import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.util.kotlin.BooleanFlowOperators.anyOf
 import dagger.Lazy
 import javax.inject.Inject
@@ -54,7 +61,8 @@ class AlternateBouncerInteractor
 @Inject
 constructor(
     private val bouncerRepository: KeyguardBouncerRepository,
-    fingerprintPropertyRepository: FingerprintPropertyRepository,
+    fingerprintPropertyInteractor: FingerprintPropertyInteractor,
+    @ShadeDisplayAware private val displayTypeInteractor: DisplayTypeInteractor,
     private val deviceEntryBiometricsAllowedInteractor:
         Lazy<DeviceEntryBiometricsAllowedInteractor>,
     private val keyguardInteractor: Lazy<KeyguardInteractor>,
@@ -63,14 +71,19 @@ constructor(
     sceneInteractor: Lazy<SceneInteractor>,
     secureLockDeviceInteractor: Lazy<SecureLockDeviceInteractor>,
     @Application scope: CoroutineScope,
+    private val uiEventLogger: UiEventLogger,
+    private val sessionTracker: SessionTracker,
 ) {
     private var receivedDownTouch = false
 
     val isVisible: StateFlow<Boolean> = bouncerRepository.alternateBouncerVisible
 
     val alternateBouncerSupported: StateFlow<Boolean> =
-        fingerprintPropertyRepository.sensorType
-            .map { sensorType -> sensorType.isUdfps() || sensorType.isPowerButton() }
+        combine(fingerprintPropertyInteractor.isUdfps, fingerprintPropertyInteractor.isSideFps) {
+                isUdfps,
+                isSideFps ->
+                isUdfps || isSideFps
+            }
             .stateIn(scope = scope, started = SharingStarted.Eagerly, initialValue = false)
 
     private val isDozingOrAod: Flow<Boolean> =
@@ -84,16 +97,16 @@ constructor(
             )
             .distinctUntilChanged()
 
-    private val currentDisplayModeSupported: Flow<Boolean> =
-        fingerprintPropertyRepository.sensorType.flatMapLatest {
-            // SideFPS doesn't support AlternateBouncer in rear display mode
-            if (it.isPowerButton()) {
-                displayStateInteractor.get().isInRearDisplayMode.map { inRearDisplayMode ->
-                    !inRearDisplayMode
-                }
-            } else {
-                flowOf(true)
-            }
+    private val currentDisplaySupported: Flow<Boolean> =
+        combine(
+            displayTypeInteractor.isInternalDisplay,
+            fingerprintPropertyInteractor.isSideFps,
+            displayStateInteractor.get().isInRearDisplayMode,
+        ) { isInternalDisplay, isSideFps, isInRearDisplayMode ->
+            // Alternate Bouncer is only supported on internal displays
+            (!Flags.standaloneFingerprintLockScreenUxFix() || isInternalDisplay) &&
+                // SideFPS doesn't support AlternateBouncer in rear display mode
+                !(isSideFps && isInRearDisplayMode)
         }
 
     /**
@@ -126,20 +139,20 @@ constructor(
                                         .get()
                                         .isFingerprintAuthCurrentlyAllowed,
                                     keyguardInteractor.get().isKeyguardDismissible,
-                                    bouncerRepository.primaryBouncerShow,
+                                    keyguardInteractor.get().primaryBouncerShowing,
                                     isDozingOrAod,
-                                    currentDisplayModeSupported,
+                                    currentDisplaySupported,
                                 ) {
                                     fingerprintAllowed,
                                     keyguardDismissible,
                                     primaryBouncerShowing,
                                     dozing,
-                                    currentDisplayModeSupported ->
+                                    currentDisplaySupported ->
                                     fingerprintAllowed &&
                                         !keyguardDismissible &&
                                         !primaryBouncerShowing &&
                                         !dozing &&
-                                        currentDisplayModeSupported
+                                        currentDisplaySupported
                                 }
                             }
                         }
@@ -156,6 +169,12 @@ constructor(
      * calling this.
      */
     fun forceShow() {
+        uiEventLogger.logWithInstanceId(
+            BouncerUiEvent.ALTERNATE_BOUNCER_SHOWN,
+            0,
+            null,
+            sessionTracker.getSessionId(StatusBarManager.SESSION_KEYGUARD),
+        )
         bouncerRepository.setAlternateVisible(true)
     }
 

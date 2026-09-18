@@ -20,11 +20,21 @@ import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 
 /**
+ * Session for exporting service lists.
  * @hide
  */
 interface IServiceListExportSession {
-    // Start export service list with reserved parameters.
+    /**
+     * Starts the export process.
+     *
+     * @param pfd The file descriptor to write to (requires write permission).
+     * @param exportParams Optional reserved parameters bundle, null if not used.
+     * @return @ServicedbConstants.ResultCode.RESULT_SUCCESS or RESULT_ERROR.
+     */
     int exportServiceList(in ParcelFileDescriptor pfd, in Bundle exportParams);
-    // Release export resources.
+    /**
+     * Releases export resources.
+     * @return @ServicedbConstants.ResultCode.RESULT_SUCCESS or RESULT_ERROR.
+     */
     int release();
 }

@@ -114,8 +114,7 @@ public class PowerStatsService extends SystemService {
     private PowerStatsInternal mPowerStatsInternal;
     @Nullable
     @GuardedBy("this")
-    private Looper mLooper;
-    private Handler mHandler;
+    private volatile Handler mHandler;
     @Nullable
     @GuardedBy("this")
     private EnergyConsumer[] mEnergyConsumers = null;
@@ -351,7 +350,7 @@ public class PowerStatsService extends SystemService {
             mDataStoragePath = mInjector.createDataStoragePath();
 
             // Only start logger and triggers if initialization is successful.
-            mPowerStatsLogger = mInjector.createPowerStatsLogger(mContext, getLooper(),
+            mPowerStatsLogger = mInjector.createPowerStatsLogger(mContext, getHandler().getLooper(),
                     mDataStoragePath, mInjector.createMeterFilename(),
                     mInjector.createMeterCacheFilename(), mInjector.createModelFilename(),
                     mInjector.createModelCacheFilename(), mInjector.createResidencyFilename(),
@@ -367,24 +366,19 @@ public class PowerStatsService extends SystemService {
         return mInjector.getPowerStatsHALWrapperImpl();
     }
 
-    private Looper getLooper() {
-        synchronized (this) {
-            if (mLooper == null) {
-                HandlerThread thread = new HandlerThread(TAG);
-                thread.start();
-                return thread.getLooper();
-            }
-            return mLooper;
-        }
-    }
-
     private Handler getHandler() {
-        synchronized (this) {
-            if (mHandler == null) {
-                mHandler = new Handler(getLooper());
+        Handler handler = mHandler;
+        if (handler == null) {
+            synchronized (this) {
+                if (mHandler == null) {
+                    HandlerThread thread = new HandlerThread(TAG);
+                    thread.start();
+                    mHandler = thread.getThreadHandler();
+                }
+                handler = mHandler;
             }
-            return mHandler;
         }
+        return handler;
     }
 
     private EnergyConsumer[] getEnergyConsumerInfo() {

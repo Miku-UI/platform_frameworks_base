@@ -4,6 +4,7 @@ import android.app.ActivityManager
 import android.os.Handler
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.app.displaylib.DisplaysWithDecorationsRepositoryCompat
 import com.android.systemui.LauncherProxyService
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.dump.DumpManager
@@ -21,6 +22,7 @@ import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
 import com.android.wm.shell.back.BackAnimation
 import com.android.wm.shell.pip.Pip
 import java.util.Optional
+import kotlinx.coroutines.CoroutineDispatcher
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -63,6 +65,8 @@ class TaskbarDelegateTest : SysuiTestCase() {
     @Mock lateinit var mStatusBarStateController: StatusBarStateController
     @Mock lateinit var mDisplayTracker: DisplayTracker
     @Mock lateinit var mHandler: Handler
+    @Mock lateinit var mDisplaysWithDecorationsRepositoryCompat: DisplaysWithDecorationsRepositoryCompat
+    @Mock lateinit var mCoroutineDispatcher: CoroutineDispatcher
 
     @Before
     fun setup() {
@@ -98,6 +102,8 @@ class TaskbarDelegateTest : SysuiTestCase() {
             mBackAnimation,
             mTaskStackChangeListeners,
             mDisplayTracker,
+            mDisplaysWithDecorationsRepositoryCompat,
+            mCoroutineDispatcher,
         )
     }
 

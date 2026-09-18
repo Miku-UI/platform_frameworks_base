@@ -32,6 +32,7 @@ import static android.view.WindowManager.TRANSIT_SLEEP;
 import static android.view.WindowManager.TRANSIT_TO_BACK;
 import static android.view.WindowManager.TRANSIT_TO_FRONT;
 
+import static com.android.wm.shell.Flags.addOneOffHandlerLeashes;
 import static com.android.wm.shell.shared.TransitionUtil.isOpeningType;
 
 import android.annotation.NonNull;
@@ -55,6 +56,7 @@ import android.window.WindowContainerTransaction;
 
 import com.android.internal.protolog.ProtoLog;
 import com.android.window.flags.Flags;
+import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.common.DisplayController;
 import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.common.TaskStackListenerCallback;
@@ -74,14 +76,16 @@ import com.android.wm.shell.transition.Transitions.TransitionFinishCallback;
  * <p>This takes the highest priority.
  */
 public class KeyguardTransitionHandler
-        implements Transitions.TransitionHandler, KeyguardChangeListener,
-        TaskStackListenerCallback {
+        implements Transitions.TransitionHandler,
+                KeyguardChangeListener,
+                TaskStackListenerCallback {
     private static final boolean ENABLE_NEW_KEYGUARD_SHELL_TRANSITIONS =
             Flags.ensureKeyguardDoesTransitionStartingBugFix();
 
     private static final String TAG = "KeyguardTransition";
 
     private final Transitions mTransitions;
+    private final ShellTaskOrganizer mShellTaskOrganizer;
     private final ShellController mShellController;
 
     private final DisplayController mDisplayController;
@@ -127,6 +131,7 @@ public class KeyguardTransitionHandler
     public KeyguardTransitionHandler(
             @NonNull ShellInit shellInit,
             @NonNull ShellController shellController,
+            @NonNull ShellTaskOrganizer shellTaskOrganizer,
             @NonNull DisplayController displayController,
             @NonNull Transitions transitions,
             @NonNull TaskStackListenerImpl taskStackListener,
@@ -135,6 +140,7 @@ public class KeyguardTransitionHandler
             @NonNull FocusTransitionObserver focusTransitionObserver) {
         mTransitions = transitions;
         mShellController = shellController;
+        mShellTaskOrganizer = shellTaskOrganizer;
         mDisplayController = displayController;
         mMainHandler = mainHandler;
         mMainExecutor = mainExecutor;
@@ -196,13 +202,12 @@ public class KeyguardTransitionHandler
         }
 
         // Choose a transition applicable for the changes and keyguard state.
-        if ((info.getFlags() & TRANSIT_FLAG_KEYGUARD_GOING_AWAY) != 0) {
+        if (isKeyguardGoingAway(info)) {
             return startAnimation(mExitTransition, "going-away",
                     transition, info, startTransaction, finishTransaction, finishCallback);
         }
 
-        if ((info.getFlags() & TRANSIT_FLAG_KEYGUARD_APPEARING) != 0
-                || (info.getFlags() & TRANSIT_FLAG_AOD_APPEARING) != 0) {
+        if (isKeyguardAppearing(info)) {
             return startAnimation(mAppearTransition, "appearing",
                     transition, info, startTransaction, finishTransaction, finishCallback);
         }
@@ -245,6 +250,21 @@ public class KeyguardTransitionHandler
 
         ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
                 "start keyguard %s transition, info = %s", description, info);
+
+        final Transitions.TransitionFinishCallback wrappedCallback;
+        if (addOneOffHandlerLeashes()) {
+            // Provide handler-specific leashes to make sure that animations remain contained to the
+            // scope of ownership of the handler. This is only necessary because we are handing the
+            // animation off to a remote, over which we have no control.
+            mTransitions.getLeashManager().setUpLeashes(transition, info, startTransaction);
+            wrappedCallback = wct -> {
+                finishCallback.onTransitionFinished(wct);
+                mTransitions.getLeashManager().cleanUp(transition);
+            };
+        } else {
+            wrappedCallback = finishCallback;
+        }
+
         try {
             mStartedTransitions.put(transition,
                     new StartedTransition(info, finishTransaction, remoteHandler));
@@ -265,7 +285,7 @@ public class KeyguardTransitionHandler
                             // Post our finish callback to let startAnimation finish first.
                             mMainExecutor.executeDelayed(() -> {
                                 mStartedTransitions.remove(transition);
-                                finishCallback.onTransitionFinished(mergedWct);
+                                wrappedCallback.onTransitionFinished(mergedWct);
                             }, 0);
                         }
                     });
@@ -273,7 +293,9 @@ public class KeyguardTransitionHandler
             Log.wtf(TAG, "RemoteException thrown from local IRemoteTransition", e);
             return false;
         }
-        startTransaction.clear();
+        if (!addOneOffHandlerLeashes()) {
+            startTransaction.clear();
+        }
         return true;
     }
 
@@ -375,6 +397,17 @@ public class KeyguardTransitionHandler
         return false;
     }
 
+    /** Returns whether this transition is for the keyguard appearing. */
+    public static boolean isKeyguardAppearing(@NonNull TransitionInfo info) {
+        return (info.getFlags() & TRANSIT_FLAG_KEYGUARD_APPEARING) != 0
+                || (info.getFlags() & TRANSIT_FLAG_AOD_APPEARING) != 0;
+    }
+
+    /** Returns whether this transition is for the keyguard going away. */
+    public static boolean isKeyguardGoingAway(@NonNull TransitionInfo info) {
+        return (info.getFlags() & TRANSIT_FLAG_KEYGUARD_GOING_AWAY) != 0;
+    }
+
     private void finishAnimationImmediately(IBinder transition, StartedTransition playing) {
         final IBinder fakeTransition = new Binder();
         final TransitionInfo fakeInfo = new TransitionInfo(TRANSIT_SLEEP, 0x0);
@@ -460,6 +493,18 @@ public class KeyguardTransitionHandler
                 mTransitions.startTransition(keyguardShowing ? TRANSIT_TO_FRONT : TRANSIT_TO_BACK,
                         wct, KeyguardTransitionHandler.this);
             });
+        }
+
+        @Override
+        public void registerOccludingTaskListener(
+                @NonNull ShellTaskOrganizer.KeyguardOccludingTaskListener listener) {
+            mShellTaskOrganizer.addKeyguardOccludingTaskListener(listener);
+        }
+
+        @Override
+        public void unregisterOccludingTaskListener(
+                @NonNull ShellTaskOrganizer.KeyguardOccludingTaskListener listener) {
+            mShellTaskOrganizer.removeKeyguardOccludingTaskListener(listener);
         }
     }
 }

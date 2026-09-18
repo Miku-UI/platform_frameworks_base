@@ -35,13 +35,11 @@ import com.android.systemui.kairos.util.toNameData
  * type, [Transactionals][Transactional] are guaranteed to produce the same result if queried
  * multiple times at the same (conceptual) time, in order to preserve _referential transparency_.
  */
-@ExperimentalKairosApi
 class Transactional<out A> internal constructor(internal val impl: State<TransactionalImpl<A>>) {
     override fun toString(): String = "${this::class.simpleName}@$hashString"
 }
 
 /** A constant [Transactional] that produces [value] whenever it is sampled. */
-@ExperimentalKairosApi
 fun <A> transactionalOf(value: A): Transactional<A> =
     transactionalOf(nameTag { "transactionalOf($value)" }.toNameData("transactionalOf"), value)
 
@@ -61,7 +59,6 @@ internal fun <A> transactionalOf(nameData: NameData, value: A): Transactional<A>
  *   fun <A> DeferredValue<Transactional<A>>.defer() = deferredTransactional { get() }
  * ```
  */
-@ExperimentalKairosApi
 fun <A> DeferredValue<Transactional<A>>.defer(): Transactional<A> = deferInline { unwrapped.value }
 
 /**
@@ -77,7 +74,6 @@ fun <A> DeferredValue<Transactional<A>>.defer(): Transactional<A> = deferInline 
  *   fun <A> Lazy<Transactional<A>>.defer() = deferredTransactional { value }
  * ```
  */
-@ExperimentalKairosApi
 fun <A> Lazy<Transactional<A>>.defer(): Transactional<A> = deferInline { value }
 
 /**
@@ -89,7 +85,6 @@ fun <A> Lazy<Transactional<A>>.defer(): Transactional<A> = deferInline { value }
  *
  * Useful for recursive definitions.
  */
-@ExperimentalKairosApi
 fun <A> deferredTransactional(block: KairosScope.() -> Transactional<A>): Transactional<A> =
     deferInline {
         NoScope.block()
@@ -99,7 +94,7 @@ private inline fun <A> deferInline(
     crossinline block: InitScope.() -> Transactional<A>
 ): Transactional<A> =
     Transactional(
-        StateInit(init(NameTaggingDisabled) { block().impl.init.connect(evalScope = this) })
+        StateInit(init(NameTaggingDisabled) { block().impl.init.connect(initScope = this) })
     )
 
 /**
@@ -108,7 +103,6 @@ private inline fun <A> deferInline(
  *
  * @sample com.android.systemui.kairos.KairosSamples.sampleTransactional
  */
-@ExperimentalKairosApi
 fun <A> transactionally(block: TransactionScope.() -> A): Transactional<A> =
     Transactional(stateOf(transactionalImpl { block() }))
 

@@ -32,12 +32,10 @@ import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.os.ShellCallback;
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -47,8 +45,6 @@ import java.util.concurrent.Executor;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class BinderDeathDispatcherTest {
-    @Rule
-    public RavenwoodRule mRavenwood = new RavenwoodRule.Builder().build();
 
     private static class MyTarget implements IInterface, IBinder {
         public boolean isAlive = true;

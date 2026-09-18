@@ -31,9 +31,7 @@ import com.android.server.SystemTimeZone.TimeZoneConfidence;
 import java.io.PrintWriter;
 import java.util.Objects;
 
-/**
- * The real implementation of {@link Environment}.
- */
+/** The real implementation of {@link Environment}. */
 final class EnvironmentImpl implements Environment {
 
     private static final String TIMEZONE_PROPERTY = "persist.sys.timezone";
@@ -57,8 +55,7 @@ final class EnvironmentImpl implements Environment {
 
     @Override
     public void setDeviceTimeZoneAndConfidence(
-            @NonNull String zoneId, @TimeZoneConfidence int confidence,
-            @NonNull String logInfo) {
+            @NonNull String zoneId, @TimeZoneConfidence int confidence, @NonNull String logInfo) {
         AlarmManagerInternal alarmManagerInternal =
                 LocalServices.getService(AlarmManagerInternal.class);
         alarmManagerInternal.setTimeZone(zoneId, confidence, logInfo);
@@ -87,5 +84,15 @@ final class EnvironmentImpl implements Environment {
     @Override
     public void runAsync(@NonNull Runnable runnable) {
         mHandler.post(runnable);
+    }
+
+    @Override
+    public void postDelayed(@NonNull Runnable runnable, long delayMillis) {
+        mHandler.postDelayed(runnable, delayMillis);
+    }
+
+    @Override
+    public void removePendingRunnable(@NonNull Runnable runnable) {
+        mHandler.removeCallbacks(runnable);
     }
 }

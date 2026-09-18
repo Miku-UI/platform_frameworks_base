@@ -17,15 +17,12 @@
 package com.android.systemui.shade.ui.composable
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeContent
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -37,26 +34,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.approachLayout
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.android.compose.animation.scene.ContentScope
 import com.android.compose.animation.scene.ElementKey
 import com.android.compose.animation.scene.LowestZIndexContentPicker
-import com.android.compose.animation.scene.mechanics.TileRevealFlag
-import com.android.compose.animation.scene.mechanics.rememberGestureContext
 import com.android.compose.modifiers.thenIf
 import com.android.mechanics.behavior.VerticalExpandContainerSpec
 import com.android.mechanics.behavior.verticalExpandContainerBackground
 import com.android.mechanics.compose.modifier.motionDriver
+import com.android.systemui.qs.ui.composable.TileRevealFlag
 import com.android.systemui.res.R
+import com.android.systemui.scene.ui.composable.LocalSceneContainerPreloadedResources
 import com.android.systemui.shade.ui.ShadeColors.shadePanel
 import com.android.systemui.shade.ui.ShadeColors.shadePanelScrimBehind
 import com.android.systemui.shade.ui.composable.OverlayShade.Colors
@@ -69,6 +67,7 @@ import kotlin.math.min
 fun ContentScope.OverlayShade(
     panelElement: ElementKey,
     alignmentOnWideScreens: Alignment.Horizontal,
+    statusBarHeightPx: Int,
     enableTransparency: Boolean,
     onScrimClicked: () -> Unit,
     modifier: Modifier = Modifier,
@@ -78,7 +77,7 @@ fun ContentScope.OverlayShade(
     header: @Composable () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val isFullWidth = isFullWidthShade()
+    val isFullWidth = LocalSceneContainerPreloadedResources.current.isFullWidthShade
     val panelSpec = rememberShadeExpansionMotion(isFullWidth)
     val panelCornerRadiusPx = with(LocalDensity.current) { panelSpec.radius.toPx() }
     val panelAlignment =
@@ -89,14 +88,14 @@ fun ContentScope.OverlayShade(
         }
 
     Box(modifier) {
-        Scrim(showBackgroundColor = enableTransparency, onClicked = onScrimClicked)
+        OverlayScrim(showBackgroundColor = enableTransparency, onClicked = onScrimClicked)
 
         Box(
             modifier =
-                Modifier.fillMaxSize().panelContainerPadding(isFullWidth, alignmentOnWideScreens),
+                Modifier.fillMaxSize()
+                    .panelContainerPadding(isFullWidth, alignmentOnWideScreens, statusBarHeightPx),
             contentAlignment = panelAlignment,
         ) {
-            val gestureContext = rememberGestureContext()
             Panel(
                 enableTransparency = enableTransparency,
                 spec = panelSpec,
@@ -104,7 +103,10 @@ fun ContentScope.OverlayShade(
                     Modifier.overscroll(verticalOverscrollEffect)
                         .element(panelElement)
                         .thenIf(TileRevealFlag.isEnabled) {
-                            Modifier.motionDriver(gestureContext, label = "OverlayShade")
+                            Modifier.motionDriver(
+                                contentScope = this@OverlayShade,
+                                label = "OverlayShade",
+                            )
                         }
                         .width(Dimensions.PanelWidth)
                         // TODO(440566878): Investigate if this can be optimized by replacing with
@@ -122,7 +124,35 @@ fun ContentScope.OverlayShade(
                             onBackgroundPlaced(bounds, topCornerRadius, bottomCornerRadius)
                         },
                 header = header.takeIf { isFullWidth },
-                content = content,
+                content = {
+                    Box(
+                        Modifier
+                            // Prevent this element from resizing during the container reveal
+                            // animation. The parent clips the content, so remeasuring the
+                            // children (especially text) on every frame is unnecessary and
+                            // can cause performance issues (jank).
+                            .approachLayout(
+                                isMeasurementApproachInProgress = { layoutState.isTransitioning() }
+                            ) { measurable, constraints ->
+                                if (layoutState.currentTransition == null) {
+                                    return@approachLayout measurable.measure(constraints).run {
+                                        layout(width, height) { place(0, 0) }
+                                    }
+                                }
+
+                                // Make sure that this layout node has the same size than when we
+                                // are at rest.
+                                val widthAtRest = lookaheadSize.width
+                                val fixedWidthConstraints =
+                                    constraints.copy(minWidth = widthAtRest, maxWidth = widthAtRest)
+                                measurable.measure(fixedWidthConstraints).run {
+                                    layout(width, height) { place(IntOffset.Zero) }
+                                }
+                            }
+                    ) {
+                        content()
+                    }
+                },
             )
         }
 
@@ -130,23 +160,6 @@ fun ContentScope.OverlayShade(
             header()
         }
     }
-}
-
-@Composable
-private fun ContentScope.Scrim(
-    showBackgroundColor: Boolean,
-    onClicked: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val scrimBackgroundColor = Colors.ScrimBackground
-    Spacer(
-        modifier =
-            modifier
-                .element(OverlayShade.Elements.Scrim)
-                .fillMaxSize()
-                .thenIf(showBackgroundColor) { Modifier.background(scrimBackgroundColor) }
-                .clickable(onClick = onClicked, interactionSource = null, indication = null)
-    )
 }
 
 @Composable
@@ -172,10 +185,6 @@ private fun ContentScope.Panel(
 
 @Composable
 @ReadOnlyComposable
-internal fun isFullWidthShade() = LocalResources.current.getBoolean(R.bool.config_isFullWidthShade)
-
-@Composable
-@ReadOnlyComposable
 @SuppressLint("ConfigurationScreenWidthHeight")
 private fun getHalfScreenWidth() = LocalConfiguration.current.screenWidthDp.dp / 2
 
@@ -183,6 +192,7 @@ private fun getHalfScreenWidth() = LocalConfiguration.current.screenWidthDp.dp /
 private fun Modifier.panelContainerPadding(
     isFullWidthPanel: Boolean,
     alignment: Alignment.Horizontal,
+    statusBarHeightPx: Int,
 ): Modifier {
     if (isFullWidthPanel) {
         return this
@@ -198,24 +208,20 @@ private fun Modifier.panelContainerPadding(
     val paddings = PaddingValues(start = startPadding, end = endPadding)
     val layoutDirection = LocalLayoutDirection.current
     return windowInsetsPadding(
-        WindowInsets.safeContent.union(
-            WindowInsets(
-                left = paddings.calculateLeftPadding(layoutDirection),
-                right = paddings.calculateRightPadding(layoutDirection),
+        WindowInsets.safeDrawing
+            .union(WindowInsets(top = statusBarHeightPx))
+            .union(
+                WindowInsets(
+                    left = paddings.calculateLeftPadding(layoutDirection),
+                    right = paddings.calculateRightPadding(layoutDirection),
+                )
             )
-        )
     )
 }
 
 object OverlayShade {
     object Elements {
         val Scrim = ElementKey("OverlayShadeScrim", contentPicker = LowestZIndexContentPicker)
-        val Panel =
-            ElementKey(
-                "OverlayShadePanel",
-                contentPicker = LowestZIndexContentPicker,
-                placeAllCopies = true,
-            )
     }
 
     object Colors {

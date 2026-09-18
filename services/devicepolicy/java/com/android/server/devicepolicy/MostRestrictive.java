@@ -25,11 +25,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-final class MostRestrictive<V> extends ResolutionMechanism<V> {
+public final class MostRestrictive<V> extends ResolutionMechanism<V> {
 
     private List<PolicyValue<V>> mMostToLeastRestrictive;
 
-    MostRestrictive(@NonNull List<PolicyValue<V>> mostToLeastRestrictive) {
+    public MostRestrictive(@NonNull List<PolicyValue<V>> mostToLeastRestrictive) {
         mMostToLeastRestrictive = mostToLeastRestrictive;
     }
 

@@ -22,13 +22,14 @@ import android.content.Context
 import android.os.SystemClock
 import android.os.SystemProperties
 import android.provider.Settings.Secure
-import android.window.DesktopExperienceFlags
+import com.android.window.flags.Flags
 import com.android.wm.shell.R
 import com.android.wm.shell.apptoweb.AppToWebRepository
 import com.android.wm.shell.apptoweb.isBrowserApp
 import com.android.wm.shell.desktopmode.CaptionState
 import com.android.wm.shell.desktopmode.education.data.AppToWebEducationDatastoreRepository
 import com.android.wm.shell.desktopmode.education.data.WindowingEducationProto
+import com.android.wm.shell.transition.FocusTransitionObserver
 import java.time.Duration
 
 /** Filters incoming App-to-Web education triggers based on set conditions. */
@@ -36,6 +37,7 @@ class AppToWebEducationFilter(
     private val context: Context,
     private val appToWebEducationDatastoreRepository: AppToWebEducationDatastoreRepository,
     private val appToWebRepository: AppToWebRepository,
+    private val focusTransitionObserver: FocusTransitionObserver,
 ) {
 
     /** Returns true if conditions to show App-to-web education are met, returns false otherwise. */
@@ -44,15 +46,28 @@ class AppToWebEducationFilter(
         val focusAppPackageName = taskInfo.topActivityInfo?.packageName ?: return false
         val windowingEducationProto = appToWebEducationDatastoreRepository.windowingEducationProto()
 
+        // If the first-run prompt is/was shown for this task, we don't show the education.
+        if (appToWebRepository.isFirstRunPromptShown(taskInfo)) {
+            return false
+        }
+
         return if (isAppToWebEducationRequested(taskInfo)) {
             !isEducationViewLimitReached(windowingEducationProto) &&
-                taskInfo.isFocused &&
+                if (Flags.enableFocusTransitionObserverCleanup()) {
+                    focusTransitionObserver.hasGlobalFocus(taskInfo)
+                } else {
+                    taskInfo.isFocused
+                } &&
                 !isOtherEducationShowing() &&
                 !isBrowserApp(taskInfo) &&
                 isBrowserSessionAvailable(taskInfo)
         } else {
             !isEducationViewLimitReached(windowingEducationProto) &&
-                taskInfo.isFocused &&
+                if (Flags.enableFocusTransitionObserverCleanup()) {
+                    focusTransitionObserver.hasGlobalFocus(taskInfo)
+                } else {
+                    taskInfo.isFocused
+                } &&
                 !isOtherEducationShowing() &&
                 hasSufficientTimeSinceSetup() &&
                 !isFeatureUsedBefore(windowingEducationProto) &&
@@ -64,16 +79,10 @@ class AppToWebEducationFilter(
     }
 
     private fun isAppToWebEducationRequested(taskInfo: RunningTaskInfo) =
-        if (
-            DesktopExperienceFlags.ENABLE_DESKTOP_WINDOWING_APP_TO_WEB_EDUCATION_INTEGRATION.isTrue
-        ) {
-            appToWebRepository.updateAppToWebEducationRequestTimestamp(
-                taskInfo.taskId,
-                taskInfo.topActivityRequestOpenInBrowserEducationTimestamp,
-            )
-        } else {
-            false
-        }
+        appToWebRepository.updateAppToWebEducationRequestTimestamp(
+            taskInfo.taskId,
+            taskInfo.topActivityRequestOpenInBrowserEducationTimestamp,
+        )
 
     /** Returns [true] if app is not a browser app itself and browser link is available. */
     private suspend fun isBrowserSessionAvailable(taskInfo: RunningTaskInfo) =

@@ -17,6 +17,7 @@
 package com.android.server.clipboard;
 
 import static android.app.ActivityManagerInternal.ALLOW_FULL_ONLY;
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
 import static android.companion.virtual.VirtualDeviceParams.DEVICE_POLICY_CUSTOM;
 import static android.companion.virtual.VirtualDeviceParams.POLICY_TYPE_CLIPBOARD;
 import static android.content.ClipDescription.MIMETYPE_APPLICATION_ACTIVITY;
@@ -45,6 +46,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.annotation.WorkerThread;
+import android.app.ActivityManager;
 import android.app.ActivityManagerInternal;
 import android.app.AppOpsManager;
 import android.app.IUriGrantsManager;
@@ -78,6 +80,8 @@ import android.os.IUserManager;
 import android.os.Looper;
 import android.os.Message;
 import android.os.Parcel;
+import android.os.PersistableBundle;
+import android.os.Process;
 import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 import android.os.ServiceManager;
@@ -170,6 +174,7 @@ public class ClipboardService extends SystemService {
     private VirtualDeviceManager.VirtualDeviceListener mVirtualDeviceListener;
     private final IUserManager mUm;
     private final PackageManager mPm;
+    private final PackageManagerInternal mPmInternal;
     private final AppOpsManager mAppOps;
     private final ContentCaptureManagerInternal mContentCaptureInternal;
     private final AutofillManagerInternal mAutofillInternal;
@@ -182,10 +187,12 @@ public class ClipboardService extends SystemService {
     private final SparseArrayMap<Integer, Clipboard> mClipboards = new SparseArrayMap<>();
 
     /**
-     * Maps the uid to the time that clip access notification/toast suppression should end.
+     * The keys are uids that it is known that the user has recently and explicitly authorized
+     * reading of the clipboard (e.g. Paste button). The values are the time according to
+     * {@link SystemClock#elapsedRealtime()} when the authorization expires.
      */
     @GuardedBy("mLock")
-    private final SparseLongArray mSuppressAccessNotification = new SparseLongArray();
+    private final SparseLongArray mUserAuthorizedClipAccesses = new SparseLongArray();
 
     @GuardedBy("mLock")
     private boolean mShowAccessNotifications =
@@ -214,6 +221,7 @@ public class ClipboardService extends SystemService {
         mVdm = (mVdmInternal == null) ? null : getContext().getSystemService(
                 VirtualDeviceManager.class);
         mPm = getContext().getPackageManager();
+        mPmInternal = LocalServices.getService(PackageManagerInternal.class);
         mUm = (IUserManager) ServiceManager.getService(Context.USER_SERVICE);
         mAppOps = (AppOpsManager) getContext().getSystemService(Context.APP_OPS_SERVICE);
         mContentCaptureInternal = LocalServices.getService(ContentCaptureManagerInternal.class);
@@ -225,7 +233,7 @@ public class ClipboardService extends SystemService {
                 synchronized (mLock) {
                     Clipboard clipboard = getClipboardLocked(0, DEVICE_ID_DEFAULT);
                     if (clipboard != null) {
-                        setPrimaryClipInternalLocked(clipboard, clip, android.os.Process.SYSTEM_UID,
+                        setPrimaryClipInternalLocked(clipboard, clip, Process.SYSTEM_UID,
                                 null);
                     }
                 }
@@ -694,12 +702,12 @@ public class ClipboardService extends SystemService {
                 if (clipboard == null) {
                     return null;
                 }
-                showAccessNotificationLocked(
+                boolean wasAccessShown = showAccessNotificationLocked(
                         pkg, intendingUid, intendingUserId, clipboard, deviceId);
                 notifyTextClassifierLocked(clipboard, pkg, intendingUid);
                 if (clipboard.primaryClip != null) {
-                    scheduleWriteClipDataStats(clipboard.primaryClip,
-                            clipboard.primaryClipUid, intendingUid);
+                    scheduleWriteClipDataStatsLocked(clipboard.primaryClip,
+                            clipboard.primaryClipUid, intendingUid, wasAccessShown);
                     scheduleAutoClear(userId, intendingUid, intendingDeviceId);
                 }
                 return clipboard.primaryClip;
@@ -898,20 +906,20 @@ public class ClipboardService extends SystemService {
         public void notifyUserAuthorizedClipAccess(int uid) {
             long elapsedRealtime = SystemClock.elapsedRealtime();
             synchronized (mLock) {
-                mSuppressAccessNotification.put(uid,
+                mUserAuthorizedClipAccesses.put(uid,
                         elapsedRealtime + ACCESS_NOTIFICATION_SUPPRESSION_TIMEOUT_MILLIS);
             }
             mWorkerHandler.postDelayed(PooledLambda.obtainRunnable(
-                            ClipboardInternalImpl::pruneExpiredNotificationSuppressionUids, this),
+                            ClipboardInternalImpl::pruneUserAuthorizedClipAccesses, this),
                     ACCESS_NOTIFICATION_SUPPRESSION_TIMEOUT_MILLIS + 1);
         }
 
-        private void pruneExpiredNotificationSuppressionUids() {
+        private void pruneUserAuthorizedClipAccesses() {
             long elapsedRealtime = SystemClock.elapsedRealtime();
             synchronized (mLock) {
-                for (int i = mSuppressAccessNotification.size() - 1; i >= 0; i--) {
-                    if (mSuppressAccessNotification.valueAt(i) < elapsedRealtime) {
-                        mSuppressAccessNotification.removeAt(i);
+                for (int i = mUserAuthorizedClipAccesses.size() - 1; i >= 0; i--) {
+                    if (mUserAuthorizedClipAccesses.valueAt(i) < elapsedRealtime) {
+                        mUserAuthorizedClipAccesses.removeAt(i);
                     }
                 }
             }
@@ -1286,11 +1294,10 @@ public class ClipboardService extends SystemService {
 
     @GuardedBy("mLock")
     private void addActiveOwnerLocked(int uid, int deviceId, String pkg) {
-        final PackageManagerInternal pm = LocalServices.getService(PackageManagerInternal.class);
         final int targetUserHandle = UserHandle.getCallingUserId();
         final long oldIdentity = Binder.clearCallingIdentity();
         try {
-            if (!pm.isSameApp(pkg, 0, uid, targetUserHandle)) {
+            if (!mPmInternal.isSameApp(pkg, 0, uid, targetUserHandle)) {
                 throw new SecurityException("Calling uid " + uid + " does not own package " + pkg);
             }
         } finally {
@@ -1473,13 +1480,13 @@ public class ClipboardService extends SystemService {
     @GuardedBy("mLock")
     private boolean shouldSuppressAccessNotificationForUidLocked(int uid) {
         long elapsedRealtime = SystemClock.elapsedRealtime();
-        long expiration = mSuppressAccessNotification.get(uid, elapsedRealtime);
+        long expiration = mUserAuthorizedClipAccesses.get(uid, elapsedRealtime);
 
         if (expiration > elapsedRealtime) {
             return true;
         }
 
-        mSuppressAccessNotification.delete(uid);
+        mUserAuthorizedClipAccesses.delete(uid);
         return false;
     }
 
@@ -1488,53 +1495,56 @@ public class ClipboardService extends SystemService {
      * the setting is enabled, and if the accessing app is not the source of the data and is not the
      * IME, the content capture service, or the autofill service. The notification is also only
      * shown once per clip for each app.
+     *
+     * @return whether the access notification was shown.
      */
     @GuardedBy("mLock")
-    private void showAccessNotificationLocked(String callingPackage, int uid, @UserIdInt int userId,
-            Clipboard clipboard, int accessDeviceId) {
+    private boolean showAccessNotificationLocked(String callingPackage, int uid,
+            @UserIdInt int userId, Clipboard clipboard, int accessDeviceId) {
         if (clipboard.primaryClip == null) {
-            return;
+            return false;
         }
         // Don't notify if a trusted component has confirmed the user decided on clip access.
         if (shouldSuppressAccessNotificationForUidLocked(uid)) {
-            return;
+            return false;
         }
         if (Settings.Secure.getInt(getContext().getContentResolver(),
                 Settings.Secure.CLIPBOARD_SHOW_ACCESS_NOTIFICATIONS,
                 (mShowAccessNotifications ? 1 : 0)) == 0) {
-            return;
+            return false;
         }
         // Don't notify if the app accessing the clipboard is the same as the current owner.
-        if (UserHandle.isSameApp(uid, clipboard.primaryClipUid)) {
-            return;
+        if (UserHandle.isSameApp(getPccAwareUid(uid), getPccAwareUid(clipboard.primaryClipUid))) {
+            return false;
         }
         // Exclude special cases: IME, ContentCapture, Autofill.
         if (isDefaultIme(userId, callingPackage)) {
-            return;
+            return false;
         }
         if (mContentCaptureInternal != null
                 && mContentCaptureInternal.isContentCaptureServiceForUser(uid, userId)) {
-            return;
+            return false;
         }
         if (mAutofillInternal != null
                 && mAutofillInternal.isAugmentedAutofillServiceForUser(uid, userId)) {
-            return;
+            return false;
         }
         if (mPm.checkPermission(Manifest.permission.SUPPRESS_CLIPBOARD_ACCESS_NOTIFICATION,
                 callingPackage) == PackageManager.PERMISSION_GRANTED) {
-            return;
+            return false;
         }
         // Don't notify if this access is coming from the privileged app which owns the device.
         if (clipboard.deviceId != DEVICE_ID_DEFAULT && mVdmInternal != null
                 && mVdmInternal.getDeviceOwnerUid(clipboard.deviceId) == uid) {
-            return;
+            return false;
         }
         // Don't notify if already notified for this uid and clip.
         if (clipboard.mNotifiedUids.get(uid)) {
-            return;
+            return false;
         }
 
         final ArraySet<Context> toastContexts = getToastContexts(clipboard, accessDeviceId);
+        boolean[] wasAccessShown = {false};
         Binder.withCleanCallingIdentity(() -> {
             try {
                 CharSequence callingAppLabel = mPm.getApplicationLabel(
@@ -1557,6 +1567,7 @@ public class ClipboardService extends SystemService {
                                 Toast.LENGTH_LONG);
                     }
                     toastToShow.show();
+                    wasAccessShown[0] = true;
                 }
             } catch (PackageManager.NameNotFoundException e) {
                 // do nothing
@@ -1564,6 +1575,7 @@ public class ClipboardService extends SystemService {
         });
 
         clipboard.mNotifiedUids.put(uid, true);
+        return wasAccessShown[0];
     }
 
     /**
@@ -1711,14 +1723,18 @@ public class ClipboardService extends SystemService {
         }
     }
 
-    private void scheduleWriteClipDataStats(@NonNull ClipData clipData,
-            int sourceUid, int intendingUid) {
+    @GuardedBy("mLock")
+    private void scheduleWriteClipDataStatsLocked(@NonNull ClipData clipData, int sourceUid,
+            int intendingUid, boolean wasAccessShown) {
         if (!clipboardGetEventLogging()) {
             return;
         }
+        final boolean isUserInitiated =
+                mUserAuthorizedClipAccesses.indexOfKey(intendingUid) >= 0;
         final ClipDescription description = clipData.getDescription();
         if (description != null) {
             final IntArray mimeTypes = new IntArray();
+            boolean isSensitive = false;
             final int secondsSinceSet = (int) TimeUnit.MILLISECONDS.toSeconds(
                     System.currentTimeMillis() - description.getTimestamp());
             for (int i = description.getMimeTypeCount() - 1; i >= 0; i--) {
@@ -1729,23 +1745,43 @@ public class ClipboardService extends SystemService {
                         mimeTypes.add(clipDataType);
                     }
                 }
+                PersistableBundle extras = description.getExtras();
+                if (extras != null) {
+                    if (extras.getBoolean(ClipDescription.EXTRA_IS_SENSITIVE, false)) {
+                        isSensitive = true;
+                    }
+                }
             }
             // The getUidProcessState() will hit AMS lock which might be slow, while getting the
             // clip data might be on the critical UI path. So post to the work thread.
             // There could be race conditions where the UID state might have been changed
             // between now and the work thread execution time, but this should be acceptable.
+            boolean finalIsSensitive = isSensitive;
             mWorkerHandler.post(() -> FrameworkStatsLog.write(
                     FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED,
                     sourceUid, intendingUid,
-                    mAmInternal.getUidProcessState(intendingUid),
-                    mimeTypes.toArray(),
-                    secondsSinceSet));
+                    ActivityManager
+                            .processStateAmToProto(mAmInternal.getUidProcessState(intendingUid)),
+                    mimeTypes.toArray(), secondsSinceSet, finalIsSensitive, isUserInitiated,
+                    wasAccessShown));
         } else {
             mWorkerHandler.post(() -> FrameworkStatsLog.write(
                     FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED,
                     sourceUid, intendingUid,
-                    mAmInternal.getUidProcessState(intendingUid),
-                    CLIP_DATA_TYPES_UNKNOWN, 0));
+                    ActivityManager
+                            .processStateAmToProto(mAmInternal.getUidProcessState(intendingUid)),
+                    CLIP_DATA_TYPES_UNKNOWN, /* time_since_set_in_secs = */ 0,
+                    /* is_sensitive = */ false, isUserInitiated, wasAccessShown));
         }
+    }
+
+    private int getPccAwareUid(int uid) {
+        if (enablePccFrameworkSupport() && Process.isPrivateComputeCoreUid(uid)) {
+            final int appUid = mPm.getAppUidForPrivateComputeCoreUid(uid);
+            if (appUid != Process.INVALID_UID) {
+                return appUid;
+            }
+        }
+        return uid;
     }
 }

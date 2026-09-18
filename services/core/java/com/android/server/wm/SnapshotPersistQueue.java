@@ -26,7 +26,6 @@ import static com.android.server.wm.WindowManagerDebugConfig.TAG_WM;
 import android.annotation.NonNull;
 import android.app.ActivityTaskManager;
 import android.graphics.Bitmap;
-import android.hardware.HardwareBuffer;
 import android.os.Process;
 import android.os.SystemClock;
 import android.os.Trace;
@@ -73,6 +72,7 @@ class SnapshotPersistQueue {
     private final UserManagerInternal mUserManagerInternal;
     private boolean mShutdown;
     final int mMaxTotalStoreQueue;
+    final ProcessingRecord mProcessingRecord = new ProcessingRecord();
 
     SnapshotPersistQueue() {
         mUserManagerInternal = LocalServices.getService(UserManagerInternal.class);
@@ -268,6 +268,7 @@ class SnapshotPersistQueue {
                             if (next.isReady(mUserManagerInternal)) {
                                 isReadyToWrite = true;
                                 next.onDequeuedLocked();
+                                next.onProcess();
                             } else if (!mShutdown) {
                                 mWriteQueue.addLast(next);
                             } else {
@@ -287,6 +288,7 @@ class SnapshotPersistQueue {
                         SystemClock.sleep(DELAY_MS);
                     }
                 }
+                mProcessingRecord.reset();
                 synchronized (mLock) {
                     final boolean writeQueueEmpty = mWriteQueue.isEmpty();
                     if (!writeQueueEmpty && !mPaused) {
@@ -334,6 +336,11 @@ class SnapshotPersistQueue {
         void onDequeuedLocked() {
         }
 
+        /**
+         * Called when this queue item will start process.
+         */
+        void onProcess() { }
+
         boolean isDuplicateOrExclusiveItem(WriteQueueItem testItem) {
             return false;
         }
@@ -343,6 +350,44 @@ class SnapshotPersistQueue {
             PersistInfoProvider provider,
             Consumer<LowResSnapshotSupplier> lowResSnapshotConsumer) {
         return new StoreWriteQueueItem(id, userId, snapshot, provider, lowResSnapshotConsumer);
+    }
+
+    // Check if a task snapshot is(or will) convert a low-res snapshot.
+    boolean isConvertingToLowRes(int taskId, int userId) {
+        if (!mUserManagerInternal.isUserUnlocked(userId) || mShutdown) {
+            return false;
+        }
+        if (mProcessingRecord.matches(taskId, userId, false /* deleting*/)) {
+            return true;
+        }
+        if (mProcessingRecord.isWriting()) {
+            return false;
+        }
+        synchronized (mLock) {
+            if (mPaused) {
+                return false;
+            }
+            // Only peek the up-coming one
+            final StoreWriteQueueItem item = mStoreQueueItems.peek();
+            return item != null && item.mId == taskId && item.mUserId == userId
+                    && item.mLowResSnapshotConsumer != null;
+        }
+    }
+
+    boolean isDeleting(int taskId, int userId) {
+        if (mProcessingRecord.matches(taskId, userId, true /* deleting*/)) {
+            return true;
+        }
+        synchronized (mLock) {
+            for (WriteQueueItem item : mWriteQueue) {
+                if (item instanceof DeleteWriteQueueItem dq) {
+                    if (dq.mId == taskId && dq.mUserId == userId) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     void updateKnownLowResSnapshotIfPossible(int id, TaskSnapshot lowResSnapshot) {
@@ -390,6 +435,13 @@ class SnapshotPersistQueue {
         @Override
         void onDequeuedLocked() {
             mStoreQueueItems.remove(this);
+        }
+
+        @Override
+        void onProcess() {
+            if (mLowResSnapshotConsumer != null) {
+                mProcessingRecord.processing(mId, mUserId, false /* deleting*/);
+            }
         }
 
         boolean updateKnownLowResSnapshotIfPossible(TaskSnapshot lowResSnapshot) {
@@ -479,68 +531,84 @@ class SnapshotPersistQueue {
             if (swBitmap == null) {
                 return false;
             }
-            final File file = mPersistInfoProvider.getHighResolutionBitmapFile(mId, mUserId);
-            try (FileOutputStream fos = new FileOutputStream(file)) {
-                swBitmap.compress(Flags.respectRequestedTaskSnapshotResolution() ? PNG : JPEG,
-                        COMPRESS_QUALITY, fos);
-            } catch (IOException e) {
-                Slog.e(TAG, "Unable to open " + file + " for persisting.", e);
-                return false;
-            }
+            try {
+                // Process low resolution snapshot before high resolution snapshot. Because process
+                // low-res snapshot is much faster than high-res snapshot, if any caller wants to
+                // get low-res, it can get snapshot as soon as possible.
+                if (mLowResSnapshotConsumer != null) {
+                    final Bitmap lowResBitmap = createLowResBitmap(swBitmap);
+                    final boolean writeSuccess = writeBitmap(lowResBitmap, false /* highRes */);
+                    mLowResSnapshotConsumer.accept(new LowResSnapshotSupplier() {
+                        @Override
+                        public TaskSnapshot getLowResSnapshot() {
+                            if (!writeSuccess) {
+                                abort();
+                                return null;
+                            }
+                            if (mKnownLowResSnapshot != null) {
+                                lowResBitmap.recycle();
+                                return mKnownLowResSnapshot;
+                            }
+                            final TaskSnapshot result = TaskSnapshotConvertUtil
+                                    .convertLowResSnapshot(mSnapshot, lowResBitmap);
+                            lowResBitmap.recycle();
+                            return result;
+                        }
 
-            if (!mPersistInfoProvider.enableLowResSnapshots()) {
+                        @Override
+                        public void abort() {
+                            lowResBitmap.recycle();
+                            removeKnownLowResSnapshot();
+                        }
+                    });
+                    if (!writeSuccess) {
+                        return false;
+                    }
+                    return writeBitmap(swBitmap, true /* highRes */);
+                }
+
+                if (!writeBitmap(swBitmap, true /* highRes */)) {
+                    return false;
+                }
+
+                if (!mPersistInfoProvider.enableLowResSnapshots()) {
+                    return true;
+                }
+
+                final Bitmap lowResBitmap = createLowResBitmap(swBitmap);
+                final boolean result = writeBitmap(lowResBitmap, false /* highRes */);
+                lowResBitmap.recycle();
+                removeKnownLowResSnapshot();
+                return result;
+            } finally {
                 swBitmap.recycle();
-                return true;
             }
+        }
 
-            final int width;
-            final int height;
-            if (Flags.reduceTaskSnapshotMemoryUsage()) {
-                width = mSnapshot.getHardwareBufferWidth();
-                height = mSnapshot.getHardwareBufferHeight();
-            } else {
-                final HardwareBuffer hwBuffer = mSnapshot.getHardwareBuffer();
-                width = hwBuffer.getWidth();
-                height = hwBuffer.getHeight();
-            }
-            final Bitmap lowResBitmap = Bitmap.createScaledBitmap(swBitmap,
+        private Bitmap createLowResBitmap(Bitmap highResBitmap) {
+            final int width = mSnapshot.getHardwareBufferWidth();
+            final int height = mSnapshot.getHardwareBufferHeight();
+            return Bitmap.createScaledBitmap(highResBitmap,
                     (int) (width * mPersistInfoProvider.lowResScaleFactor()),
                     (int) (height * mPersistInfoProvider.lowResScaleFactor()),
                     true /* filter */);
-            swBitmap.recycle();
+        }
 
-            final File lowResFile = mPersistInfoProvider.getLowResolutionBitmapFile(mId, mUserId);
-            try (FileOutputStream lowResFos = new FileOutputStream(lowResFile)) {
-                lowResBitmap.compress(JPEG, COMPRESS_QUALITY, lowResFos);
+        private boolean writeBitmap(Bitmap swBitmap, boolean highRes) {
+            final File bitmapFile = highRes
+                    ? mPersistInfoProvider.getHighResolutionBitmapFile(mId, mUserId)
+                    : mPersistInfoProvider.getLowResolutionBitmapFile(mId, mUserId);
+            try (FileOutputStream fos = new FileOutputStream(bitmapFile)) {
+                if (highRes) {
+                    swBitmap.compress(Flags.onlyCacheLowResTaskSnapshot() ? PNG : JPEG,
+                            COMPRESS_QUALITY, fos);
+                } else {
+                    swBitmap.compress(JPEG, COMPRESS_QUALITY, fos);
+                }
             } catch (IOException e) {
-                Slog.e(TAG, "Unable to open " + lowResFile + " for persisting.", e);
+                Slog.e(TAG, "Unable to open " + bitmapFile + " for persisting.", e);
                 return false;
             }
-            if (mLowResSnapshotConsumer != null) {
-                mLowResSnapshotConsumer.accept(new LowResSnapshotSupplier() {
-                    @Override
-                    public TaskSnapshot getLowResSnapshot() {
-                        if (mKnownLowResSnapshot != null) {
-                            lowResBitmap.recycle();
-                            return mKnownLowResSnapshot;
-                        }
-                        final TaskSnapshot result = TaskSnapshotConvertUtil
-                                .convertLowResSnapshot(mSnapshot, lowResBitmap);
-                        lowResBitmap.recycle();
-                        return result;
-                    }
-
-                    @Override
-                    public void abort() {
-                        lowResBitmap.recycle();
-                        removeKnownLowResSnapshot();
-                    }
-                });
-            } else {
-                lowResBitmap.recycle();
-                removeKnownLowResSnapshot();
-            }
-
             return true;
         }
 
@@ -596,7 +664,7 @@ class SnapshotPersistQueue {
 
         @Override
         void write() {
-            Trace.traceBegin(TRACE_TAG_WINDOW_MANAGER, "DeleteWriteQueueItem");
+            Trace.traceBegin(TRACE_TAG_WINDOW_MANAGER, "DeleteWriteQueueItem#" + mId);
             deleteSnapshot(mId, mUserId, mPersistInfoProvider);
             Trace.traceEnd(TRACE_TAG_WINDOW_MANAGER);
         }
@@ -612,6 +680,11 @@ class SnapshotPersistQueue {
             final DeleteWriteQueueItem other = (DeleteWriteQueueItem) o;
             return mId == other.mId && mUserId == other.mUserId
                     && mPersistInfoProvider == other.mPersistInfoProvider;
+        }
+
+        @Override
+        void onProcess() {
+            mProcessingRecord.processing(mId, mUserId, true /* deleting*/);
         }
 
         @Override
@@ -640,6 +713,32 @@ class SnapshotPersistQueue {
         pw.println(prefix + "PersistQueue contains:");
         for (int i = items.length - 1; i >= 0; --i) {
             pw.println(prefix + "  " + items[i] + "");
+        }
+    }
+
+    // The current processing task.
+    private static class ProcessingRecord {
+        int mTaskId;
+        int mUserId;
+        // If true, perform a delete operation; if false, perform a write operation.
+        boolean mDeleting;
+
+        void reset() {
+            processing(ActivityTaskManager.INVALID_TASK_ID, 0, false /* deleting */);
+        }
+
+        synchronized void processing(int taskId, int userId, boolean deleting) {
+            mTaskId = taskId;
+            mUserId = userId;
+            mDeleting = deleting;
+        }
+
+        synchronized boolean matches(int taskId, int userId, boolean deleting) {
+            return mTaskId == taskId && mUserId == userId && mDeleting == deleting;
+        }
+
+        synchronized boolean isWriting() {
+            return !mDeleting && mTaskId != ActivityTaskManager.INVALID_TASK_ID;
         }
     }
 }

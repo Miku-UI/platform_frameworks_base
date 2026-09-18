@@ -21,6 +21,8 @@ import static android.service.notification.ZenAdapters.notificationPolicyToZenPo
 import static com.google.common.truth.Truth.assertThat;
 
 import android.app.NotificationManager.Policy;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.notification.ZenPolicy;
 
@@ -146,5 +148,57 @@ public class ZenAdaptersTest extends UiServiceTestCase {
         ZenPolicy zenPolicyNotAllowed = notificationPolicyToZenPolicy(notAllowed);
         assertThat(zenPolicyNotAllowed.getPriorityChannelsAllowed()).isEqualTo(
                 ZenPolicy.STATE_DISALLOW);
+    }
+
+    @Test
+    public void notificationPolicyToZenPolicy_alarms() {
+        Policy policy = new Policy(Policy.PRIORITY_CATEGORY_ALARMS, 0, 0);
+        ZenPolicy zenPolicy = notificationPolicyToZenPolicy(policy);
+        assertThat(zenPolicy.getPriorityCategoryAlarms()).isEqualTo(ZenPolicy.STATE_ALLOW);
+
+        Policy notAllowed = new Policy(0, 0, 0);
+        ZenPolicy zenPolicyNotAllowed = notificationPolicyToZenPolicy(notAllowed);
+        assertThat(zenPolicyNotAllowed.getPriorityCategoryAlarms())
+                .isEqualTo(ZenPolicy.STATE_DISALLOW);
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags
+            .FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void notificationPolicyToZenPolicy_interruptionTypeAlarms() {
+        // Test with both sound and vibration allowed for alarms
+        Policy policySoundVibration = new Policy(Policy.PRIORITY_CATEGORY_ALARMS, 0, 0, 0, 0, 0,
+                Policy.PRIORITY_CATEGORY_ALARMS, Policy.PRIORITY_CATEGORY_ALARMS);
+        ZenPolicy zenPolicySoundVibration = notificationPolicyToZenPolicy(policySoundVibration);
+        assertThat(zenPolicySoundVibration.getPriorityCategoryAlarms()).isEqualTo(
+                ZenPolicy.STATE_ALLOW);
+        assertThat(zenPolicySoundVibration.getInterruptionTypeAlarms()).isEqualTo(
+                ZenPolicy.ALLOWED_INTERRUPTION_TYPE_ALL);
+
+        // Test with only sound allowed for alarms
+        Policy policySoundOnly = new Policy(Policy.PRIORITY_CATEGORY_ALARMS, 0, 0, 0, 0, 0,
+                Policy.PRIORITY_CATEGORY_ALARMS, 0);
+        ZenPolicy zenPolicySoundOnly = notificationPolicyToZenPolicy(policySoundOnly);
+        assertThat(zenPolicySoundOnly.getPriorityCategoryAlarms()).isEqualTo(
+                ZenPolicy.STATE_ALLOW);
+        assertThat(zenPolicySoundOnly.getInterruptionTypeAlarms()).isEqualTo(
+                ZenPolicy.ALLOWED_INTERRUPTION_TYPE_SOUND_ONLY);
+
+        // Test with only vibration allowed for alarms
+        Policy policyVibrationOnly = new Policy(Policy.PRIORITY_CATEGORY_ALARMS, 0, 0, 0, 0, 0,
+                0, Policy.PRIORITY_CATEGORY_ALARMS);
+        ZenPolicy zenPolicyVibrationOnly = notificationPolicyToZenPolicy(policyVibrationOnly);
+        assertThat(zenPolicyVibrationOnly.getPriorityCategoryAlarms()).isEqualTo(
+                ZenPolicy.STATE_ALLOW);
+        assertThat(zenPolicyVibrationOnly.getInterruptionTypeAlarms()).isEqualTo(
+                ZenPolicy.ALLOWED_INTERRUPTION_TYPE_VIBRATION_ONLY);
+
+        // Test with neither sound nor vibration allowed for alarms
+        Policy policyNone = new Policy(0, 0, 0);
+        ZenPolicy zenPolicyNone = notificationPolicyToZenPolicy(policyNone);
+        assertThat(zenPolicyNone.getPriorityCategoryAlarms()).isEqualTo(
+                ZenPolicy.STATE_DISALLOW);
+        assertThat(zenPolicyNone.getInterruptionTypeAlarms()).isEqualTo(
+                ZenPolicy.ALLOWED_INTERRUPTION_TYPE_UNSET);
     }
 }

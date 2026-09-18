@@ -34,9 +34,9 @@ import com.android.systemui.FontStyles.GSF_LABEL_MEDIUM
 import com.android.systemui.FontStyles.GSF_TITLE_MEDIUM
 import com.android.systemui.FontStyles.GSF_TITLE_MEDIUM_EMPHASIZED
 import com.android.systemui.res.R
-import com.android.systemui.surfaceeffects.loadingeffect.LoadingEffectView
-import com.android.systemui.surfaceeffects.ripple.MultiRippleView
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseView
+import com.android.systemui.surfaceeffects.view.loadingeffect.LoadingEffectView
+import com.android.systemui.surfaceeffects.view.ripple.MultiRippleView
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseView
 import com.android.systemui.util.animation.TransitionLayout
 
 private const val TAG = "MediaViewHolder"

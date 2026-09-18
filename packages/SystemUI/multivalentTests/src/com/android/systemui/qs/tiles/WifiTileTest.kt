@@ -34,6 +34,7 @@ import com.android.systemui.qs.tiles.base.shared.model.QSTileConfigProvider
 import com.android.systemui.qs.tiles.base.shared.model.QSTileConfigTestBuilder
 import com.android.systemui.qs.tiles.base.shared.model.QSTileState
 import com.android.systemui.qs.tiles.base.shared.model.QSTileUIConfig
+import com.android.systemui.qs.tiles.dialog.InternetDetailsViewModel
 import com.android.systemui.qs.tiles.impl.wifi.domain.interactor.WifiTileDataInteractor
 import com.android.systemui.qs.tiles.impl.wifi.domain.interactor.WifiTileUserActionInteractor
 import com.android.systemui.qs.tiles.impl.wifi.domain.model.WifiTileModel
@@ -71,6 +72,7 @@ class WifiTileTest : SysuiTestCase() {
     @Mock private lateinit var dataInteractor: WifiTileDataInteractor
     @Mock private lateinit var tileMapper: WifiTileMapper
     @Mock private lateinit var userActionInteractor: WifiTileUserActionInteractor
+    @Mock private lateinit var internetDetailsViewModelFactory: InternetDetailsViewModel.Factory
 
     private lateinit var testableLooper: TestableLooper
     private lateinit var underTest: WifiTile
@@ -114,6 +116,7 @@ class WifiTileTest : SysuiTestCase() {
                 dataInteractor,
                 tileMapper,
                 userActionInteractor,
+                internetDetailsViewModelFactory,
             )
 
         underTest.initialize()

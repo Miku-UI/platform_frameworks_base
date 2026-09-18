@@ -304,11 +304,14 @@ public final class OverlayManagerService extends SystemService {
             // method without a lock here.
             restoreSettingsLocked();
 
-            // Wipe all shell overlays on boot, to recover from a potentially broken device
+            // Wipe all shell overlays on boot, to recover from a potentially broken device.
+            // Also remove all overlays with constraints since they are session-specific and
+            // do not persist across reboots.
             String shellPkgName = TextUtils.emptyIfNull(
                     getContext().getString(android.R.string.config_systemShell));
             mSettings.removeIf(overlayInfo -> overlayInfo.isFabricated
-                    && shellPkgName.equals(overlayInfo.packageName));
+                    && (shellPkgName.equals(overlayInfo.packageName)
+                            || !overlayInfo.constraints.isEmpty()));
 
             initIfNeeded();
             onStartUser(UserHandle.USER_SYSTEM);
@@ -1234,6 +1237,13 @@ public final class OverlayManagerService extends SystemService {
             } catch (RemoteException e) {
                 throw new RuntimeException(e);
             }
+        }
+
+        @Override
+        @NonNull
+        public List<OverlayConstraint> getOverlayConstraints(@NonNull String overlayBaseCodePath,
+                int userId) {
+            return mImpl.getOverlayConstraints(overlayBaseCodePath, userId);
         }
 
         @Override

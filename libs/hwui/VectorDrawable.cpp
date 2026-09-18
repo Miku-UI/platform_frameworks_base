@@ -24,6 +24,8 @@
 #include "PathParser.h"
 #include "SkImage.h"
 #include "SkImageInfo.h"
+#include "SkPath.h"
+#include "SkPathBuilder.h"
 #include "SkSamplingOptions.h"
 #include "SkScalar.h"
 #include "hwui/Paint.h"
@@ -81,30 +83,30 @@ FullPath::FullPath(const FullPath& path) : Path(path) {
     mStagingProperties.syncProperties(path.mStagingProperties);
 }
 
-static void applyTrim(SkPath* outPath, const SkPath& inPath, float trimPathStart, float trimPathEnd,
-                      float trimPathOffset) {
+static SkPath applyTrim(const SkPath& inPath, float trimPathStart, float trimPathEnd,
+                        float trimPathOffset) {
     if (trimPathStart == 0.0f && trimPathEnd == 1.0f) {
-        *outPath = inPath;
-        return;
+        return inPath;
     }
-    outPath->reset();
     if (trimPathStart == trimPathEnd) {
         // Trimmed path should be empty.
-        return;
+        return SkPath();
     }
     SkPathMeasure measure(inPath, false);
     float len = SkScalarToFloat(measure.getLength());
     float start = len * fmod((trimPathStart + trimPathOffset), 1.0f);
     float end = len * fmod((trimPathEnd + trimPathOffset), 1.0f);
 
+    SkPathBuilder builder;
     if (start > end) {
-        measure.getSegment(start, len, outPath, true);
+        measure.getSegment(start, len, &builder, true);
         if (end > 0) {
-            measure.getSegment(0, end, outPath, true);
+            measure.getSegment(0, end, &builder, true);
         }
     } else {
-        measure.getSegment(start, end, outPath, true);
+        measure.getSegment(start, end, &builder, true);
     }
+    return builder.detach();
 }
 
 const SkPath& FullPath::getUpdatedPath(bool useStagingData, SkPath* tempStagingPath) {
@@ -114,15 +116,16 @@ const SkPath& FullPath::getUpdatedPath(bool useStagingData, SkPath* tempStagingP
     Path::getUpdatedPath(useStagingData, tempStagingPath);
     SkPath* outPath;
     if (useStagingData) {
-        SkPath inPath = *tempStagingPath;
-        applyTrim(tempStagingPath, inPath, mStagingProperties.getTrimPathStart(),
-                  mStagingProperties.getTrimPathEnd(), mStagingProperties.getTrimPathOffset());
+        *tempStagingPath = applyTrim(*tempStagingPath, mStagingProperties.getTrimPathStart(),
+                                     mStagingProperties.getTrimPathEnd(),
+                                     mStagingProperties.getTrimPathOffset());
         outPath = tempStagingPath;
     } else {
         if (mProperties.getTrimPathStart() != 0.0f || mProperties.getTrimPathEnd() != 1.0f) {
             mProperties.mTrimDirty = false;
-            applyTrim(&mTrimmedSkPath, mSkPath, mProperties.getTrimPathStart(),
-                      mProperties.getTrimPathEnd(), mProperties.getTrimPathOffset());
+            mTrimmedSkPath =
+                    applyTrim(mSkPath, mProperties.getTrimPathStart(), mProperties.getTrimPathEnd(),
+                              mProperties.getTrimPathOffset());
             outPath = &mTrimmedSkPath;
         } else {
             outPath = &mSkPath;

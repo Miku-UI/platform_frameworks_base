@@ -153,7 +153,7 @@ public final class RecommendedStreamConfigurationMap {
      * a subset of the advertised {@link android.graphics.ImageFormat#YCBCR_P010} and
      * {@link android.graphics.ImageFormat#PRIVATE} outputs that are optimized for power
      * and performance when registered along with a supported 10-bit dynamic range profile.
-     * {@see android.hardware.camera2.params.OutputConfiguration#setDynamicRangeProfile} for
+     * See {@link android.hardware.camera2.params.OutputConfiguration#setDynamicRangeProfile} for
      * details.
      */
      public static final int USECASE_10BIT_OUTPUT = 0x8;

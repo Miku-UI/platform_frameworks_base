@@ -47,6 +47,10 @@ public class FakeStatusBarIconController extends BaseLeakChecker<IconManager>
     }
 
     @Override
+    public void reloadIconGroupLayoutParams(IconManager iconManager) {
+    }
+
+    @Override
     public void refreshIconGroups(int displayId) {
     }
 

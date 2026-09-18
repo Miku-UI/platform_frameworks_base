@@ -61,7 +61,9 @@ public class AndroidKeyStoreEdECPublicKey extends AndroidKeyStorePublicKey
     };
     private static final int ED25519_KEY_SIZE_BYTES = 32;
 
-    private byte[] mEncodedKey;
+    // Defined in RFC 8410.
+    private static final String ED25519_OID = "1.3.101.112";
+
     private EdECPoint mPoint;
 
     public AndroidKeyStoreEdECPublicKey(
@@ -71,7 +73,6 @@ public class AndroidKeyStoreEdECPublicKey extends AndroidKeyStorePublicKey
             @NonNull KeyStoreSecurityLevel iSecurityLevel,
             @NonNull byte[] encodedKey) {
         super(descriptor, metadata, encodedKey, algorithm, iSecurityLevel);
-        mEncodedKey = encodedKey;
 
         int preambleLength = matchesPreamble(DER_KEY_PREFIX, encodedKey);
         if (preambleLength == 0) {
@@ -84,11 +85,19 @@ public class AndroidKeyStoreEdECPublicKey extends AndroidKeyStorePublicKey
 
     @Override
     AndroidKeyStorePrivateKey getPrivateKey() {
+        // The Ed25519 OID is returned instead of "EdDSA" to match the algorithm name of Conscrypt
+        // public and private keys. They need to match because JCA clients can end up with a key
+        // pair containing a Conscrypt public key and an AndroidKeyStore private key and there are
+        // places in the standard JCA code that assert that their algorithm names match.
+        // Additional background: Conscrypt keys return the OID from their `getAlgorithm()` method
+        // in order to be backwards-compatible with AndroidKeyStore provider implementations in the
+        // wild that use the OID and shipped prior to full Ed25519 support existing in Conscrypt
+        // (which was pushed to devices via mainline).
         return new AndroidKeyStoreEdECPrivateKey(
                 getUserKeyDescriptor(),
                 getKeyIdDescriptor().nspace,
                 getAuthorizations(),
-                "EdDSA",
+                ED25519_OID,
                 getSecurityLevel());
     }
 
@@ -136,10 +145,5 @@ public class AndroidKeyStoreEdECPublicKey extends AndroidKeyStorePublicKey
             start++;
             end--;
         }
-    }
-
-    @Override
-    public byte[] getEncoded() {
-        return mEncodedKey.clone();
     }
 }

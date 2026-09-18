@@ -183,4 +183,133 @@ public class PackageTagsListTest {
                 new ArraySet<>(Arrays.asList("package1", "package2", "package3")),
                 list.getPackages());
     }
+
+    @Test
+    public void testRemoveAll_PackageTagsList_removesSingleTag() {
+        PackageTagsList.Builder builder = new PackageTagsList.Builder()
+                .add("package1", "attr1")
+                .add("package1", "attr2");
+        PackageTagsList toRemove = new PackageTagsList.Builder()
+                .add("package1", "attr1")
+                .build();
+
+        PackageTagsList list = builder.removeAll(toRemove).build();
+
+        assertTrue(list.contains("package1", "attr2"));
+        assertFalse(list.contains("package1", "attr1"));
+        assertTrue(list.containsPackage("package1"));
+    }
+
+    @Test
+    public void testRemoveAll_PackageTagsList_removesPackageWhenLastTagIsRemoved() {
+        PackageTagsList.Builder builder = new PackageTagsList.Builder()
+                .add("package1", "attr1");
+        PackageTagsList toRemove = new PackageTagsList.Builder()
+                .add("package1", "attr1")
+                .build();
+
+        PackageTagsList list = builder.removeAll(toRemove).build();
+
+        assertFalse(list.containsPackage("package1"));
+    }
+
+    @Test
+    public void testRemoveAll_PackageTagsList_doesNotRemoveTagFromWildcardPackage() {
+        PackageTagsList.Builder builder = new PackageTagsList.Builder().add("package1"); // wildcard
+        PackageTagsList toRemove = new PackageTagsList.Builder()
+                .add("package1", "attr1")
+                .build();
+
+        PackageTagsList list = builder.removeAll(toRemove).build();
+
+        // removeAll with specific tags should not affect a wildcard package
+        assertTrue(list.containsPackageWithAllTags("package1"));
+    }
+
+    @Test
+    public void testRemoveAll_PackageTagsList_removesWildcardPackage() {
+        PackageTagsList.Builder builder = new PackageTagsList.Builder().add("package1"); // wildcard
+        PackageTagsList toRemove = new PackageTagsList.Builder()
+                .add("package1") // remove wildcard
+                .build();
+
+        PackageTagsList list = builder.removeAll(toRemove).build();
+
+        assertFalse(list.containsPackage("package1"));
+    }
+
+    @Test
+    public void testRemoveAll_Map_removesSingleTag() {
+        PackageTagsList.Builder builder = new PackageTagsList.Builder()
+                .add("package1", "attr1")
+                .add("package1", "attr2");
+        ArrayMap<String, Set<String>> toRemove = new ArrayMap<>();
+        toRemove.put("package1", Collections.singleton("attr1"));
+
+        PackageTagsList list = builder.removeAll(toRemove).build();
+
+        assertTrue(list.contains("package1", "attr2"));
+        assertFalse(list.contains("package1", "attr1"));
+        assertTrue(list.containsPackage("package1"));
+    }
+
+    @Test
+    public void testRemoveAll_Map_removesPackageWhenLastTagIsRemoved() {
+        PackageTagsList.Builder builder = new PackageTagsList.Builder()
+                .add("package1", "attr1");
+        ArrayMap<String, Set<String>> toRemove = new ArrayMap<>();
+        toRemove.put("package1", Collections.singleton("attr1"));
+
+        PackageTagsList list = builder.removeAll(toRemove).build();
+
+        assertFalse(list.containsPackage("package1"));
+    }
+
+    @Test
+    public void testRemoveAll_Map_doesNotRemoveTagFromWildcardPackage() {
+        PackageTagsList.Builder builder = new PackageTagsList.Builder().add("package1"); // wildcard
+        ArrayMap<String, Set<String>> toRemove = new ArrayMap<>();
+        toRemove.put("package1", Collections.singleton("attr1"));
+
+        PackageTagsList list = builder.removeAll(toRemove).build();
+
+        // removeAll with specific tags should not affect a wildcard package
+        assertTrue(list.containsPackageWithAllTags("package1"));
+    }
+
+    @Test
+    public void testRemoveAll_Map_removesWildcardPackage() {
+        PackageTagsList.Builder builder = new PackageTagsList.Builder().add("package1"); // wildcard
+        ArrayMap<String, Set<String>> toRemove = new ArrayMap<>();
+        toRemove.put("package1", Collections.emptySet()); // empty set means wildcard
+
+        PackageTagsList list = builder.removeAll(toRemove).build();
+
+        assertFalse(list.containsPackage("package1"));
+    }
+
+    @Test
+    public void testIsEmpty() {
+        PackageTagsList emptyList = new PackageTagsList.Builder().build();
+        assertTrue(emptyList.isEmpty());
+
+        PackageTagsList nonEmptyList = new PackageTagsList.Builder().add("p", "t").build();
+        assertFalse(nonEmptyList.isEmpty());
+    }
+
+    @Test
+    public void testContainsTag() {
+        PackageTagsList list = new PackageTagsList.Builder()
+                .add("package1", "attr1")
+                .add("package2", "attr2")
+                .add("package3")
+                .build();
+
+        assertTrue(list.containsTag("attr1"));
+        assertTrue(list.containsTag("attr2"));
+        assertFalse(list.containsTag("attr3"));
+
+        // A tag is not considered present just because a wildcard package exists.
+        assertFalse(list.containsTag("any_attr_for_package3"));
+    }
 }

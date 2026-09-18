@@ -22,9 +22,19 @@ import android.media.tv.extension.scan.IRegionChannelListListener;
  * @hide
  */
 interface IRegionChannelList {
-    // Set the region channel list for scanning.
-    int setRegionChannelList(String regionChannelList);
-    // Set the listener to be invoked when one or more region channel list has been detected by
-    // region channel list searches.
+    /**
+     * Set the region channel list for scanning.
+     *
+     * @param the region channel list selected by users.
+     * @return @ScanConstants.OpResult.RESULT_SUCCESS if set successfully else RESULT_FAILED.
+     */
+    int setRegionChannelList(in String regionChannelList);
+    /**
+     * Set the listener to be invoked when one or more region channel list has been detected by
+     * region channel list searches.
+     *
+     * @param listener IRegionChannelListListener.
+     * @return @ScanConstants.OpResult.RESULT_SUCCESS if set successfully else RESULT_FAILED.
+     */
     int setListener(in IRegionChannelListListener listener);
 }

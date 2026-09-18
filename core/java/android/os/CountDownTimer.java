@@ -16,6 +16,8 @@
 
 package android.os;
 
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+
 /**
  * Schedule a countdown until a time in the future, with
  * regular notifications on intervals along the way.
@@ -56,6 +58,7 @@ package android.os;
  * {@link #onTick(long)} takes an amount of time to execute that is significant
  * compared to the countdown interval.
  */
+@RavenwoodKeepWholeClass
 public abstract class CountDownTimer {
 
     /**

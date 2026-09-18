@@ -17,15 +17,15 @@
 package com.android.wm.shell.flicker.pip
 
 import android.graphics.Rect
-import androidx.test.filters.FlakyTest
-import androidx.test.filters.RequiresDevice
 import android.platform.test.annotations.RequiresFlagsDisabled
 import android.tools.Rotation
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.rules.RemoveAllTasksButHomeRule
+import androidx.test.filters.FlakyTest
+import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.setRotation
 import com.android.server.wm.flicker.testapp.ActivityOptions
 import com.android.wm.shell.Flags
@@ -68,7 +68,7 @@ class PipDragThenSnapTest(flicker: FlickerTest) : PipTransition(flicker) {
                     initRegion.left,
                     initRegion.top,
                     initRegion.right,
-                    initRegion.bottom
+                    initRegion.bottom,
                 )
 
                 // drag the pip window away from the edge
@@ -202,8 +202,6 @@ class PipDragThenSnapTest(flicker: FlickerTest) : PipTransition(flicker) {
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            FlickerTestFactory.nonRotationTests(
-                supportedRotations = listOf(Rotation.ROTATION_0)
-            )
+            FlickerTestFactory.nonRotationTests(supportedRotations = listOf(Rotation.ROTATION_0))
     }
 }

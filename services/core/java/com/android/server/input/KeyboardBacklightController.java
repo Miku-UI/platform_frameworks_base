@@ -16,6 +16,8 @@
 
 package com.android.server.input;
 
+import static com.android.hardware.input.Flags.keyboardBacklightShortcuts;
+
 import android.animation.ValueAnimator;
 import android.annotation.BinderThread;
 import android.annotation.Nullable;
@@ -75,6 +77,7 @@ final class KeyboardBacklightController implements
     private static final int MSG_NOTIFY_USER_ACTIVITY = 4;
     private static final int MSG_NOTIFY_USER_INACTIVITY = 5;
     private static final int MSG_INTERACTIVE_STATE_CHANGED = 6;
+    private static final int MSG_TOGGLE_KEYBOARD_BACKLIGHT = 7;
     private static final int MAX_BRIGHTNESS = 255;
     private static final int DEFAULT_NUM_BRIGHTNESS_CHANGE_STEPS = 10;
     @VisibleForTesting
@@ -166,6 +169,12 @@ final class KeyboardBacklightController implements
     }
 
     @Override
+    public void toggleKeyboardBacklight(int deviceId) {
+        Message msg = Message.obtain(mHandler, MSG_TOGGLE_KEYBOARD_BACKLIGHT, deviceId);
+        mHandler.sendMessage(msg);
+    }
+
+    @Override
     public void notifyUserActivity() {
         Message msg = Message.obtain(mHandler, MSG_NOTIFY_USER_ACTIVITY);
         mHandler.sendMessage(msg);
@@ -175,6 +184,24 @@ final class KeyboardBacklightController implements
     public void onInteractiveChanged(boolean isInteractive) {
         Message msg = Message.obtain(mHandler, MSG_INTERACTIVE_STATE_CHANGED, isInteractive);
         mHandler.sendMessage(msg);
+    }
+
+    private void notifyListenerRecordsAfterKeyPress(int deviceId, int newBrightnessLevel) {
+        IKeyboardBacklightState callbackState = new IKeyboardBacklightState();
+        synchronized (mKeyboardBacklights) {
+            KeyboardBacklightState state = mKeyboardBacklights.get(deviceId);
+            if (state == null) {
+                return;
+            }
+            callbackState.brightnessLevel = newBrightnessLevel;
+            callbackState.maxBrightnessLevel = state.getNumBrightnessChangeSteps();
+        }
+        synchronized (mKeyboardBacklightListenerRecords) {
+            for (int i = 0; i < mKeyboardBacklightListenerRecords.size(); i++) {
+                mKeyboardBacklightListenerRecords.valueAt(i).notifyKeyboardBacklightChanged(
+                        deviceId, callbackState, /* isTriggeredByKeyPress= */ true);
+            }
+        }
     }
 
     private void updateKeyboardBacklight(int deviceId, Direction direction) {
@@ -217,15 +244,34 @@ final class KeyboardBacklightController implements
                     "Changing state from " + state.mBrightnessLevel + " to " + newBrightnessLevel);
         }
 
-        synchronized (mKeyboardBacklightListenerRecords) {
-            for (int i = 0; i < mKeyboardBacklightListenerRecords.size(); i++) {
-                IKeyboardBacklightState callbackState = new IKeyboardBacklightState();
-                callbackState.brightnessLevel = newBrightnessLevel;
-                callbackState.maxBrightnessLevel = state.getNumBrightnessChangeSteps();
-                mKeyboardBacklightListenerRecords.valueAt(i).notifyKeyboardBacklightChanged(
-                        deviceId, callbackState, true);
-            }
+        notifyListenerRecordsAfterKeyPress(deviceId, newBrightnessLevel);
+    }
+
+    private void handleToggleKeyboardBacklight(int deviceId) {
+        KeyboardBacklightState state = mKeyboardBacklights.get(deviceId);
+        if (state == null) {
+            return;
         }
+
+        int currentBrightness = state.mBrightnessLevel;
+        int newBrightnessLevel;
+        if (currentBrightness > 0) {
+            newBrightnessLevel = 0;
+            Slog.d(TAG, "Toggling backlight off for deviceId=" + deviceId);
+        } else {
+            newBrightnessLevel = state.mPreviousBrightnessLevel;
+            if (newBrightnessLevel == 0) {
+                // Since the backlight is turning on, we should set the light to a default
+                // value if the previous brightness level was not yet set manually.
+                newBrightnessLevel = state.mBrightnessValueForLevel.length / 2;
+            }
+            Slog.d(TAG, "Toggling backlight on for deviceId=" + deviceId);
+        }
+
+        // With the user toggling the backlight, ALS adjustment will be disabled.
+        state.setBrightnessLevel(newBrightnessLevel);
+        updateAmbientLightListener();
+        notifyListenerRecordsAfterKeyPress(deviceId, newBrightnessLevel);
     }
 
     private void handleUserActivity() {
@@ -287,6 +333,13 @@ final class KeyboardBacklightController implements
             case MSG_DECREMENT_KEYBOARD_BACKLIGHT:
                 updateKeyboardBacklight((int) msg.obj, Direction.DIRECTION_DOWN);
                 return true;
+            case MSG_TOGGLE_KEYBOARD_BACKLIGHT:
+                if (!keyboardBacklightShortcuts()) {
+                    return false;
+                } else {
+                    handleToggleKeyboardBacklight((int) msg.obj);
+                    return true;
+                }
             case MSG_NOTIFY_USER_ACTIVITY:
                 handleUserActivity();
                 return true;
@@ -477,6 +530,7 @@ final class KeyboardBacklightController implements
         private final int mDeviceId;
         private final Light mLight;
         private int mBrightnessLevel;
+        private int mPreviousBrightnessLevel;
         private ValueAnimator mAnimator;
         private final int[] mBrightnessValueForLevel;
         private boolean mUseAmbientController = true;
@@ -527,6 +581,7 @@ final class KeyboardBacklightController implements
             if (mIsBacklightOn) {
                 setBacklightValue(mBrightnessValueForLevel[brightnessLevel]);
             }
+            mPreviousBrightnessLevel = mBrightnessLevel;
             mBrightnessLevel = brightnessLevel;
         }
 

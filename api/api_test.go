@@ -18,6 +18,7 @@ import (
 	"android/soong/android"
 	"android/soong/java"
 	"fmt"
+	"slices"
 	"testing"
 
 	"github.com/google/blueprint/proptools"
@@ -43,10 +44,19 @@ var prepareForTestWithCombinedApis = android.GroupFixturePreparers(
 	}),
 )
 
+func getAllTestSdkLibraries() []string {
+	modules := slices.Clone(non_updatable_modules)
+	for _, flagInfo := range moduleFlagInfos {
+		modules = append(modules, flagInfo.moduleName)
+	}
+	return modules
+}
+
 func gatherRequiredDepsForTest() string {
 	var bp string
 
 	extraLibraryModules := []string{
+		"legacy.core.platform.api.stubs",
 		"stable.core.platform.api.stubs",
 		"core-lambda-stubs",
 		"core.current.stubs",
@@ -78,7 +88,7 @@ func gatherRequiredDepsForTest() string {
 		"stub-annotations",
 	}
 
-	extraSdkLibraryModules := non_updatable_modules
+	extraSdkLibraryModules := getAllTestSdkLibraries()
 
 	extraSystemModules := []string{
 		"core-public-stubs-system-modules",
@@ -181,7 +191,8 @@ func gatherRequiredDepsForTest() string {
 
 func TestCombinedApisDefaults(t *testing.T) {
 
-	testNonUpdatableModules := append(non_updatable_modules, "framework-foo", "framework-bar")
+	testNonUpdatableModules := append(getAllTestSdkLibraries(), "framework-foo", "framework-bar")
+
 	result := android.GroupFixturePreparers(
 		prepareForTestWithCombinedApis,
 		java.FixtureWithLastReleaseApis(testNonUpdatableModules...),
@@ -253,4 +264,41 @@ func TestCombinedApisDefaults(t *testing.T) {
 		result.TestContext, "foo-current.txt", "android_common", "framework-foo")
 	android.AssertBoolEquals(t, "Submodule expected to depend on the select-appended module",
 		true, subModuleDependsOnSelectAppendedModule)
+}
+
+func TestGetNonUpdatableModules(t *testing.T) {
+	// Test case: RELEASE_TELECOM_MAINLINE_MODULE is disabled
+	t.Run("telecom mainline module disabled", func(t *testing.T) {
+		extraSdkLibraryModules := getAllTestSdkLibraries()
+
+		result := android.GroupFixturePreparers(
+			prepareForTestWithCombinedApis,
+			java.FixtureWithLastReleaseApis(extraSdkLibraryModules...),
+		).RunTest(t)
+
+		nonUpdatableModules := getNonUpdatableModules(result.Config)
+		if !slices.Contains(nonUpdatableModules, telecom) {
+			t.Errorf("Expected non-updatable modules to contain '%s' when the release flag is disabled, but it was not found.", telecom)
+		}
+	})
+
+	// Test case: RELEASE_TELECOM_MAINLINE_MODULE is enabled
+	t.Run("telecom mainline module enabled", func(t *testing.T) {
+		extraSdkLibraryModules := getAllTestSdkLibraries()
+
+		result := android.GroupFixturePreparers(
+			prepareForTestWithCombinedApis,
+			java.FixtureWithLastReleaseApis(extraSdkLibraryModules...),
+			android.FixtureModifyProductVariables(func(variables android.FixtureProductVariables) {
+				variables.BuildFlags = map[string]string{
+					"RELEASE_TELECOM_MAINLINE_MODULE": "true",
+				}
+			}),
+		).RunTest(t)
+
+		nonUpdatableModules := getNonUpdatableModules(result.Config)
+		if slices.Contains(nonUpdatableModules, telecom) {
+			t.Errorf("Expected non-updatable modules to not contain '%s' when the release flag is enabled, but it was found.", telecom)
+		}
+	})
 }

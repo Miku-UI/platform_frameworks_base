@@ -33,6 +33,7 @@ import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.globalactions.GlobalActionsDialogLite
+import com.android.systemui.globalactions.shared.model.GlobalActionsEvent
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.qs.FgsManagerController
 import com.android.systemui.qs.QSSecurityFooterUtils
@@ -115,19 +116,11 @@ constructor(
     @ShadeDisplayAware private val context: Context,
 ) : FooterActionsInteractor {
     override val securityButtonConfig: Flow<SecurityButtonConfig?> =
-        if (android.app.supervision.flags.Flags.enableSupervisionAppService()) {
-            securityRepository.security.combine(supervisionRepository.supervision) {
+        securityRepository.security.combine(supervisionRepository.supervision) {
                 security,
                 supervision ->
-                withContext(bgDispatcher) {
-                    qsSecurityFooterUtils.getButtonConfig(security, supervision)
-                }
-            }
-        } else {
-            securityRepository.security.map { security ->
-                withContext(bgDispatcher) {
-                    qsSecurityFooterUtils.getButtonConfig(security, /* supervisionModel= */ null)
-                }
+            withContext(bgDispatcher) {
+                qsSecurityFooterUtils.getButtonConfig(security, supervision)
             }
         }
 
@@ -169,7 +162,7 @@ constructor(
         globalActionsDialogLite: GlobalActionsDialogLite,
         expandable: Expandable,
     ) {
-        uiEventLogger.log(GlobalActionsDialogLite.GlobalActionsEvent.GA_OPEN_QS)
+        uiEventLogger.log(GlobalActionsEvent.GA_OPEN_QS)
         globalActionsDialogLite.showOrHideDialog(
             /* keyguardShowing= */ false,
             /* isDeviceProvisioned= */ true,

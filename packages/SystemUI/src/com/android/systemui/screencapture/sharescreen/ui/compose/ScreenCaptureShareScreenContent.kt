@@ -20,11 +20,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import com.android.systemui.lifecycle.rememberViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.systemui.screencapture.common.ui.compose.ScreenCaptureContent
+import com.android.systemui.screencapture.data.repository.ScreenCaptureDeviceStateRepository
 import com.android.systemui.screencapture.sharescreen.largescreen.ui.compose.LargeScreenCaptureShareScreenContent
 import com.android.systemui.screencapture.sharescreen.smallscreen.ui.compose.SmallScreenCaptureShareScreenContent
-import com.android.systemui.screencapture.sharescreen.ui.viewmodel.ScreenCaptureShareScreenViewModel
 import dagger.Lazy
 import javax.inject.Inject
 
@@ -32,26 +32,23 @@ import javax.inject.Inject
 class ScreenCaptureShareScreenContent
 @Inject
 constructor(
-    private val shareScreenViewModelFactory: ScreenCaptureShareScreenViewModel.Factory,
     private val largeShareScreenContent: Lazy<LargeScreenCaptureShareScreenContent>,
     private val smallShareScreenContent: Lazy<SmallScreenCaptureShareScreenContent>,
+    private val deviceStateRepository: ScreenCaptureDeviceStateRepository,
 ) : ScreenCaptureContent {
     @Composable
     override fun Content() {
-        val viewModel =
-            rememberViewModel("ScreenCaptureShareScreenContent#ScreenCaptureShareScreenViewModel") {
-                shareScreenViewModelFactory.create()
-            }
-        val content: ScreenCaptureContent? by
-            remember(viewModel.isLargeScreen) {
+        val isLargeScreen by deviceStateRepository.isLargeScreen.collectAsStateWithLifecycle()
+        val content: ScreenCaptureContent by
+            remember(isLargeScreen) {
                 derivedStateOf {
-                    when (viewModel.isLargeScreen) {
-                        true -> largeShareScreenContent.get()
-                        false -> smallShareScreenContent.get()
-                        else -> null
+                    if (isLargeScreen) {
+                        largeShareScreenContent.get()
+                    } else {
+                        smallShareScreenContent.get()
                     }
                 }
             }
-        content?.Content()
+        content.Content()
     }
 }

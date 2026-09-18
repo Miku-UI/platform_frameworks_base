@@ -16,12 +16,12 @@
 
 package com.android.systemui.statusbar.notification.row;
 
-import static android.app.Flags.notificationsRedesignFonts;
+
 import static android.app.Notification.COLOR_INVALID;
 
 import android.annotation.Nullable;
-import android.app.Flags;
 import android.content.Context;
+import android.graphics.Typeface;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.View;
@@ -36,6 +36,7 @@ import com.android.systemui.statusbar.TransformableView;
 import com.android.systemui.statusbar.ViewTransformationHelper;
 import com.android.systemui.statusbar.notification.NotificationFadeAware;
 import com.android.systemui.statusbar.notification.TransformState;
+import com.android.systemui.statusbar.notification.row.ui.viewmodel.SingleLineViewPayload;
 
 /**
  * A hybrid view which may contain information about one ore more notifications.
@@ -46,8 +47,8 @@ public class HybridNotificationView extends AlphaOptimizedLinearLayout
     protected final ViewTransformationHelper mTransformationHelper = new ViewTransformationHelper();
     protected TextView mTitleView;
     protected TextView mTextView;
-    protected int mPrimaryTextColor = COLOR_INVALID;
-    protected int mSecondaryTextColor = COLOR_INVALID;
+    protected int mTextColor = COLOR_INVALID;
+    private static final int MAX_SUMMARIZATION_LINES = 1;
 
     public HybridNotificationView(Context context) {
         this(context, null);
@@ -75,22 +76,18 @@ public class HybridNotificationView extends AlphaOptimizedLinearLayout
     }
 
     /**
-     * Get layout resource for this view based on {@param isConversation}.
+     * Get layout resource for this view based on SingleLineViewPayload.
      */
-    public static int getLayoutResource(boolean isConversation) {
-        if (Flags.notificationsRedesignTemplates()) {
-            if (isConversation) {
-                return R.layout.notification_2025_hybrid_conversation;
-            } else {
-                return R.layout.notification_2025_hybrid;
-            }
-        } else {
-            if (isConversation) {
-                return R.layout.hybrid_conversation_notification;
-            } else {
-                return R.layout.hybrid_notification;
-            }
-        }
+    public static int getLayoutResource(SingleLineViewPayload payload) {
+        return switch (payload) {
+            case SingleLineViewPayload.ConversationData ignored ->
+                    R.layout.notification_2025_hybrid_conversation;
+            case SingleLineViewPayload.MetricPayload ignored ->
+                    R.layout.notification_2025_hybrid_metric;
+            case SingleLineViewPayload.StandardPayload ignored ->
+                    R.layout.notification_2025_hybrid;
+            case null, default -> throw new IllegalArgumentException("Unknown payload type");
+        };
     }
 
     @Override
@@ -99,8 +96,8 @@ public class HybridNotificationView extends AlphaOptimizedLinearLayout
         resolveThemeTextColors();
         mTitleView = findViewById(R.id.notification_title);
         mTextView = findViewById(R.id.notification_text);
-        applyTextColor(mTitleView, mPrimaryTextColor);
-        applyTextColor(mTextView, mSecondaryTextColor);
+        applyTextColor(mTitleView, mTextColor);
+        applyTextColor(mTextView, mTextColor);
         mTransformationHelper.setCustomTransformation(
                 new FadeOutAndDownWithTitleTransformation(mTextView),
                 TRANSFORMING_VIEW_TEXT);
@@ -115,30 +112,29 @@ public class HybridNotificationView extends AlphaOptimizedLinearLayout
     }
 
     private void resolveThemeTextColors() {
-        mPrimaryTextColor = mContext.getColor(com.android.internal.R.color.materialColorOnSurface);
-        mSecondaryTextColor = notificationsRedesignFonts() ? mPrimaryTextColor : mContext.getColor(
-                com.android.internal.R.color.materialColorOnSurfaceVariant);
+        mTextColor = mContext.getColor(com.android.internal.R.color.materialColorOnSurface);
     }
 
     public void bind(@Nullable CharSequence title, @Nullable CharSequence text,
-            @Nullable View contentView) {
-        bind(/* title = */ title, /* text = */ text, /* stripSpans */ true);
-    }
-
-    public void bind(@Nullable CharSequence title, @Nullable CharSequence text,
-            boolean stripSpans) {
+            @Nullable CharSequence summarization) {
         mTitleView.setText(title != null ? title.toString() : title);
         mTitleView.setVisibility(TextUtils.isEmpty(title) ? GONE : VISIBLE);
-        if (TextUtils.isEmpty(text)) {
-            mTextView.setVisibility(GONE);
-            mTextView.setText(null);
+        if (TextUtils.isEmpty(summarization)) {
+            if (TextUtils.isEmpty(text)) {
+                mTextView.setVisibility(GONE);
+                mTextView.setText(null);
+            } else {
+                mTextView.setVisibility(VISIBLE);
+                mTextView.setText(text.toString());
+            }
+            mTextView.setSingleLine(true);
+            mTextView.setMaxLines(1);
         } else {
             mTextView.setVisibility(VISIBLE);
-            if (stripSpans) {
-                mTextView.setText(text.toString());
-            } else {
-                mTextView.setText(text);
-            }
+            mTextView.setText(summarization);
+            mTextView.setSingleLine(false);
+            mTextView.setMaxLines(MAX_SUMMARIZATION_LINES);
+            mTextView.setTypeface(Typeface.create("variable-body-medium", Typeface.ITALIC));
         }
         requestLayout();
     }

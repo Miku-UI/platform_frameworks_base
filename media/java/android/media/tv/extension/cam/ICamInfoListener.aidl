@@ -22,7 +22,21 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface ICamInfoListener {
+    /**
+     * Called when information about the CAM being monitored, such as its insertion or removal,
+     * has changed.
+     *
+     * @param slotId The ID or slot number of the monitored CAM.
+     * @param updatedCamInfo A Bundle containing about the updated CAM information, should at least
+     *                       contain keys defined in @CamConstants.CamInfoBundleKey.
+     */
     void onCamInfoChanged(int slotId, in Bundle updatedCamInfo);
+    /**
+     * Called to notify that the status of a CAM slot has been updated.
+     *
+     * @param slotId The ID of the updated slot.
+     * @param updatedSlotInfo A Bundle containing information like insertion status and slot type;
+     *                        at least contain keys defined in @CamConstants.CamSlotInfoBundleKey.
+     */
     void onSlotInfoChanged(int slotId, in Bundle updatedSlotInfo);
-    void onNewTypeCamInsert(int slotId, in Bundle newCamType);
 }

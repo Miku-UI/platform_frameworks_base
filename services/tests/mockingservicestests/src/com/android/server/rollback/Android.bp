@@ -33,11 +33,9 @@ android_test {
         "flag-junit",
         "mockito-target-extended-minus-junit4",
         "services.core",
+        "service-crashrecovery-pre-jarjar",
         "truth",
-    ] + select(soong_config_variable("ANDROID", "release_crashrecovery_module"), {
-        "true": ["service-crashrecovery-pre-jarjar"],
-        default: [],
-    }),
+    ],
 
     libs: [
         "android.test.base.stubs.system",

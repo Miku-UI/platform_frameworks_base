@@ -23,6 +23,7 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.notetask.NoteTaskController
 import com.android.systemui.notetask.NoteTaskEntryPoint
+import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.qs.pipeline.domain.interactor.PanelInteractor
 import com.android.systemui.qs.tiles.base.domain.actions.FakeQSTileIntentUserInputHandler
 import com.android.systemui.qs.tiles.base.domain.actions.QSTileIntentUserInputHandlerSubject
@@ -34,8 +35,9 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mockito.verify
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -45,20 +47,31 @@ class NotesTileUserActionInteractorTest : SysuiTestCase() {
     private val inputHandler = FakeQSTileIntentUserInputHandler()
     private val panelInteractor = mock<PanelInteractor>()
     private val noteTaskController = mock<NoteTaskController>()
+    private val activityStarter = mock<ActivityStarter>()
 
     private lateinit var underTest: NotesTileUserActionInteractor
 
     @Before
     fun setUp() {
-        underTest = NotesTileUserActionInteractor(inputHandler, panelInteractor, noteTaskController)
+        underTest =
+            NotesTileUserActionInteractor(
+                inputHandler,
+                panelInteractor,
+                noteTaskController,
+                activityStarter,
+            )
     }
 
     @Test
-    fun handleClick_launchDefaultNotesApp() =
+    fun handleClick_dismissKeyguardAndLauncheNotes() =
         testScope.runTest {
             underTest.handleInput(QSTileInputTestKtx.click(NotesTileModel))
 
+            val captor = argumentCaptor<Runnable>()
+            verify(activityStarter).postQSRunnableDismissingKeyguard(captor.capture())
+            captor.lastValue.run()
             verify(noteTaskController).showNoteTask(NoteTaskEntryPoint.QS_NOTES_TILE)
+            verify(panelInteractor).collapsePanels()
         }
 
     @Test

@@ -29,6 +29,7 @@ import com.android.systemui.ScreenDecorationsThread
 import com.android.systemui.decor.DecorProvider
 import com.android.systemui.decor.PrivacyDotCornerDecorProviderImpl
 import com.android.systemui.decor.PrivacyDotDecorProviderFactory
+import com.android.systemui.log.MultiDisplayStatusBarLogger
 import com.android.systemui.statusbar.events.PrivacyDotCorner.BottomLeft
 import com.android.systemui.statusbar.events.PrivacyDotCorner.BottomRight
 import com.android.systemui.statusbar.events.PrivacyDotCorner.TopLeft
@@ -54,6 +55,7 @@ constructor(
     @Assisted private val inflater: LayoutInflater,
     @ScreenDecorationsThread private val uiExecutor: Executor,
     private val dotFactory: PrivacyDotDecorProviderFactory,
+    private val logger: MultiDisplayStatusBarLogger,
 ) {
     private val dotWindowViewsByCorner = mutableMapOf<PrivacyDotCorner, View>()
     private var displayRotationOnStartup = 0
@@ -88,16 +90,18 @@ constructor(
                     if (v == null || dotViewContainer == null) {
                         return
                     }
+                    if (dotWindowViewsByCorner.containsKey(dotViewContainer.corner)) {
+                        return
+                    }
                     v.addToWindow(dotViewContainer.corner)
                     dotWindowViewsByCorner[dotViewContainer.corner] = dotViewContainer.windowView
                 }
 
                 override fun onPrivacyDotHidden(v: View?) {
                     val dotViewContainer = dotViewContainersByView[v]
-                    val windowView = dotWindowViewsByCorner.remove(dotViewContainer?.corner)
-                    if (windowView != null) {
-                        windowManager.removeViewSafely(windowView)
-                    }
+                    val corner = dotViewContainer?.corner ?: return
+                    val windowView = dotWindowViewsByCorner.remove(corner) ?: return
+                    windowManager.removeViewSafely(windowView, corner)
                 }
             }
         privacyDotViewController.initialize(
@@ -132,7 +136,9 @@ constructor(
             // Wrapping this in a try/catch to avoid crashes when a display is instantly removed
             // after being added, and initialization hasn't finished yet.
             windowManager.addView(rootView, params)
+            logger.logPrivacyDotWindowAdded(displayId, corner)
         } catch (e: InvalidDisplayException) {
+            logger.logPrivacyDotWindowAddFailure(displayId, corner)
             Log.e(
                 TAG,
                 "Unable to add view to WM. Display with id $displayId does not exist anymore",
@@ -144,7 +150,8 @@ constructor(
 
     fun stop() {
         uiExecutor.execute {
-            dotWindowViewsByCorner.forEach { windowManager.removeViewSafely(it.value) }
+            privacyDotViewController.showingListener = null
+            dotWindowViewsByCorner.forEach { windowManager.removeViewSafely(it.value, it.key) }
         }
     }
 
@@ -164,11 +171,13 @@ constructor(
         ): PrivacyDotWindowController
     }
 
-    private fun WindowManager.removeViewSafely(view: View) {
+    private fun WindowManager.removeViewSafely(view: View, corner: PrivacyDotCorner) {
         try {
             removeView(view)
+            logger.logPrivacyDotWindowRemoved(displayId, corner)
         } catch (e: IllegalArgumentException) {
-            Log.e(TAG, "Failed to remove view from window manager.")
+            logger.logPrivacyDotWindowRemovalFailure(displayId, corner)
+            Log.e(TAG, "Failed to remove view from window manager.", e)
         }
     }
 

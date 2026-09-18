@@ -16,16 +16,23 @@
 
 package com.android.server.display.whitebalance;
 
+import static com.android.server.display.utils.SensorUtils.NO_FALLBACK;
+
 import android.content.res.Resources;
 import android.content.res.TypedArray;
+import android.hardware.Sensor;
 import android.hardware.SensorManager;
 import android.os.Handler;
 import android.util.TypedValue;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.BackgroundThread;
+import com.android.server.display.DisplayDeviceConfig;
+import com.android.server.display.config.SensorData;
+import com.android.server.display.feature.flags.Flags;
 import com.android.server.display.utils.AmbientFilter;
 import com.android.server.display.utils.AmbientFilterFactory;
+import com.android.server.display.utils.SensorUtils;
 
 /**
  * The DisplayWhiteBalanceFactory creates and configures an DisplayWhiteBalanceController.
@@ -58,13 +65,15 @@ public class DisplayWhiteBalanceFactory {
      *      - Cannot find the necessary sensors.
      */
     public static DisplayWhiteBalanceController create(Handler handler,
-            SensorManager sensorManager, Resources resources) {
+            SensorManager sensorManager, Resources resources,
+            DisplayDeviceConfig displayDeviceConfig) {
         final AmbientSensor.AmbientBrightnessSensor brightnessSensor =
-                createBrightnessSensor(handler, sensorManager, resources);
+                createBrightnessSensor(handler, sensorManager, resources, displayDeviceConfig);
         final AmbientFilter brightnessFilter =
                 AmbientFilterFactory.createBrightnessFilter(BRIGHTNESS_FILTER_TAG, resources);
         final AmbientSensor.AmbientColorTemperatureSensor colorTemperatureSensor =
-                createColorTemperatureSensor(handler, sensorManager, resources);
+                createColorTemperatureSensor(handler, sensorManager, resources,
+                        displayDeviceConfig);
         final AmbientFilter colorTemperatureFilter = AmbientFilterFactory
                 .createColorTemperatureFilter(COLOR_TEMPERATURE_FILTER_TAG, resources);
         final DisplayWhiteBalanceThrottler throttler = createThrottler(resources);
@@ -144,10 +153,25 @@ public class DisplayWhiteBalanceFactory {
      */
     @VisibleForTesting
     public static AmbientSensor.AmbientBrightnessSensor createBrightnessSensor(Handler handler,
-            SensorManager sensorManager, Resources resources) {
-        final int rate = resources.getInteger(
+            SensorManager sensorManager, Resources resources,
+            DisplayDeviceConfig displayDeviceConfig) {
+        Sensor sensor;
+        if (Flags.whiteBalanceControllerDdcConfig()) {
+            SensorData sensorData = displayDeviceConfig.getAmbientLightSensor();
+            sensor = SensorUtils.findSensor(sensorManager, sensorData, Sensor.TYPE_LIGHT);
+            if (sensor == null) {
+                throw new IllegalStateException("cannot find light sensor: "
+                        + " sensorData" + sensorData + "\"");
+            }
+        } else {
+            sensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
+            if (sensor == null) {
+                throw new IllegalStateException("cannot find light sensor");
+            }
+        }
+        int rate = resources.getInteger(
                 com.android.internal.R.integer.config_displayWhiteBalanceBrightnessSensorRate);
-        return new AmbientSensor.AmbientBrightnessSensor(handler, sensorManager, rate);
+        return new AmbientSensor.AmbientBrightnessSensor(handler, sensorManager, sensor, rate);
     }
 
     /**
@@ -155,16 +179,37 @@ public class DisplayWhiteBalanceFactory {
      */
     @VisibleForTesting
     public static AmbientSensor.AmbientColorTemperatureSensor createColorTemperatureSensor(
-            Handler handler, SensorManager sensorManager, Resources resources) {
-        final String name = resources.getString(
-                com.android.internal.R.string
-                .config_displayWhiteBalanceColorTemperatureSensorName);
-        final int rate = resources.getInteger(
+            Handler handler, SensorManager sensorManager, Resources resources,
+            DisplayDeviceConfig displayDeviceConfig) {
+        Sensor sensor = null;
+        if (Flags.whiteBalanceControllerDdcConfig()) {
+            // with flag cleanup, move this logic to AmbientSensor
+            SensorData sensorData = displayDeviceConfig.getColorSensor();
+            sensor = SensorUtils.findSensor(sensorManager, sensorData, NO_FALLBACK);
+            if (sensor == null) {
+                throw new IllegalStateException("cannot find color temperature sensor: "
+                        + " sensorData" + sensorData + "\"");
+            }
+        } else {
+            String name = resources.getString(
+                    com.android.internal.R.string
+                            .config_displayWhiteBalanceColorTemperatureSensorName);
+            for (Sensor s : sensorManager.getSensorList(Sensor.TYPE_ALL)) {
+                if (s.getStringType().equals(name)) {
+                    sensor = s;
+                    break;
+                }
+            }
+            if (sensor == null) {
+                throw new IllegalStateException("cannot find sensor " + name);
+            }
+        }
+        int rate = resources.getInteger(
                 com.android.internal.R.integer
                 .config_displayWhiteBalanceColorTemperatureSensorRate);
-        return new AmbientSensor.AmbientColorTemperatureSensor(handler, sensorManager, name, rate);
+        return new AmbientSensor.AmbientColorTemperatureSensor(handler, sensorManager, sensor,
+                rate);
     }
-
     private static DisplayWhiteBalanceThrottler createThrottler(Resources resources) {
         final int increaseDebounce = resources.getInteger(
                 com.android.internal.R.integer.config_displayWhiteBalanceDecreaseDebounce);

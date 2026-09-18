@@ -188,6 +188,21 @@ class MediaProjectionChipInteractorTest : SysuiTestCase() {
                 .isEqualTo(ProjectionChipModel.ContentType.Screen)
         }
 
+    @Test
+    fun projection_AppContentState_normalPackage_isShareToAppAndScreen() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.projection)
+
+            mediaProjectionRepo.mediaProjectionState.value =
+                MediaProjectionState.Projecting.AppContent(NORMAL_PACKAGE)
+
+            assertThat(latest).isInstanceOf(ProjectionChipModel.Projecting::class.java)
+            assertThat((latest as ProjectionChipModel.Projecting).receiver)
+                .isEqualTo(ProjectionChipModel.Receiver.ShareToApp)
+            assertThat((latest as ProjectionChipModel.Projecting).contentType)
+                .isEqualTo(ProjectionChipModel.ContentType.Screen)
+        }
+
     companion object {
         const val CAST_TO_OTHER_DEVICES_PACKAGE = "other.devices.package"
         const val NORMAL_PACKAGE = "some.normal.package"

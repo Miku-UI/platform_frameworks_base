@@ -37,7 +37,6 @@ import android.graphics.drawable.Drawable
 import android.os.RemoteException
 import android.os.UserHandle
 import android.os.testableLooper
-import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.print.PrintManager
 import android.service.notification.StatusBarNotification
@@ -59,22 +58,21 @@ import com.android.internal.logging.uiEventLoggerFake
 import com.android.systemui.Dependency
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.testCase
+import com.android.systemui.notifications.content.icon.AppIconProvider
+import com.android.systemui.notifications.content.icon.mockAppIconProvider
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.RankingBuilder
-import com.android.systemui.statusbar.notification.AssistantFeedbackController
 import com.android.systemui.statusbar.notification.collection.EntryAdapter
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder
 import com.android.systemui.statusbar.notification.collection.coordinator.mockVisualStabilityCoordinator
 import com.android.systemui.statusbar.notification.promoted.domain.interactor.PackageDemotionInteractor
-import com.android.systemui.statusbar.notification.row.icon.AppIconProvider
 import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyleProvider
-import com.android.systemui.statusbar.notification.row.icon.mockAppIconProvider
 import com.android.systemui.statusbar.notification.row.icon.mockNotificationIconStyleProvider
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.testKosmos
 import com.android.telecom.telecomManager
 import com.google.common.truth.Truth.assertThat
+import java.util.concurrent.CountDownLatch
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -89,7 +87,6 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import java.util.concurrent.CountDownLatch
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -115,7 +112,6 @@ class NotificationInfoTest : SysuiTestCase() {
     private val mockINotificationManager = mock<INotificationManager>()
     private val channelEditorDialogController = mock<ChannelEditorDialogController>()
     private val packageDemotionInteractor = mock<PackageDemotionInteractor>()
-    private val assistantFeedbackController = mock<AssistantFeedbackController>()
 
     @Before
     fun setUp() {
@@ -125,7 +121,7 @@ class NotificationInfoTest : SysuiTestCase() {
 
         // Inflate the layout
         val inflater = LayoutInflater.from(mContext)
-        underTest = inflater.inflate(R.layout.notification_info, null) as NotificationInfo
+        underTest = inflater.inflate(R.layout.notification_2025_info, null) as NotificationInfo
 
         underTest.setGutsParent(mock<NotificationGuts>())
 
@@ -199,9 +195,6 @@ class NotificationInfoTest : SysuiTestCase() {
                 .updateRanking { it.setChannel(notificationChannel) }
                 .build()
         entryAdapter = kosmos.entryAdapterFactory.create(entry)
-        whenever(assistantFeedbackController.isFeedbackEnabled).thenReturn(false)
-        whenever(assistantFeedbackController.getInlineDescriptionResource(any()))
-            .thenReturn(R.string.notification_channel_summary_automatic)
     }
 
     @Test
@@ -214,10 +207,9 @@ class NotificationInfoTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_NOTIFICATIONS_REDESIGN_TEMPLATES)
-    fun testBindNotification_SetsPackageIcon_flagOff() {
+    fun testBindNotification_SetsPackageIcon() {
         val iconDrawable = mock<Drawable>()
-        whenever(mockPackageManager.getApplicationIcon(any<ApplicationInfo>()))
+        whenever(mockAppIconProvider.getOrFetchAppIcon(anyOrNull(), anyOrNull(), anyOrNull()))
             .thenReturn(iconDrawable)
         bindNotification()
         val iconView = underTest.findViewById<ImageView>(R.id.pkg_icon)
@@ -225,14 +217,22 @@ class NotificationInfoTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NOTIFICATIONS_REDESIGN_TEMPLATES)
-    fun testBindNotification_SetsPackageIcon_flagOn() {
-        val iconDrawable = mock<Drawable>()
-        whenever(mockAppIconProvider.getOrFetchAppIcon(anyOrNull(), anyOrNull(), anyOrNull()))
-            .thenReturn(iconDrawable)
+    @EnableFlags(android.app.Flags.FLAG_NM_SUMMARIZATION_ALL)
+    fun testBindNotification_noAppSummarization() {
         bindNotification()
-        val iconView = underTest.findViewById<ImageView>(R.id.pkg_icon)
-        assertThat(iconView.drawable).isEqualTo(iconDrawable)
+        val v = underTest.findViewById<TextView>(R.id.summarized_by)
+        assertThat(v.visibility).isEqualTo(GONE)
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_NM_SUMMARIZATION_ALL)
+    fun testBindNotification_appSummarized() {
+        entry.sbn.notification.extras.putCharSequence(Notification.EXTRA_APP_SUMMARIZATION, "hello")
+
+        bindNotification()
+        val v = underTest.findViewById<TextView>(R.id.summarized_by)
+        assertThat(v.visibility).isEqualTo(VISIBLE)
+        assertThat(v.text.toString()).contains("Summarized")
     }
 
     @Test
@@ -466,30 +466,6 @@ class NotificationInfoTest : SysuiTestCase() {
     }
 
     @Test
-    fun testBindNotification_automaticIsVisible() {
-        whenever(assistantFeedbackController.isFeedbackEnabled).thenReturn(true)
-        bindNotification()
-        assertThat(underTest.findViewById<View>(R.id.automatic).visibility).isEqualTo(VISIBLE)
-        assertThat(underTest.findViewById<View>(R.id.automatic_summary).visibility)
-            .isEqualTo(VISIBLE)
-    }
-
-    @Test
-    fun testBindNotification_automaticIsGone() {
-        bindNotification()
-        assertThat(underTest.findViewById<View>(R.id.automatic).visibility).isEqualTo(GONE)
-        assertThat(underTest.findViewById<View>(R.id.automatic_summary).visibility).isEqualTo(GONE)
-    }
-
-    @Test
-    fun testBindNotification_automaticIsSelected() {
-        whenever(assistantFeedbackController.isFeedbackEnabled).thenReturn(true)
-        notificationChannel.unlockFields(NotificationChannel.USER_LOCKED_IMPORTANCE)
-        bindNotification()
-        assertThat(underTest.findViewById<View>(R.id.automatic).isSelected).isTrue()
-    }
-
-    @Test
     fun testBindNotification_alertIsSelected() {
         bindNotification()
         assertThat(underTest.findViewById<View>(R.id.alert).isSelected).isTrue()
@@ -537,28 +513,6 @@ class NotificationInfoTest : SysuiTestCase() {
         testableLooper.processAllMessages()
         verify(mockINotificationManager, never())
             .updateNotificationChannelForPackage(anyString(), eq(TEST_UID), any())
-    }
-
-    @Test
-    fun testDoesNotUpdateNotificationChannelAfterImportanceChangedAutomatic() {
-        notificationChannel.importance = NotificationManager.IMPORTANCE_DEFAULT
-        bindNotification()
-
-        underTest.findViewById<View>(R.id.automatic).performClick()
-        testableLooper.processAllMessages()
-        verify(mockINotificationManager, never())
-            .updateNotificationChannelForPackage(anyString(), eq(TEST_UID), any())
-    }
-
-    @Test
-    fun testHandleCloseControls_persistAutomatic() {
-        whenever(assistantFeedbackController.isFeedbackEnabled).thenReturn(true)
-        notificationChannel.unlockFields(NotificationChannel.USER_LOCKED_IMPORTANCE)
-        bindNotification()
-
-        underTest.handleCloseControls(true, false)
-        testableLooper.processAllMessages()
-        verify(mockINotificationManager).unlockNotificationChannel(anyString(), eq(TEST_UID), any())
     }
 
     @Test
@@ -639,23 +593,6 @@ class NotificationInfoTest : SysuiTestCase() {
             )
             .isNotEqualTo(0)
         assertThat(updated.firstValue.importance).isEqualTo(NotificationManager.IMPORTANCE_DEFAULT)
-        assertThat(underTest.shouldBeSavedOnClose()).isFalse()
-    }
-
-    @Test
-    fun testAutomaticUnlocksUserImportance() {
-        whenever(assistantFeedbackController.isFeedbackEnabled).thenReturn(true)
-        notificationChannel.importance = NotificationManager.IMPORTANCE_DEFAULT
-        notificationChannel.lockFields(NotificationChannel.USER_LOCKED_IMPORTANCE)
-        bindNotification()
-
-        underTest.findViewById<View>(R.id.automatic).performClick()
-        underTest.findViewById<View>(R.id.done).performClick()
-        underTest.handleCloseControls(true, false)
-
-        testableLooper.processAllMessages()
-        verify(mockINotificationManager).unlockNotificationChannel(anyString(), eq(TEST_UID), any())
-        assertThat(notificationChannel.importance).isEqualTo(NotificationManager.IMPORTANCE_DEFAULT)
         assertThat(underTest.shouldBeSavedOnClose()).isFalse()
     }
 
@@ -755,12 +692,8 @@ class NotificationInfoTest : SysuiTestCase() {
         underTest.findViewById<View>(R.id.done).performClick()
         underTest.handleCloseControls(true, false)
 
-        if (NotificationBundleUi.isEnabled) {
-            verify(kosmos.mockVisualStabilityCoordinator)
-                .temporarilyAllowSectionChanges(eq(entry), any())
-        } else {
-            verify(onUserInteractionCallback).onImportanceChanged(entry)
-        }
+        verify(kosmos.mockVisualStabilityCoordinator)
+            .temporarilyAllowSectionChanges(eq(entry), any())
 
         assertThat(underTest.shouldBeSavedOnClose()).isFalse()
     }
@@ -869,20 +802,6 @@ class NotificationInfoTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(
-        Flags.FLAG_NOTIFICATION_CLASSIFICATION_UI,
-        Flags.FLAG_NM_SUMMARIZATION,
-        Flags.FLAG_NM_SUMMARIZATION_UI,
-        com.android.systemui.Flags.FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT
-    )
-    @Throws(Exception::class)
-    fun testBindNotification_HidesFeedbackLink_flagOff() {
-        bindNotification()
-        assertThat(underTest.findViewById<View>(R.id.feedback).visibility).isEqualTo(GONE)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_NOTIFICATION_CLASSIFICATION_UI)
     @Throws(RemoteException::class)
     fun testBindNotification_SetsFeedbackLink_isReservedChannel() {
         entry.setRanking(
@@ -951,7 +870,6 @@ class NotificationInfoTest : SysuiTestCase() {
         isNonblockable: Boolean = false,
         isDismissable: Boolean = true,
         wasShownHighPriority: Boolean = true,
-        assistantFeedbackController: AssistantFeedbackController = this.assistantFeedbackController,
         metricsLogger: MetricsLogger = kosmos.metricsLogger,
         onCloseClick: View.OnClickListener? = null,
     ) {
@@ -966,7 +884,6 @@ class NotificationInfoTest : SysuiTestCase() {
             pkg,
             entry.ranking,
             entry.sbn,
-            entry,
             entryAdapter,
             onSettingsClick,
             onAppSettingsClick,
@@ -976,7 +893,6 @@ class NotificationInfoTest : SysuiTestCase() {
             isNonblockable,
             isDismissable,
             wasShownHighPriority,
-            assistantFeedbackController,
             metricsLogger,
             onCloseClick,
         )

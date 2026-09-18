@@ -20,7 +20,6 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.statusbar.notification.collection.coordinator.NotifCoordinators
 import com.android.systemui.statusbar.notification.collection.coordinator.NotifCoordinatorsImpl
 import com.android.systemui.statusbar.notification.collection.coordinator.SensitiveContentCoordinatorModule
-import com.android.systemui.statusbar.notification.promoted.ReferenceAutomaticPromotionModule
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -49,7 +48,7 @@ interface CoordinatorsSubcomponent {
 }
 
 @Module(
-    includes = [SensitiveContentCoordinatorModule::class, ReferenceAutomaticPromotionModule::class]
+    includes = [SensitiveContentCoordinatorModule::class]
 )
 abstract class InternalCoordinatorsModule {
     @Binds

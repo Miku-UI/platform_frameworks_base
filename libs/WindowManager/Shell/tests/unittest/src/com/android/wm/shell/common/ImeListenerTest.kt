@@ -40,7 +40,6 @@ import org.mockito.Mock
 import org.mockito.Mockito
 import org.mockito.kotlin.whenever
 
-
 @SmallTest
 @RunWith(AndroidTestingRunner::class)
 class ImeListenerTest : ShellTestCase() {
@@ -48,6 +47,7 @@ class ImeListenerTest : ShellTestCase() {
     private lateinit var displayLayout: DisplayLayout
 
     @Mock private lateinit var displayController: DisplayController
+
     @Before
     fun setUp() {
         val resources = createResources(40, 50, false)
@@ -75,8 +75,7 @@ class ImeListenerTest : ShellTestCase() {
         val insetsStateWithoutIme = createInsetsStateWithIme(false, 0)
         imeListener.insetsChanged(insetsStateWithoutIme)
 
-        assertFalse("Ime insets source should become invisible",
-                imeListener.cachedImeVisible)
+        assertFalse("Ime insets source should become invisible", imeListener.cachedImeVisible)
         assertEquals(0, imeListener.cachedImeHeight)
     }
 
@@ -87,24 +86,39 @@ class ImeListenerTest : ShellTestCase() {
 
         val insetsSource = insetsState.getOrCreateSource(ID_IME, Type.ime())
         insetsSource.setVisible(isVisible)
-        insetsSource.setFrame(stableBounds.left, stableBounds.bottom - imeHeight,
-                stableBounds.right, stableBounds.bottom)
+        insetsSource.setFrame(
+            stableBounds.left,
+            stableBounds.bottom - imeHeight,
+            stableBounds.right,
+            stableBounds.bottom,
+        )
         return insetsState
     }
 
-    private fun createDisplayInfo(width: Int, height: Int, cutoutHeight: Int,
-                                  rotation: Int): DisplayInfo {
+    private fun createDisplayInfo(
+        width: Int,
+        height: Int,
+        cutoutHeight: Int,
+        rotation: Int,
+    ): DisplayInfo {
         val info = DisplayInfo()
         info.logicalWidth = width
         info.logicalHeight = height
         info.rotation = rotation
         if (cutoutHeight > 0) {
-            info.displayCutout = DisplayCutout(
+            info.displayCutout =
+                DisplayCutout(
                     Insets.of(0, cutoutHeight, 0, 0) /* safeInsets */,
                     null /* boundLeft */,
-                    Rect(width / 2 - cutoutHeight, 0, width / 2 + cutoutHeight,
-                            cutoutHeight) /* boundTop */, null /* boundRight */,
-                    null /* boundBottom */)
+                    Rect(
+                        width / 2 - cutoutHeight,
+                        0,
+                        width / 2 + cutoutHeight,
+                        cutoutHeight,
+                    ) /* boundTop */,
+                    null /* boundRight */,
+                    null, /* boundBottom */
+                )
         } else {
             info.displayCutout = DisplayCutout.NO_CUTOUT
         }
@@ -116,29 +130,30 @@ class ImeListenerTest : ShellTestCase() {
         val cfg = Configuration()
         cfg.uiMode = Configuration.UI_MODE_TYPE_NORMAL
         val res = Mockito.mock(Resources::class.java)
-        Mockito.doReturn(navLand).whenever(res).getDimensionPixelSize(
-                R.dimen.navigation_bar_height_landscape_car_mode)
-        Mockito.doReturn(navPort).whenever(res).getDimensionPixelSize(
-                R.dimen.navigation_bar_height_car_mode)
-        Mockito.doReturn(navLand).whenever(res).getDimensionPixelSize(
-                R.dimen.navigation_bar_width_car_mode)
-        Mockito.doReturn(navLand).whenever(res).getDimensionPixelSize(
-                R.dimen.navigation_bar_height_landscape)
-        Mockito.doReturn(navPort).whenever(res).getDimensionPixelSize(
-                R.dimen.navigation_bar_height)
-        Mockito.doReturn(navLand).whenever(res).getDimensionPixelSize(
-                R.dimen.navigation_bar_width)
+        Mockito.doReturn(navLand)
+            .whenever(res)
+            .getDimensionPixelSize(R.dimen.navigation_bar_height_landscape_car_mode)
+        Mockito.doReturn(navPort)
+            .whenever(res)
+            .getDimensionPixelSize(R.dimen.navigation_bar_height_car_mode)
+        Mockito.doReturn(navLand)
+            .whenever(res)
+            .getDimensionPixelSize(R.dimen.navigation_bar_width_car_mode)
+        Mockito.doReturn(navLand)
+            .whenever(res)
+            .getDimensionPixelSize(R.dimen.navigation_bar_height_landscape)
+        Mockito.doReturn(navPort).whenever(res).getDimensionPixelSize(R.dimen.navigation_bar_height)
+        Mockito.doReturn(navLand).whenever(res).getDimensionPixelSize(R.dimen.navigation_bar_width)
         Mockito.doReturn(navMoves).whenever(res).getBoolean(R.bool.config_navBarCanMove)
         Mockito.doReturn(cfg).whenever(res).configuration
         return res
     }
 
-    private class CachingImeListener(
-            displayController: DisplayController,
-            displayId: Int
-    ) : ImeListener(displayController, displayId) {
+    private class CachingImeListener(displayController: DisplayController, displayId: Int) :
+        ImeListener(displayController, displayId) {
         var cachedImeVisible = false
         var cachedImeHeight = 0
+
         public override fun onImeVisibilityChanged(imeVisible: Boolean, imeHeight: Int) {
             cachedImeVisible = imeVisible
             cachedImeHeight = imeHeight

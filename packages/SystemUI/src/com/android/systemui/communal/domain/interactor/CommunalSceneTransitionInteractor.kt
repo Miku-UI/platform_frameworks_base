@@ -156,7 +156,7 @@ constructor(
     /** Monitors [SceneTransitionLayout] state and updates KTF state accordingly. */
     private fun listenForSceneTransitionProgress() {
         applicationScope.launch("$TAG#listenForSceneTransitionProgress", mainImmediateDispatcher) {
-            sceneInteractor.transitionState
+            sceneInteractor.transitionStateFlow
                 .pairwise(ObservableTransitionState.Idle(CommunalScenes.Blank))
                 .collect { (prevTransition, transition) ->
                     when (transition) {

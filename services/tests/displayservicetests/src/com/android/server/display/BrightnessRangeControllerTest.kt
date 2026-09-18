@@ -16,13 +16,14 @@
 
 package com.android.server.display
 
+import android.os.PowerManager
 import androidx.test.filters.SmallTest
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
-private const val MAX_BRIGHTNESS = 1.0f
+private const val MAX_BRIGHTNESS = PowerManager.BRIGHTNESS_MAX
 private const val TRANSITION_POINT = 0.7f
 private const val NORMAL_BRIGHTNESS_HIGH = 0.8f
 private const val NORMAL_BRIGHTNESS_LOW = 0.6f
@@ -63,11 +64,18 @@ class BrightnessRangeControllerTest {
         assertThat(controller.currentBrightnessMax).isEqualTo(TRANSITION_POINT)
     }
 
+    @Test
+    fun testMaxBrightness_NbmControllerDisabled() {
+        val controller = createController(hbmAllowed = false, nbmControllerEnabled = false)
+        assertThat(controller.currentBrightnessMax).isEqualTo(MAX_BRIGHTNESS)
+    }
+
     private fun createController(
         hbmSupported: Boolean = true,
         hbmAllowed: Boolean = true,
         hbmMaxBrightness: Float = MAX_BRIGHTNESS,
-        nbmMaxBrightness: Float = NORMAL_BRIGHTNESS_LOW
+        nbmMaxBrightness: Float = NORMAL_BRIGHTNESS_LOW,
+        nbmControllerEnabled: Boolean = true
     ): BrightnessRangeController {
         whenever(mockHbmController.deviceSupportsHbm()).thenReturn(hbmSupported)
         whenever(mockHbmController.isHbmCurrentlyAllowed).thenReturn(hbmAllowed)
@@ -75,6 +83,6 @@ class BrightnessRangeControllerTest {
         whenever(mockNormalBrightnessController.currentBrightnessMax).thenReturn(nbmMaxBrightness)
 
         return BrightnessRangeController(mockHbmController, mockCallback, mockConfig,
-            mockNormalBrightnessController)
+            if (nbmControllerEnabled) mockNormalBrightnessController else null)
     }
 }

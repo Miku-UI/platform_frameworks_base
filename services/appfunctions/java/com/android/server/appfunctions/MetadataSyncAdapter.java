@@ -21,6 +21,7 @@ import static android.app.appfunctions.AppFunctionRuntimeMetadata.RUNTIME_SCHEMA
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.WorkerThread;
+import android.app.appfunctions.AppFunctionName;
 import android.app.appfunctions.AppFunctionRuntimeMetadata;
 import android.app.appfunctions.AppFunctionStaticMetadataHelper;
 import android.app.appsearch.AppSearchBatchResult;
@@ -83,6 +84,8 @@ public class MetadataSyncAdapter {
     // Hidden constants in {@link SetSchemaRequest} that restricts runtime metadata visibility
     // by permissions.
     public static final int EXECUTE_APP_FUNCTIONS = 9;
+    private static final int SET_SCHEMA_REQUEST_DISCOVER_APP_FUNCTIONS = 13;
+    private static final int SET_SCHEMA_REQUEST_EXECUTE_APP_FUNCTIONS_SYSTEM = 14;
 
     public MetadataSyncAdapter(
             @NonNull PackageManager packageManager, @NonNull AppSearchManager appSearchManager) {
@@ -96,10 +99,14 @@ public class MetadataSyncAdapter {
     /**
      * This method submits a request to synchronize the AppFunction runtime and static metadata.
      *
+     * @param shouldSetRuntimeMetadataSchemaUnconditionally Whether to set the runtime metadata
+     *     schema unconditionally. Normally the schema is only set if there is a package is
+     *     added/removed.
      * @return A {@link AndroidFuture} that completes with a boolean value indicating whether the
      *     synchronization was successful.
      */
-    public AndroidFuture<Boolean> submitSyncRequest() {
+    public AndroidFuture<Boolean> submitSyncRequest(
+            boolean shouldSetRuntimeMetadataSchemaUnconditionally) {
         AndroidFuture<Boolean> settableSyncStatus = new AndroidFuture<>();
         Runnable runnable =
                 () -> {
@@ -127,7 +134,9 @@ public class MetadataSyncAdapter {
                                             runtimeMetadataSearchContext)) {
 
                         trySyncAppFunctionMetadataBlocking(
-                                staticMetadataSearchSession, runtimeMetadataSearchSession);
+                                staticMetadataSearchSession,
+                                runtimeMetadataSearchSession,
+                                shouldSetRuntimeMetadataSchemaUnconditionally);
                         settableSyncStatus.complete(true);
 
                     } catch (Exception ex) {
@@ -160,7 +169,8 @@ public class MetadataSyncAdapter {
     @VisibleForTesting
     void trySyncAppFunctionMetadataBlocking(
             @NonNull FutureAppSearchSession staticMetadataSearchSession,
-            @NonNull FutureAppSearchSession runtimeMetadataSearchSession)
+            @NonNull FutureAppSearchSession runtimeMetadataSearchSession,
+            boolean shouldSetRuntimeMetadataSchemaUnconditionally)
             throws ExecutionException, InterruptedException {
         ArrayMap<String, ArraySet<String>> staticPackageToFunctionMap =
                 getPackageToFunctionIdMapWithRetry(
@@ -180,7 +190,10 @@ public class MetadataSyncAdapter {
         ArrayMap<String, ArraySet<String>> removedFunctionsDiffMap =
                 getRemovedFunctionsDiffMap(staticPackageToFunctionMap, runtimePackageToFunctionMap);
 
-        if (!staticPackageToFunctionMap.keySet().equals(runtimePackageToFunctionMap.keySet())) {
+        if (shouldSetRuntimeMetadataSchemaUnconditionally
+                || !staticPackageToFunctionMap
+                        .keySet()
+                        .equals(runtimePackageToFunctionMap.keySet())) {
             // Drop removed packages from removedFunctionsDiffMap, as setSchema() deletes them
             ArraySet<String> removedPackages =
                     getRemovedPackages(
@@ -293,8 +306,18 @@ public class MetadataSyncAdapter {
                     runtimeMetadataSchema.getSchemaType(),
                     true,
                     new PackageIdentifier(packageName, packageCert));
+            // Separate calls to addRequiredPermissionsForSchemaTypeVisibility() are needed to
+            // ensure that both permissions checks are OR'ed together.
             setSchemaRequestBuilder.addRequiredPermissionsForSchemaTypeVisibility(
                     runtimeMetadataSchema.getSchemaType(), Set.of(EXECUTE_APP_FUNCTIONS));
+            if (android.app.appfunctions.flags.Flags.enableAppFunctionPermissionV2()) {
+                setSchemaRequestBuilder.addRequiredPermissionsForSchemaTypeVisibility(
+                        runtimeMetadataSchema.getSchemaType(),
+                        Set.of(SET_SCHEMA_REQUEST_DISCOVER_APP_FUNCTIONS));
+                setSchemaRequestBuilder.addRequiredPermissionsForSchemaTypeVisibility(
+                        runtimeMetadataSchema.getSchemaType(),
+                        Set.of(SET_SCHEMA_REQUEST_EXECUTE_APP_FUNCTIONS_SYSTEM));
+            }
         }
         return setSchemaRequestBuilder.build();
     }
@@ -527,6 +550,7 @@ public class MetadataSyncAdapter {
         Objects.requireNonNull(schemaType);
         Objects.requireNonNull(propertyFunctionId);
         Objects.requireNonNull(propertyPackageName);
+
         ArrayMap<String, ArraySet<String>> packageToFunctionIds = new ArrayMap<>();
 
         try (FutureSearchResults futureSearchResults =
@@ -547,8 +571,24 @@ public class MetadataSyncAdapter {
                             searchResult
                                     .getGenericDocument()
                                     .getPropertyString(propertyPackageName);
-                    String functionId =
-                            searchResult.getGenericDocument().getPropertyString(propertyFunctionId);
+
+                    String functionId;
+                    if (android.app.appfunctions.flags.Flags.enableDynamicAppFunctions()) {
+                        try {
+                            functionId =
+                                    AppFunctionName.fromQualifiedId(
+                                                    searchResult.getGenericDocument().getId())
+                                            .getFunctionIdentifier();
+                        } catch (RuntimeException e) {
+                            Slog.d(TAG, "Failed to parse function id", e);
+                            continue;
+                        }
+                    } else {
+                        functionId =
+                                searchResult
+                                        .getGenericDocument()
+                                        .getPropertyString(propertyFunctionId);
+                    }
                     packageToFunctionIds
                             .computeIfAbsent(packageName, k -> new ArraySet<>())
                             .add(functionId);

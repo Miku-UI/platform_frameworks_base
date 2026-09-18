@@ -23,6 +23,7 @@ import android.hardware.TriggerEventListener
 import android.testing.TestableLooper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.bouncer.data.repository.keyguardBouncerRepository
 import com.android.systemui.deviceentry.ui.binder.liftToRunFaceAuthBinder
@@ -30,11 +31,15 @@ import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.power.data.repository.fakePowerRepository
+import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.scene.shared.model.Overlays
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.capture
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.sensors.asyncSensorManager
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -170,6 +175,9 @@ class LiftToRunFaceAuthBinderTest : SysuiTestCase() {
     }
 
     private fun givenPrimaryBouncerShowing() {
+        kosmos.sceneInteractor.setTransitionState(
+            flowOf(ObservableTransitionState.Idle(Scenes.Lockscreen, setOf(Overlays.Bouncer)))
+        )
         bouncerRepository.setPrimaryShow(true)
         bouncerRepository.setAlternateVisible(false)
     }

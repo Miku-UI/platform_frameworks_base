@@ -37,13 +37,18 @@ final class CameraIdAppPairsSet {
     }
 
     boolean containsAnyCameraForTaskId(int taskId) {
+        return getCameraIdForTaskId(taskId) != null;
+    }
+
+    @Nullable
+    String getCameraIdForTaskId(int taskId) {
         for (int i = 0; i < mCameraAppInfoSet.size(); i++) {
             final CameraAppInfo info = mCameraAppInfoSet.valueAt(i);
             if (info.mTaskId == taskId) {
-                return true;
+                return info.mCameraId;
             }
         }
-        return false;
+        return null;
     }
 
     @Nullable

@@ -214,7 +214,6 @@ public class BackgroundJobsControllerTest {
 
     @Test
     public void testRestartedBroadcastWithoutStopping() {
-        mSetFlagsRule.enableFlags(android.content.pm.Flags.FLAG_STAY_STOPPED);
         // Scheduled by SOURCE_UID:SOURCE_PACKAGE for itself.
         JobStatus directJob1 = createJobStatus("testStopped", SOURCE_PACKAGE, SOURCE_UID,
                 createBaseJobInfoBuilder(SOURCE_PACKAGE, 1).build());
@@ -254,49 +253,7 @@ public class BackgroundJobsControllerTest {
     }
 
     @Test
-    public void testStopped_disabled() {
-        mSetFlagsRule.disableFlags(android.content.pm.Flags.FLAG_STAY_STOPPED);
-        // Scheduled by SOURCE_UID:SOURCE_PACKAGE for itself.
-        JobStatus directJob1 = createJobStatus("testStopped", SOURCE_PACKAGE, SOURCE_UID,
-                createBaseJobInfoBuilder(SOURCE_PACKAGE, 1).build());
-        // Scheduled by ALTERNATE_UID:ALTERNATE_SOURCE_PACKAGE for itself.
-        JobStatus directJob2 = createJobStatus("testStopped",
-                ALTERNATE_SOURCE_PACKAGE, ALTERNATE_UID,
-                createBaseJobInfoBuilder(ALTERNATE_SOURCE_PACKAGE, 2).build());
-        // Scheduled by CALLING_PACKAGE for SOURCE_PACKAGE.
-        JobStatus proxyJob1 = createJobStatus("testStopped", SOURCE_PACKAGE, CALLING_UID,
-                createBaseJobInfoBuilder(CALLING_PACKAGE, 3).build());
-        // Scheduled by CALLING_PACKAGE for ALTERNATE_SOURCE_PACKAGE.
-        JobStatus proxyJob2 = createJobStatus("testStopped",
-                ALTERNATE_SOURCE_PACKAGE, CALLING_UID,
-                createBaseJobInfoBuilder(CALLING_PACKAGE, 4).build());
-
-        trackJobs(directJob1, directJob2, proxyJob1, proxyJob2);
-
-        setStoppedState(ALTERNATE_UID, ALTERNATE_SOURCE_PACKAGE, true);
-        assertTrue(directJob1.isConstraintSatisfied(CONSTRAINT_BACKGROUND_NOT_RESTRICTED));
-        assertFalse(directJob1.isUserBgRestricted());
-        assertTrue(directJob2.isConstraintSatisfied(CONSTRAINT_BACKGROUND_NOT_RESTRICTED));
-        assertFalse(directJob2.isUserBgRestricted());
-        assertTrue(proxyJob1.isConstraintSatisfied(CONSTRAINT_BACKGROUND_NOT_RESTRICTED));
-        assertFalse(proxyJob1.isUserBgRestricted());
-        assertTrue(proxyJob2.isConstraintSatisfied(CONSTRAINT_BACKGROUND_NOT_RESTRICTED));
-        assertFalse(proxyJob2.isUserBgRestricted());
-
-        setStoppedState(ALTERNATE_UID, ALTERNATE_SOURCE_PACKAGE, false);
-        assertTrue(directJob1.isConstraintSatisfied(CONSTRAINT_BACKGROUND_NOT_RESTRICTED));
-        assertFalse(directJob1.isUserBgRestricted());
-        assertTrue(directJob2.isConstraintSatisfied(CONSTRAINT_BACKGROUND_NOT_RESTRICTED));
-        assertFalse(directJob2.isUserBgRestricted());
-        assertTrue(proxyJob1.isConstraintSatisfied(CONSTRAINT_BACKGROUND_NOT_RESTRICTED));
-        assertFalse(proxyJob1.isUserBgRestricted());
-        assertTrue(proxyJob2.isConstraintSatisfied(CONSTRAINT_BACKGROUND_NOT_RESTRICTED));
-        assertFalse(proxyJob2.isUserBgRestricted());
-    }
-
-    @Test
     public void testStopped_enabled() {
-        mSetFlagsRule.enableFlags(android.content.pm.Flags.FLAG_STAY_STOPPED);
         // Scheduled by SOURCE_UID:SOURCE_PACKAGE for itself.
         JobStatus directJob1 = createJobStatus("testStopped", SOURCE_PACKAGE, SOURCE_UID,
                 createBaseJobInfoBuilder(SOURCE_PACKAGE, 1).build());

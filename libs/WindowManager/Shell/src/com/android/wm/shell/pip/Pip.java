@@ -47,9 +47,12 @@ public interface Pip {
     /**
      * Set the callback when isInPip state is changed.
      *
+     * @param executor The Executor the callback would run on
      * @param callback The callback accepts the state of isInPip when it's changed.
      */
-    default void addOnIsInPipStateChangedListener(@NonNull Consumer<Boolean> callback) {}
+    default void addOnIsInPipStateChangedListener(
+            @NonNull Executor executor,
+            @NonNull Consumer<Boolean> callback) {}
 
     /**
      * Remove the callback when isInPip state is changed.
@@ -67,7 +70,8 @@ public interface Pip {
      * is mostly used for times where the PiP bounds could conflict with SystemUI elements, such as
      * a stashed PiP and the Back-from-Edge gesture.
      */
-    default void addPipExclusionBoundsChangeListener(Consumer<Rect> listener) { }
+    default void addPipExclusionBoundsChangeListener(
+            Executor executor, Consumer<Rect> listener) { }
 
     /**
      * Remove a callback added previously. This is used when NavigationBar is removed from the

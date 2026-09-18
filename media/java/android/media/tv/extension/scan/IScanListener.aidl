@@ -22,12 +22,30 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface IScanListener {
-    // notify events during scan.
+    /**
+     * Notify events during scan.
+     *
+     * @param eventArgs event occurred, keys as defined in @ScanConstants.EventBundleKey.
+     */
     void onEvent(in Bundle eventArgs);
-    // notify the scan progress.
+    /**
+     * Notify the scan progress.
+     *
+     * @param scanProgress scan progress.
+     * @param scanProgressInfo bundle keys as defined in @ScanConstants.ScanProgressBundleKey.
+     */
     void onScanProgress(String scanProgress, in Bundle scanProgressInfo);
-    // notify the scan completion.
-    void onScanCompleted(int scanResult, in Bundle optionScanInfo);
-    // notify that the temporaily held channel list is stored.
+    /**
+     * Notify the scan completion.
+     *
+     * @param @ScanConstants.ScanResult.SUCCESS/FAILED/CANCEL/BUSY depending on the scan result.
+     * @param optionInfo optional bundle to pass in extra information, null if not needed.
+     */
+    void onScanCompleted(int scanResult, in Bundle optionInfo);
+    /**
+     * Notify that the temporaily held channel list is stored.
+     *
+     * @param @ScanConstants.StoreResult.SUCCESS/FAILED/BUSY depending on the store result.
+     */
     void onStoreCompleted(int storeResult);
 }

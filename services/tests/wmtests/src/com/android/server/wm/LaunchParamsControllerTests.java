@@ -19,7 +19,6 @@ package com.android.server.wm;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
-import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.view.Display.INVALID_DISPLAY;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.any;
@@ -37,14 +36,15 @@ import static com.android.server.wm.LaunchParamsController.LaunchParamsModifier.
 import static com.android.server.wm.LaunchParamsController.LaunchParamsModifier.RESULT_SKIP;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertTrue;
 
 import android.annotation.NonNull;
 import android.app.ActivityOptions;
 import android.content.ComponentName;
 import android.content.pm.ActivityInfo.WindowLayout;
 import android.graphics.Rect;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.util.ArrayMap;
 import android.util.SparseArray;
@@ -53,11 +53,11 @@ import androidx.test.filters.MediumTest;
 
 import com.android.server.wm.LaunchParamsController.LaunchParams;
 import com.android.server.wm.LaunchParamsController.LaunchParamsModifier;
-import com.android.window.flags.Flags;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 
 import java.util.Map;
 
@@ -91,7 +91,7 @@ public class LaunchParamsControllerTests extends WindowTestsBase {
 
         final ActivityRecord record = new ActivityBuilder(mAtm).build();
         final ActivityRecord source = new ActivityBuilder(mAtm).build();
-        final WindowLayout layout = new WindowLayout(0, 0, 0, 0, 0, 0, 0);
+        final WindowLayout layout = new LaunchParamsModifierTestsBase.WindowLayoutBuilder().build();
         final ActivityOptions options = mock(ActivityOptions.class);
         final Request request = new Request();
 
@@ -102,29 +102,85 @@ public class LaunchParamsControllerTests extends WindowTestsBase {
     }
 
     /**
-     * Makes sure controller passes stored params to modifiers.
+     * Makes sure controller passes stored params to modifiers when it is supported.
      */
     @Test
-    public void testStoredParamsRecovery() {
+    public void testStoredParamsRecovery_taskSupports_paramsLoaded() {
+        final ComponentName name = new ComponentName("com.android.foo", ".BarActivity");
+        final int userId = 0;
+        final Task task = new TaskBuilder(mAtm.mTaskSupervisor)
+                .setComponent(name)
+                .setUserId(userId)
+                .setCreateActivity(true)
+                .build();
+        // Only freeform TDA supports persisted launch params.
+        task.getTaskDisplayArea().setWindowingMode(WINDOWING_MODE_FREEFORM);
+
+        assertTrue("Task is expected to support persisted params",
+                task.supportsPersistedLaunchState());
+
         final LaunchParamsModifier positioner = mock(LaunchParamsModifier.class);
         mController.registerModifier(positioner);
 
-        final ComponentName name = new ComponentName("com.android.foo", ".BarActivity");
-        final int userId = 0;
-        final ActivityRecord activity = new ActivityBuilder(mAtm).setComponent(name)
-                .setUid(userId).build();
         final LaunchParams expected = new LaunchParams();
         expected.mPreferredTaskDisplayArea = mock(TaskDisplayArea.class);
-        expected.mWindowingMode = WINDOWING_MODE_PINNED;
+        expected.mWindowingMode = WINDOWING_MODE_FREEFORM;
         expected.mBounds.set(200, 300, 400, 500);
         expected.mNeedsSafeRegionBounds = true;
-
+        expected.mIsTaskMoveDisallowed = true;
         mPersister.putLaunchParams(userId, name, expected);
 
-        mController.calculate(activity.getTask(), null /*layout*/, activity, null /*source*/,
+        mController.calculate(task, null /*layout*/, task.topRunningActivity(), null /*source*/,
                 null /*options*/, null /*request*/, PHASE_BOUNDS, new LaunchParams());
+        ArgumentCaptor<LaunchParams> currentParams = ArgumentCaptor.forClass(LaunchParams.class);
         verify(positioner, times(1)).onCalculate(any(), any(), any(), any(), any(), any(),
-                anyInt(), eq(expected), any());
+                anyInt(), currentParams.capture(), any());
+
+        // Stored params are loaded to be used as current params
+        assertEquals(expected, currentParams.getValue());
+    }
+
+    /**
+     * Makes sure controller does not pass stored params to modifiers when it is not supported.
+     */
+    @Test
+    public void testStoredParamsRecovery_taskDoesNotSupport_paramsNotLoaded() {
+        final ComponentName name = new ComponentName("com.android.foo", ".BarActivity");
+        final int userId = 0;
+        final Task task = new TaskBuilder(mAtm.mTaskSupervisor)
+                .setComponent(name)
+                .setUserId(userId)
+                .setCreateActivity(true)
+                .build();
+
+        assertFalse("Task should not support persisted params",
+                task.supportsPersistedLaunchState());
+
+        final LaunchParamsModifier positioner = mock(LaunchParamsModifier.class);
+        mController.registerModifier(positioner);
+
+        final LaunchParams storedParams = new LaunchParams();
+        storedParams.mPreferredTaskDisplayArea = mock(TaskDisplayArea.class);
+        storedParams.mWindowingMode = WINDOWING_MODE_FREEFORM;
+        storedParams.mBounds.set(200, 300, 400, 500);
+        storedParams.mNeedsSafeRegionBounds = true;
+        storedParams.mIsTaskMoveDisallowed = true;
+
+        mPersister.putLaunchParams(userId, name, storedParams);
+
+        final LaunchParams loadedParams = new LaunchParams();
+        mPersister.getLaunchParams(task, task.topRunningActivity(), loadedParams);
+        // Params can be loaded for the task
+        assertEquals(storedParams, loadedParams);
+
+        mController.calculate(task, null /*layout*/, task.topRunningActivity(), null /*source*/,
+                null /*options*/, null /*request*/, PHASE_BOUNDS, new LaunchParams());
+        ArgumentCaptor<LaunchParams> currentParams = ArgumentCaptor.forClass(LaunchParams.class);
+        verify(positioner, times(1)).onCalculate(any(), any(), any(), any(), any(), any(),
+                anyInt(), currentParams.capture(), any());
+
+        // Loaded params are not used for this task as it does not support loading
+        assertNotEquals(storedParams, currentParams.getValue());
     }
 
     /**
@@ -424,7 +480,7 @@ public class LaunchParamsControllerTests extends WindowTestsBase {
 
         final ActivityRecord record = new ActivityBuilder(mAtm).build();
         final ActivityRecord source = new ActivityBuilder(mAtm).build();
-        final WindowLayout layout = new WindowLayout(0, 0, 0, 0, 0, 0, 0);
+        final WindowLayout layout = new LaunchParamsModifierTestsBase.WindowLayoutBuilder().build();
         final ActivityOptions options = mock(ActivityOptions.class);
 
         mController.calculate(record.getTask(), layout, record, source, options, null/*request*/,
@@ -557,7 +613,6 @@ public class LaunchParamsControllerTests extends WindowTestsBase {
      * Ensures that app bounds are set to exclude freeform caption if window is in freeform.
      */
     @Test
-    @EnableFlags(Flags.FLAG_EXCLUDE_CAPTION_FROM_APP_BOUNDS)
     public void testLayoutTaskBoundsFreeformAppBounds() {
         final Rect expected = new Rect(10, 20, 30, 40);
 

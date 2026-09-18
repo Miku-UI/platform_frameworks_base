@@ -23,16 +23,46 @@ import android.os.Bundle;
  * @hide
  */
 interface ICamMonitoringService {
-    // Register a listener for slot/CAM info updates.
+    /**
+     * Adds a listener to receive notifications for slot and CAM info updates.
+     *
+     * @param listener The ICamInfoListener to register for receiving notifications.
+     */
     void addCamInfoListener(in ICamInfoListener listener);
-    // Unregister a listener for slot/CAM info updates.
+    /**
+     * Removes a previously added listener for slot and CAM info updates.
+     *
+     * @param listener The ICamInfoListener to unregister.
+     */
     void removeCamInfoListener(in ICamInfoListener listener);
-    // Get CAM information for the specified slot.
+    /**
+     * Gets CAM information for the specified slot.
+     *
+     * @param slotId The ID or slot number where the CAM is being monitored.
+     * @return A Bundle containing CAM information, or null if the CAM is not inserted or the region
+     *         is unsupported. If not null, bundle should at least contain keys defined in
+     *         @CamConstants.CamInfoBundleKey.
+     */
     Bundle getCamInfo(int slotId);
-    // Get slot information.
+    /**
+     * Gets information for the specified slot.
+     *
+     * @param slotId The ID or slot number of the slot being monitored.
+     * @return A Bundle containing slot information, or null if the slot is invalid or CAM is not
+     *         supported. If not null, bundle should at least contain keys defined in
+     *         @CamConstants.CamSlotInfoBundleKey.
+     */
     Bundle getSlotInfo(int slotId);
-    // Returns list of slot Ids.
+    /**
+     * Returns a list of slot IDs.
+     *
+     * @return A list of slot IDs, or an empty list if CAM is not supported.
+     */
     int[] getSlotIds();
-    // Check if the country supports CAM.
+    /**
+     * Checks if CAM is supported in the current country.
+     *
+     * @return true if CAM is supported, false otherwise.
+     */
     boolean isCamSupported();
 }

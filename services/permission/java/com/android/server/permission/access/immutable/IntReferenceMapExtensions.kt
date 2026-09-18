@@ -54,6 +54,9 @@ inline fun <I : Immutable<M>, M : I> IntReferenceMap<I, M>.forEachReversedIndexe
     }
 }
 
+@Suppress("NOTHING_TO_INLINE")
+inline fun <I : Immutable<M>, M : I> IntReferenceMap<I, M>.isNotEmpty(): Boolean = !isEmpty()
+
 inline val <I : Immutable<M>, M : I> IntReferenceMap<I, M>.lastIndex: Int
     get() = size - 1
 

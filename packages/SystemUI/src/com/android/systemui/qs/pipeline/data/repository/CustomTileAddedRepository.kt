@@ -44,6 +44,8 @@ interface CustomTileAddedRepository {
     /** Mark as removed all the non-current tiles for [userId]. */
     fun removeNonCurrentTiles(currentTiles: List<ComponentName>, userId: Int)
 
+    fun removeTilesForPackage(packageName: String, userId: Int)
+
     /**
      * Get the current version of the underlying data for [userId]. This will return 1 if no version
      * has been set.
@@ -84,6 +86,17 @@ constructor(private val userFileManager: UserFileManager) : CustomTileAddedRepos
             sharedPreferences.all.filter { it.key.contains("/") && it.value is Boolean }.keys
         val nonCurrentTiles = tilesInFile.minus(currentTiles.map { it.flattenToString() }.toSet())
         sharedPreferences.edit { nonCurrentTiles.forEach { putBoolean(it, false) } }
+    }
+
+    override fun removeTilesForPackage(packageName: String, userId: Int) {
+        val sharedPreferences = getSharedPreferences(userId)
+        val tilesInFile =
+            sharedPreferences.all.filter { it.key.contains("/") && it.value is Boolean }.keys
+        val packageTiles =
+            tilesInFile
+                .mapNotNull { ComponentName.unflattenFromString(it) }
+                .filter { it.packageName == packageName }
+        sharedPreferences.edit { packageTiles.forEach { putBoolean(it.flattenToString(), false) } }
     }
 
     private fun getSharedPreferences(userId: Int): SharedPreferences {

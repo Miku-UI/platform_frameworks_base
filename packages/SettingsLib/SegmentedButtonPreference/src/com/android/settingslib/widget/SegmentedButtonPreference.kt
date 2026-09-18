@@ -17,6 +17,7 @@
 package com.android.settingslib.widget
 
 import android.content.Context
+import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
 import android.view.View
@@ -48,6 +49,20 @@ class SegmentedButtonPreference @JvmOverloads constructor(
     // Default checked button
     private var checkedIndex: Int = -1
 
+    // Internal button click listener to handle the button checked programmatically.
+    private val internalButtonClickListener =
+        object : MaterialButtonToggleGroup.OnButtonCheckedListener {
+            override fun onButtonChecked(
+                group: MaterialButtonToggleGroup,
+                checkedId: Int,
+                fromClick: Boolean
+            ) {
+                if (fromClick) {
+                    setCheckedIndex(group.indexOfChild(group.findViewById(checkedId)))
+                }
+            }
+        }
+
     init {
         layoutResource = R.layout.settingslib_expressive_preference_segmentedbutton
     }
@@ -58,6 +73,8 @@ class SegmentedButtonPreference @JvmOverloads constructor(
         holder.isDividerAllowedAbove = false
 
         buttonGroup = holder.findViewById(R.id.button_group) as MaterialButtonToggleGroup?
+        // Clear the button labels list and add the button labels from the holder.
+        buttonLabels.clear()
         buttonLabels.add(0, holder.findViewById(R.id.button_1_text) as TextView)
         buttonLabels.add(1, holder.findViewById(R.id.button_2_text) as TextView)
         buttonLabels.add(2, holder.findViewById(R.id.button_3_text) as TextView)
@@ -70,6 +87,8 @@ class SegmentedButtonPreference @JvmOverloads constructor(
         buttonGroup?.apply {
             clearOnButtonCheckedListeners()
             applyCheckIndex(checkedIndex)
+            // Add the internal button click listener to handle the button checked programmatically.
+            addOnButtonCheckedListener(internalButtonClickListener)
             buttonCheckedListener?.let { listener ->
                 addOnButtonCheckedListener(listener)
             }
@@ -97,6 +116,10 @@ class SegmentedButtonPreference @JvmOverloads constructor(
     }
 
     fun setCheckedIndex(index: Int) {
+        // If the index is already checked, do nothing.
+        if (index == checkedIndex) {
+            return
+        }
         checkedIndex = index
         notifyChanged()
     }
@@ -112,6 +135,7 @@ class SegmentedButtonPreference @JvmOverloads constructor(
     }
 
     fun removeOnButtonClickListener() {
+        buttonGroup?.clearOnButtonCheckedListeners()
         buttonCheckedListener = null
         notifyChanged()
     }
@@ -119,7 +143,7 @@ class SegmentedButtonPreference @JvmOverloads constructor(
     private fun applyButtonSetupData() {
         // The button group is default gone to avoid NullPointerException
         // if all children's visibility are GONE.
-        if(buttonSetupData.isNotEmpty()) {
+        if (buttonSetupData.isNotEmpty()) {
             buttonGroup?.isGone = false
         }
         for ((index, config) in buttonSetupData) {
@@ -147,6 +171,8 @@ class SegmentedButtonPreference @JvmOverloads constructor(
             is SegmentedButtonIcon.DrawableIcon ->
                 (buttonGroup?.getChildAt(index) as? MaterialButton)?.icon = icon.drawable
         }
+        // Set content description to avoid the button label is not read by TalkBack.
+        buttonGroup?.getChildAt(index)?.contentDescription = text
         buttonLabels[index].text = text
     }
 
@@ -170,11 +196,24 @@ class SegmentedButtonPreference @JvmOverloads constructor(
         }
 
         buttonGroup?.check(button.id)
+        // Bold the selected button label and make other button labels normal.
+        for (i in 0 until buttonLabels.size) {
+            if (i == index) {
+                buttonLabels[i].setTypeface(buttonLabels[i].typeface, Typeface.BOLD)
+            } else {
+                buttonLabels[i].setTypeface(
+                    Typeface.create(
+                        buttonLabels[i].typeface,
+                        Typeface.NORMAL
+                    )
+                )
+            }
+        }
     }
 
     private sealed interface SegmentedButtonIcon {
         data class DrawableIcon(val drawable: Drawable) : SegmentedButtonIcon
 
-        data class ResourceIcon(@DrawableRes val resId: Int) : SegmentedButtonIcon
+        data class ResourceIcon(@param:DrawableRes val resId: Int) : SegmentedButtonIcon
     }
 }

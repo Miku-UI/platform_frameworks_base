@@ -17,6 +17,7 @@ package com.android.hoststubgen.filters
 
 import com.android.hoststubgen.HostStubGenErrors
 import com.android.hoststubgen.HostStubGenInternalException
+import com.android.hoststubgen.asm.CTOR_NAME
 import com.android.hoststubgen.asm.ClassNodes
 import com.android.hoststubgen.asm.toHumanReadableClassName
 import com.android.hoststubgen.log
@@ -59,6 +60,12 @@ class SanitizationFilter(
                 errors.onErrorFound("Method $methodName$descriptor requires a redirection " +
                         "class set on ${className.toHumanReadableClassName()}")
             }
+        }
+        if (policy.policy == FilterPolicy.Ignore && methodName == CTOR_NAME) {
+            // TODO(b/448180616) Constructors must call super() or this(), so we can't support
+            // "ignore" on them, at least not easily.
+            errors.onErrorFound("'Ignore' policy can't be used on a constructor" +
+                    " in class ${className.toHumanReadableClassName()}")
         }
         return policy
     }

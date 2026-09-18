@@ -34,7 +34,7 @@ import java.lang.annotation.RetentionPolicy;
  * @deprecated Criteria based APIs are deprecated because they cannot fully capture the complexity
  *             of location providers, and encourage bad development practices. Prefer to explicit
  *             select the location provider of interest ({@link LocationManager#FUSED_PROVIDER},
- *             {@link LocationManager#GPS_PROVIDER, etc}), rather than relying on Criteria.
+ *             {@link LocationManager#GPS_PROVIDER}, etc), rather than relying on Criteria.
  */
 @Deprecated
 public class Criteria implements Parcelable {

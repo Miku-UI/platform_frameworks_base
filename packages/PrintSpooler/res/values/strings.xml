@@ -102,6 +102,9 @@
     <!-- Description for the print button - spoken to the user. [CHAR LIMIT=none] -->
     <string name="print_button">Print</string>
 
+    <!-- Description for the setup button - spoken to the user. [CHAR LIMIT=none] -->
+    <string name="setup_button">Set up</string>
+
     <!-- Description for the save to PDF button - spoken to the user. [CHAR LIMIT=none] -->
     <string name="savetopdf_button">Save to PDF</string>
 

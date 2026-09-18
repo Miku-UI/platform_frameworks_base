@@ -39,7 +39,6 @@ import android.view.WindowManager.LayoutParams.WindowType;
 import android.view.WindowManagerImpl;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.window.flags.Flags;
 
 import java.lang.ref.Reference;
 
@@ -122,13 +121,11 @@ public class WindowContext extends ContextWrapper implements WindowProvider,
      * called.
      */
     public void reparentToDisplay(int displayId) {
-        if (Flags.reparentWindowTokenApi()) {
-            if (displayId == getDisplayId()) {
-                return;
-            }
-            super.updateDisplay(displayId);
-            mController.reparentToDisplayArea(mType, displayId, mOptions);
+        if (displayId == getDisplayId()) {
+            return;
         }
+        super.updateDisplay(displayId);
+        mController.reparentToDisplayArea(mType, displayId, mOptions);
     }
 
     @Override

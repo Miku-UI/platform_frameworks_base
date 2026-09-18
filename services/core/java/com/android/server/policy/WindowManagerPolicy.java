@@ -22,6 +22,7 @@ import static android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_MAGNIFI
 import static android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ABOVE_SUB_PANEL;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG;
+import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_CAPTION_BAR;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_MEDIA;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_MEDIA_OVERLAY;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
@@ -62,8 +63,6 @@ import static android.view.WindowManager.LayoutParams.TYPE_VOLUME_OVERLAY;
 import static android.view.WindowManager.LayoutParams.TYPE_WALLPAPER;
 import static android.view.WindowManager.LayoutParams.isSystemAlertWindowType;
 
-import static java.lang.annotation.RetentionPolicy.SOURCE;
-
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -86,16 +85,17 @@ import android.view.KeyboardShortcutGroup;
 import android.view.WindowManager;
 import android.view.WindowManagerGlobal;
 import android.view.WindowManagerPolicyConstants;
-import android.view.animation.Animation;
 
 import com.android.internal.policy.IKeyguardDismissCallback;
 import com.android.internal.policy.IShortcutService;
+import com.android.server.policy.keyguard.KeyguardServiceDelegate;
 import com.android.server.wm.DisplayRotation;
 
 import java.io.PrintWriter;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * This interface supplies all UI-specific behavior of the window manager.  An
@@ -137,9 +137,6 @@ import java.util.List;
  * </dl>
  */
 public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
-    @Retention(SOURCE)
-    @IntDef({NAV_BAR_LEFT, NAV_BAR_RIGHT, NAV_BAR_BOTTOM})
-    @interface NavigationBarPosition {}
 
     /**
      * Pass this event to the user / app.  To be returned from
@@ -174,13 +171,19 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
      * Commit any queued changes to keyguard occlude status that had been deferred during the
      * start of an animation or transition.
      */
-    int applyKeyguardOcclusionChange();
+    void applyKeyguardOcclusionChange();
 
     /**
      * Shows the keyguard immediately if not already shown.
      * Does NOT immediately request the device to lock.
      */
     void showDismissibleKeyguard();
+
+    /**
+     * Return the KeyguardServiceDelegate instance. System Server uses this for granular keyguard
+     * logic control.
+     */
+    KeyguardServiceDelegate getKeyguardServiceDelegate();
 
     /**
      * Interface to the Window Manager state associated with a particular
@@ -365,6 +368,11 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
          * Returns whether the display with the given ID is trusted.
          */
         boolean isDisplayTrusted(int displayId);
+
+        /**
+         * Resets the flag indicating if the first keyguard locked state has been dispatched.
+         */
+        void resetFirstKeyguardLockedStateDispatched();
     }
 
     /**
@@ -381,9 +389,6 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
     public static final int TRANSIT_EXIT = 2;
     /** Window has been made visible. */
     public static final int TRANSIT_SHOW = 3;
-    /** Window has been made invisible.
-     * TODO: Consider removal as this is unused. */
-    public static final int TRANSIT_HIDE = 4;
     /** The "application starting" preview window is no longer needed, and will
      * animate away to show the real window. */
     public static final int TRANSIT_PREVIEW_DONE = 5;
@@ -542,18 +547,13 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
             case TYPE_SYSTEM_DIALOG:
                 return  6;
             case TYPE_TOAST:
-                if (Flags.bugToastsOnTopOfBubble()) {
-                    // system added toasts must be on top of any always-on-top windows.
-                    // toasts and the plugged-in battery thing
-                    // canAddInternalSystemWindow is to distinguish between legacy toasts and ones
-                    // managed by the system. A legacy toast can have an arbitrary view and tap jack
-                    // other views. Toasts are given low priority to prevent this. Toasts added by
-                    // the system are safe and can have higher visibility.
-                    return canAddInternalSystemWindow ? 27 : 7;
-                } else {
-                    // toasts and the plugged-in battery thing
-                    return 7;
-                }
+                // system added toasts must be on top of any always-on-top windows.
+                // toasts and the plugged-in battery thing
+                // canAddInternalSystemWindow is to distinguish between legacy toasts and ones
+                // managed by the system. A legacy toast can have an arbitrary view and tap jack
+                // other views. Toasts are given low priority to prevent this. Toasts added by
+                // the system are safe and can have higher visibility.
+                return canAddInternalSystemWindow ? 27 : 7;
             case TYPE_PRIORITY_PHONE:
                 // SIM errors and unlock.  Not sure if this really should be in a high layer.
                 return  8;
@@ -659,6 +659,7 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
     default int getSubWindowLayerFromTypeLw(int type) {
         switch (type) {
             case TYPE_APPLICATION_PANEL:
+            case TYPE_APPLICATION_CAPTION_BAR:
             case TYPE_APPLICATION_ATTACHED_DIALOG:
                 return APPLICATION_PANEL_SUBLAYER;
             case TYPE_APPLICATION_MEDIA:
@@ -679,18 +680,6 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
      * the StatusBar.
      */
     public boolean isKeyguardHostWindow(WindowManager.LayoutParams attrs);
-
-    /**
-     * Create and return an animation to re-display a window that was force hidden by Keyguard.
-     */
-    public Animation createHiddenByKeyguardExit(boolean onWallpaper,
-            boolean goingToNotificationShade, boolean subtleAnimation);
-
-    /**
-     * Create and return an animation to let the wallpaper disappear after being shown behind
-     * Keyguard.
-     */
-    public Animation createKeyguardWallpaperExit(boolean goingToNotificationShade);
 
     /**
      * Called from the input reader thread before a key is enqueued.
@@ -815,8 +804,13 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
      * @param pmWakeReason One of PowerManager.WAKE_REASON_*, detailing the specific reason this
      *                     display group is waking up, such as WAKE_REASON_POWER_BUTTON or
      *                     WAKE_REASON_GESTURE.
+     * @param anyDefaultOrAdjacentGroupInteractive {@code true} if the default display group or any
+     *     adjacent display group is interactive at the time this event has been registered.
      */
-    void startedWakingUp(int displayGroupId, @PowerManager.WakeReason int pmWakeReason);
+    void startedWakingUp(
+            int displayGroupId,
+            @PowerManager.WakeReason int pmWakeReason,
+            boolean anyDefaultOrAdjacentGroupInteractive);
 
     /**
      * Called when the device has finished waking up.
@@ -841,8 +835,13 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
      * @param pmSleepReason One of PowerManager.GO_TO_SLEEP_REASON_*, detailing the specific reason
      *                      this display group is going to sleep, such as
      *                      GO_TO_SLEEP_REASON_POWER_BUTTON or GO_TO_SLEEP_REASON_TIMEOUT.
+     * @param anyDefaultOrAdjacentGroupInteractive {@code true} if the default display group or any
+     *     adjacent display group is interactive at the time this event has been registered.
      */
-    void startedGoingToSleep(int displayGroupId, @PowerManager.GoToSleepReason int pmSleepReason);
+    void startedGoingToSleep(
+            int displayGroupId,
+            @PowerManager.GoToSleepReason int pmSleepReason,
+            boolean anyDefaultOrAdjacentGroupInteractive);
 
     /**
      * Called when the device has finished going to sleep.
@@ -955,20 +954,13 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
     public void enableKeyguard(boolean enabled);
 
     /**
-     * Callback used by {@link #exitKeyguardSecurely}
-     */
-    interface OnKeyguardExitResult {
-        void onKeyguardExitResult(boolean success);
-    }
-
-    /**
      * Tell the policy if anyone is requesting the keyguard to exit securely
      * (this would be called after the keyguard was disabled)
      * @param callback Callback to send the result back.
-     * @see android.app.KeyguardManager#exitKeyguardSecurely(android.app.KeyguardManager.OnKeyguardExitResult)
+     * @see android.app.KeyguardManager#exitKeyguardSecurely(java.util.function.Consumer)
      */
     @SuppressWarnings("javadoc")
-    void exitKeyguardSecurely(OnKeyguardExitResult callback);
+    void exitKeyguardSecurely(@NonNull Consumer<Boolean> callback);
 
     /**
      * isKeyguardLocked
@@ -1080,18 +1072,6 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
     public void enableScreenAfterBoot();
 
     /**
-     * Called when we have started keeping the screen on because a window
-     * requesting this has become visible.
-     */
-    public void keepScreenOnStartedLw();
-
-    /**
-     * Called when we have stopped keeping the screen on because the last window
-     * requesting this is no longer visible.
-     */
-    public void keepScreenOnStoppedLw();
-
-    /**
      * Called by System UI to notify of changes to the visibility of Recents.
      */
     public void setRecentsVisibilityLw(boolean visible);
@@ -1126,6 +1106,17 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
      */
     default void setDismissImeOnBackKeyPressed(boolean newValue) {
         // Default implementation does nothing.
+    }
+
+    /**
+     * An internal getter to check whether the back key should dismiss the software keyboard (IME)
+     * or not. Also see {@link #setDismissImeOnBackKeyPressed}.
+     *
+     * @hide
+     */
+    // TODO(b/454308783): remove this and use IMMS's listener once it is ready.
+    default boolean getDismissImeOnBackKeyPressed() {
+        return false;
     }
 
     /**
@@ -1255,4 +1246,10 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
      * @return {@code true} if the key will be handled globally.
      */
     boolean isGlobalKey(int keyCode);
+
+    /**
+     * Inject a {@link SingleKeyGestureDetector.SingleKeyRule} for customized key gesture handling.
+     * @param singleKeyRule The rule to inject.
+     */
+    void addSingleKeyRule(@NonNull SingleKeyGestureDetector.SingleKeyRule singleKeyRule);
 }

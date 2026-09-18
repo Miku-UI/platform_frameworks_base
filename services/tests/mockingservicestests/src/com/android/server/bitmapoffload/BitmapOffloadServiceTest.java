@@ -102,6 +102,20 @@ public class BitmapOffloadServiceTest {
     }
 
     @Test
+    public void testRemoveBitmap() {
+        final Uri offloadUri = ContentUris.withAppendedId(BitmapOffloadContract.CONTENT_URI, 0);
+
+        mService.mInternalService.removeBitmap(offloadUri);
+        waitForIdle();
+
+        verify(mResolver).delete(eq(offloadUri), any(), any());
+    }
+
+    private void waitForIdle() {
+        mService.mOffloadThread.getThreadHandler().runWithScissors(() -> { }, 5000);
+    }
+
+    @Test
     public void testRegisterAndExecutePermissionHandler() {
         final Uri offloadUri = ContentUris.withAppendedId(BitmapOffloadContract.CONTENT_URI, 0);
 

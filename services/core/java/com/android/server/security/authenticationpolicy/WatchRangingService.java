@@ -138,6 +138,8 @@ public class WatchRangingService implements WatchRangingServiceInternal {
                                 + "isProximityCheckingAvailable triggered");
                         onError(proximityResultCallback,
                                 ProximityResultCode.PRIMARY_DEVICE_RANGING_NOT_SUPPORTED);
+                    } finally {
+                        unbindProximityProviderService();
                     }
                 }));
     }
@@ -197,6 +199,7 @@ public class WatchRangingService implements WatchRangingServiceInternal {
 
     private void bindAndStartWatchRanging(long authenticationRequestId,
             IProximityResultCallback proximityResultCallback) {
+        //TODO (b/462220322): Wrap proximityResultCallback and unbind when callback is triggered
         Slog.d(TAG, "Binding to ProximityProviderService and starting watch ranging");
         bindAndStartRequest(proximityResultCallback, ProximityResultCode.NO_ASSOCIATED_DEVICE,
                 proximityProviderService -> {

@@ -16,7 +16,6 @@
 
 package com.android.systemui.qs.pipeline.domain.upgrade
 
-import com.android.systemui.Flags.resetTilesRemovesCustomTiles
 import com.android.systemui.qs.pipeline.data.repository.CustomTileAddedRepository
 import com.android.systemui.qs.pipeline.domain.interactor.CurrentTilesInteractor
 import com.android.systemui.qs.pipeline.shared.TileSpec
@@ -28,10 +27,6 @@ import kotlinx.coroutines.flow.first
 class RemoveAlreadyRemovedTiles
 @Inject
 constructor(private val currentTilesInteractor: CurrentTilesInteractor) : CustomTileAddedUpgrade {
-
-    init {
-        check(resetTilesRemovesCustomTiles())
-    }
 
     override val version: Int
         get() = 2

@@ -16,9 +16,7 @@
 
 package com.android.wm.shell.repository
 
-/**
- * In memory [GenericRepository] implementation.
- */
+/** In memory [GenericRepository] implementation. */
 class MemoryRepositoryImpl<Key, Item>(private val logger: (String) -> Unit = { _ -> }) :
     GenericRepository<Key, Item> {
 
@@ -26,11 +24,7 @@ class MemoryRepositoryImpl<Key, Item>(private val logger: (String) -> Unit = { _
 
     override fun find(key: Key): Item? = memoryStore[key]
 
-    override fun insert(
-        key: Key,
-        item: Item,
-        overrideIfPresent: Boolean
-    ): Boolean {
+    override fun insert(key: Key, item: Item, overrideIfPresent: Boolean): Boolean {
         if (find(key) != null && !overrideIfPresent) {
             return false
         }
@@ -38,11 +32,7 @@ class MemoryRepositoryImpl<Key, Item>(private val logger: (String) -> Unit = { _
         return true
     }
 
-    override fun insert(
-        key: Key,
-        itemFactory: () -> Item,
-        overrideIfPresent: Boolean
-    ): Boolean {
+    override fun insert(key: Key, itemFactory: () -> Item, overrideIfPresent: Boolean): Boolean {
         if (find(key) != null && !overrideIfPresent) {
             return false
         }

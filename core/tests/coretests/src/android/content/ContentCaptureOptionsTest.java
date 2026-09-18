@@ -56,7 +56,6 @@ public class ContentCaptureOptionsTest {
                     /* idleFlushingFrequencyMs= */ 1002,
                     /* textChangeFlushingFrequencyMs= */ 1003,
                     /* logHistorySize= */ 1004,
-                    /* disableFlushForViewTreeAppearing= */ true,
                     /* enableReceiver= */ false,
                     new ContentCaptureOptions.ContentProtectionOptions(
                             /* enableReceiver= */ true,
@@ -133,8 +132,6 @@ public class ContentCaptureOptionsTest {
                         .append(CONTENT_CAPTURE_OPTIONS.textChangeFlushingFrequencyMs)
                         .append(", logHistorySize=")
                         .append(CONTENT_CAPTURE_OPTIONS.logHistorySize)
-                        .append(", disableFlushForViewTreeAppearing=")
-                        .append(CONTENT_CAPTURE_OPTIONS.disableFlushForViewTreeAppearing)
                         .append(", enableReceiver=")
                         .append(CONTENT_CAPTURE_OPTIONS.enableReceiver)
                         .append(", contentProtectionOptions=ContentProtectionOptions [")
@@ -179,8 +176,6 @@ public class ContentCaptureOptionsTest {
         assertThat(actual.textChangeFlushingFrequencyMs)
                 .isEqualTo(CONTENT_CAPTURE_OPTIONS.textChangeFlushingFrequencyMs);
         assertThat(actual.logHistorySize).isEqualTo(CONTENT_CAPTURE_OPTIONS.logHistorySize);
-        assertThat(actual.disableFlushForViewTreeAppearing)
-                .isEqualTo(CONTENT_CAPTURE_OPTIONS.disableFlushForViewTreeAppearing);
         assertThat(actual.enableReceiver).isEqualTo(CONTENT_CAPTURE_OPTIONS.enableReceiver);
         assertThat(actual.contentProtectionOptions).isNotNull();
         assertThat(actual.contentProtectionOptions.enableReceiver)

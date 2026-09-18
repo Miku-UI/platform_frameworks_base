@@ -40,7 +40,6 @@ import static android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE;
 import static android.view.WindowManager.LayoutParams.SOFT_INPUT_MASK_ADJUST;
 import static android.view.WindowManager.LayoutParams.TYPE_SYSTEM_ERROR;
 import static android.view.WindowManager.LayoutParams.TYPE_WALLPAPER;
-import static android.window.DesktopModeFlags.ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION_ALWAYS;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -164,8 +163,7 @@ public class InsetsState implements Parcelable {
                 forceConsumingTypes |= type;
             }
 
-            if (ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION_ALWAYS.isTrue()
-                    && (flags & FLAG_FORCE_CONSUMING_OPAQUE_CAPTION_BAR) != 0) {
+            if ((flags & FLAG_FORCE_CONSUMING_OPAQUE_CAPTION_BAR) != 0) {
                 forceConsumingOpaqueCaptionBar = true;
             }
 
@@ -324,7 +322,8 @@ public class InsetsState implements Parcelable {
     @NonNull
     public Insets calculateVisibleInsets(@NonNull Rect frame, @Nullable Rect hostBounds,
             @WindowType int windowType, @ActivityType int activityType,
-            @SoftInputModeFlags int softInputMode, @Flags int windowFlags) {
+            @SoftInputModeFlags int softInputMode, @Flags int windowFlags,
+            @InsetsType int ignoringTypes) {
         final int softInputAdjustMode = softInputMode & SOFT_INPUT_MASK_ADJUST;
         final int visibleInsetsTypes = softInputAdjustMode != SOFT_INPUT_ADJUST_NOTHING
                 ? systemBars() | displayCutout() | ime()
@@ -335,6 +334,9 @@ public class InsetsState implements Parcelable {
         for (int i = mSources.size() - 1; i >= 0; i--) {
             final InsetsSource source = mSources.valueAt(i);
             if ((source.getType() & visibleInsetsTypes) == 0) {
+                continue;
+            }
+            if ((source.getType() & ignoringTypes) != 0) {
                 continue;
             }
             if (source.hasFlags(FLAG_FORCE_CONSUMING)) {
@@ -383,7 +385,8 @@ public class InsetsState implements Parcelable {
             @Nullable @InternalInsetsSide SparseIntArray idSideMap,
             @Nullable boolean[] typeVisibilityMap, Rect[][] typeBoundingRectsMap) {
         final Insets insets = source.calculateInsets(relativeFrame, hostBounds, ignoreVisibility);
-        final Rect[] boundingRects = source.calculateBoundingRects(relativeFrame, ignoreVisibility);
+        final Rect[] boundingRects = source.calculateBoundingRects(relativeFrame, hostBounds,
+                ignoreVisibility);
 
         final int type = source.getType();
         processSourceAsPublicType(source, typeInsetsMap, idSideMap, typeVisibilityMap,
@@ -636,12 +639,7 @@ public class InsetsState implements Parcelable {
         mPrivacyIndicatorBounds = mPrivacyIndicatorBounds.scale(scale);
         mDisplayShape = mDisplayShape.setScale(scale);
         for (int i = mSources.size() - 1; i >= 0; i--) {
-            final InsetsSource source = mSources.valueAt(i);
-            source.getFrame().scale(scale);
-            final Rect visibleFrame = source.getVisibleFrame();
-            if (visibleFrame != null) {
-                visibleFrame.scale(scale);
-            }
+            mSources.valueAt(i).scale(scale);
         }
     }
 
@@ -744,11 +742,17 @@ public class InsetsState implements Parcelable {
         }
     }
 
-    void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId) {
+    /**
+     * Write to a protocol buffer output stream.
+     * Protocol buffer message definition at {@link InsetsStateProto}
+     *
+     * @param proto Stream to write the InsetsState object to.
+     * @param fieldId Field Id of the InsetsState as defined in the parent message.
+     */
+    public void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId) {
         final long token = proto.start(fieldId);
-        final InsetsSource source = mSources.get(InsetsSource.ID_IME);
-        if (source != null) {
-            source.dumpDebug(proto, SOURCES);
+        for (int i = 0, size = mSources.size(); i < size; i++) {
+            mSources.valueAt(i).dumpDebug(proto, SOURCES);
         }
         mDisplayFrame.dumpDebug(proto, DISPLAY_FRAME);
         mDisplayCutout.get().dumpDebug(proto, DISPLAY_CUTOUT);

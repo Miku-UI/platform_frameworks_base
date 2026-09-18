@@ -92,6 +92,21 @@ public class PowerStatsStoreTest {
         assertThat(getDirectorySize(mStoreDirectory)).isEqualTo(0);
     }
 
+    @Test
+    public void getStorageSize() throws Exception {
+        assertThat(mPowerStatsStore.getStorageSize()).isEqualTo(0L);
+
+        for (int i = 0; i < 3; i++) {
+            PowerStatsSpan span = new PowerStatsSpan(i);
+            span.addSection(new TestSection(i, 42));
+            mPowerStatsStore.storePowerStatsSpan(span);
+        }
+
+        assertThat(mPowerStatsStore.getStorageSize()).isGreaterThan(0L);
+        assertThat(mPowerStatsStore.getStorageSize())
+                .isEqualTo(getDirectorySize(new File(mStoreDirectory, "power-stats")));
+    }
+
     private void clearDirectory(File dir) {
         if (dir.exists()) {
             for (File child : dir.listFiles()) {

@@ -48,11 +48,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
 import com.android.compose.windowsizeclass.LocalWindowSizeClass
+import com.android.systemui.Flags
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.Error
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.Finished
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.InProgress
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.InProgressAfterError
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.NotStarted
+import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.PartialSuccess
 import com.android.systemui.keyboard.shortcut.ui.composable.hasCompactWindowSize
 
 sealed interface TutorialActionState {
@@ -63,6 +65,8 @@ sealed interface TutorialActionState {
         override val startMarker: String? = null,
         override val endMarker: String? = null,
     ) : TutorialActionState, Progress
+
+    data object PartialSuccess : TutorialActionState
 
     data class Finished(@RawRes val successAnimation: Int) : TutorialActionState
 
@@ -86,6 +90,7 @@ sealed interface TutorialActionState {
                     when (map[classKey] as? String) {
                         NotStarted::class.java.name,
                         InProgress::class.java.name -> NotStarted
+                        PartialSuccess::class.java.name -> PartialSuccess
                         Error::class.java.name,
                         InProgressAfterError::class.java.name -> Error
                         Finished::class.java.name -> Finished(map[successAnimationKey]!! as Int)
@@ -134,9 +139,12 @@ fun ActionTutorialContent(
             }
         }
         val buttonAlpha by animateFloatAsState(if (actionState is Finished) 1f else 0f)
+        val padding = if (isCompactWindow) 24.dp else 48.dp
         DoneButton(
             onDoneButtonClicked = onDoneButtonClicked,
-            modifier = Modifier.padding(horizontal = 60.dp).graphicsLayer { alpha = buttonAlpha },
+            modifier =
+                Modifier.padding(start = padding, top = 0.dp, end = padding, bottom = 32.dp)
+                    .graphicsLayer { alpha = buttonAlpha },
             enabled = actionState is Finished,
             isNext = onAutoProceed != null,
         )
@@ -203,6 +211,24 @@ fun TutorialDescription(
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
     val (titleTextId, bodyTextId) =
         when (actionState) {
+            is PartialSuccess ->
+                if (Flags.touchpadGestureTutorialBugFixes()) {
+                    if (
+                        config.strings.titlePartialSuccessResId == null ||
+                            config.strings.bodyPartialSuccessResId == null
+                    ) {
+                        // If we reach a PartialSuccess state but don't have the needed strings,
+                        // show the error text
+                        config.strings.titleErrorResId to config.strings.bodyErrorResId
+                    } else {
+                        config.strings.titlePartialSuccessResId to
+                            config.strings.bodyPartialSuccessResId
+                    }
+                } else {
+                    // Default to the finished state if the flag isn't enabled but we somehow find
+                    // ourselves processing a partial success state
+                    config.strings.titleSuccessResId to config.strings.bodySuccessResId
+                }
             is Finished -> config.strings.titleSuccessResId to config.strings.bodySuccessResId
             Error,
             is InProgressAfterError ->

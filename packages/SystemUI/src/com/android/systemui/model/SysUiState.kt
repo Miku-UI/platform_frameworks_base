@@ -15,14 +15,18 @@
  */
 package com.android.systemui.model
 
+import android.os.Build
 import android.util.Log
 import android.view.Display
 import com.android.app.displaylib.PerDisplayInstanceProviderWithTeardown
+import com.android.app.tracing.traceSection
 import com.android.systemui.Dumpable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dump.DumpManager
+import com.android.systemui.log.table.Diffable
+import com.android.systemui.log.table.TableLogBufferFactory
+import com.android.systemui.log.table.TableRowLogger
 import com.android.systemui.model.SysUiState.SysUiStateCallback
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import com.android.systemui.shared.system.QuickStepContract
 import com.android.systemui.shared.system.QuickStepContract.SystemUiStateFlags
 import com.android.systemui.shared.system.QuickStepContract.getSystemUiStateString
@@ -32,6 +36,7 @@ import dagger.assisted.AssistedInject
 import dalvik.annotation.optimization.NeverCompile
 import java.io.PrintWriter
 import java.lang.Long.bitCount
+import java.lang.Long.lowestOneBit
 import javax.inject.Inject
 
 /** Contains sysUi state flags and notifies registered listeners whenever changes happen. */
@@ -86,10 +91,14 @@ interface SysUiState : Dumpable {
 
     companion object {
         const val DEBUG: Boolean = false
+        const val TABLE_LOG_TAG = "state"
     }
 }
 
 private const val TAG = "SysUIState"
+
+// to enable: "adb shell setprop log.tag.SysUIState VERBOSE". It will output many stacktraces.
+private val VERBOSE_DEBUG = SysUiState.DEBUG || Log.isLoggable(TAG, Log.VERBOSE)
 
 open class SysUiStateImpl
 @AssistedInject
@@ -98,7 +107,14 @@ constructor(
     private val sceneContainerPlugin: SceneContainerPlugin?,
     private val dumpManager: DumpManager,
     private val stateDispatcher: SysUIStateDispatcher,
+    logBufferFactory: TableLogBufferFactory,
 ) : SysUiState {
+
+    private val tableLogBuffer = logBufferFactory.getOrCreate("SysUiState-$displayId", 1000)
+
+    // Used for logging diffs.
+    private val logParams = SysUiStateParams(0)
+    private val logPrevParams = SysUiStateParams(0)
 
     private val debugName
         get() = "SysUiStateImpl-ForDisplay=$displayId"
@@ -134,10 +150,19 @@ constructor(
 
     /** Methods to this call can be chained together before calling [.commitUpdate]. */
     override fun setFlag(@SystemUiStateFlags flag: Long, enabled: Boolean): SysUiState {
-        if (ShadeWindowGoesAround.isEnabled && bitCount(flag) > 1) {
+        if (bitCount(flag) > 1) {
             error("Flags should be a single bit.")
         }
         val toSet = flagWithOptionalOverrides(flag, enabled, displayId, sceneContainerPlugin)
+        if (VERBOSE_DEBUG) {
+            val overrideString =
+                if (toSet != enabled) " (was $enabled before optional overrides)" else ""
+            Log.v(
+                TAG,
+                "setFlag: flag=${getSystemUiStateString(flag)} enabled=$toSet$overrideString",
+                Throwable(),
+            )
+        }
         stateChange.setFlag(flag, toSet)
         return this
     }
@@ -159,16 +184,30 @@ constructor(
     /** Notify all those who are registered that the state has changed. */
     private fun notifyAndSetSystemUiStateChanged(newFlags: Long, oldFlags: Long) {
         if (newFlags != oldFlags) {
-            if (SysUiState.DEBUG) {
+            if (VERBOSE_DEBUG) {
                 Log.d(
                     TAG,
                     "SysUiState changed for displayId=$displayId: " +
-                            "old=${getSystemUiStateString(oldFlags)} " +
-                            "new=${getSystemUiStateString(newFlags)}",
+                        "old=${getSystemUiStateString(oldFlags)} " +
+                        "new=${getSystemUiStateString(newFlags)}",
+                    Throwable(),
                 )
             }
+
+            logIfNeeded(newFlags = newFlags, oldFlags = oldFlags)
+
             _flags = newFlags
             stateDispatcher.dispatchSysUIStateChange(newFlags, displayId)
+        }
+    }
+
+    private inline fun logIfNeeded(newFlags: Long, oldFlags: Long) {
+        if (!Build.IS_DEBUGGABLE) return
+
+        traceSection("SysUIState#logging-diffs") {
+            logParams.flags = newFlags
+            logPrevParams.flags = oldFlags
+            tableLogBuffer.logDiffs(SysUiState.TABLE_LOG_TAG, logPrevParams, logParams)
         }
     }
 
@@ -177,7 +216,7 @@ constructor(
         pw.println("SysUiState state:")
         pw.print("  mSysUiStateFlags=")
         pw.println(flags)
-        pw.println("    " + QuickStepContract.getSystemUiStateString(flags))
+        pw.println("    " + getSystemUiStateString(flags))
         pw.print("    backGestureDisabled=")
         pw.println(QuickStepContract.isBackGestureDisabled(flags, false /* forTrackpad */))
         pw.print("    assistantGestureDisabled=")
@@ -198,6 +237,38 @@ constructor(
 
     companion object {
         private val TAG: String = SysUiState::class.java.simpleName
+    }
+}
+
+/** Wrapper for [SysUiState.flags] to provide diffing capabilities for [TableRowLogger]. */
+private class SysUiStateParams(var flags: Long) : Diffable<SysUiStateParams> {
+    override fun logDiffs(prevVal: SysUiStateParams, row: TableRowLogger) {
+        val newFlags = flags
+        val oldFlags = prevVal.flags
+        if (newFlags == oldFlags) return
+
+        var diff = newFlags xor oldFlags
+        // Efficiently iterate over each changed bit by isolating the lowest set bit in each pass.
+        while (diff != 0L) {
+            val mask = lowestOneBit(diff)
+            val flagName = getSystemUiStateString(mask)
+            if (flagName.isNotEmpty()) {
+                val isEnabled = (newFlags and mask) != 0L
+                row.logChange(flagName, isEnabled)
+            }
+            diff = diff and mask.inv()
+        }
+    }
+
+    override fun logFull(row: TableRowLogger) {
+        for (i in 0 until Long.SIZE_BITS) {
+            val mask = 1L shl i
+            val flagName = getSystemUiStateString(mask)
+            if (flagName.isNotEmpty()) {
+                val isEnabled = (flags and mask) != 0L
+                row.logChange(flagName, isEnabled)
+            }
+        }
     }
 }
 

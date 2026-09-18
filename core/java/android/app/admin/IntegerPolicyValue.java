@@ -27,6 +27,14 @@ import java.util.Objects;
  */
 public final class IntegerPolicyValue extends PolicyValue<Integer> {
 
+    /**
+     * Creates a IntegerPolicyValue unless {@link value} is equal to {@link defaultValue}, in which
+     * case this method returns null.
+     */
+    public static @Nullable IntegerPolicyValue createIfNotDefault(int value, int defaultValue) {
+        return value == defaultValue ? null : new IntegerPolicyValue(value);
+    }
+
     public IntegerPolicyValue(int value) {
         super(value);
     }

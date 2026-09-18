@@ -60,6 +60,8 @@ public class WatchRangingHelperTest {
     private IAuthenticationPolicyService mAuthenticationPolicyService;
     @Mock
     private Context mContext;
+    @Mock
+    private WatchRangingHelper.WatchRangingListener mWatchRangingListener;
 
     private ArgumentCaptor<IProximityResultCallback> mProximityResultCallbackArgumentCaptor;
     private WatchRangingHelper mWatchRangingHelper;
@@ -70,7 +72,7 @@ public class WatchRangingHelperTest {
                 new AuthenticationPolicyManager(mContext, mAuthenticationPolicyService);
         mWatchRangingHelper = new WatchRangingHelper(AUTHENTICATION_REQUEST_ID,
                 authenticationPolicyManager, new Handler(TestableLooper.get(this).getLooper()),
-                watchRangingState -> {});
+                mWatchRangingListener);
         mProximityResultCallbackArgumentCaptor = ArgumentCaptor.forClass(
                 IProximityResultCallback.class);
     }
@@ -79,7 +81,7 @@ public class WatchRangingHelperTest {
     public void testNullAuthenticationPolicyManager() {
         mWatchRangingHelper = new WatchRangingHelper(AUTHENTICATION_REQUEST_ID,
                 null, new Handler(TestableLooper.get(this).getLooper()),
-                watchRangingState -> {});
+                mWatchRangingListener);
 
         mWatchRangingHelper.startWatchRanging();
 
@@ -94,6 +96,8 @@ public class WatchRangingHelperTest {
 
         verify(mAuthenticationPolicyService).startWatchRangingForIdentityCheck(
                 eq(AUTHENTICATION_REQUEST_ID), any());
+        verify(mWatchRangingListener).onStateChanged(eq(WatchRangingState.WATCH_RANGING_STARTED),
+                eq(ProximityResultCode.UNKNOWN));
         assertThat(mWatchRangingHelper.getWatchRangingState()).isEqualTo(
                 WatchRangingState.WATCH_RANGING_STARTED);
     }
@@ -112,6 +116,8 @@ public class WatchRangingHelperTest {
 
         verify(mAuthenticationPolicyService).cancelWatchRangingForRequestId(
                 AUTHENTICATION_REQUEST_ID);
+        verify(mWatchRangingListener).onStateChanged(eq(WatchRangingState.WATCH_RANGING_STOPPED),
+                eq(ProximityResultCode.NO_RANGING_RESULT));
         assertThat(mWatchRangingHelper.getWatchRangingState()).isEqualTo(
                 WatchRangingState.WATCH_RANGING_STOPPED);
     }
@@ -130,6 +136,8 @@ public class WatchRangingHelperTest {
 
         verify(mAuthenticationPolicyService).cancelWatchRangingForRequestId(
                 AUTHENTICATION_REQUEST_ID);
+        verify(mWatchRangingListener).onStateChanged(eq(WatchRangingState.WATCH_RANGING_SUCCESSFUL),
+                eq(0));
         assertThat(mWatchRangingHelper.getWatchRangingState()).isEqualTo(
                 WatchRangingState.WATCH_RANGING_SUCCESSFUL);
     }

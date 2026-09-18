@@ -20,10 +20,4 @@ package com.android.wm.shell.compatui.api
 interface CompatUIRequest {
     /** Unique request identifier */
     val requestId: Int
-
-    @Suppress("UNCHECKED_CAST") fun <T : CompatUIRequest> asType(): T? = this as? T
-
-    fun <T : CompatUIRequest> asType(clazz: Class<T>): T? {
-        return if (clazz.isInstance(this)) clazz.cast(this) else null
-    }
 }

@@ -109,22 +109,19 @@ public class OriginTransitionSession {
                 if (!mExitTransitionMap.isEmpty()) {
                     int index = 0;
                     final List<RemoteTransition> transitions = new ArrayList<>();
-                    final List<TransitionFilter> filters = new ArrayList<>();
                     for (Map.Entry<IRemoteTransition, TransitionFilter> entry
                             : mExitTransitionMap.entrySet()) {
                         transitions.add(new RemoteTransition(
-                                entry.getKey(), mName + "-exit:" + index));
-                        filters.add(entry.getValue());
+                                entry.getKey(), null, mName + "-exit:" + index, entry.getValue()));
                         logD("mapping exit transition[" + index + "]: "
                                 + entry.getKey() + " and filter: " + entry.getValue());
                         index++;
                     }
                     remoteTransition =
                             mOriginTransition =
-                                    mOriginTransitions.makeOriginTransitionWithReturnFilters(
+                                    mOriginTransitions.makeOriginTransitions(
                                         new RemoteTransition(mEntryTransition, mName + "-entry"),
-                                        transitions,
-                                        filters);
+                                        transitions);
                 }
             } catch (Exception e) {
                 logE("Unable to create origin transition!", e);
@@ -261,6 +258,8 @@ public class OriginTransitionSession {
         private String mName;
         @Nullable private Predicate<RemoteTransition> mIntentStarter;
 
+        @Nullable private IOriginTransitionCallback mOriginTransitionCallback;
+
         /** Create a builder that only supports entry transition. */
         public Builder(Context context) {
             this(context, /* originTransitions= */ null);
@@ -303,6 +302,12 @@ public class OriginTransitionSession {
                     });
         }
 
+        /** Specify a callback that will receive event updates around the transition. */
+        public Builder withCallback(@Nullable  IOriginTransitionCallback callback) {
+            mOriginTransitionCallback = callback;
+            return this;
+        }
+
         private static ActivityOptions createDefaultActivityOptions(
                 @Nullable RemoteTransition transition) {
             ActivityOptions options =
@@ -337,7 +342,8 @@ public class OriginTransitionSession {
 
         /** Add an origin entry transition to the builder. */
         public Builder withEntryTransition(
-                UIComponent entryOrigin, TransitionPlayer entryPlayer) {
+                UIComponent entryOrigin,
+                TransitionPlayer entryPlayer) {
             mEntryTransitionSupplier =
                     () ->
                             new OriginRemoteTransition(
@@ -345,7 +351,8 @@ public class OriginTransitionSession {
                                     /* isEntry= */ true,
                                     entryOrigin,
                                     entryPlayer,
-                                    mHandler);
+                                    mHandler,
+                                    mOriginTransitionCallback);
             return this;
         }
 
@@ -365,7 +372,8 @@ public class OriginTransitionSession {
                                         /* isEntry= */ false,
                                         exitTarget,
                                         exitPlayer,
-                                        mHandler), null);
+                                        mHandler,
+                                        mOriginTransitionCallback), null);
             return this;
         }
 
@@ -399,7 +407,8 @@ public class OriginTransitionSession {
                     /* isEntry= */ false,
                     exitTarget,
                     exitPlayer,
-                    mHandler), filter);
+                    mHandler,
+                    mOriginTransitionCallback), filter);
             return this;
         }
 

@@ -1,7 +1,7 @@
 {
   "presubmit": [
     {
-      "name": "FrameworksServicesTests_supervision"
+      "name": "FrameworksMockingServicesTests_supervision"
     }
   ]
 }

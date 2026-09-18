@@ -61,10 +61,14 @@ public class ScanPartition extends PackagePartitions.SystemPartition {
         var scanFlags = original.scanFlag;
         this.apexInfo = apexInfo;
         if (apexInfo != null) {
+            // Note that ScanPartitionUtils.isApkInUpdatedApex() relies on the specific
+            // combination of flags set (or omitted) here.
+            // LINT.IfChange
             scanFlags |= SCAN_AS_APK_IN_APEX;
             if (apexInfo.isFactory) {
                 scanFlags |= SCAN_AS_FACTORY;
             }
+            // LINT.ThenChange(/core/java/com/android/server/pm/ScanPackageUtils.java:isApkInUpdatedApex)
             if (apexInfo.activeApexChanged) {
                 scanFlags |= SCAN_DROP_CACHE;
             }

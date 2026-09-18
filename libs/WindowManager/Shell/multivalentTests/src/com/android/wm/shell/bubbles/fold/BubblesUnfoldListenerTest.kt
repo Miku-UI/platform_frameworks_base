@@ -25,9 +25,10 @@ import androidx.test.filters.SmallTest
 import com.android.internal.logging.testing.UiEventLoggerFake
 import com.android.wm.shell.bubbles.BubbleData
 import com.android.wm.shell.bubbles.BubbleEducationController
-import com.android.wm.shell.bubbles.BubbleLogger
 import com.android.wm.shell.bubbles.BubblePositioner
+import com.android.wm.shell.bubbles.FakeBubbleAppInfoProvider
 import com.android.wm.shell.bubbles.FakeBubbleFactory
+import com.android.wm.shell.bubbles.logging.BubbleLogger
 import com.android.wm.shell.common.TestShellExecutor
 import com.android.wm.shell.shared.bubbles.DeviceConfig
 import com.google.common.truth.Truth.assertThat
@@ -50,7 +51,6 @@ class BubblesUnfoldListenerTest {
 
     private var isStayAwakeOnFold = false
     private var barToFloatingTransitionStarted = false
-    private var barToFullscreenTransitionStarted = false
 
     @Before
     fun setUp() {
@@ -73,18 +73,15 @@ class BubblesUnfoldListenerTest {
                 bubbleLogger,
                 bubblePositioner,
                 BubbleEducationController(context),
+                FakeBubbleAppInfoProvider(),
                 mainExecutor,
-                backgroundExecutor
+                backgroundExecutor,
             )
         foldLockSettingsObserver = BubblesFoldLockSettingsObserver { isStayAwakeOnFold }
-        unfoldListener = BubblesUnfoldListener(
-            bubbleData, foldLockSettingsObserver) { bubble, moveToFullscreen ->
-            if (moveToFullscreen) {
-                barToFullscreenTransitionStarted = true
-            } else {
+        unfoldListener =
+            BubblesUnfoldListener(bubbleData, foldLockSettingsObserver) { bubble ->
                 barToFloatingTransitionStarted = true
             }
-        }
     }
 
     @Test
@@ -120,6 +117,7 @@ class BubblesUnfoldListenerTest {
     fun fold_expandedBubble_staysAwakeOnFold_shouldStartTransition() {
         isStayAwakeOnFold = true
         val bubble = FakeBubbleFactory.createChatBubble(context)
+        bubble.setIsTaskValidToBubbleOnSmallScreen(true)
         bubbleData.notificationEntryUpdated(bubble, true, false)
         assertThat(bubbleData.hasBubbles()).isTrue()
         bubbleData.setSelectedBubbleAndExpandStack(bubble)
@@ -154,20 +152,5 @@ class BubblesUnfoldListenerTest {
 
         unfoldListener.onFoldStateChanged(isFolded = false)
         assertThat(barToFloatingTransitionStarted).isFalse()
-    }
-
-    @Test
-    fun fold_expandedFixedLandscapeBubble_staysAwakeOnFold_shouldStartFullscreenTransition() {
-        isStayAwakeOnFold = true
-        val bubble = FakeBubbleFactory.createChatBubble(context)
-        bubble.setIsTopActivityFixedOrientationLandscape(true)
-        bubbleData.notificationEntryUpdated(bubble, true, false)
-        assertThat(bubbleData.hasBubbles()).isTrue()
-        bubbleData.setSelectedBubbleAndExpandStack(bubble)
-        assertThat(bubbleData.isExpanded).isTrue()
-
-        unfoldListener.onFoldStateChanged(isFolded = true)
-        assertThat(barToFloatingTransitionStarted).isFalse()
-        assertThat(barToFullscreenTransitionStarted).isTrue()
     }
 }

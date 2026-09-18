@@ -49,7 +49,7 @@ import com.android.wm.shell.shared.pip.PipContentOverlay;
 /**
  * Animator that handles bounds animations for entering PIP.
  */
-public class PipEnterAnimator extends ValueAnimator {
+public class PipEnterAnimator extends PipAnimator {
     private static final String TAG = PipEnterAnimator.class.getSimpleName();
     @NonNull private final SurfaceControl mLeash;
     private final SurfaceControl.Transaction mStartTransaction;
@@ -61,8 +61,6 @@ public class PipEnterAnimator extends ValueAnimator {
     private final RectEvaluator mRectEvaluator;
     private final Rect mEndBounds = new Rect();
     private final @Surface.Rotation int mRotation;
-    @Nullable private Runnable mAnimationStartCallback;
-    @Nullable private Runnable mAnimationEndCallback;
 
     private PipSurfaceTransactionHelper.SurfaceControlTransactionFactory
             mSurfaceControlTransactionFactory;
@@ -140,14 +138,6 @@ public class PipEnterAnimator extends ValueAnimator {
         setInterpolator(Interpolators.FAST_OUT_SLOW_IN);
         addListener(mAnimatorListener);
         addUpdateListener(mAnimatorUpdateListener);
-    }
-
-    public void setAnimationStartCallback(@NonNull Runnable runnable) {
-        mAnimationStartCallback = runnable;
-    }
-
-    public void setAnimationEndCallback(@NonNull Runnable runnable) {
-        mAnimationEndCallback = runnable;
     }
 
     /**

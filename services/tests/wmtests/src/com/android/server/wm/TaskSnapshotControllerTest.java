@@ -92,9 +92,13 @@ public class TaskSnapshotControllerTest extends WindowTestsBase {
         // Otherwise a real snapshot can be taken even if the activity disables recents screenshot.
         spyOn(mWm.mTaskSnapshotController);
         final int disabledInRecentsTaskId = disabledWindow.getTask().mTaskId;
-        mAtm.takeTaskSnapshot(disabledInRecentsTaskId, true /* updateCache */);
+        mWm.mSnapshotController.mSnapshotManagerService.takeTaskSnapshot(
+                disabledInRecentsTaskId, true /* updateCache */, false /* isLowRes */,
+                false /* includeDecors */);
         verify(mWm.mTaskSnapshotController, never()).prepareTaskSnapshot(any(), any());
-        mAtm.takeTaskSnapshot(disabledInRecentsTaskId, false /* updateCache */);
+        mWm.mSnapshotController.mSnapshotManagerService.takeTaskSnapshot(
+                disabledInRecentsTaskId, false /* updateCache */, false /* isLowRes */,
+                false /* includeDecors */);
         verify(mWm.mTaskSnapshotController).prepareTaskSnapshot(any(), any());
     }
 
@@ -167,7 +171,7 @@ public class TaskSnapshotControllerTest extends WindowTestsBase {
         spyOn(mDisplayContent);
         when(task.getDisplayContent().shouldImeAttachedToApp()).thenReturn(false);
         // Intentionally set the SurfaceControl of input method window as null.
-        mDisplayContent.mInputMethodWindow.setSurfaceControl(null);
+        mDisplayContent.getImeWindow().setSurfaceControl(null);
         // Verify no NPE happens when calling createTaskSnapshot.
         try {
             final TaskSnapshot.Builder builder = new TaskSnapshot.Builder();
@@ -184,10 +188,11 @@ public class TaskSnapshotControllerTest extends WindowTestsBase {
         Task task = mAppWindow.mActivityRecord.getTask();
         spyOn(task);
         spyOn(mDisplayContent);
-        spyOn(mDisplayContent.mInputMethodWindow);
+        final WindowState imeWindow = mDisplayContent.getImeWindow();
+        spyOn(imeWindow);
         when(task.getDisplayContent().shouldImeAttachedToApp()).thenReturn(true);
         // Intentionally set the IME window is in visible state.
-        doReturn(true).when(mDisplayContent.mInputMethodWindow).isVisible();
+        doReturn(true).when(imeWindow).isVisible();
         // Verify no NPE happens when calling createTaskSnapshot.
         try {
             final TaskSnapshot.Builder builder = new TaskSnapshot.Builder();

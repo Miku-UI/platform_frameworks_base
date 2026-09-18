@@ -17,6 +17,7 @@
 package android.telephony.satellite;
 
 import android.Manifest;
+import android.app.PendingIntent;
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
 import android.annotation.Hide;
@@ -37,6 +38,7 @@ import android.os.OutcomeReceiver;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.telephony.CarrierConfigManager;
+import android.telephony.NetworkRegistrationInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyCallback;
 import android.telephony.TelephonyFrameworkInitializer;
@@ -303,6 +305,21 @@ public final class SatelliteManager {
             "selected_nb_iot_satellite_subscription_id";
 
     /**
+     * Bundle key to get the response from
+     * {@link #requestPointingUiAppLaunchIntent(PointingUiAppLaunchIntentAttributes, Executor,
+     * OutcomeReceiver)}.
+     * @hide
+     */
+    public static final String KEY_POINTING_UI_APP_LAUNCH_INTENT = "pointing_ui_app_launch_intent";
+
+    /**
+     * Bundle key to get the response from
+     * {@link #requestIsEnabled(EnableRequestAttributes, Executor, Consumer)}.
+     * @hide
+     */
+    public static final String KEY_ENABLE_RESPONSE = "enable_response";
+
+    /**
      * The request was successfully processed.
      * @hide
      */
@@ -385,7 +402,7 @@ public final class SatelliteManager {
     public static final int SATELLITE_RESULT_RADIO_NOT_AVAILABLE = 10;
 
     /**
-     * The request is not supported by either the satellite modem or the network.
+     * The request is not supported by either the satellite framework, modem or the network.
      * @hide
      */
     @SystemApi
@@ -574,6 +591,82 @@ public final class SatelliteManager {
     public @interface SatelliteResult {}
 
     /**
+     * The reason for satellite enablement request is unknown.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SATELLITE_UPSELL)
+    public static final int SATELLITE_ENABLEMENT_REQUEST_REASON_UNKNOWN = 0;
+
+    /**
+     * The reason for satellite enablement request is to allow the user to purchase a satellite
+     * plan.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SATELLITE_UPSELL)
+    public static final int SATELLITE_ENABLEMENT_REQUEST_REASON_PURCHASE = 1;
+
+    /**
+     * The reason for satellite enablement request is that user enabled satellite functionality.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SATELLITE_UPSELL)
+    public static final int SATELLITE_ENABLEMENT_REQUEST_REASON_USER = 2;
+
+    /**
+     * The reason for enabling satellite on a power optimized device, like wearable devices.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SATELLITE_UPSELL)
+    public static final int SATELLITE_ENABLEMENT_REQUEST_REASON_POWER = 3;
+
+    /**
+     * The reason for satellite enablement request is due to carrier config was updated.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SATELLITE_UPSELL)
+    public static final int SATELLITE_ENABLEMENT_REQUEST_REASON_CARRIER_CONFIG_UPDATE = 4;
+
+    /**
+     * The reason for satellite enablement request is due to entitlement.
+     *
+     * <p>
+     * Entitlement is the process of determining whether a user is entitled to use a service
+     * associated with their subscription.
+     *
+     * For example, usually when user purchases a satellite service plan, carrier performs
+     * entitlement to enable satellite services for the user's respective subscription.
+     * </p>
+     *
+     * <p>
+     * Typically Telephony looks up latest entitlement status periodically. And also, applications
+     * could initiate on demand entitlement through
+     * {@link TelephonyManager#notifyEntitlementStatusChanged} on need basis.
+     * </p>
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SATELLITE_UPSELL)
+    public static final int SATELLITE_ENABLEMENT_REQUEST_REASON_ENTITLEMENT = 5;
+
+    /** @hide */
+    @IntDef(prefix = {"SATELLITE_ENABLEMENT_REQUEST_REASON_"}, value = {
+        SATELLITE_ENABLEMENT_REQUEST_REASON_UNKNOWN,
+        SATELLITE_ENABLEMENT_REQUEST_REASON_PURCHASE,
+        SATELLITE_ENABLEMENT_REQUEST_REASON_USER,
+        SATELLITE_ENABLEMENT_REQUEST_REASON_POWER,
+        SATELLITE_ENABLEMENT_REQUEST_REASON_CARRIER_CONFIG_UPDATE,
+        SATELLITE_ENABLEMENT_REQUEST_REASON_ENTITLEMENT
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface SatelliteEnablementRequestReason {}
+
+    /**
      * Unknown Non-Terrestrial radio technology. This generic radio technology should be used
      * only when the radio technology cannot be mapped to other specific radio technologies.
      * @hide
@@ -609,13 +702,31 @@ public final class SatelliteManager {
     @SystemApi
     public static final int NT_RADIO_TECHNOLOGY_PROPRIETARY = 4;
 
+    /**
+     * LTE Direct To Cell technology.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SATELLITE_26Q2_APIS)
+    public static final int NT_RADIO_TECHNOLOGY_LTE_DTC = 5;
+
+    /**
+     * NR Direct To Cell technology.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SATELLITE_26Q2_APIS)
+    public static final int NT_RADIO_TECHNOLOGY_NR_DTC = 6;
+
     /** @hide */
     @IntDef(prefix = "NT_RADIO_TECHNOLOGY_", value = {
             NT_RADIO_TECHNOLOGY_UNKNOWN,
             NT_RADIO_TECHNOLOGY_NB_IOT_NTN,
             NT_RADIO_TECHNOLOGY_NR_NTN,
             NT_RADIO_TECHNOLOGY_EMTC_NTN,
-            NT_RADIO_TECHNOLOGY_PROPRIETARY
+            NT_RADIO_TECHNOLOGY_PROPRIETARY,
+            NT_RADIO_TECHNOLOGY_LTE_DTC,
+            NT_RADIO_TECHNOLOGY_NR_DTC
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface NTRadioTechnology {}
@@ -749,6 +860,110 @@ public final class SatelliteManager {
     public @interface SatelliteDataSupportMode {}
 
     /**
+     * The carrier roaming satellite emergency messaging provider is unknown.
+     * @hide
+     */
+    public static final int CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_UNKNOWN = 0;
+
+    /**
+     * Indicates that the carrier does not support emergency messaging via satellite.
+     *
+     * <p>When the emergency messaging provider is set to this state, the following
+     * logic is enforced:
+     * <ul>
+     * <li><b>Trigger:</b> The user initiates an emergency (e911) call.</li>
+     * <li><b>Condition:</b> The call fails to establish a connection within the
+     * predefined timeout.</li>
+     * <li><b>Behavior:</b>
+     * <ul>
+     * <li>The <b>T911 button</b> is not shown, as the carrier does not support
+     * emergency messaging in the current country.</li>
+     * <li>If the device supports <b>Satellite SOS</b>, SOS button is displayed to the user.</li>
+     * <li>If <b>Satellite SOS</b> is not supported, handover button will not be shown to user.</li>
+     * </ul>
+     * </li>
+     * </ul>
+     * @hide
+     */
+    public static final int CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_UNSUPPORTED = 1;
+
+    /**
+     * Indicates whether the carrier supports satellite emergency messaging via a local
+     * Public Safety Answering Point (PSAP).
+     *
+     * <p>A local PSAP is the call center responsible for answering emergency calls
+     * (e.g., 911, 112, 999) for a specific geographic area.
+     *
+     *<p>When the emergency messaging provider is set to this state, the following
+     * logic is enforced:
+     * <ul>
+     * <li><b>Trigger:</b> The user initiates an emergency (e911) call.</li>
+     * <li><b>Condition:</b> The call fails to establish a connection within the
+     * predefined timeout.</li>
+     * <li><b>Behavior:</b>
+     * <ul>
+     * <li>The <b>T911 button</b> is displayed to the user.</li>
+     * <li>Upon clicking T911 button, user is redirected to the Messages app to send a text to
+     * dialed emergency number.</li>
+     * </ul>
+     * </li>
+     * </ul>
+     *
+     * @hide
+     */
+    public static final int CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_LOCAL_PSAP = 2;
+
+    /**
+     * Indicates that the carrier supports emergency messaging via a satellite-based
+     * concierge service.
+     *
+     * <p>A <b>concierge service</b> is a specialized center typically managed by the
+     * home carrier that intercepts emergency messages from internationally roaming users.
+     * It acts as an intermediary, coordinating with local emergency responders in the
+     * foreign jurisdiction.
+     *
+     *<p>When the emergency messaging provider is set to this state, the following
+     * logic is enforced:
+     * <ul>
+     * <li><b>Trigger:</b> The user initiates an emergency (e911) call.</li>
+     * <li><b>Condition:</b> The call fails to establish a connection within the
+     * predefined timeout.</li>
+     * <li><b>Behavior:</b>
+     * <ul>
+     * <li>The <b>T911 button</b> is displayed to the user.</li>
+     * <li>Upon clicking T911 button, user is redirected to the Messages app.</li>
+     * <li>The message is addressed to the destination defined in
+     * {@link CarrierConfigManager
+     * #KEY_CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_REDIRECTION_DESTINATION_STRING}.</li>
+     * <li>If no specific destination is configured, the message is sent directly to the user-dialed
+     * emergency number.</li>
+     * </ul>
+     * </li>
+     * </ul>
+     *
+     * @hide
+     */
+    public static final int CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_CONCIERGE = 3;
+
+    /** @hide */
+    @IntDef(
+            prefix = {"CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_"},
+            value = {
+                CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_UNKNOWN,
+                CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_UNSUPPORTED,
+                CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_LOCAL_PSAP,
+                CARRIER_ROAMING_SATELLITE_EMERGENCY_MESSAGING_PROVIDER_CONCIERGE
+            })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface CarrierRoamingSatelliteEmergencyMessagingProvider {}
+
+    /**
+     * Emergency call to satellite handover type is unknown.
+     * @hide
+     */
+    public static final int EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_UNKNOWN = 0;
+
+    /**
      * The emergency call is handed over to oem-enabled satellite SOS messaging. SOS messages are
      * sent to SOS providers, which will then forward the messages to emergency providers.
      * @hide
@@ -763,6 +978,17 @@ public final class SatelliteManager {
      */
     @SystemApi
     public static final int EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911 = 2;
+
+    /** @hide */
+    @IntDef(
+        prefix = {"EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_"},
+        value = {
+            EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_UNKNOWN,
+            EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_SOS,
+            EMERGENCY_CALL_TO_SATELLITE_HANDOVER_TYPE_T911
+        })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface EmergencyCallToSatelliteHandoverType {}
 
     /**
      * This intent will be broadcasted if there are any change to list of subscriber information.
@@ -903,6 +1129,9 @@ public final class SatelliteManager {
     }
 
     /**
+     * Handles the request to enable or disable the satellite modem to be enabled or disabled
+     * in case of {@link CarrierConfigManager#CARRIER_ROAMING_NTN_CONNECT_MANUAL} mode.
+     *
      * Request to enable or disable the satellite modem and demo mode.
      * If satellite modem and cellular modem cannot work concurrently,
      * then this will disable the cellular modem if satellite modem is enabled,
@@ -921,9 +1150,13 @@ public final class SatelliteManager {
      * @throws SecurityException if the caller doesn't have required permission.
      *
      * @hide
+     * @deprecated Use {@link #requestEnabled(int, EnableRequestAttributes, Executor, Consumer)}
+     *             instead.
      */
     @SystemApi
     @RequiresPermission(Manifest.permission.SATELLITE_COMMUNICATION)
+    @FlaggedApi(Flags.FLAG_SATELLITE_UPSELL)
+    @Deprecated
     public void requestEnabled(@NonNull EnableRequestAttributes attributes,
             @NonNull @CallbackExecutor Executor executor,
             @SatelliteResult @NonNull Consumer<Integer> resultListener) {
@@ -956,6 +1189,58 @@ public final class SatelliteManager {
     }
 
     /**
+     * Request to enable or disable satellite connectivity.
+     *
+     * To know the current state of satellite connectivity, use {@link #requestIsEnabled(int, int,
+     * Executor, OutcomeReceiver)}
+     *
+     * @param subId The subscription ID of the SIM to use.
+     * @param attributes The attributes of the enable request.
+     * @param executor The executor on which the callback will be called.
+     * @param resultListener Listener for the {@link SatelliteResult} result of the operation.
+     *
+     * @throws SecurityException if the caller doesn't have required permission.
+     *
+     * @hide
+     */
+    @SystemApi
+    @RequiresPermission(Manifest.permission.SATELLITE_COMMUNICATION)
+    @FlaggedApi(Flags.FLAG_SATELLITE_UPSELL)
+    public void requestEnabled(int subId,
+            @NonNull EnableRequestAttributes attributes,
+            @NonNull @CallbackExecutor Executor executor,
+            @SatelliteResult @NonNull Consumer<Integer> resultListener) {
+        Objects.requireNonNull(attributes);
+        Objects.requireNonNull(executor);
+        Objects.requireNonNull(resultListener);
+
+        try {
+            ITelephony telephony = getITelephony();
+            if (telephony != null) {
+                IIntegerConsumer errorCallback = new IIntegerConsumer.Stub() {
+                    @Override
+                    public void accept(int result) {
+                        executor.execute(() -> Binder.withCleanCallingIdentity(
+                                () -> resultListener.accept(result)));
+                    }
+                };
+                Rlog.d(TAG, "requestEnabled() calling new requestEnableSatellite with "
+                        + "attributes: " + attributes);
+                telephony.requestEnableSatellite(subId, attributes, errorCallback);
+            } else {
+                Rlog.e(TAG, "requestEnabled() invalid telephony");
+                executor.execute(() -> Binder.withCleanCallingIdentity(
+                        () -> resultListener.accept(SATELLITE_RESULT_ILLEGAL_STATE)));
+            }
+        } catch (RemoteException ex) {
+            Rlog.e(TAG, "requestEnabled() exception: ", ex);
+            executor.execute(() -> Binder.withCleanCallingIdentity(
+                    () -> resultListener.accept(SATELLITE_RESULT_ILLEGAL_STATE)));
+        }
+
+    }
+
+    /**
      * Request to get whether the satellite modem is enabled.
      *
      * @param executor The executor on which the callback will be called.
@@ -969,9 +1254,13 @@ public final class SatelliteManager {
      * @throws SecurityException if the caller doesn't have required permission.
      *
      * @hide
+     * @deprecated Use {@link #requestIsEnabled(int, int, Executor,
+     *              OutcomeReceiver)} instead.
      */
     @SystemApi
     @RequiresPermission(Manifest.permission.SATELLITE_COMMUNICATION)
+    @FlaggedApi(Flags.FLAG_SATELLITE_UPSELL)
+    @Deprecated
     public void requestIsEnabled(@NonNull @CallbackExecutor Executor executor,
             @NonNull OutcomeReceiver<Boolean, SatelliteException> callback) {
         Objects.requireNonNull(executor);
@@ -1002,6 +1291,70 @@ public final class SatelliteManager {
                     }
                 };
                 telephony.requestIsSatelliteEnabled(receiver);
+            } else {
+                loge("requestIsEnabled() invalid telephony");
+                executor.execute(() -> Binder.withCleanCallingIdentity(() -> callback.onError(
+                        new SatelliteException(SATELLITE_RESULT_ILLEGAL_STATE))));
+            }
+        } catch (RemoteException ex) {
+            loge("requestIsEnabled() RemoteException: " + ex);
+            executor.execute(() -> Binder.withCleanCallingIdentity(() -> callback.onError(
+                    new SatelliteException(SATELLITE_RESULT_ILLEGAL_STATE))));
+        }
+    }
+
+    /**
+     * Request to get whether the satellite is enabled.
+     *
+     * @param subId The subscription ID of the SIM to use.
+     * @param connectType The type of satellite connection to request.
+     * @param executor The executor on which the callback will be called.
+     * @param callback The callback object to which the result will be delivered.
+     *                 If the request is successful, {@link OutcomeReceiver#onResult(Object)}
+     *                 will return a {@link IsEnabledResult}.
+     *                 If the request is not successful, {@link OutcomeReceiver#onError(Throwable)}
+     *                 will return a {@link SatelliteException} with the {@link SatelliteResult}.
+     *
+     * @throws SecurityException if the caller doesn't have required permission.
+     *
+     * @hide
+     */
+    @SystemApi
+    @RequiresPermission(Manifest.permission.SATELLITE_COMMUNICATION)
+    @FlaggedApi(Flags.FLAG_SATELLITE_UPSELL)
+    public void requestIsEnabled(int subId,
+            @CarrierConfigManager.CARRIER_ROAMING_NTN_CONNECT_TYPE int connectType,
+            @NonNull @CallbackExecutor Executor executor,
+            @NonNull OutcomeReceiver<EnableResponse, SatelliteException> callback) {
+        Objects.requireNonNull(executor);
+        Objects.requireNonNull(callback);
+
+        try {
+            ITelephony telephony = getITelephony();
+            if (telephony != null) {
+                ResultReceiver resultReceiver = new ResultReceiver(null) {
+                    @Override
+                    protected void onReceiveResult(int resultCode, Bundle resultData) {
+                        if (resultCode == SATELLITE_RESULT_SUCCESS) {
+                            if (resultData.containsKey(KEY_ENABLE_RESPONSE)) {
+                                EnableResponse enableResult = resultData.getParcelable(
+                                        KEY_ENABLE_RESPONSE,
+                                        EnableResponse.class);
+                                executor.execute(() -> Binder.withCleanCallingIdentity(() ->
+                                        callback.onResult(enableResult)));
+                            } else {
+                                loge("KEY_ENABLE_RESPONSE does not exist.");
+                                executor.execute(() -> Binder.withCleanCallingIdentity(() ->
+                                        callback.onError(new SatelliteException(
+                                                SATELLITE_RESULT_REQUEST_FAILED))));
+                            }
+                        } else {
+                            executor.execute(() -> Binder.withCleanCallingIdentity(() ->
+                                    callback.onError(new SatelliteException(resultCode))));
+                        }
+                    }
+                };
+                telephony.requestEnableSatelliteStatus(subId, connectType, resultReceiver);
             } else {
                 loge("requestIsEnabled() invalid telephony");
                 executor.execute(() -> Binder.withCleanCallingIdentity(() -> callback.onError(
@@ -1431,6 +1784,18 @@ public final class SatelliteManager {
     public static final int SATELLITE_MODEM_STATE_DISABLING_SATELLITE = 9;
 
     /**
+     * The satellite modem is in a suspension state.
+     * In this state, the modem is still powered on, but all satellite communication
+     * is unavailable.
+     * Modem will enter or exit this state only when it receives the explicit request
+     * from the Telephony framework.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SATELLITE_SUSPEND)
+    public static final int SATELLITE_MODEM_STATE_SUSPENSION = 10;
+
+    /**
      * Satellite modem state is unknown. This generic modem state should be used only when the
      * modem state cannot be mapped to other specific modem states.
      * @hide
@@ -1450,6 +1815,7 @@ public final class SatelliteManager {
             SATELLITE_MODEM_STATE_CONNECTED,
             SATELLITE_MODEM_STATE_ENABLING_SATELLITE,
             SATELLITE_MODEM_STATE_DISABLING_SATELLITE,
+            SATELLITE_MODEM_STATE_SUSPENSION,
             SATELLITE_MODEM_STATE_UNKNOWN
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -3008,6 +3374,55 @@ public final class SatelliteManager {
     }
 
     /**
+     * Request to refresh the satellite entitlement status.
+     *
+     * <p>This API should be invoked only after receiving an FCM push confirming that the
+     * entitlement status has been updated on the server. It is expected to be invoked by
+     * a system App acting as an FCM client for the entitlement server. This allows applications
+     * to trigger a refresh of the satellite entitlement status with the entitlement server.
+     *
+     * @param subId The subscription ID for which to refresh the entitlement status.
+     * @param executor The executor on which the listener will be called.
+     * @param resultListener The listener to report the result of the request.
+     * @throws SecurityException if the caller does not have the required permission.
+     * @throws IllegalStateException if the Telephony service is not available.
+     * @throws IllegalArgumentException if executor or resultListener is null.
+     *
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.SATELLITE_COMMUNICATION)
+    public void requestEntitlementRefresh(
+            int subId,
+            @NonNull @CallbackExecutor Executor executor,
+            @SatelliteResult @NonNull Consumer<Integer> resultListener
+    ) {
+        Objects.requireNonNull(executor, "Executor must not be null");
+        Objects.requireNonNull(resultListener, "ResultListener must not be null");
+
+        try {
+            final ITelephony telephony = getITelephony();
+            if (telephony == null) {
+                loge("requestEntitlementRefresh() invalid telephony");
+                executor.execute(() -> Binder.withCleanCallingIdentity(
+                        () -> resultListener.accept(SATELLITE_RESULT_ILLEGAL_STATE)));
+                return;
+            }
+            final IIntegerConsumer callback = new IIntegerConsumer.Stub() {
+                @Override
+                public void accept(int result) {
+                    executor.execute(() -> Binder.withCleanCallingIdentity(
+                            () -> resultListener.accept(result)));
+                }
+            };
+            telephony.requestEntitlementRefresh(subId, callback);
+        } catch (RemoteException ex) {
+            loge("requestEntitlementRefresh() RemoteException: " + ex);
+            executor.execute(() -> Binder.withCleanCallingIdentity(
+                    () -> resultListener.accept(SATELLITE_RESULT_ILLEGAL_STATE)));
+        }
+    }
+
+    /**
      * Request to get the signal strength of the satellite connection.
      *
      * <p>
@@ -3871,6 +4286,185 @@ public final class SatelliteManager {
         return satelliteMode;
     }
 
+    /**
+     * Get the satellite configuration for the given PLMN.
+     *
+     * @param subId current subscription id.
+     * @param plmn PLMN for which the satellite configuration is requested.
+     * @return {@link PlmnSatelliteConfig} object containing the satellite configuration for the
+     *     given PLMN.
+     * @throws IllegalArgumentException if the provided {@code subId} is not valid.
+     * @throws SecurityException if the caller doesn't have required permission.
+     * @throws IllegalStateException if the Telephony process is not currently available.
+     * @throws RuntimeException if an unexpected error occurs during the remote call to the
+     *     Telephony service.
+     * @hide
+     */
+    @SystemApi
+    @RequiresPermission(Manifest.permission.SATELLITE_COMMUNICATION)
+    @FlaggedApi(Flags.FLAG_SATELLITE_26Q2_APIS)
+    public @NonNull PlmnSatelliteConfig getPlmnSatelliteConfig(int subId, @NonNull String plmn) {
+        if (!SubscriptionManager.isValidSubscriptionId(subId)) {
+            throw new IllegalArgumentException("Invalid subscription ID");
+        }
+        Objects.requireNonNull(plmn);
+
+        try {
+            ITelephony telephony = getITelephony();
+            if (telephony != null) {
+                return telephony.getPlmnSatelliteConfig(subId, plmn);
+            } else {
+                throw new IllegalStateException("telephony service is null.");
+            }
+        } catch (RemoteException ex) {
+            loge("getPlmnSatelliteConfig() RemoteException:" + ex);
+            ex.rethrowAsRuntimeException();
+        }
+        return null;
+    }
+
+    /**
+     * Requests a {@link PendingIntent} to launch the Pointing UI application.
+     *
+     * <p>The Pointing UI application is designed to assist users in aligning their
+     * mobile device with a specific satellite by providing directional guidance.
+     *
+     * @param launchIntentAttributes The attributes to create the launch intent.
+     * @param executor The executor on which the callback will be called.
+     * @param callback The callback object to which the result will be delivered.
+     *                 If the request is successful, {@link OutcomeReceiver#onResult(Object)}
+     *                 will return the {@link PendingIntent} to launch the PointingUI app.
+     *                 If the request is not successful, {@link OutcomeReceiver#onError(Throwable)}
+     *                 will return a {@link SatelliteException} with the {@link SatelliteResult}.
+     *
+     * @throws SecurityException if the caller doesn't have required permission.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_SYSTEM_SELECTION_SPECIFIER_ENHANCEMENT)
+    @SystemApi
+    @RequiresPermission(Manifest.permission.SATELLITE_COMMUNICATION)
+    public void requestPointingUiAppLaunchIntent(
+            @NonNull PointingUiAppLaunchIntentAttributes launchIntentAttributes,
+            @NonNull @CallbackExecutor Executor executor,
+            @NonNull OutcomeReceiver<PendingIntent, SatelliteException> callback) {
+        Objects.requireNonNull(launchIntentAttributes);
+        Objects.requireNonNull(executor);
+        Objects.requireNonNull(callback);
+
+        try {
+            ITelephony telephony = getITelephony();
+            if (telephony != null) {
+                ResultReceiver receiver = new ResultReceiver(null) {
+                    @Override
+                    protected void onReceiveResult(int resultCode, Bundle resultData) {
+                        if (resultCode == SATELLITE_RESULT_SUCCESS) {
+                            if (resultData.containsKey(KEY_POINTING_UI_APP_LAUNCH_INTENT)) {
+                                PendingIntent launchIntent =
+                                        resultData.getParcelable(KEY_POINTING_UI_APP_LAUNCH_INTENT,
+                                                PendingIntent.class);
+                                executor.execute(() -> Binder.withCleanCallingIdentity(() ->
+                                        callback.onResult(launchIntent)));
+                            } else {
+                                loge("KEY_POINTING_UI_APP_LAUNCH_INTENT does not exist.");
+                                executor.execute(() -> Binder.withCleanCallingIdentity(() ->
+                                        callback.onError(new SatelliteException(
+                                                SATELLITE_RESULT_REQUEST_FAILED))));
+                            }
+                        } else {
+                            executor.execute(() -> Binder.withCleanCallingIdentity(() ->
+                                    callback.onError(new SatelliteException(resultCode))));
+                        }
+                    }
+                };
+                telephony.requestPointingUiAppLaunchIntent(launchIntentAttributes, receiver);
+            } else {
+                throw new IllegalStateException("telephony service is null.");
+            }
+        } catch (RemoteException ex) {
+            loge("requestPointingUiAppLaunchIntent() RemoteException: " + ex);
+            ex.rethrowAsRuntimeException();
+        }
+    }
+
+    /**
+     * Get whether device is connected to satellite via carrier, either manually or automatically.
+     *
+     * In order to monitor ongoing carrier roaming ntn mode changes, register to
+     * {@link TelephonyCallback.CarrierRoamingNtnListener} callback.
+     *
+     * @param subId The subscription ID of the carrier.
+     * @return {@code true} if the device is connected to satellite,
+     *         {@code false} otherwise.
+     *
+     * @throws IllegalArgumentException if the provided {@code subId} is not valid.
+     * @throws SecurityException if the caller doesn't have required permission.
+     * @throws IllegalStateException if the Telephony process is not currently available.
+     * @throws RuntimeException if an unexpected error occurs during the remote call to the
+     *         Telephony service.
+     * @hide
+     */
+    @SystemApi
+    @RequiresPermission(Manifest.permission.SATELLITE_COMMUNICATION)
+    @FlaggedApi(Flags.FLAG_SATELLITE_26Q2_APIS)
+    public boolean isInCarrierRoamingNtnMode(int subId) {
+        boolean isInCarrierRoamingNtnMode = false;
+        if (!SubscriptionManager.isValidSubscriptionId(subId)) {
+            throw new IllegalArgumentException("Invalid subscription ID");
+        }
+
+        try {
+            ITelephony telephony = getITelephony();
+            if (telephony != null) {
+                isInCarrierRoamingNtnMode = telephony.isInCarrierRoamingNtnMode(subId);
+            } else {
+                throw new IllegalStateException("telephony service is null.");
+            }
+        } catch (RemoteException ex) {
+            loge("isInCarrierRoamingNtnMode() RemoteException:" + ex);
+            ex.rethrowAsRuntimeException();
+        }
+        return isInCarrierRoamingNtnMode;
+    }
+
+    /**
+     * Get the array of available services for carrier roaming NTN.
+     *
+     * <p>In order to monitor ongoing changes to carrier roaming ntn available services, register to
+     * {@link TelephonyCallback.CarrierRoamingNtnListener} callback.
+     *
+     * @param subId The subscription ID of the carrier.
+     * @return an array of available services for carrier roaming NTN.
+     * @throws IllegalArgumentException if the provided {@code subId} is not valid.
+     * @throws SecurityException if the caller doesn't have required permission.
+     * @throws IllegalStateException if the Telephony process is not currently available.
+     * @throws RuntimeException if an unexpected error occurs during the remote call to the
+     *     Telephony service.
+     * @hide
+     */
+    @SystemApi
+    @RequiresPermission(Manifest.permission.SATELLITE_COMMUNICATION)
+    @FlaggedApi(Flags.FLAG_SATELLITE_26Q2_APIS)
+    public @NonNull @NetworkRegistrationInfo.ServiceType int[]
+            getCarrierRoamingNtnAvailableServices(int subId) {
+        if (!SubscriptionManager.isValidSubscriptionId(subId)) {
+            throw new IllegalArgumentException("Invalid subscription ID");
+        }
+
+        int[] availableServices = new int[0];
+        try {
+            ITelephony telephony = getITelephony();
+            if (telephony != null) {
+                availableServices = telephony.getCarrierRoamingNtnAvailableServices(subId);
+            } else {
+                throw new IllegalStateException("telephony service is null.");
+            }
+        } catch (RemoteException ex) {
+            loge("getCarrierRoamingNtnAvailableServices() RemoteException:" + ex);
+            ex.rethrowAsRuntimeException();
+        }
+        return availableServices;
+    }
+
     @Nullable
     private static ITelephony getITelephony() {
         ITelephony binder = ITelephony.Stub.asInterface(TelephonyFrameworkInitializer
@@ -3878,6 +4472,138 @@ public final class SatelliteManager {
                 .getTelephonyServiceRegisterer()
                 .get());
         return binder;
+    }
+
+    /**
+     * Retrieves whether satellite attach is supported for the given subscription ID.
+     *
+     * This method prioritizes the configuration value from the ConfigUpdater.
+     * If no ConfigUpdater value is available, it falls back to the system's CarrierConfig.
+     *
+     * @param subId The subscription ID.
+     * @return {@code true} if satellite attach is supported; {@code false} otherwise.
+     * @throws IllegalArgumentException if the provided {@code subId} is not valid.
+     * @throws SecurityException if the caller doesn't have required permission.
+     * @throws IllegalStateException if the Telephony process is not currently available.
+     * @throws RuntimeException if an unexpected error occurs during the remote call to the
+     *         Telephony service.
+     * @hide
+     */
+    @RequiresPermission(Manifest.permission.SATELLITE_COMMUNICATION)
+    public boolean isSatelliteAttachSupported(int subId) {
+        if (!SubscriptionManager.isValidSubscriptionId(subId)) {
+            throw new IllegalArgumentException("Invalid subscription ID");
+        }
+
+        try {
+            ITelephony telephony = getITelephony();
+            if (telephony != null) {
+                return telephony.isSatelliteAttachSupported(subId);
+            } else {
+                throw new IllegalStateException("telephony service is null.");
+            }
+        } catch (RemoteException ex) {
+            loge("isSatelliteAttachSupported RemoteException: " + ex);
+            ex.rethrowAsRuntimeException();
+        }
+        return false;
+    }
+
+    /**
+     * Retrieves whether satellite entitlement check is supported for the given subscription ID.
+     *
+     * @param subId The subscription ID.
+     * @return {@code true} if satellite entitlement is supported; {@code false} otherwise.
+     * @throws IllegalArgumentException if the provided {@code subId} is not valid.
+     * @throws SecurityException if the caller doesn't have required permission.
+     * @throws IllegalStateException if the Telephony process is not currently available.
+     * @throws RuntimeException if an unexpected error occurs during the remote call to the
+     *         Telephony service.
+     * @hide
+     */
+    @RequiresPermission(Manifest.permission.SATELLITE_COMMUNICATION)
+    public boolean isSatelliteEntitlementSupported(int subId) {
+        if (!SubscriptionManager.isValidSubscriptionId(subId)) {
+            throw new IllegalArgumentException("Invalid subscription ID");
+        }
+
+        try {
+            ITelephony telephony = getITelephony();
+            if (telephony != null) {
+                return telephony.isSatelliteEntitlementSupported(subId);
+            } else {
+                throw new IllegalStateException("telephony service is null.");
+            }
+        } catch (RemoteException ex) {
+            loge("isSatelliteEntitlementSupported RemoteException: " + ex);
+            ex.rethrowAsRuntimeException();
+        }
+        return false;
+    }
+
+    /**
+     * Retrieves the satellite entitlement server URL for the given subscription ID.
+     *
+     * @param subId The subscription ID.
+     * @return The entitlement server URL, or {@code null} if not available.
+     * @throws IllegalArgumentException if the provided {@code subId} is not valid.
+     * @throws SecurityException if the caller doesn't have required permission.
+     * @throws IllegalStateException if the Telephony process is not currently available.
+     * @throws RuntimeException if an unexpected error occurs during the remote call to the
+     *         Telephony service.
+     * @hide
+     */
+    @RequiresPermission(Manifest.permission.SATELLITE_COMMUNICATION)
+    @Nullable
+    public String getSatelliteEntitlementServerUrl(int subId) {
+        if (!SubscriptionManager.isValidSubscriptionId(subId)) {
+            throw new IllegalArgumentException("Invalid subscription ID");
+        }
+
+        try {
+            ITelephony telephony = getITelephony();
+            if (telephony != null) {
+                return telephony.getSatelliteEntitlementServerUrl(subId);
+            } else {
+                throw new IllegalStateException("telephony service is null.");
+            }
+        } catch (RemoteException ex) {
+            loge("getSatelliteEntitlementServerUrl RemoteException: " + ex);
+            ex.rethrowAsRuntimeException();
+        }
+        return null;
+    }
+
+    /**
+     * Retrieves the satellite NTN connect type for the given subscription ID.
+     *
+     * @param subId The subscription ID.
+     * @return The NTN connect type.
+     * @throws IllegalArgumentException if the provided {@code subId} is not valid.
+     * @throws SecurityException if the caller doesn't have required permission.
+     * @throws IllegalStateException if the Telephony process is not currently available.
+     * @throws RuntimeException if an unexpected error occurs during the remote call to the
+     *         Telephony service.
+     * @hide
+     */
+    @RequiresPermission(Manifest.permission.SATELLITE_COMMUNICATION)
+    public int getSatelliteNtnConnectType(int subId) {
+        if (!SubscriptionManager.isValidSubscriptionId(subId)) {
+            throw new IllegalArgumentException("Invalid subscription ID");
+        }
+
+        try {
+            ITelephony telephony = getITelephony();
+            if (telephony != null) {
+                return telephony.getSatelliteNtnConnectType(subId);
+            } else {
+                throw new IllegalStateException("telephony service is null.");
+            }
+        } catch (RemoteException ex) {
+            loge("getSatelliteNtnConnectType() RemoteException:" + ex);
+            ex.rethrowAsRuntimeException();
+        }
+        return 0;
     }
 
     private static void logd(@NonNull String log) {

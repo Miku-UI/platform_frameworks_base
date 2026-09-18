@@ -30,6 +30,7 @@ import android.app.PendingIntent;
 import android.app.WallpaperColors;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.theming.ThemeStyle;
 import android.graphics.Bitmap;
@@ -110,19 +111,19 @@ import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.shade.ShadeDisplayAware;
 import com.android.systemui.statusbar.NotificationLockscreenUserManager;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
-import com.android.systemui.surfaceeffects.PaintDrawCallback;
-import com.android.systemui.surfaceeffects.loadingeffect.LoadingEffect;
-import com.android.systemui.surfaceeffects.loadingeffect.LoadingEffect.AnimationState;
-import com.android.systemui.surfaceeffects.loadingeffect.LoadingEffectView;
-import com.android.systemui.surfaceeffects.ripple.MultiRippleController;
-import com.android.systemui.surfaceeffects.ripple.MultiRippleView;
-import com.android.systemui.surfaceeffects.ripple.RippleAnimation;
-import com.android.systemui.surfaceeffects.ripple.RippleAnimationConfig;
-import com.android.systemui.surfaceeffects.ripple.RippleShader;
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseAnimationConfig;
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseController;
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseShader.Companion.Type;
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseView;
+import com.android.systemui.surfaceeffects.core.ripple.RippleAnimationConfig;
+import com.android.systemui.surfaceeffects.core.ripple.RippleShader;
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseAnimationConfig;
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseShader.Companion.Type;
+import com.android.systemui.surfaceeffects.view.PaintDrawCallback;
+import com.android.systemui.surfaceeffects.view.loadingeffect.LoadingEffect;
+import com.android.systemui.surfaceeffects.view.loadingeffect.LoadingEffect.AnimationState;
+import com.android.systemui.surfaceeffects.view.loadingeffect.LoadingEffectView;
+import com.android.systemui.surfaceeffects.view.ripple.MultiRippleController;
+import com.android.systemui.surfaceeffects.view.ripple.MultiRippleView;
+import com.android.systemui.surfaceeffects.view.ripple.RippleAnimation;
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseController;
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseView;
 import com.android.systemui.util.ColorUtilKt;
 import com.android.systemui.util.animation.TransitionLayout;
 import com.android.systemui.util.concurrency.DelayableExecutor;
@@ -180,6 +181,7 @@ public class MediaControlPanel {
 
     private final SeekBarViewModel mSeekBarViewModel;
     private final CommunalSceneInteractor mCommunalSceneInteractor;
+    private final CommunalTransitionAnimatorController.Factory mCommunalAnimationControllerFactory;
     private SeekBarObserver mSeekBarObserver;
     protected final Executor mBackgroundExecutor;
     private final DelayableExecutor mMainExecutor;
@@ -285,7 +287,8 @@ public class MediaControlPanel {
             ActivityIntentHelper activityIntentHelper,
             CommunalSceneInteractor communalSceneInteractor,
             NotificationLockscreenUserManager lockscreenUserManager,
-            GlobalSettings globalSettings
+            GlobalSettings globalSettings,
+            CommunalTransitionAnimatorController.Factory communalAnimationControllerFactory
     ) {
         mContext = context;
         mBackgroundExecutor = backgroundExecutor;
@@ -303,6 +306,7 @@ public class MediaControlPanel {
         mActivityIntentHelper = activityIntentHelper;
         mLockscreenUserManager = lockscreenUserManager;
         mCommunalSceneInteractor = communalSceneInteractor;
+        mCommunalAnimationControllerFactory = communalAnimationControllerFactory;
 
         mSeekBarViewModel.setLogSeek(() -> {
             if (mPackageName != null && mInstanceId != null) {
@@ -573,32 +577,21 @@ public class MediaControlPanel {
                         createTurbulenceNoiseConfig();
             }
 
-            if (Flags.shaderlibLoadingEffectRefactor()) {
-                if (mLoadingEffect == null) {
-                    mLoadingEffect = new LoadingEffect(
-                            Type.SIMPLEX_NOISE,
-                            mTurbulenceNoiseAnimationConfig,
-                            mNoiseDrawCallback,
-                            mStateChangedCallback
-                    );
-                    mColorSchemeTransition.setLoadingEffect(mLoadingEffect);
-                }
-
-                mLoadingEffect.play();
-                mMainExecutor.executeDelayed(
-                        mLoadingEffect::finish,
-                        TURBULENCE_NOISE_PLAY_DURATION
-                );
-            } else {
-                mTurbulenceNoiseController.play(
+            if (mLoadingEffect == null) {
+                mLoadingEffect = new LoadingEffect(
                         Type.SIMPLEX_NOISE,
-                        mTurbulenceNoiseAnimationConfig
+                        mTurbulenceNoiseAnimationConfig,
+                        mNoiseDrawCallback,
+                        mStateChangedCallback
                 );
-                mMainExecutor.executeDelayed(
-                        mTurbulenceNoiseController::finish,
-                        TURBULENCE_NOISE_PLAY_DURATION
-                );
+                mColorSchemeTransition.setLoadingEffect(mLoadingEffect);
             }
+
+            mLoadingEffect.play();
+            mMainExecutor.executeDelayed(
+                    mLoadingEffect::finish,
+                    TURBULENCE_NOISE_PLAY_DURATION
+            );
         }
 
         mButtonClicked = false;
@@ -787,10 +780,11 @@ public class MediaControlPanel {
                     } else {
                         mMediaOutputDialogManager.createAndShow(
                                 mPackageName,
-                                /* aboveStatusBar */ true,
+                                /* aboveStatusBar= */ true,
                                 mMediaViewHolder.getSeamlessButton(),
                                 UserHandle.getUserHandleForUid(mUid),
-                                mToken);
+                                mToken,
+                                /* useSystemColors= */ false);
                     }
                 });
     }
@@ -902,8 +896,7 @@ public class MediaControlPanel {
                 artwork = new ColorDrawable(Color.TRANSPARENT);
                 isArtworkBound = false;
                 try {
-                    Drawable icon = mContext.getPackageManager()
-                            .getApplicationIcon(data.getPackageName());
+                    Drawable icon = getAppIcon(data.getPackageName());
                     mutableColorScheme = new ColorScheme(WallpaperColors.fromDrawable(icon),
                             darkTheme, ThemeStyle.CONTENT);
                 } catch (PackageManager.NameNotFoundException e) {
@@ -962,17 +955,23 @@ public class MediaControlPanel {
                     // Resume players use launcher icon
                     appIconView.setColorFilter(getGrayscaleFilter());
                     try {
-                        Drawable icon = mContext.getPackageManager()
-                                .getApplicationIcon(data.getPackageName());
+                        Drawable icon = getAppIcon(data.getPackageName());
                         appIconView.setImageDrawable(icon);
                     } catch (PackageManager.NameNotFoundException e) {
                         Log.w(TAG, "Cannot find icon for package " + data.getPackageName(), e);
                         appIconView.setImageResource(R.drawable.ic_music_note);
+                        appIconView.setColorFilter(Color.WHITE);
                     }
                 }
                 Trace.endAsyncSection(traceName, traceCookie);
             });
         });
+    }
+
+    private Drawable getAppIcon(String packageName) throws PackageManager.NameNotFoundException {
+        ApplicationInfo appInfo = mContext.getPackageManager()
+                .getApplicationInfoAsUser(packageName, 0, mMediaData.getUserId());
+        return mContext.getPackageManager().getApplicationIcon(appInfo);
     }
 
     // This method should be called from a background thread. WallpaperColors.fromBitmap takes a
@@ -1092,8 +1091,6 @@ public class MediaControlPanel {
     }
 
     private void bindPageButtons() {
-        if (!Flags.mediaCarouselArrows()) return;
-
         ImageButton pageLeft = mMediaViewHolder.getPageLeft();
         pageLeft.setOnClickListener(v -> {
             mMediaCarouselController.getMediaCarouselScrollHandler().scrollByStep(-1);
@@ -1108,7 +1105,7 @@ public class MediaControlPanel {
     }
 
     void setPageArrowsVisible(boolean visible) {
-        if (!Flags.mediaCarouselArrows() || mPageArrowsVisible == visible) return;
+        if (mPageArrowsVisible == visible) return;
         mPageArrowsVisible = visible;
 
         ConstraintSet expandedSet = mMediaViewController.getExpandedLayout();
@@ -1128,13 +1125,11 @@ public class MediaControlPanel {
     }
 
     void setPageLeftEnabled(boolean enabled) {
-        if (!Flags.mediaCarouselArrows()) return;
         ImageButton pageLeft = mMediaViewHolder.getPageLeft();
         pageLeft.setEnabled(enabled);
     }
 
     void setPageRightEnabled(boolean enabled) {
-        if (!Flags.mediaCarouselArrows()) return;
         ImageButton pageRight = mMediaViewHolder.getPageRight();
         pageRight.setEnabled(enabled);
     }
@@ -1267,9 +1262,7 @@ public class MediaControlPanel {
     }
 
     private TurbulenceNoiseAnimationConfig createTurbulenceNoiseConfig() {
-        View targetView = Flags.shaderlibLoadingEffectRefactor()
-                ? mMediaViewHolder.getLoadingEffectView() :
-                mMediaViewHolder.getTurbulenceNoiseView();
+        View targetView = mMediaViewHolder.getLoadingEffectView();
         int width = targetView.getWidth();
         int height = targetView.getHeight();
         Random random = new Random();
@@ -1400,8 +1393,7 @@ public class MediaControlPanel {
                 && mMediaViewController.getCurrentEndLocation()
                 == MediaHierarchyManager.LOCATION_COMMUNAL_HUB) {
             mCommunalSceneInteractor.setIsLaunchingWidget(true);
-            return new CommunalTransitionAnimatorController(controller,
-                    mCommunalSceneInteractor);
+            return mCommunalAnimationControllerFactory.create(controller);
         }
         return controller;
     }

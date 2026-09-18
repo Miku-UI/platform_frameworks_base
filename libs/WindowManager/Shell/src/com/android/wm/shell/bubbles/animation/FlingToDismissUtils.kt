@@ -34,9 +34,10 @@ object FlingToDismissUtils {
 
     /** Returns the dismiss target width for the specified [screenWidthPx]. */
     @JvmStatic
-    fun getFlingToDismissTargetWidth(screenWidthPx: Int) = when {
-        screenWidthPx >= 2000 -> FLING_TO_DISMISS_TARGET_WIDTH_LARGE
-        screenWidthPx >= 1500 -> FLING_TO_DISMISS_TARGET_WIDTH_MEDIUM
-        else -> FLING_TO_DISMISS_TARGET_WIDTH_SMALL
-    }
+    fun getFlingToDismissTargetWidth(screenWidthPx: Int) =
+        when {
+            screenWidthPx >= 2000 -> FLING_TO_DISMISS_TARGET_WIDTH_LARGE
+            screenWidthPx >= 1500 -> FLING_TO_DISMISS_TARGET_WIDTH_MEDIUM
+            else -> FLING_TO_DISMISS_TARGET_WIDTH_SMALL
+        }
 }

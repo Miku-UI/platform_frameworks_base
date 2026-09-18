@@ -17,9 +17,9 @@
 package com.android.systemui.statusbar.connectivity
 
 import android.os.UserManager
+import com.android.systemui.CoreStartable
 import com.android.systemui.bluetooth.qsdialog.dagger.AudioSharingModule
 import com.android.systemui.qs.QsEventLogger
-import com.android.systemui.qs.flags.QsInCompose
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.shared.model.TileCategory
 import com.android.systemui.qs.tileimpl.QSTileImpl
@@ -60,14 +60,37 @@ import com.android.systemui.qs.tiles.impl.wifi.domain.interactor.WifiTileUserAct
 import com.android.systemui.qs.tiles.impl.wifi.domain.model.WifiTileModel
 import com.android.systemui.qs.tiles.impl.wifi.ui.mapper.WifiTileMapper
 import com.android.systemui.res.R
+import com.android.systemui.statusbar.connectivity.data.repository.InternetConnectivityActionRepository
+import com.android.systemui.statusbar.connectivity.data.repository.InternetConnectivityActionRepositoryImpl
+import com.android.systemui.statusbar.connectivity.domain.interactor.InternetConnectivityActionInteractor
+import com.android.systemui.statusbar.connectivity.domain.interactor.InternetConnectivityActionInteractorImpl
+import com.android.systemui.statusbar.connectivity.ui.viewmodel.InternetConnectivityActionViewModel
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
+import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
 import dagger.multibindings.StringKey
 
 @Module(includes = [AudioSharingModule::class])
 interface ConnectivityModule {
+
+    @Binds
+    fun bindInternetConnectivityActionRepository(
+        impl: InternetConnectivityActionRepositoryImpl
+    ): InternetConnectivityActionRepository
+
+    @Binds
+    fun bindInternetConnectivityActionInteractor(
+        impl: InternetConnectivityActionInteractorImpl
+    ): InternetConnectivityActionInteractor
+
+    @Binds
+    @IntoMap
+    @ClassKey(InternetConnectivityActionViewModel::class)
+    fun bindInternetConnectivityActionViewModel(
+        impl: InternetConnectivityActionViewModel
+    ): CoreStartable
 
     /** Inject BluetoothTile into tileMap in QSModule */
     @Binds
@@ -236,12 +259,7 @@ interface ConnectivityModule {
                 tileSpec = TileSpec.create(INTERNET_TILE_SPEC),
                 uiConfig =
                     QSTileUIConfig.Resource(
-                        iconRes =
-                            if (QsInCompose.isEnabled) {
-                                com.android.settingslib.R.drawable.ic_wifi_3
-                            } else {
-                                R.drawable.ic_qs_no_internet_available
-                            },
+                        iconRes = com.android.settingslib.R.drawable.ic_wifi_3,
                         labelRes = R.string.quick_settings_internet_label,
                     ),
                 instanceId = uiEventLogger.getNewInstanceId(),
@@ -276,11 +294,10 @@ interface ConnectivityModule {
                 uiConfig =
                     QSTileUIConfig.Resource(
                         iconRes = WifiIcons.WIFI_FULL_ICONS[4],
-                        // Wifi tile will still show internet for now until we migrate to a
-                        // Wifi-only tile.
-                        labelRes = R.string.quick_settings_internet_label,
+                        labelRes = R.string.quick_settings_wifi_label,
                     ),
                 instanceId = uiEventLogger.getNewInstanceId(),
+                policy = QSTilePolicy.Restricted(listOf(UserManager.DISALLOW_CHANGE_WIFI_STATE)),
                 category = TileCategory.CONNECTIVITY,
             )
 
@@ -292,12 +309,14 @@ interface ConnectivityModule {
             mapper: WifiTileMapper,
             dataInteractor: WifiTileDataInteractor,
             userActionInteractor: WifiTileUserActionInteractor,
+            internetDetailsViewModelFactory: InternetDetailsViewModel.Factory,
         ): QSTileViewModel =
             factory.create(
                 TileSpec.create(WIFI_TILE_SPEC),
                 userActionInteractor,
                 dataInteractor,
                 mapper,
+                internetDetailsViewModelFactory.create(),
             )
 
         @Provides
@@ -306,9 +325,10 @@ interface ConnectivityModule {
         fun provideMobileDataTileConfig(uiEventLogger: QsEventLogger): QSTileConfig =
             QSTileConfig(
                 tileSpec = TileSpec.create(MOBILE_DATA_TILE_SPEC),
+                // TODO(479241590): Change the iconRes here to use a static "on" icon.
                 uiConfig =
                     QSTileUIConfig.Resource(
-                        iconRes = com.android.settingslib.R.drawable.ic_mobile_4_4_bar,
+                        iconRes = R.drawable.ic_cell_on,
                         labelRes = R.string.quick_settings_cellular_detail_title,
                     ),
                 instanceId = uiEventLogger.getNewInstanceId(),
@@ -323,12 +343,14 @@ interface ConnectivityModule {
             mapper: MobileDataTileMapper,
             dataInteractor: MobileDataTileDataInteractor,
             userActionInteractor: MobileDataTileUserActionInteractor,
+            internetDetailsViewModelFactory: InternetDetailsViewModel.Factory,
         ): QSTileViewModel =
             factory.create(
                 TileSpec.create(MOBILE_DATA_TILE_SPEC),
                 userActionInteractor,
                 dataInteractor,
                 mapper,
+                internetDetailsViewModelFactory.create(),
             )
 
         @Provides

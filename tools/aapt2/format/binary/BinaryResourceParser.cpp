@@ -165,6 +165,10 @@ bool BinaryResourceParser::ParseTable(const ResChunk_header* chunk) {
         }
         break;
 
+      case android::RES_TABLE_FLAG_LIST:
+        // we can ignore this is the flag names are included in the RES_TABLE_FLAGGED chunks
+        break;
+
       default:
         diag_->Warn(android::DiagMessage(source_)
                     << "unexpected chunk type "
@@ -248,6 +252,12 @@ bool BinaryResourceParser::ParsePackage(const ResChunk_header* chunk) {
 
       case android::RES_TABLE_TYPE_TYPE:
         if (!ParseType(package, parser.chunk(), package_id)) {
+          return false;
+        }
+        break;
+
+      case android::RES_TABLE_FLAGGED:
+        if (!ParseFlagged(package, parser.chunk(), package_id)) {
           return false;
         }
         break;
@@ -340,8 +350,41 @@ bool BinaryResourceParser::ParseTypeSpec(const ResourceTablePackage* package,
   return true;
 }
 
+bool BinaryResourceParser::ParseFlagged(const ResourceTablePackage* package,
+                                        const android::ResChunk_header* chunk, uint8_t package_id) {
+  const ResTable_flagged* flagged = ConvertTo<ResTable_flagged>(chunk);
+  if (!flagged) {
+    diag_->Error(android::DiagMessage(source_) << "corrupt ResTable_flagged chunk");
+    return false;
+  }
+
+  const std::string flag_name =
+      android::util::GetString(value_pool_, flagged->flag_name_index.index);
+  FeatureFlagAttribute attribute = {flag_name, flagged->flag_negated};
+
+  ResChunkPullParser parser(GetChunkData(&flagged->header), GetChunkDataLen(&flagged->header));
+  while (ResChunkPullParser::IsGoodEvent(parser.Next())) {
+    switch (android::util::DeviceToHost16(parser.chunk()->type)) {
+      case RES_TABLE_TYPE_TYPE: {
+        if (!ParseType(package, parser.chunk(), package_id, attribute, FlagStatus::RWFlag)) {
+          return false;
+        }
+      } break;
+
+      default:
+        LOG(WARNING) << StringPrintf("Unknown chunk type '%02x'.", parser.chunk()->type);
+        return false;
+        break;
+    }
+  }
+
+  return true;
+}
+
 bool BinaryResourceParser::ParseType(const ResourceTablePackage* package,
-                                     const ResChunk_header* chunk, uint8_t package_id) {
+                                     const ResChunk_header* chunk, uint8_t package_id,
+                                     const std::optional<FeatureFlagAttribute> flag_attribute,
+                                     FlagStatus flag_status) {
   if (type_pool_.getError() != NO_ERROR) {
     diag_->Error(android::DiagMessage(source_) << "missing type string pool");
     return false;
@@ -403,6 +446,9 @@ bool BinaryResourceParser::ParseType(const ResourceTablePackage* package,
       return false;
     }
 
+    resource_value->SetFlag(flag_attribute);
+    resource_value->SetFlagStatus(flag_status);
+
     if (const auto to_remove_it = staged_entries_to_remove_.find({name, res_id});
         to_remove_it != staged_entries_to_remove_.end()) {
       staged_entries_to_remove_.erase(to_remove_it);
@@ -412,9 +458,8 @@ bool BinaryResourceParser::ParseType(const ResourceTablePackage* package,
     NewResourceBuilder res_builder(name);
     res_builder.SetValue(std::move(resource_value), config)
         .SetId(res_id, OnIdConflict::CREATE_ENTRY)
-        .SetAllowMangled(true);
-
-    res_builder.SetUsesReadWriteFeatureFlags(entry->uses_feature_flags());
+        .SetAllowMangled(true)
+        .SetUsesReadWriteFeatureFlags(flag_status == FlagStatus::RWFlag);
 
     if (entry->flags() & ResTable_entry::FLAG_PUBLIC) {
       Visibility visibility{Visibility::Level::kPublic};

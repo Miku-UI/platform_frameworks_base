@@ -28,7 +28,7 @@ public interface ProtoLogDataSourceBuilder {
      */
     @NonNull
     ProtoLogDataSource build(
-            @NonNull ProtoLogDataSource.Instance.TracingInstanceStartCallback onStart,
+            @NonNull ProtoLogDataSource.Instance.ProtoLogTracingInstanceStartCallback onStart,
             @NonNull Runnable onFlush,
-            @NonNull ProtoLogDataSource.Instance.TracingInstanceStopCallback onStop);
+            @NonNull ProtoLogDataSource.Instance.ProtoLogTracingInstanceStopCallback onStop);
 }

@@ -44,7 +44,8 @@
     <string name="expand_handle" msgid="7282974448109280522">"Mở rộng điều khiển"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"Thu gọn điều khiển"</string>
     <string name="print_button" msgid="645164566271246268">"In"</string>
-    <string name="savetopdf_button" msgid="2976186791686924743">"Lưu ở dạng PDF"</string>
+    <string name="setup_button" msgid="323390526074568450">"Thiết lập"</string>
+    <string name="savetopdf_button" msgid="2976186791686924743">"Lưu dưới dạng PDF"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"Đã mở rộng các tùy chọn in"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"Đã thu gọn các tùy chọn in"</string>
     <string name="search" msgid="5421724265322228497">"Tìm kiếm"</string>

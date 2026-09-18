@@ -19,6 +19,7 @@ package com.android.systemui.volume.ui.navigation
 import android.app.Dialog
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -33,7 +34,8 @@ import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.statusbar.phone.SystemUIDialogFactory
 import com.android.systemui.statusbar.phone.createBottomSheet
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
-import com.android.systemui.volume.VolumePanelFactory
+import com.android.systemui.volume.VolumePanelDialogManager
+import com.android.systemui.volume.dialog.domain.interactor.ExpandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.domain.model.VolumePanelRoute
 import com.android.systemui.volume.panel.domain.interactor.VolumePanelGlobalStateInteractor
 import com.android.systemui.volume.panel.ui.VolumePanelUiEvent
@@ -56,15 +58,16 @@ class VolumeNavigator
 constructor(
     @Application private val applicationScope: CoroutineScope,
     @Main private val mainContext: CoroutineContext,
-    private val volumePanelFactory: VolumePanelFactory,
+    private val volumePanelDialogManager: VolumePanelDialogManager,
     private val activityStarter: ActivityStarter,
     private val viewModelFactory: VolumePanelViewModel.Factory,
     private val dialogFactory: SystemUIDialogFactory,
     private val uiEventLogger: UiEventLogger,
     private val volumePanelGlobalStateInteractor: VolumePanelGlobalStateInteractor,
+    private val expandedAudioTileDetailsFeatureInteractor: ExpandedAudioTileDetailsFeatureInteractor,
 ) {
 
-    init {
+    fun start() {
         volumePanelGlobalStateInteractor.globalState
             .map { it.isVisible }
             .distinctUntilChanged()
@@ -93,7 +96,7 @@ constructor(
                     /* dismissShade= */ true,
                 )
             VolumePanelRoute.SYSTEM_UI_VOLUME_PANEL ->
-                volumePanelFactory.create(aboveStatusBar = true, view = null)
+                volumePanelDialogManager.create(aboveStatusBar = true, view = null)
         }
     }
 
@@ -121,12 +124,14 @@ constructor(
                 val coroutineScope = rememberCoroutineScope()
                 VolumePanelRoot(
                     remember(coroutineScope) { viewModelFactory.create(coroutineScope) },
+                    expandedAudioTileDetailsFeatureInteractor.isEnabled(),
                     Modifier.sysUiResTagContainer(),
                 )
             },
             isDraggable = false,
             // TODO(b/337205027) change maxWidth
             maxWidth = 800.dp,
+            containerColorProvider = { MaterialTheme.colorScheme.surface },
         )
     }
 }

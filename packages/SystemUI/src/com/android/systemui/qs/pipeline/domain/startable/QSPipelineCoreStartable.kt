@@ -17,8 +17,8 @@
 package com.android.systemui.qs.pipeline.domain.startable
 
 import com.android.systemui.CoreStartable
-import com.android.systemui.Flags.resetTilesRemovesCustomTiles
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.qs.panels.domain.interactor.IconTilesInteractor
 import com.android.systemui.qs.pipeline.domain.interactor.AccessibilityTilesInteractor
 import com.android.systemui.qs.pipeline.domain.interactor.AutoAddInteractor
 import com.android.systemui.qs.pipeline.domain.interactor.CurrentTilesInteractor
@@ -37,18 +37,15 @@ constructor(
     private val settingsPackageRepository: QSSettingsPackageRepository,
     private val restoreReconciliationInteractor: RestoreReconciliationInteractor,
     private val customTileAddedRepositoryUpgrader: CustomTileAddedRepositoryUpgrader,
+    private val iconTilesInteractor: IconTilesInteractor,
 ) : CoreStartable {
 
     override fun start() {
         accessibilityTilesInteractor.init(currentTilesInteractor)
-        autoAddInteractor.init(currentTilesInteractor)
+        autoAddInteractor.init(currentTilesInteractor, iconTilesInteractor)
         settingsPackageRepository.init()
         restoreReconciliationInteractor.start()
 
-        // This flag is only for v2 upgrade, but we use this to just limit all upgrades (as only
-        // v2 exists for now).
-        if (resetTilesRemovesCustomTiles()) {
-            customTileAddedRepositoryUpgrader.start(currentTilesInteractor.userId)
-        }
+        customTileAddedRepositoryUpgrader.start(currentTilesInteractor.userId)
     }
 }

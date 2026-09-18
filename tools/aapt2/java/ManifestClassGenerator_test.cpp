@@ -25,9 +25,20 @@ using ::testing::Not;
 
 namespace aapt {
 
-static ::testing::AssertionResult GetManifestClassText(IAaptContext* context, xml::XmlResource* res,
-                                                       bool strip_api_annotations,
-                                                       std::string* out_str);
+static ::testing::AssertionResult GetManifestClassText(
+    IAaptContext* context, xml::XmlResource* res, bool strip_api_annotations, std::string* out_str,
+    const FeatureFlagValues& feature_flag_values = {}) {
+  std::unique_ptr<ClassDefinition> manifest_class =
+      GenerateManifestClass(context->GetDiagnostics(), res, feature_flag_values);
+  if (!manifest_class) {
+    return ::testing::AssertionFailure() << "manifest_class == nullptr";
+  }
+
+  StringOutputStream out(out_str);
+  manifest_class->WriteJavaFile(manifest_class.get(), "android", true, strip_api_annotations, &out);
+  out.Flush();
+  return ::testing::AssertionSuccess();
+}
 
 TEST(ManifestClassGeneratorTest, NameIsProperlyGeneratedFromSymbol) {
   std::unique_ptr<IAaptContext> context = test::ContextBuilder().Build();
@@ -194,6 +205,93 @@ TEST(ManifestClassGeneratorTest, LastSeenPermissionWithSameLeafNameTakesPreceden
   EXPECT_THAT(actual, Not(HasSubstr("ACCESS_INTERNET=\"com.android.sample.ACCESS_INTERNET\";")));
 }
 
+TEST(ManifestClassGeneratorTest, FlaggedPermissionMembersAreAlwaysGeneratedRegardlessOfFlagValue) {
+  std::unique_ptr<IAaptContext> context = test::ContextBuilder().Build();
+  std::unique_ptr<xml::XmlResource> manifest = test::BuildXmlDom(R"(
+      <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+        <!-- flag1 is enabled, P1 is enabled -->
+        <permission android:name="android.permission.P1" android:featureFlag="flag1" />
+        <!-- flag2 is disabled, P2 is disabled -->
+        <permission android:name="android.permission.P2" android:featureFlag="flag2" />
+        <!-- flag1 is enabled, P3 is disabled -->
+        <permission android:name="android.permission.P3" android:featureFlag="!flag1" />
+        <!-- flag2 is disabled, P4 is enabled -->
+        <permission android:name="android.permission.P4" android:featureFlag="!flag2" />
+        <!-- flag3 is not read-only, P5 is enabled -->
+        <permission android:name="android.permission.P5" android:featureFlag="flag3" />
+        <!-- flag4 has no value, P6 is enabled -->
+        <permission android:name="android.permission.P6" android:featureFlag="flag4" />
+      </manifest>)");
+
+  std::string actual;
+  ASSERT_TRUE(GetManifestClassText(context.get(), manifest.get(), true /* strip_api_annotations */,
+                                   &actual,
+                                   {{"flag1", {true /* read_only */, true /* enabled */}},
+                                    {"flag2", {true /* read_only */, false /* enabled */}},
+                                    {"flag3", {false /* read_only */, false /* enabled */}}}));
+
+  EXPECT_THAT(actual, HasSubstr("public static final String P1=\"android.permission.P1\";"));
+  EXPECT_THAT(actual, HasSubstr("flag1 is enabled, P1 is enabled"));
+  EXPECT_THAT(actual, HasSubstr("public static final String P2=\"android.permission.P2\";"));
+  EXPECT_THAT(actual, HasSubstr("flag2 is disabled, P2 is disabled"));
+  EXPECT_THAT(actual, HasSubstr("public static final String P3=\"android.permission.P3\";"));
+  EXPECT_THAT(actual, HasSubstr("flag1 is enabled, P3 is disabled"));
+  EXPECT_THAT(actual, HasSubstr("public static final String P4=\"android.permission.P4\";"));
+  EXPECT_THAT(actual, HasSubstr("flag2 is disabled, P4 is enabled"));
+  EXPECT_THAT(actual, HasSubstr("public static final String P5=\"android.permission.P5\";"));
+  EXPECT_THAT(actual, HasSubstr("flag3 is not read-only, P5 is enabled"));
+  EXPECT_THAT(actual, HasSubstr("public static final String P6=\"android.permission.P6\";"));
+  EXPECT_THAT(actual, HasSubstr("flag4 has no value, P6 is enabled"));
+}
+
+TEST(ManifestClassGeneratorTest, FlaggedPermissionCommentsFromCorrectElementAreIncluded) {
+  std::unique_ptr<IAaptContext> context = test::ContextBuilder().Build();
+  std::unique_ptr<xml::XmlResource> manifest = test::BuildXmlDom(R"(
+      <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+        <!-- flag1 is enabled, pick this comment for P1 -->
+        <permission android:name="android.permission.P1" android:featureFlag="flag1" />
+        <!-- flag1 is enabled, don't pick this comment for P1 -->
+        <permission android:name="android.permission.P1" android:featureFlag="!flag1" />
+
+        <!-- flag1 is enabled, don't pick this comment for P2 -->
+        <permission android:name="android.permission.P2" android:featureFlag="!flag1" />
+        <!-- flag1 is enabled, pick this comment for P2 -->
+        <permission android:name="android.permission.P2" android:featureFlag="flag1" />
+
+        <!-- flag2 is disabled, don't pick this comment for P3 -->
+        <permission android:name="android.permission.P3" android:featureFlag="flag2" />
+        <!-- flag2 is disabled, pick this comment for P3 -->
+        <permission android:name="android.permission.P3" android:featureFlag="!flag2" />
+
+        <!-- flag2 is disabled, pick this comment for P4 -->
+        <permission android:name="android.permission.P4" android:featureFlag="!flag2" />
+        <!-- flag2 is disabled, don't pick this comment for P4 -->
+        <permission android:name="android.permission.P4" android:featureFlag="flag2" />
+      </manifest>)");
+
+  std::string actual;
+  ASSERT_TRUE(GetManifestClassText(context.get(), manifest.get(), true /* strip_api_annotations */,
+                                   &actual,
+                                   {{"flag1", {true /* read_only */, true /* enabled */}},
+                                    {"flag2", {true /* read_only */, false /* enabled */}}}));
+
+  EXPECT_THAT(actual, HasSubstr("public static final String P1=\"android.permission.P1\";"));
+  EXPECT_THAT(actual, HasSubstr("flag1 is enabled, pick this comment for P1"));
+  EXPECT_THAT(actual, Not(HasSubstr("flag1 is enabled, don't pick this comment for P1")));
+
+  EXPECT_THAT(actual, HasSubstr("public static final String P2=\"android.permission.P2\";"));
+  EXPECT_THAT(actual, Not(HasSubstr("flag1 is enabled, don't pick this comment for P2")));
+  EXPECT_THAT(actual, HasSubstr("flag1 is enabled, pick this comment for P2"));
+
+  EXPECT_THAT(actual, HasSubstr("public static final String P3=\"android.permission.P3\";"));
+  EXPECT_THAT(actual, Not(HasSubstr("flag2 is disabled, don't pick this comment for P3")));
+  EXPECT_THAT(actual, HasSubstr("flag2 is disabled, pick this comment for P3"));
+
+  EXPECT_THAT(actual, HasSubstr("public static final String P4=\"android.permission.P4\";"));
+  EXPECT_THAT(actual, HasSubstr("flag2 is disabled, pick this comment for P4"));
+  EXPECT_THAT(actual, Not(HasSubstr("flag2 is disabled, don't pick this comment for P4")));
+}
+
 TEST(ManifestClassGeneratorTest, NormalizePermissionNames) {
   std::unique_ptr<IAaptContext> context = test::ContextBuilder().Build();
   std::unique_ptr<xml::XmlResource> manifest = test::BuildXmlDom(R"(
@@ -205,21 +303,6 @@ TEST(ManifestClassGeneratorTest, NormalizePermissionNames) {
   ASSERT_TRUE(GetManifestClassText(context.get(), manifest.get(),
                                    false  /* strip_api_annotations */, &actual));
   EXPECT_THAT(actual, HasSubstr("access_internet=\"android.permission.access-internet\";"));
-}
-
-static ::testing::AssertionResult GetManifestClassText(IAaptContext* context, xml::XmlResource* res,
-                                                       bool strip_api_annotations,
-                                                       std::string* out_str) {
-  std::unique_ptr<ClassDefinition> manifest_class =
-      GenerateManifestClass(context->GetDiagnostics(), res);
-  if (!manifest_class) {
-    return ::testing::AssertionFailure() << "manifest_class == nullptr";
-  }
-
-  StringOutputStream out(out_str);
-  manifest_class->WriteJavaFile(manifest_class.get(), "android", true, strip_api_annotations, &out);
-  out.Flush();
-  return ::testing::AssertionSuccess();
 }
 
 }  // namespace aapt

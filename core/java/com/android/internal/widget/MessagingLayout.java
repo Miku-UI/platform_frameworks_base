@@ -16,8 +16,6 @@
 
 package com.android.internal.widget;
 
-import static android.app.Flags.notificationsRedesignTemplates;
-
 import static com.android.internal.widget.MessagingGroup.IMAGE_DISPLAY_LOCATION_EXTERNAL;
 import static com.android.internal.widget.MessagingGroup.IMAGE_DISPLAY_LOCATION_INLINE;
 
@@ -28,6 +26,7 @@ import android.annotation.StyleRes;
 import android.app.Notification;
 import android.app.Person;
 import android.app.RemoteInputHistoryItem;
+import android.app.SetNotificationBackgroundColorRefactor;
 import android.content.Context;
 import android.graphics.Rect;
 import android.graphics.drawable.Icon;
@@ -68,7 +67,7 @@ public class MessagingLayout extends FrameLayout
     public static final Interpolator FAST_OUT_LINEAR_IN = new PathInterpolator(0.4f, 0f, 1f, 1f);
     public static final Interpolator FAST_OUT_SLOW_IN = new PathInterpolator(0.4f, 0f, 0.2f, 1f);
     private static final String TAG = "MessagingLayout";
-    private static final int MAX_SUMMARIZATION_LINES = 3;
+    private static final int MAX_SUMMARIZATION_LINES = 5;
     public static final OnLayoutChangeListener MESSAGING_PROPERTY_ANIMATOR
             = new MessagingPropertyAnimator();
     private final PeopleHelper mPeopleHelper = new PeopleHelper();
@@ -98,6 +97,7 @@ public class MessagingLayout extends FrameLayout
     private int mSpacingForExpander;
     private int mSpacingForImage;
     private LinearLayout mMessageContentView;
+    private int mDefaultStartMargin;
     private int mSummarizationStartMargin;
 
     public MessagingLayout(@NonNull Context context) {
@@ -143,14 +143,12 @@ public class MessagingLayout extends FrameLayout
                 R.dimen.notification_2025_right_icon_content_margin);
         mSpacingForImage = iconMarginStart + imageWidth;
 
-        if (notificationsRedesignTemplates()) {
-            // The left_icon in the header has the default rounded square background. Make sure
-            // we're using the circular background instead.
-            ImageView leftIcon = findViewById(R.id.left_icon);
-            if (leftIcon != null) {
-                leftIcon.setBackgroundResource(
-                        R.drawable.notification_2025_conversation_icon_background);
-            }
+        // The left_icon in the header has the default rounded square background. Make sure
+        // we're using the circular background instead.
+        ImageView leftIcon = findViewById(R.id.left_icon);
+        if (leftIcon != null) {
+            leftIcon.setBackgroundResource(
+                    R.drawable.notification_2025_conversation_icon_background);
         }
         // We still want to clip, but only on the top, since views can temporarily out of bounds
         // during transitions.
@@ -160,6 +158,8 @@ public class MessagingLayout extends FrameLayout
         setMessagingClippingDisabled(false);
 
         mMessageContentView = findViewById(R.id.notification_main_column);
+        mDefaultStartMargin = getResources().getDimensionPixelSize(
+                R.dimen.notification_2025_content_margin_start);
         mSummarizationStartMargin = getResources().getDimensionPixelSize(
                 R.dimen.notification_2025_content_margin_start_summarization);
     }
@@ -359,11 +359,12 @@ public class MessagingLayout extends FrameLayout
             }
         }
         mMessagingLinearLayout.setMaxDisplayedLines(maxLines);
-        if (isShowingSummarization()) {
+
+        if (mIsCollapsed) {
             ViewGroup.LayoutParams lp = mMessageContentView.getLayoutParams();
-            if (lp != null && lp instanceof MarginLayoutParams) {
-                final MarginLayoutParams mlp = (MarginLayoutParams) lp;
-                mlp.setMarginStart(mSummarizationStartMargin);
+            if (lp instanceof MarginLayoutParams mlp) {
+                mlp.setMarginStart(
+                        isShowingSummarization() ? mSummarizationStartMargin : mDefaultStartMargin);
                 // this happens before layout, so we don't need to explicitly ask for one
             }
         }
@@ -444,17 +445,15 @@ public class MessagingLayout extends FrameLayout
      * text in the same way we do for large icons, to leave space for the image.
      */
     private void adjustSpacingForImage() {
-        if (notificationsRedesignTemplates()) {
-            updateMarginEnd(mImageMessageContainer, mSpacingForExpander);
+        updateMarginEnd(mImageMessageContainer, mSpacingForExpander);
 
-            int spacingForImage = getSpacingForImage();
-            int textMargin = spacingForImage + mSpacingForExpander;
-            updateMarginEnd(mTopLine, textMargin);
-            // Only apply spacing to second line if there's an image - otherwise the text should
-            // flow under the expander.
-            if (spacingForImage > 0) {
-                updateMarginEnd(mMessagingLinearLayout, textMargin);
-            }
+        int spacingForImage = getSpacingForImage();
+        int textMargin = spacingForImage + mSpacingForExpander;
+        updateMarginEnd(mTopLine, textMargin);
+        // Only apply spacing to second line if there's an image - otherwise the text should flow
+        // under the expander.
+        if (spacingForImage > 0) {
+            updateMarginEnd(mMessagingLinearLayout, textMargin);
         }
     }
 
@@ -611,6 +610,7 @@ public class MessagingLayout extends FrameLayout
      */
     @RemotableViewMethod
     public void setNotificationBackgroundColor(int color) {
+        SetNotificationBackgroundColorRefactor.assertInLegacyMode();
         // Nothing to do with this
     }
 

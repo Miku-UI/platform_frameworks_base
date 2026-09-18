@@ -566,34 +566,34 @@ class KeyguardInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    fun isAbleToDream_falseWhenDozing() =
+    fun isDreamingNotDozing_falseWhenDozing() =
         testScope.runTest {
-            val isAbleToDream by collectLastValue(underTest.isAbleToDream)
+            val isDreamingNotDozing by collectLastValue(underTest.isDreamingNotDozing)
 
             repository.setDozeTransitionModel(
                 DozeTransitionModel(from = DozeStateModel.INITIALIZED, to = DozeStateModel.DOZE_AOD)
             )
 
-            assertThat(isAbleToDream).isEqualTo(false)
+            assertThat(isDreamingNotDozing).isEqualTo(false)
         }
 
     @Test
-    fun isAbleToDream_falseWhenNotDozingAndNotDreaming() =
+    fun isDreamingNotDozing_falseWhenNotDozingAndNotDreaming() =
         testScope.runTest {
-            val isAbleToDream by collectLastValue(underTest.isAbleToDream)
+            val isDreamingNotDozing by collectLastValue(underTest.isDreamingNotDozing)
 
             repository.setDozeTransitionModel(
                 DozeTransitionModel(from = DozeStateModel.DOZE, to = DozeStateModel.FINISH)
             )
             advanceTimeBy(1000L)
 
-            assertThat(isAbleToDream).isEqualTo(false)
+            assertThat(isDreamingNotDozing).isEqualTo(false)
         }
 
     @Test
-    fun isAbleToDream_trueWhenNotDozingAndIsDreaming_afterDelay() =
+    fun isDreamingNotDozing_trueWhenNotDozingAndIsDreaming_afterDelay() =
         testScope.runTest {
-            val isAbleToDream by collectLastValue(underTest.isAbleToDream)
+            val isDreamingNotDozing by collectLastValue(underTest.isDreamingNotDozing)
             runCurrent()
 
             repository.setDreaming(true)
@@ -602,16 +602,16 @@ class KeyguardInteractorTest : SysuiTestCase() {
             )
             // After some delay, still false
             advanceTimeBy(300L)
-            assertThat(isAbleToDream).isEqualTo(false)
+            assertThat(isDreamingNotDozing).isEqualTo(false)
 
             // After more delay, is true
             advanceTimeBy(300L)
-            assertThat(isAbleToDream).isEqualTo(true)
+            assertThat(isDreamingNotDozing).isEqualTo(true)
 
             // Also changes back after the minimal debounce
             repository.setDreaming(false)
             advanceTimeBy(55L)
-            assertThat(isAbleToDream).isEqualTo(false)
+            assertThat(isDreamingNotDozing).isEqualTo(false)
         }
 
     @Test

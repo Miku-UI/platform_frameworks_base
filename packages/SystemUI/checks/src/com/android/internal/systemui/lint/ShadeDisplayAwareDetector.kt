@@ -94,7 +94,6 @@ class ShadeDisplayAwareDetector : Detector(), SourceCodeScanner {
 
         private val SHADE_WINDOW_PACKAGES =
             listOf(
-                "com.android.systemui.biometrics",
                 "com.android.systemui.bouncer",
                 "com.android.systemui.keyboard.docking.ui.viewmodel",
                 "com.android.systemui.media.controls.ui.controller",

@@ -102,7 +102,7 @@ public class SettingsXml {
         String getString(String attrName);
 
         /**
-         * @return value as String or {@param defaultValue} if doesn't exist
+         * @return value as String or {@code defaultValue} if doesn't exist
          */
         @NonNull
         String getString(String attrName, @NonNull String defaultValue);
@@ -113,7 +113,7 @@ public class SettingsXml {
         boolean getBoolean(String attrName);
 
         /**
-         * @return value as boolean or {@param defaultValue} if doesn't exist
+         * @return value as boolean or {@code defaultValue} if doesn't exist
          */
         boolean getBoolean(String attrName, boolean defaultValue);
 
@@ -123,7 +123,7 @@ public class SettingsXml {
         int getInt(String attrName);
 
         /**
-         * @return value as int or {@param defaultValue} if doesn't exist
+         * @return value as int or {@code defaultValue} if doesn't exist
          */
         int getInt(String attrName, int defaultValue);
 
@@ -133,7 +133,7 @@ public class SettingsXml {
         long getLong(String attrName);
 
         /**
-         * @return value as long or {@param defaultValue} if doesn't exist
+         * @return value as long or {@code defaultValue} if doesn't exist
          */
         long getLong(String attrName, int defaultValue);
 

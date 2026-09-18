@@ -21,7 +21,7 @@ public interface GlobalActionsProvider {
     boolean isGlobalActionsDisabled();
     /** Set the listener that will handle various global actions evetns. */
     void setGlobalActionsListener(GlobalActionsListener listener);
-    /** Show the global actions UI to the user. */
+    /** Show the global actions UI to the user. If it's already visible, it will hide it. */
     void showGlobalActions();
 
     /** Listener to pass global actions events back to system. */

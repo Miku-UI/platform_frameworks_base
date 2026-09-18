@@ -18,10 +18,10 @@ package com.android.wm.shell.flicker.splitscreen
 
 import android.platform.test.annotations.Presubmit
 import android.tools.NavBar
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.subject.layers.LayersTraceSubject
 import android.tools.flicker.subject.region.RegionSubject
 import android.tools.traces.component.ComponentNameMatcher.Companion.WALLPAPER_BBQ_WRAPPER
@@ -86,7 +86,7 @@ class UnlockKeyguardToSplitScreenTest(override val flicker: FlickerTest) :
         flicker.splitAppLayerBoundsIsVisibleAtEnd(
             primaryApp,
             landscapePosLeft = false,
-            portraitPosTop = false
+            portraitPosTop = false,
         )
 
     @Test
@@ -94,7 +94,7 @@ class UnlockKeyguardToSplitScreenTest(override val flicker: FlickerTest) :
         flicker.splitAppLayerBoundsIsVisibleAtEnd(
             secondaryApp,
             landscapePosLeft = true,
-            portraitPosTop = true
+            portraitPosTop = true,
         )
 
     @Test fun primaryAppWindowIsVisibleAtEnd() = flicker.appWindowIsVisibleAtEnd(primaryApp)

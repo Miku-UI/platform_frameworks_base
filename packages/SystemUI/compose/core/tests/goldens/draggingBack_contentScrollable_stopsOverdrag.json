@@ -1,0 +1,148 @@
+{
+  "frame_ids": [
+    "before",
+    0,
+    16,
+    32,
+    48,
+    64,
+    80,
+    96,
+    112,
+    128,
+    144,
+    160,
+    176,
+    192,
+    208,
+    224,
+    240,
+    256,
+    272,
+    288,
+    304,
+    320,
+    336,
+    352,
+    368,
+    384,
+    400,
+    416,
+    432,
+    "after"
+  ],
+  "features": [
+    {
+      "name": "page0",
+      "type": "dp",
+      "data_points": [
+        0,
+        0,
+        0,
+        3.2,
+        19.2,
+        32.4,
+        49.2,
+        51.6,
+        41.6,
+        24.8,
+        15.6,
+        -17.6,
+        -52.4,
+        -79.6,
+        -99.6,
+        -109.2,
+        -107.2,
+        -94.4,
+        -73.6,
+        -44.8,
+        -12,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "page1",
+      "type": "dp",
+      "data_points": [
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        140.4,
+        105.6,
+        78.4,
+        58.4,
+        48.8,
+        50.8,
+        63.6,
+        84.4,
+        113.2,
+        146,
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        },
+        {
+          "type": "not_found"
+        }
+      ]
+    }
+  ]
+}

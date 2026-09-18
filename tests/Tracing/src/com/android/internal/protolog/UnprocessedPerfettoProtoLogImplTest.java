@@ -47,7 +47,7 @@ import java.io.IOException;
 import java.util.List;
 
 public class UnprocessedPerfettoProtoLogImplTest {
-    private static final String TEST_PROTOLOG_DATASOURCE_NAME = "test.android.protolog.unprocessed";
+    private static final String TEST_PROTOLOG_DATASOURCE_NAME = getTestDsName();
 
     private final File mTracingDirectory = InstrumentationRegistry.getInstrumentation()
             .getTargetContext().getFilesDir();
@@ -56,6 +56,14 @@ public class UnprocessedPerfettoProtoLogImplTest {
     private static UnprocessedPerfettoProtoLogImpl sProtoLog;
 
     public UnprocessedPerfettoProtoLogImplTest() throws IOException { }
+
+    private static String getTestDsName() {
+        if (android.tracing.Flags.javaNativeProtolog()) {
+            return "android.protolog";
+        } else {
+            return "test.android.protolog.unprocessed";
+        }
+    }
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -67,11 +75,12 @@ public class UnprocessedPerfettoProtoLogImplTest {
                                         .PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_DROP)
                         .build();
         sTestDataSource.register(params);
-        busyWaitForDataSourceRegistration(TEST_PROTOLOG_DATASOURCE_NAME);
 
         sProtoLog = new UnprocessedPerfettoProtoLogImpl(sTestDataSource,
                 TestProtoLogGroup.values());
         sProtoLog.enable();
+
+        busyWaitForDataSourceRegistration(TEST_PROTOLOG_DATASOURCE_NAME);
     }
 
     @Before
@@ -112,8 +121,8 @@ public class UnprocessedPerfettoProtoLogImplTest {
                 .filter(config ->
                         config.getMessagesList().stream()
                                 .anyMatch(messageConfig ->
-                                        messageConfig.getGroupId()
-                                                == TestProtoLogGroup.TEST_GROUP.getId()
+                                        messageConfig.getMessage()
+                                                .equals("My Unprocessed Message")
                                 ) && config.getMessagesCount() == 1
                 )
                 .toList();
@@ -138,16 +147,14 @@ public class UnprocessedPerfettoProtoLogImplTest {
     }
 
     private enum TestProtoLogGroup implements IProtoLogGroup {
-        TEST_GROUP(true, true, false, "TEST_TAG");
+        TEST_GROUP(true, false, "TEST_TAG");
 
         private final boolean mEnabled;
-        private volatile boolean mLogToProto;
         private volatile boolean mLogToLogcat;
         private final String mTag;
 
-        TestProtoLogGroup(boolean enabled, boolean logToProto, boolean logToLogcat, String tag) {
+        TestProtoLogGroup(boolean enabled, boolean logToLogcat, String tag) {
             this.mEnabled = enabled;
-            this.mLogToProto = logToProto;
             this.mLogToLogcat = logToLogcat;
             this.mTag = tag;
         }

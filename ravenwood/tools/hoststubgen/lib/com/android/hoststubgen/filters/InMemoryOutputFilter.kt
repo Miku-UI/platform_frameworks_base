@@ -151,7 +151,7 @@ class InMemoryOutputFilter(
 
     private fun checkClass(className: String) {
         if (classes.findClass(className) == null) {
-            log.w("Unknown class $className")
+            log.d("Unknown class $className")
         }
     }
 

@@ -16,6 +16,7 @@
 
 package com.android.internal.inputmethod;
 
+import static android.os.Trace.TRACE_TAG_WINDOW_MANAGER;
 import static android.tracing.perfetto.DataSourceParams.PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP;
 
 import android.annotation.NonNull;
@@ -81,6 +82,10 @@ final class ImeTracingPerfettoImpl extends ImeTracing {
         try {
             Trace.beginSection("inputmethod_client_dump");
             mDataSource.trace((ctx) -> {
+                if (android.tracing.Flags.perfettoImeFineGrainedConfig()
+                        && !ctx.getCustomTlsState().mConfig.mIsClientEnabled) {
+                    return;
+                }
                 final ProtoOutputStream os = ctx.newTracePacket();
                 os.write(TracePacket.TIMESTAMP, SystemClock.elapsedRealtimeNanos());
                 final long tokenWinscopeExtensions =
@@ -113,8 +118,12 @@ final class ImeTracingPerfettoImpl extends ImeTracing {
         }
 
         try {
-            Trace.beginSection("inputmethod_service_dump");
+            Trace.traceBegin(TRACE_TAG_WINDOW_MANAGER, "inputmethod_service_dump");
             mDataSource.trace((ctx) -> {
+                if (android.tracing.Flags.perfettoImeFineGrainedConfig()
+                        && !ctx.getCustomTlsState().mConfig.mIsServiceEnabled) {
+                    return;
+                }
                 final ProtoOutputStream os = ctx.newTracePacket();
                 os.write(TracePacket.TIMESTAMP, SystemClock.elapsedRealtimeNanos());
                 final long tokenWinscopeExtensions =
@@ -128,7 +137,7 @@ final class ImeTracingPerfettoImpl extends ImeTracing {
             });
         } finally {
             mIsServiceDumpInProgress.set(false);
-            Trace.endSection();
+            Trace.traceEnd(TRACE_TAG_WINDOW_MANAGER);
         }
     }
 
@@ -143,8 +152,12 @@ final class ImeTracingPerfettoImpl extends ImeTracing {
         }
 
         try {
-            Trace.beginSection("inputmethod_manager_service_dump");
+            Trace.traceBegin(TRACE_TAG_WINDOW_MANAGER, "inputmethod_manager_service_dump");
             mDataSource.trace((ctx) -> {
+                if (android.tracing.Flags.perfettoImeFineGrainedConfig()
+                        && !ctx.getCustomTlsState().mConfig.mIsManagerServiceEnabled) {
+                    return;
+                }
                 final ProtoOutputStream os = ctx.newTracePacket();
                 os.write(TracePacket.TIMESTAMP, SystemClock.elapsedRealtimeNanos());
                 final long tokenWinscopeExtensions =
@@ -158,7 +171,7 @@ final class ImeTracingPerfettoImpl extends ImeTracing {
             });
         } finally {
             mIsManagerServiceDumpInProgress.set(false);
-            Trace.endSection();
+            Trace.traceEnd(TRACE_TAG_WINDOW_MANAGER);
         }
     }
 

@@ -367,13 +367,11 @@ public final class BroadcastHelper {
             tracePackageChangedBroadcastEvent(true /* applyFlag */, reasonForTrace, packageName,
                     "<implicit>" /* targetPackageName */, "whole" /* targetComponent */,
                     componentNames.size(), callingPackageNameForTrace);
-            BroadcastOptions bOptions = null;
-            if (android.content.pm.Flags.mergePackageChangedBroadcast()) {
-                bOptions = new BroadcastOptions()
-                        .setDeliveryGroupPolicy(BroadcastOptions.DELIVERY_GROUP_POLICY_MOST_RECENT)
-                        .setDeliveryGroupMatchingKey(Intent.ACTION_PACKAGE_CHANGED,
-                                packageName + "-" + packageUid);
-            }
+            BroadcastOptions bOptions = new BroadcastOptions()
+                    .setDeliveryGroupPolicy(BroadcastOptions.DELIVERY_GROUP_POLICY_MOST_RECENT)
+                    .setDeliveryGroupMatchingKey(Intent.ACTION_PACKAGE_CHANGED,
+                            packageName + "-" + packageUid);
+
             sendPackageChangedBroadcastWithPermissions(packageName, dontKillApp, componentNames,
                     packageUid, reason, userIds, instantUserIds, broadcastAllowList,
                     null /* targetPackageName */, null /* requiredPermissions */,
@@ -412,31 +410,17 @@ public final class BroadcastHelper {
                 }
             }
 
-            if (android.content.pm.Flags.consolidatePackageChangedBroadcasts()) {
-                final BroadcastOptions bOptions = BroadcastOptions.makeBasic()
-                        .setIncludedPackages(targetPackages.toArray(
-                                new String[targetPackages.size()]));
-                tracePackageChangedBroadcastEvent(true /* applyFlag */, reasonForTrace,
-                        packageName, "<explicit-pkg-list>" /* targetPackageName */,
-                        "notExported" /* targetComponent */,
-                        notExportedComponentNames.size(), callingPackageNameForTrace);
-                sendPackageChangedBroadcastWithPermissions(packageName, dontKillApp,
-                        notExportedComponentNames, packageUid, reason, userIds, instantUserIds,
-                        broadcastAllowList, null /* targetPackageName */,
-                        null /* requiredPermissions */, reasonForTrace, bOptions);
-            } else {
-                for (int i = 0; i < targetPackages.size(); ++i) {
-                    final String targetPackageName = targetPackages.get(i);
-                    tracePackageChangedBroadcastEvent(true /* applyFlag */, reasonForTrace,
-                            packageName, targetPackageName,
-                            "notExported" /* targetComponent */,
-                            notExportedComponentNames.size(), callingPackageNameForTrace);
-                    sendPackageChangedBroadcastWithPermissions(packageName, dontKillApp,
-                            notExportedComponentNames, packageUid, reason, userIds, instantUserIds,
-                            broadcastAllowList, targetPackageName,
-                            null /* requiredPermissions */, reasonForTrace, null /* bOptions */);
-                }
-            }
+            final BroadcastOptions bOptions = BroadcastOptions.makeBasic()
+                    .setIncludedPackages(targetPackages.toArray(
+                            new String[targetPackages.size()]));
+            tracePackageChangedBroadcastEvent(true /* applyFlag */, reasonForTrace,
+                    packageName, "<explicit-pkg-list>" /* targetPackageName */,
+                    "notExported" /* targetComponent */,
+                    notExportedComponentNames.size(), callingPackageNameForTrace);
+            sendPackageChangedBroadcastWithPermissions(packageName, dontKillApp,
+                    notExportedComponentNames, packageUid, reason, userIds, instantUserIds,
+                    broadcastAllowList, null /* targetPackageName */,
+                    null /* requiredPermissions */, reasonForTrace, bOptions);
         }
 
         if (!exportedComponentNames.isEmpty()) {
@@ -476,10 +460,8 @@ public final class BroadcastHelper {
         if (reason != null) {
             extras.putString(Intent.EXTRA_REASON, reason);
         }
-        if (android.content.pm.Flags.includeBroadcastDebugReason()) {
-            bOptions = bOptions == null ? BroadcastOptions.makeBasic() : bOptions;
-            bOptions.setDebugReason(broadcastDebugReason);
-        }
+        bOptions = bOptions == null ? BroadcastOptions.makeBasic() : bOptions;
+        bOptions.setDebugReason(broadcastDebugReason);
         // If this is not reporting a change of the overall package, then only send it
         // to registered receivers.  We don't want to launch a swath of apps for every
         // little component state change.
@@ -543,9 +525,7 @@ public final class BroadcastHelper {
      *   granted.
      */
     boolean canLauncherAccessProfile(ComponentName launcherComponent, int userId) {
-        if (android.os.Flags.allowPrivateProfile()
-                && Flags.enablePermissionToAccessHiddenProfiles()
-                && Flags.enablePrivateSpaceFeatures()) {
+        if (Flags.enablePermissionToAccessHiddenProfiles()) {
             if (mUmInternal.getUserProperties(userId).getProfileApiVisibility()
                     != UserProperties.PROFILE_API_VISIBILITY_HIDDEN) {
                 return true;
@@ -1018,19 +998,28 @@ public final class BroadcastHelper {
                                                @NonNull int[] instantUserIds,
                                                @Nullable SparseArray<int[]> broadcastAllowList,
                                                @Nullable Bundle bOptions) {
-        mHandler.post(() -> sendPackageBroadcast(action, pkg, extras, flags,
-                targetPkg, finishedReceiver, userIds, instantUserIds, broadcastAllowList,
-                null /* filterExtrasForReceiver */, bOptions, null /* requiredPermissions */));
-        if (targetPkg == null) {
-            // For some broadcast action, e.g. ACTION_PACKAGE_ADDED, this method will be called
-            // many times to different targets, e.g. installer app, permission controller, other
-            // registered apps. We should filter it to avoid calling back many times for the same
-            // action. When the targetPkg is set, it sends the broadcast to specific app, e.g.
-            // installer app or null for registered apps. The callback only need to send back to the
-            // registered apps so we check the null condition here.
-            notifyPackageMonitor(action, pkg, extras, userIds, instantUserIds, broadcastAllowList,
-                    null /* filterExtras */);
-        }
+
+        mHandler.post(() -> {
+            sendPackageBroadcast(action, pkg, extras, flags,
+                    targetPkg, finishedReceiver, userIds, instantUserIds, broadcastAllowList,
+                    null /* filterExtrasForReceiver */, bOptions, null /* requiredPermissions */);
+
+            // Ensure we notifyPackageMonitor AFTER broadcast has been sent to avoid race condition
+            // For example, one of the PackageMonitor restarts app process after update while system
+            // kills the process as part of PACKAGE_REPLACED broadcast. We need predictable ordering
+            // between consumers to avoid process dying after restart.
+
+            if (targetPkg == null) {
+                // For some broadcast action, e.g. ACTION_PACKAGE_ADDED, this method will be called
+                // many times to different targets, e.g. installer app, permission controller, other
+                // registered apps. We should filter it to avoid calling back many times for the
+                // same action. When the targetPkg is set, it sends the broadcast to specific app,
+                // e.g. installer app or null for registered apps. The callback only need to send
+                // back to the registered apps so we check the null condition here.
+                notifyPackageMonitor(action, pkg, extras, userIds, instantUserIds,
+                        broadcastAllowList, null /* filterExtras */);
+            }
+        });
     }
 
     void sendSystemPackageUpdatedBroadcasts(@NonNull PackageRemovedInfo packageRemovedInfo) {
@@ -1187,13 +1176,17 @@ public final class BroadcastHelper {
         BiFunction<Integer, Bundle, Bundle> filterExtrasForReceiver =
                 (callingUid, intentExtras) -> BroadcastHelper.filterExtrasChangedPackageList(
                         snapshotSupplier, callingUid, intentExtras);
-        mHandler.post(() -> sendPackageBroadcast(intent, null /* pkg */,
-                extras, flags, null /* targetPkg */, null /* finishedReceiver */,
-                new int[]{userId}, null /* instantUserIds */, null /* broadcastAllowList */,
-                filterExtrasForReceiver,
-                options, null /* requiredPermissions */));
-        notifyPackageMonitor(intent, null /* pkg */, extras, new int[]{userId},
-                null /* instantUserIds */, null /* broadcastAllowList */, filterExtrasForReceiver);
+        mHandler.post(() -> {
+            sendPackageBroadcast(intent, null /* pkg */,
+                    extras, flags, null /* targetPkg */, null /* finishedReceiver */,
+                    new int[]{userId}, null /* instantUserIds */, null /* broadcastAllowList */,
+                    filterExtrasForReceiver,
+                    options, null /* requiredPermissions */);
+
+            notifyPackageMonitor(intent, null /* pkg */, extras, new int[]{userId},
+                    null /* instantUserIds */, null /* broadcastAllowList */,
+                    filterExtrasForReceiver);
+        });
     }
 
     void sendMyPackageSuspendedOrUnsuspended(@NonNull Supplier<Computer> snapshotSupplier,
@@ -1232,6 +1225,21 @@ public final class BroadcastHelper {
                         null /* requiredPermissions */);
             }
         });
+    }
+
+    void sendPackageAppLockStateChangedForUser(@NonNull String pkgName, int userId,
+            boolean enabled) {
+        String action = PackageManager.ACTION_PACKAGE_APP_LOCK_ENABLED_STATE_CHANGED;
+        final Bundle extras = new Bundle();
+        extras.putBoolean(PackageManager.EXTRA_APP_LOCK_NEW_STATE, enabled);
+
+        // Do not call sendPackageBroadcast, notify via PackageMonitor only.
+        // These broadcasts are intended only for internal system components listening via
+        // PackageMonitor, not for general application consumption, so we don't use the standard
+        // broadcast mechanism.
+        notifyPackageMonitor(action, pkgName, extras, new int[]{userId},
+                null /* instantUserIds */, null /* broadcastAllowList */,
+                null /* filterExtrasForReceiver */);
     }
 
     /**

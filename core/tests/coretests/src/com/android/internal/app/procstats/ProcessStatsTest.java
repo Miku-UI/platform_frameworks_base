@@ -16,26 +16,33 @@
 
 package com.android.internal.app.procstats;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
-import static org.mockito.MockitoAnnotations.initMocks;
 
 import android.app.ActivityManager;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.util.FrameworkStatsLog;
 
-import junit.framework.TestCase;
-
 import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 import java.util.concurrent.TimeUnit;
 
 /** Provides test cases for ProcessStats. */
-public class ProcessStatsTest extends TestCase {
+@SmallTest
+@RunWith(AndroidJUnit4.class)
+public final class ProcessStatsTest {
 
     private static final String APP_1_PACKAGE_NAME = "com.android.testapp";
     private static final int APP_1_UID = 5001;
@@ -51,21 +58,23 @@ public class ProcessStatsTest extends TestCase {
     private static final long NOW_MS = 123000;
     private static final int DURATION_SECS = 6;
 
+    @Rule
+    public MockitoRule mockitoRule = MockitoJUnit.rule();
     @Mock StatsEventOutput mStatsEventOutput;
+    private ProcessStats mProcessStats;
 
     @Before
     public void setUp() {
-        initMocks(this);
+        mProcessStats = new ProcessStats();
     }
 
-    @SmallTest
-    public void testDumpProcessState() throws Exception {
-        ProcessStats processStats = new ProcessStats();
-        processStats.getProcessStateLocked(
+    @Test
+    public void testDumpProcessState() {
+        mProcessStats.getProcessStateLocked(
                 APP_1_PACKAGE_NAME, APP_1_UID, APP_1_VERSION, APP_1_PROCESS_NAME);
-        processStats.getProcessStateLocked(
+        mProcessStats.getProcessStateLocked(
                 APP_2_PACKAGE_NAME, APP_2_UID, APP_2_VERSION, APP_2_PROCESS_NAME);
-        processStats.dumpProcessState(FrameworkStatsLog.PROCESS_STATE, mStatsEventOutput);
+        mProcessStats.dumpProcessState(FrameworkStatsLog.PROCESS_STATE, mStatsEventOutput);
         verify(mStatsEventOutput)
                 .write(
                         eq(FrameworkStatsLog.PROCESS_STATE),
@@ -100,16 +109,15 @@ public class ProcessStatsTest extends TestCase {
                         eq(0));
     }
 
-    @SmallTest
-    public void testNonZeroProcessStateDuration() throws Exception {
-        ProcessStats processStats = new ProcessStats();
+    @Test
+    public void testNonZeroProcessStateDuration() {
         ProcessState processState =
-                processStats.getProcessStateLocked(
+                mProcessStats.getProcessStateLocked(
                         APP_1_PACKAGE_NAME, APP_1_UID, APP_1_VERSION, APP_1_PROCESS_NAME);
         processState.setState(ActivityManager.PROCESS_STATE_TOP, ProcessStats.ADJ_MEM_FACTOR_NORMAL,
                 NOW_MS, /* pkgList */ null);
         processState.commitStateTime(NOW_MS + TimeUnit.SECONDS.toMillis(DURATION_SECS));
-        processStats.dumpProcessState(FrameworkStatsLog.PROCESS_STATE, mStatsEventOutput);
+        mProcessStats.dumpProcessState(FrameworkStatsLog.PROCESS_STATE, mStatsEventOutput);
         verify(mStatsEventOutput)
                 .write(
                         eq(FrameworkStatsLog.PROCESS_STATE),
@@ -128,16 +136,15 @@ public class ProcessStatsTest extends TestCase {
                         eq(0));
     }
 
-    @SmallTest
-    public void testDumpBoundFgsDuration() throws Exception {
-        ProcessStats processStats = new ProcessStats();
+    @Test
+    public void testDumpBoundFgsDuration() {
         ProcessState processState =
-                processStats.getProcessStateLocked(
+                mProcessStats.getProcessStateLocked(
                         APP_1_PACKAGE_NAME, APP_1_UID, APP_1_VERSION, APP_1_PROCESS_NAME);
         processState.setState(ActivityManager.PROCESS_STATE_BOUND_FOREGROUND_SERVICE,
                 ProcessStats.ADJ_MEM_FACTOR_NORMAL, NOW_MS, /* pkgList */ null);
         processState.commitStateTime(NOW_MS + TimeUnit.SECONDS.toMillis(DURATION_SECS));
-        processStats.dumpProcessState(FrameworkStatsLog.PROCESS_STATE, mStatsEventOutput);
+        mProcessStats.dumpProcessState(FrameworkStatsLog.PROCESS_STATE, mStatsEventOutput);
         verify(mStatsEventOutput)
                 .write(
                         eq(FrameworkStatsLog.PROCESS_STATE),
@@ -156,20 +163,19 @@ public class ProcessStatsTest extends TestCase {
                         eq(0));
     }
 
-    @SmallTest
-    public void testDumpFrozenDuration() throws Exception {
-        ProcessStats processStats = new ProcessStats();
+    @Test
+    public void testDumpFrozenDuration() {
         ProcessState processState =
-                processStats.getProcessStateLocked(
+                mProcessStats.getProcessStateLocked(
                         APP_1_PACKAGE_NAME, APP_1_UID, APP_1_VERSION, APP_1_PROCESS_NAME);
         processState.setState(ActivityManager.PROCESS_STATE_BOUND_FOREGROUND_SERVICE,
                 ProcessStats.ADJ_MEM_FACTOR_NORMAL, NOW_MS, /* pkgList */ null);
         processState.onProcessFrozen(NOW_MS   + 1 * TimeUnit.SECONDS.toMillis(DURATION_SECS),
-            /* pkgList */ null);
+                /* pkgList */ null);
         processState.onProcessUnfrozen(NOW_MS + 2 * TimeUnit.SECONDS.toMillis(DURATION_SECS),
-            /* pkgList */ null);
+                /* pkgList */ null);
         processState.commitStateTime(NOW_MS   + 3 * TimeUnit.SECONDS.toMillis(DURATION_SECS));
-        processStats.dumpProcessState(FrameworkStatsLog.PROCESS_STATE, mStatsEventOutput);
+        mProcessStats.dumpProcessState(FrameworkStatsLog.PROCESS_STATE, mStatsEventOutput);
         verify(mStatsEventOutput)
                 .write(
                         eq(FrameworkStatsLog.PROCESS_STATE),
@@ -188,11 +194,10 @@ public class ProcessStatsTest extends TestCase {
                         eq(0));
     }
 
-    @SmallTest
-    public void testDumpProcessAssociation() throws Exception {
-        ProcessStats processStats = new ProcessStats();
+    @Test
+    public void testDumpProcessAssociation() {
         AssociationState associationState =
-                processStats.getAssociationStateLocked(
+                mProcessStats.getAssociationStateLocked(
                         APP_1_PACKAGE_NAME,
                         APP_1_UID,
                         APP_1_VERSION,
@@ -201,7 +206,7 @@ public class ProcessStatsTest extends TestCase {
         AssociationState.SourceState sourceState =
                 associationState.startSource(APP_2_UID, APP_2_PROCESS_NAME, APP_2_PACKAGE_NAME);
         sourceState.stop();
-        processStats.dumpProcessAssociation(
+        mProcessStats.dumpProcessAssociation(
                 FrameworkStatsLog.PROCESS_ASSOCIATION, mStatsEventOutput);
         verify(mStatsEventOutput)
                 .write(
@@ -218,14 +223,13 @@ public class ProcessStatsTest extends TestCase {
                         eq(APP_1_PROCESS_NAME));
     }
 
-    @SmallTest
-    public void testSafelyResetClearsProcessInUidState() throws Exception {
-        ProcessStats processStats = new ProcessStats();
+    @Test
+    public void testSafelyResetClearsProcessInUidState() {
         ProcessState processState =
-                processStats.getProcessStateLocked(
+                mProcessStats.getProcessStateLocked(
                         APP_1_PACKAGE_NAME, APP_1_UID, APP_1_VERSION, APP_1_PROCESS_NAME);
         processState.makeActive();
-        UidState uidState = processStats.mUidStates.get(APP_1_UID);
+        UidState uidState = mProcessStats.mUidStates.get(APP_1_UID);
         assertTrue(uidState.isInUse());
         processState.makeInactive();
         uidState.resetSafely(NOW_MS);

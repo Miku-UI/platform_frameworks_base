@@ -19,6 +19,7 @@ package com.android.systemui.communal.data.db
 import android.content.ComponentName
 import android.os.UserManager
 import androidx.room.Dao
+import kotlin.jvm.JvmInline
 import androidx.room.Delete
 import androidx.room.Query
 import androidx.room.RoomDatabase
@@ -26,6 +27,8 @@ import androidx.room.Transaction
 import androidx.room.Update
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.systemui.Flags.communalWidgetPopulationOptimization
+import com.android.systemui.communal.data.model.CommunalWidgetId
 import com.android.systemui.communal.nano.CommunalHubState
 import com.android.systemui.communal.shared.model.SpanValue
 import com.android.systemui.communal.shared.model.toFixed
@@ -87,7 +90,7 @@ constructor(
         }
     }
 
-    private fun populateDefaultWidgets() {
+    private suspend fun populateDefaultWidgets() {
         // Default widgets should be associated with the main user.
         val user = userManager.mainUser ?: return
 
@@ -96,22 +99,55 @@ constructor(
         defaultWidgets.forEachIndexed { index, name ->
             val provider = ComponentName.unflattenFromString(name)
             provider?.let {
-                val id = communalWidgetHost.allocateIdAndBindWidget(provider, user)
-                id?.let {
-                    communalWidgetDaoProvider
-                        .get()
-                        .addWidget(
-                            widgetId = id,
-                            componentName = name,
-                            rank = index,
-                            userSerialNumber = userSerialNumber,
-                            spanY = SpanValue.Fixed(3),
-                        )
-                }
+                val id =
+                    if (communalWidgetPopulationOptimization()) {
+                        null
+                    } else {
+                        communalWidgetHost.allocateIdAndBindWidget(provider, user) ?: return@let
+                    }
+
+                communalWidgetDaoProvider
+                    .get()
+                    .addWidget(
+                        widgetId = id?.let { CommunalWidgetId(it) },
+                        componentName = name,
+                        rank = index,
+                        userSerialNumber = userSerialNumber,
+                        spanY = SpanValue.Responsive(1),
+                    )
             }
         }
 
         logger.i("Populated default widgets in the database.")
+    }
+
+    /**
+     * Allocates widget IDs for default widgets that were populated with a placeholder ID.
+     *
+     * This method should be called after the database has been populated with default widgets.
+     */
+    suspend fun allocateWidgets() {
+        val user = userManager.mainUser ?: return
+        val dao = communalWidgetDaoProvider.get()
+        val widgets = dao.getWidgetsNow()
+
+        widgets.forEach { (rank, widget) ->
+            if (widget.widgetId.isPlaceholder && defaultWidgets.contains(widget.componentName)) {
+                val provider =
+                    ComponentName.unflattenFromString(widget.componentName) ?: return@forEach
+                val id =
+                    communalWidgetHost.allocateIdAndBindWidget(provider, user) ?: return@forEach
+                dao.deleteWidgetById(widget.widgetId)
+                dao.addWidget(
+                    widgetId = CommunalWidgetId(id),
+                    componentName = widget.componentName,
+                    rank = rank.rank,
+                    userSerialNumber = widget.userSerialNumber,
+                    spanY = SpanValue.Responsive(widget.spanYNew),
+                )
+            }
+        }
+        logger.i("Allocated default widgets.")
     }
 
     /**
@@ -150,7 +186,7 @@ interface CommunalWidgetDao {
     fun getWidgetsNow(): Map<CommunalItemRank, CommunalWidgetItem>
 
     @Query("SELECT * FROM communal_widget_table WHERE widget_id = :id")
-    fun getWidgetByIdNow(id: Int): CommunalWidgetItem?
+    fun getWidgetByIdNow(id: CommunalWidgetId): CommunalWidgetItem?
 
     @Delete fun deleteWidgets(vararg widgets: CommunalWidgetItem)
 
@@ -163,7 +199,7 @@ interface CommunalWidgetDao {
             "VALUES(:widgetId, :componentName, :itemId, :userSerialNumber, :spanY, :spanYNew)"
     )
     fun insertWidget(
-        widgetId: Int,
+        widgetId: CommunalWidgetId,
         componentName: String,
         itemId: Long,
         userSerialNumber: Int,
@@ -172,7 +208,7 @@ interface CommunalWidgetDao {
     ): Long
 
     @Query("SELECT COUNT(widget_id) FROM communal_widget_table WHERE widget_id = :widgetId")
-    fun getWidgetCount(widgetId: Int): Long
+    fun getWidgetCount(widgetId: CommunalWidgetId): Long
 
     @Query("INSERT INTO communal_item_rank_table(rank) VALUES(:rank)")
     fun insertItemRank(rank: Int): Long
@@ -189,7 +225,7 @@ interface CommunalWidgetDao {
     @Transaction
     fun updateWidgetOrder(widgetIdToRankMap: Map<Int, Int>) {
         widgetIdToRankMap.forEach { (id, rank) ->
-            val widget = getWidgetByIdNow(id)
+            val widget = getWidgetByIdNow(CommunalWidgetId(id))
             if (widget != null) {
                 updateItemRank(widget.itemId, rank)
             }
@@ -198,7 +234,7 @@ interface CommunalWidgetDao {
 
     @Transaction
     fun resizeWidget(appWidgetId: Int, spanY: SpanValue, widgetIdToRankMap: Map<Int, Int>) {
-        val widget = getWidgetByIdNow(appWidgetId)
+        val widget = getWidgetByIdNow(CommunalWidgetId(appWidgetId))
         if (widget != null) {
             updateWidget(
                 widget.copy(spanY = spanY.toFixed().value, spanYNew = spanY.toResponsive().value)
@@ -209,7 +245,7 @@ interface CommunalWidgetDao {
 
     @Transaction
     fun addWidget(
-        widgetId: Int,
+        widgetId: CommunalWidgetId?,
         provider: ComponentName,
         rank: Int? = null,
         userSerialNumber: Int,
@@ -226,7 +262,7 @@ interface CommunalWidgetDao {
 
     @Transaction
     fun addWidget(
-        widgetId: Int,
+        widgetId: CommunalWidgetId?,
         componentName: String,
         rank: Int? = null,
         userSerialNumber: Int,
@@ -235,7 +271,9 @@ interface CommunalWidgetDao {
         // Remove any existing entry with the same widget id  to prevent issue where multiple
         // entries are linked to the same widget. This should not normally happen if all widgets
         // are requested from the same provider.
-        removeAllWidgetsById(widgetId)
+        if (widgetId != null) {
+            removeAllWidgetsById(widgetId)
+        }
         val widgets = getWidgetsNow()
 
         // If rank is not specified (null or less than 0), rank it last by finding the current
@@ -250,10 +288,13 @@ interface CommunalWidgetDao {
             }
         }
 
+        val itemId = insertItemRank(newRank)
+        val finalWidgetId = widgetId ?: CommunalWidgetId.placeholder(itemId)
+
         return insertWidget(
-            widgetId = widgetId,
+            widgetId = finalWidgetId,
             componentName = componentName,
-            itemId = insertItemRank(newRank),
+            itemId = itemId,
             userSerialNumber = userSerialNumber,
             spanY = spanY.toFixed().value,
             spanYNew = spanY.toResponsive().value,
@@ -261,7 +302,7 @@ interface CommunalWidgetDao {
     }
 
     @Transaction
-    fun removeAllWidgetsById(widgetId: Int) {
+    fun removeAllWidgetsById(widgetId: CommunalWidgetId) {
         var continueRemoving = false
         do {
             continueRemoving = deleteWidgetById(widgetId)
@@ -269,7 +310,7 @@ interface CommunalWidgetDao {
     }
 
     @Transaction
-    fun deleteWidgetById(widgetId: Int): Boolean {
+    fun deleteWidgetById(widgetId: CommunalWidgetId): Boolean {
         val widget =
             getWidgetByIdNow(widgetId)
                 ?: // no entry to delete from db
@@ -292,7 +333,15 @@ interface CommunalWidgetDao {
             // If no new value, restore any existing old values.
             val spanY = spanYResponsive ?: SpanValue.Fixed(it.spanY.coerceIn(3, 6))
 
-            addWidget(it.widgetId, it.componentName, it.rank, it.userSerialNumber, spanY)
+            addWidget(
+                CommunalWidgetId(it.widgetId),
+                it.componentName,
+                it.rank,
+                it.userSerialNumber,
+                spanY
+            )
         }
     }
 }
+
+

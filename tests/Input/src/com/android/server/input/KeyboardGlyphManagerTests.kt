@@ -17,7 +17,6 @@
 package com.android.server.input
 
 import android.content.Context
-import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
@@ -32,7 +31,7 @@ import android.platform.test.annotations.Presubmit
 import android.platform.test.flag.junit.SetFlagsRule
 import android.view.InputDevice
 import android.view.KeyEvent
-import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import com.android.hardware.input.Flags
 import com.android.test.input.MockInputManagerRule
 import com.android.test.input.R
@@ -70,15 +69,14 @@ class KeyboardGlyphManagerTests {
     @get:Rule val inputManagerRule = MockInputManagerRule()
 
     @Mock private lateinit var packageManager: PackageManager
+    @Mock private lateinit var context: Context
 
     private lateinit var keyboardGlyphManager: KeyboardGlyphManager
-    private lateinit var context: Context
     private lateinit var testLooper: TestLooper
     private lateinit var keyboardDevice: InputDevice
 
     @Before
     fun setup() {
-        context = Mockito.spy(ContextWrapper(ApplicationProvider.getApplicationContext()))
         testLooper = TestLooper()
         keyboardGlyphManager = KeyboardGlyphManager(context, testLooper.looper)
 
@@ -91,6 +89,8 @@ class KeyboardGlyphManagerTests {
     private fun setupInputDevices() {
         val inputManager = InputManager(context)
         Mockito.`when`(context.getSystemService(Mockito.eq(Context.INPUT_SERVICE)))
+            .thenReturn(inputManager)
+        Mockito.`when`(context.getSystemService(Mockito.eq(InputManager::class.java)))
             .thenReturn(inputManager)
 
         keyboardDevice = createKeyboard(DEVICE_ID, VENDOR_ID, PRODUCT_ID, 0, "", "")
@@ -117,7 +117,7 @@ class KeyboardGlyphManagerTests {
         Mockito.`when`(packageManager.getReceiverInfo(Mockito.any(), Mockito.anyInt()))
             .thenReturn(info.activityInfo)
 
-        val resources = context.resources
+        val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
         Mockito.`when`(
                 packageManager.getResourcesForApplication(Mockito.any(ApplicationInfo::class.java))
             )
@@ -159,11 +159,12 @@ class KeyboardGlyphManagerTests {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_KEYBOARD_GLYPH_MAP)
+    @EnableFlags(Flags.FLAG_KEYBOARD_GLYPH_MAP, Flags.FLAG_CONTROLLER_REMAPPING)
     fun testGlyphMapCorrectlyLoaded() {
         val glyphMap = keyboardGlyphManager.getKeyGlyphMap(DEVICE_ID)
         // Test glyph map used in this test: {@see test_glyph_map.xml}
         assertNotNull(glyphMap!!.getDrawableForKeycode(context, KeyEvent.KEYCODE_BACK))
+        assertEquals("Back", glyphMap.getDisplayNameForKeycode(KeyEvent.KEYCODE_BACK))
 
         assertNotNull(glyphMap.getDrawableForModifier(context, KeyEvent.KEYCODE_META_LEFT))
         assertNotNull(glyphMap.getDrawableForModifier(context, KeyEvent.KEYCODE_META_RIGHT))

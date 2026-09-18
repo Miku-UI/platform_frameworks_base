@@ -54,13 +54,13 @@ class ShowImeOnAppStartWhenLaunchingAppFromFixedOrientationTest(flicker: Flicker
     /** {@inheritDoc} */
     override val transition: FlickerBuilder.() -> Unit = {
         setup {
-            tapl.setExpectedRotationCheckEnabled(false)
+            tapl.expectedRotationCheckEnabled = false
 
             // Launch the activity with expecting IME will be shown.
             imeTestApp.launchViaIntent(wmHelper)
 
             // Swiping out the IME activity to home.
-            tapl.goHome()
+            device.pressHome()
             wmHelper.StateSyncBuilder().withHomeActivityVisible().waitForAndVerify()
         }
         transitions {

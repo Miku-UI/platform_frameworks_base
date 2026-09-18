@@ -21,15 +21,16 @@ import com.android.systemui.authentication.shared.model.AuthenticationMethodMode
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.Edge
+import com.android.systemui.keyguard.shared.model.KeyguardState.AOD
 import com.android.systemui.keyguard.shared.model.KeyguardState.DREAMING
 import com.android.systemui.keyguard.shared.model.KeyguardState.GLANCEABLE_HUB
+import com.android.systemui.keyguard.shared.model.KeyguardState.GONE
 import com.android.systemui.keyguard.shared.model.KeyguardState.OCCLUDED
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.util.kotlin.BooleanFlowOperators.any
-import com.android.systemui.util.kotlin.sample
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -57,7 +58,9 @@ constructor(
                 keyguardTransitionInteractor.transitionValue(Scenes.Occluded, OCCLUDED).map {
                     it == 1f
                 },
-                keyguardTransitionInteractor.transitionValue(DREAMING).map { it == 1f },
+                keyguardTransitionInteractor.transitionValue(Scenes.Dream, DREAMING).map {
+                    it == 1f
+                },
                 keyguardTransitionInteractor.transitionValue(Scenes.Communal, GLANCEABLE_HUB).map {
                     it == 1f
                 },
@@ -80,11 +83,11 @@ constructor(
                     edgeWithoutSceneContainer = Edge.create(from = GLANCEABLE_HUB, to = OCCLUDED),
                 ),
                 keyguardTransitionInteractor.isInTransition(
-                    edge = Edge.create(from = DREAMING, to = Scenes.Communal),
+                    edge = Edge.INVALID,
                     edgeWithoutSceneContainer = Edge.create(from = DREAMING, to = GLANCEABLE_HUB),
                 ),
                 keyguardTransitionInteractor.isInTransition(
-                    edge = Edge.create(from = Scenes.Communal, to = DREAMING),
+                    edge = Edge.INVALID,
                     edgeWithoutSceneContainer = Edge.create(from = GLANCEABLE_HUB, to = DREAMING),
                 ),
             )
@@ -97,17 +100,31 @@ constructor(
      */
     val isBouncerShowing: Flow<Boolean> =
         if (SceneContainerFlag.isEnabled) {
-                sceneInteractor.get().transitionState.map { it.isIdle(Overlays.Bouncer) }
+                sceneInteractor.get().transitionStateFlow.map {
+                    it.isTransitioningFromOrTo(Overlays.Bouncer) ||
+                            it.isIdle(Overlays.Bouncer) }
             } else {
                 flow { error("Consume this flow only when SceneContainerFlag is enabled") }
             }
             .distinctUntilChanged()
 
+    /** Whether transitions are animating GONE->AOD or not */
+    val isAnimatingGoneToAod: Flow<Boolean> =
+        keyguardTransitionInteractor.isInTransition(
+            edge = Edge.create(Scenes.Gone, AOD),
+            edgeWithoutSceneContainer = Edge.create(GONE, AOD),
+        )
+
     /** Whether we're on dream or transitioning to dream. */
     val isOnOrGoingToDream: Flow<Boolean> =
         combine(
-                keyguardTransitionInteractor.transitionValue(DREAMING).map { it == 1f },
-                keyguardTransitionInteractor.isInTransition(Edge.create(to = DREAMING)),
+                keyguardTransitionInteractor
+                    .transitionValue(Scenes.Dream, stateWithoutSceneContainer = DREAMING)
+                    .map { it == 1f },
+                keyguardTransitionInteractor.isInTransition(
+                    Edge.create(to = Scenes.Dream),
+                    edgeWithoutSceneContainer = Edge.create(to = DREAMING),
+                ),
             ) { onDream, transitioningToDream ->
                 onDream || transitioningToDream
             }
@@ -116,20 +133,17 @@ constructor(
     /**
      * Whether the bouncer currently require IME for device entry.
      *
-     * This emits true when the authentication method is set to password and the bouncer is
-     * currently showing. Throws an error when this is used without [SceneContainerFlag].
+     * This emits true when the authentication method is set to password. Throws an error when this
+     * is used without [SceneContainerFlag].
      */
     val doesBouncerRequireIme: Flow<Boolean> =
         if (SceneContainerFlag.isEnabled) {
                 // This is required to make the window, where the bouncer resides,
                 // focusable. InputMethodManager allows IME to be shown only for views
                 // in windows that do not have the FLAG_NOT_FOCUSABLE flag.
-
-                isBouncerShowing
-                    .sample(authenticationInteractor.get().authenticationMethod, ::Pair)
-                    .map { (showing, authMethod) ->
-                        showing && authMethod == AuthenticationMethodModel.Password
-                    }
+                authenticationInteractor.get().authenticationMethod.map { authMethod ->
+                    authMethod == AuthenticationMethodModel.Password
+                }
             } else {
                 flow { error("Consume this flow only when SceneContainerFlag is enabled") }
             }

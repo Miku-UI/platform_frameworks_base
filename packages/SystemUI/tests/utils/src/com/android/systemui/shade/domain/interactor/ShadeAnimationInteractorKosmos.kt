@@ -19,15 +19,23 @@ package com.android.systemui.shade.domain.interactor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.shade.ShadeWindowLogger
 import com.android.systemui.shade.data.repository.shadeAnimationRepository
+import org.mockito.Mockito.mock
 
 var Kosmos.shadeAnimationInteractor: ShadeAnimationInteractor by
-    Kosmos.Fixture { ShadeAnimationInteractorEmptyImpl(shadeAnimationRepository) }
+    Kosmos.Fixture {
+        ShadeAnimationInteractorEmptyImpl(
+            shadeAnimationRepository,
+            mock(ShadeWindowLogger::class.java),
+        )
+    }
 var Kosmos.shadeAnimationInteractorSceneContainerImpl: ShadeAnimationInteractorSceneContainerImpl by
     Kosmos.Fixture {
         ShadeAnimationInteractorSceneContainerImpl(
             testScope.backgroundScope,
             shadeAnimationRepository,
-            sceneInteractor
+            sceneInteractor,
+            mock(ShadeWindowLogger::class.java),
         )
     }

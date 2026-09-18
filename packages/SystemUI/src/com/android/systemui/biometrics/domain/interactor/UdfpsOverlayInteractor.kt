@@ -22,9 +22,9 @@ import android.util.Log
 import android.view.MotionEvent
 import com.android.systemui.biometrics.AuthController
 import com.android.systemui.biometrics.shared.model.UdfpsOverlayParams
-import com.android.systemui.biometrics.ui.viewmodel.DeviceEntryUdfpsTouchOverlayViewModel
+import com.android.systemui.biometrics.ui.viewmodel.UdfpsTouchOverlayViewModel
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
-import com.android.systemui.common.coroutine.ConflatedCallbackFlow
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.res.R
@@ -104,7 +104,7 @@ constructor(
 
     /** Returns the current udfpsOverlayParams */
     val udfpsOverlayParams: StateFlow<UdfpsOverlayParams> =
-        ConflatedCallbackFlow.conflatedCallbackFlow {
+        conflatedCallbackFlow {
                 val callback =
                     object : AuthController.Callback {
                         override fun onUdfpsLocationChanged(
@@ -134,28 +134,32 @@ constructor(
             }
             .distinctUntilChanged()
 
-    private var isUpdatingSetHandleTouchesForKeyguard: Job? = null
+    private var isUpdatingSetHandleTouchesJob: Job? = null
 
-    fun stopSetHandleTouchesForKeyguard() {
-        isUpdatingSetHandleTouchesForKeyguard?.cancel()
-        isUpdatingSetHandleTouchesForKeyguard = null
+    fun stopHandlingTouches() {
+        isUpdatingSetHandleTouchesJob?.cancel()
+        isUpdatingSetHandleTouchesJob = null
     }
 
-    fun updateSetHandleTouchesForKeyguard(
-        deviceEntryUdfpsTouchOverlayViewModel: DeviceEntryUdfpsTouchOverlayViewModel
-    ) {
-        if (isUpdatingSetHandleTouchesForKeyguard == null) {
-            isUpdatingSetHandleTouchesForKeyguard =
-                scope.launch {
-                    deviceEntryUdfpsTouchOverlayViewModel.shouldHandleTouches.collect {
-                        Log.d("UdfpsOverlayInteractor", "update shouldHandleTouches=$it")
-                        setHandleTouches(it)
-                    }
+    fun setTouchHandlingViewModel(touchOverlayViewModel: UdfpsTouchOverlayViewModel) {
+        if (isUpdatingSetHandleTouchesJob != null) {
+            Log.w(
+                TAG,
+                "$touchOverlayViewModel setTouchHandlingViewModel is called when " +
+                    "there's already an existing viewModel handling touches. This shouldn't occur.",
+            )
+            stopHandlingTouches()
+        }
+        isUpdatingSetHandleTouchesJob =
+            scope.launch {
+                touchOverlayViewModel.shouldHandleTouches.collect {
+                    Log.d(TAG, "$touchOverlayViewModel update shouldHandleTouches=$it")
+                    setHandleTouches(it)
                 }
-            isUpdatingSetHandleTouchesForKeyguard?.invokeOnCompletion {
-                Log.d("UdfpsOverlayInteractor", "invokeOnCompletion shouldHandleTouches=false")
-                setHandleTouches(false)
             }
+        isUpdatingSetHandleTouchesJob?.invokeOnCompletion {
+            Log.d(TAG, "$touchOverlayViewModel" + " invokeOnCompletion shouldHandleTouches=false")
+            setHandleTouches(false)
         }
     }
 

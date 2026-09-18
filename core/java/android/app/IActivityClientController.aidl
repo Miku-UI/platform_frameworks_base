@@ -18,6 +18,7 @@ package android.app;
 
 import android.app.ActivityManager;
 import android.app.HandoffActivityData;
+import android.app.HandoffActivityParams;
 import android.app.IRequestFinishCallback;
 import android.app.PictureInPictureParams;
 import android.content.ComponentName;
@@ -110,12 +111,11 @@ interface IActivityClientController {
     boolean isImmersive(in IBinder token);
     void setImmersive(in IBinder token, boolean immersive);
 
-    boolean isHandoffEnabled(in IBinder token);
-    boolean isHandoffFullTaskRecreationAllowed(in IBinder token);
+    HandoffActivityParams getHandoffActivityParams(in IBinder token);
     void setHandoffEnabled(
         in IBinder token,
         boolean handoffEnabled,
-        boolean allowFullTaskRecreation);
+        in HandoffActivityParams handoffActivityParams);
 
     boolean enterPictureInPictureMode(in IBinder token, in PictureInPictureParams params);
     void setPictureInPictureParams(in IBinder token, in PictureInPictureParams params);
@@ -128,6 +128,8 @@ interface IActivityClientController {
     void stopLockTaskModeByToken(in IBinder token);
     oneway void showLockTaskEscapeMessage(in IBinder token);
     void setTaskDescription(in IBinder token, in ActivityManager.TaskDescription values);
+    oneway void setTaskDescriptionOneWay(in IBinder token,
+            in ActivityManager.TaskDescription values);
 
     boolean showAssistFromActivity(in IBinder token, in Bundle args);
     boolean isRootVoiceInteraction(in IBinder token);

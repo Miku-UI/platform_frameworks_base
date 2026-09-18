@@ -80,13 +80,11 @@ constructor(val rotation: Rotation = Rotation.ROTATION_0) {
                 val primaryAppWindow =
                     it.wmState.visibleWindows.firstOrNull { window ->
                         primaryApp.windowMatchesAnyOf(window)
-                    }
-                        ?: return@add false
+                    } ?: return@add false
                 val secondaryAppWindow =
                     it.wmState.visibleWindows.firstOrNull { window ->
                         secondaryApp.windowMatchesAnyOf(window)
-                    }
-                        ?: return@add false
+                    } ?: return@add false
 
                 if (isLeftRightSplit(instrumentation.context, rotation, device.displaySizeDp)) {
                     return@add if (isTablet(device.displaySizeDp)) {
@@ -112,13 +110,11 @@ constructor(val rotation: Rotation = Rotation.ROTATION_0) {
                 val primaryAppLayer =
                     it.layerState.visibleLayers.firstOrNull { window ->
                         primaryApp.layerMatchesAnyOf(window)
-                    }
-                        ?: return@add false
+                    } ?: return@add false
                 val secondaryAppLayer =
                     it.layerState.visibleLayers.firstOrNull { window ->
                         secondaryApp.layerMatchesAnyOf(window)
-                    }
-                        ?: return@add false
+                    } ?: return@add false
 
                 val primaryVisibleRegion = primaryAppLayer.visibleRegion?.bounds ?: return@add false
                 val secondaryVisibleRegion =

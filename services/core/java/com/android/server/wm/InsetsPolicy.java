@@ -21,11 +21,19 @@ import static android.app.StatusBarManager.WINDOW_STATE_SHOWING;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsPolicyProto.FAKE_NAV_CONTROL_TARGET;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsPolicyProto.FAKE_STATUS_CONTROL_TARGET;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsPolicyProto.FORCIBLY_HIDING_TYPES;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsPolicyProto.FORCIBLY_SHOWING_TYPES;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsPolicyProto.HIDING_TRANSIENT_NAV_CONTROL_TARGET;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsPolicyProto.HIDING_TRANSIENT_STATUS_CONTROL_TARGET;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsPolicyProto.HIDING_TRANSIENT_TYPES;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsPolicyProto.NAV_STATE;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsPolicyProto.SHOWING_TRANSIENT_TYPES;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsPolicyProto.STATUS_STATE;
 import static android.view.InsetsSource.ID_IME;
 import static android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE;
 import static android.view.WindowManager.LayoutParams.TYPE_INPUT_METHOD;
-
-import static com.android.window.flags.Flags.relativeInsets;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -37,6 +45,8 @@ import android.content.res.Resources;
 import android.os.Handler;
 import android.os.IBinder;
 import android.util.SparseArray;
+import android.view.DisplayCutout;
+import android.util.proto.ProtoOutputStream;
 import android.view.InsetsController;
 import android.view.InsetsFrameProvider;
 import android.view.InsetsSource;
@@ -407,23 +417,6 @@ class InsetsPolicy {
             }
         }
 
-        if (!relativeInsets() && (!attrs.isFullscreen() || attrs.getFitInsetsTypes() != 0)) {
-            if (state == originalState) {
-                state = new InsetsState(originalState);
-            }
-            // Explicitly exclude floating windows from receiving caption insets. This is because we
-            // hard code caption insets for windows due to a synchronization issue that leads to
-            // flickering that bypasses insets frame calculation, which consequently needs us to
-            // remove caption insets from floating windows.
-            // TODO(b/254128050): Remove this workaround after we find a way to update window frames
-            //  and caption insets frames simultaneously.
-            for (int i = state.sourceSize() - 1; i >= 0; i--) {
-                if (state.sourceAt(i).getType() == Type.captionBar()) {
-                    state.removeSourceAt(i);
-                }
-            }
-        }
-
         final SparseArray<InsetsSourceProvider> providers = mStateController.getSourceProviders();
         final int windowType = attrs.type;
         for (int i = providers.size() - 1; i >= 0; i--) {
@@ -452,6 +445,9 @@ class InsetsPolicy {
             }
             final InsetsState newState = new InsetsState();
             newState.set(state, types);
+            if ((types & WindowInsets.Type.displayCutout()) == 0) {
+                newState.setDisplayCutout(DisplayCutout.NO_CUTOUT);
+            }
             state = newState;
         }
 
@@ -531,17 +527,22 @@ class InsetsPolicy {
             }
         } else if ((w.mMergedExcludeInsetsTypes & WindowInsets.Type.ime()) != 0) {
             // In some cases (e.g. split screen from when the IME was requested and the animation
-            // actually starts) the insets should not be send, unless the flag is unset.
+            // actually starts) the insets should not be sent unless WindowInsets.Type.ime() is
+            // unset from mMergedExcludeInsetsTypes.
             final InsetsSource originalImeSource = originalState.peekSource(ID_IME);
             if (originalImeSource != null && originalImeSource.isVisible()) {
                 final InsetsState state = copyState
                         ? new InsetsState(originalState)
                         : originalState;
-                final InsetsSource imeSource = new InsetsSource(originalImeSource);
-                // Setting the height to zero, pretending we're in floating mode
-                imeSource.setFrame(0, 0, 0, 0);
-                imeSource.setVisibleFrame(imeSource.getFrame());
-                state.addSource(imeSource);
+                if (android.view.inputmethod.Flags.setSourceInvisibleOnMultiWindowMode()) {
+                    state.removeSource(originalImeSource.getId());
+                } else {
+                    final InsetsSource imeSource = new InsetsSource(originalImeSource);
+                    // Setting the height to zero, pretending we're in floating mode
+                    imeSource.setFrame(0, 0, 0, 0);
+                    imeSource.setVisibleFrame(imeSource.getFrame());
+                    state.addSource(imeSource);
+                }
                 return state;
             }
         }
@@ -710,7 +711,7 @@ class InsetsPolicy {
     @Nullable
     private InsetsControlTarget getNavControlTargetInner(@Nullable WindowState focusedWin,
             boolean fake) {
-        final WindowState imeWin = mDisplayContent.mInputMethodWindow;
+        final WindowState imeWin = mDisplayContent.getImeWindow();
         if (imeWin != null && imeWin.isVisible() && !mHideNavBarForKeyboard) {
             // Force showing navigation bar while IME is visible and if navigation bar is not
             // configured to be hidden by the IME.
@@ -823,7 +824,7 @@ class InsetsPolicy {
             return false;
         }
 
-        if (!mPolicy.isRemoteInsetsControllerControllingSystemBars()) {
+        if (!mPolicy.isSystemBarRemoteInsetsControllerAllowed()) {
             return false;
         }
         if (mDisplayContent == null || mDisplayContent.mRemoteInsetsControlTarget == null) {
@@ -896,6 +897,46 @@ class InsetsPolicy {
             pw.println(prefix + "mHidingTransientNavControlTarget="
                     + mHidingTransientNavControlTarget);
         }
+    }
+
+    /**
+     * Write to a protocol buffer output stream.
+     * Protocol buffer message definition at {@link InsetsPolicyProto}
+     *
+     * @param proto Stream to write the InsetsPolicy object to.
+     * @param fieldId Field Id of the InsetsPolicy as defined in the parent message.
+     */
+    public void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId) {
+        final long token = proto.start(fieldId);
+        proto.write(STATUS_STATE, mStatusBar.mState);
+        proto.write(NAV_STATE, mNavBar.mState);
+        if (mShowingTransientTypes != 0) {
+            proto.write(SHOWING_TRANSIENT_TYPES, mShowingTransientTypes);
+        }
+        if (mHidingTransientTypes != 0) {
+            proto.write(HIDING_TRANSIENT_TYPES, mHidingTransientTypes);
+        }
+        if (mForciblyShowingTypes != 0) {
+            proto.write(FORCIBLY_SHOWING_TYPES, mForciblyShowingTypes);
+        }
+        if (mForciblyHidingTypes != 0) {
+            proto.write(FORCIBLY_HIDING_TYPES, mForciblyHidingTypes);
+        }
+        if (mFakeStatusControlTarget != null) {
+            mFakeStatusControlTarget.dumpDebug(proto, FAKE_STATUS_CONTROL_TARGET);
+        }
+        if (mFakeNavControlTarget != null) {
+            mFakeNavControlTarget.dumpDebug(proto, FAKE_NAV_CONTROL_TARGET);
+        }
+        if (mHidingTransientStatusControlTarget != null) {
+            mHidingTransientStatusControlTarget.dumpDebug(proto,
+                    HIDING_TRANSIENT_STATUS_CONTROL_TARGET);
+        }
+        if (mHidingTransientNavControlTarget != null) {
+            mHidingTransientNavControlTarget.dumpDebug(proto,
+                    HIDING_TRANSIENT_NAV_CONTROL_TARGET);
+        }
+        proto.end(token);
     }
 
     private final class BarWindow {
@@ -1045,25 +1086,30 @@ class InsetsPolicy {
         }
 
         @Override
-        public void dispatchWindowInsetsAnimationPrepare(@NonNull WindowInsetsAnimation animation) {
+        public void dispatchWindowInsetsAnimationPrepare(@NonNull WindowInsetsAnimation animation,
+                boolean isUserAnimation, boolean isResizeAnimation, boolean hasAnimationCallback) {
         }
 
         @NonNull
         @Override
         public Bounds dispatchWindowInsetsAnimationStart(@NonNull WindowInsetsAnimation animation,
-                @NonNull Bounds bounds) {
+                @NonNull Bounds bounds, boolean isUserAnimation, boolean isResizeAnimation,
+                boolean hasAnimationCallback) {
             return bounds;
         }
 
         @NonNull
         @Override
         public WindowInsets dispatchWindowInsetsAnimationProgress(@NonNull WindowInsets insets,
-                @NonNull List<WindowInsetsAnimation> runningAnimations) {
+                @NonNull InsetsState state, @NonNull List<WindowInsetsAnimation> runningAnimations,
+                boolean hasUserAnimation, boolean hasResizeAnimation, boolean hasAnimationCallback,
+                @InsetsType int hidingTypes) {
             return insets;
         }
 
         @Override
-        public void dispatchWindowInsetsAnimationEnd(@NonNull WindowInsetsAnimation animation) {
+        public void dispatchWindowInsetsAnimationEnd(@NonNull WindowInsetsAnimation animation,
+                boolean isUserAnimation, boolean isResizeAnimation, boolean hasAnimationCallback) {
         }
 
         @Override

@@ -26,14 +26,13 @@ import android.widget.SeekBar
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.common.ui.view.SeekBarWithIconButtonsView
 import com.android.systemui.res.R
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.shade.domain.interactor.FakeShadeDialogContextInteractor
 import com.android.systemui.statusbar.phone.SystemUIDialog
-import com.android.systemui.statusbar.phone.SystemUIDialog.DEFAULT_DISMISS_ON_DEVICE_LOCK
-import com.android.systemui.statusbar.phone.SystemUIDialogManager
+import com.android.systemui.statusbar.phone.systemUIDialogDotFactory
+import com.android.systemui.testKosmos
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.settings.FakeSettings
 import com.android.systemui.util.settings.SecureSettings
@@ -43,11 +42,9 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.ArgumentMatchers.any
 import org.mockito.Mock
 import org.mockito.Mockito.spy
 import org.mockito.Mockito.verify
-import org.mockito.Mockito.`when` as whenever
 import org.mockito.MockitoAnnotations
 
 private const val ON: Int = 1
@@ -65,15 +62,13 @@ class FontScalingDialogDelegateTest : SysuiTestCase() {
     private lateinit var systemClock: FakeSystemClock
     private lateinit var backgroundDelayableExecutor: FakeExecutor
     private lateinit var testableLooper: TestableLooper
+    private val kosmos = testKosmos()
     private val fontSizeValueArray: Array<String> =
         mContext
             .getResources()
             .getStringArray(com.android.settingslib.R.array.entryvalues_font_size)
 
-    @Mock private lateinit var dialogManager: SystemUIDialogManager
-    @Mock private lateinit var dialogFactory: SystemUIDialog.Factory
     @Mock private lateinit var userTracker: UserTracker
-    @Mock private lateinit var mDialogTransitionAnimator: DialogTransitionAnimator
 
     @Before
     fun setUp() {
@@ -92,7 +87,7 @@ class FontScalingDialogDelegateTest : SysuiTestCase() {
             spy(
                 FontScalingDialogDelegate(
                     mContext,
-                    dialogFactory,
+                    kosmos.systemUIDialogDotFactory,
                     LayoutInflater.from(mContext),
                     systemSettings,
                     secureSettings,
@@ -104,18 +99,7 @@ class FontScalingDialogDelegateTest : SysuiTestCase() {
                 )
             )
 
-        dialog =
-            SystemUIDialog(
-                mContext,
-                0,
-                DEFAULT_DISMISS_ON_DEVICE_LOCK,
-                dialogManager,
-                fakeBroadcastDispatcher,
-                mDialogTransitionAnimator,
-                fontScalingDialogDelegate,
-            )
-
-        whenever(dialogFactory.create(any(), any())).thenReturn(dialog)
+        dialog = fontScalingDialogDelegate.createDialog()
     }
 
     @Test

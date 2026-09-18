@@ -88,12 +88,33 @@ public class ServiceInfo extends ComponentInfo
      * apps from different vendors.
      *
      * Shared isolated processes are created when using the
-     * {@link android.content.Context#BIND_SHARED_ISOLATED_PROCESS) during service binding.
+     * {@link android.content.Context#BIND_SHARED_ISOLATED_PROCESS} during service binding.
      *
      * Note that when this flag is used, the {@link android.R.attr#process} attribute is
      * ignored when the process is bound into a shared isolated process by a client.
      */
     public static final int FLAG_ALLOW_SHARED_ISOLATED_PROCESS = 0x0010;
+
+    /**
+     * Bit in {@link #flags}: If set, the system does not initialize the Android Runtime in a
+     * process which runs the service. Instead the system loads a library into the process and
+     * then starts the service from the entrypoint function in the library. The library and
+     * the entrypoint names are specified in metadata to the service tag.
+     *
+     * This flag is ignored if {@link #FLAG_ISOLATED_PROCESS}  is false or isn't specified.
+     *
+     * Set from the {@link android.R.attr#nativeService} attribute.
+     */
+    @FlaggedApi(android.os.Flags.FLAG_NATIVE_FRAMEWORK_PROTOTYPE)
+    public static final int FLAG_NATIVE_SERVICE = 0x0020;
+
+    /**
+     * Bit in {@link #flags} indicating if the service should run in the Private Compute Core
+     * sandbox.
+     * @see android.R.styleable#AndroidManifestService_privateComputeCore
+     * @hide
+     */
+    public static final int FLAG_RUN_IN_PCC_SANDBOX = 0x80000;
 
     /**
      * Bit in {@link #flags} indicating if the service is visible to ephemeral applications.
@@ -121,7 +142,7 @@ public class ServiceInfo extends ComponentInfo
      * manifest.
      * These include:
      * {@link #FLAG_STOP_WITH_TASK}, {@link #FLAG_ISOLATED_PROCESS},
-     * {@link #FLAG_SINGLE_USER}.
+     * {@link #FLAG_SINGLE_USER}, {@link #FLAG_NATIVE_SERVICE}.
      */
     public int flags;
 
@@ -366,6 +387,10 @@ public class ServiceInfo extends ComponentInfo
      * {@link android.health.connect.HealthPermissions#READ_HEART_RATE},
      * {@link android.health.connect.HealthPermissions#READ_SKIN_TEMPERATURE},
      * {@link android.health.connect.HealthPermissions#READ_OXYGEN_SATURATION},
+     * {@link android.health.connect.HealthPermissions#READ_BLOOD_PRESSURE},
+     * {@link android.health.connect.HealthPermissions#READ_HEART_RATE_VARIABILITY},
+     * {@link android.health.connect.HealthPermissions#READ_RESPIRATORY_RATE},
+     * {@link android.health.connect.HealthPermissions#READ_VO2_MAX},
      */
     @RequiresPermission(
             allOf = {
@@ -377,6 +402,10 @@ public class ServiceInfo extends ComponentInfo
                 HealthPermissions.READ_HEART_RATE,
                 HealthPermissions.READ_SKIN_TEMPERATURE,
                 HealthPermissions.READ_OXYGEN_SATURATION,
+                HealthPermissions.READ_BLOOD_PRESSURE,
+                HealthPermissions.READ_HEART_RATE_VARIABILITY,
+                HealthPermissions.READ_RESPIRATORY_RATE,
+                HealthPermissions.READ_VO2_MAX,
             }
     )
     public static final int FOREGROUND_SERVICE_TYPE_HEALTH = 1 << 8;
@@ -653,6 +682,15 @@ public class ServiceInfo extends ComponentInfo
      */
     public @ForegroundServiceType int getForegroundServiceType() {
         return mForegroundServiceType;
+    }
+
+    /**
+     * Returns whether if the service should run in PCC sandbox
+     * @hide
+     */
+    @Override
+    public boolean shouldRunInPccSandbox() {
+        return (flags & FLAG_RUN_IN_PCC_SANDBOX) != 0;
     }
 
     public void dump(Printer pw, String prefix) {

@@ -20,6 +20,7 @@ import android.app.PendingIntent
 import android.media.MediaDescription
 import android.media.session.MediaSession
 import android.service.notification.StatusBarNotification
+import androidx.annotation.WorkerThread
 import com.android.systemui.media.controls.shared.model.MediaData
 
 /** Facilitates management and loading of Media Data, ready for binding. */
@@ -45,7 +46,7 @@ interface MediaDataManager {
     fun destroy()
 
     /** Sets resume action. */
-    fun setResumeAction(key: String, action: Runnable?)
+    @WorkerThread fun setResumeAction(key: String, action: Runnable?)
 
     /** Adds resume media data. */
     fun addResumptionControls(

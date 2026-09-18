@@ -44,6 +44,7 @@
     <string name="expand_handle" msgid="7282974448109280522">"ह्यान्डल विस्तार गर्नुहोस्"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"ह्यान्डल कोल्याप्स गर्नुहोस्"</string>
     <string name="print_button" msgid="645164566271246268">"प्रिन्ट गर्नुहोस्"</string>
+    <string name="setup_button" msgid="323390526074568450">"सेटअप गर्नुहोस्"</string>
     <string name="savetopdf_button" msgid="2976186791686924743">"PDF सेभ गर्नुहोस्"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"विस्तार गरेका विकल्पहरू प्रिन्ट गर्नुहोस्"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"कोल्याप्स गरेका विकल्पहरू प्रिन्ट गर्नुहोस्"</string>

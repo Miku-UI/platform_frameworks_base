@@ -19,14 +19,14 @@ package com.android.wm.shell.flicker.keyboardshortcuts
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
+import android.tools.traces.component.ComponentNameMatcher.Companion.DESKTOP_WALLPAPER_ACTIVITY
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
-import android.tools.traces.component.ComponentNameMatcher.Companion.DESKTOP_WALLPAPER_ACTIVITY
 import com.android.wm.shell.flicker.utils.appWindowOnTopAtEnd
 import com.android.wm.shell.flicker.utils.layerIsVisibleAtEnd
 import com.android.wm.shell.flicker.utils.layerKeepVisible
@@ -46,7 +46,8 @@ import org.junit.runners.Parameterized
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
 class AltTabSwitchInDesktopModeFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(flicker) {
-    inner class AltTabSwitchInDesktopModeScenario : AltTabSwitchInDesktopMode(rotation = flicker.scenario.startRotation)
+    inner class AltTabSwitchInDesktopModeScenario :
+        AltTabSwitchInDesktopMode(rotation = flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -57,28 +58,18 @@ class AltTabSwitchInDesktopModeFlickerTest(flicker: FlickerTest) : DesktopModeBa
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.switchApp()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.switchApp() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(firstApp)
+    @Test fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(firstApp)
 
-    @Test
-    fun layersKeepVisible() = appsInDesktop.forEach { flicker.layerKeepVisible(it) }
+    @Test fun layersKeepVisible() = appsInDesktop.forEach { flicker.layerKeepVisible(it) }
 
-    @Test
-    fun layerIsVisibleAtEnd() = flicker.layerIsVisibleAtEnd(firstApp)
+    @Test fun layerIsVisibleAtEnd() = flicker.layerIsVisibleAtEnd(firstApp)
 
-    @Test
-    fun wallpaperActivityStaysVisible() = flicker.layerKeepVisible(DESKTOP_WALLPAPER_ACTIVITY)
+    @Test fun wallpaperActivityStaysVisible() = flicker.layerKeepVisible(DESKTOP_WALLPAPER_ACTIVITY)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

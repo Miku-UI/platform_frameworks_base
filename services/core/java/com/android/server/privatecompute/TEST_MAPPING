@@ -1,0 +1,22 @@
+{
+  "presubmit": [
+    {
+      "name": "PccServicePccClientTest"
+    },
+    {
+      "name": "PccServiceNonPccClientTest"
+    },
+    {
+      "name": "CtsPccProcessTests"
+    },
+    {
+      "name": "CtsPccSecurityTestCases"
+    },
+    {
+      "name": "CtsPccFeatureTests"
+    },
+    {
+      "name": "PrivateComputeUnitTests"
+    }
+  ]
+}

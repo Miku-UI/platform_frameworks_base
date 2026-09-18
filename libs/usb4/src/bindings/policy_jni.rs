@@ -80,3 +80,15 @@ pub extern "system" fn Java_com_android_server_usb_Usb4Manager_updateLoggedInSta
     let mut engine = POLICY_ENGINE.lock().unwrap();
     engine.update_logged_in_state(logged_in != 0, UserId(user_id as usize));
 }
+
+/// Checks whether PCI tunnels are supported by the current system.
+#[no_mangle]
+pub extern "system" fn Java_com_android_server_usb_Usb4Manager_checkPciTunnelsSupported<'a>(
+    _env: JNIEnv<'a>,
+    _obj: JObject<'a>,
+) -> jboolean {
+    trace!("checkPciTunnelsSupported called");
+    let engine = POLICY_ENGINE.lock().unwrap();
+
+    engine.check_pci_tunnels_supported().into()
+}

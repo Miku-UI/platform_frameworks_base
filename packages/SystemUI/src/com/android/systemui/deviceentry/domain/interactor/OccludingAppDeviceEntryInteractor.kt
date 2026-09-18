@@ -26,17 +26,17 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.deviceentry.shared.model.BiometricMessage
 import com.android.systemui.deviceentry.shared.model.FingerprintLockoutMessage
-import com.android.systemui.keyguard.KeyguardWmStateRefactor
 import com.android.systemui.keyguard.data.repository.DeviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
-import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.ErrorFingerprintAuthenticationStatus
-import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.res.R
-import com.android.systemui.util.kotlin.combine
+import com.android.systemui.scene.domain.interactor.SceneInteractor
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Scenes
+import dagger.Lazy
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -63,21 +63,21 @@ constructor(
     private val context: Context,
     activityStarter: ActivityStarter,
     powerInteractor: PowerInteractor,
-    keyguardTransitionInteractor: KeyguardTransitionInteractor,
+    sceneInteractor: Lazy<SceneInteractor>,
     communalSceneInteractor: CommunalSceneInteractor,
 ) {
-    private val keyguardOccludedByApp: Flow<Boolean> =
-        if (KeyguardWmStateRefactor.isEnabled) {
-            combine(
-                    keyguardTransitionInteractor.currentKeyguardState,
-                    communalSceneInteractor.isIdleOnCommunal,
-                    ::Pair,
-                )
-                .map { (currentState, isIdleOnCommunal) ->
-                    currentState == KeyguardState.OCCLUDED && !isIdleOnCommunal
+    private val keyguardOccludedByAppOrDreaming: Flow<Boolean> =
+        if (SceneContainerFlag.isEnabled) {
+            combine(alternateBouncerInteractor.isVisible, sceneInteractor.get().currentScene) {
+                    alternateBouncerVisible,
+                    currentScene ->
+                    !alternateBouncerVisible &&
+                        (currentScene == Scenes.Dream || currentScene == Scenes.Occluded)
                 }
+                .distinctUntilChanged()
         } else {
-            combine(
+            com.android.systemui.util.kotlin
+                .combine(
                     keyguardInteractor.isKeyguardOccluded,
                     keyguardInteractor.isKeyguardShowing,
                     primaryBouncerInteractor.isShowing,
@@ -103,12 +103,12 @@ constructor(
 
     private val fingerprintUnlockSuccessEvents: Flow<Unit> =
         fingerprintAuthRepository.authenticationStatus
-            .ifKeyguardOccludedByApp()
+            .ifKeyguardOccludedByAppOrDreaming()
             .filter { it is SuccessFingerprintAuthenticationStatus }
             .map {} // maps FingerprintAuthenticationStatus => Unit
     private val fingerprintLockoutEvents: Flow<Unit> =
         fingerprintAuthRepository.authenticationStatus
-            .ifKeyguardOccludedByApp()
+            .ifKeyguardOccludedByAppOrDreaming()
             .filter { it is ErrorFingerprintAuthenticationStatus && it.isLockoutError() }
             .map {} // maps FingerprintAuthenticationStatus => Unit
     val message: Flow<BiometricMessage?> =
@@ -118,7 +118,7 @@ constructor(
                 // before the transition or else it'll look flickery.
                 fingerprintMessage is FingerprintLockoutMessage
             }
-            .ifKeyguardOccludedByApp(/* elseFlow */ flowOf(null))
+            .ifKeyguardOccludedByAppOrDreaming(/* elseFlow */ flowOf(null))
 
     init {
         // This seems undesirable in most cases, except when a video is playing and can PiP when
@@ -126,10 +126,15 @@ constructor(
         if (context.resources.getBoolean(R.bool.config_goToHomeFromOccludedApps)) {
             scope.launch {
                 // On fingerprint success when the screen is on and not dreaming, go to the home
-                // screen
+                // screen. From dream, a fingerprint success should bring the user to the last app.
                 fingerprintUnlockSuccessEvents.collect {
                     val interactive = powerInteractor.isInteractive.value
-                    val dreaming = keyguardInteractor.isDreaming.value
+                    val dreaming =
+                        if (SceneContainerFlag.isEnabled) {
+                            sceneInteractor.get().currentScene.value == Scenes.Dream
+                        } else {
+                            keyguardInteractor.isDreaming.value
+                        }
                     if (interactive && !dreaming) {
                         goToHomeScreen()
                     }
@@ -172,9 +177,11 @@ constructor(
         )
     }
 
-    private fun <T> Flow<T>.ifKeyguardOccludedByApp(elseFlow: Flow<T> = emptyFlow()): Flow<T> {
-        return keyguardOccludedByApp.flatMapLatest { keyguardOccludedByApp ->
-            if (keyguardOccludedByApp) {
+    private fun <T> Flow<T>.ifKeyguardOccludedByAppOrDreaming(
+        elseFlow: Flow<T> = emptyFlow()
+    ): Flow<T> {
+        return keyguardOccludedByAppOrDreaming.flatMapLatest { keyguardOccludedByAppOrDreaming ->
+            if (keyguardOccludedByAppOrDreaming) {
                 this
             } else {
                 elseFlow

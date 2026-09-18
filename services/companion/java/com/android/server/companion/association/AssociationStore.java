@@ -16,8 +16,10 @@
 
 package com.android.server.companion.association;
 
+import static com.android.server.companion.utils.AssociationUtils.getMacAddress;
 import static com.android.server.companion.utils.MetricUtils.logCreateAssociation;
 import static com.android.server.companion.utils.MetricUtils.logRemoveAssociation;
+import static com.android.server.companion.utils.PermissionsUtils.checkCallerCanManageTrustedAssociations;
 import static com.android.server.companion.utils.PermissionsUtils.enforceCallerCanManageAssociationsForPackage;
 
 import android.annotation.IntDef;
@@ -53,6 +55,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.UnaryOperator;
 
 /**
  * Association store for CRUD.
@@ -65,6 +68,7 @@ public class AssociationStore {
             CHANGE_TYPE_REMOVED,
             CHANGE_TYPE_UPDATED_ADDRESS_CHANGED,
             CHANGE_TYPE_UPDATED_ADDRESS_UNCHANGED,
+            CHANGE_TYPE_UPDATED_DATA_SYNC_TYPES,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ChangeType {
@@ -74,6 +78,7 @@ public class AssociationStore {
     public static final int CHANGE_TYPE_REMOVED = 1;
     public static final int CHANGE_TYPE_UPDATED_ADDRESS_CHANGED = 2;
     public static final int CHANGE_TYPE_UPDATED_ADDRESS_UNCHANGED = 3;
+    public static final int CHANGE_TYPE_UPDATED_DATA_SYNC_TYPES = 4;
 
     /** Listener for any changes to associations. */
     public interface OnChangeListener {
@@ -96,6 +101,10 @@ public class AssociationStore {
                     break;
 
                 case CHANGE_TYPE_UPDATED_ADDRESS_UNCHANGED:
+                    onAssociationUpdated(association, false);
+                    break;
+
+                case CHANGE_TYPE_UPDATED_DATA_SYNC_TYPES:
                     onAssociationUpdated(association, false);
                     break;
             }
@@ -230,22 +239,24 @@ public class AssociationStore {
     }
 
     /**
-     * Update an association.
+     * Update an association by applying an updater function on an association.
      */
-    public void updateAssociation(@NonNull AssociationInfo updated) {
+    public void updateAssociation(int associationId,
+            @NonNull UnaryOperator<AssociationInfo> updater) {
+        synchronized (mLock) {
+            AssociationInfo current = getAssociationWithCallerChecks(associationId);
+            updateAssociation(current, updater.apply(current));
+        }
+    }
+
+    private void updateAssociation(@NonNull AssociationInfo current,
+            @NonNull AssociationInfo updated) {
         Slog.i(TAG, "Updating new association=[" + updated + "]...");
 
         final int id = updated.getId();
-        final AssociationInfo current;
         final boolean macAddressChanged;
 
         synchronized (mLock) {
-            current = mIdToAssociationMap.get(id);
-            if (current == null) {
-                Slog.w(TAG, "Can't update association id=[" + id + "]. It does not exist.");
-                return;
-            }
-
             if (current.equals(updated)) {
                 Slog.w(TAG, "Association is the same.");
                 return;
@@ -264,13 +275,20 @@ public class AssociationStore {
         }
 
         if (updated.isActive()) {
+            // Check if the data sync flags have changed.
+            if (updated.getSystemDataSyncFlags() != current.getSystemDataSyncFlags()) {
+                broadcastChange(CHANGE_TYPE_UPDATED_DATA_SYNC_TYPES, updated);
+                return;
+            }
+
             // Check if the MacAddress has changed.
-            final MacAddress updatedAddress = updated.getDeviceMacAddress();
-            final MacAddress currentAddress = current.getDeviceMacAddress();
+            final MacAddress updatedAddress = getMacAddress(updated);
+            final MacAddress currentAddress = getMacAddress(current);
             macAddressChanged = !Objects.equals(currentAddress, updatedAddress);
 
             broadcastChange(macAddressChanged ? CHANGE_TYPE_UPDATED_ADDRESS_CHANGED
                     : CHANGE_TYPE_UPDATED_ADDRESS_UNCHANGED, updated);
+            return;
         }
     }
 
@@ -364,6 +382,18 @@ public class AssociationStore {
     }
 
     /**
+     * Get a copy of active associations that are trusted by the user.
+     */
+    @NonNull
+    public List<AssociationInfo> getTrustedAssociations(@UserIdInt int userId) {
+        synchronized (mLock) {
+            return CollectionUtils.filter(getActiveAssociations(),
+                    a -> (a.isTrusted()
+                            && (userId == UserHandle.USER_ALL || a.getUserId() == userId)));
+        }
+    }
+
+    /**
      * Get a copy of all associations by package.
      */
     @NonNull
@@ -393,10 +423,10 @@ public class AssociationStore {
     @Nullable
     public AssociationInfo getFirstAssociationByAddress(
             @UserIdInt int userId, @NonNull String packageName, @NonNull String macAddress) {
+        final MacAddress address = MacAddress.fromString(macAddress);
         synchronized (mLock) {
             return CollectionUtils.find(getActiveAssociationsByPackage(userId, packageName),
-                    a -> a.getDeviceMacAddress() != null && a.getDeviceMacAddress()
-                            .equals(MacAddress.fromString(macAddress)));
+                    a -> address.equals(getMacAddress(a)));
         }
     }
 
@@ -432,10 +462,10 @@ public class AssociationStore {
      */
     @NonNull
     public List<AssociationInfo> getActiveAssociationsByAddress(@NonNull String macAddress) {
+        final MacAddress address = MacAddress.fromString(macAddress);
         synchronized (mLock) {
             return CollectionUtils.filter(getActiveAssociations(),
-                    a -> a.getDeviceMacAddress() != null && a.getDeviceMacAddress()
-                            .equals(MacAddress.fromString(macAddress)));
+                    a -> address.equals(getMacAddress(a)));
         }
     }
 
@@ -489,6 +519,9 @@ public class AssociationStore {
             throw new IllegalArgumentException(
                     "getAssociationWithCallerChecks() Association id=[" + associationId
                             + "] doesn't exist.");
+        }
+        if (checkCallerCanManageTrustedAssociations(mContext) && association.isTrusted()) {
+            return association;
         }
         enforceCallerCanManageAssociationsForPackage(mContext, association.getUserId(),
                 association.getPackageName(), null);
@@ -564,19 +597,23 @@ public class AssociationStore {
             }
         }
         synchronized (mRemoteListeners) {
-            final int userId = association.getUserId();
-            final List<AssociationInfo> updatedAssociations = getActiveAssociationsByUser(userId);
             // Notify listeners if ADDED, REMOVED or UPDATED_ADDRESS_CHANGED.
             // Do NOT notify when UPDATED_ADDRESS_UNCHANGED, which means a minor tweak in
             // association's configs, which "listeners" won't (and shouldn't) be able to see.
             if (changeType != CHANGE_TYPE_UPDATED_ADDRESS_UNCHANGED) {
+                final int userId = association.getUserId();
+                List<AssociationInfo> associationsForCurrentUser =
+                        getActiveAssociationsByUser(userId);
+                List<AssociationInfo> allAssociations = getActiveAssociations();
                 mRemoteListeners.broadcast((listener, callbackUserId) -> {
                     int listenerUserId = (int) callbackUserId;
-                    if (listenerUserId == userId || listenerUserId == UserHandle.USER_ALL) {
-                        try {
-                            listener.onAssociationsChanged(updatedAssociations);
-                        } catch (RemoteException ignored) {
+                    try {
+                        if (listenerUserId == userId) {
+                            listener.onAssociationsChanged(associationsForCurrentUser);
+                        } else if (listenerUserId == UserHandle.USER_ALL) {
+                            listener.onAssociationsChanged(allAssociations);
                         }
+                    } catch (RemoteException ignored) {
                     }
                 });
             }

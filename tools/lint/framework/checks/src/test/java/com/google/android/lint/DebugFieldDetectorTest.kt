@@ -20,8 +20,20 @@ import com.android.tools.lint.checks.infrastructure.LintDetectorTest
 import com.android.tools.lint.checks.infrastructure.TestLintTask
 import com.android.tools.lint.detector.api.Detector
 import com.android.tools.lint.detector.api.Issue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
-class DebugFieldDetectorTest : LintDetectorTest() {
+@RunWith(Parameterized::class)
+class DebugFieldDetectorTest(private val fieldName: String) : LintDetectorTest() {
+
+    companion object {
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0}")
+        fun data(): Collection<Array<Any>> {
+            return listOf(arrayOf("DEBUG"), arrayOf("LOCAL_LOGV"), arrayOf("LOCAL_LOGD"))
+        }
+    }
 
     override fun getDetector(): Detector = DebugFieldDetector()
 
@@ -30,30 +42,31 @@ class DebugFieldDetectorTest : LintDetectorTest() {
 
     override fun lint(): TestLintTask = super.lint().allowMissingSdk(true)
 
-    val expectedCleanJavaField =
+    private fun expectedCleanJavaField(fieldName: String) =
         java(
                 """
             package test.pkg;
             class TestClass {
-                static final boolean DEBUG = false;
+                static final boolean $fieldName = false;
             }
         """
             )
             .indented()
 
-    val expectedCleanKotlinField =
+    private fun expectedCleanKotlinField(fieldName: String) =
         kotlin(
                 """
                 package test.pkg
                 class TestClass {
                     companion object {
-                        const val DEBUG = false
+                        const val $fieldName = false
                     }
                 }
         """
             )
             .indented()
 
+    @Test
     fun testJavaStaticFinalDebugTrue() {
         lint()
             .files(
@@ -61,7 +74,7 @@ class DebugFieldDetectorTest : LintDetectorTest() {
                         """
                 package test.pkg;
                 class TestClass {
-                    static final boolean DEBUG = true;
+                    static final boolean $fieldName = true;
                 }
                 """
                     )
@@ -69,9 +82,10 @@ class DebugFieldDetectorTest : LintDetectorTest() {
             )
             .run()
             .expectErrorCount(1)
-            .checkFix(null, after = expectedCleanJavaField)
+            .checkFix(null, after = expectedCleanJavaField(fieldName))
     }
 
+    @Test
     fun testJavaStaticFinalDebugTrueSuppressLint() {
         lint()
             .files(
@@ -80,7 +94,7 @@ class DebugFieldDetectorTest : LintDetectorTest() {
                 package test.pkg;
                 class TestClass {
                     @SuppressWarnings("DebugTrue")
-                    static final boolean DEBUG = true;
+                    static final boolean $fieldName = true;
                 }
                 """
                     )
@@ -90,6 +104,7 @@ class DebugFieldDetectorTest : LintDetectorTest() {
             .expectClean()
     }
 
+    @Test
     fun testJavaStaticDebugTrue() {
         lint()
             .files(
@@ -97,7 +112,7 @@ class DebugFieldDetectorTest : LintDetectorTest() {
                         """
                 package test.pkg;
                 class TestClass {
-                    static boolean DEBUG = true;
+                    static boolean $fieldName = true;
                 }
                 """
                     )
@@ -105,9 +120,10 @@ class DebugFieldDetectorTest : LintDetectorTest() {
             )
             .run()
             .expectErrorCount(2)
-            .checkFix(null, after = expectedCleanJavaField)
+            .checkFix(null, after = expectedCleanJavaField(fieldName))
     }
 
+    @Test
     fun testJavaStaticFinalDebugFalse() {
         lint()
             .files(
@@ -115,7 +131,7 @@ class DebugFieldDetectorTest : LintDetectorTest() {
                         """
                 package test.pkg;
                 class TestClass {
-                    static final boolean DEBUG = false;
+                    static final boolean $fieldName = false;
                 }
                 """
                     )
@@ -125,6 +141,7 @@ class DebugFieldDetectorTest : LintDetectorTest() {
             .expectClean()
     }
 
+    @Test
     fun testJavaStaticDebugFalse() {
         lint()
             .files(
@@ -132,7 +149,7 @@ class DebugFieldDetectorTest : LintDetectorTest() {
                         """
                 package test.pkg;
                 class TestClass {
-                    static boolean DEBUG = false;
+                    static boolean $fieldName = false;
                 }
                 """
                     )
@@ -140,9 +157,10 @@ class DebugFieldDetectorTest : LintDetectorTest() {
             )
             .run()
             .expectErrorCount(1)
-            .checkFix(null, after = expectedCleanJavaField)
+            .checkFix(null, after = expectedCleanJavaField(fieldName))
     }
 
+    @Test
     fun testJavaNonStaticFinalDebugTrue() {
         lint()
             .files(
@@ -150,7 +168,7 @@ class DebugFieldDetectorTest : LintDetectorTest() {
                         """
                 package test.pkg;
                 class TestClass {
-                    final boolean DEBUG = true;
+                    final boolean $fieldName = true;
                 }
                 """
                     )
@@ -160,6 +178,7 @@ class DebugFieldDetectorTest : LintDetectorTest() {
             .expectClean()
     }
 
+    @Test
     fun testKotlinConstDebugTrue() {
         lint()
             .files(
@@ -168,7 +187,7 @@ class DebugFieldDetectorTest : LintDetectorTest() {
                 package test.pkg
                 class TestClass {
                     companion object {
-                        val DEBUG = true
+                        val $fieldName = true
                     }
                 }
                 """
@@ -177,9 +196,10 @@ class DebugFieldDetectorTest : LintDetectorTest() {
             )
             .run()
             .expectErrorCount(2)
-            .checkFix(null, after = expectedCleanKotlinField)
+            .checkFix(null, after = expectedCleanKotlinField(fieldName))
     }
 
+    @Test
     fun testKotlinVarDebugFalse() {
         lint()
             .files(
@@ -188,7 +208,7 @@ class DebugFieldDetectorTest : LintDetectorTest() {
                 package test.pkg
                 class TestClass {
                     companion object {
-                        var DEBUG = false
+                        var $fieldName = false
                     }
                 }
                 """
@@ -197,6 +217,6 @@ class DebugFieldDetectorTest : LintDetectorTest() {
             )
             .run()
             .expectErrorCount(1)
-            .checkFix(null, after = expectedCleanKotlinField)
+            .checkFix(null, after = expectedCleanKotlinField(fieldName))
     }
 }

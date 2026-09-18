@@ -18,21 +18,21 @@ package com.android.systemui.shared.plugins
 import android.app.LoadedApk
 import android.content.ComponentName
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.text.TextUtils
+import android.view.LayoutInflater
 import androidx.core.content.edit
 import com.android.systemui.log.core.Logger
 import com.android.systemui.plugins.Plugin
 import com.android.systemui.plugins.PluginFragment
 import com.android.systemui.plugins.PluginLifecycleManager
 import com.android.systemui.plugins.PluginListener
-import com.android.systemui.plugins.PluginManager
 import com.android.systemui.plugins.PluginProtector.protectIfAble
 import com.android.systemui.plugins.PluginWrapper
 import com.android.systemui.plugins.ProtectedPluginListener
-import com.android.systemui.shared.plugins.PluginActionManager.PluginContextWrapper
 import com.android.systemui.shared.plugins.PluginManagerImpl.Companion.DEFAULT_LOGBUFFER
 import com.android.systemui.shared.plugins.PluginManagerImpl.Companion.PLUGIN_CLASSLOADER
 import dalvik.system.PathClassLoader
@@ -53,7 +53,7 @@ class PluginInstance<T : Plugin>(
     private val listener: PluginListener<T>,
     override val componentName: ComponentName,
     private val pluginFactory: PluginFactory<T>,
-    private val buildInfo: BuildInfo,
+    private val env: PluginEnvironment,
 ) : PluginLifecycleManager<T>, ProtectedPluginListener {
     private val debugName = componentName.shortClassName
     private val tag = "$TAG[$debugName]@${hashCode()}"
@@ -112,7 +112,7 @@ class PluginInstance<T : Plugin>(
     private fun loadFailure(): Boolean {
         val sharedPrefs = getSharedPreferences()
 
-        if (buildInfo.isEng) {
+        if (env.isEng || env.isTestMode) {
             hasError = false
             return false
         }
@@ -276,10 +276,10 @@ class PluginInstance<T : Plugin>(
     /** Factory used to construct [PluginInstance]s. */
     open class Factory(
         private val versionChecker: VersionChecker,
-        @Named(PLUGIN_CLASSLOADER) private val baseClassLoader: ClassLoader,
-        private val config: PluginManager.Config,
-        private val buildInfo: BuildInfo,
-        private val instanceFactory: (Class<*>) -> Any = { it.newInstance() },
+        private val baseClassLoader: ClassLoader,
+        private val packages: PackageConfig,
+        private val env: PluginEnvironment,
+        private val instanceFactory: (Class<*>) -> Any,
     ) {
         private val logger = Logger(DEFAULT_LOGBUFFER, TAG)
 
@@ -287,10 +287,12 @@ class PluginInstance<T : Plugin>(
         constructor(
             versionChecker: VersionChecker,
             @Named(PLUGIN_CLASSLOADER) baseClassLoader: ClassLoader,
-            config: PluginManager.Config,
-        ) : this(versionChecker, baseClassLoader, config, BuildInfo.CURRENT)
+            packages: PackageConfig,
+            env: PluginEnvironment,
+        ) : this(versionChecker, baseClassLoader, packages, env, { it.newInstance() })
 
         /** Construct a new PluginInstance. */
+        @Suppress("UNCHECKED_CAST")
         open fun <T : Plugin> create(
             hostContext: Context,
             pluginAppInfo: ApplicationInfo,
@@ -298,7 +300,7 @@ class PluginInstance<T : Plugin>(
             pluginClass: Class<T>,
             listener: PluginListener<T>,
         ): PluginInstance<T>? {
-            if (!buildInfo.isDebuggable && !config.isPackagePrivileged(pluginAppInfo.packageName)) {
+            if (!env.isDebuggable && !packages.isPackagePrivileged(pluginAppInfo.packageName)) {
                 logger.w({ "Cannot build non-privileged plugin. Src: $str1, pkg: $str2" }) {
                     str1 = pluginAppInfo.sourceDir
                     str2 = pluginAppInfo.packageName
@@ -318,8 +320,9 @@ class PluginInstance<T : Plugin>(
                     versionChecker,
                     pluginClass,
                     baseClassLoader,
+                    env,
                 ),
-                buildInfo,
+                env,
             )
         }
     }
@@ -339,6 +342,24 @@ class PluginInstance<T : Plugin>(
         }
     }
 
+    private class PluginContextWrapper(base: Context?, private val classLoader: ClassLoader) :
+        ContextWrapper(base) {
+        private val inflater: LayoutInflater by lazy {
+            LayoutInflater.from(baseContext).cloneInContext(this)
+        }
+
+        override fun getClassLoader(): ClassLoader {
+            return classLoader
+        }
+
+        override fun getSystemService(name: String): Any? {
+            if (LAYOUT_INFLATER_SERVICE == name) {
+                return inflater
+            }
+            return baseContext.getSystemService(name)
+        }
+    }
+
     /**
      * Instanced wrapper of InstanceFactory
      *
@@ -352,17 +373,19 @@ class PluginInstance<T : Plugin>(
         private val versionChecker: VersionChecker,
         private val pluginClass: Class<T>,
         private val baseClassLoader: ClassLoader,
+        private val env: PluginEnvironment,
     ) {
         private val logger = Logger(DEFAULT_LOGBUFFER, TAG)
 
         /** Creates the related plugin object from the factory */
+        @Suppress("UNCHECKED_CAST")
         fun createPlugin(listener: ProtectedPluginListener?): T? {
             try {
                 val loader = createClassLoader()
                 val cls = Class.forName(componentName.className, true, loader) as Class<T>
                 val result = instanceFactory(cls)
                 logger.v({ "Created plugin: $str1" }) { str1 = "$result" }
-                return protectIfAble(result, listener)
+                return if (env.isTestMode) result else protectIfAble(result, listener)
             } catch (ex: ReflectiveOperationException) {
                 logger.wtf("Failed to load plugin", ex)
             }
@@ -404,6 +427,7 @@ class PluginInstance<T : Plugin>(
         }
 
         /** Check Version for the instance */
+        @Suppress("UNCHECKED_CAST")
         fun checkVersion(target: T?): Boolean {
             var instance = target ?: createPlugin(null) ?: return false
             if (instance is PluginWrapper<*>) instance = instance.plugin as T
@@ -411,6 +435,7 @@ class PluginInstance<T : Plugin>(
         }
 
         /** Get Version Info for the instance */
+        @Suppress("UNCHECKED_CAST")
         fun getVersionInfo(target: T?): VersionInfo? {
             var instance = target ?: createPlugin(null) ?: return null
             if (instance is PluginWrapper<*>) instance = instance.plugin as T

@@ -30,18 +30,26 @@ class SystemUIIssueRegistry : IssueRegistry() {
         get() =
             listOf(
                 BindServiceOnMainThreadDetector.ISSUE,
+                BinderCallOnMainThreadDetector.ISSUE,
                 BroadcastSentViaContextDetector.ISSUE,
                 CleanArchitectureDependencyViolationDetector.ISSUE,
                 CollectAsStateDetector.ISSUE,
                 DemotingTestWithoutBugDetector.ISSUE,
+                DisplayAwareDetector.ERROR_ISSUE,
+                DisplayAwareDetector.INFO_ISSUE,
                 DoNotDirectlyConstructKosmosDetector.ISSUE,
                 DumpableNotRegisteredDetector.ISSUE,
                 ExposeFlowFromUiLayerDetector.ISSUE,
                 FlowDetector.SHARED_FLOW_CREATION,
+                IncludeRunWithAnnotationDetector.ISSUE,
                 MainThreadCoroutineScopeDetector.ISSUE,
                 MissingApacheLicenseDetector.ISSUE,
                 NonInjectedMainThreadDetector.ISSUE,
                 NonInjectedServiceDetector.ISSUE,
+                NonSysUISingletonApplicationScopeDetector.ISSUE,
+                NoKotlinTestInScenarioTestDetector.ISSUE,
+                NoMetricInParameterizedDetector.ISSUE_BEFORE,
+                NoMetricInParameterizedDetector.ISSUE_AFTER,
                 RegisterContentObserverSyncViaSettingsProxyDetector.SYNC_WARNING,
                 RegisterContentObserverViaContentResolverDetector.CONTENT_RESOLVER_ERROR,
                 RegisterReceiverViaContextDetector.ISSUE,
@@ -54,6 +62,9 @@ class SystemUIIssueRegistry : IssueRegistry() {
                 SoftwareBitmapDetector.ISSUE,
                 StaticSettingsProviderDetector.ISSUE,
                 TestFunctionNameViolationDetector.ISSUE,
+                UseNoMetricInFunctionalDetector.ISSUE_BEFORE,
+                UseNoMetricInFunctionalDetector.ISSUE_AFTER,
+                ViewModelCoroutineScopeBanDetector.ISSUE,
             )
 
     override val api: Int

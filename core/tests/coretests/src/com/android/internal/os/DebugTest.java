@@ -20,18 +20,14 @@ import static org.junit.Assert.assertTrue;
 
 import android.os.Debug;
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.filters.SmallTest;
 
-import org.junit.Rule;
 import org.junit.Test;
 
 @SmallTest
 @DisabledOnRavenwood(reason = "Requires ART support")
 public class DebugTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private final static String EXPECTED_GET_CALLER =
             "com\\.android\\.internal\\.os\\.DebugTest\\.testGetCaller:\\d\\d";

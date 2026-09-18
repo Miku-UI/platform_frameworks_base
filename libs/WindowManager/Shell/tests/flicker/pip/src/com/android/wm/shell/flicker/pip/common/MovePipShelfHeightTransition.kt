@@ -117,8 +117,6 @@ abstract class MovePipShelfHeightTransition(flicker: FlickerTest) : PipTransitio
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            FlickerTestFactory.nonRotationTests(
-                supportedRotations = listOf(Rotation.ROTATION_0)
-            )
+            FlickerTestFactory.nonRotationTests(supportedRotations = listOf(Rotation.ROTATION_0))
     }
 }

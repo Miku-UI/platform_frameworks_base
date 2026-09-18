@@ -17,6 +17,7 @@
 package com.android.keyguard
 
 import android.testing.TestableLooper
+import android.uilatencystats.UiLatencyStatsManager
 import android.view.View
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
@@ -40,6 +41,7 @@ import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
+import java.util.Optional
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -86,6 +88,8 @@ class KeyguardPatternViewControllerTest : SysuiTestCase() {
 
     @Mock private lateinit var mPostureController: DevicePostureController
 
+    @Mock private lateinit var mUiLatencyStatsManager: UiLatencyStatsManager
+
     private lateinit var mKeyguardPatternViewController: KeyguardPatternViewController
     private lateinit var fakeFeatureFlags: FakeFeatureFlags
 
@@ -119,6 +123,7 @@ class KeyguardPatternViewControllerTest : SysuiTestCase() {
                 fakeFeatureFlags,
                 mSelectedUserInteractor,
                 bouncerHapticHelper,
+                Optional.of(mUiLatencyStatsManager),
             )
         mKeyguardPatternView.onAttachedToWindow()
     }
@@ -192,7 +197,7 @@ class KeyguardPatternViewControllerTest : SysuiTestCase() {
         mKeyguardPatternViewController.onViewAttached()
         verify(mKeyguardMessageAreaController)
             .setMessage(context.resources.getString(R.string.keyguard_enter_your_pattern), false)
-        verify(mLockPatternUtils).getLockoutAttemptDeadline(anyInt())
+        verify(mLockPatternUtils).getLockoutEndTime(anyInt())
     }
 
     @Test

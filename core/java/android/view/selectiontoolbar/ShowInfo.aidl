@@ -26,6 +26,7 @@ import java.util.List;
 /**
  * @hide
  */
+@JavaDerive(toString=true, equals=true)
 parcelable ShowInfo {
 
     /**

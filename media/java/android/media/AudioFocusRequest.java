@@ -24,6 +24,7 @@ import android.media.AudioManager.OnAudioFocusChangeListener;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 /**
  * A class to encapsulate information about an audio focus request.
@@ -226,6 +227,7 @@ import android.os.Looper;
  * </pre>
  */
 
+@RavenwoodKeepWholeClass
 public final class AudioFocusRequest {
 
     // default attributes for the request when not specified

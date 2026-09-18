@@ -259,7 +259,7 @@ public final class InputBindResult implements Parcelable {
         } else {
             channel = null;
         }
-        id = source.readString();
+        id = source.readString8();
         sequence = source.readInt();
         isInputMethodSuppressingSpellChecker = source.readBoolean();
     }
@@ -301,7 +301,7 @@ public final class InputBindResult implements Parcelable {
         } else {
             dest.writeInt(0);
         }
-        dest.writeString(id);
+        dest.writeString8(id);
         dest.writeInt(sequence);
         dest.writeBoolean(isInputMethodSuppressingSpellChecker);
     }

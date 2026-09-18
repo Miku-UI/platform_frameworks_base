@@ -76,6 +76,15 @@ interface IThermalService {
     boolean registerThermalStatusListener(in IThermalStatusListener listener);
 
     /**
+      * Register a listener for thermal status change for the virtual device with the given id.
+      * @param listener the {@link android.os.IThermalStatusListener} to be notified.
+      * @return true if registered successfully.
+      * @hide
+      */
+    boolean registerThermalStatusListenerForDevice(
+            int deviceId, in IThermalStatusListener listener);
+
+    /**
       * Unregister a previously-registered listener for thermal status.
       * @param listener the {@link android.os.IThermalStatusListener} to no longer be notified.
       * @return true if unregistered successfully.
@@ -89,6 +98,13 @@ interface IThermalService {
       * @hide
       */
     int getCurrentThermalStatus();
+
+    /**
+      * Get current thermal status for the virtual device with the given id.
+      * @return status defined in {@link android.os.Temperature}.
+      * @hide
+      */
+    int getCurrentThermalStatusForDevice(int deviceId);
 
     /**
       * Get current cooling devices.

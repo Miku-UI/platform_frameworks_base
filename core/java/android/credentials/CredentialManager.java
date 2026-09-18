@@ -598,10 +598,10 @@ public final class CredentialManager {
      * the device. The Credential Providers will need to call this API again upon device reboot.
      *
      * @param request the request data
-     * @throws {@link UnsupportedOperationException} if the feature has not been enabled.
-     * @throws {@link com.android.server.credentials.NonCredentialProviderCallerException} if the
+     * @throws UnsupportedOperationException if the feature has not been enabled.
+     * @throws com.android.server.credentials.NonCredentialProviderCallerException if the
      *     calling package name is not also listed as a Credential Provider.
-     * @throws {@link IllegalArgumentException} if the calling Credential Provider can not handle
+     * @throws IllegalArgumentException if the calling Credential Provider can not handle
      *     one or more of the Credential Types that are sent for registration.
      */
     public void registerCredentialDescription(
@@ -620,7 +620,7 @@ public final class CredentialManager {
      * that has been registered previously.
      *
      * @param request the request data
-     * @throws {@link UnsupportedOperationException} if the feature has not been enabled.
+     * @throws UnsupportedOperationException if the feature has not been enabled.
      */
     public void unregisterCredentialDescription(
             @NonNull UnregisterCredentialDescriptionRequest request) {

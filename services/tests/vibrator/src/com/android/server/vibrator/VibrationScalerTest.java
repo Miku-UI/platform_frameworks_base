@@ -16,6 +16,7 @@
 
 package com.android.server.vibrator;
 
+import static android.os.VibrationAttributes.USAGE_IME_FEEDBACK;
 import static android.os.VibrationAttributes.USAGE_NOTIFICATION;
 import static android.os.VibrationAttributes.USAGE_RINGTONE;
 import static android.os.VibrationAttributes.USAGE_TOUCH;
@@ -41,13 +42,11 @@ import android.os.PowerManagerInternal;
 import android.os.UserHandle;
 import android.os.VibrationEffect;
 import android.os.test.TestLooper;
-import android.os.vibrator.Flags;
 import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.PrimitiveSegment;
 import android.os.vibrator.StepSegment;
 import android.os.vibrator.VibrationConfig;
 import android.os.vibrator.VibrationEffectSegment;
-import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
@@ -142,39 +141,7 @@ public class VibrationScalerTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_HAPTICS_SCALE_V2_ENABLED)
-    public void testGetScaleFactor_withLegacyScaling() {
-        // Default scale gain will be ignored.
-        mConfigBuilder.setDefaultVibrationScaleLevelGain(1.4f);
-        mConfigBuilder.setDefaultHapticFeedbackIntensity(VIBRATION_INTENSITY_LOW);
-        VibrationScaler scaler = createSystemReadyScaler();
-        setUserSetting(Settings.System.HAPTIC_FEEDBACK_INTENSITY, VIBRATION_INTENSITY_HIGH);
-        assertEquals(1.4f, scaler.getScaleFactor(USAGE_TOUCH, false), TOLERANCE); // VERY_HIGH
-
-        setUserSetting(Settings.System.HAPTIC_FEEDBACK_INTENSITY, VIBRATION_INTENSITY_MEDIUM);
-        assertEquals(1.2f, scaler.getScaleFactor(USAGE_TOUCH, false), TOLERANCE); // HIGH
-
-        setUserSetting(Settings.System.HAPTIC_FEEDBACK_INTENSITY, VIBRATION_INTENSITY_LOW);
-        assertEquals(1f, scaler.getScaleFactor(USAGE_TOUCH, false), TOLERANCE); // NONE
-
-        mConfigBuilder.setDefaultHapticFeedbackIntensity(VIBRATION_INTENSITY_MEDIUM);
-        scaler = createSystemReadyScaler();
-        setUserSetting(Settings.System.HAPTIC_FEEDBACK_INTENSITY, VIBRATION_INTENSITY_LOW);
-        assertEquals(0.8f, scaler.getScaleFactor(USAGE_TOUCH, false), TOLERANCE); // LOW
-
-        mConfigBuilder.setDefaultHapticFeedbackIntensity(VIBRATION_INTENSITY_HIGH);
-        scaler = createSystemReadyScaler();
-        setUserSetting(Settings.System.HAPTIC_FEEDBACK_INTENSITY, VIBRATION_INTENSITY_LOW);
-        assertEquals(0.6f, scaler.getScaleFactor(USAGE_TOUCH, false), TOLERANCE); // VERY_LOW
-
-        setUserSetting(Settings.System.HAPTIC_FEEDBACK_INTENSITY, VIBRATION_INTENSITY_OFF);
-        // Vibration setting being bypassed will use default setting and not scale.
-        assertEquals(1f, scaler.getScaleFactor(USAGE_TOUCH, false), TOLERANCE); // NONE
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_HAPTICS_SCALE_V2_ENABLED)
-    public void testGetScaleFactor_withScalingV2() {
+    public void testGetScaleFactor() {
         // Test scale factors for a default gain of 1.4
         mConfigBuilder.setDefaultVibrationScaleLevelGain(1.4f);
         mConfigBuilder.setDefaultHapticFeedbackIntensity(VIBRATION_INTENSITY_LOW);
@@ -204,8 +171,7 @@ public class VibrationScalerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_VIBRATION_SCALE_DEVICE_CONFIG_ENABLED)
-    public void testGetScaleFactor_withConfig_returnsConfigForCurrentSetting() {
+    public void testGetScaleFactor_withDeviceConfig_returnsConfigForCurrentSetting() {
         // Default scale gain will be ignored.
         mConfigBuilder.setDefaultVibrationScaleLevelGain(1.4f);
         mConfigBuilder.setVibrationScaleFactors(new float[] { 0.1f, 0.2f, 0.3f });
@@ -237,7 +203,6 @@ public class VibrationScalerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_VIBRATION_SCALE_DEVICE_CONFIG_ENABLED)
     public void testGetScaleFactor_withConfigForExternalVibration_returnsConfigForCurrentSetting() {
         // Default scale gain will be ignored.
         mConfigBuilder.setDefaultVibrationScaleLevelGain(1.4f);
@@ -267,6 +232,51 @@ public class VibrationScalerTest {
         // OFF
         setUserSetting(Settings.System.HAPTIC_FEEDBACK_INTENSITY, VIBRATION_INTENSITY_OFF);
         assertEquals(1f, scaler.getScaleFactor(USAGE_TOUCH, true), TOLERANCE);
+    }
+
+    @Test
+    @EnableFlags(android.os.vibrator.Flags.FLAG_KEYBOARD_INTENSITY_SLIDER_ENABLED)
+    public void testGetScaleFactor_withKeyboardConfig_returnsKeyboardConfigForImeUsage() {
+        mConfigBuilder.setVibrationScaleFactors(new float[]{0.1f, 0.2f, 0.3f});
+        mConfigBuilder.setKeyboardVibrationScaleFactors(new float[]{0.4f, 0.5f, 0.6f});
+        mConfigBuilder.setDefaultKeyboardVibrationIntensity(VIBRATION_INTENSITY_MEDIUM);
+        mConfigBuilder.setKeyboardVibrationSettingsSupported(true);
+        mConfigBuilder.setKeyboardVibrationSettingsIntensitySupported(true);
+        VibrationScaler scaler = createSystemReadyScaler();
+
+        // IME usage uses keyboard config
+        setUserSetting(Settings.System.KEYBOARD_VIBRATION_INTENSITY, VIBRATION_INTENSITY_LOW);
+        assertEquals(0.4f, scaler.getScaleFactor(USAGE_IME_FEEDBACK, false), TOLERANCE);
+        setUserSetting(Settings.System.KEYBOARD_VIBRATION_INTENSITY, VIBRATION_INTENSITY_MEDIUM);
+        assertEquals(0.5f, scaler.getScaleFactor(USAGE_IME_FEEDBACK, false), TOLERANCE);
+        setUserSetting(Settings.System.KEYBOARD_VIBRATION_INTENSITY, VIBRATION_INTENSITY_HIGH);
+        assertEquals(0.6f, scaler.getScaleFactor(USAGE_IME_FEEDBACK, false), TOLERANCE);
+
+        // Other usage uses general config
+        setUserSetting(Settings.System.HAPTIC_FEEDBACK_INTENSITY, VIBRATION_INTENSITY_LOW);
+        assertEquals(0.1f, scaler.getScaleFactor(USAGE_TOUCH, false), TOLERANCE);
+    }
+
+    @Test
+    @EnableFlags(android.os.vibrator.Flags.FLAG_KEYBOARD_INTENSITY_SLIDER_ENABLED)
+    public void scale_withKeyboardConfig_scalesImeVibrationsCorrectly() {
+        mConfigBuilder.setKeyboardVibrationScaleFactors(new float[]{0.6f, 1.0f, 2.0f});
+        mConfigBuilder.setDefaultKeyboardVibrationIntensity(VIBRATION_INTENSITY_MEDIUM);
+        mConfigBuilder.setKeyboardVibrationSettingsSupported(true);
+        mConfigBuilder.setKeyboardVibrationSettingsIntensitySupported(true);
+        VibrationScaler scaler = createSystemReadyScaler();
+
+        // LOW intensity
+        setUserSetting(Settings.System.KEYBOARD_VIBRATION_INTENSITY, VIBRATION_INTENSITY_LOW);
+        StepSegment scaled = getFirstSegment(scaler.scale(
+                VibrationEffect.createOneShot(100, 100), USAGE_IME_FEEDBACK));
+        assertEquals(VibrationEffect.scale(100f / 255, 0.6f), scaled.getAmplitude(), TOLERANCE);
+
+        // HIGH intensity
+        setUserSetting(Settings.System.KEYBOARD_VIBRATION_INTENSITY, VIBRATION_INTENSITY_HIGH);
+        scaled = getFirstSegment(scaler.scale(
+                VibrationEffect.createOneShot(100, 100), USAGE_IME_FEEDBACK));
+        assertEquals(VibrationEffect.scale(100f / 255, 2.0f), scaled.getAmplitude(), TOLERANCE);
     }
 
     @Test
@@ -334,7 +344,6 @@ public class VibrationScalerTest {
     }
 
     @Test
-    @EnableFlags(android.os.vibrator.Flags.FLAG_VENDOR_VIBRATION_EFFECTS)
     public void scale_withVendorEffect_setsEffectStrengthAndScaleBasedOnSettings() {
         mConfigBuilder.setDefaultNotificationVibrationIntensity(VIBRATION_INTENSITY_MEDIUM);
         VibrationScaler scaler = createSystemReadyScaler();
@@ -446,7 +455,6 @@ public class VibrationScalerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_VIBRATION_SCALE_DEVICE_CONFIG_ENABLED)
     public void scale_withDeviceConfig_usesConfigScales() {
         // Default scale gain will be ignored.
         mConfigBuilder.setDefaultVibrationScaleLevelGain(1.4f);
@@ -520,7 +528,6 @@ public class VibrationScalerTest {
     }
 
     @Test
-    @EnableFlags(android.os.vibrator.Flags.FLAG_VENDOR_VIBRATION_EFFECTS)
     public void scale_adaptiveHapticsOnVendorEffect_setsAdaptiveScaleParameter() {
         mConfigBuilder.setDefaultRingVibrationIntensity(VIBRATION_INTENSITY_HIGH);
         VibrationScaler scaler = createSystemReadyScaler();

@@ -30,28 +30,26 @@ object SharedPreferencesExt {
     }
 
     fun SharedPreferences.observeBoolean(key: String, defValue: Boolean): Flow<Boolean> =
-        conflatedCallbackFlow {
-            val listener =
-                SharedPreferences.OnSharedPreferenceChangeListener { _, k ->
-                    if (k == key) {
-                        trySend(getBoolean(key, defValue))
-                    }
-                }
-            trySend(getBoolean(key, defValue))
-            registerOnSharedPreferenceChangeListener(listener)
-            awaitClose { unregisterOnSharedPreferenceChangeListener(listener) }
-        }
+        observeValue(key) { getBoolean(key, defValue) }
 
     fun SharedPreferences.observeLong(key: String, defValue: Long): Flow<Long> =
-        conflatedCallbackFlow {
-            val listener =
-                SharedPreferences.OnSharedPreferenceChangeListener { _, k ->
-                    if (k == key) {
-                        trySend(getLong(key, defValue))
-                    }
+        observeValue(key) { getLong(key, defValue) }
+
+    fun SharedPreferences.observeString(key: String, defValue: String): Flow<String> =
+        observeValue(key) { getString(key, defValue) ?: defValue }
+
+    private fun <T> SharedPreferences.observeValue(
+        key: String,
+        fetchValue: SharedPreferences.() -> T,
+    ): Flow<T> = conflatedCallbackFlow {
+        val listener =
+            SharedPreferences.OnSharedPreferenceChangeListener { _, k ->
+                if (k == key) {
+                    trySend(fetchValue())
                 }
-            trySend(getLong(key, defValue))
-            registerOnSharedPreferenceChangeListener(listener)
-            awaitClose { unregisterOnSharedPreferenceChangeListener(listener) }
-        }
+            }
+        trySend(fetchValue())
+        registerOnSharedPreferenceChangeListener(listener)
+        awaitClose { unregisterOnSharedPreferenceChangeListener(listener) }
+    }
 }

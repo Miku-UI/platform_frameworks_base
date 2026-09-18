@@ -16,9 +16,6 @@
 
 package android.media;
 
-import static com.android.media.flags.Flags.FLAG_ENABLE_BUILT_IN_SPEAKER_ROUTE_SUITABILITY_STATUSES;
-
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -66,15 +63,12 @@ public final class RoutingSessionInfo implements Parcelable {
      *
      * <p>For example, an automatically connected Bluetooth device will have this transfer reason.
      */
-    @FlaggedApi(FLAG_ENABLE_BUILT_IN_SPEAKER_ROUTE_SUITABILITY_STATUSES)
     public static final int TRANSFER_REASON_FALLBACK = 0;
 
     /** Indicates that the transfer happened from within a privileged application. */
-    @FlaggedApi(FLAG_ENABLE_BUILT_IN_SPEAKER_ROUTE_SUITABILITY_STATUSES)
     public static final int TRANSFER_REASON_SYSTEM_REQUEST = 1;
 
     /** Indicates that the transfer happened from a non-privileged app. */
-    @FlaggedApi(FLAG_ENABLE_BUILT_IN_SPEAKER_ROUTE_SUITABILITY_STATUSES)
     public static final int TRANSFER_REASON_APP = 2;
 
     /**
@@ -436,7 +430,6 @@ public final class RoutingSessionInfo implements Parcelable {
     }
 
     /** Returns the transfer reason for this routing session. */
-    @FlaggedApi(FLAG_ENABLE_BUILT_IN_SPEAKER_ROUTE_SUITABILITY_STATUSES)
     @TransferReason
     public int getTransferReason() {
         return mTransferReason;
@@ -980,7 +973,6 @@ public final class RoutingSessionInfo implements Parcelable {
          * RoutingSessionInfo#TRANSFER_REASON_FALLBACK}.
          */
         @NonNull
-        @FlaggedApi(FLAG_ENABLE_BUILT_IN_SPEAKER_ROUTE_SUITABILITY_STATUSES)
         public Builder setTransferReason(@TransferReason int transferReason) {
             mTransferReason = transferReason;
             return this;
@@ -1014,7 +1006,6 @@ public final class RoutingSessionInfo implements Parcelable {
         // via RoutingController#wasTransferInitiatedBySelf.
         @SuppressWarnings({"UserHandleName", "MissingGetterMatchingBuilder"})
         @NonNull
-        @FlaggedApi(FLAG_ENABLE_BUILT_IN_SPEAKER_ROUTE_SUITABILITY_STATUSES)
         public Builder setTransferInitiator(
                 @Nullable UserHandle transferInitiatorUserHandle,
                 @Nullable String transferInitiatorPackageName) {

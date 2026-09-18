@@ -30,6 +30,7 @@ import org.junit.runner.RunWith;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.IOException;
 
 
@@ -227,4 +228,126 @@ public class ProtoFieldFilterTest {
         assertArrayEquals("Repeated fields should be preserved", input, output);
     }
 
+    @Test
+    public void testRepeatedFields_selectivelyFiltered() throws IOException {
+        ProtoOutputStream out = new ProtoOutputStream();
+        long fieldId1 = ProtoStream.makeFieldId(1,
+                ProtoStream.FIELD_TYPE_INT32 | ProtoStream.FIELD_COUNT_REPEATED);
+        long fieldId2 = ProtoStream.makeFieldId(2,
+                ProtoStream.FIELD_TYPE_BYTES | ProtoStream.FIELD_COUNT_REPEATED);
+
+        out.writeRepeatedInt32(fieldId1, 100);
+        out.writeRepeatedInt32(fieldId1, 200);
+        out.writeRepeatedBytes(fieldId2, "hello".getBytes());
+        out.writeRepeatedBytes(fieldId2, "world".getBytes());
+
+        byte[] output = filterProto(out.getBytes(), new ProtoFieldFilter(n -> n == 2));
+
+        ProtoInputStream in = new ProtoInputStream(output);
+
+        assertTrue(in.nextField() == 2);
+        assertArrayEquals("hello".getBytes(), in.readBytes(fieldId2));
+        assertTrue(in.nextField() == 2);
+        assertArrayEquals("world".getBytes(), in.readBytes(fieldId2));
+        assertEquals(ProtoInputStream.NO_MORE_FIELDS, in.nextField());
+    }
+
+    @Test
+    public void testSmallBuffer() throws IOException {
+        byte[] data = new byte[100];
+        for (int i = 0; i < data.length; i++) {
+            data[i] = (byte) i;
+        }
+
+        ProtoOutputStream out = new ProtoOutputStream();
+        out.writeBytes(ProtoStream.makeFieldId(1, FieldTypes.BYTES), data);
+        out.writeInt32(ProtoStream.makeFieldId(2, FieldTypes.INT32), 123);
+
+        byte[] input = out.getBytes();
+
+        // Use a small buffer, smaller than the byte array field.
+        ProtoFieldFilter filter = new ProtoFieldFilter(n -> true, 16);
+        byte[] output = filterProto(input, filter);
+
+        assertArrayEquals("Output should match input with small buffer", input, output);
+    }
+
+    @Test(expected = IOException.class)
+    public void testMalformedVarint_tooLong() throws IOException {
+        // 11-byte varint (invalid)
+        byte[] input = new byte[]{
+                (byte) 0x81, (byte) 0x81, (byte) 0x81, (byte) 0x81, (byte) 0x81,
+                (byte) 0x81, (byte) 0x81, (byte) 0x81, (byte) 0x81, (byte) 0x81, 0x01
+        };
+        filterProto(input, new ProtoFieldFilter(n -> true));
+    }
+
+    @Test(expected = IOException.class)
+    public void testMalformedVarint_incomplete() throws IOException {
+        // Incomplete varint at the end of the stream
+        byte[] input = new byte[]{(byte) 0x81};
+        filterProto(input, new ProtoFieldFilter(n -> true));
+    }
+
+    @Test(expected = IOException.class)
+    public void testEofInFixed32() throws IOException {
+        ProtoOutputStream out = new ProtoOutputStream();
+        out.writeFixed32(ProtoStream.makeFieldId(1, FieldTypes.FIXED32), 0xDEADBEEF);
+        byte[] full = out.getBytes();
+        // Truncate the input to cause an EOF
+        byte[] truncated = new byte[full.length - 1];
+        System.arraycopy(full, 0, truncated, 0, truncated.length);
+
+        filterProto(truncated, new ProtoFieldFilter(n -> true));
+    }
+
+    @Test(expected = IOException.class)
+    public void testInvalidLengthDelimitedLength() throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        baos.write(0x0A); // field 1, wire type 2
+        // varint for 2^31, which is > Integer.MAX_VALUE
+        baos.write(new byte[]{(byte) 0x80, (byte) 0x80, (byte) 0x80, (byte) 0x80, 0x08});
+        byte[] input = baos.toByteArray();
+
+        filterProto(input, new ProtoFieldFilter(n -> true));
+    }
+
+    @Test(expected = IOException.class)
+    public void testUnknownWireType() throws IOException {
+        byte[] input = new byte[]{(byte) 0x0E}; // field 1, wire type 6
+        filterProto(input, new ProtoFieldFilter(n -> true));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testBufferSizeZero() {
+        new ProtoFieldFilter(n -> true, 0);
+    }
+
+    @Test(expected = IOException.class)
+    public void testEofWhileSkippingBytes() throws IOException {
+        // This test specifically covers the bug in b/463808544 where a stream
+        // returning -1 from read() could cause an infinite loop in skipBytes.
+
+        ProtoOutputStream out = new ProtoOutputStream();
+        out.writeBytes(ProtoStream.makeFieldId(1, FieldTypes.BYTES), new byte[50]);
+        byte[] full = out.getBytes();
+
+        // Truncate the input so we hit EOF while skipping the body.
+        // We leave enough for the tag and length, but not the full body.
+        byte[] truncated = new byte[full.length - 10];
+        System.arraycopy(full, 0, truncated, 0, truncated.length);
+
+        // Use a stream that forces the fallback path in ProtoFieldFilter.skipBytes
+        // by returning 0 from skip().
+        InputStream in = new ByteArrayInputStream(truncated) {
+            @Override
+            public long skip(long n) {
+                return 0;
+            }
+        };
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        ProtoFieldFilter filter = new ProtoFieldFilter(n -> false);
+        filter.filter(in, outputStream);
+    }
 }

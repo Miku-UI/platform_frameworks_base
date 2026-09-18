@@ -19,8 +19,7 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.statusbar.policy.profile.domain.interactor.ManagedProfileInteractor
 import com.android.systemui.statusbar.policy.profile.shared.model.ProfileInfo
 import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
@@ -36,33 +35,23 @@ import dagger.assisted.AssistedInject
 class ManagedProfileIconViewModel
 @AssistedInject
 constructor(@Assisted private val context: Context, interactor: ManagedProfileInteractor) :
-    SystemStatusIconViewModel.Default, ExclusiveActivatable() {
+    SystemStatusIconViewModel.Default, HydratedActivatable() {
 
     init {
         SystemStatusIconsInCompose.expectInNewMode()
     }
 
-    private val hydrator = Hydrator("ManagedProfileIconViewModel.hydrator")
-
     override val slotName: String =
         context.getString(com.android.internal.R.string.status_bar_managed_profile)
 
     private val profileInfo by
-        hydrator.hydratedStateOf(
-            traceName = null,
-            initialValue = null,
-            source = interactor.currentProfileInfo,
-        )
+        interactor.currentProfileInfo.hydratedStateOf(traceName = null, initialValue = null)
 
     override val visible: Boolean
         get() = profileInfo != null
 
     override val icon: Icon?
         get() = profileInfo?.toIcon()
-
-    override suspend fun onActivated(): Nothing {
-        hydrator.activate()
-    }
 
     private fun ProfileInfo.toIcon(): Icon {
         val contentDescriptionString =

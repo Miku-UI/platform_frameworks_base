@@ -153,6 +153,12 @@ public final class SerialPort {
         }
     }
 
+    @Override
+    public String toString() {
+        return String.format("SerialPort{name=%s, vid=%04x, pid=%04x}", mInfo.getName(),
+                mInfo.getVendorId(), mInfo.getProductId());
+    }
+
     private class SerialPortResponseCallback extends ISerialPortResponseCallback.Stub {
 
         private final @NonNull Executor mExecutor;

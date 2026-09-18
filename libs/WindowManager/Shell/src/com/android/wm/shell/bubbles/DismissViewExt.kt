@@ -19,8 +19,8 @@ package com.android.wm.shell.bubbles
 
 import androidx.annotation.DimenRes
 import com.android.wm.shell.R
-import com.android.wm.shell.shared.bubbles.DismissView
 import com.android.wm.shell.shared.R as SharedR
+import com.android.wm.shell.shared.bubbles.DismissView
 
 private val defaultConfig =
     DismissView.Config(

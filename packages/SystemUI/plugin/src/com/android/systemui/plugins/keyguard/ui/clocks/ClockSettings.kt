@@ -26,10 +26,10 @@ data class ClockSettings(
     var metadata: JSONObject = JSONObject()
 
     companion object {
-        private val KEY_CLOCK_ID = "clockId"
-        private val KEY_SEED_COLOR = "seedColor"
-        private val KEY_METADATA = "metadata"
-        private val KEY_AXIS_LIST = "axes"
+        private const val KEY_CLOCK_ID = "clockId"
+        private const val KEY_SEED_COLOR = "seedColor"
+        private const val KEY_METADATA = "metadata"
+        private const val KEY_AXIS_LIST = "axes"
 
         fun toJson(setting: ClockSettings): JSONObject {
             return JSONObject().apply {
@@ -92,13 +92,13 @@ class ClockAxisStyle {
     operator fun set(key: String, value: Float) = put(key, value)
 
     fun put(key: String, value: Float) {
-        settings.put(key, value)
+        settings[key] = value
     }
 
     fun toFVar(): String {
         val sb = StringBuilder()
         for (axis in settings) {
-            if (sb.length > 0) sb.append(", ")
+            if (sb.isNotEmpty()) sb.append(", ")
             sb.append("'${axis.key}' ${axis.value.toInt()}")
         }
         return sb.toString()
@@ -112,6 +112,10 @@ class ClockAxisStyle {
         return result
     }
 
+    override fun hashCode(): Int {
+        return settings.hashCode()
+    }
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other !is ClockAxisStyle) return false
@@ -119,15 +123,13 @@ class ClockAxisStyle {
     }
 
     companion object {
-        private val KEY_AXIS_KEY = "key"
-        private val KEY_AXIS_VALUE = "value"
+        private const val KEY_AXIS_KEY = "key"
+        private const val KEY_AXIS_VALUE = "value"
 
         fun fromJson(jsonArray: JSONArray): ClockAxisStyle {
             val result = ClockAxisStyle()
-            for (i in 0..jsonArray.length() - 1) {
-                val obj = jsonArray.getJSONObject(i)
-                if (obj == null) continue
-
+            for (i in 0..<jsonArray.length()) {
+                val obj = jsonArray.getJSONObject(i) ?: continue
                 result.put(
                     key = obj.getString(KEY_AXIS_KEY),
                     value = obj.getDouble(KEY_AXIS_VALUE).toFloat(),

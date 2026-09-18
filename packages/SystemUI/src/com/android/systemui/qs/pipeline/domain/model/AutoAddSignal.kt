@@ -28,15 +28,26 @@ sealed interface AutoAddSignal {
     data class Add(
         override val spec: TileSpec,
         val position: Int = POSITION_AT_END,
+        val size: AutoAddSize = AutoAddSize.DEFAULT,
     ) : AutoAddSignal
 
     /** Signal for removing a tile. */
-    data class Remove(
-        override val spec: TileSpec,
-    ) : AutoAddSignal
+    data class Remove(override val spec: TileSpec) : AutoAddSignal
 
     /** Signal for remove the auto-add marker from the tile, but not remove the tile */
-    data class RemoveTracking(
-        override val spec: TileSpec,
-    ) : AutoAddSignal
+    data class RemoveTracking(override val spec: TileSpec) : AutoAddSignal
+
+    data class AddTracking(override val spec: TileSpec) : AutoAddSignal
+
+    /**
+     * Size for the tile to add:
+     *
+     * [DEFAULT] will not try to modify the size, whereas the other sizes will set the tile to that
+     * size (regardless of whether the tile is already there).
+     */
+    enum class AutoAddSize {
+        DEFAULT,
+        SMALL,
+        LARGE,
+    }
 }

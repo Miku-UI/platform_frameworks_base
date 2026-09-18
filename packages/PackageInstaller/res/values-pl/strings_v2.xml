@@ -78,7 +78,7 @@
     <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Ta aplikacja zostanie zastąpiona wersją fabryczną. Zostaną z niej usunięte wszystkie dane."</string>
     <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Ta aplikacja zostanie zastąpiona wersją fabryczną dla wszystkich użytkowników urządzenia. Zostaną z niej usunięte wszystkie dane."</string>
     <string name="message_uninstall_work_profile" msgid="224587253086750763">"Ta aplikacja zostanie odinstalowana z profilu służbowego"</string>
-    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Ta aplikacja zostanie odinstalowana z przestrzeni prywatnej"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Ta aplikacja zostanie odinstalowana z przestrzeni prywatnej."</string>
     <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Nie znaleziono tej aplikacji na liście zainstalowanych lub została ona już odinstalowana"</string>
     <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Użytkownik obecnie zalogowany na tym urządzeniu nie może odinstalować tej aplikacji"</string>
     <string name="message_uninstall_failed" msgid="4678598986902459187">"Nie udało się odinstalować tej aplikacji"</string>
@@ -95,7 +95,7 @@
     <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Aby przywrócić tę aplikację, włącz aplikację <xliff:g id="INSTALLERNAME">%1$s</xliff:g> w Ustawieniach"</string>
     <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Aby przywrócić tę aplikację, musisz zainstalować aplikację <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>"</string>
     <string name="message_restore_error_generic" msgid="5903850636679929406">"Podczas przywracania tej aplikacji wystąpił problem"</string>
-    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> jest częścią tej aplikacji: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> jest częścią tej aplikacji: <xliff:g id="APP_NAME">%2$s</xliff:g>."</string>
     <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Ta aplikacja została zablokowana. Aby lepiej chronić urządzenie i dane, zezwalamy na instalowanie aplikacji tylko od zweryfikowanych deweloperów.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Więcej informacji o weryfikacji dewelopera&lt;/a&gt;"</string>
     <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Ta aplikacja nie została zaktualizowana. Aby lepiej chronić urządzenie i dane, zezwalamy na instalowanie aplikacji tylko od zweryfikowanych deweloperów.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Więcej informacji o weryfikacji dewelopera&lt;/a&gt;"</string>
     <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Ta aplikacja nie została zainstalowana. Aplikacje od niezweryfikowanych deweloperów mogą być niebezpieczne.&lt;/p&gt; &lt;p&gt;Do zweryfikowania dewelopera aplikacji wymagane jest połączenie z internetem. Sprawdź połączenie i spróbuj ponownie zainstalować aplikację. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Więcej informacji o weryfikacji dewelopera&lt;/a&gt;"</string>

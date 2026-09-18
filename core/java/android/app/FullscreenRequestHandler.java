@@ -16,29 +16,33 @@
 
 package android.app;
 
-import static android.app.Activity.FULLSCREEN_MODE_REQUEST_EXIT;
-import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
-import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
-
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.content.res.Configuration;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.IRemoteCallback;
 import android.os.OutcomeReceiver;
-import android.window.DesktopModeFlags;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+import android.util.Singleton;
+
+import com.android.internal.annotations.VisibleForTesting;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.util.concurrent.Executor;
 
 /**
  * @hide
  */
+@RavenwoodKeepWholeClass
 public class FullscreenRequestHandler {
     @IntDef(prefix = { "RESULT_" }, value = {
             RESULT_APPROVED,
             RESULT_FAILED_NOT_IN_FULLSCREEN_WITH_HISTORY,
             RESULT_FAILED_NOT_TOP_FOCUSED,
-            RESULT_FAILED_ALREADY_FULLY_EXPANDED
+            RESULT_FAILED_ALREADY_FULLY_EXPANDED,
+            RESULT_FAILED_NOT_SUPPORTED
     })
     public @interface RequestResult {}
 
@@ -46,41 +50,94 @@ public class FullscreenRequestHandler {
     public static final int RESULT_FAILED_NOT_IN_FULLSCREEN_WITH_HISTORY = 1;
     public static final int RESULT_FAILED_NOT_TOP_FOCUSED = 2;
     public static final int RESULT_FAILED_ALREADY_FULLY_EXPANDED = 3;
+    public static final int RESULT_FAILED_NOT_SUPPORTED = 4;
+
+    /** @hide */
+    @IntDef(prefix = { "REQUEST_ALLOW_MODE_" }, value = {
+            REQUEST_ALLOW_MODE_INHERIT,
+            REQUEST_ALLOW_MODE_NONE,
+            REQUEST_ALLOW_MODE_ENTER,
+            REQUEST_ALLOW_MODE_EXIT,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface RequestAllowMode {}
+
+    /**
+     * Inherit the request allow mode of its parent window container.
+     *
+     * @hide
+     */
+    public static final int REQUEST_ALLOW_MODE_INHERIT = 0;
+
+    /**
+     * No request is allowed on the container.
+     *
+     * @hide
+     */
+    public static final int REQUEST_ALLOW_MODE_NONE = 1;
+
+    /**
+     * Enter fullscreen requests are allowed.
+     *
+     * @hide
+     */
+    public static final int REQUEST_ALLOW_MODE_ENTER = 2;
+
+    /**
+     * Exit fullscreen requests are allowed.
+     *
+     * @hide
+     */
+    public static final int REQUEST_ALLOW_MODE_EXIT = 3;
 
     public static final String REMOTE_CALLBACK_RESULT_KEY = "result";
 
-    static void requestFullscreenMode(@NonNull @Activity.FullscreenModeRequest int request,
-            @Nullable OutcomeReceiver<Void, Throwable> approvalCallback, Configuration config,
-            IBinder token) {
-        int earlyCheck = earlyCheckRequestMatchesWindowingMode(
-                request, config.windowConfiguration.getWindowingMode());
-        if (earlyCheck != RESULT_APPROVED) {
-            if (approvalCallback != null) {
-                notifyFullscreenRequestResult(approvalCallback, earlyCheck);
-            }
-            return;
-        }
+    private static final Singleton<FullscreenRequestHandler> sInstance =
+            new Singleton<FullscreenRequestHandler>() {
+                @Override
+                protected FullscreenRequestHandler create() {
+                    return new FullscreenRequestHandler(ActivityClient.getInstance());
+                }
+            };
+
+    private final ActivityClient mActivityClient;
+
+    /** @return the singleton instance of {@link FullscreenRequestHandler} */
+    public static FullscreenRequestHandler getInstance() {
+        return sInstance.get();
+    }
+
+    @VisibleForTesting
+    public FullscreenRequestHandler(ActivityClient activityClient) {
+        mActivityClient = activityClient;
+    }
+
+    /** Handles the fullscreen mode request. */
+    public void requestFullscreenMode(@Activity.FullscreenModeRequest int request,
+            @Nullable OutcomeReceiver<Void, Throwable> approvalCallback, IBinder token,
+            @NonNull Executor executor) {
         try {
             if (approvalCallback != null) {
-                ActivityClient.getInstance().requestMultiwindowFullscreen(token, request,
+                mActivityClient.requestMultiwindowFullscreen(token, request,
                         new IRemoteCallback.Stub() {
                             @Override
                             public void sendResult(Bundle res) {
-                                notifyFullscreenRequestResult(
-                                        approvalCallback, res.getInt(REMOTE_CALLBACK_RESULT_KEY));
+                                executor.execute(() -> notifyFullscreenRequestResult(
+                                        approvalCallback,
+                                        res.getInt(REMOTE_CALLBACK_RESULT_KEY)));
                             }
                         });
             } else {
-                ActivityClient.getInstance().requestMultiwindowFullscreen(token, request, null);
+                mActivityClient.requestMultiwindowFullscreen(token, request, null);
             }
         } catch (Throwable e) {
             if (approvalCallback != null) {
-                approvalCallback.onError(e);
+                executor.execute(() -> approvalCallback.onError(e));
             }
         }
     }
 
-    private static void notifyFullscreenRequestResult(
+    private void notifyFullscreenRequestResult(
             OutcomeReceiver<Void, Throwable> callback, int result) {
         Throwable e = null;
         switch (result) {
@@ -94,6 +151,10 @@ public class FullscreenRequestHandler {
             case RESULT_FAILED_ALREADY_FULLY_EXPANDED:
                 e = new IllegalStateException("The window is already fully expanded.");
                 break;
+            case RESULT_FAILED_NOT_SUPPORTED:
+                e = new UnsupportedOperationException("Fullscreen request denied by system "
+                        + "policy.");
+                break;
             default:
                 callback.onResult(null);
                 break;
@@ -103,18 +164,18 @@ public class FullscreenRequestHandler {
         }
     }
 
-    private static int earlyCheckRequestMatchesWindowingMode(int request, int windowingMode) {
-        if (request == FULLSCREEN_MODE_REQUEST_EXIT) {
-            if (windowingMode != WINDOWING_MODE_FULLSCREEN) {
-                return RESULT_FAILED_NOT_IN_FULLSCREEN_WITH_HISTORY;
-            }
-            return RESULT_APPROVED;
+    /** @hide */
+    @NonNull
+    public static String requestResultToString(@RequestResult int result) {
+        switch (result) {
+            case RESULT_APPROVED: return "RESULT_APPROVED";
+            case RESULT_FAILED_NOT_IN_FULLSCREEN_WITH_HISTORY:
+                return "RESULT_FAILED_NOT_IN_FULLSCREEN_WITH_HISTORY";
+            case RESULT_FAILED_NOT_TOP_FOCUSED: return "RESULT_FAILED_NOT_TOP_FOCUSED";
+            case RESULT_FAILED_ALREADY_FULLY_EXPANDED:
+                return "RESULT_FAILED_ALREADY_FULLY_EXPANDED";
+            case RESULT_FAILED_NOT_SUPPORTED: return "RESULT_FAILED_NOT_SUPPORTED";
+            default: return String.valueOf(result);
         }
-        if (DesktopModeFlags.ENABLE_REQUEST_FULLSCREEN_BUGFIX.isTrue()
-                && (windowingMode == WINDOWING_MODE_FULLSCREEN
-                || windowingMode == WINDOWING_MODE_MULTI_WINDOW)) {
-            return RESULT_FAILED_ALREADY_FULLY_EXPANDED;
-        }
-        return RESULT_APPROVED;
     }
 }

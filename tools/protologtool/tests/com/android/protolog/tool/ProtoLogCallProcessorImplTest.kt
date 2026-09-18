@@ -23,8 +23,17 @@ import com.github.javaparser.ast.expr.MethodCallExpr
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import com.google.common.truth.Truth
+import org.junit.BeforeClass
 
 class ProtoLogCallProcessorImplTest {
+    companion object {
+        @BeforeClass
+        @JvmStatic
+        fun setParserConfig() {
+            StaticJavaParser.setConfiguration(ProtoLogTool.PARSER_CONFIG)
+        }
+    }
+
     private data class LogCall(
         val call: MethodCallExpr,
         val messageString: String,
@@ -279,5 +288,33 @@ class ProtoLogCallProcessorImplTest {
             .contains("Code processing error in MyTestFile.java:6")
         Truth.assertThat(exception.cause).hasMessageThat()
             .contains("Invalid Protolog message format")
+    }
+
+    @Test
+    fun process_textBlockString() {
+        val code = """
+            package org.example;
+
+            class Test {
+                void test() {
+                    ProtoLog.d(ProtoLogGroup.TEST, ${"\"\"\""}
+            This is a multiline
+            text block with %s and %d${"\"\"\""},
+                    "params", 123);
+                }
+            }
+        """.trimIndent()
+        groupMap["TEST"] = LogGroup("TEST", true, true, "WindowManager", 1)
+        visitor.process(StaticJavaParser.parse(code), processor, "")
+
+        assertEquals(1, calls.size)
+        val c = calls[0]
+        val expectedMessage = """
+            This is a multiline
+            text block with %s and %d
+            """.trimIndent()
+        assertEquals(expectedMessage, c.messageString)
+        assertEquals(groupMap["TEST"], c.group)
+        assertEquals(LogLevel.DEBUG, c.level)
     }
 }

@@ -16,6 +16,8 @@
 
 package android.view.input;
 
+import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -69,8 +71,9 @@ public class LetterboxScrollProcessor extends InputEventCompatProcessor {
         mScrollDetector = new GestureDetector(context, new ScrollListener(), handler);
     }
 
-    public static boolean isCompatibilityNeeded() {
-        return Flags.scrollingFromLetterbox();
+    /** Whether Scrolling from Letterbox area should be enabled. */
+    public static boolean isCompatibilityNeeded(@NonNull Context context) {
+        return Flags.scrollingFromLetterbox() && !appInFreeform(context);
     }
 
     @Nullable
@@ -78,10 +81,15 @@ public class LetterboxScrollProcessor extends InputEventCompatProcessor {
     public List<InputEvent> processInputEventForCompatibility(@NonNull InputEvent inputEvent) {
         if (!(inputEvent instanceof MotionEvent motionEvent)
                 || motionEvent.getAction() == MotionEvent.ACTION_OUTSIDE
-                || !motionEvent.isFromSource(InputDevice.SOURCE_CLASS_POINTER)) {
+                || !motionEvent.isFromSource(InputDevice.SOURCE_CLASS_POINTER)
+                || !isTheSameDisplay(inputEvent)) {
             return null;
         }
         return processMotionEvent(motionEvent);
+    }
+
+    private boolean isTheSameDisplay(InputEvent inputEvent) {
+        return mContext.getDisplayId() == inputEvent.getDisplayId();
     }
 
     private List<InputEvent> processMotionEvent(@NonNull MotionEvent motionEvent) {
@@ -140,6 +148,14 @@ public class LetterboxScrollProcessor extends InputEventCompatProcessor {
         }
 
         return makeNoAdjustments ? null : mProcessedEvents;
+    }
+
+    private static boolean appInFreeform(@NonNull Context context) {
+        // Apps in freeform don't need reachability. Also, freeform windows have a touchable header,
+        // and these events should not be altered, so scrolling from letterbox is disabled for them
+        // completely.
+        return context.getResources().getConfiguration().windowConfiguration.getWindowingMode()
+                == WINDOWING_MODE_FREEFORM;
     }
 
     @Nullable

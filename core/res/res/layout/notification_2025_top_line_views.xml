@@ -23,12 +23,13 @@
     <TextView
         android:id="@+id/alt_title"
         android:textAppearance="@style/TextAppearance.DeviceDefault.Notification.Title"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:maxLines="1"
         android:ellipsize="end"
         android:textAlignment="viewStart"
         android:visibility="gone"
+        android:layout_marginEnd="@dimen/notification_header_separating_margin"
         />
    <TextView
         android:id="@+id/app_name_text_divider"
@@ -48,7 +49,7 @@
         android:layout_marginEnd="@dimen/notification_header_separating_margin"
         android:singleLine="true"
         android:textAppearance="@style/TextAppearance.DeviceDefault.Notification.Info"
-        android:visibility="?attr/notificationHeaderAppNameVisibility"
+        android:visibility="visible"
         />
 
     <TextView
@@ -119,6 +120,20 @@
         android:visibility="gone"
         />
 
+    <com.android.internal.widget.NotificationRowIconView
+        android:id="@+id/bridging_app_icon"
+        android:layout_width="@dimen/notification_2025_badge_size"
+        android:layout_height="@dimen/notification_2025_badge_size"
+        android:layout_alignParentStart="true"
+        android:layout_centerVertical="true"
+        android:background="@drawable/notification_icon_circle"
+        android:layout_marginStart="@dimen/notification_header_separating_margin"
+        android:layout_marginEnd="@dimen/notification_header_separating_margin"
+        android:maxDrawableWidth="@dimen/notification_header_subtext_icon_size"
+        android:maxDrawableHeight="@dimen/notification_header_subtext_icon_size"
+        android:visibility="gone"
+        />
+
     <ViewStub
         android:id="@+id/chronometer"
         android:layout_width="wrap_content"
@@ -163,19 +178,6 @@
         android:showRelative="true"
         android:singleLine="true"
         android:visibility="gone"
-        />
-
-    <ImageButton
-        android:id="@+id/feedback"
-        android:layout_width="@dimen/notification_feedback_size"
-        android:layout_height="@dimen/notification_feedback_size"
-        android:layout_marginStart="@dimen/notification_header_separating_margin"
-        android:baseline="13dp"
-        android:scaleType="fitCenter"
-        android:src="@drawable/ic_feedback_indicator"
-        android:background="?android:selectableItemBackgroundBorderless"
-        android:visibility="gone"
-        android:contentDescription="@string/notification_feedback_indicator"
         />
 
     <ImageView

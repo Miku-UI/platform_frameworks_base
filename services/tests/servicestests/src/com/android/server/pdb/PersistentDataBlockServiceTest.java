@@ -46,7 +46,11 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Binder;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.os.UserManager;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.persistentdata.IPersistentDataBlockService;
 
 import androidx.test.core.app.ApplicationProvider;
@@ -81,7 +85,7 @@ public class PersistentDataBlockServiceTest {
     public static final int DEFAULT_BLOCK_DEVICE_SIZE = -1;
 
     private Context mContext;
-    private PersistentDataBlockService mPdbService;
+    private FakePersistentDataBlockService mPdbService;
     private IPersistentDataBlockService mInterface;
     private PersistentDataBlockManagerInternal mInternalInterface;
     private File mDataBlockFile;
@@ -91,7 +95,12 @@ public class PersistentDataBlockServiceTest {
 
     @Mock private UserManager mUserManager;
 
+    @Rule public final SetFlagsRule mSetFlagsRule =
+            new SetFlagsRule(SetFlagsRule.DefaultInitValueType.DEVICE_DEFAULT);
+
     private class FakePersistentDataBlockService extends PersistentDataBlockService {
+
+        private int mCallingUserId = UserHandle.getCallingUserId();
 
         FakePersistentDataBlockService(Context context, String dataBlockFile,
                 long blockDeviceSize, String frpSecretFile, String frpSecretTmpFile) {
@@ -101,6 +110,15 @@ public class PersistentDataBlockServiceTest {
             // it registers the service, etc.  But we need to signal init done to prevent
             // `isFrpActive` from blocking.
             signalInitDone();
+        }
+
+        void setCallingUserId(int userId) {
+            mCallingUserId = userId;
+        }
+
+        @Override
+        protected int getCallingUserId() {
+            return mCallingUserId;
         }
 
         @Override
@@ -122,7 +140,7 @@ public class PersistentDataBlockServiceTest {
         mPdbService = new FakePersistentDataBlockService(mContext, mDataBlockFile.getPath(),
                 DEFAULT_BLOCK_DEVICE_SIZE, mFrpSecretFile.getPath(), mFrpSecretTmpFile.getPath());
         mPdbService.setAllowedUid(Binder.getCallingUid());
-        mPdbService.formatPartitionLocked(/* setOemUnlockEnabled */ false);
+        mPdbService.formatPartitionLocked();
         mInterface = mPdbService.getInterfaceForTesting();
         mInternalInterface = mPdbService.getInternalInterfaceForTesting();
 
@@ -293,7 +311,7 @@ public class PersistentDataBlockServiceTest {
                 dataBlockFile.getPath(), /* blockDeviceSize */ 128 * 1000,
                 /* frpSecretFile */ null, /* frpSecretTmpFile */ null);
         pdbService.setAllowedUid(Binder.getCallingUid());
-        pdbService.formatPartitionLocked(/* setOemUnlockEnabled */ false);
+        pdbService.formatPartitionLocked();
 
         IPersistentDataBlockService service = pdbService.getInterfaceForTesting();
         int maxDataSize = (int) service.getMaximumDataBlockSize();
@@ -328,7 +346,7 @@ public class PersistentDataBlockServiceTest {
                 dataBlockFile.getPath(), /* blockDeviceSize */ 128 * 1000,
                 /* frpSecretFile */null, /* mFrpSecretTmpFile */ null);
         pdbService.setAllowedUid(Binder.getCallingUid());
-        pdbService.formatPartitionLocked(/* setOemUnlockEnabled */ false);
+        pdbService.formatPartitionLocked();
 
         IPersistentDataBlockService service = pdbService.getInterfaceForTesting();
         assertThat(service.getMaximumDataBlockSize()).isEqualTo(MAX_DATA_BLOCK_SIZE);
@@ -379,7 +397,7 @@ public class PersistentDataBlockServiceTest {
         /*
          * 2. Format it.
          */
-        mPdbService.formatPartitionLocked(true);
+        mPdbService.formatPartitionLocked();
 
         /*
          * 3. Check it.
@@ -412,7 +430,7 @@ public class PersistentDataBlockServiceTest {
 
         // 3f. OEM unlock byte.
         assertThat(mPdbService.getOemUnlockDataOffset()).isEqualTo(channel.position());
-        assertThat(new byte[]{1}).isEqualTo(readData(channel, 1).array());
+        assertThat(new byte[]{0}).isEqualTo(readData(channel, 1).array());
 
         // 3g. EOF
         assertThat(channel.position()).isEqualTo(channel.size());
@@ -510,11 +528,36 @@ public class PersistentDataBlockServiceTest {
     }
 
     @Test
-    public void oemUnlockNotAdmin() throws Exception {
+    @DisableFlags(android.multiuser.Flags.FLAG_HSU_NOT_ADMIN)
+    public void oemUnlockNotAdmin_hsuNotAdminDisabled_throwsSecurityException() throws Exception {
         grantOemUnlockPermission();
         makeUserAdmin(false);
 
         assertThrows(SecurityException.class, () -> mInterface.setOemUnlockEnabled(true));
+    }
+
+    @Test
+    @EnableFlags(android.multiuser.Flags.FLAG_HSU_NOT_ADMIN)
+    public void oemUnlockNotAdmin_neitherUserSystemHsuNorAdmin_throwsSecurityException()
+            throws Exception {
+        mPdbService.setCallingUserId(UserHandle.USER_SYSTEM + 1);
+
+        grantOemUnlockPermission();
+        makeUserAdmin(false);
+
+        assertThrows(SecurityException.class, () -> mInterface.setOemUnlockEnabled(true));
+    }
+
+    @Test
+    @EnableFlags(android.multiuser.Flags.FLAG_HSU_NOT_ADMIN)
+    public void oemUnlockNotAdmin_userSystemHsuNotAdmin_oemUnlockEnabled() throws Exception {
+        mPdbService.setCallingUserId(UserHandle.USER_SYSTEM);
+
+        grantOemUnlockPermission();
+        makeUserAdmin(false);
+
+        mInterface.setOemUnlockEnabled(true);
+        assertThat(mInterface.getOemUnlockEnabled()).isTrue();
     }
 
     @Test

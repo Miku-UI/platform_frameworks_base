@@ -78,10 +78,7 @@ INP=$ROOT/framework/lockedregioncodeinjection_input.jar
 # Run tool on unit tests.
 $EXE \
     -i $INP -o $OUT/test_output.jar \
-    --targets 'Llockedregioncodeinjection/TestTarget;' \
-    --pre     'lockedregioncodeinjection/TestTarget.boost' \
-    --post    'lockedregioncodeinjection/TestTarget.unboost' \
-    --scoped  'Llockedregioncodeinjection/TestScopedLock;,monitorEnter,monitorExit'
+    --config $(dirname $0)/test_config.cfg
 
 # Run unit tests.
 java -ea -cp $OUT/test_output.jar \

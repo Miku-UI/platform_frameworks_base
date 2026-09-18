@@ -20,14 +20,15 @@ import android.annotation.NonNull;
 import android.hardware.devicestate.DeviceStateManager;
 import android.os.Environment;
 import android.util.IndentingPrintWriter;
+import android.util.LongSparseArray;
 import android.util.Slog;
 import android.util.SparseArray;
 import android.view.DisplayAddress;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.display.config.layout.Display;
 import com.android.server.display.config.layout.Layouts;
 import com.android.server.display.config.layout.XmlParser;
-import com.android.server.display.feature.DisplayManagerFlags;
 import com.android.server.display.layout.DisplayIdProducer;
 import com.android.server.display.layout.Layout;
 
@@ -71,14 +72,17 @@ class DeviceStateToLayoutMap {
 
     private final SparseArray<Layout> mLayoutMap = new SparseArray<>();
     private final DisplayIdProducer mIdProducer;
+    private final boolean mStableEdidsFlag;
 
-    DeviceStateToLayoutMap(DisplayIdProducer idProducer, DisplayManagerFlags flags) {
-        this(idProducer, flags, getConfigFile());
+    DeviceStateToLayoutMap(DisplayIdProducer idProducer, boolean stableEdidsFlag) {
+        this(idProducer, getConfigFile(), stableEdidsFlag);
+
     }
 
-    DeviceStateToLayoutMap(DisplayIdProducer idProducer, DisplayManagerFlags flags,
-            File configFile) {
+    DeviceStateToLayoutMap(DisplayIdProducer idProducer,
+            File configFile, boolean stableEdidsFlag) {
         mIdProducer = idProducer;
+        mStableEdidsFlag = stableEdidsFlag;
         loadLayoutsFromConfig(configFile);
         createLayout(STATE_DEFAULT, DEFAULT_LAYOUT_NAME);
     }
@@ -102,6 +106,8 @@ class DeviceStateToLayoutMap {
         for (int i = 0; i < mLayoutMap.size(); i++) {
             ipw.println("state(" + mLayoutMap.keyAt(i) + "): " + mLayoutMap.valueAt(i));
         }
+        ipw.println("mStableEdidsFlag: " + mStableEdidsFlag);
+
     }
 
     Layout get(int state) {
@@ -144,15 +150,21 @@ class DeviceStateToLayoutMap {
                 final int state = l.getState().intValue();
                 final String name = l.getName();
                 final Layout layout = createLayout(state, name);
+                final LongSparseArray<Integer> idToPortMap = loadIdToPortMap(l);
                 for (com.android.server.display.config.layout.Display d: l.getDisplay()) {
                     assert layout != null;
-                    final DisplayAddress address = getDisplayAddressForLayoutDisplay(d);
+                    final DisplayAddress address =
+                            getDisplayAddressForLayoutDisplay(d, idToPortMap);
 
                     int position = getPosition(d.getPosition());
                     BigInteger leadDisplayPhysicalId = d.getLeadDisplayAddress();
-                    DisplayAddress leadDisplayAddress = leadDisplayPhysicalId == null ? null
-                            : DisplayAddress.fromPhysicalDisplayId(
-                                    leadDisplayPhysicalId.longValue());
+                    DisplayAddress leadDisplayAddress = null;
+                    if (leadDisplayPhysicalId != null) {
+                        final int port = idToPortMap.get(leadDisplayPhysicalId.longValue(),
+                                /* valueIfKeyNotFound= */ 0);
+                        leadDisplayAddress = DisplayAddress.fromPhysicalDisplayId(
+                                leadDisplayPhysicalId.longValue(), port, mStableEdidsFlag);
+                    }
                     layout.createDisplayLocked(
                             address,
                             d.isDefaultDisplay(),
@@ -174,18 +186,39 @@ class DeviceStateToLayoutMap {
         }
     }
 
+    @NonNull
+    private static LongSparseArray<Integer> loadIdToPortMap(
+            com.android.server.display.config.layout.Layout l) {
+        final LongSparseArray<Integer> idToPortMap = new LongSparseArray<>();
+        for (com.android.server.display.config.layout.Display d : l.getDisplay()) {
+            if (d.getAddress_optional() != null) {
+                final int portFromAddr =
+                        d.getPort_optional() != null ? d.getPort_optional().intValue()
+                                : (int) (d.getAddress_optional().longValue() & 0xFF);
+                idToPortMap.put(d.getAddress_optional().longValue(), portFromAddr);
+            }
+        }
+        return idToPortMap;
+    }
+
     private DisplayAddress getDisplayAddressForLayoutDisplay(
-            @NonNull com.android.server.display.config.layout.Display display) {
+            @NonNull Display display, LongSparseArray<Integer> idToPortMap) {
         BigInteger xmlAddress = display.getAddress_optional();
         if (xmlAddress != null) {
-            return DisplayAddress.fromPhysicalDisplayId(xmlAddress.longValue());
+            // TODO(b/442783456) - validate these params, and existence of this display.
+            return DisplayAddress.fromPhysicalDisplayId(xmlAddress.longValue(),
+                    idToPortMap.get(xmlAddress.longValue()), mStableEdidsFlag);
         }
         if (display.getPort_optional() == null) {
             throw new IllegalArgumentException(
                   "Must specify a display identifier in display layout configuration: " + display);
         }
-        return DisplayAddress.fromPortAndModel((int) display.getPort_optional().longValue(),
-                /* model= */ null);
+        // If no display address is specified, use the port as the address. It is strongly
+        // recommended to put the display address in the display layout configuration.
+        // This fallback is unlikely to conflict with real addresses, but should be avoided if
+        // possible.
+        return DisplayAddress.fromPhysicalDisplayId(display.getPort_optional().intValue(),
+                display.getPort_optional().intValue(), mStableEdidsFlag);
     }
 
     private int getPosition(@NonNull String position) {
@@ -204,7 +237,7 @@ class DeviceStateToLayoutMap {
             return null;
         }
 
-        final Layout layout = new Layout(name);
+        final Layout layout = new Layout(name, mStableEdidsFlag);
         mLayoutMap.append(state, layout);
         return layout;
     }

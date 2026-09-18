@@ -78,6 +78,11 @@ class CredentialSelectorViewModel(
 
     var uiMetrics: UIMetrics = UIMetrics()
 
+    // Delegates onParsingFailureCancel to CredManRepo.
+    val onParsingFailureCancel: () -> Unit = {
+      credManRepo.onParsingFailureCancel()
+    }
+
     init {
         uiMetrics.logNormal(LifecycleEvent.CREDMAN_ACTIVITY_INIT,
             credManRepo.requestInfo?.packageName)

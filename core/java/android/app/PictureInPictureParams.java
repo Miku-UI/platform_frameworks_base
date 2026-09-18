@@ -222,6 +222,8 @@ public final class PictureInPictureParams implements Parcelable {
          * Sets a title for the picture-in-picture window, which may be displayed by the system to
          * give the user information about what this PIP is generally being used for.
          *
+         * Titles longer than 1024 characters (default) are automatically truncated.
+         *
          * @param title General information about the PIP content
          * @return this builder instance.
          */
@@ -237,6 +239,8 @@ public final class PictureInPictureParams implements Parcelable {
          *
          * Setting a title via {@link PictureInPictureParams.Builder#setTitle(CharSequence)} should
          * be prioritized.
+         *
+         * Subtitles longer than 1024 characters (default) are automatically truncated.
          *
          * @param subtitle Details about the PIP content.
          * @return this builder instance
@@ -546,7 +550,7 @@ public final class PictureInPictureParams implements Parcelable {
     }
 
     /**
-     * Truncates the set of actions to the given {@param size}.
+     * Truncates the set of actions to the given {@code size}.
      *
      * @hide
      */
@@ -554,6 +558,26 @@ public final class PictureInPictureParams implements Parcelable {
         if (hasSetActions()) {
             mUserActions = mUserActions.subList(0, Math.min(mUserActions.size(), size));
         }
+    }
+
+    /**
+     * Truncates the title and subtitle by the given length limitations.
+     *
+     * @return {code true} if either the title or subtitle is truncated.
+     *
+     * @hide
+     */
+    public boolean truncateTitleAndSubtitle(int titleLengthLimit, int subtitleLengthLimit) {
+        boolean truncated = false;
+        if (hasSetTitle() && mTitle.length() > titleLengthLimit) {
+            truncated = true;
+            mTitle = mTitle.subSequence(0, titleLengthLimit);
+        }
+        if (hasSetSubtitle() && mSubtitle.length() > subtitleLengthLimit) {
+            truncated = true;
+            mSubtitle = mSubtitle.subSequence(0, subtitleLengthLimit);
+        }
+        return truncated;
     }
 
     /**

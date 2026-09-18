@@ -16,18 +16,27 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 
 /**
  * Thrown if the ephemeral public key was not found in the session transcript
  * passed to {@link IdentityCredential#getEntries(byte[], Map, byte[], byte[])}.
+ *
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public class EphemeralPublicKeyNotFoundException extends IdentityCredentialException {
     /**
      * Constructs a new {@link EphemeralPublicKeyNotFoundException} exception.
      *
      * @param message the detail message.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public EphemeralPublicKeyNotFoundException(@NonNull String message) {
         super(message);
     }
@@ -37,7 +46,11 @@ public class EphemeralPublicKeyNotFoundException extends IdentityCredentialExcep
      *
      * @param message the detail message.
      * @param cause   the cause.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public EphemeralPublicKeyNotFoundException(@NonNull String message, @NonNull Throwable cause) {
         super(message, cause);
     }

@@ -71,7 +71,7 @@ class WallpaperRepositoryImplTest : SysuiTestCase() {
 
     // Initialized in each test since certain flows rely on mocked data that isn't
     // modifiable after start, like wallpaperManager.isWallpaperSupported
-    private lateinit var underTest: WallpaperRepositoryImpl
+    private lateinit var underTest: WallpaperRepository
 
     lateinit var focalAreaTarget: String
 
@@ -233,7 +233,6 @@ class WallpaperRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(SharedFlags.FLAG_AMBIENT_AOD)
     fun wallpaperSupportsAmbientMode_deviceDoesNotSupport_false() =
         testScope.runTest {
             underTest = kosmos.wallpaperRepository
@@ -249,7 +248,6 @@ class WallpaperRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(SharedFlags.FLAG_AMBIENT_AOD)
     fun wallpaperSupportsAmbientMode_sysuiOverrideFalse_deviceDoesSupport_false() =
         testScope.runTest {
             underTest = kosmos.wallpaperRepository
@@ -269,7 +267,6 @@ class WallpaperRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(SharedFlags.FLAG_AMBIENT_AOD)
     fun wallpaperSupportsAmbientMode_sysuiOverrideTrue_deviceDoesSupport_true() =
         testScope.runTest {
             underTest = kosmos.wallpaperRepository
@@ -289,7 +286,6 @@ class WallpaperRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(SharedFlags.FLAG_AMBIENT_AOD)
     fun wallpaperSupportsAmbientMode_sysuiOverrideNull_deviceDoesSupport_true() =
         testScope.runTest {
             underTest = kosmos.wallpaperRepository
@@ -309,7 +305,6 @@ class WallpaperRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(SharedFlags.FLAG_AMBIENT_AOD)
     fun wallpaperSupportsAmbientMode_deviceDoesSupport_true() =
         testScope.runTest {
             underTest = kosmos.wallpaperRepository
@@ -333,7 +328,6 @@ class WallpaperRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(SharedFlags.FLAG_AMBIENT_AOD)
     fun wallpaperSupportsAmbientMode_deviceDoesSupport_settingDisabled_false() =
         testScope.runTest {
             underTest = kosmos.wallpaperRepository
@@ -349,7 +343,6 @@ class WallpaperRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(SharedFlags.FLAG_AMBIENT_AOD)
     fun wallpaperSupportsAmbientMode_deviceDoesSupport_userDisabledAod_false() =
         testScope.runTest {
             underTest = kosmos.wallpaperRepository

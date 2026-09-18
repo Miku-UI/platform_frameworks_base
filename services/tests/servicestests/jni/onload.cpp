@@ -25,6 +25,7 @@
 
 namespace android {
 int register_android_server_am_CachedAppOptimizer(JNIEnv* env);
+int register_android_server_am_MemoryLimiter(JNIEnv* env);
 int register_android_server_am_OomConnection(JNIEnv* env);
 int register_android_server_utils_AnrTimer(JNIEnv *env);
 int register_android_server_utils_LazyJniRegistrar(JNIEnv* env);
@@ -43,6 +44,7 @@ extern "C" jint JNI_OnLoad(JavaVM* vm, void* /* reserved */)
     }
     ALOG_ASSERT(env, "Could not retrieve the env!");
     register_android_server_am_CachedAppOptimizer(env);
+    register_android_server_am_MemoryLimiter(env);
     register_android_server_am_OomConnection(env);
     register_android_server_utils_AnrTimer(env);
     register_android_server_utils_LazyJniRegistrar(env);

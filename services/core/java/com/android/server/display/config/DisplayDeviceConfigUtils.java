@@ -17,6 +17,7 @@
 package com.android.server.display.config;
 
 import android.annotation.Nullable;
+import android.os.PowerManager;
 import android.util.Slog;
 import android.util.Spline;
 
@@ -79,4 +80,28 @@ public class DisplayDeviceConfigUtils {
         }
         return highestRatio;
     }
+
+    /**
+     * Checks if the current thermal status is valid and convert to the respective
+     * PowerManager ThermalStatus
+    */
+    public static @PowerManager.ThermalStatus int convertValidThermalStatus(ThermalStatus value) {
+        if (value == null) {
+            return PowerManager.THERMAL_STATUS_INVALID;
+        }
+        return switch (value) {
+            case none -> PowerManager.THERMAL_STATUS_NONE;
+            case light -> PowerManager.THERMAL_STATUS_LIGHT;
+            case moderate -> PowerManager.THERMAL_STATUS_MODERATE;
+            case severe -> PowerManager.THERMAL_STATUS_SEVERE;
+            case critical -> PowerManager.THERMAL_STATUS_CRITICAL;
+            case emergency -> PowerManager.THERMAL_STATUS_EMERGENCY;
+            case shutdown -> PowerManager.THERMAL_STATUS_SHUTDOWN;
+            default -> {
+                Slog.wtf(TAG, "Unexpected Thermal Status: " + value);
+                yield PowerManager.THERMAL_STATUS_INVALID;
+            }
+        };
+    }
+
 }

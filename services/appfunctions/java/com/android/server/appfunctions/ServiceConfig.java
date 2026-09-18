@@ -16,10 +16,32 @@
 
 package com.android.server.appfunctions;
 
+import android.annotation.IntRange;
+
+import java.util.concurrent.atomic.AtomicInteger;
+
 /** This interface is used to expose configs to the AppFunctionManagerService. */
 public interface ServiceConfig {
     // TODO(b/357551503): Obtain namespace from DeviceConfig.
     String NAMESPACE_APP_FUNCTIONS = "appfunctions";
+
+    /**
+     * The test page size that would be used by {@link
+     * ServiceConfig#getSearchAppFunctionInternalPageSize} when provided.
+     */
+    AtomicInteger sTestPageSize = new AtomicInteger(0);
+
+    /**
+     * The minimum page size that would be returned by {@link
+     * ServiceConfig#getSearchAppFunctionInternalPageSize}.
+     */
+    int MIN_PAGE_SIZE = 1;
+
+    /**
+     * The maximum page size that would be returned by {@link
+     * ServiceConfig#getSearchAppFunctionInternalPageSize}.
+     */
+    int MAX_PAGE_SIZE = 10_000;
 
     /**
      * Returns the timeout for which the system server waits for the app function service to
@@ -28,16 +50,26 @@ public interface ServiceConfig {
     long getExecuteAppFunctionCancellationTimeoutMillis();
 
     /**
-     * Returns the maximum age, in milliseconds, for an AppFunction access history record.
-     *
-     * <p>Access history records older than this retention period will be removed during the next
-     * maintenance cleanup.
+     * Returns the internal page size used when fetching a page from the system server via {@link
+     * android.app.appfunctions.IAppFunctionSearchResults#getNextPage}.
      */
-    long getAppFunctionAccessHistoryRetentionMillis();
+    @IntRange(from = MIN_PAGE_SIZE, to = MAX_PAGE_SIZE)
+    int getSearchAppFunctionInternalPageSize();
 
     /**
-     * Returns the interval, in milliseconds, at which the maintenance job runs to delete expired
-     * AppFunction access histories.
+     * Returns the debounce time in milliseconds for app function metadata changes.
+     *
+     * <p>This is the maximum time the system server will wait before notifying the observers of app
+     * function metadata changes.
      */
-    long getAppFunctionExpiredAccessHistoryDeletionIntervalMillis();
+    int getAppFunctionMetadataChangeDebounceMilliseconds();
+
+    /** Returns the maximum number of agent packages whose allowlists can be cached. */
+    int getAppFunctionAllowlistCacheSize();
+
+    /** Returns the debounce time in milliseconds for app function enabled state changes. */
+    long getAppFunctionEnabledStateChangeDebounceMilliseconds();
+
+    /** Returns the maximum debounce time in milliseconds for app function enabled state changes. */
+    long getAppFunctionEnabledStateChangeMaxDebounceMilliseconds();
 }

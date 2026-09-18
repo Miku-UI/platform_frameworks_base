@@ -64,17 +64,6 @@ flag {
 }
 
 flag {
-     namespace: "backstage_power"
-     name: "use_sticky_bcast_cache"
-     description: "Use cache for sticky broadcast intents"
-     is_fixed_read_only: true
-     bug: "356148006"
-     metadata {
-         purpose: PURPOSE_BUGFIX
-     }
-}
-
-flag {
      namespace: "system_performance"
      name: "app_start_info_component"
      description: "Control ApplicationStartInfo component field and API"
@@ -97,44 +86,27 @@ flag {
 }
 
 flag {
-     name: "enable_process_observer_broadcast_on_process_started"
-     namespace: "system_performance"
-     description: "Enable ProcessObserver's onProcessStarted callbacks."
-     bug: "323959187"
+     namespace: "serviceability"
+     name: "get_free_memory_v2"
+     is_exported: true
+     description: "Add API to get free memory."
+     bug: "417358222"
 }
 
 flag {
      namespace: "backstage_power"
-     name: "skip_ref_content_provider"
-     description: "Skip refContentProvider calls for unstable connections"
-     bug: "395544023"
-     is_fixed_read_only: true
-}
-
-flag {
-     namespace: "system_performance"
-     name: "early_render_thread_priority_boost"
-     description: "Boost the render thread priority during preload."
-     bug: "417909658"
+     name: "single_user_provider_cache_fix"
+     description: "Store single-user content providers under the USER_ALL user id."
+     bug: "448742092"
      metadata {
          purpose: PURPOSE_BUGFIX
      }
 }
 
 flag {
-    namespace: "telecom"
-    name: "system_dialer_phone_call_fgs_grant"
-    description: "Ensures that the system dialer app can use a phone call fgs."
-    bug: "425971621"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-     namespace: "desktop_serviceability"
-     name: "get_free_memory"
-     is_exported: true
-     description: "Add API to get free memory."
-     bug: "417906997"
+    namespace: "systemui"
+    name: "enable_dynamic_icons_and_badging"
+    is_exported: true
+    description: "Enables dynamic icons and badging in the launcher"
+    bug: "472296334"
 }

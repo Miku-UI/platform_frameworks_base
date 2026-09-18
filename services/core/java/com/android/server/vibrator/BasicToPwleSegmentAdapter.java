@@ -45,6 +45,7 @@ import java.util.Objects;
 final class BasicToPwleSegmentAdapter implements VibrationSegmentsAdapter {
     private static final String TAG = "BasicToPwleSegmentAdapter";
     private static final int MIN_REQUIRED_SENSITIVITY_DB_SL = 10;
+    private static final float SHARPNESS_F0 = 0.7f;
     /**
      * An array of (frequency in Hz, minimum perceptible acceleration in dB) pairs.
      * Each pair represents the minimum output level (in dB) required for a human to perceive the
@@ -117,6 +118,7 @@ final class BasicToPwleSegmentAdapter implements VibrationSegmentsAdapter {
         }
         float minFrequencyHz = frequencyRangeHz.first;
         float maxFrequencyHz = frequencyRangeHz.second;
+        float resonantFrequencyHz = info.getResonantFrequencyHz();
         float maxSensitivityLevel = getMaxSensitivityLevel(frequenciesHz, accelerationsGs,
                 minFrequencyHz, maxFrequencyHz);
 
@@ -124,7 +126,7 @@ final class BasicToPwleSegmentAdapter implements VibrationSegmentsAdapter {
             VibrationEffectSegment segment = segments.get(i);
             if (segment instanceof BasicPwleSegment basicPwleSegment) {
                 PwleSegment pwleSegment = convertBasicToPwleSegment(frequencyProfile,
-                        basicPwleSegment, minFrequencyHz, maxFrequencyHz,
+                        basicPwleSegment, minFrequencyHz, maxFrequencyHz, resonantFrequencyHz,
                         maxSensitivityLevel);
                 segments.set(i, pwleSegment);
             }
@@ -141,8 +143,8 @@ final class BasicToPwleSegmentAdapter implements VibrationSegmentsAdapter {
      *
      * <p>The minimum frequency is the first point where the actuator's frequency to output
      * acceleration response curve intersects the minimum sensitivity threshold. The maximum
-     * frequency is determined by the second intersection point, or the maximum available
-     * frequency if no second intersection exists.
+     * frequency is the last point where the output acceleration exceeds that threshold, or the
+     * maximum available frequency if it never drops below the threshold again.
      *
      * @return The supported frequency range, or null if the minimum frequency cannot be determined.
      */
@@ -155,7 +157,6 @@ final class BasicToPwleSegmentAdapter implements VibrationSegmentsAdapter {
         for (int i = 0; i < frequenciesHz.length; i++) {
             float minAcceptableOutputAcceleration = convertSensitivityLevelToAccelerationGs(
                     MIN_REQUIRED_SENSITIVITY_DB_SL, frequenciesHz[i]);
-
             if (Float.isNaN(minFrequencyHz)
                     && minAcceptableOutputAcceleration <= accelerationsGs[i]) {
                 if (i == 0) {
@@ -166,13 +167,7 @@ final class BasicToPwleSegmentAdapter implements VibrationSegmentsAdapter {
                             accelerationsGs[i - 1], accelerationsGs[i],
                             minAcceptableOutputAcceleration);
                 } // Found the lower bound
-            } else if (!Float.isNaN(minFrequencyHz)
-                    && minAcceptableOutputAcceleration >= accelerationsGs[i]) {
-                maxFrequencyHz = MathUtils.constrainedMap(
-                        frequenciesHz[i - 1], frequenciesHz[i],
-                        accelerationsGs[i - 1], accelerationsGs[i],
-                        minAcceptableOutputAcceleration); // Found the upper bound
-                return new Pair<>(minFrequencyHz, maxFrequencyHz);
+                break;
             }
         }
 
@@ -184,9 +179,20 @@ final class BasicToPwleSegmentAdapter implements VibrationSegmentsAdapter {
             return null;
         }
 
+        // Reversely iterate through the map to find the upper bound.
+        for (int i = frequenciesHz.length - 1; i > 0 && frequenciesHz[i] > minFrequencyHz; i--) {
+            float minAcceptableOutputAcceleration = convertSensitivityLevelToAccelerationGs(
+                    MIN_REQUIRED_SENSITIVITY_DB_SL, frequenciesHz[i]);
+            if (minAcceptableOutputAcceleration >= accelerationsGs[i]) {
+                maxFrequencyHz = MathUtils.constrainedMap(
+                        frequenciesHz[i - 1], frequenciesHz[i],
+                        accelerationsGs[i - 1], accelerationsGs[i],
+                        minAcceptableOutputAcceleration); // Found the upper bound
+                return new Pair<>(minFrequencyHz, maxFrequencyHz);
+            }
+        }
         // If only the lower bound was found, set the upper bound to the maximum frequency.
         maxFrequencyHz = frequenciesHz[frequenciesHz.length - 1];
-
         return new Pair<>(minFrequencyHz, maxFrequencyHz);
     }
 
@@ -197,12 +203,12 @@ final class BasicToPwleSegmentAdapter implements VibrationSegmentsAdapter {
     private static PwleSegment convertBasicToPwleSegment(
             @NonNull VibratorInfo.FrequencyProfile frequencyProfile,
             @NonNull BasicPwleSegment basicPwleSegment, float minFrequencyHz, float maxFrequencyHz,
-            float maxSensitivityLevel) {
+            float resonantFrequencyHz, float maxSensitivityLevel) {
 
         float startFrequency = convertSharpnessToFrequencyHz(basicPwleSegment.getStartSharpness(),
-                minFrequencyHz, maxFrequencyHz);
+                minFrequencyHz, maxFrequencyHz, resonantFrequencyHz);
         float endFrequency = convertSharpnessToFrequencyHz(basicPwleSegment.getEndSharpness(),
-                minFrequencyHz, maxFrequencyHz);
+                minFrequencyHz, maxFrequencyHz, resonantFrequencyHz);
 
         float startAmplitude = convertIntensityToAmplitude(frequencyProfile,
                 basicPwleSegment.getStartIntensity(), startFrequency, maxSensitivityLevel);
@@ -210,7 +216,7 @@ final class BasicToPwleSegmentAdapter implements VibrationSegmentsAdapter {
                 basicPwleSegment.getEndIntensity(), endFrequency, maxSensitivityLevel);
 
         return new PwleSegment(startAmplitude, endAmplitude, startFrequency, endFrequency,
-                basicPwleSegment.getDuration());
+                basicPwleSegment.getDuration(), basicPwleSegment.getStartTimeMillis());
     }
 
     /**
@@ -268,8 +274,18 @@ final class BasicToPwleSegmentAdapter implements VibrationSegmentsAdapter {
     }
 
     private static float convertSharpnessToFrequencyHz(float sharpness, float minFrequencyHz,
-            float maxFrequencyHz) {
-        return minFrequencyHz + sharpness * (maxFrequencyHz - minFrequencyHz);
+            float maxFrequencyHz, float resonantFrequencyHz) {
+        if (Float.isNaN(resonantFrequencyHz)) {
+            return MathUtils.constrainedMap(minFrequencyHz, maxFrequencyHz, 0, 1, sharpness);
+        }
+
+        if (sharpness < SHARPNESS_F0) {
+            return MathUtils.constrainedMap(minFrequencyHz, resonantFrequencyHz, 0, SHARPNESS_F0,
+                    sharpness);
+        }
+
+        return MathUtils.constrainedMap(resonantFrequencyHz, maxFrequencyHz, SHARPNESS_F0, 1,
+                sharpness);
     }
 
     private static float convertIntensityToAccelerationGs(float intensity, float frequencyHz,

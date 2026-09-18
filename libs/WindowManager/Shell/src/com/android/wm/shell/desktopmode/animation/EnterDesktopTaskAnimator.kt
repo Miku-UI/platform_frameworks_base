@@ -56,11 +56,15 @@ class EnterDesktopTaskAnimator(
         startTransaction
             .setPosition(leash, startBounds.left.toFloat(), startBounds.top.toFloat())
             .setWindowCrop(leash, startBounds.width(), startBounds.height())
-        onTaskResizeAnimationListener?.onAnimationStart(
-            taskId = taskId,
-            t = startTransaction,
-            bounds = startBounds,
-        ) ?: startTransaction.apply()
+        val startTransactionApplied =
+            onTaskResizeAnimationListener?.onAnimationStart(
+                taskId = taskId,
+                t = startTransaction,
+                bounds = startBounds,
+            ) ?: false
+        if (!startTransactionApplied) {
+            startTransaction.apply()
+        }
 
         val updateTransaction = transactionSupplier()
         ValueAnimator.ofObject(rectEvaluator, startBounds, endBounds).apply {
@@ -81,12 +85,15 @@ class EnterDesktopTaskAnimator(
                 updateTransaction
                     .setPosition(leash, rect.left.toFloat(), rect.top.toFloat())
                     .setWindowCrop(leash, rect.width(), rect.height())
-                    .apply()
-                onTaskResizeAnimationListener?.onBoundsChange(
-                    taskId = taskId,
-                    t = updateTransaction,
-                    bounds = rect,
-                ) ?: updateTransaction.apply()
+                val updateTransactionApplied =
+                    onTaskResizeAnimationListener?.onBoundsChange(
+                        taskId = taskId,
+                        t = updateTransaction,
+                        bounds = rect,
+                    ) ?: false
+                if (!updateTransactionApplied) {
+                    updateTransaction.apply()
+                }
             }
             start()
         }

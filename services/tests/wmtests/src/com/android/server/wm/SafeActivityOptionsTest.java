@@ -202,6 +202,10 @@ public class SafeActivityOptionsTest {
             activityOptions.setLaunchWindowingMode(WINDOWING_MODE_PINNED);
             verifySecureExceptionThrown(activityOptions, taskSupervisor);
 
+            activityOptions = ActivityOptions.makeBasic();
+            activityOptions.setMovableTaskRequired(true);
+            verifySecureExceptionThrown(activityOptions, taskSupervisor);
+
             verifySecureExceptionThrown(activityOptions, taskSupervisor,
                     mock(TaskDisplayArea.class));
         } finally {

@@ -56,6 +56,9 @@ class NumberButtonPreference @JvmOverloads constructor(
         super.onBindViewHolder(holder)
         holder.isDividerAllowedAbove = false
         holder.isDividerAllowedBelow = false
+        // Ensure the root itemView (LinearLayout) is NOT interactive
+        holder.itemView.isClickable = false
+        holder.itemView.isFocusable = false
 
         holder.findViewById(R.id.settingslib_number_button)?.apply {
             setOnClickListener(clickListener)

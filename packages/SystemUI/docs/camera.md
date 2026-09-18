@@ -2,11 +2,11 @@
 _Last update: July 2022_
 
 ## Sequence of events
-1. [PhoneWindowManager.java](/services/core/java/com/android/server/policy/PhoneWindowManager.java) is responsible for all power button presses (see `interceptPowerKeyDown`) 
+1. [PhoneWindowManager.java](/services/core/java/com/android/server/policy/PhoneWindowManager.java) is responsible for all power button presses (see `interceptPowerKeyDown`)
 2. Even though `PhoneWindowManager` has a lot of logic to detect all manner of power button multi-presses and gestures, it also checks with `GestureLauncherService`, which is also [offered the chance](/services/core/java/com/android/server/policy/PhoneWindowManager.java#943) to [intercept](/services/core/java/com/android/server/GestureLauncherService.java) the power key
 3. `GestureLauncherService` is responsible for the camera timeout, and if it detects one, it [forwards it to the StatusBarManagerService](/services/core/java/com/android/server/GestureLauncherService.java) (which hands it off to SystemUI)
 4. Inside SystemUI, `onCameraLaunchDetected` in [CentralSurfacesCommandQueueCallbacks.java](/packages/SystemUI/src/com/android/systemui/statusbar/phone/CentralSurfacesCommandQueueCallbacks.java) looks at the keyguard state and determines
-    1. whether the camera is even allowed 
+    1. whether the camera is even allowed
     2. whether the screen is on; if not, we need to delay until that happens
     3. whether the device is locked (defined as "keyguard is showing").
 5. If the device is unlocked (no keyguard), the camera is launched immediately

@@ -19,21 +19,17 @@ package com.android.systemui.statusbar.layout.ui.viewmodel
 import android.graphics.Rect
 import android.view.View
 import androidx.compose.runtime.getValue
-import com.android.systemui.dagger.qualifiers.Background
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.clock.ClockModernization
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.statusbar.policy.Clock
 import com.android.systemui.util.boundsOnScreen
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.stateIn
 
 /**
  * View model for on-screen bounds of elements related to the status bar.
@@ -45,30 +41,25 @@ class StatusBarBoundsViewModel
 constructor(
     @Assisted private val startSideContainerView: View,
     @Assisted private val clockView: Clock,
-    @Background backgroundScope: CoroutineScope,
-) : ExclusiveActivatable() {
-    private val hydrator = Hydrator(traceName = "StatusBarBoundsViewModel.hydrator")
+) : HydratedActivatable() {
 
-    private val _startSideContainerBounds: Flow<Rect> =
-        conflatedCallbackFlow {
-                val layoutListener =
-                    View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-                        trySend(startSideContainerView.boundsOnScreen)
-                    }
-                startSideContainerView.addOnLayoutChangeListener(layoutListener)
-                awaitClose { startSideContainerView.removeOnLayoutChangeListener(layoutListener) }
+    private val _startSideContainerBounds: Flow<Rect> = conflatedCallbackFlow {
+        val layoutListener =
+            View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                trySend(startSideContainerView.boundsOnScreen)
             }
-            .stateIn(backgroundScope, SharingStarted.WhileSubscribed(), initialValue = Rect())
+        startSideContainerView.addOnLayoutChangeListener(layoutListener)
+        awaitClose { startSideContainerView.removeOnLayoutChangeListener(layoutListener) }
+    }
 
     /**
      * The on-screen bounds of the start side container of the status bar, which always fills the
      * available start-side space. This is a hydrated value.
      */
     val startSideContainerBounds: Rect by
-        hydrator.hydratedStateOf(
+        _startSideContainerBounds.hydratedStateOf(
             traceName = "StatusBar.startSideContainerBounds",
             initialValue = Rect(),
-            source = _startSideContainerBounds,
         )
 
     private val _dateBounds = MutableStateFlow(Rect())
@@ -76,38 +67,40 @@ constructor(
     /** The on-screen bounds of the status bar date. This is a hydrated value. */
     // TODO(b/390204943): Re-implement this in Compose once the Clock is a Composable.
     val dateBounds: Rect by
-        hydrator.hydratedStateOf(
-            traceName = "StatusBar.dateBounds",
-            initialValue = Rect(),
-            source = _dateBounds,
-        )
+        _dateBounds.hydratedStateOf(traceName = "StatusBar.dateBounds", initialValue = Rect())
 
-    private val _clockBounds: Flow<Rect> =
-        conflatedCallbackFlow {
-                val layoutListener =
-                    View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-                        trySend(clockView.boundsOnScreen)
-                    }
-                clockView.addOnLayoutChangeListener(layoutListener)
-                awaitClose { clockView.removeOnLayoutChangeListener(layoutListener) }
+    /**
+     * The on-screen bounds of the clock implemented in compose (used when the clock modernization
+     * feature is enabled. This is a hydrated value.
+     */
+    private val _composeClockBounds = MutableStateFlow(Rect())
+
+    private val _clockBounds: Flow<Rect> = conflatedCallbackFlow {
+        val layoutListener =
+            View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                trySend(clockView.boundsOnScreen)
             }
-            .stateIn(backgroundScope, SharingStarted.WhileSubscribed(), initialValue = Rect())
+        clockView.addOnLayoutChangeListener(layoutListener)
+        awaitClose { clockView.removeOnLayoutChangeListener(layoutListener) }
+    }
 
     /** The on-screen bounds of the status bar clock. This is a hydrated value. */
     // TODO(b/390204943): Re-implement this in Compose once the Clock is a Composable.
     val clockBounds: Rect by
-        hydrator.hydratedStateOf(
-            traceName = "StatusBar.clockBounds",
-            initialValue = Rect(),
-            source = _clockBounds,
-        )
-
-    override suspend fun onActivated(): Nothing {
-        hydrator.activate()
-    }
+        if (ClockModernization.isEnabled) {
+                _composeClockBounds
+            } else {
+                _clockBounds
+            }
+            .hydratedStateOf(traceName = "StatusBar.clockBounds", initialValue = Rect())
 
     fun updateDateBounds(bounds: Rect) {
         _dateBounds.value = bounds
+    }
+
+    fun updateComposeClockBounds(bounds: Rect) {
+        ClockModernization.isUnexpectedlyInLegacyMode()
+        _composeClockBounds.value = bounds
     }
 
     @AssistedFactory

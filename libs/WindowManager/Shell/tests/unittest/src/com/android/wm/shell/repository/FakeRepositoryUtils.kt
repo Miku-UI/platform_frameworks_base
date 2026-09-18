@@ -27,7 +27,5 @@ class FakeItemFactory(val value1: Int, val value2: String) : () -> FakeItem {
 
     var fakeFactoryInvokedTimes = 0
 
-    override fun invoke(): FakeItem = FakeItem(value1, value2).also {
-        fakeFactoryInvokedTimes++
-    }
+    override fun invoke(): FakeItem = FakeItem(value1, value2).also { fakeFactoryInvokedTimes++ }
 }

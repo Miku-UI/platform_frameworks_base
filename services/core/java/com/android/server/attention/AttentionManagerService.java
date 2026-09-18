@@ -25,12 +25,18 @@ import static android.service.attention.AttentionService.ATTENTION_FAILURE_UNKNO
 import static android.service.attention.AttentionService.PROXIMITY_UNKNOWN;
 
 import android.Manifest;
+import android.annotation.DurationMillisLong;
+import android.annotation.EnforcePermission;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresNoPermission;
 import android.app.ActivityThread;
+import android.attention.AttentionManager;
 import android.attention.AttentionManagerInternal;
 import android.attention.AttentionManagerInternal.AttentionCallbackInternal;
 import android.attention.AttentionManagerInternal.ProximityUpdateCallbackInternal;
+import android.attention.IAttentionManager;
+import android.attention.IInteractionListener;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -65,6 +71,7 @@ import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.pm.RoSystemFeatures;
 import com.android.internal.util.DumpUtils;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.internal.util.IndentingPrintWriter;
@@ -191,8 +198,26 @@ public class AttentionManagerService extends SystemService {
 
     @Override
     public void onStart() {
-        publishBinderService(Context.ATTENTION_SERVICE, new BinderService());
         publishLocalService(AttentionManagerInternal.class, new LocalService());
+        if (isInteractionProviderServiceEnabled(mContext)) {
+            InteractionProviderServiceInternal service = new InteractionProviderServiceInternal();
+            // Local InteractionProviderServiceInternal is for the system_server
+            // (like InputManagerService)
+            publishLocalService(InteractionProviderInternal.class, service);
+            // The binder service is for apps to be listening for the interaction info.
+            publishBinderService(Context.ATTENTION_SERVICE, new BinderService(service));
+        } else {
+            // In case when the interaction service is not enabled, some functions of the service
+            // like proximity based attention APIs may still be available.
+            publishBinderService(Context.ATTENTION_SERVICE, new BinderService(null));
+        }
+    }
+
+    /** Returns {@code true} if interaction provider service is enabled. */
+    public static boolean isInteractionProviderServiceEnabled(Context context) {
+        // Interaction service is not enabled on watch due to lack of use case and to save power.
+        return com.android.input.flags.Flags.enableAttentionServiceApis()
+                &&  !RoSystemFeatures.hasFeatureWatch(context);
     }
 
     /** Returns {@code true} if attention service is configured on this device. */
@@ -1134,10 +1159,17 @@ public class AttentionManagerService extends SystemService {
         }
     }
 
-    private final class BinderService extends Binder {
+    private final class BinderService extends IAttentionManager.Stub {
+        @Nullable InteractionProviderServiceInternal mInteractionProviderService;
+
         AttentionManagerServiceShellCommand mAttentionManagerServiceShellCommand =
                 new AttentionManagerServiceShellCommand();
 
+        BinderService(@Nullable InteractionProviderServiceInternal interactionProviderService) {
+            mInteractionProviderService = interactionProviderService;
+        }
+
+        @RequiresNoPermission
         @Override
         public void onShellCommand(FileDescriptor in, FileDescriptor out,
                 FileDescriptor err,
@@ -1147,6 +1179,7 @@ public class AttentionManagerService extends SystemService {
                     resultReceiver);
         }
 
+        @RequiresNoPermission
         @Override
         protected void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
             if (!DumpUtils.checkDumpPermission(mContext, LOG_TAG, pw)) {
@@ -1154,6 +1187,33 @@ public class AttentionManagerService extends SystemService {
             }
 
             dumpInternal(new IndentingPrintWriter(pw, "  "));
+        }
+
+        @EnforcePermission(Manifest.permission.ACCESS_ATTENTION_LISTENER)
+        @Override // Binder call
+        public void setListener(@AttentionManager.InteractionType int interactionTypes,
+                @DurationMillisLong long debounceTimeMills,
+                IInteractionListener listener) {
+            super.setListener_enforcePermission();
+            if (mInteractionProviderService != null) {
+                int callingPid = Binder.getCallingPid();
+                mInteractionProviderService.setListener(callingPid, interactionTypes,
+                        debounceTimeMills, listener);
+            } else {
+                throw new IllegalStateException("InteractionProviderService is not available");
+            }
+        }
+
+        @EnforcePermission(Manifest.permission.ACCESS_ATTENTION_LISTENER)
+        @Override // Binder call
+        public void clearListener() {
+            super.clearListener_enforcePermission();
+            if (mInteractionProviderService != null) {
+                int callingPid = Binder.getCallingPid();
+                mInteractionProviderService.clearListener(callingPid);
+            } else {
+                throw new IllegalStateException("InteractionProviderService is not available");
+            }
         }
     }
 }

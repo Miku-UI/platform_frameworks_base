@@ -16,7 +16,6 @@
 
 package android.location.provider;
 
-import android.annotation.FlaggedApi;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -45,7 +44,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * @hide
  */
 @SystemApi
-@FlaggedApi(Flags.FLAG_POPULATION_DENSITY_PROVIDER)
 public abstract class PopulationDensityProviderBase {
 
     final String mTag;

@@ -38,10 +38,7 @@ import com.android.systemui.statusbar.notification.SourceType;
 import com.android.systemui.statusbar.notification.collection.BundleSpec;
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
-import com.android.systemui.statusbar.notification.row.shared.AsyncGroupHeaderViewInflation;
 import com.android.systemui.statusbar.notification.row.ui.viewmodel.BundleHeaderViewModel;
-import com.android.systemui.statusbar.notification.row.wrapper.NotificationHeaderViewWrapper;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -92,22 +89,21 @@ public class NotificationChildrenContainerTest extends SysuiTestCase {
     }
 
     @Test
-    public void testGetMaxAllowedVisibleChildren_lowPriority_userLocked() {
+    public void testGetMaxAllowedVisibleChildren_lowPriority_userSwipingToExpandRow() {
         mChildrenContainer.setIsMinimized(true);
-        mChildrenContainer.setUserLocked(true);
+        mChildrenContainer.setUserSwipingToExpandRow(true);
         Assert.assertEquals(mChildrenContainer.getMaxAllowedVisibleChildren(),
                 NotificationChildrenContainer.NUMBER_OF_CHILDREN_WHEN_SYSTEM_EXPANDED);
     }
 
     @Test
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
-    public void testGetMaxAllowedVisibleChildren_bundle_userLocked() {
+    public void testGetMaxAllowedVisibleChildren_bundle_userSwipingToExpandRow() {
         ComposeView headerView = new ComposeView(mContext);
         mBundle.setBundleHeaderView(headerView);
 
         NotificationChildrenContainer childrenContainer = mBundle.getChildrenContainer();
         childrenContainer.setBundleHeaderViewModel(mock(BundleHeaderViewModel.class));
-        mBundle.setUserLocked(true);
+        mBundle.setUserSwipingToExpandRow(true);
 
         Assert.assertEquals(
                 "During swipe open, bundle should show the expanded number of children",
@@ -130,14 +126,13 @@ public class NotificationChildrenContainerTest extends SysuiTestCase {
     }
 
     @Test
-    public void testGetMaxAllowedVisibleChildren_userLocked() {
-        mGroup.setUserLocked(true);
+    public void testGetMaxAllowedVisibleChildren_userSwiping() {
+        mGroup.setUserSwipingToExpandRow(true);
         Assert.assertEquals(mChildrenContainer.getMaxAllowedVisibleChildren(),
                 NotificationChildrenContainer.NUMBER_OF_CHILDREN_WHEN_CHILDREN_EXPANDED);
     }
 
     @Test
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     public void testGetMaxAllowedVisibleChildren_bundle_likeCollapsed() {
         ComposeView headerView = new ComposeView(mContext);
         // This will initialize the bundle's children container
@@ -151,7 +146,6 @@ public class NotificationChildrenContainerTest extends SysuiTestCase {
 
 
     @Test
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     public void testGetMaxAllowedVisibleChildren_bundle_expandedChildren() {
         ComposeView headerView = new ComposeView(mContext);
         mBundle.setBundleHeaderView(headerView);
@@ -165,7 +159,6 @@ public class NotificationChildrenContainerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     public void testExpandedClipRect_bundle_expandedChildren_requiresExtraClipping() {
         ComposeView headerView = new ComposeView(mContext);
         mBundle.setBundleHeaderView(headerView);
@@ -179,7 +172,6 @@ public class NotificationChildrenContainerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     public void testExpandedClipRect_bundle_notExpandedChildren_doesNotRequireExtraClipping() {
         ComposeView headerView = new ComposeView(mContext);
         mBundle.setBundleHeaderView(headerView);
@@ -211,8 +203,8 @@ public class NotificationChildrenContainerTest extends SysuiTestCase {
     }
 
     @Test
-    public void testGetMaxAllowedVisibleChildren_userLocked_expandedChildren_lowPriority() {
-        mGroup.setUserLocked(true);
+    public void testGetMaxAllowedVisibleChildren_userSwiping_expandedChildren_lowPriority() {
+        mGroup.setUserSwipingToExpandRow(true);
         mGroup.setExpandable(true);
         mGroup.setUserExpanded(true);
         mChildrenContainer.setIsMinimized(true);
@@ -221,28 +213,6 @@ public class NotificationChildrenContainerTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(AsyncGroupHeaderViewInflation.FLAG_NAME)
-    public void testLowPriorityHeaderCleared() {
-        mGroup.setIsMinimized(true);
-        NotificationHeaderView lowPriorityHeaderView =
-                mChildrenContainer.getMinimizedGroupHeaderWrapper().getNotificationHeader();
-        Assert.assertEquals(View.VISIBLE, lowPriorityHeaderView.getVisibility());
-        Assert.assertSame(mChildrenContainer, lowPriorityHeaderView.getParent());
-        mGroup.setIsMinimized(false);
-        assertNull(lowPriorityHeaderView.getParent());
-        assertNull(mChildrenContainer.getMinimizedGroupHeaderWrapper());
-    }
-
-    @Test
-    @DisableFlags(AsyncGroupHeaderViewInflation.FLAG_NAME)
-    public void testRecreateNotificationHeader_hasHeader() {
-        mChildrenContainer.recreateNotificationHeader(null);
-        Assert.assertNotNull("Children container must have a header after recreation",
-                mChildrenContainer.getCurrentHeaderView());
-    }
-
-    @Test
-    @EnableFlags(AsyncGroupHeaderViewInflation.FLAG_NAME)
     public void testSetLowPriorityWithAsyncInflation_noHeaderReInflation() {
         mChildrenContainer.setLowPriorityGroupHeader(null, null);
         mChildrenContainer.setIsMinimized(true);
@@ -253,9 +223,7 @@ public class NotificationChildrenContainerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(AsyncGroupHeaderViewInflation.FLAG_NAME)
     public void setLowPriorityBeforeLowPriorityHeaderSet() {
-
         //Given: the children container does not have a low-priority header, and is not low-priority
         mChildrenContainer.setLowPriorityGroupHeader(null, null);
         mGroup.setIsMinimized(false);
@@ -285,7 +253,6 @@ public class NotificationChildrenContainerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(AsyncGroupHeaderViewInflation.FLAG_NAME)
     public void changeLowPriorityAfterHeaderSet() {
 
         //Given: the children container does not have headers, and is not low-priority
@@ -325,30 +292,6 @@ public class NotificationChildrenContainerTest extends SysuiTestCase {
 
         Assert.assertEquals(1f, mChildrenContainer.getBottomRoundness(), 0.001f);
         Assert.assertEquals(1f, notificationRow.getBottomRoundness(), 0.001f);
-    }
-
-    @Test
-    @DisableFlags(AsyncGroupHeaderViewInflation.FLAG_NAME)
-    public void applyRoundnessAndInvalidate_should_be_immediately_applied_on_header() {
-        NotificationHeaderViewWrapper header = mChildrenContainer.getNotificationHeaderWrapper();
-        Assert.assertEquals(0f, header.getTopRoundness(), 0.001f);
-
-        mChildrenContainer.requestTopRoundness(1f, SourceType.from(""), false);
-
-        Assert.assertEquals(1f, header.getTopRoundness(), 0.001f);
-    }
-
-    @Test
-    @DisableFlags(AsyncGroupHeaderViewInflation.FLAG_NAME)
-    public void applyRoundnessAndInvalidate_should_be_immediately_applied_on_headerLowPriority() {
-        mChildrenContainer.setIsMinimized(true);
-
-        NotificationHeaderViewWrapper header = mChildrenContainer.getNotificationHeaderWrapper();
-        Assert.assertEquals(0f, header.getTopRoundness(), 0.001f);
-
-        mChildrenContainer.requestTopRoundness(1f, SourceType.from(""), false);
-
-        Assert.assertEquals(1f, header.getTopRoundness(), 0.001f);
     }
 
     private NotificationHeaderView createHeaderView(boolean lowPriority) {

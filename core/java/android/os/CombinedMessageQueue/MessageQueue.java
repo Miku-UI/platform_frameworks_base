@@ -16,6 +16,10 @@
 
 package android.os;
 
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidMessageQueue.MESSAGE_CODE;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidMessageQueue.MESSAGE_DELAY_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidMessageQueue.RECEIVING_THREAD_NAME;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidTrackEvent.MESSAGE_QUEUE;
 import static android.os.Message.*;
 
 import android.annotation.IntDef;
@@ -24,11 +28,13 @@ import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.annotation.TestApi;
 import android.app.ActivityThread;
+import android.app.compat.CompatChanges;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledAfter;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.ravenwood.annotation.RavenwoodRedirect;
 import android.ravenwood.annotation.RavenwoodRedirectionClass;
-import android.ravenwood.annotation.RavenwoodThrow;
 import android.util.Log;
 import android.util.Printer;
 import android.util.SparseArray;
@@ -66,6 +72,18 @@ public final class MessageQueue {
     private static final String TAG_L = "LegacyMessageQueue";
     private static final String TAG_C = "ConcurrentMessageQueue";
     private static final boolean DEBUG = false;
+
+    /**
+     * Enables concurrent message queue implementation in all applications.
+     *
+     * @hide
+     */
+    // Make sure MessageQueue_ravenwood's check matches this definition.
+    // LINT.IfChange
+    @ChangeId
+    @EnabledAfter(targetSdkVersion = android.os.Build.VERSION_CODES.BAKLAVA)
+    public static final long USE_NEW_MESSAGEQUEUE = 421623328L;
+    // LINT.ThenChange(//frameworks/base/core/java/android/os/MessageQueue_ravenwood.java)
 
     // True if the message queue can be quit.
     @UnsupportedAppUsage
@@ -122,32 +140,19 @@ public final class MessageQueue {
     private static boolean sUseConcurrent;
 
     /**
-     * Determine if the native looper will skip epoll_wait syscalls if nativePollOnce is called with
-     * a timeout of 0, which indicates that there are already pending messages.
-     */
-    private static boolean sSkipEpollWaitForZeroTimeoutInitialized = false;
-
-    /**
      * Caches process-level checks that determine `sUseConcurrent`.
      * This is to avoid redoing checks that shouldn't change during the process's lifetime.
      */
     private static Boolean sIsProcessAllowedToUseConcurrent = null;
 
-    @RavenwoodRedirect
     private native static long nativeInit();
-    @RavenwoodRedirect
     private native static void nativeDestroy(long ptr);
     @UnsupportedAppUsage
-    @RavenwoodRedirect
     private native void nativePollOnce(long ptr, int timeoutMillis); /*non-static for callbacks*/
 
-    @RavenwoodRedirect
     private native static void nativeWake(long ptr);
-    @RavenwoodRedirect
     private native static boolean nativeIsPolling(long ptr);
-    @RavenwoodRedirect
     private native static void nativeSetFileDescriptorEvents(long ptr, int fd, int events);
-    @RavenwoodRedirect
     private native static void nativeSetSkipEpollWaitForZeroTimeout(long ptr);
 
     MessageQueue(boolean quitAllowed) {
@@ -158,6 +163,10 @@ public final class MessageQueue {
         mThreadName = mLooperThread.getName();
         mTid = Process.myTid();
         setSkipEpollWaitForZeroTimeout(mPtr);
+    }
+
+    Thread getLooperThread() {
+        return mLooperThread;
     }
 
     static boolean getUseConcurrent() {
@@ -172,18 +181,24 @@ public final class MessageQueue {
         return sUseConcurrent;
     }
 
+    /** @hide */
+    public static void setUseDeliQueue(boolean enable) {
+        // No-op for ConcurrentMessageQueue.
+    }
+
+    /**
+     * @return human-readable string that identifies the implementation.
+     * @hide
+     */
+    public static String getImplName() {
+        return "combined:" + getUseConcurrent();
+    }
+
+    @RavenwoodRedirect(bug = 454028089, reason = "change IDs are not initialized when we call it")
     private static boolean computeUseConcurrent() {
-        if (Flags.useConcurrentMessageQueueInApps()) {
-            // b/379472827: Robolectric tests use reflection to access MessageQueue.mMessages.
-            // This is a hack to allow Robolectric tests to use the legacy implementation.
-            try {
-                Class.forName("org.robolectric.Robolectric");
-                // This is a Robolectric test. Concurrent MessageQueue is not supported yet.
-                return false;
-            } catch (ClassNotFoundException e) {
-                // This is not a Robolectric test.
-                return true;
-            }
+        if (CompatChanges.isChangeEnabled(USE_NEW_MESSAGEQUEUE)
+                || Flags.useConcurrentMessageQueueInApps()) {
+            return true;
         }
 
         final String processName = Process.myProcessName();
@@ -196,13 +211,7 @@ public final class MessageQueue {
         // used by tests.
         // For now, we limit it to system processes to avoid breaking apps and their tests.
         if (UserHandle.isCore(Process.myUid())) {
-            // Some platform tests run in core UIDs.
-            // Use this awful heuristic to detect them.
-            if (processName.contains("test") || processName.contains("Test")) {
-                return false;
-            } else {
-                return true;
-            }
+            return true;
         }
 
         // We can lift these restrictions in the future after we've made it possible for test
@@ -210,14 +219,14 @@ public final class MessageQueue {
         return false;
     }
 
+    /**
+     * Skip epoll_wait syscalls if nativePollOnce is called with a timeout of 0, which indicates
+     * that there are already pending messages.
+     */
     static void setSkipEpollWaitForZeroTimeout(long ptr) {
-        if (sSkipEpollWaitForZeroTimeoutInitialized) {
-            return;
-        }
         if (Flags.nativeLooperSkipEpollWaitForZeroTimeout()) {
             nativeSetSkipEpollWaitForZeroTimeout(ptr);
         }
-        sSkipEpollWaitForZeroTimeoutInitialized = true;
     }
 
     @Override
@@ -231,54 +240,38 @@ public final class MessageQueue {
 
     private void decAndTraceMessageCount() {
         mMessageCount.decrementAndGet();
-        if (PerfettoTrace.isMQCategoryEnabled()) {
+        if (android.os.Flags.perfettoSdkTracingV3() && PerfettoCategories.MQ_CATEGORY.isEnabled()) {
             traceMessageCount();
         }
     }
 
     private void incAndTraceMessageCount(Message msg, long when) {
         mMessageCount.incrementAndGet();
-        if (PerfettoTrace.isMQCategoryEnabled()) {
+        if (android.os.Flags.perfettoSdkTracingV3() && PerfettoCategories.MQ_CATEGORY.isEnabled()) {
             msg.sendingThreadName = Thread.currentThread().getName();
-            final long eventId = msg.eventId = PerfettoTrace.getFlowId();
+            final long eventId = msg.eventId =
+                    com.android.internal.dev.perfetto.sdk.PerfettoTrace.getFlowId();
 
             traceMessageCount();
             final long messageDelayMs = Math.max(0L, when - SystemClock.uptimeMillis());
-            if (PerfettoTrace.IS_USE_SDK_TRACING_API_V3) {
-                com.android.internal.dev.perfetto.sdk.PerfettoTrace.instant(
-                                PerfettoTrace.MQ_CATEGORY_V3, "message_queue_send")
-                        .setFlow(eventId)
-                        .beginProto()
-                        .beginNested(2004 /* message_queue */)
-                        .addField(2 /* receiving_thread_name */, mThreadName)
-                        .addField(3 /* message_code */, msg.what)
-                        .addField(4 /* message_delay_ms */, messageDelayMs)
-                        .endNested()
-                        .endProto()
-                        .emit();
-            } else {
-                PerfettoTrace.instant(PerfettoTrace.MQ_CATEGORY, "message_queue_send")
-                        .setFlow(eventId)
-                        .beginProto()
-                        .beginNested(2004 /* message_queue */)
-                        .addField(2 /* receiving_thread_name */, mThreadName)
-                        .addField(3 /* message_code */, msg.what)
-                        .addField(4 /* message_delay_ms */, messageDelayMs)
-                        .endNested()
-                        .endProto()
-                        .emit();
-            }
+            com.android.internal.dev.perfetto.sdk.PerfettoTrace
+                    .instant(PerfettoCategories.MQ_CATEGORY, "message_queue_send")
+                    .setFlow(eventId)
+                    .beginProto()
+                    .beginNested(MESSAGE_QUEUE)
+                    .addField(RECEIVING_THREAD_NAME, mThreadName)
+                    .addField(MESSAGE_CODE, msg.what)
+                    .addField(MESSAGE_DELAY_MS, messageDelayMs)
+                    .endNested()
+                    .endProto()
+                    .emit();
         }
     }
 
     private void traceMessageCount() {
-        if (PerfettoTrace.IS_USE_SDK_TRACING_API_V3) {
-            com.android.internal.dev.perfetto.sdk.PerfettoTrace.counter(
-                            PerfettoTrace.MQ_CATEGORY_V3, mMessageCount.get())
-                    .usingThreadCounterTrack(mTid, mThreadName)
-                    .emit();
-        } else {
-            PerfettoTrace.counter(PerfettoTrace.MQ_CATEGORY, mMessageCount.get())
+        if (android.os.Flags.perfettoSdkTracingV3() && PerfettoCategories.MQ_CATEGORY.isEnabled()) {
+            com.android.internal.dev.perfetto.sdk.PerfettoTrace
+                    .counter(PerfettoCategories.MQ_CATEGORY, mMessageCount.get())
                     .usingThreadCounterTrack(mTid, mThreadName)
                     .emit();
         }
@@ -491,7 +484,6 @@ public final class MessageQueue {
      * @see OnFileDescriptorEventListener
      * @see #removeOnFileDescriptorEventListener
      */
-    @RavenwoodThrow(blockedBy = android.os.ParcelFileDescriptor.class)
     public void addOnFileDescriptorEventListener(@NonNull FileDescriptor fd,
             @OnFileDescriptorEventListener.Events int events,
             @NonNull OnFileDescriptorEventListener listener) {
@@ -533,7 +525,6 @@ public final class MessageQueue {
      * @see OnFileDescriptorEventListener
      * @see #addOnFileDescriptorEventListener
      */
-    @RavenwoodThrow(blockedBy = android.os.ParcelFileDescriptor.class)
     public void removeOnFileDescriptorEventListener(@NonNull FileDescriptor fd) {
         if (fd == null) {
             throw new IllegalArgumentException("fd must not be null");
@@ -545,7 +536,6 @@ public final class MessageQueue {
         }
     }
 
-    @RavenwoodThrow(blockedBy = android.os.ParcelFileDescriptor.class)
     private void updateOnFileDescriptorEventListenerLocked(FileDescriptor fd, int events,
             OnFileDescriptorEventListener listener) {
         final int fdNum = fd.getInt$();
@@ -1118,7 +1108,7 @@ public final class MessageQueue {
         @Override
         public boolean compareMessage(Message m, Handler h, int what, Object object, Runnable r,
                 long when) {
-            if (m.target != null && (lastMsg == null || lastMsg.when <= m.when)) {
+            if (m.target != null && (lastMsg == null || Message.compareMessages(lastMsg, m) < 0)) {
                 lastMsg = m;
             }
             return false;
@@ -1154,11 +1144,16 @@ public final class MessageQueue {
      */
     public void resetForTest() {
         ActivityThread.throwIfNotInstrumenting();
+        onResetForTestCalled();
         if (sUseConcurrent) {
             resetConcurrent();
         } else {
             resetLegacy();
         }
+    }
+
+    @RavenwoodRedirect
+    private static void onResetForTestCalled() {
     }
 
     private void resetConcurrent() {
@@ -1294,10 +1289,15 @@ public final class MessageQueue {
     @TestApi
     public int postSyncBarrier() {
         if (sUseConcurrent) {
-            return postSyncBarrierConcurrent();
+            return onSyncBarrierPosted(postSyncBarrierConcurrent());
         } else {
-            return postSyncBarrierLegacy();
+            return onSyncBarrierPosted(postSyncBarrierLegacy());
         }
+    }
+
+    @RavenwoodRedirect
+    private int onSyncBarrierPosted(int token) {
+        return token;
     }
 
     private int postSyncBarrier(long when) {
@@ -1436,7 +1436,11 @@ public final class MessageQueue {
         } else {
             removeSyncBarrierLegacy(token);
         }
+        onSyncBarrierRemoved(token);
+    }
 
+    @RavenwoodRedirect
+    private void onSyncBarrierRemoved(int token) {
     }
 
     private boolean enqueueMessageConcurrent(Message msg, long when) {
@@ -2688,7 +2692,7 @@ public final class MessageQueue {
                 // If we're quitting then we're not allowed to increment the ref count.
                 return false;
             }
-            if (sMptrRefCount.compareAndSet(this, oldVal, oldVal + 1)) {
+            if (sMptrRefCount.compareAndSet(this, oldVal, oldVal + 1L)) {
                 // Successfully incremented the ref count without quitting.
                 return true;
             }
@@ -2701,7 +2705,7 @@ public final class MessageQueue {
      * Call after {@link #incrementMptrRefs()} to release the ref on mPtr.
      */
     private void decrementMptrRefs() {
-        long oldVal = (long) sMptrRefCount.getAndAdd(this, -1);
+        long oldVal = (long) sMptrRefCount.getAndAdd(this, -1L);
         // If quitting and we were the last ref, wake up looper thread
         if (oldVal - 1 == MPTR_TEARDOWN_MASK) {
             LockSupport.unpark(mLooperThread);
@@ -3075,4 +3079,10 @@ public final class MessageQueue {
         return foundInStack || foundInQueue;
     }
 
+    /**
+     * @hide
+     */
+    public void setLooperDoctor(LooperDoctor d) {
+        // This version of MessageQueue does not use LooperDoctor
+    }
 }

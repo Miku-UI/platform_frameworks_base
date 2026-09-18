@@ -23,6 +23,7 @@ import static android.service.notification.Condition.STATE_FALSE;
 import static android.service.notification.Condition.STATE_TRUE;
 
 import static com.android.server.notification.Flags.FLAG_STRICT_ZEN_RULE_COMPONENT_VALIDATION;
+import static android.service.notification.Flags.FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -30,13 +31,18 @@ import static org.junit.Assert.assertThrows;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.media.AudioAttributes;
 import android.net.Uri;
+import android.os.Binder;
+import android.os.SystemClock;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.service.notification.Condition;
 import android.service.notification.ZenModeConfig;
+import android.service.notification.ZenPolicy;
 
+import androidx.annotation.Nullable;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
@@ -47,6 +53,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 @RunWith(AndroidJUnit4.class)
 public class NotificationManagerZenTest {
@@ -61,6 +70,11 @@ public class NotificationManagerZenTest {
 
     private Context mContext;
     private NotificationManager mNotificationManager;
+    private AppOpsManager mAppOpsManager;
+    @Nullable
+    private AudioOpChangedListener mSoundOpListener;
+    @Nullable
+    private AudioOpChangedListener mVibrationOpListener;
 
     @Rule
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
@@ -69,6 +83,7 @@ public class NotificationManagerZenTest {
     public void setUp() throws Exception {
         mContext = ApplicationProvider.getApplicationContext();
         mNotificationManager = mContext.getSystemService(NotificationManager.class);
+        mAppOpsManager = mContext.getSystemService(AppOpsManager.class);
 
         toggleNotificationPolicyAccess(mContext, mContext.getPackageName(), true);
         runAsSystemUi(() -> mNotificationManager.setInterruptionFilter(INTERRUPTION_FILTER_ALL));
@@ -79,6 +94,13 @@ public class NotificationManagerZenTest {
     public void tearDown() {
         runAsSystemUi(() -> mNotificationManager.setInterruptionFilter(INTERRUPTION_FILTER_ALL));
         removeAutomaticZenRules();
+
+        if (mSoundOpListener != null) {
+            mAppOpsManager.stopWatchingMode(mSoundOpListener);
+        }
+        if (mVibrationOpListener != null) {
+            mAppOpsManager.stopWatchingMode(mVibrationOpListener);
+        }
     }
 
     private void removeAutomaticZenRules() {
@@ -206,6 +228,25 @@ public class NotificationManagerZenTest {
     }
 
     @Test
+    @RequiresFlagsEnabled(FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void addAutomaticZenRule_splitSoundVibration() {
+        ZenPolicy policy = new ZenPolicy.Builder().allowAlarms(true, false).build();
+        AutomaticZenRule azr = new AutomaticZenRule.Builder("split sound rule", CONDITION_ID)
+                .setOwner(CONDITION_PROVIDER_SERVICE)
+                .setZenPolicy(policy)
+                .build();
+
+        String ruleId = mNotificationManager.addAutomaticZenRule(azr);
+
+        AutomaticZenRule savedAzr = mNotificationManager.getAutomaticZenRule(ruleId);
+        assertThat(savedAzr.getZenPolicy()).isNotNull();
+        assertThat(savedAzr.getZenPolicy().getPriorityCategoryAlarms())
+                .isEqualTo(ZenPolicy.STATE_ALLOW);
+        assertThat(savedAzr.getZenPolicy().getInterruptionTypeAlarms())
+                .isEqualTo(ZenPolicy.ALLOWED_INTERRUPTION_TYPE_SOUND_ONLY);
+    }
+
+    @Test
     public void addAutomaticZenRule_cpsInDifferentPackage_rejected() {
         AutomaticZenRule azr = new AutomaticZenRule.Builder("System CPS !!", CONDITION_ID)
                 .setOwner(ZenModeConfig.getScheduleConditionProvider())
@@ -301,6 +342,81 @@ public class NotificationManagerZenTest {
         assertThat(savedAzr.getConfigurationActivity()).isNull();
         assertThat(savedAzr.getOwner()).isEqualTo(CONDITION_PROVIDER_SERVICE);
     }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void updateAutomaticZenRule_withSplitSoundVibrationPolicy_isSaved() {
+        AutomaticZenRule original = new AutomaticZenRule.Builder("Original", CONDITION_ID)
+                .setOwner(CONDITION_PROVIDER_SERVICE)
+                .setConfigurationActivity(CONFIGURATION_ACTIVITY)
+                .setZenPolicy(new ZenPolicy.Builder().allowAlarms(true).build())
+                .build();
+        String ruleId = mNotificationManager.addAutomaticZenRule(original);
+
+        ZenPolicy updatedPolicy = new ZenPolicy.Builder().allowAlarms(false, true).build();
+        AutomaticZenRule updated = new AutomaticZenRule.Builder(original)
+                .setZenPolicy(updatedPolicy)
+                .build();
+        mNotificationManager.updateAutomaticZenRule(ruleId, updated);
+
+        AutomaticZenRule savedAzr = mNotificationManager.getAutomaticZenRule(ruleId);
+        assertThat(savedAzr.getZenPolicy()).isNotNull();
+        assertThat(savedAzr.getZenPolicy().getPriorityCategoryAlarms())
+                .isEqualTo(ZenPolicy.STATE_ALLOW);
+        assertThat(savedAzr.getZenPolicy().getInterruptionTypeAlarms())
+                .isEqualTo(ZenPolicy.ALLOWED_INTERRUPTION_TYPE_VIBRATION_ONLY);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void
+    updateAutomaticZenRule_withSplitSoundVibrationPolicy_merge_originalSettingsPreserved() {
+        AutomaticZenRule original = new AutomaticZenRule.Builder("Original", CONDITION_ID)
+                .setOwner(CONDITION_PROVIDER_SERVICE)
+                .setConfigurationActivity(CONFIGURATION_ACTIVITY)
+                .setZenPolicy(new ZenPolicy.Builder().allowAlarms(false, true).build())
+                .build();
+        String ruleId = mNotificationManager.addAutomaticZenRule(original);
+
+        ZenPolicy updatedPolicy = new ZenPolicy.Builder().allowAlarms(true).build();
+        AutomaticZenRule updated = new AutomaticZenRule.Builder(original)
+                .setZenPolicy(updatedPolicy)
+                .build();
+        mNotificationManager.updateAutomaticZenRule(ruleId, updated);
+
+        AutomaticZenRule savedAzr = mNotificationManager.getAutomaticZenRule(ruleId);
+        assertThat(savedAzr.getZenPolicy()).isNotNull();
+        assertThat(savedAzr.getZenPolicy().getPriorityCategoryAlarms())
+                .isEqualTo(ZenPolicy.STATE_ALLOW);
+        assertThat(savedAzr.getZenPolicy().getInterruptionTypeAlarms())
+                .isEqualTo(ZenPolicy.ALLOWED_INTERRUPTION_TYPE_VIBRATION_ONLY);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void
+    updateAutomaticZenRule_withSplitSoundVibrationPolicy_merge_originalSettingsDiscarded() {
+        AutomaticZenRule original = new AutomaticZenRule.Builder("Original", CONDITION_ID)
+                .setOwner(CONDITION_PROVIDER_SERVICE)
+                .setConfigurationActivity(CONFIGURATION_ACTIVITY)
+                .setZenPolicy(new ZenPolicy.Builder().allowAlarms(false, true).build())
+                .build();
+        String ruleId = mNotificationManager.addAutomaticZenRule(original);
+
+        ZenPolicy updatedPolicy = new ZenPolicy.Builder().allowAlarms(false).build();
+        AutomaticZenRule updated = new AutomaticZenRule.Builder(original)
+                .setZenPolicy(updatedPolicy)
+                .build();
+        mNotificationManager.updateAutomaticZenRule(ruleId, updated);
+
+        AutomaticZenRule savedAzr = mNotificationManager.getAutomaticZenRule(ruleId);
+        assertThat(savedAzr.getZenPolicy()).isNotNull();
+        assertThat(savedAzr.getZenPolicy().getPriorityCategoryAlarms())
+                .isEqualTo(ZenPolicy.STATE_DISALLOW);
+        assertThat(savedAzr.getZenPolicy().getInterruptionTypeAlarms())
+                .isEqualTo(ZenPolicy.ALLOWED_INTERRUPTION_TYPE_UNSET);
+    }
+
 
     @Test
     public void addAutomaticZenRule_fromPackage_forcesOwnerPackage() {
@@ -501,6 +617,87 @@ public class NotificationManagerZenTest {
         assertThat(mNotificationManager.getAutomaticZenRuleState(ruleId)).isEqualTo(STATE_TRUE);
     }
 
+    @Test
+    @RequiresFlagsEnabled(FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void testConsolidatedPolicy_mergesSplitSoundVibration() {
+        // Rule that only allows sound for alarms
+        AutomaticZenRule ruleSound = new AutomaticZenRule.Builder("Sound Only", CONDITION_ID)
+                .setOwner(CONDITION_PROVIDER_SERVICE)
+                .setConfigurationActivity(CONFIGURATION_ACTIVITY)
+                .setZenPolicy(new ZenPolicy.Builder().allowAlarms(true, false).build())
+                .build();
+        String idSound = mNotificationManager.addAutomaticZenRule(ruleSound);
+
+        // Rule that only allows vibration for alarms
+        AutomaticZenRule ruleVib = new AutomaticZenRule.Builder("Vib Only", CONDITION_ID)
+                .setOwner(CONDITION_PROVIDER_SERVICE)
+                .setConfigurationActivity(CONFIGURATION_ACTIVITY)
+                .setZenPolicy(new ZenPolicy.Builder().allowAlarms(false, true).build())
+                .build();
+        String idVib = mNotificationManager.addAutomaticZenRule(ruleVib);
+
+        // Activate both rules
+        Condition on = new Condition(CONDITION_ID, "on", STATE_TRUE);
+        mNotificationManager.setAutomaticZenRuleState(idSound, on);
+        mNotificationManager.setAutomaticZenRuleState(idVib, on);
+
+        // Verify the consolidated policy disables both sound and vibration for alarms
+        NotificationManager.Policy consolidatedPolicy =
+                mNotificationManager.getConsolidatedNotificationPolicy();
+
+        // Check general category
+        assertThat((consolidatedPolicy.priorityCategories
+                & NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS))
+                    .isEqualTo(0);
+
+        // Check granular permissions (sound from Rule 1, vibration from Rule 2)
+        assertThat(consolidatedPolicy.allowSoundFor(
+                NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS)).isFalse();
+        assertThat(consolidatedPolicy.allowVibrationFor(
+                NotificationManager.Policy.PRIORITY_CATEGORY_ALARMS)).isFalse();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void testAppliedSounds_reflectsSplitSoundVibration() {
+        String packageName = mContext.getPackageName();
+        int uid = Binder.getCallingUid();
+        mSoundOpListener = new AudioOpChangedListener(packageName, uid, mAppOpsManager);
+        mVibrationOpListener = new AudioOpChangedListener(packageName, uid, mAppOpsManager);
+        mAppOpsManager.startWatchingMode(AppOpsManager.OP_PLAY_AUDIO, packageName,
+                mSoundOpListener);
+        mAppOpsManager.startWatchingMode(AppOpsManager.OP_VIBRATE, packageName,
+                mVibrationOpListener);
+
+        // Vibration-only rule
+        AutomaticZenRule ruleVibOnly = new AutomaticZenRule.Builder("Vib Only", CONDITION_ID)
+                .setOwner(CONDITION_PROVIDER_SERVICE)
+                .setConfigurationActivity(CONFIGURATION_ACTIVITY)
+                .setZenPolicy(new ZenPolicy.Builder().allowAlarms(false, true).build())
+                .build();
+        String id = mNotificationManager.addAutomaticZenRule(ruleVibOnly);
+
+        Condition on = new Condition(CONDITION_ID, "on", STATE_TRUE);
+        mNotificationManager.setAutomaticZenRuleState(id, on);
+
+        assertThat(mSoundOpListener.waitFor(AppOpsManager.MODE_IGNORED, AudioAttributes.USAGE_ALARM,
+                5, TimeUnit.SECONDS)).isTrue();
+        assertThat(mVibrationOpListener.waitFor(AppOpsManager.MODE_ALLOWED,
+                AudioAttributes.USAGE_ALARM, 5, TimeUnit.SECONDS)).isTrue();
+
+        // Update Rule to allow sound only
+        AutomaticZenRule ruleSoundOnly = new AutomaticZenRule.Builder(ruleVibOnly)
+                .setZenPolicy(new ZenPolicy.Builder().allowAlarms(true, false).build())
+                .build();
+        mNotificationManager.updateAutomaticZenRule(id, ruleSoundOnly);
+        mNotificationManager.setAutomaticZenRuleState(id, on);
+
+        assertThat(mSoundOpListener.waitFor(AppOpsManager.MODE_ALLOWED, AudioAttributes.USAGE_ALARM,
+                5, TimeUnit.SECONDS)).isTrue();
+        assertThat(mVibrationOpListener.waitFor(AppOpsManager.MODE_IGNORED,
+                AudioAttributes.USAGE_ALARM, 5, TimeUnit.SECONDS)).isTrue();
+    }
+
     private AutomaticZenRule createZenRule(String name) {
         return createZenRule(name, NotificationManager.INTERRUPTION_FILTER_PRIORITY);
     }
@@ -512,5 +709,54 @@ public class NotificationManagerZenTest {
                         .appendPath("path")
                         .appendQueryParameter("fake_rule", "fake_value")
                         .build(), null, filter, true);
+    }
+
+    private static class AudioOpChangedListener implements AppOpsManager.OnOpChangedListener {
+        private final BlockingQueue<String> mQueue = new LinkedBlockingQueue<>();
+        private final String mPackageName;
+        private final int mUid;
+        private final AppOpsManager mAppOpsManager;
+
+        private AudioOpChangedListener(String packageName, int uid, AppOpsManager appOpsManager) {
+            this.mPackageName = packageName;
+            this.mUid = uid;
+            this.mAppOpsManager = appOpsManager;
+        }
+
+        @Override
+        public void onOpChanged(String op, String packageName) {
+            mQueue.add(op);
+        }
+
+        @Nullable
+        String getNext(long timeout, TimeUnit unit) {
+            try {
+                return mQueue.poll(timeout, unit);
+            } catch (InterruptedException e) {
+                return null;
+            }
+        }
+
+        boolean waitFor(int mode, int stream, long timeout, TimeUnit unit) {
+            long timeoutMs = unit.toMillis(timeout);
+            long start = SystemClock.elapsedRealtime();
+            while (true) {
+                String strOp = getNext(timeoutMs, TimeUnit.MILLISECONDS);
+                if (strOp == null) {
+                    // Timeout.
+                    return false;
+                }
+                int newMode = mAppOpsManager.checkAudioOpNoThrow(AppOpsManager.strOpToOp(strOp),
+                        stream, mUid, mPackageName);
+                if (newMode == mode) {
+                    return true;
+                }
+                timeoutMs -= (SystemClock.elapsedRealtime() - start);
+                if (timeoutMs <= 0) {
+                    // Timeout.
+                    return false;
+                }
+            }
+        }
     }
 }

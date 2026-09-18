@@ -28,6 +28,7 @@ import static android.companion.AssociationRequest.DEVICE_PROFILE_WATCH;
 import static android.companion.AssociationRequest.DEVICE_PROFILE_WEARABLE_SENSING;
 import static android.companion.CompanionResources.PERMISSION_ADD_MIRROR_DISPLAY;
 import static android.companion.CompanionResources.PERMISSION_ADD_TRUSTED_DISPLAY;
+import static android.companion.CompanionResources.PERMISSION_APP_STREAMING;
 import static android.companion.CompanionResources.PERMISSION_BYPASS_DND;
 import static android.companion.CompanionResources.PERMISSION_CALENDAR;
 import static android.companion.CompanionResources.PERMISSION_CALL_LOGS;
@@ -79,6 +80,7 @@ final class CompanionDeviceResources {
         map.put(PERMISSION_ADD_TRUSTED_DISPLAY, R.string.permission_add_trusted_display);
         map.put(PERMISSION_SCHEDULE_EXACT_ALARM, R.string.permission_schedule_exact_alarm);
         map.put(PERMISSION_BYPASS_DND, R.string.permission_bypass_dnd);
+        map.put(PERMISSION_APP_STREAMING, R.string.permission_app_streaming);
         PERMISSION_TITLES = unmodifiableMap(map);
     }
 
@@ -87,6 +89,7 @@ final class CompanionDeviceResources {
         final Map<Integer, Integer> map = new ArrayMap<>();
         map.put(PERMISSION_NOTIFICATION_LISTENER_ACCESS,
                 R.string.permission_notification_listener_access_summary);
+        map.put(PERMISSION_STORAGE, R.string.permission_storage_summary);
         map.put(PERMISSION_PHONE, R.string.permission_phone_summary);
         map.put(PERMISSION_SMS, R.string.permission_sms_summary);
         map.put(PERMISSION_CONTACTS, R.string.permission_contacts_summary);
@@ -103,6 +106,7 @@ final class CompanionDeviceResources {
         map.put(PERMISSION_ADD_TRUSTED_DISPLAY, R.string.permission_add_trusted_display_summary);
         map.put(PERMISSION_SCHEDULE_EXACT_ALARM, R.string.permission_schedule_exact_alarm_summary);
         map.put(PERMISSION_BYPASS_DND, R.string.permission_bypass_dnd_summary);
+        map.put(PERMISSION_APP_STREAMING, R.string.permission_app_streaming_summary);
         PERMISSION_SUMMARIES = unmodifiableMap(map);
     }
 
@@ -126,6 +130,7 @@ final class CompanionDeviceResources {
         map.put(PERMISSION_ADD_TRUSTED_DISPLAY, R.drawable.ic_permission_add_trusted_display);
         map.put(PERMISSION_SCHEDULE_EXACT_ALARM, R.drawable.ic_permission_schedule_exact_alarm);
         map.put(PERMISSION_BYPASS_DND, R.drawable.ic_permission_bypass_dnd);
+        map.put(PERMISSION_APP_STREAMING, R.drawable.ic_permission_app_streaming);
         PERMISSION_ICONS = unmodifiableMap(map);
     }
 
@@ -154,15 +159,8 @@ final class CompanionDeviceResources {
         map.put(DEVICE_PROFILE_FITNESS_TRACKER, R.string.summary_watch);
         map.put(DEVICE_PROFILE_GLASSES, R.string.summary_glasses);
         map.put(DEVICE_PROFILE_MEDICAL, R.string.summary_glasses);
-        if (android.companion.virtualdevice.flags.Flags.itemizedVdmPermissions()) {
-            map.put(DEVICE_PROFILE_APP_STREAMING, R.string.summary_app_streaming);
-            map.put(DEVICE_PROFILE_NEARBY_DEVICE_STREAMING,
-                    R.string.summary_nearby_device_streaming);
-        } else {
-            map.put(DEVICE_PROFILE_APP_STREAMING, R.string.summary_app_streaming_legacy);
-            map.put(DEVICE_PROFILE_NEARBY_DEVICE_STREAMING,
-                    R.string.summary_nearby_device_streaming_legacy);
-        }
+        map.put(DEVICE_PROFILE_APP_STREAMING, R.string.summary_app_streaming);
+        map.put(DEVICE_PROFILE_NEARBY_DEVICE_STREAMING, R.string.summary_nearby_device_streaming);
         map.put(DEVICE_PROFILE_VIRTUAL_DEVICE, R.string.summary_virtual_device);
         map.put(null, R.string.summary_generic);
 

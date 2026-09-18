@@ -22,7 +22,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.test.SemanticsNodeInteractionsProvider
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.Dp
@@ -31,8 +30,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flashlight.ui.composable.VerticalFlashlightSlider
-import com.android.systemui.flashlight.ui.composable.VerticalFlashlightSliderMotionTestKeys
+import com.android.systemui.flashlight.ui.composable.VerticalFlashlightSliderMotionTestKeys.TrackEndAlpha
+import com.android.systemui.flashlight.ui.composable.VerticalFlashlightSliderMotionTestKeys.TrackHeight
+import com.android.systemui.flashlight.ui.composable.VerticalFlashlightSliderMotionTestKeys.TrackWidth
 import com.android.systemui.haptics.slider.sliderHapticsViewModelFactory
+import com.android.systemui.integration.SystemUiIntegrationTest
 import com.android.systemui.motion.createSysUiComposeMotionTestRule
 import com.android.systemui.testKosmos
 import kotlin.test.Test
@@ -43,20 +45,18 @@ import org.junit.Rule
 import org.junit.runner.RunWith
 import platform.test.motion.compose.ComposeRecordingSpec
 import platform.test.motion.compose.MotionControl
-import platform.test.motion.compose.asDataPoint
+import platform.test.motion.compose.dataPointType
 import platform.test.motion.compose.feature
 import platform.test.motion.compose.recordMotion
 import platform.test.motion.compose.runTest
-import platform.test.motion.compose.values.MotionTestValueKey
-import platform.test.motion.golden.FeatureCapture
-import platform.test.motion.golden.TimeSeriesCaptureScope
-import platform.test.motion.golden.asDataPoint
+import platform.test.motion.golden.dataPointType
 import platform.test.screenshot.DeviceEmulationSpec
 import platform.test.screenshot.Displays.Phone
 
 @RunWith(AndroidJUnit4::class)
 @LargeTest
 @MotionTest
+@SystemUiIntegrationTest
 class VerticalFlashlightSliderMotionTest : SysuiTestCase() {
 
     private val deviceSpec = DeviceEmulationSpec(Phone)
@@ -107,39 +107,12 @@ class VerticalFlashlightSliderMotionTest : SysuiTestCase() {
                             }
                         }
                     ) {
-                        featureFloat(VerticalFlashlightSliderMotionTestKeys.TrackEndAlpha)
-                        featureDp(VerticalFlashlightSliderMotionTestKeys.TrackWidth)
-                        featureDp(VerticalFlashlightSliderMotionTestKeys.TrackHeight)
+                        feature(TrackEndAlpha, Float.dataPointType)
+                        feature(TrackWidth, Dp.dataPointType)
+                        feature(TrackHeight, Dp.dataPointType)
                     },
                 )
             assertThat(motion).timeSeriesMatchesGolden("VerticalFlashlightSlider_trackChanges")
-        }
-    }
-
-    private companion object {
-
-        fun TimeSeriesCaptureScope<SemanticsNodeInteractionsProvider>.featureFloat(
-            motionTestValueKey: MotionTestValueKey<Float>
-        ) {
-            feature(
-                motionTestValueKey = motionTestValueKey,
-                capture =
-                    FeatureCapture(motionTestValueKey.semanticsPropertyKey.name) {
-                        it.asDataPoint()
-                    },
-            )
-        }
-
-        fun TimeSeriesCaptureScope<SemanticsNodeInteractionsProvider>.featureDp(
-            motionTestValueKey: MotionTestValueKey<Dp>
-        ) {
-            feature(
-                motionTestValueKey = motionTestValueKey,
-                capture =
-                    FeatureCapture(motionTestValueKey.semanticsPropertyKey.name) {
-                        it.asDataPoint()
-                    },
-            )
         }
     }
 }

@@ -18,15 +18,11 @@ package com.android.wm.shell.common.suppliers
 
 import java.util.function.Supplier
 
-/**
- * Utility class we can use to test a []Supplier<T>] of any parameters type [T].
- */
+/** Utility class we can use to test a []Supplier<T>] of any parameters type [T]. */
 class SuppliersUtilsTest {
 
     companion object {
-        /**
-         * Allows to check that the object supplied is asserts what in [assertion].
-         */
+        /** Allows to check that the object supplied is asserts what in [assertion]. */
         fun <T> assertSupplierProvidesValue(supplier: Supplier<T>, assertion: (Any?) -> Boolean) {
             assert(assertion(supplier.get())) { "Supplier didn't provided what is expected" }
         }

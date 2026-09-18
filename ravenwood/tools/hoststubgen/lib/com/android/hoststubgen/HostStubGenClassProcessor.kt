@@ -52,7 +52,7 @@ class HostStubGenClassProcessor(
     private val errors: HostStubGenErrors = HostStubGenErrors(),
 ) {
     val filter = buildFilter(options, allClasses, errors)
-    val remapper = FilterRemapper(filter)
+    val remapper = FilterRemapper(filter, allClasses)
 
     private val packageRedirector = PackageRedirectRemapper(options.packageRedirects)
     private val processedAnnotation = setOf(HostStubGenProcessedAsKeep.CLASS_DESCRIPTOR)
@@ -231,6 +231,7 @@ class HostStubGenClassProcessor(
                 options.partiallyAllowedAnnotations,
                 options.keepStaticInitializerAnnotations,
                 annotationAllowedPredicate,
+                options.ensureOutermostClassAnnotation.get,
                 filter
             )
             filter = annotFilter

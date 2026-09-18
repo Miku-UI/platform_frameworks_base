@@ -29,6 +29,7 @@ import android.hardware.power.Boost;
 import android.os.Handler;
 import android.os.PowerManagerInternal;
 import android.util.ArrayMap;
+import android.util.TimeUtils;
 import android.view.Choreographer;
 import android.view.SurfaceControl;
 import android.view.SurfaceControl.Transaction;
@@ -61,13 +62,13 @@ class SurfaceAnimationRunner {
 
     private final Handler mAnimationThreadHandler = AnimationThread.getHandler();
     private final Handler mSurfaceAnimationHandler = SurfaceAnimationThread.getHandler();
-    private final Runnable mApplyTransactionRunnable = this::applyTransaction;
+    private final Choreographer.VsyncCallback mApplyTransactionRunnable =
+            this::applyTransactionCallback;
     private final AnimationHandler mAnimationHandler;
     private final Transaction mFrameTransaction;
     private final AnimatorFactory mAnimatorFactory;
     private final PowerManagerInternal mPowerManagerInternal;
     private boolean mApplyScheduled;
-    private long mVsyncId = -1;
 
     @GuardedBy("mLock")
     @VisibleForTesting
@@ -95,26 +96,22 @@ class SurfaceAnimationRunner {
     }
 
     @VisibleForTesting
-    SurfaceAnimationRunner(@Nullable AnimationFrameCallbackProvider callbackProvider,
+    SurfaceAnimationRunner(@Nullable final AnimationFrameCallbackProvider callbackProvider,
             AnimatorFactory animatorFactory, Transaction frameTransaction,
             PowerManagerInternal powerManagerInternal) {
+        mAnimationHandler = new AnimationHandler();
         if (com.android.window.flags.Flags.deprecateSurfaceAnimationFrameCallback()) {
-            mSurfaceAnimationHandler.runWithScissors(
-                    () -> mChoreographer = Choreographer.getInstance(), 0 /* timeout */);
+            mSurfaceAnimationHandler.runWithScissors(() -> {
+                mChoreographer = Choreographer.getInstance();
+                mAnimationHandler.setProvider(callbackProvider);
+            }, 0 /* timeout */);
         } else {
             mSurfaceAnimationHandler.runWithScissors(
                     () -> mChoreographer = Choreographer.getSfInstance(), 0 /* timeout */);
+            mAnimationHandler.setProvider(callbackProvider != null ? callbackProvider
+                    : new SfVsyncFrameCallbackProvider(mChoreographer));
         }
         mFrameTransaction = frameTransaction;
-        mAnimationHandler = new AnimationHandler();
-        if (!com.android.window.flags.Flags.deprecateSurfaceAnimationFrameCallback()) {
-            callbackProvider =
-                    callbackProvider != null
-                            ? callbackProvider
-                            : new SfVsyncFrameCallbackProvider(mChoreographer);
-        }
-
-        mAnimationHandler.setProvider(callbackProvider);
         mAnimatorFactory = animatorFactory != null
                 ? animatorFactory
                 : SfValueAnimator::new;
@@ -142,11 +139,7 @@ class SurfaceAnimationRunner {
         synchronized (mLock) {
             mAnimationStartDeferred = false;
             if (!mPendingAnimations.isEmpty() && mPreProcessingAnimations.isEmpty()) {
-                if (com.android.window.flags.Flags.deprecateSurfaceAnimationFrameCallback()) {
-                    mChoreographer.postVsyncCallback(this::startAnimations);
-                } else {
-                    mChoreographer.postFrameCallback(this::startAnimations);
-                }
+                mChoreographer.postFrameCallback(this::startAnimations);
             }
         }
     }
@@ -160,7 +153,7 @@ class SurfaceAnimationRunner {
                     finishCallback);
             mPendingAnimations.put(animationLeash, runningAnim);
             if (!mAnimationStartDeferred && mPreProcessingAnimations.isEmpty()) {
-                mChoreographer.postVsyncCallback(this::startAnimations);
+                mChoreographer.postFrameCallback(this::startAnimations);
             }
 
             // Some animations (e.g. move animations) require the initial transform to be
@@ -187,22 +180,22 @@ class SurfaceAnimationRunner {
                 }
                 mSurfaceAnimationHandler.post(() -> {
                     anim.mAnim.cancel();
-                    applyTransaction();
+                    applyTransaction(-1);
                 });
             }
         }
     }
 
     @GuardedBy("mLock")
-    private void startPendingAnimationsLocked(long vsyncId) {
+    private void startPendingAnimationsLocked(long frameTimeNanos) {
         for (int i = mPendingAnimations.size() - 1; i >= 0; i--) {
-            startAnimationLocked(mPendingAnimations.valueAt(i), vsyncId);
+            startAnimationLocked(frameTimeNanos, mPendingAnimations.valueAt(i));
         }
         mPendingAnimations.clear();
     }
 
     @GuardedBy("mLock")
-    private void startAnimationLocked(RunningAnimation a, long vsyncId) {
+    private void startAnimationLocked(long frameTimeNanos, RunningAnimation a) {
         final ValueAnimator anim = mAnimatorFactory.makeAnimator();
 
         // Animation length is already expected to be scaled.
@@ -221,7 +214,7 @@ class SurfaceAnimationRunner {
             }
 
             // Transaction will be applied in the commit phase.
-            scheduleApplyTransaction(vsyncId);
+            scheduleApplyTransaction();
         });
 
         anim.addListener(new AnimatorListenerAdapter() {
@@ -261,7 +254,7 @@ class SurfaceAnimationRunner {
 
         // Immediately start the animation by manually applying an animation frame. Otherwise, the
         // start time would only be set in the next frame, leading to a delay.
-        anim.doAnimationFrame(mChoreographer.getFrameTime());
+        anim.doAnimationFrame(frameTimeNanos / TimeUtils.NANOS_PER_MS);
     }
 
     private void applyTransformation(RunningAnimation a, Transaction t, long currentPlayTime) {
@@ -278,47 +271,32 @@ class SurfaceAnimationRunner {
                 // ones have finished (see b/227449117).
                 return;
             }
-            startPendingAnimationsLocked(-1);
+            startPendingAnimationsLocked(frameTimeNanos);
         }
         mPowerManagerInternal.setPowerBoost(Boost.INTERACTION, 0);
     }
 
-    private void startAnimations(Choreographer.FrameData frameData) {
-        synchronized (mLock) {
-            if (!mPreProcessingAnimations.isEmpty()) {
-                // We only want to start running animations once all mPreProcessingAnimations have
-                // been processed to ensure preprocessed animations start in sync.
-                // NOTE: This means we might delay running animations that require preprocessing if
-                // new animations that also require preprocessing are requested before the previous
-                // ones have finished (see b/227449117).
-                return;
-            }
-            final long vsyncId = frameData.getPreferredFrameTimeline().getVsyncId();
-            startPendingAnimationsLocked(vsyncId);
-        }
-        mPowerManagerInternal.setPowerBoost(Boost.INTERACTION, 0);
-    }
-
-    private void scheduleApplyTransaction(long vsyncId) {
+    private void scheduleApplyTransaction() {
         if (!mApplyScheduled) {
-            mChoreographer.postCallback(CALLBACK_TRAVERSAL, mApplyTransactionRunnable,
-                    null /* token */);
-            mVsyncId = vsyncId;
+            mChoreographer.postVsyncCallback(CALLBACK_TRAVERSAL, mApplyTransactionRunnable);
             mApplyScheduled = true;
         }
     }
 
-    private void applyTransaction() {
-        mFrameTransaction.setAnimationTransaction();
-
-        // If using legacy frame callback, or cancelling an animation, there won't be a vsyncId.
-        if (mVsyncId == -1) {
-            mVsyncId = mChoreographer.getVsyncId();
+    private void applyTransactionCallback(Choreographer.FrameData frameData) {
+        long vsyncId;
+        if (com.android.window.flags.Flags.deprecateSurfaceAnimationFrameCallback()) {
+            vsyncId = frameData.getPreferredFrameTimeline().getVsyncId();
+        } else {
+            vsyncId = mChoreographer.getVsyncId();
         }
+        applyTransaction(vsyncId);
+    }
 
-        mFrameTransaction.setFrameTimelineVsync(mVsyncId);
+    private void applyTransaction(long vsyncId) {
+        mFrameTransaction.setAnimationTransaction();
+        mFrameTransaction.setFrameTimelineVsync(vsyncId);
         mFrameTransaction.apply();
-        mVsyncId = -1;
         mApplyScheduled = false;
     }
 

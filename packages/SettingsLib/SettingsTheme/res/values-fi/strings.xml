@@ -20,4 +20,8 @@
     <string name="settingslib_expressive_text_expand" msgid="7520894876795775876">"Laajenna"</string>
     <string name="settingslib_expressive_text_collapse" msgid="5625043934702341576">"Tiivistä"</string>
     <string name="settingslib_dismiss_button_content_description" msgid="6466433970910120385">"Ohita"</string>
+    <string name="settingslib_expressive_expanded_state_expanded" msgid="7720903413665990380">"täysin laajennettu"</string>
+    <string name="settingslib_expressive_expanded_state_collapsed" msgid="3183852630776308202">"tiivistetty"</string>
+    <string name="settingslib_spinner_item_selected" msgid="4339232352717298426">"valittu"</string>
+    <string name="settingslib_spinner_item_not_selected" msgid="2953994594850171841">"ei valittu"</string>
 </resources>

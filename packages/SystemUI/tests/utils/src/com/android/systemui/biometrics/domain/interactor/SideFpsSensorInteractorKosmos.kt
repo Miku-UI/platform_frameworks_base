@@ -18,7 +18,6 @@ package com.android.systemui.biometrics.domain.interactor
 
 import android.content.applicationContext
 import android.view.windowManager
-import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.biometrics.fingerprintInteractiveToAuthProvider
 import com.android.systemui.display.domain.interactor.displayStateInteractor
 import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
@@ -32,7 +31,7 @@ val Kosmos.sideFpsSensorInteractor by
     Kosmos.Fixture {
         SideFpsSensorInteractor(
             applicationContext,
-            fingerprintPropertyRepository,
+            fingerprintPropertyInteractor,
             windowManager,
             displayStateInteractor,
             Optional.of(fingerprintInteractiveToAuthProvider),

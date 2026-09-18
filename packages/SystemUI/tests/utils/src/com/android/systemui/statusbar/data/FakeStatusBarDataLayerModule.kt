@@ -15,7 +15,6 @@
  */
 package com.android.systemui.statusbar.data
 
-import com.android.systemui.statusbar.data.repository.FakeStatusBarModeRepositoryModule
 import com.android.systemui.statusbar.disableflags.data.FakeStatusBarDisableFlagsDataLayerModule
 import com.android.systemui.statusbar.notification.data.FakeStatusBarNotificationsDataLayerModule
 import com.android.systemui.statusbar.phone.data.FakeStatusBarPhoneDataLayerModule
@@ -27,7 +26,6 @@ import dagger.Module
     includes =
         [
             FakeStatusBarDisableFlagsDataLayerModule::class,
-            FakeStatusBarModeRepositoryModule::class,
             FakeStatusBarNotificationsDataLayerModule::class,
             FakeStatusBarPhoneDataLayerModule::class,
             FakeStatusBarPipelineDataLayerModule::class,

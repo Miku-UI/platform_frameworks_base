@@ -19,10 +19,12 @@ import android.graphics.Color
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE_FRACTAL
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE_SIMPLE
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE_SPARKLE
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseAnimationConfig
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseShader
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE_FRACTAL
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE_SIMPLE
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE_SPARKLE
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -93,7 +95,7 @@ class TurbulenceNoiseShaderTest : SysuiTestCase() {
                 shouldInverseNoiseLuminosity = true,
                 noiseOffsetX = 1f,
                 noiseOffsetY = 2f,
-                noiseOffsetZ = 3f
+                noiseOffsetZ = 3f,
             )
 
         shader.applyConfig(config)

@@ -13,57 +13,50 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.android.systemui.statusbar.notification.promoted
 
 import android.annotation.WorkerThread
-import android.app.Flags.notificationsRedesignTemplates
+import android.app.Flags.apiNotificationActionCustom
 import android.app.Notification
-import android.app.Notification.BigPictureStyle
 import android.app.Notification.BigTextStyle
 import android.app.Notification.CallStyle
-import android.app.Notification.EXTRA_BIG_TEXT
-import android.app.Notification.EXTRA_CALL_PERSON
-import android.app.Notification.EXTRA_CHRONOMETER_COUNT_DOWN
 import android.app.Notification.EXTRA_PROGRESS
 import android.app.Notification.EXTRA_PROGRESS_INDETERMINATE
 import android.app.Notification.EXTRA_PROGRESS_MAX
-import android.app.Notification.EXTRA_SUB_TEXT
-import android.app.Notification.EXTRA_TEXT
-import android.app.Notification.EXTRA_TITLE
-import android.app.Notification.EXTRA_TITLE_BIG
-import android.app.Notification.EXTRA_VERIFICATION_ICON
-import android.app.Notification.EXTRA_VERIFICATION_TEXT
-import android.app.Notification.InboxStyle
+import android.app.Notification.MetricStyle
 import android.app.Notification.ProgressStyle
-import android.app.Person
 import android.content.Context
-import android.graphics.drawable.Icon
 import android.os.UserHandle
 import android.service.notification.StatusBarNotification
 import android.view.LayoutInflater
 import androidx.compose.ui.util.trace
 import com.android.internal.R
-import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.notifications.content.chronometerCountDown
+import com.android.systemui.notifications.content.icon.AppIconProvider
+import com.android.systemui.notifications.content.preferSmallIcon
+import com.android.systemui.notifications.content.subText
+import com.android.systemui.notifications.content.text
+import com.android.systemui.notifications.content.title
+import com.android.systemui.notifications.content.verificationIcon
+import com.android.systemui.notifications.content.verificationText
 import com.android.systemui.statusbar.NotificationLockscreenUserManager.REDACTION_TYPE_NONE
 import com.android.systemui.statusbar.NotificationLockscreenUserManager.RedactionType
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
-import com.android.systemui.statusbar.notification.promoted.AutomaticPromotionCoordinator.Companion.EXTRA_AUTOMATICALLY_EXTRACTED_SHORT_CRITICAL_TEXT
-import com.android.systemui.statusbar.notification.promoted.AutomaticPromotionCoordinator.Companion.EXTRA_WAS_AUTOMATICALLY_PROMOTED
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModel
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModel.NotifIcon
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModel.OldProgress
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModel.Style
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModel.When
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModels
-import com.android.systemui.statusbar.notification.row.icon.AppIconProvider
 import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyleProvider
 import com.android.systemui.statusbar.notification.row.shared.ImageModel
 import com.android.systemui.statusbar.notification.row.shared.ImageModelProvider
 import com.android.systemui.statusbar.notification.row.shared.ImageModelProvider.ImageSizeClass.MediumSquare
 import com.android.systemui.statusbar.notification.row.shared.ImageModelProvider.ImageSizeClass.SmallSquare
 import com.android.systemui.statusbar.notification.row.shared.SkeletonImageTransform
+import com.android.systemui.statusbar.notification.shared.NotificationChipFromCompactContent
+import com.android.systemui.statusbar.notification.shared.extractMetrics
 import com.android.systemui.util.time.SystemClock
 import javax.inject.Inject
 
@@ -89,7 +82,6 @@ constructor(
     private val systemClock: SystemClock,
     private val logger: PromotedNotificationLogger,
 ) : PromotedNotificationContentExtractor {
-
     @WorkerThread
     override fun extractContent(
         entry: NotificationEntry,
@@ -99,13 +91,6 @@ constructor(
         packageContext: Context,
         systemUiContext: Context,
     ): PromotedNotificationContentModels? {
-        if (!PromotedNotificationContentModel.featureFlagEnabled()) {
-            if (LOG_NOT_EXTRACTED) {
-                logger.logExtractionSkipped(entry, "feature flags disabled")
-            }
-            return null
-        }
-
         val notification = entry.sbn.notification
         if (notification == null) {
             if (LOG_NOT_EXTRACTED) {
@@ -113,14 +98,12 @@ constructor(
             }
             return null
         }
-
         if (!notification.isPromotedOngoing()) {
             if (LOG_NOT_EXTRACTED) {
                 logger.logExtractionSkipped(entry, "isPromotedOngoing returned false")
             }
             return null
         }
-
         val privateVersion =
             extractPrivateContent(
                 key = entry.key,
@@ -131,6 +114,9 @@ constructor(
                 packageContext = packageContext,
                 systemUiContext = systemUiContext,
             )
+        if (privateVersion.notificationView == null) {
+            logger.logSkeletonInflationFailed(entry, "Private View inflation failed")
+        }
         val publicVersion =
             if (redactionType == REDACTION_TYPE_NONE) {
                 privateVersion
@@ -148,6 +134,9 @@ constructor(
                         systemUiContext = systemUiContext,
                     )
             }
+        if (redactionType != REDACTION_TYPE_NONE && publicVersion.notificationView == null) {
+            logger.logSkeletonInflationFailed(entry, "Public View inflation failed")
+        }
         return PromotedNotificationContentModels(
                 privateVersion = privateVersion,
                 publicVersion = publicVersion,
@@ -159,6 +148,7 @@ constructor(
         privateModel: PromotedNotificationContentModel,
         publicBuilder: PromotedNotificationContentModel.Builder,
     ) {
+        publicBuilder.preferSmallIcon = privateModel.preferSmallIcon
         publicBuilder.skeletonNotifIcon = privateModel.skeletonNotifIcon
         publicBuilder.iconLevel = privateModel.iconLevel
         publicBuilder.appName = privateModel.appName
@@ -197,12 +187,12 @@ constructor(
                         else -> Style.CollapsedBase
                     }
                 copyNonSensitiveFields(privateModel = privateModel, publicBuilder = publicBuilder)
-                publicBuilder.shortCriticalText = publicNotification.shortCriticalText()
+                publicBuilder.shortCriticalText = publicNotification.shortCriticalText
                 publicBuilder.subText = publicNotification.subText()
                 // The standard public version is extracted as a collapsed notification,
                 //  so avoid using bigTitle or bigText, and instead get the collapsed versions.
-                publicBuilder.title = publicNotification.title(notificationStyle, expanded = false)
-                publicBuilder.text = publicNotification.text()
+                publicBuilder.title = publicNotification.title(expanded = false)
+                publicBuilder.text = publicNotification.text(expanded = false)
                 publicBuilder.skeletonLargeIcon =
                     publicNotification.skeletonLargeIcon(imageModelProvider)
                 // Only CallStyle has styled content that shows in the collapsed version.
@@ -223,40 +213,41 @@ constructor(
         systemUiContext: Context,
     ): PromotedNotificationContentModel {
         val notification = sbn.notification
-
         val contentBuilder = PromotedNotificationContentModel.Builder(key)
-
         // TODO: Pitch a fit if style is unsupported or mandatory fields are missing once
         // FLAG_PROMOTED_ONGOING is set reliably and we're not testing status bar chips.
-
-        contentBuilder.wasPromotedAutomatically =
-            notification.extras.getBoolean(EXTRA_WAS_AUTOMATICALLY_PROMOTED, false)
-
+        contentBuilder.preferSmallIcon = notification.preferSmallIcon()
         contentBuilder.skeletonNotifIcon =
             sbn.skeletonAppIcon(packageContext)
                 ?: notification.skeletonSmallIcon(imageModelProvider)
-
         contentBuilder.iconLevel = notification.iconLevel
         contentBuilder.appName = notification.loadHeaderAppName(packageContext)
         contentBuilder.subText = notification.subText()
         contentBuilder.time = notification.extractWhen()
-        contentBuilder.shortCriticalText = notification.shortCriticalText()
+        if (NotificationChipFromCompactContent.isEnabled) {
+            contentBuilder.compactContent = notification.resolveCompactContent(packageContext)
+        } else {
+            contentBuilder.shortCriticalText = notification.shortCriticalText
+        }
         contentBuilder.lastAudiblyAlertedMs = lastAudiblyAlertedMs
-        contentBuilder.profileBadgeBitmap = Notification.getProfileBadge(packageContext)
-        contentBuilder.title = notification.title(recoveredBuilder.style?.javaClass)
-        contentBuilder.text = notification.text(recoveredBuilder.style?.javaClass)
+        contentBuilder.profileBadgeBitmap = recoveredBuilder.profileBadge
+        contentBuilder.title = notification.title(expanded = true)
+        contentBuilder.text = notification.text(expanded = true)
         contentBuilder.skeletonLargeIcon = notification.skeletonLargeIcon(imageModelProvider)
-        contentBuilder.oldProgress = notification.oldProgress()
+        contentBuilder.oldProgress = recoveredBuilder.oldProgress(notification)
         val colorsFromNotif = recoveredBuilder.getColors(/* isHeader= */ false)
         contentBuilder.colors =
             PromotedNotificationContentModel.Colors(
                 backgroundColor = colorsFromNotif.backgroundColor,
-                primaryTextColor = colorsFromNotif.primaryTextColor,
+                textColor = colorsFromNotif.textColor,
             )
-
-        recoveredBuilder.extractStyleContent(notification, contentBuilder, imageModelProvider)
+        recoveredBuilder.extractStyleContent(
+            notification,
+            contentBuilder,
+            imageModelProvider,
+            systemUiContext,
+        )
         inflateNotificationView(contentBuilder, systemUiContext)
-
         return contentBuilder.build()
     }
 
@@ -267,7 +258,6 @@ constructor(
         systemUiContext: Context,
     ) {
         val style = contentBuilder.style ?: return
-
         val res = getLayoutSource(style) ?: return
         // Inflating with `sysuiContext` is intentional here.
         // As we transition to Jetpack Compose, the view layer will no longer have direct
@@ -275,43 +265,37 @@ constructor(
         // properly inflate this view while adhering to upcoming architectural constraints.
         trace("AODPromotedNotification#inflate") {
             contentBuilder.notificationView =
-                LayoutInflater.from(systemUiContext).inflate(res, /* root= */ null)
-            val inflationIdentity =
+                try {
+                    LayoutInflater.from(systemUiContext).inflate(res, /* root= */ null)
+                } catch (_: Throwable) {
+                    null
+                }
+            contentBuilder.notificationView?.setTag(
+                com.android.systemui.res.R.id.aod_promoted_notification_inflation_identity,
                 InflationIdentity(
                     layout = res,
                     density = systemUiContext.resources.displayMetrics.density,
                     scale = systemUiContext.resources.displayMetrics.scaledDensity,
-                )
-            contentBuilder.notificationView?.setTag(
-                com.android.systemui.res.R.id.aod_promoted_notification_inflation_identity,
-                inflationIdentity,
+                ),
             )
         }
     }
 
     private fun getLayoutSource(style: Style): Int? {
-        return if (notificationsRedesignTemplates()) {
-            when (style) {
-                Style.Base -> R.layout.notification_2025_template_expanded_base
-                Style.CollapsedBase -> R.layout.notification_2025_template_collapsed_base
-                Style.BigPicture -> R.layout.notification_2025_template_expanded_big_picture
-                Style.BigText -> R.layout.notification_2025_template_expanded_big_text
-                Style.Call -> R.layout.notification_2025_template_expanded_call
-                Style.CollapsedCall -> R.layout.notification_2025_template_collapsed_call
-                Style.Progress -> R.layout.notification_2025_template_expanded_progress
-                Style.Ineligible -> null
-            }
-        } else {
-            when (style) {
-                Style.Base -> R.layout.notification_template_material_big_base
-                Style.CollapsedBase -> R.layout.notification_template_material_base
-                Style.BigPicture -> R.layout.notification_template_material_big_picture
-                Style.BigText -> R.layout.notification_template_material_big_text
-                Style.Call -> R.layout.notification_template_material_big_call
-                Style.CollapsedCall -> R.layout.notification_template_material_call
-                Style.Progress -> R.layout.notification_template_material_progress
-                Style.Ineligible -> null
-            }
+        return when (style) {
+            Style.Base -> R.layout.notification_2025_template_expanded_base
+            Style.CollapsedBase -> R.layout.notification_2025_template_collapsed_base
+            Style.BigText -> R.layout.notification_2025_template_expanded_big_text
+            Style.Call -> R.layout.notification_2025_template_expanded_call
+            Style.CollapsedCall -> R.layout.notification_2025_template_collapsed_call
+            Style.Progress ->
+                if (apiNotificationActionCustom())
+                    R.layout.notification_2025_template_promoted_progress
+                else R.layout.notification_2025_template_expanded_progress
+
+            Style.Metric -> R.layout.notification_2025_template_expanded_metric
+            Style.MetricSingle -> R.layout.notification_2025_template_promoted_single_metric
+            Style.Ineligible -> null
         }
     }
 
@@ -321,76 +305,28 @@ constructor(
         imageModelProvider.getImageModel(smallIcon, SmallSquare)?.let { NotifIcon.SmallIcon(it) }
 
     private fun StatusBarNotification.skeletonAppIcon(packageContext: Context): NotifIcon.AppIcon? {
-        if (!android.app.Flags.notificationsRedesignAppIcons()) return null
         if (!notificationIconStyleProvider.shouldShowAppIcon(this, packageContext)) return null
         val userHandle = UserHandle.of(normalizedUserId)
         return NotifIcon.AppIcon(appIconProvider.getOrFetchSkeletonAppIcon(packageName, userHandle))
     }
 
-    private fun Notification.title(): CharSequence? = getCharSequenceExtraUnlessEmpty(EXTRA_TITLE)
-
-    private fun Notification.bigTitle(): CharSequence? =
-        getCharSequenceExtraUnlessEmpty(EXTRA_TITLE_BIG)
-
-    private fun Notification.callPerson(): Person? =
-        extras?.getParcelable(EXTRA_CALL_PERSON, Person::class.java)
-
-    private fun Notification.title(
-        styleClass: Class<out Notification.Style>?,
-        expanded: Boolean = true,
-    ): CharSequence? {
-        // bigTitle is only used in the expanded form of 3 styles.
-        return when (styleClass) {
-            BigTextStyle::class.java,
-            BigPictureStyle::class.java,
-            InboxStyle::class.java -> if (expanded) bigTitle() else null
-            CallStyle::class.java -> callPerson()?.name?.takeUnlessEmpty()
-            else -> null
-        } ?: title()
-    }
-
-    private fun Notification.text(): CharSequence? = getCharSequenceExtraUnlessEmpty(EXTRA_TEXT)
-
-    private fun Notification.bigText(): CharSequence? =
-        getCharSequenceExtraUnlessEmpty(EXTRA_BIG_TEXT)
-
-    private fun Notification.text(styleClass: Class<out Notification.Style>?): CharSequence? {
-        return when (styleClass) {
-            BigTextStyle::class.java -> bigText()
-            else -> null
-        } ?: text()
-    }
-
-    private fun Notification.subText(): String? = getStringExtraUnlessEmpty(EXTRA_SUB_TEXT)
-
-    private fun Notification.shortCriticalText(): String? {
-        if (!android.app.Flags.apiRichOngoing()) {
-            return null
-        }
-        if (shortCriticalText != null) {
-            return shortCriticalText
-        }
-        if (Flags.promoteNotificationsAutomatically()) {
-            return getStringExtraUnlessEmpty(EXTRA_AUTOMATICALLY_EXTRACTED_SHORT_CRITICAL_TEXT)
-        }
-        return null
-    }
-
-    private fun Notification.chronometerCountDown(): Boolean =
-        extras?.getBoolean(EXTRA_CHRONOMETER_COUNT_DOWN, /* defaultValue= */ false) ?: false
-
     private fun Notification.skeletonLargeIcon(
         imageModelProvider: ImageModelProvider
-    ): ImageModel? =
-        getLargeIcon()?.let {
+    ): ImageModel? {
+        if (notificationStyle == MetricStyle::class.java) return null
+        return getLargeIcon()?.let {
             imageModelProvider.getImageModel(it, MediumSquare, skeletonImageTransform)
         }
+    }
 
-    private fun Notification.oldProgress(): OldProgress? {
-        val progress = progress() ?: return null
-        val max = progressMax() ?: return null
-        val isIndeterminate = progressIndeterminate() ?: return null
-
+    private fun Notification.Builder.oldProgress(notification: Notification): OldProgress? {
+        if (style is ProgressStyle || style is CallStyle || style is MetricStyle) {
+            return null
+        }
+        val progress = notification.progress() ?: return null
+        val max = notification.progressMax() ?: return null
+        val isIndeterminate = notification.progressIndeterminate() ?: return null
+        if (progress == 0 && max == 0) return null
         return OldProgress(progress = progress, max = max, isIndeterminate = isIndeterminate)
     }
 
@@ -403,7 +339,6 @@ constructor(
 
     private fun Notification.extractWhen(): When? {
         val whenTime = getWhen()
-
         return when {
             showsChronometer() -> {
                 When.Chronometer(
@@ -412,9 +347,7 @@ constructor(
                     isCountDown = chronometerCountDown(),
                 )
             }
-
             showsTime() -> When.Time(currentTimeMillis = whenTime)
-
             else -> null
         }
     }
@@ -422,43 +355,38 @@ constructor(
     private fun Notification.skeletonVerificationIcon(
         imageModelProvider: ImageModelProvider
     ): ImageModel? =
-        extras.getParcelable(EXTRA_VERIFICATION_ICON, Icon::class.java)?.let {
+        verificationIcon()?.let {
             imageModelProvider.getImageModel(it, SmallSquare, skeletonImageTransform)
         }
-
-    private fun Notification.verificationText(): CharSequence? =
-        getCharSequenceExtraUnlessEmpty(EXTRA_VERIFICATION_TEXT)
 
     private fun Notification.Builder.extractStyleContent(
         notification: Notification,
         contentBuilder: PromotedNotificationContentModel.Builder,
         imageModelProvider: ImageModelProvider,
+        systemUiContext: Context,
     ) {
         val style = this.style
-
         contentBuilder.style =
             when (style) {
                 null -> Style.Base
-
-                is BigPictureStyle -> {
-                    Style.BigPicture
-                }
-
                 is BigTextStyle -> {
                     Style.BigText
                 }
-
                 is CallStyle -> {
                     extractCallStyleContent(notification, contentBuilder, imageModelProvider)
                     Style.Call
                 }
-
                 is ProgressStyle -> {
                     style.extractContent(contentBuilder)
                     Style.Progress
                 }
-
-                else -> Style.Ineligible
+                is MetricStyle -> {
+                    contentBuilder.metrics = style.extractMetrics(systemUiContext).toList()
+                    if (style.metrics.size == 1) Style.MetricSingle else Style.Metric
+                }
+                else -> {
+                    Style.Ineligible
+                }
             }
     }
 
@@ -475,18 +403,15 @@ constructor(
         contentBuilder: PromotedNotificationContentModel.Builder
     ) {
         // TODO: Create NotificationProgressModel.toSkeleton, or something similar.
-        contentBuilder.newProgress = createProgressModel(0xffffffff.toInt(), 0xff000000.toInt())
+        contentBuilder.newProgress =
+            createProgressModel(
+                0xffffffff.toInt(),
+                0xff000000.toInt(),
+                { Notification.COLOR_DEFAULT },
+            )
     }
 
     companion object {
         private const val LOG_NOT_EXTRACTED = false
     }
 }
-
-private fun Notification.getCharSequenceExtraUnlessEmpty(key: String): CharSequence? =
-    extras?.getCharSequence(key)?.takeUnlessEmpty()
-
-private fun Notification.getStringExtraUnlessEmpty(key: String): String? =
-    extras?.getString(key)?.takeUnlessEmpty()
-
-private fun <T : CharSequence> T.takeUnlessEmpty(): T? = takeUnless { it.isEmpty() }

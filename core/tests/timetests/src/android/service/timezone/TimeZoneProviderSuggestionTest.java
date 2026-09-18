@@ -40,28 +40,31 @@ public class TimeZoneProviderSuggestionTest {
 
     @Test
     public void isEquivalentToAndEquals() {
-        TimeZoneProviderSuggestion suggestion1 = new TimeZoneProviderSuggestion.Builder()
-                .setElapsedRealtimeMillis(1111L)
-                .setTimeZoneIds(Collections.singletonList("Europe/London"))
-                .build();
+        TimeZoneProviderSuggestion suggestion1 =
+                new TimeZoneProviderSuggestion.Builder()
+                        .setElapsedRealtimeMillis(1111L)
+                        .setTimeZoneIds(Collections.singletonList("Europe/London"))
+                        .build();
         assertEquals(suggestion1, suggestion1);
         assertIsEquivalentTo(suggestion1, suggestion1);
         assertNotEquals(suggestion1, null);
         assertNotEquivalentTo(suggestion1, null);
 
         // Same time zone IDs, different time.
-        TimeZoneProviderSuggestion suggestion2 = new TimeZoneProviderSuggestion.Builder()
-                .setElapsedRealtimeMillis(2222L)
-                .setTimeZoneIds(Collections.singletonList("Europe/London"))
-                .build();
+        TimeZoneProviderSuggestion suggestion2 =
+                new TimeZoneProviderSuggestion.Builder()
+                        .setElapsedRealtimeMillis(2222L)
+                        .setTimeZoneIds(Collections.singletonList("Europe/London"))
+                        .build();
         assertNotEquals(suggestion1, suggestion2);
         assertIsEquivalentTo(suggestion1, suggestion2);
 
         // Different time zone IDs.
-        TimeZoneProviderSuggestion suggestion3 = new TimeZoneProviderSuggestion.Builder()
-                .setElapsedRealtimeMillis(1111L)
-                .setTimeZoneIds(Collections.singletonList("Europe/Paris"))
-                .build();
+        TimeZoneProviderSuggestion suggestion3 =
+                new TimeZoneProviderSuggestion.Builder()
+                        .setElapsedRealtimeMillis(1111L)
+                        .setTimeZoneIds(Collections.singletonList("Europe/Paris"))
+                        .build();
         assertNotEquals(suggestion1, suggestion3);
         assertNotEquivalentTo(suggestion1, suggestion3);
     }

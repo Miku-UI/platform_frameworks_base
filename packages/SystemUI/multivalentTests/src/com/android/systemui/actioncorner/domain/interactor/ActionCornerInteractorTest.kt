@@ -16,19 +16,23 @@
 
 package com.android.systemui.actioncorner.domain.interactor
 
+import android.platform.test.annotations.EnableFlags
 import android.provider.Settings.Secure.ACTION_CORNER_ACTION_HOME
 import android.provider.Settings.Secure.ACTION_CORNER_ACTION_LOCKSCREEN
+import android.provider.Settings.Secure.ACTION_CORNER_ACTION_NOTE
 import android.provider.Settings.Secure.ACTION_CORNER_ACTION_NOTIFICATIONS
 import android.provider.Settings.Secure.ACTION_CORNER_ACTION_OVERVIEW
+import android.provider.Settings.Secure.ACTION_CORNER_ACTION_PEEK
 import android.provider.Settings.Secure.ACTION_CORNER_ACTION_QUICK_SETTINGS
 import android.provider.Settings.Secure.ACTION_CORNER_BOTTOM_LEFT_ACTION
 import android.provider.Settings.Secure.ACTION_CORNER_BOTTOM_RIGHT_ACTION
 import android.provider.Settings.Secure.ACTION_CORNER_TOP_LEFT_ACTION
 import android.provider.Settings.Secure.ACTION_CORNER_TOP_RIGHT_ACTION
 import android.view.Display.DEFAULT_DISPLAY
-import android.view.IWindowManager
+import android.view.mockIWindowManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.LauncherProxyService
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.actioncorner.data.model.ActionCornerRegion
@@ -48,6 +52,8 @@ import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
+import com.android.systemui.notetask.NoteTaskController
+import com.android.systemui.notetask.NoteTaskEntryPoint
 import com.android.systemui.scene.data.repository.Idle
 import com.android.systemui.scene.data.repository.setTransition
 import com.android.systemui.scene.shared.model.Scenes
@@ -57,6 +63,8 @@ import com.android.systemui.statusbar.CommandQueue
 import com.android.systemui.statusbar.policy.data.repository.fakeUserSetupRepository
 import com.android.systemui.testKosmos
 import com.android.systemui.util.settings.data.repository.userAwareSecureSettingsRepository
+import com.android.wm.shell.desktopmode.api.DesktopMode
+import java.util.Optional
 import kotlin.test.Test
 import org.junit.Before
 import org.junit.runner.RunWith
@@ -72,15 +80,21 @@ class ActionCornerInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private val Kosmos.actionCornerRepository by Fixture { FakeActionCornerRepository() }
 
-    private val settingsRepository = kosmos.userAwareSecureSettingsRepository
-    private val Kosmos.actionCornerSettingRepository by Fixture {
-        ActionCornerSettingRepository(settingsRepository, testScope.backgroundScope, testDispatcher)
-    }
-
     private val Kosmos.launcherProxyService by Fixture { mock<LauncherProxyService>() }
-    private val Kosmos.windowManager by Fixture { mock<IWindowManager>() }
     private val Kosmos.commandQueue by Fixture { mock<CommandQueue>() }
     private val Kosmos.fakePointerRepository by Fixture { FakePointerDeviceRepository() }
+    private val Kosmos.noteTaskController by Fixture { mock<NoteTaskController>() }
+    private val Kosmos.desktopMode by Fixture { mock<DesktopMode>() }
+
+    private val settingsRepository = kosmos.userAwareSecureSettingsRepository
+    private val Kosmos.actionCornerSettingRepository by Fixture {
+        ActionCornerSettingRepository(
+            settingsRepository,
+            testScope.backgroundScope,
+            testDispatcher,
+            Optional.of(desktopMode),
+        )
+    }
 
     private val Kosmos.underTest by Fixture {
         ActionCornerInteractor(
@@ -91,7 +105,9 @@ class ActionCornerInteractorTest : SysuiTestCase() {
             windowManagerLockscreenVisibilityInteractor,
             fakeUserSetupRepository,
             commandQueue,
-            windowManager,
+            mockIWindowManager,
+            noteTaskController,
+            Optional.of(desktopMode),
         )
     }
 
@@ -157,7 +173,7 @@ class ActionCornerInteractorTest : SysuiTestCase() {
             ACTION_CORNER_ACTION_LOCKSCREEN,
         )
         actionCornerRepository.addState(ActiveActionCorner(BOTTOM_RIGHT, DEFAULT_DISPLAY))
-        verify(windowManager).lockNow(eq(null))
+        verify(kosmos.mockIWindowManager).lockNow(eq(null))
     }
 
     @Test
@@ -215,10 +231,27 @@ class ActionCornerInteractorTest : SysuiTestCase() {
             sceneTransition = Idle(Scenes.Gone),
             stateTransition =
                 TransitionStep(from = KeyguardState.LOCKSCREEN, to = KeyguardState.GONE),
+            unlockDevice = true,
         )
         actionCornerRepository.addState(ActiveActionCorner(BOTTOM_LEFT, DEFAULT_DISPLAY))
 
         verify(launcherProxyService, times(1)).onActionCornerActivated(OVERVIEW, DEFAULT_DISPLAY)
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_NOTE_IN_ACTION_CORNER)
+    fun bottomLeftCornerActivated_notesActionConfigured_showNoteTask() = unlockScreenAndRunTest {
+        settingsRepository.setInt(ACTION_CORNER_BOTTOM_LEFT_ACTION, ACTION_CORNER_ACTION_NOTE)
+        actionCornerRepository.addState(ActiveActionCorner(BOTTOM_LEFT, DEFAULT_DISPLAY))
+        verify(noteTaskController).showNoteTask(entryPoint = NoteTaskEntryPoint.ACTION_CORNER)
+    }
+
+    @Test
+    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_HOME_SCREEN_PEEKING)
+    fun bottomLeftCornerActivated_peekActionConfigured_togglePeek() = unlockScreenAndRunTest {
+        settingsRepository.setInt(ACTION_CORNER_BOTTOM_LEFT_ACTION, ACTION_CORNER_ACTION_PEEK)
+        actionCornerRepository.addState(ActiveActionCorner(BOTTOM_LEFT, DEFAULT_DISPLAY))
+        verify(desktopMode).togglePeek(DEFAULT_DISPLAY)
     }
 
     private fun unlockScreenAndRunTest(testBody: suspend Kosmos.() -> Unit) =
@@ -227,6 +260,7 @@ class ActionCornerInteractorTest : SysuiTestCase() {
                 sceneTransition = Idle(Scenes.Gone),
                 stateTransition =
                     TransitionStep(from = KeyguardState.LOCKSCREEN, to = KeyguardState.GONE),
+                unlockDevice = true,
             )
             testBody()
         }

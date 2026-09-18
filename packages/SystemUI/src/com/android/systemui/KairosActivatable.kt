@@ -22,15 +22,8 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.kairos.BuildScope
 import com.android.systemui.kairos.BuildSpec
 import com.android.systemui.kairos.CoalescingPolicy
-import com.android.systemui.kairos.Events
-import com.android.systemui.kairos.EventsLoop
-import com.android.systemui.kairos.ExperimentalKairosApi
-import com.android.systemui.kairos.Incremental
-import com.android.systemui.kairos.IncrementalLoop
 import com.android.systemui.kairos.KairosNetwork
 import com.android.systemui.kairos.RootKairosNetwork
-import com.android.systemui.kairos.State
-import com.android.systemui.kairos.StateLoop
 import com.android.systemui.kairos.TransactionScope
 import com.android.systemui.kairos.effect
 import com.android.systemui.kairos.launchKairosNetwork
@@ -87,101 +80,35 @@ import kotlinx.coroutines.launch
  *
  * @see activated
  */
-@ExperimentalKairosApi
 fun interface KairosActivatable {
     /** Initializes any Kairos fields that require a [BuildScope] in order to be constructed. */
     fun BuildScope.activate()
 }
 
+/**
+ * Convenience method to [activate][KairosActivatable.activate] a [KairosActivatable] within
+ * [kairosNetwork].
+ *
+ * Shorthand for:
+ * ```
+ *     kairosNetwork.activateSpec { this@activateIn.run { activate() } }
+ * ```
+ */
+suspend fun KairosActivatable.activateIn(kairosNetwork: KairosNetwork) {
+    kairosNetwork.activateSpec { activate() }
+}
+
 /** Constructs [KairosActivatable] instances. */
-@ExperimentalKairosApi
 fun interface KairosActivatableFactory<T : KairosActivatable> {
     fun BuildScope.create(): T
 }
 
 /** Instantiates, [activates][KairosActivatable.activate], and returns a [KairosActivatable]. */
-@ExperimentalKairosApi
 fun <T : KairosActivatable> BuildScope.activated(factory: KairosActivatableFactory<T>): T =
     factory.run { create() }.apply { activate() }
 
-/**
- * Utilities for defining [State] and [Events] from a constructor without a provided [BuildScope].
- * These instances are not active until the builder is [activated][activate]; while you can
- * immediately use them with other Kairos APIs, the Kairos transaction will be suspended until
- * initialization is complete.
- *
- * ```kotlin
- * class MyRepository(private val dataSource: DataSource) : KairosBuilder by kairosBuilder() {
- *   val dataSourceEvent = buildEvents<SomeData> {
- *       // inside this lambda, we have access to a BuildScope, which can be used to create
- *       // new inputs to the Kairos network
- *       dataSource.someDataFlow.toEvents()
- *   }
- * }
- * ```
- */
-@ExperimentalKairosApi
-interface KairosBuilder : KairosActivatable {
-    /**
-     * Returns a forward-reference to a [State] that will be instantiated when this builder is
-     * [activated][activate].
-     */
-    fun <R> buildState(block: BuildScope.() -> State<R>): State<R>
-
-    /**
-     * Returns a forward-reference to an [Events] that will be instantiated when this builder is
-     * [activated][activate].
-     */
-    fun <R> buildEvents(block: BuildScope.() -> Events<R>): Events<R>
-
-    fun <K, V> buildIncremental(block: BuildScope.() -> Incremental<K, V>): Incremental<K, V>
-
-    /** Defers [block] until this builder is [activated][activate]. */
-    fun onActivated(block: BuildScope.() -> Unit)
-}
-
-/** Returns an [KairosBuilder] that can only be [activated][KairosActivatable.activate] once. */
-@ExperimentalKairosApi fun kairosBuilder(): KairosBuilder = KairosBuilderImpl()
-
-@OptIn(ExperimentalKairosApi::class)
-private class KairosBuilderImpl @Inject constructor() : KairosBuilder {
-
-    private var _builds: MutableList<KairosActivatable>? = mutableListOf()
-    private var _startables: MutableList<KairosActivatable>? = mutableListOf()
-
-    private val startables
-        get() = checkNotNull(_startables) { "Kairos network has already been initialized" }
-
-    private val builds
-        get() = checkNotNull(_builds) { "Kairos network has already been initialized" }
-
-    override fun <R> buildState(block: BuildScope.() -> State<R>): State<R> =
-        StateLoop<R>().apply { builds.add { loopback = block() } }
-
-    override fun <R> buildEvents(block: BuildScope.() -> Events<R>): Events<R> =
-        EventsLoop<R>().apply { builds.add { loopback = block() } }
-
-    override fun <K, V> buildIncremental(
-        block: BuildScope.() -> Incremental<K, V>
-    ): Incremental<K, V> = IncrementalLoop<K, V>().apply { builds.add { loopback = block() } }
-
-    override fun onActivated(block: BuildScope.() -> Unit) {
-        startables.add { block() }
-    }
-
-    override fun BuildScope.activate() {
-        builds.forEach { it.run { activate() } }
-        _builds = null
-        deferredBuildScopeAction {
-            startables.forEach { it.run { activate() } }
-            _startables = null
-        }
-    }
-}
-
 /** Initializes [KairosActivatables][KairosActivatable] after SystemUI is initialized. */
 @SysUISingleton
-@ExperimentalKairosApi
 class KairosCoreStartable
 private constructor(
     private val appScope: CoroutineScope,
@@ -234,7 +161,6 @@ private constructor(
 }
 
 @Module
-@ExperimentalKairosApi
 interface KairosCoreStartableModule {
     @Binds
     @IntoMap

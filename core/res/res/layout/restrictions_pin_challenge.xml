@@ -37,8 +37,7 @@
                 android:layout_marginEnd="8dip"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:inputType="numberPassword"
-                android:textColor="?android:attr/textColorPrimary" />
+                android:inputType="numberPassword"/>
 
             <TextView android:id="@+id/pin_error_message"
                 android:layout_marginTop="8dp"

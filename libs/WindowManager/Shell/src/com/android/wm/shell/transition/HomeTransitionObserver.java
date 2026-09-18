@@ -19,14 +19,17 @@ package com.android.wm.shell.transition;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_HOME;
 import static android.os.UserHandle.USER_NULL;
 import static android.view.Display.DEFAULT_DISPLAY;
-import static android.window.DesktopModeFlags.ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX;
+import static android.view.WindowManager.TRANSIT_FLAG_KEYGUARD_GOING_AWAY;
+import static android.view.WindowManager.TRANSIT_WAKE;
 import static android.window.TransitionInfo.FLAG_BACK_GESTURE_ANIMATED;
+import static android.window.TransitionInfo.FLAG_MOVED_TO_TOP;
 
 import static com.android.wm.shell.desktopmode.DesktopModeTransitionTypes.TRANSIT_DESKTOP_MODE_START_DRAG_TO_DESKTOP;
 import static com.android.wm.shell.transition.Transitions.TRANSIT_CONVERT_TO_BUBBLE;
 import static com.android.wm.shell.transition.Transitions.TransitionObserver;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.os.IBinder;
@@ -38,13 +41,17 @@ import com.android.wm.shell.common.DisplayInsetsController;
 import com.android.wm.shell.common.RemoteCallable;
 import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.common.SingleInstanceRemoteListener;
+import com.android.wm.shell.desktopmode.multidesks.DesksOrganizer;
 import com.android.wm.shell.shared.IHomeTransitionListener;
 import com.android.wm.shell.shared.TransitionUtil;
-import com.android.wm.shell.shared.bubbles.BubbleAnythingFlagHelper;
+import com.android.wm.shell.shared.bubbles.BubbleFlagHelper;
+import com.android.wm.shell.shared.desktopmode.DesktopState;
+import com.android.wm.shell.sysui.ShellController;
 import com.android.wm.shell.sysui.ShellInit;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * The {@link TransitionObserver} that observes for transitions involving the home
@@ -59,18 +66,31 @@ public class HomeTransitionObserver implements TransitionObserver,
     private @NonNull final Context mContext;
     private @NonNull final ShellExecutor mMainExecutor;
     private @NonNull final DisplayInsetsController mDisplayInsetsController;
+    private @NonNull final ShellController mShellController;
+    private final Optional<DesksOrganizer> mDesksOrganizer;
     private IBinder mPendingStartDragTransition;
 
+    private final boolean mTrackDesktopVisibility;
+
     private int mListenerUserId = USER_NULL; // UserId associated with the registered listener.
-    private final Map<Integer, Boolean> mIsHomeVisibleForUser = new HashMap<>();
+    private final Map<Integer, UpdateParameters> mHomeUpdateForUser = new HashMap<>();
+    private final Map<Integer, Boolean> mDesktopVisibilityForUser = new HashMap<>();
+
 
     public HomeTransitionObserver(@NonNull Context context,
             @NonNull ShellExecutor mainExecutor,
             @NonNull DisplayInsetsController displayInsetsController,
-            @NonNull ShellInit shellInit) {
+            @NonNull ShellController shellController,
+            @NonNull ShellInit shellInit,
+            @NonNull DesktopState desktopState,
+            Optional<DesksOrganizer> desksOrganizer) {
         mContext = context;
         mMainExecutor = mainExecutor;
         mDisplayInsetsController = displayInsetsController;
+        mShellController = shellController;
+        mDesksOrganizer = desksOrganizer;
+
+        mTrackDesktopVisibility = desktopState.getShouldShowHomeBehindDesktop();
 
         shellInit.addInitCallback(this::onInit, this);
     }
@@ -91,7 +111,28 @@ public class HomeTransitionObserver implements TransitionObserver,
             @NonNull TransitionInfo info,
             @NonNull SurfaceControl.Transaction startTransaction,
             @NonNull SurfaceControl.Transaction finishTransaction) {
-        Boolean homeVisibilityUpdate = updateHomeVisibilityForUser(info);
+        Boolean desktopUpdate = updateDesktopVisibilityForUser(info);
+        UpdateParameters homeStateUpdate = updateHomeVisibilityForUser(info);
+
+        boolean homeStateChanged = homeStateUpdate != null;
+        if (homeStateUpdate == null) {
+            homeStateUpdate = mHomeUpdateForUser.get(mListenerUserId);
+        }
+
+        // Desktop visibility updates are only relevant if home is visible - skip sending an
+        // update if home visibility did not change, and home is not visible.
+        boolean ignoreDesktopStateChange = homeStateUpdate != null && !homeStateUpdate.mIsVisible;
+        boolean desktopChanged = desktopUpdate != null && !ignoreDesktopStateChange;
+
+        // When converting to a bubble without a change to home visibility in the transition, force
+        // an update using the value from the start of drag.
+        boolean requiresUpdate = BubbleFlagHelper.enableBubbleToFullscreen()
+                && info.getType() == TRANSIT_CONVERT_TO_BUBBLE
+                && mPendingStartDragTransition != null;
+
+        if (!requiresUpdate && !desktopChanged && !homeStateChanged) {
+            return;
+        }
 
         if (info.getType() == TRANSIT_DESKTOP_MODE_START_DRAG_TO_DESKTOP
                 && homeVisibilityUpdate != null) {
@@ -102,44 +143,34 @@ public class HomeTransitionObserver implements TransitionObserver,
             return;
         }
 
-        if (BubbleAnythingFlagHelper.enableBubbleToFullscreen()
-                && info.getType() == TRANSIT_CONVERT_TO_BUBBLE
-                && homeVisibilityUpdate == null
-                && mPendingStartDragTransition != null) {
-            // We are converting to bubble and we did not get a change to home visibility in this
-            // transition. Apply the value from start of drag.
-            homeVisibilityUpdate = mIsHomeVisibleForUser.get(mListenerUserId);
+        if (mTrackDesktopVisibility && desktopUpdate == null) {
+            desktopUpdate = mDesktopVisibilityForUser.get(mListenerUserId);
         }
 
-        if (homeVisibilityUpdate != null) {
-            mPendingStartDragTransition = null;
-            notifyHomeVisibilityChanged(homeVisibilityUpdate);
-        }
+        mPendingStartDragTransition = null;
+        notifyHomeVisibilityChangedForUpdates(homeStateUpdate, desktopUpdate);
     }
 
     private void storePendingStartDragTransition(IBinder transition) {
-        if (!BubbleAnythingFlagHelper.enableBubbleToFullscreen()
-                && !ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX.isTrue()) {
-            return;
-        }
         mPendingStartDragTransition = transition;
     }
 
     /**
      * Determines if a given transition represents a change in home visibility for the current user.
      * <p>
-     * Only returns the visibility for the current user if it is in the transition.
+     * Only returns the new state for the current user if it is in the transition.
      * <p>
      * If a change is a visibility change for any user, it is cached in
-     * {@link #mIsHomeVisibleForUser} for pending transitions or when registering a listener.
+     * {@link #mHomeUpdateForUser} for pending transitions or when registering a listener.
      *
      * @param info The information about the transition.
-     * @return Considering the current user, {@code true} if its home activity is becoming visible,
-     *         {@code false} if invisible, or {@code null} if this change does not involve its home
-     *         visibility.
+     * @return Considering the current user, an {@link UpdateParameters} object whose visibility is
+     *         {@code true} if its home activity is becoming visible and {@code false} if invisible,
+     *         plus whether the transition involves Keyguard going away. If this change does not
+     *         involve the home visibility, the method returns null.
      */
-    private Boolean updateHomeVisibilityForUser(TransitionInfo info) {
-        Boolean homeVisibilityUpdate = null;
+    private UpdateParameters updateHomeVisibilityForUser(TransitionInfo info) {
+        UpdateParameters homeStateUpdate = null;
         for (TransitionInfo.Change change : info.getChanges()) {
             final ActivityManager.RunningTaskInfo taskInfo = change.getTaskInfo();
             if (taskInfo == null
@@ -148,15 +179,63 @@ public class HomeTransitionObserver implements TransitionObserver,
                     || !taskInfo.isRunning) {
                 continue;
             }
-            Boolean update = getHomeVisibilityUpdateForChange(info, change, taskInfo);
-            if (update != null) {
-                mIsHomeVisibleForUser.put(taskInfo.userId, update);
+            Boolean visibilityUpdate = getHomeVisibilityUpdateForChange(info, change, taskInfo);
+            if (visibilityUpdate != null) {
+                boolean keyguardGoingAway =
+                        (info.getFlags() & TRANSIT_FLAG_KEYGUARD_GOING_AWAY) != 0;
+                boolean waking = info.getType() == TRANSIT_WAKE;
+                UpdateParameters update =
+                        new UpdateParameters(visibilityUpdate, keyguardGoingAway, waking);
+                mHomeUpdateForUser.put(taskInfo.userId, update);
                 if (taskInfo.userId == mListenerUserId) {
-                    homeVisibilityUpdate = update;
+                    homeStateUpdate = update;
                 }
             }
         }
-        return homeVisibilityUpdate;
+        return homeStateUpdate;
+    }
+    /**
+     * If expected to track desktop visibility, determines if a given transition represents a change
+     * in desktop visibility for the current user.
+     * <p>
+     * Only returns the new state for the current user if the transition is for this user.
+     * <p>
+     * If a change is a visibility change for any user, it is cached in
+     * {@link #mDesktopVisibilityForUser} for pending transitions or when registering a listener.
+     *
+     * @param info The information about the transition.
+     * @return Considering the current user, an {@link Boolean} object whose visibility is
+     *         {@code true} if a desk is becoming visible and {@code false} if invisible.
+     *         If this change does not involve desk visibility, the method returns null.
+     *         Returns null if the observer is not configured to track desktop visibility - i.e.
+     *         when home is not visible behind desktop windows.
+     */
+    private Boolean updateDesktopVisibilityForUser(TransitionInfo info) {
+        if (!mTrackDesktopVisibility) {
+            return null;
+        }
+
+        Boolean update = null;
+        for (TransitionInfo.Change change : info.getChanges()) {
+            final ActivityManager.RunningTaskInfo taskInfo = change.getTaskInfo();
+            if (taskInfo == null
+                    || taskInfo.displayId != DEFAULT_DISPLAY
+                    || taskInfo.taskId == -1) {
+                continue;
+            }
+            Boolean visibilityUpdate = getDeskVisibilityUpdateForChange(change);
+            if (visibilityUpdate != null) {
+                // NOTE: Unable to use user ID from task info because desk root tasks may have
+                // the system user ID.
+                int userId = mShellController.getCurrentUserId();
+                mDesktopVisibilityForUser.put(userId, visibilityUpdate);
+                if (userId == mListenerUserId) {
+                    update = visibilityUpdate;
+                }
+            }
+        }
+
+        return update;
     }
 
     /**
@@ -183,6 +262,20 @@ public class HomeTransitionObserver implements TransitionObserver,
         return null;
     }
 
+    private Boolean getDeskVisibilityUpdateForChange(TransitionInfo.Change change) {
+        if (mDesksOrganizer.isEmpty() || !mDesksOrganizer.get().isDeskChange(change)) {
+            return null;
+        }
+        final int mode = change.getMode();
+        if (TransitionUtil.isClosingMode(mode)) {
+            return false;
+        }
+        if (TransitionUtil.isOpeningMode(mode) || change.hasFlags(FLAG_MOVED_TO_TOP)) {
+            return true;
+        }
+        return null;
+    }
+
     @Override
     public void onTransitionStarting(@NonNull IBinder transition) {}
 
@@ -193,9 +286,6 @@ public class HomeTransitionObserver implements TransitionObserver,
     @Override
     public void onTransitionFinished(@NonNull IBinder transition,
             boolean aborted) {
-        if (!ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX.isTrue()) {
-            return;
-        }
         // Handle the case where the DragToDesktop START transition is interrupted and we never
         // receive a CANCEL/END transition.
         if (mPendingStartDragTransition == null
@@ -204,10 +294,10 @@ public class HomeTransitionObserver implements TransitionObserver,
         }
         mPendingStartDragTransition = null;
 
-        Boolean pendingVisibility = mIsHomeVisibleForUser.get(mListenerUserId);
-        if (pendingVisibility != null) {
-            notifyHomeVisibilityChanged(pendingVisibility);
-        }
+        UpdateParameters pendingHomeState = mHomeUpdateForUser.get(mListenerUserId);
+        Boolean pendingDesktopVisibility =
+                mTrackDesktopVisibility ? mDesktopVisibilityForUser.get(mListenerUserId) : null;
+        notifyHomeVisibilityChangedForUpdates(pendingHomeState, pendingDesktopVisibility);
     }
 
     /**
@@ -225,10 +315,10 @@ public class HomeTransitionObserver implements TransitionObserver,
         if (listener != null) {
             mListenerUserId = userId;
             mListener.register(listener);
-            Boolean isVisible = mIsHomeVisibleForUser.get(userId);
-            if (isVisible != null) {
-                notifyHomeVisibilityChanged(isVisible);
-            }
+            UpdateParameters pendingHomeState = mHomeUpdateForUser.get(userId);
+            Boolean pendingDesktopVisibility =
+                    mTrackDesktopVisibility ? mDesktopVisibilityForUser.get(userId) : null;
+            notifyHomeVisibilityChangedForUpdates(pendingHomeState, pendingDesktopVisibility);
         } else {
             mListener.unregister();
             mListenerUserId = USER_NULL;
@@ -238,11 +328,29 @@ public class HomeTransitionObserver implements TransitionObserver,
     /**
      * Notifies the listener that the home visibility has changed.
      * @param isVisible true when home activity is visible, false otherwise.
+     * @param keyguardGoingAway true when keyguard is being dismissed, false otherwise.
+     * @param waking true when the device is waking as part of the transition, false otherwise.
      */
-    public void notifyHomeVisibilityChanged(boolean isVisible) {
+    public void notifyHomeVisibilityChanged(
+            boolean isVisible, boolean keyguardGoingAway, boolean waking, boolean behindDesk) {
         if (mListener != null) {
-            mListener.call(l -> l.onHomeVisibilityChanged(isVisible));
+            mListener.call(l -> l.onHomeVisibilityChanged(isVisible, keyguardGoingAway || waking,
+                    behindDesk));
         }
+    }
+
+    private void notifyHomeVisibilityChangedForUpdates(
+            @Nullable UpdateParameters homeState, @Nullable Boolean desktopState) {
+        if (homeState == null && desktopState == null) {
+            return;
+        }
+
+        boolean homeVisible = homeState == null || homeState.mIsVisible;
+        notifyHomeVisibilityChanged(
+                homeVisible,
+                homeState != null && homeState.mKeyguardGoingAway,
+                homeState != null && homeState.mWaking,
+                homeVisible && desktopState != null && desktopState);
     }
 
     @Override
@@ -263,6 +371,21 @@ public class HomeTransitionObserver implements TransitionObserver,
         if (mListener != null) {
             // Unregister the listener to ensure any registered binder death recipients are unlinked
             mListener.unregister();
+        }
+    }
+
+    /**
+     * Container class for Launcher visibility changes, Keyguard transition state, and waking state.
+     */
+    private static class UpdateParameters {
+        boolean mIsVisible;
+        boolean mKeyguardGoingAway;
+        boolean mWaking;
+
+        UpdateParameters(boolean isVisible, boolean keyguardGoingAway, boolean waking) {
+            mIsVisible = isVisible;
+            mKeyguardGoingAway = keyguardGoingAway;
+            mWaking = waking;
         }
     }
 }

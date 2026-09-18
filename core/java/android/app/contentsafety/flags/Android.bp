@@ -1,0 +1,13 @@
+// contentsafety
+aconfig_declarations {
+    name: "android.app.contentsafety-aconfig",
+    package: "android.app.contentsafety.flags",
+    container: "system",
+    srcs: ["contentsafety.aconfig"],
+}
+
+java_aconfig_library {
+    name: "android.app.contentsafety-aconfig-java",
+    aconfig_declarations: "android.app.contentsafety-aconfig",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+}

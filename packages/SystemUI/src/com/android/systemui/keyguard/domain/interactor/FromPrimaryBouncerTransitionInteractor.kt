@@ -20,14 +20,12 @@ import android.animation.ValueAnimator
 import android.util.Log
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.keyguard.KeyguardSecurityModel
-import com.android.systemui.Flags
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
-import com.android.systemui.keyguard.KeyguardWmStateRefactor
 import com.android.systemui.keyguard.data.repository.KeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState
@@ -42,6 +40,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -126,80 +125,51 @@ constructor(
 
     private fun listenForPrimaryBouncerNotShowing() {
         if (SceneContainerFlag.isEnabled) return
-        if (KeyguardWmStateRefactor.isEnabled) {
-            scope.launch {
-                keyguardInteractor.primaryBouncerShowing
-                    .filterRelevantKeyguardStateAnd { isBouncerShowing ->
-                        // TODO(b/307976454) - See if we need to listen for SHOW_WHEN_LOCKED
-                        // activities showing up over the bouncer. Camera launch can't show up over
-                        // bouncer since the first power press hides bouncer. Do occluding
-                        // activities auto hide bouncer? Not sure.
-                        !isBouncerShowing
-                    }
-                    .collect {
-                        val isAwake = powerInteractor.detailedWakefulness.value.isAwake()
-                        val isIdleOnCommunal = communalSceneInteractor.isIdleOnCommunal.value
-                        if (
-                            !maybeStartTransitionToOccludedOrInsecureCamera { state, reason ->
-                                startTransitionTo(state, ownerReason = reason)
-                            } && isAwake
-                        ) {
-                            val toState =
-                                if (isIdleOnCommunal) {
-                                    KeyguardState.GLANCEABLE_HUB
-                                } else {
-                                    KeyguardState.LOCKSCREEN
-                                }
-                            startTransitionTo(toState)
-                        }
-                    }
-            }
-        } else {
-            scope.launch {
-                keyguardInteractor.primaryBouncerShowing
-                    .filterRelevantKeyguardStateAnd { isBouncerShowing -> !isBouncerShowing }
-                    .collect {
-                        val isAwake = powerInteractor.detailedWakefulness.value.isAwake()
-                        val isDreaming = keyguardInteractor.isDreaming.value
-                        val isIdleOnCommunal = communalSceneInteractor.isIdleOnCommunal.value
-                        val isOccluded = keyguardInteractor.isKeyguardOccluded.value
-                        val hubV2 = communalSettingsInteractor.isV2FlagEnabled()
-                        val toState =
-                            if (isAwake) {
-                                if (isOccluded && !isDreaming) {
-                                    KeyguardState.OCCLUDED
-                                } else if (!hubV2 && isIdleOnCommunal) {
-                                    KeyguardState.GLANCEABLE_HUB
-                                } else if (isDreaming) {
-                                    KeyguardState.DREAMING
-                                } else if (hubV2 && isIdleOnCommunal) {
-                                    KeyguardState.GLANCEABLE_HUB
-                                } else {
-                                    KeyguardState.LOCKSCREEN
-                                }
+        scope.launch {
+            keyguardInteractor.primaryBouncerShowing
+                .debounce(BOUNCER_SHOWING_DEBOUNCE)
+                .filterRelevantKeyguardStateAnd { isBouncerShowing -> !isBouncerShowing }
+                .collect {
+                    val isAwake = powerInteractor.detailedWakefulness.value.isAwake()
+                    val isDreaming = keyguardInteractor.isDreaming.value
+                    val isIdleOnCommunal = communalSceneInteractor.isIdleOnCommunal.value
+                    val isOccluded = keyguardInteractor.isKeyguardOccluded.value
+                    val hubV2 = communalSettingsInteractor.isV2FlagEnabled()
+                    val toState =
+                        if (isAwake) {
+                            if (isOccluded && !isDreaming) {
+                                KeyguardState.OCCLUDED
+                            } else if (!hubV2 && isIdleOnCommunal) {
+                                KeyguardState.GLANCEABLE_HUB
+                            } else if (isDreaming) {
+                                KeyguardState.DREAMING
+                            } else if (hubV2 && isIdleOnCommunal) {
+                                KeyguardState.GLANCEABLE_HUB
                             } else {
-                                // This shouldn't necessarily happen, but there's a bug in the
-                                // bouncer logic which is incorrectly showing/hiding rapidly
-                                Log.i(
-                                    TAG,
-                                    "Going back to sleeping state to correct an attempt to " +
-                                        "show bouncer",
-                                )
-                                keyguardInteractor.asleepKeyguardState.value
+                                KeyguardState.LOCKSCREEN
                             }
-                        if (hubV2 && toState != KeyguardState.GLANCEABLE_HUB && isIdleOnCommunal) {
-                            // If bouncer is showing over the hub, we need to make sure we
-                            // properly dismiss the hub when transitioning away.
-                            communalSceneInteractor.changeScene(
-                                newScene = CommunalScenes.Blank,
-                                loggingReason = "bouncer no longer showing over GH",
-                                keyguardState = toState,
-                            )
                         } else {
-                            startTransitionTo(toState)
+                            // This shouldn't necessarily happen, but there's a bug in the
+                            // bouncer logic which is incorrectly showing/hiding rapidly
+                            Log.i(
+                                TAG,
+                                "Going back to sleeping state to correct an attempt to " +
+                                    "show bouncer",
+                            )
+                            keyguardInteractor.asleepKeyguardState.value
                         }
+                    if (hubV2 && toState != KeyguardState.GLANCEABLE_HUB && isIdleOnCommunal) {
+                        // If bouncer is showing over the hub, we need to make sure we
+                        // properly dismiss the hub when transitioning away.
+                        communalSceneInteractor.changeScene(
+                            newScene = CommunalScenes.Blank,
+                            loggingReason = "bouncer no longer showing over GH",
+                            keyguardState = toState,
+                        )
+                    } else {
+                        startTransitionTo(toState)
                     }
-            }
+                }
         }
     }
 
@@ -250,19 +220,13 @@ constructor(
 
     private fun listenForPrimaryBouncerToGone() {
         if (SceneContainerFlag.isEnabled) return
-        if (KeyguardWmStateRefactor.isEnabled) {
-            // This is handled in KeyguardSecurityContainerController and
-            // StatusBarKeyguardViewManager, which calls the transition interactor to kick off a
-            // transition vs. listening to legacy state flags.
-            return
-        }
 
         scope.launch {
             keyguardInteractor.isKeyguardGoingAway
                 .filterRelevantKeyguardStateAnd { isKeyguardGoingAway -> isKeyguardGoingAway }
                 .collect {
                     val editModeState = communalSceneInteractor.editModeState.value
-                    if (Flags.hubEditModeTransition() && editModeState != null) {
+                    if (editModeState != null) {
                         Log.i(
                             TAG,
                             "Ignoring isKeyguardGoingAway due to editModeState: $editModeState",
@@ -326,5 +290,6 @@ constructor(
         val TO_GLANCEABLE_HUB_DURATION = DEFAULT_DURATION
         val TO_GONE_SURFACE_BEHIND_VISIBLE_THRESHOLD = 0.1f
         val TO_DREAMING_DURATION = DEFAULT_DURATION
+        val BOUNCER_SHOWING_DEBOUNCE = 20L
     }
 }

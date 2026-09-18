@@ -22,6 +22,7 @@
     <uses-permission android:name="android.permission.READ_WALLPAPER_INTERNAL" />
     <uses-permission android:name="android.permission.SET_WALLPAPER_COMPONENT" />
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
+    <uses-permission android:name="android.permission.SCHEDULE_DELAYED_RESTORE" />
 
     <queries>
         <intent>

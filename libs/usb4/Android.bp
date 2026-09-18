@@ -38,6 +38,7 @@ rust_test_host {
     srcs: ["tests/lib.rs"],
     rustlibs: [
         "libusb4_policies",
+        "libanyhow",
         "libtempfile",
         "libkobject_uevent",
         "libtokio",
@@ -45,6 +46,9 @@ rust_test_host {
         "liblog_rust",
         "libuevent-framework",
         "libenv_logger",
+    ],
+    proc_macros: [
+        "libasync_trait",
     ],
     test_suites: ["general-tests"],
     auto_gen_config: true,

@@ -26,9 +26,11 @@ import com.android.ravenwood.common.RavenwoodInternalUtils;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -62,17 +64,25 @@ public class RavenwoodSystemProperties {
 
     static Map<String, String> readProperties(String propFile) {
         // Use an ordered map just for cleaner dump log.
-        final Map<String, String> ret = new LinkedHashMap<>();
         try {
-            Files.readAllLines(Path.of(propFile)).stream()
-                    .map(String::trim)
-                    .filter(s -> !s.startsWith("#"))
-                    .map(s -> s.split("\\s*=\\s*", 2))
-                    .filter(a -> a.length == 2 && a[1].length() > 0)
-                    .forEach(a -> ret.put(a[0], a[1]));
+            return readProperties(Files.readAllLines(Path.of(propFile)));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static Map<String, String> readProperties(List<String> propLines) {
+        if (propLines == null || propLines.isEmpty()) {
+            return new HashMap<>();
+        }
+        // Use an ordered map just for cleaner dump log.
+        final Map<String, String> ret = new LinkedHashMap<>();
+        propLines.stream()
+                .map(String::trim)
+                .filter(s -> !s.startsWith("#"))
+                .map(s -> s.split("\\s*=\\s*", 2))
+                .filter(a -> a.length == 2 && a[1].length() > 0)
+                .forEach(a -> ret.put(a[0], a[1]));
         return ret;
     }
 
@@ -85,9 +95,15 @@ public class RavenwoodSystemProperties {
      * since we only read from system-build.prop
      */
     static void initialize() {
-        var path = getRavenwoodRuntimePath();
-        var ravenwoodProps = readProperties(path + RAVENWOOD_BUILD_PROP);
-        var deviceProps = readProperties(path + DEVICE_BUILD_PROP);
+        var runtimePath = getRavenwoodRuntimePath();
+        var ravenwoodProps = readProperties(runtimePath + RAVENWOOD_BUILD_PROP);
+        var deviceProps = readProperties(runtimePath + DEVICE_BUILD_PROP);
+
+        // TODO(b/450069205): Use of "exists" is a bad recipe for incremental builds... Make sure
+        // ravenwood.go empties it if not specified.
+        final var perTestSyspropFle = RavenwoodEnvironment.getInstance().perTestSyspropFile();
+        var testProps = Files.exists(Path.of(perTestSyspropFle)) ? readProperties(perTestSyspropFle)
+                : new HashMap<String, String>();
 
         Log.i(TAG, "Default system properties:");
         ravenwoodProps.forEach((key, origValue) -> {
@@ -139,6 +155,24 @@ public class RavenwoodSystemProperties {
             }
         }
 
+        Log.i(TAG, "Per-test properties:");
+        testProps.forEach((key, origValue) -> {
+            Log.i(TAG, key + "=" + origValue);
+            sDefaultValues.put(key, origValue);
+        });
+
+        Log.i(TAG, "Env override properties:");
+        var envOverride = RavenwoodEnvironment.getInstance().getArrayEnvVar(
+                "RAVENWOOD_SYSPROP_OVERRIDE");
+        var envProps = readProperties(Arrays.asList(envOverride));
+
+        envProps.forEach((key, origValue) -> {
+            Log.i(TAG, key + "=" + origValue);
+            sDefaultValues.put(key, origValue);
+        });
+
+        Log.i(TAG, "Done reading properties");
+
         if (RAVENWOOD_VERBOSE_LOGGING) {
             // Dump all properties for local debugging.
             Log.v(TAG, "All system properties:");
@@ -172,6 +206,10 @@ public class RavenwoodSystemProperties {
     private static boolean isKeyReadable(String key) {
         // All core values should be readable
         if (sDefaultValues.containsKey(key)) {
+            return true;
+        }
+        // Any keys starting with "ravenwood." are readable. (but not writable.)
+        if (key.startsWith("ravenwood.")) {
             return true;
         }
         if (checkAllowed(key, sReadableKeys)) {

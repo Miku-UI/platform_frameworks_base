@@ -1,1 +1,3 @@
+set noparent
+
 include /core/java/android/view/accessibility/OWNERS

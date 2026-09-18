@@ -21,6 +21,7 @@ import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.media.metrics.reported.ReportedTrackChangeEvent;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -643,5 +644,30 @@ public final class TrackChangeEvent extends Event implements Parcelable {
                         "This Builder should not be reused. Use a new Builder instance instead");
             }
         }
+    }
+
+    /** @hide **/
+    public ReportedTrackChangeEvent toReportable() {
+
+        ReportedTrackChangeEvent reportable = new ReportedTrackChangeEvent();
+
+        reportable.trackState = getTrackState();
+        reportable.trackChangeReason = getTrackChangeReason();
+        reportable.containerMimeType = getContainerMimeType();
+        reportable.sampleMimeType = getSampleMimeType();
+        reportable.codecName = getCodecName();
+        reportable.bitrate = getBitrate();
+        reportable.timeSinceCreatedMillis = getTimeSinceCreatedMillis();
+        reportable.trackType = getTrackType();
+        reportable.language = getLanguage();
+        reportable.languageRegion = getLanguageRegion();
+        reportable.channelCount = getChannelCount();
+        reportable.audioSampleRate = getAudioSampleRate();
+        reportable.width = getWidth();
+        reportable.height = getHeight();
+        reportable.videoFrameRate = getVideoFrameRate();
+
+        return reportable;
+
     }
 }

@@ -137,13 +137,13 @@ public class BluetoothDeviceProcessor
         }
 
         final List<ObservableUuid> observableUuids =
-                mObservableUuidStore.getObservableUuidsForUser(userId);
+                mObservableUuidStore.readObservableUuids(userId);
         final ParcelUuid[] bluetoothDeviceUuids = device.getUuids();
         final List<ParcelUuid> deviceUuids = ArrayUtils.isEmpty(bluetoothDeviceUuids)
                 ? Collections.emptyList() : Arrays.asList(bluetoothDeviceUuids);
 
         for (ObservableUuid uuid : observableUuids) {
-            if (deviceUuids.contains(uuid.getUuid())) {
+            if (deviceUuids.contains(uuid.uuid())) {
                 mCallback.onDevicePresenceEventByUuid(uuid, connected ? EVENT_BT_CONNECTED
                         : EVENT_BT_DISCONNECTED);
             }

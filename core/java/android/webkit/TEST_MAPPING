@@ -7,9 +7,6 @@
       "name": "CtsWebkitMultiuserTestCases"
     },
     {
-      "name": "CtsSdkSandboxWebkitTestCases"
-    },
-    {
       "name": "CtsHostsideWebViewTests"
     },
     {

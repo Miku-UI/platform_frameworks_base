@@ -19,9 +19,6 @@ package com.android.systemui.statusbar.phone;
 import android.content.Context;
 import android.content.res.Resources;
 
-import com.android.systemui.log.LogBuffer;
-import com.android.systemui.log.core.Logger;
-import com.android.systemui.log.dagger.KeyguardClockLog;
 import com.android.systemui.res.R;
 import com.android.systemui.shade.LargeScreenHeaderHelper;
 
@@ -31,9 +28,6 @@ import javax.inject.Inject;
  * Utility class to calculate the clock position and top padding of notifications on Keyguard.
  */
 public class KeyguardClockPositionAlgorithm {
-    private static final String TAG = "KeyguardClockPositionAlgorithm";
-    private static final boolean DEBUG = false;
-
     /**
      * Top margin of notifications introduced by presence of split shade header / status bar
      */
@@ -64,12 +58,8 @@ public class KeyguardClockPositionAlgorithm {
 
     private boolean mIsSplitShade;
 
-    private Logger mLogger;
-
     @Inject
-    public KeyguardClockPositionAlgorithm(@KeyguardClockLog LogBuffer logBuffer) {
-        mLogger = new Logger(logBuffer, TAG);
-    }
+    public KeyguardClockPositionAlgorithm() {}
 
     /** Refreshes the dimension values. */
     public void loadDimens(Context context, Resources res) {

@@ -37,10 +37,10 @@ import com.android.systemui.media.remedia.shared.flag.MediaControlsInComposeFlag
 import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
 import com.android.systemui.qs.composefragment.dagger.usingMediaInComposeFragment
 import com.android.systemui.qs.ui.viewmodel.QuickSettingsContainerViewModel
-import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.domain.interactor.enableDualShade
 import com.android.systemui.shade.domain.interactor.enableSingleShade
 import com.android.systemui.shade.domain.interactor.enableSplitShade
+import com.android.systemui.shade.shared.flag.DualShadeFlag
 import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
@@ -78,10 +78,15 @@ class MediaInRowInLandscapeViewModelTest(
 
     @Before
     fun setUp() {
-        // Skip this test if SceneContainerFlag is disabled and testData.shadeMode is Dual
+        // Skip this test if DualShadeFlag is disabled and testData.shadeMode is Dual
         Assume.assumeFalse(
-            "Skipping test: Dual shade requires SceneContainerFlag to be enabled.",
-            !SceneContainerFlag.isEnabled && testData.shadeMode == ShadeMode.Dual,
+            "Skipping test: Dual shade mode requires DualShadeFlag to be enabled.",
+            !DualShadeFlag.isEnabled && testData.shadeMode == ShadeMode.Dual,
+        )
+        // Skip this test if DualShadeFlag is enabled and testData.shadeMode is Split
+        Assume.assumeFalse(
+            "Skipping test: Split shade mode requires DualShadeFlag to be disabled.",
+            DualShadeFlag.isEnabled && testData.shadeMode == ShadeMode.Split,
         )
 
         when (testData.shadeMode) {
@@ -148,7 +153,11 @@ class MediaInRowInLandscapeViewModelTest(
         @Parameters(name = "testData={0}, flags={1}")
         fun data(): List<Array<Any>> {
             val allFlagsParameterization =
-                progressionOf(Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE, Flags.FLAG_SCENE_CONTAINER)
+                progressionOf(
+                    Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE,
+                    Flags.FLAG_SCENE_CONTAINER,
+                    Flags.FLAG_DUAL_SHADE,
+                )
             val testDataList = generateTestDataList()
             val allParameters = mutableListOf<Array<Any>>()
             testDataList.map { testData ->

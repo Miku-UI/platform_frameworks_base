@@ -28,7 +28,6 @@ import com.android.systemui.qs.pipeline.data.repository.CustomTileAddedRepositor
 import com.android.systemui.qs.pipeline.data.repository.customTileAddedRepository
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import java.util.Optional
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -59,21 +58,16 @@ class CustomTileAddedRepositoryUpgraderTest : SysuiTestCase() {
     @Test
     fun upgradeSkip_exception() =
         kosmos.runTest {
-            customTileAddedUpgradeSet = setOf(Optional.of(Upgrader(version = 3)))
-            assertThrows(IllegalStateException::class.java) {
-                underTest.start(userFlow)
-            }
+            customTileAddedUpgradeSet = setOf(Upgrader(version = 3))
+            assertThrows(IllegalStateException::class.java) { underTest.start(userFlow) }
         }
 
     @Test
     fun repeatedVersions_exception() =
         kosmos.runTest {
-            customTileAddedUpgradeSet =
-                setOf(Optional.of(Upgrader(version = 2)), Optional.of(Upgrader(version = 2)))
+            customTileAddedUpgradeSet = setOf(Upgrader(version = 2), Upgrader(version = 2))
 
-            assertThrows(IllegalStateException::class.java) {
-                underTest.start(userFlow)
-            }
+            assertThrows(IllegalStateException::class.java) { underTest.start(userFlow) }
         }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -83,7 +77,7 @@ class CustomTileAddedRepositoryUpgraderTest : SysuiTestCase() {
             val upgraderV2 = Upgrader(version = 2) { testDispatcher.scheduler.currentTime }
             val upgraderV3 = Upgrader(version = 3) { testDispatcher.scheduler.currentTime }
 
-            customTileAddedUpgradeSet = setOf(Optional.of(upgraderV2), Optional.of(upgraderV3))
+            customTileAddedUpgradeSet = setOf(upgraderV2, upgraderV3)
 
             underTest.start(userFlow)
             advanceTimeBy(5.milliseconds)
@@ -103,8 +97,7 @@ class CustomTileAddedRepositoryUpgraderTest : SysuiTestCase() {
             val upgraderV2 = Upgrader(version = 2)
             val failingUpgraderV3 = FailingUpgrader(version = 3)
 
-            customTileAddedUpgradeSet =
-                setOf(Optional.of(upgraderV2), Optional.of(failingUpgraderV3))
+            customTileAddedUpgradeSet = setOf(upgraderV2, failingUpgraderV3)
 
             underTest.start(userFlow)
             advanceTimeBy(5.milliseconds)
@@ -122,7 +115,7 @@ class CustomTileAddedRepositoryUpgraderTest : SysuiTestCase() {
             val upgraderV2 = Upgrader(version = 2) { testDispatcher.scheduler.currentTime }
             val upgraderV3 = Upgrader(version = 3) { testDispatcher.scheduler.currentTime }
 
-            customTileAddedUpgradeSet = setOf(Optional.of(upgraderV2), Optional.of(upgraderV3))
+            customTileAddedUpgradeSet = setOf(upgraderV2, upgraderV3)
             val oldUser = userFlow.value
             val newUser = oldUser + 1
 

@@ -26,7 +26,8 @@ fun TwoTargetButtonPreference(
     title: String,
     summary: () -> CharSequence,
     icon: @Composable (() -> Unit)? = null,
-    onClick: () -> Unit,
+    enabled: Boolean = true,
+    onClick: (() -> Unit)? = null,
     buttonIcon: ImageVector,
     buttonIconDescription: String,
     onButtonClick: () -> Unit
@@ -34,10 +35,11 @@ fun TwoTargetButtonPreference(
     TwoTargetPreference(
         title = title,
         summary = summary,
+        primaryEnabled = { enabled },
         primaryOnClick = onClick,
         icon = icon,
     ) {
-        IconButton(onClick = onButtonClick) {
+        IconButton(onClick = onButtonClick, enabled = enabled) {
             Icon(imageVector = buttonIcon, contentDescription = buttonIconDescription)
         }
     }

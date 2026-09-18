@@ -33,5 +33,5 @@ abstract class BaseTest
 constructor(
     override val flicker: FlickerTest,
     instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation(),
-    tapl: LauncherInstrumentation = LauncherInstrumentation()
+    tapl: LauncherInstrumentation = LauncherInstrumentation(),
 ) : BaseBenchmarkTest(flicker, instrumentation, tapl), ICommonAssertions

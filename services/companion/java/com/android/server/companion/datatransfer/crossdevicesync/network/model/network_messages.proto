@@ -1,0 +1,40 @@
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+syntax = "proto2";
+
+package com.android.server.companion.datatransfer.crossdevicesync.network.model;
+
+option java_multiple_files = true;
+
+/**
+ * A message to send or receive from CompanionDeviceManager.
+ * (Corresponds to com.android.server.companion.datatransfer.crossdevicesync.network.model.Message)
+ */
+message MessageProto {
+    optional int64 handle_id = 1;
+    optional string network_id = 2;
+    optional bytes payload = 3;
+}
+
+/**
+ * A batched message format that groups multiple messages and multiple ACKs together.
+ * (Corresponds to com.android.server.companion.datatransfer.crossdevicesync.network.model.BatchedMessage)
+ */
+message BatchedMessageProto {
+    repeated MessageProto messages = 1;
+    repeated int64 ack_ids = 2;
+    optional int64 sender_instance_id = 3;
+}

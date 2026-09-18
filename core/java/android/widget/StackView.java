@@ -46,11 +46,11 @@ import com.android.internal.R;
 
 import java.lang.ref.WeakReference;
 
-@RemoteView
 /**
  * A view that displays its children in a stack and allows users to discretely swipe
  * through the children.
  */
+@RemoteView
 public class StackView extends AdapterViewAnimator {
     private final String TAG = "StackView";
 

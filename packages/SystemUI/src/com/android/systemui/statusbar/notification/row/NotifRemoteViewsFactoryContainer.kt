@@ -43,8 +43,6 @@ constructor(
         }
         add(optimizedLinearLayoutFactory)
         add(notificationViewFlipperFactory.get())
-        if (android.app.Flags.notificationsRedesignAppIcons()) {
-            add(notificationRowIconViewInflaterFactory)
-        }
+        add(notificationRowIconViewInflaterFactory)
     }
 }

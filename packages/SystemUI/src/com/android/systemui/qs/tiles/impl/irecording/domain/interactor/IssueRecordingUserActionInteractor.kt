@@ -25,6 +25,7 @@ import com.android.internal.jank.InteractionJankMonitor
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
+import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.qs.pipeline.domain.interactor.PanelInteractor
@@ -92,7 +93,17 @@ constructor(
                         .dialogTransitionController(
                             DialogCuj(InteractionJankMonitor.CUJ_SHADE_DIALOG_OPEN, TILE_SPEC)
                         )
-                        ?.let { dialogTransitionAnimator.show(dialog, it) } ?: dialog.show()
+                        ?.let {
+                            if (TransitionAnimator.dynamicTargetResolutionEnabled()) {
+                                dialogTransitionAnimator.show(
+                                    dialog,
+                                    expandable::dialogTransitionController,
+                                    it.cuj,
+                                )
+                            } else {
+                                dialogTransitionAnimator.show(dialog, it)
+                            }
+                        } ?: dialog.show()
                 } else {
                     dialog.show()
                 }

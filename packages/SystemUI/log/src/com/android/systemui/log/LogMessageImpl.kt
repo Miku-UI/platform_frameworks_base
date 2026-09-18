@@ -32,6 +32,7 @@ data class LogMessageImpl(
     override var str3: String?,
     override var int1: Int,
     override var int2: Int,
+    override var int3: Int,
     override var long1: Long,
     override var long2: Long,
     override var double1: Double,
@@ -63,6 +64,7 @@ data class LogMessageImpl(
         str3 = null
         int1 = 0
         int2 = 0
+        int3 = 0
         long1 = 0
         long2 = 0
         double1 = 0.0
@@ -84,6 +86,7 @@ data class LogMessageImpl(
                 null,
                 null,
                 null,
+                0,
                 0,
                 0,
                 0,

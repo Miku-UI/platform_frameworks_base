@@ -32,6 +32,8 @@ import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.statusbar.phone.statusBarKeyguardViewManager
 import com.android.systemui.testKosmos
+import com.android.systemui.wallpapers.data.repository.wallpaperRepository
+import com.android.systemui.wallpapers.domain.interactor.fakeWallpaperRepository
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Before
@@ -62,6 +64,7 @@ class KeyguardTouchHandlingInteractorOnClickTest(private val testScenario: TestS
         kosmos.pointerDeviceRepository.fake.setIsAnyPointerConnected(
             testScenario.isAnyPointingDeviceConnected
         )
+        kosmos.wallpaperRepository = kosmos.fakeWallpaperRepository
         underTest = kosmos.keyguardTouchHandlingInteractor
     }
 
@@ -122,6 +125,15 @@ class KeyguardTouchHandlingInteractorOnClickTest(private val testScenario: TestS
             } else {
                 assertThat(runningAuthRequest?.first).isNull()
                 assertThat(runningAuthRequest?.second).isNull()
+            }
+
+            kosmos.fakeWallpaperRepository.setShouldSendFocalArea(true)
+            assertThat(kosmos.fakeWallpaperRepository.sendTapCommandCallCount).isEqualTo(0)
+            underTest.onClick(100.0f, 100.0f)
+            if (kosmos.fakeWallpaperRepository.shouldSendFocalArea.value) {
+                assertThat(kosmos.fakeWallpaperRepository.sendTapCommandCallCount).isEqualTo(1)
+            } else {
+                assertThat(kosmos.fakeWallpaperRepository.sendTapCommandCallCount).isEqualTo(0)
             }
         }
 

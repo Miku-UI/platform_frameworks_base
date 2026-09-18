@@ -46,7 +46,6 @@ import android.animation.Animator;
 import android.content.Context;
 import android.graphics.Color;
 import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
 import android.testing.ViewUtils;
 import android.util.MathUtils;
@@ -794,7 +793,6 @@ public class ScrimControllerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_DREAM_BOUNCER_TRANSITION_FIX)
     public void openBouncerOverDream() {
         mScrimController.setScrimVisibleListener(visible -> mScrimVisibility = visible);
         mScrimController.legacyTransitionTo(ScrimState.DREAMING);

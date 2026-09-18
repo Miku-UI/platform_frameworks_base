@@ -29,20 +29,22 @@ import com.android.systemui.coroutines.FlowValue
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.display.data.repository.DeviceStateRepository
 import com.android.systemui.display.data.repository.DeviceStateRepository.DeviceState.CONCURRENT_DISPLAY
-import com.android.systemui.display.data.repository.FakeDeviceStateRepository
-import com.android.systemui.display.data.repository.FakeDisplayRepository
 import com.android.systemui.display.data.repository.createPendingDisplay
 import com.android.systemui.display.data.repository.display
+import com.android.systemui.display.data.repository.displayRepository
+import com.android.systemui.display.data.repository.fakeDeviceStateRepository
 import com.android.systemui.display.domain.interactor.ConnectedDisplayInteractor.PendingDisplay
 import com.android.systemui.display.domain.interactor.ConnectedDisplayInteractor.State
-import com.android.systemui.keyguard.data.repository.FakeKeyguardRepository
+import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
+import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -55,20 +57,15 @@ import org.mockito.Mockito.anyInt
 @SmallTest
 class ConnectedDisplayInteractorTest : SysuiTestCase() {
 
-    private val virtualDeviceManager = mock<VirtualDeviceManager>()
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
+    private val virtualDeviceManager = kosmos.virtualDeviceManager
 
-    private val fakeDisplayRepository = FakeDisplayRepository()
-    private val fakeKeyguardRepository = FakeKeyguardRepository()
-    private val fakeDeviceStateRepository = FakeDeviceStateRepository()
+    private val fakeDisplayRepository = kosmos.displayRepository
+    private val fakeKeyguardRepository = kosmos.fakeKeyguardRepository
+    private val fakeDeviceStateRepository = kosmos.fakeDeviceStateRepository
     private val connectedDisplayStateProvider: ConnectedDisplayInteractor =
-        ConnectedDisplayInteractorImpl(
-            virtualDeviceManager,
-            fakeKeyguardRepository,
-            fakeDisplayRepository,
-            fakeDeviceStateRepository,
-            UnconfinedTestDispatcher(),
-        )
-    private val testScope = TestScope(UnconfinedTestDispatcher())
+        kosmos.connectedDisplayInteractor
+    private val testScope = kosmos.testScope
 
     @Before
     fun setup() {
@@ -148,7 +145,7 @@ class ConnectedDisplayInteractorTest : SysuiTestCase() {
             fakeDisplayRepository.emit(
                 setOf(
                     display(type = TYPE_EXTERNAL, flags = Display.FLAG_SECURE),
-                    display(type = TYPE_EXTERNAL, flags = 0)
+                    display(type = TYPE_EXTERNAL, flags = 0),
                 )
             )
 
@@ -240,6 +237,43 @@ class ConnectedDisplayInteractorTest : SysuiTestCase() {
 
             runCurrent()
             assertThat(count).isEqualTo(0)
+            job.cancel()
+        }
+
+    @Test
+    fun virtualDeviceOwnedMirrorVirtualDisplay_emitsConnectedDisplayRemoval() =
+        testScope.runTest {
+            whenever(virtualDeviceManager.isVirtualDeviceOwnedMirrorDisplay(anyInt()))
+                .thenReturn(true)
+            var count = 0
+            val job =
+                connectedDisplayStateProvider.connectedDisplayRemoval
+                    .onEach { count++ }
+                    .launchIn(this)
+
+            fakeDisplayRepository.emit(display(id = 0, type = TYPE_INTERNAL))
+            fakeDisplayRepository.emit(display(id = 2, type = TYPE_VIRTUAL))
+            fakeDisplayRepository.emitDisplayRemoveEvent(2)
+
+            runCurrent()
+            assertThat(count).isEqualTo(1)
+            job.cancel()
+        }
+
+    @Test
+    fun externalDisplay_emitsConnectedDisplayRemoval() =
+        testScope.runTest {
+            var count = 0
+            val job =
+                connectedDisplayStateProvider.connectedDisplayRemoval
+                    .onEach { count++ }
+                    .launchIn(this)
+
+            fakeDisplayRepository.emit(display(id = 2, type = TYPE_EXTERNAL))
+            fakeDisplayRepository.emitDisplayRemoveEvent(2)
+
+            runCurrent()
+            assertThat(count).isEqualTo(1)
             job.cancel()
         }
 

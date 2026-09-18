@@ -350,7 +350,6 @@ class UserSystemPackageInstaller {
         // Check whether all allowlisted packages are indeed on the system.
         final String notPresentFmt = "%s is allowlisted but not present.";
         final String notSystemFmt = "%s is allowlisted and present but not a system package.";
-        final String overlayFmt = "%s is allowlisted unnecessarily since it's a static overlay.";
         for (String pkgName : allAllowlistedPackages) {
             var packageState = pmInt.getPackageStateInternal(pkgName);
             var pkg = packageState == null ? null : packageState.getAndroidPackage();
@@ -358,8 +357,6 @@ class UserSystemPackageInstaller {
                 warnings.add(String.format(notPresentFmt, pkgName));
             } else if (!packageState.isSystem()) {
                 warnings.add(String.format(notSystemFmt, pkgName));
-            } else if (shouldUseOverlayTargetName(pkg)) {
-                warnings.add(String.format(overlayFmt, pkgName));
             }
         }
         return warnings;
@@ -387,7 +384,7 @@ class UserSystemPackageInstaller {
             if (pkg == null || !packageState.isSystem() || pkg.isApex()) return;
             final String pkgName = pkg.getManifestPackageName();
             if (!allAllowlistedPackages.contains(pkgName)
-                    && !shouldUseOverlayTargetName(pmInt.getPackage(pkgName))) {
+                    && !canInsteadUseOverlayTargetName(pmInt.getPackage(pkgName))) {
                 errors.add(String.format(logMessageFmt, pkgName));
             }
         });
@@ -437,12 +434,13 @@ class UserSystemPackageInstaller {
     }
 
     /**
-     * Returns whether the package is a static overlay, whose installation should depend on the
-     * allowlisting of the overlay's target's package name, rather than of its own package name.
+     * Returns whether the package is a static overlay, whose installation is allowed to implicitly
+     * depend on the allowlisting of the overlay's target's package name, rather than of its own
+     * package name.
      *
      * @param pkg A package (which need not be an overlay)
      */
-    private static boolean shouldUseOverlayTargetName(AndroidPackage pkg) {
+    private static boolean canInsteadUseOverlayTargetName(AndroidPackage pkg) {
         return pkg.isOverlayIsStatic();
     }
 
@@ -546,20 +544,27 @@ class UserSystemPackageInstaller {
      *
      * @param sysPkg the system package. Must be a system package; no verification for this is done.
      * @param userTypeAllowlist map of package manifest names to user types on which they should be
-     *                          installed. This is only used for overriding the userWhitelist in
+     *                          installed. This is only used for overriding the userAllowlist in
      *                          certain situations (based on its keyset).
      * @param userAllowlist set of package manifest names that should be installed on this
-     *                      <b>particular</b> user. This must be consistent with userTypeWhitelist,
+     *                      <b>particular</b> user. This must be consistent with userTypeAllowlist,
      *                      but is passed in separately to avoid repeatedly calculating it from
-     *                      userTypeWhitelist.
+     *                      userTypeAllowlist.
      * @param implicitlyAllowlist whether non-mentioned packages are implicitly allowlisted.
      */
     @VisibleForTesting
     static boolean shouldInstallPackage(AndroidPackage sysPkg,
             @NonNull ArrayMap<String, Long> userTypeAllowlist,
             @NonNull Set<String> userAllowlist, boolean implicitlyAllowlist) {
-        final String pkgName = shouldUseOverlayTargetName(sysPkg) ?
-                sysPkg.getOverlayTarget() : sysPkg.getManifestPackageName();
+        String pkgName = sysPkg.getManifestPackageName();
+        if (android.multiuser.Flags.enableExplicitStaticOverlayAllowlisting()) {
+            if (canInsteadUseOverlayTargetName(sysPkg) && !userTypeAllowlist.containsKey(pkgName)) {
+                // Static overlay with no explicit entry should implicitly use its target's entry.
+                pkgName = sysPkg.getOverlayTarget();
+            }
+        } else if (canInsteadUseOverlayTargetName(sysPkg)) {
+            pkgName = sysPkg.getOverlayTarget();
+        }
         return (implicitlyAllowlist && !userTypeAllowlist.containsKey(pkgName))
                 || userAllowlist.contains(pkgName)
                 || sysPkg.isApex();

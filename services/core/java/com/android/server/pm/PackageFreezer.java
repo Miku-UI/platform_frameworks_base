@@ -20,7 +20,9 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SpecialUsers.CanBeALL;
 import android.annotation.UserIdInt;
+import android.app.ActivityManager;
 import android.content.pm.PackageManager;
+import android.os.UserHandle;
 
 import dalvik.system.CloseGuard;
 
@@ -62,20 +64,29 @@ final class PackageFreezer implements AutoCloseable {
     }
 
     PackageFreezer(String packageName, @CanBeALL @UserIdInt int userId, String killReason,
+            PackageManagerService pm, int exitInfoReason, @Nullable InstallRequest request,
+            boolean waitAppKilled) {
+        this(packageName, userId, killReason, pm, exitInfoReason, request, waitAppKilled, false);
+    }
+
+    PackageFreezer(String packageName, @CanBeALL @UserIdInt int userId, String killReason,
             PackageManagerService pm, int exitInfoReason, @Nullable InstallRequest request) {
-        this(packageName, userId, killReason, pm, exitInfoReason, request, false);
+        this(packageName, userId, killReason, pm, exitInfoReason, request, false, false);
     }
 
     PackageFreezer(String packageName, @CanBeALL @UserIdInt int userId, String killReason,
             PackageManagerService pm, int exitInfoReason, @Nullable InstallRequest request,
-            boolean waitAppKilled) {
+            boolean waitAppKilled, boolean waitAppStopped) {
         mPm = pm;
         mPackageName = packageName;
         mInstallRequest = request;
         final PackageSetting ps;
-        // We only focus on the install Freeze metrics now
+        // We only focus on the metrics for STEP_FREEZE_INSTALL and its sub-steps.
         if (mInstallRequest != null) {
             mInstallRequest.onFreezeStarted();
+            if (waitAppStopped) {
+                mInstallRequest.onStopAndKillStarted();
+            }
         }
         synchronized (mPm.mLock) {
             final int refCounts = mPm.mFrozenPackages
@@ -84,7 +95,11 @@ final class PackageFreezer implements AutoCloseable {
             ps = mPm.mSettings.getPackageLPr(mPackageName);
         }
         if (ps != null) {
-            if (waitAppKilled) {
+            fetchAndSaveAppState(ps.getAppId(), userId);
+            if (waitAppStopped) {
+                mPm.stopAndKillApplication(ps.getPackageName(), ps.getAppId(), userId, killReason,
+                        exitInfoReason);
+            } else if (waitAppKilled) {
                 mPm.killApplicationSync(ps.getPackageName(), ps.getAppId(), userId, killReason,
                         exitInfoReason);
             } else {
@@ -93,6 +108,23 @@ final class PackageFreezer implements AutoCloseable {
             }
         }
         mCloseGuard.open("close");
+    }
+
+    @SuppressWarnings("AndroidFrameworkRequiresPermission")
+    private void fetchAndSaveAppState(int appId, int userId) {
+        if (mInstallRequest == null) {
+            return;
+        }
+        int targetUserId = userId;
+        if (targetUserId == UserHandle.USER_ALL) {
+            targetUserId = ActivityManager.getCurrentUser();
+        }
+        int uid = UserHandle.getUid(targetUserId, appId);
+
+        ActivityManager am = mPm.mContext.getSystemService(ActivityManager.class);
+        if (am != null) {
+            mInstallRequest.setAppImportance(am.getUidImportance(uid));
+        }
     }
 
     @Override

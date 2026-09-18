@@ -32,7 +32,8 @@ interface ISessionProcessorImpl
 {
     CameraSessionConfig initSession(in IBinder token, in String cameraId,
             in Map<String, CameraMetadataNative> charsMap, in OutputSurface previewSurface,
-            in OutputSurface imageCaptureSurface, in OutputSurface postviewSurface);
+            in OutputSurface imageCaptureSurface, in OutputSurface postviewSurface,
+            in CaptureRequest sessionParameters);
     void deInitSession(in IBinder token);
     void onCaptureSessionStart(IRequestProcessorImpl requestProcessor, in String statsKey);
     void onCaptureSessionEnd();

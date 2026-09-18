@@ -67,7 +67,7 @@ import java.util.Set;
  * TODO(241429275): Initialize this when a proxy is registered.
  */
 public class ProxyAccessibilityServiceConnection extends AccessibilityServiceConnection {
-    private static final String LOG_TAG = "ProxyAccessibilityServiceConnection";
+    private static final String LOG_TAG = ProxyAccessibilityServiceConnection.class.getSimpleName();
 
     private int mDeviceId;
     private int mDisplayId;

@@ -96,6 +96,9 @@ const bool DEBUG_ERROR = true;
 // The current process.  This is cached here on startup.
 const pid_t sThisProcess = getpid();
 
+// Token for ANR warning. The value should be same as defined in the AnrTimer class for ANR warning.
+const int ANR_WARNING_TOKEN = 0x4157;
+
 // Return true if the process exists and false if we cannot know.
 bool processExists(pid_t pid) {
     char path[PATH_MAX];
@@ -331,26 +334,9 @@ private:
  * - Trace: Log the event for debugging
  * - Expire: Immediately expire the timer
  * - EarlyNotify: Send early notification to Java layer
+ * - AnrWarning: Send ANR warning notification to the Java layer
  */
-enum class SplitAction : uint8_t { None, Trace, Expire, EarlyNotify };
-
-/**
- * Return the string representation of a SplitAction.  This is used in debug messages and in the
- * UX for tracing.
- */
-const char* toString(SplitAction action) {
-    switch (action) {
-        case SplitAction::None:
-            return "none";
-        case SplitAction::Trace:
-            return "trace";
-        case SplitAction::Expire:
-            return "expire";
-        case SplitAction::EarlyNotify:
-            return "notify";
-    }
-    return "unknown";
-}
+enum class SplitAction : uint8_t { None, Trace, Expire, EarlyNotify, AnrWarning };
 
 /**
  * Represents a point during timer execution where an action should be taken.
@@ -377,279 +363,6 @@ struct SplitPoint {
     bool enabled() const {
         return action != SplitAction::None;
     }
-};
-
-/**
- * This class captures tracing information for processes tracked by an AnrTimer.  A user can
- * configure tracing to have the AnrTimerService emit extra information for watched processes.
- * singleton.
- *
- * The tracing configuration has two components: process selection and an optional early action.
- *
- *   Processes are selected in one of three ways:
- *    1. A list of numeric linux process IDs.
- *    2. A regular expression, matched against process names.
- *    3. The keyword "all", to trace every process that uses an AnrTimer.
- *   Perfetto trace events are always emitted for every operation on a traced process.
- *
- *   An early action occurs before the scheduled timeout.  The early timeout is specified as a
- *   percentage (integer value in the range 0:100) of the programmed timeout.  The AnrTimer will
- *   execute the early action at the early timeout.  The early action may terminate the timer.
- *
- *   There is one early action:
- *    1. Expire - consider the AnrTimer expired and report it to the upper layers.
- */
-class AnrTimerTracer {
-public:
-    AnrTimerTracer() {
-        AutoMutex _l(lock_);
-        resetLocked();
-    }
-
-    // Return the tracer configuration for a process.
-    SplitPoint getConfig(int pid) {
-        AutoMutex _l(lock_);
-        // The most likely situation: no tracing is configured.
-        if (!config_.enabled()) return {};
-        if (matchAllPids_) return config_;
-        if (watched_.contains(pid)) return config_;
-        if (!matchNames_) return {};
-        if (matchedPids_.contains(pid)) return config_;
-        if (unmatchedPids_.contains(pid)) return {};
-        std::string proc_name = getProcessName(pid);
-        bool matched = regexec(&regex_, proc_name.c_str(), 0, 0, 0) == 0;
-        if (matched) {
-            matchedPids_.insert(pid);
-            return config_;
-        } else {
-            unmatchedPids_.insert(pid);
-            return {};
-        }
-    }
-
-    // Set the trace configuration.  The input is a string that contains key/value pairs of the
-    // form "key=value".  Pairs are separated by spaces.  The function returns a string status.
-    // On success, the normalized config is returned.  On failure, the configuration reset the
-    // result contains an error message.  As a special case, an empty set of configs, or a
-    // config that contains only the keyword "show", will do nothing except return the current
-    // configuration.  On any error, all tracing is disabled.
-    std::pair<bool, std::string> setConfig(const std::vector<std::string>& config) {
-        AutoMutex _l(lock_);
-        if (config.size() == 0) {
-            // Implicit "show"
-            return { true, currentConfigLocked() };
-        } else if (config.size() == 1) {
-            // Process the one-word commands
-            const char* s = config[0].c_str();
-            if (strcmp(s, "show") == 0) {
-                return { true, currentConfigLocked() };
-            } else if (strcmp(s, "off") == 0) {
-                resetLocked();
-                return { true, currentConfigLocked() };
-            } else if (strcmp(s, "help") == 0) {
-                return { true, help() };
-            }
-        } else if (config.size() > 2) {
-            return { false, "unexpected values in config" };
-        }
-
-        // Barring an error in the remaining specification list, tracing will be enabled.
-        resetLocked();
-        // Fetch the process specification.  This must be the first configuration entry.
-        {
-            auto result = setTracedProcess(config[0]);
-            if (!result.first) return result;
-        }
-
-        // Process optional actions.
-        if (config.size() > 1) {
-            auto result = setTracedAction(config[1]);
-            if (!result.first) return result;
-        }
-
-        // Accept the result.
-        return { true, currentConfigLocked() };
-    }
-
-  private:
-    // Identify the processes to be traced.
-    std::pair<bool, std::string> setTracedProcess(std::string config) {
-        const char* s = config.c_str();
-        const char* word = nullptr;
-
-        if (strcmp(s, "pid=all") == 0) {
-            matchAllPids_ = true;
-        } else if ((word = startsWith(s, "pid=")) != nullptr) {
-            int p;
-            int n;
-            while (sscanf(word, "%d%n", &p, &n) == 1) {
-                watched_.insert(p);
-                word += n;
-                if (*word == ',') word++;
-            }
-            if (*word != 0) {
-                return { false, "invalid pid list" };
-            }
-            config_.action = SplitAction::Trace;
-        } else if ((word = startsWith(s, "name=")) != nullptr) {
-            if (matchNames_) {
-                regfree(&regex_);
-                matchNames_ = false;
-            }
-            if (regcomp(&regex_, word, REG_EXTENDED) != 0) {
-                return { false, "invalid regex" };
-            }
-            matchNames_ = true;
-            namePattern_ = word;
-            config_.action = SplitAction::Trace;
-        } else {
-            return { false, "no process specified" };
-        }
-        return { true, "" };
-    }
-
-    // Set the action to be taken on a traced process.  The incoming default action is Trace;
-    // this method may overwrite that action.
-    std::pair<bool, std::string> setTracedAction(std::string config) {
-        const char* s = config.c_str();
-        unsigned int percent = 0;
-        if (sscanf(s, "expire=%d", &percent) == 1) {
-            if (percent < 0 || percent > 100) {
-                return { false, "invalid expire timeout" };
-            }
-            config_.percent = static_cast<uint8_t>(percent);
-            config_.action = SplitAction::Expire;
-        } else {
-            return { false, std::string("cannot parse action ") + s };
-        }
-        return { true, "" };
-    }
-
-    // Return the action represented by the string.
-    static SplitAction fromString(const char* action) {
-        if (strcmp(action, "expire") == 0) return SplitAction::Expire;
-        return SplitAction::None;
-    }
-
-    // Return the help message.  This has everything except the invocation command.
-    static std::string help() {
-        static const char* msg =
-                "help     show this message\n"
-                "show     report the current configuration\n"
-                "off      clear the current configuration, turning off all tracing\n"
-                "spec...  configure tracing according to the specification list\n"
-                "  action=<action>     what to do when a split timer expires\n"
-                "    expire            expire the timer to the upper levels\n"
-                "    event             generate extra trace events\n"
-                "  pid=<pid>[,<pid>]   watch the processes in the pid list\n"
-                "  pid=all             watch every process in the system\n"
-                "  name=<regex>        watch the processes whose name matches the regex\n";
-        return msg;
-    }
-
-    // A small convenience function for parsing.  If the haystack starts with the needle and the
-    // haystack has at least one more character following, return a pointer to the following
-    // character.  Otherwise return null.
-    static const char* startsWith(const char* haystack, const char* needle) {
-        if (strncmp(haystack, needle, strlen(needle)) == 0 && strlen(haystack) + strlen(needle)) {
-            return haystack + strlen(needle);
-        }
-        return nullptr;
-    }
-
-    // Return the currently watched pids as a comma-separated list.  The lock must be held.
-    std::string watchedPidsLocked() const {
-        if (watched_.size() == 0) return "none";
-        bool first = true;
-        std::string result = "";
-        for (auto i = watched_.cbegin(); i != watched_.cend(); i++) {
-            if (first) {
-                result += StringPrintf("%d", *i);
-                first = false;
-            } else {
-                result += StringPrintf(",%d", *i);
-            }
-        }
-        return result;
-    }
-
-    // Return the current configuration, in a form that can be consumed by setConfig().
-    std::string currentConfigLocked() const {
-        if (!config_.enabled()) return "off";
-        std::string result;
-        if (matchAllPids_) {
-            result = "pid=all";
-        } else if (matchNames_) {
-            result = StringPrintf("name=\"%s\"", namePattern_.c_str());
-        } else {
-            result = std::string("pid=") + watchedPidsLocked();
-        }
-        switch (config_.action) {
-            case SplitAction::None:
-                break;
-            case SplitAction::Trace:
-                // The default action is Trace
-                break;
-            case SplitAction::Expire:
-                result += StringPrintf(" %s=%d", toString(config_.action), config_.percent);
-                break;
-            case SplitAction::EarlyNotify:
-                break;
-        }
-        return result;
-    }
-
-    // Reset the current configuration.
-    void resetLocked() {
-        if (!config_.enabled()) return; // It's already reset.
-
-        config_.action = SplitAction::None;
-        config_.percent = 0;
-        config_.token = 0;
-        matchAllPids_ = false;
-        watched_.clear();
-        if (matchNames_) regfree(&regex_);
-        matchNames_ = false;
-        namePattern_ = "";
-        matchedPids_.clear();
-        unmatchedPids_.clear();
-    }
-
-    // The lock for all operations
-    mutable Mutex lock_;
-
-    // The current tracing information, when a process matches.
-    SplitPoint config_;
-
-    // A short-hand flag that causes all processes to be tracing without the overhead of
-    // searching any of the maps.
-    bool matchAllPids_;
-
-    // A set of process IDs that should be traced.  This is updated directly in setConfig()
-    // and only includes pids that were explicitly called out in the configuration.
-    std::set<pid_t> watched_;
-
-    // Name mapping is a relatively expensive operation, since the process name must be fetched
-    // from the /proc file system and then a regex must be evaluated.  However, name mapping is
-    // useful to ensure processes are traced at the moment they start.  To make this faster, a
-    // process's name is matched only once, and the result is stored in the matchedPids_ or
-    // unmatchedPids_ set, as appropriate.  This can lead to confusion if a process changes its
-    // name after it starts.
-
-    // The global flag that enables name matching.  If this is disabled then all name matching
-    // is disabled.
-    bool matchNames_;
-
-    // The regular expression that matches processes to be traced.  This is saved for logging.
-    std::string namePattern_;
-
-    // The compiled regular expression.
-    regex_t regex_;
-
-    // The set of all pids that whose process names match (or do not match) the name regex.
-    // There is one set for pids that match and one set for pids that do not match.
-    std::set<pid_t> matchedPids_;
-    std::set<pid_t> unmatchedPids_;
 };
 
 /**
@@ -726,11 +439,6 @@ class AnrTimerService {
     // A timer has expired.
     void expire(timer_id_t);
 
-    // Configure a trace specification to trace selected timers.  See AnrTimerTracer for details.
-    static std::pair<bool, std::string> trace(const std::vector<std::string>& spec) {
-        return tracer_.setConfig(spec);
-    }
-
     // Return the Java object associated with this instance.
     jweak jtimer() const {
         return notifierObject_;
@@ -804,14 +512,9 @@ class AnrTimerService {
     // The clock used by this AnrTimerService.
     std::shared_ptr<Ticker> ticker_;
 
-    // The global tracing specification.
-    static AnrTimerTracer tracer_;
-
     // Default split points for any timer in this service
     std::vector<SplitPoint> defaultSplits_;
 };
-
-AnrTimerTracer AnrTimerService::tracer_;
 
 class AnrTimerService::ProcessStats {
   public:
@@ -890,9 +593,6 @@ class AnrTimerService::Timer {
     // True if this timer has been extended.
     bool extended;
 
-    // True if tracing is enabled for this timer.
-    const bool traced;
-
     // Bookkeeping for extensions.  The initial state of the process.  This is collected only if
     // the timer is extensible.
     ProcessStats initial;
@@ -916,11 +616,10 @@ class AnrTimerService::Timer {
             scheduled(0),
             action(SplitAction::None),
             token(0),
-            extended(false),
-            traced(false) {}
+            extended(false) {}
 
     // Create a new timer.  This starts the timer.
-    Timer(int pid, int uid, nsecs_t timeout, bool extend, nsecs_t now, SplitPoint trace,
+    Timer(int pid, int uid, nsecs_t timeout, bool extend, nsecs_t now,
           const std::vector<SplitPoint>* splits)
           : id(nextId()),
             pid(pid),
@@ -934,8 +633,7 @@ class AnrTimerService::Timer {
             scheduled(0),
             action(SplitAction::None),
             token(0),
-            extended(false),
-            traced(trace.enabled()) {
+            extended(false) {
         if (extend && pid != 0) {
             initial.fill(pid);
         }
@@ -986,6 +684,11 @@ class AnrTimerService::Timer {
 
             case SplitAction::EarlyNotify:
                 event("early");
+                schedule();
+                return current;
+
+            case SplitAction::AnrWarning:
+                event("anrWarning");
                 schedule();
                 return current;
 
@@ -1055,11 +758,11 @@ class AnrTimerService::Timer {
                             id, pid, uid, statusString(status), -ms);
     }
 
-    static int maxId() {
-        return idGen;
-    }
-
   private:
+    // A mask to ensure uint32_t timer IDs do not wrap to negative values when converted to
+    // int32_t values.
+    static constexpr uint32_t kIdMask = 0x7f'ff'ff'ff;
+
     /**
      * Collect the name of the process.
      */
@@ -1069,9 +772,9 @@ class AnrTimerService::Timer {
 
     // Get the next free ID.  NOTIMER is never returned.
     static timer_id_t nextId() {
-        timer_id_t id = idGen.fetch_add(1);
+        timer_id_t id = (idGen.fetch_add(1) & kIdMask);
         while (id == NOTIMER) {
-            id = idGen.fetch_add(1);
+            id = (idGen.fetch_add(1) & kIdMask);
         }
         return id;
     }
@@ -1083,11 +786,6 @@ class AnrTimerService::Timer {
 
     // Log an event, guarded by the debug flag.
     void event(const char* tag, bool verbose) {
-        if (traced) {
-            char msg[PATH_MAX];
-            snprintf(msg, sizeof(msg), "%s(pid=%d)", tag, pid);
-            traceEvent(msg);
-        }
         if (verbose) {
             ALOGI_IF(DEBUG_TIMER, "event %s %s name=%s",
                      tag, toString().c_str(), getName().c_str());
@@ -1350,7 +1048,7 @@ const char* AnrTimerService::statusString(Status s) {
 
 AnrTimerService::timer_id_t AnrTimerService::start(int pid, int uid, nsecs_t timeout) {
     AutoMutex _l(lock_);
-    Timer t(pid, uid, timeout, extend_, now(), tracer_.getConfig(pid), &defaultSplits_);
+    Timer t(pid, uid, timeout, extend_, now(), &defaultSplits_);
     insertLocked(t);
     t.start();
     counters_.started++;
@@ -1440,7 +1138,8 @@ void AnrTimerService::expire(timer_id_t timerId) {
     }
 
     // Deliver the notification outside of the lock.
-    if (meta.action == SplitAction::Expire || meta.action == SplitAction::EarlyNotify) {
+    if (meta.action == SplitAction::Expire || meta.action == SplitAction::EarlyNotify ||
+        meta.action == SplitAction::AnrWarning) {
         if (!notifier_(timerId, pid, uid, started, elapsed, notifierCookie_, notifierObject_,
                        expired, meta.token)) {
             // Notification failed, which means the listener will never call accept() or
@@ -1584,7 +1283,13 @@ jlong anrTimerCreate(JNIEnv* env, jobject jtimer, jstring jname, jboolean extend
         splits.reserve(n);
 
         for (jsize i = 0; i < n; ++i) {
-            splits.emplace_back(SplitAction::EarlyNotify, percents[i], tokens[i]);
+            // Create a SplitPoint for each token and push it to the vector.
+            if (tokens[i] == ANR_WARNING_TOKEN) {
+                splits.emplace_back(SplitAction::AnrWarning, percents[i], tokens[i]);
+            } else {
+                // tokens[i] == TOKEN_LONG_METHOD_TRACING
+                splits.emplace_back(SplitAction::EarlyNotify, percents[i], tokens[i]);
+            }
         }
         std::sort(splits.begin(), splits.end());
     }
@@ -1632,19 +1337,6 @@ jboolean anrTimerDiscard(JNIEnv* env, jclass, jlong ptr, jint timerId) {
     return toService(ptr)->discard(timerId);
 }
 
-jstring anrTimerTrace(JNIEnv* env, jclass, jobjectArray jconfig) {
-    if (!nativeSupportEnabled) return nullptr;
-    std::vector<std::string> config;
-    const jsize jlen = jconfig == nullptr ? 0 : env->GetArrayLength(jconfig);
-    for (size_t i = 0; i < jlen; i++) {
-        jstring je = static_cast<jstring>(env->GetObjectArrayElement(jconfig, i));
-        ScopedUtfChars e(env, je);
-        config.push_back(e.c_str());
-    }
-    auto r = AnrTimerService::trace(config);
-    return env->NewStringUTF(r.second.c_str());
-}
-
 jobjectArray anrTimerDump(JNIEnv *env, jclass, jlong ptr) {
     if (!nativeSupportEnabled) return nullptr;
     std::vector<std::string> stats = toService(ptr)->getDump();
@@ -1671,7 +1363,6 @@ static const JNINativeMethod methods[] = {
         {"nativeAnrTimerCancel", "(JI)Z", (void*)anrTimerCancel},
         {"nativeAnrTimerAccept", "(JI)Z", (void*)anrTimerAccept},
         {"nativeAnrTimerDiscard", "(JI)Z", (void*)anrTimerDiscard},
-        {"nativeAnrTimerTrace", "([Ljava/lang/String;)Ljava/lang/String;", (void*)anrTimerTrace},
         {"nativeAnrTimerDump", "(J)[Ljava/lang/String;", (void*)anrTimerDump},
         {"nativeAnrTimerSetTime", "(JJ)Z", (void*)anrTimerSetTime},
 };

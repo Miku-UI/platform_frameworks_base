@@ -44,7 +44,6 @@ val Kosmos.keyguardClockSection: ClockSection by
             clockInteractor = keyguardClockInteractor,
             keyguardClockViewModel = keyguardClockViewModel,
             context = applicationContext,
-            smartspaceViewModel = keyguardSmartspaceViewModel,
             blueprintInteractor = { keyguardBlueprintInteractor },
             rootViewModel = keyguardRootViewModel,
             aodBurnInViewModel = aodBurnInViewModel,
@@ -62,7 +61,6 @@ val Kosmos.keyguardSmartspaceSection: SmartspaceSection by
             smartspaceController = lockscreenSmartspaceController,
             keyguardUnlockAnimationController = keyguardUnlockAnimationController,
             blueprintInteractor = { keyguardBlueprintInteractor },
-            keyguardRootViewModel = keyguardRootViewModel,
         )
     }
 
@@ -84,6 +82,7 @@ val Kosmos.defaultKeyguardBlueprint by
             keyguardSliceViewSection = mock(),
             udfpsAccessibilityOverlaySection = mock(),
             accessibilityActionsSection = mock(),
+            batteryChargingPopupMenuSection = mock(),
         )
     }
 
@@ -102,9 +101,11 @@ val Kosmos.splitShadeBlueprint by
             aodNotificationIconsSection = mock(),
             aodBurnInSection = mock(),
             clockSection = keyguardClockSection,
+            keyguardSliceViewSection = mock(),
             smartspaceSection = keyguardSmartspaceSection,
             mediaSection = mock(),
             accessibilityActionsSection = mock(),
+            batteryChargingPopupMenuSection = mock(),
         )
     }
 

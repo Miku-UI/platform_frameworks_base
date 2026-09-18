@@ -2001,7 +2001,7 @@ public class ViewDebug {
     public interface CanvasProvider {
 
         /**
-         * Returns a canvas which can be used to draw {@param view}
+         * Returns a canvas which can be used to draw {@code view}
          */
         Canvas getCanvas(View view, int width, int height);
 

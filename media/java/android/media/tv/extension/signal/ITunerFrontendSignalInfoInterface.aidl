@@ -20,9 +20,25 @@ import android.media.tv.extension.signal.ITunerFrontendSignalInfoListener;
 import android.os.Bundle;
 
 /**
-* @hide
-*/
+ * Interface for passing FrontendStatus TIS extracted from Tuner to client app.
+ * This interface is used because client app and TIS currently cannot init the same Tuner instance,
+ * thus TIS need to pass in necessary tuner information to client app.
+ * @hide
+ */
 interface ITunerFrontendSignalInfoInterface {
+    /**
+     * Gets the current frontend signal status for the specified session.
+     *
+     * @param sessionToken The token that identifies the TIS session.
+     * @return A Bundle that resembles {@code android.media.tv.tuner.frontend.FrontendStatus},
+     *          containing the current signal information, such as strength, quality and more.
+     *          See @SignalConstant.FrontendSignalInfoKeys for key definitions.
+     */
     Bundle getFrontendSignalInfo(String sessionToken);
+    /**
+     * Registers a listener to receive notifications about frontend signal status changes.
+     *
+     * @param listener An ITunerFrontendSignalInfoListener to be called when it is updated.
+     */
     void setFrontendSignalInfoListener(in ITunerFrontendSignalInfoListener listener);
 }

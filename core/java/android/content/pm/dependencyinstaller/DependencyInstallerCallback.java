@@ -30,10 +30,12 @@ import android.os.RemoteException;
  * DependencyInstallerService uses this interface to indicate completion of the session creation
  * request given by the system server.
  *
+ * @deprecated The automatic dependency installation feature is no longer supported.
  * @hide
  */
 @SystemApi
-@FlaggedApi(Flags.FLAG_SDK_DEPENDENCY_INSTALLER)
+@Deprecated
+@FlaggedApi(Flags.FLAG_SDK_DEPENDENCY_INSTALLER_DEPRECATION)
 public final class DependencyInstallerCallback implements Parcelable {
     private final IBinder mBinder;
     private final IDependencyInstallerCallback mCallback;

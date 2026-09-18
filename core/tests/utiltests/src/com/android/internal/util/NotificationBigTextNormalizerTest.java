@@ -56,6 +56,49 @@ public class NotificationBigTextNormalizerTest {
     }
 
     @Test
+    public void testNewlinesWithSpacesAndZeroWidths() {
+        String input = "\n\u202D\u2800\n\u2060\n.\n";
+        String expected = "\u202D\u2060.";
+        assertEquals(
+                printCodes(expected),
+                printCodes(NotificationBigTextNormalizer.normalizeBigText(input)));
+    }
+
+    @Test
+    public void testMixOfWhitespaceAndZeroWidthSpecialCharacters() {
+        // We keep zero-width characters that have a valid use for formatting text.
+        String input =
+                "\u2800\u200D\u3164\u200C\u115F\u200B\u00A0\u2060\u2002\u200D\u2003\u200C"
+                        + "\u2004\u200B\u2009\u2060\u3000";
+        String expected = "\u200D\u200C\u200B\u2060\u200D\u200C\u200B\u2060";
+        assertEquals(
+                printCodes(expected),
+                printCodes(NotificationBigTextNormalizer.normalizeBigText(input)));
+    }
+
+    @Test
+    public void allOfInvisibleCharacters() {
+        // Everything from http://invisible-characters.com that aren't illegal to be input as java
+        // strings.
+        String input =
+                "\u0009\u000B\u000C \u00A0\u00AD\u034F\u061C\u115F\u1160\u1680\u17B4"
+                        + "\u17B5\u180B\u180C\u180D\u180E\u2000\u2001\u2002\u2003\u2004"
+                        + "\u2005\u2006\u2007\u2008\u2009\u200A\u200B\u200C\u200D\u200E"
+                        + "\u200F\u202A\u202B\u202C\u202D\u202F\u205F\u2060\u2061\u2062"
+                        + "\u2063\u2064\u2065\u2066\u2067\u2068\u2069\u206A\u206B\u206C"
+                        + "\u206D\u206E\u206F\u2800\u3000\u3164\uFEFF\uFFA0\uFFF9\uFFFA"
+                        + "\uFFFB\uFFFC\uD80C\uDFFC\uD834\uDD50\u202E";
+        // We keep zero-width characters that have a valid use for formatting text.
+        String expected =
+                "\u00AD\u034F\u061C\u17B4\u17B5\u180B\u180C\u180D\u180E\u200B\u200C\u200D"
+                        + "\u200E\u200F\u202A\u202B\u202C\u202D\u2060\u2066\u2067\u2068\u2069\u206A"
+                        + "\u206B\u206C\u206D\u206E\u206F\uFFFC\uD80C\uDFFC\u202E";
+        assertEquals(
+                printCodes(expected),
+                printCodes(NotificationBigTextNormalizer.normalizeBigText(input)));
+    }
+
+    @Test
     public void testNewlinesWithSpacesAndTabs() {
         String input = "Line 1\n  \n \t \n\tLine 2";
         // Adjusted expected output to include the tab character
@@ -75,39 +118,74 @@ public class NotificationBigTextNormalizerTest {
         // Only spaces
         assertEquals("This is a test.", NotificationBigTextNormalizer.normalizeBigText("This"
                 + "              is   a                         test."));
-        // Zero width characters bw spaces.
-        assertEquals("This is a test.", NotificationBigTextNormalizer.normalizeBigText("This"
-                + "\u200B \u200B \u200B \u200B \u200B \u200B \u200B \u200Bis\uFEFF \uFEFF \uFEFF"
-                + " \uFEFFa \u034F \u034F \u034F \u034F \u034F \u034Ftest."));
+        // Zero width characters between spaces. the not-useful \uFEFF should be removed.
+        assertEquals(
+                "This is a test.",
+                NotificationBigTextNormalizer.normalizeBigText(
+                        "This \uFEFF \uFEFF \uFEFF \uFEFF"
+                                + " \uFEFF \uFEFF \uFEFF \uFEFFis a"
+                                + " \uFEFF \uFEFF \uFEFF \uFEFF \uFEFF \uFEFFtest."));
 
         // Invisible formatting characters bw spaces.
-        assertEquals("This is a test.", NotificationBigTextNormalizer.normalizeBigText("This"
-                + "\u2061 \u2061 \u2061 \u2061 \u2061 \u2061 \u2061 \u2061is\u206E \u206E \u206E"
-                + " \u206Ea \uFFFB \uFFFB \uFFFB \uFFFB \uFFFB \uFFFBtest."));
+        assertEquals(
+                "This is\u206E \u206E\u206E\u206Ea test.",
+                NotificationBigTextNormalizer.normalizeBigText(
+                        "This\u2061 \u2061 \u2061 \u2061 \u2061 \u2061 \u2061 \u2061is\u206E \u206E"
+                            + " \u206E \u206Ea \uFFFB \uFFFB \uFFFB \uFFFB \uFFFB \uFFFBtest."));
         // Non breakable spaces
-        assertEquals("This is a test.", NotificationBigTextNormalizer.normalizeBigText("This"
-                + "\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0is\u2005 \u2005 \u2005"
-                + " \u2005a\u2005\u2005\u2005 \u2005\u2005\u2005test."));
+        assertEquals(
+                "This\u00A0is a\u2005test.",
+                NotificationBigTextNormalizer.normalizeBigText(
+                        "This"
+                                + "\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0is \u2005 \u2005"
+                                + " \u2005a\u2005\u2005\u2005 \u2005\u2005\u2005test."));
+        // Whitespace characters handled by java.lang.Character
+        assertEquals(
+                "This\u1680is a test.",
+                NotificationBigTextNormalizer.normalizeBigText(
+                        "This" + "\u1680 \u202F \u205Fis a test."));
+    }
+
+    @Test
+    public void testStandardWhitespaceCharacters() {
+        // Whitespace characters represented as '\h' in the standard java regex
+        String input =
+                "\t\u00A0\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008"
+                        + "\u2009\u200a\u202f\u205f\u3000";
+        String expected = "";
+        assertEquals(expected, NotificationBigTextNormalizer.normalizeBigText(input));
+    }
+
+    @Test
+    public void testRetainsSpecialSpaces() {
+        // Keeps special spaces (OGHAM SPACE MARK \u1680)
+        String text = "᚛ᚑᚌᚐᚋ ᚔᚄ ᚐᚅᚔᚋ᚜";
+        assertEquals(text, NotificationBigTextNormalizer.normalizeBigText(text));
     }
 
     @Test
     public void testZeroWidthCharRemoval() {
         // Test each character individually
-        char[] zeroWidthChars = { '\u200B', '\u200C', '\u200D', '\uFEFF', '\u034F' };
-
-        for (char c : zeroWidthChars) {
-            String input = "Test" + c + "string";
+        int[] zeroWidthCodePoints = {'\uFEFF', 0x1D150, 0x1D159, 0x1D173, 0x1D17A};
+        for (int c : zeroWidthCodePoints) {
+            StringBuilder builder = new StringBuilder();
+            builder.append("Test");
+            builder.appendCodePoint(c);
+            builder.append("string");
             String expected = "Teststring";
-            assertEquals(expected, NotificationBigTextNormalizer.normalizeBigText(input));
+            assertEquals(
+                    expected, NotificationBigTextNormalizer.normalizeBigText(builder.toString()));
         }
     }
 
     @Test
-    public void testWhitespaceReplacement() {
-        assertEquals("This text has horizontal whitespace.",
+    public void testWhitespaceRetained() {
+        assertEquals(
+                "This\ttext\thas\thorizontal\twhitespace.",
                 NotificationBigTextNormalizer.normalizeBigText(
                         "This\ttext\thas\thorizontal\twhitespace."));
-        assertEquals("This text has mixed whitespace.",
+        assertEquals(
+                "This text has mixed\u2009whitespace.",
                 NotificationBigTextNormalizer.normalizeBigText(
                         "This  text  has \u00A0 mixed\u2009whitespace."));
         assertEquals("This text has leading and trailing whitespace.",
@@ -115,34 +193,13 @@ public class NotificationBigTextNormalizerTest {
                         "\t This text has leading and trailing whitespace. \n"));
     }
 
-    @Test
-    public void testInvisibleFormattingCharacterRemoval() {
-        // Test each character individually
-        char[] invisibleFormattingChars = {
-                '\u2060', '\u2061', '\u2062', '\u2063', '\u2064', '\u2065',
-                '\u206A', '\u206B', '\u206C', '\u206D', '\u206E', '\u206F',
-                '\uFFF9', '\uFFFA', '\uFFFB'
-        };
-
-        for (char c : invisibleFormattingChars) {
-            String input = "Test " + c + "string";
-            String expected = "Test string";
-            assertEquals(expected, NotificationBigTextNormalizer.normalizeBigText(input));
+    private String printCodes(String string) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < string.length(); i++) {
+            char c = string.charAt(i);
+            builder.append("\\u");
+            builder.append(String.format("%04X", ((int) c)));
         }
-    }
-    @Test
-    public void testNonBreakSpaceReplacement() {
-        // Test each character individually
-        char[] nonBreakSpaces = {
-                '\u00A0', '\u1680', '\u2000', '\u2001', '\u2002',
-                '\u2003', '\u2004', '\u2005', '\u2006', '\u2007',
-                '\u2008', '\u2009', '\u200A', '\u202F', '\u205F', '\u3000'
-        };
-
-        for (char c : nonBreakSpaces) {
-            String input = "Test" + c + "string";
-            String expected = "Test string";
-            assertEquals(expected, NotificationBigTextNormalizer.normalizeBigText(input));
-        }
+        return builder.toString();
     }
 }

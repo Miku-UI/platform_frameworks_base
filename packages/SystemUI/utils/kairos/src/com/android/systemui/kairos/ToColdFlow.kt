@@ -27,7 +27,6 @@ import kotlinx.coroutines.flow.conflate
  * Returns a cold [Flow] that, when collected, emits from this [Events]. [network] is needed to
  * transactionally connect to / disconnect from the [Events] when collection starts/stops.
  */
-@ExperimentalKairosApi
 fun <A> Events<A>.toColdConflatedFlow(network: KairosNetwork, name: NameTag? = null): Flow<A> {
     val nameData = name.toNameData("Events.toColdConflatedFlow")
     return channelFlow {
@@ -40,7 +39,6 @@ fun <A> Events<A>.toColdConflatedFlow(network: KairosNetwork, name: NameTag? = n
  * Returns a cold [Flow] that, when collected, emits from this [State]. [network] is needed to
  * transactionally connect to / disconnect from the [State] when collection starts/stops.
  */
-@ExperimentalKairosApi
 fun <A> State<A>.toColdConflatedFlow(network: KairosNetwork, name: NameTag? = null): Flow<A> {
     val nameData = name.toNameData("State.toColdConflatedFlow")
     return channelFlow {
@@ -57,7 +55,6 @@ fun <A> State<A>.toColdConflatedFlow(network: KairosNetwork, name: NameTag? = nu
  *
  * When collection is cancelled, so is the [BuildSpec]. This means all ongoing work is cleaned up.
  */
-@ExperimentalKairosApi
 @JvmName("eventsSpecToColdConflatedFlow")
 fun <A> BuildSpec<Events<A>>.toColdConflatedFlow(
     network: KairosNetwork,
@@ -78,7 +75,6 @@ fun <A> BuildSpec<Events<A>>.toColdConflatedFlow(
  *
  * When collection is cancelled, so is the [BuildSpec]. This means all ongoing work is cleaned up.
  */
-@ExperimentalKairosApi
 @JvmName("stateSpecToColdConflatedFlow")
 fun <A> BuildSpec<State<A>>.toColdConflatedFlow(
     network: KairosNetwork,
@@ -97,7 +93,6 @@ fun <A> BuildSpec<State<A>>.toColdConflatedFlow(
  * Returns a cold [Flow] that, when collected, applies this [Transactional] in a new transaction in
  * this [network], and then emits from the returned [Events].
  */
-@ExperimentalKairosApi
 @JvmName("transactionalFlowToColdConflatedFlow")
 fun <A> Transactional<Events<A>>.toColdConflatedFlow(
     network: KairosNetwork,
@@ -116,7 +111,6 @@ fun <A> Transactional<Events<A>>.toColdConflatedFlow(
  * Returns a cold [Flow] that, when collected, applies this [Transactional] in a new transaction in
  * this [network], and then emits from the returned [State].
  */
-@ExperimentalKairosApi
 @JvmName("transactionalStateToColdConflatedFlow")
 fun <A> Transactional<State<A>>.toColdConflatedFlow(
     network: KairosNetwork,
@@ -137,7 +131,6 @@ fun <A> Transactional<State<A>>.toColdConflatedFlow(
  *
  * When collection is cancelled, so is the [Stateful]. This means all ongoing work is cleaned up.
  */
-@ExperimentalKairosApi
 @JvmName("statefulFlowToColdConflatedFlow")
 fun <A> Stateful<Events<A>>.toColdConflatedFlow(
     network: KairosNetwork,
@@ -158,7 +151,6 @@ fun <A> Stateful<Events<A>>.toColdConflatedFlow(
  *
  * When collection is cancelled, so is the [Stateful]. This means all ongoing work is cleaned up.
  */
-@ExperimentalKairosApi
 @JvmName("statefulStateToColdConflatedFlow")
 fun <A> Stateful<State<A>>.toColdConflatedFlow(
     network: KairosNetwork,

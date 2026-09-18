@@ -21,12 +21,14 @@ import com.android.systemui.broadcast.mockBroadcastSender
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.statusbar.policy.domain.interactor.deviceProvisioningInteractor
 
 var Kosmos.growthInteractor: GrowthInteractor by
-Kosmos.Fixture {
-    GrowthInteractor(
-        resources = mainResources,
-        deviceEntryInteractor = { deviceEntryInteractor },
-        broadcastSender = mockBroadcastSender,
-    )
-}
+    Kosmos.Fixture {
+        GrowthInteractor(
+            resources = mainResources,
+            deviceEntryInteractor = { deviceEntryInteractor },
+            deviceProvisioningInteractor = deviceProvisioningInteractor,
+            broadcastSender = mockBroadcastSender,
+        )
+    }

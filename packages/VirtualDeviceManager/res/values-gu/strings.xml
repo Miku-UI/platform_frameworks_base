@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_label" msgid="1092971641119916701">"વર્ચ્યુઅલ ડિવાઇસ મેનેજર"</string>
+    <string name="request_computer_control_access_dialog_title" msgid="1970509993635617382">"&lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt;ને સ્ક્રીન ઑટોમેશન વાપરવાની મંજૂરી આપીએ?"</string>
+    <string name="request_computer_control_access_per_app_consent_dialog_title" msgid="8118885324223570680">"&lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt;ને &lt;strong&gt;<xliff:g id="AUTOMATABLE_APP_NAME">%2$s</xliff:g>&lt;/strong&gt; સાથે સ્ક્રીન ઑટોમેશન વાપરવાની મંજૂરી આપીએ?"</string>
+    <string name="request_computer_control_access_dialog_description" msgid="3423347516805473691">"જ્યારે ઍપ બૅકગ્રાઉન્ડમાં હોય ત્યારે પણ, કાર્યો પૂર્ણ કરવામાં તમારી મદદ કરવા માટે આ ઍપ અન્ય ઍપની સ્ક્રીન પરનું કન્ટેન્ટ જોઈ શકશે અને તેની સાથે ક્રિયાપ્રતિક્રિયા કરી શકશે"</string>
+    <string name="request_computer_control_access_dialog_button_allow" msgid="6210271960695301518">"માત્ર આ વખતે"</string>
+    <string name="request_computer_control_access_dialog_button_dont_allow" msgid="4793579155406896411">"મંજૂરી આપશો નહીં"</string>
+    <string name="request_computer_control_access_dialog_button_always_allow" msgid="1551784758130170359">"હંમેશાં મંજૂરી આપો"</string>
+    <string name="automated_app_launch_warning_dialog_title" msgid="5210938311581044737">"<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>, <xliff:g id="TARGET_APP_NAME">%2$s</xliff:g>નો ઉપયોગ કરી રહ્યું છે"</string>
+    <string name="automated_app_launch_warning_dialog_description" msgid="5372128583106771831">"કાર્યની પ્રગતિ જોવા માટે, <xliff:g id="AGENT_APP_NAME_0">%1$s</xliff:g> ઍપ ખોલો.<xliff:g id="EMPTY_LINE">
+
+</xliff:g>જો તમે હવે કાર્ય રોકશો, તો તમે તમારી પ્રગતિ ગુમાવી શકો છો. ફરી શરૂ કરવા માટે, <xliff:g id="AGENT_APP_NAME_1">%1$s</xliff:g> ઍપ ખોલો."</string>
+    <string name="automated_app_launch_warning_dialog_stop" msgid="5255022618671675595">"કાર્ય રોકો અને ઍપ ખોલો"</string>
+    <string name="automated_app_launch_warning_dialog_wait" msgid="3472782366270857170">"બંધ કરો"</string>
+</resources>

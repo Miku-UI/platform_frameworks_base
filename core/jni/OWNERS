@@ -50,7 +50,10 @@ per-file android_os_HwRemoteBinder* = file:platform/system/libhwbinder:/OWNERS
 per-file EphemeralStorage* = file:platform/system/libhwbinder:/OWNERS
 
 # Sensor
-per-file android_hardware_SensorManager* = arthuri@google.com, bduddie@google.com, stange@google.com
+per-file android_hardware_SensorManager* = file:platform/frameworks/native:/services/sensorservice/OWNERS
+
+# Context Hub
+per-file android_hardware_HubEndpoint* = file:/services/core/java/com/android/server/location/contexthub/OWNERS
 
 # Security
 per-file android_os_SELinux.cpp = file:/core/java/android/security/OWNERS
@@ -117,6 +120,7 @@ per-file android_os_PerformanceHintManager.cpp = file:/ADPF_OWNERS
 
 # IF Tools
 per-file android_tracing_Perfetto* = file:platform/development:/tools/winscope/OWNERS
+per-file com_android_internal_protolog.cpp = file:platform/development:/tools/winscope/OWNERS
 
 # ApplicationSharedMemory
 per-file *ApplicationSharedMemory* = file:/PERFORMANCE_OWNERS
@@ -127,3 +131,10 @@ per-file *MessageQueue* = file:/MESSAGE_QUEUE_OWNERS
 
 # Perfetto SDK
 per-file android_os_Perfetto* = file:/PERFETTO_OWNERS
+
+# Processes, threads, and scheduling
+per-file android_util_Process* = file:/PERFORMANCE_OWNERS
+
+# Memory statistics
+per-file com_android_internal_os_KernelAllocationStats.cpp = set noparent
+per-file com_android_internal_os_KernelAllocationStats.cpp = file:/MEMORY_OWNERS

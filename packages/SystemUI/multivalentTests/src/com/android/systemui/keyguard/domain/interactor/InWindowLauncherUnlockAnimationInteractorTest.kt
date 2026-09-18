@@ -55,6 +55,7 @@ class InWindowLauncherUnlockAnimationInteractorTest : SysuiTestCase() {
             kosmos.keyguardTransitionInteractor,
             { kosmos.keyguardSurfaceBehindRepository },
             kosmos.activityManagerWrapper,
+            kosmos.keyguardWakeDirectlyToGoneInteractor,
         )
     }
     private val testScope = kosmos.testScope

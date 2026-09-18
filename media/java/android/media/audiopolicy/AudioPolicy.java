@@ -16,6 +16,9 @@
 
 package android.media.audiopolicy;
 
+import static android.Manifest.permission.RECORD_AUDIO;
+import static android.media.audio.Flags.FLAG_AUDIO_POLICY_BUILDERS_API;
+import static android.media.audio.Flags.audioPolicyBuildersApi;
 import static android.media.audiopolicy.Flags.FLAG_ENABLE_FADE_MANAGER_CONFIGURATION;
 
 import android.annotation.FlaggedApi;
@@ -23,6 +26,7 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.annotation.TestApi;
 import android.annotation.UserIdInt;
@@ -977,12 +981,46 @@ public class AudioPolicy {
      *     with {@link AudioManager#registerAudioPolicy(AudioPolicy)}.
      * @throws IllegalArgumentException
      */
+    @SuppressLint("AndroidFrameworkRequiresPermission")
     public AudioRecord createAudioRecordSink(AudioMix mix) throws IllegalArgumentException {
-        if (!policyReadyToUse()) {
-            Log.e(TAG, "Cannot create AudioRecord sink for AudioMix");
-            return null;
+        if (!audioPolicyBuildersApi()) {
+            if (!policyReadyToUse()) {
+                Log.e(TAG, "Cannot create AudioRecord sink for AudioMix");
+                return null;
+            }
+            checkMixReadyToUse(mix, false/*not for an AudioTrack*/);
+            // create an AudioFormat from the mix format compatible with recording, as the mix
+            // was defined for playback
+            AudioFormat mixFormat = new AudioFormat.Builder(mix.getFormat())
+                    .setChannelMask(AudioFormat.inChannelMaskFromOutChannelMask(
+                            mix.getFormat().getChannelMask()))
+                    .build();
+
+            AudioAttributes.Builder ab = new AudioAttributes.Builder()
+                    .setInternalCapturePreset(MediaRecorder.AudioSource.REMOTE_SUBMIX)
+                    .addTag(addressForTag(mix))
+                    .addTag(AudioRecord.SUBMIX_FIXED_VOLUME);
+            if (mix.isForCallRedirection()) {
+                ab.setForCallRedirection();
+            }
+
+            // create the AudioRecord, configured for loop back, using the same format as the mix
+            AudioRecord ar = new AudioRecord(ab.build(),
+                    mixFormat,
+                    // using stereo for buffer size to avoid the current poor support for masks
+                    AudioRecord.getMinBufferSize(mix.getFormat().getSampleRate(),
+                            AudioFormat.CHANNEL_IN_STEREO, mix.getFormat().getEncoding()),
+                    AudioManager.AUDIO_SESSION_ID_GENERATE
+            );
+            synchronized (mLock) {
+                if (mCaptors == null) {
+                    mCaptors = new ArrayList<>(1);
+                }
+                mCaptors.add(new WeakReference<AudioRecord>(ar));
+            }
+            return ar;
         }
-        checkMixReadyToUse(mix, false/*not for an AudioTrack*/);
+
         // create an AudioFormat from the mix format compatible with recording, as the mix
         // was defined for playback
         AudioFormat mixFormat = new AudioFormat.Builder(mix.getFormat())
@@ -990,28 +1028,17 @@ public class AudioPolicy {
                         mix.getFormat().getChannelMask()))
                 .build();
 
-        AudioAttributes.Builder ab = new AudioAttributes.Builder()
-                .setInternalCapturePreset(MediaRecorder.AudioSource.REMOTE_SUBMIX)
-                .addTag(addressForTag(mix))
-                .addTag(AudioRecord.SUBMIX_FIXED_VOLUME);
-        if (mix.isForCallRedirection()) {
-            ab.setForCallRedirection();
-        }
-        // create the AudioRecord, configured for loop back, using the same format as the mix
-        AudioRecord ar = new AudioRecord(ab.build(),
-                mixFormat,
-                AudioRecord.getMinBufferSize(mix.getFormat().getSampleRate(),
+        final AudioRecord.Builder audioRecordBuilder = new AudioRecord.Builder();
+        audioRecordBuilder
+                .setAudioAttributes(getRecordAudioAttributesForMix(mix, null))
+                .setAudioFormat(mixFormat)
+                .setBufferSizeInBytes(
                         // using stereo for buffer size to avoid the current poor support for masks
-                        AudioFormat.CHANNEL_IN_STEREO, mix.getFormat().getEncoding()),
-                AudioManager.AUDIO_SESSION_ID_GENERATE
-                );
-        synchronized (mLock) {
-            if (mCaptors == null) {
-                mCaptors = new ArrayList<>(1);
-            }
-            mCaptors.add(new WeakReference<AudioRecord>(ar));
-        }
-        return ar;
+                        AudioRecord.getMinBufferSize(mix.getFormat().getSampleRate(),
+                        AudioFormat.CHANNEL_IN_STEREO, mix.getFormat().getEncoding()))
+                .setSessionId(AudioManager.AUDIO_SESSION_ID_GENERATE);
+
+        return createAudioRecordSink(mix, audioRecordBuilder);
     }
 
     /**
@@ -1026,25 +1053,85 @@ public class AudioPolicy {
      * @throws IllegalArgumentException
      */
     public AudioTrack createAudioTrackSource(AudioMix mix) throws IllegalArgumentException {
+        if (!audioPolicyBuildersApi()) {
+            if (!policyReadyToUse()) {
+                Log.e(TAG, "Cannot create AudioTrack source for AudioMix");
+                return null;
+            }
+            checkMixReadyToUse(mix, true/*for an AudioTrack*/);
+
+            // create the AudioTrack, configured for loop back, using the same format as the mix
+            AudioTrack at = new AudioTrack(getTrackAudioAttributesForMix(mix, null),
+                    mix.getFormat(),
+                    AudioTrack.getMinBufferSize(mix.getFormat().getSampleRate(),
+                            mix.getFormat().getChannelMask(), mix.getFormat().getEncoding()),
+                    AudioTrack.MODE_STREAM,
+                    AudioManager.AUDIO_SESSION_ID_GENERATE
+            );
+            synchronized (mLock) {
+                if (mInjectors == null) {
+                    mInjectors = new ArrayList<>(1);
+                }
+                mInjectors.add(new WeakReference<AudioTrack>(at));
+            }
+            return at;
+        }
+
+        // keep legacy parameters for the builder
+        final AudioTrack.Builder audioTrackBuilder = new AudioTrack.Builder()
+                .setAudioAttributes(getTrackAudioAttributesForMix(mix, null))
+                .setAudioFormat(mix.getFormat())
+                .setBufferSizeInBytes(
+                        AudioTrack.getMinBufferSize(mix.getFormat().getSampleRate(),
+                                mix.getFormat().getChannelMask(), mix.getFormat().getEncoding()))
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .setSessionId(AudioManager.AUDIO_SESSION_ID_GENERATE)
+                .setEncapsulationMode(AudioTrack.ENCAPSULATION_MODE_NONE)
+                .setOffloadedPlayback(false);
+        return createAudioTrackSource(mix, audioTrackBuilder);
+    }
+
+    /**
+     * Create an {@link AudioTrack} instance that is associated with the given {@link AudioMix}.
+     * Audio buffers played through the created instance will be sent to the given mix to be
+     * recorded through the recording APIs.
+     *
+     * @param mix               a non-null {@link AudioMix} instance whose routing flags were
+     *                          defined with {@link AudioMix#ROUTE_FLAG_LOOP_BACK}, previously added
+     *                          to this policy.
+     * @param audioTrackBuilder a non-null {@link AudioTrack.Builder} to be used as the base
+     *                          configuration for the source {@link AudioTrack}.
+     * @return a new {@link AudioTrack} instance whose data format is the one defined in the
+     * {@link AudioMix}, or null if this policy was not successfully registered with
+     * {@link AudioManager#registerAudioPolicy(AudioPolicy)}.
+     * @throws IllegalArgumentException if the {@link AudioTrack} can't be created with the supplied
+     *                                  parameters.
+     */
+    @FlaggedApi(FLAG_AUDIO_POLICY_BUILDERS_API)
+    public @Nullable AudioTrack createAudioTrackSource(@NonNull AudioMix mix,
+            @NonNull AudioTrack.Builder audioTrackBuilder) {
+        Objects.requireNonNull(mix, "AudioMix cannot be null");
+        Objects.requireNonNull(audioTrackBuilder, "AudioTrack.Builder cannot be null");
+
         if (!policyReadyToUse()) {
             Log.e(TAG, "Cannot create AudioTrack source for AudioMix");
             return null;
         }
-        checkMixReadyToUse(mix, true/*for an AudioTrack*/);
-        // create the AudioTrack, configured for loop back, using the same format as the mix
-        AudioAttributes.Builder ab = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_VIRTUAL_SOURCE)
-                .addTag(addressForTag(mix));
-        if (mix.isForCallRedirection()) {
-            ab.setForCallRedirection();
+        checkMixReadyToUse(mix, true /* for an AudioTrack */);
+
+        audioTrackBuilder
+                .setAudioAttributes(
+                        getTrackAudioAttributesForMix(mix, audioTrackBuilder.getAudioAttributes()))
+                .setAudioFormat(mix.getFormat());
+
+        final AudioTrack at;
+        try {
+            at = audioTrackBuilder.build();
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to build AudioTrack source for AudioMix: " + e.getMessage());
+            throw new IllegalArgumentException("Failed to build AudioTrack.", e);
         }
-        AudioTrack at = new AudioTrack(ab.build(),
-                mix.getFormat(),
-                AudioTrack.getMinBufferSize(mix.getFormat().getSampleRate(),
-                        mix.getFormat().getChannelMask(), mix.getFormat().getEncoding()),
-                AudioTrack.MODE_STREAM,
-                AudioManager.AUDIO_SESSION_ID_GENERATE
-                );
+
         synchronized (mLock) {
             if (mInjectors == null) {
                 mInjectors = new ArrayList<>(1);
@@ -1052,6 +1139,103 @@ public class AudioPolicy {
             mInjectors.add(new WeakReference<AudioTrack>(at));
         }
         return at;
+    }
+
+    /**
+     * Create an {@link AudioRecord} instance that is associated with the given {@link AudioMix}.
+     * Audio buffers recorded through the created instance will contain the mix of the
+     * audio streams that fed the given mixer.
+     *
+     * @param mix               a non-null {@link AudioMix} instance whose routing flags were
+     *                          defined with {@link AudioMix#ROUTE_FLAG_LOOP_BACK}, previously
+     *                          added to this policy.
+     * @param audioRecordBuilder a non-null {@link AudioRecord.Builder} to be used as the base
+     *                          configuration for the sink {@link AudioRecord}.
+     * @return a new {@link AudioRecord} instance whose data format is the one defined in the
+     * {@link AudioMix}, or null if this policy was not successfully registered with
+     * {@link AudioManager#registerAudioPolicy(AudioPolicy)}.
+     * @throws IllegalArgumentException if the {@link AudioRecord} can't be created with the
+     *                                  supplied parameters.
+     */
+    @FlaggedApi(FLAG_AUDIO_POLICY_BUILDERS_API)
+    @RequiresPermission(RECORD_AUDIO)
+    public @Nullable AudioRecord createAudioRecordSink(@NonNull AudioMix mix,
+            @NonNull AudioRecord.Builder audioRecordBuilder) {
+        Objects.requireNonNull(mix, "AudioMix cannot be null");
+        Objects.requireNonNull(audioRecordBuilder, "AudioRecord.Builder cannot be null");
+
+        if (!policyReadyToUse()) {
+            Log.e(TAG, "Cannot create AudioRecord sink for AudioMix");
+            return null;
+        }
+
+        checkMixReadyToUse(mix, false /* not for an AudioTrack */);
+
+        // create an AudioFormat from the mix format compatible with recording, as the mix
+        // was defined for playback
+        AudioFormat mixFormat = new AudioFormat.Builder(mix.getFormat())
+                .setChannelMask(AudioFormat.inChannelMaskFromOutChannelMask(
+                        mix.getFormat().getChannelMask()))
+                .build();
+
+        // create the AudioRecord, configured for loop back, using the same format as the mix
+        final AudioRecord ar;
+        try {
+            ar = audioRecordBuilder.setAudioAttributes(
+                    getRecordAudioAttributesForMix(mix, audioRecordBuilder.getAudioAttributes()))
+                    .setAudioFormat(mixFormat)
+                    .build();
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to build AudioRecord sink for AudioMix: " + e.getMessage());
+            throw new IllegalArgumentException("Failed to build AudioRecord.", e);
+        }
+
+        synchronized (mLock) {
+            if (mCaptors == null) {
+                mCaptors = new ArrayList<>(1);
+            }
+            mCaptors.add(new WeakReference<AudioRecord>(ar));
+        }
+        return ar;
+    }
+
+    private @NonNull AudioAttributes getTrackAudioAttributesForMix(@NonNull AudioMix mix,
+            @Nullable AudioAttributes presetAttributes) {
+        // reuse the existing AudioAttributes if already set
+        AudioAttributes.Builder ab;
+        if (presetAttributes == null) {
+            ab = new AudioAttributes.Builder();
+        } else {
+            ab = new AudioAttributes.Builder(presetAttributes);
+        }
+
+        // Set the mandatory AudioAttributes for injection: USAGE_VIRTUAL_SOURCE and routing tag
+        ab.setUsage(AudioAttributes.USAGE_VIRTUAL_SOURCE).addTag(addressForTag(mix));
+        if (mix.isForCallRedirection()) {
+            ab.setForCallRedirection();
+        }
+
+        return ab.build();
+    }
+
+    private @NonNull AudioAttributes getRecordAudioAttributesForMix(@NonNull AudioMix mix,
+            @Nullable AudioAttributes presetAttributes) {
+        // reuse the existing AudioAttributes if already set
+        AudioAttributes.Builder ab;
+        if (presetAttributes == null) {
+            ab = new AudioAttributes.Builder();
+        } else {
+            ab = new AudioAttributes.Builder(presetAttributes);
+        }
+
+        ab.setInternalCapturePreset(MediaRecorder.AudioSource.REMOTE_SUBMIX)
+                .addTag(addressForTag(mix))
+                .addTag(AudioRecord.SUBMIX_FIXED_VOLUME);
+        if (mix.isForCallRedirection()) {
+            ab.setForCallRedirection();
+        }
+
+        return ab.build();
     }
 
     /**
@@ -1132,7 +1316,7 @@ public class AudioPolicy {
 
     /**
      * Callback class to receive volume change-related events.
-     * See {@link #Builder.setAudioPolicyVolumeCallback(AudioPolicyCallback)} to configure the
+     * See {@link Builder#setAudioPolicyVolumeCallback(AudioPolicyCallback)} to configure the
      * {@link AudioPolicy} to receive those events.
      *
      */

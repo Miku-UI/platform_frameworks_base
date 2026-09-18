@@ -17,7 +17,6 @@ package com.android.systemui.statusbar.gesture
 
 import android.content.Context
 import android.graphics.Rect
-import android.graphics.Region
 import android.hardware.display.DisplayManagerGlobal
 import android.os.Handler
 import android.os.Looper
@@ -31,10 +30,10 @@ import android.view.InputEvent
 import android.view.MotionEvent
 import android.view.MotionEvent.AXIS_GESTURE_SWIPE_FINGER_COUNT
 import android.view.MotionEvent.CLASSIFICATION_MULTI_FINGER_SWIPE
-import android.view.ViewRootImpl.CLIENT_TRANSIENT
 import android.widget.OverScroller
 import com.android.internal.R
 import com.android.systemui.CoreStartable
+import com.android.window.flags.Flags
 import java.io.PrintWriter
 import javax.inject.Inject
 
@@ -42,12 +41,11 @@ import javax.inject.Inject
  * Watches for gesture events that may trigger system bar related events and notify the registered
  * callbacks. Add callback to this listener by calling {@link setCallbacks}.
  */
-class GesturePointerEventListener
-@Inject
-constructor(context: Context, gestureDetector: GesturePointerEventDetector) : CoreStartable {
-    private val mContext: Context
+class GesturePointerEventListener @Inject constructor(context: Context) :
+    CoreStartable,
+    GenericGestureDetector(GesturePointerEventListener::class.java.simpleName, context.displayId) {
+    private val mContext: Context = checkNull("context", context)
     private val mHandler = Handler(Looper.getMainLooper())
-    private var mGestureDetector: GesturePointerEventDetector
     private var mFlingGestureDetector: GestureDetector? = null
     private var mDisplayCutoutTouchableRegionSize = 0
 
@@ -71,30 +69,37 @@ constructor(context: Context, gestureDetector: GesturePointerEventDetector) : Co
     private var mLastFlingTime: Long = 0
 
     init {
-        mContext = checkNull("context", context)
-        mGestureDetector = checkNull("gesture detector", gestureDetector)
         onConfigurationChanged()
     }
 
     override fun start() {
-        if (!CLIENT_TRANSIENT) {
+        if (!Flags.enableTransientGestureInSystemUi()) {
             return
         }
-        mGestureDetector.addOnGestureDetectedCallback(TAG) { ev -> onInputEvent(ev) }
-        mGestureDetector.startGestureListening()
+        // GestureDetector records statistics about gesture classification events to inform gesture
+        // usage trends. GesturesPointerEventListener creates a lot of noise in these
+        // statistics because it passes every touch event though a GestureDetector. By creating an
+        // anonymous subclass of GestureDetector, these statistics will be recorded with a unique
+        // source name that can be filtered.
+
+        // GestureDetector would get a ViewConfiguration instance by context, that may also
+        // create a new WindowManagerImpl for the new display, and lock WindowManagerGlobal
+        // temporarily in the constructor that would make a deadlock.
 
         mFlingGestureDetector =
             object : GestureDetector(mContext, FlingGestureDetector(), mHandler) {}
     }
 
-    fun onDisplayInfoChanged(info: DisplayInfo) {
+    fun onDisplayInfoChanged() {
+        val info = DisplayInfo()
+        mContext.display.getDisplayInfo(info)
         screenWidth = info.logicalWidth
         screenHeight = info.logicalHeight
         onConfigurationChanged()
     }
 
     fun onConfigurationChanged() {
-        if (!CLIENT_TRANSIENT) {
+        if (!Flags.enableTransientGestureInSystemUi()) {
             return
         }
         val r = mContext.resources
@@ -115,7 +120,7 @@ constructor(context: Context, gestureDetector: GesturePointerEventDetector) : Co
                     Math.max(
                         mSwipeStartThreshold.left,
                         bounds[DisplayCutout.BOUNDS_POSITION_LEFT]!!.width() +
-                            mDisplayCutoutTouchableRegionSize
+                            mDisplayCutoutTouchableRegionSize,
                     )
             }
             if (bounds[DisplayCutout.BOUNDS_POSITION_TOP] != null) {
@@ -123,7 +128,7 @@ constructor(context: Context, gestureDetector: GesturePointerEventDetector) : Co
                     Math.max(
                         mSwipeStartThreshold.top,
                         bounds[DisplayCutout.BOUNDS_POSITION_TOP]!!.height() +
-                            mDisplayCutoutTouchableRegionSize
+                            mDisplayCutoutTouchableRegionSize,
                     )
             }
             if (bounds[DisplayCutout.BOUNDS_POSITION_RIGHT] != null) {
@@ -131,7 +136,7 @@ constructor(context: Context, gestureDetector: GesturePointerEventDetector) : Co
                     Math.max(
                         mSwipeStartThreshold.right,
                         bounds[DisplayCutout.BOUNDS_POSITION_RIGHT]!!.width() +
-                            mDisplayCutoutTouchableRegionSize
+                            mDisplayCutoutTouchableRegionSize,
                     )
             }
             if (bounds[DisplayCutout.BOUNDS_POSITION_BOTTOM] != null) {
@@ -139,7 +144,7 @@ constructor(context: Context, gestureDetector: GesturePointerEventDetector) : Co
                     Math.max(
                         mSwipeStartThreshold.bottom,
                         bounds[DisplayCutout.BOUNDS_POSITION_BOTTOM]!!.height() +
-                            mDisplayCutoutTouchableRegionSize
+                            mDisplayCutoutTouchableRegionSize,
                     )
             }
         }
@@ -147,15 +152,16 @@ constructor(context: Context, gestureDetector: GesturePointerEventDetector) : Co
             Log.d(
                 TAG,
                 "mSwipeStartThreshold=$mSwipeStartThreshold" +
-                    " mSwipeDistanceThreshold=$mSwipeDistanceThreshold"
+                    " mSwipeDistanceThreshold=$mSwipeDistanceThreshold",
             )
     }
 
-    fun onInputEvent(ev: InputEvent) {
+    override fun onInputEvent(ev: InputEvent) {
         if (ev !is MotionEvent) {
             return
         }
         if (DEBUG) Log.d(TAG, "Received motion event $ev")
+        if (!com.android.window.flags.Flags.enableTransientGestureInSystemUi()) return
         if (ev.isTouchEvent) {
             mFlingGestureDetector?.onTouchEvent(ev)
         }
@@ -289,10 +295,6 @@ constructor(context: Context, gestureDetector: GesturePointerEventDetector) : Co
         }
     }
 
-    protected fun currentGestureStartedInRegion(r: Region): Boolean {
-        return r.contains(mDownX[0].toInt(), mDownY[0].toInt())
-    }
-
     private fun findIndex(pointerId: Int): Int {
         for (i in 0 until mDownPointers) {
             if (mDownPointerId[i] == pointerId) {
@@ -328,6 +330,7 @@ constructor(context: Context, gestureDetector: GesturePointerEventDetector) : Co
         return (event.classification == CLASSIFICATION_MULTI_FINGER_SWIPE &&
             event.getAxisValue(AXIS_GESTURE_SWIPE_FINGER_COUNT) == 3f)
     }
+
     private fun detectSwipe(move: MotionEvent): Int {
         val historySize = move.historySize
         val pointerCount = move.pointerCount
@@ -371,7 +374,7 @@ constructor(context: Context, gestureDetector: GesturePointerEventDetector) : Co
                     "->" +
                     y +
                     ") in " +
-                    elapsed
+                    elapsed,
             )
         if (
             fromY <= mSwipeStartThreshold.top &&
@@ -432,7 +435,7 @@ constructor(context: Context, gestureDetector: GesturePointerEventDetector) : Co
             down: MotionEvent?,
             up: MotionEvent,
             velocityX: Float,
-            velocityY: Float
+            velocityY: Float,
         ): Boolean {
             mOverscroller.computeScrollOffset()
             val now = SystemClock.uptimeMillis()
@@ -447,7 +450,7 @@ constructor(context: Context, gestureDetector: GesturePointerEventDetector) : Co
                 Int.MIN_VALUE,
                 Int.MAX_VALUE,
                 Int.MIN_VALUE,
-                Int.MAX_VALUE
+                Int.MAX_VALUE,
             )
             var duration = mOverscroller.duration
             if (duration > MAX_FLING_TIME_MILLIS) {
@@ -461,20 +464,35 @@ constructor(context: Context, gestureDetector: GesturePointerEventDetector) : Co
 
     interface Callbacks {
         fun onSwipeFromTop()
+
         fun onSwipeFromBottom()
+
         fun onSwipeFromRight()
+
         fun onSwipeFromLeft()
+
         fun onFling(durationMs: Int)
+
         fun onDown()
+
         fun onUpOrCancel()
+
         fun onMouseHoverAtLeft()
+
         fun onMouseHoverAtTop()
+
         fun onMouseHoverAtRight()
+
         fun onMouseHoverAtBottom()
+
         fun onMouseLeaveFromLeft()
+
         fun onMouseLeaveFromTop()
+
         fun onMouseLeaveFromRight()
+
         fun onMouseLeaveFromBottom()
+
         fun onDebug()
     }
 

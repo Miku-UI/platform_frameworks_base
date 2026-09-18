@@ -18,6 +18,7 @@ package android.hardware.input;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.text.TextUtils;
 
 import java.util.Objects;
@@ -27,6 +28,7 @@ import java.util.Objects;
  *
  * @hide
  */
+@RavenwoodKeepWholeClass
 public interface AppLaunchData {
 
     /** Creates AppLaunchData for the provided category */

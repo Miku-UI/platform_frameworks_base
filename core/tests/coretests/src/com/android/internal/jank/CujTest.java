@@ -68,7 +68,16 @@ public class CujTest {
                     getEnumName("SHADE_QS_SCROLL_SWIPE")),
             Map.entry(Cuj.CUJ_NOTIFICATION_SHADE_ROW_EXPAND, getEnumName("SHADE_ROW_EXPAND")),
             Map.entry(Cuj.CUJ_NOTIFICATION_SHADE_ROW_SWIPE, getEnumName("SHADE_ROW_SWIPE")),
-            Map.entry(Cuj.CUJ_NOTIFICATION_SHADE_SCROLL_FLING, getEnumName("SHADE_SCROLL_FLING"))
+            Map.entry(Cuj.CUJ_NOTIFICATION_SHADE_SCROLL_FLING, getEnumName("SHADE_SCROLL_FLING")),
+            Map.entry(
+                    Cuj.CUJ_KEYGUARD_TRANSITION_AOD_TO_LOCKSCREEN,
+                    getEnumName("LOCKSCREEN_TRANSITION_FROM_AOD")),
+            Map.entry(
+                    Cuj.CUJ_KEYGUARD_TRANSITION_LOCKSCREEN_TO_AOD,
+                    getEnumName("LOCKSCREEN_TRANSITION_TO_AOD")),
+            Map.entry(Cuj.CUJ_KEYGUARD_AOD_ENTER_ANIMATION, getEnumName("SCREEN_OFF")),
+            Map.entry(Cuj.CUJ_KEYGUARD_TRANSITION_GONE_TO_AOD, getEnumName("SCREEN_OFF_SHOW_AOD"))
+
     );
 
     @Rule

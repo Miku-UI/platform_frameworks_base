@@ -27,6 +27,7 @@ import static com.android.internal.util.FrameworkStatsLog.ALARM_SCHEDULED__EXACT
 import static com.android.server.alarm.AlarmManagerService.INDEFINITE_DELAY;
 
 import android.app.ActivityManager;
+import android.app.ActivityManager.ProcessState;
 import android.app.AlarmManager;
 import android.app.StatsManager;
 import android.content.Context;
@@ -103,7 +104,7 @@ class MetricsHelper {
         }
     }
 
-    static void pushAlarmScheduled(Alarm a, int callerProcState) {
+    static void pushAlarmScheduled(Alarm a, @ProcessState int callerProcState) {
         FrameworkStatsLog.write(
                 FrameworkStatsLog.ALARM_SCHEDULED,
                 a.uid,

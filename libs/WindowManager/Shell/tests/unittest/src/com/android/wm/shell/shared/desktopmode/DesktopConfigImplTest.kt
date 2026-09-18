@@ -17,7 +17,6 @@
 package com.android.wm.shell.shared.desktopmode
 
 import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
-import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.platform.test.annotations.Presubmit
 import androidx.test.filters.SmallTest
@@ -30,9 +29,7 @@ import org.junit.Test
 import org.mockito.kotlin.spy
 import org.mockito.kotlin.whenever
 
-/**
- * Test class for [DesktopConfigImpl].
- */
+/** Test class for [DesktopConfigImpl]. */
 @SmallTest
 @Presubmit
 class DesktopConfigImplTest : ShellTestCase() {
@@ -44,9 +41,8 @@ class DesktopConfigImplTest : ShellTestCase() {
     }
 
     @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE)
-    @DisableFlags(Flags.FLAG_ENABLE_OPAQUE_BACKGROUND_FOR_TRANSPARENT_WINDOWS)
     @Test
-    fun shouldSetBackground_BTWFlagDisabled_freeformTaskAndFluid_returnsTrue() {
+    fun shouldSetBackground_freeformTaskAndFluid_returnsTrue() {
         val freeFormTaskInfo = createTaskInfo(deviceWindowingMode = WINDOWING_MODE_FREEFORM)
 
         setIsVeiledResizeEnabled(false)
@@ -55,35 +51,8 @@ class DesktopConfigImplTest : ShellTestCase() {
     }
 
     @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE)
-    @DisableFlags(Flags.FLAG_ENABLE_OPAQUE_BACKGROUND_FOR_TRANSPARENT_WINDOWS)
     @Test
-    fun shouldSetBackground_BTWFlagDisabled_freeformTaskAndVeiled_returnsFalse() {
-        val freeFormTaskInfo = createTaskInfo(deviceWindowingMode = WINDOWING_MODE_FREEFORM)
-
-        setIsVeiledResizeEnabled(true)
-
-        assertThat(desktopConfig.shouldSetBackground(freeFormTaskInfo)).isFalse()
-    }
-
-    @EnableFlags(
-        Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-        Flags.FLAG_ENABLE_OPAQUE_BACKGROUND_FOR_TRANSPARENT_WINDOWS,
-    )
-    @Test
-    fun shouldSetBackground_BTWFlagEnabled_freeformTaskAndFluid_returnsTrue() {
-        val freeFormTaskInfo = createTaskInfo(deviceWindowingMode = WINDOWING_MODE_FREEFORM)
-
-        setIsVeiledResizeEnabled(false)
-
-        assertThat(desktopConfig.shouldSetBackground(freeFormTaskInfo)).isTrue()
-    }
-
-    @EnableFlags(
-        Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-        Flags.FLAG_ENABLE_OPAQUE_BACKGROUND_FOR_TRANSPARENT_WINDOWS,
-    )
-    @Test
-    fun shouldSetBackground_BTWFlagEnabled_windowModesTask_freeformTaskAndVeiled_returnsTrue() {
+    fun shouldSetBackground_freeformTaskAndVeiled_returnsTrue() {
         val freeFormTaskInfo = createTaskInfo(deviceWindowingMode = WINDOWING_MODE_FREEFORM)
 
         setIsVeiledResizeEnabled(true)

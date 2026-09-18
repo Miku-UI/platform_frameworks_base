@@ -33,7 +33,7 @@ import org.junit.Test
 @Ignore("Base Test Class")
 abstract class EnterDesktopViaStaticDesktopOverviewTask(
     val navigationMode: NavBar = NavBar.MODE_GESTURAL,
-    val rotation: Rotation = Rotation.ROTATION_0
+    val rotation: Rotation = Rotation.ROTATION_0,
 ) : TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()

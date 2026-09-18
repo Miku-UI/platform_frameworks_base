@@ -120,7 +120,9 @@ public abstract class AttestationUtils {
      * <p>
      * For privacy reasons, you cannot distinguish between (1) and (2). If attestation is
      * unsuccessful, the device may not support it in general or the user may have permanently
-     * disabled it.
+     * disabled it. See
+     * https://source.android.com/docs/security/features/keystore/attestation#id-attestation
+     * for details about where and how it's possible to disable device identifier attestation.
      *
      * @param context the context to use for retrieving device identifiers.
      * @param idTypes the types of device identifiers to attest.

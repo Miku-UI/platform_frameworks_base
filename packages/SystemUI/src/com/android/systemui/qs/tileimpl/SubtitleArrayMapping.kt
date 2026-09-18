@@ -52,7 +52,6 @@ object SubtitleArrayMapping {
         subtitleIdsMap["alarm"] = R.array.tile_states_alarm
         subtitleIdsMap["onehanded"] = R.array.tile_states_onehanded
         subtitleIdsMap["color_correction"] = R.array.tile_states_color_correction
-        subtitleIdsMap["dream"] = R.array.tile_states_dream
         subtitleIdsMap["font_scaling"] = R.array.tile_states_font_scaling
         subtitleIdsMap["hearing_devices"] = R.array.tile_states_hearing_devices
         subtitleIdsMap["notes"] = R.array.tile_states_notes

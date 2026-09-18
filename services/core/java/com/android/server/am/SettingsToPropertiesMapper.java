@@ -20,7 +20,7 @@ import static com.android.aconfig_new_storage.Flags.enableAconfigStorageDaemon;
 import static com.android.aconfig_new_storage.Flags.enableAconfigdFromMainline;
 import static com.android.aconfig_new_storage.Flags.supportClearLocalOverridesImmediately;
 import static com.android.aconfig_new_storage.Flags.supportImmediateLocalOverrides;
-import static com.android.server.am.Flags.rolloutComputerControl;
+import static com.android.server.am.Flags.rolloutPixelFaceauth;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 
@@ -96,8 +96,11 @@ public class SettingsToPropertiesMapper {
     private static final String NAMESPACE_TETHERING_U_OR_LATER_NATIVE =
             "tethering_u_or_later_native";
 
-    private static final String NAMESPACE_COMPUTER_CONTROL =
-            "computer_control";
+    private static final String NAMESPACE_PIXEL_FACEAUTH =
+            "pixel_faceauth";
+
+    private static final String NAMESPACE_MEMORY_MANAGEMENT_NATIVE_BOOT =
+            "memory_management_native_boot";
 
     // All the flags under the listed DeviceConfig scopes will be synced to native level.
     //
@@ -135,7 +138,8 @@ public class SettingsToPropertiesMapper {
         DeviceConfig.NAMESPACE_MEMORY_SAFETY_NATIVE_BOOT,
         DeviceConfig.NAMESPACE_MEMORY_SAFETY_NATIVE,
         DeviceConfig.NAMESPACE_HDMI_CONTROL,
-        NAMESPACE_TETHERING_U_OR_LATER_NATIVE
+        NAMESPACE_TETHERING_U_OR_LATER_NATIVE,
+        NAMESPACE_MEMORY_MANAGEMENT_NATIVE_BOOT
     };
 
     public static final String NAMESPACE_REBOOT_STAGING = "staged";
@@ -622,9 +626,10 @@ public class SettingsToPropertiesMapper {
     @VisibleForTesting
     static String[] getDeviceConfigScopes() {
         String[] deviceConfigScopes = sDeviceConfigScopes;
-        if (rolloutComputerControl()) {
-            deviceConfigScopes = Arrays.copyOf(sDeviceConfigScopes, sDeviceConfigScopes.length + 1);
-            deviceConfigScopes[sDeviceConfigScopes.length] = NAMESPACE_COMPUTER_CONTROL;
+        // Add new namespace behind a flag here. e.g., ag/35184768
+        if (rolloutPixelFaceauth()) {
+            deviceConfigScopes = Arrays.copyOf(deviceConfigScopes, deviceConfigScopes.length + 1);
+            deviceConfigScopes[deviceConfigScopes.length - 1] = NAMESPACE_PIXEL_FACEAUTH;
         }
         return deviceConfigScopes;
     }

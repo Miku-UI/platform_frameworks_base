@@ -32,7 +32,7 @@ fun <R> waitForResult(
     timeout: Long = DEFAULT_TIMEOUT,
     interval: Long = DEFAULT_POLL_INTERVAL,
     extractor: () -> R,
-    validator: (R) -> Boolean = { it != null }
+    validator: (R) -> Boolean = { it != null },
 ): Pair<Boolean, R?> {
     val startTime = SystemClock.uptimeMillis()
     do {

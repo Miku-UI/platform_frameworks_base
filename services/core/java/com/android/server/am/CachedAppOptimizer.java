@@ -45,12 +45,25 @@ import static android.app.ActivityManagerInternal.OOM_ADJ_REASON_UID_IDLE;
 import static android.app.ActivityManagerInternal.OOM_ADJ_REASON_UI_VISIBILITY;
 import static android.app.ActivityManagerInternal.OOM_ADJ_REASON_UNBIND_SERVICE;
 import static android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND;
+import static android.os.PerfettoCategories.FREEZER_CATEGORY;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidTrackEvent.FREEZER_EVENT;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidFreezerEvent.FROZEN_DUR_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidFreezerEvent.UID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidFreezerEvent.PID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidFreezerEvent.UNFROZEN_DUR_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidFreezerEvent.UNFREEZE_REASON;
 
 import static com.android.server.am.ActivityManagerDebugConfig.DEBUG_COMPACTION;
 import static com.android.server.am.ActivityManagerDebugConfig.DEBUG_FREEZER;
+import static com.android.server.am.ActivityManagerDebugConfig.DEBUG_WRITEBACK;
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_AM;
+import static com.android.server.am.psc.Constants.CACHED_APP_MAX_ADJ;
+import static com.android.server.am.psc.Constants.CACHED_APP_MIN_ADJ;
+import static com.android.server.am.psc.Constants.PERCEPTIBLE_APP_ADJ;
 
 import android.annotation.IntDef;
+import android.annotation.NonNull;
+import android.annotation.RequiresNoPermission;
 import android.annotation.UptimeMillisLong;
 import android.app.ActivityManager;
 import android.app.ActivityManagerInternal.FrozenProcessListener;
@@ -60,13 +73,20 @@ import android.app.ApplicationExitInfo;
 import android.app.ApplicationExitInfo.Reason;
 import android.app.ApplicationExitInfo.SubReason;
 import android.app.IApplicationThread;
+import android.content.pm.ApplicationInfo;
+import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.net.Uri;
 import android.os.Handler;
+import android.os.IBinder;
+import android.os.IMmd;
+import android.os.IMmdProcessWritebackCallback;
 import android.os.Message;
+import android.os.ParcelFileDescriptor;
 import android.os.PowerManagerInternal;
 import android.os.Process;
 import android.os.RemoteException;
+import android.os.ServiceManager;
 import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.os.Trace;
@@ -75,7 +95,6 @@ import android.provider.DeviceConfig.OnPropertiesChangedListener;
 import android.provider.DeviceConfig.Properties;
 import android.provider.Settings;
 import android.text.TextUtils;
-import android.util.ArraySet;
 import android.util.EventLog;
 import android.util.IntArray;
 import android.util.Pair;
@@ -84,16 +103,22 @@ import android.util.BoostFramework;
 import android.util.SparseArray;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.annotations.Keep;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.dev.perfetto.sdk.PerfettoTrace;
 import com.android.internal.os.BinderfsStatsReader;
+import com.android.internal.os.KernelAllocationStats;
 import com.android.internal.os.ProcLocksReader;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.server.ServiceThread;
 import com.android.server.am.compaction.CompactionStatsManager;
 import com.android.server.am.compaction.SingleCompactionStats;
+import com.android.server.am.psc.Constants.OomAdjust;
+import com.android.server.am.psc.OomAdjuster;
 
 import dalvik.annotation.optimization.NeverCompile;
 
+import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.annotation.Retention;
@@ -119,6 +144,17 @@ public class CachedAppOptimizer {
     @VisibleForTesting static final String KEY_COMPACT_THROTTLE_4 = "compact_throttle_4";
     @VisibleForTesting static final String KEY_COMPACT_THROTTLE_5 = "compact_throttle_5";
     @VisibleForTesting static final String KEY_COMPACT_THROTTLE_6 = "compact_throttle_6";
+    @VisibleForTesting static final String KEY_ZRAM_WRITEBACK_ENABLED = "zram_writeback_enabled";
+    @VisibleForTesting static final String KEY_ZRAM_WRITEBACK_WAIT_SECONDS =
+            "zram_writeback_wait_seconds";
+    @VisibleForTesting static final String KEY_ZRAM_WRITEBACK_OOM_ADJ =
+            "zram_writeback_oom_adj";
+    @VisibleForTesting static final String KEY_ZRAM_WRITEBACK_THRESHOLD_KB =
+            "zram_writeback_threshold_kb";
+    @VisibleForTesting static final String KEY_ZRAM_WRITEBACK_GPU_MEM_THRESHOLD_KB =
+            "zram_writeback_gpu_mem_threshold_kb";
+    @VisibleForTesting static final String KEY_ZRAM_WRITEBACK_DMABUF_MEM_THRESHOLD_KB =
+            "zram_writeback_dmabuf_mem_threshold_kb";
     @VisibleForTesting static final String KEY_COMPACT_THROTTLE_MIN_OOM_ADJ =
             "compact_throttle_min_oom_adj";
     @VisibleForTesting static final String KEY_COMPACT_THROTTLE_MAX_OOM_ADJ =
@@ -269,6 +305,7 @@ public class CachedAppOptimizer {
 
     private static final String ATRACE_COMPACTION_TRACK = "Compaction";
     public static final String ATRACE_FREEZER_TRACK = "Freezer";
+    public static final String ATRACE_ZRAM_WRITEBACK_TRACK = "ZramWriteback";
 
     private static final int FREEZE_BINDER_TIMEOUT_MS = 0;
     private static final int FREEZE_DEADLOCK_TIMEOUT_MS = 1000;
@@ -285,10 +322,13 @@ public class CachedAppOptimizer {
     @VisibleForTesting static final long DEFAULT_COMPACT_THROTTLE_4 = 10_000;
     @VisibleForTesting static final long DEFAULT_COMPACT_THROTTLE_5 = 10 * 60 * 1000;
     @VisibleForTesting static final long DEFAULT_COMPACT_THROTTLE_6 = 10 * 60 * 1000;
-    @VisibleForTesting static final long DEFAULT_COMPACT_THROTTLE_MIN_OOM_ADJ =
-            ProcessList.CACHED_APP_MIN_ADJ;
-    @VisibleForTesting static final long DEFAULT_COMPACT_THROTTLE_MAX_OOM_ADJ =
-            ProcessList.CACHED_APP_MAX_ADJ;
+    @VisibleForTesting static final boolean DEFAULT_ZRAM_WRITEBACK_ENABLED = false;
+    @VisibleForTesting static final long DEFAULT_ZRAM_WRITEBACK_WAIT_SECONDS = 10 * 60;
+    @VisibleForTesting static final long DEFAULT_ZRAM_WRITEBACK_THRESHOLD_KB = 150 * 1024L;
+    @VisibleForTesting static final int DEFAULT_ZRAM_WRITEBACK_GPU_MEM_THRESHOLD_KB = 60;
+    @VisibleForTesting static final int DEFAULT_ZRAM_WRITEBACK_DMABUF_MEM_THRESHOLD_KB = 0;
+    @VisibleForTesting static final long DEFAULT_COMPACT_THROTTLE_MIN_OOM_ADJ = CACHED_APP_MIN_ADJ;
+    @VisibleForTesting static final long DEFAULT_COMPACT_THROTTLE_MAX_OOM_ADJ = CACHED_APP_MAX_ADJ;
     // The sampling rate to push app compaction events into statsd for upload.
     @VisibleForTesting static final float DEFAULT_STATSD_SAMPLE_RATE = 0.1f;
     @VisibleForTesting static final long DEFAULT_COMPACT_FULL_RSS_THROTTLE_KB = 12_000L;
@@ -302,7 +342,7 @@ public class CachedAppOptimizer {
     // phones.  (A lower default has been found to work on Wear).  However, once these apps have
     // been corrected to honor their valid lifecycles, this debounce default may be lowerered or
     // set to zero.
-    @VisibleForTesting static final long DEFAULT_FREEZER_DEBOUNCE_TIMEOUT = 10_000L;
+    @VisibleForTesting final int mDefaultFreezerDebounceTimeout;
     @VisibleForTesting static final boolean DEFAULT_FREEZER_EXEMPT_INST_PKG = false;
     @VisibleForTesting static final boolean DEFAULT_FREEZER_BINDER_ENABLED = true;
     @VisibleForTesting static final long DEFAULT_FREEZER_BINDER_DIVISOR = 4;
@@ -331,6 +371,28 @@ public class CachedAppOptimizer {
         void performNativeCompaction(CompactProfile action, int pid) throws IOException;
     }
 
+    /**
+     * An interface to abstract away static KernelAllocationStats calls for testing.
+     */
+    @VisibleForTesting
+    interface KernelAllocationStatsProvider {
+        KernelAllocationStats.ProcessGpuMem[] getGpuAllocations();
+        long getDmabufSizeForProcessKb(int pid);
+    }
+
+    private static class DefaultKernelAllocationStatsProvider
+            implements KernelAllocationStatsProvider {
+        @Override
+        public KernelAllocationStats.ProcessGpuMem[] getGpuAllocations() {
+            return KernelAllocationStats.getGpuAllocations();
+        }
+
+        @Override
+        public long getDmabufSizeForProcessKb(int pid) {
+            return KernelAllocationStats.getDmabufSizeForProcessKb(pid);
+        }
+    }
+
     // This indicates the compaction we want to perform
     public enum CompactProfile {
         NONE, // No compaction
@@ -356,6 +418,7 @@ public class CachedAppOptimizer {
     static final int UID_FROZEN_STATE_CHANGED_MSG = 6;
     static final int DEADLOCK_WATCHDOG_MSG = 7;
     static final int BINDER_ERROR_MSG = 8;
+    static final int ZRAM_WRITEBACK_MSG = 9;
 
     // When free swap falls below this percentage threshold any full (file + anon)
     // compactions will be downgraded to file only compactions to reduce pressure
@@ -371,6 +434,8 @@ public class CachedAppOptimizer {
 
     // Bitfield values for sync transactions received by frozen binder threads
     static final int TXNS_PENDING_WHILE_FROZEN = 4;
+
+    private static final String MMD_SERVICE_NAME = "mmd";
 
     /**
      * This thread must be moved to the system background cpuset.
@@ -426,6 +491,18 @@ public class CachedAppOptimizer {
                                 updateMinOomAdjThrottle();
                             } else if (KEY_COMPACT_THROTTLE_MAX_OOM_ADJ.equals(name)) {
                                 updateMaxOomAdjThrottle();
+                            } else if (KEY_ZRAM_WRITEBACK_ENABLED.equals(name)) {
+                                updateZramWritebackEnabled();
+                            } else if (KEY_ZRAM_WRITEBACK_WAIT_SECONDS.equals(name)) {
+                                updateZramWritebackWait();
+                            } else if (KEY_ZRAM_WRITEBACK_OOM_ADJ.equals(name)) {
+                                updateZramWritebackOomAdj();
+                            } else if (KEY_ZRAM_WRITEBACK_THRESHOLD_KB.equals(name)) {
+                                updateZramWritebackThresholdKb();
+                            } else if (KEY_ZRAM_WRITEBACK_GPU_MEM_THRESHOLD_KB.equals(name)) {
+                                updateZramWritebackGpuMemThresholdKb();
+                            } else if (KEY_ZRAM_WRITEBACK_DMABUF_MEM_THRESHOLD_KB.equals(name)) {
+                                updateZramWritebackDmabufMemThresholdKb();
                             }
                         }
                     }
@@ -498,6 +575,23 @@ public class CachedAppOptimizer {
     @VisibleForTesting volatile long mCompactThrottleMaxOomAdj =
             DEFAULT_COMPACT_THROTTLE_MAX_OOM_ADJ;
     @GuardedBy("mPhenotypeFlagLock")
+    @VisibleForTesting volatile boolean mZramWritebackEnabled = DEFAULT_ZRAM_WRITEBACK_ENABLED;
+    @GuardedBy("mPhenotypeFlagLock")
+    @VisibleForTesting volatile long mZramWritebackWaitSeconds =
+            DEFAULT_ZRAM_WRITEBACK_WAIT_SECONDS;
+    @GuardedBy("mPhenotypeFlagLock")
+    @VisibleForTesting volatile long mZramWritebackThresholdKb =
+            DEFAULT_ZRAM_WRITEBACK_THRESHOLD_KB;
+    @GuardedBy("mPhenotypeFlagLock")
+    @VisibleForTesting volatile long mZramWritebackGpuMemThresholdKb =
+            DEFAULT_ZRAM_WRITEBACK_GPU_MEM_THRESHOLD_KB;
+    @GuardedBy("mPhenotypeFlagLock")
+    @VisibleForTesting volatile long mZramWritebackDmabufMemThresholdKb =
+            DEFAULT_ZRAM_WRITEBACK_DMABUF_MEM_THRESHOLD_KB;
+    @GuardedBy("mPhenotypeFlagLock")
+    @VisibleForTesting volatile int mZramWritebackOomAdj =
+            OomAdjuster.DEFAULT_ZRAM_WRITEBACK_OOM_ADJ;
+    @GuardedBy("mPhenotypeFlagLock")
     private volatile boolean mUseCompaction = DEFAULT_USE_COMPACTION;
     private volatile boolean mDebugCompaction = DEBUG_COMPACTION;
     private volatile boolean mUseFreezer = false; // set to DEFAULT in init()
@@ -545,15 +639,22 @@ public class CachedAppOptimizer {
     @GuardedBy("mProcLock")
     private boolean mFreezerOverride = false;
     private long mFreezerBinderCallbackLast = -1;
+    private boolean mBinderMonitorEnabled = false;
 
-    @VisibleForTesting volatile long mFreezerDebounceTimeout = DEFAULT_FREEZER_DEBOUNCE_TIMEOUT;
+    @VisibleForTesting volatile long mFreezerDebounceTimeout;
     @VisibleForTesting volatile boolean mFreezerExemptInstPkg = DEFAULT_FREEZER_EXEMPT_INST_PKG;
 
     private final ProcessDependencies mProcessDependencies;
     private final ProcLocksReader mProcLocksReader;
-    public static BoostFramework mPerf = new BoostFramework();
+    private final BinderfsStatsReader mBinderfsStatsReader;
 
     private final Freezer mFreezer;
+
+    private volatile IMmd mMmd;
+    private volatile Boolean mHasZramWritebackSupport;
+
+    private KernelAllocationStatsProvider mKernelAllocationStats =
+            new DefaultKernelAllocationStatsProvider();
 
     public CachedAppOptimizer(ActivityManagerService am) {
         this(am, null, new DefaultProcessDependencies());
@@ -571,7 +672,38 @@ public class CachedAppOptimizer {
         mTestCallback = callback;
         mSettingsObserver = new SettingsContentObserver();
         mProcLocksReader = new ProcLocksReader();
+        mBinderfsStatsReader = new BinderfsStatsReader();
         mFreezer = mAm.getFreezer();
+
+        final Resources res = mAm.mContext.getResources();
+        mDefaultFreezerDebounceTimeout = res.getInteger(
+            com.android.internal.R.integer.config_defaultFreezerDebounceTimeout);
+        mFreezerDebounceTimeout = mDefaultFreezerDebounceTimeout;
+
+        // This must be done exactly once, and as early as possible so that system_server can open
+        // the singleton binder netlink socket.  mBinderMonitorEnabled will be false in test
+        // processes, regardless of the flag.
+        mBinderMonitorEnabled = android.os.Flags.binderNetlinkEnabled() && enableBinderReport();
+
+        // Start the monitor thread only if binder monitoring is enabled.
+        if (mBinderMonitorEnabled) {
+            new Thread("BinderMonitor") {
+                @Override
+                public void run() {
+                    Slog.d(TAG_AM, "BinderMonitor enabled");
+                    try {
+                        handleBinderReport();
+                    } catch (RuntimeException e) {
+                        Slog.e(TAG_AM, "Binder monitor failed", e);
+                    } finally {
+                        Slog.e(TAG_AM, "BinderMonitor disabled");
+                        // The thread has exited: ensure that further errors are processed with
+                        // legacy logic.
+                        mBinderMonitorEnabled = false;
+                    }
+                }
+            }.start();
+        }
     }
 
     /**
@@ -599,6 +731,12 @@ public class CachedAppOptimizer {
             updateUseFreezer();
             updateMinOomAdjThrottle();
             updateMaxOomAdjThrottle();
+            updateZramWritebackEnabled();
+            updateZramWritebackWait();
+            updateZramWritebackOomAdj();
+            updateZramWritebackThresholdKb();
+            updateZramWritebackGpuMemThresholdKb();
+            updateZramWritebackDmabufMemThresholdKb();
         }
         setAppCompactProperties();
     }
@@ -721,6 +859,14 @@ public class CachedAppOptimizer {
             pw.println("  " + KEY_COMPACT_THROTTLE_4 + "=" + mCompactThrottleFullFull);
             pw.println("  " + KEY_COMPACT_THROTTLE_MIN_OOM_ADJ + "=" + mCompactThrottleMinOomAdj);
             pw.println("  " + KEY_COMPACT_THROTTLE_MAX_OOM_ADJ + "=" + mCompactThrottleMaxOomAdj);
+            pw.println("  " + KEY_ZRAM_WRITEBACK_ENABLED + "=" + mZramWritebackEnabled);
+            pw.println("  " + KEY_ZRAM_WRITEBACK_WAIT_SECONDS + "=" + mZramWritebackWaitSeconds);
+            pw.println("  " + KEY_ZRAM_WRITEBACK_OOM_ADJ + "=" + mZramWritebackOomAdj);
+            pw.println("  " + KEY_ZRAM_WRITEBACK_THRESHOLD_KB + "=" + mZramWritebackThresholdKb);
+            pw.println("  " + KEY_ZRAM_WRITEBACK_GPU_MEM_THRESHOLD_KB + "="
+                    + mZramWritebackGpuMemThresholdKb);
+            pw.println("  " + KEY_ZRAM_WRITEBACK_DMABUF_MEM_THRESHOLD_KB + "="
+                    + mZramWritebackDmabufMemThresholdKb);
             pw.println("  " + KEY_COMPACT_STATSD_SAMPLE_RATE + "=" + mCompactStatsdSampleRate);
             pw.println("  " + KEY_COMPACT_FULL_RSS_THROTTLE_KB + "="
                     + mFullAnonRssThrottleKb);
@@ -839,6 +985,18 @@ public class CachedAppOptimizer {
     }
 
     private native void compactSystem();
+    private native void compactSystemWithMemcg();
+
+    /**
+     * Enable binder reports via generic netlink
+     * @return true if the operation completed successfully, false otherwise.
+     */
+    private native boolean enableBinderReport();
+
+    /**
+     * Wait, read and process binder reports from kernel binder driver.
+     */
+    private native void handleBinderReport();
 
     /**
      * Compacts a process or app
@@ -1134,7 +1292,7 @@ public class CachedAppOptimizer {
             KEY_COMPACT_THROTTLE_MIN_OOM_ADJ, DEFAULT_COMPACT_THROTTLE_MIN_OOM_ADJ);
 
         // Should only compact cached processes.
-        if (mCompactThrottleMinOomAdj < ProcessList.CACHED_APP_MIN_ADJ) {
+        if (mCompactThrottleMinOomAdj < CACHED_APP_MIN_ADJ) {
             mCompactThrottleMinOomAdj = DEFAULT_COMPACT_THROTTLE_MIN_OOM_ADJ;
         }
     }
@@ -1145,8 +1303,62 @@ public class CachedAppOptimizer {
             KEY_COMPACT_THROTTLE_MAX_OOM_ADJ, DEFAULT_COMPACT_THROTTLE_MAX_OOM_ADJ);
 
         // Should only compact cached processes.
-        if (mCompactThrottleMaxOomAdj > ProcessList.CACHED_APP_MAX_ADJ) {
+        if (mCompactThrottleMaxOomAdj > CACHED_APP_MAX_ADJ) {
             mCompactThrottleMaxOomAdj = DEFAULT_COMPACT_THROTTLE_MAX_OOM_ADJ;
+        }
+    }
+
+    @GuardedBy("mPhenotypeFlagLock")
+    private void updateZramWritebackEnabled() {
+        mZramWritebackEnabled = DeviceConfig.getBoolean(DeviceConfig.NAMESPACE_ACTIVITY_MANAGER,
+                KEY_ZRAM_WRITEBACK_ENABLED, DEFAULT_ZRAM_WRITEBACK_ENABLED);
+    }
+
+    @GuardedBy("mPhenotypeFlagLock")
+    private void updateZramWritebackWait() {
+        mZramWritebackWaitSeconds = DeviceConfig.getLong(DeviceConfig.NAMESPACE_ACTIVITY_MANAGER,
+                KEY_ZRAM_WRITEBACK_WAIT_SECONDS, DEFAULT_ZRAM_WRITEBACK_WAIT_SECONDS);
+        // Don't allow negative values.
+        if (mZramWritebackWaitSeconds < 0) {
+            mZramWritebackWaitSeconds = DEFAULT_ZRAM_WRITEBACK_WAIT_SECONDS;
+        }
+    }
+
+    @GuardedBy("mPhenotypeFlagLock")
+    private void updateZramWritebackOomAdj() {
+        mZramWritebackOomAdj = DeviceConfig.getInt(DeviceConfig.NAMESPACE_ACTIVITY_MANAGER,
+                KEY_ZRAM_WRITEBACK_OOM_ADJ, OomAdjuster.DEFAULT_ZRAM_WRITEBACK_OOM_ADJ);
+        mAm.mOomAdjuster.configureAdjForZramWriteback(mZramWritebackOomAdj);
+    }
+
+    @GuardedBy("mPhenotypeFlagLock")
+    private void updateZramWritebackThresholdKb() {
+        mZramWritebackThresholdKb = DeviceConfig.getLong(DeviceConfig.NAMESPACE_ACTIVITY_MANAGER,
+                KEY_ZRAM_WRITEBACK_THRESHOLD_KB, DEFAULT_ZRAM_WRITEBACK_THRESHOLD_KB);
+        if (mZramWritebackThresholdKb <= 0) {
+            mZramWritebackThresholdKb = DEFAULT_ZRAM_WRITEBACK_THRESHOLD_KB;
+        }
+    }
+
+    @GuardedBy("mPhenotypeFlagLock")
+    private void updateZramWritebackGpuMemThresholdKb() {
+        mZramWritebackGpuMemThresholdKb = DeviceConfig.getLong(
+                DeviceConfig.NAMESPACE_ACTIVITY_MANAGER,
+                KEY_ZRAM_WRITEBACK_GPU_MEM_THRESHOLD_KB,
+                DEFAULT_ZRAM_WRITEBACK_GPU_MEM_THRESHOLD_KB);
+        if (mZramWritebackGpuMemThresholdKb < 0) {
+            mZramWritebackGpuMemThresholdKb = DEFAULT_ZRAM_WRITEBACK_GPU_MEM_THRESHOLD_KB;
+        }
+    }
+
+    @GuardedBy("mPhenotypeFlagLock")
+    private void updateZramWritebackDmabufMemThresholdKb() {
+        mZramWritebackDmabufMemThresholdKb = DeviceConfig.getLong(
+                DeviceConfig.NAMESPACE_ACTIVITY_MANAGER,
+                KEY_ZRAM_WRITEBACK_DMABUF_MEM_THRESHOLD_KB,
+                DEFAULT_ZRAM_WRITEBACK_DMABUF_MEM_THRESHOLD_KB);
+        if (mZramWritebackDmabufMemThresholdKb < 0) {
+            mZramWritebackDmabufMemThresholdKb = DEFAULT_ZRAM_WRITEBACK_DMABUF_MEM_THRESHOLD_KB;
         }
     }
 
@@ -1154,10 +1366,10 @@ public class CachedAppOptimizer {
     private void updateFreezerDebounceTimeout() {
         mFreezerDebounceTimeout = DeviceConfig.getLong(
                 DeviceConfig.NAMESPACE_ACTIVITY_MANAGER_NATIVE_BOOT,
-                KEY_FREEZER_DEBOUNCE_TIMEOUT, DEFAULT_FREEZER_DEBOUNCE_TIMEOUT);
+                KEY_FREEZER_DEBOUNCE_TIMEOUT, mDefaultFreezerDebounceTimeout);
 
         if (mFreezerDebounceTimeout < 0) {
-            mFreezerDebounceTimeout = DEFAULT_FREEZER_DEBOUNCE_TIMEOUT;
+            mFreezerDebounceTimeout = mDefaultFreezerDebounceTimeout;
         }
         Slog.d(TAG_AM, "Freezer timeout set to " + mFreezerDebounceTimeout);
     }
@@ -1304,7 +1516,7 @@ public class CachedAppOptimizer {
             return;
         }
 
-        if (app.getSetAdj() >= ProcessList.CACHED_APP_MIN_ADJ) {
+        if (app.getSetAdj() >= CACHED_APP_MIN_ADJ) {
             final IApplicationThread thread = app.getThread();
             if (thread != null) {
                 try {
@@ -1424,7 +1636,13 @@ public class CachedAppOptimizer {
 
             opt.setFreezeUnfreezeTime(SystemClock.uptimeMillis());
             opt.setFrozen(false);
+            final boolean wasZramWrittenBack = app.isZramWrittenBack();
+            mAm.mProcessStateController.setIsZramWrittenBack(app, false);
+            if (wasZramWrittenBack) {
+                prefetchZram(app, reason);
+            }
             mFrozenProcesses.delete(pid);
+            mAm.mProcessStateController.setFrozenProcessCount(mFrozenProcesses.size());
         } catch (Exception e) {
             Slog.e(TAG_AM, "Unable to unfreeze " + pid + " " + app.processName
                     + ". This might cause inconsistency or UI hangs.");
@@ -1526,6 +1744,7 @@ public class CachedAppOptimizer {
             }
 
             mFrozenProcesses.delete(app.getPid());
+            mAm.mProcessStateController.setFrozenProcessCount(mFrozenProcesses.size());
         }
     }
 
@@ -1577,11 +1796,11 @@ public class CachedAppOptimizer {
     }
 
     @GuardedBy({"mService", "mProcLock"})
-    void onOomAdjustChanged(int oldAdj, int newAdj, ProcessRecord app) {
+    void onOomAdjustChanged(@OomAdjust int oldAdj, @OomAdjust int newAdj, ProcessRecord app) {
         if (useCompaction()) {
             // Cancel any currently executing compactions
             // if the process moved out of cached state
-            if (newAdj < oldAdj && newAdj < ProcessList.CACHED_APP_MIN_ADJ) {
+            if (newAdj < oldAdj && newAdj < CACHED_APP_MIN_ADJ) {
                 cancelCompactionForProcess(app, CancelCompactReason.OOM_IMPROVEMENT);
             }
         }
@@ -1649,6 +1868,29 @@ public class CachedAppOptimizer {
         }
     }
 
+    private IMmd getMmd() {
+        if (mMmd == null) {
+            IBinder b = ServiceManager.getService(MMD_SERVICE_NAME);
+            if (b != null) {
+                mMmd = IMmd.Stub.asInterface(b);
+            }
+            if (mMmd == null && DEBUG_WRITEBACK) {
+                Slog.w(TAG_AM, "mmd service not available");
+            }
+        }
+        return mMmd;
+    }
+
+    @VisibleForTesting
+    void setMmd(IMmd mmd) {
+        mMmd = mmd;
+    }
+
+    @VisibleForTesting
+    void setKernelAllocationStatsForTest(@NonNull KernelAllocationStatsProvider provider) {
+        mKernelAllocationStats = provider;
+    }
+
     private static int getCompactionFlags(CompactProfile profile) {
         if (profile == CompactProfile.FULL) {
             return COMPACT_ACTION_FILE_FLAG | COMPACT_ACTION_ANON_FLAG;
@@ -1659,6 +1901,201 @@ public class CachedAppOptimizer {
         }
         return 0;
     }
+
+    private void maybeWritebackZram(ProcessRecord app, int pid, String processName,
+            String packageName, int uid, long zramUsedDeltaKb, boolean hasActivities) {
+        final boolean zramWritebackEnabled = Flags.enableZramWriteback() && mZramWritebackEnabled;
+        if (DEBUG_WRITEBACK) {
+            Slog.i(
+                TAG_AM,
+                "maybeWritebackZram "
+                        + " enableZramWriteback(flag): "
+                        + Flags.enableZramWriteback()
+                        + " enableZramWriteback(deviceConfig): "
+                        + mZramWritebackEnabled
+                        + " processName: "
+                        + processName
+                        + " pid: "
+                        + pid
+                        + " zramUsedDeltaKb: "
+                        + zramUsedDeltaKb
+                        + " hasActivities: "
+                        + hasActivities
+                        );
+        }
+        if (!Flags.logZramWritebackEvents() && !zramWritebackEnabled) {
+            return;
+        }
+        int eventTypeToLog =
+                FrameworkStatsLog.ZRAM_WRITEBACK_EVENT__EVENT_TYPE__SKIPPED_OTHER_REASONS;
+        String processNameForLogging =
+                (processName != null && processName.equals(packageName)) ? null : processName;
+        long graphicsMemKbVal = 0;
+        final KernelAllocationStats.ProcessGpuMem[] gpuAllocations =
+                mKernelAllocationStats.getGpuAllocations();
+        if (gpuAllocations != null) {
+            for (final KernelAllocationStats.ProcessGpuMem pgm : gpuAllocations) {
+                if (pgm.pid == pid) {
+                    graphicsMemKbVal = pgm.gpuMemoryKb;
+                    break;
+                }
+            }
+        }
+        final long graphicsMemKb = graphicsMemKbVal;
+        final boolean gpuMemoryTooHigh =
+                graphicsMemKb > mZramWritebackGpuMemThresholdKb;
+        final long dmaBufSizeKb = mKernelAllocationStats.getDmabufSizeForProcessKb(pid);
+        final boolean dmaBufMemTooHigh = dmaBufSizeKb > mZramWritebackDmabufMemThresholdKb;
+        try {
+            if (zramUsedDeltaKb >= mZramWritebackThresholdKb) {
+                eventTypeToLog =
+                        FrameworkStatsLog
+                                .ZRAM_WRITEBACK_EVENT__EVENT_TYPE__SKIPPED_RSS_SWAP_TOO_HIGH;
+                return;
+            }
+            if (!hasActivities) {
+                eventTypeToLog =
+                        FrameworkStatsLog
+                                .ZRAM_WRITEBACK_EVENT__EVENT_TYPE__SKIPPED_NO_ACTIVITY;
+                return;
+            }
+            if (gpuMemoryTooHigh) {
+                eventTypeToLog =
+                        FrameworkStatsLog
+                                .ZRAM_WRITEBACK_EVENT__EVENT_TYPE__SKIPPED_GPU_MEMORY_TOO_HIGH;
+                return;
+            }
+            if (dmaBufMemTooHigh) {
+                eventTypeToLog =
+                        FrameworkStatsLog
+                                .ZRAM_WRITEBACK_EVENT__EVENT_TYPE__SKIPPED_DMA_BUF_TOO_HIGH;
+                return;
+            }
+            final IMmd mmd = getMmd();
+            if (mmd == null) {
+                eventTypeToLog =
+                        FrameworkStatsLog
+                                .ZRAM_WRITEBACK_EVENT__EVENT_TYPE__SKIPPED_MMD_SERVICE_UNAVAILABLE;
+                return;
+            }
+            try {
+                if (mHasZramWritebackSupport == null) {
+                    mHasZramWritebackSupport = mmd.supportsProcessMemoryZramOps();
+                }
+                if (!Boolean.TRUE.equals(mHasZramWritebackSupport)) {
+                    eventTypeToLog =
+                            FrameworkStatsLog
+                                    .ZRAM_WRITEBACK_EVENT__EVENT_TYPE__SKIPPED_UNSUPPORTED_BY_MMD;
+                    return;
+                }
+                final IMmdProcessWritebackCallback callback =
+                        new IMmdProcessWritebackCallback.Stub() {
+                            @Override
+                            @RequiresNoPermission
+                            public void onProcessMemoryWritebackComplete(
+                                    byte status, long bytesWritten) {
+                                if (status != IMmdProcessWritebackCallback.WritebackStatus.SUCCESS
+                                        && DEBUG_WRITEBACK) {
+                                    Slog.d(
+                                            TAG_AM,
+                                            "onProcessMemoryWritebackComplete failed for "
+                                                    + processName
+                                                    + ":"
+                                                    + pid
+                                                    + "status="
+                                                    + status);
+                                }
+                                Trace.asyncTraceForTrackEnd(
+                                        Trace.TRACE_TAG_ACTIVITY_MANAGER,
+                                        ATRACE_ZRAM_WRITEBACK_TRACK,
+                                        pid);
+                                Trace.instantForTrack(
+                                        Trace.TRACE_TAG_ACTIVITY_MANAGER,
+                                        ATRACE_ZRAM_WRITEBACK_TRACK,
+                                        "ZramWriteback: writeback completed for "
+                                                + processName
+                                                + ":"
+                                                + pid
+                                                + " status: "
+                                                + status);
+                                if (status
+                                        == IMmdProcessWritebackCallback.WritebackStatus.SUCCESS) {
+                                    synchronized (mAm) {
+                                        synchronized (mAm.mProcLock) {
+                                            mAm.mProcessStateController
+                                                    .setIsZramWrittenBack(app, true);
+                                        }
+                                    }
+                                }
+                                FrameworkStatsLog.write(FrameworkStatsLog.ZRAM_WRITEBACK_EVENT,
+                                        getZramWritebackEventType(status), uid, processName,
+                                        hasActivities, zramUsedDeltaKb, bytesWritten,
+                                        // the following should both be true if we reach this point.
+                                        dmaBufMemTooHigh, gpuMemoryTooHigh,
+                                        dmaBufSizeKb,
+                                        graphicsMemKb);
+                            }
+                        };
+                try {
+                    final FileDescriptor fd = Process.openPidFd(pid, 0);
+                    try (final ParcelFileDescriptor pfd =
+                            ParcelFileDescriptor.adoptFd(fd.getInt$())) {
+                        if (!zramWritebackEnabled) {
+                            eventTypeToLog =
+                                    FrameworkStatsLog
+                                            .ZRAM_WRITEBACK_EVENT__EVENT_TYPE__DISABLED_BY_FLAG;
+                            return;
+                        }
+                        Trace.asyncTraceForTrackBegin(
+                                Trace.TRACE_TAG_ACTIVITY_MANAGER,
+                                ATRACE_ZRAM_WRITEBACK_TRACK,
+                                "asyncWritebackProcessZramMemory",
+                                pid);
+                        eventTypeToLog =
+                            FrameworkStatsLog.ZRAM_WRITEBACK_EVENT__EVENT_TYPE__STARTED;
+                        mmd.asyncWritebackProcessZramMemory(pfd, callback);
+                    }
+                } catch (IOException e) {
+                    eventTypeToLog =
+                            FrameworkStatsLog.ZRAM_WRITEBACK_EVENT__EVENT_TYPE__FAILED_OTHER;
+                    Slog.w(TAG_AM, "Failed to get pidfd for " + pid, e);
+                }
+            } catch (RemoteException e) {
+                eventTypeToLog = FrameworkStatsLog.ZRAM_WRITEBACK_EVENT__EVENT_TYPE__FAILED_OTHER;
+                Slog.w(TAG_AM, "Failed to call mmd.", e);
+            }
+        } finally {
+            if (eventTypeToLog != FrameworkStatsLog.ZRAM_WRITEBACK_EVENT__EVENT_TYPE__STARTED) {
+                Trace.instantForTrack(
+                        Trace.TRACE_TAG_ACTIVITY_MANAGER,
+                        ATRACE_ZRAM_WRITEBACK_TRACK,
+                        "ZramWriteback: did not attempt writeback for "
+                                + processName
+                                + ":"
+                                + pid
+                                + " eventType: " + eventTypeToLog);
+            }
+            FrameworkStatsLog.write(FrameworkStatsLog.ZRAM_WRITEBACK_EVENT, eventTypeToLog, uid,
+                    processName, hasActivities, zramUsedDeltaKb, /* zramBytesWritten= */ 0,
+                    dmaBufMemTooHigh, gpuMemoryTooHigh, dmaBufSizeKb, graphicsMemKb);
+        }
+    }
+
+    private static int getZramWritebackEventType(byte status) {
+        switch (status) {
+            case IMmdProcessWritebackCallback.WritebackStatus.SUCCESS:
+                return FrameworkStatsLog.ZRAM_WRITEBACK_EVENT__EVENT_TYPE__SUCCEEDED;
+            case IMmdProcessWritebackCallback.WritebackStatus.FAILURE_DEVICE_FULL:
+                return FrameworkStatsLog.ZRAM_WRITEBACK_EVENT__EVENT_TYPE__FAILED_DEVICE_FULL;
+            case IMmdProcessWritebackCallback.WritebackStatus.FAILURE_UNSUPPORTED:
+                return FrameworkStatsLog.ZRAM_WRITEBACK_EVENT__EVENT_TYPE__FAILED_UNSUPPORTED;
+            default:
+                return FrameworkStatsLog.ZRAM_WRITEBACK_EVENT__EVENT_TYPE__FAILED_OTHER;
+        }
+    }
+
+    private record ZramWritebackData(ProcessRecord app, int pid, String processName,
+            String packageName, int uid, long zramUsedDeltaKb, boolean hasActivities) {}
 
     private final class MemCompactionHandler extends Handler {
         private MemCompactionHandler() {
@@ -1672,9 +2109,8 @@ public class CachedAppOptimizer {
 
             // don't compact if the process has returned to perceptible
             // and this is only a cached/home/prev compaction
-            if (compactSource == CompactSource.APP
-                    && proc.getSetAdj() <= ProcessList.PERCEPTIBLE_APP_ADJ) {
-                if (mDebugCompaction) {
+            if (proc.getSetAdj() <= PERCEPTIBLE_APP_ADJ) {
+                if (DEBUG_COMPACTION) {
                     Slog.d(TAG_AM,
                             "Skipping compaction as process " + name + " is "
                                     + "now perceptible.");
@@ -1803,7 +2239,7 @@ public class CachedAppOptimizer {
 
             if (valid == null) {
                 // Use JNI only once
-                valid = new Boolean(compactionFlagsValidForMemcg(getCompactionFlags(profile)));
+                valid = compactionFlagsValidForMemcg(getCompactionFlags(profile));
                 mProfileValidForMemcgMap.put(profile, valid);
             }
 
@@ -1820,6 +2256,7 @@ public class CachedAppOptimizer {
                     int uid;
                     int pid;
                     final String name;
+                    final String packageName;
                     CompactProfile lastCompactProfile;
                     long lastCompactTime;
                     int newOomAdj = msg.arg1;
@@ -1828,6 +2265,7 @@ public class CachedAppOptimizer {
                     CompactSource compactSource;
                     CompactProfile requestedProfile;
                     int oomAdjReason;
+                    boolean hasActivities;
                     synchronized (mProcLock) {
                         if (mPendingCompactionProcesses.isEmpty()) {
                             if (mDebugCompaction) {
@@ -1842,12 +2280,14 @@ public class CachedAppOptimizer {
                         uid = proc.uid;
                         pid = proc.getPid();
                         name = proc.processName;
+                        packageName = proc.getPackageName();
                         opt.setHasPendingCompact(false);
                         compactSource = opt.getReqCompactSource();
                         requestedProfile = opt.getReqCompactProfile();
                         lastCompactProfile = opt.getLastCompactProfile();
                         lastCompactTime = opt.getLastCompactTime();
                         oomAdjReason = opt.getLastOomAdjChangeReason();
+                        hasActivities = proc.hasActivities();
                     }
 
                     long[] rssBefore;
@@ -1932,6 +2372,11 @@ public class CachedAppOptimizer {
                         long deltaFileRss = rssAfter[RSS_FILE_INDEX] - rssBefore[RSS_FILE_INDEX];
                         long deltaAnonRss = rssAfter[RSS_ANON_INDEX] - rssBefore[RSS_ANON_INDEX];
                         long deltaSwapRss = rssAfter[RSS_SWAP_INDEX] - rssBefore[RSS_SWAP_INDEX];
+                        final ZramWritebackData data = new ZramWritebackData(proc,
+                                pid, name, packageName, uid, rssAfter[RSS_SWAP_INDEX],
+                                hasActivities);
+                        sendMessageDelayed(obtainMessage(ZRAM_WRITEBACK_MSG, data),
+                                mZramWritebackWaitSeconds * 1000);
                         switch (opt.getReqCompactProfile()) {
                             case SOME:
                                 mCompactStatsManager.logSomeCompactionPerformed(compactSource,
@@ -1979,7 +2424,11 @@ public class CachedAppOptimizer {
                 case COMPACT_SYSTEM_MSG: {
                     Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "compactSystem");
                     long memFreedBefore = getMemoryFreedCompaction();
-                    compactSystem();
+                    if (Flags.useMemcgForCompaction()) {
+                        compactSystemWithMemcg();
+                    } else {
+                        compactSystem();
+                    }
                     long memFreedAfter = getMemoryFreedCompaction();
                     long memFreed = memFreedAfter - memFreedBefore;
                     mCompactStatsManager.logSystemCompactionPerformed(memFreed);
@@ -2003,6 +2452,13 @@ public class CachedAppOptimizer {
                         Slog.d(TAG_AM, "Failed compacting native pid= " + pid);
                     }
                     Trace.traceEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER);
+                    break;
+                }
+                case ZRAM_WRITEBACK_MSG: {
+                    final ZramWritebackData data = (ZramWritebackData) msg.obj;
+                    maybeWritebackZram(data.app(), data.pid(), data.processName(),
+                            data.packageName(), data.uid(), data.zramUsedDeltaKb(),
+                            data.hasActivities());
                     break;
                 }
             }
@@ -2127,6 +2583,10 @@ public class CachedAppOptimizer {
                 // We've given the app plenty of chances, assume broken. Time to die.
                 Slog.d(TAG_AM, "Kill app due to repeated failure to freeze binder: "
                         + proc.getPid() + " " + proc.processName);
+                // Access app fields here because mProcLock is held.
+                final int uid = proc.uid;
+                final String packageName = proc.info != null ? proc.info.packageName : null;
+
                 mAm.mHandler.post(() -> {
                     synchronized (mAm) {
                         // Crash regardless of procstate in case the app has found another way
@@ -2138,6 +2598,9 @@ public class CachedAppOptimizer {
                                 ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE,
                                 ApplicationExitInfo.SUBREASON_EXCESSIVE_CPU,
                                 true);
+                    }
+                    if (packageName != null) {
+                        mAm.sendKillExcessiveCpuProfilingTrigger(uid, packageName);
                     }
                 });
                 return;
@@ -2186,15 +2649,6 @@ public class CachedAppOptimizer {
                     return;
                 }
 
-                if (opt.shouldNotFreeze() && !Flags.cpuTimeCapabilityBasedFreezePolicy()) {
-                    if (DEBUG_FREEZER) {
-                        Slog.d(TAG_AM, "Skipping freeze because process is marked "
-                                + "should not be frozen");
-                    }
-                    reportProcessFreezableChangedLocked(proc);
-                    return;
-                }
-
                 if (pid == 0 || opt.isFrozen()) {
                     // Already frozen or not a real process, either one being
                     // launched or one being killed
@@ -2234,12 +2688,25 @@ public class CachedAppOptimizer {
                     opt.setFrozen(true);
                     opt.setHasCollectedFrozenPSS(false);
                     mFrozenProcesses.put(pid, proc);
+                    mAm.mProcessStateController.setFrozenProcessCount(mFrozenProcesses.size());
                 } catch (Exception e) {
                     Slog.w(TAG_AM, "Unable to freeze " + pid + " " + name);
                 }
 
                 unfrozenDuration = opt.getFreezeUnfreezeTime() - unfreezeTime;
                 frozen = opt.isFrozen();
+
+                if (frozen && android.os.Flags.perfettoSdkTracingV3()) {
+                    PerfettoTrace.instant(FREEZER_CATEGORY, "freeze")
+                            .beginProto()
+                            .beginNested(FREEZER_EVENT)
+                            .addField(UID, proc.uid)
+                            .addField(PID, proc.getPid())
+                            .addField(UNFROZEN_DUR_MS, unfrozenDuration)
+                            .endNested()
+                            .endProto()
+                            .emit();
+                }
 
                 final UidRecord uidRec = proc.getUidRecord();
                 if (frozen && uidRec != null && uidRec.areAllProcessesFrozen()) {
@@ -2256,15 +2723,15 @@ public class CachedAppOptimizer {
             EventLog.writeEvent(EventLogTags.AM_FREEZE, pid, name);
 
             // See above for why we're not taking mPhenotypeFlagLock here
-            if (mRandom.nextFloat() < mFreezerStatsdSampleRate) {
-                FrameworkStatsLog.write(FrameworkStatsLog.APP_FREEZE_CHANGED,
-                        FrameworkStatsLog.APP_FREEZE_CHANGED__ACTION__FREEZE_APP,
-                        pid,
-                        name,
-                        unfrozenDuration,
-                        FrameworkStatsLog.APP_FREEZE_CHANGED__UNFREEZE_REASON__NONE,
-                        UNFREEZE_REASON_NONE);
-            }
+            ApplicationInfo appInfo = proc.info;
+            FrameworkStatsLog.write(FrameworkStatsLog.APP_FREEZE_CHANGED,
+                    FrameworkStatsLog.APP_FREEZE_CHANGED__ACTION__FREEZE_APP,
+                    pid,
+                    name,
+                    unfrozenDuration,
+                    FrameworkStatsLog.APP_FREEZE_CHANGED__UNFREEZE_REASON__NONE,
+                    UNFREEZE_REASON_NONE,
+                    appInfo != null ? appInfo.uid : -1);
 
             try {
                 // post-check to prevent races
@@ -2295,17 +2762,30 @@ public class CachedAppOptimizer {
             EventLog.writeEvent(EventLogTags.AM_UNFREEZE, pid, processName, reason);
             app.onProcessUnfrozen();
 
-            // See above for why we're not taking mPhenotypeFlagLock here
-            if (mRandom.nextFloat() < mFreezerStatsdSampleRate) {
-                FrameworkStatsLog.write(
-                        FrameworkStatsLog.APP_FREEZE_CHANGED,
-                        FrameworkStatsLog.APP_FREEZE_CHANGED__ACTION__UNFREEZE_APP,
-                        pid,
-                        processName,
-                        frozenDuration,
-                        FrameworkStatsLog.APP_FREEZE_CHANGED__UNFREEZE_REASON__NONE, // deprecated
-                        reason);
+            if (android.os.Flags.perfettoSdkTracingV3()) {
+                PerfettoTrace.instant(FREEZER_CATEGORY, "unfreeze")
+                        .beginProto()
+                        .beginNested(FREEZER_EVENT)
+                        .addField(UID, app.uid)
+                        .addField(PID, pid)
+                        .addField(FROZEN_DUR_MS, frozenDuration)
+                        .addField(UNFREEZE_REASON, reason)
+                        .endNested()
+                        .endProto()
+                        .emit();
             }
+
+            // See above for why we're not taking mPhenotypeFlagLock here
+            ApplicationInfo appInfo = app.info;
+            FrameworkStatsLog.write(
+                    FrameworkStatsLog.APP_FREEZE_CHANGED,
+                    FrameworkStatsLog.APP_FREEZE_CHANGED__ACTION__UNFREEZE_APP,
+                    pid,
+                    processName,
+                    frozenDuration,
+                    FrameworkStatsLog.APP_FREEZE_CHANGED__UNFREEZE_REASON__NONE, // deprecated
+                    reason,
+                    appInfo != null ? appInfo.uid : -1);
         }
 
         @GuardedBy({"mAm"})
@@ -2453,11 +2933,72 @@ public class CachedAppOptimizer {
         }
     }
 
+    // Binder error codes that are shared between the jni and java layers.
+    // LINT.IfChange(binderCodes)
+    private static final int BR_REPORT_FAILED = -1;
+    private static final int BR_FROZEN_REPLY = 1;
+    private static final int BR_FAILED_REPLY = 2;
+    private static final int BR_ONEWAY_SPAM_SUSPECT = 3;
+    private static final int BR_TRANSACTION_PENDING_FROZEN = 4;
+    // LINT.ThenChange(/services/core/jni/com_android_server_am_CachedAppOptimizer.cpp:binderCodes)
+
+    /**
+     * Process a binder error message.  This method is called by the binder monitor thread in the
+     * native layer.  The method returns false if there is an error and the monitor thread should
+     * exit.
+     */
+    @Keep
+    private boolean handleBinderReport(int error, int fromPid, int toPid, boolean large,
+            boolean oneway) {
+        switch (error) {
+            case BR_REPORT_FAILED:
+                Slog.e(TAG_AM, "failed to retrieve binder report");
+                break;
+
+            case BR_FROZEN_REPLY:
+                killFrozenProcess(toPid, "Sync transaction while frozen",
+                        ApplicationExitInfo.REASON_FREEZER,
+                        ApplicationExitInfo.SUBREASON_FREEZER_BINDER_TRANSACTION);
+                break;
+
+            case BR_FAILED_REPLY:
+                if (large) {
+                    // If the message was "large", a TransactionTooLargeException} will be
+                    // thrown, and the process will be dealt with in the handler.
+                    Slog.d(TAG_AM, "Ignoring TransactionTooLarge failure");
+                } else if (!oneway) {
+                    // This is an unknown synchronous message failure.  The target might be
+                    // dead, but nothing can be done here.
+                    Slog.d(TAG_AM, "Ignoring unknown synchronous message failure");
+                } else {
+                    killFrozenProcess(toPid, "Async binder space running out while frozen",
+                            ApplicationExitInfo.REASON_FREEZER,
+                            ApplicationExitInfo.SUBREASON_FREEZER_BINDER_ASYNC_FULL);
+                }
+                break;
+
+            case BR_ONEWAY_SPAM_SUSPECT:
+            case BR_TRANSACTION_PENDING_FROZEN:
+                // Binder spamming.
+                break;
+
+            default:
+                // Should not be sent from the lower layers.
+                Slog.e(TAG_AM, "unknown binder error code: " + error);
+                break;
+        }
+        // The monitor thread should continue unless the error code is "failure".  If the monitor
+        // thread exits, the code reverts to
+        return error != BR_REPORT_FAILED;
+    }
+
     /**
      * Kill a frozen process with a specified reason
      */
-    public void killProcess(int pid, String reason, @Reason int reasonCode,
+    @Keep
+    private void killFrozenProcess(int pid, String reason, @Reason int reasonCode,
             @SubReason int subReason) {
+        Slog.i(TAG_AM, "binder error: kill " + pid + " " + reason);
         mAm.mHandler.post(() -> {
             synchronized (mAm) {
                 synchronized (mProcLock) {
@@ -2476,12 +3017,20 @@ public class CachedAppOptimizer {
      */
     @VisibleForTesting
     void forceFreezeForTest(ProcessRecord proc, boolean freeze) {
+        forceFreezeForTest(proc, freeze, UNFREEZE_REASON_NONE);
+    }
+
+    /**
+     * Freeze or unfreeze a process.  This should only be used for testing.
+     */
+    @VisibleForTesting
+    void forceFreezeForTest(ProcessRecord proc, boolean freeze, @UnfreezeReason int reason) {
         synchronized (mAm) {
             synchronized (mProcLock) {
                 if (freeze) {
                     forceFreezeAppAsyncLSP(proc);
                 } else {
-                    unfreezeAppLSP(proc, UNFREEZE_REASON_NONE, true);
+                    unfreezeAppLSP(proc, reason, true);
                 }
             }
         }
@@ -2504,13 +3053,13 @@ public class CachedAppOptimizer {
 
         // Do nothing if the binder error callback is not enabled.
         // That means the frozen apps in a wrong state will be killed when they are unfrozen later.
-        if (!mUseFreezer || !mFreezerBinderCallbackEnabled) {
+        if (!mUseFreezer || !mFreezerBinderCallbackEnabled || mBinderMonitorEnabled) {
             return;
         }
 
         final long now = SystemClock.uptimeMillis();
         if (now < mFreezerBinderCallbackLast + mFreezerBinderCallbackThrottle) {
-            Slog.d(TAG_AM, "Too many transaction errors, throttling freezer binder callback.");
+            Slog.d(TAG_AM, "Too many transaction errors, throttling transaction error callback.");
             return;
         }
         mFreezerBinderCallbackLast = now;
@@ -2521,7 +3070,9 @@ public class CachedAppOptimizer {
 
     private void binderErrorInternal(IntArray pids) {
         // PIDs that run out of async binder buffer when being frozen
-        ArraySet<Integer> pidsAsync = (mFreezerBinderAsyncThreshold < 0) ? null : new ArraySet<>();
+        final int[] pidsWithAsync =
+                (mFreezerBinderAsyncThreshold < 0) ? null : new int[pids.size()];
+        int pidsWithAsyncCount = 0;
 
         Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "binderErrorSync");
         for (int i = 0; i < pids.size(); i++) {
@@ -2530,7 +3081,7 @@ public class CachedAppOptimizer {
                 int freezeInfo = mFreezer.getBinderFreezeInfo(current);
 
                 if ((freezeInfo & SYNC_RECEIVED_WHILE_FROZEN) != 0) {
-                    killProcess(current, "Sync transaction while frozen",
+                    killFrozenProcess(current, "Sync transaction while frozen",
                             ApplicationExitInfo.REASON_FREEZER,
                             ApplicationExitInfo.SUBREASON_FREEZER_BINDER_TRANSACTION);
 
@@ -2539,8 +3090,8 @@ public class CachedAppOptimizer {
                 }
 
                 if ((freezeInfo & ASYNC_RECEIVED_WHILE_FROZEN) != 0) {
-                    if (pidsAsync != null) {
-                        pidsAsync.add(current);
+                    if (pidsWithAsync != null) {
+                        pidsWithAsync[pidsWithAsyncCount++] = current;
                     }
                     if (DEBUG_FREEZER) {
                         Slog.w(TAG_AM, "pid " + current
@@ -2559,21 +3110,23 @@ public class CachedAppOptimizer {
         // only true source for now. The following code checks all frozen PIDs. If any of them
         // is running out of async binder buffer, kill it. Otherwise it will be killed at a
         // later time when AMS unfreezes it, which causes race issues.
-        if (pidsAsync == null || pidsAsync.size() == 0) {
+        if (pidsWithAsyncCount == 0) {
             return;
         }
 
         Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "binderErrorAsync");
-        new BinderfsStatsReader().handleFreeAsyncSpace(
+        final int[] pidsAsync = Arrays.copyOf(pidsWithAsync, pidsWithAsyncCount);
+        Arrays.sort(pidsAsync);
+        mBinderfsStatsReader.handleFreeAsyncSpace(
                 // Check if the frozen process has pending async calls
-                pidsAsync::contains,
+                pidsAsync,
 
                 // Kill the current process if it's running out of async binder space
                 (current, free) -> {
                     if (free < mFreezerBinderAsyncThreshold) {
                         Slog.w(TAG_AM, "pid " + current
                                 + " has " + free + " free async space, killing");
-                        killProcess(current, "Async binder space running out while frozen",
+                        killFrozenProcess(current, "Async binder space running out while frozen",
                                 ApplicationExitInfo.REASON_FREEZER,
                                 ApplicationExitInfo.SUBREASON_FREEZER_BINDER_ASYNC_FULL);
                     }
@@ -2590,5 +3143,59 @@ public class CachedAppOptimizer {
     public void addFrozenProcessListener(ProcessRecord app, Executor executor,
             FrozenProcessListener listener) {
         app.mOptRecord.addFrozenProcessListener(executor, listener);
+    }
+
+    public int getFrozenProcessCount() {
+        return mFrozenProcesses.size();
+    }
+
+    private void prefetchZram(ProcessRecord app, @UnfreezeReason int reason) {
+        if (reason != UNFREEZE_REASON_ACTIVITY) {
+            return;
+        }
+        final boolean zramWritebackEnabled = Flags.enableZramWriteback() && mZramWritebackEnabled;
+        if (!zramWritebackEnabled) {
+            return;
+        }
+
+        final IMmd mmd = getMmd();
+        if (mmd == null) {
+            return;
+        }
+
+        try {
+            if (mHasZramWritebackSupport == null) {
+                mHasZramWritebackSupport = mmd.supportsProcessMemoryZramOps();
+            }
+            if (!Boolean.TRUE.equals(mHasZramWritebackSupport)) {
+                return;
+            }
+
+            final int pid = app.getPid();
+            FrameworkStatsLog.write(FrameworkStatsLog.ZRAM_WRITEBACK_EVENT,
+                    FrameworkStatsLog.ZRAM_WRITEBACK_EVENT__EVENT_TYPE__PREFETCHED,
+                    app.uid, app.processName, app.hasActivities(),
+                    /* rss_swap_kb */ 0, /* zram_bytes_written */ 0,
+                    /* has_dma_buf */ false, /* has_gpu_memory */ false,
+                    /* dma_buf_size_kb */ 0, /* gpu_memory_size_kb */ 0);
+            Trace.instantForTrack(
+                    Trace.TRACE_TAG_ACTIVITY_MANAGER,
+                    ATRACE_ZRAM_WRITEBACK_TRACK,
+                    "ZramWriteback: prefetch for "
+                            + app.processName
+                            + ":"
+                            + pid);
+            try {
+                final FileDescriptor fd = Process.openPidFd(pid, 0);
+                try (final ParcelFileDescriptor pfd =
+                        ParcelFileDescriptor.adoptFd(fd.getInt$())) {
+                    mmd.asyncPrefetchProcessZramMemory(pfd);
+                }
+            } catch (IOException e) {
+                Slog.w(TAG_AM, "Failed to get pidfd for " + pid, e);
+            }
+        } catch (RemoteException e) {
+            Slog.w(TAG_AM, "Failed to call mmd.", e);
+        }
     }
 }

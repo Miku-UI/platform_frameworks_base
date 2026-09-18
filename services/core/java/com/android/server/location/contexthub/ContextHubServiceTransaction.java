@@ -22,6 +22,7 @@ import android.hardware.location.NanoAppState;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * An abstract class representing transactions requested to the Context Hub Service.
@@ -53,7 +54,7 @@ abstract class ContextHubServiceTransaction {
      */
     private final int mOwnerId;
 
-    private boolean mIsComplete = false;
+    private AtomicBoolean mIsComplete = new AtomicBoolean(false);
 
     ContextHubServiceTransaction(int id, int type, String packageName) {
         mTransactionId = id;
@@ -156,11 +157,7 @@ abstract class ContextHubServiceTransaction {
      * @return A unique identifier for the entity owning this transaction.
      */
     long getOwnerId() {
-        if (Flags.offloadImplementation()) {
-            return ((long) mTransactionType << 32) | (0x00000000FFFFFFFFL & mOwnerId);
-        } else {
-            return mOwnerId;
-        }
+        return ((long) mTransactionType << 32) | (0x00000000FFFFFFFFL & mOwnerId);
     }
 
     /**
@@ -191,7 +188,18 @@ abstract class ContextHubServiceTransaction {
      * Should only be called as a result of a response from a Context Hub callback
      */
     void setComplete() {
-        mIsComplete = true;
+        mIsComplete.set(true);
+    }
+
+    boolean isComplete() {
+        return mIsComplete.get();
+    }
+
+    /**
+     * Atomically sets the transaction to the completed state and returns the previous state.
+     */
+    boolean getAndSetComplete() {
+        return mIsComplete.getAndSet(true);
     }
 
     void setNextRetryTime(long nextRetryTime) {
@@ -204,10 +212,6 @@ abstract class ContextHubServiceTransaction {
 
     void setNumCompletedStartCalls(int numCompletedStartCalls) {
         mNumCompletedStartCalls = numCompletedStartCalls;
-    }
-
-    boolean isComplete() {
-        return mIsComplete;
     }
 
     @Override

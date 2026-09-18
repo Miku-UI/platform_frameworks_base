@@ -531,7 +531,8 @@ static bool DeserializePackageFromPb(const pb::Package& pb_package, const ResStr
 
         ResourceConfigValue* config_value = entry->FindOrCreateValue(config, pb_config.product());
         if (config_value->value != nullptr) {
-          *out_error = "duplicate configuration in resource table";
+          *out_error = "duplicate configuration in resource table for '" + entry->name +
+                       "' and config '" + config.to_string() + "'";
           return false;
         }
 
@@ -557,7 +558,8 @@ static bool DeserializePackageFromPb(const pb::Package& pb_package, const ResStr
                                  .negated = pb_config_value.value().item().flag_negated()},
             config, pb_config.product());
         if (config_value->value != nullptr) {
-          *out_error = "duplicate configuration in resource table";
+          *out_error = "duplicate configuration in resource table for flag disabled value '" +
+                       entry->name + "' and config '" + config.to_string() + "'";
           return false;
         }
 
@@ -583,7 +585,8 @@ static bool DeserializePackageFromPb(const pb::Package& pb_package, const ResStr
             config, pb_config.product());
 
         if (config_value->value != nullptr) {
-          *out_error = "duplicate configuration in resource table";
+          *out_error = "duplicate configuration in resource table for read/write flag value '" +
+                       entry->name + "' and config '" + config.to_string() + "'";
           return false;
         }
 

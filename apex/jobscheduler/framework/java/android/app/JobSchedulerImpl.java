@@ -31,10 +31,12 @@ import android.content.pm.ParceledListSlice;
 import android.os.RemoteException;
 import android.util.ArrayMap;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Concrete implementation of the JobScheduler interface
@@ -191,6 +193,25 @@ public class JobSchedulerImpl extends JobScheduler {
             return mBinder.getPendingJobReasonsHistory(mNamespace, jobId);
         } catch (RemoteException e) {
             return Collections.EMPTY_LIST;
+        }
+    }
+
+    @Override
+    @NonNull
+    public Map<Integer, Duration> getPendingJobReasonStats(int jobId) {
+        try {
+            return mBinder.getPendingJobReasonStats(
+                            mNamespace, jobId).entrySet().stream()
+                    .collect(Collectors.toMap(
+                            entry -> {
+                                return Integer.parseInt(entry.getKey());
+                            },
+                            entry -> {
+                                return entry.getValue().getDuration();
+                            }
+                    ));
+        } catch (RemoteException e) {
+            return Collections.EMPTY_MAP;
         }
     }
 

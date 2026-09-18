@@ -17,14 +17,16 @@
 package com.android.systemui.volume.dialog.ui.viewmodel
 
 import com.android.internal.logging.uiEventLogger
+import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.backgroundScope
 import com.android.systemui.volume.dialog.domain.interactor.csdWarningConfigModel
+import com.android.systemui.volume.dialog.domain.interactor.expandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.domain.interactor.volumeDialogCsdWarningInteractor
 import com.android.systemui.volume.dialog.domain.interactor.volumeDialogSafetyWarningInteractor
 import com.android.systemui.volume.dialog.domain.interactor.volumeDialogVisibilityInteractor
 import com.android.systemui.volume.dialog.shared.volumeDialogLogger
-import com.android.systemui.volume.dialog.volumeDialog
+import com.android.systemui.volume.dialog.volumeDialogFactory
 
 val Kosmos.volumeDialogPluginViewModel: VolumeDialogPluginViewModel by
     Kosmos.Fixture {
@@ -33,9 +35,11 @@ val Kosmos.volumeDialogPluginViewModel: VolumeDialogPluginViewModel by
             volumeDialogVisibilityInteractor,
             volumeDialogSafetyWarningInteractor,
             volumeDialogCsdWarningInteractor,
-            { volumeDialog },
+            volumeDialogFactory,
             volumeDialogLogger,
             csdWarningConfigModel,
             uiEventLogger,
+            broadcastDispatcher,
+            expandedAudioTileDetailsFeatureInteractor,
         )
     }

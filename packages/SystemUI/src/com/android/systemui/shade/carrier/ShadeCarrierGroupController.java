@@ -43,7 +43,7 @@ import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
-import com.android.systemui.kairos.ExperimentalKairosApi;
+
 import com.android.systemui.kairos.KairosNetwork;
 import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.res.R;
@@ -79,7 +79,6 @@ import java.util.function.Consumer;
 
 import javax.inject.Inject;
 
-@OptIn(markerClass = ExperimentalKairosApi.class)
 public class ShadeCarrierGroupController {
     private static final String TAG = "ShadeCarrierGroup";
 
@@ -97,7 +96,7 @@ public class ShadeCarrierGroupController {
     // Non final for testing
     private H mMainHandler;
     private final Callback mCallback;
-    private final MobileIconsViewModel mMobileIconsViewModel;
+    private final Lazy<MobileIconsViewModel> mMobileIconsViewModel;
     private final MobileContextProvider mMobileContextProvider;
     private final StatusBarPipelineFlags mStatusBarPipelineFlags;
     private boolean mListening;
@@ -227,7 +226,7 @@ public class ShadeCarrierGroupController {
                 mobileUiAdapterKairos.get().setShadeCarrierGroupController(this);
             } else {
                 mobileUiAdapter.setShadeCarrierGroupController(this);
-                MobileIconsBinder.bind(view, mMobileIconsViewModel);
+                MobileIconsBinder.bind(view, mMobileIconsViewModel.get());
             }
         }
 
@@ -313,10 +312,10 @@ public class ShadeCarrierGroupController {
                         ModernShadeCarrierGroupMobileView
                                 .constructAndBind(
                                         mobileContext,
-                                        mMobileIconsViewModel.getLogger(),
+                                        mMobileIconsViewModel.get().getLogger(),
                                         "mobile_carrier_shade_group",
                                         (ShadeCarrierGroupMobileIconViewModel) mMobileIconsViewModel
-                                                .viewModelForSub(iconData.subId,
+                                                .get().viewModelForSub(iconData.subId,
                                                         StatusBarLocation.SHADE_CARRIER_GROUP)
                                 );
                 carrier.addModernMobileView(modernMobileView);

@@ -15,7 +15,6 @@
 package android.telecom;
 
 import static android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE;
-import static android.content.Intent.LOCAL_FLAG_FROM_SYSTEM;
 
 import android.Manifest;
 import android.annotation.CallbackExecutor;
@@ -46,9 +45,10 @@ import android.os.IBinder;
 import android.os.OutcomeReceiver;
 import android.os.Process;
 import android.os.RemoteException;
-import android.os.ServiceManager;
+import android.os.TelecomServiceManager;
 import android.os.UserHandle;
 import android.telephony.Annotation.CallState;
+import android.telephony.Annotation.TtyMode;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
@@ -62,9 +62,11 @@ import com.android.server.telecom.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 
@@ -216,6 +218,42 @@ public class TelecomManager {
     public static final String ACTION_CALL_BACK = "android.telecom.action.CALL_BACK";
 
     /**
+     * Activity Action: Show the settings for configuring call log integration.
+     * <p>
+     * This activity allows the user to view and turn off/on the system call logs
+     * for available VoIP applications that have integrated with the system's
+     * call log.
+     * <p>
+     * This activity must be present on a device that supports call log integration.
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String ACTION_CONFIGURE_CALL_LOG_INTEGRATION =
+            "android.telecom.action.CONFIGURE_CALL_LOG_INTEGRATION";
+
+    /**
+     * Broadcast intent action indicating that the call log preference is updated
+     * by the user.
+     * <p>The intent is sent to VoIP applications whose preferences have been affected
+     * by the user's choice. Upon receiving this broadcast, the application may
+     * re-evaluate its behavior regarding call log entries.
+     * <p>To receive this broadcast, applications must declare a receiver in
+     * their manifest file with an intent filter for this action.
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    public static final String ACTION_VOIP_CALL_LOG_PREFERENCE =
+            "android.telecom.action.VOIP_CALL_LOG_PREFERENCE";
+
+    private static final String ACTION_MANAGE_BLOCKED_NUMBERS =
+            "android.telecom.action.MANAGE_BLOCKED_NUMBERS";
+
+    /**
+     * Used if the UI package can not be determined from the telecom service
+     * @hide
+     */
+    public static final String DEFAULT_TELECOM_UI_PACKAGE = "com.android.server.telecomui";
+
+    /**
      * Extra value used to provide the package name for {@link #ACTION_CHANGE_DEFAULT_DIALER}.
      */
     public static final String EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME =
@@ -252,7 +290,7 @@ public class TelecomManager {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_PROMOTE_EXTRA_DO_NOT_LOG_CALL_TO_SYSTEM_API)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_PROMOTE_EXTRA_DO_NOT_LOG_CALL_TO_SYSTEM_API)
     @RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)
     public static final String EXTRA_DO_NOT_LOG_CALL =
             "android.telecom.extra.DO_NOT_LOG_CALL";
@@ -333,6 +371,42 @@ public class TelecomManager {
      */
     @FlaggedApi(Flags.FLAG_INTEGRATED_CALL_LOGS)
     public static final String EXTRA_UUID = "android.telecom.extra.UUID";
+
+    /**
+     * Extra used with {@link #ACTION_VOIP_CALL_LOG_PREFERENCE} to specify the value of the
+     * VoIP call log preference for the app receiving the broadcast.
+     *
+     * <p>This extra is required when using {@link #ACTION_VOIP_CALL_LOG_PREFERENCE} to signal
+     * what the preference for an app was changed to.</p>
+     *
+     * <p>Type: boolean</p>
+     *
+     * <p> Applications that support the {@link #ACTION_VOIP_CALL_LOG_PREFERENCE} will receive
+     * broadcast updates for their app when the VoIP call log preference changes. They can use this
+     * to determine if their VoIP call log will be logged to the system call log so that caching
+     * mechanisms to store call information can be conditionally enforced.</p>
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    public static final String EXTRA_VOIP_CALL_LOG_PREFERENCE_STATUS =
+            "android.telecom.extra.VOIP_CALL_LOG_PREFERENCE_STATUS";
+
+    /**
+     * An optional {@link Intent} extra used with {@link #ACTION_CALL_BACK} to specify
+     * the desired call type for the callback.
+     *
+     * <p>The value must be one of {@link android.telecom.CallAttributes#AUDIO_CALL},
+     * {@link android.telecom.CallAttributes#VIDEO_CALL}, or
+     * {@link android.telecom.CallAttributes#MESSAGING}.</p>
+     *
+     * <p>Type: int</p>
+     *
+     * <p>When an application receives an {@link #ACTION_CALL_BACK} intent, it should check
+     * for this extra. If present, the application should attempt to initiate the callback
+     * using the specified call type. If this extra is not provided, the application should
+     * default to using the original call type associated with the call.</p>
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    public static final String EXTRA_CALL_TYPE = "android.telecom.extra.CALL_TYPE";
 
     // Values for EXTRA_PRIORITY
     /**
@@ -830,18 +904,13 @@ public class TelecomManager {
     public static final char DTMF_CHARACTER_WAIT = ';';
 
     /**
-     * @hide
-     */
-    @IntDef(prefix = { "TTY_MODE_" },
-            value = {TTY_MODE_OFF, TTY_MODE_FULL, TTY_MODE_HCO, TTY_MODE_VCO})
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface TtyMode {}
-
-    /**
      * TTY (teletypewriter) mode is off.
      *
+     * @deprecated Use {@link TelephonyManager#TTY_MODE_OFF} instead
      * @hide
      */
+    @Deprecated
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_MOVE_GET_TTY_MODE_TO_TELEPHONY_MANAGER)
     @SystemApi
     public static final int TTY_MODE_OFF = 0;
 
@@ -849,8 +918,11 @@ public class TelecomManager {
      * TTY (teletypewriter) mode is on. The speaker is off and the microphone is muted. The user
      * will communicate with the remote party by sending and receiving text messages.
      *
+     * @deprecated Use {@link TelephonyManager#TTY_MODE_FULL} instead
      * @hide
      */
+    @Deprecated
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_MOVE_GET_TTY_MODE_TO_TELEPHONY_MANAGER)
     @SystemApi
     public static final int TTY_MODE_FULL = 1;
 
@@ -859,8 +931,11 @@ public class TelecomManager {
      * speaker is on. The user will communicate with the remote party by sending text messages and
      * hearing an audible reply.
      *
+     * @deprecated Use {@link TelephonyManager#TTY_MODE_HCO} instead
      * @hide
      */
+    @Deprecated
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_MOVE_GET_TTY_MODE_TO_TELEPHONY_MANAGER)
     @SystemApi
     public static final int TTY_MODE_HCO = 2;
 
@@ -869,8 +944,11 @@ public class TelecomManager {
      * microphone is still on. User will communicate with the remote party by speaking and receiving
      * text message replies.
      *
+     * @deprecated Use {@link TelephonyManager#TTY_MODE_VCO} instead
      * @hide
      */
+    @Deprecated
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_MOVE_GET_TTY_MODE_TO_TELEPHONY_MANAGER)
     @SystemApi
     public static final int TTY_MODE_VCO = 3;
 
@@ -892,15 +970,15 @@ public class TelecomManager {
      *
      * Valid modes are:
      * <ul>
-     *     <li>{@link #TTY_MODE_OFF}</li>
-     *     <li>{@link #TTY_MODE_FULL}</li>
-     *     <li>{@link #TTY_MODE_HCO}</li>
-     *     <li>{@link #TTY_MODE_VCO}</li>
+     *     <li>{@link TelephonyManager#TTY_MODE_OFF}</li>
+     *     <li>{@link TelephonyManager#TTY_MODE_FULL}</li>
+     *     <li>{@link TelephonyManager#TTY_MODE_HCO}</li>
+     *     <li>{@link TelephonyManager#TTY_MODE_VCO}</li>
      * </ul>
      *
      * This TTY mode is distinct from the one sent via {@link #ACTION_TTY_PREFERRED_MODE_CHANGED},
-     * since the current TTY mode will always be {@link #TTY_MODE_OFF}unless a TTY terminal is
-     * plugged into the device.
+     * since the current TTY mode will always be {@link TelephonyManager#TTY_MODE_OFF}unless a TTY
+     * terminal is plugged into the device.
      * @hide
      */
     @SystemApi
@@ -925,10 +1003,10 @@ public class TelecomManager {
      *
      * Valid modes are:
      * <ul>
-     *     <li>{@link #TTY_MODE_OFF}</li>
-     *     <li>{@link #TTY_MODE_FULL}</li>
-     *     <li>{@link #TTY_MODE_HCO}</li>
-     *     <li>{@link #TTY_MODE_VCO}</li>
+     *     <li>{@link TelephonyManager#TTY_MODE_OFF}</li>
+     *     <li>{@link TelephonyManager#TTY_MODE_FULL}</li>
+     *     <li>{@link TelephonyManager#TTY_MODE_HCO}</li>
+     *     <li>{@link TelephonyManager#TTY_MODE_VCO}</li>
      * </ul>
      * @hide
      */
@@ -977,14 +1055,6 @@ public class TelecomManager {
     @SystemApi
     public static final String EXTRA_CALL_BACK_INTENT =
             "android.telecom.extra.CALL_BACK_INTENT";
-
-    /**
-     * The dialer activity responsible for placing emergency calls from, for example, a locked
-     * keyguard.
-     * @hide
-     */
-    public static final ComponentName EMERGENCY_DIALER_COMPONENT =
-            ComponentName.createRelative("com.android.phone", ".EmergencyDialer");
 
     /**
      * The boolean indicated by this extra controls whether or not a call is eligible to undergo
@@ -1109,15 +1179,6 @@ public class TelecomManager {
     /** @hide */
     public static final int AUDIO_OUTPUT_DEFAULT = AUDIO_OUTPUT_ENABLE_SPEAKER;
 
-    /** @hide */
-    @Retention(RetentionPolicy.SOURCE)
-    @IntDef(
-            prefix = { "PRESENTATION_" },
-            value = {PRESENTATION_ALLOWED, PRESENTATION_RESTRICTED, PRESENTATION_UNKNOWN,
-            PRESENTATION_PAYPHONE, PRESENTATION_UNAVAILABLE})
-    public @interface Presentation {}
-
-
     /**
      * Enable READ_PHONE_STATE protection on APIs querying and notifying call state, such as
      * {@code TelecomManager#getCallState}, {@link TelephonyManager#getCallStateForSubscription()},
@@ -1127,6 +1188,7 @@ public class TelecomManager {
     @ChangeId
     @EnabledSince(targetSdkVersion = Build.VERSION_CODES.S)
     // this magic number is a bug ID
+    // if removing this ChangeId, remove this constant in TelephonyManager as well
     public static final long ENABLE_GET_CALL_STATE_PERMISSION_PROTECTION = 157233955L;
 
     /**
@@ -1167,12 +1229,12 @@ public class TelecomManager {
      * {@link android.telecom.Call#STATE_ACTIVE}, the system should not generate any call connected
      * indication.
      * <p>
-     * Used with {@link #setCallConnectedIndicatorPreference and
+     * Used with {@link #setCallConnectedIndicatorPreference} and
      * {@link #getCallConnectedIndicatorPreference()}.
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_CALL_CONNECTED_INDICATOR_PREFERENCE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_CALL_CONNECTED_INDICATOR_PREFERENCE)
     public static final int CALL_CONNECTED_INDICATOR_NONE = 0;
 
     /**
@@ -1180,12 +1242,12 @@ public class TelecomManager {
      * {@link android.telecom.Call#STATE_ACTIVE}, the system should play a tone which indicates that
      * the call has connected.
      * <p>
-     * Used with {@link #setCallConnectedIndicatorPreference and
+     * Used with {@link #setCallConnectedIndicatorPreference} and
      * {@link #getCallConnectedIndicatorPreference()}.
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_CALL_CONNECTED_INDICATOR_PREFERENCE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_CALL_CONNECTED_INDICATOR_PREFERENCE)
     public static final int CALL_CONNECTED_INDICATOR_TONE = (1 << 0);
 
     /**
@@ -1193,17 +1255,26 @@ public class TelecomManager {
      * {@link android.telecom.Call#STATE_ACTIVE}, the system should make a haptic vibration which
      * indicates that the call has connected.
      * <p>
-     * Used with {@link #setCallConnectedIndicatorPreference and
+     * Used with {@link #setCallConnectedIndicatorPreference} and
      * {@link #getCallConnectedIndicatorPreference()}.
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_CALL_CONNECTED_INDICATOR_PREFERENCE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_CALL_CONNECTED_INDICATOR_PREFERENCE)
     public static final int CALL_CONNECTED_INDICATOR_VIBRATION = (1 << 1);
+
+    /**
+     * Permission required by the TelecomUi to access telecom info.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_TELECOM_MAINLINE_API)
+    public static final String PERMISSION_TELECOM_UI_ACCESS =
+            "com.android.telephonycore.permission.TELECOM_UI_ACCESS";
 
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
-    @FlaggedApi(Flags.FLAG_CALL_CONNECTED_INDICATOR_PREFERENCE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_CALL_CONNECTED_INDICATOR_PREFERENCE)
     @IntDef(
             prefix = {"CALL_CONNECTED_INDICATOR_"},
             flag = true,
@@ -1255,6 +1326,9 @@ public class TelecomManager {
      * </ul>
      * <p>
      * If no {@link PhoneAccount} fits the criteria above, this method will return {@code null}.
+     * <p>
+     * For callers only interested in finding the default SIM for voice calls, it is recommended
+     * to use {@link SubscriptionManager#getDefaultVoiceSubscriptionId()} instead.
      *
      * @param uriScheme The URI scheme.
      * @return The {@link PhoneAccountHandle} corresponding to the account to be used.
@@ -1438,6 +1512,9 @@ public class TelecomManager {
      * Returns a list of {@link PhoneAccountHandle}s which can be used to make and receive phone
      * calls. The returned list includes only those accounts which have been explicitly enabled
      * by the user.
+     * <p>
+     * For callers only interested in finding all SIMs for voice calls, it is recommended
+     * to use {@link SubscriptionManager#getActiveSubscriptionInfoList()} instead.
      *
      * @see #EXTRA_PHONE_ACCOUNT_HANDLE
      * @return A list of {@code PhoneAccountHandle} objects.
@@ -2062,10 +2139,18 @@ public class TelecomManager {
     /**
      * Returns whether there is an ongoing phone call (can be in dialing, ringing, active or holding
      * states) that is an external call.
+     * <p>
+     * External calls take place on another dveice. They do not retain audio focus or result in call
+     * audio routing operations. For example, a wearable device may provide a UI for a call which
+     * takes place on the user's phone for the purpose of controlling the call or potentially
+     * pulling it to the wearable; such a call is external.
+     * <p>
+     * Calls with
+     * {@link android.telecom.Call.Details#PROPERTY_IS_EXTERNAL_CALL} are external.
      *
      * @return {@code true} if there is an ongoing call that is external, {@code false} otherwise.
      */
-    @FlaggedApi(Flags.FLAG_IS_IN_EXTERNAL_CALL)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_IS_IN_EXTERNAL_CALL)
     @RequiresPermission(android.Manifest.permission.READ_PHONE_STATE)
     public boolean isInExternalCall() {
         ITelecomService service = getTelecomService();
@@ -2323,26 +2408,36 @@ public class TelecomManager {
     /**
      * Returns the current TTY mode of the device. For TTY to be on the user must enable it in
      * settings and have a wired headset plugged in.
-     * Valid modes are:
-     * - {@link TelecomManager#TTY_MODE_OFF}
-     * - {@link TelecomManager#TTY_MODE_FULL}
-     * - {@link TelecomManager#TTY_MODE_HCO}
-     * - {@link TelecomManager#TTY_MODE_VCO}
+     *
+     * @return the current TTY mode of the device.
+     *
+     * @deprecated Use {@link TelephonyManager#getCurrentTtyMode()} instead
      * @hide
      */
     @SystemApi
+    @Deprecated
     @RequiresPermission(READ_PRIVILEGED_PHONE_STATE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_MOVE_GET_TTY_MODE_TO_TELEPHONY_MANAGER)
     public @TtyMode int getCurrentTtyMode() {
-        ITelecomService service = getTelecomService();
-        if (service != null) {
-            try {
-                return service.getCurrentTtyMode(mContext.getOpPackageName(),
-                        mContext.getAttributionTag());
-            } catch (RemoteException e) {
-                Log.e(TAG, "RemoteException attempting to get the current TTY mode.", e);
+        if (android.telecom.flags.Flags.moveGetTtyModeToTelephonyManager()) {
+            TelephonyManager tm = mContext.getSystemService(TelephonyManager.class);
+            if (tm != null) {
+                return tm.getCurrentTtyMode();
+            } else {
+                return TelephonyManager.TTY_MODE_OFF;
             }
+        } else {
+            ITelecomService service = getTelecomService();
+            if (service != null) {
+                try {
+                    return service.getCurrentTtyMode(mContext.getOpPackageName(),
+                            mContext.getAttributionTag());
+                } catch (RemoteException e) {
+                    Log.e(TAG, "RemoteException attempting to get the current TTY mode.", e);
+                }
+            }
+            return TelephonyManager.TTY_MODE_OFF;
         }
-        return TTY_MODE_OFF;
     }
 
     /**
@@ -2614,6 +2709,7 @@ public class TelecomManager {
      *   <li>{@link #EXTRA_PHONE_ACCOUNT_HANDLE}</li>
      *   <li>{@link #EXTRA_START_CALL_WITH_SPEAKERPHONE}</li>
      *   <li>{@link #EXTRA_START_CALL_WITH_VIDEO_STATE}</li>
+     *   <li>{@link #EXTRA_CALL_TYPE}</li>
      * </ul>
      * <p>
      * An app which implements the self-managed {@link ConnectionService} API uses
@@ -2751,20 +2847,18 @@ public class TelecomManager {
      * {@code true} for the current user.
      */
     public Intent createManageBlockedNumbersIntent() {
+        String telecomUiPackage = DEFAULT_TELECOM_UI_PACKAGE;
         ITelecomService service = getTelecomService();
-        Intent result = null;
         if (service != null) {
             try {
-                result = service.createManageBlockedNumbersIntent(mContext.getPackageName());
-                if (result != null) {
-                    result.prepareToEnterProcess(LOCAL_FLAG_FROM_SYSTEM,
-                            mContext.getAttributionSource());
-                }
+                telecomUiPackage = service.getTelecomUiPackageName();
             } catch (RemoteException e) {
-                Log.e(TAG, "Error calling ITelecomService#createManageBlockedNumbersIntent", e);
+                Log.e(TAG, "Error getting telecom ui package, falling back", e);
             }
         }
-        return result;
+        Intent resultIntent = new Intent(ACTION_MANAGE_BLOCKED_NUMBERS);
+        resultIntent.setPackage(telecomUiPackage);
+        return resultIntent;
     }
 
 
@@ -2779,24 +2873,21 @@ public class TelecomManager {
     @NonNull
     public Intent createLaunchEmergencyDialerIntent(@Nullable String number) {
         ITelecomService service = getTelecomService();
+        Intent intent = new Intent(Intent.ACTION_DIAL_EMERGENCY);
         if (service != null) {
             try {
-                Intent result = service.createLaunchEmergencyDialerIntent(number);
-                if (result != null) {
-                    result.prepareToEnterProcess(LOCAL_FLAG_FROM_SYSTEM,
-                            mContext.getAttributionSource());
+                String packageName = service.getPackageForCreateLaunchEmergencyDialerIntent();
+                // Telecom service knows the package name of the expected emergency dialer package;
+                // if it is not available, then fallback to not targeting a specific package.
+                if (!TextUtils.isEmpty(packageName)) {
+                    intent.setPackage(packageName);
                 }
-                return result;
             } catch (RemoteException e) {
                 Log.e(TAG, "Error createLaunchEmergencyDialerIntent", e);
             }
         } else {
             Log.w(TAG, "createLaunchEmergencyDialerIntent - Telecom service not available.");
         }
-
-        // Telecom service knows the package name of the expected emergency dialer package; if it
-        // is not available, then fallback to not targeting a specific package.
-        Intent intent = new Intent(Intent.ACTION_DIAL_EMERGENCY);
         if (!TextUtils.isEmpty(number) && TextUtils.isDigitsOnly(number)) {
             intent.setData(Uri.fromParts(PhoneAccount.SCHEME_TEL, number, null));
         }
@@ -3120,7 +3211,7 @@ public class TelecomManager {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_CALL_CONNECTED_INDICATOR_PREFERENCE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_CALL_CONNECTED_INDICATOR_PREFERENCE)
     @RequiresPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
     public @CallConnectedIndicator int getCallConnectedIndicatorPreference() {
         ITelecomService service = getTelecomService();
@@ -3146,7 +3237,7 @@ public class TelecomManager {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_CALL_CONNECTED_INDICATOR_PREFERENCE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_CALL_CONNECTED_INDICATOR_PREFERENCE)
     @RequiresPermission(Manifest.permission.MODIFY_PHONE_STATE)
     public void setCallConnectedIndicatorPreference(@CallConnectedIndicator int preference) {
         ITelecomService service = getTelecomService();
@@ -3163,6 +3254,241 @@ public class TelecomManager {
         }
     }
 
+    /**
+     * Retrieves the list of VoIP applications which support integrating its call logs into the
+     * system call log. The VoIP app must declare the {@link TelecomManager#ACTION_CALL_BACK} intent
+     * in their app's manifest.
+     * @return A map of the VoIP package names that support integrating calls into the system call
+     *         log.
+     * @throws SecurityException if the caller does not have the required permissions.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    @RequiresPermission(READ_PRIVILEGED_PHONE_STATE)
+    public @NonNull Map<String, Boolean> getVoipCallLogIntegrationStatus() {
+        ITelecomService service = getTelecomService();
+        if (service != null) {
+            try {
+                return service.getVoipCallLogIntegrationStatus(mContext.getOpPackageName());
+            } catch (RemoteException e) {
+                Log.e(TAG, "RemoteException getVoipCallLogIntegrationStatus: " + e);
+                throw e.rethrowFromSystemServer();
+            }
+        }
+        throw new IllegalStateException("Telecom is not available");
+    }
+
+    /**
+     * Sets the user's preference for whether a specific VoIP application is allowed to integrate
+     * its call logs into the system call log.
+     * @param packageName The package name of the VoIP application.
+     * @param enabled {@code true} to allow call log integration, {@code false} to disable it.
+     * @throws SecurityException if the caller does not have the required permissions.
+     * @throws IllegalArgumentException if the package name is non-existent or does not support call
+     *         log integration.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+    @RequiresPermission(Manifest.permission.MODIFY_PHONE_STATE)
+    public void setVoipCallLogIntegrationEnabled(@NonNull String packageName, boolean enabled) {
+        ITelecomService service = getTelecomService();
+        if (packageName == null || packageName.isEmpty()) {
+            throw new IllegalArgumentException("Package name is invalid.");
+        }
+        if (service != null) {
+            try {
+                service.setVoipCallLogIntegrationEnabled(mContext.getOpPackageName(),
+                        packageName, enabled);
+            } catch (RemoteException e) {
+                Log.e(TAG, "RemoteException setVoipCallLogIntegrationEnabled: " + e);
+                throw e.rethrowFromSystemServer();
+            }
+        } else {
+            throw new IllegalStateException("Telecom is not available");
+        }
+    }
+
+    /**
+     * Determines if the device supports local voicemail or not.
+     * <p>
+     * Local voicemail is an OEM-provided service which enables the device to answer incoming calls
+     * and take a message for the user.
+     *
+     * @return {@code true} if local voicemail is supported, {@code false} otherwise.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_LOCAL_VOICEMAIL)
+    @RequiresPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
+    public boolean isLocalVoicemailSupported() {
+        ITelecomService service = getTelecomService();
+        if (service != null) {
+            try {
+                return service.isLocalVoicemailSupported(mContext.getOpPackageName());
+            } catch (RemoteException e) {
+                Log.e(TAG, "RemoteException isLocalVoicemailSupported: " + e);
+                throw e.rethrowFromSystemServer();
+            }
+        } else {
+            throw new IllegalStateException("Telecom is not available");
+        }
+    }
+
+    /**
+     * Enables local voicemail for the given {@link PhoneAccountHandle}.
+     * <p>
+     * When a {@link android.telecom.Call} has been in {@link android.telecom.Call#STATE_RINGING}
+     * for longer than the specified {@link Duration}, the {@link LocalVoicemailService} configured
+     * on the device will be bound to handle taking a voicemail message for the user.
+     * <p>
+     * Intended for use by the settings app to configure voicemail timeouts.
+     * <p>
+     * Note, the timeout must be in the range specified by
+     * {@link PhoneAccount#EXTRA_LOCAL_VOICEMAIL_MINIMUM_TIMEOUT_MILLIS}
+     * and {@link PhoneAccount#EXTRA_LOCAL_VOICEMAIL_MAXIMUM_TIMEOUT_MILLIS} where a
+     * {@link PhoneAccount} specifies an allowed range.  If one is not specified, the range must be
+     * [0, 120].
+     *
+     * @param phoneAccountHandle the {@link PhoneAccountHandle} to enable local voicemail for.
+     * @param timeout the timeout after which the call will be answered for local voicemail
+     *                processing.
+     * @throws IllegalArgumentException if an invalid {@link PhoneAccountHandle} is specified.
+     * @throws IllegalArgumentException if {@link #isLocalVoicemailSupported()} is {@code false}.
+     * @throws IllegalArgumentException if the {@link Duration} is not within the allowed range.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_LOCAL_VOICEMAIL)
+    @RequiresPermission(Manifest.permission.MODIFY_PHONE_STATE)
+    public void enableLocalVoicemail(@NonNull PhoneAccountHandle phoneAccountHandle,
+            @NonNull Duration timeout) {
+        if (phoneAccountHandle == null) {
+            throw new NullPointerException("phoneAccountHandle is required");
+        }
+        if (timeout == null) {
+            throw new NullPointerException("timeout is required");
+        }
+        ITelecomService service = getTelecomService();
+        if (service != null) {
+            try {
+                service.enableLocalVoicemail(mContext.getOpPackageName(), phoneAccountHandle,
+                        timeout.toMillis());
+            } catch (RemoteException e) {
+                Log.e(TAG, "RemoteException disableLocalVoicemail: " + e);
+                throw e.rethrowFromSystemServer();
+            }
+        } else {
+            throw new IllegalStateException("Telecom is not available");
+        }
+    }
+
+    /**
+     * Disables local voicemail for the given {@link PhoneAccountHandle}.
+     * <p>
+     * Intended for use by the settings app to configure voicemail timeouts.
+     *
+     * @param phoneAccountHandle the {@link PhoneAccountHandle} for which local voicemail will be
+     *                           disabled.
+     * @throws IllegalArgumentException if an invalid {@link PhoneAccountHandle} is specified.
+     * @throws IllegalArgumentException if {@link #isLocalVoicemailSupported()} is {@code false}.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_LOCAL_VOICEMAIL)
+    @RequiresPermission(Manifest.permission.MODIFY_PHONE_STATE)
+    public void disableLocalVoicemail(@NonNull PhoneAccountHandle phoneAccountHandle) {
+        if (phoneAccountHandle == null) {
+            throw new NullPointerException("phoneAccountHandle is required");
+        }
+        ITelecomService service = getTelecomService();
+        if (service != null) {
+            try {
+                service.disableLocalVoicemail(mContext.getOpPackageName(), phoneAccountHandle);
+            } catch (RemoteException e) {
+                Log.e(TAG, "RemoteException disableLocalVoicemail: " + e);
+                throw e.rethrowFromSystemServer();
+            }
+        } else {
+            throw new IllegalStateException("Telecom is not available");
+        }
+    }
+
+    /**
+     * Determines if local voicemail is enabled for a given {@link PhoneAccountHandle}.
+     * <p>
+     * Where local voicemail is enabled, you can check how long a call must be ringing before it is
+     * sent to local voicemail using {@link #getLocalVoicemailTimeout(PhoneAccountHandle)}.
+     *
+     * @param phoneAccountHandle the phone account to check the local voicemail enabled state for.
+     * @return {@code true} if local voicemail is enabled for the specified
+     * {@link PhoneAccountHandle} or {@code false} otherwise.
+     * @throws IllegalArgumentException if {@link #isLocalVoicemailSupported()} is {@code false}.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_LOCAL_VOICEMAIL)
+    @RequiresPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
+    public boolean isLocalVoicemailEnabled(@NonNull PhoneAccountHandle phoneAccountHandle) {
+        ITelecomService service = getTelecomService();
+        if (service != null) {
+            try {
+                return service.isLocalVoicemailEnabled(mContext.getOpPackageName(),
+                        phoneAccountHandle);
+            } catch (RemoteException e) {
+                Log.e(TAG, "RemoteException isLocalVoicemailSupported: " + e);
+                throw e.rethrowFromSystemServer();
+            }
+        } else {
+            throw new IllegalStateException("Telecom is not available");
+        }
+    }
+
+    /**
+     * Gets the user-specified local voicemail timeout for a given {@link PhoneAccountHandle}.
+     * <p>
+     * When a {@link android.telecom.Call} has been in {@link android.telecom.Call#STATE_RINGING}
+     * for longer than the specified {@link Duration}, the {@link LocalVoicemailService} configured
+     * on the device will be bound to handle taking a voicemail message for the user.
+     * <p>
+     * Intended for use by the settings app to configure voicemail timeouts.
+     * <p>
+     * You should only call this method for a {@link PhoneAccountHandle} which has local voicemail
+     * enabled (see {@link #isLocalVoicemailEnabled(PhoneAccountHandle)}.
+     *
+     * @param phoneAccountHandle the {@link PhoneAccountHandle} to get the local voicemail timeout
+     *                           for.
+     * @return a {@link Duration} specifying how long a {@link android.telecom.Call} needs to be in
+     * {@link android.telecom.Call#STATE_RINGING} state before the device's
+     * {@link LocalVoicemailService} will be bound to take a message for the user.  You should
+     * check if local voicemail is enabled before querying the timeout.
+     * @throws IllegalArgumentException if an invalid {@link PhoneAccountHandle} is specified.
+     * @throws IllegalArgumentException if {@link #isLocalVoicemailSupported()} is {@code false}.
+     * @throws IllegalArgumentException if local voicemail is disabled for the specified
+     * {@link PhoneAccountHandle}.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_LOCAL_VOICEMAIL)
+    @RequiresPermission(Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
+    public @NonNull Duration getLocalVoicemailTimeout(
+            @NonNull PhoneAccountHandle phoneAccountHandle) {
+        ITelecomService service = getTelecomService();
+        if (service != null) {
+            try {
+                return Duration.ofMillis(service.getLocalVoicemailTimeout(
+                        mContext.getOpPackageName(), phoneAccountHandle));
+            } catch (RemoteException e) {
+                Log.e(TAG, "RemoteException isLocalVoicemailSupported: " + e);
+                throw e.rethrowFromSystemServer();
+            }
+        } else {
+            throw new IllegalStateException("Telecom is not available");
+        }
+    }
 
     private boolean isSystemProcess() {
         return Process.myUid() == Process.SYSTEM_UID;
@@ -3174,7 +3500,7 @@ public class TelecomManager {
         }
         if (sTelecomService == null) {
             ITelecomService temp = ITelecomService.Stub.asInterface(
-                    ServiceManager.getService(Context.TELECOM_SERVICE));
+                    TelecomServiceManager.getTelecomServiceRegisterer().get());
             synchronized (CACHE_LOCK) {
                 if (sTelecomService == null && temp != null) {
                     try {

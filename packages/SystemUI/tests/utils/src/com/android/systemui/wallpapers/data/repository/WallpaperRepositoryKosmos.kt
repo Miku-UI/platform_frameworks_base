@@ -27,7 +27,7 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.user.data.repository.userRepository
 import com.android.systemui.util.settings.fakeSettings
 
-val Kosmos.wallpaperRepository by Fixture {
+var Kosmos.wallpaperRepository: WallpaperRepository by Fixture {
     WallpaperRepositoryImpl(
         context = applicationContext,
         scope = testScope.backgroundScope,

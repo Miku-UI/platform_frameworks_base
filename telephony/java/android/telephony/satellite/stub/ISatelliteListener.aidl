@@ -89,4 +89,12 @@ oneway interface ISatelliteListener {
      * @param isAvailable True means there's terrestrial network and false means there's not.
      */
     void onTerrestrialNetworkAvailableChanged(in boolean isAvailable);
+
+    /**
+     * Indicates that the prioritized network scan mode has changed
+     *
+     * @param prioritized {@code true} means modem is in prioritized network scan mode,
+     * {@code false} otherwise.
+     */
+    void prioritizedScanModeChanged(in boolean prioritized);
 }

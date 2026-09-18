@@ -16,13 +16,18 @@
 
 package com.android.wm.shell.desktopmode.common
 
+import android.app.role.RoleManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Handler
+import android.os.UserHandle
+import android.util.SparseArray
+import com.android.window.flags.Flags
 import com.android.wm.shell.shared.annotations.ShellMainThread
+import com.android.wm.shell.sysui.ShellController
 import com.android.wm.shell.sysui.ShellInit
 import java.util.function.Supplier
 
@@ -34,35 +39,64 @@ import java.util.function.Supplier
 class DefaultHomePackageSupplier(
     private val context: Context,
     shellInit: ShellInit,
+    private val shellController: ShellController,
     @ShellMainThread private val mainHandler: Handler,
 ) : BroadcastReceiver(), Supplier<String?> {
 
-    private var defaultHomePackage: String? = null
-    private var isSetupWizard: Boolean = false
+    private val defaultHomePackageUserMap: SparseArray<String> = SparseArray()
 
     init {
-        shellInit.addInitCallback({ onInit() }, this)
+        shellInit.addInitCallback({ this::onInit }, this)
     }
 
     private fun onInit() {
-        context.registerReceiver(
+        context.registerReceiverForAllUsers(
             this,
             IntentFilter(Intent.ACTION_PREFERRED_ACTIVITY_CHANGED),
-            null /* broadcastPermission */,
+            null, /* broadcastPermission */
             mainHandler,
         )
     }
 
     private fun updateDefaultHomePackage(): String? {
-        defaultHomePackage = context.packageManager.getHomeActivities(ArrayList())?.packageName
-        isSetupWizard =
+        val currentUserId = shellController.currentUserId
+
+        var defaultHomePackage: String?
+        if (Flags.homePackageWindowingExemptionsBugFix()) {
+            val defaultHomeInfo =
+                context.packageManager.resolveActivityAsUser(
+                    Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME),
+                    0,
+                    currentUserId,
+                )
+            defaultHomePackage =
+                defaultHomeInfo?.takeIf { it.priority >= 0 }?.activityInfo?.packageName
+        } else {
+            defaultHomePackage =
+                context
+                    .getSystemService(RoleManager::class.java)
+                    .getRoleHoldersAsUser(RoleManager.ROLE_HOME, UserHandle.of(currentUserId))
+                    .firstOrNull()
+        }
+
+        var flags = PackageManager.MATCH_SYSTEM_ONLY
+        if (Flags.homePackageWindowingExemptionsBugFix()) {
+            flags = flags or PackageManager.MATCH_DISABLED_COMPONENTS
+        }
+        val isSetupWizard =
             defaultHomePackage != null &&
-                context.packageManager.resolveActivity(
+                context.packageManager.resolveActivityAsUser(
                     Intent()
                         .setPackage(defaultHomePackage)
                         .addCategory(Intent.CATEGORY_SETUP_WIZARD),
-                    PackageManager.MATCH_SYSTEM_ONLY,
+                    flags,
+                    currentUserId,
                 ) != null
+        if (isSetupWizard) {
+            defaultHomePackage = null
+        }
+
+        defaultHomePackageUserMap.put(currentUserId, defaultHomePackage)
         return defaultHomePackage
     }
 
@@ -71,7 +105,7 @@ class DefaultHomePackageSupplier(
     }
 
     override fun get(): String? {
-        if (isSetupWizard) return null
-        return defaultHomePackage ?: updateDefaultHomePackage()
+        val currentUserId = shellController.currentUserId
+        return defaultHomePackageUserMap.get(currentUserId) ?: updateDefaultHomePackage()
     }
 }

@@ -17,12 +17,12 @@
 package com.android.systemui.shade
 
 import android.os.UserHandle
+import com.android.systemui.brightness.domain.interactor.BrightnessMirrorShowingInteractor
+import com.android.systemui.brightness.domain.interactor.BrightnessMirrorShowingInteractorPassThrough
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.LogBufferFactory
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
-import com.android.systemui.settings.brightness.domain.interactor.BrightnessMirrorShowingInteractor
-import com.android.systemui.settings.brightness.domain.interactor.BrightnessMirrorShowingInteractorPassThrough
 import com.android.systemui.shade.carrier.ShadeCarrierGroupControllerLog
 import com.android.systemui.shade.data.repository.PrivacyChipRepository
 import com.android.systemui.shade.data.repository.PrivacyChipRepositoryImpl

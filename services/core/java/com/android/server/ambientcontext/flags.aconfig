@@ -1,0 +1,16 @@
+package: "com.android.server.ambientcontext"
+container: "system"
+
+flag {
+    name: "ambient_context_fix_setup_checking"
+    namespace: "location"
+    description: "This flag fixes the service setup checking process."
+    bug: "480257027"
+}
+
+flag {
+    name: "ambient_context_check_remote_service"
+    namespace: "location"
+    description: "This flag skips the service setup checking if remote service is available."
+    bug: "480257027"
+}

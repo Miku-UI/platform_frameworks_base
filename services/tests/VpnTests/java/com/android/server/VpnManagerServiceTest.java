@@ -17,6 +17,7 @@
 package com.android.server;
 
 import static android.net.platform.flags.Flags.FLAG_DELETE_VPN_PROFILE_WHEN_APP_UNINSTALLED;
+import static android.provider.Flags.FLAG_EXPOSE_VPN_APP_EXCLUSION_SETTINGS;
 
 import static com.android.testutils.ContextUtils.mockService;
 import static com.android.testutils.MiscAsserts.assertThrows;
@@ -240,6 +241,10 @@ public class VpnManagerServiceTest extends VpnTestBase {
         return intent;
     }
 
+    private Intent buildIntent(String action, String packageName, int userId, int uid) {
+        return buildIntent(action, packageName, userId, uid, false);
+    }
+
     private void sendIntent(Intent intent) {
         sendIntent(mIntentReceiver, mContext, intent);
     }
@@ -287,6 +292,14 @@ public class VpnManagerServiceTest extends VpnTestBase {
 
     private void onPackageRemoved(String packageName, int uid, boolean isReplacing) {
         onPackageRemoved(packageName, UserHandle.USER_SYSTEM, uid, isReplacing);
+    }
+
+    private void onPackageDataCleared(String packageName, int userId, int uid) {
+        sendIntent(buildIntent(Intent.ACTION_PACKAGE_DATA_CLEARED, packageName, userId, uid));
+    }
+
+    private void onPackageDataCleared(String packageName, int uid) {
+        onPackageDataCleared(packageName, UserHandle.USER_SYSTEM, uid);
     }
 
     @Test
@@ -446,5 +459,36 @@ public class VpnManagerServiceTest extends VpnTestBase {
 
         onPackageRemoved(PKGS[0], PKG_UIDS[0], false /* isReplacing */);
         verify(mVpn).deleteVpnProfileDueToAppRemoval(PKGS[0], PKG_UIDS[0]);
+    }
+
+    private void verifyClearAppExclusionList(String packageName, Runnable packageEvent) {
+        packageEvent.run();
+        verify(mVpn).clearAppExclusionList(packageName);
+    }
+
+    @Test
+    @EnableFlags(FLAG_EXPOSE_VPN_APP_EXCLUSION_SETTINGS)
+    public void testRemoveVpnAppExclusionListOnPackageAdded() {
+        final String addedPackage = PKGS[0];
+        // Receive other App's Added broadcast
+        verifyClearAppExclusionList(addedPackage,
+                () -> onPackageAdded(addedPackage, PKG_UIDS[0], false /* isReplacing */));
+    }
+
+    @Test
+    @EnableFlags(FLAG_EXPOSE_VPN_APP_EXCLUSION_SETTINGS)
+    public void testRemoveVpnAppExclusionListOnPackageRemoved() {
+        final String removedPackage = PKGS[0];
+        // Receive other App's Removed broadcast
+        verifyClearAppExclusionList(removedPackage,
+                () -> onPackageRemoved(removedPackage, PKG_UIDS[0], false /* isReplacing */));
+    }
+
+    @Test
+    @EnableFlags(FLAG_EXPOSE_VPN_APP_EXCLUSION_SETTINGS)
+    public void testRemoveVpnAppExclusionListOnPackageDataCleared() {
+        final String clearedPackage = PKGS[0];
+        verifyClearAppExclusionList(clearedPackage,
+                () -> onPackageDataCleared(clearedPackage, PKG_UIDS[0]));
     }
 }

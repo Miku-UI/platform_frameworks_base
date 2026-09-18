@@ -16,32 +16,14 @@
 
 package com.android.systemui.deviceentry.domain.interactor
 
-import com.android.keyguard.keyguardUpdateMonitor
-import com.android.systemui.authentication.domain.interactor.authenticationInteractor
-import com.android.systemui.biometrics.authController
-import com.android.systemui.bouncer.domain.interactor.alternateBouncerInteractor
 import com.android.systemui.dump.dumpManager
-import com.android.systemui.keyguard.domain.interactor.keyguardBypassInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
-import com.android.systemui.keyguard.domain.interactor.keyguardOcclusionInteractor
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.scene.domain.interactor.sceneInteractor
-import com.android.systemui.statusbar.phone.dozeScrimController
 
 val Kosmos.deviceEntrySourceInteractor by
     Kosmos.Fixture {
         DeviceEntrySourceInteractor(
-            authenticationInteractor = authenticationInteractor,
-            authController = authController,
-            alternateBouncerInteractor = alternateBouncerInteractor,
-            deviceEntryFaceAuthInteractor = deviceEntryFaceAuthInteractor,
-            deviceEntryFingerprintAuthInteractor = deviceEntryFingerprintAuthInteractor,
-            dozeScrimController = dozeScrimController,
-            keyguardBypassInteractor = keyguardBypassInteractor,
-            keyguardUpdateMonitor = keyguardUpdateMonitor,
             keyguardInteractor = keyguardInteractor,
-            occlusionInteractor = keyguardOcclusionInteractor,
-            sceneInteractor = sceneInteractor,
             dumpManager = dumpManager,
         )
     }

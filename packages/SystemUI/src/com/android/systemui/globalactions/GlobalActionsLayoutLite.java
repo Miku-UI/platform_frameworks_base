@@ -25,12 +25,17 @@ import androidx.constraintlayout.helper.widget.Flow;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.systemui.HardwareBgDrawable;
+
+import java.util.HashSet;
+import java.util.Set;
 import com.android.systemui.res.R;
 
 /**
  * ConstraintLayout implementation of the button layout created by the global actions dialog.
  */
 public class GlobalActionsLayoutLite extends GlobalActionsLayout {
+    private View mLastView;
+    private final Set<Integer> mCurrentIds = new HashSet<>();
 
     public GlobalActionsLayoutLite(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -68,8 +73,19 @@ public class GlobalActionsLayoutLite extends GlobalActionsLayout {
     @Override
     protected void addToListView(View v, boolean reverse) {
         super.addToListView(v, reverse);
+
+        if (v.getId() == View.NO_ID || mCurrentIds.contains(v.getId())) {
+            v.setId(View.generateViewId());
+        }
+        mCurrentIds.add(v.getId());
+
         Flow flow = findViewById(R.id.list_flow);
         flow.addView(v);
+
+        if (mLastView != null) {
+            mLastView.setNextFocusForwardId(v.getId());
+        }
+        mLastView = v;
     }
 
     @Override
@@ -79,6 +95,8 @@ public class GlobalActionsLayoutLite extends GlobalActionsLayout {
 
         // Add flow element back after clearing the list view
         super.addToListView(flow, false);
+        mLastView = null;
+        mCurrentIds.clear();
     }
 
     @Override

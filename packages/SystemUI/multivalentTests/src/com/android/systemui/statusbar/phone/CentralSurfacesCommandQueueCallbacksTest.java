@@ -30,8 +30,6 @@ import android.content.ComponentName;
 import android.os.PowerManager;
 import android.os.UserHandle;
 import android.os.Vibrator;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.view.HapticFeedbackConstants;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -42,15 +40,13 @@ import com.android.internal.logging.testing.FakeMetricsLogger;
 import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.assist.AssistManager;
+import com.android.systemui.camera.domain.interactor.CameraNotifyWarmUpInteractor;
 import com.android.systemui.emergency.EmergencyGestureModule.EmergencyGestureIntentFactory;
 import com.android.systemui.flags.DisableSceneContainer;
-import com.android.systemui.flags.EnableSceneContainer;
 import com.android.systemui.keyguard.WakefulnessLifecycle;
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor;
 import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.qs.QSHost;
-import com.android.systemui.qs.QSPanelController;
-import com.android.systemui.qs.flags.QSComposeFragment;
 import com.android.systemui.recents.ScreenPinningRequest;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.shade.CameraLauncher;
@@ -102,6 +98,7 @@ public class CentralSurfacesCommandQueueCallbacksTest extends SysuiTestCase {
     @Mock private DozeServiceHost mDozeServiceHost;
     @Mock private NotificationStackScrollLayoutController mNotificationStackScrollLayoutController;
     @Mock private PowerManager mPowerManager;
+    @Mock private CameraNotifyWarmUpInteractor mCameraNotifyWarmUpInteractor;
     @Mock private Vibrator mVibrator;
     @Mock private StatusBarHideIconsForBouncerManager mStatusBarHideIconsForBouncerManager;
     @Mock private Lazy<CameraLauncher> mCameraLauncherLazy;
@@ -110,7 +107,6 @@ public class CentralSurfacesCommandQueueCallbacksTest extends SysuiTestCase {
     @Mock private ActivityStarter mActivityStarter;
     @Mock private EmergencyGestureIntentFactory mEmergencyGestureIntentFactory;
     @Mock private KeyguardInteractor mKeyguardInteractor;
-    @Mock private QSPanelController mQSPanelController;
     @Mock private QuickAccessWalletController mQuickAccessWalletController;
 
     CentralSurfacesCommandQueueCallbacks mSbcqCallbacks;
@@ -143,6 +139,7 @@ public class CentralSurfacesCommandQueueCallbacksTest extends SysuiTestCase {
                 mNotificationStackScrollLayoutController,
                 mStatusBarHideIconsForBouncerManager,
                 mPowerManager,
+                mCameraNotifyWarmUpInteractor,
                 Optional.of(mVibrator),
                 DEFAULT_DISPLAY,
                 mCameraLauncherLazy,
@@ -158,7 +155,6 @@ public class CentralSurfacesCommandQueueCallbacksTest extends SysuiTestCase {
         when(mDeviceProvisionedController.isCurrentUserSetup()).thenReturn(true);
         when(mRemoteInputQuickSettingsDisabler.adjustDisableFlags(anyInt()))
                 .thenAnswer((Answer<Integer>) invocation -> invocation.getArgument(0));
-        when(mCentralSurfaces.getQSPanelController()).thenReturn(mQSPanelController);
     }
 
     @Test
@@ -240,46 +236,13 @@ public class CentralSurfacesCommandQueueCallbacksTest extends SysuiTestCase {
         verify(mQSHost).addTile(c, false);
     }
 
-    @Test
-    @DisableSceneContainer
-    @DisableFlags(QSComposeFragment.FLAG_NAME)
-    public void clickQsTile_flagsDisabled_callsQSPanelController() {
-        ComponentName c = new ComponentName("testpkg", "testcls");
-
-        mSbcqCallbacks.clickTile(c);
-        verify(mQSPanelController).clickTile(c);
-    }
 
     @Test
     @DisableSceneContainer
-    @EnableFlags(QSComposeFragment.FLAG_NAME)
-    public void clickQsTile_onlyQSComposeFlag_callsQSHost() {
+    public void clickQsTile_callsQSHost() {
         ComponentName c = new ComponentName("testpkg", "testcls");
 
         mSbcqCallbacks.clickTile(c);
-        verify(mQSPanelController, never()).clickTile(c);
-        verify(mQSHost).clickTile(c);
-    }
-
-    @Test
-    @EnableSceneContainer
-    @DisableFlags(QSComposeFragment.FLAG_NAME)
-    public void clickQsTile_onlySceneContainerFlag_callsQSHost() {
-        ComponentName c = new ComponentName("testpkg", "testcls");
-
-        mSbcqCallbacks.clickTile(c);
-        verify(mQSPanelController, never()).clickTile(c);
-        verify(mQSHost).clickTile(c);
-    }
-
-    @Test
-    @EnableSceneContainer
-    @EnableFlags(QSComposeFragment.FLAG_NAME)
-    public void clickQsTile_qsComposeAndSceneContainerFlags_callsQSHost() {
-        ComponentName c = new ComponentName("testpkg", "testcls");
-
-        mSbcqCallbacks.clickTile(c);
-        verify(mQSPanelController, never()).clickTile(c);
         verify(mQSHost).clickTile(c);
     }
 }

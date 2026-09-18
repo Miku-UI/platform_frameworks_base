@@ -59,7 +59,7 @@ class UsbPermissionManager {
             UsbUserPermissionManager permissions = mPermissionsByUser.get(userId);
             if (permissions == null) {
                 permissions = new UsbUserPermissionManager(mContext.createContextAsUser(
-                        UserHandle.of(userId), 0), mUsbService.getSettingsForUser(userId));
+                        UserHandle.of(userId), 0), mUsbService.getSettingsForUser(userId), null);
                 mPermissionsByUser.put(userId, permissions);
             }
             return permissions;
@@ -72,6 +72,11 @@ class UsbPermissionManager {
 
     void remove(@NonNull UserHandle userToRemove) {
         synchronized (mPermissionsByUser) {
+            UsbUserPermissionManager removed = mPermissionsByUser.get(userToRemove.getIdentifier());
+            if (removed != null) {
+                removed.unregisterReceivers();
+            }
+
             mPermissionsByUser.remove(userToRemove.getIdentifier());
         }
     }

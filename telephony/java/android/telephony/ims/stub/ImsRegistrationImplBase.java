@@ -604,7 +604,6 @@ public class ImsRegistrationImplBase {
      * @hide This API is not part of the Android public SDK API
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_EMERGENCY_REGISTRATION_STATE)
     public final void onDeregistered(@Nullable ImsReasonInfo info,
                                      @RegistrationManager.SuggestedAction int suggestedAction,
                                      @NonNull ImsRegistrationAttributes attributes) {
@@ -779,7 +778,6 @@ public class ImsRegistrationImplBase {
      * @hide This API is not part of the Android public SDK API
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_EMERGENCY_REGISTRATION_STATE)
     public final void onTechnologyChangeFailed(@Nullable ImsReasonInfo info,
                                                @NonNull ImsRegistrationAttributes attributes) {
         boolean isEmergency = isEmergency(attributes);

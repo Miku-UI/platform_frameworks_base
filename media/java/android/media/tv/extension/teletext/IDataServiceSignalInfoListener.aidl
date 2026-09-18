@@ -22,5 +22,12 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface IDataServiceSignalInfoListener {
+    /**
+     * Called when the data service signal status changes.
+     *
+     * @param sessionToken The per-session token provided by the host during session creation.
+     * @param changedSignalInfo A Bundle containing information about the module change event.
+     *        It should contain keys as in @TeletextConstants.DataServiceSignalInfoKey.
+     */
     void onDataServiceSignalInfoChanged (String sessionToken, in Bundle changedSignalInfo);
 }

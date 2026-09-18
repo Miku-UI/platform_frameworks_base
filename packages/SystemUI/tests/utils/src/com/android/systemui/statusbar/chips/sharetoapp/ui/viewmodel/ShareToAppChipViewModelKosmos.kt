@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.chips.sharetoapp.ui.viewmodel
 
 import android.content.applicationContext
+import android.content.testableContext
 import com.android.systemui.animation.mockDialogTransitionAnimator
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
@@ -29,13 +30,18 @@ import com.android.systemui.util.time.fakeSystemClock
 val Kosmos.shareToAppChipViewModel: ShareToAppChipViewModel by
     Kosmos.Fixture {
         ShareToAppChipViewModel(
-            scope = applicationCoroutineScope,
-            context = applicationContext,
-            mediaProjectionChipInteractor = mediaProjectionChipInteractor,
-            systemClock = fakeSystemClock,
-            endMediaProjectionDialogHelper = endMediaProjectionDialogHelper,
-            dialogTransitionAnimator = mockDialogTransitionAnimator,
-            logger = statusBarChipsLogger,
-            uiEventLogger = statusBarChipsUiEventLogger,
-        )
+                scope = applicationCoroutineScope,
+                context = applicationContext,
+                mediaProjectionChipInteractor = mediaProjectionChipInteractor,
+                systemClock = fakeSystemClock,
+                endMediaProjectionDialogHelper = endMediaProjectionDialogHelper,
+                dialogTransitionAnimator = mockDialogTransitionAnimator,
+                logger = statusBarChipsLogger,
+                uiEventLogger = statusBarChipsUiEventLogger,
+            )
+            .also { it.start() }
     }
+
+fun Kosmos.overrideResource(id: Int, value: Boolean) {
+    testableContext.orCreateTestableResources.addOverride(id, value)
+}

@@ -41,7 +41,7 @@ abstract class QuickSwitchFromLauncher(val rotation: Rotation = Rotation.ROTATIO
 
     @Before
     fun setup() {
-        tapl.setExpectedRotationCheckEnabled(false)
+        tapl.expectedRotationCheckEnabled = false
 
         tapl.setExpectedRotation(rotation.value)
 

@@ -16,7 +16,6 @@
 
 package com.android.systemui.scene.domain.startable
 
-import com.android.internal.logging.uiEventLogger
 import com.android.systemui.animation.activityTransitionAnimator
 import com.android.systemui.authentication.domain.interactor.authenticationInteractor
 import com.android.systemui.bouncer.domain.interactor.alternateBouncerInteractor
@@ -30,19 +29,24 @@ import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
 import com.android.systemui.deviceentry.domain.interactor.deviceUnlockedInteractor
 import com.android.systemui.haptics.msdl.msdlPlayer
 import com.android.systemui.haptics.vibratorHelper
+import com.android.systemui.keyguard.data.windowManagerLockscreenVisibilityManager
 import com.android.systemui.keyguard.dismissCallbackRegistry
 import com.android.systemui.keyguard.domain.interactor.keyguardEnabledInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardOcclusionInteractor
+import com.android.systemui.keyguard.domain.interactor.keyguardShowWhileAwakeInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardSurfaceBehindInteractor
+import com.android.systemui.keyguard.domain.interactor.keyguardWakeDirectlyToGoneInteractor
 import com.android.systemui.keyguard.domain.interactor.trustInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.model.sysuiStateInteractor
+import com.android.systemui.plugins.statusbar.statusBarStateController
 import com.android.systemui.power.domain.interactor.powerInteractor
 import com.android.systemui.scene.domain.interactor.disabledContentInteractor
+import com.android.systemui.scene.domain.interactor.onBootTransitionInteractor
 import com.android.systemui.scene.domain.interactor.sceneBackInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.session.shared.shadeSessionStorage
@@ -55,47 +59,51 @@ import com.android.systemui.statusbar.notificationLockscreenUserManager
 import com.android.systemui.statusbar.notificationShadeWindowController
 import com.android.systemui.statusbar.phone.centralSurfacesOptional
 import com.android.systemui.statusbar.policy.domain.interactor.deviceProvisioningInteractor
-import com.android.systemui.statusbar.sysuiStatusBarStateController
 
 val Kosmos.sceneContainerStartable by Fixture {
     SceneContainerStartable(
+        // go/keep-sorted start
+        activityTransitionAnimator = activityTransitionAnimator,
+        alternateBouncerInteractor = alternateBouncerInteractor,
         applicationScope = testScope.backgroundScope,
-        sceneInteractor = sceneInteractor,
-        deviceEntryInteractor = deviceEntryInteractor,
-        deviceEntryHapticsInteractor = deviceEntryHapticsInteractor,
-        deviceUnlockedInteractor = deviceUnlockedInteractor,
+        authenticationInteractor = { authenticationInteractor },
+        bootInteractor = onBootTransitionInteractor,
         bouncerInteractor = bouncerInteractor,
-        keyguardInteractor = keyguardInteractor,
-        sceneLogger = sceneLogger,
+        centralSurfacesOptLazy = { centralSurfacesOptional },
+        deviceEntryHapticsInteractor = deviceEntryHapticsInteractor,
+        deviceEntryInteractor = deviceEntryInteractor,
+        deviceProvisioningInteractor = deviceProvisioningInteractor,
+        deviceUnlockedInteractor = deviceUnlockedInteractor,
+        disabledContentInteractor = disabledContentInteractor,
+        dismissCallbackRegistry = dismissCallbackRegistry,
+        faceUnlockInteractor = deviceEntryFaceAuthInteractor,
         falsingCollector = falsingCollector,
         falsingManager = falsingManager,
-        powerInteractor = powerInteractor,
-        simBouncerInteractor = { simBouncerInteractor },
-        authenticationInteractor = { authenticationInteractor },
-        windowController = notificationShadeWindowController,
-        deviceProvisioningInteractor = deviceProvisioningInteractor,
-        centralSurfacesOptLazy = { centralSurfacesOptional },
         headsUpInteractor = headsUpNotificationInteractor,
-        occlusionInteractor = keyguardOcclusionInteractor,
-        faceUnlockInteractor = deviceEntryFaceAuthInteractor,
-        shadeInteractor = shadeInteractor,
-        uiEventLogger = uiEventLogger,
-        sceneBackInteractor = sceneBackInteractor,
-        shadeSessionStorage = shadeSessionStorage,
         keyguardEnabledInteractor = keyguardEnabledInteractor,
-        dismissCallbackRegistry = dismissCallbackRegistry,
-        statusBarStateController = sysuiStatusBarStateController,
-        alternateBouncerInteractor = alternateBouncerInteractor,
-        vibratorHelper = vibratorHelper,
+        keyguardInteractor = keyguardInteractor,
+        keyguardShowWhileAwakeInteractor = keyguardShowWhileAwakeInteractor,
+        lockscreenUserManager = notificationLockscreenUserManager,
         msdlPlayer = msdlPlayer,
-        disabledContentInteractor = disabledContentInteractor,
-        activityTransitionAnimator = activityTransitionAnimator,
+        occlusionInteractor = keyguardOcclusionInteractor,
+        powerInteractor = powerInteractor,
+        sceneBackInteractor = sceneBackInteractor,
+        sceneInteractor = sceneInteractor,
+        sceneLogger = sceneLogger,
+        shadeDisplaysInteractor = { shadeDisplaysInteractor },
+        shadeInteractor = shadeInteractor,
         shadeModeInteractor = shadeModeInteractor,
+        shadeSessionStorage = shadeSessionStorage,
+        simBouncerInteractor = { simBouncerInteractor },
+        statusBarStateController = statusBarStateController,
+        surfaceBehindInteractor = keyguardSurfaceBehindInteractor,
+        sysuiStateInteractor = sysuiStateInteractor,
         tableLogBuffer = logcatTableLogBuffer(this, "sceneFrameworkTableLogBuffer"),
         trustInteractor = trustInteractor,
-        sysuiStateInteractor = sysuiStateInteractor,
-        shadeDisplaysInteractor = { shadeDisplaysInteractor },
-        surfaceBehindInteractor = keyguardSurfaceBehindInteractor,
-        lockscreenUserManager = notificationLockscreenUserManager,
+        vibratorHelper = vibratorHelper,
+        wakeDirectlyToGoneInteractor = keyguardWakeDirectlyToGoneInteractor,
+        windowController = notificationShadeWindowController,
+        windowManagerLockscreenVisibilityManager = windowManagerLockscreenVisibilityManager,
+        // go/keep-sorted end
     )
 }

@@ -38,9 +38,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.reset
 import org.mockito.kotlin.verify
 
-/**
- * Tests for the unhandled drag controller.
- */
+/** Tests for the unhandled drag controller. */
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class GlobalDragListenerTest : ShellTestCase() {
@@ -60,22 +58,20 @@ class GlobalDragListenerTest : ShellTestCase() {
         mController.setListener(object : GlobalDragListenerCallback {})
         mController.setListener(object : GlobalDragListenerCallback {})
         mController.setListener(object : GlobalDragListenerCallback {})
-        verify(mIWindowManager, Mockito.times(1))
-                .setGlobalDragListener(ArgumentMatchers.any())
+        verify(mIWindowManager, Mockito.times(1)).setGlobalDragListener(ArgumentMatchers.any())
 
         reset(mIWindowManager)
         mController.setListener(null)
         mController.setListener(null)
         mController.setListener(null)
-        verify(mIWindowManager, Mockito.times(1))
-                .setGlobalDragListener(ArgumentMatchers.isNull())
+        verify(mIWindowManager, Mockito.times(1)).setGlobalDragListener(ArgumentMatchers.isNull())
     }
 
     @Test
     fun onUnhandledDrop_noListener_expectNotifyUnhandled() {
         // Simulate an unhandled drop
-        val dropEvent = DragEvent.obtain(ACTION_DROP, 0f, 0f, 0f, 0f, 0, 0, null, null, null,
-            null, null, false)
+        val dropEvent =
+            DragEvent.obtain(ACTION_DROP, 0f, 0f, 0f, 0f, 0, 0, null, null, null, null, null, false)
         val wmCallback = mock<IUnhandledDragCallback>()
         mController.onUnhandledDrop(dropEvent, wmCallback)
 
@@ -87,19 +83,37 @@ class GlobalDragListenerTest : ShellTestCase() {
         val lastDragEvent = arrayOfNulls<DragEvent>(1)
 
         // Set a listener to listen for unhandled drops
-        mController.setListener(object : GlobalDragListenerCallback {
-            override fun onUnhandledDrop(dragEvent: DragEvent,
-                onFinishedCallback: Consumer<Boolean>) {
-                lastDragEvent[0] = dragEvent
-                onFinishedCallback.accept(true)
-                dragEvent.dragSurface.release()
+        mController.setListener(
+            object : GlobalDragListenerCallback {
+                override fun onUnhandledDrop(
+                    dragEvent: DragEvent,
+                    onFinishedCallback: Consumer<Boolean>,
+                ) {
+                    lastDragEvent[0] = dragEvent
+                    onFinishedCallback.accept(true)
+                    dragEvent.dragSurface.release()
+                }
             }
-        })
+        )
 
         // Simulate an unhandled drop
         val dragSurface = mock<SurfaceControl>()
-        val dropEvent = DragEvent.obtain(ACTION_DROP, 0f, 0f, 0f, 0f, 0, 0, null, null, null,
-            dragSurface, null, false)
+        val dropEvent =
+            DragEvent.obtain(
+                ACTION_DROP,
+                0f,
+                0f,
+                0f,
+                0f,
+                0,
+                0,
+                null,
+                null,
+                null,
+                dragSurface,
+                null,
+                false,
+            )
         val wmCallback = mock<IUnhandledDragCallback>()
         mController.onUnhandledDrop(dropEvent, wmCallback)
 
@@ -113,11 +127,13 @@ class GlobalDragListenerTest : ShellTestCase() {
         val lastTaskInfo = arrayOfNulls<RunningTaskInfo>(1)
 
         // Set a listener to listen for unhandled drops
-        mController.setListener(object : GlobalDragListenerCallback {
-            override fun onCrossWindowDrop(taskInfo: RunningTaskInfo) {
-                lastTaskInfo[0] = taskInfo
+        mController.setListener(
+            object : GlobalDragListenerCallback {
+                override fun onCrossWindowDrop(taskInfo: RunningTaskInfo) {
+                    lastTaskInfo[0] = taskInfo
+                }
             }
-        })
+        )
 
         // Simulate a cross-window drop
         val taskInfo = mock<RunningTaskInfo>()

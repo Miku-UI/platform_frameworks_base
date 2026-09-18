@@ -66,10 +66,10 @@ import kotlinx.coroutines.withContext
 class ShortcutHelperViewModel
 @Inject
 constructor(
-    private val context: Context,
+    @DisplayAware private val context: Context,
     private val roleManager: RoleManager,
     private val userTracker: UserTracker,
-    @Background private val backgroundScope: CoroutineScope,
+    @DisplayAware private val displayScope: CoroutineScope,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
     private val stateInteractor: ShortcutHelperStateInteractor,
     categoriesInteractor: ShortcutHelperCategoriesInteractor,
@@ -127,7 +127,7 @@ constructor(
                 }
             }
             .stateIn(
-                scope = backgroundScope,
+                scope = displayScope,
                 started = SharingStarted.Lazily,
                 initialValue = ShortcutsUiState.Inactive,
             )

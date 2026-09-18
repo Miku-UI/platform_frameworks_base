@@ -30,6 +30,7 @@ import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import com.android.systemui.keyguard.ui.transitions.PrimaryBouncerTransition
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Overlays
+import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
@@ -42,8 +43,11 @@ import kotlinx.coroutines.flow.emptyFlow
 @SysUISingleton
 class PrimaryBouncerToLockscreenTransitionViewModel
 @Inject
-constructor(private val blurConfig: BlurConfig, animationFlow: KeyguardTransitionAnimationFlow) :
-    DeviceEntryIconTransition, PrimaryBouncerTransition {
+constructor(
+    private val blurConfig: BlurConfig,
+    private val shadeInteractor: ShadeInteractor,
+    animationFlow: KeyguardTransitionAnimationFlow,
+) : DeviceEntryIconTransition, PrimaryBouncerTransition {
     private val transitionAnimation =
         animationFlow
             .setup(
@@ -67,10 +71,14 @@ constructor(private val blurConfig: BlurConfig, animationFlow: KeyguardTransitio
             return emptyFlow()
         } else {
             var currentAlpha = 0f
+            var isQsExpanded = false
             return transitionAnimation.sharedFlow(
                 duration = 250.milliseconds,
-                onStart = { currentAlpha = viewState.alpha() },
-                onStep = { MathUtils.lerp(currentAlpha, 1f, it) },
+                onStart = {
+                    currentAlpha = viewState.alpha()
+                    isQsExpanded = shadeInteractor.isQsExpanded.value
+                },
+                onStep = { if (isQsExpanded) null else MathUtils.lerp(currentAlpha, 1f, it) },
             )
         }
     }
@@ -92,7 +100,7 @@ constructor(private val blurConfig: BlurConfig, animationFlow: KeyguardTransitio
                     }
                 } else {
                     transitionProgressToBlurRadius(
-                        starBlurRadius = blurConfig.maxBlurRadiusPx,
+                        startBlurRadius = blurConfig.maxBlurRadiusPx,
                         endBlurRadius = blurConfig.minBlurRadiusPx,
                         transitionProgress = step,
                     )

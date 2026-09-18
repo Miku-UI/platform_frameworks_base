@@ -45,6 +45,9 @@ import static org.mockito.Mockito.when;
 import android.annotation.NonNull;
 import android.app.PropertyInvalidatedCache;
 import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.Flags;
 import android.content.pm.PackageManager;
@@ -59,6 +62,8 @@ import android.os.Message;
 import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.UserHandle;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
@@ -75,6 +80,10 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.internal.pm.parsing.pkg.PackageImpl;
 import com.android.internal.pm.parsing.pkg.ParsedPackage;
+import com.android.internal.pm.pkg.component.ParsedActivity;
+import com.android.internal.pm.pkg.component.ParsedActivityImpl;
+import com.android.internal.pm.pkg.component.ParsedIntentInfo;
+import com.android.internal.pm.pkg.component.ParsedIntentInfoImpl;
 import com.android.permission.persistence.RuntimePermissionsPersistence;
 import com.android.server.LocalServices;
 import com.android.server.pm.parsing.PackageInfoUtils;
@@ -96,11 +105,13 @@ import com.android.server.utils.Watcher;
 import com.google.common.truth.Truth;
 
 import org.junit.After;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.io.File;
@@ -158,7 +169,6 @@ public class PackageManagerSettingsTests {
     public void setup() {
         // Disable binder caches in this process.
         PropertyInvalidatedCache.disableForTestMode();
-
     }
 
     @Before
@@ -615,9 +625,196 @@ public class PackageManagerSettingsTests {
     }
 
     @Test
+    public void testReadWritePackageRestrictions_pccInodes() {
+        final Settings settingsUnderTest = makeSettings();
+        final PackageSetting ps1 = createPackageSetting(PACKAGE_NAME_1);
+
+        final long testPccCeInode = 5555L;
+        final long testPccDeInode = 9999L;
+
+        ps1.modifyUserState(0).setPccCeDataInode(testPccCeInode);
+        ps1.modifyUserState(0).setPccDeDataInode(testPccDeInode);
+        settingsUnderTest.mPackages.put(PACKAGE_NAME_1, ps1);
+
+        settingsUnderTest.writePackageRestrictionsLPr(0, /*sync=*/true);
+
+        // Clear and re-create settings to force re-read
+        Settings settingsRead = makeSettings();
+        settingsRead.mPackages.put(PACKAGE_NAME_1, createPackageSetting(PACKAGE_NAME_1));
+        settingsRead.readPackageRestrictionsLPr(0, mOrigFirstInstallTimes);
+
+        final PackageUserStateInternal readPus1 = settingsRead.mPackages.get(PACKAGE_NAME_1)
+                .readUserState(0);
+        assertThat(readPus1.getPccCeDataInode(), is(testPccCeInode));
+        assertThat(readPus1.getPccDeDataInode(), is(testPccDeInode));
+    }
+
+    @Test
     public void testPackageRestrictionsSuspendedDefault() {
         final PackageSetting defaultSetting = createPackageSetting(PACKAGE_NAME_1);
         assertThat(defaultSetting.getUserStateOrDefault(0).isSuspended(), is(false));
+    }
+
+    @Test
+    public void testPackageRestrictionsPccInodesDefault() {
+        final PackageSetting defaultSetting = createPackageSetting(PACKAGE_NAME_1);
+        PackageUserStateInternal userState = defaultSetting.getUserStateOrDefault(0);
+
+        assertThat(userState.getPccCeDataInode(), is(0L));
+        assertThat(userState.getPccDeDataInode(), is(0L));
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_APP_LOCK_APIS)
+    public void testPackageRestrictions_appLockEnabledDefaultStateIsSet() {
+        Assume.assumeTrue(shouldTestAppLock(
+                InstrumentationRegistry.getInstrumentation().getContext()));
+        final PackageSetting packageSetting = createPackageSetting(PACKAGE_NAME_1);
+
+        Truth.assertThat(packageSetting.getUserStateOrDefault(0).isAppLockEnabled()).isFalse();
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_APP_LOCK_APIS)
+    public void testPackageRestrictions_writeAppLockEnabledGetsRead() {
+        Assume.assumeTrue(shouldTestAppLock(
+                InstrumentationRegistry.getInstrumentation().getContext()));
+        final PackageSetting packageSetting = createPackageSetting(PACKAGE_NAME_1);
+        packageSetting.modifyUserState(0).setAppLockEnabled(true);
+
+        Truth.assertThat(packageSetting.getUserStateOrDefault(0).isAppLockEnabled()).isTrue();
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_APP_LOCK_APIS)
+    public void testPackageRestrictions_appLockEnabledPersistsAfterBoot() {
+        Assume.assumeTrue(shouldTestAppLock(
+                InstrumentationRegistry.getInstrumentation().getContext()));
+        Settings settings = makeSettings();
+        final PackageSetting packageSettings = createPackageSetting(PACKAGE_NAME_1);
+        packageSettings.setAppId(Process.FIRST_APPLICATION_UID);
+        packageSettings.setPkg(PackageImpl.forTesting(PACKAGE_NAME_1).hideAsParsed().setUid(
+                packageSettings.getAppId()).hideAsFinal());
+        packageSettings.modifyUserState(0).setAppLockEnabled(true);
+        settings.mPackages.put(PACKAGE_NAME_1, packageSettings);
+        settings.writeLPr(computer, /*sync=*/ true);
+
+        // Reboot simulation
+        settings.mPackages.clear();
+
+        Truth.assertThat(settings.readLPw(computer, createFakeUsers())).isTrue();
+        Truth.assertThat(settings.getPackageLPr(PACKAGE_NAME_1).isAppLockEnabled(0)).isTrue();
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_APP_LOCK_APIS)
+    public void testPackageRestrictions_appLockEnabledStateFalseAfterUninstallAndReinstall() {
+        Assume.assumeTrue(shouldTestAppLock(
+                InstrumentationRegistry.getInstrumentation().getContext()));
+        Settings settings = makeSettings();
+        final PackageSetting packageSettings = createPackageSetting(PACKAGE_NAME_1);
+        packageSettings.setAppId(Process.FIRST_APPLICATION_UID);
+        packageSettings.setPkg(PackageImpl.forTesting(PACKAGE_NAME_1).hideAsParsed().setUid(
+                packageSettings.getAppId()).hideAsFinal());
+        packageSettings.modifyUserState(0).setAppLockEnabled(true);
+        settings.mPackages.put(PACKAGE_NAME_1, packageSettings);
+        settings.writeLPr(computer, /*sync=*/ true);
+        Truth.assertThat(settings.getPackageLPr(PACKAGE_NAME_1).isAppLockEnabled(0)).isTrue();
+
+        // uninstall
+        settings.mPackages.remove(PACKAGE_NAME_1, packageSettings);
+        settings.writeLPr(computer, /*sync=*/ true);
+
+        // Reboot simulation
+        settings.mPackages.clear();
+
+        // Reinstall
+        settings.mPackages.put(PACKAGE_NAME_1, createPackageSetting(PACKAGE_NAME_1));
+        settings.writeLPr(computer, /*sync=*/ true);
+
+        Truth.assertThat(settings.readLPw(computer, createFakeUsers())).isTrue();
+        Truth.assertThat(settings.getPackageLPr(PACKAGE_NAME_1).isAppLockEnabled(0)).isFalse();
+    }
+
+    @Test
+    @DisableFlags({android.security.Flags.FLAG_APP_LOCK_APIS})
+    public void testPackageRestrictions_appLockEnabledNotSet_whenFeatureDisabled() {
+        Assume.assumeTrue(shouldTestAppLock(
+                InstrumentationRegistry.getInstrumentation().getContext()));
+        final PackageSetting packageSetting = createPackageSetting(PACKAGE_NAME_1);
+        packageSetting.modifyUserState(0).setAppLockEnabled(true);
+
+        // Verify that App Lock remains disabled, because the feature flag is disabled
+        Truth.assertThat(packageSetting.getUserStateOrDefault(0).isAppLockEnabled()).isFalse();
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_APP_LOCK_APIS)
+    public void generateApplicationInfo_noFlags_appLockSupportedStateFalse() {
+        Assume.assumeTrue(shouldTestAppLock(
+                InstrumentationRegistry.getInstrumentation().getContext()));
+        final PackageSetting packageSetting = createPackageSetting(PACKAGE_NAME_1);
+        packageSetting.setPkg(((ParsedPackage) PackageImpl.forTesting(
+                PACKAGE_NAME_1).hideAsParsed())
+                .setUid(packageSetting.getAppId())
+                .setSystem(true)
+                .hideAsFinal());
+
+        ApplicationInfo appInfo = PackageInfoUtils.generateApplicationInfo(
+                packageSetting.getAndroidPackage(), /* flags= */ 0,
+                packageSetting.getUserStateOrDefault(0), /* userId= */ 0, packageSetting);
+
+        Truth.assertThat(appInfo.isAppLockSupported).isFalse();
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_APP_LOCK_APIS)
+    public void generateApplicationInfo_appLockFlag_headlessApp_appLockSupportedStateFalse() {
+        Assume.assumeTrue(shouldTestAppLock(
+                InstrumentationRegistry.getInstrumentation().getContext()));
+        final PackageSetting packageSetting = createPackageSetting(PACKAGE_NAME_1);
+        packageSetting.setPkg(((ParsedPackage) PackageImpl.forTesting(
+                PACKAGE_NAME_1).hideAsParsed())
+                .setUid(packageSetting.getAppId())
+                .setSystem(true)
+                .hideAsFinal());
+
+        ApplicationInfo appInfo = PackageInfoUtils.generateApplicationInfo(
+                packageSetting.getAndroidPackage(), PackageManager.GET_APP_LOCK_INFO,
+                packageSetting.getUserStateOrDefault(0), /* userId= */ 0, packageSetting);
+
+        Truth.assertThat(appInfo.isAppLockSupported).isFalse();
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_APP_LOCK_APIS)
+    public void generateApplicationInfo_appLockFlag_appLockSupportedStateTrue() {
+        Assume.assumeTrue(shouldTestAppLock(
+                InstrumentationRegistry.getInstrumentation().getContext()));
+        // Create a fake activity with a launcher entry
+        final IntentFilter intentFilter = new IntentFilter(Intent.ACTION_MAIN);
+        intentFilter.addCategory(Intent.CATEGORY_LAUNCHER);
+        final ParsedIntentInfo intentInfo = Mockito.mock(ParsedIntentInfoImpl.class);
+        when(intentInfo.getIntentFilter()).thenReturn(intentFilter);
+        final List<ParsedIntentInfo> intentList = new ArrayList<>(1);
+        intentList.add(intentInfo);
+        final ParsedActivity parsedActivity = Mockito.mock(ParsedActivityImpl.class);
+        when(parsedActivity.isExported()).thenReturn(true);
+        when(parsedActivity.isEnabled()).thenReturn(true);
+        when(parsedActivity.getIntents()).thenReturn(intentList);
+
+        final PackageSetting packageSetting = createPackageSetting(PACKAGE_NAME_1);
+        packageSetting.setPkg(((ParsedPackage) PackageImpl.forTesting(PACKAGE_NAME_1).addActivity(
+                parsedActivity).hideAsParsed())
+                .setUid(packageSetting.getAppId())
+                .setSystem(true)
+                .hideAsFinal());
+
+        ApplicationInfo appInfo = PackageInfoUtils.generateApplicationInfo(
+                packageSetting.getAndroidPackage(), PackageManager.GET_APP_LOCK_INFO,
+                packageSetting.getUserStateOrDefault(0), /* userId= */ 0, packageSetting);
+
+        Truth.assertThat(appInfo.isAppLockSupported).isTrue();
     }
 
     private void populateDefaultSettings(Settings settings) {
@@ -1466,10 +1663,13 @@ public class PackageManagerSettingsTests {
                 .setPrimaryCpuAbi("x86_64")
                 .setSecondaryCpuAbi("x86")
                 .setLongVersionCode(INITIAL_VERSION_CODE);
-        origPkgSetting01.setUserState(0, 100, 100, 1, true, false, false, false, 0, null, false,
+        origPkgSetting01.setUserState(0, 100, 100, 101,
+                102, 1, true, false, false, false, 0, null, false,
                 false, "lastDisabledCaller", new ArraySet<>(new String[]{"enabledComponent1"}),
                 new ArraySet<>(new String[]{"disabledComponent1"}), 0, 0, "harmfulAppWarning",
-                "splashScreenTheme", 1000L, PackageManager.USER_MIN_ASPECT_RATIO_UNSET, null);
+                "splashScreenTheme", 1000L, PackageManager.USER_MIN_ASPECT_RATIO_UNSET, null,
+                false, PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_UNSET,
+                PackageManager.PERSONAL_CONTEXT_MODE_UNSET);
         final PersistableBundle appExtras1 = createPersistableBundle(
                 PACKAGE_NAME_1, 1L, 0.01, true, "appString1");
         final PersistableBundle launcherExtras1 = createPersistableBundle(
@@ -2150,6 +2350,22 @@ public class PackageManagerSettingsTests {
     }
 
     @Test
+    public void testClearOldPaths() {
+        final PackageSetting ps1 = createPackageSetting(PACKAGE_NAME_1);
+        ps1.setAppId(Process.FIRST_APPLICATION_UID);
+        ps1.setPkg(PackageImpl.forTesting(PACKAGE_NAME_1).hideAsParsed()
+                .setUid(ps1.getAppId())
+                .hideAsFinal());
+        ps1.addOldPath(INITIAL_CODE_PATH);
+        ps1.addOldPath(UPDATED_CODE_PATH);
+        ps1.clearOldPaths();
+        assertThat(ps1.getOldPaths().size(), is(0));
+        // Clear again shouldn't throw
+        ps1.clearOldPaths();
+        assertThat(ps1.getOldPaths().size(), is(0));
+    }
+
+    @Test
     public void testDeveloperVerificationStatus_nothingChangedAfterReboot() {
         Settings settings = makeSettings();
         final PackageSetting ps1 = createPackageSetting(PACKAGE_NAME_1);
@@ -2304,6 +2520,7 @@ public class PackageManagerSettingsTests {
                 && userState.isStopped() == oldUserState.isStopped()
                 && userState.isInstalled() == oldUserState.isInstalled()
                 && userState.isSuspended() == oldUserState.isSuspended()
+                && userState.isAppLockEnabled() == oldUserState.isAppLockEnabled()
                 && userState.isNotLaunched() == oldUserState.isNotLaunched()
                 && userState.isInstantApp() == oldUserState.isInstantApp()
                 && userState.isVirtualPreload() == oldUserState.isVirtualPreload()
@@ -2311,6 +2528,9 @@ public class PackageManagerSettingsTests {
                 ? userState.getAllOverlayPaths().equals(oldUserState.getAllOverlayPaths())
                 : oldUserState.getOverlayPaths() == null)
                 && userState.getCeDataInode() == oldUserState.getCeDataInode()
+                && userState.getDeDataInode() == oldUserState.getDeDataInode()
+                && userState.getPccCeDataInode() == oldUserState.getPccCeDataInode()
+                && userState.getPccDeDataInode() == oldUserState.getPccDeDataInode()
                 && userState.getDistractionFlags() == oldUserState.getDistractionFlags()
                 && userState.getFirstInstallTimeMillis() == oldUserState.getFirstInstallTimeMillis()
                 && userState.getEnabledState() == oldUserState.getEnabledState()
@@ -2325,7 +2545,9 @@ public class PackageManagerSettingsTests {
                 && userState.getSplashScreenTheme().equals(
                         oldUserState.getSplashScreenTheme())
                 && userState.getUninstallReason() == oldUserState.getUninstallReason()
-                && userState.getMinAspectRatio() == oldUserState.getMinAspectRatio();
+                && userState.getMinAspectRatio() == oldUserState.getMinAspectRatio()
+                && userState.getVirtualGamepadUserOption()
+                == oldUserState.getVirtualGamepadUserOption();
     }
 
     private SharedUserSetting createSharedUserSetting(Settings settings, String userName,
@@ -2670,4 +2892,17 @@ public class PackageManagerSettingsTests {
         return PackageImpl.forTesting(pkgSetting.getPackageName()).hideAsParsed().hideAsFinal();
     }
 
+    private static boolean shouldTestAppLock(Context context) {
+        PackageManager pm = context.getPackageManager();
+        if (pm.hasSystemFeature(PackageManager.FEATURE_WATCH)) {
+            return false;
+        }
+        if (pm.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)) {
+            return false;
+        }
+        if (pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
+            return false;
+        }
+        return true;
+    }
 }

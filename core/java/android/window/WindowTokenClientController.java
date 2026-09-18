@@ -32,6 +32,7 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.ArraySet;
 import android.util.Log;
+import android.view.Display;
 import android.view.IWindowManager;
 import android.view.WindowManagerGlobal;
 
@@ -257,7 +258,14 @@ public class WindowTokenClientController {
         }
     }
 
-    /** Propagates the configuration change to the client token. */
+    /**
+     * Propagates the configuration change to the client token.
+     *
+     * @param clientToken the WindowContext token to propagate the configuration change to
+     * @param config  the {@link Configuration} to dispatch
+     * @param displayId the display ID to update, or {@link Display#INVALID_DISPLAY}
+     *                  to indicate no display update
+     */
     public void onWindowConfigurationChanged(@NonNull IBinder clientToken,
             @NonNull Configuration config, int displayId) {
         final WindowTokenClient windowTokenClient = getWindowTokenClientIfAttached(clientToken);

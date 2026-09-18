@@ -67,7 +67,7 @@ class InternetTileMapperTest : SysuiTestCase() {
         val inputModel =
             InternetTileModel.Active(
                 secondaryLabel = Text.Resource(R.string.quick_settings_networks_available),
-                icon = InternetTileIconModel.Cellular(3),
+                icon = InternetTileIconModel.SignalLevel(3),
                 stateDescription = null,
                 contentDescription =
                     ContentDescription.Resource(R.string.quick_settings_internet_label),

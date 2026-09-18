@@ -1,0 +1,13 @@
+{
+  "presubmit": [
+    {
+      "name": "TrustTokenTestsDevice"
+    }
+  ],
+  "cross-device-identity-robolectric-presubmit": [
+    {
+      "name": "TrustTokenTestsRobolectric",
+      "host": true
+    }
+  ]
+}

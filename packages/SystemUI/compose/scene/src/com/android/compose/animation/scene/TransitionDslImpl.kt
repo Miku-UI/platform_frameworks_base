@@ -39,6 +39,7 @@ import com.android.internal.jank.Cuj.CujType
 internal fun transitionsImpl(builder: SceneTransitionsBuilder.() -> Unit): SceneTransitions {
     val impl = SceneTransitionsBuilderImpl().apply(builder)
     return SceneTransitions(
+        defaultTransitionSpec = impl.defaultTransitionSpec,
         transitionSpecs = impl.transitionSpecs,
         interruptionHandler = impl.interruptionHandler,
     )
@@ -47,12 +48,14 @@ internal fun transitionsImpl(builder: SceneTransitionsBuilder.() -> Unit): Scene
 private class SceneTransitionsBuilderImpl : SceneTransitionsBuilder {
     override var interruptionHandler: InterruptionHandler = DefaultInterruptionHandler
 
+    var defaultTransitionSpec: DefaultTransitionSpec? = null
     val transitionSpecs = mutableListOf<TransitionSpecImpl>()
 
     override fun to(
         to: ContentKey,
         key: TransitionKey?,
         @CujType cuj: Int?,
+        cujTag: String?,
         preview: (TransitionBuilder.() -> Unit)?,
         reversePreview: (TransitionBuilder.() -> Unit)?,
         builder: TransitionBuilder.() -> Unit,
@@ -62,6 +65,7 @@ private class SceneTransitionsBuilderImpl : SceneTransitionsBuilder {
             to = to,
             key = key,
             cuj = cuj,
+            cujTag = cujTag,
             preview = preview,
             reversePreview = reversePreview,
             builder = builder,
@@ -73,6 +77,7 @@ private class SceneTransitionsBuilderImpl : SceneTransitionsBuilder {
         to: ContentKey?,
         key: TransitionKey?,
         @CujType cuj: Int?,
+        cujTag: String?,
         preview: (TransitionBuilder.() -> Unit)?,
         reversePreview: (TransitionBuilder.() -> Unit)?,
         builder: TransitionBuilder.() -> Unit,
@@ -82,10 +87,26 @@ private class SceneTransitionsBuilderImpl : SceneTransitionsBuilder {
             to = to,
             key = key,
             cuj = cuj,
+            cujTag = cujTag,
             preview = preview,
             reversePreview = reversePreview,
             builder = builder,
         )
+    }
+
+    override fun default(
+        preview: (TransitionBuilder.() -> Unit)?,
+        builder: TransitionBuilder.() -> Unit,
+    ) {
+        check(defaultTransitionSpec == null) {
+            "SceneTransitionsBuilder.default {} can only be defined once"
+        }
+
+        defaultTransitionSpec =
+            DefaultTransitionSpec(
+                previewTransformationSpec = preview?.let { { t -> transformationSpec(t, it) } },
+                transformationSpec = { t -> transformationSpec(t, builder) },
+            )
     }
 
     private fun transition(
@@ -93,28 +114,18 @@ private class SceneTransitionsBuilderImpl : SceneTransitionsBuilder {
         to: ContentKey?,
         key: TransitionKey?,
         @CujType cuj: Int?,
+        cujTag: String?,
         preview: (TransitionBuilder.() -> Unit)?,
         reversePreview: (TransitionBuilder.() -> Unit)?,
         builder: TransitionBuilder.() -> Unit,
     ): TransitionSpec {
-        fun transformationSpec(
-            transition: TransitionState.Transition,
-            builder: TransitionBuilder.() -> Unit,
-        ): TransformationSpecImpl {
-            val impl = TransitionBuilderImpl(transition).apply(builder)
-            return TransformationSpecImpl(
-                progressSpec = impl.spec,
-                distance = impl.distance,
-                transformationMatchers = impl.transformationMatchers,
-            )
-        }
-
         val spec =
             TransitionSpecImpl(
                 key = key,
                 from = from,
                 to = to,
                 cuj = cuj,
+                cujTag = cujTag,
                 previewTransformationSpec = preview?.let { { t -> transformationSpec(t, it) } },
                 reversePreviewTransformationSpec =
                     reversePreview?.let { { t -> transformationSpec(t, it) } },
@@ -123,13 +134,27 @@ private class SceneTransitionsBuilderImpl : SceneTransitionsBuilder {
         transitionSpecs.add(spec)
         return spec
     }
+
+    private fun transformationSpec(
+        transition: TransitionState.Transition,
+        builder: TransitionBuilder.() -> Unit,
+    ): TransformationSpecImpl {
+        val impl = TransitionBuilderImpl(transition).apply(builder)
+        return TransformationSpecImpl(
+            progressSpec = impl.spec,
+            distance = impl.distance,
+            intrinsicDirection = impl.intrinsicDirection,
+            transformationMatchers = impl.transformationMatchers,
+        )
+    }
 }
 
 internal abstract class BaseTransitionBuilderImpl : BaseTransitionBuilder {
     val transformationMatchers = mutableListOf<TransformationMatcher>()
-    private var range: TransformationRange? = null
+    protected var range: TransformationRange? = null
     protected var reversed = false
     override var distance: UserActionDistance? = null
+    var intrinsicDirection: SwipeDirection? = null
 
     override fun fractionRange(
         start: Float?,
@@ -209,6 +234,7 @@ internal class TransitionBuilderImpl(override val transition: TransitionState.Tr
     override var spec: AnimationSpec<Float>? = null
     override var distance: UserActionDistance? = null
     override var cuj: Int? = null
+    override var cujTag: String? = null
     private val durationMillis: Int by lazy {
         val spec = spec
         if (spec !is DurationBasedAnimationSpec) {
@@ -238,6 +264,8 @@ internal class TransitionBuilderImpl(override val transition: TransitionState.Tr
                 "(${transition.fromContent.debugName}) or toContent " +
                 "(${transition.toContent.debugName})"
         }
+
+        check(range == null) { "sharedElement() transformation can not be applied inside a range" }
 
         addTransformation(
             matcher,

@@ -47,6 +47,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -66,6 +67,8 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.ApplicationInfoFlags;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.graphics.Rect;
+import android.media.projection.IAppContentProjectionCallback;
+import android.media.projection.IAppContentProjectionSession;
 import android.media.projection.IMediaProjection;
 import android.media.projection.IMediaProjectionCallback;
 import android.media.projection.IMediaProjectionWatcherCallback;
@@ -78,8 +81,8 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.test.TestLooper;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
@@ -192,8 +195,7 @@ public class MediaProjectionManagerServiceTest {
     private AppOpsManager mAppOpsManager;
     @Mock
     private IMediaProjectionWatcherCallback mWatcherCallback;
-    @Mock
-    private MediaProjectionMetricsLogger mMediaProjectionMetricsLogger;
+    @Mock private MediaProjectionMetricsLogger mMediaProjectionMetricsLogger;
     @Captor
     private ArgumentCaptor<ContentRecordingSession> mSessionCaptor;
 
@@ -1393,6 +1395,111 @@ public class MediaProjectionManagerServiceTest {
         assertThrows(SecurityException.class, () -> projection.start(mIMediaProjectionCallback));
     }
 
+    @Test
+    public void appContentProjection_cannotProjectVideo() throws Exception {
+        IBinder binder1 = mock(IBinder.class);
+        IAppContentProjectionCallback callback1 = mock(IAppContentProjectionCallback.class);
+        IAppContentProjectionSession session1 = mock(IAppContentProjectionSession.class);
+        when(callback1.asBinder()).thenReturn(binder1);
+        IMediaProjection projection = createAppContentProjection(session1, callback1);
+
+        assertThat(projection.canProjectVideo()).isFalse();
+    }
+
+    @Test
+    public void setAppContentProjectionCallback_notifiesListeners() throws Exception {
+        mService.addCallback(mWatcherCallback);
+
+        IBinder binder1 = mock(IBinder.class);
+        IAppContentProjectionCallback callback1 = mock(IAppContentProjectionCallback.class);
+        IAppContentProjectionSession session1 = mock(IAppContentProjectionSession.class);
+        when(callback1.asBinder()).thenReturn(binder1);
+        IMediaProjection projection = createAppContentProjection(session1, callback1);
+
+        projection.start(mIMediaProjectionCallback);
+        mTestLooper.dispatchAll();
+        verify(mWatcherCallback, timeout(1000)).onStart(any());
+
+        assertThat(mService.getActiveProjectionInfo()).isNotNull();
+        assertThat(mService.getActiveProjectionInfo().getPackageName()).isEqualTo(PACKAGE_NAME);
+    }
+
+    @Test
+    public void setAppContentProjectionCallback_onBinderDied_stopsProjection() throws Exception {
+        createProjectionPreconditions(mService);
+        IBinder binder = mock(IBinder.class);
+        ArgumentCaptor<IBinder.DeathRecipient> deathRecipientCaptor =
+                ArgumentCaptor.forClass(IBinder.DeathRecipient.class);
+        IAppContentProjectionCallback callback1 = mock(IAppContentProjectionCallback.class);
+        IAppContentProjectionSession session1 = mock(IAppContentProjectionSession.class);
+        when(callback1.asBinder()).thenReturn(binder);
+        IMediaProjection projection = createAppContentProjection(session1, callback1);
+
+        projection.start(mIMediaProjectionCallback);
+
+        verify(binder).linkToDeath(deathRecipientCaptor.capture(), eq(0));
+
+        // Trigger death
+        deathRecipientCaptor.getValue().binderDied();
+
+        // Verify projection stopped
+        assertThat(mService.getActiveProjectionInfo()).isNull();
+    }
+
+    @Test
+    public void setAppContentProjectionCallback_oldCallbackDied_doesNotStopProjection()
+            throws Exception {
+        IBinder binder1 = mock(IBinder.class);
+        IAppContentProjectionCallback callback1 = mock(IAppContentProjectionCallback.class);
+        IAppContentProjectionSession session1 = mock(IAppContentProjectionSession.class);
+        when(callback1.asBinder()).thenReturn(binder1);
+        ArgumentCaptor<IBinder.DeathRecipient> deathRecipientCaptor1 =
+                ArgumentCaptor.forClass(IBinder.DeathRecipient.class);
+
+
+        mService.new BinderService(mContext);
+        IMediaProjection projection = createAppContentProjection(session1, callback1);
+        projection.start(mIMediaProjectionCallback);
+        verify(binder1).linkToDeath(deathRecipientCaptor1.capture(), eq(0));
+        assertThat(mService.getActiveProjectionInfo()).isNotNull();
+
+        // Set a new callback
+        IBinder binder2 = mock(IBinder.class);
+        IAppContentProjectionCallback callback2 = mock(IAppContentProjectionCallback.class);
+        IAppContentProjectionSession session2 = mock(IAppContentProjectionSession.class);
+        when(callback2.asBinder()).thenReturn(binder2);
+        projection = createAppContentProjection(session2, callback2);
+
+        projection.start(mIMediaProjectionCallback);
+
+        // Trigger death of the old callback
+        deathRecipientCaptor1.getValue().binderDied();
+
+        mTestLooper.dispatchAll();
+        // Verify projection is STILL ACTIVE
+        assertThat(mService.getActiveProjectionInfo()).isNotNull();
+    }
+
+    @Test
+    public void setAppContentProjectionCallback_onStop_notifiesCallback() throws Exception {
+        MediaProjectionManagerService.BinderService binderService =
+                mService.new BinderService(mContext);
+        IAppContentProjectionCallback callback1 = mock(IAppContentProjectionCallback.class);
+        IAppContentProjectionSession session1 = mock(IAppContentProjectionSession.class);
+        IBinder binder1 = mock(IBinder.class);
+        when(callback1.asBinder()).thenReturn(binder1);
+        IMediaProjection projection = createAppContentProjection(session1, callback1);
+
+        projection.start(mIMediaProjectionCallback);
+        binderService.stopActiveProjection(StopReason.STOP_HOST_APP);
+
+        // Call dispatchAll twice because the first dispatch call will
+        // post again on the handler
+        mTestLooper.dispatchAll();
+        mTestLooper.dispatchAll();
+        verify(callback1, timeout(1000)).onSessionStopped();
+    }
+
     private void verifySetSessionWithContent(@RecordContent int content) {
         verify(mWindowManagerInternal, atLeastOnce()).setContentRecordingSession(
                 mSessionCaptor.capture());
@@ -1416,6 +1523,18 @@ public class MediaProjectionManagerServiceTest {
                 TYPE_MIRRORING,
                 /* isPermanentGrant= */ false,
                 displayId);
+    }
+
+    private IMediaProjection createAppContentProjection(
+            IAppContentProjectionSession session, IAppContentProjectionCallback callback)
+            throws NameNotFoundException {
+        mAppInfo.privateFlags |= PRIVATE_FLAG_PRIVILEGED;
+        doReturn(mAppInfo).when(mPackageManager).getApplicationInfoAsUser(anyString(),
+                any(ApplicationInfoFlags.class), any(UserHandle.class));
+        MediaProjectionManagerService.BinderService mediaProjectionBinderService =
+                mService.new BinderService(mContext);
+        return mediaProjectionBinderService.createProjectionForAppContent(UID, PACKAGE_NAME,
+                session, 0, false, callback);
     }
 
     // Set up preconditions for starting a projection, with no foreground service requirements.

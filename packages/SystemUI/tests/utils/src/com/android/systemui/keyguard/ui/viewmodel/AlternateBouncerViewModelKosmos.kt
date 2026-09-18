@@ -28,7 +28,7 @@ import com.android.systemui.statusbar.phone.statusBarKeyguardViewManager
 
 val Kosmos.alternateBouncerViewModel by Fixture {
     AlternateBouncerViewModel(
-        statusBarKeyguardViewManager = statusBarKeyguardViewManager,
+        keyguardViewController = statusBarKeyguardViewManager,
         keyguardTransitionInteractor = keyguardTransitionInteractor,
         dismissCallbackRegistry = dismissCallbackRegistry,
         alternateBouncerInteractor = { alternateBouncerInteractor },

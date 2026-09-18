@@ -352,4 +352,7 @@
         devices without forcing it on other form factors.
     -->
     <bool name="def_text_show_password"></bool>
+
+    <!-- Default for Settings.Global.AIRPLANE_MODE_SYNC -->
+    <bool name="def_airplane_mode_sync_enabled">true</bool>
 </resources>

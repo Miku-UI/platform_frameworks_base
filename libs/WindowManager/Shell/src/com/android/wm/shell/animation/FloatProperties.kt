@@ -37,15 +37,16 @@ class FloatProperties {
          * does not change.
          */
         @JvmField
-        val RECT_X = object : FloatPropertyCompat<Rect>("RectX") {
-            override fun setValue(rect: Rect?, value: Float) {
-                rect?.offsetTo(value.toInt(), rect.top)
-            }
+        val RECT_X =
+            object : FloatPropertyCompat<Rect>("RectX") {
+                override fun setValue(rect: Rect?, value: Float) {
+                    rect?.offsetTo(value.toInt(), rect.top)
+                }
 
-            override fun getValue(rect: Rect?): Float {
-                return rect?.left?.toFloat() ?: -Float.MAX_VALUE
+                override fun getValue(rect: Rect?): Float {
+                    return rect?.left?.toFloat() ?: -Float.MAX_VALUE
+                }
             }
-        }
 
         /**
          * Represents the y-coordinate of a [Rect]. Typically used to animate moving a Rect
@@ -56,15 +57,16 @@ class FloatProperties {
          * does not change.
          */
         @JvmField
-        val RECT_Y = object : FloatPropertyCompat<Rect>("RectY") {
-            override fun setValue(rect: Rect?, value: Float) {
-                rect?.offsetTo(rect.left, value.toInt())
-            }
+        val RECT_Y =
+            object : FloatPropertyCompat<Rect>("RectY") {
+                override fun setValue(rect: Rect?, value: Float) {
+                    rect?.offsetTo(rect.left, value.toInt())
+                }
 
-            override fun getValue(rect: Rect?): Float {
-                return rect?.top?.toFloat() ?: -Float.MAX_VALUE
+                override fun getValue(rect: Rect?): Float {
+                    return rect?.top?.toFloat() ?: -Float.MAX_VALUE
+                }
             }
-        }
 
         /**
          * Represents the width of a [Rect]. Typically used to animate resizing a Rect horizontally.
@@ -73,15 +75,16 @@ class FloatProperties {
          * [Rect.right] by adding the animated width value to [Rect.left].
          */
         @JvmField
-        val RECT_WIDTH = object : FloatPropertyCompat<Rect>("RectWidth") {
-            override fun getValue(rect: Rect): Float {
-                return rect.width().toFloat()
-            }
+        val RECT_WIDTH =
+            object : FloatPropertyCompat<Rect>("RectWidth") {
+                override fun getValue(rect: Rect): Float {
+                    return rect.width().toFloat()
+                }
 
-            override fun setValue(rect: Rect, value: Float) {
-                rect.right = rect.left + value.toInt()
+                override fun setValue(rect: Rect, value: Float) {
+                    rect.right = rect.left + value.toInt()
+                }
             }
-        }
 
         /**
          * Represents the height of a [Rect]. Typically used to animate resizing a Rect vertically.
@@ -90,15 +93,16 @@ class FloatProperties {
          * [Rect.bottom] by adding the animated height value to [Rect.top].
          */
         @JvmField
-        val RECT_HEIGHT = object : FloatPropertyCompat<Rect>("RectHeight") {
-            override fun getValue(rect: Rect): Float {
-                return rect.height().toFloat()
-            }
+        val RECT_HEIGHT =
+            object : FloatPropertyCompat<Rect>("RectHeight") {
+                override fun getValue(rect: Rect): Float {
+                    return rect.height().toFloat()
+                }
 
-            override fun setValue(rect: Rect, value: Float) {
-                rect.bottom = rect.top + value.toInt()
+                override fun setValue(rect: Rect, value: Float) {
+                    rect.bottom = rect.top + value.toInt()
+                }
             }
-        }
 
         /**
          * Represents the x-coordinate of a [RectF]. Typically used to animate moving a RectF
@@ -109,15 +113,16 @@ class FloatProperties {
          * RectF does not change.
          */
         @JvmField
-        val RECTF_X = object : FloatPropertyCompat<RectF>("RectFX") {
-            override fun setValue(rect: RectF?, value: Float) {
-                rect?.offsetTo(value, rect.top)
-            }
+        val RECTF_X =
+            object : FloatPropertyCompat<RectF>("RectFX") {
+                override fun setValue(rect: RectF?, value: Float) {
+                    rect?.offsetTo(value, rect.top)
+                }
 
-            override fun getValue(rect: RectF?): Float {
-                return rect?.left ?: -Float.MAX_VALUE
+                override fun getValue(rect: RectF?): Float {
+                    return rect?.left ?: -Float.MAX_VALUE
+                }
             }
-        }
 
         /**
          * Represents the y-coordinate of a [RectF]. Typically used to animate moving a RectF
@@ -128,14 +133,15 @@ class FloatProperties {
          * RectF does not change.
          */
         @JvmField
-        val RECTF_Y = object : FloatPropertyCompat<RectF>("RectFY") {
-            override fun setValue(rect: RectF?, value: Float) {
-                rect?.offsetTo(rect.left, value)
-            }
+        val RECTF_Y =
+            object : FloatPropertyCompat<RectF>("RectFY") {
+                override fun setValue(rect: RectF?, value: Float) {
+                    rect?.offsetTo(rect.left, value)
+                }
 
-            override fun getValue(rect: RectF?): Float {
-                return rect?.top ?: -Float.MAX_VALUE
+                override fun getValue(rect: RectF?): Float {
+                    return rect?.top ?: -Float.MAX_VALUE
+                }
             }
-        }
     }
 }

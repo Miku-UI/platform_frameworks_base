@@ -16,8 +16,6 @@
 
 package com.android.systemui.kairos.util
 
-import com.android.systemui.kairos.util.Maybe.Present
-
 /** Contains at least one of two potential values. */
 sealed class These<out A, out B> {
     /** A [These] that contains a [First] value. */
@@ -99,21 +97,9 @@ fun <A, B> These<A, B>.maybeBoth(): Maybe<Pair<A, B>> =
 
 /** Returns a [These] containing [first] and/or [second] if they are present. */
 fun <A, B> these(first: Maybe<A>, second: Maybe<B>): Maybe<These<A, B>> =
-    when (first) {
-        is Present ->
-            maybeOf(
-                when (second) {
-                    is Present -> These.both(first.value, second.value)
-                    else -> These.first(first.value)
-                }
-            )
-
-        else ->
-            when (second) {
-                is Present -> maybeOf(These.second(second.value))
-                else -> maybeOf()
-            }
-    }
+    first
+        .map { a -> second.map { b -> These.both(a, b) }.orElseGet { These.first(a) } }
+        .orElseGetMaybe { second.map { b -> These.second(b) } }
 
 /**
  * Returns a [These] containing [first] and/or [second] if they are non-null, or `null` if both are

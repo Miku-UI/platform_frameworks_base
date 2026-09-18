@@ -32,7 +32,7 @@ internal class ProgressVelocityTracker {
                 /* action */ MotionEvent.ACTION_MOVE,
                 /* x */ position,
                 /* y */ 0f,
-                /* metaState */0
+                /* metaState */ 0,
             )
         )
     }

@@ -19,35 +19,32 @@ package com.android.wm.shell.flicker.fundamentals
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher
 import android.tools.traces.component.IComponentNameMatcher
+import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
 import com.android.wm.shell.flicker.utils.appWindowKeepVisible
 import com.android.wm.shell.flicker.utils.appWindowOnTopAtEnd
 import com.android.wm.shell.scenarios.SwitchToOverviewFromDesktop
-import com.android.wm.shell.Utils
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/**
- * Swiping to overview from desktop.
- */
+/** Swipe up or press overview button to launch into overview from desktop. */
 @RequiresDesktopDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
-class SwitchToOverviewFromDesktopFlickerTest(flicker: FlickerTest) :
-        DesktopModeBaseTest(flicker) {
-    inner class SwitchToOverviewFromDesktopScenario : SwitchToOverviewFromDesktop(
-        rotation = flicker.scenario.startRotation
-    )
+class SwitchToOverviewFromDesktopFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(flicker) {
+    inner class SwitchToOverviewFromDesktopScenario :
+        SwitchToOverviewFromDesktop(rotation = flicker.scenario.startRotation)
+
     @Rule
     @JvmField
     val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, flicker.scenario.startRotation)
@@ -57,31 +54,21 @@ class SwitchToOverviewFromDesktopFlickerTest(flicker: FlickerTest) :
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.switchToOverview()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.switchToOverview() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appWindowKeepVisible() = flicker.appWindowKeepVisible(testApp)
+    @Test fun appWindowKeepVisible() = flicker.appWindowKeepVisible(testApp)
 
     // This overviewMatcher is referring to the overview blur.
-    @Test
-    fun overviewWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(overviewMatcher)
+    @Test fun overviewWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(overviewMatcher)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams(): Collection<FlickerChecker> {
-            return FlickerTestFactory.nonRotationTests(
-                supportedNavigationModes = listOf(NavBar.MODE_GESTURAL)
-            )
+            return FlickerTestFactory.nonRotationTests()
         }
     }
 }

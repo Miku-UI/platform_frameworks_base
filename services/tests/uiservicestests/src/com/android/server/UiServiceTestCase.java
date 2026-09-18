@@ -17,30 +17,38 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 import android.annotation.UserIdInt;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManagerInternal;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.UserHandle;
 import android.testing.TestableContext;
 
 import androidx.test.InstrumentationRegistry;
 
+import com.android.internal.pm.parsing.pkg.PackageImpl;
 import com.android.server.pm.UserManagerInternal;
+import com.android.server.pm.pkg.AndroidPackage;
 import com.android.server.uri.UriGrantsManagerInternal;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
+import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+
+import java.util.HashSet;
 
 public class UiServiceTestCase {
     @Mock protected PackageManagerInternal mPmi;
@@ -94,12 +102,28 @@ public class UiServiceTestCase {
                             return Build.VERSION_CODES.CUR_DEVELOPMENT;
                     }
                 });
-        when(mPmi.getPackageUid(eq(PKG_N_MR1), anyLong(), eq(mUserId))).thenReturn(UID_N_MR1);
-        when(mPmi.getPackageUid(eq(PKG_O), anyLong(), eq(mUserId))).thenReturn(UID_O);
-        when(mPmi.getPackageUid(eq(PKG_P), anyLong(), eq(mUserId))).thenReturn(UID_P);
-        when(mPmi.getPackageUid(eq(PKG_R), anyLong(), eq(mUserId))).thenReturn(UID_R);
+        when(mPmi.isSameApp(eq(PKG_N_MR1), anyLong(), eq(UID_N_MR1), eq(mUserId))).thenReturn(true);
+        when(mPmi.isSameApp(eq(PKG_O), anyLong(), eq(UID_O), eq(mUserId))).thenReturn(true);
+        when(mPmi.isSameApp(eq(PKG_P), anyLong(), eq(UID_P), eq(mUserId))).thenReturn(true);
+        when(mPmi.isSameApp(eq(PKG_R), anyLong(), eq(UID_R), eq(mUserId))).thenReturn(true);
+        when(mPmi.isSameApp(eq(mContext.getPackageName()), anyLong(), eq(mUid), eq(mUserId)))
+                .thenReturn(true);
+        when(mPmi.isSameApp(anyString(), anyInt(), anyInt())).thenReturn(true);
+        when(mPmi.getPackageUid(eq(PKG_N_MR1), anyLong(), anyInt())).thenReturn(UID_N_MR1);
+        when(mPmi.getPackageUid(eq(PKG_O), anyLong(),  anyInt())).thenReturn(UID_O);
+        when(mPmi.getPackageUid(eq(PKG_P), anyLong(),  anyInt())).thenReturn(UID_P);
+        when(mPmi.getPackageUid(eq(PKG_R), anyLong(),  anyInt())).thenReturn(UID_R);
         when(mPmi.getPackageUid(eq(mContext.getPackageName()), anyLong(), eq(mUserId)))
                 .thenReturn(mUid);
+        when(mPmi.getPackage(UID_N_MR1)).thenReturn(
+                (AndroidPackage) PackageImpl.forTesting(PKG_N_MR1, "test"));
+        when(mPmi.getPackage(UID_O)).thenReturn(
+                (AndroidPackage) PackageImpl.forTesting(PKG_O, "test"));
+        when(mPmi.getPackage(UID_P)).thenReturn(
+                (AndroidPackage) PackageImpl.forTesting(PKG_P, "test"));
+        when(mPmi.getPackage(UID_R)).thenReturn(
+                (AndroidPackage) PackageImpl.forTesting(PKG_R, "test"));
+
         LocalServices.removeServiceForTest(UserManagerInternal.class);
         LocalServices.addService(UserManagerInternal.class, mUmi);
         LocalServices.removeServiceForTest(UriGrantsManagerInternal.class);
@@ -114,8 +138,86 @@ public class UiServiceTestCase {
         Mockito.doNothing().when(mContext).unregisterReceiver(any());
     }
 
+    protected ApplicationInfo getApplicationInfo(String pkg, int uid) {
+        final ApplicationInfo applicationInfo = new ApplicationInfo();
+        applicationInfo.packageName = pkg;
+        applicationInfo.uid = uid;
+        applicationInfo.sourceDir = mContext.getApplicationInfo().sourceDir;
+        switch (pkg) {
+            case PKG_N_MR1:
+                applicationInfo.targetSdkVersion = Build.VERSION_CODES.N_MR1;
+                break;
+            case PKG_O:
+                applicationInfo.targetSdkVersion = Build.VERSION_CODES.O;
+                break;
+            case PKG_P:
+                applicationInfo.targetSdkVersion = Build.VERSION_CODES.P;
+                break;
+            case PKG_R:
+                applicationInfo.targetSdkVersion = Build.VERSION_CODES.R;
+                break;
+            default:
+                applicationInfo.targetSdkVersion = Build.VERSION_CODES.CUR_DEVELOPMENT;
+                break;
+        }
+        return applicationInfo;
+    }
+
     @After
     public final void cleanUpMockito() {
         Mockito.framework().clearInlineMocks();
+    }
+
+    protected static Intent eqIntent(Intent wanted) {
+        return argThat(
+                new ArgumentMatcher<Intent>() {
+                    @Override
+                    public boolean matches(Intent argument) {
+                        return wanted.filterEquals(argument)
+                                && wanted.getFlags() == argument.getFlags()
+                                && equalBundles(wanted.getExtras(), argument.getExtras());
+                    }
+
+                    @Override
+                    public String toString() {
+                        return wanted.toString();
+                    }
+
+                    private boolean equalBundles(Bundle one, Bundle two) {
+                        if (one == null && two == null) {
+                            return true;
+                        }
+                        if ((one == null) != (two == null)) {
+                            return false;
+                        }
+                        if (one.size() != two.size()) {
+                            return false;
+                        }
+
+                        HashSet<String> setOne = new HashSet<>(one.keySet());
+                        setOne.addAll(two.keySet());
+
+                        for (String key : setOne) {
+                            if (!one.containsKey(key) || !two.containsKey(key)) {
+                                return false;
+                            }
+
+                            Object valueOne = one.get(key);
+                            Object valueTwo = two.get(key);
+                            if (valueOne instanceof Bundle
+                                    && valueTwo instanceof Bundle
+                                    && !equalBundles((Bundle) valueOne, (Bundle) valueTwo)) {
+                                return false;
+                            } else if (valueOne == null) {
+                                if (valueTwo != null) {
+                                    return false;
+                                }
+                            } else if (!valueOne.equals(valueTwo)) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                });
     }
 }

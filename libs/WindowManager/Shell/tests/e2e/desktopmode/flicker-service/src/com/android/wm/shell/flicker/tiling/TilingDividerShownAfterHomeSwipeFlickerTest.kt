@@ -19,11 +19,11 @@ package com.android.wm.shell.flicker.tiling
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
 import com.android.wm.shell.flicker.utils.tilingDividerBecomesInvisibleThenVisible
@@ -35,9 +35,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/**
- * Ensures tiling divider is shown after swiping to home and getting back to desktop mdoe.
- */
+/** Ensures tiling divider is shown after swiping to home and getting back to desktop mdoe. */
 @RequiresDesktopDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
@@ -64,11 +62,9 @@ class TilingDividerShownAfterHomeSwipeFlickerTest(flicker: FlickerTest) :
             teardown { scenario.teardown() }
         }
 
-    @Test
-    fun dividerInvisibleAtStart() = flicker.tilingDividerIsVisibleAtStart()
+    @Test fun dividerInvisibleAtStart() = flicker.tilingDividerIsVisibleAtStart()
 
-    @Test
-    fun dividerBecomesVisibleAtEnd() = flicker.tilingDividerIsVisibleAtEnd()
+    @Test fun dividerBecomesVisibleAtEnd() = flicker.tilingDividerIsVisibleAtEnd()
 
     @Test
     fun dividerBecomesInvisibleThenVisible() = flicker.tilingDividerBecomesInvisibleThenVisible()

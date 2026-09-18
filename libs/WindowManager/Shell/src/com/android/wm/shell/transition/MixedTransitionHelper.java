@@ -33,16 +33,20 @@ import static com.android.wm.shell.transition.DefaultMixedHandler.subCopy;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.os.IBinder;
 import android.view.SurfaceControl;
 import android.window.TransitionInfo;
 
 import com.android.internal.protolog.ProtoLog;
 import com.android.wm.shell.keyguard.KeyguardTransitionHandler;
+import com.android.wm.shell.pinnedlayer.phone.PinnedLayerHandler;
 import com.android.wm.shell.pip.PipTransitionController;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
 import com.android.wm.shell.shared.pip.PipFlags;
 import com.android.wm.shell.splitscreen.SplitScreen;
 import com.android.wm.shell.splitscreen.StageCoordinator;
+
+import java.util.List;
 
 public class MixedTransitionHelper {
     static boolean animateEnterPipFromSplit(
@@ -52,7 +56,7 @@ public class MixedTransitionHelper {
             @NonNull Transitions.TransitionFinishCallback finishCallback,
             @NonNull Transitions player, @NonNull MixedTransitionHandler mixedHandler,
             @NonNull PipTransitionController pipHandler, @NonNull StageCoordinator splitHandler,
-            boolean replacingPip) {
+            @Nullable PinnedLayerHandler pinnedLayerHandler, boolean replacingPip) {
         ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS, " Animating a mixed transition for "
                 + "entering PIP while Split-Screen is foreground.");
         TransitionInfo.Change pipChange = null;
@@ -155,6 +159,16 @@ public class MixedTransitionHelper {
                 if (pipActivityChange != null) {
                     pipInfo.getChanges().add(pipActivityChange);
                 }
+
+                if (pinnedLayerHandler != null
+                        && pinnedLayerHandler.observes(mixed.mTransition)) {
+                    // launching pip has additional side effects on pinned layer
+                    mixed.mInFlightSubAnimations++;
+                    final TransitionInfo pinnedLayerInfo = removePinnedLayerTaskChangesFrom(
+                            pinnedLayerHandler, info, mixed.mTransition);
+                    pinnedLayerHandler.startAnimation(mixed.mTransition, pinnedLayerInfo,
+                            startTransaction, finishTransaction, finishCB);
+                }
                 pipHandler.startAnimation(mixed.mTransition, pipInfo, startTransaction,
                         finishTransaction, finishCB);
             } else {
@@ -172,6 +186,13 @@ public class MixedTransitionHelper {
             // new pip task is spawned). In this case, we don't actually exit split so we can
             // just let pip transition handle the animation verbatim.
             mixed.mInFlightSubAnimations = 1;
+            if (pinnedLayerHandler != null
+                    && pinnedLayerHandler.observes(mixed.mTransition)) {
+                // launching pip has additional side effects on pinned layer
+                mixed.mInFlightSubAnimations++;
+                pinnedLayerHandler.startAnimation(mixed.mTransition, info,
+                        startTransaction, finishTransaction, finishCB);
+            }
             pipHandler.startAnimation(
                     mixed.mTransition, info, startTransaction, finishTransaction, finishCB);
         }
@@ -187,8 +208,8 @@ public class MixedTransitionHelper {
      * @param pipChange TransitionInfo.Change indicating the task that is being pipped
      * @param splitMainStageRootId MainStage's rootTaskInfo's id
      * @param splitSideStageRootId SideStage's rootTaskInfo's id
-     * @param lastPipSplitStage The last stage that {@param pipChange} was in
-     * @return The change from {@param info} that is replacing the {@param pipChange}, {@code null}
+     * @param lastPipSplitStage The last stage that {@code pipChange} was in
+     * @return The change from {@code info} that is replacing the {@code pipChange}, {@code null}
      *         otherwise
      */
     @Nullable
@@ -242,5 +263,72 @@ public class MixedTransitionHelper {
             pipHandler.syncPipSurfaceState(info, startTransaction, finishTransaction);
         }
         return mixed.startSubAnimation(keyguardHandler, info, startTransaction, finishTransaction);
+    }
+
+    @NonNull
+    static TransitionInfo removePinnedLayerTaskChangesFrom(
+            @NonNull PinnedLayerHandler pinnedLayerHandler,
+            @NonNull TransitionInfo outInfo,
+            @NonNull IBinder transition) {
+        final TransitionInfo pinnedLayerInfo =
+                subCopy(outInfo, outInfo.getType(), /* withChanges */ false);
+        for (int i = outInfo.getChanges().size() - 1; i >= 0; --i) {
+            final TransitionInfo.Change change = outInfo.getChanges().get(i);
+
+            // With the current implementation, it's safe to assume that if a task has
+            // pinned layer changes, those are its only changes.
+            if (pinnedLayerHandler.awaitsChangesFor(change.getTaskInfo(), transition)) {
+                outInfo.getChanges().remove(i);
+                pinnedLayerInfo.getChanges().add(change);
+            }
+        }
+        return pinnedLayerInfo;
+    }
+
+    /**
+     * Finds the top-most split-screen stage that should be fullscreen when dismissing
+     * split-screen.
+     *
+     * @param changes the list of changes in the transition
+     * @param splitHandler the split-screen stage coordinator
+     * @param taskToIgnore an optional task change to ignore. This is for cases where a task is
+     *                     launching on top of split-screen, and we want to find which of the
+     *                     remaining split-screen tasks is on top.
+     * @return the stage type of the top-most task in split-screen, or
+     *         {@link SplitScreen#STAGE_TYPE_UNDEFINED} if none
+     */
+    @SplitScreen.StageType
+    static int getTopSplitStageToKeep(@NonNull List<TransitionInfo.Change> changes,
+            @Nullable StageCoordinator splitHandler,
+            @Nullable TransitionInfo.Change taskToIgnore) {
+        if (splitHandler == null) {
+            return SplitScreen.STAGE_TYPE_UNDEFINED;
+        }
+        for (int i = changes.size() - 1; i >= 0; i--) {
+            final TransitionInfo.Change change = changes.get(i);
+            if (change == taskToIgnore) {
+                continue;
+            }
+            final int prevStage = splitHandler.getSplitItemStage(change.getLastParent());
+            if (prevStage != SplitScreen.STAGE_TYPE_UNDEFINED) {
+                return prevStage;
+            }
+        }
+        return SplitScreen.STAGE_TYPE_UNDEFINED;
+    }
+
+    /**
+     * Find the first change in this transition that is for the home task.
+     *
+     * @return change or {@code null} if the home task is not in the list of changes
+     */
+    static @Nullable TransitionInfo.Change getHomeChange(@NonNull TransitionInfo info) {
+        for (TransitionInfo.Change change : info.getChanges()) {
+            if (change.getTaskInfo() != null
+                    && change.getTaskInfo().getActivityType() == ACTIVITY_TYPE_HOME) {
+                return change;
+            }
+        }
+        return null;
     }
 }

@@ -19,7 +19,6 @@ package com.android.wm.shell.compatui.letterbox
 import android.view.SurfaceControl
 import android.view.SurfaceControl.Transaction
 import android.window.WindowContainerToken
-import com.android.window.flags.Flags
 import com.android.wm.shell.compatui.letterbox.LetterboxControllerStrategy.LetterboxMode.MULTIPLE_SURFACES
 import com.android.wm.shell.compatui.letterbox.LetterboxControllerStrategy.LetterboxMode.SINGLE_SURFACE
 import com.android.wm.shell.compatui.letterbox.roundedcorners.RoundedCornersLetterboxController
@@ -73,18 +72,10 @@ constructor(
         } else {
             inputController.destroyLetterboxSurface(key, transaction)
         }
-        // Handle RoundedCorners Controller.
-        if (Flags.appCompatRefactoringRoundedCorners()) {
-            if (letterboxConfiguration.isLetterboxActivityCornersRounded()) {
-                roundedCornersController.createLetterboxSurface(
-                    key,
-                    transaction,
-                    parentLeash,
-                    token,
-                )
-            } else {
-                roundedCornersController.destroyLetterboxSurface(key, transaction)
-            }
+        if (controllerStrategy.shouldSupportShellRoundedCorners()) {
+            roundedCornersController.createLetterboxSurface(key, transaction, parentLeash, token)
+        } else {
+            roundedCornersController.destroyLetterboxSurface(key, transaction)
         }
     }
 }

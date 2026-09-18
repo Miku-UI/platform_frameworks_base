@@ -16,6 +16,7 @@
 
 package com.android.wm.shell.pip;
 
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static com.android.wm.shell.pip.PipAnimationController.TRANSITION_DIRECTION_TO_PIP;
 
 import static org.junit.Assert.assertEquals;
@@ -60,6 +61,7 @@ import com.android.wm.shell.common.SyncTransactionQueue;
 import com.android.wm.shell.common.pip.PhoneSizeSpecSource;
 import com.android.wm.shell.common.pip.PipBoundsAlgorithm;
 import com.android.wm.shell.common.pip.PipBoundsState;
+import com.android.wm.shell.common.pip.PipDesktopState;
 import com.android.wm.shell.common.pip.PipDisplayLayoutState;
 import com.android.wm.shell.common.pip.PipKeepClearAlgorithmInterface;
 import com.android.wm.shell.common.pip.PipSnapAlgorithm;
@@ -104,6 +106,7 @@ public class PipTaskOrganizerTest extends ShellTestCase {
     @Mock private PipParamsChangedForwarder mMockPipParamsChangedForwarder;
     @Mock private ShellExecutor mMockExecutor;
     @Mock private DisplayController mDisplayController;
+    @Mock private PipDesktopState mPipDesktopState;
     private PipBoundsState mPipBoundsState;
     private PipTransitionState mPipTransitionState;
     private PipBoundsAlgorithm mPipBoundsAlgorithm;
@@ -132,7 +135,7 @@ public class PipTaskOrganizerTest extends ShellTestCase {
         mPipTransitionState = new PipTransitionState();
         mPipBoundsAlgorithm = new PipBoundsAlgorithm(mContext, mPipBoundsState,
                 new PipSnapAlgorithm(), new PipKeepClearAlgorithmInterface() {},
-                mPipDisplayLayoutState, mSizeSpecSource);
+                mPipDisplayLayoutState, mPipDesktopState, mSizeSpecSource);
         mPipTaskOrganizer = new PipTaskOrganizer(mContext, mShellInit, mMockSyncTransactionQueue,
                 mPipTransitionState, mPipBoundsState, mPipDisplayLayoutState,
                 mPipBoundsAlgorithm, mMockPhonePipMenuController, mMockPipAnimationController,
@@ -338,8 +341,10 @@ public class PipTaskOrganizerTest extends ShellTestCase {
 
     private static ActivityInfo createActivityInfo(Size minSize) {
         final ActivityInfo activityInfo = new ActivityInfo();
-        activityInfo.windowLayout = new ActivityInfo.WindowLayout(
-                0, 0, 0, 0, 0, minSize.getWidth(), minSize.getHeight());
+        activityInfo.windowLayout = ActivityInfo.WindowLayout.EMPTY;
+        spyOn(activityInfo.windowLayout);
+        doReturn(minSize.getWidth()).when(activityInfo.windowLayout).getMinWidth(any());
+        doReturn(minSize.getHeight()).when(activityInfo.windowLayout).getMinHeight(any());
         return activityInfo;
     }
 

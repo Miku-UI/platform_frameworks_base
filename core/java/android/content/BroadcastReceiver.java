@@ -308,6 +308,9 @@ public abstract class BroadcastReceiver {
 
         /** @hide */
         public void sendFinished(IActivityManager am) {
+            if (DEBUG_STORE_ENABLED) {
+                DebugStore.recordSendFinished(System.identityHashCode(this));
+            }
             synchronized (this) {
                 if (mFinished) {
                     throw new IllegalStateException("Broadcast already finished");
@@ -681,7 +684,8 @@ public abstract class BroadcastReceiver {
     }
 
     /**
-     * For internal use to set the result data that is active. @hide
+     * For internal use to set the result data that is active.
+     * @hide
      */
     @UnsupportedAppUsage
     public final void setPendingResult(PendingResult result) {
@@ -689,7 +693,8 @@ public abstract class BroadcastReceiver {
     }
 
     /**
-     * For internal use to set the result data that is active. @hide
+     * For internal use to set the result data that is active.
+     * @hide
      */
     @UnsupportedAppUsage
     public final PendingResult getPendingResult() {
@@ -773,4 +778,3 @@ public abstract class BroadcastReceiver {
         Log.e("BroadcastReceiver", e.getMessage(), e);
     }
 }
-

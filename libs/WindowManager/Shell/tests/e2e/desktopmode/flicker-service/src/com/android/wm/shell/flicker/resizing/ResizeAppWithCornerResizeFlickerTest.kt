@@ -19,19 +19,19 @@ package com.android.wm.shell.flicker.resizing
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
+import com.android.wm.shell.flicker.utils.resizeVeilKeepsIncreasingInSize
+import com.android.wm.shell.scenarios.ResizeAppWithCornerResize
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import com.android.wm.shell.flicker.utils.resizeVeilKeepsIncreasingInSize
-import com.android.wm.shell.scenarios.ResizeAppWithCornerResize
 
 /**
  * Resize an app to increase its size through its top right corner using touch.
@@ -42,13 +42,10 @@ import com.android.wm.shell.scenarios.ResizeAppWithCornerResize
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
-class ResizeAppWithCornerResizeFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(
-    flicker
-) {
+class ResizeAppWithCornerResizeFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(flicker) {
 
-    inner class ResizeAppWithCornerResizeScenario : ResizeAppWithCornerResize(
-        rotation = flicker.scenario.startRotation
-    )
+    inner class ResizeAppWithCornerResizeScenario :
+        ResizeAppWithCornerResize(rotation = flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -58,19 +55,12 @@ class ResizeAppWithCornerResizeFlickerTest(flicker: FlickerTest) : DesktopModeBa
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.resizeAppWithCornerResize()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.resizeAppWithCornerResize() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun resizeVeilKeepsIncreasingInSize() = flicker.resizeVeilKeepsIncreasingInSize(testApp)
+    @Test fun resizeVeilKeepsIncreasingInSize() = flicker.resizeVeilKeepsIncreasingInSize(testApp)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

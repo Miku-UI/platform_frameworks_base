@@ -173,7 +173,8 @@ public final class VirtualDeviceParams implements Parcelable {
      */
     @IntDef(prefix = "POLICY_TYPE_", value = {POLICY_TYPE_SENSORS, POLICY_TYPE_AUDIO,
             POLICY_TYPE_RECENTS, POLICY_TYPE_ACTIVITY, POLICY_TYPE_CLIPBOARD, POLICY_TYPE_CAMERA,
-            POLICY_TYPE_BLOCKED_ACTIVITY, POLICY_TYPE_DEFAULT_DEVICE_CAMERA_ACCESS})
+            POLICY_TYPE_BLOCKED_ACTIVITY, POLICY_TYPE_DEFAULT_DEVICE_CAMERA_ACCESS,
+            POLICY_TYPE_THERMAL})
     @Retention(RetentionPolicy.SOURCE)
     @Target({ElementType.TYPE_PARAMETER, ElementType.TYPE_USE})
     public @interface PolicyType {}
@@ -193,7 +194,7 @@ public final class VirtualDeviceParams implements Parcelable {
     /**
      * Policy types that can be dynamically changed for a specific display.
      *
-     * @see VirtualDeviceManager.VirtualDevice#setDevicePolicyForDisplay
+     * @see VirtualDeviceManager.VirtualDevice#setDevicePolicy(int, int, int)
      * @hide
      */
     @IntDef(prefix = "POLICY_TYPE_", value = {POLICY_TYPE_RECENTS, POLICY_TYPE_ACTIVITY})
@@ -242,7 +243,7 @@ public final class VirtualDeviceParams implements Parcelable {
      * <p>Activities launched on untrusted displays will always show in the host device recents,
      * regardless of the policy.</p>
      *
-     * @see android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_TRUSTED
+     * @see android.hardware.display.DisplayManager#VIRTUAL_DISPLAY_FLAG_TRUSTED
      */
     public static final int POLICY_TYPE_RECENTS = 2;
 
@@ -258,9 +259,8 @@ public final class VirtualDeviceParams implements Parcelable {
      *
      * @see VirtualDeviceManager.VirtualDevice#addActivityPolicyExemption
      * @see VirtualDeviceManager.VirtualDevice#removeActivityPolicyExemption
+     * @see #POLICY_TYPE_BLOCKED_ACTIVITY
      */
-    // TODO(b/333443509): Update the documentation of custom policy and link to the new policy
-    // POLICY_TYPE_BLOCKED_ACTIVITY
     public static final int POLICY_TYPE_ACTIVITY = 3;
 
     /**
@@ -306,9 +306,9 @@ public final class VirtualDeviceParams implements Parcelable {
      *     {@link VirtualDeviceManager.ActivityListener#onActivityLaunchBlocked} to provide custom
      *     experience on the virtual device.
      * </ul>
+     *
+     * @see #POLICY_TYPE_ACTIVITY
      */
-    // TODO(b/333443509): Link to POLICY_TYPE_ACTIVITY
-    @FlaggedApi(Flags.FLAG_ACTIVITY_CONTROL_API)
     public static final int POLICY_TYPE_BLOCKED_ACTIVITY = 6;
 
     /**
@@ -325,7 +325,24 @@ public final class VirtualDeviceParams implements Parcelable {
     @FlaggedApi(Flags.FLAG_DEFAULT_DEVICE_CAMERA_ACCESS_POLICY)
     public static final int POLICY_TYPE_DEFAULT_DEVICE_CAMERA_ACCESS = 7;
 
+    /**
+     * Allows for specifying the current thermal status of the device and tells the power framework
+     * how to handle thermal status queries from contexts associated with this virtual device,
+     * namely the status reported by {@link android.os.PowerManager#getCurrentThermalStatus()} and
+     * {@link android.os.PowerManager.OnThermalStatusChangedListener}.
+     *
+     * <ul>
+     *     <li>{@link #DEVICE_POLICY_DEFAULT}: Default device thermal status is reported.
+     *     <li>{@link #DEVICE_POLICY_CUSTOM}: Virtual device thermal status reported.
+     * </ul>
+     *
+     * @see VirtualDeviceManager.VirtualDevice#setCurrentThermalStatus(int)
+     */
+    @FlaggedApi(Flags.FLAG_DEVICE_AWARE_THERMAL_STATUS)
+    public static final int POLICY_TYPE_THERMAL = 8;
+
     private final int mLockState;
+    @NonNull private final ArraySet<UserHandle> mAllowedUsers;
     @NonNull private final ArraySet<UserHandle> mUsersWithMatchingAccounts;
     @NavigationPolicy
     private final int mDefaultNavigationPolicy;
@@ -344,10 +361,12 @@ public final class VirtualDeviceParams implements Parcelable {
     private final int mAudioRecordingSessionId;
     private final long mDimDuration;
     private final long mScreenOffTimeout;
+    private final boolean mLocalDeviceOnly;
     @Nullable private final ViewConfigurationParams mViewConfigurationParams;
 
     private VirtualDeviceParams(
             @LockState int lockState,
+            @NonNull Set<UserHandle> allowedUsers,
             @NonNull Set<UserHandle> usersWithMatchingAccounts,
             @NavigationPolicy int defaultNavigationPolicy,
             @NonNull Set<ComponentName> crossTaskNavigationExemptions,
@@ -363,8 +382,10 @@ public final class VirtualDeviceParams implements Parcelable {
             int audioRecordingSessionId,
             long dimDuration,
             long screenOffTimeout,
+            boolean localDeviceOnly,
             @Nullable ViewConfigurationParams viewConfigurationParams) {
         mLockState = lockState;
+        mAllowedUsers = new ArraySet<>(Objects.requireNonNull(allowedUsers));
         mUsersWithMatchingAccounts =
                 new ArraySet<>(Objects.requireNonNull(usersWithMatchingAccounts));
         mDefaultNavigationPolicy = defaultNavigationPolicy;
@@ -384,11 +405,13 @@ public final class VirtualDeviceParams implements Parcelable {
         mDimDuration = dimDuration;
         mScreenOffTimeout = screenOffTimeout;
         mViewConfigurationParams = viewConfigurationParams;
+        mLocalDeviceOnly = localDeviceOnly;
     }
 
     @SuppressWarnings("unchecked")
     private VirtualDeviceParams(Parcel parcel) {
         mLockState = parcel.readInt();
+        mAllowedUsers = (ArraySet<UserHandle>) parcel.readArraySet(null);
         mUsersWithMatchingAccounts = (ArraySet<UserHandle>) parcel.readArraySet(null);
         mDefaultNavigationPolicy = parcel.readInt();
         mCrossTaskNavigationExemptions = (ArraySet<ComponentName>) parcel.readArraySet(null);
@@ -406,6 +429,7 @@ public final class VirtualDeviceParams implements Parcelable {
         mInputMethodComponent = parcel.readTypedObject(ComponentName.CREATOR);
         mDimDuration = parcel.readLong();
         mScreenOffTimeout = parcel.readLong();
+        mLocalDeviceOnly = parcel.readBoolean();
         mViewConfigurationParams = Flags.viewconfigurationApis()
                 ? parcel.readTypedObject(ViewConfigurationParams.CREATOR) : null;
     }
@@ -423,7 +447,6 @@ public final class VirtualDeviceParams implements Parcelable {
      *
      * @see Builder#setDimDuration(Duration)
      */
-    @FlaggedApi(Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
     public @NonNull Duration getDimDuration() {
         return Duration.ofMillis(mDimDuration);
     }
@@ -433,7 +456,6 @@ public final class VirtualDeviceParams implements Parcelable {
      *
      * @see Builder#setDimDuration(Duration)
      */
-    @FlaggedApi(Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
     public @NonNull Duration getScreenOffTimeout() {
         return Duration.ofMillis(mScreenOffTimeout);
     }
@@ -459,6 +481,23 @@ public final class VirtualDeviceParams implements Parcelable {
     @Nullable
     public ComponentName getInputMethodComponent() {
         return mInputMethodComponent;
+    }
+
+    /**
+     * Returns the users allowed to stream in this display.
+     *
+     * <p>This constraint is applied in conjunction with any other constraint, like {@link
+     * #getUsersWithMatchingAccounts}, such that only users matching all constraints will be
+     * allowed.
+     *
+     * <p>If empty (default), this field should be ignored and only the other constraints should be
+     * applied.
+     *
+     * @hide
+     */
+    @NonNull
+    public Set<UserHandle> getAllowedUsers() {
+        return Collections.unmodifiableSet(mAllowedUsers);
     }
 
     /**
@@ -646,6 +685,19 @@ public final class VirtualDeviceParams implements Parcelable {
         return mViewConfigurationParams;
     }
 
+    /**
+     * Returns whether there is a guarantee that this virtual device never represents a remote
+     * device.
+     *
+     * @see Builder#setLocalDeviceOnly(boolean)
+     * @hide
+     */
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+    @TestApi
+    public boolean isLocalDeviceOnly() {
+        return mLocalDeviceOnly;
+    }
+
     @Override
     public int describeContents() {
         return 0;
@@ -654,6 +706,7 @@ public final class VirtualDeviceParams implements Parcelable {
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeInt(mLockState);
+        dest.writeArraySet(mAllowedUsers);
         dest.writeArraySet(mUsersWithMatchingAccounts);
         dest.writeInt(mDefaultNavigationPolicy);
         dest.writeArraySet(mCrossTaskNavigationExemptions);
@@ -670,6 +723,7 @@ public final class VirtualDeviceParams implements Parcelable {
         dest.writeTypedObject(mInputMethodComponent, flags);
         dest.writeLong(mDimDuration);
         dest.writeLong(mScreenOffTimeout);
+        dest.writeBoolean(mLocalDeviceOnly);
         if (Flags.viewconfigurationApis()) {
             dest.writeTypedObject(mViewConfigurationParams, flags);
         }
@@ -697,6 +751,7 @@ public final class VirtualDeviceParams implements Parcelable {
             }
         }
         return mLockState == that.mLockState
+                && mAllowedUsers.equals(that.mAllowedUsers)
                 && mUsersWithMatchingAccounts.equals(that.mUsersWithMatchingAccounts)
                 && Objects.equals(
                         mCrossTaskNavigationExemptions, that.mCrossTaskNavigationExemptions)
@@ -716,11 +771,11 @@ public final class VirtualDeviceParams implements Parcelable {
     @Override
     public int hashCode() {
         int hashCode = Objects.hash(
-                mLockState, mUsersWithMatchingAccounts, mCrossTaskNavigationExemptions,
-                mDefaultNavigationPolicy, mActivityPolicyExemptions, mDefaultActivityPolicy, mName,
-                mDevicePolicies, mHomeComponent, mInputMethodComponent, mAudioPlaybackSessionId,
-                mAudioRecordingSessionId, mDimDuration, mScreenOffTimeout,
-                mViewConfigurationParams);
+                mLockState, mAllowedUsers, mUsersWithMatchingAccounts,
+                mCrossTaskNavigationExemptions, mDefaultNavigationPolicy, mActivityPolicyExemptions,
+                mDefaultActivityPolicy, mName, mDevicePolicies, mHomeComponent,
+                mInputMethodComponent, mAudioPlaybackSessionId, mAudioRecordingSessionId,
+                mDimDuration, mScreenOffTimeout, mViewConfigurationParams);
         for (int i = 0; i < mDevicePolicies.size(); i++) {
             hashCode = 31 * hashCode + mDevicePolicies.keyAt(i);
             hashCode = 31 * hashCode + mDevicePolicies.valueAt(i);
@@ -733,6 +788,7 @@ public final class VirtualDeviceParams implements Parcelable {
     public String toString() {
         return "VirtualDeviceParams("
                 + " mLockState=" + mLockState
+                + " mAllowedUsers=" + mAllowedUsers
                 + " mUsersWithMatchingAccounts=" + mUsersWithMatchingAccounts
                 + " mDefaultNavigationPolicy=" + mDefaultNavigationPolicy
                 + " mCrossTaskNavigationExemptions=" + mCrossTaskNavigationExemptions
@@ -746,6 +802,7 @@ public final class VirtualDeviceParams implements Parcelable {
                 + " mAudioRecordingSessionId=" + mAudioRecordingSessionId
                 + " mDimDuration=" + mDimDuration
                 + " mScreenOffTimeout=" + mScreenOffTimeout
+                + " mLocalDeviceOnly=" + mLocalDeviceOnly
                 + " mViewConfigurationParams=" + mViewConfigurationParams
                 + ")";
     }
@@ -757,6 +814,7 @@ public final class VirtualDeviceParams implements Parcelable {
     public void dump(PrintWriter pw, String prefix) {
         pw.println(prefix + "mName=" + mName);
         pw.println(prefix + "mLockState=" + mLockState);
+        pw.println(prefix + "mAllowedUsers=" + mAllowedUsers);
         pw.println(prefix + "mUsersWithMatchingAccounts=" + mUsersWithMatchingAccounts);
         pw.println(prefix + "mDefaultNavigationPolicy=" + mDefaultNavigationPolicy);
         pw.println(prefix + "mCrossTaskNavigationExemptions=" + mCrossTaskNavigationExemptions);
@@ -793,6 +851,7 @@ public final class VirtualDeviceParams implements Parcelable {
         private static final Duration INFINITE_TIMEOUT = Duration.ofDays(365 * 1000);
 
         private @LockState int mLockState = LOCK_STATE_DEFAULT;
+        @NonNull private Set<UserHandle> mAllowedUsers = Collections.emptySet();
         @NonNull private Set<UserHandle> mUsersWithMatchingAccounts = Collections.emptySet();
         @NonNull private Set<ComponentName> mCrossTaskNavigationExemptions = Collections.emptySet();
         @NavigationPolicy
@@ -806,6 +865,7 @@ public final class VirtualDeviceParams implements Parcelable {
         @NonNull private final SparseIntArray mDevicePolicies = new SparseIntArray();
         private int mAudioPlaybackSessionId = AUDIO_SESSION_ID_GENERATE;
         private int mAudioRecordingSessionId = AUDIO_SESSION_ID_GENERATE;
+        private boolean mLocalDeviceOnly = false;
 
         @NonNull private final List<VirtualSensorConfig> mVirtualSensorConfigs = new ArrayList<>();
         @Nullable private Executor mVirtualSensorCallbackExecutor;
@@ -914,7 +974,6 @@ public final class VirtualDeviceParams implements Parcelable {
          * @see android.hardware.display.DisplayManager#VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR
          * @see #setScreenOffTimeout
          */
-        @FlaggedApi(Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
         @NonNull
         public Builder setDimDuration(@NonNull Duration dimDuration) {
             if (Objects.requireNonNull(dimDuration).compareTo(Duration.ZERO) < 0) {
@@ -939,7 +998,6 @@ public final class VirtualDeviceParams implements Parcelable {
          * @see #setDimDuration
          * @see VirtualDeviceManager.VirtualDevice#goToSleep()
          */
-        @FlaggedApi(Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
         @NonNull
         public Builder setScreenOffTimeout(@NonNull Duration screenOffTimeout) {
             if (Objects.requireNonNull(screenOffTimeout).compareTo(Duration.ZERO) < 0) {
@@ -989,6 +1047,24 @@ public final class VirtualDeviceParams implements Parcelable {
         }
 
         /**
+         * Sets the users allowed to stream in this display.
+         *
+         * <p>This constraint is applied in conjunction with any other constraint, like {@link
+         * #setUsersWithMatchingAccounts}, such that only users matching all constraints will be
+         * allowed.
+         *
+         * <p>If set to empty (default), this field is ignored and only the other constraints will
+         * be applied.
+         *
+         * @hide
+         */
+        @NonNull
+        public Builder setAllowedUsers(@NonNull Set<UserHandle> allowedUsers) {
+            mAllowedUsers = Objects.requireNonNull(allowedUsers);
+            return this;
+        }
+
+        /**
          * Sets the user handles with matching managed accounts on the remote device to which
          * this virtual device is streaming. The caller is responsible for verifying the presence
          * and legitimacy of a matching managed account on the remote device.
@@ -1002,6 +1078,9 @@ public final class VirtualDeviceParams implements Parcelable {
          * only if there is no device policy, or if the nearby streaming policy is
          * {@link android.app.admin.DevicePolicyManager#NEARBY_STREAMING_ENABLED
          * NEARBY_STREAMING_ENABLED}.
+         *
+         * <p>This constraint is applied in conjunction with any other constraint, like {@link
+         * #setAllowedUsers}, such that only users matching all constraints will be allowed.
          *
          * @param usersWithMatchingAccounts A set of user handles with matching managed
          *   accounts on the remote device this is streaming to.
@@ -1276,6 +1355,21 @@ public final class VirtualDeviceParams implements Parcelable {
         }
 
         /**
+         * Sets whether there is a guarantee that this virtual device never represents a remote
+         * device ({@code false} by default).
+         *
+         * @see VirtualDeviceParams#isLocalDeviceOnly()
+         * @hide
+         */
+        @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+        @TestApi
+        @NonNull
+        public Builder setLocalDeviceOnly(boolean localDeviceOnly) {
+            mLocalDeviceOnly = localDeviceOnly;
+            return this;
+        }
+
+        /**
          * Sets the optional {@link ViewConfigurationParams} for the virtual device.
          *
          * @see ViewConfigurationParams
@@ -1366,8 +1460,8 @@ public final class VirtualDeviceParams implements Parcelable {
                 mDevicePolicies.delete(POLICY_TYPE_DEFAULT_DEVICE_CAMERA_ACCESS);
             }
 
-            if (!Flags.activityControlApi()) {
-                mDevicePolicies.delete(POLICY_TYPE_BLOCKED_ACTIVITY);
+            if (!Flags.deviceAwareThermalStatus()) {
+                mDevicePolicies.delete(POLICY_TYPE_THERMAL);
             }
 
             if ((mAudioPlaybackSessionId != AUDIO_SESSION_ID_GENERATE
@@ -1391,6 +1485,7 @@ public final class VirtualDeviceParams implements Parcelable {
 
             return new VirtualDeviceParams(
                     mLockState,
+                    mAllowedUsers,
                     mUsersWithMatchingAccounts,
                     mDefaultNavigationPolicy,
                     mCrossTaskNavigationExemptions,
@@ -1406,6 +1501,7 @@ public final class VirtualDeviceParams implements Parcelable {
                     mAudioRecordingSessionId,
                     mDimDuration.toMillis(),
                     mScreenOffTimeout.toMillis(),
+                    mLocalDeviceOnly,
                     mViewConfigurationParams);
         }
     }

@@ -16,13 +16,9 @@
 
 package com.android.systemui.qs.panels.ui.compose.toolbar
 
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,7 +31,6 @@ import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
@@ -62,7 +57,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.PopupPositionProvider
-import com.android.systemui.Flags
+import com.android.compose.lifecycle.DisposableEffectWithLifecycle
 import com.android.systemui.common.ui.icons.Edit
 import com.android.systemui.compose.modifiers.sysuiResTag
 import com.android.systemui.qs.panels.ui.compose.toolbar.EditModeButtonDefaults.SpacingBetweenTooltipAndAnchor
@@ -107,9 +102,11 @@ fun EditModeButton(
         val caretPath = remember { mutableStateOf(Path()) }
         val coroutineScope = rememberCoroutineScope()
 
+        DisposableEffectWithLifecycle(Unit) { onDispose(viewModel::onTooltipDisposed) }
+
         TooltipBox(
             modifier = modifier,
-            positionProvider = rememberTooltipPositionProvider(WindowInsets.displayCutout),
+            positionProvider = rememberTooltipPositionProvider(),
             state = tooltipState,
             focusable = false,
             onDismissRequest = {
@@ -119,7 +116,6 @@ fun EditModeButton(
                 viewModel.onTooltipDisposed()
             },
             tooltip = {
-                DisposableEffect(Unit) { onDispose(viewModel::onTooltipDisposed) }
                 PlainTooltip(
                     shape = RoundedCornerShape(16.dp),
                     containerColor = tertiaryColor,
@@ -161,7 +157,7 @@ fun EditModeButton(
                         ),
             ) {
                 Icon(
-                    imageVector = if (Flags.iconRefresh2025()) Edit else Icons.Default.Edit,
+                    imageVector = Edit,
                     contentDescription =
                         stringResource(id = R.string.accessibility_quick_settings_edit),
                 )
@@ -174,17 +170,15 @@ fun EditModeButton(
  * Variant of [TooltipDefaults.rememberTooltipPositionProvider] that favors placing the tooltip
  * below the anchor if there's enough space.
  *
- * @param windowInsets [WindowInsets] to manually consider when positioning the tooltip.
  * @param spacingBetweenTooltipAndAnchor the padding between the tooltip and its target.
  */
 @Composable
 private fun rememberTooltipPositionProvider(
-    windowInsets: WindowInsets,
-    spacingBetweenTooltipAndAnchor: Dp = SpacingBetweenTooltipAndAnchor,
+    spacingBetweenTooltipAndAnchor: Dp = SpacingBetweenTooltipAndAnchor
 ): PopupPositionProvider {
     val density = LocalDensity.current
     val tooltipAnchorSpacing = with(density) { spacingBetweenTooltipAndAnchor.roundToPx() }
-    return remember(tooltipAnchorSpacing, windowInsets, density) {
+    return remember(tooltipAnchorSpacing, density) {
         object : PopupPositionProvider {
             override fun calculatePosition(
                 anchorBounds: IntRect,
@@ -208,17 +202,12 @@ private fun rememberTooltipPositionProvider(
                     x = anchorBounds.right - popupContentSize.width
                 }
 
-                // We grab the top window inset and remove it manually from the position as it is
-                // not consumed
-                // in the QS panel (b/424438896)
-                val topInset = windowInsets.getTop(density)
-
                 // Tooltip prefers to be below the anchor,
                 // but if this causes the tooltip to be outside the window
                 // then we place it above the anchor
-                var y = anchorBounds.bottom + tooltipAnchorSpacing - topInset
+                var y = anchorBounds.bottom + tooltipAnchorSpacing
                 if (y + popupContentSize.height > windowSize.height) {
-                    y = anchorBounds.top - popupContentSize.height - tooltipAnchorSpacing - topInset
+                    y = anchorBounds.top - popupContentSize.height - tooltipAnchorSpacing
                 }
                 return IntOffset(x, y)
             }

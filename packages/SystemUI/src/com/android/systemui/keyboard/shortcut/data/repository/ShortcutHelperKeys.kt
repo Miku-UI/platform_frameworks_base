@@ -17,6 +17,7 @@
 package com.android.systemui.keyboard.shortcut.data.repository
 
 import android.content.Context
+import android.view.KeyEvent
 import android.view.KeyEvent.KEYCODE_ALT_LEFT
 import android.view.KeyEvent.KEYCODE_ALT_RIGHT
 import android.view.KeyEvent.KEYCODE_BACK
@@ -62,6 +63,7 @@ import android.view.KeyEvent.KEYCODE_FORWARD_DEL
 import android.view.KeyEvent.KEYCODE_GRAVE
 import android.view.KeyEvent.KEYCODE_HENKAN
 import android.view.KeyEvent.KEYCODE_HOME
+import android.view.KeyEvent.KEYCODE_I
 import android.view.KeyEvent.KEYCODE_INSERT
 import android.view.KeyEvent.KEYCODE_KATAKANA_HIRAGANA
 import android.view.KeyEvent.KEYCODE_MEDIA_FAST_FORWARD
@@ -113,6 +115,7 @@ import android.view.KeyEvent.META_FUNCTION_ON
 import android.view.KeyEvent.META_META_ON
 import android.view.KeyEvent.META_SHIFT_ON
 import android.view.KeyEvent.META_SYM_ON
+import com.android.internal.accessibility.util.ShortcutUtils
 import com.android.systemui.res.R
 
 object ShortcutHelperKeys {
@@ -145,8 +148,8 @@ object ShortcutHelperKeys {
             META_FUNCTION_ON to { "Fn" },
         )
 
-    val specialKeyLabels =
-        mapOf<Int, (Context) -> String>(
+    val specialKeyLabels: Map<Int, (Context) -> String> =
+        mapOf(
             KEYCODE_HOME to { context -> context.getString(R.string.keyboard_key_home) },
             KEYCODE_BACK to { context -> context.getString(R.string.keyboard_key_back) },
             KEYCODE_RECENT_APPS to { context -> context.getString(R.string.accessibility_recent) },
@@ -161,11 +164,15 @@ object ShortcutHelperKeys {
                 { context ->
                     context.getString(R.string.keyboard_key_dpad_center)
                 },
-            KEYCODE_PERIOD to { "." },
+            KEYCODE_PERIOD to { _ -> "." },
             KEYCODE_TAB to { context -> context.getString(R.string.keyboard_key_tab) },
             KEYCODE_SPACE to { context -> context.getString(R.string.keyboard_key_space) },
             KEYCODE_ENTER to { context -> context.getString(R.string.keyboard_key_enter) },
             KEYCODE_DEL to { context -> context.getString(R.string.keyboard_key_backspace) },
+            KEYCODE_I to
+                { context ->
+                    ShortcutUtils.getLabelFromKeyCode(context, KeyEvent.KEYCODE_I)
+                },
             KEYCODE_MEDIA_PLAY_PAUSE to
                 { context ->
                     context.getString(R.string.keyboard_key_media_play_pause)
@@ -249,28 +256,28 @@ object ShortcutHelperKeys {
                     context.getString(R.string.keyboard_key_forward_del)
                 },
             KEYCODE_ESCAPE to { context -> context.getString(R.string.keyboard_key_esc) },
-            KEYCODE_SYSRQ to { "SysRq" },
-            KEYCODE_BREAK to { "Break" },
-            KEYCODE_SCROLL_LOCK to { "Scroll Lock" },
+            KEYCODE_SYSRQ to { _ -> "SysRq" },
+            KEYCODE_BREAK to { _ -> "Break" },
+            KEYCODE_SCROLL_LOCK to { _ -> "Scroll Lock" },
             KEYCODE_MOVE_HOME to { context -> context.getString(R.string.keyboard_key_move_home) },
             KEYCODE_MOVE_END to { context -> context.getString(R.string.keyboard_key_move_end) },
             KEYCODE_INSERT to { context -> context.getString(R.string.keyboard_key_insert) },
-            KEYCODE_F1 to { "F1" },
-            KEYCODE_F2 to { "F2" },
-            KEYCODE_F3 to { "F3" },
-            KEYCODE_F4 to { "F4" },
-            KEYCODE_F5 to { "F5" },
-            KEYCODE_F6 to { "F6" },
-            KEYCODE_F7 to { "F7" },
-            KEYCODE_F8 to { "F8" },
-            KEYCODE_F9 to { "F9" },
-            KEYCODE_F10 to { "F10" },
-            KEYCODE_F11 to { "F11" },
-            KEYCODE_F12 to { "F12" },
+            KEYCODE_F1 to { _ -> "F1" },
+            KEYCODE_F2 to { _ -> "F2" },
+            KEYCODE_F3 to { _ -> "F3" },
+            KEYCODE_F4 to { _ -> "F4" },
+            KEYCODE_F5 to { _ -> "F5" },
+            KEYCODE_F6 to { _ -> "F6" },
+            KEYCODE_F7 to { _ -> "F7" },
+            KEYCODE_F8 to { _ -> "F8" },
+            KEYCODE_F9 to { _ -> "F9" },
+            KEYCODE_F10 to { _ -> "F10" },
+            KEYCODE_F11 to { _ -> "F11" },
+            KEYCODE_F12 to { _ -> "F12" },
             KEYCODE_NUM_LOCK to { context -> context.getString(R.string.keyboard_key_num_lock) },
-            KEYCODE_MINUS to { "-" },
-            KEYCODE_GRAVE to { "`" },
-            KEYCODE_EQUALS to { "=" },
+            KEYCODE_MINUS to { _ -> "-" },
+            KEYCODE_GRAVE to { _ -> "`" },
+            KEYCODE_EQUALS to { _ -> "=" },
             KEYCODE_NUMPAD_0 to
                 { context ->
                     context.getString(R.string.keyboard_key_numpad_template, "0")
@@ -354,16 +361,16 @@ object ShortcutHelperKeys {
                 { context ->
                     context.getString(R.string.keyboard_key_numpad_template, ")")
                 },
-            KEYCODE_ZENKAKU_HANKAKU to { "半角/全角" },
-            KEYCODE_EISU to { "英数" },
-            KEYCODE_MUHENKAN to { "無変換" },
-            KEYCODE_HENKAN to { "変換" },
-            KEYCODE_KATAKANA_HIRAGANA to { "かな" },
-            KEYCODE_ALT_LEFT to { "Alt" },
-            KEYCODE_ALT_RIGHT to { "Alt" },
-            KEYCODE_CTRL_LEFT to { "Ctrl" },
-            KEYCODE_CTRL_RIGHT to { "Ctrl" },
-            KEYCODE_SHIFT_LEFT to { "Shift" },
-            KEYCODE_SHIFT_RIGHT to { "Shift" },
+            KEYCODE_ZENKAKU_HANKAKU to { _ -> "半角/全角" },
+            KEYCODE_EISU to { _ -> "英数" },
+            KEYCODE_MUHENKAN to { _ -> "無変換" },
+            KEYCODE_HENKAN to { _ -> "変換" },
+            KEYCODE_KATAKANA_HIRAGANA to { _ -> "かな" },
+            KEYCODE_ALT_LEFT to { _ -> "Alt" },
+            KEYCODE_ALT_RIGHT to { _ -> "Alt" },
+            KEYCODE_CTRL_LEFT to { _ -> "Ctrl" },
+            KEYCODE_CTRL_RIGHT to { _ -> "Ctrl" },
+            KEYCODE_SHIFT_LEFT to { _ -> "Shift" },
+            KEYCODE_SHIFT_RIGHT to { _ -> "Shift" },
         )
 }

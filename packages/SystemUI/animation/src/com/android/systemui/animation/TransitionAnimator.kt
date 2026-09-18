@@ -40,11 +40,9 @@ import com.android.internal.annotations.VisibleForTesting
 import com.android.internal.dynamicanimation.animation.SpringAnimation
 import com.android.internal.dynamicanimation.animation.SpringForce
 import com.android.systemui.Flags
-import com.android.systemui.Flags.moveTransitionAnimationLayer
+import com.android.systemui.animation.ActivityTransitionAnimator.Companion.INTERPOLATORS
 import java.util.concurrent.Executor
 import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 private const val TAG = "TransitionAnimator"
@@ -56,23 +54,48 @@ class TransitionAnimator(
     private val interpolators: Interpolators,
 
     /** [springTimings] and [springInterpolators] must either both be null or both not null. */
-    private val springTimings: SpringTimings? = null,
-    private val springInterpolators: Interpolators? = null,
-    private val springParams: SpringParams = DEFAULT_SPRING_PARAMS,
+    private val springTimings: SpringTimings? = SPRING_TIMINGS,
+    private val springInterpolators: Interpolators? = SPRING_INTERPOLATORS,
 ) {
     companion object {
         internal const val DEBUG = false
         private val SRC_MODE = PorterDuffXfermode(PorterDuff.Mode.SRC)
 
+        private const val SPRING_MAX_SPEED = 6500f
+        private const val SPRING_SPEED_FALLOFF_COEFFICIENT = 1800f
+        private const val SPRING_SPEED_FALLOFF_THRESHOLD = 4000f
+
         /** Default parameters for the multi-spring animator. */
         private val DEFAULT_SPRING_PARAMS =
             SpringParams(
-                centerXStiffness = 450f,
-                centerXDampingRatio = 0.965f,
-                centerYStiffness = 400f,
-                centerYDampingRatio = 0.95f,
-                scaleStiffness = 500f,
-                scaleDampingRatio = 0.99f,
+                centerXStiffness = 340f,
+                centerXDampingRatio = 1.1f,
+                centerYStiffness = 340f,
+                centerYDampingRatio = 0.9f,
+                scaleStiffness = 340f,
+                scaleDampingRatio = 1f,
+            )
+
+        /** The interpolators when animating a View into an app using a spring animator. */
+        val SPRING_INTERPOLATORS =
+            INTERPOLATORS.copy(
+                contentBeforeFadeOutInterpolator =
+                    com.android.app.animation.Interpolators.DECELERATE_1_5,
+                contentAfterFadeInInterpolator =
+                    com.android.app.animation.Interpolators.SLOW_OUT_LINEAR_IN,
+            )
+
+        /**
+         * The timings when animating a View into an app using a spring animator. These timings
+         * represent fractions of the progress between the spring's initial value and its final
+         * value.
+         */
+        val SPRING_TIMINGS =
+            SpringTimings(
+                contentBeforeFadeOutDelay = 0f,
+                contentBeforeFadeOutDuration = 0.8f,
+                contentAfterFadeInDelay = 0.85f,
+                contentAfterFadeInDuration = 0.135f,
             )
 
         /**
@@ -115,6 +138,8 @@ class TransitionAnimator(
                 1.0f,
             )
         }
+
+        fun dynamicTargetResolutionEnabled() = Flags.animationLibraryDynamicTargetResolution()
 
         internal fun WindowAnimationState.toTransitionState() =
             State().also {
@@ -263,45 +288,62 @@ class TransitionAnimator(
     /** Encapsulated the state of a multi-spring animation. */
     internal class SpringState(
         // Animated values.
-        var centerX: Float,
-        var centerY: Float,
+        var x: Float,
+        var y: Float,
         var scale: Float = 0f,
 
         // Update flags (used to decide whether it's time to update the transition state).
-        var isCenterXUpdated: Boolean = false,
-        var isCenterYUpdated: Boolean = false,
+        var isXUpdated: Boolean = false,
+        var isYUpdated: Boolean = false,
         var isScaleUpdated: Boolean = false,
 
         // Completion flags.
-        var isCenterXDone: Boolean = false,
-        var isCenterYDone: Boolean = false,
+        var isXDone: Boolean = false,
+        var isYDone: Boolean = false,
         var isScaleDone: Boolean = false,
     ) {
         /** Whether all springs composing the animation have settled in the final position. */
         val isDone
-            get() = isCenterXDone && isCenterYDone && isScaleDone
+            get() = isXDone && isYDone && isScaleDone
+    }
+
+    /**
+     * A pivot is the rect-relative position used to choose the attributes to animate in a
+     * spring-based animation. It should be selected based on the position of the start state
+     * relative to the end state, to prevent any of the bounds from overshooting the target.
+     */
+    internal enum class AnimationPivot {
+        CENTER,
+        LEFT,
+        TOP_LEFT,
+        TOP,
+        TOP_RIGHT,
+        RIGHT,
+        BOTTOM_RIGHT,
+        BOTTOM,
+        BOTTOM_LEFT,
     }
 
     /** Supported [SpringState] properties with getters and setters to update them. */
     private enum class SpringProperty {
-        CENTER_X {
+        X {
             override fun get(state: SpringState): Float {
-                return state.centerX
+                return state.x
             }
 
             override fun setValue(state: SpringState, value: Float) {
-                state.centerX = value
-                state.isCenterXUpdated = true
+                state.x = value
+                state.isXUpdated = true
             }
         },
-        CENTER_Y {
+        Y {
             override fun get(state: SpringState): Float {
-                return state.centerY
+                return state.y
             }
 
             override fun setValue(state: SpringState, value: Float) {
-                state.centerY = value
-                state.isCenterYUpdated = true
+                state.y = value
+                state.isYUpdated = true
             }
         },
         SCALE {
@@ -504,6 +546,8 @@ class TransitionAnimator(
         drawHole: Boolean = false,
         startVelocity: PointF? = null,
         startFrameTime: Long = -1,
+        springParams: SpringParams = DEFAULT_SPRING_PARAMS,
+        useDynamicPivot: Boolean = false,
     ): Animation {
         // We add an extra layer with the same color as the dialog/app splash screen background
         // color, which is usually the same color of the app background. We first fade in this layer
@@ -524,6 +568,8 @@ class TransitionAnimator(
                 drawHole,
                 startVelocity,
                 startFrameTime,
+                springParams,
+                useDynamicPivot,
             )
             .apply { start() }
     }
@@ -538,6 +584,8 @@ class TransitionAnimator(
         drawHole: Boolean = false,
         startVelocity: PointF? = null,
         startFrameTime: Long = -1,
+        springParams: SpringParams = DEFAULT_SPRING_PARAMS,
+        useDynamicPivot: Boolean = false,
     ): Animation {
         val transitionContainer = controller.transitionContainer
         val transitionContainerOverlay = transitionContainer.overlay
@@ -569,6 +617,8 @@ class TransitionAnimator(
                 shouldFadeWindowBackgroundLayer,
                 drawHole,
                 moveBackgroundLayerWhenAppVisibilityChanges,
+                springParams,
+                useDynamicPivot,
             )
         } else {
             createInterpolatedAnimation(
@@ -626,9 +676,7 @@ class TransitionAnimator(
         var endBottomCornerRadius = endState.bottomCornerRadius
 
         fun maybeUpdateEndState() {
-            if (Flags.dialogAnimEndStateUpdate()) {
-                endState = calculateEndState()
-            }
+            endState = calculateEndState()
             if (
                 endTop != endState.top ||
                     endBottom != endState.bottom ||
@@ -643,10 +691,8 @@ class TransitionAnimator(
                 endRight = endState.right
                 endCenterX = (endLeft + endRight) / 2f
                 endWidth = endRight - endLeft
-                if (Flags.dialogAnimEndStateUpdate()) {
-                    endTopCornerRadius = endState.topCornerRadius
-                    endBottomCornerRadius = endState.bottomCornerRadius
-                }
+                endTopCornerRadius = endState.topCornerRadius
+                endBottomCornerRadius = endState.bottomCornerRadius
             }
         }
 
@@ -705,7 +751,8 @@ class TransitionAnimator(
             state.bottomCornerRadius =
                 MathUtils.lerp(startBottomCornerRadius, endBottomCornerRadius, progress)
 
-            state.visible = checkVisibility(timings, linearProgress, controller.isLaunching)
+            state.visible =
+                checkVisibility(linearProgress, controller.isLaunching, useSpring = false)
 
             if (!movedBackgroundLayer) {
                 movedBackgroundLayer =
@@ -765,33 +812,99 @@ class TransitionAnimator(
         shouldFadeWindowBackgroundLayer: () -> Boolean = { true },
         drawHole: Boolean = false,
         moveBackgroundLayerWhenAppVisibilityChanges: Boolean = false,
+        springParams: SpringParams,
+        useDynamicPivot: Boolean = false,
     ): Animation {
+        var endState = startState
+        var pivot = AnimationPivot.CENTER
 
-        var endState = calculateEndState()
+        /** Recalculates the end state and the animation pivot. */
+        fun updateEndStateAndPivot() {
+            endState = calculateEndState()
+
+            if (!useDynamicPivot) {
+                pivot = AnimationPivot.CENTER
+                return
+            }
+
+            val useTopPivot =
+                endState.height < startState.height &&
+                    endState.top > startState.top &&
+                    endState.bottom > startState.bottom
+            val useBottomPivot =
+                endState.height < startState.height &&
+                    endState.top < startState.top &&
+                    endState.bottom < startState.bottom
+            val useLeftPivot =
+                endState.width < startState.width &&
+                    endState.left > startState.left &&
+                    endState.right > startState.right
+            val useRightPivot =
+                endState.width < startState.width &&
+                    endState.left < startState.left &&
+                    endState.right < startState.right
+            pivot =
+                when {
+                    useLeftPivot && useTopPivot -> AnimationPivot.TOP_LEFT
+                    useTopPivot && useRightPivot -> AnimationPivot.TOP_RIGHT
+                    useRightPivot && useBottomPivot -> AnimationPivot.BOTTOM_RIGHT
+                    useBottomPivot && useLeftPivot -> AnimationPivot.BOTTOM_LEFT
+                    useLeftPivot -> AnimationPivot.LEFT
+                    useTopPivot -> AnimationPivot.TOP
+                    useRightPivot -> AnimationPivot.RIGHT
+                    useBottomPivot -> AnimationPivot.BOTTOM
+                    else -> AnimationPivot.CENTER
+                }
+        }
+
+        /** Extracts a set of coordinates from [state] representing the [pivot] point. */
+        fun extractPivotAttributes(state: State, pivot: AnimationPivot): Pair<Float, Float> {
+            return when (pivot) {
+                AnimationPivot.LEFT -> Pair(state.left.toFloat(), state.centerY)
+                AnimationPivot.TOP_LEFT -> Pair(state.left.toFloat(), state.top.toFloat())
+                AnimationPivot.TOP -> Pair(state.centerX, state.top.toFloat())
+                AnimationPivot.TOP_RIGHT -> Pair(state.right.toFloat(), state.top.toFloat())
+                AnimationPivot.RIGHT -> Pair(state.right.toFloat(), state.centerY)
+                AnimationPivot.BOTTOM_RIGHT -> Pair(state.right.toFloat(), state.bottom.toFloat())
+                AnimationPivot.BOTTOM -> Pair(state.centerX, state.bottom.toFloat())
+                AnimationPivot.BOTTOM_LEFT -> Pair(state.left.toFloat(), state.bottom.toFloat())
+                AnimationPivot.CENTER -> Pair(state.centerX, state.centerY)
+            }
+        }
+
         var springX: SpringAnimation? = null
         var springY: SpringAnimation? = null
-        var targetX = endState.centerX
-        var targetY = endState.centerY
-
         var movedBackgroundLayer = false
 
-        fun maybeUpdateEndState() {
-            if (Flags.dialogAnimEndStateUpdate()) {
-                endState = calculateEndState()
-            }
-            if (endState.centerX != targetX && endState.centerY != targetY) {
-                targetX = endState.centerX
-                targetY = endState.centerY
+        updateEndStateAndPivot()
+        var (targetX, targetY) = extractPivotAttributes(endState, pivot)
 
+        /**
+         * Recalculate the end state and pivot, and if the target has changed, recalibrate the
+         * springs.
+         */
+        fun maybeUpdateEndState() {
+            updateEndStateAndPivot()
+
+            val (newTargetX, newTargetY) = extractPivotAttributes(endState, pivot)
+            if (newTargetX != targetX) {
+                targetX = newTargetX
                 springX?.animateToFinalPosition(targetX)
+            }
+            if (newTargetY != targetY) {
+                targetY = newTargetY
                 springY?.animateToFinalPosition(targetY)
             }
         }
 
+        /**
+         * Calculates the new animation attributes based on the given spring [state] and forwards
+         * them to each of the controllers.
+         */
         fun updateProgress(state: SpringState) {
             if (
-                !(state.isCenterXUpdated || state.isCenterXDone) ||
-                    !(state.isCenterYUpdated || state.isCenterYDone) ||
+                !(state.isXUpdated || state.isXDone) ||
+                    !(state.isYUpdated || state.isYDone) ||
                     !(state.isScaleUpdated || state.isScaleDone)
             ) {
                 // Because all three springs use the same update method, we only actually update
@@ -801,8 +914,8 @@ class TransitionAnimator(
             }
 
             // Reset the update flags.
-            state.isCenterXUpdated = false
-            state.isCenterYUpdated = false
+            state.isXUpdated = false
+            state.isYUpdated = false
             state.isScaleUpdated = false
 
             // Current scale-based values, that will be used to find the new animation bounds.
@@ -811,12 +924,82 @@ class TransitionAnimator(
             val height =
                 MathUtils.lerp(startState.height.toFloat(), endState.height.toFloat(), state.scale)
 
+            val left: Float
+            val top: Float
+            val right: Float
+            val bottom: Float
+
+            when (pivot) {
+                AnimationPivot.LEFT -> {
+                    left = state.x
+                    top = state.y - height / 2
+                    right = state.x + width
+                    bottom = state.y + height / 2
+                }
+
+                AnimationPivot.TOP_LEFT -> {
+                    left = state.x
+                    top = state.y
+                    right = state.x + width
+                    bottom = state.y + height
+                }
+
+                AnimationPivot.TOP -> {
+                    left = state.x - width / 2
+                    top = state.y
+                    right = state.x + width / 2
+                    bottom = state.y + height
+                }
+
+                AnimationPivot.TOP_RIGHT -> {
+                    left = state.x - width
+                    top = state.y
+                    right = state.x
+                    bottom = state.y + height
+                }
+
+                AnimationPivot.RIGHT -> {
+                    left = state.x - width
+                    top = state.y - height / 2
+                    right = state.x
+                    bottom = state.y + height / 2
+                }
+
+                AnimationPivot.BOTTOM_RIGHT -> {
+                    left = state.x - width
+                    top = state.y - height
+                    right = state.x
+                    bottom = state.y
+                }
+
+                AnimationPivot.BOTTOM -> {
+                    left = state.x - width / 2
+                    top = state.y - height
+                    right = state.x + width / 2
+                    bottom = state.y
+                }
+
+                AnimationPivot.BOTTOM_LEFT -> {
+                    left = state.x
+                    top = state.y - height
+                    right = state.x + width
+                    bottom = state.y
+                }
+
+                AnimationPivot.CENTER -> {
+                    left = state.x - width / 2
+                    top = state.y - height / 2
+                    right = state.x + width / 2
+                    bottom = state.y + height / 2
+                }
+            }
+
             val newState =
                 State(
-                        left = (state.centerX - width / 2).toInt(),
-                        top = (state.centerY - height / 2).toInt(),
-                        right = (state.centerX + width / 2).toInt(),
-                        bottom = (state.centerY + height / 2).toInt(),
+                        left = left.toInt(),
+                        top = top.toInt(),
+                        right = right.toInt(),
+                        bottom = bottom.toInt(),
                         topCornerRadius =
                             MathUtils.lerp(
                                 startState.topCornerRadius,
@@ -831,7 +1014,8 @@ class TransitionAnimator(
                             ),
                     )
                     .apply {
-                        visible = checkVisibility(timings, state.scale, controller.isLaunching)
+                        visible =
+                            checkVisibility(state.scale, controller.isLaunching, useSpring = true)
                     }
 
             if (!movedBackgroundLayer) {
@@ -870,7 +1054,8 @@ class TransitionAnimator(
             maybeUpdateEndState()
         }
 
-        val springState = SpringState(centerX = startState.centerX, centerY = startState.centerY)
+        val (startX, startY) = extractPivotAttributes(startState, pivot)
+        val springState = SpringState(startX, startY)
         val isExpandingFullyAbove = isExpandingFullyAbove(transitionContainer, endState)
 
         /** End listener for each spring, which only does the end work if all springs are done. */
@@ -886,47 +1071,62 @@ class TransitionAnimator(
             )
         }
 
+        /**
+         * Applies this dampening function to the given [speed]:
+         * - between 0 and 4000, no dampening
+         * - otherwise, apply f(x) = maxSpeed * (x / (x + k))
+         *
+         * If [speed] is negative, the same rules apply to the absolute value and the sign is
+         * maintained.
+         */
+        fun dampenSpeed(speed: Float): Float {
+            val absolute = abs(speed)
+            val sign = speed / absolute
+            if (absolute <= SPRING_SPEED_FALLOFF_THRESHOLD) return speed
+            return SPRING_MAX_SPEED *
+                (absolute / (absolute + SPRING_SPEED_FALLOFF_COEFFICIENT)) *
+                sign
+        }
+
+        val scaledVelocity = PointF(dampenSpeed(startVelocity.x), dampenSpeed(startVelocity.y))
+
         springX =
             SpringAnimation(
                     springState,
-                    buildProperty(SpringProperty.CENTER_X) { state -> updateProgress(state) },
+                    buildProperty(SpringProperty.X) { state -> updateProgress(state) },
                 )
                 .apply {
                     spring =
-                        SpringForce(endState.centerX).apply {
+                        SpringForce(targetX).apply {
                             stiffness = springParams.centerXStiffness
                             dampingRatio = springParams.centerXDampingRatio
                         }
 
-                    setStartValue(startState.centerX)
-                    setStartVelocity(startVelocity.x)
-                    setMinValue(min(startState.centerX, endState.centerX))
-                    setMaxValue(max(startState.centerX, endState.centerX))
+                    setStartValue(startX)
+                    setStartVelocity(scaledVelocity.x)
 
                     addEndListener { _, _, _, _ ->
-                        springState.isCenterXDone = true
+                        springState.isXDone = true
                         onAnimationEnd()
                     }
                 }
         springY =
             SpringAnimation(
                     springState,
-                    buildProperty(SpringProperty.CENTER_Y) { state -> updateProgress(state) },
+                    buildProperty(SpringProperty.Y) { state -> updateProgress(state) },
                 )
                 .apply {
                     spring =
-                        SpringForce(endState.centerY).apply {
+                        SpringForce(targetY).apply {
                             stiffness = springParams.centerYStiffness
                             dampingRatio = springParams.centerYDampingRatio
                         }
 
-                    setStartValue(startState.centerY)
-                    setStartVelocity(startVelocity.y)
-                    setMinValue(min(startState.centerY, endState.centerY))
-                    setMaxValue(max(startState.centerY, endState.centerY))
+                    setStartValue(startY)
+                    setStartVelocity(scaledVelocity.y)
 
                     addEndListener { _, _, _, _ ->
-                        springState.isCenterYDone = true
+                        springState.isYDone = true
                         onAnimationEnd()
                     }
                 }
@@ -943,7 +1143,6 @@ class TransitionAnimator(
                         }
 
                     setStartValue(0f)
-                    setMaxValue(1f)
                     setMinimumVisibleChange(abs(1f / startState.height))
 
                     addEndListener { _, _, _, _ ->
@@ -1024,26 +1223,53 @@ class TransitionAnimator(
         }
     }
 
-    /** Returns whether is the controller's view should be visible with the given [timings]. */
-    private fun checkVisibility(timings: Timings, progress: Float, isLaunching: Boolean): Boolean {
+    /**
+     * Returns whether is the controller's view should be visible according to [progress] and the
+     * appropriate timings, based on [useSpring].
+     */
+    private fun checkVisibility(
+        progress: Float,
+        isLaunching: Boolean,
+        useSpring: Boolean,
+    ): Boolean {
+        val totalDuration =
+            if (useSpring) {
+                1f
+            } else {
+                timings.totalDuration.toFloat()
+            }
         return if (isLaunching) {
+            val (delay, duration) =
+                if (useSpring) {
+                    Pair(
+                        springTimings!!.contentBeforeFadeOutDelay,
+                        springTimings.contentBeforeFadeOutDuration,
+                    )
+                } else {
+                    Pair(
+                        timings.contentBeforeFadeOutDelay.toFloat(),
+                        timings.contentBeforeFadeOutDuration.toFloat(),
+                    )
+                }
             // The expanding view can/should be hidden once it is completely covered by the opening
             // window.
-            getProgress(
-                timings,
-                progress,
-                timings.contentBeforeFadeOutDelay,
-                timings.contentBeforeFadeOutDuration,
-            ) < 1
+            getProgressInternal(totalDuration, progress, delay, duration) < 1
         } else {
+            val (delay, duration) =
+                if (useSpring) {
+                    Pair(
+                        springTimings!!.contentAfterFadeInDelay,
+                        springTimings.contentAfterFadeInDuration,
+                    )
+                } else {
+                    Pair(
+                        timings.contentAfterFadeInDelay.toFloat(),
+                        timings.contentAfterFadeInDuration.toFloat(),
+                    )
+                }
             // The shrinking view can/should be hidden while it is completely covered by the closing
             // window.
-            getProgress(
-                timings,
-                progress,
-                timings.contentAfterFadeInDelay,
-                timings.contentAfterFadeInDuration,
-            ) > 0
+            getProgressInternal(totalDuration, progress, delay, duration) > 0
         }
     }
 
@@ -1194,7 +1420,7 @@ class TransitionAnimator(
                 if (drawHole) {
                     drawable.setXfermode(SRC_MODE)
                 }
-            } else if (moveTransitionAnimationLayer() && fadeOutProgress >= 1 && drawHole) {
+            } else if (fadeOutProgress >= 1 && drawHole) {
                 // If [drawHole] is true, draw it once the opening content is done fading in.
                 drawable.alpha = 0x00
                 drawable.setXfermode(SRC_MODE)

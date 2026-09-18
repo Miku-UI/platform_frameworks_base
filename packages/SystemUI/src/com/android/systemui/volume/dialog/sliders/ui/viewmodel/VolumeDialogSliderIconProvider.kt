@@ -145,7 +145,7 @@ constructor(
                 AudioManager.STREAM_RING -> ringerOfflineIcon ?: R.drawable.ic_volume_ringer_vibrate
                 AudioManager.STREAM_ALARM -> R.drawable.ic_volume_alarm_mute
                 AudioManager.STREAM_SYSTEM -> R.drawable.ic_volume_system_mute
-                AudioManager.STREAM_ASSISTANT -> R.drawable.ic_volume_system_mute
+                AudioManager.STREAM_ASSISTANT -> R.drawable.ic_volume_voice_chat_mute
                 else -> null
             }
         } else {
@@ -169,7 +169,7 @@ constructor(
             AudioManager.STREAM_ALARM -> R.drawable.ic_alarm
             AudioManager.STREAM_VOICE_CALL -> com.android.internal.R.drawable.ic_phone
             AudioManager.STREAM_SYSTEM -> R.drawable.ic_volume_system
-            AudioManager.STREAM_ASSISTANT -> R.drawable.ic_volume_system
+            AudioManager.STREAM_ASSISTANT -> R.drawable.ic_volume_voice_chat
             else -> error("Unsupported stream: $stream")
         }
     }

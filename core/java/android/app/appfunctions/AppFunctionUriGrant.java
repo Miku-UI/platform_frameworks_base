@@ -16,6 +16,7 @@
 
 package android.app.appfunctions;
 
+import static android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION;
 import static android.content.Intent.FLAG_GRANT_PREFIX_URI_PERMISSION;
 import static android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION;
 import static android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
@@ -23,13 +24,13 @@ import static android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
+import android.app.appfunctions.flags.Flags;
 import android.app.appsearch.GenericDocument;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.permission.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -37,39 +38,31 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Represents a {@link android.net.Uri} for which temporary access permission is to be granted to
- * the caller of an AppFunction execution.
+ * {@link Uri} for which access permission is to be granted to the caller of {@link
+ * AppFunctionManager#executeAppFunction}, provided to {@link ExecuteAppFunctionResponse}.
  *
- * <p>This class encapsulates a {@link android.net.Uri} along with the specific access mode flags
- * (e.g., {@link android.content.Intent#FLAG_GRANT_READ_URI_PERMISSION}) that define the type of
- * temporary access to be granted for that URI. However, {@link
- * android.content.Intent#FLAG_GRANT_PERSISTABLE_URI_PERMISSION} is not allowed as only the
- * temporary access can be granted.
+ * <p>This class encapsulates a {@link Uri} along with the specific access mode flags (e.g., {@link
+ * FLAG_GRANT_READ_URI_PERMISSION}) that define the type of access to be granted for that URI.
  *
- * <p>When an AppFunction implementation returns an {@link ExecuteAppFunctionResponse} containing
- * a {@link Uri}, the {@link Uri} itself must be placed in either
- * {@link ExecuteAppFunctionResponse#getResultDocument()} ()} or
- * {@link ExecuteAppFunctionResponse#getExtras()}. Concurrently, a corresponding
- * {@link AppFunctionUriGrant} detailing the intended permissions must be added to
- * {@link ExecuteAppFunctionResponse#getUriGrants()}. This ensures the App Function's caller
- * receives the necessary access rights to the returned {@link Uri}.
+ * <p>When an AppFunction implementation returns an {@link ExecuteAppFunctionResponse} containing a
+ * {@link Uri}, the {@link Uri} itself must be placed in either {@link
+ * ExecuteAppFunctionResponse#getResultDocument} or {@link ExecuteAppFunctionResponse#getExtras}.
+ * Concurrently, a corresponding {@link AppFunctionUriGrant} detailing the intended permissions must
+ * be added to {@link ExecuteAppFunctionResponse#getUriGrants}. This ensures the caller receives the
+ * necessary access rights to the returned {@link Uri}.
  *
- * <p>To succeed, the content provider owning the Uri must have set the {@link
+ * <p>To succeed, the content provider owning the {@link Uri} must have set the {@link
  * android.R.styleable#AndroidManifestProvider_grantUriPermissions grantUriPermissions} attribute in
- * its manifest or included the {@link android.R.styleable#AndroidManifestGrantUriPermission
+ * its manifest or included in the {@link android.R.styleable#AndroidManifestGrantUriPermission
  * &lt;grant-uri-permissions&gt;} tag.
  *
- * @see ExecuteAppFunctionResponse#ExecuteAppFunctionResponse(GenericDocument, Bundle, List)
- * @see android.content.Intent#FLAG_GRANT_READ_URI_PERMISSION
- * @see android.content.Intent#FLAG_GRANT_WRITE_URI_PERMISSION
- * @see android.content.Intent#FLAG_GRANT_PREFIX_URI_PERMISSION
+ * <p>These grants typically persist until the device reboots unles {@link
+ * FLAG_GRANT_PERSISTABLE_URI_PERMISSION} is set and the receiver calls {@link
+ * android.content.ContentResolver#takePersistableUriPermission}. The {@link Uri} owner may consider
+ * clearing data associated with these URIs after a reboot.
  */
-@FlaggedApi(Flags.FLAG_APP_FUNCTION_ACCESS_API_ENABLED)
+@FlaggedApi(Flags.FLAG_ENABLE_APP_FUNCTION_PERMISSION_V2)
 public final class AppFunctionUriGrant implements Parcelable {
-    private static final int ALLOWED_MODE_FLAG_MASK = FLAG_GRANT_READ_URI_PERMISSION
-            | FLAG_GRANT_WRITE_URI_PERMISSION
-            | FLAG_GRANT_PREFIX_URI_PERMISSION;
-
     @NonNull
     public static final Creator<AppFunctionUriGrant> CREATOR =
             new Creator<AppFunctionUriGrant>() {
@@ -99,30 +92,23 @@ public final class AppFunctionUriGrant implements Parcelable {
             value = {
                 FLAG_GRANT_READ_URI_PERMISSION,
                 FLAG_GRANT_WRITE_URI_PERMISSION,
-                FLAG_GRANT_PREFIX_URI_PERMISSION
+                FLAG_GRANT_PREFIX_URI_PERMISSION,
+                FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface GrantUriMode {}
 
     /**
-     * Create a new {@link AppFunctionUriGrant}
+     * Constructs an {@link AppFunctionUriGrant}
      *
      * @param uri The {@link Uri} to be granted.
-     * @param modeFlags The access mode flags.
-     *     This value must include at least one of
-     *     {@link android.content.Intent#FLAG_GRANT_READ_URI_PERMISSION} or
-     *     {@link android.content.Intent#FLAG_GRANT_WRITE_URI_PERMISSION}.
-     *     It may optionally also include
-     *     {@link android.content.Intent#FLAG_GRANT_PREFIX_URI_PERMISSION}.
+     * @param modeFlags The access mode flags. This value must include at least one of {@link
+     *     FLAG_GRANT_READ_URI_PERMISSION} or {@link FLAG_GRANT_WRITE_URI_PERMISSION}. It may
+     *     optionally also include {@link FLAG_GRANT_PREFIX_URI_PERMISSION} and {@link
+     *     FLAG_GRANT_PERSISTABLE_URI_PERMISSION}.
      */
     public AppFunctionUriGrant(@NonNull Uri uri, @GrantUriMode int modeFlags) {
         mUri = Objects.requireNonNull(uri);
-        if ((modeFlags & ~ALLOWED_MODE_FLAG_MASK) != 0) {
-            throw new IllegalArgumentException(
-                    "Contains invalid flags: Allowed flags are FLAG_GRANT_READ_URI_PERMISSION, "
-                            + "FLAG_GRANT_WRITE_URI_PERMISSION and "
-                            + "FLAG_GRANT_PREFIX_URI_PERMISSION");
-        }
         if (!Intent.isAccessUriMode(modeFlags)) {
             throw new IllegalArgumentException(
                     "Must set either FLAG_GRANT_READ_URI_PERMISSION or "
@@ -131,13 +117,13 @@ public final class AppFunctionUriGrant implements Parcelable {
         mModeFlags = modeFlags;
     }
 
-    /** Return the {@link Uri} to be granted. */
+    /** Returns the {@link Uri} to be granted. */
     @NonNull
     public Uri getUri() {
         return mUri;
     }
 
-    /** Return the access mode flags. */
+    /** Returns the access mode flags. */
     @GrantUriMode
     public int getModeFlags() {
         return mModeFlags;

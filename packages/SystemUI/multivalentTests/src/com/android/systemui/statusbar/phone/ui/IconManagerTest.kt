@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-@file:OptIn(ExperimentalKairosApi::class)
-
 package com.android.systemui.statusbar.phone.ui
 
 import android.graphics.drawable.Icon
@@ -27,7 +25,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.statusbar.StatusBarIcon
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosNetwork
 import com.android.systemui.statusbar.StatusBarIconView
 import com.android.systemui.statusbar.connectivity.ui.MobileContextProvider

@@ -1,3 +1,5 @@
+# Hi, if you are looking for OWNERS, please first see OWNERS.md.
+
 # This top-level list should remain narrowly defined as team leads; individual
 # teams are strongly encouraged to define narrower OWNERS files at deeper
 # levels within the source tree; see OWNERS.md for more details
@@ -15,7 +17,6 @@ narayan@google.com #{LAST_RESORT_SUGGESTION}
 ogunwale@google.com #{LAST_RESORT_SUGGESTION}
 omakoto@google.com #{LAST_RESORT_SUGGESTION}
 roosa@google.com #{LAST_RESORT_SUGGESTION}
-smoreland@google.com #{LAST_RESORT_SUGGESTION}
 yamasani@google.com #{LAST_RESORT_SUGGESTION}
 timmurray@google.com #{LAST_RESORT_SUGGESTION}
 
@@ -29,12 +30,12 @@ per-file */TEST_MAPPING = *
 # Support bulk translation updates
 per-file */res*/values*/*.xml = byi@google.com, delphij@google.com
 
-per-file **.bp,**.mk =joeo@google.com, lamontjones@google.com
+per-file AconfigFlags.bp=file:platform/build/release:main:/OWNERS
+per-file **.bp,**.mk=file:platform/build/soong:main:/OWNERS_lastresort
 per-file TestProtoLibraries.bp = file:platform/platform_testing:/libraries/health/OWNERS
 per-file TestProtoLibraries.bp = file:platform/tools/tradefederation:/OWNERS
 
-per-file *ravenwood* = file:ravenwood/OWNERS
-per-file *Ravenwood* = file:ravenwood/OWNERS
+per-file Ravenwood.bp, **_ravenwood.* = file:ravenwood/OWNERS
 
 per-file PREUPLOAD.cfg = file:/PREUPLOAD_OWNERS
 
@@ -43,6 +44,7 @@ per-file ZYGOTE_OWNERS = file:/ZYGOTE_OWNERS
 per-file SQLITE_OWNERS = file:/SQLITE_OWNERS
 per-file PERFORMANCE_OWNERS = file:/PERFORMANCE_OWNERS
 per-file PACKAGE_MANAGER_OWNERS = file:/PACKAGE_MANAGER_OWNERS
+per-file RESOURCE_OWNERS = file:/RESOURCE_OWNERS
 per-file WEAR_OWNERS = file:/WEAR_OWNERS
 per-file ACTIVITY_MANAGER_OWNERS = file:/ACTIVITY_MANAGER_OWNERS
 per-file BATTERY_STATS_OWNERS = file:/BATTERY_STATS_OWNERS
@@ -55,3 +57,6 @@ per-file SDK_OWNERS = file:/SDK_OWNERS
 per-file PREUPLOAD_OWNERS = file:/PREUPLOAD_OWNERS
 per-file THERMAL_OWNERS = file:/THERMAL_OWNERS
 per-file PERFETTO_OWNERS = file:/PERFETTO_OWNERS
+per-file CONTENT_SAFETY_OWNERS = file:/CONTENT_SAFETY_OWNERS
+per-file SECURITY_STATE_OWNERS = file:/SECURITY_STATE_OWNERS
+per-file MEMORY_OWNERS = file:/MEMORY_OWNERS

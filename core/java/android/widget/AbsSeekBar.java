@@ -569,6 +569,13 @@ public abstract class AbsSeekBar extends ProgressBar {
         return mKeyProgressIncrement;
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This may also update the key progress increment. If the key progress increment is not set,
+     * or if it would take more than 20 key presses to traverse the entire range, the key progress
+     * increment will be automatically set to range / 20.
+     */
     @Override
     public synchronized void setMin(int min) {
         super.setMin(min);
@@ -582,6 +589,13 @@ public abstract class AbsSeekBar extends ProgressBar {
         }
     }
 
+    /**
+     * {@inheritDoc}
+     * <p>
+     * This may also update the key progress increment. If the key progress increment is not set,
+     * or if it would take more than 20 key presses to traverse the entire range, the key progress
+     * increment will be automatically set range / 20.
+     */
     @Override
     public synchronized void setMax(int max) {
         super.setMax(max);

@@ -20,7 +20,6 @@ package com.android.systemui.kairos
  * A value that may not be immediately (synchronously) available, but is guaranteed to be available
  * before this transaction is completed.
  */
-@ExperimentalKairosApi
 class DeferredValue<out A> internal constructor(internal val unwrapped: Lazy<A>) {
     /**
      * Returns the value held by this [DeferredValue], or throws [IllegalStateException] if it is
@@ -31,4 +30,4 @@ class DeferredValue<out A> internal constructor(internal val unwrapped: Lazy<A>)
 }
 
 /** Returns an already-available [DeferredValue] containing [value]. */
-@ExperimentalKairosApi fun <A> deferredOf(value: A): DeferredValue<A> = DeferredValue(lazyOf(value))
+fun <A> deferredOf(value: A): DeferredValue<A> = DeferredValue(lazyOf(value))

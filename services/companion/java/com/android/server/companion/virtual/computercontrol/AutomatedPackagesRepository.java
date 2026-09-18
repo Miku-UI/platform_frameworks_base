@@ -17,6 +17,7 @@
 package com.android.server.companion.virtual.computercontrol;
 
 import static android.companion.virtual.computercontrol.ComputerControlSession.EXTRA_AUTOMATING_PACKAGE_NAME;
+import static android.companion.virtual.computercontrol.ComputerControlSession.RESULT_STOP_AUTOMATION;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -47,7 +48,7 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /** Keeps track of all packages running on computer control sessions and notifies listeners. */
-public class AutomatedPackagesRepository {
+public final class AutomatedPackagesRepository {
 
     private static final String TAG = AutomatedPackagesRepository.class.getSimpleName();
 
@@ -83,19 +84,37 @@ public class AutomatedPackagesRepository {
     @GuardedBy("mLock")
     private final SparseArray<String> mDeviceOwnerPackageNames = new SparseArray<>();
 
-    // Set of userId and package pairs that have been intercepted and the user chose to proceed
-    // with launching. These should not be intercepted again.
-    @GuardedBy("mLock")
-    private final ArraySet<Pair<Integer, String>> mInterceptedLaunches = new ArraySet<>();
-
     public AutomatedPackagesRepository(Handler handler) {
         mHandler = handler;
+    }
+
+    /** Watchdog monitor for deadlocks. */
+    public void monitor() {
+        synchronized (mLock) { /* no-op */ }
     }
 
     /** Register a listener for automated package changes. */
     public void registerAutomatedPackageListener(IAutomatedPackageListener listener) {
         synchronized (mLock) {
             mAutomatedPackageListeners.register(listener);
+
+            // Immediately dispatch the currently automated packages.
+            for (int i = 0; i < mAutomatedPackages.size(); ++i) {
+                final String ownerPackage = mAutomatedPackages.keyAt(i);
+                final SparseArray<ArraySet<String>> userToPackages = mAutomatedPackages.valueAt(i);
+                for (int j = 0; j < userToPackages.size(); ++j) {
+                    final UserHandle user = UserHandle.of(userToPackages.keyAt(j));
+                    final ArrayList<String> packages = new ArrayList<>(userToPackages.valueAt(j));
+                    mHandler.post(() -> {
+                        try {
+                            listener.onAutomatedPackagesChanged(ownerPackage, packages, user);
+                        } catch (RemoteException e) {
+                            Slog.w(TAG, "Failed to invoke onAutomatedPackagesChanged listener: "
+                                    + e.getMessage());
+                        }
+                    });
+                }
+            }
         }
     }
 
@@ -111,16 +130,9 @@ public class AutomatedPackagesRepository {
     public Intent createAutomatedAppLaunchWarningIntent(
             @NonNull String packageName, @UserIdInt int userId,
             @Nullable String callingPackageName,
-            @Nullable String launchVirtualDeviceOwnerPackageName,
+            @Nullable String deviceOwnerForLaunchDisplayId,
             @NonNull Consumer<Integer> closeVirtualDevice) {
-        final Pair<Integer, String> uidPackagePair = new Pair<>(userId, packageName);
         synchronized (mLock) {
-            if (mInterceptedLaunches.remove(uidPackagePair)) {
-                // This package/userId pair has already been intercepted and the user chose to
-                // proceed with the launch.
-                return null;
-            }
-
             for (int i = 0; i < mDevicePackages.size(); ++i) {
                 if (!mDevicePackages.valueAt(i).get(userId, EMPTY_SET).contains(packageName)) {
                     // This package/userId pair is not automated.
@@ -128,7 +140,7 @@ public class AutomatedPackagesRepository {
                 }
                 final String deviceOwner = mDeviceOwnerPackageNames.get(mDevicePackages.keyAt(i));
                 if (Objects.equals(deviceOwner, callingPackageName)
-                        || Objects.equals(deviceOwner, launchVirtualDeviceOwnerPackageName)) {
+                        || Objects.equals(deviceOwner, deviceOwnerForLaunchDisplayId)) {
                     // The automating package initiated the launch or the new display is also owned
                     // by the same automating package.
                     continue;
@@ -136,16 +148,34 @@ public class AutomatedPackagesRepository {
 
                 final int deviceId = mDevicePackages.keyAt(i);
                 final var resultReceiver = new StopAutomationResultReceiver(
-                        uidPackagePair, () -> closeVirtualDevice.accept(deviceId));
+                        deviceId, deviceOwner, () -> closeVirtualDevice.accept(deviceId));
 
+                Slog.d(TAG, "Creating AutomatedAppLaunchWarningIntent for " + packageName);
                 return new Intent()
                         .setComponent(AUTOMATED_APP_LAUNCH_WARNING_ACTIVITY)
                         .putExtra(Intent.EXTRA_PACKAGE_NAME, packageName)
+                        .putExtra(Intent.EXTRA_USER_ID, userId)
                         .putExtra(EXTRA_AUTOMATING_PACKAGE_NAME, deviceOwner)
-                        .putExtra(Intent.EXTRA_RESULT_RECEIVER, resultReceiver.prepareForIpc());
+                        .putExtra(Intent.EXTRA_RESULT_RECEIVER, resultReceiver.prepareForIpc())
+                        .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+                                | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
             }
         }
         return null;
+    }
+
+    /** Validates the intent to warn the user about launching an automated application. */
+    public boolean validateAutomatedAppLaunchWarningIntent(@NonNull Intent intent) {
+        String packageName = intent.getStringExtra(Intent.EXTRA_PACKAGE_NAME);
+        int userId = intent.getIntExtra(Intent.EXTRA_USER_ID, UserHandle.USER_NULL);
+        synchronized (mLock) {
+            for (int i = 0; i < mDevicePackages.size(); ++i) {
+                if (mDevicePackages.valueAt(i).get(userId, EMPTY_SET).contains(packageName)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Update the list of packages running on a device. */
@@ -156,6 +186,7 @@ public class AutomatedPackagesRepository {
         }
     }
 
+    @GuardedBy("mLock")
     private void updateLocked(int deviceId, String deviceOwnerPackageName,
             ArraySet<Pair<Integer, String>> uidPackagePairs) {
         if (uidPackagePairs.isEmpty()) {
@@ -266,23 +297,33 @@ public class AutomatedPackagesRepository {
 
     private final class StopAutomationResultReceiver extends ResultReceiver {
 
-        private final Pair<Integer, String> mUidPackagePair;
+        private final int mDeviceId;
+        private final String mDeviceOwnerPackageName;
         private final Runnable mCloseVirtualDevice;
 
-        StopAutomationResultReceiver(@NonNull Pair<Integer, String> uidPackagePair,
+        StopAutomationResultReceiver(int deviceId, @NonNull String deviceOwnerPackageName,
                 @NonNull Runnable closeVirtualDevice) {
             super(mHandler);
-            mUidPackagePair = uidPackagePair;
+            mDeviceId = deviceId;
+            mDeviceOwnerPackageName = deviceOwnerPackageName;
             mCloseVirtualDevice = closeVirtualDevice;
         }
 
         @Override
         protected void onReceiveResult(int resultCode, Bundle data) {
-            if (resultCode == Activity.RESULT_OK) {
-                synchronized (mLock) {
-                    mInterceptedLaunches.add(mUidPackagePair);
+            switch (resultCode) {
+                case RESULT_STOP_AUTOMATION -> {
+                    // Update the list of packages running on the device to an empty list.
+                    // This is needed during intent interception of automated apps, when the app
+                    // launch should proceed and the automation closed. To prevent subsequent
+                    // interception of the launch intent, we need to clear the automated packages
+                    // repository, then launch, then close the device.
+                    synchronized (mLock) {
+                        updateLocked(mDeviceId, mDeviceOwnerPackageName, new ArraySet<>());
+                    }
                 }
-                mHandler.post(mCloseVirtualDevice);
+                case Activity.RESULT_OK -> mCloseVirtualDevice.run();
+                default -> Slog.w(TAG, "Received unexpected resultCode: " + resultCode);
             }
         }
 

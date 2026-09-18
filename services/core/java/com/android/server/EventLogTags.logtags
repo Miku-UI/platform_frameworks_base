@@ -98,6 +98,8 @@ option java_package com.android.server
 27536 notification_cancel_prevented (key|3)
 # when a summary notification is converted to a regular notification because of force autogrouping
 27537 notification_summary_converted (key|3)
+# when the system requests an adjustment from an assistant
+27538 notification_system_adjustments_received (key|3),(adjustment_keys|3)
 
 # ---------------------------
 # Watchdog.java

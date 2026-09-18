@@ -18,11 +18,11 @@ package com.android.systemui.volume.panel.component.mediainput
 
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.volume.panel.component.mediainput.ui.composable.MediaInputComponent
-import com.android.systemui.volume.panel.component.mediainput.ui.viewmodel.mediaInputViewModel
+import com.android.systemui.volume.panel.component.mediainput.ui.viewmodel.mediaInputViewModelFactory
 import com.android.systemui.volume.panel.domain.ComponentAvailabilityCriteria
 import com.android.systemui.volume.panel.domain.availableCriteria
 
 var Kosmos.mediaInputComponent: MediaInputComponent by
-    Kosmos.Fixture { MediaInputComponent(mediaInputViewModel) }
+    Kosmos.Fixture { MediaInputComponent(mediaInputViewModelFactory) }
 var Kosmos.mediaInputAvailabilityCriteria: ComponentAvailabilityCriteria by
     Kosmos.Fixture { availableCriteria }

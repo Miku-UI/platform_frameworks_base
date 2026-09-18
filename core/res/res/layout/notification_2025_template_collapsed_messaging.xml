@@ -105,7 +105,6 @@
                         android:layout_marginStart="@dimen/notification_2025_content_margin_start"
                         android:layout_marginEnd="@dimen/notification_2025_content_margin_end"
                         android:clipChildren="false"
-                        android:theme="@style/Theme.DeviceDefault.Notification"
                         >
 
                         <!--

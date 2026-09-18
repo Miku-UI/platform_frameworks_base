@@ -225,10 +225,6 @@ public abstract class ProfileSelectFragment extends Fragment {
     // to be here only for this API level - when then private profile was introduced.
     @TargetApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     private boolean shouldShowPrivateProfileIfItsOne(UserHandle userHandle) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM
-                || !android.os.Flags.allowPrivateProfile()) {
-            return false;
-        }
         try {
             Context userContext = getContext().createContextAsUser(userHandle, /* flags= */ 0);
             UserManager userManager = userContext.getSystemService(UserManager.class);

@@ -20,8 +20,7 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
 import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
@@ -38,38 +37,27 @@ import kotlinx.coroutines.flow.combine
 class AirplaneModeIconViewModel
 @AssistedInject
 constructor(@Assisted context: Context, interactor: AirplaneModeInteractor) :
-    SystemStatusIconViewModel.Default, ExclusiveActivatable() {
+    SystemStatusIconViewModel.Default, HydratedActivatable() {
     init {
         /* check if */ SystemStatusIconsInCompose.isUnexpectedlyInLegacyMode()
     }
 
-    private val hydrator = Hydrator("AirplaneModeIconViewModel.hydrator")
-
     override val slotName = context.getString(com.android.internal.R.string.status_bar_airplane)
 
     override val visible: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = null,
-            initialValue = false,
-            source =
-                combine(interactor.isAirplaneMode, interactor.isForceHidden) {
-                    isAirplaneMode,
-                    isForceHidden ->
-                    isAirplaneMode && !isForceHidden
-                },
-        )
+        combine(interactor.isAirplaneMode, interactor.isForceHidden) { isAirplaneMode, isForceHidden
+                ->
+                isAirplaneMode && !isForceHidden
+            }
+            .hydratedStateOf(traceName = null, initialValue = false)
 
     override val icon: Icon?
         get() = visible.toUiState()
 
-    override suspend fun onActivated(): Nothing {
-        hydrator.activate()
-    }
-
     private fun Boolean.toUiState(): Icon? =
         if (this) {
             Icon.Resource(
-                resId = com.android.internal.R.drawable.ic_qs_airplane,
+                resId = R.drawable.stat_sys_airplane_mode,
                 contentDescription =
                     ContentDescription.Resource(R.string.accessibility_airplane_mode),
             )

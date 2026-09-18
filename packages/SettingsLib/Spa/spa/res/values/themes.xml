@@ -23,7 +23,7 @@
         <item name="android:windowNoTitle">true</item>
     </style>
 
-    <style name="Theme.SpaLib.Dialog" parent="Theme.Material3.DayNight.Dialog">
+    <style name="Theme.SpaLib.Dialog" parent="Theme.Material3.DayNight.Dialog.Alert">
         <item name="android:windowBackground">@android:color/transparent</item>
     </style>
 

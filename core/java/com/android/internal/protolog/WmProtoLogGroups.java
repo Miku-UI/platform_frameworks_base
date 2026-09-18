@@ -41,8 +41,7 @@ public enum WmProtoLogGroups implements IProtoLogGroup {
     WM_DEBUG_LOCKTASK(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
     WM_DEBUG_STATES(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
     WM_DEBUG_TASKS(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
-  // TODO: b/420917959 - Disable launch params logging this once the bug is fixed.
-    WM_DEBUG_TASKS_LAUNCH_PARAMS(Consts.ENABLE_DEBUG, true, Consts.TAG_WM),
+    WM_DEBUG_TASKS_LAUNCH_PARAMS(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
     WM_DEBUG_STARTING_WINDOW(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
     WM_SHOW_TRANSACTIONS(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
     WM_SHOW_SURFACE_ALLOC(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
@@ -66,11 +65,14 @@ public enum WmProtoLogGroups implements IProtoLogGroup {
     WM_DEBUG_WALLPAPER(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
     WM_DEBUG_BACK_PREVIEW(Consts.ENABLE_DEBUG, true, "CoreBackPreview"),
     WM_DEBUG_DREAM(Consts.ENABLE_DEBUG, true, Consts.TAG_WM),
-
+    WM_DEBUG_CAMERA_COMPAT(Consts.ENABLE_DEBUG, true, Consts.TAG_WM),
     WM_DEBUG_DIMMER(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
     WM_DEBUG_TPL(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
     WM_DEBUG_EMBEDDED_WINDOWS(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
     WM_DEBUG_PRESENTATION(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
+    WM_DEBUG_PACKAGE_UPDATE(Consts.ENABLE_DEBUG, true, "CorePackageUpdate"),
+    WM_DEBUG_APP_COMPAT(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
+    WM_DEBUG_APP_LOCK(Consts.ENABLE_DEBUG, false, Consts.TAG_WM),
     TEST_GROUP(true, false, "WindowManagerProtoLogTest");
 
     private final boolean mEnabled;

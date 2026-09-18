@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include "TestSceneBase.h"
-
 #include <SkBlendMode.h>
 #include <SkColorFilter.h>
 #include <SkColorMatrix.h>
-#include <SkGradientShader.h>
+#include <SkGradient.h>
+
+#include "TestSceneBase.h"
 
 class SimpleColorMatrixAnimation;
 
@@ -65,11 +65,12 @@ private:
                     // set a shader so it's not likely for the matrix to be optimized away (since a
                     // clever
                     // enough renderer might apply it directly to the paint color)
-                    float pos[] = {0, 1};
-                    SkPoint pts[] = {SkPoint::Make(0, 0), SkPoint::Make(width, height)};
-                    SkColor colors[2] = {Color::DeepPurple_500, Color::DeepOrange_500};
-                    paint.setShader(SkGradientShader::MakeLinear(pts, colors, pos, 2,
-                                                                 SkTileMode::kClamp));
+                    const float pos[] = {0, 1};
+                    const SkPoint pts[] = {SkPoint::Make(0, 0), SkPoint::Make(width, height)};
+                    const SkColor4f colors[] = {SkColor4f::FromColor(Color::DeepPurple_500),
+                                                SkColor4f::FromColor(Color::DeepOrange_500)};
+                    paint.setShader(SkShaders::LinearGradient(
+                            pts, SkGradient({colors, pos, SkTileMode::kClamp}, {})));
 
                     // overdraw several times to emphasize shader cost
                     for (int i = 0; i < 10; i++) {

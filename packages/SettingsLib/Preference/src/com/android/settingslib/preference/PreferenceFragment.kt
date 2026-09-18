@@ -27,8 +27,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceDataStore
 import androidx.preference.PreferenceScreen
 import com.android.settingslib.datastore.KeyValueStore
+import com.android.settingslib.metadata.CatalystFlagProviderFactory
 import com.android.settingslib.metadata.EXTRA_BINDING_SCREEN_ARGS
 import com.android.settingslib.metadata.EXTRA_BINDING_SCREEN_KEY
+import com.android.settingslib.metadata.ValidatedKeyParameters
 import com.android.settingslib.metadata.PreferenceHierarchy
 import com.android.settingslib.metadata.PreferenceHierarchyGenerator
 import com.android.settingslib.metadata.PreferenceScreenBindingKeyProvider
@@ -181,22 +183,46 @@ open class PreferenceFragment :
     protected fun getPreferenceScreenCreator(context: Context): PreferenceScreenCreator? {
         if (preferenceScreenCreatorInitialized) return preferenceScreenCreator
         preferenceScreenCreatorInitialized = true
-        val screenCreator =
-            (PreferenceScreenRegistry.create(
-                    context,
-                    getPreferenceScreenBindingKey(context),
-                    getPreferenceScreenBindingArgs(context),
-                ) as? PreferenceScreenCreator)
-                ?.run { if (isFlagEnabled(context)) this else null }
-        preferenceScreenCreator = screenCreator
-        return screenCreator
+
+        val screenKey = getPreferenceScreenBindingKey(context)
+
+        val preferenceScreenMetadata = if (CatalystFlagProviderFactory.catalystUseKeyParameters()) {
+            PreferenceScreenRegistry.createWithKeyParameters(
+                context,
+                screenKey,
+                getPreferenceScreenBindingKeyParameters(context),
+            )
+        } else {
+            PreferenceScreenRegistry.create(
+                context,
+                screenKey,
+                getPreferenceScreenBindingArgs(context),
+            )
+        }
+
+        preferenceScreenCreator = preferenceScreenMetadata?.run {
+            if (isFlagEnabled(context)) this as? PreferenceScreenCreator else null
+        }
+
+        return preferenceScreenCreator
     }
 
     override fun getPreferenceScreenBindingKey(context: Context): String? =
         arguments?.getString(EXTRA_BINDING_SCREEN_KEY)
 
+    @Deprecated("This method will be removed once the catalyst framework stops passing the arguments as a bundle. Use getPreferenceScreenBindingKeyParameters instead.")
     override fun getPreferenceScreenBindingArgs(context: Context): Bundle? =
         arguments?.getBundle(EXTRA_BINDING_SCREEN_ARGS)
+
+    override fun getPreferenceScreenBindingKeyParameters(context: Context): ValidatedKeyParameters? {
+        val screenKey = getPreferenceScreenBindingKey(context) ?: return null
+        val arguments = arguments?.getBundle(EXTRA_BINDING_SCREEN_ARGS) ?: return null
+
+        val parametersSchema = PreferenceScreenRegistry.getScreenParametersSchema(screenKey) ?: return null
+
+        return parametersSchema.prepare(arguments)
+    }
+
 
     /**
      * Switches to given preference hierarchy type.

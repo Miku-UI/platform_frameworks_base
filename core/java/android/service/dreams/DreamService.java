@@ -16,11 +16,11 @@
 
 package android.service.dreams;
 
+import static android.service.dreams.Flags.FLAG_USER_SELECTABLE_METADATA;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
-import static android.service.dreams.Flags.allowDreamAttachFailure;
 import static android.service.dreams.Flags.dreamHandlesBeingObscured;
 import static android.service.dreams.Flags.dreamHandlesConfirmKeys;
-import static android.service.dreams.Flags.startAndStopDozingInBackground;
+import static android.service.dreams.Flags.userSelectableMetadata;
 
 import android.annotation.FlaggedApi;
 import android.annotation.IdRes;
@@ -236,6 +236,13 @@ public class DreamService extends Service implements Window.Callback {
      * @hide
      */
     public static final int DREAM_CATEGORY_HOME_PANEL = 1 << 1;
+
+    /**
+     * The default value for whether the dream is user selectable.
+     *
+     * @hide
+     */
+    public static final boolean DEFAULT_USER_SELECTABLE = true;
 
     /** @hide */
     @IntDef(flag = true, prefix = {"DREAM_CATEGORY"}, value = {
@@ -939,15 +946,9 @@ public class DreamService extends Service implements Window.Callback {
             try {
                 Slog.v(mTag, "UpdateDoze mDozeScreenState=" + mDozeScreenState
                         + " mDozeScreenBrightness=" + mDozeScreenBrightness);
-                if (startAndStopDozingInBackground()) {
-                    mDreamManager.startDozingOneway(
-                            dreamToken, mDozeScreenState, mDozeScreenStateReason,
-                            mDozeScreenBrightness, mUseNormalBrightnessForDoze);
-                } else {
-                    mDreamManager.startDozing(
-                            dreamToken, mDozeScreenState, mDozeScreenStateReason,
-                            mDozeScreenBrightness, mUseNormalBrightnessForDoze);
-                }
+                mDreamManager.startDozingOneway(
+                        dreamToken, mDozeScreenState, mDozeScreenStateReason,
+                        mDozeScreenBrightness, mUseNormalBrightnessForDoze);
             } catch (RemoteException ex) {
                 // system server died
             }
@@ -1336,11 +1337,7 @@ public class DreamService extends Service implements Window.Callback {
         try {
             // finishSelf will unbind the dream controller from the dream service. This will
             // trigger DreamService.this.onDestroy and DreamService.this will die.
-            if (startAndStopDozingInBackground()) {
-                mDreamManager.finishSelfOneway(dreamToken, true /*immediate*/);
-            } else {
-                mDreamManager.finishSelf(dreamToken, true /*immediate*/);
-            }
+            mDreamManager.finishSelfOneway(dreamToken, true /*immediate*/);
         } catch (RemoteException ex) {
             // system server died
         }
@@ -1429,11 +1426,7 @@ public class DreamService extends Service implements Window.Callback {
                         final IBinder dreamToken = mDreamToken;
 
                         if (dreamToken != null) {
-                            if (startAndStopDozingInBackground()) {
-                                mDreamManager.finishSelfOneway(dreamToken, false /*immediate*/);
-                            } else {
-                                mDreamManager.finishSelf(dreamToken, false /*immediate*/);
-                            }
+                            mDreamManager.finishSelfOneway(dreamToken, false /*immediate*/);
                         }
                     } catch (RemoteException ex) {
                         // system server died
@@ -1498,9 +1491,13 @@ public class DreamService extends Service implements Window.Callback {
                                 packageManager),
                         rawMetadata.getDrawable(
                                 com.android.internal.R.styleable.Dream_previewImage),
+                        rawMetadata.getResourceId(
+                                com.android.internal.R.styleable.Dream_previewImage, 0),
                         rawMetadata.getBoolean(R.styleable.Dream_showClockAndComplications,
                                 DEFAULT_SHOW_COMPLICATIONS),
-                        rawMetadata.getInt(R.styleable.Dream_dreamCategory, DREAM_CATEGORY_DEFAULT)
+                        rawMetadata.getInt(R.styleable.Dream_dreamCategory, DREAM_CATEGORY_DEFAULT),
+                        rawMetadata.getBoolean(R.styleable.Dream_userSelectable,
+                                DEFAULT_USER_SELECTABLE)
                 );
             } catch (Exception exception) {
                 Log.e(TAG, "Failed to create read metadata", exception);
@@ -1580,25 +1577,19 @@ public class DreamService extends Service implements Window.Callback {
         if (mDreamToken != null) {
             Slog.e(mTag, "attach() called when dream with token=" + mDreamToken
                     + " already attached");
-            if (allowDreamAttachFailure()) {
-                try {
-                    final Bundle result = new Bundle();
-                    result.putBoolean(BUNDLE_KEY_ATTACH_ERROR, true);
-                    started.sendResult(result);
-                } catch (RemoteException e) {
-                    // The dream controller is dead, so there is nothing to do.
-                }
+            try {
+                final Bundle result = new Bundle();
+                result.putBoolean(BUNDLE_KEY_ATTACH_ERROR, true);
+                started.sendResult(result);
+            } catch (RemoteException e) {
+                // The dream controller is dead, so there is nothing to do.
             }
             return;
         }
         if (mFinished || mWaking) {
             Slog.w(mTag, "attach() called after dream already finished");
             try {
-                if (startAndStopDozingInBackground()) {
-                    mDreamManager.finishSelfOneway(dreamToken, true /*immediate*/);
-                } else {
-                    mDreamManager.finishSelf(dreamToken, true /*immediate*/);
-                }
+                mDreamManager.finishSelfOneway(dreamToken, true /*immediate*/);
             } catch (RemoteException ex) {
                 // system server died
             }
@@ -1996,18 +1987,44 @@ public class DreamService extends Service implements Window.Callback {
     @VisibleForTesting
     @TestApi
     public static final class DreamMetadata {
+        /**
+         * Optional component for an activity which can be started by the system to configure the
+         * dream.
+         */
         @Nullable
         public final ComponentName settingsActivity;
 
+        /**
+         * A preview image for this screensaver.
+         */
         @Nullable
         public final Drawable previewImage;
 
+        /**
+         * The resource identifier for the preview image.
+         *
+         * @hide
+         */
+        public final int previewImageResId;
+
+        /**
+         * Indicates whether the dream supports complications.
+         */
         @NonNull
         public final boolean showComplications;
 
+        /**
+         * The category assigned to the dream.
+         */
         @NonNull
         @FlaggedApi(Flags.FLAG_HOME_PANEL_DREAM)
         public final int dreamCategory;
+
+        /**
+         * Indicates whether the dream is user-selectable.
+         */
+        @FlaggedApi(FLAG_USER_SELECTABLE_METADATA)
+        public final boolean userSelectable;
 
         /**
          * @hide
@@ -2016,15 +2033,23 @@ public class DreamService extends Service implements Window.Callback {
         public DreamMetadata(
                 ComponentName settingsActivity,
                 Drawable previewImage,
+                int previewImageResId,
                 boolean showComplications,
-                int dreamCategory) {
+                int dreamCategory,
+                boolean userSelectable) {
             this.settingsActivity = settingsActivity;
             this.previewImage = previewImage;
+            this.previewImageResId = previewImageResId;
             this.showComplications = showComplications;
             if (Flags.homePanelDream()) {
                 this.dreamCategory = dreamCategory;
             } else {
                 this.dreamCategory = DREAM_CATEGORY_DEFAULT;
+            }
+            if (userSelectableMetadata()) {
+                this.userSelectable = userSelectable;
+            } else {
+                this.userSelectable = DEFAULT_USER_SELECTABLE;
             }
         }
     }

@@ -17,6 +17,7 @@
 package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
+import android.platform.test.annotations.WithDesktopTest
 import android.tools.Rotation
 import android.tools.device.apphelpers.CalculatorAppHelper
 import android.tools.traces.parsers.WindowManagerStateHelper
@@ -31,15 +32,14 @@ import org.junit.Ignore
 import org.junit.Test
 
 @Ignore("Test Base Class")
-abstract class OpenAppFromAllApps(val rotation: Rotation = Rotation.ROTATION_0) : TestScenarioBase(
-    rotation
-) {
+abstract class OpenAppFromAllApps(val rotation: Rotation = Rotation.ROTATION_0) :
+    TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val tapl = LauncherInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
-    private val testApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
+    val testApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
     val calculatorApp = CalculatorAppHelper(instrumentation)
 
     @Before
@@ -49,6 +49,7 @@ abstract class OpenAppFromAllApps(val rotation: Rotation = Rotation.ROTATION_0) 
     }
 
     @Test
+    @WithDesktopTest
     open fun openApp() {
         tapl.launchedAppState.taskbar
             .openAllApps()

@@ -17,10 +17,8 @@
 package com.android.systemui.qs.pipeline.domain.upgrade
 
 import android.content.ComponentName
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.runTest
@@ -36,7 +34,6 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(Flags.FLAG_RESET_TILES_REMOVES_CUSTOM_TILES)
 class RemoveAlreadyRemovedTilesTest : SysuiTestCase() {
 
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()

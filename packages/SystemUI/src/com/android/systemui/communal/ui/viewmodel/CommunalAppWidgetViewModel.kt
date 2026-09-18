@@ -19,7 +19,6 @@ package com.android.systemui.communal.ui.viewmodel
 import android.appwidget.AppWidgetHost.AppWidgetHostListener
 import android.appwidget.AppWidgetHostView
 import android.os.Bundle
-import android.os.DeadObjectException
 import android.util.Log
 import android.util.SizeF
 import com.android.app.tracing.coroutines.coroutineScopeTraced
@@ -28,13 +27,13 @@ import com.android.systemui.communal.shared.model.GlanceableHubMultiUserHelper
 import com.android.systemui.communal.widgets.AppWidgetHostListenerDelegate
 import com.android.systemui.communal.widgets.CommunalAppWidgetHost
 import com.android.systemui.communal.widgets.GlanceableHubWidgetManager
+import com.android.systemui.communal.widgets.isBinderSizeError
 import com.android.systemui.dagger.qualifiers.UiBackground
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import dagger.Lazy
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import kotlin.coroutines.CoroutineContext
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -81,22 +80,24 @@ constructor(
         }
     }
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         coroutineScopeTraced("$TAG#onActivated") {
             requests.receiveAsFlow().collect { request ->
                 when (request) {
                     is SetListener ->
                         try {
                             handleSetListener(request.appWidgetId, request.listener)
-                        } catch (exception: DeadObjectException) {
-                            Log.e(TAG, "could not set listener", exception)
+                        } catch (exception: Exception) {
+                            if (exception.isBinderSizeError()) {
+                                Log.e(TAG, "could not set listener", exception)
+                            } else {
+                                throw exception
+                            }
                         }
                     is UpdateSize -> handleUpdateSize(request.size, request.view)
                 }
             }
         }
-
-        awaitCancellation()
     }
 
     private suspend fun handleSetListener(appWidgetId: Int, listener: AppWidgetHostListener) =

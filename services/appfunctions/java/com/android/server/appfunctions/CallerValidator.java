@@ -27,6 +27,7 @@ import com.android.internal.infra.AndroidFuture;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Interface for validating that the caller has the correct privilege to call an AppFunctionManager
@@ -75,7 +76,7 @@ public interface CallerValidator {
      * @return Whether the caller can execute the specified app function.
      */
     @CanExecuteAppFunctionResult
-    AndroidFuture<Integer> verifyCallerCanExecuteAppFunction(
+    CompletableFuture<Integer> verifyCallerCanExecuteAppFunction(
             int callingUid,
             int callingPid,
             @NonNull UserHandle targetUser,
@@ -117,6 +118,7 @@ public interface CallerValidator {
                 CAN_EXECUTE_APP_FUNCTIONS_DENIED,
                 CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_SAME_PACKAGE,
                 CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_HAS_PERMISSION,
+                CAN_EXECUTE_APP_FUNCTIONS_DENIED_NOT_ALLOWLISTED,
             })
     @Retention(RetentionPolicy.SOURCE)
     @interface CanExecuteAppFunctionResult {}
@@ -135,6 +137,9 @@ public interface CallerValidator {
      * applies when a caller with the permission invokes their own app functions.
      */
     int CAN_EXECUTE_APP_FUNCTIONS_ALLOWED_HAS_PERMISSION = 2;
+
+    /** Interactions between the caller and target package are not allowlisted. */
+    int CAN_EXECUTE_APP_FUNCTIONS_DENIED_NOT_ALLOWLISTED = 3;
 
     /**
      * Checks if the app function policy is allowed.

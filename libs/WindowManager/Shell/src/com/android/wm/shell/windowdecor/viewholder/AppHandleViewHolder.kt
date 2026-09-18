@@ -29,7 +29,6 @@ import android.view.LayoutInflater
 import android.view.MotionEvent.ACTION_DOWN
 import android.view.SurfaceControl
 import android.view.View
-import android.view.View.OnClickListener
 import android.view.ViewDebug
 import android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
 import android.view.WindowManager
@@ -48,14 +47,20 @@ import com.android.window.flags.Flags
 import com.android.wm.shell.R
 import com.android.wm.shell.desktopmode.DesktopModeUiEventLogger
 import com.android.wm.shell.desktopmode.DesktopModeUiEventLogger.DesktopUiEventEnum.A11Y_APP_HANDLE_MENU_OPENED
+import com.android.wm.shell.desktopmode.DesktopTasksController
+import com.android.wm.shell.pinnedlayer.phone.PinnedLayerController
 import com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_WINDOW_DECORATION
-import com.android.wm.shell.shared.bubbles.BubbleAnythingFlagHelper
+import com.android.wm.shell.shared.bubbles.BubbleFlagHelper
+import com.android.wm.shell.transition.FocusTransitionObserver
+import com.android.wm.shell.windowdecor.HandleMenuController
 import com.android.wm.shell.windowdecor.WindowDecorLinearLayout
+import com.android.wm.shell.windowdecor.WindowDecorationActions
 import com.android.wm.shell.windowdecor.WindowManagerWrapper
 import com.android.wm.shell.windowdecor.additionalviewcontainer.AdditionalSystemViewContainer
 import com.android.wm.shell.windowdecor.common.DecorThemeUtil
 import com.android.wm.shell.windowdecor.common.Theme
 import com.android.wm.shell.windowdecor.extension.identityHashCode
+import com.android.wm.shell.windowdecor.extension.throttleFirstClicks
 
 /**
  * A desktop mode window decoration used when the window is in full "focus" (i.e. fullscreen/split).
@@ -64,11 +69,15 @@ import com.android.wm.shell.windowdecor.extension.identityHashCode
 class AppHandleViewHolder(
     appHandleView: View?,
     private val context: Context,
+    windowDecorationActions: WindowDecorationActions,
     onCaptionTouchListener: View.OnTouchListener,
-    onCaptionButtonClickListener: OnClickListener,
     private val windowManagerWrapper: WindowManagerWrapper,
     private val handler: Handler,
     private val desktopModeUiEventLogger: DesktopModeUiEventLogger,
+    private val handleMenuController: HandleMenuController,
+    private val focusTransitionObserver: FocusTransitionObserver,
+    private val pinnedLayerController: PinnedLayerController?,
+    private val desktopTasksController: DesktopTasksController,
 ) : WindowDecorationViewHolder<AppHandleViewHolder.HandleData>() {
 
     data class HandleData(
@@ -89,7 +98,8 @@ class AppHandleViewHolder(
             } else {
                 error("App Handle root view should not be null")
             }
-    private val captionView: View = rootView.requireViewById(R.id.desktop_mode_caption)
+    private val captionView: WindowDecorLinearLayout =
+        rootView.requireViewById(R.id.desktop_mode_caption)
     val captionHandle: ImageButton = rootView.requireViewById(R.id.caption_handle)
     private val inputManager = context.getSystemService(InputManager::class.java)
     private val decorThemeUtil = DecorThemeUtil(context)
@@ -102,13 +112,19 @@ class AppHandleViewHolder(
     private var statusBarInputLayer: AdditionalSystemViewContainer? = null
     // TODO: b/444730302 - remove config once status bar input layer can be removed for all devices
     private val shouldAddStatusBarInputLayer =
-        !DesktopExperienceFlags.ENABLE_REMOVE_STATUS_BAR_INPUT_LAYER.isTrue ||
-            !context.resources.getBoolean(R.bool.config_removeStatusBarInputLayer)
+        !context.resources.getBoolean(R.bool.config_removeStatusBarInputLayer)
 
     init {
         captionView.setOnTouchListener(onCaptionTouchListener)
+        captionHandle.throttleFirstClicks(CLICK_DELAY) { v ->
+            // Clicking the App Handle.
+            desktopModeUiEventLogger.log(
+                taskInfo,
+                DesktopModeUiEventLogger.DesktopUiEventEnum.DESKTOP_WINDOW_APP_HANDLE_TAP,
+            )
+            windowDecorationActions.onOpenHandleMenu(taskInfo.taskId)
+        }
         captionHandle.setOnTouchListener(onCaptionTouchListener)
-        captionHandle.setOnClickListener(onCaptionButtonClickListener)
         if (!shouldAddStatusBarInputLayer) {
             ViewCompat.replaceAccessibilityAction(
                 captionHandle,
@@ -161,10 +177,7 @@ class AppHandleViewHolder(
             captionHandle.imageTintList = ColorStateList.valueOf(getCaptionHandleBarColor(taskInfo))
         }
         this.taskInfo = taskInfo
-        if (
-            !shouldAddStatusBarInputLayer &&
-                DesktopExperienceFlags.ENABLE_APP_HANDLE_POSITION_REPORTING.isTrue
-        ) {
+        if (!shouldAddStatusBarInputLayer) {
             return
         }
         // If handle is not in status bar region(i.e., bottom stage in vertical split),
@@ -198,6 +211,8 @@ class AppHandleViewHolder(
         handleHeight: Int,
     ) {
         if (!DesktopModeFlags.ENABLE_HANDLE_INPUT_FIX.isTrue()) return
+        val ignoreCutouts =
+            Flags.showAppHandleLargeScreens() || BubbleFlagHelper.enableBubbleToFullscreen()
         statusBarInputLayer =
             AdditionalSystemViewContainer(
                 context,
@@ -208,9 +223,7 @@ class AppHandleViewHolder(
                 handleWidth,
                 handleHeight,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                ignoreCutouts =
-                    Flags.showAppHandleLargeScreens() ||
-                        BubbleAnythingFlagHelper.enableBubbleToFullscreen(),
+                ignoreCutouts,
             )
         val view = statusBarInputLayer?.view ?: error("Unable to find statusBarInputLayer View")
         val lp =
@@ -256,8 +269,7 @@ class AppHandleViewHolder(
                     args: Bundle?,
                 ): Boolean {
                     // Passthrough the a11y click action so the caption handle, so that app handle
-                    // menu
-                    // is opened on a11y click, similar to a real click
+                    // menu is opened on a11y click, similar to a real click
                     if (action == AccessibilityAction.ACTION_CLICK.id) {
                         desktopModeUiEventLogger.log(taskInfo, A11Y_APP_HANDLE_MENU_OPENED)
                         captionHandle.performClick()
@@ -299,11 +311,7 @@ class AppHandleViewHolder(
      * visible.
      */
     fun disposeStatusBarInputLayer() {
-        if (
-            !statusBarInputLayerExists ||
-                (!shouldAddStatusBarInputLayer &&
-                    DesktopExperienceFlags.ENABLE_APP_HANDLE_POSITION_REPORTING.isTrue)
-        ) {
+        if (!statusBarInputLayerExists || !shouldAddStatusBarInputLayer) {
             return
         }
         statusBarInputLayerExists = false
@@ -315,18 +323,7 @@ class AppHandleViewHolder(
     }
 
     private fun setVisibility(visible: Boolean) {
-        if (DesktopExperienceFlags.ENABLE_REENABLE_APP_HANDLE_ANIMATIONS.isTrue) {
-            animator.animateVisibilityChange(visible)
-            return
-        }
-        val v = if (visible) View.VISIBLE else View.GONE
-        if (
-            captionView.visibility == v ||
-                !DesktopModeFlags.ENABLE_DESKTOP_APP_HANDLE_ANIMATION.isTrue()
-        ) {
-            return
-        }
-        captionView.visibility = v
+        animator.animateVisibilityChange(visible)
     }
 
     @ColorInt
@@ -353,14 +350,14 @@ class AppHandleViewHolder(
             when (decorThemeUtil.getAppTheme(description)) {
                 Theme.LIGHT -> {
                     logD(
-                        "color calculation: using light color, reason: light app theme (bgColor=%s)",
+                        "color calculation: using light color, reason: light app theme (bgColor=%d)",
                         bgColor,
                     )
                     return false
                 }
                 Theme.DARK -> {
                     logD(
-                        "color calculation: using dark color, reason: dark app theme (bgColor=%s)",
+                        "color calculation: using dark color, reason: dark app theme (bgColor=%d)",
                         bgColor,
                     )
                     return true
@@ -399,6 +396,8 @@ class AppHandleViewHolder(
         animator.cancel()
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logD(msg: String, vararg arguments: Any?) {
         ProtoLog.d(WM_SHELL_WINDOW_DECORATION, "%s: $msg", TAG, *arguments)
     }
@@ -419,24 +418,33 @@ class AppHandleViewHolder(
         fun create(
             rootView: View?,
             context: Context,
+            windowDecorationActions: WindowDecorationActions,
             onCaptionTouchListener: View.OnTouchListener,
-            onCaptionButtonClickListener: OnClickListener,
             windowManagerWrapper: WindowManagerWrapper,
             handler: Handler,
             desktopModeUiEventLogger: DesktopModeUiEventLogger,
+            handleMenuController: HandleMenuController,
+            focusTransitionObserver: FocusTransitionObserver,
+            pinnedLayerController: PinnedLayerController?,
+            desktopTasksController: DesktopTasksController,
         ): AppHandleViewHolder =
             AppHandleViewHolder(
                 rootView,
                 context,
+                windowDecorationActions,
                 onCaptionTouchListener,
-                onCaptionButtonClickListener,
                 windowManagerWrapper,
                 handler,
                 desktopModeUiEventLogger,
+                handleMenuController,
+                focusTransitionObserver,
+                pinnedLayerController,
+                desktopTasksController,
             )
     }
 
     companion object {
         private const val TAG = "AppHandleViewHolder"
+        private const val CLICK_DELAY: Long = 500
     }
 }

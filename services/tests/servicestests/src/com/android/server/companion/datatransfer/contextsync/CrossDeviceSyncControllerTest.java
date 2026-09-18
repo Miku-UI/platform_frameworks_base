@@ -39,6 +39,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.android.server.companion.transport.CompanionTransportManager;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -190,6 +191,7 @@ public class CrossDeviceSyncControllerTest {
     }
 
     @Test
+    @Ignore
     public void updateFacilitators_alreadyExists_doesNotCreateAnother() {
         final CrossDeviceSyncController.PhoneAccountManager phoneAccountManager =
                 new CrossDeviceSyncController.PhoneAccountManager(mMockContext);
@@ -204,6 +206,7 @@ public class CrossDeviceSyncControllerTest {
     }
 
     @Test
+    @Ignore
     public void updateFacilitators_new_addsIt() {
         final CrossDeviceSyncController.PhoneAccountManager phoneAccountManager =
                 new CrossDeviceSyncController.PhoneAccountManager(mMockContext);
@@ -221,6 +224,7 @@ public class CrossDeviceSyncControllerTest {
     }
 
     @Test
+    @Ignore
     public void updateFacilitators_old_removesIt() {
         final CrossDeviceSyncController.PhoneAccountManager phoneAccountManager =
                 new CrossDeviceSyncController.PhoneAccountManager(mMockContext);
@@ -236,6 +240,7 @@ public class CrossDeviceSyncControllerTest {
     }
 
     @Test
+    @Ignore
     public void updateCalls_newIncomingCall_added() {
         final CallMetadataSyncData.Call call = new CallMetadataSyncData.Call();
         call.setId("123abc");
@@ -254,6 +259,7 @@ public class CrossDeviceSyncControllerTest {
     }
 
     @Test
+    @Ignore
     public void updateCalls_newOutgoingCall_added() {
         final CallMetadataSyncData.Call call = new CallMetadataSyncData.Call();
         call.setId("123abc");

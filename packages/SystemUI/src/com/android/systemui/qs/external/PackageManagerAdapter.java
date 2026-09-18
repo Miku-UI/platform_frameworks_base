@@ -32,7 +32,7 @@ import com.android.systemui.dagger.qualifiers.Application;
 
 import javax.inject.Inject;
 
-// Adapter that wraps calls to PackageManager or IPackageManager for {@link TileLifecycleManager}.
+// Adapter that wraps calls to PackageManager or IPackageManager.
 // TODO: This is very much an intermediate step to allow for PackageManager mocking and should be
 // abstracted into something more useful for other tests in systemui.
 public class PackageManagerAdapter {

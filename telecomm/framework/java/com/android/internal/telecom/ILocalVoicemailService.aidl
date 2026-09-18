@@ -27,4 +27,5 @@ import com.android.internal.telecom.ILocalVoicemailServiceAdapter;
 oneway interface ILocalVoicemailService {
     void setAdapter(in ILocalVoicemailServiceAdapter adapter);
     void startLocalVoicemail(in ParcelableCall call);
+    void stopLocalVoicemail(in ParcelableCall call);
 }

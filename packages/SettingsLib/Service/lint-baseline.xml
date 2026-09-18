@@ -1,0 +1,581 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues
+    type="baseline"
+    client=""
+    dependencies="true"
+    name=""
+    variant=""
+    version="">
+    <issue
+        id="NewApi"
+        message="`&lt;com.android.settingslib.service.SettingsPreferenceService&gt;` requires API level 36 (current min is 23)"
+        errorLine1="    &lt;service android:name=&quot;com.android.settingslib.service.SettingsPreferenceService&quot; android:exported=&quot;true&quot; android:featureFlag=&quot;com.android.settingslib.flags.settings_catalyst&quot; android:permission=&quot;android.permission.READ_SYSTEM_PREFERENCES&quot;&gt;"
+        errorLine2="    ^">
+        <location
+            file="./out/soong/.intermediates/frameworks/base/packages/SettingsLib/Service/SettingsLibService/android_common/manifest_fixer/AndroidManifest.xml"
+            line="8"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.MetadataResult.Builder()`"
+        errorLine1="        MetadataResult.Builder(MetadataResult.RESULT_OK)"
+        errorLine2="                       ~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="87"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.MetadataResult.Builder#setMetadataList`"
+        errorLine1="            .setMetadataList("
+        errorLine2="             ~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="88"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.MetadataResult.Builder#build`"
+        errorLine1="            .build()"
+        errorLine2="             ~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="93"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.MetadataResult.Builder#build`"
+        errorLine1="        MetadataResult.Builder(MetadataResult.RESULT_UNSUPPORTED).build()"
+        errorLine2="                                                                  ~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="95"
+            column="67"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.MetadataResult.Builder()`"
+        errorLine1="        MetadataResult.Builder(MetadataResult.RESULT_UNSUPPORTED).build()"
+        errorLine2="                       ~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="95"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.GetValueRequest#getPreferenceKey`"
+        errorLine1="    val coord = PreferenceCoordinate(request.screenKey, request.preferenceKey)"
+        errorLine2="                                                                ~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="104"
+            column="65"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.GetValueRequest#getScreenKey`"
+        errorLine1="    val coord = PreferenceCoordinate(request.screenKey, request.preferenceKey)"
+        errorLine2="                                             ~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="104"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.GetValueRequest#getPreferenceKey`"
+        errorLine1="    val coord = PreferenceCoordinate(request.screenKey, request.preferenceKey)"
+        errorLine2="                                                                ~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="115"
+            column="65"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.GetValueRequest#getScreenKey`"
+        errorLine1="    val coord = PreferenceCoordinate(request.screenKey, request.preferenceKey)"
+        errorLine2="                                             ~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="115"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.GetValueResult.Builder#build`"
+        errorLine1="            return GetValueResult.Builder(errorCode).build()"
+        errorLine2="                                                     ~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="125"
+            column="54"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.GetValueResult.Builder()`"
+        errorLine1="            return GetValueResult.Builder(errorCode).build()"
+        errorLine2="                                  ~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="125"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Enum for switch requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceValue`"
+        errorLine1="            return when (value) {"
+        errorLine2="                         ~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="130"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.GetValueResult.Builder()`"
+        errorLine1="                null -&gt; GetValueResult.Builder(GetValueResult.RESULT_UNSUPPORTED)"
+        errorLine2="                                       ~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="131"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.GetValueResult.Builder#setValue`"
+        errorLine1="                else -&gt; GetValueResult.Builder(GetValueResult.RESULT_OK).setValue(value)"
+        errorLine2="                                                                         ~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="132"
+            column="74"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.GetValueResult.Builder()`"
+        errorLine1="                else -&gt; GetValueResult.Builder(GetValueResult.RESULT_OK).setValue(value)"
+        errorLine2="                                       ~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="132"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.GetValueResult.Builder#build`"
+        errorLine1="            }.setMetadata(metadata).build()"
+        errorLine2="                                    ~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="133"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.GetValueResult.Builder#setMetadata`"
+        errorLine1="            }.setMetadata(metadata).build()"
+        errorLine2="              ~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="133"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceValue.Builder()`"
+        errorLine1="            SettingsPreferenceValue.Builder("
+        errorLine2="                                    ~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="142"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceValue.Builder#setBooleanValue`"
+        errorLine1="            ).setBooleanValue(booleanValue)"
+        errorLine2="              ~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="144"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceValue.Builder()`"
+        errorLine1="            SettingsPreferenceValue.Builder("
+        errorLine2="                                    ~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="147"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceValue.Builder#setIntValue`"
+        errorLine1="            ).setIntValue(intValue)"
+        errorLine2="              ~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="149"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceValue.Builder#build`"
+        errorLine1="    }?.build()"
+        errorLine2="       ~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="152"
+            column="8"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SetValueRequest#getPreferenceValue`"
+        errorLine1="    val valueProto = when (request.preferenceValue.type) {"
+        errorLine2="                                   ~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="156"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceValue#getType`"
+        errorLine1="    val valueProto = when (request.preferenceValue.type) {"
+        errorLine2="                                                   ~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="156"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SetValueRequest#getPreferenceValue`"
+        errorLine1="            booleanValue = request.preferenceValue.booleanValue"
+        errorLine2="                                   ~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="158"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SetValueRequest#getPreferenceValue`"
+        errorLine1="            booleanValue = request.preferenceValue.booleanValue"
+        errorLine2="                                   ~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="158"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceValue#getBooleanValue`"
+        errorLine1="            booleanValue = request.preferenceValue.booleanValue"
+        errorLine2="                                                   ~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="158"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceValue#getBooleanValue`"
+        errorLine1="            booleanValue = request.preferenceValue.booleanValue"
+        errorLine2="                                                   ~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="158"
+            column="52"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SetValueRequest#getPreferenceValue`"
+        errorLine1="            intValue = request.preferenceValue.intValue"
+        errorLine2="                               ~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="161"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SetValueRequest#getPreferenceValue`"
+        errorLine1="            intValue = request.preferenceValue.intValue"
+        errorLine2="                               ~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="161"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceValue#getIntValue`"
+        errorLine1="            intValue = request.preferenceValue.intValue"
+        errorLine2="                                               ~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="161"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceValue#getIntValue`"
+        errorLine1="            intValue = request.preferenceValue.intValue"
+        errorLine2="                                               ~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="161"
+            column="48"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SetValueRequest#getPreferenceKey`"
+        errorLine1="    return PreferenceSetterRequest(request.screenKey, null, request.preferenceKey, valueProto)"
+        errorLine2="                                                                    ~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="166"
+            column="69"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SetValueRequest#getScreenKey`"
+        errorLine1="    return PreferenceSetterRequest(request.screenKey, null, request.preferenceKey, valueProto)"
+        errorLine2="                                           ~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="166"
+            column="44"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SetValueResult.Builder#build`"
+        errorLine1="    return SetValueResult.Builder(resultCode).build()"
+        errorLine2="                                              ~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="184"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SetValueResult.Builder()`"
+        errorLine1="    return SetValueResult.Builder(resultCode).build()"
+        errorLine2="                          ~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="184"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceMetadata.Builder()`"
+        errorLine1="    return SettingsPreferenceMetadata.Builder(screenKey, key)"
+        errorLine2="                                      ~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="223"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceMetadata.Builder#setTitle`"
+        errorLine1="        .setTitle(title.getText(context))"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="224"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceMetadata.Builder#setSummary`"
+        errorLine1="        .setSummary(summary.getText(context))"
+        errorLine2="         ~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="225"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceMetadata.Builder#setEnabled`"
+        errorLine1="        .setEnabled(enabled)"
+        errorLine2="         ~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="226"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceMetadata.Builder#setAvailable`"
+        errorLine1="        .setAvailable(available)"
+        errorLine2="         ~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="227"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceMetadata.Builder#setRestricted`"
+        errorLine1="        .setRestricted(restricted)"
+        errorLine2="         ~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="228"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceMetadata.Builder#setWritable`"
+        errorLine1="        .setWritable(persistent &amp;&amp; writePermit == ReadWritePermit.ALLOW)"
+        errorLine2="         ~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="229"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceMetadata.Builder#setLaunchIntent`"
+        errorLine1="        .setLaunchIntent(launchIntent.toIntent())"
+        errorLine2="         ~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="230"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceMetadata.Builder#setWriteSensitivity`"
+        errorLine1="        .setWriteSensitivity(sensitivity)"
+        errorLine2="         ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="231"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceMetadata.Builder#setReadPermissions`"
+        errorLine1="        .setReadPermissions(readPermissions.getAllPermissions())"
+        errorLine2="         ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="233"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceMetadata.Builder#setWritePermissions`"
+        errorLine1="        .setWritePermissions(writePermissions.getAllPermissions())"
+        errorLine2="         ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="234"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceMetadata.Builder#setExtras`"
+        errorLine1="        .setExtras(extras)"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="235"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SettingsPreferenceMetadata.Builder#build`"
+        errorLine1="        .build()"
+        errorLine2="         ~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="236"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SetValueRequest#getScreenKey`"
+        errorLine1="            screenKey = request.screenKey,"
+        errorLine2="                                ~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="173"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 36 (current min is 23): `android.service.settings.preferences.SetValueRequest#getPreferenceKey`"
+        errorLine1="            request.preferenceKey,"
+        errorLine2="                    ~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Service/src/com/android/settingslib/service/PreferenceServiceRequestTransformer.kt"
+            line="178"
+            column="21"/>
+    </issue>
+
+</issues>

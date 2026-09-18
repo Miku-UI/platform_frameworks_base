@@ -32,10 +32,6 @@ import android.location.provider.IS2CellIdsCallback;
 import android.location.provider.IS2LevelCallback;
 import android.os.RemoteException;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
-import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
@@ -43,7 +39,6 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.internal.location.geometry.S2CellIdUtils;
 import com.android.server.location.provider.proxy.ProxyPopulationDensityProvider;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -51,7 +46,6 @@ import org.mockito.ArgumentCaptor;
 @Presubmit
 @SmallTest
 @RunWith(AndroidJUnit4.class)
-@RequiresFlagsEnabled(Flags.FLAG_DENSITY_BASED_COARSE_LOCATIONS)
 public class LocationFudgerCacheTest {
 
     private static final String TAG = "LocationFudgerCacheTest";
@@ -62,13 +56,6 @@ public class LocationFudgerCacheTest {
     private static final double[] POINT_IN_TIMES_SQUARE = {40.75889599346095, -73.9851300385147};
 
     private static final double[] POINT_OUTSIDE_TIMES_SQUARE = {48.858093, 2.294694};
-
-    @Rule
-    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-
-    @Rule
-    public final CheckFlagsRule mCheckFlagsRule =
-            DeviceFlagsValueProvider.createCheckFlagsRule();
 
     @Test
     public void hasDefaultValue_isInitiallyFalse()

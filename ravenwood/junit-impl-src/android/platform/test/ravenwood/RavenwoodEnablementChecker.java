@@ -23,6 +23,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.platform.test.annotations.DisabledOnRavenwood;
 import android.platform.test.annotations.EnabledOnRavenwood;
+import android.platform.test.ravenwood.EnablementTextPolicyParser.ParseException;
 import android.platform.test.ravenwood.RavenwoodEnablementChecker.PolicyChecker;
 import android.platform.test.ravenwood.RavenwoodEnablementChecker.RunPolicy;
 import android.util.Log;
@@ -31,7 +32,9 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.ravenwood.common.RavenwoodInternalUtils;
 import com.android.ravenwood.common.SneakyThrow;
 
+import org.junit.AssumptionViolatedException;
 import org.junit.runner.Description;
+import org.junit.runner.manipulation.Filter;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -40,6 +43,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
@@ -64,6 +68,15 @@ import java.util.regex.Pattern;
  */
 public abstract class RavenwoodEnablementChecker {
     private static final String TAG = RavenwoodInternalUtils.TAG;
+
+    /**
+     * AssumptionViolatedException subclass specifically used for "disabled on ravenwood tests".
+     */
+    public static class DisabledOnRavenwoodAssumptionException extends AssumptionViolatedException {
+        public DisabledOnRavenwoodAssumptionException(String message) {
+            super(message);
+        }
+    }
 
     /**
      * How we want to run each test class / method.
@@ -97,7 +110,7 @@ public abstract class RavenwoodEnablementChecker {
         /** Run normally. Disabled tests are skipped. */
         Normal {
             @Override
-            public boolean shouldRun(@NonNull RunPolicy policy) {
+            public boolean shouldRunClass(@NonNull RunPolicy policy) {
                 return switch (policy) {
                     case Unspecified, Enabled -> true;
                     default -> false;
@@ -108,16 +121,42 @@ public abstract class RavenwoodEnablementChecker {
         /** Run the disabled tests too, along with the enabled tests. */
         AlsoDisabledTests {
             @Override
-            public boolean shouldRun(@NonNull RunPolicy policy) {
+            public boolean shouldRunClass(@NonNull RunPolicy policy) {
                 return switch (policy) {
                     case Unspecified, Enabled, Disabled -> true;
                     default -> false;
                 };
             }
+        },
+
+        /** Run only the disabled tests, except for "never" ones. */
+        DisabledOnly {
+            @Override
+            public boolean shouldRunClass(@NonNull RunPolicy policy) {
+                return switch (policy) {
+                    case Unspecified, Enabled, Disabled -> true;
+                    default -> false;
+                };
+            }
+
+            /** We only run disabled mehods */
+            @Override
+            public boolean shouldRunMethod(@NonNull RunPolicy policy) {
+                return switch (policy) {
+                    case Disabled -> true;
+                    default -> false;
+                };
+            }
         };
 
-        /** @return if a policy means "run" or not. */
-        public abstract boolean shouldRun(@NonNull RunPolicy policy);
+        /** @return if a policy means "run" or not for a class. */
+        public abstract boolean shouldRunClass(@NonNull RunPolicy policy);
+
+        /** @return if a policy means "run" or not for a method. */
+        public boolean shouldRunMethod(@NonNull RunPolicy policy) {
+            // By default, we use the same logic for classes and methods.
+            return shouldRunClass(policy);
+        }
     }
 
     /**
@@ -138,9 +177,16 @@ public abstract class RavenwoodEnablementChecker {
      *
      * (But if a policy file says "never", we still won't run it.)
      */
-    private static RunMode getRunMode() {
-            return RavenwoodEnvironment.getInstance().getBoolEnvVar("RAVENWOOD_RUN_DISABLED_TESTS")
-                ? RunMode.AlsoDisabledTests : RunMode.Normal;
+    private static RunMode getDefaultRunMode() {
+        var mode = RavenwoodEnvironment.getInstance().getEnvVar("RAVENWOOD_RUN_DISABLED_TESTS", "");
+        switch (mode) {
+            case "1":
+                return RunMode.AlsoDisabledTests;
+            case "2":
+                return RunMode.DisabledOnly;
+            default:
+                return RunMode.Normal;
+        }
     }
 
     /**
@@ -168,28 +214,45 @@ public abstract class RavenwoodEnablementChecker {
      */
     @VisibleForTesting
     public static void setDefaultInstance() {
-        sInstance = new RavenwoodEnablementCheckerImpl(getRunMode(), getPolicyFiles(),
-                RavenwoodEnvironment.getInstance().getEnvVar("RAVENWOOD_FORCE_FILTER_REGEX", null));
+        sInstance = new RavenwoodEnablementCheckerImpl(
+                getDefaultRunMode(),
+                getPolicyFiles(),
+                RavenwoodEnvironment.getInstance().getRunFilterRegex(),
+                RavenwoodEnvironment.getInstance().isSkippingLargeTests(),
+                RavenwoodEnvironment.getInstance().isDumpingTestsOnly()
+        );
     }
 
-    /**
-     * Force set a checker for testing.
-     */
     @VisibleForTesting
     public static void overrideInstance(
             @NonNull RunMode runMode,
             @Nullable String policyText,
-            @Nullable String overridingPattern
-            )  {
+            @Nullable String overridingPattern,
+            boolean ignoreLargeTests,
+            boolean dumpTestsOnly
+    )  {
         try {
             var parser = new EnablementTextPolicyParser();
             if (policyText != null && !policyText.isEmpty()) {
-                parser.parse("[in-memory]", policyText);
+                parser.parse("[in-memory]", policyText, ignoreLargeTests);
             }
             sInstance = new RavenwoodEnablementCheckerImpl(
-                    runMode, parser.getResult(), overridingPattern);
+                    runMode, parser.getResult(),
+                    dumpTestsOnly,
+                    overridingPattern);
         } catch (IOException e) {
             SneakyThrow.sneakyThrow(e); // IOException shouldn't happen, but just in case
+        }
+    }
+
+    /**
+     * Throws {@link DisabledOnRavenwoodAssumptionException} if a test method is not supposed
+     * to be executed on Ravenwood.
+     */
+    public final void assumeShouldRunTestMethod(Description description) {
+        if (!shouldRunMethodOnRavenwood(description)) {
+            throw new DisabledOnRavenwoodAssumptionException(
+                    "This test is disabled on Ravenwood: " + description);
         }
     }
 
@@ -201,7 +264,32 @@ public abstract class RavenwoodEnablementChecker {
     /**
      * @return if a test method should be executed.
      */
-    public abstract boolean shouldEnableOnRavenwood(Description description);
+    public abstract boolean shouldRunMethodOnRavenwood(Description description);
+
+    /**
+     * @return if disabled tests would run.
+     */
+    public abstract boolean wouldRunDisabledTests();
+
+    /** @return as a Junit filter */
+    public Filter asJunitFilter() {
+        return new Filter() {
+            @Override
+            public boolean shouldRun(Description description) {
+                if (description.isTest()) {
+                    return shouldRunMethodOnRavenwood(description);
+                } else {
+                    return shouldRunClassOnRavenwood(
+                            RavenwoodImplUtils.getDescriptionTestClass(description));
+                }
+            }
+
+            @Override
+            public String describe() {
+                return "Filtered by @DisabledOnRavenwood";
+            }
+        };
+    }
 
     /**
      * Actual logic. This combines the annotation policy with the text policy.
@@ -213,31 +301,55 @@ public abstract class RavenwoodEnablementChecker {
         RavenwoodEnablementCheckerImpl(
                 @NonNull RunMode runMode,
                 @NonNull String[] policyFiles,
-                @Nullable String overridingPattern) {
-            this(runMode, EnablementTextPolicyParser.parsePolicyFiles(policyFiles),
+                @Nullable String overridingPattern,
+                boolean ignoreLargeTests,
+                boolean dumpTestOnly
+        ) {
+            this(runMode,
+                    EnablementTextPolicyParser.parsePolicyFiles(policyFiles, ignoreLargeTests),
+                    dumpTestOnly,
                     overridingPattern);
         }
 
         RavenwoodEnablementCheckerImpl(
                 @NonNull RunMode runMode,
                 @NonNull PolicyChecker subChecker,
+                boolean dumpTestOnly,
                 @Nullable String overridingPattern) {
             this.mRunMode = runMode;
             var chain = new PolicyCheckerChain();
 
-            if (overridingPattern == null || overridingPattern.isEmpty()) {
-                // Annotations always win.
+            if (dumpTestOnly) {
+                chain.add(new SkipAllMethodsPolicyChecker());
+            }
+
+            var forceOverride = overridingPattern != null && overridingPattern.startsWith("!");
+            if (forceOverride) {
+                // If the override pattern starts with a "!", we ignore the enablement file and
+                // just run what's specified.
+                chain.add(new RegexRunFilter(
+                        Pattern.compile(overridingPattern.substring(1), Pattern.CASE_INSENSITIVE),
+                        RunPolicy.Enabled,
+                        RunPolicy.NeverRun
+                ));
+            } else {
+                // If a pattern is set, but it doesn't start with an "!", then we use it
+                // to further filter the default enablement logic.
+                if (overridingPattern != null && !overridingPattern.isEmpty()) {
+                    chain.add(new RegexRunFilter(
+                            Pattern.compile(overridingPattern, Pattern.CASE_INSENSITIVE),
+                            // If the pattern matches, fall back to the usual filtering.
+                            RunPolicy.Unspecified,
+                            // If the pattern doesn't match, don't run it.
+                            RunPolicy.NeverRun
+                    ));
+                }
+
+                // Annotations always win over the text policy file.
                 chain.add(new AnnotationPolicyChecker());
 
                 // Text policy changes the default behavior.
                 chain.add(subChecker);
-            } else {
-                // Use a regex-based filter, and only run the exact matching tests.
-                chain.add(new RegexRunFilter(
-                        Pattern.compile(overridingPattern, Pattern.CASE_INSENSITIVE),
-                        RunPolicy.Enabled,
-                        RunPolicy.NeverRun
-                ));
             }
 
             mChecker = chain;
@@ -245,20 +357,28 @@ public abstract class RavenwoodEnablementChecker {
 
         @Override
         public boolean shouldRunClassOnRavenwood(Class<?> testClass) {
-            return mRunMode.shouldRun(mChecker.getClassPolicy(testClass));
+            return mRunMode.shouldRunClass(mChecker.getClassPolicy(testClass));
         }
 
         @Override
-        public boolean shouldEnableOnRavenwood(Description description) {
-            return mRunMode.shouldRun(mChecker.getMethodPolicy(description));
+        public boolean shouldRunMethodOnRavenwood(Description description) {
+            return mRunMode.shouldRunMethod(mChecker.getMethodPolicy(description));
+        }
+
+        @Override
+        public boolean wouldRunDisabledTests() {
+            return mRunMode.shouldRunMethod(RunPolicy.Disabled);
         }
     }
 
     @VisibleForTesting
-    public static PolicyChecker getTextPolicyCheckerForTest(String filename, String text)
-            throws Exception {
+    public static PolicyChecker getTextPolicyCheckerForTest(
+            String filename,
+            String text,
+            boolean ignoreLargeTests
+    ) throws Exception {
         var parser = new EnablementTextPolicyParser();
-        parser.parse(filename, text);
+        parser.parse(filename, text, ignoreLargeTests);
         return parser.getResult();
     }
 }
@@ -297,6 +417,27 @@ class PolicyCheckerChain implements PolicyChecker {
 }
 
 /**
+ * Used for just logging all test methods without running them.
+ *
+ * For classes, it always returns {@link RunPolicy#Unspecified} to fall back to the following
+ * policies, but for methods, it'll always return "never".
+ */
+class SkipAllMethodsPolicyChecker implements PolicyChecker {
+    SkipAllMethodsPolicyChecker() {
+    }
+
+    @Override
+    public RunPolicy getClassPolicy(Class<?> testClass) {
+        return RunPolicy.Unspecified;
+    }
+
+    @Override
+    public RunPolicy getMethodPolicy(Description description) {
+        return RunPolicy.NeverRun;
+    }
+}
+
+/**
  * {@link PolicyChecker} based on annotations.
  */
 class AnnotationPolicyChecker implements PolicyChecker {
@@ -321,7 +462,7 @@ class AnnotationPolicyChecker implements PolicyChecker {
             }
         }
         // Otherwise, consult any class-level annotations
-        return getClassPolicy(description.getTestClass());
+        return getClassPolicy(RavenwoodImplUtils.getDescriptionTestClass(description));
     }
 }
 
@@ -370,9 +511,17 @@ class PatternBasedChecker implements PolicyChecker {
     /**
      * Adda method policy.
      */
-    public void addMethodPolicy(String className, String methodName, RunPolicy policy) {
+    public void addMethodPolicy(String className,
+            String methodName,
+            RunPolicy policy,
+            String filename,
+            int line) {
         var classPolicy = mMethodPolicies.computeIfAbsent(className,
                 (k) -> new HashMap<>());
+        if (classPolicy.get(methodName) != null) {
+            throw new ParseException(
+                    "Method policy already defined for " + methodName, filename, line);
+        }
         classPolicy.put(methodName, policy);
 
         // When a class has any enabled methods, the class needs to be enabled too.
@@ -427,6 +576,16 @@ class PatternBasedChecker implements PolicyChecker {
         // Method name without [...].
         var methodName = sParamMatcher.matcher(description.getMethodName()).replaceFirst("");
 
+        // If the enclosing class has "never", disable all its methods, even if there's an "enable"
+        // method policy.
+        // This is to easily disable certain tests in a policy file, even if it already
+        // has enabled methods.
+        var classPolicy = getPureClassPolicy(
+                RavenwoodImplUtils.getDescriptionTestClass(description));
+        if (classPolicy == RunPolicy.NeverRun) {
+            return classPolicy;
+        }
+
         // Check if we have an exact policy.
         var methods = mMethodPolicies.get(className);
         if (methods != null) {
@@ -444,7 +603,7 @@ class PatternBasedChecker implements PolicyChecker {
         // to run it (assuming the class doesn't have "enable" policy set explicitly).
         //
         // So instead, we fallback to getPureClassPolicy(), which only uses mClassPolicies.
-        return getPureClassPolicy(description.getTestClass());
+        return classPolicy;
     }
 }
 
@@ -491,11 +650,13 @@ class EnablementTextPolicyParser {
     /**
      * Parse given files.
      */
-    public static PatternBasedChecker parsePolicyFiles(@NonNull String[] files) {
+    public static PatternBasedChecker parsePolicyFiles(@NonNull String[] files,
+            boolean ignoreLargeTests
+    ) {
         var parser = new EnablementTextPolicyParser();
         for (String file : files) {
             try {
-                parser.parse(file, Files.readString(Path.of(file)));
+                parser.parse(file, Files.readString(Path.of(file)), ignoreLargeTests);
             } catch (IOException e) {
                 throw new ParseException("Unabled to read enablement policy", file, e);
             }
@@ -546,7 +707,7 @@ class EnablementTextPolicyParser {
     /**
      * Parse a whole policy file content.
      */
-    void parse(String filename, String text) throws IOException {
+    void parse(String filename, String text, boolean ignoreLargeTests) throws IOException {
         // The first line should be the module name.
         var rd = new BufferedReader(new StringReader(text));
 
@@ -559,12 +720,11 @@ class EnablementTextPolicyParser {
         int n = 0; // line number
         while ((line = rd.readLine()) != null) {
             n++;
+
+            // First, parse the line
             var cols = split(line);
             if (cols.length == 0) {
                 continue;
-            }
-            if (cols.length > 2) {
-                throw new ParseException("Too many fields", filename, n);
             }
 
             var classMethod = cols[0].split("#");
@@ -576,9 +736,25 @@ class EnablementTextPolicyParser {
                     throw new ParseException(e.getMessage(), filename, n);
                 }
             }
+
             var className = classMethod[0];
             var isMethod = classMethod.length > 1;
 
+            // Remaining columns are options.
+            var isLarge = false;
+            for (int i = 2; i < cols.length; i++) {
+                var v = cols[i];
+                if (":large".equals(v.toLowerCase(Locale.ROOT))) {
+                    isLarge = true;
+                    continue;
+                }
+                throw new ParseException("Unknown option \"" + v + "\"", filename, n);
+            }
+            if (isLarge && ignoreLargeTests) {
+                policy = RunPolicy.NeverRun;
+            }
+
+            // Set the policy in mResult.
             if (!isMethod) {
                 // It's a package / class policy.
                 var pattern = parseClassNameWildcard(className);
@@ -591,7 +767,7 @@ class EnablementTextPolicyParser {
                     throw new ParseException(
                             "Method policy cannot use wildcards: line='" + line + "'", filename, n);
                 }
-                mResult.addMethodPolicy(className, methodName, policy);
+                mResult.addMethodPolicy(className, methodName, policy, filename, n);
                 // Log.v(TAG, "method: " + className + "." + methodName + " -> " + policy);
             }
         }
@@ -673,6 +849,7 @@ class RegexRunFilter implements PolicyChecker {
         if (mRegex.matcher(toCanonicalTestName(description)).find()) {
             return mMatchingPolicy;
         }
-        return classMatches(description.getTestClass()) ? mMatchingPolicy : mNonMatchingPolicy;
+        return classMatches(RavenwoodImplUtils.getDescriptionTestClass(description))
+                ? mMatchingPolicy : mNonMatchingPolicy;
     }
 }

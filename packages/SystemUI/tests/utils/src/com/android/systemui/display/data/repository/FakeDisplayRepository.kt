@@ -30,13 +30,21 @@ import kotlinx.coroutines.runBlocking
 import org.mockito.kotlin.mock
 
 /** Creates a mock display. */
-fun display(type: Int, flags: Int = 0, id: Int = 0, state: Int? = null): Display =
+@JvmOverloads
+fun display(
+    id: Int = Display.DEFAULT_DISPLAY,
+    type: Int = Display.TYPE_INTERNAL,
+    state: Int = Display.STATE_ON,
+    flags: Int = 0,
+    name: String = "Default Display Name",
+): Display =
     mock<Display> {
         on { displayId }.thenReturn(id)
         on { uniqueId }.thenReturn("uniqueId$id")
         on { this.type }.thenReturn(type)
         on { this.flags }.thenReturn(flags)
-        if (state != null) on { this.state }.thenReturn(state)
+        on { this.state }.thenReturn(state)
+        on { this.name }.thenReturn(name)
     }
 
 /** Creates a mock [DisplayRepository.PendingDisplay]. */
@@ -65,7 +73,7 @@ class FakeDisplayRepository @Inject constructor() : DisplayRepository {
     }
 
     suspend fun addDisplay(displayId: Int, type: Int = Display.TYPE_EXTERNAL) {
-        addDisplay(display(type, id = displayId))
+        addDisplay(display(type = type, id = displayId))
     }
 
     suspend fun addDisplays(vararg displays: Display) {
@@ -127,6 +135,10 @@ class FakeDisplayRepository @Inject constructor() : DisplayRepository {
 
     override val defaultDisplayOff = MutableStateFlow(false)
 
+    override val defaultDisplayType = MutableStateFlow(Display.TYPE_UNKNOWN)
+
+    override val isMirroringEnabled = MutableStateFlow(false)
+
     override fun getDisplay(displayId: Int): Display? {
         return displays.value.find { it.displayId == displayId }
     }
@@ -141,6 +153,8 @@ class FakeDisplayRepository @Inject constructor() : DisplayRepository {
 
     override val displayIdsWithSystemDecorations: StateFlow<Set<Int>> =
         displayIdsWithSystemDecorationsFlow
+
+    suspend fun emitDisplayRemoveEvent(displayId: Int) = displayRemovalEventFlow.emit(displayId)
 
     suspend fun emitDisplayChangeEvent(displayId: Int) = _displayChangeEvent.emit(displayId)
 

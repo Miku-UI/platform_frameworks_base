@@ -17,7 +17,9 @@
 package com.android.wm.shell.shared;
 
 import android.app.ActivityManager;
+import android.window.DesktopExperienceFlags;
 
+import com.android.window.flags.Flags;
 import com.android.wm.shell.shared.annotations.ExternalThread;
 
 /**
@@ -35,4 +37,11 @@ public interface FocusTransitionListener {
      */
     default void onFocusedTaskChanged(ActivityManager.RunningTaskInfo taskInfo,
             boolean isFocusedOnDisplay, boolean isFocusedGlobally) {}
+
+    /** Returns if all related flags are enabled related to migration from TaskInfo#isFocused to
+     * FocusTransitionObserver */
+    static boolean isDisplayLocalIsFocusedMigrationEnabled() {
+        return DesktopExperienceFlags.ENABLE_INTERACTIVE_PICTURE_IN_PICTURE.isTrue()
+                && Flags.enableFocusTransitionObserverCleanup();
+    }
 }

@@ -19,11 +19,22 @@ package android.media.tv.extension.servicedb;
 import android.os.Bundle;
 
 /**
+ * Session for directly setting a list of channels.
+ * This interface serves as a facade for IServiceEdit to set a list of channels.
  * @hide
  */
 interface IServiceListSetChannelListSession {
-    // Set channelList with channelinfo bundles, serviceListInfo, and operation type.
-    int setChannelList(in Bundle[] channelsInfo, in Bundle ServiceListInfoBundle, int optType);
-    // Release set channellist resources.
+    /**
+     * Sets the channel list.
+     *
+     * @param channels A list of bundles, where each bundle represents a channel.
+     * @param listInfoBundle A wrapper bundle that contains ServiceListInfo and operation type.
+     * @return @ServicedbConstants.ResultCode.RESULT_SUCCESS or RESULT_ERROR.
+     */
+    int setChannelList(in Bundle[] channelsInfo, in Bundle ServiceListInfoBundle);
+    /**
+     * Releases resources associated with this session.
+     * @return  @ServicedbConstants.ResultCode.RESULT_SUCCESS or RESULT_ERROR.
+     */
     int release();
 }

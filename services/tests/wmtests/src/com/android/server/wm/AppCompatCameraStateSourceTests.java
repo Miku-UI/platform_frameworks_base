@@ -17,8 +17,6 @@
 package com.android.server.wm;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -175,10 +173,13 @@ public class AppCompatCameraStateSourceTests extends WindowTestsBase {
 
             mSourceUnderTest = new AppCompatCameraStateSource();
 
-            doReturn(true).when(mCanClosePolicy).canCameraBeClosed(eq(CAMERA_ID), any());
-            doReturn(false).when(mCannotClosePolicy).canCameraBeClosed(eq(CAMERA_ID), any());
-
             activity().createActivityWithComponent();
+
+            final CameraAppInfo appInfo = getTestCameraAppInfo();
+            final ActivityRecord topActivity = activity().top();
+            final Task task = topActivity.getTask();
+            doReturn(true).when(mCanClosePolicy).canCameraBeClosed(appInfo, task);
+            doReturn(false).when(mCannotClosePolicy).canCameraBeClosed(appInfo, task);
         }
 
         private void addPolicy(boolean canClosePolicy) {
@@ -190,30 +191,44 @@ public class AppCompatCameraStateSourceTests extends WindowTestsBase {
         }
 
         private void callCameraOpened() {
-            mSourceUnderTest.onCameraOpened(activity().top().app, activity().top().getTask());
+            final ActivityRecord topActivity = activity().top();
+            mSourceUnderTest.onCameraOpened(getTestCameraAppInfo(), topActivity.app,
+                    topActivity.getTask());
         }
 
         private void callCameraClosed() {
-            mSourceUnderTest.onCameraClosed(activity().top().app, activity().top().getTask());
+            final ActivityRecord topActivity = activity().top();
+            mSourceUnderTest.onCameraClosed(getTestCameraAppInfo(), topActivity.app,
+                    topActivity.getTask());
         }
 
         private void checkPolicyCameraOpenedCalled(boolean canClosePolicy, int times) {
-            verify(getPolicy(canClosePolicy), times(times)).onCameraOpened(activity().top().app,
-                    activity().top().getTask());
+            final ActivityRecord topActivity = activity().top();
+            verify(getPolicy(canClosePolicy), times(times)).onCameraOpened(getTestCameraAppInfo(),
+                    topActivity.app, topActivity.getTask());
         }
 
         private void checkCanCameraBeClosed(boolean expected) {
-            assertEquals(expected, mSourceUnderTest.canCameraBeClosed(CAMERA_ID,
-                    activity().top().getTask()));
+            final ActivityRecord topActivity = activity().top();
+            assertEquals(expected, mSourceUnderTest.canCameraBeClosed(getTestCameraAppInfo(),
+                    topActivity.getTask()));
         }
 
         private void checkPolicyCameraClosedCalled(boolean canClosePolicy, int times) {
+            final ActivityRecord topActivity = activity().top();
             verify(canClosePolicy ? mCanClosePolicy : mCannotClosePolicy, times(times))
-                    .onCameraClosed(activity().top().app, activity().top().getTask());
+                    .onCameraClosed(getTestCameraAppInfo(), topActivity.app, topActivity.getTask());
         }
 
         private AppCompatCameraStatePolicy getPolicy(boolean canClose) {
             return canClose ? mCanClosePolicy : mCannotClosePolicy;
+        }
+
+        private CameraAppInfo getTestCameraAppInfo() {
+            return new CameraAppInfo(CAMERA_ID,
+                    activity().top().app.getPid(),
+                    activity().top().getTask().mTaskId,
+                    activity().top().packageName);
         }
     }
 }

@@ -19,6 +19,7 @@ package com.android.settingslib.bluetooth.hearingdevices.ui
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothDevice.BOND_BONDED
 import android.bluetooth.BluetoothHapPresetInfo
+import android.bluetooth.BluetoothProfile
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.android.settingslib.bluetooth.BluetoothEventManager
@@ -91,7 +92,6 @@ class PresetUiControllerTest {
     @Test
     fun startAndStop_callbackRegisteredAndUnregistered() {
         prepareTestDevice(hasMember = true)
-        controller.loadDevice(mockCachedDevice)
 
         controller.start()
 
@@ -109,9 +109,47 @@ class PresetUiControllerTest {
     }
 
     @Test
+    fun refresh_noDeviceSupportHap_visibleFalse() {
+        prepareTestDevice(hasMember = true)
+        mockCachedDevice.stub { on { profiles } doReturn listOf() }
+        mockCachedMemberDevice.stub { on { profiles } doReturn listOf() }
+
+        controller.refresh()
+
+        assertThat(presetUi.isVisible()).isFalse()
+    }
+
+    @Test
+    fun refresh_hideUiWhenHapDisconnectedIsFalse_hapNotConnected_visibleTrue() {
+        prepareTestDevice(hasMember = true)
+        mockHapClientProfile.stub {
+            on { getConnectionStatus(mockDevice) } doReturn BluetoothProfile.STATE_DISCONNECTED
+            on { getConnectionStatus(mockMemberDevice) } doReturn BluetoothProfile.STATE_DISCONNECTED
+        }
+
+        controller.setHideUiWhenHapDisconnected(false)
+        controller.refresh()
+
+        assertThat(presetUi.isVisible()).isTrue()
+    }
+
+    @Test
+    fun refresh_hideUiWhenHapDisconnectedIsTrue_hapNotConnected_visibleFalse() {
+        prepareTestDevice(hasMember = true)
+        mockHapClientProfile.stub {
+            on { getConnectionStatus(mockDevice) } doReturn BluetoothProfile.STATE_DISCONNECTED
+            on { getConnectionStatus(mockMemberDevice) } doReturn BluetoothProfile.STATE_DISCONNECTED
+        }
+
+        controller.setHideUiWhenHapDisconnected(true)
+        controller.refresh()
+
+        assertThat(presetUi.isVisible()).isFalse()
+    }
+
+    @Test
     fun refresh_onlyOneDevice_controlNotExpanded() {
         prepareTestDevice(hasMember = false)
-        controller.loadDevice(mockCachedDevice)
 
         controller.refresh()
 
@@ -121,7 +159,6 @@ class PresetUiControllerTest {
     @Test
     fun refresh_samePresetInfos_controlNotExpanded() {
         prepareTestDevice(hasMember = true, syncedInfos = true)
-        controller.loadDevice(mockCachedDevice)
 
         controller.refresh()
 
@@ -141,7 +178,6 @@ class PresetUiControllerTest {
     @Test
     fun onPresetChangedFromRemote_samePresetInfos_verifyUnifiedControlUpdate() {
         prepareTestDevice(hasMember = true, syncedInfos = true)
-        controller.loadDevice(mockCachedDevice)
         controller.refresh()
 
         val currentPreset = mockHapClientProfile.getActivePresetIndex(mockCachedDevice.device)
@@ -156,7 +192,6 @@ class PresetUiControllerTest {
     @Test
     fun onPresetChangedFromRemote_differentPresetInfos_verifySeparatedControlUpdate() {
         prepareTestDevice(hasMember = true, syncedInfos = false)
-        controller.loadDevice(mockCachedDevice)
         controller.refresh()
 
         val currentPreset = mockHapClientProfile.getActivePresetIndex(mockCachedDevice.device)
@@ -171,7 +206,6 @@ class PresetUiControllerTest {
     @Test
     fun onPresetInfoChangedFromRemote_samePresetInfos_verifyUnifiedControlUpdate() {
         prepareTestDevice(hasMember = true, syncedInfos = true)
-        controller.loadDevice(mockCachedDevice)
         controller.refresh()
 
         val updatedInfos = listOf(getTestPresetInfo(1))
@@ -183,7 +217,6 @@ class PresetUiControllerTest {
     @Test
     fun onPresetInfoChangedFromRemote_differentPresetInfos_verifySeparatedControlUpdate() {
         prepareTestDevice(hasMember = true, syncedInfos = false)
-        controller.loadDevice(mockCachedDevice)
         controller.refresh()
 
         val updatedInfos = listOf(getTestPresetInfo(1))
@@ -197,7 +230,6 @@ class PresetUiControllerTest {
     @Test
     fun onPresetGroupSelectionFailedFromRemote_verifySelectPresetForEachDevice() {
         prepareTestDevice(hasMember = true, syncedInfos = true)
-        controller.loadDevice(mockCachedDevice)
         controller.refresh()
 
         controller.onPresetGroupSelectionFailedFromRemote(TEST_HAP_GROUP_ID)
@@ -233,22 +265,27 @@ class PresetUiControllerTest {
                 on { isConnected } doReturn true
             }
         }
-        val infos1 = listOf(
-            getTestPresetInfo(TEST_PRESET_INDEX),
-            getTestPresetInfo(TEST_PRESET_INDEX + 1)
-        )
-        val infos2 = listOf(
-            getTestPresetInfo(TEST_PRESET_INDEX),
-            getTestPresetInfo(TEST_PRESET_INDEX + 2)
-        )
         mockHapClientProfile.stub {
+            val infos1 = listOf(
+                getTestPresetInfo(TEST_PRESET_INDEX),
+                getTestPresetInfo(TEST_PRESET_INDEX + 1)
+            )
             on { getAllPresetInfo(mockDevice) } doReturn infos1
-            on { getAllPresetInfo(mockMemberDevice) } doReturn if (syncedInfos) infos1 else infos2
             on { getActivePresetIndex(mockDevice) } doReturn TEST_PRESET_INDEX
-            on { getActivePresetIndex(mockMemberDevice) } doReturn TEST_PRESET_INDEX
             on { getHapGroup(mockDevice) } doReturn TEST_HAP_GROUP_ID
-            on { getHapGroup(mockMemberDevice) } doReturn TEST_HAP_GROUP_ID
+            on { getConnectionStatus(mockDevice) } doReturn BluetoothProfile.STATE_CONNECTED
+            if (hasMember) {
+                val infos2 = listOf(
+                    getTestPresetInfo(TEST_PRESET_INDEX),
+                    getTestPresetInfo(TEST_PRESET_INDEX + 2)
+                )
+                on { getAllPresetInfo(mockMemberDevice) } doReturn if (syncedInfos) infos1 else infos2
+                on { getActivePresetIndex(mockMemberDevice) } doReturn TEST_PRESET_INDEX
+                on { getHapGroup(mockMemberDevice) } doReturn TEST_HAP_GROUP_ID
+                on { getConnectionStatus(mockMemberDevice) } doReturn BluetoothProfile.STATE_CONNECTED
+            }
         }
+        controller.loadDevice(mockCachedDevice)
     }
 
     private class TestPresetUi : PresetUi {

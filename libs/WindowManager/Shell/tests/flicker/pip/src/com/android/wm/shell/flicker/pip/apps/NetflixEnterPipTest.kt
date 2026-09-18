@@ -20,10 +20,10 @@ import android.Manifest
 import android.platform.test.annotations.Postsubmit
 import android.tools.Rotation
 import android.tools.device.apphelpers.NetflixAppHelper
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.helpers.WindowUtils
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.RequiresDevice
@@ -72,15 +72,13 @@ open class NetflixEnterPipTest(flicker: FlickerTest) : AppsEnterPipTransition(fl
             pipApp.launchViaIntent(
                 wmHelper,
                 NetflixAppHelper.getNetflixWatchVideoIntent("81605060"),
-                ComponentNameMatcher(NetflixAppHelper.PACKAGE_NAME, NetflixAppHelper.WATCH_ACTIVITY)
+                ComponentNameMatcher(NetflixAppHelper.PACKAGE_NAME, NetflixAppHelper.WATCH_ACTIVITY),
             )
             pipApp.waitForVideoPlaying()
         }
     }
 
-    override val defaultTeardown: FlickerBuilder.() -> Unit = {
-        teardown { pipApp.exit(wmHelper) }
-    }
+    override val defaultTeardown: FlickerBuilder.() -> Unit = { teardown { pipApp.exit(wmHelper) } }
 
     override val thisTransition: FlickerBuilder.() -> Unit = {
         transitions { tapl.goHomeFromImmersiveFullscreenApp() }
@@ -165,14 +163,12 @@ open class NetflixEnterPipTest(flicker: FlickerTest) : AppsEnterPipTransition(fl
         /**
          * Creates the test configurations.
          *
-         * See [FlickerTestFactory.nonRotationTests] for configuring repetitions, screen
-         * orientation and navigation modes.
+         * See [FlickerTestFactory.nonRotationTests] for configuring repetitions, screen orientation
+         * and navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            FlickerTestFactory.nonRotationTests(
-                supportedRotations = listOf(Rotation.ROTATION_0)
-            )
+            FlickerTestFactory.nonRotationTests(supportedRotations = listOf(Rotation.ROTATION_0))
     }
 }

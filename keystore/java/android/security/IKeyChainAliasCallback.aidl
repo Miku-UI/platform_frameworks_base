@@ -21,6 +21,7 @@ package android.security;
  * @hide
  */
 oneway interface IKeyChainAliasCallback {
-
     void alias(String alias);
+
+    void onError(int errorCode);
 }

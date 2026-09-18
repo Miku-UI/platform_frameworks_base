@@ -41,22 +41,23 @@ public class UnixEpochTimeTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_noElapsedRealtime() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--unix_epoch_time 12345");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions("--unix_epoch_time 12345");
         UnixEpochTime.parseCommandLineArgs(testShellCommand);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_noUnixEpochTime() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--elapsed_realtime 54321");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions("--elapsed_realtime 54321");
         UnixEpochTime.parseCommandLineArgs(testShellCommand);
     }
 
     @Test
     public void testParseCommandLineArg_validSuggestion() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--elapsed_realtime 54321 --unix_epoch_time 12345");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        "--elapsed_realtime 54321 --unix_epoch_time 12345");
         UnixEpochTime expectedValue = new UnixEpochTime(54321L, 12345L);
         UnixEpochTime actualValue = UnixEpochTime.parseCommandLineArgs(testShellCommand);
         assertEquals(expectedValue, actualValue);
@@ -64,8 +65,9 @@ public class UnixEpochTimeTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_unknownArgument() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--elapsed_realtime 54321 --unix_epoch_time 12345 --bad_arg 0");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        "--elapsed_realtime 54321 --unix_epoch_time 12345 --bad_arg 0");
         UnixEpochTime.parseCommandLineArgs(testShellCommand);
     }
 

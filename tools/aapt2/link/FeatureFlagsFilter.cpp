@@ -34,8 +34,11 @@ class FlagsVisitor : public xml::Visitor {
  public:
   explicit FlagsVisitor(android::IDiagnostics* diagnostics,
                         const FeatureFlagValues& feature_flag_values,
-                        const FeatureFlagsFilterOptions& options)
-      : diagnostics_(diagnostics), feature_flag_values_(feature_flag_values), options_(options) {
+                        const FeatureFlagsFilterOptions& options, const android::Source& source)
+      : diagnostics_(diagnostics),
+        feature_flag_values_(feature_flag_values),
+        options_(options),
+        source_(source) {
   }
 
   void Visit(xml::Element* node) override {
@@ -66,8 +69,8 @@ class FlagsVisitor : public xml::Visitor {
       if (auto it = feature_flag_values_.find(flag_name); it != feature_flag_values_.end()) {
         if (it->second.enabled.has_value()) {
           if (options_.flags_must_be_readonly && !it->second.read_only) {
-            diagnostics_->Error(android::DiagMessage(node->line_number)
-                                << "attribute 'android:featureFlag' has flag '" << flag_name
+            diagnostics_->Error(android::DiagMessage(source_.WithLine(node->line_number))
+                                << "element '" << el->name << "' has flag '" << flag_name
                                 << "' which must be readonly but is not");
             has_error_ = true;
             return false;
@@ -81,15 +84,15 @@ class FlagsVisitor : public xml::Visitor {
             return remove;
           }
         } else if (options_.flags_must_have_value) {
-          diagnostics_->Error(android::DiagMessage(node->line_number)
-                              << "attribute 'android:featureFlag' has flag '" << flag_name
+          diagnostics_->Error(android::DiagMessage(source_.WithLine(node->line_number))
+                              << "element '" << el->name << "' has flag '" << flag_name
                               << "' without a true/false value from --feature_flags parameter");
           has_error_ = true;
           return false;
         }
       } else if (options_.fail_on_unrecognized_flags) {
-        diagnostics_->Error(android::DiagMessage(node->line_number)
-                            << "attribute 'android:featureFlag' has flag '" << flag_name
+        diagnostics_->Error(android::DiagMessage(source_.WithLine(node->line_number))
+                            << "element '" << el->name << "' has flag '" << flag_name
                             << "' not found in flags from --feature_flags parameter");
         has_error_ = true;
         return false;
@@ -103,10 +106,11 @@ class FlagsVisitor : public xml::Visitor {
   const FeatureFlagValues& feature_flag_values_;
   const FeatureFlagsFilterOptions& options_;
   bool has_error_ = false;
+  android::Source source_;
 };
 
 bool FeatureFlagsFilter::Consume(IAaptContext* context, xml::XmlResource* doc) {
-  FlagsVisitor visitor(context->GetDiagnostics(), feature_flag_values_, options_);
+  FlagsVisitor visitor(context->GetDiagnostics(), feature_flag_values_, options_, doc->file.source);
   doc->root->Accept(&visitor);
   return !visitor.HasError();
 }

@@ -142,13 +142,6 @@ frame when animating QS <-> QQS transition
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
                 android:paddingEnd="@dimen/signal_cluster_battery_padding" />
-
-            <com.android.systemui.battery.BatteryMeterView
-                android:id="@+id/batteryRemainingIcon"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:visibility="gone"
-                app:textAppearance="@style/TextAppearance.QS.Status" />
         </LinearLayout>
     </FrameLayout>
 

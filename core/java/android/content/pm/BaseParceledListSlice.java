@@ -16,12 +16,14 @@
 
 package android.content.pm;
 
+import android.annotation.Nullable;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.BadParcelableException;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
 import android.os.Parcel;
+import android.os.Parcel.ReadWriteHelper;
 import android.os.Parcelable;
 import android.os.RemoteException;
 import android.util.Log;
@@ -80,14 +82,20 @@ abstract class BaseParceledListSlice<T> implements Parcelable {
         Parcelable.Creator<?> creator = readParcelableCreator(p, loader);
         Class<?> listElementClass = null;
 
+        ReadWriteHelper readWriteHelper = createReadWriteHelper();
+        p.setReadWriteHelper(readWriteHelper);
         int i = 0;
-        while (i < N) {
-            if (p.readInt() == 0) {
-                break;
+        try {
+            while (i < N) {
+                if (p.readInt() == 0) {
+                    break;
+                }
+                listElementClass = readVerifyAndAddElement(creator, p, loader, listElementClass);
+                if (DEBUG) Log.d(TAG, "Read inline #" + i + ": " + mList.get(mList.size()-1));
+                i++;
             }
-            listElementClass = readVerifyAndAddElement(creator, p, loader, listElementClass);
-            if (DEBUG) Log.d(TAG, "Read inline #" + i + ": " + mList.get(mList.size()-1));
-            i++;
+        } finally {
+            p.setReadWriteHelper(null);
         }
         if (i >= N) {
             return;
@@ -101,11 +109,18 @@ abstract class BaseParceledListSlice<T> implements Parcelable {
             try {
                 retriever.transact(IBinder.FIRST_CALL_TRANSACTION, data, reply, 0);
                 reply.readException();
-                while (i < N && reply.readInt() != 0) {
-                    listElementClass = readVerifyAndAddElement(creator, reply, loader,
-                            listElementClass);
-                    if (DEBUG) Log.d(TAG, "Read extra #" + i + ": " + mList.get(mList.size()-1));
-                    i++;
+                reply.setReadWriteHelper(readWriteHelper);
+                try {
+                    while (i < N && reply.readInt() != 0) {
+                        listElementClass = readVerifyAndAddElement(creator, reply, loader,
+                                listElementClass);
+                        if (DEBUG) {
+                            Log.d(TAG, "Read extra #" + i + ": " + mList.get(mList.size()-1));
+                        }
+                        i++;
+                    }
+                } finally {
+                    reply.setReadWriteHelper(null);
                 }
             } catch (RemoteException e) {
                 throw new BadParcelableException(
@@ -181,16 +196,22 @@ abstract class BaseParceledListSlice<T> implements Parcelable {
         if (N > 0) {
             final Class<?> listElementClass = mList.get(0).getClass();
             writeParcelableCreator(mList.get(0), dest);
+            ReadWriteHelper readWriteHelper = createReadWriteHelper();
+            dest.setReadWriteHelper(readWriteHelper);
             int i = 0;
-            while (i < N && i < mInlineCountLimit && dest.dataSize() < MAX_IPC_SIZE) {
-                dest.writeInt(1);
+            try {
+                while (i < N && i < mInlineCountLimit && dest.dataSize() < MAX_IPC_SIZE) {
+                    dest.writeInt(1);
 
-                final T parcelable = mList.get(i);
-                verifySameType(listElementClass, parcelable.getClass());
-                writeElement(parcelable, dest, callFlags);
+                    final T parcelable = mList.get(i);
+                    verifySameType(listElementClass, parcelable.getClass());
+                    writeElement(parcelable, dest, callFlags);
 
-                if (DEBUG) Log.d(TAG, "Wrote inline #" + i + ": " + mList.get(i));
-                i++;
+                    if (DEBUG) Log.d(TAG, "Wrote inline #" + i + ": " + mList.get(i));
+                    i++;
+                }
+            } finally {
+                dest.setReadWriteHelper(null);
             }
             if (i < N) {
                 dest.writeInt(0);
@@ -213,26 +234,32 @@ abstract class BaseParceledListSlice<T> implements Parcelable {
 
                         try {
                             reply.writeNoException();
+                            reply.setReadWriteHelper(readWriteHelper);
+                            try {
+                                // note: this logic ensures if there are enough elements in the
+                                // list, we will always write over the max IPC size. This is
+                                // dangerous when there are large elements.
+                                while (i < N && reply.dataSize() < MAX_IPC_SIZE) {
+                                    reply.writeInt(1);
 
-                            // note: this logic ensures if there are enough elements in the list,
-                            // we will always write over the max IPC size. This is dangerous
-                            // when there are large elements.
-                            while (i < N && reply.dataSize() < MAX_IPC_SIZE) {
-                                reply.writeInt(1);
+                                    int preWriteSize = reply.dataSize();
 
-                                int preWriteSize = reply.dataSize();
+                                    final T parcelable = mList.get(i);
+                                    verifySameType(listElementClass, parcelable.getClass());
+                                    writeElement(parcelable, reply, callFlags);
 
-                                final T parcelable = mList.get(i);
-                                verifySameType(listElementClass, parcelable.getClass());
-                                writeElement(parcelable, reply, callFlags);
+                                    int elmSize = reply.dataSize() - preWriteSize;
+                                    if (elmSize >= WARN_ELM_SIZE) {
+                                        Log.w(TAG, "Element #" + i + " is " + elmSize + " bytes.");
+                                    }
 
-                                int elmSize = reply.dataSize() - preWriteSize;
-                                if (elmSize >= WARN_ELM_SIZE) {
-                                    Log.w(TAG, "Element #" + i + " is " + elmSize + " bytes.");
+                                    if (DEBUG) {
+                                        Log.d(TAG, "Wrote extra #" + i + ": " + mList.get(i));
+                                    }
+                                    i++;
                                 }
-
-                                if (DEBUG) Log.d(TAG, "Wrote extra #" + i + ": " + mList.get(i));
-                                i++;
+                            } finally {
+                                reply.setReadWriteHelper(null);
                             }
                             if (i < N) {
                                 if (DEBUG) Log.d(TAG, "Breaking @" + i + " of " + N);
@@ -264,4 +291,17 @@ abstract class BaseParceledListSlice<T> implements Parcelable {
     protected abstract void writeParcelableCreator(T parcelable, Parcel dest);
 
     protected abstract Parcelable.Creator<?> readParcelableCreator(Parcel from, ClassLoader loader);
+
+    /**
+     * Returns the {@link ReadWriteHelper} to use for this list.
+     *
+     * <p>This method is used to allow subclasses to provide a custom {@link ReadWriteHelper},
+     * for example to dedupe objects that are reused across the list.
+     *
+     * <p>The same {@link ReadWriteHelper} instance will be used across all pages.
+     */
+    @Nullable
+    protected ReadWriteHelper createReadWriteHelper() {
+        return null;
+    }
 }

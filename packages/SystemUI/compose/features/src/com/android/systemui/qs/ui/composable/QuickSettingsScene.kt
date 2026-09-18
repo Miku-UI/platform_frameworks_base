@@ -50,6 +50,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
@@ -60,7 +61,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.window.core.layout.WindowSizeClass
 import com.android.compose.animation.scene.ContentScope
 import com.android.compose.animation.scene.SceneKey
-import com.android.compose.animation.scene.SceneTransitionLayoutState
 import com.android.compose.animation.scene.UserAction
 import com.android.compose.animation.scene.UserActionResult
 import com.android.compose.animation.scene.animateContentFloatAsState
@@ -78,8 +78,10 @@ import com.android.systemui.compose.modifiers.sysuiResTag
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.lifecycle.rememberViewModel
-import com.android.systemui.notifications.ui.composable.HeadsUpNotificationSpace
-import com.android.systemui.notifications.ui.composable.NotificationScrollingStack
+import com.android.systemui.notifications.intelligence.rules.shared.NmContextualDisplayLaunch
+import com.android.systemui.notifications.intelligence.rules.ui.viewmodel.NotificationRulesParentViewModel
+import com.android.systemui.notifications.ui.composable.HeadsUpNotificationPlaceholder
+import com.android.systemui.notifications.ui.composable.ScrollingNotificationPanel
 import com.android.systemui.qs.composefragment.ui.GridAnchor
 import com.android.systemui.qs.footer.ui.compose.FooterActionsWithAnimatedVisibility
 import com.android.systemui.qs.panels.ui.compose.EditMode
@@ -94,11 +96,11 @@ import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.ui.composable.Scene
 import com.android.systemui.shade.ui.composable.CollapsedShadeHeader
 import com.android.systemui.shade.ui.composable.ExpandedShadeHeader
-import com.android.systemui.shade.ui.composable.ShadeHeader
 import com.android.systemui.shade.ui.composable.ShadePanelScrim
 import com.android.systemui.shade.ui.viewmodel.ShadeHeaderViewModel
 import com.android.systemui.statusbar.notification.stack.ui.view.NotificationScrollView
 import com.android.systemui.statusbar.notification.stack.ui.viewmodel.NotificationsPlaceholderViewModel
+import com.android.systemui.util.kotlin.toDp
 import dagger.Lazy
 import javax.inject.Inject
 import kotlin.math.roundToInt
@@ -114,6 +116,7 @@ constructor(
     private val notificationsPlaceholderViewModelFactory: NotificationsPlaceholderViewModel.Factory,
     private val actionsViewModelFactory: QuickSettingsUserActionsViewModel.Factory,
     private val contentViewModelFactory: QuickSettingsSceneContentViewModel.Factory,
+    private val notificationRulesParentViewModelFactory: NotificationRulesParentViewModel.Factory,
     private val jankMonitor: InteractionJankMonitor,
 ) : ExclusiveActivatable(), Scene {
     override val key = Scenes.QuickSettings
@@ -126,7 +129,7 @@ constructor(
 
     override val alwaysCompose: Boolean = true
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         actionsViewModel.activate()
     }
 
@@ -136,7 +139,15 @@ constructor(
             rememberViewModel("QuickSettingsScene-viewModel") { contentViewModelFactory.create() }
         val notificationsPlaceholderViewModel =
             rememberViewModel("QuickSettingsScene-notifPlaceholderViewModel") {
-                notificationsPlaceholderViewModelFactory.create()
+                notificationsPlaceholderViewModelFactory.create(Scenes.QuickSettings)
+            }
+        val notificationRulesParentViewModel =
+            if (NmContextualDisplayLaunch.isEnabled) {
+                rememberViewModel("QuickSettingsScene-notifRulesParentViewModel") {
+                    notificationRulesParentViewModelFactory.create()
+                }
+            } else {
+                null
             }
 
         val brightnessMirrorShowing =
@@ -163,6 +174,7 @@ constructor(
             viewModel = viewModel,
             headerViewModel = viewModel.qsContainerViewModel.shadeHeaderViewModel,
             notificationsPlaceholderViewModel = notificationsPlaceholderViewModel,
+            notificationRulesParentViewModel = notificationRulesParentViewModel,
             modifier =
                 modifier
                     .graphicsLayer { alpha = contentAlpha }
@@ -196,6 +208,7 @@ private fun ContentScope.QuickSettingsScene(
     viewModel: QuickSettingsSceneContentViewModel,
     headerViewModel: ShadeHeaderViewModel,
     notificationsPlaceholderViewModel: NotificationsPlaceholderViewModel,
+    notificationRulesParentViewModel: NotificationRulesParentViewModel?,
     modifier: Modifier = Modifier,
     shadeSession: SaveableSession,
     jankMonitor: InteractionJankMonitor,
@@ -206,7 +219,19 @@ private fun ContentScope.QuickSettingsScene(
         }
     val animatedBlurRadiusPx: Float by
         animateFloatAsState(targetValue = targetBlur, label = "QS-blurRadius")
-    Box(modifier.blur(with(LocalDensity.current) { animatedBlurRadiusPx.toDp() }).fillMaxSize()) {
+    val onlyPunchHolesInThisScene =
+        layoutState.isTransitioningBetween(Scenes.Gone, Scenes.QuickSettings) ||
+            layoutState.isTransitioningBetween(Scenes.Lockscreen, Scenes.QuickSettings)
+    Box(
+        modifier
+            .fillMaxSize()
+            .blur(with(LocalDensity.current) { animatedBlurRadiusPx.toDp() })
+            .thenIf(onlyPunchHolesInThisScene) {
+                // Render the scene to an offscreen buffer so that BlendMode.DstOut only clears
+                // this scene (and not the one under it) during a scene transition.
+                Modifier.graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+            }
+    ) {
         // This is the background for the whole scene, as the elements don't necessarily provide
         // a background that extends to the edges.
         ShadePanelScrim(viewModel.isTransparencyEnabled)
@@ -239,17 +264,17 @@ private fun ContentScope.QuickSettingsScene(
             }
         }
 
-        NestedSceneTransitionLayout(state = sceneState, modifier = Modifier.fillMaxSize()) {
+        NestedSceneTransitionLayout(
+            state = sceneState,
+            debugName = "QuickSettingsScene",
+            modifier = Modifier.fillMaxSize(),
+        ) {
             scene(QS) {
                 Element(QS.rootElementKey, Modifier) {
                     QuickSettingsContent(
-                        notificationsPlaceholderViewModel,
                         Modifier,
                         viewModel,
                         headerViewModel,
-                        notificationStackScrollView,
-                        shadeSession,
-                        jankMonitor,
                         this@QuickSettingsScene.verticalOverscrollEffect,
                     )
                 }
@@ -261,24 +286,74 @@ private fun ContentScope.QuickSettingsScene(
                     EditMode(
                         viewModel.qsContainerViewModel.editModeViewModel,
                         Modifier.testTag("edit_mode_scene")
-                            .padding(horizontal = QuickSettingsShade.Dimensions.Padding)
-                            .padding(top = ShadeHeader.Dimensions.StatusBarHeight),
+                            .padding(horizontal = QuickSettingsShade.Dimensions.HorizontalPadding)
+                            .padding(
+                                top =
+                                    headerViewModel.statusBarHeightPx.toDp(LocalContext.current).dp
+                            ),
                     )
                 }
             }
+        }
+
+        val shadeHorizontalPadding =
+            dimensionResource(id = R.dimen.notification_panel_margin_horizontal)
+        HeadsUpNotificationPlaceholder(
+            tag = "QSScene",
+            stackScrollView = notificationStackScrollView,
+            viewModel = notificationsPlaceholderViewModel,
+            modifier =
+                Modifier.align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = shadeHorizontalPadding),
+        )
+
+        if (isAlwaysComposedContentVisible()) {
+            val screenHeight =
+                with(LocalDensity.current) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
+            /**
+             * The minimum possible value for the top of the notification stack. In other words: how
+             * high is the notification stack allowed to get when the scene is at rest. It may still
+             * be translated farther upwards by a transition animation but, at rest, the top edge of
+             * its bounds must be limited to be at or below this value.
+             *
+             * A 1 pixel is added to compensate for any kind of rounding errors to make sure 100%
+             * that the notification stack is entirely "below" the entire screen.
+             */
+            val minNotificationStackTop = screenHeight.roundToInt() + 1
+            val navigationBarPadding = WindowInsets.navigationBars.asPaddingValues()
+            // TODO(b/436646848): remove ScrollingNotificationPanel from QuickSettings
+            ScrollingNotificationPanel(
+                tag = "QSScene",
+                shadeSession = shadeSession,
+                stackScrollView = notificationStackScrollView,
+                viewModel = notificationsPlaceholderViewModel,
+                notificationRulesParentViewModel = notificationRulesParentViewModel,
+                jankMonitor = jankMonitor,
+                shouldPunchHoleBehindScrim = true,
+                shouldFillMaxHeight = true,
+                isTransparencyEnabled = viewModel.isTransparencyEnabled,
+                stackTopPadding = dimensionResource(id = R.dimen.notification_side_paddings_single),
+                stackBottomPadding = { navigationBarPadding.calculateBottomPadding() },
+                shouldIncludeHeadsUpSpace = false,
+                isActivated = false,
+                modifier =
+                    Modifier.fillMaxWidth()
+                        // Match the screen height with the scrim, so it covers the whole screen,
+                        // when the stack "passes by" during the QS -> Gone transition.
+                        .height(LocalWindowInfo.current.containerSize.height.dp)
+                        .offset { IntOffset(x = 0, y = minNotificationStackTop) }
+                        .padding(horizontal = shadeHorizontalPadding),
+            )
         }
     }
 }
 
 @Composable
 private fun ContentScope.QuickSettingsContent(
-    notificationsPlaceholderViewModel: NotificationsPlaceholderViewModel,
     modifier: Modifier,
     viewModel: QuickSettingsSceneContentViewModel,
     headerViewModel: ShadeHeaderViewModel,
-    notificationStackScrollView: NotificationScrollView,
-    shadeSession: SaveableSession,
-    jankMonitor: InteractionJankMonitor,
     verticalOverscrollEffect: OverscrollEffect,
 ) {
     val cutoutLocation = LocalDisplayCutout.current().location
@@ -286,25 +361,13 @@ private fun ContentScope.QuickSettingsContent(
     val shadeHorizontalPadding =
         dimensionResource(id = R.dimen.notification_panel_margin_horizontal)
 
-    val shouldPunchHoleBehindScrim =
-        layoutState.isTransitioningBetween(Scenes.Gone, Scenes.QuickSettings) ||
-            layoutState.isTransitioningBetween(Scenes.Lockscreen, Scenes.QuickSettings)
-
     // TODO(b/280887232): implement the real UI.
     Box(
         modifier =
-            modifier
-                .fillMaxSize()
-                .thenIf(shouldPunchHoleBehindScrim) {
-                    // Render the scene to an offscreen buffer so that BlendMode.DstOut only clears
-                    // this scene (and not the one under it) during a scene transition.
-                    Modifier.graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-                }
-                .thenIf(cutoutLocation != CutoutLocation.CENTER) { Modifier.displayCutoutPadding() }
+            modifier.fillMaxSize().thenIf(cutoutLocation != CutoutLocation.CENTER) {
+                Modifier.displayCutoutPadding()
+            }
     ) {
-        val density = LocalDensity.current
-        val screenHeight = with(density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
-
         val lifecycleOwner = LocalLifecycleOwner.current
         val footerActionsViewModel =
             remember(lifecycleOwner, viewModel) {
@@ -329,8 +392,7 @@ private fun ContentScope.QuickSettingsContent(
 
         // ############# NAV BAR paddings ###############
 
-        val navBarBottomHeight =
-            WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val navBarInsets = WindowInsets.navigationBars.asPaddingValues()
 
         // ############# Media ###############
         val mediaInRow = viewModel.qsContainerViewModel.showMediaInRow
@@ -338,14 +400,13 @@ private fun ContentScope.QuickSettingsContent(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier =
-                Modifier.fillMaxSize()
-                    .overscroll(verticalOverscrollEffect)
-                    .padding(bottom = navBarBottomHeight.coerceAtLeast(0.dp)),
+                Modifier.fillMaxSize().overscroll(verticalOverscrollEffect).padding(navBarInsets),
         ) {
             Box(modifier = Modifier.fillMaxSize().weight(1f)) {
                 Column(
                     modifier =
-                        Modifier.verticalScroll(scrollState, enabled = isScrollable)
+                        Modifier.disableSwipesWhenScrolling()
+                            .verticalScroll(scrollState, enabled = isScrollable)
                             .clipScrollableContainer(Orientation.Horizontal)
                             .fillMaxWidth()
                             .wrapContentHeight(unbounded = true)
@@ -367,7 +428,11 @@ private fun ContentScope.QuickSettingsContent(
                         }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
-                    QuickSettingsContent(viewModel.qsContainerViewModel, mediaInRow)
+                    QuickSettingsContent(
+                        viewModel.qsContainerViewModel,
+                        mediaInRow,
+                        Modifier.padding(horizontal = shadeHorizontalPadding),
+                    )
                 }
             }
 
@@ -381,48 +446,5 @@ private fun ContentScope.QuickSettingsContent(
                         .padding(horizontal = shadeHorizontalPadding),
             )
         }
-        HeadsUpNotificationSpace(
-            stackScrollView = notificationStackScrollView,
-            viewModel = notificationsPlaceholderViewModel,
-            useHunBounds = { shouldUseQuickSettingsHunBounds(layoutState) },
-            modifier =
-                Modifier.align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(horizontal = shadeHorizontalPadding),
-        )
-
-        // TODO(b/436646848): remove NotificationScrollingStack from QuickSettings
-        // The minimum possible value for the top of the notification stack. In other words: how
-        // high is the notification stack allowed to get when the scene is at rest. It may still be
-        // translated farther upwards by a transition animation but, at rest, the top edge of its
-        // bounds must be limited to be at or below this value.
-        //
-        // A 1 pixel is added to compensate for any kind of rounding errors to make sure 100% that
-        // the notification stack is entirely "below" the entire screen.
-        val minNotificationStackTop = screenHeight.roundToInt() + 1
-        val notificationStackPadding = dimensionResource(id = R.dimen.notification_side_paddings)
-        NotificationScrollingStack(
-            shadeSession = shadeSession,
-            stackScrollView = notificationStackScrollView,
-            viewModel = notificationsPlaceholderViewModel,
-            jankMonitor = jankMonitor,
-            maxScrimTop = { minNotificationStackTop.toFloat() },
-            shouldPunchHoleBehindScrim = shouldPunchHoleBehindScrim,
-            stackTopPadding = notificationStackPadding,
-            stackBottomPadding = navBarBottomHeight,
-            shouldIncludeHeadsUpSpace = false,
-            supportNestedScrolling = false,
-            modifier =
-                Modifier.fillMaxWidth()
-                    // Match the screen height with the scrim, so it covers the whole screen,
-                    // when the stack "passes by" during the QS -> Gone transition.
-                    .height(LocalWindowInfo.current.containerSize.height.dp)
-                    .offset { IntOffset(x = 0, y = minNotificationStackTop) }
-                    .padding(horizontal = shadeHorizontalPadding),
-        )
     }
-}
-
-private fun shouldUseQuickSettingsHunBounds(layoutState: SceneTransitionLayoutState): Boolean {
-    return layoutState.isIdle(Scenes.QuickSettings)
 }

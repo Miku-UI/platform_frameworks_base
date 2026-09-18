@@ -17,6 +17,7 @@
 package com.android.server.trust;
 
 import static android.security.Flags.shouldTrustManagerListenForPrimaryAuth;
+import static android.app.admin.flags.Flags.increaseWatchStrongAuthTimeout;
 import static android.service.trust.GrantTrustResult.STATUS_UNLOCKED_BY_GRANT;
 import static android.service.trust.TrustAgentService.FLAG_GRANT_TRUST_TEMPORARY_AND_RENEWABLE;
 
@@ -152,10 +153,12 @@ public class TrustManagerService extends SystemService {
     private static final String REFRESH_DEVICE_LOCKED_EXCEPT_USER = "except";
 
     private static final int TRUST_USUALLY_MANAGED_FLUSH_DELAY = 2 * 60 * 1000;
-    private static final String TRUST_TIMEOUT_ALARM_TAG = "TrustManagerService.trustTimeoutForUser";
+    @VisibleForTesting
+    public  static final String TRUST_TIMEOUT_ALARM_TAG = "TrustManagerService.trustTimeoutForUser";
     private static final long TRUST_TIMEOUT_IN_MILLIS = 4 * 60 * 60 * 1000;
     private static final long TRUSTABLE_IDLE_TIMEOUT_IN_MILLIS = 8 * 60 * 60 * 1000;
     private static final long TRUSTABLE_TIMEOUT_IN_MILLIS = 24 * 60 * 60 * 1000;
+    private static final long TRUSTABLE_WATCH_TIMEOUT_IN_MILLIS = 14 * 24 * 60 * 60 * 1000;
 
     private static final String PRIV_NAMESPACE = "http://schemas.android.com/apk/prv/res/android";
 
@@ -167,6 +170,7 @@ public class TrustManagerService extends SystemService {
     private final Handler mHandler;
 
     /* package */ final TrustArchive mArchive = new TrustArchive();
+    private final Injector mInjector;
     private final Context mContext;
     private final LockSettingsInternal mLockSettings;
     private final LockPatternUtils mLockPatternUtils;
@@ -209,7 +213,7 @@ public class TrustManagerService extends SystemService {
      * which are handled slightly differently:
      * <ul>
      *  <li> Users with real keyguard:
-     *  These are users who can be switched to ({@link UserInfo#supportsSwitchToByUser()}). Their
+     *  These are users who can be switched to ({@link UserInfo#supportsSwitchTo()}). Their
      *  locked state is derived by a combination of user secure state, keyguard state, trust agent
      *  decision and biometric authentication result. These are updated via
      *  {@link #refreshDeviceLockedForUser(int)} and result stored in {@link #mDeviceLockedForUser}.
@@ -291,9 +295,11 @@ public class TrustManagerService extends SystemService {
      */
     protected static class Injector {
         private final Context mContext;
+        private final boolean mIsWatch;
 
         public Injector(Context context) {
             mContext = context;
+            mIsWatch = context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH);
         }
 
         LockPatternUtils getLockPatternUtils() {
@@ -311,6 +317,16 @@ public class TrustManagerService extends SystemService {
         Looper getLooper() {
             return Looper.myLooper();
         }
+
+        /** Returns whether the device is a watch. */
+        boolean isWatch() {
+            return mIsWatch;
+        }
+
+        /** Returns the delay before flushing the trust usually managed message. */
+        long getTrustUsuallyManagedMessageFlushDelayMillis() {
+            return TRUST_USUALLY_MANAGED_FLUSH_DELAY;
+        }
     }
 
     public TrustManagerService(Context context) {
@@ -319,6 +335,7 @@ public class TrustManagerService extends SystemService {
 
     protected TrustManagerService(Context context, Injector injector) {
         super(context);
+        mInjector = injector;
         mContext = context;
         mHandler = createHandler(injector.getLooper());
         mUserManager = (UserManager) mContext.getSystemService(Context.USER_SERVICE);
@@ -493,6 +510,14 @@ public class TrustManagerService extends SystemService {
     }
 
     private void setUpIdleTimeout(int userId, boolean overrideIdleTimeout) {
+        if (increaseWatchStrongAuthTimeout() && mInjector.isWatch()) {
+            // For the watch scenario with a trust agent, do not schedule an idle timeout.
+            // The idle timeout is replaced by a hard timeout.
+            if (DEBUG) {
+                Slogf.d(TAG, "Not scheduling idle timeout for user %d on watch.", userId);
+            }
+            return;
+        }
         if (DEBUG) {
             Slogf.d(
                     TAG,
@@ -543,7 +568,8 @@ public class TrustManagerService extends SystemService {
         // set it
         if (alarm == null || !alarm.isQueued() || overrideHardTimeout) {
             // schedule hard limit on renewable trust use
-            long when = SystemClock.elapsedRealtime() + TRUSTABLE_TIMEOUT_IN_MILLIS;
+            long timeout = getTrustableTimeoutMillis();
+            long when = SystemClock.elapsedRealtime() + timeout;
             if (alarm == null) {
                 alarm = new TrustableTimeoutAlarmListener(userId);
                 mTrustableTimeoutAlarmListenerForUser.put(userId, alarm);
@@ -553,15 +579,22 @@ public class TrustManagerService extends SystemService {
             if (DEBUG) {
                 Slogf.d(
                         TAG,
-                        "\tSetting up trustable hard timeout alarm triggering at "
+                        "\tSetting up trustable hard timeout alarm triggering in %s at "
                                 + "elapsedRealTime=%s",
-                        when);
+                        timeout, when);
             }
             alarm.setQueued(true /* isQueued */);
             mAlarmManager.setExact(
                     AlarmManager.ELAPSED_REALTIME_WAKEUP, when, TRUST_TIMEOUT_ALARM_TAG, alarm,
                     mHandler);
         }
+    }
+
+    private long getTrustableTimeoutMillis() {
+        if (increaseWatchStrongAuthTimeout() && mInjector.isWatch()) {
+            return TRUSTABLE_WATCH_TIMEOUT_IN_MILLIS;
+        }
+        return TRUSTABLE_TIMEOUT_IN_MILLIS;
     }
 
    // Agent management
@@ -732,6 +765,8 @@ public class TrustManagerService extends SystemService {
     }
 
     private void updateTrustUsuallyManaged(int userId, boolean managed) {
+        if (DEBUG)
+            Slogf.d(TAG, "updateTrustUsuallyManaged(userId=%s, managed=%s)", userId, managed);
         synchronized (mTrustUsuallyManagedForUser) {
             mTrustUsuallyManagedForUser.put(userId, managed);
         }
@@ -739,8 +774,8 @@ public class TrustManagerService extends SystemService {
         // managing trust (crashed, needs to acknowledge DPM restrictions, etc).
         mHandler.removeMessages(MSG_FLUSH_TRUST_USUALLY_MANAGED);
         mHandler.sendMessageDelayed(
-                mHandler.obtainMessage(MSG_FLUSH_TRUST_USUALLY_MANAGED),
-                TRUST_USUALLY_MANAGED_FLUSH_DELAY);
+                mHandler.obtainMessage(MSG_FLUSH_TRUST_USUALLY_MANAGED, userId, 0 /* arg2 */),
+                mInjector.getTrustUsuallyManagedMessageFlushDelayMillis());
     }
 
     public long addEscrowToken(byte[] token, int userId) {
@@ -808,7 +843,7 @@ public class TrustManagerService extends SystemService {
         for (UserInfo userInfo : userInfos) {
             if (userInfo == null || userInfo.partial || !userInfo.isEnabled()
                     || userInfo.guestToRemove) continue;
-            if (!userInfo.supportsSwitchToByUser()) {
+            if (!userInfo.supportsSwitchTo()) {
                 if (DEBUG) {
                     Slogf.d(
                             TAG,
@@ -1015,7 +1050,7 @@ public class TrustManagerService extends SystemService {
 
     /**
      * Update the user's locked state. Only applicable to users with a real keyguard
-     * ({@link UserInfo#supportsSwitchToByUser}) and unsecured profiles.
+     * ({@link UserInfo#supportsSwitchTo}) and unsecured profiles.
      *
      * If this is called due to an unlock operation set unlockedUser to prevent the lock from
      * being prematurely reset for that user while keyguard is still in the process of going away.
@@ -1046,7 +1081,7 @@ public class TrustManagerService extends SystemService {
             int id = info.id;
             boolean secure = mLockPatternUtils.isSecure(id);
 
-            if (!info.supportsSwitchToByUser()) {
+            if (!info.supportsSwitchTo()) {
                 if (info.isProfile() && !secure
                         && !mLockPatternUtils.isProfileWithUnifiedChallenge(id)) {
                     // Unsecured profiles need to be explicitly set to false.
@@ -1546,7 +1581,8 @@ public class TrustManagerService extends SystemService {
             mStrongAuthTracker.allowTrustFromUnlock(userId);
             // Allow the presence of trust on a successful unlock attempt to extend unlock
             updateTrust(userId, 0 /* flags */, true, null);
-            mHandler.obtainMessage(MSG_REFRESH_TRUSTABLE_TIMERS_AFTER_AUTH, userId).sendToTarget();
+            mHandler.obtainMessage(
+                MSG_REFRESH_TRUSTABLE_TIMERS_AFTER_AUTH, userId, /* arg2= */ 0).sendToTarget();
         }
 
         for (int i = 0; i < mActiveAgents.size(); i++) {
@@ -1907,6 +1943,11 @@ public class TrustManagerService extends SystemService {
         public boolean isInSignificantPlace() {
             super.isInSignificantPlace_enforcePermission();
 
+            if (mSignificantPlaceServiceWatcher == null) {
+                mIsInSignificantPlace = false;
+                return mIsInSignificantPlace;
+            }
+
             mSignificantPlaceServiceWatcher.runOnBinder(
                     binder -> ISignificantPlaceProvider.Stub.asInterface(binder)
                             .onSignificantPlaceCheck());
@@ -1972,7 +2013,7 @@ public class TrustManagerService extends SystemService {
         private void dumpUser(PrintWriter fout, UserInfo user, boolean isCurrent) {
             fout.printf(" User \"%s\" (id=%d, flags=%#x)",
                     user.name, user.id, user.flags);
-            if (!user.supportsSwitchToByUser()) {
+            if (!user.supportsSwitchTo()) {
                 final boolean locked;
                 if (mLockPatternUtils.isProfileWithUnifiedChallenge(user.id)) {
                     fout.print(" (profile with unified challenge)");
@@ -2094,7 +2135,8 @@ public class TrustManagerService extends SystemService {
             int updateTrustOnUnlock = isAutomotive() ? 0 : 1;
             mHandler.obtainMessage(MSG_REFRESH_DEVICE_LOCKED_FOR_USER, userId,
                     updateTrustOnUnlock).sendToTarget();
-            mHandler.obtainMessage(MSG_REFRESH_TRUSTABLE_TIMERS_AFTER_AUTH, userId).sendToTarget();
+            mHandler.obtainMessage(
+                MSG_REFRESH_TRUSTABLE_TIMERS_AFTER_AUTH, userId, /* arg2= */ 0).sendToTarget();
         }
 
         @Override
@@ -2216,6 +2258,15 @@ public class TrustManagerService extends SystemService {
                         SparseBooleanArray usuallyManaged;
                         synchronized (mTrustUsuallyManagedForUser) {
                             usuallyManaged = mTrustUsuallyManagedForUser.clone();
+                        }
+
+                        int msgForUserId = msg.arg1;
+                        if (increaseWatchStrongAuthTimeout() && mInjector.isWatch()) {
+                            if (DEBUG) {
+                                Slogf.d(TAG, "Refreshing strong auth timeout for userId=%s",
+                                        msgForUserId);
+                            }
+                            mLockSettings.refreshStrongAuthTimeout(msgForUserId);
                         }
 
                         for (int i = 0; i < usuallyManaged.size(); i++) {
@@ -2409,7 +2460,7 @@ public class TrustManagerService extends SystemService {
         }
 
         /**
-         * Temporarily suppress strong auth requirements for {@param userId} until strong auth
+         * Temporarily suppress strong auth requirements for {@code userId} until strong auth
          * changes again. Must only be called when we know about a successful unlock already
          * before the underlying StrongAuthTracker.
          *

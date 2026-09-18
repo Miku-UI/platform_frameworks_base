@@ -76,29 +76,24 @@ nativeClassInit(JNIEnv *_env, jclass glImplClass)
     eglsurfaceGetHandleID = _env->GetMethodID(eglsurfaceClass, "getNativeHandle", "()J");
     eglconfigGetHandleID = _env->GetMethodID(eglconfigClass, "getNativeHandle", "()J");
 
-
     egldisplayConstructor = _env->GetMethodID(egldisplayClass, "<init>", "(J)V");
     eglcontextConstructor = _env->GetMethodID(eglcontextClass, "<init>", "(J)V");
     eglsurfaceConstructor = _env->GetMethodID(eglsurfaceClass, "<init>", "(J)V");
     eglconfigConstructor = _env->GetMethodID(eglconfigClass, "<init>", "(J)V");
 
-    jobject localeglNoContextObject = _env->NewObject(eglcontextClass, eglcontextConstructor, reinterpret_cast<jlong>(EGL_NO_CONTEXT));
-    eglNoContextObject = _env->NewGlobalRef(localeglNoContextObject);
-    jobject localeglNoDisplayObject = _env->NewObject(egldisplayClass, egldisplayConstructor, reinterpret_cast<jlong>(EGL_NO_DISPLAY));
-    eglNoDisplayObject = _env->NewGlobalRef(localeglNoDisplayObject);
-    jobject localeglNoSurfaceObject = _env->NewObject(eglsurfaceClass, eglsurfaceConstructor, reinterpret_cast<jlong>(EGL_NO_SURFACE));
-    eglNoSurfaceObject = _env->NewGlobalRef(localeglNoSurfaceObject);
-
-
     jclass eglClass = _env->FindClass("android/opengl/EGL14");
+
     jfieldID noContextFieldID = _env->GetStaticFieldID(eglClass, "EGL_NO_CONTEXT", "Landroid/opengl/EGLContext;");
-    _env->SetStaticObjectField(eglClass, noContextFieldID, eglNoContextObject);
+    jobject localeglNoContextObject = _env->GetStaticObjectField(eglClass, noContextFieldID);
+    eglNoContextObject = _env->NewGlobalRef(localeglNoContextObject);
 
     jfieldID noDisplayFieldID = _env->GetStaticFieldID(eglClass, "EGL_NO_DISPLAY", "Landroid/opengl/EGLDisplay;");
-    _env->SetStaticObjectField(eglClass, noDisplayFieldID, eglNoDisplayObject);
+    jobject localeglNoDisplayObject = _env->GetStaticObjectField(eglClass, noDisplayFieldID);
+    eglNoDisplayObject = _env->NewGlobalRef(localeglNoDisplayObject);
 
     jfieldID noSurfaceFieldID = _env->GetStaticFieldID(eglClass, "EGL_NO_SURFACE", "Landroid/opengl/EGLSurface;");
-    _env->SetStaticObjectField(eglClass, noSurfaceFieldID, eglNoSurfaceObject);
+    jobject localeglNoSurfaceObject = _env->GetStaticObjectField(eglClass, noSurfaceFieldID);
+    eglNoSurfaceObject = _env->NewGlobalRef(localeglNoSurfaceObject);
 }
 
 static void *
@@ -171,76 +166,38 @@ android_eglGetDisplayInt
 static jboolean
 android_eglInitialize
   (JNIEnv *_env, jobject _this, jobject dpy, jintArray major_ref, jint majorOffset, jintArray minor_ref, jint minorOffset) {
-    jint _exception = 0;
-    const char * _exceptionType = NULL;
-    const char * _exceptionMessage = NULL;
-    EGLBoolean _returnValue = (EGLBoolean) 0;
     EGLDisplay dpy_native = (EGLDisplay) fromEGLHandle(_env, egldisplayGetHandleID, dpy);
-    EGLint *major_base = (EGLint *) 0;
-    jint _majorRemaining;
-    EGLint *major = (EGLint *) 0;
-    EGLint *minor_base = (EGLint *) 0;
-    jint _minorRemaining;
-    EGLint *minor = (EGLint *) 0;
+    EGLint majorVersion;
+    EGLint minorVersion;
 
     if (major_ref) {
-        if (majorOffset < 0) {
-            _exception = 1;
-            _exceptionType = "java/lang/IllegalArgumentException";
-            _exceptionMessage = "majorOffset < 0";
-            goto exit;
+        if (majorOffset < 0 || majorOffset >= _env->GetArrayLength(major_ref)) {
+            jniThrowException(_env, "java/lang/IllegalArgumentException",
+                    "majorOffset outside array");
+            return JNI_FALSE;
         }
-        _majorRemaining = _env->GetArrayLength(major_ref) - majorOffset;
-        if (_majorRemaining < 1) {
-            _exception = 1;
-            _exceptionType = "java/lang/IllegalArgumentException";
-            _exceptionMessage = "length - majorOffset < 1 < needed";
-            goto exit;
-        }
-        major_base = (EGLint *)
-            _env->GetIntArrayElements(major_ref, (jboolean *)0);
-        major = major_base + majorOffset;
     }
 
     if (minor_ref) {
-        if (minorOffset < 0) {
-            _exception = 1;
-            _exceptionType = "java/lang/IllegalArgumentException";
-            _exceptionMessage = "minorOffset < 0";
-            goto exit;
+        if (minorOffset < 0 || minorOffset >= _env->GetArrayLength(minor_ref)) {
+            jniThrowException(_env, "java/lang/IllegalArgumentException",
+                    "minorOffset outside array");
+            return JNI_FALSE;
         }
-        _minorRemaining = _env->GetArrayLength(minor_ref) - minorOffset;
-        if (_minorRemaining < 1) {
-            _exception = 1;
-            _exceptionType = "java/lang/IllegalArgumentException";
-            _exceptionMessage = "length - minorOffset < 1 < needed";
-            goto exit;
-        }
-        minor_base = (EGLint *)
-            _env->GetIntArrayElements(minor_ref, (jboolean *)0);
-        minor = minor_base + minorOffset;
     }
 
-    _returnValue = eglInitialize(
-        (EGLDisplay)dpy_native,
-        (EGLint *)major,
-        (EGLint *)minor
-    );
-
-exit:
-    if (minor_base) {
-        _env->ReleaseIntArrayElements(minor_ref, (jint*)minor_base,
-            _exception ? JNI_ABORT: 0);
-    }
-    if (major_base) {
-        _env->ReleaseIntArrayElements(major_ref, (jint*)major_base,
-            _exception ? JNI_ABORT: 0);
-    }
-    if (_exception) {
-        jniThrowException(_env, _exceptionType, _exceptionMessage);
+    if (EGL_TRUE != eglInitialize(dpy_native, &majorVersion, &minorVersion)) {
         return JNI_FALSE;
     }
-    return (jboolean)_returnValue;
+
+    if (major_ref) {
+        _env->SetIntArrayRegion(major_ref, majorOffset, 1, &majorVersion);
+    }
+    if (minor_ref) {
+        _env->SetIntArrayRegion(minor_ref, minorOffset, 1, &minorVersion);
+    }
+
+    return JNI_TRUE;
 }
 
 /* EGLBoolean eglTerminate ( EGLDisplay dpy ) */
@@ -627,13 +584,16 @@ not_valid_surface:
         _exceptionMessage = "Make sure the SurfaceView or associated SurfaceHolder has a valid Surface";
         goto exit;
     }
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_SURFACETEXTURE)
+    window = android::SurfaceTexture_getSurface(_env, win);
+#else
     producer = android::SurfaceTexture_getProducer(_env, win);
 
     if (producer == NULL)
         goto not_valid_surface;
 
     window = android::sp<android::Surface>::make(producer, true);
-
+#endif
     if (window == NULL)
         goto not_valid_surface;
 

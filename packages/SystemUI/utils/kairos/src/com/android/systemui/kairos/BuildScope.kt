@@ -20,6 +20,7 @@ import com.android.systemui.kairos.util.Maybe
 import com.android.systemui.kairos.util.NameData
 import com.android.systemui.kairos.util.NameTag
 import com.android.systemui.kairos.util.map
+import com.android.systemui.kairos.util.maybeOf
 import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.kairos.util.plus
 import com.android.systemui.kairos.util.toNameData
@@ -48,16 +49,13 @@ typealias BuildSpec<A> = BuildScope.() -> A
  * to perform network-building operations, including adding new inputs and outputs to the network,
  * as well as all operations available in [TransactionScope].
  */
-@ExperimentalKairosApi
 @Suppress("NOTHING_TO_INLINE")
 inline fun <A> buildSpec(noinline block: BuildScope.() -> A): BuildSpec<A> = block
 
 /** Applies the [BuildSpec] within this [BuildScope]. */
-@ExperimentalKairosApi
 inline operator fun <A> BuildScope.invoke(block: BuildScope.() -> A) = run(block)
 
 /** Operations that add inputs and outputs to a Kairos network. */
-@ExperimentalKairosApi
 interface BuildScope : HasNetwork, StateScope {
 
     /**
@@ -204,7 +202,7 @@ interface BuildScope : HasNetwork, StateScope {
     // TODO: see TODO for [events]
     fun <In, Out> coalescingEvents(
         getInitialValue: KairosScope.() -> Out,
-        coalesce: (old: Out, new: In) -> Out,
+        coalesce: KairosScope.(old: Out, new: In) -> Out,
         name: NameTag? = null,
         builder: suspend CoalescingEventProducerScope<In>.() -> Unit,
     ): Events<Out>
@@ -261,13 +259,6 @@ interface BuildScope : HasNetwork, StateScope {
      */
     fun <A> State<A>.toStateFlow(name: NameTag? = null): StateFlow<A> =
         toStateFlow(name.toNameData("State.toStateFlow"), this)
-
-    /**
-     * Returns a [SharedFlow] configured with a replay cache of size [replay] that emits the current
-     * [value][State.sample] of this [State] followed by all [changes].
-     */
-    fun <A> State<A>.toSharedFlow(replay: Int = 0): SharedFlow<A> =
-        toSharedFlow(nameTag("State.toSharedFlow").toNameData("State.toSharedFlow"), this, replay)
 
     /**
      * Returns a [SharedFlow] configured with a replay cache of size [replay] that emits values
@@ -793,7 +784,6 @@ interface BuildScope : HasNetwork, StateScope {
  *       events { emit(block()) }.apply { observe() }
  * ```
  */
-@ExperimentalKairosApi
 fun <A> BuildScope.asyncEvent(
     name: NameTag? = null,
     block: suspend KairosScope.() -> A,
@@ -811,6 +801,47 @@ internal fun <A> BuildScope.asyncEvent(
         .apply { observeSync(nameData + "observeNoop") }
 
 /**
+ * Returns a [State] that contains the [Maybe.present] result of [block] once it completes, and
+ * [Maybe.absent] before then.
+ *
+ * [block] is evaluated outside of the current Kairos transaction; when it completes, the returned
+ * [State] updates in a new transaction.
+ *
+ * ```
+ *   fun <A> BuildScope.asyncState(block: suspend KairosScope.() -> A): State<Maybe<A>> =
+ *       asyncState(maybeOf()) { maybeOf(block()) }
+ * ```
+ */
+fun <A> BuildScope.asyncState(
+    name: NameTag? = null,
+    block: suspend KairosScope.() -> A,
+): State<Maybe<A>> = asyncState(maybeOf(), name) { maybeOf(block()) }
+
+/**
+ * Returns a [State] that contains the result of [block] once it completes, and [initialValue]
+ * before then.
+ *
+ * [block] is evaluated outside of the current Kairos transaction; when it completes, the returned
+ * [State] updates in a new transaction.
+ *
+ * ```
+ *   fun <A> BuildScope.asyncState(initialValue: A, block: suspend () -> A): State<A> =
+ *       asyncEvents(block).holdState(initialValue)
+ * ```
+ */
+fun <A> BuildScope.asyncState(
+    initialValue: A,
+    name: NameTag? = null,
+    block: suspend KairosScope.() -> A,
+): State<A> = asyncState(name.toNameData("BuildScope.asyncState"), initialValue, block)
+
+internal fun <A> BuildScope.asyncState(
+    nameData: NameData,
+    initialValue: A,
+    block: suspend KairosScope.() -> A,
+): State<A> = holdState(nameData, asyncEvent(nameData + "asyncEvent", block), initialValue)
+
+/**
  * Performs a side-effect in a safe manner w/r/t the current Kairos transaction.
  *
  * Specifically, [block] is deferred to the end of the current transaction, and is only actually
@@ -825,7 +856,6 @@ internal fun <A> BuildScope.asyncEvent(
  *       launchScope(context) { now.observe { block() } }
  * ```
  */
-@ExperimentalKairosApi
 fun BuildScope.effect(
     context: CoroutineContext = EmptyCoroutineContext,
     name: NameTag? = null,
@@ -862,7 +892,6 @@ internal fun BuildScope.effect(
  *
  * @see effect
  */
-@ExperimentalKairosApi
 fun BuildScope.effectSync(name: NameTag? = null, block: TransactionEffectScope.() -> Unit): Job =
     effectSync(name.toNameData("BuildScope.effectSync"), block)
 
@@ -883,7 +912,6 @@ internal fun BuildScope.effectSync(
  *       effect { effectCoroutineScope.launch { block() } }
  * ```
  */
-@ExperimentalKairosApi
 fun BuildScope.launchEffect(
     context: CoroutineContext = EmptyCoroutineContext,
     name: NameTag? = null,
@@ -911,7 +939,6 @@ internal fun BuildScope.launchEffect(
  *           .await()
  * ```
  */
-@ExperimentalKairosApi
 fun <R> BuildScope.asyncEffect(
     context: CoroutineContext = EmptyCoroutineContext,
     block: suspend KairosCoroutineScope.() -> R,
@@ -941,7 +968,6 @@ internal fun <R> BuildScope.asyncEffect(
 }
 
 /** Like [BuildScope.asyncScope], but ignores the result of [block]. */
-@ExperimentalKairosApi
 fun BuildScope.launchScope(
     coroutineContext: CoroutineContext = EmptyCoroutineContext,
     block: BuildSpec<*>,
@@ -975,10 +1001,9 @@ internal fun BuildScope.launchScope(
  * [coalesce]. Once the batch is consumed by the Kairos network in the next transaction, the batch
  * is reset back to [initialValue].
  */
-@ExperimentalKairosApi
 fun <In, Out> BuildScope.coalescingEvents(
     initialValue: Out,
-    coalesce: (old: Out, new: In) -> Out,
+    coalesce: KairosScope.(old: Out, new: In) -> Out,
     builder: suspend CoalescingEventProducerScope<In>.() -> Unit,
 ): Events<Out> =
     coalescingEvents(
@@ -991,7 +1016,7 @@ fun <In, Out> BuildScope.coalescingEvents(
 internal fun <In, Out> BuildScope.coalescingEvents(
     nameData: NameData,
     initialValue: Out,
-    coalesce: (old: Out, new: In) -> Out,
+    coalesce: KairosScope.(old: Out, new: In) -> Out,
     builder: suspend CoalescingEventProducerScope<In>.() -> Unit,
 ): Events<Out> = coalescingEvents(getInitialValue = { initialValue }, coalesce, nameData, builder)
 
@@ -1010,7 +1035,6 @@ internal fun <In, Out> BuildScope.coalescingEvents(
  * In the event of backpressure, emissions are *conflated*; any older emissions are dropped and only
  * the most recent emission will be used when the Kairos network is ready.
  */
-@ExperimentalKairosApi
 fun <T> BuildScope.conflatedEvents(
     builder: suspend CoalescingEventProducerScope<T>.() -> Unit
 ): Events<T> =
@@ -1071,7 +1095,6 @@ suspend fun awaitClose(block: () -> Unit): Nothing =
  * Runs [spec] in this [BuildScope], and then re-runs it whenever [rebuildSignal] emits. Returns a
  * [State] that holds the result of the currently-active [BuildSpec].
  */
-@ExperimentalKairosApi
 fun <A> BuildScope.rebuildOn(
     rebuildSignal: Events<*>,
     name: NameTag? = null,
@@ -1177,19 +1200,6 @@ internal fun <A> BuildScope.toStateFlow(nameData: NameData, state: State<A>): St
             innerStateFlow.collect { collector.emit(it.value) }
         }
     }
-}
-
-internal fun <A> BuildScope.toSharedFlow(
-    nameData: NameData,
-    state: State<A>,
-    replay: Int,
-): SharedFlow<A> {
-    val result = MutableSharedFlow<A>(replay, extraBufferCapacity = 1)
-    deferredBuildScope {
-        result.tryEmit(state.sample())
-        state.changes.observeSync(nameData) { a -> result.tryEmit(a) }
-    }
-    return result
 }
 
 internal fun <A> BuildScope.toSharedFlow(
@@ -1353,6 +1363,7 @@ internal fun <A> BuildScope.toState(nameData: NameData, stateFlow: StateFlow<A>)
 }
 
 internal fun <A> BuildScope.toEvents(nameData: NameData, flow: Flow<A>): Events<A> =
+    // TODO: can be run in Dispatchers.Unconfined, since the emit is thread-safe
     events(nameData) { flow.collect { emit(it) } }
 
 internal fun <A> BuildScope.toState(nameData: NameData, flow: Flow<A>, initialValue: A): State<A> =

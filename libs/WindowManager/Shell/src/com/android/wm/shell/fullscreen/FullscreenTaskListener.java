@@ -31,6 +31,7 @@ import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.common.SyncTransactionQueue;
 import com.android.wm.shell.desktopmode.DesktopWallpaperActivity;
 import com.android.wm.shell.desktopmode.desktopwallpaperactivity.DesktopWallpaperActivityTokenProvider;
+import com.android.wm.shell.packageupdate.PackageUpdateController;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
 import com.android.wm.shell.recents.RecentTasksController;
 import com.android.wm.shell.sysui.ShellInit;
@@ -59,13 +60,13 @@ public class FullscreenTaskListener implements ShellTaskOrganizer.TaskListener {
     private final Optional<WindowDecorViewModel> mWindowDecorViewModelOptional;
     private final Optional<DesktopWallpaperActivityTokenProvider>
             mDesktopWallpaperActivityTokenProviderOptional;
-
+    private final Optional<PackageUpdateController> mPackageUpdateControllerOptional;
     /**
      * This constructor is used by downstream products.
      */
     public FullscreenTaskListener(SyncTransactionQueue syncQueue) {
         this(null /* shellInit */, null /* shellTaskOrganizer */, syncQueue, Optional.empty(),
-                Optional.empty(), Optional.empty());
+                Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     public FullscreenTaskListener(ShellInit shellInit,
@@ -74,13 +75,15 @@ public class FullscreenTaskListener implements ShellTaskOrganizer.TaskListener {
             Optional<RecentTasksController> recentTasksOptional,
             Optional<WindowDecorViewModel> windowDecorViewModelOptional,
             Optional<DesktopWallpaperActivityTokenProvider>
-                    desktopWallpaperActivityTokenProviderOptional) {
+                    desktopWallpaperActivityTokenProviderOptional,
+            Optional<PackageUpdateController> packageUpdateControllerOptional) {
         mShellTaskOrganizer = shellTaskOrganizer;
         mSyncQueue = syncQueue;
         mRecentTasksOptional = recentTasksOptional;
         mWindowDecorViewModelOptional = windowDecorViewModelOptional;
         mDesktopWallpaperActivityTokenProviderOptional =
                 desktopWallpaperActivityTokenProviderOptional;
+        mPackageUpdateControllerOptional = packageUpdateControllerOptional;
         // Note: Some derivative FullscreenTaskListener implementations do not use ShellInit
         if (shellInit != null) {
             shellInit.addInitCallback(this::onInit, this);
@@ -103,6 +106,9 @@ public class FullscreenTaskListener implements ShellTaskOrganizer.TaskListener {
         state.mLeash = leash;
         state.mTaskInfo = taskInfo;
         mTasks.put(taskInfo.taskId, state);
+        // TODO(b/467922656): Generalise this for all tasks (e.g. depend on TDA) instead of
+        // individual tasks.
+        mPackageUpdateControllerOptional.ifPresent(c -> c.onTaskAppeared(taskInfo));
     }
 
     @Override
@@ -129,6 +135,7 @@ public class FullscreenTaskListener implements ShellTaskOrganizer.TaskListener {
                         provider.removeToken(taskInfo.getToken());
                     }
                 });
+        mPackageUpdateControllerOptional.ifPresent(c -> c.onTaskVanished(taskInfo));
     }
 
     private void updateRecentsForVisibleFullscreenTask(RunningTaskInfo taskInfo) {

@@ -21,9 +21,8 @@ import static android.os.VibrationAttributes.USAGE_CLASS_ALARM;
 import static android.os.VibrationAttributes.USAGE_CLASS_FEEDBACK;
 import static android.os.VibrationAttributes.USAGE_CLASS_MASK;
 import static android.os.VibrationAttributes.USAGE_UNKNOWN;
-import static android.os.VibrationEffect.VibrationParameter.targetAmplitude;
-import static android.os.VibrationEffect.VibrationParameter.targetFrequency;
 
+import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
@@ -36,10 +35,11 @@ import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.hardware.vibrator.CompositeEffect;
 import android.hardware.vibrator.CompositePwleV2;
+import android.hardware.vibrator.HapticGeneratorConfig;
 import android.hardware.vibrator.IVibrator;
 import android.hardware.vibrator.IVibratorManager;
-import android.hardware.vibrator.PrimitivePwle;
 import android.hardware.vibrator.VendorEffect;
+import android.hardware.vibrator.VibrationEffectContent;
 import android.os.BatteryStats;
 import android.os.Binder;
 import android.os.Build;
@@ -67,6 +67,7 @@ import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.VibratorInfo;
 import android.os.vibrator.Flags;
+import android.os.vibrator.IHapticGeneratorSessionCallback;
 import android.os.vibrator.IVibrationSession;
 import android.os.vibrator.IVibrationSessionCallback;
 import android.os.vibrator.PrebakedSegment;
@@ -87,12 +88,14 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.DumpUtils;
+import com.android.server.LocalServices;
 import com.android.server.SystemService;
 import com.android.server.pm.BackgroundUserSoundNotifier;
 import com.android.server.pm.UserManagerInternal;
 import com.android.server.vibrator.VibrationSession.CallerInfo;
 import com.android.server.vibrator.VibrationSession.DebugInfo;
 import com.android.server.vibrator.VibrationSession.Status;
+import com.android.server.vibrator.VibratorManagerInternal;
 import com.android.tools.r8.keepanno.annotations.KeepItemKind;
 import com.android.tools.r8.keepanno.annotations.UsedByNative;
 
@@ -103,7 +106,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringReader;
 import java.lang.ref.WeakReference;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -151,6 +153,7 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
         public void onStart() {
             mService = new VibratorManagerService(getContext(), new Injector());
             publishBinderService(Context.VIBRATOR_MANAGER_SERVICE, mService);
+            mService.publishLocalServices();
         }
 
         @Override
@@ -178,6 +181,8 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
             new ExternalVibrationCallbacks();
     private final VendorVibrationSessionCallbacks mVendorVibrationSessionCallbacks =
             new VendorVibrationSessionCallbacks();
+    private final HapticGeneratorSessionCallbacks mHapticGeneratorSessionCallbacks =
+            new HapticGeneratorSessionCallbacks();
     @GuardedBy("mLock")
     private final SparseArray<AlwaysOnVibration> mAlwaysOnEffects = new SparseArray<>();
     @GuardedBy("mLock")
@@ -194,6 +199,7 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
     private final VibratorControlService mVibratorControlService;
     private final InputDeviceDelegate mInputDeviceDelegate;
     private final DeviceAdapter mDeviceAdapter;
+    private final VibratorManagerInternal mInternalService;
 
     @GuardedBy("mLock")
     @Nullable private SparseArray<VibratorInfo> mVibratorInfos;
@@ -271,13 +277,35 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
     private static native int nativeVibratorComposeEffectWithCallback(long nativePtr,
             int vibratorId, long vibrationId, long stepId, Parcel effect);
 
-    /** Calls {@link IVibrator#composePwle} with given {@link PrimitivePwle} array and callback. */
-    private static native int nativeVibratorComposePwleEffectWithCallback(long nativePtr,
-            int vibratorId, long vibrationId, long stepId, Parcel effect);
-
     /** Calls {@link IVibrator#composePwleV2} with callback. */
     private static native int nativeVibratorComposePwleV2EffectWithCallback(long nativePtr,
             int vibratorId, long vibrationId, long stepId, Parcel effect);
+
+    /**Calls {@link IVibratorManager#startHapticGeneratorSession} with callback. */
+    private static native boolean nativeStartHapticGeneratorSessionWithCallback(long nativePtr,
+            long sessionId, int vibratorId, Parcel config);
+
+    /** Closes a native haptic generator session. */
+    private static native boolean nativeCloseHapticGeneratorSession(long nativePtr, long sessionId);
+
+    /**
+     * Destroys native objects created for this session. This will be triggered when haptic
+     * generator session is completed by the HAL.
+     */
+    private static native void nativeClearHapticGeneratorSession(long nativeServicePtr,
+            long sessionId);
+
+    /** Starts a new haptic generator stream for a given session. */
+    private static native boolean nativeStartHapticGeneratorStream(long nativeServicePtr,
+            long sessionId, int vibratorId, Parcel effect);
+
+    /** Reads PCM data from a haptic generator stream. */
+    private static native int nativeReadHapticGeneratorStream(long nativeServicePtr,
+            long sessionId, int vibratorId, byte[] buffer);
+
+    /** Stops a haptic generator stream. */
+    private static native boolean nativeStopHapticGeneratorStream(long nativeServicePtr,
+            long sessionId, int vibratorId);
 
     // TODO(b/409002423): remove native methods below once remove_hidl_support flag removed
     static native long nativeInit(HalVibratorManager.Callbacks callback);
@@ -350,6 +378,9 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
         // Load vibrator adapter, that depends on hardware info.
         mDeviceAdapter = new DeviceAdapter(mVibrationSettings, availableVibrators);
 
+        // Initiate Local Service
+        mInternalService = new LocalService();
+
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_SCREEN_OFF);
         if (UserManagerInternal.shouldShowNotificationForBackgroundUserSounds()) {
@@ -362,6 +393,14 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
             injector.addService(VIBRATOR_CONTROL_SERVICE, mVibratorControlService);
         }
 
+    }
+
+    /** Publishes the local service. Separated for testability. */
+    @VisibleForTesting
+    void publishLocalServices() {
+        if (Flags.enableTrustedCallers()) {
+            LocalServices.addService(VibratorManagerInternal.class, mInternalService);
+        }
     }
 
     /** Finish initialization at boot phase {@link SystemService#PHASE_SYSTEM_SERVICES_READY}. */
@@ -653,11 +692,6 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
             return null;
         }
         if (effect.hasVendorEffects()) {
-            if (!Flags.vendorVibrationEffects()) {
-                Slog.e(TAG, "vibrate; vendor effects feature disabled");
-                logAndRecordVibrationAttempt(effect, callerInfo, Status.IGNORED_UNSUPPORTED);
-                return null;
-            }
             if (!hasPermission(android.Manifest.permission.VIBRATE_VENDOR_EFFECTS)) {
                 Slog.e(TAG, "vibrate; no permission for vendor effects");
                 logAndRecordVibrationAttempt(effect, callerInfo, Status.IGNORED_MISSING_PERMISSION);
@@ -738,31 +772,42 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
             mContext.enforceCallingOrSelfPermission(
                     android.Manifest.permission.VIBRATE,
                     "cancelVibrate");
-
-            synchronized (mLock) {
-                if (DEBUG) {
-                    Slog.d(TAG, "Canceling vibration");
-                }
-                // TODO(b/378492007): Investigate if we can move this around AppOpsManager calls
-                final long ident = Binder.clearCallingIdentity();
-                try {
-                    // TODO(b/370948466): investigate why token not checked on external vibrations.
-                    IBinder cancelToken =
-                            (mNextSession instanceof ExternalVibrationSession) ? null : token;
-                    if (shouldCancelSession(mNextSession, usageFilter, cancelToken)) {
-                        clearNextSessionLocked(Status.CANCELLED_BY_USER);
-                    }
-                    cancelToken =
-                            (mCurrentSession instanceof ExternalVibrationSession) ? null : token;
-                    if (shouldCancelSession(mCurrentSession, usageFilter, cancelToken)) {
-                        mCurrentSession.requestEnd(Status.CANCELLED_BY_USER);
-                    }
-                } finally {
-                    Binder.restoreCallingIdentity(ident);
-                }
-            }
+            cancelVibrateInternal(usageFilter, token);
         } finally {
             Trace.traceEnd(TRACE_TAG_VIBRATOR);
+        }
+    }
+
+    void cancelVibrateWithoutPermissionCheck(int usageFilter, IBinder token) {
+        Trace.traceBegin(TRACE_TAG_VIBRATOR, "cancelVibrateWithoutPermissionCheck");
+        try {
+            cancelVibrateInternal(usageFilter, token);
+        } finally {
+            Trace.traceEnd(TRACE_TAG_VIBRATOR);
+        }
+    }
+
+    private void cancelVibrateInternal(int usageFilter, IBinder token) {
+        synchronized (mLock) {
+            if (DEBUG) {
+                Slog.d(TAG, "Canceling vibration");
+            }
+            // TODO(b/378492007): Investigate if we can move this around AppOpsManager calls
+            final long ident = Binder.clearCallingIdentity();
+            try {
+                // TODO(b/370948466): investigate why token not checked on external vibrations.
+                IBinder cancelToken =
+                        (mNextSession instanceof ExternalVibrationSession) ? null : token;
+                if (shouldCancelSession(mNextSession, usageFilter, cancelToken)) {
+                    clearNextSessionLocked(Status.CANCELLED_BY_USER);
+                }
+                cancelToken = (mCurrentSession instanceof ExternalVibrationSession) ? null : token;
+                if (shouldCancelSession(mCurrentSession, usageFilter, cancelToken)) {
+                    mCurrentSession.requestEnd(Status.CANCELLED_BY_USER);
+                }
+            } finally {
+                Binder.restoreCallingIdentity(ident);
+            }
         }
     }
 
@@ -789,9 +834,6 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
     VendorVibrationSession startVendorVibrationSessionInternal(int uid, int deviceId, String opPkg,
             int[] vibratorIds, VibrationAttributes attrs, String reason,
             IVibrationSessionCallback callback) {
-        if (!Flags.vendorVibrationEffects()) {
-            throw new UnsupportedOperationException("Vibration sessions not supported");
-        }
         attrs = fixupVibrationAttributes(attrs, /* effect= */ null);
         CallerInfo callerInfo = new CallerInfo(attrs, uid, deviceId, opPkg, reason);
         if (callback == null) {
@@ -930,6 +972,95 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
                     return Status.IGNORED_ERROR_APP_OPS;
                 default:
                     return Status.IGNORED_APP_OPS;
+            }
+        } finally {
+            Trace.traceEnd(TRACE_TAG_VIBRATOR);
+        }
+    }
+
+    @android.annotation.EnforcePermission(Manifest.permission.USE_VIBRATOR_HAPTIC_GENERATOR)
+    @Override // Binder call
+    public void startHapticGeneratorSession(int vibratorId,
+            android.os.vibrator.HapticGeneratorSession.Config config,
+            IHapticGeneratorSessionCallback callback) {
+        startHapticGeneratorSession_enforcePermission();
+        Trace.traceBegin(TRACE_TAG_VIBRATOR, "startHapticGeneratorSession");
+        try {
+            if (!Flags.hapticPcmGeneration()) {
+                throw new UnsupportedOperationException("Haptic generator not supported.");
+            }
+            Objects.requireNonNull(callback, "haptic generator session callback must not be null");
+            mHandler.post(() -> startHapticGeneratorSessionInternal(vibratorId, config, callback));
+        } finally {
+            Trace.traceEnd(TRACE_TAG_VIBRATOR);
+        }
+    }
+
+    private void startHapticGeneratorSessionInternal(int vibratorId,
+            android.os.vibrator.HapticGeneratorSession.Config config,
+            IHapticGeneratorSessionCallback callback) {
+        Trace.traceBegin(TRACE_TAG_VIBRATOR, "startHapticGeneratorSessionInternal");
+        try {
+            HapticGeneratorConfig sessionConfig = null;
+            try {
+                config.validate();
+                sessionConfig = VintfUtils.toHalHapticGeneratorConfig(config);
+            } catch (Exception e) {
+                // Catch Exception to be robust against any validation or conversion failures.
+                Slog.e(TAG, "Haptic generator session config is invalid.", e);
+            }
+
+            HapticGeneratorSession session = null;
+            int errorCode = IHapticGeneratorSessionCallback.ERROR_CODE_UNKNOWN;
+            try {
+                if (sessionConfig == null) {
+                    if (DEBUG) {
+                        Slog.d(TAG, "Failed to start haptic generator session, bad config");
+                    }
+                    errorCode = IHapticGeneratorSessionCallback.ERROR_CODE_ILLEGAL_ARGUMENT;
+                    return;
+                }
+
+                if (!mVibratorManager.hasCapability(IVibratorManager.CAP_HAPTIC_GENERATOR)) {
+                    if (DEBUG) {
+                        Slog.d(TAG, "Failed to start haptic generator session, missing capability");
+                    }
+                    errorCode = IHapticGeneratorSessionCallback.ERROR_CODE_UNSUPPORTED;
+                    return;
+                }
+
+                long sessionId = HapticGeneratorSession.getNextSessionId();
+                if (!mVibratorManager.startHapticGeneratorSession(
+                        sessionId, vibratorId, sessionConfig)) {
+                    Slog.e(TAG, "Failed to start haptic generator session " + sessionId);
+                    errorCode = IHapticGeneratorSessionCallback.ERROR_CODE_UNSUPPORTED;
+                    return;
+                }
+
+                session = new HapticGeneratorSession(mHapticGeneratorSessionCallbacks,
+                        sessionId, vibratorId, mVibrationConfig, mDeviceAdapter, callback);
+
+                if (!session.linkToDeath()) {
+                    Slog.e(TAG, "Failed to link to death for haptic generator session "
+                            + sessionId);
+                    errorCode = IHapticGeneratorSessionCallback.ERROR_CODE_ILLEGAL_STATE;
+                    session.close(); // This will also unlink to death.
+                    session = null; // This makes sure the session won't be returned to the callback
+                }
+            } finally { // Make sure we always report something to the client callback.
+                try {
+                    if (session != null) {
+                        callback.onSessionStarted(session);
+                    } else {
+                        callback.onError(errorCode);
+                    }
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Failed to send haptic generator session to callback", e);
+                    if (session != null) {
+                        // Make sure to close the session if failed to send it back to the client.
+                        session.close();
+                    }
+                }
             }
         } finally {
             Trace.traceEnd(TRACE_TAG_VIBRATOR);
@@ -1334,6 +1465,15 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
                 }
                 mCurrentSession.notifyVibratorCallback(vibratorId, vibrationId, stepId);
             }
+        }
+    }
+
+    private void onHapticGeneratorSessionComplete(long sessionId) {
+        synchronized (mLock) {
+            if (DEBUG) {
+                Slog.d(TAG, "Haptic generator session " + sessionId + " completed by HAL.");
+            }
+            mVibratorManager.clearHapticGeneratorSession(sessionId);
         }
     }
 
@@ -1971,6 +2111,43 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
     }
 
     /**
+     * Implementation of the
+     * {@link com.android.server.vibrator.HapticGeneratorSession.VibratorManagerHooks}
+     * interface that controls starting and closing haptic generator sessions, as well as starting,
+     * stopping, and reading from haptic generator streams.
+     */
+    private final class HapticGeneratorSessionCallbacks implements
+            com.android.server.vibrator.HapticGeneratorSession.VibratorManagerHooks {
+
+        @Override
+        public boolean startHapticGeneratorSession(long sessionId,
+                int vibratorId, HapticGeneratorConfig config) {
+            return mVibratorManager.startHapticGeneratorSession(sessionId, vibratorId, config);
+        }
+
+        @Override
+        public boolean closeHapticGeneratorSession(long sessionId) {
+            return mVibratorManager.closeHapticGeneratorSession(sessionId);
+        }
+
+        @Override
+        public boolean startHapticGeneratorStream(long sessionId, int vibratorId,
+                VibrationEffectContent[] segments) {
+            return mVibratorManager.startHapticGeneratorStream(sessionId, vibratorId, segments);
+        }
+
+        @Override
+        public int readHapticGeneratorStream(long sessionId, int vibratorId, byte[] buffer) {
+            return mVibratorManager.readHapticGeneratorStream(sessionId, vibratorId, buffer);
+        }
+
+        @Override
+        public boolean stopHapticGeneratorStream(long sessionId, int vibratorId) {
+            return mVibratorManager.stopHapticGeneratorStream(sessionId, vibratorId);
+        }
+    }
+
+    /**
      * Implementation of {@link ExternalVibrationSession.VibratorManagerHooks} that controls
      * external vibrations and reports them when finished.
      */
@@ -2148,6 +2325,14 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
                 service.onVibrationComplete(vibratorId, vibrationId, stepId);
             }
         }
+
+        @Override
+        public void onHapticGeneratorSessionComplete(long sessionId) {
+            VibratorManagerService service = mServiceRef.get();
+            if (service != null) {
+                service.onHapticGeneratorSessionComplete(sessionId);
+            }
+        }
     }
 
     /**
@@ -2204,9 +2389,7 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
             // Reset the hardware to a default state.
             // In case this is a runtime restart instead of a fresh boot.
             cancelSynced();
-            if (Flags.vendorVibrationEffects()) {
-                mNativeWrapper.clearSessions();
-            }
+            mNativeWrapper.clearSessions();
         }
 
         @Override
@@ -2258,6 +2441,39 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
         public boolean endSession(long sessionId, boolean shouldAbort) {
             mNativeWrapper.endSession(sessionId, shouldAbort);
             return hasCapability(IVibratorManager.CAP_START_SESSIONS);
+        }
+
+        @Override
+        public boolean startHapticGeneratorSession(long sessionId , int vibratorId,
+                @NonNull HapticGeneratorConfig config) {
+            return mNativeWrapper.startHapticGeneratorSession(sessionId, vibratorId, config);
+        }
+
+        @Override
+        public boolean closeHapticGeneratorSession(long sessionId) {
+            return mNativeWrapper.closeHapticGeneratorSession(sessionId);
+        }
+
+        @Override
+        public void clearHapticGeneratorSession(long sessionId) {
+            mNativeWrapper.clearHapticGeneratorSession(sessionId);
+        }
+
+        @Override
+        public boolean startHapticGeneratorStream(long sessionId, int vibratorId,
+                @NonNull VibrationEffectContent[] segments) {
+            return mNativeWrapper.startHapticGeneratorStream(sessionId, vibratorId, segments);
+        }
+
+        @Override
+        public int readHapticGeneratorStream(long sessionId, int vibratorId,
+                @NonNull byte[] buffer) {
+            return mNativeWrapper.readHapticGeneratorStream(sessionId, vibratorId, buffer);
+        }
+
+        @Override
+        public boolean stopHapticGeneratorStream(long sessionId, int vibratorId) {
+            return mNativeWrapper.stopHapticGeneratorStream(sessionId, vibratorId);
         }
 
         @Override
@@ -2349,6 +2565,59 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
         /** Clear vibration sessions. */
         public void clearSessions() {
             nativeClearSessions(mNativeServicePtr);
+        }
+
+        /** Starts a native haptic generator session. */
+        public boolean startHapticGeneratorSession(long sessionId, int vibratorId,
+                @NonNull HapticGeneratorConfig config) {
+            Parcel parcel = Parcel.obtain();
+            try {
+                config.writeToParcel(parcel, /* flags= */ 0);
+                parcel.setDataPosition(0);
+                return nativeStartHapticGeneratorSessionWithCallback(mNativeServicePtr, sessionId,
+                        vibratorId, parcel);
+            } finally {
+                parcel.recycle();
+            }
+        }
+
+        /** Closes a haptic generator session. */
+        public boolean closeHapticGeneratorSession(long sessionId) {
+            return nativeCloseHapticGeneratorSession(mNativeServicePtr, sessionId);
+        }
+
+        /** Called when a haptic generator session is complete. */
+        public void clearHapticGeneratorSession(long sessionId) {
+            nativeClearHapticGeneratorSession(mNativeServicePtr, sessionId);
+        }
+
+        /** Starts a haptic generator stream. */
+        public boolean startHapticGeneratorStream(long sessionId, int vibratorId,
+                @NonNull android.hardware.vibrator.VibrationEffectContent[] effects) {
+            Parcel parcel = Parcel.obtain();
+            try {
+                parcel.writeInt(effects.length);
+                for (android.hardware.vibrator.VibrationEffectContent effect : effects) {
+                    effect.writeToParcel(parcel, /* flags= */ 0);
+                }
+                parcel.setDataPosition(0);
+                return nativeStartHapticGeneratorStream(mNativeServicePtr, sessionId, vibratorId,
+                        parcel);
+            } finally {
+                parcel.recycle();
+            }
+        }
+
+        /** Reads from a haptic generator stream. */
+        public int readHapticGeneratorStream(long sessionId, int vibratorId,
+                @NonNull byte[] buffer) {
+            return nativeReadHapticGeneratorStream(mNativeServicePtr, sessionId, vibratorId,
+                    buffer);
+        }
+
+        /** Stops a haptic generator stream. */
+        public boolean stopHapticGeneratorStream(long sessionId, int vibratorId) {
+            return nativeStopHapticGeneratorStream(mNativeServicePtr, sessionId, vibratorId);
         }
     }
 
@@ -2447,24 +2716,6 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
 
         @Override
         public int vibrateWithCallback(int vibratorId, long vibrationId, long stepId,
-                PrimitivePwle[] effects) {
-            Parcel parcel = Parcel.obtain();
-            try {
-                parcel.writeInt(effects.length);
-                for (PrimitivePwle effect : effects) {
-                    effect.writeToParcel(parcel, /* flags= */ 0);
-                }
-                parcel.setDataPosition(0);
-                return nativeVibratorComposePwleEffectWithCallback(mNativePtr, vibratorId,
-                        vibrationId, stepId, parcel);
-            } finally {
-                parcel.recycle();
-                Trace.traceEnd(TRACE_TAG_VIBRATOR);
-            }
-        }
-
-        @Override
-        public int vibrateWithCallback(int vibratorId, long vibrationId, long stepId,
                 CompositePwleV2 composite) {
             Parcel parcel = Parcel.obtain();
             try {
@@ -2476,6 +2727,59 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
                 parcel.recycle();
                 Trace.traceEnd(TRACE_TAG_VIBRATOR);
             }
+        }
+
+        @Override
+        public boolean startHapticGeneratorSessionWithCallback(long sessionId, int vibratorId,
+                @NonNull android.hardware.vibrator.HapticGeneratorConfig config) {
+            Parcel parcel = Parcel.obtain();
+            try {
+                config.writeToParcel(parcel, /* flags= */ 0);
+                parcel.setDataPosition(0);
+                return nativeStartHapticGeneratorSessionWithCallback(mNativePtr, sessionId,
+                        vibratorId, parcel);
+            } finally {
+                parcel.recycle();
+            }
+        }
+
+        @Override
+        public boolean closeHapticGeneratorSession(long sessionId) {
+            return nativeCloseHapticGeneratorSession(mNativePtr, sessionId);
+        }
+
+        @Override
+        public void clearHapticGeneratorSession(long sessionId) {
+            nativeClearHapticGeneratorSession(mNativePtr, sessionId);
+        }
+
+        @Override
+        public boolean startHapticGeneratorStream(long sessionId, int vibratorId,
+                @NonNull android.hardware.vibrator.VibrationEffectContent[] effects) {
+            Parcel parcel = Parcel.obtain();
+            try {
+                parcel.writeInt(effects.length);
+                for (android.hardware.vibrator.VibrationEffectContent effect : effects) {
+                    effect.writeToParcel(parcel, /* flags= */ 0);
+                }
+                parcel.setDataPosition(0);
+                return nativeStartHapticGeneratorStream(mNativePtr, sessionId,
+                        vibratorId, parcel);
+            } finally {
+                parcel.recycle();
+            }
+
+        }
+
+        @Override
+        public int readHapticGeneratorStream(long sessionId, int vibratorId,
+                @NonNull byte[] buffer) {
+            return nativeReadHapticGeneratorStream(mNativePtr, sessionId, vibratorId, buffer);
+        }
+
+        @Override
+        public boolean stopHapticGeneratorStream(long sessionId, int vibratorId) {
+            return nativeStopHapticGeneratorStream(mNativePtr, sessionId, vibratorId);
         }
     }
 
@@ -2848,6 +3152,40 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
         }
     }
 
+    @VisibleForTesting
+    final class LocalService extends VibratorManagerInternal {
+        @Override
+        public void vibrateWithoutPermissionCheck(
+                int deviceId,
+                @NonNull VibrationEffect effect,
+                @NonNull VibrationAttributes attrs,
+                String reason,
+                @NonNull IBinder token) {
+            Trace.traceBegin(TRACE_TAG_VIBRATOR, "LocalService.vibrateWithoutPermissionCheck");
+            try {
+                final int uid = Binder.getCallingUid();
+                final String opPkg = mContext.getOpPackageName();
+                final String decoratedReason = "[LocalService] " + reason;
+                CombinedVibration vib = CombinedVibration.createParallel(effect);
+                VibratorManagerService.this.vibrateWithoutPermissionCheck(
+                        uid, deviceId, opPkg, vib, attrs, decoratedReason, token);
+            } finally {
+                Trace.traceEnd(TRACE_TAG_VIBRATOR);
+            }
+        }
+
+        @Override
+        public void cancelVibrateWithoutPermissionCheck(int usageFilter, @NonNull IBinder token) {
+            Trace.traceBegin(
+                    TRACE_TAG_VIBRATOR, "LocalService.cancelVibrateWithoutPermissionCheck");
+            try {
+                VibratorManagerService.this.cancelVibrateWithoutPermissionCheck(usageFilter, token);
+            } finally {
+                Trace.traceEnd(TRACE_TAG_VIBRATOR);
+            }
+        }
+    }
+
     /** Provide limited functionality from {@link VibratorManagerService} as shell commands. */
     private final class VibratorManagerShellCommand extends ShellCommand {
         public static final String SHELL_PACKAGE_NAME = "com.android.shell";
@@ -3127,15 +3465,12 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
 
         private void addOneShotToComposition(VibrationEffect.Composition composition) {
             boolean hasAmplitude = false;
-            int delay = 0;
 
             getNextArgRequired(); // consume "oneshot"
             String nextOption;
             while ((nextOption = getNextOption()) != null) {
                 if ("-a".equals(nextOption)) {
                     hasAmplitude = true;
-                } else if ("-w".equals(nextOption)) {
-                    delay = parseInt(getNextArgRequired(), "Expected delay millis after -w");
                 }
             }
 
@@ -3143,8 +3478,49 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
             int amplitude = hasAmplitude
                     ? parseInt(getNextArgRequired(), "Expected one-shot amplitude")
                     : VibrationEffect.DEFAULT_AMPLITUDE;
-            composition.addOffDuration(Duration.ofMillis(delay));
             composition.addEffect(VibrationEffect.createOneShot(duration, amplitude));
+        }
+
+        private void addWaveformToComposition(VibrationEffect.Composition composition) {
+            boolean hasAmplitudes = false;
+            int repeat = -1;
+
+            getNextArgRequired(); // consume "waveform"
+            String nextOption;
+            while ((nextOption = getNextOption()) != null) {
+                if ("-a".equals(nextOption)) {
+                    hasAmplitudes = true;
+                } else if ("-r".equals(nextOption)) {
+                    repeat = parseInt(getNextArgRequired(), "Expected repeat index after -r");
+                }
+            }
+            List<Long> durations = new ArrayList<>();
+            List<Integer> amplitudes = new ArrayList<>();
+            VibrationEffect waveform;
+
+            String nextArg;
+            while ((nextArg = peekNextArg()) != null) {
+                try {
+                    durations.add(Long.parseLong(nextArg));
+                    getNextArgRequired(); // consume the duration
+                } catch (NumberFormatException e) {
+                    // nextArg is not a duration, finish reading.
+                    break;
+                }
+                if (hasAmplitudes) {
+                    amplitudes.add(parseInt(getNextArgRequired(), "Expected waveform amplitude"));
+                }
+            }
+
+            long[] durationArray = durations.stream().mapToLong(Long::longValue).toArray();
+            if (hasAmplitudes) {
+                int[] amplitudeArray = amplitudes.stream().mapToInt(Integer::intValue).toArray();
+                waveform = VibrationEffect.createWaveform(durationArray, amplitudeArray, repeat);
+            } else {
+                waveform = VibrationEffect.createWaveform(durationArray, repeat);
+            }
+
+            composition.addEffect(waveform);
         }
 
         private interface EnvelopeBuilder {
@@ -3264,114 +3640,18 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
             composition.addEffect(builder.build());
         }
 
-        private void addWaveformToComposition(VibrationEffect.Composition composition) {
-            boolean hasAmplitudes = false;
-            boolean hasFrequencies = false;
-            boolean isContinuous = false;
-            int repeat = -1;
-            int delay = 0;
-
-            getNextArgRequired(); // consume "waveform"
-            String nextOption;
-            while ((nextOption = getNextOption()) != null) {
-                switch (nextOption) {
-                    case "-a" -> hasAmplitudes = true;
-                    case "-f" -> hasFrequencies = true;
-                    case "-c" -> isContinuous = true;
-                    case "-r" -> repeat = parseInt(getNextArgRequired(),
-                            "Expected repeat index after -r");
-                    case "-w" -> delay = parseInt(getNextArgRequired(),
-                            "Expected delay millis after -w");
-                }
-            }
-            List<Integer> durations = new ArrayList<>();
-            List<Float> amplitudes = new ArrayList<>();
-            List<Float> frequencies = new ArrayList<>();
-
-            float nextAmplitude = 0;
-            String nextArg;
-            while ((nextArg = peekNextArg()) != null) {
-                try {
-                    durations.add(Integer.parseInt(nextArg));
-                    getNextArgRequired(); // consume the duration
-                } catch (NumberFormatException e) {
-                    // nextArg is not a duration, finish reading.
-                    break;
-                }
-                if (hasAmplitudes) {
-                    int amplitude = parseInt(getNextArgRequired(), "Expected waveform amplitude");
-                    amplitudes.add((float) amplitude / VibrationEffect.MAX_AMPLITUDE);
-                } else {
-                    amplitudes.add(nextAmplitude);
-                    nextAmplitude = 1 - nextAmplitude;
-                }
-                if (hasFrequencies) {
-                    frequencies.add(
-                            parseFloat(getNextArgRequired(), "Expected waveform frequency"));
-                }
-            }
-
-            // Add delay before the waveform.
-            composition.addOffDuration(Duration.ofMillis(delay));
-
-            VibrationEffect.WaveformBuilder waveform = VibrationEffect.startWaveform();
-            for (int i = 0; i < durations.size(); i++) {
-                Duration transitionDuration = isContinuous
-                        ? Duration.ofMillis(durations.get(i))
-                        : Duration.ZERO;
-                Duration sustainDuration = isContinuous
-                        ? Duration.ZERO
-                        : Duration.ofMillis(durations.get(i));
-
-                if (hasFrequencies) {
-                    waveform.addTransition(transitionDuration, targetAmplitude(amplitudes.get(i)),
-                            targetFrequency(frequencies.get(i)));
-                } else {
-                    waveform.addTransition(transitionDuration, targetAmplitude(amplitudes.get(i)));
-                }
-                if (!sustainDuration.isZero()) {
-                    // Add sustain only takes positive durations. Skip this since we already
-                    // did a transition to the desired values (even when duration is zero).
-                    waveform.addSustain(sustainDuration);
-                }
-
-                if ((i > 0) && (i == repeat)) {
-                    // Add segment that is not repeated to the composition and reset builder.
-                    composition.addEffect(waveform.build());
-
-                    if (hasFrequencies) {
-                        waveform = VibrationEffect.startWaveform(targetAmplitude(amplitudes.get(i)),
-                                targetFrequency(frequencies.get(i)));
-                    } else {
-                        waveform = VibrationEffect.startWaveform(
-                                targetAmplitude(amplitudes.get(i)));
-                    }
-                }
-            }
-            if (repeat < 0) {
-                composition.addEffect(waveform.build());
-            } else {
-                // The waveform was already split at the repeat index, just repeat what remains.
-                composition.repeatEffectIndefinitely(waveform.build());
-            }
-        }
-
         private void addPrebakedToComposition(VibrationEffect.Composition composition) {
             boolean shouldFallback = false;
-            int delay = 0;
 
             getNextArgRequired(); // consume "prebaked"
             String nextOption;
             while ((nextOption = getNextOption()) != null) {
                 if ("-b".equals(nextOption)) {
                     shouldFallback = true;
-                } else if ("-w".equals(nextOption)) {
-                    delay = parseInt(getNextArgRequired(), "Expected delay millis after -w");
                 }
             }
 
             int effectId = parseInt(getNextArgRequired(), "Expected prebaked effect id");
-            composition.addOffDuration(Duration.ofMillis(delay));
             composition.addEffect(VibrationEffect.get(effectId, shouldFallback));
         }
 
@@ -3492,28 +3772,18 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
                 pw.println("    Cancels any active vibration");
                 pw.println("");
                 pw.println("Effect commands:");
-                pw.println("  oneshot [-w delay] [-a] <duration> [<amplitude>]");
+                pw.println("  oneshot [-a] <duration> [<amplitude>]");
                 pw.println("    Vibrates for duration milliseconds.");
-                pw.println("    If -w is provided, the effect will be played after the specified");
-                pw.println("    wait time in milliseconds.");
                 pw.println("    If -a is provided, the command accepts a second argument for ");
                 pw.println("    amplitude, in a scale of 1-255.");
-                pw.print("  waveform [-w delay] [-r index] [-a] [-f] [-c] ");
-                pw.println("(<duration> [<amplitude>] [<frequency>])...");
+                pw.print("  waveform [-r index] [-a] ");
+                pw.println("(<duration> [<amplitude>])...");
                 pw.println("    Vibrates for durations and amplitudes in list.");
-                pw.println("    If -w is provided, the effect will be played after the specified");
-                pw.println("    wait time in milliseconds.");
                 pw.println("    If -r is provided, the waveform loops back to the specified");
                 pw.println("    index (e.g. 0 loops from the beginning).");
                 pw.println("    If -a is provided, the command expects amplitude to follow each");
                 pw.println("    duration; otherwise, it accepts durations only and alternates");
                 pw.println("    off/on.");
-                pw.println("    If -f is provided, the command expects frequency to follow each");
-                pw.println("    amplitude or duration; otherwise, it uses resonant frequency.");
-                pw.println("    If -c is provided, the waveform is continuous and will ramp");
-                pw.println("    between values; otherwise each entry is a fixed step.");
-                pw.println("    Duration is in milliseconds; amplitude is a scale of 1-255;");
-                pw.println("    frequency is an absolute value in hertz.");
                 pw.print("  envelope [-a] [-i initial sharpness] [-r index]  ");
                 pw.println("[<duration1> <intensity1> <sharpness1>]...");
                 pw.println("    Generates a vibration pattern based on a series of duration, ");
@@ -3526,10 +3796,8 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
                 pw.println("    it will start from.");
                 pw.println("    If -r is provided, the waveform loops back to the specified index");
                 pw.println("    (e.g. 0 loops from the beginning).");
-                pw.println("  prebaked [-w delay] [-b] <effect-id>");
+                pw.println("  prebaked [-b] <effect-id>");
                 pw.println("    Vibrates with prebaked effect.");
-                pw.println("    If -w is provided, the effect will be played after the specified");
-                pw.println("    wait time in milliseconds.");
                 pw.println("    If -b is provided, the prebaked fallback effect will be played if");
                 pw.println("    the device doesn't support the given effect-id.");
                 pw.print("  primitives ([-w delay] [-o time] [-s scale]");
@@ -3538,7 +3806,7 @@ public class VibratorManagerService extends IVibratorManagerService.Stub {
                 pw.println("    If -w is provided, the next primitive will be played after the ");
                 pw.println("    specified wait time in milliseconds.");
                 pw.println("    If -o is provided, the next primitive will be played at the ");
-                pw.println("    specified start offset time in milliseconds.");
+                pw.println("    specified relative start offset time in milliseconds.");
                 pw.println("    If -s is provided, the next primitive will be played with the");
                 pw.println("    specified amplitude scale, in a scale of [0,1].");
                 pw.println("");

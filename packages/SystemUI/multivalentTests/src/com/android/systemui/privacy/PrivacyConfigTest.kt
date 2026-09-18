@@ -16,6 +16,10 @@
 
 package com.android.systemui.privacy
 
+import android.location.flags.Flags.FLAG_LOCATION_INDICATORS_ENABLED
+import android.location.flags.Flags.FLAG_LOCATION_INDICATORS_OUTLINE
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -63,9 +67,19 @@ class PrivacyConfigTest : SysuiTestCase() {
     }
 
     @Test
-    fun getPrivacyColor_locationOnly_returnsLocationOnlyColor() {
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    fun getPrivacyColor_locationOnly_locationFlagEnabled_returnsLocationOnlyColor() {
         assertEquals(
             R.color.privacy_chip_location_only_background,
+            PrivacyConfig.Companion.getPrivacyColor(locationOnly = true),
+        )
+    }
+
+    @Test
+    @DisableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    fun getPrivacyColor_locationOnly_locationFlagDisabled_returnsDefaultPrivacyColor() {
+        assertEquals(
+            R.color.privacy_chip_background,
             PrivacyConfig.Companion.getPrivacyColor(locationOnly = true),
         )
     }
@@ -76,6 +90,51 @@ class PrivacyConfigTest : SysuiTestCase() {
             R.color.privacy_chip_background,
             PrivacyConfig.Companion.getPrivacyColor(locationOnly = false),
         )
+    }
+
+    @Test
+    @EnableFlags(FLAG_LOCATION_INDICATORS_OUTLINE, FLAG_LOCATION_INDICATORS_ENABLED)
+    fun getPrivacyOutlineColor_locationOnly_outlineFlagEnabled_returnsLocationOnlyOutlineColor() {
+        assertEquals(
+            R.color.privacy_chip_location_only_outline,
+            PrivacyConfig.Companion.getPrivacyOutlineColor(locationOnly = true),
+        )
+    }
+
+    @Test
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @DisableFlags(FLAG_LOCATION_INDICATORS_OUTLINE)
+    fun getPrivacyOutlineColor_locationOnly_outlineFlagDisabled_returnsTransparent() {
+        assertEquals(
+            R.color.transparent,
+            PrivacyConfig.Companion.getPrivacyOutlineColor(locationOnly = true),
+        )
+    }
+
+    @Test
+    fun getPrivacyOutlineColor_multiplePrivacyItems_returnsTransparent() {
+        assertEquals(
+            R.color.transparent,
+            PrivacyConfig.Companion.getPrivacyOutlineColor(locationOnly = false),
+        )
+    }
+
+    @Test
+    @EnableFlags(FLAG_LOCATION_INDICATORS_OUTLINE, FLAG_LOCATION_INDICATORS_ENABLED)
+    fun getPrivacyOutlineStroke_locationOnly_outlineFlagEnabled_returnsStroke() {
+        assertEquals(1, PrivacyConfig.Companion.getPrivacyOutlineStroke(locationOnly = true))
+    }
+
+    @Test
+    @EnableFlags(FLAG_LOCATION_INDICATORS_ENABLED)
+    @DisableFlags(FLAG_LOCATION_INDICATORS_OUTLINE)
+    fun getPrivacyOutlineStroke_locationOnly_outlineFlagDisabled_returnsNone() {
+        assertEquals(0, PrivacyConfig.Companion.getPrivacyOutlineStroke(locationOnly = true))
+    }
+
+    @Test
+    fun getPrivacyOutlineStroke_multiplePrivacyItems_returnsNone() {
+        assertEquals(0, PrivacyConfig.Companion.getPrivacyOutlineStroke(locationOnly = false))
     }
 
     @Test

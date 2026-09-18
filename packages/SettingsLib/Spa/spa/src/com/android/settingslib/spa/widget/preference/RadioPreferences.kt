@@ -17,11 +17,14 @@
 package com.android.settingslib.spa.widget.preference
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -34,12 +37,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import com.android.settingslib.spa.framework.compose.thenIf
 import com.android.settingslib.spa.framework.theme.SettingsDimension
 import com.android.settingslib.spa.framework.theme.SettingsSpace
 import com.android.settingslib.spa.framework.theme.isSpaExpressiveEnabled
 import com.android.settingslib.spa.widget.ui.Category
+import com.android.settingslib.spa.widget.ui.SettingsBody
 import com.android.settingslib.spa.widget.ui.SettingsListItem
 
 @Composable
@@ -69,6 +74,7 @@ fun Radio2(
                     Modifier.heightIn(min = SettingsDimension.preferenceMinHeight)
                         .background(surfaceBright)
                 }
+                .semantics(mergeDescendants = true) {}
                 .selectable(
                     selected = selected,
                     enabled = enabled,
@@ -89,7 +95,34 @@ fun Radio2(
                     else SettingsDimension.itemDividerHeight
                 )
         )
-        SettingsListItem(text = option.text, enabled = enabled)
+        option.icon?.let { icon ->
+            RadioPreferenceIcon(icon = icon)
+            Spacer(
+                modifier =
+                    Modifier.width(
+                        if (isSpaExpressiveEnabled) SettingsSpace.extraSmall6
+                        else SettingsDimension.itemDividerHeight
+                    )
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            SettingsListItem(text = option.text, enabled = enabled)
+            if (option.summary.isNotEmpty()) {
+                SettingsBody(
+                    body = option.summary,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RadioPreferenceIcon(icon: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier.size(SettingsDimension.itemIconContainerSizeSmall),
+        contentAlignment = Alignment.Center,
+    ) {
+        icon()
     }
 }
 

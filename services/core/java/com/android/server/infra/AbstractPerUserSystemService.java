@@ -264,7 +264,7 @@ public abstract class AbstractPerUserSystemService<S extends AbstractPerUserSyst
             if (mMaster.verbose) Slog.v(mTag, "getServiceUidLocked(): no mServiceInfo");
             return Process.INVALID_UID;
         }
-        return mServiceInfo.applicationInfo.uid;
+        return mServiceInfo.getUid();
     }
 
     /**
@@ -439,7 +439,7 @@ public abstract class AbstractPerUserSystemService<S extends AbstractPerUserSyst
         if (mServiceInfo != null) {
             pw.print(prefix);
             pw.print("Service UID: ");
-            pw.println(mServiceInfo.applicationInfo.uid);
+            pw.println(mServiceInfo.getUid());
         }
         pw.println();
     }

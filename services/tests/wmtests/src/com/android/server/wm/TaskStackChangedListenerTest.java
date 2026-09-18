@@ -23,7 +23,6 @@ import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentat
 import static com.android.server.wm.utils.CommonUtils.runWithShellPermissionIdentity;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 import android.app.Activity;
 import android.app.ActivityManager.RunningTaskInfo;
@@ -41,7 +40,6 @@ import android.graphics.Color;
 import android.hardware.display.VirtualDisplay;
 import android.os.Bundle;
 import android.os.RemoteException;
-import android.os.SystemClock;
 import android.platform.test.annotations.Presubmit;
 import android.text.TextUtils;
 import android.view.Display;
@@ -59,10 +57,8 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 
 /**
  * Build/Install/Run:
@@ -321,53 +317,6 @@ public class TaskStackChangedListenerTest {
         }
     };
 
-    @Presubmit
-    @Test
-    public void testNotifyTaskRequestedOrientationChanged() throws Exception {
-        final ArrayBlockingQueue<int[]> taskIdAndOrientationQueue = new ArrayBlockingQueue<>(10);
-        registerTaskStackChangedListener(new TaskStackListener() {
-            @Override
-            public void onTaskRequestedOrientationChanged(int taskId, int requestedOrientation) {
-                int[] taskIdAndOrientation = new int[2];
-                taskIdAndOrientation[0] = taskId;
-                taskIdAndOrientation[1] = requestedOrientation;
-                taskIdAndOrientationQueue.offer(taskIdAndOrientation);
-            }
-        });
-
-        final boolean isIgnoringOrientationRequest =
-                CommonUtils.getIgnoreOrientationRequest(Display.DEFAULT_DISPLAY);
-        if (isIgnoringOrientationRequest) {
-            CommonUtils.setIgnoreOrientationRequest(Display.DEFAULT_DISPLAY, false);
-        }
-
-        try {
-            final LandscapeActivity activity =
-                    (LandscapeActivity) startTestActivity(LandscapeActivity.class);
-
-            int[] taskIdAndOrientation = waitForResult(taskIdAndOrientationQueue,
-                    candidate -> candidate[0] == activity.getTaskId());
-            assertNotNull(taskIdAndOrientation);
-            assertEquals(
-                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE, taskIdAndOrientation[1]);
-
-            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
-            taskIdAndOrientation = waitForResult(taskIdAndOrientationQueue,
-                    candidate -> candidate[0] == activity.getTaskId());
-            assertNotNull(taskIdAndOrientation);
-            assertEquals(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT, taskIdAndOrientation[1]);
-
-            activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-            taskIdAndOrientation = waitForResult(taskIdAndOrientationQueue,
-                    candidate -> candidate[0] == activity.getTaskId());
-            assertNotNull(taskIdAndOrientation);
-            assertEquals(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED, taskIdAndOrientation[1]);
-        } finally {
-            CommonUtils.setIgnoreOrientationRequest(
-                    Display.DEFAULT_DISPLAY, isIgnoringOrientationRequest);
-        }
-    }
-
     /**
      * Starts the provided activity and returns the started instance.
      */
@@ -408,19 +357,6 @@ public class TaskStackChangedListenerTest {
                 throw new AssertionError("Timed out waiting for task stack change notification");
             }
         } catch (InterruptedException e) {
-        }
-    }
-
-    private <T> T waitForResult(ArrayBlockingQueue<T> queue, Predicate<T> predicate) {
-        try {
-            final long timeout = SystemClock.uptimeMillis() + TimeUnit.SECONDS.toMillis(15);
-            T result;
-            do {
-                result = queue.poll(timeout - SystemClock.uptimeMillis(), TimeUnit.MILLISECONDS);
-            } while (result != null && !predicate.test(result));
-            return result;
-        } catch (InterruptedException e) {
-            return null;
         }
     }
 
@@ -531,5 +467,4 @@ public class TaskStackChangedListenerTest {
 
     public static class ResumeWhilePausingActivity extends TestActivity {}
 
-    public static class LandscapeActivity extends TestActivity {}
 }

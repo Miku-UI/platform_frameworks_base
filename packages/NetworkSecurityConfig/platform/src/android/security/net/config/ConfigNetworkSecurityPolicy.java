@@ -47,4 +47,9 @@ public class ConfigNetworkSecurityPolicy extends libcore.net.NetworkSecurityPoli
     public int getCertificateTransparencyVerificationReason(String hostname) {
         return mConfig.getCertificateTransparencyVerificationReason(hostname);
     }
+
+    @Override
+    public int getDomainEncryptionMode(String hostname) {
+        return mConfig.getDomainEncryptionMode(hostname);
+    }
 }

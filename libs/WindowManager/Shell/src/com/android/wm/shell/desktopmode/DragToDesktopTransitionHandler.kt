@@ -14,7 +14,6 @@ import android.app.PendingIntent.FLAG_ALLOW_UNSAFE_IMPLICIT_INTENT
 import android.app.PendingIntent.FLAG_MUTABLE
 import android.app.WindowConfiguration.ACTIVITY_TYPE_HOME
 import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
-import android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW
 import android.content.Context
 import android.content.Intent
 import android.content.Intent.FILL_IN_COMPONENT
@@ -31,8 +30,6 @@ import android.view.SurfaceControl.Transaction
 import android.view.WindowManager.TRANSIT_CHANGE
 import android.view.WindowManager.TRANSIT_CLOSE
 import android.window.DesktopExperienceFlags
-import android.window.DesktopModeFlags
-import android.window.DesktopModeFlags.ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX
 import android.window.TransitionInfo
 import android.window.TransitionInfo.Change
 import android.window.TransitionRequestInfo
@@ -48,7 +45,8 @@ import com.android.internal.util.LatencyTracker
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer
 import com.android.wm.shell.animation.FloatProperties
 import com.android.wm.shell.bubbles.BubbleController
-import com.android.wm.shell.bubbles.BubbleTransitions
+import com.android.wm.shell.bubbles.transitions.BubbleTransitions
+import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.desktopmode.DesktopModeTransitionTypes.TRANSIT_DESKTOP_MODE_CANCEL_DRAG_TO_DESKTOP
 import com.android.wm.shell.desktopmode.DesktopModeTransitionTypes.TRANSIT_DESKTOP_MODE_END_DRAG_TO_DESKTOP
 import com.android.wm.shell.desktopmode.DesktopModeTransitionTypes.TRANSIT_DESKTOP_MODE_START_DRAG_TO_DESKTOP
@@ -57,7 +55,8 @@ import com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_DESKTOP_MODE
 import com.android.wm.shell.shared.TransitionUtil
 import com.android.wm.shell.shared.animation.Interpolators
 import com.android.wm.shell.shared.animation.PhysicsAnimator
-import com.android.wm.shell.shared.bubbles.BubbleAnythingFlagHelper
+import com.android.wm.shell.shared.bubbles.BubbleFlagHelper
+import com.android.wm.shell.shared.desktopmode.DesktopConfig
 import com.android.wm.shell.shared.desktopmode.DesktopState
 import com.android.wm.shell.shared.split.SplitScreenConstants.SPLIT_POSITION_BOTTOM_OR_RIGHT
 import com.android.wm.shell.shared.split.SplitScreenConstants.SPLIT_POSITION_TOP_OR_LEFT
@@ -94,6 +93,8 @@ sealed class DragToDesktopTransitionHandler(
     private val bubbleController: Optional<BubbleController>,
     protected val transactionSupplier: Supplier<SurfaceControl.Transaction>,
     private val desktopState: DesktopState,
+    private val desktopConfig: DesktopConfig,
+    private val displayController: DisplayController,
 ) : TransitionHandler {
 
     protected val rectEvaluator = RectEvaluator(Rect())
@@ -278,6 +279,12 @@ sealed class DragToDesktopTransitionHandler(
             // is visible behind the animating task.
             state.activeCancelAnimation = startCancelAnimation()
         } else if (
+            state.draggedTaskChange != null && cancelState == CancelState.CANCEL_SPLIT_TO_FULLSCREEN
+        ) {
+            // Task is dragged from split to fullscreen. Animates to fullscreen bounds using the
+            // resize veil before starting a transition to finalize task bounds and exit split.
+            state.activeCancelAnimation = startSplitToFullscreenAnimation()
+        } else if (
             state.draggedTaskChange != null &&
                 (cancelState == CancelState.CANCEL_SPLIT_LEFT ||
                     cancelState == CancelState.CANCEL_SPLIT_RIGHT)
@@ -293,17 +300,31 @@ sealed class DragToDesktopTransitionHandler(
                 }
             logV(
                 "cancelDragToDesktop finishing start-transition and starting split-select " +
-                    "request to position=%s with state=%s",
+                    "request to position=%d with state=%s",
                 splitPosition,
                 state,
             )
-            state.startTransitionFinishTransaction?.apply()
-            val finishWCT = WindowContainerTransaction()
-            val taskInfo = state.draggedTaskChange?.taskInfo ?: error("Expected non-null taskInfo")
-            finishWCT.setDoNotPip(taskInfo.token)
-            state.startTransitionFinishCb?.onTransitionFinished(finishWCT)
-            requestSplitFromScaledTask(splitPosition, homeRunning = true)
-            clearState()
+            val finishRunnable = {
+                val finishWCT = WindowContainerTransaction()
+                val taskInfo =
+                    state.draggedTaskChange?.taskInfo ?: error("Expected non-null taskInfo")
+                finishWCT.setDoNotPip(taskInfo.token)
+                state.startTransitionFinishCb?.onTransitionFinished(finishWCT)
+                clearState()
+            }
+            // If split select animation is not handled, finish the transition and reset state.
+            // Otherwise, wait for split select animation to start before finishing the transition
+            // to prevent any flashes.
+            val requestHandled = requestSplitFromScaledTask(splitPosition, homeRunning = true)
+            if (requestHandled) {
+                state.onSplitSelectAnimationStarted = finishRunnable
+            } else {
+                logW(
+                    "cancelDragToDesktop: split select request was rejected for task=%d.",
+                    draggingTaskId,
+                )
+                finishRunnable()
+            }
         } else if (
             state.draggedTaskChange != null &&
                 (cancelState == CancelState.CANCEL_BUBBLE_LEFT ||
@@ -327,16 +348,28 @@ sealed class DragToDesktopTransitionHandler(
         }
     }
 
-    /** Calculate the bounds of a scaled task, then use those bounds to request split select. */
+    /**
+     * Calculate the bounds of a scaled task, then use those bounds to request split select and
+     * return [true] if split select request was handled.
+     */
     private fun requestSplitFromScaledTask(
         @SplitPosition splitPosition: Int,
         homeRunning: Boolean,
-    ) {
+    ): Boolean {
         val state = requireTransitionState()
         val taskInfo = state.draggedTaskChange?.taskInfo ?: error("Expected non-null taskInfo")
         val animatedTaskBounds = getAnimatedTaskBounds()
         state.dragAnimator.cancelAnimator()
-        requestSplitSelect(taskInfo, splitPosition, animatedTaskBounds, homeRunning)
+        return requestSplitSelect(taskInfo, splitPosition, animatedTaskBounds, homeRunning)
+    }
+
+    /** Finishes the previous transitions if it was the one to trigger split select. */
+    fun onSplitSelectAnimationStarted(taskId: Int) {
+        // Return if no transition is running or if the transition running is unrelated to the task
+        // entering split select
+        if (taskId == INVALID_TASK_ID || transitionState?.draggedTaskId != taskId) return
+        val state = requireTransitionState()
+        state.onSplitSelectAnimationStarted?.invoke()
     }
 
     private fun getAnimatedTaskBounds(): Rect {
@@ -360,12 +393,13 @@ sealed class DragToDesktopTransitionHandler(
         @SplitPosition splitPosition: Int,
         taskBounds: Rect = Rect(taskInfo.configuration.windowConfiguration.bounds),
         homeRunning: Boolean,
-    ) {
+    ): Boolean {
         val wct = WindowContainerTransaction()
-        if (!DesktopModeFlags.ENABLE_INPUT_LAYER_TRANSITION_FIX.isTrue) {
-            wct.setWindowingMode(taskInfo.token, WINDOWING_MODE_MULTI_WINDOW)
+        // The task's density may have been overridden in freeform; revert it here as we don't
+        // want it overridden in multi-window.
+        if (desktopConfig.useDesktopOverrideDensity) {
+            wct.setDensityDpi(taskInfo.token, context.resources.displayMetrics.densityDpi)
         }
-        wct.setDensityDpi(taskInfo.token, context.resources.displayMetrics.densityDpi)
 
         val startRecents = !homeRunning
         val delegateWctToRecents = startRecents && !wct.isEmpty
@@ -373,7 +407,7 @@ sealed class DragToDesktopTransitionHandler(
             // Split-select won't start a transition, so apply |wct| here.
             transitions.startTransition(TRANSIT_CHANGE, wct, /* handler= */ null)
         }
-        splitScreenController.requestEnterSplitSelect(
+        return splitScreenController.requestEnterSplitSelect(
             taskInfo,
             splitPosition,
             taskBounds,
@@ -437,20 +471,20 @@ sealed class DragToDesktopTransitionHandler(
             return false
         }
 
-        logV("startAnimation: state=${state.toSimpleString()}")
+        logV("startAnimation: state=%s", state.toSimpleString())
 
         val layers = calculateStartDragLayers(info)
-        val leafTaskFilter = TransitionUtil.LeafTaskFilter()
+        val leafTaskFilter = TransitionUtil.LeafTaskFilter(info)
         info.changes.withIndex().forEach { (i, change) ->
             if (TransitionUtil.isWallpaper(change)) {
-                logV("Wallpaper change: change=$change")
+                logV("Wallpaper change: change=%s", change)
                 val layer = layers.topWallpaperLayer - i
                 startTransaction.apply {
                     setLayer(change.leash, layer)
                     show(change.leash)
                 }
             } else if (isHomeChange(change)) {
-                logV("Home change: change=$change")
+                logV("Home change: change=%s", change)
                 state.homeChange = change
                 val layer = layers.topHomeLayer - i
                 startTransaction.apply {
@@ -458,7 +492,11 @@ sealed class DragToDesktopTransitionHandler(
                     show(change.leash)
                 }
             } else if (TransitionInfo.isIndependent(change, info)) {
-                logV("Independent change: taskId=${change.taskInfo?.taskId}, change=$change")
+                logV(
+                    "Independent change: taskId=%s, change=%s",
+                    change.taskInfo?.taskId?.toString(),
+                    change,
+                )
                 // Root(s).
                 when (state) {
                     is TransitionState.FromSplit -> {
@@ -507,7 +545,7 @@ sealed class DragToDesktopTransitionHandler(
                     }
                 }
             } else if (leafTaskFilter.test(change)) {
-                logV("Leaf task: taskId=${change.taskInfo?.taskId}, change=$change")
+                logV("Leaf task: taskId=%s, change=%s", change.taskInfo?.taskId?.toString(), change)
                 // When dragging one of the split tasks, the dragged leaf needs to be re-parented
                 // so that it can be layered separately from the rest of the split root/stages.
                 // The split root including the other split side was layered behind the wallpaper
@@ -548,9 +586,7 @@ sealed class DragToDesktopTransitionHandler(
         val taskChange = state.draggedTaskChange ?: error("Expected non-null task change.")
         val taskInfo = taskChange.taskInfo ?: error("Expected non-null task info.")
 
-        if (DesktopModeFlags.ENABLE_VISUAL_INDICATOR_IN_TRANSITION_BUGFIX.isTrue) {
-            attachIndicatorToTransitionRoot(state, info, taskInfo, startTransaction)
-        }
+        attachIndicatorToTransitionRoot(state, info, taskInfo, startTransaction)
         startTransaction.apply()
 
         if (state.cancelState == CancelState.NO_CANCEL) {
@@ -622,9 +658,6 @@ sealed class DragToDesktopTransitionHandler(
         finishCallback: Transitions.TransitionFinishCallback,
         state: TransitionState,
     ): Boolean {
-        if (!ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX.isTrue) {
-            return false
-        }
         val isCancelDragToDesktop =
             info.type == TRANSIT_DESKTOP_MODE_CANCEL_DRAG_TO_DESKTOP &&
                 transition == state.cancelTransitionToken
@@ -641,13 +674,16 @@ sealed class DragToDesktopTransitionHandler(
         if (!state.startInterrupted) {
             logW(
                 "Not interrupted, but received startAnimation for cancel/end drag." +
-                    "isCancel=$isCancelDragToDesktop, isEnd=$isEndDragToDesktop"
+                    "isCancel=%b, isEnd=%b",
+                isCancelDragToDesktop,
+                isEndDragToDesktop,
             )
             return false
         }
         logV(
-            "startAnimation: interrupted -> " +
-                "isCancel=$isCancelDragToDesktop, isEnd=$isEndDragToDesktop"
+            "startAnimation: interrupted -> isCancel=%b, isEnd=%b",
+            isCancelDragToDesktop,
+            isEndDragToDesktop,
         )
         if (isEndDragToDesktop) {
             setupEndDragToDesktop(info, startTransaction, finishTransaction)
@@ -672,7 +708,7 @@ sealed class DragToDesktopTransitionHandler(
      * index.
      */
     protected fun calculateStartDragLayers(info: TransitionInfo): DragToDesktopLayers {
-        if (BubbleAnythingFlagHelper.enableBubbleToFullscreen()) {
+        if (BubbleFlagHelper.enableBubbleToFullscreen()) {
             val hasDesktop = desktopState.isDesktopModeSupportedOnDisplay(info.getRoot(0).displayId)
             if (!hasDesktop) {
                 return calculateStartDragLayersWithoutDesktop(info)
@@ -742,7 +778,7 @@ sealed class DragToDesktopTransitionHandler(
             state.startTransitionFinishCb
                 ?: error("Start transition expected to be waiting for merge but wasn't")
         if (isEndTransition) {
-            logV("mergeAnimation: end-transition, target=$mergeTarget")
+            logV("mergeAnimation: end-transition, target=%s", mergeTarget)
             state.mergedEndTransition = true
             setupEndDragToDesktop(
                 info,
@@ -757,7 +793,7 @@ sealed class DragToDesktopTransitionHandler(
             return
         }
         if (isCancelTransition) {
-            logV("mergeAnimation: cancel-transition, target=$mergeTarget")
+            logV("mergeAnimation: cancel-transition, target=%s", mergeTarget)
             LatencyTracker.getInstance(context)
                 .onActionCancel(LatencyTracker.ACTION_DESKTOP_MODE_ENTER_APP_HANDLE_DRAG)
             info.changes.forEach { change ->
@@ -767,21 +803,13 @@ sealed class DragToDesktopTransitionHandler(
             startT.apply()
             finishCallback.onTransitionFinished(/* wct= */ null)
             startTransitionFinishCb.onTransitionFinished(/* wct= */ null)
-            // For splitscreen, dragging upward to "cancel" actually is a signal from the user
-            // that we want to go to fullscreen. We will cancel the desktop transition, let
-            // splitscreen go back to where it was, and then expand to fullscreen.
-            // TODO (b/396438812): Let this be a single transition that actually goes straight
-            // to fullscreen
             if (state is TransitionState.FromSplit) {
-                splitScreenController.moveTaskToFullscreen(
-                    state.draggedTaskId,
-                    SplitScreenController.EXIT_REASON_DRAG_TO_FULLSCREEN,
-                )
+                onTaskResizeAnimationListener.onAnimationEnd(draggingTaskId)
             }
             clearState()
             return
         }
-        logW("unhandled merge transition: transitionInfo=$info")
+        logW("unhandled merge transition: transitionInfo=%s", info)
         // Handle unknown incoming transitions by finishing the start transition. For now, only do
         // this if we've already requested a cancel- or end transition. If we've already merged the
         // end-transition, or if the end-transition is running on its own, then just wait until that
@@ -796,9 +824,6 @@ sealed class DragToDesktopTransitionHandler(
         state.cancelTransitionToken != null || state.endTransitionToken != null
 
     private fun interruptStartTransition(state: TransitionState) {
-        if (!ENABLE_DRAG_TO_DESKTOP_INCOMING_TRANSITIONS_BUGFIX.isTrue) {
-            return
-        }
         if (isCancelOrEndTransitionRequested(state)) {
             logV("interruptStartTransition, bookend requested -> finish start transition")
             // Finish the start-drag transition, we will finish the overall transition properly when
@@ -915,82 +940,10 @@ sealed class DragToDesktopTransitionHandler(
         state.freeformTaskChanges = freeformTaskChanges
     }
 
-    protected open fun animateEndDragToDesktop(
+    protected abstract fun animateEndDragToDesktop(
         startTransaction: SurfaceControl.Transaction,
         startTransitionFinishCb: Transitions.TransitionFinishCallback,
-    ) {
-        val state = requireTransitionState()
-        val draggedTaskChange =
-            state.draggedTaskChange ?: error("Expected non-null change of dragged task")
-        val draggedTaskLeash = draggedTaskChange.leash
-        val startBounds = draggedTaskChange.startAbsBounds
-        val endBounds = draggedTaskChange.endAbsBounds
-
-        // Cancel any animation that may be currently playing; we will use the relevant
-        // details of that animation here.
-        state.dragAnimator.cancelAnimator()
-        // We still apply scale to task bounds; as we animate the bounds to their
-        // end value, animate scale to 1.
-        val startScale = state.dragAnimator.scale
-        val startPosition = state.dragAnimator.position
-        val unscaledStartWidth = startBounds.width()
-        val unscaledStartHeight = startBounds.height()
-        val unscaledStartBounds =
-            Rect(
-                startPosition.x.toInt(),
-                startPosition.y.toInt(),
-                startPosition.x.toInt() + unscaledStartWidth,
-                startPosition.y.toInt() + unscaledStartHeight,
-            )
-
-        dragToDesktopStateListener?.onCommitToDesktopAnimationStart()
-        // Accept the merge by applying the merging transaction (applied by #showResizeVeil)
-        // and finish callback. Show the veil and position the task at the first frame before
-        // starting the final animation.
-        onTaskResizeAnimationListener.onAnimationStart(
-            state.draggedTaskId,
-            startTransaction,
-            unscaledStartBounds,
-        )
-        val tx: SurfaceControl.Transaction = transactionSupplier.get()
-        ValueAnimator.ofObject(rectEvaluator, unscaledStartBounds, endBounds)
-            .setDuration(DRAG_TO_DESKTOP_FINISH_ANIM_DURATION_MS)
-            .apply {
-                addUpdateListener { animator ->
-                    val animBounds = animator.animatedValue as Rect
-                    val animFraction = animator.animatedFraction
-                    // Progress scale from starting value to 1 as animation plays.
-                    val animScale = startScale + animFraction * (1 - startScale)
-                    tx.apply {
-                        setScale(draggedTaskLeash, animScale, animScale)
-                        setPosition(
-                            draggedTaskLeash,
-                            animBounds.left.toFloat(),
-                            animBounds.top.toFloat(),
-                        )
-                        setWindowCrop(draggedTaskLeash, animBounds.width(), animBounds.height())
-                    }
-                    onTaskResizeAnimationListener.onBoundsChange(
-                        state.draggedTaskId,
-                        tx,
-                        animBounds,
-                    )
-                }
-                addListener(
-                    object : AnimatorListenerAdapter() {
-                        override fun onAnimationEnd(animation: Animator) {
-                            onTaskResizeAnimationListener.onAnimationEnd(state.draggedTaskId)
-                            startTransitionFinishCb.onTransitionFinished(/* wct= */ null)
-                            clearState()
-                            interactionJankMonitor.end(
-                                CUJ_DESKTOP_MODE_ENTER_APP_HANDLE_DRAG_RELEASE
-                            )
-                        }
-                    }
-                )
-                start()
-            }
-    }
+    )
 
     override fun handleRequest(
         transition: IBinder,
@@ -1083,9 +1036,80 @@ sealed class DragToDesktopTransitionHandler(
             }
     }
 
+    private fun startSplitToFullscreenAnimation(): Animator {
+        val state = requireTransitionState()
+        val dragToDesktopAnimator = state.dragAnimator
+
+        val draggedTaskChange =
+            state.draggedTaskChange ?: throw IllegalStateException("Expected non-null task change")
+        val sc = draggedTaskChange.leash
+        // Cancel the animation that shrinks the window when task is first dragged from split screen
+        dragToDesktopAnimator.cancelAnimator()
+        // Then animate the scaled window to fullscreen bounds
+        val x = dragToDesktopAnimator.position.x.toInt()
+        val y = dragToDesktopAnimator.position.y.toInt()
+        val tx = transactionSupplier.get()
+
+        val displayContext =
+            displayController.getDisplayContext(draggedTaskChange.endDisplayId) ?: this.context
+        val screenWidth = displayContext.resources.displayMetrics.widthPixels
+        val screenHeight = displayContext.resources.displayMetrics.heightPixels
+        val startAnimationBounds =
+            Rect(
+                /* left = */ x,
+                /* top = */ y,
+                /* right = */ x +
+                    (DRAG_FREEFORM_SCALE * draggedTaskChange.startAbsBounds.width()).toInt(),
+                /* bottom = */ y +
+                    (DRAG_FREEFORM_SCALE * draggedTaskChange.startAbsBounds.height()).toInt(),
+            )
+        val endAnimationBounds =
+            Rect(/* left= */ 0, /* top= */ 0, /* right= */ screenWidth, /* bottom= */ screenHeight)
+        // Reset the task's scale
+        tx.setScale(sc, /* scaleX= */ 1F, /* scaleY= */ 1F)
+        onTaskResizeAnimationListener.onAnimationStart(
+            state.draggedTaskId,
+            tx,
+            startAnimationBounds,
+        )
+
+        return ValueAnimator.ofObject(rectEvaluator, startAnimationBounds, endAnimationBounds)
+            .setDuration(DRAG_TO_DESKTOP_FINISH_ANIM_DURATION_MS)
+            .apply {
+                addUpdateListener { animator ->
+                    val bounds = animator.animatedValue as Rect
+                    onTaskResizeAnimationListener.onBoundsChange(state.draggedTaskId, tx, bounds)
+                }
+                addListener(
+                    object : AnimatorListenerAdapter() {
+                        override fun onAnimationEnd(animation: Animator) {
+                            state.activeCancelAnimation = null
+                            dragToDesktopStateListener?.onCancelToDesktopAnimationEnd()
+                            // Start the exit split and restore order
+                            startCancelSplitToFullscreenTransition()
+                        }
+                    }
+                )
+                start()
+            }
+    }
+
     private fun startCancelDragToDesktopTransition() {
         val state = requireTransitionState()
         val wct = WindowContainerTransaction()
+        restoreWindowOrder(wct, state)
+        state.cancelTransitionToken =
+            transitions.startTransition(TRANSIT_DESKTOP_MODE_CANCEL_DRAG_TO_DESKTOP, wct, this)
+    }
+
+    private fun startCancelSplitToFullscreenTransition() {
+        val state = requireTransitionState()
+        val wct = WindowContainerTransaction()
+        splitScreenController.prepareExitSplitScreen(
+            wct,
+            splitScreenController.getStageOfTask(draggingTaskId),
+            SplitScreenController.EXIT_REASON_DRAG_TO_FULLSCREEN,
+        )
         restoreWindowOrder(wct, state)
         state.cancelTransitionToken =
             transitions.startTransition(TRANSIT_DESKTOP_MODE_CANCEL_DRAG_TO_DESKTOP, wct, this)
@@ -1095,32 +1119,24 @@ sealed class DragToDesktopTransitionHandler(
         wct: WindowContainerTransaction,
         state: TransitionState = requireTransitionState(),
     ) {
-        when (state) {
-            is TransitionState.FromFullscreen -> {
-                // There may have been tasks sent behind home that are not the dragged task (like
-                // when the dragged task is translucent and that makes the task behind it visible).
-                // Restore the order of those first.
-                state.otherRootChanges
-                    .mapNotNull { it.container }
-                    .forEach { wc ->
-                        // TODO(b/322852244): investigate why even though these "other" tasks are
-                        //  reordered in front of home and behind the translucent dragged task, its
-                        //  surface is not visible on screen.
-                        wct.reorder(wc, /* onTop= */ true)
-                    }
-                val wc =
-                    state.draggedTaskChange?.container
-                        ?: error("Dragged task should be non-null before cancelling")
-                // Then the dragged task a the very top.
-                wct.reorder(wc, /* onTop= */ true)
-            }
-            is TransitionState.FromSplit -> {
-                val wc =
-                    state.splitRootChange?.container
-                        ?: error("Split root should be non-null before cancelling")
-                wct.reorder(wc, /* onTop= */ true)
-            }
+        if (state is TransitionState.FromFullscreen) {
+            // There may have been tasks sent behind home that are not the dragged task (like
+            // when the dragged task is translucent and that makes the task behind it visible).
+            // Restore the order of those first.
+            state.otherRootChanges
+                .mapNotNull { it.container }
+                .forEach { wc ->
+                    // TODO(b/322852244): investigate why even though these "other" tasks are
+                    //  reordered in front of home and behind the translucent dragged task, its
+                    //  surface is not visible on screen.
+                    wct.reorder(wc, /* onTop= */ true)
+                }
         }
+        val wc =
+            state.draggedTaskChange?.container
+                ?: error("Dragged task should be non-null before cancelling")
+        // Move dragged task to very top
+        wct.reorder(wc, /* onTop= */ true)
         val homeWc =
             state.homeChange?.container ?: error("Home task should be non-null before cancelling")
         wct.restoreTransientOrder(homeWc)
@@ -1196,6 +1212,7 @@ sealed class DragToDesktopTransitionHandler(
         abstract var mergedEndTransition: Boolean
         abstract var activeCancelAnimation: Animator?
         abstract var dragCancelCallback: Runnable?
+        abstract var onSplitSelectAnimationStarted: (() -> Unit)?
 
         data class FromFullscreen(
             override val draggedTaskId: Int,
@@ -1216,6 +1233,7 @@ sealed class DragToDesktopTransitionHandler(
             override var mergedEndTransition: Boolean = false,
             override var activeCancelAnimation: Animator? = null,
             override var dragCancelCallback: Runnable? = null,
+            override var onSplitSelectAnimationStarted: (() -> Unit)? = null,
             var otherRootChanges: MutableList<Change> = mutableListOf(),
         ) : TransitionState()
 
@@ -1238,6 +1256,7 @@ sealed class DragToDesktopTransitionHandler(
             override var mergedEndTransition: Boolean = false,
             override var activeCancelAnimation: Animator? = null,
             override var dragCancelCallback: Runnable? = null,
+            override var onSplitSelectAnimationStarted: (() -> Unit)? = null,
             var splitRootChange: Change? = null,
             var otherSplitTask: Int,
         ) : TransitionState()
@@ -1262,6 +1281,8 @@ sealed class DragToDesktopTransitionHandler(
         NO_CANCEL,
         /** A standard cancel event; should restore task to previous windowing mode. */
         STANDARD_CANCEL,
+        /** A cancel event where the task will enter fullscreen from split. */
+        CANCEL_SPLIT_TO_FULLSCREEN,
         /** A cancel event where the task will request to enter split on the left side. */
         CANCEL_SPLIT_LEFT,
         /** A cancel event where the task will request to enter split on the right side. */
@@ -1272,10 +1293,14 @@ sealed class DragToDesktopTransitionHandler(
         CANCEL_BUBBLE_RIGHT,
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logV(msg: String, vararg arguments: Any?) {
         ProtoLog.v(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logW(msg: String, vararg arguments: Any?) {
         ProtoLog.w(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }
@@ -1286,50 +1311,6 @@ sealed class DragToDesktopTransitionHandler(
         @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
         const val DRAG_TO_DESKTOP_FINISH_ANIM_DURATION_MS = 336L
     }
-}
-
-/** Enables flagged rollout of the [SpringDragToDesktopTransitionHandler] */
-class DefaultDragToDesktopTransitionHandler
-@JvmOverloads
-constructor(
-    context: Context,
-    transitions: Transitions,
-    taskDisplayAreaOrganizer: RootTaskDisplayAreaOrganizer,
-    desksOrganizer: DesksOrganizer,
-    desktopUserRepositories: DesktopUserRepositories,
-    interactionJankMonitor: InteractionJankMonitor,
-    bubbleController: Optional<BubbleController>,
-    transactionSupplier: Supplier<SurfaceControl.Transaction> = Supplier {
-        SurfaceControl.Transaction()
-    },
-    desktopState: DesktopState,
-) :
-    DragToDesktopTransitionHandler(
-        context,
-        transitions,
-        taskDisplayAreaOrganizer,
-        desksOrganizer,
-        desktopUserRepositories,
-        interactionJankMonitor,
-        bubbleController,
-        transactionSupplier,
-        desktopState,
-    ) {
-
-    /**
-     * @return layers in order:
-     * - appLayers - non-wallpaper, non-home tasks excluding the dragged task go at the bottom
-     * - homeLayers - home task on top of apps
-     * - wallpaperLayers - wallpaper on top of home
-     * - dragLayer - the dragged task on top of everything, there's only 1 dragged task
-     */
-    override fun calculateStartDragLayersWithDesktop(info: TransitionInfo): DragToDesktopLayers =
-        DragToDesktopLayers(
-            topAppLayer = info.changes.size,
-            topHomeLayer = info.changes.size * 2,
-            topWallpaperLayer = info.changes.size * 3,
-            dragLayer = info.changes.size * 3,
-        )
 }
 
 /** Desktop transition handler with spring based animation for the end drag to desktop transition */
@@ -1347,6 +1328,8 @@ constructor(
         SurfaceControl.Transaction()
     },
     desktopState: DesktopState,
+    desktopConfig: DesktopConfig,
+    displayController: DisplayController,
 ) :
     DragToDesktopTransitionHandler(
         context,
@@ -1358,6 +1341,8 @@ constructor(
         bubbleController,
         transactionSupplier,
         desktopState,
+        desktopConfig,
+        displayController,
     ) {
 
     private val positionSpringConfig =
@@ -1433,21 +1418,28 @@ constructor(
             Rect(startBounds).apply { offsetTo(startPosition.x.toInt(), startPosition.y.toInt()) }
 
         logV(
-            "animateEndDragToDesktop: startBounds=$startBounds, endBounds=$endBounds, " +
-                "startScale=$startScale, startPosition=$startPosition, " +
-                "startBoundsWithOffset=$startBoundsWithOffset"
+            "animateEndDragToDesktop: startBounds=%s, endBounds=%s, startScale=%f, " +
+                "startPosition=%s, startBoundsWithOffset=%s",
+            startBounds,
+            endBounds,
+            startScale,
+            startPosition,
+            startBoundsWithOffset,
         )
 
         dragToDesktopStateListener?.onCommitToDesktopAnimationStart()
         // Accept the merge by applying the merging transaction (applied by #showResizeVeil)
         // and finish callback. Show the veil and position the task at the first frame before
         // starting the final animation.
-        onTaskResizeAnimationListener.onAnimationStart(
-            state.draggedTaskId,
-            startTransaction,
-            startBoundsWithOffset,
-        )
-
+        val startTransactionApplied =
+            onTaskResizeAnimationListener.onAnimationStart(
+                state.draggedTaskId,
+                startTransaction,
+                startBoundsWithOffset,
+            )
+        if (!startTransactionApplied) {
+            startTransaction.apply()
+        }
         val tx: SurfaceControl.Transaction = transactionSupplier.get()
         PhysicsAnimator.getInstance(startBoundsWithOffset)
             .spring(
@@ -1511,7 +1503,15 @@ constructor(
                         setAlpha(it.leash, freeformAnimFraction)
                     }
                 }
-                onTaskResizeAnimationListener.onBoundsChange(state.draggedTaskId, tx, animBounds)
+                val updateTransactionApplied =
+                    onTaskResizeAnimationListener.onBoundsChange(
+                        state.draggedTaskId,
+                        tx,
+                        animBounds,
+                    )
+                if (!updateTransactionApplied) {
+                    tx.apply()
+                }
             }
             .withEndActions({
                 onTaskResizeAnimationListener.onAnimationEnd(state.draggedTaskId)
@@ -1536,20 +1536,29 @@ constructor(
                     (endBounds.height() - startBounds.height())
             }
             logW(
-                "same start and end sizes, returning 0: " +
-                    "startBounds=$startBounds, endBounds=$endBounds, animBounds=$animBounds"
+                "same start and end sizes, returning 0: startBounds=%s, endBounds=%s, " +
+                    "animBounds=%s",
+                startBounds,
+                endBounds,
+                animBounds,
             )
             return 0f
         }
 
+        // TODO(b/478792808): Remove suppression
+        @SuppressWarnings("ProtoLogNonConstantFormat")
         private fun logV(msg: String, vararg arguments: Any?) {
             ProtoLog.v(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
         }
 
+        // TODO(b/478792808): Remove suppression
+        @SuppressWarnings("ProtoLogNonConstantFormat")
         private fun logW(msg: String, vararg arguments: Any?) {
             ProtoLog.v(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
         }
 
+        // TODO(b/478792808): Remove suppression
+        @SuppressWarnings("ProtoLogNonConstantFormat")
         private fun logE(msg: String, vararg arguments: Any?) {
             ProtoLog.e(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
         }

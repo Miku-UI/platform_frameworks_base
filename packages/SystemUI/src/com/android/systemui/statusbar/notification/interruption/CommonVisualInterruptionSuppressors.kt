@@ -97,7 +97,7 @@ class PeekDisabledSuppressor(
                     // registered for it directly?
                     if (wasEnabled && !isEnabled) {
                         logger.logWillDismissAll()
-                        headsUpManager.releaseAllImmediately()
+                        headsUpManager.releaseAllImmediately("CommonVisualInterruptionSuppressors")
                     }
                 }
             }

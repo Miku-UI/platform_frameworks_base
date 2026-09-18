@@ -37,7 +37,9 @@ import com.android.systemui.media.controls.domain.pipeline.MediaDeviceManager
 import com.android.systemui.media.controls.domain.pipeline.MediaSessionBasedFilter
 import com.android.systemui.media.controls.domain.pipeline.MediaTimeoutListener
 import com.android.systemui.media.controls.domain.resume.MediaResumeListener
+import com.android.systemui.media.controls.util.MediaUiEventLogger
 import com.android.systemui.media.remedia.data.repository.MediaPipelineRepository
+import com.android.systemui.media.remedia.data.repository.MediaRepository
 import com.android.systemui.media.remedia.shared.flag.MediaControlsInComposeFlag
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
@@ -65,6 +67,8 @@ constructor(
     private val mediaDataCombineLatest: MediaDataCombineLatest,
     private val mediaDataFilter: MediaDataFilterImpl,
     private val mediaPipelineRepository: MediaPipelineRepository,
+    private val mediaRepository: MediaRepository,
+    private val mediaUiEventLogger: MediaUiEventLogger,
     keyguardTransitionInteractor: KeyguardTransitionInteractor,
     deviceEntryInteractor: DeviceEntryInteractor,
 ) : MediaDataManager, CoreStartable {
@@ -202,6 +206,8 @@ constructor(
     }
 
     override fun onSwipeToDismiss() {
+        mediaUiEventLogger.logSwipeDismiss()
+        mediaRepository.setSwipedAwayState()
         mediaDataFilter.onSwipeToDismiss()
     }
 

@@ -23,8 +23,8 @@ import android.os.UserHandle
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.Dumpable
 import com.android.systemui.Flags.hsuQsChanges
-import com.android.systemui.Flags.resetTilesRemovesCustomTiles
 import com.android.systemui.ProtoDumpable
+import com.android.systemui.animation.Expandable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
@@ -87,6 +87,9 @@ interface CurrentTilesInteractor : ProtoDumpable {
 
     /** Current user with the corresponding tiles. */
     val userAndTiles: Flow<DataWithUserChange>
+
+    /** Whether the current user is a headless system user. */
+    val isCurrentUserHeadlessSystemUser: StateFlow<Boolean>
 
     /** List of specs corresponding to the last value of [currentTiles] */
     val currentTilesSpecs: List<TileSpec>
@@ -174,6 +177,7 @@ constructor(
 
     private val currentUser = MutableStateFlow(userTracker.userId)
     override val userId = currentUser.asStateFlow()
+    override val isCurrentUserHeadlessSystemUser = userRepository.isCurrentUserHeadlessSystemUser
 
     private val _userContext = MutableStateFlow(userTracker.userContext)
     override val userContext = _userContext.asStateFlow()
@@ -273,7 +277,14 @@ constructor(
                     val newResolvedTiles =
                         newTileMap
                             .filter { it.value is TileOrNotInstalled.Tile }
-                            .map { TileModel(it.key, (it.value as TileOrNotInstalled.Tile).tile) }
+                            .map {
+                                val tileExpandable = Expandable()
+                                TileModel(
+                                    it.key,
+                                    (it.value as TileOrNotInstalled.Tile).tile,
+                                    tileExpandable,
+                                )
+                            }
 
                     _currentSpecsAndTiles.value = newResolvedTiles
                     logger.logTilesNotInstalled(
@@ -332,11 +343,8 @@ constructor(
             val currentSpecCopy = currentTilesSpecs
             val user = currentUser.value
             val default = tileSpecRepository.resetToDefault(user)
-            if (resetTilesRemovesCustomTiles()) {
-                val toFree =
-                    currentSpecCopy.minus(default).filterIsInstance<TileSpec.CustomTileSpec>()
-                toFree.forEach { onCustomTileRemoved(it.componentName, user) }
-            }
+            val toFree = currentSpecCopy.minus(default).filterIsInstance<TileSpec.CustomTileSpec>()
+            toFree.forEach { onCustomTileRemoved(it.componentName, user) }
         }
     }
 

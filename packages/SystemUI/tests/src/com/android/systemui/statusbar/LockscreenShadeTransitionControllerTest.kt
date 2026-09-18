@@ -2,26 +2,36 @@ package com.android.systemui.statusbar
 
 import android.app.StatusBarManager.DISABLE2_NOTIFICATION_SHADE
 import android.testing.TestableLooper.RunWithLooper
+import android.view.MotionEvent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.ExpandHelper
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
+import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
 import com.android.systemui.classifier.FalsingCollectorFake
 import com.android.systemui.classifier.FalsingManagerFake
+import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.flags.Flags
 import com.android.systemui.flags.fakeFeatureFlagsClassic
+import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.domain.interactor.NaturalScrollingSettingObserver
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.media.controls.ui.controller.KeyguardMediaController
 import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager
 import com.android.systemui.plugins.qs.QS
 import com.android.systemui.res.R
 import com.android.systemui.shade.data.repository.shadeRepository
 import com.android.systemui.shade.domain.interactor.ShadeLockscreenInteractor
+import com.android.systemui.shade.domain.interactor.fakeShadeModeInteractor
 import com.android.systemui.shade.domain.interactor.shadeInteractor
+import com.android.systemui.shade.shadeTestUtil
+import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.statusbar.disableflags.data.repository.fakeDisableFlagsRepository
 import com.android.systemui.statusbar.disableflags.shared.model.DisableFlagsModel
+import com.android.systemui.statusbar.notification.collection.EntryAdapter
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notification.row.createRow
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout
@@ -36,6 +46,7 @@ import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.argumentCaptor
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.nullable
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -72,6 +83,7 @@ class LockscreenShadeTransitionControllerTest : SysuiTestCase() {
     private lateinit var transitionController: LockscreenShadeTransitionController
     private val configurationController = kosmos.fakeConfigurationController
     private val disableFlagsRepository = kosmos.fakeDisableFlagsRepository
+    private val fakeShadeModeInteractor = kosmos.fakeShadeModeInteractor
     private val testScope = kosmos.testScope
 
     lateinit var row: ExpandableNotificationRow
@@ -82,6 +94,7 @@ class LockscreenShadeTransitionControllerTest : SysuiTestCase() {
     @Mock lateinit var keyguardBypassController: KeyguardBypassController
     @Mock lateinit var lockScreenUserManager: NotificationLockscreenUserManager
     @Mock lateinit var mediaHierarchyManager: MediaHierarchyManager
+    @Mock lateinit var keyguardMediaController: KeyguardMediaController
     @Mock lateinit var nsslController: NotificationStackScrollLayoutController
     @Mock lateinit var qS: QS
     @Mock lateinit var qsTransitionController: LockscreenShadeQsTransitionController
@@ -127,6 +140,7 @@ class LockscreenShadeTransitionControllerTest : SysuiTestCase() {
                 falsingCollector = FalsingCollectorFake(),
                 ambientState = mock(),
                 mediaHierarchyManager = mediaHierarchyManager,
+                keyguardMediaController = keyguardMediaController,
                 scrimTransitionController =
                     LockscreenShadeScrimTransitionController(
                         scrimController = { scrimController },
@@ -134,6 +148,8 @@ class LockscreenShadeTransitionControllerTest : SysuiTestCase() {
                         configurationController = configurationController,
                         dumpManager = mock(),
                         splitShadeStateController = ResourcesSplitShadeStateController(),
+                        shadeModeInteractor = fakeShadeModeInteractor,
+                        backgroundScope = testScope.backgroundScope,
                     ),
                 keyguardTransitionControllerFactory = { notificationPanelController ->
                     LockscreenShadeKeyguardTransitionController(
@@ -143,6 +159,8 @@ class LockscreenShadeTransitionControllerTest : SysuiTestCase() {
                         configurationController = configurationController,
                         dumpManager = mock(),
                         splitShadeStateController = ResourcesSplitShadeStateController(),
+                        shadeModeInteractor = fakeShadeModeInteractor,
+                        backgroundScope = testScope.backgroundScope,
                     )
                 },
                 depthController = depthController,
@@ -158,8 +176,10 @@ class LockscreenShadeTransitionControllerTest : SysuiTestCase() {
                 shadeRepository = kosmos.shadeRepository,
                 shadeInteractor = kosmos.shadeInteractor,
                 splitShadeStateController = ResourcesSplitShadeStateController(),
+                shadeModeInteractor = fakeShadeModeInteractor,
                 shadeLockscreenInteractorLazy = { shadeLockscreenInteractor },
                 naturalScrollingSettingObserver = naturalScrollingSettingObserver,
+                deviceEntryInteractor = kosmos.deviceEntryInteractor,
             )
 
         transitionController.addCallback(transitionControllerCallback)
@@ -177,6 +197,7 @@ class LockscreenShadeTransitionControllerTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableSceneContainer
     fun testCantDragDownWhenQSExpanded() =
         testScope.runTest {
             assertTrue("Can't drag down on keyguard", transitionController.canDragDown())
@@ -185,12 +206,262 @@ class LockscreenShadeTransitionControllerTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableSceneContainer
+    fun testCantDragDownOnLockscreen_inFlexiglass() =
+        testScope.runTest {
+            assertFalse("Can drag down on keyguard", transitionController.canDragDown())
+        }
+
+    @Test
+    @DisableSceneContainer
     fun testCanDragDownInLockedDownShade() =
         testScope.runTest {
             whenever(statusbarStateController.state).thenReturn(StatusBarState.SHADE_LOCKED)
             assertFalse("Can drag down in shade locked", transitionController.canDragDown())
             whenever(nsslController.isInLockedDownShade).thenReturn(true)
             assertTrue("Can't drag down in locked down shade", transitionController.canDragDown())
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun testCanDragDownOnLockscreen_inFlexiglass_ifLockShadeSensitive() =
+        testScope.runTest {
+            val childView: ExpandableNotificationRow = mock()
+            val mockEntryAdapter: EntryAdapter = mock()
+            whenever(childView.getEntryAdapter()).thenReturn(mockEntryAdapter)
+            whenever(mockEntryAdapter.isSensitive()).thenReturn(MutableStateFlow(true))
+
+            kosmos.fakeKeyguardRepository.setKeyguardEnabled(true)
+            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
+                AuthenticationMethodModel.Pin
+            )
+            kosmos.deviceEntryInteractor.lockNow("test")
+            kosmos.shadeTestUtil.setShadeExpansion(1f)
+
+            assertTrue("Can't drag down on keyguard", transitionController.canDragDown(childView))
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun testCanNotDragDownOnLockscreen_inFlexiglass_ifLockShadeSensitiveFalse() =
+        testScope.runTest {
+            val childView: ExpandableNotificationRow = mock()
+            val mockEntryAdapter: EntryAdapter = mock()
+            whenever(childView.getEntryAdapter()).thenReturn(mockEntryAdapter)
+            whenever(mockEntryAdapter.isSensitive()).thenReturn(MutableStateFlow(true))
+
+            kosmos.fakeKeyguardRepository.setKeyguardEnabled(true)
+            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
+                AuthenticationMethodModel.Pin
+            )
+            kosmos.deviceEntryInteractor.lockNow("test")
+            kosmos.shadeTestUtil.setShadeExpansion(0f)
+
+            assertFalse("Can drag down on keyguard", transitionController.canDragDown(childView))
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun testCanNotDragDownOnLockscreen_inFlexiglass_ifNotSensitive() =
+        testScope.runTest {
+            val childView: ExpandableNotificationRow = mock()
+            val mockEntryAdapter: EntryAdapter = mock()
+            whenever(childView.getEntryAdapter()).thenReturn(mockEntryAdapter)
+            whenever(mockEntryAdapter.isSensitive()).thenReturn(MutableStateFlow(false))
+
+            kosmos.fakeKeyguardRepository.setKeyguardEnabled(true)
+            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
+                AuthenticationMethodModel.Pin
+            )
+            kosmos.deviceEntryInteractor.lockNow("test")
+            kosmos.shadeTestUtil.setShadeExpansion(1f)
+
+            assertFalse("Can drag down on keyguard", transitionController.canDragDown(childView))
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun testCanDragDownOnLockscreen_inFlexiglass_initialShadeExpanded() =
+        testScope.runTest {
+            val childView: ExpandableNotificationRow = mock()
+            val expandCallback: ExpandHelper.Callback = mock()
+            transitionController.touchHelper.expandCallback = expandCallback
+            whenever(expandCallback.getChildAtRawPosition(any(), any())).thenReturn(childView)
+
+            // Set shade expanded and screen locked
+            kosmos.fakeKeyguardRepository.setKeyguardEnabled(true)
+            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
+                AuthenticationMethodModel.Pin
+            )
+            kosmos.deviceEntryInteractor.lockNow("test")
+            kosmos.shadeTestUtil.setShadeExpansion(1f)
+
+            val startY = 10f
+            val endY = 100f
+            val eventDown: MotionEvent =
+                MotionEvent.obtain(
+                    /* downTime= */ 0,
+                    /* eventTime= */ 0,
+                    MotionEvent.ACTION_DOWN,
+                    0f,
+                    startY,
+                    /* metaState= */ 0,
+                )
+            transitionController.touchHelper.onInterceptTouchEvent(eventDown)
+
+            val eventMove: MotionEvent =
+                MotionEvent.obtain(
+                    /* downTime= */ 0,
+                    /* eventTime= */ 0,
+                    MotionEvent.ACTION_MOVE,
+                    0f,
+                    endY,
+                    /* metaState= */ 0,
+                )
+            transitionController.touchHelper.onInterceptTouchEvent(eventMove)
+
+            // Check that initialShadeLockdown is true
+            assertTrue(
+                "Not initially in shade lockdown",
+                transitionController.touchHelper.initialShadeLockdown,
+            )
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun testCanNotDragDownOnLockscreen_inFlexiglass_initialShadeNotExpanded() =
+        testScope.runTest {
+            val childView: ExpandableNotificationRow = mock()
+            val expandCallback: ExpandHelper.Callback = mock()
+            transitionController.touchHelper.expandCallback = expandCallback
+            whenever(expandCallback.getChildAtRawPosition(any(), any())).thenReturn(childView)
+
+            // Set shade not expanded and screen locked
+            kosmos.fakeKeyguardRepository.setKeyguardEnabled(true)
+            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
+                AuthenticationMethodModel.Pin
+            )
+            kosmos.deviceEntryInteractor.lockNow("test")
+            kosmos.shadeTestUtil.setShadeExpansion(0f)
+
+            val startY = 10f
+            val endY = 100f
+            val eventDown: MotionEvent =
+                MotionEvent.obtain(
+                    /* downTime= */ 0,
+                    /* eventTime= */ 0,
+                    MotionEvent.ACTION_DOWN,
+                    0f,
+                    startY,
+                    /* metaState= */ 0,
+                )
+            transitionController.touchHelper.onInterceptTouchEvent(eventDown)
+
+            val eventMove: MotionEvent =
+                MotionEvent.obtain(
+                    /* downTime= */ 0,
+                    /* eventTime= */ 0,
+                    MotionEvent.ACTION_MOVE,
+                    0f,
+                    endY,
+                    /* metaState= */ 0,
+                )
+            transitionController.touchHelper.onInterceptTouchEvent(eventMove)
+            // Check that initialShadeLockdown is false
+            assertFalse(
+                "Initially in shade lockdown",
+                transitionController.touchHelper.initialShadeLockdown,
+            )
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun testCanDragUpOnLockscreen_inFlexiglass() =
+        testScope.runTest {
+            val childView: ExpandableNotificationRow = mock()
+            val expandCallback: ExpandHelper.Callback = mock()
+            transitionController.touchHelper.expandCallback = expandCallback
+            whenever(expandCallback.getChildAtRawPosition(any(), any())).thenReturn(childView)
+
+            kosmos.fakeKeyguardRepository.setKeyguardEnabled(true)
+            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
+                AuthenticationMethodModel.Pin
+            )
+            kosmos.deviceEntryInteractor.lockNow("test")
+            kosmos.shadeTestUtil.setShadeExpansion(0f)
+
+            val startY = 100f
+            val endY = 10f
+
+            val eventDown: MotionEvent =
+                MotionEvent.obtain(
+                    /* downTime= */ 0,
+                    /* eventTime= */ 0,
+                    MotionEvent.ACTION_DOWN,
+                    0f,
+                    startY,
+                    /* metaState= */ 0,
+                )
+
+            transitionController.touchHelper.onInterceptTouchEvent(eventDown)
+
+            val eventMove: MotionEvent =
+                MotionEvent.obtain(
+                    /* downTime= */ 0,
+                    /* eventTime= */ 0,
+                    MotionEvent.ACTION_MOVE,
+                    0f,
+                    endY,
+                    /* metaState= */ 0,
+                )
+            transitionController.touchHelper.onInterceptTouchEvent(eventMove)
+
+            assertTrue("Can't drag up on keyguard", transitionController.touchHelper.isDraggingUp)
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun testCanNotDragUpOnLockscreen_inFlexiglass_shadeExpanded() =
+        testScope.runTest {
+            val childView: ExpandableNotificationRow = mock()
+            val expandCallback: ExpandHelper.Callback = mock()
+            transitionController.touchHelper.expandCallback = expandCallback
+            whenever(expandCallback.getChildAtRawPosition(any(), any())).thenReturn(childView)
+
+            kosmos.fakeKeyguardRepository.setKeyguardEnabled(true)
+            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
+                AuthenticationMethodModel.Pin
+            )
+            kosmos.deviceEntryInteractor.lockNow("test")
+            kosmos.shadeTestUtil.setShadeExpansion(1f)
+
+            val startY = 100f
+            val endY = 10f
+
+            val eventDown: MotionEvent =
+                MotionEvent.obtain(
+                    /* downTime= */ 0,
+                    /* eventTime= */ 0,
+                    MotionEvent.ACTION_DOWN,
+                    0f,
+                    startY,
+                    /* metaState= */ 0,
+                )
+
+            transitionController.touchHelper.onInterceptTouchEvent(eventDown)
+
+            val eventMove: MotionEvent =
+                MotionEvent.obtain(
+                    /* downTime= */ 0,
+                    /* eventTime= */ 0,
+                    MotionEvent.ACTION_MOVE,
+                    0f,
+                    endY,
+                    /* metaState= */ 0,
+                )
+            transitionController.touchHelper.onInterceptTouchEvent(eventMove)
+
+            assertFalse("Can drag up on keyguard", transitionController.touchHelper.isDraggingUp)
         }
 
     @Test
@@ -530,7 +801,7 @@ class LockscreenShadeTransitionControllerTest : SysuiTestCase() {
         testScope.runTest {
             transitionController.qS = null
 
-            assertTrue("Can't drag down on keyguard", transitionController.canDragDown())
+            assertFalse("Can drag down on keyguard", transitionController.canDragDown())
         }
 
     private fun enableSplitShade() {
@@ -542,6 +813,7 @@ class LockscreenShadeTransitionControllerTest : SysuiTestCase() {
     }
 
     private fun setSplitShadeEnabled(enabled: Boolean) {
+        if (enabled) fakeShadeModeInteractor.shadeMode = MutableStateFlow(ShadeMode.Split)
         overrideResource(R.bool.config_use_split_notification_shade, enabled)
         configurationController.notifyConfigurationChanged()
     }

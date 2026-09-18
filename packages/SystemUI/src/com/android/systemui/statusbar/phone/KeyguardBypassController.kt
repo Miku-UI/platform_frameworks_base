@@ -21,6 +21,7 @@ import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.hardware.biometrics.BiometricSourceType
 import android.provider.Settings
+import android.util.Log
 import com.android.app.tracing.ListenersTracing.forEachTraced
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.Dumpable
@@ -200,8 +201,19 @@ constructor(
     ): Boolean {
         if (biometricSourceType == BiometricSourceType.FACE && bypassEnabled) {
             val can = canBypass()
-            if (!can && (isPulseExpanding || qsExpanded)) {
-                pendingUnlock = PendingUnlock(biometricSourceType, isStrongBiometric)
+            if (!can) {
+                Log.d(
+                    "KeyguardBypassController",
+                    "abort wakeAndUnlock " +
+                        "statusBarStateController.state=" +
+                        "${StatusBarState.toString(statusBarStateController.state)} " +
+                        "launchingAffordance=$launchingAffordance " +
+                        "isPulseExpanding=$isPulseExpanding " +
+                        "qsExpanded=$qsExpanded",
+                )
+                if (isPulseExpanding || qsExpanded) {
+                    pendingUnlock = PendingUnlock(biometricSourceType, isStrongBiometric)
+                }
             }
             return can
         }

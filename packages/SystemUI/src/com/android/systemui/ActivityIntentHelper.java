@@ -16,6 +16,11 @@
 
 package com.android.systemui;
 
+import static com.android.systemui.activity.data.repository.ActivityIntentRepository.toActivityInfo;
+import static com.android.systemui.activity.data.repository.ActivityIntentRepository.getTargetActivityInfoFlags;
+import static com.android.systemui.activity.data.repository.ActivityIntentRepository.wouldActivityInfoShowOverLockscreen;
+
+import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -31,8 +36,12 @@ import javax.inject.Inject;
 
 /**
  * Contains useful methods for querying properties of an Activity Intent.
+ *
+ * Instead of adding new functionality here, please add new functionality to
+ * [com.android.systemui.activity.data.repository.ActivityIntentRepository].
  */
 @SysUISingleton
+@SuppressLint("MissingPermission")
 public class ActivityIntentHelper {
 
     private final PackageManager mPm;
@@ -61,8 +70,7 @@ public class ActivityIntentHelper {
      * @see #wouldLaunchResolverActivity(Intent, int)
      */
     public boolean wouldPendingLaunchResolverActivity(PendingIntent intent, int currentUserId) {
-        ActivityInfo targetActivityInfo = getPendingTargetActivityInfo(intent, currentUserId,
-                false /* onlyDirectBootAware */);
+        ActivityInfo targetActivityInfo = getPendingTargetActivityInfo(intent, currentUserId);
         return targetActivityInfo == null;
     }
 
@@ -78,50 +86,16 @@ public class ActivityIntentHelper {
      */
     public ActivityInfo getTargetActivityInfo(Intent intent, int currentUserId,
             boolean onlyDirectBootAware) {
-        int flags = PackageManager.MATCH_DEFAULT_ONLY | PackageManager.GET_META_DATA;
-        if (!onlyDirectBootAware) {
-            flags |= PackageManager.MATCH_DIRECT_BOOT_AWARE
-                    | PackageManager.MATCH_DIRECT_BOOT_UNAWARE;
-        }
+        int flags = getTargetActivityInfoFlags(onlyDirectBootAware);
         final List<ResolveInfo> appList = mPm.queryIntentActivitiesAsUser(
                 intent, flags, currentUserId);
-        if (appList.size() == 0) {
-            return null;
-        }
-        if (appList.size() == 1) {
-            return appList.get(0).activityInfo;
-        }
-        ResolveInfo resolved = mPm.resolveActivityAsUser(intent, flags, currentUserId);
-        if (resolved == null || wouldLaunchResolverActivity(resolved, appList)) {
-            return null;
-        } else {
-            return resolved.activityInfo;
-        }
+        return toActivityInfo(appList, intent, flags, currentUserId, mPm);
     }
 
-    /**
-     * @see #getTargetActivityInfo(Intent, int, boolean)
-     */
-    public ActivityInfo getPendingTargetActivityInfo(PendingIntent intent, int currentUserId,
-            boolean onlyDirectBootAware) {
-        int flags = PackageManager.MATCH_DEFAULT_ONLY | PackageManager.GET_META_DATA;
-        if (!onlyDirectBootAware) {
-            flags |= PackageManager.MATCH_DIRECT_BOOT_AWARE
-                    | PackageManager.MATCH_DIRECT_BOOT_UNAWARE;
-        }
+    private ActivityInfo getPendingTargetActivityInfo(PendingIntent intent, int currentUserId) {
+        int flags = getTargetActivityInfoFlags(/* onlyDirectBootAware= */ false);
         final List<ResolveInfo> appList = intent.queryIntentComponents(flags);
-        if (appList.size() == 0) {
-            return null;
-        }
-        if (appList.size() == 1) {
-            return appList.get(0).activityInfo;
-        }
-        ResolveInfo resolved = mPm.resolveActivityAsUser(intent.getIntent(), flags, currentUserId);
-        if (resolved == null || wouldLaunchResolverActivity(resolved, appList)) {
-            return null;
-        } else {
-            return resolved.activityInfo;
-        }
+        return toActivityInfo(appList, intent.getIntent(), flags, currentUserId, mPm);
     }
 
     /**
@@ -134,40 +108,18 @@ public class ActivityIntentHelper {
     public boolean wouldShowOverLockscreen(Intent intent, int currentUserId) {
         ActivityInfo targetActivityInfo = getTargetActivityInfo(intent,
                 currentUserId, false /* onlyDirectBootAware */);
-        return targetActivityInfo != null
-                && (targetActivityInfo.flags & (ActivityInfo.FLAG_SHOW_WHEN_LOCKED
-                | ActivityInfo.FLAG_SHOW_FOR_ALL_USERS)) > 0;
+        return wouldActivityInfoShowOverLockscreen(targetActivityInfo);
     }
 
     /**
      * @see #wouldShowOverLockscreen(Intent, int)
-     */
-    public boolean wouldPendingShowOverLockscreen(PendingIntent intent, int currentUserId) {
-        ActivityInfo targetActivityInfo = getPendingTargetActivityInfo(intent,
-                currentUserId, false /* onlyDirectBootAware */);
-        return targetActivityInfo != null
-                && (targetActivityInfo.flags & (ActivityInfo.FLAG_SHOW_WHEN_LOCKED
-                | ActivityInfo.FLAG_SHOW_FOR_ALL_USERS)) > 0;
-    }
-
-    /**
-     * Determines if sending the given intent would result in starting an Intent resolver activity,
-     * instead of resolving to a specific component.
      *
-     * @param resolved the resolveInfo for the intent as returned by resolveActivityAsUser
-     * @param appList a list of resolveInfo as returned by queryIntentActivitiesAsUser
-     * @return true if the intent would launch a resolver activity
+     * @deprecated due to making binder calls on the main thread. Use
+     * [ActivityIntentRepository.wouldPendingShowOverLockscreen] instead.
      */
-    public boolean wouldLaunchResolverActivity(ResolveInfo resolved, List<ResolveInfo> appList) {
-        // If the list contains the above resolved activity, then it can't be
-        // ResolverActivity itself.
-        for (int i = 0; i < appList.size(); i++) {
-            ResolveInfo tmp = appList.get(i);
-            if (tmp.activityInfo.name.equals(resolved.activityInfo.name)
-                    && tmp.activityInfo.packageName.equals(resolved.activityInfo.packageName)) {
-                return false;
-            }
-        }
-        return true;
+    @Deprecated
+    public boolean wouldPendingShowOverLockscreen(PendingIntent intent, int currentUserId) {
+        ActivityInfo targetActivityInfo = getPendingTargetActivityInfo(intent, currentUserId);
+        return wouldActivityInfoShowOverLockscreen(targetActivityInfo);
     }
 }

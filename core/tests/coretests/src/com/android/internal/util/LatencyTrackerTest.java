@@ -26,7 +26,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.provider.DeviceConfig;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -53,8 +52,6 @@ import java.util.stream.Collectors;
 @RunWith(AndroidJUnit4.class)
 @DisabledOnRavenwood(blockedBy = DeviceConfig.class)
 public class LatencyTrackerTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private static final String ENUM_NAME_PREFIX = "UIACTION_LATENCY_REPORTED__ACTION__";
 

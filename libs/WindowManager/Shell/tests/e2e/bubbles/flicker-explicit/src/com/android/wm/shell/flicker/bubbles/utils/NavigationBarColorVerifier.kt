@@ -36,15 +36,12 @@ import java.nio.file.FileSystems
 
 private const val TAG = "NavigationBarColorVerifier"
 
-private val DUMP_PATH = FileSystems
-    .getDefault()
-    .getPath("/data/user/0/com.android.wm.shell.flicker.bubbles/cache")
+private val DUMP_PATH =
+    FileSystems.getDefault().getPath("/data/user/0/com.android.wm.shell.flicker.bubbles/cache")
 
 private const val MIN_DOMINANT_COLOR_COVERAGE_RATIO = 0.3
 
-/**
- * This assertion verifies if the IME can actually update the nav bar color.
- */
+/** This assertion verifies if the IME can actually update the nav bar color. */
 fun assertImeCanChangeNavBarColor(bitmap: Bitmap) {
     var success = false
     val navBarBitmapAtEnd = getNavBarBitmap(bitmap)
@@ -57,17 +54,14 @@ fun assertImeCanChangeNavBarColor(bitmap: Bitmap) {
             0,
             0,
             navBarBitmapAtEnd.width,
-            navBarBitmapAtEnd.height
+            navBarBitmapAtEnd.height,
         )
 
-        val maxColorCount = pixelsAtEnd.toList()
-            .groupingBy { it }
-            .eachCount()
-            .values.maxOrNull() ?: 0
+        val maxColorCount =
+            pixelsAtEnd.toList().groupingBy { it }.eachCount().values.maxOrNull() ?: 0
         assertWithMessage("IME must change the nav bar color.")
-            .that(maxColorCount).isAtLeast(
-                (MIN_DOMINANT_COLOR_COVERAGE_RATIO * pixelsAtEnd.size).toInt()
-            )
+            .that(maxColorCount)
+            .isAtLeast((MIN_DOMINANT_COLOR_COVERAGE_RATIO * pixelsAtEnd.size).toInt())
 
         success = true
     } finally {
@@ -85,23 +79,18 @@ private fun getNavBarBitmap(bitmap: Bitmap): Bitmap {
         displayBounds.left,
         displayBounds.bottom - navBarInsets.bottom,
         displayBounds.width(),
-        navBarInsets.bottom
+        navBarInsets.bottom,
     )
 }
 
 private fun getNavBarInset(): Insets {
     val context = ApplicationProvider.getApplicationContext<Context>()
-    val defaultDisplay = context.getSystemService(DisplayManager::class.java)
-        .getDisplay(DEFAULT_DISPLAY)
-    val windowContext = context.createWindowContext(
-        defaultDisplay,
-        TYPE_APPLICATION,
-        null /* options */
-    )
-    val windowInsets = windowContext
-        .getSystemService(WindowManager::class.java)
-        .currentWindowMetrics
-        .windowInsets
+    val defaultDisplay =
+        context.getSystemService(DisplayManager::class.java).getDisplay(DEFAULT_DISPLAY)
+    val windowContext =
+        context.createWindowContext(defaultDisplay, TYPE_APPLICATION, null /* options */)
+    val windowInsets =
+        windowContext.getSystemService(WindowManager::class.java).currentWindowMetrics.windowInsets
 
     return windowInsets.getInsets(WindowInsets.Type.navigationBars())
 }

@@ -26,11 +26,13 @@ import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.AdaptiveIconDrawable;
 import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Icon;
 import android.graphics.drawable.VectorDrawable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.text.NoCopySpan;
 import android.text.SpannableStringBuilder;
 import android.text.Spanned;
@@ -49,6 +51,7 @@ import java.util.WeakHashMap;
  *
  * @hide
  */
+@RavenwoodKeepWholeClass
 public class ContrastColorUtil {
 
     private static final String TAG = "ContrastColorUtil";
@@ -173,6 +176,36 @@ public class ContrastColorUtil {
             return false;
         }
     }
+
+    /**
+     * Checks whether a given Icon holds an AdaptiveIconDrawable (resource or constructed bitmap
+     * object).
+     * @param context Context in which to load the icon's resource.
+     * @param icon Icon to test.
+     * @return true if the Icon is an adaptive bitmap or adaptive drawable resource.
+     */
+    public static boolean isAdaptiveIconDrawableIcon(Context context, Icon icon) {
+        if (icon != null) {
+            switch (icon.getType()) {
+                case Icon.TYPE_ADAPTIVE_BITMAP:
+                    return true;
+                case Icon.TYPE_RESOURCE:
+                    final int resId = icon.getResId();
+                    if (resId != 0) {
+                        try {
+                            return context.getDrawable(resId) instanceof AdaptiveIconDrawable;
+                        } catch (Resources.NotFoundException ex) {
+                            return false;
+                        }
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+        return false;
+    }
+
 
     /**
      * Inverts all the grayscale colors set by {@link android.text.style.TextAppearanceSpan}s on
@@ -537,6 +570,17 @@ public class ContrastColorUtil {
      */
     public static int ensureTextContrast(int color, int bg, boolean isBgDarker) {
         return ensureContrast(color, bg, isBgDarker, 4.5);
+    }
+
+    /**
+     * Finds a color with sufficient contrast over bg.
+     *
+     * @param color the color to start searching from
+     * @param bg the color to ensure contrast against
+     * @param contrastRatio the minimum contrast ratio required
+     */
+    public static int ensureContrast(@ColorInt int color, @ColorInt int bg, double contrastRatio) {
+        return ensureContrast(color, bg, /* isBgDarker= */ isColorDark(bg), contrastRatio);
     }
 
     /**

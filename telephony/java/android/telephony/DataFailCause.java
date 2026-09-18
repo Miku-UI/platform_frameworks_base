@@ -359,7 +359,7 @@ public final class DataFailCause {
     public static final int IP_VERSION_MISMATCH = 0x807;
     /** Dial up networking (DUN) call bring up is rejected since UE is in eHRPD RAT. */
     public static final int DUN_CALL_DISALLOWED = 0x808;
-    /*** Rejected/Brought down since UE is transition between EPC and NONEPC RAT. */
+    /** Rejected/Brought down since UE is transition between EPC and NONEPC RAT. */
     public static final int INTERNAL_EPC_NONEPC_TRANSITION = 0x809;
     /** The current interface is being in use. */
     public static final int INTERFACE_IN_USE = 0x80A;

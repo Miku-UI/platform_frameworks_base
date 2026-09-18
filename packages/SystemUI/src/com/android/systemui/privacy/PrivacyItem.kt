@@ -15,6 +15,7 @@
 package com.android.systemui.privacy
 
 import android.content.Context
+import com.android.systemui.Flags.groupedPrivacyChip
 import com.android.systemui.res.R
 
 typealias Privacy = PrivacyType
@@ -23,32 +24,44 @@ enum class PrivacyType(
     val nameId: Int,
     val iconId: Int,
     val permGroupName: String,
-    val logName: String
+    val logName: String,
 ) {
     // This uses the icons used by the corresponding permission groups in the AndroidManifest
     TYPE_CAMERA(
         R.string.privacy_type_camera,
-        com.android.internal.R.drawable.perm_group_camera,
+        if (groupedPrivacyChip()) {
+            R.drawable.ic_privacy_camera
+        } else {
+            com.android.internal.R.drawable.perm_group_camera
+        },
         android.Manifest.permission_group.CAMERA,
-        "camera"
+        "camera",
     ),
     TYPE_MICROPHONE(
         R.string.privacy_type_microphone,
-        com.android.internal.R.drawable.perm_group_microphone,
+        if (groupedPrivacyChip()) {
+            R.drawable.ic_privacy_mic
+        } else {
+            com.android.internal.R.drawable.perm_group_microphone
+        },
         android.Manifest.permission_group.MICROPHONE,
-        "microphone"
+        "microphone",
     ),
     TYPE_LOCATION(
         R.string.privacy_type_location,
-        com.android.internal.R.drawable.perm_group_location,
+        if (groupedPrivacyChip()) {
+            R.drawable.ic_privacy_location
+        } else {
+            com.android.internal.R.drawable.perm_group_location
+        },
         android.Manifest.permission_group.LOCATION,
-        "location"
+        "location",
     ),
     TYPE_MEDIA_PROJECTION(
-            R.string.privacy_type_media_projection,
-            R.drawable.stat_sys_cast,
-            android.Manifest.permission_group.UNDEFINED,
-            "media projection"
+        R.string.privacy_type_media_projection,
+        R.drawable.stat_sys_cast,
+        android.Manifest.permission_group.UNDEFINED,
+        "media projection",
     );
 
     fun getName(context: Context) = context.resources.getString(nameId)
@@ -57,13 +70,15 @@ enum class PrivacyType(
 }
 
 private const val UNKNOWN_TIMESTAMP = -1L
+
 data class PrivacyItem(
     val privacyType: PrivacyType,
     val application: PrivacyApplication,
     val timeStampElapsed: Long = UNKNOWN_TIMESTAMP,
-    val paused: Boolean = false
+    val paused: Boolean = false,
 ) {
-    val log = "(${privacyType.logName}, ${application.packageName}(${application.uid}), " +
+    val log =
+        "(${privacyType.logName}, ${application.packageName}(${application.uid}), " +
             "$timeStampElapsed, paused=$paused)"
 }
 

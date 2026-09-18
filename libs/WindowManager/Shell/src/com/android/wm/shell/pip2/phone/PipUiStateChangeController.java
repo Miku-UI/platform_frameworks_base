@@ -26,6 +26,7 @@ import androidx.annotation.Nullable;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
+import com.android.wm.shell.common.pip.PipDisplayLayoutState;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
 
 import java.util.function.Consumer;
@@ -37,16 +38,19 @@ public class PipUiStateChangeController implements
         PipTransitionState.PipTransitionStateChangedListener {
 
     private final PipTransitionState mPipTransitionState;
+    private final PipDisplayLayoutState mPipDisplayLayoutState;
 
     private Consumer<PictureInPictureUiState> mPictureInPictureUiStateConsumer;
 
-    public PipUiStateChangeController(PipTransitionState pipTransitionState) {
+    public PipUiStateChangeController(PipTransitionState pipTransitionState,
+            PipDisplayLayoutState pipDisplayLayoutState) {
         mPipTransitionState = pipTransitionState;
         mPipTransitionState.addPipTransitionStateChangedListener(this);
+        mPipDisplayLayoutState = pipDisplayLayoutState;
         mPictureInPictureUiStateConsumer = pictureInPictureUiState -> {
             try {
                 ActivityTaskManager.getService().onPictureInPictureUiStateChanged(
-                        pictureInPictureUiState);
+                        pictureInPictureUiState, mPipDisplayLayoutState.getDisplayId());
             } catch (RemoteException | IllegalStateException e) {
                 ProtoLog.e(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                         "Failed to send PictureInPictureUiState.");

@@ -41,10 +41,10 @@ import com.android.systemui.keyguard.shared.model.DismissAction
 import com.android.systemui.keyguard.shared.model.DozeStateModel
 import com.android.systemui.keyguard.shared.model.DozeTransitionModel
 import com.android.systemui.keyguard.shared.model.KeyguardDone
+import com.android.systemui.keyguard.shared.model.LockAfterDelayTimerState
 import com.android.systemui.keyguard.shared.model.StatusBarState
 import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.res.R
-import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.statusbar.policy.KeyguardStateController
 import com.android.systemui.util.time.SystemClock
@@ -64,6 +64,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
@@ -185,7 +186,7 @@ interface KeyguardRepository {
     val isDreamingWithOverlay: Flow<Boolean>
 
     /** Doze state information, as it transitions */
-    val dozeTransitionModel: Flow<DozeTransitionModel>
+    val dozeTransitionModel: StateFlow<DozeTransitionModel>
 
     val lastDozeTapToWakePosition: StateFlow<Point?>
 
@@ -229,6 +230,9 @@ interface KeyguardRepository {
 
     /** Last camera launch detection event */
     val onCameraLaunchDetected: MutableStateFlow<CameraLaunchSourceModel>
+
+    /** The state of the "lock after delay timer" */
+    val lockAfterDelayState: MutableStateFlow<LockAfterDelayTimerState>
 
     /**
      * Emits after the keyguard is done animating away.
@@ -290,7 +294,8 @@ interface KeyguardRepository {
 
     fun showDismissibleKeyguard()
 
-    fun setDismissAction(dismissAction: DismissAction)
+    /** Atomically update the current action and return the prior dismiss action */
+    fun setDismissAction(dismissAction: DismissAction): DismissAction
 
     suspend fun setKeyguardDone(keyguardDoneType: KeyguardDone)
 
@@ -307,15 +312,6 @@ interface KeyguardRepository {
 
     /** Sets whether the keyguard is enabled (see [isKeyguardEnabled]). */
     fun setKeyguardEnabled(enabled: Boolean)
-
-    /** @see isShowKeyguardWhenReenabled */
-    fun setShowKeyguardWhenReenabled(isShowKeyguardWhenReenabled: Boolean)
-
-    /**
-     * Returns `true` if the keyguard should be re-shown once it becomes re-enabled again; `false`
-     * otherwise.
-     */
-    fun isShowKeyguardWhenReenabled(): Boolean
 }
 
 /** Encapsulates application state for the keyguard. */
@@ -341,8 +337,8 @@ constructor(
         MutableStateFlow(DismissAction.None)
     override val dismissAction = _dismissAction.asStateFlow()
 
-    override fun setDismissAction(dismissAction: DismissAction) {
-        _dismissAction.value = dismissAction
+    override fun setDismissAction(dismissAction: DismissAction): DismissAction {
+        return _dismissAction.getAndUpdate { dismissAction }
     }
 
     private val _keyguardDone: MutableSharedFlow<KeyguardDone> = MutableSharedFlow()
@@ -366,6 +362,8 @@ constructor(
     override val keyguardAlpha = _keyguardAlpha.asStateFlow()
 
     override val onCameraLaunchDetected = MutableStateFlow(CameraLaunchSourceModel())
+
+    override val lockAfterDelayState = MutableStateFlow(LockAfterDelayTimerState.INACTIVE)
 
     override val panelAlpha: MutableStateFlow<Float> = MutableStateFlow(1f)
     override val zoomOut: MutableStateFlow<Float> = MutableStateFlow(0f)
@@ -397,8 +395,12 @@ constructor(
             onBufferOverflow = BufferOverflow.DROP_OLDEST,
         )
 
-    private val _isKeyguardEnabled =
-        MutableStateFlow(!lockPatternUtils.isLockScreenDisabled(userTracker.userId))
+    /**
+     * This represents whether the keyguard is enabled according to KeyguardService. This is `true`
+     * on initialization, because the framework will only notify systemui of false after it is
+     * initialized / systemui has restarted.
+     */
+    private val _isKeyguardEnabled = MutableStateFlow(true)
     override val isKeyguardEnabled: StateFlow<Boolean> = _isKeyguardEnabled.asStateFlow()
 
     private val _canIgnoreAuthAndReturnToGone = MutableStateFlow(false)
@@ -410,8 +412,6 @@ constructor(
 
     private val _isDozing = MutableStateFlow(statusBarStateController.isDozing)
     override val isDozing: StateFlow<Boolean> = _isDozing.asStateFlow()
-
-    private var isShowKeyguardWhenReenabled: Boolean = false
 
     override fun setIsDozing(isDozing: Boolean) {
         _isDozing.value = isDozing
@@ -466,36 +466,45 @@ constructor(
 
     override val isDreaming: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
-    override val dozeTransitionModel: Flow<DozeTransitionModel> = conflatedCallbackFlow {
-        val callback =
-            object : DozeTransitionCallback {
-                override fun onDozeTransition(
-                    oldState: DozeMachine.State,
-                    newState: DozeMachine.State,
-                ) {
-                    trySendWithFailureLogging(
-                        DozeTransitionModel(
-                            from = dozeMachineStateToModel(oldState),
-                            to = dozeMachineStateToModel(newState),
-                        ),
-                        TAG,
-                        "doze transition model",
-                    )
-                }
+    override val dozeTransitionModel: StateFlow<DozeTransitionModel> =
+        conflatedCallbackFlow {
+                val callback =
+                    object : DozeTransitionCallback {
+                        override fun onDozeTransition(
+                            oldState: DozeMachine.State,
+                            newState: DozeMachine.State,
+                        ) {
+                            trySendWithFailureLogging(
+                                DozeTransitionModel(
+                                    from = dozeMachineStateToModel(oldState),
+                                    to = dozeMachineStateToModel(newState),
+                                ),
+                                TAG,
+                                "doze transition model",
+                            )
+                        }
+                    }
+
+                dozeTransitionListener.addCallback(callback)
+                trySendWithFailureLogging(
+                    DozeTransitionModel(
+                        from = dozeMachineStateToModel(dozeTransitionListener.oldState),
+                        to = dozeMachineStateToModel(dozeTransitionListener.newState),
+                    ),
+                    TAG,
+                    "initial doze transition model",
+                )
+
+                awaitClose { dozeTransitionListener.removeCallback(callback) }
             }
-
-        dozeTransitionListener.addCallback(callback)
-        trySendWithFailureLogging(
-            DozeTransitionModel(
-                from = dozeMachineStateToModel(dozeTransitionListener.oldState),
-                to = dozeMachineStateToModel(dozeTransitionListener.newState),
-            ),
-            TAG,
-            "initial doze transition model",
-        )
-
-        awaitClose { dozeTransitionListener.removeCallback(callback) }
-    }
+            .stateIn(
+                scope,
+                SharingStarted.Eagerly,
+                DozeTransitionModel(
+                    from = dozeMachineStateToModel(dozeTransitionListener.oldState),
+                    to = dozeMachineStateToModel(dozeTransitionListener.newState),
+                ),
+            )
 
     override val isEncryptedOrLockdown: Flow<Boolean> =
         conflatedCallbackFlow {
@@ -641,16 +650,6 @@ constructor(
 
     override fun setKeyguardEnabled(enabled: Boolean) {
         _isKeyguardEnabled.value = enabled
-    }
-
-    override fun setShowKeyguardWhenReenabled(isShowKeyguardWhenReenabled: Boolean) {
-        SceneContainerFlag.unsafeAssertInNewMode()
-        this.isShowKeyguardWhenReenabled = isShowKeyguardWhenReenabled
-    }
-
-    override fun isShowKeyguardWhenReenabled(): Boolean {
-        SceneContainerFlag.unsafeAssertInNewMode()
-        return isShowKeyguardWhenReenabled
     }
 
     private fun statusBarStateIntToObject(value: Int): StatusBarState {

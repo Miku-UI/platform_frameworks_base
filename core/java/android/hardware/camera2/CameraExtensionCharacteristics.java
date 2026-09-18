@@ -20,6 +20,7 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
+import android.annotation.SystemApi;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -140,6 +141,14 @@ public final class CameraExtensionCharacteristics {
      * overall image quality under low light conditions.
      */
     public static final int EXTENSION_NIGHT = 4;
+
+    /**
+     * Start of device-specific extension implementations
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VENDOR_DEFINED_CAMERA_EXTENSIONS)
+    @SystemApi
+    public static final int EXTENSION_VENDOR_START = 0x4000;
 
     /**
      * @hide
@@ -271,7 +280,6 @@ public final class CameraExtensionCharacteristics {
         private final Object mLock = new Object();
         private final int PROXY_SERVICE_DELAY_MS = 2000;
         private ExtensionConnectionManager mConnectionManager = new ExtensionConnectionManager();
-        private boolean mPermissionForFallbackEnabled = false;
         private boolean mIsFallbackEnabled = false;
 
         // Singleton, don't allow construction
@@ -281,7 +289,8 @@ public final class CameraExtensionCharacteristics {
             return GLOBAL_CAMERA_MANAGER;
         }
 
-        private void releaseProxyConnectionLocked(Context ctx, int extension) {
+        private void releaseProxyConnectionLocked(Context context, int extension) {
+            Context ctx = context.getApplicationContext();
             if (mConnectionManager.getConnection(extension) != null) {
                 ctx.unbindService(mConnectionManager.getConnection(extension));
                 mConnectionManager.setConnection(extension, null);
@@ -290,15 +299,23 @@ public final class CameraExtensionCharacteristics {
             }
         }
 
-        private void connectToProxyLocked(Context ctx, int extension, boolean useFallback) {
+        private void connectToProxyLocked(Context context, int extension, boolean useFallback) {
+            Context ctx = context.getApplicationContext();
             if ((mConnectionManager.getConnection(extension) == null) ||
                     (mConnectionManager.getProxy(extension) == null)) {
                 Intent intent = new Intent();
                 intent.setClassName(PROXY_PACKAGE_NAME, PROXY_SERVICE_NAME);
                 String vendorProxyPackage = SystemProperties.get(
-                    "ro.vendor.camera.extensions.package");
+                        "ro.vendor.camera.extensions.package");
                 String vendorProxyService = SystemProperties.get(
-                    "ro.vendor.camera.extensions.service");
+                        "ro.vendor.camera.extensions.service");
+                if (Flags.efvCaptureLatency()) {
+                    String efvProxyService = SystemProperties.get(
+                            "ro.frameworks.camera2.extension.service");
+                    if (!efvProxyService.isEmpty()) {
+                        vendorProxyService = efvProxyService;
+                    }
+                }
                 if (!vendorProxyPackage.isEmpty() && !vendorProxyService.isEmpty()) {
                   Log.v(TAG,
                       "Choosing the vendor camera extensions proxy package: "
@@ -433,20 +450,6 @@ public final class CameraExtensionCharacteristics {
                     releaseProxyConnectionLocked(ctx, extension);
                 }
 
-                if (ret && useFallback && mIsFallbackEnabled) {
-                    try {
-                        InitializeSessionHandler cb = new InitializeSessionHandler(ctx);
-                        initializeSession(cb, extension);
-                        ret = mPermissionForFallbackEnabled;
-                    } catch (RemoteException e) {
-                        Log.e(TAG, "Failed to initialize extension. Extension service does not"
-                                + " respond!");
-                        ret = false;
-                    } finally {
-                        releaseSession(extension);
-                    }
-                }
-
                 return ret;
             }
         }
@@ -522,7 +525,6 @@ public final class CameraExtensionCharacteristics {
                     try {
                         mConnectionManager.getProxy(extension).releaseSession();
                         mConnectionManager.setSessionInitialized(false);
-                        mPermissionForFallbackEnabled = false; // Reset permission status
                     } catch (RemoteException e) {
                         Log.e(TAG, "Failed to release session! Extension service does"
                                 + " not respond!");
@@ -571,52 +573,6 @@ public final class CameraExtensionCharacteristics {
             }
         }
 
-        private class InitializeSessionHandler extends IInitializeSessionCallback.Stub {
-            private Context mContext;
-
-            public InitializeSessionHandler(Context context) {
-                mContext = context;
-            }
-
-            @Override
-            public void onSuccess() {
-                // Verify that the camera permission is granted if using
-                // the fallback implementation for an extension
-                String[] callingUidPackages = mContext.getPackageManager()
-                        .getPackagesForUid(Binder.getCallingUid());
-                String fallbackPackageName = mContext.getResources()
-                        .getString(FALLBACK_PACKAGE_NAME);
-
-                if (!fallbackPackageName.isEmpty()
-                        && Arrays.stream(callingUidPackages)
-                        .anyMatch(fallbackPackageName::equals)) {
-                    String[] cameraPermissions = {
-                        android.Manifest.permission.SYSTEM_CAMERA,
-                        android.Manifest.permission.CAMERA
-                    };
-
-                    boolean allPermissionsGranted = true;
-                    for (String permission : cameraPermissions) {
-                        int permissionResult = mContext.checkPermission(permission,
-                                Binder.getCallingPid(), Binder.getCallingUid());
-                        if (permissionResult != PackageManager.PERMISSION_GRANTED) {
-                            Log.w(TAG, permission + " permission not granted for "
-                                    + fallbackPackageName + ", permission check result: "
-                                    + permissionResult);
-                            allPermissionsGranted = false;
-                        }
-                    }
-
-                    mPermissionForFallbackEnabled = allPermissionsGranted;
-                }
-            }
-
-            @Override
-            public void onFailure() {
-                Log.e(TAG, "Failed to initialize proxy service session!");
-            }
-        }
-
         private class ExtensionConnectionManager {
             // Maps extension to ExtensionConnection
             private Map<Integer, ExtensionConnection> mConnections = new HashMap<>();
@@ -632,10 +588,20 @@ public final class CameraExtensionCharacteristics {
             }
 
             public ICameraExtensionsProxyService getProxy(@Extension int extension) {
+                if (Flags.vendorDefinedCameraExtensions() &&
+                        (mConnections.get(extension) == null)) {
+                    mConnections.put(extension, new ExtensionConnection());
+                }
+
                 return mConnections.get(extension).mProxy;
             }
 
             public ServiceConnection getConnection(@Extension int extension) {
+                if (Flags.vendorDefinedCameraExtensions() &&
+                        (mConnections.get(extension) == null)) {
+                    mConnections.put(extension, new ExtensionConnection());
+                }
+
                 return mConnections.get(extension).mConnection;
             }
 
@@ -728,6 +694,45 @@ public final class CameraExtensionCharacteristics {
     }
 
     /**
+     * Checks if a given camera extension is available for a specific camera device.
+     *
+     * <p>An extension may not be available on all devices. Even if a device supports extensions
+     * in general, a specific extension might not be implemented for a particular camera ID.</p>
+     *
+     * <p>In contrast to {@link #getSupportedExtensions} this method can also be used to query
+     * the available device specific extension modes.</p>
+     *
+     * @param extensionType The camera extension to query for.
+     *
+     * @return {@code true} if the specified extension is supported for the given camera device,
+     *         {@code false} otherwise.
+     *
+     * @see #EXTENSION_AUTOMATIC
+     * @see #EXTENSION_BOKEH
+     * @see #EXTENSION_FACE_RETOUCH
+     * @see #EXTENSION_HDR
+     * @see #EXTENSION_NIGHT
+     */
+    @FlaggedApi(Flags.FLAG_VENDOR_DEFINED_CAMERA_EXTENSIONS)
+    public boolean isExtensionSupported(@Extension int extensionType) {
+        IBinder token = new Binder(TAG + "#isExtensionSupported:" + mCameraId);
+
+        boolean ret = false;
+        try {
+            if (registerClient(mContext, token, extensionType, mCameraId,
+                    mCharacteristicsMapNative)) {
+                ret = isExtensionSupported(mCameraId, extensionType, mCharacteristicsMapNative);
+            }
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Unsupported extension: " + extensionType);
+        } finally {
+            unregisterClient(mContext, token, extensionType);
+        }
+
+        return ret;
+    }
+
+    /**
      * @hide
      */
     public static boolean isExtensionSupported(String cameraId, int extensionType,
@@ -817,6 +822,11 @@ public final class CameraExtensionCharacteristics {
     /**
      * Return a list of supported device-specific extensions for a given camera device.
      *
+     * <p>Do note that starting with {@link android.os.Build.VERSION_CODES#CINNAMON_BUN Android C}
+     * applications can use {@link #isExtensionSupported(String, int)} to query for
+     * public and device specific extension modes. The latter will not be included in the
+     * list here.</p>
+     *
      * @return non-modifiable list of available extensions
      */
     public @NonNull List<Integer> getSupportedExtensions() {
@@ -863,7 +873,7 @@ public final class CameraExtensionCharacteristics {
      * device-specific extension.
      */
     @FlaggedApi(Flags.FLAG_CAMERA_EXTENSIONS_CHARACTERISTICS_GET)
-    public <T> @Nullable T get(@Extension int extension,
+    public <T> T get(@Extension int extension,
             @NonNull CameraCharacteristics.Key<T> key) {
         final IBinder token = new Binder(TAG + "#get:" + mCameraId);
         boolean success = registerClient(mContext, token, extension, mCameraId,

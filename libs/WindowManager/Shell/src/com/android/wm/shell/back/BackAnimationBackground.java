@@ -16,15 +16,15 @@
 
 package com.android.wm.shell.back;
 
-import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS;
+
+import static com.android.graphics.surfaceflinger.flags.Flags.setClientDrawnCornerRadii;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.view.SurfaceControl;
-import android.window.DesktopExperienceFlags;
 
 import com.android.internal.graphics.ColorUtils;
 import com.android.internal.view.AppearanceRegion;
@@ -62,7 +62,7 @@ public class BackAnimationBackground {
     public void ensureBackground(Rect startRect, int color,
             @NonNull SurfaceControl.Transaction transaction, int statusbarHeight, int displayId) {
         ensureBackground(startRect, color, transaction, statusbarHeight,
-                null /* cropBounds */, 0 /* cornerRadius */, displayId);
+                null /* cropBounds */, null /* cornerRadii */, displayId, null /* relativeLeash */);
     }
 
     /**
@@ -73,11 +73,13 @@ public class BackAnimationBackground {
      * @param transaction The animation transaction.
      * @param statusbarHeight The height of the statusbar (in px).
      * @param cropBounds The crop bounds of the surface, set to non-empty to show wallpaper.
-     * @param cornerRadius The radius of corner, only work when cropBounds is not empty.
+     * @param cornerRadii The radius of corners, only work when cropBounds is not empty.
+     * @param relativeLeash The surface to layer the background relative to.
      */
     public void ensureBackground(Rect startRect, int color,
             @NonNull SurfaceControl.Transaction transaction, int statusbarHeight,
-            @Nullable Rect cropBounds, float cornerRadius, int displayId) {
+            @Nullable Rect cropBounds, float[] cornerRadii, int displayId,
+            @Nullable SurfaceControl relativeLeash) {
         if (mBackgroundSurface != null) {
             return;
         }
@@ -92,18 +94,25 @@ public class BackAnimationBackground {
                 .setCallsite("BackAnimationBackground")
                 .setColorLayer();
 
-        if (DesktopExperienceFlags.ENABLE_MULTIDISPLAY_TRACKPAD_BACK_GESTURE.isTrue()) {
-            mRootTaskDisplayAreaOrganizer.attachToDisplayArea(displayId, colorLayerBuilder);
-        } else {
-            mRootTaskDisplayAreaOrganizer.attachToDisplayArea(DEFAULT_DISPLAY, colorLayerBuilder);
-        }
+        mRootTaskDisplayAreaOrganizer.attachToDisplayArea(displayId, colorLayerBuilder);
         mBackgroundSurface = colorLayerBuilder.build();
         transaction.setColor(mBackgroundSurface, colorComponents)
-                .setLayer(mBackgroundSurface, BACKGROUND_LAYER)
                 .show(mBackgroundSurface);
+        if (relativeLeash != null) {
+            transaction.setRelativeLayer(mBackgroundSurface, relativeLeash, BACKGROUND_LAYER);
+        } else {
+            transaction.setLayer(mBackgroundSurface, BACKGROUND_LAYER);
+        }
         if (cropBounds != null && !cropBounds.isEmpty()) {
-            transaction.setCrop(mBackgroundSurface, cropBounds)
-                    .setCornerRadius(mBackgroundSurface, cornerRadius);
+            transaction.setCrop(mBackgroundSurface, cropBounds);
+            if (cornerRadii != null && cornerRadii.length == 4) {
+                if (setClientDrawnCornerRadii()) {
+                    transaction.setCornerRadius(mBackgroundSurface, cornerRadii[0], cornerRadii[1],
+                            cornerRadii[3], cornerRadii[2]);
+                } else {
+                    transaction.setCornerRadius(mBackgroundSurface, cornerRadii[0]);
+                }
+            }
         }
         mStartBounds = startRect;
         mIsRequestingStatusBarAppearance = false;

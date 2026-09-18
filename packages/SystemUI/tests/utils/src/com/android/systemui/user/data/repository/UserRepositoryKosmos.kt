@@ -16,7 +16,18 @@
 
 package com.android.systemui.user.data.repository
 
+import android.content.applicationContext
+import android.os.userManager
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.testDispatcher
 
+val Kosmos.userIconProvider by
+    Kosmos.Fixture {
+        UserIconProvider(
+            appContext = applicationContext,
+            userManager = userManager,
+            backgroundDispatcher = testDispatcher,
+        )
+    }
 var Kosmos.userRepository: UserRepository by Kosmos.Fixture { fakeUserRepository }
-val Kosmos.fakeUserRepository by Kosmos.Fixture { FakeUserRepository() }
+val Kosmos.fakeUserRepository by Kosmos.Fixture { FakeUserRepository(userIconProvider) }

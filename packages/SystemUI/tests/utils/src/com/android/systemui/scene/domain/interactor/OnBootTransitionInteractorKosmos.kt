@@ -17,6 +17,7 @@
 package com.android.systemui.scene.domain.interactor
 
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
+import com.android.systemui.keyguard.domain.interactor.keyguardEnabledInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.statusbar.policy.domain.interactor.deviceProvisioningInteractor
 
@@ -26,5 +27,6 @@ val Kosmos.onBootTransitionInteractor: OnBootTransitionInteractor by
             deviceEntryInteractor = deviceEntryInteractor,
             deviceProvisioningInteractor = deviceProvisioningInteractor,
             sceneInteractor = sceneInteractor,
+            keyguardEnabledInteractor = keyguardEnabledInteractor,
         )
     }

@@ -36,6 +36,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.R;
+import com.android.server.accessibility.AccessibilityLogUtil;
+
 /**
  *  This class is used to show of magnification thumbnail
  *  from FullScreenMagnification. It is responsible for
@@ -43,8 +45,8 @@ import com.android.internal.R;
  *  it just only uses in FullScreenMagnification
  */
 public class MagnificationThumbnail {
-    private static final boolean DEBUG = false;
-    private static final String LOG_TAG = "MagnificationThumbnail";
+    private static final String LOG_TAG = MagnificationThumbnail.class.getSimpleName();
+    private static final boolean DEBUG = AccessibilityLogUtil.isDebugEnabled(LOG_TAG);
 
     private static final int FADE_IN_ANIMATION_DURATION_MS = 200;
     private static final int FADE_OUT_ANIMATION_DURATION_MS = 1000;

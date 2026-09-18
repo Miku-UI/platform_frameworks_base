@@ -19,7 +19,6 @@ package com.android.systemui.mediaprojection
 import android.content.Context
 import android.media.projection.IMediaProjection
 import android.media.projection.IMediaProjectionManager
-import android.media.projection.MediaProjectionManager
 import android.media.projection.ReviewGrantedConsentResult
 import android.os.RemoteException
 import android.os.ServiceManager
@@ -51,6 +50,7 @@ class MediaProjectionServiceHelper @Inject constructor() {
             packageName: String,
             reviewGrantedConsentRequired: Boolean,
             displayId: Int,
+            type: Int,
         ): IMediaProjection {
             val existingProjection =
                 if (reviewGrantedConsentRequired) service.getProjection(uid, packageName) else null
@@ -58,7 +58,7 @@ class MediaProjectionServiceHelper @Inject constructor() {
                 ?: service.createProjection(
                     uid,
                     packageName,
-                    MediaProjectionManager.TYPE_SCREEN_CAPTURE,
+                    type,
                     false /* permanentGrant */,
                     displayId,
                 )

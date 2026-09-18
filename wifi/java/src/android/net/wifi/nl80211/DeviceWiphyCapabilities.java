@@ -16,13 +16,14 @@
 
 package android.net.wifi.nl80211;
 
+import static android.net.wifi.flags.Flags.FLAG_DEPRECATE_WIFICOND;
+
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiAnnotations.ChannelWidth;
 import android.net.wifi.WifiAnnotations.WifiStandard;
-import android.net.wifi.flags.Flags;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.Log;
@@ -36,7 +37,11 @@ import java.util.Objects;
  * It is used to collect these attributes from the device driver via wificond.
  *
  * @hide
+ * @deprecated Wificond functionality has moved to the Wi-Fi mainline module.
+ *             See {@link com.android.server.wifi.nl80211.Nl80211Native}.
  */
+@FlaggedApi(FLAG_DEPRECATE_WIFICOND)
+@Deprecated
 @SystemApi
 public final class DeviceWiphyCapabilities implements Parcelable {
     private static final String TAG = "DeviceWiphyCapabilities";
@@ -207,7 +212,6 @@ public final class DeviceWiphyCapabilities implements Parcelable {
      *
      * @return maximum number of AKMs
      */
-    @FlaggedApi(Flags.FLAG_GET_DEVICE_CROSS_AKM_ROAMING_SUPPORT)
     public int getMaxNumberAkms() {
         return mMaxNumberAkms;
     }

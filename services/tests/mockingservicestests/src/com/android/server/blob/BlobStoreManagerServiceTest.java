@@ -23,6 +23,7 @@ import static com.android.server.blob.BlobStoreConfig.DeviceConfigProperties.SES
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
@@ -30,6 +31,7 @@ import static org.mockito.Mockito.verify;
 
 import android.app.blob.BlobHandle;
 import android.content.Context;
+import android.content.pm.PackageManagerInternal;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -64,6 +66,9 @@ public class BlobStoreManagerServiceTest {
 
     @Mock
     private File mBlobsDir;
+
+    @Mock
+    private PackageManagerInternal mMockPackageManagerInternal;
 
     private LongSparseArray<BlobStoreSession> mUserSessions;
 
@@ -355,6 +360,18 @@ public class BlobStoreManagerServiceTest {
                 .isEqualTo(size1 + size2);
     }
 
+    @Test
+    public void testVerifyCallingPackage() {
+        doReturn(true).when(mMockPackageManagerInternal).isSameApp(TEST_PKG1, TEST_UID1,
+                TEST_USER_ID);
+        mService.verifyCallingPackage(TEST_UID1, TEST_PKG1);
+
+        doReturn(false).when(mMockPackageManagerInternal).isSameApp(TEST_PKG2, TEST_UID2,
+                TEST_USER_ID);
+        assertThrows(SecurityException.class,
+                () -> mService.verifyCallingPackage(TEST_UID2, TEST_PKG2));
+    }
+
     private BlobStoreSession createBlobStoreSessionMock(String ownerPackageName, int ownerUid,
             long sessionId, File sessionFile) {
         return createBlobStoreSessionMock(ownerPackageName, ownerUid, sessionId, sessionFile,
@@ -410,6 +427,11 @@ public class BlobStoreManagerServiceTest {
         @Override
         public Handler getBackgroundHandler() {
             return mHandler;
+        }
+
+        @Override
+        public PackageManagerInternal getPackageManagerInternal() {
+            return mMockPackageManagerInternal;
         }
     }
 }

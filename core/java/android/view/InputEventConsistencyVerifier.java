@@ -268,8 +268,10 @@ public final class InputEventConsistencyVerifier {
             ensureMetaStateIsNormalized(event.getMetaState());
 
             final int action = event.getAction();
-            final int source = event.getSource();
-            if ((source & InputDevice.SOURCE_CLASS_TRACKBALL) != 0) {
+            // Other events can be classed as "trackball" events, such as captured mouse events
+            // (with SOURCE_MOUSE_RELATIVE). This validation code was only written for actual
+            // trackball events, so skip it for those newer usages.
+            if (event.isFromSource(InputDevice.SOURCE_TRACKBALL)) {
                 switch (action) {
                     case MotionEvent.ACTION_DOWN:
                         if (mTrackballDown && !mTrackballUnhandled) {
@@ -305,8 +307,6 @@ public final class InputEventConsistencyVerifier {
                 } else if (!mTrackballDown && event.getPressure() != 0) {
                     problem("Trackball is up but pressure is not equal to 0.");
                 }
-            } else {
-                problem("Source was not SOURCE_CLASS_TRACKBALL.");
             }
         } finally {
             finishEvent();

@@ -21,6 +21,7 @@ import android.app.UiAutomation
 import android.content.Context
 import android.graphics.Point
 import android.os.SystemClock
+import android.platform.systemui_tapl.ui.Root
 import android.tools.Rotation
 import android.tools.device.apphelpers.IStandardAppHelper
 import android.tools.device.apphelpers.StandardAppHelper
@@ -62,10 +63,13 @@ object SplitScreenUtils {
 
     private val notificationScrollerSelector: BySelector
         get() = By.res(SYSTEM_UI_PACKAGE_NAME, NOTIFICATION_SCROLLER)
+
     private val notificationContentSelector: BySelector
         get() = By.text("Flicker Test Notification")
+
     private val dividerBarSelector: BySelector
         get() = By.res(SYSTEM_UI_PACKAGE_NAME, DIVIDER_BAR)
+
     private val overviewSnapshotSelector: BySelector
         get() = By.res(LAUNCHER_UI_PACKAGE_NAME, OVERVIEW_SNAPSHOT)
 
@@ -73,14 +77,14 @@ object SplitScreenUtils {
         SimpleAppHelper(
             instrumentation,
             ActivityOptions.SplitScreen.Primary.LABEL,
-            ActivityOptions.SplitScreen.Primary.COMPONENT.toFlickerComponent()
+            ActivityOptions.SplitScreen.Primary.COMPONENT.toFlickerComponent(),
         )
 
     fun getSecondary(instrumentation: Instrumentation): StandardAppHelper =
         SimpleAppHelper(
             instrumentation,
             ActivityOptions.SplitScreen.Secondary.LABEL,
-            ActivityOptions.SplitScreen.Secondary.COMPONENT.toFlickerComponent()
+            ActivityOptions.SplitScreen.Secondary.COMPONENT.toFlickerComponent(),
         )
 
     fun getNonResizeable(instrumentation: Instrumentation): NonResizeableAppHelper =
@@ -104,9 +108,9 @@ object SplitScreenUtils {
         displayId: Int = Display.DEFAULT_DISPLAY,
     ) =
         withAppTransitionIdle(displayId)
-            .withWindowSurfaceAppeared(primaryApp)
-            .withWindowSurfaceAppeared(secondaryApp)
-            .withSplitDividerVisible()
+            .withWindowSurfaceAppeared(primaryApp, displayId)
+            .withWindowSurfaceAppeared(secondaryApp, displayId)
+            .withSplitDividerVisible(displayId)
 
     /** Waits and verifies that the device has entered split-screen with the specified apps. */
     fun waitForSplitComplete(
@@ -114,9 +118,27 @@ object SplitScreenUtils {
         primaryApp: IComponentMatcher,
         secondaryApp: IComponentMatcher,
     ) {
-        wmHelper.StateSyncBuilder()
+        wmHelper
+            .StateSyncBuilder()
             .withSplitScreenComplete(primaryApp, secondaryApp)
             .waitForAndVerify()
+    }
+
+    /**
+     * Enters split-screen from All Apps without verification.
+     *
+     * @param tapl The LauncherInstrumentation instance.
+     * @param primaryApp The primary app helper.
+     * @param secondaryApp The secondary app helper.
+     */
+    fun enterSplitFromAllAppsNoVerify(
+        tapl: LauncherInstrumentation,
+        primaryApp: StandardAppHelper,
+        secondaryApp: StandardAppHelper,
+    ) {
+        val allApps = tapl.workspace.switchToAllApps()
+        allApps.getAppIcon(secondaryApp.appName).openMenu().splitScreenMenuItem.click()
+        allApps.getAppIcon(primaryApp.appName).launch(primaryApp.packageName)
     }
 
     fun enterSplit(
@@ -130,7 +152,7 @@ object SplitScreenUtils {
         primaryApp.launchViaIntent(wmHelper)
         secondaryApp.launchViaIntent(wmHelper)
         ChangeDisplayOrientationRule.setRotation(rotation)
-        tapl.goHome()
+        Root.get().goHomeViaKeycode()
         wmHelper.StateSyncBuilder().withHomeActivityVisible().waitForAndVerify()
         splitFromOverview(tapl, device, rotation)
         waitForSplitComplete(wmHelper, primaryApp, secondaryApp)
@@ -139,7 +161,7 @@ object SplitScreenUtils {
     fun enterSplitViaIntent(
         wmHelper: WindowManagerStateHelper,
         primaryApp: IStandardAppHelper,
-        secondaryApp: IStandardAppHelper
+        secondaryApp: IStandardAppHelper,
     ) {
         val stringExtras = mapOf(Primary.EXTRA_LAUNCH_ADJACENT to "true")
         primaryApp.launchViaIntent(wmHelper, null, null, stringExtras)
@@ -156,12 +178,7 @@ object SplitScreenUtils {
             // second task to split.
             val home = tapl.workspace.switchToOverview()
             ChangeDisplayOrientationRule.setRotation(rotation)
-            val isGridOnlyOverviewEnabled = tapl.isGridOnlyOverviewEnabled
-            if (isGridOnlyOverviewEnabled) {
-                home.currentTask.tapMenu().tapSplitMenuItem()
-            } else {
-                home.overviewActions.clickSplit()
-            }
+            home.currentTask.tapMenu().tapSplitMenuItem()
             val snapshots = device.wait(Until.findObjects(overviewSnapshotSelector), TIMEOUT_MS)
             if (snapshots == null || snapshots.size < 1) {
                 error("Fail to find a overview snapshot to split.")
@@ -174,18 +191,14 @@ object SplitScreenUtils {
                 t2.getVisibleBounds().left - t1.getVisibleBounds().left
             }
             snapshots.sortWith { t1: UiObject2, t2: UiObject2 ->
-                if (isGridOnlyOverviewEnabled) {
-                    t2.getVisibleBounds().top - t1.getVisibleBounds().top
-                } else {
-                    t1.getVisibleBounds().top - t2.getVisibleBounds().top
-                }
+                t2.getVisibleBounds().top - t1.getVisibleBounds().top
             }
             snapshots[0].click()
         } else {
-            val rotationCheckEnabled = tapl.getExpectedRotationCheckEnabled()
-            tapl.setExpectedRotationCheckEnabled(false) // disable rotation check to enter overview
+            val rotationCheckEnabled = tapl.expectedRotationCheckEnabled
+            tapl.expectedRotationCheckEnabled = false // disable rotation check to enter overview
             val home = tapl.workspace.switchToOverview()
-            tapl.setExpectedRotationCheckEnabled(rotationCheckEnabled) // restore rotation checks
+            tapl.expectedRotationCheckEnabled = rotationCheckEnabled // restore rotation checks
             ChangeDisplayOrientationRule.setRotation(rotation)
             home.currentTask.tapMenu().tapSplitMenuItem().currentTask.open()
         }
@@ -195,7 +208,7 @@ object SplitScreenUtils {
     fun dragFromNotificationToSplit(
         instrumentation: Instrumentation,
         device: UiDevice,
-        wmHelper: WindowManagerStateHelper
+        wmHelper: WindowManagerStateHelper,
     ) {
         val displayBounds =
             wmHelper.currentState.layerState.displays.firstOrNull { !it.isVirtual }?.layerStackSpace
@@ -218,7 +231,7 @@ object SplitScreenUtils {
                 displayBounds.centerY(),
                 displayBounds.centerX(),
                 displayBounds.centerY() - 150,
-                20 /* steps */
+                20, /* steps */
             )
             notificationContent = notificationScroller.findObject(notificationContentSelector)
         }
@@ -237,7 +250,7 @@ object SplitScreenUtils {
             SystemClock.uptimeMillis(),
             DRAG_DURATION_MS,
             dragStart,
-            dragMiddle
+            dragMiddle,
         )
         touchMove(
             instrumentation,
@@ -245,7 +258,7 @@ object SplitScreenUtils {
             SystemClock.uptimeMillis(),
             DRAG_DURATION_MS,
             dragMiddle,
-            dragEnd
+            dragEnd,
         )
         // Wait for a while to start splitting
         SystemClock.sleep(TIMEOUT_MS)
@@ -255,7 +268,7 @@ object SplitScreenUtils {
             downTime,
             SystemClock.uptimeMillis(),
             GESTURE_STEP_MS,
-            dragEnd
+            dragEnd,
         )
         SystemClock.sleep(TIMEOUT_MS)
     }
@@ -266,7 +279,7 @@ object SplitScreenUtils {
         downTime: Long,
         eventTime: Long,
         duration: Long,
-        point: Point
+        point: Point,
     ) {
         val motionEvent =
             MotionEvent.obtain(downTime, eventTime, action, point.x.toFloat(), point.y.toFloat(), 0)
@@ -282,7 +295,7 @@ object SplitScreenUtils {
         eventTime: Long,
         duration: Long,
         from: Point,
-        to: Point
+        to: Point,
     ) {
         val steps: Long = duration / GESTURE_STEP_MS
         var currentTime = eventTime
@@ -299,7 +312,7 @@ object SplitScreenUtils {
                     MotionEvent.ACTION_MOVE,
                     currentX,
                     currentY,
-                    0
+                    0,
                 )
             motionMove.source = InputDevice.SOURCE_TOUCHSCREEN
             instrumentation.uiAutomation.injectInputEvent(motionMove, true)
@@ -328,13 +341,12 @@ object SplitScreenUtils {
         }
     }
 
-    /**
-     * Drags the divider, then releases, making it snap to a new snap point.
-     */
+    /** Drags the divider, then releases, making it snap to a new snap point. */
     fun dragDividerToResizeAndWait(device: UiDevice, wmHelper: WindowManagerStateHelper) {
         // Find the first display that is turned on (making the assumption that there is only one).
         val displayBounds =
-            wmHelper.currentState.layerState.displays.firstOrNull { !it.isVirtual && it.isOn }
+            wmHelper.currentState.layerState.displays
+                .firstOrNull { !it.isVirtual && it.isOn }
                 ?.layerStackSpace ?: error("Display not found")
         val dividerBar = device.wait(Until.findObject(dividerBarSelector), TIMEOUT_MS)
         // Drag to a point on the lower left of the screen -- this will cause the divider to snap
@@ -351,7 +363,7 @@ object SplitScreenUtils {
         device: UiDevice,
         wmHelper: WindowManagerStateHelper,
         dragToRight: Boolean,
-        dragToBottom: Boolean
+        dragToBottom: Boolean,
     ) {
         val displayBounds =
             wmHelper.currentState.layerState.displays.firstOrNull { !it.isVirtual }?.layerStackSpace
@@ -368,7 +380,7 @@ object SplitScreenUtils {
                     displayBounds.bottom
                 } else {
                     displayBounds.top
-                }
+                },
             )
         )
     }
@@ -383,28 +395,58 @@ object SplitScreenUtils {
         val timeOfFirstUp = startTime + ViewConfiguration.getTapTimeout()
         // Between the two taps, we wait an arbitrary amount of time between the min and max times
         // for a double-tap.
-        val timeOfSecondDown = timeOfFirstUp + ViewConfiguration.getDoubleTapMinTime() +
+        val timeOfSecondDown =
+            timeOfFirstUp +
+                ViewConfiguration.getDoubleTapMinTime() +
                 ((ViewConfiguration.getDoubleTapTimeout() -
-                        ViewConfiguration.getDoubleTapMinTime()) / 4)
+                    ViewConfiguration.getDoubleTapMinTime()) / 4)
         val timeOfSecondUp = timeOfSecondDown + ViewConfiguration.getTapTimeout()
 
-        val downEvent = MotionEvent.obtain(startTime, startTime, MotionEvent.ACTION_DOWN, x, y,
-            0 /* metaState */)
+        val downEvent =
+            MotionEvent.obtain(
+                startTime,
+                startTime,
+                MotionEvent.ACTION_DOWN,
+                x,
+                y,
+                0, /* metaState */
+            )
         downEvent.setSource(InputDevice.SOURCE_TOUCHSCREEN)
         uiAutomation.injectInputEvent(downEvent, true)
 
-        val upEvent = MotionEvent.obtain(startTime, timeOfFirstUp, MotionEvent.ACTION_UP, x, y,
-            0 /* metaState */)
+        val upEvent =
+            MotionEvent.obtain(
+                startTime,
+                timeOfFirstUp,
+                MotionEvent.ACTION_UP,
+                x,
+                y,
+                0, /* metaState */
+            )
         upEvent.setSource(InputDevice.SOURCE_TOUCHSCREEN)
         uiAutomation.injectInputEvent(upEvent, true)
 
-        val downEvent2 = MotionEvent.obtain(timeOfSecondDown, timeOfSecondDown,
-            MotionEvent.ACTION_DOWN, x, y, 0 /* metaState */)
+        val downEvent2 =
+            MotionEvent.obtain(
+                timeOfSecondDown,
+                timeOfSecondDown,
+                MotionEvent.ACTION_DOWN,
+                x,
+                y,
+                0, /* metaState */
+            )
         downEvent2.setSource(InputDevice.SOURCE_TOUCHSCREEN)
         uiAutomation.injectInputEvent(downEvent2, true)
 
-        val upEvent2 = MotionEvent.obtain(timeOfSecondDown, timeOfSecondUp, MotionEvent.ACTION_UP,
-            x, y, 0 /* metaState */)
+        val upEvent2 =
+            MotionEvent.obtain(
+                timeOfSecondDown,
+                timeOfSecondUp,
+                MotionEvent.ACTION_UP,
+                x,
+                y,
+                0, /* metaState */
+            )
         upEvent2.setSource(InputDevice.SOURCE_TOUCHSCREEN)
         uiAutomation.injectInputEvent(upEvent2, true)
     }
@@ -419,7 +461,7 @@ object SplitScreenUtils {
         val textView =
             device.wait(
                 Until.findObject(By.res(sourceApp.packageName, "SplitScreenTest")),
-                TIMEOUT_MS
+                TIMEOUT_MS,
             )
         assertNotNull("Unable to find the TextView", textView)
         textView.click(LONG_PRESS_TIME_MS)
@@ -432,7 +474,7 @@ object SplitScreenUtils {
         val editText =
             device.wait(
                 Until.findObject(By.res(destinationApp.packageName, "plain_text_input")),
-                TIMEOUT_MS
+                TIMEOUT_MS,
             )
         assertNotNull("Unable to find the EditText", editText)
         editText.click(LONG_PRESS_TIME_MS)
@@ -448,8 +490,10 @@ object SplitScreenUtils {
     }
 
     fun isLeftRightSplit(context: Context, rotation: Rotation, displaySizeDp: Point): Boolean {
-        val allowLeftRightSplit = context.resources.getBoolean(
-            com.android.internal.R.bool.config_leftRightSplitInPortrait)
+        val allowLeftRightSplit =
+            context.resources.getBoolean(
+                com.android.internal.R.bool.config_leftRightSplitInPortrait
+            )
         val displayBounds = WindowUtils.getDisplayBounds(rotation)
         val isLandscape = displayBounds.width() > displayBounds.height()
         if (allowLeftRightSplit && isTablet(displaySizeDp)) {
@@ -463,7 +507,7 @@ object SplitScreenUtils {
 
     fun isTablet(displaySizeDp: Point): Boolean {
         val LARGE_SCREEN_DP_THRESHOLD = 600
-        return displaySizeDp.x >= LARGE_SCREEN_DP_THRESHOLD
-                && displaySizeDp.y >= LARGE_SCREEN_DP_THRESHOLD
+        return displaySizeDp.x >= LARGE_SCREEN_DP_THRESHOLD &&
+            displaySizeDp.y >= LARGE_SCREEN_DP_THRESHOLD
     }
 }

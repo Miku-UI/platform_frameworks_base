@@ -77,7 +77,7 @@ public final class HdmiTvClient extends HdmiClient {
      *
      * @param logicalAddress logical address of the device to select
      * @param callback callback to get the result with
-     * @throws {@link IllegalArgumentException} if the {@code callback} is null
+     * @throws IllegalArgumentException if the {@code callback} is null
      * @deprecated Please use {@link HdmiClient#selectDevice} instead.
      */
     @Deprecated
@@ -106,7 +106,7 @@ public final class HdmiTvClient extends HdmiClient {
      *
      * @param portId HDMI port to select
      * @param callback callback to get the result with
-     * @throws {@link IllegalArgumentException} if the {@code callback} is null
+     * @throws IllegalArgumentException if the {@code callback} is null
      */
     public void portSelect(int portId, @NonNull SelectCallback callback) {
         if (callback == null) {
@@ -178,7 +178,7 @@ public final class HdmiTvClient extends HdmiClient {
      *
      * @param enabled set to {@code true} to enable the mode; otherwise {@code false}
      * @param callback callback to get the result with
-     * @throws {@link IllegalArgumentException} if the {@code callback} is null
+     * @throws IllegalArgumentException if the {@code callback} is null
      */
     public void setSystemAudioMode(boolean enabled, SelectCallback callback) {
         try {

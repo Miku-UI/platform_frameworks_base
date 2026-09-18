@@ -16,10 +16,15 @@
 
 package com.android.wm.shell.splitscreen;
 
+import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
+import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 import static android.view.Display.DEFAULT_DISPLAY;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.never;
@@ -31,6 +36,7 @@ import android.graphics.Rect;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.window.DisplayAreaInfo;
+import android.window.WindowContainerToken;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
@@ -57,6 +63,8 @@ public class SplitScreenUtilsTests extends ShellTestCase {
 
     @Mock
     private DisplayAreaInfo mMockDisplayAreaInfo;
+    @Mock
+    private WindowContainerToken mMockToken;
 
     private static final int TEST_DISPLAY_ID = 2;
 
@@ -69,7 +77,7 @@ public class SplitScreenUtilsTests extends ShellTestCase {
     }
 
     @Test
-    @DisableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT)
+    @DisableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX)
     public void testIsLeftRightSplit_flagDisabled() {
         Configuration portraitTablet = new Configuration();
         portraitTablet.smallestScreenWidthDp = 720;
@@ -106,7 +114,7 @@ public class SplitScreenUtilsTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT)
+    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX)
     public void testIsLeftRightSplit_flagEnabled() {
         assertFalse(SplitScreenUtils.isLeftRightSplit(
                 true /* allowLeftRightSplitInPortrait */,
@@ -134,7 +142,7 @@ public class SplitScreenUtilsTests extends ShellTestCase {
     }
 
     @Test
-    @DisableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT)
+    @DisableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX)
     public void updateSplitLayoutConfig_flagDisabled_returnsEarly() {
         SplitScreenUtils.updateSplitLayoutConfig(
                 mMockRootTDAOrganizer,
@@ -146,7 +154,7 @@ public class SplitScreenUtilsTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT)
+    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX)
     public void updateSplitLayoutConfig_flagEnabled_validDisplayAreaInfo_updatesSplitLayout() {
         when(mMockRootTDAOrganizer.getDisplayAreaInfo(TEST_DISPLAY_ID))
                 .thenReturn(mMockDisplayAreaInfo);
@@ -160,7 +168,7 @@ public class SplitScreenUtilsTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT)
+    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX)
     public void updateSplitLayoutConfig_flagEnabled_nullDisplayAreaInfo_returnsEarly() {
         when(mMockRootTDAOrganizer.getDisplayAreaInfo(TEST_DISPLAY_ID)).thenReturn(null);
 
@@ -174,7 +182,7 @@ public class SplitScreenUtilsTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT)
+    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX)
     public void updateSplitLayoutConfig_flagEnabled_validDisplayAreaInfo_nullSplitLayout_noError() {
         when(mMockRootTDAOrganizer.getDisplayAreaInfo(TEST_DISPLAY_ID))
                 .thenReturn(mMockDisplayAreaInfo);
@@ -185,5 +193,53 @@ public class SplitScreenUtilsTests extends ShellTestCase {
                 null /* splitLayout is null */);
 
         verify(mMockRootTDAOrganizer).getDisplayAreaInfo(TEST_DISPLAY_ID);
+    }
+
+    @Test
+    public void getTargetWindowingModeWhenExitSplit_freeformDisplay_returnsFullscreen() {
+        // Create a DisplayAreaInfo with a freeform windowing mode.
+        final DisplayAreaInfo displayAreaInfo = new DisplayAreaInfo(mMockToken, TEST_DISPLAY_ID, 0);
+        displayAreaInfo.configuration.windowConfiguration.setWindowingMode(
+                WINDOWING_MODE_FREEFORM);
+        when(mMockRootTDAOrganizer.getDisplayAreaInfo(TEST_DISPLAY_ID)).thenReturn(displayAreaInfo);
+
+        final int windowingMode = SplitScreenUtils.getTargetWindowingModeWhenExitSplit(
+                mMockRootTDAOrganizer, TEST_DISPLAY_ID);
+
+        assertEquals(WINDOWING_MODE_FULLSCREEN, windowingMode);
+    }
+
+    @Test
+    public void getTargetWindowingModeWhenExitSplit_nonFreeformDisplay_returnsUndefined() {
+        // Create a DisplayAreaInfo with a fullscreen windowing mode.
+        final DisplayAreaInfo displayAreaInfo = new DisplayAreaInfo(mMockToken, TEST_DISPLAY_ID, 0);
+        displayAreaInfo.configuration.windowConfiguration.setWindowingMode(
+                WINDOWING_MODE_FULLSCREEN);
+        when(mMockRootTDAOrganizer.getDisplayAreaInfo(TEST_DISPLAY_ID)).thenReturn(displayAreaInfo);
+
+        // Call the method under test and assert that the returned windowing mode is UNDEFINED.
+        assertEquals("Should return UNDEFINED for FULLSCREEN display", WINDOWING_MODE_UNDEFINED,
+                SplitScreenUtils.getTargetWindowingModeWhenExitSplit(
+                        mMockRootTDAOrganizer, TEST_DISPLAY_ID));
+
+        // Update DisplayAreaInfo to have an undefined windowing mode.
+        displayAreaInfo.configuration.windowConfiguration.setWindowingMode(
+                WINDOWING_MODE_UNDEFINED);
+        when(mMockRootTDAOrganizer.getDisplayAreaInfo(TEST_DISPLAY_ID)).thenReturn(displayAreaInfo);
+
+        // Call the method under test again and assert that the returned windowing mode is
+        // UNDEFINED.
+        assertEquals("Should return UNDEFINED for UNDEFINED display", WINDOWING_MODE_UNDEFINED,
+                SplitScreenUtils.getTargetWindowingModeWhenExitSplit(
+                        mMockRootTDAOrganizer, TEST_DISPLAY_ID));
+    }
+
+    @Test
+    public void getTargetWindowingModeWhenExitSplit_nullDisplayAreaInfo_throwsException() {
+        when(mMockRootTDAOrganizer.getDisplayAreaInfo(TEST_DISPLAY_ID)).thenReturn(null);
+
+        assertThrows(NullPointerException.class,
+                () -> SplitScreenUtils.getTargetWindowingModeWhenExitSplit(
+                        mMockRootTDAOrganizer, TEST_DISPLAY_ID));
     }
 }

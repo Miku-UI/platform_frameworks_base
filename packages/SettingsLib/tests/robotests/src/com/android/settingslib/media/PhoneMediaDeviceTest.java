@@ -16,6 +16,7 @@
 
 package com.android.settingslib.media;
 
+import static android.content.pm.PackageManager.FEATURE_PC;
 import static android.media.MediaRoute2Info.TYPE_BUILTIN_SPEAKER;
 import static android.media.MediaRoute2Info.TYPE_USB_ACCESSORY;
 import static android.media.MediaRoute2Info.TYPE_USB_DEVICE;
@@ -31,6 +32,7 @@ import static com.android.settingslib.media.PhoneMediaDevice.getMediaTransferThi
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.when;
+import static org.robolectric.Shadows.shadowOf;
 
 import android.content.Context;
 import android.media.MediaRoute2Info;
@@ -49,7 +51,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.shadows.ShadowSystemProperties;
+import org.robolectric.shadows.ShadowPackageManager;
 
 @RunWith(RobolectricTestRunner.class)
 public class PhoneMediaDeviceTest {
@@ -124,7 +126,7 @@ public class PhoneMediaDeviceTest {
     @EnableFlags(Flags.FLAG_ENABLE_AUDIO_INPUT_DEVICE_ROUTING_AND_VOLUME_CONTROL)
     @Test
     public void getName_returnCorrectName_desktop_wiredHeadphones() {
-        ShadowSystemProperties.override("ro.build.characteristics", "desktop");
+        setDesktopEnvironment();
 
         when(mInfo.getType()).thenReturn(TYPE_WIRED_HEADPHONES);
         // Even if the MediaRoute2Info reports a name, the default string should still be displayed,
@@ -138,7 +140,7 @@ public class PhoneMediaDeviceTest {
     @EnableFlags(Flags.FLAG_ENABLE_AUDIO_INPUT_DEVICE_ROUTING_AND_VOLUME_CONTROL)
     @Test
     public void getName_returnCorrectName_desktop_wiredHeadset() {
-        ShadowSystemProperties.override("ro.build.characteristics", "desktop");
+        setDesktopEnvironment();
 
         when(mInfo.getType()).thenReturn(TYPE_WIRED_HEADSET);
         // Even if the MediaRoute2Info reports a name, the default string should still be displayed,
@@ -152,7 +154,7 @@ public class PhoneMediaDeviceTest {
     @EnableFlags(Flags.FLAG_ENABLE_AUDIO_INPUT_DEVICE_ROUTING_AND_VOLUME_CONTROL)
     @Test
     public void getName_returnCorrectName_desktop_usbDevice() {
-        ShadowSystemProperties.override("ro.build.characteristics", "desktop");
+        setDesktopEnvironment();
 
         when(mInfo.getType()).thenReturn(TYPE_USB_DEVICE);
         final String mediaRoute2InfoName = "USB-Audio - My Device";
@@ -164,7 +166,7 @@ public class PhoneMediaDeviceTest {
     @EnableFlags(Flags.FLAG_ENABLE_AUDIO_INPUT_DEVICE_ROUTING_AND_VOLUME_CONTROL)
     @Test
     public void getName_returnCorrectName_desktop_usbHeadset() {
-        ShadowSystemProperties.override("ro.build.characteristics", "desktop");
+        setDesktopEnvironment();
 
         when(mInfo.getType()).thenReturn(TYPE_USB_HEADSET);
         final String mediaRoute2InfoName = "USB-Audio - My Headset";
@@ -176,7 +178,7 @@ public class PhoneMediaDeviceTest {
     @EnableFlags(Flags.FLAG_ENABLE_AUDIO_INPUT_DEVICE_ROUTING_AND_VOLUME_CONTROL)
     @Test
     public void getName_returnCorrectName_desktop_usbAccessory() {
-        ShadowSystemProperties.override("ro.build.characteristics", "desktop");
+        setDesktopEnvironment();
 
         when(mInfo.getType()).thenReturn(TYPE_USB_ACCESSORY);
         final String mediaRoute2InfoName = "USB-Audio - My Accessory";
@@ -188,7 +190,7 @@ public class PhoneMediaDeviceTest {
     @EnableFlags(Flags.FLAG_ENABLE_AUDIO_INPUT_DEVICE_ROUTING_AND_VOLUME_CONTROL)
     @Test
     public void getName_returnCorrectName_desktop_builtinSpeaker() {
-        ShadowSystemProperties.override("ro.build.characteristics", "desktop");
+        setDesktopEnvironment();
 
         when(mInfo.getType()).thenReturn(TYPE_BUILTIN_SPEAKER);
         // Even if the MediaRoute2Info reports a name, the default string should still be displayed,
@@ -224,5 +226,10 @@ public class PhoneMediaDeviceTest {
 
         assertThat(mPhoneMediaDevice.getId())
                 .isEqualTo(PHONE_ID);
+    }
+
+    private void setDesktopEnvironment() {
+        ShadowPackageManager shadowPackageManager = shadowOf(mContext.getPackageManager());
+        shadowPackageManager.setSystemFeature(FEATURE_PC, true);
     }
 }

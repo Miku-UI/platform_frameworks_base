@@ -51,7 +51,6 @@ import android.util.Log;
 
 import com.android.internal.backup.IBackupTransport;
 import com.android.server.EventLogTags;
-import com.android.server.testing.shadows.FrameworkShadowLooper;
 import com.android.server.testing.shadows.ShadowCloseGuard;
 import com.android.server.testing.shadows.ShadowEventLog;
 import com.android.server.testing.shadows.ShadowSlog;
@@ -75,7 +74,6 @@ import java.util.function.Supplier;
             ShadowEventLog.class,
             ShadowCloseGuard.class,
             ShadowSlog.class,
-            FrameworkShadowLooper.class
         })
 @Presubmit
 public class TransportConnectionTest {
@@ -93,7 +91,7 @@ public class TransportConnectionTest {
     private ComponentName mTransportComponent;
     private String mTransportString;
     private Intent mBindIntent;
-    private FrameworkShadowLooper mShadowMainLooper;
+    private ShadowLooper mShadowMainLooper;
     private ShadowLooper mShadowWorkerLooper;
     private Handler mWorkerHandler;
 
@@ -234,6 +232,7 @@ public class TransportConnectionTest {
         connection.onServiceDisconnected(mTransportComponent);
 
         mTransportConnection.connectAsync(mTransportConnectionListener2, "caller1");
+        mShadowMainLooper.runToEndOfTasks();
 
         verify(mTransportConnectionListener2)
                 .onTransportConnectionResult(isNull(), eq(mTransportConnection));
@@ -248,6 +247,7 @@ public class TransportConnectionTest {
         connection.onServiceConnected(mTransportComponent, mTransportBinder);
 
         mTransportConnection.connectAsync(mTransportConnectionListener2, "caller1");
+        mShadowMainLooper.runToEndOfTasks();
 
         // Yes, it should return null because the object became unusable, check design doc
         verify(mTransportConnectionListener2)
@@ -535,12 +535,7 @@ public class TransportConnectionTest {
     private <T> T runInWorkerThread(Supplier<T> supplier) throws Exception {
         CompletableFuture<T> future = new CompletableFuture<>();
         mWorkerHandler.post(() -> future.complete(supplier.get()));
-        // Although we are using a separate looper, we are still calling runToEndOfTasks() in the
-        // main thread (Robolectric only *simulates* multi-thread). The only option left is to fool
-        // the caller.
-        mShadowMainLooper.setCurrentThread(false);
         mShadowWorkerLooper.runToEndOfTasks();
-        mShadowMainLooper.reset();
         return future.get();
     }
 

@@ -19,13 +19,14 @@ package com.android.wm.shell.bubbles
 import android.content.Context
 import android.content.pm.ShortcutInfo
 import android.content.res.Resources
+import android.graphics.drawable.Icon
 import android.view.LayoutInflater
 import com.android.internal.logging.testing.UiEventLoggerFake
 import com.android.wm.shell.R
 import com.android.wm.shell.bubbles.BubbleViewInfoTask.BubbleViewInfo
 import com.android.wm.shell.bubbles.bar.BubbleBarExpandedView
+import com.android.wm.shell.bubbles.logging.BubbleLogger
 import com.android.wm.shell.common.TestShellExecutor
-import com.google.common.util.concurrent.MoreExecutors.directExecutor
 
 /** Helper to create a [Bubble] instance */
 class FakeBubbleFactory {
@@ -63,22 +64,21 @@ class FakeBubbleFactory {
             return BubbleViewInfo().apply { bubbleBarExpandedView = bubbleExpandedView }
         }
 
-        fun createChatBubble(
-            context: Context,
-            key: String = "key",
-        ): Bubble {
+        fun createChatBubble(context: Context, key: String = "key"): Bubble {
             val bubble =
                 Bubble(
                     key,
-                    ShortcutInfo.Builder(context, "id").build(),
+                    ShortcutInfo.Builder(context, "id")
+                        .setIcon(
+                            Icon.createWithResource(context, R.drawable.bubble_ic_overflow_button)
+                        )
+                        .build(),
                     100, /* desiredHeight */
                     Resources.ID_NULL, /* desiredHeightResId */
                     "title",
                     0, /* taskId */
                     null, /* locus */
                     true, /* isDismissable */
-                    directExecutor(),
-                    directExecutor(),
                 ) {}
             return bubble
         }

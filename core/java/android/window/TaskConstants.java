@@ -60,36 +60,42 @@ public class TaskConstants {
     public static final int TASK_CHILD_LAYER_SETTINGS_DIALOG = 2 * TASK_CHILD_LAYER_REGION_SIZE;
 
     /**
+     * The starting window layer should cover the entire task but remain behind decorations.
+     * @hide
+     */
+    public static final int TASK_CHILD_LAYER_STARTING_WINDOW = 3 * TASK_CHILD_LAYER_REGION_SIZE;
+
+    /**
      * Captions, window frames and resize handlers around task windows.
      * @hide
      */
-    public static final int TASK_CHILD_LAYER_WINDOW_DECORATIONS = 3 * TASK_CHILD_LAYER_REGION_SIZE;
+    public static final int TASK_CHILD_LAYER_WINDOW_DECORATIONS = 4 * TASK_CHILD_LAYER_REGION_SIZE;
 
     /**
      * Overlays the task when going into PIP w/ gesture navigation.
      * @hide
      */
     public static final int TASK_CHILD_LAYER_RECENTS_ANIMATION_PIP_OVERLAY =
-            4 * TASK_CHILD_LAYER_REGION_SIZE;
+            5 * TASK_CHILD_LAYER_REGION_SIZE;
 
     /**
      * Allows other apps to add overlays on the task (i.e. game dashboard)
      * @hide
      */
-    public static final int TASK_CHILD_LAYER_TASK_OVERLAY = 5 * TASK_CHILD_LAYER_REGION_SIZE;
+    public static final int TASK_CHILD_LAYER_TASK_OVERLAY = 6 * TASK_CHILD_LAYER_REGION_SIZE;
 
 
     /**
      * Veil to cover task surface and other window decorations during resizes.
      * @hide
      */
-    public static final int TASK_CHILD_LAYER_RESIZE_VEIL = 6 * TASK_CHILD_LAYER_REGION_SIZE;
+    public static final int TASK_CHILD_LAYER_RESIZE_VEIL = 7 * TASK_CHILD_LAYER_REGION_SIZE;
 
     /**
      * Floating menus belonging to a task (e.g. maximize menu).
      * @hide
      */
-    public  static final int TASK_CHILD_LAYER_FLOATING_MENU = 7 * TASK_CHILD_LAYER_REGION_SIZE;
+    public  static final int TASK_CHILD_LAYER_FLOATING_MENU = 8 * TASK_CHILD_LAYER_REGION_SIZE;
 
     /**
      * The layer to use for Letterbox surfaces in Shell. Letterbox surfaces need to stay below the
@@ -125,6 +131,7 @@ public class TaskConstants {
             TASK_CHILD_LAYER_LETTERBOX_BACKGROUND,
             TASK_CHILD_LAYER_COMPAT_UI,
             TASK_CHILD_LAYER_SETTINGS_DIALOG,
+            TASK_CHILD_LAYER_STARTING_WINDOW,
             TASK_CHILD_LAYER_WINDOW_DECORATIONS,
             TASK_CHILD_LAYER_RECENTS_ANIMATION_PIP_OVERLAY,
             TASK_CHILD_LAYER_TASK_OVERLAY,

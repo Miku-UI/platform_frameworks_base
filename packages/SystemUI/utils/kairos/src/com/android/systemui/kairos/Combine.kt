@@ -18,6 +18,9 @@ package com.android.systemui.kairos
 
 import com.android.systemui.kairos.internal.NoScope
 import com.android.systemui.kairos.internal.init
+import com.android.systemui.kairos.internal.store.MapHolderK
+import com.android.systemui.kairos.internal.zipStateList
+import com.android.systemui.kairos.internal.zipStateMap
 import com.android.systemui.kairos.internal.zipStates
 import com.android.systemui.kairos.util.NameData
 import com.android.systemui.kairos.util.nameTag
@@ -30,7 +33,6 @@ import com.android.systemui.kairos.util.toNameData
  *
  * @sample com.android.systemui.kairos.KairosSamples.combineState
  */
-@ExperimentalKairosApi
 @JvmName(name = "stateCombine")
 fun <A, B, C> State<A>.combine(other: State<B>, transform: KairosScope.(A, B) -> C): State<C> =
     combine(nameTag("State.combine").toNameData("State.combine"), other, transform)
@@ -46,7 +48,6 @@ internal fun <A, B, C> State<A>.combine(
  *
  * @see State.combine
  */
-@ExperimentalKairosApi
 fun <A> Iterable<State<A>>.combine(): State<List<A>> =
     combine(nameTag("Iterable<State>.combineToList").toNameData("Iterable<State>.combineToList"))
 
@@ -54,11 +55,7 @@ internal fun <A> Iterable<State<A>>.combine(nameData: NameData): State<List<A>> 
     StateInit(
         init(nameData) {
             val states = map { it.init }
-            zipStates(
-                nameData,
-                states.size,
-                states = init(nameData) { states.map { it.connect(this) } },
-            )
+            zipStateList(nameData, init(nameData) { states.map { it.connect(this) } })
         }
     )
 
@@ -67,17 +64,19 @@ internal fun <A> Iterable<State<A>>.combine(nameData: NameData): State<List<A>> 
  *
  * @see State.combine
  */
-@ExperimentalKairosApi
 fun <K, A> Map<K, State<A>>.combine(): State<Map<K, A>> =
     combine(nameTag("Map<K, State>.combine").toNameData("Map<K, State>.combine"))
 
 internal fun <K, A> Map<K, State<A>>.combine(nameData: NameData): State<Map<K, A>> =
-    asIterable()
-        .map { (k, state) ->
-            state.mapCheapUnsafe(nameData + { "pairWithKey[$k]" }) { v -> k to v }
+    StateInit(
+        init(nameData) {
+            zipStateMap(
+                nameData,
+                size,
+                states = init(nameData) { MapHolderK(mapValues { (_, v) -> v.init.connect(this) }) },
+            )
         }
-        .combine(nameData)
-        .map(nameData + "toMap") { it.toMap() }
+    )
 
 /**
  * Returns a [State] whose value is generated with [transform] by combining the current values of
@@ -85,7 +84,6 @@ internal fun <K, A> Map<K, State<A>>.combine(nameData: NameData): State<Map<K, A
  *
  * @see State.combine
  */
-@ExperimentalKairosApi
 fun <A, B> Iterable<State<A>>.combine(transform: KairosScope.(List<A>) -> B): State<B> =
     combine(nameTag("Iterable<State>.combine").toNameData("Iterable<State>.combine"), transform)
 
@@ -99,7 +97,6 @@ internal fun <A, B> Iterable<State<A>>.combine(
  *
  * @see State.combine
  */
-@ExperimentalKairosApi
 fun <A> combine(vararg states: State<A>): State<List<A>> =
     combine(nameTag("combineVarArgToList").toNameData("combineVarArgToList"), *states)
 
@@ -112,7 +109,6 @@ internal fun <A> combine(nameData: NameData, vararg states: State<A>): State<Lis
  *
  * @see State.combine
  */
-@ExperimentalKairosApi
 fun <A, B> combine(vararg states: State<A>, transform: KairosScope.(List<A>) -> B): State<B> =
     combine(nameTag("combineVarArg").toNameData("combineVarArg"), *states, transform = transform)
 
@@ -128,7 +124,6 @@ internal fun <A, B> combine(
  *
  * @see State.combine
  */
-@ExperimentalKairosApi
 fun <A, B, Z> combine(
     stateA: State<A>,
     stateB: State<B>,
@@ -153,7 +148,6 @@ internal fun <A, B, Z> combine(
  *
  * @see State.combine
  */
-@ExperimentalKairosApi
 fun <A, B, C, Z> combine(
     stateA: State<A>,
     stateB: State<B>,
@@ -182,7 +176,6 @@ internal fun <A, B, C, Z> combine(
  *
  * @see State.combine
  */
-@ExperimentalKairosApi
 fun <A, B, C, D, Z> combine(
     stateA: State<A>,
     stateB: State<B>,
@@ -214,7 +207,6 @@ internal fun <A, B, C, D, Z> combine(
  *
  * @see State.combine
  */
-@ExperimentalKairosApi
 fun <A, B, C, D, E, Z> combine(
     stateA: State<A>,
     stateB: State<B>,
@@ -251,6 +243,114 @@ internal fun <A, B, C, D, E, Z> combine(
                 d,
                 e ->
                 NoScope.transform(a, b, c, d, e)
+            }
+        }
+    )
+
+/**
+ * Returns a [State] whose value is generated with [transform] by combining the current values of
+ * each given [State].
+ *
+ * @see State.combine
+ */
+fun <A, B, C, D, E, F, Z> combine(
+    stateA: State<A>,
+    stateB: State<B>,
+    stateC: State<C>,
+    stateD: State<D>,
+    stateE: State<E>,
+    stateF: State<F>,
+    transform: KairosScope.(A, B, C, D, E, F) -> Z,
+): State<Z> =
+    combine(
+        nameTag("combine6").toNameData("combine6"),
+        stateA,
+        stateB,
+        stateC,
+        stateD,
+        stateE,
+        stateF,
+        transform,
+    )
+
+internal fun <A, B, C, D, E, F, Z> combine(
+    nameData: NameData,
+    stateA: State<A>,
+    stateB: State<B>,
+    stateC: State<C>,
+    stateD: State<D>,
+    stateE: State<E>,
+    stateF: State<F>,
+    transform: KairosScope.(A, B, C, D, E, F) -> Z,
+): State<Z> =
+    StateInit(
+        init(nameData) {
+            zipStates(
+                nameData,
+                stateA.init,
+                stateB.init,
+                stateC.init,
+                stateD.init,
+                stateE.init,
+                stateF.init,
+            ) { a, b, c, d, e, f ->
+                NoScope.transform(a, b, c, d, e, f)
+            }
+        }
+    )
+
+/**
+ * Returns a [State] whose value is generated with [transform] by combining the current values of
+ * each given [State].
+ *
+ * @see State.combine
+ */
+fun <A, B, C, D, E, F, G, Z> combine(
+    stateA: State<A>,
+    stateB: State<B>,
+    stateC: State<C>,
+    stateD: State<D>,
+    stateE: State<E>,
+    stateF: State<F>,
+    stateG: State<G>,
+    transform: KairosScope.(A, B, C, D, E, F, G) -> Z,
+): State<Z> =
+    combine(
+        nameTag("combine7").toNameData("combine7"),
+        stateA,
+        stateB,
+        stateC,
+        stateD,
+        stateE,
+        stateF,
+        stateG,
+        transform,
+    )
+
+internal fun <A, B, C, D, E, F, G, Z> combine(
+    nameData: NameData,
+    stateA: State<A>,
+    stateB: State<B>,
+    stateC: State<C>,
+    stateD: State<D>,
+    stateE: State<E>,
+    stateF: State<F>,
+    stateG: State<G>,
+    transform: KairosScope.(A, B, C, D, E, F, G) -> Z,
+): State<Z> =
+    StateInit(
+        init(nameData) {
+            zipStates(
+                nameData,
+                stateA.init,
+                stateB.init,
+                stateC.init,
+                stateD.init,
+                stateE.init,
+                stateF.init,
+                stateG.init,
+            ) { a, b, c, d, e, f, g ->
+                NoScope.transform(a, b, c, d, e, f, g)
             }
         }
     )

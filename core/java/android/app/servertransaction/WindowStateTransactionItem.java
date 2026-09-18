@@ -24,11 +24,14 @@ import static java.util.Objects.requireNonNull;
 import android.annotation.CallSuper;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.ActivityThread;
 import android.app.ClientTransactionHandler;
+import android.os.Handler;
 import android.os.Parcel;
 import android.view.IWindow;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.view.WindowClientTransactionHandler;
 
 import java.util.Objects;
 
@@ -39,12 +42,6 @@ import java.util.Objects;
  */
 public abstract class WindowStateTransactionItem extends ClientTransactionItem {
 
-    /** The interface for IWindow to perform callback directly if possible. */
-    public interface TransactionListener {
-        /** Notifies that the transaction item is going to be executed. */
-        void onExecutingWindowStateTransactionItem();
-    }
-
     /** Target window. */
     @NonNull
     private final IWindow mWindow;
@@ -53,21 +50,66 @@ public abstract class WindowStateTransactionItem extends ClientTransactionItem {
         mWindow = requireNonNull(window);
     }
 
-    @Override
-    public final void execute(@NonNull ClientTransactionHandler client,
-            @NonNull PendingTransactionActions pendingActions) {
-        if (mWindow instanceof TransactionListener listener) {
-            listener.onExecutingWindowStateTransactionItem();
+    @NonNull
+    private WindowClientTransactionHandler getClient() {
+        if (mWindow instanceof WindowClientTransactionHandler client) {
+            return client;
         }
-        execute(client, mWindow, pendingActions);
+        throw new ClassCastException(
+                "Client window must implement " + WindowClientTransactionHandler.class.getName());
+    }
+
+    @Override
+    public final void preExecute(@NonNull ClientTransactionHandler appClient) {
+        if (!com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            return;
+        }
+        preExecute(getClient());
+    }
+
+    @Override
+    public final void execute(@NonNull ClientTransactionHandler appClient,
+            @NonNull PendingTransactionActions pendingActions) {
+        if (!com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            if (mWindow instanceof WindowClientTransactionHandler listener) {
+                listener.onExecutingWindowStateTransactionItem();
+            }
+            execute(appClient, mWindow, pendingActions);
+            return;
+        }
+        final WindowClientTransactionHandler client = getClient();
+        final Handler handler = client.getHandler();
+        if (handler != null) {
+            if (handler.getLooper() == ActivityThread.currentActivityThread().getLooper()) {
+                execute(client);
+            } else {
+                handler.post(() -> execute(client));
+            }
+        }
+    }
+
+    /**
+     * Like {@link #preExecute(ClientTransactionHandler)},
+     * but take non-null {@link WindowClientTransactionHandler} as a parameter.
+     */
+    public void preExecute(@NonNull WindowClientTransactionHandler client) {
     }
 
     /**
      * Like {@link #execute(ClientTransactionHandler, PendingTransactionActions)},
-     * but take non-null {@link IWindow} as a parameter.
+     * but take non-null {@link WindowClientTransactionHandler} as the only parameter.
+     * This must be called from the thread used by the {@code client}.
      */
+    public abstract void execute(@NonNull WindowClientTransactionHandler client);
+
+    /**
+     * Like {@link #execute(ClientTransactionHandler, PendingTransactionActions)},
+     * but take non-null {@link IWindow} as a parameter.
+     * @deprecated Use {@link #execute(WindowClientTransactionHandler)} instead.
+     */
+    @Deprecated
     @VisibleForTesting(visibility = PACKAGE)
-    public abstract void execute(@NonNull ClientTransactionHandler client,
+    public abstract void execute(@NonNull ClientTransactionHandler appClient,
             @NonNull IWindow window, @NonNull PendingTransactionActions pendingActions);
 
     // Parcelable implementation

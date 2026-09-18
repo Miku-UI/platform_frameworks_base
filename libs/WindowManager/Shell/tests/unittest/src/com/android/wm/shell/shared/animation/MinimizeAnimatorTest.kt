@@ -85,8 +85,8 @@ class MinimizeAnimatorTest {
 
         createAnimator(change)
 
-        verify(interactionJankMonitor, never()).begin(
-            leash, context, animationHandler, CUJ_DESKTOP_MODE_MINIMIZE_WINDOW)
+        verify(interactionJankMonitor, never())
+            .begin(leash, context, animationHandler, CUJ_DESKTOP_MODE_MINIMIZE_WINDOW)
     }
 
     @Test
@@ -95,13 +95,19 @@ class MinimizeAnimatorTest {
 
         createAnimator(change).start()
 
-        verify(interactionJankMonitor).begin(
-            leash, context, animationHandler, CUJ_DESKTOP_MODE_MINIMIZE_WINDOW)
+        verify(interactionJankMonitor)
+            .begin(leash, context, animationHandler, CUJ_DESKTOP_MODE_MINIMIZE_WINDOW)
     }
 
     private fun createAnimator(change: TransitionInfo.Change): Animator =
-        MinimizeAnimator.create(context, change, transaction, {}, interactionJankMonitor,
-            animationHandler)
+        MinimizeAnimator.create(
+            context,
+            change,
+            transaction,
+            {},
+            interactionJankMonitor,
+            animationHandler,
+        )
 
     private fun assertIsBoundsAnimator(animator: Animator) {
         assertThat(animator).isInstanceOf(ValueAnimator::class.java)
@@ -115,4 +121,3 @@ class MinimizeAnimatorTest {
         assertThat(animator.interpolator).isEqualTo(Interpolators.LINEAR)
     }
 }
-

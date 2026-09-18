@@ -16,14 +16,16 @@
 package com.android.test.input
 
 import android.Manifest
+import android.app.Activity
 import android.hardware.input.InputManager
+import android.platform.test.annotations.DisabledOnRavenwood
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.compatibility.common.util.AdoptShellPermissionsRule
-import com.android.compatibility.common.util.PollingCheck
+import com.android.compatibility.common.util.WindowUtil
 import com.android.cts.input.CaptureEventActivity
 import com.android.cts.input.EvdevInputEventCodes
 import com.android.cts.input.UinputKeyboard
@@ -41,6 +43,10 @@ import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.Mockito.`when`
 
 @RequiresFlagsEnabled(com.android.hardware.input.Flags.FLAG_KEY_EVENT_ACTIVITY_DETECTION)
+@DisabledOnRavenwood(
+    blockedBy = [Activity::class],
+    reason = "Launching activities with ActivityScenarioRule is unsupported",
+)
 class KeyEventActivityListenerTest {
     private lateinit var inputManager: InputManager
     private lateinit var listener: InputManager.KeyEventActivityListener
@@ -65,7 +71,7 @@ class KeyEventActivityListenerTest {
             inputManager = it.getSystemService(InputManager::class.java)
             activity = it
         }
-        PollingCheck.waitFor { activity.hasWindowFocus() }
+        WindowUtil.waitForFocus(activity)
         listener = mock(InputManager.KeyEventActivityListener::class.java)
     }
 

@@ -57,7 +57,7 @@ public class BackTouchTracker {
      * Updates the tracker with a new motion event.
      */
     public void update(float touchX, float touchY) {
-        /**
+        /*
          * If back was previously cancelled but the user has started swiping in the forward
          * direction again, restart back.
          */

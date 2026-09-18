@@ -27,7 +27,6 @@ import com.android.settingslib.notification.data.repository.ZenModeRepositoryImp
 import com.android.settingslib.notification.domain.interactor.NotificationsSoundPolicyInteractor;
 import com.android.settingslib.notification.modes.ZenModesBackend;
 import com.android.systemui.CoreStartable;
-import com.android.systemui.Flags;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.dagger.qualifiers.Background;
@@ -42,7 +41,8 @@ import com.android.systemui.statusbar.notification.collection.EntryAdapterFactor
 import com.android.systemui.statusbar.notification.collection.EntryAdapterFactoryImpl;
 import com.android.systemui.statusbar.notification.collection.NotifInflaterImpl;
 import com.android.systemui.statusbar.notification.collection.NotifPipeline;
-import com.android.systemui.statusbar.notification.collection.NotifPipelineChoreographerModule;
+import com.android.systemui.statusbar.notification.collection.NotifPipelineChoreographer;
+import com.android.systemui.statusbar.notification.collection.NotifPipelineChoreographerImpl;
 import com.android.systemui.statusbar.notification.collection.coordinator.ShadeEventCoordinator;
 import com.android.systemui.statusbar.notification.collection.inflation.BindEventManager;
 import com.android.systemui.statusbar.notification.collection.inflation.BindEventManagerImpl;
@@ -70,20 +70,17 @@ import com.android.systemui.statusbar.notification.init.NotificationsController;
 import com.android.systemui.statusbar.notification.init.NotificationsControllerImpl;
 import com.android.systemui.statusbar.notification.init.NotificationsControllerStub;
 import com.android.systemui.statusbar.notification.interruption.KeyguardNotificationVisibilityProviderModule;
-import com.android.systemui.statusbar.notification.interruption.NotificationInterruptStateProvider;
-import com.android.systemui.statusbar.notification.interruption.NotificationInterruptStateProviderImpl;
-import com.android.systemui.statusbar.notification.interruption.NotificationInterruptStateProviderWrapper;
 import com.android.systemui.statusbar.notification.interruption.VisualInterruptionDecisionProvider;
 import com.android.systemui.statusbar.notification.interruption.VisualInterruptionDecisionProviderImpl;
-import com.android.systemui.statusbar.notification.interruption.VisualInterruptionRefactor;
 import com.android.systemui.statusbar.notification.logging.NotificationPanelLogger;
 import com.android.systemui.statusbar.notification.logging.NotificationPanelLoggerImpl;
 import com.android.systemui.statusbar.notification.logging.dagger.NotificationsLogModule;
+import com.android.systemui.statusbar.notification.promoted.AODLowFrequencyModeDelayMs;
+import com.android.systemui.statusbar.notification.promoted.AODLowFrequencyModeDelayMsImpl;
 import com.android.systemui.statusbar.notification.promoted.PromotedNotificationContentExtractor;
 import com.android.systemui.statusbar.notification.promoted.PromotedNotificationContentExtractorImpl;
 import com.android.systemui.statusbar.notification.promoted.ShowPromotedNotificationsOnAOD;
 import com.android.systemui.statusbar.notification.promoted.ShowPromotedNotificationsOnAODImpl;
-import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModel;
 import com.android.systemui.statusbar.notification.row.NotificationEntryProcessorFactory;
 import com.android.systemui.statusbar.notification.row.NotificationEntryProcessorFactoryLooperImpl;
 import com.android.systemui.statusbar.notification.row.NotificationGutsManager;
@@ -102,6 +99,7 @@ import com.android.systemui.statusbar.notification.stack.StackScrollAlgorithm;
 import com.android.systemui.statusbar.phone.KeyguardBypassController;
 import com.android.systemui.statusbar.phone.StatusBarNotificationActivityStarter;
 import com.android.systemui.statusbar.policy.ZenModesCleanupStartable;
+import com.android.systemui.util.concurrency.DelayableExecutor;
 
 import dagger.Binds;
 import dagger.Module;
@@ -111,9 +109,9 @@ import dagger.multibindings.IntoMap;
 
 import kotlin.coroutines.CoroutineContext;
 
-import kotlinx.coroutines.CoroutineScope;
-
 import javax.inject.Provider;
+
+import kotlinx.coroutines.CoroutineScope;
 
 /**
  * Dagger Module for classes found within the com.android.systemui.statusbar.notification package.
@@ -122,7 +120,6 @@ import javax.inject.Provider;
         includes = {
                 ActivatableNotificationViewModelModule.class,
                 KeyguardNotificationVisibilityProviderModule.class,
-                NotifPipelineChoreographerModule.class,
                 NotificationDataLayerModule.class,
                 NotificationDomainLayerModule.class,
                 NotificationMemoryModule.class,
@@ -249,11 +246,6 @@ public interface NotificationsModule {
 
     /** */
     @Binds
-    NotificationInterruptStateProvider bindNotificationInterruptStateProvider(
-            NotificationInterruptStateProviderImpl notificationInterruptStateProviderImpl);
-
-    /** */
-    @Binds
     NotifInflater bindNotifInflater(NotifInflaterImpl notifInflaterImpl);
 
     /** */
@@ -277,13 +269,8 @@ public interface NotificationsModule {
     @Provides
     @SysUISingleton
     static VisualInterruptionDecisionProvider provideVisualInterruptionDecisionProvider(
-            Provider<NotificationInterruptStateProviderImpl> oldImplProvider,
             Provider<VisualInterruptionDecisionProviderImpl> newImplProvider) {
-        if (VisualInterruptionRefactor.isEnabled()) {
-            return newImplProvider.get();
-        } else {
-            return new NotificationInterruptStateProviderWrapper(oldImplProvider.get());
-        }
+        return newImplProvider.get();
     }
 
     /** */
@@ -314,26 +301,21 @@ public interface NotificationsModule {
         return new NotificationsSoundPolicyInteractor(repository);
     }
 
+    @Binds
+    NotifPipelineChoreographer provideNotifPipelineChoreographer(
+            NotifPipelineChoreographerImpl impl);
+
     /** Binds {@link ZenModesCleanupStartable} as a {@link CoreStartable}. */
     @Binds
     @IntoMap
     @ClassKey(ZenModesCleanupStartable.class)
     CoreStartable bindsZenModesCleanup(ZenModesCleanupStartable zenModesCleanup);
 
-    /** Provides the default implementation of {@link PromotedNotificationContentExtractor} if at
-     * least one of the relevant feature flags is enabled, or an implementation that always returns
-     * null if none are enabled. */
-    @Provides
+    /** Provides the default implementation of {@link PromotedNotificationContentExtractor}. */
+    @Binds
     @SysUISingleton
-    static PromotedNotificationContentExtractor providesPromotedNotificationContentExtractor(
-            Provider<PromotedNotificationContentExtractorImpl> implProvider) {
-        if (PromotedNotificationContentModel.featureFlagEnabled()) {
-            return implProvider.get();
-        } else {
-            return (entry, recoveredBuilder, redactionType, imageModelProvider,
-                    packageContext, sysUIContext) -> null;
-        }
-    }
+    PromotedNotificationContentExtractor providesPromotedNotificationContentExtractor(
+            PromotedNotificationContentExtractorImpl impl);
 
     /**
      *  Provides the default implementation of {@link ShowPromotedNotificationsOnAOD}
@@ -342,20 +324,21 @@ public interface NotificationsModule {
     @SysUISingleton
     ShowPromotedNotificationsOnAOD provideShowPromotedNotificationsOnAOD(
             ShowPromotedNotificationsOnAODImpl impl);
+
     /**
-     * Provide an implementation of {@link MagneticNotificationRowManager} based on its flag.
+     *  Provides the default implementation of {@link AODLowFrequencyModeDelayMs}
      */
-    @Provides
+    @Binds
     @SysUISingleton
-    static MagneticNotificationRowManager provideMagneticNotificationRowManager(
-            Provider<MagneticNotificationRowManagerImpl> implProvider
-    ) {
-        if (Flags.magneticNotificationSwipes()) {
-            return implProvider.get();
-        } else {
-            return MagneticNotificationRowManager.getEmpty();
-        }
-    }
+    AODLowFrequencyModeDelayMs provideAODLowFrequencyModeDelayMs(
+            AODLowFrequencyModeDelayMsImpl impl);
+    /**
+     * Provides the implementation of {@link MagneticNotificationRowManager}.
+     */
+    @Binds
+    @SysUISingleton
+    MagneticNotificationRowManager provideMagneticNotificationRowManager(
+            MagneticNotificationRowManagerImpl impl);
 
     /** Provides an instance of {@link EntryAdapterFactory} */
     @Binds

@@ -39,7 +39,7 @@ import java.util.Objects;
  * Controls the interaction between {@link MagnetizedObject} and
  * {@link MagnetizedObject.MagneticTarget}.
  */
-class DragToInteractAnimationController {
+public class DragToInteractAnimationController {
     private static final float COMPLETELY_OPAQUE = 1.0f;
     private static final float COMPLETELY_TRANSPARENT = 0.0f;
     private static final float CIRCLE_VIEW_DEFAULT_SCALE = 1.0f;
@@ -52,7 +52,7 @@ class DragToInteractAnimationController {
      * MagnetizedObject cannot differentiate between its MagnetizedTargets,
      * so we need an object & an animator for every interactable.
      */
-    private final ArrayMap<Integer, Pair<MagnetizedObject<MenuView>, ValueAnimator>> mInteractMap;
+    final ArrayMap<Integer, Pair<MagnetizedObject<MenuView>, ValueAnimator>> mInteractMap;
 
     private float mMinInteractSize;
     private float mSizePercent;

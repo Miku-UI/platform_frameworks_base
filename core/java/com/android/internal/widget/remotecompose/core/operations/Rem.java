@@ -19,6 +19,7 @@ import static com.android.internal.widget.remotecompose.core.documentation.Docum
 
 import android.annotation.NonNull;
 
+import com.android.internal.widget.remotecompose.core.Limits;
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
 import com.android.internal.widget.remotecompose.core.RemoteContext;
@@ -35,8 +36,8 @@ import java.util.List;
 public class Rem extends Operation implements SerializableToString, Serializable {
     private static final int OP_CODE = Operations.REM;
     private static final String CLASS_NAME = "Rem";
-    @NonNull public String mText;
-    public static final int MAX_STRING_SIZE = 4000;
+    @NonNull
+    public String mText;
 
     public Rem(@NonNull String text) {
         this.mText = text;
@@ -85,7 +86,7 @@ public class Rem extends Operation implements SerializableToString, Serializable
      * add a Rem data operation
      *
      * @param buffer buffer to add to
-     * @param text the data to encode
+     * @param text   the data to encode
      */
     public static void apply(@NonNull WireBuffer buffer, @NonNull String text) {
         buffer.start(OP_CODE);
@@ -95,11 +96,11 @@ public class Rem extends Operation implements SerializableToString, Serializable
     /**
      * Read this operation and add it to the list of operations
      *
-     * @param buffer the buffer to read
+     * @param buffer     the buffer to read
      * @param operations the list of operations that will be added to
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
-        String text = buffer.readUTF8(MAX_STRING_SIZE);
+        String text = buffer.readUTF8(Limits.MAX_STRING_SIZE);
         operations.add(new Rem(text));
     }
 
@@ -109,13 +110,15 @@ public class Rem extends Operation implements SerializableToString, Serializable
      * @param doc to append the description to.
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
-        doc.operation("Data Operations", OP_CODE, CLASS_NAME)
-                .description("Rem adds a remark to the document ")
-                .field(UTF8, "text", "encode text as a string");
+        doc.operation("Document Protocol Operations", OP_CODE, CLASS_NAME)
+                .addedVersion(7)
+                .description("Embed a remark or comment string in the document")
+                .field(UTF8, "text", "The comment string");
     }
 
     @Override
-    public void apply(@NonNull RemoteContext context) {}
+    public void apply(@NonNull RemoteContext context) {
+    }
 
     @NonNull
     @Override

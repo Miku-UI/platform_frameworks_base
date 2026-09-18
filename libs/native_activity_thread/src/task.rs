@@ -15,7 +15,7 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use log::{error, info};
-use looper_bindgen::{
+use native_activity_thread_bindgen::{
     ALooper, ALooper_addFd, ALooper_callbackFunc, ALooper_pollOnce, ALooper_prepare,
     ALooper_removeFd, ALOOPER_EVENT_INPUT, ALOOPER_POLL_CALLBACK, ALOOPER_POLL_ERROR,
 };

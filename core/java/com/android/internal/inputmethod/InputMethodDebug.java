@@ -264,7 +264,7 @@ public final class InputMethodDebug {
             case SoftInputShowHideReason.HIDE_WHEN_INPUT_TARGET_INVISIBLE:
                 return "HIDE_WHEN_INPUT_TARGET_INVISIBLE";
             case SoftInputShowHideReason.HIDE_CLOSE_CURRENT_SESSION:
-                return "HIDE_SOFT_INPUT_CLOSE_CURRENT_SESSION";
+                return "HIDE_CLOSE_CURRENT_SESSION";
             case SoftInputShowHideReason.HIDE_SOFT_INPUT_FROM_VIEW:
                 return "HIDE_SOFT_INPUT_FROM_VIEW";
             case SoftInputShowHideReason.SHOW_SOFT_INPUT_LEGACY_DIRECT:

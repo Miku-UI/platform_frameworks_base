@@ -19,6 +19,7 @@ package com.android.server.app;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -47,13 +48,13 @@ final class GameServiceProviderSelectorImpl implements GameServiceProviderSelect
     private static final String GAME_SERVICE_NODE_NAME = "game-service";
     private static final boolean DEBUG = false;
 
-    private final Resources mResources;
+    private final Context mContext;
     private final PackageManager mPackageManager;
 
-    GameServiceProviderSelectorImpl(@NonNull Resources resources,
-            @NonNull PackageManager packageManager) {
-        mResources = resources;
-        mPackageManager = packageManager;
+
+    GameServiceProviderSelectorImpl(@NonNull Context context) {
+        mContext = context;
+        mPackageManager = context.getPackageManager();
     }
 
     @Override
@@ -70,6 +71,7 @@ final class GameServiceProviderSelectorImpl implements GameServiceProviderSelect
             return null;
         }
 
+        final Resources resources = mContext.getResources();
         int resolveInfoQueryFlags;
         String gameServicePackage;
         if (!TextUtils.isEmpty(packageNameOverride)) {
@@ -77,7 +79,7 @@ final class GameServiceProviderSelectorImpl implements GameServiceProviderSelect
             gameServicePackage = packageNameOverride;
         } else {
             resolveInfoQueryFlags = PackageManager.MATCH_SYSTEM_ONLY;
-            gameServicePackage = mResources.getString(
+            gameServicePackage = resources.getString(
                     com.android.internal.R.string.config_systemGameService);
         }
 
@@ -110,7 +112,8 @@ final class GameServiceProviderSelectorImpl implements GameServiceProviderSelect
             ServiceInfo gameServiceServiceInfo = resolveInfo.serviceInfo;
 
             ComponentName gameSessionServiceComponentName =
-                    determineGameSessionServiceFromGameService(gameServiceServiceInfo);
+                    determineGameSessionServiceFromGameService(gameServiceServiceInfo,
+                            user.getUserHandle());
             if (gameSessionServiceComponentName == null) {
                 continue;
             }
@@ -135,7 +138,7 @@ final class GameServiceProviderSelectorImpl implements GameServiceProviderSelect
 
     @Nullable
     private ComponentName determineGameSessionServiceFromGameService(
-            @NonNull ServiceInfo gameServiceServiceInfo) {
+            @NonNull ServiceInfo gameServiceServiceInfo, @NonNull UserHandle userHandle) {
         String gameSessionService;
         try (XmlResourceParser parser = gameServiceServiceInfo.loadXmlMetaData(mPackageManager,
                 GameService.SERVICE_META_DATA)) {
@@ -179,8 +182,11 @@ final class GameServiceProviderSelectorImpl implements GameServiceProviderSelect
         ComponentName componentName =
                 new ComponentName(gameServiceServiceInfo.packageName, gameSessionService);
 
+        // Check whether the game session service exists for userHandle.
+        final Context context = mContext.createContextAsUser(userHandle, /* flags= */ 0);
+        final PackageManager userPackageManager = context.getPackageManager();
         try {
-            mPackageManager.getServiceInfo(componentName, /* flags= */ 0);
+            userPackageManager.getServiceInfo(componentName, /* flags= */ 0);
         } catch (PackageManager.NameNotFoundException ex) {
             Slog.w(TAG, "GameSessionService does not exist: " + componentName);
             return null;

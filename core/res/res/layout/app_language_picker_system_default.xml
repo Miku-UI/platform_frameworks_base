@@ -37,6 +37,6 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:textAppearance="?android:attr/textAppearanceListItemSecondary"
-        android:textColor="?android:attr/textColorSecondary"
+        android:textColor="@color/materialColorOnSurfaceVariant"
         android:layout_weight="1" />
 </LinearLayout>

@@ -21,11 +21,9 @@ import androidx.test.filters.SmallTest
 import com.android.settingslib.SignalIcon
 import com.android.settingslib.mobile.MobileMappings
 import com.android.settingslib.mobile.TelephonyIcons
-import com.android.systemui.KairosBuilder
 import com.android.systemui.flags.featureFlagsClassic
 import com.android.systemui.kairos.BuildScope
 import com.android.systemui.kairos.Events
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.Incremental
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.activateKairosActivatable
@@ -35,7 +33,6 @@ import com.android.systemui.kairos.kairos
 import com.android.systemui.kairos.map
 import com.android.systemui.kairos.mapValues
 import com.android.systemui.kairos.stateOf
-import com.android.systemui.kairosBuilder
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.runCurrent
@@ -53,10 +50,11 @@ import com.android.systemui.statusbar.pipeline.mobile.data.repository.mobileMapp
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
 import com.android.systemui.statusbar.pipeline.shared.data.repository.connectivityRepository
 import com.android.systemui.statusbar.policy.data.repository.FakeUserSetupRepository
+import com.android.systemui.util.lifecycle.kairos.KairosBuilder
+import com.android.systemui.util.lifecycle.kairos.kairosBuilder
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 
-@OptIn(ExperimentalKairosApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class MobileIconsInteractorKairosAdapterTest : MobileIconsInteractorTestBase() {
@@ -136,7 +134,7 @@ class MobileIconsInteractorKairosAdapterTest : MobileIconsInteractorTestBase() {
         override val defaultConnectionIsValidated: State<Boolean> = buildState {
             unwrapped.defaultConnectionIsValidated.toState()
         }
-        override val defaultDataSubRatConfig: State<MobileMappings.Config> = buildState {
+        override val defaultDataSubRatConfig: State<MobileMappings.Config?> = buildState {
             unwrapped.defaultDataSubRatConfig.toState()
         }
         override val defaultMobileIconMapping: State<Map<String, SignalIcon.MobileIconGroup>> =

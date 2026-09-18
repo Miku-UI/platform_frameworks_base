@@ -227,7 +227,7 @@ public class GpsClock implements Parcelable {
     }
 
     /**
-     * Returns true if {@link @getFullBiasInNs()} is available, false otherwise.
+     * Returns true if {@link #getFullBiasInNs()} is available, false otherwise.
      */
     public boolean hasFullBiasInNs() {
         return isFlagSet(HAS_FULL_BIAS);

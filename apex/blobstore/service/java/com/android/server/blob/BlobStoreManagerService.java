@@ -192,6 +192,7 @@ public class BlobStoreManagerService extends SystemService {
         mInjector = injector;
         mHandler = mInjector.initializeMessageHandler();
         mBackgroundHandler = mInjector.getBackgroundHandler();
+        mPackageManagerInternal = mInjector.getPackageManagerInternal();
     }
 
     private static Handler initializeMessageHandler() {
@@ -661,9 +662,10 @@ public class BlobStoreManagerService extends SystemService {
         }
     }
 
-    private void verifyCallingPackage(int callingUid, String callingPackage) {
-        if (mPackageManagerInternal.getPackageUid(
-                callingPackage, 0, UserHandle.getUserId(callingUid)) != callingUid) {
+    @VisibleForTesting
+    void verifyCallingPackage(int callingUid, String callingPackage) {
+        if (!mPackageManagerInternal.isSameApp(callingPackage, callingUid,
+                UserHandle.getUserId(callingUid))) {
             throw new SecurityException("Specified calling package [" + callingPackage
                     + "] does not match the calling uid " + callingUid);
         }
@@ -1961,6 +1963,10 @@ public class BlobStoreManagerService extends SystemService {
 
         public Handler getBackgroundHandler() {
             return BackgroundThread.getHandler();
+        }
+
+        public PackageManagerInternal getPackageManagerInternal() {
+            return LocalServices.getService(PackageManagerInternal.class);
         }
     }
 }

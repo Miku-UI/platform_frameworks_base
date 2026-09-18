@@ -17,6 +17,7 @@
 package com.android.internal.widget.floatingtoolbar;
 
 import android.annotation.Nullable;
+import android.content.Context;
 import android.graphics.Rect;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -46,7 +47,8 @@ public final class FloatingToolbar {
     private static final MenuItem.OnMenuItemClickListener NO_OP_MENUITEM_CLICK_LISTENER =
             item -> false;
 
-    private final Window mWindow;
+    private final Context mContext;
+    private final View mContainerView;
     private final FloatingToolbarPopup mPopup;
 
     private final Rect mContentRect = new Rect();
@@ -109,8 +111,15 @@ public final class FloatingToolbar {
     public FloatingToolbar(Window window) {
         // TODO(b/65172902): Pass context in constructor when DecorView (and other callers)
         // supports multi-display.
-        mWindow = Objects.requireNonNull(window);
-        mPopup = FloatingToolbarPopup.createInstance(window.getContext(), window.getDecorView());
+        mContext = Objects.requireNonNull(window).getContext();
+        mContainerView = Objects.requireNonNull(window).getDecorView();
+        mPopup = FloatingToolbarPopup.createInstance(mContext, mContainerView);
+    }
+
+    public FloatingToolbar(View containerView) {
+        mContainerView = Objects.requireNonNull(containerView);
+        mContext = containerView.getContext();
+        mPopup = FloatingToolbarPopup.createInstance(mContext, mContainerView);
     }
 
     /**
@@ -249,10 +258,10 @@ public final class FloatingToolbar {
 
     private void registerOrientationHandler() {
         unregisterOrientationHandler();
-        mWindow.getDecorView().addOnLayoutChangeListener(mOrientationChangeHandler);
+        mContainerView.addOnLayoutChangeListener(mOrientationChangeHandler);
     }
 
     private void unregisterOrientationHandler() {
-        mWindow.getDecorView().removeOnLayoutChangeListener(mOrientationChangeHandler);
+        mContainerView.removeOnLayoutChangeListener(mOrientationChangeHandler);
     }
 }

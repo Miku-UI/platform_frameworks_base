@@ -584,7 +584,7 @@ public final class UiAutomation {
      * replace any previous adoption. Note that your permission state becomes that of the shell UID
      * and it is not a combination of your and the shell UID permissions.
      * <p>
-     * <strong>Note:<strong/> Calling this method adopts all shell permissions and overrides
+     * <strong>Note:</strong> Calling this method adopts all shell permissions and overrides
      * any subset of adopted permissions via {@link #adoptShellPermissionIdentity(String...)}.
      *
      * @see #adoptShellPermissionIdentity(String...)
@@ -607,7 +607,7 @@ public final class UiAutomation {
      * this method, or {@link #adoptShellPermissionIdentity()} a subsequent call will replace any
      * previous adoption.
      * <p>
-     * <strong>Note:<strong/> This method behave differently from
+     * <strong>Note:</strong> This method behave differently from
      * {@link #adoptShellPermissionIdentity()}. Only the listed permissions will use the shell
      * identity and other permissions will still check against the original UID
      *
@@ -856,7 +856,7 @@ public final class UiAutomation {
 
     /**
      * Gets the windows on the screen associated with the {@link UiAutomation} context (usually the
-     * {@link android.view.Display#DEFAULT_DISPLAY default display).
+     * {@link android.view.Display#DEFAULT_DISPLAY default display}.
      *
      * <p>
      * This method returns only the windows that a sighted user can interact with, as opposed to

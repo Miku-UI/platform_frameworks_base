@@ -17,6 +17,8 @@
 
 package com.android.systemui.keyguard.domain.interactor
 
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import com.android.internal.widget.LockPatternUtils
 import com.android.systemui.bouncer.data.repository.FakeKeyguardBouncerRepository
 import com.android.systemui.common.ui.data.repository.FakeConfigurationRepository
@@ -27,34 +29,51 @@ import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.shade.data.repository.FakeShadeRepository
+import com.android.systemui.shade.data.repository.ShadeConfigRepository
+import com.android.systemui.shared.settings.data.repository.FakeSecureSettingsRepository
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.wallpapers.domain.interactor.WallpaperFocalAreaInteractor
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.mockito.kotlin.any
 
 /**
  * Simply put, I got tired of adding a constructor argument and then having to tweak dozens of
  * files. This should alleviate some of the burden by providing defaults for testing.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 object KeyguardInteractorFactory {
 
     @JvmOverloads
     @JvmStatic
     fun create(
+        backgroundDispatcher: CoroutineDispatcher = UnconfinedTestDispatcher(),
+        context: Context = ApplicationProvider.getApplicationContext(),
         featureFlags: FakeFeatureFlags = FakeFeatureFlags(),
         repository: FakeKeyguardRepository = FakeKeyguardRepository(),
         bouncerRepository: FakeKeyguardBouncerRepository = FakeKeyguardBouncerRepository(),
         configurationRepository: FakeConfigurationRepository = FakeConfigurationRepository(),
         shadeRepository: FakeShadeRepository = FakeShadeRepository(),
+        shadeConfigRepository: ShadeConfigRepository =
+            ShadeConfigRepository(
+                backgroundDispatcher = backgroundDispatcher,
+                resources = context.resources,
+                configurationRepository = configurationRepository,
+                secureSettingsRepository = FakeSecureSettingsRepository(),
+                featureFlags = featureFlags,
+            ),
         wallpaperFocalAreaInteractor: WallpaperFocalAreaInteractor = mock(),
         lockPatternUtils: LockPatternUtils = mock(),
         sceneInteractor: SceneInteractor = mock(),
         fromGoneTransitionInteractor: FromGoneTransitionInteractor = mock(),
         fromLockscreenTransitionInteractor: FromLockscreenTransitionInteractor = mock(),
         fromOccludedTransitionInteractor: FromOccludedTransitionInteractor = mock(),
+        fromDreamingTransitionInteractor: FromDreamingTransitionInteractor = mock(),
         fromAlternateBouncerTransitionInteractor: FromAlternateBouncerTransitionInteractor = mock(),
         testScope: CoroutineScope = TestScope(),
     ): WithDependencies {
@@ -78,11 +97,13 @@ object KeyguardInteractorFactory {
                 bouncerRepository = bouncerRepository,
                 configurationInteractor = ConfigurationInteractorImpl(configurationRepository),
                 shadeRepository = shadeRepository,
+                shadeConfigRepository = shadeConfigRepository,
                 keyguardTransitionInteractor = keyguardTransitionInteractor,
                 sceneInteractorProvider = { sceneInteractor },
                 fromGoneTransitionInteractor = { fromGoneTransitionInteractor },
                 fromLockscreenTransitionInteractor = { fromLockscreenTransitionInteractor },
                 fromOccludedTransitionInteractor = { fromOccludedTransitionInteractor },
+                fromDreamingTransitionInteractor = { fromDreamingTransitionInteractor },
                 fromAlternateBouncerTransitionInteractor = {
                     fromAlternateBouncerTransitionInteractor
                 },

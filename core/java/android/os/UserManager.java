@@ -225,7 +225,6 @@ public class UserManager {
      * actions; it does not represent the user to which restriction or management is applied.
      * @hide
      */
-    @FlaggedApi(android.multiuser.Flags.FLAG_ALLOW_SUPERVISING_PROFILE)
     @SystemApi
     public static final String USER_TYPE_PROFILE_SUPERVISING =
             "android.os.usertype.profile.SUPERVISING";
@@ -720,6 +719,22 @@ public class UserManager {
             "no_install_unknown_sources_globally";
 
     /**
+     * User restriction to disallow non-tool accessibility services globally.
+     * <p>
+     * This setting is used to enhance security, particularly in Advanced
+     * Protection Mode (APM), by preventing accessibility services that are not
+     * classified as tools from running. This helps mitigate potential risks
+     * associated with powerful accessibility APIs being exploited.
+     *
+     * @see DevicePolicyManager#addUserRestriction(ComponentName, String)
+     * @see DevicePolicyManager#clearUserRestriction(ComponentName, String)
+     * @see #getUserRestrictions()
+     * @hide
+     */
+    public static final String DISALLOW_NON_TOOL_ACCESSIBILITY_SERVICE =
+            "no_non_tool_accessibility_service";
+
+    /**
      * Specifies if a user is disallowed from configuring bluetooth via Settings. This does
      * <em>not</em> restrict the user from turning bluetooth on or off.
      *
@@ -1046,6 +1061,24 @@ public class UserManager {
     public static final String DISALLOW_FACTORY_RESET = "no_factory_reset";
 
     /**
+     * Specifies if a user is disallowed from adding new guests. The default value is
+     * <code>false</code>.
+     *
+     * <p>Holders of the permission
+     * {@link android.Manifest.permission#MANAGE_DEVICE_POLICY_MODIFY_USERS}
+     * can set this restriction using the DevicePolicyManager APIs mentioned below.
+     *
+     * <p>Key for user restrictions.
+     * <p>Type: Boolean
+     * @see DevicePolicyManager#addUserRestriction(ComponentName, String)
+     * @see DevicePolicyManager#clearUserRestriction(ComponentName, String)
+     * @see #getUserRestrictions()
+     * @hide
+     */
+    @FlaggedApi(android.os.Flags.FLAG_DISALLOW_ADD_GUEST)
+    public static final String DISALLOW_ADD_GUEST = "no_add_guest";
+
+    /**
      * Specifies if a user is disallowed from adding new users. This can only be set by device
      * owners or profile owners on the main user. The default value is <code>false</code>.
      * <p> When the device is an organization-owned device, this restriction will be set as
@@ -1358,6 +1391,26 @@ public class UserManager {
      * @see #getUserRestrictions()
      */
     public static final String DISALLOW_FUN = "no_fun";
+
+    /**
+     * Specifies if the user is not allowed to handoff tasks to other devices.
+     *
+     * <p> This policy may be set by a device owner or a profile owner. When set by a device owner,
+     * no applications will be able to send data to other devices for Handoff, nor will the current
+     * device exchange task metadata for other devices. When it is set by a profile owner of an
+     * organization-owned managed profile or the parent profile, applications running in the
+     * personal user will be disallowed from performing Handoff and excluded from appearing in
+     * Handoff metadata exchanges
+     *
+     * <p>The default value is <code>false</code>.
+     *
+     * <p>Key for user restrictions.
+     * <p>Type: Boolean
+     * @see DevicePolicyManager#addUserRestriction(ComponentName, String)
+     * @see DevicePolicyManager#clearUserRestriction(ComponentName, String)
+     */
+    @FlaggedApi(android.companion.Flags.FLAG_TASK_CONTINUITY)
+    public static final String DISALLOW_TASK_CONTINUITY_HANDOFF = "no_task_continuity_handoff";
 
     /**
      * Specifies that windows besides app windows should not be
@@ -2098,6 +2151,7 @@ public class UserManager {
     @StringDef(value = {
             ALLOW_PARENT_PROFILE_APP_LINKING,
             DISALLOW_ADD_CLONE_PROFILE,
+            DISALLOW_ADD_GUEST,
             DISALLOW_ADD_MANAGED_PROFILE,
             DISALLOW_ADD_PRIVATE_PROFILE,
             DISALLOW_ADD_USER,
@@ -2139,6 +2193,7 @@ public class UserManager {
             DISALLOW_FACTORY_RESET,
             DISALLOW_FUN,
             DISALLOW_GRANT_ADMIN,
+            DISALLOW_TASK_CONTINUITY_HANDOFF,
             DISALLOW_INSTALL_APPS,
             DISALLOW_INSTALL_UNKNOWN_SOURCES,
             DISALLOW_INSTALL_UNKNOWN_SOURCES_GLOBALLY,
@@ -2147,6 +2202,7 @@ public class UserManager {
             DISALLOW_MOUNT_PHYSICAL_MEDIA,
             DISALLOW_NEAR_FIELD_COMMUNICATION_RADIO,
             DISALLOW_NETWORK_RESET,
+            DISALLOW_NON_TOOL_ACCESSIBILITY_SERVICE,
             DISALLOW_OEM_UNLOCK,
             DISALLOW_OUTGOING_BEAM,
             DISALLOW_OUTGOING_CALLS,
@@ -2390,10 +2446,13 @@ public class UserManager {
     public static final int REMOVE_RESULT_ALREADY_BEING_REMOVED = 2;
 
     /**
-     * A response code indicating that the specified user is removable.
+     * A response code from {@link #getUserRemovability(int)} indicating that the specified user is
+     * removable.
      *
      * @hide
      */
+    @TestApi
+    @SuppressWarnings("UnflaggedApi") // @TestApi without associated feature.
     public static final int REMOVE_RESULT_USER_IS_REMOVABLE = 3;
 
     /**
@@ -2442,30 +2501,36 @@ public class UserManager {
     @SystemApi
     public static final int REMOVE_RESULT_ERROR_MAIN_USER_PERMANENT_ADMIN = -5;
 
-    // TODO(b/444663119): expose as @SystemApi
-    // TODO(b/419105275): Currently, the headless system user is also an admin user. When we
-    // disallow the removal of last admin user, we mean the last admin user that's not the HSU.
-    // If/When b/419105275 removes the admin flag from HSU, this comment should be removed.
     /**
      * A response code from {@link #removeUserWhenPossible(UserHandle, boolean)} indicating that
-     * user being removed cannot be removed because it is
-     * the last {@link #isAdminUser() admin} user on the device.
+     * user being removed cannot be removed because it is considered the last
+     * {@link #isAdminUser() admin} user on the device.
      *
      * @hide
      */
+    @SystemApi
+    @FlaggedApi(android.multiuser.Flags.FLAG_USER_REMOVAL_MINOR_APIS_2026)
     public static final int REMOVE_RESULT_ERROR_LAST_ADMIN_USER = -6;
 
-    // TODO(b/444663119): expose as @SystemApi
     /**
      * A response code from {@link #removeUserWhenPossible(UserHandle, boolean)} indicating that
      * user being removed cannot be removed because it is the Device Owner on this device.
      *
      * @hide
      */
-    public static final int REMOVE_RESULT_DEVICE_OWNER = -7;
+    @SystemApi
+    @FlaggedApi(android.multiuser.Flags.FLAG_USER_REMOVAL_MINOR_APIS_2026)
+    public static final int REMOVE_RESULT_ERROR_DEVICE_OWNER = -7;
 
     /**
-     * Possible response codes from {@link #removeUserWhenPossible(UserHandle, boolean)}.
+     * Possible response codes from {@link #removeUserWhenPossible(UserHandle, boolean)} and
+     * {@link #getUserRemovability(int)}.
+     *
+     * <p>NOTE: not all codes are used on both methods - for example,
+     * {@code removeUserWhenPossible()} doesn't return {@code REMOVE_RESULT_USER_IS_REMOVABLE} and
+     * {@code getUserRemovability()} doesn't return {@code REMOVE_RESULT_REMOVED}. We could use
+     * 2 distinct {@code IntDefs} (like {@code RemoveResult} and {@code UserRemovability}), but it
+     * would over-complicate these methods.
      *
      * @hide
      */
@@ -2479,7 +2544,7 @@ public class UserManager {
             REMOVE_RESULT_ERROR_SYSTEM_USER,
             REMOVE_RESULT_ERROR_MAIN_USER_PERMANENT_ADMIN,
             REMOVE_RESULT_ERROR_LAST_ADMIN_USER,
-            REMOVE_RESULT_DEVICE_OWNER,
+            REMOVE_RESULT_ERROR_DEVICE_OWNER,
             REMOVE_RESULT_ERROR_UNKNOWN,
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -2763,17 +2828,6 @@ public class UserManager {
     }
 
     /**
-     * Returns whether the device supports Private Profile
-     * @hide
-     */
-    public static boolean isPrivateProfileEnabled() {
-        if (android.multiuser.Flags.blockPrivateSpaceCreation()) {
-            return !ActivityManager.isLowRamDeviceStatic();
-        }
-        return true;
-    }
-
-    /**
      * Returns whether multiple admins are enabled on the device
      * @hide
      */
@@ -2806,6 +2860,32 @@ public class UserManager {
             }
         }
         return sIsHeadlessSystemUser;
+    }
+
+    /**
+     * Sets a temporary list of activities that can be launched when the
+     * {@link ActivityManager#getCurrentUser() current user} is a user of the given {@code type}.
+     *
+     * <p>The allowlist is valid until the system is restarted, or this method is called with
+     * {@code null}.
+     *
+     * @param userType currently, only {@link #USER_TYPE_SYSTEM_HEADLESS} is supported.
+     * @param activities list of activities that are allowed, or empty to allow any activity, or
+     *        {@code null} to reset the temporary list (in which case the allowlist would be defined
+     *        by the device's config).
+     *
+     * @hide
+     */
+    @RequiresPermission(anyOf = {android.Manifest.permission.MANAGE_USERS,
+            android.Manifest.permission.MANAGE_HEADLESS_SYSTEM_USER_ALLOWLISTS})
+    public void setTemporaryActivitiesAllowlist(String userType,
+            @Nullable Set<ComponentName> activities) {
+        final List<ComponentName> list = activities == null ? null : new ArrayList<>(activities);
+        try {
+            mService.setTemporaryActivitiesAllowlist(userType, list);
+        } catch (RemoteException re) {
+            throw re.rethrowFromSystemServer();
+        }
     }
 
     /**
@@ -3330,7 +3410,6 @@ public class UserManager {
      *
      * @hide
      */
-    @FlaggedApi(android.multiuser.Flags.FLAG_ALLOW_SUPERVISING_PROFILE)
     @android.ravenwood.annotation.RavenwoodKeep
     public static boolean isUserTypeSupervisingProfile(@Nullable String userType) {
         return USER_TYPE_PROFILE_SUPERVISING.equals(userType);
@@ -3437,27 +3516,18 @@ public class UserManager {
      * @deprecated evaluate canAddMoreProfilesToUser(USER_TYPE_PROFILE_PRIVATE, userId) > 0 instead
      * @hide
      */
+    // TODO(b/394178333): Switch to canAddMoreProfilesToUser(USER_TYPE_PROFILE_PRIVATE, userId) > 0
     @Deprecated
     @TestApi
-    @FlaggedApi(android.multiuser.Flags.FLAG_CONSISTENT_MAX_USERS)
     @RequiresPermission(anyOf = {
             Manifest.permission.MANAGE_USERS,
             Manifest.permission.CREATE_USERS,
             Manifest.permission.QUERY_USERS})
     @UserHandleAware
     public boolean canAddPrivateProfile() {
-        if (!android.multiuser.Flags.enablePrivateSpaceFeatures()) return false;
         if (android.multiuser.Flags.blockPrivateSpaceCreation()) {
-            // TODO(b/413464199): Ideally, move this client-side, changing it to
-            // if (android.multiuser.Flags.consistentMaxUsers()) {
-            //  return canAddMoreProfilesToUser(USER_TYPE_PROFILE_PRIVATE, mUserId)
-            //          && !hasUserRestriction(UserManager.DISALLOW_ADD_PRIVATE_PROFILE);
-            // }
-            try {
-                return mService.canAddPrivateProfile(mUserId);
-            } catch (RemoteException re) {
-                throw re.rethrowFromSystemServer();
-            }
+            return canAddMoreProfilesToUser(USER_TYPE_PROFILE_PRIVATE, mUserId)
+                    && !hasUserRestriction(UserManager.DISALLOW_ADD_PRIVATE_PROFILE);
         }
         return true;
     }
@@ -5186,7 +5256,6 @@ public class UserManager {
      */
     @Deprecated
     @TestApi
-    @UnsupportedAppUsage
     @RequiresPermission(anyOf = {
             android.Manifest.permission.MANAGE_USERS,
             android.Manifest.permission.CREATE_USERS
@@ -5343,9 +5412,6 @@ public class UserManager {
             android.Manifest.permission.CREATE_USERS
     })
     public boolean canAddMoreUsers(@NonNull String userType) {
-        if (!android.multiuser.Flags.consistentMaxUsers()) {
-            return canAddMoreUsersLegacy(userType);
-        }
         try {
             // Differs from getRemainingCreatableUserCount only because of isCreationOverrideEnabled
             return mService.canAddMoreUsersOfType(userType);
@@ -5457,6 +5523,12 @@ public class UserManager {
      *
      * Takes into account whether the user type is supported and maximum user limits, but does not
      * take into account UserRestrictions.
+     *
+     * Note that this value is dynamic; the creation of users of another type can sometimes affect
+     * how many users of this type are allowed if they are both subject to the same combined cap.
+     * In particular, the creation of one switchable user will decrease the current number of
+     * allowed users for other switchable user types.
+     *
      * It is consistent with {@link #getRemainingCreatableUserCount(String)}, with the following
      * caveat:
      *
@@ -5471,9 +5543,6 @@ public class UserManager {
             android.Manifest.permission.CREATE_USERS
     })
     public int getCurrentAllowedNumberOfUsers(@NonNull String userType) {
-        if (!android.multiuser.Flags.consistentMaxUsers()) {
-            throw new UnsupportedOperationException("This method requires flag consistentMaxUsers");
-        }
         try {
             return mService.getCurrentAllowedNumberOfUsers(userType);
         } catch (RemoteException re) {
@@ -5484,21 +5553,44 @@ public class UserManager {
     /**
      * Checks whether this device supports users of the given user type.
      *
+     * Takes into account whether the user type is supported, including having a non-zero maximum
+     * user limit, but does not take into account UserRestrictions.
+     *
      * @param userType the type of user, such as {@link UserManager#USER_TYPE_FULL_SECONDARY}.
-     * @return true if the creation of users of the given user type is enabled on this device.
+     * @return true if the creation of users of the given user type is supported on this device.
      * @hide
      */
     @TestApi
+    @FlaggedApi(android.multiuser.Flags.FLAG_QUERY_USER_TYPE_SUPPORTED)
+    @RequiresPermission(anyOf = {
+            android.Manifest.permission.MANAGE_USERS,
+            android.Manifest.permission.CREATE_USERS
+    })
+    public boolean isUserTypeSupported(@NonNull String userType) {
+        try {
+            return mService.isUserTypeSupportedIncludingSystem(userType);
+        } catch (RemoteException re) {
+            throw re.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * @deprecated use {@link #isUserTypeSupported(String)} instead.
+     * @hide
+     */
+    @TestApi
+    @Deprecated
+    @FlaggedApi(android.multiuser.Flags.FLAG_QUERY_USER_TYPE_SUPPORTED)
     @RequiresPermission(anyOf = {
             android.Manifest.permission.MANAGE_USERS,
             android.Manifest.permission.CREATE_USERS
     })
     public boolean isUserTypeEnabled(@NonNull String userType) {
-        try {
-            return mService.isUserTypeEnabled(userType);
-        } catch (RemoteException re) {
-            throw re.rethrowFromSystemServer();
+        if (android.multiuser.Flags.queryUserTypeSupported()) {
+            // TODO(b/444731367): Delete this method entirely when cleaning up the flag!
+            Log.w(TAG, "Calling deprecated isUserTypeEnabled; instead use isUserTypeSupported");
         }
+        return isUserTypeSupported(userType);
     }
 
     /**
@@ -5969,8 +6061,11 @@ public class UserManager {
      * @hide
      */
     public boolean hasBadge(@UserIdInt int userId) {
-        if (!isProfile(userId)) {
-            // Since currently only profiles actually have badges, we can do this optimization.
+        final boolean isHsu = android.multiuser.Flags.hsuAppManagement()
+                && isHeadlessSystemUserMode() && userId == UserHandle.USER_SYSTEM;
+        if (!isProfile(userId) && !isHsu) {
+            // Since only certain types of users can currently have badges, we can sometimes
+            // optimize and avoid a binder call.
             return false;
         }
         try {
@@ -6425,8 +6520,9 @@ public class UserManager {
      * {@link #REMOVE_RESULT_DEFERRED}, {@link #REMOVE_RESULT_ALREADY_BEING_REMOVED},
      * {@link #REMOVE_RESULT_ERROR_USER_RESTRICTION}, {@link #REMOVE_RESULT_ERROR_USER_NOT_FOUND},
      * {@link #REMOVE_RESULT_ERROR_SYSTEM_USER},
-     * {@link #REMOVE_RESULT_ERROR_MAIN_USER_PERMANENT_ADMIN}, or
-     * {@link #REMOVE_RESULT_ERROR_UNKNOWN}. All error codes have negative values.
+     * {@link #REMOVE_RESULT_ERROR_MAIN_USER_PERMANENT_ADMIN},
+     * {@link #REMOVE_RESULT_ERROR_LAST_ADMIN_USER}, or {@link #REMOVE_RESULT_ERROR_UNKNOWN}. All
+     * error codes have negative values.
      *
      * @hide
      */
@@ -6474,9 +6570,15 @@ public class UserManager {
      * {@link #REMOVE_RESULT_ERROR_USER_NOT_FOUND},
      * {@link #REMOVE_RESULT_ERROR_MAIN_USER_PERMANENT_ADMIN},
      * {@link #REMOVE_RESULT_ALREADY_BEING_REMOVED},
-     * {@link #REMOVE_RESULT_ERROR_LAST_ADMIN_USER}.
+     * {@link #REMOVE_RESULT_ERROR_LAST_ADMIN_USER},
+     * {@link #REMOVE_RESULT_ERROR_DEVICE_OWNER}.
      * @hide
      */
+    @TestApi
+    @SuppressWarnings("UnflaggedApi") // @TestApi without associated feature.
+    @RequiresPermission(anyOf = {
+            Manifest.permission.CREATE_USERS,
+            Manifest.permission.QUERY_USERS})
     public @RemoveResult int getUserRemovability(@UserIdInt int userId) {
         try {
             return mService.getUserRemovability(userId);
@@ -6967,60 +7069,6 @@ public class UserManager {
     public void setBootUser(@NonNull UserHandle bootUser) {
         try {
             mService.setBootUser(bootUser.getIdentifier());
-        } catch (RemoteException re) {
-            throw re.rethrowFromSystemServer();
-        }
-    }
-
-    /**
-     * Checks whether it's possible to add more users. Legacy version of parameterless
-     * {@link #canAddMoreUsers(String)}. Do not use.
-     *
-     * @return true if more users can be added, false if limit has been reached.
-     *
-     * @deprecated use {@link #canAddMoreUsers(String)} instead.
-     *
-     * @hide
-     */
-    @Deprecated
-    @RequiresPermission(anyOf = {
-            android.Manifest.permission.MANAGE_USERS,
-            android.Manifest.permission.CREATE_USERS
-    })
-    public boolean canAddMoreUsersLegacy() {
-        if (android.multiuser.Flags.consistentMaxUsers()
-                && android.multiuser.Flags.maxUsersInCarIsForSecondary()) {
-            // TODO(b/394178333): When the flags are permanent, delete this method entirely.
-            throw new UnsupportedOperationException("This method is no longer supported");
-        }
-
-        // TODO(b/142482943): UMS has different logic, excluding Demo and Profile from counting.
-        //                    Why not here? The logic is inconsistent. See
-        //                    UMS.canAddMoreManagedProfiles
-        final List<UserInfo> users = getAliveUsers();
-        final int totalUserCount = users.size();
-        int aliveUserCount = 0;
-        for (int i = 0; i < totalUserCount; i++) {
-            UserInfo user = users.get(i);
-            if (!user.isGuest()) {
-                aliveUserCount++;
-            }
-        }
-        return aliveUserCount < getMaxSwitchableUsers();
-    }
-
-    /** Legacy version of {@link #canAddMoreUsers(String)}. Do not use. */
-    private boolean canAddMoreUsersLegacy(@NonNull String userType) {
-        if (android.multiuser.Flags.consistentMaxUsers()) {
-            // TODO(b/394178333): When the flag is permanent, delete this method entirely.
-            throw new UnsupportedOperationException("This method is no longer supported");
-        }
-        try {
-            if (userType.equals(USER_TYPE_FULL_GUEST)) {
-                return mService.canAddMoreUsersOfType(userType);
-            } else {
-                return canAddMoreUsersLegacy() && mService.canAddMoreUsersOfType(userType);
-            }
         } catch (RemoteException re) {
             throw re.rethrowFromSystemServer();
         }

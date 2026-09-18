@@ -44,6 +44,7 @@ import java.util.Objects;
  * @hide
  */
 @TestApi
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class PrebakedSegment extends VibrationEffectSegment {
 
     /** @hide */
@@ -57,13 +58,23 @@ public final class PrebakedSegment extends VibrationEffectSegment {
     private final int mEffectStrength;
 
     PrebakedSegment(@NonNull Parcel in) {
-        mEffectId = in.readInt();
-        mFallback = in.readByte() != 0;
-        mEffectStrength = in.readInt();
+        this(in.readInt(), in.readByte() != 0, in.readInt(), in.readLong());
     }
 
     /** @hide */
     public PrebakedSegment(int effectId, boolean shouldFallback, int effectStrength) {
+        this(effectId, shouldFallback, effectStrength, -1);
+    }
+
+    /**
+     * @param startTimeMillis The time in milliseconds at which this segment should start within the
+     *                        overall {@link VibrationEffect}. Each PrebakedSegment is expected to
+     *                        have a non-negative start time.
+     * @hide
+     */
+    public PrebakedSegment(int effectId, boolean shouldFallback, int effectStrength,
+            long startTimeMillis) {
+        super(startTimeMillis);
         mEffectId = effectId;
         mFallback = shouldFallback;
         mEffectStrength = effectStrength;
@@ -170,7 +181,7 @@ public final class PrebakedSegment extends VibrationEffectSegment {
     /** @hide */
     @NonNull
     @Override
-    public PrebakedSegment scaleLinearly(float scaleFactor) {
+    public PrebakedSegment applyAdaptiveScale(float scaleFactor) {
         // Prebaked effect strength cannot be scaled with this method.
         return this;
     }
@@ -180,9 +191,16 @@ public final class PrebakedSegment extends VibrationEffectSegment {
     @Override
     public PrebakedSegment applyEffectStrength(int effectStrength) {
         if (effectStrength != mEffectStrength && isValidEffectStrength(effectStrength)) {
-            return new PrebakedSegment(mEffectId, mFallback, effectStrength);
+            return new PrebakedSegment(mEffectId, mFallback, effectStrength, getStartTimeMillis());
         }
         return this;
+    }
+
+    /** @hide */
+    @NonNull
+    @Override
+    public PrebakedSegment applyStartTime(long startTimeMillis) {
+        return new PrebakedSegment(mEffectId, mFallback, mEffectStrength, startTimeMillis);
     }
 
     private static boolean isValidEffectStrength(int strength) {
@@ -227,12 +245,13 @@ public final class PrebakedSegment extends VibrationEffectSegment {
         PrebakedSegment other = (PrebakedSegment) o;
         return mEffectId == other.mEffectId
                 && mFallback == other.mFallback
-                && mEffectStrength == other.mEffectStrength;
+                && mEffectStrength == other.mEffectStrength
+                && getStartTimeMillis() == other.getStartTimeMillis();
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(mEffectId, mFallback, mEffectStrength);
+        return Objects.hash(mEffectId, mFallback, mEffectStrength, getStartTimeMillis());
     }
 
     @Override
@@ -240,16 +259,18 @@ public final class PrebakedSegment extends VibrationEffectSegment {
         return "Prebaked{effect=" + VibrationEffect.effectIdToString(mEffectId)
                 + ", strength=" + VibrationEffect.effectStrengthToString(mEffectStrength)
                 + ", fallback=" + mFallback
+                + (getStartTimeMillis() > 0 ? ", startTimeMillis=" + getStartTimeMillis() : "")
                 + "}";
     }
 
     /** @hide */
     @Override
     public String toDebugString() {
-        return String.format("Prebaked=%s(%s, %s fallback)",
+        return String.format("Prebaked=%s(%s, %s fallback%s)",
                 VibrationEffect.effectIdToString(mEffectId),
                 VibrationEffect.effectStrengthToString(mEffectStrength),
-                mFallback ? "with" : "no");
+                mFallback ? "with" : "no",
+                ", startTime=" + getStartTimeMillis());
     }
 
     @Override
@@ -263,6 +284,7 @@ public final class PrebakedSegment extends VibrationEffectSegment {
         out.writeInt(mEffectId);
         out.writeByte((byte) (mFallback ? 1 : 0));
         out.writeInt(mEffectStrength);
+        out.writeLong(getStartTimeMillis());
     }
 
     @NonNull

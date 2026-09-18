@@ -32,7 +32,6 @@ import android.util.SparseArray;
 import com.android.internal.os.Clock;
 import com.android.internal.os.MonotonicClock;
 import com.android.internal.util.ArrayUtils;
-import com.android.server.power.stats.BatteryStatsImpl.BatteryStatsSession;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;

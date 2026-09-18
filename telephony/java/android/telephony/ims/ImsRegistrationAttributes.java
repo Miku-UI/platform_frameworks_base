@@ -58,7 +58,6 @@ public final class ImsRegistrationAttributes implements Parcelable {
      *     via the ImsMmTelManager#registerImsEmergencyRegistrationCallback API
      * </p>
      */
-    @FlaggedApi(Flags.FLAG_EMERGENCY_REGISTRATION_STATE)
     public static final int ATTR_REGISTRATION_TYPE_EMERGENCY = 1 << 1;
     /**
      * Attribute to specify if virtual registration is required.
@@ -69,7 +68,6 @@ public final class ImsRegistrationAttributes implements Parcelable {
      *     via the ImsMmTelManager#registerImsEmergencyRegistrationCallback API
      * </p>
      */
-    @FlaggedApi(Flags.FLAG_EMERGENCY_REGISTRATION_STATE)
     public static final int ATTR_VIRTUAL_FOR_ANONYMOUS_EMERGENCY_CALL = 1 << 2;
 
     /** @hide */
@@ -156,7 +154,6 @@ public final class ImsRegistrationAttributes implements Parcelable {
         /**
          * Set the attribute flag ATTR_REGISTRATION_TYPE_EMERGENCY.
          */
-        @FlaggedApi(Flags.FLAG_EMERGENCY_REGISTRATION_STATE)
         public @NonNull Builder setFlagRegistrationTypeEmergency() {
             mAttributeFlags |= ATTR_REGISTRATION_TYPE_EMERGENCY;
             return this;
@@ -165,7 +162,6 @@ public final class ImsRegistrationAttributes implements Parcelable {
         /**
          * Set the attribute flag ATTR_VIRTUAL_FOR_ANONYMOUS_EMERGENCY_CALL.
          */
-        @FlaggedApi(Flags.FLAG_EMERGENCY_REGISTRATION_STATE)
         public @NonNull Builder setFlagVirtualRegistrationForEmergencyCall() {
             mAttributeFlags |= ATTR_VIRTUAL_FOR_ANONYMOUS_EMERGENCY_CALL;
             return this;
@@ -303,7 +299,6 @@ public final class ImsRegistrationAttributes implements Parcelable {
      * @return {@code true} if the ATTR_REGISTRATION_TYPE_EMERGENCY attribute has been set, or
      * {@code false} if it has not been set.
      */
-    @FlaggedApi(Flags.FLAG_EMERGENCY_REGISTRATION_STATE)
     public boolean getFlagRegistrationTypeEmergency() {
         return (mImsAttributeFlags & ATTR_REGISTRATION_TYPE_EMERGENCY) != 0;
     }
@@ -313,7 +308,6 @@ public final class ImsRegistrationAttributes implements Parcelable {
      * @return {@code true} if the ATTR_VIRTUAL_FOR_ANONYMOUS_EMERGENCY_CALL attribute has been set,
      * or {@code false} if it has not been set.
      */
-    @FlaggedApi(Flags.FLAG_EMERGENCY_REGISTRATION_STATE)
     public boolean getFlagVirtualRegistrationForEmergencyCall() {
         return (mImsAttributeFlags & ATTR_VIRTUAL_FOR_ANONYMOUS_EMERGENCY_CALL) != 0;
     }

@@ -384,13 +384,16 @@ constructor(
     /**
      * A list of keys and on-screen bounds for the visible status bar chips.
      *
-     * Note that this list can contain both notification keys, as well as keys for other types of
-     * chips like screen recording.
+     * If [Flags.statusBarHunAnimationCall()] is enabled, then this map contains only notification
+     * keys.
+     *
+     * If that flag is disabled, this map can contain both notification keys, as well as keys for
+     * other types of chips like screen recording.
      */
     @OptIn(ExperimentalCoroutinesApi::class)
-    val visibleStatusBarChips: Flow<Map<String, RectF>> =
+    val visibleStatusBarNotificationChips: Flow<Map<String, RectF>> =
         shadeStatusBarComponentsInteractor.ongoingActivityChipsViewModel.flatMapLatest {
-            it.visibleChipsWithBounds
+            it.visibleNotificationChipsWithBounds
         }
 
     // TODO(b/325936094) use it for the text displayed in the StatusBar

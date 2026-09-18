@@ -18,10 +18,16 @@ package com.android.systemui.screencapture.sharescreen.domain.interactor
 
 import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.screencapture.data.repository.ScreenCaptureDeviceStateRepository
+import javax.inject.Inject
 
 @SysUISingleton
-object ScreenCaptureShareScreenFeaturesInteractor {
+class ScreenCaptureShareScreenFeaturesInteractor
+@Inject
+constructor(private val screenCaptureDeviceStateRepository: ScreenCaptureDeviceStateRepository) {
 
     val isLargeScreenSharingEnabled: Boolean
-        get() = Flags.largeScreenSharing()
+        get() =
+            Flags.largeScreenSharing() &&
+                screenCaptureDeviceStateRepository.isLargeScreen.value == true
 }

@@ -9,11 +9,11 @@
     <string name="power_label" msgid="7699720321491287839">"ပါဝါခလုတ်"</string>
     <string name="power_utterance" msgid="7444296686402104807">"ပါဝါ ရွေးစရာများ"</string>
     <string name="recent_apps_label" msgid="6583276995616385847">"မကြာသေးမီက အက်ပ်များ"</string>
-    <string name="lockscreen_label" msgid="648347953557887087">"လော့ခ်မျက်နှာပြင်"</string>
+    <string name="lockscreen_label" msgid="648347953557887087">"လော့ခ်စခရင်"</string>
     <string name="quick_settings_label" msgid="2999117381487601865">"အမြန် ဆက်တင်များ"</string>
     <string name="notifications_label" msgid="6829741046963013567">"အကြောင်းကြားချက်များ"</string>
-    <string name="screenshot_label" msgid="863978141223970162">"ဖန်သားပြင်ဓာတ်ပုံ"</string>
-    <string name="screenshot_utterance" msgid="1430760563401895074">"ဖန်သားပြင်ဓာတ်ပုံ ရိုက်ရန်"</string>
+    <string name="screenshot_label" msgid="863978141223970162">"ဖန်သားပြင်ပုံ"</string>
+    <string name="screenshot_utterance" msgid="1430760563401895074">"ဖန်သားပြင်ပုံ ရိုက်ရန်"</string>
     <string name="volume_up_label" msgid="8592766918780362870">"အသံချဲ့ခလုတ်"</string>
     <string name="volume_down_label" msgid="8574981863656447346">"အသံတိုးခလုတ်"</string>
     <string name="brightness_up_label" msgid="8010753822854544846">"တောက်ပမှု တိုးမြှင့်ရန်"</string>

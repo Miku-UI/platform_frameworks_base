@@ -18,6 +18,7 @@ package com.android.internal.accessibility.dialog;
 
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.GESTURE;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.HARDWARE;
+import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.QUICK_ACCESS;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.SOFTWARE;
 
 import android.annotation.NonNull;
@@ -61,14 +62,24 @@ public abstract class AccessibilityTarget implements TargetOperations, OnTargetS
     private Drawable mIcon;
     private String mKey;
     private CharSequence mStateDescription;
+    private boolean mIsStateOn;
 
     @VisibleForTesting
-    public AccessibilityTarget(Context context, @UserShortcutType int shortcutType,
-            @AccessibilityFragmentType int fragmentType, boolean isShortcutSwitched, String id,
-            int uid, CharSequence label, Drawable icon, String key) {
-        if (!isRecognizedShortcutType(shortcutType)) {
-            throw new IllegalArgumentException(
-                    "Unexpected shortcut type " + ShortcutUtils.convertToKey(shortcutType));
+    public AccessibilityTarget(
+            Context context,
+            @UserShortcutType int shortcutType,
+            @AccessibilityFragmentType int fragmentType,
+            boolean isShortcutSwitched,
+            String id,
+            int uid,
+            CharSequence label,
+            Drawable icon,
+            String key) {
+        if (!android.view.accessibility.Flags.enableA11yTopRowShortcut()) {
+            if (!isRecognizedShortcutType(shortcutType)) {
+                throw new IllegalArgumentException(
+                        "Unexpected shortcut type " + ShortcutUtils.convertToKey(shortcutType));
+            }
         }
         mContext = context;
         mShortcutType = shortcutType;
@@ -120,8 +131,16 @@ public abstract class AccessibilityTarget implements TargetOperations, OnTargetS
                 isChecked, getShortcutType(), Set.of(mId), UserHandle.myUserId());
     }
 
+    public boolean isToggleable() {
+        return false;
+    }
+
     public void setStateDescription(CharSequence stateDescription) {
         mStateDescription = stateDescription;
+    }
+
+    public void setIsStateOn(boolean isStateOn) {
+        mIsStateOn = isStateOn;
     }
 
     /**
@@ -132,6 +151,10 @@ public abstract class AccessibilityTarget implements TargetOperations, OnTargetS
     @Nullable
     public CharSequence getStateDescription() {
         return mStateDescription;
+    }
+
+    public boolean getIsStateOn() {
+        return mIsStateOn;
     }
 
     public void setShortcutEnabled(boolean enabled) {
@@ -180,12 +203,13 @@ public abstract class AccessibilityTarget implements TargetOperations, OnTargetS
 
     /**
      * Determines if the provided shortcut type is valid for use with AccessibilityTargets.
+     *
      * @param shortcutType shortcut type to check.
      * @return {@code true} if the shortcut type can be used, {@code false} otherwise.
      */
     @VisibleForTesting
     public static boolean isRecognizedShortcutType(@UserShortcutType int shortcutType) {
-        int mask = SOFTWARE | HARDWARE | GESTURE;
+        int mask = SOFTWARE | HARDWARE | GESTURE | QUICK_ACCESS;
         return (shortcutType != 0 && (shortcutType & mask) == shortcutType);
     }
 }

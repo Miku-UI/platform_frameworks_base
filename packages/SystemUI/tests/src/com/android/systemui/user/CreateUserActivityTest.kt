@@ -29,8 +29,9 @@ class CreateUserActivityTest : SysuiTestCase() {
                             /* activity = */ any(),
                             /* activityStarter = */ any(),
                             /* isMultipleAdminsEnabled = */ any(),
+                            /* canEditUserInfo = */ any(),
                             /* successCallback = */ nullable(),
-                            /* cancelCallback = */ nullable()
+                            /* cancelCallback = */ nullable(),
                         )
                     )
                     .thenReturn(dialog)

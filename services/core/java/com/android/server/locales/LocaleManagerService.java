@@ -31,6 +31,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.PackageInfoFlags;
+import android.content.pm.PackageManagerInternal;
 import android.content.res.Configuration;
 import android.os.Binder;
 import android.os.Environment;
@@ -96,6 +97,7 @@ public class LocaleManagerService extends SystemService {
     private final LocaleManagerService.LocaleManagerBinderService mBinderService;
     private ActivityTaskManagerInternal mActivityTaskManagerInternal;
     private ActivityManagerInternal mActivityManagerInternal;
+    private PackageManagerInternal mPmInternal;
     private PackageManager mPackageManager;
 
     private LocaleManagerBackupHelper mBackupHelper;
@@ -112,6 +114,7 @@ public class LocaleManagerService extends SystemService {
         mBinderService = new LocaleManagerBinderService();
         mActivityTaskManagerInternal = LocalServices.getService(ActivityTaskManagerInternal.class);
         mActivityManagerInternal = LocalServices.getService(ActivityManagerInternal.class);
+        mPmInternal = LocalServices.getService(PackageManagerInternal.class);
         mPackageManager = mContext.getPackageManager();
 
         HandlerThread broadcastHandlerThread = new HandlerThread(TAG,
@@ -150,6 +153,7 @@ public class LocaleManagerService extends SystemService {
         mPackageManager = packageManager;
         mBackupHelper = localeManagerBackupHelper;
         mPackageMonitor = packageMonitor;
+        mPmInternal = LocalServices.getService(PackageManagerInternal.class);
     }
 
     @Override
@@ -383,7 +387,8 @@ public class LocaleManagerService extends SystemService {
         }
         //Once valid package found, ignore the userId part for validating package ownership
         //as apps with INTERACT_ACROSS_USERS permission could be changing locale for different user.
-        return UserHandle.isSameApp(Binder.getCallingUid(), uid);
+        return mPmInternal.isSameApp(appPackageName, Binder.getCallingUid(),
+                UserHandle.getUserId(Binder.getCallingUid()));
     }
 
     private void enforceChangeConfigurationPermission(@NonNull AppLocaleChangedAtomRecord
@@ -468,7 +473,8 @@ public class LocaleManagerService extends SystemService {
         if (installingPackageName != null) {
             // Get the uid of installer-on-record to compare with the calling uid.
             int installerUid = getPackageUid(installingPackageName, userId);
-            return installerUid >= 0 && UserHandle.isSameApp(Binder.getCallingUid(), installerUid);
+            return installerUid >= 0 && mPmInternal.isSameApp(installingPackageName,
+                    Binder.getCallingUid(), UserHandle.getUserId(Binder.getCallingUid()));
         }
         return false;
     }
@@ -493,8 +499,8 @@ public class LocaleManagerService extends SystemService {
             }
             String inputMethodPkgName = componentName.getPackageName();
             int inputMethodUid = getPackageUid(inputMethodPkgName, userId);
-            return inputMethodUid >= 0 && UserHandle.isSameApp(Binder.getCallingUid(),
-                    inputMethodUid);
+            return inputMethodUid >= 0 && mPmInternal.isSameApp(inputMethodPkgName,
+                    Binder.getCallingUid(), UserHandle.getUserId(Binder.getCallingUid()));
         }
 
         return false;

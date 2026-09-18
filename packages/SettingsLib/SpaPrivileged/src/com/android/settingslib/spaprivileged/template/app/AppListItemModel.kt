@@ -33,7 +33,10 @@ data class AppListItemModel<T : AppRecord>(
 )
 
 @Composable
-fun <T : AppRecord> AppListItemModel<T>.AppListItem(onClick: () -> Unit) {
+fun <T : AppRecord> AppListItemModel<T>.AppListItem(
+    enabled: Boolean = true,
+    onClick: (() -> Unit)? = null,
+) {
     Preference(remember {
         object : PreferenceModel {
             override val title = label
@@ -41,6 +44,7 @@ fun <T : AppRecord> AppListItemModel<T>.AppListItem(onClick: () -> Unit) {
             override val icon = @Composable {
                 AppIcon(app = record.app, size = SettingsDimension.appIconItemSize)
             }
+            override val enabled = { enabled }
             override val onClick = onClick
         }
     })

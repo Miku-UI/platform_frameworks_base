@@ -16,7 +16,6 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
-import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.dagger.GlanceableHubBlurComponent
 import com.android.systemui.keyguard.domain.interactor.FromDozingTransitionInteractor.Companion.TO_GLANCEABLE_HUB_DURATION
@@ -28,33 +27,27 @@ import com.android.systemui.keyguard.ui.transitions.GlanceableHubTransition
 import com.android.systemui.scene.shared.model.Scenes
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 
 @SysUISingleton
 class GlanceableHubToDozingTransitionViewModel
 @Inject
 constructor(
     animationFlow: KeyguardTransitionAnimationFlow,
-    private val blurComponentFactory: GlanceableHubBlurComponent.Factory,
+    blurComponentFactory: GlanceableHubBlurComponent.Factory,
     dozingTransitionFlows: DozingTransitionFlows,
 ) : GlanceableHubTransition {
     private val transitionAnimation =
         animationFlow
             .setup(
                 duration = TO_GLANCEABLE_HUB_DURATION,
-                edge = Edge.create(DOZING, Scenes.Communal),
+                edge = Edge.create(Scenes.Communal, DOZING),
             )
             .setupWithoutSceneContainer(edge = Edge.create(GLANCEABLE_HUB, DOZING))
 
     override val windowBlurRadius: Flow<Float> =
         blurComponentFactory.create(transitionAnimation).getBlurProvider().exitBlurRadius
 
-    val lockscreenAlpha: Flow<Float> =
-        if (Flags.newDozingKeyguardStates()) {
-            dozingTransitionFlows.lockscreenAlpha(from = GLANCEABLE_HUB)
-        } else {
-            emptyFlow()
-        }
+    val lockscreenAlpha: Flow<Float> = dozingTransitionFlows.lockscreenAlpha(from = GLANCEABLE_HUB)
 
     val nonAuthUIAlpha: Flow<Float> = dozingTransitionFlows.nonAuthUIAlpha(from = GLANCEABLE_HUB)
 }

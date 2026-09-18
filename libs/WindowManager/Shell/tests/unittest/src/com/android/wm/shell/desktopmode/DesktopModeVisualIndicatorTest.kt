@@ -28,9 +28,7 @@ import android.view.Display.DEFAULT_DISPLAY
 import android.view.SurfaceControl
 import androidx.test.filters.SmallTest
 import com.android.internal.policy.SystemBarUtils
-import com.android.window.flags.Flags.FLAG_ENABLE_CONNECTED_DISPLAYS_WINDOW_DRAG
 import com.android.window.flags.Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE
-import com.android.window.flags.Flags.FLAG_ENABLE_VISUAL_INDICATOR_IN_TRANSITION_BUGFIX
 import com.android.wm.shell.R
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer
 import com.android.wm.shell.ShellTestCase
@@ -39,9 +37,13 @@ import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.DisplayLayout
 import com.android.wm.shell.common.SyncTransactionQueue
 import com.android.wm.shell.shared.R as sharedR
+import com.android.wm.shell.shared.ShellSharedConstants.SMALL_TABLET_MAX_EDGE_DP
 import com.android.wm.shell.shared.bubbles.BubbleDropTargetBoundsProvider
+import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.android.wm.shell.windowdecor.tiling.SnapEventHandler
 import com.google.common.truth.Truth.assertThat
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Rule
@@ -444,7 +446,6 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CONNECTED_DISPLAYS_WINDOW_DRAG)
     fun testDefaultIndicators_crossDisplayDrag_noIndicator() {
         createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_FULLSCREEN)
 
@@ -499,15 +500,6 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_VISUAL_INDICATOR_IN_TRANSITION_BUGFIX)
-    fun createIndicator_inTransitionFlagDisabled_isAttachedToDisplayArea() {
-        createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_FULLSCREEN)
-
-        verify(taskDisplayAreaOrganizer).attachToDisplayArea(anyInt(), any())
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_VISUAL_INDICATOR_IN_TRANSITION_BUGFIX)
     fun createIndicator_fromFreeform_inTransitionFlagEnabled_isAttachedToDisplayArea() {
         createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_FREEFORM)
 
@@ -515,7 +507,6 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_VISUAL_INDICATOR_IN_TRANSITION_BUGFIX)
     fun createIndicator_fromFullscreen_inTransitionFlagEnabled_notAttachedToDisplayArea() {
         createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_FULLSCREEN)
 
@@ -523,11 +514,53 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_VISUAL_INDICATOR_IN_TRANSITION_BUGFIX)
     fun createIndicator_fromSplit_inTransitionFlagEnabled_notAttachedToDisplayArea() {
         createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_SPLIT)
 
         verify(taskDisplayAreaOrganizer, never()).attachToDisplayArea(anyInt(), any())
+    }
+
+    @Test
+    fun useSmallTabletRegions_appHandleNotOverridden_returnsFalse() {
+        val fakeDesktopState = FakeDesktopState().apply { overridesShowAppHandle = false }
+
+        assertFalse(
+            DesktopModeVisualIndicator.useSmallTabletRegions(
+                fakeDesktopState,
+                displayController,
+                taskInfo.displayId,
+            )
+        )
+    }
+
+    @Test
+    fun useSmallTabletRegions_smallTabletWithAppHandleOverridden_returnsTrue() {
+        val fakeDesktopState = FakeDesktopState().apply { overridesShowAppHandle = true }
+        whenever(displayLayout.pxToDp(context.display.maximumSizeDimension))
+            .thenReturn(SMALL_TABLET_MAX_EDGE_DP - 10F)
+
+        assertTrue(
+            DesktopModeVisualIndicator.useSmallTabletRegions(
+                fakeDesktopState,
+                displayController,
+                taskInfo.displayId,
+            )
+        )
+    }
+
+    @Test
+    fun useSmallTabletRegions_LargeTabletWithAppHandleOverridden_returnsFalse() {
+        val fakeDesktopState = FakeDesktopState().apply { overridesShowAppHandle = true }
+        whenever(displayLayout.pxToDp(context.display.maximumSizeDimension))
+            .thenReturn(SMALL_TABLET_MAX_EDGE_DP + 10F)
+
+        assertFalse(
+            DesktopModeVisualIndicator.useSmallTabletRegions(
+                fakeDesktopState,
+                displayController,
+                taskInfo.displayId,
+            )
+        )
     }
 
     private fun createVisualIndicator(
@@ -550,6 +583,7 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
                 snapEventHandler,
                 isSmallTablet,
                 isLeftRightSplit,
+                taskInfo.displayId,
             )
     }
 

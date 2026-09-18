@@ -1,0 +1,111 @@
+package {
+    default_team: "trendy_team_android_developer_tools",
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "frameworks_base_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["frameworks_base_license"],
+}
+
+aconfig_declarations {
+    name: "adb_jni_pairing_server_flags",
+    package: "com.android.server.adb.flags",
+    container: "system",
+    srcs: [
+        "flags.aconfig",
+    ],
+}
+
+cc_aconfig_library {
+    name: "adb_jni_pairing_server_flags_cc_lib",
+    aconfig_declarations: "adb_jni_pairing_server_flags",
+}
+
+cc_library_static {
+    name: "libadb_pairing_server_jni",
+    srcs: [
+        "IPairingServer.cpp",
+        "PairingServerV1Impl.cpp",
+        "PairingServerV2Impl.cpp",
+    ],
+    shared_libs: [
+        "adb_jni_pairing_server_flags_cc_lib",
+        "libadb_pairing_server",
+        "libadb_pairing_connection",
+        "libbase",
+        "libutils",
+        "liblog",
+        "server_configurable_flags",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wno-unused-parameter",
+    ],
+    export_include_dirs: ["include"],
+}
+
+cc_test {
+    name: "adb_jni_pairing_server_v2_test",
+    srcs: [
+        "test/adb_jni_pairing_server_v2_test.cpp",
+        "test/mock_pairing_server_v2.cpp",
+        "test/mock_com_android_server_adb_flags.cpp",
+    ],
+    // Do not link to libadb_pairing_server here!
+    shared_libs: [
+        "adb_jni_pairing_server_flags_cc_lib",
+        "libbase",
+        "libutils",
+        "liblog",
+    ],
+    static_libs: [
+        "libgtest",
+        "libgtest_main",
+        "libadb_pairing_server_jni",
+    ],
+    header_libs: ["libadb_pairing_server_headers"],
+    rtti: true,
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
+    // Needed for dlsym to pick up the pairing_server symbols from our mock impl.
+    ldflags: ["-Wl,--export-dynamic"],
+    test_suites: [
+        "general-tests",
+    ],
+}
+
+cc_test {
+    name: "adb_jni_pairing_server_v1_test",
+    srcs: [
+        "test/adb_jni_pairing_server_v1_test.cpp",
+        "test/mock_pairing_server_v1.cpp",
+        "test/mock_com_android_server_adb_flags.cpp",
+    ],
+    // Do not link to libadb_pairing_server here!
+    shared_libs: [
+        "adb_jni_pairing_server_flags_cc_lib",
+        "libbase",
+        "libutils",
+        "liblog",
+    ],
+    static_libs: [
+        "libgtest",
+        "libgtest_main",
+        "libadb_pairing_server_jni",
+    ],
+    header_libs: ["libadb_pairing_server_headers"],
+    rtti: true,
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
+    // Needed for dlsym to pick up the pairing_server symbols from our mock impl.
+    ldflags: ["-Wl,--export-dynamic"],
+    test_suites: [
+        "general-tests",
+    ],
+}

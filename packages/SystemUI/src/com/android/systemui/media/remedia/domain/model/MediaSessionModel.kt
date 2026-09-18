@@ -17,6 +17,7 @@
 package com.android.systemui.media.remedia.domain.model
 
 import androidx.compose.runtime.Stable
+import com.android.internal.logging.InstanceId
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.media.remedia.shared.model.MediaCardActionButtonLayout
@@ -27,7 +28,11 @@ import com.android.systemui.media.remedia.shared.model.MediaSessionState
 @Stable
 interface MediaSessionModel {
     /** Unique identifier. */
-    val key: Any
+    val key: InstanceId
+
+    val uid: Int
+
+    val packageName: String
 
     val appName: String
 
@@ -41,6 +46,9 @@ interface MediaSessionModel {
 
     val subtitle: String
 
+    /** Whether explicit indicator is provided. */
+    val isExplicit: Boolean
+
     val onClick: (Expandable) -> Unit
 
     /**
@@ -52,9 +60,11 @@ interface MediaSessionModel {
     /** Whether the session can be hidden/dismissed by the user. */
     val canBeHidden: Boolean
 
+    val canShowSeekbar: Boolean
+
     /**
-     * Whether the session currently supports scrubbing (e.g. moving to a different position iin the
-     * playback.
+     * Whether the session currently supports scrubbing (e.g. moving to a different position in the
+     * playback.)
      */
     val canBeScrubbed: Boolean
 
@@ -76,4 +86,6 @@ interface MediaSessionModel {
     val leftAction: MediaActionModel
     val rightAction: MediaActionModel
     val additionalActions: List<MediaActionModel.Action>
+    /** Called when the session is visible in the UI. */
+    val onSessionVisible: (areDeviceChipsVisible: Boolean) -> Unit
 }

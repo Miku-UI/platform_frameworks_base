@@ -141,7 +141,7 @@ public final class NativeTombstoneManager {
 
         // Only process the pb tombstone output, the text version will be generated in
         // BootReceiver.filterAndAddTombstoneToDropBox through pbtombstone
-        if (Flags.protoTombstone() && !isProtoFile) {
+        if (!isProtoFile) {
             return;
         }
 
@@ -151,12 +151,7 @@ public final class NativeTombstoneManager {
                 .map(TombstoneFile::getProcessName)
                 .orElse("UNKNOWN");
 
-        if (Flags.protoTombstone()) {
-            BootReceiver.filterAndAddTombstoneToDropBox(mContext, path, processName, mTmpFileLock);
-        } else {
-            BootReceiver.addTombstoneToDropBox(mContext, path, isProtoFile,
-                    processName, mTmpFileLock);
-        }
+        BootReceiver.filterAndAddTombstoneToDropBox(mContext, path, processName, mTmpFileLock);
         // TODO(b/339371242): An optimizer on WearOS is misbehaving and this member is being garbage
         // collected as it's never referenced inside this class outside of the constructor. But,
         // it's a file watcher, and needs to stay alive to do its job. So, add a cheap check here to

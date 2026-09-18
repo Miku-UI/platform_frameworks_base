@@ -48,7 +48,7 @@
                   android:layout_width="wrap_content"
                   android:layout_height="wrap_content"
                   android:layout_gravity="start|center_vertical"
-                  android:textColor="?android:attr/textColorPrimary"
+                  android:textColor="@color/materialColorOnSurface"
                   android:fontFamily="@android:string/config_bodyFontFamily"
                   android:textSize="16sp"
                   android:minLines="1"
@@ -58,7 +58,7 @@
             or provide record w/o permission warnings.
         -->
         <TextView android:id="@android:id/text2"
-                  android:textColor="?android:attr/textColorSecondary"
+                  android:textColor="@color/materialColorOnSurfaceVariant"
                   android:fontFamily="@android:string/config_bodyFontFamily"
                   android:layout_gravity="start|center_vertical"
                   android:textSize="14sp"

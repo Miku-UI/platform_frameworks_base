@@ -74,7 +74,7 @@ constructor(
         } else {
             sceneInteractorProvider
                 .get()
-                .transitionState
+                .transitionStateFlow
                 .flatMapConcat { state ->
                     when (state) {
                         is ObservableTransitionState.Idle ->

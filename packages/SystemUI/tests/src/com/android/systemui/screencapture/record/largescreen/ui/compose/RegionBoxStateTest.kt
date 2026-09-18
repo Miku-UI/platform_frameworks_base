@@ -18,7 +18,6 @@ package com.android.systemui.screencapture.record.largescreen.ui.compose
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.unit.Density
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -52,7 +51,7 @@ class RegionBoxStateTest : SysuiTestCase() {
     @Test
     fun startDrag_withNoRect_setsDrawingMode() {
         val pointerPosition = Offset(100f, 150f)
-        state.startDrag(PointerType.Mouse, pointerPosition)
+        state.startDrag(pointerPosition)
 
         assertThat(state.dragMode).isEqualTo(DragMode.DRAWING)
         assertThat(state.rect).isNull()
@@ -66,7 +65,7 @@ class RegionBoxStateTest : SysuiTestCase() {
         val pointerPosition = Offset(500f, 500f)
 
         // Start drag far outside the existing rect and its touch zones
-        state.startDrag(PointerType.Mouse, pointerPosition)
+        state.startDrag(pointerPosition)
 
         assertThat(state.dragMode).isEqualTo(DragMode.DRAWING)
         assertThat(state.resizeZone).isNull()
@@ -78,7 +77,7 @@ class RegionBoxStateTest : SysuiTestCase() {
         val currentRect = Rect(100f, 100f, 300f, 300f)
         // Start drag inside the existing rect, away from edges
         state.rect = currentRect
-        state.startDrag(PointerType.Mouse, currentRect.center)
+        state.startDrag(currentRect.center)
 
         assertThat(state.dragMode).isEqualTo(DragMode.MOVING)
         assertThat(state.resizeZone).isNull()
@@ -94,7 +93,7 @@ class RegionBoxStateTest : SysuiTestCase() {
 
         // Start drag on the specified point (corner or edge)
         val dragStartPoint = getDragPoint(currentRect)
-        state.startDrag(PointerType.Mouse, dragStartPoint)
+        state.startDrag(dragStartPoint)
 
         assertThat(state.dragMode).isEqualTo(DragMode.RESIZING)
         assertThat(state.resizeZone).isEqualTo(expectedZone)
@@ -165,21 +164,23 @@ class RegionBoxStateTest : SysuiTestCase() {
     }
 
     @Test
-    fun startDrag_withMousePointerType_hasSmallerTargetSize() {
+    fun startDrag_hasSmallerTargetSize_forPreciseDevices() {
         val currentRect = Rect(100f, 100f, 300f, 300f)
         state.rect = currentRect
 
         val pointerPosition =
             currentRect.topLeft + Offset(TOUCH_TARGET_SIZE_PX / 2f, TOUCH_TARGET_SIZE_PX / 2f)
 
-        // Demonstrate that touch type for the position is treated as resizing.
-        state.startDrag(PointerType.Touch, pointerPosition)
+        // Demonstrate that imprecise device pointer positions is treated as resizing.
+        state.pointerDevice = PointerDevice.Touchscreen
+        state.startDrag(pointerPosition)
 
         assertThat(state.dragMode).isEqualTo(DragMode.RESIZING)
         assertThat(state.resizeZone).isEqualTo(ResizeZone.Corner.TopLeft)
 
-        // Demonstrate that touch type for same position is not treated as resizing.
-        state.startDrag(PointerType.Mouse, pointerPosition)
+        // Demonstrate that the same position for a precise device is not treated as resizing.
+        state.pointerDevice = PointerDevice.Touchpad
+        state.startDrag(pointerPosition)
 
         assertThat(state.dragMode).isEqualTo(DragMode.MOVING)
         assertThat(state.resizeZone).isNull()
@@ -187,7 +188,7 @@ class RegionBoxStateTest : SysuiTestCase() {
 
     @Test
     fun drag_inDrawingMode_createsCorrectRect() {
-        state.startDrag(PointerType.Mouse, Offset(100f, 100f))
+        state.startDrag(Offset(100f, 100f))
         val endOffset = Offset(200f, 250f)
         assertThat(state.dragMode).isEqualTo(DragMode.DRAWING)
         state.drag(endOffset, Offset.Zero)
@@ -204,7 +205,7 @@ class RegionBoxStateTest : SysuiTestCase() {
 
     @Test
     fun drag_inDrawingMode_constrainsToScreenBounds() {
-        state.startDrag(PointerType.Mouse, Offset(50f, 50f))
+        state.startDrag(Offset(50f, 50f))
 
         // Drag outside screen boundaries
         val endOffset = Offset(SCREEN_WIDTH + 100f, SCREEN_HEIGHT + 100f)
@@ -221,7 +222,7 @@ class RegionBoxStateTest : SysuiTestCase() {
         state.rect = initialRect
         val dragStartPoint = initialRect.center
 
-        state.startDrag(PointerType.Mouse, dragStartPoint)
+        state.startDrag(dragStartPoint)
         assertThat(state.dragMode).isEqualTo(DragMode.MOVING)
 
         val dragAmount = Offset(50f, 70f)
@@ -241,7 +242,7 @@ class RegionBoxStateTest : SysuiTestCase() {
         state.rect = initialRect
 
         val dragStartPoint = initialRect.center
-        state.startDrag(PointerType.Mouse, dragStartPoint)
+        state.startDrag(dragStartPoint)
         assertThat(state.dragMode).isEqualTo(DragMode.MOVING)
 
         val currentDragPosition = dragStartPoint + dragAmount
@@ -396,7 +397,7 @@ class RegionBoxStateTest : SysuiTestCase() {
             }
 
         val screenDragStartOffset = initialRect.topLeft + dragStartOffsetInBox
-        state.startDrag(PointerType.Mouse, screenDragStartOffset)
+        state.startDrag(screenDragStartOffset)
         assertThat(state.dragMode).isEqualTo(DragMode.RESIZING)
         assertThat(state.resizeZone).isEqualTo(resizeZone)
 
@@ -1215,6 +1216,127 @@ class RegionBoxStateTest : SysuiTestCase() {
         assertThat(state.dragMode).isEqualTo(DragMode.NONE)
         assertThat(state.resizeZone).isNull()
         assertThat(state.rect).isEqualTo(initial)
+    }
+
+    @Test
+    fun adjustZone_withNoRect_doesNothing() {
+        state.rect = null
+        state.adjustZone(ResizeZone.Corner.TopLeft, Offset(10f, 0f))
+        assertThat(state.rect).isNull()
+    }
+
+    @Test
+    fun adjustZone_topLeft_directionLeft_expandsLeft() {
+        val initial = Rect(100f, 100f, 200f, 200f)
+        state.rect = initial
+        val offset = Offset(-10f, 0f) // DirectionLeft
+
+        state.adjustZone(ResizeZone.Corner.TopLeft, offset)
+
+        assertThat(state.rect).isEqualTo(Rect(90f, 100f, 200f, 200f))
+    }
+
+    @Test
+    fun adjustZone_topLeft_directionUp_expandsTop() {
+        val initial = Rect(100f, 100f, 200f, 200f)
+        state.rect = initial
+        val offset = Offset(0f, -10f) // DirectionUp
+
+        state.adjustZone(ResizeZone.Corner.TopLeft, offset)
+
+        assertThat(state.rect).isEqualTo(Rect(100f, 90f, 200f, 200f))
+    }
+
+    @Test
+    fun adjustZone_topLeft_directionRight_shrinksLeft() {
+        val initial = Rect(100f, 100f, 200f, 200f)
+        state.rect = initial
+        val offset = Offset(10f, 0f) // DirectionRight
+
+        state.adjustZone(ResizeZone.Corner.TopLeft, offset)
+
+        assertThat(state.rect).isEqualTo(Rect(110f, 100f, 200f, 200f))
+    }
+
+    @Test
+    fun adjustZone_topLeft_directionDown_shrinksTop() {
+        val initial = Rect(100f, 100f, 200f, 200f)
+        state.rect = initial
+        val offset = Offset(0f, 10f) // DirectionDown
+
+        state.adjustZone(ResizeZone.Corner.TopLeft, offset)
+
+        assertThat(state.rect).isEqualTo(Rect(100f, 110f, 200f, 200f))
+    }
+
+    @Test
+    fun adjustZone_bottomRight_directionRight_expandsRight() {
+        val initial = Rect(100f, 100f, 200f, 200f)
+        state.rect = initial
+        val offset = Offset(10f, 0f) // DirectionRight
+
+        state.adjustZone(ResizeZone.Corner.BottomRight, offset)
+
+        assertThat(state.rect).isEqualTo(Rect(100f, 100f, 210f, 200f))
+    }
+
+    @Test
+    fun adjustZone_bottomRight_directionDown_expandsBottom() {
+        val initial = Rect(100f, 100f, 200f, 200f)
+        state.rect = initial
+        val offset = Offset(0f, 10f) // DirectionDown
+
+        state.adjustZone(ResizeZone.Corner.BottomRight, offset)
+
+        assertThat(state.rect).isEqualTo(Rect(100f, 100f, 200f, 210f))
+    }
+
+    @Test
+    fun adjustZone_bottomRight_directionLeft_shrinksRight() {
+        val initial = Rect(100f, 100f, 200f, 200f)
+        state.rect = initial
+        val offset = Offset(-10f, 0f) // DirectionLeft
+
+        state.adjustZone(ResizeZone.Corner.BottomRight, offset)
+
+        assertThat(state.rect).isEqualTo(Rect(100f, 100f, 190f, 200f))
+    }
+
+    @Test
+    fun adjustZone_bottomRight_directionUp_shrinksBottom() {
+        val initial = Rect(100f, 100f, 200f, 200f)
+        state.rect = initial
+        val offset = Offset(0f, -10f) // DirectionUp
+
+        state.adjustZone(ResizeZone.Corner.BottomRight, offset)
+
+        assertThat(state.rect).isEqualTo(Rect(100f, 100f, 200f, 190f))
+    }
+
+    @Test
+    fun adjustZone_respectsMinSize() {
+        val initial = Rect(100f, 100f, 100f + MIN_SIZE_PX, 100f + MIN_SIZE_PX)
+        state.rect = initial
+
+        // Try to shrink TopLeft further (Down or Right)
+        state.adjustZone(ResizeZone.Corner.TopLeft, Offset(10f, 0f))
+        assertThat(state.rect!!.width).isEqualTo(MIN_SIZE_PX)
+
+        state.adjustZone(ResizeZone.Corner.TopLeft, Offset(0f, 10f))
+        assertThat(state.rect!!.height).isEqualTo(MIN_SIZE_PX)
+    }
+
+    @Test
+    fun adjustZone_respectsScreenBounds() {
+        val initial = Rect(0f, 0f, 100f, 100f)
+        state.rect = initial
+
+        // Try to expand TopLeft further (Up or Left)
+        state.adjustZone(ResizeZone.Corner.TopLeft, Offset(-10f, 0f))
+        assertThat(state.rect!!.left).isEqualTo(0f)
+
+        state.adjustZone(ResizeZone.Corner.TopLeft, Offset(0f, -10f))
+        assertThat(state.rect!!.top).isEqualTo(0f)
     }
 
     companion object {

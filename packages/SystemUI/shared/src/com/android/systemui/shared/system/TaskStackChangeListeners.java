@@ -143,7 +143,7 @@ public class TaskStackChangeListeners {
         private static final int ON_TASK_DESCRIPTION_CHANGED = 21;
         private static final int ON_ACTIVITY_ROTATION = 22;
         private static final int ON_LOCK_TASK_MODE_CHANGED = 23;
-        private static final int ON_TASK_SNAPSHOT_INVALIDATED = 24;
+        private static final int ON_TASK_SNAPSHOT_RELEASED = 24;
         private static final int ON_RECENTS_TASK_REMOVED_FOR_ADD_TASK = 25;
 
         /**
@@ -164,8 +164,8 @@ public class TaskStackChangeListeners {
             }
 
             @Override
-            protected void onTaskSnapshotInvalidated(int taskId) {
-                mHandler.obtainMessage(ON_TASK_SNAPSHOT_INVALIDATED, taskId, 0 /* unused */)
+            protected void onTaskSnapshotReleased(int taskId) {
+                mHandler.obtainMessage(ON_TASK_SNAPSHOT_RELEASED, taskId, 0 /* unused */)
                         .sendToTarget();
             }
         }
@@ -190,10 +190,8 @@ public class TaskStackChangeListeners {
                 } catch (Exception e) {
                     Log.w(TAG, "Failed to call registerTaskStackListener", e);
                 }
-                if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-                    TaskSnapshotManager.getInstance()
-                            .registerTaskSnapshotListener(mTaskSnapshotListener);
-                }
+                TaskSnapshotManager.getInstance()
+                        .registerTaskSnapshotListener(mTaskSnapshotListener);
             }
         }
 
@@ -211,10 +209,8 @@ public class TaskStackChangeListeners {
                 } catch (Exception e) {
                     Log.w(TAG, "Failed to call unregisterTaskStackListener", e);
                 }
-                if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-                    TaskSnapshotManager.getInstance()
-                            .unregisterTaskSnapshotListener(mTaskSnapshotListener);
-                }
+                TaskSnapshotManager.getInstance()
+                        .unregisterTaskSnapshotListener(mTaskSnapshotListener);
             }
         }
 
@@ -291,17 +287,6 @@ public class TaskStackChangeListeners {
         @Override
         public void onTaskProfileLocked(RunningTaskInfo taskInfo, int userId) {
             mHandler.obtainMessage(ON_TASK_PROFILE_LOCKED, userId, 0, taskInfo).sendToTarget();
-        }
-
-        @Override
-        public void onTaskSnapshotChanged(int taskId, TaskSnapshot snapshot) {
-            mHandler.obtainMessage(ON_TASK_SNAPSHOT_CHANGED, taskId, 0, snapshot).sendToTarget();
-        }
-
-        @Override
-        public void onTaskSnapshotInvalidated(int taskId) {
-            mHandler.obtainMessage(ON_TASK_SNAPSHOT_INVALIDATED, taskId, 0 /* unused */)
-                    .sendToTarget();
         }
 
         @Override
@@ -391,10 +376,6 @@ public class TaskStackChangeListeners {
                         }
                         if (!snapshotConsumed) {
                             thumbnail.recycleBitmap();
-                            if (!com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()
-                                    && snapshot.getHardwareBuffer() != null) {
-                                snapshot.getHardwareBuffer().close();
-                            }
                         }
                         Trace.endSection();
                         break;
@@ -535,8 +516,8 @@ public class TaskStackChangeListeners {
                         }
                         break;
                     }
-                    case ON_TASK_SNAPSHOT_INVALIDATED: {
-                        Trace.beginSection("onTaskSnapshotInvalidated");
+                    case ON_TASK_SNAPSHOT_RELEASED: {
+                        Trace.beginSection("onTaskSnapshotReleased");
                         final ThumbnailData thumbnail = new ThumbnailData();
                         for (int i = mTaskStackListeners.size() - 1; i >= 0; i--) {
                             mTaskStackListeners.get(i).onTaskSnapshotChanged(msg.arg1, thumbnail);

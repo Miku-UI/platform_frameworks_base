@@ -27,8 +27,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Abstract base class to encapsulates the feature flags for magnification features.
- * {@see DeviceConfig}
  *
+ * @see DeviceConfig
  * @hide
  */
 abstract class MagnificationFeatureFlagBase {

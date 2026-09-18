@@ -16,14 +16,21 @@
 
 package com.android.systemui.screencapture.record.ui.compose
 
+import androidx.compose.animation.core.Transition
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.screencapture.record.smallscreen.ui.compose.SmallScreenCaptureRecordContent
+import com.android.systemui.screencapture.record.smallscreen.ui.viewmodel.smallScreenCaptureRecordViewModelFactory
 import com.android.systemui.screencapture.record.ui.viewmodel.screenCaptureRecordViewModelFactory
 
-val Kosmos.screenCaptureRecordContent: ScreenCaptureRecordContent by
-    Kosmos.Fixture {
-        ScreenCaptureRecordContent(
-            screenCaptureRecordViewModelFactory = screenCaptureRecordViewModelFactory,
-            largeScreenCaptureContent = { error("not yet implemented") },
-            smallScreenCaptureRecordContent = { error("not yet implemented") },
-        )
-    }
+fun Kosmos.screenCaptureRecordContent(transition: Transition<Boolean>): ScreenCaptureRecordContent =
+    ScreenCaptureRecordContent(
+        screenCaptureRecordViewModelFactory = screenCaptureRecordViewModelFactory,
+        largeScreenCaptureContent = { error("not yet implemented") },
+        smallScreenCaptureRecordContent = {
+            SmallScreenCaptureRecordContent(
+                window = null,
+                visibilityTransition = transition,
+                viewModelFactory = smallScreenCaptureRecordViewModelFactory,
+            )
+        },
+    )

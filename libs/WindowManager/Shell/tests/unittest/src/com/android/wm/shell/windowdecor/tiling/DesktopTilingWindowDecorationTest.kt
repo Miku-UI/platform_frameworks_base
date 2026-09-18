@@ -15,7 +15,6 @@
  */
 package com.android.wm.shell.windowdecor.tiling
 
-import android.app.ActivityManager
 import android.app.ActivityManager.RunningTaskInfo
 import android.content.Context
 import android.content.res.Configuration
@@ -34,6 +33,7 @@ import android.window.WindowContainerTransaction
 import androidx.test.annotation.UiThreadTest
 import androidx.test.filters.SmallTest
 import com.android.internal.jank.InteractionJankMonitor
+import com.android.wm.shell.R
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.ShellTestCase
@@ -187,7 +187,7 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
         )
 
         verify(toggleResizeDesktopTaskTransitionHandler)
-            .startTransition(capture(wctCaptor), any(), any())
+            .startTransition(capture(wctCaptor), any(), any(), eq(true))
         for (change in wctCaptor.value.changes) {
             val bounds = change.value.configuration.windowConfiguration.bounds
             val leftBounds = getLeftTaskBounds()
@@ -211,6 +211,7 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
         whenever(userRepositories.current.isVisibleTask(eq(task1.taskId))).thenReturn(true)
         whenever(userRepositories.current.isVisibleTask(eq(task2.taskId))).thenReturn(true)
         whenever(windowDecoration.taskSurface).thenReturn(mock())
+        whenever(focusTransitionObserver.isFocusedOnDisplay(task1)).thenReturn(true)
         task1.isFocused = true
 
         tilingDecoration.onAppTiled(
@@ -257,7 +258,7 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
         )
 
         verify(toggleResizeDesktopTaskTransitionHandler)
-            .startTransition(capture(wctCaptor), any(), any())
+            .startTransition(capture(wctCaptor), any(), any(), eq(true))
         for (change in wctCaptor.value.changes) {
             val bounds = change.value.configuration.windowConfiguration.bounds
             val leftBounds = getRightTaskBounds()
@@ -295,7 +296,7 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
         )
 
         verify(toggleResizeDesktopTaskTransitionHandler, times(1))
-            .startTransition(capture(wctCaptor), any(), any())
+            .startTransition(capture(wctCaptor), any(), any(), eq(true))
         verify(returnToDragStartAnimator, times(1)).start(any(), any(), any(), any(), anyOrNull())
         for (change in wctCaptor.value.changes) {
             val bounds = change.value.configuration.windowConfiguration.bounds
@@ -393,12 +394,13 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
         )
 
         verify(toggleResizeDesktopTaskTransitionHandler, times(2))
-            .startTransition(capture(wctCaptor), any(), capture(callbackCaptor))
+            .startTransition(capture(wctCaptor), any(), capture(callbackCaptor), eq(true))
         (callbackCaptor.value).invoke()
         // Ensures tiling isn't brought to front if tasks aren't focused, for example when
         // initializing tiling from persistence.
         verify(transitions, never()).startTransition(eq(TRANSIT_TO_FRONT), any(), eq(null))
 
+        whenever(focusTransitionObserver.isFocusedOnDisplay(task1)).thenReturn(true)
         task1.isFocused = true
 
         assertThat(tilingDecoration.moveTiledPairToFront(task1.taskId, isFocusedOnDisplay = true))
@@ -422,6 +424,8 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
         whenever(userRepositories.current.isVisibleTask(eq(task1.taskId))).thenReturn(true)
         whenever(userRepositories.current.isVisibleTask(eq(task2.taskId))).thenReturn(true)
         whenever(windowDecoration.taskSurface).thenReturn(mock())
+        whenever(focusTransitionObserver.isFocusedOnDisplay(task1)).thenReturn(true)
+        whenever(focusTransitionObserver.isFocusedOnDisplay(task2)).thenReturn(true)
         task1.isFocused = true
         task2.isFocused = true
 
@@ -440,7 +444,7 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
             destinationBoundsOverride = null,
         )
         verify(toggleResizeDesktopTaskTransitionHandler, times(2))
-            .startTransition(capture(wctCaptor), any(), capture(callbackCaptor))
+            .startTransition(capture(wctCaptor), any(), capture(callbackCaptor), eq(true))
         (callbackCaptor.value).invoke()
 
         verify(transitions, times(1)).startTransition(eq(TRANSIT_TO_FRONT), any(), eq(null))
@@ -476,10 +480,12 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
             BOUNDS,
             destinationBoundsOverride = null,
         )
+        whenever(focusTransitionObserver.isFocusedOnDisplay(task1)).thenReturn(true)
+        whenever(focusTransitionObserver.isFocusedOnDisplay(task3)).thenReturn(true)
         task1.isFocused = true
         task3.isFocused = true
         verify(toggleResizeDesktopTaskTransitionHandler, times(2))
-            .startTransition(capture(wctCaptor), any(), capture(callbackCaptor))
+            .startTransition(capture(wctCaptor), any(), capture(callbackCaptor), eq(true))
         (callbackCaptor.value).invoke()
 
         assertThat(tilingDecoration.moveTiledPairToFront(task3.taskId, true)).isFalse()
@@ -521,7 +527,7 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
             destinationBoundsOverride = null,
         )
         verify(toggleResizeDesktopTaskTransitionHandler, times(2))
-            .startTransition(capture(wctCaptor), any(), capture(callbackCaptor))
+            .startTransition(capture(wctCaptor), any(), capture(callbackCaptor), eq(true))
         (callbackCaptor.value).invoke()
 
         assertThat(tilingDecoration.moveTiledPairToFront(task3.taskId, isFocusedOnDisplay = true))
@@ -546,6 +552,9 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
         whenever(windowDecoration.taskInfo).thenReturn(task1)
         task1.minWidth = 0
         task1.minHeight = 0
+        task1.defaultMinSize = 0
+        whenever(resources.getDimensionPixelSize(R.dimen.desktop_mode_minimum_window_width))
+            .thenReturn(0)
         initTiledTaskHelperMock(task1)
         whenever(windowDecoration.decorWindowContext).thenReturn(context)
         whenever(resources.getBoolean(any())).thenReturn(true)
@@ -601,6 +610,96 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
     }
 
     @Test
+    fun startAnimation_setsWindowCropForAllChanges() {
+        // This test verifies that when startAnimation is called, it iterates through all
+        // changes in the TransitionInfo and applies a window crop based on the endAbsBounds
+        // of each change. This is important for ensuring all surfaces, not just the tiled
+        // task surfaces, are correctly sized at the end of the animation.
+
+        // Setup: Ensure tiling is initialized with two tasks so that startAnimation doesn't
+        // return early.
+        val leftTask = createVisibleTask()
+        val rightTask = createVisibleTask()
+        val leftTaskHelper: DesktopTilingWindowDecoration.AppResizingHelper = mock()
+        val rightTaskHelper: DesktopTilingWindowDecoration.AppResizingHelper = mock()
+        whenever(leftTaskHelper.taskInfo).thenReturn(leftTask)
+        whenever(rightTaskHelper.taskInfo).thenReturn(rightTask)
+        tilingDecoration.leftTaskResizingHelper = leftTaskHelper
+        tilingDecoration.rightTaskResizingHelper = rightTaskHelper
+
+        // Setup: Create mock transactions and a finish callback.
+        val startTransaction: SurfaceControl.Transaction = mock()
+        val finishTransaction: SurfaceControl.Transaction = mock()
+        val finishCallback: Transitions.TransitionFinishCallback = mock()
+
+        // Setup: Create a transition info with multiple mocked changes.
+        // The Change object's endAbsBounds is a 'val', so we must mock the Change object
+        // itself to control the value returned by endAbsBounds for the test.
+        val transitionInfo = TransitionInfo(TRANSIT_CHANGE, 0)
+
+        val change1 = mock<Change>()
+        val change1Leash = mock<SurfaceControl>()
+        val change1EndBounds = Rect(0, 0, 100, 200)
+        whenever(change1.leash).thenReturn(change1Leash)
+        whenever(change1.endAbsBounds).thenReturn(change1EndBounds)
+        transitionInfo.addChange(change1)
+
+        val change2 = mock<Change>()
+        val change2Leash = mock<SurfaceControl>()
+        val change2EndBounds = Rect(100, 0, 200, 200)
+        whenever(change2.leash).thenReturn(change2Leash)
+        whenever(change2.endAbsBounds).thenReturn(change2EndBounds)
+        transitionInfo.addChange(change2)
+
+        // Action: Call the method under test.
+        val result =
+            tilingDecoration.startAnimation(
+                transition,
+                transitionInfo,
+                startTransaction,
+                finishTransaction,
+                finishCallback,
+            )
+
+        // Assertions: The method should handle the transition and return true.
+        assertThat(result).isTrue()
+
+        // Verify window crop is set correctly for the first change on both transactions.
+        verify(startTransaction)
+            .setWindowCrop(
+                eq(change1Leash),
+                eq(change1EndBounds.width()),
+                eq(change1EndBounds.height()),
+            )
+        verify(finishTransaction)
+            .setWindowCrop(
+                eq(change1Leash),
+                eq(change1EndBounds.width()),
+                eq(change1EndBounds.height()),
+            )
+
+        // Verify window crop is set correctly for the second change on both transactions.
+        verify(startTransaction)
+            .setWindowCrop(
+                eq(change2Leash),
+                eq(change2EndBounds.width()),
+                eq(change2EndBounds.height()),
+            )
+        verify(finishTransaction)
+            .setWindowCrop(
+                eq(change2Leash),
+                eq(change2EndBounds.width()),
+                eq(change2EndBounds.height()),
+            )
+
+        // Verify other expected side effects of the animation start.
+        verify(startTransaction).apply()
+        verify(leftTaskHelper).hideVeil()
+        verify(rightTaskHelper).hideVeil()
+        verify(finishCallback).onTransitionFinished(null)
+    }
+
+    @Test
     fun tiledTasksResizedUsingDividerHandle_shouldLogResizingEvents() {
         // Setup
         val task1 = createVisibleTask()
@@ -615,6 +714,9 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
         whenever(windowDecoration.taskInfo).thenReturn(task1)
         task1.minWidth = 0
         task1.minHeight = 0
+        task1.defaultMinSize = 0
+        whenever(resources.getDimensionPixelSize(R.dimen.desktop_mode_minimum_window_width))
+            .thenReturn(0)
         initTiledTaskHelperMock(task1)
         whenever(windowDecoration.decorWindowContext).thenReturn(context)
         whenever(resources.getBoolean(any())).thenReturn(true)
@@ -785,10 +887,11 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
         )
 
         verify(toggleResizeDesktopTaskTransitionHandler, times(2))
-            .startTransition(capture(wctCaptor), any(), capture(callbackCaptor))
+            .startTransition(capture(wctCaptor), any(), capture(callbackCaptor), eq(true))
         (callbackCaptor.value).invoke()
 
         val changeInfo = createTransitRecentsEnds()
+        whenever(focusTransitionObserver.isFocusedOnDisplay(task1)).thenReturn(true)
         task1.isFocused = true
         tilingDecoration.explodedViewTopTaskId = task1.taskId
         tilingDecoration.isTilingManagerInitialised = true
@@ -1015,7 +1118,47 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
         verify(desktopRepository, never()).removeLeftTiledTaskFromDesk(displayId, deskId)
     }
 
-    private fun initTiledTaskHelperMock(taskInfo: ActivityManager.RunningTaskInfo) {
+    @Test
+    fun onTaskLaunchStarted_suppressesFocusChangeReorder() {
+        val task1 = createVisibleTask()
+        setupTiledSession(task1)
+        whenever(focusTransitionObserver.isFocusedOnDisplay(task1)).thenReturn(true)
+
+        tilingDecoration.onTaskLaunchStarted()
+        // Update focus (happens during recents exit/ task launch)
+        tilingDecoration.onFocusedTaskChanged(
+            task1,
+            isFocusedOnDisplay = true,
+            isFocusedGlobally = true,
+        )
+
+        // Check transition was NOT triggered because the flag was set
+        verify(transitions, never()).startTransition(eq(TRANSIT_TO_FRONT), any(), any())
+    }
+
+    @Test
+    fun onTaskLaunchStarted_setsLaunchFlagToTrue() {
+        assertThat(tilingDecoration.isLaunchInProgress).isFalse()
+
+        tilingDecoration.onTaskLaunchStarted()
+
+        assertThat(tilingDecoration.isLaunchInProgress).isTrue()
+    }
+
+    @Test
+    fun onTransitionReady_resetsLaunchFlag() {
+        tilingDecoration.isLaunchInProgress = true
+
+        tilingDecoration.onTransitionReady(mock(), mock(), mock(), mock())
+        val runnableCaptor = ArgumentCaptor.forClass(Runnable::class.java)
+        verify(mainExecutor).execute(runnableCaptor.capture())
+        // Update isLaunchInProgress to false
+        runnableCaptor.value.run()
+
+        assertThat(tilingDecoration.isLaunchInProgress).isFalse()
+    }
+
+    private fun initTiledTaskHelperMock(taskInfo: RunningTaskInfo) {
         whenever(tiledTaskHelper.bounds).thenReturn(BOUNDS)
         whenever(tiledTaskHelper.taskInfo).thenReturn(taskInfo)
         whenever(tiledTaskHelper.newBounds).thenReturn(Rect(BOUNDS))
@@ -1089,6 +1232,16 @@ class DesktopTilingWindowDecorationTest : ShellTestCase() {
                 }
             )
         }
+
+    private fun setupTiledSession(task: RunningTaskInfo) {
+        whenever(tiledTaskHelper.taskInfo).thenReturn(task)
+        whenever(tiledTaskHelper.windowDecoration).thenReturn(windowDecoration)
+        whenever(windowDecoration.taskSurface).thenReturn(mock())
+
+        tilingDecoration.leftTaskResizingHelper = tiledTaskHelper
+        tilingDecoration.rightTaskResizingHelper = tiledTaskHelper
+        tilingDecoration.isTilingManagerInitialised = true
+    }
 
     private fun createTransitRecentsEnds() =
         TransitionInfo(TRANSIT_END_RECENTS_TRANSITION, /* flags= */ 0)

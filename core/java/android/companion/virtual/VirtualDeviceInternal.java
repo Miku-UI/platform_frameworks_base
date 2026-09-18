@@ -43,7 +43,13 @@ import android.hardware.display.DisplayManagerGlobal;
 import android.hardware.display.IVirtualDisplayCallback;
 import android.hardware.display.VirtualDisplay;
 import android.hardware.display.VirtualDisplayConfig;
-import android.hardware.input.IVirtualInputDevice;
+import android.hardware.input.IVirtualDpad;
+import android.hardware.input.IVirtualKeyboard;
+import android.hardware.input.IVirtualMouse;
+import android.hardware.input.IVirtualNavigationTouchpad;
+import android.hardware.input.IVirtualRotaryEncoder;
+import android.hardware.input.IVirtualStylus;
+import android.hardware.input.IVirtualTouchscreen;
 import android.hardware.input.VirtualDpad;
 import android.hardware.input.VirtualDpadConfig;
 import android.hardware.input.VirtualKeyboard;
@@ -64,6 +70,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.os.UserHandle;
@@ -89,13 +96,11 @@ public class VirtualDeviceInternal {
     private final Object mActivityListenersLock = new Object();
     @GuardedBy("mActivityListenersLock")
     private final ArrayMap<VirtualDeviceManager.ActivityListener, ActivityListenerDelegate>
-            mActivityListeners =
-            new ArrayMap<>();
+            mActivityListeners = new ArrayMap<>();
     private final Object mIntentInterceptorListenersLock = new Object();
     @GuardedBy("mIntentInterceptorListenersLock")
     private final ArrayMap<VirtualDeviceManager.IntentInterceptorCallback,
-            IntentInterceptorDelegate> mIntentInterceptorListeners =
-            new ArrayMap<>();
+            IntentInterceptorDelegate> mIntentInterceptorListeners = new ArrayMap<>();
     private final Object mSoundEffectListenersLock = new Object();
     @GuardedBy("mSoundEffectListenersLock")
     private final ArrayMap<VirtualDeviceManager.SoundEffectListener, SoundEffectListenerDelegate>
@@ -175,6 +180,37 @@ public class VirtualDeviceInternal {
                         synchronized (mActivityListenersLock) {
                             for (int i = 0; i < mActivityListeners.size(); i++) {
                                 mActivityListeners.valueAt(i).onSecureWindowHidden(displayId);
+                            }
+                        }
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+
+                @Override
+                public void onActivityLaunchRequested(int displayId,
+                        @NonNull ComponentName componentName, @UserIdInt int userId) {
+                    final long token = Binder.clearCallingIdentity();
+                    try {
+                        synchronized (mActivityListenersLock) {
+                            for (int i = 0; i < mActivityListeners.size(); i++) {
+                                mActivityListeners.valueAt(i).onActivityLaunchRequested(displayId,
+                                        componentName, userId);
+                            }
+                        }
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+
+                @Override
+                public void onAuthenticationPrompt(int displayId, String packageName) {
+                    final long token = Binder.clearCallingIdentity();
+                    try {
+                        synchronized (mActivityListenersLock) {
+                            for (int i = 0; i < mActivityListeners.size(); i++) {
+                                mActivityListeners.valueAt(i).onAuthenticationPrompt(
+                                        displayId, packageName);
                             }
                         }
                     } finally {
@@ -387,7 +423,7 @@ public class VirtualDeviceInternal {
         try {
             final IBinder token = new Binder(
                     "android.hardware.input.VirtualDpad:" + config.getInputDeviceName());
-            IVirtualInputDevice device = mVirtualDevice.createVirtualDpad(config, token);
+            IVirtualDpad device = mVirtualDevice.createVirtualDpad(config, token);
             return new VirtualDpad(config, device);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
@@ -399,7 +435,7 @@ public class VirtualDeviceInternal {
         try {
             final IBinder token = new Binder(
                     "android.hardware.input.VirtualKeyboard:" + config.getInputDeviceName());
-            IVirtualInputDevice device = mVirtualDevice.createVirtualKeyboard(config, token);
+            IVirtualKeyboard device = mVirtualDevice.createVirtualKeyboard(config, token);
             return new VirtualKeyboard(config, device);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
@@ -411,7 +447,7 @@ public class VirtualDeviceInternal {
         try {
             final IBinder token = new Binder(
                     "android.hardware.input.VirtualMouse:" + config.getInputDeviceName());
-            IVirtualInputDevice device = mVirtualDevice.createVirtualMouse(config, token);
+            IVirtualMouse device = mVirtualDevice.createVirtualMouse(config, token);
             return new VirtualMouse(config, device);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
@@ -424,7 +460,7 @@ public class VirtualDeviceInternal {
         try {
             final IBinder token = new Binder(
                     "android.hardware.input.VirtualTouchscreen:" + config.getInputDeviceName());
-            IVirtualInputDevice device = mVirtualDevice.createVirtualTouchscreen(config, token);
+            IVirtualTouchscreen device = mVirtualDevice.createVirtualTouchscreen(config, token);
             return new VirtualTouchscreen(config, device);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
@@ -436,7 +472,7 @@ public class VirtualDeviceInternal {
         try {
             final IBinder token = new Binder(
                     "android.hardware.input.VirtualStylus:" + config.getInputDeviceName());
-            IVirtualInputDevice device = mVirtualDevice.createVirtualStylus(config, token);
+            IVirtualStylus device = mVirtualDevice.createVirtualStylus(config, token);
             return new VirtualStylus(config, device);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
@@ -448,7 +484,7 @@ public class VirtualDeviceInternal {
         try {
             final IBinder token = new Binder(
                     "android.hardware.input.VirtualRotaryEncoder:" + config.getInputDeviceName());
-            IVirtualInputDevice device = mVirtualDevice.createVirtualRotaryEncoder(config, token);
+            IVirtualRotaryEncoder device = mVirtualDevice.createVirtualRotaryEncoder(config, token);
             return new VirtualRotaryEncoder(config, device);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
@@ -462,8 +498,8 @@ public class VirtualDeviceInternal {
             final IBinder token = new Binder(
                     "android.hardware.input.VirtualNavigationTouchpad:"
                             + config.getInputDeviceName());
-            IVirtualInputDevice device = mVirtualDevice.createVirtualNavigationTouchpad(config,
-                    token);
+            IVirtualNavigationTouchpad device = mVirtualDevice.createVirtualNavigationTouchpad(
+                    config, token);
             return new VirtualNavigationTouchpad(config, device);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
@@ -519,9 +555,25 @@ public class VirtualDeviceInternal {
         }
     }
 
+    void setDisplayInTouchMode(int displayId, boolean inTouchMode) {
+        try {
+            mVirtualDevice.setDisplayInTouchMode(displayId, inTouchMode);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
     void setDisplayUiMode(int displayId, int uiMode) {
         try {
             mVirtualDevice.setDisplayUiMode(displayId, uiMode);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    void setCurrentThermalStatus(@PowerManager.ThermalStatus int status) {
+        try {
+            mVirtualDevice.setCurrentThermalStatus(status);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -598,7 +650,7 @@ public class VirtualDeviceInternal {
      * A wrapper for {@link VirtualDeviceManager.ActivityListener} that executes callbacks on the
      * given executor.
      */
-    private static class ActivityListenerDelegate {
+    private static class ActivityListenerDelegate implements VirtualDeviceManager.ActivityListener {
         @NonNull private final VirtualDeviceManager.ActivityListener mActivityListener;
         @NonNull private final Executor mExecutor;
 
@@ -608,35 +660,54 @@ public class VirtualDeviceInternal {
             mExecutor = executor;
         }
 
-        public void onTopActivityChanged(int displayId, ComponentName topActivity) {
+        @Override
+        public void onTopActivityChanged(int displayId, @NonNull ComponentName topActivity) {
             mExecutor.execute(() -> mActivityListener.onTopActivityChanged(displayId, topActivity));
         }
 
-        public void onTopActivityChanged(int displayId, ComponentName topActivity,
+        @Override
+        public void onTopActivityChanged(int displayId, @NonNull ComponentName topActivity,
                 @UserIdInt int userId) {
             mExecutor.execute(() ->
                     mActivityListener.onTopActivityChanged(displayId, topActivity, userId));
         }
 
+        @Override
         public void onDisplayEmpty(int displayId) {
             mExecutor.execute(() -> mActivityListener.onDisplayEmpty(displayId));
         }
 
-        public void onActivityLaunchBlocked(int displayId, ComponentName componentName,
-                UserHandle user, IntentSender intentSender) {
+        @Override
+        public void onActivityLaunchBlocked(int displayId, @NonNull ComponentName componentName,
+                @NonNull UserHandle user, IntentSender intentSender) {
             mExecutor.execute(() ->
                     mActivityListener.onActivityLaunchBlocked(
                             displayId, componentName, user, intentSender));
         }
 
-        public void onSecureWindowShown(int displayId, ComponentName componentName,
-                UserHandle user) {
+        @Override
+        public void onSecureWindowShown(int displayId, @NonNull ComponentName componentName,
+                @NonNull UserHandle user) {
             mExecutor.execute(() ->
                     mActivityListener.onSecureWindowShown(displayId, componentName, user));
         }
 
+        @Override
         public void onSecureWindowHidden(int displayId) {
             mExecutor.execute(() -> mActivityListener.onSecureWindowHidden(displayId));
+        }
+
+        @Override
+        public void onActivityLaunchRequested(int displayId, @NonNull ComponentName componentName,
+                @UserIdInt int userId) {
+            mExecutor.execute(() -> mActivityListener.onActivityLaunchRequested(displayId,
+                    componentName, userId));
+        }
+
+        @Override
+        public void onAuthenticationPrompt(int displayId, String packageName) {
+            mExecutor.execute(() -> mActivityListener.onAuthenticationPrompt(displayId,
+                    packageName));
         }
     }
 
@@ -649,8 +720,8 @@ public class VirtualDeviceInternal {
                 mIntentInterceptorCallback;
         @NonNull private final Executor mExecutor;
 
-        private IntentInterceptorDelegate(Executor executor,
-                VirtualDeviceManager.IntentInterceptorCallback interceptorCallback) {
+        private IntentInterceptorDelegate(@NonNull Executor executor,
+                @NonNull VirtualDeviceManager.IntentInterceptorCallback interceptorCallback) {
             mExecutor = executor;
             mIntentInterceptorCallback = interceptorCallback;
         }
@@ -674,8 +745,8 @@ public class VirtualDeviceInternal {
         @NonNull private final VirtualDeviceManager.SoundEffectListener mSoundEffectListener;
         @NonNull private final Executor mExecutor;
 
-        private SoundEffectListenerDelegate(Executor executor,
-                VirtualDeviceManager.SoundEffectListener soundEffectCallback) {
+        private SoundEffectListenerDelegate(@NonNull Executor executor,
+                @NonNull VirtualDeviceManager.SoundEffectListener soundEffectCallback) {
             mSoundEffectListener = soundEffectCallback;
             mExecutor = executor;
         }

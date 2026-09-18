@@ -22,7 +22,7 @@
     android:layout_gravity="bottom|start"
     android:scaleType="fitCenter"
     android:padding="@dimen/dream_overlay_bottom_affordance_padding"
-    android:tint="?android:attr/textColorPrimary"
+    android:tint="@color/materialColorOnSurface"
     android:src="@drawable/ic_music_note"
     android:background="@drawable/dream_overlay_bottom_affordance_bg"
     android:contentDescription="@string/controls_media_title" />

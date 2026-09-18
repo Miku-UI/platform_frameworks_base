@@ -16,6 +16,9 @@
 
 package android.hardware.devicestate;
 
+import static android.hardware.devicestate.feature.flags.Flags.deviceStatePropertyApi;
+import static android.hardware.devicestate.feature.flags.Flags.FLAG_DEVICE_STATE_PROPERTY_API;
+
 import android.Manifest;
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
@@ -41,7 +44,7 @@ import java.util.function.Consumer;
  * @hide
  */
 @SystemApi
-@FlaggedApi(android.hardware.devicestate.feature.flags.Flags.FLAG_DEVICE_STATE_PROPERTY_API)
+@FlaggedApi(FLAG_DEVICE_STATE_PROPERTY_API)
 @SystemService(Context.DEVICE_STATE_SERVICE)
 public final class DeviceStateManager {
     /**
@@ -264,7 +267,6 @@ public final class DeviceStateManager {
     public static class FoldStateListener implements DeviceStateCallback {
         private final int[] mFoldedDeviceStates;
         private final Consumer<Boolean> mDelegate;
-        private final android.hardware.devicestate.feature.flags.FeatureFlags mFeatureFlags;
 
         @Nullable
         private Boolean lastResult;
@@ -277,13 +279,12 @@ public final class DeviceStateManager {
             mFoldedDeviceStates = context.getResources().getIntArray(
                     com.android.internal.R.array.config_foldedDeviceStates);
             mDelegate = listener;
-            mFeatureFlags = new android.hardware.devicestate.feature.flags.FeatureFlagsImpl();
         }
 
         @Override
         public final void onDeviceStateChanged(@NonNull DeviceState deviceState) {
             final boolean folded;
-            if (mFeatureFlags.deviceStatePropertyApi()) {
+            if (deviceStatePropertyApi()) {
                 // TODO(b/325124054): Update when system server refactor is completed
                 folded = deviceState.hasProperty(
                         DeviceState.PROPERTY_FOLDABLE_DISPLAY_CONFIGURATION_OUTER_PRIMARY)

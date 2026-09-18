@@ -54,7 +54,6 @@ import android.os.Bundle;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 
 import androidx.test.InstrumentationRegistry;
@@ -97,7 +96,6 @@ public class IntentForwarderActivityTest {
     private static UserInfo MANAGED_PROFILE_INFO = new UserInfo();
     private static UserInfo PRIVATE_PROFILE_INFO = new UserInfo(12, "Private", null,
             UserInfo.FLAG_PROFILE, UserManager.USER_TYPE_PROFILE_PRIVATE);
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     static {
         MANAGED_PROFILE_INFO.id = 10;
@@ -647,9 +645,6 @@ public class IntentForwarderActivityTest {
 
     @Test
     public void shouldForwardToParent_telephony_privateProfile() throws Exception {
-        mSetFlagsRule.enableFlags(
-                android.multiuser.Flags.FLAG_ENABLE_PRIVATE_SPACE_INTENT_REDIRECTION);
-
         sComponentName = FORWARD_TO_PARENT_COMPONENT_NAME;
         when(mIPm.canForwardTo(
                 any(Intent.class), nullable(String.class), anyInt(), anyInt())).thenReturn(true);
@@ -669,9 +664,6 @@ public class IntentForwarderActivityTest {
 
     @Test
     public void shouldForwardToParent_mms_privateProfile() throws Exception {
-        mSetFlagsRule.enableFlags(
-                android.multiuser.Flags.FLAG_ENABLE_PRIVATE_SPACE_INTENT_REDIRECTION);
-
         sComponentName = FORWARD_TO_PARENT_COMPONENT_NAME;
         when(mIPm.canForwardTo(
                 any(Intent.class), nullable(String.class), anyInt(), anyInt())).thenReturn(true);

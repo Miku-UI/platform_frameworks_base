@@ -14,7 +14,8 @@
      limitations under the License.
 -->
 
-<resources>
+<resources
+      xmlns:android="http://schemas.android.com/apk/res/android">
 
     <integer name="page_option_value_all">0</integer>
     <integer name="page_option_value_page_range">1</integer>
@@ -40,7 +41,10 @@
     <integer name="print_option_column_count">2</integer>
 
     <dimen name="preview_page_footer_height">32dip</dimen>
-    <dimen name="preview_page_min_width">128dip</dimen>
+    <dimen name="preview_page_min_width"
+          android:featureFlag="!com.android.printspooler.flags.updated_button_layout">128dip</dimen>
+    <dimen name="preview_page_min_width"
+          android:featureFlag="com.android.printspooler.flags.updated_button_layout">100dip</dimen>
 
     <dimen name="preview_destination_spinner_width">256dip</dimen>
 

@@ -106,7 +106,7 @@
     <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;Ky aplikacion nuk u përditësua sepse pati një problem gjatë verifikimit të zhvilluesit. Për të mbajtur pajisjen dhe të dhënat e tua të sigurta, mund të instalohen vetëm përditësimet nga zhvilluesit e verifikuar.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Mëso më shumë rreth verifikimit të zhvilluesve&lt;/a&gt;"</string>
     <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Nëse e instalon pa e verifikuar, ki parasysh se aplikacionet nga zhvilluesit e paverifikuar mund të vendosin pajisjen dhe të dhënat e tua në rrezik."</string>
     <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Nëse e përditëson pa e verifikuar, ki parasysh se përditësimet nga zhvilluesit e paverifikuar mund të vendosin pajisjen dhe të dhënat e tua në rrezik."</string>
-    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Zhvilluesi i aplikacionit nuk është verifikuar"</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Zhvilluesi i aplikacionit nuk është i verifikuar"</string>
     <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Nuk ka internet. Zhvilluesi i aplikacionit nuk mund të verifikohet"</string>
     <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Zhvilluesi i aplikacionit nuk mund të verifikohet"</string>
     <string name="install_without_verifying" msgid="5359680595440741626">"Instalo pa verifikim"</string>

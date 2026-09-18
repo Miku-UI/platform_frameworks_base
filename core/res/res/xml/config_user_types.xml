@@ -31,8 +31,8 @@ Pre-defined (AOSP) user types can be customized and new types can be defined. Th
 same in both cases.
 
 Currently, only profiles (not full or system users) can be freely customized/defined.
-Full users (i.e. non-system, non-profile) users cannot be defined, and the only property of them
-that can be customized are the default-restrictions.
+Non-profile (i.e. system and full) users cannot be defined, but many of their properties can be
+customized.
 
 The following example modifies two AOSP user types (the FULL user android.os.usertype.full.SECONDARY
 and the PROFILE user android.os.usertype.profile.MANAGED) and creates a new PROFILE user type
@@ -74,22 +74,31 @@ and the PROFILE user android.os.usertype.profile.MANAGED) and creates a new PROF
         whenVersionLeq="1" />
 </user-types>
 
+Valid type tags correspond to UserInfo base types and are:
+    full-type         for FLAG_FULL
+    profile-type      for FLAG_PROFILE
+    system-type       for FLAG_SYSTEM
+    full-system-type  for (FLAG_FULL | FLAG_SYSTEM)
+    change-user-type  for converting users of one user type to another during an upgrade
+
 Mandatory attributes:
     name
 
 Supported optional properties (to be used as shown in the example above) are as follows.
-For profile and full users:
-    default-restrictions (with values defined in UserRestrictionUtils.USER_RESTRICTIONS)
+For all users (profile, full, and system):
     enabled
-    user-properties
     max-allowed
+    default-restrictions (with attributes defined in UserRestrictionUtils.USER_RESTRICTIONS)
+    user-properties (with attributes delineated by UserProperties.ATTR_ strings)
 For profile users only:
     max-allowed-per-parent
     icon-badge
     badge-plain
     badge-no-background
+    status-bar-icon
     badge-labels
     badge-colors
+    badge-colors-dark
 
 See UserTypeFactory.java and UserTypeDetails.java for the meaning (and default values) of these
 fields.

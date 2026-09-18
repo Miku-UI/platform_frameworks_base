@@ -1,0 +1,11 @@
+# PowerManagerService owners for PowerCommand
+file:/services/core/java/com/android/server/power/OWNERS
+
+# UsbService owners for UsbCommand
+file:/services/usb/OWNERS
+
+# Nfc owners for NfcCommand
+file:platform/packages/modules/Nfc:/OWNERS
+
+# SystemServerCommand
+omakoto@google.com

@@ -15,6 +15,7 @@
  */
 package android.hardware.camera2.extension;
 
+import android.hardware.camera2.extension.IOnActiveOutputSurfaceCallback;
 import android.hardware.camera2.extension.OutputConfigId;
 import android.hardware.camera2.extension.Size;
 import android.view.Surface;
@@ -39,4 +40,5 @@ parcelable CameraOutputConfig
     String physicalCameraId;
     List<CameraOutputConfig> sharedSurfaceConfigs;
     boolean isMultiResolutionOutput;
+    IOnActiveOutputSurfaceCallback onActiveOutputSurfaceCallback;
 }

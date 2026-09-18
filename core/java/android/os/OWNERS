@@ -50,6 +50,7 @@ per-file IHwBinder.java = file:platform/system/libhwbinder:/OWNERS
 per-file IHwInterface.java = file:platform/system/libhwbinder:/OWNERS
 
 per-file GraphicsEnvironment.java = file:platform/frameworks/native:/opengl/OWNERS
+per-file GraphicsEnvironment.java = file:platform/external/angle:/OWNERS.android
 
 per-file *Network* = file:/services/core/java/com/android/server/net/OWNERS
 per-file *Power* = file:/services/core/java/com/android/server/power/OWNERS
@@ -73,6 +74,7 @@ per-file Vintf* = file:/platform/system/libvintf:/OWNERS
 
 # Tracing
 per-file Trace.java = file:/TRACE_OWNERS
+per-file Trace.java = file:/PERFORMANCE_OWNERS
 
 # PatternMatcher
 per-file PatternMatcher* = file:/PACKAGE_MANAGER_OWNERS
@@ -137,6 +139,9 @@ per-file HandlerExecutor.java = file:/MESSAGE_QUEUE_OWNERS
 per-file MessageHeap.java = file:/MESSAGE_QUEUE_OWNERS
 per-file MessageStack.java = file:/MESSAGE_QUEUE_OWNERS
 per-file WaitState.java = file:/MESSAGE_QUEUE_OWNERS
+per-file *MessageQueue/** = file:/MESSAGE_QUEUE_OWNERS
+per-file *DeliQueue/** = file:/MESSAGE_QUEUE_OWNERS
+per-file LooperDoctor.java = file:/MESSAGE_QUEUE_OWNERS
 
 # Stats
 per-file IStatsBootstrapAtomService.aidl = file:/services/core/java/com/android/server/stats/OWNERS
@@ -155,4 +160,4 @@ per-file flags.aconfig = file:/FF_LEADS_OWNERS
 per-file ITradeInMode.aidl = file:/TRADE_IN_MODE_OWNERS
 
 # Perfetto SDK
-per-file PerfettoTrace*.java = file:/PERFETTO_OWNERS
+per-file Perfetto*.java = file:/PERFETTO_OWNERS

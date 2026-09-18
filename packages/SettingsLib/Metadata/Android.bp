@@ -11,13 +11,20 @@ android_library {
     sdk_version: "system_current",
     min_sdk_version: "23",
     srcs: ["src/**/*.kt"],
+    use_resource_processor: true,
+    resource_dirs: ["./res"],
     static_libs: [
         "SettingsLibDataStore",
+        "SettingsLibUtils",
         "androidx.annotation_annotation",
         "androidx.fragment_fragment",
+        "settingslib_catalyst_flags_lib",
     ],
     kotlincflags: ["-Xjvm-default=all"],
     optimize: {
         proguard_flags_files: ["proguard.pgcfg"],
+    },
+    lint: {
+        baseline_filename: "lint-baseline.xml",
     },
 }

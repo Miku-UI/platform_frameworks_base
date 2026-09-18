@@ -18,30 +18,40 @@ package com.android.systemui.statusbar.pipeline.mobile.ui.compose
 
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconsViewModel
+import com.android.systemui.lifecycle.rememberActivated
+import com.android.systemui.res.R
+import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconsState
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.StackedMobileIconViewModel
 import com.android.systemui.statusbar.pipeline.shared.ui.composable.StackedMobileIcon
 
 /** Renders the mobile icons for the status bar. */
 @Composable
 fun MobileIcons(
-    viewModel: MobileIconsViewModel,
+    state: MobileIconsState,
     stackedMobileIconViewModel: StackedMobileIconViewModel,
     modifier: Modifier = Modifier,
 ) {
-    val isStackable by viewModel.isStackable.collectAsStateWithLifecycle()
+
+    // TODO(414653733): The icon size should always be the same as the battery.
+    val iconHeightDp = dimensionResource(R.dimen.status_bar_composable_icon_height_sp)
+
+    val isStackable = state.isStackable
     if (isStackable) {
-        StackedMobileIcon(viewModel = stackedMobileIconViewModel, modifier = modifier)
+        StackedMobileIcon(
+            viewModel = stackedMobileIconViewModel,
+            modifier = modifier.height(iconHeightDp),
+        )
     } else {
-        val mobileSubViewModels by viewModel.mobileSubViewModels.collectAsStateWithLifecycle()
+        val mobileSubViewModels = state.mobileSubViewModels
         val iconPaddingSp = 4.sp
         val iconSpacingSp = 2.sp
         val padding = with(LocalDensity.current) { iconPaddingSp.toDp() }
@@ -50,10 +60,16 @@ fun MobileIcons(
         Row(
             horizontalArrangement = spacedBy(spacing),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = modifier.padding(horizontal = padding),
+            modifier = modifier.height(iconHeightDp).padding(horizontal = padding),
         ) {
             mobileSubViewModels.forEach { mobileViewModel ->
-                MobileIcon(viewModel = mobileViewModel)
+                val id = mobileViewModel.subscriptionId
+                key(id) {
+                    MobileIcon(
+                        state =
+                            rememberActivated("MobileIconState[$id]") { mobileViewModel.create() }
+                    )
+                }
             }
         }
     }

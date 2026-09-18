@@ -151,7 +151,7 @@ class InternetTileNewImplTest : SysuiTestCase() {
     @Test
     fun noDefaultConnection_noNetworkAvailable() =
         testScope.runTest {
-            connectivityRepository.defaultConnections.value = DefaultConnectionModel()
+            connectivityRepository.resolvedConnections.value = DefaultConnectionModel()
             wifiRepository.wifiScanResults.value = listOf()
 
             runCurrent()
@@ -165,7 +165,7 @@ class InternetTileNewImplTest : SysuiTestCase() {
     @Test
     fun noDefaultConnection_networksAvailable() =
         testScope.runTest {
-            connectivityRepository.defaultConnections.value = DefaultConnectionModel()
+            connectivityRepository.resolvedConnections.value = DefaultConnectionModel()
             wifiRepository.wifiScanResults.value =
                 listOf(WifiScanEntry(ssid = "ssid 1"), WifiScanEntry(ssid = "ssid 2"))
 
@@ -181,7 +181,7 @@ class InternetTileNewImplTest : SysuiTestCase() {
     fun airplaneMode_enabled_wifiDisabled() =
         testScope.runTest {
             airplaneModeRepository.setIsAirplaneMode(true)
-            connectivityRepository.defaultConnections.value = DefaultConnectionModel()
+            connectivityRepository.resolvedConnections.value = DefaultConnectionModel()
             wifiRepository.setIsWifiEnabled(false)
 
             runCurrent()
@@ -196,7 +196,7 @@ class InternetTileNewImplTest : SysuiTestCase() {
     fun airplaneMode_enabled_wifiEnabledButNotConnected() =
         testScope.runTest {
             airplaneModeRepository.setIsAirplaneMode(true)
-            connectivityRepository.defaultConnections.value = DefaultConnectionModel()
+            connectivityRepository.resolvedConnections.value = DefaultConnectionModel()
             wifiRepository.setIsWifiEnabled(true)
 
             runCurrent()
@@ -211,7 +211,7 @@ class InternetTileNewImplTest : SysuiTestCase() {
     fun airplaneMode_enabled_wifiEnabledAndConnected() =
         testScope.runTest {
             airplaneModeRepository.setIsAirplaneMode(true)
-            connectivityRepository.defaultConnections.value =
+            connectivityRepository.resolvedConnections.value =
                 DefaultConnectionModel(wifi = Wifi(true), isValidated = true)
             wifiRepository.setIsWifiEnabled(true)
             wifiRepository.setWifiNetwork(ACTIVE_WIFI)
@@ -226,7 +226,7 @@ class InternetTileNewImplTest : SysuiTestCase() {
     @Test
     fun wifiConnected() =
         testScope.runTest {
-            connectivityRepository.defaultConnections.value =
+            connectivityRepository.resolvedConnections.value =
                 DefaultConnectionModel(wifi = Wifi(true), isValidated = true)
 
             wifiRepository.setIsWifiEnabled(true)
@@ -241,7 +241,6 @@ class InternetTileNewImplTest : SysuiTestCase() {
 
     companion object {
         const val WIFI_SSID = "test ssid"
-        val ACTIVE_WIFI =
-            WifiNetworkModel.Active.of(isValidated = true, level = 4, ssid = WIFI_SSID)
+        val ACTIVE_WIFI = WifiNetworkModel.Active.of(level = 4, ssid = WIFI_SSID)
     }
 }

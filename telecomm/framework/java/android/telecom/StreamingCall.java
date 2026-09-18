@@ -26,6 +26,7 @@ import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import com.android.internal.telecom.ParcelUtils;
 import com.android.server.telecom.flags.Flags;
 
 import java.lang.annotation.Retention;
@@ -69,7 +70,7 @@ public final class StreamingCall implements Parcelable {
     private StreamingCall(@NonNull Parcel in) {
         mComponentName = in.readParcelable(ComponentName.class.getClassLoader(),
                 ComponentName.class);
-        mDisplayName = in.readCharSequence();
+        mDisplayName = ParcelUtils.readCharSequence(in);
         mAddress = in.readParcelable(Uri.class.getClassLoader(), android.net.Uri.class);
         mExtras = in.readBundle();
         mState = in.readInt();
@@ -96,7 +97,7 @@ public final class StreamingCall implements Parcelable {
     @Override
     public void writeToParcel(@androidx.annotation.NonNull Parcel dest, int flags) {
         dest.writeParcelable(mComponentName, flags);
-        dest.writeCharSequence(mDisplayName);
+        ParcelUtils.writeCharSequence(dest, mDisplayName);
         dest.writeParcelable(mAddress, flags);
         dest.writeBundle(mExtras);
         dest.writeInt(mState);

@@ -1,0 +1,182 @@
+{
+  "frame_ids": [
+    "before",
+    0,
+    16,
+    32,
+    48,
+    64,
+    80,
+    96,
+    112,
+    128,
+    144,
+    160,
+    176,
+    192,
+    208,
+    224,
+    240,
+    256,
+    272,
+    288,
+    304,
+    320,
+    336,
+    352,
+    368,
+    384,
+    400,
+    416,
+    432,
+    448,
+    464,
+    480,
+    496,
+    "after"
+  ],
+  "features": [
+    {
+      "name": "current_tiles_grid_size",
+      "type": "intSize",
+      "data_points": [
+        {
+          "width": 1328,
+          "height": 343
+        },
+        {
+          "width": 1328,
+          "height": 343
+        },
+        {
+          "width": 1328,
+          "height": 343
+        },
+        {
+          "width": 1328,
+          "height": 343
+        },
+        {
+          "width": 1328,
+          "height": 343
+        },
+        {
+          "width": 1328,
+          "height": 378
+        },
+        {
+          "width": 1328,
+          "height": 439
+        },
+        {
+          "width": 1328,
+          "height": 494
+        },
+        {
+          "width": 1328,
+          "height": 536
+        },
+        {
+          "width": 1328,
+          "height": 566
+        },
+        {
+          "width": 1328,
+          "height": 585
+        },
+        {
+          "width": 1328,
+          "height": 597
+        },
+        {
+          "width": 1328,
+          "height": 605
+        },
+        {
+          "width": 1328,
+          "height": 609
+        },
+        {
+          "width": 1328,
+          "height": 612
+        },
+        {
+          "width": 1328,
+          "height": 614
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        },
+        {
+          "width": 1328,
+          "height": 616
+        }
+      ]
+    }
+  ]
+}

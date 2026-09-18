@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<security-patches xmlns="http://schemas.android.com/security/patches/1.0">
+    <patch>
+        <id>CVE-2022-00000</id>
+    </patch>
+    <patch>
+        <id>CVE-2023-11111</id>
+    </patch>
+</security-patches>

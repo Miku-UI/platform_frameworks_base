@@ -77,7 +77,6 @@ import android.hardware.display.DisplayManagerInternal;
 import android.hardware.input.InputManager;
 import android.hardware.input.KeyGestureEvent;
 import android.media.AudioManagerInternal;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.PowerManager;
@@ -99,6 +98,7 @@ import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.view.autofill.AutofillManagerInternal;
+import android.widget.Toast;
 
 import com.android.dx.mockito.inline.extended.StaticMockitoSession;
 import com.android.internal.logging.MetricsLogger;
@@ -206,13 +206,13 @@ class TestPhoneWindowManager {
         }
 
         @Override
-        boolean toggleTalkback(int currentUserId) {
+        public boolean toggleTalkback(int currentUserId) {
             mIsTalkBackEnabled = !mIsTalkBackEnabled;
             return mIsTalkBackEnabled;
         }
 
         @Override
-        boolean isTalkBackShortcutGestureEnabled() {
+        public boolean isTalkBackShortcutGestureEnabled() {
             return mIsTalkBackShortcutGestureEnabled;
         }
     }
@@ -231,7 +231,9 @@ class TestPhoneWindowManager {
             return () -> mGlobalActions;
         }
 
-        KeyguardServiceDelegate getKeyguardServiceDelegate() {
+        @Override
+        KeyguardServiceDelegate getKeyguardServiceDelegate(
+                KeyguardServiceDelegate.StateCallback callbacks) {
             return mKeyguardServiceDelegate;
         }
 
@@ -280,6 +282,7 @@ class TestPhoneWindowManager {
                 .mockStatic(KeyCharacterMap.class)
                 .mockStatic(GestureLauncherService.class)
                 .mockStatic(SystemProperties.class)
+                .mockStatic(Toast.class)
                 .strictness(Strictness.LENIENT)
                 .startMocking();
 
@@ -375,16 +378,17 @@ class TestPhoneWindowManager {
         doNothing().when(mPhoneWindowManager).initializeHdmiState();
         if (supportSettingsUpdate) {
             doAnswer(inv -> {
-                // Make any call to updateSettings run synchronously for tests.
-                mPhoneWindowManager.updateSettings(null);
+                // Make any call to postUpdateSettings run synchronously for tests.
+                mPhoneWindowManager.updateSettings();
                 return null;
-            }).when(mPhoneWindowManager).updateSettings(any(Handler.class));
+            }).when(mPhoneWindowManager).postUpdateSettings();
         } else {
-            doNothing().when(mPhoneWindowManager).updateSettings(any());
+            doNothing().when(mPhoneWindowManager).postUpdateSettings();
+            doNothing().when(mPhoneWindowManager).updateSettings();
         }
         doNothing().when(mPhoneWindowManager).screenTurningOn(anyInt(), any());
         doNothing().when(mPhoneWindowManager).screenTurnedOn(anyInt());
-        doNothing().when(mPhoneWindowManager).startedWakingUp(anyInt(), anyInt());
+        doNothing().when(mPhoneWindowManager).startedWakingUp(anyInt(), anyInt(), anyBoolean());
         doNothing().when(mPhoneWindowManager).finishedWakingUp(anyInt(), anyInt());
         doNothing().when(mPhoneWindowManager).lockNow(any());
 
@@ -392,6 +396,10 @@ class TestPhoneWindowManager {
                 .when(mWindowManagerInternal).getTargetWindowTokenFromInputToken(mInputToken);
 
         doReturn(null).when(mContext).registerReceiver(any(), any());
+
+        Toast mockToast = mock(Toast.class);
+        doReturn(mockToast).when(() -> Toast.makeText(any(), any(), anyString(), anyInt()));
+        doReturn(mockToast).when(() -> Toast.makeText(any(), anyInt(), anyInt()));
 
         mPhoneWindowManager.init(new TestInjector(mContext, mWindowManagerFuncsImpl));
         mPhoneWindowManager.systemReady();
@@ -546,6 +554,23 @@ class TestPhoneWindowManager {
                 DEFAULT_DISPLAY, PowerManager.BRIGHTNESS_CONSTRAINT_TYPE_MAXIMUM);
         doReturn(currentBrightness).when(mDisplayManager)
                 .getBrightness(DEFAULT_DISPLAY);
+
+        android.hardware.display.BrightnessInfo brightnessInfo =
+                new android.hardware.display.BrightnessInfo(currentBrightness, currentBrightness,
+                        0.0f, 1.0f,
+                        android.hardware.display.BrightnessInfo.HIGH_BRIGHTNESS_MODE_OFF, 0.8f,
+                        android.hardware.display.BrightnessInfo.BRIGHTNESS_MAX_REASON_NONE,
+                        false /* isBrightnessOverrideByWindow */);
+        doReturn(brightnessInfo).when(mDisplay).getBrightnessInfo();
+    }
+
+    void prepareBrightnessOverride() {
+        android.hardware.display.BrightnessInfo brightnessInfo =
+                new android.hardware.display.BrightnessInfo(0.5f, 0.5f, 0.0f, 1.0f,
+                android.hardware.display.BrightnessInfo.HIGH_BRIGHTNESS_MODE_OFF, 0.8f,
+                android.hardware.display.BrightnessInfo.BRIGHTNESS_MAX_REASON_NONE,
+                true /* isBrightnessOverrideByWindow */);
+        doReturn(brightnessInfo).when(mDisplay).getBrightnessInfo();
     }
 
     void verifyNewBrightness(float newBrightness) {
@@ -577,7 +602,8 @@ class TestPhoneWindowManager {
     }
 
     void overrideLaunchHome() {
-        doNothing().when(mPhoneWindowManager).launchHomeFromHotKey(anyInt());
+        doNothing().when(mPhoneWindowManager).launchHomeFromHotKey(anyInt(), anyBoolean(),
+                anyBoolean());
     }
 
     void overrideKeyguardOn(boolean isKeyguardOn) {
@@ -720,7 +746,7 @@ class TestPhoneWindowManager {
     void assertPowerWakeUp() {
         mTestLooper.dispatchAll();
         verify(mWindowWakeUpPolicy).wakeUpFromKey(
-                eq(DEFAULT_DISPLAY), anyLong(), eq(KeyEvent.KEYCODE_POWER), anyBoolean());
+                eq(DEFAULT_DISPLAY), anyLong(), eq(KeyEvent.KEYCODE_POWER), anyBoolean(), anyInt());
     }
 
     void assertNoPowerSleep() {
@@ -905,12 +931,13 @@ class TestPhoneWindowManager {
 
     void assertGoToHomescreen() {
         mTestLooper.dispatchAll();
-        verify(mPhoneWindowManager).launchHomeFromHotKey(anyInt());
+        verify(mPhoneWindowManager).launchHomeFromHotKey(anyInt(), anyBoolean(), anyBoolean());
     }
 
     void assertNotGoToHomescreen() {
         mTestLooper.dispatchAll();
-        verify(mPhoneWindowManager, never()).launchHomeFromHotKey(anyInt());
+        verify(mPhoneWindowManager, never())
+                .launchHomeFromHotKey(anyInt(), anyBoolean(), anyBoolean());
     }
 
     void assertOpenAllAppView() {
@@ -966,5 +993,11 @@ class TestPhoneWindowManager {
         mTestLooper.dispatchAll();
         verify(mContext, never()).startActivityAsUser(any(), any(), any());
         verify(mContext, never()).startActivityAsUser(any(), any());
+    }
+
+    void assertToastShown(int resId) {
+        mTestLooper.dispatchAll();
+        String message = mContext.getString(resId);
+        verify(() -> Toast.makeText(any(), any(), eq(message), anyInt()));
     }
 }

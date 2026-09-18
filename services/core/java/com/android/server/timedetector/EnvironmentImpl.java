@@ -34,9 +34,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 
-/**
- * The real implementation of {@link TimeDetectorStrategyImpl.Environment} used on device.
- */
+/** The real implementation of {@link TimeDetectorStrategyImpl.Environment} used on device. */
 final class EnvironmentImpl implements TimeDetectorStrategyImpl.Environment {
 
     private static final String LOG_TAG = TimeDetectorService.TAG;
@@ -49,11 +47,12 @@ final class EnvironmentImpl implements TimeDetectorStrategyImpl.Environment {
         mHandler = Objects.requireNonNull(handler);
 
         PowerManager powerManager = context.getSystemService(PowerManager.class);
-        mWakeLock = Objects.requireNonNull(
-                powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, LOG_TAG));
+        mWakeLock =
+                Objects.requireNonNull(
+                        powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, LOG_TAG));
 
-        mAlarmManagerInternal = Objects.requireNonNull(
-                LocalServices.getService(AlarmManagerInternal.class));
+        mAlarmManagerInternal =
+                Objects.requireNonNull(LocalServices.getService(AlarmManagerInternal.class));
     }
 
     @Override
@@ -81,7 +80,8 @@ final class EnvironmentImpl implements TimeDetectorStrategyImpl.Environment {
 
     @Override
     public void setSystemClock(
-            @CurrentTimeMillisLong long newTimeMillis, @TimeConfidence int confidence,
+            @CurrentTimeMillisLong long newTimeMillis,
+            @TimeConfidence int confidence,
             @NonNull String logMsg) {
         checkWakeLockHeld();
         mAlarmManagerInternal.setTime(newTimeMillis, confidence, logMsg);
@@ -113,10 +113,12 @@ final class EnvironmentImpl implements TimeDetectorStrategyImpl.Environment {
     @Override
     public void dumpDebugLog(@NonNull IndentingPrintWriter pw) {
         long elapsedRealtimeMillis = elapsedRealtimeMillis();
-        pw.printf("elapsedRealtimeMillis()=%s (%s)\n",
+        pw.printf(
+                "elapsedRealtimeMillis()=%s (%s)\n",
                 Duration.ofMillis(elapsedRealtimeMillis), elapsedRealtimeMillis);
         long systemClockMillis = systemClockMillis();
-        pw.printf("systemClockMillis()=%s (%s)\n",
+        pw.printf(
+                "systemClockMillis()=%s (%s)\n",
                 Instant.ofEpochMilli(systemClockMillis), systemClockMillis);
         pw.println("systemClockConfidence()=" + systemClockConfidence());
 

@@ -19,22 +19,30 @@ import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.list;
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.set;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
 import android.content.ComponentName;
 import android.content.pm.ShortcutInfo;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
 
 import com.android.frameworks.servicestests.R;
 import com.android.server.pm.ShortcutService.ConfigConstants;
 
 import java.util.Set;
 
+import org.junit.runner.RunWith;
+import org.junit.Test;
+
 /**
  * Tests related to shortcut rank auto-adjustment.
  */
 @Presubmit
 @SmallTest
+@RunWith(AndroidJUnit4.class)
 public class ShortcutManagerTest3 extends BaseShortcutManagerTest {
 
     private static final String CALLING_PACKAGE = CALLING_PACKAGE_1;
@@ -61,7 +69,7 @@ public class ShortcutManagerTest3 extends BaseShortcutManagerTest {
     }
 
     @Override
-    protected void setUp() throws Exception {
+    public void setUp() throws Exception {
         super.setUp();
 
         // We don't need throttling during this test class, and also relax the max cap.
@@ -517,6 +525,7 @@ public class ShortcutManagerTest3 extends BaseShortcutManagerTest {
                 disabled_testDisableShortcuts_noManifestShortcuts());
     }
 
+    @Test
     public void testGetSharingShortcutCount() {
         addManifestShortcutResource(
                 new ComponentName(CALLING_PACKAGE_1, ShortcutActivity.class.getName()),

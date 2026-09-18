@@ -38,6 +38,8 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/button_1"
             android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
             android:visibility="gone"
             app:iconPadding="0dp"
             app:iconGravity="textStart"
@@ -45,6 +47,8 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/button_2"
             android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
             android:visibility="gone"
             app:iconPadding="0dp"
             app:iconGravity="textStart"
@@ -52,6 +56,8 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/button_3"
             android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
             android:visibility="gone"
             app:iconPadding="0dp"
             app:iconGravity="textStart"
@@ -59,6 +65,8 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/button_4"
             android:layout_weight="1"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
             android:visibility="gone"
             app:iconPadding="0dp"
             app:iconGravity="textStart"
@@ -79,7 +87,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:textAppearance="@style/TextAppearance.SettingsLib.TitleSmall.Emphasized"
+            android:importantForAccessibility="no"
+            android:textAppearance="@style/TextAppearance.SettingsLib.TitleSmall"
             android:textColor="@color/settingslib_materialColorOnSurface"
             android:visibility="gone" />
 
@@ -89,7 +98,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:textAppearance="@style/TextAppearance.SettingsLib.TitleSmall.Emphasized"
+            android:importantForAccessibility="no"
+            android:textAppearance="@style/TextAppearance.SettingsLib.TitleSmall"
             android:textColor="@color/settingslib_materialColorOnSurface"
             android:visibility="gone" />
 
@@ -99,7 +109,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:textAppearance="@style/TextAppearance.SettingsLib.TitleSmall.Emphasized"
+            android:importantForAccessibility="no"
+            android:textAppearance="@style/TextAppearance.SettingsLib.TitleSmall"
             android:textColor="@color/settingslib_materialColorOnSurface"
             android:visibility="gone" />
 
@@ -109,7 +120,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:textAppearance="@style/TextAppearance.SettingsLib.TitleSmall.Emphasized"
+            android:importantForAccessibility="no"
+            android:textAppearance="@style/TextAppearance.SettingsLib.TitleSmall"
             android:textColor="@color/settingslib_materialColorOnSurface"
             android:visibility="gone" />
     </LinearLayout>

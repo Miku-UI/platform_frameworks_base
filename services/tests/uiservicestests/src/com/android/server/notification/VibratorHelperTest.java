@@ -69,16 +69,12 @@ public class VibratorHelperTest extends UiServiceTestCase {
     public void createWaveformVibration_insistent_createsRepeatingVibration() {
         assertRepeatingVibration(
                 VibratorHelper.createWaveformVibration(CUSTOM_PATTERN, /* insistent= */ true));
-        assertRepeatingVibration(
-                VibratorHelper.createPwleWaveformVibration(PWLE_PATTERN, /* insistent= */ true));
     }
 
     @Test
     public void createWaveformVibration_nonInsistent_createsSingleShotVibration() {
         assertSingleVibration(
                 VibratorHelper.createWaveformVibration(CUSTOM_PATTERN, /* insistent= */ false));
-        assertSingleVibration(
-                VibratorHelper.createPwleWaveformVibration(PWLE_PATTERN, /* insistent= */ false));
     }
 
     @Test
@@ -86,33 +82,29 @@ public class VibratorHelperTest extends UiServiceTestCase {
         assertNull(VibratorHelper.createWaveformVibration(null, false));
         assertNull(VibratorHelper.createWaveformVibration(new long[0], false));
         assertNull(VibratorHelper.createWaveformVibration(new long[] { 0, 0 }, false));
-
-        assertNull(VibratorHelper.createPwleWaveformVibration(null, false));
-        assertNull(VibratorHelper.createPwleWaveformVibration(new float[0], false));
-        assertNull(VibratorHelper.createPwleWaveformVibration(new float[] { 0 }, false));
-        assertNull(VibratorHelper.createPwleWaveformVibration(new float[] { 0, 0, 0 }, false));
     }
 
     @Test
     public void createVibrationEffectFromSoundUri_nullInput() {
-        assertNull(mVibratorHelper.createVibrationEffectFromSoundUri(null));
+        assertNull(mVibratorHelper.createVibrationEffectFromSoundUri(null, /* insistent= */ false));
     }
 
     @Test
     public void createVibrationEffectFromSoundUri_emptyUri() {
-        assertNull(mVibratorHelper.createVibrationEffectFromSoundUri(Uri.EMPTY));
+        assertNull(mVibratorHelper.createVibrationEffectFromSoundUri(Uri.EMPTY,
+                /* insistent= */ false));
     }
 
     @Test
     public void createVibrationEffectFromSoundUri_opaqueUri() {
         Uri uri = Uri.parse("a:b#c");
-        assertNull(mVibratorHelper.createVibrationEffectFromSoundUri(uri));
+        assertNull(mVibratorHelper.createVibrationEffectFromSoundUri(uri, /* insistent= */ false));
     }
 
     @Test
     public void createVibrationEffectFromSoundUri_uriWithoutRequiredQueryParameter() {
         Uri uri = Settings.System.DEFAULT_NOTIFICATION_URI;
-        assertNull(mVibratorHelper.createVibrationEffectFromSoundUri(uri));
+        assertNull(mVibratorHelper.createVibrationEffectFromSoundUri(uri, /* insistent= */ false));
     }
 
     @Test
@@ -121,7 +113,18 @@ public class VibratorHelperTest extends UiServiceTestCase {
         when(mVibrator.getInfo()).thenReturn(VibratorInfo.EMPTY_VIBRATOR_INFO);
         Uri validUri = getVibrationUriAppended(Settings.System.DEFAULT_NOTIFICATION_URI);
 
-        assertSingleVibration(mVibratorHelper.createVibrationEffectFromSoundUri(validUri));
+        assertSingleVibration(mVibratorHelper.createVibrationEffectFromSoundUri(validUri,
+                /* insistent= */ false));
+    }
+
+    @Test
+    public void createVibrationEffectFromSoundUri_insistentWithVibrationUri() throws IOException {
+        // prepare the uri with vibration
+        when(mVibrator.getInfo()).thenReturn(VibratorInfo.EMPTY_VIBRATOR_INFO);
+        Uri validUri = getVibrationUriAppended(Settings.System.DEFAULT_NOTIFICATION_URI);
+
+        assertRepeatingVibration(
+                mVibratorHelper.createVibrationEffectFromSoundUri(validUri, /* insistent= */ true));
     }
 
     @Test

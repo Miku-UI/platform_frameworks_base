@@ -21,6 +21,7 @@ import android.platform.test.annotations.Postsubmit
 import android.tools.traces.busyWaitForDataSourceRegistration
 import android.tools.traces.busyWaitTracingSessionDoesntExist
 import android.tools.traces.busyWaitTracingSessionExists
+import android.tools.traces.io.ResultReader
 import android.tools.traces.io.ResultWriter
 import android.tools.traces.monitors.PerfettoTraceMonitor
 import android.tools.traces.monitors.PerfettoTraceMonitor.Companion.newBuilder
@@ -140,6 +141,13 @@ class ProtoLogPerfTest(logType: LogType) {
         val dir: File = tempDataSourceDir()
         val writer: ResultWriter = createDummyWriter(dir)
         mPerfettoTracingMonitor?.stop(writer)
+
+        if (mLogToProto) {
+            val result = writer.write()
+            val reader = ResultReader(result)
+            val trace = reader.readProtoLogTrace()
+            assert(trace?.messages?.isNotEmpty() == true) { "Trace should not be empty" }
+        }
 
         busyWaitTracingSessionDoesntExist(TRACE_SESSION_NAME)
     }

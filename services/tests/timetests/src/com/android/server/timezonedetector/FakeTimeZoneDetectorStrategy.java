@@ -55,12 +55,11 @@ public class FakeTimeZoneDetectorStrategy implements TimeZoneDetectorStrategy {
     }
 
     @Override
-    public TimeZoneCapabilitiesAndConfig getCapabilitiesAndConfig(int userId,
-            boolean bypassUserPolicyChecks) {
+    public TimeZoneCapabilitiesAndConfig getCapabilitiesAndConfig(
+            int userId, boolean bypassUserPolicyChecks) {
         ConfigurationInternal configurationInternal =
                 mFakeServiceConfigAccessor.getCurrentUserConfigurationInternal();
-        assertEquals("Multi-user testing not supported",
-                configurationInternal.getUserId(), userId);
+        assertEquals("Multi-user testing not supported", configurationInternal.getUserId(), userId);
         return new TimeZoneCapabilitiesAndConfig(
                 mStatus,
                 configurationInternal.asCapabilities(bypassUserPolicyChecks),
@@ -68,8 +67,8 @@ public class FakeTimeZoneDetectorStrategy implements TimeZoneDetectorStrategy {
     }
 
     @Override
-    public boolean updateConfiguration(int userId, TimeZoneConfiguration requestedChanges,
-            boolean bypassUserPolicyChecks) {
+    public boolean updateConfiguration(
+            int userId, TimeZoneConfiguration requestedChanges, boolean bypassUserPolicyChecks) {
         return mFakeServiceConfigAccessor.updateConfiguration(
                 userId, requestedChanges, bypassUserPolicyChecks);
     }
@@ -96,19 +95,18 @@ public class FakeTimeZoneDetectorStrategy implements TimeZoneDetectorStrategy {
     }
 
     @Override
-    public void handleLocationAlgorithmEvent(LocationAlgorithmEvent locationAlgorithmEvent) {
-    }
+    public void handleLocationAlgorithmEvent(LocationAlgorithmEvent locationAlgorithmEvent) {}
 
     @Override
     public boolean suggestManualTimeZone(
-            @UserIdInt int userId, @NonNull ManualTimeZoneSuggestion timeZoneSuggestion,
+            @UserIdInt int userId,
+            @NonNull ManualTimeZoneSuggestion timeZoneSuggestion,
             boolean bypassUserPolicyChecks) {
         return true;
     }
 
     @Override
-    public void suggestTelephonyTimeZone(@NonNull TelephonyTimeZoneSuggestion timeZoneSuggestion) {
-    }
+    public void suggestTelephonyTimeZone(@NonNull TelephonyTimeZoneSuggestion timeZoneSuggestion) {}
 
     @Override
     public void enableTelephonyTimeZoneFallback(String reason) {
@@ -131,6 +129,5 @@ public class FakeTimeZoneDetectorStrategy implements TimeZoneDetectorStrategy {
     }
 
     @Override
-    public void dump(IndentingPrintWriter pw, String[] args) {
-    }
+    public void dump(IndentingPrintWriter pw, String[] args) {}
 }

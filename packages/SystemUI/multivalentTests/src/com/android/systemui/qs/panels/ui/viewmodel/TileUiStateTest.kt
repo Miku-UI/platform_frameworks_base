@@ -51,7 +51,34 @@ class TileUiStateTest : SysuiTestCase() {
 
         val uiState = state.toUiState()
 
-        assertThat(uiState.state).isEqualTo(Tile.STATE_UNAVAILABLE)
+        assertThat(uiState.visualState).isEqualTo(Tile.STATE_UNAVAILABLE)
+    }
+
+    @Test
+    fun stateUnavailable_doesntHandleMainClick() {
+        val state = QSTile.State().apply { state = Tile.STATE_UNAVAILABLE }
+
+        val uiState = state.toUiState()
+
+        assertThat(uiState.handlesMainClick).isFalse()
+    }
+
+    @Test
+    fun stateInactive_handlesMainClick() {
+        val state = QSTile.State().apply { state = Tile.STATE_INACTIVE }
+
+        val uiState = state.toUiState()
+
+        assertThat(uiState.handlesMainClick).isTrue()
+    }
+
+    @Test
+    fun stateActive_handlesMainClick() {
+        val state = QSTile.State().apply { state = Tile.STATE_ACTIVE }
+
+        val uiState = state.toUiState()
+
+        assertThat(uiState.handlesMainClick).isTrue()
     }
 
     @Test
@@ -209,7 +236,20 @@ class TileUiStateTest : SysuiTestCase() {
 
         val uiState = stateDisabledByPolicy.toUiState()
 
-        assertThat(uiState.state).isEqualTo(Tile.STATE_UNAVAILABLE)
+        assertThat(uiState.visualState).isEqualTo(Tile.STATE_UNAVAILABLE)
+    }
+
+    @Test
+    fun disabledByPolicy_inactive_clickable() {
+        val stateDisabledByPolicy =
+            QSTile.State().apply {
+                state = Tile.STATE_INACTIVE
+                disabledByPolicy = true
+            }
+
+        val uiState = stateDisabledByPolicy.toUiState()
+
+        assertThat(uiState.handlesMainClick).isTrue()
     }
 
     @Test
@@ -222,7 +262,20 @@ class TileUiStateTest : SysuiTestCase() {
 
         val uiState = stateDisabledByPolicy.toUiState()
 
-        assertThat(uiState.state).isEqualTo(Tile.STATE_UNAVAILABLE)
+        assertThat(uiState.visualState).isEqualTo(Tile.STATE_UNAVAILABLE)
+    }
+
+    @Test
+    fun disabledByPolicy_active_clickable() {
+        val stateDisabledByPolicy =
+            QSTile.State().apply {
+                state = Tile.STATE_ACTIVE
+                disabledByPolicy = true
+            }
+
+        val uiState = stateDisabledByPolicy.toUiState()
+
+        assertThat(uiState.handlesMainClick).isTrue()
     }
 
     @Test
@@ -291,6 +344,18 @@ class TileUiStateTest : SysuiTestCase() {
         val uiState = state.toUiState()
         assertThat(uiState.accessibilityUiState.stateDescription)
             .contains(context.getString(R.string.switch_bar_on))
+    }
+
+    @Test
+    fun nullContentDescription_usesLabel() {
+        val label = "test"
+        val state =
+            QSTile.State().apply {
+                this.label = label
+                contentDescription = null
+            }
+        val uiState = state.toUiState()
+        assertThat(uiState.accessibilityUiState.contentDescription).isEqualTo(label)
     }
 
     private fun QSTile.State.toUiState() = toUiState(resources)

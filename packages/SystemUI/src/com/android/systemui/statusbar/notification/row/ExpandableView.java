@@ -108,6 +108,7 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
     private float mContentTranslation;
     protected boolean mLastInSection;
     protected boolean mFirstInSection;
+    private String mYTranslationSource;
 
     protected SpringAnimation mMagneticAnimator = new SpringAnimation(
             this /* object */, DynamicAnimation.TRANSLATION_X);
@@ -157,6 +158,14 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
             }
         }
     };
+
+    public void setYTranslationSource(String source) {
+        mYTranslationSource = source;
+    }
+
+    public String getYTranslationSource() {
+        return mYTranslationSource;
+    }
 
     /**
      * @return true if the ExpandableView can be dismissed. False otherwise.
@@ -329,7 +338,7 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
             mActualHeight = actualHeight;
             updateClipping();
             if (notifyListeners) {
-                notifyHeightChanged(false  /* needsAnimation */);
+                notifyHeightChanged(false  /* needsAnimation */, "EV.setActualHeight");
             }
         }
     }
@@ -495,9 +504,10 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
         return false;
     }
 
-    public void notifyHeightChanged(boolean needsAnimation) {
+    public void notifyHeightChanged(boolean needsAnimation, String caller) {
         if (mOnHeightChangedListener != null) {
-            mOnHeightChangedListener.onHeightChanged(this, needsAnimation);
+            mOnHeightChangedListener.onHeightChanged(this, needsAnimation,
+                    caller + " => EV.notifyHeightChanged");
         }
     }
 
@@ -813,7 +823,7 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
         // initialize with the default values of the view
         mViewState.height = getIntrinsicHeight();
         mViewState.gone = getVisibility() == View.GONE;
-        mViewState.setAlpha(1f);
+        mViewState.setAlpha(1f, "reset");
         mViewState.notGoneIndex = -1;
         mViewState.setXTranslation(getTranslationX());
         mViewState.hidden = false;
@@ -1029,6 +1039,7 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
         pw.print("mExtraWidthForClipping", mExtraWidthForClipping);
         pw.print("mMinimumHeightForClipping", mMinimumHeightForClipping);
         pw.print("getClipBounds()", getClipBounds());
+        pw.print("mYTranslationSource", mYTranslationSource);
         pw.println();
     }
 
@@ -1072,7 +1083,7 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
          *                       padding or the padding between the elements changed
          * @param needsAnimation whether the view height needs to be animated
          */
-        void onHeightChanged(ExpandableView view, boolean needsAnimation);
+        void onHeightChanged(ExpandableView view, boolean needsAnimation, String caller);
 
         /**
          * Called when the view is reset and therefore the height will change abruptly

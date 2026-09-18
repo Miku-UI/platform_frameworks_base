@@ -23,25 +23,26 @@ import com.android.wm.shell.shared.bubbles.logging.DebugLogger
 /**
  * An implementation of [DebugLogger] that logs events to [ProtoLog] with [WM_SHELL_BUBBLES] group.
  */
+@SuppressWarnings("ProtoLogNonConstantFormat")
 class BubbleProtoLog : DebugLogger {
 
-    override fun d(message: String, vararg parameters: Any, eventData: String?) {
+    override fun d(message: String, vararg parameters: Any?, eventData: String?) {
         ProtoLog.d(WM_SHELL_BUBBLES, message, *parameters)
     }
 
-    override fun v(message: String, vararg parameters: Any, eventData: String?) {
+    override fun v(message: String, vararg parameters: Any?, eventData: String?) {
         ProtoLog.v(WM_SHELL_BUBBLES, message, *parameters)
     }
 
-    override fun i(message: String, vararg parameters: Any, eventData: String?) {
+    override fun i(message: String, vararg parameters: Any?, eventData: String?) {
         ProtoLog.i(WM_SHELL_BUBBLES, message, *parameters)
     }
 
-    override fun w(message: String, vararg parameters: Any, eventData: String?) {
+    override fun w(message: String, vararg parameters: Any?, eventData: String?) {
         ProtoLog.w(WM_SHELL_BUBBLES, message, *parameters)
     }
 
-    override fun e(message: String, vararg parameters: Any, eventData: String?) {
+    override fun e(message: String, vararg parameters: Any?, eventData: String?) {
         ProtoLog.e(WM_SHELL_BUBBLES, message, *parameters)
     }
 }

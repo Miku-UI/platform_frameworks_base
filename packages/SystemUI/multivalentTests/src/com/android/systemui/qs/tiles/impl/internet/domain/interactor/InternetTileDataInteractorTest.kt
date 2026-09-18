@@ -18,9 +18,12 @@ package com.android.systemui.qs.tiles.impl.internet.domain.interactor
 
 import android.graphics.drawable.TestStubDrawable
 import android.os.UserHandle
+import android.platform.test.annotations.EnableFlags
+import android.text.Html
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.settingslib.AccessibilityContentDescriptions
+import com.android.settingslib.mobile.TelephonyIcons
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.ContentDescription.Companion.loadContentDescription
@@ -38,8 +41,10 @@ import com.android.systemui.statusbar.connectivity.WifiIcons
 import com.android.systemui.statusbar.connectivity.ui.MobileContextProvider
 import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
 import com.android.systemui.statusbar.pipeline.ethernet.domain.EthernetInteractor
+import com.android.systemui.statusbar.pipeline.mobile.NewSatelliteIcon
 import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionState
 import com.android.systemui.statusbar.pipeline.mobile.data.model.NetworkNameModel
+import com.android.systemui.statusbar.pipeline.mobile.data.model.ResolvedNetworkType
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.FakeMobileConnectionRepository
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.FakeMobileConnectionsRepository
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIconsInteractor
@@ -138,9 +143,7 @@ class InternetTileDataInteractorTest : SysuiTestCase() {
             addOverride(com.android.settingslib.R.drawable.ic_hotspot_watch, TestStubDrawable())
             addOverride(com.android.settingslib.R.drawable.ic_hotspot_auto, TestStubDrawable())
 
-            WifiIcons.WIFI_NO_INTERNET_ICONS.forEach { iconId ->
-                addOverride(iconId, TestStubDrawable())
-            }
+            WifiIcons.WIFI_FULL_ICONS.forEach { iconId -> addOverride(iconId, TestStubDrawable()) }
         }
 
         underTest =
@@ -164,7 +167,7 @@ class InternetTileDataInteractorTest : SysuiTestCase() {
                     underTest.tileData(testUser, flowOf(DataUpdateTrigger.InitialRequest))
                 )
 
-            connectivityRepository.defaultConnections.value = DefaultConnectionModel()
+            connectivityRepository.resolvedConnections.value = DefaultConnectionModel()
 
             val expectedIcon =
                 InternetTileIconModel.ResourceId(R.drawable.ic_qs_no_internet_unavailable)
@@ -200,7 +203,7 @@ class InternetTileDataInteractorTest : SysuiTestCase() {
             assertThat(latest?.secondaryTitle).isEqualTo("test ssid")
             assertThat(latest?.secondaryLabel).isNull()
 
-            val expectedIcon = InternetTileIconModel.ResourceId(WifiIcons.WIFI_NO_INTERNET_ICONS[4])
+            val expectedIcon = InternetTileIconModel.ResourceId(WifiIcons.WIFI_FULL_ICONS[4])
             assertThat(latest?.icon).isEqualTo(expectedIcon)
             assertThat(latest?.contentDescription.loadContentDescription(context))
                 .isEqualTo("$internet,test ssid")
@@ -227,7 +230,7 @@ class InternetTileDataInteractorTest : SysuiTestCase() {
             wifiRepository.setIsWifiDefault(true)
             wifiRepository.setWifiNetwork(networkModel)
 
-            val expectedIcon = InternetTileIconModel.ResourceId(WifiIcons.WIFI_NO_INTERNET_ICONS[4])
+            val expectedIcon = InternetTileIconModel.ResourceId(WifiIcons.WIFI_FULL_ICONS[4])
             assertThat(latest?.icon).isEqualTo(expectedIcon)
             assertThat(latest?.stateDescription.loadContentDescription(context))
                 .doesNotContain(
@@ -447,7 +450,7 @@ class InternetTileDataInteractorTest : SysuiTestCase() {
             assertThat(latest?.secondaryTitle).isNotNull()
             assertThat(latest?.secondaryTitle.toString()).contains("test network")
             assertThat(latest?.secondaryLabel).isNull()
-            val expectedIcon = InternetTileIconModel.Cellular(iconLevel)
+            val expectedIcon = InternetTileIconModel.SignalLevel(iconLevel)
 
             assertThat(latest?.icon).isEqualTo(expectedIcon)
             assertThat(latest?.stateDescription.loadContentDescription(context))
@@ -496,6 +499,141 @@ class InternetTileDataInteractorTest : SysuiTestCase() {
             assertThat(latest?.stateDescription).isNull()
             assertThat(latest?.contentDescription.loadContentDescription(context))
                 .isEqualTo(latest?.secondaryLabel.loadText(context))
+        }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun mobileDefault_satellite_showsSatelliteText() =
+        testScope.runTest {
+            val latest by
+                collectLastValue(
+                    underTest.tileData(testUser, flowOf(DataUpdateTrigger.InitialRequest))
+                )
+            val iconLevel = 3
+
+            connectivityRepository.setMobileConnected()
+            mobileConnectionsRepository.mobileIsDefault.value = true
+            mobileConnectionRepository.apply {
+                satelliteLevel.value = iconLevel
+                setAllRoaming(false)
+                networkName.value = NetworkNameModel.Default("test satellite network")
+                isNonTerrestrial.value = true
+            }
+
+            assertThat(latest).isNotNull()
+            assertThat(latest?.secondaryTitle).isNotNull()
+
+            val satelliteText = context.getString(com.android.internal.R.string.satellite_indicator)
+            val expectedSecondaryTitle =
+                Html.fromHtml(
+                        context.getString(
+                            R.string.mobile_carrier_text_format,
+                            "test satellite network",
+                            satelliteText,
+                        ),
+                        0,
+                    )
+                    .toString()
+
+            assertThat(latest?.secondaryTitle.toString()).isEqualTo(expectedSecondaryTitle)
+            assertThat(latest?.secondaryLabel).isNull()
+
+            val expectedIcon = InternetTileIconModel.SignalLevel(iconLevel)
+            assertThat(latest?.icon).isEqualTo(expectedIcon)
+
+            assertThat(latest?.stateDescription.loadContentDescription(context))
+                .isEqualTo(latest?.secondaryTitle.toString())
+            assertThat(latest?.contentDescription.loadContentDescription(context))
+                .isEqualTo(internet)
+        }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun carrierMergedDefault_usesNetworkNameAndIcon() =
+        testScope.runTest {
+            val latest by
+                collectLastValue(
+                    underTest.tileData(testUser, flowOf(DataUpdateTrigger.InitialRequest))
+                )
+            val iconLevel = 2
+
+            connectivityRepository.resolvedConnections.value =
+                DefaultConnectionModel(
+                    carrierMerged = DefaultConnectionModel.CarrierMerged(isDefault = true)
+                )
+            mobileConnectionRepository.apply {
+                setAllLevels(iconLevel)
+                setAllRoaming(false)
+                networkName.value = NetworkNameModel.Default("carrier wifi")
+                resolvedNetworkType.value = ResolvedNetworkType.CarrierMergedNetworkType
+            }
+
+            assertThat(latest).isNotNull()
+            assertThat(latest?.secondaryTitle).isNotNull()
+
+            val expectedDataContentDesc =
+                context.getString(TelephonyIcons.CARRIER_MERGED_WIFI.dataContentDescription)
+            val expectedSecondaryTitle =
+                Html.fromHtml(
+                        context.getString(
+                            R.string.mobile_carrier_text_format,
+                            "carrier wifi",
+                            expectedDataContentDesc,
+                        ),
+                        0,
+                    )
+                    .toString()
+
+            assertThat(latest?.secondaryTitle.toString()).isEqualTo(expectedSecondaryTitle)
+            assertThat(latest?.secondaryLabel).isNull()
+            val expectedIcon = InternetTileIconModel.SignalLevel(iconLevel)
+
+            assertThat(latest?.icon).isEqualTo(expectedIcon)
+            assertThat(latest?.stateDescription.loadContentDescription(context))
+                .isEqualTo(latest?.secondaryTitle.toString())
+            assertThat(latest?.contentDescription.loadContentDescription(context))
+                .isEqualTo(internet)
+        }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun satellite_viaConstrainedFlow_showsSatelliteIcon() =
+        testScope.runTest {
+            // Start collecting the tile data flow to capture updates.
+            val latest by
+                collectLastValue(
+                    underTest.tileData(testUser, flowOf(DataUpdateTrigger.InitialRequest))
+                )
+
+            // Simulate the repository state:
+            // The 'resolvedConnections' flow (which monitors satellite) reports a valid mobile
+            // connection.
+            connectivityRepository.resolvedConnections.value =
+                DefaultConnectionModel(
+                    mobile = DefaultConnectionModel.Mobile(isDefault = true),
+                    isValidated = true,
+                )
+
+            // Set up the specific mobile connection details in the mobile repository.
+            // This configures the connection as a non-terrestrial (Satellite) network.
+            val satelliteLevel = 4
+            mobileConnectionsRepository.mobileIsDefault.value = true
+            mobileConnectionsRepository.activeMobileDataSubscriptionId.value = SUB_1_ID
+            mobileConnectionRepository.apply {
+                isInService.value = true
+                dataConnectionState.value = DataConnectionState.Connected
+                isNonTerrestrial.value = true
+                this.satelliteLevel.value = satelliteLevel
+                networkName.value = NetworkNameModel.Default("Satellite Network")
+            }
+
+            // Assert that the resulting tile model reflects the satellite state.
+            assertThat(latest).isNotNull()
+            // The secondary title should display the network name provided above.
+            assertThat(latest?.secondaryTitle.toString()).contains("Satellite Network")
+            // The icon should match the specific satellite signal level set in step 3.
+            val expectedIcon = InternetTileIconModel.SignalLevel(satelliteLevel)
+            assertThat(latest?.icon).isEqualTo(expectedIcon)
         }
 
     private fun setWifiNetworkWithHotspot(hotspot: WifiNetworkModel.HotspotDeviceType) {

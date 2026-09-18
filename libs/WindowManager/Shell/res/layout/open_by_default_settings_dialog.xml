@@ -16,7 +16,6 @@
 
 <com.android.wm.shell.apptoweb.OpenByDefaultDialogView
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     style="@style/LetterboxDialog">
@@ -39,7 +38,6 @@
             android:layout_height="wrap_content">
 
             <LinearLayout
-                android:padding="24dp"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center_horizontal"
@@ -62,9 +60,9 @@
                     android:layout_gravity="center_horizontal"
                     android:layout_marginBottom="8dp"
                     android:lineHeight="32dp"
-                    android:textFontWeight="400"
+                    android:fontFamily="@*android:string/config_headlineFontFamily"
                     android:textSize="24sp"
-                    android:textColor="@androidprv:color/materialColorOnSurfaceVariant"
+                    android:textColor="@color/materialColorOnSurface"
                     tools:text="Gmail" />
 
                 <TextView
@@ -72,11 +70,11 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="12sp"
-                    android:textFontWeight="400"
+                    android:fontFamily="@*android:string/config_headlineFontFamily"
                     android:lineHeight="28dp"
                     android:layout_gravity="center_horizontal"
                     android:layout_marginBottom="16dp"
-                    android:textColor="@androidprv:color/materialColorOnSurfaceVariant"
+                    android:textColor="@color/materialColorOnSurfaceVariant"
                     android:text="@string/open_by_default_dialog_subheader_text"/>
 
                 <RadioGroup
@@ -93,8 +91,10 @@
                         android:layout_marginHorizontal="16dp"
                         android:layout_marginBottom="4dp"
                         android:text="@string/open_by_default_dialog_in_app_text"
-                        android:textFontWeight="500"
+                        android:fontFamily="@*android:string/config_headlineFontFamilyMedium"
                         android:textSize="16sp"
+                        android:textColor="@color/open_by_default_settings_dialog_radio_button_text_color"
+                        android:buttonTint="@color/open_by_default_settings_dialog_radio_button_text_color"
                         android:lineHeight="24dp"
                         android:background="@drawable/open_by_default_settings_dialog_radio_buttons_background"/>
                     <RadioButton
@@ -105,8 +105,10 @@
                         android:paddingEnd="0dp"
                         android:layout_marginStart="16dp"
                         android:text="@string/open_by_default_dialog_in_browser_text"
-                        android:textFontWeight="500"
+                        android:fontFamily="@*android:string/config_headlineFontFamilyMedium"
                         android:textSize="16sp"
+                        android:textColor="@color/open_by_default_settings_dialog_radio_button_text_color"
+                        android:buttonTint="@color/open_by_default_settings_dialog_radio_button_text_color"
                         android:lineHeight="24dp"
                         android:background="@drawable/open_by_default_settings_dialog_radio_buttons_background"/>
                 </RadioGroup>
@@ -116,14 +118,17 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:minHeight="48dp"
+                    android:minWidth="71dp"
                     android:text="@string/open_by_default_dialog_dismiss_button_text"
                     android:layout_gravity="end"
                     android:layout_marginHorizontal="24dp"
                     android:layout_marginTop="26dp"
                     android:layout_marginBottom="18dp"
                     android:textSize="14sp"
-                    android:textFontWeight="500"
-                    android:textColor="@androidprv:color/materialColorOnPrimary"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="8dp"
+                    android:fontFamily="@*android:string/config_headlineFontFamilyMedium"
+                    android:textColor="@color/materialColorOnPrimary"
                     android:background="@drawable/open_by_default_settings_dialog_confirm_button_background"/>
             </LinearLayout>
         </ScrollView>

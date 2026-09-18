@@ -490,6 +490,101 @@ RuntimeVisibleAnnotations:
 NestMembers:
   com/android/hoststubgen/test/tinyframework/IPretendingAidl$Stub
   com/android/hoststubgen/test/tinyframework/IPretendingAidl$Stub$Proxy
+## Class: com/android/hoststubgen/test/tinyframework/IgnoreClassTest.class
+  Compiled from "MoreClasses.java"
+class com.android.hoststubgen.test.tinyframework.IgnoreClassTest
+  minor version: 0
+  major version: 65
+  flags: (0x0020) ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/IgnoreClassTest
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 2, methods: 3, attributes: 2
+Constant pool:
+{
+  public static int sValue;
+    descriptor: I
+    flags: (0x0009) ACC_PUBLIC, ACC_STATIC
+    RuntimeVisibleAnnotations:
+      x: #x(#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+          reason="class-wide in com/android/hoststubgen/test/tinyframework/IgnoreClassTest [inner-reason: file-override [class - \'ignore\']]"
+        )
+
+  public int mValue;
+    descriptor: I
+    flags: (0x0001) ACC_PUBLIC
+    RuntimeVisibleAnnotations:
+      x: #x(#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+          reason="class-wide in com/android/hoststubgen/test/tinyframework/IgnoreClassTest [inner-reason: file-override [class - \'ignore\']]"
+        )
+
+  public com.android.hoststubgen.test.tinyframework.IgnoreClassTest();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=3, locals=1, args_size=1
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/IgnoreClassTest
+         x: ldc           #x                 // String <init>
+         x: ldc           #x                 // String ()V
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.onMethodCalled:(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)V
+         x: aload_0
+        x: invokespecial #x                 // Method java/lang/Object."<init>":()V
+        x: aload_0
+        x: iconst_1
+        x: putfield      #x                 // Field mValue:I
+        x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            9      10     0  this   Lcom/android/hoststubgen/test/tinyframework/IgnoreClassTest;
+    RuntimeVisibleAnnotations:
+      x: #x(#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+          reason="file-override [method - \'keep\'] (#Ignore on a ctor doesn\'t work. b/448180616 # no-pta)"
+        )
+
+  public int foo();
+    descriptor: ()I
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=3, locals=1, args_size=1
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/IgnoreClassTest
+         x: ldc           #x                 // String foo
+         x: ldc           #x                 // String ()I
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.onMethodCalled:(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)V
+         x: iconst_0
+        x: ireturn
+    RuntimeVisibleAnnotations:
+      x: #x(#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsIgnore(
+          reason="class-wide in com/android/hoststubgen/test/tinyframework/IgnoreClassTest [inner-reason: file-override [class - \'ignore\']]"
+        )
+
+  static {};
+    descriptor: ()V
+    flags: (0x0008) ACC_STATIC
+    Code:
+      stack=3, locals=0, args_size=0
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/IgnoreClassTest
+         x: ldc           #x                 // String <clinit>
+         x: ldc           #x                 // String ()V
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.onMethodCalled:(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)V
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/IgnoreClassTest
+        x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.defaultClassLoadHook:(Ljava/lang/Class;)V
+        x: return
+    RuntimeVisibleAnnotations:
+      x: #x(#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsIgnore(
+          reason="class-wide in com/android/hoststubgen/test/tinyframework/IgnoreClassTest [inner-reason: file-override [class - \'ignore\']]"
+        )
+}
+SourceFile: "MoreClasses.java"
+RuntimeVisibleAnnotations:
+  x: #x(#x=s#x)
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+      reason="file-override [class - \'ignore\']"
+    )
 ## Class: com/android/hoststubgen/test/tinyframework/R$Nested.class
   Compiled from "R.java"
 public class com.android.hoststubgen.test.tinyframework.R$Nested
@@ -619,6 +714,94 @@ RuntimeVisibleAnnotations:
     )
 NestMembers:
   com/android/hoststubgen/test/tinyframework/R$Nested
+## Class: com/android/hoststubgen/test/tinyframework/ThrowClassTest.class
+  Compiled from "MoreClasses.java"
+class com.android.hoststubgen.test.tinyframework.ThrowClassTest
+  minor version: 0
+  major version: 65
+  flags: (0x0020) ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/ThrowClassTest
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 1, methods: 3, attributes: 2
+Constant pool:
+{
+  public int mValue;
+    descriptor: I
+    flags: (0x0001) ACC_PUBLIC
+    RuntimeVisibleAnnotations:
+      x: #x(#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+          reason="class-wide in com/android/hoststubgen/test/tinyframework/ThrowClassTest [inner-reason: file-override [class - \'throw\']]"
+        )
+
+  public com.android.hoststubgen.test.tinyframework.ThrowClassTest();
+    descriptor: ()V
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=3, locals=1, args_size=1
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/ThrowClassTest
+         x: ldc           #x                 // String <init>
+         x: ldc           #x                 // String ()V
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.onMethodCalled:(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)V
+         x: aload_0
+        x: invokespecial #x                 // Method java/lang/Object."<init>":()V
+        x: aload_0
+        x: iconst_1
+        x: putfield      #x                 // Field mValue:I
+        x: return
+      LineNumberTable:
+      LocalVariableTable:
+        Start  Length  Slot  Name   Signature
+            9      10     0  this   Lcom/android/hoststubgen/test/tinyframework/ThrowClassTest;
+    RuntimeVisibleAnnotations:
+      x: #x(#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+          reason="file-override [method - \'keep\'] (#allow instantiating the class for the test. # no-pta)"
+        )
+
+  public int foo();
+    descriptor: ()I
+    flags: (0x0001) ACC_PUBLIC
+    Code:
+      stack=3, locals=1, args_size=1
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/ThrowClassTest
+         x: ldc           #x                 // String foo
+         x: ldc           #x                 // String ()I
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.onMethodCalled:(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)V
+         x: new           #x                 // class com/android/hoststubgen/test/tinyframework/TinyFrameworkUnsupportedApiException
+        x: dup
+        x: invokespecial #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkUnsupportedApiException."<init>":()V
+        x: athrow
+    RuntimeVisibleAnnotations:
+      x: #x(#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsThrow(
+          reason="class-wide in com/android/hoststubgen/test/tinyframework/ThrowClassTest [inner-reason: file-override [class - \'throw\']]"
+        )
+
+  static {};
+    descriptor: ()V
+    flags: (0x0008) ACC_STATIC
+    Code:
+      stack=3, locals=0, args_size=0
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/ThrowClassTest
+         x: ldc           #x                 // String <clinit>
+         x: ldc           #x                 // String ()V
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.onMethodCalled:(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)V
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/ThrowClassTest
+        x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.defaultClassLoadHook:(Ljava/lang/Class;)V
+        x: return
+    RuntimeVisibleAnnotations:
+      x: #x(#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsIgnore(
+          reason="\'throw\' on static initializer is handled as \'ignore\' [original throw reason: class-wide in com/android/hoststubgen/test/tinyframework/ThrowClassTest [inner-reason: file-override [class - \'throw\']]]"
+        )
+}
+SourceFile: "MoreClasses.java"
+RuntimeVisibleAnnotations:
+  x: #x(#x=s#x)
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+      reason="file-override [class - \'throw\']"
+    )
 ## Class: com/android/hoststubgen/test/tinyframework/TinyFrameworkAnnotations.class
   Compiled from "TinyFrameworkAnnotations.java"
 public class com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations
@@ -3263,9 +3446,12 @@ Constant pool:
         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host.nativeAddTwo:(I)I
         x: ireturn
     RuntimeVisibleAnnotations:
-      x: #x(#x=s#x)
-        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsSubstitute(
+      x: #x(#x=s#x,#x=s#x,#x=s#x,#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect(
           reason="annotation"
+          targetClass="com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host"
+          targetMethod="nativeAddTwo"
+          targetDesc="(I)I"
         )
       x: #x()
         android.hosttest.annotation.HostSideTestRedirect
@@ -3306,9 +3492,12 @@ Constant pool:
         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host.nativeLongPlus:(JJ)J
         x: lreturn
     RuntimeVisibleAnnotations:
-      x: #x(#x=s#x)
-        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsSubstitute(
+      x: #x(#x=s#x,#x=s#x,#x=s#x,#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect(
           reason="annotation"
+          targetClass="com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host"
+          targetMethod="nativeLongPlus"
+          targetDesc="(JJ)J"
         )
       x: #x()
         android.hosttest.annotation.HostSideTestRedirect
@@ -3375,9 +3564,12 @@ Constant pool:
         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host.nativeNonStaticAddToValue:(Lcom/android/hoststubgen/test/tinyframework/TinyFrameworkNative;I)I
         x: ireturn
     RuntimeVisibleAnnotations:
-      x: #x(#x=s#x)
-        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsSubstitute(
+      x: #x(#x=s#x,#x=s#x,#x=s#x,#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect(
           reason="annotation"
+          targetClass="com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host"
+          targetMethod="nativeNonStaticAddToValue"
+          targetDesc="(Lcom/android/hoststubgen/test/tinyframework/TinyFrameworkNative;I)I"
         )
       x: #x()
         android.hosttest.annotation.HostSideTestRedirect
@@ -3470,9 +3662,12 @@ Constant pool:
         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host.nativeBytePlus:(BB)B
         x: ireturn
     RuntimeVisibleAnnotations:
-      x: #x(#x=s#x)
-        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsSubstitute(
+      x: #x(#x=s#x,#x=s#x,#x=s#x,#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect(
           reason="annotation"
+          targetClass="com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host"
+          targetMethod="nativeBytePlus"
+          targetDesc="(BB)B"
         )
       x: #x()
         android.hosttest.annotation.HostSideTestRedirect
@@ -3490,9 +3685,12 @@ Constant pool:
         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host.notNativeRedirected:(Lcom/android/hoststubgen/test/tinyframework/TinyFrameworkNative;)V
         x: return
     RuntimeVisibleAnnotations:
-      x: #x(#x=s#x)
-        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsSubstitute(
+      x: #x(#x=s#x,#x=s#x,#x=s#x,#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect(
           reason="annotation"
+          targetClass="com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host"
+          targetMethod="notNativeRedirected"
+          targetDesc="(Lcom/android/hoststubgen/test/tinyframework/TinyFrameworkNative;)V"
         )
       x: #x()
         android.hosttest.annotation.HostSideTestRedirect
@@ -3503,15 +3701,18 @@ Constant pool:
     Code:
       stack=3, locals=0, args_size=0
          x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/TinyFrameworkNative
-         x: ldc           #x                 // String notNativeStaticRedirected
+         x: ldc           #x                // String notNativeStaticRedirected
          x: ldc           #x                 // String ()V
          x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.onMethodCalled:(Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)V
          x: invokestatic  #x                // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host.notNativeStaticRedirected:()V
         x: return
     RuntimeVisibleAnnotations:
-      x: #x(#x=s#x)
-        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsSubstitute(
+      x: #x(#x=s#x,#x=s#x,#x=s#x,#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect(
           reason="annotation"
+          targetClass="com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host"
+          targetMethod="notNativeStaticRedirected"
+          targetDesc="()V"
         )
       x: #x()
         android.hosttest.annotation.HostSideTestRedirect
@@ -3528,6 +3729,8 @@ RuntimeVisibleAnnotations:
     android.hosttest.annotation.HostSideTestRedirectionClass(
       value="TinyFrameworkNative_host"
     )
+  x: #x()
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect
 ## Class: com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host.class
   Compiled from "TinyFrameworkNative_host.java"
 public class com.android.hoststubgen.test.tinyframework.TinyFrameworkNative_host
@@ -5675,9 +5878,12 @@ Constant pool:
          x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/exp/RedirectTo.m5_redirect:()V
         x: return
     RuntimeVisibleAnnotations:
-      x: #x(#x=s#x)
-        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsSubstitute(
+      x: #x(#x=s#x,#x=s#x,#x=s#x,#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect(
           reason="annotation"
+          targetClass="com/android/hoststubgen/test/tinyframework/exp/RedirectTo"
+          targetMethod="m5_redirect"
+          targetDesc="()V"
         )
       x: #x()
         android.hosttest.annotation.HostSideTestRedirect
@@ -5713,6 +5919,8 @@ RuntimeVisibleAnnotations:
     )
   x: #x()
     android.hosttest.annotation.HostSideTestStaticInitializerKeep
+  x: #x()
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect
 ## Class: com/android/hoststubgen/test/tinyframework/exp/ExpC7_MethodAnnotations_withMethodExpPolicy.class
   Compiled from "MoreClasses.java"
 class com.android.hoststubgen.test.tinyframework.exp.ExpC7_MethodAnnotations_withMethodExpPolicy
@@ -5863,9 +6071,12 @@ Constant pool:
          x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/exp/RedirectTo.m5_redirect:()V
         x: return
     RuntimeVisibleAnnotations:
-      x: #x(#x=s#x)
-        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsSubstitute(
+      x: #x(#x=s#x,#x=s#x,#x=s#x,#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect(
           reason="annotation"
+          targetClass="com/android/hoststubgen/test/tinyframework/exp/RedirectTo"
+          targetMethod="m5_redirect"
+          targetDesc="()V"
         )
       x: #x()
         android.hosttest.annotation.HostSideTestRedirect
@@ -5901,6 +6112,8 @@ RuntimeVisibleAnnotations:
     )
   x: #x()
     android.hosttest.annotation.HostSideTestStaticInitializerKeep
+  x: #x()
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect
 ## Class: com/android/hoststubgen/test/tinyframework/exp/ExpC8_Enum.class
   Compiled from "MoreClasses.java"
 final class com.android.hoststubgen.test.tinyframework.exp.ExpC8_Enum extends java.lang.Enum<com.android.hoststubgen.test.tinyframework.exp.ExpC8_Enum>
@@ -6271,6 +6484,298 @@ RuntimeVisibleAnnotations:
     com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
       reason="file-override [package - \'experimental\'] (#test-experimental-package-policy)"
     )
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot03$StaticInner.class
+  Compiled from "BadAnnot03.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot03$StaticInner
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot03$StaticInner
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  private static {};
+    descriptor: ()V
+    flags: (0x000a) ACC_PRIVATE, ACC_STATIC
+    Code:
+      stack=1, locals=0, args_size=0
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/outer/BadAnnot03$StaticInner
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.defaultClassLoadHook:(Ljava/lang/Class;)V
+         x: return
+}
+InnerClasses:
+  public static #x= #x of #x;           // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot03$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot03
+SourceFile: "BadAnnot03.java"
+RuntimeVisibleAnnotations:
+  x: #x(#x=s#x)
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+      reason="annotation"
+    )
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot03
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot04$NonStaticInner.class
+  Compiled from "BadAnnot04.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot04$NonStaticInner
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot04$NonStaticInner
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  private static {};
+    descriptor: ()V
+    flags: (0x000a) ACC_PRIVATE, ACC_STATIC
+    Code:
+      stack=1, locals=0, args_size=0
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/outer/BadAnnot04$NonStaticInner
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.defaultClassLoadHook:(Ljava/lang/Class;)V
+         x: return
+}
+InnerClasses:
+  public #x= #x of #x;                  // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot04$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot04
+SourceFile: "BadAnnot04.java"
+RuntimeVisibleAnnotations:
+  x: #x(#x=s#x)
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+      reason="annotation"
+    )
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot04
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner$StaticInner2.class
+  Compiled from "BadAnnot13.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot13$StaticInner$StaticInner2
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner$StaticInner2
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  private static {};
+    descriptor: ()V
+    flags: (0x000a) ACC_PRIVATE, ACC_STATIC
+    Code:
+      stack=1, locals=0, args_size=0
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner$StaticInner2
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.defaultClassLoadHook:(Ljava/lang/Class;)V
+         x: return
+}
+InnerClasses:
+  public static #x= #x of #x;          // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13
+  public static #x= #x of #x;           // StaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner$StaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13$StaticInner
+SourceFile: "BadAnnot13.java"
+RuntimeVisibleAnnotations:
+  x: #x(#x=s#x)
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+      reason="annotation"
+    )
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot13
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner$NonStaticInner2.class
+  Compiled from "BadAnnot14.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot14$StaticInner$NonStaticInner2
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner$NonStaticInner2
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  private static {};
+    descriptor: ()V
+    flags: (0x000a) ACC_PRIVATE, ACC_STATIC
+    Code:
+      stack=1, locals=0, args_size=0
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner$NonStaticInner2
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.defaultClassLoadHook:(Ljava/lang/Class;)V
+         x: return
+}
+InnerClasses:
+  public static #x= #x of #x;          // StaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14
+  public #x= #x of #x;                  // NonStaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner$NonStaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14$StaticInner
+SourceFile: "BadAnnot14.java"
+RuntimeVisibleAnnotations:
+  x: #x(#x=s#x)
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+      reason="annotation"
+    )
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot14
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner$StaticInner2.class
+  Compiled from "BadAnnot23.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot23$NonStaticInner$StaticInner2
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner$StaticInner2
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  private static {};
+    descriptor: ()V
+    flags: (0x000a) ACC_PRIVATE, ACC_STATIC
+    Code:
+      stack=1, locals=0, args_size=0
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner$StaticInner2
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.defaultClassLoadHook:(Ljava/lang/Class;)V
+         x: return
+}
+InnerClasses:
+  public #x= #x of #x;                 // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23
+  public static #x= #x of #x;           // StaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner$StaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23$NonStaticInner
+SourceFile: "BadAnnot23.java"
+RuntimeVisibleAnnotations:
+  x: #x(#x=s#x)
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+      reason="annotation"
+    )
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot23
+## Class: com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner$NonStaticInner2.class
+  Compiled from "BadAnnot24.java"
+public class com.android.hoststubgen.test.tinyframework.outer.BadAnnot24$NonStaticInner$NonStaticInner2
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner$NonStaticInner2
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  private static {};
+    descriptor: ()V
+    flags: (0x000a) ACC_PRIVATE, ACC_STATIC
+    Code:
+      stack=1, locals=0, args_size=0
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner$NonStaticInner2
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.defaultClassLoadHook:(Ljava/lang/Class;)V
+         x: return
+}
+InnerClasses:
+  public #x= #x of #x;                 // NonStaticInner=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24
+  public #x= #x of #x;                  // NonStaticInner2=class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner$NonStaticInner2 of class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24$NonStaticInner
+SourceFile: "BadAnnot24.java"
+RuntimeVisibleAnnotations:
+  x: #x(#x=s#x)
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+      reason="annotation"
+    )
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/BadAnnot24
+## Class: com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$NonStatic.class
+  Compiled from "GoodAnnot01.java"
+public class com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01$Inner1$NonStatic
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$NonStatic
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  private static {};
+    descriptor: ()V
+    flags: (0x000a) ACC_PRIVATE, ACC_STATIC
+    Code:
+      stack=1, locals=0, args_size=0
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$NonStatic
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.defaultClassLoadHook:(Ljava/lang/Class;)V
+         x: return
+}
+InnerClasses:
+  public static #x= #x of #x;          // Inner1=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1 of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+  public #x= #x of #x;                  // NonStatic=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$NonStatic of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+SourceFile: "GoodAnnot01.java"
+RuntimeVisibleAnnotations:
+  x: #x(#x=s#x)
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+      reason="annotation"
+    )
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+## Class: com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Static.class
+  Compiled from "GoodAnnot01.java"
+public class com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01$Inner1$Static
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Static
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  private static {};
+    descriptor: ()V
+    flags: (0x000a) ACC_PRIVATE, ACC_STATIC
+    Code:
+      stack=1, locals=0, args_size=0
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Static
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.defaultClassLoadHook:(Ljava/lang/Class;)V
+         x: return
+}
+InnerClasses:
+  public static #x= #x of #x;          // Inner1=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1 of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+  public static #x= #x of #x;           // Static=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Static of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+SourceFile: "GoodAnnot01.java"
+RuntimeVisibleAnnotations:
+  x: #x(#x=s#x)
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+      reason="annotation"
+    )
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestHost: class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+## Class: com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01.class
+  Compiled from "GoodAnnot01.java"
+public class com.android.hoststubgen.test.tinyframework.outer.GoodAnnot01
+  minor version: 0
+  major version: 65
+  flags: (0x0021) ACC_PUBLIC, ACC_SUPER
+  this_class: #x                          // com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+  super_class: #x                         // java/lang/Object
+  interfaces: 0, fields: 0, methods: 1, attributes: 4
+Constant pool:
+{
+  private static {};
+    descriptor: ()V
+    flags: (0x000a) ACC_PRIVATE, ACC_STATIC
+    Code:
+      stack=1, locals=0, args_size=0
+         x: ldc           #x                  // class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+         x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/TinyFrameworkHooks.defaultClassLoadHook:(Ljava/lang/Class;)V
+         x: return
+}
+InnerClasses:
+  public static #x= #x of #x;           // Inner1=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1 of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01
+  public #x= #x of #x;                 // NonStatic=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$NonStatic of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+  public static #x= #x of #x;          // Static=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Static of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+  public #x= #x of #x;                 // Inner2=class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Inner2 of class com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+SourceFile: "GoodAnnot01.java"
+RuntimeVisibleAnnotations:
+  x: #x(#x=s#x)
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep(
+      reason="annotation"
+    )
+  x: #x()
+    android.hosttest.annotation.HostSideTestKeep
+NestMembers:
+  com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1
+  com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$NonStatic
+  com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Static
+  com/android/hoststubgen/test/tinyframework/outer/GoodAnnot01$Inner1$Inner2
 ## Class: com/android/hoststubgen/test/tinyframework/packagetest/A.class
   Compiled from "A.java"
 public class com.android.hoststubgen.test.tinyframework.packagetest.A
@@ -6830,9 +7335,12 @@ Constant pool:
          x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/packagetest/RedirectTo.m5_redirect:()V
         x: return
     RuntimeVisibleAnnotations:
-      x: #x(#x=s#x)
-        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsSubstitute(
+      x: #x(#x=s#x,#x=s#x,#x=s#x,#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect(
           reason="annotation"
+          targetClass="com/android/hoststubgen/test/tinyframework/packagetest/RedirectTo"
+          targetMethod="m5_redirect"
+          targetDesc="()V"
         )
       x: #x()
         android.hosttest.annotation.HostSideTestRedirect
@@ -6868,6 +7376,8 @@ RuntimeVisibleAnnotations:
     )
   x: #x()
     android.hosttest.annotation.HostSideTestStaticInitializerKeep
+  x: #x()
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect
 ## Class: com/android/hoststubgen/test/tinyframework/packagetest/KeepC7_MethodAnnotations_withMethodExpPolicy.class
   Compiled from "MoreClassses.java"
 class com.android.hoststubgen.test.tinyframework.packagetest.KeepC7_MethodAnnotations_withMethodExpPolicy
@@ -7018,9 +7528,12 @@ Constant pool:
          x: invokestatic  #x                 // Method com/android/hoststubgen/test/tinyframework/packagetest/RedirectTo.m5_redirect:()V
         x: return
     RuntimeVisibleAnnotations:
-      x: #x(#x=s#x)
-        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsSubstitute(
+      x: #x(#x=s#x,#x=s#x,#x=s#x,#x=s#x)
+        com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect(
           reason="annotation"
+          targetClass="com/android/hoststubgen/test/tinyframework/packagetest/RedirectTo"
+          targetMethod="m5_redirect"
+          targetDesc="()V"
         )
       x: #x()
         android.hosttest.annotation.HostSideTestRedirect
@@ -7056,6 +7569,8 @@ RuntimeVisibleAnnotations:
     )
   x: #x()
     android.hosttest.annotation.HostSideTestStaticInitializerKeep
+  x: #x()
+    com.android.hoststubgen.hosthelper.HostStubGenProcessedAsRedirect
 ## Class: com/android/hoststubgen/test/tinyframework/packagetest/RedirectTo.class
   Compiled from "MoreClassses.java"
 class com.android.hoststubgen.test.tinyframework.packagetest.RedirectTo

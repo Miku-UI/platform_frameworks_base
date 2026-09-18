@@ -16,5 +16,5 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="bugreport_in_progress_title" msgid="5351751440620800623">"Completezza della segnalazione di bug <xliff:g id="ID">#%1$d</xliff:g>: <xliff:g id="PERCENTAGE">%2$s</xliff:g>"</string>
+    <string name="bugreport_in_progress_title" msgid="5351751440620800623">"Completamento segnalazione bug <xliff:g id="ID">#%1$d</xliff:g>: <xliff:g id="PERCENTAGE">%2$s</xliff:g>%%"</string>
 </resources>

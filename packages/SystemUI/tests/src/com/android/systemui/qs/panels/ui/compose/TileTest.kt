@@ -32,7 +32,8 @@ import com.android.compose.animation.scene.TestScenes.SceneA
 import com.android.compose.animation.scene.rememberMutableSceneTransitionLayoutState
 import com.android.compose.theme.PlatformTheme
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.haptics.msdl.tileHapticsViewModelFactoryProvider
+import com.android.systemui.animation.Expandable
+import com.android.systemui.haptics.msdl.tileHapticsViewModelFactory
 import com.android.systemui.plugins.qs.QSTile
 import com.android.systemui.qs.FakeQSTile
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.Tile
@@ -50,7 +51,7 @@ import org.junit.runner.RunWith
 class TileTest : SysuiTestCase() {
     @get:Rule val composeRule = createComposeRule()
     private val kosmos = testKosmos()
-    private val tileHapticsViewModelFactoryProvider = kosmos.tileHapticsViewModelFactoryProvider
+    private val tileHapticsViewModelFactory = kosmos.tileHapticsViewModelFactory
 
     @Composable
     private fun TestTile(tile: TileViewModel, iconOnly: Boolean) {
@@ -69,9 +70,8 @@ class TileTest : SysuiTestCase() {
                                 nextTile = null,
                                 bounceEnd = true,
                             ),
-                        tileHapticsViewModelFactoryProvider = tileHapticsViewModelFactoryProvider,
+                        tileHapticsViewModelFactory = tileHapticsViewModelFactory,
                         detailsViewModel = null,
-                        interactionSource = null,
                     )
                 }
             }
@@ -82,7 +82,8 @@ class TileTest : SysuiTestCase() {
     fun click_largeTile_shouldReceiveClick() {
         val tile = InteractableFakeQSTile()
         tile.fakeTile.changeState(QSTile.State().apply { label = "largeTile" })
-        val viewModel = TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"))
+        val viewModel =
+            TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"), Expandable())
 
         composeRule.setContent { TestTile(viewModel, iconOnly = false) }
         composeRule.waitForIdle()
@@ -101,7 +102,8 @@ class TileTest : SysuiTestCase() {
                 handlesSecondaryClick = true
             }
         )
-        val viewModel = TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"))
+        val viewModel =
+            TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"), Expandable())
 
         composeRule.setContent { TestTile(viewModel, iconOnly = false) }
         composeRule.waitForIdle()
@@ -115,7 +117,8 @@ class TileTest : SysuiTestCase() {
     fun click_smallTile_shouldReceiveClick() {
         val tile = InteractableFakeQSTile()
         tile.fakeTile.changeState(QSTile.State().apply { contentDescription = "smallTile" })
-        val viewModel = TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"))
+        val viewModel =
+            TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"), Expandable())
 
         composeRule.setContent { TestTile(viewModel, iconOnly = true) }
         composeRule.waitForIdle()
@@ -134,7 +137,8 @@ class TileTest : SysuiTestCase() {
                 handlesSecondaryClick = true
             }
         )
-        val viewModel = TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"))
+        val viewModel =
+            TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"), Expandable())
 
         composeRule.setContent { TestTile(viewModel, iconOnly = true) }
         composeRule.waitForIdle()
@@ -149,7 +153,8 @@ class TileTest : SysuiTestCase() {
     fun longClick_largeTile_shouldReceiveLongClick() {
         val tile = InteractableFakeQSTile()
         tile.fakeTile.changeState(QSTile.State().apply { label = "largeTile" })
-        val viewModel = TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"))
+        val viewModel =
+            TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"), Expandable())
 
         composeRule.setContent { TestTile(viewModel, iconOnly = false) }
         composeRule.waitForIdle()
@@ -168,7 +173,8 @@ class TileTest : SysuiTestCase() {
                 handlesSecondaryClick = true
             }
         )
-        val viewModel = TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"))
+        val viewModel =
+            TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"), Expandable())
 
         composeRule.setContent { TestTile(viewModel, iconOnly = false) }
         composeRule.waitForIdle()
@@ -182,7 +188,8 @@ class TileTest : SysuiTestCase() {
     fun longClick_smallTile_shouldReceiveLongClick() {
         val tile = InteractableFakeQSTile()
         tile.fakeTile.changeState(QSTile.State().apply { contentDescription = "smallTile" })
-        val viewModel = TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"))
+        val viewModel =
+            TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"), Expandable())
 
         composeRule.setContent { TestTile(viewModel, iconOnly = true) }
         composeRule.waitForIdle()
@@ -201,7 +208,8 @@ class TileTest : SysuiTestCase() {
                 handlesSecondaryClick = true
             }
         )
-        val viewModel = TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"))
+        val viewModel =
+            TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"), Expandable())
 
         composeRule.setContent { TestTile(viewModel, iconOnly = true) }
         composeRule.waitForIdle()
@@ -223,7 +231,8 @@ class TileTest : SysuiTestCase() {
                 handlesLongClick = false
             }
         )
-        val viewModel = TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"))
+        val viewModel =
+            TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"), Expandable())
 
         composeRule.setContent { TestTile(viewModel, iconOnly = true) }
         composeRule.waitForIdle()
@@ -245,7 +254,8 @@ class TileTest : SysuiTestCase() {
                 handlesLongClick = false
             }
         )
-        val viewModel = TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"))
+        val viewModel =
+            TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"), Expandable())
 
         composeRule.setContent { TestTile(viewModel, iconOnly = false) }
         composeRule.waitForIdle()
@@ -265,7 +275,8 @@ class TileTest : SysuiTestCase() {
                 handlesLongClick = false
             }
         )
-        val viewModel = TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"))
+        val viewModel =
+            TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"), Expandable())
 
         composeRule.setContent { TestTile(viewModel, iconOnly = true) }
         composeRule.waitForIdle()
@@ -285,7 +296,8 @@ class TileTest : SysuiTestCase() {
                 handlesLongClick = false
             }
         )
-        val viewModel = TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"))
+        val viewModel =
+            TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"), Expandable())
 
         composeRule.setContent { TestTile(viewModel, iconOnly = false) }
         composeRule.waitForIdle()
@@ -306,7 +318,8 @@ class TileTest : SysuiTestCase() {
                 state = STATE_UNAVAILABLE
             }
         )
-        val viewModel = TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"))
+        val viewModel =
+            TileViewModel(tile.fakeTile, TileSpec.Companion.create("test"), Expandable())
 
         composeRule.setContent { TestTile(viewModel, iconOnly = true) }
         composeRule.waitForIdle()

@@ -39,7 +39,6 @@ abstract class DialogStaysInsideDesktopApp(val rotation: Rotation = Rotation.ROT
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
-    private val eBayWebsite = "m.ebay.com"
     private val browserAppHelper = BrowserAppHelper(instrumentation)
     val browserDesktopAppHelper = DesktopModeAppHelper(browserAppHelper)
 
@@ -54,17 +53,27 @@ abstract class DialogStaysInsideDesktopApp(val rotation: Rotation = Rotation.ROT
     open fun triggerAppDialogAndDrag() {
         browserAppHelper.launchViaIntent(
             wmHelper,
-            BrowserAppHelper.getSpecialBrowserIntent(eBayWebsite),
+            BrowserAppHelper.getSpecialBrowserIntent(BrowserAppHelper.EBAY_INTENT),
         )
         browserAppHelper.clickShareButtonInToolbar()
-        browserDesktopAppHelper.dragToSnapResizeRegion(wmHelper, device, isLeft = true)
+        browserDesktopAppHelper.dragToSnapResizeRegion(
+            wmHelper,
+            device,
+            instrumentation.context,
+            isLeft = true,
+        )
     }
 
     @Test
     open fun triggerSystemDialogAndDrag() {
         // Trigger a permission dialog which is a system dialog.
         browserAppHelper.clickVoiceButtonInSearchBox()
-        browserDesktopAppHelper.dragToSnapResizeRegion(wmHelper, device, isLeft = true)
+        browserDesktopAppHelper.dragToSnapResizeRegion(
+            wmHelper,
+            device,
+            instrumentation.context,
+            isLeft = true,
+        )
     }
 
     @After

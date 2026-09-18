@@ -61,6 +61,10 @@
     *** padding*(...);
 }
 
+-keep class androidx.compose.foundation.layout.AspectRatioKt {
+    *** aspectRatio(...);
+}
+
 -keep class androidx.compose.foundation.layout.Arrangement {
     *** INSTANCE;
     *** getTop(...);
@@ -110,6 +114,7 @@
     *** getSetResolvedCompositionLocals(...);
     *** getSetCompositeKeyHash(...);
     *** getSetModifier(...);
+    *** getApplyOnDeactivatedNodeAssertion(...);
 }
 
 -keep class com.android.compose.animation.scene.ElementKey {

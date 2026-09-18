@@ -41,16 +41,6 @@ public class NotificationPanelLoggerImpl implements NotificationPanelLogger {
     }
 
     @Override
-    public void logNotificationDrag(NotificationEntry draggedNotification) {
-        final Notifications.NotificationList proto = NotificationPanelLogger.toNotificationProto(
-                Collections.singletonList(draggedNotification));
-        SysUiStatsLog.write(SysUiStatsLog.NOTIFICATION_PANEL_REPORTED,
-                /* event_id = */ NOTIFICATION_DRAG.getId(),
-                /* num_notifications = */ proto.notifications.length,
-                /* notifications = */ MessageNano.toByteArray(proto));
-    }
-
-    @Override
     public void logNotificationDrag(EntryAdapter draggedNotification) {
         final Notifications.NotificationList proto =
                 NotificationPanelLogger.adapterToNotificationProto(

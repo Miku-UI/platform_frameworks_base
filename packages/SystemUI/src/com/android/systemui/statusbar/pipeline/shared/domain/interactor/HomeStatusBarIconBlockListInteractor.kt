@@ -22,6 +22,7 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.res.R
 import com.android.systemui.shared.settings.data.repository.SecureSettingsRepository
+import com.android.systemui.statusbar.systemstatusicons.domain.interactor.SystemStatusIconBlocklistInteractor
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -30,7 +31,8 @@ import kotlinx.coroutines.flow.map
 @SysUISingleton
 class HomeStatusBarIconBlockListInteractor
 @Inject
-constructor(@Main res: Resources, secureSettingsRepository: SecureSettingsRepository) {
+constructor(@Main res: Resources, secureSettingsRepository: SecureSettingsRepository) :
+    SystemStatusIconBlocklistInteractor {
     private val defaultBlockedIcons =
         res.getStringArray(R.array.config_collapsed_statusbar_icon_blocklist)
 
@@ -40,7 +42,7 @@ constructor(@Main res: Resources, secureSettingsRepository: SecureSettingsReposi
     private val shouldShowVibrateIcon: Flow<Boolean> =
         secureSettingsRepository.boolSetting(Settings.Secure.STATUS_BAR_SHOW_VIBRATE_ICON, false)
 
-    val iconBlockList: Flow<List<String>> =
+    override val blockedIconSlots: Flow<Set<String>> =
         shouldShowVibrateIcon.map {
             val defaultSet = defaultBlockedIcons.toMutableSet()
             // It's possible that the vibrate icon was in the default blocklist, so we manually
@@ -51,6 +53,8 @@ constructor(@Main res: Resources, secureSettingsRepository: SecureSettingsReposi
                 defaultSet.add(vibrateIconSlot)
             }
 
-            defaultSet.toList()
+            defaultSet
         }
+
+    val iconBlockList: Flow<List<String>> = blockedIconSlots.map { it.toList() }
 }

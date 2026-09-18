@@ -16,9 +16,11 @@
 
 package com.android.systemui.touchpad.tutorial.ui.gesture
 
+import android.platform.test.annotations.EnableFlags
 import android.view.MotionEvent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.testKosmos
 import com.android.systemui.touchpad.tutorial.ui.gesture.GestureState.Error
@@ -33,6 +35,7 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@EnableFlags(Flags.FLAG_TOUCHPAD_GESTURE_TUTORIAL_BUG_FIXES)
 class RecentAppsGestureRecognizerTest : SysuiTestCase() {
 
     companion object {
@@ -53,13 +56,13 @@ class RecentAppsGestureRecognizerTest : SysuiTestCase() {
 
     @Before
     fun before() {
-        velocityTracker.setVelocity(Velocity(SLOW))
+        velocityTracker.setVelocity(Velocity(FAST))
         gestureRecognizer.addGestureStateCallback { gestureState = it }
     }
 
     @Test
-    fun triggersError_onGestureSpeedTooHigh() {
-        velocityTracker.setVelocity(Velocity(FAST))
+    fun triggersError_onGestureSpeedTooSlow() {
+        velocityTracker.setVelocity(Velocity(SLOW))
         assertStateAfterEvents(events = ThreeFingerGesture.swipeUp(), expectedState = Error)
     }
 
@@ -82,6 +85,14 @@ class RecentAppsGestureRecognizerTest : SysuiTestCase() {
         assertProgressWhileMovingFingers(deltaY = SWIPE_DISTANCE / 2, expectedProgress = 0f)
         // going further than required distance
         assertProgressWhileMovingFingers(deltaY = -SWIPE_DISTANCE * 2, expectedProgress = 1f)
+    }
+
+    @Test
+    fun triggersFinishedGestureOnFirstSwipe() {
+        val events = ThreeFingerGesture.swipeUp()
+
+        events.forEach { gestureRecognizer.accept(it) }
+        assertThat(gestureState).isEqualTo(GestureState.Finished)
     }
 
     private fun assertStateAfterEvents(events: List<MotionEvent>, expectedState: GestureState) {

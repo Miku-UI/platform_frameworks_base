@@ -59,6 +59,8 @@ data class Desk(
     // TODO: b/417907552 - Add these variables to persistent repository.
     // Bounds of tasks in this desk mapped to their respective task ids. Used for reconnect.
     var boundsByTaskId: MutableMap<Int, Rect> = mutableMapOf()
+    // Bounds of tasks in this desk before they got snapped or maximized.
+    var boundsBeforeSnapOrMaximizeByTaskId: MutableMap<Int, Rect> = mutableMapOf()
 
     fun deepCopy(): Desk =
         Desk(
@@ -77,6 +79,8 @@ data class Desk(
             .also {
                 it.uniqueDisplayId = uniqueDisplayId
                 it.boundsByTaskId = boundsByTaskId.toMutableMap()
+                it.boundsBeforeSnapOrMaximizeByTaskId =
+                    boundsBeforeSnapOrMaximizeByTaskId.toMutableMap()
             }
 
     // TODO: b/362720497 - remove when multi-desktops is enabled where instances aren't
@@ -92,6 +96,7 @@ data class Desk(
         leftTiledTaskId = null
         rightTiledTaskId = null
         boundsByTaskId.clear()
+        boundsBeforeSnapOrMaximizeByTaskId.clear()
     }
 }
 

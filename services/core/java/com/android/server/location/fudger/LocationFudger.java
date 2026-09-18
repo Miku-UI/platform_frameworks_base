@@ -19,7 +19,6 @@ package com.android.server.location.fudger;
 import static com.android.internal.location.geometry.S2CellIdUtils.LAT_INDEX;
 import static com.android.internal.location.geometry.S2CellIdUtils.LNG_INDEX;
 
-import android.annotation.FlaggedApi;
 import android.annotation.Nullable;
 import android.location.Location;
 import android.location.LocationResult;
@@ -119,7 +118,6 @@ public class LocationFudger {
     /**
      * Provides the optional {@link LocationFudgerCache} for coarsening based on population density.
      */
-    @FlaggedApi(Flags.FLAG_DENSITY_BASED_COARSE_LOCATIONS)
     public void setLocationFudgerCache(LocationFudgerCache cache) {
         synchronized (this) {
             mLocationFudgerCache = cache;
@@ -199,15 +197,11 @@ public class LocationFudger {
             cacheCopy = mLocationFudgerCache;
         }
         double[] coarsened = new double[] {0.0, 0.0};
-        // TODO(b/381204398): To ensure a safe rollout, two algorithms co-exist. The first is the
-        // new density-based algorithm, while the second is the traditional coarsening algorithm.
-        // Once rollout is done, clean up the unused algorithm.
         // The new algorithm is applied if and only if (1) the flag is on, (2) the cache has been
         // set, and (3) the cache has successfully queried the provider for the default coarsening
         // value.
         float accuracy = mAccuracyM;
-        if (Flags.populationDensityProvider() && Flags.densityBasedCoarseLocations()
-                && cacheCopy != null) {
+        if (cacheCopy != null) {
             if (cacheCopy.hasDefaultValue()) {
                 // New algorithm that snaps to the center of a S2 cell.
                 int level = cacheCopy.getCoarseningLevel(latitude, longitude);

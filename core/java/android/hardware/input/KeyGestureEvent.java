@@ -21,6 +21,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.role.RoleManager;
 import android.content.Intent;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.view.Display;
 import android.view.KeyCharacterMap;
 
@@ -35,6 +36,7 @@ import java.util.Objects;
  *
  * @hide
  */
+@RavenwoodKeepWholeClass
 public final class KeyGestureEvent {
 
     @NonNull
@@ -137,6 +139,12 @@ public final class KeyGestureEvent {
     public static final int KEY_GESTURE_TYPE_TOGGLE_FULLSCREEN = 82;
     public static final int KEY_GESTURE_TYPE_TAKE_PARTIAL_SCREENSHOT = 83;
     public static final int KEY_GESTURE_TYPE_REJECT_HOME_ON_EXTERNAL_DISPLAY = 84;
+    public static final int KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_SEARCH = 85;
+    public static final int KEY_GESTURE_TYPE_TAKE_APP_WINDOW_SCREENSHOT = 86;
+    public static final int KEY_GESTURE_TYPE_TOGGLE_DISPLAY_COLOR_INVERSION = 87;
+    public static final int KEY_GESTURE_TYPE_TOGGLE_TOP_ROW_ACCESSIBILITY_KEY = 88;
+    public static final int KEY_GESTURE_TYPE_CONTEXTUAL_INPUT = 89;
+    public static final int KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_CURSOR= 90;
 
     public static final int FLAG_CANCELLED = 1 << 0;
     public static final int FLAG_LONG_PRESS = 1 << 1;
@@ -236,6 +244,11 @@ public final class KeyGestureEvent {
             KEY_GESTURE_TYPE_TOGGLE_FULLSCREEN,
             KEY_GESTURE_TYPE_TAKE_PARTIAL_SCREENSHOT,
             KEY_GESTURE_TYPE_REJECT_HOME_ON_EXTERNAL_DISPLAY,
+            KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_SEARCH,
+            KEY_GESTURE_TYPE_TOGGLE_DISPLAY_COLOR_INVERSION,
+            KEY_GESTURE_TYPE_TOGGLE_TOP_ROW_ACCESSIBILITY_KEY,
+            KEY_GESTURE_TYPE_CONTEXTUAL_INPUT,
+            KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_CURSOR,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface KeyGestureType {
@@ -848,6 +861,16 @@ public final class KeyGestureEvent {
                 return "KEY_GESTURE_TYPE_TAKE_PARTIAL_SCREENSHOT";
             case KEY_GESTURE_TYPE_REJECT_HOME_ON_EXTERNAL_DISPLAY:
                 return "KEY_GESTURE_TYPE_REJECT_HOME_ON_EXTERNAL_DISPLAY";
+            case KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_SEARCH:
+                return "KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_SEARCH";
+            case KEY_GESTURE_TYPE_TOGGLE_DISPLAY_COLOR_INVERSION:
+                return "KEY_GESTURE_TYPE_TOGGLE_DISPLAY_COLOR_INVERSION";
+            case KEY_GESTURE_TYPE_TOGGLE_TOP_ROW_ACCESSIBILITY_KEY:
+                return "KEY_GESTURE_TYPE_TOGGLE_TOP_ROW_ACCESSIBILITY_KEY";
+            case KEY_GESTURE_TYPE_CONTEXTUAL_INPUT:
+                return "KEY_GESTURE_TYPE_CONTEXTUAL_INPUT";
+            case KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_CURSOR:
+                return "KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_CURSOR";
             default:
                 return Integer.toHexString(value);
         }

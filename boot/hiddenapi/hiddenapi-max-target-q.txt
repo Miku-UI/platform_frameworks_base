@@ -390,7 +390,6 @@ Lcom/android/internal/R$integer;->config_screenBrightnessSettingMinimum:I
 Lcom/android/internal/R$integer;->config_toastDefaultGravity:I
 Lcom/android/internal/R$interpolator;->accelerate_cubic:I
 Lcom/android/internal/R$interpolator;->decelerate_cubic:I
-Lcom/android/internal/R$layout;->notification_template_material_base:I
 Lcom/android/internal/R$layout;->preference_header_item:I
 Lcom/android/internal/R$layout;->screen_title:I
 Lcom/android/internal/R$layout;->select_dialog:I
@@ -398,12 +397,12 @@ Lcom/android/internal/R$layout;->select_dialog_multichoice:I
 Lcom/android/internal/R$layout;->select_dialog_singlechoice:I
 Lcom/android/internal/R$layout;->webview_find:I
 Lcom/android/internal/R$layout;->zoom_magnify:I
-Lcom/android/internal/R$string;->matches_found:I
 Lcom/android/internal/R$raw;->loaderror:I
 Lcom/android/internal/R$raw;->nodomain:I
 Lcom/android/internal/R$string;->byteShort:I
 Lcom/android/internal/R$string;->cancel:I
 Lcom/android/internal/R$string;->enable_explore_by_touch_warning_title:I
+Lcom/android/internal/R$string;->matches_found:I
 Lcom/android/internal/R$string;->notification_title:I
 Lcom/android/internal/R$string;->no_matches:I
 Lcom/android/internal/R$string;->ok:I

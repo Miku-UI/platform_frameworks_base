@@ -18,8 +18,6 @@ package com.android.systemui.communal.widgets
 
 import android.appwidget.AppWidgetHost
 import android.content.Context
-import android.os.DeadObjectException
-import android.os.TransactionTooLargeException
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.communal.shared.model.GlanceableHubMultiUserHelper
 import com.android.systemui.log.LogBuffer
@@ -138,9 +136,5 @@ class CommunalAppWidgetHost(
 
     companion object {
         private const val TAG = "CommunalAppWidgetHost"
-
-        private fun Exception.isBinderSizeError(): Boolean {
-            return cause is TransactionTooLargeException || cause is DeadObjectException
-        }
     }
 }

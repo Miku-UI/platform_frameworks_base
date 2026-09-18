@@ -17,6 +17,7 @@
 package com.android.systemui.screencapture.common.domain.model
 
 import android.graphics.Bitmap
+import android.graphics.drawable.Icon
 import android.media.projection.MediaProjectionAppContent
 
 /** Collection of information about currently available app content. */
@@ -24,8 +25,9 @@ data class ScreenCaptureAppContent(
     val packageName: String,
     val contentId: Int,
     val label: CharSequence,
-    val thumbnail: Bitmap,
-) {
+    val thumbnail: Bitmap?,
+    val icon: Icon?,
+) : TargetModel {
     constructor(
         packageName: String,
         appContent: MediaProjectionAppContent,
@@ -34,5 +36,8 @@ data class ScreenCaptureAppContent(
         contentId = appContent.id,
         label = appContent.title,
         thumbnail = appContent.thumbnail,
+        icon = appContent.icon,
     )
+
+    override val traceTag: String = "AppContent($packageName, $contentId)"
 }

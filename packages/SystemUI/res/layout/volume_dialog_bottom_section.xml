@@ -21,7 +21,7 @@
         android:src="@drawable/ic_volume_odi_captions_disabled"
         android:layout_width="@dimen/volume_dialog_button_size"
         android:layout_height="@dimen/volume_dialog_button_size"
-        android:tint="@androidprv:color/materialColorPrimary"
+        android:tint="@color/materialColorPrimary"
         android:background="@drawable/volume_dialog_captions_button_transition_bg"
         android:scaleType="centerInside"
         android:soundEffectsEnabled="false"
@@ -37,5 +37,5 @@
         android:scaleType="centerInside"
         android:soundEffectsEnabled="false"
         android:padding="4dp"
-        android:tint="@androidprv:color/materialColorPrimary"/>
+        android:tint="@color/materialColorPrimary"/>
 </merge>

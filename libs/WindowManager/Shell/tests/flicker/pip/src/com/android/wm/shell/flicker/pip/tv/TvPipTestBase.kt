@@ -83,7 +83,7 @@ abstract class TvPipTestBase : PipTestBase(rotationToString(ROTATION_0), ROTATIO
             processUid: Int,
             packageUid: Int,
             packageName: String,
-            processName: String
+            processName: String,
         ) {}
 
         override fun onForegroundActivitiesChanged(pid: Int, uid: Int, foreground: Boolean) {}

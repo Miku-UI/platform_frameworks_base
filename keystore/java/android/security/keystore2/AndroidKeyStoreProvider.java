@@ -24,6 +24,7 @@ import android.security.keymaster.KeymasterDefs;
 import android.security.keystore.KeyPermanentlyInvalidatedException;
 import android.security.keystore.KeyProperties;
 import android.security.keystore.KeyStoreCryptoOperation;
+import android.security.keystore2.Flags;
 import android.system.keystore2.Authorization;
 import android.system.keystore2.Domain;
 import android.system.keystore2.KeyDescriptor;
@@ -68,11 +69,6 @@ public class AndroidKeyStoreProvider extends Provider {
     private static final String DESEDE_SYSTEM_PROPERTY =
             "ro.hardware.keystore_desede";
 
-    // Conscrypt added EdDSA classes to the "OpenSSLProvider" in
-    // https://github.com/google/conscrypt/commit/5473d34964ce77ab2594ae0cc0ecf74931f28cc3.
-    // The public key class returns "EdDSA" as the JCA key algorithm name. Before this class was
-    // introduced, the OpenSSLX509Certificate class would fall back to using the OID as the
-    // algorithm name.
     private static final String ED25519_OID = "1.3.101.112";
     private static final String EDDSA_ALGORITHM_NAME = "EdDSA";
 
@@ -94,12 +90,25 @@ public class AndroidKeyStoreProvider extends Provider {
         put("KeyPairGenerator.XDH", PACKAGE_NAME +  ".AndroidKeyStoreKeyPairGeneratorSpi$XDH");
         put("KeyPairGenerator.ED25519", PACKAGE_NAME
                 +  ".AndroidKeyStoreKeyPairGeneratorSpi$ED25519");
+        if (Flags.mldsaSupport()) {
+            put("KeyPairGenerator.ML-DSA", PACKAGE_NAME
+                    + ".AndroidKeyStoreKeyPairGeneratorSpi$MLDSA");
+            put("KeyPairGenerator.ML-DSA-65", PACKAGE_NAME
+                    + ".AndroidKeyStoreKeyPairGeneratorSpi$MLDSA65");
+            put("KeyPairGenerator.ML-DSA-87", PACKAGE_NAME
+                    + ".AndroidKeyStoreKeyPairGeneratorSpi$MLDSA87");
+        }
 
         // java.security.KeyFactory
-        putKeyFactoryImpl("EC");
-        putKeyFactoryImpl("RSA");
-        putKeyFactoryImpl("XDH");
-        putKeyFactoryImpl("ED25519");
+        put("KeyFactory.EC", PACKAGE_NAME + ".AndroidKeyStoreKeyFactorySpi$EC");
+        put("KeyFactory.RSA", PACKAGE_NAME + ".AndroidKeyStoreKeyFactorySpi$RSA");
+        put("KeyFactory.XDH", PACKAGE_NAME + ".AndroidKeyStoreKeyFactorySpi$XDH");
+        put("KeyFactory.ED25519", PACKAGE_NAME + ".AndroidKeyStoreKeyFactorySpi$ED25519");
+        if (Flags.mldsaSupport()) {
+            put("KeyFactory.ML-DSA", PACKAGE_NAME + ".AndroidKeyStoreKeyFactorySpi$MLDSA");
+            put("KeyFactory.ML-DSA-65", PACKAGE_NAME + ".AndroidKeyStoreKeyFactorySpi$MLDSA65");
+            put("KeyFactory.ML-DSA-87", PACKAGE_NAME + ".AndroidKeyStoreKeyFactorySpi$MLDSA87");
+        }
 
         // javax.crypto.KeyGenerator
         put("KeyGenerator.AES", PACKAGE_NAME + ".AndroidKeyStoreKeyGeneratorSpi$AES");
@@ -162,15 +171,12 @@ public class AndroidKeyStoreProvider extends Provider {
         put("SecretKeyFactory." + algorithm, PACKAGE_NAME + ".AndroidKeyStoreSecretKeyFactorySpi");
     }
 
-    private void putKeyFactoryImpl(String algorithm) {
-        put("KeyFactory." + algorithm, PACKAGE_NAME + ".AndroidKeyStoreKeyFactorySpi");
-    }
-
     /**
      * Gets the Android KeyStore operation handle corresponding to the provided JCA crypto
      * primitive.
      *
-     * <p>The following primitives are supported: {@link Cipher}, {@link Signature} and {@link Mac}.
+     * <p>The following primitives are supported: {@link Cipher}, {@link Signature}, {@link Mac},
+     * and {@link KeyAgreement}.
      *
      * @return Android KeyStore operation handle or {@code 0} if the provided primitive's Android
      *         KeyStore operation is not in progress.
@@ -195,7 +201,7 @@ public class AndroidKeyStoreProvider extends Provider {
             spi = ((KeyAgreement) cryptoPrimitive).getCurrentSpi();
         } else {
             throw new IllegalArgumentException("Unsupported crypto primitive: " + cryptoPrimitive
-                    + ". Supported: Signature, Mac, Cipher");
+                    + ". Supported: Signature, Mac, Cipher, KeyAgreement");
         }
         if (spi == null) {
             throw new IllegalStateException("Crypto primitive not initialized");
@@ -217,7 +223,7 @@ public class AndroidKeyStoreProvider extends Provider {
      * @param metadata The key metadata which includes the public key material, a reference to the
      *                 stored private key material, the key characteristics.
      * @param iSecurityLevel A binder interface that allows using the private key.
-     * @param algorithm Must indicate EC or RSA.
+     * @param algorithm Must indicate EC, RSA, or ML-DSA.
      * @return AndroidKeyStorePublicKey
      * @throws UnrecoverableKeyException
      * @hide
@@ -252,19 +258,31 @@ public class AndroidKeyStoreProvider extends Provider {
             return new AndroidKeyStoreRSAPublicKey(descriptor, metadata,
                     iSecurityLevel, (RSAPublicKey) publicKey);
         } else if (ED25519_OID.equalsIgnoreCase(jcaKeyAlgorithm)) {
-            // This branch should be removed once
-            // https://github.com/google/conscrypt/commit/5473d34964ce77ab2594ae0cc0ecf74931f28cc3
-            // is merged into Android.
             final byte[] publicKeyEncoded = publicKey.getEncoded();
             return new AndroidKeyStoreEdECPublicKey(descriptor, metadata, ED25519_OID,
                     iSecurityLevel, publicKeyEncoded);
         } else if (EDDSA_ALGORITHM_NAME.equalsIgnoreCase(jcaKeyAlgorithm)) {
+            // This branch is included for completeness but should never trigger since EdDSA keys
+            // generated by AndroidKeyStore and Conscrypt both return the Ed25519 OID from
+            // `getAlgorithm()`, not the Java Security Standard Algorithm Name (even though that is
+            // the "correct" value). This is because there are AndroidKeyStore provider
+            // implementations in the wild that shipped prior to Conscrypt fully supporting Ed25519.
+            // Those AndroidKeyStore implementations use the OID to match the output of Conscrypt's
+            // fallback logic for unsupported algorithms. When Conscrypt added Ed25519 support
+            // (which was pushed to devices via mainline, including devices with these older
+            // AndroidKeyStore implementations), their EdDSA keys continue to use the OID instead of
+            // "EdDSA" to maintain backwards-compatibility.
             final byte[] publicKeyEncoded = publicKey.getEncoded();
             return new AndroidKeyStoreEdECPublicKey(descriptor, metadata, EDDSA_ALGORITHM_NAME,
                     iSecurityLevel, publicKeyEncoded);
         } else if (X25519_ALIAS.equalsIgnoreCase(jcaKeyAlgorithm)) {
             return new AndroidKeyStoreXDHPublicKey(descriptor, metadata, X25519_ALIAS,
                     iSecurityLevel, publicKey.getEncoded());
+        } else if (KeyProperties.KEY_ALGORITHM_ML_DSA.equalsIgnoreCase(jcaKeyAlgorithm)
+                || KeyProperties.KEY_ALGORITHM_ML_DSA_65.equalsIgnoreCase(jcaKeyAlgorithm)
+                || KeyProperties.KEY_ALGORITHM_ML_DSA_87.equalsIgnoreCase(jcaKeyAlgorithm)) {
+            return new AndroidKeyStoreMlDsaPublicKey(
+                    descriptor, metadata, iSecurityLevel, publicKey.getEncoded());
         } else {
             throw new ProviderException("Unsupported Android Keystore public key algorithm: "
                     + jcaKeyAlgorithm);
@@ -458,8 +476,11 @@ public class AndroidKeyStoreProvider extends Provider {
                 keymasterAlgorithm == KeymasterDefs.KM_ALGORITHM_3DES) {
             return makeAndroidKeyStoreSecretKeyFromKeyEntryResponse(descriptor, response,
                     keymasterAlgorithm, keymasterDigest);
-        } else if (keymasterAlgorithm == KeymasterDefs.KM_ALGORITHM_RSA ||
-                keymasterAlgorithm == KeymasterDefs.KM_ALGORITHM_EC) {
+        } else if (keymasterAlgorithm == KeymasterDefs.KM_ALGORITHM_RSA
+                || keymasterAlgorithm == KeymasterDefs.KM_ALGORITHM_EC
+                || keymasterAlgorithm == KeyProperties.KM_ALGORITHM_ML_DSA) {
+            // TODO(b/462036047): Replace KeyProperties.KM_ALGORITHM_ML_DSA with
+            // KeymasterDefs.KM_ALGORITHM_ML_DSA when KeyMint V5 is frozen.
             return makeAndroidKeyStorePublicKeyFromKeyEntryResponse(descriptor, response.metadata,
                     new KeyStoreSecurityLevel(response.iSecurityLevel),
                     keymasterAlgorithm);

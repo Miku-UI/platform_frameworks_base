@@ -36,6 +36,8 @@ class BundleHeaderViewModel @AssistedInject constructor(private val interactor: 
     val titleText: Int
         get() = interactor.titleText
 
+    val summaryText: String? = interactor.summaryText
+
     val numberOfChildren: Int?
         get() = interactor.numberOfChildren
 
@@ -43,10 +45,7 @@ class BundleHeaderViewModel @AssistedInject constructor(private val interactor: 
         get() = interactor.bundleIcon
 
     val previewIcons: List<Drawable> by
-        interactor.previewIcons.hydratedStateOf(
-            traceName = "previewIcons",
-            initialValue = emptyList(),
-        )
+        interactor.previewIcons.hydratedStateOf(initialValue = emptyList())
 
     var state: MutableSceneTransitionLayoutState? by interactor::state
 

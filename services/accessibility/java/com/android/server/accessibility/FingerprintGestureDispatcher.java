@@ -37,7 +37,7 @@ public class FingerprintGestureDispatcher extends IFingerprintClientActiveCallba
         implements Handler.Callback{
     private static final int MSG_REGISTER = 1;
     private static final int MSG_UNREGISTER = 2;
-    private static final String LOG_TAG = "FingerprintGestureDispatcher";
+    private static final String LOG_TAG = FingerprintGestureDispatcher.class.getSimpleName();
 
     private final List<FingerprintGestureClient> mCapturingClients = new ArrayList<>(0);
     private final Object mLock;

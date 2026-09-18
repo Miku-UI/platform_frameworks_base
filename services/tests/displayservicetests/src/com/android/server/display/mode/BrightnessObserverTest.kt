@@ -23,6 +23,7 @@ import android.view.Display
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.filters.SmallTest
 import com.android.server.display.DisplayDeviceConfig
+import com.android.server.display.ModeRequestManager
 import com.android.server.display.config.RefreshRateData
 import com.android.server.display.config.SupportedModeData
 import com.android.server.display.config.createRefreshRateData
@@ -60,6 +61,8 @@ class BrightnessObserverTest {
     private val mockFlags = mock<DisplayManagerFlags>()
     private val mockDeviceConfig = mock<DisplayDeviceConfig>()
     private val mockDisplayDeviceConfigProvider = mock<DisplayDeviceConfigProvider>()
+    private val mockModeRequestManager = mock<ModeRequestManager>()
+
 
     private val testHandler = TestHandler(null)
 
@@ -72,7 +75,8 @@ class BrightnessObserverTest {
     fun testLowLightBlockingZoneVotes(@TestParameter testCase: LowLightTestCase) {
         setUpLowBrightnessZone()
         val displayModeDirector = DisplayModeDirector(
-                spyContext, testHandler, mockInjector, mockFlags, mockDisplayDeviceConfigProvider)
+                spyContext, testHandler, mockInjector, mockFlags,
+            mockDisplayDeviceConfigProvider, mockModeRequestManager)
         whenever(mockDeviceConfig.isVrrSupportEnabled).thenReturn(testCase.vrrSupported)
         whenever(mockDeviceConfig.refreshRateData).thenReturn(testCase.refreshRateData)
         whenever(mockDeviceConfig.defaultLowBlockingZoneRefreshRate).thenReturn(-1)

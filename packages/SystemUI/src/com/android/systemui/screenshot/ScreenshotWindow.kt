@@ -38,17 +38,8 @@ import dagger.assisted.AssistedInject
 
 /** Creates and manages the window in which the screenshot UI is displayed. */
 open class ScreenshotWindow
-protected constructor(
-    context: Context,
-    private val shouldConsumeInsets: Boolean,
-    private val display: Display,
-) {
-
-    @AssistedInject
-    constructor(
-        context: Context,
-        @Assisted display: Display,
-    ) : this(context = context, display = display, shouldConsumeInsets = true)
+@AssistedInject
+constructor(context: Context, @Assisted private val display: Display) {
 
     private val windowContext =
         context
@@ -108,12 +99,9 @@ protected constructor(
         decorView.requireViewById<ViewGroup>(androidR.id.content).apply {
             clipChildren = false
             clipToPadding = false
-            if (shouldConsumeInsets) {
-                // ignore system bar insets for the purpose of window layout
-                setOnApplyWindowInsetsListener { _, _ -> WindowInsets.CONSUMED }
-            }
+            // ignore system bar insets for the purpose of window layout
+            setOnApplyWindowInsetsListener { _, _ -> WindowInsets.CONSUMED }
         }
-        onAttach()
     }
 
     fun whenWindowAttached(action: Runnable) {
@@ -143,7 +131,6 @@ protected constructor(
             if (LogConfig.DEBUG_WINDOW) {
                 Log.d(TAG, "Removing screenshot window")
             }
-            onDetach()
             windowManager.removeViewImmediate(decorView)
             detachRequested = false
         }
@@ -193,10 +180,6 @@ protected constructor(
     fun setActivityConfigCallback(callback: ViewRootImpl.ActivityConfigCallback) {
         window.peekDecorView().viewRootImpl.setActivityConfigCallback(callback)
     }
-
-    protected open fun onAttach() {}
-
-    protected open fun onDetach() {}
 
     @AssistedFactory
     interface Factory {

@@ -16,6 +16,7 @@
 
 package com.android.systemui.classifier;
 
+import static com.android.systemui.classifier.Classifier.BOUNCER_SWIPE;
 import static com.android.systemui.classifier.Classifier.BOUNCER_UNLOCK;
 import static com.android.systemui.classifier.Classifier.BRIGHTNESS_SLIDER;
 import static com.android.systemui.classifier.Classifier.LEFT_AFFORDANCE;
@@ -224,6 +225,29 @@ public class TypeClassifierTest extends ClassifierTest {
         when(mDataProvider.isVertical()).thenReturn(false);
         when(mDataProvider.isUp()).thenReturn(false);
         assertThat(mClassifier.classifyGesture(BOUNCER_UNLOCK, 0.5, 0).isFalse()).isTrue();
+    }
+
+    @Test
+    public void testTrue_BouncerSwipe() {
+        when(mDataProvider.isVertical()).thenReturn(true);
+        when(mDataProvider.isUp()).thenReturn(true);
+        assertThat(mClassifier.classifyGesture(BOUNCER_SWIPE, 0.5, 0).isFalse()).isFalse();
+
+        when(mDataProvider.isUp()).thenReturn(false);
+        assertThat(mClassifier.classifyGesture(BOUNCER_SWIPE, 0.5, 0).isFalse()).isFalse();
+
+        when(mDataProvider.isRight()).thenReturn(false);  // right should cause no effect.
+        assertThat(mClassifier.classifyGesture(BOUNCER_SWIPE, 0.5, 0).isFalse()).isFalse();
+
+        when(mDataProvider.isRight()).thenReturn(true);
+        assertThat(mClassifier.classifyGesture(BOUNCER_SWIPE, 0.5, 0).isFalse()).isFalse();
+    }
+
+    @Test
+    public void testFalse_BouncerSwipe() {
+        when(mDataProvider.isVertical()).thenReturn(false);
+        when(mDataProvider.isUp()).thenReturn(true);
+        assertThat(mClassifier.classifyGesture(BOUNCER_SWIPE, 0.5, 0).isFalse()).isTrue();
     }
 
     @Test

@@ -18,6 +18,7 @@ package android.media.quality;
 
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
+import android.annotation.StringDef;
 import android.annotation.SystemApi;
 import android.media.tv.TvInputInfo;
 import android.media.tv.flags.Flags;
@@ -114,6 +115,91 @@ public final class SoundProfile implements Parcelable {
      * @see MediaQualityManager#getSoundProfileAllowList()
      */
     public static final int ERROR_NOT_ALLOWLISTED = 4;
+
+    /** @hide */
+    @Retention(RetentionPolicy.SOURCE)
+    @StringDef(prefix = "NAME_", value = {
+            NAME_DEFAULT,
+            NAME_USER,
+            NAME_STANDARD,
+            NAME_VIVID,
+            NAME_SPORTS,
+            NAME_MOVIE,
+            NAME_MUSIC,
+            NAME_NEWS
+    })
+    public @interface ProfileName {}
+
+    /**
+     * Name for the default sound profile.
+     *
+     * <p>This profile represents the system's baseline configuration and is used when no
+     * specific profile is selected.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_DEFAULT = "default";
+
+    /**
+     * Name for the user-defined sound profile.
+     *
+     * <p>This profile represents custom settings configured by the user.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_USER = "user";
+
+    /**
+     * Name for the standard sound profile.
+     *
+     * <p>This profile is typically optimized for general listening conditions and standard
+     * content types.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_STANDARD = "standard";
+
+    /**
+     * Name for the vivid sound profile.
+     *
+     * <p>This profile typically emphasizes sound dynamics and distinct characteristics to create a
+     * more exciting audio experience.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_VIVID = "vivid";
+
+    /**
+     * Name for the sports sound profile.
+     *
+     * <p>This profile is typically optimized for sporting events, emphasizing commentary and
+     * crowd atmosphere.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_SPORTS = "sports";
+
+    /**
+     * Name for the movie sound profile.
+     *
+     * <p>This profile is typically optimized for cinematic content, often enhancing surround
+     * sound effects and dialogue clarity.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_MOVIE = "movie";
+
+    /**
+     * Name for the music sound profile.
+     *
+     * <p>This profile is typically optimized for music playback, prioritizing audio fidelity
+     * and instrumental balance.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_MUSIC = "music";
+
+    /**
+     * Name for the news sound profile.
+     *
+     * <p>This profile is typically optimized for news broadcasts, prioritizing speech
+     * intelligibility and vocal clarity.
+     */
+    @FlaggedApi(Flags.FLAG_MEDIA_QUALITY_FW_C)
+    public static final String NAME_NEWS = "news";
 
     private SoundProfile(@NonNull Parcel in) {
         mId = in.readString();

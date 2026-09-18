@@ -243,10 +243,14 @@ void DamageAccumulator::applyRenderNodeTransform(DirtyStack* frame) {
 }
 
 static void computeClipAndTransformImpl(const DirtyStack* currentFrame, SkRect* crop,
-                                        Matrix4* outMatrix) {
+                                        Matrix4* outMatrix, bool* disableClip) {
     SkRect currentCrop = *crop;
     switch (currentFrame->type) {
         case TransformRenderNode: {
+            // Disable auto clip if the current RenderNode has mParentCount greater than 1.
+            if (currentFrame->renderNode->getParentCount() > 1) {
+                *disableClip = true;
+            }
             const RenderProperties& props = currentFrame->renderNode->properties();
             // Perform clipping
             if (props.getClipDamageToBounds() && !currentCrop.isEmpty()) {
@@ -268,7 +272,7 @@ static void computeClipAndTransformImpl(const DirtyStack* currentFrame, SkRect* 
     }
 
     if (currentFrame->prev != currentFrame) {
-        computeClipAndTransformImpl(currentFrame->prev, crop, outMatrix);
+        computeClipAndTransformImpl(currentFrame->prev, crop, outMatrix, disableClip);
     }
     switch (currentFrame->type) {
         case TransformRenderNode:
@@ -286,10 +290,11 @@ static void computeClipAndTransformImpl(const DirtyStack* currentFrame, SkRect* 
     }
 }
 
-SkRect DamageAccumulator::computeClipAndTransform(const SkRect& bounds, Matrix4* outMatrix) const {
+SkRect DamageAccumulator::computeClipAndTransform(const SkRect& bounds, Matrix4* outMatrix,
+                                                  bool* disableClip) const {
     SkRect cropInGlobal = bounds;
     outMatrix->loadIdentity();
-    computeClipAndTransformImpl(mHead, &cropInGlobal, outMatrix);
+    computeClipAndTransformImpl(mHead, &cropInGlobal, outMatrix, disableClip);
     SkRect cropInLocal;
     Matrix4 globalToLocal;
     globalToLocal.loadInverse(*outMatrix);

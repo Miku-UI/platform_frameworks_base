@@ -128,13 +128,13 @@ public class BasicToPwleSegmentAdapterTest {
     @EnableFlags(Flags.FLAG_NORMALIZED_PWLE_EFFECTS)
     public void testBasicPwleSegments_withPwleCapability_adaptSegmentsCorrectly() {
         List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
-                new StepSegment(/* amplitude= */ 1, /* frequencyHz= */ 40f, /* duration= */ 100),
+                new StepSegment(/* amplitude= */ 1, /* duration= */ 100),
                 //  startIntensity, endIntensity, startSharpness, endSharpness, duration
                 new BasicPwleSegment(0.0f, 1.0f, 0.0f, 1.0f, 100),
                 new BasicPwleSegment(0.0f, 1.0f, 0.0f, 1.0f, 100),
                 new BasicPwleSegment(0.0f, 1.0f, 0.0f, 1.0f, 100)));
         List<VibrationEffectSegment> expectedSegments = Arrays.asList(
-                new StepSegment(/* amplitude= */ 1, /* frequencyHz= */ 40f, /* duration= */ 100),
+                new StepSegment(/* amplitude= */ 1, /* duration= */ 100),
                 //  startAmplitude, endAmplitude, startFrequencyHz, endFrequencyHz, duration
                 new PwleSegment(0.0f, 1.0f, 30.0f, 300.0f, 100),
                 new PwleSegment(0.0f, 1.0f, 30.0f, 300.0f, 100),
@@ -146,6 +146,112 @@ public class BasicToPwleSegmentAdapterTest {
                 .isEqualTo(1);
 
         assertThat(segments).isEqualTo(expectedSegments);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NORMALIZED_PWLE_EFFECTS)
+    public void testBasicPwleSegments_propagatesStartTime() {
+        long startTime = 1234L;
+        List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
+                new BasicPwleSegment(0.0f, 1.0f, 0.0f, 1.0f, 100, startTime)));
+        VibratorInfo vibratorInfo = createVibratorInfo(
+                TEST_FREQUENCY_PROFILE, IVibrator.CAP_COMPOSE_PWLE_EFFECTS_V2);
+
+        mAdapter.adaptToVibrator(vibratorInfo, segments, -1);
+
+        assertThat(segments.get(0).getStartTimeMillis()).isEqualTo(startTime);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NORMALIZED_PWLE_EFFECTS)
+    public void testBasicPwleSegments_identifiesLastIntersectionAsMaxFrequency() {
+        // Frequencies: 50, 100, 150, 200, 250, 300
+        // Accel:       0.01, 1.0, 0.01, 1.0, 1.0, 0.01
+        // Threshold is roughly 0.08G-0.14G.
+        // The curve exceeds the threshold at [100, 200, 250].
+        // It drops below at 150 and 300.
+        // The last time it exceeds is around 250-300.
+        float[] frequencies = new float[]{50f, 100f, 150f, 200f, 250f, 300f};
+        float[] accelerations = new float[]{0.01f, 1.0f, 0.01f, 1.0f, 1.0f, 0.01f};
+        VibratorInfo.FrequencyProfile profile = new VibratorInfo.FrequencyProfile(
+                150f, frequencies, accelerations);
+        VibratorInfo info = createVibratorInfo(profile, IVibrator.CAP_COMPOSE_PWLE_EFFECTS_V2);
+
+        List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
+                new BasicPwleSegment(0.0f, 1.0f, 0.0f, 1.0f, 100)));
+
+        mAdapter.adaptToVibrator(info, segments, -1);
+
+        assertThat(segments.get(0)).isInstanceOf(PwleSegment.class);
+        PwleSegment adapted = (PwleSegment) segments.get(0);
+
+        // Min frequency should be between 50 and 100.
+        assertThat(adapted.getStartFrequencyHz()).isGreaterThan(50f);
+        assertThat(adapted.getStartFrequencyHz()).isLessThan(100f);
+
+        // Max frequency should be between 250 and 300.
+        // If it used the 2nd intersection (the first drop-off), it would be between 100 and 150.
+        assertThat(adapted.getEndFrequencyHz()).isGreaterThan(250f);
+        assertThat(adapted.getEndFrequencyHz()).isLessThan(300f);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NORMALIZED_PWLE_EFFECTS)
+    public void
+            testBasicPwleSegments_whenAlwaysAboveThreshold_identifiesMaxFrequencyAsMaxAvailable() {
+        // Frequencies: 50, 100, 150, 200
+        // Accel:       1.0, 1.0, 1.0, 1.0
+        float[] frequencies = new float[]{50f, 100f, 150f, 200f};
+        float[] accelerations = new float[]{1.0f, 1.0f, 1.0f, 1.0f};
+        VibratorInfo.FrequencyProfile profile = new VibratorInfo.FrequencyProfile(
+                150f, frequencies, accelerations);
+        VibratorInfo info = createVibratorInfo(profile, IVibrator.CAP_COMPOSE_PWLE_EFFECTS_V2);
+
+        List<VibrationEffectSegment> segments = new ArrayList<>(Arrays.asList(
+                new BasicPwleSegment(0.0f, 1.0f, 0.0f, 1.0f, 100)));
+
+        mAdapter.adaptToVibrator(info, segments, -1);
+
+        assertThat(segments.get(0)).isInstanceOf(PwleSegment.class);
+        PwleSegment adapted = (PwleSegment) segments.get(0);
+
+        assertThat(adapted.getStartFrequencyHz()).isEqualTo(50f);
+        assertThat(adapted.getEndFrequencyHz()).isEqualTo(200f);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NORMALIZED_PWLE_EFFECTS)
+    public void testBasicPwleSegments_withSharpnessF0_mapsToResonantFrequency() {
+        // Frequencies: 100, 150, 200
+        // Resonant: 150
+        float[] frequencies = new float[]{100f, 150f, 200f};
+        float[] accelerations = new float[]{1.0f, 1.0f, 1.0f};
+        VibratorInfo.FrequencyProfile profile = new VibratorInfo.FrequencyProfile(
+                150f, frequencies, accelerations);
+        VibratorInfo info = createVibratorInfo(profile, IVibrator.CAP_COMPOSE_PWLE_EFFECTS_V2);
+
+        List<VibrationEffectSegment> segments =
+                new ArrayList<>(
+                        Arrays.asList(
+                                // Sharpness 0.7 should map to resonant frequency 150Hz
+                                // Sharpness 0.35 (half of 0.7) should map to 125Hz (halfway between
+                                // 100 and 150)
+                                // Sharpness 0.85 (halfway between 0.7 and 1.0) should map to 175Hz
+                                // (halfway between 150 and 200)
+                                new BasicPwleSegment(0.0f, 1.0f, 0.7f, 0.35f, 100),
+                                new BasicPwleSegment(0.0f, 1.0f, 0.85f, 1.0f, 100)));
+
+        mAdapter.adaptToVibrator(info, segments, -1);
+
+        assertThat(segments.get(0)).isInstanceOf(PwleSegment.class);
+        PwleSegment adapted0 = (PwleSegment) segments.get(0);
+        assertThat(adapted0.getStartFrequencyHz()).isEqualTo(150f);
+        assertThat(adapted0.getEndFrequencyHz()).isEqualTo(125f);
+
+        assertThat(segments.get(1)).isInstanceOf(PwleSegment.class);
+        PwleSegment adapted1 = (PwleSegment) segments.get(1);
+        assertThat(adapted1.getStartFrequencyHz()).isEqualTo(175f);
+        assertThat(adapted1.getEndFrequencyHz()).isEqualTo(200f);
     }
 
     private static VibratorInfo createVibratorInfo(VibratorInfo.FrequencyProfile frequencyProfile,

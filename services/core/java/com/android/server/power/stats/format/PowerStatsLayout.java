@@ -63,6 +63,9 @@ public class PowerStatsLayout {
     }
 
     public PowerStatsLayout(PowerStats.Descriptor descriptor) {
+        mDeviceStatsArrayLength = descriptor.statsArrayLength;
+        mStateStatsArrayLength = descriptor.stateStatsArrayLength;
+        mUidStatsArrayLength = descriptor.uidStatsArrayLength;
         PersistableBundle extras = descriptor.extras;
         mDeviceDurationPosition = extras.getInt(EXTRA_DEVICE_DURATION_POSITION);
         mDeviceEnergyConsumerPosition = extras.getInt(EXTRA_DEVICE_ENERGY_CONSUMERS_POSITION);

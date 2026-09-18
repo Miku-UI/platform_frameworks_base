@@ -17,6 +17,8 @@
 package android.media.projection;
 
 import android.graphics.Rect;
+import android.media.projection.IAppContentProjectionCallback;
+import android.media.projection.IAppContentProjectionSession;
 import android.media.projection.IMediaProjection;
 import android.media.projection.IMediaProjectionCallback;
 import android.media.projection.IMediaProjectionWatcherCallback;
@@ -103,6 +105,7 @@ interface IMediaProjectionManager {
             + ".permission.MANAGE_MEDIA_PROJECTION)")
     void requestConsentForInvalidProjection(in IMediaProjection projection);
 
+    @EnforcePermission("MANAGE_MEDIA_PROJECTION")
     @JavaPassthrough(annotation = "@android.annotation.RequiresPermission(android.Manifest"
             + ".permission.MANAGE_MEDIA_PROJECTION)")
     MediaProjectionInfo getActiveProjectionInfo();
@@ -143,6 +146,16 @@ interface IMediaProjectionManager {
             + ".permission.MANAGE_MEDIA_PROJECTION)")
     boolean setContentRecordingSession(in ContentRecordingSession incomingSession,
             in IMediaProjection projection);
+
+    /**
+     * Creates a new projection for app content, by setting the callback and notifying it that
+     * the projection has started.
+     */
+    @EnforcePermission("android.Manifest.permission.MANAGE_MEDIA_PROJECTION")
+    @JavaPassthrough(annotation = "@android.annotation.RequiresPermission(android.Manifest.permission.MANAGE_MEDIA_PROJECTION)")
+    IMediaProjection createProjectionForAppContent(int uid, String packageName,
+            in IAppContentProjectionSession session, int contentId,
+            boolean isAudioRequested, in IAppContentProjectionCallback callback);
 
     /**
      * Sets the result of the user reviewing the recording permission, when the host app is re-using

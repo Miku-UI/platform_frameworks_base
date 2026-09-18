@@ -30,6 +30,7 @@ import com.android.settingslib.metadata.PreferenceScreenCoordinate
 import com.android.settingslib.metadata.PreferenceScreenRegistry
 import com.android.settingslib.metadata.usePreferenceHierarchyScope
 import com.android.settingslib.preference.PreferenceScreenProvider
+import com.android.settingslib.utils.runSafelyAsync
 import java.util.Locale
 
 /** API to get preference graph. */
@@ -64,9 +65,15 @@ class GetPreferenceGraphApiHandler(
                 PreferenceGraphBuilder.of(application, callingPid, callingUid, request, this)
             if (request.screens.isEmpty()) {
                 val factories = PreferenceScreenRegistry.preferenceScreenMetadataFactories
-                factories.forEachAsync { key, factory -> builder.addPreferenceScreen(key, factory) }
+                factories.forEachAsync { key, factory ->
+                    runSafelyAsync(TAG, "addPreferenceScreen $key") {
+                        builder.addPreferenceScreen(key, factory)
+                    }
+                }
                 for (provider in preferenceScreenProviders) {
-                    builder.addPreferenceScreenProvider(provider)
+                    runSafelyAsync(TAG, "addPreferenceScreenProvider $provider") {
+                        builder.addPreferenceScreenProvider(provider)
+                    }
                 }
             }
             val result = builder.build()
@@ -80,6 +87,10 @@ class GetPreferenceGraphApiHandler(
                 SystemClock.elapsedRealtime() - elapsedRealtime,
             )
         }
+    }
+
+    companion object {
+        private const val TAG = "GetPreferenceGraphApiHandler"
     }
 }
 
@@ -138,10 +149,10 @@ class GetPreferenceGraphRequestCodec : MessageCodec<GetPreferenceGraphRequest> {
 
 class PreferenceGraphProtoCodec : MessageCodec<PreferenceGraphProto> {
     override fun encode(data: PreferenceGraphProto): Bundle =
-        Bundle(1).apply { putByteArray(KEY_GRAPH, data.toByteArray()) }
+        Bundle(1).apply { putByteArray(KEY_GRAPH, PreferenceGraphCompressor.shrink(data).toByteArray()) }
 
     override fun decode(data: Bundle): PreferenceGraphProto =
-        PreferenceGraphProto.parseFrom(data.getByteArray(KEY_GRAPH)!!)
+        PreferenceGraphCompressor.expand(PreferenceGraphProto.parseFrom(data.getByteArray(KEY_GRAPH)!!))
 
     companion object {
         private const val KEY_GRAPH = "g"

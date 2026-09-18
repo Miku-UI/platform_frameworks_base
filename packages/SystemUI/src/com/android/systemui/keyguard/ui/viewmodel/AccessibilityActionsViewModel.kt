@@ -68,4 +68,8 @@ constructor(
             newScene = CommunalScenes.Communal,
             loggingReason = "accessibility",
         )
+
+    fun openCustomizeLockScreen() {
+        keyguardTouchHandlingViewModel.onLongPress()
+    }
 }

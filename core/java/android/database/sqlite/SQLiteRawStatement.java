@@ -16,12 +16,9 @@
 
 package android.database.sqlite;
 
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-
-import com.android.internal.annotations.VisibleForTesting;
 
 import dalvik.annotation.optimization.FastNative;
 
@@ -772,13 +769,13 @@ public final class SQLiteRawStatement implements Closeable {
      * @see <a href="http://sqlite.org/c3ref/column_blob.html">sqlite3_column_text16</a>
      *
      * @param columnIndex The index of a column in the result row. It is zero-based.
-     * @return The value of the column as a string.
+     * @return The value of the column as a string, or {@code null} when the column value is NULL.
      * @throws IllegalStateException if the statement is closed or this is a foreign thread.
      * @throws SQLiteBindOrColumnIndexOutOfRangeException if the column is out of range.
      * @throws SQLiteMisuseException if the row has no data. See {@link #getColumnType()}.
      * @throws SQLiteException if a native error occurs.
      */
-    @NonNull
+    @Nullable
     public String getColumnText(int columnIndex) {
         throwIfInvalid();
         try {

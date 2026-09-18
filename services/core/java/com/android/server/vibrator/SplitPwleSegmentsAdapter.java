@@ -82,6 +82,7 @@ final class SplitPwleSegmentsAdapter implements VibrationSegmentsAdapter {
         long splitDuration = pwleSegment.getDuration() / splits;
         float previousAmplitude = pwleSegment.getStartAmplitude();
         float previousFrequencyHz = startFrequencyHz;
+        long startTimeMillis = pwleSegment.getStartTimeMillis();
         long accumulatedDuration = 0;
 
         for (int i = 1; i < splits; i++) {
@@ -94,7 +95,8 @@ final class SplitPwleSegmentsAdapter implements VibrationSegmentsAdapter {
             PwleSegment pwleSplit = new PwleSegment(
                     previousAmplitude, interpolatedAmplitude,
                     previousFrequencyHz, interpolatedFrequency,
-                    (int) splitDuration);
+                    (int) splitDuration,
+                    i == 1 ? startTimeMillis : -1);
             pwleSegments.add(pwleSplit);
             previousAmplitude = pwleSplit.getEndAmplitude();
             previousFrequencyHz = pwleSplit.getEndFrequencyHz();
@@ -103,7 +105,8 @@ final class SplitPwleSegmentsAdapter implements VibrationSegmentsAdapter {
         pwleSegments.add(
                 new PwleSegment(previousAmplitude, pwleSegment.getEndAmplitude(),
                         previousFrequencyHz, endFrequencyHz,
-                        (int) (pwleSegment.getDuration() - accumulatedDuration)));
+                        (int) (pwleSegment.getDuration() - accumulatedDuration),
+                        splits == 1 ? startTimeMillis : -1));
 
         return pwleSegments;
     }

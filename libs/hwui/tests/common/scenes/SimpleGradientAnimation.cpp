@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-#include "TestSceneBase.h"
-
 #include <SkBlendMode.h>
-#include <SkGradientShader.h>
+#include <SkGradient.h>
+
+#include "TestSceneBase.h"
 
 class SimpleGradientAnimation;
 
@@ -56,9 +56,11 @@ private:
                     // overdraw several times to emphasize shader cost
                     for (int i = 0; i < 10; i++) {
                         // use i%2 start position to pick 2 color combo with black in it
-                        SkColor colors[3] = {Color::Transparent, Color::Black, Color::Cyan_500};
-                        paint.setShader(SkGradientShader::MakeLinear(pts, colors + (i % 2), pos, 2,
-                                                                     SkTileMode::kClamp));
+                        const SkColor4f colors[] = {SkColors::kTransparent, SkColors::kBlack,
+                                                    SkColor4f::FromColor(Color::Cyan_500)};
+                        paint.setShader(SkShaders::LinearGradient(
+                                pts,
+                                SkGradient({{colors + (i % 2), 2}, pos, SkTileMode::kClamp}, {})));
                         canvas.drawRect(i, i, width, height, paint);
                     }
                 });

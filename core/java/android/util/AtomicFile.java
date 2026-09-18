@@ -69,8 +69,6 @@ public class AtomicFile {
      * @hide Internal constructor that also allows you to have the class
      * automatically log commit events.
      */
-    @android.ravenwood.annotation.RavenwoodThrow(blockedBy =
-            SystemConfigFileCommitEventLogger.class)
     public AtomicFile(File baseName, String commitTag) {
         this(baseName, new SystemConfigFileCommitEventLogger(commitTag));
     }

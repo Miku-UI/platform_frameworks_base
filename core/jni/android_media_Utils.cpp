@@ -25,12 +25,17 @@
 #include <ui/GraphicBufferMapper.h>
 #include <ui/GraphicTypes.h>
 #endif
+#include <hardware/gralloc.h>
+#include <ui/Fence.h>
 #include <utils/Log.h>
 
 #define ALIGN(x, mask) ( ((x) + (mask) - 1) & ~((mask) - 1) )
 
 // Must be in sync with the value in HeicCompositeStream.cpp
 #define CAMERA3_HEIC_BLOB_ID 0x00FE
+
+// Explicit definition for HEIC components that require the footer to be cleared upon image release
+#define CAMERA3_HEIC_BLOB_ID_CLEAR_ON_RELEASE 0x00FD
 
 namespace android {
 
@@ -41,6 +46,7 @@ using AidlPixelFormat = aidl::android::hardware::graphics::common::PixelFormat;
 #else
 namespace AidlPixelFormat {
 const int32_t YCBCR_P210 = 60;
+const int32_t RAW14 = 44;
 }
 #endif
 
@@ -79,6 +85,7 @@ bool isPossiblyYUV(PixelFormat format) {
         case HAL_PIXEL_FORMAT_Y8:
         case HAL_PIXEL_FORMAT_Y16:
         case HAL_PIXEL_FORMAT_RAW16:
+        case static_cast<int>(AidlPixelFormat::RAW14):
         case HAL_PIXEL_FORMAT_RAW12:
         case HAL_PIXEL_FORMAT_RAW10:
         case HAL_PIXEL_FORMAT_RAW_OPAQUE:
@@ -86,6 +93,7 @@ bool isPossiblyYUV(PixelFormat format) {
         case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
         case HAL_PIXEL_FORMAT_YCBCR_P010:
         case static_cast<int>(AidlPixelFormat::YCBCR_P210):
+        case HAL_PIXEL_FORMAT_RGBA_1010102:
             return false;
 
         case HAL_PIXEL_FORMAT_YV12:
@@ -106,6 +114,7 @@ bool isPossibly10BitYUV(PixelFormat format) {
         case HAL_PIXEL_FORMAT_Y8:
         case HAL_PIXEL_FORMAT_Y16:
         case HAL_PIXEL_FORMAT_RAW16:
+        case static_cast<int>(AidlPixelFormat::RAW14):
         case HAL_PIXEL_FORMAT_RAW12:
         case HAL_PIXEL_FORMAT_RAW10:
         case HAL_PIXEL_FORMAT_RAW_OPAQUE:
@@ -114,6 +123,7 @@ bool isPossibly10BitYUV(PixelFormat format) {
         case HAL_PIXEL_FORMAT_YV12:
         case HAL_PIXEL_FORMAT_YCbCr_420_888:
         case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+        case HAL_PIXEL_FORMAT_RGBA_1010102:
             return false;
 
         case HAL_PIXEL_FORMAT_YCBCR_P010:
@@ -142,8 +152,8 @@ uint32_t Image_getBlobSize(LockedImage* buffer, bool usingRGBAOverride) {
     struct camera3_jpeg_blob_v2 blob;
     memcpy(&blob, header, sizeof(struct camera3_jpeg_blob_v2));
 
-    if (blob.jpeg_blob_id == CAMERA3_JPEG_BLOB_ID ||
-            blob.jpeg_blob_id == CAMERA3_HEIC_BLOB_ID) {
+    if (blob.jpeg_blob_id == CAMERA3_JPEG_BLOB_ID || blob.jpeg_blob_id == CAMERA3_HEIC_BLOB_ID ||
+        blob.jpeg_blob_id == CAMERA3_HEIC_BLOB_ID_CLEAR_ON_RELEASE) {
         size = blob.jpeg_size;
         ALOGV("%s: Jpeg/Heic size = %d", __FUNCTION__, size);
     }
@@ -470,7 +480,7 @@ status_t getLockedImageInfo(LockedImage* buffer, int idx,
             rStride = buffer->stride;
             break;
         case HAL_PIXEL_FORMAT_RAW12:
-            // Single plane 10bpp bayer data.
+            // Single plane 12bpp bayer data.
             LOG_ALWAYS_FATAL_IF(idx != 0, "Wrong index: %d", idx);
             LOG_ALWAYS_FATAL_IF(buffer->width % 4,
                                 "Width is not multiple of 4 %d", buffer->width);
@@ -484,8 +494,24 @@ status_t getLockedImageInfo(LockedImage* buffer, int idx,
             pStride = 0;
             rStride = buffer->stride;
             break;
+        case static_cast<int>(AidlPixelFormat::RAW14):
+            // Single plane 14bpp bayer data.
+            LOG_ALWAYS_FATAL_IF(idx != 0, "Wrong index: %d", idx);
+            LOG_ALWAYS_FATAL_IF(buffer->width % 4,
+                                "Width is not multiple of 4 %d", buffer->width);
+            LOG_ALWAYS_FATAL_IF(buffer->height % 2,
+                                "Height is not even %d", buffer->height);
+            LOG_ALWAYS_FATAL_IF(buffer->stride < (buffer->width * 14 / 8),
+                                "stride (%d) should be at least %d",
+                                buffer->stride, buffer->width * 14 / 8);
+            pData = buffer->data;
+            dataSize = buffer->stride * buffer->height;
+            pStride = 0;
+            rStride = buffer->stride;
+            break;
         case HAL_PIXEL_FORMAT_RGBA_8888:
         case HAL_PIXEL_FORMAT_RGBX_8888:
+        case HAL_PIXEL_FORMAT_RGBA_1010102:
             // Single plane, 32bpp.
             bytesPerPixel = 4;
             LOG_ALWAYS_FATAL_IF(idx != 0, "Wrong index: %d", idx);
@@ -790,6 +816,41 @@ int getBufferHeight(BufferItem* buffer) {
 
     ALOGV("%s: buffer->mGraphicBuffer: %p", __FUNCTION__, buffer->mGraphicBuffer.get());
     return buffer->mGraphicBuffer->getHeight();
+}
+
+void checkAndClearBlobFooter(BufferItem* buffer, sp<Fence>& releaseFence) {
+    if (buffer == nullptr || buffer->mGraphicBuffer == nullptr) {
+        return;
+    }
+
+    android_dataspace dataspace = static_cast<android_dataspace>(buffer->mDataSpace);
+    bool cleanBlobFooter = buffer->mGraphicBuffer->getPixelFormat() == HAL_PIXEL_FORMAT_BLOB &&
+            dataspace == static_cast<android_dataspace>(HAL_DATASPACE_HEIF);
+
+    if (cleanBlobFooter) {
+        void* vaddr = nullptr;
+        int lockFence = releaseFence.get() != nullptr ? releaseFence->dup() : -1;
+        if (buffer->mGraphicBuffer->lockAsync(GRALLOC_USAGE_SW_WRITE_OFTEN,
+                                              buffer->mGraphicBuffer->getBounds(), &vaddr,
+                                              lockFence) == OK) {
+            uint32_t width = buffer->mGraphicBuffer->getWidth();
+            struct camera3_jpeg_blob_v2* blob_footer =
+                    reinterpret_cast<struct camera3_jpeg_blob_v2*>(
+                            static_cast<uint8_t*>(vaddr) + width -
+                            sizeof(struct camera3_jpeg_blob_v2));
+
+            // If detected, clear the HEIC/JPEG footer padding before releasing.
+            if (blob_footer->jpeg_blob_id == CAMERA3_HEIC_BLOB_ID_CLEAR_ON_RELEASE) {
+                memset(blob_footer, 0, sizeof(struct camera3_jpeg_blob_v2));
+            }
+
+            int outFenceFd = -1;
+            buffer->mGraphicBuffer->unlockAsync(&outFenceFd);
+            releaseFence = sp<Fence>::make(outFenceFd);
+        } else {
+            if (lockFence >= 0) close(lockFence);
+        }
+    }
 }
 
 }  // namespace android

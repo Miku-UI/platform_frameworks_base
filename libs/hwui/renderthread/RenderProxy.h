@@ -32,11 +32,16 @@
 #include "hwui/Bitmap.h"
 #include "utils/ForceDark.h"
 
+#ifdef __ANDROID__
+#include <gui/SurfaceComposerClient.h>
+#endif
+
 class SkBitmap;
 class SkPicture;
 class SkImage;
 
 namespace android {
+class BLASTBufferQueue;
 class GraphicBuffer;
 class SurfaceControl;
 class Surface;
@@ -71,7 +76,8 @@ enum {
  */
 class RenderProxy {
 public:
-    RenderProxy(bool opaque, RenderNode* rootNode, IContextFactory* contextFactory);
+    RenderProxy(bool opaque, RenderNode* rootNode, IContextFactory* contextFactory,
+                bool useIpcCanvas = false);
     virtual ~RenderProxy();
 
     // Won't take effect until next EGLSurface creation
@@ -81,6 +87,25 @@ public:
     void setHardwareBuffer(AHardwareBuffer* buffer);
     void setSurface(ANativeWindow* window, bool enableTimeout = true);
     void setSurfaceControl(sp<SurfaceControl> surfaceControl);
+    void setBLASTBufferQueue(const sp<BLASTBufferQueue>& bbq);
+#ifdef __ANDROID__
+    void setCornerRadiiCallback(std::function<void(const gui::CornerRadii&)> cornerRadiiCallback);
+    void setWaitForBufferReleaseCallback(std::function<void(int64_t)> callback);
+
+    // Can be called on UI thread or RenderThread.
+    void mergeWithNextTransaction(SurfaceComposerClient::Transaction*, uint64_t);
+
+    // Called only from RenderThread frame drawing callbacks.
+    bool syncNextTransaction(std::function<void(SurfaceComposerClient::Transaction*)>, bool);
+    // Called only from RenderThread frame drawing callbacks.
+    void applyPendingTransactions(uint64_t);
+    // Called only from RenderThread frame drawing callbacks.
+    void clearSyncTransaction();
+    // Called only from RenderThread frame drawing callbacks.
+    SurfaceComposerClient::Transaction* gatherPendingTransactions(uint64_t);
+#endif
+    void updateRenderTargetSize(uint64_t width, uint64_t height);
+
     void allocateBuffers();
     bool pause();
     void setStopped(bool stopped);
@@ -88,6 +113,7 @@ public:
     void setLightGeometry(const Vector3& lightCenter, float lightRadius);
     void setHardwareBufferRenderParams(const HardwareBufferRenderParams& params);
     void setOpaque(bool opaque);
+    void setHintSessionEnabled(bool enabled);
     float setColorMode(ColorMode mode);
     void setRenderSdrHdrRatio(float ratio);
     int64_t* frameInfo();
@@ -145,6 +171,7 @@ public:
     void addFrameMetricsObserver(sp<FrameMetricsObserver>&& observer);
     void removeFrameMetricsObserver(sp<FrameMetricsObserver>&& observer);
     void setForceDark(ForceDarkType type);
+    void setDrawingEnabled(bool enabled);
 
     static void copySurfaceInto(ANativeWindow* window, std::shared_ptr<CopyRequest>&& request);
     static void prepareToDraw(Bitmap& bitmap);
@@ -157,6 +184,8 @@ public:
     static int preload();
 
     static void setRtAnimationsEnabled(bool enabled);
+
+    void setRtAnimationsEnabledForContext(bool enabled);
 
 private:
     RenderThread& mRenderThread;

@@ -22,11 +22,21 @@ import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.SystemService;
 import android.content.Context;
+import android.content.om.FabricatedOverlay;
+import android.content.theming.IThemeChangedCallback;
 import android.content.theming.IThemeManager;
 import android.content.theming.IThemeSettingsCallback;
+import android.content.theming.ThemeInfo;
 import android.content.theming.ThemeSettings;
+import android.graphics.Color;
+import android.os.FabricatedOverlayInternalEntry;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.util.TypedValue;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 
 /**
@@ -63,10 +73,55 @@ public class ThemeManager {
     }
 
     /**
+     * Generates a {@link FabricatedOverlay} of dynamic color resources based on the current
+     * user's theme, with optional overrides.
+     *
+     * <p>This method uses the current user's theme settings as a baseline. Any non-null
+     * properties in the provided {@code options} object will override the corresponding values
+     * from the user's theme.
+     *
+     * <p>The returned overlay contains dynamic color pairs (e.g.,
+     * {@code system_primary_dark} and {@code system_primary_light}) that enable the use of
+     * dynamic colors like {@code ?attr/materialColorPrimary}.
+     *
+     * @param options A {@link ThemeInfo} object containing properties to override the current
+     *                user's theme. If a property is {@code null}, the value from the user's
+     *                current theme settings is used.
+     * @return A {@link FabricatedOverlay} object representing the generated color resources.
+     * @hide
+     */
+    public FabricatedOverlay generateDynamicColorOverlay(ThemeInfo options) {
+        try {
+            return new FabricatedOverlay(mService.generateDynamicColorOverlay(options));
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Retrieves the current theme information for the calling user.
+     *
+     * @return A {@link ThemeInfo} object with the current theme settings, or {@code null} if the
+     * theming service is not yet fully initialized (e.g., during early boot).
+     * @hide
+     */
+    @Nullable
+    public ThemeInfo getUserThemeInfo() {
+        try {
+            return mService.getUserThemeInfo();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * Registers a callback to receive notifications of theme settings changes.
      *
      * <p>This method allows clients to register an {@link IThemeSettingsCallback}
      * to be notified whenever the theme settings for the current user are changed.
+     *
+     * <p>If the service is not yet fully initialized (e.g., during early boot), the callback
+     * will be registered and will start receiving events once initialization is complete.
      *
      * @param callback The {@link IThemeSettingsCallback} to register.
      * @return {@code true} if the callback was successfully registered, {@code false} otherwise.
@@ -93,6 +148,35 @@ public class ThemeManager {
     public boolean unregisterThemeSettingsCallback(@NonNull IThemeSettingsCallback callback) {
         try {
             return mService.unregisterThemeSettingsCallback(callback);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Registers a callback for theme changed events.
+     *
+     * <p>If the service is not yet fully initialized (e.g., during early boot), the callback
+     * will be registered and will start receiving events once initialization is complete.
+     *
+     * @param callback The callback to add.
+     */
+    public void registerThemeChangedCallback(@NonNull IThemeChangedCallback callback) {
+        try {
+            mService.registerThemeChangedCallback(callback);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Unregisters a callback for theme changed events.
+     *
+     * @param callback The callback to remove.
+     */
+    public void unregisterThemeChangedCallback(@NonNull IThemeChangedCallback callback) {
+        try {
+            mService.unregisterThemeChangedCallback(callback);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -131,7 +215,7 @@ public class ThemeManager {
      * <p>This method allows clients to retrieve the current theme settings the calling user.
      *
      * @return The {@link ThemeSettings} object containing the current theme settings,
-     * or {@code null} if an error occurs or no settings are found.
+     * or {@code null} if an error occurs, no settings are found, or the service is not yet ready.
      * @hide
      */
     @Nullable
@@ -161,5 +245,27 @@ public class ThemeManager {
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
+    }
+
+    /**
+     * Generates a map of color resources based on the provided FabricatedOverlay.
+     *
+     * @param fabricatedOverlay A {@link FabricatedOverlay} to extract color names and values from
+     * @return A map where keys are color resource names (e.g., "android:color/system_accent1_100")
+     * and values are the corresponding {@link Color} objects.
+     * @hide
+     */
+    public static Map<String, Color> extractColorPairs(FabricatedOverlay fabricatedOverlay) {
+        final List<FabricatedOverlayInternalEntry> colorEntries = fabricatedOverlay.getEntries(
+                TypedValue.TYPE_INT_COLOR_ARGB8,
+                TypedValue.TYPE_INT_COLOR_RGB8,
+                TypedValue.TYPE_INT_COLOR_ARGB4,
+                TypedValue.TYPE_INT_COLOR_RGB4);
+
+        final Map<String, Color> colorMap = new HashMap<>();
+        for (FabricatedOverlayInternalEntry entry : colorEntries) {
+            colorMap.put(entry.resourceName, Color.valueOf(entry.data));
+        }
+        return colorMap;
     }
 }

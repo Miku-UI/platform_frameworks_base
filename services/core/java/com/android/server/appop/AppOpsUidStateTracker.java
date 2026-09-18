@@ -31,9 +31,10 @@ import static android.app.AppOpsManager.UID_STATE_FOREGROUND_SERVICE;
 import static android.app.AppOpsManager.UID_STATE_NONEXISTENT;
 import static android.app.AppOpsManager.UID_STATE_PERSISTENT;
 import static android.app.AppOpsManager.UID_STATE_TOP;
-import static android.permission.flags.Flags.finishRunningOpsForKilledPackages;
 
 import android.annotation.CallbackExecutor;
+import android.app.ActivityManager.ProcessCapability;
+import android.app.ActivityManager.ProcessState;
 import android.util.SparseArray;
 
 import java.io.PrintWriter;
@@ -42,7 +43,7 @@ import java.util.concurrent.Executor;
 interface AppOpsUidStateTracker {
 
     // Map from process states to the uid states we track.
-    static int processStateToUidState(int procState) {
+    static int processStateToUidState(@ProcessState int procState) {
         if (procState == PROCESS_STATE_UNKNOWN) {
             return UID_STATE_CACHED;
         }
@@ -71,23 +72,19 @@ interface AppOpsUidStateTracker {
             return UID_STATE_BACKGROUND;
         }
 
-        if (finishRunningOpsForKilledPackages()) {
-            if (procState < PROCESS_STATE_NONEXISTENT) {
-                return UID_STATE_CACHED;
-            }
-
-            return UID_STATE_NONEXISTENT;
+        if (procState < PROCESS_STATE_NONEXISTENT) {
+            return UID_STATE_CACHED;
         }
 
-        // UID_STATE_NONEXISTENT is deliberately excluded here
-        return UID_STATE_CACHED;
+        return UID_STATE_NONEXISTENT;
     }
 
     /*
      * begin data pushed from appopsservice
      */
 
-    void updateUidProcState(int uid, int procState, int capability);
+    void updateUidProcState(int uid, @ProcessState int procState,
+            @ProcessCapability int capability);
 
     void updateAppWidgetVisibility(SparseArray<String> uidPackageNames, boolean visible);
 

@@ -29,8 +29,6 @@ import android.util.Log;
 import android.util.proto.ProtoOutputStream;
 import android.view.Choreographer;
 
-import com.android.internal.protolog.ProtoLog;
-
 import java.io.PrintWriter;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -54,9 +52,6 @@ abstract class WindowTracing {
 
     static WindowTracing createDefaultAndStartLooper(WindowManagerService service,
             Choreographer choreographer) {
-        if (!android.tracing.Flags.perfettoWmTracing()) {
-            return new WindowTracingLegacy(service, choreographer);
-        }
         return new WindowTracingPerfetto(service, choreographer);
     }
 

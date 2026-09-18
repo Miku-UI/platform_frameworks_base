@@ -27,7 +27,7 @@
     <string name="keyguard_enter_your_password" msgid="7225626204122735501">"Introduza a palavra-passe"</string>
     <string name="keyguard_enter_password" msgid="6483623792371009758">"Introduza a palavra-passe"</string>
     <string name="keyguard_sim_error_message_short" msgid="633630844240494070">"Cartão inválido."</string>
-    <string name="keyguard_charged" msgid="5478247181205188995">"Bateria carregada"</string>
+    <string name="keyguard_charged" msgid="5478247181205188995">"Carregada"</string>
     <string name="keyguard_plugged_in_wireless" msgid="2537874724955057383">"<xliff:g id="PERCENTAGE">%s</xliff:g> • A carregar sem fios"</string>
     <string name="keyguard_plugged_in_dock" msgid="2122073051904360987">"<xliff:g id="PERCENTAGE">%s</xliff:g> • A carregar"</string>
     <string name="keyguard_plugged_in" msgid="8169926454348380863">"<xliff:g id="PERCENTAGE">%s</xliff:g> • A carregar…"</string>
@@ -45,6 +45,7 @@
     <string name="keyguard_accessibility_password" msgid="3524161948484801450">"Palavra-passe do dispositivo"</string>
     <string name="keyguard_accessibility_sim_pin_area" msgid="6272116591533888062">"Área do PIN do cartão SIM"</string>
     <string name="keyguard_accessibility_sim_puk_area" msgid="5537294043180237374">"Área do PUK do cartão SIM"</string>
+    <string name="keyguard_accessibility_pin_delete_long_click" msgid="1530074796041838525">"mantenha premido para eliminar tudo"</string>
     <string name="keyboardview_keycode_delete" msgid="8489719929424895174">"Eliminar"</string>
     <string name="disable_carrier_button_text" msgid="7153361131709275746">"Desativar eSIM"</string>
     <string name="error_disable_esim_title" msgid="3802652622784813119">"Não é possível desativar o eSIM"</string>
@@ -85,9 +86,20 @@
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"Imposs. desbl. c/ impr. digital. Muitas tentativas."</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"O agente fidedigno está indisponível"</string>
     <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"Demasiadas tentativas com um PIN incorreto"</string>
+    <string name="kg_primary_auth_duplicate_guess_pin" msgid="5834891656916692329">"Já experimentou esse PIN. Experimente outro."</string>
+    <string name="kg_primary_auth_duplicate_guess_pattern" msgid="3827593245962385968">"Já experimentou esse padrão. Experimente outro."</string>
+    <string name="kg_primary_auth_duplicate_guess_password" msgid="3153406042812407458">"Já experimentou essa palavra-passe. Experimente outra."</string>
     <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"Demasiadas tentativas com um padrão incorreto"</string>
     <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"Demasiadas tentativas com palavra-passe incorreta"</string>
+    <string name="kg_primary_auth_locked_out_pin_shortlink" msgid="1294871994741389848">"Demasiadas tentativas com um PIN incorreto\nSaiba mais em <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
+    <string name="kg_primary_auth_locked_out_pattern_shortlink" msgid="5998598232858156495">"Demasiadas tentativas com um padrão incorreto\nSaiba mais em <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
+    <string name="kg_primary_auth_locked_out_password_shortlink" msgid="7035847891707609104">"Demasiadas tentativas com uma palavra-passe incorreta\nSaiba mais em <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{Tente novamente dentro de # segundo.}many{Tente novamente dentro de # segundos.}other{Tente novamente dentro de # segundos.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_seconds" msgid="5869847493314053274">"{count,plural, =1{Tente novamente dentro de # segundo}many{Tente novamente dentro de # segundos}other{Tente novamente dentro de # segundos}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_minutes" msgid="6688071439818994316">"{count,plural, =1{Tente novamente dentro de # minuto}many{Tente novamente dentro de # minutos}other{Tente novamente dentro de # minutos}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_hours" msgid="4895375498917738857">"{count,plural, =1{Tente novamente dentro de # hora}many{Tente novamente dentro de # horas}other{Tente novamente dentro de # horas}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_days" msgid="5427787465019979593">"{count,plural, =1{Tente novamente dentro de # dia}many{Tente novamente dentro de # dias}other{Tente novamente dentro de # dias}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_years" msgid="7115333753941425268">"{count,plural, =1{Tente novamente dentro de # ano}many{Tente novamente dentro de # anos}other{Tente novamente dentro de # anos}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"Introduza o PIN do cartão SIM."</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"Introduza o PIN do cartão SIM \"<xliff:g id="CARRIER">%1$s</xliff:g>\"."</string>
     <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g> Desative o eSIM para utilizar o dispositivo sem serviço móvel."</string>
@@ -112,6 +124,9 @@
     <string name="kg_prompt_reason_restart_pattern" msgid="3321211830602827742">"Padrão necessário após reiniciar o dispositivo"</string>
     <string name="kg_prompt_reason_restart_pin" msgid="2672166323886110512">"PIN necessário após reiniciar o dispositivo"</string>
     <string name="kg_prompt_reason_restart_password" msgid="3967993994418885887">"Palavra-passe necessária após reiniciar dispositivo"</string>
+    <string name="kg_prompt_reason_signin_pattern" msgid="1650886553162854395">"É necessário um padrão para iniciar sessão"</string>
+    <string name="kg_prompt_reason_signin_pin" msgid="636031498838532631">"É necessário um PIN para iniciar sessão"</string>
+    <string name="kg_prompt_reason_signin_password" msgid="1020939174735616114">"É necessária uma palavra-passe para iniciar sessão"</string>
     <string name="kg_prompt_reason_timeout_pattern" msgid="5514969660010197363">"Para segurança adicional, use o padrão"</string>
     <string name="kg_prompt_reason_timeout_pin" msgid="4227962059353859376">"Para segurança adicional, use o PIN"</string>
     <string name="kg_prompt_reason_timeout_password" msgid="8810879144143933690">"Para segurança adicional, use a palavra-passe"</string>
@@ -120,7 +135,7 @@
     <string name="kg_prompt_added_security_password" msgid="6053156069765029006">"Para segurança adicional, é necessária uma palavra-passe"</string>
     <string name="kg_prompt_reason_device_admin" msgid="6961159596224055685">"Dispositivo bloqueado pelo gestor"</string>
     <string name="kg_prompt_reason_user_request" msgid="6015774877733717904">"O dispositivo foi bloqueado manualmente"</string>
-    <string name="kg_face_not_recognized" msgid="7903950626744419160">"Não reconhecido."</string>
+    <string name="kg_face_not_recognized" msgid="7903950626744419160">"Não reconhecido"</string>
     <string name="kg_face_sensor_privacy_enabled" msgid="939511161763558512">"Ative acesso à câmara nas Def. p/ usar Desbl. facial"</string>
     <string name="kg_password_default_pin_message" msgid="1434544655827987873">"{count,plural, =1{Introduza o PIN do SIM. Tem mais # tentativa antes de ser necessário contactar o operador para desbloquear o dispositivo.}many{Introduza o PIN do SIM. Tem mais # tentativas.}other{Introduza o PIN do SIM. Tem mais # tentativas.}}"</string>
     <string name="kg_password_default_puk_message" msgid="1025139786449741950">"{count,plural, =1{O SIM está desativado. Introduza o código PUK para continuar. Tem mais # tentativa antes de o SIM ficar permanentemente inutilizável. Contacte o operador para obter mais detalhes.}many{O SIM está desativado. Introduza o código PUK para continuar. Tem mais # tentativas antes de o SIM ficar permanentemente inutilizável. Contacte o operador para obter mais detalhes.}other{O SIM está desativado. Introduza o código PUK para continuar. Tem mais # tentativas antes de o SIM ficar permanentemente inutilizável. Contacte o operador para obter mais detalhes.}}"</string>

@@ -16,12 +16,10 @@
 
 package com.android.systemui.statusbar.notification.row.ui.viewmodel
 
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.statusbar.notification.row.data.repository.TEST_BUNDLE_SPEC
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -34,7 +32,6 @@ import org.mockito.junit.MockitoRule
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(NotificationBundleUi.FLAG_NAME)
 class BundleHeaderGutsViewModelTest : SysuiTestCase() {
 
     @get:Rule val rule: MockitoRule = MockitoJUnit.rule()
@@ -54,7 +51,7 @@ class BundleHeaderGutsViewModelTest : SysuiTestCase() {
         underTest =
             BundleHeaderGutsViewModel(
                 titleText = TEST_BUNDLE_SPEC.titleText,
-                summaryText = TEST_BUNDLE_SPEC.summaryText,
+                summaryTextRes = TEST_BUNDLE_SPEC.summaryTextRes,
                 bundleIcon = TEST_BUNDLE_SPEC.icon,
                 disableBundle = mockDisableBundle,
                 closeGuts = mockCloseGuts,

@@ -16,17 +16,17 @@
 
 package com.android.wm.shell.taskview;
 
+import static android.app.ActivityTaskManager.INVALID_TASK_ID;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
+import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_ADD_INSETS_FRAME_PROVIDER;
+
+import static com.android.window.flags.Flags.FLAG_ENABLE_BUBBLE_ROOT_TASK;
+import static com.android.wm.shell.Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -41,15 +41,16 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.app.ActivityOptions;
 import android.app.PendingIntent;
-import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Insets;
 import android.graphics.Rect;
 import android.graphics.Region;
 import android.os.Looper;
+import android.platform.test.annotations.UsesFlags;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.testing.TestableLooper;
 import android.view.SurfaceControl;
@@ -60,14 +61,14 @@ import android.window.WindowContainerTransaction;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.wm.shell.Flags;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.ShellTestCase;
 import com.android.wm.shell.TestHandler;
+import com.android.wm.shell.bubbles.BubbleHelper;
 import com.android.wm.shell.common.HandlerExecutor;
 import com.android.wm.shell.common.SyncTransactionQueue;
 import com.android.wm.shell.common.SyncTransactionQueue.TransactionRunnable;
-import com.android.wm.shell.shared.bubbles.BubbleAnythingFlagHelper;
+import com.android.wm.shell.shared.bubbles.BubbleFlagHelper;
 import com.android.wm.shell.transition.Transitions;
 
 import org.junit.After;
@@ -84,61 +85,78 @@ import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
 import platform.test.runner.parameterized.Parameters;
 
 import java.util.List;
+import java.util.Optional;
 
+/**
+ * Verifies {@link TaskView} behavior and its interactions with {@link TaskViewTaskController}.
+ *
+ * 1. Verifies that {@link TaskView.Listener} callbacks are invoked correctly for task lifecycle
+ *    events.
+ * 2. Verifies that {@link TaskView} surface lifecycle events are handled correctly, and how they
+ *    interact with the task's visibility.
+ * 3. Verifies that user interactions like back press and obscured touch regions are handled
+ *    correctly.
+ *
+ * Build/Install/Run:
+ *  atest WMShellUnitTests:TaskViewTest
+ */
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4.class)
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
+@UsesFlags({com.android.window.flags.Flags.class, com.android.wm.shell.Flags.class})
 public class TaskViewTest extends ShellTestCase {
 
     @Parameters(name = "{0}")
     public static List<FlagsParameterization> getParams() {
-        return FlagsParameterization.allCombinationsOf(
-                Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE
-        );
+        return FlagsParameterization.progressionOf(
+                FLAG_ENABLE_CREATE_ANY_BUBBLE,
+                FLAG_ENABLE_BUBBLE_ROOT_TASK);
     }
 
     @Mock
-    TaskView.Listener mViewListener;
+    private TaskView.Listener mViewListener;
     @Mock
-    ActivityManager.RunningTaskInfo mTaskInfo;
+    private WindowContainerToken mToken;
     @Mock
-    WindowContainerToken mToken;
-    @Mock
-    ShellTaskOrganizer mOrganizer;
+    private ShellTaskOrganizer mOrganizer;
     @Captor
-    ArgumentCaptor<WindowContainerTransaction> mWctCaptor;
+    private ArgumentCaptor<WindowContainerTransaction> mWctCaptor;
     @Mock
-    HandlerExecutor mExecutor;
+    private HandlerExecutor mExecutor;
     @Mock
-    SyncTransactionQueue mSyncQueue;
+    private SyncTransactionQueue mSyncQueue;
     @Mock
-    Transitions mTransitions;
+    private Transitions mTransitions;
     @Mock
-    Looper mViewLooper;
-    TestHandler mViewHandler;
+    private Looper mViewLooper;
+    @Mock
+    private TaskViewBase mTaskViewBase;
+    @Mock
+    private SurfaceHolder mSurfaceHolder;
+    @Mock
+    private BubbleHelper mBubbleHelper;
 
-    SurfaceControl mLeash;
+    private final SurfaceControl mLeash = new SurfaceControl.Builder().setName("test").build();
+    private final ActivityManager.RunningTaskInfo mTaskInfo = new ActivityManager.RunningTaskInfo();
+    private final TaskViewRepository mTaskViewRepository = new TaskViewRepository();
 
-    Context mContext;
-    TaskView mTaskView;
-    TaskViewRepository mTaskViewRepository;
-    TaskViewTransitions mTaskViewTransitions;
-    TaskViewTaskController mTaskViewTaskController;
+    private TestHandler mViewHandler;
+    private TaskView mTaskView;
+    private TaskViewTransitions mTaskViewTransitions;
+    private TaskViewTaskController mTaskViewTaskController;
 
-    public TaskViewTest(FlagsParameterization flags) {}
+    public TaskViewTest(FlagsParameterization flags) {
+        mSetFlagsRule.setFlagsParameterization(flags);
+    }
 
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-        mLeash = new SurfaceControl.Builder()
-                .setName("test")
-                .build();
 
-        mContext = getContext();
         doReturn(true).when(mViewLooper).isCurrentThread();
         mViewHandler = spy(new TestHandler(mViewLooper));
 
-        mTaskInfo = new ActivityManager.RunningTaskInfo();
+        mTaskInfo.parentTaskId = INVALID_TASK_ID;
         mTaskInfo.token = mToken;
         mTaskInfo.taskId = 314;
         mTaskInfo.taskDescription = mock(ActivityManager.TaskDescription.class);
@@ -157,13 +175,12 @@ public class TaskViewTest extends ShellTestCase {
             return null;
         }).when(mSyncQueue).runInSync(any());
 
-        mTaskViewRepository = new TaskViewRepository();
         mTaskViewTransitions = spy(new TaskViewTransitions(mTransitions, mTaskViewRepository,
-                mOrganizer, mSyncQueue));
+                mOrganizer, Optional.of(mBubbleHelper), /* taskViewRootTask= */ Optional.empty()));
         mTaskViewTaskController = new TaskViewTaskController(mContext, mOrganizer,
                 mTaskViewTransitions, mSyncQueue);
-        mTaskView = new TaskView(mContext, mTaskViewTransitions, mTaskViewTaskController);
-        mTaskView.setHandler(mViewHandler);
+        mTaskView = new TaskView(mContext, mTaskViewTransitions, mTaskViewTaskController,
+                mViewHandler);
         mTaskView.setListener(mExecutor, mViewListener);
     }
 
@@ -176,23 +193,21 @@ public class TaskViewTest extends ShellTestCase {
 
     @Test
     public void testSetPendingListener_throwsException() {
-        TaskView taskView = new TaskView(mContext, mTaskViewTransitions,
+        final TaskView taskView = new TaskView(mContext, mTaskViewTransitions,
                 new TaskViewTaskController(mContext, mOrganizer, mTaskViewTransitions, mSyncQueue));
         taskView.setListener(mExecutor, mViewListener);
-        try {
-            taskView.setListener(mExecutor, mViewListener);
-        } catch (IllegalStateException e) {
-            // pass
-            return;
-        }
-        fail("Expected IllegalStateException");
+
+        assertThrows("A TaskView listener can only be set once.",
+                IllegalStateException.class,
+                () -> taskView.setListener(mExecutor, mViewListener));
     }
 
     @Test
     public void testStartActivity() {
-        ActivityOptions options = ActivityOptions.makeBasic();
-        mTaskView.startActivity(mock(PendingIntent.class), null, options,
-                new Rect(0, 0, 100, 100));
+        final ActivityOptions options = ActivityOptions.makeBasic();
+        final Rect bounds = new Rect(0, 0, 100, 100);
+
+        mTaskView.startActivity(mock(PendingIntent.class), null, options, bounds);
 
         verify(mOrganizer).setPendingLaunchCookieListener(any(), eq(mTaskViewTaskController));
         assertThat(options.getLaunchWindowingMode()).isEqualTo(WINDOWING_MODE_MULTI_WINDOW);
@@ -200,36 +215,30 @@ public class TaskViewTest extends ShellTestCase {
 
     @Test
     public void testOnNewTask_noSurface() {
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
+        prepareOpenAnimation(true /* newTask */);
 
         verify(mViewListener).onTaskCreated(eq(mTaskInfo.taskId), any());
         verify(mViewListener, never()).onInitialized();
-        assertThat(mTaskView.isInitialized()).isFalse();
+        assertThat(mTaskView.isSurfaceCreated()).isFalse();
         // If there's no surface the task should be made invisible
         verify(mViewListener).onTaskVisibilityChanged(eq(mTaskInfo.taskId), eq(false));
     }
 
     @Test
     public void testSurfaceCreated_noTask() {
-        mTaskView.surfaceCreated(mock(SurfaceHolder.class));
+        mTaskView.surfaceCreated(mSurfaceHolder);
         verify(mTaskViewTransitions, never()).setTaskViewVisible(any(), anyBoolean());
 
         verify(mViewListener).onInitialized();
-        assertThat(mTaskView.isInitialized()).isTrue();
+        assertThat(mTaskView.isSurfaceCreated()).isTrue();
         // No task, no visibility change
         verify(mViewListener, never()).onTaskVisibilityChanged(anyInt(), anyBoolean());
     }
 
     @Test
     public void testOnNewTask_withSurface() {
-        mTaskView.surfaceCreated(mock(SurfaceHolder.class));
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
+        mTaskView.surfaceCreated(mSurfaceHolder);
+        prepareOpenAnimation(true /* newTask */);
 
         verify(mViewListener).onTaskCreated(eq(mTaskInfo.taskId), any());
         verify(mViewListener, never()).onTaskVisibilityChanged(anyInt(), anyBoolean());
@@ -237,43 +246,36 @@ public class TaskViewTest extends ShellTestCase {
 
     @Test
     public void testSurfaceCreated_withTask() {
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
-        mTaskView.surfaceCreated(mock(SurfaceHolder.class));
+        final WindowContainerTransaction wct = prepareOpenAnimation(true /* newTask */);
+        mTaskView.surfaceCreated(mSurfaceHolder);
 
         verify(mViewListener).onInitialized();
         verify(mTaskViewTransitions).setTaskViewVisible(eq(mTaskViewTaskController), eq(true));
+        assertThat(mTaskView.isSurfaceCreated()).isTrue();
 
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, false /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
+        prepareOpenAnimation(wct, false /* newTask */);
 
         verify(mViewListener).onTaskVisibilityChanged(eq(mTaskInfo.taskId), eq(true));
     }
 
     @Test
     public void testSurfaceDestroyed_noTask() {
-        SurfaceHolder sh = mock(SurfaceHolder.class);
-        mTaskView.surfaceCreated(sh);
-        mTaskView.surfaceDestroyed(sh);
+        mTaskView.surfaceCreated(mSurfaceHolder);
+        mTaskView.surfaceDestroyed(mSurfaceHolder);
 
         verify(mViewListener, never()).onTaskVisibilityChanged(anyInt(), anyBoolean());
+        assertThat(mTaskView.isSurfaceCreated()).isFalse();
     }
 
     @Test
     public void testSurfaceDestroyed_withTask() {
-        SurfaceHolder sh = mock(SurfaceHolder.class);
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
-        mTaskView.surfaceCreated(sh);
+        prepareOpenAnimation(true /* newTask */);
+        mTaskView.surfaceCreated(mSurfaceHolder);
         reset(mViewListener);
-        mTaskView.surfaceDestroyed(sh);
+        mTaskView.surfaceDestroyed(mSurfaceHolder);
 
         verify(mTaskViewTransitions).setTaskViewVisible(eq(mTaskViewTaskController), eq(false));
+        assertThat(mTaskView.isSurfaceCreated()).isFalse();
 
         mTaskViewTaskController.prepareHideAnimation(new SurfaceControl.Transaction());
 
@@ -282,28 +284,22 @@ public class TaskViewTest extends ShellTestCase {
 
     @Test
     public void testOnReleased() {
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
-        mTaskView.surfaceCreated(mock(SurfaceHolder.class));
+        prepareOpenAnimation(true /* newTask */);
+        mTaskView.surfaceCreated(mSurfaceHolder);
         mTaskView.release();
 
         verify(mOrganizer).removeListener(eq(mTaskViewTaskController));
         verify(mViewListener).onReleased();
-        assertThat(mTaskView.isInitialized()).isFalse();
         verify(mTaskViewTransitions).unregisterTaskView(eq(mTaskViewTaskController));
     }
 
     @Test
     public void testOnTaskVanished() {
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
+        prepareOpenAnimation(true /* newTask */);
         final SurfaceControl taskLeash = mTaskViewTaskController.getTaskLeash();
-        mTaskView.surfaceCreated(mock(SurfaceHolder.class));
-        mTaskViewTaskController.prepareCloseAnimation();
+        mTaskView.surfaceCreated(mSurfaceHolder);
+        final SurfaceControl.Transaction tx = mock(SurfaceControl.Transaction.class);
+        mTaskViewTaskController.prepareCloseAnimation(taskLeash, tx);
 
         verify(mViewListener).onTaskRemovalStarted(eq(mTaskInfo.taskId));
         assertThat(mTaskViewTaskController.getTaskLeash()).isNull();
@@ -322,14 +318,11 @@ public class TaskViewTest extends ShellTestCase {
         }).when(mViewListener).onTaskRemovalStarted(taskId);
 
         // Set up a mock TaskViewBase to verify notified task info.
-        final TaskViewBase mockTaskViewBase = mock(TaskViewBase.class);
-        mTaskViewTaskController.setTaskViewBase(mockTaskViewBase);
+        mTaskViewTaskController.setTaskViewBase(mTaskViewBase);
 
         // Prepare and trigger task opening animation with mTaskInfo.
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, new WindowContainerTransaction());
-        mTaskView.surfaceCreated(mock(SurfaceHolder.class));
+        prepareOpenAnimation(true /* newTask */);
+        mTaskView.surfaceCreated(mSurfaceHolder);
 
         // Simulate task info change with windowing mode update.
         final ActivityManager.RunningTaskInfo newTaskInfo = new ActivityManager.RunningTaskInfo();
@@ -342,43 +335,49 @@ public class TaskViewTest extends ShellTestCase {
         mTaskViewTaskController.onTaskVanished(newTaskInfo);
 
         verify(mViewListener).onTaskRemovalStarted(taskId);
-        if (BubbleAnythingFlagHelper.enableCreateAnyBubble()) {
+        if (BubbleFlagHelper.enableCreateAnyBubble()) {
             // Verify TaskViewBase and listener updates with new task info.
-            verify(mockTaskViewBase).onTaskVanished(same(newTaskInfo));
+            verify(mTaskViewBase).onTaskVanished(same(newTaskInfo));
             assertThat(capturedTaskInfo[0]).isSameInstanceAs(newTaskInfo);
         } else {
             // Verify TaskViewBase and listener updates with old task info.
-            verify(mockTaskViewBase).onTaskVanished(same(mTaskInfo));
+            verify(mTaskViewBase).onTaskVanished(same(mTaskInfo));
             assertThat(capturedTaskInfo[0]).isSameInstanceAs(mTaskInfo);
         }
     }
 
     @Test
     public void testOnBackPressedOnTaskRoot() {
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
-        mTaskViewTaskController.onBackPressedOnTaskRoot(mTaskInfo);
+        prepareOpenAnimation(true /* newTask */);
+
+        mTaskViewTaskController.onBackOnTaskRoot(mTaskInfo, true, false, false);
 
         verify(mViewListener).onBackPressedOnTaskRoot(eq(mTaskInfo.taskId));
     }
 
     @Test
     public void testSetOnBackPressedOnTaskRoot() {
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
+        final WindowContainerTransaction wct = prepareOpenAnimation(true /* newTask */);
 
         assertThat(wct.getChanges().get(mToken.asBinder()).getInterceptBackPressed()).isTrue();
+    }
+
+    @Test
+    public void testNoInterceptBackPressedOnChildTask() {
+        mTaskInfo.parentTaskId = 3;  // Simulate bubble root task
+        final WindowContainerTransaction wct = prepareOpenAnimation(true /* newTask */);
+
+        assertThrows("Intercept back should not be set for child tasks",
+                RuntimeException.class,
+                () -> wct.getChanges().get(mToken.asBinder()).getInterceptBackPressed());
     }
 
     @Test
     public void testSetObscuredTouchRect() {
         mTaskView.setObscuredTouchRect(
                 new Rect(/* left= */ 0, /* top= */ 10, /* right= */ 100, /* bottom= */ 120));
-        ViewTreeObserver.InternalInsetsInfo insetsInfo = new ViewTreeObserver.InternalInsetsInfo();
+        final ViewTreeObserver.InternalInsetsInfo insetsInfo =
+                new ViewTreeObserver.InternalInsetsInfo();
         mTaskView.onComputeInternalInsets(insetsInfo);
 
         assertThat(insetsInfo.touchableRegion.contains(0, 10)).isTrue();
@@ -395,11 +394,12 @@ public class TaskViewTest extends ShellTestCase {
 
     @Test
     public void testSetObscuredTouchRegion() {
-        Region obscuredRegion = new Region(10, 10, 19, 19);
+        final Region obscuredRegion = new Region(10, 10, 19, 19);
         obscuredRegion.union(new Rect(30, 30, 39, 39));
 
         mTaskView.setObscuredTouchRegion(obscuredRegion);
-        ViewTreeObserver.InternalInsetsInfo insetsInfo = new ViewTreeObserver.InternalInsetsInfo();
+        final ViewTreeObserver.InternalInsetsInfo insetsInfo =
+                new ViewTreeObserver.InternalInsetsInfo();
         mTaskView.onComputeInternalInsets(insetsInfo);
 
         assertThat(insetsInfo.touchableRegion.contains(10, 10)).isTrue();
@@ -417,103 +417,88 @@ public class TaskViewTest extends ShellTestCase {
 
     @Test
     public void testStartRootTask_setsBoundsAndVisibility() {
-        TaskViewBase taskViewBase = mock(TaskViewBase.class);
-        Rect bounds = new Rect(0, 0, 100, 100);
-        when(taskViewBase.getCurrentBoundsOnScreen()).thenReturn(bounds);
-        mTaskViewTaskController.setTaskViewBase(taskViewBase);
+        final Rect bounds = new Rect(0, 0, 100, 100);
+        when(mTaskViewBase.getCurrentBoundsOnScreen()).thenReturn(bounds);
+        mTaskViewTaskController.setTaskViewBase(mTaskViewBase);
 
         // Surface created, but task not available so bounds / visibility isn't set
-        mTaskView.surfaceCreated(mock(SurfaceHolder.class));
-        assertNotNull(mTaskViewTransitions.getRepository().byTaskView(mTaskViewTaskController));
-        assertFalse(mTaskViewTransitions.getRepository().byTaskView(mTaskViewTaskController)
-                .mVisible);
+        mTaskView.surfaceCreated(mSurfaceHolder);
+        final TaskViewRepository.TaskViewState taskViewState =
+                mTaskViewTransitions.getRepository().byTaskView(mTaskViewTaskController);
+        assertThat(taskViewState).isNotNull();
+        assertThat(taskViewState.mVisible).isFalse();
 
         // Make the task available
-        WindowContainerTransaction wct = mock(WindowContainerTransaction.class);
+        final WindowContainerTransaction wct = mock(WindowContainerTransaction.class);
         mTaskViewTransitions.startRootTask(mTaskViewTaskController, mTaskInfo, mLeash, wct);
 
         // Bounds got set
         verify(wct).setBounds(any(WindowContainerToken.class), eq(bounds));
         // Visibility & bounds state got set
-        assertTrue(mTaskViewTransitions.getRepository().byTaskView(mTaskViewTaskController)
-                .mVisible);
-        assertEquals(mTaskViewTransitions.getRepository().byTaskView(mTaskViewTaskController)
-                .mBounds, bounds);
+        assertThat(taskViewState.mVisible).isTrue();
+        assertThat(taskViewState.mBounds).isEqualTo(bounds);
     }
 
     @Test
     public void testPrepareOpenAnimation_copiesLeash() {
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, new WindowContainerTransaction());
+        prepareOpenAnimation(true /* newTask */);
 
         assertThat(mTaskViewTaskController.getTaskLeash()).isNotEqualTo(mLeash);
     }
 
     @Test
     public void testTaskViewPrepareOpenAnimationSetsBoundsAndVisibility() {
-        TaskViewBase taskViewBase = mock(TaskViewBase.class);
-        Rect bounds = new Rect(0, 0, 100, 100);
-        when(taskViewBase.getCurrentBoundsOnScreen()).thenReturn(bounds);
-        mTaskViewTaskController.setTaskViewBase(taskViewBase);
+        final Rect bounds = new Rect(0, 0, 100, 100);
+        when(mTaskViewBase.getCurrentBoundsOnScreen()).thenReturn(bounds);
+        mTaskViewTaskController.setTaskViewBase(mTaskViewBase);
 
         // Surface created, but task not available so bounds / visibility isn't set
-        mTaskView.surfaceCreated(mock(SurfaceHolder.class));
-        assertNotNull(mTaskViewTransitions.getRepository().byTaskView(
-                mTaskViewTaskController));
-        assertFalse(mTaskViewTransitions.getRepository().byTaskView(mTaskViewTaskController)
-                .mVisible);
+        mTaskView.surfaceCreated(mSurfaceHolder);
+        final TaskViewRepository.TaskViewState taskViewState =
+                mTaskViewTransitions.getRepository().byTaskView(mTaskViewTaskController);
+        assertThat(taskViewState).isNotNull();
+        assertThat(taskViewState.mVisible).isFalse();
 
         // Make the task available / start prepareOpen
-        WindowContainerTransaction wct = mock(WindowContainerTransaction.class);
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
+        final WindowContainerTransaction wct = mock(WindowContainerTransaction.class);
+        prepareOpenAnimation(wct, true /* newTask */);
 
         // Bounds got set
         verify(wct).setBounds(any(WindowContainerToken.class), eq(bounds));
         // Visibility & bounds state got set
-        assertTrue(mTaskViewTransitions.getRepository().byTaskView(mTaskViewTaskController)
-                .mVisible);
-        assertEquals(mTaskViewTransitions.getRepository().byTaskView(mTaskViewTaskController)
-                .mBounds, bounds);
+        assertThat(taskViewState.mVisible).isTrue();
+        assertThat(taskViewState.mBounds).isEqualTo(bounds);
     }
 
     @Test
     public void testTaskViewPrepareOpenAnimationSetsVisibilityFalse() {
-        TaskViewBase taskViewBase = mock(TaskViewBase.class);
-        Rect bounds = new Rect(0, 0, 100, 100);
-        when(taskViewBase.getCurrentBoundsOnScreen()).thenReturn(bounds);
-        mTaskViewTaskController.setTaskViewBase(taskViewBase);
+        final Rect bounds = new Rect(0, 0, 100, 100);
+        when(mTaskViewBase.getCurrentBoundsOnScreen()).thenReturn(bounds);
+        mTaskViewTaskController.setTaskViewBase(mTaskViewBase);
 
         // Task is available, but the surface was never created
-        WindowContainerTransaction wct = mock(WindowContainerTransaction.class);
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
+        final WindowContainerTransaction wct = mock(WindowContainerTransaction.class);
+        prepareOpenAnimation(wct, true /* newTask */);
 
         // Bounds do not get set as there is no surface
         verify(wct, never()).setBounds(any(WindowContainerToken.class), any());
         // Visibility is set to false, bounds aren't set
-        assertFalse(mTaskViewTransitions.getRepository().byTaskView(mTaskViewTaskController)
-                .mVisible);
-        assertTrue(mTaskViewTransitions.getRepository().byTaskView(mTaskViewTaskController)
-                .mBounds.isEmpty());
+        final TaskViewRepository.TaskViewState taskViewState =
+                mTaskViewTransitions.getRepository().byTaskView(mTaskViewTaskController);
+        assertThat(taskViewState.mVisible).isFalse();
+        assertThat(taskViewState.mBounds.isEmpty()).isTrue();
     }
 
     @Test
     public void testRemoveTaskView_noTask() {
         mTaskView.removeTask();
-        assertFalse(mTaskViewTransitions.hasPending());
+        assertThat(mTaskViewTransitions.hasPending()).isFalse();
     }
 
     @Test
     public void testRemoveTaskView() {
-        mTaskView.surfaceCreated(mock(SurfaceHolder.class));
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
+        mTaskView.surfaceCreated(mSurfaceHolder);
+        prepareOpenAnimation(true /* newTask */);
 
         verify(mViewListener).onTaskCreated(eq(mTaskInfo.taskId), any());
 
@@ -533,55 +518,49 @@ public class TaskViewTest extends ShellTestCase {
         mTaskViewTaskController.setTaskNotFound();
         mTaskViewTaskController.onTaskAppeared(mTaskInfo, mLeash);
 
-        assertNull(mTaskViewTaskController.getTaskInfo());
+        assertThat(mTaskViewTaskController.getTaskInfo()).isNull();
         verify(mTaskViewTransitions).removeTaskView(eq(mTaskViewTaskController), any());
     }
 
     @Test
     public void testOnTaskAppeared_withoutTaskNotFound() {
         mTaskViewTaskController.onTaskAppeared(mTaskInfo, mLeash);
-        assertEquals(mTaskInfo, mTaskViewTaskController.getPendingInfo());
+
+        assertThat(mTaskViewTaskController.getPendingInfo()).isEqualTo(mTaskInfo);
         verify(mTaskViewTransitions, never()).removeTaskView(any(), any());
     }
 
     @Test
     public void testSetCaptionInsets_noTaskInitially() {
-        Rect insets = new Rect(0, 400, 0, 0);
+        final Rect insets = new Rect(0, 400, 0, 0);
         mTaskView.setCaptionInsets(Insets.of(insets));
         mTaskView.onComputeInternalInsets(new ViewTreeObserver.InternalInsetsInfo());
 
         verify(mOrganizer, never()).applyTransaction(any());
 
-        mTaskView.surfaceCreated(mock(SurfaceHolder.class));
+        mTaskView.surfaceCreated(mSurfaceHolder);
         reset(mOrganizer);
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
+        prepareOpenAnimation(true /* newTask */);
         mTaskView.onComputeInternalInsets(new ViewTreeObserver.InternalInsetsInfo());
 
         verify(mOrganizer).applyTransaction(mWctCaptor.capture());
-        assertTrue(mWctCaptor.getValue().getHierarchyOps().stream().anyMatch(hop ->
-                hop.getType() == WindowContainerTransaction.HierarchyOp
-                        .HIERARCHY_OP_TYPE_ADD_INSETS_FRAME_PROVIDER));
+        assertThat(mWctCaptor.getValue().getHierarchyOps().stream().anyMatch(hop ->
+                hop.getType() == HIERARCHY_OP_TYPE_ADD_INSETS_FRAME_PROVIDER)).isTrue();
     }
 
     @Test
     public void testSetCaptionInsets_withTask() {
-        mTaskView.surfaceCreated(mock(SurfaceHolder.class));
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
+        mTaskView.surfaceCreated(mSurfaceHolder);
+        prepareOpenAnimation(true /* newTask */);
         reset(mOrganizer);
 
-        Rect insets = new Rect(0, 400, 0, 0);
+        final Rect insets = new Rect(0, 400, 0, 0);
         mTaskView.setCaptionInsets(Insets.of(insets));
         mTaskView.onComputeInternalInsets(new ViewTreeObserver.InternalInsetsInfo());
+
         verify(mOrganizer).applyTransaction(mWctCaptor.capture());
-        assertTrue(mWctCaptor.getValue().getHierarchyOps().stream().anyMatch(hop ->
-                hop.getType() == WindowContainerTransaction.HierarchyOp
-                        .HIERARCHY_OP_TYPE_ADD_INSETS_FRAME_PROVIDER));
+        assertThat(mWctCaptor.getValue().getHierarchyOps().stream().anyMatch(hop ->
+                hop.getType() == HIERARCHY_OP_TYPE_ADD_INSETS_FRAME_PROVIDER)).isTrue();
     }
 
     @Test
@@ -596,15 +575,13 @@ public class TaskViewTest extends ShellTestCase {
             }
         });
 
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
-        mTaskView.surfaceCreated(mock(SurfaceHolder.class));
+        prepareOpenAnimation(true /* newTask */);
+        mTaskView.surfaceCreated(mSurfaceHolder);
 
         assertThat(mTaskViewTaskController.getTaskInfo()).isEqualTo(mTaskInfo);
 
-        mTaskViewTaskController.prepareCloseAnimation();
+        final SurfaceControl.Transaction tx = mock(SurfaceControl.Transaction.class);
+        mTaskViewTaskController.prepareCloseAnimation(mTaskView.getSurfaceControl(), tx);
 
         assertThat(mTaskViewTaskController.getTaskInfo()).isNull();
     }
@@ -624,9 +601,11 @@ public class TaskViewTest extends ShellTestCase {
 
     @Test
     public void testSetResizeBgOnSameUiThread_expectUsesTransaction() {
-        SurfaceControl.Transaction tx = mock(SurfaceControl.Transaction.class);
+        final SurfaceControl.Transaction tx = mock(SurfaceControl.Transaction.class);
         mTaskView = spy(mTaskView);
+
         mTaskView.setResizeBgColor(tx, Color.BLUE);
+
         verify(mViewHandler, never()).post(any());
         verify(mTaskView, never()).setResizeBackgroundColor(eq(Color.BLUE));
         verify(mTaskView).setResizeBackgroundColor(eq(tx), eq(Color.BLUE));
@@ -635,32 +614,76 @@ public class TaskViewTest extends ShellTestCase {
     @Test
     public void testSetResizeBgOnDifferentUiThread_expectDoesNotUseTransaction() {
         doReturn(false).when(mViewLooper).isCurrentThread();
-        SurfaceControl.Transaction tx = mock(SurfaceControl.Transaction.class);
+        final SurfaceControl.Transaction tx = mock(SurfaceControl.Transaction.class);
         mTaskView = spy(mTaskView);
+
         mTaskView.setResizeBgColor(tx, Color.BLUE);
+
         verify(mViewHandler).post(any());
         verify(mTaskView).setResizeBackgroundColor(eq(Color.BLUE));
     }
 
     @Test
     public void testOnAppeared_setsTrimmableTask() {
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
-
+        final WindowContainerTransaction wct = prepareOpenAnimation(true /* newTask */);
         assertThat(wct.getHierarchyOps().get(0).isTrimmableFromRecents()).isFalse();
     }
 
     @Test
     public void testMoveToFullscreen_callsTaskRemovalStarted() {
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        mTaskViewTransitions.prepareOpenAnimation(mTaskViewTaskController, true /* newTask */,
-                new SurfaceControl.Transaction(), new SurfaceControl.Transaction(), mTaskInfo,
-                mLeash, wct);
-        mTaskView.surfaceCreated(mock(SurfaceHolder.class));
+        prepareOpenAnimation(true /* newTask */);
+        mTaskView.surfaceCreated(mSurfaceHolder);
+
         mTaskViewTransitions.moveTaskViewToFullscreen(mTaskViewTaskController);
 
         verify(mViewListener).onTaskRemovalStarted(eq(mTaskInfo.taskId));
+    }
+
+    @Test
+    public void prepareCloseAnimation_taskViewWithZeroAlpha_hidesSurface() {
+        prepareOpenAnimation(true /* newTask */);
+        final SurfaceControl taskLeash = mTaskViewTaskController.getTaskLeash();
+        mTaskView.surfaceCreated(mSurfaceHolder);
+        mTaskView.setAlpha(0);
+        final SurfaceControl.Transaction tx = mock(SurfaceControl.Transaction.class);
+        mTaskViewTaskController.prepareCloseAnimation(taskLeash, tx);
+
+        verify(tx).setAlpha(taskLeash, 0);
+    }
+
+    @Test
+    public void onLocationChanged_withBounds_updatesTaskViewState() {
+        // Simulate a task being present in the TaskView.
+        mTaskView.surfaceCreated(mSurfaceHolder);
+        prepareOpenAnimation(true /* newTask */);
+
+        // Create a specific Rect for the new bounds.
+        final Rect newBounds = new Rect(10, 20, 130, 240);
+
+        // Call the method under test.
+        mTaskView.onLocationChanged(newBounds);
+
+        // Verify that the state in the repository has been updated with the new bounds.
+        final TaskViewRepository.TaskViewState taskViewState =
+                mTaskViewTransitions.getRepository().byTaskView(mTaskViewTaskController);
+        assertThat(taskViewState.mBounds).isEqualTo(newBounds);
+    }
+
+    @NonNull
+    private WindowContainerTransaction prepareOpenAnimation(boolean newTask) {
+        final WindowContainerTransaction wct = new WindowContainerTransaction();
+        prepareOpenAnimation(wct, newTask);
+        return wct;
+    }
+
+    private void prepareOpenAnimation(@NonNull WindowContainerTransaction wct, boolean newTask) {
+        mTaskViewTransitions.prepareOpenAnimation(
+                mTaskViewTaskController,
+                newTask,
+                new SurfaceControl.Transaction(),
+                new SurfaceControl.Transaction(),
+                mTaskInfo,
+                mLeash,
+                wct);
     }
 }

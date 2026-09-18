@@ -19,6 +19,7 @@ import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertTrue;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -29,6 +30,7 @@ import static org.mockito.Mockito.when;
 import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.RemoteException;
@@ -76,6 +78,7 @@ public class TileServicesTest extends SysuiTestCase {
 
     private static final ComponentName TEST_COMPONENT =
             ComponentName.unflattenFromString("pkg/.cls");
+    private static final int CALLING_UID = Binder.getCallingUid();
 
     private TileServices mTileService;
     private TestableLooper mTestableLooper;
@@ -84,6 +87,8 @@ public class TileServicesTest extends SysuiTestCase {
     private BroadcastDispatcher mBroadcastDispatcher;
     @Mock
     private CommandQueue mCommandQueue;
+    @Mock
+    private ServiceInfo mServiceInfo;
     @Mock
     private StatusBarIconController mStatusBarIconController;
     @Mock
@@ -102,6 +107,8 @@ public class TileServicesTest extends SysuiTestCase {
     private QSHost mQSHost;
     @Mock
     private PanelInteractor mPanelInteractor;
+    @Mock
+    private PackageManagerAdapter mPackageManagerAdapter;
     @Captor
     private ArgumentCaptor<CommandQueue.Callbacks> mCallbacksArgumentCaptor;
     @Mock
@@ -118,12 +125,14 @@ public class TileServicesTest extends SysuiTestCase {
         when(mTileLifecycleManagerFactory.create(any(Intent.class), any(UserHandle.class)))
                 .thenReturn(mTileLifecycleManager);
         when(mQSHost.getContext()).thenReturn(mContext);
-
+        when(mPackageManagerAdapter.getServiceInfo(any(ComponentName.class), anyInt(), anyInt()))
+                .thenReturn(mServiceInfo);
+        when(mServiceInfo.getUid()).thenReturn(CALLING_UID);
         Provider<Handler> provider = () -> new Handler(mTestableLooper.getLooper());
 
         mTileService = new TestTileServices(mQSHost, provider, mBroadcastDispatcher,
-                mUserTracker, mKeyguardStateController, mCommandQueue, mStatusBarIconController,
-                mPanelInteractor, mCustomTileAddedRepository,
+                mPackageManagerAdapter, mUserTracker, mKeyguardStateController, mCommandQueue,
+                mStatusBarIconController, mPanelInteractor, mCustomTileAddedRepository,
                 new FakeExecutor(new FakeSystemClock()));
     }
 
@@ -232,7 +241,7 @@ public class TileServicesTest extends SysuiTestCase {
         PendingIntent pi = mock(PendingIntent.class);
         ComponentName componentName = mock(ComponentName.class);
         when(tile.getComponent()).thenReturn(componentName);
-        when(componentName.getPackageName()).thenReturn("invalid.package.name");
+        when(mServiceInfo.getUid()).thenReturn(CALLING_UID + 1);
 
         Assert.assertThrows(SecurityException.class, () -> mTileService.startActivity(tile, pi));
 
@@ -300,12 +309,13 @@ public class TileServicesTest extends SysuiTestCase {
 
     private class TestTileServices extends TileServices {
         TestTileServices(QSHost host, Provider<Handler> handlerProvider,
-                BroadcastDispatcher broadcastDispatcher, UserTracker userTracker,
+                BroadcastDispatcher broadcastDispatcher,
+                PackageManagerAdapter packageManagerAdapter, UserTracker userTracker,
                 KeyguardStateController keyguardStateController, CommandQueue commandQueue,
                 StatusBarIconController statusBarIconController, PanelInteractor panelInteractor,
                 CustomTileAddedRepository customTileAddedRepository, DelayableExecutor executor) {
-            super(host, handlerProvider, broadcastDispatcher, userTracker, keyguardStateController,
-                    commandQueue, statusBarIconController, panelInteractor,
+            super(host, handlerProvider, broadcastDispatcher, packageManagerAdapter, userTracker,
+                    keyguardStateController, commandQueue, statusBarIconController, panelInteractor,
                     mTileLifecycleManagerFactory, customTileAddedRepository, executor);
         }
 

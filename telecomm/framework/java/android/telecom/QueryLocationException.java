@@ -69,7 +69,7 @@ public final class QueryLocationException extends RuntimeException implements Pa
     }
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
-        dest.writeString8(mMessage);
+        dest.writeString(mMessage);
         dest.writeInt(mCode);
     }
     /**
@@ -80,7 +80,7 @@ public final class QueryLocationException extends RuntimeException implements Pa
             new Parcelable.Creator<>() {
                 @Override
                 public QueryLocationException createFromParcel(Parcel source) {
-                    return new QueryLocationException(source.readString8(), source.readInt());
+                    return new QueryLocationException(source.readString(), source.readInt());
                 }
                 @Override
                 public QueryLocationException[] newArray(int size) {

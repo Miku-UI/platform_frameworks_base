@@ -43,7 +43,6 @@ import androidx.annotation.NonNull;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.settingslib.R;
-import com.android.settingslib.media.flags.Flags;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -58,9 +57,7 @@ public class DeviceIconUtil {
     private final Context mContext;
     public DeviceIconUtil(@NonNull Context context) {
         mContext = Objects.requireNonNull(context);
-        mIsTv =
-                mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK)
-                        && Flags.enableTvMediaOutputDialog();
+        mIsTv = mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK);
         mIsTablet =
                 Arrays.asList(SystemProperties.get("ro.build.characteristics").split(","))
                         .contains("tablet");

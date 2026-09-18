@@ -19,7 +19,6 @@ package com.android.server.wm;
 import android.annotation.NonNull;
 import android.content.Context;
 import android.os.SystemProperties;
-import android.window.DesktopExperienceFlags;
 import android.window.DesktopModeFlags;
 
 import com.android.internal.R;
@@ -45,8 +44,7 @@ public final class DesktopModeHelper {
     /**
      * Return {@code true} if desktop mode should be restricted to supported devices.
      */
-    @VisibleForTesting
-    static boolean shouldEnforceDeviceRestrictions() {
+    public static boolean shouldEnforceDeviceRestrictions() {
         return ENFORCE_DEVICE_RESTRICTIONS;
     }
 
@@ -73,7 +71,7 @@ public final class DesktopModeHelper {
     /**
      * Return {@code true} if the current device can hosts desktop sessions on its internal display.
      */
-    private static boolean canInternalDisplayHostDesktops(@NonNull Context context) {
+    public static boolean canInternalDisplayHostDesktops(@NonNull Context context) {
         return context.getResources().getBoolean(R.bool.config_canInternalDisplayHostDesktops);
     }
 
@@ -107,8 +105,7 @@ public final class DesktopModeHelper {
 
     /** Returns {@code true} if desktop experience wallpaper is supported on this device. */
     public static boolean isDeviceEligibleForDesktopExperienceWallpaper(@NonNull Context context) {
-        return DesktopExperienceFlags.ENABLE_CONNECTED_DISPLAYS_WALLPAPER.isTrue()
-                && isDeviceEligibleForDesktopMode(context);
+        return canEnterDesktopMode(context);
     }
 
     /** Returns {@code true} if the desktop experience developer option should be shown. */

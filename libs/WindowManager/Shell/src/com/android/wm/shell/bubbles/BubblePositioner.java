@@ -17,10 +17,10 @@
 package com.android.wm.shell.bubbles;
 
 import static com.android.launcher3.icons.IconNormalizer.ICON_VISIBLE_AREA_FACTOR;
-import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_BUBBLES;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.content.res.TypedArray;
 import android.graphics.Insets;
 import android.graphics.PointF;
 import android.graphics.Rect;
@@ -30,12 +30,13 @@ import android.view.WindowManager;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
-import com.android.internal.protolog.ProtoLog;
+import com.android.internal.policy.ScreenDecorationsUtils;
 import com.android.wm.shell.Flags;
 import com.android.wm.shell.R;
 import com.android.wm.shell.shared.bubbles.BubbleBarLocation;
 import com.android.wm.shell.shared.bubbles.BubbleDropTargetBoundsProvider;
 import com.android.wm.shell.shared.bubbles.DeviceConfig;
+import com.android.wm.shell.shared.bubbles.logging.BubbleLog;
 
 import java.io.PrintWriter;
 
@@ -108,12 +109,14 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
     private int mBarExpViewDropTargetPaddingBottom;
     private int mBarDropTargetWidth;
     private int mBarDropTargetHeight;
+    private float mCornerRadius;
 
     private PointF mRestingStackPosition;
 
     private boolean mShowingInBubbleBar;
     private BubbleBarLocation mBubbleBarLocation = BubbleBarLocation.DEFAULT;
     private int mBubbleBarTopOnScreen;
+    private boolean mPendingBubbleBarTopOnScreenUpdate = false;
 
     public BubblePositioner(Context context, WindowManager windowManager) {
         this(context, DeviceConfig.create(context, windowManager));
@@ -131,13 +134,13 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
      */
     public void update(DeviceConfig deviceConfig) {
         mDeviceConfig = deviceConfig;
-        ProtoLog.d(WM_SHELL_BUBBLES, "update positioner: "
-                        + "insets=%s largeScreen=%b "
-                        + "smallTablet=%b isBubbleBar=%b bounds=%s",
+        BubbleLog.d("BubblePositioner.update() insets=%s largeScreen=%b smallTablet=%b "
+                        + "isBubbleBar=%b bounds=%s",
                 deviceConfig.getInsets(), deviceConfig.isLargeScreen(),
                 deviceConfig.isSmallTablet(), mShowingInBubbleBar,
                 deviceConfig.getWindowBounds());
         updateInternal(deviceConfig.getInsets(), deviceConfig.getWindowBounds());
+        mPendingBubbleBarTopOnScreenUpdate = isShowingInBubbleBar();
     }
 
     /** Returns the device config being used. */
@@ -172,6 +175,21 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
         mBubbleOffscreenAmount = res.getDimensionPixelSize(R.dimen.bubble_stack_offscreen);
         mStackOffset = res.getDimensionPixelSize(R.dimen.bubble_stack_offset);
         mBubbleElevation = res.getDimensionPixelSize(R.dimen.bubble_elevation);
+
+        if (mShowingInBubbleBar) {
+            mCornerRadius = res.getDimensionPixelSize(
+                    R.dimen.bubble_bar_expanded_view_corner_radius);
+        } else {
+            if (ScreenDecorationsUtils.supportsRoundedCornersOnWindows(res)) {
+                final TypedArray ta = mContext.obtainStyledAttributes(new int[]{
+                        android.R.attr.dialogCornerRadius});
+                mCornerRadius = ta.getDimensionPixelSize(0, 0);
+                ta.recycle();
+            } else {
+                mCornerRadius = 0;
+            }
+        }
+
         mExpandedViewBubbleBarWidth = Math.min(
                 res.getDimensionPixelSize(R.dimen.bubble_bar_expanded_view_width),
                 mPositionRect.width() - 2 * mExpandedViewPadding
@@ -289,6 +307,20 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
     }
 
     /**
+     * Checks the offsets between the available rect and the screen rect for all edges and returns
+     * the largest offset as a positive number.
+     */
+    public int getLargestAvailableRectOffset() {
+        // calculate the offsets between the available rect bounds and the screen bounds in positive
+        // values
+        int leftOffset = getAvailableRect().left - getScreenRect().left;
+        int topOffset = getAvailableRect().top - getScreenRect().top;
+        int rightOffset = getScreenRect().right - getAvailableRect().right;
+        int bottomOffset = getScreenRect().bottom - getAvailableRect().bottom;
+        return Math.max(leftOffset, Math.max(topOffset, Math.max(rightOffset, bottomOffset)));
+    }
+
+    /**
      * On large screen (not small tablet), while in portrait, expanded bubbles are aligned to
      * the bottom of the screen.
      *
@@ -339,6 +371,11 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
     /** Size of the visible (non-overlapping) part of the pointer. */
     public int getPointerSize() {
         return mPointerHeight - mPointerOverlap;
+    }
+
+    /** Returns the corner radius of the expanded view. */
+    public float getCornerRadius() {
+        return mCornerRadius;
     }
 
     /** The maximum number of bubbles that can be displayed comfortably on screen. */
@@ -859,9 +896,8 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
                 screen.bottom);
     }
 
-
     /**
-     * Populates {@param out} with the rest bounds of an expanded bubble on screen.
+     * Populates {@code out} with the rest bounds of an expanded bubble on screen.
      * <p>
      * TODO: b/417226976
      *  Never used for the overflow or for floating mode on large screen -- bubble bar & phone
@@ -917,9 +953,18 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
         return mBubbleBarLocation.isOnLeft(mDeviceConfig.isRtl());
     }
 
+    /**
+     * When {@code true} then the configuration has changed, but we are still waiting to get the
+     * position of the bubble bar from launcher.
+     */
+    public boolean isPendingBubbleBarTopOnScreenUpdate() {
+        return mPendingBubbleBarTopOnScreenUpdate && isShowingInBubbleBar();
+    }
+
     /** Updates the top coordinate of bubble bar on screen. */
     public void updateBubbleBarTopOnScreen(int bubbleBarTopToScreenBottom) {
         mBubbleBarTopOnScreen = getScreenRect().bottom - bubbleBarTopToScreenBottom;
+        mPendingBubbleBarTopOnScreenUpdate = false;
     }
 
     /**
@@ -927,6 +972,11 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
      */
     public int getBubbleBarTopOnScreen() {
         return mBubbleBarTopOnScreen;
+    }
+
+    /** Returns the distance between the bubble bar top position and the bottom of the screen. */
+    public int getBubbleBarTopFromScreenBottom() {
+        return getScreenRect().bottom - getBubbleBarTopOnScreen();
     }
 
     /**

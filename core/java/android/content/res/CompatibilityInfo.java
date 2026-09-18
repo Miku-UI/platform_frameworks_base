@@ -79,7 +79,7 @@ public class CompatibilityInfo implements Parcelable {
     
     /**
      * A flag mask to tell if the application needs scaling (when mApplicationScale != 1.0f)
-     * {@see compatibilityFlag}
+     * @see compatibilityFlag
      */
     private static final int SCALING_REQUIRED = 1; 
 
@@ -266,19 +266,19 @@ public class CompatibilityInfo implements Parcelable {
             }
 
         } else {
-            /**
+            /*
              * Has the application said that its UI is expandable?  Based on the
              * <supports-screen> android:expandible in the manifest.
              */
             final int EXPANDABLE = 2;
 
-            /**
+            /*
              * Has the application said that its UI supports large screens?  Based on the
              * <supports-screen> android:largeScreens in the manifest.
              */
             final int LARGE_SCREENS = 8;
 
-            /**
+            /*
              * Has the application said that its UI supports xlarge screens?  Based on the
              * <supports-screen> android:xlargeScreens in the manifest.
              */

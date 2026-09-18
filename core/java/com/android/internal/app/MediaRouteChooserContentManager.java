@@ -16,6 +16,8 @@
 
 package com.android.internal.app;
 
+import static com.android.media.flags.Flags.enableShareCastInMediaChooserDialog;
+
 import android.content.Context;
 import android.media.MediaRouter;
 import android.text.TextUtils;
@@ -25,10 +27,11 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
-
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.R;
 
 import java.util.Comparator;
@@ -51,6 +54,9 @@ public class MediaRouteChooserContentManager {
         boolean showProgressBarWhenEmpty();
     }
 
+    @VisibleForTesting
+    public static final String SHARE_CAST_ROUTE_NAME = "<Share Cast>";
+
     Context mContext;
     Delegate mDelegate;
 
@@ -60,6 +66,7 @@ public class MediaRouteChooserContentManager {
     private int mRouteTypes;
     private RouteAdapter mAdapter;
     private boolean mAttachedToWindow;
+    private Button mShareCastButton;
 
     public MediaRouteChooserContentManager(Context context, Delegate delegate) {
         mContext = context;
@@ -90,6 +97,8 @@ public class MediaRouteChooserContentManager {
             params.gravity = Gravity.CENTER;
             emptyView.setLayoutParams(params);
         }
+
+        mShareCastButton = containerView.findViewById(R.id.media_route_cast_to_others_button);
     }
 
     /**
@@ -98,6 +107,16 @@ public class MediaRouteChooserContentManager {
     public void onAttachedToWindow() {
         mAttachedToWindow = true;
         mRouter.addCallback(mRouteTypes, mCallback, MediaRouter.CALLBACK_FLAG_PERFORM_ACTIVE_SCAN);
+        if (mShareCastButton != null) {
+            mShareCastButton.setOnClickListener(
+                v -> {
+                    MediaRouter.RouteInfo route = getShareCastRoute();
+                    if (route != null && route.isEnabled()) {
+                        route.select();
+                        mDelegate.dismissView();
+                    }
+                });
+        }
         refreshRoutes();
     }
 
@@ -107,6 +126,9 @@ public class MediaRouteChooserContentManager {
     public void onDetachedFromWindow() {
         mAttachedToWindow = false;
         mRouter.removeCallback(mCallback);
+        if (mShareCastButton != null) {
+            mShareCastButton.setOnClickListener(null);
+        }
     }
 
     /**
@@ -145,6 +167,7 @@ public class MediaRouteChooserContentManager {
     public void refreshRoutes() {
         if (mAttachedToWindow) {
             mAdapter.update();
+            updateShareCastButton();
         }
     }
 
@@ -177,7 +200,7 @@ public class MediaRouteChooserContentManager {
             final int count = mRouter.getRouteCount();
             for (int i = 0; i < count; i++) {
                 MediaRouter.RouteInfo route = mRouter.getRouteAt(i);
-                if (onFilterRoute(route)) {
+                if (onFilterRoute(route) && !isShareCastRoute(route)) {
                     add(route);
                 }
             }
@@ -225,6 +248,31 @@ public class MediaRouteChooserContentManager {
                 mDelegate.dismissView();
             }
         }
+    }
+
+    private void updateShareCastButton() {
+        if (enableShareCastInMediaChooserDialog() && mShareCastButton != null) {
+            mShareCastButton.setVisibility(getShareCastRoute() != null ? View.VISIBLE : View.GONE);
+        }
+    }
+
+   private MediaRouter.RouteInfo getShareCastRoute() {
+        if (!enableShareCastInMediaChooserDialog()) {
+            return null;
+        }
+        final int count = mRouter.getRouteCount();
+        for (int i = 0; i < count; i++) {
+            MediaRouter.RouteInfo route = mRouter.getRouteAt(i);
+            if (isShareCastRoute(route)) {
+                return route;
+            }
+        }
+        return null;
+    }
+
+    private boolean isShareCastRoute(MediaRouter.RouteInfo route) {
+        // TODO: b/483791636 - MediaRouter.RouteInfo ID is not accessible, so the Name is used now.
+        return TextUtils.equals(route.getName(), SHARE_CAST_ROUTE_NAME);
     }
 
     private static final class RouteComparator implements Comparator<MediaRouter.RouteInfo> {

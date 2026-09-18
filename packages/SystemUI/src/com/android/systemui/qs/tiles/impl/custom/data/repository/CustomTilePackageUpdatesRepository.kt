@@ -21,6 +21,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Handler
 import android.os.UserHandle
 import androidx.annotation.GuardedBy
 import com.android.app.tracing.coroutines.launchTraced as launch
@@ -54,6 +55,7 @@ constructor(
     @ShadeDisplayAware private val context: Context,
     @QSTileScope private val tileScope: CoroutineScope,
     @Background private val backgroundCoroutineContext: CoroutineContext,
+    @param:Background private val bgHandler: Handler,
 ) : CustomTilePackageUpdatesRepository {
 
     @GuardedBy("perUserCache")
@@ -90,7 +92,7 @@ constructor(
                     user,
                     INTENT_FILTER,
                     /* broadcastPermission = */ null,
-                    /* scheduler = */ null,
+                    /* scheduler = */ bgHandler,
                 )
 
                 awaitClose { context.unregisterReceiver(receiver) }
@@ -105,6 +107,7 @@ constructor(
                 changedComponentNames?.contains(tileSpec.componentName.packageName) == true
             }
             .map {}
+            .flowOn(backgroundCoroutineContext)
 
     private companion object {
 

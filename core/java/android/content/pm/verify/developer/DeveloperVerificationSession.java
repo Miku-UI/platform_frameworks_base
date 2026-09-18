@@ -91,6 +91,31 @@ public final class DeveloperVerificationSession implements Parcelable {
      */
     public static final int DEVELOPER_VERIFICATION_BYPASSED_REASON_TEST = 3;
 
+    /**
+     * Indicates whether the installation is through ADB.
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE_ADB)
+    public static final int FLAG_VERIFICATION_IS_ADB = 0x00000001;
+    /**
+     * Indicates that the verification should be forced to take place when the installation is
+     * through ADB. This flag will only be set when
+     * {@link DeveloperVerificationSession#FLAG_VERIFICATION_IS_ADB} is also set. Even when this
+     * flag is set, the system will only block the installation if the current
+     * {@link DeveloperVerificationPolicy} is set to a blocking mode.
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE_ADB)
+    public static final int FLAG_VERIFICATION_FORCED_ON_ADB = 0x00000002;
+
+    /**
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE_ADB)
+    @IntDef(flag = true, prefix = {"FLAG_VERIFICATION_"}, value = {
+            FLAG_VERIFICATION_IS_ADB,
+            FLAG_VERIFICATION_FORCED_ON_ADB,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface VerificationFlags {}
 
     private final int mId;
     private final int mInstallSessionId;
@@ -106,6 +131,7 @@ public final class DeveloperVerificationSession implements Parcelable {
     private final PersistableBundle mExtensionParams;
     @NonNull
     private final IDeveloperVerificationSessionInterface mSession;
+    private final int mVerificationFlags;
     /**
      * The current policy that is active for the developer verification session. It might not be
      * the same as the original policy that was initially assigned for this verification session,
@@ -126,6 +152,21 @@ public final class DeveloperVerificationSession implements Parcelable {
             @Nullable PersistableBundle extensionParams,
             @PackageInstaller.DeveloperVerificationPolicy int defaultPolicy,
             @NonNull IDeveloperVerificationSessionInterface session) {
+        this(id, installSessionId, packageName, stagedPackageUri,
+                signingInfo, declaredLibraries, extensionParams, defaultPolicy, session,
+                /* verificationFlags= */ 0);
+    }
+
+    /**
+     * Constructor used by the system to describe the details of a developer verification session.
+     * @hide
+     */
+    public DeveloperVerificationSession(int id, int installSessionId, @NonNull String packageName,
+            @NonNull Uri stagedPackageUri, @NonNull SigningInfo signingInfo,
+            @NonNull List<SharedLibraryInfo> declaredLibraries,
+            @Nullable PersistableBundle extensionParams,
+            @PackageInstaller.DeveloperVerificationPolicy int defaultPolicy,
+            @NonNull IDeveloperVerificationSessionInterface session, int verificationFlags) {
         mId = id;
         mInstallSessionId = installSessionId;
         mPackageName = packageName;
@@ -135,6 +176,7 @@ public final class DeveloperVerificationSession implements Parcelable {
         mExtensionParams = extensionParams;
         mPolicy = defaultPolicy;
         mSession = session;
+        mVerificationFlags = verificationFlags;
     }
 
     /**
@@ -336,6 +378,16 @@ public final class DeveloperVerificationSession implements Parcelable {
         }
     }
 
+    /**
+     * Return any verification flags associated with this session e.g. whether this is a forced
+     * verification, or if the install is through ADB, or both.
+     * @return The currently set flags.
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE_ADB)
+    public @VerificationFlags int getVerificationFlags() {
+        return mVerificationFlags;
+    }
+
     private DeveloperVerificationSession(@NonNull Parcel in) {
         mId = in.readInt();
         mInstallSessionId = in.readInt();
@@ -346,6 +398,7 @@ public final class DeveloperVerificationSession implements Parcelable {
         mExtensionParams = in.readPersistableBundle(getClass().getClassLoader());
         mPolicy = in.readInt();
         mSession = IDeveloperVerificationSessionInterface.Stub.asInterface(in.readStrongBinder());
+        mVerificationFlags = in.readInt();
     }
 
     @Override
@@ -364,6 +417,7 @@ public final class DeveloperVerificationSession implements Parcelable {
         dest.writePersistableBundle(mExtensionParams);
         dest.writeInt(mPolicy);
         dest.writeStrongBinder(mSession.asBinder());
+        dest.writeInt(mVerificationFlags);
     }
 
     @NonNull

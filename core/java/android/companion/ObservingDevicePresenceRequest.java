@@ -52,11 +52,10 @@ public final class ObservingDevicePresenceRequest implements Parcelable {
 
     private static final int PARCEL_UUID_NOT_NULL = 1;
 
-    private ObservingDevicePresenceRequest(
-            int associationId, @Nullable ParcelUuid uuid, @Nullable DeviceId deviceId) {
-        mAssociationId = associationId;
-        mUuid = uuid;
-        mDeviceId = deviceId;
+    private ObservingDevicePresenceRequest(Builder builder) {
+        mAssociationId = builder.mAssociationId;
+        mUuid = builder.mUuid;
+        mDeviceId = builder.mDeviceId;
     }
 
     private ObservingDevicePresenceRequest(@NonNull Parcel in) {
@@ -197,7 +196,7 @@ public final class ObservingDevicePresenceRequest implements Parcelable {
          */
         @NonNull
         public Builder setAssociationId(int associationId) {
-            this.mAssociationId = associationId;
+            mAssociationId = associationId;
             return this;
         }
 
@@ -227,7 +226,7 @@ public final class ObservingDevicePresenceRequest implements Parcelable {
                 android.Manifest.permission.BLUETOOTH_SCAN
         })
         public Builder setUuid(@NonNull ParcelUuid uuid) {
-            this.mUuid = uuid;
+            mUuid = uuid;
             return this;
         }
 
@@ -249,7 +248,7 @@ public final class ObservingDevicePresenceRequest implements Parcelable {
         @RequiresPermission(android.Manifest.permission.ACCESS_COMPANION_INFO)
         @FlaggedApi(Flags.FLAG_ASSOCIATION_VERIFICATION)
         public Builder setDeviceId(@NonNull DeviceId deviceId) {
-            this.mDeviceId = deviceId;
+            mDeviceId = deviceId;
             return this;
         }
 
@@ -271,7 +270,7 @@ public final class ObservingDevicePresenceRequest implements Parcelable {
                         + "parcel uuid, or association id to observe device presence.");
             }
 
-            return new ObservingDevicePresenceRequest(mAssociationId, mUuid, mDeviceId);
+            return new ObservingDevicePresenceRequest(this);
         }
     }
 }

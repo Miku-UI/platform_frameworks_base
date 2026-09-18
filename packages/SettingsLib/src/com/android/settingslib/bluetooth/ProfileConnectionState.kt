@@ -18,6 +18,6 @@ package com.android.settingslib.bluetooth
 
 data class ProfileConnectionState(
     val cachedDevice: CachedBluetoothDevice,
-    @BluetoothCallback.ConnectionState val state: Int,
+    @param:BluetoothCallback.ConnectionState val state: Int,
     val bluetoothProfile: Int,
 )

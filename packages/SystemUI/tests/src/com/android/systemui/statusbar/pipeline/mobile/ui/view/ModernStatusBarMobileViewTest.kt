@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.pipeline.mobile.ui.view
 
 import android.content.res.ColorStateList
 import android.content.res.Configuration
-import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.testing.TestableLooper
@@ -30,22 +29,21 @@ import android.widget.ImageView
 import androidx.core.view.marginEnd
 import androidx.core.view.marginStart
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.StatusBarIconView
 import com.android.systemui.statusbar.core.NewStatusBarIcons
-import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
+import com.android.systemui.statusbar.pipeline.airplane.data.repository.AirplaneModeRepository
+import com.android.systemui.statusbar.pipeline.airplane.data.repository.airplaneModeRepository
 import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
-import com.android.systemui.statusbar.pipeline.mobile.data.repository.fakeMobileConnectionsRepository
+import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.airplaneModeInteractor
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.FakeMobileIconInteractor
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileViewLogger
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.LocationBasedMobileViewModel
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconViewModel
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.QsMobileIconViewModel
 import com.android.systemui.statusbar.pipeline.shared.ConnectivityConstants
-import com.android.systemui.statusbar.pipeline.shared.data.repository.FakeConnectivityRepository
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
@@ -71,7 +69,7 @@ class ModernStatusBarMobileViewTest : SysuiTestCase() {
     @Mock private lateinit var viewLogger: MobileViewLogger
     @Mock private lateinit var constants: ConnectivityConstants
     private lateinit var interactor: FakeMobileIconInteractor
-    private lateinit var airplaneModeRepository: FakeAirplaneModeRepository
+    private lateinit var airplaneModeRepository: AirplaneModeRepository
     private lateinit var airplaneModeInteractor: AirplaneModeInteractor
 
     private lateinit var viewModelCommon: MobileIconViewModel
@@ -86,13 +84,8 @@ class ModernStatusBarMobileViewTest : SysuiTestCase() {
 
         testableLooper = TestableLooper.get(this)
 
-        airplaneModeRepository = FakeAirplaneModeRepository()
-        airplaneModeInteractor =
-            AirplaneModeInteractor(
-                airplaneModeRepository,
-                FakeConnectivityRepository(),
-                kosmos.fakeMobileConnectionsRepository,
-            )
+        airplaneModeInteractor = kosmos.airplaneModeInteractor
+        airplaneModeRepository = kosmos.airplaneModeRepository
 
         interactor =
             FakeMobileIconInteractor(logcatTableLogBuffer(kosmos, "ModernStatusBarMobileViewTest"))
@@ -242,8 +235,8 @@ class ModernStatusBarMobileViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_FIX_SHADE_HEADER_WRONG_ICON_SIZE, NewStatusBarIcons.FLAG_NAME)
-    fun onConfigurationChanged_flagOn_updatesTypeContainerHeight() {
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
+    fun onConfigurationChanged_updatesTypeContainerHeight() {
         val view =
             ModernStatusBarMobileView.constructAndBind(context, viewLogger, SLOT_NAME, viewModel)
         val typeContainer = view.getNetTypeContainer()
@@ -257,22 +250,7 @@ class ModernStatusBarMobileViewTest : SysuiTestCase() {
 
     @Test
     @EnableFlags(NewStatusBarIcons.FLAG_NAME)
-    @DisableFlags(Flags.FLAG_FIX_SHADE_HEADER_WRONG_ICON_SIZE)
-    fun onConfigurationChanged_flagOff_doesNotUpdateTypeContainerHeight() {
-        val view =
-            ModernStatusBarMobileView.constructAndBind(context, viewLogger, SLOT_NAME, viewModel)
-        val typeContainer = view.getNetTypeContainer()
-        val initialHeight = typeContainer.layoutParams.height
-
-        overrideResource(R.dimen.status_bar_mobile_container_height_updated, initialHeight + 10)
-        view.onConfigurationChanged(Configuration())
-
-        assertThat(typeContainer.layoutParams.height).isEqualTo(initialHeight)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_FIX_SHADE_HEADER_WRONG_ICON_SIZE, NewStatusBarIcons.FLAG_NAME)
-    fun onConfigurationChanged_flagOn_updatesTypeHeight() {
+    fun onConfigurationChanged_updatesTypeHeight() {
         val view =
             ModernStatusBarMobileView.constructAndBind(context, viewLogger, SLOT_NAME, viewModel)
         val type = view.getNetTypeView()
@@ -286,22 +264,7 @@ class ModernStatusBarMobileViewTest : SysuiTestCase() {
 
     @Test
     @EnableFlags(NewStatusBarIcons.FLAG_NAME)
-    @DisableFlags(Flags.FLAG_FIX_SHADE_HEADER_WRONG_ICON_SIZE)
-    fun onConfigurationChanged_flagOff_doesNotUpdateTypeHeight() {
-        val view =
-            ModernStatusBarMobileView.constructAndBind(context, viewLogger, SLOT_NAME, viewModel)
-        val type = view.getNetTypeView()
-        val initialHeight = type.layoutParams.height
-
-        overrideResource(R.dimen.status_bar_mobile_type_size_updated, initialHeight + 10)
-        view.onConfigurationChanged(Configuration())
-
-        assertThat(type.layoutParams.height).isEqualTo(initialHeight)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_FIX_SHADE_HEADER_WRONG_ICON_SIZE, NewStatusBarIcons.FLAG_NAME)
-    fun onConfigurationChanged_flagOn_updatesGroupMargins() {
+    fun onConfigurationChanged_updatesGroupMargins() {
         val view =
             ModernStatusBarMobileView.constructAndBind(context, viewLogger, SLOT_NAME, viewModel)
         val group = view.getGroupView()
@@ -318,25 +281,7 @@ class ModernStatusBarMobileViewTest : SysuiTestCase() {
 
     @Test
     @EnableFlags(NewStatusBarIcons.FLAG_NAME)
-    @DisableFlags(Flags.FLAG_FIX_SHADE_HEADER_WRONG_ICON_SIZE)
-    fun onConfigurationChanged_flagOff_doesNotUpdateGroupMargins() {
-        val view =
-            ModernStatusBarMobileView.constructAndBind(context, viewLogger, SLOT_NAME, viewModel)
-        val group = view.getGroupView()
-        val initialMarginStart = group.marginStart
-        val initialMarginEnd = group.marginEnd
-
-        overrideResource(R.dimen.status_bar_mobile_container_margin_start, initialMarginStart + 10)
-        overrideResource(R.dimen.status_bar_mobile_container_margin_end, initialMarginEnd + 10)
-        view.onConfigurationChanged(Configuration())
-
-        assertThat(group.marginStart).isEqualTo(initialMarginStart)
-        assertThat(group.marginEnd).isEqualTo(initialMarginEnd)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_FIX_SHADE_HEADER_WRONG_ICON_SIZE, NewStatusBarIcons.FLAG_NAME)
-    fun onConfigurationChanged_flagOn_updatesSignalHeight() {
+    fun onConfigurationChanged_updatesSignalHeight() {
         val view =
             ModernStatusBarMobileView.constructAndBind(context, viewLogger, SLOT_NAME, viewModel)
         val signal = view.requireViewById<View>(R.id.mobile_signal)
@@ -347,24 +292,6 @@ class ModernStatusBarMobileViewTest : SysuiTestCase() {
         view.onConfigurationChanged(Configuration())
 
         assertThat(signal.layoutParams.height).isEqualTo(initialHeight + 10)
-    }
-
-    @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
-    @DisableFlags(Flags.FLAG_FIX_SHADE_HEADER_WRONG_ICON_SIZE)
-    fun onConfigurationChanged_flagOff_updatesSignalHeight() {
-        val view =
-            ModernStatusBarMobileView.constructAndBind(context, viewLogger, SLOT_NAME, viewModel)
-        val group = view.getGroupView()
-        val initialMarginStart = group.marginStart
-        val initialMarginEnd = group.marginEnd
-
-        overrideResource(R.dimen.status_bar_mobile_container_margin_start, initialMarginStart + 10)
-        overrideResource(R.dimen.status_bar_mobile_container_margin_end, initialMarginEnd + 10)
-        view.onConfigurationChanged(Configuration())
-
-        assertThat(group.marginStart).isEqualTo(initialMarginStart)
-        assertThat(group.marginEnd).isEqualTo(initialMarginEnd)
     }
 
     @Test

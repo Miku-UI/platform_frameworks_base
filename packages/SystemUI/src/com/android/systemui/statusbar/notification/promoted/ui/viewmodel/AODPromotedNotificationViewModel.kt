@@ -16,10 +16,8 @@
 
 package com.android.systemui.statusbar.notification.promoted.ui.viewmodel
 
-import androidx.compose.runtime.getValue
 import com.android.systemui.dump.DumpManager
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.statusbar.notification.promoted.domain.interactor.AODPromotedNotificationInteractor
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModel
 import com.android.systemui.util.kotlin.ActivatableFlowDumper
@@ -31,7 +29,6 @@ import dagger.assisted.AssistedInject
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -46,12 +43,11 @@ constructor(
     systemClock: SystemClock,
     dumpManager: DumpManager,
 ) :
-    ExclusiveActivatable(),
+    HydratedActivatable(),
     ActivatableFlowDumper by ActivatableFlowDumperImpl(
         dumpManager,
         "AODPromotedNotificationViewModel",
     ) {
-    private val hydrator = Hydrator("AODPromotedNotificationViewModel.hydrator")
 
     private val contentFlow =
         interactor.content.let {
@@ -63,7 +59,7 @@ constructor(
         }
 
     val content: PromotedNotificationContentModel? by
-        hydrator.hydratedStateOf(traceName = "content", initialValue = null, source = contentFlow)
+        contentFlow.hydratedStateOf(initialValue = null)
 
     private val audiblyAlertedIconVisibleUntil: Flow<Duration?> =
         interactor.content
@@ -91,18 +87,13 @@ constructor(
             .dumpWhileCollecting("audiblyAlertedIconVisible")
 
     val audiblyAlertedIconVisible: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "audiblyAlertedIconVisible",
-            initialValue = false,
-            source = audiblyAlertedIconVisibleFlow,
-        )
+        audiblyAlertedIconVisibleFlow.hydratedStateOf(initialValue = false)
 
-    override suspend fun onActivated(): Nothing {
-        coroutineScope {
-            launch { activateFlowDumper() }
-            launch { hydrator.activate() }
-            awaitCancellation()
-        }
+    val useLowFrequencyMode: Boolean by
+        interactor.useLowFrequencyMode.hydratedStateOf(initialValue = false)
+
+    override suspend fun onActivated() {
+        coroutineScope { launch { activateFlowDumper() } }
     }
 
     @AssistedFactory

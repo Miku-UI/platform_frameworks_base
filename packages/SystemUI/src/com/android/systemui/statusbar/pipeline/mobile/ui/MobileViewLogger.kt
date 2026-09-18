@@ -20,7 +20,6 @@ import android.view.View
 import com.android.systemui.Dumpable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dump.DumpManager
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel
 import com.android.systemui.statusbar.pipeline.dagger.MobileViewLog
@@ -98,7 +97,6 @@ constructor(@MobileViewLog private val buffer: LogBuffer, dumpManager: DumpManag
         )
     }
 
-    @OptIn(ExperimentalKairosApi::class)
     fun logCollectionStarted(view: View, viewModel: LocationBasedMobileViewModelKairos) {
         collectionStatuses[view.getIdForLogging()] = true
         buffer.log(
@@ -113,7 +111,6 @@ constructor(@MobileViewLog private val buffer: LogBuffer, dumpManager: DumpManag
         )
     }
 
-    @OptIn(ExperimentalKairosApi::class)
     fun logCollectionStopped(view: View, viewModel: LocationBasedMobileViewModelKairos) {
         collectionStatuses[view.getIdForLogging()] = false
         buffer.log(

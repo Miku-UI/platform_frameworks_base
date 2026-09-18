@@ -16,6 +16,7 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -83,7 +84,10 @@ import java.lang.annotation.RetentionPolicy;
  * {@link android.content.pm#FEATURE_IDENTITY_CREDENTIAL_HARDWARE_DIRECT_ACCESS}.
  * Methods which only work on certain feature versions are clearly documented as
  * such.
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public abstract class IdentityCredentialStore {
     IdentityCredentialStore() {}
 
@@ -106,7 +110,11 @@ public abstract class IdentityCredentialStore {
      *
      * <p>
      * At present this is the only supported cipher suite.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public static final int CIPHERSUITE_ECDHE_HKDF_ECDSA_WITH_AES_256_GCM_SHA256 = 1;
 
     /**
@@ -115,7 +123,11 @@ public abstract class IdentityCredentialStore {
      * @param context the application context.
      * @return the {@link IdentityCredentialStore} or {@code null} if the device doesn't
      *     have hardware-backed support for secure storage of user identity documents.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public static @Nullable IdentityCredentialStore getInstance(@NonNull Context context) {
         return CredstoreIdentityCredentialStore.getInstance(context);
     }
@@ -131,7 +143,11 @@ public abstract class IdentityCredentialStore {
      * @param context the application context.
      * @return the {@link IdentityCredentialStore} or {@code null} if direct access is not
      *     supported on this device.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public static @Nullable IdentityCredentialStore getDirectAccessInstance(@NonNull
             Context context) {
         return CredstoreIdentityCredentialStore.getDirectAccessInstance(context);
@@ -144,7 +160,11 @@ public abstract class IdentityCredentialStore {
      * credentials. The default store always supports any document type.
      *
      * @return The supported document types or the empty array if any document type is supported.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @NonNull String[] getSupportedDocTypes();
 
     /**
@@ -166,7 +186,11 @@ public abstract class IdentityCredentialStore {
      * @return A {@link WritableIdentityCredential} that can be used to create a new credential.
      * @throws AlreadyPersonalizedException if a credential with the given name already exists.
      * @throws DocTypeNotSupportedException if the given document type isn't supported by the store.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @NonNull WritableIdentityCredential createCredential(
             @NonNull String credentialName, @NonNull String docType)
             throws AlreadyPersonalizedException, DocTypeNotSupportedException;
@@ -181,7 +205,11 @@ public abstract class IdentityCredentialStore {
      * @param credentialName the name of the credential to retrieve.
      * @param cipherSuite    the cipher suite to use for communicating with the verifier.
      * @return The named credential, or null if not found.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @Nullable IdentityCredential getCredentialByName(@NonNull String credentialName,
             @Ciphersuite int cipherSuite)
             throws CipherSuiteNotSupportedException;
@@ -206,6 +234,7 @@ public abstract class IdentityCredentialStore {
      *     if the credential was found and deleted.
      * @deprecated Use {@link IdentityCredential#delete(byte[])} instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
     @Deprecated
     public abstract @Nullable byte[] deleteCredentialByName(@NonNull String credentialName);
 
@@ -222,7 +251,11 @@ public abstract class IdentityCredentialStore {
      *
      * @param cipherSuite    the cipher suite to use for communicating with the verifier.
      * @return The presentation session.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @NonNull PresentationSession createPresentationSession(@Ciphersuite int cipherSuite)
             throws CipherSuiteNotSupportedException {
         throw new UnsupportedOperationException();

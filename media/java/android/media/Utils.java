@@ -34,6 +34,7 @@ import android.os.Vibrator;
 import android.os.vibrator.persistence.ParsedVibration;
 import android.os.vibrator.persistence.VibrationXmlParser;
 import android.provider.OpenableColumns;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Log;
 import android.util.Pair;
 import android.util.Range;
@@ -64,6 +65,7 @@ import java.util.concurrent.Executor;
  */
 @TestApi
 @SuppressLint({"StaticUtils"})
+@RavenwoodKeepWholeClass
 public class Utils {
 
     // Not instantiable.

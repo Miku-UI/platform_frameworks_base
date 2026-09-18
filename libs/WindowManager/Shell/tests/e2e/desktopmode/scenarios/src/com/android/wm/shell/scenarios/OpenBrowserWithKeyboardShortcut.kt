@@ -32,14 +32,13 @@ import org.junit.Ignore
 import org.junit.Test
 
 @Ignore("Test Base Class")
-open class OpenBrowserWithKeyboardShortcut(
-    val rotation: Rotation = Rotation.ROTATION_0
-) : TestScenarioBase(rotation) {
+open class OpenBrowserWithKeyboardShortcut(val rotation: Rotation = Rotation.ROTATION_0) :
+    TestScenarioBase(rotation) {
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val keyEventHelper = KeyEventHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
-    private val testApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
+    val testApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
     val browserAppHelper = BrowserAppHelper(instrumentation)
 
     @Before
@@ -50,7 +49,8 @@ open class OpenBrowserWithKeyboardShortcut(
     @Test
     open fun openBrowserWithKeyboardShortcut() {
         keyEventHelper.press(KeyEvent.KEYCODE_B, KeyEvent.META_META_ON)
-        wmHelper.StateSyncBuilder()
+        wmHelper
+            .StateSyncBuilder()
             .withFreeformApp(browserAppHelper.componentMatcher)
             .withAppTransitionIdle()
             .waitForAndVerify()

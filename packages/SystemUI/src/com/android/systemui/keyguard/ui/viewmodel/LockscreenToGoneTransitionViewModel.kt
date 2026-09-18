@@ -122,6 +122,7 @@ constructor(
         transitionAnimation.sharedFlowWithShade(
             duration = 600.milliseconds,
             onStep = { step, isShadeExpanded -> if (isShadeExpanded) 0f else 1f - step },
+            onCancel = { 0f },
             onFinish = { 0f },
         )
 }

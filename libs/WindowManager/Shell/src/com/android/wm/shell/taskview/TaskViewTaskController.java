@@ -31,6 +31,7 @@ import android.graphics.Rect;
 import android.gui.TrustedOverlay;
 import android.os.Binder;
 import android.util.CloseGuard;
+import android.view.InsetsBoundingRect;
 import android.view.SurfaceControl;
 import android.view.WindowInsets;
 import android.window.WindowContainerToken;
@@ -40,7 +41,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.common.SyncTransactionQueue;
-import com.android.wm.shell.shared.bubbles.BubbleAnythingFlagHelper;
+import com.android.wm.shell.shared.bubbles.BubbleFlagHelper;
 
 import java.io.PrintWriter;
 import java.util.concurrent.Executor;
@@ -82,7 +83,6 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
     private boolean mTaskNotFound;
     private boolean mSurfaceCreated;
     private SurfaceControl mSurfaceControl;
-    private boolean mIsInitialized;
     private boolean mNotifiedForInitialized;
     private boolean mHideTaskWithSurface = true;
     private TaskView.Listener mListener;
@@ -119,8 +119,8 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
         mHideTaskWithSurface = hideTaskWithSurface;
     }
 
-    @VisibleForTesting
-    SurfaceControl getTaskLeash() {
+    /** @return the {@link SurfaceControl} of the task associated with the task view. */
+    public SurfaceControl getTaskLeash() {
         return mTaskLeash;
     }
 
@@ -137,7 +137,7 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
      * task related changes and getting the current bounds.
      */
     public void setTaskViewBase(TaskViewBase taskViewBase) {
-        ProtoLog.d(WM_SHELL_BUBBLES_NOISY, "TaskController.setTaskViewBase(): taskView=%d base=%s",
+        ProtoLog.d(WM_SHELL_BUBBLES_NOISY, "TaskController.setTaskViewBase(): taskView=%d base=%d",
                 hashCode(), taskViewBase.hashCode());
         mTaskViewBase = taskViewBase;
     }
@@ -145,8 +145,8 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
     /**
      * @return {@code True} when the TaskView's surface has been created, {@code False} otherwise.
      */
-    public boolean isInitialized() {
-        return mIsInitialized;
+    public boolean isSurfaceCreated() {
+        return mSurfaceCreated;
     }
 
     /** Returns the task token for the task in the TaskView. */
@@ -201,7 +201,6 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
             resetTaskInfo();
         });
         mGuard.close();
-        mIsInitialized = false;
         notifyReleased();
     }
 
@@ -268,14 +267,25 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
     }
 
     @Override
+    public boolean onNewTaskListenerDetected(ActivityManager.RunningTaskInfo taskInfo,
+            ShellTaskOrganizer.TaskListener newListener) {
+        // There should be only one TaskViewTaskController listening to the Task, let's reusing
+        // the existing task listener if the new listener is also a TaskViewTaskController.
+        return !(newListener instanceof TaskViewTaskController);
+    }
+
+    @Override
     public void onTaskVanished(ActivityManager.RunningTaskInfo taskInfo) {
         ProtoLog.d(WM_SHELL_BUBBLES_NOISY, "TaskController.onTaskVanished(): taskView=%d task=%s",
                 hashCode(), taskInfo);
-        // Unlike Appeared, we can't yet guarantee that vanish will happen within a transition that
-        // we know about -- so leave clean-up here even if shell transitions are enabled.
-        if (mTaskToken == null || !mTaskToken.equals(taskInfo.token)) return;
+        if (mTaskToken == null) {
+            setTaskNotFound();
+            return;
+        }
 
-        if (BubbleAnythingFlagHelper.enableCreateAnyBubble()) {
+        if (!mTaskToken.equals(taskInfo.token)) return;
+
+        if (BubbleFlagHelper.enableCreateAnyBubble()) {
             handleAndNotifyTaskRemoval(taskInfo);
         } else {
             handleAndNotifyTaskRemoval(mTaskInfo);
@@ -287,7 +297,7 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
     @Override
     public void onTaskInfoChanged(ActivityManager.RunningTaskInfo taskInfo) {
         mTaskViewBase.onTaskInfoChanged(taskInfo);
-        if (BubbleAnythingFlagHelper.enableCreateAnyBubble()) {
+        if (BubbleFlagHelper.enableCreateAnyBubble()) {
             if (mListener != null) {
                 mListenerExecutor.execute(() -> {
                     mListener.onTaskInfoChanged(taskInfo);
@@ -297,7 +307,9 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
     }
 
     @Override
-    public void onBackPressedOnTaskRoot(ActivityManager.RunningTaskInfo taskInfo) {
+    public void onBackOnTaskRoot(ActivityManager.RunningTaskInfo taskInfo,
+            boolean isFromBackPress, boolean isOptInOnBackInvoked,
+            boolean hasOpaqueSibling) {
         if (mTaskToken == null || !mTaskToken.equals(taskInfo.token)) {
             ProtoLog.d(WM_SHELL_BUBBLES_NOISY, "TaskController.onBackPressedOnTaskRoot(): "
                     + "taskView=%d Ignored", hashCode());
@@ -315,9 +327,9 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
 
     @Override
     public void attachChildSurfaceToTask(int taskId, SurfaceControl.Builder b) {
-        if (BubbleAnythingFlagHelper.enableCreateAnyBubble()) {
+        if (BubbleFlagHelper.enableCreateAnyBubble()) {
             // TODO(b/419342398): Add a notifier when the surface is ready for this to be called.
-            if (!mIsInitialized) return;
+            if (mTaskLeash == null) return;
         }
         b.setParent(findTaskSurface(taskId));
     }
@@ -325,9 +337,9 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
     @Override
     public void reparentChildSurfaceToTask(int taskId, SurfaceControl sc,
             SurfaceControl.Transaction t) {
-        if (BubbleAnythingFlagHelper.enableCreateAnyBubble()) {
+        if (BubbleFlagHelper.enableCreateAnyBubble()) {
             // TODO(b/419342398): Add a notifier when the surface is ready for this to be called.
-            if (!mIsInitialized) return;
+            if (mTaskLeash == null) return;
         }
         t.reparent(sc, findTaskSurface(taskId));
     }
@@ -360,7 +372,6 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
         ProtoLog.d(WM_SHELL_BUBBLES_NOISY, "TaskController.surfaceCreated(): taskView=%d",
                 hashCode());
         mSurfaceCreated = true;
-        mIsInitialized = true;
         mSurfaceControl = surfaceControl;
         // SurfaceControl is expected to be null only in the case of unit tests. Guard against it
         // to avoid runtime exception in SurfaceControl.Transaction.
@@ -408,19 +419,21 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
         WindowContainerTransaction wct = new WindowContainerTransaction();
         if (mCaptionInsets != null) {
             int flags = 0;
-            if (BubbleAnythingFlagHelper.enableCreateAnyBubble()) {
+            if (BubbleFlagHelper.enableCreateAnyBubble()) {
                 // When the bubble bar app handle is visible, the caption insets will be set and
                 // should always be consumed, otherwise the handle may block app content.
                 flags = FLAG_FORCE_CONSUMING | FLAG_FORCE_CONSUMING_OPAQUE_CAPTION_BAR;
             }
-            if (com.android.window.flags.Flags.relativeInsets()) {
+            if (com.android.window.flags.Flags.improveFluidResizingPerformance()) {
                 wct.addInsetsSource(mTaskToken, mCaptionInsetsOwner, 0,
-                        WindowInsets.Type.captionBar(), Insets.of(0, mCaptionInsets.height(), 0, 0),
-                        null /* boundingRects */, flags);
+                        WindowInsets.Type.captionBar(),
+                        Insets.of(0, mCaptionInsets.height(), 0, 0),
+                        (InsetsBoundingRect[]) null /* boundingRects */, flags);
             } else {
                 wct.addInsetsSource(mTaskToken, mCaptionInsetsOwner, 0,
-                        WindowInsets.Type.captionBar(), mCaptionInsets, null /* boundingRects */,
-                        flags);
+                        WindowInsets.Type.captionBar(),
+                        Insets.of(0, mCaptionInsets.height(), 0, 0),
+                        (Rect[]) null /* boundingRects */, flags);
             }
         } else {
             wct.removeInsetsSource(mTaskToken, mCaptionInsetsOwner, 0,
@@ -470,7 +483,7 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
         ProtoLog.d(WM_SHELL_BUBBLES_NOISY, "TaskController.notifyTaskRemovalStarted(): taskView=%d "
                 + "task=%s", hashCode(), taskInfo);
 
-        if (BubbleAnythingFlagHelper.enableCreateAnyBubble()) {
+        if (BubbleFlagHelper.enableCreateAnyBubble()) {
             // Update mTaskInfo to reflect the latest task state before notifying the listener, as
             // it may have been changed by ShellTaskOrganizer#onTaskInfoChanged(), which triggers
             // task listener updates via ShellTaskOrganizer#updateTaskListenerIfNeeded() when a
@@ -564,15 +577,18 @@ public class TaskViewTaskController implements ShellTaskOrganizer.TaskListener {
      * Called when the associated Task closes. If the TaskView is just being hidden, prepareHide
      * is used instead.
      */
-    void prepareCloseAnimation() {
+    void prepareCloseAnimation(SurfaceControl leash, SurfaceControl.Transaction transaction) {
         ProtoLog.d(WM_SHELL_BUBBLES_NOISY, "TaskController.prepareCloseAnimation(): taskView=%d",
                 hashCode());
+        if (mTaskViewBase.shouldHideSurfaceWhileClosing()) {
+            transaction.setAlpha(leash, 0);
+        }
         handleAndNotifyTaskRemoval(mTaskInfo);
         resetTaskInfo();
     }
 
     /**
-     * Prepare this taskview to open {@param taskInfo}.
+     * Prepare this taskview to open {@code taskInfo}.
      * @return The bounds of the task or {@code null} on failure (surface is destroyed)
      */
     Rect prepareOpen(ActivityManager.RunningTaskInfo taskInfo, SurfaceControl leash) {

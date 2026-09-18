@@ -68,8 +68,8 @@ class ExitPipToAppViaIntentTest {
     @Before
     fun setup() {
         pipApp.launchViaIntent(
-                wmHelper,
-                stringExtras = mapOf(ActivityOptions.Pip.EXTRA_ENTER_PIP to "true")
+            wmHelper,
+            stringExtras = mapOf(ActivityOptions.Pip.EXTRA_ENTER_PIP to "true"),
         )
     }
 
@@ -90,24 +90,28 @@ class ExitPipToAppViaIntentTest {
         val pipApp: PipAppHelper = PipAppHelper(instrumentation)
         private val pipAppComponentTemplate = ComponentTemplate("PIP_APP") { _ -> pipApp }
 
-        private val PIP_EXPAND_CUJ_EXTRACTOR = TaggedScenarioExtractorBuilder()
+        private val PIP_EXPAND_CUJ_EXTRACTOR =
+            TaggedScenarioExtractorBuilder()
                 .setTargetTag(CujType.CUJ_PIP_TRANSITION)
-                .setAdditionalCujFilter {
-                    it.tag == "EXIT_PIP"
-                }.build()
+                .setAdditionalCujFilter { it.tag == "EXIT_PIP" }
+                .build()
 
-        private val PIP_EXPAND_CUJ_CONFIG = FlickerConfigEntry(
+        private val PIP_EXPAND_CUJ_CONFIG =
+            FlickerConfigEntry(
                 scenarioId = ScenarioId("PIP_EXPAND_TO_FULLSCREEN"),
                 extractor = PIP_EXPAND_CUJ_EXTRACTOR,
-                assertions = AssertionTemplates.COMMON_ASSERTIONS + mapOf(
-                    LayerExpands(pipAppComponentTemplate) to AssertionInvocationGroup.BLOCKING
-                ),
-                enabled = true
-        )
+                assertions =
+                    AssertionTemplates.COMMON_ASSERTIONS +
+                        mapOf(
+                            LayerExpands(pipAppComponentTemplate) to
+                                AssertionInvocationGroup.BLOCKING
+                        ),
+                enabled = true,
+            )
 
         @JvmStatic
         @FlickerConfigProvider
         fun flickerConfigProvider(): FlickerConfig =
-                FlickerConfig().use(FlickerServiceConfig.DEFAULT).use(PIP_EXPAND_CUJ_CONFIG)
+            FlickerConfig().use(FlickerServiceConfig.DEFAULT).use(PIP_EXPAND_CUJ_CONFIG)
     }
 }

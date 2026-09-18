@@ -55,9 +55,9 @@ abstract class ShowAppDialogInDesktopMode(val rotation: Rotation = Rotation.ROTA
 
     @Test
     open fun addAppShortcutToHomeScreen() {
-        // Open eBay via command to prevent flaky clicks from shortcuts.
-        device.executeShellCommand(
-            "am start -n com.android.chrome/com.google.android.apps.chrome.Main -a android.intent.action.VIEW -d m.ebay.com"
+        browserAppHelper.launchViaIntent(
+            wmHelper,
+            BrowserAppHelper.getSpecialBrowserIntent(BrowserAppHelper.EBAY_INTENT),
         )
         browserAppHelper.openThreeDotsMenu()
         browserAppHelper.clickAddToHomeScreenInMenu()

@@ -27,7 +27,7 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.annotations.GuardedBy;
-import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
+import com.android.internal.pm.pkg.component.AconfigFlags;
 
 import dalvik.annotation.optimization.CriticalNative;
 
@@ -524,7 +524,7 @@ public final class ApkAssets {
     private static boolean[] getFlagValuesForNative(@NonNull String[] flagNames) {
         boolean[] values = new boolean[flagNames.length];
         for (int i = 0; i < flagNames.length; i++) {
-            Boolean value = ParsingPackageUtils.getAconfigFlags().getFlagValue(flagNames[i]);
+            Boolean value = AconfigFlags.getInstance().getFlagValue(flagNames[i]);
             if (value == null) {
                 Log.w("ApkAssets", "Couldn't find flag value for native: " + flagNames[i]);
             } else {

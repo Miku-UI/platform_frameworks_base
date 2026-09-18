@@ -16,7 +16,12 @@
 
 package com.android.server.pm;
 
+import static com.android.server.pm.UserActivitiesAllowlist.ALLOWLIST_MODE_ENABLED;
+import static com.android.server.pm.UserActivitiesAllowlist.ALLOWLIST_MODE_DISABLED;
+import static com.android.server.pm.UserActivitiesAllowlist.STATUS_ALLOWED_ALLOWLISTING_DISABLED_BY_SHELL_CMD;
+
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.SpecialUsers.CanBeNULL;
 import android.annotation.UserIdInt;
@@ -24,6 +29,7 @@ import android.app.ActivityManager;
 import android.app.ActivityThread;
 import android.app.IActivityManager;
 import android.app.admin.DevicePolicyManagerInternal;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageManagerInternal;
 import android.content.pm.UserInfo;
@@ -41,14 +47,22 @@ import android.util.Slog;
 
 import com.android.internal.R;
 import com.android.internal.os.RoSystemProperties;
+import com.android.internal.util.Preconditions;
 import com.android.internal.widget.LockPatternUtils;
 import com.android.server.LocalServices;
 import com.android.server.UiThread;
 import com.android.server.power.ShutdownThread;
 import com.android.server.utils.Slogf;
 
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
+
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Shell command implementation for the user manager service
@@ -56,6 +70,10 @@ import java.util.List;
 public class UserManagerServiceShellCommand extends ShellCommand {
 
     private static final String LOG_TAG = "UserManagerServiceShellCommand";
+
+    private static final int RESULT_SUCCESS = 0;
+    private static final int RESULT_GENERIC_ERROR = -1;
+
     @NonNull
     private final UserManagerService mService;
     @NonNull
@@ -107,6 +125,7 @@ public class UserManagerServiceShellCommand extends ShellCommand {
         pw.println();
         pw.println("  is-headless-system-user-mode [-v | --verbose]");
         pw.println("    Checks whether the device uses headless system user mode.");
+        pw.println();
         pw.println("  is-visible-background-users-on-default-display-supported [-v | --verbose]");
         pw.println("    Checks whether the device allows users to be start visible on background "
                 + "in the default display.");
@@ -132,6 +151,10 @@ public class UserManagerServiceShellCommand extends ShellCommand {
         pw.println("  revoke-admin <USER_ID>");
         pw.println("    Revokes admin privileges from the given user (requires adb root)");
         pw.println();
+        if (android.multiuser.Flags.hsuAllowlistActivities()
+                && isBuildDebuggable() && isCalledByRoot()) {
+            showActivitiesAllowlistHelp(pw);
+        }
     }
 
     @Override
@@ -166,6 +189,10 @@ public class UserManagerServiceShellCommand extends ShellCommand {
                     return runGrantAdmin();
                 case "revoke-admin":
                     return runRevokeAdmin();
+                case "activities-allowlist":
+                    return android.multiuser.Flags.hsuAllowlistActivities()
+                            ? runActivitiesAllowlist()
+                            : handleDefaultCommands(cmd);
                 default:
                     return handleDefaultCommands(cmd);
             }
@@ -202,8 +229,22 @@ public class UserManagerServiceShellCommand extends ShellCommand {
             }
         }
         final IActivityManager am = ActivityManager.getService();
-        final List<UserInfo> users = mService.getUsersWithUnresolvedNames(
-                /* excludePartial= */ !all, /* excludeDying= */ false);
+        List<UserInfo> users;
+        if (verbose || veryVerbose) {
+            if (!android.multiuser.Flags.userFilterRefactoring()) {
+                users = mService.getUsersWithUnresolvedNames(/* excludePartial= */ !all,
+                        /* excludeDying= */ false);
+            } else {
+                var filterBuilder = UserFilter.builder().withDyingUsers();
+                if (all) {
+                    filterBuilder.withPartialUsers();
+                }
+                users = mService.getUsers(filterBuilder.build());
+            }
+        } else {
+            // Must resolve names
+            users = mService.getUsers(/* excludeDying= */ false);
+        }
         if (users == null) {
             pw.println("Error: couldn't get users");
             return 1;
@@ -595,12 +636,207 @@ public class UserManagerServiceShellCommand extends ShellCommand {
             success = mService.revokeUserAdminInternal(userId);
         }
         if (success) {
-            getOutPrintWriter().println("Success");
-            return 0;
+            return printAndReturnSuccess();
         } else {
-            getOutPrintWriter().println("Failed");
-            return -1;
+            return printAndReturnFailed();
         }
+    }
+
+    private int runActivitiesAllowlist() {
+        if (!confirmBuildIsDebuggable() || !confirmIsCalledByRoot()) {
+            return RESULT_GENERIC_ERROR;
+        }
+        PrintWriter pw = getOutPrintWriter();
+        String userType = getNextArg();
+        if (userType == null || userType.equals("help")) {
+            return showActivitiesAllowlistHelp(pw);
+        }
+        String action = getNextArgRequired();
+        return switch (action) {
+            case "help" -> showActivitiesAllowlistHelp(pw);
+            case "add" -> addToActivitiesAllowlist(userType);
+            case "remove" -> removeFromActivitiesAllowlist(userType);
+            case "set" -> setActivitiesAllowlist(userType);
+            case "check" -> checkActivityAllowlisted(userType);
+            case "reset" -> resetActivitiesAllowlist(userType);
+            case "disable" -> disableActivitiesAllowlist(userType);
+            case "set-mode" -> emulateActivitiesAllowlistMode(userType);
+            case "get-mode" -> getActivitiesAllowlistMode(userType);
+            default -> printAndReturnFailed("invalid action - %s", action);
+        };
+    }
+
+    private int showActivitiesAllowlistHelp(PrintWriter pw) {
+        pw.println("  activities-allowlist <USER_TYPE> <ACTION> [ARGS]");
+        pw.println("    Manages the activities allowlist for the given user type (requires adb root"
+                + ").");
+        pw.println("    Valid ACTIONS are:");
+        pw.println("      help - shows this help");
+        pw.println("      add <ACTIVITY> - adds the specific activity to the existing allowlist");
+        pw.println("      remove <ACTIVITY> - removes the specific activity from the existing "
+                + "allowlist");
+        pw.println("      check <ACTIVITY> - checks if the given activity is allowlisted");
+        pw.println("      set <ACTIVITY> [ACTIVITY N] - sets the allowlist to contains these "
+                + "specific activities (removing the previous ones)");
+        pw.println("      reset - resets the allowlist to the device's default");
+        pw.println("      disable - disables allowlisting (so any activity can be launched)");
+        pw.println("      set-mode <VALUE> - sets the mode. Valid values are: 0 (disabled), "
+                + "1 (enabled)");
+        pw.println("      get-mode [-v | --verbose] - gets the mode. By default returns just the "
+                + "int value, but returns the description as well with the verbose option");
+
+        pw.println("    where ACTIVITY is the flattened representation of the activity's "
+                + "ComponentName (i.e., package/activity)");
+        pw.println("    NOTE: changes made by this command are temporary - the allowlist is reset "
+                + "when the system restarts.");
+        pw.println();
+        return RESULT_SUCCESS;
+    }
+
+    private UserActivitiesAllowlist getActivitiesAllowlist(String userType) {
+        final UserActivitiesAllowlist allowlist = mService.getActivitiesAllowlist(userType);
+        if (allowlist == null) {
+            throw new IllegalStateException("unsupported userType: " + userType);
+        }
+        return allowlist;
+    }
+
+    private List<ComponentName> getEffectiveAllowlist(String userType) {
+        return getActivitiesAllowlist(userType).getEffectiveAllowlist();
+    }
+
+    private int addToActivitiesAllowlist(String userType) {
+        ComponentName activity = getRequiredComponentNameNextArg();
+        Slogf.i(LOG_TAG, "addToActivitiesAllowlist(%s, %s)", userType, activity);
+
+        List<ComponentName> allowlist = getEffectiveAllowlist(userType);
+        if (allowlist.contains(activity)) {
+            return printAndReturnFailed("activity %s already in the allowlist (%s)",
+                    activity.flattenToShortString(), toShortString(allowlist));
+        }
+        allowlist.add(activity);
+
+        setTemporaryActivitiesAllowlist(userType, allowlist);
+        return printAndReturnSuccess();
+    }
+
+    private int removeFromActivitiesAllowlist(String userType) {
+        ComponentName activity = getRequiredComponentNameNextArg();
+        Slogf.i(LOG_TAG, "removeFromActivitiesAllowlist(%s, %s)", userType, activity);
+
+        List<ComponentName> allowlist = getEffectiveAllowlist(userType);
+        if (!allowlist.contains(activity)) {
+            return printAndReturnFailed("activity %s not in the allowlist (%s)",
+                    activity.flattenToShortString(), toShortString(allowlist));
+        }
+        allowlist.remove(activity);
+
+        setTemporaryActivitiesAllowlist(userType, allowlist);
+        return printAndReturnSuccess();
+    }
+
+    private int checkActivityAllowlisted(String userType) {
+        ComponentName activity = getRequiredComponentNameNextArg();
+        Slogf.i(LOG_TAG, "checkActivityAllowlisted(%s, %s)", userType, activity);
+        boolean allowed = true;
+        final UserActivitiesAllowlist allowlist = mService.getActivitiesAllowlist(userType);
+        if (allowlist != null) {
+            allowed = allowlist.isAllowed(activity);
+        } else {
+            Slogf.d(LOG_TAG, "Returning %B because allowlist for type %s is not set", allowed,
+                    userType);
+        }
+        return printAndReturnSuccessfulMessage(Boolean.toString(allowed));
+    }
+
+    private int setActivitiesAllowlist(String userType) {
+        ArrayList<ComponentName> activities = new ArrayList<>();
+        ComponentName activity = null;
+        while ((activity = getComponentNameNextArg()) != null) {
+            activities.add(activity);
+        }
+        Slogf.i(LOG_TAG, "setActivitiesAllowlist(%s, %s)", userType, activities);
+        setTemporaryActivitiesAllowlist(userType, activities);
+        return printAndReturnSuccess();
+    }
+
+    private int resetActivitiesAllowlist(String userType) {
+        Slogf.i(LOG_TAG, "resetActivitiesAllowlist(%s)", userType);
+        setTemporaryActivitiesAllowlist(userType, null);
+        return printAndReturnSuccess();
+    }
+
+    private int disableActivitiesAllowlist(String userType) {
+        Slogf.i(LOG_TAG, "disableActivitiesAllowlist(%s)", userType);
+        setTemporaryActivitiesAllowlist(userType, Collections.emptyList());
+        return printAndReturnSuccess();
+    }
+
+    // This is called "emulate" because we don't really set the mode to DISABLED as it wouldn't log
+    // disallowed activities that are launched - in that case, we override the disallowed status
+    // (which in practice behaves as setting the mode as DISABLED).
+    @SuppressWarnings({"StatementSwitchToExpressionSwitch"})
+  private int emulateActivitiesAllowlistMode(String userType) {
+        final int mode;
+        try {
+            mode = Integer.parseInt(getNextArgRequired());
+        } catch (Exception e) {
+            return printAndReturnFailed("Exception (%s) parsing mode argument", e);
+        }
+
+        final UserActivitiesAllowlist allowlist = getActivitiesAllowlist(userType);
+        switch (mode) {
+            case ALLOWLIST_MODE_DISABLED:
+                int overriddenStatus = STATUS_ALLOWED_ALLOWLISTING_DISABLED_BY_SHELL_CMD;
+                Slogf.i(LOG_TAG, "setActivitiesAllowlistMode(%s): overriding disallowed status on "
+                        + "allowlist %s to %d (%s)", userType, allowlist, overriddenStatus,
+                        UserActivitiesAllowlist.allowlistStatusToString(overriddenStatus));
+                allowlist.overrideDisallowedStatus(overriddenStatus);
+                break;
+            case ALLOWLIST_MODE_ENABLED:
+                Slogf.i(LOG_TAG, "setActivitiesAllowlistMode(%s): setting mode on allowlist %s to "
+                        + "%d (%s)", userType, allowlist, mode,
+                        UserActivitiesAllowlist.allowlistModeToString(mode));
+                allowlist.setMode(mode);
+                allowlist.overrideDisallowedStatus(null);
+                break;
+            default:
+                return printAndReturnFailed("invalid mode: %d", mode);
+        }
+
+        return printAndReturnSuccess();
+    }
+
+    private int getActivitiesAllowlistMode(String userType) {
+        PrintWriter pw = getOutPrintWriter();
+        boolean verbose = false;
+        String opt;
+        while ((opt = getNextOption()) != null) {
+            switch (opt) {
+                case "-v":
+                case "--verbose":
+                    verbose = true;
+                    break;
+                default:
+                    return printAndReturnFailed("Invalid option: %s", opt);
+            }
+        }
+
+        int mode = getActivitiesAllowlist(userType).getMode();
+        pw.print(mode);
+        // NOTE: non-verbose option should only print the mode as an integer, as it's used by tests
+        // (like InteractiveHsumIntegrationTests)
+        if (verbose) {
+            pw.printf(" (%s)", UserActivitiesAllowlist.allowlistModeToString(mode));
+        }
+        pw.println();
+        return RESULT_SUCCESS;
+    }
+
+    @SuppressWarnings("AndroidFrameworkRequiresPermission")
+    private void setTemporaryActivitiesAllowlist(String userType,
+            @Nullable List<ComponentName> componentNames) {
+        mService.setTemporaryActivitiesAllowlist(userType, componentNames);
     }
 
     /**
@@ -612,26 +848,36 @@ public class UserManagerServiceShellCommand extends ShellCommand {
         return context.getSystemService(UserManager.class);
     }
 
+    /** Checks if the build is debuggable. */
+    private boolean isBuildDebuggable() {
+        return Build.isDebuggable();
+    }
+
     /**
-     * Confirms if the build is debuggable
+     * Confirms that the build is debuggable.
      *
      * <p>It logs an error when it isn't.
      */
     private boolean confirmBuildIsDebuggable() {
-        if (Build.isDebuggable()) {
+        if (isBuildDebuggable()) {
             return true;
         }
         getErrPrintWriter().println("Command not available on user builds");
         return false;
     }
 
+    /** Checks if the command is called when {@code adb} is running as {@code root}. */
+    private boolean isCalledByRoot() {
+        return Binder.getCallingUid() == Process.ROOT_UID;
+    }
+
     /**
-     * Confirms if the command is called when {@code adb} is rooted.
+     * Confirms that the command is called when {@code adb} is running as {@code root}.
      *
      * <p>It logs an error when it isn't.
      */
     private boolean confirmIsCalledByRoot() {
-        if (Binder.getCallingUid() == Process.ROOT_UID) {
+        if (isCalledByRoot()) {
             return true;
         }
         getErrPrintWriter().println("Command only available on root user");
@@ -646,6 +892,7 @@ public class UserManagerServiceShellCommand extends ShellCommand {
      */
     @UserIdInt
     @CanBeNULL
+    @SuppressWarnings({"AndroidFrameworkRequiresPermission", "StatementSwitchToExpressionSwitch"})
     private int getRequiredUserIdNextArg() {
         int userId;
         try {
@@ -665,5 +912,56 @@ public class UserManagerServiceShellCommand extends ShellCommand {
             default:
                 return userId;
         }
+    }
+
+    private ComponentName getRequiredComponentNameNextArg() {
+        return getValidComponentName(getNextArgRequired());
+    }
+
+    @Nullable
+    private ComponentName getComponentNameNextArg() {
+        String flattenedName = getNextArg();
+        return flattenedName  == null ? null : getValidComponentName(flattenedName);
+    }
+
+    private ComponentName getValidComponentName(String flattenedName) {
+        ComponentName componentName = ComponentName.unflattenFromString(flattenedName);
+        Preconditions.checkArgument(componentName != null, "Invalid component name: %s",
+                flattenedName);
+        return componentName;
+    }
+
+    private int printAndReturnSuccess() {
+        return printAndReturnSuccessfulMessage("Success");
+    }
+
+    private int printAndReturnSuccessfulMessage(String message) {
+        getOutPrintWriter().println(message);
+        return RESULT_SUCCESS;
+    }
+
+    private int printAndReturnFailed() {
+        return printAndReturnFailed(/* reason= */ null);
+    }
+
+    @FormatMethod
+    private int printAndReturnFailed(@FormatString String reasonFmt,
+            @Nullable Object...reasonArgs) {
+        return printAndReturnFailed(String.format(reasonFmt, reasonArgs));
+    }
+
+    private int printAndReturnFailed(@Nullable String reason) {
+        PrintWriter pw = getOutPrintWriter();
+        pw.print("Failed");
+        if (reason != null) {
+            pw.printf(" (reason: %s)", reason);
+        }
+        pw.println();
+        return RESULT_GENERIC_ERROR;
+    }
+
+    private static String toShortString(Collection<ComponentName> components) {
+        return components.stream().map(c -> c.flattenToShortString()).collect(Collectors.toList())
+                .toString();
     }
 }

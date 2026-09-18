@@ -83,7 +83,6 @@ class MediaDataProcessor(
     @Application private val applicationScope: CoroutineScope,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
     @Background private val backgroundExecutor: Executor,
-    @Main private val uiExecutor: Executor,
     @Main private val foregroundExecutor: DelayableExecutor,
     @Main private val mainDispatcher: CoroutineDispatcher,
     private val mediaControllerFactory: MediaControllerFactory,
@@ -132,7 +131,6 @@ class MediaDataProcessor(
         @Application applicationScope: CoroutineScope,
         @Background backgroundDispatcher: CoroutineDispatcher,
         threadFactory: ThreadFactory,
-        @Main uiExecutor: Executor,
         @Main foregroundExecutor: DelayableExecutor,
         @Main mainDispatcher: CoroutineDispatcher,
         mediaControllerFactory: MediaControllerFactory,
@@ -152,7 +150,6 @@ class MediaDataProcessor(
         // Loading bitmap for UMO background can take longer time, so it cannot run on the default
         // background thread. Use a custom thread for media.
         threadFactory.buildExecutorOnNewThread(TAG),
-        uiExecutor,
         foregroundExecutor,
         mainDispatcher,
         mediaControllerFactory,
@@ -375,7 +372,7 @@ class MediaDataProcessor(
 
     /** Called when the player's [PlaybackState] has been updated with new actions and/or state */
     internal fun updateState(key: String, state: PlaybackState) {
-        mediaDataRepository.mediaEntries.value.get(key)?.let {
+        mediaDataRepository.mediaEntries.value[key]?.let {
             applicationScope.launch {
                 withContext(backgroundDispatcher) {
                     val token = it.token
@@ -390,25 +387,29 @@ class MediaDataProcessor(
                             UserHandle(it.userId),
                         )
 
-                    // Control buttons
-                    // If flag is enabled and controller has a PlaybackState,
-                    // create actions from session info
-                    // otherwise, no need to update semantic actions.
-                    val data =
-                        if (actions != null) {
-                            it.copy(
-                                semanticActions = actions,
-                                isPlaying = isPlayingState(state.state),
-                                lastActive = getActiveTimestamp(systemClock),
-                            )
-                        } else {
-                            it.copy(
-                                isPlaying = isPlayingState(state.state),
-                                lastActive = getActiveTimestamp(systemClock),
-                            )
-                        }
                     if (DEBUG) Log.d(TAG, "State updated outside of notification")
-                    withContext(mainDispatcher) { onMediaDataLoaded(key, key, data) }
+                    withContext(mainDispatcher) {
+                        // Control buttons
+                        // If flag is enabled and controller has a PlaybackState,
+                        // create actions from session info
+                        // otherwise, no need to update semantic actions.
+                        mediaDataRepository.mediaEntries.value[key]?.let { recentData ->
+                            val data =
+                                if (actions != null) {
+                                    recentData.copy(
+                                        semanticActions = actions,
+                                        isPlaying = isPlayingState(state.state),
+                                        lastActive = getActiveTimestamp(systemClock),
+                                    )
+                                } else {
+                                    recentData.copy(
+                                        isPlaying = isPlayingState(state.state),
+                                        lastActive = getActiveTimestamp(systemClock),
+                                    )
+                                }
+                            onMediaDataLoaded(key, key, data)
+                        }
+                    }
                 }
             }
         }
@@ -634,7 +635,7 @@ class MediaDataProcessor(
         if (!mediaFlags.areMediaSessionActionsEnabled(packageName, user)) {
             return null
         }
-        return createActionsFromState(context, packageName, controller)
+        return createActionsFromState(context, packageName, controller, user.identifier)
     }
 
     private fun getResumeMediaAction(action: Runnable): MediaAction {

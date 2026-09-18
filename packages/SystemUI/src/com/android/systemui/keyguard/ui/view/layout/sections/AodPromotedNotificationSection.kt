@@ -31,7 +31,6 @@ import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
 import com.android.systemui.statusbar.notification.promoted.AODPromotedNotification
 import com.android.systemui.statusbar.notification.promoted.PromotedNotificationLogger
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.promoted.ui.viewmodel.AODPromotedNotificationViewModel
 import javax.inject.Inject
 
@@ -50,10 +49,6 @@ constructor(
     }
 
     override fun addViews(constraintLayout: ConstraintLayout) {
-        if (!PromotedNotificationUi.isEnabled) {
-            return
-        }
-
         check(view == null)
 
         view =
@@ -67,10 +62,6 @@ constructor(
     }
 
     override fun bindData(constraintLayout: ConstraintLayout) {
-        if (!PromotedNotificationUi.isEnabled) {
-            return
-        }
-
         checkNotNull(view)
 
         // Do nothing; the binding happens in the AODPromotedNotification Composable.
@@ -79,10 +70,6 @@ constructor(
     }
 
     override fun applyConstraints(constraintSet: ConstraintSet) {
-        if (!PromotedNotificationUi.isEnabled) {
-            return
-        }
-
         // view may have been created by a different instance of the section (!), and we don't
         // actually *need* it to set constraints, so don't check for it here.
 
@@ -122,10 +109,6 @@ constructor(
     }
 
     override fun removeViews(constraintLayout: ConstraintLayout) {
-        if (!PromotedNotificationUi.isEnabled) {
-            return
-        }
-
         constraintLayout.removeView(checkNotNull(view))
 
         view = null

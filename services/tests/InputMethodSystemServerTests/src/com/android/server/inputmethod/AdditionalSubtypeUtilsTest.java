@@ -20,13 +20,17 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import android.icu.util.ULocale;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.ArrayMap;
 import android.util.AtomicFile;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodSubtype;
+import android.view.inputmethod.Flags;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.File;
@@ -34,17 +38,23 @@ import java.util.List;
 
 public final class AdditionalSubtypeUtilsTest {
 
+    @Rule
+    public SetFlagsRule setFlagsRule = new SetFlagsRule();
+
     @Test
+    @EnableFlags(Flags.FLAG_IME_SUBTYPE_SHORT_LABEL)
     public void testSaveAndLoad() throws Exception {
         // Prepares the data to be saved.
         InputMethodSubtype subtype1 = new InputMethodSubtype.InputMethodSubtypeBuilder()
                 .setSubtypeNameOverride("Subtype1")
                 .setLanguageTag("en-US")
+                .setSubtypeShortLabel("US")
                 .build();
         InputMethodSubtype subtype2 = new InputMethodSubtype.InputMethodSubtypeBuilder()
                 .setSubtypeNameOverride("Subtype2")
                 .setLanguageTag("zh-CN")
                 .setPhysicalKeyboardHint(new ULocale("en_US"), "qwerty")
+                .setSubtypeShortLabel("拼")
                 .build();
         String fakeImeId = "fakeImeId";
         ArrayMap<String, InputMethodInfo> methodMap = new ArrayMap<>();
@@ -76,5 +86,7 @@ public final class AdditionalSubtypeUtilsTest {
                 subtype.getPhysicalKeyboardHintLanguageTag());
         assertEquals(expectedSubtype.getPhysicalKeyboardHintLayoutType(),
                 subtype.getPhysicalKeyboardHintLayoutType());
+        assertEquals(expectedSubtype.getSubtypeShortLabel().toString(),
+                subtype.getSubtypeShortLabel().toString());
     }
 }

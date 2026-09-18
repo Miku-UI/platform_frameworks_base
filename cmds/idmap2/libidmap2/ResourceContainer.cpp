@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "android-base/scopeguard.h"
+#include "android_content_res.h"
 #include "androidfw/ApkAssets.h"
 #include "androidfw/AssetManager.h"
 #include "androidfw/Util.h"
@@ -79,12 +80,15 @@ Result<XmlParser> OpenXmlParser(const std::string& entry_path, const ZipAssetsPr
   }
 
   auto size = manifest->getLength();
+  if (android_content_res_xml_file_size_limit() && size > kMaxXmlAssetSize) {
+    return Error("xml file %s is too large %lld", entry_path.c_str(), (long long)size);
+  }
   auto buffer = manifest->getIncFsBuffer(true /* aligned */).convert<uint8_t>();
   if (!buffer.verify(size)) {
     return Error("failed to read entire %s", entry_path.c_str());
   }
 
-  return XmlParser::Create(buffer.unsafe_ptr(), size, true /* copyData */);
+  return XmlParser::Create(std::move(manifest));
 }
 
 Result<XmlParser> OpenXmlParser(ResourceId id, const ZipAssetsProvider* zip,

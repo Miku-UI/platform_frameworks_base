@@ -16,10 +16,6 @@
 
 package android.app;
 
-import static android.app.Flags.enableCurrentModeTypeBinderCache;
-import static android.app.Flags.enableNightModeBinderCache;
-import static android.app.Flags.fixContrastAndForceInvertStateForMultiUser;
-
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
 import android.annotation.FloatRange;
@@ -31,6 +27,7 @@ import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
+import android.annotation.UserIdInt;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.content.res.Configuration;
@@ -174,7 +171,7 @@ public class UiModeManager {
      * <p>
      * This is primarily intended to be received by other components of the Android OS.
      * <p>
-     * Receiver requires permission: {@link android.Manifest.permission.HANDLE_CAR_MODE_CHANGES}
+     * Receiver requires permission: {@link android.Manifest.permission#HANDLE_CAR_MODE_CHANGES}
      * @hide
      */
     @SystemApi
@@ -211,7 +208,7 @@ public class UiModeManager {
      * <p>
      * This is primarily intended to be received by other components of the Android OS.
      * <p>
-     * Receiver requires permission: {@link android.Manifest.permission.HANDLE_CAR_MODE_CHANGES}
+     * Receiver requires permission: {@link android.Manifest.permission#HANDLE_CAR_MODE_CHANGES}
      * @hide
      */
     @SystemApi
@@ -484,135 +481,10 @@ public class UiModeManager {
             mOnProjectionStateChangedListenerResourceManager =
             new OnProjectionStateChangedListenerResourceManager();
 
-    private static class Globals extends IUiModeManagerCallback.Stub {
+    private static class Globals {
 
         private final IUiModeManager mService;
         private final Object mGlobalsLock = new Object();
-
-        // ============= Legacy values and methods ============= //
-        // TODO(b/362682063) remove when cleaning up the flag
-        @ForceInvertType
-        private int mForceInvertState = FORCE_INVERT_TYPE_OFF;
-        private float mContrast = ContrastUtils.CONTRAST_DEFAULT_VALUE;
-
-        /**
-         * Map that stores user provided {@link ContrastChangeListener} callbacks,
-         * and the executors on which these callbacks should be called.
-         */
-        private final ArrayMap<ContrastChangeListener, Executor>
-                mContrastChangeListeners = new ArrayMap<>();
-
-        private final ArrayMap<ForceInvertStateChangeListener, Executor>
-                mForceInvertStateChangeListeners = new ArrayMap<>();
-
-        @ForceInvertType
-        private int getForceInvertState() {
-            synchronized (mGlobalsLock) {
-                return mForceInvertState;
-            }
-        }
-
-        private void addForceInvertStateChangeListener(ForceInvertStateChangeListener listener,
-                Executor executor) {
-            synchronized (mGlobalsLock) {
-                mForceInvertStateChangeListeners.put(listener, executor);
-            }
-        }
-
-        private void removeForceInvertStateChangeListener(ForceInvertStateChangeListener listener) {
-            synchronized (mGlobalsLock) {
-                mForceInvertStateChangeListeners.remove(listener);
-            }
-        }
-
-        @Override
-        public void notifyForceInvertStateChanged(@ForceInvertType int forceInvertState)
-                throws RemoteException {
-            notifyForceInvertStateChanged(forceInvertState, /* forceUpdate= */ false);
-        }
-
-        private void notifyForceInvertStateChanged(@ForceInvertType int forceInvertState,
-                boolean forceUpdate) {
-            final Map<ForceInvertStateChangeListener, Executor> listeners = new ArrayMap<>();
-            synchronized (mGlobalsLock) {
-                // if value changed in the settings, update the cached value and notify listeners
-                if (mForceInvertState == forceInvertState && !forceUpdate) {
-                    return;
-                }
-
-                mForceInvertState = forceInvertState;
-                listeners.putAll(mForceInvertStateChangeListeners);
-            }
-
-            listeners.forEach((listener, executor) -> {
-                final long token = Binder.clearCallingIdentity();
-                try {
-                    executor.execute(() -> listener.onForceInvertStateChanged(forceInvertState));
-                } finally {
-                    Binder.restoreCallingIdentity(token);
-                }
-            });
-        }
-
-        private float getContrast() {
-            synchronized (mGlobalsLock) {
-                return mContrast;
-            }
-        }
-
-        private void addContrastChangeListener(ContrastChangeListener listener, Executor executor) {
-            synchronized (mGlobalsLock) {
-                mContrastChangeListeners.put(listener, executor);
-            }
-        }
-
-        private void removeContrastChangeListener(ContrastChangeListener listener) {
-            synchronized (mGlobalsLock) {
-                mContrastChangeListeners.remove(listener);
-            }
-        }
-
-        @Override
-        public void notifyContrastChanged(float contrast) {
-            final Map<ContrastChangeListener, Executor> listeners;
-            synchronized (mGlobalsLock) {
-                // if value changed in the settings, update the cached value and notify listeners
-                if (Math.abs(mContrast - contrast) < 1e-10) return;
-                mContrast = contrast;
-
-                if (!fixContrastAndForceInvertStateForMultiUser()) {
-                    mContrastChangeListeners.forEach((listener, executor) -> executor.execute(
-                            () -> listener.onContrastChanged(contrast)));
-                    return;
-                }
-                listeners = new ArrayMap<>(mContrastChangeListeners);
-            }
-
-            listeners.forEach((listener, executor) -> {
-                final long token = Binder.clearCallingIdentity();
-                try {
-                    executor.execute(() -> listener.onContrastChanged(contrast));
-                } finally {
-                    Binder.restoreCallingIdentity(token);
-                }
-            });
-
-
-        }
-
-        @Override
-        public void notifyForceInvertOverrideStateChanged() throws RemoteException {
-            final int forceInvertState;
-            synchronized (sGlobals.mGlobalsLock) {
-                forceInvertState = mForceInvertState;
-            }
-
-            // We just re-use the main state listener. End clients don't need the granularity of
-            // listening to the blocklist changes separately.
-            notifyForceInvertStateChanged(forceInvertState, /* forceUpdate= */ true);
-        }
-
-        // ============= End legacy values and methods ============= //
 
         /**
          * Map of {@link UserCallback} per user id. This will only contain one value for the current
@@ -622,14 +494,6 @@ public class UiModeManager {
 
         Globals(IUiModeManager service) {
             mService = service;
-            if (fixContrastAndForceInvertStateForMultiUser()) return;
-            try {
-                mService.addCallback(this, UserHandle.USER_NULL);
-                mContrast = mService.getContrast(UserHandle.USER_NULL);
-                mForceInvertState = mService.getForceInvertState(UserHandle.USER_NULL);
-            } catch (RemoteException e) {
-                Log.e(TAG, "Setup failed: UiModeManagerService is dead", e);
-            }
         }
 
         private UserCallback getUserCallbackOrCreate(int userId) {
@@ -738,10 +602,33 @@ public class UiModeManager {
                 }
             }
         }
+
+        private List<String> getAllForceInvertAlwaysDisableApps(@UserIdInt int userId) {
+            synchronized (mGlobalsLock) {
+                // This is such an infrequent operation, we don't worry about caching.
+                try {
+                    return mService.getAllForceInvertAlwaysDisableApps(userId);
+                } catch (RemoteException e) {
+                    throw e.rethrowFromSystemServer();
+                }
+            }
+        }
+
+        @RequiresPermission(android.Manifest.permission.WRITE_SETTINGS)
+        private boolean setForceInvertOverrideState(@UserIdInt int userId, String packageName,
+                @ForceInvertPackageOverrideState int newState) {
+            synchronized (mGlobalsLock) {
+                try {
+                    return mService.setForceInvertOverrideState(userId, packageName, newState);
+                } catch (RemoteException e) {
+                    throw e.rethrowFromSystemServer();
+                }
+            }
+        }
     }
 
     /** Global class storing all listeners and cached values for a specific user id. */
-    private static class UserCallback extends  IUiModeManagerCallback.Stub {
+    private static class UserCallback extends IUiModeManagerCallback.Stub {
 
         private UserCallback(int userId) {
             try {
@@ -896,7 +783,7 @@ public class UiModeManager {
     }
 
     @UnsupportedAppUsage
-    /*package*/ UiModeManager() throws ServiceNotFoundException {
+        /*package*/ UiModeManager() throws ServiceNotFoundException {
         this(null /* context */);
     }
 
@@ -1098,7 +985,6 @@ public class UiModeManager {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_ENABLE_CURRENT_MODE_TYPE_BINDER_CACHE)
     public static void invalidateCurrentModeTypeCache() {
         IpcDataCache.invalidateCache(IpcDataCache.MODULE_SYSTEM,
                 CURRENT_MODE_TYPE_API);
@@ -1116,11 +1002,7 @@ public class UiModeManager {
      * {@link Configuration#UI_MODE_TYPE_VR_HEADSET Configuration.UI_MODE_TYPE_VR_HEADSET}.
      */
     public int getCurrentModeType() {
-        if (enableCurrentModeTypeBinderCache()) {
-            return mCurrentModeTypeCache.query(getDisplayId());
-        } else {
-            return getCurrentModeTypeFromServer(getDisplayId());
-        }
+        return mCurrentModeTypeCache.query(getDisplayId());
     }
 
     /**
@@ -1334,7 +1216,6 @@ public class UiModeManager {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_ENABLE_NIGHT_MODE_BINDER_CACHE)
     public static void invalidateNightModeCache() {
         IpcDataCache.invalidateCache(IpcDataCache.MODULE_SYSTEM,
                 NIGHT_MODE_API);
@@ -1356,11 +1237,7 @@ public class UiModeManager {
      * @see #setNightMode(int)
      */
     public @NightMode int getNightMode() {
-        if (enableNightModeBinderCache()) {
-            return mNightModeCache.query(getDisplayId());
-        } else {
-            return getNightModeFromServer(getDisplayId());
-        }
+        return mNightModeCache.query(getDisplayId());
     }
 
     /**
@@ -1558,7 +1435,7 @@ public class UiModeManager {
     /**
      * Sets the given {@link ProjectionType}.
      *
-     * Caller must have {@link android.Manifest.permission.TOGGLE_AUTOMOTIVE_PROJECTION} if
+     * Caller must have {@link android.Manifest.permission#TOGGLE_AUTOMOTIVE_PROJECTION} if
      * argument is {@link #PROJECTION_TYPE_AUTOMOTIVE}.
      * @param projectionType the type of projection to request. This must be a single
      * {@link ProjectionType} and cannot be a bitmask.
@@ -1587,7 +1464,7 @@ public class UiModeManager {
     /**
      * Releases the given {@link ProjectionType}.
      *
-     * Caller must have {@link android.Manifest.permission.TOGGLE_AUTOMOTIVE_PROJECTION} if
+     * Caller must have {@link android.Manifest.permission#TOGGLE_AUTOMOTIVE_PROJECTION} if
      * argument is {@link #PROJECTION_TYPE_AUTOMOTIVE}.
      * @param projectionType the type of projection to release. This must be a single
      * {@link ProjectionType} and cannot be a bitmask.
@@ -1799,10 +1676,7 @@ public class UiModeManager {
      */
     @FloatRange(from = -1.0f, to = 1.0f)
     public float getContrast() {
-        if (fixContrastAndForceInvertStateForMultiUser()) {
-            return sGlobals.getContrast(getUserId());
-        }
-        return sGlobals.getContrast();
+        return sGlobals.getContrast(getUserId());
     }
 
     /**
@@ -1816,11 +1690,7 @@ public class UiModeManager {
             @NonNull ContrastChangeListener listener) {
         Objects.requireNonNull(executor);
         Objects.requireNonNull(listener);
-        if (fixContrastAndForceInvertStateForMultiUser()) {
-            sGlobals.addContrastChangeListener(listener, executor, getUserId());
-            return;
-        }
-        sGlobals.addContrastChangeListener(listener, executor);
+        sGlobals.addContrastChangeListener(listener, executor, getUserId());
     }
 
     /**
@@ -1831,11 +1701,7 @@ public class UiModeManager {
      */
     public void removeContrastChangeListener(@NonNull ContrastChangeListener listener) {
         Objects.requireNonNull(listener);
-        if (fixContrastAndForceInvertStateForMultiUser()) {
-            sGlobals.removeContrastChangeListener(listener, getUserId());
-            return;
-        }
-        sGlobals.removeContrastChangeListener(listener);
+        sGlobals.removeContrastChangeListener(listener, getUserId());
     }
 
     /**
@@ -1847,10 +1713,7 @@ public class UiModeManager {
     @FlaggedApi(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
     @ForceInvertType
     public int getForceInvertState() {
-        if (fixContrastAndForceInvertStateForMultiUser()) {
-            return sGlobals.getForceInvertState(getUserId());
-        }
-        return sGlobals.getForceInvertState();
+        return sGlobals.getForceInvertState(getUserId());
     }
 
     /**
@@ -1866,11 +1729,7 @@ public class UiModeManager {
             @NonNull ForceInvertStateChangeListener listener) {
         Objects.requireNonNull(executor);
         Objects.requireNonNull(listener);
-        if (fixContrastAndForceInvertStateForMultiUser()) {
-            sGlobals.addForceInvertStateChangeListener(listener, executor, getUserId());
-            return;
-        }
-        sGlobals.addForceInvertStateChangeListener(listener, executor);
+        sGlobals.addForceInvertStateChangeListener(listener, executor, getUserId());
     }
 
     /**
@@ -1884,11 +1743,7 @@ public class UiModeManager {
     public void removeForceInvertStateChangeListener(
             @NonNull ForceInvertStateChangeListener listener) {
         Objects.requireNonNull(listener);
-        if (fixContrastAndForceInvertStateForMultiUser()) {
-            sGlobals.removeForceInvertStateChangeListener(listener, getUserId());
-            return;
-        }
-        sGlobals.removeForceInvertStateChangeListener(listener);
+        sGlobals.removeForceInvertStateChangeListener(listener, getUserId());
     }
 
     /**
@@ -1904,6 +1759,33 @@ public class UiModeManager {
             return FORCE_INVERT_PACKAGE_ALLOWED;
         }
         return sGlobals.getForceInvertOverrideState(getUserId(), mContext.getOpPackageName());
+    }
+
+    /**
+     * Returns the list of force invert always disable apps.
+     *
+     * @hide
+     */
+    public List<String> getAllForceInvertAlwaysDisableApps(@UserIdInt int userId) {
+        return sGlobals.getAllForceInvertAlwaysDisableApps(userId);
+    }
+
+    /**
+     * Sets the ForceInvertOverrideState for a specific package..
+     *
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.WRITE_SETTINGS)
+    public boolean setForceInvertOverrideStateForApp(
+            String packageName,
+            @ForceInvertPackageOverrideState int newState,
+            @UserIdInt int userId) {
+        if (mContext == null) {
+            // This shouldn't really happen in practice because ViewRootImpl uses the
+            // proper constructor that fills out the context.
+            return false;
+        }
+        return sGlobals.setForceInvertOverrideState(userId, packageName, newState);
     }
 
     /**

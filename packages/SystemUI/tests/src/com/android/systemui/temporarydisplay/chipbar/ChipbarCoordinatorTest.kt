@@ -229,7 +229,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
     fun displayView_loadedText_correctlyRendered() {
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("display view text here"),
                 endItem = null,
             )
@@ -242,7 +242,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
     fun displayView_resourceText_correctlyRendered() {
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Resource(R.string.screenrecord_start_error),
                 endItem = null,
             )
@@ -256,7 +256,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
     fun displayView_endItemNull_correctlyRendered() {
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
                 endItem = null,
             )
@@ -272,7 +272,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
     fun displayView_endItemLoading_correctlyRendered() {
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
                 endItem = ChipbarEndItem.Loading,
             )
@@ -288,7 +288,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
     fun displayView_endItemError_correctlyRendered() {
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
                 endItem = ChipbarEndItem.Error,
             )
@@ -304,13 +304,9 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
     fun displayView_endItemButton_correctlyRendered() {
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
-                endItem =
-                    ChipbarEndItem.Button(
-                        Text.Loaded("button text"),
-                        onClickListener = {},
-                    ),
+                endItem = ChipbarEndItem.Button(Text.Loaded("button text"), onClickListener = {}),
             )
         )
 
@@ -330,13 +326,9 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
 
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
-                endItem =
-                    ChipbarEndItem.Button(
-                        Text.Loaded("button text"),
-                        buttonClickListener,
-                    ),
+                endItem = ChipbarEndItem.Button(Text.Loaded("button text"), buttonClickListener),
             )
         )
 
@@ -353,13 +345,9 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
 
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
-                endItem =
-                    ChipbarEndItem.Button(
-                        Text.Loaded("button text"),
-                        buttonClickListener,
-                    ),
+                endItem = ChipbarEndItem.Button(Text.Loaded("button text"), buttonClickListener),
             )
         )
 
@@ -372,7 +360,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
     fun displayView_loading_animationStarted() {
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
                 endItem = ChipbarEndItem.Loading,
             )
@@ -385,7 +373,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
     fun displayView_notLoading_noAnimation() {
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
                 endItem = ChipbarEndItem.Error,
             )
@@ -398,7 +386,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
     fun displayView_loadingThenNotLoading_animationStopped() {
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
                 endItem = ChipbarEndItem.Loading,
             )
@@ -410,7 +398,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
 
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
                 endItem = ChipbarEndItem.Button(Text.Loaded("button")) {},
             )
@@ -424,7 +412,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
     fun displayView_loadingThenHideView_animationStopped() {
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
                 endItem = ChipbarEndItem.Loading,
             )
@@ -444,7 +432,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
     fun displayView_loadingThenNewLoading_animationStaysTheSame() {
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
                 endItem = ChipbarEndItem.Loading,
             )
@@ -456,7 +444,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
 
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("new text"),
                 endItem = ChipbarEndItem.Loading,
             )
@@ -471,7 +459,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
     fun displayView_vibrationEffect_doubleClickEffectWithHardwareFeedback() {
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
                 endItem = null,
                 vibrationEffect = VibrationEffect.get(VibrationEffect.EFFECT_DOUBLE_CLICK),
@@ -495,7 +483,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
 
         underTest.displayView(
             createChipbarInfo(
-                Icon.Resource(R.id.check_box, null),
+                Icon.Resource(R.drawable.ic_check, null),
                 Text.Loaded("text"),
                 endItem = ChipbarEndItem.Loading,
             )
@@ -537,7 +525,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
                 Text.Loaded("new title text"),
                 endItem = ChipbarEndItem.Error,
             ),
-            chipbarView
+            chipbarView,
         )
 
         // THEN we display the new view
@@ -581,7 +569,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
                 Icon.Resource(R.drawable.ic_cake, contentDescription = null),
                 Text.Loaded("title text"),
                 endItem = ChipbarEndItem.Error,
-            ),
+            )
         )
         val chipbarView = getChipbarView()
 
@@ -600,7 +588,7 @@ class ChipbarCoordinatorTest : SysuiTestCase() {
                 Icon.Resource(R.drawable.ic_cake, contentDescription = null),
                 Text.Loaded("title text"),
                 endItem = ChipbarEndItem.Error,
-            ),
+            )
         )
         val chipbarView = getChipbarView()
 

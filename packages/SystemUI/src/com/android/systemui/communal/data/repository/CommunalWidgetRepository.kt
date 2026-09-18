@@ -23,6 +23,7 @@ import android.os.UserHandle
 import android.os.UserManager
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.Flags.communalResponsiveGrid
+import com.android.systemui.Flags.communalWidgetPopulationOptimization
 import com.android.systemui.Flags.communalWidgetResizing
 import com.android.systemui.common.data.repository.PackageChangeRepository
 import com.android.systemui.common.shared.model.PackageInstallSession
@@ -31,6 +32,8 @@ import com.android.systemui.communal.data.db.CommunalWidgetDao
 import com.android.systemui.communal.data.db.CommunalWidgetItem
 import com.android.systemui.communal.data.db.DefaultWidgetPopulation
 import com.android.systemui.communal.data.db.DefaultWidgetPopulation.SkipReason.RESTORED_FROM_BACKUP
+import com.android.systemui.communal.data.model.CommunalWidgetId
+import com.android.systemui.communal.data.model.FEATURE_ENABLED
 import com.android.systemui.communal.nano.CommunalHubState
 import com.android.systemui.communal.proto.toCommunalHubState
 import com.android.systemui.communal.shared.model.CommunalWidgetContentModel
@@ -49,6 +52,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
@@ -105,6 +110,9 @@ interface CommunalWidgetRepository {
      *   re-ordering is done in the same database transaction as the resize.
      */
     fun resizeWidget(appWidgetId: Int, spanY: Int, widgetIdToRankMap: Map<Int, Int>)
+
+    /** Allocate real widget IDs for widgets that are currently in the unbound state. */
+    fun allocateWidgets() {}
 }
 
 /**
@@ -126,12 +134,38 @@ constructor(
     packageChangeRepository: PackageChangeRepository,
     private val userManager: UserManager,
     private val defaultWidgetPopulation: DefaultWidgetPopulation,
+    private val communalSettingsRepository: CommunalSettingsRepository,
 ) : CommunalWidgetRepository {
     companion object {
         const val TAG = "CommunalWidgetRepositoryLocalImpl"
     }
 
     private val logger = Logger(logBuffer, TAG)
+
+    private val backupMutex = Mutex()
+
+    override fun allocateWidgets() {
+        if (communalWidgetPopulationOptimization()) {
+            bgScope.launch { bindWidgets() }
+        }
+    }
+
+    private suspend fun bindWidgets() {
+        backupMutex.withLock {
+            val user = userManager.mainUser ?: return@withLock
+            val widgets = communalWidgetDao.getWidgetsNow().values
+            widgets
+                .filter { it.widgetId.isPlaceholder }
+                .forEach { widget ->
+                    val provider =
+                        ComponentName.unflattenFromString(widget.componentName) ?: return@forEach
+                    val id = communalWidgetHost.allocateIdAndBindWidget(provider, user)
+                    if (id != null) {
+                        communalWidgetDao.updateWidget(widget.copy(widgetId = CommunalWidgetId(id)))
+                    }
+                }
+        }
+    }
 
     /** Widget metadata from database + matching [AppWidgetProviderInfo] if any. */
     private val widgetEntries: Flow<List<CommunalWidgetEntry>> =
@@ -140,10 +174,9 @@ constructor(
             providers ->
             entries.mapNotNull { (rank, widget) ->
                 CommunalWidgetEntry(
-                    appWidgetId = widget.widgetId,
-                    componentName = widget.componentName,
+                    item = widget,
                     rank = rank.rank,
-                    providerInfo = providers[widget.widgetId],
+                    providerInfo = providers[widget.widgetId.value],
                     spanY = if (communalResponsiveGrid()) widget.spanYNew else widget.spanY,
                 )
             }
@@ -227,7 +260,7 @@ constructor(
                 }
             if (configured) {
                 communalWidgetDao.addWidget(
-                    widgetId = id,
+                    widgetId = CommunalWidgetId(id),
                     provider = provider,
                     rank = rank,
                     userSerialNumber = userManager.getUserSerialNumber(user.identifier),
@@ -243,7 +276,7 @@ constructor(
 
     override fun deleteWidget(widgetId: Int) {
         bgScope.launch {
-            if (communalWidgetDao.deleteWidgetById(widgetId)) {
+            if (communalWidgetDao.deleteWidgetById(CommunalWidgetId(widgetId))) {
                 appWidgetHost.deleteAppWidgetId(widgetId)
                 logger.i("Deleted widget with id $widgetId.")
                 backupManager.dataChanged()
@@ -416,7 +449,7 @@ constructor(
      */
     private fun mapToContentModel(entry: CommunalWidgetEntry): CommunalWidgetContentModel {
         return CommunalWidgetContentModel.Available(
-            appWidgetId = entry.appWidgetId,
+            appWidgetId = entry.item.widgetId.value,
             providerInfo = entry.providerInfo!!,
             rank = entry.rank,
             spanY = entry.spanY,
@@ -434,18 +467,31 @@ constructor(
     ): CommunalWidgetContentModel? {
         if (entry.providerInfo != null) {
             return CommunalWidgetContentModel.Available(
-                appWidgetId = entry.appWidgetId,
+                appWidgetId = entry.item.widgetId.value,
                 providerInfo = entry.providerInfo!!,
                 rank = entry.rank,
                 spanY = entry.spanY,
             )
         }
 
-        val componentName = ComponentName.unflattenFromString(entry.componentName)
+        val componentName = ComponentName.unflattenFromString(entry.item.componentName)
         val session = installSessions.firstOrNull { it.packageName == componentName?.packageName }
-        return if (componentName != null && session != null) {
+        return if (
+            communalWidgetPopulationOptimization() &&
+                entry.item.widgetId.isPlaceholder &&
+                componentName != null
+        ) {
             CommunalWidgetContentModel.Pending(
-                appWidgetId = entry.appWidgetId,
+                appWidgetId = entry.item.widgetId.value,
+                rank = entry.rank,
+                componentName = componentName,
+                icon = session?.icon,
+                user = session?.user ?: userManager.mainUser!!,
+                spanY = entry.spanY,
+            )
+        } else if (componentName != null && session != null) {
+            CommunalWidgetContentModel.Pending(
+                appWidgetId = entry.item.widgetId.value,
                 rank = entry.rank,
                 componentName = componentName,
                 icon = session.icon,
@@ -458,8 +504,7 @@ constructor(
     }
 
     private data class CommunalWidgetEntry(
-        val appWidgetId: Int,
-        val componentName: String,
+        val item: CommunalWidgetItem,
         val rank: Int,
         val spanY: Int,
         var providerInfo: AppWidgetProviderInfo? = null,

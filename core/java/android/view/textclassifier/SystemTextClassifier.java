@@ -79,7 +79,7 @@ public final class SystemTextClassifier implements TextClassifier {
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     @Override
     @WorkerThread
@@ -102,7 +102,7 @@ public final class SystemTextClassifier implements TextClassifier {
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     @Override
     @WorkerThread
@@ -125,7 +125,7 @@ public final class SystemTextClassifier implements TextClassifier {
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     @Override
     @WorkerThread
@@ -226,7 +226,7 @@ public final class SystemTextClassifier implements TextClassifier {
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     @Override
     @WorkerThread

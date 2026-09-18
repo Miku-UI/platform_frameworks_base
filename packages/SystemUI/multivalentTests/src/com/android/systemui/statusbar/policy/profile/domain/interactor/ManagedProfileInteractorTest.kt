@@ -23,14 +23,15 @@ import com.android.compose.animation.scene.SceneKey
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
-import com.android.systemui.deviceentry.data.repository.fakeDeviceEntryRepository
-import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
+import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
+import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
-import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.scene.data.repository.Idle
+import com.android.systemui.scene.data.repository.setTransition
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.domain.startable.sceneContainerStartable
 import com.android.systemui.scene.shared.model.Scenes
@@ -100,7 +101,11 @@ class ManagedProfileInteractorTest : SysuiTestCase() {
             assertThat(info).isNull()
 
             // WHEN keyguard becomes occluded
-            setKeyguardState(from = KeyguardState.LOCKSCREEN, to = KeyguardState.OCCLUDED)
+            setTransition(
+                sceneTransition = Idle(Scenes.Occluded),
+                stateTransition =
+                    TransitionStep(from = KeyguardState.LOCKSCREEN, to = KeyguardState.OCCLUDED),
+            )
 
             // THEN profile info is shown
             assertThat(info).isEqualTo(profileInfo)
@@ -113,11 +118,19 @@ class ManagedProfileInteractorTest : SysuiTestCase() {
 
             // GIVEN device is locked and occluded
             setDeviceAsLocked()
-            setKeyguardState(from = KeyguardState.LOCKSCREEN, to = KeyguardState.OCCLUDED)
+            setTransition(
+                sceneTransition = Idle(Scenes.Occluded),
+                stateTransition =
+                    TransitionStep(from = KeyguardState.LOCKSCREEN, to = KeyguardState.OCCLUDED),
+            )
             assertThat(info).isEqualTo(profileInfo)
 
             // WHEN keyguard is no longer occluded
-            setKeyguardState(from = KeyguardState.OCCLUDED, to = KeyguardState.LOCKSCREEN)
+            setTransition(
+                sceneTransition = Idle(Scenes.Lockscreen),
+                stateTransition =
+                    TransitionStep(from = KeyguardState.OCCLUDED, to = KeyguardState.LOCKSCREEN),
+            )
 
             // THEN profile info is hidden
             assertThat(info).isNull()
@@ -125,27 +138,19 @@ class ManagedProfileInteractorTest : SysuiTestCase() {
 
     private fun Kosmos.setDeviceAsEntered() {
         fakeAuthenticationRepository.setAuthenticationMethod(AuthenticationMethodModel.None)
-        fakeDeviceEntryRepository.setLockscreenEnabled(false)
+        fakeKeyguardRepository.setKeyguardEnabled(false)
         setCurrentScene(Scenes.Gone)
     }
 
     private fun Kosmos.setDeviceAsLocked() {
         fakeAuthenticationRepository.setAuthenticationMethod(AuthenticationMethodModel.Password)
-        fakeDeviceEntryRepository.setLockscreenEnabled(true)
+        fakeKeyguardRepository.setKeyguardEnabled(true)
         setCurrentScene(Scenes.Lockscreen)
     }
 
     private fun Kosmos.setCurrentScene(scene: SceneKey) {
         sceneInteractor.changeScene(scene, "ManagedProfileInteractorTest")
         sceneInteractor.setTransitionState(flowOf(ObservableTransitionState.Idle(scene)))
-    }
-
-    private suspend fun Kosmos.setKeyguardState(from: KeyguardState, to: KeyguardState) {
-        fakeKeyguardTransitionRepository.sendTransitionSteps(
-            from = from,
-            to = to,
-            testScope = kosmos.testScope,
-        )
     }
 
     companion object {

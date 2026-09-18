@@ -41,8 +41,11 @@ import com.android.wm.shell.shared.annotations.ShellDesktopThread;
 import com.android.wm.shell.shared.annotations.ShellMainThread;
 import com.android.wm.shell.shared.annotations.ShellSplashscreenThread;
 
+import dagger.Binds;
 import dagger.Module;
 import dagger.Provides;
+
+import java.util.concurrent.Executor;
 
 /**
  * Provides basic concurrency-related dependencies from {@link com.android.wm.shell}, these
@@ -90,7 +93,7 @@ public abstract class WMShellConcurrencyModule {
 
     /**
      * Creates a shell main thread to be injected into the shell components.  This does not provide
-     * the {@param HandleThread}, but is used to create the thread prior to initializing the
+     * the {@code HandleThread}, but is used to create the thread prior to initializing the
      * WM component, and is explicitly bound.
      *
      * See {@link com.android.systemui.SystemUIFactory#init(Context, boolean)}.
@@ -142,6 +145,11 @@ public abstract class WMShellConcurrencyModule {
         }
         return sysuiMainExecutor;
     }
+
+    @WMSingleton
+    @Binds
+    @ShellMainThread
+    abstract Executor bindShellMainExecutor(@ShellMainThread ShellExecutor shellExecutor);
 
     /**
      * Provide a Shell main-thread {@link Choreographer} with the app vsync.
@@ -250,4 +258,10 @@ public abstract class WMShellConcurrencyModule {
             @ShellBackgroundThread Handler handler) {
         return new HandlerExecutor(handler, THREAD_PRIORITY_BACKGROUND, THREAD_PRIORITY_FOREGROUND);
     }
+
+    @WMSingleton
+    @Binds
+    @ShellBackgroundThread
+    abstract Executor bindShellBackgroundExecutor(
+            @ShellBackgroundThread ShellExecutor shellExecutor);
 }

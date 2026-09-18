@@ -12,7 +12,7 @@ import android.os.Bundle;
   * @hide
   */
 oneway interface IStreamingResponseCallback {
-    void onNewContent(in Bundle processedResult) = 1;
+    void onPartialResult(in Bundle processedResult) = 1;
     void onSuccess(in Bundle result) = 2;
     void onFailure(int errorCode, in String errorMessage, in PersistableBundle errorParams) = 3;
     void onDataAugmentRequest(in Bundle processedContent, in RemoteCallback responseCallback) = 4;

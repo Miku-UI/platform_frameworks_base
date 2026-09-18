@@ -28,7 +28,7 @@ import android.text.TextUtils;
  * that wants it to be presented to the user by the IME. Usually, apps
  * present their completions directly in a scrolling list for example
  * (UI developers will usually use or extend
- * {@see android.widget.AutoCompleteTextView} to implement this).
+ * {@link android.widget.AutoCompleteTextView} to implement this).
  * However, in some cases, the editor may not be visible, as in the
  * case in extract mode where the IME has taken over the full
  * screen. In this case, the editor can choose to send their

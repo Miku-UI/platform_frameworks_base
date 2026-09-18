@@ -51,6 +51,7 @@ android_robolectric_test {
         "androidx.test.ext.junit",
         "mockito-robolectric-prebuilt", // mockito deps order matters!
         "mockito-kotlin2",
+        "WmTestUtils",
         "WMShellTests-utils", // order matters because it depends on mockito-kotlin2
         "platform-parametric-runner-lib",
         "truth",
@@ -68,6 +69,7 @@ android_test {
     ],
     static_libs: [
         "WMShellTests-utils",
+        "WmTestUtils",
         "WindowManager-Shell",
         "androidx.core_core-animation-testing",
         "androidx.test.ext.junit",

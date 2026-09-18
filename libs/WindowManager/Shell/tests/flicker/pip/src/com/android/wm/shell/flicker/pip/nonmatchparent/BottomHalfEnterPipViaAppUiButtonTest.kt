@@ -17,12 +17,12 @@
 package com.android.wm.shell.flicker.pip.nonmatchparent
 
 import android.platform.test.annotations.Presubmit
-import androidx.test.filters.RequiresDevice
 import android.platform.test.annotations.RequiresFlagsDisabled
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.parsers.toFlickerComponent
+import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.testapp.ActivityOptions.BottomHalfPip.LAUNCHING_APP_COMPONENT
 import org.junit.FixMethodOrder
 import org.junit.Test
@@ -59,8 +59,7 @@ import org.junit.runners.Parameterized
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class BottomHalfEnterPipViaAppUiButtonTest(flicker: FlickerTest) :
-    BottomHalfEnterPipTransition(flicker)
-{
+    BottomHalfEnterPipTransition(flicker) {
     override val thisTransition: FlickerBuilder.() -> Unit = {
         transitions { pipApp.clickEnterPipButton(wmHelper) }
     }
@@ -73,10 +72,7 @@ class BottomHalfEnterPipViaAppUiButtonTest(flicker: FlickerTest) :
     @Test
     override fun focusChanges() {
         flicker.assertEventLog {
-            this.focusChanges(
-                pipApp.packageName,
-                LAUNCHING_APP_COMPONENT.packageName
-            )
+            this.focusChanges(pipApp.packageName, LAUNCHING_APP_COMPONENT.packageName)
         }
     }
 
@@ -87,8 +83,8 @@ class BottomHalfEnterPipViaAppUiButtonTest(flicker: FlickerTest) :
     }
 
     /**
-     * Checks if the launching activity behind the bottom half [pipApp] is always visible during
-     * the transition.
+     * Checks if the launching activity behind the bottom half [pipApp] is always visible during the
+     * transition.
      */
     @Presubmit
     @Test

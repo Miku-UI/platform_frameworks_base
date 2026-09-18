@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"‏שלושה פסים של Wi-Fi."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"‏אות Wi-Fi מלא."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"מחובר למכשיר שלך."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"כל המשתמשים במכשיר הזה יכולים לראות את הרשת ולהתחבר אליה."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"רשת פתוחה"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"רשת מאובטחת"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"‏הגדרות עבור שם נקודת גישה (APN) אינן זמינות עבור המשתמש הזה"</string>
     <string name="enable_adb" msgid="8072776357237289039">"‏ניפוי באגים ב-USB"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"‏מצב ניפוי באגים כאשר USB מחובר"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"‏ביטול הרשאות לניפוי באגים ב-USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"‏ביטול הרשאות לניפוי באגים ב-adb"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"ניפוי באגים אלחוטי"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"‏מצב ניפוי באגים כשיש חיבור Wi-Fi"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"שגיאה"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"המכשיר בתהליך התאמה…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"‏התאמת המכשיר נכשלה. קוד ה-QR היה שגוי או שהמכשיר לא מחובר לאותה רשת."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"‏יציאה וכתובת IP"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"לא זמין (אין הרשאה)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"‏לא זמין (ה-Wi-Fi מנותק)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"‏סריקת קוד QR"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"‏כדי להתאים מכשיר דרך Wi‑Fi, יש לסרוק קוד QR"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"‏יש להתחבר לרשת Wi-Fi"</string>
@@ -336,10 +339,10 @@
     <string name="bluetooth_select_a2dp_codec_ldac_playback_quality" msgid="3233402355917446304">"‏קודק אודיו LDAC ל-Bluetooth: איכות נגינה"</string>
     <string name="bluetooth_select_a2dp_codec_ldac_playback_quality_dialog_title" msgid="7274396574659784285">"‏הפעלת קודק אודיו LDAC ל-Bluetooth\nבחירה: איכות נגינה"</string>
     <string name="bluetooth_select_a2dp_codec_streaming_label" msgid="2040810756832027227">"סטרימינג: <xliff:g id="STREAMING_PARAMETER">%1$s</xliff:g>"</string>
-    <string name="select_private_dns_configuration_title" msgid="7887550926056143018">"‏DNS פרטי"</string>
-    <string name="select_private_dns_configuration_dialog_title" msgid="3731422918335951912">"‏בחירת מצב של DNS פרטי"</string>
+    <string name="select_private_dns_configuration_title" msgid="7887550926056143018">"‏תקשורת DNS פרטית"</string>
+    <string name="select_private_dns_configuration_dialog_title" msgid="3731422918335951912">"‏בחירת מצב של תקשורת DNS פרטית"</string>
     <string name="private_dns_mode_off" msgid="7065962499349997041">"מושבת"</string>
-    <string name="private_dns_mode_opportunistic" msgid="1947864819060442354">"אוטומטי"</string>
+    <string name="private_dns_mode_opportunistic" msgid="1947864819060442354">"אוטומטית"</string>
     <string name="private_dns_mode_provider" msgid="3619040641762557028">"‏שם מארח של ספק DNS פרטי"</string>
     <string name="private_dns_mode_provider_hostname_hint" msgid="6564868953748514595">"‏צריך להזין את שם המארח של ספק DNS"</string>
     <string name="private_dns_mode_provider_failure" msgid="8356259467861515108">"לא ניתן היה להתחבר"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"‏ניפוי באגים באמצעות USB מיועד למטרות פיתוח בלבד. אפשר להשתמש בו להעתקת נתונים בין המחשב והמכשיר, להתקנת אפליקציות במכשיר ללא התראה ולקריאת נתוני יומן."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"האם לאפשר ניפוי באגים אלחוטי?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"ניפוי באגים אלחוטי מיועד למטרות פיתוח בלבד. יש להשתמש בו להעתקת נתונים בין המחשב והמכשיר שלך, להתקנת אפליקציות במכשיר ללא התראה ולקריאת נתוני יומן."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"‏האם לבטל את הגישה לניפוי ב-USB מכל המחשבים שהענקת להם בעבר הרשאה?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"‏לבטל את הגישה לניפוי באגים ב-adb מכל המחשבים והרשתות שאישרת בעבר?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"האם להתיר הגדרות פיתוח?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"הגדרות אלה מיועדות לשימוש בפיתוח בלבד. הן עלולות לגרום למכשיר או לאפליקציות המותקנות בו לקרוס או לפעול באופן לא תקין."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"‏אימות אפליקציות שהותקנו מ-USB"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"אתרנט מנותק."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"אתרנט."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"אין שיחות."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"מקלדת פיזית"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"בחירה של פריסת המקלדת"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"ברירת מחדל"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"שליטה בהפעלת המסך"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"הרשאה להפעלת המסך"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"הרשאה לאפליקציה להפעיל את המסך. אם מעניקים את ההרשאה, האפליקציה יכולה להפעיל את המסך בכל זמן, גם בלי שמתכוונים לכך במפורש."</string>

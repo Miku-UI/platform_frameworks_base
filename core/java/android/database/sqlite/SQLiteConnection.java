@@ -310,7 +310,7 @@ public final class SQLiteConnection implements CancellationSignal.OnCancelListen
             try {
                 mPreparedStatementCache.evictAll();
                 synchronized (mConnectionLock) {
-                    nativeClose(mConnectionPtr, finalized && Flags.noCheckpointOnFinalize());
+                    nativeClose(mConnectionPtr, finalized);
                     mConnectionPtr = 0;
                 }
             } finally {
@@ -1717,6 +1717,7 @@ public final class SQLiteConnection implements CancellationSignal.OnCancelListen
         private final Operation mTransaction = new Operation();
         private long mResultLong = Long.MIN_VALUE;
         private String mResultString;
+        private final String mTraceTrackName;
 
         private final RingBuffer<Operation> mLongOperations =
                 new RingBuffer<>(()->{return new Operation();},
@@ -1726,6 +1727,10 @@ public final class SQLiteConnection implements CancellationSignal.OnCancelListen
 
         // Limit log messages to one every 5 minutes, except that a burst may be 10 messages long.
         private final RateLimiter mLongLimiter = new RateLimiter(300_000, 10);
+
+        OperationLog() {
+            mTraceTrackName = "SQLiteConnection-" + SQLiteConnection.this.mConnectionId;
+        }
 
         public int beginOperation(String kind, String sql, Object[] bindArgs) {
             mResultLong = Long.MIN_VALUE;
@@ -1749,10 +1754,20 @@ public final class SQLiteConnection implements CancellationSignal.OnCancelListen
                         }
                     }
                 }
-                operation.mTraced = Trace.isTagEnabled(Trace.TRACE_TAG_DATABASE);
-                if (operation.mTraced) {
-                    Trace.asyncTraceBegin(Trace.TRACE_TAG_DATABASE, operation.getTraceMethodName(),
-                            operation.mCookie);
+                final boolean isTraced = Trace.isTagEnabled(Trace.TRACE_TAG_DATABASE);
+                operation.mTraced = isTraced;
+                if (isTraced) {
+                    final int traceCookie;
+                    if (!mTransaction.isEmpty() && mTransaction.mTraced) {
+                        traceCookie = mTransaction.mCookie;
+                    } else {
+                        traceCookie = operation.mCookie;
+                        String instantName = "START-" + operation.getTraceMethodName() + "-"
+                                + mTraceTrackName;
+                        Trace.instant(Trace.TRACE_TAG_DATABASE, instantName);
+                    }
+                    Trace.asyncTraceForTrackBegin(Trace.TRACE_TAG_DATABASE, mTraceTrackName,
+                            operation.getTraceMethodName(), traceCookie);
                 }
                 return operation.mCookie;
             }
@@ -1764,9 +1779,14 @@ public final class SQLiteConnection implements CancellationSignal.OnCancelListen
                 operation.mKind = kind;
                 mTransaction.copyFrom(operation);
 
-                if (operation.mTraced) {
-                    Trace.asyncTraceBegin(Trace.TRACE_TAG_DATABASE, operation.getTraceMethodName(),
-                            operation.mCookie);
+                final boolean isTraced = Trace.isTagEnabled(Trace.TRACE_TAG_DATABASE);
+                mTransaction.mTraced = isTraced;
+                if (isTraced) {
+                    String instantName = "START-" + operation.getTraceMethodName() + "-"
+                            + mTraceTrackName;
+                    Trace.instant(Trace.TRACE_TAG_DATABASE, instantName);
+                    Trace.asyncTraceForTrackBegin(Trace.TRACE_TAG_DATABASE, mTraceTrackName,
+                            operation.getTraceMethodName(), mTransaction.mCookie);
                 }
             }
         }
@@ -1819,6 +1839,13 @@ public final class SQLiteConnection implements CancellationSignal.OnCancelListen
                 if (operation != null) {
                     operation.copyFrom(mTransaction);
                 }
+                if (mTransaction.mTraced) {
+                    Trace.asyncTraceForTrackEnd(
+                            Trace.TRACE_TAG_DATABASE, mTraceTrackName, mTransaction.mCookie);
+                    String instantName = "END-" + mTransaction.getTraceMethodName() + "-"
+                            + mTraceTrackName;
+                    Trace.instant(Trace.TRACE_TAG_DATABASE, instantName);
+                }
                 mTransaction.setEmpty();
                 return NoPreloadHolder.DEBUG_LOG_SLOW_QUERIES
                         && SQLiteDebug.shouldLogSlowQuery(execTime);
@@ -1843,8 +1870,17 @@ public final class SQLiteConnection implements CancellationSignal.OnCancelListen
             final Operation operation = getOperationLocked(cookie);
             if (operation != null) {
                 if (operation.mTraced) {
-                    Trace.asyncTraceEnd(Trace.TRACE_TAG_DATABASE, operation.getTraceMethodName(),
-                            operation.mCookie);
+                    final int traceCookie;
+                    if (!mTransaction.isEmpty() && mTransaction.mTraced) {
+                        traceCookie = mTransaction.mCookie;
+                    } else {
+                        traceCookie = operation.mCookie;
+                        String instantName = "END-" + operation.getTraceMethodName() + "-"
+                                + mTraceTrackName;
+                        Trace.instant(Trace.TRACE_TAG_DATABASE, instantName);
+                    }
+                    Trace.asyncTraceForTrackEnd(Trace.TRACE_TAG_DATABASE, mTraceTrackName,
+                            traceCookie);
                 }
                 final long execTime = finishOperationLocked(operation);
                 mPool.onStatementExecuted(execTime);

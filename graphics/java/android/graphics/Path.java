@@ -838,8 +838,8 @@ public class Path {
      * two paths match exactly, as discussed in {@link #isInterpolatable(Path)}.
      *
      * @param otherPath The other <code>Path</code> being interpolated to.
-     * @param t The interpolation parameter. A value of 0 results in a <code>Path</code>
-     *          equivalent to this path, a value of 1 results in one equivalent to
+     * @param t The interpolation parameter. A value of 1 results in a <code>Path</code>
+     *          equivalent to this path, a value of 0 results in one equivalent to
      *          <code>otherPath</code>.
      * @param interpolatedPath The interpolated results.
      */

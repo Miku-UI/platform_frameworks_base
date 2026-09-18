@@ -16,7 +16,7 @@
 
 package com.android.server.notification;
 
-import static android.app.backup.NotificationLoggingConstants.KEY_NOTIFICATIONS;
+import static android.app.NotificationLoggingConstants.KEY_NOTIFICATIONS;
 
 import android.app.INotificationManager;
 import android.app.backup.BlobBackupHelper;

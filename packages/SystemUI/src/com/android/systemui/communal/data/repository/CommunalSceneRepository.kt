@@ -22,12 +22,12 @@ import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.compose.animation.scene.OverlayKey
 import com.android.compose.animation.scene.SceneKey
 import com.android.compose.animation.scene.TransitionKey
-import com.android.systemui.communal.dagger.Communal
+import com.android.systemui.communal.shared.model.CommunalSceneDataSourceDelegator
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
-import com.android.systemui.scene.shared.model.SceneDataSource
-import com.android.systemui.scene.shared.model.SceneDataSourceDelegator
+import com.android.systemui.scene.shared.model.NoOpSceneDataSource
+import com.android.systemui.utils.coroutines.flow.flatMapLatestConflated
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -41,10 +41,19 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 
 /** Encapsulates the state of communal mode. */
-interface CommunalSceneRepository : SceneDataSource {
+interface CommunalSceneRepository {
 
     /** Exposes the transition state of the communal [SceneTransitionLayout]. */
-    val transitionState: StateFlow<ObservableTransitionState>
+    val transitionStateFlow: StateFlow<ObservableTransitionState>
+
+    /**
+     * The current scene, as seen by the real data source in the UI layer.
+     *
+     * During a transition between two scenes, the original scene will still be reflected in
+     * [currentScene] until a time when the UI layer decides to commit the change, which is when
+     * [currentScene] will have the value of the target/new scene.
+     */
+    val currentScene: StateFlow<SceneKey>
 
     /** Current orientation of the communal container. */
     val communalContainerOrientation: StateFlow<Int>
@@ -61,6 +70,23 @@ interface CommunalSceneRepository : SceneDataSource {
 
     /** Set the current orientation of the communal container. */
     fun setCommunalContainerOrientation(orientation: Int)
+
+    /**
+     * Asks for an asynchronous scene switch to [toScene], which will use the corresponding
+     * installed transition or the one specified by [transitionKey], if provided.
+     */
+    fun changeScene(toScene: SceneKey, transitionKey: TransitionKey? = null)
+
+    /**
+     * Asks for an instant switch to [scene] and [overlays].
+     *
+     * The change is instantaneous and not animated; it will be observable in the next frame and
+     * there will be no transition animation.
+     *
+     * When either one of [scene] or [overlays] is `null`, their current value in the scene
+     * transition layout state is used.
+     */
+    fun instantlyTransitionTo(scene: SceneKey? = null, overlays: Set<OverlayKey>? = null)
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -69,19 +95,27 @@ class CommunalSceneRepositoryImpl
 @Inject
 constructor(
     @Background backgroundScope: CoroutineScope,
-    @Communal private val sceneDataSource: SceneDataSource,
-    @Communal private val delegator: SceneDataSourceDelegator,
-) : CommunalSceneRepository, SceneDataSource by sceneDataSource {
+    private val delegator: CommunalSceneDataSourceDelegator,
+) : CommunalSceneRepository {
 
     private val defaultTransitionState = ObservableTransitionState.Idle(CommunalScenes.Default)
     private val _transitionState = MutableStateFlow<Flow<ObservableTransitionState>?>(null)
-    override val transitionState: StateFlow<ObservableTransitionState> =
+    override val transitionStateFlow: StateFlow<ObservableTransitionState> =
         _transitionState
             .flatMapLatest { innerFlowOrNull -> innerFlowOrNull ?: flowOf(defaultTransitionState) }
             .stateIn(
                 scope = backgroundScope,
                 started = SharingStarted.Lazily,
                 initialValue = defaultTransitionState,
+            )
+
+    override val currentScene: StateFlow<SceneKey> =
+        transitionStateFlow
+            .flatMapLatestConflated { transitionState -> transitionState.currentScene() }
+            .stateIn(
+                scope = backgroundScope,
+                started = SharingStarted.WhileSubscribed(),
+                initialValue = defaultTransitionState.currentScene,
             )
 
     private val _communalContainerOrientation =
@@ -115,28 +149,11 @@ constructor(
         _transitionState.value = transitionState
     }
 
-    /** No-op implementation of a scene data source that always returns the initial [SceneKey]. */
-    private class NoOpSceneDataSource(initialSceneKey: SceneKey) : SceneDataSource {
-        override val currentScene: StateFlow<SceneKey> =
-            MutableStateFlow(initialSceneKey).asStateFlow()
+    override fun changeScene(toScene: SceneKey, transitionKey: TransitionKey?) {
+        delegator.changeScene(toScene, transitionKey)
+    }
 
-        override val currentOverlays: StateFlow<Set<OverlayKey>> =
-            MutableStateFlow(emptySet<OverlayKey>()).asStateFlow()
-
-        override fun changeScene(toScene: SceneKey, transitionKey: TransitionKey?) = Unit
-
-        override fun showOverlay(overlay: OverlayKey, transitionKey: TransitionKey?) = Unit
-
-        override fun hideOverlay(overlay: OverlayKey, transitionKey: TransitionKey?) = Unit
-
-        override fun replaceOverlay(
-            from: OverlayKey,
-            to: OverlayKey,
-            transitionKey: TransitionKey?,
-        ) = Unit
-
-        override fun freezeAndAnimateToCurrentState() = Unit
-
-        override fun instantlyTransitionTo(scene: SceneKey?, overlays: Set<OverlayKey>?) = Unit
+    override fun instantlyTransitionTo(scene: SceneKey?, overlays: Set<OverlayKey>?) {
+        delegator.instantlyTransitionTo(scene, overlays)
     }
 }

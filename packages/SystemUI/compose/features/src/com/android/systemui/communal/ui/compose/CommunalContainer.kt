@@ -52,6 +52,7 @@ import com.android.compose.animation.scene.transitions
 import com.android.compose.modifiers.thenIf
 import com.android.systemui.Flags
 import com.android.systemui.communal.shared.model.CommunalBackgroundType
+import com.android.systemui.communal.shared.model.CommunalSceneDataSourceDelegator
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.communal.shared.model.CommunalTransitionKeys
 import com.android.systemui.communal.ui.compose.Dimensions.Companion.SlideOffsetY
@@ -62,7 +63,6 @@ import com.android.systemui.communal.util.CommunalColors
 import com.android.systemui.keyguard.domain.interactor.FromAodTransitionInteractor
 import com.android.systemui.keyguard.domain.interactor.FromGlanceableHubTransitionInteractor.Companion.TO_LOCKSCREEN_DURATION
 import com.android.systemui.keyguard.domain.interactor.FromPrimaryBouncerTransitionInteractor.Companion.TO_GONE_DURATION
-import com.android.systemui.scene.shared.model.SceneDataSourceDelegator
 import com.android.systemui.scene.ui.composable.SceneTransitionLayoutDataSource
 import kotlin.time.DurationUnit
 
@@ -234,7 +234,7 @@ val sceneTransitions = transitions {
 fun CommunalContainer(
     modifier: Modifier = Modifier,
     viewModel: CommunalViewModel,
-    dataSourceDelegator: SceneDataSourceDelegator,
+    dataSourceDelegator: CommunalSceneDataSourceDelegator,
     colors: CommunalColors,
     content: CommunalContent,
     ambientStatusBarSection: AmbientStatusBarSection,
@@ -275,6 +275,7 @@ fun CommunalContainer(
         modifier = modifier.fillMaxSize(),
         swipeSourceDetector = detector,
         swipeDetector = detector,
+        debugName = "Communal UI",
     ) {
         scene(
             CommunalScenes.Blank,

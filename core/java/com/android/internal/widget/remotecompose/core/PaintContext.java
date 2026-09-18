@@ -18,9 +18,9 @@ package com.android.internal.widget.remotecompose.core;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
+import com.android.internal.widget.remotecompose.core.operations.layout.managers.LayoutManager;
 import com.android.internal.widget.remotecompose.core.operations.paint.PaintBundle;
 
-import java.time.Clock;
 import java.util.HashMap;
 
 /** Specify an abstract paint context used by RemoteCompose commands to draw */
@@ -29,9 +29,10 @@ public abstract class PaintContext {
     public static final int TEXT_MEASURE_FONT_HEIGHT = 0x02;
     public static final int TEXT_MEASURE_SPACES = 0x04;
     public static final int TEXT_COMPLEX = 0x08;
-
+    public static final int TEXT_MEASURE_AUTOSIZE = 0x10;
     protected @NonNull RemoteContext mContext;
     private boolean mNeedsRepaint = false;
+    private int mMeasureVersion = LayoutManager.DEFAULT_MEASURE_TYPE;
 
     @NonNull
     public RemoteContext getContext() {
@@ -76,7 +77,7 @@ public abstract class PaintContext {
         matrixSave();
     }
 
-    public @NonNull Clock getClock() {
+    public @NonNull RemoteClock getClock() {
         return mContext.getClock();
     }
 
@@ -285,7 +286,7 @@ public abstract class PaintContext {
      *
      * @return an instance of a ComputedTextLayout (typically if complex text drawing is used)
      */
-    public abstract @Nullable Platform.ComputedTextLayout layoutComplexText(
+    public abstract @Nullable RcPlatformServices.ComputedTextLayout layoutComplexText(
             int textId,
             int start,
             int end,
@@ -293,6 +294,15 @@ public abstract class PaintContext {
             int overflow,
             int maxLines,
             float maxWidth,
+            float maxHeight,
+            float letterSpacing,
+            float lineHeightAdd,
+            float lineHeightMultiplier,
+            int lineBreakStrategy,
+            int hyphenationFrequency,
+            int justificationMode,
+            boolean useUnderline,
+            boolean strikethrough,
             int flags);
 
     /**
@@ -322,7 +332,8 @@ public abstract class PaintContext {
      *
      * @param computedTextLayout pre-computed text layout
      */
-    public abstract void drawComplexText(@Nullable Platform.ComputedTextLayout computedTextLayout);
+    public abstract void drawComplexText(
+            @Nullable RcPlatformServices.ComputedTextLayout computedTextLayout);
 
     /**
      * Draw an interpolation between two paths
@@ -546,4 +557,45 @@ public abstract class PaintContext {
      * @param color set the initial color of the bitmap
      */
     public abstract void drawToBitmap(int bitmapId, int mode, int color);
+
+    /**
+     * Set the measure version
+     * @param measureVersion
+     */
+    public void setMeasureVersion(int measureVersion) {
+        mMeasureVersion = measureVersion;
+    }
+
+    /**
+     * Get the measure version
+     * @return
+     */
+    public int getMeasureVersion() {
+        return mMeasureVersion;
+    }
+
+    /**
+     * Return true if the provided feature is enabled in the document
+     * @param feature feature id
+     * @return
+     */
+    public boolean useFeature(short feature) {
+        return mContext.useFeature(feature);
+    }
+
+    /**
+     * Return current density
+     * @return
+     */
+    public float getDensity() {
+        return mContext.getDensity();
+    }
+
+    /**
+     * Return density behavior
+     * @return
+     */
+    public int getDensityBehavior() {
+        return mContext.mDocument.mDensityBehavior;
+    }
 }

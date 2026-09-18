@@ -14,6 +14,7 @@ java_library {
     host_supported: true,
     srcs: [
         "java/com/android/media/mediatestutils/CancelAllFuturesRule.java",
+        "java/com/android/media/mediatestutils/Utils.kt",
     ],
     static_libs: [
         "junit",
@@ -28,6 +29,7 @@ java_library {
     srcs: [
         "java/com/android/media/mediatestutils/TestUtils.java",
         "java/com/android/media/mediatestutils/PermissionUpdateBarrierRule.java",
+        "java/com/android/media/mediatestutils/Utils.kt",
     ],
     static_libs: [
         "androidx.concurrent_concurrent-futures",
@@ -37,13 +39,17 @@ java_library {
     ],
     visibility: [
         "//cts/tests/tests/media:__subpackages__",
+        "//cts/tests/tests/virtualdevice:__subpackages__",
         ":__subpackages__",
     ],
 }
 
 java_test_host {
     name: "mediatestutilshosttests",
-    srcs: ["javatests/**/*.java"],
+    srcs: [
+        "javatests/**/*.java",
+        "javatests/**/*.kt",
+    ],
     static_libs: [
         "mediatestutils_host",
         "junit",

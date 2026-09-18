@@ -30,8 +30,6 @@ import com.android.systemui.res.R
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -89,6 +87,10 @@ constructor(
                 promptViewModel.modalities,
             ) { sensorBounds, size, position, modalities ->
                 when (position) {
+                    PromptPosition.Center -> {
+                        // Icon is positioned relative to rest of prompt in Center case
+                        Rect(0, 0, 0, 0)
+                    }
                     PromptPosition.Bottom ->
                         if (size.isSmall) {
                             Rect(0, 0, 0, portraitSmallBottomPadding)
@@ -172,9 +174,5 @@ constructor(
             promptViewModel: PromptViewModel,
             biometricAuthIconViewModelFactory: BiometricAuthIconViewModel.Factory,
         ): PromptIconViewModel
-    }
-
-    override suspend fun onActivated(): Nothing {
-        coroutineScope { awaitCancellation() }
     }
 }

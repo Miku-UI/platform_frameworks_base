@@ -21,6 +21,7 @@ import android.app.VrManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.platform.test.annotations.DisabledOnRavenwood;
 import android.provider.Settings;
 import android.test.ActivityInstrumentationTestCase2;
 
@@ -30,6 +31,7 @@ import androidx.test.filters.SmallTest;
  * Tests ActivityManager#setPersistentVrThread and ActivityManager#setVrThread's
  * interaction with persistent VR mode.
  */
+@DisabledOnRavenwood(blockedBy = ActivityManager.class)
 public class SetPersistentVrThreadTest extends ActivityInstrumentationTestCase2<TestVrActivity> {
     private TestVrActivity mActivity;
     private ActivityManager mActivityManager;

@@ -19,6 +19,7 @@ package android.media;
 import android.annotation.NonNull;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Build;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import com.android.aconfig.annotations.VisibleForTesting;
 
@@ -38,7 +39,7 @@ import java.util.List;
  * @see AudioPort
  * @hide
  */
-
+@RavenwoodKeepWholeClass
 public class AudioDevicePort extends AudioPort {
 
     /** @hide */
@@ -90,10 +91,19 @@ public class AudioDevicePort extends AudioPort {
             int[] samplingRates, int[] channelMasks, int[] channelIndexMasks,
             int[] formats, AudioGain[] gains, int type, String address, int[] encapsulationModes,
             @AudioTrack.EncapsulationMetadataType int[] encapsulationMetadataTypes) {
+        this(handle, deviceName, samplingRates,
+                new AudioFormat.ChannelMasksArray(channelMasks, channelIndexMasks),
+                formats, gains, type, address, encapsulationModes, encapsulationMetadataTypes);
+    }
+
+    AudioDevicePort(AudioHandle handle, String deviceName,
+            int[] samplingRates, AudioFormat.ChannelMasksArray channelMasks,
+            int[] formats, AudioGain[] gains, int type, String address, int[] encapsulationModes,
+            @AudioTrack.EncapsulationMetadataType int[] encapsulationMetadataTypes) {
         super(handle,
              (AudioManager.isInputDevice(type) == true)  ?
                         AudioPort.ROLE_SOURCE : AudioPort.ROLE_SINK,
-             deviceName, samplingRates, channelMasks, channelIndexMasks, formats, gains);
+                deviceName, samplingRates, channelMasks, formats, gains);
         mType = type;
         mAddress = address;
         mSpeakerLayoutChannelMask = AudioFormat.CHANNEL_INVALID;
@@ -190,6 +200,16 @@ public class AudioDevicePort extends AudioPort {
     public AudioDevicePortConfig buildConfig(int samplingRate, int channelMask, int format,
                                           AudioGainConfig gain) {
         return new AudioDevicePortConfig(this, samplingRate, channelMask, format, gain);
+    }
+
+    /**
+     * Build a specific configuration of this audio device port for use by methods
+     * like AudioManager.connectAudioPatch().
+     */
+    public AudioDevicePortConfig buildConfig(int samplingRate,
+                                        @NonNull AudioFormat.ChannelMasks channelMasks, int format,
+                                        AudioGainConfig gain) {
+        return new AudioDevicePortConfig(this, samplingRate, channelMasks, format, gain);
     }
 
     @Override

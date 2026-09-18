@@ -98,17 +98,15 @@ public class AccessibilityButtonChooserActivity extends Activity {
             finish();
         });
 
-        if (android.view.accessibility.Flags.buttonChooserActivityBottomMarginSystemBar()) {
-            final WindowInsets windowInsets =
-                    getWindowManager().getCurrentWindowMetrics().getWindowInsets();
-            final Insets insets = windowInsets.getInsetsIgnoringVisibility(
-                    WindowInsets.Type.systemBars());
+        final WindowInsets windowInsets =
+                getWindowManager().getCurrentWindowMetrics().getWindowInsets();
+        final Insets insets = windowInsets.getInsetsIgnoringVisibility(
+                WindowInsets.Type.systemBars());
 
-            final ViewGroup.MarginLayoutParams params =
-                    (ViewGroup.MarginLayoutParams) gridview.getLayoutParams();
+        final ViewGroup.MarginLayoutParams params =
+                (ViewGroup.MarginLayoutParams) gridview.getLayoutParams();
 
-            params.bottomMargin = insets.bottom;
-            gridview.setLayoutParams(params);
-        }
+        params.bottomMargin = insets.bottom;
+        gridview.setLayoutParams(params);
     }
 }

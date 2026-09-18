@@ -237,7 +237,7 @@ public abstract class SharedConnectivityService extends Service {
 
             @RequiresPermission(anyOf = {android.Manifest.permission.NETWORK_SETTINGS,
                     android.Manifest.permission.NETWORK_SETUP_WIZARD})
-            /**
+            /*
              * checkPermissions is using checkCallingOrSelfPermission to support CTS testing of this
              * service. This does allow a process to bind to itself if it holds the proper
              * permission. We do not consider this to be an issue given that the process can already

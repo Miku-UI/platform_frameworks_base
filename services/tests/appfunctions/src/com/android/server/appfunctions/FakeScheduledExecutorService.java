@@ -27,6 +27,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -38,14 +39,15 @@ import java.util.concurrent.TimeoutException;
  * Commands scheduled via {@link #schedule(Runnable, long, TimeUnit)} will run after calling {@link
  * #fastForwardTime(long)}.
  */
-class FakeScheduledExecutorService implements ScheduledExecutorService {
+public class FakeScheduledExecutorService implements ScheduledExecutorService {
 
     private final List<Runnable> mExecutes = new ArrayList<>();
     private final List<MockScheduledFuture<?>> mFutures = new ArrayList<>();
     private long mTimeElapsedMillis = 0;
+    private boolean mIsShutdown = false;
 
     /** Advances fake time, runs all the commands for which the delay has expired. */
-    long fastForwardTime(long millis) {
+    public long fastForwardTime(long millis) {
         mTimeElapsedMillis += millis;
         ImmutableList<MockScheduledFuture<?>> futuresCopy = ImmutableList.copyOf(mFutures);
         mFutures.clear();
@@ -78,14 +80,23 @@ class FakeScheduledExecutorService implements ScheduledExecutorService {
         mTimeElapsedMillis = 0;
     }
 
+    /** Returns the elapsed time in nanoseconds. */
+    public long getClockTimeNanos() {
+        return TimeUnit.MILLISECONDS.toNanos(mTimeElapsedMillis);
+    }
+
     /**
      * Fakes a schedule execution of {@link Runnable}. The command will be executed by an explicit
      * call to {@link #fastForwardTime(long)}.
      */
     @Override
     public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
-        Preconditions.checkState(unit == TimeUnit.MILLISECONDS);
-        MockScheduledFuture<?> future = new MockScheduledFuture<>(command, delay, unit);
+        if (mIsShutdown) {
+            throw new RejectedExecutionException("Executor is shutdown");
+        }
+        long delayMillis = unit.toMillis(delay);
+        MockScheduledFuture<?> future =
+                new MockScheduledFuture<>(command, mTimeElapsedMillis + delayMillis, unit);
         mFutures.add(future);
         return future;
     }
@@ -98,6 +109,9 @@ class FakeScheduledExecutorService implements ScheduledExecutorService {
     @Override
     public ScheduledFuture<?> scheduleAtFixedRate(
             Runnable command, long initialDelay, long period, TimeUnit unit) {
+        if (mIsShutdown) {
+            throw new RejectedExecutionException("Executor is shutdown");
+        }
         Preconditions.checkState(unit == TimeUnit.MILLISECONDS);
         MockScheduledFuture<?> future =
                 new MockScheduledFuture<>(command, initialDelay, period, unit);
@@ -113,17 +127,23 @@ class FakeScheduledExecutorService implements ScheduledExecutorService {
 
     @Override
     public void shutdown() {
-        throw new UnsupportedOperationException();
+        mIsShutdown = true;
     }
 
     @Override
     public List<Runnable> shutdownNow() {
-        throw new UnsupportedOperationException();
+        mIsShutdown = true;
+        List<Runnable> pending = new ArrayList<>();
+        for (MockScheduledFuture<?> future : mFutures) {
+            pending.add(future.getRunnable());
+        }
+        mFutures.clear();
+        return pending;
     }
 
     @Override
     public boolean isShutdown() {
-        return false;
+        return mIsShutdown;
     }
 
     @Override
@@ -138,6 +158,9 @@ class FakeScheduledExecutorService implements ScheduledExecutorService {
 
     @Override
     public <T> Future<T> submit(Callable<T> task) {
+        if (mIsShutdown) {
+            throw new RejectedExecutionException("Executor is shutdown");
+        }
         MockScheduledFuture<T> future = new MockScheduledFuture<>(task, 0, TimeUnit.MILLISECONDS);
         try {
             future.getCallable().call();
@@ -154,6 +177,9 @@ class FakeScheduledExecutorService implements ScheduledExecutorService {
 
     @Override
     public Future<?> submit(Runnable runnable) {
+        if (mIsShutdown) {
+            throw new RejectedExecutionException("Executor is shutdown");
+        }
         mExecutes.add(runnable);
         MockScheduledFuture<?> future =
                 new MockScheduledFuture<>(runnable, 0, TimeUnit.MILLISECONDS);
@@ -188,6 +214,9 @@ class FakeScheduledExecutorService implements ScheduledExecutorService {
 
     @Override
     public void execute(Runnable command) {
+        if (mIsShutdown) {
+            throw new RejectedExecutionException("Executor is shutdown");
+        }
         mExecutes.add(command);
         command.run();
     }

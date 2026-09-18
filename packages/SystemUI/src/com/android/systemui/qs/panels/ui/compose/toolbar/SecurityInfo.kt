@@ -76,17 +76,17 @@ fun SecurityInfo(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    icon = viewModel.icon,
+                    icon = viewModel.model.icon,
                     modifier =
                         Modifier.minimumInteractiveComponentSize().size(24.dp).semantics {
                             if (showCollapsed) {
-                                contentDescription = viewModel.text
+                                contentDescription = viewModel.model.text
                             }
                         },
                 )
                 if (!showCollapsed) {
                     Text(
-                        text = viewModel.text,
+                        text = viewModel.model.text,
                         maxLines = 1,
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurface,

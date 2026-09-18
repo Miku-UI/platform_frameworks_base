@@ -19,9 +19,9 @@ package com.android.wm.shell.flicker.pip.nonmatchparent
 import android.platform.test.annotations.Presubmit
 import android.platform.test.annotations.RequiresFlagsDisabled
 import android.tools.Rotation
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.parsers.toFlickerComponent
 import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.BottomHalfPipAppHelper
@@ -63,12 +63,9 @@ import org.junit.runners.Parameterized
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class BottomHalfSetRequestedOrientationWhilePinned(flicker: FlickerTest) :
-    SetRequestedOrientationWhilePinned(flicker)
-{
-    override val pipApp: PipAppHelper = BottomHalfPipAppHelper(
-        instrumentation,
-        useLaunchingActivity = true
-    )
+    SetRequestedOrientationWhilePinned(flicker) {
+    override val pipApp: PipAppHelper =
+        BottomHalfPipAppHelper(instrumentation, useLaunchingActivity = true)
 
     override val thisTransition: FlickerBuilder.() -> Unit = {
         transitions {
@@ -89,8 +86,7 @@ class BottomHalfSetRequestedOrientationWhilePinned(flicker: FlickerTest) :
     @Test
     override fun pipAppLayerCoversDisplayBoundsOnEnd() {
         flicker.assertLayersEnd {
-            visibleRegion(pipApp
-                .or(BottomHalfPip.LAUNCHING_APP_COMPONENT.toFlickerComponent()))
+            visibleRegion(pipApp.or(BottomHalfPip.LAUNCHING_APP_COMPONENT.toFlickerComponent()))
                 .coversExactly(endingBounds)
         }
     }

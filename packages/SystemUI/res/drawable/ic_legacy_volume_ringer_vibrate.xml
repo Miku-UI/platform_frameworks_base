@@ -18,7 +18,7 @@
     android:width="19dp"
     android:viewportHeight="24.0"
     android:viewportWidth="24.0"
-    android:tint="?android:attr/textColorPrimary">
+    android:tint="@color/materialColorOnSurface">
 
     <path
         android:fillColor="#FFFFFFFF"

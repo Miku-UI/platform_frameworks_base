@@ -22,6 +22,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.TextUtils;
 import android.util.ArrayMap;
+import com.android.media.flags.Flags;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -49,6 +50,9 @@ public final class MediaRoute2ProviderInfo implements Parcelable {
     @Nullable
     final String mUniqueId;
     @NonNull
+    final String mPackageName;
+    final boolean mIsSystem;
+    @NonNull
     final ArrayMap<String, MediaRoute2Info> mRoutes;
 
     MediaRoute2ProviderInfo(@NonNull Builder builder) {
@@ -56,12 +60,20 @@ public final class MediaRoute2ProviderInfo implements Parcelable {
 
         mUniqueId = builder.mUniqueId;
         mRoutes = builder.mRoutes;
+        mPackageName = builder.mPackageName;
+        mIsSystem = builder.mIsSystem;
     }
 
+    /**
+     * Intentionally not parcelling {@link #mPackageName}, {@link #mIsSystem}
+     * as it's for system_server consumption only
+     */
     MediaRoute2ProviderInfo(@NonNull Parcel src) {
         mUniqueId = src.readString();
         ArrayMap<String, MediaRoute2Info> routes = src.createTypedArrayMap(MediaRoute2Info.CREATOR);
         mRoutes = (routes == null) ? ArrayMap.EMPTY : routes;
+        mPackageName = "";
+        mIsSystem = false;
     }
 
     /**
@@ -115,6 +127,10 @@ public final class MediaRoute2ProviderInfo implements Parcelable {
         return 0;
     }
 
+    /**
+     * Intentionally not parcelling {@link #mPackageName}, {@link #mIsSystem}
+     * as it's for system_server consumption only
+     */
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeString(mUniqueId);
@@ -138,6 +154,9 @@ public final class MediaRoute2ProviderInfo implements Parcelable {
         @NonNull
         final ArrayMap<String, MediaRoute2Info> mRoutes;
         String mUniqueId;
+        @NonNull
+        String mPackageName;
+        boolean mIsSystem;
 
         public Builder() {
             mRoutes = new ArrayMap<>();
@@ -152,6 +171,8 @@ public final class MediaRoute2ProviderInfo implements Parcelable {
             Objects.requireNonNull(descriptor, "descriptor must not be null");
 
             mUniqueId = descriptor.mUniqueId;
+            mPackageName = descriptor.mPackageName;
+            mIsSystem = descriptor.mIsSystem;
             mRoutes = new ArrayMap<>(routes);
         }
 
@@ -170,6 +191,7 @@ public final class MediaRoute2ProviderInfo implements Parcelable {
                 return this;
             }
             mUniqueId = uniqueId;
+            mPackageName = packageName;
 
             final ArrayMap<String, MediaRoute2Info> newRoutes = new ArrayMap<>();
             for (Map.Entry<String, MediaRoute2Info> entry : mRoutes.entrySet()) {
@@ -191,6 +213,7 @@ public final class MediaRoute2ProviderInfo implements Parcelable {
          */
         @NonNull
         public Builder setSystemRouteProvider(boolean isSystem) {
+            mIsSystem = isSystem;
             int count = mRoutes.size();
             for (int i = 0; i < count; i++) {
                 MediaRoute2Info route = mRoutes.valueAt(i);
@@ -213,11 +236,23 @@ public final class MediaRoute2ProviderInfo implements Parcelable {
             if (mRoutes.containsKey(route.getOriginalId())) {
                 throw new IllegalArgumentException("A route with the same id is already added");
             }
-            if (mUniqueId != null) {
-                mRoutes.put(route.getOriginalId(),
-                        new MediaRoute2Info.Builder(route).setProviderId(mUniqueId).build());
+            if (Flags.enableMediaRoute2ProviderInfoBuilderCaching()) {
+                MediaRoute2Info.Builder routeBuilder = new MediaRoute2Info.Builder(route);
+                if (mUniqueId != null) {
+                    routeBuilder.setProviderId(mUniqueId);
+                }
+                if (mPackageName != null) {
+                    routeBuilder.setProviderPackageName(mPackageName);
+                }
+                routeBuilder.setSystemRoute(mIsSystem);
+                mRoutes.put(route.getOriginalId(), routeBuilder.build());
             } else {
-                mRoutes.put(route.getOriginalId(), route);
+                if (mUniqueId != null) {
+                    mRoutes.put(route.getOriginalId(),
+                            new MediaRoute2Info.Builder(route).setProviderId(mUniqueId).build());
+                } else {
+                    mRoutes.put(route.getOriginalId(), route);
+                }
             }
             return this;
         }

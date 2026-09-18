@@ -25,17 +25,6 @@ import dagger.multibindings.IntoSet
 
 @Module(subcomponents = [AmbientSuppressionComponent::class])
 object AmbientLowLightModule {
-
-    @Provides
-    @IntoSet
-    fun providesScreenOffLowLightActionEntry(
-        factory: AmbientSuppressionComponent.Factory
-    ): LowLightActionEntry {
-        return LowLightActionEntry(LowLightDisplayBehavior.SCREEN_OFF) {
-            factory.create(PowerManager.FLAG_AMBIENT_SUPPRESSION_ALL).getLowLightAction()
-        }
-    }
-
     @Provides
     @IntoSet
     fun providesDreamOffLowLightActionEntry(

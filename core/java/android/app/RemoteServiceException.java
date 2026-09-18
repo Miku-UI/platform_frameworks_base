@@ -28,7 +28,7 @@ import android.util.AndroidRuntimeException;
  * sub-exceptions.
  *
  * Subclasses must be registered in
- * {@link android.app.ActivityThread#throwRemoteServiceException(java.lang.String, int)}.
+ * {@link android.app.ActivityThread#throwRemoteServiceException(String, int, Bundle)}.
  *
  * @hide
  */
@@ -55,33 +55,6 @@ public class RemoteServiceException extends AndroidRuntimeException {
         private static final String KEY_SERVICE_CLASS_NAME = "serviceclassname";
 
         public ForegroundServiceDidNotStartInTimeException(String msg, Throwable cause) {
-            super(msg, cause);
-        }
-
-        public static Bundle createExtrasForService(@NonNull ComponentName service) {
-            Bundle b = new Bundle();
-            b.putString(KEY_SERVICE_CLASS_NAME, service.getClassName());
-            return b;
-        }
-
-        @Nullable
-        public static String getServiceClassNameFromExtras(@Nullable Bundle extras) {
-            return (extras == null) ? null : extras.getString(KEY_SERVICE_CLASS_NAME);
-        }
-    }
-
-    /**
-     * Exception used to crash an app process when it didn't stop after hitting its time limit.
-     *
-     * @hide
-     */
-    public static class ForegroundServiceDidNotStopInTimeException extends RemoteServiceException {
-        /** The type ID passed to {@link IApplicationThread#scheduleCrash}. */
-        public static final int TYPE_ID = 7;
-
-        private static final String KEY_SERVICE_CLASS_NAME = "serviceclassname";
-
-        public ForegroundServiceDidNotStopInTimeException(String msg, Throwable cause) {
             super(msg, cause);
         }
 
@@ -129,21 +102,6 @@ public class RemoteServiceException extends AndroidRuntimeException {
     }
 
     /**
-     * Exception used to crash an app process when the system finds an error in a user-initiated job
-     * notification.
-     *
-     * @hide
-     */
-    public static class BadUserInitiatedJobNotificationException extends RemoteServiceException {
-        /** The type ID passed to {@link IApplicationThread#scheduleCrash}. */
-        public static final int TYPE_ID = 6;
-
-        public BadUserInitiatedJobNotificationException(String msg) {
-            super(msg);
-        }
-    }
-
-    /**
      * Exception used to crash an app process when it calls a setting activity that requires
      * the {@code REQUEST_PASSWORD_COMPLEXITY} permission.
      *
@@ -169,6 +127,77 @@ public class RemoteServiceException extends AndroidRuntimeException {
         public static final int TYPE_ID = 5;
 
         public CrashedByAdbException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
+     * Exception used to crash an app process when the system finds an error in a user-initiated job
+     * notification.
+     *
+     * @hide
+     */
+    public static class BadUserInitiatedJobNotificationException extends RemoteServiceException {
+        /** The type ID passed to {@link IApplicationThread#scheduleCrash}. */
+        public static final int TYPE_ID = 6;
+
+        public BadUserInitiatedJobNotificationException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
+     * Exception used to crash an app process when it didn't stop after hitting its time limit.
+     *
+     * @hide
+     */
+    public static class ForegroundServiceDidNotStopInTimeException extends RemoteServiceException {
+        /** The type ID passed to {@link IApplicationThread#scheduleCrash}. */
+        public static final int TYPE_ID = 7;
+
+        private static final String KEY_SERVICE_CLASS_NAME = "serviceclassname";
+
+        public ForegroundServiceDidNotStopInTimeException(String msg, Throwable cause) {
+            super(msg, cause);
+        }
+
+        public static Bundle createExtrasForService(@NonNull ComponentName service) {
+            Bundle b = new Bundle();
+            b.putString(KEY_SERVICE_CLASS_NAME, service.getClassName());
+            return b;
+        }
+
+        @Nullable
+        public static String getServiceClassNameFromExtras(@Nullable Bundle extras) {
+            return (extras == null) ? null : extras.getString(KEY_SERVICE_CLASS_NAME);
+        }
+    }
+
+    /**
+     * Exception used to crash an app process when it has enqueued too many broadcasts.
+     *
+     * @hide
+     */
+    public static class ExcessiveEnqueuedBroadcastsException extends RemoteServiceException {
+        /** The type ID passed to {@link IApplicationThread#scheduleCrash}. */
+        public static final int TYPE_ID = 8;
+
+        public ExcessiveEnqueuedBroadcastsException(String msg) {
+            super(msg);
+        }
+    }
+
+    /**
+     * Exception used to crash an app process when the system finds an error in a computer control
+     * notification.
+     *
+     * @hide
+     */
+    public static class BadComputerControlNotificationException extends RemoteServiceException {
+        /** The type ID passed to {@link IApplicationThread#scheduleCrash}. */
+        public static final int TYPE_ID = 9;
+
+        public BadComputerControlNotificationException(String msg) {
             super(msg);
         }
     }

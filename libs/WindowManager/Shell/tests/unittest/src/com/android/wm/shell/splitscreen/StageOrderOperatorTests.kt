@@ -29,41 +29,37 @@ import com.android.wm.shell.shared.split.SplitScreenConstants.SNAP_TO_2_50_50
 import com.android.wm.shell.shared.split.SplitScreenConstants.SNAP_TO_2_66_33
 import com.android.wm.shell.splitscreen.StageTaskListener.StageListenerCallbacks
 import com.android.wm.shell.windowdecor.WindowDecorViewModel
+import java.util.Optional
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
-import java.util.Optional
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class StageOrderOperatorTests : ShellTestCase() {
 
-    @Mock
-    lateinit var mTaskOrganizer: ShellTaskOrganizer
-    @Mock
-    lateinit var mSyncQueue: SyncTransactionQueue
-    @Mock
-    lateinit var stageListenerCallbacks: StageListenerCallbacks
-    @Mock
-    lateinit var iconProvider: IconProvider
-    @Mock
-    lateinit var windowDecorViewModel: Optional<WindowDecorViewModel>
+    @Mock lateinit var mTaskOrganizer: ShellTaskOrganizer
+    @Mock lateinit var mSyncQueue: SyncTransactionQueue
+    @Mock lateinit var stageListenerCallbacks: StageListenerCallbacks
+    @Mock lateinit var iconProvider: IconProvider
+    @Mock lateinit var windowDecorViewModel: Optional<WindowDecorViewModel>
 
     lateinit var stageOrderOperator: StageOrderOperator
 
     @Before
     fun setup() {
-        stageOrderOperator = StageOrderOperator(
-            context,
-            mTaskOrganizer,
-            DEFAULT_DISPLAY,
-            stageListenerCallbacks,
-            mSyncQueue,
-            iconProvider,
-            windowDecorViewModel,
-            Optional.empty(),
+        stageOrderOperator =
+            StageOrderOperator(
+                context,
+                mTaskOrganizer,
+                DEFAULT_DISPLAY,
+                stageListenerCallbacks,
+                mSyncQueue,
+                iconProvider,
+                windowDecorViewModel,
+                Optional.empty(),
             )
         assert(stageOrderOperator.activeStages.size == 0)
     }

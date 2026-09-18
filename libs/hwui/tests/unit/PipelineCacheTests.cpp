@@ -15,9 +15,11 @@
  */
 
 #include <android-base/scopeguard.h>
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -25,6 +27,8 @@
 #include "tests/common/TestUtils.h"
 
 using namespace android::uirenderer;
+
+using ::testing::ElementsAre;
 
 namespace {
 
@@ -88,7 +92,7 @@ TEST(PipelineCacheTest, existingFile_backgroundWrite_overwritesData) {
     PipelineCacheStore cache(0);
 
     // Act
-    cache.store(file->path(), std::vector<uint8_t>({'b', 'l', 'o', 'b'}));
+    cache.store(file->path(), SkData::MakeWithCString("a"), SkData::MakeWithCString("b"));
 
     // Assert
     ASSERT_EQ(FileEventMonitor::AwaitResult::Success,
@@ -97,6 +101,8 @@ TEST(PipelineCacheTest, existingFile_backgroundWrite_overwritesData) {
     auto result = acquire(file->path(), mem);
     auto _ = android::base::make_scope_guard([=]() { release(mem); });
     ASSERT_EQ(AcquireResult::Success, result.outcome);
-    ASSERT_EQ(std::string_view("blob"),
-              std::string_view(static_cast<const char*>(mem.data), mem.size));
+    // Data is prefixed with the size of the key as uint32_t
+    // Strings are null-terminated
+    ASSERT_THAT(std::span(static_cast<const uint8_t*>(mem.data), mem.size),
+                ElementsAre(2, 0, 0, 0, 'a', '\0', 'b', '\0'));
 }

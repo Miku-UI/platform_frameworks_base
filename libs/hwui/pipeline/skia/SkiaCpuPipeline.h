@@ -52,7 +52,8 @@ public:
     bool swapBuffers(const renderthread::Frame& frame, IRenderPipeline::DrawResult& drawResult,
                      const SkRect& screenDirty, FrameInfo* currentFrameInfo,
                      bool* requireSwap) override {
-        return false;
+        *requireSwap = drawResult.success;
+        return *requireSwap;
     }
     DeferredLayerUpdater* createTextureLayer() override { return nullptr; }
     bool setSurface(ANativeWindow* surface, renderthread::SwapBehavior swapBehavior) override;
@@ -68,8 +69,11 @@ public:
         return sSnapMatrix;
     }
 
+    ANativeWindow* getSurface() override { return mNativeWindow.get(); }
+
 private:
     sk_sp<SkSurface> mSurface;
+    sp<ANativeWindow> mNativeWindow;
 };
 
 } /* namespace skiapipeline */

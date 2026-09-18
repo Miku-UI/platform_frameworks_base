@@ -1114,9 +1114,6 @@ class SettingsProtoDumpUtil {
                 Settings.Global.NOTIFICATION_SNOOZE_OPTIONS,
                 GlobalSettingsProto.Notification.SNOOZE_OPTIONS);
         dumpSetting(s, p,
-                Settings.Global.SMART_REPLIES_IN_NOTIFICATIONS_FLAGS,
-                GlobalSettingsProto.Notification.SMART_REPLIES_IN_NOTIFICATIONS_FLAGS);
-        dumpSetting(s, p,
                 Settings.Global.DISABLE_SCREEN_SHARE_PROTECTIONS_FOR_APPS_AND_NOTIFICATIONS,
                 GlobalSettingsProto.Notification
                         .DISABLE_SCREEN_SHARE_PROTECTIONS_FOR_APPS_AND_NOTIFICATIONS);
@@ -1844,6 +1841,12 @@ class SettingsProtoDumpUtil {
                 Settings.Secure.ACCESSIBILITY_KEY_GESTURE_TARGETS,
                 SecureSettingsProto.Accessibility.ACCESSIBILITY_KEY_GESTURE_TARGETS);
         dumpSetting(s, p,
+                Settings.Secure.ACCESSIBILITY_TOP_ROW_KEY_TARGETS,
+                SecureSettingsProto.Accessibility.ACCESSIBILITY_TOP_ROW_KEY_TARGETS);
+        dumpSetting(s, p,
+                Settings.Secure.ACCESSIBILITY_QUICK_ACCESS_TARGETS,
+                SecureSettingsProto.Accessibility.ACCESSIBILITY_QUICK_ACCESS_TARGETS);
+        dumpSetting(s, p,
                 Settings.Secure.ACCESSIBILITY_MAGNIFICATION_CAPABILITY,
                 SecureSettingsProto.Accessibility.ACCESSIBILITY_MAGNIFICATION_CAPABILITY);
         dumpSetting(s, p,
@@ -1891,10 +1894,6 @@ class SettingsProtoDumpUtil {
                 Settings.Secure.ACCESSIBILITY_MAGNIFICATION_CURSOR_FOLLOWING_MODE,
                 SecureSettingsProto.Accessibility
                         .ACCESSIBILITY_MAGNIFICATION_CURSOR_FOLLOWING_MODE);
-        dumpSetting(s, p,
-                Settings.Secure.ACCESSIBILITY_MAGNIFICATION_TWO_FINGER_TRIPLE_TAP_ENABLED,
-                SecureSettingsProto.Accessibility
-                        .ACCESSIBILITY_MAGNIFICATION_TWO_FINGER_TRIPLE_TAP_ENABLED);
         dumpSetting(s, p,
                 Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MAGNIFY_NAV_AND_IME,
                 SecureSettingsProto.Accessibility
@@ -2565,6 +2564,9 @@ class SettingsProtoDumpUtil {
         dumpSetting(s, p,
                 Settings.Secure.SCREENSAVER_COMPONENTS,
                 SecureSettingsProto.Screensaver.COMPONENTS);
+        dumpSetting(s, p,
+                Settings.Secure.SCREENSAVER_ACTIVE_COMPONENT,
+                SecureSettingsProto.Screensaver.ACTIVE_COMPONENT);
         dumpSetting(s, p,
                 Settings.Secure.SCREENSAVER_ACTIVATE_ON_DOCK,
                 SecureSettingsProto.Screensaver.ACTIVATE_ON_DOCK);

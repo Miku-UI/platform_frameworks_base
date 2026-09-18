@@ -67,6 +67,7 @@ import com.android.settingslib.fuelgauge.BatterySaverUtils;
 import com.android.systemui.animation.DialogCuj;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.animation.Expandable;
+import com.android.systemui.animation.TransitionAnimator;
 import com.android.systemui.broadcast.BroadcastSender;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.plugins.ActivityStarter;
@@ -711,7 +712,12 @@ public class PowerNotificationWarnings implements PowerUI.WarningsUI {
                     new DialogCuj(InteractionJankMonitor.CUJ_SHADE_DIALOG_OPEN,
                             INTERACTION_JANK_TAG));
             if (controller != null) {
-                mDialogTransitionAnimator.show(d, controller);
+                if (TransitionAnimator.Companion.dynamicTargetResolutionEnabled()) {
+                    mDialogTransitionAnimator.show(d,
+                            ref.get()::dialogTransitionController, controller.getCuj());
+                } else {
+                    mDialogTransitionAnimator.show(d, controller);
+                }
             } else {
                 d.show();
             }

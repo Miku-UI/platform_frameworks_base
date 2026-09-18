@@ -355,7 +355,9 @@ public class SuspendedAppActivity extends AlertActivity
                 }
                 break;
         }
-        mUsm.reportUserInteraction(mSuspendingPackage, mUserId);
+        if (mSuspendingPackage != null) {
+            mUsm.reportUserInteraction(mSuspendingPackage, mUserId);
+        }
         finish();
     }
 

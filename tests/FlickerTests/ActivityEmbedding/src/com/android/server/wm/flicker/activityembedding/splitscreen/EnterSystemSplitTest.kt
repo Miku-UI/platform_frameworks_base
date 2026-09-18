@@ -65,7 +65,7 @@ class EnterSystemSplitTest(flicker: FlickerTest) : ActivityEmbeddingTestBase(fli
                 wmHelper.currentState.layerState.physicalDisplayBounds ?: error("Display not found")
 
             // Record the displayBounds before `goHome()` in case the launcher is fixed-portrait.
-            tapl.goHome()
+            device.pressHome()
             wmHelper
                     .StateSyncBuilder()
                     .withAppTransitionIdle()

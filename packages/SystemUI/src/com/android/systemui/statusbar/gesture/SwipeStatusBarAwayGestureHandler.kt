@@ -18,24 +18,27 @@ package com.android.systemui.statusbar.gesture
 
 import android.content.Context
 import android.view.MotionEvent
-import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
 import com.android.systemui.settings.DisplayTracker
 import com.android.systemui.statusbar.window.StatusBarWindowControllerStore
 import javax.inject.Inject
 
 /** A class to detect when a user swipes away the status bar. */
-@SysUISingleton
+@PerDisplaySingleton
 class SwipeStatusBarAwayGestureHandler
 @Inject
 constructor(
-    context: Context,
+    @DisplayAware private val context: Context,
     displayTracker: DisplayTracker,
     logger: SwipeUpGestureLogger,
     private val statusBarWindowControllerStore: StatusBarWindowControllerStore,
 ) : SwipeUpGestureHandler(context, displayTracker, logger, loggerTag = LOGGER_TAG) {
     override fun startOfGestureIsWithinBounds(ev: MotionEvent): Boolean {
         // Gesture starts just below the status bar
-        val statusBarWindowController = statusBarWindowControllerStore.defaultDisplay
+        val statusBarWindowController =
+            statusBarWindowControllerStore.forDisplay(context.displayId)
+                ?: statusBarWindowControllerStore.defaultDisplay
         return ev.y >= statusBarWindowController.statusBarHeight &&
             ev.y <= 3 * statusBarWindowController.statusBarHeight
     }

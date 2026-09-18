@@ -129,11 +129,11 @@ public final class MessageStackTest {
             stack.pushMessage(Message.obtain(h, keepWhat));
         }
         stack.heapSweep();
-        assertTrue(stack.moveMatchingToFreelist(new MatchHandlerWhatAndObject(),
+        assertEquals(5, stack.moveMatchingToFreelist(new MatchHandlerWhatAndObject(),
                 h, removeWhat, null, null, 0));
 
         // Try deleting a message we never pushed
-        assertFalse(stack.moveMatchingToFreelist(new MatchHandlerWhatAndObject(),
+        assertEquals(0, stack.moveMatchingToFreelist(new MatchHandlerWhatAndObject(),
                 h, neverPushedWhat, null, null, 0));
 
         assertEquals(5, stack.freelistSizeForTest());
@@ -263,6 +263,49 @@ public final class MessageStackTest {
     }
 
     /**
+     * Verify removing a message that was at the top during a heapSweep, but is no longer at the
+     * top of the stack due to new messages being pushed.
+     */
+    @Test
+    public void testRemoveMessageAfterPushingOnTopOfIt() {
+        MessageStack stack = new MessageStack();
+        Handler h = new Handler(Looper.getMainLooper());
+        Message m1 = Message.obtain(h, 1);
+        Message m2 = Message.obtain(h, 2);
+
+        stack.pushMessage(m1);
+        stack.pushMessage(m2); // m2 is now at the top
+        assertEquals(2, stack.sizeForTest());
+
+        // m2 was at the top of the stack, so its prev link will be null after the sweep.
+        stack.heapSweep();
+        assertEquals(2, stack.combinedHeapSizesForTest());
+
+        // Push a new message on top of m2.
+        Message m3 = Message.obtain(h, 3);
+        stack.pushMessage(m3);
+        assertEquals(3, stack.sizeForTest());
+        // Only m1 and m2 are in the heap, since `heapSweep` is not invoked after m3 is pushed.
+        assertEquals(2, stack.combinedHeapSizesForTest());
+
+        // Now remove m2. This will fail the sTop.CAS in removeMessage() because m3, not m2, is the
+        // top, forcing the creation of backlinks before removal.
+        stack.remove(m2);
+
+        // Verify m2 is gone but m1 and m3 remain.
+        assertEquals(2, stack.sizeForTest());
+        // Only m1 is in the heap: m2 was removed from heap and m3 is never in the heap (because
+        // `heapSweep` is not invoked since m3 was pushed to the stack.)
+        assertEquals(1, stack.combinedHeapSizesForTest());
+        assertFalse(stack.hasMessages(new MatchHandlerWhatAndObject(),
+                h, 2, null, null, 0));
+        assertTrue(stack.hasMessages(new MatchHandlerWhatAndObject(),
+                h, 1, null, null, 0));
+        assertTrue(stack.hasMessages(new MatchHandlerWhatAndObject(),
+                h, 3, null, null, 0));
+    }
+
+    /**
      * Peek messages from a stack with only removed messages and verify that the return is null.
      */
     @Test
@@ -364,5 +407,54 @@ public final class MessageStackTest {
         assertEquals(5, stack.sizeForTest());
         assertEquals(5, stack.freelistSizeForTest());
         assertEquals(5, stack.combinedHeapSizesForTest());
+    }
+
+    /*
+     * Grow the underlying heaps and ensure that they shrink after item deletion.
+     */
+    @Test
+    public void testMessageHeapShrunk() {
+        MessageStack stack = new MessageStack();
+        final int initialHeapCapacity = stack.combinedHeapCapacitiesForTest();
+        final int numMessagesToPush = 2 * initialHeapCapacity;
+        for (int i = 0; i < numMessagesToPush; i++) {
+            stack.pushMessage(new Message());
+        }
+        stack.heapSweep();
+        final int grownHeapCapacity = stack.combinedHeapCapacitiesForTest();
+        assertEquals(numMessagesToPush, stack.moveMatchingToFreelist(new MatchAllMessages(),
+                null, 0, null, null, 0));
+        stack.drainFreelist();
+        assertTrue("Expected stack to shrink: " + grownHeapCapacity + " <= "
+                + stack.combinedHeapCapacitiesForTest(),
+                grownHeapCapacity > stack.combinedHeapCapacitiesForTest());
+    }
+
+    /*
+     * Add two messages to stack and check that removing messages with MatchAllMessages only removes
+     * one message if firstMatchOnly is true.
+     */
+    @Test
+    public void testMoveSyncBarrierToFreelist() {
+        MessageStack stack = new MessageStack();
+        int token1 = 123;
+        int token2 = 456;
+
+
+        Message msg1 = Message.obtain();
+        Message msg2 = Message.obtain();
+        msg1.arg1 = token1;
+        msg2.arg1 = token1;
+
+        Message msg3 = Message.obtain();
+        msg3.arg1 = token2;
+
+        stack.pushMessage(msg1);
+        stack.pushMessage(msg2);
+        stack.pushMessage(msg3);
+
+        assertTrue(stack.moveSyncBarrierToFreelist(token1));
+        assertEquals(2, stack.sizeForTest());
+        assertEquals(1, stack.freelistSizeForTest());
     }
 }

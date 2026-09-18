@@ -53,17 +53,16 @@ import com.android.systemui.keyguard.data.repository.BiometricType.REAR_FINGERPR
 import com.android.systemui.keyguard.data.repository.BiometricType.SIDE_FINGERPRINT
 import com.android.systemui.keyguard.data.repository.BiometricType.UNDER_DISPLAY_FINGERPRINT
 import com.android.systemui.keyguard.shared.model.DevicePosture
+import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.fake
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.mobileConnectionsRepository
 import com.android.systemui.statusbar.policy.DevicePostureController
 import com.android.systemui.testKosmos
-import com.android.systemui.user.data.repository.FakeUserRepository
+import com.android.systemui.user.data.repository.fakeUserRepository
 import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -104,13 +103,13 @@ class BiometricSettingsRepositoryTest : SysuiTestCase() {
     @Captor
     private lateinit var biometricManagerCallback:
         ArgumentCaptor<IBiometricEnabledOnKeyguardCallback.Stub>
-    private lateinit var userRepository: FakeUserRepository
+    private val userRepository = kosmos.fakeUserRepository
     private lateinit var devicePostureRepository: FakeDevicePostureRepository
     private lateinit var facePropertyRepository: FakeFacePropertyRepository
     private lateinit var fingerprintPropertyRepository: FakeFingerprintPropertyRepository
     private val mobileConnectionsRepository = kosmos.mobileConnectionsRepository
 
-    private lateinit var testDispatcher: TestDispatcher
+    private val testDispatcher = kosmos.testDispatcher
     private lateinit var testScope: TestScope
     private var testableLooper: TestableLooper? = null
 
@@ -118,9 +117,7 @@ class BiometricSettingsRepositoryTest : SysuiTestCase() {
     fun setUp() {
         MockitoAnnotations.initMocks(this)
         testableLooper = TestableLooper.get(this)
-        testDispatcher = StandardTestDispatcher()
         testScope = TestScope(testDispatcher)
-        userRepository = FakeUserRepository()
         devicePostureRepository = FakeDevicePostureRepository()
         facePropertyRepository = FakeFacePropertyRepository()
         fingerprintPropertyRepository = FakeFingerprintPropertyRepository()
@@ -142,6 +139,7 @@ class BiometricSettingsRepositoryTest : SysuiTestCase() {
                 devicePolicyManager = devicePolicyManager,
                 scope = testScope.backgroundScope,
                 backgroundDispatcher = testDispatcher,
+                backgroundLooper = testableLooper!!.looper,
                 biometricManager = biometricManager,
                 devicePostureRepository = devicePostureRepository,
                 dumpManager = dumpManager,

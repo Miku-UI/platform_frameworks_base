@@ -37,16 +37,15 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/**
- * Open the app in desktop mode via app handle menu.
- */
+/** Open the app in desktop mode via app handle menu. */
 @RequiresDesktopDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
 class EnterDesktopWithAppHandleMenuFlickerTest(flicker: FlickerTest) :
     DesktopModeBaseTest(flicker) {
-    inner class EnterDesktopWithAppHandleMenuScenario : EnterDesktopWithAppHandleMenu(flicker.scenario.startRotation)
+    inner class EnterDesktopWithAppHandleMenuScenario :
+        EnterDesktopWithAppHandleMenu(flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -58,28 +57,22 @@ class EnterDesktopWithAppHandleMenuFlickerTest(flicker: FlickerTest) :
         get() = {
             setup {
                 scenario.baseSetup()
+                scenario.setup()
             }
-            transitions {
-                scenario.enterDesktopWithAppHandleMenu()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            transitions { scenario.enterDesktopWithAppHandleMenu() }
+            teardown { scenario.teardown() }
         }
 
     @Test
     fun appWindowInsideDisplayBoundsAtEnd() = flicker.appWindowInsideDisplayBoundsAtEnd(testApp)
 
-    @Test
-    fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(testApp)
+    @Test fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(testApp)
 
-    @Test
-    fun layerIsVisibleAtEnd() = flicker.layerIsVisibleAtEnd(testApp)
+    @Test fun layerIsVisibleAtEnd() = flicker.layerIsVisibleAtEnd(testApp)
 
     @Test
     fun wallpaperActivityBecomesVisible() =
         flicker.appWindowBecomesVisible(DESKTOP_WALLPAPER_ACTIVITY)
-
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

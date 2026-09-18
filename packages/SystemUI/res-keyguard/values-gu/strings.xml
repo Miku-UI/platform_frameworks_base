@@ -45,6 +45,7 @@
     <string name="keyguard_accessibility_password" msgid="3524161948484801450">"ઉપકરણનો પાસવર્ડ"</string>
     <string name="keyguard_accessibility_sim_pin_area" msgid="6272116591533888062">"સિમ પિન ક્ષેત્ર"</string>
     <string name="keyguard_accessibility_sim_puk_area" msgid="5537294043180237374">"સિમ PUK ક્ષેત્ર"</string>
+    <string name="keyguard_accessibility_pin_delete_long_click" msgid="1530074796041838525">"બધા પિન ડિલીટ કરવા માટે થોડીવાર દબાવી રાખો"</string>
     <string name="keyboardview_keycode_delete" msgid="8489719929424895174">"ડિલીટ કરો"</string>
     <string name="disable_carrier_button_text" msgid="7153361131709275746">"eSIMને અક્ષમ કરો"</string>
     <string name="error_disable_esim_title" msgid="3802652622784813119">"ઇ-સિમ બંધ કરી શકાતું નથી"</string>
@@ -85,9 +86,20 @@
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"ફિંગરપ્રિન્ટ વડે અનલૉક કરી શકાતું નથી. ઘણા બધા પ્રયાસો કર્યા."</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"ટ્રસ્ટ એજન્ટ ઉપલબ્ધ નથી"</string>
     <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"ખોટા પિન વડે ઘણા બધા પ્રયાસો કર્યા"</string>
+    <string name="kg_primary_auth_duplicate_guess_pin" msgid="5834891656916692329">"તે પિન પહેલેથી અજમાવી લીધો છે. કોઈ બીજો પિન અજમાવી જુઓ."</string>
+    <string name="kg_primary_auth_duplicate_guess_pattern" msgid="3827593245962385968">"તે પૅટર્ન પહેલેથી અજમાવી લીધી છે. કોઈ બીજી પૅટર્ન અજમાવી જુઓ."</string>
+    <string name="kg_primary_auth_duplicate_guess_password" msgid="3153406042812407458">"તે પાસવર્ડ પહેલેથી અજમાવી લીધો છે. કોઈ બીજો પાસવર્ડ અજમાવી જુઓ."</string>
     <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"ખોટી પૅટર્ન વડે ઘણા બધા પ્રયાસો કર્યા"</string>
     <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"ખોટા પાસવર્ડ વડે ઘણા બધા પ્રયાસો કર્યા"</string>
+    <string name="kg_primary_auth_locked_out_pin_shortlink" msgid="1294871994741389848">"ખોટા પિન વડે ઘણા બધા પ્રયાસો કરવામાં આવ્યા છે\n<xliff:g id="SHORTLINK">{shortlink}</xliff:g> પર જઈને વધુ જાણો"</string>
+    <string name="kg_primary_auth_locked_out_pattern_shortlink" msgid="5998598232858156495">"ખોટી પૅટર્ન વડે ઘણા બધા પ્રયાસો કરવામાં આવ્યા છે\n<xliff:g id="SHORTLINK">{shortlink}</xliff:g> પર જઈને વધુ જાણો"</string>
+    <string name="kg_primary_auth_locked_out_password_shortlink" msgid="7035847891707609104">"ખોટા પાસવર્ડ વડે ઘણા બધા પ્રયાસો કરવામાં આવ્યા છે\n<xliff:g id="SHORTLINK">{shortlink}</xliff:g> પર જઈને વધુ જાણો"</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{# સેકન્ડમાં ફરી પ્રયાસ કરો.}one{# સેકન્ડમાં ફરી પ્રયાસ કરો.}other{# સેકન્ડમાં ફરી પ્રયાસ કરો.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_seconds" msgid="5869847493314053274">"{count,plural, =1{# સેકન્ડમાં ફરી પ્રયાસ કરો}one{# સેકન્ડમાં ફરી પ્રયાસ કરો}other{# સેકન્ડમાં ફરી પ્રયાસ કરો}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_minutes" msgid="6688071439818994316">"{count,plural, =1{# મિનિટમાં ફરી પ્રયાસ કરો}one{# મિનિટમાં ફરી પ્રયાસ કરો}other{# મિનિટમાં ફરી પ્રયાસ કરો}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_hours" msgid="4895375498917738857">"{count,plural, =1{# કલાકમાં ફરી પ્રયાસ કરો}one{# કલાક પછી ફરી પ્રયાસ કરો}other{# કલાક પછી ફરી પ્રયાસ કરો}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_days" msgid="5427787465019979593">"{count,plural, =1{# દિવસમાં ફરી પ્રયાસ કરો}one{# દિવસમાં ફરી પ્રયાસ કરો}other{# દિવસમાં ફરી પ્રયાસ કરો}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_years" msgid="7115333753941425268">"{count,plural, =1{# વર્ષમાં ફરી પ્રયાસ કરો}one{# વર્ષમાં ફરી પ્રયાસ કરો}other{# વર્ષમાં ફરી પ્રયાસ કરો}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"સિમ પિન દાખલ કરો"</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"\"<xliff:g id="CARRIER">%1$s</xliff:g>\" માટે સિમ પિન દાખલ કરો."</string>
     <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g> મોબાઇલ સેવા વગર ઉપકરણનો ઉપયોગ કરવા માટે ઇ-સિમને બંધ કરો."</string>
@@ -112,6 +124,9 @@
     <string name="kg_prompt_reason_restart_pattern" msgid="3321211830602827742">"ડિવાઇસ ફરી ચાલુ થયા પછી પૅટર્ન આવશ્યક છે"</string>
     <string name="kg_prompt_reason_restart_pin" msgid="2672166323886110512">"ડિવાઇસ ફરી ચાલુ થયા પછી પિન આવશ્યક છે"</string>
     <string name="kg_prompt_reason_restart_password" msgid="3967993994418885887">"ડિવાઇસ ફરી ચાલુ થયા પછી પાસવર્ડ આવશ્યક છે"</string>
+    <string name="kg_prompt_reason_signin_pattern" msgid="1650886553162854395">"સાઇન ઇન કરવા માટે પૅટર્ન જરૂરી છે"</string>
+    <string name="kg_prompt_reason_signin_pin" msgid="636031498838532631">"સાઇન ઇન કરવા માટે પિન જરૂરી છે"</string>
+    <string name="kg_prompt_reason_signin_password" msgid="1020939174735616114">"સાઇન ઇન કરવા માટે પાસવર્ડ જરૂરી છે"</string>
     <string name="kg_prompt_reason_timeout_pattern" msgid="5514969660010197363">"વધારાની સુરક્ષા માટે, તેના બદલે પૅટર્નનો ઉપયોગ કરો"</string>
     <string name="kg_prompt_reason_timeout_pin" msgid="4227962059353859376">"વધારાની સુરક્ષા માટે, તેના બદલે પિનનો ઉપયોગ કરો"</string>
     <string name="kg_prompt_reason_timeout_password" msgid="8810879144143933690">"વધારાની સુરક્ષા માટે, તેના બદલે પાસવર્ડનો ઉપયોગ કરો"</string>

@@ -17,14 +17,12 @@
 package com.android.systemui.qs.tiles.impl.wifi.domain.interactor
 
 import android.os.UserHandle
-import android.platform.test.annotations.RequiresFlagsDisabled
-import android.platform.test.annotations.RequiresFlagsEnabled
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.platform.test.flag.junit.FlagsParameterization
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags as AconfigFlags
-import com.android.systemui.Flags.FLAG_QS_SPLIT_INTERNET_TILE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.FakeFeatureFlagsClassic
 import com.android.systemui.flags.Flags
@@ -33,19 +31,19 @@ import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.log.table.logcatTableLogBuffer
+import com.android.systemui.qs.flags.QsSplitInternetTile
 import com.android.systemui.qs.tiles.impl.wifi.domain.model.WifiTileModel
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.connectivity.WifiIcons
 import com.android.systemui.statusbar.connectivity.ui.MobileContextProvider
 import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
-import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionState
-import com.android.systemui.statusbar.pipeline.mobile.data.model.NetworkNameModel
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.FakeMobileConnectionRepository
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.FakeMobileConnectionsRepository
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIconsInteractor
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIconsInteractorImpl
 import com.android.systemui.statusbar.pipeline.mobile.util.FakeMobileMappingsProxy
 import com.android.systemui.statusbar.pipeline.shared.data.repository.FakeConnectivityRepository
+import com.android.systemui.statusbar.pipeline.shared.ui.model.WifiToggleState
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.FakeWifiRepository
 import com.android.systemui.statusbar.pipeline.wifi.domain.interactor.WifiInteractorImpl
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel
@@ -113,16 +111,7 @@ class WifiTileDataInteractorTest(flags: FlagsParameterization) : SysuiTestCase()
                 },
             )
 
-        underTest =
-            WifiTileDataInteractor(
-                context,
-                testScope.backgroundScope,
-                FakeAirplaneModeRepository(),
-                connectivityRepository,
-                mobileIconsInteractor,
-                mobileContextProvider,
-                wifiInteractor,
-            )
+        underTest = WifiTileDataInteractor(context, FakeAirplaneModeRepository(), wifiInteractor)
     }
 
     @Test
@@ -132,9 +121,8 @@ class WifiTileDataInteractorTest(flags: FlagsParameterization) : SysuiTestCase()
 
             connectivityRepository.setWifiConnected()
             wifiRepository.setIsWifiDefault(true)
-            wifiRepository.setWifiNetwork(
-                WifiNetworkModel.Active.of(isValidated = true, level = 4, ssid = "Test SSID")
-            )
+            wifiRepository.setIsWifiEnabled(true)
+            wifiRepository.setWifiNetwork(WifiNetworkModel.Active.of(level = 4, ssid = "Test SSID"))
 
             val expectedModel =
                 WifiTileModel.Active(
@@ -153,76 +141,61 @@ class WifiTileDataInteractorTest(flags: FlagsParameterization) : SysuiTestCase()
 
             val expectedModel =
                 WifiTileModel.Inactive(
-                    icon = WifiTileIconModel(R.drawable.ic_signal_wifi_off),
-                    secondaryLabel = context.getString(R.string.quick_settings_networks_unavailable),
-                )
-            assertThat(tileData?.icon).isEqualTo(expectedModel.icon)
-            assertThat(tileData?.secondaryLabel).isEqualTo(expectedModel.secondaryLabel)
-        }
-
-    @Test
-    fun tileData_ethernetIsDefault_showsEthernet() =
-        kosmos.runTest {
-            val tileData by collectLastValue(underTest.tileData())
-            wifiRepository.setWifiNetwork(WifiNetworkModel.Inactive())
-            connectivityRepository.setEthernetConnected()
-
-            val expectedModel =
-                WifiTileModel.Active(
-                    icon = WifiTileIconModel(R.drawable.stat_sys_ethernet_fully),
-                    secondaryLabel =
-                        context.getString(
-                            com.android.settingslib.R.string.accessibility_ethernet_connected
-                        ),
+                    icon = WifiTileIconModel(R.drawable.ic_wifi_off),
+                    secondaryLabel = null,
                 )
             assertThat(tileData).isEqualTo(expectedModel)
         }
 
     @Test
-    fun tileData_mobileIsDefault_showsMobileNetworkName() =
+    fun tileData_wifiPausing_showsInactive() =
         kosmos.runTest {
             val tileData by collectLastValue(underTest.tileData())
 
             wifiRepository.setIsWifiEnabled(true)
-            wifiRepository.setWifiNetwork(WifiNetworkModel.Inactive())
-
-            connectivityRepository.setMobileConnected()
-            mobileConnectionsRepository.apply {
-                activeMobileDataRepository.value = mobileConnectionRepository
-                activeMobileDataSubscriptionId.value = SUB_ID
-                setMobileConnectionRepositoryMap(mapOf(SUB_ID to mobileConnectionRepository))
-            }
-            mobileConnectionRepository.apply {
-                isInService.value = true
-                dataConnectionState.value = DataConnectionState.Connected
-                dataEnabled.value = true
-                networkName.value = NetworkNameModel.Default("Test Mobile")
-            }
+            wifiRepository.setToggleState(WifiToggleState.Pausing)
 
             val expectedModel =
                 WifiTileModel.Inactive(
-                    icon = WifiTileIconModel(WifiIcons.WIFI_NO_SIGNAL),
-                    secondaryLabel = "Test Mobile",
+                    icon = WifiTileIconModel(R.drawable.vd_wifi),
+                    secondaryLabel = "Networks unavailable",
                 )
 
-            assertThat(tileData?.icon).isEqualTo(expectedModel.icon)
-            assertThat(tileData?.secondaryLabel.toString()).contains("Test Mobile")
+            assertThat(tileData!!).isEqualTo(expectedModel)
         }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_QS_SPLIT_INTERNET_TILE)
+    fun tileData_wifiScanning_showsActive() =
+        kosmos.runTest {
+            val tileData by collectLastValue(underTest.tileData())
+
+            wifiRepository.setIsWifiEnabled(true)
+            wifiRepository.setToggleState(WifiToggleState.Scanning)
+
+            val expectedModel =
+                WifiTileModel.Active(
+                    icon = WifiTileIconModel(R.drawable.ic_wifi_connecting),
+                    secondaryLabel = "Scanning for Wi‑Fi...",
+                )
+
+            assertThat(tileData!!).isEqualTo(expectedModel)
+        }
+
+    @Test
+    @EnableFlags(QsSplitInternetTile.FLAG_NAME)
+    @DisableFlags(QsSplitInternetTile.SUPPRESSION_FLAG_NAME)
     fun availability_flagEnabled_isTrue() =
         kosmos.runTest {
-            assertThat(AconfigFlags.qsSplitInternetTile()).isTrue()
+            assertThat(QsSplitInternetTile.isEnabled).isTrue()
             val availability by collectLastValue(underTest.availability(USER))
             assertThat(availability).isTrue()
         }
 
     @Test
-    @RequiresFlagsDisabled(FLAG_QS_SPLIT_INTERNET_TILE)
+    @DisableFlags(QsSplitInternetTile.FLAG_NAME)
     fun availability_flagDisabled_isFalse() =
         kosmos.runTest {
-            assertThat(AconfigFlags.qsSplitInternetTile()).isFalse()
+            assertThat(QsSplitInternetTile.isEnabled).isFalse()
             val availability by collectLastValue(underTest.availability(USER))
             assertThat(availability).isFalse()
         }

@@ -21,9 +21,7 @@ import android.graphics.PointF
 import android.util.MathUtils
 import com.android.app.animation.Interpolators
 
-/**
- * The fraction after which we start fading in when going from a gone widget to a visible one
- */
+/** The fraction after which we start fading in when going from a gone widget to a visible one */
 private const val GONE_FADE_FRACTION = 0.8f
 /**
  * The fraction after which we start fading in going from a gone widget to a visible one in guts
@@ -36,9 +34,7 @@ private const val GONE_FADE_GUTS_FRACTION = 0.286f
  */
 private const val VISIBLE_FADE_GUTS_FRACTION = 0.355f
 
-/**
- * The amont we're scaling appearing views
- */
+/** The amont we're scaling appearing views */
 private const val GONE_SCALE_AMOUNT = 0.8f
 
 /**
@@ -47,9 +43,7 @@ private const val GONE_SCALE_AMOUNT = 0.8f
  */
 open class TransitionLayoutController {
 
-    /**
-     * The layout that this controller controls
-     */
+    /** The layout that this controller controls */
     private var transitionLayout: TransitionLayout? = null
     private var currentState = TransitionViewState()
     private var animationStartState: TransitionViewState? = null
@@ -62,9 +56,7 @@ open class TransitionLayoutController {
 
     init {
         animator.apply {
-            addUpdateListener {
-                updateStateFromAnimation()
-            }
+            addUpdateListener { updateStateFromAnimation() }
             interpolator = Interpolators.FAST_OUT_SLOW_IN
         }
     }
@@ -73,11 +65,13 @@ open class TransitionLayoutController {
         if (animationStartState == null || !animator.isRunning) {
             return
         }
-        currentState = getInterpolatedState(
+        currentState =
+            getInterpolatedState(
                 startState = animationStartState!!,
                 endState = state,
                 progress = animator.animatedFraction,
-                reusedState = currentState)
+                reusedState = currentState,
+            )
         applyStateToLayout(currentState)
     }
 
@@ -96,40 +90,56 @@ open class TransitionLayoutController {
      * @param viewState the viewState to make gone
      * @param disappearParameters parameters that determine how the view should disappear
      * @param goneProgress how much is the view gone? 0 for not gone at all and 1 for fully
-     *                     disappeared
+     *   disappeared
      * @param reusedState optional parameter for state to be reused to avoid allocations
      */
     fun getGoneState(
         viewState: TransitionViewState,
         disappearParameters: DisappearParameters,
         goneProgress: Float,
-        reusedState: TransitionViewState? = null
+        reusedState: TransitionViewState? = null,
     ): TransitionViewState {
-        var remappedProgress = MathUtils.map(
+        var remappedProgress =
+            MathUtils.map(
                 disappearParameters.disappearStart,
                 disappearParameters.disappearEnd,
-                0.0f, 1.0f,
-                goneProgress)
+                0.0f,
+                1.0f,
+                goneProgress,
+            )
         remappedProgress = MathUtils.constrain(remappedProgress, 0.0f, 1.0f)
-        val result = viewState.copy(reusedState).apply {
-            width = MathUtils.lerp(
-                    viewState.width.toFloat(),
-                    viewState.width * disappearParameters.disappearSize.x,
-                    remappedProgress).toInt()
-            height = MathUtils.lerp(
-                    viewState.height.toFloat(),
-                    viewState.height * disappearParameters.disappearSize.y,
-                    remappedProgress).toInt()
-            translation.x = (viewState.width - width) * disappearParameters.gonePivot.x
-            translation.y = (viewState.height - height) * disappearParameters.gonePivot.y
-            contentTranslation.x = (disappearParameters.contentTranslationFraction.x - 1.0f) *
-                    translation.x
-            contentTranslation.y = (disappearParameters.contentTranslationFraction.y - 1.0f) *
-                    translation.y
-            val alphaProgress = MathUtils.map(
-                    disappearParameters.fadeStartPosition, 1.0f, 1.0f, 0.0f, remappedProgress)
-            alpha = MathUtils.constrain(alphaProgress, 0.0f, 1.0f)
-        }
+        val result =
+            viewState.copy(reusedState).apply {
+                width =
+                    MathUtils.lerp(
+                            viewState.width.toFloat(),
+                            viewState.width * disappearParameters.disappearSize.x,
+                            remappedProgress,
+                        )
+                        .toInt()
+                height =
+                    MathUtils.lerp(
+                            viewState.height.toFloat(),
+                            viewState.height * disappearParameters.disappearSize.y,
+                            remappedProgress,
+                        )
+                        .toInt()
+                translation.x = (viewState.width - width) * disappearParameters.gonePivot.x
+                translation.y = (viewState.height - height) * disappearParameters.gonePivot.y
+                contentTranslation.x =
+                    (disappearParameters.contentTranslationFraction.x - 1.0f) * translation.x
+                contentTranslation.y =
+                    (disappearParameters.contentTranslationFraction.y - 1.0f) * translation.y
+                val alphaProgress =
+                    MathUtils.map(
+                        disappearParameters.fadeStartPosition,
+                        1.0f,
+                        1.0f,
+                        0.0f,
+                        remappedProgress,
+                    )
+                alpha = MathUtils.constrain(alphaProgress, 0.0f, 1.0f)
+            }
         return result
     }
 
@@ -141,7 +151,7 @@ open class TransitionLayoutController {
         startState: TransitionViewState,
         endState: TransitionViewState,
         progress: Float,
-        reusedState: TransitionViewState? = null
+        reusedState: TransitionViewState? = null,
     ): TransitionViewState {
         val resultState = reusedState ?: TransitionViewState()
         val view = transitionLayout ?: return resultState
@@ -172,13 +182,8 @@ open class TransitionLayoutController {
 
                     if (isGutsAnimation) {
                         // if animation is open/close guts, fade in starts early.
-                        alphaProgress = MathUtils.map(
-                            GONE_FADE_GUTS_FRACTION,
-                            1.0f,
-                            0.0f,
-                            1.0f,
-                            progress
-                        )
+                        alphaProgress =
+                            MathUtils.map(GONE_FADE_GUTS_FRACTION, 1.0f, 0.0f, 1.0f, progress)
                         nowGone = progress < GONE_FADE_GUTS_FRACTION
 
                         // Do not change scale of widget.
@@ -189,13 +194,8 @@ open class TransitionLayoutController {
                         resultY = widgetStart.y
                     } else {
                         // Only fade it in at the very end
-                        alphaProgress = MathUtils.map(
-                            GONE_FADE_FRACTION,
-                            1.0f,
-                            0.0f,
-                            1.0f,
-                            progress
-                        )
+                        alphaProgress =
+                            MathUtils.map(GONE_FADE_FRACTION, 1.0f, 0.0f, 1.0f, progress)
                         nowGone = progress < GONE_FADE_FRACTION
 
                         // Scale it just a little, not all the way
@@ -204,16 +204,18 @@ open class TransitionLayoutController {
 
                         // Let's make sure we're centering the view in the gone view instead of
                         // having the left at 0
-                        resultX = MathUtils.lerp(
+                        resultX =
+                            MathUtils.lerp(
                                 widgetStart.x - resultMeasureWidth / 2.0f,
                                 widgetEnd.x,
-                                progress
-                        )
-                        resultY = MathUtils.lerp(
+                                progress,
+                            )
+                        resultY =
+                            MathUtils.lerp(
                                 widgetStart.y - resultMeasureHeight / 2.0f,
                                 widgetEnd.y,
-                                progress
-                        )
+                                progress,
+                            )
                     }
                 } else {
                     // Don't clip
@@ -225,13 +227,8 @@ open class TransitionLayoutController {
 
                     // Fadeout in the very beginning
                     if (isGutsAnimation) {
-                        alphaProgress = MathUtils.map(
-                            0.0f,
-                            VISIBLE_FADE_GUTS_FRACTION,
-                            0.0f,
-                            1.0f,
-                            progress
-                        )
+                        alphaProgress =
+                            MathUtils.map(0.0f, VISIBLE_FADE_GUTS_FRACTION, 0.0f, 1.0f, progress)
                         nowGone = progress > VISIBLE_FADE_GUTS_FRACTION
 
                         // Do not change scale of widget during open/close guts animation.
@@ -241,35 +238,29 @@ open class TransitionLayoutController {
                         resultX = widgetEnd.x
                         resultY = widgetEnd.y
                     } else {
-                        alphaProgress = MathUtils.map(
-                            0.0f,
-                            1.0f - GONE_FADE_FRACTION,
-                            0.0f,
-                            1.0f,
-                            progress
-                        )
+                        alphaProgress =
+                            MathUtils.map(0.0f, 1.0f - GONE_FADE_FRACTION, 0.0f, 1.0f, progress)
                         nowGone = progress > 1.0f - GONE_FADE_FRACTION
 
                         // Scale it just a little, not all the way
                         val startScale = widgetStart.scale
-                        newScale = MathUtils.lerp(
-                                startScale,
-                                startScale * GONE_SCALE_AMOUNT,
-                                progress
-                        )
+                        newScale =
+                            MathUtils.lerp(startScale, startScale * GONE_SCALE_AMOUNT, progress)
 
                         // Let's make sure we're centering the view in the gone view instead of
                         // having the left at 0
-                        resultX = MathUtils.lerp(
+                        resultX =
+                            MathUtils.lerp(
                                 widgetStart.x,
                                 widgetEnd.x - resultMeasureWidth / 2.0f,
-                                progress
-                        )
-                        resultY = MathUtils.lerp(
+                                progress,
+                            )
+                        resultY =
+                            MathUtils.lerp(
                                 widgetStart.y,
                                 widgetEnd.y - resultMeasureHeight / 2.0f,
-                                progress
-                        )
+                                progress,
+                            )
                     }
                 }
                 resultWidgetState.gone = nowGone
@@ -286,10 +277,20 @@ open class TransitionLayoutController {
                 x = resultX
                 y = resultY
                 alpha = MathUtils.lerp(widgetStart.alpha, widgetEnd.alpha, alphaProgress)
-                width = MathUtils.lerp(widgetStart.width.toFloat(), widgetEnd.width.toFloat(),
-                        widthProgress).toInt()
-                height = MathUtils.lerp(widgetStart.height.toFloat(), widgetEnd.height.toFloat(),
-                        widthProgress).toInt()
+                width =
+                    MathUtils.lerp(
+                            widgetStart.width.toFloat(),
+                            widgetEnd.width.toFloat(),
+                            widthProgress,
+                        )
+                        .toInt()
+                height =
+                    MathUtils.lerp(
+                            widgetStart.height.toFloat(),
+                            widgetEnd.height.toFloat(),
+                            widthProgress,
+                        )
+                        .toInt()
                 scale = newScale
 
                 // Let's directly measure it with the end state
@@ -299,10 +300,12 @@ open class TransitionLayoutController {
             resultState.widgetStates[id] = resultWidgetState
         }
         resultState.apply {
-            width = MathUtils.lerp(startState.width.toFloat(), endState.width.toFloat(),
-                    progress).toInt()
-            height = MathUtils.lerp(startState.height.toFloat(), endState.height.toFloat(),
-                    progress).toInt()
+            width =
+                MathUtils.lerp(startState.width.toFloat(), endState.width.toFloat(), progress)
+                    .toInt()
+            height =
+                MathUtils.lerp(startState.height.toFloat(), endState.height.toFloat(), progress)
+                    .toInt()
             // If we're at the start, let's measure with the starting dimensions, otherwise always
             // with the end state
             if (progress == 0.0f) {
@@ -312,19 +315,23 @@ open class TransitionLayoutController {
                 measureWidth = endState.measureWidth
                 measureHeight = endState.measureHeight
             }
-            translation.x = MathUtils.lerp(startState.translation.x, endState.translation.x,
-                    progress)
-            translation.y = MathUtils.lerp(startState.translation.y, endState.translation.y,
-                    progress)
+            translation.x =
+                MathUtils.lerp(startState.translation.x, endState.translation.x, progress)
+            translation.y =
+                MathUtils.lerp(startState.translation.y, endState.translation.y, progress)
             alpha = MathUtils.lerp(startState.alpha, endState.alpha, progress)
-            contentTranslation.x = MathUtils.lerp(
+            contentTranslation.x =
+                MathUtils.lerp(
                     startState.contentTranslation.x,
                     endState.contentTranslation.x,
-                    progress)
-            contentTranslation.y = MathUtils.lerp(
+                    progress,
+                )
+            contentTranslation.y =
+                MathUtils.lerp(
                     startState.contentTranslation.y,
                     endState.contentTranslation.y,
-                    progress)
+                    progress,
+                )
         }
         return resultState
     }
@@ -337,11 +344,11 @@ open class TransitionLayoutController {
      * Set a new state to be applied to the dynamic view.
      *
      * @param state the state to be applied
-     * @param animate should this change be animated. If [false] the we will either apply the
-     * state immediately if no animation is running, and if one is running, we will update the end
-     * value to match the new state.
+     * @param animate should this change be animated. If [false] the we will either apply the state
+     *   immediately if no animation is running, and if one is running, we will update the end value
+     *   to match the new state.
      * @param applyImmediately should this change be applied immediately, canceling all running
-     * animations
+     *   animations
      */
     fun setState(
         state: TransitionViewState,
@@ -374,12 +381,10 @@ open class TransitionLayoutController {
 
     /**
      * Set a new state that will be used to measure the view itself and is useful during
-     * transitions, where the state set via [setState] may differ from how the view
-     * should be measured.
+     * transitions, where the state set via [setState] may differ from how the view should be
+     * measured.
      */
-    fun setMeasureState(
-        state: TransitionViewState
-    ) {
+    fun setMeasureState(state: TransitionViewState) {
         transitionLayout?.measureState = state
     }
 }
@@ -387,47 +392,46 @@ open class TransitionLayoutController {
 class DisappearParameters() {
 
     /**
-     * The pivot point when clipping view when disappearing, which describes how the content will
-     * be translated.
-     * The default value of (0.0f, 1.0f) means that the view will not be translated in horizontally
-     * and the vertical disappearing will be aligned on the bottom of the view,
+     * The pivot point when clipping view when disappearing, which describes how the content will be
+     * translated. The default value of (0.0f, 1.0f) means that the view will not be translated in
+     * horizontally and the vertical disappearing will be aligned on the bottom of the view,
      */
     var gonePivot = PointF(0.0f, 1.0f)
 
     /**
      * The fraction of the width and height that will remain when disappearing. The default of
-     * (1.0f, 0.0f) means that 100% of the width, but 0% of the height will remain at the end of
-     * the transition.
+     * (1.0f, 0.0f) means that 100% of the width, but 0% of the height will remain at the end of the
+     * transition.
      */
     var disappearSize = PointF(1.0f, 0.0f)
 
     /**
      * The fraction of the normal translation, by which the content will be moved during the
-     * disappearing. The values here can be both negative as well as positive. The default value
-     * of (0.0f, 0.2f) means that the content doesn't move horizontally but moves 20% of the
-     * translation imposed by the pivot downwards. 1.0f means that the content will be translated
-     * in sync with the translation of the bounds
+     * disappearing. The values here can be both negative as well as positive. The default value of
+     * (0.0f, 0.2f) means that the content doesn't move horizontally but moves 20% of the
+     * translation imposed by the pivot downwards. 1.0f means that the content will be translated in
+     * sync with the translation of the bounds
      */
     var contentTranslationFraction = PointF(0.0f, 0.8f)
 
     /**
-     * The point during the progress from [0.0, 1.0f] where the view is fully appeared. 0.0f
-     * means that the content will start disappearing immediately, while 0.5f means that it
-     * starts disappearing half way through the progress.
+     * The point during the progress from [0.0, 1.0f] where the view is fully appeared. 0.0f means
+     * that the content will start disappearing immediately, while 0.5f means that it starts
+     * disappearing half way through the progress.
      */
     var disappearStart = 0.0f
 
     /**
      * The point during the progress from [0.0, 1.0f] where the view has fully disappeared. 1.0f
-     * means that the view will disappear in sync with the progress, while 0.5f means that it
-     * is fully gone half way through the progress.
+     * means that the view will disappear in sync with the progress, while 0.5f means that it is
+     * fully gone half way through the progress.
      */
     var disappearEnd = 1.0f
 
     /**
      * The point during the mapped progress from [0.0, 1.0f] where the view starts fading out. 1.0f
-     * means that the view doesn't fade at all, while 0.5 means that the content fades starts
-     * fading at the midpoint between [disappearStart] and [disappearEnd]
+     * means that the view doesn't fade at all, while 0.5 means that the content fades starts fading
+     * at the midpoint between [disappearStart] and [disappearEnd]
      */
     var fadeStartPosition = 0.9f
 
@@ -475,5 +479,11 @@ class DisappearParameters() {
         result.disappearEnd = disappearEnd
         result.fadeStartPosition = fadeStartPosition
         return result
+    }
+
+    override fun toString(): String {
+        return "DisappearParams(gonePivot=$gonePivot, disappearSize=$disappearSize, " +
+            "contentTranslationFraction=$contentTranslationFraction, disappearStart=" +
+            "$disappearStart, disappearEnd=$disappearEnd, fadeStartPosition=$fadeStartPosition)"
     }
 }

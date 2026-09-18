@@ -17,12 +17,10 @@
 package com.android.systemui.communal.ui.compose
 
 import android.content.ClipDescription
-import android.view.DragEvent
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.animateScrollBy
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,10 +36,11 @@ import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.android.systemui.Flags.communalHubCancelAddWidget
 import com.android.systemui.Flags.communalWidgetResizing
-import com.android.systemui.Flags.glanceableHubV2
 import com.android.systemui.communal.domain.model.CommunalContentModel
 import com.android.systemui.communal.ui.compose.extensions.firstItemAtOffset
+import com.android.systemui.communal.ui.viewmodel.BaseCommunalViewModel
 import com.android.systemui.communal.util.WidgetPickerIntentUtils
 import com.android.systemui.communal.util.WidgetPickerIntentUtils.getWidgetExtraFromIntent
 import kotlinx.coroutines.CoroutineScope
@@ -59,13 +58,25 @@ fun rememberDragAndDropTargetState(
     gridItemSize: SizeInfo?,
     contentOffset: Offset,
     contentListState: ContentListState,
+    viewModel: BaseCommunalViewModel,
+    updateDragPositionForCancel: (widgetShadowOffset: Offset) -> Boolean,
+    setDraggingPlaceHolderAlpha: (alpha: Float) -> Unit,
 ): DragAndDropTargetState {
     val scope = rememberCoroutineScope()
     val autoScrollThreshold = with(LocalDensity.current) { 60.dp.toPx() }
     val columnWidth = with(LocalDensity.current) { gridItemSize?.cellSize?.width?.roundToPx() ?: 0 }
 
     val state =
-        remember(gridState, contentOffset, contentListState, autoScrollThreshold, scope) {
+        remember(
+            gridState,
+            contentOffset,
+            contentListState,
+            autoScrollThreshold,
+            scope,
+            viewModel,
+            updateDragPositionForCancel,
+            setDraggingPlaceHolderAlpha,
+        ) {
             DragAndDropTargetState(
                 state = gridState,
                 columnWidth = columnWidth,
@@ -73,6 +84,9 @@ fun rememberDragAndDropTargetState(
                 contentListState = contentListState,
                 autoScrollThreshold = autoScrollThreshold,
                 scope = scope,
+                viewModel = viewModel,
+                updateDragPositionForCancel = updateDragPositionForCancel,
+                setDraggingPlaceHolderAlpha = setDraggingPlaceHolderAlpha,
             )
         }
 
@@ -138,231 +152,16 @@ fun Modifier.dragAndDropTarget(dragDropTargetState: DragAndDropTargetState): Mod
  * the communal hub grid.
  */
 class DragAndDropTargetState(
-    state: LazyGridState,
-    columnWidth: Int,
-    contentOffset: Offset,
-    contentListState: ContentListState,
-    autoScrollThreshold: Float,
-    scope: CoroutineScope,
-) {
-    private val dragDropState: DragAndDropTargetStateInternal =
-        if (glanceableHubV2()) {
-            DragAndDropTargetStateV2(
-                state = state,
-                columnWidth = columnWidth,
-                contentListState = contentListState,
-                scope = scope,
-                autoScrollThreshold = autoScrollThreshold,
-                contentOffset = contentOffset,
-            )
-        } else {
-            DragAndDropTargetStateV1(
-                state = state,
-                contentListState = contentListState,
-                scope = scope,
-                autoScrollThreshold = autoScrollThreshold,
-                contentOffset = contentOffset,
-            )
-        }
-
-    fun onStarted() = dragDropState.onStarted()
-
-    fun onMoved(event: DragAndDropEvent) = dragDropState.onMoved(event)
-
-    fun onDrop(event: DragAndDropEvent) = dragDropState.onDrop(event)
-
-    fun onEnded() = dragDropState.onEnded()
-
-    fun onExited() = dragDropState.onExited()
-
-    suspend fun processScrollRequests(coroutineScope: CoroutineScope) =
-        dragDropState.processScrollRequests(coroutineScope)
-}
-
-/**
- * A private interface defining the API for handling drag-and-drop operations. There will be two
- * implementations of this interface: V1 for devices that do not have the glanceable_hub_v2 flag
- * enabled, and V2 for devices that do have that flag enabled.
- *
- * TODO(b/400789179): Remove this interface and the V1 implementation once glanceable_hub_v2 has
- *   shipped.
- */
-private interface DragAndDropTargetStateInternal {
-    fun onStarted() = Unit
-
-    fun onMoved(event: DragAndDropEvent) = Unit
-
-    fun onDrop(event: DragAndDropEvent): Boolean = false
-
-    fun onEnded() = Unit
-
-    fun onExited() = Unit
-
-    suspend fun processScrollRequests(coroutineScope: CoroutineScope) = Unit
-}
-
-/**
- * The V1 implementation of DragAndDropTargetStateInternal to be used when the glanceable_hub_v2
- * flag is disabled.
- */
-private class DragAndDropTargetStateV1(
-    private val state: LazyGridState,
-    private val contentOffset: Offset,
-    private val contentListState: ContentListState,
-    private val autoScrollThreshold: Float,
-    private val scope: CoroutineScope,
-) : DragAndDropTargetStateInternal {
-    /**
-     * The placeholder item that is treated as if it is being dragged across the grid. It is added
-     * to grid once drag and drop event is started and removed when event ends.
-     */
-    private var placeHolder = CommunalContentModel.WidgetPlaceholder()
-    private var placeHolderIndex: Int? = null
-    private var previousTargetItemKey: Any? = null
-
-    private val scrollChannel = Channel<Float>()
-
-    override suspend fun processScrollRequests(coroutineScope: CoroutineScope) {
-        for (diff in scrollChannel) {
-            state.scrollBy(diff)
-        }
-    }
-
-    override fun onStarted() {
-        // assume item will be added to the end.
-        contentListState.list.add(placeHolder)
-        placeHolderIndex = contentListState.list.size - 1
-    }
-
-    override fun onMoved(event: DragAndDropEvent) {
-        val dragOffset = event.toOffset()
-
-        val targetItem =
-            state.layoutInfo.visibleItemsInfo
-                .asSequence()
-                .filter { item -> contentListState.isItemEditable(item.key) }
-                .firstItemAtOffset(dragOffset - contentOffset)
-
-        if (
-            targetItem != null &&
-                (!communalWidgetResizing() || targetItem.key != previousTargetItemKey)
-        ) {
-            if (communalWidgetResizing()) {
-                // Keep track of the previous target item, to avoid rapidly oscillating between
-                // items if the target item doesn't visually move as a result of the index change.
-                // In this case, even after the index changes, we'd still be colliding with the
-                // element, so it would be selected as the target item the next time this function
-                // runs again, which would trigger us to revert the index change we recently made.
-                previousTargetItemKey = targetItem.key
-            }
-
-            var scrollIndex: Int? = null
-            var scrollOffset: Int? = null
-            if (placeHolderIndex == state.firstVisibleItemIndex) {
-                // Save info about the first item before the move, to neutralize the automatic
-                // keeping first item first.
-                scrollIndex = placeHolderIndex
-                scrollOffset = state.firstVisibleItemScrollOffset
-            }
-
-            if (contentListState.isItemEditable(targetItem.key)) {
-                movePlaceholderTo(targetItem.key)
-                placeHolderIndex = targetItem.index
-            }
-
-            if (scrollIndex != null && scrollOffset != null) {
-                // this is needed to neutralize automatic keeping the first item first.
-                scope.launch { state.scrollToItem(scrollIndex, scrollOffset) }
-            }
-        } else if (targetItem == null) {
-            computeAutoscroll(dragOffset).takeIf { it != 0f }?.let { scrollChannel.trySend(it) }
-            previousTargetItemKey = null
-        }
-    }
-
-    override fun onDrop(event: DragAndDropEvent): Boolean {
-        return placeHolderIndex?.let { dropIndex ->
-            val widgetExtra = event.maybeWidgetExtra() ?: return false
-            val (componentName, user) = widgetExtra
-            if (componentName != null && user != null) {
-                // Placeholder isn't removed yet to allow the setting the right rank for items
-                // before adding in the new item.
-                contentListState.onSaveList(
-                    newItemComponentName = componentName,
-                    newItemUser = user,
-                    newItemIndex = dropIndex,
-                )
-                return@let true
-            }
-            return false
-        } ?: false
-    }
-
-    override fun onEnded() {
-        placeHolderIndex = null
-        previousTargetItemKey = null
-        contentListState.list.remove(placeHolder)
-    }
-
-    override fun onExited() {
-        onEnded()
-    }
-
-    private fun computeAutoscroll(dragOffset: Offset): Float {
-        val orientation = state.layoutInfo.orientation
-        val distanceFromStart =
-            if (orientation == Orientation.Horizontal) {
-                dragOffset.x
-            } else {
-                dragOffset.y
-            }
-        val distanceFromEnd =
-            if (orientation == Orientation.Horizontal) {
-                state.layoutInfo.viewportEndOffset - dragOffset.x
-            } else {
-                state.layoutInfo.viewportEndOffset - dragOffset.y
-            }
-
-        return when {
-            distanceFromEnd < autoScrollThreshold -> autoScrollThreshold - distanceFromEnd
-            distanceFromStart < autoScrollThreshold -> distanceFromStart - autoScrollThreshold
-            else -> 0f
-        }
-    }
-
-    private fun movePlaceholderTo(key: Any) {
-        // This method is often invoked in a separate scope and therefore the placeholder could
-        // have disappeared before this point.
-        val currentIndex = contentListState.list.indexOf(placeHolder)
-
-        if (currentIndex == -1) {
-            return
-        }
-
-        val index = contentListState.list.indexOfFirst { item -> item.key == key }
-
-        if (index == -1) {
-            return
-        }
-
-        if (currentIndex != index) {
-            contentListState.onMove(currentIndex, index)
-        }
-    }
-}
-
-/**
- * The V2 implementation of DragAndDropTargetStateInternal to be used when the glanceable_hub_v2
- * flag is enabled.
- */
-private class DragAndDropTargetStateV2(
     private val state: LazyGridState,
     private val columnWidth: Int,
     private val contentOffset: Offset,
     private val contentListState: ContentListState,
     private val autoScrollThreshold: Float,
     private val scope: CoroutineScope,
-) : DragAndDropTargetStateInternal {
+    private val viewModel: BaseCommunalViewModel,
+    private val updateDragPositionForCancel: (widgetShadowOffset: Offset) -> Boolean,
+    private val setDraggingPlaceHolderAlpha: (alpha: Float) -> Unit,
+) {
     /**
      * The placeholder item that is treated as if it is being dragged across the grid. It is added
      * to grid once drag and drop event is started and removed when event ends.
@@ -371,10 +170,18 @@ private class DragAndDropTargetStateV2(
     private var placeHolderIndex: Int? = null
     private var previousTargetItemKey: Any? = null
     private var dragOffset = Offset.Zero
+    private var isDraggingToCancel = false
+
+    private fun widgetShadowDraggingToCancel(value: Boolean) {
+        if (communalHubCancelAddWidget()) {
+            isDraggingToCancel = value
+            setDraggingPlaceHolderAlpha(if (value) 0f else 1f)
+        }
+    }
 
     private val scrollChannel = Channel<Float>()
 
-    override suspend fun processScrollRequests(coroutineScope: CoroutineScope) {
+    suspend fun processScrollRequests(coroutineScope: CoroutineScope) {
         while (true) {
             val amount = scrollChannel.receive()
 
@@ -398,42 +205,57 @@ private class DragAndDropTargetStateV2(
         }
     }
 
-    override fun onStarted() {
+    fun onStarted() {
         // assume item will be added to the end.
         contentListState.list.add(placeHolder)
         placeHolderIndex = contentListState.list.size - 1
+        viewModel.onAddWidgetDragAndDropStart()
     }
 
-    override fun onMoved(event: DragAndDropEvent) {
+    fun onMoved(event: DragAndDropEvent) {
         dragOffset = event.toOffset()
         scrollChannel.trySend(computeAutoscroll(dragOffset))
     }
 
-    override fun onDrop(event: DragAndDropEvent): Boolean {
-        return placeHolderIndex?.let { dropIndex ->
-            val widgetExtra = event.maybeWidgetExtra() ?: return false
-            val (componentName, user) = widgetExtra
-            if (componentName != null && user != null) {
-                // Placeholder isn't removed yet to allow the setting the right rank for items
-                // before adding in the new item.
-                contentListState.onSaveList(
-                    newItemComponentName = componentName,
-                    newItemUser = user,
-                    newItemIndex = dropIndex,
-                )
-                return@let true
-            }
+    fun onDrop(event: DragAndDropEvent): Boolean {
+        viewModel.onAddWidgetDragAndDropEnd()
+        if (communalHubCancelAddWidget() && isDraggingToCancel) {
+            // If the user cancels the new widget; the isDraggingToCancel should be false
+            // but the border of the placeholder should remain 0f.
+            // This is the reason we are setting them manually instead of using the
+            // widgetShadowDraggingToCancel() function.
+            isDraggingToCancel = false
+            setDraggingPlaceHolderAlpha(0f)
             return false
-        } ?: false
+        } else {
+            widgetShadowDraggingToCancel(false)
+            return placeHolderIndex?.let { dropIndex ->
+                val widgetExtra = event.maybeWidgetExtra() ?: return false
+                val (componentName, user) = widgetExtra
+                if (componentName != null && user != null) {
+                    // Placeholder isn't removed yet to allow the setting the right rank for items
+                    // before adding in the new item.
+                    contentListState.onSaveList(
+                        newItemComponentName = componentName,
+                        newItemUser = user,
+                        newItemIndex = dropIndex,
+                    )
+                    return@let true
+                }
+                return false
+            } ?: false
+        }
     }
 
-    override fun onEnded() {
+    fun onEnded() {
+        viewModel.onAddWidgetDragAndDropEnd()
         placeHolderIndex = null
         previousTargetItemKey = null
         contentListState.list.remove(placeHolder)
+        widgetShadowDraggingToCancel(false)
     }
 
-    override fun onExited() {
+    fun onExited() {
         onEnded()
     }
 
@@ -476,8 +298,14 @@ private class DragAndDropTargetStateV2(
             }
 
             placeHolderIndex = targetItem.index
+            widgetShadowDraggingToCancel(false)
         } else if (targetItem == null) {
             previousTargetItemKey = null
+            if (communalHubCancelAddWidget()) {
+                widgetShadowDraggingToCancel(updateDragPositionForCancel(dragOffset))
+            } else {
+                widgetShadowDraggingToCancel(false)
+            }
         }
     }
 

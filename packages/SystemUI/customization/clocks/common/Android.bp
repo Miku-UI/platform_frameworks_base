@@ -46,6 +46,7 @@ android_library {
     kotlincflags: ["-Xjvm-default=all"],
     optimize: {
         proguard_flags_files: ["proguard_clocks.flags"],
+        included_proguard_flags_files: [":sysui_proguard_kotlin"],
         export_proguard_flags_files: true,
     },
 }

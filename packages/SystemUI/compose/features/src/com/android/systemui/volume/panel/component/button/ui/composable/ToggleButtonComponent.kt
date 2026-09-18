@@ -16,35 +16,17 @@
 
 package com.android.systemui.volume.panel.component.button.ui.composable
 
-import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.android.systemui.Flags
-import com.android.systemui.common.ui.compose.Icon
 import com.android.systemui.volume.panel.component.button.ui.viewmodel.ButtonViewModel
 import com.android.systemui.volume.panel.ui.composable.ComposeVolumePanelUiComponent
 import com.android.systemui.volume.panel.ui.composable.VolumePanelComposeScope
@@ -61,69 +43,27 @@ class ToggleButtonComponent(
         val viewModelByState by viewModelFlow.collectAsStateWithLifecycle()
         val viewModel = viewModelByState ?: return
 
-        Column(
-            modifier = modifier,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            BottomComponentButtonSurface {
-                val colors =
-                    if (viewModel.isActive) {
-                        if (Flags.volumeRedesign()) {
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                            )
+        VolumePanelButton(
+            label = viewModel.label,
+            icon = viewModel.icon,
+            isActive = viewModel.isActive,
+            onClick = { onCheckedChange(!viewModel.isActive) },
+            semantics = {
+                role = Role.Switch
+                if (viewModel.stateDescription == null) {
+                    toggleableState =
+                        if (viewModel.isActive) {
+                            ToggleableState.On
                         } else {
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                            )
+                            ToggleableState.Off
                         }
-                    } else {
-                        if (Flags.volumeRedesign()) {
-                            ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                contentColor = MaterialTheme.colorScheme.onSurface,
-                            )
-                        } else {
-                            ButtonDefaults.buttonColors(
-                                containerColor = Color.Transparent,
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                Button(
-                    modifier =
-                        Modifier.fillMaxSize().padding(8.dp).semantics {
-                            role = Role.Switch
-                            if (viewModel.stateDescription == null) {
-                                toggleableState =
-                                    if (viewModel.isActive) {
-                                        ToggleableState.On
-                                    } else {
-                                        ToggleableState.Off
-                                    }
-                            } else {
-                                stateDescription = viewModel.stateDescription
-                            }
-                            contentDescription = viewModel.label
-                        },
-                    onClick = { onCheckedChange(!viewModel.isActive) },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = colors,
-                    contentPadding = PaddingValues(0.dp),
-                ) {
-                    Icon(modifier = Modifier.size(24.dp), icon = viewModel.icon)
+                } else {
+                    stateDescription = viewModel.stateDescription
                 }
-            }
-
-            Text(
-                modifier = Modifier.clearAndSetSemantics {}.basicMarquee(),
-                text = viewModel.label,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 2,
-            )
-        }
+                contentDescription = viewModel.label
+            },
+            isExpandedAudioTileDetailsView = isExpandedAudioTileDetailsView,
+            modifier = modifier,
+        )
     }
 }

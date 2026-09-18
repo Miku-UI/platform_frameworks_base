@@ -16,8 +16,6 @@
 
 package com.android.server.notification;
 
-import static android.app.Flags.nmSummarization;
-import static android.app.Flags.nmSummarizationUi;
 import static android.service.notification.NotificationListenerService.REASON_ASSISTANT_CANCEL;
 import static android.service.notification.NotificationListenerService.REASON_BUNDLE_DISMISSED;
 import static android.service.notification.NotificationListenerService.REASON_CANCEL;
@@ -619,8 +617,7 @@ interface NotificationRecordLogger {
                     p.r.getSbn().getPostTime(), notification.getWhen());
             this.is_promoted_ongoing = notification.isPromotedOngoing();
             this.has_promotable_characteristics = notification.hasPromotableCharacteristics();
-            this.has_summary = (nmSummarization() || nmSummarizationUi())
-                    ? !TextUtils.isEmpty(p.r.getSummarization()) : false;
+            this.has_summary = !TextUtils.isEmpty(p.r.getSummarization());
         }
     }
 

@@ -20,6 +20,7 @@ import static android.content.Intent.ACTION_PACKAGE_ADDED;
 import static android.content.Intent.ACTION_PACKAGE_CHANGED;
 import static android.content.Intent.ACTION_PACKAGE_REMOVED;
 import static android.content.Intent.ACTION_USER_SWITCHED;
+import static android.content.pm.ActivityInfo.OVERRIDE_ENABLE_VIRTUAL_GAMEPAD;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
 import static com.android.server.compat.overrides.AppCompatOverridesParser.FLAG_OWNED_CHANGE_IDS;
@@ -208,6 +209,28 @@ public class AppCompatOverridesServiceTest {
         // Package 4
         assertThat(packageNameToRemovedOverrides.get(PACKAGE_4).changeIds).containsExactly(123L,
                 456L, 789L);
+    }
+
+    @Test
+    public void onPropertiesChanged_packageNotInstalled_appliesPreInstallRequiredOverrides()
+            throws Exception {
+        mockGetApplicationInfoNotInstalled(PACKAGE_1);
+        mService.registerDeviceConfigListeners();
+
+        DeviceConfig.setProperty(NAMESPACE_1, PACKAGE_1,
+                OVERRIDE_ENABLE_VIRTUAL_GAMEPAD + ":::true,2:::false", false);
+
+        verify(mPlatformCompat).putAllOverridesOnReleaseBuilds(
+                mOverridesToAddByPackageConfigCaptor.capture());
+        CompatibilityOverridesByPackageConfig config =
+                mOverridesToAddByPackageConfigCaptor.getValue();
+        assertThat(config.packageNameToOverrides).containsKey(PACKAGE_1);
+        Map<Long, PackageOverride> overrides = config.packageNameToOverrides.get(PACKAGE_1)
+                .overrides;
+        // Only pre-install required change IDs should be included for uninstalled package
+        assertThat(overrides).hasSize(1);
+        assertThat(overrides.get(OVERRIDE_ENABLE_VIRTUAL_GAMEPAD).evaluateForAllVersions())
+                .isEqualTo(PackageOverride.VALUE_ENABLED);
     }
 
     @Test
@@ -711,6 +734,27 @@ public class AppCompatOverridesServiceTest {
                 mOverridesToRemoveConfigCaptor.getAllValues();
         assertThat(configs.get(0).changeIds).containsExactly(101L, 102L);
         assertThat(configs.get(1).changeIds).containsExactly(301L);
+    }
+
+    @Test
+    public void packageReceiver_packageRemoved_preservesPreInstallRequiredOverrides()
+            throws Exception {
+        DeviceConfig.setProperty(NAMESPACE_1, FLAG_OWNED_CHANGE_IDS,
+                OVERRIDE_ENABLE_VIRTUAL_GAMEPAD + ",123", false);
+        DeviceConfig.setProperty(NAMESPACE_1, PACKAGE_1,
+                OVERRIDE_ENABLE_VIRTUAL_GAMEPAD + ":::true,123:::true", false);
+
+        mockGetApplicationInfoNotInstalled(PACKAGE_1);
+
+        mPackageReceiver.onReceive(mMockContext,
+                createPackageIntent(PACKAGE_1, ACTION_PACKAGE_REMOVED));
+
+        // Should only trigger removal for non-pre-install required ID 123.
+        // PreInstallRequired ID OVERRIDE_ENABLE_VIRTUAL_GAMEPAD is preserved.
+        verify(mPlatformCompat).removeOverridesOnReleaseBuilds(
+                argThat(config -> config.changeIds.contains(123L)
+                        && !config.changeIds.contains(OVERRIDE_ENABLE_VIRTUAL_GAMEPAD)),
+                eq(PACKAGE_1));
     }
 
     @Test

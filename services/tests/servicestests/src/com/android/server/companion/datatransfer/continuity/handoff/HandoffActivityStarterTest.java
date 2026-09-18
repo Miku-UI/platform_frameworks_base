@@ -18,42 +18,39 @@ package com.android.server.companion.datatransfer.continuity.handoff;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.ActivityManager;
-import android.app.ActivityOptions;
 import android.app.HandoffActivityData;
-import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.PersistableBundle;
 import android.os.UserHandle;
 import android.platform.test.annotations.Presubmit;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
-
-import com.android.server.companion.datatransfer.continuity.handoff.HandoffActivityStarter;
-
+import com.android.server.LocalServices;
+import com.android.server.companion.datatransfer.continuity.messages.HandoffActivityDataMessage;
+import com.android.server.wm.ActivityTaskManagerInternal;
+import java.util.List;
+import java.util.UUID;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
-import java.util.List;
-import java.util.UUID;
 
 @Presubmit
 @RunWith(AndroidTestingRunner.class)
@@ -62,71 +59,86 @@ public class HandoffActivityStarterTest {
 
     @Mock private Context mMockContext;
     @Mock private PackageManager mMockPackageManager;
+    @Mock private ActivityTaskManagerInternal mMockActivityTaskManagerInternal;
 
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         when(mMockContext.getPackageManager()).thenReturn(mMockPackageManager);
+        LocalServices.addService(ActivityTaskManagerInternal.class, mMockActivityTaskManagerInternal);
+    }
+
+    @After
+    public void tearDown() {
+        LocalServices.removeServiceForTest(ActivityTaskManagerInternal.class);
     }
 
     @Test
     public void start_emptyList_returnsFalse() {
         boolean result = HandoffActivityStarter.start(mMockContext, List.of());
         assertThat(result).isFalse();
-        verify(mMockContext, never()).startActivityAsUser(any(), any());
-        verify(mMockContext, never()).startActivitiesAsUser(any(), any(), any());
+        verify(mMockActivityTaskManagerInternal, never())
+                .startActivityWithConfig(any(), any(), any(), any(), anyInt());
     }
 
     @Test
     public void start_singleActivity_startsSuccessfully() throws Exception {
         // Create a HandoffActivityData mapped to an installed package.
-        HandoffActivityData activityData = createTestHandoffActivity(true, false);
+        HandoffActivityDataMessage activityData = createTestHandoffActivity(true, false);
+
+        when(mMockActivityTaskManagerInternal.startActivityWithConfig(
+                        any(), any(), any(), any(), anyInt()))
+                .thenReturn(ActivityManager.START_SUCCESS);
 
         // Start the activity.
         boolean result = HandoffActivityStarter.start(mMockContext, List.of(activityData));
 
         // Verify the activity was started.
         assertThat(result).isTrue();
-        List<Intent[]> attempts = getActivityStartAttempts(1);
+        List<Intent> attempts = getActivityStartAttempts(1);
         verifyActivityStartAttempted(attempts.get(0), List.of(activityData));
     }
 
     @Test
     public void start_multipleActivities_startsSuccessfully() throws Exception {
         // Create test HandoffActivityData mapped to the installed packages.
-        List<HandoffActivityData> handoffActivityData = List.of(
-            createTestHandoffActivity(true, false),
-            createTestHandoffActivity(true, false));
+        List<HandoffActivityDataMessage> handoffActivityData =
+                List.of(
+                        createTestHandoffActivity(true, false),
+                        createTestHandoffActivity(true, false));
 
         // Make attempts to start activities return success.
-        when(mMockContext.startActivitiesAsUser(any(), any(), any()))
+        when(mMockActivityTaskManagerInternal.startActivityWithConfig(
+                        any(), any(), any(), any(), anyInt()))
                 .thenReturn(ActivityManager.START_SUCCESS);
 
         boolean result = HandoffActivityStarter.start(mMockContext, handoffActivityData);
 
         // Verify the activities were started.
         assertThat(result).isTrue();
-        List<Intent[]> attempts = getActivityStartAttempts(1);
-        verifyActivityStartAttempted(attempts.get(0), handoffActivityData);
+        List<Intent> attempts = getActivityStartAttempts(1);
+        verifyActivityStartAttempted(attempts.get(0), List.of(handoffActivityData.get(0)));
     }
 
     @Test
     public void start_nonTopActivityNotInstalled_onlyStartsTopActivity() throws Exception {
         // Create test HandoffActivityData. The top activity is installed, but the second activity
         // is not.
-        List<HandoffActivityData> handoffActivityData = List.of(
-            createTestHandoffActivity(false, false),
-            createTestHandoffActivity(true, false));
+        List<HandoffActivityDataMessage> handoffActivityData =
+                List.of(
+                        createTestHandoffActivity(false, false),
+                        createTestHandoffActivity(true, false));
 
         // Make any attempts to start activities return success.
-        when(mMockContext.startActivitiesAsUser(any(), any(), any()))
-            .thenReturn(ActivityManager.START_SUCCESS);
+        when(mMockActivityTaskManagerInternal.startActivityWithConfig(
+                        any(), any(), any(), any(), anyInt()))
+                .thenReturn(ActivityManager.START_SUCCESS);
 
         boolean result = HandoffActivityStarter.start(mMockContext, handoffActivityData);
 
         // Verify only one launch attempt was made, and it is only for the top activity.
         assertThat(result).isTrue();
-        List<Intent[]> attempts = getActivityStartAttempts(1);
+        List<Intent> attempts = getActivityStartAttempts(1);
         verifyActivityStartAttempted(attempts.get(0), List.of(handoffActivityData.get(1)));
     }
 
@@ -134,148 +146,177 @@ public class HandoffActivityStarterTest {
     public void start_topActivityNotInstalled_fallsBackToWeb() throws Exception {
         // Create a list of test HandoffActivityData. The top activity is not installed, but has
         // a fallback URI.
-        List<HandoffActivityData> handoffActivityData = List.of(
-            createTestHandoffActivity(true, false),
-            createTestHandoffActivity(false, true));
+        List<HandoffActivityDataMessage> handoffActivityData =
+                List.of(
+                        createTestHandoffActivity(true, false),
+                        createTestHandoffActivity(false, true));
+
+        when(mMockActivityTaskManagerInternal.startActivityWithConfig(
+                        any(), any(), any(), any(), anyInt()))
+                .thenReturn(ActivityManager.START_SUCCESS);
 
         boolean result = HandoffActivityStarter.start(mMockContext, handoffActivityData);
 
         // Verify only one launch attempt was made, and it is for the fallback URI.
         assertThat(result).isTrue();
-        List<Intent[]> attempts = getActivityStartAttempts(1);
-        verifyActivityStartAttempted(attempts.get(0), handoffActivityData.get(1).getFallbackUri());
+        List<Intent> attempts = getActivityStartAttempts(1);
+        verifyActivityStartAttempted(
+                attempts.get(0), handoffActivityData.get(1).activity().getFallbackUri());
     }
 
     @Test
     public void start_topActivityNotInstalledAndNoFallbackURI_returnsFalse() throws Exception {
         // Create test HandoffActivityData. The top activity is not installed, and has no fallback
         // URI.
-        List<HandoffActivityData> handoffActivityData = List.of(
-            createTestHandoffActivity(true, false),
-            createTestHandoffActivity(false, false));
+        List<HandoffActivityDataMessage> handoffActivityData =
+                List.of(
+                        createTestHandoffActivity(true, false),
+                        createTestHandoffActivity(false, false));
 
         boolean result = HandoffActivityStarter.start(mMockContext, handoffActivityData);
 
         // Verify no launch attempts were made.
         assertThat(result).isFalse();
-        verify(mMockContext, never()).startActivitiesAsUser(any(), any(), any());
+        verify(mMockActivityTaskManagerInternal, never())
+                .startActivityWithConfig(any(), any(), any(), any(), anyInt());
     }
 
     @Test
     public void start_startActivityFailsForAllActivities_reattemptsWithTopActivity()
-        throws Exception {
+            throws Exception {
 
-        List<HandoffActivityData> handoffActivityData = List.of(
-            createTestHandoffActivity(true, false),
-            createTestHandoffActivity(true, false));
+        List<HandoffActivityDataMessage> handoffActivityData =
+                List.of(
+                        createTestHandoffActivity(true, false),
+                        createTestHandoffActivity(true, false));
 
         // Make the first attempt to start activities fail, and the second attempt succeed.
-        when(mMockContext.startActivitiesAsUser(any(), any(), any()))
-                .thenReturn(
-                    ActivityManager.START_ABORTED,
-                    ActivityManager.START_SUCCESS);
+        when(mMockActivityTaskManagerInternal.startActivityWithConfig(
+                        any(), any(), any(), any(), anyInt()))
+                .thenReturn(ActivityManager.START_ABORTED, ActivityManager.START_SUCCESS);
 
         boolean result = HandoffActivityStarter.start(mMockContext, handoffActivityData);
 
         // Verify two launch attempts were made - one for all activities, and one for the top
         // activity.
         assertThat(result).isTrue();
-        List<Intent[]> attempts = getActivityStartAttempts(2);
-        verifyActivityStartAttempted(attempts.get(0), handoffActivityData);
+        List<Intent> attempts = getActivityStartAttempts(2);
+        verifyActivityStartAttempted(attempts.get(0), List.of(handoffActivityData.get(0)));
         verifyActivityStartAttempted(attempts.get(1), List.of(handoffActivityData.get(1)));
     }
 
     @Test
     public void start_startActivityFailsForBothActivities_fallsBackToWeb() throws Exception {
-        List<HandoffActivityData> handoffActivityData = List.of(
-            createTestHandoffActivity(true, false),
-            createTestHandoffActivity(true, true));
+        List<HandoffActivityDataMessage> handoffActivityData =
+                List.of(
+                        createTestHandoffActivity(true, false),
+                        createTestHandoffActivity(true, true));
 
         // Make the first two attempts to start activities fail, and the third attempt succeed.
-        when(mMockContext.startActivitiesAsUser(any(), any(), any()))
+        when(mMockActivityTaskManagerInternal.startActivityWithConfig(
+                        any(), any(), any(), any(), anyInt()))
                 .thenReturn(
-                    ActivityManager.START_ABORTED,
-                    ActivityManager.START_ABORTED,
-                    ActivityManager.START_SUCCESS);
+                        ActivityManager.START_ABORTED,
+                        ActivityManager.START_ABORTED,
+                        ActivityManager.START_SUCCESS);
 
         boolean result = HandoffActivityStarter.start(mMockContext, handoffActivityData);
 
         // Verify three launch attempts were made - one for all activities, one for the top
         // activity, and one for the fallback URI.
         assertThat(result).isTrue();
-        List<Intent[]> attempts = getActivityStartAttempts(3);
-        verifyActivityStartAttempted(attempts.get(0), handoffActivityData);
+        List<Intent> attempts = getActivityStartAttempts(3);
+        verifyActivityStartAttempted(attempts.get(0), List.of(handoffActivityData.get(0)));
         verifyActivityStartAttempted(attempts.get(1), List.of(handoffActivityData.get(1)));
-        verifyActivityStartAttempted(attempts.get(2), handoffActivityData.get(1).getFallbackUri());
+        verifyActivityStartAttempted(
+                attempts.get(2), handoffActivityData.get(1).activity().getFallbackUri());
     }
 
     @Test
     public void start_noActivityCanLaunchAndNoFallbackURI_returnsFalse() throws Exception {
 
-        List<HandoffActivityData> handoffActivityData = List.of(
-            createTestHandoffActivity(true, false),
-            createTestHandoffActivity(true, false));
+        List<HandoffActivityDataMessage> handoffActivityData =
+                List.of(
+                        createTestHandoffActivity(true, false),
+                        createTestHandoffActivity(true, false));
 
         // Make all attempts to start activities fail.
-        when(mMockContext.startActivitiesAsUser(any(), any(), any()))
-                .thenReturn(
-                    ActivityManager.START_ABORTED,
-                    ActivityManager.START_ABORTED);
+        when(mMockActivityTaskManagerInternal.startActivityWithConfig(
+                        any(), any(), any(), any(), anyInt()))
+                .thenReturn(ActivityManager.START_ABORTED, ActivityManager.START_ABORTED);
 
         boolean result = HandoffActivityStarter.start(mMockContext, handoffActivityData);
 
         // Verify two launch attempts were made - one for all activities, and one for the top
         // activity.
         assertThat(result).isFalse();
-        List<Intent[]> attempts = getActivityStartAttempts(2);
-        verifyActivityStartAttempted(attempts.get(0), handoffActivityData);
+        List<Intent> attempts = getActivityStartAttempts(2);
+        verifyActivityStartAttempted(attempts.get(0), List.of(handoffActivityData.get(0)));
         verifyActivityStartAttempted(attempts.get(1), List.of(handoffActivityData.get(1)));
     }
 
-    private static void verifyActivityStartAttempted(Intent[] actual, Uri expectedUri) {
-        assertThat(actual).hasLength(1);
-        assertThat(actual[0].getAction()).isEqualTo(Intent.ACTION_VIEW);
-        assertThat(actual[0].getData()).isEqualTo(expectedUri);
+    @Test
+    public void start_webFallbackOnly_usesFallbackURI() throws Exception {
+        Uri fallbackUri = Uri.parse("https://www.example.com");
+        HandoffActivityData handoffActivityData = HandoffActivityData.createWebHandoff(fallbackUri);
+        // Create a test HandoffActivityData with no component name, but a fallback URI.
+        HandoffActivityDataMessage handoffActivityDataMessage =
+                new HandoffActivityDataMessage(handoffActivityData, List.of());
+
+        when(mMockActivityTaskManagerInternal.startActivityWithConfig(
+                        any(), any(), any(), any(), anyInt()))
+                .thenReturn(ActivityManager.START_SUCCESS);
+
+        boolean result =
+                HandoffActivityStarter.start(mMockContext, List.of(handoffActivityDataMessage));
+
+        // Verify only one launch attempt was made, and it is for the fallback URI.
+        assertThat(result).isTrue();
+        List<Intent> attempts = getActivityStartAttempts(1);
+        verifyActivityStartAttempted(attempts.get(0), fallbackUri);
+    }
+
+    private static void verifyActivityStartAttempted(Intent actual, Uri expectedUri) {
+        assertThat(actual.getAction()).isEqualTo(Intent.ACTION_VIEW);
+        assertThat(actual.getData()).isEqualTo(expectedUri);
     }
 
     private static void verifyActivityStartAttempted(
-        Intent[] actual,
-        List<HandoffActivityData> expected) {
+            Intent actual, List<HandoffActivityDataMessage> expected) {
 
-        assertThat(actual).hasLength(expected.size());
-        for (int i = 0; i < actual.length; i++) {
-            assertThat(actual[i].getComponent()).isEqualTo(expected.get(i).getComponentName());
-            assertThat(actual[i].getExtras().size()).isEqualTo(expected.get(i).getExtras().size());
-            for (String key : actual[i].getExtras().keySet()) {
-                assertThat(actual[i].getExtras().getString(key))
-                    .isEqualTo(expected.get(i).getExtras().getString(key));
-            }
+        assertThat(expected).isNotEmpty();
+        HandoffActivityDataMessage expectedMessage = expected.get(0);
+
+        assertThat(actual.getComponent())
+                .isEqualTo(expectedMessage.activity().getComponentName());
+        assertThat(actual.getExtras().size())
+                .isEqualTo(expectedMessage.activity().getExtras().size());
+        for (String key : actual.getExtras().keySet()) {
+            assertThat(actual.getExtras().getString(key))
+                    .isEqualTo(expectedMessage.activity().getExtras().getString(key));
         }
     }
 
-    private List<Intent[]> getActivityStartAttempts(int expectedCount) {
-        ArgumentCaptor<Intent[]> intentArrayCaptor = ArgumentCaptor.forClass(Intent[].class);
-        verify(mMockContext, times(expectedCount)).startActivitiesAsUser(
-            intentArrayCaptor.capture(),
-            any(),
-            any());
-        return intentArrayCaptor.getAllValues();
+    private List<Intent> getActivityStartAttempts(int expectedCount) {
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mMockActivityTaskManagerInternal, times(expectedCount))
+                .startActivityWithConfig(any(), any(), intentCaptor.capture(), any(), anyInt());
+        return intentCaptor.getAllValues();
     }
 
-    private HandoffActivityData createTestHandoffActivity(
-        boolean installed,
-        boolean hasFallbackUri) throws Exception {
+    private HandoffActivityDataMessage createTestHandoffActivity(
+            boolean installed, boolean hasFallbackUri) throws Exception {
 
         String packageName = "com.example." + UUID.randomUUID().toString();
         ComponentName componentName = new ComponentName(packageName, packageName + ".Activity");
         if (installed) {
             when(mMockPackageManager.getActivityInfo(
-                eq(componentName), eq(PackageManager.MATCH_DEFAULT_ONLY)))
-                .thenReturn(new ActivityInfo());
+                            eq(componentName), eq(PackageManager.MATCH_DEFAULT_ONLY)))
+                    .thenReturn(new ActivityInfo());
         } else {
             when(mMockPackageManager.getActivityInfo(
-                eq(componentName), eq(PackageManager.MATCH_DEFAULT_ONLY)))
-                .thenThrow(new PackageManager.NameNotFoundException());
+                            eq(componentName), eq(PackageManager.MATCH_DEFAULT_ONLY)))
+                    .thenThrow(new PackageManager.NameNotFoundException());
         }
         HandoffActivityData.Builder builder = new HandoffActivityData.Builder(componentName);
         PersistableBundle extras = new PersistableBundle();
@@ -284,6 +325,6 @@ public class HandoffActivityStarterTest {
         if (hasFallbackUri) {
             builder.setFallbackUri(Uri.parse("https://www.example.com"));
         }
-        return builder.build();
+        return new HandoffActivityDataMessage(builder.build(), List.of());
     }
 }

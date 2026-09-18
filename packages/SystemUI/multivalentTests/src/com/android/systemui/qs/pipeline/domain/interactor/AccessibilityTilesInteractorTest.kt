@@ -23,6 +23,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.accessibility.data.repository.FakeAccessibilityQsShortcutsRepository
+import com.android.systemui.animation.Expandable
 import com.android.systemui.qs.FakeQSFactory
 import com.android.systemui.qs.FakeQSTile
 import com.android.systemui.qs.pipeline.domain.model.TileModel
@@ -115,7 +116,9 @@ class AccessibilityTilesInteractorTest : SysuiTestCase() {
 
     private fun setTiles(tiles: List<TileSpec>) {
         currentTiles.tryEmit(
-            tiles.mapNotNull { qsFactory.createTile(it.spec)?.let { it1 -> TileModel(it, it1) } }
+            tiles.mapNotNull {
+                qsFactory.createTile(it.spec)?.let { it1 -> TileModel(it, it1, Expandable()) }
+            }
         )
     }
 

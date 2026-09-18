@@ -66,7 +66,7 @@ class PanelExpansionInteractorImplTest : SysuiTestCase() {
     fun shouldHideStatusBarIconsWhenExpanded_goneScene() =
         testScope.runTest {
             underTest = kosmos.panelExpansionInteractorImpl
-            shadeAnimationInteractor.setIsLaunchingActivity(false)
+            shadeAnimationInteractor.setIsLaunchingActivity(false, "test")
             changeScene(Scenes.Gone)
 
             assertThat(underTest.shouldHideStatusBarIconsWhenExpanded()).isFalse()
@@ -77,7 +77,7 @@ class PanelExpansionInteractorImplTest : SysuiTestCase() {
     fun shouldHideStatusBarIconsWhenExpanded_lockscreenScene() =
         testScope.runTest {
             underTest = kosmos.panelExpansionInteractorImpl
-            shadeAnimationInteractor.setIsLaunchingActivity(false)
+            shadeAnimationInteractor.setIsLaunchingActivity(false, "test")
             changeScene(Scenes.Lockscreen)
 
             assertThat(underTest.shouldHideStatusBarIconsWhenExpanded()).isTrue()
@@ -89,7 +89,7 @@ class PanelExpansionInteractorImplTest : SysuiTestCase() {
         testScope.runTest {
             underTest = kosmos.panelExpansionInteractorImpl
             changeScene(Scenes.Gone)
-            shadeAnimationInteractor.setIsLaunchingActivity(true)
+            shadeAnimationInteractor.setIsLaunchingActivity(true, "test")
 
             assertThat(underTest.shouldHideStatusBarIconsWhenExpanded()).isFalse()
         }

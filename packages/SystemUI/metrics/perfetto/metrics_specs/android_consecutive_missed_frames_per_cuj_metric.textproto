@@ -1,0 +1,109 @@
+# Copyright (C) 2026 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This evaluates the number of maximum consecutive missed frames within
+# a Jank CUJ as per the FrameTimeline data
+
+metric_template_spec: {
+  id_prefix: "max_consecutive"
+  dimensions: "cuj_name"
+  value_columns: "missed_frames"
+  value_columns: "missed_sf_frames"
+  value_columns: "missed_app_frames"
+  query: {
+    sql: {
+      sql: "
+        INCLUDE PERFETTO MODULE android.cujs.sysui_cujs;
+        INCLUDE PERFETTO MODULE android.frames.jank_type;
+
+        WITH frames_during_cuj AS (
+          SELECT
+            fts.ts AS ts,
+            fts.jank_type AS jank_type,
+            cuj.cuj_name AS cuj_name,
+            cuj.ts AS cuj_start,
+            fts.name AS frame_number,
+            -- Create a simple 1 or 0 flag now to make later logic cleaner
+            android_is_missed_frame_type(fts.jank_type) AS is_jank,
+            android_is_sf_jank_type(fts.jank_type) AS is_sf_jank,
+            android_is_app_jank_type(fts.jank_type) AS is_app_jank
+          FROM actual_frame_timeline_slice AS fts
+          JOIN android_sysui_jank_cujs AS cuj
+            ON fts.upid = cuj.upid
+            AND fts.ts >= cuj.ts           -- Frame must start after CUJ starts
+            AND fts.ts < cuj.ts + cuj.dur  -- Frame must start before CUJ ends
+        ),
+
+        -- Solve the gaps-and-islands to find the consecutive runs
+        -- for this, we need to keep track of the previous lag(is_*_jank)
+        state_changes AS (
+          SELECT
+            *,
+            CASE
+              WHEN is_jank != LAG(is_jank)
+                OVER (PARTITION BY cuj_name, cuj_start ORDER BY ts) THEN 1 ELSE 0
+            END AS jank_state_changed,
+            CASE
+              WHEN is_sf_jank != LAG(is_sf_jank)
+                OVER (PARTITION BY cuj_name, cuj_start ORDER BY ts) THEN 1 ELSE 0
+            END AS sf_jank_state_changed,
+            CASE
+              WHEN is_app_jank != LAG(is_app_jank)
+                OVER (PARTITION BY cuj_name, cuj_start ORDER BY ts) THEN 1 ELSE 0
+            END AS app_jank_state_changed
+          FROM frames_during_cuj
+        ),
+
+        -- Create Streak IDs (ISOLATED PER CUJ)
+        streak_identification AS (
+          SELECT
+            *,
+            -- Create a running ID that is unique to THIS specific CUJ instance
+            SUM(jank_state_changed)
+              OVER (PARTITION BY cuj_name, cuj_start ORDER BY ts) AS streak_id,
+            SUM(sf_jank_state_changed)
+              OVER (PARTITION BY cuj_name, cuj_start ORDER BY ts) AS sf_streak_id,
+            SUM(app_jank_state_changed)
+              OVER (PARTITION BY cuj_name, cuj_start ORDER BY ts) AS app_streak_id
+          FROM state_changes
+        ),
+
+        -- Count the consecutive missed frames for each CUJ for each streak
+        all_streak_lengths AS (
+          SELECT
+            *,
+            COUNT(*) OVER (PARTITION BY cuj_name, cuj_start, streak_id) AS streak_length,
+            COUNT(*) OVER (PARTITION BY cuj_name, cuj_start, sf_streak_id) AS sf_streak_length,
+            COUNT(*) OVER (PARTITION BY cuj_name, cuj_start, app_streak_id) AS app_streak_length
+          FROM streak_identification
+        )
+
+        -- Filter out to choose the maximum consecutive missed frames
+        -- Collapse by CUJ and its start time and only select the MAX length
+        -- where the frames were actually janky
+        SELECT
+          cuj_name,
+          -- If is_jank is 0, we treat the length as 0 so it doesn't become the MAX
+          CAST(MAX(CASE WHEN is_jank = 1 THEN streak_length ELSE 0 END) AS REAL)
+            AS missed_frames,
+          CAST(MAX(CASE WHEN is_sf_jank = 1 THEN sf_streak_length ELSE 0 END) AS REAL)
+            AS missed_sf_frames,
+          CAST(MAX(CASE WHEN is_app_jank = 1 THEN app_streak_length ELSE 0 END) AS REAL)
+            AS missed_app_frames
+        FROM all_streak_lengths
+        GROUP BY cuj_name;
+      "
+    }
+  }
+}

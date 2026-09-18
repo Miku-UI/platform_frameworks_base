@@ -26,6 +26,7 @@ import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_I
 import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_COMPAT;
 import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_DENIED;
 import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_SYSTEM_DEFINED;
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
 import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.os.Build.VERSION_CODES.BAKLAVA;
@@ -45,10 +46,11 @@ import static com.android.server.wm.ActivityTaskManagerService.APP_SWITCH_ALLOW;
 import static com.android.server.wm.ActivityTaskManagerService.APP_SWITCH_FG_ONLY;
 import static com.android.server.wm.ActivityTaskSupervisor.getApplicationLabel;
 import static com.android.server.wm.PendingRemoteAnimationRegistry.TIMEOUT_MS;
+import static com.android.server.wm.WindowContainer.alwaysTruePredicate;
+import static com.android.window.flags.Flags.balAsmOptInNullTopActivity;
 import static com.android.window.flags.Flags.balDontBringExistingBackgroundTaskStackToFg;
 
 import static java.lang.annotation.RetentionPolicy.SOURCE;
-import static java.util.Objects.requireNonNull;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -61,6 +63,7 @@ import android.app.IBackgroundActivityLaunchCallback;
 import android.app.compat.CompatChanges;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.EnabledAfter;
+import android.compat.annotation.Overridable;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
@@ -96,6 +99,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.StringJoiner;
+import java.util.TreeMap;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -115,7 +119,7 @@ public class BackgroundActivityStartController {
     private static final String DOC_LINK = "go/android-asm";
 
     /** Used to determine which version of the ASM logic was used in logs while we iterate */
-    private static final int ASM_VERSION = 12;
+    private static final int ASM_VERSION = 14;
     private static final int NO_PROCESS_UID = -1;
     private static final int NO_GRACE_PERIOD = -1;
 
@@ -148,6 +152,7 @@ public class BackgroundActivityStartController {
     /**  Feature flag for go/activity-security rules */
     @ChangeId
     @EnabledAfter(targetSdkVersion = BAKLAVA)
+    @Overridable
     static final long ASM_RESTRICTIONS = 230590090L;
     public static final ActivityOptions ACTIVITY_OPTIONS_SYSTEM_DEFINED =
             ActivityOptions.makeBasic()
@@ -159,9 +164,17 @@ public class BackgroundActivityStartController {
     private final ActivityTaskManagerService mService;
 
     private final ActivityTaskSupervisor mSupervisor;
+
+    // there should never be more than 1 callback per uid under normal circumstances, but e.g.
+    // the system server registers multiple callbacks from different classloaders.
+    private int mCallbackMapSizeLimit = 10;
+
+    record StrictModeCallback(IBackgroundActivityLaunchCallback callback,
+                              IBinder.DeathRecipient deathRecipient) {}
+
     @GuardedBy("mStrictModeBalCallbacks")
-    private final SparseArray<ArrayMap<IBinder, IBackgroundActivityLaunchCallback>>
-            mStrictModeBalCallbacks = new SparseArray<>();
+    private final SparseArray<ArrayMap<IBinder, StrictModeCallback>> mStrictModeBalCallbacks =
+            new SparseArray<>();
 
 
     // TODO(b/263368846) Rename when ASM logic is moved in
@@ -182,6 +195,7 @@ public class BackgroundActivityStartController {
             BAL_ALLOW_NON_APP_VISIBLE_WINDOW,
             BAL_ALLOW_WALLPAPER,
             BAL_ALLOW_NOTIFICATION_TOKEN,
+            BAL_ALLOW_PCC_DEFINING_APP_HAS_VISIBLE_WINDOW,
             BAL_BLOCK
     })
     public @interface BalCode {}
@@ -235,6 +249,10 @@ public class BackgroundActivityStartController {
     static final int BAL_ALLOW_SDK_SANDBOX =
             FrameworkStatsLog.BAL_ALLOWED__ALLOWED_REASON__BAL_ALLOW_SDK_SANDBOX;
 
+    /** Process belongs to PCC process and defining app has a visible window */
+    static final int BAL_ALLOW_PCC_DEFINING_APP_HAS_VISIBLE_WINDOW =
+            FrameworkStatsLog.BAL_ALLOWED__ALLOWED_REASON__BAL_ALLOW_PCC;
+
     /** Process belongs to a SDK sandbox */
     static final int BAL_ALLOW_NON_APP_VISIBLE_WINDOW =
             FrameworkStatsLog.BAL_ALLOWED__ALLOWED_REASON__BAL_ALLOW_NON_APP_VISIBLE_WINDOW;
@@ -270,6 +288,8 @@ public class BackgroundActivityStartController {
             case BAL_ALLOW_VISIBLE_WINDOW -> "BAL_ALLOW_VISIBLE_WINDOW";
             case BAL_ALLOW_NOTIFICATION_TOKEN -> "BAL_ALLOW_NOTIFICATION_TOKEN";
             case BAL_ALLOW_WALLPAPER -> "BAL_ALLOW_WALLPAPER";
+            case BAL_ALLOW_PCC_DEFINING_APP_HAS_VISIBLE_WINDOW ->
+                    "BAL_ALLOW_PCC_DEFINING_APP_HAS_VISIBLE_WINDOW";
             case BAL_BLOCK -> "BAL_BLOCK";
             default -> throw new IllegalArgumentException("Unexpected value: " + balCode);
         };
@@ -506,20 +526,6 @@ public class BackgroundActivityStartController {
                     throw new IllegalStateException("unsupported BackgroundActivityStartMode: "
                             + checkedOptions.getPendingIntentCreatorBackgroundActivityStartMode());
             }
-        }
-
-        private String getDebugPackageName(String packageName, int uid) {
-            if (packageName != null) {
-                return packageName; // use actual package
-            }
-            if (uid == 0) {
-                return "root[debugOnly]";
-            }
-            String name = getService().getPackageManagerInternalLocked().getNameForUid(uid);
-            if (name == null) {
-                name = "uid=" + uid;
-            }
-            return name + "[debugOnly]";
         }
 
         private boolean hasRealCaller() {
@@ -895,6 +901,22 @@ public class BackgroundActivityStartController {
             }
         }
 
+        // In the case of a PCC calling uid, check if the corresponding app uid has a
+        // visible window.
+        if (enablePccFrameworkSupport() && Process.isPrivateComputeCoreUid(state.mRealCallingUid)) {
+            int realCallingAppUid =
+                    getService().mContext.getPackageManager()
+                            .getAppUidForPrivateComputeCoreUid(state.mRealCallingUid);
+
+            if (getService().hasActiveVisibleWindow(realCallingAppUid)) {
+                state.setResultForRealCaller(new BalVerdict(
+                        BAL_ALLOW_PCC_DEFINING_APP_HAS_VISIBLE_WINDOW,
+                        "PCC process's parent app has visible (non-toast) window")
+                        .allowNewTask());
+                return allowBasedOnRealCaller(state);
+            }
+        }
+
         BalVerdict resultForCaller = checkBackgroundActivityStartAllowedByCaller(state);
         state.setResultForCaller(resultForCaller);
 
@@ -977,8 +999,10 @@ public class BackgroundActivityStartController {
     private BalVerdict abortLaunch(BalState state) {
         Slog.wtf(TAG, "Background activity launch blocked! goo.gle/android-bal "
                 + state);
-        if (Build.IS_DEBUGGABLE
-                && (state.mResultForCaller.allows() || state.mResultForRealCaller.allows())) {
+        if (Build.IS_DEBUGGABLE && (
+                (state.mResultForCaller != null && state.mResultForCaller.allows())
+                        || (state.mResultForRealCaller != null
+                        && state.mResultForRealCaller.allows()))) {
             // only show a toast if either caller or real caller could launch if they opted in
             showToast("BAL blocked. goo.gle/android-bal");
         }
@@ -998,10 +1022,10 @@ public class BackgroundActivityStartController {
                             ? state.mCallingPackage
                             + " could opt in to grant BAL privileges when creating."
                             : "")
-                            + "The intent would have started " + state.mIntent.getComponent();
+                            + "The intent would have started " + getComponent(state.mIntent);
         } else {
             abortDebugMessage = "Activity start blocked. "
-                    + "The intent would have started " + state.mIntent.getComponent();
+                    + "The intent would have started " + getComponent(state.mIntent);
         }
         strictModeLaunchAborted(state.mCallingUid, abortDebugMessage);
         if (!state.callerIsRealCaller()) {
@@ -1016,15 +1040,27 @@ public class BackgroundActivityStartController {
      * @return the callback if it exists, returns <code>null</code> otherwise.
      */
     @Nullable
-    Map<IBinder, IBackgroundActivityLaunchCallback> getStrictModeBalCallbacks(int uid) {
-        ArrayMap<IBinder, IBackgroundActivityLaunchCallback> callbackMap;
+    Map<IBinder, StrictModeCallback> getStrictModeBalCallbacks(int uid) {
         synchronized (mStrictModeBalCallbacks) {
-            callbackMap =
-                    mStrictModeBalCallbacks.get(uid);
+            ArrayMap<IBinder, StrictModeCallback> callbackMap = mStrictModeBalCallbacks.get(uid);
             if (callbackMap == null) {
                 return null;
             }
             return new ArrayMap<>(callbackMap);
+        }
+    }
+
+    class StrictModeDeathRecipient implements IBinder.DeathRecipient {
+        int mUid;
+        IBinder mCallback;
+
+        StrictModeDeathRecipient(int uid, IBinder callback) {
+            mUid = uid;
+            mCallback = callback;
+        }
+
+        public void binderDied() {
+            removeStrictModeCallback(mUid, mCallback);
         }
     }
 
@@ -1037,26 +1073,47 @@ public class BackgroundActivityStartController {
      * @return {@code true} if the callback has been successfully added.
      */
     boolean addStrictModeCallback(int uid, IBinder callback) {
+        if (callback == null) {
+            return false;
+        }
         IBackgroundActivityLaunchCallback balCallback =
                 IBackgroundActivityLaunchCallback.Stub.asInterface(callback);
+        StrictModeDeathRecipient deathRecipient = new StrictModeDeathRecipient(uid, callback);
         synchronized (mStrictModeBalCallbacks) {
-            ArrayMap<IBinder, IBackgroundActivityLaunchCallback> callbackMap =
-                    mStrictModeBalCallbacks.get(uid);
+            ArrayMap<IBinder, StrictModeCallback> callbackMap = mStrictModeBalCallbacks.get(uid);
             if (callbackMap == null) {
                 callbackMap = new ArrayMap<>();
                 mStrictModeBalCallbacks.put(uid, callbackMap);
+            } else {
+                if (callbackMap.containsKey(callback)) {
+                    return false;
+                }
+                if (callbackMap.size() >= mCallbackMapSizeLimit) {
+                    Slog.wtf(TAG,
+                            "Too many (" + callbackMap.size() + ") callbacks registered for "
+                                    + getDebugPackageName(null, uid)
+                                    + "; " + createPackageCountMap(mStrictModeBalCallbacks));
+                    return false;
+                }
             }
-            if (callbackMap.containsKey(callback)) {
-                return false;
-            }
-            callbackMap.put(callback, balCallback);
+            callbackMap.put(callback, new StrictModeCallback(balCallback, deathRecipient));
         }
         try {
-            callback.linkToDeath(() -> removeStrictModeCallback(uid, callback), 0);
+            callback.linkToDeath(deathRecipient, 0);
         } catch (RemoteException e) {
             removeStrictModeCallback(uid, callback);
         }
         return true;
+    }
+
+    private Map<String, Integer> createPackageCountMap(
+            SparseArray<ArrayMap<IBinder, StrictModeCallback>> strictModeBalCallbacks) {
+        Map<String, Integer> result = new TreeMap<>();
+        for (int i = strictModeBalCallbacks.size(); i-- > 0; ) {
+            result.put(getDebugPackageName(null, strictModeBalCallbacks.keyAt(i)),
+                    strictModeBalCallbacks.valueAt(i).size());
+        }
+        return result;
     }
 
     /**
@@ -1067,29 +1124,35 @@ public class BackgroundActivityStartController {
      *                 blocked.
      */
     void removeStrictModeCallback(int uid, IBinder callback) {
+        if (callback == null) {
+            return;
+        }
+        StrictModeCallback removed;
         synchronized (mStrictModeBalCallbacks) {
-            Map<IBinder, IBackgroundActivityLaunchCallback> callbackMap =
-                    mStrictModeBalCallbacks.get(uid);
-            if (callback == null || !callbackMap.containsKey(callback)) {
+            ArrayMap<IBinder, StrictModeCallback> callbackMap = mStrictModeBalCallbacks.get(uid);
+            if (callbackMap == null || !callbackMap.containsKey(callback)) {
                 return;
             }
-            callbackMap.remove(callback);
+            removed = callbackMap.remove(callback);
             if (callbackMap.isEmpty()) {
                 mStrictModeBalCallbacks.remove(uid);
             }
         }
+        if (removed != null) {
+            callback.unlinkToDeath(removed.deathRecipient, 0);
+        }
     }
 
     private void strictModeLaunchAborted(int callingUid, String message) {
-        Map<IBinder, IBackgroundActivityLaunchCallback> strictModeBalCallbacks =
+        Map<IBinder, StrictModeCallback> strictModeBalCallbacks =
                 getStrictModeBalCallbacks(callingUid);
         if (strictModeBalCallbacks == null) {
             return;
         }
-        for (Map.Entry<IBinder, IBackgroundActivityLaunchCallback> callbackEntry :
+        for (Map.Entry<IBinder, StrictModeCallback> callbackEntry :
                 strictModeBalCallbacks.entrySet()) {
             try {
-                callbackEntry.getValue().onBackgroundActivityLaunchAborted(message);
+                callbackEntry.getValue().callback.onBackgroundActivityLaunchAborted(message);
             } catch (RemoteException e) {
                 removeStrictModeCallback(callingUid, callbackEntry.getKey());
             }
@@ -1225,8 +1288,7 @@ public class BackgroundActivityStartController {
 
         final int callingAppId = UserHandle.getAppId(state.mCallingUid);
         // IME should always be allowed to start activity, like IME settings.
-        final WindowState imeWindow =
-                getService().mRootWindowContainer.getCurrentInputMethodWindow();
+        final WindowState imeWindow = getService().mRootWindowContainer.getCurrentImeWindow();
         if (imeWindow != null && callingAppId == imeWindow.mOwnerUid) {
             return new BalVerdict(BAL_ALLOW_ALLOWLISTED_COMPONENT, "Active ime").allowNewTask();
         }
@@ -1567,7 +1629,7 @@ public class BackgroundActivityStartController {
         String asmDebugInfo = getDebugInfoForActivitySecurity("Launch", sourceRecord,
                 targetRecord, targetTask, targetTopActivity, realCallingUid, balVerdict,
                 enforceBlock, taskToFront, avoidMoveTaskToFront, allowedByGracePeriod,
-                bas.mActivityOptedIn);
+                bas.mActivityOptedIn, bas.mTopActivityOptedIn, callingUid);
 
         FrameworkStatsLog.write(FrameworkStatsLog.ACTIVITY_ACTION_BLOCKED,
                 /* caller_uid */
@@ -1599,7 +1661,9 @@ public class BackgroundActivityStartController {
                 /* bal_code */
                 balVerdict.isBasedOnCaller() ? balVerdict.getCode() : BAL_ALLOW_PENDING_INTENT,
                 /* debug_info */
-                asmDebugInfo
+                asmDebugInfo,
+                /* block */
+                enforceBlock
         );
 
         String launchedFromPackageName = targetRecord.launchedFromPackage;
@@ -1706,7 +1770,8 @@ public class BackgroundActivityStartController {
             Slog.i(TAG, getDebugInfoForActivitySecurity("Clear Top", sourceRecord, targetRecord,
                     targetTask, targetTaskTop, realCallingUid, balVerdict, shouldBlockActivityStart,
                     /* taskToFront */ true, /* avoidMoveTaskToFront */ false,
-                    /* allowedByAsmGracePeriod */ false, bas.mActivityOptedIn));
+                    /* allowedByAsmGracePeriod */ false, bas.mActivityOptedIn,
+                    bas.mTopActivityOptedIn, callingUid));
         }
     }
 
@@ -1751,6 +1816,7 @@ public class BackgroundActivityStartController {
         }
 
         ActivityRecord topActivity = task.getActivity(ar -> !ar.finishing && !ar.isAlwaysOnTop());
+
         FrameworkStatsLog.write(FrameworkStatsLog.ACTIVITY_ACTION_BLOCKED,
                 /* caller_uid */
                 callingUid,
@@ -1779,7 +1845,9 @@ public class BackgroundActivityStartController {
                 /* bal_code */
                 -1,
                 /* debug_info */
-                null
+                null,
+                /* block */
+                false
         );
 
         boolean restrictActivitySwitch = shouldRestrictActivitySwitch(callingUid)
@@ -1835,7 +1903,10 @@ public class BackgroundActivityStartController {
         // Always allow actual top activity
         ActivityRecord topActivity = task.getTopMostActivity();
         if (topActivity == null) {
-            Slog.wtf(TAG, "Activities for task: " + task + " not found.");
+            Slog.wtf(TAG, "Activities for task: " + task + " not found. "
+                    + "Task has " + task.getChildCount() + " children. "
+                    + "First Activity: " + task.getActivity(alwaysTruePredicate())
+                    + ".");
             return bas.optedIn(topActivity);
         }
 
@@ -1963,7 +2034,7 @@ public class BackgroundActivityStartController {
             int realCallingUid, BalVerdict balVerdict,
             boolean enforceBlock, boolean taskToFront,
             boolean avoidMoveTaskToFront, boolean allowedByGracePeriod,
-            ActivityRecord activityOptedIn) {
+            ActivityRecord activityOptedIn, boolean topActivityOptedIn, int callingUid) {
         final String prefix = "[ASM] ";
         Function<ActivityRecord, String> recordToString = (ar) -> {
             if (ar == null) {
@@ -1983,6 +2054,9 @@ public class BackgroundActivityStartController {
         if (!enforceBlock) {
             joiner.add(prefix + "Restrictions Enabled: " + android.security
                     .Flags.asmRestrictionsV2());
+            joiner.add(prefix + "Top Activity Opted In: " + topActivityOptedIn);
+            joiner.add(prefix + "Compat Change Enabled: " + CompatChanges.isChangeEnabled(
+                    ASM_RESTRICTIONS, callingUid));
         }
         joiner.add(prefix + "ASM Version: " + ASM_VERSION);
         joiner.add(prefix + "System Time: " + SystemClock.uptimeMillis());
@@ -1996,6 +2070,9 @@ public class BackgroundActivityStartController {
             String realCallingPackage = getService().mContext.getPackageManager().getNameForUid(
                     realCallingUid);
             joiner.add(prefix + "Real Calling Uid Package: " + realCallingPackage);
+            String callingPackage = getService().mContext.getPackageManager().getNameForUid(
+                    callingUid);
+            joiner.add(prefix + "Calling Uid Package: " + callingPackage);
         } else {
             joiner.add(prefix + "Source Record: " + recordToString.apply(sourceRecord));
             joiner.add(prefix + "Source Launch Package: " + sourceRecord.launchedFromPackage);
@@ -2141,9 +2218,7 @@ public class BackgroundActivityStartController {
         if (shouldLogStats(finalVerdict, state)) {
             String activityName;
             if (shouldLogIntentActivity(finalVerdict, state)) {
-                Intent intent = state.mIntent;
-                activityName = intent == null ? "noIntent" // should never happen
-                        : requireNonNull(intent.getComponent()).flattenToShortString();
+                activityName = getComponent(state.mIntent);
             } else {
                 activityName = "";
             }
@@ -2152,6 +2227,19 @@ public class BackgroundActivityStartController {
             writeBalAllowedLogMinimal(state, finalVerdict.getCode());
         }
         return finalVerdict;
+    }
+
+    private String getComponent(Intent intent) {
+        if (intent == null) {
+            // e.g. moveTaskToFront
+            return "noIntent";
+        }
+        ComponentName component = intent.getComponent();
+        if (component == null) {
+            // should never be the case as the Intent is fully resolved when we decide about BAL
+            return "noComponent";
+        }
+        return component.flattenToShortString();
     }
 
     /**
@@ -2296,6 +2384,12 @@ public class BackgroundActivityStartController {
         private ActivityRecord mActivityOptedIn;
 
         BlockActivityStart optedIn(ActivityRecord activity) {
+            if (activity == null) {
+                Slog.wtfStack(TAG, "BlockActivityStart.optedIn called with null activity");
+                if (!balAsmOptInNullTopActivity()) {
+                    return this;
+                }
+            }
             mTopActivityOptedIn = true;
             if (mActivityOptedIn == null) {
                 mActivityOptedIn = activity;
@@ -2368,5 +2462,19 @@ public class BackgroundActivityStartController {
     static boolean shouldRestrictActivitySwitch(int uid) {
         return android.security.Flags.asmRestrictionsV2()
                 && CompatChanges.isChangeEnabled(ASM_RESTRICTIONS, uid);
+    }
+
+    private String getDebugPackageName(String packageName, int uid) {
+        if (packageName != null) {
+            return packageName; // use actual package
+        }
+        if (uid == 0) {
+            return "root";
+        }
+        String name = getService().getPackageManagerInternalLocked().getNameForUid(uid);
+        if (name == null) {
+            name = "uid=" + uid;
+        }
+        return name;
     }
 }

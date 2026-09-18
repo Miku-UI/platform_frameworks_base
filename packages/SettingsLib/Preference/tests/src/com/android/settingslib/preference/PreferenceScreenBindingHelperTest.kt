@@ -135,6 +135,9 @@ private abstract class Screen(val testScope: TestScope) : PreferenceScreenCreato
     override val key: String
         get() = "screen"
 
+    override val purpose: Int
+        get() = 0
+
     override fun fragmentClass() = PreferenceFragment::class.java
 
     fun test() {
@@ -151,12 +154,14 @@ private abstract class Screen(val testScope: TestScope) : PreferenceScreenCreato
 
 private class Metadata(override val key: String) : PreferenceMetadata, PreferenceTitleProvider {
 
+    override val purpose: Int
+        get() = 0
     override fun getTitle(context: Context) = key.prefTitle()
 }
 
 private fun String.prefTitle() = "pref $this"
 
-private class Group(key: String) : PreferenceCategory(key, 0), PreferenceTitleProvider {
+private class Group(key: String) : PreferenceCategory(key, 0, 0), PreferenceTitleProvider {
 
     override fun getTitle(context: Context) = key.groupTitle()
 }

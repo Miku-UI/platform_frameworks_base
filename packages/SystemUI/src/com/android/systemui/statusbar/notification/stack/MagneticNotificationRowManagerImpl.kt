@@ -17,11 +17,8 @@
 package com.android.systemui.statusbar.notification.stack
 
 import android.os.VibrationAttributes
-import android.os.VibrationEffect
 import androidx.dynamicanimation.animation.SpringForce
-import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.statusbar.VibratorHelper
 import com.android.systemui.statusbar.notification.Roundable
 import com.android.systemui.statusbar.notification.TopBottomRoundness
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
@@ -42,7 +39,6 @@ class MagneticNotificationRowManagerImpl
 @Inject
 constructor(
     private val msdlPlayer: MSDLPlayer,
-    private val vibratorHelper: VibratorHelper,
     private val notificationTargetsHelper: NotificationTargetsHelper,
     private val notificationRoundnessManager: NotificationRoundnessManager,
     private val logger: NotificationRowLogger,
@@ -267,39 +263,16 @@ constructor(
         val vibrationScale = scaleFactor * normalizedTranslation.pow(VIBRATION_SCALE_EXPONENT)
         val compensatedScale =
             vibrationScale.pow(VIBRATION_PERCEPTION_EXPONENT).coerceAtMost(maximumValue = 1f)
-        if (Flags.msdlFeedback()) {
-            msdlPlayer.playToken(
-                MSDLToken.DRAG_INDICATOR_CONTINUOUS,
-                InteractionProperties.DynamicVibrationScale(
-                    scale = compensatedScale,
-                    vibrationAttributes = VIBRATION_ATTRIBUTES_PIPELINING,
-                ),
-            )
-        } else {
-            val composition =
-                VibrationEffect.startComposition().apply {
-                    repeat(N_LOW_TICKS) {
-                        addPrimitive(
-                            VibrationEffect.Composition.PRIMITIVE_LOW_TICK,
-                            compensatedScale,
-                        )
-                    }
-                }
-            vibratorHelper.vibrate(composition.compose(), VIBRATION_ATTRIBUTES_PIPELINING)
-        }
+        msdlPlayer.playToken(
+            MSDLToken.DRAG_INDICATOR_CONTINUOUS,
+            InteractionProperties.DynamicVibrationScale(
+                scale = compensatedScale,
+                vibrationAttributes = VIBRATION_ATTRIBUTES_PIPELINING,
+            ),
+        )
     }
 
-    private fun playThresholdHaptics() {
-        if (Flags.msdlFeedback()) {
-            msdlPlayer.playToken(MSDLToken.SWIPE_THRESHOLD_INDICATOR)
-        } else {
-            val composition =
-                VibrationEffect.startComposition()
-                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.7f)
-                    .compose()
-            vibratorHelper.vibrate(composition)
-        }
-    }
+    private fun playThresholdHaptics() = msdlPlayer.playToken(MSDLToken.SWIPE_THRESHOLD_INDICATOR)
 
     private fun snapNeighborsBack(velocity: Float? = null) {
         currentMagneticListeners.forEachIndexed { i, target ->

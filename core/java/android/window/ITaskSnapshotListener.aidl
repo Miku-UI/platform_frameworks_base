@@ -28,7 +28,7 @@ oneway interface ITaskSnapshotListener {
     void onTaskSnapshotChanged(int taskId, in TaskSnapshot taskSnapshot);
 
     /**
-     * Called when a task snapshot become invalidated.
+     * Called when a task snapshot is released.
      */
-    void onTaskSnapshotInvalidated(int taskId);
+    void onTaskSnapshotReleased(int taskId);
 }

@@ -1,0 +1,46 @@
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.systemui.statusbar.notification.row
+
+import android.annotation.AttrRes
+import android.annotation.StyleRes
+import android.app.Notification
+import android.content.Context
+import android.util.AttributeSet
+import android.view.View
+
+/** Provider for [AutomationNotificationBackground] */
+interface AutomationNotificationBackgroundProvider {
+    fun get(sysUiContext: Context): AutomationNotificationBackground?
+}
+
+/** Interface for adding a constraint on automation ui eligibility. */
+interface AutomationNotificationUiEligibilityChecker {
+    fun isEligible(notification: Notification): Boolean
+}
+
+/** Abstract parent class for the automation notification background view. */
+abstract class AutomationNotificationBackground
+@JvmOverloads
+constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+    @AttrRes defStyleAttr: Int = 0,
+    @StyleRes defStyleRes: Int = 0,
+) : View(context, attrs, defStyleAttr, defStyleRes) {
+    abstract fun animateEnter()
+}

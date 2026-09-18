@@ -22,6 +22,13 @@ message Rect {
   optional int32 bottom = 4;
 }
 
+message RectF {
+  optional float left = 1;
+  optional float top = 2;
+  optional float right = 3;
+  optional float bottom = 4;
+}
+
 message DesktopTask {
   optional int32 task_id = 1;
   optional DesktopTaskState desktop_task_state= 2;
@@ -29,6 +36,8 @@ message DesktopTask {
   // Tracks task bounds; used primarily for display restore functionality as
   // core will restore task bounds to the task itself on boot.
   optional Rect task_bounds = 4;
+  // Bounds of the task before it was snapped or maximized.
+  optional Rect bounds_before_snap_or_maximize = 5;
 }
 
 message Desktop {
@@ -46,6 +55,10 @@ message PreservedDisplay {
   optional int32 active_desk_id = 2;
 }
 
+message PackageState {
+  optional RectF remembered_bounds_ratio = 1;
+}
+
 message DesktopRepositoryState {
   // Stores a mapping between a repository and the desktops in it. The key is the desktop id.
   map<int32, Desktop> desktop = 1;
@@ -53,6 +66,8 @@ message DesktopRepositoryState {
   map<string, int32> active_desk_by_unique_display_id = 2;
   // Stores a mapping of preserved displays by their unique display id.
   map<string, PreservedDisplay> preserved_display_by_unique_id = 3;
+  // Stores a mapping of the last package state by its package name.
+  map<string, PackageState> package_state_by_package_name = 4;
 }
 
 message DesktopPersistentRepositories {

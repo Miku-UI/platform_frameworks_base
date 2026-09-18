@@ -60,8 +60,6 @@ public class PackageCacher implements IPackageCacher {
     @Nullable
     private final PackageParser2.Callback mCallback;
 
-    private static final AconfigFlags sAconfigFlags = ParsingPackageUtils.getAconfigFlags();
-
     public PackageCacher(File cacheDir) {
         this(cacheDir, null);
     }
@@ -230,7 +228,7 @@ public class PackageCacher implements IPackageCacher {
                 Slog.d(TAG, "Feature flags for package " + packageFile + ": " + featureFlagState);
                 for (var entry : featureFlagState.entrySet()) {
                     final String flagPackageAndName = entry.getKey();
-                    if (!Objects.equals(sAconfigFlags.getFlagValue(flagPackageAndName),
+                    if (!Objects.equals(AconfigFlags.getInstance().getFlagValue(flagPackageAndName),
                             entry.getValue())) {
                         Slog.i(TAG, "Feature flag " + flagPackageAndName + " changed for package "
                                 + packageFile + "; cached result is invalid");

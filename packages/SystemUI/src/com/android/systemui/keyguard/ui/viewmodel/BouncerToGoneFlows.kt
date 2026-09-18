@@ -38,10 +38,12 @@ import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.shade.ui.ShadeColors.notificationScrim
 import com.android.systemui.shade.ui.ShadeColors.shadePanel
 import com.android.systemui.statusbar.SysuiStatusBarStateController
+import com.android.systemui.utils.coroutines.flow.flatMapLatestConflated
 import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor
 import dagger.Lazy
 import javax.inject.Inject
 import kotlin.time.Duration
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
@@ -127,7 +129,7 @@ constructor(
         return shadeInteractor.anyExpansion
             .map { it > 0f }
             .distinctUntilChanged()
-            .flatMapLatest { isAnyExpanded ->
+            .flatMapLatestFlow { isAnyExpanded ->
                 transitionAnimation
                     .sharedFlow(
                         duration = duration,
@@ -156,6 +158,14 @@ constructor(
                     }
             }
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun <T, R> Flow<T>.flatMapLatestFlow(block: (T) -> Flow<R>): Flow<R> =
+        if (SceneContainerFlag.isEnabled) {
+            flatMapLatestConflated { block(it) }
+        } else {
+            flatMapLatest { block(it) }
+        }
 
     private fun mapToScrimAlphasWithCustomMaxAlphas(
         transitionProgress: Float,

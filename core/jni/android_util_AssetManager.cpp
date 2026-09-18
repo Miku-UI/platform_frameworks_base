@@ -32,6 +32,7 @@
 #include "android-base/logging.h"
 #include "android-base/properties.h"
 #include "android-base/stringprintf.h"
+#include "android_content_res.h"
 #include "android_content_res_ApkAssets.h"
 #include "android_runtime/AndroidRuntime.h"
 #include "androidfw/Asset.h"
@@ -85,6 +86,10 @@ static struct configuration_offsets_t {
   jfieldID mScreenHeightDpOffset;
   jfieldID mScreenLayoutOffset;
   jfieldID mUiMode;
+  jfieldID mKeyboard;
+  jfieldID mNavigation;
+  jfieldID mTouchscreen;
+  jfieldID mColorMode;
 } gConfigurationOffsets;
 
 static struct arraymap_offsets_t {
@@ -620,9 +625,11 @@ static jlong NativeOpenXmlAsset(JNIEnv* env, jobject /*clazz*/, jlong ptr, jint 
   auto assetmanager = LockAndStartAssetManager(ptr);
   std::unique_ptr<Asset> asset;
   if (cookie != kInvalidCookie) {
-    asset = assetmanager->OpenNonAsset(asset_path_utf8.c_str(), cookie, Asset::ACCESS_RANDOM);
+      asset = assetmanager->OpenNonAsset(asset_path_utf8.c_str(), cookie, Asset::ACCESS_RANDOM,
+                                         kMaxXmlAssetSize);
   } else {
-    asset = assetmanager->OpenNonAsset(asset_path_utf8.c_str(), Asset::ACCESS_RANDOM, &cookie);
+      asset = assetmanager->OpenNonAsset(asset_path_utf8.c_str(), Asset::ACCESS_RANDOM, &cookie,
+                                         kMaxXmlAssetSize);
   }
 
   if (!asset) {
@@ -638,11 +645,11 @@ static jlong NativeOpenXmlAsset(JNIEnv* env, jobject /*clazz*/, jlong ptr, jint 
       return 0;
   }
 
-  auto xml_tree = util::make_unique<ResXMLTree>(assetmanager->GetDynamicRefTableForCookie(cookie));
-  status_t err = xml_tree->setTo(buffer.unsafe_ptr(), length, true);
-  if (err != NO_ERROR) {
-    jniThrowException(env, "java/io/FileNotFoundException", "Corrupt XML binary file");
-    return 0;
+  auto xml_tree = ResXMLTree::fromAsset(std::move(asset),
+                                        assetmanager->GetDynamicRefTableForCookie(cookie));
+  if (!xml_tree) {
+      jniThrowException(env, "java/io/FileNotFoundException", "Corrupt XML binary file");
+      return 0;
   }
   return reinterpret_cast<jlong>(xml_tree.release());
 }
@@ -665,12 +672,18 @@ static jlong NativeOpenXmlAssetFd(JNIEnv* env, jobject /*clazz*/, jlong ptr, int
   std::unique_ptr<Asset>
       asset(Asset::createFromFd(dup_fd.release(), nullptr, Asset::AccessMode::ACCESS_BUFFER));
 
+  const size_t length = asset->getLength();
+  if (android_content_res_xml_file_size_limit() && length > kMaxXmlAssetSize) {
+      LOG(ERROR) << "FD size " << asset->getLength() << " is greater than the maximum allowed size "
+                 << kMaxXmlAssetSize;
+      return {};
+  }
+
   auto assetmanager = LockAndStartAssetManager(ptr);
 
   ApkAssetsCookie cookie = JavaCookieToApkAssetsCookie(jcookie);
 
   const incfs::map_ptr<void> buffer = asset->getIncFsBuffer(true /* aligned */);
-  const size_t length = asset->getLength();
   if (!buffer.convert<uint8_t>().verify(length)) {
       jniThrowException(env, "java/io/FileNotFoundException",
                         "File not fully present due to incremental installation");
@@ -1101,10 +1114,14 @@ static jobject ConstructConfigurationObject(JNIEnv* env, const ResTable_config& 
   env->SetIntField(result, gConfigurationOffsets.mScreenHeightDpOffset, config.screenHeightDp);
   env->SetIntField(result, gConfigurationOffsets.mScreenLayoutOffset, config.screenLayout);
   env->SetIntField(result, gConfigurationOffsets.mUiMode, config.uiMode);
+  env->SetIntField(result, gConfigurationOffsets.mKeyboard, config.keyboard);
+  env->SetIntField(result, gConfigurationOffsets.mNavigation, config.navigation);
+  env->SetIntField(result, gConfigurationOffsets.mTouchscreen, config.touchscreen);
+  env->SetIntField(result, gConfigurationOffsets.mColorMode, config.colorMode);
   return result;
 }
 
-static jobjectArray GetSizeAndUiModeConfigurations(JNIEnv* env, jlong ptr) {
+static jobjectArray NativeGetResourceConfigurations(JNIEnv* env, jclass /*clazz*/, jlong ptr) {
   auto assetmanager = LockAndStartAssetManager(ptr);
   auto configurations = assetmanager->GetResourceConfigurations(true /*exclude_system*/,
                                                                 false /*exclude_mipmap*/);
@@ -1129,14 +1146,6 @@ static jobjectArray GetSizeAndUiModeConfigurations(JNIEnv* env, jlong ptr) {
     env->DeleteLocalRef(java_configuration);
   }
   return array;
-}
-
-static jobjectArray NativeGetSizeConfigurations(JNIEnv* env, jclass /*clazz*/, jlong ptr) {
-  return GetSizeAndUiModeConfigurations(env, ptr);
-}
-
-static jobjectArray NativeGetSizeAndUiModeConfigurations(JNIEnv* env, jclass /*clazz*/, jlong ptr) {
-  return GetSizeAndUiModeConfigurations(env, ptr);
 }
 
 static jintArray NativeAttributeResolutionStack(JNIEnv* env, jclass /*clazz*/, jlong ptr,
@@ -1599,10 +1608,8 @@ static const JNINativeMethod gAssetManagerMethods[] = {
         {"nativeGetLastResourceResolution", "(J)Ljava/lang/String;",
          (void*)NativeGetLastResourceResolution},
         {"nativeGetLocales", "(JZ)[Ljava/lang/String;", (void*)NativeGetLocales},
-        {"nativeGetSizeConfigurations", "(J)[Landroid/content/res/Configuration;",
-         (void*)NativeGetSizeConfigurations},
-        {"nativeGetSizeAndUiModeConfigurations", "(J)[Landroid/content/res/Configuration;",
-         (void*)NativeGetSizeAndUiModeConfigurations},
+        {"nativeGetResourceConfigurations", "(J)[Landroid/content/res/Configuration;",
+         (void*)NativeGetResourceConfigurations},
 
         // Style attribute related methods.
         {"nativeAttributeResolutionStack", "(JJIII)[I", (void*)NativeAttributeResolutionStack},
@@ -1678,6 +1685,10 @@ int register_android_content_AssetManager(JNIEnv* env) {
   gConfigurationOffsets.mScreenLayoutOffset =
           GetFieldIDOrDie(env, configurationClass, "screenLayout", "I");
   gConfigurationOffsets.mUiMode = GetFieldIDOrDie(env, configurationClass, "uiMode", "I");
+  gConfigurationOffsets.mKeyboard = GetFieldIDOrDie(env, configurationClass, "keyboard", "I");
+  gConfigurationOffsets.mNavigation = GetFieldIDOrDie(env, configurationClass, "navigation", "I");
+  gConfigurationOffsets.mTouchscreen = GetFieldIDOrDie(env, configurationClass, "touchscreen", "I");
+  gConfigurationOffsets.mColorMode = GetFieldIDOrDie(env, configurationClass, "colorMode", "I");
 
   jclass arrayMapClass = FindClassOrDie(env, "android/util/ArrayMap");
   gArrayMapOffsets.classObject = MakeGlobalRefOrDie(env, arrayMapClass);

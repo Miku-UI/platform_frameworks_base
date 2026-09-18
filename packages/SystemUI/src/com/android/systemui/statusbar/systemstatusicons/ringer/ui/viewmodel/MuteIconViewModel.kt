@@ -22,8 +22,7 @@ import androidx.compose.runtime.getValue
 import com.android.settingslib.volume.domain.interactor.AudioVolumeInteractor
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
 import com.android.systemui.statusbar.systemstatusicons.ui.viewmodel.SystemStatusIconViewModel
@@ -39,34 +38,26 @@ import kotlinx.coroutines.flow.map
 class MuteIconViewModel
 @AssistedInject
 constructor(@Assisted context: Context, interactor: AudioVolumeInteractor) :
-    SystemStatusIconViewModel.Default, ExclusiveActivatable() {
+    SystemStatusIconViewModel.Default, HydratedActivatable() {
 
     init {
         SystemStatusIconsInCompose.expectInNewMode()
     }
 
-    private val hydrator = Hydrator("MuteIconViewModel.hydrator")
-
     override val slotName = context.getString(com.android.internal.R.string.status_bar_mute)
 
     override val visible: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "SystemStatus.muteVisible",
-            initialValue = false,
-            source = interactor.ringerMode.map { it.value == AudioManager.RINGER_MODE_SILENT },
-        )
+        interactor.ringerMode
+            .map { it.value == AudioManager.RINGER_MODE_SILENT }
+            .hydratedStateOf(traceName = "SystemStatus.muteVisible", initialValue = false)
 
     override val icon: Icon?
         get() = visible.toUiState()
 
-    override suspend fun onActivated(): Nothing {
-        hydrator.activate()
-    }
-
     private fun Boolean.toUiState(): Icon? =
         if (this) {
             Icon.Resource(
-                resId = R.drawable.ic_speaker_mute,
+                resId = R.drawable.stat_sys_ringer_silent,
                 contentDescription =
                     ContentDescription.Resource(R.string.accessibility_ringer_silent),
             )

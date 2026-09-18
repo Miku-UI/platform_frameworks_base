@@ -1,8 +1,7 @@
 package: "com.android.systemui.accessibility.accessibilitymenu"
 container: "system_ext"
 
-# NOTE: Keep alphabetized to help limit merge conflicts from multiple simultaneous editors.
-
+# go/keep-sorted start block=yes newline_separated=yes by_regex=name:\s*"([^"]+)"
 flag {
     name: "a11y_menu_hide_before_taking_action"
     namespace: "accessibility"
@@ -21,6 +20,13 @@ flag {
 }
 
 flag {
+    name: "catalyst_a11y_menu"
+    namespace: "accessibility"
+    description: "Migrate a11y menu settings to catalyst"
+    bug: "450090715"
+}
+
+flag {
     name: "hide_restricted_actions"
     namespace: "accessibility"
     description: "Hides shortcut buttons for possibly restricted actions like brightness/volume adjustment"
@@ -29,3 +35,4 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+# go/keep-sorted end

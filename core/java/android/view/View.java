@@ -23,6 +23,7 @@ import static android.os.VibrationAttributes.USAGE_CLASS_MASK;
 import static android.os.Trace.TRACE_TAG_APP;
 import static android.os.Trace.TRACE_TAG_VIEW;
 import static android.service.autofill.Flags.FLAG_AUTOFILL_CREDMAN_DEV_INTEGRATION;
+import static android.service.autofill.Flags.getAutofillViewIdFromAutofillManager;
 import static android.view.ContentInfo.SOURCE_DRAG_AND_DROP;
 import static android.view.Surface.FRAME_RATE_CATEGORY_HIGH;
 import static android.view.Surface.FRAME_RATE_CATEGORY_HIGH_HINT;
@@ -33,20 +34,23 @@ import static android.view.Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE;
 import static android.view.Surface.FRAME_RATE_COMPATIBILITY_AT_LEAST;
 import static android.view.WindowManager.LayoutParams.TYPE_INPUT_METHOD;
 import static android.view.accessibility.AccessibilityEvent.CONTENT_CHANGE_TYPE_UNDEFINED;
-import static android.view.accessibility.Flags.a11ySequentialFocusStartingPoint;
+import static android.view.accessibility.Flags.a11yExtraRenderingInfoColorAdditions;
 import static android.view.accessibility.Flags.FLAG_DEPRECATE_ACCESSIBILITY_ANNOUNCEMENT_APIS;
-import static android.view.accessibility.Flags.FLAG_REQUEST_RECTANGLE_WITH_SOURCE;
 import static android.view.accessibility.Flags.FLAG_SUPPLEMENTAL_DESCRIPTION;
 import static android.view.accessibility.Flags.removeChildHoverCheckForTouchExploration;
 import static android.view.accessibility.Flags.supplementalDescription;
 import static android.view.accessibility.Flags.supportMultipleLabeledby;
+import static android.view.contentcapture.flags.Flags.newHeuristicsForImportanceEnabled;
+import static android.view.contentcapture.flags.Flags.contentInteractionApiEnabled;
 import static android.view.displayhash.DisplayHashResultCallback.DISPLAY_HASH_ERROR_INVALID_BOUNDS;
 import static android.view.displayhash.DisplayHashResultCallback.DISPLAY_HASH_ERROR_MISSING_WINDOW;
 import static android.view.displayhash.DisplayHashResultCallback.DISPLAY_HASH_ERROR_NOT_VISIBLE_ON_SCREEN;
 import static android.view.displayhash.DisplayHashResultCallback.DISPLAY_HASH_ERROR_UNKNOWN;
 import static android.view.displayhash.DisplayHashResultCallback.EXTRA_DISPLAY_HASH;
 import static android.view.displayhash.DisplayHashResultCallback.EXTRA_DISPLAY_HASH_ERROR_CODE;
+import static android.view.flags.Flags.FLAG_CALLED_FROM_WRONG_THREAD_LISTENER_API;
 import static android.view.flags.Flags.FLAG_SENSITIVE_CONTENT_APP_PROTECTION_API;
+import static android.view.flags.Flags.FLAG_SCROLL_TO_TOP;
 import static android.view.flags.Flags.FLAG_TOOLKIT_SET_FRAME_RATE_READ_ONLY;
 import static android.view.flags.Flags.FLAG_VIEW_VELOCITY_API;
 import static android.view.flags.Flags.enableUseMeasureCacheDuringForceLayout;
@@ -59,6 +63,9 @@ import static android.view.flags.Flags.viewVelocityApi;
 import static android.view.inputmethod.Flags.FLAG_HOME_SCREEN_HANDWRITING_DELEGATOR;
 import static android.view.inputmethod.Flags.initiationWithoutInputConnection;
 
+import static com.android.hardware.input.Flags.pointerCaptureModes;
+import static com.android.hardware.input.Flags.relativeCaptureModeByDefault;
+import static com.android.server.display.feature.flags.Flags.frameRateMappingApi;
 import static com.android.internal.util.FrameworkStatsLog.TOUCH_GESTURE_CLASSIFIED__CLASSIFICATION__DEEP_PRESS;
 import static com.android.internal.util.FrameworkStatsLog.TOUCH_GESTURE_CLASSIFIED__CLASSIFICATION__LONG_PRESS;
 import static com.android.internal.util.FrameworkStatsLog.TOUCH_GESTURE_CLASSIFIED__CLASSIFICATION__SINGLE_TAP;
@@ -2483,10 +2490,33 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
         private static String sFrameRateSysProp =
                 ViewProperties.vrr_velocity_threshold().orElse("");
 
+        /**
+         * When true, extends heuristics for calculating whether a node is considered important for
+         * content capture. This will consider nodes with content descriptions and
+         * accessibility-related fields as important.
+         */
+        private static final boolean sNewHeuristicsForContentCaptureImportanceEnabledFlagValue;
+
+        /**
+         * When true, enables reporting content interaction events.
+         */
+        private static final boolean sContentInteractionApiEnabledFlagValue;
+
         static {
             if (!sFrameRateSysProp.isEmpty()) {
                 sFrameRateMappings = parseFrameRateMapping(sFrameRateSysProp);
             }
+            sNewHeuristicsForContentCaptureImportanceEnabledFlagValue =
+                    newHeuristicsForImportanceEnabled();
+            sContentInteractionApiEnabledFlagValue = contentInteractionApiEnabled();
+        }
+
+        public static boolean isNewHeuristicsForContentCaptureImportanceEnabled() {
+            return sNewHeuristicsForContentCaptureImportanceEnabledFlagValue;
+        }
+
+        public static boolean isContentInteractionApiEnabled() {
+            return sContentInteractionApiEnabledFlagValue;
         }
 
         /**
@@ -5640,6 +5670,17 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
     public static final int DRAG_FLAG_HIDE_CALLING_TASK_ON_DRAG_START = 1 << 14;
 
     /**
+     * Flag indicating that the caller wishes to disable the default {@link PointerIcon} that would
+     * otherwise be set on drag start when the input source is {@link InputDevice.SOURCE_MOUSE}.
+     *
+     * The caller must hold the {@link android.Manifest.permission#START_TASKS_FROM_RECENTS}
+     * permission in order to use this flag.
+     *
+     * @hide
+     */
+    public static final int DRAG_FLAG_DISABLE_DEFAULT_POINTER_ICON = 1 << 15;
+
+    /**
      * Vertical scroll factor cached by {@link #getVerticalScrollFactor}.
      */
     private float mVerticalScrollFactor;
@@ -5945,7 +5986,6 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      * RECTANGLE_ON_SCREEN_REQUEST_SOURCE_UNDEFINED should be reserved for backward
      * compatibility and should only be provided from calls to the original API.
      */
-    @FlaggedApi(FLAG_REQUEST_RECTANGLE_WITH_SOURCE)
     public static final int RECTANGLE_ON_SCREEN_REQUEST_SOURCE_UNDEFINED = 0x00000000;
 
     /**
@@ -5953,21 +5993,18 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      * only to scroll the View on screen, and the rectangle is not associated with a text cursor or
      * keyboard focus.
      */
-    @FlaggedApi(FLAG_REQUEST_RECTANGLE_WITH_SOURCE)
     public static final int RECTANGLE_ON_SCREEN_REQUEST_SOURCE_SCROLL_ONLY = 0x00000001;
 
     /**
      * Represents that the user interaction that is requesting a rectangle on screen is
      * doing so because the View contains a text cursor (caret).
      */
-    @FlaggedApi(FLAG_REQUEST_RECTANGLE_WITH_SOURCE)
     public static final int RECTANGLE_ON_SCREEN_REQUEST_SOURCE_TEXT_CURSOR = 0x00000002;
 
     /**
      * Represents that the user interaction that is requesting a rectangle on screen is
      * doing so because the View has input/keyboard focus.
      */
-    @FlaggedApi(FLAG_REQUEST_RECTANGLE_WITH_SOURCE)
     public static final int RECTANGLE_ON_SCREEN_REQUEST_SOURCE_INPUT_FOCUS = 0x00000003;
 
     /**
@@ -7806,7 +7843,7 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      * logical OR of the desired types. If multiple types are specified, they
      * will all be set to the same enabled state.
      * <p>
-     * For example, to enable the top scroll indicatorExample: {@code setScrollIndicators
+     * For example, to enable the top scroll indicatorExample: {@code setScrollIndicators}
      *
      * @param indicators the indicator direction, or the logical OR of multiple
      *             indicator directions. One or more of:
@@ -8209,6 +8246,8 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
 
         sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_CLICKED);
 
+        dispatchContentCaptureInteractionEvent();
+
         notifyEnterOrExitForAutoFillIfNeeded(true);
 
         return result;
@@ -8278,6 +8317,8 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
     private boolean performLongClickInternal(float x, float y) {
         sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_LONG_CLICKED);
 
+        dispatchContentCaptureInteractionEvent();
+
         boolean handled = false;
         final OnLongClickListener listener =
                 mListenerInfo == null ? null : mListenerInfo.mOnLongClickListener;
@@ -8324,6 +8365,8 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      */
     public boolean performContextClick() {
         sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_CONTEXT_CLICKED);
+
+        dispatchContentCaptureInteractionEvent();
 
         boolean handled = false;
         ListenerInfo li = mListenerInfo;
@@ -8621,6 +8664,12 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      * @param rectangle The rectangle in the View's content coordinate space
      * @return Whether any parent scrolled.
      * @see AccessibilityAction#ACTION_SHOW_ON_SCREEN
+     * @see #requestRectangleOnScreen(Rect, boolean, int)
+     * <p><b>WARNING:</b> Use of this API is discouraged because it does not support
+     * user-configurable options related to display magnification behaviors. Instead, use
+     * {@link #requestRectangleOnScreen(Rect, boolean, int)} to include a request source. A request
+     * source of {@link #RECTANGLE_ON_SCREEN_REQUEST_SOURCE_UNDEFINED} will be inferred from
+     * invocations of this original API.
      */
     public boolean requestRectangleOnScreen(Rect rectangle) {
         return requestRectangleOnScreen(rectangle, false);
@@ -8642,6 +8691,12 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      * @param rectangle The rectangle in the View's content coordinate space
      * @param immediate True to forbid animated scrolling, false otherwise
      * @return Whether any parent scrolled.
+     * @see #requestRectangleOnScreen(Rect, boolean, int)
+     * <p><b>WARNING:</b> Use of this API is discouraged because it does not support
+     * user-configurable options related to display magnification behaviors. Instead, use
+     * {@link #requestRectangleOnScreen(Rect, boolean, int)} to include a request source. A request
+     * source of {@link #RECTANGLE_ON_SCREEN_REQUEST_SOURCE_UNDEFINED} will be inferred from
+     * invocations of this original API.
      */
     public boolean requestRectangleOnScreen(Rect rectangle, boolean immediate) {
         return requestRectangleOnScreen(rectangle, immediate,
@@ -8677,7 +8732,6 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      * @param source The type of user interaction that requested this rectangle
      * @return Whether any parent scrolled.
      */
-    @FlaggedApi(FLAG_REQUEST_RECTANGLE_WITH_SOURCE)
     public boolean requestRectangleOnScreen(@NonNull Rect rectangle, boolean immediate,
             @RectangleOnScreenRequestSource int source) {
         if (mParent == null) {
@@ -8727,8 +8781,7 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
         }
 
         ViewRootImpl viewRoot = getViewRootImpl();
-        final boolean accessibilityFocusPresent = a11ySequentialFocusStartingPoint()
-                && viewRoot != null
+        final boolean accessibilityFocusPresent = viewRoot != null
                 && viewRoot.getAccessibilityFocusedHost() != null;
         final boolean refocus = sAlwaysAssignFocus
                                 || (!isInTouchMode() && !accessibilityFocusPresent);
@@ -8925,13 +8978,11 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
                 }
             }
 
-            if (android.view.accessibility.Flags.requestRectangleWithSource()) {
-                if (mAttachInfo != null) {
-                    final Rect r = mAttachInfo.mTmpInvalRect;
-                    getLocalVisibleRect(r);
-                    requestRectangleOnScreen(r, false,
-                            RECTANGLE_ON_SCREEN_REQUEST_SOURCE_INPUT_FOCUS);
-                }
+            if (mAttachInfo != null) {
+                final Rect r = mAttachInfo.mTmpInvalRect;
+                getLocalVisibleRect(r);
+                requestRectangleOnScreen(r, false,
+                        RECTANGLE_ON_SCREEN_REQUEST_SOURCE_INPUT_FOCUS);
             }
         }
 
@@ -9035,7 +9086,7 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      * @param accessibilityPaneTitle The pane's title. Setting to {@code null} indicates that this
      *                               View is not a pane.
      *
-     * {@see AccessibilityNodeInfo#setPaneTitle(CharSequence)}
+     * @see AccessibilityNodeInfo#setPaneTitle(CharSequence)
      *
      * @attr ref android.R.styleable#View_accessibilityPaneTitle
      */
@@ -9068,7 +9119,7 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      *
      * @return The current pane title.
      *
-     * {@see #setAccessibilityPaneTitle}.
+     * @see #setAccessibilityPaneTitle
      *
      * @attr ref android.R.styleable#View_accessibilityPaneTitle
      */
@@ -10983,6 +11034,18 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
             return true;
         }
 
+        if (NoPreloadHolder.isNewHeuristicsForContentCaptureImportanceEnabled()) {
+            // If the app developer has set a content description, it's important.
+            if (getContentDescription() != null) {
+                return true;
+            }
+
+            // If the app developer has set an accessibility node provider, it's important.
+            if (getAccessibilityNodeProvider() != null || getAccessibilityDelegate() != null) {
+                return true;
+            }
+        }
+
         // Otherwise, assume it's not important...
         return false;
     }
@@ -11529,6 +11592,37 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
         }
     }
 
+    private void dispatchContentCaptureInteractionEvent() {
+     if (!NoPreloadHolder.isContentInteractionApiEnabled()) {
+        return;
+     }
+
+     if (!getNotifiedContentCaptureAppeared()) {
+        if (Log.isLoggable(CONTENT_CAPTURE_LOG_TAG, Log.DEBUG)) {
+                Log.d(CONTENT_CAPTURE_LOG_TAG, "dispatchContentCaptureInteractionEvent(): "
+                        + "View has not appeared.");
+        }
+        return;
+      }
+      ContentCaptureSession session = getContentCaptureSession();
+      if (session == null) {
+        if (Log.isLoggable(CONTENT_CAPTURE_LOG_TAG, Log.DEBUG)) {
+            Log.d(CONTENT_CAPTURE_LOG_TAG,
+                        "dispatchContentCaptureInteractionEvent(): no session for " + this);
+        }
+        return;
+      }
+      AttachInfo ai = mAttachInfo;
+      if (ai == null) {
+        if (Log.isLoggable(CONTENT_CAPTURE_LOG_TAG, Log.DEBUG)) {
+            Log.d(CONTENT_CAPTURE_LOG_TAG,
+                        "dispatchContentCaptureInteractionEvent(): no AttachInfo for " + this);
+        }
+        return;
+      }
+      ai.delayNotifyContentInteractionEvent(session, this);
+    }
+
     /** @hide */
     void dispatchProvideContentCaptureStructure() {
         ContentCaptureSession session = getContentCaptureSession();
@@ -11715,8 +11809,12 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
         if (canAcceptAccessibilityDrop()) {
             info.addAction(AccessibilityAction.ACTION_DRAG_DROP);
         }
-    }
 
+        if (a11yExtraRenderingInfoColorAdditions()) {
+            info.setAvailableExtraData(
+                    Collections.singletonList(AccessibilityNodeInfo.EXTRA_DATA_RENDERING_INFO_KEY));
+        }
+    }
 
     /**
      * Adds extra data to an {@link AccessibilityNodeInfo} based on an explicit request for the
@@ -11735,9 +11833,43 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      *
      * @see AccessibilityNodeInfo#setAvailableExtraData(List)
      */
+    @FlaggedApi(android.view.accessibility.Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+    @CallSuper
     public void addExtraDataToAccessibilityNodeInfo(
             @NonNull AccessibilityNodeInfo info, @NonNull String extraDataKey,
             @Nullable Bundle arguments) {
+        if (android.view.accessibility.Flags.fixAddExtraDataToAccessibilityNodeInfoDelegation()) {
+            if (mAccessibilityDelegate != null) {
+                mAccessibilityDelegate.addExtraDataToAccessibilityNodeInfo(
+                        this, info, extraDataKey, arguments);
+            } else {
+                addExtraDataToAccessibilityNodeInfoInternal(info, extraDataKey, arguments);
+            }
+        } else {
+            addExtraDataToAccessibilityNodeInfoInternal(info, extraDataKey, arguments);
+        }
+    }
+
+    /**
+     * @see #addExtraDataToAccessibilityNodeInfo(AccessibilityNodeInfo, String, Bundle)
+     *
+     * Note: Called from the default {@link AccessibilityDelegate}.
+     *
+     */
+    private void addExtraDataToAccessibilityNodeInfoInternal(
+            @NonNull AccessibilityNodeInfo info, @NonNull String extraDataKey,
+            @Nullable Bundle arguments) {
+        if (extraDataKey.equals(AccessibilityNodeInfo.EXTRA_DATA_RENDERING_INFO_KEY)
+                && a11yExtraRenderingInfoColorAdditions()) {
+            final AccessibilityNodeInfo.ExtraRenderingInfo.Builder builder =
+                    new AccessibilityNodeInfo.ExtraRenderingInfo.Builder();
+            Drawable background = getBackground();
+            if (background instanceof ColorDrawable backgroundColorDrawable) {
+                builder.setBackgroundColor(backgroundColorDrawable.getColor());
+            }
+            builder.setAlpha(getAlpha());
+            info.setExtraRenderingInfo(builder.build());
+        }
     }
 
     /**
@@ -12002,6 +12134,24 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
         if (mAutofillViewId == NO_ID) {
             mAutofillViewId = mContext.getNextAutofillId();
         }
+
+        // There is a chance AutofillManager is created with activity context, in which case
+        // autofill could still work.
+        if (getAutofillViewIdFromAutofillManager()
+                && mAutofillViewId <= LAST_APP_AUTOFILL_ID) {
+            AutofillManager afm = getAutofillManager();
+            if (afm != null) {
+                int autofillViewId = afm.getNextAutofillViewId();
+                if (autofillViewId > LAST_APP_AUTOFILL_ID) {
+                    if (DBG) {
+                        Log.d(AUTOFILL_LOG_TAG, "getAutofillViewId(): Using autofill view id "
+                                + "created from autofill manager");
+                    }
+                    mAutofillViewId = autofillViewId;
+                }
+            }
+        }
+
         return mAutofillViewId;
     }
 
@@ -12147,7 +12297,7 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      *
      * @param contentDescription The content description.
      * @see #getContentDescription()
-     * @see #setStateDescription(CharSequence)} for state changes.
+     * @see #setStateDescription(CharSequence) for state changes.
      * @attr ref android.R.styleable#View_contentDescription
      */
     @RemotableViewMethod
@@ -15959,33 +16109,37 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
     /**
      * Whether to regard this view for accessibility.
      *
-     * <p>
-     * If this decision is used for generating the accessibility node tree then this returns false
-     * for {@link #isAccessibilityDataPrivate()} views queried by non-accessibility tools.
-     * </p>
-     * <p>
-     * Otherwise, a view is regarded for accessibility if:
-     * <li>the view returns true for {@link #isImportantForAccessibility()}, or</li>
+     * <p>A view is regarded for accessibility if:
+     * <li>the view returns {@code true} for {@link #isImportantForAccessibility()}, or</li>
      * <li>the querying accessibility service has explicitly requested that views not important for
      * accessibility are regarded by setting
      * {@link android.accessibilityservice.AccessibilityServiceInfo#FLAG_INCLUDE_NOT_IMPORTANT_VIEWS}</li>
-     * </p>
      *
-     * @param forNodeTree True if the result of this function will be used for generating a node
-     *                    tree, otherwise false (like when sending {@link AccessibilityEvent}s).
-     * @return Whether to regard the view for accessibility.
+     * <p>In certain cases, e.g. when this decision is used for generating the accessibility node
+     * tree or used to control dispatch of accessibility events originating from views other than
+     * this one, the {@link #isAccessibilityDataSensitive()} property should also be taken into
+     * account by using the {@code considerDataSensitivity} param. When {@code true}, this method
+     * will only regard a view for accessibility if it is not considered sensitive or if queried by
+     * an accessibility service known to be an accessibility tool.
+     *
+     * @param considerDataSensitivity {@code true} if the {@code isAccessibilityDataSensitive()}
+     *                                property should be taken into account when determining if the
+     *                                view should be regarded for accessibility
+     * @return {@code true} if the view should be regarded for accessibility, {@code false}
+     *         otherwise
      * @hide
      */
-    public boolean includeForAccessibility(boolean forNodeTree) {
+    public boolean includeForAccessibility(boolean considerDataSensitivity) {
         if (mAttachInfo == null) {
             return false;
         }
 
-        if (forNodeTree) {
-            // The AccessibilityDataPrivate property should not effect whether this View is
-            // included for consideration when sending AccessibilityEvents. Events copy their
-            // source View's AccessibilityDataPrivate value, and then filtering is done when
-            // AccessibilityManagerService propagates events to each recipient AccessibilityService.
+        if (considerDataSensitivity) {
+            // The isAccessibilityDataSensitive property should not effect whether this View is
+            // included for consideration when sending AccessibilityEvents that originate directly
+            // from itself. Events copy their source View's isAccessibilityDataSensitive value, and
+            // then filtering is done when AccessibilityManagerService propagates events to each
+            // recipient AccessibilityService.
             if (!AccessibilityManager.getInstance(mContext).isRequestFromAccessibilityTool()
                     && isAccessibilityDataSensitive()) {
                 return false;
@@ -16386,7 +16540,9 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
                 if (mAttachInfo != null) {
                     final Rect r = mAttachInfo.mTmpInvalRect;
                     getDrawingRect(r);
-                    return requestRectangleOnScreen(r, true);
+                    return requestRectangleOnScreen(r,
+                            true,
+                            RECTANGLE_ON_SCREEN_REQUEST_SOURCE_UNDEFINED);
                 }
             } break;
             case R.id.accessibilityActionContextClick: {
@@ -16736,6 +16892,32 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      */
     public boolean dispatchKeyShortcutEvent(KeyEvent event) {
         return onKeyShortcut(event.getKeyCode(), event);
+    }
+
+    /**
+     * Dispatches a command to scroll the main content to the top.
+     *
+     * @param x The x-coordinate of the scroll-to-top command, in the coordinate
+     *          space of this view.
+     * @return true if the event was consumed and should not be propagated to other
+     * potential handlers.
+     */
+    @FlaggedApi(FLAG_SCROLL_TO_TOP)
+    public boolean dispatchScrollToTop(int x) {
+        return onScrollToTop(x);
+    }
+
+    /**
+     * Called when a scroll-to-top command is received.
+     *
+     * @param x The x-coordinate of the scroll-to-top command, in the coordinate
+     *          space of this view.
+     * @return true if the event was consumed and should not be propagated to other
+     * potential handlers.
+     */
+    @FlaggedApi(FLAG_SCROLL_TO_TOP)
+    public boolean onScrollToTop(int x) {
+        return false;
     }
 
     /**
@@ -21158,7 +21340,7 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
 
             // Tell mScrollCache when we should start fading. This may
             // extend the fade start time if one was already scheduled
-            long fadeStartTime = AnimationUtils.currentAnimationTimeMillis() + startDelay;
+            long fadeStartTime = SystemClock.uptimeMillis() + startDelay;
             scrollCache.fadeStartTime = fadeStartTime;
             scrollCache.state = ScrollabilityCache.ON;
 
@@ -22851,6 +23033,65 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
     }
 
     /**
+     * A listener that is notified when certain View APIs are called from the wrong thread.
+     *
+     * <p>Example use case:
+     * <pre><code>
+     * View.registerCalledFromWrongThreadListener(() -> {
+     *     // Handle the issue, e.g. crash if this is a dev build, or log an event
+     *     // Unregister the listener to avoid being notified again of possibly the same problem
+     *     View.unregisterCalledFromWrongThreadListener(this);
+     * });
+     * </code></pre>
+     *
+     * @see #registerCalledFromWrongThreadListener(CalledFromWrongThreadListener)
+     * @see #unregisterCalledFromWrongThreadListener(CalledFromWrongThreadListener)
+     */
+    @FlaggedApi(FLAG_CALLED_FROM_WRONG_THREAD_LISTENER_API)
+    public interface CalledFromWrongThreadListener {
+        /**
+         * Called when a View API is called from the wrong thread.
+         */
+        void onCalledFromWrongThread();
+    }
+
+    /**
+     * Registers a listener that is notified when a View API is called from the wrong thread.
+     *
+     * <p>Most View APIs should only be called on the UI thread, and will throw a
+     * {@code CalledFromWrongThreadException} if they are called from the wrong thread. View APIs
+     * that throw {@code CalledFromWrongThreadException} will not notify registered listeners.
+     *
+     * <p>For certain APIs, if they are called on the wrong thread
+     * then an exception may not be thrown, subject to App Compatibility settings. Instead,
+     * applications may be notified when a call to such an API is made from the wrong thread by
+     * registering a {@link CalledFromWrongThreadListener} using this method.
+     *
+     * @param listener The listener to register.
+     *
+     * @see #unregisterCalledFromWrongThreadListener(CalledFromWrongThreadListener)
+     */
+    @FlaggedApi(FLAG_CALLED_FROM_WRONG_THREAD_LISTENER_API)
+    public static void registerCalledFromWrongThreadListener(
+            @NonNull CalledFromWrongThreadListener listener) {
+        ViewRootImpl.sCalledFromWrongThreadListeners.add(listener);
+    }
+
+    /**
+     * Unregisters a listener that was previously registered with
+     * {@link #registerCalledFromWrongThreadListener(CalledFromWrongThreadListener)}.
+     *
+     * @param listener The listener to unregister.
+     *
+     * @see {@link #registerCalledFromWrongThreadListener(CalledFromWrongThreadListener)}
+     */
+    @FlaggedApi(FLAG_CALLED_FROM_WRONG_THREAD_LISTENER_API)
+    public static void unregisterCalledFromWrongThreadListener(
+            @NonNull CalledFromWrongThreadListener listener) {
+        ViewRootImpl.sCalledFromWrongThreadListeners.remove(listener);
+    }
+
+    /**
      * Return true if the application tag in the AndroidManifest has set "supportRtl" to true
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
@@ -23771,6 +24012,7 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      */
     public void setBackdropRenderEffect(@Nullable RenderEffect renderEffect) {
         if (mRenderNode.setBackdropRenderEffect(renderEffect)) {
+            invalidateParentCaches();
             invalidateViewProperty(true, true);
         }
     }
@@ -26003,7 +26245,10 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      * @param right Right position, relative to parent
      * @param bottom Bottom position, relative to parent
      *
-     * @see #setLeft(int), #setRight(int), #setTop(int), #setBottom(int)
+     * @see #setLeft(int)
+     * @see #setRight(int)
+     * @see #setTop(int)
+     * @see #setBottom(int)
      */
     public final void setLeftTopRightBottom(int left, int top, int right, int bottom) {
         setFrame(left, top, right, bottom);
@@ -29636,8 +29881,7 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
         Point shadowTouchPoint = new Point();
         shadowBuilder.onProvideShadowMetrics(shadowSize, shadowTouchPoint);
 
-        if ((shadowSize.x < 0) || (shadowSize.y < 0)
-                || (shadowTouchPoint.x < 0) || (shadowTouchPoint.y < 0)) {
+        if ((shadowSize.x < 0) || (shadowSize.y < 0)) {
             throw new IllegalStateException("Drag shadow dimensions must not be negative");
         }
         final float overrideInvScale = CompatibilityInfo.getOverrideInvertedScale();
@@ -31281,8 +31525,8 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      * MotionEvent#AXIS_RELATIVE_X} and {@link MotionEvent#AXIS_RELATIVE_Y}. If the touchpad
      * supports them, touch dimension information may be available through the {@link
      * MotionEvent#AXIS_PRESSURE}, {@link MotionEvent#AXIS_TOUCH_MAJOR}, {@link
-     * MotionEvent#AXIS_TOUCH_MINOR}, {@link MotionEvent#AXIS_TOOL_MAJOR}, and {@link
-     * MotionEvent#AXIS_TOOL_MINOR} axes.
+     * MotionEvent#AXIS_TOUCH_MINOR}, {@link MotionEvent#AXIS_TOOL_MAJOR}, {@link
+     * MotionEvent#AXIS_TOOL_MINOR}, and {@link MotionEvent#AXIS_ORIENTATION} axes.
      * <p>
      * Events from mice are always reported in the same way regardless of capture mode.
      *
@@ -31334,52 +31578,69 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
     public @interface PointerCaptureMode {}
 
     /**
-     * Requests pointer capture mode.
-     * <p>
-     * When the window has pointer capture, the mouse pointer icon will disappear and will not
-     * change its position. Enabling pointer capture will change the behavior of input devices in
-     * the following ways:
-     * <ul>
-     *     <li>Events from a mouse will be delivered with the source
-     *     {@link InputDevice#SOURCE_MOUSE_RELATIVE}, and relative position changes will be
-     *     available through {@link MotionEvent#getX} and {@link MotionEvent#getY}.</li>
+     * {@if (flag(com.android.hardware.input.Flags.FLAG_POINTER_CAPTURE_MODES)) {
+     *     Requests pointer capture in
+     *     {@if (flag(com.android.hardware.input.Flags.FLAG_RELATIVE_CAPTURE_MODE_BY_DEFAULT))
+     *         {relative}
+     *     else
+     *         {absolute}
+     *     } mode.
+     *     <p>
+     *     Equivalent to calling {@link #requestPointerCapture(int)} with
+     *     {@if (flag(com.android.hardware.input.Flags.FLAG_RELATIVE_CAPTURE_MODE_BY_DEFAULT))
+     *         {{@link #POINTER_CAPTURE_MODE_RELATIVE}}
+     *     else
+     *         {{@link #POINTER_CAPTURE_MODE_ABSOLUTE}}
+     *     }.
+     * } else {
+     *     Requests pointer capture mode.
+     *     <p>
+     *     When the window has pointer capture, the mouse pointer icon will disappear and will not
+     *     change its position. Enabling pointer capture will change the behavior of input devices
+     *     in the following ways:
+     *     <ul>
+     *         <li>Events from a mouse will be delivered with the source
+     *         {@link InputDevice#SOURCE_MOUSE_RELATIVE}, and relative position changes will be
+     *         available through {@link MotionEvent#getX} and {@link MotionEvent#getY}.</li>
      *
-     *     <li>Events from a touchpad or trackpad will be delivered with the source
-     *     {@link InputDevice#SOURCE_TOUCHPAD}, where the absolute position of each of the pointers
-     *     on the touchpad will be available through {@link MotionEvent#getX(int)} and
-     *     {@link MotionEvent#getY(int)}, and their relative movements are stored in
-     *     {@link MotionEvent#AXIS_RELATIVE_X} and {@link MotionEvent#AXIS_RELATIVE_Y}.</li>
+     *         <li>Events from a touchpad or trackpad will be delivered with the source {@link
+     *         InputDevice#SOURCE_TOUCHPAD}, where the absolute position of each of the pointers on
+     *         the touchpad will be available through {@link MotionEvent#getX(int)} and {@link
+     *         MotionEvent#getY(int)}, and their relative movements are stored in {@link
+     *         MotionEvent#AXIS_RELATIVE_X} and {@link MotionEvent#AXIS_RELATIVE_Y}.</li>
      *
-     *     <li>Events from other types of devices, such as touchscreens, will not be affected.</li>
-     * </ul>
-     * <p>
-     * When pointer capture changes, connected mouse and trackpad devices may be reconfigured,
-     * and their properties (such as their sources or motion ranges) may change. Use an
-     * {@link android.hardware.input.InputManager.InputDeviceListener} to be notified when a device
-     * changes (which may happen after enabling or disabling pointer capture), and use
-     * {@link InputDevice#getDevice(int)} to get the updated {@link InputDevice}.
-     * <p>
-     * Events captured through pointer capture will be dispatched to
-     * {@link OnCapturedPointerListener#onCapturedPointer(View, MotionEvent)} if an
-     * {@link OnCapturedPointerListener} is set, and otherwise to
-     * {@link #onCapturedPointerEvent(MotionEvent)}.
-     * <p>
-     * If the window already has pointer capture, this call does nothing.
-     * <p>
-     * The capture may be released through {@link #releasePointerCapture()}, or will be lost
-     * automatically when the window loses focus.
+     *         <li>Events from other types of devices, such as touchscreens, will not be
+     *         affected.</li>
+     *     </ul>
+     *     <p>
+     *     When pointer capture changes, connected mouse and trackpad devices may be reconfigured,
+     *     and their properties (such as their sources or motion ranges) may change. Use an {@link
+     *     android.hardware.input.InputManager.InputDeviceListener} to be notified when a device
+     *     changes (which may happen after enabling or disabling pointer capture), and use {@link
+     *     InputDevice#getDevice(int)} to get the updated {@link InputDevice}.
+     *     <p>
+     *     Events captured through pointer capture will be dispatched to
+     *     {@link OnCapturedPointerListener#onCapturedPointer(View, MotionEvent)} if an
+     *     {@link OnCapturedPointerListener} is set, and otherwise to
+     *     {@link #onCapturedPointerEvent(MotionEvent)}.
+     *     <p>
+     *     If the window already has pointer capture, this call does nothing.
+     *     <p>
+     *     The capture may be released through {@link #releasePointerCapture()}, or will be lost
+     *     automatically when the window loses focus.
+     * }}
      *
      * @see #releasePointerCapture()
      * @see #hasPointerCapture()
      * @see #onPointerCaptureChange(boolean)
      */
-    // TODO(b/403531245): when the flag launches, update this JavaDoc to say that calling this
-    //  method is equivalent to calling requestPointerCapture(int) with a particular mode, and
-    //  update the paragraph on what happens if the window already has pointer capture.
     public void requestPointerCapture() {
         final ViewRootImpl viewRootImpl = getViewRootImpl();
         if (viewRootImpl != null) {
-            viewRootImpl.requestPointerCapture(POINTER_CAPTURE_MODE_ABSOLUTE);
+            viewRootImpl.requestPointerCapture(
+                    pointerCaptureModes() && relativeCaptureModeByDefault()
+                            ? POINTER_CAPTURE_MODE_RELATIVE
+                            : POINTER_CAPTURE_MODE_ABSOLUTE);
         }
     }
 
@@ -31429,6 +31690,8 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      * @see #hasPointerCapture()
      * @see #onPointerCaptureChange(boolean)
      */
+    // TODO(b/403531245): update the paragraph on what happens if the window already has pointer
+    //   capture in a different mode.
     @FlaggedApi(com.android.hardware.input.Flags.FLAG_POINTER_CAPTURE_MODES)
     public void requestPointerCapture(@PointerCaptureMode int mode) {
         final ViewRootImpl viewRootImpl = getViewRootImpl();
@@ -32805,6 +33068,12 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
         SparseArray<ArrayList<Object>> mContentCaptureEvents;
 
         /**
+         * Map(keyed by session) of content capture interaction events that need to be notified
+         * after the view hierarchy is traversed: value is the autofill id.
+         */
+        SparseArray<ArrayList<Object>> mContentCaptureInteractionEvents;
+
+        /**
          * Cached reference to the {@link ContentCaptureManager}.
          */
         ContentCaptureManager mContentCaptureManager;
@@ -32825,6 +33094,9 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
          * hierarchy that is re-parented to another window.
          */
         int mLeashedParentAccessibilityViewId;
+
+        /** The id of the window that embeds this view's window. */
+        int mEmbeddingHostWindowId = AccessibilityWindowInfo.UNDEFINED_WINDOW_ID;
 
         /**
          *
@@ -32917,21 +33189,50 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
             events.add(appeared ? view : view.getAutofillId());
         }
 
+
+        private void delayNotifyContentInteractionEvent(@NonNull ContentCaptureSession session,
+                @NonNull View view) {
+            ArrayList<Object> events = ensureInteractionEvents(session);
+            events.add(view.getAutofillId());
+        }
+
         @NonNull
         private ArrayList<Object> ensureEvents(@NonNull ContentCaptureSession session) {
-            if (mContentCaptureEvents == null) {
-                // Most of the time there will be just one session, so intial capacity is 1
-                mContentCaptureEvents = new SparseArray<>(1);
-            }
             int sessionId = session.getId();
-            // TODO: life would be much easier if we provided a MultiMap implementation somwhere...
-            ArrayList<Object> events = mContentCaptureEvents.get(sessionId);
-            if (events == null) {
-                events = new ArrayList<>();
-                mContentCaptureEvents.put(sessionId, events);
+            mContentCaptureEvents = getOrCreateSessionEvents(mContentCaptureEvents,
+                        sessionId);
+            return mContentCaptureEvents.get(sessionId);
+        }
+
+        @NonNull
+        private ArrayList<Object> ensureInteractionEvents(@NonNull ContentCaptureSession session) {
+            int sessionId = session.getId();
+            mContentCaptureInteractionEvents = getOrCreateSessionEvents(
+                        mContentCaptureInteractionEvents, sessionId);
+            return mContentCaptureInteractionEvents.get(sessionId);
+        }
+
+
+        /**
+         * Returns a map of session id to list of events by creating a new map if necessary.
+         *
+         * @param sessionEvents the map to return if not null, otherwise create a new map
+         * @param sessionId the session id to get the events for
+         * @return the map of session id to list of events. The input sessionId is guaranteed to be
+         *         present in the returned map
+         */
+        private SparseArray<ArrayList<Object>> getOrCreateSessionEvents(
+            @Nullable SparseArray<ArrayList<Object>> sessionEvents, int sessionId) {
+            if (sessionEvents == null) {
+                // Most of the time there will be just one session, so initial capacity is 1
+                sessionEvents = new SparseArray<>(1);
+            }
+            if (!sessionEvents.contains(sessionId)) {
+                ArrayList<Object> events = new ArrayList<>();
+                sessionEvents.put(sessionId, events);
             }
 
-            return events;
+            return sessionEvents;
         }
 
         @Nullable
@@ -33069,7 +33370,7 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
         }
 
         public void run() {
-            long now = AnimationUtils.currentAnimationTimeMillis();
+            long now = SystemClock.uptimeMillis();
             if (now >= fadeStartTime) {
                 fadeScrollBarsScheduled = false;
                 handler = null;
@@ -33077,7 +33378,7 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
                 // the animation fades the scrollbars out by changing
                 // the opacity (alpha) from fully opaque to fully
                 // transparent
-                int nextFrame = (int) now;
+                int nextFrame = (int) AnimationUtils.currentAnimationTimeMillis();
                 int framesCount = 0;
 
                 Interpolator interpolator = scrollBarInterpolator;
@@ -33399,7 +33700,7 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
          * </p>
          * <p>
          * The default implementation behaves as
-         * {@link View#addExtraDataToAccessibilityNodeInfo(AccessibilityNodeInfo, String, Bundle)
+         * {@link View#addExtraDataToAccessibilityNodeInfo(AccessibilityNodeInfo, String, Bundle)}
          * for the case where no accessibility delegate is set.
          * </p>
          *
@@ -33417,7 +33718,7 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
         public void addExtraDataToAccessibilityNodeInfo(@NonNull View host,
                 @NonNull AccessibilityNodeInfo info, @NonNull String extraDataKey,
                 @Nullable Bundle arguments) {
-            host.addExtraDataToAccessibilityNodeInfo(info, extraDataKey, arguments);
+            host.addExtraDataToAccessibilityNodeInfoInternal(info, extraDataKey, arguments);
         }
 
         /**
@@ -34198,7 +34499,13 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      * @param isCredential Whether the view is a credential.
      *
      * @attr ref android.R.styleable#View_isCredential
+     *
+     * @deprecated The {@link #isCredential} is no longer used by the system and is not
+     * recommended for use by apps. The purpose and usage expectations of this property were
+     * never clearly defined.
      */
+    @FlaggedApi(android.view.flags.Flags.FLAG_DEPRECATE_IS_CREDENTIAL_API)
+    @Deprecated
     public void setIsCredential(boolean isCredential) {
         if (isCredential) {
             mPrivateFlags4 |= PFLAG4_IMPORTANT_FOR_CREDENTIAL_MANAGER;
@@ -34215,7 +34522,13 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
      * @return false by default, or value passed to {@link #setIsCredential(boolean)}.
      *
      * @attr ref android.R.styleable#View_isCredential
+     *
+     * @deprecated The {@link #isCredential} is no longer used by the system and is not
+     * recommended for use by apps. The purpose and usage expectations of this property were
+     * never clearly defined.
      */
+    @FlaggedApi(android.view.flags.Flags.FLAG_DEPRECATE_IS_CREDENTIAL_API)
+    @Deprecated
     public boolean isCredential() {
         return ((mPrivateFlags4 & PFLAG4_IMPORTANT_FOR_CREDENTIAL_MANAGER)
                 == PFLAG4_IMPORTANT_FOR_CREDENTIAL_MANAGER);
@@ -34725,6 +35038,19 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
     }
 
     private float convertVelocityToFrameRate(float velocityPps) {
+        float density = mAttachInfo.mDensity;
+
+        if (frameRateMappingApi()) {
+            // Getting the frame rate / velocity mapping values
+            // from Display#getFrameRateVelocityMapping.
+            Display display = getDisplay();
+            List<FrameRateVelocityPoint> mapping = display != null
+                    ? display.getFrameRateVelocityMapping() : Collections.emptyList();
+            if (!mapping.isEmpty()) {
+                return getFrameRateByVelocity(mapping, velocityPps / density);
+            }
+        }
+
         if (sFrameRateMappings != null && sFrameRateMappings.length > 0) {
             return getFrameRateByVelocity(sFrameRateMappings, (int) velocityPps);
         }
@@ -34732,7 +35058,6 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
         // above 300dp/s => 120fps
         // between 300dp/s and 125fps => 80fps
         // below 125dp/s => 60fps
-        float density = mAttachInfo.mDensity;
         float velocityDps = velocityPps / density;
         float frameRate;
         if (velocityDps > 300f) {
@@ -34891,6 +35216,19 @@ public class View implements Drawable.Callback, KeyEvent.Callback,
             return null;
         }
         return rootView.getJankTracker();
+    }
+
+    private float getFrameRateByVelocity(
+            @NonNull @Size(min = 1) List<FrameRateVelocityPoint> mappings,
+            float velocity) {
+
+        float frameRate = mappings.get(0).getFramePerSecond();
+        for (FrameRateVelocityPoint point : mappings) {
+            if (velocity >= point.getDpPerSecond()) {
+                frameRate = point.getFramePerSecond();
+            }
+        }
+        return frameRate;
     }
 
     private int getFrameRateByVelocity(int[][] mappings, int velocity) {

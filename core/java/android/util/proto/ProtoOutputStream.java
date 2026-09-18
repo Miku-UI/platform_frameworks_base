@@ -168,7 +168,7 @@ public final class ProtoOutputStream extends ProtoStream {
     }
 
     /**
-     * Construct a {@link ProtoOutputStream with the given chunk size.
+     * Construct a {@link ProtoOutputStream} with the given chunk size.
      *
      * <p>This is for an in-memory proto. The caller should use {@link #getBytes()} for the result.
      */
@@ -2202,7 +2202,7 @@ public final class ProtoOutputStream extends ProtoStream {
      *    REPEATED      x           false       true        false
      *    PACKED        x           false       true        true
      *
-     * @throws {@link IllegalArgumentException} if it is not.
+     * @throws IllegalArgumentException if it is not.
      *
      * @return The raw ID of that field.
      */

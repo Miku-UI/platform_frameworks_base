@@ -110,7 +110,7 @@ class RunningTasks implements Consumer<Task> {
             mTmpSortedTasks.addAll(mTmpInvisibleTasks);
         }
 
-        // Take the first {@param maxNum} tasks and create running task infos for them
+        // Take the first {@code maxNum} tasks and create running task infos for them
         final int size = Math.min(maxNum, mTmpSortedTasks.size());
         final long now = SystemClock.elapsedRealtime();
         for (int i = 0; i < size; i++) {
@@ -164,7 +164,7 @@ class RunningTasks implements Consumer<Task> {
         }
     }
 
-    /** Constructs a {@link RunningTaskInfo} from a given {@param task}. */
+    /** Constructs a {@link RunningTaskInfo} from a given {@code task}. */
     private RunningTaskInfo createRunningTaskInfo(Task task, long visibleActiveTime) {
         final RunningTaskInfo rti = new RunningTaskInfo();
         task.fillTaskInfo(rti, !mKeepIntentExtra);

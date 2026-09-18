@@ -66,7 +66,7 @@ import java.util.function.Consumer;
  * WearableSensingService to use for computing {@link AmbientContextEvent}s. Applications can also
  * optionally provide their own defined data to power the detection of {@link AmbientContextEvent}s.
  * Methods on this class requires the caller to hold and be granted the {@link
- * Manifest.permission.MANAGE_WEARABLE_SENSING_SERVICE}.
+ * Manifest.permission#MANAGE_WEARABLE_SENSING_SERVICE}.
  *
  * <p>The use of "Wearable" here is not the same as the Android Wear platform and should be treated
  * separately.
@@ -514,7 +514,7 @@ public class WearableSensingManager {
      * @param sharedMemory The unrestricted data blob to provide to the {@link
      *     WearableSensingService}. Use this to provide the sensing models data or other such data
      *     to the trusted process. The sharedMemory must be read only and protected with {@link
-     *     OsConstants.PROT_READ}. Other operations will be removed by the system.
+     *     OsConstants#PROT_READ}. Other operations will be removed by the system.
      * @param executor Executor on which to run the consumer callback
      * @param statusConsumer A consumer that handles the status codes, which is returned right after
      *     the call

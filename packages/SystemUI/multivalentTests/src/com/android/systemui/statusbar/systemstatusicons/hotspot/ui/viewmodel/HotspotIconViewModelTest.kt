@@ -16,7 +16,6 @@
 
 package com.android.systemui.statusbar.systemstatusicons.hotspot.ui.viewmodel
 
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -28,7 +27,7 @@ import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.policy.fakeHotspotController
-import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
+import com.android.systemui.statusbar.systemstatusicons.flags.EnableSystemStatusIconsInCompose
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -36,7 +35,7 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(SystemStatusIconsInCompose.FLAG_NAME)
+@EnableSystemStatusIconsInCompose
 class HotspotIconViewModelTest : SysuiTestCase() {
 
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
@@ -83,7 +82,7 @@ class HotspotIconViewModelTest : SysuiTestCase() {
     companion object {
         private val EXPECTED_HOTSPOT_ICON =
             Icon.Resource(
-                resId = R.drawable.ic_hotspot,
+                resId = R.drawable.stat_sys_hotspot,
                 contentDescription =
                     ContentDescription.Resource(R.string.accessibility_status_bar_hotspot),
             )

@@ -32,7 +32,6 @@ import com.android.systemui.common.ui.ConfigurationState
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.StatusBarIconView
-import com.android.systemui.statusbar.headsup.shared.StatusBarNoHunBehavior
 import com.android.systemui.statusbar.notification.collection.NotifPipeline
 import com.android.systemui.statusbar.notification.icon.IconPack
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.NotificationIconContainerViewBinder.IconViewStore
@@ -44,9 +43,6 @@ import com.android.systemui.statusbar.notification.icon.ui.viewmodel.Notificatio
 import com.android.systemui.statusbar.phone.NotificationIconContainer
 import com.android.systemui.statusbar.ui.SystemBarUtilsState
 import com.android.systemui.util.kotlin.mapValuesNotNullTo
-import com.android.systemui.util.ui.isAnimating
-import com.android.systemui.util.ui.stopAnimating
-import com.android.systemui.util.ui.value
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -67,12 +63,14 @@ object NotificationIconContainerViewBinder {
         failureTracker: StatusBarIconViewBindingFailureTracker,
         viewStore: IconViewStore,
     ): Unit = coroutineScope {
+        val logTag = "statusbar[$displayId]"
+        view.setLogTag(logTag)
         launch {
             val contrastColorUtil = ContrastColorUtil.getInstance(view.context)
             val iconColors: StateFlow<NotificationIconColors> =
                 viewModel.iconColors(displayId).stateIn(this)
             viewModel.icons.bindIcons(
-                logTag = "statusbar",
+                logTag = logTag,
                 view = view,
                 configuration = configuration,
                 systemBarUtilsState = systemBarUtilsState,
@@ -81,9 +79,6 @@ object NotificationIconContainerViewBinder {
             ) { _, sbiv ->
                 StatusBarIconViewBinder.bindIconColors(sbiv, iconColors, contrastColorUtil)
             }
-        }
-        if (!StatusBarNoHunBehavior.isEnabled) {
-            launch { viewModel.bindIsolatedIcon(view, viewStore) }
         }
         launch { viewModel.animationsEnabled.bindAnimationsEnabled(view) }
     }
@@ -112,6 +107,8 @@ object NotificationIconContainerViewBinder {
         failureTracker: StatusBarIconViewBindingFailureTracker,
         viewStore: IconViewStore,
     ): Unit = coroutineScope {
+        val logTag = "aod"
+        view.setLogTag(logTag)
         view.setUseIncreasedIconScale(true)
         launch {
             // Collect state shared across all icon views, so that we are not duplicating collects
@@ -123,7 +120,7 @@ object NotificationIconContainerViewBinder {
             val tintAlpha = viewModel.tintAlpha.stateIn(this)
             val animsEnabled = viewModel.areIconAnimationsEnabled.stateIn(this)
             viewModel.icons.bindIcons(
-                logTag = "aod",
+                logTag = logTag,
                 view = view,
                 configuration = configuration,
                 systemBarUtilsState = systemBarUtilsState,
@@ -143,30 +140,6 @@ object NotificationIconContainerViewBinder {
     /** Binds to [NotificationIconContainer.setAnimationsEnabled] */
     private suspend fun Flow<Boolean>.bindAnimationsEnabled(view: NotificationIconContainer) {
         collectTracingEach("NIC#bindAnimationsEnabled", view::setAnimationsEnabled)
-    }
-
-    private suspend fun NotificationIconContainerStatusBarViewModel.bindIsolatedIcon(
-        view: NotificationIconContainer,
-        viewStore: IconViewStore,
-    ) {
-        StatusBarNoHunBehavior.assertInLegacyMode()
-        coroutineScope {
-            launch {
-                isolatedIconLocation.collectTracingEach("NIC#isolatedIconLocation") { location ->
-                    view.setIsolatedIconLocation(location, true)
-                }
-            }
-            launch {
-                isolatedIcon.collectTracingEach("NIC#showIconIsolated") { iconInfo ->
-                    val iconView = iconInfo.value?.let { viewStore.iconView(it.notifKey) }
-                    if (iconInfo.isAnimating) {
-                        view.showIconIsolatedAnimated(iconView, iconInfo::stopAnimating)
-                    } else {
-                        view.showIconIsolated(iconView)
-                    }
-                }
-            }
-        }
     }
 
     /**
@@ -317,6 +290,17 @@ object NotificationIconContainerViewBinder {
                             }
                             if (actual === expected) {
                                 continue
+                            }
+                            if (expected.parent !== view) {
+                                // TODO(b/465733688): Somehow the icon has been externally attached
+                                //  to a different IconContainer.
+                                val oldParent = expected.parent as? ViewGroup
+                                error(
+                                    "re-sort[$logTag]: View parent mismatch!\n" +
+                                        "actual parent = $oldParent, " +
+                                        "expected parent = $view, " +
+                                        "child = $expected"
+                                )
                             }
                             view.removeView(expected)
                             view.addView(expected, i)

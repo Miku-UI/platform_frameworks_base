@@ -79,6 +79,14 @@ class BackGestureRecognizerTest : SysuiTestCase() {
         )
     }
 
+    @Test
+    fun triggersFinishedGestureOnFirstSwipe() {
+        val events = ThreeFingerGesture.eventsForFullGesture { move(deltaX = SWIPE_DISTANCE) }
+
+        events.forEach { gestureRecognizer.accept(it) }
+        assertThat(gestureState).isEqualTo(GestureState.Finished)
+    }
+
     private fun assertProgressWhileMovingFingers(deltaX: Float, expected: InProgress) {
         assertStateAfterEvents(
             events = ThreeFingerGesture.eventsForGestureInProgress { move(deltaX = deltaX) },

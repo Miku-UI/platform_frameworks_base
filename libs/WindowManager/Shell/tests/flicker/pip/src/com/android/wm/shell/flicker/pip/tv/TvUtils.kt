@@ -120,8 +120,7 @@ private fun UiDevice.focusOnAndClickTvPipMenuElement(selector: BySelector): Bool
             if (element.visibleCenter.x < focused.visibleCenter.x) pressDPadLeft()
             else pressDPadRight()
             waitForIdle()
-        }
-            ?: error("Pip menu does not contain a focused element")
+        } ?: error("Pip menu does not contain a focused element")
     }
 
     return false

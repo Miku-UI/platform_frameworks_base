@@ -60,7 +60,7 @@ public class RegisterStatusBarResultTest {
                 new AppearanceRegion[0] /* appearanceRegions */,
                 0x8 /* imeWindowVis */,
                 0x10 /* imeBackDisposition */,
-                false /* showImeSwitcher */,
+                false /* showImeSwitcherButton */,
                 0x20 /* disabledFlags2 */,
                 true /* navbarColorManagedByIme */,
                 BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE,
@@ -81,7 +81,7 @@ public class RegisterStatusBarResultTest {
         assertThat(copy.mAppearanceRegions).isEqualTo(original.mAppearanceRegions);
         assertThat(copy.mImeWindowVis).isEqualTo(original.mImeWindowVis);
         assertThat(copy.mImeBackDisposition).isEqualTo(original.mImeBackDisposition);
-        assertThat(copy.mShowImeSwitcher).isEqualTo(original.mShowImeSwitcher);
+        assertThat(copy.mShowImeSwitcherButton).isEqualTo(original.mShowImeSwitcherButton);
         assertThat(copy.mDisabledFlags2).isEqualTo(original.mDisabledFlags2);
         assertThat(copy.mNavbarColorManagedByIme).isEqualTo(original.mNavbarColorManagedByIme);
         assertThat(copy.mBehavior).isEqualTo(original.mBehavior);

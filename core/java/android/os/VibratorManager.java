@@ -231,4 +231,29 @@ public abstract class VibratorManager {
             @NonNull Executor executor, @NonNull VendorVibrationSession.Callback callback) {
         Log.w(TAG, "startVendorSession is not supported");
     }
+
+    /**
+     * Asynchronously starts a new haptic generator session.
+     *
+     * <p>A haptic generator session allows an application to convert a {@link VibrationEffect}
+     * into a stream of haptic PCM data. This is useful for creating precisely synchronized
+     * audio-coupled haptic experiences.
+     *
+     * @param config   The configuration for the haptic generator session.
+     * @param executor The executor on which to invoke the callback.
+     * @param callback The callback that will receive the
+     *                 {@link android.os.vibrator.HapticGeneratorSession} on success,
+     *                 or an {@link Exception} on failure.
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.USE_VIBRATOR_HAPTIC_GENERATOR)
+    public void startHapticGeneratorSession(
+            int vibratorId,
+            @Nullable android.os.vibrator.HapticGeneratorSession.Config config,
+            @NonNull Executor executor,
+            @NonNull OutcomeReceiver<android.os.vibrator.HapticGeneratorSession, Exception>
+                    callback) {
+        Log.w(TAG, "startHapticGeneratorSession is not supported");
+        executor.execute(() -> callback.onError(new UnsupportedOperationException()));
+    }
 }

@@ -16,171 +16,157 @@
 
 package com.android.server.companion.datatransfer.continuity;
 
+import static android.Manifest.permission.MODIFY_HANDOFF_SETTINGS;
+import static android.Manifest.permission.READ_HANDOFF_SETTINGS;
 import static android.Manifest.permission.READ_REMOTE_TASKS;
 import static android.Manifest.permission.REQUEST_TASK_HANDOFF;
+import static com.android.server.companion.utils.PermissionsUtils.enforceCallerIsSystemOrCanInteractWithUserId;
 
 import android.annotation.EnforcePermission;
 import android.annotation.NonNull;
-import android.companion.AssociationInfo;
+import android.companion.datatransfer.continuity.IHandoffFeatureStateListener;
 import android.companion.datatransfer.continuity.IHandoffRequestCallback;
-import android.companion.datatransfer.continuity.ITaskContinuityManager;
 import android.companion.datatransfer.continuity.IRemoteTaskListener;
-import android.companion.datatransfer.continuity.RemoteTask;
+import android.companion.datatransfer.continuity.ITaskContinuityManager;
 import android.content.Context;
 import android.os.Binder;
-import android.util.Slog;
-
-import com.android.server.companion.datatransfer.continuity.connectivity.TaskContinuityMessenger;
-import com.android.server.companion.datatransfer.continuity.handoff.InboundHandoffRequestController;
-import com.android.server.companion.datatransfer.continuity.handoff.OutboundHandoffRequestController;
-import com.android.server.companion.datatransfer.continuity.messages.ContinuityDeviceConnected;
-import com.android.server.companion.datatransfer.continuity.messages.HandoffRequestMessage;
-import com.android.server.companion.datatransfer.continuity.messages.HandoffRequestResultMessage;
-import com.android.server.companion.datatransfer.continuity.messages.RemoteTaskAddedMessage;
-import com.android.server.companion.datatransfer.continuity.messages.RemoteTaskRemovedMessage;
-import com.android.server.companion.datatransfer.continuity.messages.RemoteTaskUpdatedMessage;
-import com.android.server.companion.datatransfer.continuity.messages.TaskContinuityMessage;
-import com.android.server.companion.datatransfer.continuity.tasks.RemoteTaskStore;
-
 import com.android.server.SystemService;
-
-import java.util.Collection;
+import com.android.server.companion.datatransfer.continuity.handoff.HandoffController;
+import com.android.server.companion.datatransfer.continuity.handoff.HandoffControllerCache;
+import com.android.server.companion.datatransfer.continuity.settings.HandoffPreferenceStore;
+import com.android.server.companion.datatransfer.continuity.settings.HandoffSettingsManager;
 import java.util.Objects;
 
 /**
  * Service to handle task continuity features
  *
  * @hide
- *
  */
-public final class TaskContinuityManagerService
-    extends SystemService implements TaskContinuityMessenger.Listener {
+public final class TaskContinuityManagerService extends SystemService {
 
-    private static final String TAG = "TaskContinuityManagerService";
+    private static final String TAG = TaskContinuityManagerService.class.getSimpleName();
 
-    private InboundHandoffRequestController mInboundHandoffRequestController;
-    private OutboundHandoffRequestController mOutboundHandoffRequestController;
+    private final MultiUserResourceCache<HandoffController> mHandoffControllerCache;
+    private HandoffPreferenceStore mHandoffPreferenceStore;
+    private HandoffSettingsManager mHandoffSettingsManager;
     private TaskContinuityManagerServiceImpl mTaskContinuityManagerService;
-    private TaskBroadcaster mTaskBroadcaster;
-    private TaskContinuityMessenger mTaskContinuityMessenger;
-    private RemoteTaskStore mRemoteTaskStore;
 
     public TaskContinuityManagerService(Context context) {
         super(context);
 
-        mTaskContinuityMessenger = new TaskContinuityMessenger(context, this);
-        mTaskBroadcaster = new TaskBroadcaster(context, mTaskContinuityMessenger);
-        mRemoteTaskStore = new RemoteTaskStore();
-        mOutboundHandoffRequestController = new OutboundHandoffRequestController(
-            context,
-            mTaskContinuityMessenger,
-            mRemoteTaskStore);
-        mInboundHandoffRequestController = new InboundHandoffRequestController(
-            mTaskContinuityMessenger);
+        mHandoffPreferenceStore = new HandoffPreferenceStore();
+        mHandoffSettingsManager = new HandoffSettingsManager(mHandoffPreferenceStore);
+        mHandoffControllerCache = new HandoffControllerCache(context);
+    }
+
+    @Override
+    public void onUserUnlocked(TargetUser user) {
+        updateHandoffEnablementForUser(user.getUserIdentifier());
     }
 
     @Override
     public void onStart() {
         mTaskContinuityManagerService = new TaskContinuityManagerServiceImpl();
-        mTaskContinuityMessenger.enable();
         publishBinderService(Context.TASK_CONTINUITY_SERVICE, mTaskContinuityManagerService);
     }
 
     private final class TaskContinuityManagerServiceImpl extends ITaskContinuityManager.Stub {
         @Override
         @EnforcePermission(READ_REMOTE_TASKS)
-        public void registerRemoteTaskListener(@NonNull IRemoteTaskListener listener) {
+        public void registerRemoteTaskListener(int userId, @NonNull IRemoteTaskListener listener) {
             registerRemoteTaskListener_enforcePermission();
-            Objects.requireNonNull(listener);
-            mRemoteTaskStore.addListener(listener);
+            enforceCallerIsSystemOrCanInteractWithUserId(getContext(), userId);
+            mHandoffControllerCache
+                    .getOrCreateResource(userId)
+                    .registerTaskListener(Objects.requireNonNull(listener));
         }
 
         @Override
         @EnforcePermission(READ_REMOTE_TASKS)
-        public void unregisterRemoteTaskListener(@NonNull IRemoteTaskListener listener) {
+        public void unregisterRemoteTaskListener(
+                int userId, @NonNull IRemoteTaskListener listener) {
             unregisterRemoteTaskListener_enforcePermission();
-            Objects.requireNonNull(listener);
-            mRemoteTaskStore.removeListener(listener);
+            enforceCallerIsSystemOrCanInteractWithUserId(getContext(), userId);
+            mHandoffControllerCache
+                    .getOrCreateResource(userId)
+                    .unregisterTaskListener(Objects.requireNonNull(listener));
         }
 
         @Override
         @EnforcePermission(REQUEST_TASK_HANDOFF)
         public void requestHandoff(
-            int associationId,
-            int remoteTaskId,
-            @NonNull IHandoffRequestCallback callback) {
+                int userId,
+                int associationId,
+                int remoteTaskId,
+                @NonNull IHandoffRequestCallback callback) {
             requestHandoff_enforcePermission();
+            enforceCallerIsSystemOrCanInteractWithUserId(getContext(), userId);
 
             Objects.requireNonNull(callback);
 
             final long ident = Binder.clearCallingIdentity();
             try {
-                mOutboundHandoffRequestController.requestHandoff(
-                    associationId,
-                    remoteTaskId,
-                    callback);
+                mHandoffControllerCache
+                        .getOrCreateResource(userId)
+                        .requestHandoff(associationId, remoteTaskId, callback);
+            } finally {
+                Binder.restoreCallingIdentity(ident);
+            }
+        }
+
+        @Override
+        @EnforcePermission(MODIFY_HANDOFF_SETTINGS)
+        public void setHandoffForDeviceEnabled(int userId, boolean enabled) {
+            setHandoffForDeviceEnabled_enforcePermission();
+            enforceCallerIsSystemOrCanInteractWithUserId(getContext(), userId);
+
+            final long ident = Binder.clearCallingIdentity();
+            try {
+                mHandoffSettingsManager.setHandoffEnabledForUser(userId, enabled);
+                updateHandoffEnablementForUser(userId);
+            } finally {
+                Binder.restoreCallingIdentity(ident);
+            }
+        }
+
+        @Override
+        @EnforcePermission(READ_HANDOFF_SETTINGS)
+        public void registerHandoffFeatureStateListener(
+                int userId, @NonNull IHandoffFeatureStateListener listener) {
+            registerHandoffFeatureStateListener_enforcePermission();
+            enforceCallerIsSystemOrCanInteractWithUserId(getContext(), userId);
+
+            final long ident = Binder.clearCallingIdentity();
+            try {
+                mHandoffSettingsManager.registerHandoffFeatureStateListener(
+                        userId, Objects.requireNonNull(listener));
+            } finally {
+                Binder.restoreCallingIdentity(ident);
+            }
+        }
+
+        @Override
+        @EnforcePermission(READ_HANDOFF_SETTINGS)
+        public void unregisterHandoffFeatureStateListener(
+                int userId, @NonNull IHandoffFeatureStateListener listener) {
+            unregisterHandoffFeatureStateListener_enforcePermission();
+            enforceCallerIsSystemOrCanInteractWithUserId(getContext(), userId);
+
+            final long ident = Binder.clearCallingIdentity();
+            try {
+                mHandoffSettingsManager.unregisterHandoffFeatureStateListener(
+                        userId, Objects.requireNonNull(listener));
             } finally {
                 Binder.restoreCallingIdentity(ident);
             }
         }
     }
 
-    @Override
-    public void onAssociationConnected(@NonNull AssociationInfo associationInfo) {
-        Objects.requireNonNull(associationInfo);
-
-        mRemoteTaskStore.addDevice(
-            associationInfo.getId(),
-            associationInfo.getDisplayName().toString());
-
-        mTaskBroadcaster.onDeviceConnected(associationInfo.getId());
-    }
-
-    @Override
-    public void onAssociationDisconnected(
-        int associationId,
-        @NonNull Collection<AssociationInfo> connectedAssociations) {
-
-        Objects.requireNonNull(connectedAssociations);
-
-        mRemoteTaskStore.removeDevice(associationId);
-        if (connectedAssociations.isEmpty()) {
-            mTaskBroadcaster.onAllDevicesDisconnected();
-        }
-    }
-
-    @Override
-    public void onMessageReceived(
-        int associationId,
-        @NonNull TaskContinuityMessage taskContinuityMessage) {
-
-        Slog.v(TAG, "Received message from association id: " + associationId);
-        switch (Objects.requireNonNull(taskContinuityMessage)) {
-            case ContinuityDeviceConnected continuityDeviceConnected:
-                mRemoteTaskStore.setTasks(associationId, continuityDeviceConnected.remoteTasks());
-                break;
-            case RemoteTaskAddedMessage remoteTaskAddedMessage:
-                mRemoteTaskStore.addTask(associationId, remoteTaskAddedMessage.task());
-                break;
-            case RemoteTaskRemovedMessage remoteTaskRemovedMessage:
-                mRemoteTaskStore.removeTask(associationId, remoteTaskRemovedMessage.taskId());
-                break;
-            case RemoteTaskUpdatedMessage remoteTaskUpdatedMessage:
-                mRemoteTaskStore.updateTask(associationId, remoteTaskUpdatedMessage.task());
-                break;
-            case HandoffRequestResultMessage handoffRequestResultMessage:
-                mOutboundHandoffRequestController.onHandoffRequestResultMessageReceived(
-                    associationId,
-                    handoffRequestResultMessage);
-                break;
-            case HandoffRequestMessage handoffRequestMessage:
-                mInboundHandoffRequestController.onHandoffRequestMessageReceived(
-                    associationId,
-                    handoffRequestMessage);
-                break;
-            default:
-                Slog.w(TAG, "Received unknown message from device: " + associationId);
-                break;
+    private void updateHandoffEnablementForUser(int userId) {
+        if (mHandoffSettingsManager.isHandoffActiveForUser(userId)) {
+            mHandoffControllerCache.getOrCreateResource(userId).enable();
+        } else {
+            mHandoffControllerCache.getOrCreateResource(userId).disable();
         }
     }
 }

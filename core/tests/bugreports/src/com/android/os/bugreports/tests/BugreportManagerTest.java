@@ -288,7 +288,6 @@ public class BugreportManagerTest {
 
     @Test
     @LargeTest
-    @EnableFlags(android.os.Flags.FLAG_BUGREPORT_DEFERRED_CONSENT_SCREENSHOT_FIX)
     public void deferredConsentFlow_screenshotFixEnabled() throws Exception {
         // Uses a placeholder file descriptor for the startBugreport call. This file is unused as
         // startBugreport does not copy the bugreport content if the consent is deferred.
@@ -303,32 +302,6 @@ public class BugreportManagerTest {
         String bugreportFile = callback.mBugreportFile;
         callback = new BugreportCallbackImpl();
 
-        mBrm.retrieveBugreport(bugreportFile, mBugreportFd, mExecutor, callback);
-        shareConsentDialog(ConsentReply.ALLOW);
-        waitTillDoneOrTimeout(callback);
-
-        assertThat(placeholderFile.length()).isEqualTo(0L);
-        assertThat(mBugreportFile.length()).isGreaterThan(0L);
-        assertFdsAreClosed(placeholderFd, mBugreportFd);
-    }
-
-    @Test
-    @LargeTest
-    @DisableFlags(android.os.Flags.FLAG_BUGREPORT_DEFERRED_CONSENT_SCREENSHOT_FIX)
-    public void deferredConsentFlow_screenshotFixDisabled() throws Exception {
-        // Uses a placeholder file descriptor for the startBugreport call. This file is unused as
-        // startBugreport does not copy the bugreport content if the consent is deferred.
-        File placeholderFile = createTempFile("placeholder_file", ".zip");
-        ParcelFileDescriptor placeholderFd = parcelFd(placeholderFile);
-        BugreportCallbackImpl callback = new BugreportCallbackImpl();
-        mBrm.startBugreport(placeholderFd, null /*screenshotFd = null*/, fullWithDeferredConsent(),
-                mExecutor, callback);
-
-        waitTillDoneOrTimeout(callback);
-        assertThat(callback.isDone()).isTrue();
-        String bugreportFile = callback.mBugreportFile;
-
-        callback = new BugreportCallbackImpl();
         mBrm.retrieveBugreport(bugreportFile, mBugreportFd, mExecutor, callback);
         shareConsentDialog(ConsentReply.ALLOW);
         waitTillDoneOrTimeout(callback);

@@ -77,7 +77,7 @@ message ProcessStatsSectionProto {
     repeated Status status = 7;
 
     // Number of pages available of various types and sizes, representation fragmentation.
-    repeated ProcessStatsAvailablePagesProto available_pages = 10;
+    repeated ProcessStatsAvailablePagesProto available_pages = 10 [deprecated = true];
 
     // Stats for each process.
     repeated ProcessStatsProto process_stats = 8;

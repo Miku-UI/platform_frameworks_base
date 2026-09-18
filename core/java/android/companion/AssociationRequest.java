@@ -19,8 +19,6 @@ package android.companion;
 import static android.Manifest.permission.ASSOCIATE_COMPANION_DEVICES;
 import static android.Manifest.permission.REQUEST_COMPANION_SELF_MANAGED;
 
-import static com.android.internal.util.CollectionUtils.emptyIfNull;
-
 import static java.util.Objects.requireNonNull;
 
 import android.Manifest;
@@ -41,12 +39,17 @@ import android.os.Parcelable;
 import android.provider.OneTimeUseBuilder;
 
 import com.android.internal.util.ArrayUtils;
+import com.android.internal.util.CollectionUtils;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * A request for the user to select a companion device to associate with.
@@ -135,8 +138,8 @@ public final class AssociationRequest implements Parcelable {
      * <p>
      * This profile may only be used by the system.
      *
-     * @see AssociationRequest.Builder#setDeviceProfile
      * @hide
+     * @see AssociationRequest.Builder#setDeviceProfile
      */
     public static final String DEVICE_PROFILE_WEARABLE_SENSING =
             "android.companion.COMPANION_DEVICE_WEARABLE_SENSING";
@@ -198,6 +201,12 @@ public final class AssociationRequest implements Parcelable {
             "android.app.role.SYSTEM_AUTOMOTIVE_PROJECTION";
 
     /**
+     * Permission group to access nearby devices.
+     */
+    @FlaggedApi(Flags.FLAG_ASSOCIATION_EXTRA_PERMISSION)
+    public static final String PERMISSION_GROUP_NEARBY = "NEARBY_DEVICES";
+
+    /**
      * Device profile: Allows the companion app to access notification, recent photos and media for
      * computer cross-device features.
      *
@@ -213,11 +222,29 @@ public final class AssociationRequest implements Parcelable {
 
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
-    @StringDef(value = { DEVICE_PROFILE_WATCH, DEVICE_PROFILE_COMPUTER,
+    @StringDef(value = {DEVICE_PROFILE_WATCH, DEVICE_PROFILE_COMPUTER,
             DEVICE_PROFILE_AUTOMOTIVE_PROJECTION, DEVICE_PROFILE_APP_STREAMING,
             DEVICE_PROFILE_GLASSES, DEVICE_PROFILE_NEARBY_DEVICE_STREAMING,
-            DEVICE_PROFILE_WEARABLE_SENSING })
-    public @interface DeviceProfile {}
+            DEVICE_PROFILE_WEARABLE_SENSING})
+    public @interface DeviceProfile {
+    }
+
+    /**
+     * Defines the set of valid permission strings for extra permissions.
+     *
+     * @hide
+     */
+    @Target(ElementType.TYPE_USE)
+    @StringDef(
+            prefix = {"PERMISSION_"},
+            value = {
+                    PERMISSION_GROUP_NEARBY
+            }
+    )
+    @Retention(RetentionPolicy.SOURCE)
+    @FlaggedApi(Flags.FLAG_ASSOCIATION_EXTRA_PERMISSION)
+    public @interface Permission {
+    }
 
     /**
      * Whether only a single device should match the provided filter.
@@ -274,6 +301,7 @@ public final class AssociationRequest implements Parcelable {
     /**
      * The app package name of the application the association will belong to.
      * Populated by the system.
+     *
      * @hide
      */
     @Nullable
@@ -282,6 +310,7 @@ public final class AssociationRequest implements Parcelable {
     /**
      * The UserId of the user the association will belong to.
      * Populated by the system.
+     *
      * @hide
      */
     @UserIdInt
@@ -290,6 +319,7 @@ public final class AssociationRequest implements Parcelable {
     /**
      * The user-readable description of the device profile's privileges.
      * Populated by the system.
+     *
      * @hide
      */
     @Nullable
@@ -297,6 +327,7 @@ public final class AssociationRequest implements Parcelable {
 
     /**
      * The time at which his request was created
+     *
      * @hide
      */
     private final long mCreationTime;
@@ -304,12 +335,14 @@ public final class AssociationRequest implements Parcelable {
     /**
      * Whether the user-prompt may be skipped once the device is found.
      * Populated by the system.
+     *
      * @hide
      */
     private boolean mSkipPrompt;
 
     /**
      * The device icon displayed in selfManaged association dialog.
+     *
      * @hide
      */
     @Nullable
@@ -317,51 +350,38 @@ public final class AssociationRequest implements Parcelable {
 
     /**
      * Requested permissions for profile.
+     *
      * @hide
      */
     @Nullable
     private List<Integer> mRequestedPerms = new ArrayList<>();
 
+    /**
+     * The extra permissions to request/grant for non-profile device.
+     */
+    @NonNull
+    private final Set<String> mExtraPermissions;
+
+    private final boolean mRemoteAiAgentSupported;
+
     private static final int DISPLAY_NAME_LENGTH_LIMIT = 1024;
 
-    /**
-     * Creates a new AssociationRequest.
-     *
-     * @param singleDevice
-     *   Whether only a single device should match the provided filter.
-     *
-     *   When scanning for a single device with a specific {@link BluetoothDeviceFilter} mac
-     *   address, bonded devices are also searched among. This allows to obtain the necessary app
-     *   privileges even if the device is already paired.
-     * @param deviceFilters
-     *   If set, only devices matching either of the given filters will be shown to the user
-     * @param deviceProfile
-     *   Profile of the device.
-     * @param displayName
-     *   The Display name of the device to be shown in the CDM confirmation UI. Must be non-null for
-     *   "self-managed" association.
-     * @param selfManaged
-     *   Whether the association is to be managed by the companion application.
-     */
-    private AssociationRequest(
-            boolean singleDevice,
-            @NonNull List<DeviceFilter<?>> deviceFilters,
-            @Nullable @DeviceProfile String deviceProfile,
-            @Nullable CharSequence displayName,
-            boolean selfManaged,
-            boolean forceConfirmation,
-            boolean skipRoleGrant,
-            @Nullable Icon deviceIcon) {
-        validateDisplayName(displayName);
-        mSingleDevice = singleDevice;
-        mDeviceFilters = requireNonNull(deviceFilters);
-        mDeviceProfile = deviceProfile;
-        mDisplayName = displayName;
-        mSelfManaged = selfManaged;
-        mForceConfirmation = forceConfirmation;
-        mSkipRoleGrant = skipRoleGrant;
+    private static final Set<String> ALLOWED_EXTRA_PERMISSIONS = Set.of(
+            PERMISSION_GROUP_NEARBY
+    );
+
+    private AssociationRequest(Builder builder) {
+        mSingleDevice = builder.mSingleDevice;
+        mDeviceFilters = builder.mDeviceFilters;
+        mDeviceProfile = builder.mDeviceProfile;
+        mDisplayName = builder.mDisplayName;
+        mSelfManaged = builder.mSelfManaged;
+        mForceConfirmation = builder.mForceConfirmation;
+        mSkipRoleGrant = builder.mSkipRoleGrant;
         mCreationTime = System.currentTimeMillis();
-        mDeviceIcon = deviceIcon;
+        mDeviceIcon = builder.mDeviceIcon;
+        mExtraPermissions = builder.mExtraPermissions;
+        mRemoteAiAgentSupported = builder.mRemoteAiAgentSupported;
     }
 
     /**
@@ -405,8 +425,8 @@ public final class AssociationRequest implements Parcelable {
     /**
      * Whether to skip the role grant, permission checks and consent dialog.
      *
-     * @see Builder#setSkipRoleGrant(boolean)
      * @hide
+     * @see Builder#setSkipRoleGrant(boolean)
      */
     @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
     @TestApi
@@ -429,7 +449,6 @@ public final class AssociationRequest implements Parcelable {
      * Get the device icon of the self-managed association request.
      *
      * @return the device icon, or {@code null} if no device icon has been set.
-     *
      * @see Builder#setDeviceIcon(Icon)
      */
     @FlaggedApi(Flags.FLAG_ASSOCIATION_DEVICE_ICON)
@@ -438,10 +457,29 @@ public final class AssociationRequest implements Parcelable {
         return mDeviceIcon;
     }
 
+    /**
+     * @see Builder#setRemoteAiAgentSupported(boolean)
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_AI_AGENT)
+    public boolean isRemoteAiAgentSupported() {
+        return mRemoteAiAgentSupported;
+    }
+
     /** @hide */
     @Nullable
     public List<Integer> getRequestedPerms() {
         return mRequestedPerms;
+    }
+
+    /**
+     * Gets the extra permissions to request/grant for non-profile device.
+     *
+     * @return A set of permission strings.
+     */
+    @FlaggedApi(Flags.FLAG_ASSOCIATION_EXTRA_PERMISSION)
+    @NonNull
+    public Set<String> getExtraPermissions() {
+        return mExtraPermissions;
     }
 
     /** @hide */
@@ -452,11 +490,6 @@ public final class AssociationRequest implements Parcelable {
     /** @hide */
     public void setUserId(@UserIdInt int userId) {
         mUserId = userId;
-    }
-
-    /** @hide */
-    public void setDeviceProfilePrivilegesDescription(@NonNull String desc) {
-        mDeviceProfilePrivilegesDescription = desc;
     }
 
     /** @hide */
@@ -493,19 +526,248 @@ public final class AssociationRequest implements Parcelable {
     }
 
     /**
+     * The device that was associated. Will be null for "self-managed" association.
+     *
+     * @hide
+     */
+    @Nullable
+    public AssociatedDevice getAssociatedDevice() {
+        return mAssociatedDevice;
+    }
+
+    /**
+     * The app package name of the application the association will belong to.
+     * Populated by the system.
+     *
+     * @hide
+     */
+    @Nullable
+    public String getPackageName() {
+        return mPackageName;
+    }
+
+    /**
+     * The UserId of the user the association will belong to.
+     * Populated by the system.
+     *
+     * @hide
+     */
+    @UserIdInt
+    public int getUserId() {
+        return mUserId;
+    }
+
+    /**
+     * The user-readable description of the device profile's privileges.
+     * Populated by the system.
+     *
+     * @hide
+     */
+    @Nullable
+    public String getDeviceProfilePrivilegesDescription() {
+        return mDeviceProfilePrivilegesDescription;
+    }
+
+    /**
+     * The time at which his request was created
+     *
+     * @hide
+     */
+    public long getCreationTime() {
+        return mCreationTime;
+    }
+
+    /**
+     * Whether the user-prompt may be skipped once the device is found.
+     * Populated by the system.
+     *
+     * @hide
+     */
+    public boolean isSkipPrompt() {
+        return mSkipPrompt;
+    }
+
+    @Override
+    public String toString() {
+        return "AssociationRequest { "
+                + "singleDevice = " + mSingleDevice
+                + ", deviceFilters = " + mDeviceFilters
+                + ", deviceProfile = " + mDeviceProfile
+                + ", displayName = " + mDisplayName
+                + ", associatedDevice = " + mAssociatedDevice
+                + ", selfManaged = " + mSelfManaged
+                + ", forceConfirmation = " + mForceConfirmation
+                + ", skipRoleGrant = " + mSkipRoleGrant
+                + ", packageName = " + mPackageName
+                + ", userId = " + mUserId
+                + ", deviceProfilePrivilegesDescription = " + mDeviceProfilePrivilegesDescription
+                + ", creationTime = " + mCreationTime
+                + ", skipPrompt = " + mSkipPrompt
+                + ", requestedPerms = " + mRequestedPerms
+                + ", extraPermissions = " + mExtraPermissions
+                + ", remoteAiAgentSupported = " + mRemoteAiAgentSupported
+                + " }";
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        AssociationRequest that = (AssociationRequest) o;
+        return mSingleDevice == that.mSingleDevice
+                && Objects.equals(mDeviceFilters, that.mDeviceFilters)
+                && Objects.equals(mDeviceProfile, that.mDeviceProfile)
+                && Objects.equals(mDisplayName, that.mDisplayName)
+                && Objects.equals(mAssociatedDevice, that.mAssociatedDevice)
+                && mSelfManaged == that.mSelfManaged
+                && mForceConfirmation == that.mForceConfirmation
+                && mSkipRoleGrant == that.mSkipRoleGrant
+                && Objects.equals(mPackageName, that.mPackageName)
+                && mUserId == that.mUserId
+                && Objects.equals(mDeviceProfilePrivilegesDescription,
+                that.mDeviceProfilePrivilegesDescription)
+                && mCreationTime == that.mCreationTime
+                && mSkipPrompt == that.mSkipPrompt
+                && Objects.equals(mRequestedPerms, that.mRequestedPerms)
+                && Objects.equals(mExtraPermissions, that.mExtraPermissions)
+                && (mDeviceIcon == null ? that.mDeviceIcon == null
+                : mDeviceIcon.sameAs(that.mDeviceIcon))
+                && mRemoteAiAgentSupported == that.mRemoteAiAgentSupported;
+    }
+
+    @Override
+    public void writeToParcel(@NonNull Parcel dest, int flags) {
+        int flg = 0;
+        if (mSingleDevice) flg |= 0x1;
+        if (mSelfManaged) flg |= 0x2;
+        if (mForceConfirmation) flg |= 0x4;
+        if (mSkipPrompt) flg |= 0x8;
+        if (mDeviceProfile != null) flg |= 0x10;
+        if (mDisplayName != null) flg |= 0x20;
+        if (mAssociatedDevice != null) flg |= 0x40;
+        if (mPackageName != null) flg |= 0x80;
+        if (mDeviceProfilePrivilegesDescription != null) flg |= 0x100;
+        if (mSkipRoleGrant) flg |= 0x200;
+
+        dest.writeInt(flg);
+        dest.writeParcelableList(mDeviceFilters, flags);
+        if (mDeviceProfile != null) dest.writeString(mDeviceProfile);
+        if (mDisplayName != null) dest.writeCharSequence(mDisplayName);
+        if (mAssociatedDevice != null) dest.writeTypedObject(mAssociatedDevice, flags);
+        if (mPackageName != null) dest.writeString(mPackageName);
+        dest.writeInt(mUserId);
+        if (mDeviceProfilePrivilegesDescription != null) {
+            dest.writeString8(mDeviceProfilePrivilegesDescription);
+        }
+        dest.writeLong(mCreationTime);
+        if (mDeviceIcon != null) {
+            dest.writeInt(1);
+            mDeviceIcon.writeToParcel(dest, flags);
+        } else {
+            dest.writeInt(0);
+        }
+        if (mRequestedPerms != null) {
+            dest.writeInt(1);
+            dest.writeList(mRequestedPerms);
+        } else {
+            dest.writeInt(0);
+        }
+        dest.writeStringList(new ArrayList<>(mExtraPermissions));
+        dest.writeBoolean(mRemoteAiAgentSupported);
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    /** @hide */
+    @SuppressWarnings("unchecked")
+    AssociationRequest(@NonNull Parcel in) {
+        int flg = in.readInt();
+        boolean singleDevice = (flg & 0x1) != 0;
+        boolean selfManaged = (flg & 0x2) != 0;
+        boolean forceConfirmation = (flg & 0x4) != 0;
+        boolean skipPrompt = (flg & 0x8) != 0;
+        boolean skipRoleGrant = (flg & 0x200) != 0;
+        List<DeviceFilter<?>> deviceFilters = new ArrayList<>();
+        in.readParcelableList(deviceFilters, DeviceFilter.class.getClassLoader(),
+                (Class<android.companion.DeviceFilter<?>>) (Class<?>)
+                        android.companion.DeviceFilter.class);
+        String deviceProfile = (flg & 0x10) == 0 ? null : in.readString();
+        CharSequence displayName = (flg & 0x20) == 0 ? null : in.readCharSequence();
+        AssociatedDevice associatedDevice = (flg & 0x40) == 0 ? null
+                : in.readTypedObject(AssociatedDevice.CREATOR);
+        String packageName = (flg & 0x80) == 0 ? null : in.readString();
+        int userId = in.readInt();
+        String deviceProfilePrivilegesDescription = (flg & 0x100) == 0 ? null : in.readString8();
+        long creationTime = in.readLong();
+
+        mSingleDevice = singleDevice;
+        mDeviceFilters = deviceFilters;
+        com.android.internal.util.AnnotationValidations.validate(
+                NonNull.class, null, mDeviceFilters);
+        mDeviceProfile = deviceProfile;
+        mDisplayName = displayName;
+        mAssociatedDevice = associatedDevice;
+        mSelfManaged = selfManaged;
+        mForceConfirmation = forceConfirmation;
+        mSkipRoleGrant = skipRoleGrant;
+        mPackageName = packageName;
+        mUserId = userId;
+        com.android.internal.util.AnnotationValidations.validate(
+                UserIdInt.class, null, mUserId);
+        mDeviceProfilePrivilegesDescription = deviceProfilePrivilegesDescription;
+        mCreationTime = creationTime;
+        mSkipPrompt = skipPrompt;
+        if (in.readInt() == 1) {
+            mDeviceIcon = Icon.CREATOR.createFromParcel(in);
+        }
+        if (in.readInt() == 1) {
+            in.readList(mRequestedPerms, Integer.class.getClassLoader(), Integer.class);
+        }
+        mExtraPermissions =  new HashSet<>(in.createStringArrayList());
+        mRemoteAiAgentSupported = in.readBoolean();
+    }
+
+    @NonNull
+    public static final Parcelable.Creator<AssociationRequest> CREATOR =
+            new Parcelable.Creator<AssociationRequest>() {
+                @Override
+                public AssociationRequest[] newArray(int size) {
+                    return new AssociationRequest[size];
+                }
+
+                @Override
+                public AssociationRequest createFromParcel(@NonNull Parcel in) {
+                    return new AssociationRequest(in);
+                }
+            };
+
+    private static void validateDisplayName(@Nullable CharSequence displayName) {
+        if (displayName != null && displayName.length() > DISPLAY_NAME_LENGTH_LIMIT) {
+            throw new IllegalArgumentException("Length of the display name must be at most "
+                    + DISPLAY_NAME_LENGTH_LIMIT + " characters");
+        }
+    }
+
+    /**
      * A builder for {@link AssociationRequest}
      */
     public static final class Builder extends OneTimeUseBuilder<AssociationRequest> {
         private boolean mSingleDevice = false;
-        private ArrayList<DeviceFilter<?>> mDeviceFilters = null;
+        private ArrayList<DeviceFilter<?>> mDeviceFilters = new ArrayList<>();
         private String mDeviceProfile;
         private CharSequence mDisplayName;
         private boolean mSelfManaged = false;
         private boolean mForceConfirmation = false;
         private boolean mSkipRoleGrant = false;
         private Icon mDeviceIcon = null;
+        private Set<String> mExtraPermissions = new HashSet<>();
+        private boolean mRemoteAiAgentSupported = false;
 
-        public Builder() {}
+        public Builder() {
+        }
 
         /**
          * Whether only a single device should match the provided filter.
@@ -617,7 +879,8 @@ public final class AssociationRequest implements Parcelable {
          * <p>The given device icon will be resized to 24dp x 24dp.
          *
          * @throws IllegalArgumentException if the icon is
-         * {@link Icon#TYPE_URI} or {@link Icon#TYPE_URI_ADAPTIVE_BITMAP}.
+         *                                  {@link Icon#TYPE_URI} or
+         *                                  {@link Icon#TYPE_URI_ADAPTIVE_BITMAP}.
          * @see #setSelfManaged(boolean)
          */
         @NonNull
@@ -629,7 +892,58 @@ public final class AssociationRequest implements Parcelable {
             return this;
         }
 
-        /** @inheritDoc */
+        /**
+         * Sets the set of extra permissions to be requested for this association.
+         *
+         * <p>These permissions will be granted to the companion app upon a successful association.
+         * Users can manually grant or revoke these permissions through the system settings.
+         * This API will not overwrite any permission status that a user has manually set.
+         *
+         * <p>When a device is disassociated, the system will attempt to revoke the permissions
+         * that were granted for it. This revocation will also not override any permissions that the
+         * user has manually set.
+         *
+         * @param permissions a non-null set of permissions from
+         *                    {@link android.companion.AssociationRequest.Permission}.
+         *
+         * @throws IllegalArgumentException if the provided {@code permissions} set is empty or
+         * contains any unsupported permissions.
+         */
+        @FlaggedApi(Flags.FLAG_ASSOCIATION_EXTRA_PERMISSION)
+        @NonNull
+        public Builder setExtraPermissions(
+                @NonNull Set<@AssociationRequest.Permission String> permissions) {
+            checkNotUsed();
+            if (CollectionUtils.isEmpty(permissions)
+                    || !ALLOWED_EXTRA_PERMISSIONS.containsAll(permissions)) {
+                throw new IllegalArgumentException(
+                        "Provided permissions set contains unsupported permission."
+                );
+            }
+            mExtraPermissions.addAll(permissions);
+            return this;
+        }
+
+        /**
+         * Indicates whether the device is capable of interacting with a remote AI agent on another
+         * device.
+         *
+         * <p>Default value is {@code false}. When set to {@code true}, this allows the device
+         * (e.g., a microphone or a smart wearable) to act as an input/output source for a remote
+         * AI agent.
+         *
+         * <p>Setting this flag to {@code true} modifies the user-facing association dialog to
+         * include relevant AI usage disclosures.
+         */
+        @FlaggedApi(Flags.FLAG_SUPPORT_AI_AGENT)
+        @NonNull
+        public Builder setRemoteAiAgentSupported(boolean remoteAiAgentSupported) {
+            checkNotUsed();
+            mRemoteAiAgentSupported = remoteAiAgentSupported;
+            return this;
+        }
+
+        /** {@inheritDoc} */
         @NonNull
         @Override
         public AssociationRequest build() {
@@ -638,226 +952,7 @@ public final class AssociationRequest implements Parcelable {
                 throw new IllegalStateException("Request for a self-managed association MUST "
                         + "provide the display name of the device");
             }
-            return new AssociationRequest(mSingleDevice, emptyIfNull(mDeviceFilters),
-                    mDeviceProfile, mDisplayName, mSelfManaged, mForceConfirmation, mSkipRoleGrant,
-                    mDeviceIcon);
-        }
-    }
-
-    /**
-     * The device that was associated. Will be null for "self-managed" association.
-     *
-     * @hide
-     */
-    @Nullable
-    public AssociatedDevice getAssociatedDevice() {
-        return mAssociatedDevice;
-    }
-
-    /**
-     * The app package name of the application the association will belong to.
-     * Populated by the system.
-     *
-     * @hide
-     */
-    @Nullable
-    public String getPackageName() {
-        return mPackageName;
-    }
-
-    /**
-     * The UserId of the user the association will belong to.
-     * Populated by the system.
-     *
-     * @hide
-     */
-    @UserIdInt
-    public int getUserId() {
-        return mUserId;
-    }
-
-    /**
-     * The user-readable description of the device profile's privileges.
-     * Populated by the system.
-     *
-     * @hide
-     */
-    @Nullable
-    public String getDeviceProfilePrivilegesDescription() {
-        return mDeviceProfilePrivilegesDescription;
-    }
-
-    /**
-     * The time at which his request was created
-     *
-     * @hide
-     */
-    public long getCreationTime() {
-        return mCreationTime;
-    }
-
-    /**
-     * Whether the user-prompt may be skipped once the device is found.
-     * Populated by the system.
-     *
-     * @hide
-     */
-    public boolean isSkipPrompt() {
-        return mSkipPrompt;
-    }
-
-    @Override
-    public String toString() {
-        return "AssociationRequest { "
-                + "singleDevice = " + mSingleDevice
-                + ", deviceFilters = " + mDeviceFilters
-                + ", deviceProfile = " + mDeviceProfile
-                + ", displayName = " + mDisplayName
-                + ", associatedDevice = " + mAssociatedDevice
-                + ", selfManaged = " + mSelfManaged
-                + ", forceConfirmation = " + mForceConfirmation
-                + ", skipRoleGrant = " + mSkipRoleGrant
-                + ", packageName = " + mPackageName
-                + ", userId = " + mUserId
-                + ", deviceProfilePrivilegesDescription = " + mDeviceProfilePrivilegesDescription
-                + ", creationTime = " + mCreationTime
-                + ", skipPrompt = " + mSkipPrompt
-                + ", requestedPerms = " + mRequestedPerms
-                + " }";
-    }
-
-    @Override
-    public boolean equals(@Nullable Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        AssociationRequest that = (AssociationRequest) o;
-        return mSingleDevice == that.mSingleDevice
-                && Objects.equals(mDeviceFilters, that.mDeviceFilters)
-                && Objects.equals(mDeviceProfile, that.mDeviceProfile)
-                && Objects.equals(mDisplayName, that.mDisplayName)
-                && Objects.equals(mAssociatedDevice, that.mAssociatedDevice)
-                && mSelfManaged == that.mSelfManaged
-                && mForceConfirmation == that.mForceConfirmation
-                && mSkipRoleGrant == that.mSkipRoleGrant
-                && Objects.equals(mPackageName, that.mPackageName)
-                && mUserId == that.mUserId
-                && Objects.equals(mDeviceProfilePrivilegesDescription,
-                        that.mDeviceProfilePrivilegesDescription)
-                && mCreationTime == that.mCreationTime
-                && mSkipPrompt == that.mSkipPrompt
-                && (mDeviceIcon == null ? that.mDeviceIcon == null
-                : mDeviceIcon.sameAs(that.mDeviceIcon));
-    }
-
-    @Override
-    public void writeToParcel(@NonNull Parcel dest, int flags) {
-        int flg = 0;
-        if (mSingleDevice) flg |= 0x1;
-        if (mSelfManaged) flg |= 0x2;
-        if (mForceConfirmation) flg |= 0x4;
-        if (mSkipPrompt) flg |= 0x8;
-        if (mDeviceProfile != null) flg |= 0x10;
-        if (mDisplayName != null) flg |= 0x20;
-        if (mAssociatedDevice != null) flg |= 0x40;
-        if (mPackageName != null) flg |= 0x80;
-        if (mDeviceProfilePrivilegesDescription != null) flg |= 0x100;
-        if (mSkipRoleGrant) flg |= 0x200;
-
-        dest.writeInt(flg);
-        dest.writeParcelableList(mDeviceFilters, flags);
-        if (mDeviceProfile != null) dest.writeString(mDeviceProfile);
-        if (mDisplayName != null) dest.writeCharSequence(mDisplayName);
-        if (mAssociatedDevice != null) dest.writeTypedObject(mAssociatedDevice, flags);
-        if (mPackageName != null) dest.writeString(mPackageName);
-        dest.writeInt(mUserId);
-        if (mDeviceProfilePrivilegesDescription != null) {
-            dest.writeString8(mDeviceProfilePrivilegesDescription);
-        }
-        dest.writeLong(mCreationTime);
-        if (mDeviceIcon != null) {
-            dest.writeInt(1);
-            mDeviceIcon.writeToParcel(dest, flags);
-        } else {
-            dest.writeInt(0);
-        }
-        if (mRequestedPerms != null) {
-            dest.writeInt(1);
-            dest.writeList(mRequestedPerms);
-        } else {
-            dest.writeInt(0);
-        }
-    }
-
-    @Override
-    public int describeContents() {
-        return 0;
-    }
-
-    /** @hide */
-    @SuppressWarnings("unchecked")
-    /* package-private */ AssociationRequest(@NonNull Parcel in) {
-        int flg = in.readInt();
-        boolean singleDevice = (flg & 0x1) != 0;
-        boolean selfManaged = (flg & 0x2) != 0;
-        boolean forceConfirmation = (flg & 0x4) != 0;
-        boolean skipPrompt = (flg & 0x8) != 0;
-        boolean skipRoleGrant = (flg & 0x200) != 0;
-        List<DeviceFilter<?>> deviceFilters = new ArrayList<>();
-        in.readParcelableList(deviceFilters, DeviceFilter.class.getClassLoader(),
-                (Class<android.companion.DeviceFilter<?>>) (Class<?>)
-                        android.companion.DeviceFilter.class);
-        String deviceProfile = (flg & 0x10) == 0 ? null : in.readString();
-        CharSequence displayName = (flg & 0x20) == 0 ? null : in.readCharSequence();
-        AssociatedDevice associatedDevice = (flg & 0x40) == 0 ? null
-                : in.readTypedObject(AssociatedDevice.CREATOR);
-        String packageName = (flg & 0x80) == 0 ? null : in.readString();
-        int userId = in.readInt();
-        String deviceProfilePrivilegesDescription = (flg & 0x100) == 0 ? null : in.readString8();
-        long creationTime = in.readLong();
-
-        this.mSingleDevice = singleDevice;
-        this.mDeviceFilters = deviceFilters;
-        com.android.internal.util.AnnotationValidations.validate(
-                NonNull.class, null, mDeviceFilters);
-        this.mDeviceProfile = deviceProfile;
-        this.mDisplayName = displayName;
-        this.mAssociatedDevice = associatedDevice;
-        this.mSelfManaged = selfManaged;
-        this.mForceConfirmation = forceConfirmation;
-        this.mSkipRoleGrant = skipRoleGrant;
-        this.mPackageName = packageName;
-        this.mUserId = userId;
-        com.android.internal.util.AnnotationValidations.validate(
-                UserIdInt.class, null, mUserId);
-        this.mDeviceProfilePrivilegesDescription = deviceProfilePrivilegesDescription;
-        this.mCreationTime = creationTime;
-        this.mSkipPrompt = skipPrompt;
-        if (in.readInt() == 1) {
-            mDeviceIcon = Icon.CREATOR.createFromParcel(in);
-        }
-        if (in.readInt() == 1) {
-            in.readList(mRequestedPerms, Integer.class.getClassLoader(), Integer.class);
-        }
-    }
-
-    @NonNull
-    public static final Parcelable.Creator<AssociationRequest> CREATOR =
-            new Parcelable.Creator<AssociationRequest>() {
-        @Override
-        public AssociationRequest[] newArray(int size) {
-            return new AssociationRequest[size];
-        }
-
-        @Override
-        public AssociationRequest createFromParcel(@NonNull Parcel in) {
-            return new AssociationRequest(in);
-        }
-    };
-
-    private static void validateDisplayName(@Nullable CharSequence displayName) {
-        if (displayName != null && displayName.length() > DISPLAY_NAME_LENGTH_LIMIT) {
-            throw new IllegalArgumentException("Length of the display name must be at most "
-                    + DISPLAY_NAME_LENGTH_LIMIT + " characters");
+            return new AssociationRequest(this);
         }
     }
 }

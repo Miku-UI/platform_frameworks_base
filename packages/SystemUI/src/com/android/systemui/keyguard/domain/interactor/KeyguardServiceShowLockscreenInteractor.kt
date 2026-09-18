@@ -27,7 +27,6 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.keyguard.data.repository.KeyguardServiceShowLockscreenRepository
 import com.android.systemui.keyguard.data.repository.ShowLockscreenCallback
-import com.android.systemui.settings.UserTracker
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import dagger.Lazy
 import javax.inject.Inject
@@ -53,9 +52,8 @@ constructor(
     @Background val backgroundScope: CoroutineScope,
     private val selectedUserInteractor: SelectedUserInteractor,
     private val repository: KeyguardServiceShowLockscreenRepository,
-    private val userTracker: UserTracker,
     private val wmLockscreenVisibilityInteractor: Lazy<WindowManagerLockscreenVisibilityInteractor>,
-    private val keyguardEnabledInteractor: KeyguardEnabledInteractor,
+    private val keyguardEnabledInteractor: Lazy<KeyguardEnabledInteractor>,
 ) : CoreStartable {
 
     override fun start() {
@@ -66,7 +64,7 @@ constructor(
             // callback in those cases as well.
             wmLockscreenVisibilityInteractor.get().lockscreenVisibility.collect { (visible, _) ->
                 if (visible) {
-                    notifyShowLockscreenCallbacks()
+                    notifyShowLockscreenCallbacks("lockscreen became visible")
                 }
             }
         }
@@ -96,7 +94,7 @@ constructor(
     fun onKeyguardServiceDoKeyguardTimeout(options: Bundle? = null) {
         backgroundScope.launch {
             if (options?.getBinder(LOCK_ON_USER_SWITCH_CALLBACK) != null) {
-                val userId = userTracker.userId
+                val userId = selectedUserInteractor.getSelectedUserId()
 
                 // This callback needs to be invoked after we show the lockscreen (or decide not to
                 // show it) otherwise System UI will crash in 20 seconds, as a security measure.
@@ -109,15 +107,18 @@ constructor(
 
                 Log.d(
                     TAG,
-                    "Showing lockscreen now - setting required callback for user $userId. " +
-                        "SysUI will crash if this callback is not invoked.",
+                    "lockNowCallback required for user $userId. system_server will crash if not " +
+                        "invoked.",
                 )
 
                 // If the keyguard is disabled or suppressed, we'll never actually show the
-                // lockscreen. Notify the callback so we don't crash.
-                if (!keyguardEnabledInteractor.isKeyguardEnabledAndNotSuppressed()) {
-                    Log.d(TAG, "Keyguard is disabled or suppressed, notifying callbacks now.")
-                    notifyShowLockscreenCallbacks()
+                // lockscreen
+                if (!keyguardEnabledInteractor.get().isKeyguardEnabledAndNotSuppressed()) {
+                    notifyShowLockscreenCallbacks("Keyguard is disabled or suppressed")
+                } else if (
+                    wmLockscreenVisibilityInteractor.get().lockscreenVisibility.value.first
+                ) {
+                    notifyShowLockscreenCallbacks("lockscreen already visible")
                 }
             }
 
@@ -137,7 +138,7 @@ constructor(
     }
 
     /** Notifies the callbacks that we've either locked, or decided not to lock. */
-    private fun notifyShowLockscreenCallbacks() {
+    private fun notifyShowLockscreenCallbacks(reason: String) {
         var callbacks: MutableList<ShowLockscreenCallback>
 
         synchronized(repository.showLockscreenCallbacks) {
@@ -150,11 +151,11 @@ constructor(
                 Log.i(TAG, "Not notifying lockNowCallback due to user mismatch")
                 return
             }
-            Log.i(TAG, "Notifying lockNowCallback")
+            Log.i(TAG, "Notifying lockNowCallback: " + reason)
             try {
                 callback.remoteCallback.sendResult(null)
             } catch (e: RemoteException) {
-                Log.e(TAG, "Could not issue LockNowCallback sendResult", e)
+                Log.e(TAG, "Could not issue lockNowCallback sendResult", e)
             }
         }
     }

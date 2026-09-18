@@ -41,13 +41,11 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.VersionedPackage;
-import android.crashrecovery.flags.Flags;
 import android.net.ConnectivityModuleConnector;
 import android.net.ConnectivityModuleConnector.ConnectivityModuleHealthListener;
 import android.os.Handler;
 import android.os.SystemProperties;
 import android.os.test.TestLooper;
-import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -938,26 +936,6 @@ public class PackageWatchdogTest {
         assertThat(m4.getHealthCheckStateLocked()).isEqualTo(HealthCheckState.INACTIVE);
     }
 
-    @Test
-    @RequiresFlagsDisabled(Flags.FLAG_REFACTOR_CRASHRECOVERY)
-    public void testNetworkStackFailureRecoverabilityDetection() {
-        final PackageWatchdog wd = createWatchdog();
-
-        // Start observing with failure handling
-        TestObserver observer = new TestObserver(OBSERVER_NAME_1,
-                PackageHealthObserverImpact.USER_IMPACT_LEVEL_100);
-        wd.startExplicitHealthCheck(Collections.singletonList(APP_A), SHORT_DURATION, observer);
-
-        // Notify of NetworkStack failure
-        mConnectivityModuleCallbackCaptor.getValue().onNetworkStackFailure(APP_A);
-
-        // Run handler so package failures are dispatched to observers
-        mTestLooper.dispatchAll();
-
-        // Verify the NetworkStack observer is notified
-        assertThat(observer.mMitigatedPackages).isEmpty();
-    }
-
     /** Test default values are used when device property is invalid. */
     @Test
     public void testInvalidConfig_watchdogTriggerFailureCount() {
@@ -1666,11 +1644,6 @@ public class PackageWatchdogTest {
             watchdog.onPackagesReady();
             // Verify controller by default is started when packages are ready
             assertThat(controller.mIsEnabled).isTrue();
-
-            if (!Flags.refactorCrashrecovery()) {
-                verify(mConnectivityModuleConnector).registerHealthListener(
-                        mConnectivityModuleCallbackCaptor.capture());
-            }
         }
         mAllocatedWatchdogs.add(watchdog);
         return watchdog;

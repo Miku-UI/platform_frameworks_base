@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,92 +13,144 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package android.os;
 
+import android.platform.test.ravenwood.RavenwoodEnvironment;
+import android.platform.test.ravenwood.RavenwoodErrorHandler;
+import android.platform.test.ravenwood.RavenwoodImplUtils;
+import android.util.IndentingPrintWriter;
+
+import com.android.internal.annotations.GuardedBy;
+
+import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.TreeMap;
+import java.util.WeakHashMap;
 
-class MessageQueue_ravenwood {
-    private static final AtomicLong sNextId = new AtomicLong(1);
-    private static final Map<Long, MessageQueue_ravenwood> sInstances = new ConcurrentHashMap<>();
-
-    private boolean mDeleted = false;
-
-    private final Object mPoller = new Object();
-    private volatile boolean mPolling;
-    private volatile boolean mPendingWake;
-
-    private void validate() {
-        if (mDeleted) {
-            // TODO: Put more info
-            throw new RuntimeException("MessageQueue already destroyed");
-        }
+/**
+ * Redirection target class from {@link MessageQueue}.
+ *
+ * TODO: Keep track of all sync barriers
+ */
+public class MessageQueue_ravenwood {
+    private MessageQueue_ravenwood() {
     }
 
-    private static MessageQueue_ravenwood getInstance(long id) {
-        MessageQueue_ravenwood q = sInstances.get(id);
-        if (q == null) {
-            throw new RuntimeException("MessageQueue doesn't exist with id=" + id);
-        }
-        q.validate();
-        return q;
+    private static boolean targetsAtLeast(int sdkVersion) {
+        return RavenwoodEnvironment.getInstance().getTargetSdkLevel() >= sdkVersion;
     }
 
-    public static long nativeInit() {
-        final long id = sNextId.getAndIncrement();
-        final MessageQueue_ravenwood q = new MessageQueue_ravenwood();
-        sInstances.put(id, q);
-        return id;
+    /**
+     * Used by the "combined" version.
+     */
+    static boolean computeUseConcurrent() {
+        // On Ravenwood, @ChangeIds are not yet ready when this method is called,
+        // so manually check the test's target SDK version.
+        var def = targetsAtLeast(android.os.Build.VERSION_CODES.BAKLAVA);
+
+        // Use "ravenwood.prop" to explicitly enable/disable for a specific test.
+        return SystemProperties.getBoolean(
+                "ravenwood.android.os.MessageQueue.useConcurrent", def);
     }
 
-    public static void nativeDestroy(long ptr) {
-        getInstance(ptr).mDeleted = true;
-        sInstances.remove(ptr);
+    /**
+     * Used by the "combineddeli" version.
+     */
+    static boolean computeUseDeliQueue(boolean enable) {
+        // On Ravenwood, @ChangeIds are not yet ready when this method is called,
+        // so manually check the test's target SDK version.
+        var def = targetsAtLeast(android.os.Build.VERSION_CODES.BAKLAVA);
+
+        // Use "ravenwood.prop" to explicitly enable/disable for a specific test.
+        return SystemProperties.getBoolean(
+                "ravenwood.android.os.MessageQueue.useDeliQueue", def);
     }
 
-    public static void nativePollOnce(android.os.MessageQueue queue, long ptr, int timeoutMillis) {
-        var q = getInstance(ptr);
-        synchronized (q.mPoller) {
-            q.mPolling = true;
-            try {
-                if (q.mPendingWake) {
-                    // Calling with pending wake returns immediately
-                } else if (timeoutMillis == 0) {
-                    // Calling epoll_wait() with 0 returns immediately
-                } else if (timeoutMillis == -1) {
-                    q.mPoller.wait();
-                } else {
-                    q.mPoller.wait(timeoutMillis);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+    static void onResetForTestCalled() {
+        RavenwoodErrorHandler.onWarningDetected("MessageQueue.resetForTest() called!");
+    }
+
+    record SyncBarrierInfo(
+            int token,
+            Throwable stack) {
+    }
+
+
+    record QueueInfo(
+            MessageQueue queue,
+            /** Sync barrier token -> stack trace, sortd by token. */
+            TreeMap<Integer, SyncBarrierInfo> syncBarriers
+    ) {
+    }
+
+    @GuardedBy("sSyncBarriers")
+    private static final Map<MessageQueue, QueueInfo> sSyncBarriers = new WeakHashMap<>();
+
+    /**
+     * Called when a new sync barrier is called. We keep track of it.
+     */
+    static int onSyncBarrierPosted(MessageQueue queue, int token) {
+        var stack = RavenwoodImplUtils.getStackTrace(
+                "Sync barrier [" + token + "] obtained here",
+                MessageQueue.class,
+                /*removeMatchingFrame=*/ true);
+        var binfo = new SyncBarrierInfo(token, stack);
+        synchronized (sSyncBarriers) {
+            var qinfo = sSyncBarriers.get(queue);
+            if (qinfo == null) {
+                qinfo = new QueueInfo(queue, new TreeMap<>());
+                sSyncBarriers.put(queue, qinfo);
             }
-            // Any reason for returning counts as a "wake", so clear pending
-            q.mPendingWake = false;
-            q.mPolling = false;
+            qinfo.syncBarriers.put(token, binfo);
+        }
+        return token;
+    }
+
+    /**
+     * Called when a sync barrier is removed. We keep track of it.
+     */
+    static void onSyncBarrierRemoved(MessageQueue queue, int token) {
+        synchronized (sSyncBarriers) {
+            var qinfo = sSyncBarriers.get(queue);
+            if (qinfo != null) {
+                qinfo.syncBarriers.remove(token);
+            }
         }
     }
 
-    public static void nativeWake(long ptr) {
-        var q = getInstance(ptr);
-        synchronized (q.mPoller) {
-            q.mPendingWake = true;
-            q.mPoller.notifyAll();
+    /**
+     * Print all the pending sync barriers on the given stream.
+     */
+    public static void dumpAllSyncBarriers(PrintStream ps) {
+        var out = new IndentingPrintWriter(new PrintWriter(ps, true), "  ");
+        synchronized (sSyncBarriers) {
+            var globalHeaderShown = false;
+            for (var qinfo : sSyncBarriers.values()) {
+                var qinfos = qinfo.syncBarriers.values();
+                if (qinfos.isEmpty()) {
+                    continue;
+                }
+                if (!globalHeaderShown) {
+                    out.println("Pending Sync Barriers:");
+                    out.increaseIndent();
+                    globalHeaderShown = true;
+                }
+                out.increaseIndent();
+                out.println("Thread=" + qinfo.queue.getLooperThread());
+
+                var i = 0;
+                for (var binfo : qinfos) {
+                    out.println("Barrier #" + (i++)
+                            + ": syncBarrierToken=[" + binfo.token + "] posted here:");
+                    out.increaseIndent();
+                    binfo.stack.printStackTrace(out);
+                    out.decreaseIndent();
+                }
+                out.decreaseIndent();
+            }
         }
-    }
-
-    public static boolean nativeIsPolling(long ptr) {
-        var q = getInstance(ptr);
-        return q.mPolling;
-    }
-
-    public static void nativeSetFileDescriptorEvents(long ptr, int fd, int events) {
-        throw new UnsupportedOperationException();
-    }
-
-    public static void nativeSetSkipEpollWaitForZeroTimeout(long ptr) {
-        // No-op; this method changes native MQ impl behavior and cannot be mocked here.
+        out.flush();
     }
 }
+

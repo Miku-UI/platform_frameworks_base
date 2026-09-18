@@ -39,10 +39,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.mock
 
-/**
- * Tests for [GroupedTaskInfo]
- * Build & Run: atest WMShellUnitTests:GroupedTaskInfoTest
- */
+/** Tests for [GroupedTaskInfo] Build & Run: atest WMShellUnitTests:GroupedTaskInfoTest */
 @SmallTest
 @RunWith(AndroidTestingRunner::class)
 class GroupedTaskInfoTest : ShellTestCase() {
@@ -89,7 +86,9 @@ class GroupedTaskInfoTest : ShellTestCase() {
 
     @Test
     fun testDeskTasks_hasCorrectType() {
-        assertThat(deskTasksGroupInfo(deskId = 0, freeformTaskIds = arrayOf(1)).isBaseType(TYPE_DESK))
+        assertThat(
+                deskTasksGroupInfo(deskId = 0, freeformTaskIds = arrayOf(1)).isBaseType(TYPE_DESK)
+            )
             .isTrue()
     }
 
@@ -105,9 +104,10 @@ class GroupedTaskInfoTest : ShellTestCase() {
     @Test
     fun testCreateDeskTasks_nonExistentMinimizedTaskId_throwsException() {
         assertThrows(IllegalArgumentException::class.java) {
-            deskTasksGroupInfo(deskId = 0,
+            deskTasksGroupInfo(
+                deskId = 0,
                 freeformTaskIds = arrayOf(1, 2, 3),
-                minimizedTaskIds = arrayOf(1, 4)
+                minimizedTaskIds = arrayOf(1, 4),
             )
         }
     }
@@ -129,34 +129,25 @@ class GroupedTaskInfoTest : ShellTestCase() {
 
     @Test
     fun testMixed_disallowEmptyMixed() {
-        assertThrows(IllegalArgumentException::class.java) {
-            GroupedTaskInfo.forMixed(listOf())
-        }
+        assertThrows(IllegalArgumentException::class.java) { GroupedTaskInfo.forMixed(listOf()) }
     }
 
     @Test
     fun testMixed_disallowNestedMixed() {
         assertThrows(IllegalArgumentException::class.java) {
-            GroupedTaskInfo.forMixed(listOf(
-                GroupedTaskInfo.forMixed(listOf(singleTaskGroupInfo()))))
+            GroupedTaskInfo.forMixed(
+                listOf(GroupedTaskInfo.forMixed(listOf(singleTaskGroupInfo())))
+            )
         }
     }
 
     @Test
     fun testMixed_disallowNonMixedAccessors() {
         val mixed = mixedTaskGroupInfoWithFullscreenBase()
-        assertThrows(IllegalStateException::class.java) {
-            mixed.taskInfo1
-        }
-        assertThrows(IllegalStateException::class.java) {
-            mixed.taskInfo2
-        }
-        assertThrows(IllegalStateException::class.java) {
-            mixed.splitBounds
-        }
-        assertThrows(IllegalStateException::class.java) {
-            mixed.minimizedTaskIds
-        }
+        assertThrows(IllegalStateException::class.java) { mixed.taskInfo1 }
+        assertThrows(IllegalStateException::class.java) { mixed.taskInfo2 }
+        assertThrows(IllegalStateException::class.java) { mixed.splitBounds }
+        assertThrows(IllegalStateException::class.java) { mixed.minimizedTaskIds }
     }
 
     @Test
@@ -166,8 +157,7 @@ class GroupedTaskInfoTest : ShellTestCase() {
         taskInfo.writeToParcel(parcel, 0)
         parcel.setDataPosition(0)
         // Read the object back from the parcel
-        val taskInfoFromParcel: GroupedTaskInfo =
-            GroupedTaskInfo.CREATOR.createFromParcel(parcel)
+        val taskInfoFromParcel: GroupedTaskInfo = GroupedTaskInfo.CREATOR.createFromParcel(parcel)
         assertThat(taskInfoFromParcel.isBaseType(TYPE_FULLSCREEN)).isTrue()
         assertThat(taskInfoFromParcel.taskInfo1?.taskId).isEqualTo(1)
         assertThat(taskInfoFromParcel.taskInfo2).isNull()
@@ -180,8 +170,7 @@ class GroupedTaskInfoTest : ShellTestCase() {
         taskInfo.writeToParcel(parcel, 0)
         parcel.setDataPosition(0)
         // Read the object back from the parcel
-        val taskInfoFromParcel: GroupedTaskInfo =
-            GroupedTaskInfo.CREATOR.createFromParcel(parcel)
+        val taskInfoFromParcel: GroupedTaskInfo = GroupedTaskInfo.CREATOR.createFromParcel(parcel)
         assertThat(taskInfoFromParcel.isBaseType(TYPE_SPLIT)).isTrue()
         assertThat(taskInfoFromParcel.taskInfo1?.taskId).isEqualTo(1)
         assertThat(taskInfoFromParcel.taskInfo2?.taskId).isEqualTo(2)
@@ -195,53 +184,62 @@ class GroupedTaskInfoTest : ShellTestCase() {
         taskInfo.writeToParcel(parcel, 0)
         parcel.setDataPosition(0)
         // Read the object back from the parcel
-        val taskInfoFromParcel: GroupedTaskInfo =
-            GroupedTaskInfo.CREATOR.createFromParcel(parcel)
+        val taskInfoFromParcel: GroupedTaskInfo = GroupedTaskInfo.CREATOR.createFromParcel(parcel)
         assertThat(taskInfoFromParcel.deskId).isEqualTo(taskInfo.deskId)
         assertThat(taskInfoFromParcel.isBaseType(TYPE_DESK)).isTrue()
         assertThat(taskInfoFromParcel.taskInfoList).hasSize(3)
         // Only compare task ids
-        val taskIdComparator = Correspondence.transforming<TaskInfo, Int>(
-            { it.taskId }, "has taskId of"
-        )
-        assertThat(taskInfoFromParcel.taskInfoList).comparingElementsUsing(taskIdComparator)
-            .containsExactly(1, 2, 3).inOrder()
+        val taskIdComparator =
+            Correspondence.transforming<TaskInfo, Int>({ it.taskId }, "has taskId of")
+        assertThat(taskInfoFromParcel.taskInfoList)
+            .comparingElementsUsing(taskIdComparator)
+            .containsExactly(1, 2, 3)
+            .inOrder()
     }
 
     @Test
     fun testParcelling_DeskTasks_minimizedTasks() {
-        val taskInfo = deskTasksGroupInfo(deskId = 0,
-            freeformTaskIds = arrayOf(1, 2, 3), minimizedTaskIds = arrayOf(2))
+        val taskInfo =
+            deskTasksGroupInfo(
+                deskId = 0,
+                freeformTaskIds = arrayOf(1, 2, 3),
+                minimizedTaskIds = arrayOf(2),
+            )
 
         val parcel = Parcel.obtain()
         taskInfo.writeToParcel(parcel, 0)
         parcel.setDataPosition(0)
 
         // Read the object back from the parcel
-        val taskInfoFromParcel: GroupedTaskInfo =
-            GroupedTaskInfo.CREATOR.createFromParcel(parcel)
+        val taskInfoFromParcel: GroupedTaskInfo = GroupedTaskInfo.CREATOR.createFromParcel(parcel)
         assertThat(taskInfoFromParcel.isBaseType(TYPE_DESK)).isTrue()
         assertThat(taskInfoFromParcel.minimizedTaskIds).isEqualTo(arrayOf(2).toIntArray())
     }
 
     @Test
     fun testParcelling_mixedTasks() {
-        val taskInfo = GroupedTaskInfo.forMixed(listOf(
-                deskTasksGroupInfo(deskId = 0, freeformTaskIds = arrayOf(4, 5, 6),
-                    minimizedTaskIds = arrayOf(5)),
-                splitTasksGroupInfo(firstId = 2, secondId = 3),
-                singleTaskGroupInfo(id = 1)))
+        val taskInfo =
+            GroupedTaskInfo.forMixed(
+                listOf(
+                    deskTasksGroupInfo(
+                        deskId = 0,
+                        freeformTaskIds = arrayOf(4, 5, 6),
+                        minimizedTaskIds = arrayOf(5),
+                    ),
+                    splitTasksGroupInfo(firstId = 2, secondId = 3),
+                    singleTaskGroupInfo(id = 1),
+                )
+            )
 
         val parcel = Parcel.obtain()
         taskInfo.writeToParcel(parcel, 0)
         parcel.setDataPosition(0)
 
         // Read the object back from the parcel
-        val taskInfoFromParcel: GroupedTaskInfo =
-            GroupedTaskInfo.CREATOR.createFromParcel(parcel)
+        val taskInfoFromParcel: GroupedTaskInfo = GroupedTaskInfo.CREATOR.createFromParcel(parcel)
         assertThat(taskInfoFromParcel.isBaseType(TYPE_DESK)).isTrue()
-        assertThat(taskInfoFromParcel.baseGroupedTask.minimizedTaskIds).isEqualTo(
-            arrayOf(5).toIntArray())
+        assertThat(taskInfoFromParcel.baseGroupedTask.minimizedTaskIds)
+            .isEqualTo(arrayOf(5).toIntArray())
         for (i in 1..6) {
             assertThat(taskInfoFromParcel.containsTask(i)).isTrue()
         }
@@ -279,9 +277,13 @@ class GroupedTaskInfoTest : ShellTestCase() {
         val task1 = createTaskInfo(id = 1)
         val task2 = createTaskInfo(id = 2)
 
-        val taskInfo = GroupedTaskInfo.forDeskTasks(
-            /* deskId = */ 500, DEFAULT_DISPLAY, listOf(task1, task2), setOf()
-        )
+        val taskInfo =
+            GroupedTaskInfo.forDeskTasks(
+                /* deskId = */ 500,
+                DEFAULT_DISPLAY,
+                listOf(task1, task2),
+                setOf(),
+            )
 
         assertThat(taskInfo.deskId).isEqualTo(500)
         assertThat(taskInfo.getTaskById(1)).isEqualTo(task1)
@@ -311,10 +313,11 @@ class GroupedTaskInfoTest : ShellTestCase() {
         assertThat(mixedTasks.taskInfoList).isEqualTo(listOf(task1, task2, task3))
     }
 
-    private fun createTaskInfo(id: Int) = ActivityManager.RecentTaskInfo().apply {
-        taskId = id
-        token = WindowContainerToken(mock(IWindowContainerToken::class.java))
-    }
+    private fun createTaskInfo(id: Int) =
+        ActivityManager.RecentTaskInfo().apply {
+            taskId = id
+            token = WindowContainerToken(mock(IWindowContainerToken::class.java))
+        }
 
     private fun singleTaskGroupInfo(id: Int = 1): GroupedTaskInfo {
         val task = createTaskInfo(id)
@@ -331,30 +334,34 @@ class GroupedTaskInfoTest : ShellTestCase() {
     private fun deskTasksGroupInfo(
         deskId: Int,
         freeformTaskIds: Array<Int>,
-        minimizedTaskIds: Array<Int> = emptyArray()
+        minimizedTaskIds: Array<Int> = emptyArray(),
     ): GroupedTaskInfo {
         return GroupedTaskInfo.forDeskTasks(
             deskId,
             DEFAULT_DISPLAY,
             freeformTaskIds.map { createTaskInfo(it) }.toList(),
-            minimizedTaskIds.toSet())
+            minimizedTaskIds.toSet(),
+        )
     }
 
     private fun mixedTaskGroupInfoWithFullscreenBase(): GroupedTaskInfo {
-        return GroupedTaskInfo.forMixed(listOf(
-            singleTaskGroupInfo(id = 1),
-            singleTaskGroupInfo(id = 2)))
+        return GroupedTaskInfo.forMixed(
+            listOf(singleTaskGroupInfo(id = 1), singleTaskGroupInfo(id = 2))
+        )
     }
 
     private fun mixedTaskGroupInfoWithSplitBase(): GroupedTaskInfo {
-        return GroupedTaskInfo.forMixed(listOf(
-            splitTasksGroupInfo(firstId = 2, secondId = 3),
-            singleTaskGroupInfo(id = 1)))
+        return GroupedTaskInfo.forMixed(
+            listOf(splitTasksGroupInfo(firstId = 2, secondId = 3), singleTaskGroupInfo(id = 1))
+        )
     }
 
     private fun mixedTaskGroupInfoWithDeskBase(): GroupedTaskInfo {
-        return GroupedTaskInfo.forMixed(listOf(
-            deskTasksGroupInfo(deskId = 0, freeformTaskIds = arrayOf(2, 3, 4)),
-            singleTaskGroupInfo(id = 1)))
+        return GroupedTaskInfo.forMixed(
+            listOf(
+                deskTasksGroupInfo(deskId = 0, freeformTaskIds = arrayOf(2, 3, 4)),
+                singleTaskGroupInfo(id = 1),
+            )
+        )
     }
 }

@@ -19,7 +19,12 @@
 #include <SkColorSpace.h>
 #include <SkRect.h>
 #include <android-base/unique_fd.h>
+#ifdef __ANDROID__
+#include <gui/BLASTBufferQueue.h>
+#include <gui/SurfaceControl.h>
+#endif
 #include <utils/RefBase.h>
+
 
 #include "ColorMode.h"
 #include "DamageAccumulator.h"
@@ -31,6 +36,7 @@
 #include "hwui/Bitmap.h"
 
 struct ANativeWindow;
+struct ANativeWindowFrameTimelineInfo;
 
 namespace android {
 
@@ -76,6 +82,25 @@ public:
     virtual void setHardwareBuffer(AHardwareBuffer* hardwareBuffer) = 0;
     virtual bool hasHardwareBuffer() = 0;
     virtual bool setSurface(ANativeWindow* window, SwapBehavior swapBehavior) = 0;
+#ifdef __ANDROID__
+    virtual void setSurfaceControl(const sp<SurfaceControl>&) {}
+    virtual void setBLASTBufferQueue(const sp<BLASTBufferQueue>&) {}
+    virtual void setCornerRadiiCallback(std::function<void(const gui::CornerRadii&)>) {}
+    virtual void setWaitForBufferReleaseCallback(std::function<void(int64_t)>) {}
+    virtual bool syncNextTransaction(std::function<void(SurfaceComposerClient::Transaction*)>,
+                                     bool) {
+        return false;
+    }
+    virtual void mergeWithNextTransaction(SurfaceComposerClient::Transaction*, uint64_t) {}
+    virtual void applyPendingTransactions(uint64_t) {}
+    virtual void clearSyncTransaction() {}
+    virtual SurfaceComposerClient::Transaction* gatherPendingTransactions(uint64_t) {
+        return new SurfaceComposerClient::Transaction();
+    }
+#endif
+    // Only used on SkiaIpcPipeline so we provide an empty default impl
+    virtual void updateRenderTargetSize(uint64_t width, uint64_t height) {}
+
     virtual void onStop() = 0;
     virtual bool isSurfaceReady() = 0;
     virtual bool isContextReady() = 0;
@@ -97,6 +122,20 @@ public:
 
     virtual void setTargetSdrHdrRatio(float ratio) = 0;
     virtual const SkM44& getPixelSnapMatrix() const = 0;
+
+    virtual ANativeWindow* getSurface() = 0;
+    virtual uint64_t getFrameNumber() = 0;
+    virtual int getFrameTimestamps(uint64_t frameNumber, nsecs_t* outRequestedPresentTime,
+                                   nsecs_t* outAcquireTime, nsecs_t* outLatchTime,
+                                   nsecs_t* outFirstRefreshStartTime,
+                                   nsecs_t* outLastRefreshStartTime,
+                                   nsecs_t* outGpuCompositionDoneTime,
+                                   nsecs_t* outDisplayPresentTime, nsecs_t* outDequeueReadyTime,
+                                   nsecs_t* outReleaseTime) = 0;
+    virtual void setFrameTimelineInfo(const ANativeWindowFrameTimelineInfo& info) = 0;
+    virtual int64_t getLastDequeueDuration() = 0;
+
+    virtual bool hasRenderTarget() = 0;
 
     virtual ~IRenderPipeline() {}
 };

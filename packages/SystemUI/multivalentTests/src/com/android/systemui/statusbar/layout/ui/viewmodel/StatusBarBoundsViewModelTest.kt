@@ -17,10 +17,12 @@
 package com.android.systemui.statusbar.layout.ui.viewmodel
 
 import android.graphics.Rect
+import android.platform.test.annotations.EnableFlags
 import android.view.View
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.clock.ClockModernization
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
@@ -152,5 +154,20 @@ class StatusBarBoundsViewModelTest : SysuiTestCase() {
             underTest.updateDateBounds(newRect)
 
             assertThat(underTest.dateBounds).isEqualTo(newRect)
+        }
+
+    @Test
+    @EnableFlags(ClockModernization.FLAG_NAME)
+    fun composeClockBounds_getsUpdatedWhenUpdateComposeClockBoundsCalled() =
+        kosmos.runTest {
+            val firstRect = Rect(1, 2, 3, 4)
+            underTest.updateComposeClockBounds(firstRect)
+
+            assertThat(underTest.clockBounds).isEqualTo(firstRect)
+
+            val newRect = Rect(5, 6, 7, 8)
+            underTest.updateComposeClockBounds(newRect)
+
+            assertThat(underTest.clockBounds).isEqualTo(newRect)
         }
 }

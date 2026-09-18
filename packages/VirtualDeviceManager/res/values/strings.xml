@@ -23,13 +23,16 @@
     <!-- START REQUEST COMPUTER CONTROL ACCESS DIALOG -->
 
     <!-- Label for the title of request computer control access dialog [CHAR LIMIT=70] -->
-    <string name="request_computer_control_access_dialog_title">Allow &lt;strong&gt;<xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g>&lt;/strong&gt; to fully automate your apps?</string>
+    <string name="request_computer_control_access_dialog_title">Allow &lt;strong&gt;<xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g>&lt;/strong&gt; to use screen automation?</string>
 
-    <!-- Label for the description of request computer control access dialog [CHAR LIMIT=NONE] -->
-    <string name="request_computer_control_access_dialog_description">This allows &lt;strong&gt;<xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g>&lt;/strong&gt; to control other apps and see all their on-screen content in order to complete tasks on your behalf.</string>
+    <!-- Label for the title of request computer control access dialog with per-app consent [CHAR LIMIT=70] [SCREENSHOT=screen/AxSKroN7QB7beZx] -->
+    <string name="request_computer_control_access_per_app_consent_dialog_title">Allow &lt;strong&gt;<xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g>&lt;/strong&gt; to use screen automation with &lt;strong&gt;<xliff:g id="automatable_app_name" example="Example Automatable App">%2$s</xliff:g>&lt;/strong&gt;?</string>
+
+    <!-- Label for the description of request computer control access dialog [CHAR LIMIT=NONE] [SCREENSHOT=screen/AxSKroN7QB7beZx] -->
+    <string name="request_computer_control_access_dialog_description">This app will be able to see and interact with other apps\u2019 screen content to help you complete tasks, even when the apps are in the background</string>
 
     <!-- Label for the allow button for request computer control access dialog. [CHAR LIMIT=40] -->
-    <string name="request_computer_control_access_dialog_button_allow">Allow this time</string>
+    <string name="request_computer_control_access_dialog_button_allow">Only this time</string>
 
     <!-- Label for the deny button for request computer control access dialog. [CHAR LIMIT=40] -->
     <string name="request_computer_control_access_dialog_button_dont_allow">Don\u2019t allow</string>
@@ -39,32 +42,19 @@
 
     <!-- END REQUEST COMPUTER CONTROL ACCESS DIALOG -->
 
-    <!-- START NOTIFY COMPUTER CONTROL BLOCKED ACTIVITY DIALOG -->
-
-    <!-- Label for the title of notify computer control blocked activity [CHAR LIMIT=NONE] -->
-    <string name="notify_computer_control_blocked_activity_title">This app is requesting to open another app, which is restricted during automation</string>
-
-    <!-- Label for the title of notify computer control blocked permission dialog [CHAR LIMIT=NONE] -->
-    <string name="notify_computer_control_blocked_permission_dialog_title">This app is requesting a permission, which is restricted during automation</string>
-
-    <!-- Label for the OK button for notify computer control blocked activity dialog. [CHAR LIMIT=40] -->
-    <string name="notify_computer_control_blocked_activity_button_ok">OK</string>
-
-    <!-- END NOTIFY COMPUTER CONTROL BLOCKED ACTIVITY DIALOG -->
-
     <!-- START AUTOMATED APP LAUNCH WARNING ACTIVITY DIALOG -->
 
     <!-- Label for the title of automated app launch warning dialog [CHAR LIMIT=70] -->
     <string name="automated_app_launch_warning_dialog_title"><xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g> is using <xliff:g id="target_app_name" example="Example Target App">%2$s</xliff:g></string>
 
     <!-- Label for the description of automated app launch warning dialog [CHAR LIMIT=NONE] -->
-    <string name="automated_app_launch_warning_dialog_description">You can use <xliff:g id="target_app_name" example="Example Target App">%2$s</xliff:g> when <xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g> is done, or you can stop <xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g> to open <xliff:g id="target_app_name" example="Example Target App">%2$s</xliff:g> now</string>
+    <string name="automated_app_launch_warning_dialog_description">To view task progress, open the <xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g> app.<xliff:g id="empty_line">\n\n</xliff:g>If you stop the task now, you may lose your progress. To restart, open the <xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g> app.</string>
 
     <!-- Label for the stop button for automated app launch warning dialog. [CHAR LIMIT=40] -->
-    <string name="automated_app_launch_warning_dialog_stop">Stop task</string>
+    <string name="automated_app_launch_warning_dialog_stop">Stop task &amp; open app</string>
 
     <!-- Label for the wait button for automated app launch warning dialog. [CHAR LIMIT=40] -->
-    <string name="automated_app_launch_warning_dialog_wait">I\u2019ll wait</string>
+    <string name="automated_app_launch_warning_dialog_wait">Close</string>
 
     <!-- END AUTOMATED APP LAUNCH WARNING ACTIVITY DIALOG -->
 

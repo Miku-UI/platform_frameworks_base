@@ -57,4 +57,14 @@
         <attr name="drawableIconSize" format="dimension" />
         <attr name="drawableIconInsetSize" format="dimension" />
     </declare-styleable>
+
+    <declare-styleable name="BorderOnFocusView">
+        <attr name="borderColor" format="color" />
+        <attr name="cornerRadius" format="dimension" />
+        <attr name="strokeWidth" format="dimension" />
+        <attr name="borderPadding" format="dimension" />
+        <attr name="horizontalInset" format="dimension" />
+        <attr name="verticalInset" format="dimension" />
+    </declare-styleable>
+
 </resources>

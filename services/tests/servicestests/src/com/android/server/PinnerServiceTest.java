@@ -31,9 +31,6 @@ import android.content.pm.ResolveInfo;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.Looper;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.DeviceConfig;
 import android.provider.DeviceConfigInterface;
 import android.testing.TestableContext;
@@ -46,7 +43,6 @@ import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.server.flags.Flags;
 import com.android.server.pinner.PinnedFile;
 import com.android.server.pinner.PinnerService;
 import com.android.server.testutils.FakeDeviceConfigInterface;
@@ -84,8 +80,6 @@ public class PinnerServiceTest {
     @Rule
     public TestableContext mContext =
             new TestableContext(InstrumentationRegistry.getContext(), null);
-
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private final ArraySet<String> mUpdatedPackages = new ArraySet<>();
     private ResolveInfo mHomePackageResolveInfo;
@@ -340,7 +334,6 @@ public class PinnerServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PIN_GLOBAL_QUOTA)
     public void testPinAllQuota() throws Exception {
         PinnerService pinnerService = new PinnerService(mContext, mInjector);
         pinnerService.onStart();
@@ -355,7 +348,6 @@ public class PinnerServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PIN_GLOBAL_QUOTA)
     public void testGlobalPinQuotaAsDevicePercentage() throws Exception {
         PinnerService pinnerService = new PinnerService(mContext, mInjector);
         pinnerService.onStart();
@@ -371,7 +363,6 @@ public class PinnerServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PIN_GLOBAL_QUOTA)
     public void testGlobalPinWhenNoQuota() throws Exception {
         TestableResources resources = mContext.getOrCreateTestableResources();
         resources.addOverride(
@@ -387,31 +378,7 @@ public class PinnerServiceTest {
         assertThat(getTotalPinnedFiles(pinnerService)).isEqualTo(0);
     }
 
-    /**
-     * This test is temporary, it should be cleaned up when removing the pin_global_quota bugfix
-     * flag.
-     */
     @Test
-    @DisableFlags(Flags.FLAG_PIN_GLOBAL_QUOTA)
-    public void testGlobalQuotaDisabled() throws Exception {
-        TestableResources resources = mContext.getOrCreateTestableResources();
-        resources.addOverride(
-                com.android.internal.R.integer.config_pinnerMaxPinnedMemoryPercentage, 0);
-
-        PinnerService pinnerService = new PinnerService(mContext, mInjector);
-        pinnerService.onStart();
-
-        // The quota parameter exists but it should have no effect on pinning
-        long quota = getGlobalPinQuota(pinnerService);
-
-        pinnerService.pinFile("test_file", quota + 1, null, "my_group", false);
-
-        // Verify that we can pin past the quota as it is disabled
-        assertThat(getPinnedSize(pinnerService)).isEqualTo(quota + 1);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_PIN_GLOBAL_QUOTA)
     public void testUnpinReleasesQuota() throws Exception {
         PinnerService pinnerService = new PinnerService(mContext, mInjector);
         pinnerService.onStart();
@@ -432,7 +399,6 @@ public class PinnerServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PIN_GLOBAL_QUOTA)
     public void testGlobalPinQuotaNegative() throws Exception {
         TestableResources resources = mContext.getOrCreateTestableResources();
         resources.addOverride(

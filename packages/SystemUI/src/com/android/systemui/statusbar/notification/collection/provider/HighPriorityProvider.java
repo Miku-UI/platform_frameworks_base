@@ -28,7 +28,6 @@ import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.PipelineEntry;
 import com.android.systemui.statusbar.notification.collection.render.GroupMembershipManager;
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import java.util.List;
 
@@ -151,32 +150,15 @@ public class HighPriorityProvider {
      * that's high priority
      */
     private boolean hasHighPriorityChild(PipelineEntry entry, boolean allowImplicit) {
-        if (NotificationBundleUi.isEnabled()) {
-            final ListEntry listEntry = entry.asListEntry();
-            if (listEntry == null) {
-                // Bundles do not have high priority children.
-                return false;
-            }
-            final GroupEntry representativeGroupEntry = getRepresentativeGroupEntry(listEntry);
-            return representativeGroupEntry != null &&
-                    representativeGroupEntry.getChildren().stream().anyMatch(
-                            childEntry -> isHighPriority(childEntry, allowImplicit));
-
-        } else {
-            if (entry instanceof NotificationEntry
-                    && !mGroupMembershipManager.isGroupSummary((NotificationEntry) entry)) {
-                return false;
-            }
-            List<NotificationEntry> children = mGroupMembershipManager.getChildren(entry);
-            if (children != null) {
-                for (NotificationEntry child : children) {
-                    if (child != entry && isHighPriority(child, allowImplicit)) {
-                        return true;
-                    }
-                }
-            }
+        final ListEntry listEntry = entry.asListEntry();
+        if (listEntry == null) {
+            // Bundles do not have high priority children.
             return false;
         }
+        final GroupEntry representativeGroupEntry = getRepresentativeGroupEntry(listEntry);
+        return representativeGroupEntry != null &&
+                representativeGroupEntry.getChildren().stream().anyMatch(
+                        childEntry -> isHighPriority(childEntry, allowImplicit));
     }
 
     @Nullable

@@ -47,6 +47,7 @@ import com.android.systemui.res.R
 import com.android.systemui.shade.NotificationPanelView
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.statusbar.VibratorHelper
+import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor
 import com.google.android.msdl.domain.MSDLPlayer
 import dagger.Lazy
 import javax.inject.Inject
@@ -62,6 +63,7 @@ constructor(
     @Main private val mainDispatcher: CoroutineDispatcher,
     private val authController: AuthController,
     private val windowManager: WindowManager,
+    private val windowRootViewBlurInteractor: WindowRootViewBlurInteractor,
     @ShadeDisplayAware private val context: Context,
     private val notificationPanelView: NotificationPanelView,
     private val featureFlags: FeatureFlags,
@@ -97,6 +99,7 @@ constructor(
                 DeviceEntryIconViewBinder.bind(
                     applicationScope,
                     mainDispatcher,
+                    windowRootViewBlurInteractor,
                     it,
                     deviceEntryIconViewModel.get(),
                     deviceEntryForegroundViewModel.get(),

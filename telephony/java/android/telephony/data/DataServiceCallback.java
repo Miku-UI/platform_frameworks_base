@@ -193,6 +193,29 @@ public class DataServiceCallback {
     }
 
     /**
+     * Called to indicate that data connection list changed. This indicates that the call has been
+     * invoked from the new HAL( HAL_VERSION >= 2.4) which means the dataCall must be set as
+     * INACTIVE before being deactivated. Directly removing from the list would not result in
+     * deactivation of the data call.
+     *
+     * @param dataCallList List of the current active data connections.
+     * @hide
+     */
+    public void onDataCallListUpdated(
+            @NonNull List<DataCallResponse> dataCallList) {
+        if (mCallback != null) {
+            try {
+                if (DBG) Rlog.d(TAG, "onDataCallListUpdated");
+                mCallback.onDataCallListUpdated(dataCallList);
+            } catch (RemoteException e) {
+                Rlog.e(TAG, "Failed to onDataCallListUpdated on the remote");
+            }
+        } else {
+            Rlog.e(TAG, "onDataCallListUpdated: callback is null!");
+        }
+    }
+
+    /**
      * Called to indicate result for the request {@link DataService#startHandover}.
      *
      * @param result The result code. Must be one of the {@link ResultCode}

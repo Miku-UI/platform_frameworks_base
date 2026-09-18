@@ -18,6 +18,7 @@ package com.android.systemui.keyguard.ui.viewmodel
 
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
+import com.android.systemui.keyguard.ui.keyguardTransitionAnimationFlow
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 
@@ -25,5 +26,6 @@ val Kosmos.dozingTransitionFlows by Fixture {
     DozingTransitionFlows(
         keyguardInteractor = keyguardInteractor,
         keyguardTransitionInteractor = keyguardTransitionInteractor,
+        animationFlow = keyguardTransitionAnimationFlow,
     )
 }

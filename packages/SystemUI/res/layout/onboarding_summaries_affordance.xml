@@ -42,7 +42,7 @@
         android:paddingBottom="12dp"
         android:paddingHorizontal="16dp"
         android:background="@drawable/rounded_bg_full"
-        android:backgroundTint="@androidprv:color/materialColorTertiaryFixed">
+        android:backgroundTint="@color/materialColorTertiaryFixed">
 
       <LinearLayout
           android:id="@+id/row1"
@@ -59,7 +59,7 @@
                 android:layout_gravity="center"
                 android:paddingRight="16dp"
                 android:src="@drawable/ic_lightbulb"
-                android:tint="@androidprv:color/materialColorOnTertiaryFixed" />
+                android:tint="@color/materialColorOnTertiaryFixed" />
 
             <TextView
                 android:id="@+id/message"
@@ -70,7 +70,7 @@
                 android:forceHasOverlappingRendering="false"
                 android:minHeight="40dp"
                 android:text="@string/notification_onboarding_summaries_message"
-                android:textColor="@androidprv:color/materialColorOnTertiaryFixed" />
+                android:textColor="@color/materialColorOnTertiaryFixed" />
       </LinearLayout>
 
       <LinearLayout
@@ -98,8 +98,8 @@
                 android:gravity="center"
                 android:text="@string/notification_inline_dismiss"
                 style="@style/Widget.Dialog.Button.BorderButton"
-                android:backgroundTint="@androidprv:color/materialColorOnTertiaryFixedVariant"
-                android:textColor="@androidprv:color/materialColorOnTertiaryFixedVariant" />
+                android:backgroundTint="@color/materialColorOnTertiaryFixedVariant"
+                android:textColor="@color/materialColorOnTertiaryFixedVariant" />
             <Button
                 android:id="@+id/btn_turn_on"
                 android:fontFamily="variable-title-small"
@@ -113,8 +113,8 @@
                 android:gravity="center"
                 android:text="@string/notification_onboarding_summaries_turn_on"
                 style="@style/Widget.Dialog.Button"
-                android:backgroundTint="@androidprv:color/materialColorOnTertiaryFixedVariant"
-                android:textColor="@androidprv:color/materialColorTertiaryFixed" />
+                android:backgroundTint="@color/materialColorOnTertiaryFixedVariant"
+                android:textColor="@color/materialColorTertiaryFixed" />
       </LinearLayout>
 
     </LinearLayout>
@@ -123,7 +123,7 @@
       android:layout_width="wrap_content"
       android:layout_height="wrap_content"
       android:layout_gravity="center"
-      android:tint="@androidprv:color/materialColorTertiaryFixed"
+      android:tint="@color/materialColorTertiaryFixed"
       android:src="@drawable/ic_notif_beak" />
 </LinearLayout>
 

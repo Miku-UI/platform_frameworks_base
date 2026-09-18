@@ -16,7 +16,6 @@
 
 package com.android.systemui.keyguard;
 
-import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.security.Flags.secureLockDevice;
 import static android.service.dreams.Flags.dismissDreamOnKeyguardDismiss;
 import static android.view.RemoteAnimationTarget.MODE_OPENING;
@@ -36,17 +35,20 @@ import static android.view.WindowManager.TransitionFlags;
 import static android.view.WindowManager.TransitionOldType;
 import static android.view.WindowManager.TransitionType;
 
+import static com.android.internal.policy.KeyguardState.INTERACTIVE_STATE_AWAKE;
+import static com.android.internal.policy.KeyguardState.INTERACTIVE_STATE_WAKING;
+import static com.android.internal.policy.KeyguardState.SCREEN_STATE_ON;
+import static com.android.internal.policy.KeyguardState.SCREEN_STATE_TURNING_ON;
+
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.Service;
 import android.app.WindowConfiguration;
 import android.content.Intent;
-import android.os.Binder;
 import android.os.Bundle;
-import android.os.Debug;
 import android.os.IBinder;
 import android.os.PowerManager;
-import android.os.Process;
 import android.os.RemoteException;
 import android.os.Trace;
 import android.util.ArrayMap;
@@ -69,6 +71,7 @@ import com.android.internal.policy.IKeyguardDrawnCallback;
 import com.android.internal.policy.IKeyguardExitCallback;
 import com.android.internal.policy.IKeyguardService;
 import com.android.internal.policy.IKeyguardStateCallback;
+import com.android.internal.policy.KeyguardState;
 import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.keyguard.mediator.ScreenOnCoordinator;
 import com.android.systemui.application.SystemUIApplication;
@@ -76,7 +79,6 @@ import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor;
 import com.android.systemui.flags.FeatureFlags;
-import com.android.systemui.keyguard.domain.interactor.KeyguardDismissInteractor;
 import com.android.systemui.keyguard.domain.interactor.KeyguardEnabledInteractor;
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor;
 import com.android.systemui.keyguard.domain.interactor.KeyguardServiceShowLockscreenInteractor;
@@ -92,7 +94,6 @@ import com.android.systemui.power.shared.model.ScreenPowerState;
 import com.android.systemui.scene.domain.interactor.SceneInteractor;
 import com.android.systemui.scene.domain.startable.KeyguardStateCallbackStartable;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
-import com.android.systemui.scene.shared.model.Scenes;
 import com.android.systemui.securelockdevice.domain.interactor.SecureLockDeviceInteractor;
 import com.android.systemui.settings.DisplayTracker;
 import com.android.wm.shell.shared.CounterRotator;
@@ -113,7 +114,6 @@ import javax.inject.Inject;
 public class KeyguardService extends Service {
     static final String TAG = "KeyguardService";
     static final String SCREEN_LOCK_BY_WATCH = "screen_lock_by_watch";
-    static final String PERMISSION = android.Manifest.permission.CONTROL_KEYGUARD;
 
     private final FeatureFlags mFlags;
     private final KeyguardViewMediator mKeyguardViewMediator;
@@ -129,6 +129,8 @@ public class KeyguardService extends Service {
     private final Lazy<KeyguardStateCallbackStartable> mKeyguardStateCallbackStartableLazy;
     private final KeyguardStateCallbackInteractor mKeyguardStateCallbackInteractor;
     private final Lazy<SecureLockDeviceInteractor> mSecureLockDeviceInteractor;
+    private final Lazy<WindowManagerLockscreenVisibilityManager>
+            mWindowManagerLockscreenVisibilityManager;
 
     private static RemoteAnimationTarget[] wrap(TransitionInfo info, boolean wallpapers,
             SurfaceControl.Transaction t, ArrayMap<SurfaceControl, SurfaceControl> leashMap,
@@ -325,7 +327,6 @@ public class KeyguardService extends Service {
     private final WindowManagerOcclusionManager mWmOcclusionManager;
     private final KeyguardEnabledInteractor mKeyguardEnabledInteractor;
     private final KeyguardWakeDirectlyToGoneInteractor mKeyguardWakeDirectlyToGoneInteractor;
-    private final KeyguardDismissInteractor mKeyguardDismissInteractor;
     private final KeyguardServiceShowLockscreenInteractor mKeyguardServiceShowLockscreenInteractor;
     private final KeyguardUpdateMonitor mKeyguardUpdateMonitor;
     private final ActivityManager mActivityManager;
@@ -351,13 +352,14 @@ public class KeyguardService extends Service {
             KeyguardEnabledInteractor keyguardEnabledInteractor,
             Lazy<KeyguardStateCallbackStartable> keyguardStateCallbackStartableLazy,
             KeyguardWakeDirectlyToGoneInteractor keyguardWakeDirectlyToGoneInteractor,
-            KeyguardDismissInteractor keyguardDismissInteractor,
             Lazy<DeviceEntryInteractor> deviceEntryInteractorLazy,
             KeyguardStateCallbackInteractor keyguardStateCallbackInteractor,
             KeyguardServiceShowLockscreenInteractor keyguardServiceShowLockscreenInteractor,
             KeyguardUpdateMonitor keyguardUpdateMonitor,
             ActivityManager activityManager,
-            Lazy<SecureLockDeviceInteractor> secureLockDeviceInteractor) {
+            Lazy<SecureLockDeviceInteractor> secureLockDeviceInteractor,
+            Lazy<WindowManagerLockscreenVisibilityManager>
+                    windowManagerLockscreenVisibilityManager) {
         super();
         mKeyguardViewMediator = keyguardViewMediator;
         mKeyguardLifecyclesDispatcher = keyguardLifecyclesDispatcher;
@@ -373,7 +375,7 @@ public class KeyguardService extends Service {
         mKeyguardStateCallbackInteractor = keyguardStateCallbackInteractor;
         mDeviceEntryInteractorLazy = deviceEntryInteractorLazy;
 
-        if (KeyguardWmStateRefactor.isEnabled()) {
+        if (SceneContainerFlag.isEnabled()) {
             WindowManagerLockscreenVisibilityViewBinder.bind(
                     wmLockscreenVisibilityViewModel,
                     wmLockscreenVisibilityManager,
@@ -388,11 +390,11 @@ public class KeyguardService extends Service {
         mWmOcclusionManager = windowManagerOcclusionManager;
         mKeyguardEnabledInteractor = keyguardEnabledInteractor;
         mKeyguardWakeDirectlyToGoneInteractor = keyguardWakeDirectlyToGoneInteractor;
-        mKeyguardDismissInteractor = keyguardDismissInteractor;
         mKeyguardServiceShowLockscreenInteractor = keyguardServiceShowLockscreenInteractor;
         mKeyguardUpdateMonitor = keyguardUpdateMonitor;
         mActivityManager = activityManager;
         mSecureLockDeviceInteractor = secureLockDeviceInteractor;
+        mWindowManagerLockscreenVisibilityManager = windowManagerLockscreenVisibilityManager;
     }
 
     @Override
@@ -403,18 +405,6 @@ public class KeyguardService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return mBinder;
-    }
-
-    void checkPermission() {
-        // Avoid deadlock by avoiding calling back into the system process.
-        if (Binder.getCallingUid() == Process.SYSTEM_UID) return;
-
-        // Otherwise,explicitly check for caller permission ...
-        if (getBaseContext().checkCallingOrSelfPermission(PERMISSION) != PERMISSION_GRANTED) {
-            Log.w(TAG, "Caller needs permission '" + PERMISSION + "' to call " + Debug.getCaller());
-            throw new SecurityException("Access denied to process: " + Binder.getCallingPid()
-                    + ", must have permission " + PERMISSION);
-        }
     }
 
     private final IKeyguardService.Stub mBinder = new IKeyguardService.Stub() {
@@ -434,12 +424,8 @@ public class KeyguardService extends Service {
         @Override // Binder interface
         public void addStateMonitorCallback(IKeyguardStateCallback callback) {
             trace("addStateMonitorCallback");
-            checkPermission();
             if (SceneContainerFlag.isEnabled()) {
                 mKeyguardStateCallbackStartableLazy.get().addCallback(callback);
-            }
-
-            if (KeyguardWmStateRefactor.isEnabled()) {
                 mKeyguardStateCallbackInteractor.addCallback(callback);
             } else {
                 mKeyguardViewMediator.addStateMonitorCallback(callback);
@@ -450,20 +436,18 @@ public class KeyguardService extends Service {
         public void verifyUnlock(IKeyguardExitCallback callback) {
             trace("verifyUnlock");
             Trace.beginSection("KeyguardService.mBinder#verifyUnlock");
-            checkPermission();
             mKeyguardViewMediator.verifyUnlock(callback);
             Trace.endSection();
         }
 
         @Override // Binder interface
-        public void setOccluded(boolean isOccluded, boolean animate) {
-            trace("setOccluded isOccluded=" + isOccluded + " animate=" + animate);
+        public void setOccluded(boolean isOccluded) {
+            trace("setOccluded isOccluded=" + isOccluded);
             Log.d(TAG, "setOccluded(" + isOccluded + ")");
 
             Trace.beginSection("KeyguardService.mBinder#setOccluded");
-            checkPermission();
-            if (!KeyguardWmStateRefactor.isEnabled()) {
-                mKeyguardViewMediator.setOccluded(isOccluded, animate);
+            if (!SceneContainerFlag.isEnabled()) {
+                mKeyguardViewMediator.setOccluded(isOccluded);
             } else {
                 mWmOcclusionManager.onKeyguardServiceSetOccluded(isOccluded);
             }
@@ -473,12 +457,9 @@ public class KeyguardService extends Service {
         @Override // Binder interface
         public void dismiss(IKeyguardDismissCallback callback, CharSequence message) {
             trace("dismiss message=" + message);
-            checkPermission();
             if (SceneContainerFlag.isEnabled()) {
                 mDeviceEntryInteractorLazy.get().attemptDeviceEntry(
                         "KeyguardService.dismiss", callback);
-            } else if (KeyguardWmStateRefactor.isEnabled()) {
-                mKeyguardDismissInteractor.dismissKeyguardWithCallback(callback);
             } else {
                 mKeyguardViewMediator.dismiss(callback, message);
             }
@@ -487,8 +468,6 @@ public class KeyguardService extends Service {
         @Override // Binder interface
         public void onDreamingStarted() {
             trace("onDreamingStarted");
-            checkPermission();
-            mKeyguardWakeDirectlyToGoneInteractor.onDreamingStarted();
             mKeyguardInteractor.setDreaming(true);
             mKeyguardViewMediator.onDreamingStarted();
         }
@@ -496,8 +475,6 @@ public class KeyguardService extends Service {
         @Override // Binder interface
         public void onDreamingStopped() {
             trace("onDreamingStopped");
-            checkPermission();
-            mKeyguardWakeDirectlyToGoneInteractor.onDreamingStopped();
             mKeyguardInteractor.setDreaming(false);
             mKeyguardViewMediator.onDreamingStopped();
         }
@@ -505,7 +482,6 @@ public class KeyguardService extends Service {
         @Override // Binder interface
         public void onStartedGoingToSleep(@PowerManager.GoToSleepReason int pmSleepReason) {
             trace("onStartedGoingToSleep pmSleepReason=" + pmSleepReason);
-            checkPermission();
             mKeyguardViewMediator.onStartedGoingToSleep(
                     WindowManagerPolicyConstants.translateSleepReasonToOffReason(pmSleepReason));
             mPowerInteractor.onStartedGoingToSleep(pmSleepReason);
@@ -519,7 +495,6 @@ public class KeyguardService extends Service {
                 powerButtonLaunchGestureTriggered) {
             trace("onFinishedGoingToSleep pmSleepReason=" + pmSleepReason
                     + " powerButtonLaunchTriggered=" + powerButtonLaunchGestureTriggered);
-            checkPermission();
             mKeyguardViewMediator.onFinishedGoingToSleep(
                     WindowManagerPolicyConstants.translateSleepReasonToOffReason(pmSleepReason),
                     powerButtonLaunchGestureTriggered);
@@ -535,7 +510,6 @@ public class KeyguardService extends Service {
             trace("onStartedWakingUp pmWakeReason=" + pmWakeReason
                     + " powerButtonLaunchGestureTriggered=" + powerButtonLaunchGestureTriggered);
             Trace.beginSection("KeyguardService.mBinder#onStartedWakingUp");
-            checkPermission();
             mKeyguardViewMediator.onStartedWakingUp(pmWakeReason,
                     powerButtonLaunchGestureTriggered);
             mPowerInteractor.onStartedWakingUp(pmWakeReason, powerButtonLaunchGestureTriggered);
@@ -548,7 +522,6 @@ public class KeyguardService extends Service {
         public void onFinishedWakingUp() {
             trace("onFinishedWakingUp");
             Trace.beginSection("KeyguardService.mBinder#onFinishedWakingUp");
-            checkPermission();
             mPowerInteractor.onFinishedWakingUp();
             mKeyguardLifecyclesDispatcher.dispatch(KeyguardLifecyclesDispatcher.FINISHED_WAKING_UP);
             Trace.endSection();
@@ -558,7 +531,6 @@ public class KeyguardService extends Service {
         public void onScreenTurningOn(int reason, IKeyguardDrawnCallback callback) {
             trace("onScreenTurningOn");
             Trace.beginSection("KeyguardService.mBinder#onScreenTurningOn");
-            checkPermission();
             mPowerInteractor.onScreenPowerStateUpdated(ScreenPowerState.SCREEN_TURNING_ON);
             mKeyguardLifecyclesDispatcher.dispatch(KeyguardLifecyclesDispatcher.SCREEN_TURNING_ON,
                     callback);
@@ -595,7 +567,6 @@ public class KeyguardService extends Service {
         public void onScreenTurnedOn() {
             trace("onScreenTurnedOn");
             Trace.beginSection("KeyguardService.mBinder#onScreenTurnedOn");
-            checkPermission();
             mPowerInteractor.onScreenPowerStateUpdated(ScreenPowerState.SCREEN_ON);
             mKeyguardLifecyclesDispatcher.dispatch(KeyguardLifecyclesDispatcher.SCREEN_TURNED_ON);
             mKeyguardUpdateMonitor.triggerTimeUpdate();
@@ -606,7 +577,6 @@ public class KeyguardService extends Service {
         @Override // Binder interface
         public void onScreenTurningOff() {
             trace("onScreenTurningOff");
-            checkPermission();
             mPowerInteractor.onScreenPowerStateUpdated(ScreenPowerState.SCREEN_TURNING_OFF);
             mKeyguardLifecyclesDispatcher.dispatch(KeyguardLifecyclesDispatcher.SCREEN_TURNING_OFF);
         }
@@ -614,7 +584,6 @@ public class KeyguardService extends Service {
         @Override // Binder interface
         public void onScreenTurnedOff() {
             trace("onScreenTurnedOff");
-            checkPermission();
             mPowerInteractor.onScreenPowerStateUpdated(ScreenPowerState.SCREEN_OFF);
             mKeyguardViewMediator.onScreenTurnedOff();
             mKeyguardLifecyclesDispatcher.dispatch(KeyguardLifecyclesDispatcher.SCREEN_TURNED_OFF);
@@ -624,7 +593,6 @@ public class KeyguardService extends Service {
         @Override // Binder interface
         public void setKeyguardEnabled(boolean enabled) {
             trace("setKeyguardEnabled enabled" + enabled);
-            checkPermission();
             // Ignore if secure lock device is enabled and authenticated but pending dismissal.
             // This is needed because successful two-factor authentication in secure lock device
             // updates device policy manager state, which is linked to a broadcast that otherwise
@@ -641,20 +609,21 @@ public class KeyguardService extends Service {
         public void onSystemReady() {
             trace("onSystemReady");
             Trace.beginSection("KeyguardService.mBinder#onSystemReady");
-            checkPermission();
             mKeyguardViewMediator.onSystemReady();
+            if (SceneContainerFlag.isEnabled()) {
+                mWindowManagerLockscreenVisibilityManager.get().onKeyguardServiceSystemReady();
+            }
             Trace.endSection();
         }
 
         @Override // Binder interface
         public void doKeyguardTimeout(Bundle options) {
             trace("doKeyguardTimeout");
-            checkPermission();
 
+            // TODO(b/466145787): Remove this and use the KeyguardEnabledInteractor lockNowEvent
+            // flow to call this in that interactor.
             if (SceneContainerFlag.isEnabled()) {
                 mDeviceEntryInteractorLazy.get().lockNow("doKeyguardTimeout");
-            }
-            if (KeyguardWmStateRefactor.isEnabled()) {
                 mKeyguardServiceShowLockscreenInteractor
                         .onKeyguardServiceDoKeyguardTimeout(options);
             }
@@ -669,29 +638,23 @@ public class KeyguardService extends Service {
         // Binder interface
         public void showDismissibleKeyguard() {
             trace("showDismissibleKeyguard");
-            checkPermission();
 
             if (mActivityManager.getLockTaskModeState() != ActivityManager.LOCK_TASK_MODE_NONE) {
                 return;
             }
 
-            mKeyguardInteractor.showDismissibleKeyguard();
-            if (KeyguardWmStateRefactor.isEnabled()) {
+            if (SceneContainerFlag.isEnabled()) {
                 mKeyguardServiceShowLockscreenInteractor.onKeyguardServiceShowDismissibleKeyguard();
             } else {
+                // Only used by FromGoneTransitionInteractor, which is unused in Flexiglass.
+                mKeyguardInteractor.showDismissibleKeyguard();
                 mKeyguardViewMediator.showDismissibleKeyguard();
-            }
-
-            if (SceneContainerFlag.isEnabled()) {
-                mMainExecutor.execute(() -> mSceneInteractorLazy.get().changeScene(
-                        Scenes.Lockscreen, "KeyguardService.showDismissibleKeyguard"));
             }
         }
 
         @Override // Binder interface
         public void setSwitchingUser(boolean switching) {
             trace("setSwitchingUser switching=" + switching);
-            checkPermission();
             mKeyguardViewMediator.setSwitchingUser(switching);
         }
 
@@ -703,13 +666,11 @@ public class KeyguardService extends Service {
         @Deprecated
         public void setCurrentUser(int userId) {
             trace("Deprecated/NOT USED: setCurrentUser userId=" + userId);
-            checkPermission();
         }
 
         @Override // Binder interface
         public void onBootCompleted() {
             trace("onBootCompleted");
-            checkPermission();
             mKeyguardViewMediator.onBootCompleted();
         }
 
@@ -723,7 +684,6 @@ public class KeyguardService extends Service {
             trace("startKeyguardExitAnimation startTime=" + startTime
                     + " fadeoutDuration=" + fadeoutDuration);
             Trace.beginSection("KeyguardService.mBinder#startKeyguardExitAnimation");
-            checkPermission();
             mKeyguardViewMediator.startKeyguardExitAnimation(startTime, fadeoutDuration);
             Trace.endSection();
         }
@@ -731,23 +691,66 @@ public class KeyguardService extends Service {
         @Override // Binder interface
         public void onShortPowerPressedGoHome() {
             trace("onShortPowerPressedGoHome");
-            checkPermission();
             mKeyguardViewMediator.onShortPowerPressedGoHome();
         }
 
         @Override // Binder interface
         public void dismissKeyguardToLaunch(Intent intentToLaunch) {
             trace("dismissKeyguardToLaunch");
-            checkPermission();
             Slog.d(TAG, "Ignoring dismissKeyguardToLaunch " + intentToLaunch);
         }
 
         @Override // Binder interface
         public void onSystemKeyPressed(int keycode) {
             trace("onSystemKeyPressed keycode=" + keycode);
-            checkPermission();
             mKeyguardViewMediator.onSystemKeyPressed(keycode);
+        }
+
+        @Override // Binder interface
+        public void restoreKeyguardState(@NonNull KeyguardState state,
+                @NonNull IKeyguardStateCallback stateCallback,
+                @NonNull IKeyguardDrawnCallback drawnCallback, boolean timeoutRequested,
+                @Nullable Bundle timeoutOptions) {
+            addStateMonitorCallback(stateCallback);
+
+            if (state.systemReady) {
+                // If the system is ready, it means keyguard crashed and restarted.
+                onSystemReady();
+                setCurrentUser(state.userId);
+                boolean waking = state.interactiveState == INTERACTIVE_STATE_WAKING;
+                boolean awake = state.interactiveState == INTERACTIVE_STATE_AWAKE;
+                // This is used to hide the scrim once keyguard displays.
+                if (awake || waking) {
+                    onStartedWakingUp(PowerManager.WAKE_REASON_UNKNOWN,
+                            false /* powerButtonLaunchGestureTriggered */);
+                }
+                if (awake) {
+                    onFinishedWakingUp();
+                }
+                boolean screenTurningOn = state.screenState == SCREEN_STATE_TURNING_ON;
+                boolean screenOn = state.screenState == SCREEN_STATE_ON;
+                if (screenOn || screenTurningOn) {
+                    onScreenTurningOn(SCREEN_TURNING_ON_REASON_UNKNOWN, drawnCallback);
+                }
+                if (screenOn) {
+                    onScreenTurnedOn();
+                }
+            }
+            if (state.bootCompleted) {
+                onBootCompleted();
+            }
+            if (state.occluded) {
+                setOccluded(true /* isOccluded */);
+            }
+            if (!state.enabled) {
+                setKeyguardEnabled(false /* enabled */);
+            }
+            if (state.dreaming) {
+                onDreamingStarted();
+            }
+            if (timeoutRequested) {
+                doKeyguardTimeout(timeoutOptions);
+            }
         }
     };
 }
-

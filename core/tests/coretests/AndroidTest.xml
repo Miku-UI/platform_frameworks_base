@@ -17,6 +17,12 @@
     <option name="test-suite-tag" value="apct" />
     <option name="test-suite-tag" value="apct-instrumentation" />
 
+    <target_preparer class="com.android.tradefed.targetprep.DeviceSetup">
+        <option name="set-global-setting" key="verifier_engprod" value="1" />
+        <option name="set-global-setting" key="verifier_verify_adb_installs" value="0" />
+        <option name="restore-settings" value="true" />
+    </target_preparer>
+
     <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
         <option name="cleanup-apks" value="true" />
         <option name="test-file-name" value="FrameworksCoreTests.apk" />
@@ -46,6 +52,8 @@
             value="/data/local/tmp/tests/coretests/pm/CtsStaticSharedLibConsumerApp3.apk"/>
         <option name="push-file" key="CtsStaticSharedLibProviderApp1.apk"
                 value="/data/local/tmp/tests/coretests/pm/CtsStaticSharedLibProviderApp1.apk"/>
+        <option name="push-file" key="ResApkBadXml.apk"
+            value="/data/local/tmp/tests/coretests/res/ResApkBadXml.apk"/>
     </target_preparer>
 
     <target_preparer class="com.android.tradefed.targetprep.RunCommandTargetPreparer">

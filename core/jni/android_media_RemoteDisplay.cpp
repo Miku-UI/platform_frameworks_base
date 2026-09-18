@@ -17,27 +17,22 @@
 
 #define LOG_TAG "RemoteDisplay"
 
-#include "jni.h"
-#include <nativehelper/JNIHelp.h>
-
-#include "android_os_Parcel.h"
-#include "android_util_Binder.h"
-
-#include "core_jni_helpers.h"
-#include <android_runtime/android_view_Surface.h>
 #include <android_runtime/Log.h>
-
+#include <android_runtime/android_view_Surface.h>
 #include <binder/IServiceManager.h>
-
+#include <gui/Flags.h> // Remove with MediaSurfaceType
 #include <gui/IGraphicBufferProducer.h>
-
 #include <media/IMediaPlayerService.h>
 #include <media/IRemoteDisplay.h>
 #include <media/IRemoteDisplayClient.h>
-
+#include <nativehelper/JNIHelp.h>
+#include <nativehelper/ScopedUtfChars.h>
 #include <utils/Log.h>
 
-#include <nativehelper/ScopedUtfChars.h>
+#include "android_os_Parcel.h"
+#include "android_util_Binder.h"
+#include "core_jni_helpers.h"
+#include "jni.h"
 
 namespace android {
 
@@ -62,14 +57,18 @@ protected:
     }
 
 public:
-    virtual void onDisplayConnected(const sp<IGraphicBufferProducer>& bufferProducer,
-            uint32_t width, uint32_t height, uint32_t flags, uint32_t session) {
+    virtual void onDisplayConnected(const sp<MediaSurfaceType>& surface, uint32_t width,
+                                    uint32_t height, uint32_t flags, uint32_t session) {
         JNIEnv* env = AndroidRuntime::getJNIEnv();
 
-        jobject surfaceObj = android_view_Surface_createFromIGraphicBufferProducer(env, bufferProducer);
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_MEDIA_MIGRATION)
+        jobject surfaceObj = android_view_Surface_createFromSurface(env, surface);
+#else
+        jobject surfaceObj = android_view_Surface_createFromIGraphicBufferProducer(env, surface);
+#endif
         if (surfaceObj == NULL) {
             ALOGE("Could not create Surface from surface texture %p provided by media server.",
-                  bufferProducer.get());
+                  surface.get());
             return;
         }
 

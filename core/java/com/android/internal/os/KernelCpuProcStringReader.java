@@ -49,7 +49,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * Caller is responsible for closing ProcFileIterator (also auto-closable) after reading, otherwise
  * deadlock will occur.
  */
-public class KernelCpuProcStringReader {
+public final class KernelCpuProcStringReader {
     private static final String TAG = KernelCpuProcStringReader.class.getSimpleName();
     private static final int ERROR_THRESHOLD = 5;
     // Data read within the last 500ms is considered fresh.
@@ -198,7 +198,7 @@ public class KernelCpuProcStringReader {
      * An autoCloseable iterator to iterate through a string proc file line by line. User must call
      * close() when finish using to prevent deadlock.
      */
-    public class ProcFileIterator implements AutoCloseable {
+    public final class ProcFileIterator implements AutoCloseable {
         private final int mSize;
         private int mPos;
 

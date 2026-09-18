@@ -25,19 +25,23 @@ import android.window.TransitionInfo
 import android.window.WindowContainerToken
 import androidx.test.filters.SmallTest
 import com.android.internal.jank.InteractionJankMonitor
+import com.android.testing.wm.util.TransitionInfoBuilder
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.TestRunningTaskInfoBuilder
 import com.android.wm.shell.desktopmode.DesktopModeTransitionTypes.TRANSIT_DESKTOP_MODE_TOGGLE_RESIZE
-import com.android.wm.shell.transition.TransitionInfoBuilder
 import com.android.wm.shell.transition.Transitions
 import com.android.wm.shell.windowdecor.OnTaskResizeAnimationListener
 import com.google.common.truth.Truth.assertThat
+import java.util.Optional
 import java.util.function.Supplier
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.stub
 import org.mockito.kotlin.whenever
 
 @SmallTest
@@ -49,20 +53,39 @@ class ToggleResizeDesktopTaskTransitionHandlerTest : ShellTestCase() {
     private val transaction = mock<SurfaceControl.Transaction>()
     private val transactionSupplier = mock<Supplier<SurfaceControl.Transaction>>()
     private val interactionJankMonitor = mock<InteractionJankMonitor>()
+    private val desktopTasksTransitionObserver = mock<DesktopTasksTransitionObserver>()
+    private val onTaskResizeAnimationListener = mock<OnTaskResizeAnimationListener>()
     private val transitionHandler =
         ToggleResizeDesktopTaskTransitionHandler(
             transitions,
             transactionSupplier,
             interactionJankMonitor,
+            Optional.of(desktopTasksTransitionObserver),
         )
 
     @Before
     fun setUp() {
-        transitionHandler.setOnTaskResizeAnimationListener(mock<OnTaskResizeAnimationListener>())
+        onTaskResizeAnimationListener.stub {
+            on { onAnimationStart(any(), any(), any()) } doReturn true
+            on { onBoundsChange(any(), any(), any()) } doReturn true
+        }
+        transitionHandler.setOnTaskResizeAnimationListener(onTaskResizeAnimationListener)
         whenever(transactionSupplier.get()).thenReturn(transaction)
         whenever(transaction.setPosition(any(), any(), any())).thenReturn(transaction)
         whenever(transaction.setWindowCrop(any(), any(), any())).thenReturn(transaction)
         whenever(transaction.show(any())).thenReturn(transaction)
+    }
+
+    @Test
+    fun startTransition_isUserResize_addsPendingUserBoundsChangeTransition() {
+        val transition = mock<IBinder>()
+        whenever(transitions.startTransition(anyInt(), any(), any())).thenReturn(transition)
+
+        transitionHandler.startTransition(mock(), isUserResize = true)
+
+        org.mockito.kotlin
+            .verify(desktopTasksTransitionObserver)
+            .addPendingUserBoundsChangeTransition(transition)
     }
 
     @Test

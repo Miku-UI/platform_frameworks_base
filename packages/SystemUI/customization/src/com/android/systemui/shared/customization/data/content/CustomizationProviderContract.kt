@@ -170,9 +170,6 @@ object CustomizationProviderContract {
         const val FLAG_NAME_CUSTOM_LOCK_SCREEN_QUICK_AFFORDANCES_ENABLED =
             "is_custom_lock_screen_quick_affordances_feature_enabled"
 
-        /** Flag denoting whether the customizable clocks feature is enabled. */
-        const val FLAG_NAME_CUSTOM_CLOCKS_ENABLED = "is_custom_clocks_feature_enabled"
-
         /** Flag denoting whether the Wallpaper preview should use the full screen UI. */
         const val FLAG_NAME_WALLPAPER_FULLSCREEN_PREVIEW = "wallpaper_fullscreen_preview"
 

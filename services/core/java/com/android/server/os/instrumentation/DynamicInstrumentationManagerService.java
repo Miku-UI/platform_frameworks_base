@@ -68,9 +68,6 @@ public class DynamicInstrumentationManagerService extends SystemService {
         public void getExecutableMethodFileOffsets(
                 @NonNull TargetProcess targetProcess, @NonNull MethodDescriptor methodDescriptor,
                 @NonNull IOffsetCallback callback) {
-            if (!com.android.art.flags.Flags.executableMethodFileOffsets()) {
-                throw new UnsupportedOperationException();
-            }
             getContext().enforceCallingOrSelfPermission(
                     DYNAMIC_INSTRUMENTATION, "Caller must have DYNAMIC_INSTRUMENTATION permission");
             Objects.requireNonNull(targetProcess.processName);

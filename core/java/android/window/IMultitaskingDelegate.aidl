@@ -16,8 +16,9 @@
 
 package android.window;
 
-import android.os.IBinder;
+import android.app.PendingIntent;
 import android.content.Intent;
+import android.os.IBinder;
 
 /**
  * System private API for requesting actions and configurations related to some multi-window
@@ -27,6 +28,9 @@ import android.content.Intent;
 interface IMultitaskingDelegate {
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.REQUEST_SYSTEM_MULTITASKING_CONTROLS)")
     oneway void createBubble(in IBinder token, in Intent intent, boolean collapsed);
+
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.REQUEST_SYSTEM_MULTITASKING_CONTROLS)")
+    oneway void createPendingIntentBubble(in IBinder token, in PendingIntent pendingIntent, boolean collapsed);
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.REQUEST_SYSTEM_MULTITASKING_CONTROLS)")
     oneway void updateBubbleState(in IBinder token, boolean collapsed);

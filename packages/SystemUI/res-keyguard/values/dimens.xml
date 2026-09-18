@@ -117,6 +117,10 @@
     <dimen name="smartspace_padding_horizontal">16dp</dimen>
     <dimen name="smartspace_padding_vertical">6dp</dimen>
 
+    <!-- Lockscreen upper region horizontal paddings -->
+    <dimen name="upper_region_wide_horizontal_padding">24dp</dimen>
+    <dimen name="upper_region_wide_column_horizontal_padding">16dp</dimen>
+
     <!-- Proportion of the screen height to use to set the maximum height of the bouncer to when
          the device is in the DEVICE_POSTURE_HALF_OPENED posture, for the PIN/pattern entry. 0 will
          allow it to use the whole screen space, 0.6 will allow it to use just under half of the

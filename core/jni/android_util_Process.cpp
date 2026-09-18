@@ -27,6 +27,7 @@
 #include <meminfo/procmeminfo.h>
 #include <meminfo/sysmeminfo.h>
 #include <processgroup/processgroup.h>
+#include <processgroup/processgroup_platform.h>
 #include <processgroup/sched_policy.h>
 #include <android-base/logging.h>
 #include <android-base/unique_fd.h>
@@ -479,11 +480,12 @@ jint android_os_Process_createProcessGroup(JNIEnv* env, jobject clazz, jint uid,
  */
 static void parse_cpuset_cpus(char *cpus, cpu_set_t *cpu_set) {
     unsigned int start, end, matched, i;
-    char *cpu_range = strtok(cpus, ",");
+    char* saveptr;
+    char* cpu_range = strtok_r(cpus, ",", &saveptr);
     while (cpu_range != NULL) {
         start = end = 0;
         matched = sscanf(cpu_range, "%u-%u", &start, &end);
-        cpu_range = strtok(NULL, ",");
+        cpu_range = strtok_r(NULL, ",", &saveptr);
         if (start >= CPU_SETSIZE) {
             ALOGE("parse_cpuset_cpus: ignoring CPU number larger than %d.", CPU_SETSIZE);
             continue;
@@ -1425,14 +1427,14 @@ jintArray android_os_Process_getPidsForCommands(JNIEnv* env, jobject clazz,
     return pidArray;
 }
 
-jint android_os_Process_killProcessGroup(JNIEnv* env, jobject clazz, jint uid, jint pid)
+jboolean android_os_Process_killProcessGroup(JNIEnv* env, jobject clazz, jint uid, jint pid)
 {
     if (uid < 0) {
         return jniThrowExceptionFmt(env, "java/lang/IllegalArgumentException",
                                     "uid is negative: %d", uid);
     }
 
-    return killProcessGroup(uid, pid, SIGKILL);
+    return libprocessgroup_platform::killProcessGroup(uid, pid);
 }
 
 jboolean android_os_Process_sendSignalToProcessGroup(JNIEnv* env, jobject clazz, jint uid, jint pid,
@@ -1523,7 +1525,7 @@ static const JNINativeMethod methods[] = {
          (void*)android_os_Process_getPidsForCommands},
         //{"setApplicationObject", "(Landroid/os/IBinder;)V",
         //(void*)android_os_Process_setApplicationObject},
-        {"killProcessGroup", "(II)I", (void*)android_os_Process_killProcessGroup},
+        {"killProcessGroup", "(II)Z", (void*)android_os_Process_killProcessGroup},
         {"sendSignalToProcessGroup", "(III)Z", (void*)android_os_Process_sendSignalToProcessGroup},
         {"removeAllProcessGroups", "()V", (void*)android_os_Process_removeAllProcessGroups},
         {"nativePidFdOpen", "(II)I", (void*)android_os_Process_nativePidFdOpen},

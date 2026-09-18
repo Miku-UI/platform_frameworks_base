@@ -1,0 +1,6 @@
+aconfig_declarations {
+    name: "uilatencystats_flags",
+    package: "com.android.server.ui_latency_stats",
+    container: "system",
+    srcs: ["flags.aconfig"],
+}

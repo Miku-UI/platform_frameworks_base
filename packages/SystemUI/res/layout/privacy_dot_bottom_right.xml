@@ -14,7 +14,7 @@
 ** See the License for the specific language governing permissions and
 ** limitations under the License.
 -->
-<FrameLayout
+<com.android.systemui.statusbar.events.ui.view.PrivacyDotView
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/privacy_dot_bottom_right_container"
     android:layout_height="@dimen/status_bar_height"
@@ -30,4 +30,4 @@
         android:layout_gravity="center_vertical|left"
         android:src="@drawable/system_animation_ongoing_dot"
         android:visibility="visible" />
-</FrameLayout>
+</com.android.systemui.statusbar.events.ui.view.PrivacyDotView>

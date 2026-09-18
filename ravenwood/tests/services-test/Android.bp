@@ -15,7 +15,7 @@ android_ravenwood_test {
         "androidx.test.rules",
     ],
     srcs: [
-        "test/**/*.java",
+        "src/**/*.java",
     ],
     auto_gen_config: true,
 }

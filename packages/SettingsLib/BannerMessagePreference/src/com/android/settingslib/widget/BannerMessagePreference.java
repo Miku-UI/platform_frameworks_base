@@ -27,6 +27,7 @@ import android.os.Build;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -52,7 +53,9 @@ import java.util.Objects;
  * Banner message is a banner displaying important information (permission request, page error etc),
  * and provide actions for user to address. It requires a user action to be dismissed.
  */
-public class BannerMessagePreference extends Preference implements GroupSectionDividerMixin {
+public class BannerMessagePreference
+        extends Preference
+        implements GroupSectionDividerMixin, ChainedMixin {
 
     public enum AttentionLevel {
         HIGH(0,
@@ -125,6 +128,16 @@ public class BannerMessagePreference extends Preference implements GroupSectionD
     private static final String TAG = "BannerPreference";
     private static final boolean IS_AT_LEAST_S = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;
 
+    private enum AnimationState {
+        IDLE_VISIBLE,
+        IDLE_HIDDEN,
+        ANIMATING_IN,
+        ANIMATING_OUT
+    }
+
+    private AnimationState mState = AnimationState.IDLE_VISIBLE;
+    private BannerAnimationHelper mAnimationHelper;
+
     private final BannerMessagePreference.ButtonInfo mPositiveButtonInfo =
             new BannerMessagePreference.ButtonInfo();
     private final BannerMessagePreference.ButtonInfo mNegativeButtonInfo =
@@ -171,26 +184,169 @@ public class BannerMessagePreference extends Preference implements GroupSectionD
                 : R.layout.settingslib_banner_message;
         setLayoutResource(resId);
 
-        if (IS_AT_LEAST_S) {
-            if (attrs != null) {
-                // Get attention level and subtitle from layout XML
-                TypedArray a =
-                        context.obtainStyledAttributes(attrs, R.styleable.BannerMessagePreference);
-                int mAttentionLevelValue =
-                        a.getInt(R.styleable.BannerMessagePreference_attentionLevel, 0);
-                mAttentionLevel = AttentionLevel.fromAttr(mAttentionLevelValue);
-                mSubtitle = a.getString(R.styleable.BannerMessagePreference_subtitle);
-                mHeader = a.getString(R.styleable.BannerMessagePreference_bannerHeader);
-                mButtonOrientation = a.getInt(R.styleable.BannerMessagePreference_buttonOrientation,
-                        LinearLayout.HORIZONTAL);
-                a.recycle();
+        if (IS_AT_LEAST_S && attrs != null) {
+            TypedArray a = context.obtainStyledAttributes(attrs,
+                    R.styleable.BannerMessagePreference);
+            int mAttentionLevelValue = a.getInt(
+                    R.styleable.BannerMessagePreference_attentionLevel, 0);
+            mAttentionLevel = AttentionLevel.fromAttr(mAttentionLevelValue);
+            mSubtitle = a.getString(R.styleable.BannerMessagePreference_subtitle);
+            mHeader = a.getString(R.styleable.BannerMessagePreference_bannerHeader);
+            mButtonOrientation = a.getInt(R.styleable.BannerMessagePreference_buttonOrientation,
+                    LinearLayout.HORIZONTAL);
+            a.recycle();
+        }
+    }
+
+    /**
+     * Called by the Group (or internal logic) to request expansion.
+     */
+    public void signalExpand() {
+        if (mState == AnimationState.ANIMATING_IN) {
+            return;
+        }
+
+        if (mState == AnimationState.IDLE_VISIBLE && mAnimationHelper != null) {
+            return;
+        }
+
+        mState = AnimationState.ANIMATING_IN;
+        setVisible(true);
+    }
+
+    /**
+     * Called by the Group to request collapse.
+     */
+    public void animateDismiss() {
+        signalCollapse(true, null);
+    }
+
+    /**
+     * Public API to manually trigger the collapse animation.
+     * Replaces 'signalCollapse'.
+     */
+    public void animateDismiss(@Nullable Runnable onAnimationFinished) {
+        signalCollapse(true, onAnimationFinished);
+    }
+
+    /**
+     * Requests a collapse animation with optional data removal.
+     *
+     * @param removeData          If true, calls setVisible(false) on the preference when animation
+     *                            ends.
+     * @param onAnimationFinished Callback to run when the animation completes.
+     */
+    public void signalCollapse(boolean removeData, @Nullable Runnable onAnimationFinished) {
+        if (mState == AnimationState.IDLE_HIDDEN || mState == AnimationState.ANIMATING_OUT) {
+            if (onAnimationFinished != null) {
+                onAnimationFinished.run();
             }
+            return;
+        }
+
+        if (mAnimationHelper == null || !isVisible()) {
+            finalizeCollapse(true, onAnimationFinished);
+            return;
+        }
+
+        mState = AnimationState.ANIMATING_OUT;
+        mAnimationHelper.animate(false, () -> {
+            finalizeCollapse(removeData, onAnimationFinished);
+            return null;
+        });
+    }
+
+    /**
+     * Consolidated state cleanup to prevent code duplication.
+     */
+    private void finalizeCollapse(boolean removeData, @Nullable Runnable callback) {
+        mState = AnimationState.IDLE_HIDDEN;
+
+        if (removeData) {
+            setVisible(false);
+        }
+
+        if (callback != null) {
+            callback.run();
         }
     }
 
     @Override
     public void onBindViewHolder(@NonNull PreferenceViewHolder holder) {
         super.onBindViewHolder(holder);
+        bindViews(holder);
+
+        View bannerView = holder.findViewById(R.id.banner_background);
+        View contentView = holder.findViewById(R.id.banner_content);
+
+        if (bannerView == null || contentView == null) {
+            return;
+        }
+
+        // Cancel any lingering animations on a recycled view
+        Object oldTag = bannerView.getTag();
+        if (oldTag instanceof BannerAnimationHelper zombieHelper) {
+            zombieHelper.cancel();
+        }
+
+        // Initialize New Helper
+        mAnimationHelper = new BannerAnimationHelper(getContext(), bannerView, contentView);
+        // Tag the view to track the helper
+        bannerView.setTag(mAnimationHelper);
+
+        switch (mState) {
+            case ANIMATING_IN:
+                mAnimationHelper.animate(true, () -> {
+                    mState = AnimationState.IDLE_VISIBLE;
+                    return kotlin.Unit.INSTANCE;
+                });
+                break;
+            case ANIMATING_OUT:
+                bannerView.setVisibility(View.VISIBLE);
+                mAnimationHelper.animate(false, () -> {
+                    mState = AnimationState.IDLE_HIDDEN;
+                    setVisible(false);
+                    return kotlin.Unit.INSTANCE;
+                });
+                break;
+            case IDLE_VISIBLE:
+            default:
+                resetViewToIdle(bannerView, contentView);
+                break;
+        }
+    }
+
+    /**
+     * Helper to force the view back to a normal, visible state.
+     * Useful when scrolling back to an item that should be fully expanded.
+     */
+    private void resetViewToIdle(View bannerView, View contentView) {
+        bannerView.setVisibility(View.VISIBLE);
+        contentView.setAlpha(1f);
+        contentView.setTranslationY(0f);
+        bannerView.setScaleX(1f);
+
+        ViewGroup.LayoutParams params = bannerView.getLayoutParams();
+        params.height = ViewGroup.LayoutParams.WRAP_CONTENT;
+        params.width = ViewGroup.LayoutParams.MATCH_PARENT;
+
+        if (params instanceof ViewGroup.MarginLayoutParams marginParams) {
+            marginParams.leftMargin = 0;
+            marginParams.rightMargin = 0;
+        }
+        bannerView.setLayoutParams(params);
+    }
+
+    @Override
+    public void onDetached() {
+        super.onDetached();
+        if (mAnimationHelper != null) {
+            mAnimationHelper.cancel();
+            mAnimationHelper = null;
+        }
+    }
+
+    private void bindViews(PreferenceViewHolder holder) {
         final Context context = getContext();
         final Resources resources = context.getResources();
 
@@ -242,7 +398,7 @@ public class BannerMessagePreference extends Preference implements GroupSectionD
             ColorStateList btnStrokeColor =
                     mAttentionLevel == AttentionLevel.NORMAL
                             ? resources.getColorStateList(
-                                    R.color.settingslib_banner_outline_button_stroke_normal, theme)
+                                R.color.settingslib_banner_outline_button_stroke_normal, theme)
                             : btnBackgroundColor;
             ColorStateList filledBtnTextColor =
                     resources.getColorStateList(
@@ -318,6 +474,8 @@ public class BannerMessagePreference extends Preference implements GroupSectionD
 
         if (mResolutionData != null) {
             new ResolutionAnimator(mResolutionData, holder).startResolutionAnimation();
+        } else {
+            ResolutionAnimator.resetBannerState(holder);
         }
     }
 
@@ -410,13 +568,44 @@ public class BannerMessagePreference extends Preference implements GroupSectionD
 
     /**
      * Registers a callback to be invoked when the dismiss button is clicked.
+     * <p>
+     * By default, the banner will automatically animate a collapse transition
+     * before invoking the listener.
      */
     @RequiresApi(Build.VERSION_CODES.S)
     @NonNull
     public BannerMessagePreference setDismissButtonOnClickListener(
             @Nullable View.OnClickListener listener) {
-        if (listener != mDismissButtonInfo.mListener) {
-            mDismissButtonInfo.mListener = listener;
+        return setDismissButtonOnClickListener(listener, true);
+    }
+
+    /**
+     * Registers a callback to be invoked when the dismiss button is clicked.
+     *
+     * @param listener The callback that will run.
+     * @param autoCollapse If true, the banner animates away BEFORE calling the listener.
+     * If false, the banner stays visible, and the listener must
+     * manually call {@link #animateDismiss(Runnable)} to remove it.
+     */
+    @RequiresApi(Build.VERSION_CODES.S)
+    @NonNull
+    public BannerMessagePreference setDismissButtonOnClickListener(
+            @Nullable View.OnClickListener listener, boolean autoCollapse) {
+        if (listener != mDismissButtonInfo.mUserCallback) {
+            mDismissButtonInfo.mUserCallback = listener;
+
+            if (listener != null) {
+                mDismissButtonInfo.mListener = v -> {
+                    v.setEnabled(false);
+                    if (autoCollapse) {
+                        animateDismiss(() -> listener.onClick(v));
+                    } else {
+                        listener.onClick(v);
+                    }
+                };
+            } else {
+                mDismissButtonInfo.mListener = null;
+            }
             notifyChanged();
         }
         return this;
@@ -638,6 +827,7 @@ public class BannerMessagePreference extends Preference implements GroupSectionD
     static class DismissButtonInfo {
         @Nullable private ImageButton mButton;
         @Nullable private View.OnClickListener mListener;
+        @Nullable private View.OnClickListener mUserCallback;
         private boolean mIsVisible = true;
 
         void setUpButton() {

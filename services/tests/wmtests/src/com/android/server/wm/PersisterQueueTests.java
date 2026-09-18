@@ -32,6 +32,7 @@ import androidx.test.filters.MediumTest;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,6 +60,8 @@ public class PersisterQueueTests {
 
     @Before
     public void setUp() throws Exception {
+        MockitoAnnotations.openMocks(this).close();
+
         mListener = new TestPersisterQueueListener();
         mListener.setExpectedOnPreProcessItemCallbackTimes(1);
         mTarget.addListener(mListener);
@@ -315,6 +318,91 @@ public class PersisterQueueTests {
                 + processTime).that(processTime).isLessThan(TIMEOUT_ALLOWANCE);
     }
 
+    @Test
+    public void testFlushNoWait_processesItemsWithoutDelayAndReturnsImmediately() throws Exception {
+        // Expect two items to be processed after flush. This must be set before creating the items
+        // so they capture the correct latch instance.
+        mFactory.setExpectedProcessedItemNumber(2);
+
+        // Add two items to the queue without flushing. They should be scheduled with a delay.
+        mTarget.addItem(mFactory.createItem(), false);
+        mTarget.addItem(mFactory.createItem(), false);
+
+        final long dispatchTime = SystemClock.uptimeMillis();
+        mTarget.flushNoWait();
+        final long returnTime = SystemClock.uptimeMillis();
+
+        // Verify that flushNoWait() returns immediately, without waiting for items to be processed.
+        assertWithMessage("flushNoWait() should return immediately.")
+                .that(returnTime - dispatchTime).isLessThan(TIMEOUT_ALLOWANCE);
+
+        // Wait for the items to be processed.
+        assertTrue("Target didn't process items after flushNoWait.",
+                mFactory.waitForAllExpectedItemsProcessed(TIMEOUT_ALLOWANCE));
+
+        // Verify that both items were processed.
+        assertEquals("flushNoWait should process all items in the queue.",
+                2, mFactory.getTotalProcessedItemCount());
+
+        final long processDuration = SystemClock.uptimeMillis() - dispatchTime;
+        // Verify that items were processed without the initial pre-task delay.
+        assertWithMessage("flushNoWait should trigger immediate processing. processDuration: "
+                + processDuration).that(processDuration).isLessThan(PRE_TASK_DELAY_MS);
+    }
+
+    @Test
+    public void testShutdownFlushes() throws Exception {
+        mFactory.setExpectedProcessedItemNumber(1);
+        mListener.setExpectedOnPreProcessItemCallbackTimes(1);
+
+        final long dispatchTime = SystemClock.uptimeMillis();
+        mTarget.addItem(mFactory.createItem(), false);
+
+        mTarget.onSystemShutdown();
+
+        assertTrue("Target didn't process item enough times.",
+                mFactory.waitForAllExpectedItemsProcessed(TIMEOUT_ALLOWANCE));
+        assertEquals("Target didn't process item.", 1, mFactory.getTotalProcessedItemCount());
+        final long processDuration = SystemClock.uptimeMillis() - dispatchTime;
+        assertTrue("Target didn't process item immediately when flushing. duration: "
+                        + processDuration + "ms pretask delay: "
+                        + PRE_TASK_DELAY_MS + "ms",
+                processDuration < PRE_TASK_DELAY_MS);
+
+        assertTrue("Target didn't call callback enough times.",
+                mListener.waitForAllExpectedCallbackDone(TIMEOUT_ALLOWANCE));
+        // Once before processing this item, once after that.
+        assertEquals(2, mListener.mProbablyDoneResults.size());
+        // The last one must be called with probably done being true.
+        assertTrue("The last probablyDone must be true.", mListener.mProbablyDoneResults.get(1));
+    }
+
+    @Test
+    public void testAlwaysFlushAfterShutdown() throws Exception {
+        mTarget.onSystemShutdown();
+
+        mFactory.setExpectedProcessedItemNumber(1);
+        mListener.setExpectedOnPreProcessItemCallbackTimes(1);
+
+        final long dispatchTime = SystemClock.uptimeMillis();
+        mTarget.addItem(mFactory.createItem(), false);
+        assertTrue("Target didn't process item enough times.",
+                mFactory.waitForAllExpectedItemsProcessed(TIMEOUT_ALLOWANCE));
+        assertEquals("Target didn't process item.", 1, mFactory.getTotalProcessedItemCount());
+        final long processDuration = SystemClock.uptimeMillis() - dispatchTime;
+        assertTrue("Target didn't process item immediately after shutdown. duration: "
+                        + processDuration + "ms pretask delay: "
+                        + PRE_TASK_DELAY_MS + "ms",
+                processDuration < PRE_TASK_DELAY_MS);
+
+        assertTrue("Target didn't call callback enough times.",
+                mListener.waitForAllExpectedCallbackDone(TIMEOUT_ALLOWANCE));
+        // Once before processing this item, once after that.
+        assertEquals(2, mListener.mProbablyDoneResults.size());
+        // The last one must be called with probably done being true.
+        assertTrue("The last probablyDone must be true.", mListener.mProbablyDoneResults.get(1));
+    }
+
     private static class TestWriteQueueItemFactory {
         private final AtomicInteger mItemCount = new AtomicInteger(0);;
         private CountDownLatch mLatch;
@@ -393,7 +481,7 @@ public class PersisterQueueTests {
         }
     }
 
-    private class TestPersisterQueueListener implements PersisterQueue.Listener {
+    private static class TestPersisterQueueListener implements PersisterQueue.Listener {
         CountDownLatch mCallbackLatch;
         final List<Boolean> mProbablyDoneResults = new ArrayList<>();
 

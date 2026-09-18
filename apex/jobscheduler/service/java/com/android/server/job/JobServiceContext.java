@@ -17,6 +17,26 @@
 package com.android.server.job;
 
 import static android.app.job.JobParameters.OVERRIDE_HANDLE_ABANDONED_JOBS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.BACK_OFF_POLICY_TYPE;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.DEADLINE_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.DELAY_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.EFFECTIVE_PRIORITY;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.INTERNAL_STOP_REASON;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.JOB_ID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.JOB_START_LATENCY_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.JOB_STATE_FLAGS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.NUM_PREVIOUS_ATTEMPTS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.NUM_RESCHEDULES_DUE_TO_ABANDONMENT;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.NUM_UNCOMPLETED_WORK_ITEMS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PERIODIC_JOB_FLEX_INTERVAL_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PERIODIC_JOB_INTERVAL_MS;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PROC_STATE;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PROXY_UID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.PUBLIC_STOP_REASON;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.REQUESTED_PRIORITY;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.SOURCE_UID;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.STANDBY_BUCKET;
+import static android.internal.perfetto.protos.AndroidTrackEventOuterClass.AndroidJobSchedulerJob.STATE;
 
 import static com.android.server.job.JobConcurrencyManager.WORK_TYPE_NONE;
 import static com.android.server.job.JobSchedulerService.sElapsedRealtimeClock;
@@ -27,6 +47,7 @@ import android.annotation.BytesLong;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
+import android.app.ActivityManager.ProcessState;
 import android.app.ActivityManagerInternal;
 import android.app.Notification;
 import android.app.compat.CompatChanges;
@@ -100,9 +121,10 @@ public final class JobServiceContext implements ServiceConnection {
     /**
      * Whether to trigger an ANR when apps are slow to respond on pre-UDC APIs and functionality.
      */
+    @VisibleForTesting
     @ChangeId
     @EnabledAfter(targetSdkVersion = Build.VERSION_CODES.TIRAMISU)
-    private static final long ANR_PRE_UDC_APIS_ON_SLOW_RESPONSES = 258236856L;
+    static final long ANR_PRE_UDC_APIS_ON_SLOW_RESPONSES = 258236856L;
 
     private static final String TAG = "JobServiceContext";
     /** Amount of time the JobScheduler waits for the initial service launch+bind. */
@@ -154,6 +176,7 @@ public final class JobServiceContext implements ServiceConnection {
     private final JobConcurrencyManager mJobConcurrencyManager;
     private final JobNotificationCoordinator mNotificationCoordinator;
     private final JobSchedulerService mService;
+    private final JobPerfettoTracer mPerfettoTracer;
     /** Used for service binding, etc. */
     private final Context mContext;
     private final Object mLock;
@@ -320,10 +343,6 @@ public final class JobServiceContext implements ServiceConnection {
         }
     }
 
-    // All instances of JobAnrTimer share the same arguments.
-    private static final AnrTimer.Args sAnrTimerArgs =
-            new AnrTimer.Args().enable(com.android.server.utils.Flags.anrTimerForJobService());
-
     /**
      * An AnrTimer for the JobServiceContext.  There is one instance for each JobServiceContext
      * (these objects are not large).  For convenience, simple no-argument methods are provided
@@ -331,7 +350,7 @@ public final class JobServiceContext implements ServiceConnection {
      */
     private class JobAnrTimer extends AnrTimer<JobCallback> {
         JobAnrTimer() {
-            super(mCallbackHandler, MSG_TIMEOUT, "JobScheduler", sAnrTimerArgs);
+            super(mCallbackHandler, MSG_TIMEOUT, "JobScheduler");
         }
 
         public void start(long timeout) {
@@ -357,9 +376,19 @@ public final class JobServiceContext implements ServiceConnection {
     JobServiceContext(JobSchedulerService service, JobConcurrencyManager concurrencyManager,
             JobNotificationCoordinator notificationCoordinator,
             IBatteryStats batteryStats, JobPackageTracker tracker, Looper looper) {
+        this(service, concurrencyManager, notificationCoordinator, batteryStats, tracker, looper,
+                service.getPerfettoTracer());
+    }
+
+    @VisibleForTesting
+    JobServiceContext(JobSchedulerService service, JobConcurrencyManager concurrencyManager,
+            JobNotificationCoordinator notificationCoordinator,
+            IBatteryStats batteryStats, JobPackageTracker tracker, Looper looper,
+            JobPerfettoTracer tracer) {
         mContext = service.getContext();
         mLock = service.getLock();
         mService = service;
+        mPerfettoTracer = tracer;
         mActivityManagerInternal = LocalServices.getService(ActivityManagerInternal.class);
         mBatteryStats = batteryStats;
         mJobPackageTracker = tracker;
@@ -518,7 +547,7 @@ public final class JobServiceContext implements ServiceConnection {
             mInitialDownloadedBytesFromCalling = TrafficStats.getUidRxBytes(job.getUid());
             mInitialUploadedBytesFromCalling = TrafficStats.getUidTxBytes(job.getUid());
 
-            int procState = mService.getUidProcState(job.getUid());
+            @ProcessState int procState = mService.getUidProcState(job.getUid());
             if (procState > ActivityManager.PROCESS_STATE_TRANSIENT_BACKGROUND) {
                 // Try to get the latest proc state from AMS, there might be some delay
                 // for the proc states worse than TRANSIENT_BACKGROUND.
@@ -590,6 +619,7 @@ public final class JobServiceContext implements ServiceConnection {
                     mService.shouldUseAggressiveBackoff(
                             job.getNumAbandonedFailures(), job.getSourceUid()));
             sEnqueuedJwiAtJobStart.logSampleWithUid(job.getUid(), job.getWorkCount());
+            traceJobStarted(job, procState);
             final String sourcePackage = job.getSourcePackageName();
             if (Trace.isTagEnabled(Trace.TRACE_TAG_SYSTEM_SERVER)) {
                 // Use the context's ID to distinguish traces since there'll only be one job
@@ -1012,12 +1042,12 @@ public final class JobServiceContext implements ServiceConnection {
                 if (mTransferredDownloadBytes < downloadBytes) {
                     Counter.logIncrementWithUid(
                             "job_scheduler."
-                                    + "value_cntr_w_uid_transferred_network_download_bytes_increased",
+                                + "value_cntr_w_uid_transferred_network_download_bytes_increased",
                             mRunningJob.getUid());
                 } else if (mTransferredDownloadBytes > downloadBytes) {
                     Counter.logIncrementWithUid(
                             "job_scheduler."
-                                    + "value_cntr_w_uid_transferred_network_download_bytes_decreased",
+                                + "value_cntr_w_uid_transferred_network_download_bytes_decreased",
                             mRunningJob.getUid());
                 }
             }
@@ -1609,6 +1639,11 @@ public final class JobServiceContext implements ServiceConnection {
                     debugReason);
         }
         if (triggerAnr) {
+            if (Flags.includeJobNameInAnrMessage()) {
+                final String jobName = mRunningJob != null
+                        ? mRunningJob.getBatteryName() : "<null>";
+                anrMessage = anrMessage + " for " + jobName;
+            }
             final TimeoutRecord tr = TimeoutRecord.forJobService(anrMessage);
             mAnrTimer.accept(tr);
             mActivityManagerInternal.appNotResponding(
@@ -1671,7 +1706,7 @@ public final class JobServiceContext implements ServiceConnection {
         mJobPackageTracker.noteInactive(completedJob,
                 loggingInternalStopReason, loggingDebugReason);
         final int sourceUid = completedJob.getSourceUid();
-        int procState = mService.getUidProcState(completedJob.getUid());
+        @ProcessState int procState = mService.getUidProcState(completedJob.getUid());
         if (procState > ActivityManager.PROCESS_STATE_TRANSIENT_BACKGROUND) {
             // Try to get the latest proc state from AMS, there might be some delay
             // for the proc states worse than TRANSIENT_BACKGROUND.
@@ -1746,6 +1781,7 @@ public final class JobServiceContext implements ServiceConnection {
                 completedJob.getJob().getBackoffPolicy() + 1,
                 mService.shouldUseAggressiveBackoff(
                         completedJob.getNumAbandonedFailures(), completedJob.getSourceUid()));
+        traceJobFinished(completedJob, procState, loggingInternalStopReason, loggingStopReason);
         if (Trace.isTagEnabled(Trace.TRACE_TAG_SYSTEM_SERVER)) {
             Trace.asyncTraceForTrackEnd(Trace.TRACE_TAG_SYSTEM_SERVER,
                     JobSchedulerService.TRACE_TRACK_NAME, getId());
@@ -1789,16 +1825,61 @@ public final class JobServiceContext implements ServiceConnection {
         if (completedJob.isUserVisibleJob()) {
             mService.informObserversOfUserVisibleJobChange(this, completedJob, false);
         }
+        mJobConcurrencyManager.onJobCompletedLocked(this, completedJob, workType);
+        mCompletedListener.onJobCompletedLocked(completedJob,
+                reschedulingStopReason, reschedulingInternalStopReason, reschedule);
+    }
 
-        if (Flags.fixReportingActiveJobs()) {
-            mJobConcurrencyManager.onJobCompletedLocked(this, completedJob, workType);
-            mCompletedListener.onJobCompletedLocked(completedJob,
-                    reschedulingStopReason, reschedulingInternalStopReason, reschedule);
-        } else {
-            mCompletedListener.onJobCompletedLocked(completedJob,
-                    reschedulingStopReason, reschedulingInternalStopReason, reschedule);
-            mJobConcurrencyManager.onJobCompletedLocked(this, completedJob, workType);
+    private void traceJobStarted(JobStatus job, @ProcessState int procState) {
+        if (!mPerfettoTracer.isTraceEnabled()) {
+            return;
         }
+
+        final int startedState = FrameworkStatsLog.SCHEDULED_JOB_STATE_CHANGED__STATE__STARTED;
+        JobPerfettoTracer tracer = mPerfettoTracer.startEvent(job.getBatteryName())
+                .addField(STATE, startedState);
+
+        addCommonTraceFields(tracer, job, procState)
+            .addField(INTERNAL_STOP_REASON, JobProtoEnums.INTERNAL_STOP_REASON_UNKNOWN)
+            .addField(PUBLIC_STOP_REASON, JobProtoEnums.STOP_REASON_UNDEFINED)
+            .emit();
+    }
+
+    private void traceJobFinished(JobStatus completedJob, @ProcessState int procState,
+            int loggingInternalStopReason, int loggingStopReason) {
+        if (!mPerfettoTracer.isTraceEnabled()) {
+            return;
+        }
+        final int finishedState = FrameworkStatsLog.SCHEDULED_JOB_STATE_CHANGED__STATE__FINISHED;
+
+        JobPerfettoTracer tracer = mPerfettoTracer.startEvent(completedJob.getBatteryName())
+                .addField(STATE, finishedState);
+
+        addCommonTraceFields(tracer, completedJob, procState)
+                .addField(INTERNAL_STOP_REASON, loggingInternalStopReason)
+                .addField(PUBLIC_STOP_REASON, loggingStopReason)
+                .emit();
+    }
+
+    private JobPerfettoTracer addCommonTraceFields(JobPerfettoTracer tracer, JobStatus job,
+            @ProcessState int procState) {
+        return tracer.addField(JOB_ID, job.getLoggingJobId())
+                .addField(SOURCE_UID, job.getSourceUid())
+                .addField(PROXY_UID, job.isProxyJob() ? job.getUid() : -1)
+                .addField(STANDBY_BUCKET, job.getStandbyBucket())
+                .addField(REQUESTED_PRIORITY, job.getJob().getPriority())
+                .addField(EFFECTIVE_PRIORITY, job.getEffectivePriority())
+                .addField(NUM_PREVIOUS_ATTEMPTS, job.getNumPreviousAttempts())
+                .addField(DEADLINE_MS, job.getJob().getMaxExecutionDelayMillis())
+                .addField(DELAY_MS, job.getJob().getMinLatencyMillis())
+                .addField(JOB_START_LATENCY_MS, getExecutionStartTimeElapsed() - job.enqueueTime)
+                .addField(NUM_UNCOMPLETED_WORK_ITEMS, job.getWorkCount())
+                .addField(PROC_STATE, ActivityManager.processStateAmToProto(procState))
+                .addField(PERIODIC_JOB_INTERVAL_MS, job.getJob().getIntervalMillis())
+                .addField(PERIODIC_JOB_FLEX_INTERVAL_MS, job.getJob().getFlexMillis())
+                .addField(NUM_RESCHEDULES_DUE_TO_ABANDONMENT, job.getNumAbandonedFailures())
+                .addField(BACK_OFF_POLICY_TYPE, job.getJob().getBackoffPolicy() + 1)
+                .addField(JOB_STATE_FLAGS, JobStatus.packStatesToBits(job));
     }
 
     private void applyStoppedReasonLocked(@Nullable String reason) {

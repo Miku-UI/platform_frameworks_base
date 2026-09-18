@@ -35,11 +35,15 @@ class UninstallViewModel(application: Application, val repository: UninstallRepo
     val currentUninstallStage: MutableLiveData<UninstallStage>
         get() = _currentUninstallStage
 
+    var isPreprocessed: Boolean = false
+        private set
+
     fun preprocessIntent(intent: Intent, callerInfo: UninstallRepository.CallerInfo) {
         var stage = repository.performPreUninstallChecks(intent, callerInfo)
         if (stage.stageCode != UninstallStage.STAGE_ABORTED) {
             stage = repository.generateUninstallDetails()
         }
+        isPreprocessed = true
         _currentUninstallStage.value = stage
     }
 

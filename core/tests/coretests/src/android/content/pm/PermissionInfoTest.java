@@ -16,6 +16,7 @@
 
 package android.content.pm;
 
+import static android.content.pm.PermissionInfo.NO_TARGET_SDK_VERSION;
 import static android.os.Build.VERSION.SDK_INT;
 
 import static org.junit.Assert.assertEquals;
@@ -43,6 +44,7 @@ public final class PermissionInfoTest {
             "9369370ffcfdc1e92dae777252c05c483b8cbb55fa9d5fd9f6317f623ae6d8c6";
     private static final String PURPOSE_1 = "purpose1";
     private static final String PURPOSE_2 = "purpose2";
+    private static final int TEST_TARGET_SDK_VERSION = 37;
 
     @Test
     public void createFromParcel_returnsKnownCerts() {
@@ -77,16 +79,27 @@ public final class PermissionInfoTest {
         parcel.setDataPosition(0);
         PermissionInfo unparceledPermissionInfo = PermissionInfo.CREATOR.createFromParcel(parcel);
 
-        assertFalse(unparceledPermissionInfo.requiresPurpose);
+        assertEquals(
+                NO_TARGET_SDK_VERSION,
+                unparceledPermissionInfo.requiresPurposeTargetSdkVersion);
+        assertEquals(
+                NO_TARGET_SDK_VERSION,
+                unparceledPermissionInfo.requiresGeneralPurposeTargetSdkVersion);
+        assertEquals(
+                NO_TARGET_SDK_VERSION,
+                unparceledPermissionInfo.requiresPurposeStringTargetSdkVersion);
         assertNotNull(unparceledPermissionInfo.validPurposes);
+        assertNotNull(unparceledPermissionInfo.validGeneralPurposes);
         assertTrue(unparceledPermissionInfo.validPurposes.isEmpty());
+        assertTrue(unparceledPermissionInfo.validGeneralPurposes.isEmpty());
     }
 
     @Test
     public void createFromParcel_withCustomPermissionInfo_returnsValidPurposes() {
         PermissionInfo permissionInfo = new PermissionInfo();
-        permissionInfo.requiresPurpose = true;
         permissionInfo.requiresPurposeTargetSdkVersion = SDK_INT;
+        permissionInfo.requiresGeneralPurposeTargetSdkVersion = SDK_INT;
+        permissionInfo.requiresPurposeStringTargetSdkVersion = SDK_INT;
         permissionInfo.validPurposes =
                 CollectionUtils.add(
                         permissionInfo.validPurposes,
@@ -97,6 +110,16 @@ public final class PermissionInfoTest {
                         permissionInfo.validPurposes,
                         PURPOSE_2,
                         new ValidPurposeInfo(PURPOSE_2, 10));
+        permissionInfo.validGeneralPurposes =
+                CollectionUtils.add(
+                        permissionInfo.validGeneralPurposes,
+                        PURPOSE_1,
+                        new ValidGeneralPurposeInfo(PURPOSE_1, Integer.MAX_VALUE));
+        permissionInfo.validGeneralPurposes =
+                CollectionUtils.add(
+                        permissionInfo.validGeneralPurposes,
+                        PURPOSE_2,
+                        new ValidGeneralPurposeInfo(PURPOSE_2, 10));
 
         Parcel parcel = Parcel.obtain();
         permissionInfo.writeToParcel(parcel, 0);
@@ -104,10 +127,13 @@ public final class PermissionInfoTest {
         parcel.setDataPosition(0);
         PermissionInfo unparceledPermissionInfo = PermissionInfo.CREATOR.createFromParcel(parcel);
 
-        assertTrue(unparceledPermissionInfo.requiresPurpose);
         assertEquals(SDK_INT, unparceledPermissionInfo.requiresPurposeTargetSdkVersion);
+        assertEquals(SDK_INT, unparceledPermissionInfo.requiresGeneralPurposeTargetSdkVersion);
+        assertEquals(SDK_INT, unparceledPermissionInfo.requiresPurposeStringTargetSdkVersion);
         assertNotNull(unparceledPermissionInfo.validPurposes);
         assertEquals(2, unparceledPermissionInfo.validPurposes.size());
+        assertNotNull(unparceledPermissionInfo.validGeneralPurposes);
+        assertEquals(2, unparceledPermissionInfo.validGeneralPurposes.size());
 
         assertTrue(unparceledPermissionInfo.validPurposes.containsKey(PURPOSE_1));
         assertEquals(PURPOSE_1, unparceledPermissionInfo.validPurposes.get(PURPOSE_1).getName());
@@ -119,5 +145,141 @@ public final class PermissionInfoTest {
         assertEquals(PURPOSE_2, unparceledPermissionInfo.validPurposes.get(PURPOSE_2).getName());
         assertEquals(
                 10, unparceledPermissionInfo.validPurposes.get(PURPOSE_2).getMaxTargetSdkVersion());
+
+        assertTrue(unparceledPermissionInfo.validGeneralPurposes.containsKey(PURPOSE_1));
+        assertEquals(
+                PURPOSE_1, unparceledPermissionInfo.validGeneralPurposes.get(PURPOSE_1).getName());
+        assertEquals(
+                Integer.MAX_VALUE,
+                unparceledPermissionInfo
+                        .validGeneralPurposes
+                        .get(PURPOSE_1)
+                        .getMaxTargetSdkVersion());
+
+        assertTrue(unparceledPermissionInfo.validGeneralPurposes.containsKey(PURPOSE_2));
+        assertEquals(
+                PURPOSE_2, unparceledPermissionInfo.validGeneralPurposes.get(PURPOSE_2).getName());
+        assertEquals(
+                10,
+                unparceledPermissionInfo
+                        .validGeneralPurposes
+                        .get(PURPOSE_2)
+                        .getMaxTargetSdkVersion());
+    }
+
+    @Test
+    public void createFromParcel_withDefaultPurposeTargetSdkVersions_returnsNoTargetSdkVersion() {
+        PermissionInfo permissionInfo = new PermissionInfo();
+        Parcel parcel = Parcel.obtain();
+        permissionInfo.writeToParcel(parcel, 0);
+
+        parcel.setDataPosition(0);
+        PermissionInfo unparceledPermissionInfo = PermissionInfo.CREATOR.createFromParcel(parcel);
+
+        assertEquals(
+                NO_TARGET_SDK_VERSION,
+                unparceledPermissionInfo.requiresGeneralPurposeTargetSdkVersion);
+    }
+
+    @Test
+    public void createFromParcel_returnsPurposeRelatedFields() {
+        PermissionInfo permissionInfo = new PermissionInfo();
+        permissionInfo.requiresGeneralPurposeTargetSdkVersion = TEST_TARGET_SDK_VERSION;
+        permissionInfo.requiresPurposeStringTargetSdkVersion = TEST_TARGET_SDK_VERSION;
+        Parcel parcel = Parcel.obtain();
+        permissionInfo.writeToParcel(parcel, 0);
+
+        parcel.setDataPosition(0);
+        PermissionInfo unparceledPermissionInfo = PermissionInfo.CREATOR.createFromParcel(parcel);
+
+        assertEquals(
+                TEST_TARGET_SDK_VERSION,
+                unparceledPermissionInfo.requiresGeneralPurposeTargetSdkVersion);
+        assertEquals(
+                TEST_TARGET_SDK_VERSION,
+                unparceledPermissionInfo.requiresPurposeStringTargetSdkVersion);
+    }
+
+    @Test
+    public void isAllowedInPrivateComputeCore_whenFlagIsSet_returnsTrue() {
+        PermissionInfo permissionInfo = new PermissionInfo();
+
+        // Case 1: Flag is set by itself.
+        permissionInfo.flags = PermissionInfo.FLAG_ALLOWED_IN_PRIVATE_COMPUTE_CORE;
+        assertTrue("Should be true when the flag is set",
+                permissionInfo.isAllowedInPrivateComputeCore());
+
+        // Case 2: Flag is set along with other flags.
+        permissionInfo.flags |= PermissionInfo.FLAG_COSTS_MONEY | PermissionInfo.FLAG_INSTALLED;
+        assertTrue("Should be true when the flag is set with others",
+                permissionInfo.isAllowedInPrivateComputeCore());
+    }
+
+    @Test
+    public void isAllowedInPrivateComputeCore_whenFlagIsNotSet_returnsFalse() {
+        PermissionInfo permissionInfo = new PermissionInfo();
+
+        // Case 1: Flag is not set.
+        permissionInfo.flags = 0;
+        assertFalse("Should be false when no flags are set",
+                permissionInfo.isAllowedInPrivateComputeCore());
+
+        // Case 2: Other flags are set, but not the target flag.
+        permissionInfo.flags = PermissionInfo.FLAG_COSTS_MONEY | PermissionInfo.FLAG_INSTALLED;
+        assertFalse("Should be false when other flags are set",
+                permissionInfo.isAllowedInPrivateComputeCore());
+    }
+
+    @Test
+    public void flagsToString_withAllowedInPrivateComputeCore_containsCorrectString() {
+        // Verifies that flagsToString includes "allowedInPrivateComputeCore" when the flag is set.
+        int flags = PermissionInfo.FLAG_ALLOWED_IN_PRIVATE_COMPUTE_CORE;
+        String result1 = PermissionInfo.flagsToString(flags);
+        assertTrue("String representation should contain 'allowedInPrivateComputeCore'",
+                result1.contains("allowedInPrivateComputeCore"));
+
+        // Verify with multiple flags.
+        flags |= PermissionInfo.FLAG_COSTS_MONEY;
+        String result2 = PermissionInfo.flagsToString(flags);
+        assertTrue("String representation should contain 'allowedInPrivateComputeCore'",
+                result2.contains("allowedInPrivateComputeCore"));
+        assertTrue("String representation should contain 'costsMoney'",
+                result2.contains("costsMoney"));
+    }
+
+    @Test
+    public void parceling_whenAllowedInPrivateComputeCoreFlagSet_preservesFlag() {
+        // Verifies that FLAG_ALLOWED_IN_PRIVATE_COMPUTE_CORE is preserved after parceling.
+        PermissionInfo originalInfo = new PermissionInfo();
+        originalInfo.flags = PermissionInfo.FLAG_ALLOWED_IN_PRIVATE_COMPUTE_CORE
+                | PermissionInfo.FLAG_COSTS_MONEY;
+
+        PermissionInfo unparceledInfo = parcelAndUnparcel(originalInfo);
+
+        assertTrue(unparceledInfo.isAllowedInPrivateComputeCore());
+        assertEquals(originalInfo.flags, unparceledInfo.flags);
+    }
+
+    @Test
+    public void parceling_whenAllowedInPrivateComputeCoreFlagNotSet_preservesFlag() {
+        // Verifies that the absence of FLAG_ALLOWED_IN_PRIVATE_COMPUTE_CORE is preserved.
+        PermissionInfo originalInfo = new PermissionInfo();
+        originalInfo.flags = PermissionInfo.FLAG_COSTS_MONEY;
+
+        PermissionInfo unparceledInfo = parcelAndUnparcel(originalInfo);
+
+        assertFalse(unparceledInfo.isAllowedInPrivateComputeCore());
+        assertEquals(originalInfo.flags, unparceledInfo.flags);
+    }
+
+    private PermissionInfo parcelAndUnparcel(PermissionInfo originalInfo) {
+        Parcel parcel = Parcel.obtain();
+        try {
+            originalInfo.writeToParcel(parcel, 0);
+            parcel.setDataPosition(0);
+            return PermissionInfo.CREATOR.createFromParcel(parcel);
+        } finally {
+            parcel.recycle();
+        }
     }
 }

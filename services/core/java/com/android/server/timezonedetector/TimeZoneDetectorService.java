@@ -64,8 +64,8 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
     static final boolean DBG = false;
 
     /**
-     * Handles the service lifecycle for {@link TimeZoneDetectorService} and
-     * {@link TimeZoneDetectorInternalImpl}.
+     * Handles the service lifecycle for {@link TimeZoneDetectorService} and {@link
+     * TimeZoneDetectorInternalImpl}.
      */
     public static final class Lifecycle extends SystemService {
 
@@ -105,15 +105,20 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
             // Create and publish the local service for use by internal callers.
             CurrentUserIdentityInjector currentUserIdentityInjector =
                     CurrentUserIdentityInjector.REAL;
-            TimeZoneDetectorInternal internal = new TimeZoneDetectorInternalImpl(
-                    context, handler, currentUserIdentityInjector, timeZoneDetectorStrategy);
+            TimeZoneDetectorInternal internal =
+                    new TimeZoneDetectorInternalImpl(
+                            context,
+                            handler,
+                            currentUserIdentityInjector,
+                            timeZoneDetectorStrategy);
             publishLocalService(TimeZoneDetectorInternal.class, internal);
 
             // Publish the binder service so it can be accessed from other (appropriately
             // permissioned) processes.
             CallerIdentityInjector callerIdentityInjector = CallerIdentityInjector.REAL;
-            TimeZoneDetectorService service = new TimeZoneDetectorService(
-                    context, handler, callerIdentityInjector, timeZoneDetectorStrategy);
+            TimeZoneDetectorService service =
+                    new TimeZoneDetectorService(
+                            context, handler, callerIdentityInjector, timeZoneDetectorStrategy);
 
             // Dump the device activity monitor when the service is dumped.
             service.addDumpable(deviceActivityMonitor);
@@ -122,17 +127,13 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
         }
     }
 
-    @NonNull
-    private final Context mContext;
+    @NonNull private final Context mContext;
 
-    @NonNull
-    private final Handler mHandler;
+    @NonNull private final Handler mHandler;
 
-    @NonNull
-    private final CallerIdentityInjector mCallerIdentityInjector;
+    @NonNull private final CallerIdentityInjector mCallerIdentityInjector;
 
-    @NonNull
-    private final TimeZoneDetectorStrategy mTimeZoneDetectorStrategy;
+    @NonNull private final TimeZoneDetectorStrategy mTimeZoneDetectorStrategy;
 
     /**
      * Holds the listeners. The key is the {@link IBinder} associated with the listener, the value
@@ -143,14 +144,16 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
     private final ArrayMap<IBinder, ITimeZoneDetectorListener> mListeners = new ArrayMap<>();
 
     /**
-     * References to components that should be dumped when {@link
-     * #dump(FileDescriptor, PrintWriter, String[])} is called on the service.
+     * References to components that should be dumped when {@link #dump(FileDescriptor, PrintWriter,
+     * String[])} is called on the service.
      */
     @GuardedBy("mDumpables")
     private final List<Dumpable> mDumpables = new ArrayList<>();
 
     @VisibleForTesting
-    public TimeZoneDetectorService(@NonNull Context context, @NonNull Handler handler,
+    public TimeZoneDetectorService(
+            @NonNull Context context,
+            @NonNull Handler handler,
             @NonNull CallerIdentityInjector callerIdentityInjector,
             @NonNull TimeZoneDetectorStrategy timeZoneDetectorStrategy) {
         mContext = Objects.requireNonNull(context);
@@ -249,9 +252,13 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
                 removedListener = true;
             }
             if (!removedListener) {
-                Slog.w(TAG, "Client asked to remove listener=" + listener
-                        + ", but no listeners were removed."
-                        + " mListeners=" + mListeners);
+                Slog.w(
+                        TAG,
+                        "Client asked to remove listener="
+                                + listener
+                                + ", but no listeners were removed."
+                                + " mListeners="
+                                + mListeners);
             }
         }
     }
@@ -263,8 +270,8 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
     }
 
     /**
-     * Called when one of the ITimeZoneDetectorListener processes dies before calling
-     * {@link #removeListener(ITimeZoneDetectorListener)}.
+     * Called when one of the ITimeZoneDetectorListener processes dies before calling {@link
+     * #removeListener(ITimeZoneDetectorListener)}.
      */
     @Override
     public void binderDied(IBinder who) {
@@ -280,9 +287,13 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
                 }
             }
             if (!removedListener) {
-                Slog.w(TAG, "Notified of binder death for who=" + who
-                        + ", but did not remove any listeners."
-                        + " mListeners=" + mListeners);
+                Slog.w(
+                        TAG,
+                        "Notified of binder death for who="
+                                + who
+                                + ", but did not remove any listeners."
+                                + " mListeners="
+                                + mListeners);
             }
         }
     }
@@ -311,8 +322,9 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
         Objects.requireNonNull(locationAlgorithmEvent);
 
         mHandler.post(
-                () -> mTimeZoneDetectorStrategy.handleLocationAlgorithmEvent(
-                        locationAlgorithmEvent));
+                () ->
+                        mTimeZoneDetectorStrategy.handleLocationAlgorithmEvent(
+                                locationAlgorithmEvent));
     }
 
     @Override
@@ -405,8 +417,8 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
     }
 
     /**
-     * Sends a signal to enable telephony fallback. Provided for command-line access for use
-     * during tests. This is not exposed as a binder API.
+     * Sends a signal to enable telephony fallback. Provided for command-line access for use during
+     * tests. This is not exposed as a binder API.
      */
     void enableTelephonyFallback(@NonNull String reason) {
         enforceManageTimeZoneDetectorPermission();
@@ -414,8 +426,8 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
     }
 
     /**
-     * Registers the supplied {@link Dumpable} for dumping. When the service is dumped
-     * {@link Dumpable#dump(IndentingPrintWriter, String[])} will be called on the {@code dumpable}.
+     * Registers the supplied {@link Dumpable} for dumping. When the service is dumped {@link
+     * Dumpable#dump(IndentingPrintWriter, String[])} will be called on the {@code dumpable}.
      */
     void addDumpable(@NonNull Dumpable dumpable) {
         synchronized (mDumpables) {
@@ -431,8 +443,8 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
     }
 
     @Override
-    protected void dump(@NonNull FileDescriptor fd, @NonNull PrintWriter pw,
-            @Nullable String[] args) {
+    protected void dump(
+            @NonNull FileDescriptor fd, @NonNull PrintWriter pw, @Nullable String[] args) {
         if (!DumpUtils.checkDumpPermission(mContext, TAG, pw)) return;
 
         IndentingPrintWriter ipw = new IndentingPrintWriter(pw);
@@ -448,10 +460,15 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
     }
 
     @Override
-    public void onShellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
-            String[] args, ShellCallback callback, ResultReceiver resultReceiver) {
-        new TimeZoneDetectorShellCommand(this).exec(
-                this, in, out, err, args, callback, resultReceiver);
+    public void onShellCommand(
+            FileDescriptor in,
+            FileDescriptor out,
+            FileDescriptor err,
+            String[] args,
+            ShellCallback callback,
+            ResultReceiver resultReceiver) {
+        new TimeZoneDetectorShellCommand(this)
+                .exec(this, in, out, err, args, callback, resultReceiver);
     }
 
     private void enforceManageTimeZoneDetectorPermission() {
@@ -464,8 +481,7 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
         // The associated method is only used for the shell command interface, it's not possible to
         // call it via Binder, and Shell currently can set the time zone directly anyway.
         mContext.enforceCallingPermission(
-                android.Manifest.permission.SET_TIME_ZONE,
-                "suggest geolocation time zone");
+                android.Manifest.permission.SET_TIME_ZONE, "suggest geolocation time zone");
     }
 
     private void enforceSuggestTelephonyTimeZonePermission() {
@@ -480,4 +496,3 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
                 "suggest manual time and time zone");
     }
 }
-

@@ -39,6 +39,7 @@ import android.content.res.CompatibilityInfo;
 import android.graphics.Rect;
 import android.graphics.Region;
 import android.hardware.display.DisplayManagerInternal;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.text.TextUtils;
@@ -57,10 +58,12 @@ import android.widget.Scroller;
 
 import com.android.internal.R;
 import com.android.internal.accessibility.common.MagnificationConstants;
+import com.android.internal.accessibility.util.AccessibilityUtils;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.function.pooled.PooledLambda;
 import com.android.server.LocalServices;
+import com.android.server.accessibility.AccessibilityLogUtil;
 import com.android.server.accessibility.AccessibilityManagerService;
 import com.android.server.accessibility.AccessibilityTraceManager;
 import com.android.server.accessibility.Flags;
@@ -70,6 +73,7 @@ import com.android.server.wm.WindowManagerInternal;
 import java.util.ArrayList;
 import java.util.Locale;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /**
@@ -85,10 +89,10 @@ import java.util.function.Supplier;
  */
 public class FullScreenMagnificationController implements
         WindowManagerInternal.AccessibilityControllerInternal.UiChangesForAccessibilityCallbacks {
-    private static final boolean DEBUG = false;
-    private static final String LOG_TAG = "FullScreenMagnificationController";
+    private static final String LOG_TAG = FullScreenMagnificationController.class.getSimpleName();
+    private static final boolean DEBUG = AccessibilityLogUtil.isDebugEnabled(LOG_TAG);
 
-    private static final boolean DEBUG_SET_MAGNIFICATION_SPEC = false;
+    private static final boolean DEBUG_SET_MAGNIFICATION_SPEC = false | DEBUG;
 
     private final Object mLock;
     private final Supplier<Scroller> mScrollerSupplier;
@@ -97,6 +101,7 @@ public class FullScreenMagnificationController implements
     private final ControllerContext mControllerCtx;
 
     private final ScreenStateObserver mScreenStateObserver;
+    private final FullScreenMagnificationActivationDebugger mDebugReceiver;
 
     @GuardedBy("mLock")
     private final ArrayList<MagnificationInfoChangedCallback>
@@ -115,6 +120,8 @@ public class FullScreenMagnificationController implements
     private boolean mMagnificationFollowTypingEnabled = true;
     // Whether the following keyboard focus feature for magnification is enabled.
     private boolean mMagnificationFollowKeyboardEnabled = false;
+    private final MagnificationSystemClock mSystemClock;
+    private final AtomicLong mLastCursorMovedViewportTime = new AtomicLong(0);
     // Whether the always on magnification feature is enabled.
     private boolean mAlwaysOnMagnificationEnabled = false;
     private final DisplayManagerInternal mDisplayManagerInternal;
@@ -654,9 +661,6 @@ public class FullScreenMagnificationController implements
 
         @GuardedBy("mLock")
         boolean imeRegionContains(float x, float y) {
-            if (!Flags.enableMagnificationMagnifyNavBarAndIme()) {
-                return false;
-            }
             // mImeRegion uses global unmagnified coordinates, so convert screen-relative
             // coordinates (x,y) to global unmagnified coordinates first.
             x = (x - mCurrentMagnificationSpec.offsetX) / mCurrentMagnificationSpec.scale;
@@ -1140,7 +1144,8 @@ public class FullScreenMagnificationController implements
                 backgroundExecutor,
                 () -> new Scroller(context),
                 TimeAnimator::new,
-                magnificationConnectionStateSupplier);
+                magnificationConnectionStateSupplier,
+                new MagnificationSystemClock());
     }
 
     /** Constructor for tests */
@@ -1155,6 +1160,32 @@ public class FullScreenMagnificationController implements
             Supplier<Scroller> scrollerSupplier,
             Supplier<TimeAnimator> timeAnimatorSupplier,
             @NonNull Supplier<Boolean> magnificationConnectionStateSupplier) {
+        this(
+                ctx,
+                lock,
+                magnificationInfoChangedCallback,
+                scaleProvider,
+                thumbnailSupplier,
+                backgroundExecutor,
+                scrollerSupplier,
+                timeAnimatorSupplier,
+                magnificationConnectionStateSupplier,
+                new MagnificationSystemClock());
+    }
+
+    /** Constructor for tests */
+    @VisibleForTesting
+    public FullScreenMagnificationController(
+            @NonNull ControllerContext ctx,
+            @NonNull Object lock,
+            @NonNull MagnificationInfoChangedCallback magnificationInfoChangedCallback,
+            @NonNull MagnificationScaleProvider scaleProvider,
+            Supplier<MagnificationThumbnail> thumbnailSupplier,
+            @NonNull Executor backgroundExecutor,
+            Supplier<Scroller> scrollerSupplier,
+            Supplier<TimeAnimator> timeAnimatorSupplier,
+            @NonNull Supplier<Boolean> magnificationConnectionStateSupplier,
+            MagnificationSystemClock systemClock) {
         mControllerCtx = ctx;
         mLock = lock;
         mScrollerSupplier = scrollerSupplier;
@@ -1181,6 +1212,14 @@ public class FullScreenMagnificationController implements
                 }
                 return null;
             };
+        }
+        mSystemClock = systemClock;
+
+        if (Build.IS_DEBUGGABLE) {
+            mDebugReceiver = new FullScreenMagnificationActivationDebugger(
+                    mControllerCtx.getContext(), this);
+        } else {
+            mDebugReceiver = null;
         }
     }
 
@@ -1223,6 +1262,9 @@ public class FullScreenMagnificationController implements
             if (display.register()) {
                 mDisplays.put(displayId, display);
                 mScreenStateObserver.registerIfNecessary();
+                if (mDebugReceiver != null) {
+                    mDebugReceiver.registerIfNecessary();
+                }
             }
         }
     }
@@ -1253,9 +1295,23 @@ public class FullScreenMagnificationController implements
         }
     }
 
+    /**
+     * Track when cursor movement has moved the magnification region.
+     */
+    public void onCursorMoveViewport() {
+        mLastCursorMovedViewportTime.set(mSystemClock.uptimeMillis());
+    }
+
     @Override
     public void onRectangleOnScreenRequested(int displayId, int left, int top, int right,
             int bottom, int source) {
+        // Ignore focus updates immediately after the cursor moved the viewport to prevent
+        // the magnified region from jumping around.
+        if (mSystemClock.uptimeMillis() - mLastCursorMovedViewportTime.get()
+                < AccessibilityUtils
+                .MAGNIFICATION_IGNORE_FOCUS_UPDATES_AFTER_CURSOR_MOVE_TIMEOUT_MS) {
+            return;
+        }
         synchronized (mLock) {
             if (!shouldFollow(source)) {
                 return;
@@ -1421,7 +1477,7 @@ public class FullScreenMagnificationController implements
 
     /**
      * Gets the full screen magnification data needed by
-     * {@link #FullScreenMagnificationPointerMotionEventFilter}.
+     * {@link FullScreenMagnificationPointerMotionEventFilter}.
      *
      * @param displayId The logical display id.
      * @param outMagnificationData The magnification data to populate.
@@ -2134,6 +2190,9 @@ public class FullScreenMagnificationController implements
         }
         if (!hasRegister) {
             mScreenStateObserver.unregister();
+            if (mDebugReceiver != null) {
+                mDebugReceiver.unregister();
+            }
         }
     }
 

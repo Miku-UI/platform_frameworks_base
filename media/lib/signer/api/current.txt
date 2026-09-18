@@ -1,4 +1,5 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package com.android.mediadrm.signer {
 
   public final class MediaDrmSigner {

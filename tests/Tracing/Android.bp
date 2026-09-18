@@ -19,7 +19,6 @@ android_test {
     static_libs: [
         "androidx.test.rules",
         "flickerlib-parsers",
-        "flickerlib-trace_processor_shell",
         "junit",
         "mockito-target-minus-junit4",
         "perfetto_trace_java_protos",

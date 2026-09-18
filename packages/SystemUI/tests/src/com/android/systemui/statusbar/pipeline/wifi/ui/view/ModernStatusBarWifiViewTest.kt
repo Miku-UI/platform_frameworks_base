@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.pipeline.wifi.ui.view
 
 import android.content.res.ColorStateList
 import android.content.res.Configuration
-import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.testing.TestableLooper
@@ -28,7 +27,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.res.R
@@ -37,13 +35,10 @@ import com.android.systemui.statusbar.StatusBarIconView.STATE_HIDDEN
 import com.android.systemui.statusbar.StatusBarIconView.STATE_ICON
 import com.android.systemui.statusbar.core.NewStatusBarIcons
 import com.android.systemui.statusbar.phone.StatusBarLocation
-import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
-import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
-import com.android.systemui.statusbar.pipeline.airplane.ui.viewmodel.AirplaneModeViewModel
-import com.android.systemui.statusbar.pipeline.airplane.ui.viewmodel.AirplaneModeViewModelImpl
-import com.android.systemui.statusbar.pipeline.mobile.data.repository.fakeMobileConnectionsRepository
 import com.android.systemui.statusbar.pipeline.shared.ConnectivityConstants
 import com.android.systemui.statusbar.pipeline.shared.data.repository.FakeConnectivityRepository
+import com.android.systemui.statusbar.pipeline.shared.data.repository.connectivityRepository
+import com.android.systemui.statusbar.pipeline.shared.data.repository.fake
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.FakeWifiRepository
 import com.android.systemui.statusbar.pipeline.wifi.domain.interactor.WifiInteractor
 import com.android.systemui.statusbar.pipeline.wifi.domain.interactor.WifiInteractorImpl
@@ -56,7 +51,6 @@ import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -74,13 +68,11 @@ class ModernStatusBarWifiViewTest : SysuiTestCase() {
     private val tableLogBuffer = logcatTableLogBuffer(kosmos, "ModernStatusBarWifiViewTest")
     @Mock private lateinit var connectivityConstants: ConnectivityConstants
     @Mock private lateinit var wifiConstants: WifiConstants
-    private lateinit var airplaneModeRepository: FakeAirplaneModeRepository
     private lateinit var connectivityRepository: FakeConnectivityRepository
     private lateinit var wifiRepository: FakeWifiRepository
     private lateinit var interactor: WifiInteractor
     private lateinit var viewModel: LocationBasedWifiViewModel
     private lateinit var scope: CoroutineScope
-    private lateinit var airplaneModeViewModel: AirplaneModeViewModel
 
     @Before
     fun setUp() {
@@ -89,26 +81,13 @@ class ModernStatusBarWifiViewTest : SysuiTestCase() {
         context.orCreateTestableResources
         testableLooper = TestableLooper.get(this)
 
-        airplaneModeRepository = FakeAirplaneModeRepository()
-        connectivityRepository = FakeConnectivityRepository()
+        connectivityRepository = kosmos.connectivityRepository.fake
         wifiRepository = FakeWifiRepository()
         wifiRepository.setIsWifiEnabled(true)
         scope = CoroutineScope(Dispatchers.Unconfined)
         interactor = WifiInteractorImpl(connectivityRepository, wifiRepository, scope)
-        airplaneModeViewModel =
-            AirplaneModeViewModelImpl(
-                AirplaneModeInteractor(
-                    airplaneModeRepository,
-                    connectivityRepository,
-                    kosmos.fakeMobileConnectionsRepository,
-                ),
-                tableLogBuffer,
-                scope,
-            )
         val viewModelCommon =
             WifiViewModel(
-                airplaneModeViewModel,
-                shouldShowSignalSpacerProvider = { MutableStateFlow(false) },
                 connectivityConstants,
                 context,
                 tableLogBuffer,
@@ -198,7 +177,7 @@ class ModernStatusBarWifiViewTest : SysuiTestCase() {
     @Test
     fun isIconVisible_notEnabled_outputsFalse() {
         wifiRepository.setIsWifiEnabled(false)
-        wifiRepository.setWifiNetwork(WifiNetworkModel.Active.of(isValidated = true, level = 2))
+        wifiRepository.setWifiNetwork(WifiNetworkModel.Active.of(level = 2))
 
         val view = ModernStatusBarWifiView.constructAndBind(context, SLOT_NAME, viewModel)
 
@@ -213,7 +192,7 @@ class ModernStatusBarWifiViewTest : SysuiTestCase() {
     @Test
     fun isIconVisible_enabled_outputsTrue() {
         wifiRepository.setIsWifiEnabled(true)
-        wifiRepository.setWifiNetwork(WifiNetworkModel.Active.of(isValidated = true, level = 2))
+        wifiRepository.setWifiNetwork(WifiNetworkModel.Active.of(level = 2))
 
         val view = ModernStatusBarWifiView.constructAndBind(context, SLOT_NAME, viewModel)
 
@@ -259,30 +238,6 @@ class ModernStatusBarWifiViewTest : SysuiTestCase() {
 
     @Test
     @EnableFlags(NewStatusBarIcons.FLAG_NAME)
-    @DisableFlags(Flags.FLAG_FIX_SHADE_HEADER_WRONG_ICON_SIZE)
-    fun configChanged_dimensionsWithNewValues_flagDisabled_dimensionsNotUpdated() {
-        val view = ModernStatusBarWifiView.constructAndBind(context, SLOT_NAME, viewModel)
-        val iconView = view.getIconView()
-        val group = view.getIconGroupView()
-        val initialHeight =
-            context.resources.getDimensionPixelSize(R.dimen.status_bar_wifi_signal_height_updated)
-        val initialMargin =
-            context.resources.getDimensionPixelSize(
-                R.dimen.status_bar_wifi_signal_horizontal_margin
-            )
-
-        overrideResource(R.dimen.status_bar_wifi_signal_height_updated, initialHeight + 10)
-        overrideResource(R.dimen.status_bar_wifi_signal_horizontal_margin, initialMargin + 10)
-        view.onConfigurationChanged(Configuration())
-
-        assertThat(iconView.layoutParams.height).isEqualTo(initialHeight)
-        val newMarginLp = group.layoutParams as ViewGroup.MarginLayoutParams
-        assertThat(newMarginLp.marginStart).isEqualTo(initialMargin)
-        assertThat(newMarginLp.marginEnd).isEqualTo(initialMargin)
-    }
-
-    @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, Flags.FLAG_FIX_SHADE_HEADER_WRONG_ICON_SIZE)
     fun configChanged_dimensionsWithNewValues_flagEnabled_dimensionsUpdated() {
         val view = ModernStatusBarWifiView.constructAndBind(context, SLOT_NAME, viewModel)
         val iconView = view.getIconView()

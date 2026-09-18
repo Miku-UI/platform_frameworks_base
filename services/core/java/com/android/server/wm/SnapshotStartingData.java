@@ -51,6 +51,6 @@ class SnapshotStartingData extends StartingData {
     }
 
     boolean isValid() {
-        return !mSnapshot.getHardwareBuffer().isClosed();
+        return mSnapshot.isBufferValid();
     }
 }

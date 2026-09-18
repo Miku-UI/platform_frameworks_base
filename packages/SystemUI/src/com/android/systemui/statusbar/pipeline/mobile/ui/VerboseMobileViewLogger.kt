@@ -62,10 +62,10 @@ constructor(@VerboseMobileViewLog private val buffer: LogBuffer) {
         )
     }
 
-    fun logBinderReceivedSignalCellularIcon(
+    fun logBinderReceivedSignalCellularTypeIcon(
         parentView: View,
         subId: Int,
-        icon: SignalIconModel.Cellular,
+        icon: SignalIconModel.CellularTypeIconModel,
         packedSignalDrawableState: Int,
         shouldRequestLayout: Boolean,
     ) {
@@ -82,9 +82,13 @@ constructor(@VerboseMobileViewLog private val buffer: LogBuffer) {
                 long2 = packedSignalDrawableState.toLong()
                 bool1 = icon.showExclamationMark
                 bool2 = shouldRequestLayout
+                str2 = "cellular"
+                if (icon is SignalIconModel.CellularTypeIconModel.SatelliteV2) {
+                    str2 = "satelliteV2"
+                }
             },
             {
-                "Binder[subId=$int1, viewId=$str1] received new signal icon (cellular): " +
+                "Binder[subId=$int1, viewId=$str1] received new signal icon ($str2): " +
                     "level=$int2 numLevels=$long1 showExclamation=$bool1 " +
                     "packedDrawableLevel=$long2 shouldRequestLayout=$bool2"
             },

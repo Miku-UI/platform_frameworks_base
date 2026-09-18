@@ -14,12 +14,15 @@
 
 #[cfg(test)]
 mod pci_authorizer_tests {
+    use anyhow::{anyhow, Result};
+    use async_trait::async_trait;
+    use kobject_uevent;
     use std::fs;
-    use std::os::unix::fs::symlink;
+    use std::os::unix::fs::{symlink, PermissionsExt};
     use std::path::{Path, PathBuf};
-    use std::sync::Arc;
     use std::time::Instant;
     use tempfile::TempDir;
+    use tokio::sync::mpsc;
     use tokio::time::{sleep, Duration};
     use uevent::netlink::AsyncUEventSocket;
     use usb4_policies::common::{TunnelControl, UserId};
@@ -32,8 +35,37 @@ mod pci_authorizer_tests {
     // Wait for this duration for paths to be updated to desired value.
     const WAIT_FOR_PATH_DURATION: Duration = Duration::from_millis(500);
 
-    fn setup_environment_for_pci_authorizer_new(
-    ) -> (TempDir, SysfsUtils, Arc<dyn AsyncUEventSocket>) {
+    // Delay by 50ms to emulate ueventd delay.
+    const UEVENTD_MOCK_DELAY: Duration = Duration::from_millis(50);
+
+    struct FakeUeventSocket {
+        pub tx: mpsc::Sender<Result<kobject_uevent::UEvent>>,
+        rx: mpsc::Receiver<Result<kobject_uevent::UEvent>>,
+    }
+
+    impl FakeUeventSocket {
+        fn new() -> Self {
+            // Create a channel that handles up to 10 messages. Arbitrary value for testing.
+            let (tx, rx) = mpsc::channel::<Result<kobject_uevent::UEvent>>(10);
+            Self { tx, rx }
+        }
+
+        fn into_box_trait(self) -> Box<dyn AsyncUEventSocket> {
+            Box::new(self)
+        }
+    }
+
+    #[async_trait]
+    impl AsyncUEventSocket for FakeUeventSocket {
+        async fn read(&mut self) -> Result<kobject_uevent::UEvent> {
+            match self.rx.recv().await {
+                Some(result) => result,
+                None => Err(anyhow!("Channel dropped for FakeUeventSocket")),
+            }
+        }
+    }
+
+    fn setup_environment_for_pci_authorizer_new() -> (TempDir, SysfsUtils, FakeUeventSocket) {
         let temp_dir = TempDir::new().expect("Failed to create temp_dir");
         let root = temp_dir.path();
 
@@ -43,16 +75,9 @@ mod pci_authorizer_tests {
             .expect("Failed to create mock tbt devices dir");
 
         let sysfs_utils = SysfsUtils::with_root_path(root.to_path_buf());
+        let fake_uevent_socket = FakeUeventSocket::new();
 
-        let uevent_socket_concrete =
-            Arc::new(uevent::netlink::AsyncNetlinkKObjectUEventSocket::create().expect(
-                "Failed to create AsyncNetlinkKObjectUEventSocket. \
-                Test environment might not support netlink, or permissions are insufficient. \
-                This is required for PciAuthorizer tests.",
-            ));
-        let uevent_socket_trait: Arc<dyn AsyncUEventSocket> = uevent_socket_concrete;
-
-        (temp_dir, sysfs_utils, uevent_socket_trait)
+        (temp_dir, sysfs_utils, fake_uevent_socket)
     }
 
     fn create_mock_tbt_device(sysfs_root: &Path, name: &str, initial_authorized: &str) -> PathBuf {
@@ -74,31 +99,92 @@ mod pci_authorizer_tests {
         dev_path
     }
 
-    fn create_mock_pci_device(sysfs_root: &Path, name: &str, removable: bool) -> PathBuf {
-        let dev_path = sysfs_root.join("sys/bus/pci/devices").join(name);
-        fs::create_dir_all(&dev_path).expect("Failed to create mock pci device dir");
-        fs::write(dev_path.join("removable"), if removable { "1" } else { "0" })
-            .expect("Failed to write mock pci removable file");
+    fn create_tbt_device_no_writable(
+        sysfs_root: &Path,
+        name: &str,
+        initial_authorized: &str,
+    ) -> PathBuf {
+        let dev_path = create_mock_tbt_device(sysfs_root, name, initial_authorized);
 
-        fs::write(dev_path.join("remove"), "0").expect("Failed to write mock pci remove file");
+        let authorized_file = dev_path.join("authorized");
+        let metadata = fs::metadata(&authorized_file).expect("Failed to get tbt file metadata");
+        let mut permissions = metadata.permissions();
+
+        // Make the file read-only.
+        permissions.set_mode(0o444);
+        fs::set_permissions(&authorized_file, permissions)
+            .expect("Failed to set tbt device as not writable");
+
         dev_path
     }
 
-    async fn assert_wait_for_path_eq(path: PathBuf, expected_value: &str, assert_why: &str) {
+    fn make_tbt_authorized_writable(dev_path: PathBuf) {
+        let authorized_file = dev_path.join("authorized");
+        let metadata = fs::metadata(&authorized_file).expect("Failed to get tbt file metadata");
+        let mut permissions = metadata.permissions();
+
+        // Make the file read-write.
+        permissions.set_mode(0o666);
+        fs::set_permissions(&authorized_file, permissions)
+            .expect("Failed to set tbt device as not writable");
+    }
+
+    fn devpath_to_add_uevent(dev_path: PathBuf) -> kobject_uevent::UEvent {
+        kobject_uevent::UEvent {
+            action: kobject_uevent::ActionType::Add,
+            devpath: dev_path,
+            subsystem: "thunderbolt".to_string(),
+            env: Default::default(),
+            seq: Default::default(),
+        }
+    }
+
+    // Wait until the expected value is seen (Ok) or timeout (Err).
+    async fn wait_timeout_for_path_eq(
+        path: PathBuf,
+        expected_value: &str,
+    ) -> Result<String, String> {
         let start = Instant::now();
         let mut read_value: String = Default::default();
 
         // Wait for value to become expected value.
         while Instant::now().duration_since(start) < WAIT_FOR_PATH_DURATION {
-            read_value = fs::read_to_string(&path).unwrap();
-            if read_value.trim() == expected_value {
-                break;
+            read_value = fs::read_to_string(&path).unwrap().trim().into();
+            if read_value == expected_value {
+                return Ok(read_value);
             }
 
             sleep(POLL_DURATION).await;
         }
 
-        assert_eq!(read_value.trim(), expected_value, "{}", assert_why);
+        Err(read_value)
+    }
+
+    async fn assert_wait_for_path_eq(path: PathBuf, expected_value: &str, assert_why: &str) {
+        let result = wait_timeout_for_path_eq(path, expected_value).await;
+        let read_value = match result {
+            Ok(v) => v,
+            Err(v) => v,
+        };
+
+        assert_eq!(read_value, expected_value, "{}", assert_why);
+    }
+
+    #[tokio::test]
+    async fn test_pci_tunnels_supported() {
+        let _ = env_logger::try_init();
+        let (temp_dir, sysfs_utils, uevent_socket) = setup_environment_for_pci_authorizer_new();
+        let root = temp_dir.path();
+        let _pci_authorizer =
+            PciAuthorizer::new(sysfs_utils.clone(), uevent_socket.into_box_trait());
+
+        // Without any devices, tunnels are not supported.
+        assert!(!sysfs_utils.check_pci_tunnels_supported());
+
+        let _tbt_dev_path = create_mock_tbt_device(root, "0-0", "0");
+
+        // Now that there's a device in the device path, tunnels should be considered as supported.
+        assert!(sysfs_utils.check_pci_tunnels_supported());
     }
 
     #[tokio::test]
@@ -106,7 +192,8 @@ mod pci_authorizer_tests {
         let _ = env_logger::try_init();
         let (temp_dir, sysfs_utils, uevent_socket) = setup_environment_for_pci_authorizer_new();
         let root = temp_dir.path();
-        let mut pci_authorizer = PciAuthorizer::new(sysfs_utils.clone(), uevent_socket);
+        let mut pci_authorizer =
+            PciAuthorizer::new(sysfs_utils.clone(), uevent_socket.into_box_trait());
 
         let tbt_dev_path = create_mock_tbt_device(root, "0-0", "0");
 
@@ -152,10 +239,10 @@ mod pci_authorizer_tests {
         let _ = env_logger::try_init();
         let (temp_dir, sysfs_utils, uevent_socket) = setup_environment_for_pci_authorizer_new();
         let root = temp_dir.path();
-        let mut pci_authorizer = PciAuthorizer::new(sysfs_utils.clone(), uevent_socket);
+        let mut pci_authorizer =
+            PciAuthorizer::new(sysfs_utils.clone(), uevent_socket.into_box_trait());
 
         let tbt_dev_path = create_mock_tbt_device(root, "1-0", "0");
-        let removable_pci_dev_path = create_mock_pci_device(root, "pci0", true);
 
         // Setup: Go to Authorized state first
         pci_authorizer.enable_pci_tunnels(true);
@@ -167,11 +254,6 @@ mod pci_authorizer_tests {
             "TBT device should be authorized",
         )
         .await;
-        assert_eq!(
-            fs::read_to_string(removable_pci_dev_path.join("remove")).unwrap().trim(),
-            "1",
-            "Removable PCI device 'remove' file should be '1'"
-        );
 
         // 1. Screen locks (State -> DeferNewDevices)
         pci_authorizer.update_lock_state(true);
@@ -190,14 +272,8 @@ mod pci_authorizer_tests {
             "TBT device should be deauthorized on DenyNoUser",
         )
         .await;
-        assert_eq!(
-            fs::read_to_string(removable_pci_dev_path.join("remove")).unwrap().trim(),
-            "1",
-            "Removable PCI device should be removed on DenyNoUser"
-        );
 
         // Re-setup to Authorized state for the next step
-        fs::write(removable_pci_dev_path.join("remove"), "0").unwrap(); // Reset remove state
         pci_authorizer.update_logged_in_state(true, UserId(1)); // Log back in
         pci_authorizer.update_lock_state(false); // Unlock screen (State -> Authorized)
         assert_wait_for_path_eq(
@@ -215,11 +291,6 @@ mod pci_authorizer_tests {
             "TBT device should be deauthorized when tunnels are disabled",
         )
         .await;
-        assert_eq!(
-            fs::read_to_string(removable_pci_dev_path.join("remove")).unwrap().trim(),
-            "1",
-            "Removable PCI device should be removed when tunnels are disabled"
-        );
 
         drop(pci_authorizer);
     }
@@ -228,7 +299,8 @@ mod pci_authorizer_tests {
     async fn test_drop_shuts_down_task() {
         let _ = env_logger::try_init();
         let (_temp_dir, sysfs_utils, uevent_socket) = setup_environment_for_pci_authorizer_new();
-        let pci_authorizer = PciAuthorizer::new(sysfs_utils.clone(), uevent_socket);
+        let pci_authorizer =
+            PciAuthorizer::new(sysfs_utils.clone(), uevent_socket.into_box_trait());
 
         // Drop the PciAuthorizer, its Drop impl should signal and await the service task.
         drop(pci_authorizer);
@@ -236,5 +308,50 @@ mod pci_authorizer_tests {
         // The test passes if drop completes without panic.
         // A panic in the task during shutdown would be propagated by the await in Drop.
         // Allow a bit of time for async runtime to fully process the drop and task completion.
+    }
+
+    #[tokio::test]
+    async fn test_delayed_uevent_handling() {
+        let _ = env_logger::try_init();
+        let (temp_dir, sysfs_utils, uevent_socket) = setup_environment_for_pci_authorizer_new();
+        let root = temp_dir.path();
+
+        let uevent_tx = uevent_socket.tx.clone();
+        let mut pci_authorizer =
+            PciAuthorizer::new(sysfs_utils.clone(), uevent_socket.into_box_trait());
+
+        let tbt_dev_path = create_mock_tbt_device(root, "0-0", "0");
+
+        // 1. Enable PCI Tunnels (State -> DenyNoUser)
+        pci_authorizer.enable_pci_tunnels(true);
+        // 2. User logs in (State -> DeferNewDevices)
+        pci_authorizer.update_logged_in_state(true, UserId(1));
+        // 3. Screen unlocks (State -> Authorized)
+        pci_authorizer.update_lock_state(false);
+        assert_wait_for_path_eq(
+            tbt_dev_path.join("authorized"),
+            "1",
+            "TBT device should be authorized on Authorized state",
+        )
+        .await;
+
+        // Now create a non-writable mock device and send via uevent.
+        let bad_dev_path = create_tbt_device_no_writable(root, "1-1", "0");
+        let tbt_path = PathBuf::from("/bus/thunderbolt/devices/1-1");
+        let _ = uevent_tx.send(Ok(devpath_to_add_uevent(tbt_path))).await;
+
+        let dev_path_clone = bad_dev_path.clone();
+        tokio::spawn(async move {
+            sleep(UEVENTD_MOCK_DELAY).await;
+            make_tbt_authorized_writable(dev_path_clone);
+        });
+        let assert_future = assert_wait_for_path_eq(
+            bad_dev_path.join("authorized"),
+            "1",
+            "TBT device should be eventually authorized",
+        );
+        assert_future.await;
+
+        drop(pci_authorizer);
     }
 }

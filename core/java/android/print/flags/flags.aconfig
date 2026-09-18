@@ -1,0 +1,10 @@
+package: "android.print.flags"
+container: "system"
+
+flag {
+    name: "enable_setup_activity"
+    namespace: "printing"
+    description: "Enable PrintService implementations to provide a printer setup activity"
+    bug: "455021653"
+    is_exported: true
+}

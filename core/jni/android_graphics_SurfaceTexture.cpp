@@ -29,10 +29,17 @@
 #include <nativehelper/JNIHelp.h>
 #include <nativehelper/ScopedLocalRef.h>
 #include <stdio.h>
+#include <surfacetexture/LegacySurfaceTexture.h>
 #include <surfacetexture/SurfaceTexture.h>
 #include <surfacetexture/surface_texture_platform.h>
 #include <utils/Log.h>
 #include <utils/misc.h>
+
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_SURFACETEXTURE)
+#include <surfacetexture/SurfaceTexture.h>
+#else
+#include <surfacetexture/LegacySurfaceTexture.h>
+#endif
 
 #include "core_jni_helpers.h"
 #include "jni.h"
@@ -42,6 +49,14 @@
 #define EGL_PROTECTED_CONTENT_EXT 0x32C0
 
 namespace android {
+
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_SURFACETEXTURE)
+typedef SurfaceTexture SurfaceTextureType;
+typedef SurfaceTexture::SurfaceTextureListener SurfaceTextureListenerType;
+#else
+typedef LegacySurfaceTexture SurfaceTextureType;
+typedef LegacySurfaceTexture::LegacySurfaceTextureListener SurfaceTextureListenerType;
+#endif
 
 static const char* const OutOfResourcesException =
     "android/view/Surface$OutOfResourcesException";
@@ -80,10 +95,9 @@ static bool isProtectedContext() {
 // ----------------------------------------------------------------------------
 
 static void SurfaceTexture_setSurfaceTexture(JNIEnv* env, jobject thiz,
-        const sp<SurfaceTexture>& surfaceTexture)
-{
-    SurfaceTexture* const p =
-        (SurfaceTexture*)env->GetLongField(thiz, fields.surfaceTexture);
+                                             const sp<SurfaceTextureType>& surfaceTexture) {
+    SurfaceTextureType* const p =
+            (SurfaceTextureType*)env->GetLongField(thiz, fields.surfaceTexture);
     if (surfaceTexture.get()) {
         surfaceTexture->incStrong((void*)SurfaceTexture_setSurfaceTexture);
     }
@@ -93,6 +107,22 @@ static void SurfaceTexture_setSurfaceTexture(JNIEnv* env, jobject thiz,
     env->SetLongField(thiz, fields.surfaceTexture, (jlong)surfaceTexture.get());
 }
 
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_SURFACETEXTURE)
+static void SurfaceTexture_setSurface(JNIEnv* env, jobject thiz, const sp<Surface>& producer) {
+    Surface* const p = (Surface*)env->GetLongField(thiz, fields.producer);
+    if (producer.get()) {
+        producer->incStrong((void*)SurfaceTexture_setSurface);
+    }
+    if (p) {
+        p->decStrong((void*)SurfaceTexture_setSurface);
+    }
+    env->SetLongField(thiz, fields.producer, (jlong)producer.get());
+}
+
+sp<Surface> SurfaceTexture_getSurface(JNIEnv* env, jobject thiz) {
+    return (Surface*)env->GetLongField(thiz, fields.producer);
+}
+#else
 static void SurfaceTexture_setProducer(JNIEnv* env, jobject thiz,
         const sp<IGraphicBufferProducer>& producer)
 {
@@ -107,12 +137,12 @@ static void SurfaceTexture_setProducer(JNIEnv* env, jobject thiz,
     env->SetLongField(thiz, fields.producer, (jlong)producer.get());
 }
 
-sp<SurfaceTexture> SurfaceTexture_getSurfaceTexture(JNIEnv* env, jobject thiz) {
-    return (SurfaceTexture*)env->GetLongField(thiz, fields.surfaceTexture);
-}
-
 sp<IGraphicBufferProducer> SurfaceTexture_getProducer(JNIEnv* env, jobject thiz) {
     return (IGraphicBufferProducer*)env->GetLongField(thiz, fields.producer);
+}
+#endif
+sp<SurfaceTextureType> SurfaceTexture_getSurfaceTexture(JNIEnv* env, jobject thiz) {
+    return (SurfaceTextureType*)env->GetLongField(thiz, fields.surfaceTexture);
 }
 
 bool android_SurfaceTexture_isInstanceOf(JNIEnv* env, jobject thiz) {
@@ -122,7 +152,7 @@ bool android_SurfaceTexture_isInstanceOf(JNIEnv* env, jobject thiz) {
 
 // ----------------------------------------------------------------------------
 
-class JNISurfaceTextureContextListener : public SurfaceTexture::SurfaceTextureListener {
+class JNISurfaceTextureContextListener : public SurfaceTextureListenerType {
 public:
     JNISurfaceTextureContextListener(JNIEnv* env, jobject weakThiz, jclass clazz)
           : mWeakThiz(env->NewGlobalRef(weakThiz)), mClazz((jclass)env->NewGlobalRef(clazz)) {}
@@ -213,12 +243,12 @@ static void SurfaceTexture_classInit(JNIEnv* env, jclass clazz)
 
 static void SurfaceTexture_init(JNIEnv* env, jobject thiz, jboolean isDetached, jint texName,
                                 jboolean singleBufferMode, jobject weakThiz) {
-    sp<SurfaceTexture> surfaceTexture;
+    sp<SurfaceTextureType> surfaceTexture;
     if (isDetached) {
-        surfaceTexture = new SurfaceTexture(GL_TEXTURE_EXTERNAL_OES, true, !singleBufferMode);
+        surfaceTexture = new SurfaceTextureType(GL_TEXTURE_EXTERNAL_OES, true, !singleBufferMode);
     } else {
         surfaceTexture =
-                new SurfaceTexture(texName, GL_TEXTURE_EXTERNAL_OES, true, !singleBufferMode);
+                new SurfaceTextureType(texName, GL_TEXTURE_EXTERNAL_OES, true, !singleBufferMode);
     }
 
     if (singleBufferMode) {
@@ -244,12 +274,17 @@ static void SurfaceTexture_init(JNIEnv* env, jobject thiz, jboolean isDetached, 
         jniThrowException(env, IllegalStateException, "Unable to get surface from SurfaceTexture");
         return;
     }
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_SURFACETEXTURE)
+    SurfaceTexture_setSurface(env, thiz, surface);
+#else
     sp<IGraphicBufferProducer> igbp = surface->getIGraphicBufferProducer();
     if (nullptr == igbp) {
         jniThrowException(env, IllegalStateException, "Unable to get IGBP from Surface");
         return;
     }
     SurfaceTexture_setProducer(env, thiz, igbp);
+#endif
+
     jclass clazz = env->GetObjectClass(thiz);
     if (clazz == NULL) {
         jniThrowRuntimeException(env,
@@ -264,21 +299,25 @@ static void SurfaceTexture_init(JNIEnv* env, jobject thiz, jboolean isDetached, 
 
 static void SurfaceTexture_finalize(JNIEnv* env, jobject thiz)
 {
-    sp<SurfaceTexture> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
+    sp<SurfaceTextureType> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
     surfaceTexture->setSurfaceTextureListener(0);
     SurfaceTexture_setSurfaceTexture(env, thiz, 0);
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_SURFACETEXTURE)
+    SurfaceTexture_setSurface(env, thiz, 0);
+#else
     SurfaceTexture_setProducer(env, thiz, 0);
+#endif
 }
 
 static void SurfaceTexture_setDefaultBufferSize(
         JNIEnv* env, jobject thiz, jint width, jint height) {
-    sp<SurfaceTexture> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
+    sp<SurfaceTextureType> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
     surfaceTexture->setDefaultBufferSize(width, height);
 }
 
 static void SurfaceTexture_updateTexImage(JNIEnv* env, jobject thiz)
 {
-    sp<SurfaceTexture> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
+    sp<SurfaceTextureType> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
     status_t err = surfaceTexture->updateTexImage();
     if (err == INVALID_OPERATION) {
         jniThrowException(env, IllegalStateException, "Unable to update texture contents (see "
@@ -290,7 +329,7 @@ static void SurfaceTexture_updateTexImage(JNIEnv* env, jobject thiz)
 
 static void SurfaceTexture_releaseTexImage(JNIEnv* env, jobject thiz)
 {
-    sp<SurfaceTexture> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
+    sp<SurfaceTextureType> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
     status_t err = surfaceTexture->releaseTexImage();
     if (err == INVALID_OPERATION) {
         jniThrowException(env, IllegalStateException, "Unable to release texture contents (see "
@@ -302,20 +341,20 @@ static void SurfaceTexture_releaseTexImage(JNIEnv* env, jobject thiz)
 
 static jint SurfaceTexture_detachFromGLContext(JNIEnv* env, jobject thiz)
 {
-    sp<SurfaceTexture> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
+    sp<SurfaceTextureType> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
     return surfaceTexture->detachFromContext();
 }
 
 static jint SurfaceTexture_attachToGLContext(JNIEnv* env, jobject thiz, jint tex)
 {
-    sp<SurfaceTexture> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
+    sp<SurfaceTextureType> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
     return surfaceTexture->attachToContext((GLuint)tex);
 }
 
 static void SurfaceTexture_getTransformMatrix(JNIEnv* env, jobject thiz,
         jfloatArray jmtx)
 {
-    sp<SurfaceTexture> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
+    sp<SurfaceTextureType> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
     float* mtx = env->GetFloatArrayElements(jmtx, NULL);
     surfaceTexture->getTransformMatrix(mtx);
     env->ReleaseFloatArrayElements(jmtx, mtx, 0);
@@ -323,24 +362,24 @@ static void SurfaceTexture_getTransformMatrix(JNIEnv* env, jobject thiz,
 
 static jlong SurfaceTexture_getTimestamp(JNIEnv* env, jobject thiz)
 {
-    sp<SurfaceTexture> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
+    sp<SurfaceTextureType> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
     return surfaceTexture->getTimestamp();
 }
 
 static jint SurfaceTexture_getDataSpace(JNIEnv* env, jobject thiz) {
-    sp<SurfaceTexture> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
+    sp<SurfaceTextureType> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
     return surfaceTexture->getCurrentDataSpace();
 }
 
 static void SurfaceTexture_release(JNIEnv* env, jobject thiz)
 {
-    sp<SurfaceTexture> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
+    sp<SurfaceTextureType> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
     surfaceTexture->abandon();
 }
 
 static jboolean SurfaceTexture_isReleased(JNIEnv* env, jobject thiz)
 {
-    sp<SurfaceTexture> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
+    sp<SurfaceTextureType> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
     return surfaceTexture->isAbandoned();
 }
 

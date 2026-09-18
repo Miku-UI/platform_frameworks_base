@@ -35,7 +35,6 @@ import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.statusbar.core.NewStatusBarIcons
-import com.android.systemui.statusbar.core.StatusBarRootModernization
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.FakeMobileConnectionRepository
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.fake
@@ -82,6 +81,27 @@ class MobileIconsInteractorTest : MobileIconsInteractorTestBase() {
 
             assertThat(interactor1).isNotNull()
             assertThat(interactor1).isSameInstanceAs(interactor2)
+        }
+
+    @Test
+    fun defaultDataIconInteractor_tracksDefaultDataSubId() =
+        kosmos.runTest {
+            val latest by collectLastValue(underTest.defaultDataIconInteractor)
+
+            connectionsRepository.setDefaultDataSubId(SUB_1_ID)
+            runCurrent()
+
+            assertThat(latest?.subscriptionId).isEqualTo(SUB_1_ID)
+
+            connectionsRepository.setDefaultDataSubId(SUB_2_ID)
+            runCurrent()
+
+            assertThat(latest?.subscriptionId).isEqualTo(SUB_2_ID)
+
+            connectionsRepository.setDefaultDataSubId(INVALID_SUBSCRIPTION_ID)
+            runCurrent()
+
+            assertThat(latest).isNull()
         }
 }
 
@@ -942,7 +962,7 @@ abstract class MobileIconsInteractorTestBase : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isStackable_tracksNumberOfSubscriptions() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.isStackable)
@@ -959,7 +979,7 @@ abstract class MobileIconsInteractorTestBase : SysuiTestCase() {
 
     /** Regression test for b/431929674 */
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isStackable_removeAllSubscriptions() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.isStackable)
@@ -972,7 +992,7 @@ abstract class MobileIconsInteractorTestBase : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isStackable_checksForTerrestrialConnections() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.isStackable)
@@ -991,7 +1011,7 @@ abstract class MobileIconsInteractorTestBase : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isStackable_checksForNumberOfBars() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.isStackable)
@@ -1059,7 +1079,7 @@ abstract class MobileIconsInteractorTestBase : SysuiTestCase() {
                 profileClass = PROFILE_CLASS_UNSET,
             )
 
-        private const val SUB_2_ID = 2
+        const val SUB_2_ID = 2
         private val SUB_2 =
             SubscriptionModel(
                 subscriptionId = SUB_2_ID,

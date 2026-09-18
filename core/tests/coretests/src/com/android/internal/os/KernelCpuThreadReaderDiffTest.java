@@ -26,14 +26,12 @@ import static java.util.stream.Collectors.toList;
 
 import android.platform.test.annotations.DisabledOnRavenwood;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -49,8 +47,6 @@ import java.util.Collections;
 @RunWith(AndroidJUnit4.class)
 @DisabledOnRavenwood(reason = "Needs kernel support")
 public class KernelCpuThreadReaderDiffTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private MockitoSession mMockingSessions;
     @Mock KernelCpuThreadReader mMockReader;

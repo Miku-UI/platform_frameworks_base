@@ -16,7 +16,6 @@
 
 package com.android.systemui.communal.domain.interactor
 
-import com.android.systemui.common.domain.interactor.BatteryInteractorDeprecated
 import com.android.systemui.communal.dagger.CommunalModule.Companion.SWIPE_TO_HUB
 import com.android.systemui.communal.data.model.FEATURE_AUTO_OPEN
 import com.android.systemui.communal.data.model.FEATURE_MANUAL_OPEN
@@ -28,7 +27,6 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dock.DockManager
 import com.android.systemui.dock.retrieveIsDocked
 import com.android.systemui.statusbar.pipeline.battery.domain.interactor.BatteryInteractor
-import com.android.systemui.statusbar.pipeline.battery.shared.StatusBarUniversalBatteryDataSource
 import com.android.systemui.util.kotlin.BooleanFlowOperators.allOf
 import com.android.systemui.utils.coroutines.flow.flatMapLatestConflated
 import javax.inject.Inject
@@ -45,18 +43,12 @@ class CommunalAutoOpenInteractor
 constructor(
     communalSettingsInteractor: CommunalSettingsInteractor,
     @Background private val backgroundContext: CoroutineContext,
-    private val batteryInteractorDeprecated: BatteryInteractorDeprecated,
     batteryInteractor: BatteryInteractor,
     private val posturingInteractor: PosturingInteractor,
     private val dockManager: DockManager,
     @Named(SWIPE_TO_HUB) private val allowSwipeAlways: Boolean,
 ) {
-    private val isDevicePluggedIn =
-        if (StatusBarUniversalBatteryDataSource.isEnabled) {
-            batteryInteractor.isPluggedIn
-        } else {
-            batteryInteractorDeprecated.isDevicePluggedIn
-        }
+    private val isDevicePluggedIn = batteryInteractor.isPluggedIn
 
     val shouldAutoOpen: Flow<Boolean> =
         communalSettingsInteractor.whenToStartHub

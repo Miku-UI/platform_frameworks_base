@@ -22,6 +22,7 @@
 #include <binder/Parcel.h>
 #include <gui/SurfaceComposerClient.h>
 #include <nativehelper/JNIHelp.h>
+#include <nativehelper/ScopedLocalRef.h>
 
 #include "android_os_Parcel.h"
 #include "core_jni_helpers.h"
@@ -122,11 +123,33 @@ static jobjectArray android_hardware_OverlayProperties_getLutProperties(JNIEnv* 
     for (int32_t i = 0; i < size; i++) {
         if (lutProperties[i].has_value()) {
             auto& item = lutProperties[i].value();
-            jobject properties =
-                    env->NewObject(gLutPropertiesClassInfo.clazz, gLutPropertiesClassInfo.ctor,
-                                   static_cast<int32_t>(item.dimension), item.size,
-                                   item.samplingKeys.data());
-            env->SetObjectArrayElement(nativeLutProperties, i, properties);
+            if (item.samplingKeys.size() == 0) {
+                return NULL;
+            }
+
+            // Marshall samplingKeys from std::vector to a jintArray for the Java constructor.
+            jsize arraySize = static_cast<jsize>(item.samplingKeys.size());
+
+            ScopedLocalRef<jintArray> samplingKeysArray(env, env->NewIntArray(arraySize));
+            if (samplingKeysArray.get() == nullptr) {
+                return NULL;
+            }
+
+            static_assert(sizeof(jint) == sizeof(decltype(item.samplingKeys.front())));
+
+            env->SetIntArrayRegion(samplingKeysArray.get(), 0, arraySize,
+                                   reinterpret_cast<const jint*>(item.samplingKeys.data()));
+
+            ScopedLocalRef<jobject> properties(env,
+                                               env->NewObject(gLutPropertiesClassInfo.clazz,
+                                                              gLutPropertiesClassInfo.ctor,
+                                                              static_cast<int32_t>(item.dimension),
+                                                              item.size, samplingKeysArray.get()));
+            if (properties.get() == nullptr) {
+                return NULL;
+            }
+
+            env->SetObjectArrayElement(nativeLutProperties, i, properties.get());
         }
     }
     return nativeLutProperties;

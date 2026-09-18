@@ -16,8 +16,10 @@
 
 package com.android.server.wm;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import android.platform.test.annotations.Presubmit;
@@ -148,5 +150,51 @@ public class CameraIdAppPairsSetTests {
                 mCameraAppInfo1Camera1.mPackageName));
 
         assertTrue(mMapping.isEmpty());
+    }
+
+    @Test
+    public void containsAnyCameraForTaskId_noMatchingTask_returnsFalse() {
+        // Verify returns false for an empty set.
+        assertFalse(mMapping.containsAnyCameraForTaskId(TASK_ID_1));
+
+        // Add an entry for a different task.
+        mMapping.add(mCameraAppInfo1Camera1);
+
+        // Verify returns false for a task ID that is not in the set.
+        assertFalse(mMapping.containsAnyCameraForTaskId(TASK_ID_2));
+    }
+
+    @Test
+    public void getCameraIdForTaskId_taskExists_returnsCameraId() {
+        mMapping.add(mCameraAppInfo1Camera1);
+        mMapping.add(mCameraAppInfo2Camera2);
+
+        // Verify correct camera ID is returned for each task.
+        assertEquals(CAMERA_ID_1, mMapping.getCameraIdForTaskId(TASK_ID_1));
+        assertEquals(CAMERA_ID_2, mMapping.getCameraIdForTaskId(TASK_ID_2));
+    }
+
+    @Test
+    public void getCameraIdForTaskId_noMatchingTask_returnsNull() {
+        // Verify returns null for an empty set.
+        assertNull(mMapping.getCameraIdForTaskId(TASK_ID_1));
+
+        // Add an entry for a different task.
+        mMapping.add(mCameraAppInfo1Camera1);
+
+        // Verify returns null for a task ID that is not in the set.
+        assertNull(mMapping.getCameraIdForTaskId(TASK_ID_2));
+    }
+
+    @Test
+    public void getCameraIdForTaskId_multipleCamerasForSameTask_returnsOneCameraId() {
+        mMapping.add(mCameraAppInfo1Camera1);
+        mMapping.add(mCameraAppInfo1Camera2);
+
+        String cameraId = mMapping.getCameraIdForTaskId(TASK_ID_1);
+        assertNotNull(cameraId);
+        // The implementation iterates through an ArraySet, so the order is not guaranteed.
+        // We just need to ensure it returns one of the valid camera IDs.
+        assertTrue(cameraId.equals(CAMERA_ID_1) || cameraId.equals(CAMERA_ID_2));
     }
 }

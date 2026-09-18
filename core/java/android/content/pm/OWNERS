@@ -4,7 +4,10 @@ file:/PACKAGE_MANAGER_OWNERS
 
 per-file PackageParser.java = set noparent
 per-file PackageParser.java = file:/PACKAGE_MANAGER_OWNERS
+per-file SigningDetails.java = mpgroover@google.com
 
+# Bug component: 1863509 = per-file *AppLock*
+per-file *AppLock* = file:/core/java/android/content/pm/APP_LOCK_OWNERS
 # Bug component: 166829 = per-file *Capability*
 per-file *Capability* = file:/core/java/android/content/pm/SHORTCUT_OWNERS
 # Bug component: 166829 = per-file *Shortcut*

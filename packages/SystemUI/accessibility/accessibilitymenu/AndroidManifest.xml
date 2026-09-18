@@ -21,9 +21,39 @@
     <uses-permission android:name="android.permission.MANAGE_USERS"/>
 
     <application
+        android:name=".A11yMenuApplication"
         android:supportsRtl="true"
         android:allowBackup="true"
+        android:label="@string/accessibility_menu_service_name"
         android:restoreAnyVersion="true">
+
+        <!-- Provide data for searching in the Settings app -->
+        <!-- Temporarily disable search until it pass the SystemHealth's review -->
+        <provider
+            android:name=".search.SearchIndexablesProvider"
+            android:authorities="${applicationId}"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:multiprocess="false"
+            android:permission="android.permission.READ_SEARCH_INDEXABLES"
+            android:enabled="false">
+            <intent-filter>
+                <action android:name="android.content.action.SEARCH_INDEXABLES_PROVIDER" />
+            </intent-filter>
+        </provider>
+
+        <!--
+        Service based on settingslib ipc to expose PreferenceMetadata and Get/Set functionality.
+        -->
+        <service
+            android:name=".PreferenceService"
+            android:exported="true"
+            android:permission="android.permission.READ_SYSTEM_PREFERENCES">
+            <intent-filter>
+                <action android:name="com.android.settingslib.PREFERENCE_SERVICE" />
+            </intent-filter>
+        </service>
+
         <service
             android:name="com.android.systemui.accessibility.accessibilitymenu.AccessibilityMenuService"
             android:exported="false"

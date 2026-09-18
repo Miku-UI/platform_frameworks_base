@@ -76,6 +76,8 @@ abstract class TintController {
         synchronized (mLock) {
             mIsActivated = isActivated;
         }
+        Slog.i(ColorDisplayService.TAG, "Setting " + this.getClass().getSimpleName() + " "
+                + (isActivated == null ? "null" : (isActivated ? "activated" : "deactivated")));
     }
 
     public boolean isActivated() {

@@ -19,25 +19,30 @@ package com.android.systemui.statusbar.phone
 import android.content.res.Configuration
 import android.content.testableContext
 import android.graphics.Rect
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.ObservableTransitionState.Idle
 import com.android.compose.animation.scene.OverlayKey
 import com.android.internal.policy.SystemBarUtils
+import com.android.systemui.Flags
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.communal.data.repository.fakeCommunalSceneRepository
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
-import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
+import com.android.systemui.keyguard.domain.interactor.biometricUnlockInteractor
+import com.android.systemui.keyguard.shared.model.BiometricUnlockSource
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.res.R
 import com.android.systemui.scene.data.repository.sceneContainerRepository
 import com.android.systemui.scene.data.repository.setSceneTransition
+import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
@@ -58,16 +63,19 @@ import org.mockito.kotlin.whenever
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class ShadeTouchableRegionManagerTest : SysuiTestCase() {
+
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
-    private val Kosmos.underTest by Kosmos.Fixture { kosmos.shadeTouchableRegionManager }
+    private val Kosmos.underTest by Kosmos.Fixture { shadeTouchableRegionManager }
 
     @Before
     fun setUp() {
-        kosmos.notificationShadeWindowView.apply {
-            whenever(width).thenReturn(1000)
-            whenever(height).thenReturn(1000)
+        with(kosmos) {
+            notificationShadeWindowView.apply {
+                whenever(width).thenReturn(1000)
+                whenever(height).thenReturn(1000)
+            }
+            underTest.setup(notificationShadeWindowView)
         }
-        kosmos.underTest.setup(kosmos.notificationShadeWindowView)
     }
 
     @Test
@@ -77,10 +85,10 @@ class ShadeTouchableRegionManagerTest : SysuiTestCase() {
             sceneContainerRepository.setTransitionState(flowOf(Idle(currentScene = Scenes.Gone)))
             assertThat(underTest.shouldMakeEntireScreenTouchable()).isFalse()
 
-            sceneContainerRepository.isRemoteUserInputOngoing.value = true
+            sceneInteractor.handleEvent(SceneInteractor.Event.RemoteUserInputStart("test"))
             assertThat(underTest.shouldMakeEntireScreenTouchable()).isTrue()
 
-            sceneContainerRepository.isRemoteUserInputOngoing.value = false
+            sceneInteractor.handleEvent(SceneInteractor.Event.UserInputEnd)
             assertThat(underTest.shouldMakeEntireScreenTouchable()).isFalse()
         }
 
@@ -90,7 +98,7 @@ class ShadeTouchableRegionManagerTest : SysuiTestCase() {
         kosmos.runTest {
             assertThat(underTest.shouldMakeEntireScreenTouchable()).isFalse()
 
-            sceneContainerRepository.isRemoteUserInputOngoing.value = true
+            sceneInteractor.handleEvent(SceneInteractor.Event.RemoteUserInputStart("test"))
 
             assertThat(underTest.shouldMakeEntireScreenTouchable()).isFalse()
         }
@@ -121,22 +129,86 @@ class ShadeTouchableRegionManagerTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableSceneContainer
-    fun entireScreenTouchable_communalVisible() =
+    @EnableSceneContainer
+    fun entireScreenNotTouchable_sceneContainerEnabled_isIdleOnOccluded() =
         kosmos.runTest {
+            kosmos.sceneInteractor.changeScene(Scenes.Occluded, "test")
+            kosmos.sceneContainerRepository.setTransitionState(
+                flowOf(Idle(currentScene = Scenes.Occluded))
+            )
             assertThat(underTest.shouldMakeEntireScreenTouchable()).isFalse()
 
-            kosmos.fakeCommunalSceneRepository.instantlyTransitionTo(CommunalScenes.Communal)
-
+            kosmos.sceneInteractor.changeScene(Scenes.Lockscreen, "test")
+            kosmos.sceneContainerRepository.setTransitionState(
+                flowOf(Idle(currentScene = Scenes.Lockscreen))
+            )
             assertThat(underTest.shouldMakeEntireScreenTouchable()).isTrue()
 
-            kosmos.fakeCommunalSceneRepository.instantlyTransitionTo(CommunalScenes.Blank)
-
+            kosmos.sceneInteractor.changeScene(Scenes.Occluded, "test")
+            kosmos.sceneContainerRepository.setTransitionState(
+                flowOf(Idle(currentScene = Scenes.Occluded))
+            )
             assertThat(underTest.shouldMakeEntireScreenTouchable()).isFalse()
         }
 
     @Test
     @EnableSceneContainer
+    fun entireScreenTouchable_sceneContainerEnabled_isIdleOnOccluded_bouncerShowing() =
+        kosmos.runTest {
+            kosmos.sceneInteractor.changeScene(Scenes.Occluded, "test")
+            kosmos.sceneContainerRepository.setTransitionState(
+                flowOf(Idle(currentScene = Scenes.Occluded))
+            )
+            assertThat(underTest.shouldMakeEntireScreenTouchable()).isFalse()
+
+            kosmos.sceneInteractor.changeScene(Scenes.Occluded, "test")
+            kosmos.sceneInteractor.showOverlay(Overlays.Bouncer, "test")
+            kosmos.sceneContainerRepository.setTransitionState(
+                flowOf(
+                    Idle(currentScene = Scenes.Occluded, currentOverlays = setOf(Overlays.Bouncer))
+                )
+            )
+            runCurrent()
+            assertThat(underTest.shouldMakeEntireScreenTouchable()).isTrue()
+
+            kosmos.sceneInteractor.changeScene(Scenes.Occluded, "test")
+            kosmos.sceneContainerRepository.setTransitionState(
+                flowOf(Idle(currentScene = Scenes.Occluded))
+            )
+            assertThat(underTest.shouldMakeEntireScreenTouchable()).isFalse()
+        }
+
+    @Test
+    @DisableSceneContainer
+    fun entireScreenTouchable_sceneContainerDisabled_isIdleOnOccluded() =
+        kosmos.runTest {
+            assertThat(underTest.shouldMakeEntireScreenTouchable()).isFalse()
+
+            kosmos.sceneInteractor.changeScene(Scenes.Occluded, "test")
+            kosmos.sceneContainerRepository.setTransitionState(
+                flowOf(Idle(currentScene = Scenes.Occluded))
+            )
+
+            assertThat(underTest.shouldMakeEntireScreenTouchable()).isFalse()
+        }
+
+    @Test
+    @DisableSceneContainer
+    fun entireScreenTouchable_communalVisible() =
+        kosmos.runTest {
+            assertThat(underTest.shouldMakeEntireScreenTouchable()).isFalse()
+
+            fakeCommunalSceneRepository.instantlyTransitionTo(CommunalScenes.Communal)
+
+            assertThat(underTest.shouldMakeEntireScreenTouchable()).isTrue()
+
+            fakeCommunalSceneRepository.instantlyTransitionTo(CommunalScenes.Blank)
+
+            assertThat(underTest.shouldMakeEntireScreenTouchable()).isFalse()
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER, Flags.FLAG_DUAL_SHADE)
     fun entireScreenTouchable_desktopMode() =
         kosmos.runTest {
             enableStatusBarForDesktop()
@@ -146,7 +218,23 @@ class ShadeTouchableRegionManagerTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableSceneContainer
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER, Flags.FLAG_DUAL_SHADE)
+    fun calculateTouchableRegionForDesktop_sceneGone_isEmpty() =
+        kosmos.runTest {
+            enableStatusBarForDesktop()
+            lockDevice()
+            unlockDevice() // Sets scene to Scenes.Gone
+            shadeInteractor.setShadeOverlayBounds(null)
+
+            val rects = underTest.calculateTouchableRegionForDesktop()
+
+            // When scene is Gone and no bounds are set,
+            // no touchable region should be exposed (passing touches through).
+            assertThat(rects).isEmpty()
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER, Flags.FLAG_DUAL_SHADE)
     fun calculateTouchableRegionForDesktop_sceneGone_withShadeBounds() =
         kosmos.runTest {
             val bounds = Rect(0, 0, 100, 100)
@@ -162,7 +250,7 @@ class ShadeTouchableRegionManagerTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableSceneContainer
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER, Flags.FLAG_DUAL_SHADE)
     fun calculateTouchableRegionForDesktop_sceneVisible_withoutShadeBounds() =
         kosmos.runTest {
             enableStatusBarForDesktop()
@@ -184,13 +272,12 @@ class ShadeTouchableRegionManagerTest : SysuiTestCase() {
         assertThat(shadeMode).isEqualTo(ShadeMode.Dual)
 
         sceneInteractor.showOverlay(overlay, "test")
-        setSceneTransition(Idle(initialScene, checkNotNull(currentOverlays)))
+        setSceneTransition(
+            Idle(initialScene, checkNotNull(currentOverlays)),
+            skipChangeScene = true,
+        )
         assertThat(currentScene).isEqualTo(initialScene)
         assertThat(currentOverlays).contains(overlay)
-    }
-
-    private fun Kosmos.closeShadeOverlay(overlay: OverlayKey) {
-        sceneInteractor.hideOverlay(overlay, "test")
     }
 
     private fun Kosmos.enableStatusBarForDesktop() {
@@ -203,8 +290,9 @@ class ShadeTouchableRegionManagerTest : SysuiTestCase() {
     }
 
     private fun Kosmos.unlockDevice() {
-        fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-            SuccessFingerprintAuthenticationStatus(0, true)
+        kosmos.biometricUnlockInteractor.setBiometricUnlockState(
+            unlockStateInt = BiometricUnlockController.MODE_DISMISS,
+            biometricUnlockSource = BiometricUnlockSource.FINGERPRINT_SENSOR,
         )
         sceneInteractor.changeScene(Scenes.Gone, "unlock")
         sceneContainerRepository.setTransitionState(flowOf(Idle(Scenes.Gone)))

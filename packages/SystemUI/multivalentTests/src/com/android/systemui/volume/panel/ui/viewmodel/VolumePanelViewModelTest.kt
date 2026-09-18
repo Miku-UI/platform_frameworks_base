@@ -26,7 +26,7 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.coroutines.collectLastValue
-import com.android.systemui.dump.DumpManager
+import com.android.systemui.dump.realDumpManager
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.collectLastValue
@@ -65,7 +65,7 @@ class VolumePanelViewModelTest : SysuiTestCase() {
             volumePanelGlobalStateRepository.updateVolumePanelState { it.copy(isVisible = true) }
         }
 
-    private val realDumpManager = DumpManager()
+    private val realDumpManager = kosmos.realDumpManager
     private val Kosmos.testableResources: TestableResources
         get() = testableContext.orCreateTestableResources
 

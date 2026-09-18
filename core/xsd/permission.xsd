@@ -35,6 +35,7 @@
                 <xs:element name="allow-ignore-location-settings" type="allow-ignore-location-settings"/>
                 <xs:element name="allow-implicit-broadcast" type="allow-implicit-broadcast"/>
                 <xs:element name="app-link" type="app-link"/>
+                <xs:element name="app-lock-exempt" type="app-lock-exempt"/>
                 <xs:element name="system-user-whitelisted-app" type="system-user-whitelisted-app"/>
                 <xs:element name="system-user-blacklisted-app" type="system-user-blacklisted-app"/>
                 <xs:element name="default-enabled-vr-app" type="default-enabled-vr-app"/>
@@ -105,6 +106,9 @@
         <xs:attribute name="action" type="xs:string"/>
     </xs:complexType>
     <xs:complexType name="app-link">
+        <xs:attribute name="package" type="xs:string"/>
+    </xs:complexType>
+    <xs:complexType name="app-lock-exempt">
         <xs:attribute name="package" type="xs:string"/>
     </xs:complexType>
     <xs:complexType name="system-user-whitelisted-app">

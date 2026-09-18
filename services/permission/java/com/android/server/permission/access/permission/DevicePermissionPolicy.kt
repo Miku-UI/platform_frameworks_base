@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package com.android.server.permission.access.permission
 
 import android.permission.PermissionManager
@@ -27,8 +29,8 @@ import com.android.server.permission.access.MutableAccessState
 import com.android.server.permission.access.MutateStateScope
 import com.android.server.permission.access.SchemePolicy
 import com.android.server.permission.access.UidUri
-import com.android.server.permission.access.collection.* // ktlint-disable no-wildcard-imports
-import com.android.server.permission.access.immutable.* // ktlint-disable no-wildcard-imports
+import com.android.server.permission.access.collection.*
+import com.android.server.permission.access.immutable.*
 import com.android.server.permission.access.util.andInv
 import com.android.server.pm.pkg.PackageState
 
@@ -97,6 +99,9 @@ class DevicePermissionPolicy : SchemePolicy() {
             // The package may still be removed even if it was once notified as installed.
             val packageState =
                 newState.externalState.packageStates[packageName] ?: return@forEachIndexed
+            // The package may still be unavailable if the storage volume is removed before fully
+            // scanned, in which case we should skip it and wait for the next time.
+            packageState.androidPackage ?: return@forEachIndexed
             trimPermissionStates(packageState.appId)
         }
     }

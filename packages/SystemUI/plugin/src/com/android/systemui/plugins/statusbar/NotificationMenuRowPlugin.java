@@ -87,11 +87,6 @@ public interface NotificationMenuRowPlugin extends Plugin {
     public MenuItem getLongpressMenuItem(Context context);
 
     /**
-     * @return the {@link MenuItem} to display when feedback icon is pressed.
-     */
-    public MenuItem getFeedbackMenuItem(Context context);
-
-    /**
      * @return the {@link MenuItem} to display when snooze item is pressed.
      */
     public MenuItem getSnoozeMenuItem(Context context);

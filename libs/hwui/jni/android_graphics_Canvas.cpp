@@ -32,6 +32,7 @@
 
 #include "Bitmap.h"
 #include "FontUtils.h"
+#include "Path.h"
 #include "SkBitmap.h"
 #include "SkBlendMode.h"
 #include "SkClipOp.h"
@@ -206,7 +207,7 @@ static jboolean quickRejectRect(CRITICAL_JNI_PARAMS_COMMA jlong canvasHandle,
 }
 
 static jboolean quickRejectPath(CRITICAL_JNI_PARAMS_COMMA jlong canvasHandle, jlong pathHandle) {
-    SkPath* path = reinterpret_cast<SkPath*>(pathHandle);
+    SkPath* path = AsSkPath(pathHandle);
     bool result = get_canvas(canvasHandle)->quickRejectPath(*path);
     return result ? JNI_TRUE : JNI_FALSE;
 }
@@ -246,7 +247,7 @@ static jboolean clipRect(CRITICAL_JNI_PARAMS_COMMA jlong canvasHandle, jfloat l,
 static jboolean clipPath(CRITICAL_JNI_PARAMS_COMMA jlong canvasHandle, jlong pathHandle,
                          jint opHandle) {
     SkRegion::Op rgnOp = static_cast<SkRegion::Op>(opHandle);
-    SkPath* path = reinterpret_cast<SkPath*>(pathHandle);
+    SkPath* path = AsSkPath(pathHandle);
     bool nonEmptyClip;
     switch (rgnOp) {
         case SkRegion::Op::kIntersect_Op:
@@ -415,7 +416,7 @@ static void drawArc(JNIEnv* env, jobject, jlong canvasHandle, jfloat left, jfloa
 
 static void drawPath(JNIEnv* env, jobject, jlong canvasHandle, jlong pathHandle,
                      jlong paintHandle) {
-    const SkPath* path = reinterpret_cast<SkPath*>(pathHandle);
+    const SkPath* path = AsSkPath(pathHandle);
     const Paint* paint = reinterpret_cast<Paint*>(paintHandle);
     get_canvas(canvasHandle)->drawPath(*path, *paint);
 }
@@ -717,7 +718,7 @@ static void drawTextRunString(JNIEnv* env, jobject obj, jlong canvasHandle, jstr
 static void drawTextOnPathChars(JNIEnv* env, jobject, jlong canvasHandle, jcharArray text,
                                 jint index, jint count, jlong pathHandle, jfloat hOffset,
                                 jfloat vOffset, jint bidiFlags, jlong paintHandle) {
-    SkPath* path = reinterpret_cast<SkPath*>(pathHandle);
+    SkPath* path = AsSkPath(pathHandle);
     Paint* paint = reinterpret_cast<Paint*>(paintHandle);
     const Typeface* typeface = paint->getAndroidTypeface();
 
@@ -738,7 +739,7 @@ static void drawTextOnPathChars(JNIEnv* env, jobject, jlong canvasHandle, jcharA
 static void drawTextOnPathString(JNIEnv* env, jobject, jlong canvasHandle, jstring text,
                                  jlong pathHandle, jfloat hOffset, jfloat vOffset,
                                  jint bidiFlags, jlong paintHandle) {
-    SkPath* path = reinterpret_cast<SkPath*>(pathHandle);
+    SkPath* path = AsSkPath(pathHandle);
     Paint* paint = reinterpret_cast<Paint*>(paintHandle);
     const Typeface* typeface = paint->getAndroidTypeface();
 

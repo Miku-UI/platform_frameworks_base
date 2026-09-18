@@ -34,6 +34,7 @@ static struct {
     jmethodID ctor;
     jmethodID addMotionRange;
     jmethodID setShouldSmoothScroll;
+    jmethodID setPrimaryDirectionalMotionAxis;
 } gInputDeviceClassInfo;
 
 jobject android_view_InputDevice_create(JNIEnv* env, const InputDeviceInfo& deviceInfo) {
@@ -114,6 +115,18 @@ jobject android_view_InputDevice_create(JNIEnv* env, const InputDeviceInfo& devi
                 return NULL;
             }
         }
+        if (com::android::input::flags::input_device_primary_directional_motion_axis_api()) {
+            std::optional<int32_t> primaryDirectionalMotionAxis =
+                viewBehavior.primaryDirectionalMotionAxis;
+            if (primaryDirectionalMotionAxis.has_value()) {
+                env->CallVoidMethod(inputDeviceObj.get(),
+                                    gInputDeviceClassInfo.setPrimaryDirectionalMotionAxis,
+                                    static_cast<jint>(*primaryDirectionalMotionAxis));
+                if (env->ExceptionCheck()) {
+                    return NULL;
+                }
+            }
+        }
     }
 
     return env->NewLocalRef(inputDeviceObj.get());
@@ -133,6 +146,9 @@ int register_android_view_InputDevice(JNIEnv* env)
             GetMethodIDOrDie(env, gInputDeviceClassInfo.clazz, "addMotionRange", "(IIFFFFF)V");
     gInputDeviceClassInfo.setShouldSmoothScroll =
             GetMethodIDOrDie(env, gInputDeviceClassInfo.clazz, "setShouldSmoothScroll", "(Z)V");
+    gInputDeviceClassInfo.setPrimaryDirectionalMotionAxis =
+            GetMethodIDOrDie(env, gInputDeviceClassInfo.clazz, "setPrimaryDirectionalMotionAxis",
+                             "(I)V");
     return 0;
 }
 

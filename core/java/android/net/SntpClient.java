@@ -190,6 +190,24 @@ public class SntpClient {
             long totalTransactionDurationMillis = responseTicks - requestTicks;
             long serverDurationMillis =
                     Duration64.between(receiveTimestamp, transmitTimestamp).toDuration().toMillis();
+
+            if (serverDurationMillis > totalTransactionDurationMillis) {
+                // serverDurationMillis cannot be greater than the elapsed time measured by
+                // the client.
+                throw new InvalidServerReplyException(
+                        "serverDurationMillis is too high."
+                                + " serverDurationMillis="
+                                + serverDurationMillis
+                                + ", totalTransactionDurationMillis="
+                                + totalTransactionDurationMillis);
+            }
+
+            // Calculate the roundTripTimeMillis, i.e. time it took for the client to get a response
+            // minus the time spent in the server (as reported by the server).
+            // According to RFC4330:
+            // d is the roundtrip delay (the transit time of the request and response)
+            // d = (T4 - T1) - (T3 - T2)
+            //   = totalTransactionDurationMillis - serverDurationMillis
             long roundTripTimeMillis = totalTransactionDurationMillis - serverDurationMillis;
 
             Duration clockOffsetDuration = calculateClockOffset(requestTimestamp,

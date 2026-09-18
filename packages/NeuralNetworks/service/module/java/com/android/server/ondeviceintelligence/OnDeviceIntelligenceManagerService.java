@@ -17,11 +17,11 @@
 package com.android.server.ondeviceintelligence;
 
 import static android.app.ondeviceintelligence.OnDeviceIntelligenceManager.ON_DEVICE_INTELLIGENCE_IDLE_TIMEOUT_MS;
-import static android.service.ondeviceintelligence.OnDeviceSandboxedInferenceService.DEVICE_CONFIG_UPDATE_BUNDLE_KEY;
-import static android.service.ondeviceintelligence.OnDeviceSandboxedInferenceService.MODEL_LOADED_BROADCAST_INTENT;
+import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.service.ondeviceintelligence.OnDeviceSandboxedInferenceService.MODEL_LOADED_BUNDLE_KEY;
-import static android.service.ondeviceintelligence.OnDeviceSandboxedInferenceService.MODEL_UNLOADED_BROADCAST_INTENT;
 import static android.service.ondeviceintelligence.OnDeviceSandboxedInferenceService.MODEL_UNLOADED_BUNDLE_KEY;
+import static android.service.ondeviceintelligence.OnDeviceSandboxedInferenceService.MODEL_LOADED_BROADCAST_INTENT;
+import static android.service.ondeviceintelligence.OnDeviceSandboxedInferenceService.MODEL_UNLOADED_BROADCAST_INTENT;
 import static android.service.ondeviceintelligence.OnDeviceSandboxedInferenceService.REGISTER_MODEL_UPDATE_CALLBACK_BUNDLE_KEY;
 
 import static com.android.server.ondeviceintelligence.BundleUtil.sanitizeInferenceParams;
@@ -33,6 +33,7 @@ import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.app.ActivityManager;
 import android.app.ondeviceintelligence.DownloadCallback;
 import android.app.ondeviceintelligence.Feature;
 import android.app.ondeviceintelligence.FeatureDetails;
@@ -47,7 +48,9 @@ import android.app.ondeviceintelligence.IRemoteCallback;
 import android.app.ondeviceintelligence.IResponseCallback;
 import android.app.ondeviceintelligence.IStreamingResponseCallback;
 import android.app.ondeviceintelligence.ITokenInfoCallback;
+import android.app.ondeviceintelligence.ILifecycleListener;
 import android.app.ondeviceintelligence.InferenceInfo;
+import android.app.ondeviceintelligence.OnDeviceIntelligenceManager;
 import android.app.ondeviceintelligence.OnDeviceIntelligenceException;
 import android.app.ondeviceintelligence.utils.BinderUtils;
 import android.content.ComponentName;
@@ -62,10 +65,12 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
+import android.os.RemoteCallbackList;
 import android.os.ParcelFileDescriptor;
 import android.os.PersistableBundle;
 import android.os.RemoteCallback;
 import android.os.RemoteException;
+import android.os.ResultReceiver;
 import android.os.UserHandle;
 import android.provider.DeviceConfig;
 import android.provider.Settings;
@@ -81,17 +86,26 @@ import android.util.Log;
 import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
-import com.android.modules.utils.AndroidFuture;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.modules.utils.BackgroundThread;
-import com.android.modules.utils.ServiceConnector;
+import com.android.modules.utils.AndroidFuture;
+import com.android.server.ondeviceintelligence.util.ForegroundThread;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.SystemService;
 import com.android.server.ondeviceintelligence.callbacks.ListenableDownloadCallback;
+import com.android.server.ondeviceintelligence.callbacks.ListenableStreamingResponseCallback;
+import com.android.server.ondeviceintelligence.executors.InferenceServiceExecutor;
+import com.android.server.ondeviceintelligence.executors.IntelligenceServiceExecutor;
 
-import java.io.IOException;
+import java.io.FileDescriptor;
+import java.io.PrintWriter;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -100,18 +114,19 @@ import java.util.concurrent.TimeoutException;
 /**
  * This is the system service for handling calls on the
  * {@link android.app.ondeviceintelligence.OnDeviceIntelligenceManager}. This
- * service holds connection references to the underlying remote services i.e. the isolated service
- * {@link OnDeviceSandboxedInferenceService} and a regular
+ * service holds connection references to the underlying remote services i.e. the isolated
+ * service {@link OnDeviceSandboxedInferenceService} and a regular
  * service counter part {@link OnDeviceIntelligenceService}.
  *
- * Note: Both the remote services run under the SYSTEM user, as we cannot have separate instance of
- * the Inference service for each user, due to possible high memory footprint.
+ * <p>Note: Both the remote services run under the SYSTEM user, as we cannot have separate
+ * instance of the Inference service for each user, due to possible high memory footprint.
  *
  * @hide
  */
 public class OnDeviceIntelligenceManagerService extends SystemService {
+    private static OnDeviceIntelligenceManagerService sInstance;
 
-    private static final String TAG = OnDeviceIntelligenceManagerService.class.getSimpleName();
+    public static final String TAG = OnDeviceIntelligenceManagerService.class.getSimpleName();
     private static final String KEY_SERVICE_ENABLED = "service_enabled";
 
     /** Handler message to {@link #resetTemporaryServices()} */
@@ -121,6 +136,12 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
     /** Handler message to clean up temporary config namespace. */
     private static final int MSG_RESET_CONFIG_NAMESPACE = 2;
 
+    /**
+     * Flag to be used for binding to the inference service with {@link Context#bindService}.
+     * This flag schedules the binding as a top app, which is used for high priority connections.
+     */
+    private static final int BIND_SCHEDULE_LIKE_TOP_APP = 0x00080000;
+
     /** Default value in absence of {@link DeviceConfig} override. */
     private static final boolean DEFAULT_SERVICE_ENABLED = true;
     private static final String NAMESPACE_ON_DEVICE_INTELLIGENCE = "ondeviceintelligence";
@@ -128,21 +149,49 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
     private static final String SYSTEM_PACKAGE = "android";
     private static final long MAX_AGE_MS = TimeUnit.HOURS.toMillis(3);
 
-
     private final Executor resourceClosingExecutor = Executors.newCachedThreadPool();
     private final Executor callbackExecutor = Executors.newCachedThreadPool();
     private final Executor broadcastExecutor = Executors.newCachedThreadPool();
     private final Executor mConfigExecutor = Executors.newCachedThreadPool();
+    /** Executor to run lifecycle event broadcasts sequentially. */
+    private final Executor mLifecycleExecutor = Executors.newSingleThreadExecutor(
+            r -> new Thread(r, "odi-lifecycle-broadcast"));
 
 
     private final Context mContext;
     protected final Object mLock = new Object();
+    private final Object mPriorityBindingLock = new Object();
 
     private final InferenceInfoStore mInferenceInfoStore;
-    private RemoteOnDeviceSandboxedInferenceService mRemoteInferenceService;
+    @VisibleForTesting
+    RemoteOnDeviceSandboxedInferenceService mRemoteInferenceService;
     private RemoteOnDeviceIntelligenceService mRemoteOnDeviceIntelligenceService;
+    @VisibleForTesting
     volatile boolean mIsServiceEnabled;
 
+    /**
+     * A map tracking the number of active inference jobs per calling UID.
+     * The key is the UID of the application, and the value is the number of ongoing
+     * inference requests initiated by that UID.
+     */
+    @GuardedBy("mPriorityBindingLock")
+    @VisibleForTesting
+    final Map<Integer, Integer> mJobCountsByUid = new HashMap<>();
+    /**
+     * A shared connection to the inference service with {@link Context.BIND_SCHEDULE_LIKE_TOP_APP},
+     * used when at least one UID has an active job and is in the foreground.
+     */
+    @GuardedBy("mPriorityBindingLock")
+    @VisibleForTesting
+    RemoteOnDeviceSandboxedInferenceService mHighPriorityConnection;
+    /**
+     * A set tracking the UIDs that have at least one active inference job and are in the foreground.
+     * This is used to determine whether to create a high-priority connection to the inference
+     * service.
+     */
+    @GuardedBy("mPriorityBindingLock")
+    @VisibleForTesting
+    final Set<Integer> mHighPriorityUids = new HashSet<>();
     @GuardedBy("mLock")
     private int remoteInferenceServiceUid = -1;
 
@@ -155,9 +204,47 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
     @GuardedBy("mLock")
     private String mTemporaryConfigNamespace;
 
+
+    @VisibleForTesting
+    ActivityManager mActivityManager;
+    private final ActivityManager.OnUidImportanceListener mUidImportanceListener =
+            (uid, importance) -> {
+            // Post to the foreground thread to avoid blocking the main thread.
+            ForegroundThread.getHandler().post(() -> {
+                synchronized (mPriorityBindingLock) {
+                    if (mJobCountsByUid.containsKey(uid)) {
+                        updateUidPriority(uid, importance);
+                    }
+                }
+                });
+            };
+
     private final DeviceConfig.OnPropertiesChangedListener mOnPropertiesChangedListener =
             this::sendUpdatedConfig;
 
+    private final RemoteCallbackList<ILifecycleListener> mLifecycleListeners =
+            new RemoteCallbackList.Builder<ILifecycleListener>(
+                    RemoteCallbackList.FROZEN_CALLEE_POLICY_ENQUEUE_ALL)
+                    .setExecutor(callbackExecutor).build();
+    private final ILifecycleListener mSystemLifecycleListener = new ILifecycleListener.Stub() {
+        @Override
+        public void onLifecycleEvent(int event, Feature feature) {
+            // Broadcasts are sent on a dedicated single-threaded executor to ensure ordering.
+            // This ensures that if onLifecycleEvent is called for multiple events, they are
+            // broadcast to clients in the same order.
+            // TODO - b/427938935: Add coverage for this logic.
+            mLifecycleExecutor.execute(() -> {
+                mLifecycleListeners.broadcast(listener -> {
+                    try {
+                        Slog.d(TAG, "Invoking onLifecycleEvent from system-server.");
+                        listener.onLifecycleEvent(event, feature);
+                    } catch (RemoteException e) {
+                        Slog.d(TAG, "RemoteException when invoking onLifecycleEvent", e);
+                    }
+                });
+            });
+        }
+    };
 
     /**
      * Handler used to reset the temporary service names.
@@ -165,10 +252,18 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
     private Handler mTemporaryHandler;
     private final @NonNull Handler mMainHandler = new Handler(Looper.getMainLooper());
 
+    /**
+     * Returns the singleton instance of {@link OnDeviceIntelligenceManagerService}.
+     */
+    public static OnDeviceIntelligenceManagerService getInstance() {
+        Objects.requireNonNull(sInstance, "OnDeviceIntelligenceManagerService is not available.");
+        return sInstance;
+    }
 
     public OnDeviceIntelligenceManagerService(Context context) {
         super(context);
         mContext = context;
+        sInstance = this;
         mTemporaryServiceNames = new String[0];
         mInferenceInfoStore = new InferenceInfoStore(MAX_AGE_MS);
     }
@@ -189,8 +284,12 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                     NAMESPACE_ON_DEVICE_INTELLIGENCE,
                     BackgroundThread.getExecutor(),
                     (properties) -> onDeviceConfigChange(properties.getKeyset()));
-
             mIsServiceEnabled = isServiceEnabled();
+            mActivityManager = mContext.getSystemService(ActivityManager.class);
+            if (mActivityManager != null) {
+                mActivityManager.addOnUidImportanceListener(mUidImportanceListener,
+                        ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND);
+            }
         }
     }
 
@@ -200,7 +299,7 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
         }
     }
 
-    private boolean isServiceEnabled() {
+    public boolean isServiceEnabled() {
         return DeviceConfig.getBoolean(
                 NAMESPACE_ON_DEVICE_INTELLIGENCE,
                 KEY_SERVICE_ENABLED, DEFAULT_SERVICE_ENABLED);
@@ -225,84 +324,103 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
             public void getVersion(RemoteCallback remoteCallback) {
                 Slog.i(TAG, "OnDeviceIntelligenceManagerInternal getVersion");
                 Objects.requireNonNull(remoteCallback);
-                mContext.enforceCallingPermission(
-                        Manifest.permission.USE_ON_DEVICE_INTELLIGENCE, TAG);
-                if (!mIsServiceEnabled) {
-                    Slog.w(TAG, "Service not available");
-                    remoteCallback.sendResult(null);
-                    return;
-                }
-                ensureRemoteIntelligenceServiceInitialized(/* throwServiceIfInvalid */ true);
-                mRemoteOnDeviceIntelligenceService.postAsync(
+                var executor =
+                        new IntelligenceServiceExecutor.Builder()
+                                .onFailure(type -> remoteCallback.sendResult(null))
+                                .build();
+                executor.execute(
                         service -> {
-                            AndroidFuture future = new AndroidFuture();
-                            service.getVersion(new RemoteCallback(
-                                    result -> {
-                                        remoteCallback.sendResult(result);
-                                        future.complete(null);
-                                    }));
-                            return future.orTimeout(getIdleTimeoutMs(), TimeUnit.MILLISECONDS);
+                            AndroidFuture<Void> future = new AndroidFuture<>();
+                            service.getVersion(
+                                    new RemoteCallback(
+                                            result -> {
+                                                remoteCallback.sendResult(result);
+                                                future.complete(null);
+                                            }));
+                            return future.orTimeout(getIdleTimeoutMs(),
+                                        TimeUnit.MILLISECONDS);
                         });
             }
 
             @Override
             public void getFeature(int id, IFeatureCallback featureCallback)
                     throws RemoteException {
-                Slog.i(TAG, "OnDeviceIntelligenceManagerInternal getFeature");
-                Objects.requireNonNull(featureCallback);
-                mContext.enforceCallingPermission(
-                        Manifest.permission.USE_ON_DEVICE_INTELLIGENCE, TAG);
-                if (!mIsServiceEnabled) {
-                    Slog.w(TAG, "Service not available");
-                    featureCallback.onFailure(
-                            OnDeviceIntelligenceException.ON_DEVICE_INTELLIGENCE_SERVICE_UNAVAILABLE,
-                            "OnDeviceIntelligenceManagerService is unavailable",
-                            PersistableBundle.EMPTY);
-                    return;
-                }
-                ensureRemoteIntelligenceServiceInitialized(/* throwServiceIfInvalid */ true);
                 int callerUid = Binder.getCallingUid();
-                mRemoteOnDeviceIntelligenceService.postAsync(
-                        service -> {
-                            AndroidFuture future = new AndroidFuture();
-                            service.getFeature(callerUid, id, new IFeatureCallback.Stub() {
-                                @Override
-                                public void onSuccess(Feature result) throws RemoteException {
-                                    featureCallback.onSuccess(result);
-                                    future.complete(null);
-                                }
-
-                                @Override
-                                public void onFailure(int errorCode, String errorMessage,
-                                        PersistableBundle errorParams) throws RemoteException {
-                                    featureCallback.onFailure(errorCode, errorMessage, errorParams);
-                                    future.completeExceptionally(new TimeoutException());
-                                }
-                            });
-                            return future.orTimeout(getIdleTimeoutMs(), TimeUnit.MILLISECONDS);
+                Slog.i(TAG, "OnDeviceIntelligenceManagerInternal getFeatures");
+                Objects.requireNonNull(featureCallback);
+                var executor = new IntelligenceServiceExecutor.Builder()
+                        .onFailure(
+                                type -> {
+                                    switch (type) {
+                                        case SERVICE_UNAVAILABLE -> featureCallback.onFailure(
+                                                OnDeviceIntelligenceException
+                                                        .ON_DEVICE_INTELLIGENCE_SERVICE_UNAVAILABLE,
+                                                "OnDeviceIntelligenceManagerService is unavailable",
+                                                PersistableBundle.EMPTY);
+                                        case REMOTE_FAILURE -> featureCallback.onFailure(
+                                                OnDeviceIntelligenceException
+                                                        .PROCESSING_UPDATE_STATUS_CONNECTION_FAILED,
+                                                "Remote call failed",
+                                                PersistableBundle.EMPTY);
+                                        case TIMEOUT -> featureCallback.onFailure(
+                                            OnDeviceIntelligenceException.PROCESSING_ERROR_CANCELLED,
+                                                "Remote call timed out",
+                                                PersistableBundle.EMPTY);
+                                    }
+                                })
+                        .build();
+                executor.execute(service -> {
+                            AndroidFuture<Void> future = new AndroidFuture<>();
+                            service.getFeature(callerUid, id,
+                                    new IFeatureCallback.Stub() {
+                                        @Override
+                                        public void onSuccess(Feature result)
+                                                throws RemoteException {
+                                            featureCallback.onSuccess(result);
+                                            future.complete(null);
+                                        }
+                                        @Override
+                                        public void onFailure(int errorCode, String errorMessage,
+                                                PersistableBundle errorParams)
+                                                throws RemoteException {
+                                            featureCallback.onFailure(errorCode, errorMessage,
+                                                    errorParams);
+                                            future.complete(null);
+                                        }
+                                    });
+                            return future.orTimeout(getIdleTimeoutMs(),
+                                    TimeUnit.MILLISECONDS);
                         });
             }
-
             @Override
             public void listFeatures(IListFeaturesCallback listFeaturesCallback)
                     throws RemoteException {
+                int callerUid = Binder.getCallingUid();
                 Slog.i(TAG, "OnDeviceIntelligenceManagerInternal listFeatures");
                 Objects.requireNonNull(listFeaturesCallback);
-                mContext.enforceCallingPermission(
-                        Manifest.permission.USE_ON_DEVICE_INTELLIGENCE, TAG);
-                if (!mIsServiceEnabled) {
-                    Slog.w(TAG, "Service not available");
-                    listFeaturesCallback.onFailure(
-                            OnDeviceIntelligenceException.ON_DEVICE_INTELLIGENCE_SERVICE_UNAVAILABLE,
-                            "OnDeviceIntelligenceManagerService is unavailable",
-                            PersistableBundle.EMPTY);
-                    return;
-                }
-                ensureRemoteIntelligenceServiceInitialized(/* throwServiceIfInvalid */ true);
-                int callerUid = Binder.getCallingUid();
-                mRemoteOnDeviceIntelligenceService.postAsync(
-                        service -> {
-                            AndroidFuture future = new AndroidFuture();
+                var executor = new IntelligenceServiceExecutor.Builder()
+                        .onFailure(
+                                type -> {
+                                    switch (type) {
+                                        case SERVICE_UNAVAILABLE -> listFeaturesCallback.onFailure(
+                                                OnDeviceIntelligenceException
+                                                        .ON_DEVICE_INTELLIGENCE_SERVICE_UNAVAILABLE,
+                                                "OnDeviceIntelligenceManagerService is unavailable",
+                                                PersistableBundle.EMPTY);
+                                        case REMOTE_FAILURE -> listFeaturesCallback.onFailure(
+                                                OnDeviceIntelligenceException
+                                                        .PROCESSING_UPDATE_STATUS_CONNECTION_FAILED,
+                                                "Remote call failed",
+                                                PersistableBundle.EMPTY);
+                                        case TIMEOUT -> listFeaturesCallback.onFailure(
+                                                OnDeviceIntelligenceException.PROCESSING_ERROR_CANCELLED,
+                                                "Remote call timed out",
+                                                PersistableBundle.EMPTY);
+                                    }
+                                })
+                        .build();
+                executor.execute(service -> {
+                            AndroidFuture<Void> future = new AndroidFuture<>();
                             service.listFeatures(callerUid,
                                     new IListFeaturesCallback.Stub() {
                                         @Override
@@ -318,7 +436,7 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                                                 throws RemoteException {
                                             listFeaturesCallback.onFailure(errorCode, errorMessage,
                                                     errorParams);
-                                            future.completeExceptionally(new TimeoutException());
+                                            future.complete(null);
                                         }
                                     });
                             return future.orTimeout(getIdleTimeoutMs(), TimeUnit.MILLISECONDS);
@@ -326,27 +444,91 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
             }
 
             @Override
+            public void listFeaturesWithFilter(PersistableBundle featureParamsFilter,
+                    IListFeaturesCallback listFeaturesCallback)
+                    throws RemoteException {
+                int callerUid = Binder.getCallingUid();
+                Slog.i(TAG, "OnDeviceIntelligenceManagerInternal listFeaturesWithFilter");
+                Objects.requireNonNull(featureParamsFilter);
+                Objects.requireNonNull(listFeaturesCallback);
+                var executor = new IntelligenceServiceExecutor.Builder()
+                        .onFailure(
+                                type -> {
+                                    switch (type) {
+                                        case SERVICE_UNAVAILABLE -> listFeaturesCallback.onFailure(
+                                                OnDeviceIntelligenceException
+                                                        .ON_DEVICE_INTELLIGENCE_SERVICE_UNAVAILABLE,
+                                                "OnDeviceIntelligenceManagerService is unavailable",
+                                                PersistableBundle.EMPTY);
+                                        case REMOTE_FAILURE -> listFeaturesCallback.onFailure(
+                                                OnDeviceIntelligenceException
+                                                        .PROCESSING_UPDATE_STATUS_CONNECTION_FAILED,
+                                                "Remote call failed",
+                                                PersistableBundle.EMPTY);
+                                        case TIMEOUT -> listFeaturesCallback.onFailure(
+                                                OnDeviceIntelligenceException.PROCESSING_ERROR_CANCELLED,
+                                                "Remote call timed out",
+                                                PersistableBundle.EMPTY);
+                                    }
+                                })
+                        .build();
+                executor.execute(service -> {
+                            AndroidFuture<Void> future = new AndroidFuture<>();
+                            service.listFeaturesWithFilter(callerUid, featureParamsFilter,
+                                    new IListFeaturesCallback.Stub() {
+                                        @Override
+                                        public void onSuccess(List<Feature> result)
+                                                throws RemoteException {
+                                            listFeaturesCallback.onSuccess(result);
+                                            future.complete(null);
+                                        }
+
+                                        @Override
+                                        public void onFailure(int errorCode, String errorMessage,
+                                                PersistableBundle errorParams)
+                                                throws RemoteException {
+                                            listFeaturesCallback.onFailure(errorCode, errorMessage,
+                                                    errorParams);
+                                             future.complete(null);
+                                        }
+                                    });
+                            return future.orTimeout(getIdleTimeoutMs(),
+                                    TimeUnit.MILLISECONDS);
+                        });
+            }
+            @Override
             public void getFeatureDetails(Feature feature,
                     IFeatureDetailsCallback featureDetailsCallback)
                     throws RemoteException {
+                int callerUid = Binder.getCallingUid();
                 Slog.i(TAG, "OnDeviceIntelligenceManagerInternal getFeatureDetails");
                 Objects.requireNonNull(feature);
                 Objects.requireNonNull(featureDetailsCallback);
-                mContext.enforceCallingPermission(
-                        Manifest.permission.USE_ON_DEVICE_INTELLIGENCE, TAG);
-                if (!mIsServiceEnabled) {
-                    Slog.w(TAG, "Service not available");
-                    featureDetailsCallback.onFailure(
-                            OnDeviceIntelligenceException.ON_DEVICE_INTELLIGENCE_SERVICE_UNAVAILABLE,
-                            "OnDeviceIntelligenceManagerService is unavailable",
-                            PersistableBundle.EMPTY);
-                    return;
-                }
-                ensureRemoteIntelligenceServiceInitialized(/* throwServiceIfInvalid */ true);
-                int callerUid = Binder.getCallingUid();
-                mRemoteOnDeviceIntelligenceService.postAsync(
-                        service -> {
-                            AndroidFuture future = new AndroidFuture();
+                new IntelligenceServiceExecutor.Builder()
+                        .onFailure(
+                                type -> {
+                                    switch (type) {
+                                        case SERVICE_UNAVAILABLE ->
+                                            featureDetailsCallback.onFailure(
+                                                OnDeviceIntelligenceException
+                                                        .ON_DEVICE_INTELLIGENCE_SERVICE_UNAVAILABLE,
+                                                "OnDeviceIntelligenceManagerService is unavailable",
+                                                PersistableBundle.EMPTY);
+                                        case REMOTE_FAILURE -> featureDetailsCallback.onFailure(
+                                                OnDeviceIntelligenceException
+                                                        .PROCESSING_UPDATE_STATUS_CONNECTION_FAILED,
+                                                "Remote call failed",
+                                                PersistableBundle.EMPTY);
+                                        case TIMEOUT -> featureDetailsCallback.onFailure(
+                                                OnDeviceIntelligenceException.
+                                                    PROCESSING_ERROR_CANCELLED,
+                                                "Remote call timed out",
+                                                PersistableBundle.EMPTY);
+                                    }
+                                })
+                        .build()
+                        .execute(service -> {
+                            AndroidFuture<Void> future = new AndroidFuture<>();
                             service.getFeatureDetails(callerUid, feature,
                                     new IFeatureDetailsCallback.Stub() {
                                         @Override
@@ -355,12 +537,11 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                                             future.complete(null);
                                             featureDetailsCallback.onSuccess(result);
                                         }
-
                                         @Override
                                         public void onFailure(int errorCode, String errorMessage,
                                                 PersistableBundle errorParams)
                                                 throws RemoteException {
-                                            future.completeExceptionally(null);
+                                            future.complete(null);
                                             featureDetailsCallback.onFailure(errorCode,
                                                     errorMessage, errorParams);
                                         }
@@ -368,28 +549,36 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                             return future.orTimeout(getIdleTimeoutMs(), TimeUnit.MILLISECONDS);
                         });
             }
-
             @Override
             public void requestFeatureDownload(Feature feature,
                     AndroidFuture cancellationSignalFuture,
                     IDownloadCallback downloadCallback) throws RemoteException {
+                int callerUid = Binder.getCallingUid();
                 Slog.i(TAG, "OnDeviceIntelligenceManagerInternal requestFeatureDownload");
                 Objects.requireNonNull(feature);
                 Objects.requireNonNull(downloadCallback);
-                mContext.enforceCallingPermission(
-                        Manifest.permission.USE_ON_DEVICE_INTELLIGENCE, TAG);
-                if (!mIsServiceEnabled) {
-                    Slog.w(TAG, "Service not available");
-                    downloadCallback.onDownloadFailed(
-                            DownloadCallback.DOWNLOAD_FAILURE_STATUS_UNAVAILABLE,
-                            "OnDeviceIntelligenceManagerService is unavailable",
-                            PersistableBundle.EMPTY);
-                }
-                ensureRemoteIntelligenceServiceInitialized(/* throwServiceIfInvalid */ true);
-                int callerUid = Binder.getCallingUid();
-                mRemoteOnDeviceIntelligenceService.postAsync(
-                        service -> {
-                            AndroidFuture future = new AndroidFuture();
+                new IntelligenceServiceExecutor.Builder()
+                        .onFailure(
+                                type -> {
+                                    switch (type) {
+                                        case SERVICE_UNAVAILABLE ->
+                                            downloadCallback.onDownloadFailed(
+                                                DownloadCallback.DOWNLOAD_FAILURE_STATUS_UNAVAILABLE,
+                                                "OnDeviceIntelligenceManagerService is unavailable",
+                                                PersistableBundle.EMPTY);
+                                        case REMOTE_FAILURE -> downloadCallback.onDownloadFailed(
+                                                DownloadCallback.DOWNLOAD_FAILURE_STATUS_UNAVAILABLE,
+                                                "Remote call failed",
+                                                PersistableBundle.EMPTY);
+                                        case TIMEOUT -> downloadCallback.onDownloadFailed(
+                                                DownloadCallback.DOWNLOAD_FAILURE_STATUS_UNKNOWN,
+                                                "Remote call timed out",
+                                                PersistableBundle.EMPTY);
+                                    }
+                                })
+                        .build()
+                        .execute(service -> {
+                            AndroidFuture<Void> future = new AndroidFuture<>();
                             ListenableDownloadCallback listenableDownloadCallback =
                                     new ListenableDownloadCallback(
                                             downloadCallback,
@@ -398,47 +587,60 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                                     wrapCancellationFuture(cancellationSignalFuture),
                                     listenableDownloadCallback);
                             return future; // this future has no timeout because, actual download
-                            // might take long, but we fail early if there is no progress callbacks.
+                            // might take long, we fail early if there is no progress callbacks
                         }
                 );
             }
-
 
             @Override
             public void requestTokenInfo(Feature feature,
                     Bundle request,
                     AndroidFuture cancellationSignalFuture,
                     ITokenInfoCallback tokenInfoCallback) throws RemoteException {
+                int callerUid = Binder.getCallingUid();
                 Slog.i(TAG, "OnDeviceIntelligenceManagerInternal requestTokenInfo");
-                AndroidFuture<Void> result = null;
+                AndroidFuture<?> result = null;
                 try {
                     Objects.requireNonNull(feature);
                     sanitizeInferenceParams(request);
                     Objects.requireNonNull(tokenInfoCallback);
-
-                    mContext.enforceCallingPermission(
-                            Manifest.permission.USE_ON_DEVICE_INTELLIGENCE, TAG);
-                    if (!mIsServiceEnabled) {
-                        Slog.w(TAG, "Service not available");
-                        tokenInfoCallback.onFailure(
-                                OnDeviceIntelligenceException.ON_DEVICE_INTELLIGENCE_SERVICE_UNAVAILABLE,
-                                "OnDeviceIntelligenceManagerService is unavailable",
-                                PersistableBundle.EMPTY);
-                    }
-                    ensureRemoteInferenceServiceInitialized(/* throwServiceIfInvalid */ true);
-                    int callerUid = Binder.getCallingUid();
-                    result = mRemoteInferenceService.postAsync(
-                            service -> {
-                                AndroidFuture future = new AndroidFuture();
-                                service.requestTokenInfo(callerUid, feature,
-                                        request,
-                                        wrapCancellationFuture(cancellationSignalFuture),
-                                        wrapWithValidation(tokenInfoCallback, future,
-                                                mInferenceInfoStore));
-                                return future.orTimeout(getIdleTimeoutMs(), TimeUnit.MILLISECONDS);
+                    var executor = new InferenceServiceExecutor.Builder()
+                            .onFailure(
+                                    type -> {
+                                        switch (type) {
+                                            case SERVICE_UNAVAILABLE -> tokenInfoCallback.onFailure(
+                                                OnDeviceIntelligenceException
+                                                        .ON_DEVICE_INTELLIGENCE_SERVICE_UNAVAILABLE,
+                                                    "OnDeviceIntelligenceManagerService is unavailable",
+                                                    PersistableBundle.EMPTY);
+                                            case REMOTE_FAILURE -> tokenInfoCallback.onFailure(
+                                                    OnDeviceIntelligenceException
+                                                        .PROCESSING_UPDATE_STATUS_CONNECTION_FAILED,
+                                                    "Remote call failed",
+                                                    PersistableBundle.EMPTY);
+                                            case TIMEOUT -> tokenInfoCallback.onFailure(
+                                                OnDeviceIntelligenceException.PROCESSING_ERROR_CANCELLED,
+                                                "Remote call timed out",
+                                                PersistableBundle.EMPTY);
+                                        }
+                                    })
+                            .build();
+                    result = executor.execute(service -> {
+                                AndroidFuture<Void> future = new AndroidFuture<>();
+                                try {
+                                    service.requestTokenInfo(callerUid, feature,
+                                            request,
+                                            wrapCancellationFuture(cancellationSignalFuture),
+                                            wrapWithValidation(tokenInfoCallback, future,
+                                                    mInferenceInfoStore));
+                                } finally {
+                                    resourceClosingExecutor.execute(
+                                            () -> BundleUtil.tryCloseResource(request));
+                                }
+                                return future.orTimeout(getIdleTimeoutMs(),
+                                        TimeUnit.MILLISECONDS);
                             });
-                    result.whenCompleteAsync((c, e) -> BundleUtil.tryCloseResource(request),
-                            resourceClosingExecutor);
+                    trackInferenceJob(callerUid, result);
                 } finally {
                     if (result == null) {
                         resourceClosingExecutor.execute(() -> BundleUtil.tryCloseResource(request));
@@ -454,38 +656,56 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                     AndroidFuture processingSignalFuture,
                     IResponseCallback responseCallback)
                     throws RemoteException {
-                AndroidFuture<Void> result = null;
+                AndroidFuture<?> result = null;
+                int callerUid = Binder.getCallingUid();
                 try {
                     Slog.i(TAG, "OnDeviceIntelligenceManagerInternal processRequest");
                     Objects.requireNonNull(feature);
                     sanitizeInferenceParams(request);
                     Objects.requireNonNull(responseCallback);
-                    mContext.enforceCallingPermission(
-                            Manifest.permission.USE_ON_DEVICE_INTELLIGENCE, TAG);
-                    if (!mIsServiceEnabled) {
-                        Slog.w(TAG, "Service not available");
-                        responseCallback.onFailure(
-                                OnDeviceIntelligenceException.PROCESSING_ERROR_SERVICE_UNAVAILABLE,
-                                "OnDeviceIntelligenceManagerService is unavailable",
-                                PersistableBundle.EMPTY);
-                    }
-                    ensureRemoteInferenceServiceInitialized(/* throwServiceIfInvalid */ true);
-                    int callerUid = Binder.getCallingUid();
-                    result = mRemoteInferenceService.postAsync(
-                            service -> {
-                                AndroidFuture future = new AndroidFuture();
-                                service.processRequest(callerUid, feature,
-                                        request,
-                                        requestType,
-                                        wrapCancellationFuture(cancellationSignalFuture),
-                                        wrapProcessingFuture(processingSignalFuture),
-                                        wrapWithValidation(responseCallback,
-                                                resourceClosingExecutor, future,
-                                                mInferenceInfoStore));
-                                return future.orTimeout(getIdleTimeoutMs(), TimeUnit.MILLISECONDS);
+                    var executor = new InferenceServiceExecutor.Builder()
+                            .onFailure(
+                                    type -> {
+                                        switch (type) {
+                                            case SERVICE_UNAVAILABLE -> responseCallback.onFailure(
+                                                    OnDeviceIntelligenceException
+                                                            .PROCESSING_ERROR_SERVICE_UNAVAILABLE,
+                                                    "OnDeviceIntelligenceManagerService is unavailable",
+                                                    PersistableBundle.EMPTY);
+                                            case REMOTE_FAILURE -> responseCallback.onFailure(
+                                                    OnDeviceIntelligenceException
+                                                            .PROCESSING_UPDATE_STATUS_CONNECTION_FAILED,
+                                                    "Remote call failed",
+                                                    PersistableBundle.EMPTY);
+                                            case TIMEOUT -> responseCallback.onFailure(
+                                                OnDeviceIntelligenceException.PROCESSING_ERROR_CANCELLED,
+                                                "Remote call timed out",
+                                                PersistableBundle.EMPTY);
+                                        }
+                                    })
+                            .build();
+                    result = executor.execute(service -> {
+                                AndroidFuture<Void> future = new AndroidFuture<>();
+                                try {
+                                    boolean shouldAddInferenceInfo = request.getBoolean(
+                                            OnDeviceIntelligenceManager.KEY_REQUEST_INFERENCE_INFO,
+                                            false);
+                                    service.processRequest(callerUid, feature,
+                                            request,
+                                            requestType,
+                                            wrapCancellationFuture(cancellationSignalFuture),
+                                            wrapProcessingFuture(processingSignalFuture),
+                                            wrapWithValidation(responseCallback,
+                                                    resourceClosingExecutor, future,
+                                                    mInferenceInfoStore, shouldAddInferenceInfo));
+                                } finally {
+                                    resourceClosingExecutor.execute(
+                                            () -> BundleUtil.tryCloseResource(request));
+                                }
+                                return future.orTimeout(getIdleTimeoutMs(),
+                                        TimeUnit.MILLISECONDS);
                             });
-                    result.whenCompleteAsync((c, e) -> BundleUtil.tryCloseResource(request),
-                            resourceClosingExecutor);
+                    trackInferenceJob(callerUid, result);
                 } finally {
                     if (result == null) {
                         resourceClosingExecutor.execute(() -> BundleUtil.tryCloseResource(request));
@@ -500,38 +720,60 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                     AndroidFuture cancellationSignalFuture,
                     AndroidFuture processingSignalFuture,
                     IStreamingResponseCallback streamingCallback) throws RemoteException {
-                AndroidFuture<Void> result = null;
+                AndroidFuture<?> result = null;
+                int callerUid = Binder.getCallingUid();
                 try {
                     Slog.i(TAG, "OnDeviceIntelligenceManagerInternal processRequestStreaming");
                     Objects.requireNonNull(feature);
                     sanitizeInferenceParams(request);
                     Objects.requireNonNull(streamingCallback);
-                    mContext.enforceCallingPermission(
-                            Manifest.permission.USE_ON_DEVICE_INTELLIGENCE, TAG);
-                    if (!mIsServiceEnabled) {
-                        Slog.w(TAG, "Service not available");
-                        streamingCallback.onFailure(
-                                OnDeviceIntelligenceException.PROCESSING_ERROR_SERVICE_UNAVAILABLE,
-                                "OnDeviceIntelligenceManagerService is unavailable",
-                                PersistableBundle.EMPTY);
-                    }
-                    ensureRemoteInferenceServiceInitialized(/* throwServiceIfInvalid */ true);
-                    int callerUid = Binder.getCallingUid();
-                    result = mRemoteInferenceService.postAsync(
-                            service -> {
-                                AndroidFuture future = new AndroidFuture();
-                                service.processRequestStreaming(callerUid,
-                                        feature,
-                                        request, requestType,
-                                        wrapCancellationFuture(cancellationSignalFuture),
-                                        wrapProcessingFuture(processingSignalFuture),
-                                        wrapWithValidation(streamingCallback,
-                                                resourceClosingExecutor, future,
-                                                mInferenceInfoStore));
-                                return future.orTimeout(getIdleTimeoutMs(), TimeUnit.MILLISECONDS);
+                    var executor = new InferenceServiceExecutor.Builder()
+                            .onFailure(
+                                    type -> {
+                                        switch (type) {
+                                            case SERVICE_UNAVAILABLE -> streamingCallback.onFailure(
+                                                    OnDeviceIntelligenceException
+                                                            .PROCESSING_ERROR_SERVICE_UNAVAILABLE,
+                                                    "OnDeviceIntelligenceManagerService is unavailable",
+                                                    PersistableBundle.EMPTY);
+                                            case REMOTE_FAILURE -> streamingCallback.onFailure(
+                                                    OnDeviceIntelligenceException
+                                                            .PROCESSING_UPDATE_STATUS_CONNECTION_FAILED,
+                                                    "Remote call failed",
+                                                    PersistableBundle.EMPTY);
+                                            case TIMEOUT -> streamingCallback.onFailure(
+                                                OnDeviceIntelligenceException.PROCESSING_ERROR_CANCELLED,
+                                                    "Remote call timed out",
+                                                    PersistableBundle.EMPTY);
+                                        }
+                                    })
+                            .build();
+                    result = executor.execute(service -> {
+                                AndroidFuture<Void> future = new AndroidFuture<>();
+                                try {
+                                    boolean shouldAddInferenceInfo = request.getBoolean(
+                                            OnDeviceIntelligenceManager.KEY_REQUEST_INFERENCE_INFO,
+                                            false);
+                                    service.processRequestStreaming(callerUid,
+                                            feature,
+                                            request, requestType,
+                                            wrapCancellationFuture(cancellationSignalFuture),
+                                            wrapProcessingFuture(processingSignalFuture),
+                                            new ListenableStreamingResponseCallback(
+                                                    wrapWithValidation(streamingCallback,
+                                                            resourceClosingExecutor, future,
+                                                            mInferenceInfoStore,
+                                                            shouldAddInferenceInfo),
+                                                    mMainHandler, future, getIdleTimeoutMs()));
+                                } finally {
+                                    resourceClosingExecutor.execute(
+                                            () -> BundleUtil.tryCloseResource(request));
+                                }
+                                return future; // this future has no timeout because, actual
+                                // streaming might take long, we fail early if there is no progress
+                                // callbacks
                             });
-                    result.whenCompleteAsync((c, e) -> BundleUtil.tryCloseResource(request),
-                            resourceClosingExecutor);
+                    trackInferenceJob(callerUid, result);
                 } finally {
                     if (result == null) {
                         resourceClosingExecutor.execute(() -> BundleUtil.tryCloseResource(request));
@@ -551,18 +793,90 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                         err.getFileDescriptor(),
                         args);
             }
+
+            @Override
+            public void dump(FileDescriptor fd, PrintWriter writer, String[] args) {
+                if (!checkDumpPermission(writer)) return;
+
+                String prefix = "  ";
+                writer.println("OnDeviceIntelligenceManagerService");
+                writer.println();
+                writer.println(prefix + "Configurations:");
+                final String configPrefix = prefix + "  ";
+                try {
+                    writer.println(
+                            configPrefix + "OnDeviceIntelligenceService: "
+                                    + getOnDeviceIntelligenceServiceName());
+                    writer.println(configPrefix + "OnDeviceSandboxedInferenceService: "
+                            + getSandboxedInferenceServiceName());
+                } catch (Resources.NotFoundException e) {
+                    writer.println(configPrefix + "Could not get service names: " + e);
+                }
+                writer.println();
+                if (mRemoteOnDeviceIntelligenceService != null) {
+                    writer.println("  mRemoteOnDeviceIntelligenceService: "
+                            + mRemoteOnDeviceIntelligenceService);
+                    mRemoteOnDeviceIntelligenceService.dump(prefix, writer);
+                }
+                if (mRemoteInferenceService != null) {
+                    writer.println("  mRemoteInferenceService: " + mRemoteInferenceService);
+                    mRemoteInferenceService.dump(prefix, writer);
+                }
+                mInferenceInfoStore.dump(prefix, writer);
+                writer.println();
+                writer.println(prefix + "Lifecycle Listeners:");
+                // TODO: make this Module API.
+                // mLifecycleListeners.dump(writer, prefix + "  ");
+            }
+
+            @Override
+            public void registerInferenceServiceLifecycleListener(ILifecycleListener listener)
+                    throws RemoteException {
+                Slog.d(TAG, "OnDeviceIntelligenceManagerInternal"
+                                + "registerInferenceServiceLifecycleListener");
+                Objects.requireNonNull(listener);
+                mContext.enforceCallingPermission(
+                        Manifest.permission.USE_ON_DEVICE_INTELLIGENCE, TAG);
+                if (!mIsServiceEnabled) {
+                    Slog.w(TAG, "Service not available, not registering lifecycle listener.");
+                    return;
+                }
+                mLifecycleListeners.register(listener);
+            }
+
+            @Override
+            public void unregisterInferenceServiceLifecycleListener(ILifecycleListener listener)
+                    throws RemoteException {
+                Slog.d(TAG, "OnDeviceIntelligenceManagerInternal "
+                            + "unregisterInferenceServiceLifecycleListener");
+                Objects.requireNonNull(listener);
+                mContext.enforceCallingPermission(
+                        Manifest.permission.USE_ON_DEVICE_INTELLIGENCE, TAG);
+                if (!mIsServiceEnabled) {
+                    Slog.w(TAG, "Service not available, not unregistering lifecycle listener.");
+                    return;
+                }
+                mLifecycleListeners.unregister(listener);
+            }
         };
     }
 
-    private boolean ensureRemoteIntelligenceServiceInitialized(boolean throwIfServiceInvalid) {
+    /**
+     * Ensures the remote {@link OnDeviceIntelligenceService} is initialized and connected.
+     *
+     * @param shouldThrow If {@code true}, throws a {@link RuntimeException} if initialization
+     *     fails. If {@code false}, logs the error and returns {@code false}.
+     * @return {@code true} if the service is initialized, {@code false} otherwise.
+     */
+    public boolean ensureRemoteIntelligenceServiceInitialized(boolean shouldThrow) {
         synchronized (mLock) {
-            if (mRemoteOnDeviceIntelligenceService == null) {
-                String serviceName = getServiceNames()[0];
-                if (!BinderUtils.withCleanCallingIdentity(
-                        () -> validateServiceElevated(serviceName, false,
-                                throwIfServiceInvalid))) {
-                    return false;
-                }
+            if (mRemoteOnDeviceIntelligenceService != null) {
+                return true;
+            }
+            try {
+                String serviceName = getOnDeviceIntelligenceServiceName();
+                BinderUtils.withCleanCallingIdentity(
+                        () -> validateServiceElevated(serviceName, false));
                 mRemoteOnDeviceIntelligenceService = new RemoteOnDeviceIntelligenceService(
                         mContext,
                         ComponentName.unflattenFromString(serviceName),
@@ -580,7 +894,13 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                                     Slog.w(TAG, "Failed to send connected event", ex);
                                 }
                             }
-                        });
+                });
+            } catch (RuntimeException e) {
+                if (shouldThrow) {
+                    throw e;
+                }
+                Slog.e(TAG, "Failed to initialize remote intelligence service", e);
+                return false;
             }
         }
         return true;
@@ -593,25 +913,37 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
             public void updateProcessingState(
                     Bundle processingState,
                     IProcessingUpdateStatusCallback callback) {
-                callbackExecutor.execute(() -> {
+              sanitizeStateParams(processingState);
+              callbackExecutor.execute(() -> {
                     AndroidFuture<Void> result = null;
                     try {
-                        sanitizeStateParams(processingState);
-                        if (ensureRemoteInferenceServiceInitialized(/* throwServiceIfInvalid */
-                                false)) {
-                            result = mRemoteInferenceService.post(
-                                    service -> service.updateProcessingState(
-                                            processingState, callback));
-                            result.whenCompleteAsync(
-                                    (c, e) -> BundleUtil.tryCloseResource(processingState),
-                                    resourceClosingExecutor);
-                        } else {
-                            callback.onFailure(
-                                    OnDeviceIntelligenceException.PROCESSING_ERROR_SERVICE_UNAVAILABLE,
-                                    "Remote service cannot be initialized.");
+                        // Reserved for use by system-server.
+                        processingState.remove(
+                                OnDeviceSandboxedInferenceService.KEY_DEVICE_CONFIG_UPDATE);
+                        processingState.remove(
+                                OnDeviceSandboxedInferenceService.DEPRECATED_KEY_DEVICE_CONFIG_UPDATE);
+                        if (!ensureRemoteInferenceServiceInitialized(/* shouldThrow= */ false)) {
+                            Slog.e(TAG, "Remote inference service not available for"
+                                    + "updateProcessingState");
+                            try {
+                                callback.onFailure(
+                                        OnDeviceIntelligenceException
+                                                .PROCESSING_ERROR_SERVICE_UNAVAILABLE,
+                                        "Remote inference service not available");
+                            } catch (RemoteException e) {
+                                Slog.e(TAG,
+                                        "Failed to call onFailure for updateProcessingState", e);
+                            }
+                            return;
                         }
-                    } catch (RemoteException e) {
-                        Slog.w("Failed to invoke updateProcessingState", e);
+                        result = mRemoteInferenceService.post(
+                                service -> service.updateProcessingState(
+                                        processingState,
+                                        callback));
+                        if (result != null) {
+                            result.whenCompleteAsync((c, e) -> BundleUtil.tryCloseResource(
+                                    processingState), resourceClosingExecutor);
+                        }
                     } finally {
                         if (result == null) {
                             resourceClosingExecutor.execute(
@@ -623,15 +955,24 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
         };
     }
 
-    private boolean ensureRemoteInferenceServiceInitialized(boolean throwIfServiceInvalid) {
+    /**
+     * Ensures the remote {@link OnDeviceSandboxedInferenceService} is initialized and connected.
+     *
+     * @param shouldThrow If {@code true}, throws a {@link RuntimeException} if initialization
+     *     fails. If {@code false}, logs the error and returns {@code false}.
+     * @return {@code true} if the service is initialized, {@code false} otherwise.
+     */
+    public boolean ensureRemoteInferenceServiceInitialized(boolean shouldThrow) {
         synchronized (mLock) {
-            if (mRemoteInferenceService == null) {
-                String serviceName = getServiceNames()[1];
-                if (!BinderUtils.withCleanCallingIdentity(
-                        () -> validateServiceElevated(serviceName, true, throwIfServiceInvalid))) {
-                    return false;
-                }
-                mRemoteInferenceService = new RemoteOnDeviceSandboxedInferenceService(mContext,
+            if (mRemoteInferenceService != null) {
+                return true;
+            }
+            try {
+                String serviceName = getSandboxedInferenceServiceName();
+                BinderUtils.withCleanCallingIdentity(
+                        () -> validateServiceElevated(serviceName, true));
+                mRemoteInferenceService = new RemoteOnDeviceSandboxedInferenceService(
+                        mContext,
                         ComponentName.unflattenFromString(serviceName),
                         UserHandle.SYSTEM.getIdentifier());
                 mRemoteInferenceService.setServiceLifecycleCallbacks(
@@ -639,14 +980,17 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                             @Override
                             public void onConnected(
                                     @NonNull IOnDeviceSandboxedInferenceService service) {
+                                if (!ensureRemoteIntelligenceServiceInitialized(
+                                        /* shouldThrow= */false)) {
+                                    Slog.e(TAG,
+                                            "Failed to initialize remote intelligence service"
+                                            + " from inference service connection.");
+                                    return;
+                                }
                                 try {
-                                    if (!ensureRemoteIntelligenceServiceInitialized(
-                                            /* throwServiceIfInvalid */
-                                            false)) {
-                                        return;
-                                    }
                                     service.registerRemoteStorageService(
-                                            getIRemoteStorageService(), new IRemoteCallback.Stub() {
+                                            getRemoteStorageService(),
+                                            new IRemoteCallback.Stub() {
                                                 @Override
                                                 public void sendResult(Bundle bundle) {
                                                     final int uid = Binder.getCallingUid();
@@ -654,11 +998,14 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                                                 }
                                             });
                                     mRemoteOnDeviceIntelligenceService.run(
-                                            IOnDeviceIntelligenceService::notifyInferenceServiceConnected);
+                                            IOnDeviceIntelligenceService
+                                                    ::notifyInferenceServiceConnected);
                                     broadcastExecutor.execute(
                                             () -> registerModelLoadingBroadcasts(service));
                                     mConfigExecutor.execute(
                                             () -> registerDeviceConfigChangeListener());
+                                    service.registerInferenceServiceLifecycleListener(
+                                            mSystemLifecycleListener);
                                 } catch (RemoteException ex) {
                                     Slog.w(TAG, "Failed to send connected event", ex);
                                 }
@@ -667,26 +1014,25 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                             @Override
                             public void onDisconnected(
                                     @NonNull IOnDeviceSandboxedInferenceService service) {
-                                if (!ensureRemoteIntelligenceServiceInitialized(
-                                        /* throwServiceIfInvalid */
-                                        false)) {
-                                    return;
-                                }
-                                mRemoteOnDeviceIntelligenceService.run(
-                                        IOnDeviceIntelligenceService::notifyInferenceServiceDisconnected);
+                                ensureRemoteIntelligenceServiceInitialized(false);
+                                mRemoteOnDeviceIntelligenceService.run(IOnDeviceIntelligenceService
+                                        ::notifyInferenceServiceDisconnected);
                             }
 
                             @Override
                             public void onBinderDied() {
-                                if (!ensureRemoteIntelligenceServiceInitialized(
-                                        /* throwServiceIfInvalid */
-                                        false)) {
-                                    return;
-                                }
+                                ensureRemoteIntelligenceServiceInitialized(false);
                                 mRemoteOnDeviceIntelligenceService.run(
-                                        IOnDeviceIntelligenceService::notifyInferenceServiceDisconnected);
+                                        IOnDeviceIntelligenceService
+                                                ::notifyInferenceServiceDisconnected);
                             }
-                        });
+                            });
+            } catch (RuntimeException e) {
+                if (shouldThrow) {
+                    throw e;
+                }
+                Slog.e(TAG, "Failed to initialize remote inference service", e);
+                return false;
             }
         }
         return true;
@@ -700,7 +1046,6 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
             Slog.d(TAG, "Skipping model broadcasts as broadcast intents configured.");
             return;
         }
-
         Bundle bundle = new Bundle();
         bundle.putBoolean(REGISTER_MODEL_UPDATE_CALLBACK_BUNDLE_KEY, true);
         try {
@@ -733,12 +1078,15 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
 
                 @Override
                 public void onFailure(int errorCode, String errorMessage) {
-                    Slog.e(TAG, "Failed to register model loading callback with status code",
-                            new OnDeviceIntelligenceException(errorCode, errorMessage));
+                    Slog.e(
+                            TAG, "Failed to register model loading callback with status code: "
+                                    + errorMessage,
+                            new OnDeviceIntelligenceException(errorCode));
                 }
             });
         } catch (RemoteException e) {
-            Slog.e(TAG, "Failed to register model loading callback with status code", e);
+            Slog.e(TAG, "Failed to register model loading callback with status code",
+                    e);
         }
     }
 
@@ -760,110 +1108,61 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
             if (mTemporaryConfigNamespace != null) {
                 return mTemporaryConfigNamespace;
             }
-            return mContext.getResources().getString(
-                    android.R.string.config_defaultOnDeviceIntelligenceDeviceConfigNamespace);
+            return mContext.getResources()
+                    .getString(
+                        android.R.string.config_defaultOnDeviceIntelligenceDeviceConfigNamespace);
         }
     }
 
     private void sendUpdatedConfig(
             DeviceConfig.Properties props) {
         Log.d(TAG, "sendUpdatedConfig");
-
         PersistableBundle persistableBundle = new PersistableBundle();
         for (String key : props.getKeyset()) {
             persistableBundle.putString(key, props.getString(key, ""));
         }
         Bundle bundle = new Bundle();
-        bundle.putParcelable(DEVICE_CONFIG_UPDATE_BUNDLE_KEY, persistableBundle);
-        if (!ensureRemoteIntelligenceServiceInitialized(
-                /* throwServiceIfInvalid */
-                false)) {
+        bundle.putParcelable(OnDeviceSandboxedInferenceService
+                .KEY_DEVICE_CONFIG_UPDATE,
+                persistableBundle);
+        bundle.putParcelable(OnDeviceSandboxedInferenceService
+                .DEPRECATED_KEY_DEVICE_CONFIG_UPDATE,
+                persistableBundle);
+        if (!ensureRemoteInferenceServiceInitialized(/* shouldThrow= */ false)) {
+            Slog.e(TAG,
+                    "Remote inference service not available for sendUpdatedConfig");
             return;
         }
-        mRemoteInferenceService.run(service -> service.updateProcessingState(bundle,
+        mRemoteInferenceService.run(service -> service.updateProcessingState(
+                bundle,
                 new IProcessingUpdateStatusCallback.Stub() {
                     @Override
                     public void onSuccess(PersistableBundle result) {
                         Slog.d(TAG, "Config update successful." + result);
                     }
-
                     @Override
                     public void onFailure(int errorCode, String errorMessage) {
                         Slog.e(TAG, "Config update failed with code ["
-                                + String.valueOf(errorCode) + "] and message = " + errorMessage);
+                                        + errorCode
+                                        + "] and message = " + errorMessage);
                     }
                 }));
     }
 
     @NonNull
-    private IRemoteStorageService.Stub getIRemoteStorageService() {
-        return new IRemoteStorageService.Stub() {
-            @Override
-            public void getReadOnlyFileDescriptor(
-                    String filePath,
-                    AndroidFuture<ParcelFileDescriptor> future) {
-                if (!ensureRemoteIntelligenceServiceInitialized(
-                        /* throwServiceIfInvalid */
-                        false)) {
-                    future.completeExceptionally(new OnDeviceIntelligenceException(
-                            OnDeviceIntelligenceException.PROCESSING_ERROR_NOT_AVAILABLE));
-                    return;
-                }
-                AndroidFuture<ParcelFileDescriptor> pfdFuture = new AndroidFuture<>();
-                mRemoteOnDeviceIntelligenceService.run(
-                        service -> service.getReadOnlyFileDescriptor(
-                                filePath, pfdFuture));
-                pfdFuture.whenCompleteAsync((pfd, error) -> {
-                    try {
-                        if (error != null) {
-                            future.completeExceptionally(error);
-                        } else {
-                            validatePfdReadOnly(pfd);
-                            future.complete(pfd);
-                        }
-                    } finally {
-                        tryClosePfd(pfd);
-                    }
-                }, callbackExecutor);
-            }
-
-            @Override
-            public void getReadOnlyFeatureFileDescriptorMap(
-                    Feature feature,
-                    RemoteCallback remoteCallback) {
-                ensureRemoteIntelligenceServiceInitialized(/* throwServiceIfInvalid */ true);
-                mRemoteOnDeviceIntelligenceService.run(
-                        service -> service.getReadOnlyFeatureFileDescriptorMap(
-                                feature,
-                                new RemoteCallback(result -> callbackExecutor.execute(() -> {
-                                    try {
-                                        if (result == null) {
-                                            remoteCallback.sendResult(null);
-                                        }
-                                        for (String key : result.keySet()) {
-                                            ParcelFileDescriptor pfd = result.getParcelable(key,
-                                                    ParcelFileDescriptor.class);
-                                            validatePfdReadOnly(pfd);
-                                        }
-                                        remoteCallback.sendResult(result);
-                                    } finally {
-                                        resourceClosingExecutor.execute(
-                                                () -> BundleUtil.tryCloseResource(result));
-                                    }
-                                }))));
-            }
-        };
+    private IRemoteStorageService.Stub getRemoteStorageService() {
+        return new RemoteStorageService(
+                () -> ensureRemoteIntelligenceServiceInitialized(false),
+                mRemoteOnDeviceIntelligenceService,
+                callbackExecutor,
+                resourceClosingExecutor);
     }
 
-    private boolean validateServiceElevated(String serviceName, boolean checkIsolated,
-            boolean throwIfServiceInvalid) {
+    private void validateServiceElevated(String serviceName, boolean checkIsolated) {
         try {
             if (TextUtils.isEmpty(serviceName)) {
-                if (throwIfServiceInvalid) {
-                    throw new IllegalStateException(
-                            "Remote service is not configured to complete the request");
-                }
-                return false;
+                throw new IllegalStateException(
+                        "Remote service is not configured to complete the request");
             }
             ComponentName serviceComponent = ComponentName.unflattenFromString(
                     serviceName);
@@ -871,10 +1170,14 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                     serviceComponent,
                     PackageManager.MATCH_DIRECT_BOOT_AWARE
                             | PackageManager.MATCH_DIRECT_BOOT_UNAWARE);
+            if (serviceInfo == null) {
+                throw new IllegalStateException(
+                        "Remote service is not configured to complete the request.");
+            }
             if (!checkIsolated) {
                 checkServiceRequiresPermission(serviceInfo,
                         Manifest.permission.BIND_ON_DEVICE_INTELLIGENCE_SERVICE);
-                return true;
+                return;
             }
 
             checkServiceRequiresPermission(serviceInfo,
@@ -885,18 +1188,9 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                                 + serviceName + ", is not isolated");
             }
         } catch (PackageManager.NameNotFoundException e) {
-            if (throwIfServiceInvalid) {
-                throw new IllegalStateException(
-                        "Remote service is not configured to complete the request.");
-            }
-            return false;
-        } catch (SecurityException e) {
-            if (throwIfServiceInvalid) {
-                throw e;
-            }
-            return false;
+            throw new IllegalStateException(
+                    "Could not fetch service info for remote services", e);
         }
-        return true;
     }
 
     private static void checkServiceRequiresPermission(ServiceInfo serviceInfo,
@@ -904,7 +1198,7 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
         final String permission = serviceInfo.permission;
         if (!requiredPermission.equals(permission)) {
             throw new SecurityException(String.format(
-                    "%s requires %s permission. Found %s permission",
+                    "Service %s requires %s permission. Found %s permission",
                     serviceInfo,
                     requiredPermission,
                     serviceInfo.permission));
@@ -923,18 +1217,24 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
     @Nullable
     public String getRemoteConfiguredPackageName() {
         try {
-            String[] serviceNames = getServiceNames();
-            ComponentName componentName = ComponentName.unflattenFromString(serviceNames[1]);
+            ComponentName componentName =
+                    ComponentName.unflattenFromString(getSandboxedInferenceServiceName());
             if (componentName != null) {
                 return componentName.getPackageName();
             }
         } catch (Resources.NotFoundException e) {
             Slog.e(TAG, "Could not find resource", e);
         }
-
         return null;
     }
 
+    private String getOnDeviceIntelligenceServiceName() throws Resources.NotFoundException {
+        return getServiceNames()[0];
+    }
+
+    private String getSandboxedInferenceServiceName() throws Resources.NotFoundException {
+        return getServiceNames()[1];
+    }
 
     protected String[] getServiceNames() throws Resources.NotFoundException {
         // TODO 329240495 : Consider a small class with explicit field names for the two services
@@ -943,10 +1243,12 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                 return mTemporaryServiceNames;
             }
         }
-        return new String[]{mContext.getResources().getString(
-                android.R.string.config_defaultOnDeviceIntelligenceService),
+        return new String[]{
                 mContext.getResources().getString(
-                        android.R.string.config_defaultOnDeviceSandboxedInferenceService)};
+                        android.R.string.config_defaultOnDeviceIntelligenceService),
+                mContext.getResources().getString(
+                        android.R.string.config_defaultOnDeviceSandboxedInferenceService)
+        };
     }
 
     protected String[] getBroadcastKeys() throws Resources.NotFoundException {
@@ -956,7 +1258,6 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                 return mTemporaryBroadcastKeys;
             }
         }
-
         return new String[]{MODEL_LOADED_BROADCAST_INTENT, MODEL_UNLOADED_BROADCAST_INTENT};
     }
 
@@ -976,10 +1277,9 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                 mRemoteOnDeviceIntelligenceService.unbind();
                 mRemoteOnDeviceIntelligenceService = null;
             }
-
             if (durationMs != -1) {
-                getTemporaryHandler().sendEmptyMessageDelayed(MSG_RESET_TEMPORARY_SERVICE,
-                        durationMs);
+                getTemporaryHandler().sendEmptyMessageDelayed(
+                        MSG_RESET_TEMPORARY_SERVICE, durationMs);
             }
         }
     }
@@ -995,7 +1295,8 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
             mTemporaryBroadcastKeys = broadcastKeys;
             mBroadcastPackageName = receiverPackageName;
             if (durationMs != -1) {
-                getTemporaryHandler().sendEmptyMessageDelayed(MSG_RESET_BROADCAST_KEYS, durationMs);
+                getTemporaryHandler().sendEmptyMessageDelayed(
+                        MSG_RESET_BROADCAST_KEYS, durationMs);
             }
         }
     }
@@ -1010,8 +1311,8 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
         synchronized (mLock) {
             mTemporaryConfigNamespace = configNamespace;
             if (durationMs != -1) {
-                getTemporaryHandler().sendEmptyMessageDelayed(MSG_RESET_CONFIG_NAMESPACE,
-                        durationMs);
+                getTemporaryHandler().sendEmptyMessageDelayed(
+                        MSG_RESET_CONFIG_NAMESPACE, durationMs);
             }
         }
     }
@@ -1026,7 +1327,6 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                 mTemporaryHandler.removeMessages(MSG_RESET_TEMPORARY_SERVICE);
                 mTemporaryHandler = null;
             }
-
             mRemoteInferenceService = null;
             mRemoteOnDeviceIntelligenceService = null;
             mTemporaryServiceNames = new String[0];
@@ -1043,7 +1343,6 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                 || callingUid == android.os.Process.ROOT_UID) {
             return; // okay
         }
-
         throw new SecurityException(message + ": Only shell user can call it");
     }
 
@@ -1055,7 +1354,8 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
         AndroidFuture<IBinder> cancellationFuture = new AndroidFuture<>();
         cancellationFuture.whenCompleteAsync((c, e) -> {
             if (e != null) {
-                Log.e(TAG, "Error forwarding ICancellationSignal to manager layer", e);
+                Log.e(TAG, "Error forwarding ICancellationSignal "
+                        + "to manager layer", e);
                 future.completeExceptionally(e);
             } else {
                 future.complete(new ICancellationSignal.Stub() {
@@ -1090,16 +1390,6 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
         return processingSignalFuture;
     }
 
-    private static void tryClosePfd(ParcelFileDescriptor pfd) {
-        if (pfd != null) {
-            try {
-                pfd.close();
-            } catch (IOException e) {
-                Log.e(TAG, "Failed to close parcel file descriptor ", e);
-            }
-        }
-    }
-
     private synchronized Handler getTemporaryHandler() {
         if (mTemporaryHandler == null) {
             mTemporaryHandler = new Handler(Looper.getMainLooper()) {
@@ -1120,7 +1410,6 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
                 }
             };
         }
-
         return mTemporaryHandler;
     }
 
@@ -1142,6 +1431,133 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
     private void setRemoteInferenceServiceUid(int remoteInferenceServiceUid) {
         synchronized (mLock) {
             this.remoteInferenceServiceUid = remoteInferenceServiceUid;
+        }
+    }
+
+    /** Returns the remote sandboxed inference service connector. */
+    public RemoteOnDeviceSandboxedInferenceService getRemoteInferenceService() {
+        return mRemoteInferenceService;
+    }
+
+    /** Returns the remote intelligence service connector. */
+    public RemoteOnDeviceIntelligenceService getRemoteOnDeviceIntelligenceService() {
+        return mRemoteOnDeviceIntelligenceService;
+    }
+
+    private void trackInferenceJob(int callerUid, AndroidFuture<?> result) {
+        if (result != null) {
+            trackJobElevated(callerUid);
+            result.whenCompleteAsync(
+                    (c, e) -> {
+                        untrackJobElevated(callerUid);
+                    },
+                    resourceClosingExecutor);
+        }
+    }
+
+    /**
+     * Tracks a job for a given UID. This method handles its own binder identity clearing
+     * and should be used when acting on behalf of a caller.
+     */
+    @VisibleForTesting
+    void trackJobElevated(int uid) {
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            synchronized (mPriorityBindingLock) {
+                int jobCount = mJobCountsByUid.getOrDefault(uid, 0);
+                mJobCountsByUid.put(uid, jobCount + 1);
+                if (mActivityManager != null) {
+                    updateUidPriority(uid, mActivityManager.getUidImportance(uid));
+                }
+            }
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    /**
+     * Untracks a job for a given UID. This method handles its own binder identity clearing
+     * and should be used when acting on behalf of a caller.
+     */
+    @VisibleForTesting
+    void untrackJobElevated(int uid) {
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            synchronized (mPriorityBindingLock) {
+                Integer jobCount = mJobCountsByUid.get(uid);
+                if (jobCount != null) {
+                    if (jobCount == 1) {
+                        mJobCountsByUid.remove(uid);
+                        releaseHighPriorityBinding(uid);
+                    } else {
+                        mJobCountsByUid.put(uid, jobCount - 1);
+                    }
+                }
+            }
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+    }
+
+    private void updateUidPriority(int uid, int importance) {
+        if (importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
+            ensureHighPriorityBinding(uid);
+        } else {
+            releaseHighPriorityBinding(uid);
+        }
+    }
+
+    private void ensureHighPriorityBinding(int uid) {
+        synchronized (mPriorityBindingLock) {
+            if (!mJobCountsByUid.containsKey(uid)) {
+                // If the UID is not tracking any jobs, we don't need to create a high priority
+                // binding.
+                return;
+            }
+            mHighPriorityUids.add(uid);
+            if (mHighPriorityConnection == null && mRemoteInferenceService != null) {
+                try {
+                    Slog.d(TAG, "Adding shared high priority binding for UID " + uid);
+                    String serviceName = getSandboxedInferenceServiceName();
+                    ComponentName componentName = ComponentName.unflattenFromString(serviceName);
+                    mHighPriorityConnection = new RemoteOnDeviceSandboxedInferenceService(mContext,
+                            componentName, UserHandle.SYSTEM.getIdentifier(),
+                            BIND_SCHEDULE_LIKE_TOP_APP);
+                } catch (Resources.NotFoundException e) {
+                    Slog.e(TAG, "Could not find service to bind for high priority", e);
+                }
+            }
+        }
+    }
+
+    private boolean checkDumpPermission(PrintWriter writer) {
+        if (mContext.checkCallingOrSelfPermission(android.Manifest.permission.DUMP)
+                != PERMISSION_GRANTED) {
+            writer.println(
+                    "Permission Denial: can't dump "
+                            + "safety_center"
+                            + " from from pid="
+                            + Binder.getCallingPid()
+                            + ", uid="
+                            + Binder.getCallingUid()
+                            + " due to missing "
+                            + android.Manifest.permission.DUMP
+                            + " permission");
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    private void releaseHighPriorityBinding(int uid) {
+        synchronized (mPriorityBindingLock) {
+            mHighPriorityUids.remove(uid);
+            if (mHighPriorityUids.isEmpty() && mHighPriorityConnection != null) {
+                Slog.d(TAG, "Removing shared high priority binding as no more UIDs are +"
+                + " in foreground.");
+                mHighPriorityConnection.unbind();
+                mHighPriorityConnection = null;
+            }
         }
     }
 }

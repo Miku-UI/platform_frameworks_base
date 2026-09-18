@@ -17,6 +17,7 @@ package com.android.internal.widget.remotecompose.core;
 
 import android.annotation.NonNull;
 
+import com.android.internal.widget.remotecompose.core.operations.layout.Container;
 import com.android.internal.widget.remotecompose.core.serialize.Serializable;
 
 /**
@@ -31,6 +32,18 @@ public abstract class PaintOperation extends Operation implements Serializable {
             PaintContext paintContext = context.getPaintContext();
             if (paintContext != null) {
                 paint(paintContext);
+            }
+        } else {
+            if (this instanceof Container) {
+                for (Operation op : ((Container) this).getList()) {
+                    if (op.isDirty()) {
+                        if (op instanceof VariableSupport) {
+                            op.markNotDirty();
+                            ((VariableSupport) op).updateVariables(context);
+                        }
+                        op.apply(context);
+                    }
+                }
             }
         }
     }

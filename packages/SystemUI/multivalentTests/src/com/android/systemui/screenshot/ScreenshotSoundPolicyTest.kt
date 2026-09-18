@@ -17,28 +17,32 @@
 package com.android.systemui.screenshot
 
 import android.hardware.camera2.CameraManager
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.google.common.truth.Truth.assertThat
 import java.util.concurrent.Executor
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.never
-import org.mockito.kotlin.verify
+import org.mockito.kotlin.stub
 import org.mockito.kotlin.whenever
 
 @SmallTest
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(AndroidJUnit4::class)
 class ScreenshotSoundPolicyTest : SysuiTestCase() {
     private val cameraManager = mock<CameraManager>()
     private val shutterSoundPolicy = mock<MediaShutterSoundPolicy>()
+    private val testDispatcher = UnconfinedTestDispatcher()
+    private val testScope = TestScope(testDispatcher)
 
     private lateinit var cameraAvailabilityCallback: CameraManager.AvailabilityCallback
     private lateinit var screenshotSoundPolicy: ScreenshotSoundPolicy
@@ -56,22 +60,18 @@ class ScreenshotSoundPolicyTest : SysuiTestCase() {
                 return@thenAnswer Unit
             }
         screenshotSoundPolicy =
-            ScreenshotSoundPolicy(cameraManager, shutterSoundPolicy, context.mainExecutor)
+            ScreenshotSoundPolicy(
+                cameraManager,
+                shutterSoundPolicy,
+                context.mainExecutor,
+                testDispatcher,
+                testScope,
+            )
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_SCREENSHOT_FORCE_SHUTTER_SOUND)
-    fun flagOff_shouldNotForce() {
-        whenever(shutterSoundPolicy.mustPlayShutterSound()).thenReturn(true)
-        verify(cameraManager, never()).registerAvailabilityCallback(any<Executor>(), any())
-
-        assertThat(screenshotSoundPolicy.shouldForceShutterSound()).isFalse()
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_SCREENSHOT_FORCE_SHUTTER_SOUND)
-    fun cameraOff_shouldNotForce() {
-        whenever(shutterSoundPolicy.mustPlayShutterSound()).thenReturn(true)
+    fun cameraOff_shouldNotForce() = runTest {
+        shutterSoundPolicy.stub { onBlocking { mustPlayShutterSound() }.doReturn(true) }
         cameraAvailabilityCallback.onCameraOpened("testCameraId", "testPackageId")
         cameraAvailabilityCallback.onCameraClosed("testCameraId")
 
@@ -79,18 +79,16 @@ class ScreenshotSoundPolicyTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SCREENSHOT_FORCE_SHUTTER_SOUND)
-    fun shutterNotForced_shouldNotForce() {
-        whenever(shutterSoundPolicy.mustPlayShutterSound()).thenReturn(false)
+    fun shutterNotForced_shouldNotForce() = runTest {
+        shutterSoundPolicy.stub { onBlocking { mustPlayShutterSound() }.doReturn(false) }
         cameraAvailabilityCallback.onCameraOpened("testCameraId", "testPackageId")
 
         assertThat(screenshotSoundPolicy.shouldForceShutterSound()).isFalse()
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SCREENSHOT_FORCE_SHUTTER_SOUND)
-    fun shutterForcedAndCameraOpen_shouldForce() {
-        whenever(shutterSoundPolicy.mustPlayShutterSound()).thenReturn(true)
+    fun shutterForcedAndCameraOpen_shouldForce() = runTest {
+        shutterSoundPolicy.stub { onBlocking { mustPlayShutterSound() }.doReturn(true) }
         cameraAvailabilityCallback.onCameraOpened("testCameraId", "testPackageId")
 
         assertThat(screenshotSoundPolicy.shouldForceShutterSound()).isTrue()

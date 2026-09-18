@@ -312,7 +312,12 @@ class DemoMobileConnectionsRepositoryTest : SysuiTestCase() {
             assertThat(latest).hasSize(1)
 
             fakeWifiEventFlow.value =
-                FakeWifiEventModel.Wifi(level = 1, activity = 0, ssid = null, validated = true)
+                FakeWifiEventModel.Wifi(
+                    level = 1,
+                    activity = 0,
+                    ssid = null,
+                    showExclamation = true,
+                )
 
             assertThat(latest).isEmpty()
 
@@ -371,7 +376,12 @@ class DemoMobileConnectionsRepositoryTest : SysuiTestCase() {
 
             // WHEN the carrier merged is removed
             fakeWifiEventFlow.value =
-                FakeWifiEventModel.Wifi(level = 4, activity = 0, ssid = null, validated = true)
+                FakeWifiEventModel.Wifi(
+                    level = 4,
+                    activity = 0,
+                    ssid = null,
+                    showExclamation = true,
+                )
 
             // THEN the subId=3 connection goes back to the mobile information
             connection = connections!!.find { it.subId == 3 }!!

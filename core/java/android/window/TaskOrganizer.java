@@ -16,6 +16,8 @@
 
 package android.window;
 
+import static android.view.WindowManager.TRANSIT_TO_BACK;
+
 import android.annotation.BinderThread;
 import android.annotation.CallSuper;
 import android.annotation.NonNull;
@@ -24,6 +26,7 @@ import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
 import android.annotation.TestApi;
 import android.app.ActivityManager;
+import android.os.Binder;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.view.SurfaceControl;
@@ -39,49 +42,6 @@ import java.util.concurrent.Executor;
  */
 @TestApi
 public class TaskOrganizer extends WindowOrganizer {
-
-    /**
-     * Data associated with a request to create a new root task.
-     * @hide
-     */
-    public static class CreateRootTaskRequest {
-        public int displayId;
-        public int windowingMode;
-        public boolean removeWithTaskOrganizer;
-        public boolean reparentOnDisplayRemoval;
-        public @Nullable IBinder launchCookie;
-        public @Nullable String name;
-
-        public CreateRootTaskRequest setDisplayId(int displayId) {
-            this.displayId = displayId;
-            return this;
-        }
-
-        public CreateRootTaskRequest setWindowingMode(int windowingMode) {
-            this.windowingMode = windowingMode;
-            return this;
-        }
-
-        public CreateRootTaskRequest setRemoveWithTaskOrganizer(boolean removeWithTaskOrganizer) {
-            this.removeWithTaskOrganizer = removeWithTaskOrganizer;
-            return this;
-        }
-
-        public CreateRootTaskRequest setReparentOnDisplayRemoval(boolean reparentOnDisplayRemoval) {
-            this.reparentOnDisplayRemoval = reparentOnDisplayRemoval;
-            return this;
-        }
-
-        public CreateRootTaskRequest setLaunchCookie(@NonNull IBinder launchCookie) {
-            this.launchCookie = launchCookie;
-            return this;
-        }
-
-        public CreateRootTaskRequest setName(@NonNull String name) {
-            this.name = name;
-            return this;
-        }
-    }
 
     private final ITaskOrganizerController mTaskOrganizerController;
     // Callbacks WM Core are posted on this executor if it isn't null, otherwise direct calls are
@@ -104,7 +64,7 @@ public class TaskOrganizer extends WindowOrganizer {
      * Register a TaskOrganizer to manage tasks as they enter a supported windowing mode.
      *
      * @return a list of the tasks that should be managed by the organizer, not including tasks
-     *         created via {@link #createRootTask}.
+     *         created via {@link #createTask}.
      */
     @RequiresPermission(android.Manifest.permission.MANAGE_ACTIVITY_TASKS)
     @CallSuper
@@ -179,7 +139,8 @@ public class TaskOrganizer extends WindowOrganizer {
     public void onTaskInfoChanged(@NonNull ActivityManager.RunningTaskInfo taskInfo) {}
 
     @BinderThread
-    public void onBackPressedOnTaskRoot(@NonNull ActivityManager.RunningTaskInfo taskInfo) {}
+    public void onBackOnTaskRoot(@NonNull ActivityManager.RunningTaskInfo taskInfo,
+            boolean isFromBackPress, boolean isOptInOnBackInvoked, boolean hasOpaqueSibling) {}
 
     /** @hide */
     @BinderThread
@@ -196,57 +157,96 @@ public class TaskOrganizer extends WindowOrganizer {
             @NonNull TransitionRequestInfo request) {}
 
     /**
-     * @deprecated Use {@link #createRootTask(CreateRootTaskRequest)}
+     * Called when a package update is initiated. If this method is overridden, the implementer must
+     * use {@link WindowContainerTransaction#continuePackageUpdate} to continue the update.
+     *
+     * @param updatingTasks The tasks that are going through the package update process.
      * @hide
+     */
+    @BinderThread
+    public void onPackageUpdateRequested(
+            @NonNull List<ActivityManager.RunningTaskInfo> updatingTasks) {
+        final WindowContainerTransaction wct = new WindowContainerTransaction();
+        for (int i = 0; i < updatingTasks.size(); i++) {
+            wct.continuePackageUpdate(updatingTasks.get(i).token);
+        }
+        startNewTransition(TRANSIT_TO_BACK, wct);
+    }
+
+    /**
+     * Called when a package update is finished.
+     *
+     * @param updatedTasks The tasks that are updated.
+     * @hide
+     */
+    @BinderThread
+    public void onPackageUpdateFinished(
+            @NonNull List<ActivityManager.RunningTaskInfo> updatedTasks) { }
+
+    /**
+     * Called when the keyguard occluding task has changed.
+     *
+     * <p>This callback is dispatched before the keyguard occlude/unocclude transition is requested.
+     *
+     * @param displayId The ID of the display.
+     * @param taskInfo The RunningTaskInfo of the top Activity which is occluding the Keyguard, or
+     *     {@code null} if no task is occluding it.
+     * @hide
+     */
+    public void onKeyguardOccludingTaskChanged(
+            int displayId, @Nullable ActivityManager.RunningTaskInfo taskInfo) {}
+
+    /**
+     * @deprecated use {@link #createTask(TaskCreationParams)} instead
      */
     @Deprecated
     @RequiresPermission(android.Manifest.permission.MANAGE_ACTIVITY_TASKS)
-    public void createRootTask(int displayId, int windowingMode, @Nullable IBinder launchCookie,
-            boolean removeWithTaskOrganizer, boolean reparentOnDisplayRemoval) {
-        createRootTask(new CreateRootTaskRequest()
+    @Nullable
+    public void createRootTask(int displayId, int windowingMode, @Nullable IBinder launchCookie) {
+        // TODO(b/468029217): Remove in major release
+        createTask(
+                new TaskCreationParams.Builder()
                         .setDisplayId(displayId)
                         .setWindowingMode(windowingMode)
-                        .setLaunchCookie(launchCookie)
-                        .setRemoveWithTaskOrganizer(removeWithTaskOrganizer)
-                        .setReparentOnDisplayRemoval(reparentOnDisplayRemoval));
+                        .setLaunchCookie(launchCookie != null ? launchCookie : new Binder())
+                        .build());
     }
 
     /**
-     * Creates a persistent root task in WM for a particular windowing-mode.
-     * This call is deprecated, use {@link #createRootTask(CreateRootTaskRequest)}.
+     * Creates a persistent Task.
+     * @param params The creation params
+     * @return the TaskAppearedInfo of the newly created Task. This can be {@code null} if the
+     * Task creation fails in the system server (e.g., due to invalid displayId).
+     *
+     * @see #deleteTask for removal.
      */
     @RequiresPermission(android.Manifest.permission.MANAGE_ACTIVITY_TASKS)
     @Nullable
-    public void createRootTask(int displayId, int windowingMode, @Nullable IBinder launchCookie) {
-        // TODO(b/378565144): Deprecate this method and expose CreateRootTaskRequest as TestApi
-        createRootTask(new CreateRootTaskRequest()
-                .setDisplayId(displayId)
-                .setWindowingMode(windowingMode)
-                .setLaunchCookie(launchCookie));
-    }
-
-    /**
-     * Creates a persistent root task in WM for a particular windowing-mode.
-     * @param request The data for this request
-     *
-     * @hide
-     */
-    @RequiresPermission(android.Manifest.permission.MANAGE_ACTIVITY_TASKS)
-    public void createRootTask(@NonNull CreateRootTaskRequest request) {
+    public TaskAppearedInfo createTask(@NonNull TaskCreationParams params) {
         try {
-            mTaskOrganizerController.createRootTask(request.displayId, request.windowingMode,
-                    request.launchCookie, request.removeWithTaskOrganizer,
-                    request.reparentOnDisplayRemoval, request.name);
+            return mTaskOrganizerController.createTask(params);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
     }
 
-    /** Deletes a persistent root task in WM */
+    /**
+     * @deprecated use {@link #deleteTask(WindowContainerToken)} instead
+     */
+    @Deprecated
     @RequiresPermission(android.Manifest.permission.MANAGE_ACTIVITY_TASKS)
     public boolean deleteRootTask(@NonNull WindowContainerToken task) {
+        // TODO(b/468029217): Remove in major release
+        return deleteTask(task);
+    }
+
+    /**
+     * Deletes a persistent Task.
+     */
+    @RequiresPermission(android.Manifest.permission.MANAGE_ACTIVITY_TASKS)
+    public boolean deleteTask(@NonNull WindowContainerToken task) {
         try {
-            return mTaskOrganizerController.deleteRootTask(task);
+            return mTaskOrganizerController.deleteTask(task);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -315,6 +315,19 @@ public class TaskOrganizer extends WindowOrganizer {
     public void restartTaskTopActivityProcessIfVisible(@NonNull WindowContainerToken task) {
         try {
             mTaskOrganizerController.restartTaskTopActivityProcessIfVisible(task);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Restarts all the activities in the given task by killing its process if it is visible.
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.MANAGE_ACTIVITY_TASKS)
+    public void restartTaskProcessIfVisible(@NonNull WindowContainerToken task) {
+        try {
+            mTaskOrganizerController.restartTaskProcessIfVisible(task);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -396,9 +409,13 @@ public class TaskOrganizer extends WindowOrganizer {
             mExecutor.execute(() -> TaskOrganizer.this.onTaskInfoChanged(info));
         }
 
-        @Override
-        public void onBackPressedOnTaskRoot(ActivityManager.RunningTaskInfo info) {
-            mExecutor.execute(() -> TaskOrganizer.this.onBackPressedOnTaskRoot(info));
+        public void onBackOnTaskRoot(
+                ActivityManager.RunningTaskInfo info, boolean isFromBackPress,
+                boolean isOptInOnBackInvoked, boolean hasOpaqueSibling) {
+            mExecutor.execute(
+                    () -> TaskOrganizer.this.onBackOnTaskRoot(
+                            info, isFromBackPress, isOptInOnBackInvoked,
+                            hasOpaqueSibling));
         }
 
         @Override
@@ -416,6 +433,23 @@ public class TaskOrganizer extends WindowOrganizer {
         @Override
         public void requestStartTransition(IBinder iBinder, TransitionRequestInfo request) {
             mExecutor.execute(() -> TaskOrganizer.this.requestStartTransition(iBinder, request));
+        }
+
+        @Override
+        public void onPackageUpdateRequested(List<ActivityManager.RunningTaskInfo> updatingTasks) {
+            mExecutor.execute(() -> TaskOrganizer.this.onPackageUpdateRequested(updatingTasks));
+        }
+
+        @Override
+        public void onPackageUpdateFinished(List<ActivityManager.RunningTaskInfo> updatedTasks) {
+            mExecutor.execute(() -> TaskOrganizer.this.onPackageUpdateFinished(updatedTasks));
+        }
+
+        @Override
+        public void onKeyguardOccludingTaskChanged(
+                int displayId, @Nullable ActivityManager.RunningTaskInfo taskInfo) {
+            mExecutor.execute(() -> TaskOrganizer.this.onKeyguardOccludingTaskChanged(
+                    displayId, taskInfo));
         }
     };
 

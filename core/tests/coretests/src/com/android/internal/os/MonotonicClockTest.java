@@ -18,13 +18,10 @@ package com.android.internal.os;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import android.platform.test.ravenwood.RavenwoodRule;
-
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -36,8 +33,6 @@ import java.nio.file.Files;
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 public class MonotonicClockTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private final MockClock mClock = new MockClock();
     private File mFile;

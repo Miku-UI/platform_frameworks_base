@@ -15,12 +15,10 @@
  */
 
 #include <android/gui/LutProperties.h>
-#include <android/hardware/configstore/1.0/ISurfaceFlingerConfigs.h>
 #include <android/native_window.h>
 #include <android/surface_control.h>
 #include <android/surface_control_jni.h>
 #include <android_runtime/android_view_SurfaceControl.h>
-#include <configstore/Utils.h>
 #include <cutils/ashmem.h>
 #include <display_luts_private.h>
 #include <gui/HdrMetadata.h>
@@ -35,8 +33,6 @@
 
 #include <utility>
 
-using namespace android::hardware::configstore;
-using namespace android::hardware::configstore::V1_0;
 using namespace android;
 
 using Transaction = SurfaceComposerClient::Transaction;

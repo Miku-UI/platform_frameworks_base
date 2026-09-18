@@ -16,10 +16,13 @@
 
 package com.android.compose.animation.scene.transformation
 
+import android.util.Log
 import androidx.compose.ui.unit.IntSize
 import com.android.compose.animation.scene.ContentKey
 import com.android.compose.animation.scene.ElementKey
 import com.android.compose.animation.scene.content.state.TransitionState
+
+private const val TAG = "AnchoredSize"
 
 /** Anchor the size of an element to the size of another element. */
 internal class AnchoredSize
@@ -39,11 +42,17 @@ private constructor(
         fun anchorSizeIn(content: ContentKey): IntSize {
             val size =
                 anchor.targetSize(content)
-                    ?: throwMissingAnchorException(
-                        transformation = "AnchoredSize",
-                        anchor = anchor,
-                        content = content,
-                    )
+                    ?: run {
+                        Log.w(
+                            TAG,
+                            missingAnchorMessage(
+                                transformation = "AnchoredSize",
+                                anchor = anchor,
+                                content = content,
+                            ),
+                        )
+                        return idleValue
+                    }
 
             return IntSize(
                 width = if (anchorWidth) size.width else idleValue.width,

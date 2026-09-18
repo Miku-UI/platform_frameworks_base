@@ -16,14 +16,18 @@
 
 package android.hardware.lights;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
 import android.content.Context;
 import android.os.Binder;
 import android.os.IBinder;
+
+import com.android.server.lights.feature.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -73,6 +77,16 @@ public abstract class LightsManager {
      *
      */
     public abstract @NonNull LightState getLightState(@NonNull Light light);
+
+    /**
+     * Returns the color sequence for a given light if the light is part of an effect.
+     *
+     * @return the color sequence the light is playing or null if the light has a permanent state.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_LIGHT_ANIMATIONS)
+    @TestApi
+    public abstract @Nullable ColorSequence getLightSequence(@NonNull Light light);
 
     /**
      * Creates a new LightsSession that can be used to control the device lights.

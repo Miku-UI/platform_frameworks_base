@@ -24,6 +24,7 @@ import android.os.VibratorInfo;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class VibratorInfoFactory {
     /**
      * Creates a single {@link VibratorInfo} that is an intersection of a given collection of

@@ -20,7 +20,7 @@ import com.android.hoststubgen.HostStubGenErrors
 import com.android.hoststubgen.asm.ClassNodes
 import com.android.hoststubgen.filters.printAsTextPolicy
 import com.android.hoststubgen.log
-import com.android.hoststubgen.utils.ConcurrentZipFile
+import com.android.hoststubgen.utils.ConcurrentZipProcessor
 import com.android.hoststubgen.utils.DEFAULT_SHARD_COUNT
 import com.android.platform.test.ravenwood.ravenhelper.SubcommandHandler
 import java.io.PrintWriter
@@ -32,7 +32,7 @@ class StatsHandler : SubcommandHandler {
 
         val errors = HostStubGenErrors()
 
-        val inJar = ConcurrentZipFile(options.inJar.get, DEFAULT_SHARD_COUNT)
+        val inJar = ConcurrentZipProcessor(options.inJars, DEFAULT_SHARD_COUNT)
 
         // Load all classes.
         val allClasses = ClassNodes.loadClassStructures(inJar)

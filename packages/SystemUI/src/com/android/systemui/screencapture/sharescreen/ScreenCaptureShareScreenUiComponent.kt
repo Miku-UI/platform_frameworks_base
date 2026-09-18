@@ -19,12 +19,16 @@ package com.android.systemui.screencapture.sharescreen
 import com.android.systemui.screencapture.common.CommonModule
 import com.android.systemui.screencapture.common.ScreenCaptureUiComponent
 import com.android.systemui.screencapture.common.ScreenCaptureUiScope
+import com.android.systemui.screencapture.sharescreen.domain.interactor.ShareScreenUiInteractor
 import dagger.Subcomponent
 
 /** Dagger subcomponent for Screen Sharing. */
 @ScreenCaptureUiScope
 @Subcomponent(modules = [CommonModule::class, ShareScreenModule::class])
 interface ScreenCaptureShareScreenUiComponent : ScreenCaptureUiComponent {
+
+    val shareScreenUiInteractor: ShareScreenUiInteractor
+
     @Subcomponent.Builder
     interface Builder : ScreenCaptureUiComponent.Builder {
         override fun build(): ScreenCaptureShareScreenUiComponent

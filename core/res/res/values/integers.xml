@@ -43,4 +43,5 @@
          Settings.Secure.ACCESSIBILITY_TEXT_CURSOR_BLINK_INTERVAL_MS. Keep in sync with
          ViewConfiguration. -->
     <integer name="no_blink_accessibility_text_cursor_blink_interval_ms">0</integer>
+    <integer name="app_lock_font_weight_medium">500</integer>
 </resources>

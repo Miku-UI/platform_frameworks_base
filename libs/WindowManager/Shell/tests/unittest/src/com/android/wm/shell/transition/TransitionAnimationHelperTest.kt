@@ -23,6 +23,8 @@ import android.window.TransitionInfo
 import android.window.TransitionInfo.FLAG_TRANSLUCENT
 import com.android.internal.R
 import com.android.internal.policy.TransitionAnimation
+import com.android.testing.wm.util.ChangeBuilder
+import com.android.testing.wm.util.TransitionInfoBuilder
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.TestRunningTaskInfoBuilder
 import org.junit.Test
@@ -33,77 +35,104 @@ import org.mockito.Mockito.verify
 
 class TransitionAnimationHelperTest : ShellTestCase() {
 
-    @Mock
-    lateinit var transitionAnimation: TransitionAnimation
+    @Mock lateinit var transitionAnimation: TransitionAnimation
 
     @Test
     fun loadAttributeAnimation_freeform_taskOpen_taskToBackChange_returnsMinimizeAnim() {
-        val openChange = ChangeBuilder(WindowManager.TRANSIT_OPEN)
-            .setTask(createTaskInfo(WindowConfiguration.WINDOWING_MODE_FREEFORM))
-            .build()
-        val toBackChange = ChangeBuilder(WindowManager.TRANSIT_TO_BACK)
-            .setTask(createTaskInfo(WindowConfiguration.WINDOWING_MODE_FREEFORM))
-            .build()
-        val info = TransitionInfoBuilder(WindowManager.TRANSIT_OPEN)
-            .addChange(openChange)
-            .addChange(toBackChange)
-            .build()
+        val openChange =
+            ChangeBuilder(
+                    createTaskInfo(WindowConfiguration.WINDOWING_MODE_FREEFORM),
+                    WindowManager.TRANSIT_OPEN,
+                )
+                .build()
+        val toBackChange =
+            ChangeBuilder(
+                    createTaskInfo(WindowConfiguration.WINDOWING_MODE_FREEFORM),
+                    WindowManager.TRANSIT_TO_BACK,
+                )
+                .build()
+        val info =
+            TransitionInfoBuilder(WindowManager.TRANSIT_OPEN)
+                .addChange(openChange)
+                .addChange(toBackChange)
+                .build()
 
         loadAttributeAnimation(WindowManager.TRANSIT_OPEN, info, toBackChange)
 
-        verify(transitionAnimation).loadDefaultAnimationAttr(
-            eq(R.styleable.WindowAnimation_activityCloseExitAnimation), anyBoolean())
+        verify(transitionAnimation)
+            .loadDefaultAnimationAttr(
+                eq(R.styleable.WindowAnimation_activityCloseExitAnimation),
+                anyBoolean(),
+            )
     }
 
     @Test
     fun loadAttributeAnimation_freeform_taskToFront_taskToFrontChange_returnsUnminimizeAnim() {
-        val toFrontChange = ChangeBuilder(WindowManager.TRANSIT_TO_FRONT)
-            .setTask(createTaskInfo(WindowConfiguration.WINDOWING_MODE_FREEFORM))
-            .build()
-        val info = TransitionInfoBuilder(WindowManager.TRANSIT_TO_FRONT)
-            .addChange(toFrontChange)
-            .build()
+        val toFrontChange =
+            ChangeBuilder(
+                    createTaskInfo(WindowConfiguration.WINDOWING_MODE_FREEFORM),
+                    WindowManager.TRANSIT_TO_FRONT,
+                )
+                .build()
+        val info =
+            TransitionInfoBuilder(WindowManager.TRANSIT_TO_FRONT).addChange(toFrontChange).build()
 
         loadAttributeAnimation(WindowManager.TRANSIT_TO_FRONT, info, toFrontChange)
 
-        verify(transitionAnimation).loadDefaultAnimationAttr(
-            eq(R.styleable.WindowAnimation_activityOpenEnterAnimation),
-            /* translucent= */ anyBoolean())
+        verify(transitionAnimation)
+            .loadDefaultAnimationAttr(
+                eq(R.styleable.WindowAnimation_activityOpenEnterAnimation),
+                /* translucent= */ anyBoolean(),
+            )
     }
 
     @Test
     fun loadAttributeAnimation_fullscreen_taskOpen_returnsTaskOpenEnterAnim() {
-        val openChange = ChangeBuilder(WindowManager.TRANSIT_OPEN)
-            .setTask(createTaskInfo(WindowConfiguration.WINDOWING_MODE_FULLSCREEN))
-            .build()
+        val openChange =
+            ChangeBuilder(
+                    createTaskInfo(WindowConfiguration.WINDOWING_MODE_FULLSCREEN),
+                    WindowManager.TRANSIT_OPEN,
+                )
+                .build()
         val info = TransitionInfoBuilder(WindowManager.TRANSIT_OPEN).addChange(openChange).build()
 
         loadAttributeAnimation(WindowManager.TRANSIT_OPEN, info, openChange)
 
-        verify(transitionAnimation).loadDefaultAnimationAttr(
-            eq(R.styleable.WindowAnimation_taskOpenEnterAnimation),
-            /* translucent= */ anyBoolean())
+        verify(transitionAnimation)
+            .loadDefaultAnimationAttr(
+                eq(R.styleable.WindowAnimation_taskOpenEnterAnimation),
+                /* translucent= */ anyBoolean(),
+            )
     }
 
     @Test
     fun loadAttributeAnimation_freeform_taskOpen_taskToBackChange_passesTranslucent() {
-        val openChange = ChangeBuilder(WindowManager.TRANSIT_OPEN)
-            .setTask(createTaskInfo(WindowConfiguration.WINDOWING_MODE_FREEFORM))
-            .build()
-        val toBackChange = ChangeBuilder(WindowManager.TRANSIT_TO_BACK)
-            .setTask(createTaskInfo(WindowConfiguration.WINDOWING_MODE_FREEFORM))
-            .setFlags(FLAG_TRANSLUCENT)
-            .build()
-        val info = TransitionInfoBuilder(WindowManager.TRANSIT_OPEN)
-            .addChange(openChange)
-            .addChange(toBackChange)
-            .build()
+        val openChange =
+            ChangeBuilder(
+                    createTaskInfo(WindowConfiguration.WINDOWING_MODE_FREEFORM),
+                    WindowManager.TRANSIT_OPEN,
+                )
+                .build()
+        val toBackChange =
+            ChangeBuilder(
+                    createTaskInfo(WindowConfiguration.WINDOWING_MODE_FREEFORM),
+                    WindowManager.TRANSIT_TO_BACK,
+                )
+                .setFlags(FLAG_TRANSLUCENT)
+                .build()
+        val info =
+            TransitionInfoBuilder(WindowManager.TRANSIT_OPEN)
+                .addChange(openChange)
+                .addChange(toBackChange)
+                .build()
 
         loadAttributeAnimation(WindowManager.TRANSIT_OPEN, info, toBackChange)
 
-        verify(transitionAnimation).loadDefaultAnimationAttr(
-            eq(R.styleable.WindowAnimation_activityCloseExitAnimation),
-            /* translucent= */ eq(true))
+        verify(transitionAnimation)
+            .loadDefaultAnimationAttr(
+                eq(R.styleable.WindowAnimation_activityCloseExitAnimation),
+                /* translucent= */ eq(true),
+            )
     }
 
     private fun loadAttributeAnimation(
@@ -114,13 +143,17 @@ class TransitionAnimationHelperTest : ShellTestCase() {
         isDreamTransition: Boolean = false,
     ) {
         TransitionAnimationHelper.loadAttributeAnimation(
-            type, info, change, wallpaperTransit, transitionAnimation, isDreamTransition)
+            type,
+            info,
+            change,
+            wallpaperTransit,
+            transitionAnimation,
+            isDreamTransition,
+        )
     }
 
     private fun createTaskInfo(windowingMode: Int): RunningTaskInfo {
-        val taskInfo = TestRunningTaskInfoBuilder()
-            .setWindowingMode(windowingMode)
-            .build()
+        val taskInfo = TestRunningTaskInfoBuilder().setWindowingMode(windowingMode).build()
         return taskInfo
     }
 }

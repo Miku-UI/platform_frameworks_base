@@ -128,8 +128,7 @@ public interface TimeZoneChangeListener {
                     + mNewConfidence
                     + ", mCause='"
                     + mCause
-                    + '\''
-                    + '}';
+                    + "}";
         }
 
         @Override

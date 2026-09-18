@@ -37,7 +37,7 @@ import javax.inject.Provider;
  *
  * To create a new tile within SystemUI, the tile class should extend {@link QSTileImpl} and have
  * a public static final TILE_SPEC field which serves as a unique key for this tile. (e.g. {@link
- * com.android.systemui.qs.tiles.DreamTile#TILE_SPEC})
+ * com.android.systemui.qs.tiles.BluetoothTile#TILE_SPEC})
  *
  * After, create or find an existing Module class to house the tile's binding method (e.g. {@link
  * QSAccessibilityModule}). If creating a new module, add your

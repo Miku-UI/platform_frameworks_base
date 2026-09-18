@@ -1,0 +1,7 @@
+{
+  "desktop-presubmit": [
+    {
+      "name": "InteractiveHsumIntegrationTests"
+    }
+  ]
+}

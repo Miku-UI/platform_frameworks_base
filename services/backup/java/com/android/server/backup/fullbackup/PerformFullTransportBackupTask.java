@@ -28,7 +28,6 @@ import android.app.backup.BackupProgress;
 import android.app.backup.BackupTransport;
 import android.app.backup.IBackupManagerMonitor;
 import android.app.backup.IBackupObserver;
-import android.app.backup.IFullBackupRestoreObserver;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
@@ -39,8 +38,10 @@ import android.util.EventLog;
 import android.util.Log;
 import android.util.Slog;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.EventLogTags;
 import com.android.server.backup.BackupAgentTimeoutParameters;
+import com.android.server.backup.BackupManagerConstants;
 import com.android.server.backup.BackupRestoreTask;
 import com.android.server.backup.Flags;
 import com.android.server.backup.FullBackupJob;
@@ -100,14 +101,13 @@ import java.util.concurrent.atomic.AtomicLong;
  *       so read() returns -1. 3. Notifies mCurrentOpLock which unblocks
  *       mBackupRunner.getBackupResultBlocking().
  */
-public class PerformFullTransportBackupTask extends FullBackupTask implements BackupRestoreTask {
+public class PerformFullTransportBackupTask implements BackupRestoreTask, Runnable {
     /**
      * @throws IllegalStateException if there's no transport available.
      */
     public static PerformFullTransportBackupTask newWithCurrentTransport(
             UserBackupManagerService backupManagerService,
             OperationStorage operationStorage,
-            IFullBackupRestoreObserver observer,
             String[] whichPackages,
             boolean updateSchedule,
             FullBackupJob runningJob,
@@ -131,7 +131,6 @@ public class PerformFullTransportBackupTask extends FullBackupTask implements Ba
                 backupManagerService,
                 operationStorage,
                 transportConnection,
-                observer,
                 whichPackages,
                 updateSchedule,
                 runningJob,
@@ -171,12 +170,10 @@ public class PerformFullTransportBackupTask extends FullBackupTask implements Ba
     public PerformFullTransportBackupTask(UserBackupManagerService backupManagerService,
             OperationStorage operationStorage,
             TransportConnection transportConnection,
-            IFullBackupRestoreObserver observer,
             String[] whichPackages, boolean updateSchedule,
             FullBackupJob runningJob, CountDownLatch latch, IBackupObserver backupObserver,
             @Nullable IBackupManagerMonitor monitor, @Nullable OnTaskFinishedListener listener,
             boolean userInitiated, BackupEligibilityRules backupEligibilityRules) {
-        super(observer);
         mUserBackupManagerService = backupManagerService;
         mOperationStorage = operationStorage;
         mTransportConnection = transportConnection;
@@ -204,66 +201,13 @@ public class PerformFullTransportBackupTask extends FullBackupTask implements Ba
         }
 
         for (String pkg : whichPackages) {
-            try {
-                PackageManager pm = backupManagerService.getPackageManager();
-                PackageInfo packageInfo = pm.getPackageInfoAsUser(pkg,
-                        PackageManager.GET_SIGNING_CERTIFICATES, mUserId);
-                if (!mBackupEligibilityRules.appIsEligibleForBackup(packageInfo.applicationInfo)) {
-                    // Cull any packages that have indicated that backups are not permitted,
-                    // that run as system-domain uids but do not define their own backup agents,
-                    // as well as any explicit mention of the 'special' shared-storage agent
-                    // package (we handle that one at the end).
-                    if (DEBUG) {
-                        Slog.d(TAG, "Ignoring ineligible package " + pkg);
-                    }
-                    mBackupManagerMonitorEventSender.monitorEvent(
-                            BackupManagerMonitor.LOG_EVENT_ID_PACKAGE_INELIGIBLE,
-                            packageInfo,
-                            BackupManagerMonitor.LOG_EVENT_CATEGORY_BACKUP_MANAGER_POLICY,
-                            /* extras= */ null);
-                    BackupObserverUtils.sendBackupOnPackageResult(mBackupObserver, pkg,
-                            BackupManager.ERROR_BACKUP_NOT_ALLOWED);
-                    continue;
-                } else if (!mBackupEligibilityRules.appGetsFullBackup(packageInfo)) {
-                    // Cull any packages that are found in the queue but now aren't supposed
-                    // to get full-data backup operations.
-                    if (DEBUG) {
-                        Slog.d(TAG, "Ignoring full-data backup of key/value participant "
-                                + pkg);
-                    }
-                    mBackupManagerMonitorEventSender.monitorEvent(
-                            BackupManagerMonitor.LOG_EVENT_ID_PACKAGE_KEY_VALUE_PARTICIPANT,
-                            packageInfo,
-                            BackupManagerMonitor.LOG_EVENT_CATEGORY_BACKUP_MANAGER_POLICY,
-                            /* extras= */ null);
-                    BackupObserverUtils.sendBackupOnPackageResult(mBackupObserver, pkg,
-                            BackupManager.ERROR_BACKUP_NOT_ALLOWED);
-                    continue;
-                } else if (mBackupEligibilityRules.appIsStopped(packageInfo.applicationInfo)) {
-                    // Cull any packages in the 'stopped' state: they've either just been
-                    // installed or have explicitly been force-stopped by the user.  In both
-                    // cases we do not want to launch them for backup.
-                    if (DEBUG) {
-                        Slog.d(TAG, "Ignoring stopped package " + pkg);
-                    }
-                    mBackupManagerMonitorEventSender.monitorEvent(
-                            BackupManagerMonitor.LOG_EVENT_ID_PACKAGE_STOPPED,
-                            packageInfo,
-                            BackupManagerMonitor.LOG_EVENT_CATEGORY_BACKUP_MANAGER_POLICY,
-                            /* extras= */ null);
-                    BackupObserverUtils.sendBackupOnPackageResult(mBackupObserver, pkg,
-                            BackupManager.ERROR_BACKUP_NOT_ALLOWED);
-                    continue;
-                }
-                mPackages.add(packageInfo);
-            } catch (NameNotFoundException e) {
-                Slog.i(TAG, "Requested package " + pkg + " not found; ignoring");
-                mBackupManagerMonitorEventSender.monitorEvent(
-                        BackupManagerMonitor.LOG_EVENT_ID_PACKAGE_NOT_FOUND,
-                        /* pkg= */ null,
-                        BackupManagerMonitor.LOG_EVENT_CATEGORY_BACKUP_MANAGER_POLICY,
-                        /* extras= */ null);
+            // We do not have a transport connection yet and can't use the flags
+            PackageInfo packageInfo = getPackageInfoIfEligibleOrNull(pkg,
+                    /* checkEligibilityBasedOnTransportFlags= */ false, /* transportFlags= */ 0);
+            if (packageInfo == null) {
+                continue;
             }
+            mPackages.add(packageInfo);
         }
 
         Set<String> packageNames = Sets.newHashSet();
@@ -380,6 +324,8 @@ public class PerformFullTransportBackupTask extends FullBackupTask implements Ba
 
             // In some cases there may not be a monitor passed in when creating this task. So, if we
             // don't have one already we ask the transport for a monitor.
+            // TODO(b/380051012): Remove this after rolling out
+            // enable_kv_backup_logs_from_transport_with_proper_flow_id.
             if (mBackupManagerMonitorEventSender.getMonitor() == null) {
                 try {
                     mBackupManagerMonitorEventSender
@@ -401,10 +347,19 @@ public class PerformFullTransportBackupTask extends FullBackupTask implements Ba
                 chunkSizeInBytes = 64 * 1024; // 64KB
             }
             final byte[] buffer = new byte[chunkSizeInBytes];
+            final int transportFlags = transport.getTransportFlags();
             for (int i = 0; i < N; i++) {
                 mBackupRunner = null;
-                PackageInfo currentPackage = mPackages.get(i);
-                String packageName = currentPackage.packageName;
+                String packageName = mPackages.get(i).packageName;
+                // The package could have updated since the backup task started so we check
+                // eligibility once again. We have a transport connection now and can use
+                // transport flags.
+                PackageInfo currentPackage = getPackageInfoIfEligibleOrNull(packageName,
+                        /* checkEligibilityBasedOnTransportFlags= */ true, transportFlags);
+                if (currentPackage == null) {
+                    continue;
+                }
+
                 Slog.i(TAG, "Initiating full-data transport backup of " + packageName + " token: "
                         + mCurrentOpToken);
                 EventLog.writeEvent(EventLogTags.FULL_BACKUP_PACKAGE, packageName);
@@ -430,7 +385,7 @@ public class PerformFullTransportBackupTask extends FullBackupTask implements Ba
                         mBackupRunner =
                                 new SinglePackageBackupRunner(enginePipes[1], currentPackage,
                                         mTransportConnection, quota, mBackupRunnerOpToken,
-                                        transport.getTransportFlags());
+                                        transportFlags);
                         // The runner dup'd the pipe half, so we close it here
                         enginePipes[1].close();
                         enginePipes[1] = null;
@@ -475,28 +430,35 @@ public class PerformFullTransportBackupTask extends FullBackupTask implements Ba
                                         preflightResult));
                         backupPackageStatus = (int) preflightResult;
                     } else {
-                        int nRead = 0;
-                        do {
-                            nRead = in.read(buffer);
-                            if (DEBUG) {
-                                Slog.v(TAG, "in.read(buffer) from app: " + nRead);
-                            }
-                            if (nRead > 0) {
-                                out.write(buffer, 0, nRead);
-                                synchronized (mCancelLock) {
-                                    if (!mCancelled) {
-                                        backupPackageStatus = transport.sendBackupData(nRead);
-                                    }
-                                }
-                                totalRead += nRead;
-                                if (mBackupObserver != null && preflightResult > 0) {
-                                    BackupObserverUtils
-                                            .sendBackupOnUpdate(mBackupObserver, packageName,
-                                                    new BackupProgress(preflightResult, totalRead));
-                                }
-                            }
-                        } while (nRead > 0
-                                && backupPackageStatus == BackupTransport.TRANSPORT_OK);
+                        int fullBackupTransportReadSize = mUserBackupManagerService.getConstants()
+                                .getFullBackupTransportReadSize();
+                        // If the pipe buffer size is larger than 64KB, we will use the
+                        // multi-threaded path to do the backup. We do this check because we are
+                        // only interested in using the multi-threaded path for larger pipes, as it
+                        // allows for better performance for larger pipes. So for smaller pipes, we
+                        // will use the single-threaded path.
+                        boolean shouldUseMultiThreadedPath = fullBackupTransportReadSize
+                                > BackupManagerConstants.DEFAULT_FULL_BACKUP_TRANSPORT_READ_SIZE;
+                        SendBackupDataResult result;
+                        if (shouldUseMultiThreadedPath) {
+                            MultiThreadedTransportDataSender dataSender =
+                                    new MultiThreadedTransportDataSender(
+                                        in, out, transport, mBackupObserver, packageName,
+                                        preflightResult, mCancelLock, () -> mCancelled,
+                                        fullBackupTransportReadSize);
+                            result = dataSender.call();
+                        } else {
+                            result =
+                                    pipeDataToTransportSingleThreadedBlocking(
+                                            in,
+                                            out,
+                                            buffer,
+                                            transport,
+                                            preflightResult,
+                                            packageName);
+                        }
+                        backupPackageStatus = result.getBackupPackageStatus();
+                        totalRead = result.getTotalRead();
                         // Despite preflight succeeded, package still can hit quota on flight.
                         if (backupPackageStatus == BackupTransport.TRANSPORT_QUOTA_EXCEEDED) {
                             Slog.w(TAG, "Package hit quota limit in-flight " + packageName
@@ -699,6 +661,40 @@ public class PerformFullTransportBackupTask extends FullBackupTask implements Ba
         }
     }
 
+    private SendBackupDataResult pipeDataToTransportSingleThreadedBlocking(
+            FileInputStream in,
+            FileOutputStream out,
+            byte[] buffer,
+            BackupTransportClient transport,
+            long preflightResult,
+            String packageName) throws Exception {
+        long totalRead = 0;
+        int backupPackageStatus = BackupTransport.TRANSPORT_OK;
+        int nRead = 0;
+        do {
+            nRead = in.read(buffer);
+            if (DEBUG) {
+                Slog.v(TAG, "in.read(buffer) from app: " + nRead);
+            }
+            if (nRead > 0) {
+                out.write(buffer, 0, nRead);
+                synchronized (mCancelLock) {
+                    if (!mCancelled) {
+                        backupPackageStatus = transport.sendBackupData(nRead);
+                    }
+                }
+                totalRead += nRead;
+                if (mBackupObserver != null && preflightResult > 0) {
+                    BackupObserverUtils
+                            .sendBackupOnUpdate(mBackupObserver, packageName,
+                                new BackupProgress(preflightResult, totalRead));
+                }
+            }
+        } while (nRead > 0
+                && backupPackageStatus == BackupTransport.TRANSPORT_OK);
+        return new SendBackupDataResult(backupPackageStatus, totalRead);
+    }
+
     void cleanUpPipes(ParcelFileDescriptor[] pipes) {
         if (pipes != null) {
             if (pipes[0] != null) {
@@ -722,6 +718,11 @@ public class PerformFullTransportBackupTask extends FullBackupTask implements Ba
         }
     }
 
+    @VisibleForTesting
+    public List<PackageInfo> getPackages() {
+        return mPackages;
+    }
+
     private void setNoRestrictedModePackages(BackupTransportClient transport,
             List<PackageInfo> packages) {
         try {
@@ -735,6 +736,82 @@ public class PerformFullTransportBackupTask extends FullBackupTask implements Ba
                     packageNames, BACKUP);
         } catch (RemoteException e) {
             Slog.i(TAG, "Failed to retrieve no restricted mode packages from transport");
+        }
+    }
+
+    @Nullable
+    private PackageInfo getPackageInfoIfEligibleOrNull(String packageName,
+            boolean checkEligibilityBasedOnTransportFlags, int transportFlags) {
+        try {
+            PackageManager pm = mUserBackupManagerService.getPackageManager();
+            PackageInfo packageInfo = pm.getPackageInfoAsUser(packageName,
+                    PackageManager.GET_SIGNING_CERTIFICATES, mUserId);
+            if (!mBackupEligibilityRules.appIsEligibleForBackup(packageInfo.applicationInfo)) {
+                if (DEBUG) {
+                    Slog.d(TAG, "Ignoring ineligible package " + packageName);
+                }
+                mBackupManagerMonitorEventSender.monitorEvent(
+                        BackupManagerMonitor.LOG_EVENT_ID_PACKAGE_INELIGIBLE,
+                        packageInfo,
+                        BackupManagerMonitor.LOG_EVENT_CATEGORY_BACKUP_MANAGER_POLICY,
+                        /* extras= */ null);
+                BackupObserverUtils.sendBackupOnPackageResult(mBackupObserver, packageName,
+                        BackupManager.ERROR_BACKUP_NOT_ALLOWED);
+                return null;
+            }
+            if (!mBackupEligibilityRules.appGetsFullBackup(packageInfo)) {
+                if (DEBUG) {
+                    Slog.d(TAG, "Ignoring full-data backup of key/value participant "
+                            + packageName);
+                }
+                mBackupManagerMonitorEventSender.monitorEvent(
+                        BackupManagerMonitor.LOG_EVENT_ID_PACKAGE_KEY_VALUE_PARTICIPANT,
+                        packageInfo,
+                        BackupManagerMonitor.LOG_EVENT_CATEGORY_BACKUP_MANAGER_POLICY,
+                        /* extras= */ null);
+                BackupObserverUtils.sendBackupOnPackageResult(mBackupObserver, packageName,
+                        BackupManager.ERROR_BACKUP_NOT_ALLOWED);
+                return null;
+            }
+            if (mBackupEligibilityRules.appIsStopped(packageInfo.applicationInfo)) {
+                if (DEBUG) {
+                    Slog.d(TAG, "Ignoring stopped package " + packageName);
+                }
+                mBackupManagerMonitorEventSender.monitorEvent(
+                        BackupManagerMonitor.LOG_EVENT_ID_PACKAGE_STOPPED,
+                        packageInfo,
+                        BackupManagerMonitor.LOG_EVENT_CATEGORY_BACKUP_MANAGER_POLICY,
+                        /* extras= */ null);
+                BackupObserverUtils.sendBackupOnPackageResult(mBackupObserver, packageName,
+                        BackupManager.ERROR_BACKUP_NOT_ALLOWED);
+                return null;
+            }
+            if (checkEligibilityBasedOnTransportFlags) {
+                if (packageInfo.applicationInfo.shouldBackupAgentRunInPccProcess()
+                        && !mBackupEligibilityRules.pccBackupAgentAllowed(transportFlags)) {
+                    if (DEBUG) {
+                        Slog.d(TAG, "Package " + packageName
+                                + " not eligible for PCC backup, skipping");
+                    }
+                    mBackupManagerMonitorEventSender.monitorEvent(
+                            BackupManagerMonitor.LOG_EVENT_ID_PACKAGE_INELIGIBLE,
+                            packageInfo,
+                            BackupManagerMonitor.LOG_EVENT_CATEGORY_BACKUP_MANAGER_POLICY,
+                            /* extras= */ null);
+                    BackupObserverUtils.sendBackupOnPackageResult(mBackupObserver, packageName,
+                            BackupManager.ERROR_BACKUP_NOT_ALLOWED);
+                    return null;
+                }
+            }
+            return packageInfo;
+        } catch (NameNotFoundException e) {
+            Slog.i(TAG, "Requested package " + packageName + " not found; ignoring");
+            mBackupManagerMonitorEventSender.monitorEvent(
+                    BackupManagerMonitor.LOG_EVENT_ID_PACKAGE_NOT_FOUND,
+                    /* pkg= */ null,
+                    BackupManagerMonitor.LOG_EVENT_CATEGORY_BACKUP_MANAGER_POLICY,
+                    /* extras= */ null);
+            return null;
         }
     }
 
@@ -900,7 +977,6 @@ public class PerformFullTransportBackupTask extends FullBackupTask implements Ba
                             out,
                             mPreflight,
                             mTarget,
-                            false,
                             this,
                             mQuota,
                             mCurrentOpToken,

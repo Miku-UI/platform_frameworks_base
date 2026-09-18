@@ -22,14 +22,12 @@ import static android.view.WindowManager.TRANSIT_OLD_NONE;
 import static android.view.WindowManager.TRANSIT_OPEN;
 import static android.view.WindowManager.TRANSIT_TO_BACK;
 import static android.view.WindowManager.TRANSIT_TO_FRONT;
-import static android.window.DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_EXIT_BY_MINIMIZE_TRANSITION_BUGFIX;
 import static android.window.DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_EXIT_TRANSITIONS_BUGFIX;
 import static android.window.TransitionInfo.FLAG_IS_WALLPAPER;
 
 import static com.android.internal.util.Preconditions.checkArgument;
 import static com.android.wm.shell.shared.TransitionUtil.FLAG_IS_DESKTOP_WALLPAPER_ACTIVITY;
 import static com.android.wm.shell.shared.TransitionUtil.isClosingMode;
-import static com.android.wm.shell.shared.TransitionUtil.isClosingType;
 import static com.android.wm.shell.shared.TransitionUtil.isOpeningMode;
 
 import android.os.IBinder;
@@ -273,10 +271,6 @@ public abstract class RemoteAnimationRunnerCompat extends IRemoteAnimationRunner
             SurfaceControl.Transaction startTransaction
     ) {
         checkArgument(isOpeningMode(launcherChange.getMode()));
-        if (!isClosingType(info.getType())
-                && !ENABLE_DESKTOP_WINDOWING_EXIT_BY_MINIMIZE_TRANSITION_BUGFIX.isTrue()) {
-            return;
-        }
         for (int i = info.getChanges().size() - 1; i >= 0; --i) {
             final TransitionInfo.Change change = info.getChanges().get(i);
             // skip changes that we didn't wrap

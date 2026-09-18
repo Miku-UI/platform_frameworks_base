@@ -161,7 +161,7 @@ public final class VisualQueryDetectedResult implements Parcelable {
     /**
      * Detected signal representing the data for allowing accessibility feature. This field can
      * only be set when the secure device settings is set to true by either settings page UI or
-     * {@link VisualQueryDetector@setAccessibilityDetectionEnabled(boolean)}
+     * {@link VisualQueryDetector#setAccessibilityDetectionEnabled(boolean)}
      */
     @DataClass.Generated.Member
     @SuppressLint("UnflaggedApi") // b/325678077 flags not supported in isolated process
@@ -312,7 +312,7 @@ public final class VisualQueryDetectedResult implements Parcelable {
         /**
          * Detected signal representing the data for allowing accessibility feature. This field can
          * only be set when the secure device settings is set to true by either settings page UI or
-         * {@link VisualQueryDetector@setAccessibilityDetectionEnabled(boolean)}
+         * {@link VisualQueryDetector#setAccessibilityDetectionEnabled(boolean)}
          */
         @DataClass.Generated.Member
         @SuppressLint("UnflaggedApi") // b/325678077 flags not supported in isolated process

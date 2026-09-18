@@ -19,26 +19,20 @@ package com.android.systemui.kairos
 import com.android.systemui.kairos.internal.CompletableLazy
 import com.android.systemui.kairos.internal.Init
 import com.android.systemui.kairos.internal.InitScope
-import com.android.systemui.kairos.internal.Network
+import com.android.systemui.kairos.internal.MutableStateImpl
 import com.android.systemui.kairos.internal.NoScope
-import com.android.systemui.kairos.internal.Schedulable
 import com.android.systemui.kairos.internal.StateImpl
-import com.android.systemui.kairos.internal.StateSource
-import com.android.systemui.kairos.internal.activated
 import com.android.systemui.kairos.internal.constInit
 import com.android.systemui.kairos.internal.constState
-import com.android.systemui.kairos.internal.distinctChanges
 import com.android.systemui.kairos.internal.flatMapStateImpl
 import com.android.systemui.kairos.internal.init
-import com.android.systemui.kairos.internal.mapImpl
 import com.android.systemui.kairos.internal.mapStateImpl
 import com.android.systemui.kairos.internal.mapStateImplCheap
 import com.android.systemui.kairos.internal.util.hashString
 import com.android.systemui.kairos.util.NameData
+import com.android.systemui.kairos.util.NameTag
 import com.android.systemui.kairos.util.NameTaggingDisabled
 import com.android.systemui.kairos.util.WithPrev
-import com.android.systemui.kairos.util.forceInit
-import com.android.systemui.kairos.util.mapName
 import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.kairos.util.plus
 import com.android.systemui.kairos.util.toNameData
@@ -57,7 +51,6 @@ import kotlin.reflect.KProperty
  *
  * @sample com.android.systemui.kairos.KairosSamples.states
  */
-@ExperimentalKairosApi
 sealed class State<out A> {
     internal abstract val init: Init<StateImpl<A>>
 }
@@ -66,7 +59,6 @@ sealed class State<out A> {
  * Returns a constant [State] that never changes. [changes] is equivalent to [emptyEvents] and
  * [TransactionScope.sample] will always produce [value].
  */
-@ExperimentalKairosApi
 fun <A> stateOf(value: A): State<A> = stateOf(nameTag("stateOf").toNameData("stateOf"), value)
 
 internal fun <A> stateOf(nameData: NameData, value: A): State<A> =
@@ -84,7 +76,7 @@ internal fun <A> stateOf(nameData: NameData, value: A): State<A> =
  *   fun <A> Lazy<State<A>>.defer() = deferredState { value }
  * ```
  */
-@ExperimentalKairosApi fun <A> Lazy<State<A>>.defer(): State<A> = deferInline { value }
+fun <A> Lazy<State<A>>.defer(): State<A> = deferInline { value }
 
 /**
  * Returns a [State] that acts as a deferred-reference to the [State] produced by this
@@ -99,7 +91,6 @@ internal fun <A> stateOf(nameData: NameData, value: A): State<A> =
  *   fun <A> DeferredValue<State<A>>.defer() = deferredState { get() }
  * ```
  */
-@ExperimentalKairosApi
 fun <A> DeferredValue<State<A>>.defer(): State<A> = deferInline { unwrapped.value }
 
 /**
@@ -110,7 +101,6 @@ fun <A> DeferredValue<State<A>>.defer(): State<A> = deferInline { unwrapped.valu
  *
  * Useful for recursive definitions.
  */
-@ExperimentalKairosApi
 fun <A> deferredState(block: KairosScope.() -> State<A>): State<A> = deferInline { NoScope.block() }
 
 /**
@@ -119,7 +109,6 @@ fun <A> deferredState(block: KairosScope.() -> State<A>): State<A> = deferInline
  *
  * @sample com.android.systemui.kairos.KairosSamples.mapState
  */
-@ExperimentalKairosApi
 fun <A, B> State<A>.map(transform: KairosScope.(A) -> B): State<B> =
     map(nameTag("State.map").toNameData("State.map"), transform)
 
@@ -139,7 +128,6 @@ internal fun <A, B> State<A>.map(nameData: NameData, transform: KairosScope.(A) 
  *
  * @see State.map
  */
-@ExperimentalKairosApi
 fun <A, B> State<A>.mapCheapUnsafe(transform: KairosScope.(A) -> B): State<B> =
     mapCheapUnsafe(nameTag("State.mapCheapUnsafe").toNameData("State.mapCheapUnsafe"), transform)
 
@@ -161,7 +149,6 @@ internal fun <A, B> State<A>.mapCheapUnsafe(
  *   }
  * ```
  */
-@ExperimentalKairosApi
 fun <A, B> State<Pair<A, B>>.unzip(): Pair<State<A>, State<B>> =
     unzip(nameTag("State.unzip").toNameData("State.unzip"))
 
@@ -176,7 +163,6 @@ internal fun <A, B> State<Pair<A, B>>.unzip(nameData: NameData): Pair<State<A>, 
  *
  * @sample com.android.systemui.kairos.KairosSamples.flatMap
  */
-@ExperimentalKairosApi
 fun <A, B> State<A>.flatMap(transform: KairosScope.(A) -> State<B>): State<B> =
     flatMap(nameTag("State.flatMap").toNameData("State.flatMap"), transform)
 
@@ -201,7 +187,6 @@ internal fun <A, B> State<A>.flatMap(
  *
  * @see flatMap
  */
-@ExperimentalKairosApi
 fun <A> State<State<A>>.flatten() = flatten(nameTag("State.flatten").toNameData("State.flatten"))
 
 internal fun <A> State<State<A>>.flatten(nameData: NameData) = flatMap(nameData) { it }
@@ -214,52 +199,13 @@ internal fun <A> State<State<A>>.flatten(nameData: NameData) = flatMap(nameData)
  *
  * Effectively equivalent to:
  * ```
- *     ConflatedMutableEvents(kairosNetwork).holdState(initialValue)
+ *     ConflatedMutableEvents().holdState(initialValue)
  * ```
  */
-@ExperimentalKairosApi
-class MutableState<T>
-internal constructor(
-    internal val nameData: NameData,
-    internal val network: Network,
-    initialValue: Lazy<T>,
-) : State<T>() {
-
-    init {
-        nameData.forceInit()
-    }
-
-    private val input: CoalescingMutableEvents<Lazy<T>, Lazy<T>?> =
-        CoalescingMutableEvents(
-            nameData = nameData.mapName { "$it-inputEvents" },
-            coalesce = { _, new -> new },
-            network = network,
-            getInitialValue = { null },
-        )
+class MutableState<T> internal constructor(internal val impl: MutableStateImpl<T>) : State<T>() {
 
     override val init: Init<StateImpl<T>>
-        get() = state.init
-
-    // TODO: not convinced this is totally safe
-    //  - at least for the BuildScope smart-constructor, we can avoid the network.transaction { }
-    //    call since we're already in a transaction
-    internal val state = run {
-        val changes = input.impl
-        val state: StateSource<T> = StateSource(initialValue, nameData)
-        val forced = mapImpl({ changes.activated() }, nameData + "forced") { it, _ -> it!!.value }
-        val calm = distinctChanges({ forced }, nameData + "calm", state)
-        @Suppress("DeferredResultUnused")
-        network.transaction("MutableState.init") {
-            calm.activate(evalScope = this, downstream = Schedulable.S(state))?.let {
-                (connection, needsEval) ->
-                state.upstreamConnection = connection
-                if (needsEval) {
-                    state.schedule(0, this)
-                }
-            }
-        }
-        StateInit(constInit(nameData, StateImpl(nameData, calm, state)))
-    }
+        get() = impl.init
 
     /**
      * Sets the value held by this [State].
@@ -271,7 +217,20 @@ internal constructor(
      * Multiple invocations of [setValue] that occur before a transaction are conflated; only the
      * most recent value is used.
      */
-    fun setValue(value: T) = input.emit(lazyOf(value))
+    fun setValue(value: T) = update { value }
+
+    /**
+     * Updates the value held by this [State] to the value returned from applying the current state
+     * to [block].
+     *
+     * Invoking will cause a [state change event][State.changes] to emit with the new value, which
+     * will then be applied (and thus returned by [TransactionScope.sample]) after the transaction
+     * is complete.
+     *
+     * Multiple invocations of [update] that occur before a transaction are coalesced and applied in
+     * order during the next transaction.
+     */
+    fun update(block: (T) -> T) = impl.update(block)
 
     /**
      * Sets the value held by this [State]. The [DeferredValue] will not be queried until this
@@ -284,10 +243,26 @@ internal constructor(
      * Multiple invocations of [setValue] that occur before a transaction are conflated; only the
      * most recent value is used.
      */
-    fun setValueDeferred(value: DeferredValue<T>) = input.emit(value.unwrapped)
+    fun setValueDeferred(value: DeferredValue<T>) = update { value.unwrapped.value }
 
-    override fun toString(): String = "${super.toString()}[$nameData]"
+    override fun toString(): String = impl.toString()
 }
+
+/** Returns a [MutableState] with initial state [initialValue]. */
+fun <T> MutableState(initialValue: T, name: NameTag? = null): MutableState<T> =
+    MutableState(lazyOf(initialValue), name)
+
+/** Returns a [MutableState] with initial state [initialValue]. */
+fun <T> MutableState(initialValue: DeferredValue<T>, name: NameTag? = null): MutableState<T> =
+    MutableState(initialValue.unwrapped, name)
+
+/** Returns a [MutableState] with initial state [initialValue]. */
+fun <T> MutableState(name: NameTag? = null, initialValue: () -> T): MutableState<T> =
+    MutableState(lazy(initialValue), name)
+
+/** Returns a [MutableState] with initial state [initialValue]. */
+fun <T> MutableState(initialValue: Lazy<T>, name: NameTag? = null): MutableState<T> =
+    MutableState(MutableStateImpl(name.toNameData("MutableState"), initialValue))
 
 /**
  * A forward-reference to a [State]. Useful for recursive definitions.
@@ -300,7 +275,6 @@ internal constructor(
  *
  * @sample com.android.systemui.kairos.KairosSamples.stateLoop
  */
-@ExperimentalKairosApi
 class StateLoop<A> : State<A>() {
 
     private val nameData: NameData = NameTaggingDisabled
@@ -308,7 +282,7 @@ class StateLoop<A> : State<A>() {
     private val deferred = CompletableLazy<State<A>>()
 
     override val init: Init<StateImpl<A>> =
-        init(nameData) { deferred.value.init.connect(evalScope = this) }
+        init(nameData) { deferred.value.init.connect(initScope = this) }
 
     /**
      * The [State] this reference is referring to. Must be set before this [StateLoop] is
@@ -338,7 +312,7 @@ internal class StateInit<A> internal constructor(override val init: Init<StateIm
 }
 
 private inline fun <A> deferInline(crossinline block: InitScope.() -> State<A>): State<A> =
-    StateInit(init(NameTaggingDisabled) { block().init.connect(evalScope = this) })
+    StateInit(init(NameTaggingDisabled) { block().init.connect(initScope = this) })
 
 /**
  * Like [changes] but also includes the old value of this [State].
@@ -348,7 +322,6 @@ private inline fun <A> deferInline(crossinline block: InitScope.() -> State<A>):
  *     stateChanges.map { WithPrev(previousValue = sample(), newValue = it) }
  * ```
  */
-@ExperimentalKairosApi
 val <A> State<A>.transitions: Events<WithPrev<A, A>>
     get() = transitions(nameTag("State.transitions").toNameData("State.transitions"))
 
@@ -362,9 +335,8 @@ internal fun <A> State<A>.transitions(nameData: NameData) =
  *
  * @sample com.android.systemui.kairos.KairosSamples.changes
  */
-@ExperimentalKairosApi
 val <A> State<A>.changes: Events<A>
     get() = changes(nameTag("State.changes").toNameData("State.changes"))
 
 internal fun <A> State<A>.changes(nameData: NameData) =
-    EventsInit(init(nameData) { init.connect(evalScope = this).changes })
+    EventsInit(init(nameData) { init.connect(initScope = this).changes })

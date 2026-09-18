@@ -16,8 +16,8 @@
 
 package com.android.server.backup.keyvalue;
 
-import android.app.IBackupAgent;
 import android.annotation.Nullable;
+import android.app.IBackupAgent;
 import android.app.backup.BackupManager;
 import android.app.backup.BackupManagerMonitor;
 import android.app.backup.BackupTransport;
@@ -144,6 +144,14 @@ public class KeyValueBackupReporter {
     }
 
     void onPackageStopped(String packageName) {
+        BackupObserverUtils.sendBackupOnPackageResult(
+                mObserver, packageName, BackupManager.ERROR_BACKUP_NOT_ALLOWED);
+    }
+
+    void onPackageNotEligibleForPccBackup(String packageName) {
+        if (DEBUG) {
+            Slog.d(TAG, "Package " + packageName + " not eligible for PCC backup, skipping");
+        }
         BackupObserverUtils.sendBackupOnPackageResult(
                 mObserver, packageName, BackupManager.ERROR_BACKUP_NOT_ALLOWED);
     }

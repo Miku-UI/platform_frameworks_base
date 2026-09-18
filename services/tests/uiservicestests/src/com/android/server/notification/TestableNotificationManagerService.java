@@ -18,17 +18,56 @@ package com.android.server.notification;
 
 import static android.app.NotificationManager.IMPORTANCE_DEFAULT;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+
+import android.app.ActivityManager;
+import android.app.ActivityManagerInternal;
+import android.app.AlarmManager;
+import android.app.AppOpsManager;
+import android.app.IActivityManager;
+import android.app.IUriGrantsManager;
+import android.app.StatsManager;
+import android.app.admin.DevicePolicyManagerInternal;
+import android.app.usage.UsageStatsManagerInternal;
 import android.companion.ICompanionDeviceManager;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.pm.IPackageManager;
+import android.content.pm.PackageManager;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.PowerManager;
+import android.permission.PermissionManager;
+import android.service.notification.INotificationListener;
 import android.service.notification.StatusBarNotification;
+import android.telecom.TelecomManager;
+import android.testing.TestableContext;
+import android.testing.TestableLooper;
+import android.util.AtomicFile;
 
 import androidx.annotation.Nullable;
+import androidx.test.InstrumentationRegistry;
 
-import com.android.internal.logging.InstanceIdSequence;
+import com.android.internal.config.sysui.TestableFlagResolver;
+import com.android.internal.logging.InstanceIdSequenceFake;
+import com.android.internal.logging.UiEventLogger;
+import com.android.server.LocalServices;
+import com.android.server.bitmapoffload.BitmapOffloadInternal;
+import com.android.server.lights.LightsManager;
 import com.android.server.notification.ManagedServices.ManagedServiceInfo;
 import com.android.server.notification.NotificationRecordLogger.NotificationReportedEvent;
+import com.android.server.uri.UriGrantsManagerInternal;
+import com.android.server.utils.quota.MultiRateLimiter;
+import com.android.server.wm.ActivityTaskManagerInternal;
+import com.android.server.wm.WindowManagerInternal;
 
+import org.mockito.Mock;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -38,15 +77,20 @@ public class TestableNotificationManagerService extends NotificationManagerServi
     boolean isSystemAppId = true;
     int countLogSmartSuggestionsVisible = 0;
     Set<Integer> mChannelToastsSent = new HashSet<>();
+    INotificationListener mNas = mock(INotificationListener.class);
+
+    AtomicFile mPolicyFile;
+    File mFile;
+    AtomicFile mRulesFile;
+    File mFile2;
 
     String stringArrayResourceValue;
     @Nullable
     NotificationAssistantAccessGrantedCallback mNotificationAssistantAccessGrantedCallback;
 
-    @Nullable
-    Boolean mIsVisibleToListenerReturnValue = null;
-
     ComponentPermissionChecker permissionChecker;
+    TestableLooper mTestableLooper;
+    TestableContext mTestableContext;
 
     private static class SensitiveLog {
         public boolean hasPosted;
@@ -66,13 +110,91 @@ public class TestableNotificationManagerService extends NotificationManagerServi
     }
     public ClassificationChannelLog  lastClassificationChannelLog = null;
 
-    TestableNotificationManagerService(Context context, NotificationRecordLogger logger,
-            InstanceIdSequence notificationInstanceIdSequence) {
-        super(context, logger, notificationInstanceIdSequence);
+    TestableNotificationManagerService(TestableContext context, TestableLooper looper) {
+        super(context);
+        mTestableContext = context;
+        mTestableLooper = looper;
+        mComputerControlHelper = new FakeComputerControlHelper();
+    }
+    void init() throws IOException {
+        init("<notification-policy></notification-policy", null);
+    }
+
+    void init(String policyXml, String rulesXml) throws IOException {
+        InstrumentationRegistry.getInstrumentation().getUiAutomation().adoptShellPermissionIdentity(
+                "android.permission.READ_CONTACTS");
+        // write to a test file; the system file isn't readable from tests
+        mFile = new File(getContext().getCacheDir(), "notification_policy.xml");
+        mPolicyFile = new AtomicFile(mFile);
+        if (policyXml != null) {
+            FileOutputStream fos = mPolicyFile.startWrite();
+            fos.write(policyXml.getBytes());
+            mPolicyFile.finishWrite(fos);
+        }
+        mFile2 = new File(getContext().getCacheDir(), "notification_rules.xml");
+        mRulesFile = new AtomicFile(mFile2);
+        if (rulesXml != null) {
+            FileOutputStream fos = mRulesFile.startWrite();
+            fos.write(rulesXml.getBytes());
+            mRulesFile.finishWrite(fos);
+        } else {
+            mRulesFile.delete();
+        }
+
+        // apps allowed as convos
+        setStringArrayResourceValue("");
+
+        LocalServices.removeServiceForTest(WindowManagerInternal.class);
+        LocalServices.addService(WindowManagerInternal.class, mock(WindowManagerInternal.class));
+        mTestableContext.addMockSystemService(AppOpsManager.class, mock(AppOpsManager.class));
+        mTestableContext.addMockSystemService(Context.ALARM_SERVICE, mock(AlarmManager.class));
+
+        NotificationAssistants assistants = spy(new NotificationAssistants(
+                mTestableContext, mock(IPackageManager.class)));
+
+        super.init(spy(new WorkerHandler(mTestableLooper.getLooper())),
+                mock(RankingHandler.class), new Handler(mTestableLooper.getLooper()),
+                mock(IPackageManager.class), mock(PackageManager.class),
+                mock(LightsManager.class),
+                new NotificationListeners(mTestableContext, new Object(),
+                        mUserProfiles, mock(IPackageManager.class),
+                        new NotificationManagerService.ConfigurableParameters()),
+                assistants,
+                new ConditionProviders(mTestableContext, mUserProfiles,
+                        mock(IPackageManager.class)),
+                mock(ICompanionDeviceManager.class),
+                mock(SnoozeHelper.class), mock(NotificationUsageStats.class),
+                mPolicyFile, mRulesFile, mock(ActivityManager.class),
+                mock(GroupHelper.class), mock(IActivityManager.class),
+                mock(ActivityTaskManagerInternal.class),
+                mock(UsageStatsManagerInternal.class),
+                mock(DevicePolicyManagerInternal.class), mock(IUriGrantsManager.class),
+                mock(UriGrantsManagerInternal.class),
+                mock(AppOpsManager.class),
+                mock(NotificationHistoryManager.class), mock(StatsManager.class),
+                mock(ActivityManagerInternal.class),
+                mock(MultiRateLimiter.class), mock(PermissionHelper.class),
+                mock(UsageStatsManagerInternal.class), mock(TelecomManager.class),
+                mock(NotificationChannelLogger.class), new TestableFlagResolver(),
+                mock(PermissionManager.class),
+                mock(PowerManager.class),
+                new NotificationManagerService.PostNotificationTrackerFactory() {},
+                mock(UiEventLogger.class),
+                mock(BitmapOffloadInternal.class), new NotificationListenerStats(),
+                new NotificationRecordLoggerFake(), new InstanceIdSequenceFake(1 << 30),
+                new TestPreferencesHelperFactory());
+
+        when(mNas.asBinder()).thenReturn(mock(IBinder.class));
+        mAssistants.registerSystemService(mNas, ComponentName.unflattenFromString("a/b"),
+                ActivityManager.getCurrentUser(), 1000);
     }
 
     RankingHelper getRankingHelper() {
         return mRankingHelper;
+    }
+
+    FakeComputerControlHelper getFakeComputerControlHelper() {
+        return (FakeComputerControlHelper) mComputerControlHelper;
     }
 
     /**
@@ -167,19 +289,6 @@ public class TestableNotificationManagerService extends NotificationManagerServi
     // Helper method for testing behavior when turning on/off the review permissions notification.
     protected void setShowReviewPermissionsNotification(boolean setting) {
         mShowReviewPermissionsNotification = setting;
-    }
-
-    protected void setIsVisibleToListenerReturnValue(boolean value) {
-        mIsVisibleToListenerReturnValue = value;
-    }
-
-    @Override
-    boolean isVisibleToListener(StatusBarNotification sbn, int notificationType,
-            ManagedServiceInfo listener) {
-        if (mIsVisibleToListenerReturnValue != null) {
-            return mIsVisibleToListenerReturnValue;
-        }
-        return super.isVisibleToListener(sbn, notificationType, listener);
     }
 
     @Override

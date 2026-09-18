@@ -18,6 +18,8 @@ package com.android.settingslib.applications;
 
 import static android.content.pm.Flags.FLAG_PROVIDE_INFO_OF_APK_IN_APEX;
 
+import static com.android.settingslib.flags.Flags.FLAG_ENABLE_LIMITED_APP_INFO_METADATA_FOR_APEX;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.fail;
@@ -28,6 +30,7 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.graphics.drawable.Drawable;
+import android.os.Bundle;
 import android.os.Environment;
 import android.platform.test.flag.junit.SetFlagsRule;
 
@@ -58,6 +61,7 @@ import java.util.concurrent.TimeUnit;
 public class AppUtilsTest {
 
     private static final String APP_PACKAGE_NAME = "com.test.app";
+    private static final String APEX_PACKAGE_NAME = "com.test.apex";
     private static final int APP_UID = 9999;
 
     @Mock
@@ -165,7 +169,7 @@ public class AppUtilsTest {
     }
 
     @Test
-    public void isMainlineModule_hasApexPackageName_shouldCheckByPackageInfo() {
+    public void isModulePackage_hasApexPackageName_shouldCheckByPackageInfo() {
         mSetFlagsRule.enableFlags(FLAG_PROVIDE_INFO_OF_APK_IN_APEX);
         PackageInfo packageInfo = new PackageInfo();
         packageInfo.packageName = APP_PACKAGE_NAME;
@@ -173,11 +177,11 @@ public class AppUtilsTest {
         mShadowPackageManager.installPackage(packageInfo);
 
         assertThat(
-                AppUtils.isMainlineModule(mContext.getPackageManager(), APP_PACKAGE_NAME)).isTrue();
+                AppUtils.isModulePackage(mContext.getPackageManager(), APP_PACKAGE_NAME)).isTrue();
     }
 
     @Test
-    public void isMainlineModule_noApexPackageName_shouldCheckBySourceDirPath() {
+    public void isModulePackage_noApexPackageName_shouldCheckBySourceDirPath() {
         mSetFlagsRule.disableFlags(FLAG_PROVIDE_INFO_OF_APK_IN_APEX);
         ApplicationInfo applicationInfo = new ApplicationInfo();
         applicationInfo.sourceDir = Environment.getApexDirectory().getAbsolutePath();
@@ -187,7 +191,137 @@ public class AppUtilsTest {
         mShadowPackageManager.installPackage(packageInfo);
 
         assertThat(
-                AppUtils.isMainlineModule(mContext.getPackageManager(), APP_PACKAGE_NAME)).isTrue();
+                AppUtils.isModulePackage(mContext.getPackageManager(), APP_PACKAGE_NAME)).isTrue();
+    }
+
+    @Test
+    public void isLimitedAppInfoPackage_apkNotInApex_shouldReturnFalse() {
+        mSetFlagsRule.enableFlags(FLAG_ENABLE_LIMITED_APP_INFO_METADATA_FOR_APEX);
+
+        PackageInfo packageInfo = new PackageInfo();
+        packageInfo.packageName = APP_PACKAGE_NAME;
+        // Note that we don't call setApexPackageName() here.
+        mShadowPackageManager.installPackage(packageInfo);
+
+        assertThat(
+                AppUtils.isLimitedAppInfoPackage(mContext.getPackageManager(), APP_PACKAGE_NAME))
+            .isFalse();
+    }
+
+    @Test
+    public void isLimitedAppInfoPackage_apexPackage_shouldReturnTrue() {
+        mSetFlagsRule.enableFlags(FLAG_ENABLE_LIMITED_APP_INFO_METADATA_FOR_APEX);
+
+        PackageInfo packageInfo = new PackageInfo();
+        packageInfo.packageName = APEX_PACKAGE_NAME;
+        packageInfo.isApex = true;
+        mShadowPackageManager.installPackage(packageInfo);
+
+        assertThat(
+                AppUtils.isLimitedAppInfoPackage(mContext.getPackageManager(), APEX_PACKAGE_NAME))
+            .isTrue();
+    }
+
+    @Test
+    public void isLimitedAppInfoPackage_apkInApex_nullApexMetadata_shouldReturnTrue() {
+        mSetFlagsRule.enableFlags(FLAG_ENABLE_LIMITED_APP_INFO_METADATA_FOR_APEX);
+
+        PackageInfo apkPackageInfo = new PackageInfo();
+        apkPackageInfo.packageName = APP_PACKAGE_NAME;
+        apkPackageInfo.setApexPackageName(APEX_PACKAGE_NAME);
+        mShadowPackageManager.installPackage(apkPackageInfo);
+
+        PackageInfo apexPackageInfo = new PackageInfo();
+        apexPackageInfo.packageName = APEX_PACKAGE_NAME;
+        mShadowPackageManager.installPackage(apexPackageInfo);
+
+        assertThat(
+                AppUtils.isLimitedAppInfoPackage(mContext.getPackageManager(), APP_PACKAGE_NAME))
+            .isTrue();
+    }
+
+    @Test
+    public void isLimitedAppInfoPackage_apkInApex_missingApexMetadata_shouldReturnTrue() {
+        mSetFlagsRule.enableFlags(FLAG_ENABLE_LIMITED_APP_INFO_METADATA_FOR_APEX);
+
+        PackageInfo apkPackageInfo = new PackageInfo();
+        apkPackageInfo.packageName = APP_PACKAGE_NAME;
+        apkPackageInfo.setApexPackageName(APEX_PACKAGE_NAME);
+        mShadowPackageManager.installPackage(apkPackageInfo);
+
+        Bundle apexMetadata = new Bundle();
+        apexMetadata.putBoolean("other", true);
+        PackageInfo apexPackageInfo = new PackageInfo();
+        apexPackageInfo.packageName = APEX_PACKAGE_NAME;
+        mShadowPackageManager.installPackage(apexPackageInfo);
+        apexPackageInfo.applicationInfo.metaData = apexMetadata;
+
+        assertThat(
+                AppUtils.isLimitedAppInfoPackage(mContext.getPackageManager(), APP_PACKAGE_NAME))
+            .isTrue();
+    }
+
+    @Test
+    public void isLimitedAppInfoPackage_apkInApex_apexMetadataIsTrue_shouldReturnTrue() {
+        mSetFlagsRule.enableFlags(FLAG_ENABLE_LIMITED_APP_INFO_METADATA_FOR_APEX);
+
+        PackageInfo apkPackageInfo = new PackageInfo();
+        apkPackageInfo.packageName = APP_PACKAGE_NAME;
+        apkPackageInfo.setApexPackageName(APEX_PACKAGE_NAME);
+        mShadowPackageManager.installPackage(apkPackageInfo);
+
+        Bundle apexMetadata = new Bundle();
+        apexMetadata.putBoolean("com.android.settings.limited_app_info", true);
+        PackageInfo apexPackageInfo = new PackageInfo();
+        apexPackageInfo.packageName = APEX_PACKAGE_NAME;
+        mShadowPackageManager.installPackage(apexPackageInfo);
+        apexPackageInfo.applicationInfo.metaData = apexMetadata;
+
+        assertThat(
+                AppUtils.isLimitedAppInfoPackage(mContext.getPackageManager(), APP_PACKAGE_NAME))
+            .isTrue();
+    }
+
+    @Test
+    public void isLimitedAppInfoPackage_apkInApex_apexMetadataIsFalse_shouldReturnFalse() {
+        mSetFlagsRule.enableFlags(FLAG_ENABLE_LIMITED_APP_INFO_METADATA_FOR_APEX);
+
+        PackageInfo apkPackageInfo = new PackageInfo();
+        apkPackageInfo.packageName = APP_PACKAGE_NAME;
+        apkPackageInfo.setApexPackageName(APEX_PACKAGE_NAME);
+        mShadowPackageManager.installPackage(apkPackageInfo);
+
+        Bundle apexMetadata = new Bundle();
+        apexMetadata.putBoolean("com.android.settings.limited_app_info", false);
+        PackageInfo apexPackageInfo = new PackageInfo();
+        apexPackageInfo.packageName = APEX_PACKAGE_NAME;
+        mShadowPackageManager.installPackage(apexPackageInfo);
+        apexPackageInfo.applicationInfo.metaData = apexMetadata;
+
+        assertThat(
+                AppUtils.isLimitedAppInfoPackage(mContext.getPackageManager(), APP_PACKAGE_NAME))
+            .isFalse();
+    }
+
+    @Test
+    public void isLimitedAppInfoPackage_apkInApex_apexMetadataIsFalse_flagOff_shouldReturnTrue() {
+        mSetFlagsRule.disableFlags(FLAG_ENABLE_LIMITED_APP_INFO_METADATA_FOR_APEX);
+
+        PackageInfo apkPackageInfo = new PackageInfo();
+        apkPackageInfo.packageName = APP_PACKAGE_NAME;
+        apkPackageInfo.setApexPackageName(APEX_PACKAGE_NAME);
+        mShadowPackageManager.installPackage(apkPackageInfo);
+
+        Bundle apexMetadata = new Bundle();
+        apexMetadata.putBoolean("com.android.settings.limited_app_info", false);
+        PackageInfo apexPackageInfo = new PackageInfo();
+        apexPackageInfo.packageName = APEX_PACKAGE_NAME;
+        mShadowPackageManager.installPackage(apexPackageInfo);
+        apexPackageInfo.applicationInfo.metaData = apexMetadata;
+
+        assertThat(
+                AppUtils.isLimitedAppInfoPackage(mContext.getPackageManager(), APP_PACKAGE_NAME))
+            .isTrue();
     }
 
     private ApplicationsState.AppEntry createAppEntry(ApplicationInfo appInfo, int id) {

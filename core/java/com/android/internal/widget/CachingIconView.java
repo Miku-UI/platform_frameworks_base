@@ -215,7 +215,7 @@ public class CachingIconView extends ImageView {
     }
 
     /**
-     * @return true if the currently set image is the same as {@param icon}
+     * @return true if the currently set image is the same as {@code icon}
      */
     private synchronized boolean testAndSetCache(Icon icon) {
         if (icon != null && icon.getType() == Icon.TYPE_RESOURCE) {
@@ -236,7 +236,7 @@ public class CachingIconView extends ImageView {
     }
 
     /**
-     * @return true if the currently set image is the same as {@param resId}
+     * @return true if the currently set image is the same as {@code resId}
      */
     private synchronized boolean testAndSetCache(int resId) {
         boolean isCached;
@@ -251,7 +251,7 @@ public class CachingIconView extends ImageView {
     }
 
     /**
-     * Returns the normalized package name of {@param icon}.
+     * Returns the normalized package name of {@code icon}.
      * @return null if icon is null or if the icons package is null, empty or matches the current
      *         context. Otherwise returns the icon's package context.
      */

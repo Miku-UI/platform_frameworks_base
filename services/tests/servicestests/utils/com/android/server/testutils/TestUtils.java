@@ -15,14 +15,23 @@
  */
 package com.android.server.testutils;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.matchesPattern;
+
 import android.os.Message;
 import android.os.TestLooperManager;
-import android.test.MoreAsserts;
+import android.util.Log;
+
+import androidx.annotation.Nullable;
 
 import junit.framework.Assert;
 
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class TestUtils {
     private TestUtils() {
@@ -42,7 +51,8 @@ public class TestUtils {
                     + " but caught " + e.getClass().getName(),
                     expectedExceptionType.isAssignableFrom(e.getClass()));
             if (expectedExceptionMessageRegex != null) {
-                MoreAsserts.assertContainsRegex(expectedExceptionMessageRegex, e.getMessage());
+                assertThat(e.getMessage(),
+                        matchesPattern(".*" + expectedExceptionMessageRegex + ".*"));
             }
             return; // Pass.
         }
@@ -82,5 +92,101 @@ public class TestUtils {
                 }
             }
         } while(!noMoreMessages);
+    }
+
+    public enum ExecutionOrder {
+        /** Execute cleanups in the order they were added (First-In, First-Out). */
+        FIFO,
+        /** Execute cleanups in the reverse order they were added (Last-In,
+         * First-Out - default for resource cleanup). */
+        LIFO
+    }
+
+    /**
+     * Helper class allowing to execute cleanup steps in LIFO or FIFO order while
+     * suppressing exceptions, and then throw all suppressed exceptions at the end of close().
+     */
+    public static class CleanupExecutor implements AutoCloseable {
+        private final AtomicReference<Throwable> mPrimaryExceptionRef = new AtomicReference<>(null);
+        private final List<Runnable> mCleanups = new ArrayList<>();
+        private final String mTag;
+        private final ExecutionOrder mExecutionOrder;
+
+        public CleanupExecutor(String tag, ExecutionOrder executionOrder) {
+            mTag = tag;
+            mExecutionOrder = executionOrder;
+        }
+
+        public CleanupExecutor(String tag) {
+            this(tag, ExecutionOrder.LIFO);
+        }
+
+        /** Add the cleanup to the list of cleanups to be executed in reverse order */
+        public void addCleanup(@Nullable Runnable cleanup) {
+            mCleanups.add(cleanup);
+        }
+
+        /**
+         * @return True if there is a suppressed exception.
+         */
+        public boolean hasException() {
+            return mPrimaryExceptionRef.get() != null;
+        }
+
+        /**
+         * Execute all the cleanups based on the configured order, and throw all
+         * the suppressed exceptions at the end of close().
+         */
+        @Override
+        public void close() throws Exception {
+            int start = mExecutionOrder == ExecutionOrder.LIFO ? mCleanups.size() - 1 : 0;
+            int end = mExecutionOrder == ExecutionOrder.LIFO ? -1 : mCleanups.size();
+            int step = mExecutionOrder == ExecutionOrder.LIFO ? -1 : 1;
+
+            for (int i = start; i != end; i += step) {
+                executeQuietly(mCleanups.get(i), i);
+            }
+
+            mCleanups.clear();
+            throwSuppressedExceptions();
+        }
+
+        /** Helper to execute the runnable without throwing, and then set the primary exception */
+        private void executeQuietly(@Nullable Runnable runnable, int index) {
+            if (runnable == null) {
+                return;
+            }
+            try {
+                runnable.run();
+            } catch (Throwable t) {
+                Log.e(mTag, "Failed to execute index " + index + " with " + runnable, t);
+                Throwable primary = mPrimaryExceptionRef.get();
+                if (primary == null) {
+                    mPrimaryExceptionRef.set(t); // Set the first exception
+                } else {
+                    primary.addSuppressed(t); // Suppress subsequent exceptions
+                }
+            }
+        }
+
+        private void throwSuppressedExceptions() throws Exception {
+            var primary = mPrimaryExceptionRef.getAndSet(null);
+            if (primary == null) {
+                return;
+            }
+            if (primary instanceof Exception) {
+                // Safe: It's an Exception, and the method throws Exception.
+                throw (Exception) primary;
+            }
+            if (primary instanceof Error) {
+                // Safe: It's an Error (unchecked), preserving the original type.
+                throw (Error) primary;
+            }
+
+            // In the highly unlikely case of a custom checked Throwable that's
+            // neither Exception nor Error, wrap it in a RuntimeException.
+            // (This is usually not necessary but is technically the safest catch-all.)
+            throw new RuntimeException("Unexpected Throwable during close", primary);
+        }
     }
 }

@@ -18,6 +18,8 @@ package android.view;
 
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,7 +31,11 @@ import static org.mockito.Mockito.verify;
 
 import android.content.Context;
 import android.graphics.Region;
+import android.os.Bundle;
 import android.platform.test.annotations.Presubmit;
+import android.util.Size;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityNodeInfo.ExtraRenderingInfo;
 import android.view.autofill.AutofillId;
 
 import androidx.test.filters.SmallTest;
@@ -37,7 +43,6 @@ import androidx.test.filters.SmallTest;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 
@@ -209,8 +214,52 @@ public class ViewGroupTest {
         verify(viewB).findAutofillableViewsByTraversal(autofillableViews);
         verify(viewC).findAutofillableViewsByTraversal(autofillableViews);
 
-        assertEquals("Size of autofillable views", 2, autofillableViews.size());
-        assertTrue(autofillableViews.containsAll(Arrays.asList(viewA, viewC)));
+        assertThat(autofillableViews).containsExactly(viewA, viewC);
+    }
+
+    /**
+     * Verifies that layout width and height are added to ExtraRenderingInfo when requested.
+     */
+    @Test
+    public void testAddExtraData_LayoutSize() {
+        final Context context = getInstrumentation().getContext();
+        final TestView viewGroup = new TestView(context, 100, 50, 200, 150);
+        final int width = 250;
+        final int height = 350;
+        viewGroup.setLayoutParams(new ViewGroup.LayoutParams(width, height));
+
+        final AccessibilityNodeInfo info = new AccessibilityNodeInfo();
+
+        // Call the method under test with the correct key.
+        viewGroup.addExtraDataToAccessibilityNodeInfo(info,
+                AccessibilityNodeInfo.EXTRA_DATA_RENDERING_INFO_KEY, /* arguments= */ null);
+
+        // Verify the ExtraRenderingInfo is added with the correct layout size.
+        final ExtraRenderingInfo extraRenderingInfo = info.getExtraRenderingInfo();
+        assertThat(extraRenderingInfo).isNotNull();
+        final Size layoutSize = extraRenderingInfo.getLayoutSize();
+        assertThat(layoutSize).isNotNull();
+        assertThat(layoutSize.getWidth()).isEqualTo(width);
+        assertThat(layoutSize.getHeight()).isEqualTo(height);
+    }
+
+    /**
+     * Verifies that ExtraRenderingInfo is not emitted when an unsupported key is provided.
+     */
+    @Test
+    public void testAddExtraData_UnsupportedKey() {
+        final Context context = getInstrumentation().getContext();
+        final TestView viewGroup = new TestView(context, 100, 50, 200, 150);
+        viewGroup.setLayoutParams(new ViewGroup.LayoutParams(250, 350));
+
+        final AccessibilityNodeInfo info = new AccessibilityNodeInfo();
+
+        // Call with a different key.
+        viewGroup.addExtraDataToAccessibilityNodeInfo(
+            info, "some.other.key", /* arguments= */ null);
+
+        // Verify ExtraRenderingInfo is not set.
+        assertThat(info.getExtraRenderingInfo()).isNull();
     }
 
     private static void getUnobscuredTouchableRegion(Region outRegion, View view) {
@@ -222,8 +271,11 @@ public class ViewGroupTest {
     }
 
     private static void assertRegionContainPoint(int x, Region region, boolean contain) {
-        assertEquals(String.format("Touchable region must%s contain (%s, 0).",
-                (contain ? "" : " not"), x), contain, region.contains(x, 0 /* y */));
+        assertWithMessage(
+            "Touchable region must%s contain (%s, 0).",
+            (contain ? "" : " not"), x)
+        .that(region.contains(x, 0 /* y */))
+        .isEqualTo(contain);
     }
 
     public static class TestView extends ViewGroup {

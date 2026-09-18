@@ -16,6 +16,10 @@
 
 package com.android.server.wm;
 
+import static android.app.FullscreenRequestHandler.REQUEST_ALLOW_MODE_ENTER;
+import static android.app.FullscreenRequestHandler.REQUEST_ALLOW_MODE_EXIT;
+import static android.app.FullscreenRequestHandler.REQUEST_ALLOW_MODE_INHERIT;
+import static android.app.FullscreenRequestHandler.REQUEST_ALLOW_MODE_NONE;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_BEHIND;
 import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
@@ -47,7 +51,7 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.times;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
 import static com.android.server.wm.DisplayArea.Type.ANY;
 import static com.android.server.wm.SurfaceAnimator.ANIMATION_TYPE_ALL;
-import static com.android.server.wm.SurfaceAnimator.ANIMATION_TYPE_APP_TRANSITION;
+import static com.android.server.wm.SurfaceAnimator.ANIMATION_TYPE_WINDOW_ANIMATION;
 import static com.android.server.wm.SurfaceAnimator.ANIMATION_TYPE_SCREEN_ROTATION;
 import static com.android.server.wm.WindowContainer.AnimationFlags.CHILDREN;
 import static com.android.server.wm.WindowContainer.AnimationFlags.PARENTS;
@@ -101,7 +105,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
-
 
 /**
  * Test class for {@link WindowContainer}.
@@ -447,13 +450,13 @@ public class WindowContainerTests extends WindowTestsBase {
 
         assertTrue(window.isAnimating());
         assertFalse(window.isAnimating(0, ANIMATION_TYPE_SCREEN_ROTATION));
-        assertTrue(window.isAnimating(0, ANIMATION_TYPE_APP_TRANSITION));
-        assertFalse(window.isAnimating(0, ANIMATION_TYPE_ALL & ~ANIMATION_TYPE_APP_TRANSITION));
+        assertTrue(window.isAnimating(0, ANIMATION_TYPE_WINDOW_ANIMATION));
+        assertFalse(window.isAnimating(0, ANIMATION_TYPE_ALL & ~ANIMATION_TYPE_WINDOW_ANIMATION));
 
         final TestWindowContainer child = window.addChildWindow();
         assertFalse(child.isAnimating());
         assertTrue(child.isAnimating(PARENTS, ANIMATION_TYPE_ALL));
-        assertTrue(child.isAnimating(PARENTS, ANIMATION_TYPE_APP_TRANSITION));
+        assertTrue(child.isAnimating(PARENTS, ANIMATION_TYPE_WINDOW_ANIMATION));
         assertFalse(child.isAnimating(PARENTS, ANIMATION_TYPE_SCREEN_ROTATION));
 
         final WindowState windowState = newWindowBuilder("TestWindowState",
@@ -461,7 +464,7 @@ public class WindowContainerTests extends WindowTestsBase {
         WindowContainer parent = windowState.getParent();
         spyOn(windowState.mSurfaceAnimator);
         doReturn(true).when(windowState.mSurfaceAnimator).isAnimating();
-        doReturn(ANIMATION_TYPE_APP_TRANSITION).when(
+        doReturn(ANIMATION_TYPE_WINDOW_ANIMATION).when(
                 windowState.mSurfaceAnimator).getAnimationType();
         assertTrue(parent.isAnimating(CHILDREN, ANIMATION_TYPE_ALL));
 
@@ -918,7 +921,6 @@ public class WindowContainerTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION)
     public void testAddLocalInsets_addsFlagsFromProvider() {
         final Task rootTask = createTask(mDisplayContent);
         final Task task = createTaskInRootTask(rootTask, 0 /* userId */);
@@ -1097,8 +1099,6 @@ public class WindowContainerTests extends WindowTestsBase {
                 activity).build();
         spyOn(win);
         doReturn(true).when(task).okToAnimate();
-        ArrayList<WindowContainer> sources = new ArrayList<>();
-        sources.add(activity);
 
         // Simulate the task applying the exit transition, verify the main window of the task
         // will be set the frozen insets state before the animation starts
@@ -1107,8 +1107,6 @@ public class WindowContainerTests extends WindowTestsBase {
 
         // Simulate the task transition finished.
         activity.commitVisibility(false, false);
-        task.onAnimationFinished(ANIMATION_TYPE_APP_TRANSITION,
-                task.mSurfaceAnimator.getAnimation());
 
         // Now make it visible again, verify that the insets are immediately unfrozen even before
         // transition starts.
@@ -1785,6 +1783,57 @@ public class WindowContainerTests extends WindowTestsBase {
         verify(mockInsetsStateController, never()).notifyInsetsChanged(any());
     }
 
+    @Test
+    public void testGetFullscreenRequestAllowMode_modeNone_returnsModeNone() {
+        final Task rootTask = createTask(mDisplayContent);
+        rootTask.setFullscreenRequestAllowMode(REQUEST_ALLOW_MODE_NONE);
+
+        assertEquals(REQUEST_ALLOW_MODE_NONE, rootTask.getFullscreenRequestAllowMode());
+    }
+
+    @Test
+    public void testGetFullscreenRequestAllowMode_modeEnter_returnsModeEnter() {
+        final Task rootTask = createTask(mDisplayContent);
+        rootTask.setFullscreenRequestAllowMode(REQUEST_ALLOW_MODE_ENTER);
+
+        assertEquals(REQUEST_ALLOW_MODE_ENTER, rootTask.getFullscreenRequestAllowMode());
+    }
+
+    @Test
+    public void testGetFullscreenRequestAllowMode_modeExit_returnsModeExit() {
+        final Task rootTask = createTask(mDisplayContent);
+        rootTask.setFullscreenRequestAllowMode(REQUEST_ALLOW_MODE_EXIT);
+
+        assertEquals(REQUEST_ALLOW_MODE_EXIT, rootTask.getFullscreenRequestAllowMode());
+    }
+
+    @Test
+    public void testGetFullscreenRequestAllowMode_modeInherit_detached_returnsModeNone() {
+        final Task rootTask = createTask(mDisplayContent);
+        rootTask.setFullscreenRequestAllowMode(REQUEST_ALLOW_MODE_INHERIT);
+        rootTask.setParent(null);
+
+        assertEquals(REQUEST_ALLOW_MODE_NONE, rootTask.getFullscreenRequestAllowMode());
+    }
+
+    @Test
+    public void testGetFullscreenRequestAllowMode_modeInherit_ancestorsInherit_returnsModeNone() {
+        final Task rootTask = createTask(mDisplayContent);
+        rootTask.setFullscreenRequestAllowMode(REQUEST_ALLOW_MODE_INHERIT);
+        rootTask.getParent().setFullscreenRequestAllowMode(REQUEST_ALLOW_MODE_INHERIT);
+
+        assertEquals(REQUEST_ALLOW_MODE_NONE, rootTask.getFullscreenRequestAllowMode());
+    }
+
+    @Test
+    public void testGetFullscreenRequestAllowMode_modeInherit_parentIsSet_returnsParentMode() {
+        final Task rootTask = createTask(mDisplayContent);
+        rootTask.setFullscreenRequestAllowMode(REQUEST_ALLOW_MODE_INHERIT);
+        rootTask.getParent().setFullscreenRequestAllowMode(REQUEST_ALLOW_MODE_ENTER);
+
+        assertEquals(REQUEST_ALLOW_MODE_ENTER, rootTask.getFullscreenRequestAllowMode());
+    }
+
     private WindowContainer<?> createWindowContainerSpy(SurfaceControl mockSurfaceControl,
             DisplayContent mockDisplayContent) {
         final WindowContainer<?> wc = spy(new WindowContainer<>(mWm));
@@ -1843,7 +1892,7 @@ public class WindowContainerTests extends WindowTestsBase {
             mWindowState = ws;
             spyOn(mSurfaceAnimator);
             doReturn(mIsAnimating).when(mSurfaceAnimator).isAnimating();
-            doReturn(ANIMATION_TYPE_APP_TRANSITION).when(mSurfaceAnimator).getAnimationType();
+            doReturn(ANIMATION_TYPE_WINDOW_ANIMATION).when(mSurfaceAnimator).getAnimationType();
         }
 
         TestWindowContainer getParentWindow() {

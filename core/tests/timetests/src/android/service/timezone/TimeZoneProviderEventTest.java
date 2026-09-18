@@ -59,8 +59,8 @@ public class TimeZoneProviderEventTest {
     public void createPermanentFailure() {
         long creationElapsedMillis = 1111L;
         String cause = "Cause";
-        TimeZoneProviderEvent event = TimeZoneProviderEvent.createPermanentFailureEvent(
-                creationElapsedMillis, cause);
+        TimeZoneProviderEvent event =
+                TimeZoneProviderEvent.createPermanentFailureEvent(creationElapsedMillis, cause);
 
         assertEquals(EVENT_TYPE_PERMANENT_FAILURE, event.getType());
         assertEquals(cause, event.getFailureCause());
@@ -72,24 +72,30 @@ public class TimeZoneProviderEventTest {
     @Test
     public void createSuggestion() {
         long creationElapsedMillis = 1111L;
-        TimeZoneProviderSuggestion suggestion = new TimeZoneProviderSuggestion.Builder()
-                .setElapsedRealtimeMillis(2222L)
-                .setTimeZoneIds(Collections.singletonList("Europe/London"))
-                .build();
+        TimeZoneProviderSuggestion suggestion =
+                new TimeZoneProviderSuggestion.Builder()
+                        .setElapsedRealtimeMillis(2222L)
+                        .setTimeZoneIds(Collections.singletonList("Europe/London"))
+                        .build();
 
-        TimeZoneProviderStatus reportedStatus = new TimeZoneProviderStatus.Builder()
-                .setConnectivityDependencyStatus(DEPENDENCY_STATUS_OK)
-                .setLocationDetectionDependencyStatus(DEPENDENCY_STATUS_OK)
-                .setTimeZoneResolutionOperationStatus(OPERATION_STATUS_OK)
-                .build();
+        TimeZoneProviderStatus reportedStatus =
+                new TimeZoneProviderStatus.Builder()
+                        .setConnectivityDependencyStatus(DEPENDENCY_STATUS_OK)
+                        .setLocationDetectionDependencyStatus(DEPENDENCY_STATUS_OK)
+                        .setTimeZoneResolutionOperationStatus(OPERATION_STATUS_OK)
+                        .build();
 
-        assertThrows(NullPointerException.class, () -> TimeZoneProviderEvent.createSuggestionEvent(
-                creationElapsedMillis, /*suggestion=*/null, reportedStatus));
+        assertThrows(
+                NullPointerException.class,
+                () ->
+                        TimeZoneProviderEvent.createSuggestionEvent(
+                                creationElapsedMillis, /* suggestion= */ null, reportedStatus));
 
         // Only TimeZoneProvider can report itself certain.
         {
-            TimeZoneProviderEvent event = TimeZoneProviderEvent.createSuggestionEvent(
-                    creationElapsedMillis, suggestion, reportedStatus);
+            TimeZoneProviderEvent event =
+                    TimeZoneProviderEvent.createSuggestionEvent(
+                            creationElapsedMillis, suggestion, reportedStatus);
             assertEquals(EVENT_TYPE_SUGGESTION, event.getType());
             assertEquals(creationElapsedMillis, event.getCreationElapsedMillis());
             assertNull(event.getFailureCause());
@@ -99,8 +105,9 @@ public class TimeZoneProviderEventTest {
         // Legacy API events can be created where the TimeZoneProviderStatus is omitted.
         {
             TimeZoneProviderStatus legacyStatus = null;
-            TimeZoneProviderEvent legacyEvent = TimeZoneProviderEvent.createSuggestionEvent(
-                    creationElapsedMillis, suggestion, legacyStatus);
+            TimeZoneProviderEvent legacyEvent =
+                    TimeZoneProviderEvent.createSuggestionEvent(
+                            creationElapsedMillis, suggestion, legacyStatus);
             assertEquals(legacyStatus, legacyEvent.getTimeZoneProviderStatus());
         }
     }
@@ -111,8 +118,9 @@ public class TimeZoneProviderEventTest {
 
         // The TimeZoneProvider can report itself uncertain.
         {
-            TimeZoneProviderEvent event = TimeZoneProviderEvent.createUncertainEvent(
-                    creationElapsedMillis, ARBITRARY_TIME_ZONE_PROVIDER_STATUS);
+            TimeZoneProviderEvent event =
+                    TimeZoneProviderEvent.createUncertainEvent(
+                            creationElapsedMillis, ARBITRARY_TIME_ZONE_PROVIDER_STATUS);
             assertEquals(EVENT_TYPE_UNCERTAIN, event.getType());
             assertEquals(creationElapsedMillis, event.getCreationElapsedMillis());
             assertNull(event.getFailureCause());
@@ -122,8 +130,8 @@ public class TimeZoneProviderEventTest {
         // Legacy API events can be created where the TimeZoneProviderStatus is omitted.
         {
             TimeZoneProviderStatus legacyStatus = null;
-            TimeZoneProviderEvent legacyEvent = TimeZoneProviderEvent.createUncertainEvent(
-                    creationElapsedMillis, legacyStatus);
+            TimeZoneProviderEvent legacyEvent =
+                    TimeZoneProviderEvent.createUncertainEvent(creationElapsedMillis, legacyStatus);
             assertEquals(legacyStatus, legacyEvent.getTimeZoneProviderStatus());
         }
     }
@@ -137,12 +145,14 @@ public class TimeZoneProviderEventTest {
 
         TimeZoneProviderEvent uncertainEvent =
                 TimeZoneProviderEvent.createUncertainEvent(creationElapsedMillis, providerStatus);
-        TimeZoneProviderSuggestion suggestion = new TimeZoneProviderSuggestion.Builder()
-                .setElapsedRealtimeMillis(creationElapsedMillis)
-                .setTimeZoneIds(Collections.singletonList("Europe/London"))
-                .build();
-        TimeZoneProviderEvent suggestionEvent = TimeZoneProviderEvent.createSuggestionEvent(
-                creationElapsedMillis, suggestion, providerStatus);
+        TimeZoneProviderSuggestion suggestion =
+                new TimeZoneProviderSuggestion.Builder()
+                        .setElapsedRealtimeMillis(creationElapsedMillis)
+                        .setTimeZoneIds(Collections.singletonList("Europe/London"))
+                        .build();
+        TimeZoneProviderEvent suggestionEvent =
+                TimeZoneProviderEvent.createSuggestionEvent(
+                        creationElapsedMillis, suggestion, providerStatus);
 
         assertNotEquals(failEvent, uncertainEvent);
         assertNotEquivalentTo(failEvent, uncertainEvent);
@@ -178,16 +188,18 @@ public class TimeZoneProviderEventTest {
 
     @Test
     public void isEquivalentToAndEquals_uncertain() {
-        TimeZoneProviderStatus status1 = new TimeZoneProviderStatus.Builder()
-                .setLocationDetectionDependencyStatus(DEPENDENCY_STATUS_OK)
-                .setConnectivityDependencyStatus(DEPENDENCY_STATUS_OK)
-                .setTimeZoneResolutionOperationStatus(OPERATION_STATUS_OK)
-                .build();
-        TimeZoneProviderStatus status2 = new TimeZoneProviderStatus.Builder()
-                .setLocationDetectionDependencyStatus(DEPENDENCY_STATUS_OK)
-                .setConnectivityDependencyStatus(DEPENDENCY_STATUS_OK)
-                .setTimeZoneResolutionOperationStatus(OPERATION_STATUS_FAILED)
-                .build();
+        TimeZoneProviderStatus status1 =
+                new TimeZoneProviderStatus.Builder()
+                        .setLocationDetectionDependencyStatus(DEPENDENCY_STATUS_OK)
+                        .setConnectivityDependencyStatus(DEPENDENCY_STATUS_OK)
+                        .setTimeZoneResolutionOperationStatus(OPERATION_STATUS_OK)
+                        .build();
+        TimeZoneProviderStatus status2 =
+                new TimeZoneProviderStatus.Builder()
+                        .setLocationDetectionDependencyStatus(DEPENDENCY_STATUS_OK)
+                        .setConnectivityDependencyStatus(DEPENDENCY_STATUS_OK)
+                        .setTimeZoneResolutionOperationStatus(OPERATION_STATUS_FAILED)
+                        .build();
 
         TimeZoneProviderEvent uncertain1v1 =
                 TimeZoneProviderEvent.createUncertainEvent(1111L, status1);
@@ -216,20 +228,23 @@ public class TimeZoneProviderEventTest {
 
     @Test
     public void isEquivalentToAndEquals_suggestion() {
-        TimeZoneProviderStatus status1 = new TimeZoneProviderStatus.Builder()
-                .setLocationDetectionDependencyStatus(DEPENDENCY_STATUS_OK)
-                .setConnectivityDependencyStatus(DEPENDENCY_STATUS_OK)
-                .setTimeZoneResolutionOperationStatus(OPERATION_STATUS_OK)
-                .build();
-        TimeZoneProviderStatus status2 = new TimeZoneProviderStatus.Builder()
-                .setLocationDetectionDependencyStatus(DEPENDENCY_STATUS_OK)
-                .setConnectivityDependencyStatus(DEPENDENCY_STATUS_OK)
-                .setTimeZoneResolutionOperationStatus(OPERATION_STATUS_FAILED)
-                .build();
-        TimeZoneProviderSuggestion suggestion1 = new TimeZoneProviderSuggestion.Builder()
-                .setElapsedRealtimeMillis(1111L)
-                .setTimeZoneIds(Collections.singletonList("Europe/London"))
-                .build();
+        TimeZoneProviderStatus status1 =
+                new TimeZoneProviderStatus.Builder()
+                        .setLocationDetectionDependencyStatus(DEPENDENCY_STATUS_OK)
+                        .setConnectivityDependencyStatus(DEPENDENCY_STATUS_OK)
+                        .setTimeZoneResolutionOperationStatus(OPERATION_STATUS_OK)
+                        .build();
+        TimeZoneProviderStatus status2 =
+                new TimeZoneProviderStatus.Builder()
+                        .setLocationDetectionDependencyStatus(DEPENDENCY_STATUS_OK)
+                        .setConnectivityDependencyStatus(DEPENDENCY_STATUS_OK)
+                        .setTimeZoneResolutionOperationStatus(OPERATION_STATUS_FAILED)
+                        .build();
+        TimeZoneProviderSuggestion suggestion1 =
+                new TimeZoneProviderSuggestion.Builder()
+                        .setElapsedRealtimeMillis(1111L)
+                        .setTimeZoneIds(Collections.singletonList("Europe/London"))
+                        .build();
         TimeZoneProviderEvent certain1v1 =
                 TimeZoneProviderEvent.createSuggestionEvent(1111L, suggestion1, status1);
         assertEquals(certain1v1, certain1v1);
@@ -251,10 +266,11 @@ public class TimeZoneProviderEventTest {
             assertIsEquivalentTo(certain1v1, certain1v3);
 
             // suggestion1 is equivalent to suggestion2, but not equal
-            TimeZoneProviderSuggestion suggestion2 = new TimeZoneProviderSuggestion.Builder()
-                    .setElapsedRealtimeMillis(2222L)
-                    .setTimeZoneIds(Collections.singletonList("Europe/London"))
-                    .build();
+            TimeZoneProviderSuggestion suggestion2 =
+                    new TimeZoneProviderSuggestion.Builder()
+                            .setElapsedRealtimeMillis(2222L)
+                            .setTimeZoneIds(Collections.singletonList("Europe/London"))
+                            .build();
             assertNotEquals(suggestion1, suggestion2);
             TimeZoneProviderSuggestionTest.assertIsEquivalentTo(suggestion1, suggestion2);
             TimeZoneProviderEvent certain2 =
@@ -263,9 +279,10 @@ public class TimeZoneProviderEventTest {
             assertIsEquivalentTo(certain1v1, certain2);
 
             // suggestion3 is not equivalent to suggestion1
-            TimeZoneProviderSuggestion suggestion3 = new TimeZoneProviderSuggestion.Builder()
-                    .setTimeZoneIds(Collections.singletonList("Europe/Paris"))
-                    .build();
+            TimeZoneProviderSuggestion suggestion3 =
+                    new TimeZoneProviderSuggestion.Builder()
+                            .setTimeZoneIds(Collections.singletonList("Europe/Paris"))
+                            .build();
             TimeZoneProviderEvent certain3 =
                     TimeZoneProviderEvent.createSuggestionEvent(2222L, suggestion3, status1);
             assertNotEquals(certain1v1, certain3);
@@ -287,8 +304,9 @@ public class TimeZoneProviderEventTest {
 
     @Test
     public void testParcelable_uncertain() {
-        TimeZoneProviderEvent event = TimeZoneProviderEvent.createUncertainEvent(
-                1111L, ARBITRARY_TIME_ZONE_PROVIDER_STATUS);
+        TimeZoneProviderEvent event =
+                TimeZoneProviderEvent.createUncertainEvent(
+                        1111L, ARBITRARY_TIME_ZONE_PROVIDER_STATUS);
         assertRoundTripParcelable(event);
     }
 
@@ -300,21 +318,24 @@ public class TimeZoneProviderEventTest {
 
     @Test
     public void testParcelable_suggestion() {
-        TimeZoneProviderSuggestion suggestion = new TimeZoneProviderSuggestion.Builder()
-                .setTimeZoneIds(Arrays.asList("Europe/London", "Europe/Paris"))
-                .build();
-        TimeZoneProviderEvent event = TimeZoneProviderEvent.createSuggestionEvent(
-                1111L, suggestion, ARBITRARY_TIME_ZONE_PROVIDER_STATUS);
+        TimeZoneProviderSuggestion suggestion =
+                new TimeZoneProviderSuggestion.Builder()
+                        .setTimeZoneIds(Arrays.asList("Europe/London", "Europe/Paris"))
+                        .build();
+        TimeZoneProviderEvent event =
+                TimeZoneProviderEvent.createSuggestionEvent(
+                        1111L, suggestion, ARBITRARY_TIME_ZONE_PROVIDER_STATUS);
         assertRoundTripParcelable(event);
     }
 
     @Test
     public void testParcelable_suggestion_legacy() {
-        TimeZoneProviderSuggestion suggestion = new TimeZoneProviderSuggestion.Builder()
-                .setTimeZoneIds(Arrays.asList("Europe/London", "Europe/Paris"))
-                .build();
-        TimeZoneProviderEvent event = TimeZoneProviderEvent.createSuggestionEvent(
-                1111L, suggestion, null);
+        TimeZoneProviderSuggestion suggestion =
+                new TimeZoneProviderSuggestion.Builder()
+                        .setTimeZoneIds(Arrays.asList("Europe/London", "Europe/Paris"))
+                        .build();
+        TimeZoneProviderEvent event =
+                TimeZoneProviderEvent.createSuggestionEvent(1111L, suggestion, null);
         assertRoundTripParcelable(event);
     }
 

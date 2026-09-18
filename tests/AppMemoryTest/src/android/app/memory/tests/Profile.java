@@ -50,12 +50,12 @@ public class Profile {
 
     static class Tlv {
         // The tag, time, and value of the TLV.
-        final byte mTag;
+        final int mTag;
         final int mTime;
         final byte[] mValue;
 
-        Tlv(byte tag, int time, byte[] value) {
-            mTag = tag;
+        Tlv(int tag, int time, byte[] value) {
+            mTag = tag & 0xff;
             mTime = time;
             mValue = value;
         }
@@ -71,7 +71,7 @@ public class Profile {
 
     private boolean readEntry(Scanner s) {
         try {
-            byte tag = s.jB();
+            int tag = s.jB();
             int time = s.jI();
             int len = s.jI();
             byte[] data = s.jL(len);
@@ -128,6 +128,15 @@ public class Profile {
         long total = 0;
         for (var e : mEntries) {
             total += e.size();
+        }
+        return total;
+    }
+
+    // Return the number of objects in the heap.
+    long count() {
+        long total = 0;
+        for (var e : mEntries) {
+            total += e.count();
         }
         return total;
     }

@@ -86,4 +86,32 @@ class VolumeDialogRingerInteractorTest : SysuiTestCase() {
             assertThat(ringerModel).isNotNull()
             assertThat(ringerModel?.currentRingerMode).isEqualTo(RingerMode(RINGER_MODE_VIBRATE))
         }
+
+    @Test
+    fun availableModes_withHapticsOff_doesNotContainVibrate() =
+        kosmos.runTest {
+            controller.setHasVibrator(false)
+            underTest.setRingerMode(RingerMode(RINGER_MODE_NORMAL))
+            val ringerModel by collectLastValue(underTest.ringerModel)
+            controller.getState()
+            assertThat(ringerModel).isNotNull()
+            assertThat(ringerModel?.availableModes)
+                .containsExactly(RingerMode(RINGER_MODE_NORMAL), RingerMode(RINGER_MODE_SILENT))
+        }
+
+    @Test
+    fun availableModes_withHapticsOn_containsVibrate() =
+        kosmos.runTest {
+            controller.setHasVibrator(true)
+            underTest.setRingerMode(RingerMode(RINGER_MODE_NORMAL))
+            val ringerModel by collectLastValue(underTest.ringerModel)
+            controller.getState()
+            assertThat(ringerModel).isNotNull()
+            assertThat(ringerModel?.availableModes)
+                .containsExactly(
+                    RingerMode(RINGER_MODE_NORMAL),
+                    RingerMode(RINGER_MODE_SILENT),
+                    RingerMode(RINGER_MODE_VIBRATE),
+                )
+        }
 }

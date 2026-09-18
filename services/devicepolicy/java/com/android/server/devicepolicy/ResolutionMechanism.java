@@ -23,7 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
 
-abstract class ResolutionMechanism<V> {
+public abstract class ResolutionMechanism<V> {
 
     /**
      * The most generic resolution logic where we know both the policy value and the admin who

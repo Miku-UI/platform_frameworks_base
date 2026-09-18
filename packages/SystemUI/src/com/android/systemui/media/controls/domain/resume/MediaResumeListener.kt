@@ -211,6 +211,7 @@ constructor(
     }
 
     /** Load controls for resuming media, if available */
+    @WorkerThread
     private fun loadMediaResumptionControls() {
         if (!useMediaResumption) {
             return
@@ -271,6 +272,7 @@ constructor(
      * Verify that we can connect to the given component with a MediaBrowser, and if so, add that
      * component to the list of resumption components
      */
+    @WorkerThread
     private fun tryUpdateResumptionList(key: String, componentName: ComponentName) {
         Log.d(TAG, "Testing if we can connect to $componentName")
         mediaBrowser =

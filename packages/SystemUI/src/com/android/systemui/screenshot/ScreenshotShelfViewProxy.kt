@@ -18,10 +18,8 @@ package com.android.systemui.screenshot
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Rect
-import android.graphics.Region
 import android.os.Looper
 import android.view.Choreographer
 import android.view.InputEvent
@@ -31,8 +29,6 @@ import android.view.MotionEvent
 import android.view.ScrollCaptureResponse
 import android.view.View
 import android.view.ViewTreeObserver
-import android.view.WindowInsets
-import android.view.WindowManager
 import android.window.DesktopExperienceFlags
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
@@ -41,7 +37,6 @@ import androidx.core.animation.doOnEnd
 import androidx.core.animation.doOnStart
 import com.android.internal.logging.UiEventLogger
 import com.android.systemui.Flags
-import com.android.systemui.Flags.screenshotAnnounceLiveRegion
 import com.android.systemui.log.DebugLogger.debugLog
 import com.android.systemui.res.R
 import com.android.systemui.screenshot.LogConfig.DEBUG_DISMISS
@@ -66,10 +61,9 @@ class ScreenshotShelfViewProxy
 constructor(
     private val logger: UiEventLogger,
     private val viewModel: ScreenshotViewModel,
-    private val windowManager: WindowManager,
     shelfViewBinder: ScreenshotShelfViewBinder,
     private val thumbnailObserver: ThumbnailObserver,
-    @Assisted private val context: Context,
+    @Assisted private val window: ScreenshotWindow,
     @Assisted private val displayId: Int,
 ) {
 
@@ -82,6 +76,7 @@ constructor(
         fun onTouchOutside()
     }
 
+    private val context = window.getContext()
     val view: ScreenshotShelfView =
         LayoutInflater.from(context).inflate(R.layout.screenshot_shelf, null) as ScreenshotShelfView
     val screenshotPreview: View
@@ -122,14 +117,10 @@ constructor(
             onDismissalRequested = { event, velocity -> requestDismissal(event, velocity) },
             onUserInteraction = { callbacks?.onUserInteraction() },
         )
-        view.updateInsets(windowManager.currentWindowMetrics.windowInsets)
+        updateInsets()
         addPredictiveBackListener { requestDismissal(SCREENSHOT_DISMISSED_OTHER) }
         setOnKeyListener { requestDismissal(SCREENSHOT_DISMISSED_OTHER) }
         debugLog(DEBUG_WINDOW) { "adding OnComputeInternalInsetsListener" }
-        view.viewTreeObserver.addOnComputeInternalInsetsListener { info ->
-            info.setTouchableInsets(ViewTreeObserver.InternalInsetsInfo.TOUCHABLE_INSETS_REGION)
-            info.touchableRegion.set(getTouchRegion())
-        }
         screenshotPreview = view.screenshotPreview
         thumbnailObserver.setViews(
             view.blurredScreenshotPreview,
@@ -154,8 +145,8 @@ constructor(
         viewModel.reset()
     }
 
-    fun updateInsets(insets: WindowInsets) {
-        view.updateInsets(insets)
+    fun updateInsets() {
+        view.updateInsets(window.getWindowInsets())
     }
 
     fun createScreenshotDropInAnimation(screenRect: Rect, showFlash: Boolean): Animator {
@@ -220,9 +211,7 @@ constructor(
         screenshotTakenInPortrait: Boolean,
         onTransitionPrepared: Runnable,
     ) {
-        if (screenshotAnnounceLiveRegion()) {
-            setSavingAnnouncement("")
-        }
+        setSavingAnnouncement("")
         viewModel.setScrollingScrimBitmap(newScreenshot)
         viewModel.setScrollableRect(scrollableAreaOnScreen(response))
         animationController.fadeForLongScreenshotTransition()
@@ -281,10 +270,6 @@ constructor(
         view.setSavingAnnouncement(string)
     }
 
-    fun announceForAccessibility(string: String) {
-        view.announceForAccessibility(string)
-    }
-
     fun prepareEntranceAnimation(runnable: Runnable) {
         view.viewTreeObserver.addOnPreDrawListener(
             object : ViewTreeObserver.OnPreDrawListener {
@@ -299,9 +284,7 @@ constructor(
     }
 
     fun fadeForSharedTransition() {
-        if (screenshotAnnounceLiveRegion()) {
-            setSavingAnnouncement("")
-        }
+        setSavingAnnouncement("")
         animationController.fadeForSharedTransition()
     }
 
@@ -357,20 +340,12 @@ constructor(
                         if (
                             ev is MotionEvent &&
                                 ev.actionMasked == MotionEvent.ACTION_DOWN &&
-                                !view
-                                    .getObservedRegion(
-                                        windowManager.currentWindowMetrics.windowInsets
-                                    )
-                                    .contains(ev.rawX.toInt(), ev.rawY.toInt())
+                                !view.getObservedRegion().contains(ev.rawX.toInt(), ev.rawY.toInt())
                         ) {
                             callbacks?.onTouchOutside()
                         }
                     }
             }
-    }
-
-    private fun getTouchRegion(): Region {
-        return view.getTouchRegion(windowManager.currentWindowMetrics.windowInsets)
     }
 
     companion object {
@@ -384,6 +359,6 @@ constructor(
 
     @AssistedFactory
     interface Factory {
-        fun getProxy(context: Context, displayId: Int): ScreenshotShelfViewProxy
+        fun getProxy(window: ScreenshotWindow, displayId: Int): ScreenshotShelfViewProxy
     }
 }

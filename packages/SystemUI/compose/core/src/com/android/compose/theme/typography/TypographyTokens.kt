@@ -17,6 +17,7 @@
 package com.android.compose.theme.typography
 
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 
 internal class TypographyTokens(
     typeScaleTokens: TypeScaleTokens,
@@ -151,6 +152,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.displayLargeSize,
             lineHeight = variableTypeScaleTokens.displayLargeLineHeight,
             letterSpacing = variableTypeScaleTokens.displayLargeTracking,
+            fontWeight = FontWeight.Medium,
         )
     val displayMediumEmphasized =
         TextStyle(
@@ -158,6 +160,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.displayMediumSize,
             lineHeight = variableTypeScaleTokens.displayMediumLineHeight,
             letterSpacing = variableTypeScaleTokens.displayMediumTracking,
+            fontWeight = FontWeight.Medium,
         )
     val displaySmallEmphasized =
         TextStyle(
@@ -165,6 +168,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.displaySmallSize,
             lineHeight = variableTypeScaleTokens.displaySmallLineHeight,
             letterSpacing = variableTypeScaleTokens.displaySmallTracking,
+            fontWeight = FontWeight.Medium,
         )
     val headlineLargeEmphasized =
         TextStyle(
@@ -172,6 +176,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.headlineLargeSize,
             lineHeight = variableTypeScaleTokens.headlineLargeLineHeight,
             letterSpacing = variableTypeScaleTokens.headlineLargeTracking,
+            fontWeight = FontWeight.Medium,
         )
     val headlineMediumEmphasized =
         TextStyle(
@@ -179,6 +184,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.headlineMediumSize,
             lineHeight = variableTypeScaleTokens.headlineMediumLineHeight,
             letterSpacing = variableTypeScaleTokens.headlineMediumTracking,
+            fontWeight = FontWeight.Medium,
         )
     val headlineSmallEmphasized =
         TextStyle(
@@ -186,6 +192,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.headlineSmallSize,
             lineHeight = variableTypeScaleTokens.headlineSmallLineHeight,
             letterSpacing = variableTypeScaleTokens.headlineSmallTracking,
+            fontWeight = FontWeight.Medium,
         )
     val titleLargeEmphasized =
         TextStyle(
@@ -193,6 +200,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.titleLargeSize,
             lineHeight = variableTypeScaleTokens.titleLargeLineHeight,
             letterSpacing = variableTypeScaleTokens.titleLargeTracking,
+            fontWeight = FontWeight.Medium,
         )
     val titleMediumEmphasized =
         TextStyle(
@@ -200,6 +208,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.titleMediumSize,
             lineHeight = variableTypeScaleTokens.titleMediumLineHeight,
             letterSpacing = variableTypeScaleTokens.titleMediumTracking,
+            fontWeight = FontWeight.SemiBold,
         )
     val titleSmallEmphasized =
         TextStyle(
@@ -207,6 +216,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.titleSmallSize,
             lineHeight = variableTypeScaleTokens.titleSmallLineHeight,
             letterSpacing = variableTypeScaleTokens.titleSmallTracking,
+            fontWeight = FontWeight.SemiBold,
         )
     val bodyLargeEmphasized =
         TextStyle(
@@ -214,6 +224,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.bodyLargeSize,
             lineHeight = variableTypeScaleTokens.bodyLargeLineHeight,
             letterSpacing = variableTypeScaleTokens.bodyLargeTracking,
+            fontWeight = FontWeight.Medium,
         )
     val bodyMediumEmphasized =
         TextStyle(
@@ -221,6 +232,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.bodyMediumSize,
             lineHeight = variableTypeScaleTokens.bodyMediumLineHeight,
             letterSpacing = variableTypeScaleTokens.bodyMediumTracking,
+            fontWeight = FontWeight.Medium,
         )
     val bodySmallEmphasized =
         TextStyle(
@@ -228,6 +240,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.bodySmallSize,
             lineHeight = variableTypeScaleTokens.bodySmallLineHeight,
             letterSpacing = variableTypeScaleTokens.bodySmallTracking,
+            fontWeight = FontWeight.Medium,
         )
     val labelLargeEmphasized =
         TextStyle(
@@ -235,6 +248,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.labelLargeSize,
             lineHeight = variableTypeScaleTokens.labelLargeLineHeight,
             letterSpacing = variableTypeScaleTokens.labelLargeTracking,
+            fontWeight = FontWeight.SemiBold,
         )
     val labelMediumEmphasized =
         TextStyle(
@@ -242,6 +256,7 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.labelMediumSize,
             lineHeight = variableTypeScaleTokens.labelMediumLineHeight,
             letterSpacing = variableTypeScaleTokens.labelMediumTracking,
+            fontWeight = FontWeight.SemiBold,
         )
     val labelSmallEmphasized =
         TextStyle(
@@ -249,5 +264,6 @@ internal class TypographyTokens(
             fontSize = variableTypeScaleTokens.labelSmallSize,
             lineHeight = variableTypeScaleTokens.labelSmallLineHeight,
             letterSpacing = variableTypeScaleTokens.labelSmallTracking,
+            fontWeight = FontWeight.SemiBold,
         )
 }

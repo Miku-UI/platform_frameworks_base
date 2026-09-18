@@ -21,7 +21,6 @@ import static android.security.attestationverification.AttestationVerificationMa
 import android.annotation.NonNull;
 import android.content.Context;
 import android.os.Build;
-import android.security.attestationverification.AttestationVerificationManager;
 import android.util.Slog;
 
 import com.google.security.cryptauth.lib.securegcm.ukey2.AlertException;
@@ -130,6 +129,37 @@ public class SecureChannel {
         this.mPreSharedKey = preSharedKey;
         this.mVerifier = verifier;
         this.mFlags = flags;
+    }
+
+    /**
+     * Return the session unique key for the secure channel.
+     *
+     * @return the session unique key.
+     */
+    public byte[] getSessionUnique() {
+        if (mConnectionContext == null) {
+            return null;
+        }
+
+        try {
+            return mConnectionContext.getSessionUnique();
+        } catch (Exception e) {
+            Slog.w(TAG, "Failed to get session unique.", e);
+            return null;
+        }
+    }
+
+    /**
+     * Return the role of the secure channel.
+     *
+     * @return the role of the secure channel.
+     */
+    public String getRole() {
+        if (mRole == null) {
+            return null;
+        }
+
+        return mRole.name();
     }
 
     /**

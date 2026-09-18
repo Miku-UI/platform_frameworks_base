@@ -43,7 +43,9 @@ import android.content.pm.UserInfo;
 import android.os.Looper;
 import android.os.SystemProperties;
 import android.os.UserManager;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Postsubmit;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
@@ -61,6 +63,7 @@ import com.android.server.pm.pkg.AndroidPackage;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -82,6 +85,8 @@ import java.util.Set;
 @MediumTest
 public class UserSystemPackageInstallerTest {
     private static final String TAG = "UserSystemPackageInstallerTest";
+
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private UserSystemPackageInstaller mUserSystemPackageInstaller;
 
@@ -368,10 +373,13 @@ public class UserSystemPackageInstallerTest {
             actualPackages.add(p.packageName);
         }
 
-        // Add static overlays to expectedPackages since they are not (supposed to be)
-        // in the allowlist but they should be installed if their target is.
+        // Add static overlays to expectedPackages if they were not explicitly mentioned but their
+        // target is allowlisted (i.e. if they are implicitly allowlisted based on their target).
         for (PackageInfo p : packageInfos) {
-            if (p.isStaticOverlayPackage() && expectedPackages.contains(p.overlayTarget)) {
+            if (p.isStaticOverlayPackage()
+                    && (!android.multiuser.Flags.enableExplicitStaticOverlayAllowlisting()
+                        || !packageMap.containsKey(p.packageName))
+                   && expectedPackages.contains(p.overlayTarget)) {
                 expectedPackages.add(p.packageName);
             }
         }
@@ -379,11 +387,11 @@ public class UserSystemPackageInstallerTest {
     }
 
     /**
-     * Test that static overlay package not in allowlist should be installed for all users
-     * based on their targets, in Explicit mode.
+     * Test that static overlay package not in allowlist at all should be implicitly installed
+     * based on their targets.
      */
     @Test
-    public void testInstallOverlayPackagesExplicitMode() {
+    public void testInstallOverlayPackagesByDefault() {
         setUserTypePackageAllowlistMode(USER_TYPE_PACKAGE_ALLOWLIST_MODE_ENFORCE);
 
         final String[] userTypes = new String[]{"type"};
@@ -432,6 +440,54 @@ public class UserSystemPackageInstallerTest {
                 .shouldInstallPackage(overlayPackage2, userTypeAllowlist, userAllowlist, implicit));
         assertFalse("Should not install regular overlay for package1", UserSystemPackageInstaller
                 .shouldInstallPackage(overlayPackage3, userTypeAllowlist, userAllowlist, implicit));
+    }
+
+    /**
+     * Test that static overlay packages that are explicitly in the allowlist should follow their
+     * allowlisting, not that of their targets.
+     */
+    @Test
+    @EnableFlags(android.multiuser.Flags.FLAG_ENABLE_EXPLICIT_STATIC_OVERLAY_ALLOWLISTING)
+    public void testStaticOverlayExplicitAllowlisting() {
+        setUserTypePackageAllowlistMode(USER_TYPE_PACKAGE_ALLOWLIST_MODE_ENFORCE);
+
+        final String targetPkgName = "targetPkg";
+        final String overlayName = "overlayPkg";
+
+        final AndroidPackage overlayPkg = ((ParsedPackage) PackageImpl.forTesting(
+                overlayName)
+                .setResourceOverlay(true)
+                .setOverlayIsStatic(true)
+                .setOverlayTarget(targetPkgName)
+                .hideAsParsed())
+                .hideAsFinal();
+
+        final ArrayMap<String, Long> userTypeAllowlist = new ArrayMap<>();
+        final Set<String> userAllowlist = new ArraySet<>();
+
+        // The target is allowlisted for this user.
+        userTypeAllowlist.put(targetPkgName, 0b0011L);
+        userAllowlist.add(targetPkgName);
+
+        // First, let's check the implicit case, where the overlay is not mentioned at all.
+        // Target is allowed, so the overlay is implicitly allowed too.
+        assertTrue("Overlay should be installed when implicitly allowed",
+                UserSystemPackageInstaller.shouldInstallPackage(
+                        overlayPkg, userTypeAllowlist, userAllowlist, /* implicit= */ false));
+
+        // Now, let's check the explicit cases, where the overlay is explicitly handled.
+        userTypeAllowlist.put(overlayName, 0b0001L);
+
+        // Target is allowed for this user, but not the overlay (since it is not in userAllowlist).
+        assertFalse("Overlay should NOT be installed when explicitly denied",
+                UserSystemPackageInstaller.shouldInstallPackage(
+                        overlayPkg, userTypeAllowlist, userAllowlist, /* implicit= */ false));
+
+        // Target and overlay are both allowed for this user.
+        userAllowlist.add(overlayName);
+        assertTrue("Overlay should be installed when explicitly allowed",
+                UserSystemPackageInstaller.shouldInstallPackage(
+                        overlayPkg, userTypeAllowlist, userAllowlist, /* implicit= */ false));
     }
 
     /** Asserts that actual is a subset of expected. */

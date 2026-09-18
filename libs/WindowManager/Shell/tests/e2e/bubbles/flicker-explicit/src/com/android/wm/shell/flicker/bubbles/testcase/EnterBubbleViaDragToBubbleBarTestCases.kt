@@ -27,7 +27,7 @@ import org.junit.Test
 interface EnterBubbleViaDragToBubbleBarTestCases : BubbleAppBecomesExpandedTestCases {
     @Test
     override fun focusChanges() {
-        eventLogSubject.focusChanges(
+        focusEventSubject.focusChanges(
             LAUNCHER.toWindowName(),
             // Tap on the task bar.
             TASK_BAR.toWindowName(),

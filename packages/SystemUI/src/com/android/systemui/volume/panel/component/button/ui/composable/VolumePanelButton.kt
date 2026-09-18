@@ -24,22 +24,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.android.compose.animation.Expandable
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.common.ui.compose.Icon
+import com.android.systemui.qs.panels.ui.compose.infinitegrid.CommonTileDefaults.TileDetailsEntryWideCornerRadius
+import com.android.systemui.qs.ui.compose.borderOnFocus
 
 /** Button with a label below it */
 @Composable
@@ -48,9 +50,10 @@ fun VolumePanelButton(
     icon: Icon?,
     isActive: Boolean,
     onClick: (expandable: Expandable) -> Unit,
-    semanticsRole: Role,
+    isExpandedAudioTileDetailsView: Boolean,
     modifier: Modifier = Modifier,
     isEnabled: Boolean = true,
+    semantics: SemanticsPropertyReceiver.() -> Unit = {},
 ) {
     Column(
         modifier = modifier,
@@ -59,17 +62,20 @@ fun VolumePanelButton(
     ) {
         Expandable(
             modifier =
-                Modifier.fillMaxWidth().height(56.dp).semantics {
-                    role = semanticsRole
-                    contentDescription = label
-                },
+                Modifier.borderOnFocus(
+                        MaterialTheme.colorScheme.secondary,
+                        CornerSize(TileDetailsEntryWideCornerRadius),
+                    )
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .semantics(properties = semantics),
             color =
                 when {
                     !isEnabled -> MaterialTheme.colorScheme.surfaceContainerHighest
                     isActive -> MaterialTheme.colorScheme.primary
                     else -> MaterialTheme.colorScheme.surfaceContainerHigh
                 },
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(28.dp),
             contentColor =
                 when {
                     !isEnabled -> MaterialTheme.colorScheme.outline
@@ -89,6 +95,12 @@ fun VolumePanelButton(
             text = label,
             style = MaterialTheme.typography.labelMedium,
             maxLines = 2,
+            color =
+                if (isExpandedAudioTileDetailsView) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    Color.Unspecified
+                },
         )
     }
 }

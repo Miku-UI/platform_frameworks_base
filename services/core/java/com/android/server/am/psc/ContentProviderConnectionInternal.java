@@ -16,32 +16,55 @@
 
 package com.android.server.am.psc;
 
-import com.android.server.am.OomAdjuster;
-import com.android.server.am.OomAdjusterImpl;
+import android.annotation.NonNull;
+import android.app.ActivityManager.ProcessState;
+import android.os.Binder;
+
+import com.android.server.am.Flags;
 
 /**
- * An interface encapsulating common internal properties for a link between a content provider and
- * client.
+ * An abstract class encapsulating common internal properties for a link between a content provider
+ * and client.
  */
-public interface ContentProviderConnectionInternal extends OomAdjusterImpl.Connection {
+public abstract class ContentProviderConnectionInternal extends Binder implements
+        OomAdjusterImpl.Connection {
+    /**
+     * The provider binding edge from the client to the content provider.
+     * This is {@code null} unless {@link Flags#enableCapabilityControllerComputation} is true.
+     */
+    private final ProviderBindingEdge mProviderBindingEdge;
+
     /** Track the given proc state change. */
-    void trackProcState(int procState, int seq);
+    public abstract void trackProcState(@ProcessState int procState, int seq);
 
     /** Returns the content provider in this connection. */
-    ContentProviderRecordInternal getProvider();
+    public abstract ContentProviderRecordInternal getProvider();
 
     /** Returns the client process that initiated this content provider connection. */
-    ProcessRecordInternal getClient();
+    public abstract @NonNull ProcessRecordInternal getClient();
+
+    public ContentProviderConnectionInternal() {
+        if (Flags.enableCapabilityControllerComputation()) {
+            mProviderBindingEdge = new ProviderBindingEdge(this);
+        } else {
+            mProviderBindingEdge = null;
+        }
+    }
+
+    /** This is {@code null} unless {@link Flags#enableCapabilityControllerComputation} is true. */
+    final ProviderBindingEdge getProviderBindingEdge() {
+        return mProviderBindingEdge;
+    }
 
     @Override
-    default void computeHostOomAdjLSP(OomAdjuster oomAdjuster, ProcessRecordInternal host,
+    public void computeHostOomAdjLSP(OomAdjuster oomAdjuster, ProcessRecordInternal host,
             ProcessRecordInternal client, long now, ProcessRecordInternal topApp, boolean doingAll,
             int oomAdjReason, int cachedAdj) {
         oomAdjuster.computeProviderHostOomAdjLSP(this, host, client, false);
     }
 
     @Override
-    default boolean canAffectCapabilities() {
+    public boolean canAffectCapabilities() {
         return false;
     }
 }

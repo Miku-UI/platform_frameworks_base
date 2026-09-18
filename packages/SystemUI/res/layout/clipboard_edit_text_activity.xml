@@ -17,8 +17,8 @@
         android:paddingHorizontal="16dp"
         android:background="@drawable/overlay_button_background"
         android:text="@string/clipboard_edit_text_done"
-        android:backgroundTint="@androidprv:color/materialColorPrimary"
-        android:textColor="@androidprv:color/materialColorOnPrimary"
+        android:backgroundTint="@color/materialColorPrimary"
+        android:textColor="@color/materialColorOnPrimary"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -28,7 +28,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="40dp"
         android:layout_marginStart="4dp"
-        android:textColor="?android:attr/textColorSecondary"
+        android:textColor="@color/materialColorOnSurfaceVariant"
         app:layout_constraintStart_toStartOf="@id/done_button"
         app:layout_constraintTop_toBottomOf="@id/done_button" />
 

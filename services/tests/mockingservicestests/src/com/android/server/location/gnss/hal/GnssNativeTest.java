@@ -49,6 +49,7 @@ public class GnssNativeTest {
 
     private @Mock Context mContext;
     private @Mock GnssConfiguration mMockConfiguration;
+    private @Mock GnssNative.GnssAssistanceCallbacks mGnssAssistanceCallbacks;
     private FakeGnssHal mFakeGnssHal;
     private GnssNative mGnssNative;
 
@@ -124,6 +125,25 @@ public class GnssNativeTest {
 
         mGnssNative.reportGnssPowerStats(powerStats2);
         assertThat(mGnssNative.getLastKnownPowerStats()).isEqualTo(powerStats2);
+    }
+
+    @Test
+    public void testGnssAssistanceInjectRequest_noCallback_doesNothing() {
+        // GnssAssistanceCallbacks is not set by default.
+        // This call should be a no-op and not crash.
+        mGnssNative.gnssAssistanceInjectRequest();
+    }
+
+    @Test
+    public void testGnssAssistanceInjectRequest_withCallback_requestsInjection() {
+        // Set the callback
+        mGnssNative.setGnssAssistanceCallbacks(mGnssAssistanceCallbacks);
+
+        // Trigger the request
+        mGnssNative.gnssAssistanceInjectRequest();
+
+        // Verify the callback is invoked
+        verify(mGnssAssistanceCallbacks).onRequestGnssAssistanceInject();
     }
 
 }

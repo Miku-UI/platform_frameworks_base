@@ -64,7 +64,6 @@ import java.util.Objects;
  *             Collections.emptyList()))))
  *     .build(), fm.getFontConfig().getConfigVersion());
  * </pre>
- *
  * @hide
  */
 @SystemApi

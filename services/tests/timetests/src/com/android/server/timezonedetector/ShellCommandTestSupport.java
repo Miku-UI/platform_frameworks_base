@@ -37,9 +37,7 @@ public final class ShellCommandTestSupport {
         return createShellCommandWithArgsAndOptions(Arrays.asList(argsWithSpaces.split(" ")));
     }
 
-    /**
-     * Returns a {@link ShellCommand} from the supplied list of command line elements.
-     */
+    /** Returns a {@link ShellCommand} from the supplied list of command line elements. */
     public static ShellCommand createShellCommandWithArgsAndOptions(List<String> args) {
         ShellCommand command = mock(ShellCommand.class);
         class ArgProvider {
@@ -61,12 +59,11 @@ public final class ShellCommandTestSupport {
             }
         }
         ArgProvider argProvider = new ArgProvider();
-        when(command.getNextArg()).thenAnswer(
-                (Answer<String>) invocation -> argProvider.getNext());
-        when(command.getNextOption()).thenAnswer(
-                (Answer<String>) invocation -> argProvider.getNext());
-        when(command.getNextArgRequired()).thenAnswer(
-                (Answer<String>) invocation -> argProvider.getNextRequired());
+        when(command.getNextArg()).thenAnswer((Answer<String>) invocation -> argProvider.getNext());
+        when(command.getNextOption())
+                .thenAnswer((Answer<String>) invocation -> argProvider.getNext());
+        when(command.getNextArgRequired())
+                .thenAnswer((Answer<String>) invocation -> argProvider.getNextRequired());
         return command;
     }
 }

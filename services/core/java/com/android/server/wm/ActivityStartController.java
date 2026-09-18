@@ -18,6 +18,7 @@ package com.android.server.wm;
 
 import static android.app.ActivityManager.START_CANCELED;
 import static android.app.ActivityManager.START_SUCCESS;
+import static android.app.ActivityManager.isStartResultSuccessful;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_HOME;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_RECENTS;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
@@ -28,7 +29,6 @@ import static android.os.FactoryTest.FACTORY_TEST_LOW_LEVEL;
 import static com.android.server.wm.ActivityStarter.Request.DEFAULT_INTENT_CREATOR_UID;
 import static com.android.server.wm.ActivityTaskManagerDebugConfig.TAG_ATM;
 import static com.android.server.wm.ActivityTaskManagerDebugConfig.TAG_WITH_CLASS_NAME;
-import static com.android.server.wm.ActivityTaskSupervisor.ON_TOP;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -165,7 +165,7 @@ public class ActivityStartController {
     }
 
     void startHomeActivity(Intent intent, ActivityInfo aInfo, String reason,
-            TaskDisplayArea taskDisplayArea) {
+            TaskDisplayArea taskDisplayArea, boolean onTop) {
         if (mHomeLaunchingTaskDisplayAreas.contains(taskDisplayArea)) {
             Slog.e(TAG, "Abort starting home on " + taskDisplayArea + " recursively.");
             return;
@@ -184,15 +184,8 @@ public class ActivityStartController {
         options.setLaunchTaskDisplayArea(taskDisplayArea.mRemoteToken
                 .toWindowContainerToken());
 
-        // The home activity will be started later, defer resuming to avoid unnecessary operations
-        // (e.g. start home recursively) when creating root home task.
-        mSupervisor.beginDeferResume();
-        final Task rootHomeTask;
-        try {
-            // Make sure root home task exists on display area.
-            rootHomeTask = taskDisplayArea.getOrCreateRootHomeTask(ON_TOP);
-        } finally {
-            mSupervisor.endDeferResume();
+        if (!onTop) {
+            options.setAvoidMoveToFront();
         }
 
         try {
@@ -208,7 +201,9 @@ public class ActivityStartController {
             mHomeLaunchingTaskDisplayAreas.remove(taskDisplayArea);
         }
         mLastHomeActivityStartRecord = tmpOutRecord[0];
-        if (rootHomeTask.mInResumeTopActivity) {
+        final Task rootHomeTask = taskDisplayArea.getRootHomeTask();
+        if (isStartResultSuccessful(mLastHomeActivityStartResult)
+                && rootHomeTask != null && rootHomeTask.mInResumeTopActivity) {
             // If we are in resume section already, home activity will be initialized, but not
             // resumed (to avoid recursive resume) and will stay that way until something pokes it
             // again. We need to schedule another resume.
@@ -474,7 +469,7 @@ public class ActivityStartController {
                         intentGrants = mSupervisor.mService.mUgmInternal
                                 .checkGrantUriPermissionFromIntent(intent, filterCallingUid,
                                         aInfo.applicationInfo.packageName,
-                                        UserHandle.getUserId(aInfo.applicationInfo.uid));
+                                        UserHandle.getUserId(aInfo.getUid()));
                     } catch (SecurityException e) {
                         Slog.d(TAG, "Not allowed to start activity since no uri permission.");
                         return START_CANCELED;
@@ -485,7 +480,7 @@ public class ActivityStartController {
                             NeededUriGrants creatorIntentGrants = mSupervisor.mService.mUgmInternal
                                     .checkGrantUriPermissionFromIntent(intent, creatorUid,
                                             aInfo.applicationInfo.packageName,
-                                            UserHandle.getUserId(aInfo.applicationInfo.uid));
+                                            UserHandle.getUserId(aInfo.getUid()));
                             if (intentGrants == null) {
                                 intentGrants = creatorIntentGrants;
                             } else {
@@ -503,8 +498,7 @@ public class ActivityStartController {
                         throw new IllegalArgumentException(
                                 "FLAG_CANT_SAVE_STATE not supported here");
                     }
-                    startingUidPkgs.put(aInfo.applicationInfo.uid,
-                            aInfo.applicationInfo.packageName);
+                    startingUidPkgs.put(aInfo.getUid(), aInfo.applicationInfo.packageName);
                 }
 
                 final boolean top = i == intents.length - 1;

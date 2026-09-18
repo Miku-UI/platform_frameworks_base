@@ -58,7 +58,8 @@
             android:layout_height="wrap_content"
             android:layout_below="@id/profile_button"
             android:layout_alignParentStart="true"
-            android:textColor="?android:attr/textColorPrimary"
+            android:accessibilityHeading="true"
+            android:textColor="@color/materialColorOnSurface"
             android:fontFamily="@android:string/config_headlineFontFamilyMedium"
             android:textSize="16sp"
             android:gravity="start|center_vertical" />

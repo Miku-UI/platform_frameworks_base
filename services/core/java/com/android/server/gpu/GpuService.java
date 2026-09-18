@@ -52,6 +52,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Service to manage GPU related features.
@@ -79,7 +80,7 @@ public class GpuService extends SystemService {
     private ContentResolver mContentResolver;
     private long mProdDriverVersionCode;
     private SettingsObserver mSettingsObserver;
-    private DeviceConfigListener mDeviceConfigListener;
+    private GameDriverDeviceConfigListener mGameDriverListener;
     @GuardedBy("mLock")
     private Denylists mDenylists;
 
@@ -112,11 +113,16 @@ public class GpuService extends SystemService {
     public void onBootPhase(int phase) {
         if (phase == PHASE_BOOT_COMPLETED) {
             mContentResolver = mContext.getContentResolver();
+            if (android.os.Flags.enableAngleDenyList()) {
+                mGameDriverListener = new GameDriverDeviceConfigListener();
+            }
             if (!mHasProdDriver && !mHasDevDriver) {
                 return;
             }
+            if (mGameDriverListener == null) {
+                mGameDriverListener = new GameDriverDeviceConfigListener();
+            }
             mSettingsObserver = new SettingsObserver();
-            mDeviceConfigListener = new DeviceConfigListener();
             fetchProductionDriverPackageProperties();
             processDenylists();
             setDenylist();
@@ -147,22 +153,38 @@ public class GpuService extends SystemService {
         }
     }
 
-    private final class DeviceConfigListener implements DeviceConfig.OnPropertiesChangedListener {
+    private final class GameDriverDeviceConfigListener implements
+            DeviceConfig.OnPropertiesChangedListener {
 
-        DeviceConfigListener() {
+        GameDriverDeviceConfigListener() {
             super();
             DeviceConfig.addOnPropertiesChangedListener(DeviceConfig.NAMESPACE_GAME_DRIVER,
                     mContext.getMainExecutor(), this);
         }
+
         @Override
         public void onPropertiesChanged(Properties properties) {
             synchronized (mDeviceConfigLock) {
-                if (properties.getKeyset().contains(
-                            Settings.Global.UPDATABLE_DRIVER_PRODUCTION_DENYLISTS)) {
+                final Set<String> keySet = properties.getKeyset();
+                if (keySet.contains(
+                        Settings.Global.UPDATABLE_DRIVER_PRODUCTION_DENYLISTS)) {
                     parseDenylists(
                             properties.getString(
                                     Settings.Global.UPDATABLE_DRIVER_PRODUCTION_DENYLISTS, ""));
                     setDenylist();
+                }
+                if (android.os.Flags.enableAngleDenyList()) {
+                    if (keySet.contains(Settings.Global.ANGLE_DYNAMIC_DENYLIST)) {
+                        final String denylistStr = properties.getString(
+                                Settings.Global.ANGLE_DYNAMIC_DENYLIST, "");
+                        if (DEBUG) {
+                            Slog.i(TAG,
+                                    "Received ANGLE denylist device config update: " + denylistStr);
+                        }
+                        Settings.Global.putString(mContentResolver,
+                                Settings.Global.ANGLE_DYNAMIC_DENYLIST,
+                                denylistStr != null ? denylistStr : "");
+                    }
                 }
             }
         }

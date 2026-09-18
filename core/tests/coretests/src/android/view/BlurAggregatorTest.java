@@ -108,16 +108,50 @@ public class BlurAggregatorTest {
         assertFalse(mAggregator.hasUpdates());
     }
 
+
+    @Test
+    public void testAlphaDrawableHasCorrectValue() {
+        mDrawable.setAlpha(20);
+        assertEquals(mDrawable.getAlpha(), 20);
+
+        mDrawable.setAlpha(0);
+        assertEquals(mDrawable.getAlpha(), 0);
+
+        mDrawable.setAlpha(255);
+        assertEquals(mDrawable.getAlpha(), 255);
+    }
+
     @Test
     public void testCornerRadiusUpdatePropagatesToRenderThreadIfNeeded() {
         mDrawable.setCornerRadius(1f, 2f, 3f, 4f);
         assertTrue(mAggregator.hasUpdates());
         final BlurRegion[] blurRegions = mAggregator.getBlurRegionsCopyForRT();
         assertEquals(1, blurRegions.length);
-        assertEquals(1f, blurRegions[0].cornerRadiusTL);
-        assertEquals(2f, blurRegions[0].cornerRadiusTR);
-        assertEquals(3f, blurRegions[0].cornerRadiusBL);
-        assertEquals(4f, blurRegions[0].cornerRadiusBR);
+        assertEquals(1f, blurRegions[0].cornerRadiusTLX);
+        assertEquals(1f, blurRegions[0].cornerRadiusTLY);
+        assertEquals(2f, blurRegions[0].cornerRadiusTRX);
+        assertEquals(2f, blurRegions[0].cornerRadiusTRY);
+        assertEquals(3f, blurRegions[0].cornerRadiusBLX);
+        assertEquals(3f, blurRegions[0].cornerRadiusBLY);
+        assertEquals(4f, blurRegions[0].cornerRadiusBRX);
+        assertEquals(4f, blurRegions[0].cornerRadiusBRY);
+        assertFalse(mAggregator.hasUpdates());
+    }
+
+    @Test
+    public void testAllDifferentCornerRadiiUpdatePropagatesToRenderThreadIfNeeded() {
+        mDrawable.setCornerRadius(1f, 2f, 3f, 4f, 5f, 6f, 7f, 8f);
+        assertTrue(mAggregator.hasUpdates());
+        final BlurRegion[] blurRegions = mAggregator.getBlurRegionsCopyForRT();
+        assertEquals(1, blurRegions.length);
+        assertEquals(1f, blurRegions[0].cornerRadiusTLX);
+        assertEquals(2f, blurRegions[0].cornerRadiusTLY);
+        assertEquals(3f, blurRegions[0].cornerRadiusTRX);
+        assertEquals(4f, blurRegions[0].cornerRadiusTRY);
+        assertEquals(5f, blurRegions[0].cornerRadiusBLX);
+        assertEquals(6f, blurRegions[0].cornerRadiusBLY);
+        assertEquals(7f, blurRegions[0].cornerRadiusBRX);
+        assertEquals(8f, blurRegions[0].cornerRadiusBRY);
         assertFalse(mAggregator.hasUpdates());
     }
 
@@ -175,7 +209,22 @@ public class BlurAggregatorTest {
     }
 
     @Test
+    public void testNoBlurRegionsDispatchedIfBlurRegionIsEmpty() {
+        final boolean hasUpdates = mAggregator.hasUpdates();
+        assertFalse(hasUpdates);
+
+        mDrawable.setBlurRadius(10);
+        final BlurRegion[] blurRegions = mAggregator.getBlurRegionsCopyForRT();
+        assertEquals(1, blurRegions.length);
+
+        float[][] blurRegionsForSf = mAggregator.getBlurRegionsForFrameLocked(
+                TEST_FRAME_NUMBER, blurRegions, hasUpdates);
+        assertNull(blurRegionsForSf);
+    }
+
+    @Test
     public void testBlurRegionDispatchedIfOnlyDrawableUpdated() {
+        mDrawable.mPositionUpdateListener.positionChanged(TEST_FRAME_NUMBER, 1, 2, 3, 4);
         mDrawable.setBlurRadius(50);
         final boolean hasUpdates = mAggregator.hasUpdates();
         assertTrue(hasUpdates);
@@ -230,7 +279,9 @@ public class BlurAggregatorTest {
     @Test
     public void testMultipleDrawablesDispatchedToSfIfOneIsUpdated() {
         final BackgroundBlurDrawable drawable2 = createTestBackgroundBlurDrawable();
+        drawable2.mPositionUpdateListener.positionChanged(TEST_FRAME_NUMBER, 0, 0, 1, 1);
         drawable2.setBlurRadius(50);
+        mDrawable.mPositionUpdateListener.positionChanged(TEST_FRAME_NUMBER, 0, 0, 1, 1);
         final boolean hasUpdates = mAggregator.hasUpdates();
         assertTrue(hasUpdates);
         final BlurRegion[] blurRegions = mAggregator.getBlurRegionsCopyForRT();
@@ -244,11 +295,11 @@ public class BlurAggregatorTest {
 
         // Check that the Aggregator deleted all position updates for frame TEST_FRAME_NUMBER
         blurRegionsForSf = mAggregator.getBlurRegionsForFrameLocked(
-                TEST_FRAME_NUMBER, blurRegions, /* hasUiUpdates= */ false);
+                TEST_FRAME_NUMBER + 1, blurRegions, /* hasUiUpdates= */ false);
         assertNull(blurRegionsForSf);
 
         // Check that a position update triggers a dispatch of all blur regions
-        drawable2.mPositionUpdateListener.positionChanged(TEST_FRAME_NUMBER, 1, 2, 3, 4);
+        drawable2.mPositionUpdateListener.positionChanged(TEST_FRAME_NUMBER + 1, 1, 2, 3, 4);
         blurRegionsForSf = mAggregator.getBlurRegionsForFrameLocked(
                 TEST_FRAME_NUMBER + 1, blurRegions, hasUpdates);
         assertNotNull(blurRegionsForSf);
@@ -266,10 +317,14 @@ public class BlurAggregatorTest {
         assertEquals(1, blurRegions.length);
         assertEquals(50, blurRegions[0].blurRadius);
         assertEquals(20 / 255f, blurRegions[0].alpha);
-        assertEquals(1f, blurRegions[0].cornerRadiusTL);
-        assertEquals(2f, blurRegions[0].cornerRadiusTR);
-        assertEquals(3f, blurRegions[0].cornerRadiusBL);
-        assertEquals(4f, blurRegions[0].cornerRadiusBR);
+        assertEquals(1f, blurRegions[0].cornerRadiusTLX);
+        assertEquals(1f, blurRegions[0].cornerRadiusTLY);
+        assertEquals(2f, blurRegions[0].cornerRadiusTRX);
+        assertEquals(2f, blurRegions[0].cornerRadiusTRY);
+        assertEquals(3f, blurRegions[0].cornerRadiusBLX);
+        assertEquals(3f, blurRegions[0].cornerRadiusBLY);
+        assertEquals(4f, blurRegions[0].cornerRadiusBRX);
+        assertEquals(4f, blurRegions[0].cornerRadiusBRY);
 
         // Updates for frame N+1
         mDrawable.setBlurRadius(60);
@@ -279,10 +334,14 @@ public class BlurAggregatorTest {
         // Assert state for frame N is untouched
         assertEquals(50, blurRegions[0].blurRadius);
         assertEquals(20 / 255f, blurRegions[0].alpha);
-        assertEquals(1f, blurRegions[0].cornerRadiusTL);
-        assertEquals(2f, blurRegions[0].cornerRadiusTR);
-        assertEquals(3f, blurRegions[0].cornerRadiusBL);
-        assertEquals(4f, blurRegions[0].cornerRadiusBR);
+        assertEquals(1f, blurRegions[0].cornerRadiusTLX);
+        assertEquals(1f, blurRegions[0].cornerRadiusTLY);
+        assertEquals(2f, blurRegions[0].cornerRadiusTRX);
+        assertEquals(2f, blurRegions[0].cornerRadiusTRY);
+        assertEquals(3f, blurRegions[0].cornerRadiusBLX);
+        assertEquals(3f, blurRegions[0].cornerRadiusBLY);
+        assertEquals(4f, blurRegions[0].cornerRadiusBRX);
+        assertEquals(4f, blurRegions[0].cornerRadiusBRY);
     }
 
     @Test

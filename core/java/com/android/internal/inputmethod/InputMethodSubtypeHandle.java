@@ -22,8 +22,6 @@ import android.annotation.AnyThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.ComponentName;
-import android.os.Parcel;
-import android.os.Parcelable;
 import android.text.TextUtils.SimpleStringSplitter;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodSubtype;
@@ -45,7 +43,7 @@ import java.util.Objects;
  * <p>For better readability, consider specifying {@link RawHandle} annotation to {@link String}
  * object when it is a raw {@link String} handle.</p>
  */
-public final class InputMethodSubtypeHandle implements Parcelable {
+public final class InputMethodSubtypeHandle {
     private static final String SUBTYPE_TAG = "subtype";
     private static final char DATA_SEPARATOR = ':';
 
@@ -217,38 +215,5 @@ public final class InputMethodSubtypeHandle implements Parcelable {
     @Override
     public String toString() {
         return "InputMethodSubtypeHandle{mHandle=" + mHandle + "}";
-    }
-
-    /**
-     * {@link Creator} for parcelable.
-     */
-    public static final Creator<InputMethodSubtypeHandle> CREATOR = new Creator<>() {
-        @Override
-        public InputMethodSubtypeHandle createFromParcel(Parcel in) {
-            return of(in.readString8());
-        }
-
-        @Override
-        public InputMethodSubtypeHandle[] newArray(int size) {
-            return new InputMethodSubtypeHandle[size];
-        }
-    };
-
-    /**
-     * {@inheritDoc}
-     */
-    @AnyThread
-    @Override
-    public int describeContents() {
-        return 0;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @AnyThread
-    @Override
-    public void writeToParcel(@NonNull Parcel dest, int flags) {
-        dest.writeString8(toStringHandle());
     }
 }

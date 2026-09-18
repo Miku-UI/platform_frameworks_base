@@ -18,7 +18,6 @@ package com.android.systemui.screenrecord
 
 import com.android.systemui.CoreStartable
 import com.android.systemui.Flags
-import com.android.systemui.NoOpCoreStartable
 import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
@@ -39,14 +38,17 @@ import com.android.systemui.qs.tiles.base.ui.viewmodel.QSTileViewModel
 import com.android.systemui.qs.tiles.base.ui.viewmodel.QSTileViewModelFactory
 import com.android.systemui.qs.tiles.impl.screenrecord.domain.interactor.ScreenRecordTileDataInteractor
 import com.android.systemui.qs.tiles.impl.screenrecord.domain.interactor.ScreenRecordTileUserActionInteractor
+import com.android.systemui.qs.tiles.impl.screenrecord.domain.model.ScreenRecordTileModel
 import com.android.systemui.qs.tiles.impl.screenrecord.domain.ui.mapper.ScreenRecordTileMapper
 import com.android.systemui.res.R
-import com.android.systemui.screenrecord.data.model.ScreenRecordModel
+import com.android.systemui.screencapture.data.repository.ScreenCaptureDeviceStateRepository
+import com.android.systemui.screencapture.data.repository.ScreenCaptureDeviceStateRepositoryImpl
+import com.android.systemui.screencapture.record.domain.interactor.ScreenCaptureRecordFeaturesInteractor
+import com.android.systemui.screenrecord.data.repository.LegacyScreenRecordingStartStopRepository
 import com.android.systemui.screenrecord.data.repository.ScreenRecordRepository
 import com.android.systemui.screenrecord.data.repository.ScreenRecordRepositoryImpl
-import com.android.systemui.screenrecord.domain.interactor.LegacyScreenRecordingStartStopInteractor
-import com.android.systemui.screenrecord.domain.interactor.ScreenRecordingServiceInteractor
-import com.android.systemui.screenrecord.domain.interactor.ScreenRecordingStartStopInteractor
+import com.android.systemui.screenrecord.data.repository.ScreenRecordingServiceRepository
+import com.android.systemui.screenrecord.data.repository.ScreenRecordingStartStopRepository
 import com.android.systemui.settings.UserTracker
 import dagger.Binds
 import dagger.Lazy
@@ -60,8 +62,6 @@ import java.util.concurrent.Executor
 @Module
 interface ScreenRecordModule {
 
-    @Binds fun bindScreenRecordRepository(impl: ScreenRecordRepositoryImpl): ScreenRecordRepository
-
     /** Inject ScreenRecordTile into tileMap in QSModule */
     @Binds
     @IntoMap
@@ -70,26 +70,24 @@ interface ScreenRecordModule {
 
     @Binds
     @IntoMap
+    @ClassKey(ScreenRecordingCoreStartable::class)
+    fun bindScreenRecordingStartable(startable: ScreenRecordingCoreStartable): CoreStartable
+
+    @Binds
+    @IntoMap
     @StringKey(SCREEN_RECORD_TILE_SPEC)
     fun provideScreenRecordAvailabilityInteractor(
         impl: ScreenRecordTileDataInteractor
     ): QSTileAvailabilityInteractor
 
+    @Binds
+    @SysUISingleton
+    fun bindScreenCaptureDeviceStateRepository(
+        impl: ScreenCaptureDeviceStateRepositoryImpl
+    ): ScreenCaptureDeviceStateRepository
+
     companion object {
         private const val SCREEN_RECORD_TILE_SPEC = "screenrecord"
-
-        @Provides
-        @IntoMap
-        @ClassKey(ScreenRecordingCoreStartable::class)
-        fun bindScreenRecordingCoreStartable(
-            implLazy: Lazy<ScreenRecordingCoreStartable>
-        ): CoreStartable {
-            if (Flags.restoreShowTapsSetting()) {
-                return implLazy.get()
-            } else {
-                return NoOpCoreStartable()
-            }
-        }
 
         @Provides
         @SysUISingleton
@@ -125,15 +123,15 @@ interface ScreenRecordModule {
 
         @Provides
         @SysUISingleton
-        fun provideScreenRecordingStartStopInteractor(
-            legacyScreenRecordingStartStopInteractor:
-                Lazy<LegacyScreenRecordingStartStopInteractor>,
-            screenRecordingServiceInteractor: Lazy<ScreenRecordingServiceInteractor>,
-        ): ScreenRecordingStartStopInteractor {
+        fun provideScreenRecordingStartStopRepository(
+            legacyScreenRecordingStartStopRepository:
+                Lazy<LegacyScreenRecordingStartStopRepository>,
+            screenRecordingServiceRepository: Lazy<ScreenRecordingServiceRepository>,
+        ): ScreenRecordingStartStopRepository {
             return if (Flags.thinScreenRecordingService()) {
-                    screenRecordingServiceInteractor
+                    screenRecordingServiceRepository
                 } else {
-                    legacyScreenRecordingStartStopInteractor
+                    legacyScreenRecordingStartStopRepository
                 }
                 .get()
         }
@@ -158,7 +156,7 @@ interface ScreenRecordModule {
         @IntoMap
         @StringKey(SCREEN_RECORD_TILE_SPEC)
         fun provideScreenRecordTileViewModel(
-            factory: QSTileViewModelFactory.Static<ScreenRecordModel>,
+            factory: QSTileViewModelFactory.Static<ScreenRecordTileModel>,
             mapper: ScreenRecordTileMapper,
             stateInteractor: ScreenRecordTileDataInteractor,
             userActionInteractor: ScreenRecordTileUserActionInteractor,
@@ -175,6 +173,20 @@ interface ScreenRecordModule {
         @RecordingControllerLog
         fun provideRecordingControllerLogBuffer(factory: LogBufferFactory): LogBuffer {
             return factory.create("RecordingControllerLog", 50)
+        }
+
+        @Provides
+        fun provideScreenRecordRepository(
+            serviceRepository: Lazy<ScreenRecordingServiceRepository>,
+            impl: Lazy<ScreenRecordRepositoryImpl>,
+            screenCaptureRecordFeaturesInteractor: ScreenCaptureRecordFeaturesInteractor,
+        ): ScreenRecordRepository {
+            return if (screenCaptureRecordFeaturesInteractor.shouldShowNewRecordingToolbar) {
+                    serviceRepository
+                } else {
+                    impl
+                }
+                .get()
         }
     }
 }

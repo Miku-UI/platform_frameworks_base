@@ -19,6 +19,7 @@ package com.android.server.display;
 import static android.text.TextUtils.formatSimple;
 
 import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIGHTNESS_MODE_BEDTIME_WEAR;
+import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIGHTNESS_MODE_CHARGING;
 import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIGHTNESS_MODE_DEFAULT;
 import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIGHTNESS_MODE_DOZE;
 import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIGHTNESS_MODE_IDLE;
@@ -115,7 +116,8 @@ public abstract class BrightnessMappingStrategy {
                 luxLevels = getLuxLevels(context.getResources().getIntArray(
                         com.android.internal.R.array.config_autoBrightnessLevelsIdle));
             }
-            case AUTO_BRIGHTNESS_MODE_DOZE, AUTO_BRIGHTNESS_MODE_BEDTIME_WEAR -> {
+            case AUTO_BRIGHTNESS_MODE_DOZE, AUTO_BRIGHTNESS_MODE_BEDTIME_WEAR,
+                 AUTO_BRIGHTNESS_MODE_CHARGING -> {
                 luxLevels = displayDeviceConfig.getAutoBrightnessBrighteningLevelsLux(mode, preset);
                 brightnessLevels =
                         displayDeviceConfig.getAutoBrightnessBrighteningLevels(mode, preset);

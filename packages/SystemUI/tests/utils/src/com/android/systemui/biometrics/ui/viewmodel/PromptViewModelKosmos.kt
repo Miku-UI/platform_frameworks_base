@@ -18,13 +18,13 @@ package com.android.systemui.biometrics.ui.viewmodel
 
 import android.content.applicationContext
 import android.view.accessibility.accessibilityManager
-import com.android.app.activityTaskManager
 import com.android.launcher3.icons.IconProvider
 import com.android.systemui.accessibility.domain.interactor.accessibilityInteractor
 import com.android.systemui.biometrics.domain.interactor.biometricStatusInteractor
 import com.android.systemui.biometrics.domain.interactor.promptSelectorInteractor
 import com.android.systemui.biometrics.domain.interactor.udfpsOverlayInteractor
 import com.android.systemui.biometrics.udfpsUtils
+import com.android.systemui.biometrics.ui.biometricPromptLogoProvider
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryUdfpsInteractor
 import com.android.systemui.display.domain.interactor.displayStateInteractor
 import com.android.systemui.kosmos.Kosmos
@@ -41,14 +41,13 @@ val Kosmos.promptViewModel by Fixture {
         udfpsOverlayInteractor = udfpsOverlayInteractor,
         biometricStatusInteractor = biometricStatusInteractor,
         udfpsUtils = udfpsUtils,
-        iconProvider = iconProvider,
-        activityTaskManager = activityTaskManager,
         accessibilityInteractor = accessibilityInteractor,
         accessibilityManager = accessibilityManager,
         promptFallbackViewModelFactory = promptFallbackViewModelFactory,
         shadeInteractor = shadeInteractor,
         promptIconViewModelFactory = promptIconViewModelFactory,
         biometricAuthIconViewModelFactory = biometricAuthIconViewModelFactory_biometricPrompt,
+        promptLogoProvider = biometricPromptLogoProvider,
     )
 }
 

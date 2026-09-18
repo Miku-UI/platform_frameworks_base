@@ -54,6 +54,7 @@ import com.android.internal.os.KernelCpuUidTimeReader.KernelCpuUidClusterTimeRea
 import com.android.internal.os.KernelCpuUidTimeReader.KernelCpuUidFreqTimeReader;
 import com.android.internal.os.KernelCpuUidTimeReader.KernelCpuUidUserSysTimeReader;
 import com.android.internal.util.ArrayUtils;
+import com.android.server.power.stats.counters.TimeBase;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -1394,7 +1395,7 @@ public class BatteryStatsCpuTimesTest {
 
     private ArrayList<BatteryStatsImpl.StopwatchTimer> getPartialTimers(int... uids) {
         final ArrayList<BatteryStatsImpl.StopwatchTimer> partialTimers = new ArrayList<>();
-        final BatteryStatsImpl.TimeBase timeBase = new BatteryStatsImpl.TimeBase();
+        final TimeBase timeBase = new TimeBase();
         for (int uid : uids) {
             final BatteryStatsImpl.Uid u = mBatteryStatsImpl.getUidStatsLocked(uid);
             final BatteryStatsImpl.StopwatchTimer timer = new BatteryStatsImpl.StopwatchTimer(

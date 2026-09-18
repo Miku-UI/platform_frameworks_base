@@ -111,6 +111,10 @@ class FakeMobileConnectionsRepository(
         }
     }
 
+    fun setDefaultDataSubId(subId: Int) {
+        _defaultDataSubId.value = subId
+    }
+
     fun setMobileConnectionRepositoryMap(connections: Map<Int, MobileConnectionRepository>) {
         connections.forEach { entry -> subIdRepos[entry.key] = entry.value }
     }

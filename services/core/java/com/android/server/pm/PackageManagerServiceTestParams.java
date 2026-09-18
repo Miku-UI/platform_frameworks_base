@@ -115,6 +115,7 @@ public final class PackageManagerServiceTestParams {
     public ResolveIntentHelper resolveIntentHelper;
     public DexOptHelper dexOptHelper;
     public SuspendPackageHelper suspendPackageHelper;
+    public AppLockPackageHelper appLockPackageHelper;
     public DistractingPackageHelper distractingPackageHelper;
     public StorageEventHelper storageEventHelper;
     public final Set<String> initialNonStoppedSystemPackages = new ArraySet<>();

@@ -27,6 +27,13 @@ import java.util.Objects;
  */
 public final class StringPolicyValue extends PolicyValue<String> {
 
+    public static @Nullable StringPolicyValue createIfNotNullOrEmpty(@Nullable CharSequence value) {
+        if (value == null || value.isEmpty()) {
+            return null;
+        }
+        return new StringPolicyValue(value.toString());
+    }
+
     public StringPolicyValue(@NonNull String value) {
         super(value);
         PolicySizeVerifier.enforceMaxStringLength(value, "policyValue");

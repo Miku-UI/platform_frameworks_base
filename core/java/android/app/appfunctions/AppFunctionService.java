@@ -17,6 +17,8 @@
 package android.app.appfunctions;
 
 import static android.Manifest.permission.BIND_APP_FUNCTION_SERVICE;
+import static android.app.appfunctions.AppFunctionManagerHelper.buildCancellationSignal;
+import static android.app.appfunctions.AppFunctionManagerHelper.executionExceptionToErrorCode;
 import static android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_MANAGER;
 import static android.content.pm.PackageManager.PERMISSION_DENIED;
 
@@ -26,43 +28,66 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SdkConstant;
 import android.app.Service;
+import android.app.appfunctions.flags.Flags;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.SigningDetails;
 import android.content.pm.SigningInfo;
 import android.os.Binder;
 import android.os.CancellationSignal;
 import android.os.IBinder;
-import android.os.ICancellationSignal;
 import android.os.OutcomeReceiver;
-import android.os.RemoteException;
 import android.util.Log;
 
 /**
- * Abstract base class to provide app functions to the system.
+ * Extend this class to implement app functions, that can be executed by {@link
+ * AppFunctionManager#executeAppFunction}.
  *
- * <p>Include the following in the manifest:
+ * <p>{@link AppFunctionManager#executeAppFunction} targeting an app function provided by this
+ * service will bind to this service (waking your app if necessary). A single {@link
+ * AppFunctionService} implementation can implement multiple app functions, by examining the {@link
+ * ExecuteAppFunctionRequest#getFunctionIdentifier} in the {@link #onExecuteFunction} method.
  *
- * <pre>
- * {@literal
- * <service android:name=".YourService"
- *       android:permission="android.permission.BIND_APP_FUNCTION_SERVICE">
- *    <intent-filter>
- *      <action android:name="android.app.appfunctions.AppFunctionService" />
- *    </intent-filter>
+ * <p>You must declare the service and its associated app functions in your {@code
+ * AndroidManifest.xml}. The {@code <service>} manifest entry must:
+ *
+ * <ul>
+ *   <li>Require the {@link BIND_APP_FUNCTION_SERVICE} permission to ensure that only the system can
+ *       bind to the service.
+ *   <li>Declare an {@code <intent-filter>} with the {@link #SERVICE_INTERFACE} action to indicate
+ *       to the system that it provides app functions.
+ *   <li>Reference an XML asset that defines the metadata for the functions provided by this service
+ *       using a {@code <property>} named {@code android.app.appfunctions}. See {@link
+ *       AppFunctionMetadata} for details on the XML schema.
+ * </ul>
+ *
+ * <p><b>Example manifest declaration:</b>
+ *
+ * <pre>{@code
+ * <service
+ *     android:name=".YourAppFunctionService"
+ *     android:permission="android.permission.BIND_APP_FUNCTION_SERVICE">
+ *   <property
+ *       android:name="android.app.appfunctions"
+ *       android:value="your_app_functions.xml" />
+ *   <intent-filter>
+ *     <action android:name="android.app.appfunctions.AppFunctionService" />
+ *   </intent-filter>
  * </service>
- * }
- * </pre>
+ * }</pre>
  *
- * @see AppFunctionManager
+ * <p><b>Important:</b> Only one {@link AppFunctionService} implementation can be active in an app
+ * at a time.
  */
 @FlaggedApi(FLAG_ENABLE_APP_FUNCTION_MANAGER)
 public abstract class AppFunctionService extends Service {
     private static final String TAG = "AppFunctionService";
 
     /**
-     * The {@link Intent} that must be declared as handled by the service. To be supported, the
-     * service must also require the {@link BIND_APP_FUNCTION_SERVICE} permission so that other
-     * applications can not abuse it.
+     * The {@link Intent} filter that must be declared as handled by the service.
+     *
+     * <p>To be supported, the service must also require the {@link BIND_APP_FUNCTION_SERVICE}
+     * permission so that other applications can not abuse it.
      */
     @SdkConstant(SdkConstant.SdkConstantType.SERVICE_ACTION)
     @NonNull
@@ -109,27 +134,41 @@ public abstract class AppFunctionService extends Service {
                 context.getMainExecutor()
                         .execute(
                                 () -> {
-                                    try {
-                                        onExecuteFunction.perform(
-                                                request,
-                                                callingPackage,
-                                                callingPackageSigningInfo,
-                                                buildCancellationSignal(cancellationCallback),
-                                                new OutcomeReceiver<
-                                                        ExecuteAppFunctionResponse,
-                                                        AppFunctionException>() {
-                                                    @Override
-                                                    public void onResult(
-                                                            ExecuteAppFunctionResponse result) {
-                                                        safeCallback.onResult(result);
-                                                    }
+                                    OutcomeReceiver<
+                                                    ExecuteAppFunctionResponse,
+                                                    AppFunctionException>
+                                            outcomeReceiver =
+                                                    new OutcomeReceiver<
+                                                            ExecuteAppFunctionResponse,
+                                                            AppFunctionException>() {
+                                                        @Override
+                                                        public void onResult(
+                                                                ExecuteAppFunctionResponse result) {
+                                                            safeCallback.onResult(result);
+                                                        }
 
-                                                    @Override
-                                                    public void onError(
-                                                            AppFunctionException exception) {
-                                                        safeCallback.onError(exception);
-                                                    }
-                                                });
+                                                        @Override
+                                                        public void onError(
+                                                                AppFunctionException exception) {
+                                                            safeCallback.onError(exception);
+                                                        }
+                                                    };
+                                    try {
+                                        if (Flags.enableAppFunctionPermissionV2()) {
+                                            onExecuteFunction.perform(
+                                                    request,
+                                                    /* callingPackage= */ "",
+                                                    /* callingPackageSigningInfo= */ new SigningInfo(),
+                                                    buildCancellationSignal(cancellationCallback),
+                                                    outcomeReceiver);
+                                        } else {
+                                            onExecuteFunction.perform(
+                                                    request,
+                                                    callingPackage,
+                                                    callingPackageSigningInfo,
+                                                    buildCancellationSignal(cancellationCallback),
+                                                    outcomeReceiver);
+                                        }
                                     } catch (Exception ex) {
                                         // Apps should handle exceptions. But if they don't, report
                                         // the
@@ -137,26 +176,12 @@ public abstract class AppFunctionService extends Service {
                                         Log.w(TAG, "Uncaught exception in AppFunctionService", ex);
                                         safeCallback.onError(
                                                 new AppFunctionException(
-                                                        toErrorCode(ex), ex.getMessage()));
+                                                        executionExceptionToErrorCode(ex),
+                                                        ex.getMessage()));
                                     }
                                 });
             }
         };
-    }
-
-    private static CancellationSignal buildCancellationSignal(
-            @NonNull ICancellationCallback cancellationCallback) {
-        final ICancellationSignal cancellationSignalTransport =
-                CancellationSignal.createTransport();
-        CancellationSignal cancellationSignal =
-                CancellationSignal.fromTransport(cancellationSignalTransport);
-        try {
-            cancellationCallback.sendCancellationTransport(cancellationSignalTransport);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
-
-        return cancellationSignal;
     }
 
     private final Binder mBinder =
@@ -169,36 +194,32 @@ public abstract class AppFunctionService extends Service {
     }
 
     /**
-     * Called by the system to execute a specific app function.
+     * Called by the system following an {@link AppFunctionManager#executeAppFunction} call that
+     * targets an app function identifier referenced by the XML asset associated with this service.
      *
-     * <p>This method is the entry point for handling all app function requests in an app. When the
-     * system needs your AppFunctionService to perform a function, it will invoke this method.
-     *
-     * <p>Each function you've registered is identified by a unique identifier. This identifier
-     * doesn't need to be globally unique, but it must be unique within your app. For example, a
-     * function to order food could be identified as "orderFood". In most cases, this identifier is
-     * automatically generated by the AppFunctions SDK.
-     *
-     * <p>You can determine which function to execute by calling {@link
+     * <p>You can determine which function to execute using {@link
      * ExecuteAppFunctionRequest#getFunctionIdentifier()}. This allows your service to route the
-     * incoming request to the appropriate logic for handling the specific function.
+     * incoming request to the appropriate logic for handling the specific function. See {@link
+     * ExecuteAppFunctionRequest} for how to retrieve the function's arguments.
      *
      * <p>This method is always triggered in the main thread. You should run heavy tasks on a worker
      * thread and dispatch the result with the given callback. You should always report back the
      * result using the callback, no matter if the execution was successful or not.
      *
-     * <p>This method also accepts a {@link CancellationSignal} that the app should listen to cancel
-     * the execution of function if requested by the system.
+     * <p>The implementation should try to respect the provided {@link CancellationSignal}, if
+     * possible.
      *
      * @param request The function execution request.
      * @param callingPackage The package name of the app that is requesting the execution. It is
      *     strongly recommended that you do not alter your function’s behavior based on this value.
      *     Your function should behave consistently for all callers to ensure a predictable
-     *     experience.
+     *     experience. Starting in {@link android.os.Build.VERSION_CODES#CINNAMON_BUN}, the value
+     *     will always be an empty string.
      * @param callingPackageSigningInfo The signing information of the app that is requesting the
      *     execution. It is strongly recommended that you do not alter your function’s behavior
      *     based on this value. Your function should behave consistently for all callers to ensure a
-     *     predictable experience.
+     *     predictable experience. Starting in {@link android.os.Build.VERSION_CODES#CINNAMON_BUN},
+     *     the value will always be an unknown signing info.
      * @param cancellationSignal A signal to cancel the execution.
      * @param callback A callback to report back the result or error.
      */
@@ -209,16 +230,4 @@ public abstract class AppFunctionService extends Service {
             @NonNull SigningInfo callingPackageSigningInfo,
             @NonNull CancellationSignal cancellationSignal,
             @NonNull OutcomeReceiver<ExecuteAppFunctionResponse, AppFunctionException> callback);
-
-    /**
-     * Returns result codes from throwable.
-     *
-     * @hide
-     */
-    private static @AppFunctionException.ErrorCode int toErrorCode(@NonNull Throwable t) {
-        if (t instanceof IllegalArgumentException) {
-            return AppFunctionException.ERROR_INVALID_ARGUMENT;
-        }
-        return AppFunctionException.ERROR_APP_UNKNOWN_ERROR;
-    }
 }

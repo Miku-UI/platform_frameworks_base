@@ -33,7 +33,6 @@ import android.hardware.usb.UsbManager;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 
-import com.android.server.display.feature.DisplayManagerFlags;
 import com.android.server.display.notifications.ConnectedDisplayUsbErrorsDetector.Injector;
 
 import com.google.testing.junit.testparameterinjector.TestParameter;
@@ -57,8 +56,6 @@ public class ConnectedDisplayUsbErrorsDetectorTest {
     @Mock
     private UsbManager mMockedUsbManager;
     @Mock
-    private DisplayManagerFlags mMockedFlags;
-    @Mock
     private ConnectedDisplayUsbErrorsDetector.Listener mMockedListener;
 
     /** Setup tests. */
@@ -68,12 +65,10 @@ public class ConnectedDisplayUsbErrorsDetectorTest {
     }
 
     @Test
-    public void testNoErrorTypes(
-            @TestParameter final boolean isUsbManagerAvailable,
-            @TestParameter final boolean isUsbErrorsNotificationEnabled) {
+    public void testNoErrorTypes(@TestParameter final boolean isUsbManagerAvailable) {
         // This is tested in #testErrorOnUsbCableNotCapableDp and #testErrorOnDpLinkTrainingFailure
-        assumeFalse(isUsbManagerAvailable && isUsbErrorsNotificationEnabled);
-        var detector = createErrorsDetector(isUsbManagerAvailable, isUsbErrorsNotificationEnabled);
+        assumeFalse(isUsbManagerAvailable);
+        var detector = createErrorsDetector(isUsbManagerAvailable);
         // None of these should trigger an error now.
         detector.onDisplayPortAltModeInfoChanged("portId", createInfoOnUsbCableNotCapableDp());
         detector.onDisplayPortAltModeInfoChanged("portId", createInfoOnDpLinkTrainingFailure());
@@ -84,8 +79,7 @@ public class ConnectedDisplayUsbErrorsDetectorTest {
 
     @Test
     public void testErrorOnUsbCableNotCapableDp() {
-        var detector = createErrorsDetector(/*isUsbManagerAvailable=*/ true,
-                /*isUsbErrorsNotificationEnabled=*/ true);
+        var detector = createErrorsDetector(/*isUsbManagerAvailable=*/ true);
         detector.onDisplayPortAltModeInfoChanged("portId", createInfoOnUsbCableNotCapableDp());
         verify(mMockedUsbManager).registerDisplayPortAltModeInfoListener(any(), any());
         verify(mMockedListener).onCableNotCapableDisplayPort();
@@ -94,22 +88,17 @@ public class ConnectedDisplayUsbErrorsDetectorTest {
 
     @Test
     public void testErrorOnDpLinkTrainingFailure() {
-        var detector = createErrorsDetector(/*isUsbManagerAvailable=*/ true,
-                /*isUsbErrorsNotificationEnabled=*/ true);
+        var detector = createErrorsDetector(/*isUsbManagerAvailable=*/ true);
         detector.onDisplayPortAltModeInfoChanged("portId", createInfoOnDpLinkTrainingFailure());
         verify(mMockedUsbManager).registerDisplayPortAltModeInfoListener(any(), any());
         verify(mMockedListener, never()).onCableNotCapableDisplayPort();
         verify(mMockedListener).onDisplayPortLinkTrainingFailure();
     }
 
-    private ConnectedDisplayUsbErrorsDetector createErrorsDetector(
-            final boolean isUsbManagerAvailable,
-            final boolean isConnectedDisplayUsbErrorsNotificationEnabled) {
-        when(mMockedFlags.isConnectedDisplayErrorHandlingEnabled())
-                .thenReturn(isConnectedDisplayUsbErrorsNotificationEnabled);
+    private ConnectedDisplayUsbErrorsDetector createErrorsDetector(boolean isUsbManagerAvailable) {
         when(mMockedInjector.getUsbManager()).thenReturn(
                 (isUsbManagerAvailable) ? mMockedUsbManager : null);
-        var detector = new ConnectedDisplayUsbErrorsDetector(mMockedFlags,
+        var detector = new ConnectedDisplayUsbErrorsDetector(
                 ApplicationProvider.getApplicationContext(), mMockedInjector);
         detector.registerListener(mMockedListener);
         return detector;

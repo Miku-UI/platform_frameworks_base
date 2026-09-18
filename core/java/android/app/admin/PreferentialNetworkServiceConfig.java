@@ -44,8 +44,8 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * Network configuration to be set for the user profile
- * {@see DevicePolicyManager#setPreferentialNetworkServiceConfigs}.
+ * Network configuration to be set for the user profile.
+ * @see DevicePolicyManager#setPreferentialNetworkServiceConfigs
  */
 public final class PreferentialNetworkServiceConfig implements Parcelable {
     final boolean mIsEnabled;
@@ -179,13 +179,13 @@ public final class PreferentialNetworkServiceConfig implements Parcelable {
     /**
      * Get the array of uids that are applicable for the profile preference.
      *
-     * {@see #getExcludedUids()}
      * Included UIDs and Excluded UIDs can't both be non-empty.
      * if both are empty, it means this request applies to all uids in the user profile.
      * if included is not empty, then only included UIDs are applied.
      * if excluded is not empty, then it is all uids in the user profile except these UIDs.
      * @return Array of uids applicable for the profile preference.
      *      Empty array would mean that this request applies to all uids in the profile.
+     * @see #getExcludedUids()
      */
     public @NonNull int[] getIncludedUids() {
         return mIncludedUids;
@@ -194,13 +194,13 @@ public final class PreferentialNetworkServiceConfig implements Parcelable {
     /**
      * Get the array of uids that are excluded for the profile preference.
      *
-     * {@see #getIncludedUids()}
      * Included UIDs and Excluded UIDs can't both be non-empty.
      * if both are empty, it means this request applies to all uids in the user profile.
      * if included is not empty, then only included UIDs are applied.
      * if excluded is not empty, then it is all uids in the user profile except these UIDs.
      * @return Array of uids that are excluded for the profile preference.
      *      Empty array would mean that this request applies to all uids in the profile.
+     * @see #getIncludedUids()
      */
     public @NonNull int[] getExcludedUids() {
         return mExcludedUids;
@@ -331,13 +331,13 @@ public final class PreferentialNetworkServiceConfig implements Parcelable {
         /**
          * Set the array of uids whose network access will go through this preferential
          * network service.
-         * {@see #setExcludedUids(int[])}
          * Included UIDs and Excluded UIDs can't both be non-empty.
          * if both are empty, it means this request applies to all uids in the user profile.
          * if included is not empty, then only included UIDs are applied.
          * if excluded is not empty, then it is all uids in the user profile except these UIDs.
          * @param uids  array of included uids
          * @return The builder to facilitate chaining.
+         * @see #setExcludedUids(int[])
          */
         @NonNull
         public PreferentialNetworkServiceConfig.Builder setIncludedUids(
@@ -350,13 +350,13 @@ public final class PreferentialNetworkServiceConfig implements Parcelable {
         /**
          * Set the array of uids who are not allowed through this preferential
          * network service.
-         * {@see #setIncludedUids(int[])}
          * Included UIDs and Excluded UIDs can't both be non-empty.
          * if both are empty, it means this request applies to all uids in the user profile.
          * if included is not empty, then only included UIDs are applied.
          * if excluded is not empty, then it is all uids in the user profile except these UIDs.
          * @param uids  array of excluded uids
          * @return The builder to facilitate chaining.
+         * @see #setIncludedUids(int[])
          */
         @NonNull
         public PreferentialNetworkServiceConfig.Builder setExcludedUids(

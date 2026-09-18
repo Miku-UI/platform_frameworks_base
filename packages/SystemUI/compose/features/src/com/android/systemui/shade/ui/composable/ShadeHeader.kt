@@ -17,14 +17,18 @@
 
 package com.android.systemui.shade.ui.composable
 
+import android.content.res.Configuration.ORIENTATION_PORTRAIT
 import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.annotation.ColorInt
+import androidx.annotation.VisibleForTesting
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +37,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,8 +45,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
@@ -56,49 +63,57 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layoutId
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.DeviceFontFamilyName
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.android.compose.animation.scene.ContentScope
 import com.android.compose.animation.scene.ElementKey
 import com.android.compose.animation.scene.LowestZIndexContentPicker
+import com.android.compose.animation.scene.SceneTransitionLayoutState
 import com.android.compose.animation.scene.ValueKey
 import com.android.compose.animation.scene.animateElementFloatAsState
 import com.android.compose.animation.scene.content.state.TransitionState
 import com.android.compose.modifiers.thenIf
-import com.android.internal.policy.SystemBarUtils
-import com.android.settingslib.Utils
-import com.android.systemui.battery.BatteryMeterView
-import com.android.systemui.battery.BatteryMeterViewController
+import com.android.systemui.Flags.groupedPrivacyChip
+import com.android.systemui.common.ui.compose.byLayoutId
 import com.android.systemui.common.ui.compose.windowinsets.CutoutLocation
 import com.android.systemui.common.ui.compose.windowinsets.LocalDisplayCutout
 import com.android.systemui.common.ui.compose.windowinsets.LocalScreenCornerRadius
 import com.android.systemui.compose.modifiers.sysuiResTag
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.util.nameTag
+import com.android.systemui.privacy.AbstractOngoingPrivacyChip
 import com.android.systemui.privacy.OngoingPrivacyChip
 import com.android.systemui.privacy.PrivacyItem
+import com.android.systemui.privacy.ui.view.ComposeOngoingPrivacyChip
 import com.android.systemui.res.R
 import com.android.systemui.scene.shared.model.DualShadeEducationElement
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.ui.composable.ShadeHeader.Values.ClockScale
 import com.android.systemui.shade.ui.viewmodel.ShadeHeaderViewModel
-import com.android.systemui.statusbar.core.NewStatusBarIcons
 import com.android.systemui.statusbar.phone.StatusBarLocation
+import com.android.systemui.statusbar.phone.domain.interactor.IsAreaDark
 import com.android.systemui.statusbar.pipeline.battery.ui.composable.BatteryWithEstimate
 import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos
+import com.android.systemui.statusbar.pipeline.mobile.ui.MobileViewLogger
 import com.android.systemui.statusbar.pipeline.mobile.ui.view.ModernShadeCarrierGroupMobileView
+import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconViewModelKairos
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconsViewModelKairosComposeWrapper
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.ShadeCarrierGroupMobileIconViewModel
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.ShadeCarrierGroupMobileIconViewModelKairos
@@ -108,9 +123,12 @@ import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompo
 import com.android.systemui.statusbar.systemstatusicons.ui.compose.SystemStatusIcons
 import com.android.systemui.statusbar.systemstatusicons.ui.compose.SystemStatusIconsLegacy
 import com.android.systemui.util.composable.kairos.ActivatedKairosSpec
+import com.android.systemui.util.kotlin.toDp
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
+import platform.test.motion.compose.values.MotionTestValueKey
+import platform.test.motion.compose.values.motionTestValues
 
 object ShadeHeader {
     object Elements {
@@ -122,6 +140,11 @@ object ShadeHeader {
         val ShadeCarrierGroup = ElementKey("ShadeCarrierGroup")
     }
 
+    enum class LayoutId {
+        StartContent,
+        EndContent,
+    }
+
     object Values {
         val ClockScale = ValueKey("ShadeHeaderClockScale")
     }
@@ -129,20 +152,12 @@ object ShadeHeader {
     object Dimensions {
         @Deprecated(
             "Approximation of the collapsed shade header height, used in legacy shade transitions.",
-            replaceWith = ReplaceWith("StatusBarHeight"),
+            replaceWith = ReplaceWith("ShadeHeaderViewModel.statusBarHeightPx"),
         )
         val CollapsedHeightForTransitions = 48.dp
         val ExpandedHeight = 120.dp
         val ChipPaddingHorizontal = 6.dp
         val ChipPaddingVertical = 4.dp
-
-        val StatusBarHeight: Dp
-            @Composable
-            get() {
-                return with(LocalDensity.current) {
-                    SystemBarUtils.getStatusBarHeight(LocalContext.current).toDp()
-                }
-            }
     }
 
     object Colors {
@@ -160,11 +175,10 @@ object ShadeHeader {
     object TestTags {
         const val Root = "shade_header_root"
         const val BatteryTestTag = "battery_meter_composable_view"
-        const val BatteryTestTagLegacy = "battery_percentage_view"
     }
 }
 
-/** The status bar that appears above the Shade scene on small screens. */
+/** The status bar that appears above the Shade scene */
 @Composable
 fun ContentScope.CollapsedShadeHeader(
     viewModel: ShadeHeaderViewModel,
@@ -178,8 +192,7 @@ fun ContentScope.CollapsedShadeHeader(
     val useExpandedTextFormat by
         remember(cutoutLocation) {
             derivedStateOf {
-                cutoutLocation != CutoutLocation.CENTER ||
-                    shouldUseExpandedFormat(layoutState.transitionState)
+                cutoutLocation != CutoutLocation.CENTER || shouldUseExpandedFormat(layoutState)
             }
         }
 
@@ -187,14 +200,24 @@ fun ContentScope.CollapsedShadeHeader(
 
     // This layout assumes it is globally positioned at (0, 0) and is the same size as the screen.
     CutoutAwareShadeHeader(
+        statusBarHeightPx = viewModel.statusBarHeightPx,
         modifier = modifier.sysuiResTag(ShadeHeader.TestTags.Root),
         startContent = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(5.dp),
-                modifier = Modifier.padding(horizontal = horizontalPadding),
+                modifier =
+                    Modifier.padding(horizontal = horizontalPadding)
+                        .layoutId(ShadeHeader.LayoutId.StartContent),
             ) {
-                Clock(onClick = viewModel::onClockClicked, textColor = textColor)
+                Clock(
+                    onClick = viewModel::onClockClicked,
+                    textColor = textColor,
+                    modifier =
+                        Modifier.sysuiResTag("expanded_header_clock")
+                            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                            .wrapContentSize(Alignment.CenterStart),
+                )
                 VariableDayDate(
                     longerDateText = viewModel.longerDateText,
                     shorterDateText = viewModel.shorterDateText,
@@ -205,7 +228,12 @@ fun ContentScope.CollapsedShadeHeader(
         },
         endContent = {
             if (viewModel.isPrivacyChipVisible) {
-                Box(modifier = Modifier.fillMaxSize().padding(horizontal = horizontalPadding)) {
+                Box(
+                    modifier =
+                        Modifier.fillMaxSize()
+                            .padding(horizontal = horizontalPadding)
+                            .layoutId(ShadeHeader.LayoutId.EndContent)
+                ) {
                     PrivacyChip(
                         privacyList = viewModel.privacyItems,
                         onClick = viewModel::onPrivacyChipClicked,
@@ -218,22 +246,17 @@ fun ContentScope.CollapsedShadeHeader(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier =
                         Modifier.element(ShadeHeader.Elements.CollapsedContentEnd)
-                            .padding(horizontal = horizontalPadding),
+                            .padding(horizontal = horizontalPadding)
+                            .layoutId(ShadeHeader.LayoutId.EndContent),
                 ) {
                     if (isSplitShade) {
                         ShadeCarrierGroup(viewModel = viewModel)
                     }
                     ShadeHighlightChip(
-                        onClick = {
-                            if (isSplitShade) {
-                                viewModel.onSystemIconChipClicked()
-                            }
-                        }
+                        isClickable = isSplitShade,
+                        onClick = viewModel::onSystemIconChipClicked,
                     ) {
-                        val paddingEnd =
-                            with(LocalDensity.current) {
-                                (if (NewStatusBarIcons.isEnabled) 3.sp else 6.sp).toDp()
-                            }
+                        val paddingEnd = with(LocalDensity.current) { 3.sp.toDp() }
                         StatusIcons(
                             viewModel = viewModel,
                             useExpandedFormat = useExpandedTextFormat,
@@ -245,7 +268,10 @@ fun ContentScope.CollapsedShadeHeader(
                             viewModel = viewModel,
                             showIcon = true,
                             useExpandedFormat = useExpandedTextFormat,
-                            modifier = Modifier.padding(vertical = 8.dp),
+                            modifier =
+                                if (LocalConfiguration.current.equals(ORIENTATION_PORTRAIT))
+                                    Modifier.padding(vertical = 8.dp)
+                                else Modifier,
                             textColor = textColor,
                         )
                     }
@@ -261,15 +287,17 @@ fun ContentScope.ExpandedShadeHeader(
     viewModel: ShadeHeaderViewModel,
     modifier: Modifier = Modifier,
 ) {
-    val useExpandedFormat by remember {
-        derivedStateOf { shouldUseExpandedFormat(layoutState.transitionState) }
-    }
+    val useExpandedFormat by remember { derivedStateOf { shouldUseExpandedFormat(layoutState) } }
 
     val textColor = ShadeHeader.Colors.textColor
 
     Box(modifier = modifier.sysuiResTag(ShadeHeader.TestTags.Root)) {
         if (viewModel.isPrivacyChipVisible) {
-            Box(modifier = Modifier.height(ShadeHeader.Dimensions.StatusBarHeight).fillMaxWidth()) {
+            Box(
+                modifier =
+                    Modifier.height(viewModel.statusBarHeightPx.toDp(LocalContext.current).dp)
+                        .fillMaxWidth()
+            ) {
                 PrivacyChip(
                     privacyList = viewModel.privacyItems,
                     onClick = viewModel::onPrivacyChipClicked,
@@ -286,18 +314,23 @@ fun ContentScope.ExpandedShadeHeader(
             Box(modifier = Modifier.fillMaxWidth()) {
                 Clock(
                     onClick = viewModel::onClockClicked,
-                    modifier = Modifier.align(Alignment.CenterStart),
                     scale = 2.57f,
                     textColor = textColor,
-                )
-                Box(
                     modifier =
-                        Modifier.element(ShadeHeader.Elements.ShadeCarrierGroup).fillMaxWidth()
-                ) {
-                    ShadeCarrierGroup(
-                        viewModel = viewModel,
-                        modifier = Modifier.align(Alignment.CenterEnd),
-                    )
+                        Modifier.sysuiResTag("expanded_header_clock")
+                            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                            .wrapContentSize(Alignment.CenterStart),
+                )
+                if (!viewModel.isPrivacyChipVisible) {
+                    Box(
+                        modifier =
+                            Modifier.element(ShadeHeader.Elements.ShadeCarrierGroup).fillMaxWidth()
+                    ) {
+                        ShadeCarrierGroup(
+                            viewModel = viewModel,
+                            modifier = Modifier.align(Alignment.CenterEnd).widthIn(max = 180.dp),
+                        )
+                    }
                 }
             }
             Row(
@@ -309,13 +342,10 @@ fun ContentScope.ExpandedShadeHeader(
                     longerDateText = viewModel.longerDateText,
                     shorterDateText = viewModel.shorterDateText,
                     textColor = textColor,
-                    modifier = Modifier.widthIn(max = 90.dp),
+                    modifier = Modifier.sysuiResTag("expanded_shade_header_day_date"),
                 )
                 ShadeHighlightChip {
-                    val paddingEnd =
-                        with(LocalDensity.current) {
-                            (if (NewStatusBarIcons.isEnabled) 3.sp else 6.sp).toDp()
-                        }
+                    val paddingEnd = with(LocalDensity.current) { 3.sp.toDp() }
                     StatusIcons(
                         viewModel = viewModel,
                         useExpandedFormat = useExpandedFormat,
@@ -326,7 +356,7 @@ fun ContentScope.ExpandedShadeHeader(
                     BatteryInfo(
                         viewModel = viewModel,
                         showIcon = true,
-                        useExpandedFormat = useExpandedFormat,
+                        useExpandedFormat = true,
                         textColor = textColor,
                     )
                 }
@@ -348,29 +378,35 @@ fun ContentScope.OverlayShadeHeader(
     modifier: Modifier = Modifier,
 ) {
     val horizontalPadding =
-        max(LocalScreenCornerRadius.current / 2f, Shade.Dimensions.HorizontalPadding)
+        maxOf(
+            LocalScreenCornerRadius.current / 2f,
+            Shade.Dimensions.HorizontalPadding,
+            OverlayShade.Dimensions.PanelPaddingHorizontal,
+        )
 
-    // This layout assumes it is globally positioned at (0, 0) and is the same size as the screen.
+    // This layout assumes it is globally positioned at (0, 0) and is the same width as the screen.
     CutoutAwareShadeHeader(
+        statusBarHeightPx = viewModel.statusBarHeightPx,
         modifier = modifier,
         startContent = {
-            Box(modifier = Modifier.padding(horizontal = horizontalPadding)) {
+            Box(modifier = Modifier.layoutId(ShadeHeader.LayoutId.StartContent)) {
                 ShadeHighlightChip(
                     backgroundColor = notificationsHighlight.backgroundColor,
-                    onHoveredBackgroundColor = notificationsHighlight.onHoveredBackgroundColor,
+                    hoverBackgroundColor = notificationsHighlight.hoverBackgroundColor,
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                     onClick = viewModel::onNotificationIconChipClicked,
+                    clickTargetModifier =
+                        Modifier.fillMaxHeight().padding(horizontal = horizontalPadding),
                     modifier =
-                        Modifier.align(Alignment.CenterStart)
-                            .bouncy(
-                                isEnabled = viewModel.animateNotificationsChipBounce,
-                                onBoundsChange = { bounds ->
-                                    viewModel.onDualShadeEducationElementBoundsChange(
-                                        element = DualShadeEducationElement.Notifications,
-                                        bounds = bounds,
-                                    )
-                                },
-                            ),
+                        Modifier.bouncy(
+                            isEnabled = viewModel.animateNotificationsChipBounce,
+                            onBoundsChange = { bounds ->
+                                viewModel.onDualShadeEducationElementBoundsChange(
+                                    element = DualShadeEducationElement.Notifications,
+                                    bounds = bounds,
+                                )
+                            },
+                        ),
                 ) {
                     if (showClock) {
                         Clock(textColor = notificationsHighlight.foregroundColor)
@@ -387,12 +423,14 @@ fun ContentScope.OverlayShadeHeader(
             Row(
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = horizontalPadding),
+                modifier = Modifier.layoutId(ShadeHeader.LayoutId.EndContent),
             ) {
                 ShadeHighlightChip(
                     backgroundColor = quickSettingsHighlight.backgroundColor,
-                    onHoveredBackgroundColor = quickSettingsHighlight.onHoveredBackgroundColor,
+                    hoverBackgroundColor = quickSettingsHighlight.hoverBackgroundColor,
                     onClick = viewModel::onSystemIconChipClicked,
+                    clickTargetModifier =
+                        Modifier.fillMaxHeight().padding(horizontal = horizontalPadding),
                     modifier =
                         Modifier.bouncy(
                             isEnabled = viewModel.animateSystemIconChipBounce,
@@ -404,11 +442,7 @@ fun ContentScope.OverlayShadeHeader(
                             },
                         ),
                 ) {
-                    val paddingEnd =
-                        with(LocalDensity.current) {
-                            (if (NewStatusBarIcons.isEnabled) 3.sp else 6.sp).toDp()
-                        }
-                    val isHighlighted = quickSettingsHighlight is ChipHighlightModel.Strong
+                    val paddingEnd = with(LocalDensity.current) { 3.sp.toDp() }
                     StatusIcons(
                         viewModel = viewModel,
                         useExpandedFormat = false,
@@ -420,11 +454,13 @@ fun ContentScope.OverlayShadeHeader(
                         viewModel = viewModel,
                         showIcon = true,
                         useExpandedFormat = false,
-                        isHighlighted = isHighlighted,
+                        chipHighlightModel = quickSettingsHighlight,
                     )
                 }
-                if (viewModel.isPrivacyChipVisible) {
-                    Box(modifier = Modifier.fillMaxSize().padding(horizontal = horizontalPadding)) {
+                if (!groupedPrivacyChip() && viewModel.isPrivacyChipVisible) {
+                    Box(
+                        modifier = Modifier.fillMaxHeight().padding(horizontal = horizontalPadding)
+                    ) {
                         PrivacyChip(
                             privacyList = viewModel.privacyItems,
                             onClick = viewModel::onPrivacyChipClicked,
@@ -450,22 +486,41 @@ fun QuickSettingsOverlayHeader(viewModel: ShadeHeaderViewModel, modifier: Modifi
     }
 }
 
+@Composable
+fun ContentScope.QuickSettingsOverlayPrivacyChip(
+    viewModel: ShadeHeaderViewModel,
+    modifier: Modifier = Modifier,
+) {
+    if (groupedPrivacyChip() && viewModel.isPrivacyChipVisible) {
+        Box(modifier = modifier.height(48.dp).fillMaxWidth()) {
+            PrivacyChip(
+                privacyList = viewModel.privacyItems,
+                onClick = viewModel::onPrivacyChipClicked,
+                showPrivacyText = true,
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
+    }
+}
+
 /*
  * Places startContent and endContent according to the location of the display cutout.
  * Assumes it is globally positioned at (0, 0) and the same size as the screen.
  */
 @Composable
 private fun CutoutAwareShadeHeader(
+    statusBarHeightPx: Int,
     modifier: Modifier = Modifier,
     startContent: @Composable () -> Unit,
     endContent: @Composable () -> Unit,
 ) {
     val cutoutProvider = LocalDisplayCutout.current
-    val statusBarHeight = ShadeHeader.Dimensions.StatusBarHeight
     Layout(
         modifier = modifier.sysuiResTag(ShadeHeader.TestTags.Root),
         contents = listOf(startContent, endContent),
     ) { measurables, constraints ->
+        val measurableStartContent = measurables[0].byLayoutId<ShadeHeader.LayoutId>()
+        val measurableEndContent = measurables[1].byLayoutId<ShadeHeader.LayoutId>()
         val cutout = cutoutProvider()
 
         val cutoutWidth = cutout.width
@@ -474,38 +529,59 @@ private fun CutoutAwareShadeHeader(
         val cutoutLocation = cutout.location
 
         check(constraints.hasBoundedWidth)
-        check(measurables.size == 2)
-        check(measurables[0].size == 1)
-        check(measurables[1].size == 1)
 
         val screenWidth = constraints.maxWidth
-        val height = max(cutoutHeight + (cutoutTop * 2), statusBarHeight.roundToPx())
-        val childConstraints = Constraints.fixed((screenWidth - cutoutWidth) / 2, height)
+        val width = max((screenWidth - cutoutWidth) / 2, 0)
+        val height = max(cutoutHeight + (cutoutTop * 2), statusBarHeightPx)
+        val childConstraints = Constraints.fixed(width, height)
 
-        val startMeasurable = measurables[0][0]
-        val endMeasurable = measurables[1][0]
-
-        val startPlaceable = startMeasurable.measure(childConstraints)
-        val endPlaceable = endMeasurable.measure(childConstraints)
+        fun measureStart(constraints: Constraints) =
+            measurableStartContent[ShadeHeader.LayoutId.StartContent]!!.measure(constraints)
+        fun measureEnd(constraints: Constraints) =
+            measurableEndContent[ShadeHeader.LayoutId.EndContent]!!.measure(constraints)
 
         layout(screenWidth, height) {
-            when (cutoutLocation) {
-                CutoutLocation.NONE,
-                CutoutLocation.RIGHT -> {
+            if (cutoutLocation == CutoutLocation.RIGHT) {
+                val isRightToLeftEnabled = layoutDirection == LayoutDirection.Rtl
+                if (isRightToLeftEnabled) {
+                    val rightCutoutChildConstraints =
+                        Constraints.fixed(screenWidth - cutoutWidth, height)
+                    val startPlaceable = measureStart(rightCutoutChildConstraints)
+                    val endPlaceable = measureEnd(rightCutoutChildConstraints)
+
+                    startPlaceable.place(
+                        x = screenWidth - cutoutWidth - startPlaceable.width,
+                        y = 0,
+                    )
+                    endPlaceable.place(x = 0, y = 0)
+                } else {
+                    val startPlaceable = measureStart(childConstraints)
+                    val endPlaceable = measureEnd(childConstraints)
                     startPlaceable.placeRelative(x = 0, y = 0)
                     endPlaceable.placeRelative(x = startPlaceable.width, y = 0)
                 }
-                CutoutLocation.CENTER -> {
+            } else {
+                val startPlaceable = measureStart(childConstraints)
+                val endPlaceable = measureEnd(childConstraints)
+                if (cutoutLocation == CutoutLocation.NONE) {
+                    startPlaceable.placeRelative(x = 0, y = 0)
+                    endPlaceable.placeRelative(x = startPlaceable.width, y = 0)
+                } else if (cutoutLocation == CutoutLocation.CENTER) {
                     startPlaceable.placeRelative(x = 0, y = 0)
                     endPlaceable.placeRelative(x = startPlaceable.width + cutoutWidth, y = 0)
-                }
-                CutoutLocation.LEFT -> {
+                } else {
+                    // CutoutLocation.LEFT
                     startPlaceable.placeRelative(x = cutoutWidth, y = 0)
                     endPlaceable.placeRelative(x = startPlaceable.width + cutoutWidth, y = 0)
                 }
             }
         }
     }
+}
+
+@VisibleForTesting
+object ShadeHeaderMotionTestKeys {
+    val Alpha = MotionTestValueKey<Float>("alpha")
 }
 
 @Composable
@@ -517,7 +593,15 @@ private fun ContentScope.Clock(
 ) {
     val layoutDirection = LocalLayoutDirection.current
 
-    ElementWithValues(key = ShadeHeader.Elements.Clock, modifier = modifier) {
+    ElementWithValues(
+        key = ShadeHeader.Elements.Clock,
+        modifier =
+            modifier.motionTestValues {
+                ShadeHeader.Elements.Clock.currentAlpha()?.let { alpha ->
+                    alpha exportAs ShadeHeaderMotionTestKeys.Alpha
+                }
+            },
+    ) {
         val animatedScale by animateElementFloatAsState(scale, ClockScale, canOverflow = false)
 
         content {
@@ -534,6 +618,24 @@ private fun ContentScope.Clock(
                             isSingleLine = true
                             textDirection = View.TEXT_DIRECTION_LOCALE
                             gravity = Gravity.START or Gravity.CENTER_VERTICAL
+                            if (onClick != null) {
+                                isClickable = true
+                                isFocusable = true
+                                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+                                setOnClickListener { onClick.invoke() }
+                                accessibilityDelegate =
+                                    object : View.AccessibilityDelegate() {
+                                        override fun onInitializeAccessibilityNodeInfo(
+                                            host: View,
+                                            info: AccessibilityNodeInfo,
+                                        ) {
+                                            super.onInitializeAccessibilityNodeInfo(host, info)
+                                            info.className = android.widget.Button::class.java.name
+                                            info.isClickable = true
+                                            info.isFocusable = true
+                                        }
+                                    }
+                            }
                         }
                 },
                 update = { view -> textColor?.let { view.setTextColor(it.toArgb()) } },
@@ -566,85 +668,78 @@ private fun BatteryInfo(
     showIcon: Boolean,
     useExpandedFormat: Boolean,
     modifier: Modifier = Modifier,
-    isHighlighted: Boolean = false,
     textColor: Color = MaterialTheme.colorScheme.onSurface,
+    chipHighlightModel: ChipHighlightModel? = null,
 ) {
-    if (NewStatusBarIcons.isEnabled) {
-        BatteryWithEstimate(
-            viewModelFactory = viewModel.batteryViewModelFactory,
-            isDarkProvider = { viewModel.isShadeAreaDark },
-            showIcon = showIcon,
-            showEstimate = useExpandedFormat,
-            textColor = textColor,
-            modifier = modifier.sysuiResTag(ShadeHeader.TestTags.BatteryTestTag),
-        )
-    } else {
-        BatteryIconLegacy(
-            createBatteryMeterViewController = viewModel.createBatteryMeterViewController,
-            useExpandedFormat = useExpandedFormat,
-            modifier = modifier.sysuiResTag(ShadeHeader.TestTags.BatteryTestTagLegacy),
-            isHighlighted = isHighlighted,
-        )
-    }
-}
-
-@Composable
-private fun BatteryIconLegacy(
-    createBatteryMeterViewController: (ViewGroup, StatusBarLocation) -> BatteryMeterViewController,
-    useExpandedFormat: Boolean,
-    modifier: Modifier = Modifier,
-    isHighlighted: Boolean = false,
-) {
-    NewStatusBarIcons.assertInLegacyMode()
-
-    val localContext = LocalContext.current
-    val themedContext =
-        ContextThemeWrapper(localContext, R.style.Theme_SystemUI_QuickSettings_Header)
-    val primaryColor =
-        Utils.getColorAttrDefaultColor(themedContext, android.R.attr.textColorPrimary)
-    val inverseColor =
-        Utils.getColorAttrDefaultColor(themedContext, android.R.attr.textColorPrimaryInverse)
-
-    val cutout = LocalDisplayCutout.current
-
-    AndroidView(
-        factory = { context ->
-            val batteryIcon = BatteryMeterView(context, null)
-            batteryIcon.setPercentShowMode(BatteryMeterView.MODE_ON)
-
-            // [BatteryMeterView.updateColors] is an old method that was built to distinguish
-            // between dual-tone colors and single-tone. The current icon is only single-tone, so
-            // the final [fg] is the only one we actually need
-            batteryIcon.updateColors(primaryColor, inverseColor, primaryColor)
-
-            val batteryMaterViewController =
-                createBatteryMeterViewController(batteryIcon, StatusBarLocation.QS)
-            batteryMaterViewController.init()
-            batteryMaterViewController.ignoreTunerUpdates()
-
-            batteryIcon
-        },
-        update = { batteryIcon ->
-            val cutoutLocation = cutout().location
-            batteryIcon.setPercentShowMode(
-                if (useExpandedFormat || cutoutLocation != CutoutLocation.CENTER) {
-                    BatteryMeterView.MODE_ESTIMATE
-                } else {
-                    BatteryMeterView.MODE_ON
-                }
-            )
-            // TODO(b/397223606): Get the actual spec for this.
-            batteryIcon.updateColors(
-                primaryColor,
-                inverseColor,
-                if (isHighlighted) inverseColor else primaryColor,
-            )
-        },
-        modifier = modifier,
+    val isQuickSettingsDarkTheme = isSystemInDarkTheme()
+    // `viewModel.isShadeAreaDark` does not account for when the shade is pulled down and scrim is
+    // applied behind the battery. Use `isSystemInDarkTheme` for sufficient contrast against the
+    // shade.
+    val isDarkProvider: IsAreaDark =
+        when (chipHighlightModel) {
+            // null means directly on top of the shade scrim.
+            null -> IsAreaDark { isQuickSettingsDarkTheme }
+            ChipHighlightModel.Transparent -> viewModel.isShadeAreaDark
+            ChipHighlightModel.Strong -> IsAreaDark { !isQuickSettingsDarkTheme }
+            ChipHighlightModel.Weak -> IsAreaDark { isQuickSettingsDarkTheme }
+        }
+    BatteryWithEstimate(
+        viewModelFactory = viewModel.batteryViewModelFactory,
+        isDarkProvider = { isDarkProvider },
+        showIcon = showIcon,
+        showEstimate = useExpandedFormat,
+        textColor = textColor,
+        modifier = modifier.sysuiResTag(ShadeHeader.TestTags.BatteryTestTag),
     )
 }
 
-@OptIn(ExperimentalKairosApi::class)
+@Composable
+private fun CarrierTextWithSubscriptionId(
+    viewModel: ShadeHeaderViewModel,
+    subId: Int,
+    textColor: Color,
+    inverseTextColor: Color,
+) {
+    AndroidView(
+        factory = { context ->
+            ModernShadeCarrierGroupMobileView.constructAndBind(
+                    context = context,
+                    logger = viewModel.mobileIconsViewModel.get().logger,
+                    slot = "mobile_carrier_shade_group",
+                    viewModel =
+                        (viewModel.mobileIconsViewModel
+                            .get()
+                            .viewModelForSub(subId, StatusBarLocation.SHADE_CARRIER_GROUP)
+                            as ShadeCarrierGroupMobileIconViewModel),
+                )
+                .also { it.setOnClickListener { viewModel.onShadeCarrierGroupClicked() } }
+        },
+        update = { view ->
+            view.setStyleAndTint(
+                R.style.TextAppearance_QS_Status,
+                textColor.toArgb(),
+                inverseTextColor.toArgb(),
+            )
+        },
+    )
+}
+
+@Composable
+private fun CarrierTextNoSubscriptionId(viewModel: ShadeHeaderViewModel) {
+    Text(
+        text = viewModel.carrierText.toString(),
+        modifier = Modifier.basicMarquee(),
+        color = ShadeHeader.Colors.textColor,
+        style =
+            TextStyle(
+                fontFamily =
+                    FontFamily(Font(DeviceFontFamilyName("variable-body-medium-emphasized"))),
+                letterSpacing = 0.01.em,
+            ),
+        maxLines = 1,
+    )
+}
+
 @Composable
 private fun ShadeCarrierGroup(viewModel: ShadeHeaderViewModel, modifier: Modifier = Modifier) {
     if (StatusBarMobileIconKairos.isEnabled) {
@@ -652,64 +747,47 @@ private fun ShadeCarrierGroup(viewModel: ShadeHeaderViewModel, modifier: Modifie
         return
     }
 
+    val textColor = ShadeHeader.Colors.textColor
+    val inverseTextColor = ShadeHeader.Colors.inverseTextColor
+    val mobileSubIds = viewModel.mobileSubIds
+
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-        for (subId in viewModel.mobileSubIds) {
-            AndroidView(
-                factory = { context ->
-                    ModernShadeCarrierGroupMobileView.constructAndBind(
-                            context = context,
-                            logger = viewModel.mobileIconsViewModel.logger,
-                            slot = "mobile_carrier_shade_group",
-                            viewModel =
-                                (viewModel.mobileIconsViewModel.viewModelForSub(
-                                    subId,
-                                    StatusBarLocation.SHADE_CARRIER_GROUP,
-                                ) as ShadeCarrierGroupMobileIconViewModel),
-                        )
-                        .also { it.setOnClickListener { viewModel.onShadeCarrierGroupClicked() } }
-                }
-            )
+        if (mobileSubIds.isEmpty()) {
+            CarrierTextNoSubscriptionId(viewModel)
+        } else {
+            for (subId in mobileSubIds) {
+                CarrierTextWithSubscriptionId(viewModel, subId, textColor, inverseTextColor)
+            }
         }
     }
 }
 
-@ExperimentalKairosApi
 @Composable
 private fun ShadeCarrierGroupKairos(
     viewModel: ShadeHeaderViewModel,
     modifier: Modifier = Modifier,
 ) {
+    val textColor = ShadeHeader.Colors.textColor
+    val inverseTextColor = ShadeHeader.Colors.inverseTextColor
     Row(modifier = modifier) {
         ActivatedKairosSpec(
             buildSpec = viewModel.mobileIconsViewModelKairos.get().composeWrapper(),
             kairosNetwork = viewModel.kairosNetwork,
             name = nameTag("ShadeCarrierGroupKairos"),
         ) { iconsViewModel: MobileIconsViewModelKairosComposeWrapper ->
-            for ((subId, icon) in iconsViewModel.icons) {
-                Spacer(modifier = Modifier.width(5.dp))
-                val scope = rememberCoroutineScope()
-                AndroidView(
-                    factory = { context ->
-                        ModernShadeCarrierGroupMobileView.constructAndBindKairos(
-                                context = context,
-                                logger = iconsViewModel.logger,
-                                slot = "mobile_carrier_shade_group",
-                                viewModel =
-                                    ShadeCarrierGroupMobileIconViewModelKairos(
-                                        icon,
-                                        icon.iconInteractor,
-                                    ),
-                                scope = scope,
-                                subscriptionId = subId,
-                                location = StatusBarLocation.SHADE_CARRIER_GROUP,
-                                kairosNetwork = viewModel.kairosNetwork,
-                            )
-                            .first
-                            .also {
-                                it.setOnClickListener { viewModel.onShadeCarrierGroupClicked() }
-                            }
-                    }
-                )
+            if (iconsViewModel.icons.isEmpty()) {
+                CarrierTextNoSubscriptionId(viewModel)
+            } else {
+                for ((subId, icon) in iconsViewModel.icons) {
+                    CarrierTextWithSubscriptionIdKairos(
+                        viewModel,
+                        subId,
+                        icon,
+                        iconsViewModel.logger,
+                        textColor,
+                        inverseTextColor,
+                    )
+                }
             }
         }
     }
@@ -733,6 +811,7 @@ private fun ContentScope.StatusIcons(
     if (SystemStatusIconsInCompose.isEnabled) {
         SystemStatusIcons(
             viewModelFactory = viewModel.systemStatusIconsViewModelFactory,
+            systemStatusIconBlocklistInteractor = viewModel.systemStatusIconsBlockListInteractor,
             tint = Color(foregroundColor),
         )
     } else {
@@ -757,21 +836,72 @@ private fun ContentScope.StatusIcons(
 }
 
 @Composable
+private fun CarrierTextWithSubscriptionIdKairos(
+    viewModel: ShadeHeaderViewModel,
+    subId: Int,
+    icon: MobileIconViewModelKairos,
+    logger: MobileViewLogger,
+    textColor: Color,
+    inverseTextColor: Color,
+) {
+    Spacer(modifier = Modifier.width(5.dp))
+    val scope = rememberCoroutineScope()
+    AndroidView(
+        factory = { context ->
+            ModernShadeCarrierGroupMobileView.constructAndBindKairos(
+                    context = context,
+                    logger = logger,
+                    slot = "mobile_carrier_shade_group",
+                    viewModel =
+                        ShadeCarrierGroupMobileIconViewModelKairos(icon, icon.iconInteractor),
+                    scope = scope,
+                    subscriptionId = subId,
+                    location = StatusBarLocation.SHADE_CARRIER_GROUP,
+                    kairosNetwork = viewModel.kairosNetwork,
+                )
+                .first
+                .also { it.setOnClickListener { viewModel.onShadeCarrierGroupClicked() } }
+        },
+        update = { view ->
+            view.setStyleAndTint(
+                R.style.TextAppearance_QS_Status,
+                textColor.toArgb(),
+                inverseTextColor.toArgb(),
+            )
+        },
+    )
+}
+
+@Composable
 private fun ContentScope.PrivacyChip(
     privacyList: List<PrivacyItem>,
-    onClick: (OngoingPrivacyChip) -> Unit,
+    onClick: (AbstractOngoingPrivacyChip) -> Unit,
     modifier: Modifier = Modifier,
+    showPrivacyText: Boolean = false,
 ) {
     AndroidView(
         factory = { context ->
             val view =
-                OngoingPrivacyChip(context, null).also { privacyChip ->
-                    privacyChip.privacyList = privacyList
-                    privacyChip.setOnClickListener { onClick(privacyChip) }
-                }
+                if (groupedPrivacyChip()) {
+                        ComposeOngoingPrivacyChip(context).apply {
+                            this.showPrivacyText = showPrivacyText
+                            layoutParams.apply { height = MATCH_PARENT }
+                        }
+                    } else {
+                        OngoingPrivacyChip(context, null)
+                    }
+                    .also { privacyChip: AbstractOngoingPrivacyChip ->
+                        privacyChip.privacyList = privacyList
+                        privacyChip.setOnClickListener { onClick(privacyChip) }
+                    }
             view
         },
-        update = { it.privacyList = privacyList },
+        update = {
+            it.privacyList = privacyList
+            if (groupedPrivacyChip()) {
+                (it as ComposeOngoingPrivacyChip).apply { this.showPrivacyText = showPrivacyText }
+            }
+        },
         modifier = modifier.element(ShadeHeader.Elements.PrivacyChip),
     )
 }
@@ -832,8 +962,7 @@ private fun Modifier.bouncy(
     }
 
     return this.thenIf(isEnabled) {
-        Modifier.offset { IntOffset(x = 0, y = animatable.value.roundToInt()) }
-            .onGloballyPositioned { coordinates ->
+        Modifier.onGloballyPositioned { coordinates ->
                 val offset = coordinates.positionInWindow()
                 onBoundsChange(
                     IntRect(
@@ -842,15 +971,13 @@ private fun Modifier.bouncy(
                     )
                 )
             }
+            .offset { IntOffset(x = 0, y = animatable.value.roundToInt()) }
     }
 }
 
-private fun shouldUseExpandedFormat(state: TransitionState): Boolean {
-    return when (state) {
-        is TransitionState.Idle -> state.currentScene == Scenes.QuickSettings
-        is TransitionState.Transition -> {
-            (state.isTransitioning(to = Scenes.QuickSettings) && state.progress >= 0.5) ||
-                (state.isTransitioning(from = Scenes.QuickSettings) && state.progress <= 0.5)
-        }
-    }
+private fun shouldUseExpandedFormat(state: SceneTransitionLayoutState): Boolean {
+    return state.isIdle(Scenes.QuickSettings) ||
+        (state is TransitionState.Transition &&
+            ((state.isTransitioning(to = Scenes.QuickSettings) && state.progress >= 0.5) ||
+                (state.isTransitioning(from = Scenes.QuickSettings) && state.progress <= 0.5)))
 }

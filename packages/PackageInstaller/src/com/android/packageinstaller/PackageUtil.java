@@ -25,7 +25,6 @@ import android.app.DialogFragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.ApplicationInfo;
-import android.content.pm.Flags;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ProviderInfo;
@@ -42,7 +41,6 @@ import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.UserHandle;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
@@ -184,6 +182,9 @@ public class PackageUtil {
         }
 
         @Override
+        // writeString8 is a hidden API, which is unavailable as this package does not use
+        // platform_apis.
+        @SuppressWarnings("AndroidFrameworkEfficientParcelable")
         public void writeToParcel(@NonNull Parcel dest, int flags) {
             dest.writeString(label.toString());
 
@@ -374,7 +375,9 @@ public class PackageUtil {
         public Dialog onCreateDialog(Bundle savedInstanceState) {
             return new AlertDialog.Builder(getActivity())
                     .setMessage(getArguments().getInt(MESSAGE_KEY))
-                    .setPositiveButton(R.string.ok, (dialog, which) -> getActivity().finish())
+                    .setPositiveButton(R.string.ok, (dialog, which) -> {
+                        getActivity().finish();
+                    })
                     .create();
         }
 
@@ -410,8 +413,6 @@ public class PackageUtil {
     /**
      * Returns if the version two is enabled.
      * 1. Currently, the version two is only enabled for the mobile devices
-     * 2. The aconfig usePiaV2 is true
-     * 3. The test settings use_pia_v2 is 1
      */
     public static boolean isVersionTwoEnabled(@NonNull Context context) {
         if (isAuto(context) || isTV(context) || isWatch(context)) {
@@ -425,16 +426,8 @@ public class PackageUtil {
             return false;
         }
 
-        boolean testOverrideForPiaV2 = Settings.System.getInt(context.getContentResolver(),
-                "use_pia_v2", 0) == 1;
-        boolean usePiaV2aConfig = Flags.usePiaV2();
-        if (usePiaV2aConfig || testOverrideForPiaV2) {
-            Log.d(LOG_TAG, getDebugStringForPiaV2(usePiaV2aConfig, testOverrideForPiaV2));
-            return true;
-        }
-
-        Log.d(LOG_TAG, "Use PIA V1");
-        return false;
+        Log.d(LOG_TAG, "Use PIA V2");
+        return true;
     }
 
     private static boolean hasSystemFeature(@NonNull Context context, @NonNull String featureName) {

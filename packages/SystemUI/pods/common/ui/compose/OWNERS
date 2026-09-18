@@ -1,0 +1,9 @@
+set noparent
+
+# Bug component: 78010
+
+ostonge@google.com
+nijamkin@google.com
+pixel@google.com
+
+per-file {**/,}Android.bp = file:/packages/SystemUI/BUILD_OWNERS

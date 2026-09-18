@@ -19,19 +19,16 @@ package {
     default_applicable_licenses: ["Android-Apache-2.0"],
 }
 
-// This filegroup is used by menu tests.
-filegroup {
+android_library {
     name: "AccessibilityMenuSource",
     srcs: [
-        "src/**/AccessibilityMenuService.java",
-        "src/**/A11yMenuShortcut.java",
+        "src/**/*.java",
+        "src/**/*.kt",
     ],
-}
-
-android_app {
-    name: "AccessibilityMenu",
+    resource_dirs: ["res"],
     use_resource_processor: true,
 
+    kotlincflags: ["-Xjvm-default=all"],
     static_libs: [
         "androidx.coordinatorlayout_coordinatorlayout",
         "androidx.core_core",
@@ -40,10 +37,36 @@ android_app {
         "com_android_systemui_flags_lib",
         "SettingsLibCollapsingToolbarBaseActivity",
         "SettingsLibDisplayUtils",
+        "SettingsLibPreference",
+        "SettingsLibService",
         "SettingsLibSettingsTheme",
         "SystemUI-shared-utils",
         "com_android_a11y_menu_flags_lib",
         "//frameworks/libs/systemui:view_capture",
+    ],
+
+    optimize: {
+        enabled: true,
+        optimize: true,
+        shrink: true,
+        shrink_resources: true,
+        proguard_compatibility: false,
+    },
+}
+
+android_library {
+    name: "AccessibilityFloatingMenu-res",
+    resource_dirs: ["res"],
+    use_resource_processor: true,
+    manifest: "AndroidManifest-floatingmenu.xml",
+}
+
+android_app {
+    name: "AccessibilityMenu",
+    use_resource_processor: true,
+
+    static_libs: [
+        "AccessibilityMenuSource",
     ],
 
     optimize: {
@@ -58,11 +81,8 @@ android_app {
         "org.apache.http.legacy",
     ],
 
-    srcs: [
-        "src/**/*.java",
-    ],
+    kotlincflags: ["-Xjvm-default=all"],
     system_ext_specific: true,
     platform_apis: true,
-    resource_dirs: ["res"],
     certificate: "platform",
 }

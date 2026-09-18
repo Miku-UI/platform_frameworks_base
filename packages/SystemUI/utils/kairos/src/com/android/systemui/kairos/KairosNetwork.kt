@@ -20,7 +20,6 @@ import com.android.app.tracing.coroutines.launchTraced
 import com.android.systemui.kairos.internal.BuildScopeImpl
 import com.android.systemui.kairos.internal.EvalScope
 import com.android.systemui.kairos.internal.Network
-import com.android.systemui.kairos.internal.NoScope
 import com.android.systemui.kairos.internal.StateScopeImpl
 import com.android.systemui.kairos.internal.util.childScope
 import com.android.systemui.kairos.util.FullNameTag
@@ -41,18 +40,10 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 
-/** Marks APIs that are still **experimental** and shouldn't be used in general production code. */
-@RequiresOptIn(
-    message = "This API is experimental and should not be used in general production code."
-)
-@Retention(AnnotationRetention.BINARY)
-annotation class ExperimentalKairosApi
-
 /**
  * External interface to a Kairos network of reactive components. Can be used to make transactional
  * queries and modifications to the network.
  */
-@ExperimentalKairosApi
 interface KairosNetwork {
     /**
      * Runs [block] inside of a transaction, suspending until the transaction is complete.
@@ -69,87 +60,13 @@ interface KairosNetwork {
      * effects are cancelled.
      */
     suspend fun activateSpec(name: NameTag? = null, spec: BuildSpec<*>)
-
-    /** Returns a [CoalescingMutableEvents] that can emit values into this [KairosNetwork]. */
-    fun <In, Out> coalescingMutableEvents(
-        getInitialValue: KairosScope.() -> Out,
-        name: NameTag? = null,
-        coalesce: KairosScope.(old: Out, new: In) -> Out,
-    ): CoalescingMutableEvents<In, Out>
-
-    /** Returns a [MutableState] that can emit values into this [KairosNetwork]. */
-    fun <T> mutableEvents(name: NameTag? = null): MutableEvents<T>
-
-    /** Returns a [CoalescingMutableEvents] that can emit values into this [KairosNetwork]. */
-    fun <T> conflatedMutableEvents(name: NameTag? = null): CoalescingMutableEvents<T, T>
-
-    /** Returns a [MutableState]. with initial state [initialValue]. */
-    fun <T> mutableStateDeferred(
-        initialValue: DeferredValue<T>,
-        name: NameTag? = null,
-    ): MutableState<T>
 }
-
-/** Returns a [CoalescingMutableEvents] that can emit values into this [KairosNetwork]. */
-@ExperimentalKairosApi
-fun <In, Out> KairosNetwork.coalescingMutableEvents(
-    initialValue: Out,
-    name: NameTag? = null,
-    coalesce: KairosScope.(old: Out, new: In) -> Out,
-): CoalescingMutableEvents<In, Out> =
-    coalescingMutableEvents(getInitialValue = { initialValue }, name, coalesce)
-
-/** Returns a [MutableState] with initial state [initialValue]. */
-@ExperimentalKairosApi
-fun <T> KairosNetwork.mutableState(initialValue: T, name: NameTag? = null): MutableState<T> =
-    mutableStateDeferred(deferredOf(initialValue), name)
-
-/** Returns a [MutableState] with initial state [initialValue]. */
-@ExperimentalKairosApi
-fun <T> MutableState(
-    network: KairosNetwork,
-    initialValue: T,
-    name: NameTag? = null,
-): MutableState<T> = network.mutableState(initialValue, name)
-
-/** Returns a [MutableEvents] that can emit values into this [KairosNetwork]. */
-@ExperimentalKairosApi
-fun <T> MutableEvents(network: KairosNetwork, name: NameTag? = null): MutableEvents<T> =
-    network.mutableEvents(name)
-
-/** Returns a [CoalescingMutableEvents] that can emit values into this [KairosNetwork]. */
-@ExperimentalKairosApi
-fun <In, Out> CoalescingMutableEvents(
-    network: KairosNetwork,
-    initialValue: Out,
-    name: NameTag? = null,
-    coalesce: KairosScope.(old: Out, new: In) -> Out,
-): CoalescingMutableEvents<In, Out> =
-    network.coalescingMutableEvents({ initialValue }, name, coalesce)
-
-/** Returns a [CoalescingMutableEvents] that can emit values into this [KairosNetwork]. */
-@ExperimentalKairosApi
-fun <In, Out> CoalescingMutableEvents(
-    network: KairosNetwork,
-    getInitialValue: KairosScope.() -> Out,
-    name: NameTag? = null,
-    coalesce: KairosScope.(old: Out, new: In) -> Out,
-): CoalescingMutableEvents<In, Out> =
-    network.coalescingMutableEvents(getInitialValue, name, coalesce)
-
-/** Returns a [CoalescingMutableEvents] that can emit values into this [KairosNetwork]. */
-@ExperimentalKairosApi
-fun <T> ConflatedMutableEvents(
-    network: KairosNetwork,
-    name: NameTag? = null,
-): CoalescingMutableEvents<T, T> = network.conflatedMutableEvents(name)
 
 /**
  * Activates [spec] in a transaction and invokes [block] with the result, suspending indefinitely.
  * While suspended, all observers and long-running effects are kept alive. When cancelled, observers
  * are unregistered and effects are cancelled.
  */
-@ExperimentalKairosApi
 suspend fun <R> KairosNetwork.activateSpec(
     name: NameTag? = null,
     spec: BuildSpec<R>,
@@ -179,7 +96,7 @@ internal class LocalNetwork(
     override suspend fun activateSpec(name: NameTag?, spec: BuildSpec<*>): Unit = coroutineScope {
         val nameData = name.toNameData("KairosNetwork.activateSpec")
         lateinit var completionHandle: DisposableHandle
-        val childEndSignal = conflatedMutableEvents<Unit>(nameData.mapName { "$it-specEndSignal" })
+        val childEndSignal = ConflatedMutableEvents<Unit>(nameData.mapName { "$it-specEndSignal" })
         coroutineContext.job.invokeOnCompletion {
             completionHandle.dispose()
             childEndSignal.emit(Unit)
@@ -189,6 +106,7 @@ internal class LocalNetwork(
                 network
                     .transaction("KairosNetwork.activateSpec") {
                         enterBuildScope(this@coroutineScope)
+                            // TODO: this might be simpler with [mutableBuildScope]
                             .childBuildScope(childEndSignal, nameData)
                             .run {
                                 launchScope(nameData.mapName { "$it-applySpec" }) {
@@ -234,39 +152,6 @@ internal class LocalNetwork(
             throw ex
         }
 
-    override fun <In, Out> coalescingMutableEvents(
-        getInitialValue: KairosScope.() -> Out,
-        name: NameTag?,
-        coalesce: KairosScope.(old: Out, new: In) -> Out,
-    ): CoalescingMutableEvents<In, Out> =
-        CoalescingMutableEvents(
-            name.toNameData("KairosNetwork.coalescingMutableEvents"),
-            coalesce = { old, new -> NoScope.coalesce(old.value, new) },
-            network,
-            { NoScope.getInitialValue() },
-        )
-
-    override fun <T> conflatedMutableEvents(name: NameTag?): CoalescingMutableEvents<T, T> =
-        CoalescingMutableEvents(
-            name.toNameData("KairosNetwork.conflatedMutableEvents"),
-            coalesce = { _, new -> new },
-            network,
-            { error("WTF: init value accessed for conflatedMutableEvents") },
-        )
-
-    override fun <T> mutableEvents(name: NameTag?): MutableEvents<T> =
-        MutableEvents(network, name.toNameData("KairosNetwork.mutableEvents"))
-
-    override fun <T> mutableStateDeferred(
-        initialValue: DeferredValue<T>,
-        name: NameTag?,
-    ): MutableState<T> =
-        MutableState(
-            name.toNameData("KairosNetwork.mutableStateDeferred"),
-            network,
-            initialValue.unwrapped,
-        )
-
     override fun toString(): String = "${super.toString()}[$nameData]"
 }
 
@@ -274,7 +159,6 @@ internal class LocalNetwork(
  * Combination of an [KairosNetwork] and a [Job] that, when cancelled, will cancel the entire Kairos
  * network.
  */
-@ExperimentalKairosApi
 class RootKairosNetwork
 internal constructor(private val network: Network, private val scope: CoroutineScope, job: Job) :
     Job by job,
@@ -286,7 +170,6 @@ internal constructor(private val network: Network, private val scope: CoroutineS
     )
 
 /** Constructs a new [RootKairosNetwork] in the given [CoroutineScope] and [CoalescingPolicy]. */
-@ExperimentalKairosApi
 fun CoroutineScope.launchKairosNetwork(
     context: CoroutineContext = EmptyCoroutineContext,
     coalescingPolicy: CoalescingPolicy = CoalescingPolicy.Normal,
@@ -298,14 +181,12 @@ fun CoroutineScope.launchKairosNetwork(
 }
 
 /** Constructs a new [RootKairosNetwork] in the given [CoroutineScope] and [CoalescingPolicy]. */
-@ExperimentalKairosApi
 fun KairosNetwork(
     scope: CoroutineScope,
     coalescingPolicy: CoalescingPolicy = CoalescingPolicy.Normal,
 ): RootKairosNetwork = scope.launchKairosNetwork(coalescingPolicy = coalescingPolicy)
 
 /** Configures how multiple input events are processed by the network. */
-@ExperimentalKairosApi
 enum class CoalescingPolicy {
     /**
      * Each input event is processed in its own transaction. This policy has the least overhead but
@@ -332,7 +213,6 @@ enum class CoalescingPolicy {
     Eager,
 }
 
-@ExperimentalKairosApi
 interface HasNetwork : KairosScope {
     /**
      * A [KairosNetwork] handle that is bound to the lifetime of a [BuildScope].
@@ -344,36 +224,3 @@ interface HasNetwork : KairosScope {
      */
     val kairosNetwork: KairosNetwork
 }
-
-/** Returns a [MutableEvents] that can emit values into this [KairosNetwork]. */
-@ExperimentalKairosApi
-fun <T> HasNetwork.MutableEvents(name: NameTag? = null): MutableEvents<T> =
-    MutableEvents(kairosNetwork, name)
-
-/** Returns a [MutableState] with initial state [initialValue]. */
-@ExperimentalKairosApi
-fun <T> HasNetwork.MutableState(initialValue: T, name: NameTag? = null): MutableState<T> =
-    MutableState(kairosNetwork, initialValue, name)
-
-/** Returns a [CoalescingMutableEvents] that can emit values into this [KairosNetwork]. */
-@ExperimentalKairosApi
-fun <In, Out> HasNetwork.CoalescingMutableEvents(
-    initialValue: Out,
-    name: NameTag? = null,
-    coalesce: KairosScope.(old: Out, new: In) -> Out,
-): CoalescingMutableEvents<In, Out> =
-    CoalescingMutableEvents(kairosNetwork, initialValue, name, coalesce)
-
-/** Returns a [CoalescingMutableEvents] that can emit values into this [KairosNetwork]. */
-@ExperimentalKairosApi
-fun <In, Out> HasNetwork.CoalescingMutableEvents(
-    getInitialValue: KairosScope.() -> Out,
-    name: NameTag? = null,
-    coalesce: KairosScope.(old: Out, new: In) -> Out,
-): CoalescingMutableEvents<In, Out> =
-    CoalescingMutableEvents(kairosNetwork, getInitialValue, name, coalesce)
-
-/** Returns a [CoalescingMutableEvents] that can emit values into this [KairosNetwork]. */
-@ExperimentalKairosApi
-fun <T> HasNetwork.ConflatedMutableEvents(name: NameTag? = null): CoalescingMutableEvents<T, T> =
-    ConflatedMutableEvents(kairosNetwork, name)

@@ -91,6 +91,8 @@ class DesktopModeUiEventLogger(
             INVALID_PACKAGE_UID
         }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logD(msg: String, vararg arguments: Any?) {
         ProtoLog.d(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }
@@ -196,6 +198,8 @@ class DesktopModeUiEventLogger(
         A11Y_ACTION_RESIZE_LEFT(2168),
         @UiEvent(doc = "A11y service triggered a11y action to resize app window right")
         A11Y_ACTION_RESIZE_RIGHT(2169),
+        @UiEvent(doc = "A11y service triggered a11y action to exit fullscreen")
+        A11Y_ACTION_EXIT_FULLSCREEN(2661),
         @UiEvent(doc = "Switch to browser by clicking open in browser button in the handle menu")
         DESKTOP_WINDOWING_APP_TO_WEB_OPEN_IN_BROWSER(2487),
         @UiEvent(doc = "Switch to app by clicking open in app button in the handle menu")

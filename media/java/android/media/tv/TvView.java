@@ -197,8 +197,8 @@ public class TvView extends ViewGroup {
         mDefStyleAttr = defStyleAttr;
         resetSurfaceView();
         mTvInputManager = (TvInputManager) getContext().getSystemService(Context.TV_INPUT_SERVICE);
-        mMediaQualityManager = (MediaQualityManager) getContext().getSystemService(
-                Context.MEDIA_QUALITY_SERVICE);
+        mMediaQualityManager = (MediaQualityManager) getContext().getApplicationContext()
+                .getSystemService(Context.MEDIA_QUALITY_SERVICE);
         mTvAppAttributionSource = getContext().getAttributionSource();
     }
 
@@ -1153,6 +1153,19 @@ public class TvView extends ViewGroup {
         }
 
         /**
+         * This is invoked when the channel of this TvView is changed by the underlying TV input
+         * without any {@link TvView#tune} request.
+         *
+         * @param inputId The ID of the TV input bound to this view.
+         * @param channelUri The URI of a channel.
+         * @param arg An optional bundle containing extra information.
+         *
+         * @hide
+         */
+        public void onChannelRetuned(String inputId, Uri channelUri, @Nullable Bundle arg) {
+        }
+
+        /**
          * This is called when the audio presentation information has been changed.
          *
          * @param inputId The ID of the TV input bound to this view.
@@ -1225,6 +1238,7 @@ public class TvView extends ViewGroup {
          * <li>{@link TvInputManager#VIDEO_UNAVAILABLE_REASON_WEAK_SIGNAL}
          * <li>{@link TvInputManager#VIDEO_UNAVAILABLE_REASON_BUFFERING}
          * <li>{@link TvInputManager#VIDEO_UNAVAILABLE_REASON_AUDIO_ONLY}
+         * <li>{@link TvInputManager#VIDEO_UNAVAILABLE_REASON_NO_VIDEO_NO_AUDIO}
          * </ul>
          */
         public void onVideoUnavailable(
@@ -1254,8 +1268,10 @@ public class TvView extends ViewGroup {
          * This is invoked when a custom event from the bound TV input is sent to this view.
          *
          * @param inputId The ID of the TV input bound to this view.
-         * @param eventType The type of the event.
+         * @param eventType The type of the event, see {@link TvInputService.SessionEventType}
+         *                  as reference.
          * @param eventArgs Optional arguments of the event.
+         *
          * @hide
          */
         @SystemApi
@@ -1476,7 +1492,6 @@ public class TvView extends ViewGroup {
             mOverlayViewCreated = false;
             mOverlayViewFrame = null;
             mSessionCallback = null;
-            mSession = null;
             if (mCallback != null) {
                 mCallback.onDisconnected(mInputId);
             }
@@ -1493,6 +1508,20 @@ public class TvView extends ViewGroup {
             }
             if (mCallback != null) {
                 mCallback.onChannelRetuned(mInputId, channelUri);
+            }
+        }
+
+        @Override
+        public void onChannelRetunedWithExtraInfo(Session session, Uri channelUri, Bundle arg) {
+            if (DEBUG) {
+                Log.d(TAG, "onChannelChangedByTvInput(" + channelUri + ") with extra info");
+            }
+            if (this != mSessionCallback) {
+                Log.w(TAG, "onChannelRetuned - session not created");
+                return;
+            }
+            if (mCallback != null) {
+                mCallback.onChannelRetuned(mInputId, channelUri, arg);
             }
         }
 

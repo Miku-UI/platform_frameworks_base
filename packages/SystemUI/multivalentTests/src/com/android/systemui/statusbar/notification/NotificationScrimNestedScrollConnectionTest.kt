@@ -23,7 +23,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource.Companion.UserI
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.notifications.ui.composable.NotificationScrimNestedScrollConnection
+import com.android.systemui.notifications.ui.composable.notificationScrimNestedScrollConnection
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -35,7 +35,7 @@ class NotificationScrimNestedScrollConnectionTest : SysuiTestCase() {
     private var isStarted = false
     private var wasStarted = false
     private var scrimOffset = 0f
-    private var contentHeight = 0f
+    private var contentAllowsOverscroll = true
     private val customFlingBehavior =
         object : FlingBehavior {
             override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
@@ -45,14 +45,13 @@ class NotificationScrimNestedScrollConnectionTest : SysuiTestCase() {
         }
 
     private val scrollConnection =
-        NotificationScrimNestedScrollConnection(
+        notificationScrimNestedScrollConnection(
             scrimOffset = { scrimOffset },
             snapScrimOffset = { _ -> },
             animateScrimOffset = { _ -> },
             minScrimOffset = { MIN_SCRIM_OFFSET },
             maxScrimOffset = MAX_SCRIM_OFFSET,
-            contentHeight = { contentHeight },
-            minVisibleScrimHeight = { MIN_VISIBLE_SCRIM_HEIGHT },
+            canOverscrollContent = { contentAllowsOverscroll },
             onStart = { isStarted = true },
             onStop = {
                 wasStarted = true
@@ -62,8 +61,8 @@ class NotificationScrimNestedScrollConnectionTest : SysuiTestCase() {
         )
 
     @Test
-    fun onScrollUp_canStartPreScroll_contentNotExpanded_ignoreScroll() = runTest {
-        contentHeight = COLLAPSED_CONTENT_HEIGHT
+    fun onScrollUp_canStartPreScroll_contentNotAllowsOverscroll_ignoreScroll() = runTest {
+        contentAllowsOverscroll = false
 
         val offsetConsumed =
             scrollConnection.onPreScroll(available = Offset(x = 0f, y = -1f), source = UserInput)
@@ -73,8 +72,7 @@ class NotificationScrimNestedScrollConnectionTest : SysuiTestCase() {
     }
 
     @Test
-    fun onScrollUp_canStartPreScroll_contentExpandedAtMinOffset_ignoreScroll() = runTest {
-        contentHeight = EXPANDED_CONTENT_HEIGHT
+    fun onScrollUp_canStartPreScroll_zeroAvailableOffset_ignoreScroll() = runTest {
         scrimOffset = MIN_SCRIM_OFFSET
 
         val offsetConsumed =
@@ -85,9 +83,7 @@ class NotificationScrimNestedScrollConnectionTest : SysuiTestCase() {
     }
 
     @Test
-    fun onScrollUp_canStartPreScroll_contentExpanded_consumeScroll() = runTest {
-        contentHeight = EXPANDED_CONTENT_HEIGHT
-
+    fun onScrollUp_canStartPreScroll_consumeScroll() = runTest {
         val availableOffset = Offset(x = 0f, y = -1f)
         val offsetConsumed =
             scrollConnection.onPreScroll(available = availableOffset, source = UserInput)
@@ -97,8 +93,7 @@ class NotificationScrimNestedScrollConnectionTest : SysuiTestCase() {
     }
 
     @Test
-    fun onScrollUp_canStartPreScroll_contentExpanded_consumeScrollWithRemainder() = runTest {
-        contentHeight = EXPANDED_CONTENT_HEIGHT
+    fun onScrollUp_canStartPreScroll_consumeScrollWithRemainder() = runTest {
         scrimOffset = MIN_SCRIM_OFFSET + 1
 
         val availableOffset = Offset(x = 0f, y = -2f)
@@ -184,7 +179,6 @@ class NotificationScrimNestedScrollConnectionTest : SysuiTestCase() {
     @Test
     fun canContinueScroll_inBetweenMinMaxOffset_true() = runTest {
         scrimOffset = (MIN_SCRIM_OFFSET + MAX_SCRIM_OFFSET) / 2f
-        contentHeight = EXPANDED_CONTENT_HEIGHT
         scrollConnection.onPreScroll(available = Offset(x = 0f, y = -1f), source = UserInput)
 
         assertThat(isStarted).isEqualTo(true)
@@ -195,9 +189,25 @@ class NotificationScrimNestedScrollConnectionTest : SysuiTestCase() {
     }
 
     @Test
+    fun canContinueScroll_upAndDownInBetweenMinMaxOffset_true() = runTest {
+        scrimOffset = (MIN_SCRIM_OFFSET + MAX_SCRIM_OFFSET) / 2f
+
+        // Scroll Up
+        scrollConnection.onPreScroll(available = Offset(x = 0f, y = -1f), source = UserInput)
+        assertThat(isStarted).isEqualTo(true)
+
+        // Scroll down
+        scrollConnection.onPreScroll(available = Offset(x = 0f, y = 1f), source = UserInput)
+        assertThat(isStarted).isEqualTo(true)
+
+        // Scroll Up again
+        scrollConnection.onPreScroll(available = Offset(x = 0f, y = -1f), source = UserInput)
+        assertThat(isStarted).isEqualTo(true)
+    }
+
+    @Test
     fun canContinueScroll_atMaxOffset_false() = runTest {
         scrimOffset = MAX_SCRIM_OFFSET
-        contentHeight = EXPANDED_CONTENT_HEIGHT
         scrollConnection.onPreScroll(available = Offset(x = 0f, y = -1f), source = UserInput)
 
         assertThat(isStarted).isEqualTo(true)
@@ -210,10 +220,5 @@ class NotificationScrimNestedScrollConnectionTest : SysuiTestCase() {
     companion object {
         const val MIN_SCRIM_OFFSET = -100f
         const val MAX_SCRIM_OFFSET = 0f
-
-        const val EXPANDED_CONTENT_HEIGHT = 200f
-        const val COLLAPSED_CONTENT_HEIGHT = 40f
-
-        const val MIN_VISIBLE_SCRIM_HEIGHT = 50f
     }
 }

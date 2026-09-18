@@ -252,7 +252,7 @@
         <Button
             android:id="@+id/more_options_button"
             style="?android:attr/borderlessButtonStyle"
-            android:textColor="?android:attr/textColorPrimary"
+            android:textColor="@color/materialColorOnSurface"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="16dip"

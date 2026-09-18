@@ -17,6 +17,7 @@
 package android.os;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.GameManager;
 import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
@@ -27,6 +28,7 @@ import android.content.pm.IPackageManager;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.content.res.Resources;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
@@ -77,6 +79,7 @@ public class GraphicsEnvironment {
     private static final String PROPERTY_GFX_DRIVER_PRODUCTION = "ro.gfx.driver.0";
     private static final String PROPERTY_GFX_DRIVER_PRERELEASE = "ro.gfx.driver.1";
     private static final String PROPERTY_GFX_DRIVER_BUILD_TIME = "ro.gfx.driver_build_time";
+    private static final String PROPERTY_SOC_ET = "ro.soc.et";
 
     /// System properties related to EGL
     private static final String PROPERTY_RO_HARDWARE_EGL = "ro.hardware.egl";
@@ -88,6 +91,7 @@ public class GraphicsEnvironment {
             "com.android.graphics.developerdriver.enable";
     private static final String METADATA_INJECT_LAYERS_ENABLE =
             "com.android.graphics.injectLayers.enable";
+    private static final String METADATA_ANGLE_PREFER = "com.android.graphics.driver.prefer_angle";
 
     private static final String UPDATABLE_DRIVER_ALLOWLIST_ALL = "*";
     private static final String UPDATABLE_DRIVER_SPHAL_LIBRARIES_FILENAME = "sphal_libraries.txt";
@@ -443,45 +447,44 @@ public class GraphicsEnvironment {
         Log.v(TAG, "  angle_gl_driver_selection_values=" + optInValues);
 
         // Make sure we have valid settings, if any provided
-        if (optInPackages.size() != optInValues.size()) {
-            Log.v(TAG,
-                    "Global.Settings values are invalid: "
-                        + "number of packages: "
-                            + optInPackages.size() + ", "
-                        + "number of values: "
-                            + optInValues.size());
-            return ANGLE_GL_DRIVER_CHOICE_DEFAULT;
-        }
+        if (optInPackages.size() == optInValues.size()) {
+            // See if this application is listed in the per-application settings list
+            final int pkgIndex = getPackageIndex(packageName, optInPackages);
+            if (pkgIndex >= 0) {
+                mAngleOptInIndex = pkgIndex;
 
-        // See if this application is listed in the per-application settings list
-        final int pkgIndex = getPackageIndex(packageName, optInPackages);
-        if (pkgIndex >= 0) {
-            mAngleOptInIndex = pkgIndex;
-
-            // The application IS listed in the per-application settings list; and so use the
-            // setting--choosing the current system driver if the setting is "default"
-            String optInValue = optInValues.get(pkgIndex);
-            Log.v(
-                    TAG,
-                    "ANGLE Developer option for '"
-                            + packageName
-                            + "' "
-                            + "set to: '"
-                            + optInValue
-                            + "'");
-            if (optInValue.equals(ANGLE_GL_DRIVER_CHOICE_ANGLE)) {
-                return ANGLE_GL_DRIVER_CHOICE_ANGLE;
-            } else if (optInValue.equals(ANGLE_GL_DRIVER_CHOICE_NATIVE)) {
-                return ANGLE_GL_DRIVER_CHOICE_NATIVE;
+                // The application IS listed in the per-application settings list; and so use the
+                // setting--choosing the current system driver if the setting is "default"
+                String optInValue = optInValues.get(pkgIndex);
+                Log.v(
+                        TAG,
+                        "ANGLE Developer option for '"
+                                + packageName
+                                + "' "
+                                + "set to: '"
+                                + optInValue
+                                + "'");
+                if (optInValue.equals(ANGLE_GL_DRIVER_CHOICE_ANGLE)) {
+                    return ANGLE_GL_DRIVER_CHOICE_ANGLE;
+                } else if (optInValue.equals(ANGLE_GL_DRIVER_CHOICE_NATIVE)) {
+                    return ANGLE_GL_DRIVER_CHOICE_NATIVE;
+                }
             }
+            Log.v(TAG, packageName + " is not listed in per-application setting");
+        } else {
+            Log.e(TAG, "Global settings angle_gl_driver_selection_pkgs size does not equal to "
+                    + "size of angle_gl_driver_selection_values, which will be ignored: "
+                    + "number of packages: " + optInPackages.size() + ", "
+                    + "number of values: " + optInValues.size());
         }
-        Log.v(TAG, packageName + " is not listed in per-application setting");
 
         // Check the per-device allowlist shipped in the platform
-        String[] angleAllowListPackages =
+        final String[] angleAllowListPackages =
                 context.getResources().getStringArray(R.array.config_angleAllowList);
-        String allowListPackageList = String.join(" ", angleAllowListPackages);
-        Log.v(TAG, "ANGLE allowlist from config: " + allowListPackageList);
+        final String allowListPackageList = String.join(" ", angleAllowListPackages);
+        if (DEBUG) {
+            Log.v(TAG, "ANGLE allowlist from config: " + allowListPackageList);
+        }
         for (String allowedPackage : angleAllowListPackages) {
             if (allowedPackage.equals(packageName)) {
                 Log.v(
@@ -493,22 +496,95 @@ public class GraphicsEnvironment {
             }
         }
 
-        // Check the per-device denylist shipped in the platform
         if (android.os.Flags.enableAngleDenyList()) {
-            // Check the per-device denylist
-            String[] angleDenyListPackages =
+            // check the per-device denylist
+            final String[] deviceDenylist =
                     context.getResources().getStringArray(R.array.config_angleDenyList);
-            for (String deniedPackage : angleDenyListPackages) {
+            if (DEBUG) {
+                Log.v(TAG, "ANGLE device denylist: " + Arrays.toString(deviceDenylist));
+            }
+            for (final String deniedPackage : deviceDenylist) {
                 if (deniedPackage.equals(packageName)) {
-                    Log.v(TAG, packageName
-                            + " is listed in ANGLE denylist, disabling ANGLE");
+                    Log.v(TAG,
+                            packageName + " is listed in device ANGLE denylist, disabling ANGLE");
                     return ANGLE_GL_DRIVER_CHOICE_NATIVE;
                 }
             }
-            if (android.os.Flags.enableAngleForGames()
-                    && applicationInfoWithMetaData.category == ApplicationInfo.CATEGORY_GAME
-                    && SystemProperties.getInt("ro.vendor.api_level", 0) >= 202604) {
-                Log.v(TAG, packageName + " is in GAME category, enabling ANGLE");
+
+            final String[] globalDenylist =
+                    context.getResources().getStringArray(R.array.config_angleGlobalDenyList);
+            if (DEBUG) {
+                Log.v(TAG, "ANGLE global denylist: " + Arrays.toString(globalDenylist));
+            }
+            for (final String deniedPackage : globalDenylist) {
+                if (deniedPackage.equals(packageName)) {
+                    Log.v(TAG,
+                            packageName + " is listed in global ANGLE denylist, disabling ANGLE");
+                    return ANGLE_GL_DRIVER_CHOICE_NATIVE;
+                }
+            }
+
+            final List<String> dynamicDenylist = getGlobalSettingsString(
+                    contentResolver, bundle, Settings.Global.ANGLE_DYNAMIC_DENYLIST);
+            if (DEBUG) {
+                Log.v(TAG, "ANGLE dynamic denylist: " + dynamicDenylist);
+            }
+            for (final String deniedPackage : dynamicDenylist) {
+                if (deniedPackage.equals(packageName)) {
+                    Log.v(TAG, packageName
+                            + " is listed in dynamic ANGLE denylist, disabling ANGLE");
+                    return ANGLE_GL_DRIVER_CHOICE_NATIVE;
+                }
+            }
+            if (applicationInfoWithMetaData.category == ApplicationInfo.CATEGORY_GAME) {
+                if (SystemProperties.getInt("debug.graphics.angle.force_enable_angle_for_games",
+                        0)
+                        == 1) {
+                    // Force-enable ANGLE for games through local adb commands
+                    if (DEBUG) {
+                        Log.v(TAG, "Force enabling ANGLE for game " + packageName
+                                + " on debug.graphics.angle.force_enable_angle_for_games = 1");
+                    }
+                    return ANGLE_GL_DRIVER_CHOICE_ANGLE;
+                }
+                try {
+                    if (context.getResources().getBoolean(R.bool.config_angleForGamesEnabled)) {
+                        if (DEBUG) {
+                            Log.v(TAG, "Enable ANGLE for game on config_angleForGamesEnabled=true");
+                        }
+                        return ANGLE_GL_DRIVER_CHOICE_ANGLE;
+                    }
+                } catch (Resources.NotFoundException e) {
+                    if (DEBUG) {
+                        Log.v(TAG, "config_angleForGamesEnabled not set");
+                    }
+                }
+            }
+        }
+
+        if (applicationInfoWithMetaData.metaData != null
+                && applicationInfoWithMetaData.metaData.getBoolean(
+                METADATA_ANGLE_PREFER)) {
+            if (SystemProperties.getBoolean(PROPERTY_SOC_ET, false)) {
+                if (DEBUG) {
+                    Log.v(TAG, "Skip enabling ANGLE for essential tier device");
+                }
+            } else if (ActivityManager.isLowRamDeviceStatic()) {
+                if (DEBUG) {
+                    Log.v(TAG, "Skip enabling ANGLE for app " + packageName
+                            + " on low ram device");
+                }
+            } else if (SystemProperties.getInt("ro.vendor.api_level", 0) < 202604) {
+                if (DEBUG) {
+                    Log.v(TAG,
+                            "Skip enabling ANGLE for app " + packageName
+                                    + " on device where ro.vendor.api_level < 202604");
+                }
+            } else {
+                if (DEBUG) {
+                    Log.v(TAG, "Enable ANGLE for app " + packageName
+                            + " on app manifest opt-in");
+                }
                 return ANGLE_GL_DRIVER_CHOICE_ANGLE;
             }
         }

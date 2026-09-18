@@ -54,6 +54,7 @@ public class ServiceListing {
     private final Predicate mValidator;
 
     private boolean mListening;
+    private ContentObserver mSettingsObserver;
 
     private ServiceListing(Context context, String tag,
             String setting, String intentAction, String permission, String noun,
@@ -90,10 +91,10 @@ public class ServiceListing {
             filter.addDataScheme("package");
             mContext.registerReceiver(mPackageReceiver, filter);
             mContentResolver.registerContentObserver(Settings.Secure.getUriFor(mSetting),
-                    false, mSettingsObserver);
+                    false, getSettingsObserver());
         } else {
             mContext.unregisterReceiver(mPackageReceiver);
-            mContentResolver.unregisterContentObserver(mSettingsObserver);
+            mContentResolver.unregisterContentObserver(getSettingsObserver());
         }
     }
 
@@ -191,12 +192,17 @@ public class ServiceListing {
         saveEnabledServices();
     }
 
-    private final ContentObserver mSettingsObserver = new ContentObserver(new Handler()) {
-        @Override
-        public void onChange(boolean selfChange, Uri uri) {
-            reload();
+    private ContentObserver getSettingsObserver() {
+        if (mSettingsObserver == null) {
+            mSettingsObserver = new ContentObserver(new Handler()) {
+                @Override
+                public void onChange(boolean selfChange, Uri uri) {
+                    reload();
+                }
+            };
         }
-    };
+        return mSettingsObserver;
+    }
 
     private final BroadcastReceiver mPackageReceiver = new BroadcastReceiver() {
         @Override

@@ -22,6 +22,7 @@ import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.SystemClock;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.view.InputEvent;
 import android.view.KeyEvent;
 
@@ -39,6 +40,7 @@ import java.lang.annotation.RetentionPolicy;
  * @hide
  */
 @SystemApi
+@RavenwoodKeepWholeClass
 public final class VirtualKeyEvent implements Parcelable {
 
     /** @hide */

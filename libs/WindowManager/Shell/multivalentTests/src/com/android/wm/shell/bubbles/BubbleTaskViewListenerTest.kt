@@ -25,28 +25,34 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutInfo
 import android.graphics.drawable.Icon
+import android.os.Binder
 import android.os.UserHandle
 import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.FlagsParameterization
 import android.platform.test.flag.junit.SetFlagsRule
 import android.service.notification.NotificationListenerService.Ranking
 import android.service.notification.StatusBarNotification
+import android.view.Display.DEFAULT_DISPLAY
 import android.view.View
 import android.widget.FrameLayout
 import android.window.WindowContainerToken
 import android.window.WindowContainerTransaction
 import androidx.test.core.app.ApplicationProvider
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import com.android.internal.protolog.ProtoLog
+import com.android.testing.wm.util.MockToken
+import com.android.wm.shell.Flags
 import com.android.wm.shell.Flags.FLAG_ENABLE_BUBBLE_ANYTHING
 import com.android.wm.shell.Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE
-import com.android.wm.shell.MockToken
+import com.android.wm.shell.Flags.FLAG_LAUNCH_BUBBLE_ON_MAIN_DISPLAY
 import com.android.wm.shell.R
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.bubbles.Bubbles.BubbleMetadataFlagListener
+import com.android.wm.shell.bubbles.transitions.BubbleTransitions
 import com.android.wm.shell.bubbles.util.BubbleTestUtils.verifyEnterBubbleTransaction
 import com.android.wm.shell.common.TestShellExecutor
+import com.android.wm.shell.shared.bubbles.BubbleFlagHelper
 import com.android.wm.shell.taskview.TaskView
 import com.android.wm.shell.taskview.TaskViewController
 import com.android.wm.shell.taskview.TaskViewTaskController
@@ -64,22 +70,24 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.stub
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4
+import platform.test.runner.parameterized.Parameters
 
 /**
  * Tests for [BubbleTaskViewListener].
  *
  * Build/Install/Run:
- *  atest WMShellRobolectricTests:BubbleTaskViewListenerTest (on host)
- *  atest WMShellMultivalentTestsOnDevice:BubbleTaskViewListenerTest (on device)
+ * - atest WMShellRobolectricTests:BubbleTaskViewListenerTest (on host)
+ * - atest WMShellMultivalentTestsOnDevice:BubbleTaskViewListenerTest (on device)
  */
 @SmallTest
-@RunWith(AndroidJUnit4::class)
-class BubbleTaskViewListenerTest {
+@RunWith(ParameterizedAndroidJunit4::class)
+class BubbleTaskViewListenerTest(flags: FlagsParameterization) {
 
-    @get:Rule
-    val setFlagsRule = SetFlagsRule()
+    @get:Rule val setFlagsRule = SetFlagsRule(flags)
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
 
@@ -87,13 +95,19 @@ class BubbleTaskViewListenerTest {
     private val taskViewTaskToken: WindowContainerToken = MockToken.token()
     private var taskViewController = mock<TaskViewController>()
     private val taskInfo = mock<ActivityManager.RunningTaskInfo>()
-    private val taskViewTaskController = mock<TaskViewTaskController> {
-        on { taskOrganizer } doReturn taskOrganizer
-        on { taskToken } doReturn taskViewTaskToken
-        on { taskInfo } doReturn taskInfo
-    }
+    private val taskViewTaskController =
+        mock<TaskViewTaskController> {
+            on { taskOrganizer } doReturn taskOrganizer
+            on { taskToken } doReturn taskViewTaskToken
+            on { taskInfo } doReturn taskInfo
+        }
     private var listenerCallback = mock<BubbleTaskViewListener.Callback>()
-    private var expandedViewManager = mock<BubbleExpandedViewManager>()
+    private val binder = Binder()
+    private val rootTaskToken = mock<WindowContainerToken> { on { asBinder() } doReturn binder }
+    private val bubbleHelper =
+        mock<BubbleHelper> { on { getAppBubbleRootTaskToken() } doReturn rootTaskToken }
+    private val expandedViewManager =
+        mock<BubbleExpandedViewManager> { on { getBubbleHelper() } doReturn bubbleHelper }
 
     private lateinit var bubbleTaskViewListener: BubbleTaskViewListener
     private lateinit var taskView: TaskView
@@ -112,7 +126,8 @@ class BubbleTaskViewListenerTest {
         bgExecutor = TestShellExecutor()
 
         taskView = TaskView(context, taskViewController, taskViewTaskController)
-        bubbleTaskView = BubbleTaskView(taskView, mainExecutor)
+        val bubbleController = mock<BubbleController>()
+        bubbleTaskView = BubbleTaskView(taskView, mainExecutor, bubbleController)
 
         bubbleTaskViewListener =
             BubbleTaskViewListener(
@@ -120,7 +135,7 @@ class BubbleTaskViewListenerTest {
                 bubbleTaskView,
                 parentView,
                 expandedViewManager,
-                listenerCallback
+                listenerCallback,
             )
     }
 
@@ -137,7 +152,7 @@ class BubbleTaskViewListenerTest {
                 bubbleTaskView,
                 parentView,
                 expandedViewManager,
-                listenerCallback
+                listenerCallback,
             )
 
         assertThat(bubbleTaskView.delegateListener).isEqualTo(bubbleTaskViewListener)
@@ -155,7 +170,7 @@ class BubbleTaskViewListenerTest {
                 bubbleTaskView,
                 parentView,
                 expandedViewManager,
-                listenerCallback
+                listenerCallback,
             )
 
         assertThat(bubbleTaskView.delegateListener).isEqualTo(bubbleTaskViewListener)
@@ -163,11 +178,12 @@ class BubbleTaskViewListenerTest {
         verify(listenerCallback, never()).onTaskCreated()
     }
 
+    @EnableFlags(FLAG_LAUNCH_BUBBLE_ON_MAIN_DISPLAY)
     @Test
     fun onInitialized_pendingIntentChatBubble() {
         val target = Intent(context, TestActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(context, 0, target,
-            PendingIntent.FLAG_MUTABLE)
+        val pendingIntent =
+            PendingIntent.getActivity(context, 0, target, PendingIntent.FLAG_MUTABLE)
 
         val b = createChatBubble("key", pendingIntent)
         bubbleTaskViewListener.setBubble(b)
@@ -178,9 +194,7 @@ class BubbleTaskViewListenerTest {
         // But it didn't use that on bubble metadata
         assertThat(b.metadataShortcutId).isNull()
 
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onInitialized()
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onInitialized() }
         getInstrumentation().waitForIdleSync()
 
         // ..so it's pending intent-based, so the pending intent should be active
@@ -189,23 +203,26 @@ class BubbleTaskViewListenerTest {
         val intentCaptor = argumentCaptor<Intent>()
         val optionsCaptor = argumentCaptor<ActivityOptions>()
 
-        verify(taskViewController).startActivity(any(),
-            eq(pendingIntent),
-            intentCaptor.capture(),
-            optionsCaptor.capture(),
-            any())
+        verify(taskViewController)
+            .startActivity(
+                any(),
+                eq(pendingIntent),
+                intentCaptor.capture(),
+                optionsCaptor.capture(),
+                any(),
+            )
         val intentFlags = intentCaptor.lastValue.flags
         assertThat((intentFlags and Intent.FLAG_ACTIVITY_NEW_DOCUMENT) != 0).isTrue()
         assertThat((intentFlags and Intent.FLAG_ACTIVITY_MULTIPLE_TASK) != 0).isTrue()
         assertThat(optionsCaptor.lastValue.launchedFromBubble).isTrue()
+        assertThat(optionsCaptor.lastValue.launchDisplayId).isEqualTo(DEFAULT_DISPLAY)
         assertThat(optionsCaptor.lastValue.taskAlwaysOnTop).isTrue()
     }
 
+    @EnableFlags(FLAG_LAUNCH_BUBBLE_ON_MAIN_DISPLAY)
     @Test
     fun onInitialized_shortcutChatBubble() {
-        val shortcutInfo = ShortcutInfo.Builder(context)
-            .setId("mockShortcutId")
-            .build()
+        val shortcutInfo = ShortcutInfo.Builder(context).setId("mockShortcutId").build()
         val b = createChatBubble("key", shortcutInfo)
         bubbleTaskViewListener.setBubble(b)
 
@@ -214,29 +231,24 @@ class BubbleTaskViewListenerTest {
         // Chat bubble using a shortcut
         assertThat(b.metadataShortcutId).isNotNull()
 
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onInitialized()
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onInitialized() }
         getInstrumentation().waitForIdleSync()
 
         val optionsCaptor = argumentCaptor<ActivityOptions>()
 
         assertThat(b.isPendingIntentActive).isFalse() // not triggered for shortcut chats
-        verify(taskViewController).startShortcutActivity(any(),
-            eq(shortcutInfo),
-            optionsCaptor.capture(),
-            any())
+        verify(taskViewController)
+            .startShortcutActivity(any(), eq(shortcutInfo), optionsCaptor.capture(), any())
         assertThat(optionsCaptor.lastValue.launchedFromBubble).isTrue()
         assertThat(optionsCaptor.lastValue.isApplyActivityFlagsForBubbles).isTrue()
+        assertThat(optionsCaptor.lastValue.launchDisplayId).isEqualTo(DEFAULT_DISPLAY)
         assertThat(optionsCaptor.lastValue.taskAlwaysOnTop).isTrue()
     }
 
-    @EnableFlags(FLAG_ENABLE_BUBBLE_ANYTHING)
+    @EnableFlags(FLAG_ENABLE_BUBBLE_ANYTHING, FLAG_LAUNCH_BUBBLE_ON_MAIN_DISPLAY)
     @Test
     fun onInitialized_shortcutBubble() {
-        val shortcutInfo = ShortcutInfo.Builder(context)
-            .setId("mockShortcutId")
-            .build()
+        val shortcutInfo = ShortcutInfo.Builder(context).setId("mockShortcutId").build()
 
         val b = createShortcutBubble(shortcutInfo)
         bubbleTaskViewListener.setBubble(b)
@@ -245,24 +257,24 @@ class BubbleTaskViewListenerTest {
         assertThat(b.isShortcut).isTrue()
         assertThat(b.shortcutInfo).isNotNull()
 
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onInitialized()
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onInitialized() }
         getInstrumentation().waitForIdleSync()
 
         val optionsCaptor = argumentCaptor<ActivityOptions>()
 
         assertThat(b.isPendingIntentActive).isFalse() // chat only triggers setting it active
-        verify(taskViewController).startShortcutActivity(any(),
-            eq(shortcutInfo),
-            optionsCaptor.capture(),
-            any())
+        verify(taskViewController)
+            .startShortcutActivity(any(), eq(shortcutInfo), optionsCaptor.capture(), any())
         assertThat(optionsCaptor.lastValue.launchedFromBubble).isFalse() // chat only
         assertThat(optionsCaptor.lastValue.isApplyActivityFlagsForBubbles).isFalse() // chat only
         assertThat(optionsCaptor.lastValue.isApplyMultipleTaskFlagForShortcut).isTrue()
-        assertThat(optionsCaptor.lastValue.taskAlwaysOnTop).isTrue()
+        assertThat(optionsCaptor.lastValue.launchDisplayId).isEqualTo(DEFAULT_DISPLAY)
+        if (!BubbleFlagHelper.enableRootTaskForBubble()) {
+            assertThat(optionsCaptor.lastValue.taskAlwaysOnTop).isTrue()
+        }
     }
 
+    @EnableFlags(FLAG_LAUNCH_BUBBLE_ON_MAIN_DISPLAY)
     @Test
     fun onInitialized_appBubble_intent() {
         val b = createAppBubble()
@@ -270,26 +282,25 @@ class BubbleTaskViewListenerTest {
 
         assertThat(b.isApp).isTrue()
 
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onInitialized()
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onInitialized() }
         getInstrumentation().waitForIdleSync()
 
         val intentCaptor = argumentCaptor<Intent>()
         val optionsCaptor = argumentCaptor<ActivityOptions>()
 
         assertThat(b.isPendingIntentActive).isFalse() // chat only triggers setting it active
-        verify(taskViewController).startActivity(any(),
-            any(),
-            intentCaptor.capture(),
-            optionsCaptor.capture(),
-            any())
+        verify(taskViewController)
+            .startActivity(any(), any(), intentCaptor.capture(), optionsCaptor.capture(), any())
 
         assertThat(optionsCaptor.lastValue.launchedFromBubble).isFalse() // chat only
         assertThat(optionsCaptor.lastValue.isApplyActivityFlagsForBubbles).isFalse() // chat only
-        assertThat(optionsCaptor.lastValue.taskAlwaysOnTop).isTrue()
+        assertThat(optionsCaptor.lastValue.launchDisplayId).isEqualTo(DEFAULT_DISPLAY)
+        if (!BubbleFlagHelper.enableRootTaskForBubble()) {
+            assertThat(optionsCaptor.lastValue.taskAlwaysOnTop).isTrue()
+        }
     }
 
+    @EnableFlags(FLAG_LAUNCH_BUBBLE_ON_MAIN_DISPLAY)
     @Test
     fun onInitialized_appBubble_pendingIntent() {
         val b = createAppBubble(usePendingIntent = true)
@@ -297,26 +308,25 @@ class BubbleTaskViewListenerTest {
 
         assertThat(b.isApp).isTrue()
 
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onInitialized()
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onInitialized() }
         getInstrumentation().waitForIdleSync()
 
         val intentCaptor = argumentCaptor<Intent>()
         val optionsCaptor = argumentCaptor<ActivityOptions>()
 
         assertThat(b.isPendingIntentActive).isFalse() // chat only triggers setting it active
-        verify(taskViewController).startActivity(any(),
-            any(),
-            intentCaptor.capture(),
-            optionsCaptor.capture(),
-            any())
+        verify(taskViewController)
+            .startActivity(any(), any(), intentCaptor.capture(), optionsCaptor.capture(), any())
 
         assertThat(optionsCaptor.lastValue.launchedFromBubble).isFalse() // chat only
         assertThat(optionsCaptor.lastValue.isApplyActivityFlagsForBubbles).isFalse() // chat only
-        assertThat(optionsCaptor.lastValue.taskAlwaysOnTop).isTrue()
+        assertThat(optionsCaptor.lastValue.launchDisplayId).isEqualTo(DEFAULT_DISPLAY)
+        if (!BubbleFlagHelper.enableRootTaskForBubble()) {
+            assertThat(optionsCaptor.lastValue.taskAlwaysOnTop).isTrue()
+        }
     }
 
+    @EnableFlags(FLAG_LAUNCH_BUBBLE_ON_MAIN_DISPLAY)
     @Test
     fun onInitialized_noteBubble() {
         val b = createNoteBubble()
@@ -324,40 +334,36 @@ class BubbleTaskViewListenerTest {
 
         assertThat(b.isNote).isTrue()
 
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onInitialized()
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onInitialized() }
         getInstrumentation().waitForIdleSync()
 
         val intentCaptor = argumentCaptor<Intent>()
         val optionsCaptor = argumentCaptor<ActivityOptions>()
 
         assertThat(b.isPendingIntentActive).isFalse() // chat only triggers setting it active
-        verify(taskViewController).startActivity(any(),
-            any(),
-            intentCaptor.capture(),
-            optionsCaptor.capture(),
-            any())
+        verify(taskViewController)
+            .startActivity(any(), any(), intentCaptor.capture(), optionsCaptor.capture(), any())
 
         assertThat(optionsCaptor.lastValue.launchedFromBubble).isFalse() // chat only
         assertThat(optionsCaptor.lastValue.isApplyActivityFlagsForBubbles).isFalse() // chat only
-        assertThat(optionsCaptor.lastValue.taskAlwaysOnTop).isTrue()
+        assertThat(optionsCaptor.lastValue.launchDisplayId).isEqualTo(DEFAULT_DISPLAY)
+        if (!BubbleFlagHelper.enableRootTaskForBubble()) {
+            assertThat(optionsCaptor.lastValue.taskAlwaysOnTop).isTrue()
+        }
     }
 
     @Test
-    fun onInitialized_preparingTransition() {
+    fun onInitialized_hasCurrentTransition_callsSurfaceCreated() {
         val b = createAppBubble()
         bubbleTaskViewListener.setBubble(b)
         taskView = Mockito.spy(taskView)
-        val preparingTransition = mock<BubbleTransitions.BubbleTransition>()
-        b.preparingTransition = preparingTransition
+        val currentTransition = mock<BubbleTransitions.BubbleTransition>()
+        b.currentTransition = currentTransition
 
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onInitialized()
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onInitialized() }
         getInstrumentation().waitForIdleSync()
 
-        verify(preparingTransition).surfaceCreated()
+        verify(currentTransition).surfaceCreated()
     }
 
     @Test
@@ -383,16 +389,12 @@ class BubbleTaskViewListenerTest {
 
         assertThat(b.isApp).isTrue()
 
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onInitialized()
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onInitialized() }
         getInstrumentation().waitForIdleSync()
 
         reset(taskViewController)
 
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onInitialized()
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onInitialized() }
         // Already initialized, so no activity should be started.
         verify(taskViewController, never()).startActivity(any(), any(), anyOrNull(), any(), any())
     }
@@ -402,9 +404,7 @@ class BubbleTaskViewListenerTest {
         val b = createAppBubble()
         bubbleTaskViewListener.setBubble(b)
 
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onInitialized()
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onInitialized() }
         getInstrumentation().waitForIdleSync()
         verify(taskViewController).startActivity(any(), any(), anyOrNull(), any(), any())
 
@@ -424,9 +424,7 @@ class BubbleTaskViewListenerTest {
     fun onTaskCreated_appliesWctToEnterBubble() {
         val b = createAppBubble()
         bubbleTaskViewListener.setBubble(b)
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onInitialized()
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onInitialized() }
         getInstrumentation().waitForIdleSync()
 
         getInstrumentation().runOnMainSync {
@@ -441,6 +439,7 @@ class BubbleTaskViewListenerTest {
             wct,
             taskViewTaskToken.asBinder(),
             b.isApp || b.isShortcut,
+            rootTaskToken = binder,
         )
     }
 
@@ -450,9 +449,7 @@ class BubbleTaskViewListenerTest {
         bubbleTaskViewListener.setBubble(b)
         assertThat(b.isNote).isTrue()
 
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onInitialized()
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onInitialized() }
         getInstrumentation().waitForIdleSync()
         verify(taskViewController).startActivity(any(), any(), anyOrNull(), any(), any())
 
@@ -485,10 +482,9 @@ class BubbleTaskViewListenerTest {
 
     @Test
     fun onTaskRemovalStarted() {
-        val mockTaskView = mock<TaskView>() {
-            on { getController() } doReturn taskViewTaskController
-        }
-        bubbleTaskView = BubbleTaskView(mockTaskView, mainExecutor)
+        val mockTaskView = mock<TaskView> { on { controller } doReturn taskViewTaskController }
+        val bubbleController = mock<BubbleController>()
+        bubbleTaskView = BubbleTaskView(mockTaskView, mainExecutor, bubbleController)
 
         bubbleTaskViewListener =
             BubbleTaskViewListener(
@@ -496,46 +492,47 @@ class BubbleTaskViewListenerTest {
                 bubbleTaskView,
                 parentView,
                 expandedViewManager,
-                listenerCallback
+                listenerCallback,
             )
 
         val b = createAppBubble()
         bubbleTaskViewListener.setBubble(b)
 
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onInitialized()
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onInitialized() }
         getInstrumentation().waitForIdleSync()
         verify(mockTaskView).startActivity(any(), anyOrNull(), any(), any())
 
+        val taskId = 1
         taskInfo.isRunning = true
         taskInfo.token = taskViewTaskToken
-        whenever(expandedViewManager.shouldBeAppBubble(eq(taskInfo))).doReturn(true)
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onTaskRemovalStarted(1)
-        }
+        bubbleHelper.stub { on { isAppBubbleTask(eq(taskInfo)) } doReturn true }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onTaskRemovalStarted(taskId) }
 
-        verify(expandedViewManager).removeBubble(eq(b.key), eq(Bubbles.DISMISS_TASK_FINISHED))
+        if (Flags.fixVerifyBubbleTaskIdOnRemoval()) {
+            verify(expandedViewManager).removeBubble(b.key, taskId, Bubbles.DISMISS_TASK_FINISHED)
+        } else {
+            verify(expandedViewManager).removeBubble(b.key, Bubbles.DISMISS_TASK_FINISHED)
+        }
         verify(mockTaskView).release()
 
         // Capture the WCT used to clean up the task
-        val wct = argumentCaptor<WindowContainerTransaction>().let { wctCaptor ->
-            verify(taskOrganizer).applyTransaction(wctCaptor.capture())
-            wctCaptor.lastValue
-        }
+        val wct =
+            argumentCaptor<WindowContainerTransaction>().let { wctCaptor ->
+                verify(taskOrganizer).applyTransaction(wctCaptor.capture())
+                wctCaptor.lastValue
+            }
         val change = wct.changes[taskViewTaskToken.asBinder()]!!
-        assertThat(change.interceptBackPressed).isFalse()
+        if (!com.android.window.flags.Flags.enableBubbleRootTask()) {
+            assertThat(change.interceptBackPressed).isFalse()
+        }
         assertThat(parentView.lastRemovedView).isEqualTo(mockTaskView)
         assertThat(bubbleTaskViewListener.taskView).isNull()
-        verify(listenerCallback).onTaskRemovalStarted()
     }
 
     @EnableFlags(FLAG_ENABLE_CREATE_ANY_BUBBLE)
     @Test
     fun onTaskInfoChanged() {
-        getInstrumentation().runOnMainSync {
-            bubbleTaskViewListener.onTaskInfoChanged(taskInfo)
-        }
+        getInstrumentation().runOnMainSync { bubbleTaskViewListener.onTaskInfoChanged(taskInfo) }
         verify(listenerCallback).onTaskInfoChanged(taskInfo)
     }
 
@@ -585,10 +582,8 @@ class BubbleTaskViewListenerTest {
     @Test
     fun setBubble_launchContentChanged() {
         val target = Intent(context, TestActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            context, 0, target,
-            PendingIntent.FLAG_MUTABLE
-        )
+        val pendingIntent =
+            PendingIntent.getActivity(context, 0, target, PendingIntent.FLAG_MUTABLE)
 
         val b = createChatBubble("key", pendingIntent)
         var isNew = bubbleTaskViewListener.setBubble(b)
@@ -600,9 +595,7 @@ class BubbleTaskViewListenerTest {
         // Second time bubble is set & it uses same type of launch content, not "new"
         assertThat(isNew).isFalse()
 
-        val shortcutInfo = ShortcutInfo.Builder(context)
-            .setId("mockShortcutId")
-            .build()
+        val shortcutInfo = ShortcutInfo.Builder(context).setId("mockShortcutId").build()
         val b3 = createChatBubble("key", shortcutInfo)
         // bubble is using different content, so it is "new"
         isNew = bubbleTaskViewListener.setBubble(b3)
@@ -618,22 +611,23 @@ class BubbleTaskViewListenerTest {
             // Robolectric doesn't seem to play nice with PendingIntents, have to mock it.
             val pendingIntent = mock<PendingIntent>()
             whenever(pendingIntent.intent).thenReturn(target)
-            return Bubble.createAppBubble(pendingIntent, mock<UserHandle>(),
-                mainExecutor, bgExecutor)
+            return Bubble.createAppBubble(pendingIntent, mock<UserHandle>())
         }
-        return Bubble.createAppBubble(target, mock<UserHandle>(), mock<Icon>(),
-            mainExecutor, bgExecutor)
+        bubbleHelper.stub {
+            on { getAppBubbleRootTaskToken() } doReturn
+                rootTaskToken.takeIf { BubbleFlagHelper.enableRootTaskForBubble() }
+        }
+        return Bubble.createAppBubble(target, mock<UserHandle>(), mock<Icon>())
     }
 
     private fun createShortcutBubble(shortcutInfo: ShortcutInfo): Bubble {
-        return Bubble.createShortcutBubble(shortcutInfo, mainExecutor, bgExecutor)
+        return Bubble.createShortcutBubble(shortcutInfo)
     }
 
     private fun createNoteBubble(): Bubble {
         val target = Intent(context, TestActivity::class.java)
         target.setPackage(context.packageName)
-        return Bubble.createNotesBubble(target, mock<UserHandle>(), mock<Icon>(),
-            mainExecutor, bgExecutor)
+        return Bubble.createNotesBubble(target, mock<UserHandle>(), mock<Icon>())
     }
 
     private fun createChatBubble(key: String, shortcutInfo: ShortcutInfo): Bubble {
@@ -644,19 +638,20 @@ class BubbleTaskViewListenerTest {
             0 /* desiredHeightResId */,
             "title",
             -1 /*taskId */,
-            null /* locusId */, true /* isdismissabel */,
-            mainExecutor, bgExecutor, mock<BubbleMetadataFlagListener>()
+            null /* locusId */,
+            true /* isDismissable */,
+            mock<BubbleMetadataFlagListener>(),
         )
     }
 
     private fun createChatBubble(key: String, pendingIntent: PendingIntent): Bubble {
-        val metadata = Notification.BubbleMetadata.Builder(
-            pendingIntent,
-            Icon.createWithResource(context, R.drawable.bubble_ic_create_bubble)
-        ).build()
-        val shortcutInfo = ShortcutInfo.Builder(context)
-            .setId("shortcutId")
-            .build()
+        val metadata =
+            Notification.BubbleMetadata.Builder(
+                    pendingIntent,
+                    Icon.createWithResource(context, R.drawable.bubble_ic_create_bubble),
+                )
+                .build()
+        val shortcutInfo = ShortcutInfo.Builder(context).setId("shortcutId").build()
         val notification: Notification =
             Notification.Builder(context, key)
                 .setSmallIcon(mock<Icon>())
@@ -671,15 +666,10 @@ class BubbleTaskViewListenerTest {
         whenever(sbn.getKey()).thenReturn(key)
         whenever(ranking.getConversationShortcutInfo()).thenReturn(shortcutInfo)
         val entry = BubbleEntry(sbn, ranking, true, false, false, false)
-        return Bubble(
-            entry, mock<BubbleMetadataFlagListener>(), null, mainExecutor,
-            bgExecutor
-        )
+        return Bubble(entry, mock<BubbleMetadataFlagListener>(), null, mainExecutor)
     }
 
-    /**
-     * FrameLayout that immediately runs any runnables posted to it and tracks view removals.
-     */
+    /** FrameLayout that immediately runs any runnables posted to it and tracks view removals. */
     class ViewPoster(context: Context) : FrameLayout(context) {
 
         lateinit var lastRemovedView: View
@@ -693,5 +683,12 @@ class BubbleTaskViewListenerTest {
             super.removeView(v)
             lastRemovedView = v
         }
+    }
+
+    companion object {
+        @JvmStatic
+        @Parameters(name = "{0}")
+        fun getParams() =
+            FlagsParameterization.allCombinationsOf(Flags.FLAG_FIX_VERIFY_BUBBLE_TASK_ID_ON_REMOVAL)
     }
 }

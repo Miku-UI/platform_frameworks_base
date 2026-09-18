@@ -1,0 +1,18 @@
+package: "android.app"
+container: "system"
+
+flag {
+  name: "statusbar_api_show_power_menu"
+  namespace: "systemui"
+  is_exported: true
+  description: "New API to request to show the power menu"
+  bug: "449154119"
+}
+
+flag {
+    name: "enable_motion_cues"
+    namespace: "systemui"
+    is_exported: true
+    description: "This flag protects the permission used for drawing motion cues"
+    bug: "418058206"
+}

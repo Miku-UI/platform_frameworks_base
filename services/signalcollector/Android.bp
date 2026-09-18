@@ -7,15 +7,33 @@ package {
     default_applicable_licenses: ["frameworks_base_license"],
 }
 
+filegroup {
+    name: "SignalCollectorManagerInternal",
+    srcs: ["java/com/android/server/signalcollector/SignalCollectorManagerInternal.java"],
+}
+
 java_library {
     name: "services.signal-collectors",
     srcs: ["java/**/*.java"],
+    exclude_srcs: [
+        ":SignalCollectorManagerInternal",
+    ],
     visibility: [
         "//frameworks/base/services",
-        "//frameworks/base/services/tests/servicestests/src/com/android/server/signalcollector",
+        "//frameworks/base/services/tests/servicestests",
     ],
     libs: [
         "services.core",
+        "services.signal-collector-manager-internal",
         "service-anomaly-detector.stubs.system_server",
+    ],
+}
+
+java_library {
+    name: "services.signal-collector-manager-internal",
+    srcs: [":SignalCollectorManagerInternal"],
+    visibility: [
+        "//frameworks/base/services/core",
+        "//frameworks/base/services/tests/servicestests",
     ],
 }

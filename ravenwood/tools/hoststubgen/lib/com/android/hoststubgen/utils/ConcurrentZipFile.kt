@@ -38,6 +38,11 @@ import kotlin.math.min
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
 import org.apache.commons.compress.archivers.zip.ZipFile
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.Paths
+import kotlin.collections.mutableListOf
+import kotlin.io.path.isDirectory
 
 // Enable to debug concurrency issues
 const val DISABLE_PARALLELISM = false
@@ -56,14 +61,18 @@ class DecompressionStream(ins: InputStream) : InflaterInputStream(ins, Inflater(
     }
 }
 
-sealed class ZipEntryData {
+sealed class ZipEntryData(
+    // Where the entry originally came from. Either a JAR/ZIP file name,
+    // or a directory name from the --in-dir option.
+    val container: String,
+) {
     abstract val entry: ZipArchiveEntry
     abstract val data: ByteArray
     abstract fun writeTo(out: ZipArchiveOutputStream)
 
     val name: String get() = entry.name
 
-    abstract class RawData : ZipEntryData() {
+    abstract class RawData(container: String) : ZipEntryData(container) {
         protected abstract fun rawStream(): InputStream
         protected fun decompressStream(): InputStream = DecompressionStream(rawStream())
         final override fun writeTo(out: ZipArchiveOutputStream) {
@@ -72,9 +81,10 @@ sealed class ZipEntryData {
     }
 
     class Entry(
+        container: String,
         override val entry: ZipArchiveEntry,
         private val zipBytes: ByteBuffer
-    ) : RawData() {
+    ) : RawData(container) {
         override val data: ByteArray get() =
             if (entry.method == ZipEntry.STORED) {
                 rawStream()
@@ -89,7 +99,11 @@ sealed class ZipEntryData {
         }
     }
 
-    class Bytes(name: String, override val data: ByteArray) : ZipEntryData() {
+    class Bytes(
+        container: String,
+        name: String,
+        override val data: ByteArray,
+    ) : ZipEntryData(container) {
         override val entry = ZipArchiveEntry(name)
 
         init {
@@ -105,7 +119,11 @@ sealed class ZipEntryData {
         }
     }
 
-    class Compressed(name: String, data: ByteArray) : RawData() {
+    class Compressed(
+        container: String,
+        name: String,
+        data: ByteArray,
+    ) : RawData(container) {
         override val entry = ZipArchiveEntry(name)
         override val data: ByteArray get() = decompressStream().readAllBytes()
 
@@ -135,11 +153,11 @@ sealed class ZipEntryData {
     }
 
     companion object {
-        fun fromBytes(name: String, data: ByteArray): ZipEntryData {
+        fun fromBytes(sourceFilename: String, name: String, data: ByteArray): ZipEntryData {
             return if (SKIP_COMPRESSION) {
-                Bytes(name, data)
+                Bytes(sourceFilename, name, data)
             } else {
-                Compressed(name, data)
+                Compressed(sourceFilename, name, data)
             }
         }
     }
@@ -160,23 +178,96 @@ class ConcurrentListMapper<T>(val list: MutableList<T?>) {
     }
 }
 
-class ConcurrentZipFile(
-    val fileName: String,
-    parallelism: Int,
-) {
-    val entries: MutableList<ZipEntryData?>
-    val executor: Executor
-    val shardCount: Int
+/**
+ * Reads ZIP files and/or directories and collect their contents as [ZipEntryData].
+ *
+ * If multiple inputs have the same entry names, we keep only the first one seen.
+ */
+class ZipEntryCollector {
+    private val result: MutableList<ZipEntryData> = mutableListOf()
+    private val knownNames: MutableSet<String> = mutableSetOf()
 
-    init {
-        val mappedBytes = FileChannel.open(Path(fileName)).use { ch ->
+    /**
+     * Add ZIP entries from a zip file, or a directory. Can be called multiple times.
+     */
+    fun addZipOrDirectory(path: String) {
+        if (Paths.get(path).isDirectory()) {
+            addFromDirectory(path)
+        } else {
+            addFromZip(path)
+        }
+    }
+
+    /**
+     * Return all the accumulated entries so far.
+     */
+    fun getEntries(): List<ZipEntryData> {
+        return result
+    }
+
+    /** Read a single ZIP file and add its entries to [result]. */
+    private fun addFromZip(filename: String) {
+        log.v("Reading zip file: %s...", filename)
+        val mappedBytes = FileChannel.open(Path(filename)).use { ch ->
             ch.map(FileChannel.MapMode.READ_ONLY, 0, ch.size())
         }
-        entries = ZipFile(ByteBufferChannel(mappedBytes.slice())).use { zf ->
-            zf.entries.asSequence()
-                .map { ZipEntryData.Entry(it, mappedBytes) }
-                .toMutableList()
+        ZipFile(ByteBufferChannel(mappedBytes.slice())).use { zf ->
+            zf.entries.asSequence().forEach { entry ->
+                if (knownNames.contains(entry.name)) {
+                    log.w("  Skip duplicate entry \"%s\" in file %s", entry.name, filename)
+                    return@forEach
+                }
+                log.d("  Found entry \"%s\" in file %s", entry.name, filename)
+                result.add(ZipEntryData.Entry(filename, entry, mappedBytes))
+                knownNames.add(entry.name)
+            }
         }
+    }
+
+    /** Find files in a given directory and add them to [result]. */
+    private fun addFromDirectory(dirName: String) {
+        log.v("Reading directory: %s...", dirName)
+        val topDir = File(dirName)
+        topDir.walk().forEach { file ->
+            if (file.isDirectory) {
+                return@forEach
+            }
+            val relative = file.relativeTo(topDir).path
+            if (knownNames.contains(relative)) {
+                log.w("  Skip duplicate entry \"%s\" in directory %s", relative, dirName)
+                return@forEach
+            }
+            log.d("  Found file \"%s\" in directory %s", relative, dirName)
+            val mappedBytes = FileChannel.open(Path(file.absolutePath)).use { ch ->
+                ch.map(FileChannel.MapMode.READ_ONLY, 0, ch.size())
+            }
+            val bytes = ByteArray(mappedBytes.remaining())
+            mappedBytes.get(bytes)
+            result.add(ZipEntryData.Bytes(dirName, relative, bytes))
+            knownNames.add(relative)
+        }
+    }
+}
+
+/**
+ * Provides a logic to process multip "zip entries" concurrently and write them
+ * into a single zip file.
+ */
+class ConcurrentZipProcessor(
+    private val jarFilesOrDirectories: List<String>,
+    parallelism: Int,
+) {
+    private val entries = mutableListOf<ZipEntryData?>()
+    private val executor: Executor
+    private val shardCount: Int
+
+    val sourceFiles: List<String> get() = jarFilesOrDirectories
+
+    init {
+        val reader = ZipEntryCollector()
+        jarFilesOrDirectories.forEach { reader.addZipOrDirectory(it) }
+        entries.addAll(reader.getEntries())
+
         if (DISABLE_PARALLELISM) {
             shardCount = 1
             // Directly run on the same thread as the caller
@@ -188,11 +279,11 @@ class ConcurrentZipFile(
         }
     }
 
-    inline fun forEach(action: (ZipEntryData) -> Unit) {
+    fun forEach(action: (ZipEntryData) -> Unit) {
         entries.asSequence().filterNotNull().forEach(action)
     }
 
-    inline fun parallelForEach(crossinline action: (ZipEntryData) -> Unit) {
+    fun parallelForEach(action: (ZipEntryData) -> Unit) {
         forEachThread { entries ->
             entries.process { entry ->
                 action(entry)
@@ -201,8 +292,8 @@ class ConcurrentZipFile(
         }
     }
 
-    inline fun forEachThread(
-        crossinline action: (ConcurrentListMapper<ZipEntryData>) -> Unit
+    fun forEachThread(
+        action: (ConcurrentListMapper<ZipEntryData>) -> Unit
     ) {
         val latch = CountDownLatch(shardCount)
         val mapper = ConcurrentListMapper(entries)
@@ -223,11 +314,24 @@ class ConcurrentZipFile(
         exception.get()?.let { throw it }
     }
 
-    fun write(out: String, timeCollector: ((Double) -> Unit)? = null) {
+    fun write(out: String, metadaata: String? = null, timeCollector: ((Double) -> Unit)? = null) {
         var writeTime = .0
 
+        val metadataFilename = "hoststubgen.txt"
+
+        // Make sure the output directory exists.
+        Files.createDirectories(Paths.get(out).parent)
+
         ZipArchiveOutputStream(FileOutputStream(out).buffered(1024 * 1024)).use { zos ->
+            if (metadaata != null) {
+                zos.putArchiveEntry(ZipArchiveEntry(metadataFilename))
+                zos.write(metadaata.toByteArray())
+                zos.closeArchiveEntry()
+            }
             forEach { entry ->
+                if (entry.name == metadataFilename) {
+                    return@forEach
+                }
                 writeTime += log.nTime { entry.writeTo(zos) }
             }
         }

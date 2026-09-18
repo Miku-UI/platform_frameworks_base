@@ -44,7 +44,8 @@
     <string name="expand_handle" msgid="7282974448109280522">"ಹ್ಯಾಂಡಲ್ ವಿಸ್ತರಿಸಿ"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"ಹ್ಯಾಂಡಲ್ ಮುಚ್ಚಿರಿ"</string>
     <string name="print_button" msgid="645164566271246268">"ಮುದ್ರಿಸು"</string>
-    <string name="savetopdf_button" msgid="2976186791686924743">"PDF ಗೆ ಉಳಿಸು"</string>
+    <string name="setup_button" msgid="323390526074568450">"ಸೆಟಪ್ ಮಾಡಿ"</string>
+    <string name="savetopdf_button" msgid="2976186791686924743">"PDF ಆಗಿ ಸೇವ್ ಮಾಡಿ"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"ಪ್ರಿಂಟ್ ಆಯ್ಕೆಗಳನ್ನು ವಿಸ್ತರಿಸಲಾಗಿದೆ"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"ಪ್ರಿಂಟ್ ಆಯ್ಕೆಗಳನ್ನು ಮುಚ್ಚಲಾಗಿದೆ"</string>
     <string name="search" msgid="5421724265322228497">"ಹುಡುಕಿ"</string>

@@ -18,6 +18,7 @@ package com.android.systemui.touchpad.tutorial.ui.gesture
 
 import android.util.MathUtils
 import android.view.MotionEvent
+import com.android.systemui.Flags
 import com.android.systemui.touchpad.tutorial.ui.gesture.GestureState.InProgress
 import kotlin.math.abs
 
@@ -30,13 +31,29 @@ class HomeGestureRecognizer(
 
     private val distanceTracker = DistanceTracker()
     private var gestureStateChangedCallback: (GestureState) -> Unit = {}
+    private var gestureCompletionCount = 0
 
     override fun addGestureStateCallback(callback: (GestureState) -> Unit) {
-        gestureStateChangedCallback = callback
+        gestureStateChangedCallback =
+            if (!Flags.touchpadGestureTutorialBugFixes()) {
+                callback
+            } else { state ->
+                if (state != GestureState.Finished) {
+                    callback(state)
+                } else {
+                    gestureCompletionCount++
+                    if (gestureCompletionCount < REQUIRED_GESTURE_COMPLETION_COUNT) {
+                        callback(GestureState.PartialSuccess)
+                    } else {
+                        callback(state)
+                    }
+                }
+            }
     }
 
     override fun clearGestureStateCallback() {
         gestureStateChangedCallback = {}
+        gestureCompletionCount = 0
     }
 
     override fun accept(event: MotionEvent) {
@@ -58,5 +75,9 @@ class HomeGestureRecognizer(
             },
             progress = { InProgress(MathUtils.saturate(-it.deltaY / gestureDistanceThresholdPx)) },
         )
+    }
+
+    companion object {
+        private const val REQUIRED_GESTURE_COMPLETION_COUNT = 2
     }
 }

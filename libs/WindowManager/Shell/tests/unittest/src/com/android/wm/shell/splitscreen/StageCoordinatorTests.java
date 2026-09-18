@@ -21,14 +21,13 @@ import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 import static android.view.Display.DEFAULT_DISPLAY;
+import static android.view.WindowManager.TRANSIT_CLOSE;
 import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_DISALLOW_OVERRIDE_BOUNDS_FOR_CHILDREN;
 import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_LAUNCH_TASK;
 import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_PENDING_INTENT;
 import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_START_SHORTCUT;
 
 import static com.android.wm.shell.Flags.FLAG_ENABLE_FLEXIBLE_TWO_APP_SPLIT;
-import static com.android.wm.shell.Flags.FLAG_SPLIT_DISABLE_CHILD_TASK_BOUNDS;
-import static com.android.wm.shell.Flags.FLAG_SPLIT_TO_FULL_SET_WINDOW_MODE;
 import static com.android.wm.shell.shared.split.SplitScreenConstants.SNAP_TO_2_50_50;
 import static com.android.wm.shell.shared.split.SplitScreenConstants.SPLIT_INDEX_UNDEFINED;
 import static com.android.wm.shell.shared.split.SplitScreenConstants.SPLIT_POSITION_BOTTOM_OR_RIGHT;
@@ -39,6 +38,7 @@ import static com.android.wm.shell.splitscreen.SplitScreen.STAGE_TYPE_SIDE;
 import static com.android.wm.shell.splitscreen.SplitScreen.STAGE_TYPE_UNDEFINED;
 import static com.android.wm.shell.splitscreen.SplitScreenController.EXIT_REASON_DESKTOP_MODE;
 import static com.android.wm.shell.splitscreen.SplitScreenController.EXIT_REASON_DRAG_DIVIDER;
+import static com.android.wm.shell.splitscreen.SplitScreenController.EXIT_REASON_UNKNOWN;
 import static com.android.wm.shell.transition.Transitions.TRANSIT_SPLIT_DISMISS;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -49,6 +49,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
@@ -69,7 +70,6 @@ import android.content.Intent;
 import android.content.pm.ShortcutInfo;
 import android.content.res.Configuration;
 import android.graphics.Rect;
-import android.hardware.display.DisplayManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
@@ -92,8 +92,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.logging.InstanceId;
+import com.android.testing.wm.util.MockToken;
 import com.android.window.flags.Flags;
-import com.android.wm.shell.MockToken;
 import com.android.wm.shell.RootDisplayAreaOrganizer;
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer;
 import com.android.wm.shell.ShellTaskOrganizer;
@@ -120,6 +120,7 @@ import com.android.wm.shell.sysui.ShellInit;
 import com.android.wm.shell.transition.DefaultMixedHandler;
 import com.android.wm.shell.transition.FocusTransitionObserver;
 import com.android.wm.shell.transition.HomeTransitionObserver;
+import com.android.wm.shell.transition.TransitionLeashManager;
 import com.android.wm.shell.transition.Transitions;
 
 import com.google.android.msdl.domain.MSDLPlayer;
@@ -132,7 +133,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -185,18 +185,24 @@ public class StageCoordinatorTests extends ShellTestCase {
     private FakeDesktopState mDesktopState;
     private IActivityTaskManager mIActivityTaskManager;
 
+    @Mock
+    private SurfaceControl.Transaction mTransaction;
+
     private final Rect mBounds1 = new Rect(10, 20, 30, 40);
     private final Rect mBounds2 = new Rect(5, 10, 15, 20);
     private final Rect mRootBounds = new Rect(0, 0, 45, 60);
     private final int mTaskId = 18;
 
-    private SplitMultiDisplayHelper mSplitMultiDisplayHelper;
+    private SurfaceControl mRootLeash;
+    private SurfaceControl mDividerLeash;
+    private ActivityManager.RunningTaskInfo mSplitRootTaskInfo;
     private StageCoordinator mStageCoordinator;
     private SplitScreenTransitions mSplitScreenTransitions;
     private SplitScreenListener mSplitScreenListener;
     private IBinder mBinder;
     private ActivityManager.RunningTaskInfo mRunningTaskInfo;
     private RemoteTransition mRemoteTransition;
+    private Transitions mTransitions;
     private final TestShellExecutor mMainExecutor = new TestShellExecutor();
     private final ShellExecutor mAnimExecutor = new TestShellExecutor();
     private final Handler mMainHandler = new Handler(Looper.getMainLooper());
@@ -212,22 +218,22 @@ public class StageCoordinatorTests extends ShellTestCase {
     @UiThreadTest
     public void setup() {
         MockitoAnnotations.initMocks(this);
-        Transitions transitions = createTestTransitions();
+        mTransitions = spy(createTestTransitions());
         WindowContainerToken token = mock(WindowContainerToken.class);
-        SurfaceControl dividerLeash = new SurfaceControl.Builder().setName("fakeDivider").build();
+        mDividerLeash = new SurfaceControl.Builder().setName("fakeDivider").build();
         when(mRootDisplayAreaOrganizer.getDisplayTokenForDisplay(anyInt()))
                 .thenReturn(mock(WindowContainerToken.class));
         mDesktopState = new FakeDesktopState();
 
         mStageCoordinator = spy(new StageCoordinator(mContext, DEFAULT_DISPLAY, mSyncQueue,
                 mTaskOrganizer, mMainStage, mSideStage, mDisplayController, mDisplayImeController,
-                mDisplayInsetsController, mSplitLayout, transitions, mTransactionPool,
+                mDisplayInsetsController, mSplitLayout, mTransitions, mTransactionPool,
                 mMainExecutor, mMainHandler, Optional.empty(), mLaunchAdjacentController,
                 Optional.empty(), mSplitState, Optional.empty(),
                 Optional.of(mDesktopUserRepositories),
                 mRootTDAOrganizer,
                 mRootDisplayAreaOrganizer, mDesktopState, mIActivityTaskManager, mMSDLPlayer,
-                Optional.of(mBubbleController)));
+                Optional.of(mBubbleController), Optional.empty()));
         mSplitScreenTransitions = spy(mStageCoordinator.getSplitTransitions());
         mSplitScreenListener = mock(SplitScreenListener.class);
         mStageCoordinator.setSplitTransitions(mSplitScreenTransitions);
@@ -250,17 +256,13 @@ public class StageCoordinatorTests extends ShellTestCase {
         when(mSplitLayout.getRootBounds()).thenReturn(mRootBounds);
         when(mSplitLayout.isLeftRightSplit()).thenReturn(false);
         when(mSplitLayout.applyTaskChanges(any(), any(), any())).thenReturn(true);
-        when(mSplitLayout.getDividerLeash()).thenReturn(dividerLeash);
+        when(mSplitLayout.getDividerLeash()).thenReturn(mDividerLeash);
 
         when(mBubbleController.hasBubbles()).thenReturn(false);
 
-        mSplitMultiDisplayHelper = new SplitMultiDisplayHelper(
-                mContext.getSystemService(DisplayManager.class));
-        mSplitMultiDisplayHelper.setDisplayRootTaskInfo(
-                DEFAULT_DISPLAY, new TestRunningTaskInfoBuilder().build());
-        SurfaceControl rootLeash = new SurfaceControl.Builder().setName("splitRoot").build();
-        mStageCoordinator.onTaskAppeared(mSplitMultiDisplayHelper.getDisplayRootTaskInfo(
-                DEFAULT_DISPLAY), rootLeash);
+        mSplitRootTaskInfo = new TestRunningTaskInfoBuilder().build();
+        mRootLeash = new SurfaceControl.Builder().setName("splitRoot").build();
+        mStageCoordinator.onTaskAppeared(mSplitRootTaskInfo, mRootLeash);
 
         mSideStage.mRootTaskInfo = new TestRunningTaskInfoBuilder().build();
         mMainStage.mRootTaskInfo = new TestRunningTaskInfoBuilder().build();
@@ -285,13 +287,11 @@ public class StageCoordinatorTests extends ShellTestCase {
     @Test
     public void testMoveToStage_splitActiveBackground() {
         when(mStageCoordinator.isSplitActive()).thenReturn(true);
-        ActivityManager.RunningTaskInfo rootTaskInfo =
-                mSplitMultiDisplayHelper.getDisplayRootTaskInfo(DEFAULT_DISPLAY);
 
-        mStageCoordinator.moveToStage(rootTaskInfo, SPLIT_POSITION_BOTTOM_OR_RIGHT, mWct);
+        mStageCoordinator.moveToStage(mSplitRootTaskInfo, SPLIT_POSITION_BOTTOM_OR_RIGHT, mWct);
 
         // TODO(b/349828130) Address this once we remove index_undefined called
-        verify(mStageCoordinator).prepareEnterSplitScreen(eq(mWct), eq(rootTaskInfo),
+        verify(mStageCoordinator).prepareEnterSplitScreen(eq(mWct), eq(mSplitRootTaskInfo),
                 eq(SPLIT_POSITION_BOTTOM_OR_RIGHT), eq(false), eq(SPLIT_INDEX_UNDEFINED));
         verify(mMainStage).reparentTopTask(eq(mWct));
         assertEquals(SPLIT_POSITION_BOTTOM_OR_RIGHT, mStageCoordinator.getSideStagePosition());
@@ -305,12 +305,10 @@ public class StageCoordinatorTests extends ShellTestCase {
         // Assume current side stage is top or left.
         mStageCoordinator.setSideStagePosition(SPLIT_POSITION_TOP_OR_LEFT, null);
 
-        ActivityManager.RunningTaskInfo rootTaskInfo =
-                mSplitMultiDisplayHelper.getDisplayRootTaskInfo(DEFAULT_DISPLAY);
-        mStageCoordinator.moveToStage(rootTaskInfo, SPLIT_POSITION_BOTTOM_OR_RIGHT, mWct);
+        mStageCoordinator.moveToStage(mSplitRootTaskInfo, SPLIT_POSITION_BOTTOM_OR_RIGHT, mWct);
 
         // TODO(b/349828130) Address this once we remove index_undefined called
-        verify(mStageCoordinator).prepareEnterSplitScreen(eq(mWct), eq(rootTaskInfo),
+        verify(mStageCoordinator).prepareEnterSplitScreen(eq(mWct), eq(mSplitRootTaskInfo),
                 eq(SPLIT_POSITION_BOTTOM_OR_RIGHT), eq(false), eq(SPLIT_INDEX_UNDEFINED));
         assertEquals(SPLIT_POSITION_BOTTOM_OR_RIGHT, mStageCoordinator.getMainStagePosition());
         assertEquals(SPLIT_POSITION_TOP_OR_LEFT, mStageCoordinator.getSideStagePosition());
@@ -318,20 +316,17 @@ public class StageCoordinatorTests extends ShellTestCase {
 
     @Test
     public void testMoveToStage_splitInactive() {
-        ActivityManager.RunningTaskInfo rootTaskInfo =
-                mSplitMultiDisplayHelper.getDisplayRootTaskInfo(DEFAULT_DISPLAY);
-        mStageCoordinator.moveToStage(rootTaskInfo, SPLIT_POSITION_BOTTOM_OR_RIGHT, mWct);
+        mStageCoordinator.moveToStage(mSplitRootTaskInfo, SPLIT_POSITION_BOTTOM_OR_RIGHT, mWct);
 
         // TODO(b/349828130) Address this once we remove index_undefined called
-        verify(mStageCoordinator).prepareEnterSplitScreen(eq(mWct), eq(rootTaskInfo),
+        verify(mStageCoordinator).prepareEnterSplitScreen(eq(mWct), eq(mSplitRootTaskInfo),
                 eq(SPLIT_POSITION_BOTTOM_OR_RIGHT), eq(false), eq(SPLIT_INDEX_UNDEFINED));
         assertEquals(SPLIT_POSITION_BOTTOM_OR_RIGHT, mStageCoordinator.getSideStagePosition());
     }
 
     @Test
     public void testRootTaskInfoChanged_updatesSplitLayout() {
-        mStageCoordinator.onTaskInfoChanged(mSplitMultiDisplayHelper.getDisplayRootTaskInfo(
-                DEFAULT_DISPLAY));
+        mStageCoordinator.onTaskInfoChanged(mSplitRootTaskInfo);
 
         verify(mSplitLayout).updateConfiguration(any(Configuration.class), eq(DEFAULT_DISPLAY));
     }
@@ -417,10 +412,44 @@ public class StageCoordinatorTests extends ShellTestCase {
 
     @Test
     public void testFinishEnterSplitScreen_applySurfaceLayout() {
-        mStageCoordinator.finishEnterSplitScreen(new SurfaceControl.Transaction());
+        mStageCoordinator.finishEnterSplitScreen(mTransaction);
 
         verify(mSplitLayout, atLeastOnce())
-                .applySurfaceChanges(any(), any(), any(), any(), any(), eq(false));
+                .applySurfaceChanges(eq(mTransaction), any(), any(), any(), any(), eq(false));
+    }
+
+    @Test
+    public void finishEnterSplitScreen_withValidDividerLeash_reparentsLeash() {
+        // The default setup provides a valid divider leash.
+        mStageCoordinator.finishEnterSplitScreen(mTransaction);
+
+        // Verify that the divider leash is reparented to the root task leash.
+        verify(mTransaction).reparent(eq(mDividerLeash), eq(mRootLeash));
+    }
+
+    @Test
+    public void finishEnterSplitScreen_withNullDividerLeash_doesNotReparent() {
+        // Setup: Divider leash is null.
+        when(mSplitLayout.getDividerLeash()).thenReturn(null);
+
+        mStageCoordinator.finishEnterSplitScreen(mTransaction);
+
+        // Verify that reparent is not called for the divider leash, as it's null.
+        // The root leash is the parent for the divider, so this check is specific enough.
+        verify(mTransaction, never()).reparent(any(SurfaceControl.class), eq(mRootLeash));
+    }
+
+    @Test
+    public void finishEnterSplitScreen_withInvalidDividerLeash_doesNotReparent() {
+        // Setup: Divider leash is invalid.
+        SurfaceControl invalidLeash = mock(SurfaceControl.class);
+        when(invalidLeash.isValid()).thenReturn(false);
+        when(mSplitLayout.getDividerLeash()).thenReturn(invalidLeash);
+
+        mStageCoordinator.finishEnterSplitScreen(mTransaction);
+
+        // Verify that reparent is not called for the invalid leash.
+        verify(mTransaction, never()).reparent(eq(invalidLeash), any());
     }
 
     @Test
@@ -454,7 +483,6 @@ public class StageCoordinatorTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_SPLIT_TO_FULL_SET_WINDOW_MODE)
     public void testSplitIntentAndTaskWithPippedApp_launchFullscreen() {
         int taskId = 9;
         mStageCoordinator.setMixedHandler(mDefaultMixedHandler);
@@ -504,7 +532,6 @@ public class StageCoordinatorTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_SPLIT_TO_FULL_SET_WINDOW_MODE)
     public void testSplitIntentsWithPippedApp_launchFullscreen() {
         mStageCoordinator.setMixedHandler(mDefaultMixedHandler);
         PendingIntent pendingIntent = mock(PendingIntent.class);
@@ -571,8 +598,6 @@ public class StageCoordinatorTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_ENABLE_FULL_SCREEN_WINDOW_ON_REMOVING_SPLIT_SCREEN_STAGE_BUGFIX,
-            Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND})
     public void startTasksOnSingleFreeformWindow_ensureWindowingModeClearedAndLaunchFullScreen() {
         mDisplayAreaInfo.configuration.windowConfiguration.setWindowingMode(
                 WINDOWING_MODE_FREEFORM);
@@ -590,21 +615,6 @@ public class StageCoordinatorTests extends ShellTestCase {
         assertThat(mWctCaptor.getValue().getHierarchyOps().stream().filter(
                         HierarchyOp::isReparent).findFirst().get()
                 .getNewParent()).isNull();
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_ENABLE_FULL_SCREEN_WINDOW_ON_REMOVING_SPLIT_SCREEN_STAGE_BUGFIX)
-    public void startTasksOnSingleFreeformWindow_flagDisabled_noChangeToWindowingModeInWct() {
-        mDisplayAreaInfo.configuration.windowConfiguration.setWindowingMode(
-                WINDOWING_MODE_FREEFORM);
-        when(mRunningTaskInfo.getWindowingMode()).thenReturn(WINDOWING_MODE_FREEFORM);
-
-        mStageCoordinator.startTasks(mTaskId, null, INVALID_TASK_ID, null,
-                SPLIT_POSITION_TOP_OR_LEFT, SNAP_TO_2_50_50, mRemoteTransition,
-                InstanceId.fakeInstanceId(0));
-
-        verify(mSplitScreenTransitions).startFullscreenTransition(mWctCaptor.capture(), any());
-        assertThat(mWctCaptor.getValue().getChanges()).isEmpty();
     }
 
     @Test
@@ -658,6 +668,19 @@ public class StageCoordinatorTests extends ShellTestCase {
     }
 
     @Test
+    public void prepareExitSplitScreen_doesNotUpdateSplitLayout() {
+        // Setup: Stage coordinator is in an active split state.
+        when(mStageCoordinator.isSplitActive()).thenReturn(true);
+        WindowContainerTransaction wct = new WindowContainerTransaction();
+
+        // Action: Prepare to exit split screen.
+        mStageCoordinator.prepareExitSplitScreen(STAGE_TYPE_MAIN, wct, EXIT_REASON_UNKNOWN);
+
+        // Verification: The split layout configuration should not be updated upon exiting.
+        verify(mSplitLayout, never()).updateConfiguration(any(), anyInt());
+    }
+
+    @Test
     public void updateActivityOptions_withBubbles_setsLaunchBounds() {
         when(mBubbleController.hasBubbles()).thenReturn(true);
         Bundle bundle = new Bundle();
@@ -680,131 +703,125 @@ public class StageCoordinatorTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_SPLIT_DISABLE_CHILD_TASK_BOUNDS)
     public void onRootTaskAppeared_disableChildTaskBounds() {
         // root tasks for stages are created in setUp, mark them set
         mMainStage.mHasRootTask = true;
         mSideStage.mHasRootTask = true;
-        ActivityManager.RunningTaskInfo rootTaskInfo =
-                mSplitMultiDisplayHelper.getDisplayRootTaskInfo(DEFAULT_DISPLAY);
-        mStageCoordinator.onRootTaskAppeared(rootTaskInfo);
+
+        mStageCoordinator.onRootTaskAppeared();
 
         ArgumentCaptor<WindowContainerTransaction> wctCaptor =
                 ArgumentCaptor.forClass(WindowContainerTransaction.class);
         verify(mSyncQueue).queue(wctCaptor.capture());
 
         WindowContainerTransaction capturedWct = wctCaptor.getValue();
-        List<HierarchyOp> disableChildBoundsOps = capturedWct.getHierarchyOps().stream()
-                .filter(op -> op.getType()
-                        == HIERARCHY_OP_TYPE_DISALLOW_OVERRIDE_BOUNDS_FOR_CHILDREN)
-                .toList();
-        assertThat(disableChildBoundsOps).hasSize(2);
-        HierarchyOp op = disableChildBoundsOps.getFirst();
-        assertThat(op.getContainer()).isEqualTo(mMainStage.mRootTaskInfo.token.asBinder());
-        assertThat(op.getDisallowOverrideBoundsForChildren()).isTrue();
-        op = disableChildBoundsOps.get(1);
-        assertThat(op.getContainer()).isEqualTo(mSideStage.mRootTaskInfo.token.asBinder());
-        assertThat(op.getDisallowOverrideBoundsForChildren()).isTrue();
-    }
-
-    @Test
-    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_MULTI_DISPLAY_SPLIT)
-    public void moveSplitScreenRoot_whenFlagEnabled_doesNothing() {
-        SplitMultiDisplayHelper mockHelper = mock(SplitMultiDisplayHelper.class);
-        mStageCoordinator.setSplitMultiDisplayHelper(mockHelper);
-
-        mStageCoordinator.prepareMovingSplitScreenRoot(mWct, DEFAULT_DISPLAY + 1);
-
-        verify(mockHelper, never()).getCachedOrSystemDisplayIds();
-        verify(mRootTDAOrganizer, never()).getDisplayAreaInfo(anyInt());
-        verify(mWct, never()).reparent(any(), any(), anyBoolean());
+        if (Flags.idempotentWctResolution()) {
+            assertThat(capturedWct.getChanges()).containsKey(mMainStage.mRootTaskInfo.token
+                    .asBinder());
+            assertThat(capturedWct.getChanges().get(mMainStage.mRootTaskInfo.token.asBinder())
+                    .getDisallowOverrideBoundsForChildren()).isTrue();
+            assertThat(capturedWct.getChanges()).containsKey(mSideStage.mRootTaskInfo.token
+                    .asBinder());
+            assertThat(capturedWct.getChanges().get(mSideStage.mRootTaskInfo.token.asBinder())
+                    .getDisallowOverrideBoundsForChildren()).isTrue();
+        } else {
+            List<HierarchyOp> disableChildBoundsOps = capturedWct.getHierarchyOps().stream()
+                    .filter(op -> op.getType()
+                            == HIERARCHY_OP_TYPE_DISALLOW_OVERRIDE_BOUNDS_FOR_CHILDREN)
+                    .toList();
+            assertThat(disableChildBoundsOps).hasSize(2);
+            HierarchyOp op = disableChildBoundsOps.getFirst();
+            assertThat(op.getContainer()).isEqualTo(mMainStage.mRootTaskInfo.token.asBinder());
+            assertThat(op.getDisallowOverrideBoundsForChildren()).isTrue();
+            op = disableChildBoundsOps.get(1);
+            assertThat(op.getContainer()).isEqualTo(mSideStage.mRootTaskInfo.token.asBinder());
+            assertThat(op.getDisallowOverrideBoundsForChildren()).isTrue();
+        }
     }
 
     @Test(expected = IllegalStateException.class)
-    @DisableFlags(com.android.window.flags.Flags.FLAG_ENABLE_MULTI_DISPLAY_SPLIT)
     public void moveSplitScreenRoot_whenRootNotFound_throwsException() {
-        SplitMultiDisplayHelper mockHelper = mock(SplitMultiDisplayHelper.class);
-        mStageCoordinator.setSplitMultiDisplayHelper(mockHelper);
-        when(mockHelper.getCachedOrSystemDisplayIds()).thenReturn(
-                new ArrayList<>(List.of(DEFAULT_DISPLAY)));
-        when(mockHelper.getDisplayRootTaskInfo(anyInt())).thenReturn(null);
-
-        mStageCoordinator.prepareMovingSplitScreenRoot(mWct, DEFAULT_DISPLAY + 1);
+        mStageCoordinator.mSplitRootTaskInfo = null;
+        mStageCoordinator.prepareMovingSplitScreenRoot(mWct, DEFAULT_DISPLAY + 1,
+                true /* OnTop */);
     }
 
     @Test
-    @DisableFlags(com.android.window.flags.Flags.FLAG_ENABLE_MULTI_DISPLAY_SPLIT)
     public void moveSplitScreenRoot_whenTargetIsSameDisplay_doesNothing() {
-        SplitMultiDisplayHelper mockHelper = mock(SplitMultiDisplayHelper.class);
-        mStageCoordinator.setSplitMultiDisplayHelper(mockHelper);
-        final int targetDisplayId = DEFAULT_DISPLAY;
-        ActivityManager.RunningTaskInfo currentRootTaskInfo = new TestRunningTaskInfoBuilder()
-                .setDisplayId(targetDisplayId)
-                .build();
-        when(mockHelper.getCachedOrSystemDisplayIds()).thenReturn(
-                new ArrayList<>(List.of(targetDisplayId)));
-        when(mockHelper.getDisplayRootTaskInfo(targetDisplayId))
-                .thenReturn(currentRootTaskInfo);
-
-        mStageCoordinator.prepareMovingSplitScreenRoot(mWct, targetDisplayId);
+        final int targetDisplayId = mSplitRootTaskInfo.displayId;
+        mStageCoordinator.prepareMovingSplitScreenRoot(mWct, targetDisplayId, true /* OnTop */);
 
         verify(mWct, never()).reparent(any(), any(), anyBoolean());
     }
 
     @Test
-    @DisableFlags(com.android.window.flags.Flags.FLAG_ENABLE_MULTI_DISPLAY_SPLIT)
     public void moveSplitScreenRoot_whenTargetIsDifferentDisplay_reparentsRoot() {
-        SplitMultiDisplayHelper mockHelper = mock(SplitMultiDisplayHelper.class);
-        mStageCoordinator.setSplitMultiDisplayHelper(mockHelper);
-        final int currentDisplayId = DEFAULT_DISPLAY;
-        final int targetDisplayId = DEFAULT_DISPLAY + 1;
+        final int currentDisplayId = mSplitRootTaskInfo.displayId;
+        final int targetDisplayId = currentDisplayId + 1;
 
-        WindowContainerToken currentRootToken = mock(WindowContainerToken.class);
-        when(mRootDisplayAreaOrganizer.getDisplayTokenForDisplay(anyInt()))
-                .thenReturn(mock(WindowContainerToken.class));
-        ActivityManager.RunningTaskInfo currentRootTaskInfo = new TestRunningTaskInfoBuilder()
-                .setDisplayId(currentDisplayId)
-                .setToken(currentRootToken)
-                .build();
-        when(mockHelper.getCachedOrSystemDisplayIds())
-                .thenReturn(new ArrayList<>(List.of(currentDisplayId, targetDisplayId)));
-        when(mockHelper.getDisplayRootTaskInfo(currentDisplayId))
-                .thenReturn(currentRootTaskInfo);
-
+        WindowContainerToken splitRootTaskInfoToken = mSplitRootTaskInfo.getToken();
         WindowContainerToken targetDisplayAreaToken = new MockToken().token();
         DisplayAreaInfo targetDisplayAreaInfo = new DisplayAreaInfo(targetDisplayAreaToken,
                 targetDisplayId, 0);
         when(mRootTDAOrganizer.getDisplayAreaInfo(targetDisplayId))
                 .thenReturn(targetDisplayAreaInfo);
+        mStageCoordinator.prepareMovingSplitScreenRoot(mWct, targetDisplayId, true /* OnTop */);
 
-        mStageCoordinator.prepareMovingSplitScreenRoot(mWct, targetDisplayId);
-
-        verify(mWct).reparent(eq(currentRootToken), eq(targetDisplayAreaToken), eq(true));
+        verify(mWct).reparent(eq(splitRootTaskInfoToken), eq(targetDisplayAreaToken), eq(true));
     }
 
     @Test
-    @DisableFlags(com.android.window.flags.Flags.FLAG_ENABLE_MULTI_DISPLAY_SPLIT)
     public void moveSplitScreenRoot_whenTargetDisplayAreaNotFound_doesNothing() {
-        SplitMultiDisplayHelper mockHelper = mock(SplitMultiDisplayHelper.class);
-        mStageCoordinator.setSplitMultiDisplayHelper(mockHelper);
-
-        final int currentDisplayId = DEFAULT_DISPLAY;
-        final int targetDisplayId = DEFAULT_DISPLAY + 1;
+        final int currentDisplayId = mSplitRootTaskInfo.displayId;
+        final int targetDisplayId = currentDisplayId + 1;
 
         // Setup current root, but no target display area
-        WindowContainerToken currentRootToken = mock(WindowContainerToken.class);
-        ActivityManager.RunningTaskInfo currentRootTaskInfo = new TestRunningTaskInfoBuilder()
-                .setDisplayId(currentDisplayId)
-                .setToken(currentRootToken)
-                .build();
-        when(mockHelper.getCachedOrSystemDisplayIds())
-                .thenReturn(new ArrayList<>(List.of(currentDisplayId, targetDisplayId)));
-        when(mockHelper.getDisplayRootTaskInfo(currentDisplayId))
-                .thenReturn(currentRootTaskInfo);
-
+        WindowContainerToken splitRootTaskInfoToken = mSplitRootTaskInfo.getToken();
         when(mRootTDAOrganizer.getDisplayAreaInfo(targetDisplayId)).thenReturn(null);
+        mStageCoordinator.prepareMovingSplitScreenRoot(mWct, targetDisplayId, true /* OnTop */);
 
-        mStageCoordinator.prepareMovingSplitScreenRoot(mWct, targetDisplayId);
+        verify(mWct, never()).reparent(any(), any(), anyBoolean());
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void moveSplitScreenRoot_notOnTop_whenRootNotFound_throwsException() {
+        mStageCoordinator.mSplitRootTaskInfo = null;
+        mStageCoordinator.prepareMovingSplitScreenRoot(mWct, DEFAULT_DISPLAY + 1,
+                false /* onTop */);
+    }
+
+    @Test
+    public void moveSplitScreenRoot_notOnTop_whenTargetIsSameDisplay_doesNothing() {
+        final int targetDisplayId = mSplitRootTaskInfo.displayId;
+        mStageCoordinator.prepareMovingSplitScreenRoot(mWct, targetDisplayId, false /* onTop */);
+
+        verify(mWct, never()).reparent(any(), any(), anyBoolean());
+    }
+
+    @Test
+    public void moveSplitScreenRoot_notOnTop_whenTargetIsDifferentDisplay_reparentsRoot() {
+        final int currentDisplayId = mSplitRootTaskInfo.displayId;
+        final int targetDisplayId = currentDisplayId + 1;
+
+        WindowContainerToken splitRootTaskInfoToken = mSplitRootTaskInfo.getToken();
+        WindowContainerToken targetDisplayAreaToken = new MockToken().token();
+        DisplayAreaInfo targetDisplayAreaInfo = new DisplayAreaInfo(targetDisplayAreaToken,
+                targetDisplayId, 0);
+        when(mRootTDAOrganizer.getDisplayAreaInfo(targetDisplayId))
+                .thenReturn(targetDisplayAreaInfo);
+        mStageCoordinator.prepareMovingSplitScreenRoot(mWct, targetDisplayId, false /* onTop */);
+
+        verify(mWct).reparent(eq(splitRootTaskInfoToken), eq(targetDisplayAreaToken), eq(false));
+    }
+
+    @Test
+    public void moveSplitScreenRoot_notOnTop_whenTargetDisplayAreaNotFound_doesNothing() {
+        final int currentDisplayId = mSplitRootTaskInfo.displayId;
+        final int targetDisplayId = currentDisplayId + 1;
+
+        // Setup current root, but no target display area
+        when(mRootTDAOrganizer.getDisplayAreaInfo(targetDisplayId)).thenReturn(null);
+        mStageCoordinator.prepareMovingSplitScreenRoot(mWct, targetDisplayId, false /* onTop */);
 
         verify(mWct, never()).reparent(any(), any(), anyBoolean());
     }
@@ -926,7 +943,7 @@ public class StageCoordinatorTests extends ShellTestCase {
     public void testAddExitForBubblesIfNeeded_splitVisible_hasStageToTop() {
         when(mStageCoordinator.isSplitActive()).thenReturn(true);
         when(mStageCoordinator.isSplitScreenVisible()).thenReturn(true);
-        doReturn(STAGE_TYPE_MAIN).when(mStageCoordinator).getStageOfTask(anyInt());
+        doReturn(STAGE_TYPE_MAIN).when(mStageCoordinator).getCurrentStageTypeOfTask(anyInt());
 
         android.window.TransitionRequestInfo request =
                 mock(android.window.TransitionRequestInfo.class);
@@ -944,7 +961,7 @@ public class StageCoordinatorTests extends ShellTestCase {
     public void testAddExitForBubblesIfNeeded_splitNotVisible_noStageToTop() {
         when(mStageCoordinator.isSplitActive()).thenReturn(true);
         when(mStageCoordinator.isSplitScreenVisible()).thenReturn(false);
-        doReturn(STAGE_TYPE_MAIN).when(mStageCoordinator).getStageOfTask(anyInt());
+        doReturn(STAGE_TYPE_MAIN).when(mStageCoordinator).getCurrentStageTypeOfTask(anyInt());
 
         android.window.TransitionRequestInfo request =
                 mock(android.window.TransitionRequestInfo.class);
@@ -959,7 +976,6 @@ public class StageCoordinatorTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_SPLIT_TO_FULL_SET_WINDOW_MODE)
     public void startTasks_withOneTask_setsFullscreenWindowingMode() {
         mStageCoordinator.startTasks(mTaskId, null /* options1 */, INVALID_TASK_ID,
                 null /* options2 */, SPLIT_POSITION_TOP_OR_LEFT, SNAP_TO_2_50_50,
@@ -975,7 +991,6 @@ public class StageCoordinatorTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_SPLIT_TO_FULL_SET_WINDOW_MODE)
     public void startShortcutAndTask_withOnlyShortcut_setsFullscreenWindowingMode() {
         ShortcutInfo shortcutInfo = new ShortcutInfo.Builder(mContext, "test").build();
         mStageCoordinator.startShortcutAndTask(shortcutInfo, null /* options1 */, INVALID_TASK_ID,
@@ -993,7 +1008,6 @@ public class StageCoordinatorTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_SPLIT_TO_FULL_SET_WINDOW_MODE)
     public void startIntents_withOneIntent_setsFullscreenWindowingMode() {
         PendingIntent pendingIntent = mock(PendingIntent.class);
         mStageCoordinator.startIntents(pendingIntent, new Intent(), null /* shortcutInfo1 */,
@@ -1010,12 +1024,41 @@ public class StageCoordinatorTests extends ShellTestCase {
         assertThat(getLaunchWindowingMode(options)).isEqualTo(WINDOWING_MODE_FULLSCREEN);
     }
 
+    @Test
+    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX)
+    public void startTask_onNonDefaultDisplay_updatesSplitLayoutConfiguration() {
+        // Set up non-default display.
+        final int nonDefaultDisplayId = DEFAULT_DISPLAY + 1;
+        final WindowContainerToken displayAreaToken = new MockToken().token();
+        final DisplayAreaInfo displayAreaInfo = new DisplayAreaInfo(displayAreaToken,
+                nonDefaultDisplayId, 0);
+        displayAreaInfo.configuration.setTo(mContext.getResources().getConfiguration());
+        displayAreaInfo.configuration.densityDpi = 480;
+        when(mRootTDAOrganizer.getDisplayAreaInfo(nonDefaultDisplayId)).thenReturn(displayAreaInfo);
+        // Activity options specifying non-default display.
+        ActivityOptions options = ActivityOptions.makeBasic();
+        options.setLaunchDisplayId(nonDefaultDisplayId);
+        Bundle optionsBundle = options.toBundle();
+
+        mStageCoordinator.startTask(
+                mTaskId,
+                SPLIT_POSITION_TOP_OR_LEFT,
+                optionsBundle,
+                /* hideTaskToken= */ null,
+                SPLIT_INDEX_UNDEFINED
+        );
+
+        verify(mSplitLayout).updateConfiguration(eq(displayAreaInfo.configuration),
+                eq(nonDefaultDisplayId));
+    }
+
     private Transitions createTestTransitions() {
         ShellInit shellInit = new ShellInit(mMainExecutor);
         final Transitions t = new Transitions(mContext, shellInit, mock(ShellController.class),
                 mTaskOrganizer, mTransactionPool, mock(DisplayController.class),
                 mDisplayInsetsController, mMainExecutor, mMainHandler, mAnimExecutor,
-                mock(HomeTransitionObserver.class), mock(FocusTransitionObserver.class));
+                mock(TransitionLeashManager.class), mock(HomeTransitionObserver.class),
+                mock(FocusTransitionObserver.class));
         shellInit.init();
         return t;
     }
@@ -1026,6 +1069,351 @@ public class StageCoordinatorTests extends ShellTestCase {
         return wct.getHierarchyOps().stream()
                 .filter(o -> o.getType() == type)
                 .findFirst().orElse(null);
+    }
+
+    @Test
+    public void closeTask_splitNotActive_returnsNotActive() {
+        when(mStageCoordinator.isSplitActive()).thenReturn(false);
+        assertThat(mStageCoordinator.closeTask(mTaskId)).isEqualTo(
+                CloseTaskResult.NOT_ACTIVE);
+    }
+
+    @Test
+    public void closeTask_dividerFlinging_returnsDividerFlinging() {
+        when(mStageCoordinator.isSplitActive()).thenReturn(true);
+        when(mSplitLayout.isCurrentlyDividerFlinging()).thenReturn(true);
+        assertThat(mStageCoordinator.closeTask(mTaskId)).isEqualTo(
+                CloseTaskResult.DIVIDER_FLINGING);
+    }
+
+    @Test
+    public void closeTask_pendingDismiss_returnsPendingDismiss() {
+        when(mStageCoordinator.isSplitActive()).thenReturn(true);
+        mStageCoordinator.getSplitTransitions().mPendingDismiss = mock(
+                SplitScreenTransitions.DismissSession.class);
+        assertThat(mStageCoordinator.closeTask(mTaskId)).isEqualTo(
+                CloseTaskResult.PENDING_DISMISS);
+    }
+
+    @Test
+    public void closeTask_noTaskInfo_returnsNoTaskInfo() {
+        when(mStageCoordinator.isSplitActive()).thenReturn(true);
+        when(mTaskOrganizer.getRunningTaskInfo(mTaskId)).thenReturn(null);
+        assertThat(mStageCoordinator.closeTask(mTaskId)).isEqualTo(
+                CloseTaskResult.NO_TASK_INFO);
+    }
+
+    @Test
+    public void closeTask_noStage_returnsNoStage() {
+        final int unknownTaskId = 128;
+        when(mStageCoordinator.isSplitActive()).thenReturn(true);
+        mRunningTaskInfo.parentTaskId = unknownTaskId;
+        assertThat(mStageCoordinator.closeTask(mTaskId)).isEqualTo(
+                CloseTaskResult.NO_STAGE);
+    }
+
+    @Test
+    public void closeTask_notAllTasksToBeVanished_returnsClosedTaskSplitRemained() {
+        when(mStageCoordinator.isSplitActive()).thenReturn(true);
+        mRunningTaskInfo.parentTaskId = mMainStage.mRootTaskInfo.taskId;
+        when(mMainStage.containsTask(mTaskId)).thenReturn(true);
+        when(mMainStage.areAllTasksToBeVanished()).thenReturn(false);
+
+        assertThat(mStageCoordinator.closeTask(mTaskId)).isEqualTo(
+                CloseTaskResult.CLOSED_TASK_SPLIT_REMAINED);
+
+        final ArgumentCaptor<WindowContainerTransaction> wctCaptor =
+                ArgumentCaptor.forClass(WindowContainerTransaction.class);
+        verify(mTransitions).startTransition(eq(TRANSIT_CLOSE), wctCaptor.capture(), isNull());
+
+        final WindowContainerTransaction wct = wctCaptor.getValue();
+        assertThat(wct.getHierarchyOps().size()).isEqualTo(1);
+        assertThat(wct.getHierarchyOps().getFirst().getType()).isEqualTo(
+                HierarchyOp.HIERARCHY_OP_TYPE_REMOVE_TASK);
+        assertThat(wct.getHierarchyOps().getFirst().getContainer()).isEqualTo(
+                mRunningTaskInfo.token.asBinder());
+    }
+
+    @Test
+    public void closeTask_unknownStagePosition_returnsStagePositionUnknown() {
+        when(mStageCoordinator.isSplitActive()).thenReturn(true);
+        mRunningTaskInfo.parentTaskId = mMainStage.mRootTaskInfo.taskId;
+        when(mMainStage.getChildCount()).thenReturn(1);
+        when(mMainStage.containsTask(mTaskId)).thenReturn(false);
+        when(mSideStage.containsTask(mTaskId)).thenReturn(false);
+
+        assertThat(mStageCoordinator.closeTask(mTaskId)).isEqualTo(
+                CloseTaskResult.STAGE_POSITION_UNKNOWN);
+    }
+
+    @Test
+    public void closeTask_markClosingTaskToBeVanished() {
+        when(mStageCoordinator.isSplitActive()).thenReturn(true);
+        mRunningTaskInfo.parentTaskId = mMainStage.mRootTaskInfo.taskId;
+        when(mMainStage.containsTask(mTaskId)).thenReturn(true);
+
+        mStageCoordinator.closeTask(mTaskId);
+
+        verify(mMainStage).markToBeVanished(mTaskId);
+    }
+
+    @Test
+    public void closeTask_allTasksToBeVanished_dismissesSplit() {
+        when(mStageCoordinator.isSplitActive()).thenReturn(true);
+        mRunningTaskInfo.parentTaskId = mMainStage.mRootTaskInfo.taskId;
+        when(mMainStage.containsTask(mTaskId)).thenReturn(true);
+        when(mMainStage.areAllTasksToBeVanished()).thenReturn(true);
+        mStageCoordinator.setSideStagePosition(SPLIT_POSITION_BOTTOM_OR_RIGHT, null);
+
+        assertThat(mStageCoordinator.closeTask(mTaskId)).isEqualTo(
+                CloseTaskResult.CLOSED_TASK_SPLIT_DISMISSED);
+        final ArgumentCaptor<WindowContainerTransaction> wctCaptor =
+                ArgumentCaptor.forClass(WindowContainerTransaction.class);
+        verify(mSplitLayout).flingDividerToDismiss(eq(false), anyInt(), wctCaptor.capture());
+        final WindowContainerTransaction wct = wctCaptor.getValue();
+        assertThat(wct.getHierarchyOps().size()).isEqualTo(1);
+        assertThat(wct.getHierarchyOps().getFirst().getType()).isEqualTo(
+                HierarchyOp.HIERARCHY_OP_TYPE_REMOVE_TASK);
+        assertThat(wct.getHierarchyOps().getFirst().getContainer()).isEqualTo(
+                mRunningTaskInfo.token.asBinder());
+    }
+
+    @Test
+    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX)
+    public void startTasks_onDifferentDisplay_reparentsSplitRoot() {
+        // Setup: Define task IDs and a non-default display.
+        final int taskId1 = 1;
+        final int taskId2 = 2;
+        final int nonDefaultDisplayId = DEFAULT_DISPLAY + 1;
+
+        // The split root is on the default display.
+        mSplitRootTaskInfo.displayId = DEFAULT_DISPLAY;
+
+        // Task 1 is on the non-default display.
+        final ActivityManager.RunningTaskInfo taskInfo1 = new TestRunningTaskInfoBuilder()
+                .setTaskId(taskId1)
+                .setDisplayId(nonDefaultDisplayId)
+                .build();
+        when(mTaskOrganizer.getRunningTaskInfo(taskId1)).thenReturn(taskInfo1);
+
+        // Mock the display area info for the non-default display.
+        final WindowContainerToken displayAreaToken = new MockToken().token();
+        final DisplayAreaInfo displayAreaInfo = new DisplayAreaInfo(displayAreaToken,
+                nonDefaultDisplayId, 0);
+        when(mRootTDAOrganizer.getDisplayAreaInfo(nonDefaultDisplayId)).thenReturn(displayAreaInfo);
+
+        // Action: Call startTasks.
+        mStageCoordinator.startTasks(taskId1, null /* options1 */, taskId2,
+                null /* options2 */, SPLIT_POSITION_TOP_OR_LEFT, SNAP_TO_2_50_50,
+                null /* remoteTransition */, null /* instanceId */);
+
+        // Verification: Check that the split root is reparented to the non-default display.
+        verify(mSplitScreenTransitions).startEnterTransition(anyInt(), mWctCaptor.capture(),
+                isNull(), any(), anyInt(), anyBoolean(), anyInt());
+        WindowContainerTransaction wct = mWctCaptor.getValue();
+        HierarchyOp op = wct.getHierarchyOps().stream()
+                .filter(HierarchyOp::isReparent)
+                .findFirst()
+                .orElse(null);
+
+        assertThat(op).isNotNull();
+        assertThat(op.getContainer()).isEqualTo(mSplitRootTaskInfo.token.asBinder());
+        assertThat(op.getNewParent()).isEqualTo(displayAreaToken.asBinder());
+        assertThat(op.getToTop()).isTrue();
+    }
+
+    @Test
+    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX)
+    public void startTasks_onSameDisplay_doesNotReparentSplitRoot() {
+        // Setup: Define task IDs.
+        final int taskId1 = 1;
+        final int taskId2 = 2;
+
+        // The split root is on the default display.
+        mSplitRootTaskInfo.displayId = DEFAULT_DISPLAY;
+
+        // Task 1 is also on the default display.
+        final ActivityManager.RunningTaskInfo taskInfo1 = new TestRunningTaskInfoBuilder()
+                .setTaskId(taskId1)
+                .setDisplayId(DEFAULT_DISPLAY)
+                .build();
+        when(mTaskOrganizer.getRunningTaskInfo(taskId1)).thenReturn(taskInfo1);
+
+        // Action: Call startTasks.
+        mStageCoordinator.startTasks(taskId1, null /* options1 */, taskId2,
+                null /* options2 */, SPLIT_POSITION_TOP_OR_LEFT, SNAP_TO_2_50_50,
+                null /* remoteTransition */, null /* instanceId */);
+
+        // Verification: Check that the split root is not reparented.
+        verify(mSplitScreenTransitions).startEnterTransition(anyInt(), mWctCaptor.capture(),
+                isNull(), any(), anyInt(), anyBoolean(), anyInt());
+        WindowContainerTransaction wct = mWctCaptor.getValue();
+        boolean hasReparentOp = wct.getHierarchyOps().stream().anyMatch(HierarchyOp::isReparent);
+
+        assertThat(hasReparentOp).isFalse();
+    }
+
+    @Test
+    @EnableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX)
+    public void startTasks_taskInfoNotFound_doesNotReparentSplitRoot() {
+        // Setup: Define task IDs.
+        final int taskId1 = 1;
+        final int taskId2 = 2;
+
+        // The split root is on the default display.
+        mSplitRootTaskInfo.displayId = DEFAULT_DISPLAY;
+
+        // Task 1 info is not found.
+        when(mTaskOrganizer.getRunningTaskInfo(taskId1)).thenReturn(null);
+
+        // Action: Call startTasks.
+        mStageCoordinator.startTasks(taskId1, null /* options1 */, taskId2,
+                null /* options2 */, SPLIT_POSITION_TOP_OR_LEFT, SNAP_TO_2_50_50,
+                null /* remoteTransition */, null /* instanceId */);
+
+        // Verification: Check that the split root is not reparented.
+        verify(mSplitScreenTransitions).startEnterTransition(anyInt(), mWctCaptor.capture(),
+                isNull(), any(), anyInt(), anyBoolean(), anyInt());
+        WindowContainerTransaction wct = mWctCaptor.getValue();
+        boolean hasReparentOp = wct.getHierarchyOps().stream().anyMatch(HierarchyOp::isReparent);
+
+        assertThat(hasReparentOp).isFalse();
+    }
+
+    @Test
+    @DisableFlags(com.android.window.flags.Flags.FLAG_ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX)
+    public void startTasks_onDifferentDisplay_flagDisabled_doesNotReparentSplitRoot() {
+        // Setup: Define task IDs and a non-default display.
+        final int taskId1 = 1;
+        final int taskId2 = 2;
+        final int nonDefaultDisplayId = DEFAULT_DISPLAY + 1;
+
+        // The split root is on the default display.
+        mSplitRootTaskInfo.displayId = DEFAULT_DISPLAY;
+
+        // Task 1 is on the non-default display.
+        final ActivityManager.RunningTaskInfo taskInfo1 = new TestRunningTaskInfoBuilder()
+                .setTaskId(taskId1)
+                .setDisplayId(nonDefaultDisplayId)
+                .build();
+        when(mTaskOrganizer.getRunningTaskInfo(taskId1)).thenReturn(taskInfo1);
+
+        // Mock the display area info for the non-default display.
+        final WindowContainerToken displayAreaToken = new MockToken().token();
+        final DisplayAreaInfo displayAreaInfo = new DisplayAreaInfo(displayAreaToken,
+                nonDefaultDisplayId, 0);
+        when(mRootTDAOrganizer.getDisplayAreaInfo(nonDefaultDisplayId)).thenReturn(displayAreaInfo);
+
+        // Action: Call startTasks.
+        mStageCoordinator.startTasks(taskId1, null /* options1 */, taskId2,
+                null /* options2 */, SPLIT_POSITION_TOP_OR_LEFT, SNAP_TO_2_50_50,
+                null /* remoteTransition */, null /* instanceId */);
+
+        // Verification: Check that the split root is NOT reparented because the flag is disabled.
+        verify(mSplitScreenTransitions).startEnterTransition(anyInt(), mWctCaptor.capture(),
+                isNull(), any(), anyInt(), anyBoolean(), anyInt());
+        WindowContainerTransaction wct = mWctCaptor.getValue();
+        boolean hasReparentOp = wct.getHierarchyOps().stream().anyMatch(HierarchyOp::isReparent);
+
+        assertThat(hasReparentOp).isFalse();
+    }
+
+    @Test
+    public void setDividerVisibility_hideWithInvalidLeash_doesNotHide() {
+        when(mTransactionPool.acquire()).thenReturn(mTransaction);
+
+        // Make divider visible first to ensure the subsequent hide call is not a no-op.
+        mStageCoordinator.setDividerVisibility(true, new SurfaceControl.Transaction());
+        clearInvocations(mTransactionPool);
+
+        // Prepare for hiding with an invalid leash.
+        SurfaceControl invalidLeash = mock(SurfaceControl.class);
+        when(invalidLeash.isValid()).thenReturn(false);
+        when(mSplitLayout.getDividerLeash()).thenReturn(invalidLeash);
+
+        // Action: hide the divider.
+        mStageCoordinator.setDividerVisibility(false, null);
+
+        // Verification: A transaction should not be acquired because the leash is invalid.
+        // This confirms the new check is working.
+        verify(mTransactionPool, never()).acquire();
+    }
+
+    @Test
+    public void testOnExitingSplit_setsSplitsNotVisible() {
+        // Set stages to visible initially.
+        mMainStage.mVisible = true;
+        mSideStage.mVisible = true;
+        mMainStage.mHasChildren = true;
+        mSideStage.mHasChildren = true;
+
+        // Register a listener to verify callbacks.
+        mStageCoordinator.registerSplitScreenListener(mSplitScreenListener);
+        clearInvocations(mSplitScreenListener);
+
+        // Call the method under test.
+        mStageCoordinator.onExitingSplit();
+
+        // Verify that the stages are marked as not visible and without children.
+        assertFalse(mMainStage.mVisible);
+        assertFalse(mSideStage.mVisible);
+        assertFalse(mMainStage.mHasChildren);
+        assertFalse(mSideStage.mHasChildren);
+
+        // Verify that the visibility change is dispatched to listeners.
+        verify(mSplitScreenListener).onSplitVisibilityChanged(eq(false));
+    }
+
+    @Test
+    public void testGetTaskIdAt_horizontalSplit() {
+        when(mStageCoordinator.isSplitScreenVisible()).thenReturn(true);
+        // Horizontal split (Top/Bottom)
+        Rect topBounds = new Rect(0, 0, 1000, 500);
+        Rect bottomBounds = new Rect(0, 500, 1000, 1000);
+
+        doAnswer(invocation -> {
+            Rect topLeft = invocation.getArgument(0);
+            Rect bottomRight = invocation.getArgument(1);
+            topLeft.set(topBounds);
+            bottomRight.set(bottomBounds);
+            return null;
+        }).when(mSplitLayout).getStageBounds(any(), any());
+
+        // Side stage is Top/Left (so Top here)
+        mStageCoordinator.setSideStagePosition(SPLIT_POSITION_TOP_OR_LEFT, null);
+        when(mSideStage.getTopVisibleChildTaskId()).thenReturn(100); // Top task
+        when(mMainStage.getTopVisibleChildTaskId()).thenReturn(200); // Bottom task
+
+        // Tap at x=500. Matches topBounds X-range [0, 1000).
+        // Since getTaskIdAt only checks X, it matches Top first.
+        assertEquals(100, mStageCoordinator.getTaskIdAt(500, DEFAULT_DISPLAY));
+    }
+
+    @Test
+    public void testGetTaskIdAt_verticalSplit() {
+        when(mStageCoordinator.isSplitScreenVisible()).thenReturn(true);
+        // Vertical split (Left/Right)
+        Rect leftBounds = new Rect(0, 0, 500, 1000);
+        Rect rightBounds = new Rect(500, 0, 1000, 1000);
+
+        doAnswer(invocation -> {
+            Rect topLeft = invocation.getArgument(0);
+            Rect bottomRight = invocation.getArgument(1);
+            topLeft.set(leftBounds);
+            bottomRight.set(rightBounds);
+            return null;
+        }).when(mSplitLayout).getStageBounds(any(), any());
+
+        // Side stage is Top/Left (so Left here)
+        mStageCoordinator.setSideStagePosition(SPLIT_POSITION_TOP_OR_LEFT, null);
+        when(mSideStage.getTopVisibleChildTaskId()).thenReturn(100); // Left task
+        when(mMainStage.getTopVisibleChildTaskId()).thenReturn(200); // Right task
+
+        // Tap at x=250. Matches Left [0, 500).
+        assertEquals(100, mStageCoordinator.getTaskIdAt(250, DEFAULT_DISPLAY));
+
+        // Tap at x=750. Matches Right [500, 1000).
+        assertEquals(200, mStageCoordinator.getTaskIdAt(750, DEFAULT_DISPLAY));
     }
 
     private static int getLaunchWindowingMode(Bundle options) {

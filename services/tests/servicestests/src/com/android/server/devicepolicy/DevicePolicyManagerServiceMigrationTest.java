@@ -126,8 +126,8 @@ public class DevicePolicyManagerServiceMigrationTest extends DpmTestBase {
             mContext.binder.restoreCallingIdentity(ident);
         }
 
-        assertThat(dpms.mOwners.hasDeviceOwner()).isFalse();
-        assertThat(dpms.mOwners.hasProfileOwner(10)).isTrue();
+        assertThat(dpms.mDeviceAdmins.hasDeviceOwner()).isFalse();
+        assertThat(dpms.mDeviceAdmins.hasProfileOwner(10)).isTrue();
 
         // Check that default restrictions were applied.
         DpmTestUtils.assertRestrictions(
@@ -153,7 +153,7 @@ public class DevicePolicyManagerServiceMigrationTest extends DpmTestBase {
         final DevicePolicyManagerServiceTestable dpms = bootDpmsUp();
 
         // DO should still be DO since no migration should happen.
-        assertThat(dpms.mOwners.hasDeviceOwner()).isTrue();
+        assertThat(dpms.mDeviceAdmins.hasDeviceOwner()).isTrue();
     }
 
     @SmallTest
@@ -169,7 +169,7 @@ public class DevicePolicyManagerServiceMigrationTest extends DpmTestBase {
         final DevicePolicyManagerServiceTestable dpms = bootDpmsUp();
 
         // DO should cease to be DO.
-        assertThat(dpms.mOwners.hasDeviceOwner()).isFalse();
+        assertThat(dpms.mDeviceAdmins.hasDeviceOwner()).isFalse();
 
         final DpmMockContext poContext = new DpmMockContext(getServices(), mRealTestContext);
         poContext.binder.callingUid = UserHandle.getUid(COPE_PROFILE_USER_ID, COPE_ADMIN1_APP_ID);

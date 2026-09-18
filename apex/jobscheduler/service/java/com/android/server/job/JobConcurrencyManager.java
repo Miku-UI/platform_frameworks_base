@@ -26,9 +26,11 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
+import android.app.ActivityManager.ProcessState;
 import android.app.ActivityManagerInternal;
 import android.app.BackgroundStartPrivileges;
 import android.app.UserSwitchObserver;
+import android.app.compat.CompatChanges;
 import android.app.job.JobInfo;
 import android.app.job.JobParameters;
 import android.content.BroadcastReceiver;
@@ -87,7 +89,6 @@ import java.util.function.Predicate;
 class JobConcurrencyManager {
     private static final String TAG = JobSchedulerService.TAG + ".Concurrency";
     private static final boolean DEBUG = JobSchedulerService.DEBUG;
-
     /** The maximum number of concurrent jobs we'll aim to run at one time. */
     @VisibleForTesting
     static final int MAX_CONCURRENCY_LIMIT = 64;
@@ -583,14 +584,26 @@ class JobConcurrencyManager {
                     if (mPowerManager != null && mPowerManager.isDeviceIdleMode()) {
                         synchronized (mLock) {
                             stopUnexemptedJobsForDoze();
-                            stopOvertimeJobsLocked("deep doze");
+                            stopOvertimeJobsLocked(JobParameters.STOP_REASON_DEVICE_STATE,
+                                    JobParameters.INTERNAL_STOP_REASON_TIMEOUT, "deep doze");
                         }
                     }
                     break;
                 case PowerManager.ACTION_POWER_SAVE_MODE_CHANGED:
                     if (mPowerManager != null && mPowerManager.isPowerSaveMode()) {
                         synchronized (mLock) {
-                            stopOvertimeJobsLocked("battery saver");
+                            // Uses the new specific stop reason code as
+                            // STOP_REASON_DEVICE_STATE_BATTERY_SAVER when flag is enabled,
+                            // otherwise fall back to the generic stop reason code
+                            // STOP_REASON_DEVICE_STATE.
+                            int stopReason = JobParameters.STOP_REASON_DEVICE_STATE;
+                            if (android.app.job.Flags.enhancedPendingAndStopReasonsApi()
+                                    && CompatChanges.isChangeEnabled(JobStatus
+                                    .INTRODUCE_NEW_PENDING_AND_STOP_DEVICE_STATE_REASONS)) {
+                                stopReason = JobParameters.STOP_REASON_DEVICE_STATE_BATTERY_SAVER;
+                            }
+                            stopOvertimeJobsLocked(stopReason,
+                                    JobParameters.INTERNAL_STOP_REASON_TIMEOUT, "battery saver");
                         }
                     }
                     break;
@@ -1257,7 +1270,8 @@ class JobConcurrencyManager {
                 return false;
             case PRIVILEGED_STATE_UNDEFINED:
             default:
-                final int procState = mActivityManagerInternal.getUidProcessState(uid);
+                final @ProcessState int procState =
+                        mActivityManagerInternal.getUidProcessState(uid);
                 if (procState == ActivityManager.PROCESS_STATE_TOP) {
                     cachedPrivilegedState.put(uid, PRIVILEGED_STATE_TOP);
                     return true;
@@ -1353,14 +1367,14 @@ class JobConcurrencyManager {
     }
 
     @GuardedBy("mLock")
-    private void stopOvertimeJobsLocked(@NonNull String debugReason) {
+    private void stopOvertimeJobsLocked(@JobParameters.StopReason int stopReason,
+                                        int internalReason, @NonNull String debugReason) {
         for (int i = 0; i < mActiveServices.size(); ++i) {
             final JobServiceContext jsc = mActiveServices.get(i);
             final JobStatus jobStatus = jsc.getRunningJobLocked();
 
             if (jobStatus != null && !jsc.isWithinExecutionGuaranteeTime()) {
-                jsc.cancelExecutingJobLocked(JobParameters.STOP_REASON_DEVICE_STATE,
-                        JobParameters.INTERNAL_STOP_REASON_TIMEOUT, debugReason);
+                jsc.cancelExecutingJobLocked(stopReason, internalReason, debugReason);
             }
         }
     }

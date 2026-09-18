@@ -26,9 +26,12 @@ import android.util.Slog;
 /**
  * Utility methods for checking permissions required for VirtualDeviceManager operations.
  */
-class PermissionUtils {
+final class PermissionUtils {
 
     private static final String LOG_TAG = "VDM.PermissionUtils";
+
+    private PermissionUtils() {
+    }
 
     /**
      * Verifies whether the calling package name matches the calling app uid.

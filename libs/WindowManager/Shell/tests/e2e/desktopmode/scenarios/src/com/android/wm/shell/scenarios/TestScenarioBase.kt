@@ -17,14 +17,16 @@
 package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
+import android.platform.helpers.rules.CujCheckerRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.platform.test.rule.ScreenRecordRule
 import android.tools.NavBar
 import android.tools.PlatformConsts.DEFAULT_DISPLAY
 import android.tools.Rotation
 import android.tools.flicker.rules.ChangeDisplayOrientationRule
+import androidx.benchmark.perfetto.ExperimentalPerfettoCaptureApi
+import androidx.benchmark.traceprocessor.ExperimentalTraceProcessorApi
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.uiautomator.UiDevice
 import com.android.launcher3.tapl.LauncherInstrumentation
 import com.android.wm.shell.Utils
 import com.android.wm.shell.shared.desktopmode.DesktopState
@@ -32,19 +34,33 @@ import org.junit.Assume
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Rule
+import org.junit.rules.TestRule
 
 @Ignore("Base Test Class")
-abstract class TestScenarioBase(private val rotation: Rotation = Rotation.ROTATION_0) {
+@OptIn(ExperimentalTraceProcessorApi::class, ExperimentalPerfettoCaptureApi::class)
+abstract class TestScenarioBase(
+    private val rotation: Rotation = Rotation.ROTATION_0,
+    private val navigationMode: NavBar = NavBar.MODE_GESTURAL,
+) {
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
-    private val device = UiDevice.getInstance(instrumentation)
 
     @get:Rule val checkFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
     @get:Rule val screenRecordRule = ScreenRecordRule(/* keepTestLevelRecordingOnSuccess= */ false)
     private val tapl = LauncherInstrumentation()
 
+    @Rule @JvmField val testSetupRule = Utils.testSetupRuleFunctional(navigationMode, rotation)
+
+    /**
+     * Enables CUJ checking for tests.
+     *
+     * This rule is disabled by default as it incurs a performance overhead by capturing a perfetto
+     * trace for each test run. It can be enabled for specific test suites via instrumentation
+     * arguments.
+     */
     @Rule
-    @JvmField val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, rotation)
+    @JvmField
+    val mCujCheckerRule: TestRule = CujCheckerRule(/* enabledFromRuleConstructor= */ false)
 
     @Before
     fun baseSetup() {
@@ -52,12 +68,10 @@ abstract class TestScenarioBase(private val rotation: Rotation = Rotation.ROTATI
             DesktopState.fromContext(instrumentation.context)
                 .isDesktopModeSupportedOnDisplay(DEFAULT_DISPLAY)
         )
+        Utils.clearAllRememberedDesktopBounds()
         tapl.setEnableRotation(true)
         tapl.setExpectedRotation(rotation.value)
         ChangeDisplayOrientationRule.setRotation(rotation)
         tapl.enableTransientTaskbar(false)
-        device.executeShellCommand(
-            "dumpsys activity service SystemUIService WMShell desktopmode removeAllDesks"
-        )
     }
 }

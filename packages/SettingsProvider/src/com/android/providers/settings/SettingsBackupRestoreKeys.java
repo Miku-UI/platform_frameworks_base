@@ -39,6 +39,7 @@ final class SettingsBackupRestoreKeys {
     // restoring this data.
     static final String KEY_SIM_SPECIFIC_SETTINGS_2 = "sim_specific_settings_2";
     static final String KEY_WIFI_SETTINGS_BACKUP_DATA = "wifi_settings_backup_data";
+    static final String KEY_PLATFORM_MANAGED_SIM_PINS = "platform_managed_sim_pins";
 
     /**
      * Returns the key corresponding to the given URI.

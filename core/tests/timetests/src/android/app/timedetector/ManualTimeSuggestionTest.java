@@ -49,9 +49,10 @@ public class ManualTimeSuggestionTest {
         assertEquals(one, two);
         assertEquals(two, one);
 
-        UnixEpochTime differentTime = new UnixEpochTime(
-                ARBITRARY_TIME.getElapsedRealtimeMillis() + 1,
-                ARBITRARY_TIME.getUnixEpochTimeMillis());
+        UnixEpochTime differentTime =
+                new UnixEpochTime(
+                        ARBITRARY_TIME.getElapsedRealtimeMillis() + 1,
+                        ARBITRARY_TIME.getUnixEpochTimeMillis());
         ManualTimeSuggestion three = new ManualTimeSuggestion(differentTime);
         assertNotEquals(one, three);
         assertNotEquals(three, one);
@@ -75,22 +76,23 @@ public class ManualTimeSuggestionTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_noReferenceTime() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--unix_epoch_time 12345");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions("--unix_epoch_time 12345");
         ManualTimeSuggestion.parseCommandLineArg(testShellCommand);
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_noUnixEpochTime() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--elapsed_realtime 54321");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions("--elapsed_realtime 54321");
         ManualTimeSuggestion.parseCommandLineArg(testShellCommand);
     }
 
     @Test
     public void testParseCommandLineArg_validSuggestion() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--elapsed_realtime 54321 --unix_epoch_time 12345");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        "--elapsed_realtime 54321 --unix_epoch_time 12345");
         UnixEpochTime timeSignal = new UnixEpochTime(54321L, 12345L);
         ManualTimeSuggestion expectedSuggestion = new ManualTimeSuggestion(timeSignal);
         ManualTimeSuggestion actualSuggestion =
@@ -100,8 +102,9 @@ public class ManualTimeSuggestionTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_unknownArgument() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--elapsed_realtime 54321 --unix_epoch_time 12345 --bad_arg 0");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        "--elapsed_realtime 54321 --unix_epoch_time 12345 --bad_arg 0");
         ManualTimeSuggestion.parseCommandLineArg(testShellCommand);
     }
 }

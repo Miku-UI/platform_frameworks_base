@@ -31,6 +31,7 @@ import com.android.systemui.keyguard.ui.StateToValue
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import com.android.systemui.keyguard.ui.transitions.GlanceableHubTransition
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.ShadeDisplayAware
 import javax.inject.Inject
@@ -66,15 +67,20 @@ constructor(
         blurFactory.create(transitionAnimation).getBlurProvider().enterBlurRadius
 
     val keyguardAlpha: Flow<Float> =
-        transitionAnimation.sharedFlow(
-            duration =
-                if (Flags.gestureBetweenHubAndLockscreenMotion()) 500.milliseconds
-                else 167.milliseconds,
-            onStep = { 1f - it },
-            onFinish = { 0f },
-            onCancel = { 1f },
-            name = "LOCKSCREEN->GLANCEABLE_HUB: keyguardAlpha",
-        )
+        if (SceneContainerFlag.isEnabled) {
+            // Fading keyguard elements during this transition is controlled by SceneContainer.
+            emptyFlow()
+        } else {
+            transitionAnimation.sharedFlow(
+                duration =
+                    if (Flags.gestureBetweenHubAndLockscreenMotion()) 500.milliseconds
+                    else 167.milliseconds,
+                onStep = { 1f - it },
+                onFinish = { 0f },
+                onCancel = { 1f },
+                name = "LOCKSCREEN->GLANCEABLE_HUB: keyguardAlpha",
+            )
+        }
 
     // Show UMO as long as keyguard is not visible.
     val showUmo: Flow<Boolean> = keyguardAlpha.map { alpha -> alpha == 0f }

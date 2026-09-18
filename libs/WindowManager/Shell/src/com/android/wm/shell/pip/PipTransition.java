@@ -729,7 +729,9 @@ public class PipTransition extends PipTransitionController {
             mPipOrganizer.clearContentOverlay();
         }
         if (mPipOrganizer.getOutPipWindowingMode() == WINDOWING_MODE_UNDEFINED) {
-            mHomeTransitionObserver.notifyHomeVisibilityChanged(false /* isVisible */);
+            mHomeTransitionObserver.notifyHomeVisibilityChanged(
+                    false /* isVisible */, false /* keyguardGoingAway */, false /* waking */,
+                    /* behindDesktop */ false);
         }
         if (pipChange == null) {
             ProtoLog.w(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
@@ -1383,6 +1385,11 @@ public class PipTransition extends PipTransitionController {
     public boolean isTaskActiveInPip(int taskId) {
         final TaskInfo inPipTask = mPipOrganizer.getTaskInfo();
         return inPipTask != null && mPipOrganizer.isInPip() && taskId == inPipTask.taskId;
+    }
+
+    @Override
+    public boolean isInPip() {
+        return mPipOrganizer.isInPip();
     }
 
     private void updatePipForUnhandledTransition(@NonNull TransitionInfo.Change pipChange,

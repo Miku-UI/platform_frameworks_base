@@ -82,9 +82,7 @@ public class FgsTempAllowList<E> {
             }
             // The temp allowlist should be a short list with only a few entries in it.
             // for a very large list, HashMap structure should be used.
-            final long now = com.android.server.deviceidle.Flags.useCpuTimeForTempAllowlist()
-                    ? SystemClock.uptimeMillis()
-                    : SystemClock.elapsedRealtime();
+            final long now = SystemClock.uptimeMillis();
             final int size = mTempAllowList.size();
             if (size > mMaxSize) {
                 Slog.w(TAG_AM, "FgsTempAllowList length:" + size + " exceeds maxSize"
@@ -115,9 +113,7 @@ public class FgsTempAllowList<E> {
             if (index < 0) {
                 return null;
             }
-            final long timeNow = com.android.server.deviceidle.Flags.useCpuTimeForTempAllowlist()
-                    ? SystemClock.uptimeMillis()
-                    : SystemClock.elapsedRealtime();
+            final long timeNow = SystemClock.uptimeMillis();
             if (mTempAllowList.valueAt(index).first < timeNow) {
                 mTempAllowList.removeAt(index);
                 return null;

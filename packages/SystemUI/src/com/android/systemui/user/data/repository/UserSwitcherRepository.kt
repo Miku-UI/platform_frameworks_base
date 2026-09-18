@@ -49,6 +49,9 @@ interface UserSwitcherRepository {
 
     /** Whether the user switcher is currently enabled. */
     val isEnabled: Flow<Boolean>
+
+    /** Whether user switching must go through the login screen. */
+    val isUserSwitchingMustGoThroughLoginScreen: Boolean
 }
 
 @SysUISingleton
@@ -67,7 +70,7 @@ constructor(
     private val showUserSwitcherForSingleUser =
         context.resources.getBoolean(R.bool.qs_show_user_switcher_for_single_user)
 
-    private val userSwitchingMustGoThroughLoginScreen =
+    override val isUserSwitchingMustGoThroughLoginScreen: Boolean =
         context.resources.getBoolean(
             com.android.internal.R.bool.config_userSwitchingMustGoThroughLoginScreen
         )
@@ -142,7 +145,7 @@ constructor(
         return withContext(bgDispatcher) {
             // TODO(b/378068979): remove once login screen-specific logic
             // is implemented at framework level.
-            if (userSwitchingMustGoThroughLoginScreen) {
+            if (isUserSwitchingMustGoThroughLoginScreen) {
                 false
             } else {
                 userManager.isUserSwitcherEnabled(showUserSwitcherForSingleUser)

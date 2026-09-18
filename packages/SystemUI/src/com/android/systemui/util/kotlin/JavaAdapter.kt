@@ -85,6 +85,15 @@ constructor(
         return flow.stateIn(applicationScope, started, initialValue)
     }
 
+    /** Run suspend functions from Java */
+    fun <R> runSuspend(
+        suspendFunction: suspend () -> R,
+        onSuccess: (R) -> Unit,
+        onCancel: (CancellationException) -> Unit,
+        onFailure: (Throwable) -> Unit,
+    ): Job =
+        callSuspend({ suspendFunction() }, Unit, onSuccess, onCancel, onFailure)
+
     /** Call suspend functions from Java */
     fun <T, R> callSuspend(
         suspendFunction: suspend (T) -> R,

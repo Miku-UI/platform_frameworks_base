@@ -16,15 +16,12 @@
 
 package com.android.wm.shell.desktopmode
 
-import android.animation.ValueAnimator
 import android.app.ActivityManager
 import android.app.WindowConfiguration
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Rect
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.SetFlagsRule
 import android.view.SurfaceControl
 import android.view.WindowManager
@@ -32,15 +29,12 @@ import android.window.TransitionInfo
 import android.window.WindowContainerTransaction
 import androidx.core.util.Supplier
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement.runOnUiThread
-import com.android.window.flags.Flags
-import com.android.wm.shell.desktopmode.DesktopModeDragAndDropAnimatorHelper.Companion.FADE_IN_ANIMATION_DURATION
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 class DesktopModeDragAndDropAnimatorHelperTest {
@@ -68,43 +62,12 @@ class DesktopModeDragAndDropAnimatorHelperTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_DESKTOP_TAB_TEARING_LAUNCH_ANIMATION)
-    fun openTransition_returnsLaunchAnimator() = runOnUiThread {
-        val finishCallback = mock<Function1<WindowContainerTransaction?, Unit>>()
-
-        val alphaAnimator = helper.createAnimator(OPEN_CHANGE, DRAG_TASK_BOUNDS, finishCallback)
-
-        assertAlphaAnimator(alphaAnimator)
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_ENABLE_DESKTOP_TAB_TEARING_LAUNCH_ANIMATION)
-    fun openTransition_callsAnimationEndListener() = runOnUiThread {
-        val finishCallback = mock<Function1<WindowContainerTransaction?, Unit>>()
-
-        val alphaAnimator = helper.createAnimator(OPEN_CHANGE, DRAG_TASK_BOUNDS, finishCallback)
-        (alphaAnimator as DesktopModeDragAndDropAlphaAnimator).animator.start()
-        alphaAnimator.animator.end()
-
-        verify(finishCallback).invoke(null)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_TAB_TEARING_LAUNCH_ANIMATION)
-    fun openTransition_flagEnabled_returnsTabTearingAnimator() = runOnUiThread {
+    fun openTransition_returnsTabTearingAnimator() = runOnUiThread {
         val finishCallback = mock<Function1<WindowContainerTransaction?, Unit>>()
 
         val springAnimator = helper.createAnimator(OPEN_CHANGE, DRAG_TASK_BOUNDS, finishCallback)
 
         assertThat(springAnimator).isInstanceOf(DesktopModeDragAndDropSpringAnimator::class.java)
-    }
-
-    private fun assertAlphaAnimator(animator: DesktopModeDragAndDropAnimator) {
-        assertThat(animator).isInstanceOf(DesktopModeDragAndDropAlphaAnimator::class.java)
-        assertThat((animator as DesktopModeDragAndDropAlphaAnimator).animator)
-            .isInstanceOf(ValueAnimator::class.java)
-        assertThat(animator.animator.duration).isEqualTo(FADE_IN_ANIMATION_DURATION)
-        assertThat((animator.animator as ValueAnimator).values.size).isEqualTo(1)
     }
 
     private companion object {

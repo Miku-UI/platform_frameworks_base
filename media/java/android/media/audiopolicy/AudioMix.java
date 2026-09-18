@@ -77,10 +77,12 @@ public class AudioMix implements Parcelable {
     // audio routing for this device ID.
     private int mVirtualDeviceId;
 
-    // When this mix is used for injecting audio into recordings, indicates whether silence
-    // should be injected when the injection is failing to provide enough audio data in time
-    // False by default or when not applicable
-    private boolean mInjectSilenceOnStarve = false;
+    // A persistent mix has both of its input and output ports connected from when the policy is
+    // registered and until it is unregistered independent of connected source and sink.
+    // For clients capturing from its sink, silence is provided if the source is not connected or
+    // doesn't provide audio data (is paused/stopped or underruns).
+    // False by default.
+    private boolean mIsPersistent = false;
 
     /**
      * All parameters are guaranteed valid through the Builder.
@@ -98,13 +100,13 @@ public class AudioMix implements Parcelable {
         mDeviceAddress = (deviceAddress == null) ? new String("") : deviceAddress;
         mToken = token;
         mVirtualDeviceId = virtualDeviceId;
-        mInjectSilenceOnStarve = false;
+        mIsPersistent = false;
     }
 
     private AudioMix(@NonNull AudioMixingRule rule, @NonNull AudioFormat format,
             int routeFlags, int callbackFlags,
             int deviceType, @Nullable String deviceAddress, IBinder token,
-            int virtualDeviceId, boolean injectSilenceOnStarve) {
+            int virtualDeviceId, boolean isPersistent) {
         mRule = Objects.requireNonNull(rule);
         mFormat = Objects.requireNonNull(format);
         mRouteFlags = routeFlags;
@@ -114,7 +116,7 @@ public class AudioMix implements Parcelable {
         mDeviceAddress = (deviceAddress == null) ? new String("") : deviceAddress;
         mToken = token;
         mVirtualDeviceId = virtualDeviceId;
-        mInjectSilenceOnStarve = injectSilenceOnStarve;
+        mIsPersistent = isPersistent;
     }
 
     // CALLBACK_FLAG_* values: keep in sync with AudioMix::kCbFlag* values defined
@@ -298,18 +300,25 @@ public class AudioMix implements Parcelable {
     }
 
     /**
-     * Returns whether this mix was configured to inject silence audio into recordings
-     * when the injection is failing to provide enough audio data in time.
-     * @return {@code false} if the mix is not an injection mix, or the value
-     *         used for {@link Builder#setInjectSilenceOnStarvation(boolean)} if the mix is an
-     *         injection mix.
+     * Returns whether this mix was configured to be persistent with both source and sink ports
+     * present for the entire duration of the policy registration, independently of its source and
+     * sink states.
+     * <p>
+     * When isPersistent is true:
+     * <ul>
+     * <li> Silence is provided to the sink if the source is not connected, active or doesn't
+     * provide audio data.
+     * <li> Audio data captured from the source is consumed even if no sink is connected or
+     * actively recording.
+     * </ul>
+     * @return the value set with {@link Builder#setPersistent(boolean)}, default is false.
      */
     @FlaggedApi(FLAG_DAP_INJECTION_STARVE_MANAGEMENT)
-    public boolean isInjectingSilenceOnStarvation() {
+    public boolean isPersistent() {
         if (!dapInjectionStarveManagement()) {
             return false;
         }
-        return mInjectSilenceOnStarve;
+        return mIsPersistent;
     }
 
     /** @hide */
@@ -362,7 +371,7 @@ public class AudioMix implements Parcelable {
         dest.writeStrongBinder(mToken);
         dest.writeInt(mVirtualDeviceId);
         if (dapInjectionStarveManagement()) {
-            dest.writeBoolean(mInjectSilenceOnStarve);
+            dest.writeBoolean(mIsPersistent);
         }
     }
 
@@ -386,7 +395,7 @@ public class AudioMix implements Parcelable {
             mixBuilder.setToken(p.readStrongBinder());
             mixBuilder.setVirtualDeviceId(p.readInt());
             if (dapInjectionStarveManagement()) {
-                mixBuilder.setInjectSilenceOnStarvation(p.readBoolean());
+                mixBuilder.setPersistent(p.readBoolean());
             }
             return mixBuilder.build();
         }
@@ -424,7 +433,7 @@ public class AudioMix implements Parcelable {
         // an AudioSystem.DEVICE_* value, not AudioDeviceInfo.TYPE_*
         private int mDeviceSystemType = AudioSystem.DEVICE_NONE;
         private String mDeviceAddress = null;
-        private boolean mInjectSilenceOnStarve = false;
+        private boolean mIsPersistent = false;
 
         /**
          * @hide
@@ -572,24 +581,34 @@ public class AudioMix implements Parcelable {
         }
 
         /**
-         * When this mix is used for injecting audio into recordings, configure whether silence
-         * should be injected when the injection is failing to provide enough audio data in time
-         * @param injectSilence {@code true} to inject silence into recordings when the
-         *       {@link android.media.AudioTrack} used for the injection is starved of audio data.
+         * Configures this mix to be persistent with both source and sink ports present for
+         * the entire duration of the policy registration, independently of its source and sink
+         * states.
+         * <p>
+         * This applies only to loopback mixes and is not supported for mixes whose
+         * route flags specify {@link AudioMix#ROUTE_FLAG_RENDER}.
+         * <p>
+         * When set to {@code true} on a valid mix:
+         * <ul>
+         * <li> Silence is provided to the sink if the source is not connected, active, or doesn't
+         * provide audio data.
+         * <li> Audio data captured from the source is consumed even if no sink is connected or
+         * actively recording.
+         * </ul>
+         * @param isPersistent {@code true} to make the mix persistent.
          * @return the same Builder instance
          */
         @FlaggedApi(FLAG_DAP_INJECTION_STARVE_MANAGEMENT)
-        public @NonNull Builder setInjectSilenceOnStarvation(boolean injectSilence) {
-            mInjectSilenceOnStarve = injectSilence;
+        public @NonNull Builder setPersistent(boolean isPersistent) {
+            mIsPersistent = isPersistent;
             return this;
         }
 
         /**
          * Combines all of the settings and return a new {@link AudioMix} object.
          * @return a new {@link AudioMix} object
-         * @throws IllegalArgumentException if no {@link AudioMixingRule} has been set
-         *     or if {@link #setInjectSilenceOnStarvation(boolean)} was set to {@code true} on
-         *     a mix not used for injection
+         * @throws IllegalArgumentException if no {@link AudioMixingRule} has been set or the
+         * Builder set parameters are not a valid combination
          */
         public AudioMix build() throws IllegalArgumentException {
             if (mRule == null) {
@@ -651,13 +670,10 @@ public class AudioMix implements Parcelable {
                 }
             }
 
-            if (dapInjectionStarveManagement()
-                    && ((mRouteFlags & ROUTE_FLAG_LOOP_BACK) == ROUTE_FLAG_LOOP_BACK)
-                    && (mRule.getTargetMixType() != MIX_TYPE_RECORDERS)
-                    && (mInjectSilenceOnStarve)) {
+            if (dapInjectionStarveManagement() && mIsPersistent
+                    && ((mRouteFlags & ROUTE_FLAG_RENDER) == ROUTE_FLAG_RENDER)) {
                 throw new IllegalArgumentException(
-                        "AudioMix.Builder.setInjectSilenceOnStarvation(true) called "
-                        + "on a non-injection AudioMix");
+                        "AudioMix.Builder.setPersistent(true) called on a RENDER AudioMix");
             }
 
             if (mRule.allowPrivilegedMediaPlaybackCapture()) {
@@ -672,7 +688,7 @@ public class AudioMix implements Parcelable {
             }
 
             return new AudioMix(mRule, mFormat, mRouteFlags, mCallbackFlags, mDeviceSystemType,
-                    mDeviceAddress, mToken, mVirtualDeviceId, mInjectSilenceOnStarve);
+                    mDeviceAddress, mToken, mVirtualDeviceId, mIsPersistent);
         }
 
         private int getLoopbackDeviceSystemTypeForAudioMixingRule(AudioMixingRule rule) {

@@ -19,6 +19,8 @@ package com.android.systemui.wallpapers.domain.interactor
 import android.content.mockedContext
 import android.content.res.Resources
 import android.graphics.PointF
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.util.DisplayMetrics
 import android.view.View.INVISIBLE
 import android.view.View.VISIBLE
@@ -26,6 +28,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.ObservableTransitionState.Idle
 import com.android.compose.animation.scene.ObservableTransitionState.Transition
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
+import com.android.systemui.Flags.FLAG_SCENE_CONTAINER
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
@@ -191,6 +195,7 @@ class WallpaperFocalAreaInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun focalAreaNotBelowNotifs_hasNotification_noSmartspaceCard_inUnfoldLandscape() =
         kosmos.runTest {
             setupUnfoldLandscape()
@@ -209,6 +214,7 @@ class WallpaperFocalAreaInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun focalAreaBoundsBelowSmartspace_noNotifcations_hasSmartspaceCard_inUnfoldLandscape() =
         kosmos.runTest {
             setupUnfoldLandscape()
@@ -227,6 +233,7 @@ class WallpaperFocalAreaInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun focalAreaBoundsAlwaysCentered_noNotifications_noSmartspaceCard_inTabletLandscape() =
         kosmos.runTest {
             setupTabletLandscape()
@@ -260,6 +267,7 @@ class WallpaperFocalAreaInteractorTest : SysuiTestCase() {
     fun onTapInFocalBounds_sendTapPosition() =
         kosmos.runTest {
             setupHandheldDevice()
+            enableSingleShade()
             underTest.sendTapPosition(750F, 750F)
             verify(wallpaperInteractorSpy).sendTapPosition(PointF(625F, 875F))
         }
@@ -375,7 +383,7 @@ class WallpaperFocalAreaInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableSceneContainer
+    @EnableFlags(FLAG_SCENE_CONTAINER, FLAG_DUAL_SHADE)
     fun shouldNotCollectFocalArea_isIdleInLockscreenWithDualShadeOverlays() =
         kosmos.runTest {
             enableDualShade()
@@ -492,28 +500,25 @@ class WallpaperFocalAreaInteractorTest : SysuiTestCase() {
         val centerAlignFocalArea: Boolean,
     )
 
-    private fun Kosmos.setupHandheldDevice() {
+    private fun setupHandheldDevice() {
         overrideMockedResources(
             mockedResources,
             OverrideResources(screenWidth = 1000, screenHeight = 2000, centerAlignFocalArea = false),
         )
-        enableSingleShade()
     }
 
-    private fun Kosmos.setupTabletLandscape() {
+    private fun setupTabletLandscape() {
         overrideMockedResources(
             mockedResources,
             OverrideResources(screenWidth = 3000, screenHeight = 2000, centerAlignFocalArea = true),
         )
-        enableSplitShade()
     }
 
-    private fun Kosmos.setupUnfoldLandscape() {
+    private fun setupUnfoldLandscape() {
         overrideMockedResources(
             mockedResources,
             OverrideResources(screenWidth = 2500, screenHeight = 2000, centerAlignFocalArea = false),
         )
-        enableSplitShade()
     }
 
     private fun Kosmos.setTestFocalAreaBounds(

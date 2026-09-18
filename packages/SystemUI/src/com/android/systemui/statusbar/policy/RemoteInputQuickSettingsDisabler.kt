@@ -18,42 +18,65 @@ package com.android.systemui.statusbar.policy
 import android.app.StatusBarManager
 import android.content.Context
 import android.content.res.Configuration
+import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
+import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.statusbar.CommandQueue
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /**
- * Controls whether the disable flag [StatusBarManager.DISABLE2_QUICK_SETTINGS] should be set.
- * This would happen when a [RemoteInputView] is active, the device is in landscape and not using
- * split shade.
+ * Controls whether the disable flag [StatusBarManager.DISABLE2_QUICK_SETTINGS] should be set. This
+ * would happen when a [RemoteInputView] is active, the device is in landscape and not using split
+ * shade.
  */
 @SysUISingleton
-class RemoteInputQuickSettingsDisabler @Inject constructor(
-        @ShadeDisplayAware private val context: Context,
-        private val commandQueue: CommandQueue,
-        private val splitShadeStateController: SplitShadeStateController,
-        configController: ConfigurationController
-) : ConfigurationController.ConfigurationListener {
+class RemoteInputQuickSettingsDisabler
+@Inject
+constructor(
+    @ShadeDisplayAware private val context: Context,
+    private val commandQueue: CommandQueue,
+    private val splitShadeStateController: SplitShadeStateController,
+    private val shadeModeInteractor: ShadeModeInteractor,
+    configController: ConfigurationController,
+    @Background private val backgroundScope: CoroutineScope,
+) : ConfigurationController.ConfigurationListener, CoreStartable {
 
     private var remoteInputActive = false
     private var isLandscape: Boolean
-    private var shouldUseSplitNotificationShade: Boolean
+    private var shouldUseSplitNotificationShade: Boolean =
+        if (SceneContainerFlag.isEnabled) shadeModeInteractor.shadeMode.value is ShadeMode.Split
+        else splitShadeStateController.shouldUseSplitNotificationShade(context.resources)
 
     init {
         isLandscape =
             context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        shouldUseSplitNotificationShade =
-                splitShadeStateController.shouldUseSplitNotificationShade(context.resources)
         configController.addCallback(this)
+    }
+
+    override fun start() {
+        if (SceneContainerFlag.isEnabled) {
+            observeSplitShadeState()
+        }
+    }
+
+    private fun observeSplitShadeState() {
+        backgroundScope.launch {
+            shadeModeInteractor.shadeMode.collect { shadeMode ->
+                shouldUseSplitNotificationShade = shadeMode is ShadeMode.Split
+                recomputeDisableFlags()
+            }
+        }
     }
 
     fun adjustDisableFlags(state: Int): Int {
         var mutableState = state
-        if (remoteInputActive &&
-            isLandscape &&
-            !shouldUseSplitNotificationShade
-        ) {
+        if (remoteInputActive && isLandscape && !shouldUseSplitNotificationShade) {
             mutableState = state or StatusBarManager.DISABLE2_QUICK_SETTINGS
         }
         return mutableState
@@ -75,11 +98,13 @@ class RemoteInputQuickSettingsDisabler @Inject constructor(
             needToRecompute = true
         }
 
-        val newSplitShadeFlag = splitShadeStateController
-                .shouldUseSplitNotificationShade(context.resources)
-        if (newSplitShadeFlag != shouldUseSplitNotificationShade) {
-            shouldUseSplitNotificationShade = newSplitShadeFlag
-            needToRecompute = true
+        if (!SceneContainerFlag.isEnabled) {
+            val newSplitShadeFlag =
+                splitShadeStateController.shouldUseSplitNotificationShade(context.resources)
+            if (newSplitShadeFlag != shouldUseSplitNotificationShade) {
+                shouldUseSplitNotificationShade = newSplitShadeFlag
+                needToRecompute = true
+            }
         }
         if (needToRecompute) {
             recomputeDisableFlags()

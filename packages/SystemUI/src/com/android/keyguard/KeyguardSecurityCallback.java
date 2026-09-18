@@ -17,6 +17,8 @@ package com.android.keyguard;
 
 import com.android.keyguard.KeyguardSecurityModel.SecurityMode;
 
+import java.time.Duration;
+
 public interface KeyguardSecurityCallback {
 
     /**
@@ -62,11 +64,12 @@ public interface KeyguardSecurityCallback {
      * Call to report an unlock attempt.
      * @param userId id of the user whose unlock attempt is recorded.
      * @param success set to 'true' if user correctly entered security credentials.
-     * @param timeoutMs timeout in milliseconds to wait before reattempting an unlock.
-     *                  Only nonzero if 'success' is false
+     * @param timeout timeout to wait before reattempting an unlock. Only nonzero
+     *     if 'success' is false
+     * @param isDuplicate 'true' if user entered the password already, implying 'success' is 'false'
      */
-    default void reportUnlockAttempt(int userId, boolean success, int timeoutMs) {
-    }
+    default void reportUnlockAttempt(
+            int userId, boolean success, Duration timeout, boolean isDuplicate) {}
 
     /**
      * Resets the keyguard view.

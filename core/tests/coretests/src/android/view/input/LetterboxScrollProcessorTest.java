@@ -17,6 +17,8 @@
 
 package android.view.input;
 
+import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
+import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.view.MotionEvent.ACTION_DOWN;
 import static android.view.MotionEvent.ACTION_MOVE;
 import static android.view.MotionEvent.ACTION_UP;
@@ -84,6 +86,8 @@ public class LetterboxScrollProcessorTest {
 
         // Set app bounds as if it was letterboxed.
         mContext.getResources().getConfiguration().windowConfiguration.setBounds(APP_BOUNDS);
+        mContext.getResources().getConfiguration().windowConfiguration.setWindowingMode(
+                WINDOWING_MODE_FULLSCREEN);
 
         // Recreate to reset LetterboxScrollProcessor state.
         mLetterboxScrollProcessor = new LetterboxScrollProcessor(mContext,
@@ -93,15 +97,25 @@ public class LetterboxScrollProcessorTest {
     @DisableFlags(Flags.FLAG_SCROLLING_FROM_LETTERBOX)
     @Test
     public void testCompatibilityNeededIfFlagIsDisabled() {
-        assertThat(LetterboxScrollProcessor.isCompatibilityNeeded()).isFalse();
+        assertThat(LetterboxScrollProcessor.isCompatibilityNeeded(mContext)).isFalse();
+    }
+
+    @EnableFlags(Flags.FLAG_SCROLLING_FROM_LETTERBOX)
+    @Test
+    public void testCompatibilityNeededIfInFreeform() {
+        mContext.getResources().getConfiguration().windowConfiguration.setWindowingMode(
+                WINDOWING_MODE_FREEFORM);
+
+        assertThat(LetterboxScrollProcessor.isCompatibilityNeeded(mContext)).isFalse();
     }
 
     @EnableFlags(Flags.FLAG_SCROLLING_FROM_LETTERBOX)
     @Test
     public void testCompatibilityNeededIfFlagIsEnabled() {
-        assertThat(LetterboxScrollProcessor.isCompatibilityNeeded()).isTrue();
+        assertThat(LetterboxScrollProcessor.isCompatibilityNeeded(mContext)).isTrue();
     }
 
+    @EnableFlags(Flags.FLAG_SCROLLING_FROM_LETTERBOX)
     @Test
     public void testGestureInBoundsHasNoAdjustments() {
         // Tap-like gesture in bounds (non-scroll).
@@ -118,6 +132,7 @@ public class LetterboxScrollProcessorTest {
         assertMotionEventsShouldBeFinished(processedEvents);
     }
 
+    @EnableFlags(Flags.FLAG_SCROLLING_FROM_LETTERBOX)
     @Test
     public void testGestureInAppBoundsButOutsideTopWindowAlsoForwardedToTheApp() {
         final Rect dialogBounds =
@@ -136,6 +151,7 @@ public class LetterboxScrollProcessorTest {
         assertMotionEventsShouldBeFinished(processedEvents);
     }
 
+    @EnableFlags(Flags.FLAG_SCROLLING_FROM_LETTERBOX)
     @Test
     public void testGestureOutsideBoundsIsIgnored() {
         // Tap-like gesture outside bounds (non-scroll).
@@ -149,6 +165,7 @@ public class LetterboxScrollProcessorTest {
         assertEquals(0, processedEvents.size());
     }
 
+    @EnableFlags(Flags.FLAG_SCROLLING_FROM_LETTERBOX)
     @Test
     public void testScrollGestureInBoundsHasNoAdjustments() {
         // Scroll gesture in bounds (non-scroll).
@@ -165,6 +182,7 @@ public class LetterboxScrollProcessorTest {
         assertMotionEventsShouldBeFinished(processedEvents);
     }
 
+    @EnableFlags(Flags.FLAG_SCROLLING_FROM_LETTERBOX)
     @Test
     public void testScrollGestureInBoundsThenLeavesBoundsHasNoAdjustments() {
         // Scroll gesture in bounds (non-scroll) that moves out of bounds.
@@ -182,6 +200,7 @@ public class LetterboxScrollProcessorTest {
         assertMotionEventsShouldBeFinished(processedEvents);
     }
 
+    @EnableFlags(Flags.FLAG_SCROLLING_FROM_LETTERBOX)
     @Test
     public void testScrollGestureOutsideBoundsIsStartedInBounds() {
         // Scroll gesture outside bounds.
@@ -203,6 +222,24 @@ public class LetterboxScrollProcessorTest {
         assertNull(mLetterboxScrollProcessor.processInputEventBeforeFinish(firstProcessedEvent));
     }
 
+    @EnableFlags(Flags.FLAG_SCROLLING_FROM_LETTERBOX)
+    @Test
+    public void testEventOnDifferentDisplay_noChangeToScrollGesture() {
+        // Scroll gesture outside bounds.
+        final List<MotionEvent> scrollGestureEvents = createScrollGestureEvents(
+                /* startX= */ -100f, /* startY= */ 0f, /* sameDisplay= */ false);
+
+        // Get processed events from Letterbox Scroll Processor.
+        final List<InputEvent> processedEvents = processMotionEvents(scrollGestureEvents);
+
+        // Ensure no changes are made to events after processing - event locations should not be
+        // adjusted because the app is not letterboxed.
+        assertEventLocationsAreNotAdjusted(scrollGestureEvents, processedEvents);
+        // Ensure all of these events should be finished (expect no generated events).
+        assertMotionEventsShouldBeFinished(processedEvents);
+    }
+
+    @EnableFlags(Flags.FLAG_SCROLLING_FROM_LETTERBOX)
     @Test
     public void testScrollGestureOutsideBoundsIsMovedInBounds() {
         // Scroll gesture outside bounds.
@@ -252,14 +289,22 @@ public class LetterboxScrollProcessorTest {
         }
         return processedEvents;
     }
-
     /**
      * Creates and returns a tap gesture with X and Y in reference to the app bounds (top left
      * corner is x=0, y=0).
      */
     @NonNull
     private List<MotionEvent> createTapGestureEvents(float startX, float startY) {
-        return createTapGestureEventsWithCoordinateSystem(startX, startY, APP_BOUNDS);
+        return createTapGestureEvents(startX, startY, /*sameDisplay=*/ true);
+    }
+    /**
+     * Creates and returns a tap gesture with X and Y in reference to the app bounds (top left
+     * corner is x=0, y=0).
+     */
+    @NonNull
+    private List<MotionEvent> createTapGestureEvents(float startX, float startY,
+            boolean sameDisplay) {
+        return createTapGestureEventsWithCoordinateSystem(startX, startY, APP_BOUNDS, sameDisplay);
     }
 
     /**
@@ -267,33 +312,49 @@ public class LetterboxScrollProcessorTest {
      */
     private List<MotionEvent> createTapGestureEventsWithCoordinateSystem(float startX, float startY,
             @NonNull Rect referenceWindowBounds) {
+        return createTapGestureEventsWithCoordinateSystem(startX, startY, referenceWindowBounds,
+                /*sameDisplay=*/ true);
+    }
+
+    /**
+     * @param referenceWindowBounds the amount the event will be translated by.
+     */
+    private List<MotionEvent> createTapGestureEventsWithCoordinateSystem(float startX, float startY,
+            @NonNull Rect referenceWindowBounds, boolean sameDisplay) {
         // Events for tap-like gesture (non-scroll)
         final long downTime = SystemClock.uptimeMillis();
         final List<MotionEvent> motionEvents = new ArrayList<>();
         motionEvents.add(createBasicMotionEventWithCoordinateSystem(downTime, downTime, ACTION_DOWN,
-                startX, startY, referenceWindowBounds));
+                startX, startY, referenceWindowBounds, sameDisplay));
         motionEvents.add(createBasicMotionEventWithCoordinateSystem(downTime, downTime + 10,
-                ACTION_UP, startX, startY, referenceWindowBounds));
+                ACTION_UP, startX, startY, referenceWindowBounds, sameDisplay));
         return motionEvents;
     }
 
     @NonNull
     private List<MotionEvent> createScrollGestureEvents(float startX, float startY) {
+        return createScrollGestureEvents(startX, startY, /*sameDisplay=*/ true);
+    }
+
+    @NonNull
+    private List<MotionEvent> createScrollGestureEvents(float startX, float startY,
+            boolean sameDisplay) {
         final float touchSlop = (float) ViewConfiguration.get(mContext).getScaledTouchSlop();
 
         final long downTime = SystemClock.uptimeMillis();
         // Events for scroll gesture (starts at (startX, startY) then moves down-right.
         final List<MotionEvent> motionEvents = new ArrayList<>();
-        motionEvents.add(createBasicMotionEvent(downTime, downTime, ACTION_DOWN, startX, startY));
+        motionEvents.add(createBasicMotionEvent(downTime, downTime, ACTION_DOWN, startX, startY,
+                sameDisplay));
         motionEvents.add(createBasicMotionEvent(downTime, downTime + 10, ACTION_MOVE,
-                startX + touchSlop / 2, startY + touchSlop / 2));
+                startX + touchSlop / 2, startY + touchSlop / 2, sameDisplay));
         // Below event is first event in the scroll gesture where distance > touchSlop.
         motionEvents.add(createBasicMotionEvent(downTime, downTime + 20, ACTION_MOVE,
-                startX + touchSlop * 2, startY + touchSlop * 2));
+                startX + touchSlop * 2, startY + touchSlop * 2, sameDisplay));
         motionEvents.add(createBasicMotionEvent(downTime, downTime + 30, ACTION_MOVE,
-                startX + touchSlop * 3, startY + touchSlop * 3));
+                startX + touchSlop * 3, startY + touchSlop * 3, sameDisplay));
         motionEvents.add(createBasicMotionEvent(downTime, downTime + 40, ACTION_UP,
-                startX + touchSlop * 3, startY + touchSlop * 3));
+                startX + touchSlop * 3, startY + touchSlop * 3, sameDisplay));
         return motionEvents;
     }
 
@@ -303,9 +364,9 @@ public class LetterboxScrollProcessorTest {
      */
     @NonNull
     private MotionEvent createBasicMotionEvent(long downTime, long eventTime, int action, float x,
-            float y) {
+            float y, boolean sameDisplay) {
         return createBasicMotionEventWithCoordinateSystem(downTime, eventTime, action, x, y,
-                APP_BOUNDS);
+                APP_BOUNDS, sameDisplay);
     }
 
     /**
@@ -313,7 +374,8 @@ public class LetterboxScrollProcessorTest {
      */
     @NonNull
     private MotionEvent createBasicMotionEventWithCoordinateSystem(long downTime, long eventTime,
-            int action, float x, float y, @NonNull Rect referenceWindowBounds) {
+            int action, float x, float y, @NonNull Rect referenceWindowBounds,
+            boolean sameDisplay) {
         final float rawX = referenceWindowBounds.left + x;
         final float rawY = referenceWindowBounds.top + y;
         // RawX and RawY cannot be changed once the event is created. Therefore, pass rawX and rawY
@@ -321,6 +383,7 @@ public class LetterboxScrollProcessorTest {
         // the app's bounds.
         final MotionEvent event = MotionEvent.obtain(downTime, eventTime, action, rawX, rawY, 0);
         event.offsetLocation(-referenceWindowBounds.left, -referenceWindowBounds.top);
+        event.setDisplayId(sameDisplay ? mContext.getDisplayId() : mContext.getDisplayId() + 1);
         return event;
     }
 

@@ -25,8 +25,7 @@ import org.junit.runner.RunWith
 /**
  * Tests for [InputChannelSupplier].
  *
- * Build/Install/Run:
- *  atest WMShellUnitTests:InputChannelSupplierTest
+ * Build/Install/Run: atest WMShellUnitTests:InputChannelSupplierTest
  */
 @RunWith(AndroidTestingRunner::class)
 @SmallTest
@@ -35,8 +34,6 @@ class InputChannelSupplierTest {
     @Test
     fun `InputChannelSupplier supplies an InputChannel`() {
         val supplier = InputChannelSupplier()
-        SuppliersUtilsTest.assertSupplierProvidesValue(supplier) {
-            it is InputChannel
-        }
+        SuppliersUtilsTest.assertSupplierProvidesValue(supplier) { it is InputChannel }
     }
 }

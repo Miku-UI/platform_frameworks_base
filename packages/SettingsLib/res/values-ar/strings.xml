@@ -97,7 +97,7 @@
     <string name="bluetooth_connected_no_a2dp_battery_level" msgid="6499078454894324287">"متّصل (بدون وسائط)، ومستوى البطارية <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g><xliff:g id="ACTIVE_DEVICE">%2$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp_battery_level" msgid="8477440576953067242">"متّصل (بدون هاتف أو وسائط)، ومستوى البطارية <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g><xliff:g id="ACTIVE_DEVICE">%2$s</xliff:g>"</string>
     <string name="bluetooth_active_battery_level" msgid="2685517576209066008">"‏البلوتوث نشِط. مستوى شحن البطارية: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
-    <string name="bluetooth_active_battery_level_untethered" msgid="4961338936672922617">"‏البلوتوث نشِط. مستوى الشحن في سماعة الرأس اليسرى: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>، مستوى الشحن في سماعة الرأس اليمنى: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_active_battery_level_untethered" msgid="4961338936672922617">"‏البلوتوث نشِط. بطارية السماعة اليسرى: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>، اليمنى: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
     <string name="bluetooth_active_battery_level_untethered_left" msgid="2895644748625343977">"‏نشِط. شحن سماعة الرأس اليسرى: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_battery_level_untethered_right" msgid="7407517998880370179">"‏البلوتوث نشِط. مستوى الشحن في سماعة الرأس اليمنى: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_battery_level" msgid="2893696778200201555">"مستوى طاقة البطارية <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
@@ -114,7 +114,7 @@
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"‏مستوى شحن البطارية في سماعة الرأس اليمنى: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"نشط"</string>
     <string name="bluetooth_saved_device" msgid="4895871321722311428">"محفوظ"</string>
-    <string name="bluetooth_hearing_aid_left_active" msgid="8330226430756799572">"سماعة الأذن الطبية نشطة (اليسرى فقط)"</string>
+    <string name="bluetooth_hearing_aid_left_active" msgid="8330226430756799572">"السماعة نشطة (اليسرى فقط)"</string>
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"سماعة الأذن الطبية نشطة (اليمنى فقط)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"سماعتا الأذن الطبيتان نشطتان (اليسرى واليمنى)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"تعذَّر تعديل حالة الأصوات المحيطة"</string>
@@ -132,7 +132,7 @@
     <string name="bluetooth_battery_level_untethered_right_lea_support" msgid="8941549024377771038">"‏البلوتوث متصل (ميزة \"مشاركة الصوت\" متاحة). مستوى الشحن في سماعة الرأس اليمنى: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_no_battery_level_lea_support" msgid="5721725041048434075">"البلوتوث متصل (ميزة \"مشاركة الصوت\" متاحة)"</string>
     <string name="bluetooth_guest_battery_level_lea_support" msgid="8098327939585013928">"‏جهاز ضيف (يوفِّر ميزة \"مشاركة الصوت\"). مستوى شحن البطارية: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
-    <string name="bluetooth_guest_battery_level_untethered_lea_support" msgid="3701035025565668360">"‏جهاز ضيف (يوفِّر ميزة \"مشاركة الصوت\"). اليسرى: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>، اليمنى: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> من البطارية"</string>
+    <string name="bluetooth_guest_battery_level_untethered_lea_support" msgid="3701035025565668360">"‏جهاز ضيف (يوفِّر ميزة \"مشاركة الصوت\"). بطارية السماعة اليسرى: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>، اليمنى: ‎<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
     <string name="bluetooth_guest_no_battery_level_lea_support" msgid="2977038548753103470">"جهاز ضيف (يوفِّر ميزة \"مشاركة الصوت\")"</string>
     <string name="bluetooth_active_media_only_no_battery_level" msgid="71106861912593126">"البلوتوث مفعَّل (للوسائط فقط)"</string>
     <string name="bluetooth_guest_no_battery_level" msgid="9122974160381136920">"جهاز ضيف"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"‏إشارة Wi-Fi تتكون من ثلاثة أشرطة."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"‏إشارة Wi-Fi كاملة."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"تم الاتصال بجهازك."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"يمكن لجميع المستخدمين على هذا الجهاز الاطّلاع على الشبكات والاتصال بها."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"شبكة مفتوحة"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"شبكة محمية بكلمة مرور"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"‏نظام التشغيل Android"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"إعدادات اسم نقطة الوصول ليست متوفرة لهذا المستخدم"</string>
     <string name="enable_adb" msgid="8072776357237289039">"‏تصحيح أخطاء USB"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"‏وضع تصحيح الأخطاء عند توصيل USB"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"‏إلغاء عمليات تفويض تصحيح أخطاء USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"‏إبطال أذونات تصحيح الأخطاء عبر Adb"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"تصحيح الأخطاء اللاسلكي"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"‏بدء تصحيح الأخطاء عند الاتصال بشبكة Wi‑Fi"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"خطأ"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"جارٍ إقران الجهاز…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"تعذّر إقران الجهاز. إما أن رمز الاستجابة السريعة غير صحيح أو أن الجهاز غير متصل بالشبكة نفسها."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"‏عنوان IP والمنفذ"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"غير متوفِّر (غير مسموح به)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"‏غير متوفِّر (تم قطع الاتصال بشبكة Wi-Fi)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"المسح الضوئي لرمز الاستجابة السريعة"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"‏إقران الجهاز من خلال شبكة Wi‑Fi عن طريق المسح الضوئي لرمز استجابة سريعة"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"‏يُرجى الاتصال بشبكة Wi-Fi."</string>
@@ -337,7 +340,7 @@
     <string name="bluetooth_select_a2dp_codec_ldac_playback_quality_dialog_title" msgid="7274396574659784285">"‏اختيار برنامج ترميز LDAC\nلصوت مشغّل البلوتوث: جودة التشغيل"</string>
     <string name="bluetooth_select_a2dp_codec_streaming_label" msgid="2040810756832027227">"البث: <xliff:g id="STREAMING_PARAMETER">%1$s</xliff:g>"</string>
     <string name="select_private_dns_configuration_title" msgid="7887550926056143018">"نظام أسماء النطاقات الخاص"</string>
-    <string name="select_private_dns_configuration_dialog_title" msgid="3731422918335951912">"اختيار وضع \"نظام أسماء النطاقات الخاص\""</string>
+    <string name="select_private_dns_configuration_dialog_title" msgid="3731422918335951912">"يُرجى اختيار وضع \"نظام أسماء النطاقات الخاص\""</string>
     <string name="private_dns_mode_off" msgid="7065962499349997041">"غير مفعّل"</string>
     <string name="private_dns_mode_opportunistic" msgid="1947864819060442354">"تلقائي"</string>
     <string name="private_dns_mode_provider" msgid="3619040641762557028">"اسم مضيف مزوّد \"نظام أسماء النطاقات الخاص\""</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"‏تم تصميم تصحيح أخطاء USB لأغراض التطوير فقط. يمكن استخدامه لنسخ البيانات بين الكمبيوتر والجهاز، وتثبيت التطبيقات على جهازك بدون تنبيه، وقراءة بيانات السجل."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"هل تريد السماح بتفعيل ميزة \"تصحيح الأخطاء اللاسلكي\"؟"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"تم تصميم ميزة \"تصحيح الأخطاء اللاسلكي\" لأغراض التطوير فقط. ويمكن استخدامها لنسخ البيانات بين الكمبيوتر والجهاز ، وتثبيت التطبيقات على جهازك بدون إرسال إشعار، وقراءة بيانات السجلّ."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"‏هل تريد إلغاء إمكانية الدخول إلى تصحيح أخطاء USB من جميع أجهزة الكمبيوتر التي تم التصريح لها سابقًا؟"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"‏إبطال إذن الوصول إلى تصحيح الأخطاء عبر Adb من جميع أجهزة الكمبيوتر والشبكات التي سبق لك منحها الإذن بذلك؟"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"هل تريد السماح لإعدادات التطوير؟"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"هذه الإعدادات مخصصة لاستخدام التطوير فقط. قد يتسبب هذا في حدوث أعطال أو خلل في أداء الجهاز والتطبيقات المثبتة عليه."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"‏التحقق من التطبيقات عبر USB"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"‏تم قطع اتصال Ethernet."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"إيثرنت"</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"لا يتم الاتصال."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"لوحة المفاتيح الخارجية"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"اختيار تنسيق لوحة مفاتيح"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"التنسيق التلقائي"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"التحكّم في تشغيل الشاشة"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"السماح بتشغيل الشاشة"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"يمكنك السماح لأحد التطبيقات بتشغيل الشاشة. في حال منحت هذا الإذن، قد يشغِّل التطبيق الشاشة في أي وقت بدون إذن صريح منك."</string>

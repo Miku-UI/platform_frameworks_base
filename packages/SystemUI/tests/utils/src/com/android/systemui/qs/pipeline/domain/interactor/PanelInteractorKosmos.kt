@@ -19,4 +19,5 @@ package com.android.systemui.qs.pipeline.domain.interactor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.shade.shadeController
 
-val Kosmos.panelInteractor by Kosmos.Fixture { PanelInteractorImpl(shadeController) }
+var Kosmos.panelInteractor: PanelInteractorImpl by
+    Kosmos.Fixture { PanelInteractorImpl(shadeController) }

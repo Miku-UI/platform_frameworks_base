@@ -51,14 +51,6 @@ class AHBUploader;
 // interface.
 static sp<AHBUploader> sUploader = nullptr;
 
-struct FormatInfo {
-    AHardwareBuffer_Format bufferFormat;
-    GLint format, type;
-    VkFormat vkFormat;
-    bool isSupported = false;
-    bool valid = true;
-};
-
 class AHBUploader : public RefBase {
 public:
     virtual ~AHBUploader() {}
@@ -328,9 +320,9 @@ bool HardwareBitmapUploader::hasAlpha8Support() {
     return hasAlpha8Support;
 }
 
-static FormatInfo determineFormat(const SkBitmap& skBitmap, bool usingGL) {
+FormatInfo HardwareBitmapUploader::determineFormat(const SkImageInfo& info, bool usingGL) {
     FormatInfo formatInfo;
-    switch (skBitmap.info().colorType()) {
+    switch (info.colorType()) {
         case kRGBA_8888_SkColorType:
             formatInfo.isSupported = true;
             [[fallthrough]];
@@ -409,7 +401,7 @@ static FormatInfo determineFormat(const SkBitmap& skBitmap, bool usingGL) {
             }
             break;
         default:
-            ALOGW("unable to create hardware bitmap of colortype: %d", skBitmap.info().colorType());
+            ALOGW("unable to create hardware bitmap of colortype: %d", info.colorType());
             formatInfo.valid = false;
     }
     return formatInfo;
@@ -445,7 +437,7 @@ sk_sp<Bitmap> HardwareBitmapUploader::allocateHardwareBitmap(const SkBitmap& sou
     bool usingGL = uirenderer::Properties::getRenderPipelineType() ==
             uirenderer::RenderPipelineType::SkiaGL;
 
-    FormatInfo format = determineFormat(sourceBitmap, usingGL);
+    FormatInfo format = determineFormat(sourceBitmap.info(), usingGL);
     if (!format.valid) {
         return nullptr;
     }

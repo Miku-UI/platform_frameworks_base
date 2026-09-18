@@ -47,15 +47,12 @@ import android.content.res.Configuration;
 import android.graphics.Matrix;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.view.SurfaceControl;
 import android.view.WindowInsets;
 import android.window.WindowContext;
 
 import androidx.test.filters.SmallTest;
-
-import com.android.window.flags.Flags;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -241,9 +238,9 @@ public class WindowTokenTests extends WindowTestsBase {
     public void testSurfaceCreatedForWindowToken() {
         final WindowToken fromClientToken = new WindowToken.Builder(mDisplayContent.mWmService,
                 mock(IBinder.class), TYPE_APPLICATION_OVERLAY)
-                .setDisplayContent(mDisplayContent)
                 .setFromClientToken(true)
                 .build();
+        mDisplayContent.addWindowToken(fromClientToken);
 
         assertNull(fromClientToken.mSurfaceControl);
 
@@ -253,9 +250,9 @@ public class WindowTokenTests extends WindowTestsBase {
 
         final WindowToken nonClientToken = new WindowToken.Builder(mDisplayContent.mWmService,
                 mock(IBinder.class), TYPE_APPLICATION_OVERLAY)
-                .setDisplayContent(mDisplayContent)
                 .setFromClientToken(false)
                 .build();
+        mDisplayContent.addWindowToken(nonClientToken);
         assertNotNull(nonClientToken.mSurfaceControl);
     }
 
@@ -268,21 +265,21 @@ public class WindowTokenTests extends WindowTestsBase {
 
         final WindowToken token1 = new WindowToken.Builder(mDisplayContent.mWmService,
                 mock(IBinder.class), TYPE_STATUS_BAR)
-                .setDisplayContent(mDisplayContent)
                 .setPersistOnEmpty(true)
                 .setOwnerCanManageAppTokens(true)
                 .build();
+        mDisplayContent.addWindowToken(token1);
 
         verify(selectFunc).apply(token1.windowType, null);
 
         final Bundle options = new Bundle();
         final WindowToken token2 = new WindowToken.Builder(mDisplayContent.mWmService,
                 mock(IBinder.class), TYPE_STATUS_BAR)
-                .setDisplayContent(mDisplayContent)
                 .setPersistOnEmpty(true)
                 .setOwnerCanManageAppTokens(true)
                 .setOptions(options)
                 .build();
+        mDisplayContent.addWindowToken(token2);
 
         verify(selectFunc).apply(token2.windowType, options);
     }
@@ -298,7 +295,7 @@ public class WindowTokenTests extends WindowTestsBase {
         // Pre-condition: make the IME window be controlled by IME insets provider.
         mDisplayContent.getInsetsStateController()
                 .getOrCreateSourceProvider(ID_IME, WindowInsets.Type.ime())
-                .setWindow(mDisplayContent.mInputMethodWindow, null, null);
+                .setWindow(mDisplayContent.getImeWindow(), null, null);
 
         // Simulate an app window to be the IME layering target, assume the app window has no
         // frozen insets state by default.
@@ -310,7 +307,7 @@ public class WindowTokenTests extends WindowTestsBase {
         // Verify invoking setInsetsFrozen shouldn't let IME window setting the frozen insets state.
         app.mToken.setInsetsFrozen(true);
         assertNotNull(app.getFrozenInsetsState());
-        assertNull(mDisplayContent.mInputMethodWindow.getFrozenInsetsState());
+        assertNull(mDisplayContent.getImeWindow().getFrozenInsetsState());
     }
 
     @Test
@@ -365,7 +362,6 @@ public class WindowTokenTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
     public void onDisplayChanged_differentDisplay_reparented() {
         final TestWindowToken token = createTestWindowToken(0, mDisplayContent);
         final DisplayContent dc = mock(DisplayContent.class);
@@ -377,7 +373,6 @@ public class WindowTokenTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
     public void onDisplayChanged_samedisplay_notReparented() {
 
         final TestWindowToken token = createTestWindowToken(0, mDisplayContent);

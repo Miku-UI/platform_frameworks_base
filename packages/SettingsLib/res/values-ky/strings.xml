@@ -96,8 +96,8 @@
     <string name="bluetooth_connected_no_headset_battery_level" msgid="2661863370509206428">"Туташып турат (телефониясыз), батареянын деңгээли – <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g><xliff:g id="ACTIVE_DEVICE">%2$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp_battery_level" msgid="6499078454894324287">"Туташып турат (медиасыз), батареянын деңгээли – <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g><xliff:g id="ACTIVE_DEVICE">%2$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp_battery_level" msgid="8477440576953067242">"Туташып турат (телефониясыз же медиасыз), батареянын деңгээли – <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g><xliff:g id="ACTIVE_DEVICE">%2$s</xliff:g>"</string>
-    <string name="bluetooth_active_battery_level" msgid="2685517576209066008">"Жигердүү. Батарея: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
-    <string name="bluetooth_active_battery_level_untethered" msgid="4961338936672922617">"Жигердүү. Батарея: L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
+    <string name="bluetooth_active_battery_level" msgid="2685517576209066008">"Иштеп жатат. Батарея: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
+    <string name="bluetooth_active_battery_level_untethered" msgid="4961338936672922617">"Иштеп жатат. Батарея: L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_active_battery_level_untethered_left" msgid="2895644748625343977">"Иштеп жатат. Сол: Батареянын кубаты <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_active_battery_level_untethered_right" msgid="7407517998880370179">"Иштеп жатат. Оң: Батареянын кубаты <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_battery_level" msgid="2893696778200201555">"Батареянын деңгээли: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
@@ -120,8 +120,8 @@
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Айланадагы абал жаңыртылган жок"</string>
     <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Алдын ала коюлган параметрлер жаңыртылган жок"</string>
     <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Тандалды"</string>
-    <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Жигердүү (медиа үчүн гана). Батарея: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
-    <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Жигердүү (медиа үчүн гана). Батарея: L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
+    <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Иштеп жатат (медиа үчүн гана). Батарея: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
+    <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Иштеп жатат (медиа үчүн гана). Батарея: L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Конок түзмөк. Батарея: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_guest_battery_level_untethered" msgid="5404013822067644960">"Конок түзмөк. Батарея: L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_guest_media_only_battery_level" msgid="7928347900623812299">"Конок түзмөк (медиа гана). Батарея: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
@@ -131,14 +131,14 @@
     <string name="bluetooth_battery_level_untethered_left_lea_support" msgid="7707464334346454950">"Туташып турат (чогуу уксаңыз болот). Сол кулак – батареянын деңгээли: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_battery_level_untethered_right_lea_support" msgid="8941549024377771038">"Туташып турат (чогуу уксаңыз болот). Оң кулак – батареянын деңгээли: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_no_battery_level_lea_support" msgid="5721725041048434075">"Туташып турат (чогуу уксаңыз болот)"</string>
-    <string name="bluetooth_guest_battery_level_lea_support" msgid="8098327939585013928">"Конок түзмөк (чогуу угуу колдоого алынат). Батарея: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
-    <string name="bluetooth_guest_battery_level_untethered_lea_support" msgid="3701035025565668360">"Конок түзмөк (чогуу угуу колдоого алынат). Батарея: L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
-    <string name="bluetooth_guest_no_battery_level_lea_support" msgid="2977038548753103470">"Конок түзмөк (чогуу угуу колдоого алынат)"</string>
+    <string name="bluetooth_guest_battery_level_lea_support" msgid="8098327939585013928">"Конок түзмөк (чогуу укса болот). Батарея: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
+    <string name="bluetooth_guest_battery_level_untethered_lea_support" msgid="3701035025565668360">"Конок түзмөк (чогуу укса болот). Батарея: L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
+    <string name="bluetooth_guest_no_battery_level_lea_support" msgid="2977038548753103470">"Конок түзмөк (чогуу укса болот)"</string>
     <string name="bluetooth_active_media_only_no_battery_level" msgid="71106861912593126">"Активдүү (медиа үчүн гана)"</string>
     <string name="bluetooth_guest_no_battery_level" msgid="9122974160381136920">"Конок түзмөк"</string>
     <string name="bluetooth_guest_media_only_no_battery_level" msgid="7666347601796705721">"Конок түзмөк (медиа гана)"</string>
     <string name="bluetooth_saved_device_lea_support" msgid="7231323139968285768">"Чогуу уксаңыз болот"</string>
-    <string name="bluetooth_guest_saved_device_lea_support" msgid="5621291599518569876">"Конок түзмөк. Чогуу угуу колдоого алынат"</string>
+    <string name="bluetooth_guest_saved_device_lea_support" msgid="5621291599518569876">"Конок түзмөк. Чогуу укса болот"</string>
     <string name="bluetooth_hearing_aid_media_only_left_active" msgid="1632152540901488645">"Активдүү (медиа үчүн гана), сол кулакчын гана"</string>
     <string name="bluetooth_hearing_aid_media_only_right_active" msgid="3854140683042617230">"Активдүү (медиа үчүн гана), оң кулакчын гана"</string>
     <string name="bluetooth_hearing_aid_media_only_left_and_right_active" msgid="1299913413062528417">"Активдүү (медиа үчүн гана), сол жана оң кулакчын"</string>
@@ -146,7 +146,7 @@
     <string name="bluetooth_profile_headset" msgid="5395952236133499331">"Телефон чалуулар"</string>
     <string name="bluetooth_profile_opp" msgid="6692618568149493430">"Файл алмашуу"</string>
     <string name="bluetooth_profile_hid" msgid="2969922922664315866">"Киргизүү түзмөгү"</string>
-    <string name="bluetooth_profile_pan" msgid="1006235139308318188">"Интернетке мүмкүнчүлүк алуу"</string>
+    <string name="bluetooth_profile_pan" msgid="1006235139308318188">"Интернетке чыгуу"</string>
     <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"Байланыштар менен чалуулар таржымалына мүмкүнчүлүк берүү"</string>
     <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"Маалымат чалуу билдирмелери жана башкалар үчүн колдонулат"</string>
     <string name="bluetooth_profile_pan_nap" msgid="7871974753822470050">"Интернет байланышын бөлүшүү"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wifi: үч таякча."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Wifi: күчтүү сигнал."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Түзмөгүңүзгө туташты."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Бул түзмөктүн бардык колдонуучулары көрүп, туташа алышат."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Ачык тармак"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Коопсуз тармак"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -268,16 +269,16 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Бул колдонуучу мүмкүндүк алуу түйүнүнүн аталышынын параметрлерин колдоно албайт"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB аркылуу мүчүлүштүктөрдү аныктоо"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"USB компьютерге сайылганда мүчүлүштүктөрдү оңдоо режими иштейт"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"USB аркылуу мүчүлүштүктөрдү аныктоо уруксатын артка кайтаруу"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"ADB аркылуу мүчүлүштүктөрдү оңдоого уруксат берүүнү жоюу"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Мүчүлүштүктөрдү Wi-Fi аркылуу аныктоо"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Wi‑Fi\'га туташканда, мүчүлүштүктөрдү аныктоо режими иштейт"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Ката"</string>
     <string name="adb_wireless_settings" msgid="2295017847215680229">"Мүчүлүштүктөрдү Wi-Fi аркылуу аныктоо"</string>
     <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"Жеткиликтүү түзмөктөрдү көрүү үчүн мүчүлүштүктөрдү Wi-Fi аркылуу аныктоону күйгүзүңүз"</string>
-    <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"Түзмөктү QR код аркылуу жупташтыруу"</string>
-    <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"QR кодунун сканерин колдонуп, жаңы түзмөктөрдү жупташтырыңыз"</string>
-    <string name="adb_pair_method_code_title" msgid="1122590300445142904">"Түзмөктү атайын код аркылуу жупташтыруу"</string>
-    <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"Жаңы түзмөктөрдү алты сандан турган код аркылуу жупташтырасыз"</string>
+    <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"Түзмөктү QR код аркылуу байланыштыруу"</string>
+    <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"QR кодду скандап, жаңы түзмөктөрдү байланыштырасыз"</string>
+    <string name="adb_pair_method_code_title" msgid="1122590300445142904">"Түзмөктү атайын код аркылуу байланыштыруу"</string>
+    <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"Жаңы түзмөктөрдү алты сандан турган код аркылуу байланыштырасыз"</string>
     <string name="adb_paired_devices_title" msgid="5268997341526217362">"Байланышкан түзмөктөр"</string>
     <string name="adb_wireless_device_connected_summary" msgid="3039660790249148713">"Учурда туташып турган түзмөктөр"</string>
     <string name="adb_wireless_device_details_title" msgid="7129369670526565786">"Түзмөктүн чоо-жайы"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Түзмөк жупташтырылууда…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Түзмөк жупташтырылган жок. QR код туура эмес же түзмөк бир тармакка туташпай турат."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP дарек жана порт"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Жеткиликсиз (Тыюу салынган)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Жеткиликсиз (Wi‑Fi ажыратылды)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"QR кодду скандоо"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"QR кодду скандап, түзмөктү Wi‑Fi аркылуу жупташтырыңыз"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Wi-Fi тармагына туташыңыз"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB-жөндөө - өндүрүү максатында гана  түзүлгөн. Аны компүтериңиз менен түзмөгүңүздүн ортосунда берилиштерди алмашуу, түзмөгүңүзгө колдонмолорду эскертүүсүз орнотуу жана лог берилиштерин окуу үчүн колдонсоңуз болот."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Мүчүлүштүктөрдү Wi-Fi аркылуу оңдоого уруксат бересизби?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Мүчүлүштүктөрдү Wi-Fi аркылуу аныктоо – өндүрүү максатында гана түзүлгөн. Аны компьютериңиз менен түзмөгүңүздүн ортосунда маалыматты алмашуу, колдонмолорду түзмөгүңүзгө эскертүүсүз орнотуу жана маалыматтар таржымалын окуу үчүн колдонсоңуз болот."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Сиз мурун USB параметрлерине уруксат берген бардык компүтерлердин жеткиси жокко чыгарылсынбы?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"ADB аркылуу мүчүлүштүктөрдү аныктоо мүмкүнчүлүгү мурда уруксат берилген компьютерлердин жана тармактардын баарынан алынып салынсынбы?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Параметрлерди өзгөртүү"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Бул орнотуулар өндүрүүчүлөр үчүн гана берилген. Булар түзмөгүңүздүн колдонмолорун бузулушуна же туура эмес иштешине алып келиши мүмкүн."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Орнотулуучу колдонмону текшерүү"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet ажырады."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Чалуу жок."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Аппараттык баскычтоп"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Тергичтин жайылмасын тандоо"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Демейки"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Экранды күйгүзүүнү башкаруу"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Экранды күйгүзүүгө уруксат берүү"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Колдонмого экранды күйгүзүүгө уруксат бересиз. Колдонмо экранды каалаган убакта сизден уруксат сурабастан күйгүзө берет."</string>

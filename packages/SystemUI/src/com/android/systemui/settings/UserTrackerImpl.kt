@@ -110,6 +110,8 @@ internal constructor(
     override var isUserSwitching = false
         protected set
 
+    private var isBeforeUserSwitching = false
+
     /**
      * Returns a [List<UserInfo>] of all profiles associated with the current user.
      *
@@ -124,10 +126,17 @@ internal constructor(
     private var userSwitchingJob: Job? = null
     private var afterUserSwitchingJob: Job? = null
 
-    open fun initialize(startingUser: Int) {
+    open fun initialize(getStartingUser: () -> Int) {
         if (initialized) {
             return
         }
+        if (context.user.isSystem) {
+            registerUserSwitchObserver()
+        } else {
+            Log.w(TAG, "Context user (${context.userId}) is not system user, " +
+                    "not registering user switch observer.")
+        }
+        val startingUser = getStartingUser()
         Log.i(TAG, "Starting user: $startingUser")
         initialized = true
         setUserIdInternal(startingUser)
@@ -148,8 +157,6 @@ internal constructor(
                 addAction(Intent.ACTION_MANAGED_PROFILE_UNLOCKED)
             }
         context.registerReceiverForAllUsers(this, filter, null, backgroundHandler)
-
-        registerUserSwitchObserver()
 
         dumpManager.registerNormalDumpable(TAG, this)
     }
@@ -197,11 +204,13 @@ internal constructor(
         iActivityManager.registerUserSwitchObserver(
             object : UserSwitchObserver() {
                 override fun onBeforeUserSwitching(newUserId: Int, reply: IRemoteCallback?) {
+                    isBeforeUserSwitching = true
                     handleBeforeUserSwitching(newUserId)
                     reply?.sendResult(null)
                 }
 
                 override fun onUserSwitching(newUserId: Int, reply: IRemoteCallback?) {
+                    isBeforeUserSwitching = false
                     isUserSwitching = true
                     if (isBackgroundUserSwitchEnabled) {
                         userSwitchingJob?.cancel()
@@ -291,12 +300,27 @@ internal constructor(
     @WorkerThread
     protected open fun handleProfilesChanged() {
         Assert.isNotMainThread()
-
-        val profiles = userManager.getProfiles(userId)
-        synchronized(mutex) {
-            userProfiles = profiles.map { UserInfo(it) } // save a "deep" copy
+        if (isBeforeUserSwitching || isUserSwitching) {
+            // Skip the profile change notification if we're in the middle of a user switch. Doing
+            // so has the potential of sending it in the window between the new userId being set
+            // internally and the switch completing where the `onUserChanged` callback is invoked.
+            // Leading to subscribers being notified of the profiles of the new user without first
+            // having been notified of the new user change.
+            // When user switch is complete, the profiles will be updated after the user change
+            // notification is sent, so it's safe to completely skip it here. See b/459982623.
+            Log.w(TAG, "Skipping profile change notification during user switch")
+            return
         }
-        notifySubscribers { callback, _ -> callback.onProfilesChanged(profiles) }
+        if (userManager.getAliveUsers().filter { it.id == userId }.isEmpty()) {
+            Log.w(TAG, "UserId $userId, may have been deleted, ignoring handleProfilesChanged()")
+            return
+        }
+        try {
+            val (_, profiles) = setUserIdInternal(userId)
+            notifySubscribers { callback, _ -> callback.onProfilesChanged(profiles) }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Unable to process profile change", e)
+        }
     }
 
     override fun addCallback(callback: UserTracker.Callback, executor: Executor) {
@@ -316,7 +340,9 @@ internal constructor(
             val callback = it.callback.get()
             if (callback != null) {
                 it.executor.execute {
-                    traceSection({ "UserTrackerImpl::$callback" }) { action(callback) { latch.countDown() } }
+                    traceSection({ "UserTrackerImpl::$callback" }) {
+                        action(callback) { latch.countDown() }
+                    }
                 }
             } else {
                 latch.countDown()

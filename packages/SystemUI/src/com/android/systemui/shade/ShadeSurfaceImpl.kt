@@ -16,12 +16,19 @@
 
 package com.android.systemui.shade
 
+import android.view.MotionEvent
+import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.statusbar.GestureRecorder
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager
 import com.android.systemui.statusbar.phone.CentralSurfaces
+import com.google.android.msdl.data.model.MSDLToken
+import com.google.android.msdl.domain.MSDLPlayer
 import javax.inject.Inject
 
-class ShadeSurfaceImpl @Inject constructor() : ShadeSurface, ShadeViewControllerEmptyImpl() {
+class ShadeSurfaceImpl
+@Inject
+constructor(private val shadeInteractor: ShadeInteractor, private val msdlPlayer: MSDLPlayer) :
+    ShadeSurface, ShadeViewControllerEmptyImpl() {
     override fun initDependencies(
         centralSurfaces: CentralSurfaces,
         recorder: GestureRecorder,
@@ -46,7 +53,7 @@ class ShadeSurfaceImpl @Inject constructor() : ShadeSurface, ShadeViewController
     }
 
     override fun setTouchAndAnimationDisabled(disabled: Boolean) {
-        // TODO(b/332732878): determine if still needed
+        // Do nothing
     }
 
     override fun setDozing(dozing: Boolean, animate: Boolean) {
@@ -75,5 +82,11 @@ class ShadeSurfaceImpl @Inject constructor() : ShadeSurface, ShadeViewController
 
     override fun updateResources() {
         // Do nothing
+    }
+
+    @Deprecated("Temporary a11y solution until dual shade launch b/371224114")
+    override fun onStatusBarLongPress(event: MotionEvent) {
+        msdlPlayer.playToken(MSDLToken.SWIPE_THRESHOLD_INDICATOR)
+        shadeInteractor.expandNotificationsShade("Status bar long-press")
     }
 }

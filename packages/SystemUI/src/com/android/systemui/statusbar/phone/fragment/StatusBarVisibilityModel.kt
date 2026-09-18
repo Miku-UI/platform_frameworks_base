@@ -68,13 +68,13 @@ data class StatusBarVisibilityModel(
             return StatusBarVisibilityModel(
                 showClock = (disabled1 and DISABLE_CLOCK) == 0,
                 showNotificationIcons = (disabled1 and DISABLE_NOTIFICATION_ICONS) == 0,
-                // TODO(b/279899176): [CollapsedStatusBarFragment] always overwrites this with the
-                //  value of [OngoingCallController]. Do we need to process the flag here?
+                // TODO(b/279899176): Remove processing of the ongoing call chip disable flags; we
+                // only ever use the internal state
                 showPrimaryOngoingActivityChip = (disabled1 and DISABLE_ONGOING_CALL_CHIP) == 0,
                 showSecondaryOngoingActivityChip = (disabled1 and DISABLE_ONGOING_CALL_CHIP) == 0,
                 showSystemInfo =
                     (disabled1 and DISABLE_SYSTEM_INFO) == 0 &&
-                        (disabled2 and DISABLE2_SYSTEM_ICONS) == 0
+                        (disabled2 and DISABLE2_SYSTEM_ICONS) == 0,
             )
         }
     }

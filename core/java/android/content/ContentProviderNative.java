@@ -36,6 +36,7 @@ import android.os.ParcelFileDescriptor;
 import android.os.Parcelable;
 import android.os.RemoteCallback;
 import android.os.RemoteException;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
@@ -43,6 +44,7 @@ import java.util.ArrayList;
 /**
  * @hide
  */
+@RavenwoodKeepWholeClass
 abstract public class ContentProviderNative extends Binder implements IContentProvider {
     public ContentProviderNative()
     {

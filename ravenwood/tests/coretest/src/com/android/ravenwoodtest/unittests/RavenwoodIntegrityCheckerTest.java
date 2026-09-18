@@ -1,0 +1,56 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.android.ravenwoodtest.unittests;
+
+import static android.platform.test.ravenwood.RavenwoodIntegrityChecker.checkForNativeAllocationRegistry;
+import static android.platform.test.ravenwood.RavenwoodIntegrityChecker.onFrameworkNativeInitializedInner;
+
+import static org.junit.Assert.fail;
+
+import android.platform.test.ravenwood.RavenwoodIntegrityChecker.RavenwoodIntegrityException;
+
+import libcore.util.NativeAllocationRegistry;
+
+import org.junit.Test;
+
+public class RavenwoodIntegrityCheckerTest {
+    // Move this to test
+    static class NativeAllocationRegistryTestTarget {
+        static {
+            // Make sure the checker won't load the target method.
+            fail("This class shouldn't be loaded");
+        }
+
+        private static NativeAllocationRegistry sRegistry = null;
+
+        private static native void placeholderNativeMethod();
+    }
+
+    @Test(expected = RavenwoodIntegrityException.class)
+    public void testOnFrameworkNativeInitializedInner_fail() {
+        onFrameworkNativeInitializedInner((key) -> null);
+
+        // We don't need a "passing" test, because if that was broken, none of the tests
+        // would pass anyway...
+    }
+
+    @Test(expected = RavenwoodIntegrityException.class)
+    public void testOnFrameworkNativeInitializedInner_fail_null() {
+        checkForNativeAllocationRegistry(new Class[]{
+                NativeAllocationRegistryTestTarget.class
+        });
+    }
+}

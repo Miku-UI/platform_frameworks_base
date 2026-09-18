@@ -121,17 +121,26 @@ public class TvPipNotificationController implements TvPipActionsProvider.Listene
     /**
      * Call before showing any notification.
      */
-    void setTvPipActionsProvider(@NonNull TvPipActionsProvider tvPipActionsProvider) {
+    public void setTvPipActionsProvider(@NonNull TvPipActionsProvider tvPipActionsProvider) {
         mTvPipActionsProvider = tvPipActionsProvider;
         mTvPipActionsProvider.addListener(this);
     }
 
-    void onConfigurationChanged() {
+    /**
+     * Reloads resources and updates the notification content in response to a configuration
+     * change, such as a locale or theme change.
+     */
+    public void onConfigurationChanged() {
         mDefaultTitle = mContext.getResources().getString(R.string.pip_notification_unknown_title);
         updateNotificationContent();
     }
 
-    void show(String packageName) {
+    /**
+     * Shows the PiP notification for the specified package.
+     *
+     * @param packageName The package name of the application currently in PiP.
+     */
+    public void show(String packageName) {
         ProtoLog.d(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE, "%s: show %s", TAG, packageName);
         if (mTvPipActionsProvider == null) {
             ProtoLog.e(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
@@ -146,7 +155,10 @@ public class TvPipNotificationController implements TvPipActionsProvider.Listene
         updateNotificationContent();
     }
 
-    void dismiss() {
+    /**
+     * Dismisses the PiP notification. This should be called when the PiP session ends.
+     */
+    public void dismiss() {
         ProtoLog.d(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE, "%s: dismiss()", TAG);
 
         mIsNotificationShown = false;
@@ -165,7 +177,7 @@ public class TvPipNotificationController implements TvPipActionsProvider.Listene
         }
 
         ProtoLog.d(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
-                "%s: update(), title: %s, subtitle: %s, mediaSessionToken: %s, #actions: %s", TAG,
+                "%s: update(), title: %s, subtitle: %s, mediaSessionToken: %s, #actions: %d", TAG,
                 getNotificationTitle(), mPipSubtitle, mMediaSessionToken, mPipActions.length);
         mNotificationBuilder
                 .setWhen(System.currentTimeMillis())

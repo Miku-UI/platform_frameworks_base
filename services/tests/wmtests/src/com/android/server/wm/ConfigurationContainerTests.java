@@ -22,6 +22,7 @@ import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
+import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
 import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
@@ -405,6 +406,65 @@ public class ConfigurationContainerTests {
         assertEquals(bounds, root.getConfiguration().windowConfiguration.getMaxBounds());
         assertEquals(bounds, child.getMaxBounds());
         assertEquals(bounds, child.getConfiguration().windowConfiguration.getMaxBounds());
+    }
+
+    @Test
+    public void testMatchParentBounds_fullscreenMode() {
+        final TestConfigurationContainer container = new TestConfigurationContainer();
+        // Fullscreen windowing mode should always match parent bounds, regardless of override
+        // bounds.
+        container.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
+
+        // Verify matchParentBounds is true without bounds set.
+        container.setBounds(null);
+        assertTrue("Fullscreen mode should match parent bounds without bounds set",
+                container.matchParentBounds());
+
+        // Verify matchParentBounds remains true even with bounds set.
+        container.setBounds(new Rect(0, 0, 100, 100));
+        assertTrue("Fullscreen mode should match parent bounds even with bounds set",
+                container.matchParentBounds());
+    }
+
+    @Test
+    public void testMatchParentBounds_pinnedMode() {
+        final TestConfigurationContainer container = new TestConfigurationContainer();
+        // Pinned windowing mode should never match parent bounds, regardless of override bounds.
+        container.setWindowingMode(WINDOWING_MODE_PINNED);
+
+        // Verify matchParentBounds is false without bounds set.
+        container.setBounds(null);
+        assertFalse("Pinned mode should not match parent bounds even without bounds set",
+                container.matchParentBounds());
+
+        // Verify matchParentBounds remains false even with bounds set.
+        container.setBounds(new Rect(0, 0, 100, 100));
+        assertFalse("Fullscreen mode should not match parent bounds even with bounds set",
+                container.matchParentBounds());
+    }
+
+    @Test
+    public void testMatchParentBounds_freeformModeWithBounds() {
+        final TestConfigurationContainer container = new TestConfigurationContainer();
+        // Other windowing modes depend on whether override bounds are empty.
+        container.setWindowingMode(WINDOWING_MODE_FREEFORM);
+
+        // With non-empty override bounds, it should not match parent bounds.
+        container.setBounds(new Rect(0, 0, 100, 100));
+        assertFalse("Non-empty override bounds should not match parent bounds",
+                container.matchParentBounds());
+    }
+
+    @Test
+    public void testMatchParentBounds_freeformModeWithoutBounds() {
+        final TestConfigurationContainer container = new TestConfigurationContainer();
+        // Other windowing modes depend on whether override bounds are empty.
+        container.setWindowingMode(WINDOWING_MODE_FREEFORM);
+
+        // With empty override bounds, it should match parent bounds.
+        container.setBounds(null);
+        assertTrue("Empty override bounds should match parent bounds",
+                container.matchParentBounds());
     }
 
 

@@ -33,6 +33,7 @@ import com.android.systemui.keyguard.ui.viewmodel.DreamingToLockscreenTransition
 import com.android.systemui.keyguard.ui.viewmodel.GlanceableHubToDreamingTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.GoneToDreamingTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.LockscreenToDreamingTransitionViewModel
+import com.android.systemui.keyguard.ui.viewmodel.ToLockscreenEndStateTransitionViewModel
 import com.android.systemui.res.R
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.util.kotlin.BooleanFlowOperators.anyOf
@@ -56,6 +57,7 @@ constructor(
     fromLockscreenTransitionViewModel: LockscreenToDreamingTransitionViewModel,
     fromGoneTransitionViewModel: GoneToDreamingTransitionViewModel,
     private val toLockscreenTransitionViewModel: DreamingToLockscreenTransitionViewModel,
+    private val toLockscreenEndStateTransitionViewModel: ToLockscreenEndStateTransitionViewModel,
     private val fromDreamingTransitionInteractor: FromDreamingTransitionInteractor,
     private val communalInteractor: CommunalInteractor,
     private val communalSettingsInteractor: CommunalSettingsInteractor,
@@ -72,7 +74,7 @@ constructor(
                 communalInteractor.isCommunalEnabled.value &&
                     !keyguardUpdateMonitor.isEncryptedOrLockdown(userTracker.userId)
             }
-        fromDreamingTransitionInteractor.startToLockscreenOrGlanceableHubTransition(
+        fromDreamingTransitionInteractor.startTransitionFromDream(
             showGlanceableHub && !glanceableHubAllowKeyguardWhenDreaming()
         )
     }
@@ -94,6 +96,7 @@ constructor(
     val dreamAlpha: Flow<Float> =
         merge(
                 toLockscreenTransitionViewModel.dreamOverlayAlpha,
+                toLockscreenEndStateTransitionViewModel.dreamOverlayAlpha,
                 toGlanceableHubTransitionViewModel.dreamAlpha,
             )
             .distinctUntilChanged()
@@ -102,6 +105,7 @@ constructor(
     val dreamOverlayAlpha: Flow<Float> =
         merge(
                 toLockscreenTransitionViewModel.dreamOverlayAlpha,
+                toLockscreenEndStateTransitionViewModel.dreamOverlayAlpha,
                 toGlanceableHubTransitionViewModel.dreamOverlayAlpha,
                 fromGlanceableHubTransitionViewModel.dreamOverlayAlpha,
             )
@@ -125,6 +129,7 @@ constructor(
     val statusBarAlpha: Flow<Float> =
         merge(
                 toLockscreenTransitionViewModel.statusBarAlpha,
+                toLockscreenEndStateTransitionViewModel.statusBarAlpha,
                 fromLockscreenTransitionViewModel.statusBarAlpha,
                 fromGoneTransitionViewModel.statusBarAlpha,
                 // Reset explicit alpha once dream-exit transition ended

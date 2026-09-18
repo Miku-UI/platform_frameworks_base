@@ -188,7 +188,7 @@ public class WifiPowerStatsProcessorTest {
 
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WIFI)).thenReturn(true);
-        when(mPowerStatsUidResolver.mapUid(anyInt()))
+        when(mPowerStatsUidResolver.getOwnerUid(anyInt()))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         mBatteryStats = mStatsRule.getBatteryStats();

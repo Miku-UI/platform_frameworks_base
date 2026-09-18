@@ -55,11 +55,6 @@ import static org.junit.Assert.fail;
 
 import android.os.FileUtils.MemoryPipe;
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.annotations.RequiresFlagsDisabled;
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.provider.DocumentsContract.Document;
 import android.system.Os;
 import android.util.DataUnit;
@@ -89,11 +84,6 @@ import java.util.Random;
 
 @RunWith(AndroidJUnit4.class)
 public class FileUtilsTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
-
-    @Rule
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private static final String TEST_DATA =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -682,27 +672,6 @@ public class FileUtilsTest {
     }
 
     @Test
-    @RequiresFlagsDisabled(Flags.FLAG_ENFORCE_STRICT_FILE_MODE_CHECK)
-    public void testTranslateMode_noStrictModeCheck() {
-        assertTranslate("r", O_RDONLY, MODE_READ_ONLY);
-
-        assertTranslate("rw", O_RDWR | O_CREAT,
-                MODE_READ_WRITE | MODE_CREATE);
-        assertTranslate("rwt", O_RDWR | O_CREAT | O_TRUNC,
-                MODE_READ_WRITE | MODE_CREATE | MODE_TRUNCATE);
-        assertTranslate("rwa", O_RDWR | O_CREAT | O_APPEND,
-                MODE_READ_WRITE | MODE_CREATE | MODE_APPEND);
-
-        assertTranslate("w", O_WRONLY | O_CREAT,
-                MODE_WRITE_ONLY | MODE_CREATE | MODE_CREATE);
-        assertTranslate("wt", O_WRONLY | O_CREAT | O_TRUNC,
-                MODE_WRITE_ONLY | MODE_CREATE | MODE_TRUNCATE);
-        assertTranslate("wa", O_WRONLY | O_CREAT | O_APPEND,
-                MODE_WRITE_ONLY | MODE_CREATE | MODE_APPEND);
-    }
-
-    @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENFORCE_STRICT_FILE_MODE_CHECK)
     public void testTranslateMode() {
         assertTranslate("r", O_RDONLY, MODE_READ_ONLY);
 

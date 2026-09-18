@@ -22,10 +22,25 @@ import android.media.tv.extension.rating.IPmtRatingListener;
  * @hide
  */
 interface IPmtRatingInterface {
-    // Get Pmt rating information.
+    /**
+     * Gets the PMT (Program Map Table) rating information for a given session.
+     *
+     * @param sessionToken A token used to identify the related session to retrieve the PMT rating.
+     * @return A flattened string representation of the TV content rating via
+     *         {@link android.media.tv.TvContentRating#flattenToString()}.
+     */
     String getPmtRating(String sessionToken);
-    // Register a listener for pmt rating updates.
+    /**
+     * Registers a listener to receive updates for PMT rating changes.
+     *
+     * @param clientToken A token to uniquely identify the client registering the listener.
+     * @param listener The IPmtRatingListener to be called when the PMT rating is updated.
+     */
     void addPmtRatingListener(String clientToken, in IPmtRatingListener listener);
-    // Remove the previously added IPmtRatingListener.
+    /**
+     * Removes a previously registered listener for PMT rating change events.
+     *
+     * @param listener The IPmtRatingListener that was previously added and should now be removed.
+     */
     void removePmtRatingListener(in IPmtRatingListener listener);
 }

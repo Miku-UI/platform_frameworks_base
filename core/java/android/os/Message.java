@@ -187,6 +187,9 @@ public final class Message implements Parcelable {
     /** @hide */
     public int heapIndex = -1;
 
+    /** @hide */
+    public long enqueueTime = -1;
+
     /*package*/ Bundle data;
 
     @UnsupportedAppUsage
@@ -383,8 +386,15 @@ public final class Message implements Parcelable {
      */
     @UnsupportedAppUsage
     void recycleUnchecked() {
-        clear();
-        if (!MessageQueue.getUseConcurrent()) {
+        if (MessageQueue.getUseConcurrent()) {
+            // Once a message has entered the queue, it may still be referenced by removing threads
+            // forever and may not be recycled. As such, its flags field must not be cleared.
+            clearReferenceFields();
+
+            // However, we should still mark this as in-use.
+            markInUse();
+        } else {
+            clear();
             synchronized (sPoolSync) {
                 if (sPoolSize < MAX_POOL_SIZE) {
                     next = sPool;
@@ -412,6 +422,7 @@ public final class Message implements Parcelable {
         target = null;
         callback = null;
         data = null;
+        enqueueTime = -1;
         this.onClear();
     }
 
@@ -422,6 +433,7 @@ public final class Message implements Parcelable {
     // Sentinel values used to clear reference fields with a valid 'null' value, to avoid grabbing a
     // removed message when matching for 'null' in these fields.
     private static final Object NULL_OBJECT = new Object();
+    private static final Handler NULL_HANDLER = Handler.createSentinelHandler();
     private static final Runnable NULL_RUNNABLE = () -> {};
 
     /**
@@ -435,7 +447,11 @@ public final class Message implements Parcelable {
         replyTo = null;
         sendingThreadName = null;
         data = null;
+        // A null target indicates a barrier node. In this case, we don't want to clear the field
+        // with the sentinel handler.
+        target = (target != null) ? NULL_HANDLER : null;
         callback = NULL_RUNNABLE;
+        this.onClear();
     }
 
     /**
@@ -480,7 +496,9 @@ public final class Message implements Parcelable {
      * worry about yours conflicting with other handlers.
      */
     public Handler getTarget() {
-        return target;
+        // We assign this first to avoid a data race that could potentially expose NULL_HANDLER.
+        final Handler ret = target;
+        return ret == NULL_HANDLER ? null : ret;
     }
 
     /**
@@ -614,9 +632,20 @@ public final class Message implements Parcelable {
         return ((flags & FLAG_IN_USE) == FLAG_IN_USE);
     }
 
+    /**
+     * CAS flags with FLAG_IN_USE to indicate that this message is in-use and cannot be recycled or
+     * sent.
+     */
     @UnsupportedAppUsage
     /*package*/ void markInUse() {
-        flags |= FLAG_IN_USE;
+        int localFlags;
+        do {
+            localFlags = this.flags;
+            if ((localFlags & FLAG_IN_USE) != 0) {
+                return;
+            }
+        } while (!sFlags.compareAndSet(this, localFlags, localFlags | FLAG_IN_USE));
+        return;
     }
 
     /** Constructor (but the preferred way to get a Message is to call {@link #obtain() Message.obtain()}).
@@ -899,8 +928,10 @@ public final class Message implements Parcelable {
 
     /**
      * Matches all messages.
+     *
+     * @hide
      */
-    static final class MatchAllMessages extends MessageCompare {
+    public static final class MatchAllMessages extends MessageCompare {
         @Override
         public boolean compareMessage(Message m, Handler h, int what, Object object, Runnable r,
                 long when) {

@@ -230,7 +230,7 @@ public class ArchiveTest extends UiServiceTestCase {
             final int idx = i;
             new Thread(() -> {
                 try {
-                    startThreadsLatch.await(10, TimeUnit.SECONDS);
+                    startThreadsLatch.await(2, TimeUnit.SECONDS);
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
@@ -243,7 +243,7 @@ public class ArchiveTest extends UiServiceTestCase {
         }
 
         startThreadsLatch.countDown();
-        threadsDone.await(10, TimeUnit.SECONDS);
+        threadsDone.await(3, TimeUnit.SECONDS);
         if (error.get()) {
             fail("Concurrent modification exception");
         }

@@ -22,6 +22,7 @@ import com.android.systemui.keyguard.data.repository.keyguardOcclusionRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.power.domain.interactor.powerInteractor
+import com.android.systemui.scene.domain.interactor.sceneInteractor
 
 val Kosmos.keyguardOcclusionInteractor by
     Kosmos.Fixture {
@@ -34,5 +35,6 @@ val Kosmos.keyguardOcclusionInteractor by
             deviceEntryInteractor = deviceEntryInteractor,
             deviceUnlockedInteractor = { deviceUnlockedInteractor },
             internalTransitionInteractor = internalKeyguardTransitionInteractor,
+            sceneInteractor = { sceneInteractor },
         )
     }

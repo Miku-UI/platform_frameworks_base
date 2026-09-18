@@ -103,7 +103,7 @@ public class PipTransitionUtils {
     @NonNull
     public static SurfaceControl getLeash(TransitionInfo.Change change) {
         SurfaceControl leash = change.getLeash();
-        Preconditions.checkNotNull(leash, "Leash is null for change=" + change);
+        Preconditions.checkNotNull(leash, "Leash is null for change=%s", change);
         return leash;
     }
 

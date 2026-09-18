@@ -33,6 +33,7 @@ import androidx.annotation.VisibleForTesting;
 import androidx.compose.ui.platform.ComposeView;
 
 import com.android.app.displaylib.PerDisplayRepository;
+
 import com.android.systemui.ambient.statusbar.shared.flag.OngoingActivityChipsOnDream;
 import com.android.systemui.ambient.statusbar.ui.binder.AmbientStatusBarViewBinder;
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor;
@@ -330,6 +331,16 @@ public class AmbientStatusBarViewController extends ViewController<AmbientStatus
                 R.string.location_active_dream_overlay_content_description);
     }
 
+    void updateCameraPrivacyStatusIcon(boolean enabled) {
+        showIcon(AmbientStatusBarView.STATUS_ICON_CAMERA_PRIVACY_ON, enabled,
+                R.string.camera_privacy_dream_overlay_content_description);
+    }
+
+    void updateMicPrivacyStatusIcon(boolean enabled) {
+        showIcon(AmbientStatusBarView.STATUS_ICON_MIC_PRIVACY_ON, enabled,
+                R.string.mic_privacy_dream_overlay_content_description);
+    }
+
     private void updateAlarmStatusIcon() {
         final AlarmManager.AlarmClockInfo alarm =
                 mAlarmManager.getNextAlarmClock(mUserTracker.getUserId());
@@ -424,6 +435,10 @@ public class AmbientStatusBarViewController extends ViewController<AmbientStatus
     private void onPrivacyItemsChanged(@NonNull List<PrivacyItem> privacyItems) {
         updateLocationStatusIcon(privacyItems.stream()
                 .anyMatch(item -> item.getPrivacyType() == PrivacyType.TYPE_LOCATION));
+        updateMicPrivacyStatusIcon(privacyItems.stream()
+                .anyMatch(item -> item.getPrivacyType() == PrivacyType.TYPE_MICROPHONE));
+        updateCameraPrivacyStatusIcon(privacyItems.stream()
+                .anyMatch(item -> item.getPrivacyType() == PrivacyType.TYPE_CAMERA));
     }
 
     private void onStatusBarItemsChanged(List<StatusBarItem> newItems) {

@@ -2668,7 +2668,7 @@ public class LocationManager {
     /**
      * Registers a GNSS measurements callback which will run on a binder thread.
      *
-     * <p>See {@link #registerGnssMeasurementsCallback(Executor, GnssMeasurementsEvent.Callback)
+     * <p>See {@link #registerGnssMeasurementsCallback(Executor, GnssMeasurementsEvent.Callback)}
      * for more detail on how this method works.
      *
      * @param callback a {@link GnssMeasurementsEvent.Callback} object to register
@@ -2688,7 +2688,7 @@ public class LocationManager {
     /**
      * Registers a GNSS measurements callback.
      *
-     * <p>See {@link #registerGnssMeasurementsCallback(Executor, GnssMeasurementsEvent.Callback)
+     * <p>See {@link #registerGnssMeasurementsCallback(Executor, GnssMeasurementsEvent.Callback)}
      * for more detail on how this method works.
      *
      * @param callback a {@link GnssMeasurementsEvent.Callback} object to register

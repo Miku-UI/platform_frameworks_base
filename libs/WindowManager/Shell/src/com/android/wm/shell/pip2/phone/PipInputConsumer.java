@@ -137,16 +137,17 @@ public class PipInputConsumer {
         if (mInputEventReceiver != null) {
             return;
         }
-        final InputChannel inputChannel = new InputChannel();
+        final InputChannel inputChannel;
         try {
             final int displayId = mPipDisplayLayoutState.getDisplayId();
             ProtoLog.d(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                     "%s: Creating input consumer on displayID: %d", TAG, displayId);
             mWindowManager.destroyInputConsumer(mToken, displayId);
-            mWindowManager.createInputConsumer(mToken, mName, displayId, inputChannel);
+            inputChannel = mWindowManager.createInputConsumer(mToken, mName, displayId);
         } catch (RemoteException e) {
             ProtoLog.e(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                     "%s: Failed to create input consumer, %s", TAG, e);
+            throw e.rethrowFromSystemServer();
         }
         mMainExecutor.execute(() -> {
             mInputEventReceiver = new InputEventReceiver(inputChannel,

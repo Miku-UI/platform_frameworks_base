@@ -18,11 +18,11 @@ package com.android.systemui.bouncer.ui.viewmodel
 
 import android.annotation.StringRes
 import androidx.compose.ui.input.key.KeyEventType
-import com.android.systemui.authentication.domain.interactor.AuthenticationResult
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
+import com.android.systemui.authentication.shared.model.AuthenticationResult
 import com.android.systemui.bouncer.domain.interactor.BouncerInteractor
 import com.android.systemui.bouncer.ui.helper.BouncerHapticPlayer
-import com.android.systemui.lifecycle.ExclusiveActivatable
+import com.android.systemui.lifecycle.HydratedActivatable
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,8 +44,8 @@ sealed class AuthMethodBouncerViewModel(
 
     /** Name to use for performance tracing purposes. */
     val traceName: String,
-    protected val bouncerHapticPlayer: BouncerHapticPlayer? = null,
-) : ExclusiveActivatable() {
+    protected val bouncerHapticPlayer: BouncerHapticPlayer,
+) : HydratedActivatable() {
 
     private val _animateFailure = MutableStateFlow(false)
     /**
@@ -65,41 +65,67 @@ sealed class AuthMethodBouncerViewModel(
      */
     @get:StringRes abstract val lockoutMessageId: Int
 
+    protected abstract val _readyToTryAuthenticate: MutableStateFlow<Boolean>
+
+    /** This will be true if an authentication attempt was successful. */
+    protected var wasSuccessfullyAuthenticated = false
+
+    /**
+     * Whether the authentication method is ready to be invoked.
+     *
+     * For example, a password bouncer is ready when the password input field is not empty. If the
+     * bouncer requests a sign-in button
+     */
+    val readyToTryAuthenticate: StateFlow<Boolean>
+        get() = _readyToTryAuthenticate.asStateFlow()
+
+    /**
+     * If true, the Bouncer Overlay should show a "sign-in button" in its bottom bar. The button
+     * enablement will then be controlled by [readyToAuthenticate]. A button click will lead to a
+     * [tryAuthenticate] call.
+     */
+    open val showSignInButton: Boolean = false
+
     private val authenticationRequests = Channel<AuthenticationRequest>(Channel.BUFFERED)
 
     override suspend fun onActivated(): Nothing {
-        authenticationRequests.receiveAsFlow().collectLatest { request ->
-            if (!isInputEnabled.value) {
-                return@collectLatest
+        try {
+            authenticationRequests.receiveAsFlow().collectLatest { request ->
+                if (!isInputEnabled.value) {
+                    return@collectLatest
+                }
+
+                val authenticationResult =
+                    interactor.authenticate(
+                        input = request.input,
+                        tryAutoConfirm = request.useAutoConfirm,
+                    )
+
+                if (
+                    authenticationResult == AuthenticationResult.SKIPPED && request.useAutoConfirm
+                ) {
+                    return@collectLatest
+                }
+
+                performAuthenticationHapticFeedback(authenticationResult)
+
+                _animateFailure.value = authenticationResult != AuthenticationResult.SUCCEEDED
+                clearInput()
+                if (authenticationResult == AuthenticationResult.SUCCEEDED) {
+                    wasSuccessfullyAuthenticated = true
+                    onSuccessfulAuthentication()
+                }
             }
-
-            val authenticationResult =
-                interactor.authenticate(
-                    input = request.input,
-                    tryAutoConfirm = request.useAutoConfirm,
-                )
-
-            if (authenticationResult == AuthenticationResult.SKIPPED && request.useAutoConfirm) {
-                return@collectLatest
-            }
-
-            performAuthenticationHapticFeedback(authenticationResult)
-
-            _animateFailure.value = authenticationResult != AuthenticationResult.SUCCEEDED
-            clearInput()
-            if (authenticationResult == AuthenticationResult.SUCCEEDED) {
-                onSuccessfulAuthentication()
-            }
+            awaitCancellation()
+        } finally {
+            // reset whenever the view model is "deactivated"
+            wasSuccessfullyAuthenticated = false
         }
-        awaitCancellation()
     }
 
     /**
      * Notifies that the UI has been hidden from the user (after any transitions have completed).
      */
-    open fun onHidden() {
-        clearInput()
-    }
 
     /** Notifies that the user has placed down a pointer. */
     fun onDown() {
@@ -134,7 +160,7 @@ sealed class AuthMethodBouncerViewModel(
     private fun performAuthenticationHapticFeedback(result: AuthenticationResult) {
         if (result == AuthenticationResult.SKIPPED) return
 
-        bouncerHapticPlayer?.playAuthenticationFeedback(
+        bouncerHapticPlayer.playAuthenticationFeedback(
             authenticationSucceeded = result == AuthenticationResult.SUCCEEDED
         )
     }
@@ -144,7 +170,7 @@ sealed class AuthMethodBouncerViewModel(
      *
      * @see BouncerInteractor.authenticate
      */
-    protected fun tryAuthenticate(input: List<Any> = getInput(), useAutoConfirm: Boolean = false) {
+    fun tryAuthenticate(input: List<Any> = getInput(), useAutoConfirm: Boolean = false) {
         authenticationRequests.trySend(AuthenticationRequest(input, useAutoConfirm))
     }
 

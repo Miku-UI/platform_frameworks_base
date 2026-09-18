@@ -107,7 +107,7 @@ final class TwoFingersDownOrSwipe extends GestureMatcher {
 
     @Override
     protected String getGestureName() {
-        return this.getClass().getSimpleName();
+        return TwoFingersDownOrSwipe.class.getSimpleName();
     }
 
     private static double distance(@NonNull MotionEvent downEvent, @NonNull MotionEvent moveEvent) {

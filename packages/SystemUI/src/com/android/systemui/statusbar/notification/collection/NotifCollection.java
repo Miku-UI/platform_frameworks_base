@@ -77,7 +77,6 @@ import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.dump.LogBufferEulogizer;
 import com.android.systemui.statusbar.notification.BundleInteractionLogger;
-import com.android.systemui.statusbar.notification.NotifPipelineFlags;
 import com.android.systemui.statusbar.notification.collection.coalescer.CoalescedEvent;
 import com.android.systemui.statusbar.notification.collection.coalescer.GroupCoalescer;
 import com.android.systemui.statusbar.notification.collection.coalescer.GroupCoalescer.BatchableNotificationHandler;
@@ -101,7 +100,6 @@ import com.android.systemui.statusbar.notification.collection.notifcollection.Ra
 import com.android.systemui.statusbar.notification.collection.notifcollection.RankingUpdatedEvent;
 import com.android.systemui.statusbar.notification.collection.notifcollection.UpdateSource;
 import com.android.systemui.statusbar.notification.collection.provider.NotificationDismissibilityProvider;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.util.Assert;
 import com.android.systemui.util.NamedListenerSet;
 import com.android.systemui.util.time.SystemClock;
@@ -153,7 +151,6 @@ import javax.inject.Inject;
 public class NotifCollection implements Dumpable, PipelineDumpable {
     private final IStatusBarService mStatusBarService;
     private final SystemClock mClock;
-    private final NotifPipelineFlags mNotifPipelineFlags;
     private final NotifCollectionLogger mLogger;
     private final Handler mMainHandler;
     private final Executor mBgExecutor;
@@ -191,7 +188,6 @@ public class NotifCollection implements Dumpable, PipelineDumpable {
     public NotifCollection(
             IStatusBarService statusBarService,
             SystemClock clock,
-            NotifPipelineFlags notifPipelineFlags,
             NotifCollectionLogger logger,
             @Main Handler mainHandler,
             @Background Executor bgExecutor,
@@ -201,7 +197,6 @@ public class NotifCollection implements Dumpable, PipelineDumpable {
             BundleInteractionLogger bundleLogger) {
         mStatusBarService = statusBarService;
         mClock = clock;
-        mNotifPipelineFlags = notifPipelineFlags;
         mLogger = logger;
         mMainHandler = mainHandler;
         mBgExecutor = bgExecutor;
@@ -378,11 +373,7 @@ public class NotifCollection implements Dumpable, PipelineDumpable {
     }
 
     private NotificationEntry getEntryFromDismissalStats(EntryWithDismissStats stats) {
-        if (NotificationBundleUi.isEnabled()) {
-           return mNotificationSet.get(stats.getKey());
-        } else {
-            return stats.getEntry();
-        }
+        return mNotificationSet.get(stats.getKey());
     }
 
     /**
@@ -392,7 +383,6 @@ public class NotifCollection implements Dumpable, PipelineDumpable {
             NotificationEntry entry,
             @NonNull DismissedByUserStats stats) {
         final EntryWithDismissStats withStats = new EntryWithDismissStats(
-                NotificationBundleUi.isEnabled() ? null : entry,
                 stats, entry.getKey(), entry.hashCode());
         dismissNotifications(List.of(withStats), /* fromBundle= */ false);
     }
@@ -833,9 +823,9 @@ public class NotifCollection implements Dumpable, PipelineDumpable {
 
     private void cancelLocalDismissal(NotificationEntry entry) {
         if (entry.getDismissState() == NOT_DISMISSED) {
-            mLogger.logCancelLocalDismissalNotDismissedNotif(entry);
             return;
         }
+        mLogger.logCancelLocalDismissal(entry);
         entry.setDismissState(NOT_DISMISSED);
         if (entry.getSbn().getNotification().isGroupSummary()) {
             for (NotificationEntry otherEntry : mNotificationSet.values()) {
@@ -1281,6 +1271,7 @@ public class NotifCollection implements Dumpable, PipelineDumpable {
     @Retention(RetentionPolicy.SOURCE)
     public @interface CancellationReason {}
 
+    public static final int REASON_PLUGIN = -2;
     static final int REASON_NOT_CANCELED = -1;
     public static final int REASON_UNKNOWN = 0;
 
@@ -1321,7 +1312,7 @@ public class NotifCollection implements Dumpable, PipelineDumpable {
                     final DismissedByUserStats stats =
                             mStatsCreator.createDismissedByUserStats(summaryToDismiss);
                     final EntryWithDismissStats entryAndStats =
-                            new EntryWithDismissStats(null, stats,
+                            new EntryWithDismissStats(stats,
                                     summaryToDismiss.getKey(), summaryToDismiss.hashCode());
                     toDismiss.add(entryAndStats);
                 }
@@ -1329,7 +1320,7 @@ public class NotifCollection implements Dumpable, PipelineDumpable {
                 final DismissedByUserStats stats =
                         mStatsCreator.createDismissedByUserStats(childEntry);
                 final EntryWithDismissStats entryAndStats =
-                        new EntryWithDismissStats(null, stats, childEntry.getKey(),
+                        new EntryWithDismissStats(stats, childEntry.getKey(),
                                 childEntry.hashCode());
                 toDismiss.add(entryAndStats);
             }

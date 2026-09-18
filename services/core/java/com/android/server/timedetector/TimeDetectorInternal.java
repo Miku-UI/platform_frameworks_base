@@ -64,9 +64,9 @@ public interface TimeDetectorInternal {
     /**
      * Suggests a network time to the time detector. The suggestion may not be used by the time
      * detector to set the device's time depending on device configuration and user settings, but
-     * can replace previous network suggestions received. See also
-     * {@link #addNetworkTimeUpdateListener(StateChangeListener)} and
-     * {@link #getLatestNetworkSuggestion()}.
+     * can replace previous network suggestions received. See also {@link
+     * #addNetworkTimeUpdateListener(StateChangeListener)} and {@link
+     * #getLatestNetworkSuggestion()}.
      */
     void suggestNetworkTime(@NonNull NetworkTimeSuggestion suggestion);
 
@@ -74,12 +74,9 @@ public interface TimeDetectorInternal {
      * Adds a listener that will be notified when a new network time is available. See {@link
      * #getLatestNetworkSuggestion()}.
      */
-    void addNetworkTimeUpdateListener(
-            @NonNull StateChangeListener networkSuggestionUpdateListener);
+    void addNetworkTimeUpdateListener(@NonNull StateChangeListener networkSuggestionUpdateListener);
 
-    /**
-     * Returns the latest / best network time received by the time detector.
-     */
+    /** Returns the latest / best network time received by the time detector. */
     @Nullable
     NetworkTimeSuggestion getLatestNetworkSuggestion();
 

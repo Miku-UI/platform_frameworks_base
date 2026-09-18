@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -40,7 +41,7 @@ import com.android.systemui.common.ui.compose.Icon
 import com.android.systemui.haptics.slider.SliderHapticFeedbackFilter
 import com.android.systemui.haptics.slider.compose.ui.SliderHapticsViewModel
 import com.android.systemui.res.R
-import com.android.systemui.volume.dialog.domain.interactor.DesktopAudioTileDetailsFeatureInteractor
+import com.android.systemui.volume.dialog.domain.interactor.ExpandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.sliders.dagger.VolumeDialogSliderScope
 import com.android.systemui.volume.dialog.sliders.ui.compose.SliderTrack
 import com.android.systemui.volume.dialog.sliders.ui.viewmodel.VolumeDialogOverscrollViewModel
@@ -62,12 +63,18 @@ constructor(
     private val viewModel: VolumeDialogSliderViewModel,
     private val overscrollViewModel: VolumeDialogOverscrollViewModel,
     private val hapticsViewModelFactory: SliderHapticsViewModel.Factory,
-    private val desktopAudioTileDetailsFeatureInteractor: DesktopAudioTileDetailsFeatureInteractor,
+    private val expandedAudioTileDetailsFeatureInteractor: ExpandedAudioTileDetailsFeatureInteractor,
 ) {
     fun bind(view: View) {
         // Use horizontal volume dialog if the audio tile details view is enabled
-        val isVolumeDialogVertical = !desktopAudioTileDetailsFeatureInteractor.isEnabled()
-        val sliderComposeView: ComposeView = view.requireViewById(R.id.volume_dialog_slider)
+        val isVolumeDialogVertical = !expandedAudioTileDetailsFeatureInteractor.isEnabled()
+        val sliderComposeViewId =
+            if (isVolumeDialogVertical) {
+                R.id.volume_dialog_slider
+            } else {
+                R.id.volume_dialog_slider_horizontal
+            }
+        val sliderComposeView: ComposeView = view.requireViewById(sliderComposeViewId)
         sliderComposeView.setContent {
             PlatformTheme {
                 VolumeDialogSlider(
@@ -89,14 +96,30 @@ private fun VolumeDialogSlider(
     hapticsViewModelFactory: SliderHapticsViewModel.Factory,
     isVolumeDialogVertical: Boolean,
     modifier: Modifier = Modifier,
+    dimensions: VolumeSliderDimensions =
+        if (isVolumeDialogVertical) {
+            VolumeSliderDimensions.Vertical
+        } else {
+            VolumeSliderDimensions.Horizontal
+        },
 ) {
     val colors =
-        SliderDefaults.colors(
-            activeTickColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            disabledActiveTickColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-            disabledInactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-        )
+        if (isVolumeDialogVertical) {
+            SliderDefaults.colors(
+                activeTickColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                disabledActiveTickColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                disabledInactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            )
+        } else {
+            SliderDefaults.colors(
+                activeTickColor = MaterialTheme.colorScheme.onPrimary,
+                inactiveTickColor = MaterialTheme.colorScheme.onSurface,
+                inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                disabledActiveTickColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                disabledInactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            )
+        }
     val collectedSliderStateModel by viewModel.state.collectAsStateWithLifecycle(null)
     val sliderStateModel = collectedSliderStateModel ?: return
     val interactionSource = remember { MutableInteractionSource() }
@@ -153,7 +176,7 @@ private fun VolumeDialogSlider(
                             Icon(
                                 icon = sliderStateModel.icon,
                                 tint = null,
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(dimensions.iconSize),
                             )
                         },
                         isVisible = !iconsState.isInactiveTrackEndIconVisible,
@@ -165,12 +188,13 @@ private fun VolumeDialogSlider(
                             Icon(
                                 icon = sliderStateModel.icon,
                                 tint = null,
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(dimensions.iconSize),
                             )
                         },
                         isVisible = iconsState.isInactiveTrackEndIconVisible,
                     )
                 },
+                trackSize = dimensions.trackSize,
             )
         },
         thumb = { sliderState, interactions ->
@@ -179,12 +203,7 @@ private fun VolumeDialogSlider(
                 interactionSource = interactions,
                 enabled = !sliderStateModel.isDisabled,
                 colors = colors,
-                thumbSize =
-                    if (isVolumeDialogVertical) {
-                        DpSize(52.dp, 4.dp)
-                    } else {
-                        DpSize(4.dp, 52.dp)
-                    },
+                thumbSize = DpSize(dimensions.thumbWidth, dimensions.thumbHeight),
             )
         },
         accessibilityParams = AccessibilityParams(contentDescription = sliderStateModel.label),
@@ -200,4 +219,29 @@ private fun VolumeDialogSlider(
                 }
             },
     )
+}
+
+data class VolumeSliderDimensions(
+    val iconSize: Dp,
+    val thumbHeight: Dp,
+    val thumbWidth: Dp,
+    val trackSize: Dp,
+) {
+    companion object {
+        val Vertical =
+            VolumeSliderDimensions(
+                iconSize = 20.dp,
+                thumbWidth = 52.dp,
+                thumbHeight = 4.dp,
+                trackSize = 40.dp,
+            )
+
+        val Horizontal =
+            VolumeSliderDimensions(
+                iconSize = 24.dp,
+                thumbHeight = 40.dp,
+                thumbWidth = 3.dp,
+                trackSize = 32.dp,
+            )
+    }
 }

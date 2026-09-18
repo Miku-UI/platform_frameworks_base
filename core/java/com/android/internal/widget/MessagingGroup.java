@@ -16,14 +16,11 @@
 
 package com.android.internal.widget;
 
-import static android.app.Flags.notificationsRedesignTemplates;
-
 import android.annotation.AttrRes;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.StyleRes;
-import android.app.Flags;
 import android.app.Person;
 import android.content.Context;
 import android.content.res.ColorStateList;
@@ -90,7 +87,7 @@ public class MessagingGroup extends NotificationOptimizedLinearLayout implements
     private int mTextColor;
     private int mSendingTextColor;
     private List<MessagingMessage> mMessages;
-    private ArrayList<MessagingMessage> mAddedMessages = new ArrayList<>();
+    private final ArrayList<MessagingMessage> mAddedMessages = new ArrayList<>();
     private boolean mFirstLayout;
     private boolean mIsHidingAnimated;
     private boolean mNeedsGeneratedAvatar;
@@ -99,7 +96,7 @@ public class MessagingGroup extends NotificationOptimizedLinearLayout implements
     private ViewGroup mImageContainer;
     private MessagingImageMessage mIsolatedMessage;
     private boolean mClippingDisabled;
-    private Point mDisplaySize = new Point();
+    private final Point mDisplaySize = new Point();
     private ProgressBar mSendingSpinner;
     private View mSendingSpinnerContainer;
     private boolean mShowingAvatar = true;
@@ -113,11 +110,6 @@ public class MessagingGroup extends NotificationOptimizedLinearLayout implements
     private boolean mCanHideSenderIfFirst;
     private boolean mIsInConversation = true;
     private ViewGroup mMessagingIconContainer;
-    private int mConversationContentStart;
-    private int mNonConversationContentStart;
-    private int mNonConversationPaddingStart;
-    private int mConversationAvatarSize;
-    private int mNonConversationAvatarSize;
     private int mNotificationTextMarginTop;
 
     public MessagingGroup(@NonNull Context context) {
@@ -155,14 +147,6 @@ public class MessagingGroup extends NotificationOptimizedLinearLayout implements
         mDisplaySize.y = displayMetrics.heightPixels;
         mSenderTextPaddingSingleLine = res.getDimensionPixelSize(
                 R.dimen.messaging_group_singleline_sender_padding_end);
-        mConversationContentStart = res.getDimensionPixelSize(R.dimen.conversation_content_start);
-        mNonConversationContentStart = res.getDimensionPixelSize(
-                R.dimen.notification_content_margin_start);
-        mNonConversationPaddingStart = res.getDimensionPixelSize(
-                R.dimen.messaging_layout_icon_padding_start);
-        mConversationAvatarSize = res.getDimensionPixelSize(R.dimen.messaging_avatar_size);
-        mNonConversationAvatarSize = res.getDimensionPixelSize(
-                R.dimen.notification_icon_circle_size);
         mNotificationTextMarginTop = res.getDimensionPixelSize(
                 R.dimen.notification_text_margin_top);
     }
@@ -192,7 +176,7 @@ public class MessagingGroup extends NotificationOptimizedLinearLayout implements
         int position = 0;
         View view = searchedView;
         while(view != parent) {
-            position += view.getTop() + view.getTranslationY();
+            position += (int) (view.getTop() + view.getTranslationY());
             view = (View) view.getParent();
         }
         return position;
@@ -203,7 +187,7 @@ public class MessagingGroup extends NotificationOptimizedLinearLayout implements
         if (nameOverride == null) {
             nameOverride = sender.getName();
         }
-        if (Flags.cleanUpSpansAndNewLines() && nameOverride != null) {
+        if (nameOverride != null) {
             // remove formatting from sender name
             nameOverride = nameOverride.toString();
         }
@@ -259,7 +243,7 @@ public class MessagingGroup extends NotificationOptimizedLinearLayout implements
         mAvatarName = "";
     }
 
-    static MessagingGroup createGroup(MessagingLinearLayout layout) {;
+    static MessagingGroup createGroup(MessagingLinearLayout layout) {
         MessagingGroup createdGroup = sInstancePool.acquire();
         if (createdGroup == null) {
             createdGroup = (MessagingGroup) LayoutInflater.from(layout.getContext()).inflate(
@@ -272,11 +256,7 @@ public class MessagingGroup extends NotificationOptimizedLinearLayout implements
     }
 
     private static int getMessagingGroupLayoutResource() {
-        if (notificationsRedesignTemplates()) {
-            return R.layout.notification_2025_messaging_group;
-        } else {
-            return R.layout.notification_template_messaging_group;
-        }
+        return R.layout.notification_2025_messaging_group;
     }
 
     public void removeMessage(MessagingMessage messagingMessage,
@@ -457,10 +437,8 @@ public class MessagingGroup extends NotificationOptimizedLinearLayout implements
     }
 
     private void updateIconVisibility() {
-        if (notificationsRedesignTemplates()) {
-            // We don't show any icon (other than the app or person icon) in the collapsed form.
-            mMessagingIconContainer.setVisibility(mIsCollapsed ? GONE : VISIBLE);
-        }
+        // We don't show any icon (other than the app or person icon) in the collapsed form.
+        mMessagingIconContainer.setVisibility(mIsCollapsed ? GONE : VISIBLE);
     }
 
     @Override
@@ -745,28 +723,7 @@ public class MessagingGroup extends NotificationOptimizedLinearLayout implements
     public void setIsInConversation(boolean isInConversation) {
         if (mIsInConversation != isInConversation) {
             mIsInConversation = isInConversation;
-
-            if (notificationsRedesignTemplates()) {
-                updateIconVisibility();
-                // No other alignment adjustments are necessary in the redesign, as the size of the
-                // icons in both conversations and old messaging notifications are the same.
-                return;
-            }
-
-            MarginLayoutParams layoutParams =
-                    (MarginLayoutParams) mMessagingIconContainer.getLayoutParams();
-            layoutParams.width = mIsInConversation
-                    ? mConversationContentStart
-                    : mNonConversationContentStart;
-            mMessagingIconContainer.setLayoutParams(layoutParams);
-            int imagePaddingStart = isInConversation ? 0 : mNonConversationPaddingStart;
-            mMessagingIconContainer.setPaddingRelative(imagePaddingStart, 0, 0, 0);
-
-            ViewGroup.LayoutParams avatarLayoutParams = mAvatarView.getLayoutParams();
-            int size = mIsInConversation ? mConversationAvatarSize : mNonConversationAvatarSize;
-            avatarLayoutParams.height = size;
-            avatarLayoutParams.width = size;
-            mAvatarView.setLayoutParams(avatarLayoutParams);
+            updateIconVisibility();
         }
     }
 

@@ -23,6 +23,7 @@ import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.RemoteException;
+import android.util.Pair;
 
 import com.android.internal.util.Preconditions;
 
@@ -171,6 +172,19 @@ public class UsbDevice implements Parcelable {
      */
     public int getDeviceId() {
         return getDeviceId(mName);
+    }
+
+    /**
+     * Returns the bus and device number for this device.
+     *
+     * <p>This is only valid for the standard implementation where the name of the device contains
+     * both the bus number and device number.
+     *
+     * @return Pair(BusNumber, DeviceNumber)
+     * @hide
+     */
+    public @NonNull Pair<Integer, Integer> getBusAndDeviceNumber() {
+        return getBusAndDeviceNumber(getDeviceId(mName));
     }
 
     /**
@@ -408,6 +422,21 @@ public class UsbDevice implements Parcelable {
 
     public static String getDeviceName(int id) {
         return native_get_device_name(id);
+    }
+
+    // USB devices in /dev are tracked via the bus number and device number and
+    // the native api combines these two into a single id number. This api splits
+    // them apart again.
+    //
+    // The bus number corresponds to the root hub (/sys/bus/usb/devices/usb%d) and
+    // the device number is a unique id for a device connected on that root hub.
+    private static @NonNull Pair<Integer, Integer> getBusAndDeviceNumber(int id) {
+        return Pair.create(id / 1000, id % 1000);
+    }
+
+    /** @hide */
+    public static String getDeviceName(int busNum, int devNum) {
+        return getDeviceName((busNum * 1000) + (devNum % 1000));
     }
 
     private static native int native_get_device_id(String name);

@@ -15,7 +15,9 @@
  */
 package android.internal.statusbar
 
+import android.annotation.EnforcePermission
 import android.app.Notification
+import android.app.motioncues.MotionCuesSettings
 import android.content.ComponentName
 import android.graphics.Rect
 import android.graphics.drawable.Icon
@@ -32,6 +34,7 @@ import android.os.UserHandle
 import android.util.ArrayMap
 import android.view.Display
 import android.view.KeyEvent
+import com.android.internal.infra.AndroidFuture
 import com.android.internal.logging.InstanceId
 import com.android.internal.statusbar.IAddTileResultCallback
 import com.android.internal.statusbar.ISessionListener
@@ -70,7 +73,7 @@ class FakeStatusBarService : IStatusBarService.Stub() {
         )
     var imeWindowVis = 987
     var imeBackDisposition = 654
-    var showImeSwitcher = true
+    var showImeSwitcherButton = true
     var disabledFlags2 = 7654321
     var navbarColorManagedByIme = true
     var behavior = 234
@@ -116,7 +119,7 @@ class FakeStatusBarService : IStatusBarService.Stub() {
         )
     var imeWindowVisSecondaryDisplay = 9876
     var imeBackDispositionSecondaryDisplay = 654
-    var showImeSwitcherSecondaryDisplay = true
+    var showImeSwitcherButtonSecondaryDisplay = true
     var disabledFlags2SecondaryDisplay = 87654321
     var navbarColorManagedByImeSecondaryDisplay = true
     var behaviorSecondaryDisplay = 234
@@ -151,7 +154,7 @@ class FakeStatusBarService : IStatusBarService.Stub() {
                 appearanceRegions,
                 imeWindowVis,
                 imeBackDisposition,
-                showImeSwitcher,
+                showImeSwitcherButton,
                 disabledFlags2,
                 navbarColorManagedByIme,
                 behavior,
@@ -170,7 +173,7 @@ class FakeStatusBarService : IStatusBarService.Stub() {
                 appearanceRegionsSecondaryDisplay,
                 imeWindowVisSecondaryDisplay,
                 imeBackDispositionSecondaryDisplay,
-                showImeSwitcherSecondaryDisplay,
+                showImeSwitcherButtonSecondaryDisplay,
                 disabledFlags2SecondaryDisplay,
                 navbarColorManagedByImeSecondaryDisplay,
                 behaviorSecondaryDisplay,
@@ -212,13 +215,17 @@ class FakeStatusBarService : IStatusBarService.Stub() {
 
     override fun setIconVisibility(slot: String, visible: Boolean) {}
 
+    override fun getIcon(slot: String): Int {
+        return -1
+    }
+
     override fun removeIcon(slot: String) {}
 
     override fun setImeWindowStatus(
         displayId: Int,
         vis: Int,
         backDisposition: Int,
-        showImeSwitcher: Boolean,
+        showImeSwitcherButton: Boolean,
     ) {}
 
     override fun expandSettingsPanel(subPanel: String) {}
@@ -433,6 +440,22 @@ class FakeStatusBarService : IStatusBarService.Stub() {
     override fun unregisterNearbyMediaDevicesProvider(provider: INearbyMediaDevicesProvider) {}
 
     override fun showRearDisplayDialog(currentBaseState: Int) {}
+
+    /** Use with [android.os.test.FakePermissionEnforcer]. */
+    @EnforcePermission(
+        anyOf =
+            ["android.permission.SHOW_POWER_MENU", "android.permission.SHOW_POWER_MENU_PRIVILEGED"]
+    )
+    override fun showGlobalActionsFromApp(future: AndroidFuture<*>) {
+        showGlobalActionsFromApp_enforcePermission()
+    }
+
+    override fun startMotionCuesSession(
+        componentName: ComponentName?,
+        motionCuesSettings: MotionCuesSettings,
+    ) {}
+
+    override fun endMotionCuesSession() {}
 
     companion object {
         const val DEFAULT_DISPLAY_ID = Display.DEFAULT_DISPLAY

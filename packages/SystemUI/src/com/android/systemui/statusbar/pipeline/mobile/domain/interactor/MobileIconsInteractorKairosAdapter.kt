@@ -20,10 +20,8 @@ import android.content.Context
 import com.android.settingslib.SignalIcon
 import com.android.settingslib.mobile.MobileMappings
 import com.android.systemui.KairosActivatable
-import com.android.systemui.KairosBuilder
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosNetwork
 import com.android.systemui.kairos.buildSpec
 import com.android.systemui.kairos.combine
@@ -31,7 +29,6 @@ import com.android.systemui.kairos.map
 import com.android.systemui.kairos.mapValues
 import com.android.systemui.kairos.toColdConflatedFlow
 import com.android.systemui.kairos.util.nameTag
-import com.android.systemui.kairosBuilder
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.log.table.TableLogBufferFactory
 import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos
@@ -46,6 +43,8 @@ import com.android.systemui.statusbar.pipeline.mobile.domain.model.SignalIconMod
 import com.android.systemui.statusbar.pipeline.mobile.util.MobileMappingsProxy
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
 import com.android.systemui.statusbar.policy.data.repository.UserSetupRepository
+import com.android.systemui.util.lifecycle.kairos.KairosBuilder
+import com.android.systemui.util.lifecycle.kairos.kairosBuilder
 import com.android.systemui.utils.coroutines.flow.flatMapLatestConflated
 import dagger.Provides
 import dagger.multibindings.ElementsIntoSet
@@ -58,7 +57,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.stateIn
 
-@ExperimentalKairosApi
 @SysUISingleton
 class MobileIconsInteractorKairosAdapter
 @Inject
@@ -84,7 +82,7 @@ constructor(
             )
     }
 
-    private val interactorsBySubId =
+    private val interactorsBySubId: StateFlow<Map<Int, MobileIconInteractor>> =
         interactorsBySubIdK
             .toColdConflatedFlow(
                 kairosNetwork,
@@ -141,6 +139,23 @@ constructor(
             .toColdConflatedFlow(
                 kairosNetwork,
                 nameTag("MobileIconsInteractorKairosAdapter.activeDataIconInteractor"),
+            )
+            .stateIn(scope, SharingStarted.WhileSubscribed(), null)
+
+    override val defaultDataIconInteractor: StateFlow<MobileIconInteractor?> =
+        combine(repoK.defaultDataSubId, interactorsBySubIdK) { subId, interactors ->
+                if (
+                    subId != null &&
+                        subId != android.telephony.SubscriptionManager.INVALID_SUBSCRIPTION_ID
+                ) {
+                    interactors[subId]
+                } else {
+                    null
+                }
+            }
+            .toColdConflatedFlow(
+                kairosNetwork,
+                nameTag("MobileIconsInteractorKairosAdapter.defaultDataIconInteractor"),
             )
             .stateIn(scope, SharingStarted.WhileSubscribed(), null)
 

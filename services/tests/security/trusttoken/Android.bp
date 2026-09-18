@@ -1,0 +1,103 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package {
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "frameworks_base_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["frameworks_base_license"],
+    default_team: "trendy_team_multi_device_identity",
+}
+
+java_defaults {
+    name: "trust_token_tests_defaults",
+    static_libs: [
+        "androidx.annotation_annotation",
+        "androidx.test.ext.junit",
+        "androidx.test.rules",
+        "androidx.test.runner",
+        "flag-junit",
+        "mockito-target-extended-minus-junit4",
+        "modules-utils-extended-mockito-rule",
+        "statsdprotolite",
+        "testables",
+        "testng",
+        "truth",
+        "StatsdTestUtils",
+    ],
+    jni_libs: [
+        // Required by mockito
+        "libdexmakerjvmtiagent",
+        "libstaticjvmtiagent",
+    ],
+    platform_apis: true,
+    certificate: "platform",
+    use_resource_processor: true,
+    // Required for TestParameterInjector
+    javacflags: ["-parameters"],
+}
+
+android_app {
+    name: "TrustTokenTestStub",
+    platform_apis: true,
+    manifest: "configs/AndroidManifest.xml",
+}
+
+android_robolectric_test {
+    name: "TrustTokenTestsRobolectric",
+    defaults: ["trust_token_tests_defaults"],
+    instrumentation_for: "TrustTokenTestStub",
+    srcs: [
+        "src/**/*.java",
+    ],
+    static_libs: [
+        "services.core",
+    ],
+    java_resource_dirs: [
+        "configs/robolectric",
+        "testdata",
+    ],
+    upstream: true,
+    test_suites: [
+        "general-tests",
+        "robolectric-tests",
+    ],
+    jni_libs: ["libtrust_token_jni"],
+}
+
+android_test {
+    name: "TrustTokenTestsDevice",
+    defaults: ["trust_token_tests_defaults"],
+    manifest: "configs/AndroidManifest.xml",
+    test_config: "configs/AndroidTest.xml",
+    java_resource_dirs: ["testdata"],
+    srcs: [
+        "src/**/*.java",
+    ],
+    static_libs: [
+        "services.core",
+        "android.security.flags-aconfig-java",
+    ],
+    test_suites: ["general-tests"],
+    // The tests cannot load the system's private native libraries, so we
+    // need to include them in the APK.
+    jni_libs: [
+        "libtrust_token_jni",
+        "libcrypto",
+    ],
+}

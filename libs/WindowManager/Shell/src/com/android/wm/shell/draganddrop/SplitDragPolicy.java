@@ -362,7 +362,7 @@ public class SplitDragPolicy implements DropTarget {
     }
 
     /**
-     * Handles the drop on a given {@param target}.  If a {@param hideTaskToken} is set, then the
+     * Handles the drop on a given {@code target}.  If a {@code hideTaskToken} is set, then the
      * handling of the drop will attempt to hide the given task as a part of the same window
      * container transaction if possible.
      */

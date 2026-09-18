@@ -2,15 +2,18 @@ package: "com.android.server.power.hint"
 container: "system"
 
 flag {
-    name: "reset_on_fork_enabled"
-    namespace: "game"
-    description: "Set reset_on_fork flag."
-    bug: "370988407"
-}
-
-flag {
     name: "use_sysui_session_tag"
     namespace: "window_surfaces"
     description: "Use SessionTag.SYSUI for system ui and launcher processes."
     bug: "359965565"
+}
+
+flag {
+    name: "power_hint_on_device_state_change"
+    namespace: "windowing_frontend"
+    description: "Enables power hint when upcoming device state change is detected"
+    bug: "437104147"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

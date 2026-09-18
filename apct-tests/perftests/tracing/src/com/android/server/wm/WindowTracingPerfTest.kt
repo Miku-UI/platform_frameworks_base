@@ -20,6 +20,7 @@ import android.perftests.utils.PerfStatusReporter
 import android.platform.test.annotations.Postsubmit
 import android.tools.traces.busyWaitTracingSessionDoesntExist
 import android.tools.traces.busyWaitTracingSessionExists
+import android.tools.traces.io.ResultReader
 import android.tools.traces.io.ResultWriter
 import android.tools.traces.monitors.PerfettoTraceMonitor
 import android.tools.traces.monitors.PerfettoTraceMonitor.Companion.newBuilder
@@ -72,6 +73,11 @@ class WindowTracingPerfTest(private val mTracingState: TracingState) {
             val dir: File = tempDataSourceDir()
             val writer: ResultWriter = createDummyWriter(dir)
             mPerfettoTracingMonitor?.stop(writer)
+
+            val reader = ResultReader(writer.write())
+            val trace = reader.readWmTrace()
+            assert(trace?.entries?.isNotEmpty() == true) { "WM trace should not be empty" }
+
             busyWaitTracingSessionDoesntExist(TRACE_SESSION_NAME)
         }
     }

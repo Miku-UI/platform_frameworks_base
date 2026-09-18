@@ -120,7 +120,7 @@ constructor(
                     blurConfig.maxBlurRadiusPx
                 } else {
                     transitionProgressToBlurRadius(
-                        starBlurRadius = blurConfig.maxBlurRadiusPx,
+                        startBlurRadius = blurConfig.maxBlurRadiusPx,
                         endBlurRadius = blurConfig.minBlurRadiusPx,
                         transitionProgress = it,
                     )

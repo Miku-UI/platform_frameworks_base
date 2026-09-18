@@ -16,6 +16,7 @@
 package com.android.server.appfunctions;
 
 import android.app.appsearch.GenericDocument;
+import android.text.TextUtils;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -167,7 +168,7 @@ public class AppSearchDataYamlConverter {
      * A minimal YAML generator to avoid a heavy library dependency. This supports Maps, Lists, and
      * primitive types, producing a readable YAML string.
      */
-    private static class MinimalYamlGenerator {
+    public static class MinimalYamlGenerator {
         private static final String INDENT = "  ";
 
         public static String dump(Object data) {
@@ -244,6 +245,9 @@ public class AppSearchDataYamlConverter {
             return obj instanceof Map || obj instanceof List;
         }
 
+        /**
+         * Formats a primitive value, ensuring strings are properly quoted and escaped if necessary.
+         */
         private static String formatPrimitive(Object primitive) {
             if (primitive == null) {
                 return "null";
@@ -251,13 +255,81 @@ public class AppSearchDataYamlConverter {
 
             if (primitive instanceof String) {
                 String str = (String) primitive;
-                // Basic quoting for strings containing YAML special characters.
-                if (str.contains(": ") || str.contains("#") || str.isEmpty()) {
-                    return "'" + str.replace("'", "''") + "'";
+                if (shouldQuote(str)) {
+                    return doubleQuoteAndEscape(str);
                 }
+                return str;
             }
 
             return primitive.toString();
+        }
+
+        /**
+         * Determines if a string requires quoting in YAML.
+         * Checks for special characters, empty strings, or strings that look like other types.
+         */
+        private static boolean shouldQuote(String str) {
+            if (str.isEmpty()) return true;
+
+            // Check for "look-alike" types
+            if ("true".equals(str) || "false".equals(str) || "null".equals(str)
+                    || "~".equals(str)) {
+                return true;
+            }
+
+            // Check for characters that might confuse a YAML parser or require escaping
+            for (int i = 0; i < str.length(); i++) {
+                char c = str.charAt(i);
+                // These characters often require quoting if they appear in specific contexts,
+                // but it's safer to quote if they appear anywhere for a minimal generator.
+                if (c == ':' || c == '#' || c == '[' || c == ']' || c == '{' || c == '}'
+                        || c == ',' || c == '*' || c == '&' || c == '!' || c == '|' || c == '>'
+                        || c == '\'' || c == '"' || c == '%' || c == '@' || c == '`'
+                        || c == '\n' || c == '\r' || c == '\t' || c == '\\') {
+                    return true;
+                }
+            }
+
+            // Also quote if it looks strictly like a boolean or number to preserve type if needed,
+            // though for human-readability this might be optional.
+            // Safest to not quote simple alphanumerics.
+            // A simple heuristic: if it doesn't start with an alphanumeric, quote it.
+            char first = str.charAt(0);
+            if (first == '-' || first == '?' || Character.isWhitespace(first)) {
+                 return true;
+            }
+
+            // Ensure it doesn't contain ": " which is a key-value separator
+            if (str.contains(": ")) return true;
+
+            return false;
+        }
+
+        /**
+         * Double-quotes a string and escapes common control characters and backslashes.
+         */
+        private static String doubleQuoteAndEscape(String str) {
+            StringBuilder sb = new StringBuilder("\"");
+            for (int i = 0; i < str.length(); i++) {
+                char c = str.charAt(i);
+                switch (c) {
+                    case '\\': sb.append("\\\\"); break;
+                    case '"': sb.append("\\\""); break;
+                    case '\n': sb.append("\\n"); break;
+                    case '\r': sb.append("\\r"); break;
+                    case '\t': sb.append("\\t"); break;
+                    default:
+                        // For a minimal generator, we might not need full unicode escaping,
+                        // but handling basic control chars is good practice.
+                        if (c < 32) {
+                             sb.append(TextUtils.formatSimple("\\u%04x", (int) c));
+                        } else {
+                             sb.append(c);
+                        }
+                }
+            }
+            sb.append("\"");
+            return sb.toString();
         }
     }
 }

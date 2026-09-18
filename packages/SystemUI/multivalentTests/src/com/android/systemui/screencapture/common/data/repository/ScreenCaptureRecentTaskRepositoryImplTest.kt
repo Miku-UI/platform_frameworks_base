@@ -29,6 +29,7 @@ import com.android.systemui.mediaprojection.appselector.data.RecentTask
 import com.android.systemui.mediaprojection.appselector.data.RecentTaskListProvider
 import com.android.systemui.shared.system.taskStackChangeListeners
 import com.android.systemui.testKosmosNew
+import com.android.users.UserType
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.launch
 import org.junit.Test
@@ -48,9 +49,10 @@ class ScreenCaptureRecentTaskRepositoryImplTest : SysuiTestCase() {
             userId = 1,
             topActivityComponent = null,
             baseIntentComponent = null,
+            baseIntent = null,
             colorBackground = null,
             isForegroundTask = true,
-            userType = RecentTask.UserType.STANDARD,
+            userType = UserType.MAIN,
             splitBounds = null,
         )
 
@@ -61,9 +63,10 @@ class ScreenCaptureRecentTaskRepositoryImplTest : SysuiTestCase() {
             userId = 2,
             topActivityComponent = null,
             baseIntentComponent = null,
+            baseIntent = null,
             colorBackground = null,
             isForegroundTask = false,
-            userType = RecentTask.UserType.STANDARD,
+            userType = UserType.MAIN,
             splitBounds = null,
         )
 

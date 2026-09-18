@@ -44,6 +44,7 @@
     <string name="expand_handle" msgid="7282974448109280522">"ਹੈਂਡਲ ਨੂੰ ਵਿਸਤਾਰ ਦਿਓ"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"ਇਕੱਠਾ ਹੋਣ ਦੀ ਸੰਭਾਲ"</string>
     <string name="print_button" msgid="645164566271246268">"ਪ੍ਰਿੰਟ ਕਰੋ"</string>
+    <string name="setup_button" msgid="323390526074568450">"ਸੈੱਟਅੱਪ ਕਰੋ"</string>
     <string name="savetopdf_button" msgid="2976186791686924743">"PDF ਵਿੱਚ ਰੱਖਿਅਤ ਕਰੋ"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"ਪ੍ਰਿੰਟ ਚੋਣਾਂ ਦਾ ਵਿਸਤਾਰ ਕੀਤਾ"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"ਪ੍ਰਿੰਟ ਚੋਣਾਂ ਇਕੱਠਾ ਹੋਈਆਂ"</string>

@@ -2,25 +2,8 @@ package: "com.android.settingslib.media.flags"
 container: "system"
 
 flag {
-    name: "enable_tv_media_output_dialog"
-    namespace: "tv_system_ui"
-    description: "Gates all the changes for the tv specific media output dialog"
-    bug: "303205631"
-}
-
-flag {
     name: "enable_output_switcher_for_system_routing"
     namespace: "media_solutions"
     description: "Enable Output Switcher when no media is playing."
     bug: "284227163"
-}
-
-flag {
-    name: "remove_unnecessary_route_scanning"
-    namespace: "media_solutions"
-    description: "Avoid active scan requests on UI components that only display route status information."
-    bug: "332515672"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }

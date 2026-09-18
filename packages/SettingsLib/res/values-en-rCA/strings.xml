@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wifi three bars."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Wifi signal full."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Connected to your device."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"All users on this device can view and connect."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Open network"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Secure network"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Access Point Name settings are not available for this user"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB debugging"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Debug mode when USB is connected"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Revoke USB debugging authorizations"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Revoke adb debugging authorizations"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Wireless debugging"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Debug mode when Wi‑Fi is connected"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Error"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Pairing device…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Failed to pair the device. Either the QR code was incorrect, or the device is not connected to the same network."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP address &amp; Port"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Unavailable (Not allowed)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Unavailable (Wi‑Fi Disconnected)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Scan QR code"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Pair device over Wi‑Fi by scanning a QR code"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Please connect to a Wi‑Fi network"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB debugging is intended for development purposes only. Use it to copy data between your computer and your device, install apps on your device without notification, and read log data."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Allow wireless debugging?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Wireless debugging is intended for development purposes only. Use it to copy data between your computer and your device, install apps on your device without notification, and read log data."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Revoke access to USB debugging from all computers you’ve previously authorized?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Revoke access to adb debugging from all computers and networks you’ve previously authorized?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Allow development settings?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"These settings are intended for development use only. They can cause your device and the applications on it to break or misbehave."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Verify apps over USB"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet disconnected."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"No calling."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Physical keyboard"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Choose keyboard layout"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Default"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Screen turn-on control"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Allow turning the screen on"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Allow an app to turn the screen on. If granted, the app may turn on the screen at any time without your explicit intent."</string>

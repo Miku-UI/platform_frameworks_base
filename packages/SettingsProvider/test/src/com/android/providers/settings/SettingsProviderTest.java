@@ -22,7 +22,6 @@ import static junit.framework.Assert.assertSame;
 import static junit.framework.Assert.fail;
 
 import android.companion.virtual.VirtualDeviceManager;
-import android.companion.virtualdevice.flags.Flags;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Context;
@@ -33,7 +32,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.os.UserHandle;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.provider.Settings;
 import android.util.Log;
 import android.virtualdevice.cts.common.VirtualDeviceRule;
@@ -112,7 +110,6 @@ public class SettingsProviderTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_DEVICE_AWARE_SETTINGS_OVERRIDE)
     public void testSetAndGetSecureForVirtualDeviceForSystemUser() throws Exception {
         final int virtualDeviceId = createVirtualDevice();
         performSetAndGetSettingTestViaShell(SETTING_TYPE_SECURE, UserHandle.USER_SYSTEM,
@@ -120,7 +117,6 @@ public class SettingsProviderTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_DEVICE_AWARE_SETTINGS_OVERRIDE)
     public void testSetAndGetSecureViaForVirtualDeviceForNonSystemUser() throws Exception {
         final int secondaryUserId = getSecondaryUserId();
         if (secondaryUserId == UserHandle.USER_SYSTEM) {
@@ -133,7 +129,6 @@ public class SettingsProviderTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_DEVICE_AWARE_SETTINGS_OVERRIDE)
     public void testSetAndGetSystemForVirtualDeviceForSystemUser() throws Exception {
         final int virtualDeviceId = createVirtualDevice();
         performSetAndGetSettingTestViaShell(SETTING_TYPE_SYSTEM, UserHandle.USER_SYSTEM,
@@ -141,7 +136,6 @@ public class SettingsProviderTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_DEVICE_AWARE_SETTINGS_OVERRIDE)
     public void testSetAndGetSystemForVirtualDeviceForNonSystemUser() throws Exception {
         final int secondaryUserId = getSecondaryUserId();
         if (secondaryUserId == UserHandle.USER_SYSTEM) {
@@ -154,7 +148,6 @@ public class SettingsProviderTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_DEVICE_AWARE_SETTINGS_OVERRIDE)
     public void testSetAndGetGlobalForVirtualDeviceForSystemUser() throws Exception {
         final int virtualDeviceId = createVirtualDevice();
         verifySetOnVirtualDeviceSetsOnDefaultDevice(SETTING_TYPE_GLOBAL, UserHandle.USER_SYSTEM,
@@ -162,7 +155,6 @@ public class SettingsProviderTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_DEVICE_AWARE_SETTINGS_OVERRIDE)
     public void testSetAndGetGlobalForVirtualDeviceForNonSystemUser() throws Exception {
         final int secondaryUserId = getSecondaryUserId();
         if (secondaryUserId == UserHandle.USER_SYSTEM) {
@@ -191,19 +183,16 @@ public class SettingsProviderTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_DEVICE_AWARE_SETTINGS_OVERRIDE)
     public void testSystemSettingClearedOnVirtualDeviceRemovalForSystemUser() throws Exception {
         verifySettingsClearedOnVirtualDeviceRemoval(SETTING_TYPE_SYSTEM, UserHandle.USER_SYSTEM);
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_DEVICE_AWARE_SETTINGS_OVERRIDE)
     public void testSecureSettingClearedOnVirtualDeviceRemovalForSystemUser() throws Exception {
         verifySettingsClearedOnVirtualDeviceRemoval(SETTING_TYPE_SECURE, UserHandle.USER_SYSTEM);
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_DEVICE_AWARE_SETTINGS_OVERRIDE)
     public void testSystemSettingClearedOnVirtualDeviceRemovalForNonSystemUser() throws Exception {
         final int secondaryUserId = getSecondaryUserId();
         if (secondaryUserId == UserHandle.USER_SYSTEM) {
@@ -215,7 +204,6 @@ public class SettingsProviderTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_DEVICE_AWARE_SETTINGS_OVERRIDE)
     public void testSecureSettingClearedOnVirtualDeviceRemovalForNonSystemUser() throws Exception {
         final int secondaryUserId = getSecondaryUserId();
         if (secondaryUserId == UserHandle.USER_SYSTEM) {

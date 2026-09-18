@@ -35,6 +35,7 @@ import android.content.pm.UserInfo;
 import android.content.pm.VersionedPackage;
 import android.os.Environment;
 import android.os.FileUtils;
+import android.os.Process;
 import android.os.UserHandle;
 import android.os.storage.StorageEventListener;
 import android.os.storage.StorageManager;
@@ -107,26 +108,30 @@ public final class StorageEventHelper extends StorageEventListener {
             return;
         }
 
-        // Remove any apps installed on the forgotten volume
-        final List<UserInfo> activeUsers = Settings.getActiveUsers(mPm.mUserManager);
+        final List<String> packageNames = new ArrayList<>();
         synchronized (mPm.mLock) {
-            final List<? extends PackageStateInternal> packages =
-                    mPm.mSettings.getVolumePackagesLPr(fsUuid);
-            for (PackageStateInternal ps : packages) {
-                Slog.d(TAG, "Destroying " + ps.getPackageName()
-                        + " because volume was forgotten");
-                mPm.deletePackageVersioned(new VersionedPackage(ps.getPackageName(),
-                                PackageManager.VERSION_CODE_HIGHEST),
-                        new PackageManager.LegacyPackageDeleteObserver(null).getBinder(),
-                        UserHandle.USER_SYSTEM, PackageManager.DELETE_ALL_USERS);
-                // Try very hard to release any references to this package
-                // so we don't risk the system server being killed due to
-                // open FDs
-                AttributeCache.instance().removePackage(ps.getPackageName());
+            for (PackageStateInternal ps : mPm.mSettings.getVolumePackagesLPr(fsUuid)) {
+                packageNames.add(ps.getPackageName());
             }
+        }
 
+        // Schedule removal of any apps installed on the forgotten volume.
+        for (String packageName : packageNames) {
+            Slog.d(TAG, "Destroying " + packageName
+                    + " because volume was forgotten");
+            mPm.deletePackageVersioned(new VersionedPackage(packageName,
+                            PackageManager.VERSION_CODE_HIGHEST),
+                    new PackageManager.LegacyPackageDeleteObserver(null).getBinder(),
+                    UserHandle.USER_SYSTEM, PackageManager.DELETE_ALL_USERS);
+            // Try very hard to release any references to this package
+            // so we don't risk the system server being killed due to
+            // open FDs
+            AttributeCache.instance().removePackage(packageName);
+        }
+
+        synchronized (mPm.mLock) {
             mPm.mSettings.onVolumeForgotten(fsUuid);
-            mPm.writeSettingsLPrTEMP(activeUsers);
+            mPm.writeSettingsLPrTEMP();
         }
     }
 
@@ -208,7 +213,6 @@ public final class StorageEventHelper extends StorageEventListener {
             }
         }
 
-        final List<UserInfo> activeUsers = Settings.getActiveUsers(mPm.mUserManager);
         synchronized (mPm.mLock) {
             final boolean isUpgrade = !PackagePartitions.FINGERPRINT.equals(ver.fingerprint);
             if (isUpgrade) {
@@ -221,7 +225,7 @@ public final class StorageEventHelper extends StorageEventListener {
             // Yay, everything is now upgraded
             ver.forceCurrent();
 
-            mPm.writeSettingsLPrTEMP(activeUsers);
+            mPm.writeSettingsLPrTEMP();
         }
 
         for (PackageFreezer freezer : freezers) {
@@ -248,7 +252,6 @@ public final class StorageEventHelper extends StorageEventListener {
         }
 
         final int[] userIds = mPm.mUserManager.getUserIds();
-        final List<UserInfo> activeUsers = Settings.getActiveUsers(mPm.mUserManager);
         final ArrayList<AndroidPackage> unloaded = new ArrayList<>();
         try (PackageManagerTracedLock installLock = mPm.mInstallLock.acquireLock()) {
             synchronized (mPm.mLock) {
@@ -264,7 +267,8 @@ public final class StorageEventHelper extends StorageEventListener {
                              UserHandle.USER_ALL, deleteFlags,
                             "unloadPrivatePackagesInner", ApplicationExitInfo.REASON_OTHER)) {
                         if (mDeletePackageHelper.deletePackageLIF(ps.getPackageName(), null, false,
-                                userIds, deleteFlags, new PackageRemovedInfo(), false)) {
+                                userIds, deleteFlags, new PackageRemovedInfo(), false,
+                                Process.SYSTEM_UID)) {
                             unloaded.add(pkg);
                         } else {
                             Slog.w(TAG, "Failed to unload " + ps.getPath());
@@ -277,7 +281,7 @@ public final class StorageEventHelper extends StorageEventListener {
                     AttributeCache.instance().removePackage(ps.getPackageName());
                 }
 
-                mPm.writeSettingsLPrTEMP(activeUsers);
+                mPm.writeSettingsLPrTEMP();
             }
         }
 

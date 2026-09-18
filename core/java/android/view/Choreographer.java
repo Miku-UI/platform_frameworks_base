@@ -16,11 +16,9 @@
 
 package android.view;
 
-import static android.view.flags.Flags.bufferStuffingRecovery;
 import static android.view.flags.Flags.bufferStuffingMultiRecovery;
+import static android.view.flags.Flags.bufferStuffingRecoveryThreshold;
 import static android.view.flags.Flags.FLAG_EXPECTED_PRESENTATION_TIME_API;
-import static android.view.DisplayEventReceiver.VSYNC_SOURCE_APP;
-import static android.view.DisplayEventReceiver.VSYNC_SOURCE_SURFACE_FLINGER;
 
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
@@ -43,6 +41,8 @@ import android.ravenwood.annotation.RavenwoodReplace;
 import android.util.Log;
 import android.util.TimeUtils;
 import android.view.animation.AnimationUtils;
+
+import com.android.internal.annotations.VisibleForTesting;
 
 import java.io.PrintWriter;
 import java.util.Locale;
@@ -126,21 +126,19 @@ public final class Choreographer {
     // Thread local storage for the choreographer.
     private static final ThreadLocal<Choreographer> sThreadInstance =
             new ThreadLocal<Choreographer>() {
-        @Override
-        protected Choreographer initialValue() {
-            Looper looper = Looper.myLooper();
-            if (looper == null) {
-                throw new IllegalStateException("The current thread must have a looper!");
-            }
-            Choreographer choreographer = new Choreographer(looper, VSYNC_SOURCE_APP);
-            if (looper == Looper.getMainLooper()) {
-                mMainInstance = choreographer;
-            }
-            return choreographer;
-        }
-    };
-
-    private static volatile Choreographer mMainInstance;
+                @Override
+                protected Choreographer initialValue() {
+                    Looper looper = Looper.myLooper();
+                    if (looper == null) {
+                        throw new IllegalStateException("The current thread must have a looper!");
+                    }
+                    Choreographer choreographer = new Choreographer(looper);
+                    if (looper == Looper.getMainLooper()) {
+                        sMainInstance = choreographer;
+                    }
+                    return choreographer;
+                }
+            };
 
     // Thread local storage for the SF choreographer.
     private static final ThreadLocal<Choreographer> sSfThreadInstance =
@@ -151,9 +149,11 @@ public final class Choreographer {
                     if (looper == null) {
                         throw new IllegalStateException("The current thread must have a looper!");
                     }
-                    return new Choreographer(looper, VSYNC_SOURCE_SURFACE_FLINGER);
+                    return new Choreographer(looper);
                 }
             };
+
+    private static volatile Choreographer sMainInstance;
 
     // Enable/disable vsync for animations and drawing.
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 123769497)
@@ -226,7 +226,6 @@ public final class Choreographer {
     private long mFrameIntervalNanos;
     private long mLastFrameIntervalNanos;
 
-    private boolean mDebugPrintNextFrameTimeDelta;
     private int mFPSDivisor = 1;
     private final DisplayEventReceiver.VsyncEventData mLastVsyncEventData =
             new DisplayEventReceiver.VsyncEventData();
@@ -257,6 +256,12 @@ public final class Choreographer {
         // being skipped due to FPSDivisor.
         public int numberWaitsForNextVsync = 0;
 
+        // Tracks the accumulated time that the frame was delayed for the current animation.
+        public long accumulatedDelayNanos = 0;
+
+        // Duration threshold of delays that can occur for the animation.
+        private static final long MAX_BUFFER_STUFFING_DELAY_NS = 100000000L;
+
         /**
          * After buffer stuffing recovery has ended with a detected idle state, the
          * recovery data trackers can be reset in preparation for any future
@@ -266,6 +271,11 @@ public final class Choreographer {
             isStuffed.set(false);
             isRecovering = false;
             numberWaitsForNextVsync = 0;
+            accumulatedDelayNanos = 0;
+        }
+
+        public boolean maxDelayReached() {
+            return accumulatedDelayNanos >= MAX_BUFFER_STUFFING_DELAY_NS;
         }
     }
 
@@ -354,15 +364,15 @@ public final class Choreographer {
 
     private static final int CALLBACK_LAST = CALLBACK_COMMIT;
 
-    private Choreographer(Looper looper, int vsyncSource) {
-        this(looper, vsyncSource, /* layerHandle */ 0L);
+    private Choreographer(Looper looper) {
+        this(looper, /* layerHandle */ 0L);
     }
 
-    private Choreographer(Looper looper, int vsyncSource, long layerHandle) {
+    private Choreographer(Looper looper, long layerHandle) {
         mLooper = looper;
         mHandler = new FrameHandler(looper);
         mDisplayEventReceiver = USE_VSYNC
-                ? new FrameDisplayEventReceiver(looper, vsyncSource, layerHandle)
+                ? new FrameDisplayEventReceiver(looper, layerHandle)
                 : null;
         mLastFrameTimeNanos = Long.MIN_VALUE;
 
@@ -427,7 +437,7 @@ public final class Choreographer {
         if (looper == null) {
             throw new IllegalStateException("The current thread must have a looper!");
         }
-        return new Choreographer(looper, VSYNC_SOURCE_APP, layerHandle);
+        return new Choreographer(looper, layerHandle);
     }
 
     /**
@@ -435,7 +445,7 @@ public final class Choreographer {
      * @hide
      */
     public static Choreographer getMainThreadInstance() {
-        return mMainInstance;
+        return sMainInstance;
     }
 
     /** Destroys the calling thread's choreographer
@@ -652,6 +662,26 @@ public final class Choreographer {
     }
 
     /**
+     * Posts a vsync callback to run on the next frame.
+     * <p>
+     * The callback runs once then is automatically removed.
+     * </p>
+     *
+     * @param callbackType The callback type.
+     * @param callback The vsync callback to run during the next frame.
+     *
+     * @see #removeVsyncCallback
+     * @hide
+     */
+    public void postVsyncCallback(int callbackType, @NonNull VsyncCallback callback) {
+        if (callback == null) {
+            throw new IllegalArgumentException("callback must not be null");
+        }
+
+        postCallbackDelayedInternal(callbackType, callback, VSYNC_CALLBACK_TOKEN, 0);
+    }
+
+    /**
      * Removes callbacks that have the specified action and token.
      *
      * @param callbackType The callback type.
@@ -753,6 +783,23 @@ public final class Choreographer {
         }
 
         removeCallbacksInternal(CALLBACK_ANIMATION, callback, VSYNC_CALLBACK_TOKEN);
+    }
+
+    /**
+     * Removes a previously posted vsync callback.
+     *
+     * @param callbackType The callback type.
+     * @param callback The vsync callback to remove.
+     *
+     * @see #postVsyncCallback
+     * @hide
+     */
+    public void removeVsyncCallback(int callbackType, @Nullable VsyncCallback callback) {
+        if (callback == null) {
+            throw new IllegalArgumentException("callback must not be null");
+        }
+
+        removeCallbacksInternal(callbackType, callback, VSYNC_CALLBACK_TOKEN);
     }
 
     /**
@@ -910,8 +957,8 @@ public final class Choreographer {
      */
     public long getVsyncId() {
         if (!mInDoFrameCallback && Trace.isTagEnabled(Trace.TRACE_TAG_VIEW)) {
-            String message = String.format(Locale.getDefault(), "unsync-vsync-id=%d isSfChoreo=%s",
-                    mLastVsyncEventData.preferredFrameTimeline().vsyncId, this == getSfInstance());
+            String message = String.format(Locale.getDefault(), "unsync-vsync-id=%d",
+                    mLastVsyncEventData.preferredFrameTimeline().vsyncId);
             Trace.instant(Trace.TRACE_TAG_VIEW, message);
         }
         return mLastVsyncEventData.preferredFrameTimeline().vsyncId;
@@ -959,8 +1006,14 @@ public final class Choreographer {
                     }
                     mBufferStuffingState.isRecovering = true;
                 }
-                Trace.instant(Trace.TRACE_TAG_VIEW, "buffer stuffed");
-                return BufferStuffingState.RecoveryAction.DELAY_FRAME;
+
+                if (bufferStuffingRecoveryThreshold() && mBufferStuffingState.maxDelayReached()) {
+                    Trace.instant(Trace.TRACE_TAG_VIEW,
+                            "buffer stuffed - max recovery delay reached");
+                } else {
+                    Trace.instant(Trace.TRACE_TAG_VIEW, "buffer stuffed");
+                    return BufferStuffingState.RecoveryAction.DELAY_FRAME;
+                }
 
             // No recovery action needed when there is no buffer stuffing and
             // no recovery currently occurring.
@@ -1030,25 +1083,24 @@ public final class Choreographer {
 
         // Evaluate if buffer stuffing recovery needs to start or end, and
         // what actions need to be taken for recovery.
-        if (bufferStuffingRecovery()) {
-            switch (updateBufferStuffingState(frameTimeNanos, vsyncEventData)) {
-                case NONE:
-                    // Without buffer stuffing recovery, offsetFrameTimeNanos is
-                    // synonymous with frameTimeNanos.
-                    break;
-                case OFFSET:
-                    // Add animation offset. Used to update frame timeline with
-                    // offset before jitter is calculated.
-                    offsetFrameTimeNanos = frameTimeNanos - frameIntervalNanos;
-                    break;
-                case DELAY_FRAME:
-                    // Intentional frame delay to help reduce queued buffer count.
-                    mBufferStuffingState.numberWaitsForNextVsync++;
-                    scheduleVsyncLocked();
-                    return;
-                default:
-                    break;
-            }
+        switch (updateBufferStuffingState(frameTimeNanos, vsyncEventData)) {
+            case NONE:
+                // Without buffer stuffing recovery, offsetFrameTimeNanos is
+                // synonymous with frameTimeNanos.
+                break;
+            case OFFSET:
+                // Add animation offset. Used to update frame timeline with
+                // offset before jitter is calculated.
+                offsetFrameTimeNanos = frameTimeNanos - frameIntervalNanos;
+                break;
+            case DELAY_FRAME:
+                // Intentional frame delay to help reduce queued buffer count.
+                mBufferStuffingState.numberWaitsForNextVsync++;
+                mBufferStuffingState.accumulatedDelayNanos += frameIntervalNanos;
+                scheduleVsyncLocked();
+                return;
+            default:
+                break;
         }
 
         try {
@@ -1064,12 +1116,6 @@ public final class Choreographer {
                     return; // no work to do
                 }
                 mLastNoOffsetFrameTimeNanos = frameTimeNanos;
-
-                if (DEBUG_JANK && mDebugPrintNextFrameTimeDelta) {
-                    mDebugPrintNextFrameTimeDelta = false;
-                    Log.d(TAG, "Frame time delta: "
-                            + ((offsetFrameTimeNanos - mLastFrameTimeNanos) * 0.000001f) + " ms");
-                }
 
                 startNanos = System.nanoTime();
                 // Calculating jitter involves using the original frame time without
@@ -1137,7 +1183,7 @@ public final class Choreographer {
                 mFrameInfo.setVsync(intendedFrameTimeNanos, frameTimeNanos,
                         vsyncEventData.preferredFrameTimeline().vsyncId,
                         vsyncEventData.preferredFrameTimeline().deadline, startNanos,
-                        vsyncEventData.frameInterval);
+                        vsyncEventData.frameInterval, frameTimeNanos);
                 mFrameScheduled = false;
                 mLastFrameTimeNanos = frameTimeNanos;
                 mLastFrameIntervalNanos = frameIntervalNanos;
@@ -1150,20 +1196,19 @@ public final class Choreographer {
                 Trace.traceBegin(Trace.TRACE_TAG_VIEW, message);
             }
 
-            AnimationUtils.lockAnimationClock(frameTimeNanos / TimeUtils.NANOS_PER_MS,
-                    timeline.mExpectedPresentationTimeNanos);
+            AnimationUtils.lockAnimationClock(frameTimeNanos / TimeUtils.NANOS_PER_MS);
 
             mFrameInfo.markInputHandlingStart();
-            doCallbacks(Choreographer.CALLBACK_INPUT, frameIntervalNanos);
+            doCallbacks(Choreographer.CALLBACK_INPUT);
 
             mFrameInfo.markAnimationsStart();
-            doCallbacks(Choreographer.CALLBACK_ANIMATION, frameIntervalNanos);
-            doCallbacks(Choreographer.CALLBACK_INSETS_ANIMATION, frameIntervalNanos);
+            doCallbacks(Choreographer.CALLBACK_ANIMATION);
+            doCallbacks(Choreographer.CALLBACK_INSETS_ANIMATION);
 
             mFrameInfo.markPerformTraversalsStart();
-            doCallbacks(Choreographer.CALLBACK_TRAVERSAL, frameIntervalNanos);
+            doCallbacks(Choreographer.CALLBACK_TRAVERSAL);
 
-            doCallbacks(Choreographer.CALLBACK_COMMIT, frameIntervalNanos);
+            doCallbacks(Choreographer.CALLBACK_COMMIT);
         } finally {
             AnimationUtils.unlockAnimationClock();
             mInDoFrameCallback = false;
@@ -1181,7 +1226,7 @@ public final class Choreographer {
         }
     }
 
-    void doCallbacks(int callbackType, long frameIntervalNanos) {
+    void doCallbacks(int callbackType) {
         CallbackRecord callbacks;
         long frameTimeNanos = mFrameData.mFrameTimeNanos;
         synchronized (mLock) {
@@ -1195,34 +1240,6 @@ public final class Choreographer {
                 return;
             }
             mCallbacksRunning = true;
-
-            // Update the frame time if necessary when committing the frame.
-            // We only update the frame time if we are more than 2 frames late reaching
-            // the commit phase.  This ensures that the frame time which is observed by the
-            // callbacks will always increase from one frame to the next and never repeat.
-            // We never want the next frame's starting frame time to end up being less than
-            // or equal to the previous frame's commit frame time.  Keep in mind that the
-            // next frame has most likely already been scheduled by now so we play it
-            // safe by ensuring the commit time is always at least one frame behind.
-            if (callbackType == Choreographer.CALLBACK_COMMIT) {
-                final long jitterNanos = now - frameTimeNanos;
-                Trace.traceCounter(Trace.TRACE_TAG_VIEW, "jitterNanos", (int) jitterNanos);
-                if (frameIntervalNanos > 0 && jitterNanos >= 2 * frameIntervalNanos) {
-                    final long lastFrameOffset = jitterNanos % frameIntervalNanos
-                            + frameIntervalNanos;
-                    if (DEBUG_JANK) {
-                        Log.d(TAG, "Commit callback delayed by " + (jitterNanos * 0.000001f)
-                                + " ms which is more than twice the frame interval of "
-                                + (frameIntervalNanos * 0.000001f) + " ms!  "
-                                + "Setting frame time to " + (lastFrameOffset * 0.000001f)
-                                + " ms in the past.");
-                        mDebugPrintNextFrameTimeDelta = true;
-                    }
-                    frameTimeNanos = now - lastFrameOffset;
-                    mLastFrameTimeNanos = frameTimeNanos;
-                    mFrameData.update(frameTimeNanos, mDisplayEventReceiver, jitterNanos);
-                }
-            }
         }
         try {
             Trace.traceBegin(Trace.TRACE_TAG_VIEW, CALLBACK_TRACE_TITLES[callbackType]);
@@ -1402,6 +1419,16 @@ public final class Choreographer {
             allocateFrameTimelines(DisplayEventReceiver.VsyncEventData.FRAME_TIMELINES_CAPACITY);
         }
 
+        /**
+         * @hide
+         */
+        @VisibleForTesting
+        public FrameData(long frameTimeNanos) {
+            this();
+            mFrameTimeNanos = frameTimeNanos;
+            setInCallback(true);
+        }
+
         /** The time in nanoseconds when the frame started being rendered. */
         public long getFrameTimeNanos() {
             checkInCallback();
@@ -1556,8 +1583,8 @@ public final class Choreographer {
         private int mFrame;
         private final VsyncEventData mLastVsyncEventData = new VsyncEventData();
 
-        FrameDisplayEventReceiver(Looper looper, int vsyncSource, long layerHandle) {
-            super(looper, vsyncSource, /* eventRegistration */ 0, layerHandle);
+        FrameDisplayEventReceiver(Looper looper, long layerHandle) {
+            super(looper, /* eventRegistration */ 0, layerHandle);
         }
 
         // TODO(b/116025192): physicalDisplayId is ignored because SF only emits VSYNC events for

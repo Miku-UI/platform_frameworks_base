@@ -40,7 +40,8 @@ interface IDomainVerificationManager {
             int userId);
 
     @nullable
-    List<DomainOwner> getOwnersForDomain(String domain, int userId);
+    List<DomainOwner> getOwnersForDomain(String domain, int userId,
+            boolean includeUnverifiedOwners);
 
     int setDomainVerificationStatus(String domainSetId, in DomainSet domains, int state);
 

@@ -41,6 +41,7 @@ class BrightnessLowPowerModeModifier extends BrightnessModifier {
     }
 
     @Override
+    @BrightnessReason.Modifier
     int getModifier() {
         return BrightnessReason.MODIFIER_LOW_POWER;
     }

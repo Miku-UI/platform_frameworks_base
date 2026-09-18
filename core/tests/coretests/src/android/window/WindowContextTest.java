@@ -384,7 +384,6 @@ public class WindowContextTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
     public void reparentToDisplayId_wasAttached_reparentToDisplayAreaPropagatedToTokenController() {
         final WindowTokenClientController mockWindowTokenClientController =
                 mock(WindowTokenClientController.class);
@@ -400,7 +399,6 @@ public class WindowContextTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
     public void reparentToDisplayId_sameDisplayId_noReparenting() {
         final WindowTokenClientController mockWindowTokenClientController =
                 mock(WindowTokenClientController.class);
@@ -618,13 +616,11 @@ public class WindowContextTest {
         }
     }
 
-    @EnableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
     @Test
     public void testDisplayRemovePolicyReparentToDefault_notAddWindow_reparent() {
         testDisplayRemovePolicyReparentToDefault(false /* shouldVerifyAddingView */);
     }
 
-    @EnableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
     @Test
     public void testDisplayRemovePolicyReparentToDefault_addWindow_reparent() {
         testDisplayRemovePolicyReparentToDefault(true /* shouldVerifyAddingView */);

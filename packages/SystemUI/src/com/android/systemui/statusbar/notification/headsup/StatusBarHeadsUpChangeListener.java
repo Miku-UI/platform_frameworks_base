@@ -16,18 +16,28 @@
 
 package com.android.systemui.statusbar.notification.headsup;
 
+import static com.android.systemui.util.kotlin.FlowKt.pairwise;
+import static com.android.systemui.util.kotlin.JavaAdapterKt.collectFlow;
+
+import androidx.annotation.Nullable;
+
 import com.android.systemui.CoreStartable;
 import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.shade.ShadeViewController;
 import com.android.systemui.shade.domain.interactor.PanelExpansionInteractor;
+import com.android.systemui.shade.domain.interactor.ShadeDisplaysInteractor;
 import com.android.systemui.statusbar.NotificationRemoteInputManager;
 import com.android.systemui.statusbar.NotificationShadeWindowController;
 import com.android.systemui.statusbar.StatusBarState;
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayoutController;
 import com.android.systemui.statusbar.phone.KeyguardBypassController;
+import com.android.systemui.statusbar.window.StatusBarWindowController;
 import com.android.systemui.statusbar.window.StatusBarWindowControllerStore;
+
+import kotlinx.coroutines.CoroutineScope;
 
 import javax.inject.Inject;
 
@@ -45,6 +55,8 @@ public class StatusBarHeadsUpChangeListener implements OnHeadsUpChangedListener,
     private final HeadsUpManager mHeadsUpManager;
     private final StatusBarStateController mStatusBarStateController;
     private final NotificationRemoteInputManager mNotificationRemoteInputManager;
+    private final ShadeDisplaysInteractor mShadeDisplaysInteractor;
+    private final CoroutineScope mApplicationScope;
 
     @Inject
     StatusBarHeadsUpChangeListener(
@@ -56,7 +68,9 @@ public class StatusBarHeadsUpChangeListener implements OnHeadsUpChangedListener,
             KeyguardBypassController keyguardBypassController,
             HeadsUpManager headsUpManager,
             StatusBarStateController statusBarStateController,
-            NotificationRemoteInputManager notificationRemoteInputManager) {
+            NotificationRemoteInputManager notificationRemoteInputManager,
+            ShadeDisplaysInteractor shadeDisplaysInteractor,
+            @Application CoroutineScope applicationScope) {
         mNotificationShadeWindowController = notificationShadeWindowController;
         mStatusBarWindowControllerStore = statusBarWindowControllerStore;
         mShadeViewController = shadeViewController;
@@ -66,21 +80,65 @@ public class StatusBarHeadsUpChangeListener implements OnHeadsUpChangedListener,
         mHeadsUpManager = headsUpManager;
         mStatusBarStateController = statusBarStateController;
         mNotificationRemoteInputManager = notificationRemoteInputManager;
+        mShadeDisplaysInteractor = shadeDisplaysInteractor;
+        mApplicationScope = applicationScope;
     }
 
     @Override
     public void start() {
         mHeadsUpManager.addListener(this);
+        listenForShadeDisplayChanges();
+    }
+
+    private void listenForShadeDisplayChanges() {
+        collectFlow(
+                mApplicationScope,
+                pairwise(mShadeDisplaysInteractor.getDisplayId(), getCurrentDisplayId()),
+                (displayChange) -> {
+                    if (SceneContainerFlag.isEnabled()) {
+                        // This behavior is not replicated in SceneContainer, but we want to remove
+                        // the force-showing of StatusBar during HUNs in the same release.
+                        // See b/398673309
+                        return;
+                    }
+                    int previousDisplayId = displayChange.getPreviousValue();
+                    int newDisplayId = displayChange.getNewValue();
+                    if (previousDisplayId == newDisplayId) {
+                        return;
+                    }
+                    if (!mHeadsUpManager.hasPinnedHeadsUp()) {
+                        return;
+                    }
+                    // A HUN is active, and the display is changing. This means the HUN will move
+                    // displays. We need to transfer the forced-visible state from the old display
+                    // to the new one.
+                    String logString = "HeadsUpChangeListener#onDisplayChanged";
+                    StatusBarWindowController oldController =
+                            mStatusBarWindowControllerStore.forDisplay(previousDisplayId);
+                    if (oldController != null) {
+                        oldController.setForceStatusBarVisible(false, logString);
+                    }
+
+                    StatusBarWindowController newController =
+                            mStatusBarWindowControllerStore.forDisplay(newDisplayId);
+                    if (newController != null) {
+                        newController.setForceStatusBarVisible(true, logString);
+                    }
+                });
     }
 
     @Override
     public void onHeadsUpPinnedModeChanged(boolean inPinnedMode) {
-        String logString = "HeadsUpChangeListener#onHeadsUpPinnedModeChanged";
+        StatusBarWindowController statusBarWindowController =
+                getStatusBarWindowControllerForCurrentDispplay();
+        String source = "HeadsUpChangeListener#onHeadsUpPinnedModeChanged";
         if (inPinnedMode) {
             mNotificationShadeWindowController.setHeadsUpShowing(true);
-            mStatusBarWindowControllerStore
-                    .getDefaultDisplay()
-                    .setForceStatusBarVisible(true, /* source= */ logString);
+            // This behavior is not replicated in SceneContainer, but we want to remove the
+            // force-showing of StatusBar during HUNs in the same release. See b/398673309
+            if (!SceneContainerFlag.isEnabled() && statusBarWindowController != null) {
+                statusBarWindowController.setForceStatusBarVisible(true, source);
+            }
             if (mPanelExpansionInteractor.isFullyCollapsed()) {
                 mShadeViewController.updateTouchableRegion();
             }
@@ -95,10 +153,11 @@ public class StatusBarHeadsUpChangeListener implements OnHeadsUpChangedListener,
                 // open artificially.
                 mNotificationShadeWindowController.setHeadsUpShowing(false);
                 if (bypassKeyguard) {
-                    mStatusBarWindowControllerStore
-                            .getDefaultDisplay()
-                            .setForceStatusBarVisible(
-                                    false, /* source= */ logString);
+                    // This behavior is not replicated in SceneContainer, but we want to remove the
+                    // force-showing of StatusBar during HUNs in the same release. See b/398673309
+                    if (!SceneContainerFlag.isEnabled() && statusBarWindowController != null) {
+                        statusBarWindowController.setForceStatusBarVisible(false, source);
+                    }
                 }
             } else {
                 // we need to keep the panel open artificially, let's wait until the
@@ -114,6 +173,15 @@ public class StatusBarHeadsUpChangeListener implements OnHeadsUpChangedListener,
                 });
             }
         }
+    }
+
+    @Nullable
+    private StatusBarWindowController getStatusBarWindowControllerForCurrentDispplay() {
+        return mStatusBarWindowControllerStore.forDisplay(getCurrentDisplayId());
+    }
+
+    private int getCurrentDisplayId() {
+        return mShadeDisplaysInteractor.getDisplayId().getValue();
     }
 
     private void setHeadsAnimatingAway(boolean headsUpAnimatingAway) {

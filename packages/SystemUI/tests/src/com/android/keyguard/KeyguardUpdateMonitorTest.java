@@ -27,6 +27,7 @@ import static android.hardware.biometrics.SensorProperties.STRENGTH_CONVENIENCE;
 import static android.hardware.biometrics.SensorProperties.STRENGTH_STRONG;
 import static android.hardware.fingerprint.FingerprintSensorProperties.TYPE_UDFPS_OPTICAL;
 import static android.security.Flags.FLAG_SECURE_LOCK_DEVICE;
+import static android.security.Flags.FLAG_AUTO_SIM_PIN_MANAGEMENT;
 import static android.telephony.SubscriptionManager.DATA_ROAMING_DISABLE;
 import static android.telephony.SubscriptionManager.NAME_SOURCE_CARRIER_ID;
 import static android.telephony.SubscriptionManager.PROFILE_CLASS_DEFAULT;
@@ -108,6 +109,7 @@ import android.os.PowerManager;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.service.dreams.IDreamManager;
@@ -134,7 +136,6 @@ import com.android.keyguard.KeyguardUpdateMonitor.BiometricAuthenticated;
 import com.android.keyguard.logging.KeyguardUpdateMonitorLogger;
 import com.android.keyguard.logging.SimLogger;
 import com.android.settingslib.fuelgauge.BatteryStatus;
-import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.ambient.statusbar.shared.flag.OngoingActivityChipsOnDream;
 import com.android.systemui.biometrics.AuthController;
@@ -145,6 +146,7 @@ import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor;
 import com.android.systemui.deviceentry.data.repository.FaceWakeUpTriggersConfig;
 import com.android.systemui.deviceentry.data.repository.FaceWakeUpTriggersConfigImpl;
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryFaceAuthInteractor;
+import com.android.systemui.deviceentry.domain.interactor.DeviceUnlockedInteractor;
 import com.android.systemui.deviceentry.domain.interactor.FaceAuthenticationListener;
 import com.android.systemui.deviceentry.shared.model.ErrorFaceAuthenticationStatus;
 import com.android.systemui.deviceentry.shared.model.FaceDetectionStatus;
@@ -203,7 +205,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4.class)
 @TestableLooper.RunWithLooper
-@EnableFlags(Flags.FLAG_USER_ENCRYPTED_SOURCE)
 public class KeyguardUpdateMonitorTest extends SysuiTestCase {
     private static final String PKG_ALLOWING_FP_LISTEN_ON_OCCLUDING_ACTIVITY =
             "test_app_fp_listen_on_occluding_activity";
@@ -212,19 +213,73 @@ public class KeyguardUpdateMonitorTest extends SysuiTestCase {
     private static final int TEST_CARRIER_ID = 1;
     private static final String TEST_GROUP_UUID = "59b5c870-fc4c-47a4-a99e-9db826b48b24";
     private static final int TEST_SLOT_ID = 3;
-    private static final SubscriptionInfo TEST_SUBSCRIPTION = new SubscriptionInfo(1, "",
-            TEST_SLOT_ID, TEST_CARRIER, TEST_CARRIER, NAME_SOURCE_CARRIER_ID, 0xFFFFFF, "",
-            DATA_ROAMING_DISABLE, null, null, null, null, false, null, "", false, TEST_GROUP_UUID,
-            TEST_CARRIER_ID, 0);
-    private static final SubscriptionInfo TEST_SUBSCRIPTION_2 = new SubscriptionInfo(2, "", 0,
-            TEST_CARRIER, TEST_CARRIER_2, NAME_SOURCE_CARRIER_ID, 0xFFFFFF, "",
-            DATA_ROAMING_DISABLE, null, null, null, null, false, null, "", true, TEST_GROUP_UUID,
-            TEST_CARRIER_ID, 0);
-    private static final SubscriptionInfo TEST_SUBSCRIPTION_PROVISIONING = new SubscriptionInfo(
-            1, "", 0,
-            TEST_CARRIER, TEST_CARRIER, NAME_SOURCE_CARRIER_ID, 0xFFFFFF, "",
-            DATA_ROAMING_DISABLE, null, null, null, null, false, null, "", false, TEST_GROUP_UUID,
-            TEST_CARRIER_ID, PROFILE_CLASS_PROVISIONING);
+    private static final SubscriptionInfo TEST_SUBSCRIPTION = new SubscriptionInfo.Builder()
+            .setId(1)
+            .setIccId("")
+            .setSimSlotIndex(TEST_SLOT_ID)
+            .setDisplayName(TEST_CARRIER)
+            .setCarrierName(TEST_CARRIER)
+            .setDisplayNameSource(NAME_SOURCE_CARRIER_ID)
+            .setIconTint(0xFFFFFF)
+            .setNumber("")
+            .setDataRoaming(DATA_ROAMING_DISABLE)
+            .setIcon(null)
+            .setMcc(null)
+            .setMnc(null)
+            .setCountryIso(null)
+            .setEmbedded(false)
+            .setNativeAccessRules(null)
+            .setCardString("")
+            .setOpportunistic(false)
+            .setGroupUuid(TEST_GROUP_UUID)
+            .setCarrierId(TEST_CARRIER_ID)
+            .setProfileClass(0)
+            .build();
+    private static final SubscriptionInfo TEST_SUBSCRIPTION_2 = new SubscriptionInfo.Builder()
+            .setId(2)
+            .setIccId("")
+            .setSimSlotIndex(0)
+            .setDisplayName(TEST_CARRIER)
+            .setCarrierName(TEST_CARRIER_2)
+            .setDisplayNameSource(NAME_SOURCE_CARRIER_ID)
+            .setIconTint(0xFFFFFF)
+            .setNumber("")
+            .setDataRoaming(DATA_ROAMING_DISABLE)
+            .setIcon(null)
+            .setMcc(null)
+            .setMnc(null)
+            .setCountryIso(null)
+            .setEmbedded(false)
+            .setNativeAccessRules(null)
+            .setCardString("")
+            .setOpportunistic(true)
+            .setGroupUuid(TEST_GROUP_UUID)
+            .setCarrierId(TEST_CARRIER_ID)
+            .setProfileClass(0)
+            .build();
+    private static final SubscriptionInfo TEST_SUBSCRIPTION_PROVISIONING =
+            new SubscriptionInfo.Builder()
+            .setId(1)
+            .setIccId("")
+            .setSimSlotIndex(0)
+            .setDisplayName(TEST_CARRIER)
+            .setCarrierName(TEST_CARRIER)
+            .setDisplayNameSource(NAME_SOURCE_CARRIER_ID)
+            .setIconTint(0xFFFFFF)
+            .setNumber("")
+            .setDataRoaming(DATA_ROAMING_DISABLE)
+            .setIcon(null)
+            .setMcc(null)
+            .setMnc(null)
+            .setCountryIso(null)
+            .setEmbedded(false)
+            .setNativeAccessRules(null)
+            .setCardString("")
+            .setOpportunistic(false)
+            .setGroupUuid(TEST_GROUP_UUID)
+            .setCarrierId(TEST_CARRIER_ID)
+            .setProfileClass(PROFILE_CLASS_PROVISIONING)
+            .build();
     private static final SubscriptionInfo TEST_REMOTE_SIM =
             new SubscriptionInfo.Builder(TEST_SUBSCRIPTION)
                     .setType(SubscriptionManager.SUBSCRIPTION_TYPE_REMOTE_SIM).build();
@@ -319,6 +374,8 @@ public class KeyguardUpdateMonitorTest extends SysuiTestCase {
     private CommunalSceneInteractor mCommunalSceneInteractor;
     @Mock
     private KeyguardServiceShowLockscreenInteractor mKeyguardServiceShowLockscreenInteractor;
+    @Mock
+    private DeviceUnlockedInteractor mDeviceUnlockedInteractor;
     @Captor
     private ArgumentCaptor<FaceAuthenticationListener> mFaceAuthenticationListener;
 
@@ -544,7 +601,6 @@ public class KeyguardUpdateMonitorTest extends SysuiTestCase {
 
     @Test
     public void testTelephonyCapable_SimState_Absent() {
-
         Intent intent = defaultSimStateChangedIntent();
         intent.putExtra(Intent.EXTRA_SIM_STATE,
                 Intent.SIM_STATE_ABSENT);
@@ -2477,6 +2533,54 @@ public class KeyguardUpdateMonitorTest extends SysuiTestCase {
     }
 
     @Test
+    public void getNextSubIdForState_noSimData() {
+        var subId = mKeyguardUpdateMonitor.getNextSubIdForState(
+                TelephonyManager.SIM_STATE_PIN_REQUIRED);
+        assertThat(subId).isEqualTo(SubscriptionManager.INVALID_SUBSCRIPTION_ID);
+    }
+
+    @Test
+    public void getNextSubIdForState_noSimDataThatMatchesState() {
+        int subId = 1;
+        int slotId = 0;
+        mKeyguardUpdateMonitor.handleSimStateChange(subId, slotId,
+                TelephonyManager.SIM_STATE_PIN_REQUIRED);
+
+        var nextSubId = mKeyguardUpdateMonitor.getNextSubIdForState(
+                TelephonyManager.SIM_STATE_PUK_REQUIRED);
+        assertThat(nextSubId).isEqualTo(SubscriptionManager.INVALID_SUBSCRIPTION_ID);
+    }
+
+    @Test
+    public void getNextSubIdForState_oneSimDataThatMatchesState() {
+        int subId = 1;
+        int slotId = 0;
+        mKeyguardUpdateMonitor.handleSimStateChange(subId, slotId,
+                TelephonyManager.SIM_STATE_PIN_REQUIRED);
+
+        var nextSubId = mKeyguardUpdateMonitor.getNextSubIdForState(
+                TelephonyManager.SIM_STATE_PIN_REQUIRED);
+        assertThat(nextSubId).isEqualTo(subId);
+    }
+
+    @Test
+    public void getNextSubIdForState_twoSimDataThatMatchesState_returnsLowestSlotId() {
+        int subId1 = 10;
+        int slotId1 = 0;
+        mKeyguardUpdateMonitor.handleSimStateChange(subId1, slotId1,
+                TelephonyManager.SIM_STATE_PIN_REQUIRED);
+
+        int subId2 = 2;
+        int slotId2 = 1;
+        mKeyguardUpdateMonitor.handleSimStateChange(subId2, slotId2,
+                TelephonyManager.SIM_STATE_PIN_REQUIRED);
+
+        var nextSubId = mKeyguardUpdateMonitor.getNextSubIdForState(
+                TelephonyManager.SIM_STATE_PIN_REQUIRED);
+        assertThat(nextSubId).isEqualTo(subId1);
+    }
+
+    @Test
     public void isSimPinSecureReturnsFalseWhenEmpty() {
         assertThat(mKeyguardUpdateMonitor.isSimPinSecure()).isFalse();
     }
@@ -2524,8 +2628,22 @@ public class KeyguardUpdateMonitorTest extends SysuiTestCase {
     @Test
     public void forceIsDismissibleKeyguard() {
         primaryAuthNotRequiredByStrongAuthTracker();
+        setIsLockedOrKeyguardShowing(false);
         mKeyguardUpdateMonitor.tryForceIsDismissibleKeyguard();
         Assert.assertTrue(mKeyguardUpdateMonitor.forceIsDismissibleIsKeepingDeviceUnlocked());
+    }
+
+    @Test
+    public void forceIsDismissibleKeyguard_whenKeyguardShowing() {
+        // GIVEN keyguard already showing
+        setIsLockedOrKeyguardShowing(true);
+        primaryAuthNotRequiredByStrongAuthTracker();
+
+        // WHEN tryForceIsDismissibleKeyguard
+        mKeyguardUpdateMonitor.tryForceIsDismissibleKeyguard();
+
+        // THEN forceIsDismissibleIsKeepingDeviceUnlocked is false (wasn't updated to true)
+        Assert.assertFalse(mKeyguardUpdateMonitor.forceIsDismissibleIsKeepingDeviceUnlocked());
     }
 
     @Test
@@ -2556,6 +2674,43 @@ public class KeyguardUpdateMonitorTest extends SysuiTestCase {
 
         callback.onWakeUp();
         assertThat(mKeyguardUpdateMonitor.isDreamingWithOverlay()).isFalse();
+    }
+
+    @EnableFlags(FLAG_AUTO_SIM_PIN_MANAGEMENT)
+    @Test
+    public void isPlatformManaged_returnsCorrectlyOnInvalidSubscription() {
+        assertThat(mKeyguardUpdateMonitor.isSimPinPlatformManaged(
+                SubscriptionManager.INVALID_SUBSCRIPTION_ID)).isFalse();
+    }
+
+    @EnableFlags(FLAG_AUTO_SIM_PIN_MANAGEMENT)
+    @Test
+    public void isPlatformManaged_returnsCorrectlyOnNonPlatformManaged() {
+        TelephonyManager subInstance = mock(TelephonyManager.class);
+        when(subInstance.getSimAutoPinManagementEnrollmentStatus()).thenReturn(
+                TelephonyManager.SIM_PIN_ENROLLMENT_STATUS_MANUALLY_MANAGED);
+        when(mTelephonyManager.createForSubscriptionId(0)).thenReturn(subInstance);
+        assertThat(mKeyguardUpdateMonitor.isSimPinPlatformManaged(0)).isFalse();
+    }
+
+    @EnableFlags(FLAG_AUTO_SIM_PIN_MANAGEMENT)
+    @Test
+    public void isPlatformManaged_returnsCorrectlyOnPlatformManaged() {
+        TelephonyManager subInstance = mock(TelephonyManager.class);
+        when(subInstance.getSimAutoPinManagementEnrollmentStatus()).thenReturn(
+                TelephonyManager.SIM_PIN_ENROLLMENT_STATUS_PLATFORM_MANAGED);
+        when(mTelephonyManager.createForSubscriptionId(0)).thenReturn(subInstance);
+        assertThat(mKeyguardUpdateMonitor.isSimPinPlatformManaged(0)).isTrue();
+    }
+
+    @DisableFlags(FLAG_AUTO_SIM_PIN_MANAGEMENT)
+    @Test
+    public void isPlatformManaged_returnsFalseIfFlagDisabled() {
+        TelephonyManager subInstance = mock(TelephonyManager.class);
+        when(subInstance.getSimAutoPinManagementEnrollmentStatus()).thenReturn(
+                TelephonyManager.SIM_PIN_ENROLLMENT_STATUS_PLATFORM_MANAGED);
+        when(mTelephonyManager.createForSubscriptionId(0)).thenReturn(subInstance);
+        assertThat(mKeyguardUpdateMonitor.isSimPinPlatformManaged(0)).isFalse();
     }
 
     private Intent defaultSimStateChangedIntent() {
@@ -2740,6 +2895,13 @@ public class KeyguardUpdateMonitorTest extends SysuiTestCase {
         when(mActivityTaskManager.getRootTaskInfo(anyInt(), eq(ACTIVITY_TYPE_STANDARD)))
                 .thenReturn(taskInfo);
     }
+    private void setIsLockedOrKeyguardShowing(boolean isLockedorKeyguardShowing) {
+        if (SceneContainerFlag.isEnabled()) {
+            when(mDeviceUnlockedInteractor.isUnlocked()).thenReturn(!isLockedorKeyguardShowing);
+        } else {
+            mKeyguardUpdateMonitor.setKeyguardShowing(isLockedorKeyguardShowing, false);
+        }
+    }
 
     private void onTaskStackChanged() {
         ArgumentCaptor<TaskStackChangeListener> taskStackChangeListenerCaptor =
@@ -2778,7 +2940,8 @@ public class KeyguardUpdateMonitorTest extends SysuiTestCase {
                     () -> mJavaAdapter,
                     () -> mSceneInteractor,
                     () -> mCommunalSceneInteractor,
-                    () -> mKeyguardServiceShowLockscreenInteractor);
+                    () -> mKeyguardServiceShowLockscreenInteractor,
+                    () -> mDeviceUnlockedInteractor);
             setAlternateBouncerVisibility(false);
             setPrimaryBouncerVisibility(false);
             setStrongAuthTracker(KeyguardUpdateMonitorTest.this.mStrongAuthTracker);
@@ -2811,7 +2974,7 @@ public class KeyguardUpdateMonitorTest extends SysuiTestCase {
             if (SceneContainerFlag.isEnabled()) {
                 ObservableTransitionState transitionState = new ObservableTransitionState.Idle(
                         Scenes.Lockscreen, isVisible ? Set.of(Overlays.Bouncer) : emptySet());
-                when(mSceneInteractor.getTransitionState()).thenReturn(
+                when(mSceneInteractor.getTransitionStateFlow()).thenReturn(
                         MutableStateFlow(transitionState));
                 onTransitionStateChanged(transitionState);
             } else {

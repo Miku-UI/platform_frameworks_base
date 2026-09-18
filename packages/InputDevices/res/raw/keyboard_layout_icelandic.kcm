@@ -360,3 +360,16 @@ key SLASH {
     shift, capslock:                    '\u00de'
     shift+capslock:                     '\u00fe'
 }
+
+### NUMPAD
+
+key NUMPAD_DOT {
+    label:                              ','
+    base:                               fallback FORWARD_DEL
+    numlock:                            ','
+}
+
+key NUMPAD_COMMA {
+    label:                              '.'
+    base:                               '.'
+}

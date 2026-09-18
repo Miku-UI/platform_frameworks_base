@@ -22,6 +22,8 @@ import com.android.systemui.media.controls.domain.pipeline.LegacyMediaDataManage
 import com.android.systemui.media.controls.domain.pipeline.MediaDataManager
 import com.android.systemui.media.controls.domain.pipeline.MediaDataProcessor
 import com.android.systemui.media.controls.domain.pipeline.interactor.MediaCarouselInteractor
+import com.android.systemui.media.controls.shared.MediaLogger
+import com.android.systemui.media.controls.shared.MediaLoggerImpl
 import com.android.systemui.media.remedia.domain.interactor.MediaInteractor
 import com.android.systemui.media.remedia.domain.interactor.MediaInteractorImpl
 import com.android.systemui.media.remedia.shared.flag.MediaControlsInComposeFlag
@@ -66,6 +68,12 @@ interface MediaDomainModule {
         @SysUISingleton
         fun providesMediaInteractor(mediaInteractor: MediaInteractorImpl): MediaInteractor {
             return mediaInteractor
+        }
+
+        @Provides
+        @SysUISingleton
+        fun providesMediaLogger(mediaLogger: MediaLoggerImpl): MediaLogger {
+            return mediaLogger
         }
     }
 }

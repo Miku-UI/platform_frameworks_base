@@ -22,14 +22,15 @@ import android.content.Context
 import android.hardware.biometrics.BiometricAuthenticator
 import android.hardware.biometrics.BiometricConstants
 import android.hardware.biometrics.BiometricPrompt
-import android.hardware.biometrics.Flags
 import android.hardware.face.FaceManager
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import android.view.View.IMPORTANT_FOR_ACCESSIBILITY_NO
+import android.view.ViewStub
 import android.view.accessibility.AccessibilityManager
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -47,11 +48,11 @@ import com.airbnb.lottie.LottieAnimationView
 import com.airbnb.lottie.LottieCompositionFactory
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.compose.theme.PlatformTheme
+import com.android.systemui.Flags
 import com.android.systemui.biometrics.BiometricAuthIconAssets
 import com.android.systemui.biometrics.Utils.ellipsize
 import com.android.systemui.biometrics.shared.model.BiometricModalities
 import com.android.systemui.biometrics.shared.model.BiometricModality
-import com.android.systemui.biometrics.shared.model.PromptKind
 import com.android.systemui.biometrics.shared.model.asBiometricModality
 import com.android.systemui.biometrics.ui.NegativeButtonState
 import com.android.systemui.biometrics.ui.PositiveButtonState
@@ -114,10 +115,6 @@ object BiometricViewBinder {
         val descriptionView = view.requireViewById<TextView>(R.id.description)
         val customizedViewContainer =
             view.requireViewById<LinearLayout>(R.id.customized_view_container)
-        val udfpsGuidanceView =
-            view.requireViewById<UdfpsAccessibilityOverlay>(
-                R.id.biometric_prompt_udfps_accessibility_overlay
-            )
 
         // set selected to enable marquee unless a screen reader is enabled
         titleView.isSelected =
@@ -127,6 +124,8 @@ object BiometricViewBinder {
 
         val iconView = view.requireViewById<LottieAnimationView>(R.id.biometric_icon)
         val indicatorMessageView = view.requireViewById<TextView>(R.id.indicator)
+
+        val closeButton = view.requireViewById<ImageButton>(R.id.close_button)
 
         // Negative-side (left) buttons
         val negativeButton = view.requireViewById<Button>(R.id.button_negative)
@@ -139,10 +138,8 @@ object BiometricViewBinder {
         val retryButton = view.requireViewById<Button>(R.id.button_try_again)
 
         val moreOptionsScreen = view.requireViewById<ComposeView>(R.id.fallback_view)
-        if (Flags.bpFallbackOptions()) {
-            moreOptionsScreen.setContent {
-                PlatformTheme { BiometricPromptFallbackView(viewModel, legacyCallback) }
-            }
+        moreOptionsScreen.setContent {
+            PlatformTheme { BiometricPromptFallbackView(viewModel, legacyCallback) }
         }
 
         // Handles custom "Cancel Authentication" talkback action
@@ -212,29 +209,32 @@ object BiometricViewBinder {
             descriptionView.text = viewModel.description.first()
 
             if (modalities.hasUdfps) {
-                UdfpsAccessibilityOverlayBinder.bind(
-                    udfpsGuidanceView,
-                    viewModel.udfpsAccessibilityOverlayViewModel,
-                )
+                val udfpsGuidanceViewStub =
+                    view.findViewById<ViewStub>(R.id.biometric_prompt_udfps_accessibility_overlay)
+                if (udfpsGuidanceViewStub != null) {
+                    UdfpsAccessibilityOverlayBinder.bind(
+                        udfpsGuidanceViewStub.inflate() as UdfpsAccessibilityOverlay,
+                        viewModel.udfpsAccessibilityOverlayViewModel,
+                    )
+                }
             }
 
             BiometricCustomizedViewBinder.bind(
                 customizedViewContainer,
                 viewModel.contentView.first(),
-                legacyCallback,
+                legacyCallback::onContentViewMoreOptionsButtonPressed,
             )
 
             // set button listeners
+            closeButton.setOnClickListener { legacyCallback.onUserCanceled() }
             cancelButton.setOnClickListener { legacyCallback.onUserCanceled() }
             credentialFallbackButton.setOnClickListener {
                 viewModel.onSwitchToCredential()
                 legacyCallback.onUseDeviceCredential()
             }
-            if (Flags.bpFallbackOptions()) {
-                fallbackButton.setOnClickListener {
-                    viewModel.onSwitchToFallback()
-                    legacyCallback.onPauseAuthentication()
-                }
+            fallbackButton.setOnClickListener {
+                viewModel.onSwitchToFallback()
+                legacyCallback.onPauseAuthentication()
             }
             confirmationButton.setOnClickListener { viewModel.confirmAuthenticated() }
             retryButton.setOnClickListener {
@@ -289,25 +289,29 @@ object BiometricViewBinder {
             }
 
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                // handle background clicks
-                launch {
-                    combine(viewModel.isAuthenticated, viewModel.size) { (authenticated, _), size ->
-                            when {
-                                authenticated -> false
-                                size == PromptSize.SMALL -> false
-                                size == PromptSize.LARGE -> false
-                                else -> true
-                            }
-                        }
-                        .collect { dismissOnClick ->
-                            backgroundView.setOnClickListener {
-                                if (dismissOnClick) {
-                                    legacyCallback.onUserCanceled()
-                                } else {
-                                    Log.w(TAG, "Ignoring background click")
+                if (!Flags.largeScreenBp()) {
+                    // handle background clicks
+                    launch {
+                        combine(viewModel.isAuthenticated, viewModel.size) {
+                                (authenticated, _),
+                                size ->
+                                when {
+                                    authenticated -> false
+                                    size == PromptSize.SMALL -> false
+                                    size == PromptSize.LARGE -> false
+                                    else -> true
                                 }
                             }
-                        }
+                            .collect { dismissOnClick ->
+                                backgroundView.setOnClickListener {
+                                    if (dismissOnClick) {
+                                        legacyCallback.onUserCanceled()
+                                    } else {
+                                        Log.w(TAG, "Ignoring background click")
+                                    }
+                                }
+                            }
+                    }
                 }
 
                 launch {
@@ -325,140 +329,66 @@ object BiometricViewBinder {
                     }
                 }
 
-                if (Flags.bpFallbackOptions()) {
-                    launch {
-                        viewModel.positiveButtonState.collect { state ->
-                            when (state) {
-                                is PositiveButtonState.Confirm -> {
-                                    confirmationButton.visibility = View.VISIBLE
-                                    retryButton.visibility = View.GONE
-                                }
-                                is PositiveButtonState.TryAgain -> {
-                                    confirmationButton.visibility = View.GONE
-                                    retryButton.visibility = View.VISIBLE
-                                }
-                                is PositiveButtonState.Gone -> {
-                                    confirmationButton.visibility = View.GONE
-                                    retryButton.visibility = View.GONE
-                                }
+                launch {
+                    viewModel.positiveButtonState.collect { state ->
+                        when (state) {
+                            is PositiveButtonState.Confirm -> {
+                                confirmationButton.visibility = View.VISIBLE
+                                retryButton.visibility = View.GONE
+                            }
+                            is PositiveButtonState.TryAgain -> {
+                                confirmationButton.visibility = View.GONE
+                                retryButton.visibility = View.VISIBLE
+                            }
+                            is PositiveButtonState.Gone -> {
+                                confirmationButton.visibility = View.GONE
+                                retryButton.visibility = View.GONE
                             }
                         }
                     }
-                    launch {
-                        viewModel.negativeButtonState.collect { state ->
-                            // Set all buttons gone to start
-                            negativeButton.visibility = View.GONE
-                            cancelButton.visibility = View.GONE
-                            credentialFallbackButton.visibility = View.GONE
-                            fallbackButton.visibility = View.GONE
+                }
+                launch {
+                    viewModel.negativeButtonState.collect { state ->
+                        // Set all buttons gone to start
+                        negativeButton.visibility = View.GONE
+                        cancelButton.visibility = View.GONE
+                        credentialFallbackButton.visibility = View.GONE
+                        fallbackButton.visibility = View.GONE
 
-                            when (state) {
-                                is NegativeButtonState.Cancel -> {
-                                    cancelButton.text = state.text
-                                    cancelButton.visibility = View.VISIBLE
-                                }
-                                is NegativeButtonState.SetNegative -> {
-                                    negativeButton.text = state.text
-                                    negativeButton.visibility = View.VISIBLE
-                                    negativeButton.setOnClickListener {
-                                        legacyCallback.onButtonNegative()
-                                    }
-                                }
-                                is NegativeButtonState.SingleFallback -> {
-                                    negativeButton.text = state.text
-                                    negativeButton.visibility = View.VISIBLE
-                                    // If using the negative button to show a fallback, there's only
-                                    // one
-                                    negativeButton.setOnClickListener {
-                                        legacyCallback.onFallbackOptionPressed(0)
-                                    }
-                                }
-                                is NegativeButtonState.UseCredential -> {
-                                    credentialFallbackButton.text = state.text
-                                    credentialFallbackButton.visibility = View.VISIBLE
-                                }
-                                is NegativeButtonState.FallbackOptions -> {
-                                    fallbackButton.text = state.text
-                                    fallbackButton.visibility = View.VISIBLE
-                                }
-                                is NegativeButtonState.Gone -> {
-                                    negativeButton.visibility = View.GONE
-                                    cancelButton.visibility = View.GONE
-                                    credentialFallbackButton.visibility = View.GONE
-                                    fallbackButton.visibility = View.GONE
-                                }
+                        when (state) {
+                            is NegativeButtonState.Cancel -> {
+                                cancelButton.text = state.text
+                                cancelButton.visibility = View.VISIBLE
                             }
-                        }
-                    }
-                } else {
-                    // configure & hide/disable buttons
-                    launch {
-                        viewModel.credentialKind
-                            .map { kind ->
-                                when (kind) {
-                                    PromptKind.Pin ->
-                                        view.resources.getString(R.string.biometric_dialog_use_pin)
-
-                                    PromptKind.Password ->
-                                        view.resources.getString(
-                                            R.string.biometric_dialog_use_password
-                                        )
-
-                                    PromptKind.Pattern ->
-                                        view.resources.getString(
-                                            R.string.biometric_dialog_use_pattern
-                                        )
-
-                                    else -> ""
-                                }
-                            }
-                            .collect { credentialFallbackButton.text = it }
-                    }
-                    launch {
-                        viewModel.usingFallbackAsNegative.collect { usingFallbackAsNegative ->
-                            if (usingFallbackAsNegative) {
-                                negativeButton.setOnClickListener {
-                                    // If using the negative button to show a fallback, there's only
-                                    // one
-                                    legacyCallback.onFallbackOptionPressed(0)
-                                }
-                            } else {
+                            is NegativeButtonState.SetNegative -> {
+                                negativeButton.text = state.text
+                                negativeButton.visibility = View.VISIBLE
                                 negativeButton.setOnClickListener {
                                     legacyCallback.onButtonNegative()
                                 }
                             }
-                        }
-                    }
-                    launch { viewModel.negativeButtonText.collect { negativeButton.text = it } }
-                    launch {
-                        viewModel.isConfirmButtonVisible.collect { show ->
-                            confirmationButton.visibility = show.asVisibleOrGone()
-                        }
-                    }
-                    launch {
-                        viewModel.isCancelButtonVisible.collect { show ->
-                            cancelButton.visibility = show.asVisibleOrGone()
-                        }
-                    }
-                    launch {
-                        viewModel.isNegativeButtonVisible.collect { show ->
-                            negativeButton.visibility = show.asVisibleOrGone()
-                        }
-                    }
-                    launch {
-                        viewModel.isTryAgainButtonVisible.collect { show ->
-                            retryButton.visibility = show.asVisibleOrGone()
-                        }
-                    }
-                    launch {
-                        viewModel.isCredentialButtonVisible.collect { show ->
-                            credentialFallbackButton.visibility = show.asVisibleOrGone()
-                        }
-                    }
-                    launch {
-                        viewModel.isFallbackButtonVisible.collect { show ->
-                            if (Flags.bpFallbackOptions()) {
-                                fallbackButton.visibility = show.asVisibleOrGone()
+                            is NegativeButtonState.SingleFallback -> {
+                                negativeButton.text = state.text
+                                negativeButton.visibility = View.VISIBLE
+                                // If using the negative button to show a fallback, there's only
+                                // one
+                                negativeButton.setOnClickListener {
+                                    legacyCallback.onFallbackOptionPressed(0)
+                                }
+                            }
+                            is NegativeButtonState.UseCredential -> {
+                                credentialFallbackButton.text = state.text
+                                credentialFallbackButton.visibility = View.VISIBLE
+                            }
+                            is NegativeButtonState.FallbackOptions -> {
+                                fallbackButton.text = state.text
+                                fallbackButton.visibility = View.VISIBLE
+                            }
+                            is NegativeButtonState.Gone -> {
+                                negativeButton.visibility = View.GONE
+                                cancelButton.visibility = View.GONE
+                                credentialFallbackButton.visibility = View.GONE
+                                fallbackButton.visibility = View.GONE
                             }
                         }
                     }
@@ -763,6 +693,9 @@ class Spaghetti(
     fun isFaceOnly() = modalities.hasFaceOnly
 
     fun asView() = view
+
+    fun isFingerprintPending() =
+        viewModel.fingerprintStartMode.value == FingerprintStartMode.Pending
 }
 
 private fun BiometricModalities.asDefaultHelpMessage(context: Context): String =

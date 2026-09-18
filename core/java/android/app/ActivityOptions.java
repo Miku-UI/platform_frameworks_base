@@ -17,6 +17,7 @@
 package android.app;
 
 import static android.Manifest.permission.CONTROL_REMOTE_APP_TRANSITION_ANIMATIONS;
+import static android.Manifest.permission.REPOSITION_SELF_WINDOWS;
 import static android.Manifest.permission.START_TASKS_FROM_RECENTS;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
@@ -58,7 +59,6 @@ import android.os.UserHandle;
 import android.transition.TransitionManager;
 import android.util.Pair;
 import android.util.Slog;
-import android.view.IAppTransitionAnimationSpecsFuture;
 import android.view.RemoteAnimationAdapter;
 import android.view.View;
 import android.view.ViewGroup;
@@ -444,7 +444,6 @@ public class ActivityOptions extends ComponentOptions {
 
     private static final String KEY_INSTANT_APP_VERIFICATION_BUNDLE
             = "android:instantapps.installerbundle";
-    private static final String KEY_SPECS_FUTURE = "android:activity.specsFuture";
     private static final String KEY_REMOTE_ANIMATION_ADAPTER
             = "android:activity.remoteAnimationAdapter";
     private static final String KEY_REMOTE_TRANSITION =
@@ -498,11 +497,8 @@ public class ActivityOptions extends ComponentOptions {
      */
     public static final String KEY_LAUNCH_COOKIE = "android.activity.launchCookie";
 
-    /**
-     * @see #setWindowingLayer
-     * @hide
-     */
-    public static final String KEY_WINDOWING_LAYER = "android.activity.windowingLayer";
+    /** See {@link #setMovableTaskRequired(boolean)}. */
+    private static final String KEY_MOVABLE_TASK_REQUIRED = "android.activity.movableTaskRequired";
 
     /** @hide */
     public static final int ANIM_UNDEFINED = -1;
@@ -523,10 +519,6 @@ public class ActivityOptions extends ComponentOptions {
     /** @hide */
     public static final int ANIM_LAUNCH_TASK_BEHIND = 7;
     /** @hide */
-    public static final int ANIM_THUMBNAIL_ASPECT_SCALE_UP = 8;
-    /** @hide */
-    public static final int ANIM_THUMBNAIL_ASPECT_SCALE_DOWN = 9;
-    /** @hide */
     public static final int ANIM_CUSTOM_IN_PLACE = 10;
     /** @hide */
     public static final int ANIM_CLIP_REVEAL = 11;
@@ -536,36 +528,6 @@ public class ActivityOptions extends ComponentOptions {
     public static final int ANIM_REMOTE_ANIMATION = 13;
     /** @hide */
     public static final int ANIM_FROM_STYLE = 14;
-
-    /**
-     * The windowing layer is not specified. The system will use a default layer.
-     * @hide
-     */
-    public static final int WINDOWING_LAYER_UNDEFINED = 0;
-    /**
-     * The windowing layer for normal application windows.
-     * @hide
-     */
-    public static final int WINDOWING_LAYER_NORMAL_APP = 1;
-    /**
-     * The windowing layer for pinned windows, these windows are typically displayed above normal
-     * application windows.
-     * @hide
-     */
-    public static final int WINDOWING_LAYER_PINNED = 2;
-
-    /**
-     * Defines the windowing layer for an activity, which can affect its Z-ordering.
-     * @hide
-     */
-    @IntDef(prefix = { "WINDOWING_LAYER_" }, value = {
-            WINDOWING_LAYER_UNDEFINED,
-            WINDOWING_LAYER_NORMAL_APP,
-            WINDOWING_LAYER_PINNED,
-    })
-    @Retention(RetentionPolicy.SOURCE)
-    public @interface WindowingLayer {
-    }
 
     private String mPackageName;
     private Rect mLaunchBounds;
@@ -611,7 +573,6 @@ public class ActivityOptions extends ComponentOptions {
     private SourceInfo mSourceInfo;
     private int mRotationAnimationHint = -1;
     private Bundle mAppVerificationBundle;
-    private IAppTransitionAnimationSpecsFuture mSpecsFuture;
     private RemoteAnimationAdapter mRemoteAnimationAdapter;
     private IBinder mLaunchCookie;
     private RemoteTransition mRemoteTransition;
@@ -633,8 +594,7 @@ public class ActivityOptions extends ComponentOptions {
     private boolean mFlexibleLaunchSize = false;
     private boolean mDisableStartingWindow;
     private boolean mAllowPassThroughOnTouchOutside;
-    @WindowingLayer
-    private int mWindowingLayer = WINDOWING_LAYER_UNDEFINED;
+    private boolean mMovableTaskRequired = false;
 
     /**
      * Create an ActivityOptions specifying a custom animation to run when
@@ -1018,72 +978,6 @@ public class ActivityOptions extends ComponentOptions {
     }
 
     /**
-     * Create an ActivityOptions specifying an animation where a list of activity windows and
-     * thumbnails are aspect scaled to/from a new location.
-     * @hide
-     */
-    @UnsupportedAppUsage
-    @android.ravenwood.annotation.RavenwoodThrow(blockedBy = Context.class)
-    public static ActivityOptions makeMultiThumbFutureAspectScaleAnimation(Context context,
-            Handler handler, IAppTransitionAnimationSpecsFuture specsFuture,
-            OnAnimationStartedListener listener, boolean scaleUp) {
-        ActivityOptions opts = new ActivityOptions();
-        opts.mPackageName = context.getPackageName();
-        opts.mAnimationType = scaleUp
-                ? ANIM_THUMBNAIL_ASPECT_SCALE_UP
-                : ANIM_THUMBNAIL_ASPECT_SCALE_DOWN;
-        opts.mSpecsFuture = specsFuture;
-        opts.setOnAnimationStartedListener(handler, listener);
-        return opts;
-    }
-
-    /**
-     * Create an ActivityOptions specifying an animation where the new activity
-     * window and a thumbnail is aspect-scaled to a new location.
-     *
-     * @param source The View that this thumbnail is animating to.  This
-     * defines the coordinate space for <var>startX</var> and <var>startY</var>.
-     * @param thumbnail The bitmap that will be shown as the final thumbnail
-     * of the animation.
-     * @param startX The x end location of the bitmap, relative to <var>source</var>.
-     * @param startY The y end location of the bitmap, relative to <var>source</var>.
-     * @param handler If <var>listener</var> is non-null this must be a valid
-     * Handler on which to dispatch the callback; otherwise it should be null.
-     * @param listener Optional OnAnimationStartedListener to find out when the
-     * requested animation has started running.  If for some reason the animation
-     * is not executed, the callback will happen immediately.
-     * @return Returns a new ActivityOptions object that you can use to
-     * supply these options as the options Bundle when starting an activity.
-     * @hide
-     */
-    @android.ravenwood.annotation.RavenwoodThrow(blockedBy = View.class)
-    public static ActivityOptions makeThumbnailAspectScaleDownAnimation(View source,
-            Bitmap thumbnail, int startX, int startY, int targetWidth, int targetHeight,
-            Handler handler, OnAnimationStartedListener listener) {
-        return makeAspectScaledThumbnailAnimation(source, thumbnail, startX, startY,
-                targetWidth, targetHeight, handler, listener, false);
-    }
-
-    @android.ravenwood.annotation.RavenwoodThrow(blockedBy = View.class)
-    private static ActivityOptions makeAspectScaledThumbnailAnimation(View source, Bitmap thumbnail,
-            int startX, int startY, int targetWidth, int targetHeight,
-            Handler handler, OnAnimationStartedListener listener, boolean scaleUp) {
-        ActivityOptions opts = new ActivityOptions();
-        opts.mPackageName = source.getContext().getPackageName();
-        opts.mAnimationType = scaleUp ? ANIM_THUMBNAIL_ASPECT_SCALE_UP :
-                ANIM_THUMBNAIL_ASPECT_SCALE_DOWN;
-        opts.mThumbnail = thumbnail;
-        int[] pts = new int[2];
-        source.getLocationOnScreen(pts);
-        opts.mStartX = pts[0] + startX;
-        opts.mStartY = pts[1] + startY;
-        opts.mWidth = targetWidth;
-        opts.mHeight = targetHeight;
-        opts.setOnAnimationStartedListener(handler, listener);
-        return opts;
-    }
-
-    /**
      * Create an ActivityOptions to transition between Activities using cross-Activity scene
      * animations. This method carries the position of one shared element to the started Activity.
      * The position of <code>sharedElement</code> will be used as the epicenter for the
@@ -1278,7 +1172,14 @@ public class ActivityOptions extends ComponentOptions {
      * <p>This behavior is not supported for activities with {@link
      * android.R.styleable#AndroidManifestActivity_launchMode launchMode} values of
      * <code>singleInstance</code> or <code>singleTask</code>.
+     *
+     * @deprecated This method is deprecated because starting an Activity behind the current task
+     * lacks transparency and violates user expectations. <b>Alternative:</b> Start the target
+     * Activity, then immediately call {@link android.app.ActivityManager.AppTask#moveToFront()} on
+     * the <b>caller's task</b> to restore its foreground focus.
      */
+    @Deprecated
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_DEPRECATE_MAKE_TASK_LAUNCH_BEHIND)
     public static ActivityOptions makeTaskLaunchBehind() {
         final ActivityOptions opts = new ActivityOptions();
         opts.mAnimationType = ANIM_LAUNCH_TASK_BEHIND;
@@ -1402,8 +1303,6 @@ public class ActivityOptions extends ComponentOptions {
 
             case ANIM_THUMBNAIL_SCALE_UP:
             case ANIM_THUMBNAIL_SCALE_DOWN:
-            case ANIM_THUMBNAIL_ASPECT_SCALE_UP:
-            case ANIM_THUMBNAIL_ASPECT_SCALE_DOWN:
                 // Unpackage the HardwareBuffer from the parceled thumbnail
                 final HardwareBuffer buffer = opts.getParcelable(KEY_ANIM_THUMBNAIL, android.hardware.HardwareBuffer.class);
                 if (buffer != null) {
@@ -1456,10 +1355,6 @@ public class ActivityOptions extends ComponentOptions {
         mSourceInfo = opts.getParcelable(KEY_SOURCE_INFO, android.app.ActivityOptions.SourceInfo.class);
         mRotationAnimationHint = opts.getInt(KEY_ROTATION_ANIMATION_HINT, -1);
         mAppVerificationBundle = opts.getBundle(KEY_INSTANT_APP_VERIFICATION_BUNDLE);
-        if (opts.containsKey(KEY_SPECS_FUTURE)) {
-            mSpecsFuture = IAppTransitionAnimationSpecsFuture.Stub.asInterface(opts.getBinder(
-                    KEY_SPECS_FUTURE));
-        }
         mRemoteAnimationAdapter = opts.getParcelable(KEY_REMOTE_ANIMATION_ADAPTER, android.view.RemoteAnimationAdapter.class);
         mLaunchCookie = opts.getBinder(KEY_LAUNCH_COOKIE);
         mRemoteTransition = opts.getParcelable(KEY_REMOTE_TRANSITION, android.window.RemoteTransition.class);
@@ -1482,7 +1377,7 @@ public class ActivityOptions extends ComponentOptions {
         mAllowPassThroughOnTouchOutside = opts.getBoolean(KEY_ALLOW_PASS_THROUGH_ON_TOUCH_OUTSIDE);
         mAnimationAbortListener = IRemoteCallback.Stub.asInterface(
                 opts.getBinder(KEY_ANIM_ABORT_LISTENER));
-        mWindowingLayer = opts.getInt(KEY_WINDOWING_LAYER);
+        mMovableTaskRequired = opts.getBoolean(KEY_MOVABLE_TASK_REQUIRED);
     }
 
     /**
@@ -1609,11 +1504,6 @@ public class ActivityOptions extends ComponentOptions {
     /** @hide */
     public PendingIntent getUsageTimeReport() {
         return mUsageTimeReport;
-    }
-
-    /** @hide */
-    public IAppTransitionAnimationSpecsFuture getSpecsFuture() {
-        return mSpecsFuture;
     }
 
     /** @hide */
@@ -1940,6 +1830,43 @@ public class ActivityOptions extends ComponentOptions {
         mAllowPassThroughOnTouchOutside = allowed;
     }
 
+    /**
+     * Sets whether a task in which the activity will be launched is required to be movable right
+     * after launch using the {@link ActivityManager.AppTask#moveTaskTo(TaskLocation,
+     * java.util.concurrent.Executor, android.os.OutcomeReceiver)} method. If the system cannot
+     * guarantee this, the {@link Context#startActivity} call will throw an {@link
+     * InfeasibleActivityOptionsException}.
+     *
+     * <p> Defaults to {@code false}, if not set.
+     *
+     * <p> This option will cause the {@link Context#startActivity} call to throw an {@link
+     * InfeasibleActivityOptionsException} if the activity is not launched in a new task. For more
+     * information about how the host task of a new activity is determined, see the <a
+     * href="https://developer.android.com/guide/components/activities/tasks-and-back-stack#ManagingTasks">guide
+     * on task management</a>.
+     *
+     * @see ActivityManager.AppTask#moveTaskTo(TaskLocation, java.util.concurrent.Executor,
+     * android.os.OutcomeReceiver)
+     */
+    @RequiresPermission(REPOSITION_SELF_WINDOWS)
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_ENABLE_REQUIRE_MOVABLE_TASK_API)
+    public @NonNull ActivityOptions setMovableTaskRequired(boolean movableTaskRequired) {
+        mMovableTaskRequired = movableTaskRequired;
+        return this;
+    }
+
+    /**
+     * Gets whether a task in which the activity will be launched is required to be movable right
+     * after launch using the {@link ActivityManager.AppTask#moveTaskTo(TaskLocation,
+     * java.util.concurrent.Executor, android.os.OutcomeReceiver)} method.
+     *
+     * @see #setMovableTaskRequired(boolean)
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_ENABLE_REQUIRE_MOVABLE_TASK_API)
+    public boolean isMovableTaskRequired() {
+        return mMovableTaskRequired;
+    }
+
     /** @hide */
     public int getLaunchActivityType() {
         return mLaunchActivityType;
@@ -2143,31 +2070,6 @@ public class ActivityOptions extends ComponentOptions {
     /** @hide */
     public boolean isApplyNoUserActionFlagForShortcut() {
         return mApplyNoUserActionFlagForShortcut;
-    }
-
-    /**
-     * Sets the windowing layer for the activity. This can be used to affect the Z-ordering
-     * of the activity's window relative to other windows.
-     *
-     * <p>
-     * The new activity will be displayed at the requested layer if possible.
-     * This can only be used in conjunction with {@link Intent.FLAG_ACTIVITY_NEW_TASK}.
-     * Also, setting {@link Intent.FLAG_ACTIVITY_MULTIPLE_TASK} is required if you
-     * want a new instance of an existing activity to be created.
-     *
-     * @param windowingLayer The windowing layer to set.
-     * @return {@code this} {@link ActivityOptions} instance for chaining.
-     * @hide
-     */
-    public ActivityOptions setWindowingLayer(@WindowingLayer int windowingLayer) {
-        mWindowingLayer = windowingLayer;
-        return this;
-    }
-
-    /** @hide */
-    @WindowingLayer
-    public int getWindowingLayer() {
-        return mWindowingLayer;
     }
 
     /**
@@ -2483,8 +2385,6 @@ public class ActivityOptions extends ComponentOptions {
                 break;
             case ANIM_THUMBNAIL_SCALE_UP:
             case ANIM_THUMBNAIL_SCALE_DOWN:
-            case ANIM_THUMBNAIL_ASPECT_SCALE_UP:
-            case ANIM_THUMBNAIL_ASPECT_SCALE_DOWN:
                 mThumbnail = otherOptions.mThumbnail;
                 mStartX = otherOptions.mStartX;
                 mStartY = otherOptions.mStartY;
@@ -2502,7 +2402,6 @@ public class ActivityOptions extends ComponentOptions {
         mLockTaskMode = otherOptions.mLockTaskMode;
         mShareIdentity = otherOptions.mShareIdentity;
         mAnimationFinishedListener = otherOptions.mAnimationFinishedListener;
-        mSpecsFuture = otherOptions.mSpecsFuture;
         mRemoteAnimationAdapter = otherOptions.mRemoteAnimationAdapter;
         mLaunchIntoPipParams = otherOptions.mLaunchIntoPipParams;
         mLaunchDisplayId = otherOptions.mLaunchDisplayId;
@@ -2555,8 +2454,6 @@ public class ActivityOptions extends ComponentOptions {
                 break;
             case ANIM_THUMBNAIL_SCALE_UP:
             case ANIM_THUMBNAIL_SCALE_DOWN:
-            case ANIM_THUMBNAIL_ASPECT_SCALE_UP:
-            case ANIM_THUMBNAIL_ASPECT_SCALE_DOWN:
                 // Once we parcel the thumbnail for transfering over to the system, create a copy of
                 // the bitmap to a hardware bitmap and pass through the HardwareBuffer
                 if (mThumbnail != null) {
@@ -2651,9 +2548,6 @@ public class ActivityOptions extends ComponentOptions {
         if (mAnimationFinishedListener != null) {
             b.putBinder(KEY_ANIMATION_FINISHED_LISTENER, mAnimationFinishedListener.asBinder());
         }
-        if (mSpecsFuture != null) {
-            b.putBinder(KEY_SPECS_FUTURE, mSpecsFuture.asBinder());
-        }
         if (mSourceInfo != null) {
             b.putParcelable(KEY_SOURCE_INFO, mSourceInfo);
         }
@@ -2720,8 +2614,8 @@ public class ActivityOptions extends ComponentOptions {
         }
         b.putBinder(KEY_ANIM_ABORT_LISTENER,
                 mAnimationAbortListener != null ? mAnimationAbortListener.asBinder() : null);
-        if (mWindowingLayer != WINDOWING_LAYER_UNDEFINED) {
-            b.putInt(KEY_WINDOWING_LAYER, mWindowingLayer);
+        if (mMovableTaskRequired) {
+            b.putBoolean(KEY_MOVABLE_TASK_REQUIRED, mMovableTaskRequired);
         }
         return b;
     }
@@ -2916,6 +2810,8 @@ public class ActivityOptions extends ComponentOptions {
         public static final int TYPE_TILE = 7;
         /** Launched from a Wear OS complication. */
         public static final int TYPE_COMPLICATION = 8;
+        /** Launched from an ongoing live update item. */
+        public static final int TYPE_ONGOING_LIVE_UPDATE = 9;
 
         @IntDef(prefix = { "TYPE_" }, value = {
                 TYPE_LAUNCHER,
@@ -2925,7 +2821,8 @@ public class ActivityOptions extends ComponentOptions {
                 TYPE_DESKTOP_ANIMATION,
                 TYPE_QSS,
                 TYPE_TILE,
-                TYPE_COMPLICATION
+                TYPE_COMPLICATION,
+                TYPE_ONGOING_LIVE_UPDATE,
         })
         @Retention(RetentionPolicy.SOURCE)
         public @interface SourceType {}

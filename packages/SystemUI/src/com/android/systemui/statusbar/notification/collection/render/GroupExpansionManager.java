@@ -33,12 +33,6 @@ public interface GroupExpansionManager {
     void registerGroupExpansionChangeListener(OnGroupExpansionChangeListener listener);
 
     /**
-     * Whether the group associated with this notification is expanded.
-     * If this notification is not part of a group, it will always return false.
-     */
-    boolean isGroupExpanded(NotificationEntry entry);
-
-    /**
      * Whether this group or bundle is expanded.
      * If this notification is not the root of a group (summary) or bundle (BundleEntry), it will
      * return whether its direct parent is expanded.
@@ -53,14 +47,6 @@ public interface GroupExpansionManager {
 
     /** @return group/bundle expansion state after toggling. */
     boolean toggleGroupExpansion(EntryAdapter entry);
-
-    /**
-     * Set whether the group associated with this notification is expanded or not.
-     */
-    void setGroupExpanded(NotificationEntry entry, boolean expanded);
-
-    /** @return group expansion state after toggling. */
-    boolean toggleGroupExpansion(NotificationEntry entry);
 
     /**
      * Set expanded=false for all groups

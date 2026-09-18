@@ -28,6 +28,8 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.util.Log;
 
+import java.util.concurrent.Executor;
+
 /**
  * A simple activity manipulating displays and listening to corresponding display events
  */
@@ -36,6 +38,7 @@ public class DisplayEventActivity extends Activity {
 
     private static final String TEST_DISPLAYS = "DISPLAYS";
     private static final String TEST_MESSENGER = "MESSENGER";
+    private static final String TEST_EVENT_MASK = "EVENT_MASK";
 
     private static final int MESSAGE_LAUNCHED = 1;
     private static final int MESSAGE_CALLBACK = 2;
@@ -47,6 +50,7 @@ public class DisplayEventActivity extends Activity {
     private int mExpectedDisplayCount;
     private int mSeenDisplayCount;
     private Messenger mMessenger;
+    private long mEventMask;
     private DisplayManager mDisplayManager;
     private DisplayManager.DisplayListener mDisplayListener;
 
@@ -57,6 +61,10 @@ public class DisplayEventActivity extends Activity {
         mExpectedDisplayCount = 0;
         mSeenDisplayCount = intent.getIntExtra(TEST_DISPLAYS, 0);
         mMessenger = intent.getParcelableExtra(TEST_MESSENGER, Messenger.class);
+        mEventMask = intent.getLongExtra(TEST_EVENT_MASK,
+                DisplayManager.EVENT_TYPE_DISPLAY_ADDED
+                | DisplayManager.EVENT_TYPE_DISPLAY_CHANGED
+                | DisplayManager.EVENT_TYPE_DISPLAY_REMOVED);
         mDisplayManager = getApplicationContext().getSystemService(DisplayManager.class);
         mDisplayListener = new DisplayManager.DisplayListener() {
             @Override
@@ -74,8 +82,7 @@ public class DisplayEventActivity extends Activity {
                 callback(displayId, DISPLAY_CHANGED);
             }
         };
-        Handler handler = new Handler(Looper.getMainLooper());
-        mDisplayManager.registerDisplayListener(mDisplayListener, handler);
+        mDisplayManager.registerDisplayListener(new LooperExecutor(), mEventMask, mDisplayListener);
         launched();
     }
 
@@ -114,6 +121,18 @@ public class DisplayEventActivity extends Activity {
             }
         } catch (RemoteException e) {
             e.rethrowAsRuntimeException();
+        }
+    }
+
+    /**
+     * An Executor that executes tasks on the thread associated with the given Looper.
+     */
+    private static class LooperExecutor implements Executor {
+        private final Handler mHandler = new Handler(Looper.getMainLooper());
+
+        @Override
+        public void execute(Runnable command) {
+            mHandler.post(command);
         }
     }
 }

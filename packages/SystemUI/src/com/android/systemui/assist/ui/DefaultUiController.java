@@ -41,10 +41,12 @@ import com.android.systemui.assist.AssistantSessionEvent;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.navigationbar.NavigationBarController;
 import com.android.systemui.res.R;
+import com.android.systemui.topwindoweffects.data.repository.InvocationEffectGestureController;
 
 import dagger.Lazy;
 
 import java.util.Locale;
+import java.util.Optional;
 
 import javax.inject.Inject;
 
@@ -69,6 +71,8 @@ public class DefaultUiController implements AssistManager.UiController {
     private final WindowManager mWindowManager;
     private final MetricsLogger mMetricsLogger;
     private final Lazy<AssistManager> mAssistManagerLazy;
+    private final Optional<InvocationEffectGestureController>
+            mOptionalInvocationEffectGestureController;
     private final WindowManager.LayoutParams mLayoutParams;
     private final PathInterpolator mProgressInterpolator = new PathInterpolator(.83f, 0, .84f, 1);
 
@@ -82,12 +86,14 @@ public class DefaultUiController implements AssistManager.UiController {
     public DefaultUiController(Context context, AssistLogger assistLogger,
             WindowManager windowManager, MetricsLogger metricsLogger,
             Lazy<AssistManager> assistManagerLazy,
-            NavigationBarController navigationBarController) {
+            NavigationBarController navigationBarController,
+            Optional<InvocationEffectGestureController> optionalInvocationEffectGestureController) {
         mAssistLogger = assistLogger;
         mRoot = new FrameLayout(context);
         mWindowManager = windowManager;
         mMetricsLogger = metricsLogger;
         mAssistManagerLazy = assistManagerLazy;
+        mOptionalInvocationEffectGestureController = optionalInvocationEffectGestureController;
 
         mLayoutParams = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
@@ -111,6 +117,13 @@ public class DefaultUiController implements AssistManager.UiController {
 
     @Override // AssistManager.UiController
     public void onInvocationProgress(int type, float progress) {
+        if (type == INVOCATION_TYPE_GESTURE
+                && mOptionalInvocationEffectGestureController.isPresent()
+                && mOptionalInvocationEffectGestureController.get().isGestureEffectEnabled()) {
+            mOptionalInvocationEffectGestureController.get().onGestureProgress(progress);
+            return;
+        }
+
         boolean invocationWasInProgress = mInvocationInProgress;
 
         if (progress == 1) {
@@ -131,12 +144,24 @@ public class DefaultUiController implements AssistManager.UiController {
 
     @Override // AssistManager.UiController
     public void onGestureCompletion(float velocity) {
+        if (mOptionalInvocationEffectGestureController.isPresent()
+                && mOptionalInvocationEffectGestureController.get().isGestureEffectEnabled()) {
+            mOptionalInvocationEffectGestureController.get().onGestureCompletion();
+            return;
+        }
+
         animateInvocationCompletion(AssistManager.INVOCATION_TYPE_GESTURE, velocity);
         logInvocationProgressMetrics(INVOCATION_TYPE_GESTURE, 1, mInvocationInProgress);
     }
 
     @Override // AssistManager.UiController
     public void hide() {
+        if (mOptionalInvocationEffectGestureController.isPresent()
+                && mOptionalInvocationEffectGestureController.get().isGestureEffectEnabled()) {
+            mOptionalInvocationEffectGestureController.get().hideGestureEffect();
+            return;
+        }
+
         detach();
         if (mInvocationAnimator.isRunning()) {
             mInvocationAnimator.cancel();

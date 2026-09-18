@@ -27,8 +27,6 @@ import android.provider.Settings;
 import android.service.ondeviceintelligence.IOnDeviceIntelligenceService;
 import android.service.ondeviceintelligence.OnDeviceIntelligenceService;
 
-import com.android.modules.utils.ServiceConnector;
-
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -40,8 +38,6 @@ import java.util.concurrent.TimeUnit;
 public class RemoteOnDeviceIntelligenceService extends
         ServiceConnector.Impl<IOnDeviceIntelligenceService> {
     private static final long LONG_TIMEOUT = TimeUnit.HOURS.toMillis(4);
-    private static final String TAG =
-            RemoteOnDeviceIntelligenceService.class.getSimpleName();
 
     RemoteOnDeviceIntelligenceService(Context context, ComponentName serviceName,
             int userId) {

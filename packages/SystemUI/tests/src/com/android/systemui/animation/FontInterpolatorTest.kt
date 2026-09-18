@@ -27,8 +27,8 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
 
-@RunWith(AndroidJUnit4::class)
 @SmallTest
+@RunWith(AndroidJUnit4::class)
 class FontInterpolatorTest : SysuiTestCase() {
 
     private val sFont =
@@ -41,7 +41,6 @@ class FontInterpolatorTest : SysuiTestCase() {
     }
 
     private fun assertSameAxes(expectVarSettings: String, actual: Font) {
-
         val expectAxes =
             FontVariationAxis.fromFontVariationSettings(expectVarSettings)?.also {
                 it.sortBy { axis -> axis.tag }

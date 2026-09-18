@@ -56,7 +56,7 @@ import org.mockito.kotlin.whenever
 @RunWith(TestParameterInjector::class)
 class FixedAspectRatioTaskPositionerDecoratorTests : ShellTestCase() {
     @Mock private lateinit var mockDesktopWindowDecoration: WindowDecorationWrapper
-    @Mock private lateinit var mockTaskPositioner: VeiledResizeTaskPositioner
+    @Mock private lateinit var mockTaskPositioner: TaskPositioner
 
     private lateinit var decoratedTaskPositioner: FixedAspectRatioTaskPositionerDecorator
 

@@ -18,10 +18,10 @@ package com.android.wm.shell.flicker.splitscreen
 
 import android.platform.test.annotations.Presubmit
 import android.tools.NavBar
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.PipAppHelper
@@ -68,7 +68,7 @@ class SwitchBetweenSplitPairsNoPipTest(override val flicker: FlickerTest) :
                     device,
                     primaryApp,
                     secondaryApp,
-                    flicker.scenario.startRotation
+                    flicker.scenario.startRotation,
                 )
                 SplitScreenUtils.enterSplit(
                     wmHelper,
@@ -76,7 +76,7 @@ class SwitchBetweenSplitPairsNoPipTest(override val flicker: FlickerTest) :
                     device,
                     thirdApp,
                     pipApp,
-                    flicker.scenario.startRotation
+                    flicker.scenario.startRotation,
                 )
                 pipApp.enableAutoEnterForPipActivity()
                 SplitScreenUtils.waitForSplitComplete(wmHelper, thirdApp, pipApp)
@@ -120,7 +120,7 @@ class SwitchBetweenSplitPairsNoPipTest(override val flicker: FlickerTest) :
         flicker.splitAppLayerBoundsIsVisibleAtEnd(
             primaryApp,
             landscapePosLeft = tapl.isTablet,
-            portraitPosTop = false
+            portraitPosTop = false,
         )
 
     @Presubmit
@@ -129,7 +129,7 @@ class SwitchBetweenSplitPairsNoPipTest(override val flicker: FlickerTest) :
         flicker.splitAppLayerBoundsIsVisibleAtEnd(
             secondaryApp,
             landscapePosLeft = !tapl.isTablet,
-            portraitPosTop = true
+            portraitPosTop = true,
         )
 
     /** Checks the [pipApp] task become invisible after transition finish. */
@@ -144,7 +144,7 @@ class SwitchBetweenSplitPairsNoPipTest(override val flicker: FlickerTest) :
                 pipApp,
                 landscapePosLeft = !tapl.isTablet,
                 portraitPosTop = true,
-                flicker.scenario.startRotation
+                flicker.scenario.startRotation,
             )
         }
 

@@ -44,6 +44,7 @@ import com.android.internal.util.Preconditions;
  */
 @TestApi
 @SuppressLint("UnflaggedApi")
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class VibratorFrequencyProfileLegacy {
 
     private final VibratorInfo.FrequencyProfileLegacy mFrequencyProfile;

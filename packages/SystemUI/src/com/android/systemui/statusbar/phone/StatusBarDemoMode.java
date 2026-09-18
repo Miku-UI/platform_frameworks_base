@@ -16,7 +16,7 @@
 
 package com.android.systemui.statusbar.phone;
 
-import static com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_OPAQUE;
+import static com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_OPAQUE_DARK;
 import static com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_SEMI_TRANSPARENT;
 import static com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_TRANSLUCENT;
 import static com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_TRANSPARENT;
@@ -116,7 +116,7 @@ public class StatusBarDemoMode extends ViewController<View> implements DemoMode 
         }
         if (command.equals(COMMAND_BARS)) {
             String mode = args.getString("mode");
-            int barMode = "opaque".equals(mode) ? MODE_OPAQUE :
+            int barMode = "opaque".equals(mode) ? MODE_OPAQUE_DARK :
                     "translucent".equals(mode) ? MODE_TRANSLUCENT :
                             "semi-transparent".equals(mode) ? MODE_SEMI_TRANSPARENT :
                                     "transparent".equals(mode) ? MODE_TRANSPARENT :

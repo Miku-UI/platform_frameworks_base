@@ -1,4 +1,5 @@
 android.content.AsyncTaskLoader$LoadTask
+android.icu.text.SpoofChecker
 android.net.ConnectivityThread$Singleton
 android.os.FileObserver
 android.os.NullVibrator
@@ -9,4 +10,3 @@ com.android.internal.jank.InteractionJankMonitor$InstanceHolder
 com.android.internal.util.LatencyTracker$SLatencyTrackerHolder
 gov.nist.core.net.DefaultNetworkLayer
 java.util.concurrent.ThreadLocalRandom
-sun.nio.fs.UnixChannelFactory

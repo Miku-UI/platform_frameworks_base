@@ -20,12 +20,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
+import android.graphics.Insets;
 import android.os.Bundle;
 import android.os.Process;
 import android.os.UserHandle;
 import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.WindowInsets;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -49,13 +51,27 @@ public class GrantCredentialsPermissionActivity extends Activity implements View
     private Bundle mResultBundle = null;
     protected LayoutInflater mInflater;
 
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        getWindow().setDecorFitsSystemWindows(false);
+
         getWindow().addSystemFlags(
                 android.view.WindowManager.LayoutParams
                         .SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS);
         setContentView(R.layout.grant_credentials_permission);
         setTitle(R.string.grant_permissions_header_text);
+
+        // 2. Apply window insets to pad the content safely inside the system bars
+        View contentView = findViewById(android.R.id.content);
+        if (contentView != null) {
+            contentView.setOnApplyWindowInsetsListener((v, insets) -> {
+                Insets systemBars = insets.getInsets(WindowInsets.Type.systemBars());
+                v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+                return insets;
+            });
+        }
 
         mInflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 

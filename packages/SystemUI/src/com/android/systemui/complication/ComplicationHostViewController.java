@@ -35,13 +35,16 @@ import androidx.lifecycle.Observer;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor;
+import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dreams.DreamOverlayStateController;
 import com.android.systemui.util.ViewController;
 import com.android.systemui.util.settings.SecureSettings;
 
+import kotlinx.coroutines.CoroutineScope;
 import kotlinx.coroutines.CoroutineDispatcher;
 import kotlinx.coroutines.DisposableHandle;
+import kotlinx.coroutines.Job;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -72,6 +75,7 @@ public class ComplicationHostViewController extends ViewController<ConstraintLay
     private final ConfigurationInteractor mConfigurationInteractor;
 
     private final CoroutineDispatcher mMainDispatcher;
+    private final CoroutineScope mApplicationScope;
 
     private final ArrayList<DisposableHandle> mFlows = new ArrayList<>();
 
@@ -94,6 +98,7 @@ public class ComplicationHostViewController extends ViewController<ConstraintLay
             @Named(SCOPED_COMPLICATIONS_MODEL) ComplicationCollectionViewModel viewModel,
             SecureSettings secureSettings,
             ConfigurationInteractor configurationInteractor,
+            @Application CoroutineScope applicationScope,
             @Main CoroutineDispatcher mainDispatcher) {
         super(view);
         mLayoutEngine = layoutEngine;
@@ -107,6 +112,7 @@ public class ComplicationHostViewController extends ViewController<ConstraintLay
 
         mConfigurationInteractor = configurationInteractor;
         mMainDispatcher = mainDispatcher;
+        mApplicationScope = applicationScope;
     }
 
     /**
@@ -203,12 +209,12 @@ public class ComplicationHostViewController extends ViewController<ConstraintLay
 
         if (Flags.dreamsV2()) {
             // Update layout on configuration change like rotation, fold etc.
-            mFlows.add(collectFlow(
-                    mView,
+            final Job job = collectFlow(
+                    mApplicationScope,
+                    mMainDispatcher,
                     mConfigurationInteractor.getMaxBounds(),
-                    this::updateLayoutEngine,
-                    mMainDispatcher
-            ));
+                    this::updateLayoutEngine);
+            mFlows.add(() -> job.cancel(null));
         }
     }
 

@@ -32,7 +32,9 @@ import androidx.compose.ui.node.DelegatableNode
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.android.compose.gesture.effect.OffsetOverscrollEffect.Companion.DefaultMaxDistance
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 
@@ -40,11 +42,12 @@ import kotlinx.coroutines.CoroutineScope
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 fun rememberOffsetOverscrollEffect(
-    animationSpec: AnimationSpec<Float> = MaterialTheme.motionScheme.slowSpatialSpec()
+    animationSpec: AnimationSpec<Float> = MaterialTheme.motionScheme.slowSpatialSpec(),
+    maxDistance: Dp = DefaultMaxDistance,
 ): OffsetOverscrollEffect {
     val animationScope = rememberCoroutineScope()
-    return remember(animationScope, animationSpec) {
-        OffsetOverscrollEffect(animationScope, animationSpec)
+    return remember(animationScope, animationSpec, maxDistance) {
+        OffsetOverscrollEffect(animationScope, animationSpec, maxDistance)
     }
 }
 
@@ -72,8 +75,11 @@ data class OffsetOverscrollEffectFactory(
 }
 
 /** An [OverscrollEffect] that offsets the content by the overscroll value. */
-class OffsetOverscrollEffect(animationScope: CoroutineScope, animationSpec: AnimationSpec<Float>) :
-    BaseContentOverscrollEffect(animationScope, animationSpec) {
+class OffsetOverscrollEffect(
+    animationScope: CoroutineScope,
+    animationSpec: AnimationSpec<Float>,
+    maxDistance: Dp = DefaultMaxDistance,
+) : BaseContentOverscrollEffect(animationScope, animationSpec) {
     override val node: DelegatableNode =
         object : Modifier.Node(), LayoutModifierNode {
             override fun MeasureScope.measure(
@@ -82,7 +88,8 @@ class OffsetOverscrollEffect(animationScope: CoroutineScope, animationSpec: Anim
             ): MeasureResult {
                 val placeable = measurable.measure(constraints)
                 return layout(placeable.width, placeable.height) {
-                    val offsetPx = computeOffset(density = this@measure, overscrollDistance)
+                    val offsetPx =
+                        computeOffset(density = this@measure, overscrollDistance, maxDistance)
                     if (offsetPx != 0) {
                         placeable.placeWithLayer(
                             with(requireConverter()) { offsetPx.toIntOffset() }
@@ -95,10 +102,15 @@ class OffsetOverscrollEffect(animationScope: CoroutineScope, animationSpec: Anim
         }
 
     companion object {
-        private val MaxDistance = 400.dp
+        val DefaultMaxDistance = 400.dp
+        val ShortMaxDistance = 50.dp
 
-        fun computeOffset(density: Density, overscrollDistance: Float): Int {
-            val maxDistancePx = with(density) { MaxDistance.toPx() }
+        fun computeOffset(
+            density: Density,
+            overscrollDistance: Float,
+            maxDistance: Dp = DefaultMaxDistance,
+        ): Int {
+            val maxDistancePx = with(density) { maxDistance.toPx() }
             val progress = ProgressConverter.Default.convert(overscrollDistance / maxDistancePx)
             return (progress * maxDistancePx).roundToInt()
         }

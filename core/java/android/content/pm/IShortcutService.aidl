@@ -65,7 +65,7 @@ interface IShortcutService {
 
     void applyRestore(in byte[] payload, int user);
 
-    boolean isRequestPinItemSupported(int user, int requestType);
+    boolean isRequestPinItemSupported(String packageName, int user, int requestType);
 
     // System API used by framework's ShareSheet (ChooserActivity)
     ParceledListSlice getShareTargets(String packageName, in IntentFilter filter, int userId);

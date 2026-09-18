@@ -1023,6 +1023,28 @@ public final class TvContract {
         String COLUMN_INTERNAL_PROVIDER_DATA = "internal_provider_data";
 
         /**
+         * Key for the RRT5 (Region Rating Table 5) dimension.
+         * <p>
+         * Represents the specific rating dimension defined in the ATSC A/65 standard.
+         * </p>
+         * <b>Expected Type:</b> {@code String}
+         * @hide
+         */
+        String INTERNAL_PROVIDER_DATA_KEY_RRT5_DIMENSION = "rrt5_dimension";
+
+        /**
+         * Key for the RRT5 (Region Rating Table 5) dimension value.
+         * <p>
+         * Represents the specific level or value within the defined RRT5 dimension.
+         * </p>
+         * <b>Expected Type:</b> {@code String}
+         *
+         * @hide
+         */
+        String INTERNAL_PROVIDER_DATA_KEY_RRT5_DIMENSION_VALUE =
+                "rrt5_dimension_value";
+
+        /**
          * Internal integer flag used by individual TV input services.
          *
          * <p>This is internal to the provider that inserted it, and should not be decoded by other
@@ -2389,6 +2411,63 @@ public final class TvContract {
          * <p>Type: BLOB
          */
         public static final String COLUMN_INTERNAL_PROVIDER_DATA = "internal_provider_data";
+
+        /**
+         * Column for the direct tune frequency.
+         * <p>
+         * This holds the physical frequency required for the tuner to lock onto the direct tune
+         * channel.
+         * </p>
+         *
+         * @hide
+         */
+        public static final String COLUMN_DIRECT_TUNE_FREQUENCY = "direct_tune_frequency";
+
+        /**
+         * Column for the direct tune index number.
+         * <p>
+         * This represents the specific index of the direct tune channel in the db.
+         * </p>
+         *
+         * @hide
+         */
+        public static final String COLUMN_DIRECT_TUNE_NUM = "direct_tune_num";
+
+        /**
+         * Key for the TKGS category mask.
+         * <p>
+         * This integer bitmask defines the category of the channel (e.g., News, Sports, HD)
+         * according to the Turkish satellite update standard. It is used for automatic grouping.
+         * </p>
+         *
+         * @hide
+         */
+        public static final String INTERNAL_PROVIDER_DATA_KEY_TKGS_CATEGORY_MASK = "category_mask";
+
+        /**
+         * Key for the channel operation status.
+         * <p>
+         * Indicates the lifecycle state of the channel row without deleting it from the database.
+         * Useful for handling "soft deletes" or temporary unavailability during a rescan.
+         * (e.g., 0=Active, 1=Deleted/Inactive)
+         * </p>
+         *
+         * @hide
+         */
+        public static final String INTERNAL_PROVIDER_DATA_KEY_CHANNEL_OPERATION_STATUS =
+                "channel_operation_status";
+
+        /**
+         * Key for the future event rating (EIT).
+         * <p>
+         * Stores the parental rating information for upcoming events extracted from the
+         * DVB Event Information Table (EIT). Used to preview ratings in the channel list UI.
+         * </p>
+         *
+         * @hide
+         */
+        public static final String INTERNAL_PROVIDER_DATA_KEY_CHANNEL_FUTURE_RATING =
+                "channel_future_rating";
 
         /**
          * Internal integer flag used by individual TV input services.

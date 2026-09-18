@@ -21,6 +21,7 @@ import static com.android.wm.shell.Flags.enable2x1Split;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager.RunningTaskInfo;
+import android.app.FullscreenRequestHandler;
 import android.app.IActivityTaskManager;
 import android.app.PendingIntent;
 import android.app.TaskInfo;
@@ -58,10 +59,12 @@ import com.android.wm.shell.common.split.SplitLayout;
 import com.android.wm.shell.common.split.SplitState;
 import com.android.wm.shell.desktopmode.DesktopTasksController;
 import com.android.wm.shell.desktopmode.DesktopUserRepositories;
+import com.android.wm.shell.packageupdate.PackageUpdateController;
 import com.android.wm.shell.recents.RecentTasksController;
 import com.android.wm.shell.shared.TransactionPool;
 import com.android.wm.shell.shared.desktopmode.DesktopState;
 import com.android.wm.shell.shared.split.SplitScreenConstants.PersistentSnapPosition;
+import com.android.wm.shell.shared.split.SplitScreenConstants.SnapPosition;
 import com.android.wm.shell.shared.split.SplitScreenConstants.SplitIndex;
 import com.android.wm.shell.shared.split.SplitScreenConstants.SplitPosition;
 import com.android.wm.shell.splitscreen.SplitScreen.StageType;
@@ -103,7 +106,8 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
             RootTaskDisplayAreaOrganizer rootTDAOrganizer,
             RootDisplayAreaOrganizer rootDisplayAreaOrganizer, DesktopState desktopState,
             IActivityTaskManager activityTaskManager, MSDLPlayer msdlPlayer,
-            Optional<BubbleController> bubbleController) {
+            Optional<BubbleController> bubbleController,
+            Optional<PackageUpdateController> packageUpdateController) {
         if (enable2x1Split()) {
             return new StageCoordinator2(context, displayId, syncQueue, taskOrganizer,
                     displayController, displayImeController, displayInsetsController, transitions,
@@ -111,7 +115,7 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
                     launchAdjacentController, windowDecorViewModel, splitState,
                     desktopTasksController, desktopUserRepositories, rootTDAOrganizer,
                     rootDisplayAreaOrganizer, desktopState, activityTaskManager, msdlPlayer,
-                    bubbleController);
+                    bubbleController, packageUpdateController);
         }
 
         return new StageCoordinator(context, displayId, syncQueue, taskOrganizer,
@@ -120,7 +124,7 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
                 launchAdjacentController, windowDecorViewModel, splitState,
                 desktopTasksController, desktopUserRepositories, rootTDAOrganizer,
                 rootDisplayAreaOrganizer, desktopState, activityTaskManager, msdlPlayer,
-                bubbleController);
+                bubbleController, packageUpdateController);
     }
 
     /// ////////////////////////////////////////////////////////////////////////////////////////////
@@ -138,6 +142,19 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
 
     abstract void registerSplitAnimationListener(
             @NonNull SplitScreen.SplitInvocationListener listener, @NonNull Executor executor);
+
+    /// ////////////////////////////////////////////////////////////////////////////////////////////
+    ///
+    /// Fullscreen Requests
+    ///
+    /// ////////////////////////////////////////////////////////////////////////////////////////////
+
+    /**
+     * Sets the fullscreen request allow mode of the split hierarchy. See
+     * {@link android.app.Activity#requestFullscreenMode}.
+     */
+    abstract void setFullscreenRequestAllowMode(
+            @FullscreenRequestHandler.RequestAllowMode int mode);
 
     /// ////////////////////////////////////////////////////////////////////////////////////////////
     ///
@@ -180,6 +197,27 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
             @PersistentSnapPosition int snapPosition,
             @Nullable RemoteTransition remoteTransition, InstanceId instanceId);
 
+    /**
+     * Augments a transition request with the changes to start 2 tasks. Useful when handling a
+     * core-started transition that supplies a transition {@link IBinder} and
+     * {@link WindowContainerTransaction wct} to which changes should be applied, for example,
+     * the fullscreen->split restore request handled by
+     * {@link com.android.wm.shell.common.ClientFullscreenRequestController}.
+     *
+     * See {@link #startTasks} for a version where WMShell directly starts a new transition that
+     * starts two tasks.
+     *
+     *
+     * @param transition the transition being augmented
+     * @param wct        transaction to augment the request
+     * @param taskId1 starts in the mSideStage
+     * @param taskId2 starts in the mainStage #startWithTask()
+     */
+    abstract void startTasksWithExistingTransition(@NonNull IBinder transition,
+            @NonNull WindowContainerTransaction wct, int taskId1, @Nullable Bundle options1,
+            int taskId2, @Nullable Bundle options2, @SplitPosition int splitPosition,
+            @PersistentSnapPosition int snapPosition);
+
     /** Start an intent and a task to a split pair in one transition. */
     abstract void startIntentAndTask(PendingIntent pendingIntent, Intent fillInIntent,
             @Nullable Bundle options1, int taskId, @Nullable Bundle options2,
@@ -210,7 +248,7 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
     /// Split operations.
     ///
     /// ////////////////////////////////////////////////////////////////////////////////////////////
-    abstract void requestEnterSplitSelect(RunningTaskInfo taskInfo,
+    abstract boolean requestEnterSplitSelect(RunningTaskInfo taskInfo,
             int splitPosition, Rect taskBounds, boolean startRecents,
             @Nullable WindowContainerTransaction withRecentsWct);
 
@@ -275,7 +313,7 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
      * for PiP2 where PiP-able task can also come in through the pip change request field,
      * and this method is provided to explicitly prepare an exit in that case.
      *
-     * This is only called if requestImpliesSplitToPip() returns `true`.
+     * This is only called if request Split to PiP returns `true`.
      */
     public abstract void removePipFromSplitIfNeeded(@NonNull TransitionRequestInfo request,
             @NonNull WindowContainerTransaction outWCT);
@@ -285,7 +323,7 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
      * into PIP). For such scenarios, just make sure to include exiting split or entering split when
      * appropriate.
      *
-     * This is only called if requestImpliesSplitToPip() returns `true`.
+     * This is only called if request Split to PiP returns `true`.
      */
     public abstract void addEnterOrExitForPipIfNeeded(@Nullable TransitionRequestInfo request,
             @NonNull WindowContainerTransaction outWCT);
@@ -401,8 +439,11 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
             @NonNull WindowContainerTransaction finishWct,
             @NonNull SurfaceControl.Transaction finishT);
 
-    /** Call this when the animation from split screen to desktop is started. */
-    public abstract void onSplitToDesktop();
+    /**
+     * Call this when the animation to exit split is started and handled by another
+     * transition handler.
+     */
+    public abstract void onExitingSplit();
 
     /** Call this when the recents animation finishes by doing pair-to-pair switch. */
     public abstract void onRecentsPairToPairAnimationFinish(WindowContainerTransaction finishWct);
@@ -417,7 +458,7 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
     ///
     /// ////////////////////////////////////////////////////////////////////////////////////////////
     @SplitScreen.StageType
-    abstract int getStageOfTask(int taskId);
+    abstract int getCurrentStageTypeOfTask(int taskId);
 
     abstract boolean isRootOrStageRoot(int taskId);
 
@@ -429,6 +470,9 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
 
     @SplitPosition
     abstract int getSplitPosition(int taskId);
+
+    @SnapPosition
+    abstract int calculateCurrentSnapPosition();
 
     /**
      * Set divider visibility flag and try to apply it, the param transaction is used to apply.
@@ -478,14 +522,11 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
     public abstract boolean isPendingEnter(IBinder transition);
 
     /**
-     * Returns the {@link SplitScreen.StageType} where {@param token} is being used
+     * Returns the {@link SplitScreen.StageType} where {@code token} is being used
      * {@link SplitScreen#STAGE_TYPE_UNDEFINED} otherwise
      */
     @SplitScreen.StageType
     public abstract int getSplitItemStage(@Nullable WindowContainerToken token);
-
-    /** @return whether the transition-request implies entering pip from split. */
-    public abstract boolean requestImpliesSplitToPip(TransitionRequestInfo request);
 
     /** @return whether the opening task implies entering bubbles from split. */
     public abstract boolean requestImpliesSplitToBubble(TaskInfo openingTask);
@@ -495,7 +536,6 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
      *
      * @return the {@link SplitScreenTransitions} object.
      */
-    @VisibleForTesting
     abstract SplitScreenTransitions getSplitTransitions();
 
     /**
@@ -535,25 +575,32 @@ public abstract class StageCoordinatorAbstract implements SplitLayout.SplitLayou
     abstract @SplitPosition int getMainStagePosition();
 
     /**
-     * Returns the {@link SplitMultiDisplayHelper} object.
-     *
-     * @return the {@link SplitMultiDisplayHelper} object.
-     */
-    abstract SplitMultiDisplayHelper getSplitMultiDisplayHelper();
-
-    /**
-     * Sets the {@link SplitMultiDisplayHelper} object.
-     *
-     * @param splitMultiDisplayHelper the {@link SplitMultiDisplayHelper} object.
-     */
-    abstract void setSplitMultiDisplayHelper(SplitMultiDisplayHelper splitMultiDisplayHelper);
-
-    /**
      * Returns the last active stage.
      *
      * @return the last active stage.
      */
     abstract @StageType int getLastActiveStage();
+
+    /**
+     * Checks if the task is associated with this split display's ID.
+     *
+     * This method determines if the {@link TaskInfo#displayId} of the
+     * given task matches the internal display ID ({@code mDisplayId}) of this
+     * split display container.
+     *
+     * @param taskInfo The {@link TaskInfo} of the task.
+     * @return {@code true} if the task's display ID matches this split display's ID;
+     * {@code false} otherwise.
+     */
+    public abstract boolean isTaskOnSplitDisplay(@NonNull TaskInfo taskInfo);
+
+    /**
+     * Checks if the current split contains a stage that is empty.
+     *
+     * @return {@code true} if an active stage is empty, indicating a task that
+     * supports auto-PiP; {@code false} otherwise.
+     */
+    public abstract boolean hasEmptyStage();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////
     ///

@@ -157,33 +157,33 @@ public abstract class EuiccService extends Service {
             "android.service.euicc.action.CONVERT_TO_EMBEDDED_SUBSCRIPTION";
 
     /**
-     * @see android.telephony.euicc.EuiccManager#ACTION_TOGGLE_SUBSCRIPTION_PRIVILEGED. This is
-     * a protected intent that can only be sent by the system, and requires the
+     * This is a protected intent that can only be sent by the system, and requires the
      * {@link android.Manifest.permission#BIND_EUICC_SERVICE} permission.
+     * @see android.telephony.euicc.EuiccManager#ACTION_TOGGLE_SUBSCRIPTION_PRIVILEGED
      */
     public static final String ACTION_TOGGLE_SUBSCRIPTION_PRIVILEGED =
             "android.service.euicc.action.TOGGLE_SUBSCRIPTION_PRIVILEGED";
 
     /**
-     * @see android.telephony.euicc.EuiccManager#ACTION_DELETE_SUBSCRIPTION_PRIVILEGED. This is
-     * a protected intent that can only be sent by the system, and requires the
+     * This is a protected intent that can only be sent by the system, and requires the
      * {@link android.Manifest.permission#BIND_EUICC_SERVICE} permission.
+     * @see android.telephony.euicc.EuiccManager#ACTION_DELETE_SUBSCRIPTION_PRIVILEGED
      */
     public static final String ACTION_DELETE_SUBSCRIPTION_PRIVILEGED =
             "android.service.euicc.action.DELETE_SUBSCRIPTION_PRIVILEGED";
 
     /**
-     * @see android.telephony.euicc.EuiccManager#ACTION_RENAME_SUBSCRIPTION_PRIVILEGED. This is
-     * a protected intent that can only be sent by the system, and requires the
+     * This is a protected intent that can only be sent by the system, and requires the
      * {@link android.Manifest.permission#BIND_EUICC_SERVICE} permission.
+     * @see android.telephony.euicc.EuiccManager#ACTION_RENAME_SUBSCRIPTION_PRIVILEGED
      */
     public static final String ACTION_RENAME_SUBSCRIPTION_PRIVILEGED =
             "android.service.euicc.action.RENAME_SUBSCRIPTION_PRIVILEGED";
 
     /**
-     * @see android.telephony.euicc.EuiccManager#ACTION_START_EUICC_ACTIVATION. This is
-     * a protected intent that can only be sent by the system, and requires the
+     * This is a protected intent that can only be sent by the system, and requires the
      * {@link android.Manifest.permission#BIND_EUICC_SERVICE} permission.
+     * @see android.telephony.euicc.EuiccManager#ACTION_START_EUICC_ACTIVATION
      */
     @SdkConstant(SdkConstant.SdkConstantType.ACTIVITY_INTENT_ACTION)
     public static final String ACTION_START_EUICC_ACTIVATION =
@@ -509,7 +509,7 @@ public abstract class EuiccService extends Service {
      * @param slotId ID of the SIM slot to use for the operation.
      * @param subscription A subscription whose metadata needs to be populated.
      * @param forceDeactivateSim If true, and if an active SIM must be deactivated to access the
-     *     eUICC, perform this action automatically. Otherwise, {@link #RESULT_MUST_DEACTIVATE_SIM)}
+     *     eUICC, perform this action automatically. Otherwise, {@link #RESULT_MUST_DEACTIVATE_SIM}
      *     should be returned to allow the user to consent to this operation first.
      * @return The result of the operation.
      * @see android.telephony.euicc.EuiccManager#getDownloadableSubscriptionMetadata
@@ -544,7 +544,7 @@ public abstract class EuiccService extends Service {
      *
      * @param slotId ID of the SIM slot to use for the operation.
      * @param forceDeactivateSim If true, and if an active SIM must be deactivated to access the
-     *     eUICC, perform this action automatically. Otherwise, {@link #RESULT_MUST_DEACTIVATE_SIM)}
+     *     eUICC, perform this action automatically. Otherwise, {@link #RESULT_MUST_DEACTIVATE_SIM}
      *     should be returned to allow the user to consent to this operation first.
      * @return The result of the list operation.
      * @see android.telephony.euicc.EuiccManager#getDefaultDownloadableSubscriptionList

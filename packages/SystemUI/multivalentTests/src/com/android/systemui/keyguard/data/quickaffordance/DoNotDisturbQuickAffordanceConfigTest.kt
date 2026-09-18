@@ -17,6 +17,8 @@
 package com.android.systemui.keyguard.data.quickaffordance
 
 import android.net.Uri
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.provider.Settings
 import android.provider.Settings.Secure.ZEN_DURATION_FOREVER
 import android.provider.Settings.Secure.ZEN_DURATION_PROMPT
@@ -24,6 +26,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.settingslib.notification.modes.EnableDndDialogFactory
 import com.android.settingslib.notification.modes.TestModeBuilder.MANUAL_DND
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.shared.model.ContentDescription
@@ -205,6 +208,39 @@ class DoNotDisturbQuickAffordanceConfigTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER)
+    fun lockScreenState_dndModeStartsAsOff_changeToOn_StateVisible_AVD() =
+        testScope.runTest {
+            val lockScreenState by collectLastValue(underTest.lockScreenState)
+
+            assertThat(lockScreenState)
+                .isEqualTo(
+                    KeyguardQuickAffordanceConfig.LockScreenState.Visible(
+                        Icon.Resource(
+                            R.drawable.avd_dnd_to_off,
+                            ContentDescription.Resource(R.string.dnd_is_off),
+                        ),
+                        ActivationState.Inactive,
+                    )
+                )
+
+            zenModeRepository.activateMode(MANUAL_DND)
+            runCurrent()
+
+            assertThat(lockScreenState)
+                .isEqualTo(
+                    KeyguardQuickAffordanceConfig.LockScreenState.Visible(
+                        Icon.Resource(
+                            R.drawable.avd_dnd_to_on,
+                            ContentDescription.Resource(R.string.dnd_is_on),
+                        ),
+                        ActivationState.Active,
+                    )
+                )
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_SCENE_CONTAINER)
     fun lockScreenState_dndModeStartsAsOff_changeToOn_StateVisible() =
         testScope.runTest {
             val lockScreenState by collectLastValue(underTest.lockScreenState)

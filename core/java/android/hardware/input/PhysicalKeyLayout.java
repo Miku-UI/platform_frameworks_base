@@ -18,6 +18,7 @@ package android.hardware.input;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.text.TextUtils;
 import android.util.SparseIntArray;
 import android.view.KeyCharacterMap;
@@ -28,6 +29,7 @@ import android.view.KeyEvent;
  * of a Physical keyboard and provides information regarding the scan codes produced by the physical
  * keys.
  */
+@RavenwoodKeepWholeClass
 final class PhysicalKeyLayout {
 
     private static final String TAG = "KeyboardLayoutPreview";

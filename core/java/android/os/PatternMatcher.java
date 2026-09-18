@@ -158,6 +158,19 @@ public class PatternMatcher implements Parcelable {
     }
 
     /** @hide */
+    public String toPrettyString() {
+        String type = "";
+        switch (mType) {
+            case PatternMatcher.PATTERN_LITERAL -> type = "android:path";
+            case PatternMatcher.PATTERN_PREFIX -> type = "android:pathPrefix";
+            case PatternMatcher.PATTERN_SIMPLE_GLOB -> type = "android:pathPattern";
+            case PatternMatcher.PATTERN_ADVANCED_GLOB -> type = "android:pathAdvancedPattern";
+            case PatternMatcher.PATTERN_SUFFIX -> type = "android:pathSuffix";
+        }
+        return type + "=\"" + getPath() + "\"";
+    }
+
+    /** @hide */
     public void dumpDebug(ProtoOutputStream proto, long fieldId) {
         long token = proto.start(fieldId);
         proto.write(PatternMatcherProto.PATTERN, mPattern);
@@ -286,16 +299,18 @@ public class PatternMatcher implements Parcelable {
                     nextChar = ip < NP ? pattern.charAt(ip) : 0;
                 }
             } else {
-                if (c != '.' && match.charAt(im) != c) return false;
+                // Match the character if it is either an escaped '.' or another character.
+                boolean shouldMatchLiteralCharacter = (c != '.') || (c == '.' && escaped);
+                if (shouldMatchLiteralCharacter && match.charAt(im) != c) return false;
                 im++;
             }
         }
-        
+
         if (ip >= NP && im >= NM) {
             // Reached the end of both strings, all is good!
             return true;
         }
-        
+
         // One last check: we may have finished the match string, but still
         // have a '.*' at the end of the pattern, which should still count
         // as a match.
@@ -303,7 +318,7 @@ public class PatternMatcher implements Parcelable {
             && pattern.charAt(ip+1) == '*') {
             return true;
         }
-        
+
         return false;
     }
 

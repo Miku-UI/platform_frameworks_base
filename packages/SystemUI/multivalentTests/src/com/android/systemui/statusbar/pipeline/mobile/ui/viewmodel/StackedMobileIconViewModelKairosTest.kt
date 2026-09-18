@@ -24,13 +24,13 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.Flags
 import com.android.systemui.flags.fake
 import com.android.systemui.flags.featureFlagsClassic
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosTestScope
 import com.android.systemui.kairos.runKairosTest
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.statusbar.core.NewStatusBarIcons
-import com.android.systemui.statusbar.core.StatusBarRootModernization
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.fake
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.fakeMobileConnectionsRepositoryKairos
@@ -40,7 +40,6 @@ import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
 
-@OptIn(ExperimentalKairosApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class StackedMobileIconViewModelKairosTest : SysuiTestCase() {
@@ -52,11 +51,11 @@ class StackedMobileIconViewModelKairosTest : SysuiTestCase() {
             }
         }
 
-    private val Kosmos.underTest
-        get() = stackedMobileIconViewModelKairos
+    private val Kosmos.underTest: StackedMobileIconViewModelKairos by
+        Kosmos.Fixture { stackedMobileIconViewModelKairos.apply { activateIn(testScope) } }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun dualSim_filtersOutNonDualConnections() =
         kosmos.runKairosTest {
             mobileConnectionsRepositoryKairos.fake.subscriptions.setValue(listOf())
@@ -75,7 +74,7 @@ class StackedMobileIconViewModelKairosTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun dualSim_filtersOutNonCellularIcons() =
         kosmos.runKairosTest {
             mobileConnectionsRepositoryKairos.fake.subscriptions.setValue(listOf(SUB_1))
@@ -93,7 +92,7 @@ class StackedMobileIconViewModelKairosTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun dualSim_tracksActiveSubId() =
         kosmos.runKairosTest {
             // Active sub id is null, order is unchanged
@@ -114,7 +113,7 @@ class StackedMobileIconViewModelKairosTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun contentDescription_requiresBothIcons() =
         kosmos.runKairosTest {
             mobileConnectionsRepositoryKairos.fake.subscriptions.setValue(listOf())
@@ -133,7 +132,7 @@ class StackedMobileIconViewModelKairosTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun contentDescription_tracksBars() =
         kosmos.runKairosTest {
             mobileConnectionsRepositoryKairos.fake.subscriptions.setValue(listOf(SUB_1, SUB_2))
@@ -152,7 +151,7 @@ class StackedMobileIconViewModelKairosTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun contentDescription_hasActiveIconFirst() =
         kosmos.runKairosTest {
             // Active sub id is null, order is unchanged

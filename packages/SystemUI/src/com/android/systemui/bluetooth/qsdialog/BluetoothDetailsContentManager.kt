@@ -51,6 +51,7 @@ import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.phone.SystemUIDialog
+import com.android.systemui.util.ListenerSet
 import com.android.systemui.util.annotations.DeprecatedSysuiVisibleForTesting
 import com.android.systemui.util.time.SystemClock
 import dagger.assisted.Assisted
@@ -131,6 +132,23 @@ constructor(
 
     private lateinit var coroutineScope: CoroutineScope
 
+    interface Listener {
+        /**
+         * Called when the Bluetooth details UI content is updated.
+         */
+        fun onContentUpdated()
+    }
+
+    private val listeners = ListenerSet<Listener>()
+
+    fun addListener(listener: Listener) {
+        listeners.addIfAbsent(listener)
+    }
+
+    fun removeListener(listener: Listener) {
+        listeners.remove(listener)
+    }
+
     // UI Components
     private lateinit var contentView: View
     private lateinit var bluetoothToggle: CompoundButton
@@ -159,6 +177,8 @@ constructor(
     private var entryBackgroundInactiveStart: Drawable? = null
     private var entryBackgroundInactiveEnd: Drawable? = null
     private var entryBackgroundInactiveMiddle: Drawable? = null
+    private var bluetoothToggleLayout: View? = null
+    private var autoOnToggleRow: View? = null
 
     @AssistedFactory
     interface Factory {
@@ -204,6 +224,8 @@ constructor(
             // If rendering with tile details view, done button shouldn't exist.
             doneButton = contentView.requireViewById(R.id.done_button)
         } else {
+            bluetoothToggleLayout = contentView.requireViewById(R.id.bluetooth_toggle_layout)
+            autoOnToggleRow = contentView.requireViewById(R.id.bluetooth_auto_on_toggle_row)
             entryBackgroundActive =
                 contentView.context.getDrawable(R.drawable.settingslib_entry_bg_on)
             entryBackgroundActiveStart =
@@ -308,6 +330,7 @@ constructor(
     }
 
     fun releaseView() {
+        listeners.forEach { listeners.remove(it) }
         mutableContentHeight.value = scrollViewContent.measuredHeight
     }
 
@@ -384,6 +407,7 @@ constructor(
                         deviceListView.invalidateItemDecorations()
                     }
                     logger.logDeviceUiUpdate(lastUiUpdateMs - start, deviceItem)
+                    listeners.forEach { it.onContentUpdated() }
                 }
             }
         }
@@ -396,8 +420,8 @@ constructor(
         bluetoothToggle.apply {
             isChecked = isEnabled
             setEnabled(true)
-            alpha = ENABLED_ALPHA
         }
+        bluetoothToggleLayout?.isEnabled = true
         subtitleTextView?.text = contentView.context.getString(uiProperties.subTitleResId)
         autoOnToggleLayout.visibility = uiProperties.autoOnToggleVisibility
     }
@@ -431,19 +455,24 @@ constructor(
     private fun setupToggle() {
         bluetoothToggle.setOnCheckedChangeListener { view, isChecked ->
             mutableBluetoothStateToggle.value = isChecked
-            view.apply {
-                isEnabled = false
-                alpha = DISABLED_ALPHA
-            }
+            // Disable toggle to prevent multiple clicks while state is changing.
+            // It will be re-enabled in onBluetoothStateUpdated.
+            view.isEnabled = false
+            // The switch is disabled while waiting for the state update to avoid rapid clicks.
+            // The layout (row) should also be disabled to match the behavior and prevent
+            // interactions.
+            bluetoothToggleLayout?.isEnabled = false
             logger.logBluetoothState(BluetoothStateStage.USER_TOGGLED, isChecked.toString())
             uiEventLogger.log(BluetoothTileDialogUiEvent.BLUETOOTH_TOGGLE_CLICKED)
         }
+        bluetoothToggleLayout?.setOnClickListener { bluetoothToggle.toggle() }
 
         autoOnToggleLayout.visibility = initialUiProperties.autoOnToggleVisibility
         autoOnToggle.setOnCheckedChangeListener { _, isChecked ->
             mutableBluetoothAutoOnToggle.value = isChecked
             uiEventLogger.log(BluetoothTileDialogUiEvent.BLUETOOTH_AUTO_ON_TOGGLE_CLICKED)
         }
+        autoOnToggleRow?.setOnClickListener { autoOnToggle.toggle() }
     }
 
     private fun setupRecyclerView() {
@@ -551,10 +580,12 @@ constructor(
                         deviceItem1.cachedBluetoothDevice == deviceItem2.cachedBluetoothDevice &&
                         deviceItem1.deviceName == deviceItem2.deviceName &&
                         deviceItem1.connectionSummary == deviceItem2.connectionSummary &&
+                        deviceItem1.isActive == deviceItem2.isActive &&
                         // Ignored the icon drawable
                         deviceItem1.iconWithDescription?.second ==
                             deviceItem2.iconWithDescription?.second &&
-                        deviceItem1.background == deviceItem2.background &&
+                        // When !isInDialog, background is handled by ItemDecoration.
+                        (!isInDialog || deviceItem1.background == deviceItem2.background) &&
                         deviceItem1.isEnabled == deviceItem2.isEnabled &&
                         deviceItem1.actionAccessibilityLabel ==
                             deviceItem2.actionAccessibilityLabel &&
@@ -569,6 +600,11 @@ constructor(
             val view =
                 LayoutInflater.from(parent.context)
                     .inflate(R.layout.bluetooth_device_item, parent, false)
+
+            if (!isInDialog) {
+                customizeDetailsTileDeviceLayout(view)
+            }
+
             return DeviceItemViewHolder(view)
         }
 
@@ -600,7 +636,12 @@ constructor(
                 val isDeviceConnected = isDeviceConnected(item)
                 container.apply {
                     isEnabled = item.isEnabled
-                    background = item.background?.let { context.getDrawable(it) }
+                    if (isInDialog) {
+                        background = item.background?.let { context.getDrawable(it) }
+                    } else {
+                        // When !isInDialog, background is handled by ItemDecoration.
+                        background = null
+                    }
                     setOnClickListener {
                         mutableDeviceItemClick.value =
                             DeviceItemClick(item, it, DeviceItemClick.Target.ENTIRE_ROW)
@@ -689,8 +730,50 @@ constructor(
         }
     }
 
+    // Applies specific dimensions for the Bluetooth details tile, overriding XML defaults.
+    private fun customizeDetailsTileDeviceLayout(view: View) {
+        val deviceStartPadding =
+            view.resources.getDimensionPixelSize(R.dimen.tile_details_entry_start_padding)
+
+        view.findViewById<ViewGroup>(R.id.bluetooth_device_row).apply {
+            layoutParams =
+                layoutParams.apply {
+                    height = resources.getDimensionPixelSize(R.dimen.tile_details_entry_height)
+                }
+
+            setPadding(deviceStartPadding, paddingTop, paddingEnd, paddingBottom)
+        }
+
+        view.findViewById<ImageView>(R.id.bluetooth_device_icon).apply {
+            val iconSize = resources.getDimensionPixelSize(R.dimen.tile_details_entry_icon_size)
+
+            layoutParams =
+                layoutParams.apply {
+                    width = iconSize
+                    height = iconSize
+                }
+        }
+
+        view.findViewById<TextView>(R.id.bluetooth_device_name).apply {
+            val top = resources.getDimensionPixelSize(R.dimen.tile_details_entry_title_top_paddings)
+
+            setPadding(deviceStartPadding, top, paddingEnd, paddingBottom)
+
+            setTextAppearance(R.style.TextAppearance_TileDetailsEntryTitle)
+        }
+
+        view.findViewById<TextView>(R.id.bluetooth_device_summary).apply {
+            val bottom =
+                resources.getDimensionPixelSize(R.dimen.tile_details_entry_subtitle_bottom_paddings)
+
+            setPadding(deviceStartPadding, paddingTop, paddingEnd, bottom)
+
+            setTextAppearance(R.style.TextAppearance_TileDetailsEntrySubTitle)
+        }
+    }
+
     private fun isDeviceConnected(item: DeviceItem): Boolean {
-        return item.type == DeviceItemType.CONNECTED_BLUETOOTH_DEVICE
+        return item.isActive || item.type == DeviceItemType.CONNECTED_BLUETOOTH_DEVICE
     }
 
     internal companion object {
@@ -703,8 +786,6 @@ constructor(
             "com.android.settings.PREVIOUSLY_CONNECTED_DEVICE"
         const val ACTION_PAIR_NEW_DEVICE = "android.settings.BLUETOOTH_PAIRING_SETTINGS"
         const val ACTION_AUDIO_SHARING = "com.android.settings.BLUETOOTH_AUDIO_SHARING_SETTINGS"
-        const val DISABLED_ALPHA = 0.3f
-        const val ENABLED_ALPHA = 1f
         const val PROGRESS_BAR_ANIMATION_DURATION_MS = 1500L
 
         private fun Boolean.toInt(): Int {

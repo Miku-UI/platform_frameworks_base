@@ -18,6 +18,8 @@ package android.companion;
 
 import static android.companion.BluetoothDeviceFilterUtils.getDeviceDisplayNameInternal;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.bluetooth.BluetoothDevice;
@@ -79,15 +81,11 @@ public final class WifiDeviceFilter implements DeviceFilter<ScanResult> {
         return MEDIUM_TYPE_WIFI;
     }
 
-    /* package-private */ WifiDeviceFilter(
-            @Nullable Pattern namePattern,
-            @Nullable MacAddress bssid,
-            @NonNull MacAddress bssidMask) {
-        this.mNamePattern = namePattern;
-        this.mBssid = bssid;
-        this.mBssidMask = bssidMask;
-        com.android.internal.util.AnnotationValidations.validate(
-                NonNull.class, null, mBssidMask);
+    /** @hide */
+    private WifiDeviceFilter(Builder builder) {
+        this.mNamePattern = builder.mNamePattern;
+        this.mBssid = builder.mBssid;
+        this.mBssidMask = builder.mBssidMask;
     }
 
     /**
@@ -239,6 +237,7 @@ public final class WifiDeviceFilter implements DeviceFilter<ScanResult> {
         @NonNull
         public Builder setBssidMask(@NonNull MacAddress value) {
             checkNotUsed();
+            requireNonNull(value);
             mBuilderFieldsSet |= 0x4;
             mBssidMask = value;
             return this;
@@ -259,10 +258,7 @@ public final class WifiDeviceFilter implements DeviceFilter<ScanResult> {
             if ((mBuilderFieldsSet & 0x4) == 0) {
                 mBssidMask = MacAddress.BROADCAST_ADDRESS;
             }
-            return new WifiDeviceFilter(
-                    mNamePattern,
-                    mBssid,
-                    mBssidMask);
+            return new WifiDeviceFilter(this);
         }
 
         private void checkNotUsed() {

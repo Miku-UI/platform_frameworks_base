@@ -63,6 +63,7 @@ class DefaultKeyguardBlueprintTest : SysuiTestCase() {
     @Mock private lateinit var defaultShortcutsSection: DefaultShortcutsSection
     @Mock private lateinit var defaultAmbientIndicationAreaSection: Optional<KeyguardSection>
     @Mock private lateinit var defaultSettingsPopupMenuSection: DefaultSettingsPopupMenuSection
+    @Mock private lateinit var batteryChargingPopupMenuSection: Optional<KeyguardSection>
     @Mock private lateinit var defaultStatusBarViewSection: DefaultStatusBarSection
     @Mock private lateinit var defaultNSSLSection: DefaultNotificationStackScrollLayoutSection
     @Mock private lateinit var aodPromotedNotificationSection: AodPromotedNotificationSection
@@ -86,6 +87,7 @@ class DefaultKeyguardBlueprintTest : SysuiTestCase() {
                 defaultShortcutsSection,
                 defaultAmbientIndicationAreaSection,
                 defaultSettingsPopupMenuSection,
+                batteryChargingPopupMenuSection,
                 defaultStatusBarViewSection,
                 defaultNSSLSection,
                 aodPromotedNotificationSection,

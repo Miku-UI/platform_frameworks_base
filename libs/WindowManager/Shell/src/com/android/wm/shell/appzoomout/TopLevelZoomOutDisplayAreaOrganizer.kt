@@ -36,7 +36,7 @@ private const val SqueezeEffectMaxThicknessDp = 16
 // will be more than 4 dp, depending on the display aspect ratio.
 private const val SqueezeEffectOverlapShortEdgeThicknessDp = 4
 
-/** Display area organizer that manages the top level zoom out UI and states.  */
+/** Display area organizer that manages the top level zoom out UI and states. */
 class TopLevelZoomOutDisplayAreaOrganizer(
     displayLayout: DisplayLayout,
     private val context: Context,
@@ -69,10 +69,10 @@ class TopLevelZoomOutDisplayAreaOrganizer(
 
     /**
      * Registers the TopLevelZoomOutDisplayAreaOrganizer to manage the display area of
-     * [DisplayAreaOrganizer.FEATURE_WINDOWED_MAGNIFICATION].
+     * [DisplayAreaOrganizer.FEATURE_TOP_LEVEL_ZOOM].
      */
     fun registerOrganizer() {
-        val displayAreaInfos = registerOrganizer(FEATURE_WINDOWED_MAGNIFICATION)
+        val displayAreaInfos = registerOrganizer(FEATURE_TOP_LEVEL_ZOOM)
         for (i in displayAreaInfos.indices) {
             val info = displayAreaInfos[i]
             onDisplayAreaAppeared(info.displayAreaInfo, info.leash)
@@ -89,7 +89,11 @@ class TopLevelZoomOutDisplayAreaOrganizer(
             return
         }
 
-        updateCuj(lastProgress = mProgress, progress = progress, sysuiMainHandler = sysuiMainHandler)
+        updateCuj(
+            lastProgress = mProgress,
+            progress = progress,
+            sysuiMainHandler = sysuiMainHandler,
+        )
         mProgress = progress
         apply(vsyncId)
     }
@@ -114,8 +118,7 @@ class TopLevelZoomOutDisplayAreaOrganizer(
     ) {
         if (progress == 0f) {
             // Reset when scale is set back to 0.
-            tx
-                .setCrop(leash, null)
+            tx.setCrop(leash, null)
                 .setScale(leash, 1f, 1f)
                 .setPosition(leash, 0f, 0f)
                 .setCornerRadius(leash, 0f)
@@ -129,10 +132,12 @@ class TopLevelZoomOutDisplayAreaOrganizer(
 
         // Convert DP thickness values to pixels
         val maxThicknessPx = mDisplayLayout.dpToPx(SqueezeEffectMaxThicknessDp)
-        val overlapShortEdgeThicknessPx = mDisplayLayout.dpToPx(SqueezeEffectOverlapShortEdgeThicknessDp)
+        val overlapShortEdgeThicknessPx =
+            mDisplayLayout.dpToPx(SqueezeEffectOverlapShortEdgeThicknessDp)
 
         // Determine the longer edge of the display
-        val longEdgePx = max(displayWidth, displayHeight) // Will be Int, but division with Float promotes
+        val longEdgePx =
+            max(displayWidth, displayHeight) // Will be Int, but division with Float promotes
 
         // Calculate the potential for zooming based on thickness parameters
         // This represents how much the content "shrinks" due to the squeeze effect on both sides.
@@ -162,8 +167,7 @@ class TopLevelZoomOutDisplayAreaOrganizer(
         val cropRight = displayWidthF - horizontalCrop
         val cropBottom = displayHeightF - verticalCrop
 
-        tx
-            .setCrop(leash, horizontalCrop, verticalCrop, cropRight, cropBottom)
+        tx.setCrop(leash, horizontalCrop, verticalCrop, cropRight, cropBottom)
             .setCornerRadius(leash, cornerRadius * zoomOutScale)
             .setScale(leash, zoomOutScale, zoomOutScale)
             .setPosition(leash, positionXOffset, positionYOffset)
@@ -186,7 +190,7 @@ class TopLevelZoomOutDisplayAreaOrganizer(
                     it,
                     context,
                     sysuiMainHandler,
-                    CUJ_LPP_ASSIST_INVOCATION_EFFECT
+                    CUJ_LPP_ASSIST_INVOCATION_EFFECT,
                 )
             }
         }

@@ -17,33 +17,41 @@
 package com.android.systemui.statusbar.systemstatusicons.mobile.ui.viewmodel
 
 import android.content.testableContext
-import android.platform.test.annotations.EnableFlags
 import android.telephony.SubscriptionManager.PROFILE_CLASS_UNSET
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.flags.Flags
+import com.android.systemui.flags.fake
+import com.android.systemui.flags.featureFlagsClassic
+import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
-import com.android.systemui.statusbar.core.NewStatusBarIcons
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.fakeMobileIconsInteractor
-import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
+import com.android.systemui.statusbar.systemstatusicons.flags.EnableSystemStatusIconsInCompose
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
 
-@EnableFlags(SystemStatusIconsInCompose.FLAG_NAME, NewStatusBarIcons.FLAG_NAME)
+@EnableSystemStatusIconsInCompose
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class MobileSystemStatusIconsViewModelTest : SysuiTestCase() {
 
-    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
-    private val underTest =
-        kosmos.mobileSystemStatusIconsViewModelFactory.create(kosmos.testableContext).apply {
-            activateIn(kosmos.testScope)
+    private val kosmos =
+        testKosmos().useUnconfinedTestDispatcher().apply {
+            featureFlagsClassic.fake.setDefault(Flags.FILTER_PROVISIONING_NETWORK_SUBSCRIPTIONS)
+        }
+
+    private val Kosmos.underTest: MobileSystemStatusIconsViewModel by
+        Kosmos.Fixture {
+            kosmos.mobileSystemStatusIconsViewModelFactory.create(kosmos.testableContext).apply {
+                activateIn(kosmos.testScope)
+            }
         }
 
     @Test fun visible_default_isFalse() = kosmos.runTest { assertThat(underTest.visible).isFalse() }

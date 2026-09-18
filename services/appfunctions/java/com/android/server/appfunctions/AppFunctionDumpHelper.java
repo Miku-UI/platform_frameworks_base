@@ -23,6 +23,7 @@ import static android.app.appfunctions.AppFunctionStaticMetadataHelper.PROPERTY_
 
 import android.Manifest;
 import android.annotation.BinderThread;
+import android.annotation.Nullable;
 import android.annotation.NonNull;
 import android.annotation.RequiresPermission;
 import android.app.appfunctions.AppFunctionRuntimeMetadata;
@@ -90,9 +91,14 @@ public final class AppFunctionDumpHelper {
         return false;
     }
 
-    /** Returns a map where the key is the package name and the value is its appfunction state. */
+    /**
+     * Returns a map where the key is the package name and the value is its appfunction state.
+     *
+     * @param targetPackage If not null, only return the app function state for the given package.
+     *     Otherwise, return the app function state for all packages.
+     */
     static Map<String, List<SearchResult>> queryAppFunctionsStateForUser(
-            @NonNull Context context, boolean isVerbose)
+            @NonNull Context context, @Nullable String targetPackage, boolean isVerbose)
             throws ExecutionException, InterruptedException {
         AppSearchManager appSearchManager = context.getSystemService(AppSearchManager.class);
         if (appSearchManager == null) {
@@ -105,7 +111,9 @@ public final class AppFunctionDumpHelper {
                 new FutureGlobalSearchSession(appSearchManager, Runnable::run)) {
             try (FutureSearchResults futureSearchResults =
                     searchSession
-                            .search("", buildAppFunctionMetadataSearchSpec(isVerbose))
+                            .search(
+                                    getPackageNameQuery(targetPackage),
+                                    buildAppFunctionMetadataSearchSpec(isVerbose))
                             .get(); ) {
                 List<SearchResult> searchResultsList;
                 do {
@@ -131,7 +139,7 @@ public final class AppFunctionDumpHelper {
             @NonNull Context context, @NonNull IndentingPrintWriter pw, boolean isVerbose) {
         try {
             Map<String, List<SearchResult>> packageSearchResults =
-                    queryAppFunctionsStateForUser(context, isVerbose);
+                    queryAppFunctionsStateForUser(context, /* packageName= */ null, isVerbose);
             dumpSearchResults(pw, packageSearchResults);
         } catch (Exception e) {
             pw.println("Failed to dump AppFunction state: " + e);
@@ -162,6 +170,9 @@ public final class AppFunctionDumpHelper {
         }
     }
 
+    /**
+     * Builds the search spec for app function metadata.
+     */
     private static SearchSpec buildAppFunctionMetadataSearchSpec(boolean isVerbose) {
         SearchSpec runtimeMetadataSearchSpec =
                 new SearchSpec.Builder()
@@ -176,6 +187,7 @@ public final class AppFunctionDumpHelper {
         return new SearchSpec.Builder()
                 .addFilterPackageNames(APP_FUNCTION_INDEXER_PACKAGE)
                 .addFilterNamespaces(APP_FUNCTION_STATIC_NAMESPACE)
+                .setVerbatimSearchEnabled(true)
                 .addFilterSchemas(
                         // Retrieve all documents if isVerbose is true.
                         isVerbose
@@ -183,6 +195,10 @@ public final class AppFunctionDumpHelper {
                                 : List.of(AppFunctionStaticMetadataHelper.STATIC_SCHEMA_TYPE))
                 .setJoinSpec(joinSpec)
                 .build();
+    }
+
+    private static String getPackageNameQuery(@Nullable String packageName) {
+        return packageName == null ? "" : String.format("packageName:\"%s\"", packageName);
     }
 
     private static void dumpAppFunctionMetadata(

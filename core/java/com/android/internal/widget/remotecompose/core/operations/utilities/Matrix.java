@@ -18,8 +18,6 @@ package com.android.internal.widget.remotecompose.core.operations.utilities;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
-import com.android.internal.widget.remotecompose.core.operations.Utils;
-
 import java.text.DecimalFormat;
 import java.util.Arrays;
 
@@ -563,7 +561,7 @@ public class Matrix {
                 sTempInVec = new float[4];
                 sTempOutVec = new float[4];
                 sTempInVec[3] = 1;
-                Utils.log("perspective transform ");
+                // perspective transform
             }
             System.arraycopy(input, 0, sTempInVec, 0, input.length);
         }

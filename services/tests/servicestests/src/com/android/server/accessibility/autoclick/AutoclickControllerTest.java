@@ -35,6 +35,8 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.content.res.Configuration;
+import android.hardware.display.DisplayManager;
+import android.hardware.display.VirtualDisplay;
 import android.hardware.input.InputManager;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
@@ -43,6 +45,7 @@ import android.provider.Settings;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableContext;
 import android.testing.TestableLooper;
+import android.view.Display;
 import android.view.Gravity;
 import android.view.InputDevice;
 import android.view.KeyEvent;
@@ -54,6 +57,7 @@ import android.view.accessibility.AccessibilityManager;
 import com.android.internal.accessibility.util.AccessibilityUtils;
 import com.android.server.accessibility.AccessibilityTraceManager;
 import com.android.server.accessibility.BaseEventStreamTransformation;
+import com.android.server.accessibility.Flags;
 
 import org.junit.After;
 import org.junit.Before;
@@ -200,8 +204,7 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onMotionEvent_flagOn_lazyInitAutoclickIndicatorScheduler() {
+    public void onMotionEvent_lazyInitAutoclickIndicatorScheduler() {
         assertThat(mController.mAutoclickIndicatorScheduler).isNull();
 
         injectFakeMouseActionHoverMoveEvent();
@@ -210,18 +213,7 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onMotionEvent_flagOff_notInitAutoclickIndicatorScheduler() {
-        assertThat(mController.mAutoclickIndicatorScheduler).isNull();
-
-        injectFakeMouseActionHoverMoveEvent();
-
-        assertThat(mController.mAutoclickIndicatorScheduler).isNull();
-    }
-
-    @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onMotionEvent_flagOn_lazyInitAutoclickIndicatorView() {
+    public void onMotionEvent_lazyInitAutoclickIndicatorView() {
         assertThat(mController.mAutoclickIndicatorView).isNull();
 
         injectFakeMouseActionHoverMoveEvent();
@@ -230,18 +222,7 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onMotionEvent_flagOff_notInitAutoclickIndicatorView() {
-        assertThat(mController.mAutoclickIndicatorView).isNull();
-
-        injectFakeMouseActionHoverMoveEvent();
-
-        assertThat(mController.mAutoclickIndicatorView).isNull();
-    }
-
-    @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onMotionEvent_flagOn_lazyInitAutoclickTypePanelView() {
+    public void onMotionEvent_lazyInitAutoclickTypePanelView() {
         assertThat(mController.mAutoclickTypePanel).isNull();
 
         injectFakeMouseActionHoverMoveEvent();
@@ -250,26 +231,79 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onMotionEvent_flagOff_notInitAutoclickTypePanelView() {
-        assertThat(mController.mAutoclickTypePanel).isNull();
-
-        injectFakeMouseActionHoverMoveEvent();
-
-        assertThat(mController.mAutoclickTypePanel).isNull();
-    }
-
-    @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onMotionEvent_flagOn_addAutoclickIndicatorViewToWindowManager() {
+    public void onMotionEvent_addAutoclickIndicatorViewToWindowManager() {
         injectFakeMouseActionHoverMoveEvent();
 
         verify(mMockWindowManager).addView(eq(mController.mAutoclickIndicatorView), any());
     }
 
+
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onDestroy_flagOn_removeAutoclickIndicatorViewToWindowManager() {
+    @EnableFlags(Flags.FLAG_ENABLE_AUTOCLICK_FOR_CONNECTED_DISPLAYS)
+    public void onMotionEvent_onSameDisplay_doesNotRecreateUi() {
+        injectFakeMouseMoveEventOnDisplay(0, 0, MotionEvent.ACTION_HOVER_MOVE,
+                Display.DEFAULT_DISPLAY);
+        injectFakeMouseMoveEventOnDisplay(100, 100, MotionEvent.ACTION_HOVER_MOVE,
+                Display.DEFAULT_DISPLAY);
+
+        verify(mMockWindowManager, Mockito.never()).removeView(any());
+        // Verify that addView was not called again. The total should still be 2.
+        verify(mMockWindowManager, times(2)).addView(any(), any());
+        assertThat(mController.mCurrentDisplayId).isEqualTo(Display.DEFAULT_DISPLAY);
+        assertThat(mController.mAutoclickIndicatorView.getContext().getDisplay().getDisplayId())
+                .isEqualTo(Display.DEFAULT_DISPLAY);
+        assertThat(mController.mAutoclickTypePanel.getContentViewForTesting()
+                .getContext().getDisplay().getDisplayId()).isEqualTo(Display.DEFAULT_DISPLAY);
+        assertThat(mController.mAutoclickScrollPanel.getContentViewForTesting()
+                .getContext().getDisplay().getDisplayId()).isEqualTo(Display.DEFAULT_DISPLAY);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_AUTOCLICK_FOR_CONNECTED_DISPLAYS)
+    public void onMotionEvent_onDifferentDisplay_recreatesUi() {
+        DisplayManager displayManager = mTestableContext.getSystemService(DisplayManager.class);
+        VirtualDisplay virtualDisplay = null;
+        try {
+            virtualDisplay = displayManager.createVirtualDisplay("TestDisplay",
+                    640, 480, 100, null /* surface */, 0 /* flags */);
+            final int newDisplayId = virtualDisplay.getDisplay().getDisplayId();
+            assertThat(newDisplayId).isNotEqualTo(Display.DEFAULT_DISPLAY);
+
+
+            injectFakeMouseMoveEventOnDisplay(0, 0, MotionEvent.ACTION_HOVER_MOVE,
+                    Display.DEFAULT_DISPLAY);
+            verify(mMockWindowManager, times(2)).addView(any(), any());
+            Mockito.clearInvocations(mMockWindowManager);
+
+            final AutoclickIndicatorView initialIndicatorView = mController.mAutoclickIndicatorView;
+            final AutoclickTypeLinearLayout initialTypePanel = mController.mAutoclickTypePanel
+                    .getContentViewForTesting();
+            injectFakeMouseMoveEventOnDisplay(100, 100, MotionEvent.ACTION_HOVER_MOVE,
+                    newDisplayId);
+            // Verify teardown of old UI
+            verify(mMockWindowManager).removeView(eq(initialIndicatorView));
+            verify(mMockWindowManager)
+                    .removeView(eq(initialTypePanel));
+
+            // Verify addView was called again with the new views.
+            verify(mMockWindowManager, times(2)).addView(any(), any());
+            assertThat(mController.mCurrentDisplayId).isEqualTo(newDisplayId);
+            assertThat(mController.mAutoclickIndicatorView.getContext().getDisplay().getDisplayId())
+                    .isEqualTo(newDisplayId);
+            assertThat(mController.mAutoclickTypePanel.getContentViewForTesting()
+                    .getContext().getDisplay().getDisplayId()).isEqualTo(newDisplayId);
+            assertThat(mController.mAutoclickScrollPanel.getContentViewForTesting()
+                    .getContext().getDisplay().getDisplayId()).isEqualTo(newDisplayId);
+        } finally {
+            // Clean up the virtual display
+            if (virtualDisplay != null) {
+                virtualDisplay.release();
+            }
+        }
+    }
+
+    @Test
+    public void onDestroy_removeAutoclickIndicatorViewToWindowManager() {
         injectFakeMouseActionHoverMoveEvent();
 
         mController.onDestroy();
@@ -278,8 +312,7 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onDestroy_flagOn_removeAutoclickTypePanelViewToWindowManager() {
+    public void onDestroy_removeAutoclickTypePanelViewToWindowManager() {
         injectFakeMouseActionHoverMoveEvent();
         AutoclickTypePanel mockAutoclickTypePanel = mock(AutoclickTypePanel.class);
         mController.mAutoclickTypePanel = mockAutoclickTypePanel;
@@ -290,7 +323,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void onMotionEvent_initClickSchedulerDelayFromSetting() {
         injectFakeMouseActionHoverMoveEvent();
 
@@ -304,8 +336,7 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onMotionEvent_flagOn_initCursorAreaSizeFromSetting() {
+    public void onMotionEvent_initCursorAreaSizeFromSetting() {
         injectFakeMouseActionHoverMoveEvent();
 
         int size =
@@ -318,7 +349,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void onKeyEvent_modifierKey_doNotUpdateMetaStateWhenControllerIsNull() {
         assertThat(mController.mClickScheduler).isNull();
 
@@ -328,7 +358,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void onKeyEvent_modifierKey_updateMetaStateWhenControllerNotNull() {
         injectFakeMouseActionHoverMoveEvent();
 
@@ -340,7 +369,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void onKeyEvent_modifierKey_cancelAutoClickWhenAdditionalRegularKeyPresssed() {
         injectFakeMouseActionHoverMoveEvent();
 
@@ -369,37 +397,12 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onDestroy_flagOn_clearAutoclickIndicatorScheduler() {
+    public void onDestroy_clearAutoclickIndicatorScheduler() {
         injectFakeMouseActionHoverMoveEvent();
 
         mController.onDestroy();
 
         assertThat(mController.mAutoclickIndicatorScheduler).isNull();
-    }
-
-    @Test
-    @DisableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onMotionEvent_hoverEnter_doesNotScheduleClick() {
-        injectFakeMouseActionHoverMoveEvent();
-
-        // Send hover enter event.
-        injectFakeMouseMoveEvent(/* x= */ 30f, /* y= */ 0, MotionEvent.ACTION_HOVER_ENTER);
-
-        // Verify there is no pending click.
-        assertThat(mController.mClickScheduler.getIsActiveForTesting()).isFalse();
-    }
-
-    @Test
-    @DisableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onMotionEvent_hoverMove_scheduleClick() {
-        injectFakeMouseActionHoverMoveEvent();
-
-        // Send hover move event.
-        injectFakeMouseMoveEvent(/* x= */ 30f, /* y= */ 0, MotionEvent.ACTION_HOVER_MOVE);
-
-        // Verify there is a pending click.
-        assertThat(mController.mClickScheduler.getIsActiveForTesting()).isTrue();
     }
 
     @Test
@@ -437,7 +440,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void onCursorAreaSizeSettingsChange_moveWithinCustomRadius_clickNotTriggered() {
         // Move mouse to initialize autoclick panel before enabling ignore minor cursor movement.
         injectFakeMouseActionHoverMoveEvent();
@@ -461,7 +463,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void onCursorAreaSizeSettingsChange_moveOutsideCustomRadius_clickTriggered() {
         // Move mouse to initialize autoclick panel before enabling ignore minor cursor movement.
         injectFakeMouseActionHoverMoveEvent();
@@ -485,7 +486,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void onNotIgnoreCursorMovement_clickNotTriggered_whenMoveIsWithinSlop() {
         // Send initial mouse movement.
         injectFakeMouseActionHoverMoveEvent();
@@ -508,7 +508,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void sendClick_ignoreMinorMovementTrue_clicksAtAnchorPosition() {
         initializeAutoclick();
         enableIgnoreMinorCursorMovement();
@@ -531,7 +530,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void sendClick_ignoreMinorMovementFalse_clicksAtLastPosition() {
         initializeAutoclick();
 
@@ -564,7 +562,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void onIgnoreCursorMovement_clickNotTriggered_whenMoveIsWithinSlop() {
         // Move mouse to initialize autoclick panel before enabling ignore minor cursor movement.
         injectFakeMouseActionHoverMoveEvent();
@@ -588,7 +585,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void triggerRightClickWithRevertToLeftClickEnabled_resetClickType() {
         // Move mouse to initialize autoclick panel.
         injectFakeMouseActionHoverMoveEvent();
@@ -611,8 +607,7 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void pauseButton_flagOn_clickNotTriggeredWhenPaused() {
+    public void pauseButton_clickNotTriggeredWhenPaused() {
         injectFakeMouseActionHoverMoveEvent();
 
         // Pause autoclick.
@@ -643,7 +638,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void pauseButton_panelNotHovered_clickNotTriggeredWhenPaused() {
         injectFakeMouseActionHoverMoveEvent();
 
@@ -662,7 +656,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void pauseButton_panelHovered_clickTriggeredWhenPaused() {
         injectFakeMouseActionHoverMoveEvent();
 
@@ -681,7 +674,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void pauseButton_unhoveringCancelsClickWhenPaused() {
         injectFakeMouseActionHoverMoveEvent();
 
@@ -708,7 +700,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void toggleAutoclickPause_inScrollMode_exitsScrollMode() {
         // Initialize the controller.
         injectFakeMouseActionHoverMoveEvent();
@@ -729,8 +720,7 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onMotionEvent_flagOn_lazyInitAutoclickScrollPanel() {
+    public void onMotionEvent_lazyInitAutoclickScrollPanel() {
         assertThat(mController.mAutoclickScrollPanel).isNull();
 
         injectFakeMouseActionHoverMoveEvent();
@@ -739,18 +729,7 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onMotionEvent_flagOff_notInitAutoclickScrollPanel() {
-        assertThat(mController.mAutoclickScrollPanel).isNull();
-
-        injectFakeMouseActionHoverMoveEvent();
-
-        assertThat(mController.mAutoclickScrollPanel).isNull();
-    }
-
-    @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
-    public void onDestroy_flagOn_hideAutoclickScrollPanel() {
+    public void onDestroy_hideAutoclickScrollPanel() {
         injectFakeMouseActionHoverMoveEvent();
         AutoclickScrollPanel mockAutoclickScrollPanel = mock(AutoclickScrollPanel.class);
         mController.mAutoclickScrollPanel = mockAutoclickScrollPanel;
@@ -761,7 +740,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void changeFromScrollToOtherClickType_hidesScrollPanel() {
         injectFakeMouseActionHoverMoveEvent();
 
@@ -816,7 +794,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void sendClick_clickType_scroll_showsScrollPanelOnlyOnce() {
         initializeAutoclick();
 
@@ -846,7 +823,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void scrollPanelController_directionalButtonsHideIndicator() {
         injectFakeMouseActionHoverMoveEvent();
 
@@ -863,7 +839,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void hoverOnAutoclickPanel_rightClickType_forceTriggerLeftClick() {
         initializeAutoclick();
 
@@ -886,7 +861,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void hoverOnAutoclickPanel_dragClickType_forceTriggerLeftClick() {
         initializeAutoclick();
 
@@ -912,7 +886,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void hoverOnAutoclickPanel_scrollClickType_forceTriggerLeftClick() {
         initializeAutoclick();
 
@@ -937,7 +910,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void hoverOnAutoclickPanel_useDefaultCursorArea() {
         initializeAutoclick();
 
@@ -969,7 +941,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void sendClick_updateLastCursorAndScrollAtThatLocation() {
         // Set up event capturer to track scroll events.
         ScrollEventCaptor scrollCaptor = new ScrollEventCaptor();
@@ -1003,7 +974,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void handleScroll_generatesCorrectScrollEvents() {
         ScrollEventCaptor scrollCaptor = new ScrollEventCaptor();
         mController.setNext(scrollCaptor);
@@ -1073,7 +1043,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void scrollCursor_maintainsScrollPositionWhenPanelHovered() {
         ScrollEventCaptor scrollCaptor = new ScrollEventCaptor();
         mController.setNext(scrollCaptor);
@@ -1116,7 +1085,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void scrollCursor_updateScrollPositionWhenPanelNotHovered() {
         ScrollEventCaptor scrollCaptor = new ScrollEventCaptor();
         mController.setNext(scrollCaptor);
@@ -1159,7 +1127,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void sendClick_clickType_doubleclick_triggerClickTwice() {
         initializeAutoclick();
 
@@ -1186,7 +1153,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void sendClick_clickType_drag_simulateDragging() {
         initializeAutoclick();
 
@@ -1246,7 +1212,6 @@ public class AutoclickControllerTest {
 
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void sendClick_clickType_drag_keyEventCancelsDrag() {
         initializeAutoclick();
 
@@ -1276,7 +1241,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void sendClick_clickType_drag_clickTypeDoesNotRevertAfterFirstClick() {
         initializeAutoclick();
 
@@ -1306,7 +1270,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void exitScrollMode_revertToLeftClickEnabled_resetsClickType() {
         initializeAutoclick();
 
@@ -1339,7 +1302,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void sendClick_clickType_longPress_triggerPressAndHold() {
         MotionEventCaptor motionEventCaptor = new MotionEventCaptor();
         mController.setNext(motionEventCaptor);
@@ -1371,7 +1333,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void sendClick_clickType_longPress_interruptCancelsLongPress() {
         MotionEventCaptor motionEventCaptor = new MotionEventCaptor();
         mController.setNext(motionEventCaptor);
@@ -1407,7 +1368,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void sendClick_clickType_longPress_revertsToLeftClick() {
         MotionEventCaptor motionEventCaptor = new MotionEventCaptor();
         mController.setNext(motionEventCaptor);
@@ -1420,16 +1380,15 @@ public class AutoclickControllerTest {
         mController.clickPanelController.handleAutoclickTypeChange(
                 AutoclickTypePanel.AUTOCLICK_TYPE_LONG_PRESS);
 
-        // Set ACCESSIBILITY_AUTOCLICK_REVERT_TO_LEFT_CLICK to false.
+        // Set ACCESSIBILITY_AUTOCLICK_REVERT_TO_LEFT_CLICK to true.
         Settings.Secure.putIntForUser(mTestableContext.getContentResolver(),
                 Settings.Secure.ACCESSIBILITY_AUTOCLICK_REVERT_TO_LEFT_CLICK,
-                AccessibilityUtils.State.OFF,
+                AccessibilityUtils.State.ON,
                 mTestableContext.getUserId());
         mController.onChangeForTesting(/* selfChange= */ true,
                 Settings.Secure.getUriFor(
                         Settings.Secure.ACCESSIBILITY_AUTOCLICK_REVERT_TO_LEFT_CLICK));
-        when(mockAutoclickTypePanel.isPaused()).thenReturn(false);
-        assertThat(mController.mClickScheduler.getRevertToLeftClickForTesting()).isFalse();
+        assertThat(mController.mClickScheduler.getRevertToLeftClickForTesting()).isTrue();
         assertThat(mController.getActiveClickTypeForTest()).isEqualTo(
                 AutoclickTypePanel.AUTOCLICK_TYPE_LONG_PRESS);
 
@@ -1448,7 +1407,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void continuousScroll_completeLifecycle() {
         // Set up event capturer to track scroll events.
         ScrollEventCaptor scrollCaptor = new ScrollEventCaptor();
@@ -1504,7 +1462,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void typePanelDrag_completeLifeCycle() {
         injectFakeMouseActionHoverMoveEvent();
 
@@ -1560,7 +1517,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void exitButton_exitsScrollMode() {
         // Initialize the controller.
         injectFakeMouseActionHoverMoveEvent();
@@ -1594,7 +1550,7 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
+    @DisableFlags(Flags.FLAG_ENABLE_AUTOCLICK_FOR_CONNECTED_DISPLAYS)
     public void onConfigurationChanged_notifiesIndicatorToUpdateTheme() throws Exception {
         injectFakeMouseActionHoverMoveEvent();
 
@@ -1611,7 +1567,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void onConfigurationChanged_notifiesTypePanelToUpdateTheme() throws Exception {
         injectFakeMouseActionHoverMoveEvent();
 
@@ -1628,7 +1583,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void onConfigurationChanged_notifiesScrollPanelToUpdateTheme() throws Exception {
         injectFakeMouseActionHoverMoveEvent();
 
@@ -1645,7 +1599,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void onInputDeviceChanged_disconnectAndReconnect_hidesAndShowsTypePanel() {
         // Setup: one mouse connected initially.
         mController.mInputManagerWrapper = mMockInputManagerWrapper;
@@ -1693,7 +1646,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void onInputDeviceChanged_noConnectionChange_panelsStateUnchanged() {
         // Setup: one mouse connected initially.
         mController.mInputManagerWrapper = mMockInputManagerWrapper;
@@ -1754,7 +1706,6 @@ public class AutoclickControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_AUTOCLICK_INDICATOR)
     public void onInputDeviceChanged_touchpad_hidesAndShowsTypePanel() {
         // Setup: one touchpad connected initially.
         mController.mInputManagerWrapper = mMockInputManagerWrapper;
@@ -1812,6 +1763,10 @@ public class AutoclickControllerTest {
     }
 
     private void injectFakeMouseMoveEvent(float x, float y, int action) {
+        injectFakeMouseMoveEventOnDisplay(x, y, action, Display.DEFAULT_DISPLAY);
+    }
+
+    private void injectFakeMouseMoveEventOnDisplay(float x, float y, int action, int displayId) {
         MotionEvent event = MotionEvent.obtain(
                 /* downTime= */ 0,
                 /* eventTime= */ 0,
@@ -1820,6 +1775,7 @@ public class AutoclickControllerTest {
                 /* y= */ y,
                 /* metaState= */ 0);
         event.setSource(InputDevice.SOURCE_MOUSE);
+        event.setDisplayId(displayId);
         mController.onMotionEvent(event, event, /* policyFlags= */ 0);
     }
 

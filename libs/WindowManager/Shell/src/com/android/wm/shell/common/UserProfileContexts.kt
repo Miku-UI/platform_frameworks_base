@@ -22,10 +22,10 @@ import android.content.pm.UserInfo
 import android.os.UserHandle
 import android.os.UserManager
 import android.util.SparseArray
+import androidx.core.util.size
 import com.android.wm.shell.sysui.ShellController
 import com.android.wm.shell.sysui.ShellInit
 import com.android.wm.shell.sysui.UserChangeListener
-import androidx.core.util.size
 
 /** Creates and manages contexts for all the profiles of the current user. */
 class UserProfileContexts(
@@ -74,14 +74,15 @@ class UserProfileContexts(
             val profileContext = baseContext.createContextAsUser(profile.userHandle, /* flags= */ 0)
             currentProfilesContext.put(profile.id, profileContext)
         }
-        val profilesToRemove = buildList<Int> {
-            for (i in 0..<currentProfilesContext.size) {
-                val userId = currentProfilesContext.keyAt(i)
-                if (userId != shellUserId && profiles.none { it.id == userId }) {
-                    add(userId)
+        val profilesToRemove =
+            buildList<Int> {
+                for (i in 0..<currentProfilesContext.size) {
+                    val userId = currentProfilesContext.keyAt(i)
+                    if (userId != shellUserId && profiles.none { it.id == userId }) {
+                        add(userId)
+                    }
                 }
             }
-        }
         profilesToRemove.forEach { currentProfilesContext.remove(it) }
     }
 

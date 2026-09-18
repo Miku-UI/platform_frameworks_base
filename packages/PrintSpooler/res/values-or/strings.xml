@@ -20,9 +20,9 @@
     <string name="more_options_button" msgid="2243228396432556771">"ଅଧିକ ବିକଳ୍ପ"</string>
     <string name="label_destination" msgid="9132510997381599275">"ଲକ୍ଷ୍ୟସ୍ଥଳ"</string>
     <string name="label_copies" msgid="3634531042822968308">"କପୀଗୁଡ଼ିକ"</string>
-    <string name="label_copies_summary" msgid="3861966063536529540">"କପୀଗୁଡ଼ିକ:"</string>
+    <string name="label_copies_summary" msgid="3861966063536529540">"କପି:"</string>
     <string name="label_paper_size" msgid="908654383827777759">"କାଗଜର ଆକାର"</string>
-    <string name="label_paper_size_summary" msgid="5668204981332138168">"କାଗଜର ଆକାର:"</string>
+    <string name="label_paper_size_summary" msgid="5668204981332138168">"ପେପର ସାଇଜ:"</string>
     <string name="label_color" msgid="1108690305218188969">"ରଙ୍ଗ"</string>
     <string name="label_duplex" msgid="5370037254347072243">"ଦୁଇ-ତରଫା"</string>
     <string name="label_orientation" msgid="2853142581990496477">"ଓରିଏଣ୍ଟେଶନ୍‍"</string>
@@ -35,7 +35,7 @@
     <string name="install_for_print_preview" msgid="6366303997385509332">"ଝଲକ ଦେଖିବା ପାଇଁ PDF ଭ୍ୟୁଅର୍‍ ଇନଷ୍ଟଲ୍‍ କରନ୍ତୁ"</string>
     <string name="printing_app_crashed" msgid="854477616686566398">"ପ୍ରିଣ୍ଟିଙ୍ଗ ଆପ୍‍ କ୍ରାଶ୍‍ ହୋଇଗଲା"</string>
     <string name="generating_print_job" msgid="3119608742651698916">"ପ୍ରିଣ୍ଟ ଜବ୍‍ ତିଆରି କରାଯାଉଛି"</string>
-    <string name="save_as_pdf" msgid="5718454119847596853">"PDF ଭାବରେ ସେଭ୍‍ କରନ୍ତୁ"</string>
+    <string name="save_as_pdf" msgid="5718454119847596853">"PDF ଭାବରେ ସେଭ କରନ୍ତୁ"</string>
     <string name="all_printers" msgid="5018829726861876202">"ସମସ୍ତ ପ୍ରିଣ୍ଟର୍‌…"</string>
     <string name="print_dialog" msgid="32628687461331979">"ପ୍ରିଣ୍ଟ ଡାୟଲଗ୍‍"</string>
     <string name="current_page_template" msgid="5145005201131935302">"<xliff:g id="CURRENT_PAGE">%1$d</xliff:g>/<xliff:g id="PAGE_COUNT">%2$d</xliff:g>"</string>
@@ -44,7 +44,8 @@
     <string name="expand_handle" msgid="7282974448109280522">"ହ୍ୟାଣ୍ଡେଲ୍ ବଡ଼ କରନ୍ତୁ"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"ହ୍ୟାଣ୍ଡେଲ୍ ଛୋଟ କରନ୍ତୁ"</string>
     <string name="print_button" msgid="645164566271246268">"ପ୍ରିଣ୍ଟ କରନ୍ତୁ"</string>
-    <string name="savetopdf_button" msgid="2976186791686924743">"PDFରେ ସେଭ୍‍ କରନ୍ତୁ"</string>
+    <string name="setup_button" msgid="323390526074568450">"ସେଟ ଅପ କରନ୍ତୁ"</string>
+    <string name="savetopdf_button" msgid="2976186791686924743">"PDFରେ ସେଭ କରନ୍ତୁ"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"ପ୍ରିଣ୍ଟ ବିକଳ୍ପକୁ ବଡ଼ କରାଯାଇଛି"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"ପ୍ରିଣ୍ଟ ବିକଳ୍ପକୁ ଛୋଟ କରାଯାଇଛି"</string>
     <string name="search" msgid="5421724265322228497">"ସର୍ଚ୍ଚ କରନ୍ତୁ"</string>

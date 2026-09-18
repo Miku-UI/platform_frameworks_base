@@ -476,8 +476,8 @@ public class LocalTransport extends BackupTransport {
             for (File f : fileset) {
                 f.delete();
             }
-            packageDir.delete();
         }
+        packageDir.delete();
 
         packageDir = new File(mCurrentSetFullDir, packageInfo.packageName);
         final File[] tarballs = packageDir.listFiles();
@@ -485,8 +485,8 @@ public class LocalTransport extends BackupTransport {
             for (File f : tarballs) {
                 f.delete();
             }
-            packageDir.delete();
         }
+        packageDir.delete();
 
         return TRANSPORT_OK;
     }

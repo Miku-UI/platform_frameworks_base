@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2026 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <LinearLayout
+        android:id="@+id/layout_menu_immersive_toggle_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:layout_marginHorizontal="4dp">
+
+        <Button
+            android:layout_width="108dp"
+            android:layout_height="60dp"
+            android:id="@+id/layout_menu_immersive_toggle_button"
+            style="?android:attr/buttonBarButtonStyle"
+            android:stateListAnimator="@null"
+            android:importantForAccessibility="yes"
+            android:contentDescription="@string/desktop_mode_layout_menu_immersive_button_text"
+            android:layout_marginBottom="4dp"
+            android:alpha="0"/>
+
+        <TextView
+            android:id="@+id/layout_menu_immersive_toggle_button_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:lineHeight="16sp"
+            android:gravity="center"
+            android:fontFamily="@*android:string/config_headlineFontFamilyMedium"
+            android:importantForAccessibility="no"
+            android:text="@string/desktop_mode_layout_menu_immersive_button_text"
+            android:textColor="@color/materialColorOnSurface"
+            android:singleLine="true"
+            android:alpha="0"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_menu_size_toggle_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:layout_marginHorizontal="4dp">
+
+        <Button
+            android:layout_width="108dp"
+            android:layout_height="60dp"
+            android:id="@+id/layout_menu_size_toggle_button"
+            style="?android:attr/buttonBarButtonStyle"
+            android:stateListAnimator="@null"
+            android:importantForAccessibility="yes"
+            android:contentDescription="@string/desktop_mode_layout_menu_maximize_button_text"
+            android:layout_marginBottom="4dp"
+            android:alpha="0"/>
+
+        <TextView
+            android:id="@+id/layout_menu_size_toggle_button_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:lineHeight="16sp"
+            android:gravity="center"
+            android:fontFamily="@*android:string/config_headlineFontFamilyMedium"
+            android:importantForAccessibility="no"
+            android:text="@string/desktop_mode_layout_menu_maximize_text"
+            android:textColor="@color/materialColorOnSurface"
+            android:singleLine="true"
+            android:alpha="0"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_menu_snap_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:layout_marginHorizontal="4dp">
+        <LinearLayout
+            android:id="@+id/layout_menu_snap_menu_layout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layoutDirection="ltr"
+            android:orientation="horizontal"
+            android:padding="4dp"
+            android:background="@drawable/desktop_mode_layout_menu_layout_background"
+            android:layout_marginBottom="4dp"
+            android:alpha="0">
+            <Button
+                android:id="@+id/layout_menu_snap_left_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="48dp"
+                android:layout_height="@dimen/desktop_mode_layout_menu_button_height"
+                android:layout_marginEnd="4dp"
+                android:background="@drawable/desktop_mode_layout_menu_button_background"
+                android:importantForAccessibility="yes"
+                android:contentDescription="@string/desktop_mode_layout_menu_snap_left_button_text"
+                android:stateListAnimator="@null"/>
+
+            <Button
+                android:id="@+id/layout_menu_snap_right_button"
+                style="?android:attr/buttonBarButtonStyle"
+                android:layout_width="48dp"
+                android:layout_height="@dimen/desktop_mode_layout_menu_button_height"
+                android:background="@drawable/desktop_mode_layout_menu_button_background"
+                android:importantForAccessibility="yes"
+                android:contentDescription="@string/desktop_mode_layout_menu_snap_right_button_text"
+                android:stateListAnimator="@null"/>
+        </LinearLayout>
+        <TextView
+            android:id="@+id/layout_menu_snap_window_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="11sp"
+            android:lineHeight="16sp"
+            android:gravity="center"
+            android:importantForAccessibility="no"
+            android:fontFamily="@*android:string/config_headlineFontFamilyMedium"
+            android:text="@string/desktop_mode_layout_menu_snap_text"
+            android:textColor="@color/materialColorOnSurface"
+            android:singleLine="true"
+            android:alpha="0"/>
+    </LinearLayout>
+</merge>

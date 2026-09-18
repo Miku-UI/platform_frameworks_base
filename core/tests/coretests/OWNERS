@@ -7,3 +7,4 @@ per-file VintfObjectTest.java = file:platform/system/libvintf:/OWNERS
 per-file AppOpsLoggingTest.kt,AppOpsLoggingTest.cpp,IAppOps*.aidl = file:/core/java/android/permission/OWNERS
 per-file WallpaperDescriptionTest,WallpaperInstanceTest = file:/core/java/android/service/wallpaper/OWNERS
 per-file *User*.java = file:/MULTIUSER_OWNERS
+per-file BucketPriorityQueueTest.java = file:/services/core/java/com/android/server/am/psc/OWNERS

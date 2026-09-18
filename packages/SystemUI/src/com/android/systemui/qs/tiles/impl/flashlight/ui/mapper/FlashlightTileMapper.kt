@@ -29,7 +29,6 @@ import com.android.systemui.qs.tiles.base.shared.model.QSTileState
 import com.android.systemui.qs.tiles.base.ui.model.QSTileDataToStateMapper
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
-import java.text.NumberFormat
 import javax.inject.Inject
 
 /** Maps [FlashlightModel] to [QSTileState]. */
@@ -45,9 +44,9 @@ constructor(
         QSTileState.build(res, theme, config.uiConfig) {
             if (FlashlightStrength.isEnabled) {
                 when (data) {
-                    is FlashlightModel.Available.Binary -> buildBinaryState(data)
+                    is FlashlightModel.Available.Binary -> buildAvailableState(data.enabled, false)
 
-                    is FlashlightModel.Available.Level -> buildLevelState(data)
+                    is FlashlightModel.Available.Level -> buildAvailableState(data.enabled, true)
 
                     is FlashlightModel.Unavailable.Temporarily.Loading,
                     FlashlightModel.Unavailable.Temporarily.CameraInUse,
@@ -87,8 +86,8 @@ constructor(
             }
         }
 
-    private fun QSTileState.Builder.buildBinaryState(data: FlashlightModel.Available.Binary) {
-        if (data.enabled) {
+    private fun QSTileState.Builder.buildAvailableState(enabled: Boolean, hasLevel: Boolean) {
+        if (enabled) {
             activationState = QSTileState.ActivationState.ACTIVE
             icon =
                 Icon.Loaded(
@@ -105,50 +104,13 @@ constructor(
                     R.drawable.qs_flashlight_icon_off,
                 )
         }
-        supportedActions = setOf(QSTileState.UserAction.CLICK)
-        expandedAccessibilityClass = Switch::class
-    }
-
-    private fun QSTileState.Builder.buildLevelState(data: FlashlightModel.Available.Level) {
-        val percentage = calculatePercentage(data)
-        if (percentage == null) {
-            activationState = QSTileState.ActivationState.UNAVAILABLE
-            icon =
-                Icon.Loaded(
-                    res.getDrawable(R.drawable.qs_flashlight_icon_off, theme),
-                    null,
-                    R.drawable.qs_flashlight_icon_off,
-                )
-            supportedActions = setOf()
-            expandedAccessibilityClass = Switch::class
-        } else if (data.enabled) {
-            activationState = QSTileState.ActivationState.ACTIVE
-            icon =
-                Icon.Loaded(
-                    res.getDrawable(R.drawable.qs_flashlight_icon_on, theme),
-                    null,
-                    R.drawable.qs_flashlight_icon_on,
-                )
-
-            val percentInstance =
-                res.configuration.locales.get(0)?.let { NumberFormat.getPercentInstance(it) }
-                    ?: NumberFormat.getPercentInstance()
-
-            secondaryLabel = percentInstance.format(percentage)
+        if (hasLevel) {
             supportedActions =
                 setOf(QSTileState.UserAction.CLICK, QSTileState.UserAction.TOGGLE_CLICK)
             expandedAccessibilityClass = Button::class
         } else {
-            activationState = QSTileState.ActivationState.INACTIVE
-            icon =
-                Icon.Loaded(
-                    res.getDrawable(R.drawable.qs_flashlight_icon_off, theme),
-                    null,
-                    R.drawable.qs_flashlight_icon_off,
-                )
-            supportedActions =
-                setOf(QSTileState.UserAction.CLICK, QSTileState.UserAction.TOGGLE_CLICK)
-            expandedAccessibilityClass = Button::class
+            supportedActions = setOf(QSTileState.UserAction.CLICK)
+            expandedAccessibilityClass = Switch::class
         }
     }
 
@@ -168,20 +130,5 @@ constructor(
             )
         supportedActions = setOf()
         expandedAccessibilityClass = Switch::class
-    }
-
-    private fun calculatePercentage(data: FlashlightModel.Available.Level): Float? {
-        if (data.level < BASE_LEVEL || data.level > data.max) {
-            logger.wtf(
-                "FlashlightMapper: invalid Level data. level:${data.level}, max:${data.max}."
-            )
-            return null
-        }
-
-        return data.level.toFloat() / data.max
-    }
-
-    private companion object {
-        const val BASE_LEVEL = 1
     }
 }

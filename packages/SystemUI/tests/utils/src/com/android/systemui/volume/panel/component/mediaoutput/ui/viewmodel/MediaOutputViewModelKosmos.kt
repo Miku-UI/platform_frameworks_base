@@ -20,6 +20,7 @@ import android.content.applicationContext
 import com.android.internal.logging.uiEventLogger
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.volume.dialog.domain.interactor.expandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.mediaOutputActionsInteractor
 import com.android.systemui.volume.panel.component.mediaoutput.domain.interactor.mediaOutputComponentInteractor
 
@@ -31,5 +32,6 @@ var Kosmos.mediaOutputViewModel by
             mediaOutputActionsInteractor,
             mediaOutputComponentInteractor,
             uiEventLogger,
+            expandedAudioTileDetailsFeatureInteractor,
         )
     }

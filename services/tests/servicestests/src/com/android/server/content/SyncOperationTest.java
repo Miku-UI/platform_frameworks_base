@@ -16,13 +16,29 @@
 
 package com.android.server.content;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import android.accounts.Account;
 import android.content.ContentResolver;
+import android.content.flags.Flags;
 import android.os.Bundle;
 import android.os.PersistableBundle;
-import android.test.AndroidTestCase;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
+
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 
 /**
  * Test for SyncOperation.
@@ -30,7 +46,11 @@ import androidx.test.filters.SmallTest;
  * atest ${ANDROID_BUILD_TOP}/frameworks/base/services/tests/servicestests/src/com/android/server/content/SyncOperationTest.java
  */
 @SmallTest
-public class SyncOperationTest extends AndroidTestCase {
+@RunWith(AndroidJUnit4.class)
+public class SyncOperationTest {
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     Account mDummy;
     /** Indicate an unimportant long that we're not testing. */
@@ -40,14 +60,14 @@ public class SyncOperationTest extends AndroidTestCase {
     /** Silly authority. */
     String mAuthority;
 
-    @Override
+    @Before
     public void setUp() {
         mDummy = new Account("account1", "type1");
         mEmpty = new Bundle();
         mAuthority = "authority1";
     }
 
-    @SmallTest
+    @Test
     public void testToKey() {
         Account account1 = new Account("account1", "type1");
         Account account2 = new Account("account2", "type2");
@@ -106,7 +126,7 @@ public class SyncOperationTest extends AndroidTestCase {
         assertNotSame(op1.key, op5.key);
     }
 
-    @SmallTest
+    @Test
     public void testConversionToExtras() {
         Account account1 = new Account("account1", "type1");
         Bundle b1 = new Bundle();
@@ -130,7 +150,7 @@ public class SyncOperationTest extends AndroidTestCase {
                 op2.getClonedExtras().getString("str")));
     }
 
-    @SmallTest
+    @Test
     public void testConversionFromExtras() {
         PersistableBundle extras = new PersistableBundle();
         SyncOperation op = SyncOperation.maybeCreateFromJobExtras(extras);
@@ -141,7 +161,7 @@ public class SyncOperationTest extends AndroidTestCase {
      * Tests whether a failed periodic sync operation is converted correctly into a one time
      * sync operation, and whether the periodic sync can be re-created from the one-time operation.
      */
-    @SmallTest
+    @Test
     public void testFailedPeriodicConversion() {
         SyncStorageEngine.EndPoint ep = new SyncStorageEngine.EndPoint(new Account("name", "type"),
                 "provider", 0);
@@ -155,7 +175,7 @@ public class SyncOperationTest extends AndroidTestCase {
         assertEquals("Flex not restored", periodic.flexMillis, oneoff.flexMillis);
     }
 
-    @SmallTest
+    @Test
     public void testScheduleAsEjIsInExtras() {
         Account account1 = new Account("account1", "type1");
         Bundle b1 = new Bundle();
@@ -174,5 +194,173 @@ public class SyncOperationTest extends AndroidTestCase {
         SyncOperation op2 = SyncOperation.maybeCreateFromJobExtras(pb);
         assertTrue("EJ extra not found in extras", op2.getClonedExtras()
                 .getBoolean(ContentResolver.SYNC_EXTRAS_SCHEDULE_AS_EXPEDITED_JOB));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SYNCOPERATION_ENFORCE_BUNDLE_SANITIZATION)
+    public void testSanitizeExtras() {
+        Bundle extras = new Bundle();
+        extras.putString("key1", "val1");
+
+        // Test String truncation
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 200; i++) sb.append("a");
+        String longString = sb.toString();
+        extras.putString("key2", longString);
+
+        // Test String array truncation
+        extras.putStringArray("key3", new String[]{longString});
+
+        SyncOperation op = new SyncOperation(mDummy, 0, 0, "package", 0, 0, mAuthority, extras,
+                false, ContentResolver.SYNC_EXEMPTION_NONE, true /* validateExtras */);
+
+        Bundle result = op.getClonedExtras();
+        assertEquals("val1", result.getString("key1"));
+        assertEquals(127, result.getString("key2").length());
+        assertEquals(longString.substring(0, 127), result.getString("key2"));
+        assertEquals(127, result.getStringArray("key3")[0].length());
+        assertEquals(longString.substring(0, 127), result.getStringArray("key3")[0]);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SYNCOPERATION_ENFORCE_BUNDLE_SANITIZATION)
+    public void testSanitizeExtras_nestedBundle() {
+        Bundle extras = new Bundle();
+        extras.putBundle("nested", new Bundle());
+        try {
+            new SyncOperation(mDummy, 0, 0, "package", 0, 0, mAuthority, extras,
+                    false, ContentResolver.SYNC_EXEMPTION_NONE, true /* validateExtras */);
+            fail("Should have thrown IllegalArgumentException");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SYNCOPERATION_ENFORCE_BUNDLE_SANITIZATION)
+    public void testSanitizeExtras_nullAndEmpty() {
+        // Test null extras
+        SyncOperation opNull = new SyncOperation(mDummy, 0, 0, "package", 0, 0, mAuthority, null,
+                false, ContentResolver.SYNC_EXEMPTION_NONE, true /* validateExtras */);
+        assertTrue(opNull.getClonedExtras().isEmpty());
+
+        // Test empty extras
+        SyncOperation opEmpty = new SyncOperation(mDummy, 0, 0, "package", 0, 0, mAuthority,
+                new Bundle(), false, ContentResolver.SYNC_EXEMPTION_NONE,
+                true /* validateExtras */);
+        assertTrue(opEmpty.getClonedExtras().isEmpty());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SYNCOPERATION_ENFORCE_BUNDLE_SANITIZATION)
+    public void testSanitizeExtras_validTypes() {
+        Bundle extras = new Bundle();
+        extras.putString("nullValue", null);
+        Account acc = new Account("a", "b");
+        extras.putParcelable("account", acc);
+        extras.putBoolean("bool", true);
+        extras.putInt("int", 1);
+        extras.putLong("long", 1L);
+        extras.putFloat("float", 1.1f);
+        extras.putDouble("double", 1.1);
+
+        // Arrays (valid length)
+        extras.putStringArray("strArr", new String[] {"a"});
+        extras.putIntArray("intArr", new int[] {1});
+        extras.putLongArray("longArr", new long[] {1L});
+        extras.putFloatArray("floatArr", new float[] {1.1f});
+        extras.putDoubleArray("doubleArr", new double[] {1.1});
+        extras.putBooleanArray("boolArr", new boolean[] {true});
+
+        SyncOperation op = new SyncOperation(mDummy, 0, 0, "package", 0, 0, mAuthority, extras,
+                false, ContentResolver.SYNC_EXEMPTION_NONE, true /* validateExtras */);
+        Bundle result = op.getClonedExtras();
+
+        assertTrue(result.containsKey("nullValue"));
+        assertNull(result.get("nullValue"));
+
+        assertEquals(acc, result.getParcelable("account"));
+        assertTrue(result.getBoolean("bool"));
+        assertEquals(1, result.getInt("int"));
+        assertEquals(1L, result.getLong("long"));
+        assertEquals(1.1f, result.getFloat("float"), 0.0001f);
+        assertEquals(1.1, result.getDouble("double"), 0.0001);
+
+        assertEquals("a", result.getStringArray("strArr")[0]);
+        assertEquals(1, result.getIntArray("intArr")[0]);
+        assertEquals(1L, result.getLongArray("longArr")[0]);
+        assertEquals(1.1f, result.getFloatArray("floatArr")[0], 0.0001f);
+        assertEquals(1.1, result.getDoubleArray("doubleArr")[0], 0.0001);
+        assertTrue(result.getBooleanArray("boolArr")[0]);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SYNCOPERATION_ENFORCE_BUNDLE_SANITIZATION)
+    public void testSanitizeExtras_arraysTooLong() {
+        // String[]
+        checkArrayTooLong(b -> b.putStringArray("key", new String[11]));
+        // int[]
+        checkArrayTooLong(b -> b.putIntArray("key", new int[11]));
+        // long[]
+        checkArrayTooLong(b -> b.putLongArray("key", new long[11]));
+        // double[]
+        checkArrayTooLong(b -> b.putDoubleArray("key", new double[11]));
+        // float[]
+        checkArrayTooLong(b -> b.putFloatArray("key", new float[11]));
+        // boolean[]
+        checkArrayTooLong(b -> b.putBooleanArray("key", new boolean[11]));
+    }
+
+    private interface BundlePopulator {
+        void populate(Bundle b);
+    }
+
+    private void checkArrayTooLong(BundlePopulator populator) {
+        Bundle extras = new Bundle();
+        populator.populate(extras);
+        try {
+            new SyncOperation(mDummy, 0, 0, "package", 0, 0, mAuthority, extras,
+                    false, ContentResolver.SYNC_EXEMPTION_NONE, true /* validateExtras */);
+            fail("Should have thrown IllegalArgumentException for array too long");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SYNCOPERATION_ENFORCE_BUNDLE_SANITIZATION)
+    public void testSanitizeExtras_unsupportedType() {
+        Bundle extras = new Bundle();
+        extras.putSerializable("key", java.util.UUID.randomUUID()); // UUID implements Serializable
+        try {
+            new SyncOperation(mDummy, 0, 0, "package", 0, 0, mAuthority, extras,
+                    false, ContentResolver.SYNC_EXEMPTION_NONE, true /* validateExtras */);
+            fail("Should have thrown IllegalArgumentException");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_SYNCOPERATION_ENFORCE_BUNDLE_SANITIZATION)
+    public void testSanitizeExtras_flagDisabled() {
+        Bundle extras = new Bundle();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 200; i++) sb.append("a");
+        String longString = sb.toString();
+        extras.putString("key1", longString);
+        extras.putBundle("nested", new Bundle());
+        extras.putSerializable("uuid", java.util.UUID.randomUUID());
+
+        SyncOperation op = new SyncOperation(mDummy, 0, 0, "package", 0, 0, mAuthority, extras,
+                false, ContentResolver.SYNC_EXEMPTION_NONE);
+
+        Bundle result = op.getClonedExtras();
+        // Should not be truncated
+        assertEquals(longString, result.getString("key1"));
+        // Should contain nested bundle
+        assertTrue(result.containsKey("nested"));
+        // Should contain serializable
+        assertTrue(result.containsKey("uuid"));
     }
 }

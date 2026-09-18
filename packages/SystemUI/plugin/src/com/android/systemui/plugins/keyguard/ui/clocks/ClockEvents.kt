@@ -17,7 +17,6 @@ import android.content.Context
 import android.icu.util.TimeZone
 import android.text.format.DateFormat
 import com.android.systemui.plugins.annotations.ProtectedInterface
-import com.android.systemui.plugins.annotations.ProtectedReturn
 import com.android.systemui.plugins.keyguard.VPointF
 import com.android.systemui.plugins.keyguard.VRectF
 import com.android.systemui.plugins.keyguard.data.model.AlarmData
@@ -48,10 +47,6 @@ enum class TimeFormatKind {
 /** Events that should call when various rendering parameters change */
 @ProtectedInterface
 interface ClockEvents {
-    @get:ProtectedReturn("return false;")
-    /** Set to enable or disable swipe interaction */
-    var isReactiveTouchInteractionEnabled: Boolean // TODO(b/364664388): Remove/Rename
-
     /** Call whenever timezone changes */
     fun onTimeZoneChanged(timeZone: TimeZone)
 

@@ -51,7 +51,7 @@ class Annotations {
                 "@android.ravenwood.annotation.RavenwoodRemove"
             // Can't convert to an annotation.
             FilterPolicy.AnnotationAllowed, FilterPolicy.Experimental,
-            FilterPolicy.ExperimentalClass
+            FilterPolicy.ExperimentalClass, FilterPolicy.IgnoreClass, FilterPolicy.ThrowClass
                  -> null
         }
     }

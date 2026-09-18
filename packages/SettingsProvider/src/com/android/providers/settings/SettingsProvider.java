@@ -34,6 +34,8 @@ import static android.view.WindowManagerPolicyConstants.NAV_BAR_MODE_GESTURAL_OV
 
 import static com.android.internal.accessibility.AccessibilityShortcutController.MAGNIFICATION_CONTROLLER_NAME;
 import static com.android.internal.accessibility.util.AccessibilityUtils.ACCESSIBILITY_MENU_IN_SYSTEM;
+import static com.android.providers.settings.SettingsState.ACONFIG_FLAG_TYPE_INVALID;
+import static com.android.providers.settings.SettingsState.ACONFIG_FLAG_TYPE_RO;
 import static com.android.providers.settings.SettingsState.FALLBACK_FILE_SUFFIX;
 import static com.android.providers.settings.SettingsState.isConfigSettingsKey;
 import static com.android.providers.settings.SettingsState.isGlobalSettingsKey;
@@ -42,7 +44,6 @@ import static com.android.providers.settings.SettingsState.isSystemSettingsKey;
 import static com.android.providers.settings.SettingsState.makeKey;
 
 import android.Manifest;
-import android.aconfigd.AconfigdFlagInfo;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SpecialUsers.CanBeCURRENT;
@@ -81,6 +82,7 @@ import android.database.sqlite.SQLiteQueryBuilder;
 import android.hardware.camera2.utils.ArrayUtils;
 import android.media.AudioManager;
 import android.media.IRingtonePlayer;
+import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
@@ -117,6 +119,7 @@ import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
 import android.util.LongSparseArray;
+import android.util.MathUtils;
 import android.util.Slog;
 import android.util.SparseBooleanArray;
 import android.util.proto.ProtoOutputStream;
@@ -125,6 +128,7 @@ import com.android.internal.accessibility.util.AccessibilityUtils;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.content.PackageMonitor;
+import com.android.internal.display.BrightnessUtils;
 import com.android.internal.display.RefreshRateSettingsUtils;
 import com.android.internal.os.BackgroundThread;
 import com.android.internal.util.FrameworkStatsLog;
@@ -345,31 +349,40 @@ public class SettingsProvider extends ContentProvider {
         Settings.System.getCloneFromParentOnValueSettings(sSystemCloneFromParentOnDependency);
     }
 
+    private static final boolean ENABLE_REDACTED_VALUE_FOR_READABLE =
+            android.provider.Flags.enableRedactedValueForReadable();
+
     private static final Set<String> sAllSecureSettings = new ArraySet<>();
     private static final Set<String> sReadableSecureSettings = new ArraySet<>();
     private static final ArrayMap<String, Integer> sReadableSecureSettingsWithMaxTargetSdk =
             new ArrayMap<>();
+    private static final ArrayMap<String, String> sReadableSecureSettingsWithRedactedValue =
+            new ArrayMap<>();
     static {
         Settings.Secure.getPublicSettings(sAllSecureSettings, sReadableSecureSettings,
-                sReadableSecureSettingsWithMaxTargetSdk);
+                sReadableSecureSettingsWithMaxTargetSdk, sReadableSecureSettingsWithRedactedValue);
     }
 
     private static final Set<String> sAllSystemSettings = new ArraySet<>();
     private static final Set<String> sReadableSystemSettings = new ArraySet<>();
     private static final ArrayMap<String, Integer> sReadableSystemSettingsWithMaxTargetSdk =
             new ArrayMap<>();
+    private static final ArrayMap<String, String> sReadableSystemSettingsWithRedactedValue =
+            new ArrayMap<>();
     static {
         Settings.System.getPublicSettings(sAllSystemSettings, sReadableSystemSettings,
-                sReadableSystemSettingsWithMaxTargetSdk);
+                sReadableSystemSettingsWithMaxTargetSdk, sReadableSystemSettingsWithRedactedValue);
     }
 
     private static final Set<String> sAllGlobalSettings = new ArraySet<>();
     private static final Set<String> sReadableGlobalSettings = new ArraySet<>();
     private static final ArrayMap<String, Integer> sReadableGlobalSettingsWithMaxTargetSdk =
             new ArrayMap<>();
+    private static final ArrayMap<String, String> sReadableGlobalSettingsWithRedactedValue =
+            new ArrayMap<>();
     static {
         Settings.Global.getPublicSettings(sAllGlobalSettings, sReadableGlobalSettings,
-                sReadableGlobalSettingsWithMaxTargetSdk);
+                sReadableGlobalSettingsWithMaxTargetSdk, sReadableGlobalSettingsWithRedactedValue);
     }
 
     private final Object mLock = new Object();
@@ -407,6 +420,10 @@ public class SettingsProvider extends ContentProvider {
     @ChangeId
     @EnabledSince(targetSdkVersion=android.os.Build.VERSION_CODES.S)
     private static final long ENFORCE_READ_PERMISSION_FOR_MULTI_SIM_DATA_CALL = 172670679L;
+
+    @ChangeId
+    @EnabledSince(targetSdkVersion= Build.VERSION_CODES.CINNAMON_BUN)
+    private static final long ENFORCE_READ_PERMISSION_FOR_BIOMETRIC_KEYGUARD_ENABLED = 232799723L;
 
     @Override
     public boolean onCreate() {
@@ -648,7 +665,8 @@ public class SettingsProvider extends ContentProvider {
             case TABLE_GLOBAL -> {
                 if (args.name != null) {
                     Setting setting = getGlobalSetting(args.name);
-                    return packageSettingForQuery(setting, normalizedProjection);
+                    return packageSettingForQuery(setting, normalizedProjection,
+                            sReadableGlobalSettingsWithRedactedValue);
                 } else {
                     return getAllGlobalSettings(projection);
                 }
@@ -657,7 +675,8 @@ public class SettingsProvider extends ContentProvider {
                 final int userId = UserHandle.getCallingUserId();
                 if (args.name != null) {
                     Setting setting = getSecureSetting(args.name, userId, callingDeviceId);
-                    return packageSettingForQuery(setting, normalizedProjection);
+                    return packageSettingForQuery(setting, normalizedProjection,
+                            sReadableSecureSettingsWithRedactedValue);
                 } else {
                     return getAllSecureSettings(userId, Context.DEVICE_ID_DEFAULT, projection);
                 }
@@ -666,7 +685,8 @@ public class SettingsProvider extends ContentProvider {
                 final int userId = UserHandle.getCallingUserId();
                 if (args.name != null) {
                     Setting setting = getSystemSetting(args.name, userId, callingDeviceId);
-                    return packageSettingForQuery(setting, normalizedProjection);
+                    return packageSettingForQuery(setting, normalizedProjection,
+                            sReadableSystemSettingsWithRedactedValue);
                 } else {
                     return getAllSystemSettings(userId, Context.DEVICE_ID_DEFAULT, projection);
                 }
@@ -853,6 +873,15 @@ public class SettingsProvider extends ContentProvider {
         final String cacheRingtoneSetting;
         if (Settings.System.RINGTONE_CACHE_URI.equals(uri)) {
             cacheRingtoneSetting = Settings.System.RINGTONE;
+        } else if (uri != null && ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())
+                && Settings.AUTHORITY.equals(
+                        ContentProvider.getAuthorityWithoutUserId(uri.getAuthority()))
+                && uri.getPathSegments().size() == 2
+                && uri.getPathSegments().get(1).startsWith(Settings.System.RINGTONE_CACHE)) {
+            // Check whether the uri is ringtone cache uri for a specific PhoneAccountHandle,
+            // which should be in the form of "content://settings/system/ringtone_cache_xxxx".
+            cacheRingtoneSetting = uri.getPathSegments().get(1)
+                    .replace(Settings.System.RINGTONE_CACHE, Settings.System.RINGTONE);
         } else if (Settings.System.NOTIFICATION_SOUND_CACHE_URI.equals(uri)) {
             cacheRingtoneSetting = Settings.System.NOTIFICATION_SOUND;
         } else if (Settings.System.ALARM_ALERT_CACHE_URI.equals(uri)) {
@@ -868,8 +897,13 @@ public class SettingsProvider extends ContentProvider {
 
     @Nullable
     private String getCacheName(String setting) {
-        if (Settings.System.RINGTONE.equals(setting)) {
+        if (setting == null) {
+            return null;
+        } else if (Settings.System.RINGTONE.equals(setting)) {
             return Settings.System.RINGTONE_CACHE;
+        } else if (setting.startsWith(Settings.System.RINGTONE
+                + RingtoneManager.RINGTONE_DELIMITER_FOR_PHONE_ACCOUNT_HANDLE)) {
+            return setting.replace(Settings.System.RINGTONE, Settings.System.RINGTONE_CACHE);
         } else if (Settings.System.NOTIFICATION_SOUND.equals(setting)) {
             return Settings.System.NOTIFICATION_SOUND_CACHE;
         } else if (Settings.System.ALARM_ALERT.equals(setting)) {
@@ -1470,9 +1504,6 @@ public class SettingsProvider extends ContentProvider {
                 }
             }
 
-            Map<String, AconfigdFlagInfo> aconfigFlagInfos =
-                    settingsState.getAconfigDefaultFlags();
-
             for (int i = 0; i < nameCount; i++) {
                 String name = names.get(i);
                 Setting setting = settingsState.getSettingLocked(name);
@@ -1484,8 +1515,8 @@ public class SettingsProvider extends ContentProvider {
                                 && slashIndex != name.length();
                         if (validSlashIndex) {
                             String flagName = name.substring(slashIndex + 1);
-                            AconfigdFlagInfo flagInfo = aconfigFlagInfos.get(flagName);
-                            if (flagInfo != null && !flagInfo.getIsReadWrite()) {
+                            if (settingsState.getAconfigFlagType(flagName)
+                                    == ACONFIG_FLAG_TYPE_RO) {
                                 continue;
                             }
                         }
@@ -1529,8 +1560,14 @@ public class SettingsProvider extends ContentProvider {
                     // Caller doesn't have permission to read this setting
                     continue;
                 }
+
                 Setting setting = settingsState.getSettingLocked(name);
-                appendSettingToCursor(result, setting);
+                if (setting == null || setting.isNull()) {
+                    continue;
+                }
+                String value = getEffectiveValue(setting, sReadableGlobalSettingsWithRedactedValue);
+                appendSettingToCursor(result, String.valueOf(setting.getId()), setting.getName(),
+                        value, String.valueOf(setting.isValuePreservedInRestore()));
             }
 
             return result;
@@ -1726,7 +1763,14 @@ public class SettingsProvider extends ContentProvider {
                     setting = mSettingsRegistry.getSettingLocked(SETTINGS_TYPE_SECURE, owningUserId,
                             deviceId, name);
                 }
-                appendSettingToCursor(result, setting);
+
+                if (setting == null || setting.isNull()) {
+                    continue;
+                }
+
+                String value = getEffectiveValue(setting, sReadableSecureSettingsWithRedactedValue);
+                appendSettingToCursor(result, String.valueOf(setting.getId()), setting.getName(),
+                        value, String.valueOf(setting.isValuePreservedInRestore()));
             }
 
             return result;
@@ -1805,8 +1849,14 @@ public class SettingsProvider extends ContentProvider {
             Binder.restoreCallingIdentity(token);
         }
 
-        final SettingsState ssaidSettings = mSettingsRegistry.getSettingsLocked(
-                SETTINGS_TYPE_SSAID, owningUserId, Context.DEVICE_ID_DEFAULT);
+        final long ssaidKey = makeKey(SETTINGS_TYPE_SSAID, owningUserId,
+                Context.DEVICE_ID_DEFAULT);
+        final SettingsState ssaidSettings = mSettingsRegistry.getOrCreateSettingsStateLocked(
+                ssaidKey);
+
+        if (ssaidSettings == null) {
+            return null;
+        }
 
         if (instantSsaid != null) {
             // Use the stored value if it is still valid.
@@ -1996,7 +2046,12 @@ public class SettingsProvider extends ContentProvider {
 
                 Setting setting = mSettingsRegistry.getSettingLocked(
                         SETTINGS_TYPE_SYSTEM, owningUserId, deviceId, name);
-                appendSettingToCursor(result, setting);
+                if (setting == null || setting.isNull()) {
+                    continue;
+                }
+                String value = getEffectiveValue(setting, sReadableSystemSettingsWithRedactedValue);
+                appendSettingToCursor(result, String.valueOf(setting.getId()), setting.getName(),
+                        value, String.valueOf(setting.isValuePreservedInRestore()));
             }
 
             return result;
@@ -2199,17 +2254,29 @@ public class SettingsProvider extends ContentProvider {
             }
             final boolean isPrivilegedApp = aInfo != null ? aInfo.isPrivilegedApp() : false;
             String mimeType = null;
+            final int uriUserId = ContentProvider.getUserIdFromUri(
+                    audioUri, /* defaultUserId= */ callingUserId);
+            // Ensure context matches the uriUserId; The wrong context may cause
+            // the ContentResolver to fail to obtain the MIME type.
+            Context context = getContext();
+            if (context.getUserId() != uriUserId
+                    && (isPrivilegedApp || callingUserId == uriUserId)) {
+                final long identity = Binder.clearCallingIdentity();
+                try {
+                    context = context.createContextAsUser(UserHandle.of(uriUserId), 0);
+                } finally {
+                    Binder.restoreCallingIdentity(identity);
+                }
+            }
             if (isPrivilegedApp) {
                 final long identity = Binder.clearCallingIdentity();
                 try {
-                    mimeType = getContext().getContentResolver().getType(audioUri);
+                    mimeType = context.getContentResolver().getType(audioUri);
                 } finally {
                     Binder.restoreCallingIdentity(identity);
                 }
             } else {
                 // Check if the URI has a userId and if it matches the callingUserId
-                final int uriUserId = ContentProvider.getUserIdFromUri(
-                        audioUri, /* defaultUserId= */ callingUserId);
                 if (callingUserId != uriUserId) {
                     Slog.e(LOG_TAG,
                             "mutateSystemSetting for setting: " + name + " URI: " + audioUri
@@ -2217,7 +2284,7 @@ public class SettingsProvider extends ContentProvider {
                                     + ") does not match calling userId (" + callingUserId + ")");
                     return false;
                 }
-                mimeType = getContext().getContentResolver().getType(audioUri);
+                mimeType = context.getContentResolver().getType(audioUri);
             }
             if (DEBUG) {
                 Slog.v(LOG_TAG, "isValidMediaUri mimeType: " + mimeType);
@@ -2325,7 +2392,8 @@ public class SettingsProvider extends ContentProvider {
         switch (operation) {
             // Insert updates.
             case MUTATION_OPERATION_INSERT, MUTATION_OPERATION_UPDATE -> {
-                if (Settings.System.PUBLIC_SETTINGS.contains(name)) {
+                if (Settings.System.PUBLIC_SETTINGS.contains(name)
+                        || name.startsWith(Settings.System.RINGTONE)) {
                     return;
                 }
 
@@ -2343,7 +2411,8 @@ public class SettingsProvider extends ContentProvider {
             }
             case MUTATION_OPERATION_DELETE -> {
                 if (Settings.System.PUBLIC_SETTINGS.contains(name)
-                        || Settings.System.PRIVATE_SETTINGS.contains(name)) {
+                        || Settings.System.PRIVATE_SETTINGS.contains(name)
+                        || name.startsWith(Settings.System.RINGTONE)) {
                     throw new IllegalArgumentException("You cannot delete system defined"
                             + " secure settings.");
                 }
@@ -2388,6 +2457,31 @@ public class SettingsProvider extends ContentProvider {
         return mSettingsRegistry.getSettingsNamesLocked(settingsType, userId, deviceId);
     }
 
+    private static String getEffectiveValue(Setting setting,
+            @Nullable ArrayMap<String, String> redactedSettingsMap) {
+        if (setting == null || setting.isNull()) {
+            return null;
+        }
+
+        if (!ENABLE_REDACTED_VALUE_FOR_READABLE) {
+            return setting.getValue();
+        }
+
+        if (redactedSettingsMap == null || redactedSettingsMap.isEmpty()) {
+            return setting.getValue();
+        }
+
+        if (UserHandle.getAppId(Binder.getCallingUid()) < Process.FIRST_APPLICATION_UID) {
+            return setting.getValue();
+        }
+
+        String redactedValue = redactedSettingsMap.get(setting.getName());
+        if (redactedValue != null && !redactedValue.isEmpty()) {
+            return redactedValue;
+        }
+        return setting.getValue();
+    }
+
     private void enforceSettingReadable(String settingName, int settingsType, int userId) {
         if (UserHandle.getAppId(Binder.getCallingUid()) < Process.FIRST_APPLICATION_UID) {
             return;
@@ -2416,6 +2510,20 @@ public class SettingsProvider extends ContentProvider {
                     getContext().enforceCallingOrSelfPermission(
                             Manifest.permission.READ_PRIVILEGED_PHONE_STATE,
                             "access global settings MULTI_SIM_DATA_CALL_SUBSCRIPTION");
+                }
+            }
+
+            case Secure.BIOMETRIC_KEYGUARD_ENABLED,
+                 Secure.FINGERPRINT_KEYGUARD_ENABLED,
+                 Secure.FACE_KEYGUARD_ENABLED,
+                 Secure.BIOMETRIC_APP_ENABLED,
+                 Secure.FINGERPRINT_APP_ENABLED,
+                 Secure.FACE_APP_ENABLED -> {
+                if (CompatChanges.isChangeEnabled(
+                        ENFORCE_READ_PERMISSION_FOR_BIOMETRIC_KEYGUARD_ENABLED)) {
+                    getContext().enforceCallingOrSelfPermission(
+                            Manifest.permission.USE_BIOMETRIC_INTERNAL,
+                            "access secure settings " + settingName);
                 }
             }
         }
@@ -2745,12 +2853,14 @@ public class SettingsProvider extends ContentProvider {
             int targetSdkVersion, String name) {
         // If the app targets Lollipop MR1 or older SDK we warn, otherwise crash.
         if (targetSdkVersion <= Build.VERSION_CODES.LOLLIPOP_MR1) {
-            if (Settings.System.PRIVATE_SETTINGS.contains(name)) {
-                Slog.w(LOG_TAG, "You shouldn't not change private system settings."
-                        + " This will soon become an error.");
-            } else {
-                Slog.w(LOG_TAG, "You shouldn't keep your settings in the secure settings."
-                        + " This will soon become an error.");
+            if (Build.IS_DEBUGGABLE) {
+                if (Settings.System.PRIVATE_SETTINGS.contains(name)) {
+                    Slog.w(LOG_TAG, "You shouldn't not change private system settings."
+                            + " This will soon become an error.");
+                } else {
+                    Slog.w(LOG_TAG, "You shouldn't keep your settings in the secure settings."
+                            + " This will soon become an error.");
+                }
             }
         } else {
             if (Settings.System.PRIVATE_SETTINGS.contains(name)) {
@@ -2781,8 +2891,10 @@ public class SettingsProvider extends ContentProvider {
             return Bundle.forPair(Settings.NameValueTable.VALUE, setting.getValue());
         }
         Bundle result = new Bundle();
-        result.putString(Settings.NameValueTable.VALUE,
-                (setting != null && !setting.isNull()) ? setting.getValue() : null);
+        ArrayMap<String, String> redactedSettingsMap = getRedactedSettingsMap(type);
+
+        String value = getEffectiveValue(setting, redactedSettingsMap);
+        result.putString(Settings.NameValueTable.VALUE, value);
 
         synchronized (mLock) {
             if ((setting != null && !setting.isNull()) || isSettingPreDefined(name, type)) {
@@ -2796,6 +2908,20 @@ public class SettingsProvider extends ContentProvider {
             }
         }
         return result;
+    }
+
+    @Nullable
+    private static ArrayMap<String, String> getRedactedSettingsMap(int type) {
+        ArrayMap<String, String> redactedSettingsMap = null;
+
+        if (type == SETTINGS_TYPE_GLOBAL && ENABLE_REDACTED_VALUE_FOR_READABLE) {
+            redactedSettingsMap = sReadableGlobalSettingsWithRedactedValue;
+        } else if (type == SETTINGS_TYPE_SECURE && ENABLE_REDACTED_VALUE_FOR_READABLE) {
+            redactedSettingsMap = sReadableSecureSettingsWithRedactedValue;
+        } else if (type == SETTINGS_TYPE_SYSTEM && ENABLE_REDACTED_VALUE_FOR_READABLE) {
+            redactedSettingsMap = sReadableSystemSettingsWithRedactedValue;
+        }
+        return redactedSettingsMap;
     }
 
     private boolean isSettingPreDefined(String name, int type) {
@@ -2991,12 +3117,16 @@ public class SettingsProvider extends ContentProvider {
         throw new IllegalArgumentException("Invalid URI:" + uri);
     }
 
-    private static MatrixCursor packageSettingForQuery(Setting setting, String[] projection) {
+    private static MatrixCursor packageSettingForQuery(Setting setting, String[] projection,
+            ArrayMap<String, String> redactedSettingsMap) {
         if (setting.isNull()) {
             return new MatrixCursor(projection, 0);
         }
+
         MatrixCursor cursor = new MatrixCursor(projection, 1);
-        appendSettingToCursor(cursor, setting);
+        String value = getEffectiveValue(setting, redactedSettingsMap);
+        appendSettingToCursor(cursor, String.valueOf(setting.getId()), setting.getName(), value,
+                String.valueOf(setting.isValuePreservedInRestore()));
         return cursor;
     }
 
@@ -3016,10 +3146,8 @@ public class SettingsProvider extends ContentProvider {
         return projection;
     }
 
-    private static void appendSettingToCursor(MatrixCursor cursor, Setting setting) {
-        if (setting == null || setting.isNull()) {
-            return;
-        }
+    private static void appendSettingToCursor(MatrixCursor cursor, String settingId,
+            String settingName, String settingValue, String isValuePreservedInRestore) {
         final int columnCount = cursor.getColumnCount();
 
         String[] values =  new String[columnCount];
@@ -3029,16 +3157,16 @@ public class SettingsProvider extends ContentProvider {
 
             switch (column) {
                 case Settings.NameValueTable._ID -> {
-                    values[i] = String.valueOf(setting.getId());
+                    values[i] = settingId;
                 }
                 case Settings.NameValueTable.NAME -> {
-                    values[i] = setting.getName();
+                    values[i] = settingName;
                 }
                 case Settings.NameValueTable.VALUE -> {
-                    values[i] = setting.getValue();
+                    values[i] = settingValue;
                 }
                 case Settings.NameValueTable.IS_PRESERVED_IN_RESTORE -> {
-                    values[i] = String.valueOf(setting.isValuePreservedInRestore());
+                    values[i] = isValuePreservedInRestore;
                 }
             }
         }
@@ -3223,8 +3351,7 @@ public class SettingsProvider extends ContentProvider {
     }
 
     private int getDeviceId() {
-        int deviceId = android.companion.virtualdevice.flags.Flags.deviceAwareSettingsOverride()
-                && canAccessDeviceAwareSettings(Binder.getCallingUid(),
+        int deviceId = canAccessDeviceAwareSettings(Binder.getCallingUid(),
                 getCallingPackageUnchecked()) ? getCallingDeviceId() : Context.DEVICE_ID_DEFAULT;
         if (deviceId != Context.DEVICE_ID_DEFAULT) {
             // We have received a call for a non-default device id, so now would be a good time
@@ -3272,18 +3399,14 @@ public class SettingsProvider extends ContentProvider {
     private List<Integer> getDeviceIds() {
         final List<Integer> deviceIds = new ArrayList<>(1);
         deviceIds.add(Context.DEVICE_ID_DEFAULT);
-        VirtualDeviceManager virtualDeviceManager = getVirtualDeviceManager();
+        final VirtualDeviceManager virtualDeviceManager =
+                getContext().getSystemService(VirtualDeviceManager.class);
         if (virtualDeviceManager != null) {
             for (VirtualDevice virtualDevice : virtualDeviceManager.getVirtualDevices()) {
                 deviceIds.add(virtualDevice.getDeviceId());
             }
         }
         return deviceIds;
-    }
-
-    private VirtualDeviceManager getVirtualDeviceManager() {
-        return android.companion.virtualdevice.flags.Flags.deviceAwareSettingsOverride()
-                ? getContext().getSystemService(VirtualDeviceManager.class) : null;
     }
 
     private static boolean canAccessDeviceAwareSettings(int uid, String packageName) {
@@ -3318,7 +3441,7 @@ public class SettingsProvider extends ContentProvider {
 
         SettingsRegistry(Looper looper) {
             mHandler = new MyHandler(looper);
-            // TODO(b/394178333): getMaxSupportedUsers() no longer really exists. Revisit this.
+            // TODO(b/434038260): getMaxSupportedUsers() no longer really exists. Revisit this.
             mGenerationRegistry = new GenerationRegistry(UserManager.getMaxSupportedUsers());
             mBackupManager = new BackupManager(getContext());
         }
@@ -3335,8 +3458,11 @@ public class SettingsProvider extends ContentProvider {
             // Store the key in the ssaid table.
             // Note that ssaid settings are applicable only for the default device, hence pass
             // Context.DEVICE_ID_DEFAULT as the deviceId.
-            final SettingsState ssaidSettings = getSettingsLocked(SETTINGS_TYPE_SSAID, userId,
-                    Context.DEVICE_ID_DEFAULT);
+            final long ssaidKey = makeKey(SETTINGS_TYPE_SSAID, userId, Context.DEVICE_ID_DEFAULT);
+            final SettingsState ssaidSettings = getOrCreateSettingsStateLocked(ssaidKey);
+            if (ssaidSettings == null) {
+                throw new IllegalStateException("Ssaid settings not accessible");
+            }
             final boolean success = ssaidSettings.insertSettingLocked(SSAID_USER_KEY, userKey, null,
                     true, SettingsState.SYSTEM_PACKAGE_NAME);
 
@@ -3405,8 +3531,11 @@ public class SettingsProvider extends ContentProvider {
             final String uid = Integer.toString(callingPkg.applicationInfo.uid);
             // Note that ssaid settings are applicable only for the default device, hence pass
             // Context.DEVICE_ID_DEFAULT as the deviceId.
-            final SettingsState ssaidSettings = getSettingsLocked(SETTINGS_TYPE_SSAID, userId,
-                    Context.DEVICE_ID_DEFAULT);
+            final long ssaidKey = makeKey(SETTINGS_TYPE_SSAID, userId, Context.DEVICE_ID_DEFAULT);
+            final SettingsState ssaidSettings = getOrCreateSettingsStateLocked(ssaidKey);
+            if (ssaidSettings == null) {
+                throw new IllegalStateException("Ssaid settings not accessible");
+            }
             final boolean success = ssaidSettings.insertSettingLocked(uid, ssaid, null, true,
                 callingPkg.packageName);
 
@@ -3446,10 +3575,13 @@ public class SettingsProvider extends ContentProvider {
                 ssaidUids.removeAll(appUids);
 
                 // If there are ssaidUids left over they need to be removed from the table.
-                final SettingsState ssaidSettings = getSettingsLocked(SETTINGS_TYPE_SSAID,
-                        user.id, Context.DEVICE_ID_DEFAULT);
-                for (String uid : ssaidUids) {
-                    ssaidSettings.deleteSettingLocked(uid);
+                final long ssaidKey = makeKey(SETTINGS_TYPE_SSAID, user.id,
+                        Context.DEVICE_ID_DEFAULT);
+                final SettingsState ssaidSettings = getOrCreateSettingsStateLocked(ssaidKey);
+                if (ssaidSettings != null) {
+                    for (String uid : ssaidUids) {
+                        ssaidSettings.deleteSettingLocked(uid);
+                    }
                 }
             }
         }
@@ -3477,6 +3609,8 @@ public class SettingsProvider extends ContentProvider {
             return mSettingsStates.get(key);
         }
 
+        // This should only be called when the settings are modified (insert/reset/delete) and
+        // should not be called on read-only access.
         @Nullable
         private SettingsState getOrCreateSettingsStateLocked(long key) {
             SettingsState settingsState = mSettingsStates.get(key);
@@ -3524,8 +3658,7 @@ public class SettingsProvider extends ContentProvider {
             ensureSettingsStateLocked(secureKey);
 
             // Make sure the secure settings have an Android id set.
-            SettingsState secureSettings = getSettingsLocked(SETTINGS_TYPE_SECURE, userId,
-                    deviceId);
+            SettingsState secureSettings = mSettingsStates.get(secureKey);
             ensureSecureSettingAndroidIdSetLocked(secureSettings);
 
             // Ensure system settings loaded.
@@ -3641,7 +3774,7 @@ public class SettingsProvider extends ContentProvider {
 
                 // If this is an aconfig flag, it will be written as a staged flag.
                 // Notify that its staged flag value will be updated.
-                if (Flags.notifyIndividualAconfigSyspropChanged() && type == SETTINGS_TYPE_CONFIG) {
+                if (type == SETTINGS_TYPE_CONFIG) {
                     int slashIndex = name.indexOf('/');
                     boolean validSlashIndex = slashIndex != -1
                             && slashIndex != 0
@@ -3649,7 +3782,8 @@ public class SettingsProvider extends ContentProvider {
                     if (validSlashIndex) {
                         String namespace = name.substring(0, slashIndex);
                         String flagName = name.substring(slashIndex + 1);
-                        if (settingsState.getAconfigDefaultFlags().containsKey(flagName)) {
+                        if (settingsState.getAconfigFlagType(flagName)
+                                != ACONFIG_FLAG_TYPE_INVALID) {
                             String stagedName = "staged/" + namespace + "*" + flagName;
                             notifyForSettingsChange(key, stagedName);
                         }
@@ -3889,8 +4023,9 @@ public class SettingsProvider extends ContentProvider {
         public void onUidRemovedLocked(int uid) {
             // Ssaid settings are applicable only for the default device, hence pass
             // Context.DEVICE_ID_DEFAULT as the deviceId.
-            final SettingsState ssaidSettings = getSettingsLocked(SETTINGS_TYPE_SSAID,
-                    UserHandle.getUserId(uid), Context.DEVICE_ID_DEFAULT);
+            final long ssaidKey = makeKey(SETTINGS_TYPE_SSAID, UserHandle.getUserId(uid),
+                    Context.DEVICE_ID_DEFAULT);
+            final SettingsState ssaidSettings = getOrCreateSettingsStateLocked(ssaidKey);
             if (ssaidSettings != null) {
                 ssaidSettings.deleteSettingLocked(Integer.toString(uid));
             }
@@ -4276,7 +4411,7 @@ public class SettingsProvider extends ContentProvider {
 
         @VisibleForTesting
         final class UpgradeController {
-            private static final int SETTINGS_VERSION = 231;
+            private static final int SETTINGS_VERSION = 236;
 
             private final int mUserId;
             private final int mDeviceId;
@@ -5807,7 +5942,7 @@ public class SettingsProvider extends ContentProvider {
                     if (magnificationCapabilities.isNull()) {
                         final int capability =
                                 supportMagnificationArea ? resources.getInteger(
-                                        R.integer.def_accessibility_magnification_capabilities) 
+                                        R.integer.def_accessibility_magnification_capabilities)
                                         : Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN;
                         secureSettings.insertSettingLocked(
                                 Secure.ACCESSIBILITY_MAGNIFICATION_CAPABILITY,
@@ -6040,56 +6175,76 @@ public class SettingsProvider extends ContentProvider {
 
                 if (currentVersion == 203) {
                     // Version 203: initialize entries migrated from wear settings provide.
-                    initGlobalSettingsDefaultValLocked(Global.Wearable.HAS_PAY_TOKENS, false);
-                    initGlobalSettingsDefaultValLocked(Global.Wearable.GMS_CHECKIN_TIMEOUT_MIN, 6);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings, Global.Wearable.HAS_PAY_TOKENS, false);
+                    initGlobalSettingsDefaultValLocked(
+                            globalSettings, Global.Wearable.GMS_CHECKIN_TIMEOUT_MIN, 6);
+                    initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.HOTWORD_DETECTION_ENABLED,
                             resources.getBoolean(R.bool.def_wearable_hotwordDetectionEnabled));
-                    initGlobalSettingsDefaultValLocked(Global.Wearable.SMART_REPLIES_ENABLED, true);
+                    initGlobalSettingsDefaultValLocked(
+                            globalSettings, Global.Wearable.SMART_REPLIES_ENABLED, true);
                     Setting locationMode = secureSettings.getSettingLocked(Secure.LOCATION_MODE);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.OBTAIN_PAIRED_DEVICE_LOCATION,
                             !locationMode.isNull()
                                     && !Integer.toString(Secure.LOCATION_MODE_OFF)
                                             .equals(locationMode.getValue()));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.PHONE_PLAY_STORE_AVAILABILITY,
                             Global.Wearable.PHONE_PLAY_STORE_AVAILABILITY_UNKNOWN);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.BUG_REPORT,
                             "user".equals(Build.TYPE) // is user build?
                                     ? Global.Wearable.BUG_REPORT_DISABLED
                                     : Global.Wearable.BUG_REPORT_ENABLED);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.SMART_ILLUMINATE_ENABLED,
                             resources.getBoolean(R.bool.def_wearable_smartIlluminateEnabled));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.CLOCKWORK_AUTO_TIME,
                             Global.Wearable.SYNC_TIME_FROM_PHONE);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.CLOCKWORK_AUTO_TIME_ZONE,
                             Global.Wearable.SYNC_TIME_ZONE_FROM_PHONE);
-                    initGlobalSettingsDefaultValLocked(Global.Wearable.CLOCKWORK_24HR_TIME, false);
-                    initGlobalSettingsDefaultValLocked(Global.Wearable.AUTO_WIFI, true);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings, Global.Wearable.CLOCKWORK_24HR_TIME, false);
+                    initGlobalSettingsDefaultValLocked(
+                            globalSettings, Global.Wearable.AUTO_WIFI, true);
+                    initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.WIFI_POWER_SAVE,
                             resources.getInteger(
                                     R.integer.def_wearable_offChargerWifiUsageLimitMinutes));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.ALT_BYPASS_WIFI_REQUIREMENT_TIME_MILLIS, 0L);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.SETUP_SKIPPED, Global.Wearable.SETUP_SKIPPED_UNKNOWN);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.LAST_CALL_FORWARD_ACTION,
                             Global.Wearable.CALL_FORWARD_NO_LAST_ACTION);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.MUTE_WHEN_OFF_BODY_ENABLED,
                             resources.getBoolean(R.bool.def_wearable_muteWhenOffBodyEnabled));
-                    initGlobalSettingsDefaultValLocked(Global.Wearable.WEAR_OS_VERSION_STRING, "");
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings, Global.Wearable.WEAR_OS_VERSION_STRING, "");
+                    initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.SIDE_BUTTON,
                             resources.getBoolean(R.bool.def_wearable_sideButtonPresent));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.ANDROID_WEAR_VERSION,
                             Long.parseLong(
                                     getContext()
@@ -6099,44 +6254,59 @@ public class SettingsProvider extends ContentProvider {
                     final int editionLocal = 2;
                     boolean isLe = packageManager.hasSystemFeature("cn.google");
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.SYSTEM_EDITION, isLe ? editionLocal : editionGlobal);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.SYSTEM_CAPABILITIES, getWearSystemCapabilities(isLe));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.WEAR_PLATFORM_MR_NUMBER,
                             SystemProperties.getInt("ro.cw_build.platform_mr", 0));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Settings.Global.Wearable.MOBILE_SIGNAL_DETECTOR,
                             resources.getBoolean(R.bool.def_wearable_mobileSignalDetectorAllowed));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.AMBIENT_ENABLED,
                             resources.getBoolean(R.bool.def_wearable_ambientEnabled));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.AMBIENT_TILT_TO_WAKE,
                             resources.getBoolean(R.bool.def_wearable_tiltToWakeEnabled));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.AMBIENT_LOW_BIT_ENABLED_DEV, false);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.AMBIENT_TOUCH_TO_WAKE,
                             resources.getBoolean(R.bool.def_wearable_touchToWakeEnabled));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.AMBIENT_TILT_TO_BRIGHT,
                             resources.getBoolean(R.bool.def_wearable_tiltToBrightEnabled));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.DECOMPOSABLE_WATCHFACE, false);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Settings.Global.Wearable.AMBIENT_FORCE_WHEN_DOCKED,
                             SystemProperties.getBoolean("ro.ambient.force_when_docked", false));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Settings.Global.Wearable.AMBIENT_LOW_BIT_ENABLED,
                             SystemProperties.getBoolean("ro.ambient.low_bit_enabled", false));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Settings.Global.Wearable.AMBIENT_PLUGGED_TIMEOUT_MIN,
                             SystemProperties.getInt("ro.ambient.plugged_timeout_min", -1));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Settings.Global.Wearable.PAIRED_DEVICE_OS_TYPE,
                             Settings.Global.Wearable.PAIRED_DEVICE_OS_TYPE_UNKNOWN);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Settings.Global.Wearable.USER_HFP_CLIENT_SETTING,
                             Settings.Global.Wearable.HFP_CLIENT_UNSET);
                     Setting disabledProfileSetting =
@@ -6147,6 +6317,7 @@ public class SettingsProvider extends ContentProvider {
                                     ? 0
                                     : Long.parseLong(disabledProfileSetting.getValue());
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Settings.Global.Wearable.COMPANION_OS_VERSION,
                             Settings.Global.Wearable.COMPANION_OS_VERSION_UNDEFINED);
                     final boolean defaultBurnInProtectionEnabled =
@@ -6155,14 +6326,17 @@ public class SettingsProvider extends ContentProvider {
                     final boolean forceBurnInProtection =
                             SystemProperties.getBoolean("persist.debug.force_burn_in", false);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Settings.Global.Wearable.BURN_IN_PROTECTION_ENABLED,
                             defaultBurnInProtectionEnabled || forceBurnInProtection);
 
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Settings.Global.Wearable.CLOCKWORK_SYSUI_PACKAGE,
                             resources.getString(
                                     com.android.internal.R.string.config_wearSysUiPackage));
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Settings.Global.Wearable.CLOCKWORK_SYSUI_MAIN_ACTIVITY,
                             resources.getString(
                                     com.android.internal.R.string.config_wearSysUiMainActivity));
@@ -6483,10 +6657,12 @@ public class SettingsProvider extends ContentProvider {
                     // Following init logic is rebased from wear OS branch.
                     // Initialize default value of tether configuration to unknown.
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Settings.Global.Wearable.TETHER_CONFIG_STATE,
                             Global.Wearable.TETHERED_CONFIG_UNKNOWN);
                     // Init paired device location setting from resources.
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.OBTAIN_PAIRED_DEVICE_LOCATION,
                             resources.getInteger(R.integer.def_paired_device_location_mode));
                     // Init media packages from resources.
@@ -6497,8 +6673,10 @@ public class SettingsProvider extends ContentProvider {
                             resources.getString(
                                     com.android.internal.R.string.config_wearMediaSessionsPackage);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.WEAR_MEDIA_CONTROLS_PACKAGE, mediaControlsPackage);
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.Wearable.WEAR_MEDIA_SESSIONS_PACKAGE, mediaSessionsPackage);
 
                     currentVersion = 218;
@@ -6560,6 +6738,7 @@ public class SettingsProvider extends ContentProvider {
                                         .getResources()
                                         .getBoolean(R.bool.def_enable_wifi_always_requested);
                         initGlobalSettingsDefaultValLocked(
+                                globalSettings,
                                 Settings.Global.WIFI_ALWAYS_REQUESTED,
                                 defEnableWifiAlwaysRequested);
                     }
@@ -6617,11 +6796,13 @@ public class SettingsProvider extends ContentProvider {
                 // Version 223: make charging constraint update criteria customizable.
                 if (currentVersion == 223) {
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.BATTERY_CHARGING_STATE_UPDATE_DELAY,
                             resources.getInteger(
                                     R.integer.def_battery_charging_state_update_delay_ms));
 
                     initGlobalSettingsDefaultValLocked(
+                            globalSettings,
                             Global.BATTERY_CHARGING_STATE_ENFORCE_LEVEL,
                             resources.getInteger(
                                     R.integer.def_battery_charging_state_enforce_level));
@@ -6804,6 +6985,114 @@ public class SettingsProvider extends ContentProvider {
                     currentVersion = 231;
                 }
 
+                // Version 231: Update the curve for the HDR brightness boost level
+                if (currentVersion == 231) {
+                    Setting hdrBrightnessBoostLevelSetting = secureSettings.getSettingLocked(
+                            Secure.HDR_BRIGHTNESS_BOOST_LEVEL);
+                    if (!hdrBrightnessBoostLevelSetting.isNull()) {
+                        try {
+                            float hdrBrightnessBoostLevel = Float.parseFloat(
+                                    hdrBrightnessBoostLevelSetting.getValue());
+                            if (hdrBrightnessBoostLevel > 0 && hdrBrightnessBoostLevel < 1) {
+                                float ratioScaleFactor = BrightnessUtils.convertGammaToLinear(
+                                        hdrBrightnessBoostLevel);
+                                float newHdrBrightnessBoostLevel = MathUtils.sqrt(
+                                        ratioScaleFactor);
+                                secureSettings.insertSettingLocked(
+                                        Secure.HDR_BRIGHTNESS_BOOST_LEVEL,
+                                        String.valueOf(newHdrBrightnessBoostLevel),
+                                        /* tag= */ null,
+                                        /* makeDefault= */ false,
+                                        SettingsState.SYSTEM_PACKAGE_NAME);
+                            }
+                        } catch (NumberFormatException e) {
+                            secureSettings.deleteSettingLocked(
+                                    Secure.HDR_BRIGHTNESS_BOOST_LEVEL);
+                        }
+                    }
+                    currentVersion = 232;
+                }
+
+                // Version 232: Set the default value for Settings.Global.AIRPLANE_MODE_SYNC
+                if (currentVersion == 232) {
+                    if (com.android.server.connectivity.Flags.syncAirplaneModeWithWatches()) {
+                        initGlobalSettingsDefaultValLocked(
+                                globalSettings,
+                                Global.AIRPLANE_MODE_SYNC,
+                                resources.getBoolean(R.bool.def_airplane_mode_sync_enabled));
+                    }
+
+                    currentVersion = 233;
+                }
+
+                if (currentVersion == 233) {
+                    // Version 233: Migrate ADAPTIVE_CONNECTIVITY_ENABLED to
+                    // ADAPTIVE_CONNECTIVITY_WIFI_ENABLED and
+                    // ADAPTIVE_CONNECTIVITY_MOBILE_NETWORK_ENABLED.
+                    final Setting adaptiveConnectivityEnabled =
+                            secureSettings.getSettingLocked(
+                                    Settings.Secure.ADAPTIVE_CONNECTIVITY_ENABLED);
+                    if (!adaptiveConnectivityEnabled.isNull()) {
+                        String value = adaptiveConnectivityEnabled.getValue();
+                        secureSettings.insertSettingOverrideableByRestoreLocked(
+                                Settings.Secure.ADAPTIVE_CONNECTIVITY_WIFI_ENABLED,
+                                value,
+                                null,
+                                true,
+                                SettingsState.SYSTEM_PACKAGE_NAME);
+                        secureSettings.insertSettingOverrideableByRestoreLocked(
+                                Settings.Secure.ADAPTIVE_CONNECTIVITY_MOBILE_NETWORK_ENABLED,
+                                value,
+                                null,
+                                true,
+                                SettingsState.SYSTEM_PACKAGE_NAME);
+                        secureSettings.deleteSettingLocked(
+                                Settings.Secure.ADAPTIVE_CONNECTIVITY_ENABLED);
+                    }
+                    currentVersion = 234;
+                }
+
+                if (currentVersion == 234) {
+                    // Version 234: Add AMBIENT_OFFWRIST_TIMEOUT for Wear charging experience
+                    // AMBIENT_OFFWRIST_TIMEOUT_MIN
+                    initGlobalSettingsDefaultValLocked(
+                            globalSettings,
+                            Settings.Global.Wearable.AMBIENT_OFFWRIST_TIMEOUT_MIN,
+                            SystemProperties.getInt("ro.ambient.offwrist_timeout_min", -1));
+
+                    currentVersion = 235;
+                }
+
+                // Version 235: Migrate the value of TEXT_SHOW_PASSWORD to TEXT_SHOW_PASSWORD_TOUCH.
+                if (currentVersion == 235) {
+                    final Setting showPasswordSetting =
+                            systemSettings.getSettingLocked(Settings.System.TEXT_SHOW_PASSWORD);
+
+                    if (!showPasswordSetting.isNull()) {
+                        final String lastUpdatedBy = showPasswordSetting.getPackageName();
+                        if (SettingsState.SYSTEM_PACKAGE_NAME.equals(lastUpdatedBy)) {
+                            // Skip migration and clear setting: it was set by the system during the
+                            // version 230 upgrade, not by the user.
+                            systemSettings.deleteSettingLocked(Settings.System.TEXT_SHOW_PASSWORD);
+                        } else {
+                            // Preserve the user's custom preference for TEXT_SHOW_PASSWORD by
+                            // migrating it to TEXT_SHOW_PASSWORD_TOUCH.
+                            String value = showPasswordSetting.getValue();
+                            secureSettings.insertSettingOverrideableByRestoreLocked(
+                                    Settings.Secure.TEXT_SHOW_PASSWORD_TOUCH,
+                                    value,
+                                    null,
+                                    true,
+                                    SettingsState.SYSTEM_PACKAGE_NAME);
+                            // We don't migrate the value for the PHYSICAL setting as this can be
+                            // considered new. Also some vendors may chose to not expose the
+                            // physical setting at all and we don't want the user to be stuck on
+                            // these devices.
+                        }
+                    }
+                    currentVersion = 236;
+                }
+
                 // vXXX: Add new settings above this point.
 
                 if (currentVersion != newVersion) {
@@ -6849,20 +7138,23 @@ public class SettingsProvider extends ContentProvider {
                 }
             }
 
-            private void initGlobalSettingsDefaultValLocked(String key, boolean val) {
-                initGlobalSettingsDefaultValLocked(key, val ? "1" : "0");
+            private void initGlobalSettingsDefaultValLocked(
+                    SettingsState globalSettings, String key, boolean val) {
+                initGlobalSettingsDefaultValLocked(globalSettings, key, val ? "1" : "0");
             }
 
-            private void initGlobalSettingsDefaultValLocked(String key, int val) {
-                initGlobalSettingsDefaultValLocked(key, String.valueOf(val));
+            private void initGlobalSettingsDefaultValLocked(
+                    SettingsState globalSettings, String key, int val) {
+                initGlobalSettingsDefaultValLocked(globalSettings, key, String.valueOf(val));
             }
 
-            private void initGlobalSettingsDefaultValLocked(String key, long val) {
-                initGlobalSettingsDefaultValLocked(key, String.valueOf(val));
+            private void initGlobalSettingsDefaultValLocked(
+                    SettingsState globalSettings, String key, long val) {
+                initGlobalSettingsDefaultValLocked(globalSettings, key, String.valueOf(val));
             }
 
-            private void initGlobalSettingsDefaultValLocked(String key, String val) {
-                final SettingsState globalSettings = getGlobalSettingsLocked();
+            private void initGlobalSettingsDefaultValLocked(
+                    SettingsState globalSettings, String key, String val) {
                 Setting currentSetting = globalSettings.getSettingLocked(key);
                 if (currentSetting.isNull()) {
                     globalSettings.insertSettingOverrideableByRestoreLocked(

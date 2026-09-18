@@ -51,29 +51,29 @@ public class ActivityManagerTest extends AndroidTestCase {
     // TODO should write a test for getRecentTasks()
     // TODO should write a test for getRunningTasks()
     // TODO should write a test for getMemoryInfo()
-    
+
     // TODO: Find a way to re-enable this.  It fails if any other app has failed during startup.
     // This is probably an OK assumption given the desired system status when we run unit tests,
     // but it's not necessarily the right assumption for a unit test.
     @Suppress
     public void disabledTestErrorTasksEmpty() throws Exception {
-        
+
         List<ActivityManager.ProcessErrorStateInfo> errList;
-        
+
         errList = mActivityManager.getProcessesInErrorState();
-        
+
         // test: confirm list is empty
         assertNull(errList);
     }
-    
+
     // TODO: Force an activity into an error state - then see if we can catch it here?
     @SmallTest
     public void testErrorTasksWithError() throws Exception {
-        
+
         List<ActivityManager.ProcessErrorStateInfo> errList;
-        
+
         // TODO force another process into an error condition.  How?
-        
+
         // test: confirm error list length is at least 1 under varying query lengths
 //      checkErrorListMax(1,-1);
 
@@ -84,15 +84,15 @@ public class ActivityManagerTest extends AndroidTestCase {
 
         // test: confirm our application shows up in the list
     }
-    
+
     // TODO: Force an activity into an ANR state - then see if we can catch it here?
     @SmallTest
     public void testErrorTasksWithANR() throws Exception {
-        
+
         List<ActivityManager.ProcessErrorStateInfo> errList;
-        
+
         // TODO: force an application into an ANR state
-        
+
         errList = mActivityManager.getProcessesInErrorState();
 
         // test: the list itself is healthy
@@ -100,7 +100,7 @@ public class ActivityManagerTest extends AndroidTestCase {
 
         // test: confirm our ANR'ing application shows up in the list
     }
-    
+
     @SmallTest
     public void testGetDeviceConfigurationInfo() throws Exception {
         ConfigurationInfo config = mActivityManager.getDeviceConfigurationInfo();
@@ -117,7 +117,8 @@ public class ActivityManagerTest extends AndroidTestCase {
     public void testTaskDescriptionCopyFrom() {
         TaskDescription td1 = new TaskDescription(
                 "test label",            // label
-                Icon.createWithResource(mContext.getPackageName(), 21), // icon
+                Icon.createWithResource(mContext.getPackageName(), 21),  // icon
+                Icon.createWithResource(mContext.getPackageName(), 212), // badge
                 0x111111,                // colorPrimary
                 0x222222,                // colorBackground
                 0x333333,                // statusBarColor
@@ -143,7 +144,8 @@ public class ActivityManagerTest extends AndroidTestCase {
     public void testTaskDescriptionCopyFromPreserveHiddenFields() {
         TaskDescription td1 = new TaskDescription(
                 "test label",              // label
-                Icon.createWithResource(mContext.getPackageName(), 21), // icon
+                Icon.createWithResource(mContext.getPackageName(), 21),  // icon
+                Icon.createWithResource(mContext.getPackageName(), 212), // badge
                 0x111111,                  // colorPrimary
                 0x222222,                  // colorBackground
                 0x333333,                  // statusBarColor
@@ -161,6 +163,7 @@ public class ActivityManagerTest extends AndroidTestCase {
         TaskDescription td2 = new TaskDescription(
                 "test label2",           // label
                 Icon.createWithResource(mContext.getPackageName(), 212), // icon
+                Icon.createWithResource(mContext.getPackageName(), 21),  // badge
                 0x1111112,               // colorPrimary
                 0x2222222,               // colorBackground
                 0x3333332,               // statusBarColor
@@ -192,7 +195,8 @@ public class ActivityManagerTest extends AndroidTestCase {
     public void testTaskDescriptionParceling() throws Exception {
         TaskDescription tdBitmapNull = new TaskDescription(
                 "test label",              // label
-                Icon.createWithResource(mContext.getPackageName(), 21), // icon
+                Icon.createWithResource(mContext.getPackageName(), 21),  // icon
+                Icon.createWithResource(mContext.getPackageName(), 212), // badge
                 0x111111,                  // colorPrimary
                 0x222222,                  // colorBackground
                 0x333333,                  // statusBarColor
@@ -217,6 +221,7 @@ public class ActivityManagerTest extends AndroidTestCase {
         TaskDescription tdBitmapRecycled = new TaskDescription(
                 "test label",              // label
                 Icon.createWithBitmap(recycledBitmap), // icon
+                null,                      // badge
                 0x111111,                  // colorPrimary
                 0x222222,                  // colorBackground
                 0x333333,                  // statusBarColor
@@ -284,7 +289,7 @@ public class ActivityManagerTest extends AndroidTestCase {
     // If any entries in appear in the list, validity check them against all running applications
     private void checkErrorListSanity(List<ActivityManager.ProcessErrorStateInfo> errList) {
         if (errList == null) return;
-        
+
         Iterator<ActivityManager.ProcessErrorStateInfo> iter = errList.iterator();
         while (iter.hasNext()) {
             ActivityManager.ProcessErrorStateInfo info = iter.next();
@@ -299,7 +304,7 @@ public class ActivityManagerTest extends AndroidTestCase {
             // reasonableness test for info.pid ?
             assertNotNull(info.longMsg);
             assertNotNull(info.shortMsg);
-            // is there any reasonable test for the crashData?  Probably not. 
+            // is there any reasonable test for the crashData?  Probably not.
         }
     }
 }

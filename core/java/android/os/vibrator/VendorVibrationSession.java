@@ -16,9 +16,6 @@
 
 package android.os.vibrator;
 
-import static android.os.vibrator.Flags.FLAG_VENDOR_VIBRATION_EFFECTS;
-
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -52,8 +49,8 @@ import java.util.Objects;
  * @see Vibrator#startVendorSession
  * @hide
  */
-@FlaggedApi(FLAG_VENDOR_VIBRATION_EFFECTS)
 @SystemApi
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class VendorVibrationSession implements AutoCloseable {
     private static final String TAG = "VendorVibrationSession";
 

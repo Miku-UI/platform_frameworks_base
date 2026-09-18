@@ -236,6 +236,11 @@ public class DvrRecorder implements AutoCloseable {
      */
     @Override
     public void close() {
+        synchronized (mListenerLock) {
+            mExecutor = null;
+            mListener = null;
+        }
+
         int res = nativeClose();
         if (res != Tuner.RESULT_SUCCESS) {
             TunerUtils.throwExceptionForResult(res, "failed to close DVR recorder");

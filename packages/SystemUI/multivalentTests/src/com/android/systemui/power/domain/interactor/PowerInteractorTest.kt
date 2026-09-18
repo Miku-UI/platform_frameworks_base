@@ -21,10 +21,15 @@ import android.os.PowerManager
 import android.view.Display
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.camera.cameraGestureHelper
 import com.android.systemui.classifier.FalsingCollector
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.deviceentry.data.repository.deviceEntryRepository
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
+import com.android.systemui.deviceentry.shared.model.DeviceUnlockStatus
+import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.FakeKeyguardRepository
 import com.android.systemui.keyguard.domain.interactor.dozeInteractor
 import com.android.systemui.kosmos.testScope
@@ -34,6 +39,8 @@ import com.android.systemui.power.data.repository.fakePowerRepository
 import com.android.systemui.power.shared.model.DozeScreenStateModel
 import com.android.systemui.power.shared.model.WakeSleepReason
 import com.android.systemui.power.shared.model.WakefulnessState
+import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.statusbar.phone.ScreenOffAnimationController
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.any
@@ -41,6 +48,8 @@ import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
 import junit.framework.Assert.assertFalse
 import junit.framework.Assert.assertTrue
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -62,6 +71,7 @@ class PowerInteractorTest : SysuiTestCase() {
     @Mock private lateinit var falsingCollector: FalsingCollector
     @Mock private lateinit var screenOffAnimationController: ScreenOffAnimationController
     @Mock private lateinit var statusBarStateController: StatusBarStateController
+    @Mock private lateinit var deviceEntryInteractor: DeviceEntryInteractor
 
     @Before
     fun setUp() {
@@ -74,6 +84,7 @@ class PowerInteractorTest : SysuiTestCase() {
                 screenOffAnimationController,
                 statusBarStateController,
                 { cameraGestureHelper },
+                { deviceEntryInteractor },
             )
 
         whenever(cameraGestureHelper.canCameraGestureBeLaunched(any())).thenReturn(true)
@@ -274,6 +285,88 @@ class PowerInteractorTest : SysuiTestCase() {
         assertThat(repository.wakefulness.value.lastWakeReason)
             .isEqualTo(WakeSleepReason.POWER_BUTTON)
         assertTrue(repository.wakefulness.value.powerButtonLaunchGestureTriggered)
+    }
+
+    @Test
+    @EnableSceneContainer
+    fun deviceEnteredOnGoingToSleep_fromUnlockedShade_thenClearedOnNextFinishedWakingUp() {
+        // Unlocked and in Gone
+        whenever(deviceEntryInteractor.isDeviceEntered).thenReturn(MutableStateFlow(true))
+        kosmos.sceneInteractor.setTransitionState(
+            flowOf(ObservableTransitionState.Idle(Scenes.Shade))
+        )
+
+        underTest.onStartedGoingToSleep(PowerManager.WAKE_REASON_POWER_BUTTON)
+        assertTrue(repository.wakefulness.value.asleepOrWakingFromPreviouslyEnteredDevice() == true)
+        underTest.onFinishedGoingToSleep(false)
+
+        underTest.onStartedWakingUp(
+            PowerManager.WAKE_REASON_POWER_BUTTON,
+            /*powerButtonLaunchGestureTriggeredDuringSleep= */ false,
+        )
+        underTest.onFinishedWakingUp()
+        assertTrue(
+            repository.wakefulness.value.asleepOrWakingFromPreviouslyEnteredDevice() == false
+        )
+    }
+
+    @Test
+    @EnableSceneContainer
+    fun deviceEnteredOnGoingToSleep_fromGone_thenClearedOnNextFinishedWakingUp() {
+        // Unlocked and in Gone
+        whenever(deviceEntryInteractor.isDeviceEntered).thenReturn(MutableStateFlow(true))
+        kosmos.sceneInteractor.setTransitionState(
+            flowOf(ObservableTransitionState.Idle(Scenes.Gone))
+        )
+
+        underTest.onStartedGoingToSleep(PowerManager.WAKE_REASON_POWER_BUTTON)
+        assertTrue(repository.wakefulness.value.asleepOrWakingFromPreviouslyEnteredDevice() == true)
+        underTest.onFinishedGoingToSleep(false)
+
+        underTest.onStartedWakingUp(
+            PowerManager.WAKE_REASON_POWER_BUTTON,
+            /*powerButtonLaunchGestureTriggeredDuringSleep= */ false,
+        )
+        underTest.onFinishedWakingUp()
+        assertTrue(
+            repository.wakefulness.value.asleepOrWakingFromPreviouslyEnteredDevice() == false
+        )
+    }
+
+    @Test
+    @EnableSceneContainer
+    fun deviceNotEnteredOnGoingToSleep_fromShade_stillNotEntered() {
+        // Unlocked and in Gone
+        whenever(deviceEntryInteractor.isDeviceEntered).thenReturn(MutableStateFlow(false))
+        kosmos.sceneInteractor.setTransitionState(
+            flowOf(ObservableTransitionState.Idle(Scenes.Shade))
+        )
+
+        underTest.onStartedGoingToSleep(PowerManager.WAKE_REASON_POWER_BUTTON)
+        assertTrue(
+            repository.wakefulness.value.asleepOrWakingFromPreviouslyEnteredDevice() == false
+        )
+        underTest.onFinishedGoingToSleep(false)
+
+        underTest.onStartedWakingUp(
+            PowerManager.WAKE_REASON_POWER_BUTTON,
+            /*powerButtonLaunchGestureTriggeredDuringSleep= */ false,
+        )
+        underTest.onFinishedWakingUp()
+        assertTrue(
+            repository.wakefulness.value.asleepOrWakingFromPreviouslyEnteredDevice() == false
+        )
+
+        kosmos.deviceEntryRepository.deviceUnlockStatus.value = DeviceUnlockStatus(false, null)
+        kosmos.sceneInteractor.setTransitionState(
+            flowOf(ObservableTransitionState.Idle(Scenes.Lockscreen))
+        )
+
+        whenever(deviceEntryInteractor.isDeviceEntered).thenReturn(MutableStateFlow(false))
+        underTest.onStartedGoingToSleep(PowerManager.WAKE_REASON_POWER_BUTTON)
+        assertTrue(
+            repository.wakefulness.value.asleepOrWakingFromPreviouslyEnteredDevice() == false
+        )
     }
 
     @Test

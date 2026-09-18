@@ -21,6 +21,7 @@ import static com.android.providers.settings.SettingsBackupRestoreKeys.KEY_GLOBA
 import static com.android.providers.settings.SettingsBackupRestoreKeys.KEY_LOCALE;
 import static com.android.providers.settings.SettingsBackupRestoreKeys.KEY_LOCK_SETTINGS;
 import static com.android.providers.settings.SettingsBackupRestoreKeys.KEY_NETWORK_POLICIES;
+import static com.android.providers.settings.SettingsBackupRestoreKeys.KEY_PLATFORM_MANAGED_SIM_PINS;
 import static com.android.providers.settings.SettingsBackupRestoreKeys.KEY_SECURE;
 import static com.android.providers.settings.SettingsBackupRestoreKeys.KEY_SIM_SPECIFIC_SETTINGS;
 import static com.android.providers.settings.SettingsBackupRestoreKeys.KEY_SIM_SPECIFIC_SETTINGS_2;
@@ -37,6 +38,7 @@ import android.app.backup.BackupDataInput;
 import android.app.backup.BackupDataOutput;
 import android.app.backup.BackupRestoreEventLogger;
 import android.app.backup.FullBackupDataOutput;
+import android.app.compat.CompatChanges;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.ContentValues;
@@ -64,6 +66,7 @@ import android.provider.settings.validators.SecureSettingsValidators;
 import android.provider.settings.validators.SystemSettingsValidators;
 import android.provider.settings.validators.Validator;
 import android.telephony.SubscriptionManager;
+import android.text.ShowSecretsSetting;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.BackupUtils;
@@ -135,8 +138,9 @@ public class SettingsBackupAgent extends BackupAgentHelper {
     private static final int STATE_DEVICE_CONFIG         = 10;
     private static final int STATE_SIM_SPECIFIC_SETTINGS = 11;
     private static final int STATE_WIFI_SETTINGS         = 12;
+    private static final int STATE_PLATFORM_MANAGED_SIM_PINS = 13;
 
-    private static final int STATE_SIZE                  = 13; // The current number of state items
+    private static final int STATE_SIZE                  = 14; // The current number of state items
 
     // Number of entries in the checksum array at various version numbers
     private static final int STATE_SIZES[] = {
@@ -150,7 +154,8 @@ public class SettingsBackupAgent extends BackupAgentHelper {
             10,             // version 7 added STATE_WIFI_NEW_CONFIG
             11,             // version 8 added STATE_DEVICE_CONFIG
             12,             // version 9 added STATE_SIM_SPECIFIC_SETTINGS
-            STATE_SIZE      // version 10 added STATE_WIFI_SETTINGS
+            13,             // version 10 added STATE_WIFI_SETTINGS
+            STATE_SIZE,     // version 11 added STATE_PLATFORM_MANAGED_SIM_PINS
     };
 
     private static final int FULL_BACKUP_ADDED_GLOBAL = 2;  // added the "global" entry
@@ -226,7 +231,8 @@ public class SettingsBackupAgent extends BackupAgentHelper {
         "failed_to_retrieve_wifi_settings_backup_data";
     private static final String ERROR_FAILED_TO_RESTORE_WIFI_SETTINGS_BACKUP_DATA =
         "failed_to_restore_wifi_settings_backup_data";
-
+    private static final String ERROR_FAILED_TO_RESTORE_PLATFORM_MANAGED_SIM_PINS =
+            "failed_to_restore_platform_managed_sim_pins";
 
     // Name of the temporary file we use during full backup/restore.  This is
     // stored in the full-backup tarfile as well, so should not be changed.
@@ -250,6 +256,8 @@ public class SettingsBackupAgent extends BackupAgentHelper {
     // Version of the SDK that com.android.providers.settings package has been restored from.
     // Populated in onRestore().
     private int mRestoredFromSdkInt;
+
+    private boolean mIsShowPasswordsTouchRestored;
 
     // The available font scale for the current device
     @Nullable
@@ -308,6 +316,9 @@ public class SettingsBackupAgent extends BackupAgentHelper {
         byte[] deviceSpecificInformation = getDeviceSpecificConfiguration();
         byte[] simSpecificSettingsData = getSimSpecificSettingsData();
         byte[] wifiSettingsData = getWifiSettingsBackupData();
+        byte[] platformManagedSimPins = getPlatformManagedSimPinsData(
+                (data.getTransportFlags() & (FLAG_DEVICE_TO_DEVICE_TRANSFER
+                        | FLAG_CLIENT_SIDE_ENCRYPTION_ENABLED)) != 0);
 
         long[] stateChecksums = readOldChecksums(oldState);
 
@@ -346,6 +357,9 @@ public class SettingsBackupAgent extends BackupAgentHelper {
         stateChecksums[STATE_WIFI_SETTINGS] =
                 writeIfChanged(stateChecksums[STATE_WIFI_SETTINGS],
                         KEY_WIFI_SETTINGS_BACKUP_DATA, wifiSettingsData, data);
+        stateChecksums[STATE_PLATFORM_MANAGED_SIM_PINS] =
+                writeIfChanged(stateChecksums[STATE_PLATFORM_MANAGED_SIM_PINS],
+                        KEY_PLATFORM_MANAGED_SIM_PINS, platformManagedSimPins, data);
 
         writeNewChecksums(stateChecksums, newState);
     }
@@ -379,6 +393,9 @@ public class SettingsBackupAgent extends BackupAgentHelper {
 
         // versionCode of com.android.providers.settings corresponds to SDK_INT
         mRestoredFromSdkInt = (int) appVersionCode;
+
+        // Reset the flag before starting the restore process.
+        mIsShowPasswordsTouchRestored = false;
 
         Set<String> movedToGlobal = getMovedToGlobalSettings();
         Set<String> movedToSecure = getMovedToSecureSettings();
@@ -504,6 +521,11 @@ public class SettingsBackupAgent extends BackupAgentHelper {
                         restoreWifiData(restoredWifiData);
                     }
                     break;
+                case KEY_PLATFORM_MANAGED_SIM_PINS:
+                    byte[] restoredPlatformManagedPins = new byte[size];
+                    data.readEntityData(restoredPlatformManagedPins, 0, size);
+                    restorePlatformManagedSimPins(restoredPlatformManagedPins);
+                    break;
                 default :
                     data.skipEntityData();
 
@@ -539,6 +561,9 @@ public class SettingsBackupAgent extends BackupAgentHelper {
         int version = in.readInt();
         if (DEBUG_BACKUP) Log.d(TAG, "Flattened data version " + version);
         if (version <= FULL_BACKUP_VERSION) {
+            // Reset the flag before starting the restore process.
+            mIsShowPasswordsTouchRestored = false;
+
             // Generate the moved-to-global lookup table
             Set<String> movedToGlobal = getMovedToGlobalSettings();
             Set<String> movedToSecure = getMovedToSecureSettings();
@@ -974,7 +999,7 @@ public class SettingsBackupAgent extends BackupAgentHelper {
             boolean isSettingPreserved = settingsToPreserve.contains(
                     getQualifiedKeyForSetting(key, contentUri));
             if (isSettingPreserved && !Settings.Secure.NAVIGATION_MODE.equals(key)) {
-                Log.i(TAG, "Skipping restore for setting " + key + " as it is marked as "
+                Log.w(TAG, "Skipping restore for setting " + key + " as it is marked as "
                         + "preserved");
                 mBackupRestoreEventLogger.logItemsRestoreFailed(
                         settingsKey, /* count= */ 1, ERROR_SKIPPED_PRESERVED);
@@ -1140,6 +1165,37 @@ public class SettingsBackupAgent extends BackupAgentHelper {
                 Log.d(TAG, "Restored text cursor blink from: " + toRestore + " to " + value);
             }
 
+            if (com.android.text.flags.Flags.splitShowPasswordsToTouchAndPhysical()
+                    && CompatChanges.isChangeEnabled(
+                            ShowSecretsSetting.SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)) {
+                // Synchronize the legacy TEXT_SHOW_PASSWORD setting and the new
+                // TEXT_SHOW_PASSWORD_TOUCH setting.
+                // If both settings exist in the backup, the touch setting's value is applied to
+                // both.
+                // If only one of the settings is present, its value is mirrored to the other.
+                if (Settings.System.TEXT_SHOW_PASSWORD.equals(key)) {
+                    if (mIsShowPasswordsTouchRestored) {
+                        // Skipping TEXT_SHOW_PASSWORD restore because TEXT_SHOW_PASSWORD_TOUCH was
+                        // already restored.
+                        continue;
+                    }
+                    // Mirror the restoring legacy setting to the touch setting.
+                    ContentValues touchValues = new ContentValues(2);
+                    touchValues.put(
+                            Settings.NameValueTable.NAME, Settings.Secure.TEXT_SHOW_PASSWORD_TOUCH);
+                    touchValues.put(Settings.NameValueTable.VALUE, value);
+                    cr.insert(Settings.Secure.CONTENT_URI, touchValues);
+                } else if (Settings.Secure.TEXT_SHOW_PASSWORD_TOUCH.equals(key)) {
+                    mIsShowPasswordsTouchRestored = true;
+                    // Mirror the restoring touch setting to the legacy setting.
+                    ContentValues legacyValues = new ContentValues(2);
+                    legacyValues.put(
+                            Settings.NameValueTable.NAME, Settings.System.TEXT_SHOW_PASSWORD);
+                    legacyValues.put(Settings.NameValueTable.VALUE, value);
+                    cr.insert(Settings.System.CONTENT_URI, legacyValues);
+                }
+            }
+
             settingsHelper.restoreValue(this, cr, contentValues, destination, key, value,
                     mRestoredFromSdkInt);
 
@@ -1176,37 +1232,34 @@ public class SettingsBackupAgent extends BackupAgentHelper {
             @NonNull int[] blinkIntervals,
             int noBlinkInterval,
             int defaultBlinkInterval) {
-        if (android.view.accessibility.Flags.textCursorBlinkInterval()) {
-            int requestedValue;
-            try {
-                requestedValue = Integer.parseInt(requestedBlinkInterval);
-            } catch (NumberFormatException exception) {
-                Log.d(TAG, "Encountered NumberFormatException when parsing setting for blink "
-                        + "interval. Restoring to default blink interval value.");
-                return String.valueOf(defaultBlinkInterval);
-            }
-
-            if (requestedValue <= noBlinkInterval) {
-                return String.valueOf(noBlinkInterval);
-            }
-
-            // Whatever is the requested value, we search for the value in the array that is equal
-            // or next largest.
-            int candidate = -1;
-            boolean blinkIntervalFound = false;
-            for (int i = 0; !blinkIntervalFound && i < blinkIntervals.length; i++) {
-                final int blinkInterval = blinkIntervals[i];
-                if (blinkInterval >= requestedValue) {
-                    candidate = blinkInterval;
-                    blinkIntervalFound = true;
-                }
-            }
-            // If the current value is greater than all the allowed ones, we return the
-            // largest possible.
-            return blinkIntervalFound ? String.valueOf(candidate) : String.valueOf(
-                    blinkIntervals[blinkIntervals.length - 1]);
+        int requestedValue;
+        try {
+            requestedValue = Integer.parseInt(requestedBlinkInterval);
+        } catch (NumberFormatException exception) {
+            Log.d(TAG, "Encountered NumberFormatException when parsing setting for blink "
+                    + "interval. Restoring to default blink interval value.");
+            return String.valueOf(defaultBlinkInterval);
         }
-        return String.valueOf(defaultBlinkInterval);
+
+        if (requestedValue <= noBlinkInterval) {
+            return String.valueOf(noBlinkInterval);
+        }
+
+        // Whatever is the requested value, we search for the value in the array that is equal
+        // or next largest.
+        int candidate = -1;
+        boolean blinkIntervalFound = false;
+        for (int i = 0; !blinkIntervalFound && i < blinkIntervals.length; i++) {
+            final int blinkInterval = blinkIntervals[i];
+            if (blinkInterval >= requestedValue) {
+                candidate = blinkInterval;
+                blinkIntervalFound = true;
+            }
+        }
+        // If the current value is greater than all the allowed ones, we return the
+        // largest possible.
+        return blinkIntervalFound ? String.valueOf(candidate) : String.valueOf(
+                blinkIntervals[blinkIntervals.length - 1]);
     }
 
     @VisibleForTesting
@@ -1704,6 +1757,31 @@ public class SettingsBackupAgent extends BackupAgentHelper {
     }
 
     @VisibleForTesting
+    byte[] getPlatformManagedSimPinsData(boolean isEncryptedOrDeviceToDevice) {
+        PackageManager packageManager = getBaseContext().getPackageManager();
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)
+                || !packageManager.hasSystemFeature(
+                PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION)) {
+            return new byte[0];
+        }
+
+        if (!android.security.Flags.autoSimPinManagement()) {
+            return new byte[0];
+        }
+
+        if (!isEncryptedOrDeviceToDevice) {
+            Log.w(TAG, "Refusing to back up PINs to unencrypted backup");
+            return new byte[0];
+        }
+
+        SubscriptionManager subManager = getBaseContext().getSystemService(
+                SubscriptionManager.class);
+        byte[] platformManagedPins = subManager.getAllPlatformManagedPins();
+        numberOfSettingsPerKey.put(KEY_PLATFORM_MANAGED_SIM_PINS, 1);
+        return platformManagedPins;
+    }
+
+    @VisibleForTesting
     void restoreSimSpecificSettings(byte[] data) {
         PackageManager packageManager = getBaseContext().getPackageManager();
         boolean hasTelephony = packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY);
@@ -1720,6 +1798,35 @@ public class SettingsBackupAgent extends BackupAgentHelper {
                         /* count= */ 1,
                         ERROR_FAILED_TO_RESTORE_SIM_SPECIFIC_SETTINGS);
             }
+        }
+    }
+
+    @VisibleForTesting
+    void restorePlatformManagedSimPins(byte[] data) {
+        PackageManager packageManager = getBaseContext().getPackageManager();
+        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_TELEPHONY)
+                || !packageManager.hasSystemFeature(
+                PackageManager.FEATURE_TELEPHONY_SUBSCRIPTION)) {
+            Log.i(TAG, "Skipping restoring platform-managed PINs; no telephony feature.");
+            return;
+        }
+
+        if (!android.security.Flags.autoSimPinManagement()) {
+            return;
+        }
+
+        SubscriptionManager subManager = getBaseContext().getSystemService(
+                SubscriptionManager.class);
+        try {
+            subManager.restorePlatformManagedSimPinsFromBackup(data);
+            mBackupRestoreEventLogger
+                    .logItemsRestored(KEY_PLATFORM_MANAGED_SIM_PINS, /* count= */ 1);
+        } catch (Exception e) {
+            mBackupRestoreEventLogger
+                    .logItemsRestoreFailed(
+                            KEY_PLATFORM_MANAGED_SIM_PINS,
+                            /* count= */ 1,
+                            ERROR_FAILED_TO_RESTORE_PLATFORM_MANAGED_SIM_PINS);
         }
     }
 

@@ -17,9 +17,11 @@ package com.android.systemui.unfold.progress
 
 import android.animation.Animator
 import android.animation.ObjectAnimator
+import android.os.Handler
 import android.util.FloatProperty
 import com.android.systemui.unfold.UnfoldTransitionProgressProvider
 import com.android.systemui.unfold.UnfoldTransitionProgressProvider.TransitionProgressListener
+import com.android.systemui.unfold.dagger.UnfoldMain
 import com.android.systemui.unfold.updates.FOLD_UPDATE_FINISH_CLOSED
 import com.android.systemui.unfold.updates.FoldStateProvider
 import com.android.systemui.unfold.updates.FoldStateProvider.FoldUpdate
@@ -28,7 +30,10 @@ import javax.inject.Inject
 /** Emits animation progress with fixed timing after unfolding */
 internal class FixedTimingTransitionProgressProvider
 @Inject
-constructor(private val foldStateProvider: FoldStateProvider) :
+constructor(
+    private val foldStateProvider: FoldStateProvider,
+    @param:UnfoldMain private val mainHandler: Handler,
+) :
     UnfoldTransitionProgressProvider, FoldStateProvider.FoldUpdatesListener {
 
     private val animatorListener = AnimatorListener()
@@ -58,13 +63,17 @@ constructor(private val foldStateProvider: FoldStateProvider) :
     }
 
     override fun onFoldUpdate(@FoldUpdate update: Int) {
-        if (update == FOLD_UPDATE_FINISH_CLOSED) {
-             animator.cancel()
+        mainHandler.post {
+            if (update == FOLD_UPDATE_FINISH_CLOSED) {
+                animator.cancel()
+            }
         }
     }
 
     override fun onUnfoldedScreenAvailable() {
-        animator.start()
+        mainHandler.post {
+            animator.start()
+        }
     }
 
     override fun addCallback(listener: TransitionProgressListener) {

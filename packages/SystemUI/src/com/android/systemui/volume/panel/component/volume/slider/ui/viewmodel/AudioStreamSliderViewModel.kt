@@ -27,7 +27,6 @@ import com.android.settingslib.volume.domain.interactor.AudioVolumeInteractor
 import com.android.settingslib.volume.shared.model.AudioStream
 import com.android.settingslib.volume.shared.model.AudioStreamModel
 import com.android.settingslib.volume.shared.model.RingerMode
-import com.android.systemui.Flags
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.dagger.qualifiers.UiBackground
 import com.android.systemui.haptics.slider.SliderHapticFeedbackFilter
@@ -83,6 +82,7 @@ constructor(
             AudioStream(AudioManager.STREAM_RING) to R.string.stream_ring,
             AudioStream(AudioManager.STREAM_NOTIFICATION) to R.string.stream_notification,
             AudioStream(AudioManager.STREAM_ALARM) to R.string.stream_alarm,
+            AudioStream(AudioManager.STREAM_ACCESSIBILITY) to R.string.stream_accessibility,
         )
     private val uiEventByStream =
         mapOf(
@@ -96,6 +96,8 @@ constructor(
                 VolumePanelUiEvent.VOLUME_PANEL_NOTIFICATION_SLIDER_TOUCHED,
             AudioStream(AudioManager.STREAM_ALARM) to
                 VolumePanelUiEvent.VOLUME_PANEL_ALARM_SLIDER_TOUCHED,
+            AudioStream(AudioManager.STREAM_ACCESSIBILITY) to
+                VolumePanelUiEvent.VOLUME_PANEL_ACCESSIBILITY_SLIDER_TOUCHED,
         )
 
     override val slider: StateFlow<SliderState> =
@@ -251,11 +253,7 @@ constructor(
         inAudioSharing: Boolean,
         primaryDevice: CachedBluetoothDevice?,
     ): String =
-        if (
-            Flags.showAudioSharingSliderInVolumePanel() &&
-                audioStream.value == AudioManager.STREAM_MUSIC &&
-                inAudioSharing
-        ) {
+        if (audioStream.value == AudioManager.STREAM_MUSIC && inAudioSharing) {
             primaryDevice?.name ?: context.getString(R.string.stream_music)
         } else {
             labelsByStream[audioStream]?.let(context::getString)
@@ -275,11 +273,7 @@ constructor(
                         R.drawable.ic_volume_off
                     }
                 } else {
-                    if (
-                        Flags.showAudioSharingSliderInVolumePanel() &&
-                            audioStream.value == AudioManager.STREAM_MUSIC &&
-                            inAudioSharing
-                    ) {
+                    if (audioStream.value == AudioManager.STREAM_MUSIC && inAudioSharing) {
                         R.drawable.ic_volume_media_bt_mute
                     } else {
                         R.drawable.ic_volume_off
@@ -299,13 +293,14 @@ constructor(
     private fun getIconByStream(audioStream: AudioStream, inAudioSharing: Boolean): Int =
         when (audioStream.value) {
             AudioManager.STREAM_MUSIC ->
-                if (Flags.showAudioSharingSliderInVolumePanel() && inAudioSharing) {
+                if (inAudioSharing) {
                     R.drawable.ic_volume_media_bt
                 } else R.drawable.ic_music_note
             AudioManager.STREAM_VOICE_CALL -> R.drawable.ic_call
             AudioManager.STREAM_RING -> R.drawable.ic_ring_volume
             AudioManager.STREAM_NOTIFICATION -> R.drawable.ic_volume_ringer
             AudioManager.STREAM_ALARM -> R.drawable.ic_volume_alarm
+            AudioManager.STREAM_ACCESSIBILITY -> R.drawable.ic_volume_accessibility
             else -> {
                 Log.wtf(TAG, "No icon for the stream: $audioStream")
                 R.drawable.ic_music_note
@@ -361,6 +356,7 @@ object AudioStreamSliderTestTags {
             AudioStream(AudioManager.STREAM_RING) to "Ring",
             AudioStream(AudioManager.STREAM_NOTIFICATION) to "Notification",
             AudioStream(AudioManager.STREAM_ALARM) to "Alarm",
+            AudioStream(AudioManager.STREAM_ACCESSIBILITY) to "Accessibility",
         )
 
     fun testTag(audioStream: AudioStream): String =

@@ -20,54 +20,111 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="dock_alignment_slow_charging" product="default" msgid="6997633396534416792">"더 빠르게 충전하려면 스마트폰을 다시 배치하세요."</string>
+    <string name="dock_alignment_slow_charging" product="desktop" msgid="3407039002024253081">"급속 충전을 사용하려면 기기의 위치를 조정하세요."</string>
     <string name="dock_alignment_not_charging" product="default" msgid="3980752926226749808">"무선으로 충전하려면 스마트폰을 다시 배치하세요."</string>
+    <string name="dock_alignment_not_charging" product="desktop" msgid="1650693501464120367">"무선으로 충전하려면 기기의 위치를 조정하세요."</string>
     <string name="inattentive_sleep_warning_message" product="tv" msgid="6844464574089665063">"Android TV가 곧 꺼집니다. 계속 켜 두려면 버튼을 누르세요."</string>
     <string name="inattentive_sleep_warning_message" product="default" msgid="5693904520452332224">"기기가 곧 꺼집니다. 계속 켜 두려면 누르세요."</string>
     <string name="keyguard_missing_sim_message" product="tablet" msgid="408124574073032188">"태블릿에 SIM이 없습니다."</string>
     <string name="keyguard_missing_sim_message" product="default" msgid="2605468359948247208">"휴대전화에 SIM이 없습니다."</string>
+    <string name="keyguard_missing_sim_message" product="desktop" msgid="6678465505993388400">"기기에 SIM이 없습니다."</string>
     <string name="kg_invalid_confirm_pin_hint" product="default" msgid="6278551068943958651">"PIN 코드가 일치하지 않음"</string>
     <string name="kg_failed_attempts_almost_at_wipe" product="tablet" msgid="302165994845009232">"태블릿 잠금 해제에 <xliff:g id="NUMBER_0">%1$d</xliff:g>번 실패했습니다. <xliff:g id="NUMBER_1">%2$d</xliff:g>번 더 실패하면 태블릿이 초기화되며 모든 데이터가 삭제됩니다."</string>
     <string name="kg_failed_attempts_almost_at_wipe" product="default" msgid="2594813176164266847">"휴대전화 잠금 해제에 <xliff:g id="NUMBER_0">%1$d</xliff:g>번 실패했습니다. <xliff:g id="NUMBER_1">%2$d</xliff:g>번 더 실패하면 휴대전화가 초기화되며 모든 데이터가 삭제됩니다."</string>
+    <string name="kg_failed_attempts_almost_at_wipe" product="desktop" msgid="6414651766868767274">"기기 잠금 해제에 <xliff:g id="NUMBER_0">%1$d</xliff:g>회 실패했습니다. <xliff:g id="NUMBER_1">%2$d</xliff:g>회 더 실패하면 기기가 초기화되며 모든 데이터가 삭제됩니다."</string>
     <string name="kg_failed_attempts_now_wiping" product="tablet" msgid="8710104080409538587">"태블릿 잠금 해제에 <xliff:g id="NUMBER">%d</xliff:g>번 실패했습니다. 태블릿이 재설정되며 모든 데이터가 삭제됩니다."</string>
     <string name="kg_failed_attempts_now_wiping" product="default" msgid="6381835450014881813">"휴대전화 잠금 해제에 <xliff:g id="NUMBER">%d</xliff:g>번 실패했습니다. 휴대전화가 초기화되며 모든 데이터가 삭제됩니다."</string>
+    <string name="kg_failed_attempts_now_wiping" product="desktop" msgid="2277485562881116948">"기기 잠금 해제에 <xliff:g id="NUMBER">%d</xliff:g>회 실패했습니다. 기기가 초기화되며 모든 데이터가 삭제됩니다."</string>
     <string name="kg_failed_attempts_almost_at_erase_user" product="tablet" msgid="7325071812832605911">"태블릿 잠금 해제에 <xliff:g id="NUMBER_0">%1$d</xliff:g>번 실패했습니다. <xliff:g id="NUMBER_1">%2$d</xliff:g>번 더 실패하면 이 사용자와 모든 사용자 데이터가 삭제됩니다."</string>
     <string name="kg_failed_attempts_almost_at_erase_user" product="default" msgid="8110939900089863103">"휴대전화 잠금 해제에 <xliff:g id="NUMBER_0">%1$d</xliff:g>번 실패했습니다. <xliff:g id="NUMBER_1">%2$d</xliff:g>번 더 실패하면 이 사용자와 모든 사용자 데이터가 삭제됩니다."</string>
+    <string name="kg_failed_attempts_almost_at_erase_user" product="desktop" msgid="6685285863549889535">"기기 잠금 해제에 <xliff:g id="NUMBER_0">%1$d</xliff:g>회 실패했습니다. <xliff:g id="NUMBER_1">%2$d</xliff:g>번 더 실패하면 이 사용자와 모든 사용자 데이터가 삭제됩니다."</string>
     <string name="kg_failed_attempts_now_erasing_user" product="tablet" msgid="8509811676952707883">"태블릿 잠금 해제에 <xliff:g id="NUMBER">%d</xliff:g>번 실패했습니다. 이 사용자와 모든 사용자 데이터가 삭제됩니다."</string>
     <string name="kg_failed_attempts_now_erasing_user" product="default" msgid="3051962486994265014">"휴대전화 잠금 해제에 <xliff:g id="NUMBER">%d</xliff:g>번 실패했습니다. 이 사용자와 모든 사용자 데이터가 삭제됩니다."</string>
+    <string name="kg_failed_attempts_now_erasing_user" product="desktop" msgid="3003054879895735837">"기기 잠금 해제에 <xliff:g id="NUMBER">%d</xliff:g>회 실패했습니다. 이 사용자와 모든 사용자 데이터가 삭제됩니다."</string>
     <string name="kg_failed_attempts_almost_at_erase_profile" product="tablet" msgid="1049523640263353830">"태블릿 잠금 해제에 <xliff:g id="NUMBER_0">%1$d</xliff:g>번 실패했습니다. <xliff:g id="NUMBER_1">%2$d</xliff:g>번 더 실패하면 직장 프로필과 모든 프로필 데이터가 삭제됩니다."</string>
     <string name="kg_failed_attempts_almost_at_erase_profile" product="default" msgid="3280816298678433681">"휴대전화 잠금 해제에 <xliff:g id="NUMBER_0">%1$d</xliff:g>번 실패했습니다. <xliff:g id="NUMBER_1">%2$d</xliff:g>번 더 실패하면 직장 프로필과 모든 프로필 데이터가 삭제됩니다."</string>
+    <string name="kg_failed_attempts_almost_at_erase_profile" product="desktop" msgid="6020310710703619275">"기기 잠금 해제에 <xliff:g id="NUMBER_0">%1$d</xliff:g>회 실패했습니다. <xliff:g id="NUMBER_1">%2$d</xliff:g>번 더 실패하면 직장 프로필과 모든 프로필 데이터가 삭제됩니다."</string>
     <string name="kg_failed_attempts_now_erasing_profile" product="tablet" msgid="4417100487251371559">"태블릿 잠금 해제에 <xliff:g id="NUMBER">%d</xliff:g>번 실패했습니다. 직장 프로필과 모든 프로필 데이터가 삭제됩니다."</string>
     <string name="kg_failed_attempts_now_erasing_profile" product="default" msgid="4682221342671290678">"휴대전화 잠금 해제에 <xliff:g id="NUMBER">%d</xliff:g>번 실패했습니다. 직장 프로필과 모든 프로필 데이터가 삭제됩니다."</string>
+    <string name="kg_failed_attempts_now_erasing_profile" product="desktop" msgid="2786666082798973358">"기기 잠금 해제에 <xliff:g id="NUMBER">%d</xliff:g>회 실패했습니다. 직장 프로필과 모든 프로필 데이터가 삭제됩니다."</string>
     <string name="kg_failed_attempts_almost_at_login" product="tablet" msgid="1860049973474855672">"잠금 해제 패턴을 <xliff:g id="NUMBER_0">%1$d</xliff:g>회 잘못 그렸습니다. <xliff:g id="NUMBER_1">%2$d</xliff:g>회 더 실패하면 이메일 계정을 사용하여 태블릿을 잠금 해제해야 합니다.\n\n<xliff:g id="NUMBER_2">%3$d</xliff:g>초 후에 다시 시도해 주세요."</string>
     <string name="kg_failed_attempts_almost_at_login" product="default" msgid="44112553371516141">"잠금 해제 패턴을 <xliff:g id="NUMBER_0">%1$d</xliff:g>회 잘못 그렸습니다. <xliff:g id="NUMBER_1">%2$d</xliff:g>회 더 실패하면 이메일 계정을 사용하여 휴대전화를 잠금 해제해야 합니다.\n\n<xliff:g id="NUMBER_2">%3$d</xliff:g>초 후에 다시 시도해 주세요."</string>
+    <string name="kg_failed_attempts_almost_at_login" product="desktop" msgid="1821951547429595155">"잠금 해제 패턴을 <xliff:g id="NUMBER_0">%1$d</xliff:g>회 잘못 그렸습니다. <xliff:g id="NUMBER_1">%2$d</xliff:g>회 더 실패하면 이메일 계정을 사용하여 기기를 잠금 해제해야 합니다.\n\n <xliff:g id="NUMBER_2">%3$d</xliff:g>초 후에 다시 시도하세요."</string>
     <string name="thermal_shutdown_title" product="default" msgid="8039593017174903505">"발열로 인해 휴대전화가 꺼짐"</string>
+    <string name="thermal_shutdown_title" product="desktop" msgid="2954206342842856379">"발열로 인해 기기가 꺼짐"</string>
     <string name="thermal_shutdown_title" product="device" msgid="2954206342842856379">"발열로 인해 기기가 꺼짐"</string>
     <string name="thermal_shutdown_title" product="tablet" msgid="8941033526856177533">"발열로 인해 태블릿이 꺼짐"</string>
     <string name="thermal_shutdown_message" product="default" msgid="6685194547904051408">"이제 휴대전화가 정상적으로 작동합니다.\n자세히 알아보려면 탭하세요."</string>
     <string name="thermal_shutdown_message" product="device" msgid="3039675532521590478">"이제 기기가 정상적으로 작동합니다.\n자세히 알아보려면 탭하세요."</string>
     <string name="thermal_shutdown_message" product="tablet" msgid="5285898074484811386">"이제 태블릿이 정상적으로 작동합니다.\n자세히 알아보려면 탭하세요."</string>
+    <string name="thermal_shutdown_message" product="desktop" msgid="3039675532521590478">"이제 기기가 정상적으로 작동합니다.\n자세히 알아보려면 탭하세요."</string>
     <string name="thermal_shutdown_dialog_message" product="default" msgid="6145923570358574186">"휴대전화가 과열되어 온도를 낮추기 위해 전원이 종료되었습니다. 지금은 휴대전화가 정상적으로 작동합니다.\n\n휴대전화가 과열되는 이유는 다음과 같습니다.\n	• 리소스를 많이 사용하는 앱 사용(예: 게임, 동영상 또는 내비게이션 앱)\n	• 대용량 파일을 다운로드 또는 업로드\n	• 온도가 높은 곳에서 휴대전화 사용"</string>
     <string name="thermal_shutdown_dialog_message" product="device" msgid="3647879000909527365">"기기가 과열되어 온도를 낮추기 위해 전원이 종료되었습니다. 지금은 기기가 정상적으로 작동합니다.\n\n기기가 과열되는 이유는 다음과 같습니다.\n	• 리소스를 많이 사용하는 앱 사용(예: 게임, 동영상 또는 내비게이션 앱)\n	• 대용량 파일을 다운로드 또는 업로드\n	• 온도가 높은 곳에서 기기 사용"</string>
     <string name="thermal_shutdown_dialog_message" product="tablet" msgid="8274487811928782165">"태블릿이 과열되어 온도를 낮추기 위해 전원이 종료되었습니다. 지금은 태블릿이 정상적으로 작동합니다.\n\n태블릿이 과열되는 이유는 다음과 같습니다.\n	• 리소스를 많이 사용하는 앱 사용(예: 게임, 동영상 또는 내비게이션 앱)\n	• 대용량 파일을 다운로드 또는 업로드\n	• 온도가 높은 곳에서 태블릿 사용"</string>
+    <string name="thermal_shutdown_dialog_message" product="desktop" msgid="3647879000909527365">"기기가 과열되어 온도를 낮추기 위해 전원이 종료되었습니다. 지금은 기기가 정상적으로 작동합니다.\n\n기기가 과열되는 이유는 다음과 같습니다.\n	• 리소스를 많이 사용하는 앱 사용(예: 게임, 동영상 또는 내비게이션 앱)\n	• 대용량 파일을 다운로드 또는 업로드\n	• 온도가 높은 곳에서 기기 사용"</string>
     <string name="high_temp_title" product="default" msgid="5365000411304924115">"휴대전화 온도가 높음"</string>
     <string name="high_temp_title" product="device" msgid="6622009907401563664">"기기 온도가 높음"</string>
     <string name="high_temp_title" product="tablet" msgid="9039733706606446616">"태블릿 온도가 높음"</string>
+    <string name="high_temp_title" product="desktop" msgid="6622009907401563664">"기기 온도가 높음"</string>
     <string name="high_temp_notif_message" product="default" msgid="3928947950087257452">"휴대전화 온도를 낮추는 동안 일부 기능이 제한됩니다.\n자세히 알아보려면 탭하세요."</string>
     <string name="high_temp_notif_message" product="device" msgid="6105125771372547292">"기기 온도를 낮추는 동안 일부 기능이 제한됩니다.\n자세히 알아보려면 탭하세요."</string>
     <string name="high_temp_notif_message" product="tablet" msgid="7799279192797476850">"태블릿 온도를 낮추는 동안 일부 기능이 제한됩니다.\n자세히 알아보려면 탭하세요."</string>
+    <string name="high_temp_notif_message" product="desktop" msgid="6105125771372547292">"기기 온도를 낮추는 동안 일부 기능이 제한됩니다.\n자세히 알아보려면 탭하세요."</string>
     <string name="high_temp_dialog_message" product="default" msgid="4272882413847595625">"휴대전화가 자동으로 온도를 낮추려고 시도합니다. 휴대전화를 계속 사용할 수는 있지만 작동이 느려질 수도 있습니다.\n\n휴대전화 온도가 낮아지면 정상적으로 작동됩니다."</string>
     <string name="high_temp_dialog_message" product="device" msgid="263861943935989046">"기기가 자동으로 온도를 낮추려고 시도합니다. 기기를 계속 사용할 수는 있지만 작동이 느려질 수도 있습니다.\n\n기기 온도가 낮아지면 정상적으로 작동됩니다."</string>
     <string name="high_temp_dialog_message" product="tablet" msgid="5613713326841935537">"태블릿이 자동으로 온도를 낮추려고 시도합니다. 태블릿을 계속 사용할 수 있지만 작동이 느려질 수도 있습니다.\n\n태블릿 온도가 낮아지면 정상적으로 작동합니다."</string>
+    <string name="high_temp_dialog_message" product="desktop" msgid="263861943935989046">"기기가 자동으로 온도를 낮추려고 시도합니다. 기기를 계속 사용할 수는 있지만 작동이 느려질 수도 있습니다.\n\n기기 온도가 낮아지면 정상적으로 작동됩니다."</string>
     <string name="security_settings_sfps_enroll_find_sensor_message" product="tablet" msgid="3726972508570143945">"지문 센서는 전원 버튼에 있습니다. 태블릿 테두리에 있는 튀어나온 볼륨 버튼 옆의 평평한 버튼입니다."</string>
     <string name="security_settings_sfps_enroll_find_sensor_message" product="device" msgid="2929467060295094725">"지문 센서는 전원 버튼에 있습니다. 기기 테두리에 있는 튀어나온 볼륨 버튼 옆의 평평한 버튼입니다."</string>
     <string name="security_settings_sfps_enroll_find_sensor_message" product="default" msgid="8582726566542997639">"지문 센서는 전원 버튼에 있습니다. 휴대전화 테두리에 있는 튀어나온 볼륨 버튼 옆의 평평한 버튼입니다."</string>
+    <string name="security_settings_sfps_enroll_find_sensor_message" product="desktop" msgid="2929467060295094725">"지문 센서는 전원 버튼에 있습니다. 기기 테두리에 있는 튀어나온 볼륨 버튼 옆의 평평한 버튼입니다."</string>
     <string name="global_action_lock_message" product="default" msgid="7092460751050168771">"더 많은 옵션을 확인하려면 휴대전화를 잠금 해제하세요."</string>
     <string name="global_action_lock_message" product="tablet" msgid="1024230056230539493">"더 많은 옵션을 확인하려면 태블릿을 잠금 해제하세요."</string>
     <string name="global_action_lock_message" product="device" msgid="3165224897120346096">"더 많은 옵션을 확인하려면 기기를 잠금 해제하세요."</string>
+    <string name="global_action_lock_message" product="desktop" msgid="3165224897120346096">"더 많은 옵션을 확인하려면 기기를 잠금 해제하세요."</string>
     <string name="media_transfer_playing_this_device" product="default" msgid="5795784619523545556">"이 휴대전화에서 재생 중"</string>
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"이 태블릿에서 재생 중"</string>
+    <string name="media_transfer_playing_this_device" product="desktop" msgid="3299409636487714269">"이 기기에서 재생 중"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"전원이 꺼져 있을 때도 내 기기 찾기로 이 휴대전화를 찾을 수 있습니다."</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"전원이 꺼져 있을 때도 내 기기 찾기로 이 태블릿을 찾을 수 있습니다."</string>
+    <string name="finder_active" product="desktop" msgid="924749965418452906">"전원이 꺼져 있을 때도 내 기기 찾기로 이 기기를 찾을 수 있습니다."</string>
     <string name="find_hub_active" product="default" msgid="8884083861904230143">"이 휴대전화의 전원이 꺼져 있어도 내 기기 허브로 찾을 수 있습니다."</string>
     <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"이 태블릿의 전원이 꺼져 있어도 내 기기 허브로 찾을 수 있습니다."</string>
+    <string name="find_hub_active" product="desktop" msgid="5324909071852240549">"전원이 꺼져 있을 때도 내 기기 허브로 이 기기를 찾을 수 있습니다."</string>
+    <string name="dream_setup_description" product="default" msgid="5167691612621831552">"휴대전화가 충전 중일 때 시계, 사진 또는 날씨를 표시합니다."</string>
+    <string name="dream_setup_description" product="tablet" msgid="6296793330727926553">"태블릿이 충전 중일 때 시계, 사진 또는 날씨를 표시합니다."</string>
+    <string name="dream_setup_description" product="device" msgid="3098487756905462324">"기기가 충전 중일 때 시계, 사진 또는 날씨를 표시합니다."</string>
+    <string name="dream_setup_description" product="desktop" msgid="3098487756905462324">"기기가 충전 중일 때 시계, 사진 또는 날씨를 표시합니다."</string>
+    <string name="accessibility_retry_face_auth" product="default" msgid="92100916134164459">"얼굴 인식 잠금 해제를 다시 시도해 주세요."</string>
+    <string name="accessibility_retry_face_auth" product="desktop" msgid="5630058255754932537">"얼굴 인식으로 잠금 해제를 다시 시도해 주세요."</string>
+    <string name="face_re_enroll_notification_title" product="default" msgid="1533872824718008968">"얼굴 인식 잠금 해제 다시 설정"</string>
+    <string name="face_re_enroll_notification_title" product="desktop" msgid="5218710819864377084">"얼굴 인식으로 잠금 해제 다시 설정"</string>
+    <string name="biometric_dialog_tap_confirm_with_face" product="default" msgid="2261934158598458578">"얼굴 인식으로 잠금 해제되었습니다."</string>
+    <string name="biometric_dialog_tap_confirm_with_face" product="desktop" msgid="2066067154465078068">"얼굴 인식으로 잠금 해제되었습니다."</string>
+    <string name="biometric_dialog_tap_confirm_with_face_alt_1" product="default" msgid="1268255053915789297">"얼굴 인식으로 잠금 해제되었습니다. 계속하려면 누르세요."</string>
+    <string name="biometric_dialog_tap_confirm_with_face_alt_1" product="desktop" msgid="1514178179652703156">"얼굴 인식으로 잠금 해제되었습니다. 계속하려면 누르세요."</string>
+    <string name="biometric_dialog_tap_confirm_with_face_sfps" product="default" msgid="2492608775606333432">"얼굴 인식으로 잠금 해제되었습니다. 계속하려면 탭하세요."</string>
+    <string name="biometric_dialog_tap_confirm_with_face_sfps" product="desktop" msgid="7918648092655463233">"얼굴 인식으로 잠금 해제되었습니다. 계속하려면 탭하세요."</string>
+    <string name="face_re_enroll_notification_name" product="default" msgid="5965443249759045602">"얼굴 인식 잠금 해제"</string>
+    <string name="face_re_enroll_notification_name" product="desktop" msgid="3705121888554395242">"얼굴 인식으로 잠금 해제 중"</string>
+    <string name="face_re_enroll_dialog_title" product="default" msgid="2719988247243428771">"얼굴 인식 잠금 해제 설정"</string>
+    <string name="face_re_enroll_dialog_title" product="desktop" msgid="4217639465392210803">"얼굴 인식으로 잠금 해제 설정"</string>
+    <string name="face_re_enroll_dialog_content" product="default" msgid="7290782487464426692">"얼굴 인식 잠금 해제를 다시 설정하기 위해 현재 얼굴 모델이 삭제됩니다.\n\n얼굴을 사용하여 휴대전화 잠금을 해제하려면 이 기능을 다시 설정해야 합니다."</string>
+    <string name="face_re_enroll_dialog_content" product="desktop" msgid="7718739738665960268">"얼굴 인식으로 잠금 해제를 다시 설정하기 위해 현재 얼굴 모델이 삭제됩니다.\n\n얼굴을 사용하여 기기 잠금을 해제하려면 이 기능을 다시 설정해야 합니다."</string>
+    <string name="face_reenroll_failure_dialog_content" product="default" msgid="6318784230085101323">"얼굴 인식 잠금 해제를 설정할 수 없습니다. 설정으로 이동하여 다시 시도해 보세요."</string>
+    <string name="face_reenroll_failure_dialog_content" product="desktop" msgid="1206573626798969692">"얼굴 인식으로 잠금 해제를 설정할 수 없습니다. 설정에서 다시 시도해 보세요."</string>
+    <string name="keyguard_face_unlock_unavailable" product="default" msgid="3188895702987679056">"얼굴 인식 잠금 해제를 사용할 수 없습니다."</string>
+    <string name="keyguard_face_unlock_unavailable" product="desktop" msgid="7088502865328130614">"얼굴 인식으로 잠금 해제를 사용할 수 없습니다."</string>
+    <string name="accesssibility_keyguard_retry" product="default" msgid="5017097587017783548">"얼굴 인식 잠금 해제를 다시 시도하려면 위로 스와이프하세요."</string>
+    <string name="accesssibility_keyguard_retry" product="desktop" msgid="5084769005671288179">"얼굴 인식으로 잠금 해제를 다시 시도하려면 위로 스와이프하세요."</string>
+    <string name="keyguard_face_successful_unlock_swipe" product="default" msgid="1358318947548832086">"얼굴 인식으로 잠금 해제되었습니다. 열려면 위로 스와이프하세요."</string>
+    <string name="keyguard_face_successful_unlock_swipe" product="desktop" msgid="4016445068612817741">"얼굴 인식으로 잠금 해제되었습니다. 열려면 위로 스와이프하세요."</string>
+    <string name="keyguard_face_successful_unlock_confirm_button" product="default" msgid="4883782574761031564">"얼굴 인식으로 잠금 해제되었습니다. 계속하려면 확인을 누르세요."</string>
+    <string name="keyguard_face_successful_unlock_confirm_button" product="desktop" msgid="7268520979450633978">"얼굴 인식으로 잠금 해제되었습니다. 계속하려면 확인을 누르세요."</string>
+    <string name="keyguard_face_successful_unlock_press" product="default" msgid="7293890116185253825">"얼굴 인식으로 잠금 해제되었습니다. 열려면 잠금 해제 아이콘을 누르세요."</string>
+    <string name="keyguard_face_successful_unlock_press" product="desktop" msgid="6158498006084899116">"얼굴 인식으로 잠금 해제되었습니다. 열려면 잠금 해제 아이콘을 누르세요."</string>
+    <string name="keyguard_face_successful_unlock_press_alt_1" product="default" msgid="6269966346565076951">"얼굴 인식으로 잠금 해제되었습니다. 열려면 누르세요."</string>
+    <string name="keyguard_face_successful_unlock_press_alt_1" product="desktop" msgid="1612731733090835687">"얼굴 인식으로 잠금 해제되었습니다. 열려면 누르세요."</string>
+    <string name="keyguard_face_successful_unlock" product="default" msgid="5544493091450184889">"얼굴 인식으로 잠금 해제되었습니다."</string>
+    <string name="keyguard_face_successful_unlock" product="desktop" msgid="5348626087316804379">"얼굴 인식으로 잠금 해제되었습니다."</string>
 </resources>

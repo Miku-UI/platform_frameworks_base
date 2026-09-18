@@ -41,7 +41,6 @@ import android.os.Binder;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.Log;
 
@@ -216,7 +215,7 @@ public class ProcessObserverTest {
                 anyBoolean(), anyBoolean(), any(),
                 any(), any(), any(),
                 any(), any(),
-                any(), any(), any(), anyBoolean(),
+                any(), any(), any(), any(), anyBoolean(),
                 any(), any(),
                 anyLong(), anyLong());
         final ProcessRecord r = spy(new ProcessRecord(mAms, ai, ai.processName, ai.uid));
@@ -241,7 +240,6 @@ public class ProcessObserverTest {
      * Verify that a process start event is dispatched to process observers.
      */
     @Test
-    @EnableFlags(android.app.Flags.FLAG_ENABLE_PROCESS_OBSERVER_BROADCAST_ON_PROCESS_STARTED)
     public void testNormal() throws Exception {
         ProcessRecord app = startProcess();
         verify(mProcessObserver).onProcessStarted(
@@ -266,7 +264,7 @@ public class ProcessObserverTest {
                 null, null,
                 null,
                 null, null, null,
-                null, null, false, null, null,
+                null, null, null, false, null, null,
                 0, 0);
         return app;
     }

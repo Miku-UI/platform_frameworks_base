@@ -17,6 +17,9 @@
 package android.app;
 
 import android.Manifest;
+import android.annotation.CallbackExecutor;
+import android.annotation.DrawableRes;
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -25,7 +28,10 @@ import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
 import android.annotation.UserIdInt;
+import android.app.admin.DevicePolicyManager;
 import android.app.compat.CompatChanges;
+import android.app.motioncues.MotionCuesService;
+import android.app.motioncues.MotionCuesSettings;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.EnabledSince;
 import android.compat.annotation.LoggingOnly;
@@ -43,6 +49,7 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.OutcomeReceiver;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.UserHandle;
@@ -52,6 +59,7 @@ import android.view.KeyEvent;
 import android.view.View;
 
 import com.android.internal.compat.IPlatformCompat;
+import com.android.internal.infra.AndroidFuture;
 import com.android.internal.statusbar.AppClipsServiceConnector;
 import com.android.internal.statusbar.IAddTileResultCallback;
 import com.android.internal.statusbar.IStatusBarService;
@@ -69,6 +77,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -596,6 +605,36 @@ public class StatusBarManager {
     public @interface MediaTransferReceiverState {}
 
     /**
+     * Unknwown result of calling {@link #showPowerMenu}. Used for compatibility purposes.
+     */
+    @FlaggedApi(Flags.FLAG_STATUSBAR_API_SHOW_POWER_MENU)
+    public static final int SHOW_POWER_MENU_RESULT_UNKNOWN = -1;
+
+    /**
+     * Result returned in a callback when a call to {@link #showPowerMenu} has succeeded and the
+     * Power Menu is currently showing.
+     */
+    @FlaggedApi(Flags.FLAG_STATUSBAR_API_SHOW_POWER_MENU)
+    public static final int SHOW_POWER_MENU_RESULT_SHOWING = 0;
+
+    /**
+     * Result returned in a callback when a call to {@link #showPowerMenu} cannot be completed due
+     * to the Power Menu being currently disabled.
+     * @see DevicePolicyManager#LOCK_TASK_FEATURE_GLOBAL_ACTIONS
+     */
+    @FlaggedApi(Flags.FLAG_STATUSBAR_API_SHOW_POWER_MENU)
+    public static final int SHOW_POWER_MENU_RESULT_DISABLED = 1;
+
+    /** @hide */
+    @IntDef(prefix = {"SHOW_POWER_MENU_RESULT_"}, value = {
+            SHOW_POWER_MENU_RESULT_UNKNOWN,
+            SHOW_POWER_MENU_RESULT_SHOWING,
+            SHOW_POWER_MENU_RESULT_DISABLED,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface ShowPowerMenuResult {}
+
+    /**
      * A map from a provider registered in
      * {@link #registerNearbyMediaDevicesProvider(NearbyMediaDevicesProvider)} to the wrapper
      * around the provider that was created internally. We need the wrapper to make the provider
@@ -643,6 +682,8 @@ public class StatusBarManager {
     @EnabledSince(targetSdkVersion = Build.VERSION_CODES.CUR_DEVELOPMENT)
     // TODO(b/360196209): Set target SDK to Baklava once available
     private static final long MEDIA_CONTROL_MEDIA3_ACTIONS = 360196209L;
+
+    private static final long SHOW_POWER_MENU_TIMEOUT_MILLIS = 5000L;
 
     @UnsupportedAppUsage
     private Context mContext;
@@ -769,8 +810,8 @@ public class StatusBarManager {
     /**
      * Collapse the notifications and settings panels.
      *
-     * Starting in Android {@link Build.VERSION_CODES.S}, apps targeting SDK level {@link
-     * Build.VERSION_CODES.S} or higher will need {@link android.Manifest.permission.STATUS_BAR}
+     * Starting in Android {@link Build.VERSION_CODES#S}, apps targeting SDK level {@link
+     * Build.VERSION_CODES#S} or higher will need {@link android.Manifest.permission#STATUS_BAR}
      * permission to call this API.
      *
      * @hide
@@ -879,9 +920,23 @@ public class StatusBarManager {
         }
     }
 
-    /** @hide */
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public void setIcon(String slot, int iconId, int iconLevel, String contentDescription) {
+    /**
+     * Sets the icon for a given slot in the status bar.
+     *
+     * @param slot the slot to set the icon in. This should be a unique string,
+     * which is recommended to format as "package_name/slot_name" to avoid conflict.
+     * @param iconId the resource ID of the icon to display
+     * @param iconLevel the level for the icon
+     * @see android.graphics.drawable.Drawable#setLevel
+     * @param contentDescription the content description for the icon
+     *
+     * @hide
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_RELEASE_ICON_AS_API)
+    @RequiresPermission(android.Manifest.permission.STATUS_BAR)
+    @SystemApi
+    public void setIcon(@NonNull String slot, @DrawableRes int iconId, int iconLevel,
+            @Nullable String contentDescription) {
         try {
             final IStatusBarService svc = getService();
             if (svc != null) {
@@ -893,9 +948,35 @@ public class StatusBarManager {
         }
     }
 
-    /** @hide */
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public void removeIcon(String slot) {
+    /**
+     * Gets the resource id of an icon for the given slot in the status bar.
+     * @param slot the slot to get the resource from. see {@link #setIcon}.
+     * @throws IllegalArgumentException if no icon is found for the specified slot.
+     * @hide
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_RELEASE_ICON_AS_API)
+    @RequiresPermission(android.Manifest.permission.STATUS_BAR)
+    @TestApi
+    public @DrawableRes int getIcon(@NonNull String slot) {
+        try {
+            final IStatusBarService svc = getService();
+            return svc.getIcon(slot);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Removes the icon for a given slot in the status bar.
+     *
+     * @param slot the name of the slot to remove the icon from. see {@link #setIcon}.
+     *
+     * @hide
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_RELEASE_ICON_AS_API)
+    @RequiresPermission(android.Manifest.permission.STATUS_BAR)
+    @SystemApi
+    public void removeIcon(@NonNull String slot) {
         try {
             final IStatusBarService svc = getService();
             if (svc != null) {
@@ -905,6 +986,8 @@ public class StatusBarManager {
             throw ex.rethrowFromSystemServer();
         }
     }
+
+
 
     /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
@@ -1355,6 +1438,119 @@ public class StatusBarManager {
         int taskId = ActivityClient.getInstance().getTaskForActivity(activityToken, false);
         return new AppClipsServiceConnector(mContext)
                 .canLaunchCaptureContentActivityForNote(taskId);
+    }
+
+    /**
+     * Request to show the Power Menu.
+     * <p>
+     * The Power Menu is the dialog that contains options like Power off, Restart, etc. Also known
+     * as Global Actions
+     * <p>
+     * Showing this dialog may be restricted by the system, for example by
+     * {@link DevicePolicyManager}, if {@link DevicePolicyManager#LOCK_TASK_FEATURE_GLOBAL_ACTIONS}
+     * is set.
+     * <p>
+     * The {@code receiver} will indicate when the Power Menu is visible (if possible) in its
+     * result, or whether the Power Menu is currently disabled. If the Power Menu is currently
+     * visible when the request is made, {@link #SHOW_POWER_MENU_RESULT_SHOWING} will be returned
+     * through the callback immediately.
+     * <p>
+     * Alternatively, if the request could not be completed due to an error, it will be returned
+     * with {@link OutcomeReceiver#onError}. This error can be
+     * {@link java.util.concurrent.TimeoutException} if the request times out after a few seconds
+     * without a response, or a different {@link Exception}. In these error cases, it usually means
+     * that there's an underlying issue with the system and retrying will not succeed.
+     * <p>
+     * This callback can be reused for multiple requests.
+     * @param executor an {@link Executor} in which the methods of {@code callback} will be called
+     * @param receiver will call back with the result of the request, or a possible error
+     */
+    @FlaggedApi(Flags.FLAG_STATUSBAR_API_SHOW_POWER_MENU)
+    @RequiresPermission(anyOf = {
+            Manifest.permission.SHOW_POWER_MENU,
+            Manifest.permission.SHOW_POWER_MENU_PRIVILEGED
+    })
+    public void showPowerMenu(
+            @NonNull @CallbackExecutor Executor executor,
+            @NonNull @ShowPowerMenuResult OutcomeReceiver<Integer, Throwable> receiver
+    ) {
+        Objects.requireNonNull(executor);
+        Objects.requireNonNull(receiver);
+        AndroidFuture<Integer> future = new AndroidFuture<Integer>()
+                .whenComplete((result, throwable) -> {
+                    final long identity = Binder.clearCallingIdentity();
+                    try {
+                        if (throwable != null) {
+                            executor.execute(
+                                    () -> receiver.onError(throwable)
+                            );
+                        } else {
+                            executor.execute(() -> receiver.onResult(result));
+                        }
+                    } finally {
+                        Binder.restoreCallingIdentity(identity);
+                    }
+                })
+                .orTimeout(SHOW_POWER_MENU_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+
+        try {
+            getService().showGlobalActionsFromApp(future);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Directs the system to bind to the given component and start a motion cues session.
+     *
+     * <p>A motion cues session is a period during which a designated service provides data
+     * to draw visual cues on the screen. These cues are typically rendered as shapes
+     * overlaying the current application. The primary goal is to help alleviate symptoms of
+     * motion sickness while in a moving vehicle by matching the cues to the vehicle's motion.
+     *
+     * <p>When a session is active, the service specified by {@code componentName} will send
+     * updates through a callback to SystemUI to render these cues.
+     *
+     * @param componentName The ComponentName of the {@link MotionCuesService} implementation for
+     *                      SystemUi to bind to that will provide the motion cue events.
+     * @param motionCuesSettings The initial {@link MotionCuesSettings} to configure the appearance
+     *                           and layout of the motion cues.
+     * @hide
+     */
+    @SystemApi
+    @RequiresPermission(android.Manifest.permission.DRAW_MOTION_CUES)
+    @FlaggedApi(Flags.FLAG_ENABLE_MOTION_CUES)
+    public void startMotionCuesSession(
+            @NonNull ComponentName componentName, @NonNull MotionCuesSettings motionCuesSettings) {
+        IStatusBarService svc = getService();
+        try {
+            svc.startMotionCuesSession(componentName, motionCuesSettings);
+        } catch (RemoteException e) {
+            e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Terminates the active motion cues session.
+     *
+     * <p>This method stops the rendering of any on-screen visual cues and unbinds the system
+     * from the {@link android.app.motioncues.MotionCuesService} instance that was
+     * previously started with {@link #startMotionCuesSession(ComponentName, MotionCuesSettings)}.
+     *
+     * <p>If no motion cues session is currently active, calling this method has no effect.
+     *
+     * @hide
+     */
+    @SystemApi
+    @RequiresPermission(android.Manifest.permission.DRAW_MOTION_CUES)
+    @FlaggedApi(Flags.FLAG_ENABLE_MOTION_CUES)
+    public void endMotionCuesSession() {
+        IStatusBarService svc = getService();
+        try {
+            svc.endMotionCuesSession();
+        } catch (RemoteException e) {
+            e.rethrowFromSystemServer();
+        }
     }
 
     /** @hide */

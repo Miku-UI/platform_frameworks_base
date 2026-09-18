@@ -21,7 +21,10 @@ import static android.view.WindowManager.LayoutParams.ROTATION_ANIMATION_CROSSFA
 import static android.view.WindowManager.LayoutParams.ROTATION_ANIMATION_JUMPCUT;
 import static android.view.WindowManagerPolicyConstants.SCREEN_FREEZE_LAYER_BASE;
 
+import static com.android.internal.policy.TransitionAnimation.MAX_ANIMATION_DURATION;
 import static com.android.wm.shell.transition.DefaultSurfaceAnimator.buildSurfaceAnimation;
+import static com.android.wm.shell.transition.DefaultSurfaceAnimator.buildWindowAnimation;
+import static com.android.wm.shell.transition.DefaultSurfaceAnimator.createAnimator;
 import static com.android.wm.shell.transition.Transitions.TAG;
 
 import android.animation.Animator;
@@ -40,7 +43,6 @@ import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
 import android.view.animation.AnimationSet;
 import android.view.animation.AnimationUtils;
-import android.view.animation.ClipRectAnimation;
 import android.window.ScreenCapture.ScreenCaptureParams;
 import android.window.ScreenCaptureInternal;
 import android.window.TransitionInfo;
@@ -51,6 +53,7 @@ import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.shared.TransactionPool;
 
 import java.util.ArrayList;
+import java.util.function.Consumer;
 
 /**
  * This class handles the rotation animation when the device is rotated.
@@ -75,7 +78,6 @@ import java.util.ArrayList;
  * </ul>
  */
 class ScreenRotationAnimation {
-    static final int MAX_ANIMATION_DURATION = 10 * 1000;
     static final int FLAG_HAS_WALLPAPER = 1;
 
     private final Context mContext;
@@ -109,6 +111,26 @@ class ScreenRotationAnimation {
      */
     private SurfaceControl mBackEffectSurface;
 
+    /**
+     * A layer placed between the snapshot and the enter surface to reveal the new content.
+     * <pre>
+     * Layer from top to bottom:
+     *  mScreenshotLayer: fade out
+     *  mColorOverlay: fade out
+     *  mSurfaceControl: alpha 1
+     *  mBackColorSurface: alpha 1
+     *
+     * Timeline:
+     *  S=snapshot
+     *  O=color overlay
+     *  anim=rotate & alpha 1 to 0 animation
+     *  |---------------total 283ms-----------------|
+     *  |>-116ms S anim--|
+     *  |----83ms----|>--------200ms O anim---------|
+     * </pre>
+     */
+    private SurfaceControl mColorOverlay;
+
     // The current active animation to move from the old to the new rotated
     // state.  Which animation is run here will depend on the old and new
     // rotations.
@@ -120,12 +142,14 @@ class ScreenRotationAnimation {
     private float mStartLuma;
     /** Intensity of light/whiteness of the layout after rotation occurs. */
     private float mEndLuma;
+    private final TransitionInfo.Change mChange;
 
     ScreenRotationAnimation(Context context, TransactionPool pool, Transaction t,
             TransitionInfo.Change change, SurfaceControl rootLeash, int animHint, int flags) {
         mContext = context;
         mTransactionPool = pool;
         mAnimHint = animHint;
+        mChange = change;
 
         mSurfaceControl = change.getLeash();
         mRootLeash = rootLeash;
@@ -142,6 +166,7 @@ class ScreenRotationAnimation {
                 .setCallsite("ShellRotationAnimation")
                 .setName("Animation leash of screenshot rotation")
                 .build();
+        final boolean isRotationChange = mStartRotation != mEndRotation;
 
         try {
             if (change.getSnapshot() != null) {
@@ -183,14 +208,13 @@ class ScreenRotationAnimation {
                 }
                 hardwareBuffer.close();
             }
-            if ((flags & FLAG_HAS_WALLPAPER) != 0) {
+            if (isRotationChange && (flags & FLAG_HAS_WALLPAPER) != 0) {
                 mBackEffectSurface = new SurfaceControl.Builder()
                         .setCallsite("ShellRotationAnimation").setParent(rootLeash)
                         .setEffectLayer().setOpaque(true).setName("BackEffect").build();
-                t.reparent(mSurfaceControl, mBackEffectSurface)
-                        .setColor(mBackEffectSurface,
-                                new float[] {mStartLuma, mStartLuma, mStartLuma})
-                        .show(mBackEffectSurface);
+                t.reparent(mSurfaceControl, mBackEffectSurface);
+                t.setColor(mBackEffectSurface, new float[]{mStartLuma, mStartLuma, mStartLuma});
+                t.show(mBackEffectSurface);
             }
 
             t.setLayer(mAnimLeash, SCREEN_FREEZE_LAYER_BASE);
@@ -198,7 +222,8 @@ class ScreenRotationAnimation {
             // Crop the real content in case it contains a larger child layer, e.g. wallpaper.
             t.setCrop(getEnterSurface(), new Rect(0, 0, mEndWidth, mEndHeight));
 
-            if (!isCustomRotate()) {
+            if (isRotationChange && !isCustomRotate()) {
+                final float[] color = new float[]{mStartLuma, mStartLuma, mStartLuma};
                 mBackColorSurface = new SurfaceControl.Builder()
                         .setParent(rootLeash)
                         .setColorLayer()
@@ -208,8 +233,16 @@ class ScreenRotationAnimation {
                         .build();
 
                 t.setLayer(mBackColorSurface, -1);
-                t.setColor(mBackColorSurface, new float[]{mStartLuma, mStartLuma, mStartLuma});
+                t.setColor(mBackColorSurface, color);
                 t.show(mBackColorSurface);
+
+                mColorOverlay = new SurfaceControl.Builder()
+                        .setCallsite("ShellRotationAnimation").setParent(rootLeash)
+                        .setColorLayer().setOpaque(true).setName("ColorOverlay").build();
+                t.setColor(mColorOverlay, color);
+                t.setLayer(mColorOverlay, SCREEN_FREEZE_LAYER_BASE - 1);
+                t.setWindowCrop(mColorOverlay, mEndWidth, mEndHeight);
+                t.show(mColorOverlay);
             }
 
         } catch (Surface.OutOfResourcesException e) {
@@ -217,7 +250,6 @@ class ScreenRotationAnimation {
         }
 
         setScreenshotTransform(t);
-        t.apply();
     }
 
     private boolean isCustomRotate() {
@@ -271,18 +303,20 @@ class ScreenRotationAnimation {
     /**
      * Returns true if any animations were added to `animations`.
      */
-    boolean buildAnimation(@NonNull ArrayList<Animator> animations,
-            @NonNull Runnable finishCallback, float animationScale,
-            @NonNull ShellExecutor mainExecutor) {
+    @NonNull
+    WindowAnimation buildAnimation(@NonNull Consumer<WindowAnimation> finishCallback,
+            float animationScale, @NonNull ShellExecutor mainExecutor) {
         if (mScreenshotLayer == null) {
             // Can't do animation.
-            return false;
+            return null;
         }
 
         // TODO : Found a way to get right end luma and re-enable color frame animation.
         // End luma value is very not stable so it will cause more flicker is we run background
         // color frame animation.
         //mEndLuma = getLumaOfSurfaceControl(mEndBounds, mSurfaceControl);
+
+        final ArrayList<Animator> siblings = new ArrayList<>();
 
         final boolean customRotate = isCustomRotate();
         if (customRotate) {
@@ -322,9 +356,22 @@ class ScreenRotationAnimation {
                             R.anim.screen_rotate_minus_90_enter);
                     break;
             }
-            if (com.android.window.flags.Flags.noAlphaRotationEnterAnimation()) {
-                postProcessRotationAnimation((AnimationSet) mRotateEnterAnimation,
-                        (AnimationSet) mRotateExitAnimation, delta);
+
+            if (mColorOverlay != null) {
+                final var enterAnimations = ((AnimationSet) mRotateEnterAnimation).getAnimations();
+                for (int i = enterAnimations.size() - 1; i >= 0; i--) {
+                    final Animation anim = enterAnimations.get(i);
+                    if (!(anim instanceof AlphaAnimation)) continue;
+                    enterAnimations.remove(i);
+                    final AlphaAnimation fadeOut = new AlphaAnimation(1, 0);
+                    fadeOut.setInterpolator(anim.getInterpolator());
+                    fadeOut.setStartOffset(anim.getStartOffset());
+                    fadeOut.setDuration(anim.getDuration());
+                    fadeOut.scaleCurrentDuration(animationScale);
+                    siblings.add(createAnimator(fadeOut, mColorOverlay, mTransactionPool,
+                            null /* position */, 0 /* cornerRadius */, null /* clipRect */));
+                    break;
+                }
             }
         }
 
@@ -335,63 +382,57 @@ class ScreenRotationAnimation {
         mRotateEnterAnimation.restrictDuration(MAX_ANIMATION_DURATION);
         mRotateEnterAnimation.scaleCurrentDuration(animationScale);
 
+        final WindowAnimation mainAnim;
         if (customRotate) {
             mRotateAlphaAnimation.initialize(mEndWidth, mEndHeight, mStartWidth, mStartHeight);
             mRotateAlphaAnimation.restrictDuration(MAX_ANIMATION_DURATION);
             mRotateAlphaAnimation.scaleCurrentDuration(animationScale);
 
-            buildScreenshotAlphaAnimation(animations, finishCallback, mainExecutor);
-            startDisplayRotation(animations, finishCallback, mainExecutor);
+            siblings.add(buildScreenshotAlphaAnimation());
+            mainAnim = startDisplayRotation();
         } else {
-            startDisplayRotation(animations, finishCallback, mainExecutor);
-            startScreenshotRotationAnimation(animations, finishCallback, mainExecutor);
+            mainAnim = startDisplayRotation();
+            siblings.add(startScreenshotRotationAnimation());
             if (mBackEffectSurface != null && mStartLuma > 0.1f) {
                 // Animate from the color of background to black for smooth alpha blending.
-                buildLumaAnimation(animations, mStartLuma, 0f /* endLuma */, mBackEffectSurface,
-                        animationScale, finishCallback, mainExecutor);
+                siblings.add(buildLumaAnimation(mStartLuma, 0f /* endLuma */,
+                        mBackEffectSurface, animationScale));
             }
         }
 
-        return true;
+        final WindowAnimation composite =
+                new MultiPartWindowAnimation(mainAnim, siblings);
+        composite.addFinishCallback(finishCallback, mainExecutor);
+        return composite;
     }
 
-    private void startDisplayRotation(@NonNull ArrayList<Animator> animations,
-            @NonNull Runnable finishCallback, @NonNull ShellExecutor mainExecutor) {
-        final Rect clipRect = com.android.window.flags.Flags.noAlphaRotationEnterAnimation()
-                ? new Rect(0, 0, mEndWidth, mEndHeight) : null;
-        buildSurfaceAnimation(animations, mRotateEnterAnimation, getEnterSurface(), finishCallback,
-                mTransactionPool, mainExecutor, null /* position */, 0 /* cornerRadius */,
-                clipRect, null);
+    private WindowAnimation startDisplayRotation() {
+        return buildWindowAnimation(mRotateEnterAnimation, mChange,
+                getEnterSurface(), null /* finishCallback */, mTransactionPool,
+                null /* mainExecutor*/, null /* position */, 0 /* cornerRadius */,
+                null /* clipRect */, null /* roundedBounds */);
     }
 
-    private void startScreenshotRotationAnimation(@NonNull ArrayList<Animator> animations,
-            @NonNull Runnable finishCallback, @NonNull ShellExecutor mainExecutor) {
-        final Rect clipRect = com.android.window.flags.Flags.noAlphaRotationEnterAnimation()
-                // Inverse size because the screenshot layer has rotated transformation.
-                ? new Rect(0, 0, mStartHeight, mStartWidth) : null;
-        buildSurfaceAnimation(animations, mRotateExitAnimation, mAnimLeash, finishCallback,
-                mTransactionPool, mainExecutor, null /* position */, 0 /* cornerRadius */,
-                clipRect, null);
+    private ValueAnimator startScreenshotRotationAnimation() {
+        return createAnimator(mRotateExitAnimation, mAnimLeash, mTransactionPool,
+                null /* position */, 0 /* cornerRadius */, null /* clipRect */);
     }
 
-    private void buildScreenshotAlphaAnimation(@NonNull ArrayList<Animator> animations,
-            @NonNull Runnable finishCallback, @NonNull ShellExecutor mainExecutor) {
-        buildSurfaceAnimation(animations, mRotateAlphaAnimation, mAnimLeash, finishCallback,
-                mTransactionPool, mainExecutor, null /* position */, 0 /* cornerRadius */,
-                null /* clipRect */, null);
+    private ValueAnimator buildScreenshotAlphaAnimation() {
+        return createAnimator(mRotateAlphaAnimation, mAnimLeash, mTransactionPool,
+                null /* position */, 0 /* cornerRadius */, null /* clipRect */);
     }
 
-    private void buildLumaAnimation(@NonNull ArrayList<Animator> animations,
-            float startLuma, float endLuma, SurfaceControl surface, float animationScale,
-            @NonNull Runnable finishCallback, @NonNull ShellExecutor mainExecutor) {
+    private ValueAnimator buildLumaAnimation(float startLuma, float endLuma,
+            SurfaceControl surface, float animationScale) {
         final long durationMillis = (long) (mContext.getResources().getInteger(
                 R.integer.config_screen_rotation_color_transition) * animationScale);
         final LumaAnimation animation = new LumaAnimation(durationMillis);
         // Align the end with the enter animation.
         animation.setStartOffset(mRotateEnterAnimation.getDuration() - durationMillis);
         final LumaAnimationAdapter adapter = new LumaAnimationAdapter(surface, startLuma, endLuma);
-        DefaultSurfaceAnimator.buildSurfaceAnimation(animations, animation, finishCallback,
-                mTransactionPool, mainExecutor, adapter);
+        return buildSurfaceAnimation(animation, null /* finishCallback */,
+                mTransactionPool, null /* mainExecutor */, adapter);
     }
 
     public void kill() {
@@ -406,6 +447,9 @@ class ScreenRotationAnimation {
         if (mBackColorSurface != null && mBackColorSurface.isValid()) {
             t.remove(mBackColorSurface);
         }
+        if (mColorOverlay != null && mColorOverlay.isValid()) {
+            t.remove(mColorOverlay);
+        }
         if (mBackEffectSurface != null && mBackEffectSurface.isValid()) {
             // Restore the content surface to transition root because it was moved to BackEffect.
             if (mSurfaceControl.isValid() && mRootLeash.isValid()) {
@@ -415,84 +459,6 @@ class ScreenRotationAnimation {
         }
         t.apply();
         mTransactionPool.release(t);
-    }
-
-    private void postProcessRotationAnimation(@NonNull AnimationSet enterAnim,
-            @NonNull AnimationSet exitAnim, int rotationDelta) {
-        long enterClipDuration = 0;
-        long enterClipStartOffset = 0;
-        final var enterAnimations = enterAnim.getAnimations();
-        for (int i = enterAnimations.size() - 1; i >= 0; i--) {
-            final Animation anim = enterAnimations.get(i);
-            if (anim instanceof AlphaAnimation) {
-                // Use half duration to avoid showing blank area too long.
-                enterClipDuration = anim.getDuration() / 2;
-                enterClipStartOffset = anim.getStartOffset() / 2;
-                // TODO(b/438615184): Update screen_rotate_*_enter.xml.
-                // Use an instant alpha animation to delay the enter surface from being visible
-                // when it is almost occluded by the exit surface. That may reduce some cost of
-                // layer composition.
-                anim.setDuration(10);
-                anim.setStartOffset(enterClipStartOffset);
-                break;
-            }
-        }
-        if (rotationDelta % 2 == 0) {
-            // 180 degree delta doesn't have size change, so no additional effects are needed.
-            return;
-        }
-        long exitClipDuration = 0;
-        for (int i = exitAnim.getAnimations().size() - 1; i >= 0; i--) {
-            final Animation anim = exitAnim.getAnimations().get(i);
-            if (anim instanceof AlphaAnimation) {
-                exitClipDuration = anim.getDuration();
-                break;
-            }
-        }
-        final ClipRectAnimation enterClip = createClipRectAnimation(
-                mEndWidth, mEndHeight, true /* enter */);
-        enterClip.setDuration(enterClipDuration);
-        enterClip.setStartOffset(enterClipStartOffset);
-        enterAnim.addAnimation(enterClip);
-        final ClipRectAnimation exitClip = createClipRectAnimation(
-                // Inverse size because the screenshot layer has rotated transformation.
-                mStartHeight, mStartWidth, false /* enter */);
-        exitClip.setDuration(exitClipDuration);
-        exitAnim.addAnimation(exitClip);
-    }
-
-    /**
-     * The animation that expands/shrinks between the full size and half of the difference between
-     * the long and short sides. For example, the "middle" is < and v, and "longSide - middle" is
-     * > and ^. Then the paired enter/exit animations will appear as a rectangle deformation of the
-     * four anchor points.
-     * <pre>
-     *   (exit portrait): T to v, B to ^
-     *  ________T________
-     * |     |     |     |
-     * |     |  v  |     |
-     * |_____|_____|_____|
-     * |     |     |     |
-     * L  <  |     |  >  R (enter landscape): < to L, > to R
-     * |_____|_____|_____|
-     * |     |     |     |
-     * |     |  ^  |     |
-     * |_____|__B__|_____|
-     * </pre>
-     */
-    private static ClipRectAnimation createClipRectAnimation(int w, int h, boolean enter) {
-        final int longSide = Math.max(w, h);
-        final int shortSide = Math.min(w, h);
-        final int middle = (longSide - shortSide) / 2;
-        if (enter) {
-            return w > h
-                    ? new ClipRectAnimation(middle, 0, longSide - middle, h, 0, 0, w, h)
-                    : new ClipRectAnimation(0, middle, w, longSide - middle, 0, 0, w, h);
-        } else {
-            return w > h
-                    ? new ClipRectAnimation(0, 0, w, h, middle, 0, longSide - middle, h)
-                    : new ClipRectAnimation(0, 0, w, h, 0, middle, w, longSide - middle);
-        }
     }
 
     /** A no-op wrapper to provide animation duration. */

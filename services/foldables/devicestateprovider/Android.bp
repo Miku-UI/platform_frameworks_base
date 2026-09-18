@@ -8,7 +8,9 @@ java_library {
         "src/**/*.java",
     ],
     libs: [
-        "services",
+        // Use `services.impl` to avoid a dependency cycle when tracing
+        // downstream refs that feed into `services` during dex optimization.
+        "services.impl",
     ],
     static_libs: [
         "device_state_flags_lib",

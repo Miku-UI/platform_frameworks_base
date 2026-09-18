@@ -256,7 +256,7 @@ public class ClipboardListenerTest extends SysuiTestCase {
 
     @Test
     @DisableFlags(Flags.FLAG_OVERRIDE_SUPPRESS_OVERLAY_CONDITION)
-    public void test_shouldSuppressOverlay() {
+    public void test_shouldSuppressOverlay_noExtraFlag_notSuppressed() {
         // Regardless of the package or emulator, nothing should be suppressed without the flag
         assertFalse(ClipboardListener.shouldSuppressOverlay(mSampleClipData, mSampleSource,
                 false));
@@ -264,21 +264,59 @@ public class ClipboardListenerTest extends SysuiTestCase {
                 ClipboardListener.SHELL_PACKAGE, false));
         assertFalse(ClipboardListener.shouldSuppressOverlay(mSampleClipData, mSampleSource,
                 true));
+    }
 
+    @Test
+    @DisableFlags(Flags.FLAG_OVERRIDE_SUPPRESS_OVERLAY_CONDITION)
+    public void test_shouldSuppressOverlay_withExtraFromEmulator_returnsTrue() {
         ClipDescription desc = new ClipDescription("Test", new String[]{"text/plain"});
         PersistableBundle bundle = new PersistableBundle();
         bundle.putBoolean(ClipboardListener.EXTRA_SUPPRESS_OVERLAY, true);
         desc.setExtras(bundle);
         ClipData suppressableClipData = new ClipData(desc, new ClipData.Item("Test Item"));
 
-        // Clip data with the suppression extra is only honored in the emulator or with the shell
-        // package.
         assertFalse(ClipboardListener.shouldSuppressOverlay(suppressableClipData, mSampleSource,
                 false));
         assertTrue(ClipboardListener.shouldSuppressOverlay(suppressableClipData, mSampleSource,
                 true));
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_OVERRIDE_SUPPRESS_OVERLAY_CONDITION)
+    public void test_shouldSuppressOverlay_withExtraFromShellPackage_returnsTrue() {
+        ClipDescription desc = new ClipDescription("Test", new String[]{"text/plain"});
+        PersistableBundle bundle = new PersistableBundle();
+        bundle.putBoolean(ClipboardListener.EXTRA_SUPPRESS_OVERLAY, true);
+        desc.setExtras(bundle);
+        ClipData suppressableClipData = new ClipData(desc, new ClipData.Item("Test Item"));
+
         assertTrue(ClipboardListener.shouldSuppressOverlay(suppressableClipData,
                 ClipboardListener.SHELL_PACKAGE, false));
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_OVERRIDE_SUPPRESS_OVERLAY_CONDITION)
+    public void test_shouldSuppressOverlay_withExtraFromSystemUiPackage_returnsTrue() {
+        ClipDescription desc = new ClipDescription("Test", new String[]{"text/plain"});
+        PersistableBundle bundle = new PersistableBundle();
+        bundle.putBoolean(ClipboardListener.EXTRA_SUPPRESS_OVERLAY, true);
+        desc.setExtras(bundle);
+        ClipData suppressableClipData = new ClipData(desc, new ClipData.Item("Test Item"));
+
+        assertTrue(ClipboardListener.shouldSuppressOverlay(suppressableClipData,
+                ClipboardListener.SYSTEMUI_PACKAGE, false));
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_OVERRIDE_SUPPRESS_OVERLAY_CONDITION)
+    public void test_shouldSuppressOverlay_withNullClipSource_returnsFalse() {
+        ClipDescription desc = new ClipDescription("Test", new String[]{"text/plain"});
+        PersistableBundle bundle = new PersistableBundle();
+        bundle.putBoolean(ClipboardListener.EXTRA_SUPPRESS_OVERLAY, true);
+        desc.setExtras(bundle);
+        ClipData suppressableClipData = new ClipData(desc, new ClipData.Item("Test Item"));
+
+        assertFalse(ClipboardListener.shouldSuppressOverlay(suppressableClipData, null, false));
     }
 
     @Test

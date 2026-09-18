@@ -20,6 +20,7 @@ import static android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BA
 import static android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS;
 
 import static com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_LIGHTS_OUT_TRANSPARENT;
+import static com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_OPAQUE_LIGHT;
 import static com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_TRANSPARENT;
 
 import android.graphics.Rect;
@@ -34,6 +35,7 @@ import androidx.annotation.Nullable;
 
 import com.android.internal.colorextraction.ColorExtractor.GradientColors;
 import com.android.internal.view.AppearanceRegion;
+import com.android.systemui.Flags;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.navigationbar.NavigationModeController;
@@ -264,7 +266,8 @@ public class LightBarControllerImpl implements
 
     @Override
     public void onNavigationBarModeChanged(int newBarMode) {
-        mHasLightNavigationBar = isLight(mAppearance, newBarMode, APPEARANCE_LIGHT_NAVIGATION_BARS);
+        onNavigationBarAppearanceChanged(mAppearance, true /* nbModeChanged */,
+                newBarMode, mNavbarColorManagedByIme);
     }
 
     private void reevaluate() {
@@ -376,6 +379,10 @@ public class LightBarControllerImpl implements
     }
 
     private static boolean isLight(int appearance, int barMode, int flag) {
+        if (Flags.opaqueStatusBar() && barMode == MODE_OPAQUE_LIGHT) {
+            return true;
+        }
+
         final boolean isTransparentBar = (barMode == MODE_TRANSPARENT
                 || barMode == MODE_LIGHTS_OUT_TRANSPARENT);
         final boolean light = (appearance & flag) != 0;
@@ -384,8 +391,8 @@ public class LightBarControllerImpl implements
 
     private boolean animateChange() {
         int unlockMode = mBiometricUnlockController.getMode();
-        return unlockMode != BiometricUnlockController.MODE_WAKE_AND_UNLOCK_PULSING
-                && unlockMode != BiometricUnlockController.MODE_WAKE_AND_UNLOCK;
+        return unlockMode != BiometricUnlockController.MODE_WAKE_AND_DISMISS_PULSING
+                && unlockMode != BiometricUnlockController.MODE_WAKE_AND_DISMISS;
     }
 
     private void updateStatus(AppearanceRegion[] appearanceRegions) {
@@ -481,9 +488,7 @@ public class LightBarControllerImpl implements
     @Override
     public void onNavigationModeChanged(int mode) {
         mNavigationMode = mode;
-        if (android.view.accessibility.Flags.lightBarUpdateButtonTintOnNavModeChange()) {
-            updateNavigation();
-        }
+        updateNavigation();
     }
 
     /** Injectable factory for creating a {@link LightBarControllerImpl}. */

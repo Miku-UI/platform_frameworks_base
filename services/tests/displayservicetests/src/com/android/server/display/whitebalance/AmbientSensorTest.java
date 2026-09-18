@@ -18,38 +18,44 @@ package com.android.server.display.whitebalance;
 
 import static com.android.server.display.TestUtilsKt.createSensor;
 import static com.android.server.display.TestUtilsKt.createSensorEvent;
+import static com.android.server.display.config.DisplayDeviceConfigTestUtilsKt.createSensorData;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
-import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import android.content.ContextWrapper;
-import android.content.res.Resources;
 import android.hardware.Sensor;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Handler;
 import android.os.Looper;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
+import android.testing.TestableContext;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.platform.app.InstrumentationRegistry;
 
+import com.android.server.display.DisplayDeviceConfig;
+import com.android.server.display.config.SensorData;
+import com.android.server.display.feature.flags.Flags;
+import com.android.server.display.utils.SensorUtils;
 import com.android.server.display.whitebalance.AmbientSensor.AmbientBrightnessSensor;
 import com.android.server.display.whitebalance.AmbientSensor.AmbientColorTemperatureSensor;
 
-import com.google.common.collect.ImmutableList;
-
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.InOrder;
+import org.mockito.Mockito;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -58,31 +64,40 @@ import java.util.concurrent.TimeUnit;
 @RunWith(JUnit4.class)
 public final class AmbientSensorTest {
     private static final int AMBIENT_COLOR_TYPE = 20705;
-    private static final String AMBIENT_COLOR_TYPE_STR = "colorSensoryDensoryDoc";
+    private static final String AMBIENT_COLOR_TYPE_STR = "colorSensor";
+    private static final String LIGHT_TYPE_STR = "lightSensor";
+
+    @Rule
+    public TestableContext mTestableContext = new TestableContext(
+            InstrumentationRegistry.getInstrumentation().getContext());
+
+    @Rule
+    public SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private Handler mHandler = new Handler(Looper.getMainLooper());
-    private Sensor mLightSensor;
-    private Sensor mAmbientColorSensor;
-    private ContextWrapper mContextSpy;
-    private Resources mResourcesSpy;
 
-    @Mock private SensorManager mSensorManagerMock;
+    private SensorData mLightSensorData = createSensorData(LIGHT_TYPE_STR);
+    private SensorData mColorSensorData = createSensorData(AMBIENT_COLOR_TYPE_STR);
+    private Sensor mLightSensor = createSensor(Sensor.TYPE_LIGHT, LIGHT_TYPE_STR);
+    private Sensor mColorSensor = createSensor(AMBIENT_COLOR_TYPE, AMBIENT_COLOR_TYPE_STR);
+
+    private SensorManager mSensorManagerMock = mock(SensorManager.class);
+    private DisplayDeviceConfig mDisplayDeviceConfigMock = mock(DisplayDeviceConfig.class);
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
-        mLightSensor = createSensor(Sensor.TYPE_LIGHT);
-        mAmbientColorSensor = createSensor(AMBIENT_COLOR_TYPE, AMBIENT_COLOR_TYPE_STR);
-        mContextSpy = spy(new ContextWrapper(InstrumentationRegistry.getContext()));
-        mResourcesSpy = spy(mContextSpy.getResources());
-        when(mContextSpy.getResources()).thenReturn(mResourcesSpy);
+        when(mSensorManagerMock.getSensorList(Sensor.TYPE_ALL)).thenReturn(
+                List.of(mLightSensor, mColorSensor));
+        when(mDisplayDeviceConfigMock.getColorSensor()).thenReturn(mColorSensorData);
+        when(mDisplayDeviceConfigMock.getAmbientLightSensor()).thenReturn(mLightSensorData);
     }
 
     @Test
-    public void testAmbientBrightnessSensorCallback_NoCallbacks() throws Exception {
-        when(mSensorManagerMock.getDefaultSensor(Sensor.TYPE_LIGHT)).thenReturn(mLightSensor);
+    @EnableFlags(Flags.FLAG_WHITE_BALANCE_CONTROLLER_DDC_CONFIG)
+    public void testAmbientBrightnessSensorCallback_NoCallbacks() {
         AmbientBrightnessSensor abs = DisplayWhiteBalanceFactory.createBrightnessSensor(
-                mHandler, mSensorManagerMock, InstrumentationRegistry.getContext().getResources());
+                mHandler, mSensorManagerMock, mTestableContext.getResources(),
+                mDisplayDeviceConfigMock);
 
         abs.setCallbacks(null);
         abs.setEnabled(true);
@@ -98,11 +113,12 @@ public final class AmbientSensorTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_WHITE_BALANCE_CONTROLLER_DDC_CONFIG)
     public void testAmbientBrightnessSensorCallback_CallbacksCalled() throws Exception {
         final int luxValue = 83;
-        when(mSensorManagerMock.getDefaultSensor(Sensor.TYPE_LIGHT)).thenReturn(mLightSensor);
         AmbientBrightnessSensor abs = DisplayWhiteBalanceFactory.createBrightnessSensor(
-                mHandler, mSensorManagerMock, InstrumentationRegistry.getContext().getResources());
+                mHandler, mSensorManagerMock, mTestableContext.getResources(),
+                mDisplayDeviceConfigMock);
 
         final int[] luxReturned = new int[] { -1 };
         final CountDownLatch  changeSignal = new CountDownLatch(1);
@@ -123,19 +139,15 @@ public final class AmbientSensorTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_WHITE_BALANCE_CONTROLLER_DDC_CONFIG)
     public void testAmbientColorTemperatureSensorCallback_CallbacksCalled() throws Exception {
         final int colorTempValue = 79;
-        final List<Sensor> sensorList = ImmutableList.of(mLightSensor, mAmbientColorSensor);
-        when(mSensorManagerMock.getSensorList(Sensor.TYPE_ALL)).thenReturn(sensorList);
-        when(mResourcesSpy.getString(
-                com.android.internal.R.string.config_displayWhiteBalanceColorTemperatureSensorName))
-                .thenReturn(AMBIENT_COLOR_TYPE_STR);
-
-        AmbientColorTemperatureSensor abs = DisplayWhiteBalanceFactory.createColorTemperatureSensor(
-                mHandler, mSensorManagerMock, mResourcesSpy);
+        AmbientColorTemperatureSensor abs = DisplayWhiteBalanceFactory
+                .createColorTemperatureSensor(mHandler, mSensorManagerMock,
+                        mTestableContext.getResources(), mDisplayDeviceConfigMock);
 
         final int[] colorTempReturned = new int[] { -1 };
-        final CountDownLatch  changeSignal = new CountDownLatch(1);
+        final CountDownLatch changeSignal = new CountDownLatch(1);
         abs.setCallbacks(value -> {
             colorTempReturned[0] = (int) value;
             changeSignal.countDown();
@@ -144,11 +156,36 @@ public final class AmbientSensorTest {
         abs.setEnabled(true);
         ArgumentCaptor<SensorEventListener> captor =
                 ArgumentCaptor.forClass(SensorEventListener.class);
-        verify(mSensorManagerMock).registerListener(captor.capture(), eq(mAmbientColorSensor),
+        verify(mSensorManagerMock).registerListener(captor.capture(), eq(mColorSensor),
                 anyInt(), eq(mHandler));
         SensorEventListener listener = captor.getValue();
-        listener.onSensorChanged(createSensorEvent(mAmbientColorSensor, colorTempValue));
+        listener.onSensorChanged(createSensorEvent(mColorSensor, colorTempValue));
         assertTrue(changeSignal.await(5, TimeUnit.SECONDS));
         assertEquals(colorTempValue, colorTempReturned[0]);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_WHITE_BALANCE_CONTROLLER_DDC_CONFIG)
+    public void testSetSensorData_resubscribeSensor() {
+        String otherSensorType = "otherSensorType";
+        SensorData otherSensorData = createSensorData(otherSensorType);
+        Sensor otherSensor = createSensor(0, otherSensorType);
+        when(mSensorManagerMock.getSensorList(Sensor.TYPE_ALL)).thenReturn(
+                List.of(mLightSensor, mColorSensor, otherSensor));
+        AmbientBrightnessSensor abs = DisplayWhiteBalanceFactory.createBrightnessSensor(
+                mHandler, mSensorManagerMock, mTestableContext.getResources(),
+                mDisplayDeviceConfigMock);
+
+        abs.setEnabled(true);
+        verify(mSensorManagerMock).registerListener(any(SensorEventListener.class),
+                eq(mLightSensor), anyInt(), isA(Handler.class));
+
+        abs.setSensorData(otherSensorData, SensorUtils.NO_FALLBACK);
+
+        InOrder inOrder = Mockito.inOrder(mSensorManagerMock);
+        inOrder.verify(mSensorManagerMock).registerListener(any(SensorEventListener.class),
+                eq(otherSensor), anyInt(), isA(Handler.class));
+        inOrder.verify(mSensorManagerMock)
+                .unregisterListener(any(SensorEventListener.class), eq(mLightSensor));
     }
 }

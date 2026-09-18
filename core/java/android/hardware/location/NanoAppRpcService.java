@@ -30,7 +30,7 @@ import android.os.Parcelable;
  * over the message payloads transferred through the {@link ContextHubClient}.
  *
  * This class is instantiated as a part of {@link NanoAppState}, which is provided as a result
- * of {@link ContextHubManager.queryNanoApps(ContextHubInfo)}.
+ * of {@link ContextHubManager#queryNanoApps(ContextHubInfo)}.
  *
  * See the chrePublishRpcServices() API for how this service is published by the nanoapp.
  *

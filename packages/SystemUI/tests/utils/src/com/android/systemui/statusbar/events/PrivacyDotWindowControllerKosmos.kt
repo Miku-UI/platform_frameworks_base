@@ -22,6 +22,7 @@ import android.view.layoutInflater
 import com.android.systemui.concurrency.fakeExecutor
 import com.android.systemui.decor.privacyDotDecorProviderFactory
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.statusbar.multiDisplayStatusBarLogger
 
 var Kosmos.privacyDotWindowController by
     Kosmos.Fixture {
@@ -32,5 +33,6 @@ var Kosmos.privacyDotWindowController by
             layoutInflater,
             fakeExecutor,
             privacyDotDecorProviderFactory,
+            multiDisplayStatusBarLogger,
         )
     }

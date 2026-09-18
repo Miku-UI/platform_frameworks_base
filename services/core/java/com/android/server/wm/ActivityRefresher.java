@@ -31,7 +31,6 @@ import android.os.Handler;
 
 import com.android.internal.protolog.ProtoLog;
 import com.android.internal.util.ArrayUtils;
-import com.android.window.flags.Flags;
 
 import java.util.ArrayList;
 
@@ -49,7 +48,7 @@ class ActivityRefresher {
 
     @NonNull private final WindowManagerService mWmService;
     @NonNull private final Handler mHandler;
-    // TODO(b/395063101): remove once external camera sandboxing is launched.
+    // TODO(b/432218134): remove once AppCompatCameraDisplayRotationPolicy is removed.
     @NonNull private final ArrayList<Evaluator> mEvaluators = new ArrayList<>();
 
     ActivityRefresher(@NonNull WindowManagerService wmService, @NonNull Handler handler) {
@@ -57,12 +56,12 @@ class ActivityRefresher {
         mHandler = handler;
     }
 
-    // TODO(b/395063101): remove once external display sandboxing for camera is launched.
+    // TODO(b/432218134): remove once AppCompatCameraDisplayRotationPolicy is removed.
     void addEvaluator(@NonNull Evaluator evaluator) {
         mEvaluators.add(evaluator);
     }
 
-    // TODO(b/395063101): remove once external display sandboxing for camera is launched.
+    // TODO(b/432218134): remove once AppCompatCameraDisplayRotationPolicy is removed.
     void removeEvaluator(@NonNull Evaluator evaluator) {
         mEvaluators.remove(evaluator);
     }
@@ -90,7 +89,7 @@ class ActivityRefresher {
         activity.mAppCompatController.getCameraOverrides().setActivityRefreshState(REQUESTED);
     }
 
-    // TODO(b/395063101): remove once external display sandboxing for camera is launched.
+    // TODO(b/432218134): remove once AppCompatCameraDisplayRotationPolicy is removed.
     /**
      * "Refreshes" activity by going through "stopped -> resumed" or "paused -> resumed" cycle.
      * This allows to clear cached values in apps (e.g. display or camera rotation) that influence
@@ -135,6 +134,9 @@ class ActivityRefresher {
     }
 
     private boolean refreshActivity(@NonNull ActivityRecord activity) {
+        if (activity.app == null) {
+            return false;
+        }
         final boolean cycleThroughStop =
                 mWmService.mAppCompatConfiguration
                         .isCameraCompatRefreshCycleThroughStopEnabled()
@@ -161,16 +163,13 @@ class ActivityRefresher {
     }
 
     void clearRefreshState(@NonNull ActivityRecord activity) {
-        if (Flags.enableCameraCompatSandboxDisplayRotationOnExternalDisplaysBugfix()) {
-            activity.mAppCompatController.getCameraOverrides().setActivityRefreshState(NONE);
-        }
+        activity.mAppCompatController.getCameraOverrides().setActivityRefreshState(NONE);
         activity.mAppCompatController.getCameraOverrides().setIsRefreshRequested(false);
     }
 
     boolean isActivityRefreshing(@NonNull ActivityRecord activity) {
-        return Flags.enableCameraCompatSandboxDisplayRotationOnExternalDisplaysBugfix()
-                ? getActivityRefreshState(activity) == IN_PROGRESS
-                : activity.mAppCompatController.getCameraOverrides().isRefreshRequested();
+        return getActivityRefreshState(activity) == IN_PROGRESS
+                || activity.mAppCompatController.getCameraOverrides().isRefreshRequested();
     }
 
     void onActivityRefreshed(@NonNull ActivityRecord activity) {
@@ -186,7 +185,7 @@ class ActivityRefresher {
                 && getActivityRefreshState(activity) != NONE;
     }
 
-    // TODO(b/395063101): remove once external display sandboxing for camera is launched.
+    // TODO(b/432218134): remove once AppCompatCameraDisplayRotationPolicy is removed.
     private boolean shouldRefreshActivity(@NonNull ActivityRecord activity,
             @NonNull Configuration newConfig, @NonNull Configuration lastReportedConfig) {
         return mWmService.mAppCompatConfiguration.isCameraCompatRefreshEnabled()
@@ -202,7 +201,7 @@ class ActivityRefresher {
         return activity.mAppCompatController.getCameraOverrides().getActivityRefreshState();
     }
 
-    // TODO(b/395063101): remove once external display sandboxing for camera is launched.
+    // TODO(b/432218134): remove once AppCompatCameraDisplayRotationPolicy is removed.
     /**
      * Interface for classes that would like to refresh the recently updated activity, based on the
      * configuration change.

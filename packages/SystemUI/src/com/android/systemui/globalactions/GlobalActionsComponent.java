@@ -84,13 +84,18 @@ public class GlobalActionsComponent implements CoreStartable, Callbacks, GlobalA
 
     @Override
     public void handleShowGlobalActionsMenu() {
-        mStatusBarKeyguardViewManager.setGlobalActionsVisible(true);
         mExtension.get().showGlobalActions(this);
+    }
+
+    @Override
+    public void handleShowOrHideGlobalActionsMenu() {
+        mExtension.get().showOrHideGlobalActions(this);
     }
 
     @Override
     public void onGlobalActionsShown() {
         try {
+            mStatusBarKeyguardViewManager.setGlobalActionsVisible(true);
             mBarService.onGlobalActionsShown();
         } catch (RemoteException e) {
         }

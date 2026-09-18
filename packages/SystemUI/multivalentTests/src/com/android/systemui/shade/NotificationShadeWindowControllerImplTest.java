@@ -17,12 +17,13 @@
 package com.android.systemui.shade;
 
 import static android.service.dreams.Flags.FLAG_DREAMS_V2;
-import static com.android.window.flags.Flags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH;
 import static android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM;
 import static android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
 import static android.view.WindowManager.LayoutParams.FLAG_SECURE;
 import static android.view.WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER;
 import static android.view.WindowManager.LayoutParams.INPUT_FEATURE_SENSITIVE_FOR_PRIVACY;
+
+import static com.android.window.flags.Flags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -175,9 +176,11 @@ public class NotificationShadeWindowControllerImplTest extends SysuiTestCase {
                 () -> mSelectedUserInteractor,
                 mUserTracker,
                 mKosmos.getNotificationShadeWindowModel(),
-                mKosmos::getCommunalInteractor,
+                mKosmos::getCommunalSceneInteractor,
                 mKosmos.getShadeLayoutParams(),
-                mKosmos.getTopUiController());
+                mKosmos.getTopUiController(),
+                mKosmos.getKeyguardSurfaceBehindInteractor(),
+                mKosmos.getJavaAdapter());
         mNotificationShadeWindowController.setScrimsVisibilityListener((visibility) -> {});
         mNotificationShadeWindowController.fetchWindowRootView();
 
@@ -312,6 +315,7 @@ public class NotificationShadeWindowControllerImplTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableFlags(com.android.systemui.Flags.FLAG_KEYGUARD_REMOVE_IME_FOCUS)
     public void setKeyguardShowing_focusable_notAltFocusable_whenNeedsInput() {
         mNotificationShadeWindowController.setKeyguardShowing(true);
         clearInvocations(mWindowManager);
@@ -320,6 +324,52 @@ public class NotificationShadeWindowControllerImplTest extends SysuiTestCase {
         verify(mWindowManager).updateViewLayout(any(), mLayoutParameters.capture());
         assertThat((mLayoutParameters.getValue().flags & FLAG_NOT_FOCUSABLE) == 0).isTrue();
         assertThat((mLayoutParameters.getValue().flags & FLAG_ALT_FOCUSABLE_IM) == 0).isTrue();
+    }
+
+    @Test
+    @EnableFlags(com.android.systemui.Flags.FLAG_KEYGUARD_REMOVE_IME_FOCUS)
+    public void setKeyguardShowing_focusable_altFocusable_whenNeedsInput() {
+        clearInvocations(mWindowManager);
+        mNotificationShadeWindowController.setKeyguardShowing(true);
+
+        verify(mWindowManager).updateViewLayout(any(), mLayoutParameters.capture());
+        assertThat((mLayoutParameters.getValue().flags & FLAG_NOT_FOCUSABLE) == 0).isTrue();
+        assertThat((mLayoutParameters.getValue().flags & FLAG_ALT_FOCUSABLE_IM) != 0).isTrue();
+
+        clearInvocations(mWindowManager);
+        mNotificationShadeWindowController.setKeyguardNeedsInput(true);
+
+        verify(mWindowManager, never()).updateViewLayout(any(), any());
+    }
+
+    @Test
+    @DisableFlags(com.android.systemui.Flags.FLAG_KEYGUARD_REMOVE_IME_FOCUS)
+    public void setKeyguardShowing_afterBouncer_notAltFocusable_whenNeedsInput() {
+        mNotificationShadeWindowController.setKeyguardShowing(true);
+        mNotificationShadeWindowController.setKeyguardNeedsInput(true);
+        mNotificationShadeWindowController.setBouncerShowing(true);
+        clearInvocations(mWindowManager);
+
+        mNotificationShadeWindowController.setBouncerShowing(false);
+
+        verify(mWindowManager).updateViewLayout(any(), mLayoutParameters.capture());
+        assertThat((mLayoutParameters.getValue().flags & FLAG_NOT_FOCUSABLE) == 0).isTrue();
+        assertThat((mLayoutParameters.getValue().flags & FLAG_ALT_FOCUSABLE_IM) == 0).isTrue();
+    }
+
+    @Test
+    @EnableFlags(com.android.systemui.Flags.FLAG_KEYGUARD_REMOVE_IME_FOCUS)
+    public void setKeyguardShowing_afterBouncer_altFocusable_whenNeedsInput() {
+        mNotificationShadeWindowController.setKeyguardShowing(true);
+        mNotificationShadeWindowController.setKeyguardNeedsInput(true);
+        mNotificationShadeWindowController.setBouncerShowing(true);
+        clearInvocations(mWindowManager);
+
+        mNotificationShadeWindowController.setBouncerShowing(false);
+
+        verify(mWindowManager).updateViewLayout(any(), mLayoutParameters.capture());
+        assertThat((mLayoutParameters.getValue().flags & FLAG_NOT_FOCUSABLE) == 0).isTrue();
+        assertThat((mLayoutParameters.getValue().flags & FLAG_ALT_FOCUSABLE_IM) != 0).isTrue();
     }
 
     @Test
@@ -583,6 +633,15 @@ public class NotificationShadeWindowControllerImplTest extends SysuiTestCase {
         mNotificationShadeWindowController.setForceHideAfterActivityLaunch(true);
 
         // THEN the panel is invisible
+        verify(mNotificationShadeWindowView).setVisibility(eq(View.INVISIBLE));
+    }
+
+    @Test
+    public void isAnimatingGoneToAod() {
+        mNotificationShadeWindowController.setIsAnimatingGoneToAod(true);
+        verify(mNotificationShadeWindowView).setVisibility(eq(View.VISIBLE));
+
+        mNotificationShadeWindowController.setIsAnimatingGoneToAod(false);
         verify(mNotificationShadeWindowView).setVisibility(eq(View.INVISIBLE));
     }
 

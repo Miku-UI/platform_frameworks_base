@@ -1,4 +1,5 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package android.app {
 
   public class Notification implements android.os.Parcelable {
@@ -35,6 +36,7 @@ package android.content {
     method @Deprecated @Nullable public String getFeatureId();
     method public abstract android.content.SharedPreferences getSharedPreferences(java.io.File, int);
     method public abstract java.io.File getSharedPreferencesPath(String);
+    field public static final String FINGERPRINT_SERVICE = "fingerprint";
   }
 
   public class ContextWrapper extends android.content.Context {
@@ -42,7 +44,7 @@ package android.content {
     method public java.io.File getSharedPreferencesPath(String);
   }
 
-  public class Intent implements java.lang.Cloneable android.os.Parcelable {
+  public class Intent implements Cloneable android.os.Parcelable {
     field @Deprecated public static final String EXTRA_QUICK_VIEW_ADVANCED = "android.intent.extra.QUICK_VIEW_ADVANCED";
   }
 
@@ -58,7 +60,7 @@ package android.content.pm {
     method public abstract boolean setInstantAppCookie(@Nullable byte[]);
   }
 
-  @IntDef(prefix={"FLAG_PERMISSION_"}, value={0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x100, 0x200, 0x2000, 0x1000, 0x800, 0x4000, 0x8000, 0x8, 0x10000, 0x20000}) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public static @interface PackageManager.PermissionFlags {
+  @IntDef(prefix={"FLAG_PERMISSION_"}, value={0x1, 0x2, 0x4, 0x8, 0x10, 0x20, 0x100, 0x200, 0x2000, 0x1000, 0x800, 0x4000, 0x8000, 0x8, 0x10000, 0x20000, 0x80000, 0x100000, 0x200000}) @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public static @interface PackageManager.PermissionFlags {
   }
 
   public final class SharedLibraryInfo implements android.os.Parcelable {
@@ -74,7 +76,7 @@ package android.database {
   public abstract class AbstractCursor implements android.database.CrossProcessCursor {
     field protected Long mCurrentRowID;
     field protected int mRowIdColumnIndex;
-    field protected java.util.HashMap<java.lang.Long,java.util.Map<java.lang.String,java.lang.Object>> mUpdatedRows;
+    field protected java.util.HashMap<Long, java.util.Map<String, Object>> mUpdatedRows;
   }
 
 }
@@ -91,8 +93,8 @@ package android.graphics {
   }
 
   public class Canvas {
-    method @Deprecated public boolean clipRegion(@NonNull android.graphics.Region, @NonNull android.graphics.Region.Op);
     method @Deprecated public boolean clipRegion(@NonNull android.graphics.Region);
+    method @Deprecated public boolean clipRegion(@NonNull android.graphics.Region, @NonNull android.graphics.Region.Op);
     method @Deprecated public int save(int);
     field @Deprecated public static final int CLIP_SAVE_FLAG = 2; // 0x2
     field @Deprecated public static final int CLIP_TO_LAYER_SAVE_FLAG = 16; // 0x10
@@ -103,8 +105,8 @@ package android.graphics {
 
   @Deprecated public class LayerRasterizer extends android.graphics.Rasterizer {
     ctor @Deprecated public LayerRasterizer();
-    method @Deprecated public void addLayer(android.graphics.Paint, float, float);
     method @Deprecated public void addLayer(android.graphics.Paint);
+    method @Deprecated public void addLayer(android.graphics.Paint, float, float);
   }
 
   public class Paint {
@@ -141,6 +143,54 @@ package android.hardware {
 
   public final class SensorDirectChannel implements java.nio.channels.Channel {
     method @Deprecated public boolean isValid();
+  }
+
+}
+
+package android.hardware.fingerprint {
+
+  @Deprecated @RestrictedForEnvironment(environments=android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) public class FingerprintManager {
+    method @Deprecated @RequiresPermission(anyOf={android.Manifest.permission.USE_BIOMETRIC, android.Manifest.permission.USE_FINGERPRINT}) public void authenticate(@Nullable android.hardware.fingerprint.FingerprintManager.CryptoObject, @Nullable android.os.CancellationSignal, int, @NonNull android.hardware.fingerprint.FingerprintManager.AuthenticationCallback, @Nullable android.os.Handler);
+    method @Deprecated @RequiresPermission(android.Manifest.permission.USE_FINGERPRINT) public boolean hasEnrolledFingerprints();
+    method @Deprecated @RequiresPermission(android.Manifest.permission.USE_FINGERPRINT) public boolean isHardwareDetected();
+    field @Deprecated public static final int FINGERPRINT_ACQUIRED_GOOD = 0; // 0x0
+    field @Deprecated public static final int FINGERPRINT_ACQUIRED_IMAGER_DIRTY = 3; // 0x3
+    field @Deprecated public static final int FINGERPRINT_ACQUIRED_INSUFFICIENT = 2; // 0x2
+    field @Deprecated public static final int FINGERPRINT_ACQUIRED_PARTIAL = 1; // 0x1
+    field @Deprecated public static final int FINGERPRINT_ACQUIRED_TOO_FAST = 5; // 0x5
+    field @Deprecated public static final int FINGERPRINT_ACQUIRED_TOO_SLOW = 4; // 0x4
+    field @Deprecated public static final int FINGERPRINT_ERROR_CANCELED = 5; // 0x5
+    field @Deprecated public static final int FINGERPRINT_ERROR_HW_NOT_PRESENT = 12; // 0xc
+    field @Deprecated public static final int FINGERPRINT_ERROR_HW_UNAVAILABLE = 1; // 0x1
+    field @Deprecated public static final int FINGERPRINT_ERROR_LOCKOUT = 7; // 0x7
+    field @Deprecated public static final int FINGERPRINT_ERROR_LOCKOUT_PERMANENT = 9; // 0x9
+    field @Deprecated public static final int FINGERPRINT_ERROR_NO_FINGERPRINTS = 11; // 0xb
+    field @Deprecated public static final int FINGERPRINT_ERROR_NO_SPACE = 4; // 0x4
+    field @Deprecated public static final int FINGERPRINT_ERROR_TIMEOUT = 3; // 0x3
+    field @Deprecated public static final int FINGERPRINT_ERROR_UNABLE_TO_PROCESS = 2; // 0x2
+    field @Deprecated public static final int FINGERPRINT_ERROR_USER_CANCELED = 10; // 0xa
+    field @Deprecated public static final int FINGERPRINT_ERROR_VENDOR = 8; // 0x8
+  }
+
+  @Deprecated public abstract static class FingerprintManager.AuthenticationCallback {
+    ctor @Deprecated public FingerprintManager.AuthenticationCallback();
+    method @Deprecated public void onAuthenticationError(int, CharSequence);
+    method @Deprecated public void onAuthenticationFailed();
+    method @Deprecated public void onAuthenticationHelp(int, CharSequence);
+    method @Deprecated public void onAuthenticationSucceeded(android.hardware.fingerprint.FingerprintManager.AuthenticationResult);
+  }
+
+  @Deprecated public static class FingerprintManager.AuthenticationResult {
+    method @Deprecated public android.hardware.fingerprint.FingerprintManager.CryptoObject getCryptoObject();
+  }
+
+  @Deprecated public static final class FingerprintManager.CryptoObject {
+    ctor @Deprecated public FingerprintManager.CryptoObject(@NonNull java.security.Signature);
+    ctor @Deprecated public FingerprintManager.CryptoObject(@NonNull javax.crypto.Cipher);
+    ctor @Deprecated public FingerprintManager.CryptoObject(@NonNull javax.crypto.Mac);
+    method @Deprecated public javax.crypto.Cipher getCipher();
+    method @Deprecated public javax.crypto.Mac getMac();
+    method @Deprecated public java.security.Signature getSignature();
   }
 
 }
@@ -252,8 +302,8 @@ package android.provider {
     method @RequiresPermission(value="com.android.browser.permission.WRITE_HISTORY_BOOKMARKS", apis="..22") public static final void clearSearches(android.content.ContentResolver);
     method @RequiresPermission(value="com.android.browser.permission.WRITE_HISTORY_BOOKMARKS", apis="..22") public static final void deleteFromHistory(android.content.ContentResolver, String);
     method @RequiresPermission(value="com.android.browser.permission.WRITE_HISTORY_BOOKMARKS", apis="..22") public static final void deleteHistoryTimeFrame(android.content.ContentResolver, long, long);
-    method @RequiresPermission(value="com.android.browser.permission.READ_HISTORY_BOOKMARKS", apis="..22") public static final android.database.Cursor getAllBookmarks(android.content.ContentResolver) throws java.lang.IllegalStateException;
-    method @RequiresPermission(value="com.android.browser.permission.READ_HISTORY_BOOKMARKS", apis="..22") public static final android.database.Cursor getAllVisitedUrls(android.content.ContentResolver) throws java.lang.IllegalStateException;
+    method @RequiresPermission(value="com.android.browser.permission.READ_HISTORY_BOOKMARKS", apis="..22") public static final android.database.Cursor getAllBookmarks(android.content.ContentResolver) throws IllegalStateException;
+    method @RequiresPermission(value="com.android.browser.permission.READ_HISTORY_BOOKMARKS", apis="..22") public static final android.database.Cursor getAllVisitedUrls(android.content.ContentResolver) throws IllegalStateException;
     method @RequiresPermission(value="com.android.browser.permission.READ_HISTORY_BOOKMARKS", apis="..22") public static final void requestAllIcons(android.content.ContentResolver, String, android.webkit.WebIconDatabase.IconListener);
     method public static final void saveBookmark(android.content.Context, String, String);
     method @RequiresPermission(allOf={"com.android.browser.permission.READ_HISTORY_BOOKMARKS", "com.android.browser.permission.WRITE_HISTORY_BOOKMARKS"}, apis="..22") public static final void truncateHistory(android.content.ContentResolver);

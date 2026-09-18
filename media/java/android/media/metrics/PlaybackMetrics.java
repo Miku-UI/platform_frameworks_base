@@ -20,6 +20,7 @@ import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.media.metrics.reported.ReportedPlaybackMetrics;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -707,5 +708,30 @@ public final class PlaybackMetrics implements Parcelable {
             }
             return ids;
         }
+    }
+
+    /** @hide */
+    public ReportedPlaybackMetrics toReportable() {
+        ReportedPlaybackMetrics reportable =
+                        new ReportedPlaybackMetrics();
+
+        reportable.mediaDurationMillis = getMediaDurationMillis();
+        reportable.streamSource = getStreamSource();
+        reportable.streamType = getStreamType();
+        reportable.playbackType = getPlaybackType();
+        reportable.drmType = getDrmType();
+        reportable.contentType = getContentType();
+        reportable.playerName = getPlayerName();
+        reportable.playerVersion = getPlayerVersion();
+        reportable.experimentIds = getExperimentIds();
+        reportable.videoFramesPlayed = getVideoFramesPlayed();
+        reportable.videoFramesDropped = getVideoFramesDropped();
+        reportable.audioUnderrunCount = getAudioUnderrunCount();
+        reportable.networkBytesRead = getNetworkBytesRead();
+        reportable.localBytesRead = getLocalBytesRead();
+        reportable.networkTransferDurationMillis = getNetworkTransferDurationMillis();
+        reportable.drmSessionId = getDrmSessionId();
+
+        return reportable;
     }
 }

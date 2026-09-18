@@ -449,16 +449,45 @@ public class EmergencyAffordanceServiceTest {
 
         // Test with Multiple SIMs. SIM1 is a non-EA SIM
         // Only country iso is valuable, all other info are filled with placeholder values
-        SubscriptionInfo subInfo = new SubscriptionInfo(1, "890126042XXXXXXXXXXX", 0, "T-mobile",
-                "T-mobile", 0, 255, "12345", 0, null,
-                "310", "226", NON_EMERGENCY_ISO_CODE, false, null, null);
+        SubscriptionInfo subInfo = new SubscriptionInfo.Builder()
+                .setId(1)
+                .setIccId("890126042XXXXXXXXXXX")
+                .setSimSlotIndex(0)
+                .setDisplayName("T-mobile")
+                .setCarrierName("T-mobile")
+                .setDisplayNameSource(0)
+                .setIconTint(255)
+                .setNumber("12345")
+                .setDataRoaming(0)
+                .setIcon(null)
+                .setMcc("310")
+                .setMnc("226")
+                .setCountryIso(NON_EMERGENCY_ISO_CODE)
+                .setEmbedded(false)
+                .setNativeAccessRules(null)
+                .setCardString(null)
+                .build();
         subInfos.add(subInfo);
 
         // SIM2 can configured to be non-EA or EA SIM according parameter withEmergencyIso
-        SubscriptionInfo subInfo2 = new SubscriptionInfo(1, "890126042XXXXXXXXXXX", 0, "Airtel",
-                "Aritel", 0, 255, "12345", 0, null, "310", "226",
-                withEmergencyIso ? EMERGENCY_ISO_CODE : NON_EMERGENCY_ISO_CODE,
-                false, null, null);
+        SubscriptionInfo subInfo2 = new SubscriptionInfo.Builder()
+                .setId(1)
+                .setIccId("890126042XXXXXXXXXXX")
+                .setSimSlotIndex(0)
+                .setDisplayName("Airtel")
+                .setCarrierName("Aritel")
+                .setDisplayNameSource(0)
+                .setIconTint(255)
+                .setNumber("12345")
+                .setDataRoaming(0)
+                .setIcon(null)
+                .setMcc("310")
+                .setMnc("226")
+                .setCountryIso(withEmergencyIso ? EMERGENCY_ISO_CODE : NON_EMERGENCY_ISO_CODE)
+                .setEmbedded(false)
+                .setNativeAccessRules(null)
+                .setCardString(null)
+                .build();
         subInfos.add(subInfo2);
 
         return subInfos;

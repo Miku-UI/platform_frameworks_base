@@ -18,6 +18,7 @@ package com.android.server.pm.pkg;
 
 import android.annotation.Dimension;
 import android.annotation.DrawableRes;
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.StringRes;
@@ -48,6 +49,7 @@ import android.util.SparseIntArray;
 
 import com.android.internal.R;
 import com.android.internal.pm.pkg.component.ParsedActivity;
+import com.android.internal.pm.pkg.component.ParsedAllowComponentAccessPolicy;
 import com.android.internal.pm.pkg.component.ParsedApexSystemService;
 import com.android.internal.pm.pkg.component.ParsedAttribution;
 import com.android.internal.pm.pkg.component.ParsedInstrumentation;
@@ -89,28 +91,6 @@ import java.util.UUID;
 @SystemApi(client = SystemApi.Client.SYSTEM_SERVER)
 @Immutable
 public interface AndroidPackage {
-
-    /**
-     * An array containing the drawable resources that used for the launcher
-     * activity icons.
-     *
-     * @see R.attr#alternateLauncherIcons
-     * @hide
-     */
-    @Immutable.Ignore
-    @Nullable
-    int[] getAlternateLauncherIconResIds();
-
-    /**
-     * An array containing the string resources that used for the launcher
-     * activity labels.
-     *
-     * @see R.attr#alternateLauncherLabels
-     * @hide
-     */
-    @Immutable.Ignore
-    @Nullable
-    int[] getAlternateLauncherLabelResIds();
 
     /**
      * @see ApplicationInfo#className
@@ -385,6 +365,22 @@ public interface AndroidPackage {
      */
     @Nullable
     String getZygotePreloadName();
+
+    /**
+     * @see ApplicationInfo#zygotePreloadNativeLib
+     * @see R.styleable#AndroidManifestApplication_zygotePreloadNativeLib
+     */
+    @Nullable
+    @FlaggedApi(android.os.Flags.FLAG_NATIVE_APP_ZYGOTE)
+    String getZygotePreloadNativeLib();
+
+    /**
+     * @see ApplicationInfo#zygotePreloadNativeFunc
+     * @see R.styleable#AndroidManifestApplication_zygotePreloadNativeFunc
+     */
+    @Nullable
+    @FlaggedApi(android.os.Flags.FLAG_NATIVE_APP_ZYGOTE)
+    String getZygotePreloadNativeFunc();
 
     /**
      * @see ApplicationInfo#PRIVATE_FLAG_ALLOW_AUDIO_PLAYBACK_CAPTURE
@@ -677,7 +673,11 @@ public interface AndroidPackage {
     /**
      * @see ApplicationInfo#FLAG_USES_CLEARTEXT_TRAFFIC
      * @see R.styleable#AndroidManifestApplication_usesCleartextTraffic
+     * @deprecated Use a <a href="{@docRoot}privacy-and-security/security-config#manifest">Network
+     * Security Configuration file</a> instead.
      */
+    @Deprecated
+    @FlaggedApi("android.security.deprecate_uses_cleartext_traffic2")
     boolean isCleartextTrafficAllowed();
 
     /**
@@ -1556,13 +1556,34 @@ public interface AndroidPackage {
     int getIntentMatchingFlags();
 
     /**
-     * Returns true if this application should run in the Private Compute Core sandbox.
+     * Returns true if this application has any component that should run in
+     * the Private Compute Core sandbox.
      *
-     * @see ApplicationInfo#PRIVATE_FLAG_EXT_RUN_IN_PCC_SANDBOX
-     * @see R.styleable#AndroidManifestApplication_runInPccSandbox
+     * @see ActivityInfo#FLAG_RUN_IN_PCC_SANDBOX
+     * @see ServiceInfo#FLAG_RUN_IN_PCC_SANDBOX
+     * @see ProviderInfo#FLAG_RUN_IN_PCC_SANDBOX
+     * @see R.styleable#AndroidManifestPrivateCompute
      *
      * @hide
      */
-    boolean shouldRunInPccSandbox();
+    boolean hasPccComponents();
+
+    /**
+     * Returns the process that the backup agent will run in.
+     * @see R.styleable#AndroidManifestApplication_backupAgentProcess
+     * @hide
+     */
+    @ApplicationInfo.BackupAgentProcess
+    int getBackupAgentProcess();
+
+    /**
+     * Returns the complete policy declaring which other components this application is
+     * allowed to associate with, as parsed from the manifest.
+     *
+     * @return The parsed {@link ParsedAllowComponentAccessPolicy} object, or null if the
+     * {@code <allow-component-access>} tag was not declared.
+     * @hide
+     */
+    ParsedAllowComponentAccessPolicy getParsedAllowComponentAccessPolicy();
 
 }

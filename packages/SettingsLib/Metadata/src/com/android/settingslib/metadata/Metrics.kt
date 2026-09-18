@@ -61,3 +61,22 @@ interface PreferenceRemoteOpMetricsLogger {
     /** Logs get preference graph operation. */
     fun logGraphApi(context: Context, callingUid: Int, success: Boolean, latencyMs: Long)
 }
+
+/**
+ * Interface for logging App Function events.
+ */
+interface AppFunctionMetricsLoggerInterface {
+    fun logAppFunction(
+        functionType: Int,
+        callingPackage: String,
+        latencyMs: Long,
+        context: Context,
+    )
+
+    fun logAppFunctionError(
+        callingPackage: String,
+        errorCode: Int,
+        context: Context,
+        functionType: Int?,
+    )
+}

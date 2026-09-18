@@ -35,6 +35,8 @@ import android.os.Parcel;
 import android.os.PersistableBundle;
 import android.util.Log;
 
+import static com.android.media.mediadrm.flags.Flags.deprecatePlatformMediadrmSecurestopApis;
+
 import dalvik.system.CloseGuard;
 
 import java.lang.annotation.Retention;
@@ -46,6 +48,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -1942,7 +1945,15 @@ public final class MediaDrm implements AutoCloseable {
      * transition away from secure stops to periodic renewals.
      */
     @NonNull
-    public native List<byte[]> getSecureStops();
+    public List<byte[]> getSecureStops() {
+        if (deprecatePlatformMediadrmSecurestopApis()) {
+            Log.d(TAG, "getSecureStops is deprecated, returning empty list.");
+            return Collections.emptyList();
+        }
+        return getSecureStopsNative();
+    }
+
+    private native List<byte[]> getSecureStopsNative();
 
     /**
      * Return a list of all secure stop IDs currently in persistent memory.
@@ -1956,7 +1967,15 @@ public final class MediaDrm implements AutoCloseable {
      * {@link #getSecureStops}
      */
     @NonNull
-    public native List<byte[]> getSecureStopIds();
+    public List<byte[]> getSecureStopIds() {
+        if (deprecatePlatformMediadrmSecurestopApis()) {
+            Log.d(TAG, "getSecureStopIds is deprecated, returning empty list.");
+            return Collections.emptyList();
+        }
+        return getSecureStopIdsNative();
+    }
+
+    private native List<byte[]> getSecureStopIdsNative();
 
     /**
      * Access a specific secure stop given its secure stop ID.
@@ -1970,7 +1989,15 @@ public final class MediaDrm implements AutoCloseable {
      * {@link #getSecureStops}
      */
     @NonNull
-    public native byte[] getSecureStop(@NonNull byte[] ssid);
+    public byte[] getSecureStop(@NonNull byte[] ssid) {
+        if (deprecatePlatformMediadrmSecurestopApis()) {
+            Log.d(TAG, "getSecureStop is deprecated, returning empty byte array.");
+            return new byte[0];
+        }
+        return getSecureStopNative(ssid);
+    }
+
+    private native byte[] getSecureStopNative(@NonNull byte[] ssid);
 
     /**
      * Process the secure stop server response message ssRelease.  After
@@ -1983,7 +2010,15 @@ public final class MediaDrm implements AutoCloseable {
      * concurrent playback. See additional information in
      * {@link #getSecureStops}
      */
-    public native void releaseSecureStops(@NonNull byte[] ssRelease);
+    public void releaseSecureStops(@NonNull byte[] ssRelease) {
+        if (deprecatePlatformMediadrmSecurestopApis()) {
+            Log.d(TAG, "releaseSecureStops is deprecated, no-op.");
+            return;
+        }
+        releaseSecureStopsNative(ssRelease);
+    }
+
+    private native void releaseSecureStopsNative(@NonNull byte[] ssRelease);
 
     /**
      * Remove a specific secure stop without requiring a secure stop release message
@@ -1994,7 +2029,15 @@ public final class MediaDrm implements AutoCloseable {
      * concurrent playback. See additional information in
      * {@link #getSecureStops}
      */
-    public native void removeSecureStop(@NonNull byte[] ssid);
+    public void removeSecureStop(@NonNull byte[] ssid) {
+        if (deprecatePlatformMediadrmSecurestopApis()) {
+            Log.d(TAG, "removeSecureStop is deprecated, no-op.");
+            return;
+        }
+        removeSecureStopNative(ssid);
+    }
+
+    private native void removeSecureStopNative(@NonNull byte[] ssid);
 
     /**
      * Remove all secure stops without requiring a secure stop release message from
@@ -2008,7 +2051,15 @@ public final class MediaDrm implements AutoCloseable {
      * concurrent playback. See additional information in
      * {@link #getSecureStops}
      */
-    public native void removeAllSecureStops();
+    public void removeAllSecureStops() {
+        if (deprecatePlatformMediadrmSecurestopApis()) {
+            Log.d(TAG, "removeAllSecureStops is deprecated, no-op.");
+            return;
+        }
+        removeAllSecureStopsNative();
+    }
+
+    private native void removeAllSecureStopsNative();
 
     /**
      * Remove all secure stops without requiring a secure stop release message from

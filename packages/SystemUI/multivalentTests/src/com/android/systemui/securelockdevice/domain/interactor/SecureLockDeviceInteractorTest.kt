@@ -19,6 +19,7 @@ package com.android.systemui.securelockdevice.domain.interactor
 import android.hardware.fingerprint.FingerprintSensorProperties.TYPE_POWER_BUTTON
 import android.platform.test.annotations.EnableFlags
 import android.security.Flags.FLAG_SECURE_LOCK_DEVICE
+import android.security.authenticationpolicy.authenticationPolicyManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -36,6 +37,7 @@ import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.securelockdevice.data.repository.fakeSecureLockDeviceRepository
 import com.android.systemui.testKosmos
+import com.android.systemui.user.domain.interactor.selectedUserInteractor
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -45,6 +47,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.junit.MockitoJUnit
 import org.mockito.junit.MockitoRule
+import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.verify
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -190,6 +195,26 @@ class SecureLockDeviceInteractorTest : SysuiTestCase() {
     }
 
     @Test
+    fun showsTryAgainWhenRetryAvailable() {
+        testScope.runTest {
+            val showingTryAgainButton by collectLastValue(underTest.showTryAgainButton)
+
+            underTest.onBiometricAuthRequested()
+            runCurrent()
+            assertThat(showingTryAgainButton).isFalse()
+
+            underTest.onRetryAvailableChanged(true)
+            runCurrent()
+            assertThat(showingTryAgainButton).isTrue()
+
+            underTest.onUserRequestedRetry()
+            runCurrent()
+
+            assertThat(showingTryAgainButton).isFalse()
+        }
+    }
+
+    @Test
     fun stopsListeningForBiometricAuth_whileConfirmButtonIsShown() {
         testScope.runTest {
             val shouldListenForBiometricAuth by
@@ -308,6 +333,11 @@ class SecureLockDeviceInteractorTest : SysuiTestCase() {
             underTest.onGoneTransitionFinished()
             runCurrent()
 
+            verify(kosmos.authenticationPolicyManager)
+                .disableSecureLockDevice(
+                    eq(kosmos.selectedUserInteractor.getSelectedUserId()),
+                    any(),
+                )
             assertThat(isBiometricAuthVisible).isFalse()
             assertThat(isFullyUnlockedAndReadyToDismiss).isFalse()
             assertThat(showConfirmBiometricAuthButton).isFalse()

@@ -40,7 +40,8 @@ class Scene {
     var backgroundBlurRadius = 0
 
     /** Region behind which to blur */
-    var blurRegion = BlurRegion(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    var blurRegion = BlurRegion(
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
     /** Location of the top-left position in the x-direction of this scene, on a range of [0, 1] */
     var x = 0.0
@@ -100,10 +101,14 @@ class Scene {
             (blurRegion.top * height).toFloat(),
             (blurRegion.right * width).toFloat(),
             (blurRegion.bottom * height).toFloat(),
-            blurRegion.cornerRadiusTL.toFloat(),
-            blurRegion.cornerRadiusTR.toFloat(),
-            blurRegion.cornerRadiusBL.toFloat(),
-            blurRegion.cornerRadiusBR.toFloat()
+            blurRegion.cornerRadiusTLX.toFloat(),
+            blurRegion.cornerRadiusTLY.toFloat(),
+            blurRegion.cornerRadiusTRX.toFloat(),
+            blurRegion.cornerRadiusTRY.toFloat(),
+            blurRegion.cornerRadiusBLX.toFloat(),
+            blurRegion.cornerRadiusBLY.toFloat(),
+            blurRegion.cornerRadiusBRX.toFloat(),
+            blurRegion.cornerRadiusBRY.toFloat()
         )
     }
 
@@ -193,8 +198,10 @@ class Scene {
 
     data class BlurRegion(
         val blurRadius: Double, val alpha: Double, val left: Double,
-        val top: Double, val right: Double, val bottom: Double, val cornerRadiusTL: Double,
-        val cornerRadiusTR: Double, val cornerRadiusBL: Double, val cornerRadiusBR: Double
+        val top: Double, val right: Double, val bottom: Double, val cornerRadiusTLX: Double,
+        val cornerRadiusTLY: Double, val cornerRadiusTRX: Double, val cornerRadiusTRY: Double,
+        val cornerRadiusBLX: Double, val cornerRadiusBLY: Double, val cornerRadiusBRX: Double,
+        val cornerRadiusBRY: Double
     )
 }
 

@@ -33,4 +33,8 @@ oneway interface ICallRedirectionAdapter {
 
     void redirectCall(in Uri handle, in PhoneAccountHandle targetPhoneAccount,
             boolean confirmFirst);
+
+    void placeCallToAlternateNumber(in Uri alternateUri,
+            in PhoneAccountHandle targetPhoneAccount,
+            boolean confirmFirst);
 }

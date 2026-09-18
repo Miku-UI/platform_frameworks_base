@@ -16,6 +16,8 @@
 
 package com.android.systemui.statusbar.notification.data.repository
 
+import com.android.systemui.dump.dumpManager
 import com.android.systemui.kosmos.Kosmos
 
-val Kosmos.activeNotificationListRepository by Kosmos.Fixture { ActiveNotificationListRepository() }
+val Kosmos.activeNotificationListRepository by
+    Kosmos.Fixture { ActiveNotificationListRepository(dumpManager) }

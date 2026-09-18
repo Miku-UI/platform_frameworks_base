@@ -23,7 +23,7 @@ import java.util.ArrayList;
 /** Internal utility debug class */
 public class DebugLog {
 
-    public static final boolean DEBUG_LAYOUT_ON = false;
+    public static boolean DEBUG_LAYOUT_ON = false;
 
     private DebugLog() {}
 

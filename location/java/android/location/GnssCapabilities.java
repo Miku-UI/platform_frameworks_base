@@ -16,9 +16,11 @@
 
 package android.location;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
+import android.location.flags.Flags;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -68,6 +70,8 @@ public final class GnssCapabilities implements Parcelable {
     public static final int TOP_HAL_CAPABILITY_MEASUREMENT_CORRECTIONS_FOR_DRIVING = 1 << 14;
     /** @hide */
     public static final int TOP_HAL_CAPABILITY_ACCUMULATED_DELTA_RANGE = 1 << 15;
+    /** @hide */
+    public static final int TOP_HAL_CAPABILITY_ENGINE_RESTART_AFTER_POWER_MODE_CHANGE = 1 << 16;
 
     /** @hide */
     @IntDef(flag = true, prefix = {"TOP_HAL_CAPABILITY_"}, value = {TOP_HAL_CAPABILITY_SCHEDULING,
@@ -78,7 +82,8 @@ public final class GnssCapabilities implements Parcelable {
             TOP_HAL_CAPABILITY_MEASUREMENT_CORRECTIONS, TOP_HAL_CAPABILITY_ANTENNA_INFO,
             TOP_HAL_CAPABILITY_CORRELATION_VECTOR, TOP_HAL_CAPABILITY_SATELLITE_PVT,
             TOP_HAL_CAPABILITY_MEASUREMENT_CORRECTIONS_FOR_DRIVING,
-            TOP_HAL_CAPABILITY_ACCUMULATED_DELTA_RANGE})
+            TOP_HAL_CAPABILITY_ACCUMULATED_DELTA_RANGE,
+            TOP_HAL_CAPABILITY_ENGINE_RESTART_AFTER_POWER_MODE_CHANGE})
 
     @Retention(RetentionPolicy.SOURCE)
     public @interface TopHalCapabilityFlags {}
@@ -412,6 +417,15 @@ public final class GnssCapabilities implements Parcelable {
     }
 
     /**
+     * Returns {@code true} if the GNSS engine will restart if the user requests a power mode change
+     * (e.g., changing from duty cycling mode to full tracking mode), {@code false} otherwise.
+     */
+    @FlaggedApi(Flags.FLAG_GNSS_CAPABILITY_RESTART_ENGINE_AFTER_POWER_MODE_CHANGE)
+    public boolean hasGnssEngineRestartAfterPowerModeChange() {
+        return (mTopFlags & TOP_HAL_CAPABILITY_ENGINE_RESTART_AFTER_POWER_MODE_CHANGE) != 0;
+    }
+
+    /**
      * Returns {@code true} if GNSS chipset supports line-of-sight satellite identification
      * measurement corrections, {@code false} otherwise.
      */
@@ -611,6 +625,9 @@ public final class GnssCapabilities implements Parcelable {
             builder.append("ACCUMULATED_DELTA_RANGE ");
         } else if (hasAccumulatedDeltaRange() == CAPABILITY_UNKNOWN) {
             builder.append("ACCUMULATED_DELTA_RANGE(unknown) ");
+        }
+        if (hasGnssEngineRestartAfterPowerModeChange()) {
+            builder.append("ENGINE_RESTART_AFTER_POWER_MODE_CHANGE ");
         }
         if (hasMeasurementCorrectionsLosSats()) {
             builder.append("LOS_SATS ");
@@ -816,6 +833,18 @@ public final class GnssCapabilities implements Parcelable {
                 mIsAdrCapabilityKnown = true;
                 mTopFlags = setFlag(mTopFlags, TOP_HAL_CAPABILITY_ACCUMULATED_DELTA_RANGE, false);
             }
+            return this;
+        }
+
+        /**
+         * Sets the capability bit that the GNSS engine will restart if the user requests a power
+         * mode change (e.g., changing from duty cycling mode to full tracking mode).
+         */
+        @FlaggedApi(Flags.FLAG_GNSS_CAPABILITY_RESTART_ENGINE_AFTER_POWER_MODE_CHANGE)
+        public @NonNull Builder setHasGnssEngineRestartAfterPowerModeChange(boolean capable) {
+            mTopFlags = setFlag(mTopFlags,
+                    TOP_HAL_CAPABILITY_ENGINE_RESTART_AFTER_POWER_MODE_CHANGE,
+                    capable);
             return this;
         }
 

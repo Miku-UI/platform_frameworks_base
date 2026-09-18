@@ -19,14 +19,20 @@ package com.android.systemui.statusbar.pipeline.shared.data.repository
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkCapabilities.NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED
+import android.net.NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED
+import android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED
 import android.net.NetworkCapabilities.TRANSPORT_CELLULAR
 import android.net.NetworkCapabilities.TRANSPORT_ETHERNET
+import android.net.NetworkCapabilities.TRANSPORT_SATELLITE
 import android.net.NetworkCapabilities.TRANSPORT_VPN
 import android.net.NetworkCapabilities.TRANSPORT_WIFI
 import android.net.TelephonyNetworkSpecifier
 import android.net.VpnTransportInfo
 import android.net.vcn.VcnTransportInfo
 import android.net.wifi.WifiInfo
+import android.os.Handler
+import android.os.Looper
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.telephony.SubscriptionManager.INVALID_SUBSCRIPTION_ID
@@ -194,7 +200,7 @@ class ConnectivityRepositoryImplTest : SysuiTestCase() {
             getTunable()
                 .onTuningChanged(
                     HIDDEN_ICONS_TUNABLE_KEY,
-                    "$SLOT_MOBILE,,$SLOT_WIFI,$SLOT_ETHERNET,,,"
+                    "$SLOT_MOBILE,,$SLOT_WIFI,$SLOT_ETHERNET,,,",
                 )
 
             assertThat(latest).isEmpty()
@@ -759,40 +765,52 @@ class ConnectivityRepositoryImplTest : SysuiTestCase() {
             val underlyingCell1 = newCellNetwork(SUB_1_ID)
             val underlyingCell2 = newCellNetwork(SUB_2_ID)
 
-            val capabilities =
-                mock<NetworkCapabilities>().also {
+            // WIFI VCN info
+            mock<NetworkCapabilities>()
+                .also {
                     whenever(it.hasTransport(TRANSPORT_WIFI)).thenReturn(true)
                     whenever(it.transportInfo).thenReturn(vcnTransportInfo)
                     whenever(it.underlyingNetworks).thenReturn(listOf(underlyingWifi))
                 }
-
-            // WIFI VCN info
-            getDefaultNetworkCallback().onCapabilitiesChanged(NETWORK, capabilities)
-
+                .let { capabilities ->
+                    getDefaultNetworkCallback().onCapabilitiesChanged(NETWORK, capabilities)
+                }
             assertThat(latest).isNull()
 
             // Cellular VCN info with subId 1
-            whenever(capabilities.hasTransport(eq(TRANSPORT_CELLULAR))).thenReturn(true)
-            whenever(capabilities.transportInfo).thenReturn(vcnTransportInfo)
-            whenever(capabilities.underlyingNetworks).thenReturn(listOf(underlyingCell1))
-
-            getDefaultNetworkCallback().onCapabilitiesChanged(NETWORK, capabilities)
-
+            mock<NetworkCapabilities>()
+                .also {
+                    whenever(it.hasTransport(eq(TRANSPORT_CELLULAR))).thenReturn(true)
+                    whenever(it.transportInfo).thenReturn(vcnTransportInfo)
+                    whenever(it.underlyingNetworks).thenReturn(listOf(underlyingCell1))
+                }
+                .let { capabilities ->
+                    getDefaultNetworkCallback().onCapabilitiesChanged(NETWORK, capabilities)
+                }
             assertThat(latest).isEqualTo(SUB_1_ID)
 
             // Cellular VCN info with subId 2
-            whenever(capabilities.transportInfo).thenReturn(vcnTransportInfo)
-            whenever(capabilities.underlyingNetworks).thenReturn(listOf(underlyingCell2))
-
-            getDefaultNetworkCallback().onCapabilitiesChanged(NETWORK, capabilities)
-
+            mock<NetworkCapabilities>()
+                .also {
+                    whenever(it.hasTransport(eq(TRANSPORT_CELLULAR))).thenReturn(true)
+                    whenever(it.transportInfo).thenReturn(vcnTransportInfo)
+                    whenever(it.underlyingNetworks).thenReturn(listOf(underlyingCell2))
+                }
+                .let { capabilities ->
+                    getDefaultNetworkCallback().onCapabilitiesChanged(NETWORK, capabilities)
+                }
             assertThat(latest).isEqualTo(SUB_2_ID)
 
             // No VCN anymore
-            whenever(capabilities.transportInfo).thenReturn(null)
-
-            getDefaultNetworkCallback().onCapabilitiesChanged(NETWORK, capabilities)
-
+            mock<NetworkCapabilities>()
+                .also {
+                    whenever(it.hasTransport(eq(TRANSPORT_CELLULAR))).thenReturn(true)
+                    whenever(it.transportInfo).thenReturn(null)
+                    whenever(it.underlyingNetworks).thenReturn(listOf(underlyingCell2))
+                }
+                .let { capabilities ->
+                    getDefaultNetworkCallback().onCapabilitiesChanged(NETWORK, capabilities)
+                }
             assertThat(latest).isNull()
         }
 
@@ -1085,11 +1103,108 @@ class ConnectivityRepositoryImplTest : SysuiTestCase() {
         assertThat(result).isNull()
     }
 
+    @Test
+    fun resolvedConnections_satellite_notRestricted_isDefault() =
+        testScope.runTest {
+            // Capture callbacks (boilerplate setup similar to previous test).
+            val defaultCallback = getDefaultNetworkCallback()
+            val constrainedCallback = getConstrainedNetworkCallback()
+
+            val latest by collectLastValue(underTest.resolvedConnections)
+            runCurrent()
+
+            // WHEN the default network is lost and satellite comes online
+            defaultCallback.onLost(mock())
+
+            // We need a valid satellite connection (SAT + NOT_RESTRICTED) for the UI to pick it up
+            val validSatelliteCaps =
+                mock<NetworkCapabilities>().also {
+                    whenever(it.hasTransport(TRANSPORT_SATELLITE)).thenReturn(true)
+                    whenever(it.hasCapability(NET_CAPABILITY_NOT_RESTRICTED)).thenReturn(true)
+                    whenever(it.hasCapability(NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED))
+                        .thenReturn(false)
+                    whenever(it.hasCapability(NET_CAPABILITY_VALIDATED)).thenReturn(true)
+                }
+
+            // Trigger callback.
+            constrainedCallback.onCapabilitiesChanged(mock(), validSatelliteCaps)
+            runCurrent()
+
+            // Assert that this IS considered the default mobile connection.
+            assertThat(latest!!.mobile.isDefault).isTrue()
+        }
+
+    @Test
+    fun resolvedConnections_satellite_notBandwidthConstrained_isDefault() =
+        testScope.runTest {
+            // Capture callbacks.
+            val defaultCallback = getDefaultNetworkCallback()
+            val constrainedCallback = getConstrainedNetworkCallback()
+
+            val latest by collectLastValue(underTest.resolvedConnections)
+            runCurrent()
+
+            // WHEN the default network is lost and satellite comes online
+            defaultCallback.onLost(mock())
+
+            // We need a valid satellite connection (SAT + NOT_BANDWIDTH_CONSTRAINED) for the UI to
+            // pick it up
+            val validSatelliteCaps =
+                mock<NetworkCapabilities>().also {
+                    whenever(it.hasTransport(TRANSPORT_SATELLITE)).thenReturn(true)
+                    whenever(it.hasCapability(NET_CAPABILITY_NOT_RESTRICTED)).thenReturn(false)
+                    whenever(it.hasCapability(NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED))
+                        .thenReturn(true)
+                    whenever(it.hasCapability(NET_CAPABILITY_VALIDATED)).thenReturn(true)
+                }
+
+            // Trigger callback.
+            constrainedCallback.onCapabilitiesChanged(mock(), validSatelliteCaps)
+            runCurrent()
+
+            // Assert that this IS considered the default mobile connection.
+            assertThat(latest!!.mobile.isDefault).isTrue()
+        }
+
+    @Test
+    fun resolvedConnections_noDefault_butHasSatellite_isDefault() =
+        testScope.runTest {
+            // Capture callbacks.
+            val defaultCallback = getDefaultNetworkCallback()
+            val constrainedCallback = getConstrainedNetworkCallback()
+
+            val latest by collectLastValue(underTest.resolvedConnections)
+            runCurrent()
+
+            // WHEN the default network is lost and satellite comes online
+            defaultCallback.onLost(mock())
+
+            // We need a valid satellite connection (SAT + NOT_RESTRICTED +
+            // NOT_BANDWIDTH_CONSTRAINED) for the UI to pick it up
+            val satelliteCaps =
+                mock<NetworkCapabilities>().also {
+                    whenever(it.hasTransport(TRANSPORT_SATELLITE)).thenReturn(true)
+                    whenever(it.hasCapability(NET_CAPABILITY_NOT_RESTRICTED)).thenReturn(true)
+                    whenever(it.hasCapability(NET_CAPABILITY_NOT_BANDWIDTH_CONSTRAINED))
+                        .thenReturn(true)
+                    whenever(it.hasCapability(NET_CAPABILITY_VALIDATED)).thenReturn(true)
+                }
+
+            // Update the constrained callback.
+            constrainedCallback.onCapabilitiesChanged(mock(), satelliteCaps)
+            runCurrent()
+
+            // Assert that even though the standard default is gone, the repository
+            // promotes the Satellite connection to "Default" status for the UI.
+            assertThat(latest!!.mobile.isDefault).isTrue()
+        }
+
     private fun createAndSetRepo() {
         underTest =
             ConnectivityRepositoryImpl(
                 connectivityManager,
                 connectivitySlots,
+                Handler(Looper.getMainLooper()),
                 context,
                 dumpManager,
                 logger,
@@ -1112,11 +1227,18 @@ class ConnectivityRepositoryImplTest : SysuiTestCase() {
         whenever(connectivitySlots.getSlotFromName(SLOT_MOBILE)).thenReturn(ConnectivitySlot.MOBILE)
     }
 
-    private fun getDefaultNetworkCallback(): ConnectivityManager.NetworkCallback {
-        val callbackCaptor = argumentCaptor<ConnectivityManager.NetworkCallback>()
-        verify(connectivityManager).registerDefaultNetworkCallback(callbackCaptor.capture())
-        return callbackCaptor.firstValue
-    }
+    private fun getDefaultNetworkCallback(): ConnectivityManager.NetworkCallback =
+        argumentCaptor<ConnectivityManager.NetworkCallback> {
+                verify(connectivityManager).registerDefaultNetworkCallback(capture())
+            }
+            .firstValue
+
+    private fun getConstrainedNetworkCallback(): ConnectivityManager.NetworkCallback =
+        argumentCaptor<ConnectivityManager.NetworkCallback> {
+                verify(connectivityManager)
+                    .registerBestMatchingNetworkCallback(any(), capture(), any())
+            }
+            .firstValue
 
     private companion object {
         private const val SLOT_ETHERNET = "ethernet"

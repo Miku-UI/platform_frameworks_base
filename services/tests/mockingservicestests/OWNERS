@@ -9,3 +9,6 @@ per-file res/xml/game_manager* = file:/GAME_MANAGER_OWNERS
 
 # General utilities
 per-file services/tests/mockingservicestests/src/com/android/server/*.java=felipeal@google.com
+per-file services/tests/mockingservicestests/src/com/android/server/am/BatteryStats*.java = file:/BATTERY_STATS_OWNERS
+per-file GenericAllowlistTestCase.java = file:/MULTIUSER_OWNERS
+per-file supervision_*.xml = file:/core/java/android/app/supervision/OWNERS

@@ -17,10 +17,9 @@
 package com.android.systemui.qs.ui.viewmodel
 
 import android.view.Display
-import androidx.compose.runtime.getValue
 import com.android.systemui.brightness.ui.viewmodel.BrightnessSliderViewModel
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.display.data.repository.DisplayTypeRepository
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.media.controls.domain.pipeline.interactor.MediaCarouselInteractor
 import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager.Companion.LOCATION_QS
 import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
@@ -30,16 +29,12 @@ import com.android.systemui.qs.panels.ui.viewmodel.DetailsViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.EditModeViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.MediaInRowInLandscapeViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.TileGridViewModel
-import com.android.systemui.shade.domain.interactor.ShadeDisplaysInteractor
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
+import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.ui.viewmodel.ShadeHeaderViewModel
-import dagger.Lazy
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -52,30 +47,22 @@ constructor(
     @Assisted private val supportsBrightnessMirroring: Boolean,
     val editModeViewModel: EditModeViewModel,
     val detailsViewModel: DetailsViewModel,
-    shadeDisplaysInteractor: Lazy<ShadeDisplaysInteractor>,
     private val mediaCarouselInteractor: MediaCarouselInteractor,
     val mediaViewModelFactory: MediaViewModel.Factory,
     mediaInRowInLandscapeViewModelFactory: MediaInRowInLandscapeViewModel.Factory,
-) : ExclusiveActivatable() {
-
-    private val hydrator = Hydrator("QuickSettingsContainerViewModel.hydrator")
+    @ShadeDisplayAware shadeDisplayTypeRepository: DisplayTypeRepository,
+) : HydratedActivatable() {
 
     val isBrightnessSliderVisible by
-        hydrator.hydratedStateOf(
-            traceName = "isBrightnessSliderVisible",
-            initialValue = shouldBrightnessSliderBeVisible(Display.DEFAULT_DISPLAY),
-            source =
-                if (ShadeWindowGoesAround.isEnabled) {
-                    shadeDisplaysInteractor.get().pendingDisplayId.map {
-                        shouldBrightnessSliderBeVisible(it)
-                    }
-                } else {
-                    flowOf(true)
-                },
-        )
+        shadeDisplayTypeRepository.displayType
+            // The shade could be on an external display: in that case the slider shouldn't
+            // be visible.
+            .map { it == Display.TYPE_INTERNAL }
+            .hydratedStateOf(
+                initialValue = shadeDisplayTypeRepository.displayType.value == Display.TYPE_INTERNAL
+            )
 
-    val isEditing by
-        hydrator.hydratedStateOf(source = editModeViewModel.isEditing, traceName = "isEditing")
+    val isEditing by editModeViewModel.isEditing.hydratedStateOf()
 
     val brightnessSliderViewModel =
         brightnessSliderViewModelFactory.create(supportsBrightnessMirroring)
@@ -84,11 +71,7 @@ constructor(
 
     val tileGridViewModel = tileGridViewModelFactory.create()
 
-    val showMedia: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "showMedia",
-            source = mediaCarouselInteractor.hasAnyMedia,
-        )
+    val showMedia: Boolean by mediaCarouselInteractor.hasAnyMedia.hydratedStateOf()
 
     val showMediaInRow: Boolean
         get() = qsMediaInRowViewModel.shouldMediaShowInRow
@@ -98,25 +81,16 @@ constructor(
     private val qsMediaInRowViewModel =
         mediaInRowInLandscapeViewModelFactory.create(LOCATION_QS, mediaUiBehavior)
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         coroutineScope {
-            launch { hydrator.activate() }
             launch { brightnessSliderViewModel.activate() }
             launch { shadeHeaderViewModel.activate() }
             launch { tileGridViewModel.activate() }
             launch { qsMediaInRowViewModel.activate() }
-            awaitCancellation()
         }
     }
 
     companion object {
-        private fun shouldBrightnessSliderBeVisible(displayId: Int): Boolean {
-            return if (ShadeWindowGoesAround.isEnabled) {
-                displayId == Display.DEFAULT_DISPLAY
-            } else {
-                true
-            }
-        }
 
         /** Behavior of the media carousel in quick settings */
         val mediaUiBehavior =

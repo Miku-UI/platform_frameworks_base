@@ -90,10 +90,7 @@ public class ProcLocksReader {
                 mReader.nextIgnored(); // lock type: MANDATORY?
                 mReader.nextIgnored(); // lock type: RW?
 
-                pid = mReader.nextInt(); // pid
-                if (pid > 0) {
-                    mPids.add(pid);
-                }
+                readAndAddPid(false);
 
                 mReader.finishLine();
             } else {
@@ -108,14 +105,7 @@ public class ProcLocksReader {
                 mReader.nextIgnored(); // lock type: MANDATORY?
                 mReader.nextIgnored(); // lock type: RW?
 
-                pid = mReader.nextInt(); // pid
-                if (pid > 0) {
-                    if (mPids.size() == 0) {
-                        mPids.add(pid);
-                    } else {
-                        mPids.set(0, pid);
-                    }
-                }
+                readAndAddPid(true);
                 mReader.finishLine();
                 last = id;
             }
@@ -123,6 +113,25 @@ public class ProcLocksReader {
         // The last unprocessed blocking lock immediately before EOF
         if (mPids.size() > 1) {
             callback.onBlockingFileLock(mPids);
+        }
+    }
+
+    private void readAndAddPid(boolean isLockHolderPid) throws IOException {
+        try {
+            int pid = mReader.nextInt(); // pid
+            if (pid > 0) {
+                if (isLockHolderPid) {
+                    if (mPids.size() == 0) {
+                        mPids.add(pid);
+                    } else {
+                        mPids.set(0, pid);
+                    }
+                } else { // one of the blocked pids
+                    mPids.add(pid);
+                }
+            }
+        } catch (NumberFormatException e) {
+            // Not a pid, ignore
         }
     }
 }

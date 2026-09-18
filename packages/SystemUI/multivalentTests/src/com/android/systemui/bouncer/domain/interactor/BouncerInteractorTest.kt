@@ -16,8 +16,13 @@
 
 package com.android.systemui.bouncer.domain.interactor
 
+import android.compat.testing.PlatformCompatChangeRule
+import android.content.res.Configuration
 import android.content.testableContext
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.provider.Settings.Global.ONE_HANDED_KEYGUARD_SIDE
+import android.text.ShowSecretsSetting
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.ObservableTransitionState
@@ -25,13 +30,13 @@ import com.android.internal.logging.uiEventLoggerFake
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.FakeAuthenticationRepository
 import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
-import com.android.systemui.authentication.domain.interactor.AuthenticationResult
 import com.android.systemui.authentication.domain.interactor.authenticationInteractor
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
 import com.android.systemui.authentication.shared.model.AuthenticationPatternCoordinate
-import com.android.systemui.authentication.shared.model.BouncerInputSide
+import com.android.systemui.authentication.shared.model.AuthenticationResult
 import com.android.systemui.bouncer.data.repository.bouncerRepository
 import com.android.systemui.bouncer.shared.logging.BouncerUiEvent
+import com.android.systemui.bouncer.shared.model.BouncerInputSide
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
@@ -43,6 +48,7 @@ import com.android.systemui.flags.fakeFeatureFlagsClassic
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFaceAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeTrustRepository
 import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.collectValues
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.power.data.repository.fakePowerRepository
@@ -53,14 +59,17 @@ import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.transitionState
 import com.android.systemui.testKosmos
 import com.android.systemui.util.settings.fakeGlobalSettings
+import com.android.text.flags.Flags as TextFlags
 import com.google.common.truth.Truth.assertThat
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import libcore.junit.util.compat.CoreCompatChangeRule.DisableCompatChanges
+import libcore.junit.util.compat.CoreCompatChangeRule.EnableCompatChanges
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.MockitoAnnotations
@@ -74,6 +83,8 @@ class BouncerInteractorTest : SysuiTestCase() {
     private val testScope = kosmos.testScope
     private val authenticationInteractor = kosmos.authenticationInteractor
     private val uiEventLoggerFake = kosmos.uiEventLoggerFake
+
+    @get:Rule val compatChangeRule = PlatformCompatChangeRule()
 
     private val underTest: BouncerInteractor by lazy { kosmos.bouncerInteractor }
     private val testableResources by lazy { kosmos.testableContext.orCreateTestableResources }
@@ -180,9 +191,9 @@ class BouncerInteractorTest : SysuiTestCase() {
                     )
                 )
                 .isEqualTo(AuthenticationResult.SUCCEEDED)
-            assertThat(uiEventLoggerFake[1].eventId)
+            assertThat(uiEventLoggerFake[2].eventId)
                 .isEqualTo(BouncerUiEvent.BOUNCER_PASSWORD_SUCCESS.id)
-            assertThat(uiEventLoggerFake.numLogs()).isEqualTo(2)
+            assertThat(uiEventLoggerFake.numLogs()).isEqualTo(4)
         }
 
     @Test
@@ -237,9 +248,9 @@ class BouncerInteractorTest : SysuiTestCase() {
             // Correct input.
             assertThat(underTest.authenticate("password".toList()))
                 .isEqualTo(AuthenticationResult.SUCCEEDED)
-            assertThat(uiEventLoggerFake[1].eventId)
+            assertThat(uiEventLoggerFake[2].eventId)
                 .isEqualTo(BouncerUiEvent.BOUNCER_PASSWORD_SUCCESS.id)
-            assertThat(uiEventLoggerFake.numLogs()).isEqualTo(2)
+            assertThat(uiEventLoggerFake.numLogs()).isEqualTo(4)
         }
 
     @Test
@@ -258,7 +269,7 @@ class BouncerInteractorTest : SysuiTestCase() {
                     AuthenticationPatternCoordinate(0, 0),
                     AuthenticationPatternCoordinate(0, 1),
                 )
-            assertThat(wrongPattern).isNotEqualTo(FakeAuthenticationRepository.PATTERN)
+            assertThat(wrongPattern).isNotEqualTo(FakeAuthenticationRepository.DEFAULT_PATTERN)
             assertThat(wrongPattern.size)
                 .isAtLeast(kosmos.fakeAuthenticationRepository.minPatternLength)
             assertThat(underTest.authenticate(wrongPattern)).isEqualTo(AuthenticationResult.FAILED)
@@ -267,7 +278,7 @@ class BouncerInteractorTest : SysuiTestCase() {
 
             // Too short input.
             val tooShortPattern =
-                FakeAuthenticationRepository.PATTERN.subList(
+                FakeAuthenticationRepository.DEFAULT_PATTERN.subList(
                     0,
                     kosmos.fakeAuthenticationRepository.minPatternLength - 1,
                 )
@@ -275,11 +286,11 @@ class BouncerInteractorTest : SysuiTestCase() {
                 .isEqualTo(AuthenticationResult.SKIPPED)
 
             // Correct input.
-            assertThat(underTest.authenticate(FakeAuthenticationRepository.PATTERN))
+            assertThat(underTest.authenticate(FakeAuthenticationRepository.DEFAULT_PATTERN))
                 .isEqualTo(AuthenticationResult.SUCCEEDED)
-            assertThat(uiEventLoggerFake[1].eventId)
+            assertThat(uiEventLoggerFake[2].eventId)
                 .isEqualTo(BouncerUiEvent.BOUNCER_PASSWORD_SUCCESS.id)
-            assertThat(uiEventLoggerFake.numLogs()).isEqualTo(2)
+            assertThat(uiEventLoggerFake.numLogs()).isEqualTo(4)
         }
 
     @Test
@@ -295,18 +306,18 @@ class BouncerInteractorTest : SysuiTestCase() {
             // Try the wrong PIN repeatedly, until lockout is triggered:
             repeat(FakeAuthenticationRepository.MAX_FAILED_AUTH_TRIES_BEFORE_LOCKOUT) { times ->
                 // Wrong PIN.
-                assertThat(underTest.authenticate(listOf(6, 7, 8, 9)))
+                assertThat(underTest.authenticate(listOf(6, 7, 8, 9, times)))
                     .isEqualTo(AuthenticationResult.FAILED)
                 if (times < FakeAuthenticationRepository.MAX_FAILED_AUTH_TRIES_BEFORE_LOCKOUT - 1) {
                     assertThat(lockoutStartedEvents).isEmpty()
                 }
             }
-            assertThat(authenticationInteractor.lockoutEndTimestamp).isNotNull()
+            assertThat(authenticationInteractor.lockoutEndTime).isNotNull()
             assertThat(lockoutStartedEvents.size).isEqualTo(1)
 
             // Advance the time to finish the lockout:
-            advanceTimeBy(FakeAuthenticationRepository.LOCKOUT_DURATION_SECONDS.seconds)
-            assertThat(authenticationInteractor.lockoutEndTimestamp).isNull()
+            advanceTimeBy(FakeAuthenticationRepository.LOCKOUT_DURATION)
+            assertThat(authenticationInteractor.lockoutEndTime).isNull()
             assertThat(lockoutStartedEvents.size).isEqualTo(1)
 
             // Trigger lockout again:
@@ -492,6 +503,141 @@ class BouncerInteractorTest : SysuiTestCase() {
             progress.value = 1f
             assertThat(bouncerExpansion).isEqualTo(1f)
         }
+
+    @EnableFlags(TextFlags.FLAG_SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @EnableCompatChanges(ShowSecretsSetting.SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @Test
+    fun withHardwareKeyboard_physicalInputOff_obfuscatesImmediately() =
+        kosmos.runTest {
+            configureShowPasswordsSettings(touch = true, physical = false)
+            val config = Configuration()
+            config.keyboard = Configuration.KEYBOARD_QWERTY
+            kosmos.fakeConfigurationRepository.onConfigurationChange(config)
+
+            val isRequired by collectLastValue(underTest.isPasswordObfuscationRequired)
+            testScope.runCurrent()
+            assertThat(isRequired).isTrue()
+        }
+
+    @EnableFlags(TextFlags.FLAG_SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @EnableCompatChanges(ShowSecretsSetting.SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @Test
+    fun withHardwareKeyboard_physicalInputOn_revealsBriefly() =
+        kosmos.runTest {
+            configureShowPasswordsSettings(touch = false, physical = true)
+            val config = Configuration()
+            config.keyboard = Configuration.KEYBOARD_QWERTY
+            kosmos.fakeConfigurationRepository.onConfigurationChange(config)
+
+            val isRequired by collectLastValue(underTest.isPasswordObfuscationRequired)
+            testScope.runCurrent()
+            assertThat(isRequired).isFalse()
+        }
+
+    @EnableFlags(TextFlags.FLAG_SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @EnableCompatChanges(ShowSecretsSetting.SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @Test
+    fun noHardwareKeyboard_touchInputOff_obfuscatesImmediately() =
+        kosmos.runTest {
+            configureShowPasswordsSettings(touch = false, physical = true)
+            val config = Configuration()
+            config.keyboard = Configuration.KEYBOARD_NOKEYS
+            kosmos.fakeConfigurationRepository.onConfigurationChange(config)
+
+            val isRequired by collectLastValue(underTest.isPasswordObfuscationRequired)
+            testScope.runCurrent()
+            assertThat(isRequired).isTrue()
+        }
+
+    @EnableFlags(TextFlags.FLAG_SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @EnableCompatChanges(ShowSecretsSetting.SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @Test
+    fun noHardwareKeyboard_touchInputOn_revealsBriefly() =
+        kosmos.runTest {
+            configureShowPasswordsSettings(touch = true, physical = false)
+            val config = Configuration()
+            config.keyboard = Configuration.KEYBOARD_NOKEYS
+            kosmos.fakeConfigurationRepository.onConfigurationChange(config)
+
+            val isRequired by collectLastValue(underTest.isPasswordObfuscationRequired)
+            testScope.runCurrent()
+            assertThat(isRequired).isFalse()
+        }
+
+    @EnableFlags(TextFlags.FLAG_SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @EnableCompatChanges(ShowSecretsSetting.SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @Test
+    fun withHardwareKeyboard_settingChangeTriggersCallback() =
+        kosmos.runTest {
+            configureShowPasswordsSettings(touch = true, physical = false)
+            val config = Configuration()
+            config.keyboard = Configuration.KEYBOARD_QWERTY
+            kosmos.fakeConfigurationRepository.onConfigurationChange(config)
+
+            val isRequired by collectLastValue(underTest.isPasswordObfuscationRequired)
+            testScope.runCurrent()
+            assertThat(isRequired).isTrue()
+
+            configureShowPasswordsSettings(touch = true, physical = true)
+            testScope.runCurrent()
+
+            assertThat(isRequired).isFalse()
+        }
+
+    @EnableFlags(TextFlags.FLAG_SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @DisableCompatChanges(ShowSecretsSetting.SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @Test
+    fun withHardwareKeyboard_compatDisabled_fallsBackToLegacy() =
+        kosmos.runTest {
+            configureShowPasswordsSettings(touch = false, physical = true)
+            val config = Configuration()
+            config.keyboard = Configuration.KEYBOARD_QWERTY
+            kosmos.fakeConfigurationRepository.onConfigurationChange(config)
+
+            val isRequired by collectLastValue(underTest.isPasswordObfuscationRequired)
+            testScope.runCurrent()
+            assertThat(isRequired).isFalse()
+        }
+
+    @DisableFlags(TextFlags.FLAG_SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @EnableCompatChanges(ShowSecretsSetting.SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @Test
+    fun withHardwareKeyboard_flagDisabled_compatEnabled_fallsBackToLegacy() =
+        kosmos.runTest {
+            configureShowPasswordsSettings(touch = false, physical = true)
+            val config = Configuration()
+            config.keyboard = Configuration.KEYBOARD_QWERTY
+            kosmos.fakeConfigurationRepository.onConfigurationChange(config)
+
+            val isRequired by collectLastValue(underTest.isPasswordObfuscationRequired)
+            testScope.runCurrent()
+            assertThat(isRequired).isFalse()
+        }
+
+    @EnableFlags(TextFlags.FLAG_SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @EnableCompatChanges(ShowSecretsSetting.SPLIT_SHOW_PASSWORDS_TO_TOUCH_AND_PHYSICAL)
+    @Test
+    fun noHardwareKeyboard_settingChangeTriggersCallback() =
+        kosmos.runTest {
+            configureShowPasswordsSettings(touch = true, physical = false)
+            val config = Configuration()
+            config.keyboard = Configuration.KEYBOARD_NOKEYS
+            kosmos.fakeConfigurationRepository.onConfigurationChange(config)
+
+            val isRequired by collectLastValue(underTest.isPasswordObfuscationRequired)
+            testScope.runCurrent()
+            assertThat(isRequired).isFalse() // touch is true, so no obfuscation
+
+            configureShowPasswordsSettings(touch = false, physical = false)
+            testScope.runCurrent()
+
+            assertThat(isRequired).isTrue() // touch is false, so obfuscation required
+        }
+
+    private fun configureShowPasswordsSettings(touch: Boolean, physical: Boolean) {
+        kosmos.fakeAuthenticationRepository.setIsShowPasswordsTouchEnabled(touch)
+        kosmos.fakeAuthenticationRepository.setIsShowPasswordsPhysicalEnabled(physical)
+    }
 
     companion object {
         private const val MESSAGE_ENTER_YOUR_PIN = "Enter your PIN"

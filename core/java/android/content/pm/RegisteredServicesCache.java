@@ -354,7 +354,7 @@ public abstract class RegisteredServicesCache<V> {
             this.type = type;
             this.componentInfo = componentInfo;
             this.componentName = componentName;
-            this.uid = (componentInfo != null) ? componentInfo.applicationInfo.uid : -1;
+            this.uid = (componentInfo != null) ? componentInfo.getUid() : -1;
             this.lastUpdateTime = lastUpdateTime;
         }
 

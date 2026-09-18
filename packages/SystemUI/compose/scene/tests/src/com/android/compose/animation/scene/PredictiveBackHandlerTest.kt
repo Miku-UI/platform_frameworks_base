@@ -16,6 +16,8 @@
 
 package com.android.compose.animation.scene
 
+import android.platform.test.flag.junit.FlagsParameterization
+import android.platform.test.flag.junit.SetFlagsRule
 import androidx.activity.BackEventCompat
 import androidx.activity.ComponentActivity
 import androidx.compose.animation.core.LinearEasing
@@ -29,7 +31,6 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.compose.animation.scene.TestOverlays.OverlayA
 import com.android.compose.animation.scene.TestOverlays.OverlayB
 import com.android.compose.animation.scene.TestOverlays.OverlayC
@@ -38,17 +39,34 @@ import com.android.compose.animation.scene.TestScenes.SceneB
 import com.android.compose.animation.scene.TestScenes.SceneC
 import com.android.compose.animation.scene.UserActionResult.ShowOverlay
 import com.android.compose.animation.scene.subjects.assertThat
+import com.android.systemui.Flags.FLAG_STL_FLING_ANIMATION_CONSUME_OVERSHOOT
+import com.android.systemui.Flags.FLAG_STL_USER_ACTION_GESTURE
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4
+import platform.test.runner.parameterized.Parameters
 
-@RunWith(AndroidJUnit4::class)
-class PredictiveBackHandlerTest {
+@RunWith(ParameterizedAndroidJunit4::class)
+class PredictiveBackHandlerTest(flags: FlagsParameterization) {
+
+    companion object {
+        @JvmStatic
+        @Parameters(name = "{0}")
+        fun getParams(): List<FlagsParameterization> {
+            return FlagsParameterization.allCombinationsOf(
+                FLAG_STL_USER_ACTION_GESTURE,
+                FLAG_STL_FLING_ANIMATION_CONSUME_OVERSHOOT,
+            )
+        }
+    }
+
     // We use createAndroidComposeRule() here and not createComposeRule() because we need an
     // activity for testBack().
     @get:Rule val rule = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule val setFlagsRule = SetFlagsRule().apply { setFlagsParameterization(flags) }
 
     @Test
     fun testBack() {

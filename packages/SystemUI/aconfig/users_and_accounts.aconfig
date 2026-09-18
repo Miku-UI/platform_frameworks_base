@@ -1,0 +1,63 @@
+package: "com.android.systemui"
+container: "system"
+
+# go/keep-sorted start block=yes newline_separated=yes by_regex=name:\s*"([^"]+)"
+flag {
+    name: "add_new_unlock_hint_on_keyguard_2"
+    namespace: "users_and_accounts"
+    description: "Add hints to Keyguard's message rotation explaining how users can get to the bouncer (click or key press)"
+    bug: "427686939"
+}
+
+flag {
+    name: "back_button_on_bouncer_fix_2"
+    namespace: "users_and_accounts"
+    description: "Add a 'back' button to bouncer"
+    bug: "432062209"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "containerize_bouncer_on_large_screens_2"
+    namespace: "users_and_accounts"
+    description: "Containerize Bouncer to modernize UX on large screens, showing a centered card dialog with all bouncer elements instead of a full screen"
+    bug: "427682946"
+}
+
+flag {
+    name: "disable_double_click_swap_on_bouncer_2"
+    namespace: "users_and_accounts"
+    description: "Disable swapping bouncer sides with double click in two-column layout"
+    bug: "416223998"
+}
+
+flag {
+    name: "disable_user_switcher_dropdown_on_bouncer_2"
+    namespace: "users_and_accounts"
+    description: "Show pill with current user's name instead of user switcher dropdown"
+    bug: "425357051"
+}
+
+flag {
+    name: "more_indicators_and_buttons_on_password_bouncer_2"
+    namespace: "users_and_accounts"
+    description: "Enable more indicators and buttons on PasswordBouncer, such as a 'reveal password' button"
+    bug: "448546093"
+}
+
+flag {
+    name: "press_any_key_to_access_bouncer_2"
+    namespace: "users_and_accounts"
+    description: "Allow user to press any key to get from keyguard to bouncer"
+    bug: "427646658"
+}
+
+flag {
+    name: "sign_out_button_on_keyguard_status_bar_2"
+    namespace: "users_and_accounts"
+    description: "Add a 'Sign out' button on keyguard's status bar"
+    bug: "392052370"
+}
+# go/keep-sorted end

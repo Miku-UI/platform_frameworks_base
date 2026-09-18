@@ -24,6 +24,8 @@ import android.hardware.camera2.CameraMetadata;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 
+import com.android.internal.camera.flags.Flags;
+
 import java.util.Map;
 import java.util.Set;
 
@@ -98,8 +100,12 @@ public final class ColorSpaceProfiles {
             }
 
             if (dynamicRangeProfileBitmap != 0) {
+                long currentMax = DynamicRangeProfiles.PUBLIC_MAX;
+                if (Flags.newDynamicRangeProfiles()) {
+                    currentMax = DynamicRangeProfiles.CURRENT_MAX;
+                }
                 for (long dynamicRangeProfile = DynamicRangeProfiles.STANDARD;
-                        dynamicRangeProfile < DynamicRangeProfiles.PUBLIC_MAX;
+                        dynamicRangeProfile < currentMax;
                         dynamicRangeProfile <<= 1) {
                     if ((dynamicRangeProfileBitmap & dynamicRangeProfile) != 0) {
                         mProfileMap.get(namedColorSpace).get(imageFormat).add(dynamicRangeProfile);

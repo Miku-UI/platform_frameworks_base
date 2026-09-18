@@ -29,6 +29,7 @@ import androidx.compose.ui.util.fastCoerceIn
 import com.android.compose.animation.scene.content.Content
 import com.android.compose.animation.scene.content.state.TransitionState.Companion.DistanceUnspecified
 import com.android.compose.animation.scene.effect.GestureEffect
+import com.android.compose.animation.scene.mechanics.UserActionGestureFlag
 import com.android.compose.gesture.NestedDraggable
 import com.android.compose.ui.util.SpaceVectorConverter
 import com.android.mechanics.DistanceGestureContext
@@ -48,16 +49,13 @@ internal class DraggableHandler(
         get() = dragController?.isDrivingTransition == true
 
     /**
-     * The velocity threshold at which the intent of the user is to swipe up or down. It is the same
-     * as SwipeableV2Defaults.VelocityThreshold.
+     * The velocity threshold (in px/sec) to determine if a swipe gesture should commit to the new
+     * state or snap back to its original state.
      */
     internal val velocityThreshold: Float
-        get() = with(layoutImpl.density) { 125.dp.toPx() }
+        get() = with(layoutImpl.density) { layoutImpl.swipeDetector.velocityThreshold.toPx() }
 
-    /**
-     * The positional threshold at which the intent of the user is to swipe to the next scene. It is
-     * the same as SwipeableV2Defaults.PositionalThreshold.
-     */
+    /** The positional threshold at which the intent of the user is to swipe to the next scene. */
     internal val positionalThreshold
         get() = with(layoutImpl.density) { 56.dp.toPx() }
 
@@ -334,7 +332,7 @@ private class DragControllerImpl(
 
     private fun <T : ContentKey> drag(delta: Float, animation: SwipeAnimation<T>): Float {
         val distance = animation.distance()
-        val previousOffset = animation.dragOffset
+        val previousOffset = animation.gestureContext.dragOffset
         val desiredOffset = previousOffset + delta
 
         // Note: the distance could be negative if fromContent is above or to the left of toContent.
@@ -350,7 +348,7 @@ private class DragControllerImpl(
                 else -> desiredOffset.fastCoerceIn(distance, 0f)
             }
 
-        animation.dragOffset = newOffset
+        animation.gestureContext.dragOffset = newOffset
         return newOffset - previousOffset
     }
 
@@ -373,32 +371,40 @@ private class DragControllerImpl(
             return 0f
         }
 
-        val fromContent = swipeAnimation.fromContent
         // If we are halfway between two contents, we check what the target will be based on
         // the velocity and offset of the transition, then we launch the animation.
-
         val toContent = swipeAnimation.toContent
 
-        // Compute the destination content (and therefore offset) to settle in.
-        val offset = swipeAnimation.dragOffset
+        val effectiveDragOffset = swipeAnimation.effectiveDragOffset
         val distance = swipeAnimation.distance()
-        val targetContent =
-            if (
-                distance != DistanceUnspecified &&
+
+        val shouldCommitSwipe =
+            when {
+                distance == DistanceUnspecified -> false
+                UserActionGestureFlag.isEnabled ->
+                    shouldCommitSwipeWithUserActionGesture(
+                        effectiveDragOffset = effectiveDragOffset,
+                        distance = distance,
+                        velocity = velocity,
+                        wasCommitted = swipeAnimation.currentContent == toContent,
+                        requiresFullDistanceSwipe = swipeAnimation.requiresFullDistanceSwipe,
+                        isUserActionGestureCommitted = swipeAnimation.isUserActionGestureCommitted,
+                    )
+                else ->
                     shouldCommitSwipe(
-                        offset = offset,
+                        offset = effectiveDragOffset,
                         distance = distance,
                         velocity = velocity,
                         wasCommitted = swipeAnimation.currentContent == toContent,
                         requiresFullDistanceSwipe = swipeAnimation.requiresFullDistanceSwipe,
                     )
-            ) {
-                toContent
-            } else {
-                fromContent
             }
 
-        return swipeAnimation.animateOffset(velocity, targetContent, awaitFling = awaitFling)
+        // Compute the destination content (and therefore offset) to settle in.
+        val targeContent =
+            if (shouldCommitSwipe) swipeAnimation.toContent else swipeAnimation.fromContent
+
+        return swipeAnimation.animateOffset(velocity, targeContent, awaitFling = awaitFling)
     }
 
     /**
@@ -412,6 +418,8 @@ private class DragControllerImpl(
         wasCommitted: Boolean,
         requiresFullDistanceSwipe: Boolean,
     ): Boolean {
+        UserActionGestureFlag.assertInLegacyMode()
+
         if (requiresFullDistanceSwipe && !wasCommitted) {
             return offset / distance >= 1f
         }
@@ -441,6 +449,64 @@ private class DragControllerImpl(
             velocity >= velocityThreshold ||
                 (offset >= positionalThreshold && !wasCommitted) ||
                 isCloserToTarget()
+        }
+    }
+
+    /**
+     * Whether the swipe to the target scene should be committed or not. This is inspired by
+     * SwipeableV2.computeTarget().
+     *
+     * NOTE: This is a refactor of [shouldCommitSwipe] above, with the goal to first compute a
+     * `isPastThreshold`. This is equivalent, aside from the additional
+     * [isUserActionGestureCommitted]
+     */
+    fun shouldCommitSwipeWithUserActionGesture(
+        effectiveDragOffset: Float,
+        distance: Float,
+        velocity: Float,
+        wasCommitted: Boolean,
+        requiresFullDistanceSwipe: Boolean,
+        isUserActionGestureCommitted: Boolean?,
+    ): Boolean {
+        UserActionGestureFlag.assertInNewMode()
+
+        if (requiresFullDistanceSwipe && !wasCommitted) {
+            return effectiveDragOffset / distance >= 1f
+        }
+
+        val isUpOrLeft = distance < 0f
+
+        val velocityThresholdPx = draggableHandler.velocityThreshold
+        val positionalThresholdPx = draggableHandler.positionalThreshold
+
+        val isPastThreshold =
+            isUserActionGestureCommitted
+                ?: run {
+                    // Fallback
+                    val isPastPositionalThreshold =
+                        !wasCommitted &&
+                            if (isUpOrLeft) effectiveDragOffset <= -positionalThresholdPx
+                            else effectiveDragOffset >= positionalThresholdPx
+
+                    val isCloserToTarget =
+                        (effectiveDragOffset - distance).absoluteValue <
+                            effectiveDragOffset.absoluteValue
+
+                    isPastPositionalThreshold || isCloserToTarget
+                }
+
+        return if (isUpOrLeft) {
+            if (effectiveDragOffset > 0f || velocity >= velocityThresholdPx) {
+                false
+            } else {
+                velocity <= -velocityThresholdPx || isPastThreshold
+            }
+        } else {
+            if (effectiveDragOffset < 0f || velocity <= -velocityThresholdPx) {
+                false
+            } else {
+                velocity >= velocityThresholdPx || isPastThreshold
+            }
         }
     }
 }

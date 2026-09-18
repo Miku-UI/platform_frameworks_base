@@ -7,5 +7,10 @@
     {
       "path": "frameworks/base/libs/WindowManager/Shell/tests/e2e/splitscreen/platinum"
     }
+  ],
+  "wm": [
+    {
+      "name": "FunctionalTestsSplitScreen-FullscreenModeRequestFromSplitAndBackTest"
+    }
   ]
 }

@@ -15,36 +15,56 @@
  */
 package android.platform.test.ravenwood;
 
-import java.util.Arrays;
+import java.lang.reflect.Method;
+import java.util.Objects;
 
 public class RavenwoodUnsupportedApiException extends UnsupportedOperationException {
 
-    private int mSkipStackTraces = 0;
+    private String mReason = null;
+    private final String mCustomMessage;
 
     public RavenwoodUnsupportedApiException(String message) {
-        super(message);
+        mCustomMessage = message;
     }
 
     public RavenwoodUnsupportedApiException() {
-        super("This method is not yet supported under the Ravenwood deviceless testing "
-                + "environment; consider requesting support from the API owner or "
-                + "consider using Mockito; more details at go/ravenwood");
+        mCustomMessage = null;
     }
 
-    /**
-     * Sets the number of stack frames to skip when calling {@link #getStackTrace()}.
-     */
-    public RavenwoodUnsupportedApiException skipStackTraces(int number) {
-        mSkipStackTraces = number;
-        return this;
+    private String getMessagePrefix() {
+        return Objects.requireNonNullElseGet(mCustomMessage, () -> "Method " + getReason());
     }
 
     @Override
-    public StackTraceElement[] getStackTrace() {
-        var traces = super.getStackTrace();
-        if (mSkipStackTraces > 0) {
-            return Arrays.copyOfRange(traces, mSkipStackTraces, traces.length);
-        }
-        return traces;
+    public String getMessage() {
+        return getMessagePrefix() + " is not yet supported under the Ravenwood deviceless testing "
+                + "environment; consider requesting support from the API owner or "
+                + "consider using Mockito; more details at go/ravenwood";
+    }
+
+    /**
+     * Set a custom reason for the unsupported API exception.
+     */
+    public RavenwoodUnsupportedApiException setReason(String reason) {
+        mReason = reason;
+        return this;
+    }
+
+    /**
+     * Set a custom reason for the unsupported API exception.
+     */
+    public RavenwoodUnsupportedApiException setReason(Method method) {
+        mReason = method.getDeclaringClass().getName() + "#" + method.getName();
+        return this;
+    }
+
+    /**
+     * Return the API that causes this exception.
+     */
+    public String getReason() {
+        if (mReason != null) return mReason;
+        var caller = getStackTrace()[0];
+        mReason = caller.getClassName() + "#" + caller.getMethodName();
+        return mReason;
     }
 }

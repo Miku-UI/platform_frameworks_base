@@ -26,9 +26,12 @@ import perfetto.protos.PerfettoTrace.ProtoLogViewerConfig
 class ViewerConfigProtoBuilder : ProtoLogTool.ProtologViewerConfigBuilder {
     /**
      * @return a byte array of a ProtoLogViewerConfig proto message encoding all the viewer
-     * configurations mapping protolog hashes to message information and log group information.
+     *   configurations mapping protolog hashes to message information and log group information.
      */
-    override fun build(groups: Collection<LogGroup>, statements: Map<ProtoLogTool.LogCall, Long>): ByteArray {
+    override fun build(
+        groups: Collection<LogGroup>,
+        statements: Map<ProtoLogTool.LogCall, Long>,
+    ): ByteArray {
         val configBuilder = ProtoLogViewerConfig.newBuilder()
 
         // TODO(b/373754057): We are passing all the groups now, because some groups might only be
@@ -37,22 +40,23 @@ class ViewerConfigProtoBuilder : ProtoLogTool.ProtologViewerConfigBuilder {
         //  in the viewer config. Once Kotlin is pre-processed or this logic changes we should only
         //  use the groups that are actually used as an optimization.
         groups.forEach { group ->
-            configBuilder.addGroups(ProtoLogViewerConfig.Group.newBuilder()
+            configBuilder.addGroups(
+                ProtoLogViewerConfig.Group.newBuilder()
                     .setId(group.id)
                     .setName(group.name)
                     .setTag(group.tag)
-                    .build())
+                    .build()
+            )
         }
 
         statements.forEach { (log, key) ->
             configBuilder.addMessages(
                 ProtoLogViewerConfig.MessageData.newBuilder()
-                        .setMessageId(key)
-                        .setMessage(log.messageString)
-                        .setLevel(
-                            ProtoLogLevel.forNumber(log.logLevel.protoMessageId))
-                        .setGroupId(log.logGroup.id)
-                        .setLocation("${log.position}:${log.lineNumber}")
+                    .setMessageId(key)
+                    .setMessage(log.messageString)
+                    .setLevel(ProtoLogLevel.forNumber(log.logLevel.protoMessageId))
+                    .setGroupId(log.logGroup.id)
+                    .setLocation("${log.position}:${log.lineNumber}")
             )
         }
 

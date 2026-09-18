@@ -1080,13 +1080,13 @@ public class SoundTrigger {
     public @interface ModelParamTypes {}
 
     /**
-     * See {@link ModelParams.INVALID}
+     * See {@link ModelParams#INVALID}
      * @hide
      */
     @TestApi
     public static final int MODEL_PARAM_INVALID = ModelParams.INVALID;
     /**
-     * See {@link ModelParams.THRESHOLD_FACTOR}
+     * See {@link ModelParams#THRESHOLD_FACTOR}
      * @hide
      */
     @TestApi

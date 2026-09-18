@@ -17,6 +17,7 @@
 package com.android.keyguard
 
 import android.testing.TestableLooper
+import android.uilatencystats.UiLatencyStatsManager
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -44,6 +45,7 @@ import com.android.systemui.util.concurrency.DelayableExecutor
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.wrapper.LockPatternCheckerWrapper
+import java.util.Optional
 import junit.framework.Assert.assertFalse
 import junit.framework.Assert.assertTrue
 import org.junit.Before
@@ -89,6 +91,7 @@ class KeyguardPasswordViewControllerTest : SysuiTestCase() {
     @Mock private lateinit var postureController: DevicePostureController
     @Mock private lateinit var mUserActivityNotifier: UserActivityNotifier
     @Mock private lateinit var lockPatternChecker: LockPatternCheckerWrapper
+    @Mock private lateinit var mUiLatencyStatsManager: UiLatencyStatsManager
     @Captor private lateinit var keyListenerArgumentCaptor: ArgumentCaptor<View.OnKeyListener>
     private val kosmos = testKosmos()
 
@@ -140,6 +143,7 @@ class KeyguardPasswordViewControllerTest : SysuiTestCase() {
                 kosmos.bouncerHapticPlayer,
                 mUserActivityNotifier,
                 lockPatternChecker,
+                Optional.of(mUiLatencyStatsManager),
             )
     }
 

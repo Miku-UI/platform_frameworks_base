@@ -23,6 +23,9 @@ public abstract class ContentProviderRecordInternal {
     /** The component name of this content provider. */
     public final ComponentName name;
 
+    /** Whether this content provider has any active external process handles or connections. */
+    private boolean mHasExternalProcessHandles;
+
     public ContentProviderRecordInternal(ComponentName name) {
         this.name = name;
     }
@@ -30,12 +33,17 @@ public abstract class ContentProviderRecordInternal {
     /** Returns the process record that hosts this content provider. */
     public abstract ProcessRecordInternal getHostProcess();
 
-    /** Checks if this content provider has any active external process handles or connections. */
-    public abstract boolean hasExternalProcessHandles();
-
     /** Returns the total number of active connections to this content provider. */
     public abstract int numberOfConnections();
 
     /** Returns the content provider connection at the specified index. */
     public abstract ContentProviderConnectionInternal getConnectionsAt(int index);
+
+    public boolean getHasExternalProcessHandles() {
+        return mHasExternalProcessHandles;
+    }
+
+    void setHasExternalProcessHandles(boolean value) {
+        mHasExternalProcessHandles = value;
+    }
 }

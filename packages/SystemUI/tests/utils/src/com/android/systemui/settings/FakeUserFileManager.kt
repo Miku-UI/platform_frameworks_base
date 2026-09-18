@@ -16,7 +16,6 @@
 
 package com.android.systemui.settings
 
-import android.content.SharedPreferences
 import com.android.systemui.util.FakeSharedPreferences
 import java.io.File
 
@@ -27,7 +26,11 @@ class FakeUserFileManager : UserFileManager {
         throw UnsupportedOperationException("getFile not implemented in fake")
     }
 
-    override fun getSharedPreferences(fileName: String, mode: Int, userId: Int): SharedPreferences {
+    override fun getSharedPreferences(
+        fileName: String,
+        mode: Int,
+        userId: Int,
+    ): FakeSharedPreferences {
         val key = SharedPrefKey(fileName, mode, userId)
         return sharedPreferences.getOrPut(key) { FakeSharedPreferences() }
     }

@@ -20,5 +20,10 @@ package android.media.tv.extension.pvr;
  * @hide
  */
 interface IGetInfoRecordedContentsCallback {
+    /**
+     * Callback method used to notify the channel lock info of recorded content.
+     *
+     * @param result {@code RecordConstants.LockStatus} 0 for unlocked, 1 for locked.
+     */
     void onRecordedContentsGetInfo(int result);
 }

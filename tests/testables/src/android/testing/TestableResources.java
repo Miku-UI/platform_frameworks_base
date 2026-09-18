@@ -23,6 +23,7 @@ import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.util.Log;
 import android.util.SparseArray;
+import android.util.TypedValue;
 
 import org.mockito.invocation.InvocationOnMock;
 
@@ -113,6 +114,15 @@ public class TestableResources {
                                     (String) value,
                                     Arrays.copyOfRange(invocationOnMock.getArguments(), 1,
                                             invocationOnMock.getArguments().length));
+                        }
+                        // Support for void Resources.getValue()
+                        if (value instanceof TypedValue
+                                && invocationOnMock.getMethod().getName().equals("getValue")
+                                && invocationOnMock.getArguments().length > 1) {
+                            TypedValue outValue = invocationOnMock.getArgument(1);
+                            outValue.type = ((TypedValue) value).type;
+                            outValue.data = ((TypedValue) value).data;
+                            return null;
                         }
                         return value;
                     }

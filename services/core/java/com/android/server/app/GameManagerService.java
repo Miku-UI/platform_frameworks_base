@@ -19,7 +19,6 @@ package com.android.server.app;
 import static android.content.Intent.ACTION_PACKAGE_ADDED;
 import static android.content.Intent.ACTION_PACKAGE_REMOVED;
 import static android.content.Intent.EXTRA_REPLACING;
-import static android.server.app.Flags.gameDefaultFrameRate;
 
 import static com.android.internal.R.styleable.GameModeConfig_allowGameAngleDriver;
 import static com.android.internal.R.styleable.GameModeConfig_allowGameDownscaling;
@@ -253,7 +252,7 @@ public final class GameManagerService extends IGameManagerService.Stub {
         if (mPackageManager.hasSystemFeature(PackageManager.FEATURE_GAME_SERVICE)) {
             mGameServiceController = new GameServiceController(
                     context, BackgroundThread.getExecutor(),
-                    new GameServiceProviderSelectorImpl(context.getResources(), mPackageManager),
+                    new GameServiceProviderSelectorImpl(context),
                     new GameServiceProviderInstanceFactoryImpl(context));
         } else {
             mGameServiceController = null;
@@ -632,7 +631,8 @@ public final class GameManagerService extends IGameManagerService.Stub {
                         array.recycle();
                     }
                 }
-            } catch (NameNotFoundException | XmlPullParserException | IOException ex) {
+            } catch (NameNotFoundException | XmlPullParserException | IOException
+                     | OutOfMemoryError ex) {
                 // set flag back to default values when parsing fails
                 mPerfModeOverridden = false;
                 mBatteryModeOverridden = false;
@@ -2251,21 +2251,15 @@ public final class GameManagerService extends IGameManagerService.Stub {
     }
 
     private float getGameDefaultFrameRate(boolean isEnabled) {
-        float gameDefaultFrameRate = 0.0f;
-        if (gameDefaultFrameRate()) {
-            gameDefaultFrameRate = isEnabled ? mGameDefaultFrameRateValue : 0.0f;
-        }
-        return gameDefaultFrameRate;
+        return isEnabled ? mGameDefaultFrameRateValue : 0.0f;
     }
 
     @Override
     @EnforcePermission(Manifest.permission.MANAGE_GAME_MODE)
     public void toggleGameDefaultFrameRate(boolean isEnabled) {
         toggleGameDefaultFrameRate_enforcePermission();
-        if (gameDefaultFrameRate()) {
-            Slog.v(TAG, "toggleGameDefaultFrameRate : " + isEnabled);
-            this.toggleGameDefaultFrameRateUnchecked(isEnabled);
-        }
+        Slog.v(TAG, "toggleGameDefaultFrameRate : " + isEnabled);
+        this.toggleGameDefaultFrameRateUnchecked(isEnabled);
     }
 
     private void toggleGameDefaultFrameRateUnchecked(boolean isEnabled) {

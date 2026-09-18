@@ -17,7 +17,7 @@
 package com.android.systemui.volume.dialog.domain.interactor
 
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.kosmos.applicationCoroutineScope
+import com.android.systemui.kosmos.backgroundScope
 import com.android.systemui.plugins.volumeDialogController
 import com.android.systemui.volume.dialog.data.repository.volumeDialogStateRepository
 
@@ -27,6 +27,6 @@ val Kosmos.volumeDialogStateInteractor: VolumeDialogStateInteractor by
             volumeDialogCallbacksInteractor,
             volumeDialogController,
             volumeDialogStateRepository,
-            applicationCoroutineScope,
+            backgroundScope,
         )
     }

@@ -21,6 +21,8 @@ import android.os.Parcel;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.server.power.stats.counters.TimeBase;
+
 import junit.framework.TestCase;
 
 /**
@@ -35,7 +37,7 @@ public class BatteryStatsDurationTimerTest extends TestCase {
     public void testStartStop() throws Exception {
         final MockClock clocks = new MockClock();
 
-        final BatteryStatsImpl.TimeBase timeBase = new BatteryStatsImpl.TimeBase();
+        final TimeBase timeBase = new TimeBase();
         timeBase.init(clocks.uptimeMillis(), clocks.elapsedRealtime());
 
         final BatteryStatsImpl.DurationTimer timer = new BatteryStatsImpl.DurationTimer(clocks,
@@ -107,7 +109,7 @@ public class BatteryStatsDurationTimerTest extends TestCase {
     public void testReset() throws Exception {
         final MockClock clocks = new MockClock();
 
-        final BatteryStatsImpl.TimeBase timeBase = new BatteryStatsImpl.TimeBase();
+        final TimeBase timeBase = new TimeBase();
         timeBase.init(clocks.uptimeMillis(), clocks.elapsedRealtime());
 
         final BatteryStatsImpl.DurationTimer timer = new BatteryStatsImpl.DurationTimer(clocks,
@@ -143,7 +145,7 @@ public class BatteryStatsDurationTimerTest extends TestCase {
     public void testResetAndDetach() throws Exception {
         final MockClock clocks = new MockClock();
 
-        final BatteryStatsImpl.TimeBase timeBase = new BatteryStatsImpl.TimeBase();
+        final TimeBase timeBase = new TimeBase();
         timeBase.init(clocks.uptimeMillis(), clocks.elapsedRealtime());
 
         final BatteryStatsImpl.DurationTimer timer = new BatteryStatsImpl.DurationTimer(clocks,
@@ -170,7 +172,7 @@ public class BatteryStatsDurationTimerTest extends TestCase {
     public void testParceling() throws Exception {
         final MockClock clocks = new MockClock();
 
-        final BatteryStatsImpl.TimeBase timeBase = new BatteryStatsImpl.TimeBase();
+        final TimeBase timeBase = new TimeBase();
         timeBase.init(clocks.uptimeMillis(), clocks.elapsedRealtime());
 
         final BatteryStatsImpl.DurationTimer timer = new BatteryStatsImpl.DurationTimer(clocks,

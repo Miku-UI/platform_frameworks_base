@@ -15,6 +15,7 @@
  */
 package com.android.server.notification;
 
+import static android.app.NotificationLoggingConstants.DATA_TYPE_SNOOZED;
 import static com.android.server.notification.SnoozeHelper.CONCURRENT_SNOOZE_LIMIT;
 import static com.android.server.notification.SnoozeHelper.EXTRA_KEY;
 
@@ -38,11 +39,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.AlarmManager;
+import android.app.Flags;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.app.backup.BackupRestoreEventLogger;
 import android.os.UserHandle;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.notification.StatusBarNotification;
 import android.util.IntArray;
 import android.util.Xml;
@@ -56,6 +61,7 @@ import com.android.server.UiServiceTestCase;
 import com.android.server.pm.PackageManagerService;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -82,9 +88,14 @@ public class SnoozeHelperTest extends UiServiceTestCase {
     private static final String XML_SNOOZED_NOTIFICATION_CONTEXT_ID = "id";
     private static final String XML_SNOOZED_NOTIFICATION_VERSION_LABEL = "version";
 
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     @Mock SnoozeHelper.Callback mCallback;
     @Mock AlarmManager mAm;
     @Mock ManagedServices.UserProfiles mUserProfiles;
+    @Mock
+    BackupRestoreEventLogger mLogger;
 
     private SnoozeHelper mSnoozeHelper;
 
@@ -109,10 +120,36 @@ public class SnoozeHelperTest extends UiServiceTestCase {
         TypedXmlPullParser parser = Xml.newFastPullParser();
         parser.setInput(new BufferedInputStream(
                 new ByteArrayInputStream(xml_string.getBytes())), null);
-        mSnoozeHelper.readXml(parser, 1);
+        mSnoozeHelper.readXml(parser, 1, null);
         assertEquals((long) Long.MAX_VALUE, (long) mSnoozeHelper
                 .getSnoozeTimeForUnpostedNotification(0, "pkg", "key"));
         verify(mAm, never()).setExactAndAllowWhileIdle(anyInt(), anyLong(), any());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_BACKUP_RESTORE_LOGGING)
+    public void testXML_backupRestoreLogging()
+            throws XmlPullParserException, IOException {
+        final String max_time_str = Long.toString(Long.MAX_VALUE);
+        final String xml_string = "<snoozed-notifications>"
+                + "<notification version=\"1\" user-id=\"0\" "
+                + "pkg=\"pkg\" key=\"key\" time=\"" + max_time_str + "\"/>"
+                + "<notification version=\"1\" user-id=\"0\" "
+                + "pkg=\"pkg\" key=\"key2\" time=\"" + max_time_str + "\"/>"
+                + "</snoozed-notifications>";
+        TypedXmlPullParser parser = Xml.newFastPullParser();
+        parser.setInput(new BufferedInputStream(
+                new ByteArrayInputStream(xml_string.getBytes())), null);
+        mSnoozeHelper.readXml(parser, 1, mLogger);
+        verify(mLogger).logItemsRestored(DATA_TYPE_SNOOZED, 2);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        TypedXmlSerializer serializer = Xml.newFastSerializer();
+        serializer.setOutput(new BufferedOutputStream(baos), "utf-8");
+        serializer.startDocument(null, true);
+        mSnoozeHelper.writeXml(serializer, mLogger);
+        serializer.endDocument();
+        serializer.flush();
+        verify(mLogger).logItemsBackedUp(DATA_TYPE_SNOOZED, 2);
     }
 
     @Test
@@ -128,12 +165,12 @@ public class SnoozeHelperTest extends UiServiceTestCase {
         TypedXmlPullParser parser = Xml.newFastPullParser();
         parser.setInput(new BufferedInputStream(
                 new ByteArrayInputStream(xml_string.getBytes())), null);
-        mSnoozeHelper.readXml(parser, 1);
+        mSnoozeHelper.readXml(parser, 1, null);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         TypedXmlSerializer serializer = Xml.newFastSerializer();
         serializer.setOutput(new BufferedOutputStream(baos), "utf-8");
         serializer.startDocument(null, true);
-        mSnoozeHelper.writeXml(serializer);
+        mSnoozeHelper.writeXml(serializer, null);
         serializer.endDocument();
         serializer.flush();
     }
@@ -151,7 +188,7 @@ public class SnoozeHelperTest extends UiServiceTestCase {
         TypedXmlPullParser parser = Xml.newFastPullParser();
         parser.setInput(new BufferedInputStream(
                 new ByteArrayInputStream(xml_string.getBytes())), null);
-        mSnoozeHelper.readXml(parser, 1);
+        mSnoozeHelper.readXml(parser, 1, null);
         assertEquals("Should read the notification context from xml and it should be `uri",
                 "uri", mSnoozeHelper.getSnoozeContextForUnpostedNotification(
                         0, "pkg", "key"));
@@ -166,14 +203,14 @@ public class SnoozeHelperTest extends UiServiceTestCase {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         serializer.setOutput(new BufferedOutputStream(baos), "utf-8");
         serializer.startDocument(null, true);
-        mSnoozeHelper.writeXml(serializer);
+        mSnoozeHelper.writeXml(serializer, null);
         serializer.endDocument();
         serializer.flush();
 
         TypedXmlPullParser parser = Xml.newFastPullParser();
         parser.setInput(new BufferedInputStream(
                 new ByteArrayInputStream(baos.toByteArray())), "utf-8");
-        mSnoozeHelper.readXml(parser, 1);
+        mSnoozeHelper.readXml(parser, 1, null);
         assertTrue("Should read the notification time from xml and it should be more than zero",
                 0 < mSnoozeHelper.getSnoozeTimeForUnpostedNotification(
                         0, "pkg", r.getKey()).doubleValue());
@@ -190,14 +227,14 @@ public class SnoozeHelperTest extends UiServiceTestCase {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         serializer.setOutput(new BufferedOutputStream(baos), "utf-8");
         serializer.startDocument(null, true);
-        mSnoozeHelper.writeXml(serializer);
+        mSnoozeHelper.writeXml(serializer, null);
         serializer.endDocument();
         serializer.flush();
         Thread.sleep(10);
         TypedXmlPullParser parser = Xml.newFastPullParser();
         parser.setInput(new BufferedInputStream(
                 new ByteArrayInputStream(baos.toByteArray())), "utf-8");
-        mSnoozeHelper.readXml(parser, 2);
+        mSnoozeHelper.readXml(parser, 2, null);
         int systemUser = UserHandle.SYSTEM.getIdentifier();
         assertTrue("Should see a past time returned",
                 System.currentTimeMillis() >  mSnoozeHelper.getSnoozeTimeForUnpostedNotification(
@@ -230,7 +267,7 @@ public class SnoozeHelperTest extends UiServiceTestCase {
         TypedXmlPullParser parser = Xml.newFastPullParser();
         parser.setInput(new BufferedInputStream(
                 new ByteArrayInputStream(xml_string.getBytes())), null);
-        mSnoozeHelper.readXml(parser, 4);
+        mSnoozeHelper.readXml(parser, 4, null);
 
         mSnoozeHelper.scheduleRepostsForPersistedNotifications(5);
 
@@ -258,14 +295,14 @@ public class SnoozeHelperTest extends UiServiceTestCase {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         serializer.setOutput(new BufferedOutputStream(baos), "utf-8");
         serializer.startDocument(null, true);
-        mSnoozeHelper.writeXml(serializer);
+        mSnoozeHelper.writeXml(serializer, null);
         serializer.endDocument();
         serializer.flush();
 
         TypedXmlPullParser parser = Xml.newFastPullParser();
         parser.setInput(new BufferedInputStream(
                 new ByteArrayInputStream(baos.toByteArray())), "utf-8");
-        mSnoozeHelper.readXml(parser, 4);
+        mSnoozeHelper.readXml(parser, 4, null);
 
         mSnoozeHelper.scheduleRepostsForPersistedNotifications(5);
 
@@ -359,7 +396,7 @@ public class SnoozeHelperTest extends UiServiceTestCase {
         TypedXmlPullParser parser = Xml.newFastPullParser();
         parser.setInput(new BufferedInputStream(
                 new ByteArrayInputStream(baos.toByteArray())), "utf-8");
-        mSnoozeHelper.readXml(parser, 1);
+        mSnoozeHelper.readXml(parser, 1, null);
         // Verify that we can't snooze any more notifications
         //  and that the limit is caused by persisted notifications
         assertThat(mSnoozeHelper.canSnooze(1)).isFalse();

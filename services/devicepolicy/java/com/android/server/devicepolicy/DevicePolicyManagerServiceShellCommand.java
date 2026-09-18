@@ -15,10 +15,18 @@
  */
 package com.android.server.devicepolicy;
 
+import static android.app.admin.DevicePolicyManager.STATUS_OK;
+
+import android.annotation.FlaggedApi;
 import android.app.ActivityManager;
 import android.app.admin.DevicePolicyManager;
+import android.app.admin.MultiuserDeviceProvisioningCompletion;
+import android.app.admin.MultiuserManagedDeviceProvisioningParamsTransport;
+import android.app.admin.ProvisioningException;
 import android.app.admin.flags.Flags;
 import android.content.ComponentName;
+import android.os.Binder;
+import android.os.ServiceSpecificException;
 import android.os.ShellCommand;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -36,6 +44,8 @@ final class DevicePolicyManagerServiceShellCommand extends ShellCommand {
     private static final String CMD_LIST_OWNERS = "list-owners";
     private static final String CMD_LIST_POLICY_EXEMPT_APPS = "list-policy-exempt-apps";
     private static final String CMD_SET_ACTIVE_ADMIN = "set-active-admin";
+    private static final String CMD_PROVISION_MULTI_USER_MANAGED_DEVICE =
+            "provision-multiuser-managed-device";
     private static final String CMD_SET_DEVICE_OWNER = "set-device-owner";
     private static final String CMD_SET_PROFILE_OWNER = "set-profile-owner";
     private static final String CMD_REMOVE_ACTIVE_ADMIN = "remove-active-admin";
@@ -86,6 +96,12 @@ final class DevicePolicyManagerServiceShellCommand extends ShellCommand {
                     return runListPolicyExemptApps(pw);
                 case CMD_SET_ACTIVE_ADMIN:
                     return runSetActiveAdmin(pw);
+                case CMD_PROVISION_MULTI_USER_MANAGED_DEVICE:
+                    if (Flags.multiUserManagementDeviceProvisioning()) {
+                        return runProvisionMultiuserManagedDevice(pw);
+                    } else {
+                        return onInvalidCommand(pw, cmd);
+                    }
                 case CMD_SET_DEVICE_OWNER:
                     return runSetDeviceOwner(pw);
                 case CMD_SET_PROFILE_OWNER:
@@ -154,8 +170,14 @@ final class DevicePolicyManagerServiceShellCommand extends ShellCommand {
         }
         pw.printf("    Sets the given component as active admin and profile owner for an existing "
                 + "user.\n\n");
-        pw.printf("  %s [ %s <USER_ID> | current ] <COMPONENT>\n",
-                CMD_REMOVE_ACTIVE_ADMIN, USER_OPTION);
+
+        if (Flags.multiUserManagementDeviceProvisioning()) {
+            pw.printf("  %s <PACKAGE>\n", CMD_PROVISION_MULTI_USER_MANAGED_DEVICE);
+            pw.printf("    Sets the given package as device controller.\n\n");
+        }
+
+        pw.printf("  %s [ %s <USER_ID> | current ] <COMPONENT>\n", CMD_REMOVE_ACTIVE_ADMIN,
+                USER_OPTION);
         pw.printf("    Disables an active admin, the admin must have declared android:testOnly in "
                 + "the application in its manifest. This will also remove device and profile "
                 + "owners.\n\n");
@@ -279,6 +301,44 @@ final class DevicePolicyManagerServiceShellCommand extends ShellCommand {
 
         pw.printf("Success: Device owner set to package %s\n", mComponent.flattenToShortString());
         pw.printf("Active admin set to component %s\n", mComponent.flattenToShortString());
+        return 0;
+    }
+
+    @FlaggedApi(Flags.FLAG_MULTI_USER_MANAGEMENT_DEVICE_PROVISIONING)
+    private int runProvisionMultiuserManagedDevice(PrintWriter pw) {
+        String packageName = getNextArgRequired();
+
+        MultiuserManagedDeviceProvisioningParamsTransport paramsTransport =
+                new MultiuserManagedDeviceProvisioningParamsTransport();
+        paramsTransport.deviceControllerPackageName = packageName;
+
+        final int provisioningPreconditionResult = mService.checkProvisioningPrecondition(
+                DevicePolicyManager.ACTION_PROVISION_MULTIUSER_MANAGED_DEVICE, packageName);
+
+        if (provisioningPreconditionResult != STATUS_OK) {
+            int callingUserId = UserHandle.getUserId(Binder.getCallingUid());
+            pw.printf("Failed to provision multiuser managed device: %s%s",
+                    DevicePolicyManagerService.PROVISIONING_PRECONDITIONS_FAILED_WITH_RESULT,
+                    mService.computeProvisioningErrorString(provisioningPreconditionResult,
+                            callingUserId));
+            return 1;
+        }
+
+        final long identity = Binder.clearCallingIdentity();
+        MultiuserDeviceProvisioningCompletion completion =
+                new MultiuserDeviceProvisioningCompletion();
+        try {
+            mService.provisionMultiuserManagedDevice(paramsTransport,
+                    mService.mContext.getPackageName(), completion);
+            completion.waitForCompletion(/* timeoutSeconds= */ 30);
+        } catch (ProvisioningException e) {
+            pw.printf("Failed to provision multiuser managed device: %s", e.getMessage());
+            return 1;
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
+
+        pw.printf("Success: Device controller set to %s\n", packageName);
         return 0;
     }
 

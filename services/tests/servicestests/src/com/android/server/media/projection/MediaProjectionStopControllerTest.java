@@ -319,7 +319,6 @@ public class MediaProjectionStopControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.media.projection.flags.Flags.FLAG_STOP_MEDIA_PROJECTION_ON_CALL_END)
     public void testCallStateChanged_callStarts() {
         // Setup call state to false
         when(mTelecomManager.isInCall()).thenReturn(false);
@@ -334,7 +333,6 @@ public class MediaProjectionStopControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.media.projection.flags.Flags.FLAG_STOP_MEDIA_PROJECTION_ON_CALL_END)
     public void testCallStateChanged_remainsInCall() {
         // Setup call state to false
         when(mTelecomManager.isInCall()).thenReturn(true);
@@ -349,7 +347,6 @@ public class MediaProjectionStopControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.media.projection.flags.Flags.FLAG_STOP_MEDIA_PROJECTION_ON_CALL_END)
     public void testCallStateChanged_remainsNoCall() {
         // Setup call state to false
         when(mTelecomManager.isInCall()).thenReturn(false);
@@ -364,7 +361,6 @@ public class MediaProjectionStopControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.media.projection.flags.Flags.FLAG_STOP_MEDIA_PROJECTION_ON_CALL_END)
     public void testCallStateChanged_callEnds() {
         // Setup call state to false
         when(mTelecomManager.isInCall()).thenReturn(true);
@@ -379,7 +375,6 @@ public class MediaProjectionStopControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.media.projection.flags.Flags.FLAG_STOP_MEDIA_PROJECTION_ON_CALL_END)
     public void testExemptFromStopping_callEnd_callBeforeMediaProjection() throws Exception {
         when(mTelecomManager.isInCall()).thenReturn(true);
         mStopController.callStateChanged();
@@ -394,7 +389,6 @@ public class MediaProjectionStopControllerTest {
     }
 
     @Test
-    @EnableFlags(com.android.media.projection.flags.Flags.FLAG_STOP_MEDIA_PROJECTION_ON_CALL_END)
     public void testExemptFromStopping_callEnd_callAfterMediaProjection() throws Exception {
         MediaProjectionManagerService.MediaProjection mediaProjection = createMediaProjection();
         mediaProjection.notifyVirtualDisplayCreated(1);

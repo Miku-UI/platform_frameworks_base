@@ -19,6 +19,7 @@ package com.android.systemui.statusbar.notification.stack
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.media.controls.domain.pipeline.mediaDataManager
 import com.android.systemui.plugins.statusbar.statusBarStateController
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.statusbar.lockscreenShadeTransitionController
 import com.android.systemui.statusbar.notification.domain.interactor.seenNotificationsInteractor
 import com.android.systemui.statusbar.policy.splitShadeStateController
@@ -32,6 +33,7 @@ val Kosmos.notificationStackSizeCalculator by
             mediaDataManager = mediaDataManager,
             resources = mock(),
             splitShadeStateController = splitShadeStateController,
+            shadeModeInteractor = shadeModeInteractor,
             seenNotificationsInteractor = seenNotificationsInteractor,
             scope = mock(),
         )

@@ -17,6 +17,7 @@
 package android.media;
 
 import static android.media.audio.Flags.FLAG_SPEAKER_CLEANUP_USAGE;
+import static android.media.audio.Flags.FLAG_VIBRATION_SOUND_USAGE;
 
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
@@ -32,6 +33,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.text.TextUtils;
 import android.util.IntArray;
 import android.util.Log;
@@ -82,6 +84,7 @@ import java.util.Set;
  * <code>AudioAttributes</code> instance is built through its builder,
  * {@link AudioAttributes.Builder}.
  */
+@RavenwoodKeepWholeClass
 public final class AudioAttributes implements Parcelable {
     private final static String TAG = "AudioAttributes";
 
@@ -264,6 +267,26 @@ public final class AudioAttributes implements Parcelable {
     public static final int USAGE_SPEAKER_CLEANUP = SYSTEM_USAGE_OFFSET + 4;
 
     /**
+     * @hide
+     * Usage value to use when a system application plays a notification
+     * vibration where the physical vibration is augmented with an auditory cue.
+     */
+    @FlaggedApi(FLAG_VIBRATION_SOUND_USAGE)
+    @SystemApi
+    @RequiresPermission(android.Manifest.permission.MODIFY_AUDIO_ROUTING)
+    public static final int USAGE_NOTIFICATION_VIBRATION = SYSTEM_USAGE_OFFSET + 5;
+
+    /**
+     * @hide
+     * Usage value to use when a system application plays a ringtone
+     * vibration where the physical vibration is augmented with an auditory cue.
+     */
+    @FlaggedApi(FLAG_VIBRATION_SOUND_USAGE)
+    @SystemApi
+    @RequiresPermission(android.Manifest.permission.MODIFY_AUDIO_ROUTING)
+    public static final int USAGE_RINGTONE_VIBRATION = SYSTEM_USAGE_OFFSET + 6;
+
+    /**
      * IMPORTANT: when adding new usage types, add them to SDK_USAGES and update SUPPRESSIBLE_USAGES
      *            if applicable, as well as audioattributes.proto.
      *            Also consider adding them to <aaudio/AAudio.h> for the NDK.
@@ -339,7 +362,7 @@ public final class AudioAttributes implements Parcelable {
         SUPPRESSIBLE_USAGES.put(USAGE_GAME,                              SUPPRESSIBLE_MEDIA);
         SUPPRESSIBLE_USAGES.put(USAGE_ASSISTANT,                         SUPPRESSIBLE_MEDIA);
         SUPPRESSIBLE_USAGES.put(USAGE_CALL_ASSISTANT,                    SUPPRESSIBLE_NEVER);
-        /** default volume assignment is STREAM_MUSIC, handle unknown usage as media */
+        /* default volume assignment is STREAM_MUSIC, handle unknown usage as media */
         SUPPRESSIBLE_USAGES.put(USAGE_UNKNOWN,                           SUPPRESSIBLE_MEDIA);
         SUPPRESSIBLE_USAGES.put(USAGE_ASSISTANCE_SONIFICATION,           SUPPRESSIBLE_SYSTEM);
     }
@@ -1629,6 +1652,10 @@ public final class AudioAttributes implements Parcelable {
                 return "USAGE_ANNOUNCEMENT";
             case USAGE_SPEAKER_CLEANUP:
                 return "USAGE_SPEAKER_CLEANUP";
+            case USAGE_NOTIFICATION_VIBRATION:
+                return "USAGE_NOTIFICATION_VIBRATION";
+            case USAGE_RINGTONE_VIBRATION:
+                return "USAGE_RINGTONE_VIBRATION";
             default:
                 return "unknown usage " + usage;
         }
@@ -1681,44 +1708,47 @@ public final class AudioAttributes implements Parcelable {
         }
     }
 
-    private static final Map<String, Integer> sXsdStringToUsage = new HashMap<>();
-
-    static {
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_UNKNOWN.toString(), USAGE_UNKNOWN);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_UNKNOWN.toString(), USAGE_UNKNOWN);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_MEDIA.toString(), USAGE_MEDIA);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_VOICE_COMMUNICATION.toString(),
-                USAGE_VOICE_COMMUNICATION);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_VOICE_COMMUNICATION_SIGNALLING.toString(),
-                USAGE_VOICE_COMMUNICATION_SIGNALLING);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_ALARM.toString(), USAGE_ALARM);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_NOTIFICATION.toString(), USAGE_NOTIFICATION);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_NOTIFICATION_TELEPHONY_RINGTONE.toString(),
-                USAGE_NOTIFICATION_RINGTONE);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_ASSISTANCE_ACCESSIBILITY.toString(),
-                USAGE_ASSISTANCE_ACCESSIBILITY);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_ASSISTANCE_NAVIGATION_GUIDANCE.toString(),
-                USAGE_ASSISTANCE_NAVIGATION_GUIDANCE);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_ASSISTANCE_SONIFICATION.toString(),
-                USAGE_ASSISTANCE_SONIFICATION);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_GAME.toString(), USAGE_GAME);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_VIRTUAL_SOURCE.toString(),
-                USAGE_VIRTUAL_SOURCE);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_ASSISTANT.toString(), USAGE_ASSISTANT);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_CALL_ASSISTANT.toString(),
-                USAGE_CALL_ASSISTANT);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_EMERGENCY.toString(), USAGE_EMERGENCY);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_SAFETY.toString(), USAGE_SAFETY);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_VEHICLE_STATUS.toString(),
-                USAGE_VEHICLE_STATUS);
-        sXsdStringToUsage.put(AudioUsage.AUDIO_USAGE_ANNOUNCEMENT.toString(), USAGE_ANNOUNCEMENT);
+    private static final class XsdHolder {
+        static final Map<String, Integer> sInstance;
+        static {
+            sInstance = new HashMap<>();
+            sInstance.put(AudioUsage.AUDIO_USAGE_UNKNOWN.toString(), USAGE_UNKNOWN);
+            sInstance.put(AudioUsage.AUDIO_USAGE_UNKNOWN.toString(), USAGE_UNKNOWN);
+            sInstance.put(AudioUsage.AUDIO_USAGE_MEDIA.toString(), USAGE_MEDIA);
+            sInstance.put(AudioUsage.AUDIO_USAGE_VOICE_COMMUNICATION.toString(),
+                    USAGE_VOICE_COMMUNICATION);
+            sInstance.put(AudioUsage.AUDIO_USAGE_VOICE_COMMUNICATION_SIGNALLING.toString(),
+                    USAGE_VOICE_COMMUNICATION_SIGNALLING);
+            sInstance.put(AudioUsage.AUDIO_USAGE_ALARM.toString(), USAGE_ALARM);
+            sInstance.put(AudioUsage.AUDIO_USAGE_NOTIFICATION.toString(), USAGE_NOTIFICATION);
+            sInstance.put(AudioUsage.AUDIO_USAGE_NOTIFICATION_TELEPHONY_RINGTONE.toString(),
+                    USAGE_NOTIFICATION_RINGTONE);
+            sInstance.put(AudioUsage.AUDIO_USAGE_ASSISTANCE_ACCESSIBILITY.toString(),
+                    USAGE_ASSISTANCE_ACCESSIBILITY);
+            sInstance.put(AudioUsage.AUDIO_USAGE_ASSISTANCE_NAVIGATION_GUIDANCE.toString(),
+                    USAGE_ASSISTANCE_NAVIGATION_GUIDANCE);
+            sInstance.put(AudioUsage.AUDIO_USAGE_ASSISTANCE_SONIFICATION.toString(),
+                    USAGE_ASSISTANCE_SONIFICATION);
+            sInstance.put(AudioUsage.AUDIO_USAGE_GAME.toString(), USAGE_GAME);
+            sInstance.put(AudioUsage.AUDIO_USAGE_VIRTUAL_SOURCE.toString(),
+                    USAGE_VIRTUAL_SOURCE);
+            sInstance.put(AudioUsage.AUDIO_USAGE_ASSISTANT.toString(), USAGE_ASSISTANT);
+            sInstance.put(AudioUsage.AUDIO_USAGE_CALL_ASSISTANT.toString(),
+                    USAGE_CALL_ASSISTANT);
+            sInstance.put(AudioUsage.AUDIO_USAGE_EMERGENCY.toString(), USAGE_EMERGENCY);
+            sInstance.put(AudioUsage.AUDIO_USAGE_SAFETY.toString(), USAGE_SAFETY);
+            sInstance.put(AudioUsage.AUDIO_USAGE_VEHICLE_STATUS.toString(),
+                    USAGE_VEHICLE_STATUS);
+            sInstance.put(AudioUsage.AUDIO_USAGE_ANNOUNCEMENT.toString(), USAGE_ANNOUNCEMENT);
+        }
     }
+
 
     /** @hide **/
     @TestApi
     public static @AttributeUsage int xsdStringToUsage(@NonNull String xsdUsage) {
-        if (sXsdStringToUsage.containsKey(xsdUsage)) {
-            return sXsdStringToUsage.get(xsdUsage);
+        if (XsdHolder.sInstance.containsKey(xsdUsage)) {
+            return XsdHolder.sInstance.get(xsdUsage);
         } else {
             Log.w(TAG, "Usage name not found in AudioUsage enum: " + xsdUsage);
             return USAGE_UNKNOWN;
@@ -1781,7 +1811,9 @@ public final class AudioAttributes implements Parcelable {
                 || usage == USAGE_SAFETY
                 || usage == USAGE_VEHICLE_STATUS
                 || usage == USAGE_ANNOUNCEMENT
-                || usage == USAGE_SPEAKER_CLEANUP);
+                || usage == USAGE_SPEAKER_CLEANUP
+                || usage == USAGE_NOTIFICATION_VIBRATION
+                || usage == USAGE_RINGTONE_VIBRATION);
     }
 
     /**
@@ -1884,12 +1916,14 @@ public final class AudioAttributes implements Parcelable {
             case USAGE_ALARM:
                 return AudioSystem.STREAM_ALARM;
             case USAGE_NOTIFICATION_RINGTONE:
+            case USAGE_RINGTONE_VIBRATION:
                 return AudioSystem.STREAM_RING;
             case USAGE_NOTIFICATION:
             case USAGE_NOTIFICATION_COMMUNICATION_REQUEST:
             case USAGE_NOTIFICATION_COMMUNICATION_INSTANT:
             case USAGE_NOTIFICATION_COMMUNICATION_DELAYED:
             case USAGE_NOTIFICATION_EVENT:
+            case USAGE_NOTIFICATION_VIBRATION:
                 return AudioSystem.STREAM_NOTIFICATION;
             case USAGE_ASSISTANCE_ACCESSIBILITY:
                 return AudioSystem.STREAM_ACCESSIBILITY;
@@ -1925,7 +1959,9 @@ public final class AudioAttributes implements Parcelable {
             USAGE_SAFETY,
             USAGE_VEHICLE_STATUS,
             USAGE_ANNOUNCEMENT,
-            USAGE_SPEAKER_CLEANUP
+            USAGE_SPEAKER_CLEANUP,
+            USAGE_NOTIFICATION_VIBRATION,
+            USAGE_RINGTONE_VIBRATION
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface AttributeSystemUsage {}
@@ -1976,6 +2012,8 @@ public final class AudioAttributes implements Parcelable {
         USAGE_VEHICLE_STATUS,
         USAGE_ANNOUNCEMENT,
         USAGE_SPEAKER_CLEANUP,
+        USAGE_NOTIFICATION_VIBRATION,
+        USAGE_RINGTONE_VIBRATION,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface AttributeUsage {}

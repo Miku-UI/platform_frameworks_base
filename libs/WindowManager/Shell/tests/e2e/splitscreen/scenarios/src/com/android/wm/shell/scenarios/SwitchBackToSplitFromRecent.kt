@@ -70,6 +70,5 @@ constructor(val rotation: Rotation = Rotation.ROTATION_0) {
         secondaryApp.exit(wmHelper)
         Utils.resetFreezeRecentTaskList()
         RemoveAllTasksButHomeRule.removeAllTasksButHome()
-
     }
 }

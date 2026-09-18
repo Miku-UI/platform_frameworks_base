@@ -27,6 +27,14 @@ import java.util.Objects;
  */
 public final class LongPolicyValue extends PolicyValue<Long> {
 
+    /**
+     * Creates a LongPolicyValue unless {@link value} is equal to {@link defaultValue}, in which
+     * case this method returns null.
+     */
+    public static @Nullable LongPolicyValue createIfNotDefault(long value, long defaultValue) {
+        return (value == defaultValue) ? null : new LongPolicyValue(value);
+    }
+
     public LongPolicyValue(long value) {
         super(value);
     }

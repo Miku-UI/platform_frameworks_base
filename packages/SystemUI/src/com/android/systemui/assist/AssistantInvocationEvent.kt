@@ -62,7 +62,10 @@ enum class AssistantInvocationEvent(private val id: Int) : UiEventLogger.UiEvent
     ASSISTANT_INVOCATION_START_PHYSICAL_GESTURE(532),
 
     @UiEvent(doc = "Assistant invoked by long press on the physical power button")
-    ASSISTANT_INVOCATION_POWER_LONG_PRESS(758);
+    ASSISTANT_INVOCATION_POWER_LONG_PRESS(758),
+
+    @UiEvent(doc = "Assistant invoked by status bar icon")
+    ASSISTANT_INVOCATION_STATUS_BAR_ICON(2564);
 
     override fun getId(): Int {
         return id
@@ -90,6 +93,9 @@ enum class AssistantInvocationEvent(private val id: Int) : UiEventLogger.UiEvent
 
                     AssistManager.INVOCATION_TYPE_POWER_BUTTON_LONG_PRESS ->
                         ASSISTANT_INVOCATION_POWER_LONG_PRESS
+
+                    AssistManager.INVOCATION_TYPE_STATUS_BAR_ICON ->
+                        ASSISTANT_INVOCATION_STATUS_BAR_ICON
 
                     else ->
                         ASSISTANT_INVOCATION_UNKNOWN

@@ -23,7 +23,6 @@ import android.os.SystemClock;
 import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.PrimitiveSegment;
 import android.os.vibrator.PwlePoint;
-import android.os.vibrator.RampSegment;
 import android.util.Slog;
 import android.util.SparseBooleanArray;
 
@@ -270,25 +269,6 @@ final class VibrationStats {
             // One or more primitives were unsupported, or request failed.
             for (PrimitiveSegment primitive : primitives) {
                 mVibratorPrimitivesUsed.put(primitive.getPrimitiveId(), false);
-            }
-        }
-    }
-
-    /** Report a call to vibrator method to trigger a vibration as a PWLE. */
-    void reportComposePwle(long halResult, RampSegment[] segments) {
-        mVibratorComposePwleCount++;
-        mVibrationPwleTotalSize += segments.length;
-
-        if (halResult > 0) {
-            // If HAL result is positive then it represents the actual duration of the vibration.
-            // Remove the zero-amplitude segments to update the total time the vibrator was ON.
-            for (RampSegment ramp : segments) {
-                if ((ramp.getStartAmplitude() == 0) && (ramp.getEndAmplitude() == 0)) {
-                    halResult -= ramp.getDuration();
-                }
-            }
-            if (halResult > 0) {
-                mVibratorOnTotalDurationMillis += (int) halResult;
             }
         }
     }

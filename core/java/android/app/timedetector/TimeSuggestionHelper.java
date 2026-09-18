@@ -43,8 +43,8 @@ import java.util.Objects;
  *
  * <p>{@code debugInfo} contains debugging metadata associated with the suggestion. This is used to
  * record why the suggestion exists and how it was entered. This information exists only to aid in
- * debugging and therefore is used by {@link #toString()}, but it is not for use in detection
- * logic and is not considered in {@link #hashCode()} or {@link #equals(Object)}.
+ * debugging and therefore is used by {@link #toString()}, but it is not for use in detection logic
+ * and is not considered in {@link #hashCode()} or {@link #equals(Object)}.
  *
  * @hide
  */
@@ -55,8 +55,8 @@ public final class TimeSuggestionHelper {
     @Nullable private ArrayList<String> mDebugInfo;
 
     /** Creates a helper for the specified class, containing the supplied properties. */
-    public TimeSuggestionHelper(@NonNull Class<?> helpedClass,
-            @NonNull UnixEpochTime unixEpochTime) {
+    public TimeSuggestionHelper(
+            @NonNull Class<?> helpedClass, @NonNull UnixEpochTime unixEpochTime) {
         mHelpedClass = Objects.requireNonNull(helpedClass);
         mUnixEpochTime = Objects.requireNonNull(unixEpochTime);
     }
@@ -71,7 +71,8 @@ public final class TimeSuggestionHelper {
     @NonNull
     public List<String> getDebugInfo() {
         return mDebugInfo == null
-                ? Collections.emptyList() : Collections.unmodifiableList(mDebugInfo);
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(mDebugInfo);
     }
 
     /**
@@ -88,8 +89,8 @@ public final class TimeSuggestionHelper {
 
     /**
      * Associates information with the instance that can be useful for debugging / logging. The
-     * information is present in {@link #toString()} but is not considered for
-     * {@link #equals(Object)} and {@link #hashCode()}.
+     * information is present in {@link #toString()} but is not considered for {@link
+     * #equals(Object)} and {@link #hashCode()}.
      */
     public void addDebugInfo(String... debugInfos) {
         addDebugInfo(Arrays.asList(debugInfos));
@@ -135,15 +136,18 @@ public final class TimeSuggestionHelper {
 
     /** Used to implement {@link Object#toString()}. */
     public String handleToString() {
-        return mHelpedClass.getSimpleName() + "{"
-                + "mUnixEpochTime=" + mUnixEpochTime
-                + ", mDebugInfo=" + mDebugInfo
+        return mHelpedClass.getSimpleName()
+                + "{"
+                + "mUnixEpochTime="
+                + mUnixEpochTime
+                + ", mDebugInfo="
+                + mDebugInfo
                 + '}';
     }
 
     /** Constructs a helper with suggestion state from a Parcel. */
-    public static TimeSuggestionHelper handleCreateFromParcel(@NonNull Class<?> helpedClass,
-            @NonNull Parcel in) {
+    public static TimeSuggestionHelper handleCreateFromParcel(
+            @NonNull Class<?> helpedClass, @NonNull Parcel in) {
         @SuppressWarnings("unchecked")
         UnixEpochTime unixEpochTime =
                 in.readParcelable(null /* classLoader */, UnixEpochTime.class);
@@ -168,18 +172,13 @@ public final class TimeSuggestionHelper {
         String opt;
         while ((opt = cmd.getNextArg()) != null) {
             switch (opt) {
-                case "--reference_time":
-                case "--elapsed_realtime": {
-                    elapsedRealtimeMillis = Long.parseLong(cmd.getNextArgRequired());
-                    break;
-                }
-                case "--unix_epoch_time": {
-                    unixEpochTimeMillis = Long.parseLong(cmd.getNextArgRequired());
-                    break;
-                }
-                default: {
-                    throw new IllegalArgumentException("Unknown option: " + opt);
-                }
+                case "--reference_time" ->
+                        elapsedRealtimeMillis = Long.parseLong(cmd.getNextArgRequired());
+                case "--elapsed_realtime" ->
+                        elapsedRealtimeMillis = Long.parseLong(cmd.getNextArgRequired());
+                case "--unix_epoch_time" ->
+                        unixEpochTimeMillis = Long.parseLong(cmd.getNextArgRequired());
+                default -> throw new IllegalArgumentException("Unknown option: " + opt);
             }
         }
 
@@ -200,8 +199,9 @@ public final class TimeSuggestionHelper {
     public static void handlePrintCommandLineOpts(
             @NonNull PrintWriter pw, @NonNull String typeName, @NonNull Class<?> clazz) {
         pw.printf("%s suggestion options:\n", typeName);
-        pw.println("  --elapsed_realtime <elapsed realtime millis> - the elapsed realtime millis"
-                + " when unix epoch time was read");
+        pw.println(
+                "  --elapsed_realtime <elapsed realtime millis> - the elapsed realtime millis"
+                        + " when unix epoch time was read");
         pw.println("  --unix_epoch_time <Unix epoch time millis>");
         pw.println();
         pw.println("See " + clazz.getName() + " for more information");

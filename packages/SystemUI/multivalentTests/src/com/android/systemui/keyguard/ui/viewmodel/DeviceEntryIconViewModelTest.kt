@@ -21,8 +21,8 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.accessibility.data.repository.fakeAccessibilityRepository
 import com.android.systemui.authentication.data.repository.FakeAuthenticationRepository
-import com.android.systemui.authentication.domain.interactor.AuthenticationResult
 import com.android.systemui.authentication.domain.interactor.authenticationInteractor
+import com.android.systemui.authentication.shared.model.AuthenticationResult
 import com.android.systemui.biometrics.data.repository.FakeFingerprintPropertyRepository
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.coroutines.collectLastValue
@@ -33,10 +33,14 @@ import com.android.systemui.keyguard.data.repository.FakeDeviceEntryFingerprintA
 import com.android.systemui.keyguard.data.repository.FakeKeyguardRepository
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
+import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
+import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.ui.view.DeviceEntryIconView
 import com.android.systemui.keyguard.ui.viewmodel.DeviceEntryIconViewModel.Companion.UNLOCKED_DELAY_MS
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.TestScope
@@ -98,6 +102,7 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableSceneContainer
     fun isVisible() =
         testScope.runTest {
             val isVisible by collectLastValue(underTest.isVisible)
@@ -112,7 +117,91 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableSceneContainer
+    @EnableSceneContainer
+    fun deviceEntryViewAlpha_toAod() =
+        testScope.runTest {
+            val deviceEntryViewAlpha by collectLastValue(underTest.deviceEntryViewAlpha)
+            kosmos.sceneInteractor.changeScene(
+                toScene = Scenes.Lockscreen,
+                loggingReason = "test: deviceEntryViewAlpha_toAod",
+            )
+            kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.UNDEFINED,
+                to = KeyguardState.AOD,
+                testScope = testScope,
+            )
+            assertThat(deviceEntryViewAlpha).isEqualTo(0f)
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun deviceEntryViewAlpha_toDozing() =
+        testScope.runTest {
+            val deviceEntryViewAlpha by collectLastValue(underTest.deviceEntryViewAlpha)
+            kosmos.sceneInteractor.changeScene(
+                toScene = Scenes.Lockscreen,
+                loggingReason = "test: deviceEntryViewAlpha_toDozing",
+            )
+            kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.UNDEFINED,
+                to = KeyguardState.DOZING,
+                testScope = testScope,
+            )
+            assertThat(deviceEntryViewAlpha).isEqualTo(0f)
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun deviceEntryViewAlpha_fromAodToGone() =
+        testScope.runTest {
+            val deviceEntryViewAlpha by collectLastValue(underTest.deviceEntryViewAlpha)
+            kosmos.sceneInteractor.changeScene(
+                toScene = Scenes.Lockscreen,
+                loggingReason = "test: deviceEntryViewAlpha_toAod",
+            )
+            kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.AOD,
+                to = KeyguardState.UNDEFINED,
+                testScope = testScope,
+            )
+            assertThat(deviceEntryViewAlpha).isEqualTo(0f)
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun deviceEntryViewAlpha_fromDozingToGone() =
+        testScope.runTest {
+            val deviceEntryViewAlpha by collectLastValue(underTest.deviceEntryViewAlpha)
+            kosmos.sceneInteractor.changeScene(
+                toScene = Scenes.Lockscreen,
+                loggingReason = "test: deviceEntryViewAlpha_toDozing",
+            )
+            kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.DOZING,
+                to = KeyguardState.UNDEFINED,
+                testScope = testScope,
+            )
+            assertThat(deviceEntryViewAlpha).isEqualTo(0f)
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun deviceEntryViewAlpha_aodToLockscreen() =
+        testScope.runTest {
+            val deviceEntryViewAlpha by collectLastValue(underTest.deviceEntryViewAlpha)
+            kosmos.sceneInteractor.changeScene(
+                toScene = Scenes.Lockscreen,
+                loggingReason = "test: deviceEntryViewAlpha_aodToLockscreen",
+            )
+            kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.AOD,
+                to = KeyguardState.LOCKSCREEN,
+                testScope = testScope,
+            )
+            assertThat(deviceEntryViewAlpha).isEqualTo(1f)
+        }
+
+    @Test
     fun iconType_fingerprint() =
         testScope.runTest {
             val iconType by collectLastValue(underTest.iconType)

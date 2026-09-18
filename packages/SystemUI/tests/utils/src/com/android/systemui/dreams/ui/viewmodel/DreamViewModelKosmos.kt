@@ -28,6 +28,7 @@ import com.android.systemui.keyguard.ui.viewmodel.dreamingToLockscreenTransition
 import com.android.systemui.keyguard.ui.viewmodel.glanceableHubToDreamingTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.goneToDreamingTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.lockscreenToDreamingTransitionViewModel
+import com.android.systemui.keyguard.ui.viewmodel.toLockscreenEndStateTransitionViewModel
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.settings.userTracker
 
@@ -47,5 +48,6 @@ val Kosmos.dreamViewModel by
             keyguardUpdateMonitor = keyguardUpdateMonitor,
             userTracker = userTracker,
             dumpManager = dumpManager,
+            toLockscreenEndStateTransitionViewModel = toLockscreenEndStateTransitionViewModel,
         )
     }

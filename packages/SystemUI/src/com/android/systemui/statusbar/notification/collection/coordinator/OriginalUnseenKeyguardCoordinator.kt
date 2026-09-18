@@ -98,7 +98,7 @@ constructor(
         @Suppress("DEPRECATION")
         val isKeyguardPresentFlow: Flow<Boolean> =
             if (SceneContainerFlag.isEnabled) {
-                    sceneInteractor.transitionState.map {
+                    sceneInteractor.transitionStateFlow.map {
                         !it.isTransitioning(to = Scenes.Gone) && !it.isIdle(Scenes.Gone)
                     }
                 } else {

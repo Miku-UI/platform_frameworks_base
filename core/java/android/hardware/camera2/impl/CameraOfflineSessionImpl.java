@@ -179,7 +179,6 @@ public class CameraOfflineSessionImpl extends CameraOfflineSession
         }
 
         @Override
-        @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
         public void onClientSharedAccessPriorityChanged(boolean primaryClient) {
             Log.v(TAG, "onClientSharedAccessPriorityChanged primaryClient = " + primaryClient);
         }

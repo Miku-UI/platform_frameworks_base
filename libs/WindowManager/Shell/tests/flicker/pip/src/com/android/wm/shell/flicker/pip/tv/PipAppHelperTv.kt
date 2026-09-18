@@ -53,7 +53,7 @@ open class PipAppHelperTv(instrumentation: Instrumentation) : PipAppHelper(instr
 
     @Deprecated(
         "Use PipAppHelper.closePipWindow(wmHelper) instead",
-        ReplaceWith("closePipWindow(wmHelper)")
+        ReplaceWith("closePipWindow(wmHelper)"),
     )
     override fun closePipWindow() {
         uiDevice.closeTvPipWindow()

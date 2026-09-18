@@ -16,7 +16,8 @@
 
 package com.android.systemui.statusbar.data.repository
 
+import com.android.systemui.dump.dumpManager
 import com.android.systemui.kosmos.Kosmos
 
 val Kosmos.notificationListenerSettingsRepository by
-    Kosmos.Fixture { NotificationListenerSettingsRepository() }
+    Kosmos.Fixture { NotificationListenerSettingsRepository(dumpManager) }

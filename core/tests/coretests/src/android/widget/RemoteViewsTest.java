@@ -29,6 +29,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.eq;
@@ -53,6 +54,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.AsyncTask;
@@ -64,12 +66,16 @@ import android.os.RemoteException;
 import android.os.SystemClock;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
+import android.text.SpannableStringBuilder;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.util.AttributeSet;
 import android.util.SizeF;
 import android.util.proto.ProtoInputStream;
 import android.util.proto.ProtoOutputStream;
 import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
+import android.view.RemotableViewMethod;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.RemoteViewsAdapterTest.ViewsFactory;
@@ -95,6 +101,7 @@ import java.time.InstantSource;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -1244,6 +1251,97 @@ public class RemoteViewsTest {
         View inflated = restored.apply(mContext, mContainer);
         Chronometer chronometer = inflated.findViewById(R.id.chronometer);
         assertThat(chronometer.getText()).isEqualTo("05:00");
+    }
+
+    /** Sample view with a remotable method receiving {@code List<CharSequence> }. */
+    public static class MultiTextView extends TextView {
+
+        private List<CharSequence> mTextList;
+
+        public MultiTextView(Context context) {
+            super(context);
+        }
+
+        public List<CharSequence> getTextList() {
+            return mTextList;
+        }
+
+        /** Test method receiving {@code List<CharSequence>}. */
+        @RemotableViewMethod(asyncImpl = "setTextListAsync")
+        public void setTextList(List<CharSequence> textList) {
+            mTextList = textList;
+        }
+
+        /** Test async method receiving {@code List<CharSequence>}. */
+        @NonNull
+        public Runnable setTextListAsync(List<CharSequence> texts) {
+            return () -> setTextList(texts);
+        }
+    }
+
+    @Test
+    public void setCharSequenceList_sets() {
+        List<CharSequence> charSequenceList = List.of(
+                new SpannableStringBuilder().append("Hello", new ForegroundColorSpan(Color.BLUE),
+                        0),
+                "plain string world");
+
+        // Platform views don't have suitable remotable methods for this, so plonk a custom one.
+        MultiTextView testView = new MultiTextView(mContext);
+        testView.setId(R.id.text);
+        RemoteViews remoteViews = new RemoteViews(mPackage, R.layout.remote_views_text);
+        LayoutInflater.Factory2 factory = createLayoutInflaterFactory("TextView", testView);
+        remoteViews.setLayoutInflaterFactory(factory);
+
+        remoteViews.setCharSequenceList(R.id.text, "setTextList", charSequenceList);
+        View inflated = remoteViews.apply(mContext, mContainer);
+        assertThat(inflated).isSameInstanceAs(testView);
+
+        List<CharSequence> arrived = testView.getTextList();
+        assertThat(arrived).hasSize(2);
+        assertThat(arrived.get(0).toString()).isEqualTo("Hello");
+        assertThat(arrived.get(0)).isInstanceOf(Spanned.class);
+        assertThat(arrived.get(1).toString()).isEqualTo("plain string world");
+    }
+
+    /** Sample view with a remotable method receiving {@code List<Integer> }. */
+    public static class MultiSomethingElseView extends TextView {
+
+        public MultiSomethingElseView(Context context) {
+            super(context);
+        }
+
+        /** Test method receiving {@code List<Integer>}. */
+        @RemotableViewMethod(asyncImpl = "setNumberListAsync")
+        public void setNumberList(List<Integer> numberList) {
+            // Don't care; we'll never call this.
+        }
+
+        /** Test async method receiving {@code List<Integer>}. */
+        @NonNull
+        public Runnable setNumberListAsync(List<Integer> numberList) {
+            return () -> setNumberList(numberList);
+        }
+    }
+
+    @Test
+    public void setCharSequenceList_failsOnMethodWithWrongListArgument() {
+        List<CharSequence> charSequenceList = List.of("one", "two");
+
+        // Platform views don't have suitable remotable methods for this, so plonk a custom one.
+        MultiSomethingElseView testView = new MultiSomethingElseView(mContext);
+        testView.setId(R.id.text);
+        RemoteViews remoteViews = new RemoteViews(mPackage, R.layout.remote_views_text);
+        LayoutInflater.Factory2 factory = createLayoutInflaterFactory("TextView", testView);
+        remoteViews.setLayoutInflaterFactory(factory);
+
+        remoteViews.setCharSequenceList(R.id.text, "setNumberList", charSequenceList);
+        RemoteViews.ActionException ex = assertThrows(RemoteViews.ActionException.class,
+                () -> remoteViews.apply(mContext, mContainer));
+
+        assertThat(ex.getMessage()).contains(
+                "MultiSomethingElseView doesn't have method: setNumberList(interface java.util"
+                        + ".List<interface java.lang.CharSequence>)");
     }
 
     private static LayoutInflater.Factory2 createLayoutInflaterFactory(String viewTypeToReplace,

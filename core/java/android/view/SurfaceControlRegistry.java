@@ -18,6 +18,7 @@ package android.view;
 
 import static android.Manifest.permission.READ_FRAME_BUFFER;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
+import static android.view.ViewProtoLogGroups.SURFACE_CONTROL_REGISTRY;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -26,10 +27,12 @@ import android.content.Context;
 import android.os.Build;
 import android.os.SystemClock;
 import android.os.SystemProperties;
+import android.tracing.Flags;
 import android.util.Log;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.protolog.ProtoLog;
 import com.android.internal.util.GcUtils;
 
 import java.io.PrintWriter;
@@ -116,6 +119,8 @@ public class SurfaceControlRegistry {
 
     // The default reporter for printing out the registered surfaces
     private static final DefaultReporter sDefaultReporter = new DefaultReporter();
+
+    private static final String DEBUG_CALL_FORMAT_STRING = "%s (tx: %s, sc: %s) details: %s";
 
     // The registry for a given process
     private static volatile SurfaceControlRegistry sProcessRegistry;
@@ -297,10 +302,17 @@ public class SurfaceControlRegistry {
         sCallStackDebuggingInitialized = true;
         updateCallStackDebuggingParams();
         if (sCallStackDebuggingEnabled) {
-            Log.d(TAG, "Enabling transaction call stack debugging:"
+            if (Flags.surfaceControlRegistryProtolog()) {
+                ProtoLog.d(SURFACE_CONTROL_REGISTRY, "Enabling transaction call stack debugging:"
+                        + " matchCall=%s matchName=%s logCallsWithApply=%b",
+                        sCallStackDebuggingMatchCall, sCallStackDebuggingMatchName,
+                        sLogAllTxCallsOnApply);
+            } else {
+                Log.d(TAG, "Enabling transaction call stack debugging:"
                     + " matchCall=" + sCallStackDebuggingMatchCall
                     + " matchName=" + sCallStackDebuggingMatchName
                     + " logCallsWithApply=" + sLogAllTxCallsOnApply);
+            }
         }
     }
 
@@ -313,6 +325,7 @@ public class SurfaceControlRegistry {
      * @param sc the affected surface
      * @param details additional details to print with the stack track
      */
+    @SuppressWarnings("ProtoLogNoContext")
     final void checkCallStackDebugging(@NonNull String call,
             @Nullable SurfaceControl.Transaction tx, @Nullable SurfaceControl sc,
             @Nullable String details) {
@@ -325,24 +338,31 @@ public class SurfaceControlRegistry {
             return;
         }
 
-        final String txMsg = tx != null ? "tx=" + tx.getId() + " " : "";
-        final String scMsg = sc != null ? " sc=" + sc.getName() + "" : "";
-        final String msg = details != null
-                ? call + " (" + txMsg + scMsg + ") " + details
-                : call + " (" + txMsg + scMsg + ")";
+        String txId = (tx != null) ? String.valueOf(tx.getId()) : "null";
+        String scName = (sc != null) ? sc.getName() : "null";
+        String detailMsg = (details != null) ? details : "N/A";
+
         if (sLogAllTxCallsOnApply && tx != null) {
             if (call == APPLY) {
                 // Log the apply and dump the calls on that transaction
-                Log.e(TAG, msg, new Throwable());
+                logCallStack(call, txId, scName, detailMsg);
                 if (tx.mCalls != null) {
-                    for (int i = 0; i < tx.mCalls.size(); i++) {
-                        Log.d(TAG, "        " + tx.mCalls.get(i));
+                    if (Flags.surfaceControlRegistryProtolog()) {
+                        for (int i = 0; i < tx.mCalls.size(); i++) {
+                            ProtoLog.d(SURFACE_CONTROL_REGISTRY, "        %s", tx.mCalls.get(i));
+                        }
+                    } else {
+                        for (int i = 0; i < tx.mCalls.size(); i++) {
+                            Log.d(TAG, "        " + tx.mCalls.get(i));
+                        }
                     }
                 }
             } else if (matchesForCallStackDebugging(sc != null ? sc.getName() : null, call)) {
                 // Otherwise log this call to the transaction if it matches the tracked calls
-                Log.e(TAG, msg, new Throwable());
+                logCallStack(call, txId, scName, detailMsg);
                 if (tx.mCalls != null) {
+                    String msg = String.format(DEBUG_CALL_FORMAT_STRING, call, txId, scName,
+                            details);
                     tx.mCalls.add(msg);
                 }
             }
@@ -351,6 +371,19 @@ public class SurfaceControlRegistry {
             if (!matchesForCallStackDebugging(sc != null ? sc.getName() : null, call)) {
                 return;
             }
+            logCallStack(call, txId, scName, detailMsg);
+        }
+    }
+
+    private static void logCallStack(String call, @NonNull String tx, @NonNull String sc,
+            @NonNull String details) {
+        if (Flags.surfaceControlRegistryProtolog()) {
+            String stackTrace = Log.getStackTraceString(new Throwable());
+            ProtoLog.e(SURFACE_CONTROL_REGISTRY,
+                    DEBUG_CALL_FORMAT_STRING + " \nStack:\n%s",
+                    call, tx, sc, details, stackTrace);
+        } else {
+            String msg = String.format(DEBUG_CALL_FORMAT_STRING, call, tx, sc, details);
             Log.e(TAG, msg, new Throwable());
         }
     }
@@ -407,7 +440,12 @@ public class SurfaceControlRegistry {
     private static void runGcAndFinalizers() {
         long t = SystemClock.elapsedRealtime();
         GcUtils.runGcAndFinalizersSync();
-        Log.i(TAG, "Ran gc and finalizers (" + (SystemClock.elapsedRealtime() - t) + "ms)");
+        if (Flags.surfaceControlRegistryProtolog()) {
+            ProtoLog.i(SURFACE_CONTROL_REGISTRY, "Ran gc and finalizers (%dms)",
+                    (SystemClock.elapsedRealtime() - t));
+        } else {
+            Log.i(TAG, "Ran gc and finalizers (" + (SystemClock.elapsedRealtime() - t) + "ms)");
+        }
     }
 
     /**

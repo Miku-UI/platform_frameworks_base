@@ -34,11 +34,9 @@ import android.os.ServiceManager;
 import android.os.UserHandle;
 import android.util.Log;
 import android.view.WindowManager;
-import android.widget.CheckBox;
 
 import com.android.internal.app.ResolverActivity;
 import com.android.internal.app.chooser.TargetInfo;
-import com.android.systemui.res.R;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -135,15 +133,6 @@ public class UsbResolverActivity extends ResolverActivity {
 
         CharSequence title = getResources().getText(com.android.internal.R.string.chooseUsbActivity);
         super.onCreate(savedInstanceState, target, title, null, rList, true);
-
-        CheckBox alwaysUse = (CheckBox)findViewById(com.android.internal.R.id.alwaysUse);
-        if (alwaysUse != null) {
-            if (mDevice == null) {
-                alwaysUse.setText(R.string.always_use_accessory);
-            } else {
-                alwaysUse.setText(R.string.always_use_device);
-            }
-        }
     }
 
     @Override
@@ -166,12 +155,13 @@ public class UsbResolverActivity extends ResolverActivity {
         try {
             IBinder b = ServiceManager.getService(USB_SERVICE);
             IUsbManager service = IUsbManager.Stub.asInterface(b);
+            final String packageName = ri.activityInfo.packageName;
             final int uid = ri.activityInfo.applicationInfo.uid;
             final int userId = UserHandle.myUserId();
 
             if (mDevice != null) {
                 // grant permission for the device
-                service.grantDevicePermission(mDevice, uid);
+                service.grantDevicePermission(mDevice, packageName, uid, /*isPersistent=*/false);
                 // set or clear default setting
                 if (alwaysCheck) {
                     service.setDevicePackage(mDevice, ri.activityInfo.packageName, userId);
@@ -180,7 +170,7 @@ public class UsbResolverActivity extends ResolverActivity {
                 }
             } else if (mAccessory != null) {
                 // grant permission for the accessory
-                service.grantAccessoryPermission(mAccessory, uid);
+                service.grantAccessoryPermission(mAccessory, packageName, uid);
                 // set or clear default setting
                 if (alwaysCheck) {
                     service.setAccessoryPackage(mAccessory, ri.activityInfo.packageName, userId);

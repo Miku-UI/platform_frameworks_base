@@ -77,7 +77,7 @@ key usage 0x000c0187    FEATURED_APP_1    WAKE #FreeTv
 key usage 0x000c009C    CHANNEL_UP
 key usage 0x000c009D    CHANNEL_DOWN
 
-key usage 0x000c0077    BUTTON_3     WAKE #YouTube
-key usage 0x000c0078    BUTTON_4     WAKE #Netflix
-key usage 0x000c0079    BUTTON_6     WAKE
-key usage 0x000c007A    BUTTON_7     WAKE
+key usage 0x000c0077    VIDEO_APP_8     WAKE #YouTube
+key usage 0x000c0078    VIDEO_APP_4     WAKE #Netflix
+key usage 0x000c0079    VIDEO_APP_6     WAKE
+key usage 0x000c007A    VIDEO_APP_7     WAKE

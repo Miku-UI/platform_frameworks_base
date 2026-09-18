@@ -72,7 +72,6 @@ public interface VirtualCameraCallback {
      * @see VirtualCameraConfig.Builder#setPerFrameCameraMetadataEnabled(boolean)
      * @see CameraCaptureSession
      */
-    @FlaggedApi(Flags.FLAG_VIRTUAL_CAMERA_METADATA)
     default void onConfigureSession(
             @NonNull VirtualCameraSessionConfig virtualCameraSessionConfig,
             @Nullable ObjLongConsumer<CaptureResult> captureResultConsumer) {}
@@ -83,6 +82,10 @@ public interface VirtualCameraCallback {
      * <p>
      * This corresponds to the client calling
      * {@link android.hardware.camera2.CameraDevice#createCaptureSession(SessionConfiguration)}
+     * <p>
+     * The {@code streamId} corresponds to the index at which the stream was added when calling
+     * {@link VirtualCameraConfig.Builder#addStreamConfig(int, int, int, int)} (e.g. first added
+     * stream has id 0, second added stream has id 1, etc.).
      *
      * @param streamId The id of the configured stream
      * @param surface The surface to write data into for this stream
@@ -137,7 +140,6 @@ public interface VirtualCameraCallback {
      * @see VirtualCameraConfig.Builder#setPerFrameCameraMetadataEnabled(boolean)
      * @see #onProcessCaptureRequest(int, long)
      */
-    @FlaggedApi(Flags.FLAG_VIRTUAL_CAMERA_METADATA)
     default void onProcessCaptureRequest(int streamId, long frameId,
             @Nullable CaptureRequest captureRequest) {}
 

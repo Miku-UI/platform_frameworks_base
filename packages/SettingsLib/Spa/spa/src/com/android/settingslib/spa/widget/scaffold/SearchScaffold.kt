@@ -27,8 +27,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -53,7 +55,6 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.ViewModel
@@ -93,8 +94,7 @@ fun SearchScaffold(
                 scrollBehavior = scrollBehavior,
                 isSearchMode = isSearchMode,
                 onSearchModeChange = { isSearchMode = it },
-                searchQuery = viewModel.searchQuery,
-                onSearchQueryChange = { viewModel.searchQuery = it },
+                searchState = viewModel.searchState,
             )
         },
         containerColor = MaterialTheme.colorScheme.settingsBackground,
@@ -108,15 +108,14 @@ fun SearchScaffold(
                 .fillMaxSize()
         ) {
             content(paddingValues.calculateBottomPadding()) {
-                if (isSearchMode) viewModel.searchQuery.text else ""
-            }
+                if (isSearchMode) viewModel.searchState.text.toString() else ""}
         }
     }
 }
 
 internal class SearchScaffoldViewModel : ViewModel() {
     // Put in view model because TextFieldValue has not default Saver for rememberSaveable.
-    var searchQuery by mutableStateOf(TextFieldValue())
+    val searchState = TextFieldState()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -128,13 +127,11 @@ private fun SearchableTopAppBar(
     scrollBehavior: TopAppBarScrollBehavior,
     isSearchMode: Boolean,
     onSearchModeChange: (Boolean) -> Unit,
-    searchQuery: TextFieldValue,
-    onSearchQueryChange: (TextFieldValue) -> Unit,
+    searchState: TextFieldState,
 ) {
     if (isSearchMode) {
         SearchTopAppBar(
-            query = searchQuery,
-            onQueryChange = onSearchQueryChange,
+            state = searchState,
             onClose = { onSearchModeChange(false) },
             actions = actions,
         )
@@ -142,7 +139,6 @@ private fun SearchableTopAppBar(
         SettingsTopAppBar(title, scrollBehavior, isFirstLayerPageWhenEmbedded) {
             SearchAction {
                 scrollBehavior.collapse()
-                onSearchQueryChange(TextFieldValue())
                 onSearchModeChange(true)
             }
             actions()
@@ -152,17 +148,16 @@ private fun SearchableTopAppBar(
 
 @Composable
 private fun SearchTopAppBar(
-    query: TextFieldValue,
-    onQueryChange: (TextFieldValue) -> Unit,
+    state: TextFieldState, // Changed from query: TextFieldValue
     onClose: () -> Unit,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    CustomizedTopAppBar(
-        title = { SearchBox(query, onQueryChange) },
+    CustomizedTopAppBarWithTitleScalable(
+        title = { SearchBox(state) },
         navigationIcon = { CollapseAction(onClose) },
         actions = {
-            if (query.text.isNotEmpty()) {
-                ClearAction { onQueryChange(TextFieldValue()) }
+            if (state.text.isNotEmpty()) {
+                ClearAction { state.clearText() }
             }
             actions()
         },
@@ -171,13 +166,12 @@ private fun SearchTopAppBar(
 }
 
 @Composable
-private fun SearchBox(query: TextFieldValue, onQueryChange: (TextFieldValue) -> Unit) {
+private fun SearchBox(state: TextFieldState) {
     val focusRequester = remember { FocusRequester() }
     val textStyle = MaterialTheme.typography.bodyLarge
     val hideKeyboardAction = hideKeyboardAction()
     TextField(
-        value = query,
-        onValueChange = onQueryChange,
+        state = state,
         modifier = Modifier
             .fillMaxWidth()
             .focusRequester(focusRequester)
@@ -193,8 +187,8 @@ private fun SearchBox(query: TextFieldValue, onQueryChange: (TextFieldValue) -> 
             )
         },
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-        keyboardActions = KeyboardActions(onSearch = { hideKeyboardAction() }),
-        singleLine = true,
+        onKeyboardAction = { hideKeyboardAction() },
+        lineLimits = TextFieldLineLimits.SingleLine,
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.Transparent,
             unfocusedContainerColor = Color.Transparent,
@@ -212,7 +206,7 @@ private fun SearchBox(query: TextFieldValue, onQueryChange: (TextFieldValue) -> 
 @Composable
 private fun SearchTopAppBarPreview() {
     SettingsTheme {
-        SearchTopAppBar(query = TextFieldValue(), onQueryChange = {}, onClose = {}) {}
+        SearchTopAppBar(state = TextFieldState(), onClose = {}) {}
     }
 }
 

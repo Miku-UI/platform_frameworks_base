@@ -35,6 +35,7 @@ import android.os.Looper;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.window.OnBackInvokedDispatcher;
 
 import androidx.annotation.Nullable;
 
@@ -79,6 +80,14 @@ public class InstallInstalling extends Activity {
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_DEFAULT,
+                () -> {
+                    if (mCancelButton != null && mCancelButton.isEnabled()) {
+                        finish();
+                    }
+                });
 
         ApplicationInfo appInfo = getIntent()
                 .getParcelableExtra(PackageUtil.INTENT_ATTR_APPLICATION_INFO);
@@ -225,13 +234,6 @@ public class InstallInstalling extends Activity {
     }
 
     @Override
-    public void onBackPressed() {
-        if (mCancelButton.isEnabled()) {
-            super.onBackPressed();
-        }
-    }
-
-    @Override
     protected void onDestroy() {
         if (mInstallingTask != null) {
             mInstallingTask.cancel(true);
@@ -268,9 +270,10 @@ public class InstallInstalling extends Activity {
      * @param statusMessage The detailed installation result.
      * @param serviceId     Id for PowerManager.WakeLock service. Used only by Wear devices
      *                      during an uninstall.
+     * @param intent        The result intent.
      */
     private void launchFinishBasedOnResult(int statusCode, int legacyStatus, String statusMessage,
-            int serviceId /* ignore */) {
+            int serviceId /* ignore */, Intent intent /* ignore */) {
         if (statusCode == PackageInstaller.STATUS_SUCCESS) {
             launchSuccess();
         } else {

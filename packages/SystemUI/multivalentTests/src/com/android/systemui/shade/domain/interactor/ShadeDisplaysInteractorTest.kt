@@ -18,7 +18,6 @@ package com.android.systemui.shade.domain.interactor
 
 import android.content.res.Configuration
 import android.content.res.mockResources
-import android.platform.test.annotations.EnableFlags
 import android.view.Display
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -28,7 +27,6 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.scene.ui.view.mockShadeRootView
 import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import com.android.systemui.statusbar.notification.data.repository.activeNotificationListRepository
 import com.android.systemui.statusbar.notification.data.repository.setActiveNotifs
 import com.android.systemui.statusbar.notification.row.notificationRebindingTracker
@@ -49,7 +47,6 @@ import org.mockito.kotlin.whenever
 
 @RunWith(AndroidJUnit4::class)
 @SmallTest
-@EnableFlags(ShadeWindowGoesAround.FLAG_NAME)
 class ShadeDisplaysInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 

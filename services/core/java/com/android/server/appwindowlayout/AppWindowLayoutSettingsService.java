@@ -25,6 +25,7 @@ import android.content.Context;
 import android.content.pm.IPackageManager;
 import android.content.pm.PackageManager;
 import android.os.HandlerThread;
+import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.Slog;
 import android.util.SparseArray;
@@ -146,8 +147,12 @@ public class AppWindowLayoutSettingsService extends SystemService {
     }
 
     private void onPackageAdded(@NonNull String packageName, @UserIdInt int userId) {
-        Slog.d(TAG, "Notified package installed: " + packageName);
+        Slog.d(TAG, "Notified package added: " + packageName);
         synchronized (mLock) {
+            if (!isPackageInstalled(packageName, userId)) {
+                Slog.d(TAG, "Package not yet installed: " + packageName);
+                return;
+            }
             final AppWindowLayoutSettingsRestoreStorage storage = createAndGetStorage(userId);
             final int aspectRatio = storage.getAndRemoveUserAspectRatioForPackage(packageName);
             Slog.d(TAG, "Found aspect ratio: " + aspectRatio + " for package: "
@@ -210,6 +215,15 @@ public class AppWindowLayoutSettingsService extends SystemService {
             Slog.d(TAG, "Restored user aspect ratio: " + aspectRatio + " for package: " + pkgName);
         } catch (Exception e) {
             Slog.e(TAG, "Could not restore user aspect ratio for package " + pkgName, e);
+        }
+    }
+
+    private boolean isPackageInstalled(@NonNull String packageName, @UserIdInt int userId) {
+        try {
+            return mIPackageManager.getPackageInfo(packageName, /* flags= */ 0, userId) != null;
+        } catch (RemoteException e) {
+            Slog.w(TAG, "Cannot get package info for package: " + packageName, e);
+            return false;
         }
     }
 }

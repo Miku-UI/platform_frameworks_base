@@ -45,7 +45,8 @@ public class TaskMoveRequestHandler {
             RESULT_FAILED_NONEXISTENT_DISPLAY,
             RESULT_FAILED_BAD_BOUNDS,
             RESULT_FAILED_IMMOVABLE_TASK,
-            RESULT_FAILED_NO_PERMISSIONS
+            RESULT_FAILED_NO_PERMISSIONS,
+            RESULT_FAILED_BAL_POLICY_VIOLATION
     })
     public @interface RequestResult {}
 
@@ -89,6 +90,12 @@ public class TaskMoveRequestHandler {
     public static final int RESULT_FAILED_NO_PERMISSIONS = 6;
 
     /**
+     * The request has been rejected because placing the task in question would violate the
+     * Background Activity Launch policy.
+     */
+    public static final int RESULT_FAILED_BAL_POLICY_VIOLATION = 7;
+
+    /**
      * The key used for specifying the final display ID of the task being moved in the
      * {@link android.os.Bundle} returned by the server.
      */
@@ -126,8 +133,12 @@ public class TaskMoveRequestHandler {
                         notifyTaskMoveRequestResult(executor, callback, displayId, bounds, result);
                     }
             };
+            String packageName = ActivityThread.currentPackageName();
             appTaskImpl.moveTaskTo(
-                    location.getDisplayId(), location.getBounds(), remoteCallback);
+                    location.getDisplayId(),
+                    location.getBounds(),
+                    remoteCallback,
+                    packageName);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -182,6 +193,10 @@ public class TaskMoveRequestHandler {
             case RESULT_FAILED_NO_PERMISSIONS:
                 executor.execute(() -> callback.onError(new SecurityException(
                         "The caller does not hold the permission to reposition its windows.")));
+                break;
+            case RESULT_FAILED_BAL_POLICY_VIOLATION:
+                executor.execute(() -> callback.onError(new SecurityException(
+                        "The request violates the Background Activity Launch policy.")));
                 break;
             default:
                 executor.execute(() -> callback.onError(new IllegalStateException(

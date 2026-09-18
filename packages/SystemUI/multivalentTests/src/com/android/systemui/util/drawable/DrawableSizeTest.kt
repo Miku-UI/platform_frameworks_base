@@ -42,6 +42,17 @@ class DrawableSizeTest : SysuiTestCase() {
     }
 
     @Test
+    fun testDownscaleToSize_drawableAtLimit_unchanged() {
+        val drawable =
+            BitmapDrawable(
+                resources,
+                Bitmap.createBitmap(resources.displayMetrics, 100, 100, Bitmap.Config.ARGB_8888),
+            )
+        val result = DrawableSize.downscaleToSize(resources, drawable, 100, 100)
+        assertThat(result).isSameInstanceAs(drawable)
+    }
+
+    @Test
     fun testDownscaleToSize_drawableLargerThanRequirementWithDensity_resized() {
         // This bitmap would actually fail to resize if the method doesn't check for
         // bitmap dimensions inside drawable.

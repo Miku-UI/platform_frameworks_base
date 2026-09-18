@@ -30,9 +30,8 @@ import com.android.systemui.Flags
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.app.tracing.coroutines.runBlockingTraced as runBlocking
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
-import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.dagger.qualifiers.MainImmediate
 import com.android.systemui.keyguard.shared.model.ClockSizeSetting
 import com.android.systemui.shared.keyguard.shared.model.KeyguardQuickAffordanceSlots.SLOT_ID_BOTTOM_START
 import com.android.systemui.shared.quickaffordance.shared.model.KeyguardPreviewConstants.CLOCK_SIZE_DYNAMIC
@@ -58,8 +57,8 @@ class KeyguardRemotePreviewManager
 @Inject
 constructor(
     private val previewFactory: KeyguardPreviewFactory,
-    @Application private val applicationScope: CoroutineScope,
-    @Main private val mainDispatcher: CoroutineDispatcher,
+    @MainImmediate private val mainImmediateScope: CoroutineScope,
+    @MainImmediate private val mainDispatcher: CoroutineDispatcher,
     @Background private val backgroundHandler: Handler,
 ) {
     private val activePreviews: ArrayMap<Pair<IBinder?, Int>, PreviewLifecycleObserver> =
@@ -84,7 +83,7 @@ constructor(
 
             observer =
                 PreviewLifecycleObserver(
-                    applicationScope,
+                    mainImmediateScope,
                     mainDispatcher,
                     preview,
                     ::destroyObserver,

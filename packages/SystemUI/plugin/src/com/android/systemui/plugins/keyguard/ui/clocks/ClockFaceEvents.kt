@@ -14,11 +14,9 @@
 package com.android.systemui.plugins.keyguard.ui.clocks
 
 import android.content.Context
-import android.graphics.Color
-import android.graphics.Rect
 import com.android.systemui.monet.ColorScheme
 import com.android.systemui.plugins.annotations.ProtectedInterface
-import com.android.systemui.shared.Flags.ambientAod
+import com.android.systemui.plugins.keyguard.VRect
 
 /** Events that have specific data about the related face */
 @ProtectedInterface
@@ -48,8 +46,10 @@ interface ClockFaceEvents {
      * render within the centered targetRect to avoid obstructing other elements. The specified
      * targetRegion is relative to the parent view.
      */
+    @Suppress("INAPPLICABLE_JVM_NAME")
+    @JvmName("onTargetRegionChanged")
     @Deprecated("No longer necessary, pending removal")
-    fun onTargetRegionChanged(targetRegion: Rect?)
+    fun onTargetRegionChanged(targetRegion: VRect)
 
     /** Called to notify the clock about its display. */
     fun onSecondaryDisplayChanged(onSecondaryDisplay: Boolean)
@@ -68,24 +68,20 @@ data class ThemeConfig(
 ) {
     fun getDefaultColor(context: Context): Int {
         return when {
-            seedColor != null -> seedColor!!
+            seedColor != null -> seedColor
             isDarkTheme -> context.resources.getColor(android.R.color.system_accent1_100)
             else -> context.resources.getColor(android.R.color.system_accent2_600)
         }
     }
 
     fun getAodColor(context: Context): Int {
-        return if (!ambientAod()) {
-            Color.WHITE
-        } else {
-            seedColor?.let {
-                val colorScheme =
-                    ColorScheme(
-                        it,
-                        false, // darkTheme is not used for palette generation
-                    )
-                colorScheme.accent1.s100
-            } ?: context.resources.getColor(android.R.color.system_accent1_100)
-        }
+        return seedColor?.let {
+            val colorScheme =
+                ColorScheme(
+                    it,
+                    false, // darkTheme is not used for palette generation
+                )
+            colorScheme.accent1.s100
+        } ?: context.resources.getColor(android.R.color.system_accent1_100)
     }
 }

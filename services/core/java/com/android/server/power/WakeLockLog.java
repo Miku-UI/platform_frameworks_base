@@ -27,6 +27,7 @@ import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.BackgroundThread;
+import com.android.server.power.feature.flags.Flags;
 
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
@@ -35,6 +36,7 @@ import java.util.ConcurrentModificationException;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.TimeZone;
 import java.util.TreeMap;
 
 /**
@@ -83,8 +85,8 @@ final class WakeLockLog {
     private static final int LOG_SIZE = 1024 * 3;
     private static final int LOG_SIZE_MIN = MAX_LOG_ENTRY_BYTE_SIZE + 1;
 
-    private static final int TAG_DATABASE_SIZE = 64;
-    private static final int TAG_DATABASE_SIZE_MAX = 128;
+    private static final int TAG_DATABASE_SIZE = 128;
+    private static final int TAG_DATABASE_SIZE_MAX = 256;
     private static final int TAG_DATABASE_STARTING_SIZE = 16;
 
     private static final int LEVEL_SCREEN_TIMEOUT_OVERRIDE_WAKE_LOCK = 0;
@@ -186,6 +188,11 @@ final class WakeLockLog {
     }
 
     @VisibleForTesting
+    TagData getTagOnIndex(int index) {
+        return mTagDatabase.getTag(index);
+    }
+
+    @VisibleForTesting
     void dump(PrintWriter pw, boolean includeTagDb) {
         try {
             synchronized (mLock) {
@@ -273,7 +280,9 @@ final class WakeLockLog {
             long time) {
         synchronized (mLock) {
             final TagData tagData = mTagDatabase.findOrCreateTag(
-                    tag, ownerUid, true /* shouldCreate */);
+                    tag, ownerUid,
+                    (Flags.dontChurnTagDatabaseOnRelease()
+                            ? eventType == TYPE_ACQUIRE : true)/* shouldCreate */);
             mLog.addEntry(new LogEntry(time, eventType, tagData, flags));
         }
     }
@@ -466,6 +475,7 @@ final class WakeLockLog {
          */
         private String toStringInternal(SimpleDateFormat dateFormat) {
             StringBuilder sb = new StringBuilder();
+            dateFormat.setTimeZone(TimeZone.getDefault());
             if (type == TYPE_TIME_RESET) {
                 return dateFormat.format(new Date(time)) + " - RESET";
             }
@@ -1217,17 +1227,6 @@ final class WakeLockLog {
         }
 
         /**
-         * Returns an existing tag for the specified wake lock tag + ownerUid.
-         *
-         * @param tag The wake lock tag.
-         * @param ownerUid The wake lock's ownerUid.
-         * @return the TagData instance.
-         */
-        public TagData getTag(String tag, int ownerUid) {
-            return findOrCreateTag(tag, ownerUid, false /* shouldCreate */);
-        }
-
-        /**
          * Returns the index for the corresponding tag.
          *
          * @param tagData The tag-data to search for.
@@ -1287,6 +1286,8 @@ final class WakeLockLog {
                     System.arraycopy(mArray, 0, newArray, 0, oldSize);
                     mArray = newArray;
                     firstAvailable = oldSize;
+                    Slog.i(TAG, "Changing the tag database size from " + oldSize + " to  "
+                            + newSize);
                 }
             }
 

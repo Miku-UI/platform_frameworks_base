@@ -23,8 +23,8 @@ import android.util.StringBuilderPrinter;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.os.Clock;
-import com.android.server.power.stats.BatteryStatsImpl.TimeBase;
 import com.android.server.power.stats.BatteryStatsImpl.Timer;
+import com.android.server.power.stats.counters.TimeBase;
 
 import junit.framework.Assert;
 import junit.framework.TestCase;

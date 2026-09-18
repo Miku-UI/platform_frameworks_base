@@ -76,6 +76,7 @@ public class FalsingDataProvider {
     private MotionEvent mLastMotionEvent;
     private boolean mDropLastEvent;
     private boolean mJustUnlockedWithFace;
+    private boolean mUnlockedAndDismissing;
     private boolean mA11YAction;
     private boolean mShowingCommunalHub;
 
@@ -496,6 +497,14 @@ public class FalsingDataProvider {
 
     public void setJustUnlockedWithFace(boolean justUnlockedWithFace) {
         mJustUnlockedWithFace = justUnlockedWithFace;
+    }
+
+    public boolean isUnlockedAndDismissing() {
+        return mUnlockedAndDismissing;
+    }
+
+    public void setUnlockedAndDismissing(boolean unlockedAndDismissing) {
+        mUnlockedAndDismissing = unlockedAndDismissing;
     }
 
     /** Returns true if phone is sitting in a dock or is wirelessly charging. */

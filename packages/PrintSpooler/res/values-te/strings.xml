@@ -21,7 +21,7 @@
     <string name="label_destination" msgid="9132510997381599275">"గమ్యం"</string>
     <string name="label_copies" msgid="3634531042822968308">"కాపీలు"</string>
     <string name="label_copies_summary" msgid="3861966063536529540">"కాపీలు:"</string>
-    <string name="label_paper_size" msgid="908654383827777759">"కాగితపు సైజ్‌"</string>
+    <string name="label_paper_size" msgid="908654383827777759">"పేపర్ సైజ్"</string>
     <string name="label_paper_size_summary" msgid="5668204981332138168">"కాగితపు సైజ్‌:"</string>
     <string name="label_color" msgid="1108690305218188969">"రంగు"</string>
     <string name="label_duplex" msgid="5370037254347072243">"రెండు వైపుల"</string>
@@ -44,6 +44,7 @@
     <string name="expand_handle" msgid="7282974448109280522">"విస్తరణ హ్యాండిల్"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"కుదింపు హ్యాండిల్"</string>
     <string name="print_button" msgid="645164566271246268">"ప్రింట్ చేయండి"</string>
+    <string name="setup_button" msgid="323390526074568450">"సెటప్ చేయండి"</string>
     <string name="savetopdf_button" msgid="2976186791686924743">"PDF లాగా సేవ్ చేయండి"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"ముద్రణ ఎంపికలు విస్తరించబడ్డాయి"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"ముద్రణ ఎంపికలు కుదించబడ్డాయి"</string>

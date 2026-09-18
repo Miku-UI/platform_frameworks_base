@@ -19,6 +19,7 @@ import android.view.animation.Interpolator
 import com.android.app.animation.Interpolators.LINEAR
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
+import com.android.systemui.keyguard.domain.interactor.scenetransition.LockscreenSceneTransitionInteractor
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionState
@@ -71,8 +72,6 @@ constructor(
          *
          * Note that [onStep] accepts a null return value. When null, no animation information will
          * be emitted, effectively saying "do not change the value on this frame"
-         *
-         * Note that [onCancel] isn't used when the scene framework is enabled.
          */
         fun sharedFlow(
             duration: Duration = transitionDuration,
@@ -108,8 +107,6 @@ constructor(
          *
          * Note that [onStep] accepts a null return value. When null, no animation information will
          * be emitted, effectively saying "do not change the value on this frame"
-         *
-         * Note that [onCancel] isn't used when the scene framework is enabled.
          */
         fun sharedFlowWithShade(
             duration: Duration = transitionDuration,
@@ -206,11 +203,18 @@ constructor(
             return transitionInteractor
                 .transition(edge)
                 .mapNotNull { step ->
-                    if (SceneContainerFlag.isEnabled && step.transitionState == CANCELED) {
-                        // When the scene framework is enabled, there's no need to emit an alpha
-                        // value when the keyguard transition animation is canceled because there's
-                        // always going to be a new, reversed keyguard transition animation back to
-                        // the original KeyguardState that starts right when this one was canceled.
+                    if (
+                        step.ownerName.startsWith(
+                            LockscreenSceneTransitionInteractor::class.java.simpleName
+                        ) && step.transitionState == CANCELED
+                    ) {
+                        // This condition is a hacky way to filter out CANCELED events that
+                        // originated from LockscreenSceneTransitionInteractor. There's no need to
+                        // emit an alpha value when the keyguard transition animation is canceled
+                        // because there's always going to be a new, reversed keyguard transition
+                        // animation back to the original KeyguardState that starts right when this
+                        // one was canceled. This is not necessarily true for CANCELED events from
+                        // other sources.
                         //
                         // For example, if swiping up slightly on the Lockscreen scene and then
                         // releasing before the transition to the Bouncer scene is committed, the

@@ -34,7 +34,6 @@ import android.graphics.drawable.Icon
 import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
-import android.provider.Settings
 import android.widget.Toast
 import androidx.annotation.VisibleForTesting
 import com.android.app.tracing.coroutines.launchTraced as launch
@@ -44,7 +43,6 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.devicepolicy.areKeyguardShortcutsDisabled
 import com.android.systemui.log.DebugLogger.debugLog
 import com.android.systemui.notetask.NoteTaskEntryPoint.KEYBOARD_SHORTCUT
-import com.android.systemui.notetask.NoteTaskEntryPoint.QUICK_AFFORDANCE
 import com.android.systemui.notetask.NoteTaskEntryPoint.TAIL_BUTTON
 import com.android.systemui.notetask.NoteTaskRoleManagerExt.createNoteShortcutInfoAsUser
 import com.android.systemui.notetask.NoteTaskRoleManagerExt.getDefaultRoleHolderAsUser
@@ -52,7 +50,6 @@ import com.android.systemui.notetask.shortcut.CreateNoteTaskShortcutActivity
 import com.android.systemui.res.R
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.shared.system.ActivityManagerKt.isInForeground
-import com.android.systemui.util.settings.SecureSettings
 import com.android.wm.shell.bubbles.Bubble
 import com.android.wm.shell.bubbles.Bubbles.BubbleExpandListener
 import java.util.concurrent.atomic.AtomicReference
@@ -74,7 +71,7 @@ constructor(
     private val context: Context,
     private val roleManager: RoleManager,
     private val shortcutManager: ShortcutManager,
-    private val resolver: NoteTaskInfoResolver,
+    private val noteTaskInfoResolver: NoteTaskInfoResolver,
     private val eventLogger: NoteTaskEventLogger,
     private val noteTaskBubblesController: NoteTaskBubblesController,
     private val userManager: UserManager,
@@ -83,7 +80,8 @@ constructor(
     @NoteTaskEnabledKey private val isEnabled: Boolean,
     private val devicePolicyManager: DevicePolicyManager,
     private val userTracker: UserTracker,
-    private val secureSettings: SecureSettings,
+    private val lockscreenNoteTakingAvailability: LockscreenNoteTakingAvailability,
+    private val userResolver: NoteTaskUserResolver,
     @Application private val applicationScope: CoroutineScope,
     @Background private val bgCoroutineContext: CoroutineContext,
 ) {
@@ -112,37 +110,16 @@ constructor(
 
     /** Starts the notes role setting. */
     fun startNotesRoleSetting(activityContext: Context, entryPoint: NoteTaskEntryPoint?) {
-        val user =
-            if (entryPoint == null) {
-                userTracker.userHandle
-            } else {
-                getUserForHandlingNotesTaking(entryPoint)
-            }
-        activityContext.startActivityAsUser(createNotesRoleHolderSettingsIntent(), user)
-    }
-
-    /**
-     * Returns the [UserHandle] of an android user that should handle the notes taking [entryPoint].
-     * 1. tail button entry point: In COPE or work profile devices, the user can select whether the
-     *    work or main profile notes app should be launched in the Settings app. In non-management
-     *    or device owner devices, the user can only select main profile notes app.
-     * 2. lock screen quick affordance: since there is no user setting, the main profile notes app
-     *    is used as default for work profile devices while the work profile notes app is used for
-     *    COPE devices.
-     * 3. Other entry point: the current user from [UserTracker.userHandle].
-     */
-    fun getUserForHandlingNotesTaking(entryPoint: NoteTaskEntryPoint): UserHandle =
-        when {
-            entryPoint == TAIL_BUTTON -> secureSettings.preferredUser
-            devicePolicyManager.isOrganizationOwnedDeviceWithManagedProfile &&
-                entryPoint == QUICK_AFFORDANCE -> {
-                userTracker.userProfiles
-                    .firstOrNull { userManager.isManagedProfile(it.id) }
-                    ?.userHandle ?: userTracker.userHandle
-            }
-            // On work profile devices, SysUI always run in the main user.
-            else -> userTracker.userHandle
+        applicationScope.launch("$TAG#startNotesRoleSetting") {
+            val user =
+                if (entryPoint == null) {
+                    userTracker.userHandle
+                } else {
+                    userResolver.getUserForHandlingNoteTaking(entryPoint)
+                }
+            activityContext.startActivityAsUser(createNotesRoleHolderSettingsIntent(), user)
         }
+    }
 
     /**
      * Shows a note task. How the task is shown will depend on when the method is invoked.
@@ -158,7 +135,10 @@ constructor(
     fun showNoteTask(entryPoint: NoteTaskEntryPoint) {
         if (!isEnabled) return
 
-        showNoteTaskAsUser(entryPoint, getUserForHandlingNotesTaking(entryPoint))
+        applicationScope.launch("$TAG#showNoteTask") {
+            val user = userResolver.getUserForHandlingNoteTaking(entryPoint)
+            awaitShowNoteTaskAsUser(entryPoint, user)
+        }
     }
 
     /** A variant of [showNoteTask] which launches note task in the given [user]. */
@@ -182,18 +162,20 @@ constructor(
         if (!userManager.isUserUnlocked) return
 
         val isKeyguardLocked = keyguardManager.isKeyguardLocked
-        // KeyguardQuickAffordanceInteractor blocks the quick affordance from showing in the
-        // keyguard if it is not allowed by the admin policy. Here we block any other way to show
-        // note task when the screen is locked.
-        if (
-            isKeyguardLocked &&
+        if (isKeyguardLocked) {
+            val isLockscreenNoteTakingDisabled =
+                !lockscreenNoteTakingAvailability.isLockscreenNoteTakingEnabled()
+            // KeyguardQuickAffordanceInteractor blocks the quick affordance from showing in the
+            // keyguard if it is not allowed by the admin policy. Here we block any other way to
+            // show note task when the screen is locked.
+            val areKeyguardShortcutsDisabled =
                 devicePolicyManager.areKeyguardShortcutsDisabled(userId = user.identifier)
-        ) {
-            debugLog { "Enterprise policy disallows launching note app when the screen is locked." }
-            return
+            if (isLockscreenNoteTakingDisabled || areKeyguardShortcutsDisabled) {
+                debugLog { "Note taking is disabled on lock screen." }
+                return
+            }
         }
-
-        val info = resolver.resolveInfo(entryPoint, isKeyguardLocked, user)
+        val info = noteTaskInfoResolver.resolveInfo(entryPoint, isKeyguardLocked, user)
 
         if (info == null) {
             debugLog { "Default notes app isn't set" }
@@ -333,14 +315,16 @@ constructor(
         if (user == getCurrentRunningUser()) {
             launchUpdateNoteTaskAsUser(user)
         } else {
-            // TODO(b/278729185): Replace fire and forget service with a bounded service.
-            val intent = NoteTaskControllerUpdateService.createIntent(context)
-            try {
-                // If the user is stopped before 'startServiceAsUser' kicks-in, a
-                // 'SecurityException' will be thrown.
-                context.startServiceAsUser(intent, user)
-            } catch (e: SecurityException) {
-                debugLog(error = e) { "Unable to start 'NoteTaskControllerUpdateService'." }
+            applicationScope.launch("$TAG#updateNoteTaskAsUser", bgCoroutineContext) {
+                // TODO(b/278729185): Replace fire and forget service with a bounded service.
+                val intent = NoteTaskControllerUpdateService.createIntent(context)
+                try {
+                    // If the user is stopped before 'startServiceAsUser' kicks-in, a
+                    // 'SecurityException' will be thrown.
+                    context.startServiceAsUser(intent, user)
+                } catch (e: SecurityException) {
+                    debugLog(error = e) { "Unable to start 'NoteTaskControllerUpdateService'." }
+                }
             }
         }
     }
@@ -377,18 +361,6 @@ constructor(
 
     // Returns the [UserHandle] that this class is running on.
     @VisibleForTesting internal fun getCurrentRunningUser(): UserHandle = Process.myUserHandle()
-
-    private val SecureSettings.preferredUser: UserHandle
-        get() {
-            val trackingUserId = userTracker.userHandle.identifier
-            val userId =
-                secureSettings.getIntForUser(
-                    /* name= */ Settings.Secure.DEFAULT_NOTE_TASK_PROFILE,
-                    /* def= */ trackingUserId,
-                    /* userHandle= */ trackingUserId,
-                )
-            return UserHandle.of(userId)
-        }
 
     companion object {
         val TAG = NoteTaskController::class.simpleName.orEmpty()

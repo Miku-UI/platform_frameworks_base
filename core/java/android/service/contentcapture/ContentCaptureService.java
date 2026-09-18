@@ -22,8 +22,6 @@ import static android.view.contentcapture.ContentCaptureHelper.sVerbose;
 import static android.view.contentcapture.ContentCaptureHelper.toList;
 import static android.view.contentcapture.ContentCaptureManager.NO_SESSION_ID;
 
-import static android.view.contentcapture.flags.Flags.reduceBinderTransactionEnabled;
-
 import static com.android.internal.util.function.pooled.PooledLambda.obtainMessage;
 
 import android.annotation.CallSuper;
@@ -530,11 +528,9 @@ public abstract class ContentCaptureService extends Service {
 
     private void handleOnDisconnected() {
         onDisconnected();
-        if (reduceBinderTransactionEnabled()) {
-            if (mPendingMetrics.size() != 0) {
-                Log.i(TAG, "Flushing " + mPendingMetrics.size() + " pending metrics on disconnect");
-                flushAllPendingMetrics();
-            }
+        if (mPendingMetrics.size() != 0) {
+            Log.i(TAG, "Flushing " + mPendingMetrics.size() + " pending metrics on disconnect");
+            flushAllPendingMetrics();
         }
         mContentCaptureServiceCallback = null;
         mContentProtectionAllowlistCallback = null;
@@ -568,86 +564,9 @@ public abstract class ContentCaptureService extends Service {
     private void handleSendEvents(int uid,
             @NonNull ParceledListSlice<ContentCaptureEvent> parceledEvents, int reason,
             @Nullable ContentCaptureOptions options) {
-        if (reduceBinderTransactionEnabled()) {
-            handleSendEventsWithBatching(uid, parceledEvents, reason, options);
-        } else {
-            handleSendEventsNoBatching(uid, parceledEvents, reason, options);
-        }
-    }
-
-    @MainThread
-    private void handleSendEventsNoBatching(int uid,
-            @NonNull ParceledListSlice<ContentCaptureEvent> parceledEvents, int reason,
-            @Nullable ContentCaptureOptions options) {
         final List<ContentCaptureEvent> events = parceledEvents.getList();
         if (events.isEmpty()) {
             Log.w(TAG, "handleSendEvents() received empty list of events");
-            return;
-        }
-
-        // Metrics.
-        final FlushMetrics metrics = new FlushMetrics();
-        ComponentName activityComponent = null;
-
-        // Most events belong to the same session, so we can keep a reference to the last one
-        // to avoid creating too many ContentCaptureSessionId objects
-        int lastSessionId = NO_SESSION_ID;
-        ContentCaptureSessionId sessionId = null;
-
-        for (int i = 0; i < events.size(); i++) {
-            final ContentCaptureEvent event = events.get(i);
-            if (!handleIsRightCallerFor(event, uid)) continue;
-            int sessionIdInt = event.getSessionId();
-            if (sessionIdInt != lastSessionId) {
-                sessionId = new ContentCaptureSessionId(sessionIdInt);
-                lastSessionId = sessionIdInt;
-                if (i != 0) {
-                    writeFlushMetrics(lastSessionId, activityComponent, metrics, options, reason);
-                    metrics.reset();
-                }
-            }
-            final ContentCaptureContext clientContext = event.getContentCaptureContext();
-            if (activityComponent == null && clientContext != null) {
-                activityComponent = clientContext.getActivityComponent();
-            }
-            switch (event.getType()) {
-                case ContentCaptureEvent.TYPE_SESSION_STARTED:
-                    clientContext.setParentSessionId(event.getParentSessionId());
-                    mSessionUids.put(sessionIdInt, uid);
-                    onCreateContentCaptureSession(clientContext, sessionId);
-                    metrics.sessionStarted++;
-                    break;
-                case ContentCaptureEvent.TYPE_SESSION_FINISHED:
-                    mSessionUids.delete(sessionIdInt);
-                    onDestroyContentCaptureSession(sessionId);
-                    metrics.sessionFinished++;
-                    break;
-                case ContentCaptureEvent.TYPE_VIEW_APPEARED:
-                    onContentCaptureEvent(sessionId, event);
-                    metrics.viewAppearedCount++;
-                    break;
-                case ContentCaptureEvent.TYPE_VIEW_DISAPPEARED:
-                    onContentCaptureEvent(sessionId, event);
-                    metrics.viewDisappearedCount++;
-                    break;
-                case ContentCaptureEvent.TYPE_VIEW_TEXT_CHANGED:
-                    onContentCaptureEvent(sessionId, event);
-                    metrics.viewTextChangedCount++;
-                    break;
-                default:
-                    onContentCaptureEvent(sessionId, event);
-            }
-        }
-        writeFlushMetrics(lastSessionId, activityComponent, metrics, options, reason);
-    }
-
-    @MainThread
-    private void handleSendEventsWithBatching(int uid,
-            @NonNull ParceledListSlice<ContentCaptureEvent> parceledEvents, int reason,
-            @Nullable ContentCaptureOptions options) {
-        final List<ContentCaptureEvent> events = parceledEvents.getList();
-        if (events.isEmpty()) {
-            Log.w(TAG, "handleSendEventsWithBatching() received empty list of events");
             return;
         }
 
@@ -764,9 +683,7 @@ public abstract class ContentCaptureService extends Service {
 
     private void handleFinishSession(int sessionId) {
         mSessionUids.delete(sessionId);
-        if (reduceBinderTransactionEnabled()) {
-            flushMetricsForSession(sessionId);
-        }
+        flushMetricsForSession(sessionId);
         onDestroyContentCaptureSession(new ContentCaptureSessionId(sessionId));
     }
 

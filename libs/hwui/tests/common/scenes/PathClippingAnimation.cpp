@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-#include <vector>
-
 #include <SkBlendMode.h>
+#include <SkPath.h>
+#include <SkPathBuilder.h>
+
+#include <vector>
 
 #include "TestSceneBase.h"
 
@@ -73,13 +75,13 @@ public:
     }
 
     SkPath setPath(int size) {
-        SkPath path;
-        path.moveTo(0, size / 2);
-        path.cubicTo(0, size * .75, size * .25, size, size / 2, size);
-        path.cubicTo(size * .75, size, size, size * .75, size, size / 2);
-        path.cubicTo(size, size * .25, size * .75, 0, size / 2, 0);
-        path.cubicTo(size / 4, 0, 0, size / 4, 0, size / 2);
-        return path;
+        return SkPathBuilder()
+                .moveTo(0, size / 2)
+                .cubicTo(0, size * .75, size * .25, size, size / 2, size)
+                .cubicTo(size * .75, size, size, size * .75, size, size / 2)
+                .cubicTo(size, size * .25, size * .75, 0, size / 2, 0)
+                .cubicTo(size / 4, 0, 0, size / 4, 0, size / 2)
+                .detach();
     }
 
     void doFrame(int frameNr) override {

@@ -16,8 +16,6 @@
 
 package com.android.systemui.statusbar.pipeline.mobile.data.repository
 
-import com.android.systemui.kairos.ExperimentalKairosApi
-import com.android.systemui.kairos.KairosNetwork
 import com.android.systemui.kairos.MutableState
 import com.android.systemui.kairos.State
 import com.android.systemui.log.table.TableLogBuffer
@@ -28,45 +26,43 @@ import com.android.systemui.statusbar.pipeline.mobile.data.repository.FakeMobile
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionRepository.Companion.DEFAULT_NUM_LEVELS
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
 
-@ExperimentalKairosApi
 class FakeMobileConnectionRepositoryKairos(
     override val subId: Int,
-    kairos: KairosNetwork,
     override val tableLogBuffer: TableLogBuffer,
 ) : MobileConnectionRepositoryKairos {
-    override val carrierId = MutableState(kairos, 0)
-    override val inflateSignalStrength = MutableState(kairos, false)
-    override val allowNetworkSliceIndicator = MutableState(kairos, true)
-    override val isEmergencyOnly = MutableState(kairos, false)
-    override val isRoaming = MutableState(kairos, false)
-    override val operatorAlphaShort = MutableState<String?>(kairos, null)
-    override val isInService = MutableState(kairos, false)
-    override val isNonTerrestrial = MutableState(kairos, false)
-    override val isGsm = MutableState(kairos, false)
-    override val cdmaLevel = MutableState(kairos, 0)
-    override val primaryLevel = MutableState(kairos, 0)
-    override val satelliteLevel = MutableState(kairos, 0)
-    override val dataConnectionState = MutableState(kairos, DataConnectionState.Disconnected)
+    override val carrierId = MutableState(0)
+    override val inflateSignalStrength = MutableState(false)
+    override val allowNetworkSliceIndicator = MutableState(true)
+    override val isEmergencyOnly = MutableState(false)
+    override val isRoaming = MutableState(false)
+    override val operatorAlphaShort = MutableState<String?>(null)
+    override val isInService = MutableState(false)
+    override val isNonTerrestrial = MutableState(false)
+    override val isGsm = MutableState(false)
+    override val cdmaLevel = MutableState(0)
+    override val primaryLevel = MutableState(0)
+    override val satelliteLevel = MutableState(0)
+    override val dataConnectionState = MutableState(DataConnectionState.Disconnected)
     override val dataActivityDirection =
-        MutableState(kairos, DataActivityModel(hasActivityIn = false, hasActivityOut = false))
-    override val carrierNetworkChangeActive = MutableState(kairos, false)
+        MutableState(DataActivityModel(hasActivityIn = false, hasActivityOut = false))
+    override val carrierNetworkChangeActive = MutableState(false)
     override val resolvedNetworkType =
-        MutableState<ResolvedNetworkType>(kairos, ResolvedNetworkType.UnknownNetworkType)
-    override val numberOfLevels = MutableState(kairos, DEFAULT_NUM_LEVELS)
-    override val dataEnabled = MutableState(kairos, true)
+        MutableState<ResolvedNetworkType>(ResolvedNetworkType.UnknownNetworkType)
+    override val numberOfLevels = MutableState(DEFAULT_NUM_LEVELS)
+    override val dataEnabled = MutableState(true)
 
     override fun setDataEnabled(enabled: Boolean) {
         dataEnabled.setValue(enabled)
     }
 
-    override val cdmaRoaming = MutableState(kairos, false)
+    override val cdmaRoaming = MutableState(false)
     override val networkName =
-        MutableState<NetworkNameModel>(kairos, NetworkNameModel.Default(DEFAULT_NETWORK_NAME))
+        MutableState<NetworkNameModel>(NetworkNameModel.Default(DEFAULT_NETWORK_NAME))
     override val carrierName =
-        MutableState<NetworkNameModel>(kairos, NetworkNameModel.Default(DEFAULT_NETWORK_NAME))
-    override val isAllowedDuringAirplaneMode = MutableState(kairos, false)
-    override val hasPrioritizedNetworkCapabilities = MutableState(kairos, false)
-    override val isInEcmMode: State<Boolean> = MutableState(kairos, false)
+        MutableState<NetworkNameModel>(NetworkNameModel.Default(DEFAULT_NETWORK_NAME))
+    override val isAllowedDuringAirplaneMode = MutableState(false)
+    override val hasPrioritizedNetworkCapabilities = MutableState(false)
+    override val isInEcmMode: State<Boolean> = MutableState(false)
 
     /**
      * Set [primaryLevel] and [cdmaLevel]. Convenient when you don't care about the connection type

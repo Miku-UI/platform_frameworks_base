@@ -36,28 +36,28 @@ import kotlinx.coroutines.coroutineScope
 class RecentTaskViewModel
 @AssistedInject
 constructor(
-    @Assisted val task: ScreenCaptureRecentTask,
+    @Assisted override val model: ScreenCaptureRecentTask,
     private val iconInteractor: ScreenCaptureIconInteractor,
     private val labelInteractor: ScreenCaptureLabelInteractor,
     private val thumbnailInteractor: ScreenCaptureThumbnailInteractor,
-) : HydratedActivatable() {
+) : TargetViewModel, HydratedActivatable() {
 
-    var icon by mutableStateOf<Result<Bitmap>?>(null)
+    override var icon by mutableStateOf<Result<Bitmap>?>(null)
         private set
 
-    var label by mutableStateOf<Result<CharSequence>?>(null)
+    override var label by mutableStateOf<Result<CharSequence>?>(null)
         private set
 
-    var thumbnail by mutableStateOf<Result<Bitmap>?>(null)
+    override var thumbnail by mutableStateOf<Result<Bitmap>?>(null)
         private set
 
-    val backgroundColorOpaque: Color = task.backgroundColor.opaque()
+    override val backgroundColorOpaque: Color = model.backgroundColor.opaque()
 
     override suspend fun onActivated() {
         coroutineScope {
-            launchTraced { icon = iconInteractor.loadIcon(task) }
-            launchTraced { label = labelInteractor.loadLabel(task) }
-            launchTraced { thumbnail = thumbnailInteractor.loadThumbnail(task) }
+            launchTraced { icon = iconInteractor.loadIcon(model) }
+            launchTraced { label = labelInteractor.loadLabel(model) }
+            launchTraced { thumbnail = thumbnailInteractor.loadThumbnail(model) }
         }
     }
 
@@ -65,6 +65,6 @@ constructor(
 
     @AssistedFactory
     interface Factory {
-        fun create(task: ScreenCaptureRecentTask): RecentTaskViewModel
+        fun create(model: ScreenCaptureRecentTask): RecentTaskViewModel
     }
 }

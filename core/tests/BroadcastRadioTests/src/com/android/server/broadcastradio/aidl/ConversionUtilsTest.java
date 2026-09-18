@@ -111,6 +111,7 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
     private static final long TEST_HD_FREQUENCY_VALUE = 95_300;
     private static final long TEST_HD_STATION_ID_EXT_VALUE = 0x100000001L
             | (TEST_HD_FREQUENCY_VALUE << 36);
+    private static final long TEST_HD_STATION_NAME_VALUE = 0x30384D46544948L; // "HITFM80" in hex
     private static final long TEST_HD_LOCATION_VALUE =  0x4E647007665CF6L;
     private static final long TEST_VENDOR_ID_VALUE = 9_901;
 
@@ -173,6 +174,9 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
     private static final ProgramIdentifier TEST_HAL_HD_FM_FREQUENCY_ID =
             AidlTestUtils.makeHalIdentifier(IdentifierType.AMFM_FREQUENCY_KHZ,
                     TEST_HD_FREQUENCY_VALUE);
+    private static final ProgramIdentifier TEST_HAL_HD_STATION_NAME_ID =
+            AidlTestUtils.makeHalIdentifier(IdentifierType.HD_STATION_NAME,
+                    TEST_HD_STATION_NAME_VALUE);
 
     private static final UniqueProgramIdentifier TEST_DAB_UNIQUE_ID = new UniqueProgramIdentifier(
             TEST_DAB_SELECTOR);
@@ -482,6 +486,39 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
     }
 
     @Test
+    public void identifierToHalProgramIdentifier_withFmId() {
+        ProgramSelector.Identifier fmId = new ProgramSelector.Identifier(
+                ProgramSelector.IDENTIFIER_TYPE_AMFM_FREQUENCY, TEST_FM_FREQUENCY_VALUE);
+        ProgramIdentifier halFmIdExpected =
+                AidlTestUtils.makeHalIdentifier(IdentifierType.AMFM_FREQUENCY_KHZ,
+                        TEST_FM_FREQUENCY_VALUE);
+        ProgramIdentifier halFmId =
+                ConversionUtils.identifierToHalProgramIdentifier(fmId);
+
+        expect.withMessage("Converted HAL FM identifier").that(halFmId)
+                .isEqualTo(halFmIdExpected);
+    }
+
+    @Test
+    public void identifierToHalProgramIdentifier_withHdId() {
+        ProgramIdentifier halHdId =
+                ConversionUtils.identifierToHalProgramIdentifier(TEST_HD_STATION_EXT_ID);
+        expect.withMessage("Converted HAL HD identifier").that(halHdId)
+                .isEqualTo(TEST_HAL_HD_STATION_EXT_ID);
+    }
+
+    @Test
+    public void identifierToHalProgramIdentifier_withHdStationName() {
+        ProgramSelector.Identifier hdStationNameId = new ProgramSelector.Identifier(
+                ProgramSelector.IDENTIFIER_TYPE_HD_STATION_NAME, TEST_HD_STATION_NAME_VALUE);
+        ProgramIdentifier halHdStationNameId =
+                ConversionUtils.identifierToHalProgramIdentifier(hdStationNameId);
+
+        expect.withMessage("Converted HD station name identifier for HAL").that(halHdStationNameId)
+                .isEqualTo(TEST_HAL_HD_STATION_NAME_ID);
+    }
+
+    @Test
     public void identifierFromHalProgramIdentifier_withDabId() {
         ProgramSelector.Identifier dabId =
                 ConversionUtils.identifierFromHalProgramIdentifier(TEST_HAL_DAB_SID_EXT_ID);
@@ -503,6 +540,18 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
         expect.withMessage("Identifier converted from invalid HAL identifier")
                 .that(ConversionUtils.identifierFromHalProgramIdentifier(TEST_HAL_INVALID_ID))
                 .isNull();
+    }
+
+    @Test
+    public void identifierFromHalProgramIdentifier_withHdStationName() {
+        ProgramSelector.Identifier hdStationNameIdExpected =
+                new ProgramSelector.Identifier(ProgramSelector.IDENTIFIER_TYPE_HD_STATION_NAME,
+                        TEST_HD_STATION_NAME_VALUE);
+        ProgramSelector.Identifier hdStationNameId =
+                ConversionUtils.identifierFromHalProgramIdentifier(TEST_HAL_HD_STATION_NAME_ID);
+
+        expect.withMessage("Converted HD station name identifier").that(hdStationNameId)
+                .isEqualTo(hdStationNameIdExpected);
     }
 
     @Test

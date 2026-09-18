@@ -80,7 +80,7 @@ class NotificationTemplateViewWrapperTest : SysuiTestCase() {
         root.addView(root2)
         view =
             (LayoutInflater.from(mContext)
-                .inflate(R.layout.notification_template_material_big_text, root2) as ViewGroup)
+                .inflate(R.layout.notification_2025_template_expanded_big_text, root2) as ViewGroup)
         actions = view.findViewById(R.id.actions)!!
         ViewUtils.attachView(root)
     }

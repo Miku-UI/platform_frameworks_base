@@ -620,16 +620,17 @@ class KeyboardLayoutManager implements InputManager.InputDeviceListener {
     }
 
     @AnyThread
-    public void onInputMethodSubtypeChanged(@UserIdInt int userId,
-            @Nullable InputMethodSubtypeHandle subtypeHandle,
+    public void onInputMethodSubtypeChanged(@UserIdInt int userId, @Nullable InputMethodInfo imi,
             @Nullable InputMethodSubtype subtype) {
-        if (subtypeHandle == null) {
+        if (imi == null || subtype == null) {
             if (DEBUG) {
                 Slog.d(TAG, "No InputMethod is running, ignoring change");
             }
             return;
         }
         synchronized (mImeInfoLock) {
+            final InputMethodSubtypeHandle subtypeHandle = InputMethodSubtypeHandle.of(imi,
+                    subtype);
             if (mCurrentImeInfo == null || !subtypeHandle.equals(mCurrentImeInfo.mImeSubtypeHandle)
                     || mCurrentImeInfo.mUserId != userId) {
                 mCurrentImeInfo = new ImeInfo(userId, subtypeHandle, subtype);
@@ -756,7 +757,7 @@ class KeyboardLayoutManager implements InputManager.InputDeviceListener {
             }
         }
 
-        if (imeInfo == null || imeInfo.mImeSubtypeHandle == null || imeInfo.mImeSubtype == null) {
+        if (imeInfo == null || imeInfo.mImeSubtype == null) {
             // Can't auto select layout based on IME info is null
             return FAILED;
         }

@@ -2,9 +2,6 @@
   "presubmit": [
     {
       "name": "FrameworksServicesTests_android_server_pm_dex"
-    },
-    {
-      "name": "DynamicCodeLoggerIntegrationTests"
     }
   ]
 }

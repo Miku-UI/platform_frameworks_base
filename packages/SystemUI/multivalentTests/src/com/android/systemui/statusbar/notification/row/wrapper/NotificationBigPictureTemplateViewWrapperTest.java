@@ -24,6 +24,7 @@ import android.app.Notification;
 import android.graphics.drawable.AnimatedImageDrawable;
 import android.graphics.drawable.Icon;
 import android.os.Bundle;
+import android.testing.TestableLooper.RunWithLooper;
 import android.view.LayoutInflater;
 import android.view.View;
 
@@ -42,8 +43,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-@RunWith(AndroidJUnit4.class)
 @SmallTest
+@RunWith(AndroidJUnit4.class)
+@RunWithLooper
 public class NotificationBigPictureTemplateViewWrapperTest extends SysuiTestCase {
 
     private View mView;
@@ -53,8 +55,10 @@ public class NotificationBigPictureTemplateViewWrapperTest extends SysuiTestCase
 
     @Before
     public void setup() throws Exception {
+        allowTestableLooperAsMainThread();
         mView = LayoutInflater.from(mContext).inflate(
-                com.android.internal.R.layout.notification_template_material_big_picture, null);
+                com.android.internal.R.layout.notification_2025_template_expanded_big_picture,
+                null);
         mEntry = mKosmos.buildNotificationEntry(NotificationEntryBuilder::done);
         mRow = mKosmos.createRow(mEntry);
     }

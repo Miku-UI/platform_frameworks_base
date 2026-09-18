@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 import android.content.res.Resources;
 import android.os.Handler;
 import android.os.Looper;
-import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityManager;
@@ -48,7 +47,7 @@ import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager;
 import com.android.systemui.plugins.FalsingManager;
 import com.android.systemui.plugins.qs.QS;
 import com.android.systemui.power.domain.interactor.PowerInteractor;
-import com.android.systemui.qs.QSFragmentLegacy;
+import com.android.systemui.qs.composefragment.QSFragmentCompose;
 import com.android.systemui.res.R;
 import com.android.systemui.screenrecord.ScreenRecordUxController;
 import com.android.systemui.shade.data.repository.FakeShadeRepository;
@@ -62,6 +61,7 @@ import com.android.systemui.statusbar.PulseExpansionHandler;
 import com.android.systemui.statusbar.QsFrameTranslateController;
 import com.android.systemui.statusbar.SysuiStatusBarStateController;
 import com.android.systemui.statusbar.disableflags.data.repository.FakeDisableFlagsRepository;
+import com.android.systemui.statusbar.gesture.StatusBarLongPressGestureDetector;
 import com.android.systemui.statusbar.notification.stack.AmbientState;
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayoutController;
 import com.android.systemui.statusbar.phone.DozeParameters;
@@ -109,11 +109,10 @@ public class QuickSettingsControllerImplBaseTest extends SysuiTestCase {
     @Mock protected KeyguardBottomAreaView mQsFrame;
     @Mock protected KeyguardStatusBarView mKeyguardStatusBar;
     @Mock protected QS mQs;
-    @Mock protected QSFragmentLegacy mQSFragment;
+    @Mock protected QSFragmentCompose mQSFragment;
     @Mock protected Lazy<NotificationPanelViewController> mPanelViewControllerLazy;
     @Mock protected NotificationPanelViewController mNotificationPanelViewController;
     @Mock protected NotificationPanelView mPanelView;
-    @Mock protected ViewGroup mQsHeader;
     @Mock protected ViewParent mPanelViewParent;
     @Mock protected QsFrameTranslateController mQsFrameTranslateController;
     @Mock protected PulseExpansionHandler mPulseExpansionHandler;
@@ -187,7 +186,6 @@ public class QuickSettingsControllerImplBaseTest extends SysuiTestCase {
         mShadeInteractor = new ShadeInteractorImpl(
                 mTestScope.getBackgroundScope(),
                 mKosmos.getDeviceProvisioningInteractor(),
-                mKosmos.getDisableFlagsInteractor(),
                 mDozeParameters,
                 mKeyguardRepository,
                 keyguardTransitionInteractor,
@@ -197,9 +195,12 @@ public class QuickSettingsControllerImplBaseTest extends SysuiTestCase {
                 new ShadeInteractorLegacyImpl(
                         mTestScope.getBackgroundScope(),
                         mKeyguardRepository,
-                        mShadeRepository
+                        mKosmos.getKeyguardTransitionInteractor(),
+                        mShadeRepository,
+                        mKosmos.getShadeConfigRepository()
                 ),
-                mKosmos.getSceneInteractor());
+                mKosmos.getSceneInteractor(),
+                mKosmos.getShadeStatusBarComponentsInteractor());
 
         when(mResources.getDimensionPixelSize(
                 R.dimen.lockscreen_shade_qs_transition_distance)).thenReturn(DEFAULT_HEIGHT);
@@ -210,8 +211,6 @@ public class QuickSettingsControllerImplBaseTest extends SysuiTestCase {
         when(mPanelView.findViewById(R.id.qs_frame)).thenReturn(mQsFrame);
         when(mQsFrame.getX()).thenReturn(QS_FRAME_START_X);
         when(mQsFrame.getWidth()).thenReturn(QS_FRAME_WIDTH);
-        when(mQsHeader.getTop()).thenReturn(QS_FRAME_TOP);
-        when(mQsHeader.getBottom()).thenReturn(QS_FRAME_BOTTOM);
         when(mQs.getHeaderTop()).thenReturn(QS_FRAME_TOP);
         when(mQs.getHeaderBottom()).thenReturn(QS_FRAME_BOTTOM);
         when(mPanelView.getY()).thenReturn((float) QS_FRAME_TOP);
@@ -223,8 +222,6 @@ public class QuickSettingsControllerImplBaseTest extends SysuiTestCase {
                 .thenReturn(false);
 
         when(mPanelView.getParent()).thenReturn(mPanelViewParent);
-        when(mQs.getHeader()).thenReturn(mQsHeader);
-        when(mQSFragment.getHeader()).thenReturn(mQsHeader);
 
         doAnswer(invocation -> {
             mLockscreenShadeTransitionCallback = invocation.getArgument(0);
@@ -251,6 +248,8 @@ public class QuickSettingsControllerImplBaseTest extends SysuiTestCase {
                 mShadeHeaderController,
                 mShadeTouchableRegionManager,
                 () -> mStatusBarLongPressGestureDetector,
+                mKosmos.getSystemUiReferenceDisplaySubcomponentRepository(),
+                () -> mKosmos.getShadeDisplaysInteractor(),
                 mKeyguardStateController,
                 mKeyguardBypassController,
                 mScrimController,

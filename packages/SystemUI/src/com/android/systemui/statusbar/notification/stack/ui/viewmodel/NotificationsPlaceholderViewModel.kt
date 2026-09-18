@@ -16,18 +16,19 @@
 
 package com.android.systemui.statusbar.notification.stack.ui.viewmodel
 
+import android.annotation.SuppressLint
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.compose.animation.scene.ContentKey
 import com.android.compose.animation.scene.ObservableTransitionState
+import com.android.compose.animation.scene.Scale
+import com.android.systemui.Flags
 import com.android.systemui.dump.DumpManager
-import com.android.systemui.flags.FeatureFlagsClassic
-import com.android.systemui.flags.Flags
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
+import com.android.systemui.notifications.ui.NotificationPlaceholderStateStorage
+import com.android.systemui.notifications.ui.YSpace
 import com.android.systemui.scene.domain.interactor.SceneInteractor
-import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
@@ -43,6 +44,7 @@ import com.android.systemui.statusbar.notification.stack.shared.model.ShadeScrol
 import com.android.systemui.util.kotlin.ActivatableFlowDumper
 import com.android.systemui.util.kotlin.ActivatableFlowDumperImpl
 import com.android.systemui.wallpapers.domain.interactor.WallpaperFocalAreaInteractor
+import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import java.util.function.Consumer
@@ -58,75 +60,98 @@ import kotlinx.coroutines.flow.map
 class NotificationsPlaceholderViewModel
 @AssistedInject
 constructor(
+    @param:Assisted private val contentKey: ContentKey,
+    private val placeholderStateStorage: NotificationPlaceholderStateStorage,
     private val interactor: NotificationStackAppearanceInteractor,
     private val sceneInteractor: SceneInteractor,
     shadeInteractor: ShadeInteractor,
     shadeModeInteractor: ShadeModeInteractor,
     private val headsUpNotificationInteractor: HeadsUpNotificationInteractor,
     remoteInputInteractor: RemoteInputInteractor,
-    featureFlags: FeatureFlagsClassic,
     dumpManager: DumpManager,
     private val wallpaperFocalAreaInteractor: WallpaperFocalAreaInteractor,
 ) :
-    ExclusiveActivatable(),
+    HydratedActivatable(),
     ActivatableFlowDumper by ActivatableFlowDumperImpl(
         dumpManager = dumpManager,
         tag = "NotificationsPlaceholderViewModel",
     ) {
 
-    private val hydrator = Hydrator("NotificationsPlaceholderViewModel")
+    fun setStackScrollTop(value: Float) {
+        placeholderStateStorage.setStackScrollTop(contentKey, value)
+    }
+
+    fun resetStackScrollTop() {
+        placeholderStateStorage.resetStackScrollTop(contentKey)
+    }
+
+    fun setStackBounds(space: YSpace) {
+        placeholderStateStorage.setStackBounds(contentKey, space)
+    }
+
+    fun resetStackBounds() {
+        placeholderStateStorage.resetStackBounds(contentKey)
+    }
+
+    fun setHeadsUpBounds(space: YSpace) {
+        placeholderStateStorage.setHunBounds(contentKey, space)
+    }
+
+    fun resetHeadsUpBounds() {
+        placeholderStateStorage.resetHunBounds(contentKey)
+    }
+
+    fun setStackAlpha(value: Float?) {
+        placeholderStateStorage.setStackAlpha(contentKey, value)
+    }
+
+    fun resetStackAlpha() {
+        placeholderStateStorage.resetStackAlpha(contentKey)
+    }
+
+    fun setStackScale(value: Scale?) {
+        placeholderStateStorage.setStackScale(contentKey, value)
+    }
+
+    fun resetStackScale() {
+        placeholderStateStorage.resetStackScale(contentKey)
+    }
 
     /** The content key to use for the notification shade. */
     val notificationsShadeContentKey: ContentKey by
-        hydrator.hydratedStateOf(
-            traceName = "notificationsShadeContentKey",
-            initialValue = getNotificationsShadeContentKey(shadeModeInteractor.shadeMode.value),
-            source = shadeModeInteractor.shadeMode.map { getNotificationsShadeContentKey(it) },
-        )
-
-    /** The content key to use for the quick settings shade. */
-    val quickSettingsShadeContentKey: ContentKey by
-        hydrator.hydratedStateOf(
-            traceName = "quickSettingsShadeContentKey",
-            initialValue = getQuickSettingsShadeContentKey(shadeModeInteractor.shadeMode.value),
-            source = shadeModeInteractor.shadeMode.map { getQuickSettingsShadeContentKey(it) },
-        )
+        shadeModeInteractor.shadeMode
+            .map { getNotificationsShadeContentKey(it) }
+            .hydratedStateOf(
+                initialValue = getNotificationsShadeContentKey(shadeModeInteractor.shadeMode.value)
+            )
 
     /** @see NotificationStackAppearanceInteractor.notificationStackHorizontalAlignment */
     val horizontalAlignment: Alignment.Horizontal by
-        hydrator.hydratedStateOf(
-            traceName = "horizontalAlignment",
-            source = interactor.notificationStackHorizontalAlignment,
-        )
+        shadeModeInteractor.notificationStackHorizontalAlignment.hydratedStateOf()
 
     /**
      * Whether the current gesture is expanding a Notification. If true, the NSSL has already
      * consumed the swipe amount to increase the Notification's size.
      */
     val isCurrentGestureExpandingNotification: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "isCurrentGestureExpandingNotif",
-            initialValue = false,
-            source = interactor.isCurrentGestureExpandingNotif,
-        )
+        interactor.isCurrentGestureExpandingNotif.hydratedStateOf(initialValue = false)
 
     /** DEBUG: whether the placeholder should be made slightly visible for positional debugging. */
-    val isVisualDebuggingEnabled: Boolean = featureFlags.isEnabled(Flags.NSSL_DEBUG_LINES)
+    val isVisualDebuggingEnabled: Boolean = Flags.notificationDebugDrawing()
 
     /** DEBUG: whether the debug logging should be output. */
-    val isDebugLoggingEnabled: Boolean = SceneContainerFlag.isEnabled
+    val isDebugLoggingEnabled: Boolean = Flags.notificationDeveloperLogging()
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         coroutineScope {
-            launch { hydrator.activate() }
+            launch { activateFlowDumper() }
 
             launch {
-                sceneInteractor.transitionState
+                sceneInteractor.transitionStateFlow
                     .filter { it is ObservableTransitionState.Idle }
                     .collect { headsUpNotificationInteractor.onTransitionIdle() }
             }
         }
-        activateFlowDumper()
     }
 
     /** Notifies that the bounds of the notification scrim have changed. */
@@ -165,10 +190,14 @@ constructor(
     val shadeToQsFraction: Flow<Float> = shadeInteractor.qsExpansion.dumpValue("shadeToQsFraction")
 
     /**
+     * TODO(b/412986215) fix and wire in syntheticScroll updates
+     *
      * The amount in px that the notification stack should scroll due to internal expansion. This
      * should only happen when a notification expansion hits the bottom of the screen, so it is
      * necessary to scroll up to keep expanding the notification.
      */
+    @Suppress("unused")
+    @SuppressLint("FlowExposedFromViewModel")
     val syntheticScroll: Flow<Float> =
         interactor.syntheticScroll.dumpWhileCollecting("syntheticScroll")
 
@@ -206,17 +235,9 @@ constructor(
         return if (shadeMode is ShadeMode.Dual) Overlays.NotificationsShade else Scenes.Shade
     }
 
-    private fun getQuickSettingsShadeContentKey(shadeMode: ShadeMode): ContentKey {
-        return when (shadeMode) {
-            is ShadeMode.Single -> Scenes.QuickSettings
-            is ShadeMode.Split -> Scenes.Shade
-            is ShadeMode.Dual -> Overlays.QuickSettingsShade
-        }
-    }
-
     @AssistedFactory
     interface Factory {
-        fun create(): NotificationsPlaceholderViewModel
+        fun create(contentKey: ContentKey): NotificationsPlaceholderViewModel
     }
 }
 

@@ -19,5 +19,5 @@
     <string name="app_label" msgid="748293919008814871">"ബാഹ്യ സ്റ്റോറേജ്"</string>
     <string name="storage_description" msgid="9176081505553938524">"ലോക്കൽ സ്റ്റോറേജ്"</string>
     <string name="root_internal_storage" msgid="4980477711224234931">"ആന്തരിക സ്റ്റോറേജ്"</string>
-    <string name="root_documents" msgid="5695037589229175941">"പ്രമാണങ്ങൾ"</string>
+    <string name="root_documents" msgid="5695037589229175941">"ഡോക്യുമെൻ്റുകൾ"</string>
 </resources>

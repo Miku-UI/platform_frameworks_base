@@ -18,9 +18,17 @@ package com.android.server.wm;
 
 import static android.content.pm.ActivityInfo.FORCE_NON_RESIZE_APP;
 import static android.content.pm.ActivityInfo.FORCE_RESIZE_APP;
+import static android.content.pm.ActivityInfo.OVERRIDE_ENABLE_VIRTUAL_GAMEPAD;
+import static android.content.pm.PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_OPT_OUT;
 import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES;
+import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_VIRTUAL_GAMEPAD_OVERRIDE;
+
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.when;
 
 import android.compat.testing.PlatformCompatChangeRule;
+import android.os.RemoteException;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.annotation.NonNull;
@@ -162,6 +170,49 @@ public class AppCompatResizeOverridesTest extends WindowTestsBase {
             robot.prop().disable(PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES);
             robot.activity().createActivityWithComponent();
             robot.checkShouldOverrideForceNonResizeApp(/* expected */ false);
+        });
+    }
+
+    @Test
+    @CoreCompatChangeRule.EnableCompatChanges({OVERRIDE_ENABLE_VIRTUAL_GAMEPAD})
+    public void testShouldOverrideForceResizeApp_propertyTrue_gamepadEnabled_returnsTrue() {
+        runTestScenario((robot) -> {
+            robot.prop().enable(PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES);
+            robot.activity().createActivityWithComponent();
+            robot.checkShouldOverrideForceResizeApp(/* expected */ true);
+        });
+    }
+
+    @Test
+    @CoreCompatChangeRule.EnableCompatChanges({OVERRIDE_ENABLE_VIRTUAL_GAMEPAD})
+    public void testShouldOverrideForceResizeApp_propertyFalse_gamepadEnabled_returnsFalse() {
+        runTestScenario((robot) -> {
+            robot.prop().disable(PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES);
+            robot.activity().createActivityWithComponent();
+            robot.checkShouldOverrideForceResizeApp(/* expected */ false);
+        });
+    }
+
+    @Test
+    @CoreCompatChangeRule.EnableCompatChanges({OVERRIDE_ENABLE_VIRTUAL_GAMEPAD})
+    public void testShouldOverrideForceResizeApp_gamepadOptOutProperty_returnsFalse() {
+        runTestScenario((robot) -> {
+            robot.prop().disable(PROPERTY_COMPAT_ALLOW_VIRTUAL_GAMEPAD_OVERRIDE);
+            robot.activity().createActivityWithComponent();
+            robot.checkShouldOverrideForceResizeApp(/* expected */ false);
+        });
+    }
+
+    @Test
+    @CoreCompatChangeRule.EnableCompatChanges({OVERRIDE_ENABLE_VIRTUAL_GAMEPAD})
+    public void testShouldOverrideForceResizeApp_userOptOut_gamepadEnabled_returnsFalse()
+            throws RemoteException {
+        when(mAtm.getPackageManager().getVirtualGamepadUserOption(anyString(), anyInt()))
+                .thenReturn(VIRTUAL_GAMEPAD_USER_OPTION_OPT_OUT);
+        runTestScenario((robot) -> {
+            robot.prop().enable(PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES);
+            robot.activity().createActivityWithComponent();
+            robot.checkShouldOverrideForceResizeApp(/* expected */ false);
         });
     }
 

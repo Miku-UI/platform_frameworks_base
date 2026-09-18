@@ -16,8 +16,6 @@
 
 package com.android.systemui.accessibility.keygesture.domain
 
-import android.content.applicationContext
-import android.os.fakeExecutorHandler
 import com.android.systemui.accessibility.data.repository.accessibilityShortcutsRepository
 import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.kosmos.Kosmos
@@ -26,10 +24,8 @@ import com.android.systemui.kosmos.testDispatcher
 
 val Kosmos.keyGestureDialogInteractor by Fixture {
     KeyGestureDialogInteractor(
-        applicationContext,
         accessibilityShortcutsRepository,
         broadcastDispatcher,
         testDispatcher,
-        fakeExecutorHandler,
     )
 }

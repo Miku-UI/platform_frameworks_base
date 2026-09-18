@@ -153,10 +153,10 @@ key T {
 }
 
 key Y {
-    label:                              'Y'
-    base:                               'y'
-    shift, capslock:                    'Y'
-    shift+capslock:                     'y'
+    label:                              'Z'
+    base:                               'z'
+    shift, capslock:                    'Z'
+    shift+capslock:                     'z'
 }
 
 key U {
@@ -304,10 +304,10 @@ key PLUS {
 }
 
 key Z {
-    label:                              'Z'
-    base:                               'z'
-    shift, capslock:                    'Z'
-    shift+capslock:                     'z'
+    label:                              'Y'
+    base:                               'y'
+    shift, capslock:                    'Y'
+    shift+capslock:                     'y'
     ralt:                               '>'
 }
 
@@ -377,4 +377,17 @@ key SLASH {
     base:                               '-'
     shift:                              '_'
     ralt:                               '*'
+}
+
+### NUMPAD
+
+key NUMPAD_DOT {
+    label:                              ','
+    base:                               fallback FORWARD_DEL
+    numlock:                            ','
+}
+
+key NUMPAD_COMMA {
+    label:                              ' '
+    base:                               '\u202f'
 }

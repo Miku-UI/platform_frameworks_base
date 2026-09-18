@@ -28,17 +28,17 @@ public interface AmbientVolumeUi extends ExpandableControlUi {
 
     /** Interface definition for a callback to be invoked when event happens in AmbientVolumeUi. */
     interface AmbientVolumeUiListener extends ExpandableControlUiListener {
-        /** Called when the ambient volume icon is clicked. */
-        void onAmbientVolumeIconClick();
+        /** Called when the mute state of the specified side is changed. */
+        void onSliderMuteChange(int side, boolean muted);
 
-        /** Called when the slider of the specified side is changed. */
+        /** Called when the value of the slider of the specified side is changed. */
         void onSliderValueChange(int side, int value);
     }
 
     /**
-     * The default ambient volume level for hearing device ambient volume icon
+     * The default ambient volume level number for hearing device ambient volume
      *
-     * <p> This icon visually represents the current ambient volume. It displays separate
+     * <p> Ambient volume icon visually represents the current ambient volume. It displays separate
      * levels for the left and right sides, each with 5 levels ranging from 0 to 4.
      *
      * <p> To represent the combined left/right levels with a single value, the following
@@ -51,25 +51,15 @@ public interface AmbientVolumeUi extends ExpandableControlUi {
      *    <li>If both left and right levels are 4, the final level will be 24</li>
      * </ul>
      */
-    int AMBIENT_VOLUME_LEVEL_DEFAULT = 24;
+    int AMBIENT_VOLUME_LEVEL_NUMBER = 5;
     /**
      * The minimum ambient volume level for hearing device ambient volume icon
-     *
-     * @see #AMBIENT_VOLUME_LEVEL_DEFAULT
      */
     int AMBIENT_VOLUME_LEVEL_MIN = 0;
     /**
      * The maximum ambient volume level for hearing device ambient volume icon
-     *
-     * @see #AMBIENT_VOLUME_LEVEL_DEFAULT
      */
     int AMBIENT_VOLUME_LEVEL_MAX = 24;
-
-    /** @return if the UI is capable to mute the ambient of remote device. */
-    boolean isMutable();
-
-    /** @return if the UI shows mute state */
-    boolean isMuted();
 
     /**
      * Sets the listener to be invoked when events happen in this UI.

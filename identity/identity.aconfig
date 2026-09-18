@@ -1,0 +1,10 @@
+package: "android.security.identity"
+container: "system"
+
+flag {
+  name: "api_deprecation"
+  namespace: "identity"
+  description: "Flag for adding deprecation annotations to the identity frameworks API"
+  bug: "422544286"
+  is_exported: true
+}

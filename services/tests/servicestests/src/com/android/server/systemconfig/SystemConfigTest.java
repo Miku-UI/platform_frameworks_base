@@ -25,10 +25,13 @@ import android.content.pm.Signature;
 import android.content.pm.SignedPackage;
 import android.os.Build;
 import android.permission.PermissionManager.SplitPermissionInfo;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
@@ -38,10 +41,11 @@ import android.util.Xml;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
+import com.android.internal.pm.pkg.component.AconfigFlags;
 import com.android.server.SystemConfig;
 
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -85,6 +89,10 @@ public class SystemConfigTest {
 
     private SystemConfig mSysConfig;
     private File mFooJar;
+    @ClassRule
+    public static final SetFlagsRule.ClassRule mSetFlagsClassRule = new SetFlagsRule.ClassRule();
+
+    @Rule public final SetFlagsRule mSetFlagsRule = mSetFlagsClassRule.createSetFlagsRule();
 
     @Rule public TemporaryFolder mTemporaryFolder = new TemporaryFolder();
 
@@ -95,7 +103,7 @@ public class SystemConfigTest {
         mSysConfig = new SystemConfigTestClass();
         mFooJar = createTempFile(
                 mTemporaryFolder.getRoot().getCanonicalFile(), "foo.jar", "JAR");
-        ParsingPackageUtils.getAconfigFlags().addFlagValuesForTesting(FLAG_VALUES);
+        AconfigFlags.getInstance().addFlagValuesForTesting(FLAG_VALUES);
     }
 
     /**
@@ -239,7 +247,7 @@ public class SystemConfigTest {
         SplitPermissionInfo expectedPermission =
                 new SplitPermissionInfo(
                         "android.permission.FOO", List.of("android.permission.BAR"),
-                        36);
+                        36, ALWAYS_ON_FLAG, false);
 
         final ArrayList<SplitPermissionInfo> permissions =
                 mSysConfig.getSplitPermissions();
@@ -266,6 +274,37 @@ public class SystemConfigTest {
         final ArrayList<SplitPermissionInfo> permissions =
                 mSysConfig.getSplitPermissions();
         assertThat(permissions).isEmpty();
+
+        final ArrayList<SplitPermissionInfo> rawPermissions =
+                mSysConfig.getSplitPermissions(true);
+        assertThat(rawPermissions.size()).isEqualTo(1);
+        assertThat(rawPermissions.get(0).getSplitPermission()).isEqualTo("android.permission.FOO");
+        assertThat(rawPermissions.get(0).getFeatureFlag()).isEqualTo(ALWAYS_OFF_FLAG);
+        assertThat(rawPermissions.get(0).isFeatureFlagNegated()).isFalse();
+    }
+
+    @Test
+    public void testSplitPermission_featureFlagNegated() throws Exception {
+        final String contents =
+                "<permissions>"
+                        + "<split-permission name=\"android.permission.FOO\""
+                        + "featureFlag=\"!" + ALWAYS_OFF_FLAG + "\""
+                        + "targetSdk=\"36\">"
+                        + "<new-permission name=\"android.permission.BAR\" />"
+                        + "</split-permission>"
+                        + "</permissions>";
+
+        final File folder = createTempSubfolder("folder/etc/permissions");
+        createTempFile(folder, "platform.xml", contents);
+
+        readPermissions(folder, /* Grant all permission flags */ ~0);
+
+        final ArrayList<SplitPermissionInfo> permissions =
+                mSysConfig.getSplitPermissions();
+        assertThat(permissions.size()).isEqualTo(1);
+        assertThat(permissions.get(0).getSplitPermission()).isEqualTo("android.permission.FOO");
+        assertThat(permissions.get(0).getFeatureFlag()).isEqualTo(ALWAYS_OFF_FLAG);
+        assertThat(permissions.get(0).isFeatureFlagNegated()).isTrue();
     }
 
     @Test
@@ -830,6 +869,119 @@ public class SystemConfigTest {
         assertThat(blocklist).doesNotContain("com.sony.product2.app");
     }
 
+    @Test
+    @DisableFlags(android.security.Flags.FLAG_APP_LOCK_APIS)
+    public void testAppLockExemptPackages_flagDisabled() throws Exception {
+        final String appLockExempt =
+                "<config>\n"
+                        + "    <app-lock-exempt package=\"com.product1.app\"/>\n"
+                        + "    <app-lock-exempt package=\"com.product2.app\"/>\n"
+                        + "</config>\n";
+        final File folder = createTempSubfolder("folder");
+        createTempFile(folder, "app_lock_exempt.xml", appLockExempt);
+
+        readPermissions(folder, /* Grant all permission flags */ ~0);
+
+        // When the flag is disabled, the config should not be parsed.
+        assertThat(mSysConfig.getAppLockExemptPackages()).isEmpty();
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_APP_LOCK_APIS)
+    public void testAppLockExemptPackages() throws Exception {
+        final String appLockExempt =
+                "<config>\n"
+                        + "    <app-lock-exempt package=\"com.product1.app\"/>\n"
+                        + "    <app-lock-exempt package=\"com.product2.app\"/>\n"
+                        + "</config>\n";
+        final File folder = createTempSubfolder("folder");
+        createTempFile(folder, "app_lock_exempt.xml", appLockExempt);
+
+        readPermissions(folder, /* Grant all permission flags */ ~0);
+
+        assertThat(mSysConfig.getAppLockExemptPackages()).contains("com.product1.app");
+        assertThat(mSysConfig.getAppLockExemptPackages()).contains("com.product2.app");
+        assertThat(mSysConfig.getAppLockExemptPackages()).doesNotContain("com.product3.app");
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_APP_LOCK_APIS)
+    public void testAppLockExemptPackages_incorrectElement() throws Exception {
+        final String appLockExempt =
+                "<config>\n"
+                        + "    <app-lock-exempt package=\"com.product1.app\"/>\n"
+                        // Misspelled tag
+                        + "    <app-lock-exempted package=\"com.product2.app\"/>\n"
+                        // Misspelled attribute
+                        + "    <app-lock-exempt pakage=\"com.product3.app\"/>\n"
+                        + "    <app-lock-exempt />\n" // Missing attribute
+                        + "</config>\n";
+        final File folder = createTempSubfolder("folder");
+        createTempFile(folder, "app_lock_exempt.xml", appLockExempt);
+
+        readPermissions(folder, /* Grant all permission flags */ ~0);
+
+        assertThat(mSysConfig.getAppLockExemptPackages()).containsExactly("com.product1.app");
+    }
+
+    /**
+     * Tests that readPermissions works correctly for the tag: {@code strict-signature-required}.
+     * when the verified dexopt aconfig flag is enabled.
+     */
+    @Test
+    @EnableFlags(android.content.pm.Flags.FLAG_VERIFIED_DEXOPT)
+    public void readPermissions_StrictSignatureRequired_successful() throws IOException {
+        final String contents =
+                "<config>\n"
+                        + "    <require-strict-signature package=\"com.foo\""
+                        + " verified-compilation-enabled=\"\"/>"
+                        + "    <require-strict-signature package=\"com.bar\" />"
+                        + "    <require-strict-signature package=\"com.baz\""
+                        + " verified-compilation-enabled=\"true\"/>"
+                        + "</config>";
+        final File folder = createTempSubfolder("folder");
+        createTempFile(folder, "signaturechecking.xml", contents);
+
+        readPermissions(folder, /* Grant all permission flags */ ~0);
+        Set<String> expectedPackagesWithStrictSignatureCheck = Set.of("com.foo", "com.bar",
+         "com.baz");
+        Set<String> expectedPackagesWithSecureCompilation = Set.of("com.foo", "com.baz");
+        assertThat(mSysConfig.getPreinstallPackagesWithStrictSignatureCheck())
+                .isEqualTo(expectedPackagesWithStrictSignatureCheck);
+        assertThat(mSysConfig.getPreinstallPackagesWithVerifiedCompilation())
+                .isEqualTo(expectedPackagesWithSecureCompilation);
+    }
+
+    /**
+     * Tests that when the verified dexopt aconfig flag is disabled then no packages will be
+     * marked as supporting verified compilation.
+     */
+    @Test
+    @DisableFlags(android.content.pm.Flags.FLAG_VERIFIED_DEXOPT)
+    public void readPermissions_StrictSignatureRequired_flagDisabled() throws IOException {
+        final String contents =
+                "<config>\n"
+                        + "    <require-strict-signature package=\"com.foo\""
+                        + " verified-compilation-enabled=\"\"/>"
+                        + "    <require-strict-signature package=\"com.bar\" />"
+                        + "    <require-strict-signature package=\"com.baz\""
+                        + " verified-compilation-enabled=\"true\"/>"
+                        + "</config>";
+        final File folder = createTempSubfolder("folder");
+        createTempFile(folder, "signaturechecking.xml", contents);
+
+        readPermissions(folder, /* Grant all permission flags */ ~0);
+        Set<String> expectedPackagesWithStrictSignatureCheck = Set.of("com.foo", "com.bar",
+         "com.baz");
+        // When FLAG_VERIFIED_DEXOPT is disabled, no packages should be added to the verified dexopt
+        // list, regardless of the 'verified-compilation-enabled' attribute.
+        Set<String> expectedPackagesWithSecureCompilation = Set.of();
+        assertThat(mSysConfig.getPreinstallPackagesWithStrictSignatureCheck())
+                .isEqualTo(expectedPackagesWithStrictSignatureCheck);
+        assertThat(mSysConfig.getPreinstallPackagesWithVerifiedCompilation())
+                .isEqualTo(expectedPackagesWithSecureCompilation);
+    }
+
     private void parseSharedLibraries(String contents) throws IOException {
         File folder = createTempSubfolder("permissions_folder");
         createTempFile(folder, "permissions.xml", contents);
@@ -837,7 +989,7 @@ public class SystemConfigTest {
     }
 
     /**
-     * Create an {@link XmlPullParser} for {@param permissionFile} and begin parsing it until
+     * Create an {@link XmlPullParser} for {@code permissionFile} and begin parsing it until
      * reaching the root tag.
      */
     private XmlPullParser readXmlUntilStartTag(File permissionFile)

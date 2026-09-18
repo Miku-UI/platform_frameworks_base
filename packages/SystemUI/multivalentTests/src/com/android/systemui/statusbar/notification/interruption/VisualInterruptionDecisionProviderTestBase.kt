@@ -69,7 +69,6 @@ import com.android.systemui.statusbar.NotificationEntryHelper.modifyRanking
 import com.android.systemui.statusbar.StatusBarState.KEYGUARD
 import com.android.systemui.statusbar.StatusBarState.SHADE
 import com.android.systemui.statusbar.StatusBarState.SHADE_LOCKED
-import com.android.systemui.statusbar.notification.NotifPipelineFlags
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager
@@ -122,7 +121,6 @@ abstract class VisualInterruptionDecisionProviderTestBase : SysuiTestCase() {
     protected val batteryController = FakeBatteryController(leakCheck)
     protected val deviceProvisionedController = FakeDeviceProvisionedController()
     protected val eventLog = FakeEventLog()
-    protected val flags: NotifPipelineFlags = mock()
     protected val globalSettings =
         kosmos.fakeGlobalSettings.also { it.putInt(HEADS_UP_NOTIFICATIONS_ENABLED, HEADS_UP_ON) }
     protected val headsUpManager: HeadsUpManager = mock()
@@ -130,8 +128,7 @@ abstract class VisualInterruptionDecisionProviderTestBase : SysuiTestCase() {
         mock()
     protected val keyguardStateController = FakeKeyguardStateController(leakCheck)
     protected val mainHandler = FakeHandler(Looper.getMainLooper())
-    protected val newLogger = VisualInterruptionDecisionLogger(fakeLogBuffer)
-    protected val oldLogger = NotificationInterruptLogger(fakeLogBuffer)
+    protected val logger = VisualInterruptionDecisionLogger(fakeLogBuffer)
     protected val powerManager: PowerManager = mock()
     protected val statusBarStateController = FakeStatusBarStateController()
     protected val systemClock = kosmos.fakeSystemClock
@@ -144,7 +141,6 @@ abstract class VisualInterruptionDecisionProviderTestBase : SysuiTestCase() {
     protected val packageManager: PackageManager = mock()
     protected val notificationManager: NotificationManager = mock()
     protected val deviceProvisioningRepository = kosmos.fakeDeviceProvisioningRepository
-    protected val logger: VisualInterruptionDecisionLogger = mock()
     protected abstract val provider: VisualInterruptionDecisionProvider
 
     private val neverSuppresses = object : NotificationInterruptSuppressor {}
@@ -207,12 +203,7 @@ abstract class VisualInterruptionDecisionProviderTestBase : SysuiTestCase() {
             ensurePeekState { hunSnoozed = true }
             assertShouldHeadsUp(entry)
 
-            // The old code logs a UiEvent when a HUN snooze is bypassed because the notification
-            // has an FSI, but that doesn't fit into the new code's suppressor-based logic, so we're
-            // not reimplementing it.
-            if (provider !is NotificationInterruptStateProviderWrapper) {
-                assertNoEventsLogged()
-            }
+            assertNoEventsLogged()
         }
     }
 
@@ -286,11 +277,8 @@ abstract class VisualInterruptionDecisionProviderTestBase : SysuiTestCase() {
         ensurePeekState()
         val entry = buildPeekEntry { whenMs = whenAgo(MAX_HUN_WHEN_AGE_MS) }
 
-        // The old code logs the "old when" UiEvent unconditionally, so don't expect that it hasn't.
-        if (provider !is NotificationInterruptStateProviderWrapper) {
-            provider.makeUnloggedHeadsUpDecision(entry)
-            assertNoEventsLogged()
-        }
+        provider.makeUnloggedHeadsUpDecision(entry)
+        assertNoEventsLogged()
 
         provider.makeAndLogHeadsUpDecision(entry)
         assertUiEventLogged(HUN_SUPPRESSED_OLD_WHEN, entry.sbn.uid, entry.sbn.packageName)

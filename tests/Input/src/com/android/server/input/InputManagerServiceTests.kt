@@ -32,11 +32,13 @@ import android.os.PermissionEnforcer
 import android.os.SystemClock
 import android.os.test.FakePermissionEnforcer
 import android.os.test.TestLooper
+import android.platform.test.annotations.DisabledOnRavenwood
 import android.platform.test.annotations.EnableFlags
 import android.platform.test.annotations.Presubmit
 import android.platform.test.flag.junit.SetFlagsRule
 import android.provider.Settings
 import android.testing.TestableContext
+import android.view.Display
 import android.view.InputDevice
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
@@ -75,6 +77,7 @@ import org.mockito.stubbing.OngoingStubbing
  * Build/Install/Run: atest InputTests:InputManagerServiceTests
  */
 @Presubmit
+@DisabledOnRavenwood(reason = "Static mocking in bivalent tests is tricky", bug = 310268946)
 class InputManagerServiceTests {
 
     companion object {
@@ -200,7 +203,7 @@ class InputManagerServiceTests {
         verify(native).setTouchpadThreeFingerTapShortcutEnabled(anyBoolean())
         verify(native).setTouchpadSystemGesturesEnabled(anyBoolean())
         verify(native).setTouchpadsEnabled(anyBoolean())
-        verify(native).setShowTouches(anyBoolean())
+        verify(native).setShowTouchesEnabled(anyBoolean())
         verify(native).setMotionClassifierEnabled(anyBoolean())
         verify(native).setMaximumObscuringOpacityForTouch(anyFloat())
         verify(native).setStylusPointerIconEnabled(anyBoolean())
@@ -216,31 +219,6 @@ class InputManagerServiceTests {
         val viewports = listOf<DisplayViewport>()
         localService.setDisplayViewports(viewports)
         verify(native).setDisplayViewports(any(Array<DisplayViewport>::class.java))
-        verify(native).setPointerDisplayId(displayId)
-    }
-
-    @Test
-    fun setDeviceTypeAssociation_setsDeviceTypeAssociation() {
-        val inputPort = "inputPort"
-        val type = "type"
-
-        localService.setTypeAssociation(inputPort, type)
-
-        assertThat(service.getDeviceTypeAssociations())
-            .asList()
-            .containsExactly(inputPort, type)
-            .inOrder()
-    }
-
-    @Test
-    fun setAndUnsetDeviceTypeAssociation_deviceTypeAssociationIsMissing() {
-        val inputPort = "inputPort"
-        val type = "type"
-
-        localService.setTypeAssociation(inputPort, type)
-        localService.unsetTypeAssociation(inputPort)
-
-        assertTrue(service.getDeviceTypeAssociations().isEmpty())
     }
 
     @Test
@@ -284,6 +262,14 @@ class InputManagerServiceTests {
 
         /* verify onKeyEventActivity callback not called */
         assertEquals(1, callback)
+    }
+
+    @Test
+    fun testSetForceShowTouchesOnDisplay() {
+        localService.setForceShowTouchesOnDisplay(Display.DEFAULT_DISPLAY, true)
+        verify(native).setForceShowTouchesOnDisplay(Display.DEFAULT_DISPLAY, true)
+        localService.setForceShowTouchesOnDisplay(Display.DEFAULT_DISPLAY, false)
+        verify(native).setForceShowTouchesOnDisplay(Display.DEFAULT_DISPLAY, false)
     }
 
     private class AutoClosingVirtualDisplays(val displays: List<VirtualDisplay>) : AutoCloseable {

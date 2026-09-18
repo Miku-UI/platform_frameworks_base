@@ -28,6 +28,7 @@ import android.annotation.SpecialUsers.CanBeALL;
 import android.annotation.SpecialUsers.CanBeCURRENT;
 import android.annotation.UserIdInt;
 import android.app.ActivityManager;
+import android.app.ActivityManager.ProcessState;
 import android.app.ActivityManager.RestrictionLevel;
 import android.app.ActivityManagerInternal;
 import android.app.AppGlobals;
@@ -596,7 +597,8 @@ public final class ContentService extends IContentService.Stub {
                 // are important to the user; all other background observers are
                 // delayed to avoid stampeding
                 final boolean noDelay = (key.flags & ContentResolver.NOTIFY_NO_DELAY) != 0;
-                final int procState = LocalServices.getService(ActivityManagerInternal.class)
+                @ProcessState final int procState = LocalServices.getService(
+                                ActivityManagerInternal.class)
                         .getUidProcessState(key.uid);
                 if (procState <= ActivityManager.PROCESS_STATE_IMPORTANT_FOREGROUND || noDelay) {
                     task.run();
@@ -1575,7 +1577,7 @@ public final class ContentService extends IContentService.Stub {
         if (ami == null) {
             return ContentResolver.SYNC_EXEMPTION_NONE;
         }
-        final int procState = ami.getUidProcessState(callingUid);
+        @ProcessState final int procState = ami.getUidProcessState(callingUid);
         final boolean isUidActive = ami.isUidActive(callingUid);
 
         // Providers bound by a TOP app will get PROCESS_STATE_BOUND_TOP, so include those as well
@@ -1592,7 +1594,7 @@ public final class ContentService extends IContentService.Stub {
         return ContentResolver.SYNC_EXEMPTION_NONE;
     }
 
-    private int getProcStateForStatsd(int procState) {
+    private int getProcStateForStatsd(@ProcessState int procState) {
         switch (procState) {
             case ActivityManager.PROCESS_STATE_UNKNOWN:
                 return FrameworkStatsLog.SYNC_EXEMPTION_OCCURRED__PROC_STATE__UNKNOWN;

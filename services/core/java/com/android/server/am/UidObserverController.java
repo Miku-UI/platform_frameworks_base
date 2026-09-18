@@ -24,6 +24,8 @@ import static com.android.server.am.ActivityManagerService.TAG_UID_OBSERVERS;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
+import android.app.ActivityManager.ProcessCapability;
+import android.app.ActivityManager.ProcessState;
 import android.app.ActivityManagerProto;
 import android.app.IUidObserver;
 import android.content.pm.PackageManager;
@@ -37,6 +39,7 @@ import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.util.Slog;
+import android.util.SparseArray;
 import android.util.SparseIntArray;
 import android.util.proto.ProtoOutputStream;
 import android.util.proto.ProtoUtils;
@@ -44,6 +47,7 @@ import android.util.proto.ProtoUtils;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.am.ActivityManagerServiceDumpProcessesProto.UidObserverRegistrationProto;
+import com.android.server.am.psc.Constants.OomAdjust;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -79,11 +83,10 @@ public class UidObserverController {
      */
     private static final boolean VALIDATE_UID_STATES = true;
     @GuardedBy("mLock")
-    private final ActiveUids mValidateUids;
+    private final SparseArray<ValidateUidRecord> mValidateUids = new SparseArray<>();
 
     UidObserverController(@NonNull Handler handler) {
         mHandler = handler;
-        mValidateUids = new ActiveUids(null);
     }
 
     IBinder register(@NonNull IUidObserver observer, int which, int cutpoint,
@@ -167,8 +170,9 @@ public class UidObserverController {
         mUidObservers.finishBroadcast();
     }
 
-    int enqueueUidChange(@Nullable ChangeRecord currentRecord, int uid, int change, int procState,
-            int procAdj, long procStateSeq, int capability, boolean ephemeral) {
+    int enqueueUidChange(@Nullable ChangeRecord currentRecord, int uid, int change,
+            @ProcessState int procState, @OomAdjust int procAdj, long procStateSeq,
+            @ProcessCapability int capability, boolean ephemeral) {
         synchronized (mLock) {
             if (mPendingUidChanges.size() == 0) {
                 if (DEBUG_UID_OBSERVERS) {
@@ -202,7 +206,7 @@ public class UidObserverController {
         return mPendingUidChanges;
     }
 
-    ActiveUids getValidateUidsForTest() {
+    SparseArray<ValidateUidRecord> getValidateUidsForTest() {
         return mValidateUids;
     }
 
@@ -293,9 +297,9 @@ public class UidObserverController {
                     if ((item.change & UidRecord.CHANGE_GONE) != 0) {
                         mValidateUids.remove(item.uid);
                     } else {
-                        UidRecord validateUid = mValidateUids.get(item.uid);
+                        ValidateUidRecord validateUid = mValidateUids.get(item.uid);
                         if (validateUid == null) {
-                            validateUid = new UidRecord(item.uid, null);
+                            validateUid = new ValidateUidRecord(item.uid);
                             mValidateUids.put(item.uid, validateUid);
                         }
                         if ((item.change & UidRecord.CHANGE_IDLE) != 0) {
@@ -303,10 +307,8 @@ public class UidObserverController {
                         } else if ((item.change & UidRecord.CHANGE_ACTIVE) != 0) {
                             validateUid.setIdle(false);
                         }
-                        validateUid.setSetProcState(item.procState);
-                        validateUid.setCurProcState(item.procState);
-                        validateUid.setSetCapability(item.capability);
-                        validateUid.setCurCapability(item.capability);
+                        validateUid.setProcState(item.procState);
+                        validateUid.setCapability(item.capability);
                     }
                 }
             }
@@ -435,7 +437,7 @@ public class UidObserverController {
         }
     }
 
-    UidRecord getValidateUidRecord(int uid) {
+    ValidateUidRecord getValidateUidRecord(int uid) {
         synchronized (mLock) {
             return mValidateUids.get(uid);
         }
@@ -494,14 +496,42 @@ public class UidObserverController {
     boolean dumpValidateUids(@NonNull PrintWriter pw, @Nullable String dumpPackage, int dumpAppId,
             @NonNull String header, boolean needSep) {
         synchronized (mLock) {
-            return mValidateUids.dump(pw, dumpPackage, dumpAppId, header, needSep);
+            boolean printed = false;
+            int size = mValidateUids.size();
+            for (int i = 0; i < size; i++) {
+                final ValidateUidRecord validateUid = mValidateUids.valueAt(i);
+                if (dumpPackage != null && UserHandle.getAppId(validateUid.getUid()) != dumpAppId) {
+                    continue;
+                }
+                if (!printed) {
+                    printed = true;
+                    if (needSep) {
+                        pw.println();
+                    }
+                    pw.print("  "); pw.println(header);
+                }
+                pw.print("    UID "); UserHandle.formatUid(pw, validateUid.getUid());
+                pw.print(": "); pw.println(validateUid);
+                pw.print("      procState="); pw.print(validateUid.getProcState());
+                pw.print(" capability=");
+                ActivityManager.printCapabilitiesFull(pw, validateUid.getCapability());
+                pw.println();
+            }
+            return printed;
         }
     }
 
     void dumpValidateUidsProto(@NonNull ProtoOutputStream proto, @Nullable String dumpPackage,
             int dumpAppId, long fieldId) {
         synchronized (mLock) {
-            mValidateUids.dumpProto(proto, dumpPackage, dumpAppId, fieldId);
+            int size = mValidateUids.size();
+            for (int i = 0; i < size; i++) {
+                final ValidateUidRecord validateUid = mValidateUids.valueAt(i);
+                if (dumpPackage != null && UserHandle.getAppId(validateUid.getUid()) != dumpAppId) {
+                    continue;
+                }
+                validateUid.dumpDebug(proto, fieldId);
+            }
         }
     }
 
@@ -509,9 +539,9 @@ public class UidObserverController {
         public boolean isPending;
         public int uid;
         public int change;
-        public int procState;
-        public int procAdj;
-        public int capability;
+        public @ProcessState int procState;
+        public @OomAdjust int procAdj;
+        public @ProcessCapability int capability;
         public boolean ephemeral;
         public long procStateSeq;
 
@@ -524,6 +554,81 @@ public class UidObserverController {
             changeRecord.capability = capability;
             changeRecord.ephemeral = ephemeral;
             changeRecord.procStateSeq = procStateSeq;
+        }
+    }
+
+    /**
+     * A record used to validate the state of a UID as it is reported to observers.
+     * This is primarily used for debugging and ensuring consistency in UID state reporting.
+     */
+    static final class ValidateUidRecord {
+        /** The unique identifier for the user/process. */
+        private final int mUid;
+        /** The current process state of the UID. */
+        private @ProcessState int mProcState = ActivityManager.PROCESS_STATE_CACHED_EMPTY;
+        /** The current process capability of the UID. */
+        private @ProcessCapability int mCapability = ActivityManager.PROCESS_CAPABILITY_NONE;
+        /** Whether the UID is currently in an idle state. */
+        private boolean mIdle = true;
+
+        private ValidateUidRecord(int uid) {
+            mUid = uid;
+        }
+
+        int getUid() {
+            return mUid;
+        }
+
+        @ProcessState
+        int getProcState() {
+            return mProcState;
+        }
+
+        private void setProcState(@ProcessState int procState) {
+            mProcState = procState;
+        }
+
+        private @ProcessCapability int getCapability() {
+            return mCapability;
+        }
+
+        private void setCapability(@ProcessCapability int capability) {
+            mCapability = capability;
+        }
+
+        @VisibleForTesting
+        boolean isIdle() {
+            return mIdle;
+        }
+
+        private void setIdle(boolean idle) {
+            mIdle = idle;
+        }
+
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder(128);
+            sb.append("ValidateUidRecord{");
+            sb.append(Integer.toHexString(System.identityHashCode(this)));
+            sb.append(' ');
+            UserHandle.formatUid(sb, mUid);
+            sb.append(' ');
+            sb.append(ProcessList.makeProcStateString(mProcState));
+            if (mIdle) {
+                sb.append(" idle");
+            }
+            sb.append("}");
+            sb.append(" caps=");
+            ActivityManager.printCapabilitiesSummary(sb, mCapability);
+            return sb.toString();
+        }
+
+        void dumpDebug(ProtoOutputStream proto, long fieldId) {
+            final long token = proto.start(fieldId);
+            proto.write(UidRecordProto.UID, mUid);
+            proto.write(UidRecordProto.CURRENT, ProcessList.makeProcStateProtoEnum(mProcState));
+            proto.write(UidRecordProto.IDLE, mIdle);
+            proto.end(token);
         }
     }
 

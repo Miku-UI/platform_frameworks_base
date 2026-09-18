@@ -16,9 +16,15 @@
 
 package com.android.server.display;
 
+import static com.android.server.display.BrightnessMappingStrategy.INVALID_LUX;
+
 import android.animation.ValueAnimator;
 import android.util.FloatProperty;
+import android.util.Spline;
 import android.view.Choreographer;
+import android.view.Choreographer.VsyncCallback;
+
+import androidx.annotation.Nullable;
 
 import com.android.internal.display.BrightnessUtils;
 
@@ -34,6 +40,7 @@ class RampAnimator<T> {
 
     private final Clock mClock;
 
+    // current brightness in HLG space
     private float mCurrentValue;
 
     // target in HLG space
@@ -44,6 +51,17 @@ class RampAnimator<T> {
     private float mRate;
     private float mAnimationIncreaseMaxTimeSecs;
     private float mAnimationDecreaseMaxTimeSecs;
+
+    // Given a lux change, defines the max brightness animation duration
+    @Nullable
+    private Spline mLuxDeltaToRampIncreaseMaxMillis;
+    @Nullable
+    private Spline mLuxDeltaToRampDecreaseMaxMillis;
+
+    // Values used to tune the degree of curvature of the brightness transition
+    private float mBrighteningRampGamma = Float.NaN;
+    private float mDarkeningRampGamma = Float.NaN;
+    private float mCurrentRampGamma = Float.NaN;
 
     private boolean mAnimating;
     private float mAnimatedValue; // higher precision copy of mCurrentValue
@@ -65,11 +83,22 @@ class RampAnimator<T> {
      * Sets the maximum time that a brightness animation can take.
      */
     void setAnimationTimeLimits(long animationRampIncreaseMaxTimeMillis,
-            long animationRampDecreaseMaxTimeMillis) {
+            long animationRampDecreaseMaxTimeMillis, Spline luxDeltaToRampIncreaseMaxMillis,
+            Spline luxDeltaToRampDecreaseMaxMillis) {
         mAnimationIncreaseMaxTimeSecs = (animationRampIncreaseMaxTimeMillis > 0)
                 ? (animationRampIncreaseMaxTimeMillis / 1000.0f) : 0.0f;
         mAnimationDecreaseMaxTimeSecs = (animationRampDecreaseMaxTimeMillis > 0)
                 ? (animationRampDecreaseMaxTimeMillis / 1000.0f) : 0.0f;
+        mLuxDeltaToRampIncreaseMaxMillis = luxDeltaToRampIncreaseMaxMillis;
+        mLuxDeltaToRampDecreaseMaxMillis = luxDeltaToRampDecreaseMaxMillis;
+    }
+
+    /**
+     * Sets the gammas for the brightening and darkening ramp animations.
+     */
+    void setRampGammaValues(float brighteningRampGamma, float darkeningRampGamma) {
+        mBrighteningRampGamma = brighteningRampGamma;
+        mDarkeningRampGamma = darkeningRampGamma;
     }
 
     /**
@@ -83,17 +112,41 @@ class RampAnimator<T> {
      * @param ignoreAnimationLimits if mAnimationIncreaseMaxTimeSecs and
      *                              mAnimationDecreaseMaxTimeSecs should be respected when adjusting
      *                              animation speed
+     * @param luxDelta The change in ambient light that triggered this animation.
      * @return True if the target differs from the previous target.
      */
-    boolean setAnimationTarget(float targetLinear, float rate, boolean ignoreAnimationLimits) {
-        float maxIncreaseTimeSecs = ignoreAnimationLimits ? 0 : mAnimationIncreaseMaxTimeSecs;
-        float maxDecreaseTimeSecs = ignoreAnimationLimits ? 0 : mAnimationDecreaseMaxTimeSecs;
+    boolean setAnimationTarget(float targetLinear, float rate, boolean ignoreAnimationLimits,
+            float luxDelta) {
+        float maxIncreaseTimeSecs = 0;
+        float maxDecreaseTimeSecs = 0;
+        if (!ignoreAnimationLimits) {
+            if (mLuxDeltaToRampIncreaseMaxMillis != null && mLuxDeltaToRampDecreaseMaxMillis != null
+                    && luxDelta != INVALID_LUX) {
+                maxIncreaseTimeSecs = mLuxDeltaToRampIncreaseMaxMillis.interpolate(luxDelta)
+                        / 1000.0f;
+                maxDecreaseTimeSecs = mLuxDeltaToRampDecreaseMaxMillis.interpolate(luxDelta)
+                        / 1000.0f;
+            } else {
+                maxIncreaseTimeSecs = mAnimationIncreaseMaxTimeSecs;
+                maxDecreaseTimeSecs = mAnimationDecreaseMaxTimeSecs;
+            }
+        }
         return setAnimationTarget(targetLinear, rate, maxIncreaseTimeSecs, maxDecreaseTimeSecs);
     }
+
     private boolean setAnimationTarget(float targetLinear, float rate,
             float maxIncreaseTimeSecs, float maxDecreaseTimeSecs) {
+        mCurrentRampGamma = targetLinear > BrightnessUtils.convertGammaToLinear(mCurrentValue)
+                ? mBrighteningRampGamma : mDarkeningRampGamma;
+        final float target;
         // Convert the target from the linear into the HLG space.
-        final float target = BrightnessUtils.convertLinearToGamma(targetLinear);
+        if (!Float.isNaN(mCurrentRampGamma)) {
+            target = BrightnessUtils.convertLinearToGamma(
+                    (float) Math.pow(targetLinear, 1.0f / mCurrentRampGamma));
+        } else {
+            mCurrentRampGamma = 1.0f;
+            target = BrightnessUtils.convertLinearToGamma(targetLinear);
+        }
 
         // Immediately jump to the target the first time.
         if (mFirstTime || rate <= 0) {
@@ -159,11 +212,14 @@ class RampAnimator<T> {
      * into linear space.
      */
     private void setPropertyValue(float val) {
+        float newValue = BrightnessUtils.convertGammaToLinear(val);
+        if (!Float.isNaN(mCurrentRampGamma)) {
+            newValue = (float) Math.pow(newValue, mCurrentRampGamma);
+        }
+
         // To avoid linearVal inconsistency when converting to HLG and back to linear space
         // used original target linear value for final animation step
-        float linearVal =
-                val == mTargetHlgValue ? mTargetLinearValue : BrightnessUtils.convertGammaToLinear(
-                        val);
+        float linearVal = val == mTargetHlgValue ? mTargetLinearValue : newValue;
         mProperty.setValue(mObject, linearVal);
     }
 
@@ -227,11 +283,22 @@ class RampAnimator<T> {
          * Sets the maximum time that a brightness animation can take.
          */
         public void setAnimationTimeLimits(long animationRampIncreaseMaxTimeMillis,
-                long animationRampDecreaseMaxTimeMillis) {
+                long animationRampDecreaseMaxTimeMillis, Spline luxDeltaToRampIncreaseMaxMillis,
+                Spline luxDeltaToRampDecreaseMaxMillis) {
             mFirst.setAnimationTimeLimits(animationRampIncreaseMaxTimeMillis,
-                    animationRampDecreaseMaxTimeMillis);
+                    animationRampDecreaseMaxTimeMillis, luxDeltaToRampIncreaseMaxMillis,
+                    luxDeltaToRampDecreaseMaxMillis);
             mSecond.setAnimationTimeLimits(animationRampIncreaseMaxTimeMillis,
-                    animationRampDecreaseMaxTimeMillis);
+                    animationRampDecreaseMaxTimeMillis, luxDeltaToRampIncreaseMaxMillis,
+                    luxDeltaToRampDecreaseMaxMillis);
+        }
+
+        /**
+         * Sets the gammas for the brightening and darkening ramp animations.
+         */
+        public void setRampGammaValues(float brighteningRampGamma, float darkeningRampGamma) {
+            mFirst.setRampGammaValues(brighteningRampGamma, darkeningRampGamma);
+            mSecond.setRampGammaValues(brighteningRampGamma, darkeningRampGamma);
         }
 
         /**
@@ -246,14 +313,15 @@ class RampAnimator<T> {
          * @param ignoreAnimationLimits if mAnimationIncreaseMaxTimeSecs and
          *                              mAnimationDecreaseMaxTimeSecs should be respected
          *                              when adjusting animation speed
+         * @param luxDelta The change in ambient light that triggered this animation.
          * @return True if either target differs from the previous target.
          */
         public boolean animateTo(float linearFirstTarget, float linearSecondTarget, float rate,
-                boolean ignoreAnimationLimits) {
+                boolean ignoreAnimationLimits, float luxDelta) {
             boolean animationTargetChanged = mFirst.setAnimationTarget(linearFirstTarget, rate,
-                    ignoreAnimationLimits);
+                    ignoreAnimationLimits, luxDelta);
             animationTargetChanged |= mSecond.setAnimationTarget(linearSecondTarget, rate,
-                    ignoreAnimationLimits);
+                    ignoreAnimationLimits, luxDelta);
             boolean shouldBeAnimating = isAnimating();
 
             if (shouldBeAnimating != mAwaitingCallback) {
@@ -261,8 +329,7 @@ class RampAnimator<T> {
                     mAwaitingCallback = true;
                     postAnimationCallback();
                 } else if (mAwaitingCallback) {
-                    mChoreographer.removeCallbacks(Choreographer.CALLBACK_ANIMATION,
-                            mAnimationCallback, null);
+                    mChoreographer.removeVsyncCallback(mAnimationCallback);
                     mAwaitingCallback = false;
                 }
             }
@@ -284,13 +351,13 @@ class RampAnimator<T> {
         }
 
         private void postAnimationCallback() {
-            mChoreographer.postCallback(Choreographer.CALLBACK_ANIMATION, mAnimationCallback, null);
+            mChoreographer.postVsyncCallback(mAnimationCallback);
         }
 
-        private final Runnable mAnimationCallback = new Runnable() {
+        private final VsyncCallback mAnimationCallback = new VsyncCallback() {
             @Override // Choreographer callback
-            public void run() {
-                long frameTimeNanos = mChoreographer.getFrameTimeNanos();
+            public void onVsync(Choreographer.FrameData frameData) {
+                long frameTimeNanos = frameData.getFrameTimeNanos();
                 mFirst.performNextAnimationStep(frameTimeNanos);
                 mSecond.performNextAnimationStep(frameTimeNanos);
                 if (isAnimating()) {

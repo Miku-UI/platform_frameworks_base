@@ -21,12 +21,14 @@ import android.media.projection.StopReason
 import android.os.UserHandle
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
+import android.view.Display
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
+import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.kosmos.testDispatcher
@@ -37,19 +39,29 @@ import com.android.systemui.plugins.ActivityStarter.OnDismissAction
 import com.android.systemui.plugins.activityStarter
 import com.android.systemui.qs.pipeline.domain.interactor.PanelInteractor
 import com.android.systemui.qs.tiles.base.domain.model.QSTileInputTestKtx
-import com.android.systemui.res.R
+import com.android.systemui.qs.tiles.impl.screenrecord.domain.model.ScreenRecordTileModel
+import com.android.systemui.screencapture.data.repository.fakeScreenCaptureDeviceStateRepository
 import com.android.systemui.screencapture.domain.interactor.screenCaptureUiInteractor
+import com.android.systemui.screencapture.record.domain.interactor.screenCaptureRecordFeaturesInteractor
 import com.android.systemui.screenrecord.ScreenRecordUxController
+import com.android.systemui.screenrecord.ScreenRecordingAudioSource
 import com.android.systemui.screenrecord.data.model.ScreenRecordModel
 import com.android.systemui.screenrecord.data.repository.ScreenRecordRepositoryImpl
+import com.android.systemui.screenrecord.data.repository.screenRecordingServiceRepository
+import com.android.systemui.screenrecord.domain.interactor.screenRecordingServiceInteractor
+import com.android.systemui.screenrecord.shared.model.ScreenRecordingParameters
+import com.android.systemui.screenrecord.shared.model.ScreenRecordingStatus
 import com.android.systemui.statusbar.phone.KeyguardDismissUtil
 import com.android.systemui.testKosmos
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
@@ -88,13 +100,21 @@ class ScreenRecordTileUserActionInteractorTest : SysuiTestCase() {
             panelInteractor,
             kosmos.screenCaptureUiInteractor,
             mock<MediaProjectionMetricsLogger>(),
+            kosmos.screenRecordingServiceInteractor,
+            kosmos.screenCaptureRecordFeaturesInteractor,
         )
+    }
+
+    @Before
+    fun setUp() {
+        // Default to large screen.
+        kosmos.fakeScreenCaptureDeviceStateRepository.setLargeScreen(true)
     }
 
     @Test
     @DisableFlags(Flags.FLAG_LARGE_SCREEN_SCREENCAPTURE, Flags.FLAG_NEW_SCREEN_RECORD_TOOLBAR)
     fun handleClick_whenStarting_cancelCountdown() = runTest {
-        val startingModel = ScreenRecordModel.Starting(0)
+        val startingModel = ScreenRecordTileModel(ScreenRecordModel.Starting(0))
 
         underTest.handleInput(QSTileInputTestKtx.click(startingModel))
 
@@ -105,19 +125,29 @@ class ScreenRecordTileUserActionInteractorTest : SysuiTestCase() {
     @EnableFlags(Flags.FLAG_LARGE_SCREEN_SCREENCAPTURE, Flags.FLAG_LARGE_SCREEN_RECORDING)
     @DisableFlags(Flags.FLAG_NEW_SCREEN_RECORD_TOOLBAR)
     fun handleClick_withLargeScreenCaptureFlagEnabled_doesNotOpenDialog() = runTest {
-        val recordingModel = ScreenRecordModel.DoingNothing
-        overrideResource(R.bool.config_enableLargeScreenScreencapture, true)
+        val recordingModel =
+            ScreenRecordTileModel(
+                ScreenRecordModel.DoingNothing,
+                isLargeScreenRecordingEnabled = true,
+            )
 
         underTest.handleInput(QSTileInputTestKtx.click(recordingModel))
         verify(screenRecordUxController, never()).createScreenRecordDialog(any())
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_NEW_SCREEN_RECORD_TOOLBAR)
-    @DisableFlags(Flags.FLAG_LARGE_SCREEN_SCREENCAPTURE)
+    @EnableFlags(
+        Flags.FLAG_NEW_SCREEN_RECORD_TOOLBAR,
+        Flags.FLAG_LARGE_SCREEN_SCREENCAPTURE,
+        Flags.FLAG_LARGE_SCREEN_RECORDING,
+    )
     fun handleClick_withNewScreenRecordFlagEnabled_doesNotOpenDialog() = runTest {
-        val recordingModel = ScreenRecordModel.DoingNothing
-        overrideResource(R.bool.config_enableLargeScreenScreencapture, true)
+        kosmos.fakeScreenCaptureDeviceStateRepository.setLargeScreen(false)
+        val recordingModel =
+            ScreenRecordTileModel(
+                ScreenRecordModel.DoingNothing,
+                isLargeScreenRecordingEnabled = true,
+            )
 
         underTest.handleInput(QSTileInputTestKtx.click(recordingModel))
         verify(screenRecordUxController, never()).createScreenRecordDialog(any())
@@ -126,7 +156,7 @@ class ScreenRecordTileUserActionInteractorTest : SysuiTestCase() {
     @Test
     @DisableFlags(Flags.FLAG_LARGE_SCREEN_SCREENCAPTURE, Flags.FLAG_NEW_SCREEN_RECORD_TOOLBAR)
     fun handleClick_newScreenRecordingFlagsDisabled_opensRecordingDialog() = runTest {
-        val recordingModel = ScreenRecordModel.DoingNothing
+        val recordingModel = ScreenRecordTileModel(ScreenRecordModel.DoingNothing)
 
         underTest.handleInput(QSTileInputTestKtx.click(recordingModel))
         verify(screenRecordUxController).createScreenRecordDialog(any())
@@ -134,8 +164,8 @@ class ScreenRecordTileUserActionInteractorTest : SysuiTestCase() {
 
     @Test
     @DisableFlags(Flags.FLAG_LARGE_SCREEN_SCREENCAPTURE, Flags.FLAG_NEW_SCREEN_RECORD_TOOLBAR)
-    fun handleClick_whenRecording_stopRecording() = runTest {
-        val recordingModel = ScreenRecordModel.Recording
+    fun handleClick_whenRecording_stopRecordingLegacy() = runTest {
+        val recordingModel = ScreenRecordTileModel(ScreenRecordModel.Recording)
 
         underTest.handleInput(QSTileInputTestKtx.click(recordingModel))
 
@@ -143,9 +173,35 @@ class ScreenRecordTileUserActionInteractorTest : SysuiTestCase() {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_LARGE_SCREEN_SCREENCAPTURE, Flags.FLAG_NEW_SCREEN_RECORD_TOOLBAR)
+    fun handleClick_whenRecording_stopRecording() = runTest {
+        kosmos.screenRecordingServiceRepository.startRecording(
+            ScreenRecordingParameters(
+                captureTarget = null,
+                audioSource = ScreenRecordingAudioSource.NONE,
+                displayId = Display.DEFAULT_DISPLAY,
+                shouldShowTaps = false,
+            )
+        )
+        val recordingStatus by collectLastValue(kosmos.screenRecordingServiceRepository.status)
+
+        underTest.handleInput(
+            QSTileInputTestKtx.click(
+                ScreenRecordTileModel(
+                    ScreenRecordModel.Recording,
+                    isLargeScreenRecordingEnabled = true,
+                )
+            )
+        )
+
+        assertThat(recordingStatus)
+            .isEqualTo(ScreenRecordingStatus.Stopped(StopReason.STOP_QS_TILE))
+    }
+
+    @Test
     @DisableFlags(Flags.FLAG_LARGE_SCREEN_SCREENCAPTURE, Flags.FLAG_NEW_SCREEN_RECORD_TOOLBAR)
     fun handleClick_whenDoingNothing_createDialogDismissPanelShowDialog() = runTest {
-        val recordingModel = ScreenRecordModel.DoingNothing
+        val recordingModel = ScreenRecordTileModel(ScreenRecordModel.DoingNothing)
 
         underTest.handleInput(QSTileInputTestKtx.click(recordingModel))
         val onStartRecordingClickedCaptor = argumentCaptor<Runnable>()
@@ -168,7 +224,11 @@ class ScreenRecordTileUserActionInteractorTest : SysuiTestCase() {
      * When the input view is not null and keyguard is not showing, dialog should animate and show
      */
     @Test
-    @DisableFlags(Flags.FLAG_LARGE_SCREEN_SCREENCAPTURE, Flags.FLAG_NEW_SCREEN_RECORD_TOOLBAR)
+    @DisableFlags(
+        Flags.FLAG_LARGE_SCREEN_SCREENCAPTURE,
+        Flags.FLAG_NEW_SCREEN_RECORD_TOOLBAR,
+        Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION,
+    )
     fun handleClickFromView_whenDoingNothing_whenKeyguardNotShowing_showDialogFromView() = runTest {
         val controller = mock<DialogTransitionAnimator.Controller>()
         val expandable =
@@ -176,7 +236,7 @@ class ScreenRecordTileUserActionInteractorTest : SysuiTestCase() {
 
         kosmos.fakeKeyguardRepository.setKeyguardShowing(false)
 
-        val recordingModel = ScreenRecordModel.DoingNothing
+        val recordingModel = ScreenRecordTileModel(ScreenRecordModel.DoingNothing)
 
         underTest.handleInput(
             QSTileInputTestKtx.click(recordingModel, UserHandle.CURRENT, expandable)
@@ -189,4 +249,33 @@ class ScreenRecordTileUserActionInteractorTest : SysuiTestCase() {
         onDismissActionCaptor.lastValue.onDismiss()
         verify(dialogTransitionAnimator).show(eq(dialog), eq(controller), eq(true))
     }
+
+    /**
+     * When the input view is not null and keyguard is not showing, dialog should animate and show
+     */
+    @Test
+    @DisableFlags(Flags.FLAG_LARGE_SCREEN_SCREENCAPTURE, Flags.FLAG_NEW_SCREEN_RECORD_TOOLBAR)
+    @EnableFlags(Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
+    fun handleClickFromView_whenDoingNothing_whenKeyguardNotShowing_showDialogFromView_withDynamicTargetResolution() =
+        runTest {
+            val controller = mock<DialogTransitionAnimator.Controller>()
+            val expandable =
+                mock<Expandable> { on { dialogTransitionController(any()) } doReturn controller }
+
+            kosmos.fakeKeyguardRepository.setKeyguardShowing(false)
+
+            val recordingModel = ScreenRecordTileModel(ScreenRecordModel.DoingNothing)
+
+            underTest.handleInput(
+                QSTileInputTestKtx.click(recordingModel, UserHandle.CURRENT, expandable)
+            )
+
+            verify(screenRecordUxController).createScreenRecordDialog(any())
+
+            val onDismissActionCaptor = argumentCaptor<OnDismissAction>()
+            verify(keyguardDismissUtil)
+                .executeWhenUnlocked(onDismissActionCaptor.capture(), eq(false), eq(true))
+            onDismissActionCaptor.lastValue.onDismiss()
+            verify(dialogTransitionAnimator).show(eq(dialog), anyOrNull(), anyOrNull(), eq(true))
+        }
 }

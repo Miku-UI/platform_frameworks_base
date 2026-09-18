@@ -26,6 +26,13 @@ shopt -s nullglob # if a glob matches no file, expands to an empty string.
 cd "${0%/*}"
 my_command="${0##*/}"
 
+# Show a command and then execute it.
+run() {
+    echo "Running: ${@}"
+    "${@}"
+}
+
+
 # Find the enablement files. This may be an empty list if there's no match.
 default_enablement_policy=(../texts/enablement-policy-*.txt)
 
@@ -57,6 +64,10 @@ EOF
     return
 }
 
+disable_tf_rolling_log() {
+    run export ROLLING_TF_SUBPROCESS_OUTPUT=0
+}
+
 smoke=0
 include_re=""
 exclude_re=""
@@ -67,8 +78,10 @@ exclude_large_tests=0
 atest_opts=""
 list_options=""
 with_tools_tests=1
+no_experimental_api=0
+target_args=()
 
-while getopts "sx:f:dtbLa:rDRh" opt; do
+while getopts "sx:f:dltbLa:rDRhXcTtwPF:Im:E" opt; do
 case "$opt" in
 # OPTIONS-START
     s) # Remove slow tests
@@ -84,16 +97,26 @@ case "$opt" in
     d) # Dry run
         dry_run="echo"
         ;;
-    t) # Redirect log to terminal
-        export RAVENWOOD_LOG_OUT=-
+    l) # Redirect log to terminal (live logcat)
+        run export RAVENWOOD_LOG_OUT=-
+        disable_tf_rolling_log
         ;;
-    a) # atest options (e.g. "-t")
-        atest_opts="$OPTARG"
+    T) # Disable live logcat
+        run unset RAVENWOOD_LOG_OUT
         ;;
-    L) # exclude large tests
+    a) # Set atest options (e.g. "-t")
+        atest_opts="$atest_opts $OPTARG"
+        ;;
+    t) # Run only, no building (i.e. "atest -t"). Non-ravenwood host tests may not work with this.
+        atest_opts="$atest_opts -t"
+        ;;
+    w) # Enable the debugger (i.e. "atest -w")
+        atest_opts="$atest_opts -w"
+        ;;
+    L) # Exclude large tests (@LargeTest and :large tests in the policy files)
         exclude_large_tests=1
         ;;
-    r) # only run tests under frameworks/base/ravenwood/
+    r) # Only run tests under frameworks/base/ravenwood/
         list_options="$list_options -r"
         ;;
     D) # Only run device tests under frameworks/base/ravenwood/
@@ -101,7 +124,43 @@ case "$opt" in
         with_tools_tests=0
         ;;
     R) # Run disabled tests too
-        export RAVENWOOD_RUN_DISABLED_TESTS=1
+        run export RAVENWOOD_RUN_DISABLED_TESTS=1
+
+        # When we're running all tests, we usually want to see skipped tests
+        # in the result too, so clear this.
+        run export RAVENWOOD_HIDE_DISABLED_TESTS=0
+        ;;
+    X) # Run only disabled tests
+        run export RAVENWOOD_RUN_DISABLED_TESTS=2
+        ;;
+    c) # Clean output -- don't show disabled tests in atest output
+        run export RAVENWOOD_HIDE_DISABLED_TESTS=1
+        ;;
+    P) # Dump tests only
+        run export RAVENWOOD_DUMP_TESTS_ONLY=1
+        ;;
+    F) # Set enable filter regex
+        run export RAVENWOOD_FILTER_REGEX="$OPTARG"
+        ;;
+    I) # Inpatient mode -- shorten "slow test" timeout (-II to shorten more)
+        if [[ "$RAVENWOOD_SLOW_TIMEOUT_SECONDS" == "" ]] ; then
+            # $RAVENWOOD_SLOW_TIMEOUT_SECONDS isn't set
+            run export RAVENWOOD_SLOW_TIMEOUT_SECONDS=4
+            run export RAVENWOOD_DIE_TIMEOUT_SECONDS=8
+        else
+            # $RAVENWOOD_SLOW_TIMEOUT_SECONDS is set, so assume it's -II.
+            run export RAVENWOOD_SLOW_TIMEOUT_SECONDS=2
+            run export RAVENWOOD_DIE_TIMEOUT_SECONDS=3
+        fi
+        ;;
+    m) # Specify target test mode
+        # It's the same thing as just putting target modules at the end
+        # (without -m), but it'll allow adding flags after test module
+        # names, which is sometimes handy.
+        target_args+=($OPTARG)
+        ;;
+    E) # Do not enable experimental API
+        no_experimental_api=1
         ;;
     h) # Show help
         show_help
@@ -115,11 +174,28 @@ esac
 done
 shift $(($OPTIND - 1))
 
+# Test start time. In the golden file test, we inject it via $RRT_START_TIME.
+start_time=${RRT_START_TIME:-$(date '+%Y%m%d-%H%M%S')}
+
+# The $target array contains all the tests we're actually going to execute.
 # If the rest of the arguments are available, just run these tests.
-targets=("$@")
+targets=("$@" "${target_args[@]}")
+
+# Collect all executable tests, which we'll set to $targets later if it's empty.
+all_tests=()
+
+# Host tests under f/b/r.
+host_tests=(
+    hoststubgentest
+    tiny-framework-dump-test
+    hoststubgen-invoke-test
+    ravenwood-stats-checker
+    ravenhelpertest
+    ravenwood-scripts-sh-golden-test
+)
 
 if (( $with_tools_tests )) ; then
-    all_tests=(hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test)
+    all_tests+=("${host_tests[@]}")
 fi
 
 # Allow replacing 'list-ravenwood-tests.sh' with  $LIST_TEST_COMMAND.
@@ -130,7 +206,15 @@ all_tests+=( "${all_raven_tests[@]}" )
 # ROLLING_TF_SUBPROCESS_OUTPUT is often quite behind for large tests.
 # let's disable it by default.
 : ${ROLLING_TF_SUBPROCESS_OUTPUT:=0}
-export ROLLING_TF_SUBPROCESS_OUTPUT
+run export ROLLING_TF_SUBPROCESS_OUTPUT
+
+# The tests that'd break if executed with RAVENWOOD_HIDE_DISABLED_TESTS=1
+run export RAVENWOOD_HIDE_DISABLED_TESTS_RavenwoodCoreTest=0
+run export RAVENWOOD_HIDE_DISABLED_TESTS_RavenwoodBivalentTest=0
+
+# Set bugreport dir
+run export RAVENWOOD_BUGREPORT_DIR=/tmp/ravenwood-bugreports/$start_time
+mkdir -p $RAVENWOOD_BUGREPORT_DIR
 
 # Cat all the files in the argument with all the "#" comments removed.
 remove_comments() {
@@ -213,20 +297,28 @@ fi
 echo "RAVENWOOD_TEST_ENABLEMENT_POLICY=$RAVENWOOD_TEST_ENABLEMENT_POLICY"
 
 # Set experimental API flag
-for test in $(remove_comments ../texts/experimental-api-allowed-tests.txt); do
-    echo "Test \"$test\" can use experimental APIs".
-    export RAVENWOOD_ENABLE_EXP_API_${test}=1
-done
+if (( $no_experimental_api )) ; then
+    echo "Not enabling experimental APIs".
+else
+    for test in $(remove_comments ../texts/experimental-api-allowed-tests.txt); do
+        echo "Test \"$test\" can use experimental APIs".
+        export RAVENWOOD_ENABLE_EXP_API_${test}=1
+    done
+fi
+
+if (( $exclude_large_tests )) ; then
+    run export RAVENWOOD_SKIP_LARGE_TESTS=1
+fi
+
 
 echo "RAVENWOOD_RUN_DISABLED_TESTS=$RAVENWOOD_RUN_DISABLED_TESTS"
-echo "RAVENWOOD_FORCE_FILTER_REGEX=$RAVENWOOD_FORCE_FILTER_REGEX"
+echo "RAVENWOOD_FILTER_REGEX=$RAVENWOOD_FILTER_REGEX"
+echo "RAVENWOOD_HIDE_DISABLED_TESTS=$RAVENWOOD_HIDE_DISABLED_TESTS"
+echo "RAVENWOOD_SKIP_LARGE_TESTS=$RAVENWOOD_SKIP_LARGE_TESTS"
+echo "RAVENWOOD_DUMP_TESTS_ONLY=$RAVENWOOD_DUMP_TESTS_ONLY"
+echo "RAVENWOOD_BUGREPORT_DIR=$RAVENWOOD_BUGREPORT_DIR"
 
 # =========================================================
-
-run() {
-    echo "Running: ${@}"
-    "${@}"
-}
 
 extra_args=()
 
@@ -260,4 +352,13 @@ for module in "${all_raven_tests[@]}" ; do
     done
 done
 
+set +e # Do not exit even if the atest command fails
 run $dry_run ${ATEST:-atest} --class-level-report $atest_opts "${targets[@]}" "${extra_args[@]}"
+rc=$?
+
+if [[ "$(ls -A $RAVENWOOD_BUGREPORT_DIR >&1 )" != "" ]] ; then
+    # If $RAVENWOOD_BUGREPORT_DIR contains any files, these are bugreports.
+    # Show all of them in full paths.
+    echo "Generated bugreports:"
+    find $RAVENWOOD_BUGREPORT_DIR -type f | sort
+fi

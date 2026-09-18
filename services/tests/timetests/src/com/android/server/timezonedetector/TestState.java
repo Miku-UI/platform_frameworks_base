@@ -27,8 +27,8 @@ import java.util.Arrays;
  * State can optionally be initialized using {@link #init}, which sets the value to an initial
  * value, but is not treated as a change. Calls to {@link #set} are tracked and can be checked for
  * during tests. The change-tracking can be cleared by calling {@link #commitLatest}, which puts the
- * object into an unchanged state and sets the initial value to the latest value passed to
- * {@link #set}.
+ * object into an unchanged state and sets the initial value to the latest value passed to {@link
+ * #set}.
  */
 public class TestState<T> {
     private T mInitialValue;

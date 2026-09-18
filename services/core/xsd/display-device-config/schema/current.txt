@@ -1,27 +1,35 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package com.android.server.display.config {
 
   public class AutoBrightness {
     ctor public AutoBrightness();
     method public final java.math.BigInteger getBrighteningLightDebounceIdleMillis();
     method public final java.math.BigInteger getBrighteningLightDebounceMillis();
+    method public final java.math.BigDecimal getBrighteningRampGamma();
     method public final java.math.BigInteger getDarkeningLightDebounceIdleMillis();
     method public final java.math.BigInteger getDarkeningLightDebounceMillis();
+    method public final java.math.BigDecimal getDarkeningRampGamma();
     method public boolean getEnabled();
     method public final java.math.BigInteger getIdleStylusTimeoutMillis();
+    method public final com.android.server.display.config.LuxDeltaToRampLimits getLuxDeltaToRampLimits();
     method public final java.util.List<com.android.server.display.config.LuxToBrightnessMapping> getLuxToBrightnessMapping();
     method public final void setBrighteningLightDebounceIdleMillis(java.math.BigInteger);
     method public final void setBrighteningLightDebounceMillis(java.math.BigInteger);
+    method public final void setBrighteningRampGamma(java.math.BigDecimal);
     method public final void setDarkeningLightDebounceIdleMillis(java.math.BigInteger);
     method public final void setDarkeningLightDebounceMillis(java.math.BigInteger);
+    method public final void setDarkeningRampGamma(java.math.BigDecimal);
     method public void setEnabled(boolean);
     method public final void setIdleStylusTimeoutMillis(java.math.BigInteger);
+    method public final void setLuxDeltaToRampLimits(com.android.server.display.config.LuxDeltaToRampLimits);
   }
 
   public enum AutoBrightnessModeName {
     method public String getRawName();
     enum_constant public static final com.android.server.display.config.AutoBrightnessModeName _default;
     enum_constant public static final com.android.server.display.config.AutoBrightnessModeName bedtime_wear;
+    enum_constant public static final com.android.server.display.config.AutoBrightnessModeName charging;
     enum_constant public static final com.android.server.display.config.AutoBrightnessModeName doze;
     enum_constant public static final com.android.server.display.config.AutoBrightnessModeName idle;
   }
@@ -126,12 +134,14 @@ package com.android.server.display.config {
     method public final java.math.BigInteger getAmbientLightHorizonLong();
     method public final java.math.BigInteger getAmbientLightHorizonShort();
     method public com.android.server.display.config.AutoBrightness getAutoBrightness();
+    method public final com.android.server.display.config.SensorDetails getColorSensor();
     method public final java.math.BigDecimal getDefaultDozeBrightness();
     method @Nullable public final com.android.server.display.config.DensityMapping getDensityMapping();
     method @NonNull public final com.android.server.display.config.Thresholds getDisplayBrightnessChangeThresholds();
     method public final com.android.server.display.config.Thresholds getDisplayBrightnessChangeThresholdsIdle();
     method public final com.android.server.display.config.FloatArray getDozeBrightnessSensorValueToBrightness();
     method public final com.android.server.display.config.EvenDimmerMode getEvenDimmer();
+    method @Nullable public final com.android.server.display.config.NonNegativeFloatToFloatMap getFrameRateVelocityMapping();
     method @Nullable public final com.android.server.display.config.HdrBrightnessConfig getHdrBrightnessConfig();
     method public com.android.server.display.config.HighBrightnessMode getHighBrightnessMode();
     method public final com.android.server.display.config.IdleScreenRefreshRateTimeout getIdleScreenRefreshRateTimeout();
@@ -166,12 +176,14 @@ package com.android.server.display.config {
     method public final void setAmbientLightHorizonLong(java.math.BigInteger);
     method public final void setAmbientLightHorizonShort(java.math.BigInteger);
     method public void setAutoBrightness(com.android.server.display.config.AutoBrightness);
+    method public final void setColorSensor(com.android.server.display.config.SensorDetails);
     method public final void setDefaultDozeBrightness(java.math.BigDecimal);
     method public final void setDensityMapping(@Nullable com.android.server.display.config.DensityMapping);
     method public final void setDisplayBrightnessChangeThresholds(@NonNull com.android.server.display.config.Thresholds);
     method public final void setDisplayBrightnessChangeThresholdsIdle(com.android.server.display.config.Thresholds);
     method public final void setDozeBrightnessSensorValueToBrightness(com.android.server.display.config.FloatArray);
     method public final void setEvenDimmer(com.android.server.display.config.EvenDimmerMode);
+    method public final void setFrameRateVelocityMapping(@Nullable com.android.server.display.config.NonNegativeFloatToFloatMap);
     method public final void setHdrBrightnessConfig(@Nullable com.android.server.display.config.HdrBrightnessConfig);
     method public void setHighBrightnessMode(com.android.server.display.config.HighBrightnessMode);
     method public final void setIdleScreenRefreshRateTimeout(com.android.server.display.config.IdleScreenRefreshRateTimeout);
@@ -204,7 +216,7 @@ package com.android.server.display.config {
 
   public class DisplayQuirks {
     ctor public DisplayQuirks();
-    method public java.util.List<java.lang.String> getQuirk();
+    method public java.util.List<String> getQuirk();
   }
 
   public class EvenDimmerMode {
@@ -300,6 +312,21 @@ package com.android.server.display.config {
     method public java.util.List<java.math.BigInteger> getItem();
   }
 
+  public class LuxDeltaRampLimitPoint {
+    ctor public LuxDeltaRampLimitPoint();
+    method @NonNull public final java.math.BigInteger getLuxDelta();
+    method @NonNull public final java.math.BigInteger getRampDecreaseMaxMillis();
+    method @NonNull public final java.math.BigInteger getRampIncreaseMaxMillis();
+    method public final void setLuxDelta(@NonNull java.math.BigInteger);
+    method public final void setRampDecreaseMaxMillis(@NonNull java.math.BigInteger);
+    method public final void setRampIncreaseMaxMillis(@NonNull java.math.BigInteger);
+  }
+
+  public class LuxDeltaToRampLimits {
+    ctor public LuxDeltaToRampLimits();
+    method @NonNull public final java.util.List<com.android.server.display.config.LuxDeltaRampLimitPoint> getPoint();
+  }
+
   public class LuxThrottling {
     ctor public LuxThrottling();
     method @NonNull public final java.util.List<com.android.server.display.config.BrightnessLimitMap> getBrightnessLimitMap();
@@ -383,16 +410,20 @@ package com.android.server.display.config {
     method public final java.math.BigInteger getDefaultRefreshRate();
     method public final java.math.BigInteger getDefaultRefreshRateInHbmHdr();
     method public final java.math.BigInteger getDefaultRefreshRateInHbmSunlight();
+    method public final com.android.server.display.config.WorkDurations getDefaultWorkDurations();
     method public final com.android.server.display.config.BlockingZoneConfig getHigherBlockingZoneConfigs();
     method @Nullable public final com.android.server.display.config.NonNegativeFloatToFloatMap getLowPowerSupportedModes();
+    method @Nullable public final com.android.server.display.config.WorkDurations getLowPowerWorkDurations();
     method public final com.android.server.display.config.BlockingZoneConfig getLowerBlockingZoneConfigs();
     method public final com.android.server.display.config.RefreshRateZoneProfiles getRefreshRateZoneProfiles();
     method public final void setDefaultPeakRefreshRate(java.math.BigInteger);
     method public final void setDefaultRefreshRate(java.math.BigInteger);
     method public final void setDefaultRefreshRateInHbmHdr(java.math.BigInteger);
     method public final void setDefaultRefreshRateInHbmSunlight(java.math.BigInteger);
+    method public final void setDefaultWorkDurations(com.android.server.display.config.WorkDurations);
     method public final void setHigherBlockingZoneConfigs(com.android.server.display.config.BlockingZoneConfig);
     method public final void setLowPowerSupportedModes(@Nullable com.android.server.display.config.NonNegativeFloatToFloatMap);
+    method public final void setLowPowerWorkDurations(@Nullable com.android.server.display.config.WorkDurations);
     method public final void setLowerBlockingZoneConfigs(com.android.server.display.config.BlockingZoneConfig);
     method public final void setRefreshRateZoneProfiles(com.android.server.display.config.RefreshRateZoneProfiles);
   }
@@ -475,6 +506,7 @@ package com.android.server.display.config {
     ctor public ThermalThrottling();
     method public final java.util.List<com.android.server.display.config.BrightnessThrottlingMap> getBrightnessThrottlingMap();
     method public final java.util.List<com.android.server.display.config.RefreshRateThrottlingMap> getRefreshRateThrottlingMap();
+    method public final java.util.List<com.android.server.display.config.WorkDurationsThrottlingMap> getWorkDurationsThrottlingMap();
   }
 
   public class ThresholdPoint {
@@ -504,6 +536,31 @@ package com.android.server.display.config {
     method public final java.math.BigInteger getMinorVersion();
     method public final void setMajorVersion(java.math.BigInteger);
     method public final void setMinorVersion(java.math.BigInteger);
+  }
+
+  public class WorkDurations {
+    ctor public WorkDurations();
+    method public java.math.BigInteger getAppWorkDuration();
+    method public java.math.BigInteger getEarlyWorkDuration();
+    method public java.math.BigInteger getLateWorkDuration();
+    method public void setAppWorkDuration(java.math.BigInteger);
+    method public void setEarlyWorkDuration(java.math.BigInteger);
+    method public void setLateWorkDuration(java.math.BigInteger);
+  }
+
+  public class WorkDurationsThrottlingMap {
+    ctor public WorkDurationsThrottlingMap();
+    method public String getId();
+    method public final java.util.List<com.android.server.display.config.WorkDurationsThrottlingPair> getWorkDurationsThrottlingPair();
+    method public void setId(String);
+  }
+
+  public class WorkDurationsThrottlingPair {
+    ctor public WorkDurationsThrottlingPair();
+    method @NonNull public final com.android.server.display.config.ThermalStatus getThermalStatus();
+    method @Nullable public final com.android.server.display.config.WorkDurations getThermalThrottlingWorkDurations();
+    method public final void setThermalStatus(@NonNull com.android.server.display.config.ThermalStatus);
+    method public final void setThermalThrottlingWorkDurations(@Nullable com.android.server.display.config.WorkDurations);
   }
 
   public class XmlParser {

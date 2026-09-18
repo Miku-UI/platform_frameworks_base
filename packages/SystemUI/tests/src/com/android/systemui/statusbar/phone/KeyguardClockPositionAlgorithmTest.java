@@ -32,8 +32,6 @@ import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.doze.util.BurnInHelperKt;
-import com.android.systemui.log.LogBuffer;
-import com.android.systemui.log.core.FakeLogBuffer;
 import com.android.systemui.res.R;
 import com.android.systemui.shade.LargeScreenHeaderHelper;
 
@@ -72,8 +70,7 @@ public class KeyguardClockPositionAlgorithmTest extends SysuiTestCase {
                 .mockStatic(LargeScreenHeaderHelper.class)
                 .startMocking();
 
-        LogBuffer logBuffer = FakeLogBuffer.Factory.Companion.create();
-        mClockPositionAlgorithm = new KeyguardClockPositionAlgorithm(logBuffer);
+        mClockPositionAlgorithm = new KeyguardClockPositionAlgorithm();
         when(mResources.getDimensionPixelSize(anyInt())).thenReturn(0);
         mClockPositionAlgorithm.loadDimens(mContext, mResources);
 

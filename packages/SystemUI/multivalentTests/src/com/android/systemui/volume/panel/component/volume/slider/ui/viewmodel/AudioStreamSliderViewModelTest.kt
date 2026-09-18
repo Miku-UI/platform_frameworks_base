@@ -149,7 +149,6 @@ class AudioStreamSliderViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(com.android.systemui.Flags.FLAG_SHOW_AUDIO_SHARING_SLIDER_IN_VOLUME_PANEL)
     fun slider_media_inAudioSharing() =
         kosmos.runTest {
             val mediaSlider by

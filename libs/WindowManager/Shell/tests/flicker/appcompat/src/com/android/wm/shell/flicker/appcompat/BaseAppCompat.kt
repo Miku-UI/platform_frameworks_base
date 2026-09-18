@@ -18,8 +18,8 @@ package com.android.wm.shell.flicker.appcompat
 
 import android.content.Context
 import android.tools.flicker.FlickerBuilder
-import android.tools.flicker.FlickerTestData
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestData
 import android.tools.traces.component.ComponentNameMatcher
 import com.android.server.wm.flicker.helpers.LetterboxAppHelper
 import com.android.server.wm.flicker.helpers.setRotation

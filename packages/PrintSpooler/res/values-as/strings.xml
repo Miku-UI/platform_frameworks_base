@@ -44,6 +44,7 @@
     <string name="expand_handle" msgid="7282974448109280522">"হেণ্ডেল বিস্তাৰ কৰক"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"হেণ্ডেল সংকুচিত কৰক"</string>
     <string name="print_button" msgid="645164566271246268">"প্ৰিণ্ট কৰক"</string>
+    <string name="setup_button" msgid="323390526074568450">"ছেট আপ কৰক"</string>
     <string name="savetopdf_button" msgid="2976186791686924743">"PDFৰ জৰিয়তে ছেভ কৰক"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"প্ৰিণ্ট বিকল্পসমূহ বিস্তাৰ কৰা হ’ল"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"প্ৰিণ্ট বিকল্পসমূহ সংকুচিত কৰা হ’ল"</string>

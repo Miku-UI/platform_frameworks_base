@@ -16,6 +16,8 @@
 
 package com.android.systemui.statusbar.phone;
 
+import static com.android.systemui.Flags.edtNotAllowedOnStatusBar;
+
 import android.annotation.Nullable;
 import android.content.Context;
 import android.content.res.Configuration;
@@ -30,20 +32,17 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.accessibility.AccessibilityEvent;
+import android.view.flags.Flags;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
-import android.window.DesktopExperienceFlags;
 
 import androidx.annotation.NonNull;
 
 import com.android.internal.policy.SystemBarUtils;
 import com.android.systemui.Gefingerpoken;
 import com.android.systemui.res.R;
-import com.android.systemui.shade.ShadeExpandsOnStatusBarLongPress;
-import com.android.systemui.shade.StatusBarLongPressGestureDetector;
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays;
+import com.android.systemui.statusbar.gesture.StatusBarLongPressGestureDetector;
 import com.android.systemui.statusbar.phone.userswitcher.StatusBarUserSwitcherContainer;
-import com.android.systemui.statusbar.window.StatusBarWindowControllerStore;
 import com.android.systemui.user.ui.binder.StatusBarUserChipViewBinder;
 import com.android.systemui.user.ui.viewmodel.StatusBarUserChipViewModel;
 import com.android.systemui.util.leak.RotationUtils;
@@ -54,8 +53,6 @@ import java.util.function.BooleanSupplier;
 public class PhoneStatusBarView extends FrameLayout {
     private static final String TAG = "PhoneStatusBarView";
 
-    private StatusBarWindowControllerStore mStatusBarWindowControllerStore;
-    private boolean mShouldUpdateStatusBarHeightWhenControllerSet = false;
     private int mRotationOrientation = -1;
     @Nullable
     private View mCutoutSpace;
@@ -88,9 +85,7 @@ public class PhoneStatusBarView extends FrameLayout {
 
     void setLongPressGestureDetector(
             StatusBarLongPressGestureDetector statusBarLongPressGestureDetector) {
-        if (ShadeExpandsOnStatusBarLongPress.isEnabled()) {
-            mStatusBarLongPressGestureDetector = statusBarLongPressGestureDetector;
-        }
+        mStatusBarLongPressGestureDetector = statusBarLongPressGestureDetector;
     }
 
     void setTouchEventHandler(Gefingerpoken handler) {
@@ -135,7 +130,13 @@ public class PhoneStatusBarView extends FrameLayout {
         super.onAttachedToWindow();
         if (updateDisplayParameters()) {
             updateLayoutForCutout();
-            updateWindowHeight();
+        }
+        if (edtNotAllowedOnStatusBar()) {
+            // See b/482405546: the status bar sometimes uses a light theme, e.g. when the user's
+            // wallpaper is light. The expanded dark theme feature inverts colors in light theme
+            // view hierarchies so it may incorrectly invert the status bar in this case. To avoid
+            // this we directly tell expanded dark theme to ignore this view hierarchy.
+            getViewRootImpl().setForceInvertAllowed(false);
         }
     }
 
@@ -158,7 +159,6 @@ public class PhoneStatusBarView extends FrameLayout {
             updateLayoutForCutout();
             requestLayout();
         }
-        updateWindowHeight();
     }
 
     @Override
@@ -252,17 +252,18 @@ public class PhoneStatusBarView extends FrameLayout {
         // the status bar to handle the event. ACTION_MOVE and ACTION_UP events outside the
         // touchable region should still be handled so that an open notification shade can be
         // correctly updated and closed.
-        if (DesktopExperienceFlags.ENABLE_REMOVE_STATUS_BAR_INPUT_LAYER.isTrue()
-                && event.getAction() == MotionEvent.ACTION_DOWN
-                && !mTouchableRegion.contains((int) event.getRawX(), (int) event.getRawY())) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN
+                && !mTouchableRegion.contains((int) event.getX(), (int) event.getY())) {
             return false;
         }
 
-        if (ShadeExpandsOnStatusBarLongPress.isEnabled()
-                && mStatusBarLongPressGestureDetector != null) {
+        if (mStatusBarLongPressGestureDetector != null && !Flags.scrollToTop()) {
             mStatusBarLongPressGestureDetector.handleTouch(event);
         }
         if (mTouchEventHandler == null) {
+            if (Flags.scrollToTop()) {
+                return false;
+            }
             Log.w(
                     TAG,
                     String.format(
@@ -278,7 +279,9 @@ public class PhoneStatusBarView extends FrameLayout {
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent event) {
-        return mTouchEventHandler.onInterceptTouchEvent(event);
+        return mTouchEventHandler != null
+                ? mTouchEventHandler.onInterceptTouchEvent(event)
+                : super.onInterceptTouchEvent(event);
     }
 
     public void updateResources() {
@@ -286,25 +289,6 @@ public class PhoneStatusBarView extends FrameLayout {
                 R.dimen.display_cutout_margin_consumption);
 
         updateStatusBarHeight();
-    }
-
-    /**
-     * Sets the store responsible for managing the status bar window controller.
-     *
-     * <p>This setter is used to facilitate dependency injection for the
-     * {@link PhoneStatusBarViewController}, which receives the store via Dagger. This avoids
-     * using the legacy {@link com.android.systemui.Dependency} pattern directly in the constructor.
-     *
-     * @param statusBarWindowControllerStore The {@link StatusBarWindowControllerStore} instance
-     * to set
-     */
-    public void setStatusBarWindowControllerStore(
-            StatusBarWindowControllerStore statusBarWindowControllerStore) {
-        mStatusBarWindowControllerStore = statusBarWindowControllerStore;
-        if (mShouldUpdateStatusBarHeightWhenControllerSet) {
-            mShouldUpdateStatusBarHeightWhenControllerSet = false;
-            updateWindowHeight();
-        }
     }
 
     private void updateStatusBarHeight() {
@@ -398,19 +382,6 @@ public class PhoneStatusBarView extends FrameLayout {
                 insets.top,
                 insets.right,
                 getPaddingBottom());
-    }
-
-    private void updateWindowHeight() {
-        if (StatusBarConnectedDisplays.isEnabled()) {
-            // Handled directly from StatusBarWindowControllerImpl (for each display)
-            return;
-        }
-        if (mStatusBarWindowControllerStore != null) {
-            mStatusBarWindowControllerStore.getDefaultDisplay().refreshStatusBarHeight();
-        } else {
-            Log.e(TAG, "mStatusBarWindowControllerStore unexpectedly null");
-            mShouldUpdateStatusBarHeightWhenControllerSet = true;
-        }
     }
 
     interface HasCornerCutoutFetcher {

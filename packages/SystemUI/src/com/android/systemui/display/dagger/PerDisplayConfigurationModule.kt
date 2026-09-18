@@ -16,6 +16,7 @@
 
 package com.android.systemui.display.dagger
 
+import android.content.Context
 import android.view.Display
 import android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR
 import android.window.WindowContext
@@ -26,6 +27,7 @@ import com.android.systemui.common.ui.data.repository.ConfigurationRepositoryImp
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractorImpl
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAwareStatusBar
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayId
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
 import com.android.systemui.display.data.repository.DisplayWindowPropertiesRepository
@@ -53,28 +55,29 @@ class PerDisplayConfigurationModule {
 
     @Provides
     @PerDisplaySingleton
-    @DisplayAware
+    @DisplayAwareStatusBar
     fun provideStatusBarWindowContext(
         @DisplayId displayId: Int,
-        displayPropertiesRepository: DisplayWindowPropertiesRepository,
+        @DisplayAwareStatusBar statusBarContext: Context,
     ): WindowContext {
         if (displayId == Display.DEFAULT_DISPLAY) {
             error(
-                """If you're receiving this error it either means something in
-                    | PerDisplayConfigurationModule is wrong, or that you're injecting a
-                    | @DisplayAware window context in a class used by the default display. This is
-                    | not possible as the statusbar window context is used for this binding, but for
-                    | the default display we're not creating a new window context."""
+                """
+                |If you're receiving this error it either means something in
+                | PerDisplayConfigurationModule is wrong, or that you're injecting a
+                | @DisplayAware window context in a class used by the default display. This is
+                | not possible as the statusbar window context is used for this binding, but for
+                | the default display we're not creating a new window context."""
                     .trimMargin()
             )
         }
-        return displayPropertiesRepository.get(displayId, TYPE_STATUS_BAR)?.context
-            as? WindowContext
+        return statusBarContext as? WindowContext
             ?: error(
-                """Unable to cast status bar context to WindowContext. I
-                    |f the statusbar is not using WindowContext, this will not work and you should
-                    | remove PerDisplayConfigurationModule from your dagger graph and any dependency
-                    | on its classes."""
+                """
+                |Unable to cast status bar context to WindowContext. I
+                |f the statusbar is not using WindowContext, this will not work and you should
+                | remove PerDisplayConfigurationModule from your dagger graph and any dependency
+                | on its classes."""
                     .trimMargin()
             )
     }
@@ -83,7 +86,7 @@ class PerDisplayConfigurationModule {
     @PerDisplaySingleton
     @DisplayAware
     fun provideWindowContextDisplayConfigurationController(
-        @DisplayAware statusbarWindowContext: WindowContext,
+        @DisplayAwareStatusBar statusbarWindowContext: WindowContext,
         windowContextConfigurationController: WindowContextConfigurationControllerImpl.Factory,
     ): WindowContextConfigurationController =
         windowContextConfigurationController.create(statusbarWindowContext)
@@ -137,7 +140,7 @@ class PerDisplayConfigurationModule {
     @DisplayAware
     fun provideConfigurationRepository(
         @DisplayAware configurationController: Lazy<ConfigurationController>,
-        @DisplayAware context: Lazy<WindowContext>,
+        @DisplayAwareStatusBar context: Lazy<WindowContext>,
         configurationRepositoryFactory: ConfigurationRepositoryImpl.Factory,
         @DisplayAware displayId: Int,
         globalConfigurationRepository: ConfigurationRepository,

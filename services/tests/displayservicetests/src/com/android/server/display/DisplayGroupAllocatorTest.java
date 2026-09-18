@@ -76,7 +76,7 @@ public class DisplayGroupAllocatorTest {
         mDga.initLater(mTestableContext);
 
         doReturn(false).when(mLogicalDisplayMock).canHostTasksLocked();
-        assertEquals("secondary_mode",
+        assertEquals(DisplayGroupAllocator.GROUP_TYPE_SECONDARY,
                 mDga.decideRequiredGroupTypeLocked(mLogicalDisplayMock, Display.TYPE_EXTERNAL));
 
     }
@@ -90,7 +90,7 @@ public class DisplayGroupAllocatorTest {
 
         doReturn(true).when(mLogicalDisplayMock).canHostTasksLocked();
 
-        assertEquals("",
+        assertEquals(DisplayGroupAllocator.GROUP_TYPE_PRIMARY,
                 mDga.decideRequiredGroupTypeLocked(mLogicalDisplayMock, Display.TYPE_INTERNAL));
 
     }
@@ -104,7 +104,7 @@ public class DisplayGroupAllocatorTest {
         mDga.initLater(mTestableContext);
 
         doReturn(true).when(mLogicalDisplayMock).canHostTasksLocked();
-        assertEquals("",
+        assertEquals(DisplayGroupAllocator.GROUP_TYPE_PRIMARY,
                 mDga.decideRequiredGroupTypeLocked(mLogicalDisplayMock, Display.TYPE_INTERNAL));
 
     }
@@ -118,9 +118,22 @@ public class DisplayGroupAllocatorTest {
         mDga.initLater(mTestableContext);
 
         doReturn("name_from_ddc").when(mLogicalDisplayMock).getLayoutGroupNameLocked();
-        assertEquals("",
+        assertEquals(DisplayGroupAllocator.GROUP_TYPE_PRIMARY,
                 mDga.decideRequiredGroupTypeLocked(mLogicalDisplayMock, Display.TYPE_INTERNAL));
 
+    }
+
+    @Test
+    public void testCalculateGroupId_OverlayDisplay() {
+        assumeTrue(DesktopModeHelper.canEnterDesktopMode(mTestableContext));
+
+        mInjector = createInjector(/* simulateExtendedMode= */ true, /* activated= */ true);
+        mDga = new DisplayGroupAllocator(mTestableContext, mInjector);
+        mDga.initLater(mTestableContext);
+
+        doReturn(true).when(mLogicalDisplayMock).canHostTasksLocked();
+        assertEquals(DisplayGroupAllocator.GROUP_TYPE_PRIMARY,
+                mDga.decideRequiredGroupTypeLocked(mLogicalDisplayMock, Display.TYPE_OVERLAY));
     }
 
 }

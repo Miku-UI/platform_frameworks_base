@@ -46,7 +46,7 @@ import static android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR;
 import static android.view.flags.Flags.FLAG_TOOLKIT_FRAME_RATE_BY_SIZE_READ_ONLY;
 import static android.view.flags.Flags.FLAG_TOOLKIT_SET_FRAME_RATE_READ_ONLY;
 import static android.view.flags.Flags.FLAG_VIEW_VELOCITY_API;
-import static android.view.flags.Flags.toolkitFrameRateBySizeReadOnly;
+import static android.view.flags.Flags.toolkitDisableCategoryOnMrr;
 
 import static com.android.cts.input.inputeventmatchers.InputEventMatchersKt.withKeyCode;
 
@@ -56,19 +56,29 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import android.annotation.NonNull;
+import android.app.ActivityManager;
 import android.app.Instrumentation;
 import android.app.UiModeManager;
+import android.compat.testing.PlatformCompatChangeRule;
 import android.content.Context;
+import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.ForceDarkType;
+import android.graphics.Insets;
 import android.graphics.Rect;
+import android.hardware.display.DisplayManager;
 import android.hardware.display.DisplayManagerGlobal;
 import android.os.Binder;
 import android.os.VibrationAttributes;
@@ -90,6 +100,7 @@ import android.view.WindowInsets.Side;
 import android.view.WindowInsets.Type;
 import android.view.accessibility.AccessibilityManager;
 import android.window.ClientWindowFrames;
+import android.window.OnBackInvokedDispatcher;
 
 import androidx.test.annotation.UiThreadTest;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -102,6 +113,9 @@ import com.android.cts.input.BlockingQueueEventVerifier;
 import com.android.frameworks.coretests.R;
 import com.android.window.flags.Flags;
 
+import libcore.junit.util.compat.CoreCompatChangeRule.DisableCompatChanges;
+import libcore.junit.util.compat.CoreCompatChangeRule.EnableCompatChanges;
+
 import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -109,14 +123,18 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
 import org.junit.runner.RunWith;
 
 import java.lang.reflect.Field;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Tests for {@link ViewRootImpl}
@@ -132,6 +150,11 @@ public class ViewRootImplTest {
 
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
+    @Rule
+    public TestRule compatChangeRule = new PlatformCompatChangeRule();
+
+    private static final long ENFORCE_THREAD_CHECKS_ON_VIEW_ROOT_IMPL_APIS = 464275874L;
 
     private ViewRootImpl mViewRootImpl;
     private View mView;
@@ -173,7 +196,7 @@ public class ViewRootImplTest {
     }
 
     @After
-    public void teardown() {
+    public void teardown() throws Exception {
         ShellIdentityUtils.invokeWithShellPermissions(() -> {
             Settings.Secure.resetToDefaults(sContext.getContentResolver(), TAG);
             Settings.System.resetToDefaults(sContext.getContentResolver(), TAG);
@@ -283,6 +306,7 @@ public class ViewRootImplTest {
         assertEquals(fitMaxInsets, attrs.isFitInsetsIgnoringVisibility());
     }
 
+    @UiThreadTest
     @Test
     public void adjustLayoutParamsForCompatibility_noAdjustAppearance() {
         final InsetsController controller = mViewRootImpl.getInsetsController();
@@ -306,6 +330,7 @@ public class ViewRootImplTest {
         assertEquals(appearance, controller.getSystemBarsAppearance());
     }
 
+    @UiThreadTest
     @Test
     public void adjustLayoutParamsForCompatibility_noAdjustBehavior() {
         final InsetsController controller = mViewRootImpl.getInsetsController();
@@ -739,11 +764,14 @@ public class ViewRootImplTest {
         });
         sInstrumentation.waitForIdleSync();
         mView.getViewTreeObserver().removeOnDrawListener(failIfDrawn);
+        int expected = hasArrSupport()
+                ? FRAME_RATE_CATEGORY_DEFAULT
+                : FRAME_RATE_CATEGORY_HIGH;
 
         sInstrumentation.runOnMainSync(() -> {
             mView.setVisibility(View.VISIBLE);
             mView.invalidate();
-            runAfterDraw(() -> assertEquals(FRAME_RATE_CATEGORY_HIGH,
+            runAfterDraw(() -> assertEquals(expected,
                     mViewRootImpl.getLastPreferredFrameRateCategory()));
         });
         waitForAfterDraw();
@@ -780,9 +808,13 @@ public class ViewRootImplTest {
 
         mViewRootImpl = mView.getViewRootImpl();
         waitForFrameRateCategoryToSettle(mView);
+        int expected = hasArrSupport()
+                ? FRAME_RATE_CATEGORY_DEFAULT
+                : FRAME_RATE_CATEGORY_LOW;
+
         sInstrumentation.runOnMainSync(() -> {
             mView.invalidate();
-            runAfterDraw(() -> assertEquals(FRAME_RATE_CATEGORY_LOW,
+            runAfterDraw(() -> assertEquals(expected,
                     mViewRootImpl.getLastPreferredFrameRateCategory()));
         });
         waitForAfterDraw();
@@ -817,9 +849,12 @@ public class ViewRootImplTest {
 
         mViewRootImpl = mView.getViewRootImpl();
         waitForFrameRateCategoryToSettle(mView);
+        int expected = hasArrSupport()
+                ? FRAME_RATE_CATEGORY_DEFAULT
+                : FRAME_RATE_CATEGORY_NORMAL;
         sInstrumentation.runOnMainSync(() -> {
             mView.invalidate();
-            runAfterDraw(() -> assertEquals(FRAME_RATE_CATEGORY_NORMAL,
+            runAfterDraw(() -> assertEquals(expected,
                     mViewRootImpl.getLastPreferredFrameRateCategory()));
         });
         waitForAfterDraw();
@@ -862,10 +897,13 @@ public class ViewRootImplTest {
         sInstrumentation.runOnMainSync(
                 () -> mView.getViewTreeObserver().removeOnDrawListener(failIfDrawn));
 
+        int expectedHigh = hasArrSupport()
+                ? FRAME_RATE_CATEGORY_DEFAULT
+                : FRAME_RATE_CATEGORY_HIGH;
         sInstrumentation.runOnMainSync(() -> {
             mView.setVisibility(View.VISIBLE);
             mView.invalidate();
-            runAfterDraw(() -> assertEquals(FRAME_RATE_CATEGORY_HIGH,
+            runAfterDraw(() -> assertEquals(expectedHigh,
                     mViewRootImpl.getLastPreferredFrameRateCategory()));
         });
         waitForAfterDraw();
@@ -877,11 +915,14 @@ public class ViewRootImplTest {
 
         waitForFrameRateCategoryToSettle(mView);
 
+        int expectedNormal = hasArrSupport()
+                ? FRAME_RATE_CATEGORY_DEFAULT
+                : FRAME_RATE_CATEGORY_NORMAL;
         sInstrumentation.runOnMainSync(() -> {
             mView.setVisibility(View.VISIBLE);
             mView.invalidate();
             int expected = FRAME_RATE_CATEGORY_NORMAL;
-            runAfterDraw(() -> assertEquals(expected,
+            runAfterDraw(() -> assertEquals(expectedNormal,
                     mViewRootImpl.getLastPreferredFrameRateCategory()));
         });
         waitForAfterDraw();
@@ -915,7 +956,8 @@ public class ViewRootImplTest {
         waitForFrameRateCategoryToSettle(mView);
         sInstrumentation.runOnMainSync(() -> {
             mView.invalidate();
-            int expected = toolkitFrameRateBySizeReadOnly() ? FRAME_RATE_CATEGORY_LOW
+            int expected = hasArrSupport()
+                    ? FRAME_RATE_CATEGORY_DEFAULT
                     : FRAME_RATE_CATEGORY_NORMAL;
             runAfterDraw(() -> assertEquals(expected,
                     mViewRootImpl.getLastPreferredFrameRateCategory()));
@@ -952,9 +994,11 @@ public class ViewRootImplTest {
 
         mViewRootImpl = mView.getViewRootImpl();
         waitForFrameRateCategoryToSettle(mView);
+        int expected = hasArrSupport()
+                ? FRAME_RATE_CATEGORY_DEFAULT
+                : FRAME_RATE_CATEGORY_NORMAL;
         sInstrumentation.runOnMainSync(() -> {
             mView.invalidate();
-            int expected = FRAME_RATE_CATEGORY_NORMAL;
             runAfterDraw(() -> assertEquals(expected,
                     mViewRootImpl.getLastPreferredFrameRateCategory()));
         });
@@ -1104,24 +1148,33 @@ public class ViewRootImplTest {
 
         waitForFrameRateCategoryToSettle(mView);
 
+        int expectedLow = hasArrSupport()
+                    ? FRAME_RATE_CATEGORY_DEFAULT
+                    : FRAME_RATE_CATEGORY_LOW;
         sInstrumentation.runOnMainSync(() -> {
             mView.setRequestedFrameRate(View.REQUESTED_FRAME_RATE_CATEGORY_LOW);
             mView.invalidate();
-            runAfterDraw(() -> assertEquals(FRAME_RATE_CATEGORY_LOW,
+            runAfterDraw(() -> assertEquals(expectedLow,
                     mViewRootImpl.getLastPreferredFrameRateCategory()));
         });
         waitForAfterDraw();
+        int expectedNormal = hasArrSupport()
+                    ? FRAME_RATE_CATEGORY_DEFAULT
+                    : FRAME_RATE_CATEGORY_NORMAL;
         sInstrumentation.runOnMainSync(() -> {
             mView.setRequestedFrameRate(View.REQUESTED_FRAME_RATE_CATEGORY_NORMAL);
             mView.invalidate();
-            runAfterDraw(() -> assertEquals(FRAME_RATE_CATEGORY_NORMAL,
+            runAfterDraw(() -> assertEquals(expectedNormal,
                     mViewRootImpl.getLastPreferredFrameRateCategory()));
         });
         waitForAfterDraw();
+        int expectedHigh = hasArrSupport()
+                    ? FRAME_RATE_CATEGORY_DEFAULT
+                    : FRAME_RATE_CATEGORY_HIGH;
         sInstrumentation.runOnMainSync(() -> {
             mView.setRequestedFrameRate(View.REQUESTED_FRAME_RATE_CATEGORY_HIGH);
             mView.invalidate();
-            runAfterDraw(() -> assertEquals(FRAME_RATE_CATEGORY_HIGH,
+            runAfterDraw(() -> assertEquals(expectedHigh,
                     mViewRootImpl.getLastPreferredFrameRateCategory()));
         });
         waitForAfterDraw();
@@ -1158,8 +1211,9 @@ public class ViewRootImplTest {
             mView.setFrameContentVelocity(100);
             mView.invalidate();
             runAfterDraw(() -> {
-                int expected = toolkitFrameRateBySizeReadOnly()
-                        ? FRAME_RATE_CATEGORY_LOW : FRAME_RATE_CATEGORY_NORMAL;
+                int expected = hasArrSupport()
+                        ? FRAME_RATE_CATEGORY_DEFAULT
+                        : FRAME_RATE_CATEGORY_NORMAL;
                 assertEquals(expected, mViewRootImpl.getLastPreferredFrameRateCategory());
                 assertTrue(mViewRootImpl.getLastPreferredFrameRate() >= 60f);
             });
@@ -1200,9 +1254,11 @@ public class ViewRootImplTest {
         });
         sInstrumentation.waitForIdleSync();
 
+        int expected = hasArrSupport()
+                ? FRAME_RATE_CATEGORY_DEFAULT
+                : FRAME_RATE_CATEGORY_HIGH;
         sInstrumentation.runOnMainSync(() -> {
-            assertEquals(FRAME_RATE_CATEGORY_HIGH,
-                    viewRootImpl.getLastPreferredFrameRateCategory());
+            assertEquals(expected, viewRootImpl.getLastPreferredFrameRateCategory());
         });
     }
 
@@ -1298,6 +1354,10 @@ public class ViewRootImplTest {
 
         mViewRootImpl = mView.getViewRootImpl();
         waitForFrameRateCategoryToSettle(mView);
+        int expectedNormal = hasArrSupport()
+                ? FRAME_RATE_CATEGORY_DEFAULT
+                : FRAME_RATE_CATEGORY_NORMAL;
+
         sInstrumentation.runOnMainSync(() -> {
             assertEquals(FRAME_RATE_CATEGORY_DEFAULT,
                     mViewRootImpl.getPreferredFrameRateCategory());
@@ -1305,8 +1365,7 @@ public class ViewRootImplTest {
             mView.setRequestedFrameRate(frameRate);
             mView.invalidate();
             runAfterDraw(() -> {
-                int expected = FRAME_RATE_CATEGORY_NORMAL;
-                assertEquals(expected, mViewRootImpl.getLastPreferredFrameRateCategory());
+                assertEquals(expectedNormal, mViewRootImpl.getLastPreferredFrameRateCategory());
                 assertEquals(frameRate, mViewRootImpl.getLastPreferredFrameRate(), 0.1);
             });
         });
@@ -1321,10 +1380,13 @@ public class ViewRootImplTest {
             sInstrumentation.waitForIdleSync();
         }
 
+        int expectedLow = hasArrSupport()
+                ? FRAME_RATE_CATEGORY_DEFAULT
+                : FRAME_RATE_CATEGORY_LOW;
         sInstrumentation.runOnMainSync(() -> {
             mView.setRequestedFrameRate(View.REQUESTED_FRAME_RATE_CATEGORY_LOW);
             mView.invalidate();
-            runAfterDraw(() -> assertEquals(FRAME_RATE_CATEGORY_LOW,
+            runAfterDraw(() -> assertEquals(expectedLow,
                     mViewRootImpl.getLastPreferredFrameRateCategory()));
         });
         waitForAfterDraw();
@@ -1347,7 +1409,9 @@ public class ViewRootImplTest {
         mView = new View(sContext);
         WindowManager.LayoutParams wmlp = new WindowManager.LayoutParams(TYPE_APPLICATION_OVERLAY);
         wmlp.token = new Binder(); // Set a fake token to bypass 'is your activity running' check
-        int expected = FRAME_RATE_CATEGORY_NORMAL;
+        int expected = hasArrSupport()
+                ? FRAME_RATE_CATEGORY_DEFAULT
+                : FRAME_RATE_CATEGORY_NORMAL;
 
         sInstrumentation.runOnMainSync(() -> {
             WindowManager wm = sContext.getSystemService(WindowManager.class);
@@ -1384,7 +1448,9 @@ public class ViewRootImplTest {
         Thread.sleep(delay);
 
         // The expected category is normal for intermittent.
-        int intermittentExpected = FRAME_RATE_CATEGORY_NORMAL;
+        int intermittentExpected = hasArrSupport()
+                ? FRAME_RATE_CATEGORY_DEFAULT
+                : FRAME_RATE_CATEGORY_NORMAL;
 
         sInstrumentation.runOnMainSync(() -> {
             mView.invalidate();
@@ -1558,10 +1624,13 @@ public class ViewRootImplTest {
         }
 
         Thread.sleep(delay);
+        int expected = hasArrSupport()
+                ? FRAME_RATE_CATEGORY_DEFAULT
+                : FRAME_RATE_CATEGORY_NORMAL;
         sInstrumentation.runOnMainSync(() -> {
             mView.setRequestedFrameRate(View.REQUESTED_FRAME_RATE_CATEGORY_DEFAULT);
             mView.invalidate();
-            runAfterDraw(() -> assertEquals(FRAME_RATE_CATEGORY_NORMAL,
+            runAfterDraw(() -> assertEquals(expected,
                     mViewRootImpl.getLastPreferredFrameRateCategory()));
         });
         waitForAfterDraw();
@@ -1804,6 +1873,26 @@ public class ViewRootImplTest {
     }
 
     @Test
+    public void determineForceDarkType_forceInvertNotAllowed_returnsNone() throws Exception {
+        // Set up configurations for force invert color
+        waitForSystemNightModeActivated(true);
+        enableForceInvertColor(true);
+        setUpViewAttributes(/* isLightTheme= */ true, /* isForceDarkAllowed= */ false);
+
+        // Make sure all other properties are set up to allow force invert dark
+        TestUtils.waitUntil("Waiting for ForceDarkType to be ready",
+                () -> (mViewRootImpl.determineForceDarkType()
+                        == ForceDarkType.FORCE_INVERT_COLOR_DARK));
+
+        // Explicitly disallow force invert dark
+        mViewRootImpl.setForceInvertAllowed(false);
+
+        // Ensure that the force dark type is now NONE
+        TestUtils.waitUntil("Waiting for ForceDarkType to be ready",
+                () -> (mViewRootImpl.determineForceDarkType() == ForceDarkType.NONE));
+    }
+
+    @Test
     @EnableFlags(FLAG_FORCE_INVERT_COLOR)
     public void forceInvertOffForceDarkOff_forceDarkModeDisabled() {
         // Set up configurations for force invert color
@@ -1960,6 +2049,174 @@ public class ViewRootImplTest {
         } finally {
             threadRunning.set(0);
         }
+    }
+
+    @Test
+    public void imeDispatchesBack_eventGoesToTopBackCallback() throws Exception {
+        mView = new View(sContext);
+        attachViewToWindow(mView);
+        mViewRootImpl = mView.getViewRootImpl();
+        final CountDownLatch latch = new CountDownLatch(1);
+        mViewRootImpl.getOnBackInvokedDispatcher().registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_DEFAULT, latch::countDown);
+
+        KeyEvent downEvent = new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_BACK);
+        sInstrumentation.runOnMainSync(() -> mViewRootImpl.dispatchKeyFromIme(downEvent));
+        KeyEvent upEvent = new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_BACK);
+        sInstrumentation.runOnMainSync(() -> mViewRootImpl.dispatchKeyFromIme(upEvent));
+
+        assertTrue("OnBackInvokedCallback not called for IME back key event",
+                latch.await(5, TimeUnit.SECONDS));
+    }
+
+    @Test
+    @EnableCompatChanges({ActivityInfo.ENABLE_SYNCHRONIZED_INSETS_ANIMATION})
+    @EnableFlags(Flags.FLAG_SYNCED_INSETS_ANIMATION)
+    public void testDispatchesApplyInsetsDuringAnimationProgress_conditions() {
+        assumeTrue("Synced Insets Animation is not supported on this device",
+                ActivityManager.isHighEndGfx());
+
+        // 1. Setup ViewRootImpl and InsetsController
+        mView = new View(sContext);
+        attachViewToWindow(mView);
+        mViewRootImpl = mView.getViewRootImpl();
+
+        // 1. All conditions met (no ongoing user animation etc)
+        assertTrue(mViewRootImpl.dispatchesApplyInsetsDuringAnimationProgress());
+
+        // 2. User animation ongoing
+        WindowInsetsAnimation anim = new WindowInsetsAnimation(Type.statusBars(), null, 0);
+        sInstrumentation.runOnMainSync(() -> {
+            mViewRootImpl.dispatchWindowInsetsAnimationStart(anim,
+                    new WindowInsetsAnimation.Bounds(Insets.NONE, Insets.NONE),
+                    false /* isUserAnimation */,
+                    false /* isResizeAnimation */,
+                    false /* hasAnimationCallback */);
+            mViewRootImpl.dispatchWindowInsetsAnimationProgress(
+                    new WindowInsets.Builder().build(),
+                    new InsetsState(),
+                    List.of(anim),
+                    true /* hasUserAnimation */,
+                    false /* hasResizeAnimation */,
+                    false /* hasAnimationCallback */,
+                    0 /* hidingTypes */);
+        });
+        assertFalse(mViewRootImpl.dispatchesApplyInsetsDuringAnimationProgress());
+
+        // Reset animations
+        sInstrumentation.runOnMainSync(() -> {
+            mViewRootImpl.dispatchWindowInsetsAnimationEnd(anim,
+                    false /* isUserAnimation */,
+                    false /* isResizeAnimation */,
+                    false /* hasAnimationCallback */);
+        });
+        assertTrue(mViewRootImpl.dispatchesApplyInsetsDuringAnimationProgress());
+
+        // 3. usesSyncedInsetsAnimationByDefault is false
+        mViewRootImpl.setUsesSyncedInsetsAnimationByDefault(false);
+        assertFalse(mViewRootImpl.dispatchesApplyInsetsDuringAnimationProgress());
+    }
+
+    @Test
+    @EnableCompatChanges({ActivityInfo.ENABLE_SYNCHRONIZED_INSETS_ANIMATION})
+    @DisableFlags(Flags.FLAG_SYNCED_INSETS_ANIMATION)
+    public void testDispatchesApplyInsetsDuringAnimationProgress_flagDisabled() {
+        assumeTrue("Synced Insets Animation is not supported on this device",
+                ActivityManager.isHighEndGfx());
+        assertFalse(mViewRootImpl.dispatchesApplyInsetsDuringAnimationProgress());
+    }
+
+    @Test
+    @DisableCompatChanges({ActivityInfo.ENABLE_SYNCHRONIZED_INSETS_ANIMATION})
+    @EnableFlags(Flags.FLAG_SYNCED_INSETS_ANIMATION)
+    public void testDispatchesApplyInsetsDuringAnimationProgress_compatChangeRuleDisabled() {
+        assumeTrue("Synced Insets Animation is not supported on this device",
+                ActivityManager.isHighEndGfx());
+        assertFalse(mViewRootImpl.dispatchesApplyInsetsDuringAnimationProgress());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SYNCED_INSETS_ANIMATION)
+    @EnableCompatChanges({ActivityInfo.ENABLE_SYNCHRONIZED_INSETS_ANIMATION})
+    public void testWindowInsetsDispatch_duringAnimation() {
+        assumeTrue("Synced Insets Animation is not supported on this device",
+                ActivityManager.isHighEndGfx());
+        mView = new View(sContext);
+        attachViewToWindow(mView);
+        mViewRootImpl = mView.getViewRootImpl();
+
+        final WindowInsets animatingInsets = new WindowInsets.Builder()
+                .setSystemWindowInsets(Insets.of(0, 0, 0, 50))
+                .build();
+
+        AtomicReference<WindowInsets> actualInsets = new AtomicReference<>();
+        mView.setOnApplyWindowInsetsListener((v, insets) -> {
+            actualInsets.set(insets);
+            return insets;
+        });
+
+        sInstrumentation.runOnMainSync(() -> {
+            mViewRootImpl.dispatchWindowInsetsAnimationProgress(
+                    animatingInsets,
+                    new InsetsState(),
+                    Collections.emptyList(),
+                    false /* hasUserAnimation */,
+                    false /* hasResizeAnimation */,
+                    false /* hasAnimationCallback */,
+                    0 /* hidingTypes */);
+            mViewRootImpl.dispatchApplyInsets(mView);
+        });
+
+        assertNotNull(actualInsets.get());
+        assertEquals(animatingInsets, actualInsets.get());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SYNCED_INSETS_ANIMATION)
+    @EnableCompatChanges({ActivityInfo.ENABLE_SYNCHRONIZED_INSETS_ANIMATION})
+    public void testVisibleInsets_duringAnimation() {
+        assumeTrue("Synced Insets Animation is not supported on this device",
+                ActivityManager.isHighEndGfx());
+
+        final Insets expectedVisibleInsets = Insets.of(10, 20, 30, 40);
+
+        // 1. Setup ViewRootImpl and InsetsController
+        mView = new View(sContext);
+        attachViewToWindow(mView);
+        mViewRootImpl = mView.getViewRootImpl();
+
+        // 2. Mock the InsetsState object passed to the method
+        // InsetsController.calculateVisibleInsets delegates to state.calculateVisibleInsets
+        final InsetsState state = mock(InsetsState.class);
+        doReturn(expectedVisibleInsets).when(state).calculateVisibleInsets(
+                any(), any(), anyInt(), anyInt(), anyInt(), anyInt(), anyInt());
+
+        Rect before = new Rect();
+        mView.getWindowVisibleDisplayFrame(before);
+
+        // 3. Trigger dispatchWindowInsetsAnimationProgress with the mocked state
+        sInstrumentation.runOnMainSync(() -> {
+            mViewRootImpl.dispatchWindowInsetsAnimationProgress(
+                    new WindowInsets.Builder().build(),
+                    state,
+                    Collections.emptyList(),
+                    false /* hasUserAnimation */,
+                    false /* hasResizeAnimation */,
+                    false /* hasAnimationCallback */,
+                    0 /* hidingTypes */);
+        });
+
+        Rect after = new Rect();
+        mView.getWindowVisibleDisplayFrame(after);
+
+        // 4. Verify mAttachInfo.mVisibleInsets was updated correctly
+        Rect visibleInsets = new Rect(
+                after.left - before.left,
+                after.top - before.top,
+                before.right - after.right,
+                before.bottom - after.bottom
+        );
+        assertEquals(expectedVisibleInsets.toRect(), visibleInsets);
     }
 
     private void setUpViewAndApplyFocusStates(boolean windowFocused, boolean viewFocused)
@@ -2135,6 +2392,10 @@ public class ViewRootImplTest {
         setUpViewAttributes(sContext, isLightTheme, isForceDarkAllowed);
     }
 
+    private boolean hasArrSupport() {
+        return toolkitDisableCategoryOnMrr() && !mViewRootImpl.getHasArrSupport();
+    }
+
     private void setUpViewAttributes(Context context, boolean isLightTheme,
             boolean isForceDarkAllowed) {
         ShellIdentityUtils.invokeWithShellPermissions(() -> {
@@ -2164,5 +2425,62 @@ public class ViewRootImplTest {
             mViewRootImpl.setView(view, layoutParams, /* panelParentView= */ null);
             mViewRootImpl.updateConfiguration(context.getDisplayNoVerify().getDisplayId());
         });
+    }
+
+    /**
+     * Tests that the checkThreadCompat method proceeds on the wrong thread when the {@link
+     * ViewRootImpl#ENFORCE_THREAD_CHECKS_ON_VIEW_ROOT_IMPL_APIS} ChangeId is disabled.
+     */
+    @Test
+    @DisableCompatChanges(ENFORCE_THREAD_CHECKS_ON_VIEW_ROOT_IMPL_APIS)
+    public void
+            checkThreadCompat_whenCalledFromWrongThread_andChangeIsDisabled_doesNotThrow()
+                    throws Exception {
+        checkThreadCompat(false);
+    }
+
+    /**
+     * Tests that the checkThreadCompat method throws an exception when the
+     * {@link ViewRootImpl#ENFORCE_THREAD_CHECKS_ON_VIEW_ROOT_IMPL_APIS} ChangeId is enabled.
+     */
+    @Test
+    @EnableCompatChanges(ENFORCE_THREAD_CHECKS_ON_VIEW_ROOT_IMPL_APIS)
+    public void checkThreadCompat_whenCalledFromWrongThread_andChangeIsEnabled_throwsException()
+            throws Exception {
+        checkThreadCompat(true);
+    }
+
+    private void checkThreadCompat(boolean expectException) throws Exception {
+        final AtomicReference<ViewRootImpl> viewRootRef = new AtomicReference<>();
+        sInstrumentation.runOnMainSync(() -> {
+            Display display = sContext.getSystemService(DisplayManager.class).getDisplay(
+                    Display.DEFAULT_DISPLAY);
+            viewRootRef.set(new ViewRootImpl(sContext, display));
+        });
+        ViewRootImpl viewRootImpl = viewRootRef.get();
+
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicReference<Throwable> thrown = new AtomicReference<>();
+
+        new Thread(() -> {
+            try {
+                // setActivityConfigCallback calls checkThreadCompat but does not call checkThread,
+                // so it allows us to test the checkThreadCompat behavior in isolation.
+                viewRootImpl.setActivityConfigCallback(null);
+            } catch (Throwable e) {
+                thrown.set(e);
+            } finally {
+                latch.countDown();
+            }
+        }).start();
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+
+        if (expectException) {
+            assertThat(thrown.get())
+                    .isInstanceOf(ViewRootImpl.CalledFromWrongThreadException.class);
+        } else {
+            assertThat(thrown.get()).isNull();
+        }
     }
 }

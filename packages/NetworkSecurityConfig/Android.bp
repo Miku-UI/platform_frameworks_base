@@ -23,10 +23,130 @@ filegroup {
             "module/src/**/*.java",
         ],
         default: [
-            "platform/src/**/*.java",
+            "platform/src/android/security/net/config/*.java",
         ],
     }),
     visibility: [
         "//frameworks/base:__subpackages__",
     ],
+}
+
+// Referenced implicitly from framework-network-security-config.
+filegroup {
+    name: "framework-network-security-config-removed.api.combined.public.latest",
+    srcs: [
+        "api/last-removed.txt",
+    ],
+}
+
+// Referenced implicitly from framework-network-security-config.
+filegroup {
+    name: "framework-network-security-config.api.combined.system.latest",
+    srcs: [
+        "api/system-last-api.txt",
+    ],
+}
+
+// Referenced implicitly from framework-network-security-config.
+filegroup {
+    name: "framework-network-security-config-removed.api.combined.system.latest",
+    srcs: [
+        "api/system-last-removed.txt",
+    ],
+}
+
+// Referenced implicitly from framework-network-security-config.
+filegroup {
+    name: "framework-network-security-config-incompatibilities.api.system.latest",
+    srcs: [
+        "api/system-last-incompatibilities.txt",
+    ],
+}
+
+// Referenced implicitly from framework-network-security-config.
+filegroup {
+    name: "framework-network-security-config.api.combined.module-lib.latest",
+    srcs: [
+        "api/lib-last-api.txt",
+    ],
+}
+
+// Referenced implicitly from framework-network-security-config.
+filegroup {
+    name: "framework-network-security-config-removed.api.combined.module-lib.latest",
+    srcs: [
+        "api/lib-last-removed.txt",
+    ],
+}
+
+// Referenced implicitly from framework-network-security-config.
+filegroup {
+    name: "framework-network-security-config-incompatibilities.api.module-lib.latest",
+    srcs: [
+        "api/lib-last-incompatibilities.txt",
+    ],
+}
+
+// Referenced implicitly from framework-network-security-config.
+filegroup {
+    name: "framework-network-security-config.api.combined.test.latest",
+    srcs: [
+        "api/test-last.txt",
+    ],
+}
+
+// Referenced implicitly from framework-network-security-config.
+filegroup {
+    name: "framework-network-security-config-removed.api.combined.test.latest",
+    srcs: [
+        "api/test-last-removed.txt",
+    ],
+}
+
+// Referenced implicitly from framework-network-security-config.
+filegroup {
+    name: "framework-network-security-config-incompatibilities.api.test.latest",
+    srcs: [
+        "api/test-last-incompatibilities.txt",
+    ],
+}
+
+java_sdk_library {
+    name: "framework-network-security-config",
+    defaults: ["framework-non-updatable-unbundled-defaults"],
+    srcs: [
+        "platform/src/android/security/*.java",
+    ],
+    libs: [
+        "app-compat-annotations",
+        "framework-connectivity.stubs",
+        "android.security.flags-aconfig-java",
+    ],
+    static_libs: [
+        "networksecurity_exported_aconfig_flags_lib",
+    ],
+    impl_library_visibility: [
+        "//frameworks/base:__subpackages__",
+    ],
+    jarjar_rules: "jarjar-rules.txt",
+    permitted_packages: [
+        "android.security",
+    ],
+
+    // Disable when NSC implementation in Conscrypt is active.
+    enabled: select(release_flag("RELEASE_CONSCRYPT_NSC"), {
+        true: false,
+        default: true,
+    }),
+}
+
+platform_compat_config {
+    name: "framework-network-security-config-compat-config",
+    src: ":framework-network-security-config",
+
+    // Disable when NSC implementation in Conscrypt is active.
+    enabled: select(release_flag("RELEASE_CONSCRYPT_NSC"), {
+        true: false,
+        default: true,
+    }),
 }

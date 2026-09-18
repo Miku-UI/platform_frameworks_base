@@ -17,8 +17,14 @@
 package com.android.systemui.statusbar.notification.row;
 
 import com.android.systemui.dagger.SysUISingleton;
-import com.android.systemui.statusbar.notification.row.icon.AppIconProviderModule;
-import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyleProviderModule;
+import com.android.systemui.notifications.content.icon.AppIconProvider;
+import com.android.systemui.statusbar.notification.row.icon.AppIconHelper;
+import com.android.systemui.statusbar.notification.row.icon.AppIconHelperImpl;
+import com.android.systemui.statusbar.notification.row.icon.AppIconProviderImpl;
+import com.android.systemui.statusbar.notification.row.icon.BridgedIconProvider;
+import com.android.systemui.statusbar.notification.row.icon.BridgedIconProviderImpl;
+import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyleProvider;
+import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyleProviderImpl;
 
 import dagger.Binds;
 import dagger.Module;
@@ -26,7 +32,7 @@ import dagger.Module;
 /**
  * Dagger Module containing notification row and view inflation implementations.
  */
-@Module(includes = {AppIconProviderModule.class, NotificationIconStyleProviderModule.class})
+@Module
 public abstract class NotificationRowModule {
 
     /**
@@ -42,22 +48,47 @@ public abstract class NotificationRowModule {
      */
     @Binds
     @SysUISingleton
-    public abstract NotifRemoteViewCache provideNotifRemoteViewCache(
-            NotifRemoteViewCacheImpl cacheImpl);
+    public abstract NotifRemoteViewCache provideNotifRemoteViewCache(NotifRemoteViewCacheImpl impl);
 
     /**
-     * Provides notification remote view factory container
+     * Provides notification remote view factory container instance.
      */
     @Binds
     @SysUISingleton
     public abstract NotifRemoteViewsFactoryContainer provideNotifRemoteViewsFactoryContainer(
-            NotifRemoteViewsFactoryContainerImpl containerImpl);
+            NotifRemoteViewsFactoryContainerImpl impl);
 
     /**
-     * Provides heads up style manager
+     * Provides heads up style manager instance.
      */
     @Binds
     @SysUISingleton
-    public abstract HeadsUpStyleProvider provideHeadsUpStyleManager(
-            HeadsUpStyleProviderImpl headsUpStyleManagerImpl);
+    public abstract HeadsUpStyleProvider provideHeadsUpStyleManager(HeadsUpStyleProviderImpl impl);
+
+    /**
+     * Provides app icon helper instance.
+     */
+    @Binds
+    @SysUISingleton
+    public abstract AppIconHelper provideAppIconHelper(AppIconHelperImpl impl);
+
+    /**
+     * Provides app icon provider instance.
+     */
+
+    @Binds
+    @SysUISingleton
+    public abstract AppIconProvider provideAppIconProvider(AppIconProviderImpl impl);
+
+    @Binds
+    @SysUISingleton
+    public abstract BridgedIconProvider provideBridgedIconProvider(BridgedIconProviderImpl impl);
+
+    /**
+     * Provides notification icon style provider instance.
+     */
+    @Binds
+    @SysUISingleton
+    public abstract NotificationIconStyleProvider provideNotificationIconStyleProvider(
+            NotificationIconStyleProviderImpl impl);
 }

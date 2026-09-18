@@ -34,6 +34,8 @@ import com.android.systemui.application.ContentProviderContextInitializer;
 import com.android.systemui.people.widget.PeopleSpaceWidgetManager;
 import com.android.systemui.shared.system.PeopleProviderUtils;
 
+import dagger.Lazy;
+
 import javax.inject.Inject;
 
 /** API that returns a People Tile preview. */
@@ -44,7 +46,7 @@ public class PeopleProvider extends ContentProvider implements ContentProviderCo
     private ContentProviderContextAvailableCallback mCallback;
 
     @Inject
-    PeopleSpaceWidgetManager mPeopleSpaceWidgetManager;
+    Lazy<PeopleSpaceWidgetManager> mPeopleSpaceWidgetManager;
 
     @Override
     public Bundle call(String method, String arg, Bundle extras) {
@@ -83,12 +85,12 @@ public class PeopleProvider extends ContentProvider implements ContentProviderCo
             throw new IllegalArgumentException("Null user handle");
         }
 
-        if (mPeopleSpaceWidgetManager == null) {
+        if (mPeopleSpaceWidgetManager == null || mPeopleSpaceWidgetManager.get() == null) {
             Log.e(TAG, "Could not initialize people widget manager");
             return null;
         }
-        RemoteViews view = mPeopleSpaceWidgetManager.getPreview(shortcutId, userHandle, packageName,
-                extras);
+        RemoteViews view = mPeopleSpaceWidgetManager.get().getPreview(shortcutId, userHandle,
+                packageName, extras);
         if (view == null) {
             if (DEBUG) Log.d(TAG, "No preview available for shortcutId: " + shortcutId);
             return null;

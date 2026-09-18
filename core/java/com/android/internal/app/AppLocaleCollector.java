@@ -288,17 +288,17 @@ public class AppLocaleCollector implements LocaleCollectorBase {
                 localeSet = filterSameLanguageAndCountry(localeSet, suggestedSet);
                 // Add IME suggestion flag if the locale is supported by IME.
                 localeSet = addImeSuggestionFlag(localeSet);
+                suggestedSet.addAll(localeSet);
             }
             appLocaleList.addAll(localeSet);
-            suggestedSet.addAll(localeSet);
 
             // Add the language that the active IME enables into the suggestion list.
             localeSet = filterSupportedLocales(mImeLocales, result.mAppSupportedLocales);
             if (suggestedSet != null) {
                 localeSet = filterSameLanguageAndCountry(localeSet, suggestedSet);
+                suggestedSet.addAll(localeSet);
             }
             appLocaleList.addAll(localeSet);
-            suggestedSet.addAll(localeSet);
         }
 
         // Add "system language" option

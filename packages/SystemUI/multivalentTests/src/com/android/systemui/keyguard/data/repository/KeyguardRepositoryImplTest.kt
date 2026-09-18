@@ -83,6 +83,11 @@ class KeyguardRepositoryImplTest : SysuiTestCase() {
         MockitoAnnotations.initMocks(this)
         systemClock = FakeSystemClock()
         facePropertyRepository = FakeFacePropertyRepository()
+
+        // For the initial state
+        whenever(dozeTransitionListener.oldState).thenReturn(DozeMachine.State.UNINITIALIZED)
+        whenever(dozeTransitionListener.newState).thenReturn(DozeMachine.State.UNINITIALIZED)
+
         underTest =
             KeyguardRepositoryImpl(
                 statusBarStateController,
@@ -313,10 +318,6 @@ class KeyguardRepositoryImplTest : SysuiTestCase() {
     @Test
     fun dozeTransitionModel() =
         testScope.runTest {
-            // For the initial state
-            whenever(dozeTransitionListener.oldState).thenReturn(DozeMachine.State.UNINITIALIZED)
-            whenever(dozeTransitionListener.newState).thenReturn(DozeMachine.State.UNINITIALIZED)
-
             val values = mutableListOf<DozeTransitionModel>()
             val job = underTest.dozeTransitionModel.onEach(values::add).launchIn(this)
 
@@ -370,7 +371,6 @@ class KeyguardRepositoryImplTest : SysuiTestCase() {
                 )
 
             job.cancel()
-            verify(dozeTransitionListener).removeCallback(listener)
         }
 
     @Test

@@ -27,16 +27,21 @@ import javax.inject.Inject
 @ScreenCaptureUiScope
 class LargeScreenCaptureContent
 @Inject
-constructor(private val viewModelFactory: PreCaptureViewModel.Factory) : ScreenCaptureContent {
+constructor(private val preCaptureViewModelFactory: PreCaptureViewModel.Factory) :
+    ScreenCaptureContent {
 
     @Composable
     override fun Content() {
         val displayId = LocalContext.current.displayId
-        val viewModel: PreCaptureViewModel =
-            rememberViewModel("PreCaptureViewModel") { viewModelFactory.create(displayId) }
+        val preCaptureViewModel: PreCaptureViewModel =
+            rememberViewModel("PreCaptureViewModel") {
+                preCaptureViewModelFactory.create(displayId)
+            }
 
-        if (viewModel.isShowingUi) {
-            PreCaptureUI(viewModel = viewModel)
+        when {
+            preCaptureViewModel.isShowingUi && preCaptureViewModel.recordingIsNotStarted == true ->
+                PreCaptureUI(viewModel = preCaptureViewModel)
+            else -> {}
         }
     }
 }

@@ -181,6 +181,8 @@ public final class ApduServiceInfo implements Parcelable {
      */
     private boolean mWantsRoleHolderPriority;
 
+    private final Object mLock = new Object();
+
     /**
      * Constructor of {@link ApduServiceInfo}.
      * @param info App component info
@@ -518,7 +520,7 @@ public final class ApduServiceInfo implements Parcelable {
             if (parser != null) parser.close();
         }
         // Set uid
-        mUid = si.applicationInfo.uid;
+        mUid = si.getUid();
 
         mCategoryOtherServiceEnabled = true;    // support other category
 
@@ -584,23 +586,27 @@ public final class ApduServiceInfo implements Parcelable {
         if (mAutoTransact.getOrDefault(plf.toUpperCase(Locale.ROOT), false)) {
             return true;
         }
-        boolean isPattern = plf.contains("?") || plf.contains("*");
+        synchronized (mLock) {
+            boolean isPattern = plf.contains("?") || plf.contains("*");
 
-        // Create a copy of the key set to avoid ConcurrentModificationException
-        List<Pattern> patternKeys = new ArrayList<>(mAutoTransactPatterns.keySet());
+            // Create a copy of the key set to avoid ConcurrentModificationException
+            List<Pattern> patternKeys = new ArrayList<>(mAutoTransactPatterns.keySet());
 
-        List<Pattern> patternMatches =
-                patternKeys.stream()
-                        .filter(p
-                                -> isPattern ? p.toString().equals(plf) : p.matcher(plf).matches())
-                        .toList();
+            List<Pattern> patternMatches =
+                    patternKeys.stream()
+                            .filter(p
+                                    -> isPattern
+                                            ? p.toString().equals(plf)
+                                            : p.matcher(plf).matches())
+                            .toList();
 
-        if (patternMatches == null || patternMatches.size() == 0) {
-            return false;
-        }
-        for (Pattern patternMatch : patternMatches) {
-            if (Boolean.TRUE.equals(mAutoTransactPatterns.get(patternMatch))) {
-                return true;
+            if (patternMatches == null || patternMatches.size() == 0) {
+                return false;
+            }
+            for (Pattern patternMatch : patternMatches) {
+                if (Boolean.TRUE.equals(mAutoTransactPatterns.get(patternMatch))) {
+                    return true;
+                }
             }
         }
         return false;
@@ -612,7 +618,9 @@ public final class ApduServiceInfo implements Parcelable {
      */
     @NonNull
     public List<Pattern> getPollingLoopPatternFilters() {
-        return new ArrayList<>(mAutoTransactPatterns.keySet());
+        synchronized (mLock) {
+            return new ArrayList<>(mAutoTransactPatterns.keySet());
+        }
     }
 
     /**
@@ -889,8 +897,10 @@ public final class ApduServiceInfo implements Parcelable {
         if (!mOnHost && !autoTransact) {
             return;
         }
-        mAutoTransactPatterns.put(Pattern.compile(
-                pollingLoopPatternFilter.toUpperCase(Locale.ROOT)), autoTransact);
+        synchronized (mLock) {
+            mAutoTransactPatterns.put(Pattern.compile(
+                    pollingLoopPatternFilter.toUpperCase(Locale.ROOT)), autoTransact);
+        }
     }
 
     /**
@@ -899,8 +909,10 @@ public final class ApduServiceInfo implements Parcelable {
      * @param pollingLoopPatternFilter this polling loop filter to add.
      */
     public void removePollingLoopPatternFilter(@NonNull String pollingLoopPatternFilter) {
-        mAutoTransactPatterns.remove(
-                Pattern.compile(pollingLoopPatternFilter.toUpperCase(Locale.ROOT)));
+        synchronized (mLock) {
+            mAutoTransactPatterns.remove(
+                    Pattern.compile(pollingLoopPatternFilter.toUpperCase(Locale.ROOT)));
+        }
     }
 
     /**

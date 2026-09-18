@@ -17,6 +17,7 @@ package com.android.test.input
 
 import android.app.Instrumentation
 import android.graphics.PointF
+import android.platform.test.annotations.DisabledOnRavenwood
 import android.util.Log
 import android.util.Size
 import android.view.InputDevice
@@ -55,6 +56,7 @@ import org.junit.runners.Parameterized
  * New recordings can be taken using the `evemu-record` shell command.
  */
 @RunWith(Parameterized::class)
+@DisabledOnRavenwood(reason = "Ravenwood does not support shell commands")
 class UinputRecordingIntegrationTests {
 
     companion object {

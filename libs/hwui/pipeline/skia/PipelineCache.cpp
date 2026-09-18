@@ -26,9 +26,10 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
+#include <sys/uio.h>
 #include <utils/Trace.h>
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -156,11 +157,19 @@ PipelineCacheStore::PipelineCacheStore(useconds_t writeThrottleInterval)
         , mMutex()
         , mConditionVariable()
         , mStoreRequest()
+        , mLastSizeBytes(0)
+        , mFileOpenAndTruncateFailedCount(0)
+        , mFileWriteFailedCount(0)
+        , mZeroByteWriteCount(0)
+        , mPartialWriteCount(0)
         , mExit(false)
         , mThread(&PipelineCacheStore::runThread, this) {}
 
 PipelineCacheStore::~PipelineCacheStore() {
-    mExit = true;
+    {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mExit = true;
+    }
     mConditionVariable.notify_one();
     mThread.join();
 }
@@ -169,11 +178,18 @@ void PipelineCacheStore::runThread() {
     while (true) {
         {
             std::unique_lock<std::mutex> lock(mMutex);
-            mConditionVariable.wait(lock, [this] { return mExit || mStoreRequest.has_value(); });
-        }
 
-        if (mExit) {
-            return;
+            while (true) {
+                if (mExit) {
+                    return;
+                }
+
+                if (mStoreRequest.has_value()) {
+                    break;
+                }
+
+                mConditionVariable.wait(lock);
+            }
         }
 
         {
@@ -196,32 +212,56 @@ void PipelineCacheStore::runThread() {
 
             android::base::unique_fd fd(creat(storeRequest.path.c_str(), S_IRUSR | S_IWUSR));
             if (fd.get() == -1) {
+                mFileOpenAndTruncateFailedCount.fetch_add(1, std::memory_order_relaxed);
                 ALOGE("PipelineCacheStore::runThread: could not open pipeline cache file (errno = "
                       "%d)",
                       errno);
                 continue;
             }
 
-            auto written = write(fd.get(), storeRequest.data.data(), storeRequest.data.size());
-            if (written == -1) {
+            const SkData& key = *storeRequest.key;
+            const SkData& data = *storeRequest.data;
+            auto keySize = static_cast<key_size_t>(key.size());
+
+            iovec ioVector[] = {
+                    {.iov_base = &keySize, .iov_len = sizeof(keySize)},
+                    {.iov_base = const_cast<void*>(key.data()), .iov_len = key.size()},
+                    {.iov_base = const_cast<void*>(data.data()), .iov_len = data.size()},
+            };
+            auto expectedBytes = sizeof(keySize) + key.size() + data.size();
+
+            auto writtenBytes = writev(fd.get(), ioVector, sizeof(ioVector) / sizeof(iovec));
+            if (writtenBytes == -1) {
+                mFileWriteFailedCount.fetch_add(1, std::memory_order_relaxed);
                 ALOGE("PipelineCacheStore::runThread: could not write to pipeline cache file "
                       "(errno = %d)",
                       errno);
                 continue;
+            } else if (writtenBytes < expectedBytes) {
+                if (writtenBytes == 0) {
+                    mZeroByteWriteCount.fetch_add(1, std::memory_order_relaxed);
+                } else {
+                    mPartialWriteCount.fetch_add(1, std::memory_order_relaxed);
+                }
+                ALOGE("PipelineCacheStore::runThread: wrote %zu / %zu bytes to pipeline cache file",
+                      writtenBytes, expectedBytes);
             }
 
-            ATRACE_INT64("HWUI pipeline cache size", written);
+            mLastSizeBytes.store(static_cast<size_t>(writtenBytes), std::memory_order_relaxed);
+
+            ATRACE_INT64("HWUI pipeline cache size", writtenBytes);
         }
     }
 }
 
-void PipelineCacheStore::store(std::string path, std::vector<uint8_t> data) {
+void PipelineCacheStore::store(std::string path, sk_sp<SkData> key, sk_sp<SkData> data) {
     ATRACE_NAME("PipelineCacheStore::store (lock mutex and notify condition)");
 
     {
         std::lock_guard<std::mutex> lock(mMutex);
         mStoreRequest = StoreRequest{
                 .path = std::move(path),
+                .key = std::move(key),
                 .data = std::move(data),
         };
     }
@@ -229,11 +269,20 @@ void PipelineCacheStore::store(std::string path, std::vector<uint8_t> data) {
     mConditionVariable.notify_one();
 }
 
+void PipelineCacheStore::fillStats(PipelineCacheStats& stats) const {
+    stats.sizeBytes = mLastSizeBytes.load(std::memory_order_relaxed);
+    stats.fileOpenAndTruncateFailedCount =
+            mFileOpenAndTruncateFailedCount.load(std::memory_order_relaxed);
+    stats.fileWriteFailedCount = mFileWriteFailedCount.load(std::memory_order_relaxed);
+    stats.zeroByteWriteCount = mZeroByteWriteCount.load(std::memory_order_relaxed);
+    stats.partialWriteCount = mPartialWriteCount.load(std::memory_order_relaxed);
+}
+
 PipelineCache::PipelineCache(std::string storePath, useconds_t writeThrottleInterval)
         : mStorePath(std::move(storePath))
         , mPipelineCacheStore(writeThrottleInterval)
         , mKey(SkData::MakeEmpty())
-        , mData(SkData::MakeEmpty()) {
+        , mData(nullptr) {
     PipelineCacheData cache;
     auto result = PipelineCacheData::load(mStorePath, cache);
     if (result.outcome != PipelineCacheData::LoadResult::Success) {
@@ -254,23 +303,7 @@ sk_sp<SkData> PipelineCache::tryLoad(const SkData& key) {
         return nullptr;
     }
 
-    if (mData == nullptr) {
-        ALOGW("PipelineCache::tryLoad: multiple data loads, incurring a load cost on the critical "
-              "path");
-
-        PipelineCacheData cache;
-        auto result = PipelineCacheData::load(mStorePath, cache);
-        if (result.outcome != PipelineCacheData::LoadResult::Success) {
-            logLoadWarning(
-                    result,
-                    "PipelineCache::tryLoad: could not load cache key (cache will be dropped)");
-            return nullptr;
-        }
-
-        return std::move(cache.data);
-    }
-
-    return std::move(mData);
+    return mData;
 }
 
 bool PipelineCache::canStore(const SkString& description) const {
@@ -281,19 +314,11 @@ void PipelineCache::store(const SkData& key, const SkData& data) {
     ATRACE_NAME("PipelineCache::store");
 
     mKey = SkData::MakeWithCopy(key.data(), key.size());
+    mData = SkData::MakeWithCopy(data.data(), data.size());
 
-    auto dataSize = sizeof(key_size_t) + key.size() + data.size();
-    std::vector<uint8_t> pendingData(dataSize);
-    auto ptr = pendingData.data();
+    mPipelineCacheStore.store(mStorePath, mKey, mData);
+}
 
-    auto keySize = static_cast<key_size_t>(key.size());
-    memcpy(ptr, &keySize, sizeof(key_size_t));
-    ptr += sizeof(key_size_t);
-
-    memcpy(ptr, key.data(), key.size());
-    ptr += key.size();
-
-    memcpy(ptr, data.data(), data.size());
-
-    mPipelineCacheStore.store(mStorePath, std::move(pendingData));
+void PipelineCache::fillStats(PipelineCacheStats& stats) const {
+    mPipelineCacheStore.fillStats(stats);
 }

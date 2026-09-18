@@ -16,6 +16,7 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import android.util.MathUtils
 import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.domain.interactor.FromLockscreenTransitionInteractor
@@ -28,7 +29,6 @@ import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import com.android.systemui.keyguard.ui.transitions.PrimaryBouncerTransition
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Overlays
-import com.android.systemui.scene.ui.composable.transitions.TO_BOUNCER_FADE_FRACTION
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
@@ -51,32 +51,34 @@ constructor(private val blurConfig: BlurConfig, animationFlow: KeyguardTransitio
             )
             .setupWithoutSceneContainer(edge = Edge.create(from = LOCKSCREEN, to = PRIMARY_BOUNCER))
 
-    private val alphaForAnimationStep: (Float) -> Float =
-        when {
-            SceneContainerFlag.isEnabled -> { step ->
-                    1f - Math.min((step / TO_BOUNCER_FADE_FRACTION), 1f)
-                }
-            else -> { step -> 1f - step }
-        }
-
     val shortcutsAlpha: Flow<Float> =
         transitionAnimation.sharedFlow(
             duration = 200.milliseconds,
-            onStep = alphaForAnimationStep,
+            onStep = { step -> 1f - step },
             // Rapid swipes to bouncer, and may end up skipping intermediate values that would've
             // caused a complete fade out of lockscreen elements. Ensure it goes to 0f.
             onFinish = { 0f },
         )
 
-    val lockscreenAlpha: Flow<Float> =
-        if (SceneContainerFlag.isEnabled) {
+    fun lockscreenAlpha(viewState: ViewStateAccessor): Flow<Float> {
+        return if (SceneContainerFlag.isEnabled) {
             // Lockscreen -> Bouncer is a scene transition in Flexiglass.
             // SharedNotificationContainerViewModel#alphaForShadeAndQsExpansion might be relevant
             // instead.
             emptyFlow()
         } else {
-            shortcutsAlpha
+            var startAlpha = 1f
+            transitionAnimation.sharedFlow(
+                duration = 200.milliseconds,
+                onStart = { startAlpha = viewState.alpha() },
+                onStep = { MathUtils.lerp(startAlpha, 0f, it) },
+                // Rapid swipes to bouncer, and may end up skipping intermediate values that
+                // would've caused a complete fade out of lockscreen elements. Ensure it goes to
+                // 0f.
+                onFinish = { 0f },
+            )
         }
+    }
 
     val notificationAlpha: Flow<Float> =
         if (SceneContainerFlag.isEnabled) {
@@ -84,34 +86,27 @@ constructor(private val blurConfig: BlurConfig, animationFlow: KeyguardTransitio
             // SharedNotificationContainerViewModel#alphaForShadeAndQsExpansion might be relevant
             // instead.
             emptyFlow()
-        } else if (Flags.bouncerUiRevamp()) {
+        } else {
             transitionAnimation.sharedFlowWithShade(
                 duration = 200.milliseconds,
-                onStep = { step, isShadeExpanded ->
-                    if (isShadeExpanded) 1f else alphaForAnimationStep(step)
-                },
+                onStep = { step, isShadeExpanded -> if (isShadeExpanded) 1f else 1f - step },
                 onFinish = { isShadeExpanded -> if (isShadeExpanded) 1f else 0f },
             )
-        } else {
-            lockscreenAlpha
         }
 
     override val notificationBlurRadius: Flow<Float> =
-        if (Flags.bouncerUiRevamp()) {
-            transitionAnimation.sharedFlowWithShade(
-                duration = 1.milliseconds,
-                onStep = { _, isShadeExpanded ->
-                    if (isShadeExpanded) blurConfig.maxBlurRadiusPx else null
-                },
-            )
-        } else {
-            emptyFlow()
-        }
+        transitionAnimation.sharedFlowWithShade(
+            duration = 1.milliseconds,
+            onStep = { _, isShadeExpanded ->
+                if (isShadeExpanded) blurConfig.maxBlurRadiusPx else null
+            },
+        )
 
     override val deviceEntryParentViewAlpha: Flow<Float> =
         transitionAnimation.sharedFlowWithShade(
             duration = 250.milliseconds,
             onStep = { step, isShadeExpanded -> if (isShadeExpanded) 0f else 1f - step },
+            onCancel = { 0f },
             onFinish = { 0f },
         )
 
@@ -127,7 +122,7 @@ constructor(private val blurConfig: BlurConfig, animationFlow: KeyguardTransitio
                     }
                 } else {
                     transitionProgressToBlurRadius(
-                        starBlurRadius = blurConfig.minBlurRadiusPx,
+                        startBlurRadius = blurConfig.minBlurRadiusPx,
                         endBlurRadius = blurConfig.maxBlurRadiusPx,
                         transitionProgress = step,
                     )

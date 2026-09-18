@@ -36,7 +36,7 @@ public final class LmkdStatsReporter {
     /**
      * This needs to be synced with statslog.h, minus MAX_TASKNAME_LEN.
      */
-    public static final int KILL_OCCURRED_MSG_SIZE = 86;
+    public static final int KILL_OCCURRED_MSG_SIZE = 102;
 
     private static final int PRESSURE_AFTER_KILL = 0;
     private static final int NOT_RESPONDING = 1;
@@ -71,6 +71,8 @@ public final class LmkdStatsReporter {
             final long pgMajFault = inputData.readLong();
             final long rssInBytes = inputData.readLong();
             final long cacheInBytes = inputData.readLong();
+            final long anonRssInBytes = inputData.readLong();
+            final long dmabufRssInBytes = inputData.readLong();
             final long swapInBytes = inputData.readLong();
             final long processStartTimeNS = inputData.readLong();
             final int uid = inputData.readInt();
@@ -85,7 +87,8 @@ public final class LmkdStatsReporter {
             FrameworkStatsLog.write(FrameworkStatsLog.LMK_KILL_OCCURRED, uid, procName, oomScore,
                     pgFault, pgMajFault, rssInBytes, cacheInBytes, swapInBytes, processStartTimeNS,
                     minOomScore, freeMemKb, freeSwapKb, mapKillReason(killReason), thrashing,
-                    maxThrashing, totalForegroundServices, procsWithForegroundServices);
+                    maxThrashing, totalForegroundServices, procsWithForegroundServices,
+                    anonRssInBytes, dmabufRssInBytes);
         } catch (IOException e) {
             Slog.e(TAG, "Invalid buffer data. Failed to log LMK_KILL_OCCURRED");
             return;

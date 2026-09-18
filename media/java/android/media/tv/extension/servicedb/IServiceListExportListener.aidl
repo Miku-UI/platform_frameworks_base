@@ -17,8 +17,14 @@
 package android.media.tv.extension.servicedb;
 
 /**
+ * Listener interface for receiving callbacks from an export session.
  * @hide
  */
 oneway interface IServiceListExportListener {
+    /**
+     * Called when the service list export process has finished.
+     *
+     * @param exportResult The result of the export operation, @ServicedbConstants.ResultCode.
+     */
     void onExported(int exportResult);
 }

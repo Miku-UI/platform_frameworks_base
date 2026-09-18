@@ -41,6 +41,7 @@ import android.content.pm.IntentFilterVerificationInfo;
 import android.content.pm.KeySet;
 import android.content.pm.ModuleInfo;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageInfoList;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
 import android.content.pm.PermissionGroupInfo;
@@ -483,7 +484,7 @@ public abstract class IPackageManagerBase extends IPackageManager.Stub {
 
     @Override
     @Deprecated
-    public final ParceledListSlice<PackageInfo> getInstalledPackages(
+    public final PackageInfoList getInstalledPackages(
             @PackageManager.PackageInfoFlagsBits long flags, int userId) {
         return snapshot().getInstalledPackages(flags, userId);
     }

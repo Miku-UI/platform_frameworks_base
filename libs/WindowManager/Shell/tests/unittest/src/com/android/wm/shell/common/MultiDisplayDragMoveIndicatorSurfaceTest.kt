@@ -74,8 +74,7 @@ class MultiDisplayDragMoveIndicatorSurfaceTest : ShellTestCase() {
 
         whenever(mockTransaction.remove(any())).thenReturn(mockTransaction)
         whenever(mockTransaction.setCrop(any(), any())).thenReturn(mockTransaction)
-        whenever(mockTransaction.setCornerRadius(any(), anyFloat()))
-                                                                  .thenReturn(mockTransaction)
+        whenever(mockTransaction.setCornerRadius(any(), anyFloat())).thenReturn(mockTransaction)
         whenever(mockTransaction.show(any())).thenReturn(mockTransaction)
         whenever(mockTransaction.hide(any())).thenReturn(mockTransaction)
         whenever(mockTransaction.setColor(any(), any())).thenReturn(mockTransaction)

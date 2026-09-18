@@ -507,6 +507,8 @@ public final class CameraExtensionSessionImpl extends CameraExtensionSession {
                     "Session already initialized");
             return;
         }
+        Log.v(TAG, "extensionType " + mExtensionType);
+
         int previewSessionType = mPreviewExtender.getSessionType();
         int imageSessionType = mImageExtender.getSessionType();
         if (previewSessionType != imageSessionType) {
@@ -1407,7 +1409,7 @@ public final class CameraExtensionSessionImpl extends CameraExtensionSession {
                                                long frameNumber) {
             boolean status = true;
             synchronized (mInterfaceLock) {
-                /**
+                /*
                  * Initialize and set the initial repeating request which will execute in the
                  * absence of client repeating requests.
                  */

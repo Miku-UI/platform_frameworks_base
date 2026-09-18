@@ -36,7 +36,7 @@ class RemoteUnfoldTransitionReceiver
 @Inject
 constructor(
     @UseReceivingFilter useReceivingFilter: Boolean,
-    @UnfoldMain private val executor: Executor
+    @param:UnfoldMain private val executor: Executor
 ) : UnfoldTransitionProgressProvider, IUnfoldTransitionListener.Stub() {
 
     private val listeners: MutableSet<TransitionProgressListener> = mutableSetOf()

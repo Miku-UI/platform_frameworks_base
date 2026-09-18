@@ -61,7 +61,7 @@ public class TaskSnapshotLowResDisabledTest extends TaskSnapshotPersisterTestBas
     public void setUp() {
         super.setUp();
         MockitoAnnotations.initMocks(this);
-        mCache = new TaskSnapshotCache(mLoader);
+        mCache = new TaskSnapshotCache(mLoader, mWm.mH);
     }
 
     @Test
@@ -76,7 +76,6 @@ public class TaskSnapshotLowResDisabledTest extends TaskSnapshotPersisterTestBas
         assertNotNull(snapshot);
         assertEquals(MOCK_SNAPSHOT_ID, snapshot.getId());
         assertEquals(TEST_INSETS, snapshot.getContentInsets());
-        assertNotNull(snapshot.getSnapshot());
         assertEquals(Configuration.ORIENTATION_PORTRAIT, snapshot.getOrientation());
         assertNull(mLoader.loadTask(1, mTestUserId, true /* isLowResolution */));
     }

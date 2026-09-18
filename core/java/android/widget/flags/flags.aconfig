@@ -9,16 +9,6 @@ flag {
 }
 
 flag {
-  name: "fix_unbolded_typeface_for_numberpicker"
-  namespace: "text"
-  description: "Use the correct bolded typeface when drawing the selector numbers"
-  bug: "318304896"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "boost_cpu_load_for_long_text_rendering"
   namespace: "text"
   description: "Use ADPF APIs to boost cpu when processing long text layout"
@@ -26,4 +16,28 @@ flag {
   metadata {
     purpose: PURPOSE_BUGFIX
   }
+}
+
+flag {
+  name: "enable_context_menu_look_up"
+  namespace: "text"
+  description: "Enables the 'Look Up' action in context menus."
+  bug: "472178600"
+}
+
+flag {
+  name: "list_view_count_for_accessibility"
+  namespace: "accessibility"
+  description: "Provide CollectionInfo with the ListView item count."
+  bug: "337323059"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "always_show_action_mode_on_selection"
+  namespace: "text"
+  description: "Show the ActionMode selection toolbar upon selection even with mouse or keyboard"
+  bug: "460552626"
 }

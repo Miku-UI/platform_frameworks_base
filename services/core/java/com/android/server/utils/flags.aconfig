@@ -2,21 +2,6 @@ package: "com.android.server.utils"
 container: "system"
 
 flag {
-     name: "anr_timer_trace"
-     namespace: "system_performance"
-     is_fixed_read_only: true
-     description: "When true, start a trace if an ANR timer reaches 50%"
-     bug: "352085328"
-}
-
-flag {
-     name: "anr_timer_for_job_service"
-     namespace: "system_performance"
-     description: "Use AnrTimer to signal ANRs in JobScheduler"
-     bug: "408440679"
-}
-
-flag {
      name: "long_method_trace"
      namespace: "stability"
      is_fixed_read_only: true

@@ -45,7 +45,6 @@ import static com.android.server.wm.WindowManagerDebugConfig.SHOW_LIGHT_TRANSACT
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WITH_CLASS_NAME;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WM;
 import static com.android.server.wm.WindowManagerService.logWithStack;
-import static com.android.window.flags.Flags.setScPropertiesInClient;
 
 import android.content.Context;
 import android.graphics.PixelFormat;
@@ -56,6 +55,7 @@ import android.util.Slog;
 import android.util.proto.ProtoOutputStream;
 import android.view.Surface.OutOfResourcesException;
 import android.view.SurfaceControl;
+import android.view.View;
 import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
 import android.view.animation.AlphaAnimation;
@@ -160,6 +160,10 @@ class WindowStateAnimator {
         mSession = win.mSession;
         mAttrType = win.mAttrs.type;
         mWallpaperControllerLocked = win.getDisplayContent().mWallpaperController;
+        if (WindowManager.useClientSurface()) {
+            mLastHidden = true;
+            mTitle = win.getName();
+        }
     }
 
     void onAnimationFinished() {
@@ -202,7 +206,9 @@ class WindowStateAnimator {
         ProtoLog.i(WM_SHOW_TRANSACTIONS, "SURFACE HIDE ( %s ): %s", reason, mTitle);
 
         setShown(false);
-        transaction.hide(mSurfaceControl);
+        final SurfaceControl sc =
+                WindowManager.useClientSurface() ? mWin.mSurfaceControl : mSurfaceControl;
+        transaction.hide(sc);
         if (mWin.mIsWallpaper) {
             final DisplayContent dc = mWin.getDisplayContent();
             EventLog.writeEvent(EventLogTags.WM_WALLPAPER_SURFACE,
@@ -279,6 +285,10 @@ class WindowStateAnimator {
     }
 
     SurfaceControl createSurfaceLocked() {
+        if (WindowManager.useClientSurface()) {
+            Slog.e(TAG, "No longer create client surfaces on the server side", new Throwable());
+            return null;
+        }
         final WindowState w = mWin;
 
         if (mSurfaceControl != null) {
@@ -323,11 +333,6 @@ class WindowStateAnimator {
                     .setCallsite("WindowSurfaceController")
                     .setBLASTLayer().build();
             Trace.traceEnd(TRACE_TAG_WINDOW_MANAGER);
-
-            if (!setScPropertiesInClient()) {
-                setColorSpaceAgnosticLocked(
-                        (attrs.privateFlags & LayoutParams.PRIVATE_FLAG_COLOR_SPACE_AGNOSTIC) != 0);
-            }
 
             w.setHasSurface(true);
             // The surface instance is changed. Make sure the input info can be applied to the
@@ -436,7 +441,9 @@ class WindowStateAnimator {
         ProtoLog.i(WM_SHOW_TRANSACTIONS, "SURFACE SHOW (performLayout): %s", mTitle);
         if (DEBUG_VISIBILITY) Slog.v(TAG, "Showing " + this + " during relayout");
         setShown(true);
-        t.show(mSurfaceControl);
+        final SurfaceControl sc =
+                WindowManager.useClientSurface() ? mWin.mSurfaceControl : mSurfaceControl;
+        t.show(sc);
         if (mWin.mIsWallpaper) {
             final DisplayContent dc = mWin.mDisplayContent;
             EventLog.writeEvent(EventLogTags.WM_WALLPAPER_SURFACE,
@@ -452,14 +459,6 @@ class WindowStateAnimator {
         ProtoLog.i(WM_SHOW_TRANSACTIONS, "SURFACE isOpaque=%b: %s", isOpaque, mTitle);
         mWin.getPendingTransaction().setOpaque(mSurfaceControl, isOpaque);
         mService.scheduleAnimationLocked();
-    }
-
-    void setColorSpaceAgnosticLocked(boolean agnostic) {
-        if (mSurfaceControl == null) {
-            return;
-        }
-        ProtoLog.i(WM_SHOW_TRANSACTIONS, "SURFACE isColorSpaceAgnostic=%b: %s", agnostic, mTitle);
-        mWin.getPendingTransaction().setColorSpaceAgnostic(mSurfaceControl, agnostic);
     }
 
     void applyEnterAnimationLocked() {
@@ -542,9 +541,6 @@ class WindowStateAnimator {
                         break;
                     case WindowManagerPolicy.TRANSIT_SHOW:
                         attr = com.android.internal.R.styleable.WindowAnimation_windowShowAnimation;
-                        break;
-                    case WindowManagerPolicy.TRANSIT_HIDE:
-                        attr = com.android.internal.R.styleable.WindowAnimation_windowHideAnimation;
                         break;
                 }
                 if (attr >= 0) {
@@ -634,10 +630,18 @@ class WindowStateAnimator {
             Slog.e(TAG, "Unexpected removing wallpaper surface of " + mWin
                     + " by " + Debug.getCallers(8));
         }
+        if (WindowManager.useClientSurface() && mWin.mViewVisibility == View.INVISIBLE) {
+            // Release the buffer explicitly because the client may cache the surface control.
+            t.setBuffer(mSurfaceControl, null /* buffer */, null /* fence */);
+        }
         t.remove(mSurfaceControl);
         setShown(false);
         mSurfaceControl = null;
         mWin.setHasSurface(false);
         mDrawState = NO_SURFACE;
+        if (WindowManager.useClientSurface()) {
+            mLastHidden = true;
+            t.hide(mWin.mSurfaceControl);
+        }
     }
 }

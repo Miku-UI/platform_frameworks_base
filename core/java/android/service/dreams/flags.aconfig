@@ -48,15 +48,6 @@ flag {
   }
 }
 
-flag {
-    name: "start_and_stop_dozing_in_background"
-    namespace: "systemui"
-    description: "Move the start-dozing and stop-dozing operation to the background"
-    bug: "330287187"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
 
 flag {
     name: "publish_preview_state_to_overlay"
@@ -79,13 +70,6 @@ flag {
 }
 
 flag {
-    name: "allow_dream_when_postured"
-    namespace: "systemui"
-    description: "Allow dreaming when device is stationary and upright"
-    bug: "383208131"
-}
-
-flag {
     name: "dreams_v2"
     namespace: "systemui"
     description: "Enables various improvements to the dream experience "
@@ -94,11 +78,34 @@ flag {
 }
 
 flag {
-  name: "dreams_v2_resources"
-  namespace: "systemui"
-  description: "Read only flag for rolling out dream v2 resource values"
-  bug: "403579494"
-  is_fixed_read_only: true
+    name: "dreams_switcher"
+    namespace: "systemui"
+    description: "Enables the dream switcher improvements"
+    bug: "448814507"
+}
+
+flag {
+    name: "dreams_switcher_long_press_enabled"
+    namespace: "systemui"
+    description: "Whether the long-press gesture to open the dream switcher is enabled."
+    bug: "487613819"
+}
+
+flag {
+    name: "dreams_switcher_edge_swipe_enabled"
+    namespace: "systemui"
+    description: "Whether the edge swipe gesture to open the dream switcher is enabled."
+    bug: "487613819"
+}
+
+flag {
+    name: "dreams_query_application_info"
+    namespace: "systemui"
+    description: "Query updated application info when starting a dream"
+    bug: "468501120"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -122,41 +129,30 @@ flag {
 }
 
 flag {
-    name: "disallow_dream_on_auto_projection"
+    name: "user_selectable_metadata"
     namespace: "systemui"
-    description: "Disallows dreaming when Android Auto projected display is active"
-    bug: "413508543"
+    description: "Controls whether a dream can be selected by the user"
+    bug: "450294768"
     metadata {
-        purpose: PURPOSE_BUGFIX
+      purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "allow_dream_attach_failure"
+    name: "system_dream_death_recipient"
     namespace: "systemui"
-    description: "Fails starting dream when attaching to a service that is already attached"
-    bug: "434674824"
+    description: "Controls whether to use the death recipient for the system dream component"
+    bug: "452716180"
     metadata {
-        purpose: PURPOSE_BUGFIX
+      purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "wake_on_stopping_doze"
+    name: "drive_dream_state_from_occlusion"
     namespace: "systemui"
-    description: "Sends a wakeUp when explicitly stopping the doze dream"
-    bug: "298073718"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-
-flag {
-    name: "dream_overlay_started_fix"
-    namespace: "systemui"
-    description: "Guards fix for the lifetime of when the dream is considered started"
-    bug: "432039567"
+    description: "Uses the WindowManager occlusion signal with task info to determine if the device is dreaming, instead of the DreamManager signal, to prevent race conditions."
+    bug: "462070389"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

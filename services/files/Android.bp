@@ -1,0 +1,20 @@
+package {
+    default_applicable_licenses: ["frameworks_base_license"],
+}
+
+filegroup {
+    name: "services.files-sources",
+    srcs: ["java/**/*.java"],
+    path: "java",
+    visibility: ["//frameworks/base/services"],
+}
+
+java_library_static {
+    name: "services.files",
+    defaults: ["platform_service_defaults"],
+    srcs: [
+        ":services.files-sources",
+        ":statslog-privatecompute-java-gen",
+    ],
+    libs: ["services.core"],
+}

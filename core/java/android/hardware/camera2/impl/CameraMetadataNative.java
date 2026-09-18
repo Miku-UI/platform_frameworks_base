@@ -1681,9 +1681,6 @@ public class CameraMetadataNative implements Parcelable {
     }
 
     private SharedSessionConfiguration getSharedSessionConfiguration() {
-        if (!Flags.cameraMultiClient()) {
-            return null;
-        }
         Integer sharedSessionColorSpace = getBase(
                 CameraCharacteristics.SHARED_SESSION_COLOR_SPACE);
         long[] sharedOutputConfigurations = getBase(
@@ -2274,8 +2271,14 @@ public class CameraMetadataNative implements Parcelable {
      */
     public void setMultiResolutionStreamConfigurationMap(
             @NonNull Map<String, StreamConfiguration[]> multiResolutionMap) {
+        int[] concurrentReaderFormats = null;
+        if (Flags.multiResolutionConcurrentReaders()) {
+            concurrentReaderFormats = get(
+                    CameraCharacteristics.SCALER_CONCURRENT_MULTI_RESOLUTION_FORMATS);
+        }
         mMultiResolutionStreamConfigurationMap =
-                new MultiResolutionStreamConfigurationMap(multiResolutionMap);
+                new MultiResolutionStreamConfigurationMap(multiResolutionMap,
+                        concurrentReaderFormats);
     }
 
     /**

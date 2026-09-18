@@ -61,6 +61,9 @@ fun <T> IntMap<T>?.getWithDefault(key: Int, defaultValue: T): T {
     return if (index >= 0) valueAt(index) else defaultValue
 }
 
+@Suppress("NOTHING_TO_INLINE")
+inline fun <T> IntMap<T>.isNotEmpty(): Boolean = !isEmpty()
+
 inline val <T> IntMap<T>.lastIndex: Int
     get() = size - 1
 

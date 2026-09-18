@@ -18,11 +18,13 @@ package com.android.wm.shell.desktopmode.data
 
 import android.app.ActivityManager
 import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.Region
 import android.util.ArrayMap
 import android.util.ArraySet
 import android.util.Slog
 import android.util.SparseArray
+import android.view.Display.DEFAULT_DISPLAY
 import android.view.Display.INVALID_DISPLAY
 import android.window.DesktopExperienceFlags
 import android.window.DesktopModeFlags
@@ -72,8 +74,8 @@ class DesktopRepository(
     /* Tracks corner/caption regions of desktop tasks, used to determine gesture exclusion. */
     private val desktopExclusionRegions = SparseArray<Region>()
 
-    /* Tracks last bounds of task before toggled to stable bounds. */
-    private val boundsBeforeMaximizeByTaskId = SparseArray<Rect>()
+    /* Tracks previous bounds of the task right before being snapped or maximized. */
+    private val boundsBeforeSnapOrMaximizeByTaskId = SparseArray<Rect>()
 
     /* Tracks last bounds of task before it is minimized. */
     private val boundsBeforeMinimizeByTaskId = SparseArray<Rect>()
@@ -84,15 +86,12 @@ class DesktopRepository(
     private var desktopGestureExclusionListener: Consumer<Region>? = null
     private var desktopGestureExclusionExecutor: Executor? = null
 
+    private val rememberedBoundsRatioByPackageName = ArrayMap<String, RectF>()
+
     // TODO - b/365873835: Add this to persistent repository.
     private val preservedDisplaysByUniqueId = ArrayMap<String, DesktopDisplay>()
 
-    private val desktopData: DesktopData =
-        if (DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-            MultiDesktopData()
-        } else {
-            SingleDesktopData()
-        }
+    private val desktopData: DesktopData = MultiDesktopData()
 
     /** Adds a listener to be notified of updates about desk changes. */
     fun addDeskChangeListener(listener: DeskChangeListener, executor: Executor) {
@@ -119,18 +118,31 @@ class DesktopRepository(
             }
     }
 
+    /** Returns true if the task has previous bounds. */
+    fun hasBoundsBeforeSnapOrMaximize(taskInfo: ActivityManager.RunningTaskInfo): Boolean =
+        taskInfo.taskId in boundsBeforeSnapOrMaximizeByTaskId
+
     /** Updates tasks changes on all the active task listeners for given display id. */
     private fun updateActiveTasksListeners(displayId: Int) {
         activeTasksListeners.onEach { it.onActiveTasksChanged(displayId) }
     }
 
+    private fun updateTaskAppearedInDeskListeners(taskId: Int, displayId: Int, deskId: Int) {
+        deskChangeListeners.forEach { (listener, executor) ->
+            executor.execute {
+                listener.onTaskAppearingInDesk(
+                    taskId = taskId,
+                    displayId = displayId,
+                    deskId = deskId,
+                )
+            }
+        }
+    }
+
     /** Stores the last state of the given display, along with the bounds of the tasks on it. */
     fun preserveDisplay(displayId: Int, uniqueDisplayId: String) {
         logD("preserveDisplay for displayId=%d, uniqueId=%s", displayId, uniqueDisplayId)
-        if (
-            preservedDisplaysByUniqueId.containsKey(uniqueDisplayId) &&
-                DesktopExperienceFlags.ENABLE_EXTERNAL_DISPLAY_PERSISTENCE_BUGFIX.isTrue
-        ) {
+        if (preservedDisplaysByUniqueId.containsKey(uniqueDisplayId)) {
             // Prevents multiple preserve requests from overwriting the previously
             // preserved display. Occurs during boot where we see display disabled
             // + display becoming desktop ineligible both requesting preserve.
@@ -139,7 +151,10 @@ class DesktopRepository(
         }
         val orderedDesks = desktopData.getOrderedDesks(displayId)
         // Do not preserve the display if there are no active tasks on it.
-        if (!orderedDesks.any { it.activeTasks.isNotEmpty() }) return
+        if (!orderedDesks.any { it.activeTasks.isNotEmpty() }) {
+            logD("No active tasks on display; aborting.")
+            return
+        }
         val preservedDisplay = DesktopDisplay(INVALID_DISPLAY)
         orderedDesks.mapTo(preservedDisplay.orderedDesks) { it.deepCopy() }
         preservedDisplay.activeDeskId = desktopData.getActiveDesk(displayId)?.deskId
@@ -147,8 +162,13 @@ class DesktopRepository(
     }
 
     /** Stores the last state of a single desk, creating a new PreservedDisplay if needed. */
-    fun preserveDesk(deskId: Int, uniqueDisplayId: String) {
-        logD("preserveDesk for deskId=%d, uniqueDisplayId=%s", deskId, uniqueDisplayId)
+    fun preserveDesk(deskId: Int, uniqueDisplayId: String, preserveAsActive: Boolean) {
+        logD(
+            "preserveDesk for deskId=%d, uniqueDisplayId=%s, preserveAsActive=%b",
+            deskId,
+            uniqueDisplayId,
+            preserveAsActive,
+        )
         val desk = desktopData.getDesk(deskId) ?: return
         if (desk.activeTasks.isEmpty()) return
         val preservedDisplay =
@@ -157,8 +177,7 @@ class DesktopRepository(
                     preservedDisplaysByUniqueId[uniqueDisplayId] = it
                 }
         preservedDisplay.orderedDesks.add(desk)
-        // The transient desk is preserved and has served its purpose, it can be removed now.
-        if (desk.transientDesk) removeDesk(deskId)
+        if (preserveAsActive) preservedDisplay.activeDeskId = deskId
     }
 
     /** Removes the specified preserved display. */
@@ -233,15 +252,32 @@ class DesktopRepository(
     fun setExclusionRegionListener(regionListener: Consumer<Region>, executor: Executor) {
         desktopGestureExclusionListener = regionListener
         desktopGestureExclusionExecutor = executor
-        executor.execute {
-            desktopGestureExclusionListener?.accept(calculateDesktopExclusionRegion())
+        notifyDesktopGestureExclusionListener()
+    }
+
+    /**
+     * Calculates the desktop gesture exclusion region and notifies
+     * [desktopGestureExclusionListener] if set.
+     */
+    private fun notifyDesktopGestureExclusionListener() {
+        val executor = desktopGestureExclusionExecutor
+        val listener = desktopGestureExclusionListener
+        if (executor == null || listener == null) {
+            return
         }
+
+        val desktopExclusionRegion = calculateDesktopExclusionRegion()
+        executor.execute { listener.accept(desktopExclusionRegion) }
     }
 
     /** Creates a new merged region representative of all exclusion regions in all desktop tasks. */
     private fun calculateDesktopExclusionRegion(): Region {
+        // TODO: b/457129297 - Remove log once bug is fixed
+        logD("calculateDesktopExclusionRegion: desktopExclusionRegions=%s", desktopExclusionRegions)
         val desktopExclusionRegion = Region()
-        desktopExclusionRegions.valueIterator().forEach { taskExclusionRegion ->
+        // TODO: b/466443921 - Investigate why a non-Region object is in desktopExclusionRegions
+        desktopExclusionRegions.valueIterator().asSequence().filterIsInstance<Region>().forEach {
+            taskExclusionRegion ->
             desktopExclusionRegion.op(taskExclusionRegion, Region.Op.UNION)
         }
         return desktopExclusionRegion
@@ -417,11 +453,7 @@ class DesktopRepository(
         val desk = checkNotNull(desktopData.getDesk(deskId)) { "Did not find desk: $deskId" }
         desk.leftTiledTaskId = taskId
         if (!desk.transientDesk && DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_PERSISTENCE.isTrue) {
-            if (DesktopExperienceFlags.REPOSITORY_BASED_PERSISTENCE.isTrue) {
-                updatePersistentRepository(displayId)
-            } else {
-                updatePersistentRepositoryForDesk(deskId)
-            }
+            updatePersistentRepository(displayId)
         }
     }
 
@@ -435,11 +467,7 @@ class DesktopRepository(
         val desk = checkNotNull(desktopData.getDesk(deskId)) { "Did not find desk: $deskId" }
         desk.rightTiledTaskId = taskId
         if (!desk.transientDesk && DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_PERSISTENCE.isTrue) {
-            if (DesktopExperienceFlags.REPOSITORY_BASED_PERSISTENCE.isTrue) {
-                updatePersistentRepository(displayId)
-            } else {
-                updatePersistentRepositoryForDesk(deskId)
-            }
+            updatePersistentRepository(displayId)
         }
     }
 
@@ -461,11 +489,7 @@ class DesktopRepository(
         if (desk == null) return
         desk.leftTiledTaskId = null
         if (DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_PERSISTENCE.isTrue) {
-            if (DesktopExperienceFlags.REPOSITORY_BASED_PERSISTENCE.isTrue) {
-                updatePersistentRepository(displayId)
-            } else {
-                updatePersistentRepositoryForDesk(deskId)
-            }
+            updatePersistentRepository(displayId)
         }
     }
 
@@ -475,11 +499,7 @@ class DesktopRepository(
         if (desk == null) return
         desk.rightTiledTaskId = null
         if (DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_PERSISTENCE.isTrue) {
-            if (DesktopExperienceFlags.REPOSITORY_BASED_PERSISTENCE.isTrue) {
-                updatePersistentRepository(displayId)
-            } else {
-                updatePersistentRepositoryForDesk(deskId)
-            }
+            updatePersistentRepository(displayId)
         }
     }
 
@@ -495,6 +515,7 @@ class DesktopRepository(
      *
      * TODO: b/389960283 - add explicit [deskId] argument.
      */
+    @Deprecated("Use addTaskToDesk() instead.", ReplaceWith("addTaskToDesk()"))
     fun addTask(displayId: Int, taskId: Int, isVisible: Boolean, taskBounds: Rect) {
         logD(
             "addTask for displayId=%d, taskId=%d, isVisible=%b," + "taskBounds=%s",
@@ -553,6 +574,11 @@ class DesktopRepository(
         if (desk.activeTasks.add(taskId)) {
             if (desk.transientDesk) return
             updateActiveTasksListeners(displayId)
+            updateTaskAppearedInDeskListeners(
+                taskId = taskId,
+                displayId = displayId,
+                deskId = deskId,
+            )
         } else {
             logD("Active task=%d already added, displayId=%d, deskId=%d", taskId, displayId, deskId)
         }
@@ -636,15 +662,27 @@ class DesktopRepository(
 
     fun isClosingTask(taskId: Int) = desksSequence().any { taskId in it.closingTasks }
 
+    /** Returns whether the given task is in the closing task list of the given desk. */
+    fun isClosingTaskInDesk(taskId: Int, deskId: Int): Boolean {
+        val desk = desktopData.getDesk(deskId) ?: return false
+        return taskId in desk.closingTasks
+    }
+
     fun isVisibleTask(taskId: Int) = desksSequence().any { taskId in it.visibleTasks }
 
-    @VisibleForTesting
+    /** Returns whether the given task is visible in the given desk. */
     fun isVisibleTaskInDesk(taskId: Int, deskId: Int): Boolean {
         val desk = desktopData.getDesk(deskId) ?: return false
         return taskId in desk.visibleTasks
     }
 
     fun isMinimizedTask(taskId: Int) = desksSequence().any { taskId in it.minimizedTasks }
+
+    /** Returns whether the given task is minimized in the given desk. */
+    fun isMinimizedTaskInDesk(taskId: Int, deskId: Int): Boolean {
+        val desk = desktopData.getDesk(deskId) ?: return false
+        return taskId in desk.minimizedTasks
+    }
 
     /**
      * Checks if a task is the only visible, non-closing, non-minimized task on the active desk of
@@ -688,6 +726,11 @@ class DesktopRepository(
     fun isOnlyTaskInDesk(taskId: Int, deskId: Int): Boolean {
         val desk = desktopData.getDesk(deskId) ?: return false
         return desk.activeTasks.size == 1 && desk.activeTasks.single() == taskId
+    }
+
+    /** Whether the provided set of taskIds contains all tasks in a given desk. */
+    fun containsAllDeskTasks(taskIds: Set<Int>, deskId: Int): Boolean {
+        return desktopData.getDesk(deskId)?.activeTasks?.let { taskIds.containsAll(it) } == true
     }
 
     /** Whether the task is the only visible desktop task in the display. */
@@ -842,6 +885,9 @@ class DesktopRepository(
             desk.visibleTasks.remove(taskId)
         }
         taskBounds?.let { desk.boundsByTaskId[taskId] = it }
+        boundsBeforeSnapOrMaximizeByTaskId.get(taskId)?.let {
+            desk.boundsBeforeSnapOrMaximizeByTaskId[taskId] = it
+        }
         if (desk.transientDesk) return
         val newCount = getVisibleTaskCountInDesk(deskId)
         if (prevCount != newCount) {
@@ -933,29 +979,6 @@ class DesktopRepository(
 
     /** Whether the display is currently showing any desk. */
     fun isAnyDeskActive(displayId: Int): Boolean {
-        if (!DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-            val desk = desktopData.getDefaultDesk(displayId)
-            if (desk == null) {
-                logE("Could not find default desk for display: $displayId")
-                return false
-            }
-            val hasVisibleTasks = desk.visibleTasks.isNotEmpty()
-            val hasTopTransparentFullscreenTask =
-                getTopTransparentFullscreenTaskData(desk.deskId) != null
-            if (
-                DesktopModeFlags.INCLUDE_TOP_TRANSPARENT_FULLSCREEN_TASK_IN_DESKTOP_HEURISTIC
-                    .isTrue && DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_MODALS_POLICY.isTrue
-            ) {
-                logD(
-                    "isAnyDeskActive: hasVisibleTasks=%s hasTopTransparentFullscreenTask=%s",
-                    hasVisibleTasks,
-                    hasTopTransparentFullscreenTask,
-                )
-                return hasVisibleTasks || hasTopTransparentFullscreenTask
-            }
-            logD("isAnyDeskActive: hasVisibleTasks=%s", hasVisibleTasks)
-            return hasVisibleTasks
-        }
         return desktopData.getActiveDesk(displayId) != null
     }
 
@@ -964,7 +987,7 @@ class DesktopRepository(
     @VisibleForTesting
     fun getVisibleTaskCount(displayId: Int): Int =
         (desktopData.getActiveDesk(displayId)?.visibleTasks?.size ?: 0).also {
-            logD("getVisibleTaskCount=$it")
+            logD("getVisibleTaskCount=%d", it)
         }
 
     /** Gets the number of visible tasks on the given desk. */
@@ -979,9 +1002,13 @@ class DesktopRepository(
     private fun addOrMoveTaskToTopOfDesk(displayId: Int, deskId: Int, taskId: Int) {
         val desk = desktopData.getDesk(deskId) ?: error("Could not find desk: $deskId")
         val bounds = Rect()
-        desktopData.forAllDesks { _, desk1 ->
-            desk1.freeformTasksInZOrder.remove(taskId)
-            desk1.boundsByTaskId[taskId]?.let { bounds.set(it) }
+        // If the desk is transient, don't remove from a nontransient desk as this
+        // functionally won't be a duplicate; the transient desk will be removed once finished.
+        if (!desk.transientDesk) {
+            desktopData.forAllDesks { _, desk1 ->
+                desk1.freeformTasksInZOrder.remove(taskId)
+                desk1.boundsByTaskId[taskId]?.let { bounds.set(it) }
+            }
         }
         desk.freeformTasksInZOrder.add(0, taskId)
         if (!bounds.isEmpty) desk.boundsByTaskId[taskId] = bounds
@@ -1023,11 +1050,7 @@ class DesktopRepository(
         updateTaskInDesk(displayId, deskId, taskId, isVisible = false, taskBounds = null)
         if (desk?.transientDesk == true) return
         if (DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_PERSISTENCE.isTrue) {
-            if (DesktopExperienceFlags.REPOSITORY_BASED_PERSISTENCE.isTrue) {
-                updatePersistentRepository(displayId)
-            } else {
-                updatePersistentRepositoryForDesk(deskId)
-            }
+            updatePersistentRepository(displayId)
         }
     }
 
@@ -1086,11 +1109,12 @@ class DesktopRepository(
         // TODO: b/362720497 - consider not clearing bounds on any removal, such as when moving
         //  it between desks. It might be better to allow restoring to the previous bounds as long
         //  as they're valid (probably valid if in the same display).
-        boundsBeforeMaximizeByTaskId.remove(taskId)
+        boundsBeforeSnapOrMaximizeByTaskId.remove(taskId)
         boundsBeforeFullImmersiveByTaskId.remove(taskId)
         val desk = desktopData.getDesk(deskId) ?: return
         if (desk.freeformTasksInZOrder.remove(taskId)) {
             desk.boundsByTaskId.remove(taskId)
+            desk.boundsBeforeSnapOrMaximizeByTaskId.remove(taskId)
             logD(
                 "Remaining freeform tasks in desk: %d, tasks: %s",
                 desk.deskId,
@@ -1103,11 +1127,7 @@ class DesktopRepository(
         removeActiveTaskFromDesk(deskId = deskId, taskId = taskId)
         removeVisibleTaskFromDesk(deskId = deskId, taskId = taskId)
         if (!desk.transientDesk && DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_PERSISTENCE.isTrue) {
-            if (DesktopExperienceFlags.REPOSITORY_BASED_PERSISTENCE.isTrue) {
-                updatePersistentRepository(desk.displayId)
-            } else {
-                updatePersistentRepositoryForDesk(deskId)
-            }
+            updatePersistentRepository(desk.displayId)
         }
     }
 
@@ -1144,15 +1164,8 @@ class DesktopRepository(
                 }
             }
         }
-        if (
-            DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_PERSISTENCE.isTrue &&
-                DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue
-        ) {
-            if (DesktopExperienceFlags.REPOSITORY_BASED_PERSISTENCE.isTrue) {
-                updatePersistentRepository(desk.displayId)
-            } else {
-                removeDeskFromPersistentRepository(desk)
-            }
+        if (DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_PERSISTENCE.isTrue) {
+            updatePersistentRepository(desk.displayId)
         }
         return activeTasks
     }
@@ -1164,10 +1177,9 @@ class DesktopRepository(
      * appropriate classes.
      */
     fun updateTaskExclusionRegions(taskId: Int, taskExclusionRegions: Region) {
-        desktopExclusionRegions.put(taskId, taskExclusionRegions)
-        desktopGestureExclusionExecutor?.execute {
-            desktopGestureExclusionListener?.accept(calculateDesktopExclusionRegion())
-        }
+        val exclusionRegion = Region.obtain(taskExclusionRegions)
+        desktopExclusionRegions.put(taskId, exclusionRegion)
+        notifyDesktopGestureExclusionListener()
     }
 
     /**
@@ -1178,18 +1190,28 @@ class DesktopRepository(
      */
     fun removeExclusionRegion(taskId: Int) {
         desktopExclusionRegions.delete(taskId)
-        desktopGestureExclusionExecutor?.execute {
-            desktopGestureExclusionListener?.accept(calculateDesktopExclusionRegion())
-        }
+        notifyDesktopGestureExclusionListener()
     }
 
-    /** Removes and returns the bounds saved before maximizing the given task. */
-    fun removeBoundsBeforeMaximize(taskId: Int): Rect? =
-        boundsBeforeMaximizeByTaskId.removeReturnOld(taskId)
+    /** Returns the bounds saved before snapping or maximizing the given task. */
+    fun getBoundsBeforeSnapOrMaximize(taskId: Int): Rect? =
+        boundsBeforeSnapOrMaximizeByTaskId.get(taskId)
 
-    /** Saves the bounds of the given task before maximizing. */
-    fun saveBoundsBeforeMaximize(taskId: Int, bounds: Rect) =
-        boundsBeforeMaximizeByTaskId.set(taskId, Rect(bounds))
+    /** Removes and returns the bounds saved before snapping or maximizing the given task. */
+    fun removeBoundsBeforeSnapOrMaximize(taskId: Int): Rect? =
+        boundsBeforeSnapOrMaximizeByTaskId.removeReturnOld(taskId)
+
+    /**
+     * Saves the bounds of the given task before snapping or maximizing if there is no existence for
+     * the given taskId.
+     *
+     * This prevents unwanted overwrites.
+     */
+    fun saveBoundsBeforeSnapOrMaximize(taskId: Int, bounds: Rect) {
+        if (taskId !in boundsBeforeSnapOrMaximizeByTaskId) {
+            boundsBeforeSnapOrMaximizeByTaskId.set(taskId, Rect(bounds))
+        }
+    }
 
     /** Removes and returns the bounds saved before minimizing the given task. */
     fun removeBoundsBeforeMinimize(taskId: Int): Rect? =
@@ -1222,100 +1244,78 @@ class DesktopRepository(
             }
             .toTypedArray()
 
+    /** Returns the remembered bounds ratio for the given package. */
+    fun getRememberedBoundsRatio(packageName: String): RectF? {
+        if (!Flags.enableRememberedBounds()) {
+            return null
+        }
+        return rememberedBoundsRatioByPackageName[packageName]
+    }
+
+    /** Sets the remembered bounds ratio for the given package. */
+    fun setRememberedBoundsRatio(packageName: String, bounds: RectF) {
+        if (!Flags.enableRememberedBounds()) {
+            return
+        }
+        rememberedBoundsRatioByPackageName[packageName] = bounds
+    }
+
+    /** Clears the remembered bounds ratio for the given package. */
+    fun clearRememberedBoundsRatio(packageName: String) {
+        if (!Flags.enableRememberedBounds()) {
+            return
+        }
+        rememberedBoundsRatioByPackageName.remove(packageName)?.let {
+            // The display ID doesn't matter actually because only
+            // [rememberedBoundsRatioByPackageName] needs to be updated.
+            updatePersistentRepository(DEFAULT_DISPLAY)
+        }
+    }
+
+    /** Clears the remembered bounds ratio for all package. */
+    fun clearAllRememberedBoundsRatio() {
+        if (!Flags.enableRememberedBounds()) {
+            return
+        }
+        rememberedBoundsRatioByPackageName.clear()
+        // The display ID doesn't matter actually because only [rememberedBoundsRatioByPackageName]
+        // needs to be updated.
+        updatePersistentRepository(DEFAULT_DISPLAY)
+    }
+
+    fun restoreRememberedBoundsRatioByPackageName(source: ArrayMap<String, RectF>) {
+        if (!Flags.enableRememberedBounds()) {
+            return
+        }
+        rememberedBoundsRatioByPackageName.putAll(
+            source.filterKeys { it !in rememberedBoundsRatioByPackageName }
+        )
+    }
+
     private fun updatePersistentRepository(displayId: Int): Unit =
         traceSection("DesktopRepository#updatePersistentRepository") {
             logD("updatePersistentRepository: displayId=%d", displayId)
             if (displayId == INVALID_DISPLAY) return
 
-            val desks = desktopData.desksSequence(displayId).map { it.deepCopy() }.toList()
-            if (desks.isEmpty()) {
-                logD(
-                    "updatePersistentRepository: no desks found for displayId=%d, skipping",
-                    displayId,
-                )
-                return
-            }
-            if (DesktopExperienceFlags.REPOSITORY_BASED_PERSISTENCE.isTrue) {
-                persistentUpdateQueue.post {
-                    Trace.beginSection("DesktopRepository#UpdateRepoWork")
-                    logD("updatePersistentRepository user=%d display=%d", userId, displayId)
-                    try {
-                        persistentRepository.addOrUpdateRepository(
-                            userId,
-                            desks,
-                            getActiveDeskId(displayId),
-                            preservedDisplaysByUniqueId,
-                        )
-                    } catch (exception: Exception) {
-                        logE(
-                            "An exception occurred while updating the persistent repository \n%s",
-                            exception.stackTrace,
-                        )
-                    } finally {
-                        Trace.endSection()
-                    }
-                }
-            } else {
-                mainCoroutineScope.launch {
-                    desks.forEach { desk -> updatePersistentRepositoryForDesk(desk) }
-                }
-            }
-        }
-
-    @Deprecated(
-        "Use updatePersistentRepository() instead.",
-        ReplaceWith("updatePersistentRepository()"),
-    )
-    private fun updatePersistentRepositoryForDesk(deskId: Int): Unit =
-        traceSection("DesktopRepository#updatePersistentRepositoryForDeskId") {
-            val desk = desktopData.getDesk(deskId)?.deepCopy() ?: return
-            mainCoroutineScope.launch { updatePersistentRepositoryForDesk(desk) }
-        }
-
-    @Deprecated(
-        "Use updatePersistentRepository() instead.",
-        ReplaceWith("updatePersistentRepository()"),
-    )
-    private suspend fun updatePersistentRepositoryForDesk(desk: Desk): Unit =
-        traceSection("DesktopRepository#updatePersistentRepositoryForDesk") {
-            try {
-                persistentRepository.addOrUpdateDesktop(
-                    userId = userId,
-                    desktopId = desk.deskId,
-                    uniqueDisplayId = desk.uniqueDisplayId,
-                    visibleTasks = desk.visibleTasks,
-                    minimizedTasks = desk.minimizedTasks,
-                    freeformTasksInZOrder = desk.freeformTasksInZOrder,
-                    leftTiledTask = desk.leftTiledTaskId,
-                    rightTiledTask = desk.rightTiledTaskId,
-                )
-            } catch (exception: Exception) {
-                logE(
-                    "An exception occurred while updating the persistent repository \n%s",
-                    exception.stackTrace,
-                )
-            }
-        }
-
-    @Deprecated(
-        "Use updatePersistentRepository() instead.",
-        ReplaceWith("updatePersistentRepository()"),
-    )
-    private fun removeDeskFromPersistentRepository(desk: Desk) =
-        traceSection("DesktopRepository#removeDeskFromPersistentRepository") {
-            mainCoroutineScope.launch {
-                logD(
-                    "updatePersistentRepositoryForRemovedDesk user=%d desk=%d",
-                    userId,
-                    desk.deskId,
-                )
-                Trace.beginSection("DesktopRepository#removeDeskWork")
+            val desks = desktopData.desksSequence().map { it.deepCopy() }.toList()
+            persistentUpdateQueue.post {
+                Trace.beginSection("DesktopRepository#UpdateRepoWork")
+                logD("updatePersistentRepository user=%d", userId)
                 try {
-                    persistentRepository.removeDesktop(userId = userId, desktopId = desk.deskId)
-                } catch (throwable: Throwable) {
+                    persistentRepository.addOrUpdateRepository(
+                        userId,
+                        desks,
+                        desktopData
+                            .getAllActiveDesks()
+                            .map { desk -> desk.uniqueDisplayId to desk.deskId }
+                            .toMap(),
+                            preservedDisplaysByUniqueId,
+                            rememberedBoundsRatioByPackageName,
+                    )
+                } catch (exception: Exception) {
                     logE(
                         "An exception occurred while updating the persistent repository \n%s",
-                        throwable.stackTrace,
+                        exception.stackTrace,
                     )
                 } finally {
                     Trace.endSection()
@@ -1324,7 +1324,6 @@ class DesktopRepository(
         }
 
     private fun canCreateDesks(): Boolean {
-        if (!DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) return false
         val deskLimit = desktopConfig.maxDeskLimit
         if (deskLimit == 0) return true
         return deskLimit > desktopData.getNumberOfDesks()
@@ -1337,6 +1336,12 @@ class DesktopRepository(
         dumpDesktopTaskData(pw, innerPrefix)
         pw.println("${innerPrefix}activeTasksListeners=${activeTasksListeners.size}")
         pw.println("${innerPrefix}visibleTasksListeners=${visibleTasksListeners.size}")
+        if (Flags.enableRememberedBounds()) {
+            pw.println("${innerPrefix}rememberedBoundsRatioByPackageName:")
+            rememberedBoundsRatioByPackageName.forEach { (packageName, bounds) ->
+                pw.println("$innerPrefix  $packageName -> $bounds")
+            }
+        }
     }
 
     private fun dumpDesktopTaskData(pw: PrintWriter, prefix: String) {
@@ -1384,6 +1389,9 @@ class DesktopRepository(
 
         /** Called when the conditions that allow the creation of a new desk change. */
         fun onCanCreateDesksChanged(canCreateDesks: Boolean)
+
+        /** Called when a task is appearing in a desk. */
+        fun onTaskAppearingInDesk(taskId: Int, displayId: Int, deskId: Int)
     }
 
     /** Listens to changes for active tasks in desktop mode. */
@@ -1469,109 +1477,6 @@ class DesktopRepository(
         fun removeDisplay(displayId: Int)
     }
 
-    /**
-     * A [DesktopData] implementation that only supports one desk per display.
-     *
-     * Internally, it reuses the displayId as that display's single desk's id. It also never truly
-     * "removes" a desk, it just clears its content.
-     */
-    private class SingleDesktopData : DesktopData {
-        private val deskByDisplayId =
-            object : SparseArray<Desk>() {
-                /** Gets [Desk] for existing [displayId] or creates a new one. */
-                fun getOrCreate(
-                    displayId: Int,
-                    uniqueDisplayId: String? = null,
-                    transientDesk: Boolean = false,
-                ): Desk =
-                    this[displayId]
-                        ?: Desk(
-                                deskId = displayId,
-                                displayId = displayId,
-                                uniqueDisplayId = uniqueDisplayId,
-                                transientDesk = transientDesk,
-                            )
-                            .also { this[displayId] = it }
-            }
-
-        override fun createDesk(
-            displayId: Int,
-            deskId: Int,
-            uniqueDisplayId: String?,
-            transientDesk: Boolean,
-        ) {
-            check(displayId == deskId) { "Display and desk ids must match" }
-            deskByDisplayId.getOrCreate(displayId, uniqueDisplayId, transientDesk)
-        }
-
-        override fun addDesk(displayId: Int, desk: Desk) {
-            // No-op, not supported
-        }
-
-        override fun getDesk(deskId: Int): Desk =
-            // TODO: b/362720497 - consider enforcing that the desk has been created before trying
-            //  to use it. As of now, there are cases where a task may be created faster than a
-            //  desk is, so just create it here if needed. See b/391984373.
-            deskByDisplayId.getOrCreate(deskId)
-
-        override fun getActiveDesk(displayId: Int): Desk {
-            // TODO: 389787966 - consider migrating to an "active" state instead of checking the
-            //   number of visible active tasks, PIP in desktop, and empty desktop logic. In
-            //   practice, existing single-desktop devices are ok with this function returning the
-            //   only desktop, even if it's not active.
-            return deskByDisplayId.getOrCreate(displayId)
-        }
-
-        override fun setActiveDesk(displayId: Int, deskId: Int) {
-            // No-op, in single-desk setups, which desktop is "active" is determined by the
-            // existence of visible desktop windows, among other factors.
-        }
-
-        override fun setDeskInactive(deskId: Int) {
-            // No-op, in single-desk setups, which desktop is "active" is determined by the
-            // existence of visible desktop windows, among other factors.
-        }
-
-        override fun getDefaultDesk(displayId: Int): Desk = getDesk(deskId = displayId)
-
-        override fun getAllActiveDesks(): Set<Desk> =
-            deskByDisplayId.valueIterator().asSequence().toSet()
-
-        override fun getNumberOfDesks(displayId: Int): Int = 1
-
-        override fun getNumberOfDesks(): Int = 1
-
-        override fun getOrderedDesks(displayId: Int): List<Desk> =
-            listOf(getDesk(deskId = displayId))
-
-        override fun forAllDesks(consumer: (Desk) -> Unit) {
-            deskByDisplayId.forEach { _, desk -> consumer(desk) }
-        }
-
-        override fun forAllDesks(consumer: (Int, Desk) -> Unit) {
-            deskByDisplayId.forEach { displayId, desk -> consumer(displayId, desk) }
-        }
-
-        override fun forAllDesks(displayId: Int, consumer: (Desk) -> Unit) {
-            consumer(getDesk(deskId = displayId))
-        }
-
-        override fun desksSequence(): Sequence<Desk> = deskByDisplayId.valueIterator().asSequence()
-
-        override fun desksSequence(displayId: Int): Sequence<Desk> =
-            deskByDisplayId[displayId]?.let { sequenceOf(it) } ?: emptySequence()
-
-        override fun remove(deskId: Int) {
-            setDeskInactive(deskId)
-            deskByDisplayId[deskId]?.clear()
-        }
-
-        override fun getDisplayForDesk(deskId: Int): Int = deskId
-
-        override fun removeDisplay(displayId: Int) {
-            deskByDisplayId.remove(displayId)
-        }
-    }
 
     /** A [DesktopData] implementation that supports multiple desks. */
     private class MultiDesktopData : DesktopData {
@@ -1713,16 +1618,22 @@ class DesktopRepository(
         }
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logD(msg: String, vararg arguments: Any?) {
-        ProtoLog.d(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
+        ProtoLog.d(WM_SHELL_DESKTOP_MODE, "%s(%d): $msg", TAG, userId, *arguments)
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logW(msg: String, vararg arguments: Any?) {
-        ProtoLog.w(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
+        ProtoLog.w(WM_SHELL_DESKTOP_MODE, "%s(%d): $msg", TAG, userId, *arguments)
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logE(msg: String, vararg arguments: Any?) {
-        ProtoLog.e(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
+        ProtoLog.e(WM_SHELL_DESKTOP_MODE, "%s(%d): $msg", TAG, userId, *arguments)
     }
 
     companion object {

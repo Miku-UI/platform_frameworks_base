@@ -17,6 +17,7 @@
 package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
+import android.platform.test.annotations.WithDesktopTest
 import android.tools.Rotation
 import android.tools.device.apphelpers.BrowserAppHelper
 import android.tools.traces.parsers.WindowManagerStateHelper
@@ -30,16 +31,16 @@ import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 
+@WithDesktopTest
 @Ignore("Test Base Class")
-abstract class OpenAppFromTaskbar(val rotation: Rotation = Rotation.ROTATION_0) : TestScenarioBase(
-    rotation
-) {
+abstract class OpenAppFromTaskbar(val rotation: Rotation = Rotation.ROTATION_0) :
+    TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val tapl = LauncherInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
-    private val testApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
+    val testApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
     val browserApp = BrowserAppHelper(instrumentation)
 
     @Before
@@ -50,9 +51,7 @@ abstract class OpenAppFromTaskbar(val rotation: Rotation = Rotation.ROTATION_0) 
 
     @Test
     open fun openApp() {
-        tapl.launchedAppState.taskbar
-            .getAppIcon(browserApp.appName)
-            .launch(browserApp.packageName)
+        tapl.launchedAppState.taskbar.getAppIcon(browserApp.appName).launch(browserApp.packageName)
     }
 
     @After

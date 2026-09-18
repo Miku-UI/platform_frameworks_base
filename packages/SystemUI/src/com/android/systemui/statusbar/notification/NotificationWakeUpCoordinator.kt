@@ -246,7 +246,7 @@ constructor(
             // If we stopped expanding and we're still visible because we had a pulse that hasn't
             // times out, let's release them all to make sure were not stuck in a state where
             // notifications are visible
-            headsUpManager.releaseAllImmediately()
+            headsUpManager.releaseAllImmediately("WakeUp setNotifVis")
         }
     }
 
@@ -433,7 +433,7 @@ constructor(
 
             if (couldShowPulsingHuns && !canShowPulsingHuns) {
                 updateNotificationVisibility(animate = true, increaseSpeed = true)
-                headsUpManager.releaseAllImmediately()
+                headsUpManager.releaseAllImmediately("WakeUp expansion changed")
             }
         }
     }

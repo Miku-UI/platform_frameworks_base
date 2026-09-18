@@ -36,7 +36,6 @@
 #include <android/hardware/gnss/BnGnssMeasurementCallback.h>
 #include <android/hardware/gnss/BnGnssPowerIndicationCallback.h>
 #include <android/hardware/gnss/BnGnssPsdsCallback.h>
-#include <android_location_flags.h>
 #include <binder/IServiceManager.h>
 #include <nativehelper/JNIHelp.h>
 #include <pthread.h>
@@ -146,8 +145,6 @@ std::unique_ptr<android::gnss::MeasurementCorrectionsInterface> gnssMeasurementC
         nullptr;
 std::unique_ptr<android::gnss::GnssAssistanceInterface> gnssAssistanceIface = nullptr;
 
-namespace location_flags = android::location::flags;
-
 namespace android {
 
 namespace {
@@ -236,10 +233,8 @@ static void android_location_gnss_hal_GnssNative_class_init_once(JNIEnv* env, jc
     gnss::GnssVisibilityControl_class_init_once(env, clazz);
     gnss::MeasurementCorrections_class_init_once(env, clazz);
     gnss::MeasurementCorrectionsCallback_class_init_once(env, clazz);
-    if (location_flags::gnss_assistance_interface_jni()) {
-        gnss::GnssAssistance_class_init_once(env, clazz);
-        gnss::GnssAssistanceCallback_class_init_once(env, clazz);
-    }
+    gnss::GnssAssistance_class_init_once(env, clazz);
+    gnss::GnssAssistanceCallback_class_init_once(env, clazz);
     gnss::Utils_class_init_once(env);
 }
 
@@ -277,9 +272,8 @@ static void android_location_gnss_hal_GnssNative_init_once(JNIEnv* env, jobject 
     gnssBatchingIface = gnssHal->getGnssBatchingInterface();
     gnssVisibilityControlIface = gnssHal->getGnssVisibilityControlInterface();
     gnssPowerIndicationIface = gnssHal->getGnssPowerIndicationInterface();
-    if (location_flags::gnss_assistance_interface_jni()) {
-        gnssAssistanceIface = gnssHal->getGnssAssistanceInterface();
-    }
+    gnssAssistanceIface = gnssHal->getGnssAssistanceInterface();
+
     if (mCallbacksObj) {
         ALOGE("Callbacks already initialized");
     } else {

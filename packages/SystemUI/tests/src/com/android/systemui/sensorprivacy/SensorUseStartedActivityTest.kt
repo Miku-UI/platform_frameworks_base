@@ -21,6 +21,7 @@ class SensorUseStartedActivityTest : SysuiTestCase() {
             keyguardStateController = mock(),
             keyguardDismissUtil = mock(),
             bgHandler = mock(),
+            sensorUseDialogDelegateFactory = mock(),
         )
 
     @get:Rule val activityRule = ActivityScenarioRule(SensorUseStartedActivityTestable::class.java)

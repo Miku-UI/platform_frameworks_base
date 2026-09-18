@@ -49,6 +49,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.android.compose.modifiers.thenIf
 import com.android.compose.modifiers.width
 import com.android.systemui.common.ui.compose.Icons.ChevronRight
 import com.android.systemui.common.ui.compose.PagerDotsDefaults.SPRING_STIFFNESS
@@ -72,6 +73,8 @@ fun PagerDots(
     spaceSize: Dp = 4.dp,
     /** Whether to show arrows for moving to previous/next page on click */
     showArrows: Boolean = false,
+    /** Whether to cycle through pages on click on the pager dots */
+    clickToCyclePages: Boolean = false,
 ) {
     if (pagerState.pageCount < 2) return
 
@@ -130,10 +133,19 @@ fun PagerDots(
                     },
             )
         }
+        val nextPageActionLabel =
+            stringResource(R.string.accessibility_pager_dots_navigate_to_next_page_action)
         Canvas(
             Modifier.width { totalWidth.roundToPx() }
                 .height(dotSize)
                 .pagerDotsSemantics(pagerState, coroutineScope)
+                .thenIf(clickToCyclePages) {
+                    Modifier.clickable(onClickLabel = nextPageActionLabel) {
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(pagerState.nextPage())
+                        }
+                    }
+                }
         ) {
             val rtl = layoutDirection == LayoutDirection.Rtl
             scale(if (rtl) -1f else 1f, 1f) {
@@ -185,6 +197,12 @@ fun PagerDots(
             )
         }
     }
+}
+
+/** Returns the next page, cycling back to 0 if we're at the last page. */
+private fun PagerState.nextPage(): Int {
+    if (pageCount == 0) return 0
+    return (currentPage + 1) % pageCount
 }
 
 private val Boolean.alpha

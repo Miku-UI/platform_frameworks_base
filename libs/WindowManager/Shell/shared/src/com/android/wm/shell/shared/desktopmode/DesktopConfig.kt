@@ -28,15 +28,8 @@ import java.io.PrintWriter
  */
 @Suppress("INAPPLICABLE_JVM_NAME")
 interface DesktopConfig {
-    /**
-     * Whether a window should be maximized when it's dragged to the top edge of the screen.
-     */
-    @Deprecated("Deprecated with desktop-first based drag-to-maximize")
-    val shouldMaximizeWhenDragToTopEdge: Boolean
-
     /** Whether the override desktop density is enabled and valid. */
-    @get:JvmName("useDesktopOverrideDensity")
-    val useDesktopOverrideDensity: Boolean
+    @get:JvmName("useDesktopOverrideDensity") val useDesktopOverrideDensity: Boolean
 
     /** The number of [WindowDecorViewHost] instances to warm up on system start. */
     val windowDecorPreWarmSize: Int
@@ -47,18 +40,14 @@ interface DesktopConfig {
      */
     val windowDecorScvhPoolSize: Int
 
-    /**
-     * Whether veiled resizing is enabled.
-     */
+    /** Whether veiled resizing is enabled. */
     val isVeiledResizeEnabled: Boolean
 
     /** Returns `true` if the app-to-web feature is using the build-time generic links list. */
-    @get:JvmName("useAppToWebBuildTimeGenericLinks")
-    val useAppToWebBuildTimeGenericLinks: Boolean
+    @get:JvmName("useAppToWebBuildTimeGenericLinks") val useAppToWebBuildTimeGenericLinks: Boolean
 
     /** Returns whether to use rounded corners for windows. */
-    @get:JvmName("useRoundedCorners")
-    val useRoundedCorners: Boolean
+    @get:JvmName("useRoundedCorners") val useRoundedCorners: Boolean
 
     /**
      * Returns whether to use window shadows, [isFocusedWindow] indicating whether or not the window
@@ -81,7 +70,7 @@ interface DesktopConfig {
     /** Returns the maximum limit on the number of desks a user can create. */
     val maxDeskLimit: Int
 
-    /** Override density for tasks when they're inside the desktop.  */
+    /** Override density for tasks when they're inside the desktop. */
     val desktopDensityOverride: Int
 
     /** Dumps DesktopModeStatus flags and configs. */

@@ -53,8 +53,8 @@ constructor(val rotation: Rotation = Rotation.ROTATION_0) {
         Assume.assumeTrue(tapl.isTablet)
 
         MultiWindowUtils.executeShellCommand(
-                instrumentation,
-                "settings put system notification_cooldown_enabled 0"
+            instrumentation,
+            "settings put system notification_cooldown_enabled 0",
         )
         // Send a notification
         sendNotificationApp.launchViaIntent(wmHelper)
@@ -83,8 +83,8 @@ constructor(val rotation: Rotation = Rotation.ROTATION_0) {
         sendNotificationApp.exit(wmHelper)
 
         MultiWindowUtils.executeShellCommand(
-                instrumentation,
-                "settings reset system notification_cooldown_enabled"
+            instrumentation,
+            "settings reset system notification_cooldown_enabled",
         )
     }
 }

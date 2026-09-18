@@ -45,7 +45,7 @@ public class UserPackage {
 
     /**
      * Returns a list of (User,PackageInfo) pairs corresponding to the PackageInfos for all
-     * device users for the package named {@param packageName}.
+     * device users for the package named {@code packageName}.
      */
     public static @NonNull List<UserPackage> getPackageInfosAllUsers(@NonNull Context context,
             @NonNull String packageName, int packageFlags) {
@@ -84,7 +84,7 @@ public class UserPackage {
     }
 
     /**
-     * Returns whether the package represented by {@param packageInfo} targets a sdk version
+     * Returns whether the package represented by {@code packageInfo} targets a sdk version
      * supported by the current framework version.
      */
     public static boolean hasCorrectTargetSdkVersion(PackageInfo packageInfo) {

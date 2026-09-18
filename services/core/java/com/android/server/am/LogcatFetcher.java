@@ -43,7 +43,7 @@ final class LogcatFetcher {
     static final int RESERVED_BYTES_PER_LOGCAT_LINE = 100;
 
     // How many seconds should the system wait before terminating the spawned logcat process.
-    static final int LOGCAT_TIMEOUT_SEC = Flags.logcatLongerTimeout() ? 15 : 10;
+    static final int LOGCAT_TIMEOUT_SEC = 15;
 
     // The minimum allowed size for calling logcat, accounting for a reserved line and a header.
     private static final int MIN_LOGCAT_FILE_SIZE = 2 * RESERVED_BYTES_PER_LOGCAT_LINE;

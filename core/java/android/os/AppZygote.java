@@ -56,6 +56,9 @@ public class AppZygote {
 
     private final Object mLock = new Object();
 
+    // The name of the App Zygote process
+    private final String mProcessName;
+
     /**
      * Instance that maintains the socket connection to the zygote. This is {@code null} if the
      * zygote is not running or is not connected.
@@ -65,14 +68,17 @@ public class AppZygote {
 
     private final ApplicationInfo mAppInfo;
     private final ProcessInfo mProcessInfo;
+    private final boolean mIsNativeService;
 
     public AppZygote(ApplicationInfo appInfo, ProcessInfo processInfo, int zygoteUid, int uidGidMin,
-            int uidGidMax) {
+            int uidGidMax, boolean isNativeService, String processName) {
         mAppInfo = appInfo;
         mProcessInfo = processInfo;
         mZygoteUid = zygoteUid;
         mZygoteUidGidMin = uidGidMin;
         mZygoteUidGidMax = uidGidMax;
+        mIsNativeService = isNativeService;
+        mProcessName =  processName;
     }
 
     /**
@@ -99,6 +105,20 @@ public class AppZygote {
 
     public ApplicationInfo getAppInfo() {
         return mAppInfo;
+    }
+
+    /**
+     * Returns the UID of the zygote process.
+     */
+    public int getZygoteUid() {
+        return mZygoteUid;
+    }
+
+    /**
+     * Returns the name of the App Zygote process.
+     */
+    public String getProcessName() {
+        return mProcessName;
     }
 
     /**
@@ -141,6 +161,8 @@ public class AppZygote {
             @Nullable String packageName,
             boolean isTopApp,
             @Nullable long[] disabledCompatChanges,
+            @Nullable long[] enabledCompatChanges,
+            boolean useDeliQueue,
             @Nullable Map<String, Pair<String, Long>>
             pkgDataInfoMap,
             @Nullable Map<String, Pair<String, Long>>
@@ -148,12 +170,13 @@ public class AppZygote {
             long startSeq,
             @Nullable String[] zygoteArgs) {
         try {
-            return getProcess().start(processClass,
+            return getProcess().getZygoteProcess().start(processClass,
                     niceName, uid, uid, gids, runtimeFlags, mountExternal,
                     targetSdkVersion, seInfo, abi, instructionSet,
                     appDataDir, null, packageName,
                     /*zygotePolicyFlags=*/ ZYGOTE_POLICY_FLAG_EMPTY, isTopApp,
-                    disabledCompatChanges, pkgDataInfoMap, allowlistedDataInfoList,
+                    disabledCompatChanges, enabledCompatChanges, useDeliQueue, pkgDataInfoMap,
+                    allowlistedDataInfoList,
                     false, false, false, startSeq,
                     zygoteArgs);
         } catch (RuntimeException e) {
@@ -165,12 +188,13 @@ public class AppZygote {
         // Retry here if the previous start fails.
         Log.w(LOG_TAG, "retry starting process " + niceName);
         stopZygote();
-        return getProcess().start(processClass,
+        return getProcess().getZygoteProcess().start(processClass,
                 niceName, uid, uid, gids, runtimeFlags, mountExternal,
                 targetSdkVersion, seInfo, abi, instructionSet,
                 appDataDir, null, packageName,
                 /*zygotePolicyFlags=*/ ZYGOTE_POLICY_FLAG_EMPTY, isTopApp,
-                disabledCompatChanges, pkgDataInfoMap, allowlistedDataInfoList,
+                disabledCompatChanges, enabledCompatChanges, useDeliQueue, pkgDataInfoMap,
+                allowlistedDataInfoList,
                 false, false, false, startSeq,
                 zygoteArgs);
     }
@@ -178,7 +202,7 @@ public class AppZygote {
     @GuardedBy("mLock")
     private void stopZygoteLocked() {
         if (mZygote != null) {
-            mZygote.close();
+            mZygote.getZygoteProcess().close();
             // use killProcessGroup() here, so we kill all untracked children as well.
             if (!mZygote.isDead()) {
                 Process.killProcessGroup(mZygoteUid, mZygote.getPid());
@@ -197,25 +221,35 @@ public class AppZygote {
 
             final int[] sharedAppGid = {
                     UserHandle.getSharedAppGid(UserHandle.getAppId(mAppInfo.uid)) };
-            mZygote = Process.ZYGOTE_PROCESS.startChildZygote(
+            IZygoteProcess process =
+                    mIsNativeService ? Process.NATIVE_ZYGOTE_PROCESS : Process.ZYGOTE_PROCESS;
+            String seInfo = mIsNativeService ? "native_app_zygote" : "app_zygote";
+            mZygote = process.startChildZygote(
                     "com.android.internal.os.AppZygoteInit",
-                    mAppInfo.processName + "_zygote",
+                    mProcessName,
                     mZygoteUid,
                     mZygoteUid,
                     sharedAppGid,  // Zygote gets access to shared app GID for profiles
                     runtimeFlags,
-                    "app_zygote",  // seInfo
+                    seInfo,
                     abi,  // abi
                     abi, // acceptedAbiList
                     VMRuntime.getInstructionSet(abi), // instructionSet
                     mZygoteUidGidMin,
-                    mZygoteUidGidMax);
+                    mZygoteUidGidMax,
+                    mAppInfo);
 
-            ZygoteProcess.waitForConnectionToZygote(mZygote.getPrimarySocketAddress());
-            // preload application code in the zygote
-            Log.i(LOG_TAG, "Starting application preload.");
-            mZygote.preloadApp(mAppInfo, abi);
-            Log.i(LOG_TAG, "Application preload done.");
+            if (mIsNativeService) {
+                ZygoteProcess.waitForConnectionToNativeZygote(
+                        mZygote.getZygoteProcess().getPrimarySocketAddress());
+            } else {
+                ZygoteProcess.waitForConnectionToZygote(
+                        mZygote.getZygoteProcess().getPrimarySocketAddress());
+                // preload application code in the zygote
+                Log.i(LOG_TAG, "Starting application preload.");
+                mZygote.getZygoteProcess().preloadApp(mAppInfo, abi);
+                Log.i(LOG_TAG, "Application preload done.");
+            }
         } catch (Exception e) {
             Log.e(LOG_TAG, "Error connecting to app zygote", e);
             stopZygoteLocked();

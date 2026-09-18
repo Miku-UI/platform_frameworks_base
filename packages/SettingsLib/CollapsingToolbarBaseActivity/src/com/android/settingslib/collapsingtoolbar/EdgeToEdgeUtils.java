@@ -16,11 +16,14 @@
 
 package com.android.settingslib.collapsingtoolbar;
 
+import android.content.res.Configuration;
+import android.content.res.TypedArray;
 import android.os.Build;
 import android.view.ViewGroup;
 
 import androidx.activity.ComponentActivity;
 import androidx.activity.EdgeToEdge;
+import androidx.activity.SystemBarStyle;
 import androidx.annotation.NonNull;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -40,6 +43,17 @@ public class EdgeToEdgeUtils {
      * setContentView.
      */
     public static void enable(@NonNull ComponentActivity activity) {
+        enable(activity, false);
+    }
+
+    /**
+     * Enable Edge to Edge and handle overlaps using insets. It should be called before
+     * setContentView.
+     *
+     * @param useThemeColors whether to use the provided style attributes such as
+     *                            statusBarColor or navigationBarColor
+     */
+    public static void enable(@NonNull ComponentActivity activity, boolean useThemeColors) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
             return;
         }
@@ -48,7 +62,38 @@ public class EdgeToEdgeUtils {
             return;
         }
 
-        EdgeToEdge.enable(activity);
+        if (useThemeColors) {
+            final TypedArray typedArray = activity.getTheme().obtainStyledAttributes(
+                    new int[] {android.R.attr.statusBarColor, android.R.attr.navigationBarColor});
+            final int statusBarColor = typedArray.getColor(0, 0);
+            final int navigationBarColor = typedArray.getColor(1, 0);
+            typedArray.recycle();
+
+            // EdgeToEdge#getScrimWithEnforcedContrast will make the status/navigation bar color
+            // Color.TRANSPARENT if nightMode is UiModeManager.MODE_NIGHT_AUTO. Hence, we can't just
+            // use SystemBarStyle.auto(lightScrim, darkScrim) otherwise it will always change it
+            // back to Color.TRANSPARENT instead of the statusBarColor or navigationBarColor
+            // attribute set by OEMs.
+            SystemBarStyle statusBarStyle;
+            SystemBarStyle navigationBarStyle;
+            int nightMode = activity.getResources().getConfiguration().uiMode
+                    & Configuration.UI_MODE_NIGHT_MASK;
+            if (nightMode == Configuration.UI_MODE_NIGHT_YES) {
+                statusBarStyle = SystemBarStyle.dark(statusBarColor);
+                navigationBarStyle = SystemBarStyle.dark(navigationBarColor);
+            } else {
+                statusBarStyle = SystemBarStyle.light(statusBarColor, statusBarColor);
+                navigationBarStyle = SystemBarStyle.light(navigationBarColor, navigationBarColor);
+            }
+
+            EdgeToEdge.enable(activity, statusBarStyle, navigationBarStyle);
+            // In EdgeToEdge we set isNavigationBarContrastEnforced to true if
+            // navigationBarStyle.nightMode is UiModeManager.MODE_NIGHT_AUTO. Hence, setting this to
+            // true here to maintain the original behavior.
+            activity.getWindow().setNavigationBarContrastEnforced(true);
+        } else {
+            EdgeToEdge.enable(activity);
+        }
 
         ViewCompat.setOnApplyWindowInsetsListener(activity.findViewById(android.R.id.content),
                 (v, windowInsets) -> {

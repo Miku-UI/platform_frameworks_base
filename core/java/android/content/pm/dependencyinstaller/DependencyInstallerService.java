@@ -48,10 +48,12 @@ import java.util.List;
  * }
  * </pre>
  *
+ * @deprecated The automatic dependency installation feature is no longer supported.
  * @hide
  */
 @SystemApi
-@FlaggedApi(Flags.FLAG_SDK_DEPENDENCY_INSTALLER)
+@Deprecated
+@FlaggedApi(Flags.FLAG_SDK_DEPENDENCY_INSTALLER_DEPRECATION)
 public abstract class DependencyInstallerService extends Service {
 
     private IDependencyInstallerService mBinder;

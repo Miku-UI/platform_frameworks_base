@@ -16,24 +16,51 @@
 
 package android.content.pm;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
+import android.annotation.SystemApi;
+import android.annotation.TestApi;
 import android.os.Parcelable;
 
 import com.android.internal.util.DataClass;
 
 /**
- * Information about {@link android.R.styleable#AndroidManifestValidPurpose &lt;valid-purpose&gt;}
- * tag parsed from the manifest.
+ * Information about {@link android.R.styleable#AndroidManifestValidPurpose
+ * &lt;valid-purpose&gt;} tag parsed from the manifest.
  *
  * @hide
  */
-@DataClass(genGetters = true, genSetters = false, genParcelable = true, genAidl = false,
-        genBuilder = false)
-public class ValidPurposeInfo implements Parcelable {
+@DataClass(genConstructor = false, genParcelable = true, genEqualsHashCode = true)
+@SystemApi
+@FlaggedApi(android.permission.flags.Flags.FLAG_PPD_PURPOSE_ENABLED)
+public final class ValidPurposeInfo implements Parcelable {
+    /**
+     * The name of the valid purpose.
+     */
     @NonNull
-    private String name;
+    private final String mName;
 
-    private int maxTargetSdkVersion;
+    /**
+     * The maximum target SDK version that this valid purpose can be used in. Used to
+     * deprecate valid purposes.
+     */
+    private final int mMaxTargetSdkVersion;
+
+    /**
+     * @param name Name of valid purpose,
+     * @param maxTargetSdkVersion Max target SDK version this purpose is valid for,
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(android.permission.flags.Flags.FLAG_PPD_PURPOSE_ENABLED)
+    public ValidPurposeInfo(
+            @NonNull String name,
+            int maxTargetSdkVersion) {
+        this.mName = name;
+        com.android.internal.util.AnnotationValidations.validate(
+                NonNull.class, null, mName);
+        this.mMaxTargetSdkVersion = maxTargetSdkVersion;
+    }
 
 
 
@@ -50,26 +77,50 @@ public class ValidPurposeInfo implements Parcelable {
     //@formatter:off
 
 
-    @DataClass.Generated.Member
-    public ValidPurposeInfo(
-            @NonNull String name,
-            int maxTargetSdkVersion) {
-        this.name = name;
-        com.android.internal.util.AnnotationValidations.validate(
-                NonNull.class, null, name);
-        this.maxTargetSdkVersion = maxTargetSdkVersion;
-
-        // onConstructed(); // You can define this method to get a callback
-    }
-
+    /**
+     * The name of the valid purpose.
+     */
     @DataClass.Generated.Member
     public @NonNull String getName() {
-        return name;
+        return mName;
     }
 
+    /**
+     * The maximum target SDK version that this valid purpose can be used in. Used to
+     * deprecate valid purposes.
+     */
     @DataClass.Generated.Member
     public int getMaxTargetSdkVersion() {
-        return maxTargetSdkVersion;
+        return mMaxTargetSdkVersion;
+    }
+
+    @Override
+    @DataClass.Generated.Member
+    public boolean equals(@android.annotation.Nullable Object o) {
+        // You can override field equality logic by defining either of the methods like:
+        // boolean fieldNameEquals(ValidPurposeInfo other) { ... }
+        // boolean fieldNameEquals(FieldType otherValue) { ... }
+
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        @SuppressWarnings("unchecked")
+        ValidPurposeInfo that = (ValidPurposeInfo) o;
+        //noinspection PointlessBooleanExpression
+        return true
+                && java.util.Objects.equals(mName, that.mName)
+                && mMaxTargetSdkVersion == that.mMaxTargetSdkVersion;
+    }
+
+    @Override
+    @DataClass.Generated.Member
+    public int hashCode() {
+        // You can override field hashCode logic by defining methods like:
+        // int fieldNameHashCode() { ... }
+
+        int _hash = 1;
+        _hash = 31 * _hash + java.util.Objects.hashCode(mName);
+        _hash = 31 * _hash + mMaxTargetSdkVersion;
+        return _hash;
     }
 
     @Override
@@ -78,8 +129,8 @@ public class ValidPurposeInfo implements Parcelable {
         // You can override field parcelling by defining methods like:
         // void parcelFieldName(Parcel dest, int flags) { ... }
 
-        dest.writeString(name);
-        dest.writeInt(maxTargetSdkVersion);
+        dest.writeString(mName);
+        dest.writeInt(mMaxTargetSdkVersion);
     }
 
     @Override
@@ -89,17 +140,17 @@ public class ValidPurposeInfo implements Parcelable {
     /** @hide */
     @SuppressWarnings({"unchecked", "RedundantCast"})
     @DataClass.Generated.Member
-    protected ValidPurposeInfo(@NonNull android.os.Parcel in) {
+    /* package-private */ ValidPurposeInfo(@NonNull android.os.Parcel in) {
         // You can override field unparcelling by defining methods like:
         // static FieldType unparcelFieldName(Parcel in) { ... }
 
-        String _name = in.readString();
-        int _maxTargetSdkVersion = in.readInt();
+        String name = in.readString();
+        int maxTargetSdkVersion = in.readInt();
 
-        this.name = _name;
+        this.mName = name;
         com.android.internal.util.AnnotationValidations.validate(
-                NonNull.class, null, name);
-        this.maxTargetSdkVersion = _maxTargetSdkVersion;
+                NonNull.class, null, mName);
+        this.mMaxTargetSdkVersion = maxTargetSdkVersion;
 
         // onConstructed(); // You can define this method to get a callback
     }
@@ -119,10 +170,10 @@ public class ValidPurposeInfo implements Parcelable {
     };
 
     @DataClass.Generated(
-            time = 1751306273710L,
+            time = 1762199426313L,
             codegenVersion = "1.0.23",
             sourceFile = "frameworks/base/core/java/android/content/pm/ValidPurposeInfo.java",
-            inputSignatures = "private @android.annotation.NonNull java.lang.String name\nprivate  int maxTargetSdkVersion\nclass ValidPurposeInfo extends java.lang.Object implements [android.os.Parcelable]\n@com.android.internal.util.DataClass(genGetters=true, genSetters=false, genParcelable=true, genAidl=false, genBuilder=false)")
+            inputSignatures = "private final @android.annotation.NonNull java.lang.String mName\nprivate final  int mMaxTargetSdkVersion\nclass ValidPurposeInfo extends java.lang.Object implements [android.os.Parcelable]\n@com.android.internal.util.DataClass(genConstructor=false, genParcelable=true, genEqualsHashCode=true)")
     @Deprecated
     private void __metadata() {}
 

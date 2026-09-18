@@ -26,7 +26,8 @@ import org.junit.Test;
 
 public class TinyFrameworkTextPolicyTest {
 
-    private static <T> void doNothing(T arg) {}
+    private static <T> void doNothing(T arg) {
+    }
 
     @Test
     public void testClassWideExperimental() {
@@ -111,5 +112,32 @@ public class TinyFrameworkTextPolicyTest {
                 new MethodInfo(com.android.hoststubgen.test.tinyframework.exp.sub.A.class,
                         "foo", "()V")
         ).inOrder();
+    }
+
+    @Test
+    public void testThrowClass() {
+        // <clinit>'s method body should be handled as "ignore", so it shouldn't throw.
+        // <init> is kept, so it's callable.
+        var o = new ThrowClassTest();
+        assertThat(o.mValue).isEqualTo(1);
+    }
+
+    @Test(expected = TinyFrameworkUnsupportedApiException.class)
+    public void testThrowClass_method() {
+        var o = new ThrowClassTest();
+        o.foo();
+    }
+
+    @Test
+    public void testIgnoreClass() {
+        // All the method bodies are removed, so all the fields are 0.
+        // Except, the constructor is kept (b/445239612), so mValue is set.
+
+        assertThat(IgnoreClassTest.sValue).isEqualTo(0);
+
+        var o = new IgnoreClassTest();
+        assertThat(o.mValue).isEqualTo(1);
+
+        assertThat(o.foo()).isEqualTo(0);
     }
 }

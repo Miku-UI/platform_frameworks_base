@@ -27,13 +27,16 @@ import static android.hardware.gnss.V2_1.IGnssMeasurementCallback.GnssMeasuremen
 import static android.hardware.gnss.V2_1.IGnssMeasurementCallback.GnssMeasurementFlags.HAS_SATELLITE_ISB_UNCERTAINTY;
 import static android.hardware.gnss.V2_1.IGnssMeasurementCallback.GnssMeasurementFlags.HAS_SNR;
 
+import android.annotation.FlaggedApi;
 import android.annotation.FloatRange;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.StringDef;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.annotation.TestApi;
+import android.location.flags.Flags;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -68,7 +71,7 @@ public final class GnssMeasurement implements Parcelable {
     private int mMultipathIndicator;
     private double mSnrInDb;
     private double mAutomaticGainControlLevelInDb;
-    @NonNull private String mCodeType;
+    @NonNull @CodeType private String mCodeType;
     private double mFullInterSignalBiasNanos;
     private double mFullInterSignalBiasUncertaintyNanos;
     private double mSatelliteInterSignalBiasNanos;
@@ -258,6 +261,126 @@ public final class GnssMeasurement implements Parcelable {
             ADR_STATE_HALF_CYCLE_RESOLVED | ADR_STATE_HALF_CYCLE_REPORTED;
 
     // End enumerations in sync with gps.h
+
+    /**
+     * GNSS measurement code type.
+     * <p>The code type is used to specify the observation descriptor defined in GNSS Observation
+     * Data File Header Section Description in the RINEX standard (Version 4.00).
+     * @hide
+     */
+    @Retention(RetentionPolicy.SOURCE)
+    @StringDef({
+        CODE_TYPE_A, CODE_TYPE_B, CODE_TYPE_C, CODE_TYPE_D, CODE_TYPE_E,
+        CODE_TYPE_I, CODE_TYPE_L, CODE_TYPE_M, CODE_TYPE_N, CODE_TYPE_P,
+        CODE_TYPE_Q, CODE_TYPE_S, CODE_TYPE_W, CODE_TYPE_X, CODE_TYPE_Y,
+        CODE_TYPE_Z, CODE_TYPE_UNKNOWN
+    })
+    public @interface CodeType {}
+
+    /**
+     * Code type for: GALILEO E1A, GALILEO E6A, NavIC L5A SPS, NavIC SA SPS, GLONASS G1a L1OCd,
+     * GLONASS G2a L2CSI.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_A = "A";
+
+    /**
+     * Code type for: GALILEO E1B, GALILEO E6B, NavIC L5B RS (D), NavIC SB RS (D), GLONASS G1a
+     * L1OCp, GLONASS G2a L2OCp, QZSS L1Sb.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_B = "B";
+
+    /**
+     * Code type for: GPS L1 C/A, GPS L2 C/A, GLONASS G1 C/A, GLONASS G2 C/A, GALILEO E1C,
+     * GALILEO E6C, SBAS L1 C/A, QZSS L1 C/A, NavIC L5C RS (P), NavIC SC RS (P).
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_C = "C";
+
+    /**
+     * Code type for: GPS L2 (L1(C/A) + (P2-P1) (semi-codeless)), QZSS L5S(I), BDS B1C Data,
+     * BDS B2a Data, BDS B2b Data, BDS B2 (B2a+B2b) Data, BDS B3a Data, NavIC L1 Data.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_D = "D";
+
+    /** Code type for: QZSS L1 C/B, QZSS L6E. */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_E = "E";
+
+    /**
+     * Code type for: GPS L5 I, GLONASS G3 I, GALILEO E5a I, GALILEO E5b I, GALILEO E5a+b I,
+     * SBAS L5 I, QZSS L5 I, BDS B1 I, BDS B2 I, BDS B3 I.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_I = "I";
+
+    /**
+     * Code type for: GPS L1C (P), GPS L2C (L), QZSS L1C (P), QZSS L2C (L), QZSS L6P, BDS
+     * B1a Pilot.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_L = "L";
+
+    /** Code type for: GPS L1M, GPS L2M. */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_M = "M";
+
+    /** Code type for: GPS L1 codeless, GPS L2 codeless. */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_N = "N";
+
+    /**
+     * Code type for: GPS L1P, GPS L2P, GLONASS G1P, GLONASS G2P, BDS B1C Pilot, BDS B2a Pilot,
+     * BDS B2b Pilot, BDS B2 (B2a+B2b) Pilot, BDS B3a Pilot, QZSS L5S(Q), NavIC L1 Pilot.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_P = "P";
+
+    /**
+     * Code type for: GPS L5 Q, GLONASS G3 Q, GALILEO E5a Q, GALILEO E5b Q, GALILEO E5a+b Q,
+     * SBAS L5 Q, QZSS L5 Q, BDS B1 Q, BDS B2 Q, BDS B3 Q.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_Q = "Q";
+
+    /**
+     * Code type for: GPS L1C (D), GPS L2C (M), QZSS L1C (D), QZSS L2C (M), QZSS L6D, BDS B1a
+     * Data.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_S = "S";
+
+    /** Code type for: GPS L1 Z-tracking, GPS L2 Z-tracking. */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_W = "W";
+
+    /**
+     * Code type for: GPS L1C (D+P), GPS L2C (M+L), GPS L5 (I+Q), GLONASS G1a L1OCd+L1OCp,
+     * GLONASS G2a L2CSI+L2OCp, GLONASS G3 (I+Q), GALILEO E1 (B+C), GALILEO E5a (I+Q), GALILEO
+     * E5b (I+Q), GALILEO E5a+b (I+Q), GALILEO E6 (B+C), SBAS L5 (I+Q), QZSS L1C (D+P), QZSS L2C
+     * (M+L), QZSS L5 (I+Q), QZSS L6 (D+P), BDS B1 (I+Q), BDS B1C Data+Pilot, BDS B2a Data+Pilot,
+     * BDS B2 (I+Q), BDS B2 (B2a+B2b) Data+Pilot, BDS B3 (I+Q), NavIC L5 (B+C), NavIC S (B+C),
+     * NavIC L1 Data+Pilot.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_X = "X";
+
+    /** Code type for: GPS L1Y, GPS L2Y. */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_Y = "Y";
+
+    /**
+     * Code type for: GALILEO E1 (A+B+C), GALILEO E6 (A+B+C), QZSS L1S/L1-SAIF, QZSS L5S (I+Q),
+     * QZSS L6(D+E), BDS B1A Data+Pilot, BDS B2b Data+Pilot, BDS B3a Data+Pilot.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_Z = "Z";
+
+    /** Code type when the code type is unknown. */
+    @FlaggedApi(Flags.FLAG_SUPPORT_CODETYPE_IN_GNSS_STATUS)
+    public static final String CODE_TYPE_UNKNOWN = "UNKNOWN";
 
     /**
      * @hide
@@ -1532,54 +1655,10 @@ public final class GnssMeasurement implements Parcelable {
      * <p>Similar to the Attribute field described in RINEX 4.00, e.g., in Tables 9-16 (see
      * https://igs.org/wg/rinex/#documents-formats).
      *
-     * <p>Returns "A" for GALILEO E1A, GALILEO E6A, NavIC L5A SPS, NavIC SA SPS, GLONASS G1a L1OCd,
-     * GLONASS G2a L2CSI.
+     * <p>See the {@code CODE_TYPE_*} constants for details on what each string represents
+     * (e.g., {@link #CODE_TYPE_A}, {@link #CODE_TYPE_C}, {@link #CODE_TYPE_X}).
      *
-     * <p>Returns "B" for GALILEO E1B, GALILEO E6B, NavIC L5B RS (D), NavIC SB RS (D), GLONASS G1a
-     * L1OCp, GLONASS G2a L2OCp, QZSS L1Sb.
-     *
-     * <p>Returns "C" for GPS L1 C/A, GPS L2 C/A, GLONASS G1 C/A, GLONASS G2 C/A, GALILEO E1C,
-     * GALILEO E6C, SBAS L1 C/A, QZSS L1 C/A, NavIC L5C RS (P), NavIC SC RS (P).
-     *
-     * <p>Returns "D" for GPS L2 (L1(C/A) + (P2-P1) (semi-codeless)), QZSS L5S(I), BDS B1C Data,
-     * BDS B2a Data, BDS B2b Data, BDS B2 (B2a+B2b) Data, BDS B3a Data, NavIC L1 Data.
-     *
-     * <p>Returns “E” for QZSS L1 C/B, QZSS L6E.
-     *
-     * <p>Returns "I" for GPS L5 I, GLONASS G3 I, GALILEO E5a I, GALILEO E5b I, GALILEO E5a+b I,
-     * SBAS L5 I, QZSS L5 I, BDS B1 I, BDS B2 I, BDS B3 I.
-     *
-     * <p>Returns "L" for GPS L1C (P), GPS L2C (L), QZSS L1C (P), QZSS L2C (L), QZSS L6P, BDS
-     * B1a Pilot.
-     *
-     * <p>Returns "M" for GPS L1M, GPS L2M.
-     *
-     * <p>Returns "N" for GPS L1 codeless, GPS L2 codeless.
-     *
-     * <p>Returns "P" for GPS L1P, GPS L2P, GLONASS G1P, GLONASS G2P, BDS B1C Pilot, BDS B2a Pilot,
-     * BDS B2b Pilot, BDS B2 (B2a+B2b) Pilot, BDS B3a Pilot, QZSS L5S(Q), NavIC L1 Pilot.
-     *
-     * <p>Returns "Q" for GPS L5 Q, GLONASS G3 Q, GALILEO E5a Q, GALILEO E5b Q, GALILEO E5a+b Q,
-     * SBAS L5 Q, QZSS L5 Q, BDS B1 Q, BDS B2 Q, BDS B3 Q.
-     *
-     * <p>Returns "S" for GPS L1C (D), GPS L2C (M), QZSS L1C (D), QZSS L2C (M), QZSS L6D, BDS B1a
-     * Data.
-     *
-     * <p>Returns "W" for GPS L1 Z-tracking, GPS L2 Z-tracking.
-     *
-     * <p>Returns "X" for GPS L1C (D+P), GPS L2C (M+L), GPS L5 (I+Q), GLONASS G1a L1OCd+L1OCp,
-     * GLONASS G2a L2CSI+L2OCp, GLONASS G3 (I+Q), GALILEO E1 (B+C), GALILEO E5a (I+Q), GALILEO
-     * E5b (I+Q), GALILEO E5a+b (I+Q), GALILEO E6 (B+C), SBAS L5 (I+Q), QZSS L1C (D+P), QZSS L2C
-     * (M+L), QZSS L5 (I+Q), QZSS L6 (D+P), BDS B1 (I+Q), BDS B1C Data+Pilot, BDS B2a Data+Pilot,
-     * BDS B2 (I+Q), BDS B2 (B2a+B2b) Data+Pilot, BDS B3 (I+Q), NavIC L5 (B+C), NavIC S (B+C),
-     * NavIC L1 Data+Pilot.
-     *
-     * <p>Returns "Y" for GPS L1Y, GPS L2Y.
-     *
-     * <p>Returns "Z" for GALILEO E1 (A+B+C), GALILEO E6 (A+B+C), QZSS L1S/L1-SAIF, QZSS L5S (I+Q),
-     * QZSS L6(D+E), BDS B1A Data+Pilot, BDS B2b Data+Pilot, BDS B3a Data+Pilot.
-     *
-     * <p>Returns "UNKNOWN" if the GNSS Measurement's code type is unknown.
+     * <p>Returns {@link #CODE_TYPE_UNKNOWN} if the GNSS Measurement's code type is unknown.
      *
      * <p>The code type is used to specify the observation descriptor defined in GNSS Observation
      * Data File Header Section Description in the RINEX standard (Version 4.00). In cases where
@@ -1588,6 +1667,7 @@ public final class GnssMeasurement implements Parcelable {
      * string shall be set to "G".
      */
     @NonNull
+    @CodeType
     public String getCodeType() {
         return mCodeType;
     }
@@ -1598,7 +1678,7 @@ public final class GnssMeasurement implements Parcelable {
      * @hide
      */
     @TestApi
-    public void setCodeType(@NonNull String codeType) {
+    public void setCodeType(@NonNull @CodeType String codeType) {
         setFlag(HAS_CODE_TYPE);
         mCodeType = codeType;
     }
@@ -1611,7 +1691,7 @@ public final class GnssMeasurement implements Parcelable {
     @TestApi
     public void resetCodeType() {
         resetFlag(HAS_CODE_TYPE);
-        mCodeType = "UNKNOWN";
+        mCodeType = CODE_TYPE_UNKNOWN;
     }
 
     /**
@@ -1630,19 +1710,19 @@ public final class GnssMeasurement implements Parcelable {
      *
      * <ul>
      * <li>Receiver inter-constellation bias (with respect to the constellation in
-     * {@link GnssClock#getReferenceConstellationTypeForIsb())</li>
+     * {@link GnssClock#getReferenceConstellationTypeForIsb()}</li>
      * <li>Receiver inter-frequency bias (with respect to the carrier frequency in
-     * {@link GnssClock#getReferenceConstellationTypeForIsb())</li>
+     * {@link GnssClock#getReferenceConstellationTypeForIsb()}</li>
      * <li>Receiver inter-code bias (with respect to the code type in
-     * {@link GnssClock#getReferenceConstellationTypeForIsb())</li>
+     * {@link GnssClock#getReferenceConstellationTypeForIsb()}</li>
      * <li>Master clock bias (e.g., GPS-GAL Time Offset (GGTO), GPS-UTC Time Offset (TauGps),
      * BDS-GLO Time Offset (BGTO))(with respect to the constellation in
-     * {@link GnssClock#getReferenceConstellationTypeForIsb())</li>
+     * {@link GnssClock#getReferenceConstellationTypeForIsb()}</li>
      * <li>Group delay (e.g., Total Group Delay (TGD))</li>
      * <li>Satellite inter-frequency bias (GLO only) (with respect to the carrier frequency in
-     * {@link GnssClock#getReferenceConstellationTypeForIsb())</li>
+     * {@link GnssClock#getReferenceConstellationTypeForIsb()}</li>
      * <li>Satellite inter-code bias (e.g., Differential Code Bias (DCB)) (with respect to the code
-     * type in {@link GnssClock#getReferenceConstellationTypeForIsb())</li>
+     * type in {@link GnssClock#getReferenceConstellationTypeForIsb()}</li>
      * </ul>
      *
      * <p>If a component of the above is already compensated in the provided
@@ -1743,12 +1823,12 @@ public final class GnssMeasurement implements Parcelable {
      * <ul>
      * <li>Master clock bias (e.g., GPS-GAL Time Offset (GGTO), GPS-UTC Time Offset (TauGps),
      * BDS-GLO Time Offset (BGTO))(with respect to the constellation in
-     * {@link GnssClock#getReferenceConstellationTypeForIsb())</li>
+     * {@link GnssClock#getReferenceConstellationTypeForIsb()}</li>
      * <li>Group delay (e.g., Total Group Delay (TGD))</li>
      * <li>Satellite inter-frequency bias (GLO only) (with respect to the carrier frequency in
-     * {@link GnssClock#getReferenceConstellationTypeForIsb())</li>
+     * {@link GnssClock#getReferenceConstellationTypeForIsb()}</li>
      * <li>Satellite inter-code bias (e.g., Differential Code Bias (DCB)) (with respect to the code
-     * type in {@link GnssClock#getReferenceConstellationTypeForIsb())</li>
+     * type in {@link GnssClock#getReferenceConstellationTypeForIsb()}</li>
      * </ul>
      *
      * <p>The sign of the value is defined by the following equation:

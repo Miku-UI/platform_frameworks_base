@@ -132,7 +132,7 @@ public class BubbleBarMenuView extends LinearLayout {
         if (bubble.getIcon() != null) {
             mBubbleIconView.setImageIcon(bubble.getIcon());
         } else {
-            mBubbleIconView.setImageBitmap(bubble.getBubbleIcon());
+            bubble.getBubbleIcon().setOnImageView(mBubbleIconView);
         }
         mBubbleTitleView.setText(bubble.getTitle());
     }

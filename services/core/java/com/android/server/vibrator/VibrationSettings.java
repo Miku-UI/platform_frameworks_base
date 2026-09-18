@@ -289,6 +289,8 @@ final class VibrationSettings {
                 Settings.System.getUriFor(Settings.System.RING_VIBRATION_INTENSITY));
         registerSettingsObserver(
                 Settings.System.getUriFor(Settings.System.KEYBOARD_VIBRATION_ENABLED));
+        registerSettingsObserver(
+                Settings.System.getUriFor(Settings.System.KEYBOARD_VIBRATION_INTENSITY));
 
         if (mVibrationConfig.ignoreVibrationsOnWirelessCharger()) {
             Intent batteryStatus = mContext.registerReceiver(
@@ -325,15 +327,6 @@ final class VibrationSettings {
         synchronized (mLock) {
             mListeners.remove(listener);
         }
-    }
-
-    /**
-     * The duration, in milliseconds, that should be applied to convert vibration effect's
-     * {@link android.os.vibrator.RampSegment} to a {@link android.os.vibrator.StepSegment} on
-     * devices without PWLE support.
-     */
-    public int getRampStepDuration() {
-        return mVibrationConfig.getRampStepDurationMs();
     }
 
     /**
@@ -543,10 +536,16 @@ final class VibrationSettings {
                     loadSystemSetting(Settings.System.VIBRATE_INPUT_DEVICES, 0, userHandle) > 0;
             mVibrateOn = loadSystemSetting(Settings.System.VIBRATE_ON, 1, userHandle) > 0;
 
-            boolean isKeyboardVibrationOn = loadSystemSetting(
-                    Settings.System.KEYBOARD_VIBRATION_ENABLED, 1, userHandle) > 0;
-            int keyboardIntensity = toIntensity(isKeyboardVibrationOn,
-                    getDefaultIntensity(USAGE_IME_FEEDBACK));
+            boolean isKeyboardVibrationOn =
+                    loadSystemSetting(Settings.System.KEYBOARD_VIBRATION_ENABLED, 1, userHandle)
+                            > 0;
+            int keyboardToggleIntensity =
+                    toIntensity(isKeyboardVibrationOn, getDefaultIntensity(USAGE_IME_FEEDBACK));
+            int keyboardSliderIntensity =
+                    toIntensity(
+                            loadSystemSetting(
+                                    Settings.System.KEYBOARD_VIBRATION_INTENSITY, -1, userHandle),
+                            getDefaultIntensity(USAGE_IME_FEEDBACK));
             int alarmIntensity = toIntensity(
                     loadSystemSetting(Settings.System.ALARM_VIBRATION_INTENSITY, -1, userHandle),
                     getDefaultIntensity(USAGE_ALARM));
@@ -603,7 +602,11 @@ final class VibrationSettings {
             }
 
             if (mVibrationConfig.isKeyboardVibrationSettingsSupported()) {
-                mCurrentVibrationIntensities.put(USAGE_IME_FEEDBACK, keyboardIntensity);
+                if (mVibrationConfig.isKeyboardVibrationSettingsIntensitySupported()) {
+                    mCurrentVibrationIntensities.put(USAGE_IME_FEEDBACK, keyboardSliderIntensity);
+                } else {
+                    mCurrentVibrationIntensities.put(USAGE_IME_FEEDBACK, keyboardToggleIntensity);
+                }
             } else {
                 mCurrentVibrationIntensities.put(USAGE_IME_FEEDBACK, hapticFeedbackIntensity);
             }

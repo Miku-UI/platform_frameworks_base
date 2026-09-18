@@ -16,6 +16,7 @@
 
 package com.android.systemui.screencapture.record.smallscreen.player.ui.compose
 
+import android.media.MediaPlayer
 import android.net.Uri
 import androidx.compose.foundation.AndroidExternalSurface
 import androidx.compose.foundation.layout.Box
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.IntSize
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.screencapture.record.smallscreen.player.ui.viewmodel.VideoPlayerControlsViewModel
 import com.android.systemui.screencapture.record.smallscreen.player.ui.viewmodel.VideoPlayerViewModel
@@ -53,12 +55,14 @@ constructor(
                 playerViewModel.videoAspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier
             Box(modifier = aspectRatioModifier) {
                 AndroidExternalSurface(
+                    surfaceSize = player.videoSize,
+                    isOpaque = false,
                     onInit = {
                         onSurface { surface, _, _ ->
                             playerViewModel.onSurfaceCreated(surface)
                             surface.onDestroyed { playerViewModel.onSurfaceDestroyed() }
                         }
-                    }
+                    },
                 )
 
                 if (player != null) {
@@ -75,3 +79,6 @@ constructor(
         }
     }
 }
+
+private val MediaPlayer?.videoSize: IntSize
+    get() = this?.run { IntSize(width = videoWidth, height = videoHeight) } ?: IntSize.Zero

@@ -58,7 +58,7 @@ public final class ThermalMitigationRequest implements Parcelable {
     public static final int THERMAL_MITIGATION_ACTION_VOICE_ONLY = 1;
 
     /**
-     * Sent as a thermal mititgation action to {@link'
+     * Sent as a thermal mititgation action to {@link
      * TelephonyManager#sendThermalMitigationRequest(ThermalMitigationResult)} to turn radio off. If
      * radio is not able to be powered off because of an ongoing voice call, pending emergency call,
      * or any other state that wouldn't allow radio off, {@link

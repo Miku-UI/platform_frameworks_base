@@ -19,13 +19,12 @@ package com.android.systemui.statusbar.phone
 import android.testing.TestableLooper
 import android.view.View
 import androidx.test.filters.SmallTest
-import com.android.systemui.res.R
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.res.R
 import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_LIGHTS_OUT
 import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_LIGHTS_OUT_TRANSPARENT
-import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_OPAQUE
+import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_OPAQUE_DARK
 import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_SEMI_TRANSPARENT
-import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_TRANSLUCENT
 import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_TRANSPARENT
 import com.android.systemui.util.mockito.argumentCaptor
 import com.android.systemui.util.mockito.mock
@@ -41,13 +40,11 @@ import org.mockito.Mockito.verify
 class PhoneStatusBarTransitionsTest : SysuiTestCase() {
 
     // PhoneStatusBarView does a lot of non-standard things when inflating, so just use mocks.
-    private val batteryView = mock<View>()
     private val statusIcons = mock<View>()
     private val startIcons = mock<View>()
     private val statusBarView =
         mock<PhoneStatusBarView>().apply {
             whenever(this.context).thenReturn(mContext)
-            whenever(this.findViewById<View>(R.id.battery)).thenReturn(batteryView)
             whenever(this.findViewById<View>(R.id.statusIcons)).thenReturn(statusIcons)
             whenever(this.findViewById<View>(R.id.status_bar_start_side_except_heads_up))
                 .thenReturn(startIcons)
@@ -58,7 +55,6 @@ class PhoneStatusBarTransitionsTest : SysuiTestCase() {
         PhoneStatusBarTransitions(statusBarView, backgroundView).also {
             // The views' alphas will be set when PhoneStatusBarTransitions is created and we want
             // to ignore those in the tests, so clear those verifications here.
-            reset(batteryView)
             reset(statusIcons)
             reset(startIcons)
         }
@@ -70,15 +66,6 @@ class PhoneStatusBarTransitionsTest : SysuiTestCase() {
             R.dimen.status_bar_icon_drawing_alpha,
             RESOURCE_ALPHA,
         )
-    }
-
-    @Test
-    fun transitionTo_lightsOutMode_batteryTranslucent() {
-        underTest.transitionTo(/* mode= */ MODE_LIGHTS_OUT, /* animate= */ false)
-
-        val alpha = batteryView.capturedAlpha()
-        assertThat(alpha).isGreaterThan(0)
-        assertThat(alpha).isLessThan(1)
     }
 
     @Test
@@ -96,15 +83,6 @@ class PhoneStatusBarTransitionsTest : SysuiTestCase() {
     }
 
     @Test
-    fun transitionTo_lightsOutTransparentMode_batteryTranslucent() {
-        underTest.transitionTo(/* mode= */ MODE_LIGHTS_OUT_TRANSPARENT, /* animate= */ false)
-
-        val alpha = batteryView.capturedAlpha()
-        assertThat(alpha).isGreaterThan(0)
-        assertThat(alpha).isLessThan(1)
-    }
-
-    @Test
     fun transitionTo_lightsOutTransparentMode_statusIconsHidden() {
         underTest.transitionTo(/* mode= */ MODE_LIGHTS_OUT_TRANSPARENT, /* animate= */ false)
 
@@ -119,13 +97,6 @@ class PhoneStatusBarTransitionsTest : SysuiTestCase() {
     }
 
     @Test
-    fun transitionTo_translucentMode_batteryIconShown() {
-        underTest.transitionTo(/* mode= */ MODE_TRANSLUCENT, /* animate= */ false)
-
-        assertThat(batteryView.capturedAlpha()).isEqualTo(1)
-    }
-
-    @Test
     fun transitionTo_semiTransparentMode_statusIconsShown() {
         underTest.transitionTo(/* mode= */ MODE_SEMI_TRANSPARENT, /* animate= */ false)
 
@@ -135,7 +106,7 @@ class PhoneStatusBarTransitionsTest : SysuiTestCase() {
     @Test
     fun transitionTo_transparentMode_startIconsShown() {
         // Transparent is the default, so we need to switch to a different mode first
-        underTest.transitionTo(/* mode= */ MODE_OPAQUE, /* animate= */ false)
+        underTest.transitionTo(/* mode= */ MODE_OPAQUE_DARK, /* animate= */ false)
         reset(startIcons)
 
         underTest.transitionTo(/* mode= */ MODE_TRANSPARENT, /* animate= */ false)
@@ -144,22 +115,15 @@ class PhoneStatusBarTransitionsTest : SysuiTestCase() {
     }
 
     @Test
-    fun transitionTo_opaqueMode_batteryIconUsesResourceAlpha() {
-        underTest.transitionTo(/* mode= */ MODE_OPAQUE, /* animate= */ false)
-
-        assertThat(batteryView.capturedAlpha()).isEqualTo(RESOURCE_ALPHA)
-    }
-
-    @Test
     fun transitionTo_opaqueMode_statusIconsUseResourceAlpha() {
-        underTest.transitionTo(/* mode= */ MODE_OPAQUE, /* animate= */ false)
+        underTest.transitionTo(/* mode= */ MODE_OPAQUE_DARK, /* animate= */ false)
 
         assertThat(statusIcons.capturedAlpha()).isEqualTo(RESOURCE_ALPHA)
     }
 
     @Test
     fun transitionTo_opaqueMode_startIconsUseResourceAlpha() {
-        underTest.transitionTo(/* mode= */ MODE_OPAQUE, /* animate= */ false)
+        underTest.transitionTo(/* mode= */ MODE_OPAQUE_DARK, /* animate= */ false)
 
         assertThat(startIcons.capturedAlpha()).isEqualTo(RESOURCE_ALPHA)
     }
@@ -176,7 +140,7 @@ class PhoneStatusBarTransitionsTest : SysuiTestCase() {
 
     @Test
     fun onHeadsUpStateChanged_true_opaqueMode_startIconsUseResourceAlpha() {
-        underTest.transitionTo(/* mode= */ MODE_OPAQUE, /* animate= */ false)
+        underTest.transitionTo(/* mode= */ MODE_OPAQUE_DARK, /* animate= */ false)
         reset(startIcons)
 
         underTest.onHeadsUpStateChanged(true)
@@ -207,7 +171,7 @@ class PhoneStatusBarTransitionsTest : SysuiTestCase() {
 
     @Test
     fun onHeadsUpStateChanged_false_opaqueMode_startIconsUseResourceAlpha() {
-        underTest.transitionTo(/* mode= */ MODE_OPAQUE, /* animate= */ false)
+        underTest.transitionTo(/* mode= */ MODE_OPAQUE_DARK, /* animate= */ false)
         reset(startIcons)
 
         underTest.onHeadsUpStateChanged(false)

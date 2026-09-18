@@ -2,16 +2,6 @@ package: "com.android.window.flags"
 container: "system"
 
 flag {
-  name: "ignore_aspect_ratio_restrictions_for_resizeable_freeform_activities"
-  namespace: "large_screen_experiences_app_compat"
-  description: "If a resizeable activity enters freeform mode, ignore all aspect ratio constraints."
-  bug: "381866902"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "density_390_api"
   is_exported: true
   namespace: "large_screen_experiences_app_compat"
@@ -42,13 +32,6 @@ flag {
 }
 
 flag {
-  name: "camera_compat_fullscreen_pick_same_task_activity"
-  namespace: "large_screen_experiences_app_compat"
-  description: "Limit undo of camera compat treatment to the same task that started the treatment."
-  bug: "350495350"
-}
-
-flag {
     name: "camera_compat_landscape_camera_support"
     namespace: "large_screen_experiences_app_compat"
     description: "Whether to support landscape cameras in camera compat."
@@ -63,6 +46,26 @@ flag {
 }
 
 flag {
+    name: "camera_compat_ignore_requested_orientation_allowed"
+    namespace: "large_screen_experiences_app_compat"
+    description: "Whether to ignore requested orientation when camera compat which simulates requested orientation is active."
+    bug: "479086789"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+  name: "camera_compat_update_treatment_on_rotation"
+  namespace: "large_screen_experiences_app_compat"
+  description: "Update the camera compatibility treatment when the display rotates, as it needs different rotate and crop amount."
+  bug: "335826583"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
   name: "scrolling_from_letterbox"
   namespace: "large_screen_experiences_app_compat"
   description: "Whether to enable app scrolling from gestures from letterbox area"
@@ -70,51 +73,10 @@ flag {
 }
 
 flag {
-  name: "app_compat_refactoring"
+  name: "app_compat_enable_blur_wallpaper_in_shell"
   namespace: "large_screen_experiences_app_compat"
-  description: "Whether the changes about app compat refactoring are enabled./n"
-                 "The goal is to simplify code readability unblocking the implementation of /n"
-                 "app compat feature like reachability, animations and others related to/n"
-                 "freeform windowing mode."
-  bug: "309593314"
-  is_fixed_read_only: true
-}
-
-flag {
-  name: "app_compat_refactoring_rounded_corners"
-  namespace: "large_screen_experiences_app_compat"
-  description: "Whether the rounded corners refactoring for letterboxing in shell is enabled./n"
-  bug: "375124280"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "app_compat_refactoring_fix_multiwindow_task_hierarchy"
-  namespace: "large_screen_experiences_app_compat"
-  description: "Whether Task id detection for split screen should be enabled."
-  bug: "432244895"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "app_compat_refactoring_set_appbounds_to_null_when_empty"
-  namespace: "large_screen_experiences_app_compat"
-  description: "When enabled empty appBounds are set as null."
-  bug: "438406944"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "app_compat_refactoring_force_change_for_letterbox_transitions"
-  namespace: "large_screen_experiences_app_compat"
-  description: "Whether a Change should always sent for Letterbox transition."
-  bug: "432347028"
+  description: "Enables blur wallpaper in the letterbox implementation in Shell."
+  bug: "480962329"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
@@ -141,26 +103,6 @@ flag {
 }
 
 flag {
-  name: "app_compat_refactoring_skip_starting_window_letterbox"
-  namespace: "large_screen_experiences_app_compat"
-  description: "Skip letterboxing on starting window if not related to the current activity."
-  bug: "431928994"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "enable_transition_on_activity_set_requested_orientation"
-  namespace: "large_screen_experiences_app_compat"
-  description: "Whether a Transition should be created after setRequestedOrientation"
-  bug: "409043134"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "letterbox_background_wallpaper"
   namespace: "large_screen_experiences_app_compat"
   description: "Whether the blurred letterbox wallpaper background is enabled by default"
@@ -168,13 +110,10 @@ flag {
 }
 
 flag {
-    name: "enable_compatui_sysui_launcher_fix"
-    namespace: "large_screen_experiences_app_compat"
-    description: "Enables sysui animation for user aspect ratio button"
-    bug: "300357441"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+  name: "ai_desks_platform"
+  namespace: "large_screen_experiences_app_compat"
+  description: "Whether the Ai support for AiDesks in platform is enabled"
+  bug: "454216513"
 }
 
 flag {
@@ -194,20 +133,9 @@ flag {
 }
 
 flag {
-  name: "backup_and_restore_for_user_aspect_ratio_settings"
+  name: "change_min_aspect_ratio_permission"
   namespace: "large_screen_experiences_app_compat"
-  description: "Whether B&R for user aspect ratio settings is enabled"
-  bug: "396650383"
+  description: "Whether callers need CHANGE_MIN_ASPECT_RATIO permission to set min aspect ratio."
+  bug: "414381398"
   is_fixed_read_only: true
-}
-
-flag {
-  name: "restore_user_aspect_ratio_settings_using_service"
-  namespace: "large_screen_experiences_app_compat"
-  description: "Whether a system service should handle setting restored user aspect ratio settings for apps that install after SUW is complete."
-  bug: "413014252"
-  is_fixed_read_only: true
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
 }

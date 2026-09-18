@@ -16,3 +16,10 @@ flag {
      description: "Controls whether to get ART optimization info from the app process for metrics reporting"
      bug: "422941949"
 }
+
+flag {
+     namespace: "system_performance"
+     name: "log_app_restart_occurred"
+     description: "Controls whether to log the AppRestartOccurred atom"
+     bug: "403793304"
+}

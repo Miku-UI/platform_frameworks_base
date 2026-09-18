@@ -17,9 +17,6 @@
 package com.android.systemui.statusbar.notification.icon.ui.viewmodel
 
 import android.graphics.Rect
-import android.graphics.drawable.Icon
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.FlagsParameterization
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -38,18 +35,12 @@ import com.android.systemui.power.data.repository.fakePowerRepository
 import com.android.systemui.power.shared.model.WakeSleepReason
 import com.android.systemui.power.shared.model.WakefulnessState
 import com.android.systemui.shade.shadeTestUtil
-import com.android.systemui.statusbar.headsup.shared.StatusBarNoHunBehavior
-import com.android.systemui.statusbar.notification.data.model.activeNotificationModel
-import com.android.systemui.statusbar.notification.data.repository.ActiveNotificationsStore
 import com.android.systemui.statusbar.notification.data.repository.activeNotificationListRepository
-import com.android.systemui.statusbar.notification.data.repository.headsUpNotificationIconViewStateRepository
 import com.android.systemui.statusbar.phone.SysuiDarkIconDispatcher
 import com.android.systemui.statusbar.phone.data.repository.fakeDarkIconRepository
 import com.android.systemui.statusbar.phone.dozeParameters
 import com.android.systemui.testKosmos
-import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
-import com.android.systemui.util.ui.isAnimating
 import com.android.systemui.util.ui.value
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runCurrent
@@ -84,7 +75,6 @@ class NotificationIconContainerStatusBarViewModelTest(flags: FlagsParameterizati
     private val powerRepository = kosmos.fakePowerRepository
     private val keyguardTransitionRepository = kosmos.fakeKeyguardTransitionRepository
     private val darkIconRepository = kosmos.fakeDarkIconRepository
-    private val headsUpViewStateRepository = kosmos.headsUpNotificationIconViewStateRepository
     private val activeNotificationsRepository = kosmos.activeNotificationListRepository
 
     private val shadeTestUtil by lazy { kosmos.shadeTestUtil }
@@ -258,143 +248,5 @@ class NotificationIconContainerStatusBarViewModelTest(flags: FlagsParameterizati
             val iconColors by collectLastValue(underTest.iconColors(displayId)!!)
             assertThat(iconColors!!.staticDrawableColor(Rect(6, 6, 7, 7)))
                 .isEqualTo(DarkIconDispatcher.DEFAULT_ICON_TINT)
-        }
-
-    @Test
-    @DisableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun isolatedIcon_animateOnAppear_shadeCollapsed() =
-        testScope.runTest {
-            val icon: Icon = mock()
-            shadeTestUtil.setShadeExpansion(0f)
-            activeNotificationsRepository.activeNotifications.value =
-                ActiveNotificationsStore.Builder()
-                    .apply {
-                        addIndividualNotif(
-                            activeNotificationModel(
-                                key = "notif1",
-                                groupKey = "group",
-                                statusBarIcon = icon,
-                            )
-                        )
-                    }
-                    .build()
-            val isolatedIcon by collectLastValue(underTest.isolatedIcon)
-            runCurrent()
-
-            headsUpViewStateRepository.isolatedNotification.value = "notif1"
-            runCurrent()
-
-            assertThat(isolatedIcon?.value?.notifKey).isEqualTo("notif1")
-            assertThat(isolatedIcon?.isAnimating).isTrue()
-        }
-
-    @Test
-    @DisableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun isolatedIcon_dontAnimateOnAppear_shadeExpanded() =
-        testScope.runTest {
-            val icon: Icon = mock()
-            shadeTestUtil.setShadeExpansion(.5f)
-            activeNotificationsRepository.activeNotifications.value =
-                ActiveNotificationsStore.Builder()
-                    .apply {
-                        addIndividualNotif(
-                            activeNotificationModel(
-                                key = "notif1",
-                                groupKey = "group",
-                                statusBarIcon = icon,
-                            )
-                        )
-                    }
-                    .build()
-            val isolatedIcon by collectLastValue(underTest.isolatedIcon)
-            runCurrent()
-
-            headsUpViewStateRepository.isolatedNotification.value = "notif1"
-            runCurrent()
-
-            assertThat(isolatedIcon?.value?.notifKey).isEqualTo("notif1")
-            assertThat(isolatedIcon?.isAnimating).isFalse()
-        }
-
-    @Test
-    @DisableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun isolatedIcon_updateWhenIconDataChanges() =
-        testScope.runTest {
-            val icon: Icon = mock()
-            val isolatedIcon by collectLastValue(underTest.isolatedIcon)
-            runCurrent()
-
-            headsUpViewStateRepository.isolatedNotification.value = "notif1"
-            runCurrent()
-
-            activeNotificationsRepository.activeNotifications.value =
-                ActiveNotificationsStore.Builder()
-                    .apply {
-                        addIndividualNotif(
-                            activeNotificationModel(
-                                key = "notif1",
-                                groupKey = "group",
-                                statusBarIcon = icon,
-                            )
-                        )
-                    }
-                    .build()
-            runCurrent()
-
-            assertThat(isolatedIcon?.value?.notifKey).isEqualTo("notif1")
-        }
-
-    @Test
-    @DisableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun isolatedIcon_lastMessageIsFromReply_notNull() =
-        testScope.runTest {
-            val icon: Icon = mock()
-            headsUpViewStateRepository.isolatedNotification.value = "notif1"
-            activeNotificationsRepository.activeNotifications.value =
-                ActiveNotificationsStore.Builder()
-                    .apply {
-                        addIndividualNotif(
-                            activeNotificationModel(
-                                key = "notif1",
-                                groupKey = "group",
-                                statusBarIcon = icon,
-                                isLastMessageFromReply = true,
-                            )
-                        )
-                    }
-                    .build()
-
-            val isolatedIcon by collectLastValue(underTest.isolatedIcon)
-            runCurrent()
-
-            assertThat(isolatedIcon?.value?.notifKey).isEqualTo("notif1")
-        }
-
-    @Test
-    @EnableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun isolatedIcon_noHunBehaviorFlagEnabled_doesNothing() =
-        testScope.runTest {
-            val icon: Icon = mock()
-            val isolatedIcon by collectLastValue(underTest.isolatedIcon)
-            runCurrent()
-
-            headsUpViewStateRepository.isolatedNotification.value = "notif1"
-            runCurrent()
-
-            activeNotificationsRepository.activeNotifications.value =
-                ActiveNotificationsStore.Builder()
-                    .apply {
-                        addIndividualNotif(
-                            activeNotificationModel(
-                                key = "notif1",
-                                groupKey = "group",
-                                statusBarIcon = icon,
-                            )
-                        )
-                    }
-                    .build()
-            runCurrent()
-
-            assertThat(isolatedIcon?.value).isNull()
         }
 }

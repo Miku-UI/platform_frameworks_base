@@ -18,10 +18,13 @@ package com.android.systemui.keyguard.ui.viewmodel
 
 import android.util.Log
 import android.util.MathUtils
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.geometry.Offset
 import com.android.app.animation.Interpolators
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.keyguard.domain.interactor.BurnInInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
@@ -30,8 +33,12 @@ import com.android.systemui.keyguard.shared.model.BurnInModel.Companion.MAX_LARG
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.ui.StateToValue
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import javax.inject.Inject
 import kotlin.math.max
 import kotlinx.coroutines.CoroutineScope
@@ -57,6 +64,7 @@ import kotlinx.coroutines.flow.stateIn
 class AodBurnInViewModel
 @Inject
 constructor(
+    @Background private val bgScope: CoroutineScope,
     @Application private val applicationScope: CoroutineScope,
     private val burnInInteractor: BurnInInteractor,
     @ShadeDisplayAware private val configurationInteractor: ConfigurationInteractor,
@@ -73,12 +81,21 @@ constructor(
 
     fun updateBurnInParams(params: BurnInParameters) {
         burnInParams.value =
-            if (params.minViewY < params.topInset) {
-                // minViewY should never be below the inset. Correct it if needed
-                Log.w(TAG, "minViewY is below topInset: $params")
-                params.copy(minViewY = params.topInset)
-            } else {
+            if (SceneContainerFlag.isEnabled) {
                 params
+            } else {
+                val minViewY = params.minViewY()
+                val topInset = params.topInset()
+                if (minViewY < topInset) {
+                    // minViewY should never be below the inset. Correct it if needed
+                    Log.w(
+                        TAG,
+                        "minViewY is below topInset: $params minViewY=$minViewY topInset=$topInset",
+                    )
+                    params.copy(minViewY = { topInset })
+                } else {
+                    params
+                }
             }
     }
 
@@ -96,7 +113,7 @@ constructor(
                     .flatMapLatest { dimens ->
                         combine(
                             keyguardInteractor.keyguardTranslationY.onStart { emit(0f) },
-                            burnIn(params).onStart { emit(BurnInModel()) },
+                            burnIn(params),
                             goneToAodTransitionViewModel
                                 .enterFromTopTranslationY(
                                     dimens[R.dimen.keyguard_enter_from_top_translation_y]!!
@@ -159,7 +176,7 @@ constructor(
                     }
             }
             .stateIn(
-                scope = applicationScope,
+                scope = if (SceneContainerFlag.isEnabled) bgScope else applicationScope,
                 started = SharingStarted.WhileSubscribed(),
                 initialValue = BurnInModel(),
             )
@@ -176,6 +193,16 @@ constructor(
                         .filter { it.from != KeyguardState.AOD }
                         .map { it.copy(value = 0f) },
                 )
+                .onStart {
+                    val transitionState = keyguardTransitionInteractor.transitionState.value
+                    if (transitionState.isTransitioning(to = KeyguardState.AOD)) {
+                        emit(transitionState)
+                    } else if (transitionState.isTransitioning(from = KeyguardState.AOD)) {
+                        emit(transitionState.copy(value = 1f - transitionState.value))
+                    } else {
+                        emit(transitionState.copy(value = 0f))
+                    }
+                }
                 .map { Interpolators.FAST_OUT_SLOW_IN.getInterpolation(it.value) },
             burnInInteractor.burnIn(
                 xDimenResourceId = R.dimen.burn_in_prevention_offset_x,
@@ -191,7 +218,7 @@ constructor(
             val useScaleOnly = (!useAltAod) && keyguardClockViewModel.isLargeClockVisible.value
 
             val burnInY = MathUtils.lerp(0, burnIn.translationY, interpolated).toInt()
-            val translationY = max(params.topInset - params.minViewY, burnInY)
+            val translationY = max(params.topInset() - params.minViewY(), burnInY)
             BurnInModel(
                 translationX = MathUtils.lerp(0, burnIn.translationX, interpolated).toInt(),
                 translationY = translationY,
@@ -202,12 +229,31 @@ constructor(
     }
 }
 
+class BurnInMovementState
+@AssistedInject
+constructor(private val aodBurnInViewModel: AodBurnInViewModel) : HydratedActivatable() {
+    val translation: Offset by
+        aodBurnInViewModel.movement
+            .map { Offset(it.translationX.toFloat(), it.translationY.toFloat()) }
+            .hydratedStateOf(initialValue = Offset(0f, 0f))
+
+    val scale: BurnInScaleViewModel by
+        aodBurnInViewModel.movement
+            .map { BurnInScaleViewModel(it.scale, it.scaleClockOnly) }
+            .hydratedStateOf(initialValue = BurnInScaleViewModel())
+
+    @AssistedFactory
+    interface Factory {
+        fun create(): BurnInMovementState
+    }
+}
+
 /** UI-sourced parameters to pass into the various methods of [AodBurnInViewModel]. */
 data class BurnInParameters(
     /** System insets that keyguard needs to stay out of */
-    val topInset: Int = 0,
+    val topInset: () -> Int = { 0 },
     /** The min y-value of the visible elements on lockscreen */
-    val minViewY: Int = Int.MAX_VALUE,
+    val minViewY: () -> Int = { Int.MAX_VALUE },
     /** The current y translation of the view */
     val translationY: () -> Float? = { null },
     /** The current x translation of the view */
@@ -219,7 +265,7 @@ data class BurnInParameters(
  * purposes.
  */
 data class BurnInScaleViewModel(
-    val scale: Float = 1f,
+    val scale: Float = MAX_LARGE_CLOCK_SCALE,
     /** Whether the scale only applies to clock UI elements. */
     val scaleClockOnly: Boolean = false,
 )

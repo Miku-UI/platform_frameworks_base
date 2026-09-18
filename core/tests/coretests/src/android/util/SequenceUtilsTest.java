@@ -25,14 +25,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import android.platform.test.annotations.DisabledOnRavenwood;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -45,13 +42,10 @@ import org.junit.runner.RunWith;
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 @Presubmit
-@DisabledOnRavenwood(blockedBy = SequenceUtils.class)
 public class SequenceUtilsTest {
 
     // This is needed to disable the test in Ravenwood test, because SequenceUtils hasn't opted in
     // for Ravenwood, which is still in experiment.
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     @Test
     public void testNextSeq() {

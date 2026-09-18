@@ -17,11 +17,8 @@
 package com.android.wm.shell.compatui.letterbox
 
 import android.content.Context
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import androidx.test.filters.SmallTest
-import com.android.internal.hidden_from_bootclasspath.com.android.window.flags.Flags
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.compatui.letterbox.LetterboxControllerStrategy.LetterboxMode
 import com.android.wm.shell.compatui.letterbox.roundedcorners.RoundedCornersLetterboxController
@@ -84,13 +81,10 @@ class MixedLetterboxControllerTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_APP_COMPAT_REFACTORING_ROUNDED_CORNERS)
-    fun `Corners are created when enabled with radius more than zero`() {
+    fun `Corners are created when supported`() {
         runTestScenario { r ->
             r.configureStrategyFor(LetterboxMode.SINGLE_SURFACE)
-            r.configureStrategyFor { configuration ->
-                configuration.setLetterboxActivityCornersRadius(10)
-            }
+            r.configureStrategyForRoundedCorners(shouldSupportShellRoundedCorners = true)
             r.sendCreateSurfaceRequest()
             r.checkCreateInvokedOnRoundedCornersController(times = 1)
             r.checkDestroyInvokedOnRoundedCornersController(times = 0)
@@ -98,30 +92,13 @@ class MixedLetterboxControllerTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_APP_COMPAT_REFACTORING_ROUNDED_CORNERS)
-    fun `Corners are destroyed when enabled with radius less or equals to zero`() {
+    fun `Corners are destroyed when not supported`() {
         runTestScenario { r ->
             r.configureStrategyFor(LetterboxMode.SINGLE_SURFACE)
-            r.configureStrategyFor { configuration ->
-                configuration.setLetterboxActivityCornersRadius(0)
-            }
+            r.configureStrategyForRoundedCorners(shouldSupportShellRoundedCorners = false)
             r.sendCreateSurfaceRequest()
             r.checkCreateInvokedOnRoundedCornersController(times = 0)
             r.checkDestroyInvokedOnRoundedCornersController(times = 1)
-        }
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_APP_COMPAT_REFACTORING_ROUNDED_CORNERS)
-    fun `Corners are not created when disabled even with radius more than zero`() {
-        runTestScenario { r ->
-            r.configureStrategyFor(LetterboxMode.SINGLE_SURFACE)
-            r.configureStrategyFor { configuration ->
-                configuration.setLetterboxActivityCornersRadius(10)
-            }
-            r.sendCreateSurfaceRequest()
-            r.checkCreateInvokedOnRoundedCornersController(times = 0)
-            r.checkDestroyInvokedOnRoundedCornersController(times = 0)
         }
     }
 
@@ -149,6 +126,12 @@ class MixedLetterboxControllerTest : ShellTestCase() {
             doReturn(shouldSupportInputSurface)
                 .`when`(controllerStrategy)
                 .shouldSupportInputSurface()
+        }
+
+        fun configureStrategyForRoundedCorners(shouldSupportShellRoundedCorners: Boolean) {
+            doReturn(shouldSupportShellRoundedCorners)
+                .`when`(controllerStrategy)
+                .shouldSupportShellRoundedCorners()
         }
 
         fun configureStrategyFor(consumer: (LetterboxConfiguration) -> Unit) {

@@ -18,14 +18,16 @@ package com.android.systemui.statusbar.core
 
 import android.internal.statusbar.FakeStatusBarService.Companion.SECONDARY_DISPLAY_ID
 import android.internal.statusbar.fakeStatusBarService
-import android.platform.test.annotations.EnableFlags
+import android.view.Display
 import android.view.WindowInsets
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.display.data.repository.createFakeDisplaySubcomponent
+import com.android.systemui.display.data.repository.displaySubcomponentPerDisplayRepository
 import com.android.systemui.initController
 import com.android.systemui.keyguard.data.repository.fakeCommandQueue
-import com.android.systemui.statusbar.data.repository.fakeStatusBarModeRepository
+import com.android.systemui.statusbar.data.repository.FakeStatusBarModePerDisplayRepository
 import com.android.systemui.statusbar.mockCommandQueueCallbacks
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
@@ -33,16 +35,31 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.verify
 
-@EnableFlags(StatusBarConnectedDisplays.FLAG_NAME)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class CommandQueueInitializerTest : SysuiTestCase() {
 
-    private val kosmos = testKosmos()
+    private val statusBarModeRepoForDefaultDisplay = FakeStatusBarModePerDisplayRepository()
+    private val statusBarModeRepoForSecondaryDisplay = FakeStatusBarModePerDisplayRepository()
+    private val kosmos =
+        testKosmos().apply {
+            displaySubcomponentPerDisplayRepository.add(
+                Display.DEFAULT_DISPLAY,
+                createFakeDisplaySubcomponent(
+                    statusBarModeRepo = { statusBarModeRepoForDefaultDisplay }
+                ),
+            )
+            displaySubcomponentPerDisplayRepository.add(
+                SECONDARY_DISPLAY_ID,
+                createFakeDisplaySubcomponent(
+                    statusBarModeRepo = { statusBarModeRepoForSecondaryDisplay }
+                ),
+            )
+        }
     private val initController = kosmos.initController
     private val commandQueue = kosmos.fakeCommandQueue
     private val commandQueueCallbacks = kosmos.mockCommandQueueCallbacks
-    private val statusBarModeRepository = kosmos.fakeStatusBarModeRepository
+    private val statusBarModeRepository = statusBarModeRepoForDefaultDisplay
     private val fakeStatusBarService = kosmos.fakeStatusBarService
     private val initializer = kosmos.commandQueueInitializer
 
@@ -59,7 +76,7 @@ class CommandQueueInitializerTest : SysuiTestCase() {
 
         initializer.start()
 
-        assertThat(statusBarModeRepository.defaultDisplay.isTransientShown.value).isTrue()
+        assertThat(statusBarModeRepository.isTransientShown.value).isTrue()
     }
 
     @Test
@@ -68,7 +85,7 @@ class CommandQueueInitializerTest : SysuiTestCase() {
 
         initializer.start()
 
-        assertThat(statusBarModeRepository.defaultDisplay.isTransientShown.value).isFalse()
+        assertThat(statusBarModeRepository.isTransientShown.value).isFalse()
     }
 
     @Test
@@ -78,10 +95,9 @@ class CommandQueueInitializerTest : SysuiTestCase() {
 
         initializer.start()
 
-        assertThat(statusBarModeRepository.forDisplay(SECONDARY_DISPLAY_ID).isTransientShown.value)
-            .isTrue()
+        assertThat(statusBarModeRepoForSecondaryDisplay.isTransientShown.value).isTrue()
         // Default display should be unaffected
-        assertThat(statusBarModeRepository.defaultDisplay.isTransientShown.value).isFalse()
+        assertThat(statusBarModeRepoForDefaultDisplay.isTransientShown.value).isFalse()
     }
 
     @Test
@@ -91,10 +107,9 @@ class CommandQueueInitializerTest : SysuiTestCase() {
 
         initializer.start()
 
-        assertThat(statusBarModeRepository.forDisplay(SECONDARY_DISPLAY_ID).isTransientShown.value)
-            .isFalse()
+        assertThat(statusBarModeRepoForSecondaryDisplay.isTransientShown.value).isFalse()
         // Default display should be unaffected
-        assertThat(statusBarModeRepository.defaultDisplay.isTransientShown.value).isTrue()
+        assertThat(statusBarModeRepoForDefaultDisplay.isTransientShown.value).isTrue()
     }
 
     @Test
@@ -141,7 +156,7 @@ class CommandQueueInitializerTest : SysuiTestCase() {
                 context.displayId,
                 fakeStatusBarService.imeWindowVis,
                 fakeStatusBarService.imeBackDisposition,
-                fakeStatusBarService.showImeSwitcher,
+                fakeStatusBarService.showImeSwitcherButton,
             )
 
         verify(commandQueueCallbacks)
@@ -149,7 +164,7 @@ class CommandQueueInitializerTest : SysuiTestCase() {
                 SECONDARY_DISPLAY_ID,
                 fakeStatusBarService.imeWindowVisSecondaryDisplay,
                 fakeStatusBarService.imeBackDispositionSecondaryDisplay,
-                fakeStatusBarService.showImeSwitcherSecondaryDisplay,
+                fakeStatusBarService.showImeSwitcherButtonSecondaryDisplay,
             )
     }
 

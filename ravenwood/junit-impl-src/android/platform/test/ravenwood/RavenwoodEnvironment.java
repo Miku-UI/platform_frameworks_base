@@ -20,18 +20,12 @@ import static android.os.Process.FIRST_APPLICATION_UID;
 import static com.android.ravenwood.common.RavenwoodInternalUtils.parseNullableInt;
 import static com.android.ravenwood.common.RavenwoodInternalUtils.withDefault;
 
-import static org.junit.Assert.assertNotNull;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityThread;
 import android.app.LoadedApk;
 import android.app.RavenwoodAppDriver;
-import android.app.ResourcesManager;
-import android.content.res.Resources;
 import android.os.Build;
-import android.os.HandlerThread;
-import android.view.DisplayAdjustments;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.ravenwood.RavenwoodVmState;
@@ -82,8 +76,6 @@ public final class RavenwoodEnvironment {
     public static final String MAIN_THREAD_NAME = "Ravenwood:Main";
     private static final String TEST_THREAD_NAME = "Ravenwood:Test";
 
-    private static final String RESOURCE_APK_DIR = "ravenwood-res-apks";
-
     private static final int DEFAULT_TARGET_SDK_LEVEL = Build.VERSION_CODES.CUR_DEVELOPMENT;
     private static final String DEFAULT_PACKAGE_NAME = "com.android.ravenwoodtests.defaultname";
     private static final String DEFAULT_INSTRUMENTATION_CLASS =
@@ -114,19 +106,17 @@ public final class RavenwoodEnvironment {
     private final String mTargetResourceApk;
 
     /** Represents the filesystem root. */
+    @NonNull
     private final File mRootDir;
 
     @NonNull
-    private final HandlerThread mMainThread;
+    private final File mTempDir;
 
     @NonNull
-    private final Thread mTestThread;
+    private final File mArtifactsDir;
 
     @GuardedBy("mLock")
     private final Map<String, File> mAppDataDirs = new HashMap<>();
-
-    @GuardedBy("mLock")
-    private final Map<String, Resources> mPackagesToResources = new HashMap<>();
 
     /**
      * Constructor. There should be only simple initialization here. More complicated
@@ -141,9 +131,7 @@ public final class RavenwoodEnvironment {
             @NonNull String instrumentationClass,
             @NonNull String moduleName,
             @Nullable String resourceApk,
-            @Nullable String targetResourceApk,
-            @NonNull Thread testThread,
-            @NonNull HandlerThread mainThread
+            @Nullable String targetResourceApk
     ) throws IOException {
         mUid = uid;
         mPid = pid;
@@ -154,18 +142,32 @@ public final class RavenwoodEnvironment {
         mModuleName = Objects.requireNonNull(moduleName);
         mResourceApk = resourceApk;
         mTargetResourceApk = targetResourceApk;
-        mTestThread = testThread;
-        mMainThread = mainThread;
 
         mRootDir = Files.createTempDirectory("ravenwood-root-dir-").toFile();
-        mRootDir.mkdirs();
+
+        var tempDir = System.getProperty("java.io.tmpdir");
+        mTempDir = new File(tempDir);
+
+        // Create the artifact directory. The path is passed by tradefed.
+        // Note, after running each test, tradefed will upload all files in it
+        // and delete the whole directory.
+        var artifactsDir = System.getProperty("android.ravenwood.artifacts_path");
+        if (artifactsDir == null) {
+            artifactsDir = Files.createTempDirectory("ravenwood-artifacts-default")
+                    .toAbsolutePath().toString();
+        }
+        mArtifactsDir = new File(artifactsDir);
+        mArtifactsDir.mkdirs();
     }
 
     /**
      * Create and initialize the singleton instance. Also initializes {@link RavenwoodVmState}.
      */
-    public static void init(HandlerThread mainThread) throws IOException {
-        final var props = RavenwoodSystemProperties.readProperties("ravenwood.properties");
+    public static void init() throws IOException {
+        final var propFile = System.getProperty(
+                "android.ravenwood.prop_file", "ravenwood.properties");
+
+        final var props = RavenwoodSystemProperties.readProperties(propFile);
 
         // TODO: Why do we use a random PID? We can get the real PID via JNI. Why not use that?
         final int pid = new Random().nextInt(100, 32768);
@@ -191,9 +193,8 @@ public final class RavenwoodEnvironment {
                 instrumentationClass,
                 moduleName,
                 resourceApk,
-                targetResourceApk,
-                Thread.currentThread(), // Test thread,
-                mainThread);
+                targetResourceApk
+        );
         if (!sInstance.compareAndSet(null, instance)) {
             throw new RuntimeException("RavenwoodEnvironment already initialized!");
         }
@@ -248,13 +249,18 @@ public final class RavenwoodEnvironment {
     }
 
     @NonNull
-    public Thread getTestThread() {
-        return mTestThread;
+    public File getTempDir() {
+        return mTempDir;
     }
 
     @NonNull
-    public HandlerThread getMainThread() {
-        return mMainThread;
+    public File getBugreportDir() {
+        return new File(getEnvVar("RAVENWOOD_BUGREPORT_DIR", mTempDir.toString()));
+    }
+
+    @NonNull
+    public File getArtifactsDir() {
+        return mArtifactsDir;
     }
 
     public long getDefaultCallingIdentity() {
@@ -293,53 +299,18 @@ public final class RavenwoodEnvironment {
     }
 
     /**
-     * Get the resources for a given package's resources.
-     *
-     * @param packageName package name, or "android" to load the system resources.
-     */
-    public Resources loadResources(@NonNull String packageName) {
-        synchronized (mLock) {
-            final var cached = mPackagesToResources.get(packageName);
-            if (cached != null) {
-                return cached;
-            }
-            final var loaded = loadResourcesInnerLocked(packageName);
-            mPackagesToResources.put(packageName, loaded);
-            return loaded;
-        }
-    }
-
-    @GuardedBy("mLock")
-    private Resources loadResourcesInnerLocked(@NonNull String packageName) {
-        final var apk = getResourcesApkFile(packageName);
-        final var emptyPaths = new String[0];
-
-        ResourcesManager.getInstance().initializeApplicationPaths(
-                apk.getAbsolutePath(), emptyPaths);
-
-        final var ret = ResourcesManager.getInstance().getResources(null, apk.getAbsolutePath(),
-                emptyPaths, emptyPaths, emptyPaths,
-                emptyPaths, null, null,
-                new DisplayAdjustments().getCompatibilityInfo(),
-                RavenwoodDriver.class.getClassLoader(), null);
-
-        assertNotNull(ret);
-        return ret;
-    }
-
-    /**
      * Get the resource APK file for a given package's resources.
      * @param packageName package name, or "android" to load the system resources.
      */
     public File getResourcesApkFile(@NonNull String packageName) {
         if (packageName.equals(getInstPackageName())) {
             if (mResourceApk != null) {
-                return new File(RESOURCE_APK_DIR, mResourceApk);
+                return new File(mResourceApk);
             }
             // fall-through and use the default resources.
         } else if (packageName.equals(getTargetPackageName())) {
             if (mTargetResourceApk != null) {
-                return new File(RESOURCE_APK_DIR, mTargetResourceApk);
+                return new File(mTargetResourceApk);
             }
             // fall-through and use the default resources.
         } else if (packageName.equals(RavenwoodInternalUtils.ANDROID_PACKAGE_NAME)) {
@@ -365,7 +336,98 @@ public final class RavenwoodEnvironment {
 
     /** Reads a per-module environmental boolean variable. */
     public boolean getBoolEnvVar(String keyName) {
-        return "1".equals(getEnvVar(keyName, ""));
+        return getBoolEnvVar(keyName, false);
+    }
+
+    /**
+     * Reads a per-module environmental boolean variable with a default value.
+     */
+    public boolean getBoolEnvVar(String keyName, boolean defValue) {
+        return "1".equals(getEnvVar(keyName, defValue ? "1" : ""));
+    }
+
+    /**
+     * Return if $RAVENWOOD_HIDE_DISABLED_TESTS is set to 1, in which case we don't show
+     * @DisabledOnRavenwood tests in log or in atest output.
+     */
+    public boolean isHidingDisabledTests() {
+        return getBoolEnvVar("RAVENWOOD_HIDE_DISABLED_TESTS") && !isDumpingTestsOnly();
+    }
+
+    /**
+     * Returns a regex that can filter what tests to run.
+     */
+    public String getRunFilterRegex() {
+        return getEnvVar("RAVENWOOD_FILTER_REGEX", null);
+    }
+
+    /** If true, we skip tests marked as "large" in the enablement policy file. */
+    public boolean isSkippingLargeTests() {
+        return getBoolEnvVar("RAVENWOOD_SKIP_LARGE_TESTS");
+    }
+
+    /**
+     * If this is true, we skip all test methods, while still keeping the classes enabled.
+     *
+     * This is used to just dump all test names. If this is true, {@link #isHidingDisabledTests}
+     * will always false.
+     */
+    public boolean isDumpingTestsOnly() {
+        return getBoolEnvVar("RAVENWOOD_DUMP_TESTS_ONLY");
+    }
+
+    private static final int DEFAULT_SLOW_TIMEOUT_SECONDS = 10;
+
+    /**
+     * If a test takes more time than this timeout, we'll dump all the thread stacks at this
+     * timeout.
+     *
+     * Note, this timeout will _not_ stop the test, as there isn't really a clean way to do it.
+     * It'll merely print stacktraces.
+     *
+     * Returns 0 if the timeout should be disabled.
+     */
+    public int getSlowTestTimeoutSeconds() {
+        if (RavenwoodImplUtils.isDebuggerAttached()) {
+            // If the debugger is attached, never do it.
+            return 0;
+        }
+        return getIntEnvVar("RAVENWOOD_SLOW_TIMEOUT_SECONDS", DEFAULT_SLOW_TIMEOUT_SECONDS);
+    }
+
+    private static final int DEFAULT_DIE_TIMEOUT_SECONDS = 60 * 60 * 1; // 1 hour
+
+    /**
+     * If a test takes more time than this timeout, we'll dump all the thread stacks at this
+     * timeout _and crash the current process_.
+     *
+     * Returns 0 if the timeout should be disabled.
+     */
+    public int getDieTimeoutSeconds() {
+        if (RavenwoodImplUtils.isDebuggerAttached()) {
+            // If the debugger is attached, never do it.
+            return 0;
+        }
+        return getIntEnvVar("RAVENWOOD_DIE_TIMEOUT_SECONDS", DEFAULT_DIE_TIMEOUT_SECONDS);
+    }
+
+    /**
+     * When calling a dump() method on the main thread, we use this timeout.
+     */
+    public int getDumpTimeout() {
+        return getIntEnvVar("RAVENWOOD_DUMP_TIMEOUT_SECONDS", 2);
+    }
+
+    /** Reads a per-module environmental int variable. */
+    public int getIntEnvVar(String keyName, int defValue) {
+        var v = getEnvVar(keyName, "");
+        try {
+            if (!v.isEmpty()) {
+                return Integer.parseInt(v);
+            }
+        } catch (NumberFormatException ignore) {
+        }
+        return defValue;
     }
 
     /**
@@ -378,5 +440,18 @@ public final class RavenwoodEnvironment {
             return new String[0];
         }
         return val.split("\\s+");
+    }
+
+    /**
+     * Default filename of the per-test {@link android.os.SystemProperties} override.
+     */
+    private static final String PER_TEST_SYSPROP = "ravenwood.sysprop";
+
+    /**
+     * @return Filename of the per-test {@link android.os.SystemProperties} override.
+     * Default is {@link #PER_TEST_SYSPROP}.
+     */
+    public String perTestSyspropFile() {
+        return System.getProperty("android.ravenwood.per_test_prop_file", PER_TEST_SYSPROP);
     }
 }

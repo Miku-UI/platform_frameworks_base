@@ -15,21 +15,31 @@
  */
 package com.android.server.notification;
 
+import static android.app.Flags.nmContextualDisplayLaunch;
 import static android.app.NotificationChannel.USER_LOCKED_IMPORTANCE;
 import static android.app.NotificationManager.IMPORTANCE_DEFAULT;
 import static android.app.NotificationManager.IMPORTANCE_HIGH;
 import static android.app.NotificationManager.IMPORTANCE_LOW;
+import static android.app.NotificationManager.IMPORTANCE_MAX;
 import static android.app.NotificationManager.IMPORTANCE_MIN;
+import static android.app.NotificationManager.IMPORTANCE_NONE;
 import static android.app.NotificationManager.IMPORTANCE_UNSPECIFIED;
+import static android.service.notification.Adjustment.KEY_BREAKTHROUGH_ALL_MODES;
 import static android.service.notification.Adjustment.KEY_CONTEXTUAL_ACTIONS;
+import static android.service.notification.Adjustment.KEY_DYNAMIC_BUNDLE;
 import static android.service.notification.Adjustment.KEY_GROUP_KEY;
+import static android.service.notification.Adjustment.KEY_HIGHLIGHT;
 import static android.service.notification.Adjustment.KEY_IMPORTANCE;
 import static android.service.notification.Adjustment.KEY_IMPORTANCE_PROPOSAL;
+import static android.service.notification.Adjustment.KEY_LIGHT;
+import static android.service.notification.Adjustment.KEY_MODE_BREAKTHROUGH_LIST;
+import static android.service.notification.Adjustment.KEY_NOTIFICATION_RULES;
 import static android.service.notification.Adjustment.KEY_NOT_CONVERSATION;
 import static android.service.notification.Adjustment.KEY_PEOPLE;
 import static android.service.notification.Adjustment.KEY_RANKING_SCORE;
 import static android.service.notification.Adjustment.KEY_SENSITIVE_CONTENT;
 import static android.service.notification.Adjustment.KEY_SNOOZE_CRITERIA;
+import static android.service.notification.Adjustment.KEY_SOUND;
 import static android.service.notification.Adjustment.KEY_SUMMARIZATION;
 import static android.service.notification.Adjustment.KEY_TEXT_REPLIES;
 import static android.service.notification.Adjustment.KEY_TYPE;
@@ -38,14 +48,15 @@ import static android.service.notification.Adjustment.KEY_USER_SENTIMENT;
 import static android.service.notification.NotificationListenerService.Ranking.USER_SENTIMENT_NEUTRAL;
 import static android.service.notification.NotificationListenerService.Ranking.USER_SENTIMENT_POSITIVE;
 
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.Flags;
 import android.app.KeyguardManager;
 import android.app.Notification;
+import android.app.Notification.BridgedNotificationMetadata;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.NotificationRule;
 import android.app.Person;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -163,6 +174,8 @@ public final class NotificationRecord {
     private int mPackageVisibility;
     private int mSystemImportance = IMPORTANCE_UNSPECIFIED;
     private int mAssistantImportance = IMPORTANCE_UNSPECIFIED;
+    private int mRuleImportance = IMPORTANCE_UNSPECIFIED;
+    private int mRuleImportanceReason = 0;
     private int mImportance = IMPORTANCE_UNSPECIFIED;
     private float mRankingScore = 0f;
     // Field used in global sort key to bypass normal notifications
@@ -173,17 +186,28 @@ public final class NotificationRecord {
     private int mInitialImportanceExplanationCode = MetricsEvent.IMPORTANCE_EXPLANATION_UNKNOWN;
 
     private int mSuppressedVisualEffects = 0;
-    private String mUserExplanation;
     private boolean mPreChannelsNotification = true;
     private Uri mSound;
+    private Uri mRuleSound;
+    private int mRuleSoundReason = 0;
     private VibrationEffect mVibration;
     private @NonNull AudioAttributes mAttributes;
+    // The applied channel
     private NotificationChannel mChannel;
+    // The channel provided by the app
+    private final NotificationChannel mAppChannel;
+    // The channel provided by the NAS (via KEY_TYPE or KEY_NOTIFICATION_RULES)
+    private NotificationChannel mAsstChannel;
+    // The channel provided by the OS (e.g. a conversation channel)
+    private NotificationChannel mSystemChannel;
+    private int mRuleChannelReason = 0;
     private ArrayList<String> mPeopleOverride;
     private ArrayList<SnoozeCriterion> mSnoozeCriteria;
     private boolean mShowBadge;
     private boolean mAllowBubble;
     private Light mLight;
+    private Light mAsstLight;
+    private int mRuleLightReason = 0;
     private boolean mIsNotConversationOverride;
     private ShortcutInfo mShortcutInfo;
     /**
@@ -232,7 +256,7 @@ public final class NotificationRecord {
     private boolean mCanceledAfterLifetimeExtension = false;
 
     // type of the bundle if the notification was classified
-    private @Adjustment.Types int mBundleType = Adjustment.TYPE_OTHER;
+    private int mBundleType = Adjustment.TYPE_OTHER;
 
     private String mSummarization = null;
 
@@ -245,6 +269,13 @@ public final class NotificationRecord {
     // secret, that information should override any more generous visibility settings on the newly
     // assigned bundle.
     private int mOriginalChannelVisibility = NotificationManager.VISIBILITY_NO_OVERRIDE;
+
+    // For bridged notifications, this is the UID of the corresponding local app, if it exists.
+    // Used for permission checks against the local app's notification permissions.
+    private int mBridgedAppUid = android.os.Process.INVALID_UID;
+
+    // Whether this notification is a real call incoming notification.
+    private boolean mIsRealCallIncomingNotification = false;
 
     public NotificationRecord(Context context, StatusBarNotification sbn,
             NotificationChannel channel) {
@@ -261,7 +292,8 @@ public final class NotificationRecord {
         mKeyguardManager = mContext.getSystemService(KeyguardManager.class);
         mPowerManager = mContext.getSystemService(PowerManager.class);
         stats = new NotificationUsageStats.SingleNotificationStats();
-        mChannel = channel;
+        mAppChannel = channel;
+        mChannel = mAppChannel;
         mPreChannelsNotification = isPreChannelsNotification();
         mSound = calculateSound();
         mVibration = calculateVibration();
@@ -272,6 +304,22 @@ public final class NotificationRecord {
         mStats = new NotificationStats();
         calculateUserSentiment();
         calculateGrantableUris();
+        calculateBridgingInfo();
+    }
+
+    /**
+     * If this is a bridged notification, find the UID of the corresponding local app and store it.
+     */
+    private void calculateBridgingInfo() {
+        if (android.app.Flags.bridgedNotifications()) {
+            BridgedNotificationMetadata bridgedMetadata =
+                    this.sbn.getNotification().getBridgedNotificationMetadata();
+            if (bridgedMetadata != null) {
+                mBridgedAppUid = LocalServices.getService(
+                        PackageManagerInternal.class).getPackageUid(
+                        bridgedMetadata.getPackageName(), 0, getUserId());
+            }
+        }
     }
 
     private boolean isPreChannelsNotification() {
@@ -302,10 +350,16 @@ public final class NotificationRecord {
                 sound = n.sound;
             }
         }
+        if (mRuleSound != null) {
+            return mRuleSound;
+        }
         return sound;
     }
 
     private Light calculateLights() {
+        if (mAsstLight != null) {
+            return mAsstLight;
+        }
         int defaultLightColor = mContext.getResources().getColor(
                 com.android.internal.R.color.config_defaultNotificationColor);
         int defaultLightOn = mContext.getResources().getInteger(
@@ -349,14 +403,22 @@ public final class NotificationRecord {
             }
         }
 
-        final long[] vibrationPattern = channel.getVibrationPattern();
-        if (vibrationPattern != null) {
-            return helper.createWaveformVibration(vibrationPattern, insistent);
+        if (com.android.server.notification.Flags.channelVibrationIgnoreInvalidPattern()) {
+            VibrationEffect vibrationFromPattern = VibratorHelper.createWaveformVibration(
+                    channel.getVibrationPattern(), insistent);
+            if (vibrationFromPattern != null) {
+                return vibrationFromPattern;
+            }
+        } else {
+            final long[] vibrationPattern = channel.getVibrationPattern();
+            if (vibrationPattern != null) {
+                return helper.createWaveformVibration(vibrationPattern, insistent);
+            }
         }
 
         if (com.android.server.notification.Flags.notificationVibrationInSoundUriForChannel()) {
             final VibrationEffect vibrationEffectFromSoundUri =
-                    helper.createVibrationEffectFromSoundUri(channel.getSound());
+                    helper.createVibrationEffectFromSoundUri(channel.getSound(), insistent);
             if (vibrationEffectFromSoundUri != null) {
                 return vibrationEffectFromSoundUri;
             }
@@ -378,7 +440,7 @@ public final class NotificationRecord {
             if (useDefaultVibrate) {
                 return helper.createDefaultVibration(insistent);
             }
-            return  helper.createWaveformVibration(notification.vibrate, insistent);
+            return helper.createWaveformVibration(notification.vibrate, insistent);
         }
         return getVibrationForChannel(getChannel(), helper, insistent);
     }
@@ -480,26 +542,36 @@ public final class NotificationRecord {
         mRankingTimeMs = calculateRankingTimeMs(previous.getRankingTimeMs());
         mCreationTimeMs = previous.mCreationTimeMs;
         mVisibleSinceMs = previous.mVisibleSinceMs;
-        if (android.service.notification.Flags.notificationForceGrouping()) {
-            if (previous.getSbn().getOverrideGroupKey() != null) {
-                getSbn().setOverrideGroupKey(previous.getSbn().getOverrideGroupKey());
-            }
-        } else {
-            if (previous.getSbn().getOverrideGroupKey() != null && !getSbn().isAppGroup()) {
-                getSbn().setOverrideGroupKey(previous.getSbn().getOverrideGroupKey());
-            }
+        if (previous.getSbn().getOverrideGroupKey() != null) {
+            getSbn().setOverrideGroupKey(previous.getSbn().getOverrideGroupKey());
         }
-
         // Don't copy importance information or mGlobalSortKey, recompute them.
     }
 
-    public Notification getNotification() { return getSbn().getNotification(); }
-    public int getFlags() { return getSbn().getNotification().flags; }
-    public UserHandle getUser() { return getSbn().getUser(); }
-    public String getKey() { return getSbn().getKey(); }
+    public Notification getNotification() {
+        return getSbn().getNotification();
+    }
+
+    public int getFlags() {
+        return getSbn().getNotification().flags;
+    }
+
+    public UserHandle getUser() {
+        return getSbn().getUser();
+    }
+
+    public String getKey() {
+        return getSbn().getKey();
+    }
+
     /** @deprecated Use {@link #getUser()} instead. */
-    public int getUserId() { return getSbn().getUserId(); }
-    public int getUid() { return getSbn().getUid(); }
+    public int getUserId() {
+        return getSbn().getUserId();
+    }
+
+    public int getUid() {
+        return getSbn().getUid();
+    }
 
     void dump(ProtoOutputStream proto, long fieldId, boolean redact, int state) {
         final long token = proto.start(fieldId);
@@ -529,10 +601,11 @@ public final class NotificationRecord {
     String formatRemoteViews(RemoteViews rv) {
         if (rv == null) return "null";
         return String.format("%s/0x%08x (%d bytes): %s",
-            rv.getPackage(), rv.getLayoutId(), rv.estimateMemoryUsage(), rv.toString());
+                rv.getPackage(), rv.getLayoutId(), rv.estimateMemoryUsage(), rv.toString());
     }
 
-    @NeverCompile // Avoid size overhead of debugging code.
+    // Avoid size overhead of debugging code.
+    @NeverCompile
     void dump(PrintWriter pw, String prefix, Context baseContext, boolean redact) {
         final Notification notification = getSbn().getNotification();
         pw.println(prefix + this);
@@ -558,6 +631,8 @@ public final class NotificationRecord {
                 + NotificationListenerService.Ranking.importanceToString(mSystemImportance));
         pw.println(prefix + "mAsstImportance="
                 + NotificationListenerService.Ranking.importanceToString(mAssistantImportance));
+        pw.println(prefix + "mRuleImportance="
+                + NotificationListenerService.Ranking.importanceToString(mRuleImportance));
         pw.println(prefix + "mImportance="
                 + NotificationListenerService.Ranking.importanceToString(mImportance));
         pw.println(prefix + "mImportanceExplanation=" + getImportanceExplanation());
@@ -601,13 +676,14 @@ public final class NotificationRecord {
             pw.println(prefix + "snoozeCriteria=" + TextUtils.join(",", getSnoozeCriteria()));
         }
         pw.println(prefix + "mAdjustments=" + mAdjustments);
+        pw.println(prefix + "mRuleChannelReason=" + mRuleChannelReason);
+        pw.println(prefix + "mRuleSoundReason=" + mRuleSoundReason);
+        pw.println(prefix + "mRuleLightReason=" + mRuleLightReason);
         pw.println(prefix + "shortcut=" + notification.getShortcutId()
                 + " found valid? " + (mShortcutInfo != null));
         pw.println(prefix + "mUserVisOverride=" + getPackageVisibilityOverride());
         pw.println(prefix + "hasSummarization=" + (mSummarization != null));
-        if (android.service.notification.Flags.notificationClassification()) {
-            pw.println(prefix + "bundleType=" + getBundleType());
-        }
+        pw.println(prefix + "bundleType=" + getBundleType());
     }
 
     private void dumpNotification(PrintWriter pw, String prefix, Notification notification,
@@ -629,7 +705,7 @@ public final class NotificationRecord {
             final String ticker = notification.tickerText.toString();
             if (redact) {
                 // if the string is long enough, we allow ourselves a few bytes for debugging
-                pw.print(ticker.length() > 16 ? ticker.substring(0,8) : "");
+                pw.print(ticker.length() > 16 ? ticker.substring(0, 8) : "");
                 pw.println("...");
             } else {
                 pw.println(ticker);
@@ -711,7 +787,7 @@ public final class NotificationRecord {
     }
 
     @Override
-    public final String toString() {
+    public String toString() {
         return String.format(
                 "NotificationRecord(0x%08x: pkg=%s user=%s id=%d tag=%s importance=%d key=%s" +
                         ": %s)",
@@ -728,6 +804,57 @@ public final class NotificationRecord {
         }
     }
 
+    public boolean hasPendingBlockAdjustment(NotificationRuleManager ruleManager) {
+        synchronized (mAdjustments) {
+            for (Adjustment adjustment : mAdjustments) {
+                int importance = adjustment.getSignals().getInt(
+                        KEY_IMPORTANCE, IMPORTANCE_UNSPECIFIED);
+                if (importance == IMPORTANCE_NONE) {
+                    return true;
+                }
+                if (adjustment.getSignals().containsKey(KEY_NOTIFICATION_RULES)) {
+                    List<Adjustment> behavioralAdjustments =
+                            ruleManager.getAdjustmentsForRules(adjustment);
+                    for (Adjustment inner : behavioralAdjustments) {
+                        int innerImportance = adjustment.getSignals().getInt(
+                                KEY_IMPORTANCE, IMPORTANCE_UNSPECIFIED);
+                        if (innerImportance == IMPORTANCE_NONE) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Runs before the main logic of NotificationAdjustmentExtractor to handle cases where rules
+     * are no longer relevant for a given notification.
+     */
+    public void resetRuleBehaviors() {
+        mAsstLight = null;
+        mRuleLightReason = 0;
+        mRuleSound = null;
+        mRuleSoundReason = 0;
+        mRuleImportance = IMPORTANCE_UNSPECIFIED;
+        mRuleImportanceReason = 0;
+        mAsstChannel = null;
+        mRuleChannelReason = 0;
+        // TODO(b/479575690): implement modes integration
+    }
+
+    public Adjustment getMatchingRulesAdjustment() {
+        synchronized (mAdjustments) {
+            for (Adjustment adjustment : mAdjustments) {
+                if (adjustment.getSignals().containsKey(KEY_NOTIFICATION_RULES)) {
+                    return adjustment;
+                }
+            }
+        }
+        return null;
+    }
+
     public boolean hasAdjustment(String key) {
         synchronized (mAdjustments) {
             for (Adjustment adjustment : mAdjustments) {
@@ -739,9 +866,23 @@ public final class NotificationRecord {
         return false;
     }
 
-    public void addAdjustment(Adjustment adjustment) {
+    public void addAdjustment(Adjustment newAdjustment) {
         synchronized (mAdjustments) {
-            mAdjustments.add(adjustment);
+            if (nmContextualDisplayLaunch()) {
+                if (!mAdjustments.isEmpty() && newAdjustment.getSignals().containsKey(
+                        KEY_NOTIFICATION_RULES)) {
+                    mAdjustments.replaceAll(adjustment -> {
+                        if (adjustment.getSignals().containsKey(KEY_NOTIFICATION_RULES)) {
+                            return newAdjustment;
+                        }
+                        return adjustment;
+                    });
+                } else {
+                    mAdjustments.add(newAdjustment);
+                }
+            } else {
+                mAdjustments.add(newAdjustment);
+            }
         }
     }
 
@@ -758,23 +899,19 @@ public final class NotificationRecord {
                     final ArrayList<String> people =
                             adjustment.getSignals().getStringArrayList(KEY_PEOPLE);
                     setPeopleOverride(people);
-                    EventLogTags.writeNotificationAdjusted(getKey(), KEY_PEOPLE, people.toString());
-                    if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                        signals.remove(KEY_PEOPLE);
-                    }
+                    EventLogTags.writeNotificationAdjusted(getKey(), KEY_PEOPLE,
+                            people.toString());
+                    signals.remove(KEY_PEOPLE);
                 }
                 if (signals.containsKey(KEY_SNOOZE_CRITERIA)
                         && !keysToSkip.contains(KEY_SNOOZE_CRITERIA)) {
                     final ArrayList<SnoozeCriterion> snoozeCriterionList =
-                            adjustment.getSignals().getParcelableArrayList(
-                                    KEY_SNOOZE_CRITERIA,
+                            adjustment.getSignals().getParcelableArrayList(KEY_SNOOZE_CRITERIA,
                                     android.service.notification.SnoozeCriterion.class);
                     setSnoozeCriteria(snoozeCriterionList);
                     EventLogTags.writeNotificationAdjusted(getKey(), KEY_SNOOZE_CRITERIA,
                             snoozeCriterionList.toString());
-                    if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                        signals.remove(KEY_SNOOZE_CRITERIA);
-                    }
+                    signals.remove(KEY_SNOOZE_CRITERIA);
                 }
                 if (signals.containsKey(KEY_GROUP_KEY) && !keysToSkip.contains(KEY_GROUP_KEY)) {
                     final String groupOverrideKey =
@@ -782,9 +919,7 @@ public final class NotificationRecord {
                     setOverrideGroupKey(groupOverrideKey);
                     EventLogTags.writeNotificationAdjusted(getKey(), KEY_GROUP_KEY,
                             groupOverrideKey);
-                    if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                        signals.remove(KEY_GROUP_KEY);
-                    }
+                    signals.remove(KEY_GROUP_KEY);
                 }
                 if (signals.containsKey(KEY_USER_SENTIMENT)
                         && !keysToSkip.contains(KEY_USER_SENTIMENT)) {
@@ -797,9 +932,7 @@ public final class NotificationRecord {
                         EventLogTags.writeNotificationAdjusted(getKey(),
                                 KEY_USER_SENTIMENT,
                                 Integer.toString(getUserSentiment()));
-                        if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                            signals.remove(KEY_USER_SENTIMENT);
-                        }
+                        signals.remove(KEY_USER_SENTIMENT);
                     }
                 }
                 if (signals.containsKey(KEY_CONTEXTUAL_ACTIONS)
@@ -809,47 +942,42 @@ public final class NotificationRecord {
                                     android.app.Notification.Action.class));
                     EventLogTags.writeNotificationAdjusted(getKey(),
                             KEY_CONTEXTUAL_ACTIONS, getSystemGeneratedSmartActions().toString());
-                    if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                        signals.remove(KEY_CONTEXTUAL_ACTIONS);
-                    }
+                    signals.remove(KEY_CONTEXTUAL_ACTIONS);
                 }
                 if (signals.containsKey(KEY_TEXT_REPLIES)
                         && !keysToSkip.contains(KEY_TEXT_REPLIES)) {
                     setSmartReplies(signals.getCharSequenceArrayList(KEY_TEXT_REPLIES));
                     EventLogTags.writeNotificationAdjusted(getKey(), KEY_TEXT_REPLIES,
                             getSmartReplies().toString());
-                    if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                        signals.remove(KEY_TEXT_REPLIES);
-                    }
+                    signals.remove(KEY_TEXT_REPLIES);
                 }
                 if (signals.containsKey(KEY_IMPORTANCE) && !keysToSkip.contains(KEY_IMPORTANCE)) {
                     int importance = signals.getInt(KEY_IMPORTANCE);
                     importance = Math.max(IMPORTANCE_UNSPECIFIED, importance);
                     importance = Math.min(IMPORTANCE_HIGH, importance);
-                    setAssistantImportance(importance);
-                    EventLogTags.writeNotificationAdjusted(getKey(), KEY_IMPORTANCE,
-                            Integer.toString(importance));
-                    if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                        signals.remove(KEY_IMPORTANCE);
+                    if (nmContextualDisplayLaunch() && adjustment.getOriginatingRuleId() != 0) {
+                        setRuleImportance(importance, adjustment.getOriginatingRuleId());
+                    } else {
+                        setAssistantImportance(importance);
                     }
+                    calculateImportance();
+                    EventLogTags.writeNotificationAdjusted(
+                            getKey(), KEY_IMPORTANCE, Integer.toString(importance));
+                    signals.remove(KEY_IMPORTANCE);
                 }
                 if (signals.containsKey(KEY_RANKING_SCORE)
                         && !keysToSkip.contains(KEY_RANKING_SCORE)) {
                     mRankingScore = signals.getFloat(KEY_RANKING_SCORE);
-                    EventLogTags.writeNotificationAdjusted(getKey(), KEY_RANKING_SCORE,
-                            Float.toString(mRankingScore));
-                    if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                        signals.remove(KEY_RANKING_SCORE);
-                    }
+                    EventLogTags.writeNotificationAdjusted(
+                            getKey(), KEY_RANKING_SCORE, Float.toString(mRankingScore));
+                    signals.remove(KEY_RANKING_SCORE);
                 }
                 if (signals.containsKey(KEY_NOT_CONVERSATION)
                         && !keysToSkip.contains(KEY_NOT_CONVERSATION)) {
                     mIsNotConversationOverride = signals.getBoolean(KEY_NOT_CONVERSATION);
                     EventLogTags.writeNotificationAdjusted(getKey(),
                             KEY_NOT_CONVERSATION, Boolean.toString(mIsNotConversationOverride));
-                    if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                        signals.remove(KEY_NOT_CONVERSATION);
-                    }
+                    signals.remove(KEY_NOT_CONVERSATION);
                 }
                 if (signals.containsKey(KEY_IMPORTANCE_PROPOSAL)
                         && !keysToSkip.contains(KEY_IMPORTANCE_PROPOSAL)) {
@@ -857,48 +985,38 @@ public final class NotificationRecord {
                     EventLogTags.writeNotificationAdjusted(getKey(),
                             KEY_IMPORTANCE_PROPOSAL,
                             Integer.toString(mProposedImportance));
-                    if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                        signals.remove(KEY_IMPORTANCE_PROPOSAL);
-                    }
+                    signals.remove(KEY_IMPORTANCE_PROPOSAL);
                 }
                 if (signals.containsKey(KEY_SENSITIVE_CONTENT)
                         && !keysToSkip.contains(KEY_SENSITIVE_CONTENT)) {
                     mSensitiveContent = signals.getBoolean(KEY_SENSITIVE_CONTENT);
                     EventLogTags.writeNotificationAdjusted(getKey(),
                             KEY_SENSITIVE_CONTENT, Boolean.toString(mSensitiveContent));
-                    if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                        signals.remove(KEY_SENSITIVE_CONTENT);
-                    }
+                    signals.remove(KEY_SENSITIVE_CONTENT);
                 }
-                if (android.service.notification.Flags.notificationClassification()) {
-                    if (signals.containsKey(KEY_TYPE) && !keysToSkip.contains(KEY_TYPE)) {
-                        // Store original channel visibility before re-assigning channel
-                        if (!NotificationChannel.SYSTEM_RESERVED_IDS.contains(mChannel.getId())) {
-                            setOriginalChannelVisibility(mChannel.getLockscreenVisibility());
-                        }
-                        updateNotificationChannel(signals.getParcelable(KEY_TYPE,
-                                NotificationChannel.class));
-                        EventLogTags.writeNotificationAdjusted(
-                                getKey(), KEY_TYPE, mChannel.getId());
-                        if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                            signals.remove(KEY_TYPE);
-                        }
+                if (signals.containsKey(KEY_TYPE) && !keysToSkip.contains(KEY_TYPE)) {
+                    // Store original channel visibility before re-assigning channel
+                    if (!mChannel.isBundleChannel()) {
+                        setOriginalChannelVisibility(mChannel.getLockscreenVisibility());
                     }
-                    if (signals.containsKey(KEY_UNCLASSIFY)
-                            && !keysToSkip.contains(KEY_UNCLASSIFY)) {
-                        // reset original channel visibility as we're returning to the original
-                        setOriginalChannelVisibility(NotificationManager.VISIBILITY_NO_OVERRIDE);
-                        updateNotificationChannel(signals.getParcelable(KEY_UNCLASSIFY,
-                                NotificationChannel.class));
-                        EventLogTags.writeNotificationAdjusted(getKey(),
-                                KEY_UNCLASSIFY, mChannel.getId());
-                        if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                            signals.remove(KEY_UNCLASSIFY);
-                        }
-                    }
+                    updateSystemNotificationChannel(signals.getParcelable(KEY_TYPE,
+                            NotificationChannel.class));
+
+                    EventLogTags.writeNotificationAdjusted(
+                            getKey(), KEY_TYPE, mChannel.getId());
+                    signals.remove(KEY_TYPE);
                 }
-                if ((android.app.Flags.nmSummarizationUi() || android.app.Flags.nmSummarization())
-                        && signals.containsKey(KEY_SUMMARIZATION)
+                if (signals.containsKey(KEY_UNCLASSIFY)
+                        && !keysToSkip.contains(KEY_UNCLASSIFY)) {
+                    // reset original channel visibility as we're returning to the original
+                    setOriginalChannelVisibility(NotificationManager.VISIBILITY_NO_OVERRIDE);
+                    updateSystemNotificationChannel(signals.getParcelable(KEY_UNCLASSIFY,
+                            NotificationChannel.class));
+                    EventLogTags.writeNotificationAdjusted(getKey(),
+                            KEY_UNCLASSIFY, mChannel.getId());
+                    signals.remove(KEY_UNCLASSIFY);
+                }
+                if (signals.containsKey(KEY_SUMMARIZATION)
                         && !keysToSkip.contains(KEY_SUMMARIZATION)) {
                     CharSequence summary = signals.getCharSequence(KEY_SUMMARIZATION,
                             signals.getString(KEY_SUMMARIZATION));
@@ -909,22 +1027,83 @@ public final class NotificationRecord {
                     }
                     EventLogTags.writeNotificationAdjusted(getKey(),
                             KEY_SUMMARIZATION, Boolean.toString(mSummarization != null));
-                    if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                        signals.remove(KEY_SUMMARIZATION);
+                    signals.remove(KEY_SUMMARIZATION);
+                }
+                if (nmContextualDisplayLaunch()
+                        && signals.containsKey(KEY_DYNAMIC_BUNDLE)
+                        && !keysToSkip.contains(KEY_DYNAMIC_BUNDLE)) {
+                    // Store original channel visibility before re-assigning channel
+                    if (!mChannel.isBundleChannel()) {
+                        setOriginalChannelVisibility(mChannel.getLockscreenVisibility());
+                    }
+                    setRuleNotificationChannelOverride(signals.getParcelable(KEY_DYNAMIC_BUNDLE,
+                            NotificationChannel.class), adjustment.getOriginatingRuleId());
+                    calculateNotificationChannel();
+                    EventLogTags.writeNotificationAdjusted(
+                            getKey(), KEY_DYNAMIC_BUNDLE, mChannel.getId());
+                    signals.remove(KEY_DYNAMIC_BUNDLE);
+                }
+                if (nmContextualDisplayLaunch()
+                        && signals.containsKey(KEY_LIGHT)
+                        && !keysToSkip.contains(KEY_LIGHT)) {
+                    int lightColor = signals.getInt(KEY_LIGHT);
+                    setAssistantLightsOverride(lightColor, adjustment.getOriginatingRuleId());
+                    EventLogTags.writeNotificationAdjusted(
+                            getKey(), KEY_LIGHT, String.valueOf(lightColor));
+                    signals.remove(KEY_LIGHT);
+                }
+                if (nmContextualDisplayLaunch()
+                        && signals.containsKey(KEY_BREAKTHROUGH_ALL_MODES)
+                        && !keysToSkip.contains(KEY_BREAKTHROUGH_ALL_MODES)) {
+                    // TODO(b/479575690): implement modes integration
+                }
+                if (nmContextualDisplayLaunch()
+                        && signals.containsKey(KEY_MODE_BREAKTHROUGH_LIST)
+                        && !keysToSkip.contains(KEY_MODE_BREAKTHROUGH_LIST)) {
+                    // TODO(b/479575690): implement modes integration
+                }
+                if (nmContextualDisplayLaunch()
+                        && signals.containsKey(KEY_SOUND)
+                        && !keysToSkip.contains(KEY_SOUND)) {
+                    Uri sound = signals.getParcelable(KEY_SOUND, Uri.class);
+                    setAssistantSoundOverride(sound, adjustment.getOriginatingRuleId());
+                    EventLogTags.writeNotificationAdjusted(
+                            getKey(), KEY_SOUND, Boolean.toString(sound != null));
+                    signals.remove(KEY_SOUND);
+                }
+                if (nmContextualDisplayLaunch()
+                        && signals.containsKey(KEY_HIGHLIGHT)
+                        && !keysToSkip.contains(KEY_HIGHLIGHT)) {
+                    boolean highlight = signals.getBoolean(KEY_HIGHLIGHT);
+                    if (highlight) {
+                        setRuleImportance(IMPORTANCE_MAX, adjustment.getOriginatingRuleId());
+                    } else {
+                        setRuleImportance(IMPORTANCE_UNSPECIFIED,
+                                adjustment.getOriginatingRuleId());
+                    }
+                    calculateImportance();
+                    EventLogTags.writeNotificationAdjusted(
+                            getKey(), KEY_HIGHLIGHT, String.valueOf(highlight));
+                    signals.remove(KEY_HIGHLIGHT);
+                }
+                // KEY_NOTIFICATION_RULES stays 'live' on the notification until it's empty
+                // so that user preference changes (e.g. disabling a rule) can be applied to all
+                // notifications affected by that rule
+                if (nmContextualDisplayLaunch()
+                        && signals.containsKey(KEY_NOTIFICATION_RULES)
+                        && !keysToSkip.contains(KEY_NOTIFICATION_RULES)) {
+                    if (signals.getIntegerArrayList(
+                            Adjustment.KEY_NOTIFICATION_RULES).isEmpty()) {
+                        signals.remove(KEY_NOTIFICATION_RULES);
                     }
                 }
+
                 if (!signals.isEmpty() && adjustment.getIssuer() != null) {
                     mAdjustmentIssuer = adjustment.getIssuer();
                 }
-                if (com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                    if (adjustment.getSignals().isEmpty()) {
-                        mAdjustments.remove(i);
-                    }
+                if (adjustment.getSignals().isEmpty()) {
+                    mAdjustments.remove(i);
                 }
-            }
-            if (!com.android.server.notification.Flags.showNoisyBundledNotifications()) {
-                // We have now gotten all the information out of the adjustments and can forget them
-                mAdjustments.clear();
             }
         }
     }
@@ -962,14 +1141,6 @@ public final class NotificationRecord {
         return mPackageVisibility;
     }
 
-    private String getUserExplanation() {
-        if (mUserExplanation == null) {
-            mUserExplanation = mContext.getResources().getString(
-                    com.android.internal.R.string.importance_from_user);
-        }
-        return mUserExplanation;
-    }
-
     /**
      * Sets the importance value the system thinks the record should have.
      * e.g. bumping up foreground service notifications or people to people notifications.
@@ -1000,6 +1171,14 @@ public final class NotificationRecord {
         return mAssistantImportance;
     }
 
+    /**
+     * Sets the importance value to the value provided by a matching {@link NotificationRule}.
+     */
+    public void setRuleImportance(int importance, int ruleId) {
+        mRuleImportance = importance;
+        mRuleImportanceReason = ruleId;
+    }
+
     public void setImportanceFixed(boolean fixed) {
         mImportanceFixed = fixed;
     }
@@ -1016,7 +1195,8 @@ public final class NotificationRecord {
         mImportance = calculateInitialImportance();
         mImportanceExplanationCode = mInitialImportanceExplanationCode;
 
-        // Consider Notification Assistant and system overrides to importance. If both, system wins.
+        // Consider Notification Assistant and system overrides to importance.
+        // rule importance > system importance > assistant importance
         if (!getChannel().hasUserSetImportance()
                 && mAssistantImportance != IMPORTANCE_UNSPECIFIED
                 && !mImportanceFixed) {
@@ -1026,6 +1206,10 @@ public final class NotificationRecord {
         if (mSystemImportance != IMPORTANCE_UNSPECIFIED) {
             mImportance = mSystemImportance;
             mImportanceExplanationCode = MetricsEvent.IMPORTANCE_EXPLANATION_SYSTEM;
+        }
+        if (mRuleImportance != IMPORTANCE_UNSPECIFIED) {
+            mImportance = mRuleImportance;
+            mImportanceExplanationCode = MetricsEvent.IMPORTANCE_EXPLANATION_USER;
         }
     }
 
@@ -1078,10 +1262,7 @@ public final class NotificationRecord {
     }
 
     public @Nullable String getSummarization() {
-        if ((android.app.Flags.nmSummarizationUi() || android.app.Flags.nmSummarization())) {
-            return mSummarization;
-        }
-        return null;
+        return mSummarization;
     }
 
     public boolean setIntercepted(boolean intercept) {
@@ -1221,12 +1402,12 @@ public final class NotificationRecord {
 
     /**
      * @param previousRankingTimeMs for updated notifications, {@link #getRankingTimeMs()}
-     *     of the previous notification record, 0 otherwise
+     *                              of the previous notification record, 0 otherwise
      */
     private long calculateRankingTimeMs(long previousRankingTimeMs) {
         Notification n = getNotification();
         // Take developer provided 'when', unless it's in the future.
-        if (n.hasAppProvidedWhen() && n.getWhen() <= getSbn().getPostTime()){
+        if (n.hasAppProvidedWhen() && n.getWhen() <= getSbn().getPostTime()) {
             return n.getWhen();
         }
         // If we've ranked a previous instance with a timestamp, inherit it. This case is
@@ -1300,18 +1481,51 @@ public final class NotificationRecord {
         return mIsAppImportanceLocked;
     }
 
-    protected void updateNotificationChannel(NotificationChannel channel) {
+    protected void setRuleNotificationChannelOverride(NotificationChannel channel, int ruleId) {
+        mAsstChannel = channel;
+        mRuleChannelReason = ruleId;
+    }
+
+    protected void updateSystemNotificationChannel(NotificationChannel channel) {
         if (channel != null) {
-            mChannel = channel;
-            calculateImportance();
-            calculateUserSentiment();
-            mVibration = calculateVibration();
-            if (channel.getAudioAttributes() != null) {
-                mAttributes = channel.getAudioAttributes();
-            } else {
-                mAttributes = Notification.AUDIO_ATTRIBUTES_DEFAULT;
-            }
+            mSystemChannel = channel;
+            calculateNotificationChannel();
         }
+    }
+
+    private void calculateNotificationChannel() {
+        mChannel = mAppChannel;
+        if (mSystemChannel != null) {
+            mChannel = mSystemChannel;
+        }
+        if (mAsstChannel != null) {
+            mChannel = mAsstChannel;
+        }
+        calculateImportance();
+        calculateUserSentiment();
+        mVibration = calculateVibration();
+        if (mChannel.getAudioAttributes() != null) {
+            mAttributes = mChannel.getAudioAttributes();
+        } else {
+            mAttributes = Notification.AUDIO_ATTRIBUTES_DEFAULT;
+        }
+    }
+
+    public void setAssistantSoundOverride(Uri sound, int ruleId) {
+        mRuleSound = sound;
+        mRuleSoundReason = ruleId;
+        mSound = calculateSound();
+    }
+
+    public void setAssistantLightsOverride(int lightColor, int ruleId) {
+        int defaultLightOn = mContext.getResources().getInteger(
+                com.android.internal.R.integer.config_defaultNotificationLedOn);
+        int defaultLightOff = mContext.getResources().getInteger(
+                com.android.internal.R.integer.config_defaultNotificationLedOff);
+        mAsstLight = new Light(lightColor, defaultLightOn, defaultLightOff);
+        mRuleLightReason = ruleId;
+
+        mLight = calculateLights();
     }
 
     public void setShowBadge(boolean showBadge) {
@@ -1435,18 +1649,13 @@ public final class NotificationRecord {
 
     /** Run when the notification is direct replied. */
     public void recordDirectReplied() {
-        if (Flags.lifetimeExtensionRefactor()) {
-            // Mark the NotificationRecord as lifetime extended.
-            Notification notification = getSbn().getNotification();
-            notification.flags |= Notification.FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY;
-        }
+        Notification notification = getSbn().getNotification();
+        notification.flags |= Notification.FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY;
 
         mStats.setDirectReplied();
     }
 
-
     /** Run when the notification is smart replied. */
-    @FlaggedApi(Flags.FLAG_LIFETIME_EXTENSION_REFACTOR)
     public void recordSmartReplied() {
         Notification notification = getSbn().getNotification();
         notification.flags |= Notification.FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY;
@@ -1566,8 +1775,8 @@ public final class NotificationRecord {
 
     /**
      * @return all {@link Uri} that should have permission granted to whoever
-     *         will be rendering it. This list has already been vetted to only
-     *         include {@link Uri} that the enqueuing app can grant.
+     * will be rendering it. This list has already been vetted to only
+     * include {@link Uri} that the enqueuing app can grant.
      */
     public @Nullable ArraySet<Uri> getGrantableUris() {
         return mGrantableUris;
@@ -1669,9 +1878,10 @@ public final class NotificationRecord {
             }
         }
         // Log Assistant override if present, whether or not importance calculation is complete.
-        if (mAssistantImportance != IMPORTANCE_UNSPECIFIED) {
+        if (mAssistantImportance != IMPORTANCE_UNSPECIFIED
+                || mRuleImportance != IMPORTANCE_UNSPECIFIED) {
             lm.addTaggedData(MetricsEvent.FIELD_NOTIFICATION_IMPORTANCE_ASST,
-                        mAssistantImportance);
+                    Math.max(mAssistantImportance, mRuleImportance));
         }
         // Log the issuer of any adjustments that may have affected this notification. We only log
         // the hash here as NotificationItem events are frequent, and the number of NAS
@@ -1695,7 +1905,7 @@ public final class NotificationRecord {
         Notification notification = getNotification();
         boolean hasDecoratedStyle =
                 notification.isStyle(Notification.DecoratedCustomViewStyle.class)
-                || notification.isStyle(Notification.DecoratedMediaCustomViewStyle.class);
+                        || notification.isStyle(Notification.DecoratedMediaCustomViewStyle.class);
         boolean hasCustomRemoteView = notification.contentView != null
                 || notification.bigContentView != null
                 || notification.headsUpContentView != null;
@@ -1730,11 +1940,11 @@ public final class NotificationRecord {
         mCanceledAfterLifetimeExtension = canceledAfterLifetimeExtension;
     }
 
-    public @Adjustment.Types int getBundleType() {
+    public int getBundleType() {
         return mBundleType;
     }
 
-    public void setBundleType(@Adjustment.Types int bundleType) {
+    public void setBundleType(int bundleType) {
         mBundleType = bundleType;
     }
 
@@ -1771,7 +1981,7 @@ public final class NotificationRecord {
             // some non-msgStyle notifs can temporarily appear in the conversation space if category
             // is right
             if (mPkgAllowedAsConvo && mTargetSdkVersion < Build.VERSION_CODES.R
-                && Notification.CATEGORY_MESSAGE.equals(getNotification().category)) {
+                    && Notification.CATEGORY_MESSAGE.equals(getNotification().category)) {
                 return true;
             }
             return false;
@@ -1782,7 +1992,7 @@ public final class NotificationRecord {
             if (mShortcutInfo == null || isOnlyBots(mShortcutInfo.getPersons())) {
                 return false;
             }
-            if (Flags.notificationNoCustomViewConversations() && hasUndecoratedRemoteView()) {
+            if (hasUndecoratedRemoteView()) {
                 return false;
             }
         }
@@ -1816,6 +2026,47 @@ public final class NotificationRecord {
 
     StatusBarNotification getSbn() {
         return sbn;
+    }
+
+    /**
+     * Returns the UID of the local application corresponding to a bridged notification.
+     * Returns {@link android.os.Process#INVALID_UID} if the notification is not bridged,
+     * or if the bridged package is not installed on the local device.
+     */
+    public int getBridgedAppUid() {
+        return mBridgedAppUid;
+    }
+
+    /**
+     * If the record is for a bridged notification, return the bridged package name,
+     * or {@code null} otherwise.
+     */
+    @Nullable
+    public String getBridgedPackageName() {
+        if (android.app.Flags.bridgedNotifications()) {
+            BridgedNotificationMetadata metadata =
+                    getSbn().getNotification().getBridgedNotificationMetadata();
+            if (metadata != null) {
+                return metadata.getPackageName();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * If the record is for a bridged notification, return the bridged channel ID, or {@code null}
+     * otherwise.
+     */
+    @Nullable
+    public String getBridgedChannelId() {
+        if (android.app.Flags.bridgedNotifications()) {
+            BridgedNotificationMetadata metadata =
+                    getSbn().getNotification().getBridgedNotificationMetadata();
+            if (metadata != null) {
+                return metadata.getChannelId();
+            }
+        }
+        return null;
     }
 
     /**
@@ -1870,6 +2121,20 @@ public final class NotificationRecord {
             mKeyguardManager = mContext.getSystemService(KeyguardManager.class);
         }
         return mKeyguardManager;
+    }
+
+    /**
+     * Returns whether this notification is a real call notification.
+     */
+    public boolean isRealCallIncomingNotification() {
+        return mIsRealCallIncomingNotification;
+    }
+
+    /**
+     * Sets whether this notification is a real call notification.
+     */
+    public void setIsRealCallIncomingNotification(boolean isRealCallIncomingNotification) {
+        mIsRealCallIncomingNotification = isRealCallIncomingNotification;
     }
 
     @VisibleForTesting

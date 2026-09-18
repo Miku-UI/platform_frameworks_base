@@ -29,6 +29,8 @@ import android.graphics.Region;
 import android.util.Slog;
 import android.view.Display;
 
+import com.android.server.accessibility.AccessibilityLogUtil;
+
 import java.io.PrintWriter;
 import java.util.ArrayList;
 
@@ -57,8 +59,8 @@ import java.util.ArrayList;
  */
 public class MagnificationProcessor {
 
-    private static final String TAG = "MagnificationProcessor";
-    private static final boolean DEBUG = false;
+    private static final String TAG = MagnificationProcessor.class.getSimpleName();
+    private static final boolean DEBUG = AccessibilityLogUtil.isDebugEnabled(TAG);
 
     private final MagnificationController mController;
 

@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Semnal Wi-Fi: trei bare."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Semnal Wi-Fi: complet."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Conectată la dispozitiv."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Toți utilizatorii de pe acest dispozitiv pot să vadă și să se conecteze."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Rețea nesecurizată"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Securizează rețeaua"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Sistem de operare Android"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Setările pentru „Nume puncte de acces” nu sunt disponibile pentru acest utilizator"</string>
     <string name="enable_adb" msgid="8072776357237289039">"Remedierea erorilor prin USB"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Mod de remediere a erorilor când este conectat USB"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Revocă autorizații de remediere a erorilor prin USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Revocă autorizările pentru remedierea erorilor prin adb"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Remedierea erorilor wireless"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Modul de remediere a erorilor când rețeaua Wi-Fi este conectată"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Eroare"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Se asociază dispozitivul…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Nu s-a asociat dispozitivul. Codul QR este incorect sau dispozitivul nu este conectat la aceeași rețea."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"Adresa IP și portul"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Indisponibil (nepermis)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Indisponibil (Wi-Fi deconectat)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Scanează codul QR"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Asociază dispozitivul prin Wi-Fi scanând un cod QR"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Conectează-te la o rețea Wi-Fi"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"Remedierea erorilor prin USB are exclusiv scopuri de dezvoltare. Folosește-o pentru a copia date de pe computer pe dispozitiv, pentru a instala aplicații pe dispozitiv fără notificare și pentru a citi datele din jurnale."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Permiți remedierea erorilor wireless?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Remedierea erorilor wireless are exclusiv scopuri de dezvoltare. Folosește-o pentru a copia date de pe computer pe dispozitiv, pentru a instala aplicații pe dispozitiv fără notificare și pentru a citi datele din jurnale."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Revoci accesul la remedierea erorilor prin USB de pe toate computerele pe care le-ai autorizat anterior?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Revoci accesul la remedierea erorilor prin adb de pe toate computerele și rețelele pe care le-ai autorizat anterior?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Permiți setările pentru dezvoltare?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Aceste setări sunt destinate exclusiv utilizării pentru dezvoltare. Din cauza lor, este posibil ca dispozitivul tău și aplicațiile de pe acesta să nu mai funcționeze sau să funcționeze necorespunzător."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Verifică aplicațiile prin USB"</string>
@@ -441,7 +444,7 @@
     <string name="verbose_vendor_logging_preference_summary_will_disable" msgid="6175431593394522553">"Se dezactivează după o zi"</string>
     <string name="verbose_vendor_logging_preference_summary_on" msgid="9017757242481762036">"Activată pe termen nedefinit"</string>
     <string name="window_animation_scale_title" msgid="5236381298376812508">"Scară animație fereastră"</string>
-    <string name="transition_animation_scale_title" msgid="1278477690695439337">"Scară tranziție animații"</string>
+    <string name="transition_animation_scale_title" msgid="1278477690695439337">"Scară tranziție animație"</string>
     <string name="animator_duration_scale_title" msgid="7082913931326085176">"Scară durată Animator"</string>
     <string name="overlay_display_devices_title" msgid="5411894622334469607">"Simulează afișaje secundare"</string>
     <string name="shade_display_awareness_title" msgid="8000009404669495876">"Poziția de afișare a umbrei"</string>
@@ -529,7 +532,7 @@
     <string name="power_charging_future_paused" msgid="1809543660923642799">"<xliff:g id="LEVEL">%1$s</xliff:g> – Se încarcă"</string>
     <string name="power_fast_charging_duration_v2" msgid="3797735998640359490">"<xliff:g id="LEVEL">%1$s</xliff:g> - <xliff:g id="STATUS">%2$s</xliff:g> - Timp rămas <xliff:g id="TIME">%3$s</xliff:g>"</string>
     <string name="power_charging_duration_v2" msgid="2938998284074003248">"<xliff:g id="LEVEL">%1$s</xliff:g> - Complet încărcat la <xliff:g id="TIME">%2$s</xliff:g>"</string>
-    <string name="power_remaining_charging_duration_only_v2" msgid="5358176435722950193">"Complet încărcat la <xliff:g id="TIME">%1$s</xliff:g>"</string>
+    <string name="power_remaining_charging_duration_only_v2" msgid="5358176435722950193">"Complet încărcată la <xliff:g id="TIME">%1$s</xliff:g>"</string>
     <string name="power_remaining_fast_charging_duration_only_v2" msgid="6270950195810579563">"Încărcare completă la <xliff:g id="TIME">%1$s</xliff:g>"</string>
     <string name="battery_info_status_unknown" msgid="268625384868401114">"Necunoscut"</string>
     <string name="battery_info_status_charging" msgid="4279958015430387405">"Se încarcă"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet deconectat."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Apelarea nu este disponibilă."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Tastatură fizică"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Alege aspectul tastaturii"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Prestabilit"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Comandă pentru activarea ecranului"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Permite activarea ecranului"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Permite unei aplicații să activeze ecranul. Dacă acorzi permisiunea, aplicația poate să activeze oricând ecranul, fără intenția ta explicită."</string>

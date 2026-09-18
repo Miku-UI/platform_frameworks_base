@@ -156,7 +156,7 @@ public class OverlayReferenceMapper {
      * {@link SystemConfig#getNamedActors()}.
      *
      * @param pkg the package to add
-     * @param otherPkgs map of other packages to consider, excluding {@param pkg}
+     * @param otherPkgs map of other packages to consider, excluding {@code pkg}
      * @return Set of packages that may have changed visibility
      */
     public ArraySet<String> addPkg(AndroidPackage pkg, Map<String, AndroidPackage> otherPkgs) {

@@ -35,7 +35,6 @@ import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
 import com.android.systemui.statusbar.notification.domain.interactor.ActiveNotificationsInteractor
 import com.android.systemui.statusbar.notification.domain.interactor.HeadsUpNotificationInteractor
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.promoted.domain.interactor.AODPromotedNotificationInteractor
 import com.android.systemui.util.kotlin.combine
 import com.android.systemui.utils.coroutines.flow.flatMapLatestConflated
@@ -93,22 +92,14 @@ constructor(
     var clock: ClockController? by keyguardClockRepository.clockEventController::clock
 
     val isAodPromotedNotificationPresent: Flow<Boolean> =
-        if (PromotedNotificationUi.isEnabled) {
-            aodPromotedNotificationInteractor.isPresent
-        } else {
-            flowOf(false)
-        }
+        aodPromotedNotificationInteractor.isPresent
 
     private val areAnyNotificationsPresent: Flow<Boolean> =
-        if (PromotedNotificationUi.isEnabled) {
-            combine(
-                activeNotificationsInteractor.areAnyNotificationsPresent,
-                isAodPromotedNotificationPresent,
-            ) { areAnyNotificationsPresent, isAodPromotedNotificationPresent ->
-                areAnyNotificationsPresent || isAodPromotedNotificationPresent
-            }
-        } else {
-            activeNotificationsInteractor.areAnyNotificationsPresent
+        combine(
+            activeNotificationsInteractor.areAnyNotificationsPresent,
+            isAodPromotedNotificationPresent,
+        ) { areAnyNotificationsPresent, isAodPromotedNotificationPresent ->
+            areAnyNotificationsPresent || isAodPromotedNotificationPresent
         }
 
     private val dynamicClockSize: Flow<ClockSize> =
@@ -217,10 +208,6 @@ constructor(
         }
 
     fun handleFidgetTap(x: Float, y: Float) {
-        if (!com.android.systemui.Flags.clockFidgetAnimation()) {
-            return
-        }
-
         if (wallpaperFocalAreaInteractor.hasFocalArea.value) {
             wallpaperFocalAreaInteractor.sendTapPosition(x, y)
         } else {

@@ -11,5 +11,10 @@
     {
       "name": "CtsWindowManagerDeviceBackNavigation_com_android_wm_shell_back"
     }
+  ],
+  "imports": [
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/backnavigation"
+    }
   ]
 }

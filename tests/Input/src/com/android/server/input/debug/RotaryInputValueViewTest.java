@@ -21,6 +21,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
 import android.content.Context;
+import android.platform.test.annotations.DisabledOnRavenwood;
 import android.view.ViewConfiguration;
 
 import androidx.test.InstrumentationRegistry;
@@ -37,6 +38,7 @@ import java.util.Locale;
  * atest RotaryInputValueViewTest
  */
 @RunWith(AndroidJUnit4.class)
+@DisabledOnRavenwood(reason = "View subsystem unsupported", bug = 421246454)
 public class RotaryInputValueViewTest {
 
     private final Locale mDefaultLocale = Locale.getDefault();

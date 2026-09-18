@@ -62,6 +62,10 @@ class DuplicateAnnotationException(annotationName: String?) :
 class InputFileNotFoundException(filename: String) :
     ArgumentsException("File '$filename' not found")
 
+/** Thrown when an input directory does not exist. */
+class InputDirectoryNotFoundException(filename: String) :
+    ArgumentsException("Directory '$filename' not found or is not directory")
+
 /** Thrown when a JAR resource does not exist. */
 class JarResourceNotFoundException(path: String) :
     ArgumentsException("JAR resource '$path' not found")

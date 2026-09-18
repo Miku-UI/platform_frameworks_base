@@ -34,10 +34,13 @@
          http://smscoin.net/software/engine/WordPress/Paid+SMS-registration/ -->
 
     <!-- Arab Emirates -->
-    <shortcode country="ae" pattern="\\d{1,5}" free="1017|1355|3214|6253|6568|999|5320|5321" />
+    <shortcode country="ae" pattern="\\d{1,5}" free="999|1017|1355|3214|4227|5320|5321|6253|6568" />
 
     <!-- Albania: 5 digits, known short codes listed -->
     <shortcode country="al" pattern="\\d{5}" premium="15191|55[56]00" />
+
+    <!-- Angola: 1-5 digits (standard system default, not country specific) -->
+    <shortcode country="ao" pattern="\\d{1,5}" free="46611" />
 
     <!-- Argentina: 6 digits, known short codes listed -->
     <shortcode country="ar" pattern="\\d{1,6}" free="11711|28291|44077|78887|191289|39010" />
@@ -69,11 +72,17 @@
     <!-- Bahrain: 1-5 digits (standard system default, not country specific) -->
     <shortcode country="bh" pattern="\\d{1,5}" free="81181|85999" />
 
+    <!-- Burundi: 3 digits (standard system default, not country specific) -->
+    <shortcode country="bi" pattern="\\d{3}" free="998" />
+
+    <!-- Benin: 1-4 digits (standard system default, not country specific) -->
+    <shortcode country="bj" pattern="\\d{1,4}" free="7032" />
+
     <!-- Brunei: 1-5 digits (standard system default, not country specific) -->
     <shortcode country="bn" pattern="\\d{1,5}" free="38722" />
 
     <!-- Brazil: 1-5 digits (standard system default, not country specific) -->
-    <shortcode country="br" pattern="\\d{1,5}" free="6000[012]\\d|876|5500|9963|4141|8000|2652|26808|28516" />
+    <shortcode country="br" pattern="\\d{1,5}" free="6000[012]\\d|876|5500|9963|4141|8000|2652|28516|26583|26808" />
 
     <!-- Botswana: 1-5 digits (standard system default, not country specific) -->
     <shortcode country="bw" pattern="\\d{1,5}" free="16641|17346" />
@@ -101,7 +110,7 @@
     <shortcode country="ci" pattern="\\d{1,5}" free="9911" />
 
     <!-- Colombia: 1-6 digits (not confirmed) -->
-    <shortcode country="co" pattern="\\d{1,6}" free="890350|908160|892255|898002|898880|899960|899948|87739|85517|491289|890119|899035" />
+    <shortcode country="co" pattern="\\d{1,6}" free="85517|87739|491289|890119|890350|892255|896070|898002|899035|898880|899948|899960|908160" />
 
     <!-- Costa Rica  -->
     <shortcode country="cr" pattern="\\d{1,6}" free="466453" />
@@ -136,7 +145,7 @@
     <shortcode country="ee" pattern="1\\d{2,4}" premium="90\\d{5}|15330|1701[0-3]" free="116\\d{3}|95034" />
 
     <!-- Egypt: 4-6 digits, known codes listed -->
-    <shortcode country="eg" pattern="\\d{4,6}" free="1499|10020|100158|100021|100022|100024" />
+    <shortcode country="eg" pattern="\\d{4,6}" free="1469|1499|10020|100021|100022|100024|100158" />
 
     <!-- Spain: 5-6 digits: 25xxx, 27xxx, 280xx, 35xxx, 37xxx, 795xxx, 797xxx, 995xxx, 997xxx, plus EU.
          http://www.legallink.es/?q=en/content/which-current-regulatory-status-premium-rate-services-spain -->
@@ -162,7 +171,7 @@
     <shortcode country="ge" pattern="\\d{1,5}" premium="801[234]|888[239]" free="95201|95202|95203" />
 
     <!-- Ghana: 4 digits, known premium codes listed -->
-    <shortcode country="gh" pattern="\\d{4}" free="5041|3777|2333|6061" />
+    <shortcode country="gh" pattern="\\d{4}" free="2333|3777|3841|5041|6061" />
 
     <!-- Greece: 5 digits (54xxx, 19yxx, x=0-9, y=0-5): http://www.cmtelecom.com/premium-sms/greece -->
     <shortcode country="gr" pattern="\\d{5}" premium="54\\d{3}|19[0-5]\\d{2}" free="116\\d{3}|12115" />
@@ -171,7 +180,7 @@
     <shortcode country="gt" pattern="\\d{1,6}" free="466453" />
 
     <!-- Croatia -->
-    <shortcode country="hr" pattern="\\d{1,5}" free="13062" />
+    <shortcode country="hr" pattern="\\d{1,5}" free="1987|13062" />
 
     <!-- Hungary: 4 or 10 digits starting with 1 or 0, plus EU:
          http://clients.txtnation.com/entries/209633-hungary-premium-sms-short-code-regulations -->
@@ -184,14 +193,14 @@
     <shortcode country="in" pattern="\\d{1,5}" free="59336|53969" />
 
     <!-- Indonesia: 1-5 digits (standard system default, not country specific) -->
-    <shortcode country="id" pattern="\\d{1,5}" free="99477|6006|46645|363|93457|99265|77413" />
+    <shortcode country="id" pattern="\\d{1,5}" free="363|6006|32500|46645|77413|93457|99265|99477" />
 
     <!-- Ireland: 5 digits, 5xxxx (50xxx=free, 5[12]xxx=standard), plus EU:
          http://www.comreg.ie/_fileupload/publications/ComReg1117.pdf -->
     <shortcode country="ie" pattern="\\d{5}" premium="5[3-9]\\d{3}" free="50\\d{3}|116\\d{3}" standard="5[12]\\d{3}" />
 
     <!-- Israel: 1-5 digits, known premium codes listed -->
-    <shortcode country="il" pattern="\\d{1,5}" premium="4422|4545" free="37477|6681" />
+    <shortcode country="il" pattern="\\d{1,5}" premium="4422|4545" free="6681|37477|37478" />
 
     <!-- Iran: 4-8 digits, known premium codes listed -->
     <shortcode country="ir" pattern="\\d{4,8}" free="700792|100016|30008360" />
@@ -207,7 +216,7 @@
     <shortcode country="jp" pattern="\\d{1,5}" free="8083" standard="\\d{1,5}" />
 
     <!-- Kenya: 5 digits, known premium codes listed -->
-    <shortcode country="ke" pattern="\\d{5}" free="21725|21562|40520|23342|40023|24088|23054" />
+    <shortcode country="ke" pattern="\\d{5}" free="20118|21562|21725|23054|23342|24088|40023|40520" />
 
     <!-- Kyrgyzstan: 4 digits, known premium codes listed -->
     <shortcode country="kg" pattern="\\d{4}" premium="415[2367]|444[69]" />
@@ -232,7 +241,7 @@
 
     <!-- Luxembourg: 5 digits, 6xxxx, plus EU:
          http://www.luxgsm.lu/assets/files/filepage/file_1253803400.pdf -->
-    <shortcode country="lu" premium="6\\d{4}" free="116\\d{3}|60231|64085" />
+    <shortcode country="lu" premium="6\\d{4}" free="116\\d{3}|60231|64085|64099" />
 
     <!-- Latvia: 4 digits, known premium codes listed, plus EU -->
     <shortcode country="lv" pattern="\\d{4}" premium="18(?:19|63|7[1-4])" free="116\\d{3}|1399" />
@@ -253,10 +262,10 @@
     <shortcode country="mn" pattern="\\d{1,6}" free="44444|45678|445566" />
 
     <!-- Malawi: 1-5 digits (standard system default, not country specific) -->
-    <shortcode country="mw" pattern="\\d{1,5}" free="4276|4305|4326|4333" />
+    <shortcode country="mw" pattern="\\d{1,5}" free="4276|4305|4326|4333|4370" />
 
     <!-- Mozambique: 1-5 digits (standard system default, not country specific) -->
-    <shortcode country="mz" pattern="\\d{1,5}" free="1714" />
+    <shortcode country="mz" pattern="\\d{1,5}" free="1714|1783" />
 
     <!-- Mexico: 4-7 digits (not confirmed), known premium codes listed -->
     <shortcode country="mx" pattern="\\d{4,7}" premium="53035|7766" free="26259|46645|50025|50052|5050|76551|88778|9963|91101|45453|550346|3030303|81811|81818" />
@@ -274,13 +283,13 @@
     <shortcode country="nl" pattern="\\d{4}" premium="4466|5040" free="116\\d{3}|2223|6225|2223|1662" />
 
     <!-- Nigeria -->
-    <shortcode country="ng" pattern="\\d{1,5}" free="2441|55020|44524" />
+    <shortcode country="ng" pattern="\\d{1,5}" free="2441|7225|55020" />
 
     <!-- Norway: 4-5 digits (not confirmed), known premium codes listed -->
     <shortcode country="no" pattern="\\d{4,5}" premium="2201|222[67]" free="2171" />
 
     <!-- Nepal: 1-5 digits (standard system default, not country specific) -->
-    <shortcode country="np" pattern="\\d{1,5}" free="31009" />
+    <shortcode country="np" pattern="\\d{1,5}" free="31008|31009" />
 
     <!-- New Zealand: 3-4 digits, known premium codes listed -->
     <shortcode country="nz" pattern="\\d{3,4}" premium="3903|8995|4679" free="1737|176|2141|3067|3068|3110|3876|4006|4053|4061|4062|4202|4300|4334|4412|4575|5626|8006|8681" />
@@ -292,13 +301,13 @@
     <shortcode country="ph" pattern="\\d{1,5}" free="2147|5495|5496" />
 
     <!-- Pakistan -->
-    <shortcode country="pk" pattern="\\d{1,6}" free="2057|9092|909203|909201" />
+    <shortcode country="pk" pattern="\\d{1,6}" free="2057|9092|909200|909201|909203" />
 
     <!-- Palestine: 5 digits, known premium codes listed -->
-    <shortcode country="ps" pattern="\\d{1,5}" free="37477|6681" />
+    <shortcode country="ps" pattern="\\d{1,5}" free="6681|37477|37478" />
 
-    <!-- Paraguay: 6 digits, known premium codes listed -->
-    <shortcode country="py" pattern="\\d{6}" free="191289" />
+    <!-- Paraguay: 6-7 digits, known premium codes listed -->
+    <shortcode country="py" pattern="\\d{6,7}" free="191289" />
 
     <!-- Poland: 4-5 digits (not confirmed), known premium codes listed, plus EU -->
     <shortcode country="pl" pattern="\\d{4,5}" premium="74240|79(?:10|866)|92525" free="116\\d{3}|8012|80921|80\\d{2,3}" />
@@ -308,7 +317,7 @@
     <shortcode country="pt" premium="6[1289]\\d{3}" free="116\\d{3}|1262|12666" />
 
     <!-- Qatar: 1-5 digits (standard system default, not country specific) -->
-    <shortcode country="qa" pattern="\\d{1,5}" free="92451|92159" />
+    <shortcode country="qa" pattern="\\d{1,5}" free="92451|92159|97097" />
 
     <!-- Reunion (French Territory): 1-5 digits (not confirmed) -->
     <shortcode country="re" pattern="\\d{1,5}" free="38600,36300,36303,959" />
@@ -320,7 +329,7 @@
     <shortcode country="ru" pattern="\\d{4}" premium="1(?:1[56]1|899)|2(?:09[57]|322|47[46]|880|990)|3[589]33|4161|44(?:4[3-9]|81)|77(?:33|81)|8424" free="6954|8501" standard="2037|2044"/>
 
     <!-- Rwanda: 4 digits -->
-    <shortcode country="rw" pattern="\\d{4}" free="5060|5061" />
+    <shortcode country="rw" pattern="\\d{4}" free="5060|5061|6056" />
 
     <!-- Saudi Arabia -->
     <shortcode country="sa" pattern="\\d{1,5}" free="8145" />
@@ -343,6 +352,9 @@
 
     <!-- El Salvador(SV): 1-5 digits (standard system default, not country specific) -->
     <shortcode country="sv" pattern="\\d{4,6}" free="466453" />
+
+    <!-- Swaziland: 1-5 digits (standard system default, not country specific) -->
+    <shortcode country="sz" pattern="\\d{1,5}" free="45405" />
 
     <!-- Taiwan -->
     <shortcode country="tw" pattern="\\d{4}" free="1922" />

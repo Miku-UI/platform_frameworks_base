@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import android.os.SystemClock;
+import android.platform.test.annotations.DisabledOnRavenwood;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.test.filters.LargeTest;
@@ -40,6 +41,7 @@ import org.junit.runner.RunWith;
  */
 @Presubmit
 @RunWith(AndroidJUnit4.class)
+@DisabledOnRavenwood(reason = "Some tests are too slow")
 public class RateLimitingCacheTest {
 
     private volatile int mCounter = 0;
@@ -134,6 +136,7 @@ public class RateLimitingCacheTest {
      * Exercises concurrent access to the cache.
      */
     @Test
+    @LargeTest
     public void testMultipleThreads() throws InterruptedException {
         // Definitely won't have more than one period elapsed during the test.
         final long periodMillis = 1_000 * 60 * 10;  // 10 minutes
@@ -182,6 +185,7 @@ public class RateLimitingCacheTest {
      * value.
      */
     @Test
+    @LargeTest
     public void testMultipleThreads_oneThreadIsSlow() throws InterruptedException {
         final long periodMillis = 1000;
         final int maxCountPerPeriod = 1;

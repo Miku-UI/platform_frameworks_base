@@ -25,8 +25,8 @@
     <string name="discovery_mixed" msgid="7071466134150760127">"el Bluetooth i la Wi‑Fi"</string>
     <string name="profile_name_watch" msgid="576290739483672360">"rellotge"</string>
     <string name="chooser_title_non_profile" msgid="6035023914517087400">"Tria un dispositiu perquè el gestioni &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt;"</string>
-    <string name="chooser_title" msgid="2235819929238267637">"Tria un <xliff:g id="PROFILE_NAME">%1$s</xliff:g> per configurar"</string>
-    <string name="single_device_title" msgid="4199861437545438606">"S\'està cercant un <xliff:g id="PROFILE_NAME">%1$s</xliff:g>"</string>
+    <string name="chooser_title" msgid="2235819929238267637">"Tria una <xliff:g id="PROFILE_NAME">%1$s</xliff:g> per configurar"</string>
+    <string name="single_device_title" msgid="4199861437545438606">"S\'està cercant <xliff:g id="PROFILE_NAME">%1$s</xliff:g>"</string>
     <string name="summary_watch" msgid="8134580124808507407">"Aquesta aplicació podrà sincronitzar informació, com ara el nom d\'algú que truca, i accedir a aquests permisos al <xliff:g id="DEVICE_TYPE">%1$s</xliff:g>"</string>
     <string name="profile_name_fitness_tracker" msgid="3107192493390199691">"polsera d\'activitat"</string>
     <string name="confirmation_title_glasses" msgid="8288346850537727333">"Permet que &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; gestioni &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt;"</string>
@@ -35,7 +35,6 @@
     <string name="profile_name_medical" msgid="5617160509499466400">"dispositiu mèdic"</string>
     <string name="title_app_streaming" msgid="237666000400427614">"Vols permetre que &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; reprodueixi en continu aplicacions i funcions del sistema entre el dispositiu (<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>) i &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
     <string name="summary_app_streaming" msgid="8346968726357732862">"Es concediran els permisos següents a <xliff:g id="APP_NAME">%1$s</xliff:g>:"</string>
-    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> podrà accedir a qualsevol cosa que sigui visible o que es reprodueixi al teu dispositiu (<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>), inclosos àudios, fotos, informació de pagament, contrasenyes i missatges.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_1">%1$s</xliff:g> podrà reproduir en continu aplicacions al dispositiu <xliff:g id="DEVICE_NAME">%3$s</xliff:g> fins que suprimeixis l\'accés a aquest permís."</string>
     <string name="helper_summary_app_streaming" msgid="160149899100957545">"<xliff:g id="APP_NAME">%1$s</xliff:g> demana permís en nom del dispositiu <xliff:g id="DEVICE_NAME">%2$s</xliff:g> per reproduir en continu aplicacions i funcions del sistema entre els teus dispositius."</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
@@ -43,12 +42,13 @@
     <string name="helper_summary_computer" msgid="2298803016482139668">"<xliff:g id="APP_NAME">%1$s</xliff:g> demana permís en nom del teu dispositiu <xliff:g id="DEVICE_NAME">%2$s</xliff:g> per accedir a les fotos, el contingut multimèdia i les notificacions del <xliff:g id="DEVICE_TYPE">%3$s</xliff:g>"</string>
     <string name="title_nearby_device_streaming" msgid="5342768208699657581">"Vols permetre que &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; reprodueixi en continu aplicacions i funcions del sistema entre el dispositiu (<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>) i &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
     <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"Es concediran els permisos següents a <xliff:g id="APP_NAME">%1$s</xliff:g>:"</string>
-    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> podrà accedir a qualsevol cosa que sigui visible o que es reprodueixi al dispositiu <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>, inclosos àudios, fotos, informació de pagament, contrasenyes i missatges.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%1$s</xliff:g> podrà reproduir en continu aplicacions al dispositiu <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> fins que suprimeixis l\'accés a aquest permís."</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"<xliff:g id="APP_NAME">%1$s</xliff:g> demana permís en nom del dispositiu <xliff:g id="DEVICE_NAME">%2$s</xliff:g> per reproduir en continu aplicacions del teu dispositiu (<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>)"</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"Vols permetre que &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; reprodueixi en continu àudio i funcions del sistema entre el dispositiu <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> i &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt;?"</string>
     <string name="summary_virtual_device" msgid="1062189396947962635">"Es concediran els permisos següents a <xliff:g id="APP_NAME">%2$s</xliff:g>:"</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"dispositiu"</string>
     <string name="summary_generic" msgid="1761976003668044801">"Aquesta aplicació podrà sincronitzar informació, com ara el nom d\'algú que truca, entre el teu telèfon i el dispositiu triat"</string>
+    <string name="summary_generic_with_remote_ai_capability" msgid="5053633566439056634">"Permet que &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; sincronitzi informació, com ara de les persones que truquen, i que dugui a terme accions intel·ligents des del teu <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>"</string>
+    <string name="summary_with_permissions_and_remote_ai_capability" msgid="5240771314596527096">"Dona permisos a &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; perquè sincronitzi informació, com ara de les persones que truquen, i que dugui a terme accions intel·ligents des del teu <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>"</string>
     <string name="consent_yes" msgid="8344487259618762872">"Permet"</string>
     <string name="consent_no" msgid="2640796915611404382">"No permetis"</string>
     <string name="consent_cancel" msgid="5655005528379285841">"Cancel·la"</string>
@@ -70,6 +70,7 @@
     <string name="permission_media_routing_control" msgid="5498639511586715253">"Canvia la sortida multimèdia"</string>
     <string name="permission_storage" msgid="6831099350839392343">"Fotos i contingut multimèdia"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"Notificacions"</string>
+    <string name="permission_app_streaming" msgid="4488910074894929222">"Duplicar i reproduir aplicacions"</string>
     <string name="permission_create_virtual_device" msgid="1102905050922460040">"Reprodueix dades en continu al <xliff:g id="DEVICE_TYPE">%1$s</xliff:g>"</string>
     <string name="permission_add_mirror_display" msgid="3743433250535606288">"Duplica la pantalla"</string>
     <string name="permission_add_trusted_display" msgid="9052824856626276723">"Reprodueix apps en continu"</string>
@@ -83,15 +84,16 @@
     <string name="permission_microphone_summary" msgid="4862628553869973259">"Gravar àudio"</string>
     <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"Determinar la posició relativa dels dispositius propers, trobar-los i connectar-s\'hi"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"Llegir totes les notificacions, inclosa informació com ara els contactes, els missatges i les fotos"</string>
-    <string name="permission_notifications_summary" msgid="6819393427371255636">"• Llegir totes les notificacions, inclosa informació com ara els contactes, els missatges i les fotos.&lt;br/&gt;• Enviar-te notificacions.&lt;br/&gt;&lt;br/&gt;A Configuració &gt; Notificacions, pots gestionar en qualsevol moment els permisos de l\'aplicació per llegir i enviar notificacions."</string>
-    <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_notifications_summary" msgid="7491920318334824691">"• Llegir totes les notificacions, inclosa informació com ara contactes, missatges i fotos.&lt;br/&gt;• Enviar-te notificacions.&lt;br/&gt;&lt;br/&gt;Pots gestionar la capacitat de l\'aplicació de llegir i enviar notificacions en qualsevol moment a Configuració › Notificacions."</string>
+    <string name="permission_storage_summary" msgid="3779040306012319942">"Comparteix les fotos i el contingut multimèdia del telèfon amb els altres dispositius."</string>
     <string name="permission_post_notifications_summary" msgid="1099188848900200165">"Rebre notificacions"</string>
+    <string name="permission_app_streaming_summary" msgid="4114223538437344105">"Comparteix la pantalla del telèfon, incloses les aplicacions, amb els teus dispositius. Tindran accés a tot el que sigui visible al telèfon, incloent-hi l\'àudio, les fotos, la informació de pagament, les contrasenyes i els missatges, fins i tot quan el telèfon estigui bloquejat.&lt;br/&gt;&lt;br/&gt;Proporciona dades del micròfon, de la càmera i d\'altres sensors dels teus dispositius al telèfon, incloses interaccions com ara gestos tàctils i clics de ratolí."</string>
     <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"Reprodueix en continu les dades del micròfon, de la càmera i d\'altres sensors de &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; al <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>."</string>
     <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"Grava, emet o comparteix la pantalla del teu <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> a &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> podrà accedir a qualsevol cosa que sigui visible o que es reprodueixi al teu <xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g>, inclosos àudio, fotos, informació de pagament, contrasenyes i missatges."</string>
     <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"Reprodueix en continu les aplicacions del teu dispositiu (<xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>) a &lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> podrà accedir a qualsevol cosa que sigui visible o que es reprodueixi al teu dispositiu <xliff:g id="DEVICE_NAME_2">%3$s</xliff:g>, inclosos àudio, fotos, informació de pagament, contrasenyes i missatges, fins i tot quan el dispositiu (<xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g>) està bloquejat."</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"Accedeix a una llista de dispositius disponibles i controla quin reprodueix o emet àudio o vídeo des d\'altres aplicacions"</string>
-    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
-    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="4263728689361283271">"Enviar-te alertes"</string>
+    <string name="permission_bypass_dnd_summary" msgid="3649231048838415756">"Enviar-te alertes fins i tot quan el mode No molestis està activat"</string>
     <string name="device_type" product="default" msgid="8268703872070046263">"telèfon"</string>
     <string name="device_type" product="tablet" msgid="5038791954983067774">"tauleta"</string>
     <string name="device_type" product="tv" msgid="5355611506659405636">"televisor"</string>

@@ -51,10 +51,9 @@ class MultiApkGenerator {
   bool FromBaseApk(const MultiApkGeneratorOptions& options);
 
  protected:
-  virtual std::unique_ptr<ResourceTable> FilterTable(IAaptContext* context,
-                                                     const configuration::OutputArtifact& artifact,
-                                                     const ResourceTable& old_table,
-                                                     FilterChain* chain);
+  std::unique_ptr<ResourceTable> FilterTable(IAaptContext* context,
+                                             const configuration::OutputArtifact& artifact,
+                                             const ResourceTable& old_table, FilterChain* chain);
 
  private:
   android::IDiagnostics* GetDiagnostics() {

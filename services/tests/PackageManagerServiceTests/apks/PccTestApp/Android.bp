@@ -1,0 +1,23 @@
+package {
+    default_team: "trendy_team_framework_android_packages",
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "frameworks_base_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["frameworks_base_license"],
+}
+
+android_test_helper_app {
+    name: "FrameworksServicesTests_PccTestApp",
+    defaults: ["FrameworksServicesTests_apks_defaults"],
+    manifest: "AndroidManifest.xml",
+    sdk_version: "current",
+}
+
+android_test_helper_app {
+    name: "FrameworksServicesTests_PccTestAppUpgradeToNoPccComponents",
+    defaults: ["FrameworksServicesTests_apks_defaults"],
+    manifest: "AndroidManifest_v2_no_pcc_components.xml",
+    sdk_version: "current",
+}

@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 import android.app.usage.IUsageStatsManager;
 import android.app.usage.UsageStats;
 import android.app.usage.UsageStatsManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -258,6 +259,75 @@ public class ResolverListControllerTest {
                         intents);
 
         assertThat(result.size(), is(1));
+    }
+
+    @Test
+    public void getResolversForIntent_marksPreferredActivity() {
+        mockStats();
+        List<ResolveInfo> infos = new ArrayList<>();
+        infos.add(ResolverDataProvider.createResolveInfo(0, UserHandle.USER_CURRENT,
+                PERSONAL_USER_HANDLE));
+        ResolveInfo preferredInfo = ResolverDataProvider.createResolveInfo(1,
+                UserHandle.USER_CURRENT, PERSONAL_USER_HANDLE);
+        infos.add(preferredInfo);
+        when(mMockPackageManager.queryIntentActivitiesAsUser(any(), anyInt(),
+                any(UserHandle.class))).thenReturn(infos);
+        when(mMockPackageManager.resolveActivity(any(), anyInt())).thenReturn(preferredInfo);
+
+        mController = new ResolverListController(mMockContext, mMockPackageManager,
+                createSendImageIntent("test"), null, UserHandle.USER_CURRENT,
+                /* userHandle= */ UserHandle.SYSTEM, UserHandle.SYSTEM);
+        List<Intent> intents = new ArrayList<>();
+        intents.add(createActionMainIntent());
+
+        List<ResolvedComponentInfo> resolvers = mController
+                .getResolversForIntent(
+                        /* shouldGetResolvedFilter= */ true,
+                        /* shouldGetActivityMetadata= */ true,
+                        /* shouldGetOnlyDefaultActivities= */ true,
+                        intents);
+
+        assertThat(resolvers, hasSize(2));
+        assertThat(resolvers.get(0).isPreferredActivity(), is(false));
+        assertThat(resolvers.get(1).isPreferredActivity(), is(true));
+    }
+
+    @Test
+    @android.platform.test.annotations.RequiresFlagsEnabled(
+            android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testFilterIneligibleActivities_usesGetUid() {
+        int pccUid = android.os.Process.FIRST_PCC_UID + 5;
+        int appUid = android.os.Process.FIRST_APPLICATION_UID + 5;
+
+        ResolveInfo ri = new ResolveInfo();
+        ri.activityInfo = new android.content.pm.ActivityInfo();
+        ri.activityInfo.applicationInfo = new android.content.pm.ApplicationInfo();
+        ri.activityInfo.applicationInfo.uid = appUid;
+        ri.activityInfo.applicationInfo.pccUid = pccUid;
+        // Mark as PCC component so getUid() returns pccUid
+        ri.activityInfo.flags |= android.content.pm.ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX;
+        ri.activityInfo.exported = true;
+        ri.activityInfo.permission = "some.permission";
+        ri.activityInfo.packageName = "pkg";
+        ri.activityInfo.name = "cls";
+
+        ResolvedComponentInfo rci = new ResolvedComponentInfo(new ComponentName("pkg", "cls"),
+                new Intent(), ri);
+        List<ResolvedComponentInfo> inputList = new ArrayList<>();
+        inputList.add(rci);
+
+        // Set launchedFromUid to pccUid.
+        // If filterIneligibleActivities uses getUid() (pccUid), checkComponentPermission
+        // sees same-uid access and returns GRANTED, keeping the item.
+        // If it uses applicationInfo.uid (appUid), uids mismatch, permission check fails,
+        // removing the item.
+        mController = new ResolverListController(mMockContext, mMockPackageManager,
+                createSendImageIntent("test"), null, pccUid,
+                /* userHandle= */ UserHandle.SYSTEM, UserHandle.SYSTEM);
+
+        List<ResolvedComponentInfo> result = mController.filterIneligibleActivities(
+                inputList, true);
+        assertEquals(result, null);
     }
 
     private int containsFlag(int flag) {

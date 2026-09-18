@@ -226,6 +226,17 @@ public final class DevicePolicyIdentifiers {
      */
     public static final String MAX_TIME_TO_LOCK_POLICY = "maxTimeToLock";
 
+    /**
+     * String identifier for {@link DevicePolicyManager#setPasswordQuality}.
+     * @hide
+     */
+    public static final String PASSWORD_QUALITY_POLICY = "passwordQuality";
+
+    /**
+     * String identifier for {@link DevicePolicyManager#setCommonCriteriaModeEnabled}
+     */
+    @FlaggedApi(android.app.admin.flags.Flags.FLAG_COMMON_CRITERIA_MODE_COEXISTENCE)
+    public static final String COMMON_CRITERIA_MODE_POLICY = "commonCriteriaMode";
 
     /**
      * @hide

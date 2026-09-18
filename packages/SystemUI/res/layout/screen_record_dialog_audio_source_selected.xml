@@ -29,7 +29,7 @@
         android:id="@+id/screen_recording_dialog_source_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="?android:attr/textColorSecondary"
+        android:textColor="@color/materialColorOnSurfaceVariant"
         android:textAppearance="?android:attr/textAppearanceSmall"
         android:fontFamily="variable-body-medium"
         android:textSize="14sp" />

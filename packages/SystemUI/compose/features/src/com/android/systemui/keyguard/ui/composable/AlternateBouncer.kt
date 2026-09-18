@@ -68,7 +68,7 @@ fun AlternateBouncer(
     val alternateBouncerViewModel =
         rememberViewModel("AlternateBouncerViewModel") { alternateBouncerDependencies.viewModel }
     val isVisible by alternateBouncerViewModel.isVisible.collectAsStateWithLifecycle(true)
-    val visibleState = remember { MutableTransitionState(isVisible) }
+    val visibleState = remember { MutableTransitionState(false) }
 
     // Feeds the isVisible value to the MutableTransitionState used by AnimatedVisibility below.
     LaunchedEffect(isVisible) { visibleState.targetState = isVisible }

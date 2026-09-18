@@ -396,6 +396,24 @@ public class SntpClientTest {
         assertEquals(1, mServer.numRepliesSent());
     }
 
+    @Test
+    public void testServerDurationTooHigh_fails() throws Exception {
+        when(mSystemTimeSupplier.get()).thenReturn(LATE_ERA0_REQUEST_TIME);
+
+        final byte[] reply = HexEncoding.decode(LATE_ERA_RESPONSE.toCharArray(), false);
+        // Change the transmit timestamp to be 10 seconds after the receive timestamp.
+        // The receive timestamp from LATE_ERA_RESPONSE is d9ca9451.94bd3fff.
+        // The first 32 bits, d9ca9451, represent the seconds.
+        // Let's set the transmit timestamp seconds to d9ca945b (+10 seconds).
+        // This will result in a server processing duration of ~10 seconds, which
+        // will exceed the total transaction duration, resulting in a negative round trip time.
+        reply[TRANSMIT_TIME_OFFSET + 3] = (byte) 0x5b;
+        mServer.setServerReply(reply);
+
+        assertFalse(mClient.requestTime(mServer.getAddress(), mServer.getPort(), 500, mNetwork));
+        assertEquals(1, mServer.numRequestsReceived());
+        assertEquals(1, mServer.numRepliesSent());
+    }
 
     private static class SntpTestServer {
         private final Object mLock = new Object();

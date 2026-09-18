@@ -34,10 +34,10 @@ import android.net.LinkAddress;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.VpnManager;
+import android.util.ArrayMap;
 import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 import android.util.Log;
-import android.util.SparseArray;
 import android.util.SparseIntArray;
 
 import androidx.annotation.NonNull;
@@ -51,6 +51,7 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Class to record the VpnConnectionReported into statsd, facilitating the logging of independent
@@ -75,7 +76,8 @@ public class VpnConnectivityMetrics {
     static final int IP_PROTOCOL_IPv6 = 2;
     @VisibleForTesting
     static final int IP_PROTOCOL_IPv4v6 = 3;
-    private static final SparseArray<String> sAlgorithms = new SparseArray<>();
+    @VisibleForTesting
+    static final Map<String, Integer> sAlgorithmMap = new ArrayMap<>();
     /**
      * A static mapping from {@link VpnProfile} types to the corresponding integer values
      * defined in the {@code VpnProfileType} enum for metrics reporting. This allows for a
@@ -92,17 +94,17 @@ public class VpnConnectivityMetrics {
     private int mMtu = 0;
     /**
      * A bitmask representing the set of currently allowed algorithms.
-     * Each bit in this integer corresponds to an algorithm defined in {@code sAlgorithms}.
+     * Each bit in this integer corresponds to an algorithm defined in {@code sAlgorithmMap}.
      * If a bit at a certain position (index) is set, the algorithm corresponding to that
-     * index in {@code sAlgorithms} is considered allowed.
+     * index in {@code sAlgorithmMap} is considered allowed.
      */
     private int mAllowedAlgorithms = 0;
     /**
      * The maximum value that {@code mAllowedAlgorithms} can take.
-     * It's calculated based on the number of algorithms defined in {@code sAlgorithms}.
+     * It's calculated based on the number of algorithms defined in {@code sAlgorithmMap}.
      * Each algorithm corresponds to a bit in the bitmask, so the maximum value is
      * 2^numberOfAlgorithms - 1.
-     * This value should be updated if {@code sAlgorithms} is modified.
+     * This value should be updated if {@code sAlgorithmMap} is modified.
      */
     private static final int MAX_ALLOWED_ALGORITHMS_VALUE = (1 << 11) - 1;
     /**
@@ -119,22 +121,28 @@ public class VpnConnectivityMetrics {
     private int mVpnNetworkIpProtocol = IP_PROTOCOL_UNKNOWN;
     private int mServerIpProtocol = IP_PROTOCOL_UNKNOWN;
 
-    // Static initializer block to populate the sAlgorithms and sVpnProfileTypeMap mappings.
-    // For sAlgorithms, it associates integer keys (which also serve as bit positions for the
+    // Static initializer block to populate the sAlgorithmMap and sVpnProfileTypeMap mappings.
+    // For sAlgorithmMap, it associates integer values (which also serve as bit positions for the
     // mAllowedAlgorithms bitmask) with their respective algorithm string constants.
     // For sVpnProfileTypeMap, it maps VpnProfile types to their corresponding enum values.
     static {
-        sAlgorithms.put(0, AUTH_AES_CMAC);
-        sAlgorithms.put(1, AUTH_AES_XCBC);
-        sAlgorithms.put(2, AUTH_CRYPT_AES_GCM);
-        sAlgorithms.put(3, AUTH_CRYPT_CHACHA20_POLY1305);
-        sAlgorithms.put(4, AUTH_HMAC_MD5);
-        sAlgorithms.put(5, AUTH_HMAC_SHA1);
-        sAlgorithms.put(6, AUTH_HMAC_SHA256);
-        sAlgorithms.put(7, AUTH_HMAC_SHA384);
-        sAlgorithms.put(8, AUTH_HMAC_SHA512);
-        sAlgorithms.put(9, CRYPT_AES_CBC);
-        sAlgorithms.put(10, CRYPT_AES_CTR);
+        // The integer value for each algorithm is used for metrics and also serves as a bit
+        // position for the mAllowedAlgorithms bitmask.
+        //
+        // IMPORTANT: To maintain metrics consistency, existing algorithm values MUST NOT be
+        // changed. When adding a new algorithm, add it to the map with a new, sequential integer
+        // value, and update MAX_ALLOWED_ALGORITHMS_VALUE accordingly.
+        sAlgorithmMap.put(AUTH_AES_CMAC, 0);
+        sAlgorithmMap.put(AUTH_AES_XCBC, 1);
+        sAlgorithmMap.put(AUTH_CRYPT_AES_GCM, 2);
+        sAlgorithmMap.put(AUTH_CRYPT_CHACHA20_POLY1305, 3);
+        sAlgorithmMap.put(AUTH_HMAC_MD5, 4);
+        sAlgorithmMap.put(AUTH_HMAC_SHA1, 5);
+        sAlgorithmMap.put(AUTH_HMAC_SHA256, 6);
+        sAlgorithmMap.put(AUTH_HMAC_SHA384, 7);
+        sAlgorithmMap.put(AUTH_HMAC_SHA512, 8);
+        sAlgorithmMap.put(CRYPT_AES_CBC, 9);
+        sAlgorithmMap.put(CRYPT_AES_CTR, 10);
 
         sVpnProfileTypeMap.put(VpnProfile.TYPE_PPTP, 1 /* VpnProfileType.TYPE_PPTP */);
         sVpnProfileTypeMap.put(VpnProfile.TYPE_L2TP_IPSEC_PSK,
@@ -231,20 +239,20 @@ public class VpnConnectivityMetrics {
      * <p>
      * Each known algorithm name in the input list corresponds to a specific bit
      * in the returned integer. If an algorithm name from the list is found in
-     * {@link #sAlgorithms}, the bit at the index of that algorithm in {@link #sAlgorithms}
+     * {@link #sAlgorithmMap}, the bit at the value of that algorithm in {@link #sAlgorithmMap}
      * is set in the bitmask.
      * </p>
      *
      * @param allowedAlgorithms A list of strings, where each string is the name of a algorithm.
      * @return An integer bitmask where each set bit indicates an allowed algorithm based on its
-     *         index in {@link #sAlgorithms}. Returns 0 if the input list is empty, or contains only
-     *         unknown algorithms.
+     *         value in {@link #sAlgorithmMap}. Returns 0 if the input list is empty, or contains
+     *         only unknown algorithms.
      */
     @VisibleForTesting
     static int buildAllowedAlgorithmsBitmask(@NonNull List<String> allowedAlgorithms) {
         int bitmask = 0;
         for (String ac : allowedAlgorithms) {
-            final int index = sAlgorithms.indexOfValue(ac);
+            int index = sAlgorithmMap.getOrDefault(ac, -1);
             if (index < 0) {
                 Log.wtf(TAG, "Unknown allowed algorithm: " + ac);
                 continue;

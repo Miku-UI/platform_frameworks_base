@@ -299,7 +299,10 @@ public final class ComponentName implements Parcelable, Cloneable, Comparable<Co
         return "ComponentInfo{" + mPackage + "/" + mClass + "}";
     }
 
-    /** Put this here so that individual services don't have to reimplement this. @hide */
+    /**
+     * Put this here so that individual services don't have to reimplement this.
+     * @hide
+     */
     public void dumpDebug(ProtoOutputStream proto, long fieldId) {
         final long token = proto.start(fieldId);
         proto.write(ComponentNameProto.PACKAGE_NAME, mPackage);

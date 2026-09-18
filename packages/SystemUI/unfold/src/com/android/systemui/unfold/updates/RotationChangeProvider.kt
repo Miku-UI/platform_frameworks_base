@@ -27,6 +27,7 @@ import com.android.systemui.unfold.util.CallbackController
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import java.lang.ref.WeakReference
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -40,11 +41,13 @@ class RotationChangeProvider
 @AssistedInject
 constructor(
     private val displayManager: DisplayManager,
-    private val context: Context,
-    @UnfoldBg private val bgHandler: Handler,
+    context: Context,
+    @param:UnfoldBg private val bgHandler: Handler,
     @Assisted private val callbackHandler: Handler,
 ) : CallbackController<RotationChangeProvider.RotationListener> {
 
+    // Prevent leak of TaskbarActivityContext
+    private val contextRef = WeakReference(context)
     private val listeners = CopyOnWriteArrayList<RotationListener>()
 
     private val displayListener = RotationDisplayListener()
@@ -99,7 +102,7 @@ constructor(
         override fun onDisplayChanged(displayId: Int) {
             Trace.beginSection("RotationChangeProvider.RotationDisplayListener#onDisplayChanged")
             try {
-                val display = context.display ?: return
+                val display = contextRef.get()?.display ?: return
 
                 if (displayId == display.displayId) {
                     val currentRotation = display.rotation

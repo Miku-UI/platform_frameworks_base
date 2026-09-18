@@ -39,6 +39,7 @@ import com.android.systemui.shade.NotificationPanelView
 import com.android.systemui.statusbar.VibratorHelper
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.whenever
+import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor
 import com.google.android.msdl.domain.MSDLPlayer
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,6 +57,7 @@ import org.mockito.MockitoAnnotations
 class DefaultDeviceEntrySectionTest : SysuiTestCase() {
     @Mock private lateinit var authController: AuthController
     @Mock(answer = Answers.RETURNS_DEEP_STUBS) private lateinit var windowManager: WindowManager
+    @Mock private lateinit var windowRootViewBlurInteractor: WindowRootViewBlurInteractor
     @Mock private lateinit var notificationPanelView: NotificationPanelView
     private lateinit var featureFlags: FakeFeatureFlags
     @Mock private lateinit var falsingManager: FalsingManager
@@ -75,6 +77,7 @@ class DefaultDeviceEntrySectionTest : SysuiTestCase() {
                 testKosmos().testDispatcher,
                 authController,
                 windowManager,
+                windowRootViewBlurInteractor,
                 context,
                 notificationPanelView,
                 featureFlags,

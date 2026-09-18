@@ -18,6 +18,8 @@ package com.android.server.notification;
 
 import static android.app.AutomaticZenRule.TYPE_DRIVING;
 import static android.app.AutomaticZenRule.TYPE_UNKNOWN;
+import static android.app.NotificationLoggingConstants.DATA_TYPE_ZEN_CONFIG;
+import static android.app.NotificationLoggingConstants.ERROR_XML_PARSING;
 import static android.app.NotificationManager.AUTOMATIC_RULE_STATUS_ACTIVATED;
 import static android.app.NotificationManager.AUTOMATIC_RULE_STATUS_DEACTIVATED;
 import static android.app.NotificationManager.AUTOMATIC_RULE_STATUS_DISABLED;
@@ -25,8 +27,6 @@ import static android.app.NotificationManager.AUTOMATIC_RULE_STATUS_ENABLED;
 import static android.app.NotificationManager.AUTOMATIC_RULE_STATUS_REMOVED;
 import static android.app.NotificationManager.AUTOMATIC_RULE_STATUS_UNKNOWN;
 import static android.app.NotificationManager.Policy.PRIORITY_SENDERS_ANY;
-import static android.app.backup.NotificationLoggingConstants.DATA_TYPE_ZEN_CONFIG;
-import static android.app.backup.NotificationLoggingConstants.ERROR_XML_PARSING;
 import static android.service.notification.Condition.SOURCE_UNKNOWN;
 import static android.service.notification.Condition.SOURCE_USER_ACTION;
 import static android.service.notification.Condition.STATE_FALSE;
@@ -47,6 +47,7 @@ import static android.service.notification.ZenModeConfig.isImplicitRuleId;
 
 import static com.android.internal.util.FrameworkStatsLog.DND_MODE_RULE;
 import static com.android.internal.util.Preconditions.checkArgument;
+import static com.android.media.audio.Flags.filterCallOnListenerHint;
 import static com.android.server.notification.Flags.preventZenDeviceEffectsWhileDriving;
 
 import static java.util.Objects.requireNonNull;
@@ -58,7 +59,6 @@ import android.annotation.SuppressLint;
 import android.annotation.UserIdInt;
 import android.app.AppOpsManager;
 import android.app.AutomaticZenRule;
-import android.app.Flags;
 import android.app.NotificationManager;
 import android.app.NotificationManager.Policy;
 import android.app.backup.BackupRestoreEventLogger;
@@ -107,6 +107,7 @@ import android.service.notification.ZenPolicy;
 import android.text.TextUtils;
 import android.util.AndroidRuntimeException;
 import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.IntArray;
 import android.util.Log;
 import android.util.Slog;
@@ -120,6 +121,7 @@ import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.config.sysui.SystemUiSystemPropertiesFlags;
 import com.android.internal.logging.MetricsLogger;
+import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
@@ -132,13 +134,13 @@ import java.io.PrintWriter;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.function.IntPredicate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.IntPredicate;
 
 /**
  * NotificationManagerService helper for functionality related to zen mode.
@@ -201,6 +203,7 @@ public class ZenModeHelper {
     @VisibleForTesting protected ZenModeConfig mConfig;
     @VisibleForTesting protected AudioManagerInternal mAudioManager;
     protected PackageManager mPm;
+    private boolean mIsWatch;
     @GuardedBy("mConfigLock")
     private DeviceEffectsApplier mDeviceEffectsApplier;
     private long mSuppressedEffects;
@@ -213,6 +216,8 @@ public class ZenModeHelper {
     @VisibleForTesting protected boolean mIsSystemServicesReady;
 
     private String[] mPriorityOnlyDndExemptPackages;
+    private String[] mListenerHintsExemptPackages;
+    private String[] mPriorityAndHintsExemptPackages;
 
     public ZenModeHelper(Context context, Looper looper, Clock clock,
             ConditionProviders conditionProviders,
@@ -251,6 +256,18 @@ public class ZenModeHelper {
             ValidateNotificationPeople validator, int contactsTimeoutMs, float timeoutAffinity,
             int callingUid) {
         synchronized (mConfigLock) {
+            if (filterCallOnListenerHint()
+                    && (mSuppressedEffects & SUPPRESSED_EFFECT_CALLS) != 0) {
+                // TODO: b/489939734 -- some watch users use listener hints when calls
+                // should still be shown to the user. Temporarily restrict from this
+                // form factor pending investigation
+                if (!mIsWatch) {
+                    if (DEBUG) {
+                        Log.d(TAG, "filtering call due to mSuppressedEffects");
+                    }
+                    return false;
+                }
+            }
             return ZenModeFiltering.matchesCallFilter(mContext, mZenMode, mConsolidatedPolicy,
                     userHandle, extras, validator, contactsTimeoutMs, timeoutAffinity,
                     callingUid);
@@ -306,6 +323,7 @@ public class ZenModeHelper {
             mAudioManager.setRingerModeDelegate(mRingerModeDelegate);
         }
         mPm = mContext.getPackageManager();
+        mIsWatch = mPm.hasSystemFeature(PackageManager.FEATURE_WATCH);
         mHandler.postMetricsTimer();
         cleanUpZenRules();
         mIsSystemServicesReady = true;
@@ -343,13 +361,29 @@ public class ZenModeHelper {
     public void onUserRemoved(int user) {
         if (user < UserHandle.USER_SYSTEM) return;
         if (DEBUG) Log.d(TAG, "onUserRemoved u=" + user);
+        boolean changed;
         synchronized (mConfigLock) {
+            changed = mConfigs.contains(user);
             mConfigs.remove(user);
+        }
+        if (changed) {
+            dispatchOnConfigChanged(user);
         }
     }
 
     void setPriorityOnlyDndExemptPackages(String[] packages) {
         mPriorityOnlyDndExemptPackages = packages;
+    }
+
+    void setExemptPackages(String[] priorityOnlyDndExemptPackages,
+            String[] listenerHintsExemptPackages) {
+        mPriorityOnlyDndExemptPackages = priorityOnlyDndExemptPackages;
+        mListenerHintsExemptPackages = listenerHintsExemptPackages;
+
+        if (priorityOnlyDndExemptPackages != null && listenerHintsExemptPackages != null) {
+            mPriorityAndHintsExemptPackages = ArrayUtils.filter(priorityOnlyDndExemptPackages,
+                String[]::new, (pkg) -> ArrayUtils.contains(listenerHintsExemptPackages, pkg));
+        }
     }
 
     private void loadConfigForUser(int user, String reason) {
@@ -1386,6 +1420,10 @@ public class ZenModeHelper {
                     != newPolicy.getVisualEffectNotificationList()) {
                 userModifiedFields |= ZenPolicy.FIELD_VISUAL_EFFECT_NOTIFICATION_LIST;
             }
+            // Interruption Types
+            if (oldPolicy.getInterruptionTypeAlarms() != newPolicy.getInterruptionTypeAlarms()) {
+                userModifiedFields |= ZenPolicy.FIELD_INTERRUPTION_TYPE_ALARMS;
+            }
             zenRule.zenPolicyUserModifiedFields = userModifiedFields;
         }
 
@@ -1584,6 +1622,22 @@ public class ZenModeHelper {
             }
 
             setConfigLocked(newConfig, origin, reason, null, setRingerMode, callingUid);
+        }
+    }
+
+    boolean hasZenModeConfig(UserHandle user) {
+        synchronized (mConfigLock) {
+            return getConfigLocked(user) != null;
+        }
+    }
+
+    int getManualZenMode(UserHandle user) {
+        synchronized (mConfigLock) {
+            ZenModeConfig config = getConfigLocked(user);
+            if (config == null) {
+                return Global.ZEN_MODE_OFF;
+            }
+            return config.isManualActive() ? config.manualRule.zenMode : Global.ZEN_MODE_OFF;
         }
     }
 
@@ -1952,8 +2006,13 @@ public class ZenModeHelper {
             }
             if (config.user != mUser) {
                 // simply store away for background users
+                ZenModeConfig prevConfig;
                 synchronized (mConfigLock) {
+                    prevConfig = mConfigs.get(config.user);
                     mConfigs.put(config.user, config);
+                }
+                if (!config.equals(prevConfig)) {
+                    dispatchOnConfigChanged(config.user);
                 }
                 if (DEBUG) Log.d(TAG, "setConfigLocked: store config for user " + config.user);
                 return true;
@@ -2020,36 +2079,33 @@ public class ZenModeHelper {
 
             if (!mConfig.isManualActive() && config.isManualActive()) {
                 config.manualRule.lastActivation = now;
-                if (Flags.modesUiTileReactivatesLast() && isManualOrigin) {
+                if (isManualOrigin) {
                     config.manualRule.lastManualActivation = now;
                 }
             } else if (mConfig.isManualActive() && !config.isManualActive()) {
-                if (Flags.modesUiTileReactivatesLast()) {
-                    config.manualRule.lastDeactivation = now;
-                    if (isManualOrigin) {
-                        config.manualRule.lastManualDeactivation = now;
-                    }
+                config.manualRule.lastDeactivation = now;
+                if (isManualOrigin) {
+                    config.manualRule.lastManualDeactivation = now;
                 }
             }
             for (ZenRule rule : config.automaticRules.values()) {
                 ZenRule previousRule = mConfig.automaticRules.get(rule.id);
                 if (rule.isActive() && (previousRule == null || !previousRule.isActive())) {
                     rule.lastActivation = now;
-                    if (Flags.modesUiTileReactivatesLast() && isManualOrigin) {
+                    if (isManualOrigin) {
                         rule.lastManualActivation = now;
                     }
                 } else if (!rule.isActive() && previousRule != null && previousRule.isActive()) {
-                    if (Flags.modesUiTileReactivatesLast()) {
-                        rule.lastDeactivation = now;
-                        if (isManualOrigin) {
-                            rule.lastManualDeactivation = now;
-                        }
+                    rule.lastDeactivation = now;
+                    if (isManualOrigin) {
+                        rule.lastManualDeactivation = now;
                     }
                 }
             }
 
             mConfig = config;
-            dispatchOnConfigChanged();
+            dispatchOnConfigChanged(config.user);
+            dispatchOnConfigApplied();
             updateAndApplyConsolidatedPolicyAndDeviceEffects(origin, reason);
         }
         final String val = Integer.toString(config.hashCode());
@@ -2305,20 +2361,50 @@ public class ZenModeHelper {
                 || (zenPriorityOnly
                         && ZenModeConfig.areAllZenBehaviorSoundsMuted(mConsolidatedPolicy));
 
-        final IntPredicate shouldMute = (usage) ->
-        switch (AudioAttributes.getSuppressibleUsage(usage)) {
-            case AudioAttributes.SUPPRESSIBLE_NEVER -> false;
-            case AudioAttributes.SUPPRESSIBLE_NOTIFICATION -> muteNotifications || muteEverything;
-            case AudioAttributes.SUPPRESSIBLE_CALL -> muteCalls || muteEverything;
-            case AudioAttributes.SUPPRESSIBLE_ALARM -> muteAlarms || muteEverything;
-            case AudioAttributes.SUPPRESSIBLE_MEDIA -> muteMedia || muteEverything;
-            case AudioAttributes.SUPPRESSIBLE_SYSTEM -> muteSystem || muteEverything;
-            default -> muteEverything; // TODO BUG!
-        };
+        final IntPredicate shouldMute =
+                usage ->
+                        switch (AudioAttributes.getSuppressibleUsage(usage)) {
+                            case AudioAttributes.SUPPRESSIBLE_NEVER -> false;
+                            case AudioAttributes.SUPPRESSIBLE_NOTIFICATION ->
+                                    muteNotifications || muteEverything;
+                            case AudioAttributes.SUPPRESSIBLE_CALL -> muteCalls || muteEverything;
+                            case AudioAttributes.SUPPRESSIBLE_ALARM -> {
+                                if (muteAlarms || muteEverything) {
+                                    yield true;
+                                } else {
+                                    // If alarms allowed, sound should be disabled if they are meant
+                                    // to breakthrough with vibration only
+                                    yield zenPriorityOnly && !(mConsolidatedPolicy
+                                            .allowSoundFor(
+                                                    Policy.PRIORITY_CATEGORY_ALARMS
+                                            ));
+                                }
+                            }
+                            case AudioAttributes.SUPPRESSIBLE_MEDIA -> muteMedia || muteEverything;
+                            case AudioAttributes.SUPPRESSIBLE_SYSTEM ->
+                                    muteSystem || muteEverything;
+                            default -> muteEverything; // TODO BUG!
+                        };
 
         // special case: touch sounds should still vibrate during DND
-        final IntPredicate shouldMuteForVibrate = (usage)
-                -> usage != AudioAttributes.USAGE_ASSISTANCE_SONIFICATION && shouldMute.test(usage);
+        final IntPredicate shouldMuteForVibrate =
+                usage ->
+                        switch (usage) {
+                            case AudioAttributes.USAGE_ASSISTANCE_SONIFICATION -> false;
+                            case AudioAttributes.USAGE_ALARM -> {
+                                if (muteAlarms || muteEverything) {
+                                    yield true;
+                                } else {
+                                    // If alarms allowed, vibration should be disabled if they are
+                                    // meant to breakthrough with sound only
+                                    yield zenPriorityOnly && !(mConsolidatedPolicy
+                                            .allowVibrationFor(
+                                                    Policy.PRIORITY_CATEGORY_ALARMS
+                                            ));
+                                }
+                            }
+                            default -> shouldMute.test(usage);
+                        };
 
         applyRestrictions(zenPriorityOnly, shouldMute, AppOpsManager.OP_PLAY_AUDIO);
         applyRestrictions(zenPriorityOnly, shouldMuteForVibrate, AppOpsManager.OP_VIBRATE);
@@ -2339,19 +2425,75 @@ public class ZenModeHelper {
                     unmutedUsages.add(usage);
                 }
             }
-            // MODE_IGNORED for muted usages
-            mAppOps.setAudioRestriction(code, mutedUsages.toArray(),
-                    AppOpsManager.MODE_IGNORED,
-                    zenPriorityOnly ? mPriorityOnlyDndExemptPackages : null);
 
-            // MODE_ALLOWED for unmuted usages
-            mAppOps.setAudioRestriction(code, unmutedUsages.toArray(),
-                    AppOpsManager.MODE_ALLOWED,
-                    zenPriorityOnly ? mPriorityOnlyDndExemptPackages : null);
+            if (android.service.notification.Flags.listenerHintExemptPackages()) {
+                for (int usage: mutedUsages.toArray()) {
+                    // MODE_IGNORED for muted usages
+                    mAppOps.setAudioRestriction(code, new int[]{usage},
+                            AppOpsManager.MODE_IGNORED, getExemptPackages(usage));
+                }
 
+                // MODE_ALLOWED for unmuted usages
+                mAppOps.setAudioRestriction(code, unmutedUsages.toArray(),
+                        AppOpsManager.MODE_ALLOWED, null);
+            } else {
+                // MODE_IGNORED for muted usages
+                mAppOps.setAudioRestriction(code, mutedUsages.toArray(),
+                        AppOpsManager.MODE_IGNORED,
+                        zenPriorityOnly ? mPriorityOnlyDndExemptPackages : null);
+
+                // MODE_ALLOWED for unmuted usages
+                mAppOps.setAudioRestriction(code, unmutedUsages.toArray(),
+                        AppOpsManager.MODE_ALLOWED,
+                        zenPriorityOnly ? mPriorityOnlyDndExemptPackages : null);
+            }
         } finally {
             Binder.restoreCallingIdentity(ident);
         }
+    }
+
+    @VisibleForTesting
+    protected String[] getExemptPackages(int mutedUsage) {
+        ArraySet<String> exemptedPkg = new ArraySet<>();
+        // Check if there are any exempted packages for this usage
+        switch (AudioAttributes.getSuppressibleUsage(mutedUsage)) {
+            case AudioAttributes.SUPPRESSIBLE_NOTIFICATION:
+                if ((mSuppressedEffects & SUPPRESSED_EFFECT_NOTIFICATIONS) != 0
+                        && (mZenMode == Global.ZEN_MODE_IMPORTANT_INTERRUPTIONS)) {
+                    if (mPriorityAndHintsExemptPackages != null) {
+                        exemptedPkg.addAll(ArrayUtils.toList(mPriorityAndHintsExemptPackages));
+                    }
+                } else  if ((mSuppressedEffects & SUPPRESSED_EFFECT_NOTIFICATIONS) != 0) {
+                    exemptedPkg.addAll(ArrayUtils.toList(mListenerHintsExemptPackages));
+                } else if (mZenMode == Global.ZEN_MODE_IMPORTANT_INTERRUPTIONS) {
+                    exemptedPkg.addAll(ArrayUtils.toList(mPriorityOnlyDndExemptPackages));
+                }
+                break;
+
+            case AudioAttributes.SUPPRESSIBLE_CALL:
+                if ((mSuppressedEffects & SUPPRESSED_EFFECT_CALLS) != 0
+                        && (mZenMode == Global.ZEN_MODE_IMPORTANT_INTERRUPTIONS)) {
+                    if (mPriorityAndHintsExemptPackages != null) {
+                        exemptedPkg.addAll(ArrayUtils.toList(mPriorityAndHintsExemptPackages));
+                    }
+                } else if ((mSuppressedEffects & SUPPRESSED_EFFECT_CALLS) != 0) {
+                    exemptedPkg.addAll(ArrayUtils.toList(mListenerHintsExemptPackages));
+                } else if (mZenMode == Global.ZEN_MODE_IMPORTANT_INTERRUPTIONS) {
+                    exemptedPkg.addAll(ArrayUtils.toList(mPriorityOnlyDndExemptPackages));
+                }
+                break;
+
+            case AudioAttributes.SUPPRESSIBLE_ALARM:
+            case AudioAttributes.SUPPRESSIBLE_MEDIA:
+            case AudioAttributes.SUPPRESSIBLE_SYSTEM:
+            case AudioAttributes.SUPPRESSIBLE_NEVER:
+                if (mZenMode == Global.ZEN_MODE_IMPORTANT_INTERRUPTIONS) {
+                    exemptedPkg.addAll(ArrayUtils.toList(mPriorityOnlyDndExemptPackages));
+                }
+                break;
+        }
+
+        return exemptedPkg.isEmpty() ? null : exemptedPkg.toArray(new String[0]);
     }
 
     @VisibleForTesting
@@ -2383,9 +2525,19 @@ public class ZenModeHelper {
         }
     }
 
-    private void dispatchOnConfigChanged() {
+    private void dispatchOnConfigApplied() {
         for (Callback callback : mCallbacks) {
-            callback.onConfigChanged();
+            callback.onConfigApplied();
+        }
+    }
+
+    private void dispatchOnConfigChanged(int userId) {
+        if (!android.service.notification.Flags.enableDndSync()) {
+            return;
+        }
+        UserHandle user = UserHandle.of(userId);
+        for (Callback callback : mCallbacks) {
+            callback.onConfigChanged(user);
         }
     }
 
@@ -2750,12 +2902,12 @@ public class ZenModeHelper {
         private long mTypeLogTimeMs = 0L;
 
         @Override
-        void onZenModeChanged() {
+        public void onZenModeChanged() {
             emit();
         }
 
         @Override
-        void onConfigChanged() {
+        public void onConfigApplied() {
             emit();
         }
 
@@ -2879,10 +3031,16 @@ public class ZenModeHelper {
     }
 
     public static class Callback {
-        void onConfigChanged() {}
-        void onZenModeChanged() {}
-        void onPolicyChanged(Policy newPolicy) {}
-        void onConsolidatedPolicyChanged(Policy newConsolidatedPolicy) {}
-        void onAutomaticRuleStatusChanged(int userId, String pkg, String id, int status) {}
+        /** Called when a config has been applied. */
+        public void onConfigApplied() {}
+        /**
+         * Called when a config has changed, regardless of if it's applied. A config may change
+         * without being applied if its user is in the background.
+         */
+        public void onConfigChanged(UserHandle user) {}
+        public void onZenModeChanged() {}
+        public void onPolicyChanged(Policy newPolicy) {}
+        public void onConsolidatedPolicyChanged(Policy newConsolidatedPolicy) {}
+        public void onAutomaticRuleStatusChanged(int userId, String pkg, String id, int status) {}
     }
 }

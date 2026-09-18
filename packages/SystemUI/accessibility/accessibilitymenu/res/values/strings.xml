@@ -47,17 +47,22 @@
 
   <!-- String defining the settings name -->
   <string name="accessibility_menu_settings_name">Accessibility Menu Settings</string>
+  <!-- String describing the general purpose of the top level settings screen. This string is read by AI only, not visible to human. It doesn't need to be translated, or grammatically correct. -->
+  <string name="accessibility_menu_top_level_settings_purpose" translatable="false">Configures the settings of the Accessibility Menu</string>
 
   <!-- String defining the title of Large button setting -->
   <string name="accessibility_menu_large_buttons_title">Large buttons</string>
+  <!-- String describing the large button setting. This would only be read by the code, not visible to the end user. -->
+  <string name="large_button_setting_purpose" translatable="false">Enlarge the button size on the Accessibility Menu panel</string>
   <!-- String defining the summary of Large button setting -->
   <string name="accessibility_menu_large_buttons_summary">Increase size of Accessibility Menu Buttons</string>
   <!-- String defining the title of the preference to show help menu [CHAR LIMIT=40] -->
   <string name="pref_help_title">Help</string>
+  <!-- String describing the "help" item. This would only be read by the code, not visible to the end user. -->
+  <string name="pref_help_purpose" translatable="false">Entrypoint to the help page of the Accessibility Menu</string>
 
   <!-- The percentage of the brightness, and double "%" is required to represent the symbol "%" -->
   <string name="brightness_percentage_label">Brightness <xliff:g id="percentage">%1$s</xliff:g> %%</string>
   <!-- The percentage of the music volume, and double "%" is required to represent the symbol "%" -->
   <string name="music_volume_percentage_label">Music volume <xliff:g id="percentage">%1$s</xliff:g> %%</string>
-
 </resources>

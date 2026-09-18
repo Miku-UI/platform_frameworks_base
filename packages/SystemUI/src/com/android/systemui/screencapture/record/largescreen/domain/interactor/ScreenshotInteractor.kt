@@ -16,13 +16,18 @@
 
 package com.android.systemui.screencapture.record.largescreen.domain.interactor
 
+import android.graphics.Bitmap
 import android.graphics.Rect
+import android.net.Uri
 import android.os.Handler
 import android.view.WindowManager
+import com.android.internal.logging.UiEventLogger
 import com.android.internal.util.ScreenshotHelper
 import com.android.internal.util.ScreenshotRequest
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.display.data.repository.FocusedDisplayRepository
+import com.android.systemui.screencapture.ScreenCaptureEvent
 import com.android.systemui.screenshot.ImageCapture
 import com.android.systemui.user.data.repository.UserRepository
 import javax.inject.Inject
@@ -36,23 +41,33 @@ class ScreenshotInteractor
 constructor(
     @Background private val backgroundContext: CoroutineContext,
     @Background private val backgroundHandler: Handler,
+    private val uiEventLogger: UiEventLogger,
     private val imageCapture: ImageCapture,
     private val screenshotHelper: ScreenshotHelper,
     private val userRepository: UserRepository,
+    private val focusedDisplayRepository: FocusedDisplayRepository,
 ) {
-    suspend fun requestFullscreenScreenshot(displayId: Int) {
+    suspend fun requestFullscreenScreenshot(
+        displayId: Int = focusedDisplayRepository.focusedDisplayId.value,
+        customSaveUri: Uri? = null,
+    ) {
         val request =
             ScreenshotRequest.Builder(
                     WindowManager.TAKE_SCREENSHOT_FULLSCREEN,
                     WindowManager.ScreenshotSource.SCREENSHOT_SCREEN_CAPTURE_UI,
                 )
                 .setDisplayId(displayId)
+                .setCustomSaveUri(customSaveUri)
                 .build()
 
         takeScreenshot(request)
+
+        uiEventLogger.log(
+            ScreenCaptureEvent.SCREEN_CAPTURE_LARGE_SCREEN_FULLSCREEN_SCREENSHOT_REQUESTED
+        )
     }
 
-    suspend fun requestPartialScreenshot(regionBounds: Rect, displayId: Int) {
+    suspend fun requestPartialScreenshot(regionBounds: Rect, displayId: Int, customSaveUri: Uri?) {
         val bitmap =
             withContext(backgroundContext) {
                 requireNotNull(imageCapture.captureDisplay(displayId, regionBounds))
@@ -66,12 +81,38 @@ constructor(
                 .setBoundsOnScreen(regionBounds)
                 .setDisplayId(displayId)
                 .setUserId(userRepository.getSelectedUserInfo().id)
+                .setCustomSaveUri(customSaveUri)
                 .build()
 
         takeScreenshot(request)
+
+        uiEventLogger.log(
+            ScreenCaptureEvent.SCREEN_CAPTURE_LARGE_SCREEN_PARTIAL_SCREENSHOT_REQUESTED
+        )
     }
 
-    // TODO(b/422833825): Implement takeAppWindowScreenshot
+    suspend fun requestAppWindowScreenshot(taskId: Int, displayId: Int) {
+        val bitmap =
+            withContext(backgroundContext) { requireNotNull(imageCapture.captureTask(taskId)) }
+        val request = makeAppWindowRequest(bitmap, displayId)
+
+        takeScreenshot(request)
+
+        uiEventLogger.log(
+            ScreenCaptureEvent.SCREEN_CAPTURE_LARGE_SCREEN_APP_WINDOW_SCREENSHOT_REQUESTED
+        )
+    }
+
+    private fun makeAppWindowRequest(bitmap: Bitmap, displayId: Int): ScreenshotRequest {
+        return ScreenshotRequest.Builder(
+                WindowManager.TAKE_SCREENSHOT_PROVIDED_IMAGE,
+                WindowManager.ScreenshotSource.SCREENSHOT_SCREEN_CAPTURE_UI,
+            )
+            .setBitmap(bitmap)
+            .setDisplayId(displayId)
+            .setUserId(userRepository.getSelectedUserInfo().id)
+            .build()
+    }
 
     private suspend fun takeScreenshot(request: ScreenshotRequest) {
         withContext(backgroundContext) {

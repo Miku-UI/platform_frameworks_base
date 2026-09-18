@@ -99,7 +99,7 @@ constructor(private val letterboxBuilder: LetterboxSurfaceBuilder) : LetterboxCo
     }
 
     override fun dump() {
-        ProtoLog.v(WM_SHELL_APP_COMPAT, "%s: %s", TAG, "${letterboxMap.keys}")
+        ProtoLog.v(WM_SHELL_APP_COMPAT, "$TAG: %s", letterboxMap.keys)
     }
 
     private fun SurfaceControl?.remove(tx: Transaction) = this?.let { tx.remove(this) }

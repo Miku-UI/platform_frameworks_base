@@ -30,14 +30,20 @@ android_library {
         "src/**/*.kt",
     ],
 
+    resource_dirs: [
+        "res",
+    ],
     static_libs: [
-        // Private APIs
         "PlatformComposeCore",
+        "compilelib",
 
-        // Public APIs
         "//frameworks/libs/systemui/mechanics:mechanics",
+        "androidx.activity_activity-compose",
         "androidx.compose.runtime_runtime",
         "androidx.compose.material3_material3",
+
+        "com_android_systemui_flags_lib",
+
     ],
 
     kotlincflags: [

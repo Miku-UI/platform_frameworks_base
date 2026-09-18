@@ -20,6 +20,7 @@ import android.annotation.IntDef;
 import android.app.TaskInfo;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.Debug;
 import android.os.Handler;
 import android.os.Message;
 import android.view.SurfaceControl;
@@ -130,6 +131,7 @@ public class PipTransitionState {
     @ShellMainThread
     private final Handler mMainHandler;
 
+    @Nullable
     private final PipDesktopState mPipDesktopState;
 
     //
@@ -194,7 +196,8 @@ public class PipTransitionState {
 
     private final List<PipTransitionStateChangedListener> mCallbacks = new ArrayList<>();
 
-    public PipTransitionState(@ShellMainThread Handler handler, PipDesktopState pipDesktopState) {
+    public PipTransitionState(@ShellMainThread Handler handler,
+            @Nullable PipDesktopState pipDesktopState) {
         mMainHandler = handler;
         mPipDesktopState = pipDesktopState;
     }
@@ -224,17 +227,17 @@ public class PipTransitionState {
                 || state == SCHEDULED_BOUNDS_CHANGE || state == CHANGING_PIP_BOUNDS) {
             // States listed above require extra bundles to be provided.
             Preconditions.checkArgument(extra != null && !extra.isEmpty(),
-                    "No extra bundle for " + stateToString(state) + " state.");
+                    "No extra bundle for %s state.", stateToString(state));
         }
         if (!shouldTransitionToState(state)) {
             ProtoLog.v(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                     "%s: Attempted to transition to an invalid state=%s, while in %s",
-                    TAG, stateToString(state), this);
+                    TAG, stateToString(state, extra), this);
             return;
         }
         ProtoLog.v(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                 "%s setState from=%s to=%s",
-                TAG, stateToString(mState), stateToString(state));
+                TAG, stateToString(mState), stateToString(state, extra));
         if (mState != state) {
             final int prevState = mState;
             mState = state;
@@ -341,7 +344,6 @@ public class PipTransitionState {
                 || mState == PipTransitionState.SCHEDULED_ENTER_PIP;
     }
 
-
     void setSwipePipToHomeState(@Nullable SurfaceControl overlayLeash,
             @NonNull Rect appBounds) {
         mInSwipePipToHomeTransition = true;
@@ -362,12 +364,17 @@ public class PipTransitionState {
         return mPipTaskInfo != null ? mPipTaskInfo.getToken() : null;
     }
 
-    @Nullable SurfaceControl getPinnedTaskLeash() {
+    @Nullable public SurfaceControl getPinnedTaskLeash() {
         return mPinnedTaskLeash;
     }
 
-    void setPinnedTaskLeash(@Nullable SurfaceControl leash) {
-        if (!com.android.window.flags.Flags.releaseAllTransitionSurfaces()) {
+    /**
+     * Sets the SurfaceControl leash for the currently pinned PiP task.
+     */
+    public void setPinnedTaskLeash(@Nullable SurfaceControl leash) {
+        if (!com.android.window.flags.Flags.releaseAllTransitionSurfacesOnIdle()
+                // mixpatcher handles leash cleanup itself
+                && !com.android.window.flags.Flags.transitMixpatcherBase()) {
             mPinnedTaskLeash = leash;
             return;
         }
@@ -385,15 +392,15 @@ public class PipTransitionState {
         return mPipTaskInfo;
     }
 
-    void setPipTaskInfo(@Nullable TaskInfo pipTaskInfo) {
+    public void setPipTaskInfo(@Nullable TaskInfo pipTaskInfo) {
         mPipTaskInfo = pipTaskInfo;
     }
 
-    @Nullable TaskInfo getPipCandidateTaskInfo() {
+    @Nullable public TaskInfo getPipCandidateTaskInfo() {
         return mPipCandidateTaskInfo;
     }
 
-    void setPipCandidateTaskInfo(@Nullable TaskInfo pipCandidateTaskInfo) {
+    public void setPipCandidateTaskInfo(@Nullable TaskInfo pipCandidateTaskInfo) {
         mPipCandidateTaskInfo = pipCandidateTaskInfo;
     }
 
@@ -437,9 +444,12 @@ public class PipTransitionState {
      * state immediately after.</p>
      */
     public void setIsDisplayChangeScheduled(boolean isDisplayChangeScheduled) {
-        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
-                "%s: Set mIsDisplayChangeScheduled=%b", TAG, isDisplayChangeScheduled);
-        mIsDisplayChangeScheduled = isDisplayChangeScheduled;
+        if (mIsDisplayChangeScheduled != isDisplayChangeScheduled) {
+            ProtoLog.v(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
+                    "%s: Set mIsDisplayChangeScheduled=%b callers=\n%s",
+                    TAG, isDisplayChangeScheduled, Debug.getCallers(4, "    "));
+            mIsDisplayChangeScheduled = isDisplayChangeScheduled;
+        }
     }
 
     /**
@@ -489,13 +499,14 @@ public class PipTransitionState {
                 //   started playing yet
                 // - there is no drag-to-desktop gesture in progress; otherwise the PiP resize
                 //   transition will block the drag-to-desktop transitions from finishing
-                return isPipStateIdle() && !mPipDesktopState.isDragToDesktopInProgress();
+                return isPipStateIdle() && (mPipDesktopState == null
+                        || !mPipDesktopState.isDragToDesktopInProgress());
             default:
                 return true;
         }
     }
 
-    private static String stateToString(int state) {
+    private static String stateToString(@TransitionState int state) {
         switch (state) {
             case UNDEFINED: return "undefined";
             case SWIPING_TO_PIP: return "swiping_to_pip";
@@ -509,6 +520,10 @@ public class PipTransitionState {
             case EXITED_PIP: return "exited-pip";
             default: return "custom-state(" + state + ")";
         }
+    }
+
+    private static String stateToString(@TransitionState int state, @Nullable Bundle extra) {
+        return String.format("state=%s with extra=%s", stateToString(state), extra);
     }
 
     public boolean isPipStateIdle() {

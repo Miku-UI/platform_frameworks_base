@@ -55,16 +55,15 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.spy
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4
-import platform.test.runner.parameterized.Parameters
+import android.testing.AndroidTestingRunner
 
 /**
  * Tests for [@link DesktopTasksTransitionObserver].
  *
  * Build/Install/Run: atest WMShellUnitTests:DesktopBackNavTransitionObserverTest
  */
-@RunWith(ParameterizedAndroidJunit4::class)
-class DesktopBackNavTransitionObserverTest(flags: FlagsParameterization) : ShellTestCase() {
+@RunWith(AndroidTestingRunner::class)
+class DesktopBackNavTransitionObserverTest : ShellTestCase() {
 
     private val testExecutor = mock<ShellExecutor>()
     private val userRepositories = mock<DesktopUserRepositories>()
@@ -77,10 +76,6 @@ class DesktopBackNavTransitionObserverTest(flags: FlagsParameterization) : Shell
 
     private lateinit var transitionObserver: DesktopBackNavTransitionObserver
     private lateinit var shellInit: ShellInit
-
-    init {
-        mSetFlagsRule.setFlagsParameterization(flags)
-    }
 
     @Before
     fun setup() {
@@ -124,7 +119,6 @@ class DesktopBackNavTransitionObserverTest(flags: FlagsParameterization) : Shell
     @Test
     @EnableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION,
-        Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND,
     )
     fun backNavigation_nonFreeformDesktopTask_taskMinimized() {
         val task = createTaskInfo(1, windowingMode = WINDOWING_MODE_FULLSCREEN)
@@ -252,7 +246,6 @@ class DesktopBackNavTransitionObserverTest(flags: FlagsParameterization) : Shell
     @Test
     @EnableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION,
-        Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND,
     )
     fun backNavigation_withToBackTransitionOfDesktopTask_taskReparentedAndMinimized() {
         val task = createTaskInfo(1)
@@ -298,29 +291,8 @@ class DesktopBackNavTransitionObserverTest(flags: FlagsParameterization) : Shell
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION)
-    @DisableFlags(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    fun removeTasks_onTaskFullscreenLaunchWithOpenTransition_taskRemovedFromRepo() {
-        val task = createTaskInfo(1, WINDOWING_MODE_FULLSCREEN)
-        val deskId = 0
-        whenever(taskRepository.getActiveDeskId(task.displayId)).thenReturn(deskId)
-        whenever(taskRepository.getDeskIdForTask(task.taskId)).thenReturn(deskId)
-        whenever(taskRepository.isActiveTask(task.taskId)).thenReturn(true)
-
-        transitionObserver.onTransitionReady(
-            transition = mock(),
-            info = createOpenChangeTransition(task),
-        )
-
-        verify(taskRepository, never())
-            .minimizeTaskInDesk(displayId = task.displayId, deskId = deskId, taskId = task.taskId)
-        verify(taskRepository).removeTask(task.taskId)
-    }
-
-    @Test
     @EnableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION,
-        Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND,
     )
     fun removeTasks_onTaskFullscreenInDeskLaunchWithOpenTransition_taskNotRemovedFromRepo() {
         val deskId = 0
@@ -339,7 +311,6 @@ class DesktopBackNavTransitionObserverTest(flags: FlagsParameterization) : Shell
     @Test
     @EnableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION,
-        Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND,
     )
     fun removeTasks_onTaskOutsideDeskLaunchWithOpenTransition_taskRemovedFromRepo() {
         val task = createTaskInfo(1, WINDOWING_MODE_FULLSCREEN)
@@ -358,29 +329,8 @@ class DesktopBackNavTransitionObserverTest(flags: FlagsParameterization) : Shell
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION)
-    @DisableFlags(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    fun removeTasks_onTaskFullscreenLaunchExitDesktopTransition_taskRemovedFromRepo() {
-        val task = createTaskInfo(1, WINDOWING_MODE_FULLSCREEN)
-        val deskId = 0
-        whenever(taskRepository.getActiveDeskId(task.displayId)).thenReturn(deskId)
-        whenever(taskRepository.getDeskIdForTask(task.taskId)).thenReturn(deskId)
-        whenever(taskRepository.isActiveTask(task.taskId)).thenReturn(true)
-
-        transitionObserver.onTransitionReady(
-            transition = mock(),
-            info = createOpenChangeTransition(task, TRANSIT_EXIT_DESKTOP_MODE_TASK_DRAG),
-        )
-
-        verify(taskRepository, never())
-            .minimizeTaskInDesk(displayId = task.displayId, deskId = deskId, taskId = task.taskId)
-        verify(taskRepository).removeTask(task.taskId)
-    }
-
-    @Test
     @EnableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION,
-        Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND,
     )
     fun removeTasks_onTaskFullscreenInDeskLaunchExitDesktopTransition_taskNotRemovedFromRepo() {
         val deskId = 0
@@ -399,7 +349,6 @@ class DesktopBackNavTransitionObserverTest(flags: FlagsParameterization) : Shell
     @Test
     @EnableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION,
-        Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND,
     )
     fun removeTasks_onTaskOutsideDeskLaunchExitDesktopTransition_taskRemovedFromRepo() {
         val deskId = 0
@@ -449,10 +398,4 @@ class DesktopBackNavTransitionObserverTest(flags: FlagsParameterization) : Shell
                 Intent().apply { component = DesktopWallpaperActivity.wallpaperActivityComponent }
         }
 
-    private companion object {
-        @JvmStatic
-        @Parameters(name = "{0}")
-        fun getParams(): List<FlagsParameterization> =
-            FlagsParameterization.allCombinationsOf(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    }
 }

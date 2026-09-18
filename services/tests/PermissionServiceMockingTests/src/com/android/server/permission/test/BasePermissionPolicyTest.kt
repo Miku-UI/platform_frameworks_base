@@ -115,7 +115,6 @@ abstract class BasePermissionPolicyTest {
                     protectionLevel = parsedPermission.protectionLevel
                     group = parsedPermission.group
                     flags = parsedPermission.flags
-                    requiresPurpose = parsedPermission.isPurposeRequired
                     requiresPurposeTargetSdkVersion =
                         parsedPermission.requiresPurposeTargetSdkVersion
                     validPurposes =
@@ -195,9 +194,11 @@ abstract class BasePermissionPolicyTest {
         androidPackage: AndroidPackage,
         isSystem: Boolean = false,
         isPrivileged: Boolean = false,
+        isSystemExt: Boolean = false,
         isProduct: Boolean = false,
         isInstantApp: Boolean = false,
         isVendor: Boolean = false,
+        apexModuleName: String? = null,
     ): PackageState = mock {
         whenever(this.appId).thenReturn(appId)
         whenever(this.androidPackage).thenReturn(androidPackage)
@@ -205,8 +206,10 @@ abstract class BasePermissionPolicyTest {
         whenever(this.packageName).thenReturn(packageName)
         whenever(this.isSystem).thenReturn(isSystem)
         whenever(this.isPrivileged).thenReturn(isPrivileged)
+        whenever(this.isSystemExt).thenReturn(isSystemExt)
         whenever(this.isProduct).thenReturn(isProduct)
         whenever(this.isVendor).thenReturn(isVendor)
+        whenever(this.apexModuleName).thenReturn(apexModuleName)
         val userStates =
             SparseArray<PackageUserState>().apply {
                 put(USER_ID_0, mock { whenever(this.isInstantApp).thenReturn(isInstantApp) })
@@ -266,7 +269,6 @@ abstract class BasePermissionPolicyTest {
         whenever(this.protectionLevel).thenReturn(protectionLevel)
         whenever(this.flags).thenReturn(flags)
         whenever(this.isTree).thenReturn(isTree)
-        whenever(this.isPurposeRequired).thenReturn(isPurposeRequired)
         whenever(this.requiresPurposeTargetSdkVersion).thenReturn(requiresPurposeTargetSdkVersion)
         whenever(this.validPurposes).thenReturn(validPurposes)
     }
@@ -411,6 +413,8 @@ abstract class BasePermissionPolicyTest {
         @JvmStatic protected val APP_ID_0 = 0
         @JvmStatic protected val APP_ID_1 = 1
         @JvmStatic protected val PLATFORM_APP_ID = 2
+
+        @JvmStatic protected val APEX_MODULE_ID = "apexModule"
 
         @JvmStatic protected val PERMISSION_GROUP_NAME_0 = "permissionGroupName0"
         @JvmStatic protected val PERMISSION_GROUP_NAME_1 = "permissionGroupName1"

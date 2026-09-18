@@ -20,6 +20,7 @@ import android.media.session.MediaController
 import android.media.session.MediaSession
 import android.os.Looper
 import android.util.Log
+import androidx.annotation.WorkerThread
 import androidx.concurrent.futures.await
 import androidx.media3.session.MediaController as Media3Controller
 import androidx.media3.session.SessionToken
@@ -35,7 +36,19 @@ open class MediaControllerFactory @Inject constructor(private val context: Conte
      *
      * @param token The token for the session. This value must never be null.
      */
+    @WorkerThread
     open fun create(token: MediaSession.Token): MediaController {
+        return MediaController(context, token)
+    }
+
+    /**
+     * Creates a new [MediaController] from the framework session token.
+     *
+     * @param context A context for the session
+     * @param token The token for the session. This value must never be null.
+     */
+    @WorkerThread
+    open fun create(context: Context, token: MediaSession.Token): MediaController {
         return MediaController(context, token)
     }
 

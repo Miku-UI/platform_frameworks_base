@@ -1,10 +1,11 @@
 package: "com.android.systemui"
 container: "system"
 
+# go/keep-sorted start block=yes newline_separated=yes by_regex=name:\s*"([^"]+)"
 flag {
     name: "communal_hub"
     namespace: "communal"
     description: "Enables the communal hub experience"
     bug: "304584416"
 }
-
+# go/keep-sorted end

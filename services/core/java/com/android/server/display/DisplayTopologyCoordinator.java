@@ -30,6 +30,7 @@ import android.view.DisplayInfo;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.display.feature.DisplayManagerFlags;
+import com.android.server.display.feature.flags.Flags;
 
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -133,17 +134,17 @@ class DisplayTopologyCoordinator {
             mTopology.addDisplay(
                     info.displayId, info.logicalWidth, info.logicalHeight, info.logicalDensityDpi);
             Slog.i(TAG, "Display " + info.displayId + " added, new topology: " + mTopology);
-            restoreTopologyLocked();
-            sendTopologyUpdateLocked();
-        }
 
-        if (mFlags.isDefaultDisplayInTopologySwitchEnabled()) {
             // If the default display should not be included in the topology, then when a
             // non-default display is added, remove the default display from the topology.
             if (info.displayId != Display.DEFAULT_DISPLAY
                     && !mShouldIncludeDefaultDisplayInTopology.getAsBoolean()
                     && mTopology.hasMultipleDisplays()) {
                 onDisplayRemoved(Display.DEFAULT_DISPLAY);
+                // onDisplayRemoved will send the update, so no need to send it here.
+            } else {
+                restoreTopologyLocked();
+                sendTopologyUpdateLocked();
             }
         }
     }
@@ -184,18 +185,18 @@ class DisplayTopologyCoordinator {
             if (mTopology.removeDisplay(displayId)) {
                 Slog.i(TAG, "Display " + displayId + " removed, new topology: " + mTopology);
                 removeDisplayIdMappingLocked(displayId);
-                restoreTopologyLocked();
-                sendTopologyUpdateLocked();
-            }
-        }
 
-        // If the default display should not be included in the topology, then when all non-default
-        // displays are removed, add the default display back to the topology.
-        if (mFlags.isDefaultDisplayInTopologySwitchEnabled()) {
-            if (displayId != Display.DEFAULT_DISPLAY
-                    && !mShouldIncludeDefaultDisplayInTopology.getAsBoolean()
-                    && mTopology.isEmpty()) {
-                onDisplayAdded(mDisplayInfoProvider.get(Display.DEFAULT_DISPLAY));
+                // If the default display should not be included in the topology, then when all
+                // non-default displays are removed, add the default display back to the topology.
+                if (displayId != Display.DEFAULT_DISPLAY
+                        && !mShouldIncludeDefaultDisplayInTopology.getAsBoolean()
+                        && mTopology.isEmpty()) {
+                    onDisplayAdded(mDisplayInfoProvider.get(Display.DEFAULT_DISPLAY));
+                    // onDisplayAdded will send the update, so no need to send it here.
+                } else {
+                    restoreTopologyLocked();
+                    sendTopologyUpdateLocked();
+                }
             }
         }
     }
@@ -240,6 +241,7 @@ class DisplayTopologyCoordinator {
         synchronized (mSyncRoot) {
             Trace.traceBegin(Trace.TRACE_TAG_POWER, "setTopology");
             try {
+                verifyRearrangement(mTopology, topology);
                 topology.normalize();
                 mTopology = topology;
                 sendTopologyUpdateLocked();
@@ -302,10 +304,11 @@ class DisplayTopologyCoordinator {
             return false;
         }
         if (info.type != Display.TYPE_INTERNAL && info.type != Display.TYPE_EXTERNAL
-                && info.type != Display.TYPE_OVERLAY) {
+                && info.type != Display.TYPE_OVERLAY && !(Flags.virtualSecondaryDisplays()
+                && info.type == Display.TYPE_VIRTUAL)) {
             if (shouldLog) {
                 Slog.d(TAG, "Display " + info.displayId + " not allowed in topology because "
-                        + "type is not INTERNAL, EXTERNAL or OVERLAY");
+                        + "type is " + Display.typeToString(info.type));
             }
             return false;
         }
@@ -316,11 +319,13 @@ class DisplayTopologyCoordinator {
             }
             return false;
         }
-        if ((info.type == Display.TYPE_EXTERNAL || info.type == Display.TYPE_OVERLAY)
+        if ((info.type == Display.TYPE_EXTERNAL || info.type == Display.TYPE_OVERLAY || (
+                Flags.virtualSecondaryDisplays() && info.type == Display.TYPE_VIRTUAL))
                 && !mIsExtendedDisplayAllowed.getAsBoolean()) {
             if (shouldLog) {
                 Slog.d(TAG, "Display " + info.displayId + " not allowed in topology because "
-                        + "type is EXTERNAL or OVERLAY and !mIsExtendedDisplayAllowed");
+                        + "type is " + Display.typeToString(info.type)
+                        + " and !mIsExtendedDisplayAllowed");
             }
             return false;
         }
@@ -353,6 +358,27 @@ class DisplayTopologyCoordinator {
                 Trace.traceEnd(Trace.TRACE_TAG_POWER);
             }
         });
+    }
+
+    private void verifyRearrangement(DisplayTopology oldTopology, DisplayTopology newTopology) {
+        if (newTopology == null) {
+            throw new IllegalArgumentException("Newly set topology cannot be null");
+        }
+        Map<Integer, DisplayTopology.TreeNode> oldTopologyNodes = oldTopology.allNodesIdMap();
+        Map<Integer, DisplayTopology.TreeNode> newTopologyNodes = newTopology.allNodesIdMap();
+        if (!oldTopologyNodes.keySet().equals(newTopologyNodes.keySet())) {
+            throw new IllegalArgumentException("Newly set topology cannot add or remove displays");
+        }
+        for (int displayId : oldTopologyNodes.keySet()) {
+            DisplayTopology.TreeNode oldDisplay = oldTopologyNodes.get(displayId);
+            DisplayTopology.TreeNode newDisplay = newTopologyNodes.get(displayId);
+            if (oldDisplay.getLogicalDensity() != newDisplay.getLogicalDensity()
+                    || oldDisplay.getLogicalWidth() != newDisplay.getLogicalWidth()
+                    || oldDisplay.getLogicalHeight() != newDisplay.getLogicalHeight()) {
+                throw new IllegalArgumentException(
+                        "Newly set topology cannot change a display's density or size");
+            }
+        }
     }
 
     @VisibleForTesting

@@ -44,6 +44,7 @@ import android.graphics.Point;
 import android.os.Handler;
 import android.os.Message;
 import android.os.RemoteException;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.view.Display;
 import android.view.InputDevice;
@@ -700,6 +701,14 @@ public class MotionEventInjectorTest {
     public void testOnAccessibilityEvent_withNoNext_shouldNotCrash() {
         AccessibilityEvent event = AccessibilityEvent.obtain();
         mMotionEventInjector.onAccessibilityEvent(event);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SEND_A11Y_ACTION_CANCEL_ON_RESET)
+    public void testClearEvents_shouldPropagateToNext() {
+        EventStreamTransformation next = attachMockNext(mMotionEventInjector);
+        mMotionEventInjector.clearEvents(MOTION_EVENT_SOURCE);
+        verify(next).clearEvents(MOTION_EVENT_SOURCE);
     }
 
     private void injectEventsSync(List<GestureStep> gestureSteps,

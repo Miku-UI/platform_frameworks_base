@@ -20,7 +20,6 @@ import android.Manifest.permission.WRITE_DREAM_STATE
 import android.os.PowerManager
 import androidx.annotation.RequiresPermission
 import com.android.systemui.CoreStartable
-import com.android.systemui.Flags.dreamSuppression
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dreams.suppression.data.repository.ActivityRecognitionRepository
@@ -56,10 +55,6 @@ constructor(
 
     @RequiresPermission(WRITE_DREAM_STATE)
     override fun start() {
-        if (!dreamSuppression()) {
-            return
-        }
-
         batteryInteractor.isCharging
             .onEach { isCharging ->
                 if (isCharging) {

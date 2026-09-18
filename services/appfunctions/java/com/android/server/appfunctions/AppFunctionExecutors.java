@@ -16,10 +16,10 @@
 
 package com.android.server.appfunctions;
 
+import android.os.Process;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -38,15 +38,14 @@ public final class AppFunctionExecutors {
                     /* workQueue= */ new LinkedBlockingQueue<>(),
                     new NamedThreadFactory("AppFunctionExecutors"));
 
-    /** Executor for stats logging. */
-    public static final ExecutorService LOGGING_THREAD_EXECUTOR =
+    /**
+     * A shared background executor.
+     *
+     * <p>This is used for operations that do not need to block.
+     */
+    public static final ExecutorService SHARED_BACKGROUND_EXECUTOR =
             Executors.newSingleThreadExecutor(
-                    new NamedThreadFactory("AppFunctionsLoggingExecutors"));
-
-    /** Executor for scheduled tasks. */
-    public static final ScheduledExecutorService SCHEDULED_EXECUTOR_SERVICE =
-            Executors.newSingleThreadScheduledExecutor(
-                    new NamedThreadFactory("AppFunctionScheduledExecutors"));
+                    new NamedThreadFactory("AppFunctionExecutors-background-priority"));
 
     static {
         THREAD_POOL_EXECUTOR.allowCoreThreadTimeOut(true);

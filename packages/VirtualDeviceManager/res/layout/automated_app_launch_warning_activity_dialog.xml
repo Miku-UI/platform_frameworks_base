@@ -20,15 +20,9 @@
     style="@style/AutomatedAppLaunchWarningDialogScrollView">
     <LinearLayout
         style="@style/AutomatedAppLaunchWarningDialogContent">
-        <LinearLayout
-            style="@style/AutomatedAppLaunchWarningDialogIconBar">
-            <ImageView
-                android:id="@+id/agent_icon"
-                style="@style/AutomatedAppLaunchWarningDialogAgentIcon" />
-            <ImageView
-                android:id="@+id/target_icon"
-                style="@style/AutomatedAppLaunchWarningDialogTargetIcon" />
-        </LinearLayout>
+        <ImageView
+            android:id="@+id/agent_icon"
+            style="@style/AutomatedAppLaunchWarningDialogAgentIcon" />
         <TextView
             android:id="@+id/title"
             android:text="@string/automated_app_launch_warning_dialog_title"
@@ -37,16 +31,13 @@
             android:id="@+id/description"
             android:text="@string/automated_app_launch_warning_dialog_description"
             style="@style/AutomatedAppLaunchWarningDialogDescription" />
-        <LinearLayout
-            style="@style/AutomatedAppLaunchWarningDialogButtonBar">
-            <Button
-                android:id="@+id/stop_button"
-                android:text="@string/automated_app_launch_warning_dialog_stop"
-                style="@style/AutomatedAppLaunchWarningDialogStopButton" />
-            <Button
-                android:id="@+id/wait_button"
-                android:text="@string/automated_app_launch_warning_dialog_wait"
-                style="@style/AutomatedAppLaunchWarningDialogWaitButton" />
-        </LinearLayout>
+        <Button
+            android:id="@+id/wait_button"
+            android:text="@string/automated_app_launch_warning_dialog_wait"
+            style="@style/AutomatedAppLaunchWarningDialogWaitButton" />
+        <Button
+            android:id="@+id/stop_button"
+            android:text="@string/automated_app_launch_warning_dialog_stop"
+            style="@style/AutomatedAppLaunchWarningDialogStopButton" />
     </LinearLayout>
 </ScrollView>

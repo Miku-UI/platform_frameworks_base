@@ -118,7 +118,7 @@ public abstract class FieldClassificationService extends Service {
      *     this to notify you that the detection result is no longer needed and the service should
      *     stop handling this detection request in order to save resources.
      * @param outcomeReceiver object used to notify the result of the request. Service <b>must</b>
-     *     call {@link OutcomeReceiver<>#onResult(FieldClassificationResponse)}.
+     *     call {@link OutcomeReceiver#onResult(FieldClassificationResponse)}.
      */
     public abstract void onClassificationRequest(
             @NonNull FieldClassificationRequest request,
@@ -175,4 +175,3 @@ public abstract class FieldClassificationService extends Service {
                 });
     }
 }
-

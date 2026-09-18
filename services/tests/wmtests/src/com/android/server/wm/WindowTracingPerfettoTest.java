@@ -30,6 +30,7 @@ import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.timeout;
 
 import static java.io.File.createTempFile;
 import static java.nio.file.Files.createTempDirectory;
@@ -40,7 +41,6 @@ import android.tools.traces.monitors.PerfettoTraceMonitor;
 import android.util.Log;
 import android.view.Choreographer;
 
-import androidx.test.filters.FlakyTest;
 import androidx.test.filters.SmallTest;
 import androidx.test.uiautomator.UiDevice;
 
@@ -60,7 +60,6 @@ import java.io.IOException;
 /**
  * Test class for {@link WindowTracingPerfetto}.
  */
-@FlakyTest(bugId = 372558379)
 @SmallTest
 @Presubmit
 public class WindowTracingPerfettoTest {
@@ -113,8 +112,9 @@ public class WindowTracingPerfettoTest {
 
     @After
     public void tearDown() throws IOException {
-        Mockito.clearInvocations(sWmMock);
         stopTracing();
+        getInstrumentation().waitForIdleSync();
+        Mockito.clearInvocations(sWmMock);
     }
 
     @Test
@@ -140,14 +140,16 @@ public class WindowTracingPerfettoTest {
     @Test
     public void trace_writesInitialStateSnapshot_whenTracingStarts() {
         startTracing(LogFrequency.LOG_FREQUENCY_TRANSACTION);
-        verify(sWmMock, times(1)).dumpDebugLocked(any(), eq(WindowTracingLogLevel.ALL));
+        verify(sWmMock, timeout(5000).times(1))
+                .dumpDebugLocked(any(), eq(WindowTracingLogLevel.ALL));
     }
 
     @Test
     public void trace_writesStateSnapshot_onLogStateCall() {
         startTracing(LogFrequency.LOG_FREQUENCY_TRANSACTION);
         sWindowTracing.logState("where");
-        verify(sWmMock, times(2)).dumpDebugLocked(any(), eq(WindowTracingLogLevel.ALL));
+        verify(sWmMock, timeout(5000).times(2))
+                .dumpDebugLocked(any(), eq(WindowTracingLogLevel.ALL));
     }
 
     @Test
@@ -178,10 +180,14 @@ public class WindowTracingPerfettoTest {
     }
 
     @Test
-    public void dump_writesOneSingleStateSnapshot() {
+    public void dump_writesOneSingleStateSnapshot() throws IOException {
         startTracing(LogFrequency.LOG_FREQUENCY_SINGLE_DUMP);
-        sWindowTracing.logState("where");
-        verify(sWmMock, times(1)).dumpDebugLocked(any(), eq(WindowTracingLogLevel.ALL));
+        sWindowTracing.logState("where"); // Ignored for SINGLE_DUMP tracing
+        verify(sWmMock, times(0)).dumpDebugLocked(any(), Mockito.anyInt());
+
+        stopTracing(); // The single dump happens here (triggered by onStop)
+        verify(sWmMock, times(1))
+                .dumpDebugLocked(any(), eq(WindowTracingLogLevel.ALL));
     }
 
     private void startTracing(LogFrequency logFrequency) {

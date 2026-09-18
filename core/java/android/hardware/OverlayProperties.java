@@ -18,6 +18,7 @@ package android.hardware;
 
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.hardware.flags.Flags;
 import android.os.Parcel;
@@ -77,7 +78,7 @@ public final class OverlayProperties implements Parcelable {
      */
     @FlaggedApi(Flags.FLAG_LUTS_API)
     @SuppressLint("ArrayReturn")
-    @NonNull
+    @Nullable
     public LutProperties[] getLutProperties() {
         if (mNativeObject == 0) {
             return null;

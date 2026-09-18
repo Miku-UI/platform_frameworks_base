@@ -131,17 +131,13 @@ public class ActivityManagerWrapper {
     }
 
     /**
-     * @return the task snapshot for the given {@param taskId}.
+     * @return the task snapshot for the given {@code taskId}.
      */
     public @NonNull ThumbnailData getTaskThumbnail(int taskId, boolean isLowResolution) {
         TaskSnapshot snapshot = null;
         try {
-            if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-                snapshot = TaskSnapshotManager.getInstance().getTaskSnapshot(
-                        taskId, TaskSnapshotManager.convertRetrieveFlag(isLowResolution));
-            } else {
-                snapshot = getService().getTaskSnapshot(taskId, isLowResolution);
-            }
+            snapshot = TaskSnapshotManager.getInstance().getTaskSnapshot(
+                    taskId, TaskSnapshotManager.convertRetrieveFlag(isLowResolution));
         } catch (RemoteException e) {
             Log.w(TAG, "Failed to retrieve task snapshot", e);
         }
@@ -161,12 +157,8 @@ public class ActivityManagerWrapper {
     public ThumbnailData takeTaskThumbnail(int taskId) {
         TaskSnapshot snapshot = null;
         try {
-            if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-                snapshot = TaskSnapshotManager.getInstance().takeTaskSnapshot(taskId,
-                        true /* updateCache */);
-            } else {
-                snapshot = getService().takeTaskSnapshot(taskId, /* updateCache= */ true);
-            }
+            snapshot = TaskSnapshotManager.getInstance().takeTaskSnapshot(taskId,
+                    true /* updateCache */);
         } catch (RemoteException e) {
             Log.w(TAG, "Failed to take task snapshot", e);
         }
@@ -183,8 +175,7 @@ public class ActivityManagerWrapper {
      */
     @NonNull
     public ThumbnailData takeTaskThumbnail(int taskId, boolean lowResolution) {
-        if (!com.android.window.flags.Flags.respectRequestedTaskSnapshotResolution()
-                || !com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
+        if (!com.android.window.flags.Flags.onlyCacheLowResTaskSnapshot()) {
             return takeTaskThumbnail(taskId);
         }
         TaskSnapshot snapshot = null;

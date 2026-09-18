@@ -19,20 +19,20 @@ package com.android.wm.shell.flicker.resizing
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
+import com.android.wm.shell.flicker.utils.appWindowCoversHalfScreenAtEnd
+import com.android.wm.shell.flicker.utils.appWindowKeepVisible
+import com.android.wm.shell.scenarios.SnapResizeAppWindowWithDrag
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import com.android.wm.shell.flicker.utils.appWindowCoversHalfScreenAtEnd
-import com.android.wm.shell.flicker.utils.appWindowKeepVisible
-import com.android.wm.shell.scenarios.SnapResizeAppWindowWithDrag
 
 /**
  * Snap resize app window by dragging it to the right edge of the screen.
@@ -43,14 +43,11 @@ import com.android.wm.shell.scenarios.SnapResizeAppWindowWithDrag
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
-class SnapResizeAppWindowRightWithDragFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(
-    flicker
-) {
+class SnapResizeAppWindowRightWithDragFlickerTest(flicker: FlickerTest) :
+    DesktopModeBaseTest(flicker) {
 
-    inner class SnapResizeAppWindowRightWithDragScenario : SnapResizeAppWindowWithDrag(
-        toLeft = false,
-        rotation = flicker.scenario.startRotation
-    )
+    inner class SnapResizeAppWindowRightWithDragScenario :
+        SnapResizeAppWindowWithDrag(toLeft = false, rotation = flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -60,23 +57,16 @@ class SnapResizeAppWindowRightWithDragFlickerTest(flicker: FlickerTest) : Deskto
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.snapResizeAppWindowWithDrag()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.snapResizeAppWindowWithDrag() }
+            teardown { scenario.teardown() }
         }
 
     @Test
     fun appWindowCoversRightHalfScreenAtEnd() =
         flicker.appWindowCoversHalfScreenAtEnd(testApp, isLeftHalf = false)
 
-    @Test
-    fun appWindowIsAlwaysVisible() = flicker.appWindowKeepVisible(testApp)
+    @Test fun appWindowIsAlwaysVisible() = flicker.appWindowKeepVisible(testApp)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

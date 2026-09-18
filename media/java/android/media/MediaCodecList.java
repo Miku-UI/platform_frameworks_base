@@ -16,6 +16,8 @@
 
 package android.media;
 
+import static android.media.MediaCodec.GetFlag;
+
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -109,13 +111,21 @@ final public class MediaCodecList {
         for (String type: supportedTypes) {
             caps[typeIx++] = getCodecCapabilities(index, type);
         }
-        return new MediaCodecInfo(
-                getCodecName(index), getCanonicalName(index), getAttributes(index), caps);
+        if (GetFlag(() -> android.media.codec.Flags.inProcessSwCodecLfi())) {
+            return new MediaCodecInfo(
+                    getCodecName(index), getCanonicalName(index), getAttributes(index), caps,
+                    getSecurityModel(index));
+        } else {
+            return new MediaCodecInfo(
+                    getCodecName(index), getCanonicalName(index), getAttributes(index), caps);
+        }
     }
 
     /* package private */ static native final String getCodecName(int index);
 
     /* package private */ static native final String getCanonicalName(int index);
+
+    /* package private */ static native int getSecurityModel(int index);
 
     /* package private */ static native final int getAttributes(int index);
 

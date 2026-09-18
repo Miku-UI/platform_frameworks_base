@@ -52,7 +52,6 @@ import android.window.TaskSnapshot;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.graphics.ColorUtils;
 import com.android.server.wm.utils.InsetUtils;
-import com.android.window.flags.Flags;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -224,11 +223,21 @@ abstract class AbsAppSnapshotController<TYPE extends WindowContainer<?>,
 
     @Nullable
     TaskSnapshot snapshot(TYPE source) {
-        return snapshot(source, mHighResSnapshotScale);
+        return snapshot(source, mHighResSnapshotScale, false /* includeDecors */);
+    }
+
+    @Nullable
+    TaskSnapshot snapshot(TYPE source, boolean includeDecors) {
+        return snapshot(source, mHighResSnapshotScale, includeDecors);
     }
 
     @Nullable
     TaskSnapshot snapshot(TYPE source, float scale) {
+        return snapshot(source, scale, false /* includeDecors */);
+    }
+
+    @Nullable
+    TaskSnapshot snapshot(TYPE source, float scale, boolean includeDecors) {
         TaskSnapshot.Builder builder = new TaskSnapshot.Builder();
         final Rect crop = prepareTaskSnapshot(source, builder);
         if (crop == null) {
@@ -237,7 +246,7 @@ abstract class AbsAppSnapshotController<TYPE extends WindowContainer<?>,
         }
         Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "createSnapshot");
         final ScreenCaptureInternal.ScreenshotHardwareBuffer screenshotBuffer =
-                createSnapshot(source, scale, crop, builder);
+                createSnapshot(source, scale, crop, builder, includeDecors);
         Trace.traceEnd(Trace.TRACE_TAG_WINDOW_MANAGER);
         if (screenshotBuffer == null) {
             // Failed to acquire image. Has been logged.
@@ -251,49 +260,41 @@ abstract class AbsAppSnapshotController<TYPE extends WindowContainer<?>,
     }
 
     private static TaskSnapshot validateSnapshot(@NonNull TaskSnapshot snapshot) {
-        if (Flags.reduceTaskSnapshotMemoryUsage()) {
-            if (!snapshot.isBufferValid()) {
-                return null;
-            }
-            final int width = snapshot.getHardwareBufferWidth();
-            final int height = snapshot.getHardwareBufferHeight();
-            if (width == 0 || height == 0) {
-                snapshot.closeBuffer();
-                Slog.e(TAG, "Invalid snapshot dimensions " + width + "x" + height);
-                return null;
-            }
-            if (snapshot.getDensityDpi() <= 0) {
-                snapshot.closeBuffer();
-                Slog.e(TAG, "Invalid snapshot density " + snapshot.getDensityDpi());
-                return null;
-            }
-        } else {
-            final HardwareBuffer buffer = snapshot.getHardwareBuffer();
-            if (buffer.getWidth() == 0 || buffer.getHeight() == 0) {
-                buffer.close();
-                Slog.e(TAG, "Invalid snapshot dimensions " + buffer.getWidth() + "x"
-                        + buffer.getHeight());
-                return null;
-            }
-            if (snapshot.getDensityDpi() <= 0) {
-                buffer.close();
-                Slog.e(TAG, "Invalid snapshot density " + snapshot.getDensityDpi());
-                return null;
-            }
+        if (!snapshot.isBufferValid()) {
+            return null;
+        }
+        final int width = snapshot.getHardwareBufferWidth();
+        final int height = snapshot.getHardwareBufferHeight();
+        if (width == 0 || height == 0) {
+            snapshot.closeBuffer();
+            Slog.e(TAG, "Invalid snapshot dimensions " + width + "x" + height);
+            return null;
+        }
+        if (snapshot.getDensityDpi() <= 0) {
+            snapshot.closeBuffer();
+            Slog.e(TAG, "Invalid snapshot density " + snapshot.getDensityDpi());
+            return null;
         }
         return snapshot;
     }
 
     @Nullable
+    ScreenCaptureInternal.ScreenshotHardwareBuffer createSnapshot(@NonNull TYPE source,
+            float scaleFraction, Rect crop, TaskSnapshot.Builder builder) {
+        return createSnapshot(source, scaleFraction, crop, builder, false /* includeDecors */);
+    }
+
+    @Nullable
     ScreenCaptureInternal.ScreenshotHardwareBuffer createSnapshot(
-            @NonNull TYPE source, float scaleFraction, Rect crop, TaskSnapshot.Builder builder) {
+            @NonNull TYPE source, float scaleFraction, Rect crop, TaskSnapshot.Builder builder,
+            boolean includeDecors) {
         if (source.getSurfaceControl() == null) {
             if (DEBUG_SCREENSHOT) {
                 Slog.w(TAG_WM, "Failed to take screenshot. No surface control for " + source);
             }
             return null;
         }
-        final WindowState imeWindow = source.getDisplayContent().mInputMethodWindow;
+        final WindowState imeWindow = source.getDisplayContent().getImeWindow();
         // Exclude IME window snapshot when IME isn't proper to attach to app.
         final boolean excludeIme = imeWindow != null && imeWindow.getSurfaceControl() != null
                 && !source.getDisplayContent().shouldImeAttachedToApp();
@@ -309,16 +310,19 @@ abstract class AbsAppSnapshotController<TYPE extends WindowContainer<?>,
         if (navWindow != null) {
             excludeSurfaces.add(navWindow.getSurfaceControl());
         }
-        source.forAllWindows(w -> {
-            if (w.mAnimatingExit && !w.mRemoved && w.mAttrs.type != TYPE_BASE_APPLICATION) {
-                excludeSurfaces.add(w.getSurfaceControl());
-            }
-        }, true /* traverseTopToBottom */);
+        if (!includeDecors) {
+            source.forAllWindows(w -> {
+                if (w.mAnimatingExit && !w.mRemoved && w.mAttrs.type != TYPE_BASE_APPLICATION) {
+                    excludeSurfaces.add(w.getSurfaceControl());
+                }
+            }, true /* traverseTopToBottom */);
 
-        if (source instanceof Task) {
-            final SurfaceControl[] excludeLayers = ((Task) source).mExcludeLayersFromTaskSnapshot;
-            if (excludeLayers != null) {
-                Collections.addAll(excludeSurfaces, excludeLayers);
+            if (source instanceof Task) {
+                final SurfaceControl[] excludeLayers =
+                        ((Task) source).mExcludeLayersFromTaskSnapshot;
+                if (excludeLayers != null) {
+                    Collections.addAll(excludeSurfaces, excludeLayers);
+                }
             }
         }
         final SurfaceControl[] excludeLayers =
@@ -346,14 +350,10 @@ abstract class AbsAppSnapshotController<TYPE extends WindowContainer<?>,
     }
 
     static boolean isInvalidHardwareBuffer(TaskSnapshot snapshot) {
-        if (Flags.reduceTaskSnapshotMemoryUsage()) {
-            // TODO (b/428811458) Remove redundant check for buffer size.
-            return snapshot == null || !snapshot.isBufferValid()
-                    || snapshot.getHardwareBufferWidth() <= 1
-                    || snapshot.getHardwareBufferHeight() <= 1;
-        }
-        final HardwareBuffer buffer = snapshot != null ? snapshot.getHardwareBuffer() : null;
-        return isInvalidHardwareBuffer(buffer);
+        // TODO (b/428811458) Remove redundant check for buffer size.
+        return snapshot == null || !snapshot.isBufferValid()
+                || snapshot.getHardwareBufferWidth() <= 1
+                || snapshot.getHardwareBufferHeight() <= 1;
     }
 
     /**
@@ -437,9 +437,11 @@ abstract class AbsAppSnapshotController<TYPE extends WindowContainer<?>,
      * state checking. Returns {@code null} if the task state isn't ready to screenshot.
      */
     Pair<ActivityRecord, WindowState> checkIfReadyToScreenshot(TYPE source) {
-        if (!mService.mPolicy.isScreenOn()) {
+        if (source.mDisplayContent == null
+                || !mService.mPolicy.isScreenOn(source.mDisplayContent.getDisplayId())) {
             if (DEBUG_SCREENSHOT) {
-                Slog.i(TAG_WM, "Attempted to take screenshot while display was off.");
+                Slog.i(TAG_WM, "Attempted to take screenshot while window container was "
+                        + "detached from display or display was off.");
             }
             return null;
         }
@@ -489,16 +491,19 @@ abstract class AbsAppSnapshotController<TYPE extends WindowContainer<?>,
         final int taskWidth = taskBounds.width();
         final int taskHeight = taskBounds.height();
         float scale = mHighResSnapshotScale;
-        if (Flags.reduceTaskSnapshotMemoryUsage()) {
-            final int minLength = Math.min(taskWidth, taskHeight);
-            if (THEME_SNAPSHOT_MIN_Length < minLength) {
-                scale = Math.min(THEME_SNAPSHOT_MIN_Length / minLength, scale);
-            }
+        final int minLength = Math.min(taskWidth, taskHeight);
+        if (THEME_SNAPSHOT_MIN_Length < minLength) {
+            scale = Math.min(THEME_SNAPSHOT_MIN_Length / minLength, scale);
         }
-        final SnapshotDrawerUtils.SystemBarBackgroundPainter
-                decorPainter = new SnapshotDrawerUtils.SystemBarBackgroundPainter(attrs.flags,
-                attrs.privateFlags, attrs.insetsFlags.appearance, taskDescription,
-                scale, mainWindow.getRequestedVisibleTypes());
+        final SnapshotDrawerUtils.SystemBarBackgroundPainter decorPainter =
+                new SnapshotDrawerUtils.SystemBarBackgroundPainter(
+                        attrs.flags,
+                        attrs.privateFlags,
+                        attrs.renderingHints,
+                        attrs.insetsFlags.appearance,
+                        taskDescription,
+                        scale,
+                        mainWindow.getRequestedVisibleTypes());
         final int width = (int) (taskWidth * scale);
         final int height = (int) (taskHeight * scale);
         final RenderNode node = RenderNode.create("SnapshotController", null);

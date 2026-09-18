@@ -18,6 +18,7 @@ package com.android.server.wm;
 
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.internal.perfetto.protos.Windowmanagerservice.WindowContainerChildProto.WINDOW_TOKEN;
+import static android.internal.perfetto.protos.Windowmanagerservice.WindowTokenProto.CLIENT_VISIBLE;
 import static android.internal.perfetto.protos.Windowmanagerservice.WindowTokenProto.HASH_CODE;
 import static android.internal.perfetto.protos.Windowmanagerservice.WindowTokenProto.PAUSED;
 import static android.internal.perfetto.protos.Windowmanagerservice.WindowTokenProto.WINDOW_CONTAINER;
@@ -49,7 +50,6 @@ import android.window.WindowContext;
 
 import com.android.internal.protolog.ProtoLog;
 import com.android.server.policy.WindowManagerPolicy;
-import com.android.window.flags.Flags;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -170,13 +170,13 @@ class WindowToken extends WindowContainer<WindowState> {
     };
 
     protected WindowToken(WindowManagerService service, IBinder _token, int type,
-            boolean persistOnEmpty, DisplayContent dc, boolean ownerCanManageAppTokens) {
-        this(service, _token, type, persistOnEmpty, dc, ownerCanManageAppTokens,
+            boolean persistOnEmpty, boolean ownerCanManageAppTokens) {
+        this(service, _token, type, persistOnEmpty, ownerCanManageAppTokens,
                 false /* roundedCornerOverlay */, false /* fromClientToken */, null /* options */);
     }
 
     protected WindowToken(WindowManagerService service, IBinder _token, int type,
-            boolean persistOnEmpty, DisplayContent dc, boolean ownerCanManageAppTokens,
+            boolean persistOnEmpty, boolean ownerCanManageAppTokens,
             boolean roundedCornerOverlay, boolean fromClientToken, @Nullable Bundle options) {
         super(service);
         token = _token;
@@ -186,9 +186,6 @@ class WindowToken extends WindowContainer<WindowState> {
         mOwnerCanManageAppTokens = ownerCanManageAppTokens;
         mRoundedCornerOverlay = roundedCornerOverlay;
         mFromClientToken = fromClientToken;
-        if (dc != null) {
-            dc.addWindowToken(token, this);
-        }
     }
 
     void removeAllWindowsIfPossible() {
@@ -344,14 +341,15 @@ class WindowToken extends WindowContainer<WindowState> {
 
     @Override
     void onDisplayChanged(DisplayContent dc) {
-        if (!Flags.reparentWindowTokenApi()) {
+        // This check is needed to break recursion, as DisplayContent#reparentWindowToken also
+        // triggers a WindowToken#onDisplayChanged.
+        if (dc.getWindowToken(token) == null) {
             dc.reParentWindowToken(this);
-        } else {
-            // This check is needed to break recursion, as DisplayContent#reparentWindowToken also
-            // triggers a WindowToken#onDisplayChanged.
-            if (dc.getWindowToken(token) == null) {
-                dc.reParentWindowToken(this);
-            }
+        }
+
+        if (mFixedRotationTransformState != null && dc != mDisplayContent
+                && dc.getIgnoreOrientationRequest()) {
+            finishFixedRotationTransform();
         }
 
         // TODO(b/36740756): One day this should perhaps be hooked
@@ -392,6 +390,25 @@ class WindowToken extends WindowContainer<WindowState> {
                 Debug.getCallers(5));
         mClientVisible = clientVisible;
         sendAppVisibilityToClients();
+    }
+
+    /**
+     * Returns whether the token must be {@link #isClientVisible} to allow a child to be
+     * {@link #isVisible}.
+     */
+    boolean shouldCheckTokenClientVisible() {
+        return false;
+    }
+
+    /**
+     * Returns whether the token must be {@link #isVisibleRequested} to allow a child to be
+     * {@link #isVisibleRequested}.
+     *
+     * <p>Implementations that override both this and {@link #isVisibleRequested} must avoid calling
+     * the superclass {@link #isVisibleRequested}, to avoid infinite recursion.
+     */
+    boolean shouldCheckTokenVisibleRequested() {
+        return false;
     }
 
     boolean hasFixedRotationTransform() {
@@ -513,7 +530,8 @@ class WindowToken extends WindowContainer<WindowState> {
             final ActivityRecord r =
                     mFixedRotationTransformState.mAssociatedTokens.get(i).asActivityRecord();
             // Only care about the transition at Activity/Task level.
-            if (r != null && r.inTransition() && !r.mDisplayContent.inTransition()) {
+            if (r != null && (mTransitionController.isParticipant(r)
+                    || mTransitionController.isParticipant(r.getTask()))) {
                 return true;
             }
         }
@@ -649,6 +667,7 @@ class WindowToken extends WindowContainer<WindowState> {
             // override configuration can update to the same state.
             getResolvedOverrideConfiguration().updateFrom(
                     mFixedRotationTransformState.mRotatedOverrideConfiguration);
+
         }
         if (asActivityRecord() == null) {
             // Let ActivityRecord override the config if there is one. Otherwise, override here.
@@ -729,6 +748,7 @@ class WindowToken extends WindowContainer<WindowState> {
     @Override
     public void dumpDebug(ProtoOutputStream proto, long fieldId,
             @WindowTracingLogLevel int logLevel) {
+        // Critical log level logs only visible elements to mitigate performance overheard
         if (logLevel == WindowTracingLogLevel.CRITICAL && !isVisible()) {
             return;
         }
@@ -737,6 +757,7 @@ class WindowToken extends WindowContainer<WindowState> {
         super.dumpDebug(proto, WINDOW_CONTAINER, logLevel);
         proto.write(HASH_CODE, System.identityHashCode(this));
         proto.write(PAUSED, paused);
+        proto.write(CLIENT_VISIBLE, isClientVisible());
         proto.end(token);
     }
 
@@ -813,7 +834,6 @@ class WindowToken extends WindowContainer<WindowState> {
         private final int mType;
 
         private boolean mPersistOnEmpty;
-        private DisplayContent mDisplayContent;
         private boolean mOwnerCanManageAppTokens;
         private boolean mRoundedCornerOverlay;
         private boolean mFromClientToken;
@@ -829,12 +849,6 @@ class WindowToken extends WindowContainer<WindowState> {
         /** @see WindowToken#mPersistOnEmpty */
         Builder setPersistOnEmpty(boolean persistOnEmpty) {
             mPersistOnEmpty = persistOnEmpty;
-            return this;
-        }
-
-        /** Sets the {@link DisplayContent} to be associated. */
-        Builder setDisplayContent(DisplayContent dc) {
-            mDisplayContent = dc;
             return this;
         }
 
@@ -862,8 +876,9 @@ class WindowToken extends WindowContainer<WindowState> {
             return this;
         }
 
+        @NonNull
         WindowToken build() {
-            return new WindowToken(mService, mToken, mType, mPersistOnEmpty, mDisplayContent,
+            return new WindowToken(mService, mToken, mType, mPersistOnEmpty,
                     mOwnerCanManageAppTokens, mRoundedCornerOverlay, mFromClientToken, mOptions);
         }
     }

@@ -17,11 +17,9 @@
 package com.android.systemui.statusbar.pipeline.battery.data.repository
 
 import android.content.testableContext
-import android.platform.test.annotations.EnableFlags
 import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.backgroundScope
@@ -191,7 +189,6 @@ class BatteryRepositoryTest : SysuiTestCase() {
 
     /** Regression test for b/433239990. */
     @Test
-    @EnableFlags(Flags.FLAG_STATUS_BAR_BATTERY_NO_CONFLATION)
     fun backpressure_isStateUnknown() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.isStateUnknown)
@@ -220,7 +217,6 @@ class BatteryRepositoryTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_STATUS_BAR_BATTERY_NO_CONFLATION)
     fun backpressure_isPluggedIn() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.isPluggedIn)
@@ -249,7 +245,6 @@ class BatteryRepositoryTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_STATUS_BAR_BATTERY_NO_CONFLATION)
     fun backpressure_isPowerSave() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.isPowerSaveEnabled)
@@ -278,7 +273,6 @@ class BatteryRepositoryTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_STATUS_BAR_BATTERY_NO_CONFLATION)
     fun backpressure_isExtremePowerSave() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.isExtremePowerSaveEnabled)
@@ -307,7 +301,6 @@ class BatteryRepositoryTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_STATUS_BAR_BATTERY_NO_CONFLATION)
     fun backpressure_isBatteryDefender() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.isBatteryDefenderEnabled)
@@ -336,7 +329,6 @@ class BatteryRepositoryTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_STATUS_BAR_BATTERY_NO_CONFLATION)
     fun backpressure_level() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.level)
@@ -363,7 +355,6 @@ class BatteryRepositoryTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_STATUS_BAR_BATTERY_NO_CONFLATION)
     fun backpressure_isIncompatibleCharging() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.isIncompatibleCharging)

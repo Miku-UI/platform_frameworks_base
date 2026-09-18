@@ -16,6 +16,9 @@
 
 package com.android.server.inputmethod;
 
+import static com.android.server.inputmethod.InputMethodBindingController.IME_BACKGROUND_BIND_FLAGS;
+import static com.android.server.inputmethod.InputMethodBindingController.IME_CONNECTION_BIND_FLAGS;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import android.view.WindowManager;
@@ -61,7 +64,8 @@ public final class UserDataRepositoryTest {
         SecureSettingsWrapper.startTestMode();
 
         mBindingControllerFactory = userId ->
-                new InputMethodBindingController(userId, mMockInputMethodManagerService);
+                new InputMethodBindingController(userId, mMockInputMethodManagerService,
+                        IME_CONNECTION_BIND_FLAGS, IME_BACKGROUND_BIND_FLAGS);
 
         mVisibilityStateComputerFactory = userId -> new ImeVisibilityStateComputer(
                 mMockInputMethodManagerService,
@@ -100,8 +104,9 @@ public final class UserDataRepositoryTest {
     @Test
     public void testUserDataRepository_removesUserInfoOnUserRemovedEvent() {
         // Create UserDataRepository
-        final var repository = new UserDataRepository(
-                userId -> new InputMethodBindingController(userId, mMockInputMethodManagerService),
+        final var repository = new UserDataRepository(userId ->
+                new InputMethodBindingController(userId, mMockInputMethodManagerService,
+                        IME_CONNECTION_BIND_FLAGS, IME_BACKGROUND_BIND_FLAGS),
                 mVisibilityStateComputerFactory);
 
         // Add one UserData ...

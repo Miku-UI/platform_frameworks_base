@@ -44,7 +44,6 @@ import com.android.systemui.demomode.DemoModeController;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.statusbar.StatusIconDisplayable;
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays;
 import com.android.systemui.statusbar.phone.StatusBarIconHolder;
 import com.android.systemui.statusbar.phone.StatusBarIconHolder.BindableIconHolder;
 import com.android.systemui.statusbar.pipeline.StatusBarPipelineFlags;
@@ -100,11 +99,6 @@ public class StatusBarIconControllerImpl implements Tunable,
         mContext = context;
         mStatusBarPipelineFlags = statusBarPipelineFlags;
 
-        if (StatusBarConnectedDisplays.isEnabled()) {
-            // refresh requests are dispatched by StatusBarIconRefreshInteractor, per display.
-        } else {
-            configurationController.addCallback(this);
-        }
         commandQueue.addCallback(mCommandQueueCallbacks);
         tunerService.addTunable(this, ICON_HIDE_LIST);
         demoModeController.addCallback(this);
@@ -166,24 +160,29 @@ public class StatusBarIconControllerImpl implements Tunable,
     }
 
     @Override
+    public void reloadIconGroupLayoutParams(IconManager iconManager) {
+        List<Slot> allSlots = mStatusBarIconList.getSlots();
+        for (int i = 0; i < allSlots.size(); i++) {
+            Slot slot = allSlots.get(i);
+            List<StatusBarIconHolder> holders = slot.getHolderListInViewOrder();
+            for (StatusBarIconHolder holder : holders) {
+                int viewIndex = mStatusBarIconList.getViewIndex(slot.getName(), holder.getTag());
+                // NOTE: This might cause a race condition if the icon list has an entry added
+                // during this for loop, this will cause an icon size to be incorrect in connected
+                // display shade (b/445347372).
+                iconManager.reloadIconLayoutParams(viewIndex, holder);
+            }
+        }
+    }
+
+    @Override
     public void refreshIconGroups(int displayId) {
-        if (!StatusBarConnectedDisplays.isEnabled()) return;
         for (int i = mIconGroups.size() - 1; i >= 0; --i) {
             IconManager group = mIconGroups.get(i);
             if (group.getDisplayId() == displayId) {
                 removeIconGroup(group);
                 addIconGroup(group);
             }
-        }
-    }
-
-    @Deprecated // Use refreshIconGroups(int displayId) instead
-    private void refreshIconGroups() {
-        StatusBarConnectedDisplays.assertInLegacyMode();
-        for (int i = mIconGroups.size() - 1; i >= 0; --i) {
-            IconManager group = mIconGroups.get(i);
-            removeIconGroup(group);
-            addIconGroup(group);
         }
     }
 
@@ -507,13 +506,6 @@ public class StatusBarIconControllerImpl implements Tunable,
         List<String> s = new ArrayList<>();
         s.add(DemoMode.COMMAND_STATUS);
         return s;
-    }
-
-    /**  */
-    @Override
-    public void onDensityOrFontScaleChanged() {
-        StatusBarConnectedDisplays.assertInLegacyMode();
-        refreshIconGroups();
     }
 
     private String createExternalSlotName(String slot) {

@@ -42,8 +42,11 @@ class MediaProjectionService : Service() {
     var mMessenger: Messenger? = null
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
-        mMessenger = intent.extras?.getParcelable(
-            MediaProjectionUtils.EXTRA_MESSENGER, Messenger::class.java)
+        mMessenger =
+            intent.extras?.getParcelable(
+                MediaProjectionUtils.EXTRA_MESSENGER,
+                Messenger::class.java,
+            )
         startForeground()
         return super.onStartCommand(intent, flags, startId)
     }
@@ -68,10 +71,12 @@ class MediaProjectionService : Service() {
 
     private fun startForeground() {
         Log.d(TAG, "startForeground")
-        val channel = NotificationChannel(
-            notificationChannelId,
-            notificationChannelName, NotificationManager.IMPORTANCE_NONE
-        )
+        val channel =
+            NotificationChannel(
+                notificationChannelId,
+                notificationChannelName,
+                NotificationManager.IMPORTANCE_NONE,
+            )
         channel.lockscreenVisibility = Notification.VISIBILITY_PRIVATE
 
         val notificationManager: NotificationManager =
@@ -81,12 +86,14 @@ class MediaProjectionService : Service() {
         val notificationBuilder: Notification.Builder =
             Notification.Builder(this, notificationChannelId)
 
-        val notification = notificationBuilder.setOngoing(true)
-            .setContentTitle("App is running")
-            .setSmallIcon(createNotificationIcon())
-            .setCategory(Notification.CATEGORY_SERVICE)
-            .setContentText("Context")
-            .build()
+        val notification =
+            notificationBuilder
+                .setOngoing(true)
+                .setContentTitle("App is running")
+                .setSmallIcon(createNotificationIcon())
+                .setCategory(Notification.CATEGORY_SERVICE)
+                .setContentText("Context")
+                .build()
 
         startForeground(notificationId, notification)
         sendMessage(MediaProjectionUtils.MSG_START_FOREGROUND_DONE)

@@ -16,7 +16,6 @@
 
 package com.android.server.rollback;
 
-import static com.android.crashrecovery.flags.Flags.FLAG_CONFIGURE_PACKAGE_HEALTH_OBSERVER_ROLLBACK_TIMEOUT;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doAnswer;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -544,7 +543,6 @@ public class RollbackPackageHealthObserverTest {
      * DEFAULT_ROLLBACK_AVAILABILITY_DURATION_MILLIS.
      */
     @Test
-    @EnableFlags({FLAG_CONFIGURE_PACKAGE_HEALTH_OBSERVER_ROLLBACK_TIMEOUT})
     public void execute_impactLevelLow_rollbackOtherWithinDefaultRollbackAvailabilityDuration()
             throws PackageManager.NameNotFoundException, IOException {
         deleteRollbackTimestampsTempFile();
@@ -1108,7 +1106,6 @@ public class RollbackPackageHealthObserverTest {
      * DEFAULT_ROLLBACK_AVAILABILITY_DURATION_MILLIS period.
      */
     @Test
-    @EnableFlags({FLAG_CONFIGURE_PACKAGE_HEALTH_OBSERVER_ROLLBACK_TIMEOUT})
     public void testExpiredRollback() throws IOException {
         deleteRollbackTimestampsTempFile();
 

@@ -94,7 +94,6 @@ import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 @RunWith(AndroidJUnit4.class)
-@EnableFlags({Flags.FLAG_API_RICH_ONGOING})
 public class NotificationVisitUrisTest extends UiServiceTestCase {
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
@@ -111,6 +110,7 @@ public class NotificationVisitUrisTest extends UiServiceTestCase {
     private static final ImmutableSet<Class<?>> UNUSABLE_TYPES =
             ImmutableSet.of(Consumer.class, IBinder.class, MediaSession.Token.class, Parcel.class,
                     PrintWriter.class, Resources.Theme.class, View.class,
+                    Notification.UserProfileBadgeProvider.class,
                     LayoutInflater.Factory2.class, ProtoOutputStream.class);
 
     // Maximum number of times we allow generating the same class recursively.

@@ -41,7 +41,7 @@
         android:contentDescription="@string/accessibility_hearing_device_pair_new_device"
         android:drawableStart="@drawable/ic_add"
         android:drawablePadding="20dp"
-        android:drawableTint="?android:attr/textColorPrimary"
+        android:drawableTint="@color/materialColorOnSurface"
         android:text="@string/quick_settings_pair_hearing_devices"
         android:textSize="14sp"
         android:textAppearance="@style/TextAppearance.Dialog.Title"

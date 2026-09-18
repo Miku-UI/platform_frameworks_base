@@ -20,6 +20,7 @@ import android.content.ComponentName
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
+import android.graphics.drawable.Icon
 import android.os.UserHandle
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
@@ -32,6 +33,7 @@ class FakeLauncherApps {
     private val callbacks: MutableList<LauncherApps.Callback> = mutableListOf()
 
     val launcherApps: LauncherApps = mock {
+        on { getShortcutIcon(any()) }.then { mock<Icon>() }
         on { getActivityList(anyOrNull(), any()) }
             .then {
                 val userHandle = it.getArgument<UserHandle>(1)

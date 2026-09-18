@@ -20,12 +20,10 @@ import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.UserInfo
 import android.os.UserHandle
-import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.service.quicksettings.Tile
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.Flags.FLAG_HSU_QS_CHANGES
 import com.android.systemui.Flags.FLAG_QS_NEW_TILES
 import com.android.systemui.SysuiTestCase
@@ -91,6 +89,7 @@ class CurrentTilesInteractorImplTest : SysuiTestCase() {
             qsTileFactory = FakeQSFactory { tileCreator(it) }
             fakeUserTracker.set(listOf(USER_INFO_0), 0)
             fakeUserRepository.setUserInfos(listOf(USER_INFO_0, USER_INFO_1))
+            fakeUserRepository.setIsCurrentUserHeadlessSystemUser(false)
             tileLifecycleManagerFactory = TLMFactory()
             newQSTileFactory = mock()
             qsLogger = mock()
@@ -109,6 +108,7 @@ class CurrentTilesInteractorImplTest : SysuiTestCase() {
                 assertThat(underTest.currentTilesSpecs).isEmpty()
                 assertThat(underTest.userId.value).isEqualTo(0)
                 assertThat(underTest.userContext.value.userId).isEqualTo(0)
+                assertThat(underTest.isCurrentUserHeadlessSystemUser.value).isFalse()
             }
         }
 
@@ -772,25 +772,7 @@ class CurrentTilesInteractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_RESET_TILES_REMOVES_CUSTOM_TILES)
-    fun resetTiles_flagDisabled_customTileNotMarkedAsRemoved() =
-        with(kosmos) {
-            testScope.runTest(USER_INFO_0) {
-                val currentSpecs = listOf(CUSTOM_TILE_SPEC, TileSpec.create("a"))
-                underTest.setTiles(currentSpecs)
-                runCurrent()
-
-                underTest.resetTiles()
-                runCurrent()
-
-                assertThat(customTileAddedRepository.isTileAdded(TEST_COMPONENT, USER_INFO_0.id))
-                    .isTrue()
-            }
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_RESET_TILES_REMOVES_CUSTOM_TILES)
-    fun resetTiles_flagEnabled_customTileNotMarkedAsRemoved() =
+    fun resetTiles_customTileMarkedAsRemoved() =
         with(kosmos) {
             testScope.runTest(USER_INFO_0) {
                 val currentSpecs = listOf(CUSTOM_TILE_SPEC, TileSpec.create("a"))

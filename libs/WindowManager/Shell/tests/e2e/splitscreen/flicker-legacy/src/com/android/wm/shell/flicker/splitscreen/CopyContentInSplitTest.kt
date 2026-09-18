@@ -17,10 +17,10 @@
 package com.android.wm.shell.flicker.splitscreen
 
 import android.platform.test.annotations.Presubmit
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.FlakyTest
 import androidx.test.filters.RequiresDevice
@@ -68,7 +68,7 @@ class CopyContentInSplitTest(override val flicker: FlickerTest) :
         flicker.splitAppLayerBoundsKeepVisible(
             primaryApp,
             landscapePosLeft = tapl.isTablet,
-            portraitPosTop = false
+            portraitPosTop = false,
         )
 
     @Presubmit
@@ -77,7 +77,7 @@ class CopyContentInSplitTest(override val flicker: FlickerTest) :
         flicker.splitAppLayerBoundsKeepVisible(
             textEditApp,
             landscapePosLeft = !tapl.isTablet,
-            portraitPosTop = true
+            portraitPosTop = true,
         )
 
     @Presubmit @Test fun primaryAppWindowKeepVisible() = flicker.appWindowKeepVisible(primaryApp)
@@ -99,7 +99,7 @@ class CopyContentInSplitTest(override val flicker: FlickerTest) :
                         ComponentNameMatcher.SNAPSHOT,
                         ComponentNameMatcher.IME_SCREENSHOT,
                         magnifierLayer,
-                        popupWindowLayer
+                        popupWindowLayer,
                     )
             )
         }

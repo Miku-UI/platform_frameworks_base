@@ -27,7 +27,6 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.animation.AnimatorTestRule
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.notification.headsup.HeadsUpAnimator
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.row.ExpandableView
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent
 import com.android.systemui.statusbar.notification.stack.StackStateAnimator.ANIMATION_DURATION_HEADS_UP_APPEAR
@@ -113,7 +112,6 @@ class StackStateAnimatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun startAnimationForEvents_headsUpFromTop_andHasStatusBarChipFalse() {
         val statusBarHeight = 156
         val topMargin = 50f
@@ -141,7 +139,6 @@ class StackStateAnimatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun startAnimationForEvents_headsUpFromTop_andHasStatusBarChipTrue() {
         val statusBarHeight = 156
         val topMargin = 50f

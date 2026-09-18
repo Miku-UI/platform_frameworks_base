@@ -44,15 +44,20 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import android.app.supervision.flags.Flags;
 import android.content.pm.UserInfo;
 import android.os.UserManager;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.internal.util.FrameworkStatsLog;
 
 import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -60,6 +65,10 @@ import org.mockito.ArgumentCaptor;
 @Presubmit
 @RunWith(AndroidJUnit4.class)
 public class UserJourneyLoggerTest {
+
+    @ClassRule
+    public static final SetFlagsRule.ClassRule mSetFlagsClassRule = new SetFlagsRule.ClassRule();
+    @Rule public final SetFlagsRule mSetFlagsRule = mSetFlagsClassRule.createSetFlagsRule();
 
     public static final int FULL_USER_ADMIN_FLAG = 0x00000402;
     private UserJourneyLogger mUserJourneyLogger;
@@ -137,6 +146,18 @@ public class UserJourneyLoggerTest {
 
     @Test
     public void testCreatePrivateProfileUserJourney() {
+        testCreateProfileUserJourney(UserManager.USER_TYPE_PROFILE_PRIVATE,
+                FrameworkStatsLog.USER_LIFECYCLE_JOURNEY_REPORTED__USER_TYPE__PROFILE_PRIVATE);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_SUPERVISION_PIN_METRICS)
+    public void testCreateSupervisingProfileUserJourney() {
+        testCreateProfileUserJourney(UserManager.USER_TYPE_PROFILE_SUPERVISING,
+                FrameworkStatsLog.USER_LIFECYCLE_JOURNEY_REPORTED__USER_TYPE__PROFILE_SUPERVISING);
+    }
+
+    private void testCreateProfileUserJourney(String userType, int expectedLog) {
         final UserLifecycleEventOccurredCaptor report1 = new UserLifecycleEventOccurredCaptor();
         final UserJourneyLogger.UserJourneySession session =
                 mUserJourneyLogger.logUserJourneyBegin(-1, USER_JOURNEY_USER_CREATE);
@@ -155,10 +176,10 @@ public class UserJourneyLoggerTest {
         UserInfo targetUser =
                 new UserInfo(
                         profileUserId,
-                        "test private target user",
+                        "test profile target user",
                         /* iconPath= */ null,
                         UserInfo.FLAG_PROFILE,
-                        UserManager.USER_TYPE_PROFILE_PRIVATE);
+                        userType);
         mUserJourneyLogger.logUserCreateJourneyFinish(0, targetUser);
 
         report1.captureAndAssert(
@@ -176,7 +197,7 @@ public class UserJourneyLoggerTest {
                 USER_JOURNEY_USER_CREATE,
                 0,
                 profileUserId,
-                FrameworkStatsLog.USER_LIFECYCLE_JOURNEY_REPORTED__USER_TYPE__PROFILE_PRIVATE,
+                expectedLog,
                 UserInfo.FLAG_PROFILE,
                 ERROR_CODE_UNSPECIFIED,
                 1);
@@ -210,6 +231,18 @@ public class UserJourneyLoggerTest {
 
     @Test
     public void testRemovePrivateProfileUserJourneyWithError() {
+        testRemoveProfileUserJourneyWithError(UserManager.USER_TYPE_PROFILE_PRIVATE,
+                FrameworkStatsLog.USER_LIFECYCLE_JOURNEY_REPORTED__USER_TYPE__PROFILE_PRIVATE);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_SUPERVISION_PIN_METRICS)
+    public void testRemoveSupervisingProfileUserJourneyWithError() {
+        testRemoveProfileUserJourneyWithError(UserManager.USER_TYPE_PROFILE_SUPERVISING,
+                FrameworkStatsLog.USER_LIFECYCLE_JOURNEY_REPORTED__USER_TYPE__PROFILE_SUPERVISING);
+    }
+
+    private void testRemoveProfileUserJourneyWithError(String userType, int expectedLog) {
         final UserLifecycleEventOccurredCaptor report1 = new UserLifecycleEventOccurredCaptor();
         final int profileUserId = 10;
         final UserJourneyLogger.UserJourneySession session =
@@ -228,10 +261,10 @@ public class UserJourneyLoggerTest {
         final UserInfo targetUser =
                 new UserInfo(
                         profileUserId,
-                        "test private target user",
+                        "test profile target user",
                         /* iconPath= */ null,
                         UserInfo.FLAG_PROFILE,
-                        UserManager.USER_TYPE_PROFILE_PRIVATE);
+                        userType);
         mUserJourneyLogger.logUserJourneyFinishWithError(
                 0, targetUser, USER_JOURNEY_USER_REMOVE, ERROR_CODE_INCOMPLETE_OR_TIMEOUT);
 
@@ -250,7 +283,7 @@ public class UserJourneyLoggerTest {
                 USER_JOURNEY_USER_REMOVE,
                 0,
                 profileUserId,
-                FrameworkStatsLog.USER_LIFECYCLE_JOURNEY_REPORTED__USER_TYPE__PROFILE_PRIVATE,
+                expectedLog,
                 UserInfo.FLAG_PROFILE,
                 ERROR_CODE_INCOMPLETE_OR_TIMEOUT,
                 1);

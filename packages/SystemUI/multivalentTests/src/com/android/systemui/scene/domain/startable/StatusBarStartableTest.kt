@@ -20,7 +20,6 @@ import android.app.StatusBarManager
 import android.provider.DeviceConfig
 import android.view.WindowManagerPolicyConstants
 import androidx.test.filters.SmallTest
-import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.compose.animation.scene.OverlayKey
 import com.android.compose.animation.scene.SceneKey
 import com.android.internal.config.sysui.SystemUiDeviceConfigFlags
@@ -31,19 +30,21 @@ import com.android.systemui.authentication.shared.model.AuthenticationMethodMode
 import com.android.systemui.concurrency.fakeExecutor
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeBiometricSettingsRepository
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
+import com.android.systemui.keyguard.domain.interactor.biometricUnlockInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardOcclusionInteractor
-import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
+import com.android.systemui.keyguard.shared.model.BiometricUnlockSource
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.navigationbar.NavigationModeController
 import com.android.systemui.navigationbar.navigationModeController
 import com.android.systemui.power.data.repository.fakePowerRepository
 import com.android.systemui.power.shared.model.WakeSleepReason
 import com.android.systemui.power.shared.model.WakefulnessState
+import com.android.systemui.scene.data.repository.Idle
 import com.android.systemui.scene.data.repository.setSceneTransition
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.statusbar.phone.BiometricUnlockController
 import com.android.systemui.testKosmos
 import com.android.systemui.util.fakeDeviceConfigProxy
 import com.google.common.truth.Truth.assertThat
@@ -250,8 +251,9 @@ class StatusBarStartableTest : SysuiTestCase() {
     /** Sets up the state to match what's specified in the given [preconditions]. */
     private fun TestScope.setUpWith(preconditions: Preconditions) {
         if (!preconditions.isKeyguardShowing) {
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-                SuccessFingerprintAuthenticationStatus(0, true)
+            kosmos.biometricUnlockInteractor.setBiometricUnlockState(
+                unlockStateInt = BiometricUnlockController.MODE_DISMISS,
+                biometricUnlockSource = BiometricUnlockSource.FINGERPRINT_SENSOR,
             )
         }
         if (preconditions.isForceHideHomeAndRecents) {
@@ -263,8 +265,8 @@ class StatusBarStartableTest : SysuiTestCase() {
         }
         runCurrent()
 
-        kosmos.keyguardOcclusionInteractor.setWmNotifiedShowWhenLockedActivityOnTop(
-            showWhenLockedActivityOnTop = preconditions.isOccluded,
+        kosmos.keyguardOcclusionInteractor.setOccludedFromRemoteAnimation(
+            onTop = preconditions.isOccluded,
             taskInfo = if (preconditions.isOccluded) mock() else null,
         )
 
@@ -293,7 +295,8 @@ class StatusBarStartableTest : SysuiTestCase() {
 
         kosmos.fakePowerRepository.updateWakefulness(
             rawState =
-                if (preconditions.isPowerGestureIntercepted) WakefulnessState.AWAKE
+                if (preconditions.isPowerGestureIntercepted || preconditions.isOccluded)
+                    WakefulnessState.AWAKE
                 else WakefulnessState.ASLEEP,
             lastWakeReason = WakeSleepReason.POWER_BUTTON,
             lastSleepReason = WakeSleepReason.POWER_BUTTON,
@@ -309,8 +312,7 @@ class StatusBarStartableTest : SysuiTestCase() {
 
     /** Sets up an idle state on the given [on] scene. */
     private fun whenIdle(on: SceneKey, overlays: Set<OverlayKey> = emptySet()) {
-        kosmos.setSceneTransition(ObservableTransitionState.Idle(on, overlays))
-        kosmos.sceneInteractor.changeScene(on, "")
+        kosmos.setSceneTransition(Idle(on, overlays))
         for (overlay in overlays) {
             kosmos.sceneInteractor.showOverlay(overlay, "")
         }

@@ -19,6 +19,7 @@ import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SystemApi;
 import android.chre.flags.Flags;
 import android.os.BadParcelableException;
 import android.os.Parcel;
@@ -32,7 +33,8 @@ import java.lang.annotation.RetentionPolicy;
  *
  * @hide
  */
-@FlaggedApi(Flags.FLAG_OFFLOAD_API)
+@FlaggedApi(Flags.FLAG_GET_HUBS_API)
+@SystemApi
 public final class HubInfo implements Parcelable {
 
     @Retention(RetentionPolicy.SOURCE)
@@ -46,21 +48,34 @@ public final class HubInfo implements Parcelable {
     @HubType private final int mType;
     @Nullable private final ContextHubInfo mContextHubInfo;
     @Nullable private final VendorHubInfo mVendorHubInfo;
+    private final boolean mSupportsDataFlows;
 
     /** @hide */
     public HubInfo(long id, @NonNull ContextHubInfo contextHubInfo) {
+        this(id, contextHubInfo, /* supportsDataFlows= */ false);
+    }
+
+    /** @hide */
+    public HubInfo(long id, @NonNull ContextHubInfo contextHubInfo, boolean supportsDataFlows) {
         mId = id;
         mType = TYPE_CONTEXT_HUB;
         mContextHubInfo = contextHubInfo;
         mVendorHubInfo = null;
+        mSupportsDataFlows = supportsDataFlows;
     }
 
     /** @hide */
     public HubInfo(long id, @NonNull VendorHubInfo vendorHubInfo) {
+        this(id, vendorHubInfo, /* supportsDataFlows= */ false);
+    }
+
+    /** @hide */
+    public HubInfo(long id, @NonNull VendorHubInfo vendorHubInfo, boolean supportsDataFlows) {
         mId = id;
         mType = TYPE_VENDOR_HUB;
         mContextHubInfo = null;
         mVendorHubInfo = vendorHubInfo;
+        mSupportsDataFlows = supportsDataFlows;
     }
 
     private HubInfo(Parcel in) {
@@ -79,6 +94,7 @@ public final class HubInfo implements Parcelable {
             default:
                 throw new BadParcelableException("Parcelable has invalid type");
         }
+        mSupportsDataFlows = in.readBoolean();
     }
 
     /** Get the hub unique identifier */
@@ -95,6 +111,17 @@ public final class HubInfo implements Parcelable {
     @Nullable
     public ContextHubInfo getContextHubInfo() {
         return mContextHubInfo;
+    }
+
+    /** Get the {@link VendorHubInfo} object, null if type is not {@link TYPE_VENDOR_HUB} */
+    @Nullable
+    public VendorHubInfo getVendorHubInfo() {
+        return mVendorHubInfo;
+    }
+
+    /** Returns whether data flows to/from this hub are supported. */
+    public boolean areDataFlowsSupported() {
+        return mSupportsDataFlows;
     }
 
     /** Parcel implementation details */
@@ -120,6 +147,7 @@ public final class HubInfo implements Parcelable {
         if (mType == TYPE_VENDOR_HUB && mVendorHubInfo != null) {
             mVendorHubInfo.writeToParcel(out, flags);
         }
+        out.writeBoolean(mSupportsDataFlows);
     }
 
     @NonNull
@@ -137,6 +165,8 @@ public final class HubInfo implements Parcelable {
             out.append(" VendorHubDetails: ");
             out.append(mVendorHubInfo);
         }
+        out.append(" supportsDataFlows: ");
+        out.append(mSupportsDataFlows);
         return out.toString();
     }
 

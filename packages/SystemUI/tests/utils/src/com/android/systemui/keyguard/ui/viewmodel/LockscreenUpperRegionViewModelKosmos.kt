@@ -16,8 +16,10 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import com.android.systemui.desktop.domain.interactor.desktopInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardClockInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
+import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
@@ -36,6 +38,8 @@ val Kosmos.lockscreenUpperRegionViewModelFactory by Fixture {
                 headsUpNotificationInteractor = headsUpNotificationInteractor,
                 keyguardMediaViewModelFactory = keyguardMediaViewModelFactory,
                 activeNotificationsInteractor = activeNotificationsInteractor,
+                desktopInteractor = desktopInteractor,
+                transitionInteractor = keyguardTransitionInteractor,
             )
         }
     }

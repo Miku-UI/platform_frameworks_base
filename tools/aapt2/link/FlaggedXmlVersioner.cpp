@@ -79,8 +79,10 @@ std::vector<std::unique_ptr<xml::XmlResource>> FlaggedXmlVersioner::Process(IAap
   std::vector<std::unique_ptr<xml::XmlResource>> docs;
   if (!doc->file.uses_readwrite_feature_flags) {
     docs.push_back(doc->Clone());
-  } else if ((static_cast<ApiVersion>(doc->file.config.sdkVersion) >= SDK_BAKLAVA) ||
-             (static_cast<ApiVersion>(context->GetMinSdkVersion()) >= SDK_BAKLAVA)) {
+  } else if ((static_cast<ApiVersion>(doc->file.config.sdkVersion) > SDK_BAKLAVA) ||
+             (static_cast<ApiVersion>(doc->file.config.sdkVersion) == SDK_BAKLAVA &&
+              doc->file.config.minorVersion >= 1) ||
+             (static_cast<ApiVersion>(context->GetMinSdkVersion()) > SDK_BAKLAVA)) {
     // Support for read/write flags was added in baklava so if the doc will only get used on
     // baklava or later we can just return the original doc.
     auto clonedVersion = doc->Clone();
@@ -95,6 +97,7 @@ std::vector<std::unique_ptr<xml::XmlResource>> FlaggedXmlVersioner::Process(IAap
 
     auto baklavaVersion = doc->Clone();
     baklavaVersion->file.config.sdkVersion = SDK_BAKLAVA;
+    baklavaVersion->file.config.minorVersion = 1;
     FlagMarkingVisitor flag_marking_visitor;
     baklavaVersion->root->Accept(&flag_marking_visitor);
     docs.push_back(std::move(baklavaVersion));

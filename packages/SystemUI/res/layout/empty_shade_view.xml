@@ -18,10 +18,10 @@
 <!-- Extends FrameLayout -->
 <com.android.systemui.statusbar.notification.emptyshade.ui.view.EmptyShadeIconView
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:id="@+id/empty_shade_view"
     android:visibility="gone">
 
     <LinearLayout
@@ -40,7 +40,7 @@
             android:layout_height="@dimen/empty_shade_icon_size"
             android:layout_marginBottom="@dimen/empty_shade_icon_bottom_margin"
             android:scaleType="fitCenter"
-            app:tint="@androidprv:color/materialColorOnSurface"
+            android:tint="@color/materialColorOnSurface"
             android:importantForAccessibility="no"
             android:src="@drawable/ic_trophy"></ImageView>
 

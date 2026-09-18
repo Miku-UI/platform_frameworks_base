@@ -1,0 +1,10 @@
+package: "android.app.search.flags"
+container: "system"
+
+flag {
+  name: "remote_views"
+  namespace: "sysui_integrations"
+  is_exported: true
+  description: "Flag to enable the FlaggedApi to include RemoteViews in SearchTarget"
+  bug: "441352730"
+}

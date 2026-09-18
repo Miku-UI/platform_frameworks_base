@@ -23,6 +23,7 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.model.sysuiStateInteractor
 import com.android.systemui.statusbar.policy.configurationController
 import com.android.systemui.util.mockito.mock
+import com.android.systemui.window.domain.interactor.windowRootViewBlurInteractor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
@@ -33,6 +34,7 @@ val Kosmos.systemUIDialogFactory: SystemUIDialogFactory by
             systemUIDialogManager,
             broadcastDispatcher,
             dialogTransitionAnimator,
+            windowRootViewBlurInteractor,
         )
     }
 
@@ -46,6 +48,7 @@ val Kosmos.systemUIDialogDotFactory by
             systemUIDialogManager,
             broadcastDispatcher,
             dialogTransitionAnimator,
+            windowRootViewBlurInteractor,
         )
     }
 

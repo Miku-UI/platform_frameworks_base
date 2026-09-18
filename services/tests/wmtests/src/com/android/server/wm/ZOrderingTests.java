@@ -31,6 +31,7 @@ import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_MEDIA_OVE
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_PANEL;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_SUB_PANEL;
 import static android.view.WindowManager.LayoutParams.TYPE_BASE_APPLICATION;
+import static android.view.WindowManager.LayoutParams.TYPE_INPUT_METHOD;
 import static android.view.WindowManager.LayoutParams.TYPE_NAVIGATION_BAR_PANEL;
 import static android.view.WindowManager.LayoutParams.TYPE_SECURE_SYSTEM_OVERLAY;
 import static android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR_ADDITIONAL;
@@ -51,6 +52,7 @@ import static org.junit.Assert.assertNotNull;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.view.SurfaceControl;
 import android.window.ScreenCaptureInternal;
 
@@ -496,6 +498,10 @@ public class ZOrderingTests extends WindowTestsBase {
                 mDisplayContent.getImeContainer().getSurfaceControl());
     }
 
+    /**
+     * Verifies that system dialog windows in multi window mode are higher than the IME window
+     * (in z-order).
+     */
     @Test
     public void testSystemDialogWindow_expectHigherThanIme_inMultiWindow() {
         // Simulate the app window is in multi windowing mode and is IME layering and input target
@@ -519,8 +525,89 @@ public class ZOrderingTests extends WindowTestsBase {
         // Verify the surface layer of the popupWindow should higher than IME
         verify(systemDialogWindow).needsRelativeLayeringToIme();
         assertThat(systemDialogWindow.needsRelativeLayeringToIme()).isTrue();
+        final var imeContainer = mDisplayContent.getImeContainer();
         assertZOrderGreaterThan(mTransaction, systemDialogWindow.getSurfaceControl(),
-                mDisplayContent.getImeContainer().getSurfaceControl());
+                imeContainer.getSurfaceControl());
+        if (android.view.inputmethod.Flags.warmWorkProfileIme()) {
+            assertZOrderGreaterThan(mTransaction, systemDialogWindow.getSurfaceControl(),
+                    imeContainer.getImeWindowToken().getSurfaceControl());
+        }
+    }
+
+    /**
+     * Verifies that system dialog windows in multi window mode are higher than the current IME
+     * window (in z-order), when there are multiple ImeWindowTokens on the display.
+     */
+    @RequiresFlagsEnabled(android.view.inputmethod.Flags.FLAG_WARM_WORK_PROFILE_IME)
+    @Test
+    public void testSystemDialogWindow_expectHigherThanIme_inMultiWindow_withMultipleImes() {
+        // Simulate the app window is in multi windowing mode and is IME layering and input target
+        mAppWindow.getConfiguration().windowConfiguration.setWindowingMode(
+                WINDOWING_MODE_MULTI_WINDOW);
+        mDisplayContent.setImeInputTarget(mAppWindow);
+        mDisplayContent.setImeLayeringTarget(mAppWindow);
+        assertWithMessage("IME control target was updated")
+                .that(mDisplayContent.getImeControlTarget()).isEqualTo(mAppWindow);
+        makeWindowVisible(mImeWindow);
+
+        // Create a popupWindow
+        final WindowState systemDialogWindow = newWindowBuilder("SystemDialog",
+                TYPE_SECURE_SYSTEM_OVERLAY).setDisplay(
+                mDisplayContent).setOwnerCanAddInternalSystemWindow(true).build();
+        systemDialogWindow.mAttrs.flags |= FLAG_ALT_FOCUSABLE_IM;
+        spyOn(systemDialogWindow);
+
+        mDisplayContent.assignChildLayers(mTransaction);
+
+        final var imeContainer = mDisplayContent.getImeContainer();
+        final var imeWindowToken1 = mImeWindow.getParent().asImeToken();
+        assertWithMessage("imeWindow should have an ImeWindowToken parent")
+                .that(imeWindowToken1)
+                .isNotNull();
+
+        // Verify the surface layer of the popupWindow should higher than IME
+        verify(systemDialogWindow).needsRelativeLayeringToIme();
+        assertThat(systemDialogWindow.needsRelativeLayeringToIme()).isTrue();
+        assertZOrderGreaterThan(mTransaction, systemDialogWindow.getSurfaceControl(),
+                imeContainer.getSurfaceControl());
+        assertZOrderGreaterThan(mTransaction, systemDialogWindow.getSurfaceControl(),
+                imeWindowToken1.getSurfaceControl());
+
+        final WindowState imeWin2 = newWindowBuilder("imeWin2", TYPE_INPUT_METHOD).build();
+        final var imeWindowToken2 = imeWin2.getParent().asImeToken();
+        assertWithMessage("imeWin2 should have an ImeWindowToken parent").that(imeWindowToken2)
+                        .isNotNull();
+
+        assertThat(systemDialogWindow.needsRelativeLayeringToIme()).isTrue();
+        assertZOrderGreaterThan(mTransaction, systemDialogWindow.getSurfaceControl(),
+                imeContainer.getSurfaceControl());
+        // Greater than the first IME window (current).
+        assertZOrderGreaterThan(mTransaction, systemDialogWindow.getSurfaceControl(),
+                imeWindowToken1.getSurfaceControl());
+
+        imeContainer.setImeWindowToken(imeWindowToken2);
+        makeWindowVisible(imeWin2);
+        mDisplayContent.assignChildLayers(mTransaction);
+
+        assertThat(systemDialogWindow.needsRelativeLayeringToIme()).isTrue();
+        assertZOrderGreaterThan(mTransaction, systemDialogWindow.getSurfaceControl(),
+                imeContainer.getSurfaceControl());
+        // Greater than the first IME window (not current).
+        assertZOrderGreaterThan(mTransaction, systemDialogWindow.getSurfaceControl(),
+                imeWindowToken1.getSurfaceControl());
+        // Greater than the new IME window (current).
+        assertZOrderGreaterThan(mTransaction, systemDialogWindow.getSurfaceControl(),
+                imeWindowToken2.getSurfaceControl());
+
+        imeContainer.setImeWindowToken(imeWindowToken1);
+        mDisplayContent.assignChildLayers(mTransaction);
+
+        assertThat(systemDialogWindow.needsRelativeLayeringToIme()).isTrue();
+        assertZOrderGreaterThan(mTransaction, systemDialogWindow.getSurfaceControl(),
+                imeContainer.getSurfaceControl());
+        // Greater than the first IME window (current).
+        assertZOrderGreaterThan(mTransaction, systemDialogWindow.getSurfaceControl(),
+                imeWindowToken1.getSurfaceControl());
     }
 
     @Test
@@ -528,9 +615,12 @@ public class ZOrderingTests extends WindowTestsBase {
         final Task task = createTask(mDisplayContent);
         final WindowState imeAppTarget = createAppWindow(task, TYPE_APPLICATION, "imeAppTarget");
         final Rect bounds = mImeWindow.getParentFrame();
+        assertWithMessage("IME Parent Frame should not be empty").that(bounds.isEmpty()).isFalse();
+
         final ScreenCaptureInternal.ScreenshotHardwareBuffer imeBuffer =
                 ScreenCaptureInternal.captureLayersExcluding(
                         mImeWindow.getSurfaceControl(), bounds, 1.0f, PixelFormat.RGB_565, null);
+        assertWithMessage("IME screenshot buffer should not be null").that(imeBuffer).isNotNull();
 
         spyOn(mDisplayContent.mWmService.mTaskSnapshotController);
         doReturn(imeBuffer).when(mDisplayContent.mWmService.mTaskSnapshotController)
@@ -540,7 +630,6 @@ public class ZOrderingTests extends WindowTestsBase {
 
         assertEquals(imeAppTarget, mDisplayContent.mImeScreenshot.getImeTarget());
         assertNotNull(mDisplayContent.mImeScreenshot);
-        assertNotNull(imeBuffer);
         assertZOrderGreaterThan(mTransaction, mDisplayContent.mImeScreenshot.getSurface(),
                 imeAppTarget.mSurfaceControl);
     }

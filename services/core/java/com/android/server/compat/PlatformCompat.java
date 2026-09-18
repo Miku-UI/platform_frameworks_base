@@ -20,6 +20,7 @@ import static android.Manifest.permission.LOG_COMPAT_CHANGE;
 import static android.Manifest.permission.OVERRIDE_COMPAT_CHANGE_CONFIG;
 import static android.Manifest.permission.OVERRIDE_COMPAT_CHANGE_CONFIG_ON_RELEASE_BUILD;
 import static android.Manifest.permission.READ_COMPAT_CHANGE_CONFIG;
+import static android.os.MessageQueue.USE_NEW_MESSAGEQUEUE;
 
 import android.annotation.EnforcePermission;
 import android.annotation.RequiresNoPermission;
@@ -452,6 +453,23 @@ public class PlatformCompat extends IPlatformCompat.Stub {
     }
 
     /**
+     * Retrieves the set of enabled changes for a given app (overrides).
+     *
+     * @param appInfo The app in question
+     * @return A sorted long array of change IDs.
+     */
+    public long[] getEnabledChanges(ApplicationInfo appInfo) {
+        return mCompatConfig.getEnabledChanges(appInfo);
+    }
+
+    /**
+     * Retrieves whether the DeliQueue implementation of MessageQueue is enabled.
+     */
+    public boolean getUseDeliQueue(ApplicationInfo appInfo) {
+        return mCompatConfig.isChangeEnabled(USE_NEW_MESSAGEQUEUE, appInfo);
+    }
+
+    /**
      * Retrieves the set of changes that should be logged for a given app. Any change ID not in the
      * returned array is ignored for logging purposes.
      *
@@ -472,6 +490,14 @@ public class PlatformCompat extends IPlatformCompat.Stub {
      */
     public long lookupChangeId(String name) {
         return mCompatConfig.lookupChangeId(name);
+    }
+
+    /**
+     * Returns all the known compat-IDs. Ravenwood uses it to ensure no unknown compat-IDs
+     * may be used. The result is sorted.
+     */
+    public long[] getAllChangeIds() {
+        return mCompatConfig.getAllChangeIds();
     }
 
     @Override

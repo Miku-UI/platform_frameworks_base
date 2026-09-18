@@ -1,6 +1,15 @@
 {
   "presubmit": [
     {
+      "name": "FrameworksCoreTests_companion_virtual"
+    },
+    {
+      "name": "FrameworksServicesTests_companion_virtual"
+    },
+    {
+      "name": "VirtualDeviceServicesTests"
+    },
+    {
       "name": "CtsVirtualDevicesTestCases"
     },
     {
@@ -15,6 +24,9 @@
     {
       "name": "CtsVirtualDevicesCameraTestCases",
       "keywords": ["primary-device"]
+    },
+    {
+      "name": "CtsVirtualDevicesComputerControlTests"
     },
     {
       "name": "CtsHardwareTestCases_cts_tests",

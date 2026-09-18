@@ -19,7 +19,7 @@ package com.android.systemui.media.remedia.domain.model
 import com.android.systemui.common.shared.model.Icon
 
 sealed interface MediaActionModel {
-    data class Action(val icon: Icon, val onClick: (() -> Unit)?) : MediaActionModel
+    data class Action(val id: Int, val icon: Icon, val onClick: (() -> Unit)?) : MediaActionModel
 
     data object ReserveSpace : MediaActionModel
 

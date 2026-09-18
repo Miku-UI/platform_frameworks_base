@@ -34,8 +34,8 @@ import org.junit.runner.RunWith
 class WorkSerializerTest : ShellTestCase() {
 
     /**
-     * Tests that jobs are executed sequentially in the order they are posted (FIFO),
-     * regardless of their internal delays.
+     * Tests that jobs are executed sequentially in the order they are posted (FIFO), regardless of
+     * their internal delays.
      */
     @Test
     fun queueMultipleJobs_executesSequentially() = runTest {
@@ -67,8 +67,8 @@ class WorkSerializerTest : ShellTestCase() {
     }
 
     /**
-     * Tests that if a job throws an exception, the queue does not stop and
-     * continues to process subsequent jobs.
+     * Tests that if a job throws an exception, the queue does not stop and continues to process
+     * subsequent jobs.
      */
     @Test
     fun queueWithException_doesNotStopProcessing() = runTest {
@@ -89,8 +89,8 @@ class WorkSerializerTest : ShellTestCase() {
     }
 
     /**
-     * Tests that after calling close(), the queue finishes its current work
-     * but does not accept new submissions.
+     * Tests that after calling close(), the queue finishes its current work but does not accept new
+     * submissions.
      */
     @Test
     fun queueAfterClose_doesNotAcceptNewJobs() = runTest {
@@ -112,9 +112,7 @@ class WorkSerializerTest : ShellTestCase() {
         queue.close()
 
         // This job should be ignored because the channel is closed
-        queue.post {
-            executionOrder.add(3)
-        }
+        queue.post { executionOrder.add(3) }
 
         testScheduler.advanceUntilIdle()
 

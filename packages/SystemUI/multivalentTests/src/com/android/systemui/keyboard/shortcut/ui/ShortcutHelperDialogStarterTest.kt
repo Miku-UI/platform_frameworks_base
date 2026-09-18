@@ -20,7 +20,8 @@ import android.content.Context
 import android.content.Context.INPUT_SERVICE
 import android.content.applicationContext
 import android.hardware.input.fakeInputManager
-import androidx.test.annotation.UiThreadTest
+import android.view.WindowManager
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -35,19 +36,21 @@ import com.android.systemui.keyboard.shortcut.shortcutHelperMultiTaskingShortcut
 import com.android.systemui.keyboard.shortcut.shortcutHelperSystemShortcutsSource
 import com.android.systemui.keyboard.shortcut.shortcutHelperTestHelper
 import com.android.systemui.keyboard.shortcut.shortcutHelperViewModel
+import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testCase
 import com.android.systemui.kosmos.testDispatcher
-import com.android.systemui.kosmos.testScope
 import com.android.systemui.plugins.activityStarter
+import com.android.systemui.runOnMainThreadAndWaitForIdleSync
 import com.android.systemui.settings.FakeUserTracker
 import com.android.systemui.settings.userTracker
 import com.android.systemui.statusbar.phone.systemUIDialogFactory
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.runTest
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
@@ -56,6 +59,8 @@ import org.mockito.kotlin.whenever
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class ShortcutHelperDialogStarterTest : SysuiTestCase() {
+
+    @get:Rule val composeTestRule = createEmptyComposeRule()
 
     private val fakeSystemSource = FakeKeyboardShortcutGroupsSource()
     private val fakeMultiTaskingSource = FakeKeyboardShortcutGroupsSource()
@@ -74,7 +79,6 @@ class ShortcutHelperDialogStarterTest : SysuiTestCase() {
         }
 
     private val inputManager = kosmos.fakeInputManager.inputManager
-    private val testScope = kosmos.testScope
     private val testHelper = kosmos.shortcutHelperTestHelper
     private val dialogFactory = kosmos.systemUIDialogFactory
     private val coroutineScope = kosmos.applicationCoroutineScope
@@ -88,6 +92,7 @@ class ShortcutHelperDialogStarterTest : SysuiTestCase() {
                 viewModel,
                 shortcutCustomizationDialogStarterFactory,
                 dialogFactory,
+                userTracker,
                 activityStarter,
                 testDispatcher,
             )
@@ -101,104 +106,136 @@ class ShortcutHelperDialogStarterTest : SysuiTestCase() {
     }
 
     @Test
-    fun start_doesNotShowDialogByDefault() =
-        testScope.runTest {
-            starter.start()
+    fun start_doesNotShowDialogByDefault() = runTestAndDismiss {
+        starter.start()
 
-            assertThat(starter.dialog).isNull()
-        }
-
-    @Test
-    @UiThreadTest
-    fun start_onToggle_showsDialog() =
-        testScope.runTest {
-            starter.start()
-
-            testHelper.toggle(deviceId = 456)
-
-            assertThat(starter.dialog?.isShowing).isTrue()
-        }
+        assertThat(starter.dialog).isNull()
+    }
 
     @Test
-    fun start_onToggle_noShortcuts_doesNotStartActivity() =
-        testScope.runTest {
-            fakeSystemSource.setGroups(emptyList())
-            fakeMultiTaskingSource.setGroups(emptyList())
+    fun start_onToggle_showsDialog() = runTestAndDismiss {
+        starter.start()
 
-            starter.start()
+        runOnMainThreadAndWaitForIdleSync { testHelper.toggle(deviceId = 456) }
 
-            testHelper.toggle(deviceId = 456)
-
-            assertThat(starter.dialog).isNull()
-        }
+        assertThat(starter.dialog?.isShowing).isTrue()
+    }
 
     @Test
-    @UiThreadTest
-    fun start_onRequestShowShortcuts_startsActivity() =
-        testScope.runTest {
-            starter.start()
+    fun start_onToggle_dialogHasNoAltFocusableImFlag() = runTestAndDismiss {
+        starter.start()
 
+        runOnMainThreadAndWaitForIdleSync { testHelper.toggle(deviceId = 456) }
+
+        val windowFlags = starter.dialog?.window?.attributes?.flags ?: 0
+        assertThat(windowFlags and WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM).isEqualTo(0)
+        assertThat(starter.dialog?.window?.attributes?.type)
+            .isEqualTo(WindowManager.LayoutParams.TYPE_STATUS_BAR_SUB_PANEL)
+    }
+
+    @Test
+    fun start_onToggle_noShortcuts_doesNotStartActivity() = runTestAndDismiss {
+        fakeSystemSource.setGroups(emptyList())
+        fakeMultiTaskingSource.setGroups(emptyList())
+
+        starter.start()
+
+        runOnMainThreadAndWaitForIdleSync { testHelper.toggle(deviceId = 456) }
+
+        assertThat(starter.dialog).isNull()
+    }
+
+    @Test
+    //    @UiThreadTest
+    fun start_onRequestShowShortcuts_startsActivity() = runTestAndDismiss {
+        starter.start()
+
+        runOnMainThreadAndWaitForIdleSync { testHelper.showFromActivity() }
+
+        assertThat(starter.dialog?.isShowing).isTrue()
+    }
+
+    @Test
+    fun start_onRequestShowShortcuts_noShortcuts_doesNotStartActivity() = runTestAndDismiss {
+        fakeSystemSource.setGroups(emptyList())
+        fakeMultiTaskingSource.setGroups(emptyList())
+        starter.start()
+
+        runOnMainThreadAndWaitForIdleSync { testHelper.showFromActivity() }
+
+        assertThat(starter.dialog).isNull()
+    }
+
+    @Test
+    fun start_onRequestShowShortcuts_multipleTimes_startsActivityOnlyOnce() = runTestAndDismiss {
+        starter.start()
+
+        runOnMainThreadAndWaitForIdleSync {
             testHelper.showFromActivity()
-
-            assertThat(starter.dialog?.isShowing).isTrue()
+            testHelper.showFromActivity()
+            testHelper.showFromActivity()
         }
 
-    @Test
-    fun start_onRequestShowShortcuts_noShortcuts_doesNotStartActivity() =
-        testScope.runTest {
-            fakeSystemSource.setGroups(emptyList())
-            fakeMultiTaskingSource.setGroups(emptyList())
-            starter.start()
-
-            testHelper.showFromActivity()
-
-            assertThat(starter.dialog).isNull()
-        }
+        assertThat(starter.dialog?.isShowing).isTrue()
+    }
 
     @Test
-    @UiThreadTest
-    fun start_onRequestShowShortcuts_multipleTimes_startsActivityOnlyOnce() =
-        testScope.runTest {
-            starter.start()
-
-            testHelper.showFromActivity()
-            testHelper.showFromActivity()
-            testHelper.showFromActivity()
-
-            assertThat(starter.dialog?.isShowing).isTrue()
-        }
-
-    @Test
-    @UiThreadTest
     fun start_onRequestShowShortcuts_multipleTimes_startsActivityOnlyWhenNotStarted() =
-        testScope.runTest {
+        runTestAndDismiss {
             starter.start()
 
             assertThat(starter.dialog).isNull()
-            // No-op. Already hidden.
-            testHelper.hideFromActivity()
+            runOnMainThreadAndWaitForIdleSync {
+                // No-op. Already hidden.
+                testHelper.hideFromActivity()
+            }
             assertThat(starter.dialog).isNull()
-            // No-op. Already hidden.
-            testHelper.hideForSystem()
+            runOnMainThreadAndWaitForIdleSync {
+                // No-op. Already hidden.
+                testHelper.hideForSystem()
+            }
             assertThat(starter.dialog).isNull()
-            // Show 1st time.
-            testHelper.toggle(deviceId = 987)
+            runOnMainThreadAndWaitForIdleSync {
+                // Show 1st time.
+                testHelper.toggle(deviceId = 987)
+            }
             assertThat(starter.dialog).isNotNull()
             assertThat(starter.dialog?.isShowing).isTrue()
-            // No-op. Already shown.
-            testHelper.showFromActivity()
+            runOnMainThreadAndWaitForIdleSync {
+                // No-op. Already shown.
+                testHelper.showFromActivity()
+            }
             assertThat(starter.dialog?.isShowing).isTrue()
-            // Hidden.
-            testHelper.hideFromActivity()
+            runOnMainThreadAndWaitForIdleSync {
+                // Hidden.
+                testHelper.hideFromActivity()
+            }
             assertThat(starter.dialog?.isShowing).isFalse()
-            // No-op. Already hidden.
-            testHelper.hideForSystem()
+            runOnMainThreadAndWaitForIdleSync {
+                // No-op. Already hidden.
+                testHelper.hideForSystem()
+            }
             assertThat(starter.dialog?.isShowing).isFalse()
-            // Show 2nd time.
-            testHelper.toggle(deviceId = 456)
+            runOnMainThreadAndWaitForIdleSync {
+                // Show 2nd time.
+                testHelper.toggle(deviceId = 456)
+            }
             assertThat(starter.dialog?.isShowing).isTrue()
-            // No-op. Already shown.
-            testHelper.showFromActivity()
+            runOnMainThreadAndWaitForIdleSync {
+                // No-op. Already shown.
+                testHelper.showFromActivity()
+            }
             assertThat(starter.dialog?.isShowing).isTrue()
+        }
+
+    /** Runs the given test block and dismisses any dialog at the end. */
+    private fun runTestAndDismiss(block: suspend Kosmos.() -> Unit) =
+        kosmos.runTest {
+            try {
+                block()
+            } finally {
+                runOnMainThreadAndWaitForIdleSync { testHelper.hideForSystem() }
+                composeTestRule.waitForIdle()
+            }
         }
 }

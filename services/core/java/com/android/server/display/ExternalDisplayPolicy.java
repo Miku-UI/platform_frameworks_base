@@ -148,14 +148,6 @@ class ExternalDisplayPolicy {
             handleMirrorBuiltInDisplaySettingChangeLocked(/*enableDisplays=*/ false);
         }
 
-        if (!mFlags.isConnectedDisplayErrorHandlingEnabled()) {
-            if (DEBUG) {
-                Slog.d(TAG, "ConnectedDisplayErrorHandlingEnabled is not enabled on your device:"
-                                    + " cannot register thermal listener.");
-            }
-            return;
-        }
-
         if (!registerThermalServiceListener(new SkinThermalStatusObserver())) {
             Slog.e(TAG, "Failed to register thermal listener");
         }
@@ -208,8 +200,11 @@ class ExternalDisplayPolicy {
             return;
         }
 
+        var displayId = logicalDisplay.getDisplayIdLocked();
         if (!mIsBootCompleted) {
-            mDisplayIdsWaitingForBootCompletion.add(logicalDisplay.getDisplayIdLocked());
+            mDisplayIdsWaitingForBootCompletion.add(displayId);
+            // If display is connected before boot completes - send "CONNECTED" event.
+            mInjector.sendExternalDisplayEventLocked(logicalDisplay, EVENT_DISPLAY_CONNECTED);
             return;
         }
 
@@ -217,11 +212,13 @@ class ExternalDisplayPolicy {
 
         if (shouldAutoEnable(logicalDisplay)) {
             Slog.w(TAG, "External display is enabled by default, bypassing user consent.");
-            mInjector.sendExternalDisplayEventLocked(logicalDisplay, EVENT_DISPLAY_CONNECTED);
+            if (isDisplayConnectedAfterBootCompletes(displayId)) {
+                // If display is connected after boot completes - send "CONNECTED" event
+                mInjector.sendExternalDisplayEventLocked(logicalDisplay, EVENT_DISPLAY_CONNECTED);
+            }
             return;
         } else {
             // As external display is enabled by default, need to disable it now.
-            // TODO(b/292196201) Remove when the display can be disabled before DPC is created.
             mLogicalDisplayMapper.setEnabledLocked(logicalDisplay, false);
         }
 
@@ -232,11 +229,14 @@ class ExternalDisplayPolicy {
             return;
         }
 
-        mInjector.sendExternalDisplayEventLocked(logicalDisplay, EVENT_DISPLAY_CONNECTED);
+        if (isDisplayConnectedAfterBootCompletes(displayId)) {
+            // If display is connected after boot completes - send "CONNECTED" event
+            mInjector.sendExternalDisplayEventLocked(logicalDisplay, EVENT_DISPLAY_CONNECTED);
+        }
 
         if (DEBUG) {
             Slog.d(TAG, "handleExternalDisplayConnectedLocked complete"
-                                + " displayId=" + logicalDisplay.getDisplayIdLocked());
+                                + " displayId=" + displayId);
         }
     }
 
@@ -284,29 +284,19 @@ class ExternalDisplayPolicy {
         }
     }
 
+    private boolean isDisplayConnectedAfterBootCompletes(int displayId) {
+        return !mDisplayIdsWaitingForBootCompletion.contains(displayId);
+    }
+
     private boolean shouldAutoEnable(LogicalDisplay logicalDisplay) {
-        if ((Build.IS_ENG || Build.IS_USERDEBUG)
-                && SystemProperties.getBoolean(ENABLE_ON_CONNECT, false)) return true;
-
-        // If using the new connection dialog, then don't auto enable displays so the dialog
-        // has a reason to show
-        if (mFlags.isUpdatedDisplayConnectionDialogEnabled()) return false;
-
-        return mFlags.isDisplayContentModeManagementEnabled()
-                && logicalDisplay.canHostTasksLocked();
+        return ((Build.IS_ENG || Build.IS_USERDEBUG)
+                && SystemProperties.getBoolean(ENABLE_ON_CONNECT, false))
+                || mLogicalDisplayMapper.isEnabledInLayoutLocked(logicalDisplay);
     }
 
     @GuardedBy("mSyncRoot")
     private void disableExternalDisplayLocked(@NonNull final LogicalDisplay logicalDisplay) {
         if (!isExternalDisplayLocked(logicalDisplay)) {
-            return;
-        }
-
-        if (!mFlags.isConnectedDisplayErrorHandlingEnabled()) {
-            if (DEBUG) {
-                Slog.d(TAG, "disableExternalDisplayLocked shouldn't be called when the"
-                                    + " error handling flag is off");
-            }
             return;
         }
 

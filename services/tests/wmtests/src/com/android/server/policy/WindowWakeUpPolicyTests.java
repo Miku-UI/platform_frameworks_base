@@ -25,6 +25,7 @@ import static android.os.PowerManager.WAKE_REASON_WAKE_MOTION;
 import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.InputDevice.SOURCE_ROTARY_ENCODER;
 import static android.view.InputDevice.SOURCE_TOUCHSCREEN;
+import static android.view.KeyEvent.FLAG_FROM_SYSTEM;
 import static android.view.KeyEvent.KEYCODE_HOME;
 import static android.view.KeyEvent.KEYCODE_POWER;
 import static android.view.KeyEvent.KEYCODE_STEM_PRIMARY;
@@ -137,18 +138,22 @@ public final class WindowWakeUpPolicyTests {
 
         // Verify the policy wake up call succeeds because of the call on the delegate, and not
         // because of a PowerManager wake up.
-        assertThat(mPolicy.wakeUpFromMotion(
-                mDefaultDisplay.getDisplayId(), 200, SOURCE_TOUCHSCREEN, true, false)).isTrue();
-        verify(mInputWakeUpDelegate).wakeUpFromMotion(200, SOURCE_TOUCHSCREEN, true, false);
+        assertThat(mPolicy.wakeUpFromMotion(DEFAULT_DISPLAY, 200, SOURCE_TOUCHSCREEN, true, false))
+                .isTrue();
+        verify(mInputWakeUpDelegate)
+                .wakeUpFromMotion(DEFAULT_DISPLAY, 200, SOURCE_TOUCHSCREEN, true, false);
         verifyNoPowerManagerWakeUp();
 
         setDelegatedMotionWakeUpResult(false);
 
         // Verify the policy wake up call succeeds because of the PowerManager wake up, since the
         // delegate would not handle the wake up request.
-        assertThat(mPolicy.wakeUpFromMotion(
-                mDefaultDisplay.getDisplayId(), 300, SOURCE_ROTARY_ENCODER, false, false)).isTrue();
-        verify(mInputWakeUpDelegate).wakeUpFromMotion(300, SOURCE_ROTARY_ENCODER, false, false);
+        assertThat(
+                        mPolicy.wakeUpFromMotion(
+                                DEFAULT_DISPLAY, 300, SOURCE_ROTARY_ENCODER, false, false))
+                .isTrue();
+        verify(mInputWakeUpDelegate)
+                .wakeUpFromMotion(DEFAULT_DISPLAY, 300, SOURCE_ROTARY_ENCODER, false, false);
         verify(mPowerManager).wakeUp(300, WAKE_REASON_WAKE_MOTION, "android.policy:MOTION");
     }
 
@@ -164,17 +169,38 @@ public final class WindowWakeUpPolicyTests {
 
         // Verify the policy wake up call succeeds because of the call on the delegate, and not
         // because of a PowerManager wake up.
-        assertThat(mPolicy.wakeUpFromKey(DEFAULT_DISPLAY, 200, KEYCODE_POWER, true)).isTrue();
-        verify(mInputWakeUpDelegate).wakeUpFromKey(200, KEYCODE_POWER, true);
+        assertThat(
+                        mPolicy.wakeUpFromKey(
+                                DEFAULT_DISPLAY,
+                                200,
+                                KEYCODE_POWER,
+                                /* isDown= */ true,
+                                FLAG_FROM_SYSTEM))
+                .isTrue();
+        verify(mInputWakeUpDelegate)
+                .wakeUpFromKey(
+                        DEFAULT_DISPLAY, 200, KEYCODE_POWER, /* isDown= */ true, FLAG_FROM_SYSTEM);
         verifyNoPowerManagerWakeUp();
 
         setDelegatedKeyWakeUpResult(false);
 
         // Verify the policy wake up call succeeds because of the PowerManager wake up, since the
         // delegate would not handle the wake up request.
-        assertThat(mPolicy.wakeUpFromKey(
-                DEFAULT_DISPLAY, 300, KEYCODE_STEM_PRIMARY, false)).isTrue();
-        verify(mInputWakeUpDelegate).wakeUpFromKey(300, KEYCODE_STEM_PRIMARY, false);
+        assertThat(
+                        mPolicy.wakeUpFromKey(
+                                DEFAULT_DISPLAY,
+                                300,
+                                KEYCODE_STEM_PRIMARY,
+                                /* isDown= */ false,
+                                /* keyEventFlags= */ 0))
+                .isTrue();
+        verify(mInputWakeUpDelegate)
+                .wakeUpFromKey(
+                        DEFAULT_DISPLAY,
+                        300,
+                        KEYCODE_STEM_PRIMARY,
+                        /* isDown= */ false,
+                        /* keyEventFlags= */ 0);
         verify(mPowerManager).wakeUp(300, WAKE_REASON_WAKE_KEY, "android.policy:KEY");
     }
 
@@ -182,8 +208,13 @@ public final class WindowWakeUpPolicyTests {
     @DisableFlags({FLAG_PER_DISPLAY_WAKE_BY_TOUCH})
     public void testWakeUpFromMotion() {
         runPowerManagerUpChecks(
-                () -> mPolicy.wakeUpFromMotion(mDefaultDisplay.getDisplayId(),
-                        mClock.uptimeMillis(), SOURCE_TOUCHSCREEN, true, false),
+                () ->
+                        mPolicy.wakeUpFromMotion(
+                                DEFAULT_DISPLAY,
+                                mClock.uptimeMillis(),
+                                SOURCE_TOUCHSCREEN,
+                                true,
+                                false),
                 WAKE_REASON_WAKE_MOTION,
                 "android.policy:MOTION");
     }
@@ -226,23 +257,31 @@ public final class WindowWakeUpPolicyTests {
     @DisableFlags({FLAG_PER_DISPLAY_WAKE_BY_TOUCH})
     public void testWakeUpFromKey_nonPowerKey() {
         runPowerManagerUpChecks(
-                () -> mPolicy.wakeUpFromKey(
-                        DEFAULT_DISPLAY, mClock.uptimeMillis(), KEYCODE_HOME, true),
+                () ->
+                        mPolicy.wakeUpFromKey(
+                                DEFAULT_DISPLAY,
+                                mClock.uptimeMillis(),
+                                KEYCODE_HOME,
+                                /* isDown= */ true,
+                                /* keyEventFlags= */ 0),
                 WAKE_REASON_WAKE_KEY,
                 "android.policy:KEY");
     }
 
     @Test
     @EnableFlags({FLAG_PER_DISPLAY_WAKE_BY_TOUCH})
-    @DisableFlags({com.android.server.display.feature.flags.Flags.FLAG_SEPARATE_TIMEOUTS,
-            com.android.server.power.feature.flags.Flags
-                    .FLAG_WAKE_ADJACENT_DISPLAYS_ON_WAKEUP_CALL})
+    @DisableFlags({com.android.server.display.feature.flags.Flags.FLAG_SEPARATE_TIMEOUTS})
     public void testWakeUpFromKey_invalidDisplay_perDisplayWakeByTouchEnabled() {
         final int displayId = Display.INVALID_DISPLAY;
         mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
 
-        boolean displayWokeUp = mPolicy.wakeUpFromKey(
-                displayId, mClock.uptimeMillis(), KEYCODE_POWER, /* isDown= */ false);
+        boolean displayWokeUp =
+                mPolicy.wakeUpFromKey(
+                        displayId,
+                        mClock.uptimeMillis(),
+                        KEYCODE_POWER,
+                        /* isDown= */ false,
+                        FLAG_FROM_SYSTEM);
 
         // Verify that default display is woken up
         assertThat(displayWokeUp).isTrue();
@@ -251,15 +290,18 @@ public final class WindowWakeUpPolicyTests {
     }
 
     @Test
-    @EnableFlags({com.android.server.display.feature.flags.Flags.FLAG_SEPARATE_TIMEOUTS,
-            com.android.server.power.feature.flags.Flags
-                    .FLAG_WAKE_ADJACENT_DISPLAYS_ON_WAKEUP_CALL})
+    @EnableFlags({com.android.server.display.feature.flags.Flags.FLAG_SEPARATE_TIMEOUTS})
     public void testWakeUpFromKey_invalidDisplay_makesDisplayIdIndependentWakeupCall() {
         final int displayId = Display.INVALID_DISPLAY;
         mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
 
-        boolean displayWokeUp = mPolicy.wakeUpFromKey(
-                displayId, mClock.uptimeMillis(), KEYCODE_POWER, /* isDown= */ false);
+        boolean displayWokeUp =
+                mPolicy.wakeUpFromKey(
+                        displayId,
+                        mClock.uptimeMillis(),
+                        KEYCODE_POWER,
+                        /* isDown= */ false,
+                        /* keyEventFlags= */ 0);
 
         // Verify that default display is woken up
         assertThat(displayWokeUp).isTrue();
@@ -324,12 +366,14 @@ public final class WindowWakeUpPolicyTests {
     }
 
     private void setDelegatedMotionWakeUpResult(boolean result) {
-        when(mInputWakeUpDelegate.wakeUpFromMotion(anyLong(), anyInt(), anyBoolean(), anyBoolean()))
+        when(mInputWakeUpDelegate.wakeUpFromMotion(
+                        anyInt(), anyLong(), anyInt(), anyBoolean(), anyBoolean()))
                 .thenReturn(result);
     }
 
     private void setDelegatedKeyWakeUpResult(boolean result) {
-        when(mInputWakeUpDelegate.wakeUpFromKey(anyLong(), anyInt(), anyBoolean()))
+        when(mInputWakeUpDelegate.wakeUpFromKey(
+                        anyInt(), anyLong(), anyInt(), anyBoolean(), anyInt()))
                 .thenReturn(result);
     }
 

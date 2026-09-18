@@ -19,7 +19,6 @@ package android.view;
 import static android.view.HapticFeedbackConstants.SCROLL_ITEM_FOCUS;
 import static android.view.HapticFeedbackConstants.SCROLL_LIMIT;
 import static android.view.HapticFeedbackConstants.SCROLL_TICK;
-import static android.view.flags.Flags.FLAG_DYNAMIC_VIEW_ROTARY_HAPTICS_CONFIGURATION;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -30,7 +29,6 @@ import static org.mockito.Mockito.when;
 import android.content.Context;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
-import android.view.flags.FeatureFlags;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -61,7 +59,6 @@ public final class HapticScrollFeedbackProviderTest {
     private TestView mView;
 
     @Mock ViewConfiguration mMockViewConfig;
-    @Mock FeatureFlags mMockFeatureFlags;
 
     private HapticScrollFeedbackProvider mProvider;
 
@@ -78,27 +75,7 @@ public final class HapticScrollFeedbackProviderTest {
     }
 
     @Test
-    public void testRotaryEncoder_noFeedbackWhenViewBasedFeedbackIsEnabled() {
-        mSetFlagsRule.disableFlags(FLAG_DYNAMIC_VIEW_ROTARY_HAPTICS_CONFIGURATION);
-        when(mMockViewConfig.isViewBasedRotaryEncoderHapticScrollFeedbackEnabled())
-                .thenReturn(true);
-        setHapticScrollTickInterval(5);
-
-        mProvider.onScrollProgress(
-                INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
-                /* deltaInPixels= */ 10);
-        mProvider.onSnapToItem(
-                INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL);
-        mProvider.onScrollLimit(
-                INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
-                /* isStart= */ true);
-
-        assertNoFeedback(mView);
-    }
-
-    @Test
     public void testRotaryEncoder_dynamicViewRotaryFeedback_enabledEvenWhenViewFeedbackIsEnabled() {
-        mSetFlagsRule.enableFlags(FLAG_DYNAMIC_VIEW_ROTARY_HAPTICS_CONFIGURATION);
         when(mMockViewConfig.isViewBasedRotaryEncoderHapticScrollFeedbackEnabled())
                 .thenReturn(true);
         setHapticScrollTickInterval(5);
@@ -110,27 +87,6 @@ public final class HapticScrollFeedbackProviderTest {
                 /* deltaInPixels= */ 10);
 
         assertFeedbackCount(mView, SCROLL_TICK, 1);
-    }
-
-    @Test
-    public void testRotaryEncoder_inputDeviceCustomized_noFeedbackWhenViewBasedFeedbackIsEnabled() {
-        mSetFlagsRule.disableFlags(FLAG_DYNAMIC_VIEW_ROTARY_HAPTICS_CONFIGURATION);
-
-        when(mMockViewConfig.isViewBasedRotaryEncoderHapticScrollFeedbackEnabled())
-                .thenReturn(true);
-        setHapticScrollTickInterval(5);
-
-        mProvider.onScrollProgress(
-                INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
-                /* deltaInPixels= */ 10);
-        mProvider.onSnapToItem(
-                INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL);
-        mProvider.onScrollLimit(
-                INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
-                /* isStart= */ true);
-
-        assertNoFeedback(mView);
-        assertThat(mView.mFeedbackForInputDevices).hasSize(0);
     }
 
     @Test
@@ -916,36 +872,6 @@ public final class HapticScrollFeedbackProviderTest {
                 /* isStart= */ false);
 
         assertFeedbackCount(mView, HapticFeedbackConstants.SCROLL_LIMIT, 1);
-    }
-
-    @Test
-    public void testNonRotaryInputFeedbackNotBlockedByRotaryUnavailability() {
-        mSetFlagsRule.disableFlags(FLAG_DYNAMIC_VIEW_ROTARY_HAPTICS_CONFIGURATION);
-        when(mMockViewConfig.isViewBasedRotaryEncoderHapticScrollFeedbackEnabled())
-                .thenReturn(true);
-        setHapticScrollFeedbackEnabled(true);
-        setHapticScrollTickInterval(5);
-        mProvider = new HapticScrollFeedbackProvider(mView, mMockViewConfig,
-                /* isFromView= */ false);
-
-        // Expect one feedback here. Touch input should provide feedback since scroll feedback has
-        // been enabled via `setHapticScrollFeedbackEnabled(true)`.
-        mProvider.onScrollProgress(
-                INPUT_DEVICE_1, InputDevice.SOURCE_TOUCHSCREEN, MotionEvent.AXIS_Y,
-                /* deltaInPixels= */ 10);
-        // Because `isViewBasedRotaryEncoderHapticScrollFeedbackEnabled()` is true and
-        // `disabledIfViewPlaysScrollHaptics` is true, the scroll progress from rotary encoders will
-        // produce no feedback.
-        mProvider.onScrollProgress(
-                INPUT_DEVICE_2, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
-                /* deltaInPixels= */ 20);
-        // This event from the touch screen should produce feedback. The rotary encoder event's
-        // inability to not play scroll feedback should not impact this touch input.
-        mProvider.onScrollProgress(
-                INPUT_DEVICE_1, InputDevice.SOURCE_TOUCHSCREEN, MotionEvent.AXIS_Y,
-                /* deltaInPixels= */ 30);
-
-        assertFeedbackCount(mView, HapticFeedbackConstants.SCROLL_TICK, 2);
     }
 
     @Test

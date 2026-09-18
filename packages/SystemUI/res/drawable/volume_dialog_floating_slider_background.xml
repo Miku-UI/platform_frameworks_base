@@ -16,6 +16,6 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
     android:shape="rectangle">
-    <corners android:radius="20dp" />
-    <solid android:color="@androidprv:color/materialColorSurface" />
+    <corners android:radius="@dimen/volume_dialog_floating_slider_background_corner_radius" />
+    <solid android:color="@color/materialColorSurface" />
 </shape>

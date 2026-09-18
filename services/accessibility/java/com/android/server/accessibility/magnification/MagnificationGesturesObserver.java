@@ -21,11 +21,11 @@ import static com.android.server.accessibility.magnification.MagnificationGestur
 import android.annotation.MainThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.annotation.SuppressLint;
-import android.util.Log;
 import android.util.Slog;
 import android.view.MotionEvent;
 
+import com.android.server.accessibility.AccessibilityLogUtil;
+import com.android.server.accessibility.Flags;
 import com.android.server.accessibility.gestures.GestureMatcher;
 
 import java.util.LinkedList;
@@ -38,9 +38,8 @@ import java.util.List;
  */
 class MagnificationGesturesObserver implements GesturesObserver.Listener {
 
-    private static final String LOG_TAG = "MagnificationGesturesObserver";
-    @SuppressLint("LongLogTag")
-    private static final boolean DBG = Log.isLoggable(LOG_TAG, Log.DEBUG);
+    private static final String LOG_TAG = MagnificationGesturesObserver.class.getSimpleName();
+    private static final boolean DEBUG = AccessibilityLogUtil.isDebugEnabled(LOG_TAG);
 
     /**
      * An Interface to determine if canceling detection and invoke the callbacks if the detection
@@ -108,16 +107,23 @@ class MagnificationGesturesObserver implements GesturesObserver.Listener {
      */
     @MainThread
     boolean onMotionEvent(MotionEvent event, MotionEvent rawEvent, int policyFlags) {
-        if (DBG) {
+        if (DEBUG) {
             Slog.d(LOG_TAG, "DetectGesture: event = " + event);
+        }
+        if (Flags.fixWindowMagnificationInactiveDoubleTap()) {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                mLastDownEventTime = event.getDownTime();
+            }
         }
         cacheDelayedMotionEvent(event, rawEvent, policyFlags);
         if (mCallback.shouldStopDetection(event)) {
             notifyDetectionCancel();
             return false;
         }
-        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
-            mLastDownEventTime = event.getDownTime();
+        if (!Flags.fixWindowMagnificationInactiveDoubleTap()) {
+            if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+                mLastDownEventTime = event.getDownTime();
+            }
         }
         return mGesturesObserver.onMotionEvent(event, rawEvent, policyFlags);
     }
@@ -125,7 +131,7 @@ class MagnificationGesturesObserver implements GesturesObserver.Listener {
     @Override
     public void onGestureCompleted(int gestureId, MotionEvent event, MotionEvent rawEvent,
             int policyFlags) {
-        if (DBG) {
+        if (DEBUG) {
             Slog.d(LOG_TAG, "onGestureCompleted: " + MagnificationGestureMatcher.gestureIdToString(
                     gestureId) + " event = " + event);
         }
@@ -138,7 +144,7 @@ class MagnificationGesturesObserver implements GesturesObserver.Listener {
 
     @Override
     public void onGestureCancelled(MotionEvent event, MotionEvent rawEvent, int policyFlags) {
-        if (DBG) {
+        if (DEBUG) {
             Slog.d(LOG_TAG, "onGestureCancelled:  event = " + event);
         }
         notifyDetectionCancel();
@@ -156,7 +162,7 @@ class MagnificationGesturesObserver implements GesturesObserver.Listener {
      * Resets all state to default.
      */
     private void clear() {
-        if (DBG) {
+        if (DEBUG) {
             Slog.d(LOG_TAG, "clear:" + mDelayedEventQueue);
         }
         recycleLastEvent();

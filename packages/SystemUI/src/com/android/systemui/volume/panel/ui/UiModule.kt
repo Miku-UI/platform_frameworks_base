@@ -38,9 +38,7 @@ interface UiModule {
         @VolumePanelScope
         @HeaderComponents
         fun provideHeaderComponents(): Collection<VolumePanelComponentKey> {
-            return setOf(
-                VolumePanelComponents.MEDIA_OUTPUT,
-            )
+            return setOf(VolumePanelComponents.MEDIA_OUTPUT)
         }
 
         @Provides
@@ -49,6 +47,7 @@ interface UiModule {
         fun provideFooterComponents(): Collection<VolumePanelComponentKey> {
             return listOf(
                 VolumePanelComponents.ANC,
+                VolumePanelComponents.MNC,
                 VolumePanelComponents.SPATIAL_AUDIO,
                 VolumePanelComponents.CAPTIONING,
             )

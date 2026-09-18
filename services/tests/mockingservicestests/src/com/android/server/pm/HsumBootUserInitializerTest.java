@@ -26,9 +26,11 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.when;
 
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.database.ContentObserver;
 import android.os.UserManager;
 import android.platform.test.annotations.DisableFlags;
@@ -69,9 +71,16 @@ public final class HsumBootUserInitializerTest {
     @Mock
     private PackageManagerService mMockPms;
     @Mock
+    private Context mMockContext;
+    @Mock
+    private PackageManager mMockPackageManager;
+    @Mock
     private ContentResolver mMockContentResolver;
     @Captor
     private ArgumentCaptor<ContentObserver> mCaptorContentObserver;
+
+    // NOTE: not used, hence always true
+    private final boolean mRequiresAdmin = true;
 
     // NOTE: not mocking yet, but need a real one because of resources
     private final Context mRealContext =
@@ -81,9 +90,13 @@ public final class HsumBootUserInitializerTest {
 
     @Before
     public void setFixtures() {
-        mFixture = new HsumBootUserInitializer(mMockUms, mMockAms, mMockPms, mMockContentResolver,
+        when(mMockContext.getContentResolver()).thenReturn(mMockContentResolver);
+        when(mMockContext.getPackageManager()).thenReturn(mMockPackageManager);
+        mFixture = new HsumBootUserInitializer(mMockUms, mMockAms, mMockPms,
                 // value of args below don't matter
-                /* shouldDesignateMainUser= */ false, /* shouldCreateInitialUser= */ false);
+                /* shouldDesignateMainUser= */ false,
+                /* shouldCreateInitialUser= */ false,
+                mRequiresAdmin, mMockContext);
     }
 
     @Test
@@ -91,7 +104,7 @@ public final class HsumBootUserInitializerTest {
         mockIsHsum(true);
 
         var instance = HsumBootUserInitializer.createInstance(mMockUms, mMockAms, mMockPms,
-                mMockContentResolver, mRealContext);
+                mRequiresAdmin, mRealContext);
 
         expect.withMessage("result of createInstance()").that(instance).isNotNull();
     }
@@ -100,7 +113,7 @@ public final class HsumBootUserInitializerTest {
         mockIsHsum(false);
 
         var instance = HsumBootUserInitializer.createInstance(mMockUms, mMockAms, mMockPms,
-                mMockContentResolver, mRealContext);
+                mRequiresAdmin, mRealContext);
 
         expect.withMessage("result of createInstance()").that(instance).isNull();
     }

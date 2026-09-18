@@ -52,23 +52,6 @@
 
     <!-- END REQUEST COMPUTER CONTROL ACCESS DIALOG -->
 
-    <!-- START NOTIFY COMPUTER CONTROL BLOCKED ACTIVITY DIALOG -->
-
-    <style name="Theme.NotifyComputerControlBlockedActivity" parent="Theme.DeviceDefault.Settings.Transparent">
-        <item name="android:dialogTheme">@style/Theme.NotifyComputerControlBlockedActivity.Dialog</item>
-    </style>
-
-    <style name="Theme.NotifyComputerControlBlockedActivity.FilterTouches">
-        <item name="android:filterTouchesWhenObscured">true</item>
-    </style>
-
-    <style name="Theme.NotifyComputerControlBlockedActivity.Dialog" parent="Theme.DeviceDefault.Dialog.NoActionBar.DayNight">
-        <item name="android:windowMinWidthMajor">@android:dimen/dialog_min_width_major</item>
-        <item name="android:windowMinWidthMinor">@android:dimen/dialog_min_width_minor</item>
-    </style>
-
-    <!-- END NOTIFY COMPUTER CONTROL BLOCKED ACTIVITY DIALOG -->
-
     <!-- START AUTOMATED APP LAUNCH WARNING ACTIVITY DIALOG -->
 
     <style name="Theme.AutomatedAppLaunchWarningActivity" parent="Theme.DeviceDefault.Settings.Transparent">

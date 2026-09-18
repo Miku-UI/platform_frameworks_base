@@ -36,7 +36,6 @@ import android.util.Slog;
 
 import com.android.internal.R;
 import com.android.internal.pm.pkg.parsing.ParsingPackage;
-import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
 import com.android.internal.pm.pkg.parsing.ParsingUtils;
 import com.android.internal.util.XmlUtils;
 
@@ -130,6 +129,11 @@ public class ParsedProviderUtils {
                     .setFlags(provider.getFlags() | flag(ProviderInfo.FLAG_SINGLE_USER,
                             R.styleable.AndroidManifestProvider_singleUser, sa));
 
+            if (android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()) {
+                provider.setFlags(provider.getFlags() | flag(ProviderInfo.FLAG_RUN_IN_PCC_SANDBOX,
+                        R.styleable.AndroidManifestProvider_privateComputeCore, sa));
+            }
+
             if (Flags.enableSystemUserOnlyForServicesAndProviders()) {
                 provider.setFlags(provider.getFlags() | flag(ProviderInfo.FLAG_SYSTEM_USER_ONLY,
                         R.styleable.AndroidManifestProvider_systemUserOnly, sa));
@@ -176,7 +180,7 @@ public class ParsedProviderUtils {
             if (type != XmlPullParser.START_TAG) {
                 continue;
             }
-            if (ParsingPackageUtils.getAconfigFlags().skipCurrentElement(pkg, parser)) {
+            if (AconfigFlags.getInstance().skipCurrentElement(pkg, parser)) {
                 XmlUtils.skipCurrentTag(parser);
                 continue;
             }

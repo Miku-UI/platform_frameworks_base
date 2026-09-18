@@ -73,8 +73,8 @@ fun createTaskInfo(
     runningTaskPackageName: String = GMAIL_PACKAGE_NAME,
 ): RunningTaskInfo =
     RunningTaskInfo().apply {
-      configuration.windowConfiguration.windowingMode = deviceWindowingMode
-      topActivityInfo = ActivityInfo().apply { packageName = runningTaskPackageName }
+        configuration.windowConfiguration.windowingMode = deviceWindowingMode
+        topActivityInfo = ActivityInfo().apply { packageName = runningTaskPackageName }
     }
 
 /**
@@ -93,20 +93,25 @@ fun createWindowingEducationProto(
 ): WindowingEducationProto =
     WindowingEducationProto.newBuilder()
         .apply {
-          if (appHandleHintViewedTimestampMillis != null) {
-            setAppHandleHintViewedTimestampMillis(appHandleHintViewedTimestampMillis)
-          }
-          if (appHandleHintUsedTimestampMillis != null) {
-            setAppHandleHintUsedTimestampMillis(appHandleHintUsedTimestampMillis)
-          }
-          if (enterDesktopModeHintViewedTimestampMillis != null) {
-              setEnterDesktopModeHintViewedTimestampMillis(enterDesktopModeHintViewedTimestampMillis)
-          }
-          if (exitDesktopModeHintViewedTimestampMillis != null) {
-              setExitDesktopModeHintViewedTimestampMillis(exitDesktopModeHintViewedTimestampMillis)
-          }
-          setAppHandleEducation(
-              createAppHandleEducationProto(appUsageStats, appUsageStatsLastUpdateTimestampMillis))
+            if (appHandleHintViewedTimestampMillis != null) {
+                setAppHandleHintViewedTimestampMillis(appHandleHintViewedTimestampMillis)
+            }
+            if (appHandleHintUsedTimestampMillis != null) {
+                setAppHandleHintUsedTimestampMillis(appHandleHintUsedTimestampMillis)
+            }
+            if (enterDesktopModeHintViewedTimestampMillis != null) {
+                setEnterDesktopModeHintViewedTimestampMillis(
+                    enterDesktopModeHintViewedTimestampMillis
+                )
+            }
+            if (exitDesktopModeHintViewedTimestampMillis != null) {
+                setExitDesktopModeHintViewedTimestampMillis(
+                    exitDesktopModeHintViewedTimestampMillis
+                )
+            }
+            setAppHandleEducation(
+                createAppHandleEducationProto(appUsageStats, appUsageStatsLastUpdateTimestampMillis)
+            )
         }
         .build()
 
@@ -118,14 +123,14 @@ fun createWindowingEducationProto(
  */
 fun createAppHandleEducationProto(
     appUsageStats: Map<String, Int>? = null,
-    appUsageStatsLastUpdateTimestampMillis: Long? = null
+    appUsageStatsLastUpdateTimestampMillis: Long? = null,
 ): WindowingEducationProto.AppHandleEducation =
     WindowingEducationProto.AppHandleEducation.newBuilder()
         .apply {
-          if (appUsageStats != null) putAllAppUsageStats(appUsageStats)
-          if (appUsageStatsLastUpdateTimestampMillis != null) {
-            setAppUsageStatsLastUpdateTimestampMillis(appUsageStatsLastUpdateTimestampMillis)
-          }
+            if (appUsageStats != null) putAllAppUsageStats(appUsageStats)
+            if (appUsageStatsLastUpdateTimestampMillis != null) {
+                setAppUsageStatsLastUpdateTimestampMillis(appUsageStatsLastUpdateTimestampMillis)
+            }
         }
         .build()
 

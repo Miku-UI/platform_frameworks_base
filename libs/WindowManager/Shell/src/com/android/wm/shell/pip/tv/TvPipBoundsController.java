@@ -91,7 +91,7 @@ public class TvPipBoundsController {
         mStashDurationMs = res.getInteger(R.integer.config_pipStashDuration);
     }
 
-    void setListener(PipBoundsListener listener) {
+    public void setListener(PipBoundsListener listener) {
         mListener = listener;
     }
 
@@ -108,7 +108,7 @@ public class TvPipBoundsController {
      * @param immediate            If true, PiP will move immediately to avoid keep clear areas
      */
     @VisibleForTesting
-    void recalculatePipBounds(boolean stayAtAnchorPosition, boolean disallowStashing,
+    public void recalculatePipBounds(boolean stayAtAnchorPosition, boolean disallowStashing,
             int animationDuration, boolean immediate) {
         final Placement placement = mTvPipBoundsAlgorithm.getTvPipPlacement();
 
@@ -190,7 +190,10 @@ public class TvPipBoundsController {
         applyPlacementBounds(bounds, animationDuration);
     }
 
-    void reset() {
+    /**
+     * Resets the controller to its initial state, canceling any ongoing animations.
+     */
+    public void reset() {
         mCurrentPlacementBounds = null;
         mPipTargetBounds = null;
         cancelScheduledPlacement();

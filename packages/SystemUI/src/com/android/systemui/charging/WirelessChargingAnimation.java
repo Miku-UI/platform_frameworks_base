@@ -30,7 +30,7 @@ import android.view.WindowManager;
 
 import com.android.internal.logging.UiEvent;
 import com.android.internal.logging.UiEventLogger;
-import com.android.systemui.surfaceeffects.ripple.RippleShader.RippleShape;
+import com.android.systemui.surfaceeffects.core.ripple.RippleShader.RippleShape;
 import com.android.systemui.utils.windowmanager.WindowManagerProvider;
 
 /**

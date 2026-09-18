@@ -17,11 +17,8 @@
 package com.android.providers.settings;
 
 import static com.android.settings.testutils.DeviceStateAutoRotateSettingTestUtils.setDeviceStateRotationLockEnabled;
-
 import static com.google.common.truth.Truth.assertThat;
-
 import static junit.framework.Assert.assertEquals;
-
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
@@ -48,6 +45,7 @@ import android.media.Utils;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.LocaleList;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.BaseColumns;
@@ -137,10 +135,9 @@ public class SettingsHelperTest {
 
     @After
     public void tearDown() {
-        Settings.Global.putString(mContentResolver, Settings.Global.POWER_BUTTON_LONG_PRESS,
-                null);
-        Settings.Global.putString(mContentResolver, Settings.Global.KEY_CHORD_POWER_VOLUME_UP,
-                null);
+        Settings.Global.clearProviderForTest();
+        Settings.Secure.clearProviderForTest();
+        Settings.System.clearProviderForTest();
     }
 
     @Test
@@ -271,6 +268,215 @@ public class SettingsHelperTest {
 
         assertThat((Settings.Global.getInt(
                 mContentResolver, Settings.Global.POWER_BUTTON_LONG_PRESS, -1))).isEqualTo(-1);
+    }
+
+    @Test
+    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_COLOR_INVERSION_IN_SUW)
+    public void restoreValue_colorInversionEnabledInSuw_suwNotCompleted_mapsValueToOn() {
+        when(mResources.getBoolean(
+                com.android.internal.R.bool.config_enableColorInversionInSetupWizard))
+                .thenReturn(true);
+        Settings.Secure.putInt(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 0);
+
+        // Restore "1" should be mapped to RESTORED_COLOR_INVERSION_SETTINGS_ENABLED" (-1)
+        mSettingsHelper.restoreValue(
+                mContext,
+                mContentResolver,
+                new ContentValues(),
+                Settings.Secure.CONTENT_URI,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED,
+                "1",
+                /* restoredFromSdkInt */ 0);
+        assertThat(Settings.Secure.getInt(mContentResolver,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED, 0))
+                .isEqualTo(-1);
+    }
+
+    @Test
+    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_COLOR_INVERSION_IN_SUW)
+    public void restoreValue_colorInversionEnabledInSuw_suwNotCompleted_mapsValueToOff() {
+        when(mResources.getBoolean(
+                com.android.internal.R.bool.config_enableColorInversionInSetupWizard))
+                .thenReturn(true);
+        Settings.Secure.putInt(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 0);
+
+        // Restore "0" should be mapped to RESTORED_COLOR_INVERSION_SETTINGS_DISABLED" (-2)
+        mSettingsHelper.restoreValue(
+                mContext,
+                mContentResolver,
+                new ContentValues(),
+                Settings.Secure.CONTENT_URI,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED,
+                "0",
+                /* restoredFromSdkInt */ 0);
+        assertThat(Settings.Secure.getInt(mContentResolver,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED, 0))
+                .isEqualTo(-2);
+    }
+
+    @Test
+    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_COLOR_INVERSION_IN_SUW)
+    public void restoreValue_colorInversionDisabledInSuwByConfig_suwNotCompleted_doesNotMapValue() {
+        when(mResources.getBoolean(
+                com.android.internal.R.bool.config_enableColorInversionInSetupWizard))
+                .thenReturn(false);
+        Settings.Secure.putInt(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 0);
+
+        mSettingsHelper.restoreValue(
+                mContext,
+                mContentResolver,
+                new ContentValues(),
+                Settings.Secure.CONTENT_URI,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED,
+                "1",
+                /* restoredFromSdkInt */ 0);
+        assertThat(Settings.Secure.getInt(mContentResolver,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED, 0)).isEqualTo(1);
+    }
+
+    @Test
+    @DisableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_COLOR_INVERSION_IN_SUW)
+    public void restoreValue_colorInversionDisabledInSuwByFlag_suwNotCompleted_doesNotMapValue() {
+        when(mResources.getBoolean(
+                com.android.internal.R.bool.config_enableColorInversionInSetupWizard))
+                .thenReturn(true);
+        Settings.Secure.putInt(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 0);
+
+        mSettingsHelper.restoreValue(
+                mContext,
+                mContentResolver,
+                new ContentValues(),
+                Settings.Secure.CONTENT_URI,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED,
+                "1",
+                /* restoredFromSdkInt */ 0);
+        assertThat(Settings.Secure.getInt(mContentResolver,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED, 0)).isEqualTo(1);
+    }
+
+    @Test
+    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_COLOR_INVERSION_IN_SUW)
+    public void restoreValue_colorInversionEnabledInSuw_suwCompleted_doesNotMapValue() {
+        when(mResources.getBoolean(
+                com.android.internal.R.bool.config_enableColorInversionInSetupWizard))
+                .thenReturn(true);
+        Settings.Secure.putInt(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 1);
+
+        mSettingsHelper.restoreValue(
+                mContext,
+                mContentResolver,
+                new ContentValues(),
+                Settings.Secure.CONTENT_URI,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED,
+                "1",
+                /* restoredFromSdkInt */ 0);
+        assertThat(Settings.Secure.getInt(mContentResolver,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED, 0)).isEqualTo(1);
+    }
+
+    @Test
+    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_COLOR_DALTONIZER_IN_SUW)
+    public void restoreValue_colorDaltonizerEnabledInSuw_suwNotCompleted_mapsValueToOn() {
+        when(mResources.getBoolean(
+                com.android.internal.R.bool.config_enableColorDaltonizerInSetupWizard))
+                .thenReturn(true);
+        Settings.Secure.putInt(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 0);
+
+        // Restore "1" should be mapped to RESTORED_COLOR_DALTONIZER_SETTINGS_ENABLED" (-1)
+        mSettingsHelper.restoreValue(
+                mContext,
+                mContentResolver,
+                new ContentValues(),
+                Settings.Secure.CONTENT_URI,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED,
+                "1",
+                /* restoredFromSdkInt */ 0);
+        assertThat(Settings.Secure.getInt(mContentResolver,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED, 0))
+                .isEqualTo(-1);
+    }
+
+    @Test
+    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_COLOR_DALTONIZER_IN_SUW)
+    public void restoreValue_colorDaltonizerEnabledInSuw_suwNotCompleted_mapsValueToOff() {
+        when(mResources.getBoolean(
+                com.android.internal.R.bool.config_enableColorDaltonizerInSetupWizard))
+                .thenReturn(true);
+        Settings.Secure.putInt(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 0);
+
+        // Restore "0" should be mapped to RESTORED_COLOR_DALTONIZER_SETTINGS_DISABLED" (-2)
+        mSettingsHelper.restoreValue(
+                mContext,
+                mContentResolver,
+                new ContentValues(),
+                Settings.Secure.CONTENT_URI,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED,
+                "0",
+                /* restoredFromSdkInt */ 0);
+        assertThat(Settings.Secure.getInt(mContentResolver,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED, 0))
+                .isEqualTo(-2);
+    }
+
+    @Test
+    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_COLOR_DALTONIZER_IN_SUW)
+    public void
+            restoreValue_colorDaltonizerDisabledInSuwByConfig_suwNotCompleted_doesNotMapValue() {
+        when(mResources.getBoolean(
+                com.android.internal.R.bool.config_enableColorDaltonizerInSetupWizard))
+                .thenReturn(false);
+        Settings.Secure.putInt(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 0);
+
+        mSettingsHelper.restoreValue(
+                mContext,
+                mContentResolver,
+                new ContentValues(),
+                Settings.Secure.CONTENT_URI,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED,
+                "1",
+                /* restoredFromSdkInt */ 0);
+        assertThat(Settings.Secure.getInt(mContentResolver,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED, 0)).isEqualTo(1);
+    }
+
+    @Test
+    @DisableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_COLOR_DALTONIZER_IN_SUW)
+    public void restoreValue_colorDaltonizerDisabledInSuwByFlag_suwNotCompleted_doesNotMapValue() {
+        when(mResources.getBoolean(
+                com.android.internal.R.bool.config_enableColorDaltonizerInSetupWizard))
+                .thenReturn(true);
+        Settings.Secure.putInt(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 0);
+
+        mSettingsHelper.restoreValue(
+            mContext,
+            mContentResolver,
+            new ContentValues(),
+            Settings.Secure.CONTENT_URI,
+            Settings.Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED,
+            "1",
+            /* restoredFromSdkInt */ 0);
+        assertThat(Settings.Secure.getInt(mContentResolver,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED, 0)).isEqualTo(1);
+    }
+
+    @Test
+    @EnableFlags(com.android.server.accessibility.Flags.FLAG_ENABLE_COLOR_DALTONIZER_IN_SUW)
+    public void restoreValue_colorDaltonizerEnabledInSuw_suwCompleted_doesNotMapValue() {
+        when(mResources.getBoolean(
+                com.android.internal.R.bool.config_enableColorDaltonizerInSetupWizard))
+                .thenReturn(true);
+        Settings.Secure.putInt(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 1);
+
+        mSettingsHelper.restoreValue(
+            mContext,
+            mContentResolver,
+            new ContentValues(),
+            Settings.Secure.CONTENT_URI,
+            Settings.Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED,
+            "1",
+            /* restoredFromSdkInt */ 0);
+        assertThat(Settings.Secure.getInt(mContentResolver,
+                Settings.Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED, 0)).isEqualTo(1);
     }
 
     @Test

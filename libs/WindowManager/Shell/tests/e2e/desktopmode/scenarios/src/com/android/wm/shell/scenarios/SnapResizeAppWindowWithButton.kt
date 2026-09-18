@@ -34,17 +34,18 @@ abstract class SnapResizeAppWindowWithButton
 constructor(
     private val toLeft: Boolean = true,
     isResizable: Boolean = true,
-    val rotation: Rotation = Rotation.ROTATION_0
+    val rotation: Rotation = Rotation.ROTATION_0,
 ) : TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
-    val testApp = if (isResizable) {
-        DesktopModeAppHelper(SimpleAppHelper(instrumentation))
-    } else {
-        DesktopModeAppHelper(NonResizeableAppHelper(instrumentation))
-    }
+    val testApp =
+        if (isResizable) {
+            DesktopModeAppHelper(SimpleAppHelper(instrumentation))
+        } else {
+            DesktopModeAppHelper(NonResizeableAppHelper(instrumentation))
+        }
 
     @Before
     fun setup() {

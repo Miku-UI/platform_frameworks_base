@@ -19,32 +19,31 @@ package com.android.wm.shell.flicker.fundamentals
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
-import com.android.wm.shell.flicker.DesktopModeBaseTest
-import com.android.wm.shell.scenarios.EnterSplitScreenWithAppHandleMenu
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.wm.shell.Utils
+import com.android.wm.shell.flicker.DesktopModeBaseTest
 import com.android.wm.shell.flicker.utils.appWindowOnTopAtEnd
 import com.android.wm.shell.flicker.utils.layerBecomesVisible
 import com.android.wm.shell.flicker.utils.splitScreenDividerBecomesVisible
+import com.android.wm.shell.scenarios.EnterSplitScreenWithAppHandleMenu
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/**
- * Enter the app in split screen via app handle menu.
- */
+/** Enter the app in split screen via app handle menu. */
 @RequiresDesktopDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
 class EnterSplitScreenWithAppHandleMenuFlickerTest(flicker: FlickerTest) :
     DesktopModeBaseTest(flicker) {
-    inner class EnterSplitScreenWithAppHandleMenuScenario : EnterSplitScreenWithAppHandleMenu(flicker.scenario.startRotation)
+    inner class EnterSplitScreenWithAppHandleMenuScenario :
+        EnterSplitScreenWithAppHandleMenu(flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -55,25 +54,16 @@ class EnterSplitScreenWithAppHandleMenuFlickerTest(flicker: FlickerTest) :
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.baseSetup()
-            }
-            transitions {
-                scenario.enterSplitScreenFromAppHandle()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.baseSetup() }
+            transitions { scenario.enterSplitScreenFromAppHandle() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(firstApp)
+    @Test fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(firstApp)
 
-    @Test
-    fun splitScreenDividerBecomesVisible() = flicker.splitScreenDividerBecomesVisible()
+    @Test fun splitScreenDividerBecomesVisible() = flicker.splitScreenDividerBecomesVisible()
 
-    @Test
-    fun layerBecomesVisible() = flicker.layerBecomesVisible(secondApp)
+    @Test fun layerBecomesVisible() = flicker.layerBecomesVisible(secondApp)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

@@ -20,12 +20,8 @@ import android.content.ContentProviderClient;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.RemoteException;
-import android.os.UserHandle;
 import android.provider.Settings;
-import android.test.mock.MockContentProvider;
 import android.util.Log;
-
-import java.util.HashMap;
 
 /**
  * Allows calls to android.provider.Settings to be tested easier.
@@ -33,7 +29,7 @@ import java.util.HashMap;
  * This provides a simple copy-on-write implementation of settings that gets cleared
  * at the end of each test.
  */
-public class TestableSettingsProvider extends MockContentProvider {
+public class TestableSettingsProvider extends TestableSettingsProviderBase {
 
     private static final String TAG = "TestableSettingsProvider";
     private static final boolean DEBUG = false;
@@ -42,17 +38,13 @@ public class TestableSettingsProvider extends MockContentProvider {
 
     private final ContentProviderClient mSettings;
 
-    private final HashMap<String, String> mValues = new HashMap<>();
-
     private TestableSettingsProvider(ContentProviderClient settings) {
         mSettings = settings;
     }
 
     void clearValuesAndCheck(Context context) {
         // Ensure we swapped over to use TestableSettingsProvider
-        Settings.Global.clearProviderForTest();
-        Settings.Secure.clearProviderForTest();
-        Settings.System.clearProviderForTest();
+        clearSettingsProvider();
 
         // putString will eventually invoking the mocked call() method and update mValues
         Settings.Global.putString(context.getContentResolver(), MY_UNIQUE_KEY, MY_UNIQUE_KEY);
@@ -71,70 +63,21 @@ public class TestableSettingsProvider extends MockContentProvider {
     }
 
     void unregister() {
-        Settings.Global.clearProviderForTest();
-        Settings.Secure.clearProviderForTest();
-        Settings.System.clearProviderForTest();
+        clearSettingsProvider();
     }
 
     @Override
-    public Bundle call(String method, String arg, Bundle extras) {
-        // Methods are "GET_system", "GET_global", "PUT_secure", etc.
-        int userId = extras.getInt(Settings.CALL_METHOD_USER_KEY, UserHandle.USER_CURRENT);
-        if (userId == UserHandle.USER_CURRENT || userId == UserHandle.USER_CURRENT_OR_SELF) {
-            userId = UserHandle.myUserId();
+    protected Bundle onMissingValue(String method, String arg, Bundle extras) {
+        // Fall through to real settings.
+        try {
+            if (DEBUG) Log.d(TAG, "Falling through to real settings " + method);
+            // TODO: Add our own version of caching to handle this.
+            Bundle call = mSettings.call(method, arg, extras);
+            call.remove(Settings.CALL_METHOD_TRACK_GENERATION_KEY);
+            return call;
+        } catch (RemoteException e) {
+            throw new RuntimeException(e);
         }
-
-        final String[] commands = method.split("_", 2);
-        final String op = commands[0];
-        final String table = commands[1];
-
-        String k = key(table, arg, userId);
-        String value;
-        Bundle out = new Bundle();
-        switch (op) {
-            case "GET":
-                if (mValues.containsKey(k)) {
-                    value = mValues.get(k);
-                    if (value != null) {
-                        out.putString(Settings.NameValueTable.VALUE, value);
-                    }
-                } else {
-                    // Fall through to real settings.
-                    try {
-                        if (DEBUG) Log.d(TAG, "Falling through to real settings " + method);
-                        // TODO: Add our own version of caching to handle this.
-                        Bundle call = mSettings.call(method, arg, extras);
-                        call.remove(Settings.CALL_METHOD_TRACK_GENERATION_KEY);
-                        return call;
-                    } catch (RemoteException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-                break;
-            case "PUT":
-                value = extras.getString(Settings.NameValueTable.VALUE, null);
-                mValues.put(k, value);
-                break;
-            case "RESET":
-                switch (table) {
-                    case "global" -> Settings.Global.clearProviderForTest();
-                    case "secure" -> Settings.Secure.clearProviderForTest();
-                    case "system" -> Settings.System.clearProviderForTest();
-                }
-                break;
-            default:
-                throw new UnsupportedOperationException("Unknown command " + method);
-        }
-        return out;
-    }
-
-    private static String key(String table, String key, int userId) {
-        if ("global".equals(table)) {
-            return table + "_" + key;
-        } else {
-            return table + "_" + userId + "_" + key;
-        }
-
     }
 
     /**

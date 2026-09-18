@@ -1021,19 +1021,24 @@ public class UsbProfileGroupSettingsManager {
         // Send broadcast to running activity with registered intent
         mContext.sendBroadcastAsUser(intent, UserHandle.of(ActivityManager.getCurrentUser()));
 
+        String packageName = component.getPackageName();
         ApplicationInfo appInfo;
         try {
             // Fixed handlers are always for parent user
-            appInfo = mPackageManager.getApplicationInfoAsUser(component.getPackageName(), 0,
-                    mParentUser.getIdentifier());
+            appInfo =
+                    mPackageManager.getApplicationInfoAsUser(
+                            packageName, 0, mParentUser.getIdentifier());
         } catch (NameNotFoundException e) {
-            Slog.e(TAG, "Default USB handling package (" + component.getPackageName()
+            Slog.e(TAG, "Default USB handling package (" + packageName
                     + ") not found  for user " + mParentUser);
             return;
         }
 
-        mSettingsManager.mUsbService.getPermissionsForUser(UserHandle.getUserId(appInfo.uid))
-                .grantDevicePermission(device, appInfo.uid);
+        mSettingsManager
+                .mUsbService
+                .getPermissionsForUser(UserHandle.getUserId(appInfo.uid))
+                .grantDevicePermission(device, /* fingerprint= */null, packageName,
+                        appInfo.uid, /* isPersistent= */ false);
 
         Intent activityIntent = new Intent(intent);
         activityIntent.setComponent(component);
@@ -1116,13 +1121,18 @@ public class UsbProfileGroupSettingsManager {
             UsbUserPermissionManager defaultRIUserPermissions =
                     mSettingsManager.mUsbService.getPermissionsForUser(
                             UserHandle.getUserId(defaultActivity.applicationInfo.uid));
+            String packageName = defaultActivity.packageName;
             // grant permission for default activity
             if (device != null) {
-                defaultRIUserPermissions
-                        .grantDevicePermission(device, defaultActivity.applicationInfo.uid);
+                defaultRIUserPermissions.grantDevicePermission(
+                        device,
+                        /* fingerprint= */null,
+                        packageName,
+                        defaultActivity.applicationInfo.uid,
+                        /* isPersistent= */ false);
             } else if (accessory != null) {
-                defaultRIUserPermissions.grantAccessoryPermission(accessory,
-                        defaultActivity.applicationInfo.uid);
+                defaultRIUserPermissions.grantAccessoryPermission(
+                        accessory, packageName, defaultActivity.applicationInfo.uid);
             }
 
             // start default activity directly
@@ -1317,14 +1327,40 @@ public class UsbProfileGroupSettingsManager {
     }
 
     /**
+     * Removes a package if it is set as a default handler for a device.
+     *
+     * @param device - The device that may have a default package
+     * @param packageName - The default handler package
+     * @param user - The user the package belongs to
+     */
+    void removePackageIfDeviceDefault(
+            @NonNull UsbDevice device, @NonNull String packageName, @NonNull UserHandle user) {
+        boolean changed = false;
+
+        if (android.hardware.usb.flags.Flags.enablePersistentUsbDevicePermissions()) {
+            synchronized (mLock) {
+                DeviceFilter filter = new DeviceFilter(device);
+                UserPackage userPackage = new UserPackage(packageName, user);
+                if (userPackage.equals(mDevicePreferenceMap.get(filter))) {
+                    changed = (mDevicePreferenceMap.remove(filter) != null);
+                }
+
+                if (changed) {
+                    scheduleWriteSettingsLocked();
+                }
+            }
+        }
+    }
+
+    /**
      * Set a package as default handler for a device.
      *
      * @param device The device that should be handled by default
      * @param packageName The default handler package
      * @param user The user the package belongs to
      */
-    void setDevicePackage(@NonNull UsbDevice device, @Nullable String packageName,
-            @NonNull UserHandle user) {
+    void setDevicePackage(
+            @NonNull UsbDevice device, @Nullable String packageName, @NonNull UserHandle user) {
         DeviceFilter filter = new DeviceFilter(device);
         boolean changed;
         synchronized (mLock) {

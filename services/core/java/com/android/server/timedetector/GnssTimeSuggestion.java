@@ -54,8 +54,8 @@ public final class GnssTimeSuggestion {
 
     /**
      * Associates information with the instance that can be useful for debugging / logging. The
-     * information is present in {@link #toString()} but is not considered for
-     * {@link #equals(Object)} and {@link #hashCode()}.
+     * information is present in {@link #toString()} but is not considered for {@link
+     * #equals(Object)} and {@link #hashCode()}.
      */
     public void addDebugInfo(String... debugInfos) {
         mTimeSuggestionHelper.addDebugInfo(debugInfos);

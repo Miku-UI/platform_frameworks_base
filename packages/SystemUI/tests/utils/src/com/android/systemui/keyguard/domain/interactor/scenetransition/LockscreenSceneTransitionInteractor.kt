@@ -21,6 +21,7 @@ import com.android.systemui.keyguard.domain.interactor.internalKeyguardTransitio
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
+import com.android.systemui.power.domain.interactor.powerInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 
 var Kosmos.lockscreenSceneTransitionInteractor by
@@ -31,5 +32,6 @@ var Kosmos.lockscreenSceneTransitionInteractor by
             sceneInteractor = sceneInteractor,
             repository = lockscreenSceneTransitionRepository,
             internalTransitionInteractor = internalKeyguardTransitionInteractor,
+            powerInteractor = powerInteractor,
         )
     }

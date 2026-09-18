@@ -16,7 +16,7 @@
 
 package android.app.ondeviceintelligence;
 
-import static android.app.ondeviceintelligence.flags.Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE_MODULE;
+import static android.app.ondeviceintelligence.flags.Flags.FLAG_ON_DEVICE_INTELLIGENCE_25Q4;
 
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.DurationMillisLong;
@@ -33,7 +33,7 @@ import android.os.Parcelable;
  * @hide
  */
 @SystemApi
-@FlaggedApi(FLAG_ENABLE_ON_DEVICE_INTELLIGENCE_MODULE)
+@FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_25Q4)
 public final class InferenceInfo implements Parcelable {
 
     /**
@@ -51,7 +51,7 @@ public final class InferenceInfo implements Parcelable {
      */
     private final long endTimeMs;
 
-    /**
+   /**
      * The total duration of the period(s) during which the inference was
      * suspended (i.e. not running), in milliseconds.
      */
@@ -138,6 +138,16 @@ public final class InferenceInfo implements Parcelable {
     @DurationMillisLong
     public long getSuspendedTimeMillis() {
         return suspendedTimeMs;
+    }
+
+    @Override
+    public String toString() {
+        return "InferenceInfo{"
+                + "uid=" + uid
+                + ", startTimeMs=" + startTimeMs
+                + ", endTimeMs=" + endTimeMs
+                + ", suspendedTimeMs=" + suspendedTimeMs
+                + '}';
     }
 
     @Override

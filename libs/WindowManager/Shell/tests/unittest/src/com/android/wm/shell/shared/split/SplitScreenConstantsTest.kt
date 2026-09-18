@@ -26,8 +26,8 @@ import org.junit.runner.RunWith
 class SplitScreenConstantsTest {
 
     /**
-     * Ensures that some important constants are not changed from their set values. These values
-     * are persisted in user-defined app pairs, and changing them will break things.
+     * Ensures that some important constants are not changed from their set values. These values are
+     * persisted in user-defined app pairs, and changing them will break things.
      */
     @Test
     fun shouldKeepExistingConstantValues() {

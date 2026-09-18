@@ -18,8 +18,6 @@ package com.android.wm.shell.pip2.phone;
 
 import static android.view.WindowManager.INPUT_CONSUMER_PIP;
 
-import static com.android.internal.config.sysui.SystemUiDeviceConfigFlags.PIP_STASHING;
-import static com.android.internal.config.sysui.SystemUiDeviceConfigFlags.PIP_STASH_MINIMUM_VELOCITY_THRESHOLD;
 import static com.android.wm.shell.common.pip.PipBoundsState.STASH_TYPE_LEFT;
 import static com.android.wm.shell.common.pip.PipBoundsState.STASH_TYPE_NONE;
 import static com.android.wm.shell.common.pip.PipBoundsState.STASH_TYPE_RIGHT;
@@ -39,7 +37,6 @@ import android.graphics.RectF;
 import android.os.Bundle;
 import android.os.SystemProperties;
 import android.os.Trace;
-import android.provider.DeviceConfig;
 import android.util.Size;
 import android.view.DisplayCutout;
 import android.view.InputDevice;
@@ -108,8 +105,9 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
     private PipResizeGestureHandler mPipResizeGestureHandler;
     private final PipDisplayTransferHandler mPipDisplayTransferHandler;
     private final PhonePipMenuController mMenuController;
-    private final AccessibilityManager mAccessibilityManager;
+    @VisibleForTesting AccessibilityManager mAccessibilityManager;
     private final DisplayController mDisplayController;
+    private final PipInteractionHandler mPipInteractionHandler;
 
     /**
      * Whether PIP stash is enabled or not. When enabled, if the user flings toward the edge of the
@@ -117,12 +115,12 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
      */
     @VisibleForTesting boolean mEnableStash = true;
 
-    private float mStashVelocityThreshold;
-
     // Used to workaround an issue where the WM rotation happens before we are notified, allowing
     // us to send stale bounds
     private int mDeferResizeToNormalBoundsUntilRotation = -1;
     private int mDisplayRotation;
+
+    private final PipAccessibilityInteractionConnection mConnection;
 
     // Behaviour states
     private int mMenuState = MENU_STATE_NONE;
@@ -183,7 +181,7 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
         @Override
         public void onPipShowMenu() {
             mMenuController.showMenu(MENU_STATE_FULL, mPipBoundsState.getBounds(),
-                    true /* allowMenuTimeout */, willResizeMenu(), shouldShowResizeHandle());
+                    true /* allowMenuTimeout */, willResizeMenu());
         }
     }
 
@@ -206,7 +204,8 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
             PipUiEventLogger pipUiEventLogger,
             ShellExecutor mainExecutor,
             Optional<PipPerfHintController> pipPerfHintControllerOptional,
-            PipDisplayTransferHandler pipDisplayTransferHandler) {
+            PipDisplayTransferHandler pipDisplayTransferHandler,
+            PipInteractionHandler pipInteractionHandler) {
         mContext = context;
         mSurfaceTransactionHelper = pipSurfaceTransactionHelper;
         mShellCommandHandler = shellCommandHandler;
@@ -231,6 +230,7 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
         mGesture = new DefaultPipTouchGesture();
         mMotionHelper = pipMotionHelper;
         mPipDisplayTransferHandler = pipDisplayTransferHandler;
+        mPipInteractionHandler = pipInteractionHandler;
         mPipScheduler.setUpdateMovementBoundsRunnable(this::updateMovementBounds);
         mPipDismissTargetHandler = new PipDismissTargetHandler(context, pipUiEventLogger,
                 mMotionHelper, mPipDisplayLayoutState, mainExecutor);
@@ -238,8 +238,7 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
                 () -> {
                     mMenuController.showMenuWithPossibleDelay(MENU_STATE_FULL,
                             mPipBoundsState.getBounds(), true /* allowMenuTimeout */,
-                            willResizeMenu(),
-                            shouldShowResizeHandle());
+                            willResizeMenu());
                 },
                 menuController::hideMenu,
                 mainExecutor);
@@ -247,7 +246,11 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
                 pipBoundsAlgorithm,
                 pipBoundsState, mTouchState, mPipScheduler, mPipTransitionState, pipUiEventLogger,
                 menuController, this::getMovementBounds, mPipDisplayLayoutState, pipDesktopState,
-                mainExecutor, mPipPerfHintController);
+                mainExecutor, mPipPerfHintController, pipInteractionHandler);
+        mConnection = new PipAccessibilityInteractionConnection(mContext, pipBoundsState,
+                mMotionHelper, mPipBoundsAlgorithm.getSnapAlgorithm(), mPipTransitionState,
+                mPipScheduler, mSurfaceTransactionHelper,
+                this::onAccessibilityShowMenu, this::animateToUnStashedState, mainExecutor);
         mPipBoundsState.addOnAspectRatioChangedCallback(aspectRatio -> onAspectRatioChanged());
 
         mMoveOnShelVisibilityChanged = () -> {
@@ -292,32 +295,6 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
                 INPUT_CONSUMER_PIP, mPipDisplayLayoutState, mMainExecutor);
         mPipInputConsumer.setInputListener(this::handleTouchEvent);
         mPipInputConsumer.setRegistrationListener(this::onRegistrationChanged);
-
-        mEnableStash = DeviceConfig.getBoolean(
-                DeviceConfig.NAMESPACE_SYSTEMUI,
-                PIP_STASHING,
-                /* defaultValue = */ true);
-        DeviceConfig.addOnPropertiesChangedListener(DeviceConfig.NAMESPACE_SYSTEMUI,
-                mMainExecutor,
-                properties -> {
-                    if (properties.getKeyset().contains(PIP_STASHING)) {
-                        mEnableStash = properties.getBoolean(
-                                PIP_STASHING, /* defaultValue = */ true);
-                    }
-                });
-        mStashVelocityThreshold = DeviceConfig.getFloat(
-                DeviceConfig.NAMESPACE_SYSTEMUI,
-                PIP_STASH_MINIMUM_VELOCITY_THRESHOLD,
-                DEFAULT_STASH_VELOCITY_THRESHOLD);
-        DeviceConfig.addOnPropertiesChangedListener(DeviceConfig.NAMESPACE_SYSTEMUI,
-                mMainExecutor,
-                properties -> {
-                    if (properties.getKeyset().contains(PIP_STASH_MINIMUM_VELOCITY_THRESHOLD)) {
-                        mStashVelocityThreshold = properties.getFloat(
-                                PIP_STASH_MINIMUM_VELOCITY_THRESHOLD,
-                                DEFAULT_STASH_VELOCITY_THRESHOLD);
-                    }
-                });
     }
 
     private void reloadResources() {
@@ -338,8 +315,8 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
         mPipDismissTargetHandler.init();
     }
 
-    private boolean shouldShowResizeHandle() {
-        return false;
+    @VisibleForTesting void setPipInputConsumer(PipInputConsumer consumer) {
+        mPipInputConsumer = consumer;
     }
 
     void setTouchGesture(PipTouchGesture gesture) {
@@ -358,8 +335,7 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
         // Only show the menu if the user isn't currently interacting with the PiP
         if (!mTouchState.isUserInteracting()) {
             mMenuController.showMenu(MENU_STATE_FULL, mPipBoundsState.getBounds(),
-                    false /* allowMenuTimeout */, willResizeMenu(),
-                    shouldShowResizeHandle());
+                    false /* allowMenuTimeout */, willResizeMenu());
         }
     }
 
@@ -499,6 +475,9 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
         mDisplayRotation = displayRotation;
         updateMovementBounds();
         mMovementBoundsExtraOffsets = extraOffset;
+        mConnection.onMovementBoundsChanged(normalBounds, mPipBoundsState.getExpandedBounds(),
+                mPipBoundsState.getNormalMovementBounds(),
+                mPipBoundsState.getExpandedMovementBounds());
 
         // If we have a deferred resize, apply it now
         if (mDeferResizeToNormalBoundsUntilRotation == displayRotation) {
@@ -515,7 +494,7 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
      */
     public void onRegistrationChanged(boolean isRegistered) {
         if (isRegistered) {
-            // Register the accessibility connection.
+            mConnection.register(mAccessibilityManager);
         } else {
             mAccessibilityManager.setPictureInPictureActionReplacingConnection(null);
         }
@@ -528,8 +507,7 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
 
     private void onAccessibilityShowMenu() {
         mMenuController.showMenu(MENU_STATE_FULL, mPipBoundsState.getBounds(),
-                true /* allowMenuTimeout */, willResizeMenu(),
-                shouldShowResizeHandle());
+                true /* allowMenuTimeout */, willResizeMenu());
     }
 
     /**
@@ -569,6 +547,8 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
             // events it'll receive if the object is dragged out of the magnetic field.
             if (ev.getAction() == MotionEvent.ACTION_DOWN) {
                 mTouchState.onTouchEvent(ev);
+            } else if (ev.getAction() == MotionEvent.ACTION_UP && mTouchState.isDragging()) {
+                mPipInteractionHandler.end();
             }
 
             // Continue tracking velocity when the object is in the magnetic field, since we want to
@@ -577,15 +557,6 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
 
             return true;
         }
-
-        /*
-        // Ignore the motion event When the entry animation is waiting to be started
-        if (!mTouchState.isUserInteracting() && mPipTaskOrganizer.isEntryScheduled()) {
-            ProtoLog.wtf(WM_SHELL_PICTURE_IN_PICTURE,
-                    "%s: Waiting to start the entry animation, skip the motion event.", TAG);
-            return true;
-        }
-         */
 
         // Update the touch state
         mTouchState.onTouchEvent(ev);
@@ -599,6 +570,11 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
                 break;
             }
             case MotionEvent.ACTION_MOVE: {
+                if (mTouchState.startedDragging()) {
+                    // Start jank cuj tag for dragging upon the first ACTION_MOVE that starts it.
+                    mPipInteractionHandler.begin(mPipTransitionState.getPinnedTaskLeash(),
+                            PipInteractionHandler.INTERACTION_DRAG_PIP);
+                }
                 if (mGesture.onMove(mTouchState)) {
                     break;
                 }
@@ -607,6 +583,9 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
                 break;
             }
             case MotionEvent.ACTION_UP: {
+                if (mTouchState.isDragging()) {
+                    mPipInteractionHandler.end();
+                }
                 // Update the movement bounds again if the state has changed since the user started
                 // dragging (ie. when the IME shows)
                 updateMovementBounds();
@@ -629,11 +608,12 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
                 // If Touch Exploration is enabled, some a11y services (e.g. Talkback) is probably
                 // on and changing MotionEvents into HoverEvents.
                 // Let's not enable menu show/hide for a11y services.
-                if (!mAccessibilityManager.isTouchExplorationEnabled()) {
+                // Additioally, don't show PiP menu if the PiP is stashed.
+                if (!mAccessibilityManager.isTouchExplorationEnabled()
+                        && !mPipBoundsState.isStashed()) {
                     mTouchState.removeHoverExitTimeoutCallback();
                     mMenuController.showMenu(MENU_STATE_FULL, mPipBoundsState.getBounds(),
-                            false /* allowMenuTimeout */, false /* willResizeMenu */,
-                            shouldShowResizeHandle());
+                            false /* allowMenuTimeout */, false /* willResizeMenu */);
                 }
             }
             // Fall through
@@ -979,10 +959,12 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
                     // If the menu is still visible, then just poke the menu so that
                     // it will timeout after the user stops touching it
                     mMenuController.showMenu(mMenuState, mPipBoundsState.getBounds(),
-                            true /* allowMenuTimeout */, willResizeMenu(),
-                            shouldShowResizeHandle());
+                            true /* allowMenuTimeout */, willResizeMenu());
                 }
                 mShouldHideMenuAfterFling = mMenuState == MENU_STATE_NONE;
+                // If free-floating PiP is enabled, we don't stash and always snap-to-edge if PiP is
+                // dragged past display bounds
+                mEnableStash = !mPipDesktopState.isFreeFloatingPipEnabled();
 
                 // Reset the touch state on up before the fling settles
                 mTouchState.reset();
@@ -1047,8 +1029,7 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
                     // User has stalled long enough for this not to be a drag or a double tap,
                     // just expand the menu
                     mMenuController.showMenu(MENU_STATE_FULL, mPipBoundsState.getBounds(),
-                            true /* allowMenuTimeout */, willResizeMenu(),
-                            shouldShowResizeHandle());
+                            true /* allowMenuTimeout */, willResizeMenu());
                 } else {
                     // Next touch event _may_ be the second tap for the double-tap, schedule a
                     // fallback runnable to trigger the menu if no touch event occurs before the
@@ -1069,8 +1050,8 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
         }
 
         private boolean shouldStash(PointF vel, Rect motionBounds, int displayIdOnUp) {
-            final boolean flingToLeft = vel.x < -mStashVelocityThreshold;
-            final boolean flingToRight = vel.x > mStashVelocityThreshold;
+            final boolean flingToLeft = vel.x < -DEFAULT_STASH_VELOCITY_THRESHOLD;
+            final boolean flingToRight = vel.x > DEFAULT_STASH_VELOCITY_THRESHOLD;
             final int offset = motionBounds.width() / 2;
             final boolean droppingOnLeft =
                     motionBounds.left < mPipBoundsState.getDisplayBounds().left - offset;
@@ -1123,6 +1104,8 @@ public class PipTouchHandler implements PipTransitionState.PipTransitionStateCha
      * resized.
      */
     void updateMovementBounds() {
+        mPipDisplayLayoutState.setEnableNavigationBarsInsets(
+                mPipDesktopState.isPipInDesktopMode());
         Rect insetBounds = new Rect();
         mPipBoundsState.setImeVisibility(mIsImeShowing, mIsImeShowing ? mImeHeight : 0);
         mPipBoundsAlgorithm.getInsetBounds(insetBounds);

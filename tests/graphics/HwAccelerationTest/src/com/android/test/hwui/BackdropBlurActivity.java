@@ -50,12 +50,38 @@ public class BackdropBlurActivity extends Activity {
         final FrameLayout contentView = new FrameLayout(this);
         contentView.addView(scrollView,
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
-        contentView.addView(new BackdropBlurView(this), 300, 300);
+        final FrameLayout tempFrame = new FrameLayout(this);
+        BackdropBlurView blurView = new BackdropBlurView(this);
+        FrameLayout.LayoutParams layoutParams = new FrameLayout.LayoutParams(300, 300);
+        layoutParams.gravity = android.view.Gravity.CENTER;
+        tempFrame.addView(blurView, layoutParams);
+        tempFrame.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+        contentView.addView(tempFrame,
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+
+        final android.widget.Button toggleButton = new android.widget.Button(this);
+        toggleButton.setText("Toggle Hardware Layer (ON)");
+        toggleButton.setOnClickListener(v -> {
+            if (tempFrame.getLayerType() == View.LAYER_TYPE_HARDWARE) {
+                tempFrame.setLayerType(View.LAYER_TYPE_NONE, null);
+                toggleButton.setText("Toggle Hardware Layer (OFF)");
+            } else {
+                tempFrame.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+                toggleButton.setText("Toggle Hardware Layer (ON)");
+            }
+        });
+
+        FrameLayout.LayoutParams buttonParams = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        buttonParams.gravity = android.view.Gravity.BOTTOM | android.view.Gravity.CENTER_HORIZONTAL;
+        contentView.addView(toggleButton, buttonParams);
+
         setContentView(contentView);
     }
 
     private static class BackdropBlurView extends View {
-        private final float mBlurRadius = 60f;
+        private final float mBlurRadius = 10f;
         private final float mSaturation = 1.8f;
 
         private float mDownOffsetX;
@@ -76,7 +102,6 @@ public class BackdropBlurActivity extends Activity {
                     new ColorMatrixColorFilter(colorMatrix), blurEffect
             );
             setBackdropRenderEffect(effect);
-
             // clip to a round outline.
             setOutlineProvider(new ViewOutlineProvider() {
                 @Override

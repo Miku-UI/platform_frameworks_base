@@ -233,7 +233,11 @@ public final class ThreadedRenderer extends HardwareRenderer {
      * @return A threaded renderer backed by OpenGL.
      */
     public static ThreadedRenderer create(Context context, boolean translucent, String name) {
-        return new ThreadedRenderer(context, translucent, name);
+        return new ThreadedRenderer(context, translucent, name, false);
+    }
+
+   public static ThreadedRenderer create(Context context, boolean translucent, String name, boolean useIpcRendering) {
+       return new ThreadedRenderer(context, translucent, name, useIpcRendering);
     }
 
     private static final String[] VISUALIZERS = {
@@ -280,10 +284,9 @@ public final class ThreadedRenderer extends HardwareRenderer {
         private BLASTBufferQueue mBLASTBufferQueue;
         private SurfaceControl mSurfaceControl;
 
-        public boolean setSurfaceControlOpaque(boolean opaque) {
+        public boolean getSurfaceControlOpacity(boolean opaque) {
             synchronized (this) {
                 if (mHasWebViewOverlays) return false;
-                mTransaction.setOpaque(mSurfaceControl, opaque).apply();
             }
             return opaque;
         }
@@ -296,7 +299,7 @@ public final class ThreadedRenderer extends HardwareRenderer {
             synchronized (this) {
                 mSurfaceControl = surfaceControl;
                 if (mSurfaceControl != null && mHasWebViewOverlays) {
-                    mTransaction.setOpaque(surfaceControl, false).apply();
+                    mTransaction.setOpaque(mSurfaceControl, false).apply();
                 }
             }
         }
@@ -338,7 +341,11 @@ public final class ThreadedRenderer extends HardwareRenderer {
     private ArrayList<FrameDrawingCallback> mNextRtFrameCallbacks;
 
     ThreadedRenderer(Context context, boolean translucent, String name) {
-        super();
+        this(context, translucent, name, false);
+    }
+
+    ThreadedRenderer(Context context, boolean translucent, String name, boolean useIpcRendering) {
+        super(useIpcRendering);
         setName(name);
         setOpaque(!translucent);
 
@@ -355,7 +362,7 @@ public final class ThreadedRenderer extends HardwareRenderer {
     @Override
     public void destroy() {
         mInitialized = false;
-        updateEnabledState(null);
+        setEnabled(false);
         super.destroy();
     }
 
@@ -395,14 +402,6 @@ public final class ThreadedRenderer extends HardwareRenderer {
         mRequested = requested;
     }
 
-    private void updateEnabledState(Surface surface) {
-        if (surface == null || !surface.isValid()) {
-            setEnabled(false);
-        } else {
-            setEnabled(mInitialized);
-        }
-    }
-
     /**
      * Initializes the threaded renderer for the specified surface.
      *
@@ -413,7 +412,7 @@ public final class ThreadedRenderer extends HardwareRenderer {
     boolean initialize(Surface surface) throws OutOfResourcesException {
         boolean status = !mInitialized;
         mInitialized = true;
-        updateEnabledState(surface);
+        setEnabled(true);
         setSurface(surface);
         return status;
     }
@@ -454,7 +453,7 @@ public final class ThreadedRenderer extends HardwareRenderer {
      * @param surface The surface to render
      */
     void updateSurface(Surface surface) throws OutOfResourcesException {
-        updateEnabledState(surface);
+        setEnabled(mInitialized);
         setSurface(surface);
     }
 
@@ -545,21 +544,17 @@ public final class ThreadedRenderer extends HardwareRenderer {
         setLightCenter(attachInfo);
     }
 
-    RectF getRoundedClipBounds() {
-        return new RectF(-mInsetLeft, -mInsetTop, mSurfaceWidth, mSurfaceHeight);
-    }
-
-    void setCornerRadius(CornerRadii radii) {
+    RectF setCornerRadius(CornerRadii radii) {
+        mCornerRadii = radii;
         if (radii == null || radii.isEmpty()) {
             mRootNode.setClipToOutline(false);
-            return;
+            return new RectF(0, 0, 0, 0);
         }
-        mCornerRadii = radii;
         if (mOutline == null) {
             mOutline = new Outline();
         }
         Path path = new Path();
-        RectF rect = new RectF(-mInsetLeft, -mInsetTop, mSurfaceWidth, mSurfaceHeight);
+        RectF rect = new RectF(0, 0, mSurfaceWidth, mSurfaceHeight);
         float[] cwRadii = {mCornerRadii.topLeft, mCornerRadii.topLeft,
                 mCornerRadii.topRight, mCornerRadii.topRight,
                 mCornerRadii.bottomRight, mCornerRadii.bottomRight,
@@ -568,26 +563,30 @@ public final class ThreadedRenderer extends HardwareRenderer {
         mOutline.setPath(path);
         mRootNode.setOutline(mOutline);
         mRootNode.setClipToOutline(true);
+
+         // If the surface has corner radii, it can't be opaque.
+        setOpaque(false);
+        return rect;
     }
 
     /**
      * Whether or not the renderer owns the SurfaceControl's opacity. If true, use
-     * {@link #setSurfaceControlOpaque(boolean)} to update the opacity
+     * {@link #getSurfaceControlOpacity(boolean)} to update the opacity
      */
     public boolean rendererOwnsSurfaceControlOpacity() {
         return mWebViewOverlayProvider.mSurfaceControl != null;
     }
 
     /**
-     * Sets the SurfaceControl's opacity that this HardwareRenderer is rendering onto. The renderer
+     * Gets the SurfaceControl's opacity that this HardwareRenderer is rendering onto. The renderer
      * may opt to override the opacity, and will return the value that is ultimately set
      *
      * @return true if the surface is opaque, false otherwise
      *
      * @hide
      */
-    public boolean setSurfaceControlOpaque(boolean opaque) {
-        return mWebViewOverlayProvider.setSurfaceControlOpaque(opaque);
+    public boolean getSurfaceControlOpacity(boolean opaque) {
+        return mWebViewOverlayProvider.getSurfaceControlOpacity(opaque);
     }
 
     private void updateWebViewOverlayCallbacks() {

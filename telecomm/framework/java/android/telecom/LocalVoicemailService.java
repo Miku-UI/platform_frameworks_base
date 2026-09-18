@@ -30,13 +30,14 @@ import android.media.AudioFormat;
 import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
+import android.os.Binder;
 import android.os.Handler;
-import android.os.HandlerExecutor;
 import android.os.IBinder;
 import android.os.RemoteException;
 
 import com.android.internal.telecom.ILocalVoicemailService;
 import com.android.internal.telecom.ILocalVoicemailServiceAdapter;
+import com.android.modules.utils.HandlerExecutor;
 import com.android.server.telecom.flags.Flags;
 
 import java.util.concurrent.Executor;
@@ -62,7 +63,7 @@ import java.util.concurrent.Executor;
  * @hide
  */
 @SystemApi
-@FlaggedApi(Flags.FLAG_LOCAL_VOICEMAIL)
+@FlaggedApi(android.telecom.flags.Flags.FLAG_LOCAL_VOICEMAIL)
 public abstract class LocalVoicemailService extends Service {
     /**
      * The {@link Intent} that must be declared as handled by the service.
@@ -81,17 +82,40 @@ public abstract class LocalVoicemailService extends Service {
         @Override
         public void setAdapter(ILocalVoicemailServiceAdapter adapter) throws RemoteException {
             Log.i(LocalVoicemailService.this, "setAdapter");
-            getExecutor().execute(() -> {
-                mAdapter = adapter;
-            });
+            final long token = Binder.clearCallingIdentity();
+            try {
+                getExecutor().execute(() -> {
+                    mAdapter = adapter;
+                });
+            } finally {
+                Binder.restoreCallingIdentity(token);
+            }
         }
 
         @Override
         public void startLocalVoicemail(ParcelableCall call) throws RemoteException {
             Log.i(LocalVoicemailService.this, "startLocalVoicemail: " + call.getId());
-            getExecutor().execute(() -> {
-                handleLocalVoicemailRequest(call);
-            });
+            final long token = Binder.clearCallingIdentity();
+            try {
+                getExecutor().execute(() -> {
+                    handleLocalVoicemailRequest(call);
+                });
+            } finally {
+                Binder.restoreCallingIdentity(token);
+            }
+        }
+
+        @Override
+        public void stopLocalVoicemail(ParcelableCall call) throws RemoteException {
+            Log.i(LocalVoicemailService.this, "stopLocalVoicemail: " + call.getId());
+            final long token = Binder.clearCallingIdentity();
+            try {
+                getExecutor().execute(() -> {
+                    onVoicemailStopped(Call.Details.createFromParcelableCall(call));
+                });
+            } finally {
+                Binder.restoreCallingIdentity(token);
+            }
         }
     }
 
@@ -119,8 +143,7 @@ public abstract class LocalVoicemailService extends Service {
 
     /**
      * Disconnects the current call and stops local voicemail processing.  The
-     * {@link LocalVoicemailService} is unbound after this method is called and you will no longer
-     * have access to the {@link AudioTrack} and {@link AudioRecord} for the call.
+     * {@link LocalVoicemailService} is unbound after this method is called.
      */
     public final void disconnectCall() {
         try {
@@ -169,11 +192,28 @@ public abstract class LocalVoicemailService extends Service {
      *             formatIn);
      * }
      * </pre>
+     * <p>
+     * Note: there can ONLY be one local voicemail call at any one time; you can expect that this
+     * method will be called only once per binding to your {@link LocalVoicemailService}.
+     *
      * @param call information about the incoming call including its phone number.
      */
     @RequiresPermission(allOf = {Manifest.permission.CALL_AUDIO_INTERCEPTION,
             Manifest.permission.MODIFY_AUDIO_ROUTING, Manifest.permission.RECORD_AUDIO})
     public abstract void onVoicemailRequested(@NonNull Call.Details call);
+
+    /**
+     * Implement this method in the {@link LocalVoicemailService} to be notified by Telecom when
+     * local voicemail processing has stopped for the call undergoing local voicemail.
+     * The {@link AudioManager#getMode()} will change from {@link AudioManager#MODE_CALL_REDIRECT}
+     * and you will no longer have access to the call uplink and downlink audio tracks.
+     * <p>
+     * Note: This will only be called if {@link #onVoicemailRequested(Call.Details)} was called, and
+     * the {@code call} will be the same.
+     *
+     * @param call the call which is no longer undergoing local voicemail processing.
+     */
+    public abstract void onVoicemailStopped(@NonNull Call.Details call);
 
     /**
      * Relays a request from Telecom to start local voicemail for a call to the app's
@@ -182,15 +222,6 @@ public abstract class LocalVoicemailService extends Service {
      */
     private void handleLocalVoicemailRequest(ParcelableCall call) {
         mCallId = call.getId();
-        try {
-            AudioManager audioManager = getApplicationContext().getSystemService(
-                    AudioManager.class);
-            Log.i(this,
-                    "isPstnCallAudioInterceptable: " + audioManager.isPstnCallAudioInterceptable());
-
-            onVoicemailRequested(Call.Details.createFromParcelableCall(call));
-        } catch (Exception e) {
-            Log.e(this, e, "handleLocalVoicemailRequest: " + call.getId());
-        }
+        onVoicemailRequested(Call.Details.createFromParcelableCall(call));
     }
 }

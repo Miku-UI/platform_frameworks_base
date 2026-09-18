@@ -27,6 +27,7 @@ import com.android.internal.jank.InteractionJankMonitor;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Helps track PIP CUJ interactions
@@ -35,15 +36,52 @@ public class PipInteractionHandler {
     @IntDef(prefix = {"INTERACTION_"}, value = {
             INTERACTION_EXIT_PIP,
             INTERACTION_EXIT_PIP_TO_SPLIT,
-            INTERACTION_ENTER_PIP
+            INTERACTION_ENTER_PIP,
+            INTERACTION_REMOVE_PIP,
+            INTERACTION_BOUNDS_CHANGE_TRANSITION,
+            INTERACTION_PINCHING_PIP,
+            INTERACTION_DRAG_PIP,
+            INTERACTION_FLING_TO_SNAP_PIP
     })
 
     @Retention(RetentionPolicy.SOURCE)
     public @interface Interaction {}
 
+    /** Covers exiting PiP via expand interaction. */
     public static final int INTERACTION_EXIT_PIP = 0;
+
+    /** Covers exiting PiP via expand into a splitscreen interaction. */
     public static final int INTERACTION_EXIT_PIP_TO_SPLIT = 1;
+
+    /**
+     * Covers entering PiP interaction; covers the bounds-type entry animation, cross-fade entry,
+     * and jump-cut PiP transition at the end of swipe-pip-to-home interaction.
+     *
+     * Note: the Launcher-side animation of swipe-pip-to-home
+     * is covered by {@code CUJ_LAUNCHER_APP_CLOSE_TO_PIP}.
+     */
     public static final int INTERACTION_ENTER_PIP = 2;
+
+    /** Covers removing PiP, for example via menu and drag-into-dismiss target. */
+    public static final int INTERACTION_REMOVE_PIP = 3;
+
+    /** Covers the bounds change type transition part of a PiP resize. */
+    public static final int INTERACTION_BOUNDS_CHANGE_TRANSITION = 4;
+
+    /** Covers the pinching action on a PiP window before pointer release. */
+    public static final int INTERACTION_PINCHING_PIP = 5;
+
+    /** Covers the drag action on a PiP window before pointer release. */
+    public static final int INTERACTION_DRAG_PIP = 6;
+
+    /**
+     * Covers the PiP fling-to-snap animation once pointer is released after a drag.
+     * This includes stashing and the part of dismissal animation within dismiss target
+     * that moves PiP outside the screen bounds.
+     */
+    public static final int INTERACTION_FLING_TO_SNAP_PIP = 7;
+
+    private static final long DEFAULT_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(4L);
 
     private final Context mContext;
     private final Handler mHandler;
@@ -63,8 +101,12 @@ public class PipInteractionHandler {
      * @param interaction Tag for interaction.
      */
     public void begin(SurfaceControl leash, @Interaction int interaction) {
-        mInteractionJankMonitor.begin(leash, mContext, mHandler, CUJ_PIP_TRANSITION,
-                pipInteractionToString(interaction));
+        final InteractionJankMonitor.Configuration.Builder builder =
+                InteractionJankMonitor.Configuration.Builder
+                        .withSurface(CUJ_PIP_TRANSITION, mContext, leash, mHandler)
+                        .setTag(pipInteractionToString(interaction))
+                        .setTimeout(DEFAULT_TIMEOUT_MS);
+        mInteractionJankMonitor.begin(builder);
     }
 
     /**
@@ -85,6 +127,11 @@ public class PipInteractionHandler {
             case INTERACTION_EXIT_PIP -> "EXIT_PIP";
             case INTERACTION_EXIT_PIP_TO_SPLIT -> "EXIT_PIP_TO_SPLIT";
             case INTERACTION_ENTER_PIP -> "ENTER_PIP";
+            case INTERACTION_REMOVE_PIP -> "REMOVE_PIP";
+            case INTERACTION_BOUNDS_CHANGE_TRANSITION -> "BOUNDS_CHANGE_TRANSITION";
+            case INTERACTION_PINCHING_PIP -> "PINCHING_PIP";
+            case INTERACTION_DRAG_PIP -> "DRAG_PIP";
+            case INTERACTION_FLING_TO_SNAP_PIP -> "FLING_TO_SNAP_PIP";
             default -> "";
         };
     }

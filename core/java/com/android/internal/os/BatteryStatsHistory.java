@@ -1942,12 +1942,9 @@ public class BatteryStatsHistory {
                 // Negative or excessively large time deltas are unexpected.
                 debugLog(cur, last, "Unexpected time delta: " + deltaTime, true);
             }
-            if (com.android.server.power.optimization.Flags
-                    .reportOutOfOrderBatteryHistoryEvents()) {
-                // Generate verbose syslog to help root-cause the issue
-                debugLog(Log.ERROR, cur, last, "Unexpected time delta: " + deltaTime, false);
-                Slog.wtfStack(TAG, "Out-of-order battery history event. Check logcat for details");
-            }
+            // Generate verbose syslog to help root-cause the issue
+            debugLog(Log.ERROR, cur, last, "Unexpected time delta: " + deltaTime, false);
+            Slog.wtfStack(TAG, "Out-of-order battery history event. Check logcat for details");
         } else if (deltaTime >= BatteryStatsHistory.DELTA_TIME_ABS) {
             deltaTimeToken = BatteryStatsHistory.DELTA_TIME_INT;
         } else {

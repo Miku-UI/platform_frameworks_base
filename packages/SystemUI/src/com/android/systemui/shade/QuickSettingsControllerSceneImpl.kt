@@ -16,6 +16,7 @@
 
 package com.android.systemui.shade
 
+import android.view.MotionEvent
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.qs.panels.ui.viewmodel.EditModeViewModel
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
@@ -36,7 +37,12 @@ constructor(
         get() = editModeViewModel.isEditing.value
 
     @Deprecated("specific to legacy touch handling")
-    override fun shouldQuickSettingsIntercept(x: Float, y: Float, yDiff: Float): Boolean {
+    override fun shouldQuickSettingsIntercept(
+        x: Float,
+        y: Float,
+        yDiff: Float,
+        event: MotionEvent?,
+    ): Boolean {
         throw UnsupportedOperationException()
     }
 

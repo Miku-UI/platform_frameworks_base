@@ -348,33 +348,6 @@ public class LockscreenCredentialTest {
                 .isNull();
     }
 
-    @Test
-    public void testLegacyPasswordToHash() {
-        String password = "1234";
-        String salt = "6d5331dd120077a0";
-        String expectedHash =
-                "2DD04348ADBF8F4CABD7F722DC2E2887FAD4B6020A0C3E02C831E09946F0554FDC13B155";
-
-        assertThat(
-                LockscreenCredential.legacyPasswordToHash(
-                        password.getBytes(), salt.getBytes()))
-                .isEqualTo(expectedHash);
-    }
-
-    @Test
-    public void testLegacyPasswordToHashInvalidInput() {
-        String password = "1234";
-        String salt = "6d5331dd120077a0";
-
-        assertThat(LockscreenCredential.legacyPasswordToHash(
-                password.getBytes(), /* salt= */ null)).isNull();
-
-        assertThat(
-                LockscreenCredential.legacyPasswordToHash(
-                        /* password= */ null, salt.getBytes()))
-                .isNull();
-    }
-
     private LockscreenCredential createPattern(String patternString) {
         return LockscreenCredential.createPattern(LockPatternUtils.byteArrayToPattern(
                 patternString.getBytes()));

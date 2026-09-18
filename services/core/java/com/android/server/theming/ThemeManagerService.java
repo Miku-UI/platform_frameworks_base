@@ -16,166 +16,135 @@
 
 package com.android.server.theming;
 
+import android.Manifest;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.annotation.UserIdInt;
-import android.content.ContentResolver;
+import android.annotation.RequiresPermission;
+import android.app.KeyguardManager;
 import android.content.Context;
-import android.content.res.Resources;
-import android.content.theming.FieldColorSource;
-import android.content.theming.ThemeSettings;
-import android.content.theming.ThemeStyle;
-import android.database.ContentObserver;
-import android.graphics.Color;
-import android.net.Uri;
-import android.os.Handler;
-import android.os.UserHandle;
-import android.provider.Settings;
-import android.util.Log;
-import android.util.Pair;
+import android.os.SystemProperties;
+import android.util.Slog;
 
 import androidx.annotation.VisibleForTesting;
 
-import com.android.internal.os.BackgroundThread;
 import com.android.server.SystemService;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-
 /**
- * The ThemeService is a system service that manages the theming of the device.
- * It is responsible for loading and applying theme settings, and for notifying
- * other components of changes to the theme. It also handles the registration of
- * content observers for theme-related settings.
+ * ThemeManagerService is the main entry point for the theming system in Android.
+ * <p>
+ * Its purpose is to ensure that the system theme (colors, shapes, etc.) correctly reflects
+ * the user's wallpaper, settings, and other system states (like Dark Mode).
+ * <p>
+ * Internally, it acts as a coordinator that initializes and connects the specialized components
+ * that perform the actual work:
+ * <ul>
+ *     <li>{@link ThemeStateManager}: Manages the current and pending theme state for each user
+ *     .</li>
+ *     <li>{@link ThemeUserLifecycle}: Handles user-related events (start, switch, setup).</li>
+ *     <li>{@link ThemeEventObserver}: Listens for system events (wallpaper, settings, lock
+ *     state).</li>
+ *     <li>{@link ThemeManagerImpl}: Provides a local interface for other system services.</li>
+ *     <li>{@link ThemeEnvironment}: Provides access to system properties and state.</li>
+ *     <li>{@link ThemeBinderService}: Provides the public Binder interface for apps.</li>
+ * </ul>
+ *
+ * @hide
  */
 @FlaggedApi(android.server.Flags.FLAG_ENABLE_THEME_SERVICE)
 public class ThemeManagerService extends SystemService {
-    private static final String TAG = "ThemeService";
+    private static final String TAG = "ThemeManagerService";
 
-    private final ThemeManagerInternal mInternal;
+    private final ThemeManagerImpl mImpl;
     private final ThemeBinderService mPublic;
-    private final Context mContext;
-    private final ThemeSettingsManager mThemeSettingsManager;
-    private final Resources mResources;
-    private final SystemPropertiesReader mSystemPropertiesReader;
+    private final ThemeStateManager mStateManager;
+    private final ThemeUserLifecycle mUserLifecycle;
+    private final ThemeEventObserver mEventObserver;
+    private final ThemeInitializationObserver mInitializationObserver;
+    private final ThemeWallpaperManager mThemeWallpaperManager;
+    private final ThemeEnvironment mEnvironment;
 
     public ThemeManagerService(@NonNull Context context) {
-        this(context, new SystemPropertiesReaderImpl());
+        this(context, SystemProperties::get, null, null, null, null);
     }
 
     @VisibleForTesting
-    ThemeManagerService(@NonNull Context context, @NonNull SystemPropertiesReader systemPropertiesReader) {
+    ThemeManagerService(@NonNull Context context,
+            @NonNull SystemPropertiesReader systemPropertiesReader,
+            @Nullable ThemeEnvironment themeEnvironment,
+            @Nullable ThemeStateManager themeStateManager,
+            @Nullable ThemeUserLifecycle userLifecycle,
+            @Nullable ThemeEventObserver eventObserver) {
         super(context);
-        mContext = context;
-        mResources = context.getResources();
-        mThemeSettingsManager = new ThemeSettingsManager();
-        mSystemPropertiesReader = systemPropertiesReader;
-        ThemeSettings defaultSettings = createDefaultThemeSettings();
 
-        mInternal = new ThemeManagerInternal(mContext, mThemeSettingsManager, defaultSettings);
-        mPublic = new ThemeBinderService(mContext, mInternal);
+        mEnvironment = themeEnvironment != null ? themeEnvironment
+                : new ThemeEnvironment(context, systemPropertiesReader);
+
+        ThemeOverlayHelper overlayHelper = new ThemeOverlayHelper();
+        mStateManager = themeStateManager != null ? themeStateManager : new ThemeStateManager(
+                context, mEnvironment);
+        mThemeWallpaperManager = new ThemeWallpaperManager();
+        ThemeSettingsManager themeSettingsManager = new ThemeSettingsManager(mThemeWallpaperManager,
+                mEnvironment.getConfig());
+
+        mUserLifecycle = userLifecycle != null ? userLifecycle : new ThemeUserLifecycle(context,
+                mEnvironment);
+        mEventObserver = eventObserver != null ? eventObserver : new ThemeEventObserver(context,
+                mEnvironment);
+
+        mImpl = new ThemeManagerImpl(context, themeSettingsManager, mStateManager, overlayHelper,
+                mEnvironment, mThemeWallpaperManager, systemPropertiesReader, mUserLifecycle,
+                mEventObserver);
+        mPublic = new ThemeBinderService(context, mImpl);
+
+        mInitializationObserver = new ThemeInitializationObserver(context, mImpl,
+                mThemeWallpaperManager,
+                mEnvironment);
     }
 
     @Override
     public void onStart() {
-        publishLocalService(ThemeManagerInternal.class, mInternal);
+        publishLocalService(ThemeManagerInternal.class, mImpl);
         publishBinderService(Context.THEME_SERVICE, mPublic.asBinder());
+
+        mInitializationObserver.onStart();
     }
 
     @Override
+    @RequiresPermission(Manifest.permission.SUBSCRIBE_TO_KEYGUARD_LOCKED_STATE)
     public void onBootPhase(@BootPhase int phase) {
         if (phase == SystemService.PHASE_SYSTEM_SERVICES_READY) {
-            setupListeners();
+            Slog.d(TAG, "Booth Phase SystemServices Ready: Wiring Components and Listeners.");
+            KeyguardManager keyGuardManager = getContext().getSystemService(KeyguardManager.class);
+
+            mEnvironment.onServicesReady(keyGuardManager);
+            mStateManager.onServicesReady();
+            mEventObserver.onServicesReady(mThemeWallpaperManager);
+
+            mInitializationObserver.registerListeners();
+        }
+
+        mInitializationObserver.onBootPhase(phase);
+    }
+
+    @Override
+    public void onUserStarting(@NonNull TargetUser user) {
+        // Only process users immediately if the initialization sequence has finished.
+        if (!mEnvironment.isBooting()) {
+            mUserLifecycle.onUserStarting(user);
         }
     }
 
-    // HELPER METHODS
-
-    private void setupListeners() {
-        ContentResolver resolver = mContext.getContentResolver();
-        Handler bgHandler = BackgroundThread.getHandler();
-
-        // Style Change
-        resolver.registerContentObserver(
-                Settings.Secure.getUriFor(Settings.Secure.THEME_CUSTOMIZATION_OVERLAY_PACKAGES),
-                false, new ContentObserver(bgHandler) {
-                    @Override
-                    public void onChange(boolean selfChange, @NonNull Collection<Uri> uris,
-                            int flags, @UserIdInt int userId) {
-                        Context userContext = mContext.createContextAsUser(UserHandle.of(userId),
-                                Context.CONTEXT_IGNORE_SECURITY);
-
-                        // notifies other listeners of the Theme Settings
-                        mInternal.notifySettingsChange(userId,
-                                mThemeSettingsManager.readSettings(userId,
-                                        userContext.getContentResolver()));
-                    }
-                }, UserHandle.USER_ALL);
+    @Override
+    public void onUserSwitching(@Nullable TargetUser from, @NonNull TargetUser to) {
+        if (!mEnvironment.isBooting()) {
+            mUserLifecycle.onUserSwitching(from, to);
+        }
     }
 
+    /** @hide */
     @VisibleForTesting
-    ThemeSettings createDefaultThemeSettings() {
-        String deviceColorProperty = "ro.boot.hardware.color";
-        String[] themeData = mResources.getStringArray(
-                com.android.internal.R.array.theming_defaults);
-
-        // The 'theming_defaults' resource is a string array where each entry is formatted as:
-        // "hardware_color_name|STYLE_NAME|#hex_color_or_home_wallpaper"
-        HashMap<String, Pair<Integer, String>> themeMap = new HashMap<>();
-        for (String themeEntry : themeData) {
-            String[] themeComponents = themeEntry.split("\\|");
-            if (themeComponents.length != 3) {
-                continue;
-            }
-            try {
-                themeMap.put(themeComponents[0],
-                        new Pair<>(ThemeStyle.valueOf(themeComponents[1]), themeComponents[2]));
-            } catch (IllegalArgumentException e) {
-                Log.w(TAG, "Invalid style in theming_defaults: " + themeComponents[1], e);
-            }
-        }
-
-        Pair<Integer, String> fallbackTheme = themeMap.get("*");
-        if (fallbackTheme == null) {
-            // This is a device configuration error. A wildcard fallback is required.
-            throw new IllegalStateException("Theming resource 'theming_defaults' must contain a"
-                    + " wildcard ('*') entry for fallback.");
-        }
-
-        String deviceColorPropertyValue = mSystemPropertiesReader.get(deviceColorProperty, "");
-        Pair<Integer, String> styleAndSource = themeMap.get(deviceColorPropertyValue);
-        if (styleAndSource == null) {
-            Log.d(TAG, "Sysprop `" + deviceColorProperty + "` of value '"
-                    + deviceColorPropertyValue
-                    + "' not found in theming_defaults: " + Arrays.toString(themeData)
-                    + ". Using wildcard fallback.");
-            styleAndSource = fallbackTheme;
-        }
-
-        @ThemeStyle.Type int style = styleAndSource.first;
-        String colorSourceString = styleAndSource.second;
-
-        ThemeSettings.Builder builder = ThemeSettings.builder(0, style);
-
-        if (FieldColorSource.VALUE_HOME_WALLPAPER.equals(colorSourceString)) {
-            // The service's responsibility is to declare that the default is wallpaper-based.
-            // We default to `colorBoth=true` as we can't know the state here.
-            return builder.buildFromWallpaper(true);
-        } else {
-            // The default is a preset color. Parse it and create the setting. An invalid color
-            // string here is a device configuration error and should cause a crash.
-            Color seedColor = Color.valueOf(Color.parseColor(colorSourceString));
-            return builder.buildFromPreset(seedColor, seedColor);
-        }
-    }
-
-    private static class SystemPropertiesReaderImpl implements SystemPropertiesReader {
-        @Override
-        @NonNull
-        public String get(@NonNull String key, @Nullable String def) {
-            return android.os.SystemProperties.get(key, def);
-        }
+    ThemeManagerInternal getLocalService() {
+        return mImpl;
     }
 }

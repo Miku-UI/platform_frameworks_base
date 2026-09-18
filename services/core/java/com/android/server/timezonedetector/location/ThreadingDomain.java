@@ -48,9 +48,7 @@ abstract class ThreadingDomain {
         return mLockObject;
     }
 
-    /**
-     * Returns the Thread associated with this threading domain.
-     */
+    /** Returns the Thread associated with this threading domain. */
     @NonNull
     abstract Thread getThread();
 
@@ -71,9 +69,7 @@ abstract class ThreadingDomain {
         Preconditions.checkState(Thread.currentThread() != getThread());
     }
 
-    /**
-     * Execute the supplied runnable on the threading domain's thread.
-     */
+    /** Execute the supplied runnable on the threading domain's thread. */
     abstract void post(@NonNull Runnable runnable);
 
     /**
@@ -86,10 +82,12 @@ abstract class ThreadingDomain {
      */
     final void postAndWait(@NonNull Runnable runnable, @DurationMillisLong long durationMillis) {
         try {
-            postAndWait(() -> {
-                runnable.run();
-                return null;
-            }, durationMillis);
+            postAndWait(
+                    () -> {
+                        runnable.run();
+                        return null;
+                    },
+                    durationMillis);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -107,9 +105,7 @@ abstract class ThreadingDomain {
             @NonNull Callable<V> callable, @DurationMillisLong long durationMillis)
             throws Exception;
 
-    /**
-     * Execute the supplied runnable on the threading domain's thread with a delay.
-     */
+    /** Execute the supplied runnable on the threading domain's thread with a delay. */
     abstract void postDelayed(@NonNull Runnable runnable, @DurationMillisLong long delayMillis);
 
     abstract void postDelayed(Runnable r, Object token, @DurationMillisLong long delayMillis);
@@ -117,8 +113,8 @@ abstract class ThreadingDomain {
     abstract void removeQueuedRunnables(Object token);
 
     /**
-     * Creates a new {@link SingleRunnableQueue} that can be used to ensure that (at most) a
-     * single runnable for a given purpose is ever queued. Create new ones for different purposes.
+     * Creates a new {@link SingleRunnableQueue} that can be used to ensure that (at most) a single
+     * runnable for a given purpose is ever queued. Create new ones for different purposes.
      */
     SingleRunnableQueue createSingleRunnableQueue() {
         return new SingleRunnableQueue();
@@ -132,8 +128,7 @@ abstract class ThreadingDomain {
     final class SingleRunnableQueue {
 
         private boolean mIsQueued;
-        @DurationMillisLong
-        private long mDelayMillis;
+        @DurationMillisLong private long mDelayMillis;
 
         /**
          * Posts the supplied {@link Runnable} asynchronously and delayed on the threading domain
@@ -144,11 +139,14 @@ abstract class ThreadingDomain {
             cancel();
             mIsQueued = true;
             mDelayMillis = delayMillis;
-            ThreadingDomain.this.postDelayed(() -> {
-                mIsQueued = false;
-                mDelayMillis = -2;
-                r.run();
-            }, this, delayMillis);
+            ThreadingDomain.this.postDelayed(
+                    () -> {
+                        mIsQueued = false;
+                        mDelayMillis = -2;
+                        r.run();
+                    },
+                    this,
+                    delayMillis);
         }
 
         /**
@@ -162,8 +160,8 @@ abstract class ThreadingDomain {
 
         /**
          * Returns the delay in milliseconds for the currently queued item. Throws {@link
-         * IllegalStateException} if nothing is currently queued, see {@link #hasQueued()}.
-         * This method must be called from the threading domain's thread.
+         * IllegalStateException} if nothing is currently queued, see {@link #hasQueued()}. This
+         * method must be called from the threading domain's thread.
          */
         @DurationMillisLong
         long getQueuedDelayMillis() {
@@ -175,8 +173,8 @@ abstract class ThreadingDomain {
         }
 
         /**
-         * Cancels any queued but not-yet-executed {@link Runnable} previously added by this.
-         * This method must be called from the threading domain's thread.
+         * Cancels any queued but not-yet-executed {@link Runnable} previously added by this. This
+         * method must be called from the threading domain's thread.
          */
         public void cancel() {
             assertCurrentThread();

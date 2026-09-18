@@ -20,14 +20,17 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
+import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SdkConstant;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
+import android.app.Flags;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.NotificationRule;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
@@ -39,9 +42,13 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.RemoteException;
 import android.util.Log;
+
 import com.android.internal.os.SomeArgs;
+
 import java.lang.annotation.Retention;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * A service that helps the user manage notifications.
@@ -118,7 +125,6 @@ public abstract class NotificationAssistantService extends NotificationListenerS
      * <p>
      * Output: Nothing.
      */
-    @FlaggedApi(Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     @SdkConstant(SdkConstant.SdkConstantType.ACTIVITY_INTENT_ACTION)
     public static final String ACTION_NOTIFICATION_ASSISTANT_FEEDBACK_SETTINGS =
             "android.service.notification.action.NOTIFICATION_ASSISTANT_FEEDBACK_SETTINGS";
@@ -128,7 +134,6 @@ public abstract class NotificationAssistantService extends NotificationListenerS
      *
      * Extra for {@link #ACTION_NOTIFICATION_ASSISTANT_FEEDBACK_SETTINGS}.
      */
-    @FlaggedApi(Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public static final String EXTRA_NOTIFICATION_KEY
             = "android.service.notification.extra.NOTIFICATION_KEY";
 
@@ -138,7 +143,6 @@ public abstract class NotificationAssistantService extends NotificationListenerS
      *
      * Extra for {@link #ACTION_NOTIFICATION_ASSISTANT_FEEDBACK_SETTINGS}.
      */
-    @FlaggedApi(android.app.Flags.FLAG_NM_SUMMARIZATION)
     public static final String EXTRA_NOTIFICATION_ADJUSTMENT
             = "android.service.notification.extra.NOTIFICATION_ADJUSTMENT";
 
@@ -148,7 +152,6 @@ public abstract class NotificationAssistantService extends NotificationListenerS
      *
      * Extra for {@link #ACTION_NOTIFICATION_ASSISTANT_FEEDBACK_SETTINGS}.
      */
-    @FlaggedApi(android.app.Flags.FLAG_NM_SUMMARIZATION)
     public static final String EXTRA_NOTIFICATION_ADJUSTMENTS
             = "android.service.notification.extra.NOTIFICATION_ADJUSTMENTS";
 
@@ -357,6 +360,17 @@ public abstract class NotificationAssistantService extends NotificationListenerS
     }
 
     /**
+     * Implement this method to receive suggested adjustments from the system, merge them with any
+     * other internal adjustments, and notify the system of the merged adjustments via
+     * {@link #adjustNotification(Adjustment)}. By default, system adjustments are ignored.
+     *
+     * @param adjustments the adjustments suggested by the system
+     */
+    @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE)
+    public void onSystemAdjustmentsReceived(@NonNull List<Adjustment> adjustments) {
+    }
+
+    /**
      * Updates a notification.  N.B. this won’t cause
      * an existing notification to alert, but might allow a future update to
      * this notification to alert.
@@ -371,6 +385,100 @@ public abstract class NotificationAssistantService extends NotificationListenerS
         } catch (android.os.RemoteException ex) {
             Log.v(TAG, "Unable to contact notification manager", ex);
             throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Creates a dynamic bundle type that notifications can later be classified to via a
+     * {@link Adjustment#KEY_TYPE} adjustment. If a dynamic bundle with this type already exists,
+     * this request will be ignored.
+     */
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY)
+    public final void createDynamicBundle(@IntRange(from=DynamicBundle.DYNAMIC_RANGE_START,
+                    to=DynamicBundle.DYNAMIC_RANGE_END) int dynamicBundleType,
+            @NonNull CharSequence bundleName) {
+        if (!isBound()) return;
+        try {
+            getNotificationInterface().createDynamicBundle(
+                    mWrapper, dynamicBundleType, bundleName.toString());
+        } catch (android.os.RemoteException ex) {
+            Log.v(TAG, "Unable to contact notification manager", ex);
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Deletes a dynamic bundle previously created by
+     * {@link #createDynamicBundle(int, CharSequence)}.
+     */
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY)
+    public final void deleteDynamicBundle(@IntRange(from=DynamicBundle.DYNAMIC_RANGE_START,
+            to=DynamicBundle.DYNAMIC_RANGE_END) int dynamicBundleType) {
+        if (!isBound()) return;
+        try {
+            getNotificationInterface().deleteDynamicBundle(mWrapper, dynamicBundleType);
+        } catch (android.os.RemoteException ex) {
+            Log.v(TAG, "Unable to contact notification manager", ex);
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+
+    /**
+     * Returns the list of {@link android.service.notification.NotificationAssistantService} created
+     * dynamic bundles.
+     */
+    @FlaggedApi(Flags.FLAG_NM_CONTEXTUAL_DISPLAY)
+    public @NonNull final Set<DynamicBundle> getDynamicBundles() {
+        try {
+            return new HashSet<>(getNotificationInterface().getDynamicBundles(mWrapper,
+                    getContext() != null ? getContext().getUser() : mSystemContext.getUser()));
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Implement this method to be informed when a {@link NotificationRule} is added.
+     *
+     * @param rule The newly added {@link NotificationRule}.
+     */
+    @FlaggedApi(android.app.Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public void onNotificationRuleAdded(@NonNull NotificationRule rule) {
+        // optional
+    }
+
+    /**
+     * Implement this method to be informed when a {@link NotificationRule} is modified.
+     *
+     * @param rule The modified {@link NotificationRule}.
+     */
+    @FlaggedApi(android.app.Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public void onNotificationRuleModified(@NonNull NotificationRule rule) {
+        // optional
+    }
+
+    /**
+     * Implement this method to be informed when a {@link NotificationRule} is removed.
+     *
+     * @param ruleId The ID of the removed {@link NotificationRule}.
+     */
+    @FlaggedApi(android.app.Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public void onNotificationRuleRemoved(int ruleId) {
+        // optional
+    }
+
+    /**
+     * Returns the list of {@link android.app.NotificationRule}s for the current user.
+     */
+    @FlaggedApi(android.app.Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public final @NonNull List<NotificationRule> getNotificationRules() {
+        try {
+            return getNotificationInterface().getNotificationRules(mWrapper,
+                    getContext() != null ? getContext().getUserId()
+                            : mSystemContext.getUserId()).getList();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
         }
     }
 
@@ -418,7 +526,6 @@ public abstract class NotificationAssistantService extends NotificationListenerS
      *
      * For backwards compatibility, we assume all Adjustment types are supported by the NAS.
      */
-    @FlaggedApi(Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public final void setAdjustmentTypeSupportedState(@NonNull @Adjustment.Keys String key,
             boolean supported) {
         if (!isBound()) return;
@@ -431,25 +538,7 @@ public abstract class NotificationAssistantService extends NotificationListenerS
 
     private class NotificationAssistantServiceWrapper extends NotificationListenerWrapper {
         @Override
-        public void onNotificationEnqueuedWithChannel(IStatusBarNotificationHolder sbnHolder,
-                NotificationChannel channel, NotificationRankingUpdate update) {
-            StatusBarNotification sbn;
-            try {
-                sbn = sbnHolder.get();
-            } catch (RemoteException e) {
-                Log.w(TAG, "onNotificationEnqueued: Error receiving StatusBarNotification", e);
-                return;
-            }
-            if (sbn == null) {
-                Log.w(TAG, "onNotificationEnqueuedWithChannel: "
-                        + "Error receiving StatusBarNotification");
-                return;
-            }
-            onNotificationEnqueuedWithChannelFull(sbn, channel, update);
-        }
-
-        @Override
-        public void onNotificationEnqueuedWithChannelFull(StatusBarNotification sbn,
+        public void onNotificationEnqueuedWithChannel(StatusBarNotification sbn,
                 NotificationChannel channel, NotificationRankingUpdate update) {
             applyUpdateLocked(update);
             SomeArgs args = SomeArgs.obtain();
@@ -462,23 +551,6 @@ public abstract class NotificationAssistantService extends NotificationListenerS
 
         @Override
         public void onNotificationSnoozedUntilContext(
-                IStatusBarNotificationHolder sbnHolder, String snoozeCriterionId) {
-            StatusBarNotification sbn;
-            try {
-                sbn = sbnHolder.get();
-            } catch (RemoteException e) {
-                Log.w(TAG, "onNotificationSnoozed: Error receiving StatusBarNotification", e);
-                return;
-            }
-            if (sbn == null) {
-                Log.w(TAG, "onNotificationSnoozed: Error receiving StatusBarNotification");
-                return;
-            }
-            onNotificationSnoozedUntilContextFull(sbn, snoozeCriterionId);
-        }
-
-        @Override
-        public void onNotificationSnoozedUntilContextFull(
                 StatusBarNotification sbn, String snoozeCriterionId) {
             SomeArgs args = SomeArgs.obtain();
             args.arg1 = sbn;
@@ -579,6 +651,36 @@ public abstract class NotificationAssistantService extends NotificationListenerS
             mHandler.obtainMessage(MyHandler.MSG_ON_NOTIFICATION_FEEDBACK_RECEIVED,
                     args).sendToTarget();
         }
+
+        @Override
+        public void onSystemAdjustmentsReceived(List<Adjustment> adjustments) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = adjustments;
+            mHandler.obtainMessage(MyHandler.MSG_ON_SYSTEM_ADJUSTMENTS_RECEIVED, args)
+                    .sendToTarget();
+        }
+
+        @Override
+        public void onNotificationRuleAdded(NotificationRule rule) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = rule;
+            mHandler.obtainMessage(MyHandler.MSG_ON_NOTIFICATION_RULE_ADDED, args).sendToTarget();
+        }
+
+        @Override
+        public void onNotificationRuleModified(NotificationRule rule) {
+            SomeArgs args = SomeArgs.obtain();
+            args.arg1 = rule;
+            mHandler.obtainMessage(MyHandler.MSG_ON_NOTIFICATION_RULE_MODIFIED,
+                    args).sendToTarget();
+        }
+
+        @Override
+        public void onNotificationRuleRemoved(int ruleId) {
+            SomeArgs args = SomeArgs.obtain();
+            args.argi1 = ruleId;
+            mHandler.obtainMessage(MyHandler.MSG_ON_NOTIFICATION_RULE_REMOVED, args).sendToTarget();
+        }
     }
 
     private void setAdjustmentIssuer(@Nullable Adjustment adjustment) {
@@ -601,6 +703,10 @@ public abstract class NotificationAssistantService extends NotificationListenerS
         public static final int MSG_ON_NOTIFICATION_VISIBILITY_CHANGED = 11;
         public static final int MSG_ON_NOTIFICATION_CLICKED = 12;
         public static final int MSG_ON_NOTIFICATION_FEEDBACK_RECEIVED = 13;
+        public static final int MSG_ON_SYSTEM_ADJUSTMENTS_RECEIVED = 14;
+        static final int MSG_ON_NOTIFICATION_RULE_ADDED = 15;
+        static final int MSG_ON_NOTIFICATION_RULE_MODIFIED = 16;
+        static final int MSG_ON_NOTIFICATION_RULE_REMOVED = 17;
 
         public MyHandler(Looper looper) {
             super(looper, null, false);
@@ -721,6 +827,37 @@ public abstract class NotificationAssistantService extends NotificationListenerS
                     Bundle feedback = (Bundle) args.arg3;
                     args.recycle();
                     onNotificationFeedbackReceived(key, ranking, feedback);
+                    break;
+                }
+                case MSG_ON_SYSTEM_ADJUSTMENTS_RECEIVED: {
+                    SomeArgs args = (SomeArgs) msg.obj;
+                    List<Adjustment> adjustments = (List<Adjustment>) args.arg1;
+                    args.recycle();
+                    onSystemAdjustmentsReceived(adjustments);
+                    break;
+                }
+
+                case MSG_ON_NOTIFICATION_RULE_ADDED: {
+                    SomeArgs args = (SomeArgs) msg.obj;
+                    NotificationRule rule = (NotificationRule) args.arg1;
+                    onNotificationRuleAdded(rule);
+                    args.recycle();
+                    break;
+                }
+
+                case MSG_ON_NOTIFICATION_RULE_MODIFIED: {
+                    SomeArgs args = (SomeArgs) msg.obj;
+                    NotificationRule rule = (NotificationRule) args.arg1;
+                    onNotificationRuleModified(rule);
+                    args.recycle();
+                    break;
+                }
+
+                case MSG_ON_NOTIFICATION_RULE_REMOVED: {
+                    SomeArgs args = (SomeArgs) msg.obj;
+                    int ruleId = args.argi1;
+                    onNotificationRuleRemoved(ruleId);
+                    args.recycle();
                     break;
                 }
             }

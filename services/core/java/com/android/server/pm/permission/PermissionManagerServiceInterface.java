@@ -382,9 +382,11 @@ public interface PermissionManagerServiceInterface extends PermissionManagerInte
      * <p>Note: Regular apps do not have to worry about this. The platform and permission controller
      * automatically add the new permissions where needed.
      *
+     * @param includeDisabled whether to include split permissions that are disabled by feature
+     *                        flags
      * @return All permissions that are split.
      */
-    List<SplitPermissionInfoParcelable> getSplitPermissions();
+    List<SplitPermissionInfoParcelable> getSplitPermissions(boolean includeDisabled);
 
     /**
      * Check whether a permission is granted or not to a package.
@@ -456,7 +458,8 @@ public interface PermissionManagerServiceInterface extends PermissionManagerInte
      *
      * TODO(zhanghai): Turn this into package change callback?
      */
-    void resetRuntimePermissions(@NonNull AndroidPackage pkg, @UserIdInt int userId);
+    void resetRuntimePermissions(@NonNull AndroidPackage pkg, @UserIdInt int userId,
+            boolean restorePregrants);
 
     /**
      * Reset the runtime permission state changes for all packages in a user.

@@ -82,6 +82,8 @@ import com.android.launcher3.icons.BaseIconFactory;
 import com.android.launcher3.icons.IconProvider;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
 import com.android.wm.shell.shared.TransactionPool;
+import com.android.wm.shell.sysui.ShellController;
+import com.android.wm.shell.sysui.UserChangeListener;
 
 import java.util.List;
 import java.util.function.Consumer;
@@ -116,6 +118,7 @@ public class SplashscreenContentDrawer {
      * to show before the icon animation finishes.
      */
     static final long MAX_ANIMATION_DURATION = MINIMAL_ANIMATION_DURATION + TIME_WINDOW_DURATION;
+    private final long mMinimumIconShowDuration;
 
     private final Context mContext;
     private final HighResIconProvider mHighResIconProvider;
@@ -134,16 +137,21 @@ public class SplashscreenContentDrawer {
     @VisibleForTesting
     final ColorCache mColorCache;
     @Nullable
-    private UiModeManager.ForceInvertStateChangeListener mForceInvertStateChangeListener = null;
+    private final UiModeManager.ForceInvertStateChangeListener mForceInvertStateChangeListener =
+            forceInvertState -> mForceInvertState = forceInvertState;
     @UiModeManager.ForceInvertType
     private int mForceInvertState;
 
     private UiModeManager mUiModeManager = null;
 
-    SplashscreenContentDrawer(Context context, IconProvider iconProvider, TransactionPool pool) {
+    private UserChangeListener mUserChangeListener;
+
+    SplashscreenContentDrawer(Context context, IconProvider iconProvider, TransactionPool pool,
+            long minimumIconShowDuration, ShellController shellController) {
         mContext = context;
         mHighResIconProvider = new HighResIconProvider(mContext, iconProvider);
         mTransactionPool = pool;
+        mMinimumIconShowDuration = minimumIconShowDuration;
 
         // Initialize Splashscreen worker thread
         // TODO(b/185288910) move it into WMShellConcurrencyModule and provide an executor to make
@@ -156,18 +164,25 @@ public class SplashscreenContentDrawer {
         mCanUseAppIconForSplashScreen = context.getResources().getBoolean(
                 com.android.wm.shell.R.bool.config_canUseAppIconForSplashScreen);
         if (android.view.accessibility.Flags.forceInvertColor()) {
-            if (mForceInvertStateChangeListener == null) {
-                mForceInvertStateChangeListener =
-                        forceInvertState -> mForceInvertState = forceInvertState;
-                mUiModeManager =
-                        context.getSystemService(UiModeManager.class);
-                if (mUiModeManager != null) {
-                    mForceInvertState = mUiModeManager.getForceInvertState();
-                    mUiModeManager.addForceInvertStateChangeListener(
-                            mSplashscreenWorkerHandler::post,
-                            mForceInvertStateChangeListener);
+            mUserChangeListener = new UserChangeListener() {
+                @Override
+                public void onUserChanged(int newUserId, @NonNull Context userContext) {
+                    if (mUiModeManager != null) {
+                        mUiModeManager.removeForceInvertStateChangeListener(
+                                mForceInvertStateChangeListener);
+                    }
+                    // We here don't use [context] but [userContext] to properly get the manager
+                    // linked with the current user.
+                    mUiModeManager = userContext.getSystemService(UiModeManager.class);
+                    if (mUiModeManager != null) {
+                        mForceInvertState = mUiModeManager.getForceInvertState();
+                        mUiModeManager.addForceInvertStateChangeListener(
+                                mSplashscreenWorkerHandler::post,
+                                mForceInvertStateChangeListener);
+                    }
                 }
-            }
+            };
+            shellController.addUserChangeListener(mUserChangeListener);
         }
     }
 
@@ -546,20 +561,20 @@ public class SplashscreenContentDrawer {
     }
 
     /**
-     * Get an optimal animation duration to keep the splash screen from showing.
+     * Get the optimal duration for showing the splash screen.
      *
-     * @param animationDuration The animation duration defined from app.
+     * @param iconShowDuration The icon duration defined from app or system.
      * @param appReadyDuration The real duration from the starting the app to the first app window
      *                         drawn.
      */
     @VisibleForTesting
-    static long getShowingDuration(long animationDuration, long appReadyDuration) {
-        if (animationDuration <= appReadyDuration) {
+    static long getShowingDuration(long iconShowDuration, long appReadyDuration) {
+        if (iconShowDuration <= appReadyDuration) {
             // app window ready took longer time than animation, it can be removed ASAP.
             return appReadyDuration;
         }
         if (appReadyDuration < MAX_ANIMATION_DURATION) {
-            if (animationDuration > MAX_ANIMATION_DURATION
+            if (iconShowDuration > MAX_ANIMATION_DURATION
                     || appReadyDuration < MINIMAL_ANIMATION_DURATION) {
                 // animation is too long or too short, cut off with minimal duration
                 return MINIMAL_ANIMATION_DURATION;
@@ -1229,12 +1244,12 @@ public class SplashscreenContentDrawer {
             return;
         }
         final long appReadyDuration = SystemClock.uptimeMillis() - createTime;
-        final long animDuration = view.getIconAnimationDuration() != null
-                ? view.getIconAnimationDuration().toMillis() : 0;
-        final long minimumShowingDuration = getShowingDuration(animDuration, appReadyDuration);
+        final long iconShowDuration = view.getIconAnimationDuration() != null
+                ? view.getIconAnimationDuration().toMillis() : mMinimumIconShowDuration;
+        final long minimumShowingDuration = getShowingDuration(iconShowDuration, appReadyDuration);
         final long delayed = minimumShowingDuration - appReadyDuration;
         ProtoLog.v(ShellProtoLogGroup.WM_SHELL_STARTING_WINDOW,
-                "applyExitAnimation delayed: %s", delayed);
+                "applyExitAnimation delayed: %d", delayed);
         if (delayed > 0) {
             view.postDelayed(playAnimation, delayed);
         } else {

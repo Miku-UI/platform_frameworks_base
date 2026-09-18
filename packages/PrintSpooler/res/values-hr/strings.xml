@@ -43,8 +43,9 @@
     <string name="summary_template" msgid="8899734908625669193">"Sažetak, kopije <xliff:g id="COPIES">%1$s</xliff:g>, veličina papira <xliff:g id="PAPER_SIZE">%2$s</xliff:g>"</string>
     <string name="expand_handle" msgid="7282974448109280522">"Ručica za proširenje"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"Ručica za sažimanje"</string>
-    <string name="print_button" msgid="645164566271246268">"Ispis"</string>
-    <string name="savetopdf_button" msgid="2976186791686924743">"Spremanje u PDF"</string>
+    <string name="print_button" msgid="645164566271246268">"Ispiši"</string>
+    <string name="setup_button" msgid="323390526074568450">"Postavi"</string>
+    <string name="savetopdf_button" msgid="2976186791686924743">"Spremi u PDF"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"Opcije ispisa proširene"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"Opcije ispisa sažete"</string>
     <string name="search" msgid="5421724265322228497">"Pretraživanje"</string>

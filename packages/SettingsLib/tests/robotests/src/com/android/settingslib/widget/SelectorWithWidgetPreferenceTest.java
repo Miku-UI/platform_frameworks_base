@@ -19,11 +19,14 @@ package com.android.settingslib.widget;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 
 import android.app.Application;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.preference.PreferenceViewHolder;
@@ -34,8 +37,11 @@ import com.android.settingslib.widget.preference.selector.R;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mockito;
 import org.robolectric.Robolectric;
 import org.robolectric.RobolectricTestRunner;
+
+import java.util.function.Consumer;
 
 @RunWith(RobolectricTestRunner.class)
 public class SelectorWithWidgetPreferenceTest {
@@ -222,6 +228,20 @@ public class SelectorWithWidgetPreferenceTest {
         mPreference.onBindViewHolder(holder);
 
         assertThat(holder.findViewById(R.id.appendix).getVisibility()).isEqualTo(View.GONE);
+    }
+
+    @Test
+    public void setExtraWidgetConsumer_getsCalled() {
+        View view = LayoutInflater.from(mContext)
+                .inflate(mPreference.getLayoutResource(), null /* root */);
+        PreferenceViewHolder holder =
+                PreferenceViewHolder.createInstanceForTests(view);
+        Consumer<ImageView> consumer = (Consumer<ImageView>) Mockito.mock(Consumer.class);
+        mPreference.setExtraWidgetOnBindConsumer(consumer);
+
+        mPreference.onBindViewHolder(holder);
+
+        verify(consumer).accept(any(ImageView.class));
     }
 
     @Test

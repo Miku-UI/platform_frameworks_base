@@ -57,6 +57,12 @@ inline fun SparseBooleanArray.getOrPut(key: Int, defaultValue: () -> Boolean): B
     }
 }
 
+@Suppress("NOTHING_TO_INLINE")
+inline fun SparseBooleanArray.isEmpty(): Boolean = size == 0
+
+@Suppress("NOTHING_TO_INLINE")
+inline fun SparseBooleanArray.isNotEmpty(): Boolean = !isEmpty()
+
 inline val SparseBooleanArray.lastIndex: Int
     get() = size - 1
 

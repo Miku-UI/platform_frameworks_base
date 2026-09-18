@@ -18,10 +18,8 @@ package com.android.systemui.lowlight.shared.model
 
 enum class LowLightDisplayBehavior {
     NONE,
-    UNKNOWN,
     LOW_LIGHT_DREAM,
     NO_DREAM,
-    SCREEN_OFF,
 }
 
 enum class ScreenState {
@@ -33,11 +31,7 @@ enum class ScreenState {
 fun LowLightDisplayBehavior.allowedInScreenState(screenState: ScreenState): Boolean {
     return when (screenState) {
         ScreenState.ON -> true
-        ScreenState.DOZE -> {
-            this == LowLightDisplayBehavior.NO_DREAM || this == LowLightDisplayBehavior.SCREEN_OFF
-        }
-        ScreenState.OFF -> {
-            this == LowLightDisplayBehavior.SCREEN_OFF
-        }
+        ScreenState.DOZE -> this == LowLightDisplayBehavior.NO_DREAM
+        ScreenState.OFF -> false
     }
 }

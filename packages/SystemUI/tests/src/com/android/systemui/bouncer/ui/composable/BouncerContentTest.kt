@@ -16,7 +16,6 @@
 
 package com.android.systemui.bouncer.ui.composable
 
-import android.app.AlertDialog
 import android.content.testableContext
 import android.platform.test.annotations.MotionTest
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,14 +32,15 @@ import com.android.compose.theme.PlatformTheme
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
-import com.android.systemui.bouncer.ui.BouncerDialogFactory
 import com.android.systemui.bouncer.ui.viewmodel.bouncerOverlayContentViewModelFactory
 import com.android.systemui.flags.Flags
 import com.android.systemui.flags.fakeFeatureFlagsClassic
+import com.android.systemui.integration.SystemUiIntegrationTest
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.motion.createSysUiComposeMotionTestRule
 import com.android.systemui.res.R
 import com.android.systemui.scene.domain.startable.sceneContainerStartable
+import com.android.systemui.statusbar.phone.SystemUIDialog
 import com.android.systemui.testKosmos
 import kotlin.time.Duration.Companion.seconds
 import org.junit.After
@@ -48,12 +48,14 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mock
+import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.whenever
 import platform.test.motion.compose.ComposeFeatureCaptures.alpha
 import platform.test.motion.compose.ComposeFeatureCaptures.positionInRoot
 import platform.test.motion.compose.ComposeRecordingSpec
 import platform.test.motion.compose.MotionControl
 import platform.test.motion.compose.feature
-import platform.test.motion.compose.motionTestValueOfNode
 import platform.test.motion.compose.recordMotion
 import platform.test.motion.compose.runTest
 import platform.test.screenshot.DeviceEmulationSpec
@@ -62,21 +64,21 @@ import platform.test.screenshot.Displays.FoldableInner
 @RunWith(AndroidJUnit4::class)
 @LargeTest
 @MotionTest
+@SystemUiIntegrationTest
 class BouncerContentTest : SysuiTestCase() {
     private val deviceSpec = DeviceEmulationSpec(FoldableInner, isLandscape = true)
     private val kosmos = testKosmos()
 
     @get:Rule val motionTestRule = createSysUiComposeMotionTestRule(kosmos, deviceSpec)
 
-    private val bouncerDialogFactory =
-        object : BouncerDialogFactory {
-            override fun invoke(): AlertDialog {
-                throw AssertionError()
-            }
-        }
+    @Mock private lateinit var bouncerDialogFactory: SystemUIDialog.Factory
 
     @Before
     fun setUp() {
+        MockitoAnnotations.openMocks(this)
+
+        whenever(bouncerDialogFactory.create()).thenThrow(AssertionError())
+
         kosmos.sceneContainerStartable.start()
         kosmos.fakeFeatureFlagsClassic.set(Flags.FULL_SCREEN_USER_SWITCHER, true)
         kosmos.fakeAuthenticationRepository.setAuthenticationMethod(AuthenticationMethodModel.Pin)
@@ -97,7 +99,7 @@ class BouncerContentTest : SysuiTestCase() {
     private fun BouncerContentUnderTest() {
         PlatformTheme {
             TestContentScope {
-                BouncerContent(
+                BouncerContentLayout(
                     viewModel =
                         rememberViewModel("test") {
                             kosmos.bouncerOverlayContentViewModelFactory.create()
@@ -122,9 +124,7 @@ class BouncerContentTest : SysuiTestCase() {
                                 doubleClick(position = centerLeft)
                             }
 
-                            awaitCondition {
-                                motionTestValueOfNode(BouncerMotionTestKeys.swapAnimationEnd)
-                            }
+                            awaitIdle()
                         }
                     ) {
                         feature(

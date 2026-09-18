@@ -21,12 +21,12 @@ import android.util.SparseArray
 import android.util.Xml
 import com.android.internal.util.FastXmlSerializer
 import com.android.internal.util.XmlUtils
-import org.xmlpull.v1.XmlPullParser
-import org.xmlpull.v1.XmlSerializer
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.charset.StandardCharsets
+import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlSerializer
 
 // If this number increases, consider bubbles might be restored even with differences in XML.
 private const val CURRENT_VERSION = 2
@@ -45,9 +45,7 @@ private const val ATTR_TASK_ID = "tid"
 private const val ATTR_LOCUS = "l"
 private const val ATTR_DISMISSABLE = "d"
 
-/**
- * Writes the bubbles in xml format into given output stream.
- */
+/** Writes the bubbles in xml format into given output stream. */
 @Throws(IOException::class)
 fun writeXml(stream: OutputStream, bubbles: SparseArray<List<BubbleEntity>>) {
     val serializer: XmlSerializer = FastXmlSerializer()
@@ -92,9 +90,7 @@ private fun writeXmlEntry(serializer: XmlSerializer, bubble: BubbleEntity) {
     }
 }
 
-/**
- * Reads the bubbles from xml file.
- */
+/** Reads the bubbles from xml file. */
 fun readXml(stream: InputStream): SparseArray<List<BubbleEntity>> {
     val bubbles = SparseArray<List<BubbleEntity>>()
     val parser: XmlPullParser = Xml.newPullParser()
@@ -134,18 +130,20 @@ fun readXml(stream: InputStream): SparseArray<List<BubbleEntity>> {
 }
 
 private fun readXmlEntry(parser: XmlPullParser): BubbleEntity? {
-    while (parser.eventType != XmlPullParser.START_TAG) { parser.next() }
+    while (parser.eventType != XmlPullParser.START_TAG) {
+        parser.next()
+    }
     return BubbleEntity(
-            parser.getAttributeWithName(ATTR_USER_ID)?.toInt() ?: return null,
-            parser.getAttributeWithName(ATTR_PACKAGE) ?: return null,
-            parser.getAttributeWithName(ATTR_SHORTCUT_ID) ?: return null,
-            parser.getAttributeWithName(ATTR_KEY) ?: return null,
-            parser.getAttributeWithName(ATTR_DESIRED_HEIGHT)?.toInt() ?: return null,
-            parser.getAttributeWithName(ATTR_DESIRED_HEIGHT_RES_ID)?.toInt() ?: return null,
-            parser.getAttributeWithName(ATTR_TITLE),
-            parser.getAttributeWithName(ATTR_TASK_ID)?.toInt() ?: INVALID_TASK_ID,
-            parser.getAttributeWithName(ATTR_LOCUS),
-            parser.getAttributeWithName(ATTR_DISMISSABLE)?.toBoolean() ?: false
+        parser.getAttributeWithName(ATTR_USER_ID)?.toInt() ?: return null,
+        parser.getAttributeWithName(ATTR_PACKAGE) ?: return null,
+        parser.getAttributeWithName(ATTR_SHORTCUT_ID) ?: return null,
+        parser.getAttributeWithName(ATTR_KEY) ?: return null,
+        parser.getAttributeWithName(ATTR_DESIRED_HEIGHT)?.toInt() ?: return null,
+        parser.getAttributeWithName(ATTR_DESIRED_HEIGHT_RES_ID)?.toInt() ?: return null,
+        parser.getAttributeWithName(ATTR_TITLE),
+        parser.getAttributeWithName(ATTR_TASK_ID)?.toInt() ?: INVALID_TASK_ID,
+        parser.getAttributeWithName(ATTR_LOCUS),
+        parser.getAttributeWithName(ATTR_DISMISSABLE)?.toBoolean() ?: false,
     )
 }
 

@@ -65,10 +65,10 @@
     <string name="connected_via_network_scorer_default" msgid="7973529709744526285">"Automaticky připojeno přes poskytovatele hodnocení sítí"</string>
     <string name="connected_via_app" msgid="3532267661404276584">"Připojeno přes <xliff:g id="NAME">%1$s</xliff:g>"</string>
     <string name="tap_to_sign_up" msgid="5356397741063740395">"Klepnutím se zaregistrujete"</string>
-    <string name="wifi_connected_no_internet" msgid="5087420713443350646">"Nejste připojeni k internetu"</string>
+    <string name="wifi_connected_no_internet" msgid="5087420713443350646">"Nemáte připojení k internetu"</string>
     <string name="private_dns_broken" msgid="1984159464346556931">"Nelze získat přístup k soukromému serveru DNS"</string>
     <string name="wifi_limited_connection" msgid="1184778285475204682">"Omezené připojení"</string>
-    <string name="wifi_status_no_internet" msgid="3799933875988829048">"Nejste připojeni k internetu"</string>
+    <string name="wifi_status_no_internet" msgid="3799933875988829048">"Nemáte připojení k internetu"</string>
     <string name="wifi_status_sign_in_required" msgid="2236267500459526855">"Je vyžadováno přihlášení"</string>
     <string name="wifi_ap_unable_to_handle_new_sta" msgid="5885145407184194503">"Přístupový bod je dočasně zaplněn"</string>
     <string name="osu_opening_provider" msgid="4318105381295178285">"Spouštění aplikace <xliff:g id="PASSPOINTPROVIDER">%1$s</xliff:g>"</string>
@@ -147,7 +147,7 @@
     <string name="bluetooth_profile_opp" msgid="6692618568149493430">"Přenos souborů"</string>
     <string name="bluetooth_profile_hid" msgid="2969922922664315866">"Vstupní zařízení"</string>
     <string name="bluetooth_profile_pan" msgid="1006235139308318188">"Přístup k internetu"</string>
-    <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"Povolit přístup ke kontaktům a historii"</string>
+    <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"Povolit přístup ke kontaktům a historii volání"</string>
     <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"Informace poslouží k oznamování hovorů a k dalším účelům"</string>
     <string name="bluetooth_profile_pan_nap" msgid="7871974753822470050">"Sdílení internetového připojení"</string>
     <string name="bluetooth_profile_map" msgid="8907204701162107271">"Textové zprávy"</string>
@@ -160,7 +160,7 @@
     <string name="bluetooth_le_audio_profile_summary_connected" msgid="6916226974453480650">"Připojeno k LE Audio"</string>
     <string name="bluetooth_a2dp_profile_summary_connected" msgid="7422607970115444153">"Připojeno ke zvukovému médiu"</string>
     <string name="bluetooth_headset_profile_summary_connected" msgid="2420981566026949688">"Připojeno k náhlavní soupravě"</string>
-    <string name="bluetooth_opp_profile_summary_connected" msgid="2393521801478157362">"Připojeno k serveru pro přenos dat"</string>
+    <string name="bluetooth_opp_profile_summary_connected" msgid="2393521801478157362">"Připojeno k serveru pro přenos dat"</string>
     <string name="bluetooth_map_profile_summary_connected" msgid="4141725591784669181">"Připojeno k mapě"</string>
     <string name="bluetooth_sap_profile_summary_connected" msgid="1280297388033001037">"Připojeno k SAP"</string>
     <string name="bluetooth_opp_profile_summary_not_connected" msgid="3959741824627764954">"Nepřipojeno k serveru pro přenos souborů"</string>
@@ -179,7 +179,7 @@
     <string name="bluetooth_pairing_accept" msgid="2054232610815498004">"Spárovat"</string>
     <string name="bluetooth_pairing_accept_all_caps" msgid="2734383073450506220">"SPÁROVAT"</string>
     <string name="bluetooth_pairing_decline" msgid="6483118841204885890">"Zrušit"</string>
-    <string name="bluetooth_pairing_will_share_phonebook" msgid="3064334458659165176">"Párováním připojenému zařízení udělíte přístup ke svým kontaktům a historii volání."</string>
+    <string name="bluetooth_pairing_will_share_phonebook" msgid="3064334458659165176">"Párováním připojenému zařízení udělíte přístup ke svým kontaktům a historii volání."</string>
     <string name="bluetooth_pairing_error_message" msgid="6626399020672335565">"Nelze spárovat se zařízením <xliff:g id="DEVICE_NAME">%1$s</xliff:g>."</string>
     <string name="bluetooth_pairing_pin_error_message" msgid="264422127613704940">"Nelze spárovat se zařízením <xliff:g id="DEVICE_NAME">%1$s</xliff:g>. Kód PIN nebo přístupový klíč je nesprávný."</string>
     <string name="bluetooth_pairing_device_down_error_message" msgid="2554424863101358857">"Se zařízením <xliff:g id="DEVICE_NAME">%1$s</xliff:g> nelze navázat komunikaci."</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wi-Fi – tři čárky."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Wi-Fi – plný signál."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Připojeno k vašemu zařízení."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Všichni uživatelé tohoto zařízení uvidí sdílenou síť a můžou se k ní připojit."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Nezabezpečená síť"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Zabezpečená síť"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"OS Android"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Nastavení přístupového bodu pro tohoto uživatele není dostupné."</string>
     <string name="enable_adb" msgid="8072776357237289039">"Ladění přes USB"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Povolit režim ladění s připojeným zařízením USB"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Zrušit autorizace k ladění přes USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Zrušit autorizace k ladění adb"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Bezdrátové ladění"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Režim ladění při připojení k Wi-Fi"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Chyba"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Párování zařízení…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Spárování zařízení se nezdařilo. Buď byl QR kód chybný, nebo zařízení není připojeno ke stejné síti."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP adresa a port"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Nedostupné (nepovoleno)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Nedostupné (Wi‑Fi odpojená)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Naskenování QR kódu"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Spárujte zařízení přes Wi-Fi naskenováním QR kódu"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Připojte se k síti Wi-Fi"</string>
@@ -349,7 +352,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Když je tento režim aktivován, adresa MAC tohoto zařízení se může změnit pokaždé, když se zařízení připojí k síti s aktivovanou randomizací adres MAC."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Měřená"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Neměřená"</string>
-    <string name="select_logd_size_title" msgid="4393502933789367691">"Velikost vyrovnávací paměti protokolovacího nástroje"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Vyrovnávací paměť protokolovacího nástroje"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Velikost vyrovnávací paměti protokol. nástroje"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Vymazat trvalé úložiště protokolovacího nástroje?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Pokud již pomocí nástroje na trvalé protokolování nic nemonitorujeme, jsme povinni jeho data uložená v zařízení vymazat."</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"Ladění prostřednictvím rozhraní USB je určeno pouze pro účely vývoje. Použijte je ke kopírování dat mezi počítačem a zařízením, instalaci aplikací do zařízení bez upozornění a čtení dat protokolů."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Povolit bezdrátové ladění?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Bezdrátové ladění je určeno pouze pro účely vývoje. Použijte jej ke kopírování dat mezi počítačem a zařízením, instalaci aplikací do zařízení bez upozornění a čtení dat protokolů."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Zrušit přístup k ladění přes USB ze všech počítačů, které jste v minulosti autorizovali?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Zrušit přístup k ladění adb ze všech počítačů a sítí, které jste v minulosti autorizovali?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Povolit nastavení pro vývojáře?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Tato nastavení jsou určena pouze pro vývojáře. Mohou způsobit rozbití nebo nesprávné fungování zařízení a nainstalovaných aplikací."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Ověřovat aplikace z USB"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Síť ethernet je odpojena."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Bez volání."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Fyzická klávesnice"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Zvolte rozložení klávesnice"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Výchozí"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Ovládání zapnutí obrazovky"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Povolit zapínání obrazovky"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Aplikaci můžete povolit zapínat obrazovku. Pokud bude mít toto oprávnění, může kdykoli zapnout obrazovku bez požadavku uživatele."</string>

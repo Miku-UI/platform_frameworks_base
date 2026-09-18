@@ -26,7 +26,6 @@ import androidx.constraintlayout.widget.ConstraintSet
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.customization.clocks.R as clocksR
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.domain.interactor.keyguardBlueprintInteractor
@@ -36,7 +35,6 @@ import com.android.systemui.keyguard.shared.model.ClockSize
 import com.android.systemui.keyguard.ui.viewmodel.aodBurnInViewModel
 import com.android.systemui.keyguard.ui.viewmodel.keyguardClockViewModel
 import com.android.systemui.keyguard.ui.viewmodel.keyguardRootViewModel
-import com.android.systemui.keyguard.ui.viewmodel.keyguardSmartspaceViewModel
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.advanceUntilIdle
 import com.android.systemui.kosmos.collectLastValue
@@ -44,16 +42,14 @@ import com.android.systemui.kosmos.runTest
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
 import com.android.systemui.res.R
 import com.android.systemui.shade.LargeScreenHeaderHelper
-import com.android.systemui.shade.data.repository.shadeRepository
 import com.android.systemui.shade.domain.interactor.enableSingleShade
 import com.android.systemui.shade.domain.interactor.enableSplitShade
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.statusbar.notification.stack.domain.interactor.notificationsKeyguardInteractor
 import com.android.systemui.statusbar.policy.fakeConfigurationController
 import com.android.systemui.statusbar.ui.fakeSystemBarUtilsProxy
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -112,7 +108,6 @@ class ClockSectionTest : SysuiTestCase() {
                     keyguardClockInteractor,
                     keyguardClockViewModel,
                     context,
-                    keyguardSmartspaceViewModel,
                     { keyguardBlueprintInteractor },
                     keyguardRootViewModel,
                     aodBurnInViewModel,
@@ -122,22 +117,6 @@ class ClockSectionTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
-    fun testApplyDefaultConstraints_LargeClock_SplitShade() =
-        kosmos.runTest {
-            enableSplitShade()
-            keyguardClockInteractor.setClockSize(ClockSize.LARGE)
-            advanceUntilIdle()
-
-            val cs = ConstraintSet()
-            underTest.applyDefaultConstraints(cs)
-
-            cs.assertLargeClock(topMargin = LARGE_CLOCK_TOP)
-            cs.assertSmallClock()
-        }
-
-    @Test
-    @EnableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
     fun testApplyDefaultConstraints_LargeClock_SplitShade_ReactiveVariantsOn() =
         kosmos.runTest {
             enableSplitShade()
@@ -154,31 +133,9 @@ class ClockSectionTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
-    fun testApplyDefaultConstraints_LargeClock_SingleShade() =
+    fun testApplyDefaultConstraints_LargeClock_NonSplitShade_reactiveVariantsOn() =
         kosmos.runTest {
-            val legacyUseSplitShade by collectLastValue(shadeRepository.legacyUseSplitShade)
-            val isLargeClockVisible by collectLastValue(keyguardClockViewModel.isLargeClockVisible)
-
-            enableSingleShade()
-            keyguardClockInteractor.setClockSize(ClockSize.LARGE)
-            notificationsKeyguardInteractor.setNotificationsFullyHidden(true)
-            keyguardSmartspaceInteractor.setBcSmartspaceVisibility(VISIBLE)
-            fakeConfigurationController.notifyConfigurationChanged()
-            advanceUntilIdle()
-
-            val cs = ConstraintSet()
-            underTest.applyDefaultConstraints(cs)
-
-            cs.assertLargeClock(topMargin = LARGE_CLOCK_TOP)
-            cs.assertSmallClock()
-        }
-
-    @Test
-    @EnableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
-    fun testApplyDefaultConstraints_LargeClock_SingleShade_reactiveVariantsOn() =
-        kosmos.runTest {
-            val legacyUseSplitShade by collectLastValue(shadeRepository.legacyUseSplitShade)
+            val isFullWidthShade by collectLastValue(shadeModeInteractor.isFullWidthShade)
             val isLargeClockVisible by collectLastValue(keyguardClockViewModel.isLargeClockVisible)
 
             enableSingleShade()
@@ -198,31 +155,9 @@ class ClockSectionTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
-    fun testApplyDefaultConstraints_SmallClock_SplitShade() =
-        kosmos.runTest {
-            val legacyUseSplitShade by collectLastValue(shadeRepository.legacyUseSplitShade)
-            val isLargeClockVisible by collectLastValue(keyguardClockViewModel.isLargeClockVisible)
-
-            enableSplitShade()
-            keyguardClockInteractor.setClockSize(ClockSize.SMALL)
-            notificationsKeyguardInteractor.setNotificationsFullyHidden(true)
-            keyguardSmartspaceInteractor.setBcSmartspaceVisibility(VISIBLE)
-            fakeConfigurationController.notifyConfigurationChanged()
-            advanceUntilIdle()
-
-            val cs = ConstraintSet()
-            underTest.applyDefaultConstraints(cs)
-
-            cs.assertLargeClock(topMargin = LARGE_CLOCK_TOP)
-            cs.assertSmallClock()
-        }
-
-    @Test
-    @EnableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
     fun testApplyDefaultConstraints_SmallClock_SplitShade_ReactiveVariantsOn() =
         kosmos.runTest {
-            val legacyUseSplitShade by collectLastValue(shadeRepository.legacyUseSplitShade)
+            val isFullWidthShade by collectLastValue(shadeModeInteractor.isFullWidthShade)
             val isLargeClockVisible by collectLastValue(keyguardClockViewModel.isLargeClockVisible)
 
             enableSplitShade()
@@ -242,31 +177,9 @@ class ClockSectionTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
-    fun testApplyDefaultConstraints_SmallClock_SingleShade() =
+    fun testApplyDefaultConstraints_SmallClock_NonSplitShade_ReactiveVariantsOn() =
         kosmos.runTest {
-            val legacyUseSplitShade by collectLastValue(shadeRepository.legacyUseSplitShade)
-            val isLargeClockVisible by collectLastValue(keyguardClockViewModel.isLargeClockVisible)
-
-            enableSingleShade()
-            keyguardClockInteractor.setClockSize(ClockSize.SMALL)
-            notificationsKeyguardInteractor.setNotificationsFullyHidden(true)
-            keyguardSmartspaceInteractor.setBcSmartspaceVisibility(VISIBLE)
-            fakeConfigurationController.notifyConfigurationChanged()
-            advanceUntilIdle()
-
-            val cs = ConstraintSet()
-            underTest.applyDefaultConstraints(cs)
-
-            cs.assertLargeClock(topMargin = LARGE_CLOCK_TOP)
-            cs.assertSmallClock()
-        }
-
-    @Test
-    @EnableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
-    fun testApplyDefaultConstraints_SmallClock_SingleShade_ReactiveVariantsOn() =
-        kosmos.runTest {
-            val legacyUseSplitShade by collectLastValue(shadeRepository.legacyUseSplitShade)
+            val isFullWidthShade by collectLastValue(shadeModeInteractor.isFullWidthShade)
             val isLargeClockVisible by collectLastValue(keyguardClockViewModel.isLargeClockVisible)
 
             enableSingleShade()

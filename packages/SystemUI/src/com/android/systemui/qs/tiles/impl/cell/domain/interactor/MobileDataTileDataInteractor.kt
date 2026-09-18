@@ -16,117 +16,198 @@
 
 package com.android.systemui.qs.tiles.impl.cell.domain.interactor
 
+import android.annotation.StringRes
 import android.content.Context
 import android.os.UserHandle
-import com.android.settingslib.graph.SignalDrawable
-import com.android.systemui.Flags as AconfigFlags
-import com.android.systemui.common.shared.model.ContentDescription
-import com.android.systemui.common.shared.model.Icon
+import android.text.Html
+import com.android.systemui.common.shared.model.ContentDescription.Companion.loadContentDescription
 import com.android.systemui.dagger.qualifiers.Application
-import com.android.systemui.qs.pipeline.shared.QSPipelineFlagsRepository
+import com.android.systemui.qs.flags.QsSplitInternetTile
 import com.android.systemui.qs.tiles.base.domain.interactor.QSTileDataInteractor
 import com.android.systemui.qs.tiles.base.domain.model.DataUpdateTrigger
-import com.android.systemui.qs.tiles.impl.cell.domain.model.MobileDataTileIcon
 import com.android.systemui.qs.tiles.impl.cell.domain.model.MobileDataTileModel
 import com.android.systemui.res.R
+import com.android.systemui.statusbar.connectivity.ui.MobileContextProvider
+import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
+import com.android.systemui.statusbar.pipeline.mobile.NewSatelliteIcon
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIconsInteractor
 import com.android.systemui.statusbar.pipeline.mobile.domain.model.SignalIconModel
+import com.android.systemui.statusbar.pipeline.shared.ConnectivityConstants
+import com.android.systemui.user.data.repository.UserRepository
 import javax.inject.Inject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.onStart
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MobileDataTileDataInteractor
 @Inject
 constructor(
     @Application private val context: Context,
+    private val userRepository: UserRepository,
     private val mobileIconsInteractor: MobileIconsInteractor,
-    private val qsPipelineFlagsRepository: QSPipelineFlagsRepository,
+    private val airplaneModeInteractor: AirplaneModeInteractor,
+    private val mobileContextProvider: MobileContextProvider,
+    private val connectivityConstants: ConnectivityConstants,
 ) : QSTileDataInteractor<MobileDataTileModel> {
-    private val mobileDataLabel: String =
-        context.getString(R.string.quick_settings_cellular_detail_title)
 
     override fun tileData(
         user: UserHandle,
         triggers: Flow<DataUpdateTrigger>,
     ): Flow<MobileDataTileModel> = tileData()
 
-    fun tileData(): Flow<MobileDataTileModel> =
+    private val mobileDataContentName: Flow<CharSequence?> =
         mobileIconsInteractor.activeDataIconInteractor.flatMapLatest {
             if (it == null) {
-                    flowOf(
-                        MobileDataTileModel(
-                            isSimActive = false,
-                            isEnabled = false,
-                            icon =
-                                MobileDataTileIcon.ResourceIcon(
-                                    Icon.Resource(
-                                        com.android.settingslib.R.drawable.ic_mobile_4_4_bar,
-                                        ContentDescription.Loaded(mobileDataLabel),
-                                    )
-                                ),
-                        )
-                    )
-                } else {
-                    combine(it.isDataEnabled, it.signalLevelIcon) { isDataEnabled, signalLevelIcon
-                        ->
-                        val icon =
-                            if (isDataEnabled) {
-                                when (signalLevelIcon) {
-                                    is SignalIconModel.Cellular -> {
-                                        val signalState =
-                                            SignalDrawable.getState(
-                                                signalLevelIcon.level,
-                                                signalLevelIcon.numberOfLevels,
-                                                signalLevelIcon.showExclamationMark,
-                                            )
-                                        MobileDataTileIcon.SignalIcon(signalState)
-                                    }
-
-                                    is SignalIconModel.Satellite -> {
-                                        MobileDataTileIcon.ResourceIcon(
-                                            Icon.Resource(
-                                                signalLevelIcon.icon.resId,
-                                                signalLevelIcon.icon.contentDescription,
-                                            )
-                                        )
-                                    }
-                                }
-                            } else {
-                                MobileDataTileIcon.ResourceIcon(
-                                    Icon.Resource(
-                                        R.drawable.ic_signal_mobile_data_off,
-                                        ContentDescription.Loaded(mobileDataLabel),
-                                    )
+                flowOf(null)
+            } else {
+                if (NewSatelliteIcon.isEnabled) {
+                    combine(it.isRoaming, it.networkTypeIconGroup, it.isNonTerrestrial) {
+                        isRoaming,
+                        networkTypeIconGroup,
+                        isNonTerrestrial ->
+                        val mobileContext =
+                            mobileContextProvider.getMobileContextForSub(it.subscriptionId, context)
+                        val cd = loadString(networkTypeIconGroup.contentDescription, mobileContext)
+                        if (isNonTerrestrial) {
+                            mobileContext.getString(
+                                com.android.internal.R.string.satellite_indicator
+                            )
+                        } else if (isRoaming) {
+                            val roaming = mobileContext.getString(R.string.data_connection_roaming)
+                            if (cd != null) {
+                                mobileContext.getString(
+                                    R.string.mobile_data_text_format,
+                                    roaming,
+                                    cd,
                                 )
+                            } else {
+                                roaming
                             }
-                        MobileDataTileModel(
-                            isSimActive = true,
-                            isEnabled = isDataEnabled,
-                            icon = icon,
-                        )
+                        } else {
+                            cd
+                        }
+                    }
+                } else {
+                    combine(it.isRoaming, it.networkTypeIconGroup) { isRoaming, networkTypeIconGroup
+                        ->
+                        val mobileContext =
+                            mobileContextProvider.getMobileContextForSub(it.subscriptionId, context)
+                        val cd = loadString(networkTypeIconGroup.contentDescription, mobileContext)
+                        if (isRoaming) {
+                            val roaming = mobileContext.getString(R.string.data_connection_roaming)
+                            if (cd != null) {
+                                mobileContext.getString(
+                                    R.string.mobile_data_text_format,
+                                    roaming,
+                                    cd,
+                                )
+                            } else {
+                                roaming
+                            }
+                        } else {
+                            cd
+                        }
                     }
                 }
-                .onStart {
+            }
+        }
+
+    private val mobileDescriptionFlow: Flow<CharSequence?> =
+        mobileIconsInteractor.activeDataIconInteractor.flatMapLatest { it ->
+            if (it == null) {
+                flowOf(null)
+            } else {
+                it.isDataConnected.flatMapLatest { isConnected ->
+                    if (!isConnected) {
+                        flowOf(null)
+                    } else {
+                        combine(it.networkName, it.signalLevelIcon, mobileDataContentName) {
+                            networkNameModel,
+                            signalIcon,
+                            dataContentDescription ->
+                            when (signalIcon) {
+                                is SignalIconModel.CellularTypeIconModel -> {
+                                    mobileDataContentConcat(
+                                        networkNameModel.name,
+                                        dataContentDescription,
+                                    )
+                                }
+                                is SignalIconModel.Satellite -> {
+                                    signalIcon.icon.contentDescription?.loadContentDescription(
+                                        context
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    fun tileData(): Flow<MobileDataTileModel> =
+        combine(
+            mobileIconsInteractor.defaultDataIconInteractor,
+            airplaneModeInteractor.isAirplaneMode,
+        ) { default, isAirplaneMode ->
+            if (default == null) {
+                flowOf(
                     MobileDataTileModel(
                         isSimActive = false,
                         isEnabled = false,
-                        icon =
-                            MobileDataTileIcon.ResourceIcon(
-                                Icon.Resource(
-                                    R.drawable.ic_signal_mobile_data_off,
-                                    ContentDescription.Loaded(mobileDataLabel),
-                                )
-                            ),
+                        isAirplaneModeEnabled = isAirplaneMode,
+                    )
+                )
+            } else {
+                combine(default.isDataEnabled, mobileDescriptionFlow, default.networkName) {
+                    isDataEnabled,
+                    description,
+                    defaultName ->
+                    MobileDataTileModel(
+                        isSimActive = true,
+                        isEnabled = isDataEnabled,
+                        isAirplaneModeEnabled = isAirplaneMode,
+                        secondaryLabel = description ?: defaultName.name,
                     )
                 }
+            }
+        }.flatMapLatest { it }
+
+    private fun mobileDataContentConcat(
+        networkName: String?,
+        dataContentDescription: CharSequence?,
+    ): CharSequence {
+        if (dataContentDescription == null) {
+            return networkName ?: ""
+        }
+        if (networkName == null) {
+            return Html.fromHtml(dataContentDescription.toString(), 0)
         }
 
-    override fun availability(user: UserHandle): Flow<Boolean> = flowOf(isAvailable())
+        return Html.fromHtml(
+            context.getString(
+                R.string.mobile_carrier_text_format,
+                networkName,
+                dataContentDescription,
+            ),
+            0,
+        )
+    }
 
-    fun isAvailable(): Boolean {
-        return AconfigFlags.qsSplitInternetTile()
+    private fun loadString(@StringRes resId: Int, context: Context): CharSequence? =
+        if (resId != 0) {
+            context.getString(resId)
+        } else {
+            null
+        }
+
+    override fun availability(user: UserHandle): Flow<Boolean> {
+        return flowOf(isTileSupported() && user.identifier == userRepository.mainUserId)
+    }
+
+    fun isTileSupported(): Boolean {
+        return QsSplitInternetTile.isEnabled && connectivityConstants.hasDataCapabilities
     }
 }

@@ -22,10 +22,12 @@ import androidx.test.filters.SmallTest
 import com.android.internal.logging.InstanceId
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.media.controls.MediaTestUtils
+import com.android.systemui.media.controls.shared.mockMediaLogger
 import com.android.systemui.media.controls.shared.model.MediaData
 import com.android.systemui.media.controls.ui.controller.MediaPlayerData
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.statusbar.NotificationLockscreenUserManager
+import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import java.util.concurrent.Executor
 import org.junit.Before
@@ -55,6 +57,7 @@ private const val APP_UID = 99
 @RunWith(AndroidJUnit4::class)
 @TestableLooper.RunWithLooper
 class LegacyMediaDataFilterImplTest : SysuiTestCase() {
+    val kosmos = testKosmos()
 
     @Mock private lateinit var listener: MediaDataManager.Listener
     @Mock private lateinit var userTracker: UserTracker
@@ -66,12 +69,14 @@ class LegacyMediaDataFilterImplTest : SysuiTestCase() {
     private lateinit var dataMain: MediaData
     private lateinit var dataGuest: MediaData
     private lateinit var dataPrivateProfile: MediaData
+    private val mediaLogger = kosmos.mockMediaLogger
 
     @Before
     fun setup() {
         MockitoAnnotations.initMocks(this)
         MediaPlayerData.clear()
-        mediaDataFilter = LegacyMediaDataFilterImpl(userTracker, lockscreenUserManager, executor)
+        mediaDataFilter =
+            LegacyMediaDataFilterImpl(userTracker, lockscreenUserManager, executor, mediaLogger)
         mediaDataFilter.mediaDataManager = mediaDataManager
         mediaDataFilter.addListener(listener)
 

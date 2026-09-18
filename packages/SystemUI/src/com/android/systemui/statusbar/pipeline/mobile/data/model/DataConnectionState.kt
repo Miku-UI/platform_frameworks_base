@@ -24,11 +24,10 @@ import android.telephony.TelephonyManager.DATA_HANDOVER_IN_PROGRESS
 import android.telephony.TelephonyManager.DATA_SUSPENDED
 import android.telephony.TelephonyManager.DATA_UNKNOWN
 import android.telephony.TelephonyManager.DataState
-import com.android.systemui.log.table.Diffable
-import com.android.systemui.log.table.TableRowLogger
+import com.android.systemui.log.table.EnumDiffable
 
 /** Internal enum representation of the telephony data connection states */
-enum class DataConnectionState : Diffable<DataConnectionState> {
+enum class DataConnectionState : EnumDiffable<DataConnectionState> {
     Connected,
     Connecting,
     Disconnected,
@@ -38,15 +37,8 @@ enum class DataConnectionState : Diffable<DataConnectionState> {
     Unknown,
     Invalid;
 
-    override fun logDiffs(prevVal: DataConnectionState, row: TableRowLogger) {
-        if (prevVal != this) {
-            row.logChange(COL_CONNECTION_STATE, name)
-        }
-    }
-
-    companion object {
-        private const val COL_CONNECTION_STATE = "connectionState"
-    }
+    override val columnName = "connectionState"
+    override val valueFetcher = { this.name }
 }
 
 fun @receiver:DataState Int.toDataConnectionType(): DataConnectionState =

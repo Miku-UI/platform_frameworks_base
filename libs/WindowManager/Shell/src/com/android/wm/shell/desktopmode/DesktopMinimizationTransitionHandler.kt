@@ -99,21 +99,18 @@ class DesktopMinimizationTransitionHandler(
         animations +=
             info.changes
                 .filter {
-                    checkChangeMode(it) &&
-                        (it.taskInfo?.windowingMode == WINDOWING_MODE_FREEFORM ||
-                            // Minimizing desktop tasks can be fullscreen too, such as
-                            // in some back-nav cases where the task is reparented out
-                            // into a touch-first TDA before being forcibly put back into
-                            // a desk as a minimized task by
-                            // [DesktopBackBavTransitionObserver].
-                            // Also, fullscreen-in-desktop tasks for immersive or
-                            // fullscreen app requests.
-                            DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue)
+                    // Check change mode without windowing mode freeform checks because minimizing
+                    // desktop tasks can be fullscreen too, such as in some back-nav cases where
+                    // the task is reparented out into a touch-first TDA before being forcibly put
+                    // back into a desk as a minimized task by [DesktopBackBavTransitionObserver].
+                    // Also, fullscreen-in-desktop tasks for immersive or fullscreen app requests.
+                    checkChangeMode(it)
                 }
                 .mapNotNull {
                     createMinimizeAnimation(it, finishTransaction, onAnimFinish, startAnimDelay)
                 }
         if (animations.isEmpty()) return false
+        startTransaction.apply()
         animExecutor.execute { animations.forEach(Animator::start) }
         return true
     }
@@ -131,8 +128,9 @@ class DesktopMinimizationTransitionHandler(
             change.taskInfo?.let { displayController.getDisplayContext(it.displayId) }
         if (displayContext == null) {
             logW(
-                "displayContext is null for taskId=${change.taskInfo?.taskId}, " +
-                    "displayId=${change.taskInfo?.displayId}"
+                "displayContext is null for taskId=%d, displayId=%d",
+                change.taskInfo?.taskId,
+                change.taskInfo?.displayId,
             )
             return null
         }
@@ -148,6 +146,8 @@ class DesktopMinimizationTransitionHandler(
     }
 
     private companion object {
+        // TODO(b/478792808): Remove suppression
+        @SuppressWarnings("ProtoLogNonConstantFormat")
         private fun logW(msg: String, vararg arguments: Any?) {
             ProtoLog.w(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
         }

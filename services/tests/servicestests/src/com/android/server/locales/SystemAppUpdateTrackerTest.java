@@ -32,6 +32,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import android.app.ActivityManagerInternal;
 import android.content.Context;
@@ -40,6 +41,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.InstallSourceInfo;
 import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
+import android.content.pm.PackageManagerInternal;
 import android.os.Binder;
 import android.os.Environment;
 import android.os.LocaleList;
@@ -53,6 +55,7 @@ import androidx.test.InstrumentationRegistry;
 import com.android.internal.content.PackageMonitor;
 import com.android.internal.util.XmlUtils;
 import com.android.modules.utils.TypedXmlPullParser;
+import com.android.server.LocalServices;
 import com.android.server.wm.ActivityTaskManagerInternal;
 
 import org.junit.After;
@@ -97,6 +100,8 @@ public class SystemAppUpdateTrackerTest {
     @Mock
     PackageManager mMockPackageManager;
     @Mock
+    private PackageManagerInternal mMockPackageManagerInternal;
+    @Mock
     private ActivityTaskManagerInternal mMockActivityTaskManager;
     @Mock
     private ActivityManagerInternal mMockActivityManager;
@@ -113,6 +118,24 @@ public class SystemAppUpdateTrackerTest {
         mMockActivityTaskManager = mock(ActivityTaskManagerInternal.class);
         mMockActivityManager = mock(ActivityManagerInternal.class);
         mMockPackageManager = mock(PackageManager.class);
+        mMockPackageManagerInternal = mock(PackageManagerInternal.class);
+
+        LocalServices.removeServiceForTest(PackageManagerInternal.class);
+        LocalServices.addService(PackageManagerInternal.class, mMockPackageManagerInternal);
+
+        when(mMockPackageManagerInternal.isSameApp(anyString(), anyInt(), anyInt()))
+                .thenAnswer(inv -> {
+                    String pkg = inv.getArgument(0);
+                    int uid = inv.getArgument(1);
+                    int userId = inv.getArgument(2);
+                    try {
+                        return uid == mMockPackageManager.getPackageUidAsUser(pkg,
+                                PackageManager.PackageInfoFlags.of(0), userId);
+                    } catch (PackageManager.NameNotFoundException e) {
+                        return false;
+                    }
+                });
+
         LocaleManagerBackupHelper mockLocaleManagerBackupHelper =
                 mock(ShadowLocaleManagerBackupHelper.class);
         // PackageMonitor is not needed in LocaleManagerService for these tests hence it is
@@ -145,6 +168,7 @@ public class SystemAppUpdateTrackerTest {
 
     @After
     public void tearDown() {
+        LocalServices.removeServiceForTest(PackageManagerInternal.class);
         mStoragefile.delete();
     }
 

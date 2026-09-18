@@ -15,17 +15,16 @@
  */
 package com.android.systemui.statusbar.notification.collection.coordinator
 
+import android.multiuser.Flags
+import android.os.UserManager
+import com.android.systemui.notifications.intelligence.rules.shared.NmContextualDisplayLaunch
 import com.android.systemui.statusbar.notification.collection.NotifPipeline
-import com.android.systemui.statusbar.notification.collection.NotificationClassificationFlag
 import com.android.systemui.statusbar.notification.collection.PipelineDumpable
 import com.android.systemui.statusbar.notification.collection.PipelineDumper
 import com.android.systemui.statusbar.notification.collection.coordinator.dagger.CoordinatorScope
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifSectioner
 import com.android.systemui.statusbar.notification.collection.provider.SectionStyleProvider
-import com.android.systemui.statusbar.notification.promoted.AutomaticPromotionCoordinator
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.statusbar.notification.shared.NotificationMinimalism
-import com.android.systemui.statusbar.notification.shared.NotificationSummarizationOnboardingUi
 import javax.inject.Inject
 
 /**
@@ -69,7 +68,8 @@ constructor(
     statsLoggerCoordinator: NotificationStatsLoggerCoordinator,
     bundleCoordinator: BundleCoordinator,
     summarizationCoordinator: SummarizationCoordinator,
-    automaticPromotionCoordinator: AutomaticPromotionCoordinator,
+    highlightsCoordinator: HighlightsCoordinator,
+    hsuCoordinator: HsuCoordinator,
 ) : NotifCoordinators {
 
     private val mCoreCoordinators: MutableList<CoreCoordinator> = ArrayList()
@@ -108,14 +108,19 @@ constructor(
         mCoordinators.add(preparationCoordinator)
         mCoordinators.add(remoteInputCoordinator)
         mCoordinators.add(dismissibilityCoordinator)
-        mCoordinators.add(automaticPromotionCoordinator)
-        if (NotificationBundleUi.isEnabled) {
-            mCoordinators.add(bundleCoordinator)
-        }
-        if (NotificationSummarizationOnboardingUi.isEnabled) {
-            mCoordinators.add(summarizationCoordinator)
-        }
+        mCoordinators.add(bundleCoordinator)
+        mCoordinators.add(summarizationCoordinator)
         mCoordinators.add(statsLoggerCoordinator)
+        if (NmContextualDisplayLaunch.isEnabled) {
+            mCoordinators.add(highlightsCoordinator)
+        }
+        if (
+            (Flags.hsuDisableNotifications() || Flags.hsuAllowlistNotifications()) &&
+                UserManager.isHeadlessSystemUserMode()
+        ) {
+            mCoordinators.add(hsuCoordinator)
+        }
+
         // Manually add Ordered Sections
         if (NotificationMinimalism.isEnabled) {
             mOrderedSections.add(lockScreenMinimalismCoordinator.topOngoingSectioner) // Top Ongoing
@@ -125,15 +130,12 @@ constructor(
             mOrderedSections.add(lockScreenMinimalismCoordinator.topUnseenSectioner) // Top Unseen
         }
         mOrderedSections.add(colorizedFgsCoordinator.sectioner) // ForegroundService
+        if (NmContextualDisplayLaunch.isEnabled) {
+            mOrderedSections.add(highlightsCoordinator.highlightsSectioner) // Highlights
+        }
         mOrderedSections.add(conversationCoordinator.priorityPeopleSectioner) // Priority People
         mOrderedSections.add(conversationCoordinator.peopleAlertingSectioner) // People Alerting
         mOrderedSections.add(rankingCoordinator.alertingSectioner) // Alerting
-        if (NotificationClassificationFlag.isEnabled && !NotificationBundleUi.isEnabled) {
-            mOrderedSections.add(bundleCoordinator.newsSectioner)
-            mOrderedSections.add(bundleCoordinator.socialSectioner)
-            mOrderedSections.add(bundleCoordinator.recsSectioner)
-            mOrderedSections.add(bundleCoordinator.promoSectioner)
-        }
         mOrderedSections.add(rankingCoordinator.silentSectioner) // Silent
         mOrderedSections.add(rankingCoordinator.minimizedSectioner) // Minimized
 

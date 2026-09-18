@@ -22,5 +22,11 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface ITargetRegionListener {
+    /**
+     * Notify listeners when two or more regions are detected during a service scan.
+     *
+     * @param detectTargetRegions bundle to notify if a target regions is detected, keys as defined
+     *        but not limited to @ScanConstants.TargetRegionDetectBundleKey.
+     */
     void onDetectTargetRegion(in Bundle detectTargetRegions);
 }

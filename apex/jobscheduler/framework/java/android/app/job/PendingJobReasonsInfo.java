@@ -17,7 +17,6 @@
 package android.app.job;
 
 import android.annotation.CurrentTimeMillisLong;
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -27,7 +26,6 @@ import android.os.Parcelable;
  * and an array of {@link JobScheduler.PendingJobReason reasons} at that timestamp
  * for why a particular job may be pending.
  */
-@FlaggedApi(Flags.FLAG_GET_PENDING_JOB_REASONS_HISTORY_API)
 public final class PendingJobReasonsInfo implements Parcelable {
 
     @CurrentTimeMillisLong

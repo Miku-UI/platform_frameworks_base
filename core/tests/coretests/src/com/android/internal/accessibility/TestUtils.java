@@ -27,29 +27,10 @@ import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.os.Build;
 
-import com.android.internal.os.RoSystemProperties;
-
-import java.lang.reflect.Field;
-
 /**
  * Test utility methods.
  */
 public class TestUtils {
-
-    /**
-     * Sets the {@code enabled} of the given OneHandedMode flags to simulate device behavior.
-     */
-    public static void setOneHandedModeEnabled(Object obj, boolean enabled) {
-        try {
-            final Field field = RoSystemProperties.class.getDeclaredField(
-                    "SUPPORT_ONE_HANDED_MODE");
-            field.setAccessible(true);
-            field.setBoolean(obj, enabled);
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     /**
      * Creates fake accessibility service info.
      */

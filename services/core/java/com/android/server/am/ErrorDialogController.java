@@ -24,6 +24,8 @@ import android.content.Context;
 import android.view.Display;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.server.LocalServices;
+import com.android.server.pm.UserManagerInternal;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +38,7 @@ final class ErrorDialogController {
     private final ProcessRecord mApp;
     private final ActivityManagerService mService;
     private final ActivityManagerGlobalLock mProcLock;
+    private UserManagerInternal mUserManagerInternal;
 
     /**
      * Dialogs being displayed due to crash.
@@ -416,11 +419,30 @@ final class ErrorDialogController {
         }
         // If there is no foreground window display, fallback to last used display.
         if (displayContexts.isEmpty() || lastUsedOnly) {
-            displayContexts.add(mService.mWmInternal != null
-                    ? mService.mWmInternal.getTopFocusedDisplayUiContext()
-                    : mService.mUiContext);
+            Context uiContext;
+            final UserManagerInternal umi = getUserManagerInternal();
+            if (Flags.errorDialogForVisibleBackgroundUsers()
+                    && umi.isVisibleBackgroundFullUser(mApp.userId)) {
+                // For a visible background full user, only use its assigned display.
+                int displayId = umi.getMainDisplayAssignedToUser(mApp.userId);
+                uiContext = mService.mWmInternal != null
+                        ? mService.mWmInternal.getDisplayUiContext(displayId)
+                        : mService.mUiContext;
+            } else {
+                uiContext = mService.mWmInternal != null
+                        ? mService.mWmInternal.getTopFocusedDisplayUiContext()
+                        : mService.mUiContext;
+            }
+            displayContexts.add(uiContext);
         }
         return displayContexts;
+    }
+
+    private UserManagerInternal getUserManagerInternal() {
+        if (mUserManagerInternal == null) {
+            mUserManagerInternal = LocalServices.getService(UserManagerInternal.class);
+        }
+        return mUserManagerInternal;
     }
 
     ErrorDialogController(ProcessRecord app) {

@@ -19,6 +19,7 @@ package com.android.systemui.statusbar.systemstatusicons
 import com.android.systemui.Flags
 import com.android.systemui.flags.FlagToken
 import com.android.systemui.flags.RefactorFlagUtils
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.statusbar.core.NewStatusBarIcons
 
 /** Helper for reading or using the system status icons in compose flag state. */
@@ -34,7 +35,11 @@ object SystemStatusIconsInCompose {
     /** Is the refactor enabled */
     @JvmStatic
     inline val isEnabled
-        get() = Flags.statusBarSystemStatusIconsInCompose() && NewStatusBarIcons.isEnabled
+        get() =
+            Flags.statusBarSystemStatusIconsInCompose() &&
+                NewStatusBarIcons.isEnabled &&
+                SceneContainerFlag.isEnabled &&
+                Flags.statusIconsInComposeRefresh()
 
     /**
      * Called to ensure code is only run when the flag is enabled. This protects users from the

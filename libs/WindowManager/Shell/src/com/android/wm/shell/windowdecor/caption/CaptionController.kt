@@ -31,19 +31,23 @@ import android.view.WindowManager
 import android.window.WindowContainerTransaction
 import com.android.app.tracing.traceSection
 import com.android.internal.protolog.ProtoLog
+import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_WINDOW_DECORATION
+import com.android.wm.shell.shared.annotations.ShellBackgroundThread
 import com.android.wm.shell.windowdecor.HandleMenuController
+import com.android.wm.shell.windowdecor.LayoutMenuController
 import com.android.wm.shell.windowdecor.ManageWindowsMenuController
-import com.android.wm.shell.windowdecor.MaximizeMenuController
 import com.android.wm.shell.windowdecor.TaskFocusStateConsumer
 import com.android.wm.shell.windowdecor.WindowDecoration2.RelayoutParams
-import com.android.wm.shell.windowdecor.WindowDecoration2.SurfaceControlViewHostFactory
 import com.android.wm.shell.windowdecor.WindowDecorationInsets
 import com.android.wm.shell.windowdecor.common.CaptionRegionHelper
 import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHost
 import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHostSupplier
 import com.android.wm.shell.windowdecor.extension.identityHashCode
 import com.android.wm.shell.windowdecor.viewholder.WindowDecorationViewHolder
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 /**
  * Creates, updates, and removes the caption and its related menus based on [RunningTaskInfo]
@@ -54,11 +58,8 @@ import com.android.wm.shell.windowdecor.viewholder.WindowDecorationViewHolder
 abstract class CaptionController<T>(
     protected var taskInfo: RunningTaskInfo,
     private val windowDecorViewHostSupplier: WindowDecorViewHostSupplier<WindowDecorViewHost>,
-    private val surfaceControlBuilderSupplier: () -> SurfaceControl.Builder = {
-        SurfaceControl.Builder()
-    },
-    private val surfaceControlViewHostFactory: SurfaceControlViewHostFactory =
-        object : SurfaceControlViewHostFactory {},
+    protected val taskOrganizer: ShellTaskOrganizer,
+    @field:ShellBackgroundThread protected val bgScope: CoroutineScope,
 ) where T : View, T : TaskFocusStateConsumer {
 
     private var captionInsets: WindowDecorationInsets? = null
@@ -68,14 +69,21 @@ abstract class CaptionController<T>(
     protected lateinit var captionLayoutResult: CaptionRelayoutResult
     private lateinit var decorWindowContext: Context
     private var windowDecorationInsets: WindowDecorationInsets? = null
+    protected lateinit var display: Display
 
     protected var isCaptionVisible = false
-    var isRecentsTransitionRunning = false
     var hasGlobalFocus = false
     var isDragging = false
+    var setExcludeLayerJob: Job? = null
 
-    /** Controller for maximize menu or null if caption does not implement a maximize menu. */
-    open val maximizeMenuController: MaximizeMenuController? = null
+    /**
+     * Whether this class is receiving a gesture started inside the root view through
+     * [injectMotionEvent]
+     */
+    private var injectingGestureOfInterest = false
+
+    /** Controller for layout menu or null if caption does not implement a layout menu. */
+    open val layoutMenuController: LayoutMenuController? = null
     /** Controller for handle menu or null if caption does not implement a handle menu. */
     open val handleMenuController: HandleMenuController? = null
     /**
@@ -124,6 +132,7 @@ abstract class CaptionController<T>(
             traceTag = Trace.TRACE_TAG_WINDOW_MANAGER,
             name = "CaptionController#relayout",
         ) {
+            this.display = display
             taskInfo = params.runningTaskInfo
             hasGlobalFocus = params.hasGlobalFocus
             this.decorWindowContext = decorWindowContext
@@ -158,14 +167,13 @@ abstract class CaptionController<T>(
 
             logD(
                 "relayout with taskBounds=%s captionSize=%dx%d captionTopPadding=%d " +
-                    "captionX=%d captionY=%d elements=%s customizableCaptionRegion=%s " +
+                    "captionX=%d captionY=$captionY elements=%s customizableCaptionRegion=%s " +
                     "touchableRegion=%s",
                 taskBounds,
                 captionHeight,
                 captionWidth,
                 captionTopPadding,
                 captionX,
-                captionY,
                 elements,
                 customizableCaptionRegion.toReadableString(),
                 touchableRegion,
@@ -246,12 +254,21 @@ abstract class CaptionController<T>(
                 view.parent.identityHashCode.toHexString(),
                 viewHost,
             )
+            // TODO (b/458497344): See if we can get around not using this to unblock
+            // touch inputs getting consumed by the ViewHost's RootView
+            val flags =
+                if (isCaptionVisible) {
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                } else {
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                }
             val lp =
                 WindowManager.LayoutParams(
                         captionWidth,
                         captionHeight,
-                        WindowManager.LayoutParams.TYPE_APPLICATION,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                        WindowManager.LayoutParams.TYPE_APPLICATION_CAPTION_BAR,
+                        flags,
                         PixelFormat.TRANSPARENT,
                     )
                     .apply {
@@ -289,6 +306,16 @@ abstract class CaptionController<T>(
             .setPosition(captionSurface, captionX.toFloat(), /* y= */ 0f)
             .setLayer(captionSurface, CAPTION_LAYER_Z_ORDER)
             .show(captionSurface)
+        val layers = arrayOf<SurfaceControl?>(captionSurface)
+        clearExcludeLayerJob()
+        setExcludeLayerJob =
+            bgScope.launch {
+                synchronized(taskOrganizer) {
+                    if (layers[0]?.isValid == true) {
+                        taskOrganizer.setExcludeLayersFromTaskSnapshot(taskInfo.token, layers)
+                    }
+                }
+            }
     }
 
     /** Adds caption inset source to a WCT */
@@ -306,6 +333,7 @@ abstract class CaptionController<T>(
                 frame = captionInsets,
                 taskFrame = null,
                 boundingRects = emptyList(),
+                insetsBoundingRects = emptyList(),
                 flags = 0,
                 shouldAddCaptionInset = true,
                 excludedFromAppBounds = false,
@@ -338,11 +366,25 @@ abstract class CaptionController<T>(
         // insets than traditional |Insets| to apps about where their content is occluded.
         // These are in coordinates relative to the caption frame.
         val boundingRects =
-            CaptionRegionHelper.calculateBoundingRectsInsets(
-                context = decorWindowContext,
-                captionFrame = localCaptionBounds,
-                elements = elements,
-            )
+            if (!com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+                CaptionRegionHelper.calculateBoundingRectsInsets(
+                    context = decorWindowContext,
+                    captionFrame = localCaptionBounds,
+                    elements = elements,
+                )
+            } else {
+                emptyList()
+            }
+        val insetsBoundingRects =
+            if (com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+                CaptionRegionHelper.calculateInsetsBoundingRectsInsets(
+                    context = decorWindowContext,
+                    captionFrame = localCaptionBounds,
+                    elements = elements,
+                )
+            } else {
+                emptyList()
+            }
 
         val newInsets =
             WindowDecorationInsets(
@@ -351,6 +393,7 @@ abstract class CaptionController<T>(
                 captionInsetsRect,
                 taskBounds,
                 boundingRects,
+                insetsBoundingRects,
                 params.insetSourceFlags,
                 params.isInsetSource,
                 params.shouldSetAppBounds,
@@ -392,10 +435,17 @@ abstract class CaptionController<T>(
             windowDecorationViewHolder = null
 
             val viewHost = captionViewHost ?: return false
-            windowDecorViewHostSupplier.release(viewHost, t)
+            clearExcludeLayerJob()
+            synchronized(taskOrganizer) { windowDecorViewHostSupplier.release(viewHost, t) }
             captionViewHost = null
+            bgScope.launch { taskOrganizer.clearExcludeLayersFromTaskSnapshot(taskInfo.token) }
             return true
         }
+
+    private fun clearExcludeLayerJob() {
+        setExcludeLayerJob?.cancel()
+        setExcludeLayerJob = null
+    }
 
     private fun getOrCreateViewHost(context: Context, display: Display): WindowDecorViewHost =
         traceSection(
@@ -412,6 +462,33 @@ abstract class CaptionController<T>(
             return viewHost
         }
 
+    /**
+     * Inject the given [MotionEvent] into the root view if it exists and the gesture started in it.
+     */
+    fun injectMotionEvent(e: MotionEvent) {
+        val rootView = windowDecorationViewHolder?.rootView ?: return
+
+        val isDown = e.action == MotionEvent.ACTION_DOWN
+        val isUpOrCancel =
+            e.action == MotionEvent.ACTION_UP || e.action == MotionEvent.ACTION_CANCEL
+        val left = rootView.left.toFloat()
+        val top = rootView.top.toFloat()
+        e.offsetLocation(left, top)
+        if (isDown) {
+            injectingGestureOfInterest =
+                e.x >= 0 && e.y >= 0 && e.x < rootView.width && e.y < rootView.height
+        }
+        if (injectingGestureOfInterest) {
+            rootView.dispatchTouchEvent(e)
+        }
+        if (isUpOrCancel) {
+            injectingGestureOfInterest = false
+        }
+        e.offsetLocation(-left, -top)
+    }
+
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logD(msg: String, vararg arguments: Any?) {
         ProtoLog.d(WM_SHELL_WINDOW_DECORATION, "%s: $msg", TAG, *arguments)
     }
@@ -452,6 +529,8 @@ abstract class CaptionController<T>(
     enum class CaptionType {
         APP_HANDLE,
         APP_HEADER,
+        APP_PINNED,
+        FULLSCREEN_HEADER,
         NO_CAPTION,
     }
 

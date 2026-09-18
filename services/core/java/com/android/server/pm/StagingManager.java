@@ -319,8 +319,8 @@ public class StagingManager {
 
     private void snapshotAndRestoreApexUserData(
             String packageName, int[] allUsers, RollbackManagerInternal rm) {
-        // appId, ceDataInode, and seInfo are not needed for APEXes
-        rm.snapshotAndRestoreUserData(packageName, UserHandle.toUserHandles(allUsers), 0, 0,
+        // appId, pccId, ceDataInode, and seInfo are not needed for APEXes
+        rm.snapshotAndRestoreUserData(packageName, UserHandle.toUserHandles(allUsers), 0, 0, 0,
                 null, 0 /*token*/);
     }
 
@@ -339,6 +339,7 @@ public class StagingManager {
         final PackageStateInternal ps = mPmi.getPackageStateInternal(packageName);
         if (ps != null) {
             appId = ps.getAppId();
+            int pccId = ps.getPccId();
             ceDataInode = ps.getUserStateOrDefault(UserHandle.USER_SYSTEM).getCeDataInode();
             // NOTE: We ignore the user specified in the InstallParam because we know this is
             // an update, and hence need to restore data for all installed users.
@@ -346,7 +347,7 @@ public class StagingManager {
 
             final String seInfo = ps.getSeInfo();
             rm.snapshotAndRestoreUserData(packageName, UserHandle.toUserHandles(installedUsers),
-                    appId, ceDataInode, seInfo, 0 /*token*/);
+                    appId, pccId, ceDataInode, seInfo, 0 /*token*/);
         }
     }
 

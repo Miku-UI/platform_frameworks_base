@@ -73,8 +73,9 @@ public final class ExternalTimeSuggestion implements Parcelable {
     public static final @NonNull Creator<ExternalTimeSuggestion> CREATOR =
             new Creator<ExternalTimeSuggestion>() {
                 public ExternalTimeSuggestion createFromParcel(Parcel in) {
-                    TimeSuggestionHelper helper = TimeSuggestionHelper.handleCreateFromParcel(
-                            ExternalTimeSuggestion.class, in);
+                    TimeSuggestionHelper helper =
+                            TimeSuggestionHelper.handleCreateFromParcel(
+                                    ExternalTimeSuggestion.class, in);
                     return new ExternalTimeSuggestion(helper);
                 }
 
@@ -90,13 +91,15 @@ public final class ExternalTimeSuggestion implements Parcelable {
      * ExternalTimeSuggestion} for more details.
      *
      * @param elapsedRealtimeMillis the elapsed realtime clock reference for the suggestion
-     * @param suggestionMillis      the suggested time in milliseconds since the start of the
-     *                              Unix epoch
+     * @param suggestionMillis the suggested time in milliseconds since the start of the Unix epoch
      */
-    public ExternalTimeSuggestion(@ElapsedRealtimeLong long elapsedRealtimeMillis,
+    public ExternalTimeSuggestion(
+            @ElapsedRealtimeLong long elapsedRealtimeMillis,
             @CurrentTimeMillisLong long suggestionMillis) {
-        mTimeSuggestionHelper = new TimeSuggestionHelper(ExternalTimeSuggestion.class,
-                new UnixEpochTime(elapsedRealtimeMillis, suggestionMillis));
+        mTimeSuggestionHelper =
+                new TimeSuggestionHelper(
+                        ExternalTimeSuggestion.class,
+                        new UnixEpochTime(elapsedRealtimeMillis, suggestionMillis));
     }
 
     private ExternalTimeSuggestion(@NonNull TimeSuggestionHelper helper) {
@@ -113,9 +116,7 @@ public final class ExternalTimeSuggestion implements Parcelable {
         mTimeSuggestionHelper.handleWriteToParcel(dest, flags);
     }
 
-    /**
-     * @hide
-     */
+    /** @hide */
     @NonNull
     public UnixEpochTime getUnixEpochTime() {
         return mTimeSuggestionHelper.getUnixEpochTime();

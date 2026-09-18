@@ -17,7 +17,6 @@
 package com.android.systemui.qs.panels.data.repository
 
 import android.content.res.Resources
-import com.android.server.display.feature.flags.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.res.R
@@ -32,8 +31,7 @@ constructor(@ShadeDisplayAware private val resources: Resources) {
      * List of stock platform tiles. All of the specs will be of type [TileSpec.PlatformTileSpec].
      */
     val shouldRemoveRbcTile: Boolean =
-        Flags.evenDimmer() &&
-            resources.getBoolean(com.android.internal.R.bool.config_evenDimmerEnabled)
+        resources.getBoolean(com.android.internal.R.bool.config_evenDimmerEnabled)
 
     val stockTiles =
         resources

@@ -37,8 +37,9 @@ import kotlin.collections.toList
 import kotlin.collections.toTypedArray
 
 typealias UpdateMatcher = (PhysicsAnimator.AnimationUpdate) -> Boolean
+
 typealias UpdateFramesPerProperty<T> =
-        ArrayMap<FloatPropertyCompat<in T>, ArrayList<PhysicsAnimator.AnimationUpdate>>
+    ArrayMap<FloatPropertyCompat<in T>, ArrayList<PhysicsAnimator.AnimationUpdate>>
 
 /**
  * Utilities for testing code that uses [PhysicsAnimator].
@@ -116,7 +117,7 @@ object PhysicsAnimatorTestUtils {
     @Throws(InterruptedException::class)
     fun <T : Any> blockUntilAnimationsEnd(
         animator: PhysicsAnimator<T>,
-        vararg properties: FloatPropertyCompat<in T>
+        vararg properties: FloatPropertyCompat<in T>,
     ) {
         val animatingProperties = HashSet<FloatPropertyCompat<in T>>()
         for (property in properties) {
@@ -127,22 +128,24 @@ object PhysicsAnimatorTestUtils {
 
         if (animatingProperties.size > 0) {
             val latch = CountDownLatch(animatingProperties.size)
-            getAnimationTestHelper(animator).addTestEndListener(
+            getAnimationTestHelper(animator)
+                .addTestEndListener(
                     object : PhysicsAnimator.EndListener<T> {
-                override fun onAnimationEnd(
-                    target: T,
-                    property: FloatPropertyCompat<in T>,
-                    wasFling: Boolean,
-                    canceled: Boolean,
-                    finalValue: Float,
-                    finalVelocity: Float,
-                    allRelevantPropertyAnimsEnded: Boolean
-                ) {
-                    if (animatingProperties.contains(property)) {
-                        latch.countDown()
+                        override fun onAnimationEnd(
+                            target: T,
+                            property: FloatPropertyCompat<in T>,
+                            wasFling: Boolean,
+                            canceled: Boolean,
+                            finalValue: Float,
+                            finalVelocity: Float,
+                            allRelevantPropertyAnimsEnded: Boolean,
+                        ) {
+                            if (animatingProperties.contains(property)) {
+                                latch.countDown()
+                            }
+                        }
                     }
-                }
-            })
+                )
 
             latch.await(timeoutMs, TimeUnit.MILLISECONDS)
         }
@@ -157,13 +160,13 @@ object PhysicsAnimatorTestUtils {
     @JvmStatic
     @Throws(InterruptedException::class)
     @Suppress("UNCHECKED_CAST")
-    fun <T : Any> blockUntilAnimationsEnd(
-        vararg properties: FloatPropertyCompat<in T>
-    ) {
+    fun <T : Any> blockUntilAnimationsEnd(vararg properties: FloatPropertyCompat<in T>) {
         for (target in allAnimatedObjects) {
             try {
                 blockUntilAnimationsEnd(
-                        PhysicsAnimator.getInstance(target) as PhysicsAnimator<T>, *properties)
+                    PhysicsAnimator.getInstance(target) as PhysicsAnimator<T>,
+                    *properties,
+                )
             } catch (e: ClassCastException) {
                 // Keep checking the other objects for ones whose types match the provided
                 // properties.
@@ -189,21 +192,20 @@ object PhysicsAnimatorTestUtils {
     @Throws(InterruptedException::class)
     fun <T : Any> blockUntilFirstAnimationFrameWhereTrue(
         animator: PhysicsAnimator<T>,
-        predicate: (T) -> Boolean
+        predicate: (T) -> Boolean,
     ) {
         if (animator.isRunning()) {
             val latch = CountDownLatch(1)
-            getAnimationTestHelper(animator).addTestUpdateListener(object : PhysicsAnimator
-            .UpdateListener<T> {
-                override fun onAnimationUpdateForProperty(
-                    target: T,
-                    values: UpdateMap<T>
-                ) {
-                    if (predicate(target)) {
-                        latch.countDown()
+            getAnimationTestHelper(animator)
+                .addTestUpdateListener(
+                    object : PhysicsAnimator.UpdateListener<T> {
+                        override fun onAnimationUpdateForProperty(target: T, values: UpdateMap<T>) {
+                            if (predicate(target)) {
+                                latch.countDown()
+                            }
+                        }
                     }
-                }
-            })
+                )
 
             latch.await(timeoutMs, TimeUnit.MILLISECONDS)
         }
@@ -220,36 +222,45 @@ object PhysicsAnimatorTestUtils {
      * cleared. Subsequent calls to this method will start verification at the next animation frame.
      *
      * Example: Verify that an animation surpassed x = 50f before going negative.
+     *
+     * ```
      * verifyAnimationUpdateFrames(
      *    animator, TRANSLATION_X,
      *    { u -> u.value > 50f },
      *    { u -> u.value < 0f })
+     * ```
      *
      * Example: verify that an animation went backwards at some point while still being on-screen.
+     *
+     * ```
      * verifyAnimationUpdateFrames(
      *    animator, TRANSLATION_X,
      *    { u -> u.velocity < 0f && u.value >= 0f })
+     * ```
      *
      * This method is intended to help you test longer, more complicated animations where it's
      * critical that certain values were reached. Using this method to test short animations can
      * fail due to the animation having fewer frames than provided matchers. For example, an
      * animation from x = 1f to x = 5f might only have two frames, at x = 3f and x = 5f. The
      * following would then fail despite it seeming logically sound:
-     *
+     * ```
      * verifyAnimationUpdateFrames(
      *    animator, TRANSLATION_X,
      *    { u -> u.value > 1f },
      *    { u -> u.value > 2f },
      *    { u -> u.value > 3f })
+     * ```
      *
      * Tests might also fail if your matchers are too granular, such as this example test after an
      * animation from x = 0f to x = 100f. It's unlikely there was a frame specifically between 2f
      * and 3f.
      *
+     * ```
      * verifyAnimationUpdateFrames(
      *    animator, TRANSLATION_X,
      *    { u -> u.value > 2f && u.value < 3f },
      *    { u -> u.value >= 50f })
+     * ```
      *
      * Failures will print a helpful log of all animation frames so you can see what caused the test
      * to fail.
@@ -258,7 +269,7 @@ object PhysicsAnimatorTestUtils {
         animator: PhysicsAnimator<T>,
         property: FloatPropertyCompat<in T>,
         firstUpdateMatcher: UpdateMatcher,
-        vararg additionalUpdateMatchers: UpdateMatcher
+        vararg additionalUpdateMatchers: UpdateMatcher,
     ) {
         val updateFrames: UpdateFramesPerProperty<T> = getAnimationUpdateFrames(animator)
 
@@ -269,8 +280,7 @@ object PhysicsAnimatorTestUtils {
         // Copy the frames to avoid a ConcurrentModificationException if the animation update
         // listeners attempt to add a new frame while we're verifying these.
         val framesForProperty = ArrayList(updateFrames[property]!!)
-        val matchers = ArrayDeque<UpdateMatcher>(
-                additionalUpdateMatchers.toList())
+        val matchers = ArrayDeque<UpdateMatcher>(additionalUpdateMatchers.toList())
         val frameTraceMessage = StringBuilder()
 
         var curMatcher = firstUpdateMatcher
@@ -297,40 +307,43 @@ object PhysicsAnimatorTestUtils {
         getAnimationUpdateFrames(animator).remove(property)
 
         throw RuntimeException(
-                "Failed to verify animation frames for property $readablePropertyName: " +
-                        "Provided ${additionalUpdateMatchers.size + 1} matchers, " +
-                        "however ${matchers.size + 1} remained unsatisfied.\n\n" +
-                        "All frames:\n$frameTraceMessage")
+            "Failed to verify animation frames for property $readablePropertyName: " +
+                "Provided ${additionalUpdateMatchers.size + 1} matchers, " +
+                "however ${matchers.size + 1} remained unsatisfied.\n\n" +
+                "All frames:\n$frameTraceMessage"
+        )
     }
 
     /**
      * Overload of [verifyAnimationUpdateFrames] that builds matchers for you, from given float
      * values. For example, to verify that an animations passed from 0f to 50f to 100f back to 50f:
-     *
+     * ```
      * verifyAnimationUpdateFrames(animator, TRANSLATION_X, 0f, 50f, 100f, 50f)
+     * ```
      *
-     * This verifies that update frames were received with values of >= 0f, >= 50f, >= 100f, and
-     * <= 50f.
+     * This verifies that update frames were received with values of >= 0f, >= 50f, >= 100f, and <=
+     * 50f.
      *
      * The same caveats apply: short animations might not have enough frames to satisfy all of the
-     * matchers, and overly specific calls (such as 0f, 1f, 2f, 3f, etc. for an animation from
-     * x = 0f to x = 100f) might fail as the animation only had frames at 0f, 25f, 50f, 75f, and
-     * 100f. As with [verifyAnimationUpdateFrames], failures will print a helpful log of all frames
-     * so you can see what caused the test to fail.
+     * matchers, and overly specific calls (such as 0f, 1f, 2f, 3f, etc. for an animation from x =
+     * 0f to x = 100f) might fail as the animation only had frames at 0f, 25f, 50f, 75f, and 100f.
+     * As with [verifyAnimationUpdateFrames], failures will print a helpful log of all frames so you
+     * can see what caused the test to fail.
      */
     fun <T : Any> verifyAnimationUpdateFrames(
         animator: PhysicsAnimator<T>,
         property: FloatPropertyCompat<in T>,
         startValue: Float,
         firstTargetValue: Float,
-        vararg additionalTargetValues: Float
+        vararg additionalTargetValues: Float,
     ) {
         val matchers = ArrayList<UpdateMatcher>()
 
-        val values = ArrayList<Float>().also {
-            it.add(firstTargetValue)
-            it.addAll(additionalTargetValues.toList())
-        }
+        val values =
+            ArrayList<Float>().also {
+                it.add(firstTargetValue)
+                it.addAll(additionalTargetValues.toList())
+            }
 
         var prevVal = startValue
         for (value in values) {
@@ -344,12 +357,14 @@ object PhysicsAnimatorTestUtils {
         }
 
         verifyAnimationUpdateFrames(
-                animator, property, matchers[0], *matchers.drop(0).toTypedArray())
+            animator,
+            property,
+            matchers[0],
+            *matchers.drop(0).toTypedArray(),
+        )
     }
 
-    /**
-     * Returns all of the values that have ever been reported to update listeners, per property.
-     */
+    /** Returns all of the values that have ever been reported to update listeners, per property. */
     @Suppress("UNCHECKED_CAST")
     fun <T : Any> getAnimationUpdateFrames(
         animator: PhysicsAnimator<T>
@@ -375,11 +390,11 @@ object PhysicsAnimatorTestUtils {
      * [startForTest] and adds test listeners to enable other test utility behaviors. We build one
      * these for each Animator and keep them around so we can access the updates.
      */
-    class AnimatorTestHelper<T> (private val animator: PhysicsAnimator<T>) {
+    class AnimatorTestHelper<T>(private val animator: PhysicsAnimator<T>) {
 
         /** All updates received for each property animation. */
         private val allUpdates =
-                ArrayMap<FloatPropertyCompat<in T>, ArrayList<PhysicsAnimator.AnimationUpdate>>()
+            ArrayMap<FloatPropertyCompat<in T>, ArrayList<PhysicsAnimator.AnimationUpdate>>()
 
         private val testEndListeners = ArrayList<PhysicsAnimator.EndListener<T>>()
         private val testUpdateListeners = ArrayList<PhysicsAnimator.UpdateListener<T>>()
@@ -446,18 +461,23 @@ object PhysicsAnimatorTestUtils {
 
             // Add an end listener that dispatches to any test end listeners added by tests, and
             // unblocks the main thread if required.
-            animator.addEndListener{
-               target,
-               property,
-               wasFling,
-               canceled,
-               finalValue,
-               finalVelocity,
-               allRelevantPropertyAnimsEnded ->
+            animator.addEndListener {
+                target,
+                property,
+                wasFling,
+                canceled,
+                finalValue,
+                finalVelocity,
+                allRelevantPropertyAnimsEnded ->
                 for (listener in testEndListeners) {
                     listener.onAnimationEnd(
-                        target, property, wasFling, canceled, finalValue, finalVelocity,
-                        allRelevantPropertyAnimsEnded
+                        target,
+                        property,
+                        wasFling,
+                        canceled,
+                        finalValue,
+                        finalVelocity,
+                        allRelevantPropertyAnimsEnded,
                     )
                 }
 

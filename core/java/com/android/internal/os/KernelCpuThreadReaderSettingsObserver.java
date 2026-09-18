@@ -45,7 +45,7 @@ import java.util.regex.Pattern;
  *
  * @hide Only for use within the system server
  */
-public class KernelCpuThreadReaderSettingsObserver extends ContentObserver {
+public final class KernelCpuThreadReaderSettingsObserver extends ContentObserver {
     private static final String TAG = "KernelCpuThreadReaderSettingsObserver";
 
     /** The number of frequency buckets to report */
@@ -144,7 +144,7 @@ public class KernelCpuThreadReaderSettingsObserver extends ContentObserver {
 
     /** Check whether a UID belongs to a set of UIDs */
     @VisibleForTesting
-    public static class UidPredicate implements Predicate<Integer> {
+    public static final class UidPredicate implements Predicate<Integer> {
         private static final Pattern UID_RANGE_PATTERN = Pattern.compile("([0-9]+)-([0-9]+)");
         private static final String UID_SPECIFIER_DELIMITER = ";";
         private final List<Range<Integer>> mAcceptedUidRanges;

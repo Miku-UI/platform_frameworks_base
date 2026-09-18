@@ -58,7 +58,7 @@ genrule {
         "layout_layout3.(test.package.trueFlag).xml.flat",
     ],
     cmd: "$(location aapt2) compile $(in) -o $(genDir) " +
-        "--feature-flags test.package.falseFlag:ro=false,test.package.trueFlag:ro=true",
+        "--feature-flags test.package.falseFlag:ro=false,test.package.trueFlag:ro=true,test.package.readWriteFlag=false",
 }
 
 genrule {
@@ -74,7 +74,7 @@ genrule {
     ],
     cmd: "$(location aapt2) link -o $(out) --manifest $(in) " +
         "-I $(location :current_android_jar) " +
-        "--feature-flags test.package.falseFlag:ro=false,test.package.trueFlag:ro=true",
+        "--feature-flags test.package.falseFlag:ro=false,test.package.trueFlag:ro=true,test.package.readWriteFlag=false",
     tool_files: [":current_android_jar"],
 }
 
@@ -91,7 +91,7 @@ genrule {
     ],
     cmd: "$(location aapt2) link -o $(genDir)/resapp.apk --java $(genDir)/resource-flagging-java --manifest $(in) " +
         "-I $(location :current_android_jar) " +
-        "--feature-flags test.package.falseFlag:ro=false,test.package.trueFlag:ro=true",
+        "--feature-flags test.package.falseFlag:ro=false,test.package.trueFlag:ro=true,test.package.readWriteFlag=false",
     tool_files: [":current_android_jar"],
 }
 

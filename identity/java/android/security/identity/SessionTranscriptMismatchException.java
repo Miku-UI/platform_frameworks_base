@@ -16,18 +16,26 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 
 /**
  * Thrown when trying use multiple different session transcripts in the same presentation session.
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public class SessionTranscriptMismatchException extends IdentityCredentialException {
 
     /**
      * Constructs a new {@link SessionTranscriptMismatchException} exception.
      *
      * @param message the detail message.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public SessionTranscriptMismatchException(@NonNull String message) {
         super(message);
     }
@@ -37,7 +45,11 @@ public class SessionTranscriptMismatchException extends IdentityCredentialExcept
      *
      * @param message the detail message.
      * @param cause   the cause.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public SessionTranscriptMismatchException(@NonNull String message, @NonNull Throwable cause) {
         super(message, cause);
     }

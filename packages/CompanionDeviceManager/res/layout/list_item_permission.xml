@@ -20,10 +20,14 @@
               android:layout_width="match_parent"
               android:layout_height="wrap_content"
               android:orientation="horizontal"
+              android:minHeight="48dp"
               android:paddingStart="32dp"
               android:paddingEnd="32dp"
               android:paddingTop="6dp"
-              android:paddingBottom="6dp">
+              android:paddingBottom="6dp"
+              android:clickable="false"
+              android:focusable="false"
+              android:importantForAccessibility="yes">
 
     <ImageView
         android:id="@+id/permission_icon"
@@ -60,7 +64,7 @@
             android:textSize="14sp"
             android:layout_marginTop="2dp"
             style="@style/TextAppearance"
-            android:focusable="true"
+            android:focusable="false"
             android:textColor="?android:attr/textColorSecondary"/>
 
     </LinearLayout>

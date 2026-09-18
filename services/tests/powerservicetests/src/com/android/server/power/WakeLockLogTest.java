@@ -26,10 +26,14 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.PowerManager;
 import android.os.Process;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import com.android.server.power.WakeLockLog.TagData;
+import com.android.server.power.feature.flags.Flags;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -44,6 +48,8 @@ import java.util.TimeZone;
  */
 public class WakeLockLogTest {
 
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     @Mock
     private Context mContext;
 
@@ -59,6 +65,7 @@ public class WakeLockLogTest {
         when(mPackageManager.getPackagesForUid(102)).thenReturn(new String[]{ "some.package2" });
         when(mPackageManager.getPackagesForUid(Process.SYSTEM_UID))
                 .thenReturn(new String[]{ "some.package3" });
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
     }
 
     @Test
@@ -464,6 +471,40 @@ public class WakeLockLogTest {
 
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_DONT_CHURN_TAG_DATABASE_ON_RELEASE)
+    public void testReleaseUnknownTagDoesNotEvict() {
+        final int tagDatabaseSize = 2;
+        final int tagStartingSize = 2;
+        final int logSize = 1024;
+        TestInjector injectorSpy = spy(new TestInjector(tagDatabaseSize, tagStartingSize, logSize));
+        WakeLockLog log = new WakeLockLog(injectorSpy, mContext);
+
+        // Fill the DB
+        log.onWakeLockAcquired("Tag1", 101, PowerManager.PARTIAL_WAKE_LOCK, 1000L);
+        log.onWakeLockAcquired("Tag2", 102, PowerManager.PARTIAL_WAKE_LOCK, 1001L);
+
+        // Release a new tag. Current behavior (before fix): Double the array size to
+        // accommodate TAG3
+        // Desired behavior (after fix): Does NOT evict Tag1. Logs UNKNOWN.
+        log.onWakeLockReleased("Tag3", 103, 1002L);
+
+        // Tag1 and Tag2 should still be in the log and database.
+        // Tag3 should be logged as UNKNOWN.
+        String expected = "Wake Lock Log\n"
+                + "  01-01 00:00:01.000 - 101 (some.package1) - ACQ Tag1 (partial)\n"
+                + "  01-01 00:00:01.001 - 102 (some.package2) - ACQ Tag2 (partial)\n"
+                + "  01-01 00:00:01.002 - --- (some.package2) - REL UNKNOWN\n"
+                + "  -\n"
+                + "  Events: 3, Time-Resets: 0\n"
+                + "  Buffer, Bytes used: 8\n"
+                + "  Tag Database: size(2), entries: 2, Bytes used: 80\n";
+
+        assertEquals(expected, dumpLog(log, true));
+        assertEquals("Tag1", log.getTagOnIndex(0).tag);
+        assertEquals("Tag2", log.getTagOnIndex(1).tag);
+    }
+
     private String dumpLog(WakeLockLog log, boolean includeTagDb) {
         StringWriter sw = new StringWriter();
         PrintWriter pw = new PrintWriter(sw);
@@ -500,7 +541,6 @@ public class WakeLockLogTest {
         @Override
         public SimpleDateFormat getDateFormat() {
             SimpleDateFormat format = new SimpleDateFormat(super.getDateFormat().toPattern());
-            format.setTimeZone(TimeZone.getTimeZone("UTC"));
             return format;
         }
     }

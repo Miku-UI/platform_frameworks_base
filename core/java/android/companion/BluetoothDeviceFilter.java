@@ -50,27 +50,20 @@ public final class BluetoothDeviceFilter implements DeviceFilter<BluetoothDevice
     private final List<ParcelUuid> mServiceUuids;
     private final List<ParcelUuid> mServiceUuidMasks;
 
-    private BluetoothDeviceFilter(
-            Pattern namePattern,
-            String address,
-            List<ParcelUuid> serviceUuids,
-            List<ParcelUuid> serviceUuidMasks) {
-        mNamePattern = namePattern;
-        mAddress = address;
-        mServiceUuids = CollectionUtils.emptyIfNull(serviceUuids);
-        mServiceUuidMasks = CollectionUtils.emptyIfNull(serviceUuidMasks);
+    private BluetoothDeviceFilter(Builder builder) {
+        mNamePattern = builder.mNamePattern;
+        mAddress = builder.mAddress;
+        mServiceUuids = CollectionUtils.emptyIfNull(builder.mServiceUuid);
+        mServiceUuidMasks = CollectionUtils.emptyIfNull(builder.mServiceUuidMask);
     }
 
     private BluetoothDeviceFilter(Parcel in) {
-        this(
-            patternFromString(in.readString()),
-            in.readString(),
-            readUuids(in),
-            readUuids(in));
-    }
-
-    private static List<ParcelUuid> readUuids(Parcel in) {
-        return in.readParcelableList(new ArrayList<>(), ParcelUuid.class.getClassLoader(), android.os.ParcelUuid.class);
+        mNamePattern = patternFromString(in.readString());
+        mAddress = in.readString();
+        mServiceUuids = new ArrayList<>();
+        in.readTypedList(mServiceUuids, ParcelUuid.CREATOR);
+        mServiceUuidMasks = new ArrayList<>();
+        in.readTypedList(mServiceUuidMasks, ParcelUuid.CREATOR);
     }
 
     /** @hide */
@@ -122,8 +115,8 @@ public final class BluetoothDeviceFilter implements DeviceFilter<BluetoothDevice
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeString(patternToString(getNamePattern()));
         dest.writeString(mAddress);
-        dest.writeParcelableList(mServiceUuids, flags);
-        dest.writeParcelableList(mServiceUuidMasks, flags);
+        dest.writeTypedList(mServiceUuids, flags);
+        dest.writeTypedList(mServiceUuidMasks, flags);
     }
 
     @Override
@@ -217,13 +210,12 @@ public final class BluetoothDeviceFilter implements DeviceFilter<BluetoothDevice
             return this;
         }
 
-        /** @inheritDoc */
+        /** {@inheritDoc} */
         @Override
         @NonNull
         public BluetoothDeviceFilter build() {
             markUsed();
-            return new BluetoothDeviceFilter(
-                    mNamePattern, mAddress, mServiceUuid, mServiceUuidMask);
+            return new BluetoothDeviceFilter(this);
         }
     }
 }

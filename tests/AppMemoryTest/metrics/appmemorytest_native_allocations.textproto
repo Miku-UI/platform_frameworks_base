@@ -1,0 +1,44 @@
+query {
+    id: "native_heap_first_dump_query"
+    sql: {
+        column_names: "process_name"
+        column_names: "allocation_bytes"
+        sql:
+        "
+WITH
+  first_dump_ts_per_upid AS (
+    SELECT
+      upid,
+      MIN(ts) AS min_dump_ts
+    FROM
+      heap_profile_allocation
+    GROUP BY
+      upid
+  )
+SELECT
+  p.name AS process_name,
+  a.size AS allocation_bytes
+FROM
+  heap_profile_allocation AS a
+  JOIN process AS p
+    ON a.upid = p.upid
+  JOIN first_dump_ts_per_upid AS first
+    ON a.upid = first.upid AND a.ts = first.min_dump_ts
+        "
+    }
+}
+metric_spec: {
+    id: "appmemorytest_native_allocations_bytes"
+    value: "first_dump_bytes"
+    query: {
+        inner_query_id: "native_heap_first_dump_query"
+        group_by: {
+            column_names: "process_name"
+            aggregates: {
+                column_name: "allocation_bytes"
+                op: SUM
+                result_column_name: "first_dump_bytes"
+            }
+        }
+    }
+}

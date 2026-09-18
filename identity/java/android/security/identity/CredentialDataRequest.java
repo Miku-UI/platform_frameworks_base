@@ -16,6 +16,7 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
@@ -25,7 +26,11 @@ import java.util.Map;
 
 /**
  * An object representing a request for credential data.
+ *
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public class CredentialDataRequest {
     CredentialDataRequest() {}
 
@@ -33,7 +38,11 @@ public class CredentialDataRequest {
      * Gets the device-signed entries to request.
      *
      * @return the device-signed entries to request.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @NonNull Map<String, Collection<String>> getDeviceSignedEntriesToRequest() {
         return mDeviceSignedEntriesToRequest;
     }
@@ -42,7 +51,11 @@ public class CredentialDataRequest {
      * Gets the issuer-signed entries to request.
      *
      * @return the issuer-signed entries to request.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @NonNull Map<String, Collection<String>> getIssuerSignedEntriesToRequest() {
         return mIssuerSignedEntriesToRequest;
     }
@@ -54,7 +67,11 @@ public class CredentialDataRequest {
      *
      * @return whether to allow using an authentication key which use
      *         count has been exceeded if no other key is available.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public boolean isAllowUsingExhaustedKeys() {
         return mAllowUsingExhaustedKeys;
     }
@@ -66,7 +83,11 @@ public class CredentialDataRequest {
      *
      * @return whether to allow using an authentication key which is
      *         expired if no other key is available.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public boolean isAllowUsingExpiredKeys() {
         return mAllowUsingExpiredKeys;
     }
@@ -77,7 +98,11 @@ public class CredentialDataRequest {
      * <p>By default this is set to true.
      *
      * @return whether to increment the use count of the authentication key used.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public boolean isIncrementUseCount() {
         return mIncrementUseCount;
     }
@@ -89,7 +114,11 @@ public class CredentialDataRequest {
      * {@link PresentationSession#getCredentialData(String, CredentialDataRequest)} method.
      *
      * @return the request message CBOR as described above.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @Nullable byte[] getRequestMessage() {
         return mRequestMessage;
     }
@@ -101,7 +130,11 @@ public class CredentialDataRequest {
      * {@link PresentationSession#getCredentialData(String, CredentialDataRequest)} method.
      *
      * @return a {@code COSE_Sign1} structure as described above.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @Nullable byte[] getReaderSignature() {
         return mReaderSignature;
     }
@@ -116,13 +149,23 @@ public class CredentialDataRequest {
 
     /**
      * A builder for {@link CredentialDataRequest}.
+     *
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public static final class Builder {
         private CredentialDataRequest mData;
 
         /**
          * Creates a new builder.
+         *
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public Builder() {
             mData = new CredentialDataRequest();
         }
@@ -131,7 +174,11 @@ public class CredentialDataRequest {
          * Sets the device-signed entries to request.
          *
          * @param entriesToRequest the device-signed entries to request.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull Builder setDeviceSignedEntriesToRequest(
                 @NonNull Map<String, Collection<String>> entriesToRequest) {
             mData.mDeviceSignedEntriesToRequest = entriesToRequest;
@@ -143,7 +190,11 @@ public class CredentialDataRequest {
          *
          * @param entriesToRequest the issuer-signed entries to request.
          * @return the builder.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull Builder setIssuerSignedEntriesToRequest(
                 @NonNull Map<String, Collection<String>> entriesToRequest) {
             mData.mIssuerSignedEntriesToRequest = entriesToRequest;
@@ -166,7 +217,11 @@ public class CredentialDataRequest {
          * @param allowUsingExhaustedKeys whether to allow using an authentication key which use
          *                                count has been exceeded if no other key is available.
          * @return the builder.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull Builder setAllowUsingExhaustedKeys(boolean allowUsingExhaustedKeys) {
             mData.mAllowUsingExhaustedKeys = allowUsingExhaustedKeys;
             return this;
@@ -189,7 +244,11 @@ public class CredentialDataRequest {
          * @param allowUsingExpiredKeys whether to allow using an authentication key which is
          *                              expired if no other key is available.
          * @return the builder.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull Builder setAllowUsingExpiredKeys(boolean allowUsingExpiredKeys) {
             mData.mAllowUsingExpiredKeys = allowUsingExpiredKeys;
             return this;
@@ -208,7 +267,11 @@ public class CredentialDataRequest {
          * @param incrementUseCount whether to increment the use count of the authentication
          *                          key used.
          * @return the builder.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull Builder setIncrementUseCount(boolean incrementUseCount) {
             mData.mIncrementUseCount = incrementUseCount;
             return this;
@@ -222,7 +285,11 @@ public class CredentialDataRequest {
          *
          * @param requestMessage the request message CBOR as described above.
          * @return the builder.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull Builder setRequestMessage(@NonNull byte[] requestMessage) {
             mData.mRequestMessage = requestMessage;
             return this;
@@ -236,7 +303,11 @@ public class CredentialDataRequest {
          *
          * @param readerSignature a {@code COSE_Sign1} structure as described above.
          * @return the builder.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull Builder setReaderSignature(@NonNull byte[] readerSignature) {
             mData.mReaderSignature = readerSignature;
             return this;
@@ -246,7 +317,11 @@ public class CredentialDataRequest {
          * Finishes building a {@link CredentialDataRequest}.
          *
          * @return the {@link CredentialDataRequest} object.
+         * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+         * instead.
          */
+        @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+        @Deprecated
         public @NonNull CredentialDataRequest build() {
             return mData;
         }

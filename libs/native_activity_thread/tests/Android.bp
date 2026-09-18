@@ -1,0 +1,95 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+aidl_interface {
+    name: "simple_native_service_aidl_interface",
+    unstable: true,
+    visibility: [
+        "//system/tools/aidl/build",
+    ],
+    backend: {
+        java: {
+            platform_apis: false,
+        },
+        ndk: {
+            enabled: true,
+        },
+    },
+    srcs: [
+        "aidl/**/*.aidl",
+    ],
+    local_include_dir: "aidl",
+}
+
+cc_library_shared {
+    name: "libsimplenativeservice",
+    srcs: [
+        "lib/SimpleNativeService.cpp",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wextra",
+        "-Wno-missing-field-initializers",
+        "-Wno-unused-variable",
+    ],
+    shared_libs: [
+        "libandroid",
+        "libbinder_ndk",
+        "liblog",
+    ],
+    header_libs: [
+        "liblog_headers",
+    ],
+    static_libs: [
+        "simple_native_service_aidl_interface-ndk",
+    ],
+    sdk_version: "current",
+    stl: "c++_shared",
+}
+
+android_test {
+    name: "NativeServiceIntegrationTest",
+    team: "trendy_team_system_performance",
+    dex_preopt: {
+        enabled: false,
+    },
+    optimize: {
+        enabled: false,
+    },
+    static_libs: [
+        "am_flags_lib",
+        "android.os.flags-aconfig-java",
+        "compatibility-device-util-axt",
+        "simple_native_service_aidl_interface-java",
+    ],
+    libs: [
+        "android.test.runner.stubs.test",
+        "android.test.base.stubs.test",
+        "mockito",
+    ],
+    srcs: ["src/**/*.java"],
+    test_suites: [
+        "general-tests",
+    ],
+    jni_libs: [
+        "libsimplenativeservice",
+    ],
+    manifest: "AndroidManifest.xml",
+    use_embedded_native_libs: true,
+}

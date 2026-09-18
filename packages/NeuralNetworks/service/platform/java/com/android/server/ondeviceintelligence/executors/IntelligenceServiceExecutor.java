@@ -16,6 +16,8 @@
 
 package com.android.server.ondeviceintelligence.executors;
 
+import static com.android.internal.util.Preconditions.checkNotNull;
+
 import android.Manifest;
 import android.os.RemoteException;
 import android.service.ondeviceintelligence.IOnDeviceIntelligenceService;
@@ -63,9 +65,15 @@ public final class IntelligenceServiceExecutor
 
         // Ensure the remote service is initialized.
         manager.ensureRemoteIntelligenceServiceInitialized(/* shouldThrow= */ true);
-
+        var remoteService =
+                checkNotNull(
+                        manager.getRemoteOnDeviceIntelligenceService(),
+                        "Remote intelligence service is null");
         AndroidFuture<?> future =
-                manager.getRemoteOnDeviceIntelligenceService().postAsync(remoteCall::run);
+                remoteService.postAsync(service -> {
+                    AndroidFuture<?> res = remoteCall.run(service);
+                    return res != null ? res : AndroidFuture.completedFuture(null);
+                });
         future.whenComplete(
                 (res, ex) -> {
                     if (ex != null) {

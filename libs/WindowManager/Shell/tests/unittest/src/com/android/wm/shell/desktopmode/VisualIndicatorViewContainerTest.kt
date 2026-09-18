@@ -103,7 +103,7 @@ class VisualIndicatorViewContainerTest : ShellTestCase() {
         val spyViewContainer = setupSpyViewContainer()
         // Test early return on startType == endType.
         spyViewContainer.transitionIndicator(
-            taskInfo,
+            taskInfo.displayId,
             displayController,
             DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR,
             DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR,
@@ -111,7 +111,7 @@ class VisualIndicatorViewContainerTest : ShellTestCase() {
         desktopExecutor.flushAll()
         verify(spyViewContainer)
             .transitionIndicator(
-                eq(taskInfo),
+                eq(taskInfo.displayId),
                 eq(displayController),
                 eq(DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR),
                 eq(DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR),
@@ -124,7 +124,7 @@ class VisualIndicatorViewContainerTest : ShellTestCase() {
     fun testTransitionIndicator_firstTypeNoIndicator_callsFadeIn() {
         val spyViewContainer = setupSpyViewContainer()
         spyViewContainer.transitionIndicator(
-            taskInfo,
+            taskInfo.displayId,
             displayController,
             DesktopModeVisualIndicator.IndicatorType.NO_INDICATOR,
             DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR,
@@ -137,7 +137,7 @@ class VisualIndicatorViewContainerTest : ShellTestCase() {
     fun testTransitionIndicator_secondTypeNoIndicator_callsFadeOut() {
         val spyViewContainer = setupSpyViewContainer()
         spyViewContainer.transitionIndicator(
-            taskInfo,
+            taskInfo.displayId,
             displayController,
             DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR,
             DesktopModeVisualIndicator.IndicatorType.NO_INDICATOR,
@@ -157,7 +157,7 @@ class VisualIndicatorViewContainerTest : ShellTestCase() {
     fun testTransitionIndicator_differentTypes_callsTransitionIndicator() {
         val spyViewContainer = setupSpyViewContainer()
         spyViewContainer.transitionIndicator(
-            taskInfo,
+            taskInfo.displayId,
             displayController,
             DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR,
             DesktopModeVisualIndicator.IndicatorType.TO_SPLIT_LEFT_INDICATOR,
@@ -165,11 +165,33 @@ class VisualIndicatorViewContainerTest : ShellTestCase() {
         desktopExecutor.flushAll()
         verify(spyViewContainer)
             .transitionIndicator(
-                any(),
-                any(),
+                eq(taskInfo.displayId),
+                eq(displayController),
                 eq(DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR),
                 eq(DesktopModeVisualIndicator.IndicatorType.TO_SPLIT_LEFT_INDICATOR),
             )
+    }
+
+    @Test
+    fun testTransitionIndicator_nullDisplayLayout_doesNotAnimate() {
+        // setupSpyViewContainer creates the view and sets a mock background
+        val viewContainer = setupSpyViewContainer()
+        // Override setup to return null for display layout
+        whenever(displayController.getDisplayLayout(anyInt())).thenReturn(null)
+
+        viewContainer.transitionIndicator(
+            taskInfo.displayId,
+            displayController,
+            DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR,
+            DesktopModeVisualIndicator.IndicatorType.TO_SPLIT_LEFT_INDICATOR,
+        )
+        desktopExecutor.flushAll()
+
+        // Verify that no animation starts. An animation would change the background bounds.
+        // Since the background is a mock, we can verify that setBounds is never called.
+        // The only interaction with mockBackground during setup is findDrawableByLayerId,
+        // so verifying no *other* interactions is a robust way to check for no animation.
+        verify(mockBackground, never()).bounds = any()
     }
 
     @Test
@@ -352,7 +374,7 @@ class VisualIndicatorViewContainerTest : ShellTestCase() {
         val spyViewContainer = setupSpyViewContainer()
 
         spyViewContainer.transitionIndicator(
-            taskInfo,
+            taskInfo.displayId,
             displayController,
             DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR,
             DesktopModeVisualIndicator.IndicatorType.TO_BUBBLE_RIGHT_INDICATOR,
@@ -381,7 +403,7 @@ class VisualIndicatorViewContainerTest : ShellTestCase() {
         assertThat((spyViewContainer.indicatorView as FrameLayout).getChildAt(0)).isNotNull()
 
         spyViewContainer.transitionIndicator(
-            taskInfo,
+            taskInfo.displayId,
             displayController,
             DesktopModeVisualIndicator.IndicatorType.TO_BUBBLE_RIGHT_INDICATOR,
             DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR,

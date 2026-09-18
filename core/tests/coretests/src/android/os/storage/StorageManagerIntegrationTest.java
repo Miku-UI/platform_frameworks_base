@@ -21,6 +21,7 @@ import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.os.ProxyFileDescriptorCallback;
 import android.os.ServiceManager;
+import android.platform.test.annotations.DisabledOnRavenwood;
 import android.system.ErrnoException;
 
 import androidx.test.filters.LargeTest;
@@ -30,6 +31,7 @@ import com.android.frameworks.coretests.R;
 import java.io.File;
 import java.util.concurrent.ThreadFactory;
 
+@DisabledOnRavenwood(blockedBy = StorageManager.class)
 public class StorageManagerIntegrationTest extends StorageManagerBaseTest {
     private static String LOG_TAG = "StorageManagerIntegrationTest";
 

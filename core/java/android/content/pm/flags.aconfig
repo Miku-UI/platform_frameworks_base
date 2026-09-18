@@ -95,6 +95,7 @@ flag {
     namespace: "package_manager_service"
     description: "Feature flag to enable the refactored Package Installer app with updated UI."
     bug: "420539987"
+    is_exported: true
 }
 
 flag {
@@ -256,14 +257,6 @@ flag {
 }
 
 flag {
-    name: "app_compat_warnings_16kb"
-    namespace: "devoptions_settings"
-    description: "Feature flag to enable page size app compat warnings based on the alignment checks."
-    bug: "418267369"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "remove_hidden_module_usage"
     namespace: "modularization"
     description: "Feature flag to remove the consumption of the hidden module status (ModuleInfo#IsHidden) in the Android source tree."
@@ -288,26 +281,20 @@ flag {
 }
 
 flag {
-    name: "protect_supervision_packages"
-    namespace: "supervision"
-    description: "Feature flag to enable protecting Supervision packages."
-    bug: "404779514"
-}
-
-flag {
-    name: "merge_package_changed_broadcast"
-    namespace: "package_manager_service"
-    description: "Feature flag to add delivery group policy for PACKAGE_CHANGED broadcast to allow merging broadcasts."
-    bug: "381949725"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "verification_service"
     namespace: "package_manager_service"
     description: "Feature flag to enable the new verification service."
     bug: "360129103"
     is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
+    name: "verification_service_adb"
+    namespace: "package_manager_service"
+    description: "Feature flag to add new ADB related APIs in the verification service"
+    bug: "460818215"
+    is_exported: true
 }
 
 flag {
@@ -319,16 +306,6 @@ flag {
 }
 
 flag {
-    name: "consolidate_package_changed_broadcasts"
-    namespace: "package_manager_service"
-    description: "Flag guarding the changes to consolidate package_changed broadcasts into a single one, instead of sending them individually"
-    bug: "433394697"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "alternative_for_dexopt_cleanup"
     namespace: "art_cloud"
     description: "Flag guarding the alternative code path replacing the legacy dexopt code, to allow legacy dexopt cleanup."
@@ -337,10 +314,88 @@ flag {
 }
 
 flag {
-    name: "include_broadcast_debug_reason"
+    name: "verified_dexopt"
+    namespace: "hardware_backed_security"
+    description: "Flag guarding the PackageState verifiedDexOpt API."
+    is_exported: true
+    bug: "439646165"
+}
+
+flag {
+    name: "allow_updated_version_better_than_apk_in_apex"
     namespace: "package_manager_service"
-    description: "Include the debug reason when sending the package_changed broadcast"
-    bug: "433392586"
+    description: "Allow successful install of APEX containing APK, even with a better APK version in /data."
+    bug: "421220425"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "scan_apks_in_updated_apex_as_new_installs"
+    namespace: "package_manager_service"
+    description: "Allow successful install of APEX containing APK, even with the same APK package in system image."
+    bug: "465115937"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "sdk_dependency_installer_deprecation"
+    namespace: "package_manager_service"
+    description: "Flag guard dependency installer service feature deprecation"
+    is_exported: true
+    bug: "452585730"
+}
+
+flag {
+    name: "app_lock_shortcut_removal"
+    namespace: "security"
+    description: "Flag for the removal of shortcuts when app lock is enabled."
+    bug: "447547850"
+}
+
+flag {
+    name: "is_device_upgrading_uses_shared_memory"
+    namespace: "watch_software_performance"
+    description: "ApplicationPackageManager.isDeviceUpgrading() reads the value from shared memory"
+    bug: "452842853"
+}
+
+flag {
+    name: "protect_system_required_packages"
+    namespace: "package_manager_service"
+    description: "Protect system required packages from being disabled, hidden, or uninstalled"
+    bug: "476068582"
+}
+
+flag {
+    name: "trust_system_apk_signatures"
+    namespace: "package_manager_service"
+    description: "When enabled, signature verification will be skipped when recollecting signatures from a disabled system package during boot."
+    bug: "477359598"
+}
+
+flag {
+    name: "extend_verification_timeout_multiple_times"
+    namespace: "package_manager_service"
+    description: "PackageManagerService.extendVerificationTimeout() API allowed to be called by same id multiple times"
+    bug: "402455304"
+}
+
+flag {
+    name: "ignore_mac_permissions_package"
+    namespace: "security"
+    description: "Ignore obsolete <package> tag in mac_permissions.xml files"
+    bug: "481080144"
+}
+
+flag {
+    name: "wrap_installer_apis"
+    namespace: "modularization"
+    description: "Take hold of installer lock before calling installer APIs"
+    bug: "477070845"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

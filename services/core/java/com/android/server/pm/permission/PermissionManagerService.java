@@ -27,6 +27,7 @@ import static android.app.AppOpsManager.MODE_ALLOWED;
 import static android.app.AppOpsManager.MODE_ERRORED;
 import static android.app.AppOpsManager.MODE_IGNORED;
 import static android.app.AppOpsManager.OP_BLUETOOTH_CONNECT;
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
 import static android.content.pm.ApplicationInfo.AUTO_REVOKE_DISALLOWED;
 import static android.content.pm.ApplicationInfo.AUTO_REVOKE_DISCOURAGED;
 
@@ -444,12 +445,12 @@ public class PermissionManagerService extends IPermissionManager.Stub {
     }
 
     /**
-     * Reference propagation over binder is affected by the ownership of the object. So if 
-     * the token is owned by client, references to the token on client side won't be 
-     * propagated to the server and the token may still be garbage collected on server side. 
-     * But if the token is owned by server, references to the token on client side will now 
-     * be propagated to the server since it's a foreign object to the client, and that will 
-     * keep the token referenced on the server side as long as the client is alive and 
+     * Reference propagation over binder is affected by the ownership of the object. So if
+     * the token is owned by client, references to the token on client side won't be
+     * propagated to the server and the token may still be garbage collected on server side.
+     * But if the token is owned by server, references to the token on client side will now
+     * be propagated to the server since it's a foreign object to the client, and that will
+     * keep the token referenced on the server side as long as the client is alive and
      * holding it.
      */
     @Override
@@ -621,8 +622,8 @@ public class PermissionManagerService extends IPermissionManager.Stub {
     }
 
     @Override
-    public List<SplitPermissionInfoParcelable> getSplitPermissions() {
-        return mPermissionManagerServiceImpl.getSplitPermissions();
+    public List<SplitPermissionInfoParcelable> getSplitPermissions(boolean includeDisabled) {
+        return mPermissionManagerServiceImpl.getSplitPermissions(includeDisabled);
     }
 
     /* End of delegate methods to PermissionManagerServiceInterface */
@@ -822,8 +823,9 @@ public class PermissionManagerService extends IPermissionManager.Stub {
             mPermissionManagerServiceImpl.onStorageVolumeMounted(volumeUuid, fingerprintChanged);
         }
         @Override
-        public void resetRuntimePermissions(@NonNull AndroidPackage pkg, @UserIdInt int userId) {
-            mPermissionManagerServiceImpl.resetRuntimePermissions(pkg, userId);
+        public void resetRuntimePermissions(@NonNull AndroidPackage pkg, @UserIdInt int userId,
+                boolean restorePregrants) {
+            mPermissionManagerServiceImpl.resetRuntimePermissions(pkg, userId, restorePregrants);
         }
 
         @Override
@@ -918,8 +920,15 @@ public class PermissionManagerService extends IPermissionManager.Stub {
             // any user
             int userId = UserHandle.getUserId((callingUid == Process.SYSTEM_UID ? sourceUid
                     : callingUid));
+
+            int sourcePackageUid = sourceUid;
+            if (enablePccFrameworkSupport()
+                    && Process.isPrivateComputeCoreUid(sourceUid)) {
+                sourcePackageUid = mContext.getPackageManager()
+                        .getAppUidForPrivateComputeCoreUid(sourceUid);
+            }
             if (packageManagerInternal.getPackageUid(source.getPackageName(), 0, userId)
-                    != sourceUid) {
+                    != sourcePackageUid) {
                 throw new SecurityException("Cannot register attribution source for package:"
                         + source.getPackageName() + " from uid:" + callingUid);
             }

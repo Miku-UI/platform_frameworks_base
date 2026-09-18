@@ -17,7 +17,6 @@
 package android.os;
 
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.Log;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -25,7 +24,6 @@ import androidx.test.filters.LargeTest;
 import androidx.test.filters.SmallTest;
 import androidx.test.filters.Suppress;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -37,8 +35,6 @@ import org.junit.runner.RunWith;
 public class TraceTest {
     private static final String TAG = "TraceTest";
 
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private int eMethodCalls = 0;
     private int fMethodCalls = 0;

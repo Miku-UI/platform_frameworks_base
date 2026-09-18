@@ -43,7 +43,6 @@ import java.util.concurrent.Executor;
  * for the shared session mode.
  * </p>
  */
-@FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
 public class CameraSharedCaptureSessionImpl
         extends CameraSharedCaptureSession implements CameraCaptureSessionCore {
     private static final String TAG = "CameraSharedCaptureSessionImpl";

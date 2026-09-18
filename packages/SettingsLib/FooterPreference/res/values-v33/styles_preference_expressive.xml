@@ -47,7 +47,6 @@
         <item name="android:orientation">horizontal</item>
         <item name="android:paddingEnd">12dp</item>
         <item name="android:paddingTop">16dp</item>
-        <item name="android:paddingBottom">4dp</item>
     </style>
 
     <style name="ExpressiveFooterPreferenceIconStyle">
@@ -66,8 +65,7 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_gravity">start</item>
         <item name="android:textAlignment">viewStart</item>
-        <item name="android:paddingTop">16dp</item>
-        <item name="android:paddingBottom">8dp</item>
+        <item name="android:paddingTop">@dimen/settingslib_expressive_space_extrasmall4</item>
         <item name="android:textColor">?android:attr/textColorSecondary</item>
         <item name="android:hyphenationFrequency">normalFast</item>
         <item name="android:lineBreakWordStyle">phrase</item>
@@ -82,8 +80,9 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_gravity">start</item>
         <item name="android:textAlignment">viewStart</item>
-        <item name="android:paddingBottom">8dp</item>
+        <item name="android:paddingTop">@dimen/settingslib_expressive_space_extrasmall5</item>
         <item name="android:clickable">true</item>
         <item name="android:visibility">gone</item>
+        <item name="android:minHeight">32dp</item>>
     </style>
 </resources>

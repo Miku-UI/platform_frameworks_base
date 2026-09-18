@@ -26,6 +26,8 @@ import android.safetycenter.SafetyCenterEntry
 import android.safetycenter.SafetyCenterEntryGroup
 import android.safetycenter.SafetyCenterEntryOrGroup
 import android.safetycenter.SafetyCenterIssue
+import android.safetycenter.SafetyCenterStaticEntry
+import android.safetycenter.SafetyCenterStaticEntryGroup
 import android.safetycenter.SafetyCenterStatus
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -36,8 +38,7 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class SafetyCenterDataTransformerTest {
 
-    @get:Rule
-    val setFlagsRule = SetFlagsRule()
+    @get:Rule val setFlagsRule = SetFlagsRule()
 
     private val user0 = UserHandle.of(0)
     private val user10 = UserHandle.of(10)
@@ -53,7 +54,15 @@ class SafetyCenterDataTransformerTest {
         sourceIds: Set<String>,
         title: String = "Issue $id",
     ): SafetyCenterIssue {
-        return SafetyCenterIssue.Builder(id, title, "Summary $id", user, sourceIds, "type_$id")
+        return SafetyCenterIssue.Builder(
+                id,
+                title,
+                "Summary $id",
+                user,
+                sourceIds,
+                "type_$id",
+                "source_issue_id_$id",
+            )
             .build()
     }
 
@@ -64,6 +73,14 @@ class SafetyCenterDataTransformerTest {
         title: String = "Entry $id",
     ): SafetyCenterEntry {
         return SafetyCenterEntry.Builder(id, title, user, sourceId).build()
+    }
+
+    private fun createStaticEntry(
+        user: UserHandle,
+        sourceId: String,
+        title: String = "static entry",
+    ): SafetyCenterStaticEntry {
+        return SafetyCenterStaticEntry.Builder(title, user, sourceId).build()
     }
 
     @Test
@@ -81,6 +98,7 @@ class SafetyCenterDataTransformerTest {
 
         assertThat(uiData.status).isEqualTo(defaultStatus)
         assertThat(uiData.entriesByUserIdAndSourceId).isEmpty()
+        assertThat(uiData.staticEntriesByUserIdAndSourceId).isEmpty()
         assertThat(uiData.activeIssuesBySourceId).isEmpty()
         assertThat(uiData.dismissedIssuesBySourceId).isEmpty()
     }
@@ -94,6 +112,7 @@ class SafetyCenterDataTransformerTest {
 
         assertThat(uiData.status).isEqualTo(defaultStatus)
         assertThat(uiData.entriesByUserIdAndSourceId).isEmpty()
+        assertThat(uiData.staticEntriesByUserIdAndSourceId).isEmpty()
         assertThat(uiData.activeIssuesBySourceId).isEmpty()
         assertThat(uiData.dismissedIssuesBySourceId).isEmpty()
     }
@@ -115,12 +134,8 @@ class SafetyCenterDataTransformerTest {
         val uiData = SafetyCenterDataTransformer.transform(scData)
 
         assertThat(uiData.entriesByUserIdAndSourceId).hasSize(2)
-        assertThat(uiData.entriesByUserIdAndSourceId[0]).containsExactly(
-            "sourceA",
-            entry1,
-            "sourceC",
-            entry3
-        )
+        assertThat(uiData.entriesByUserIdAndSourceId[0])
+            .containsExactly("sourceA", entry1, "sourceC", entry3)
         assertThat(uiData.entriesByUserIdAndSourceId[10]).containsExactly("sourceB", entry2)
         assertThat(uiData.activeIssuesBySourceId).isEmpty()
         assertThat(uiData.dismissedIssuesBySourceId).isEmpty()
@@ -145,12 +160,8 @@ class SafetyCenterDataTransformerTest {
         val uiData = SafetyCenterDataTransformer.transform(scData)
 
         assertThat(uiData.entriesByUserIdAndSourceId).hasSize(1)
-        assertThat(uiData.entriesByUserIdAndSourceId[0]).containsExactly(
-            "sourceA",
-            entry1,
-            "sourceB",
-            entry2
-        )
+        assertThat(uiData.entriesByUserIdAndSourceId[0])
+            .containsExactly("sourceA", entry1, "sourceB", entry2)
     }
 
     @Test
@@ -170,12 +181,8 @@ class SafetyCenterDataTransformerTest {
         val uiData = SafetyCenterDataTransformer.transform(scData)
 
         assertThat(uiData.entriesByUserIdAndSourceId).isEmpty()
-        assertThat(uiData.activeIssuesBySourceId).containsExactly(
-            "sourceA",
-            listOf(issue1),
-            "sourceC",
-            listOf(issue3)
-        )
+        assertThat(uiData.activeIssuesBySourceId)
+            .containsExactly("sourceA", listOf(issue1), "sourceC", listOf(issue3))
         assertThat(uiData.dismissedIssuesBySourceId).containsExactly("sourceB", listOf(issue2))
     }
 
@@ -215,17 +222,46 @@ class SafetyCenterDataTransformerTest {
 
     @Test
     @EnableFlags(Flags.FLAG_OPEN_SAFETY_CENTER_APIS)
+    fun transform_withStaticEntriesOnly_flagEnabled_mapsCorrectly() {
+        val entry1 = createStaticEntry(user0, "sourceA", "title1")
+        val entry2 = createStaticEntry(user10, "sourceB", "title2")
+        val entry3 = createStaticEntry(user0, "sourceC", "title3")
+
+        val scData =
+            SafetyCenterData.Builder(defaultStatus)
+                .addStaticEntryGroup(
+                    SafetyCenterStaticEntryGroup("group_title1", listOf(entry1, entry2))
+                )
+                .addStaticEntryGroup(SafetyCenterStaticEntryGroup("group_title2", listOf(entry3)))
+                .build()
+
+        val uiData = SafetyCenterDataTransformer.transform(scData)
+
+        assertThat(uiData.status).isEqualTo(defaultStatus)
+        assertThat(uiData.entriesByUserIdAndSourceId).isEmpty()
+        assertThat(uiData.staticEntriesByUserIdAndSourceId).hasSize(2)
+        assertThat(uiData.staticEntriesByUserIdAndSourceId[0])
+            .containsExactly("sourceA", entry1, "sourceC", entry3)
+        assertThat(uiData.staticEntriesByUserIdAndSourceId[10]).containsExactly("sourceB", entry2)
+        assertThat(uiData.activeIssuesBySourceId).isEmpty()
+        assertThat(uiData.dismissedIssuesBySourceId).isEmpty()
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_OPEN_SAFETY_CENTER_APIS)
     fun transform_mixedData_multipleUsers_flagEnabled() {
         val entryU0 = createEntry("entryU0", user0, "sourceA")
         val issueU0_active = createIssue("issueU0A", user0, setOf("sourceA", "sourceB"))
         val issueU0_dismissed = createIssue("issueU0D", user0, setOf("sourceC"))
 
         val entryU10 = createEntry("entryU10", user10, "sourceX")
+        val sEntryU10 = createStaticEntry(user10, "sourceY")
         val issueU10_active = createIssue("issueU10A", user10, setOf("sourceX"))
 
         val scData =
             SafetyCenterData.Builder(defaultStatus)
                 .addEntryOrGroup(SafetyCenterEntryOrGroup(entryU0))
+                .addStaticEntryGroup(SafetyCenterStaticEntryGroup("group_title", listOf(sEntryU10)))
                 .addIssue(issueU0_active)
                 .addDismissedIssue(issueU0_dismissed)
                 .addEntryOrGroup(SafetyCenterEntryOrGroup(entryU10))
@@ -237,16 +273,20 @@ class SafetyCenterDataTransformerTest {
         assertThat(uiData.entriesByUserIdAndSourceId).hasSize(2)
         assertThat(uiData.entriesByUserIdAndSourceId[0]).containsExactly("sourceA", entryU0)
         assertThat(uiData.entriesByUserIdAndSourceId[10]).containsExactly("sourceX", entryU10)
+        assertThat(uiData.staticEntriesByUserIdAndSourceId[10])
+            .containsExactly("sourceY", sEntryU10)
 
-        assertThat(uiData.activeIssuesBySourceId).containsExactly(
-            "sourceA", listOf(issueU0_active),
-            "sourceB", listOf(issueU0_active),
-            "sourceX", listOf(issueU10_active)
-        )
+        assertThat(uiData.activeIssuesBySourceId)
+            .containsExactly(
+                "sourceA",
+                listOf(issueU0_active),
+                "sourceB",
+                listOf(issueU0_active),
+                "sourceX",
+                listOf(issueU10_active),
+            )
 
-        assertThat(uiData.dismissedIssuesBySourceId).containsExactly(
-            "sourceC",
-            listOf(issueU0_dismissed)
-        )
+        assertThat(uiData.dismissedIssuesBySourceId)
+            .containsExactly("sourceC", listOf(issueU0_dismissed))
     }
 }

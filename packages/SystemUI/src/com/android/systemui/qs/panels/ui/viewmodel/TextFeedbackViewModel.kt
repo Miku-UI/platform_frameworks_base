@@ -20,6 +20,7 @@ import android.content.Context
 import androidx.compose.runtime.Stable
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.shared.model.Icon
+import com.android.systemui.qs.footer.domain.model.FooterTextButtonModel.FooterBasicButtonModel
 import com.android.systemui.qs.footer.ui.viewmodel.FooterTextButtonViewModel
 
 @Stable
@@ -28,9 +29,12 @@ sealed interface TextFeedbackViewModel {
     data object NoFeedback : TextFeedbackViewModel
 
     data class LoadedTextFeedback(
-        override val text: String,
-        override val icon: Icon.Loaded,
+        override val model: FooterBasicButtonModel,
         override val onClick: ((Context, Expandable) -> Unit)? = null,
-        override val hasNewChanges: Boolean = false,
-    ) : TextFeedbackViewModel, FooterTextButtonViewModel
+    ) : TextFeedbackViewModel, FooterTextButtonViewModel {
+        constructor(
+            text: String,
+            icon: Icon,
+        ) : this(model = FooterBasicButtonModel(text = text, icon = icon))
+    }
 }

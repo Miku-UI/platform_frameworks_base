@@ -35,6 +35,7 @@ public class CaptureResultExtras implements Parcelable {
     private long lastCompletedZslFrameNumber;
     private boolean hasReadoutTimestamp;
     private long readoutTimestamp;
+    private MultiResConcurrentReadersStartInfo[] multiResConcurrentReadersStartInfo;
 
     public static final @android.annotation.NonNull Parcelable.Creator<CaptureResultExtras> CREATOR =
             new Parcelable.Creator<CaptureResultExtras>() {
@@ -123,6 +124,8 @@ public class CaptureResultExtras implements Parcelable {
         if (hasReadoutTimestamp) {
             readoutTimestamp = in.readLong();
         }
+        multiResConcurrentReadersStartInfo = in.createTypedArray(
+                MultiResConcurrentReadersStartInfo.CREATOR);
     }
 
     public String getErrorPhysicalCameraId() {
@@ -175,5 +178,9 @@ public class CaptureResultExtras implements Parcelable {
 
     public long getReadoutTimestamp() {
         return readoutTimestamp;
+    }
+
+    public MultiResConcurrentReadersStartInfo[] getMultiResConcurrentReadersStartInfo() {
+        return multiResConcurrentReadersStartInfo;
     }
 }

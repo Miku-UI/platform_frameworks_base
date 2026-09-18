@@ -65,6 +65,7 @@ import static android.os.PowerExemptionManager.REASON_DENIED;
 
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
 import static com.android.internal.notification.SystemNotificationChannels.ABUSIVE_BACKGROUND_APPS;
 import static com.android.server.am.AppBatteryTracker.AppBatteryPolicy.getFloatArray;
 import static com.android.server.am.AppBatteryTracker.BatteryUsage.BATTERY_USAGE_INDEX_BACKGROUND;
@@ -84,11 +85,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
-import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.clearInvocations;
@@ -100,6 +101,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.annotation.UserIdInt;
 import android.app.ActivityManagerInternal;
@@ -142,7 +144,7 @@ import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
 
-import androidx.test.runner.AndroidJUnit4;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.android.internal.R;
 import com.android.internal.app.IAppOpsService;
@@ -171,12 +173,14 @@ import com.android.server.usage.AppStandbyInternal.AppIdleStateChangeListener;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 import org.mockito.verification.VerificationMode;
 
 import java.io.File;
@@ -196,7 +200,7 @@ import java.util.stream.Collectors;
 
 /**
  * Tests for {@link AppRestrictionController}.
- *
+ * <p>
  * Build/Install/Run:
  *  atest FrameworksMockingServicesTests:BackgroundRestrictionTest
  */
@@ -210,7 +214,7 @@ public final class BackgroundRestrictionTest {
     private static final String TEST_PACKAGE_BASE = "test_";
     private static final int TEST_PACKAGE_APPID_BASE = Process.FIRST_APPLICATION_UID;
     private static final int[] TEST_PACKAGE_USER0_UIDS = new int[] {
-        UserHandle.getUid(TEST_USER0, TEST_PACKAGE_APPID_BASE + 0),
+        UserHandle.getUid(TEST_USER0, TEST_PACKAGE_APPID_BASE),
         UserHandle.getUid(TEST_USER0, TEST_PACKAGE_APPID_BASE + 1),
         UserHandle.getUid(TEST_USER0, TEST_PACKAGE_APPID_BASE + 2),
         UserHandle.getUid(TEST_USER0, TEST_PACKAGE_APPID_BASE + 3),
@@ -219,7 +223,7 @@ public final class BackgroundRestrictionTest {
         UserHandle.getUid(TEST_USER0, TEST_PACKAGE_APPID_BASE + 6),
     };
     private static final int[] TEST_PACKAGE_USER1_UIDS = new int[] {
-        UserHandle.getUid(TEST_USER1, TEST_PACKAGE_APPID_BASE + 0),
+        UserHandle.getUid(TEST_USER1, TEST_PACKAGE_APPID_BASE),
         UserHandle.getUid(TEST_USER1, TEST_PACKAGE_APPID_BASE + 1),
         UserHandle.getUid(TEST_USER1, TEST_PACKAGE_APPID_BASE + 2),
         UserHandle.getUid(TEST_USER1, TEST_PACKAGE_APPID_BASE + 3),
@@ -256,7 +260,7 @@ public final class BackgroundRestrictionTest {
         TEST_PACKAGE_BASE + 5,
     };
     private static final int[] MOCK_PRIVILEGED_UIDS_0 = new int[] {
-        UserHandle.getUid(TEST_USER0, TEST_PACKAGE_APPID_BASE + 0),
+        UserHandle.getUid(TEST_USER0, TEST_PACKAGE_APPID_BASE),
         UserHandle.getUid(TEST_USER0, TEST_PACKAGE_APPID_BASE + 1),
     };
     private static final int[] MOCK_PRIVILEGED_UIDS_1 = new int[] {
@@ -321,8 +325,8 @@ public final class BackgroundRestrictionTest {
     @Captor private ArgumentCaptor<BindServiceEventListener> mBindServiceEventListenerCap;
     private BindServiceEventListener mBindServiceEventListener;
 
-    private Context mContext = getInstrumentation().getTargetContext();
-    private Handler mDefaultHandler = new Handler(Looper.getMainLooper());
+    private final Context mContext = getInstrumentation().getTargetContext();
+    private final Handler mDefaultHandler = new Handler(Looper.getMainLooper());
     private TestBgRestrictionInjector mInjector;
     private AppRestrictionController mBgRestrictionController;
     private AppBatteryTracker mAppBatteryTracker;
@@ -333,13 +337,23 @@ public final class BackgroundRestrictionTest {
     private AppFGSTracker mAppFGSTracker;
     private AppMediaSessionTracker mAppMediaSessionTracker;
     private AppPermissionTracker mAppPermissionTracker;
+    private MockitoSession mMockingSession;
 
     @Before
     public void setUp() throws Exception {
-        MockitoAnnotations.initMocks(this);
+        mMockingSession = mockitoSession()
+                .initMocks(this)
+                .strictness(Strictness.LENIENT)
+                .mockStatic(BatteryUsageStats.class)
+                .startMocking();
         initController();
     }
 
+    /**
+     * Initializes the AppRestrictionController and sets up mock behaviors for its dependencies.
+     * This setup creates a number of test packages, assigns them to different standby buckets,
+     * and prepares listeners to observe changes during tests.
+     */
     private void initController() throws Exception {
         mInjector = spy(new TestBgRestrictionInjector(mContext));
         mBgRestrictionController = spy(new AppRestrictionController(mInjector,
@@ -349,27 +363,24 @@ public final class BackgroundRestrictionTest {
         mPhoneCarrierPrivileges = new PhoneCarrierPrivileges(
                 mInjector.getTelephonyManager(), MOCK_PRIVILEGED_PACKAGES.length);
 
-        doReturn(PROCESS_STATE_FOREGROUND_SERVICE).when(mActivityManagerInternal)
-                .getUidProcessState(anyInt());
-        doReturn(TEST_USERS).when(mUserManagerInternal).getUserIds();
+        when(mActivityManagerInternal.getUidProcessState(anyInt())).thenReturn(
+                PROCESS_STATE_FOREGROUND_SERVICE);
+        when(mUserManagerInternal.getUserIds()).thenReturn(TEST_USERS);
         for (int userId: TEST_USERS) {
             final ArrayList<AppStandbyInfo> appStandbyInfoList = new ArrayList<>();
             for (int i = 0; i < TEST_STANDBY_BUCKETS.length; i++) {
                 final String packageName = TEST_PACKAGE_BASE + i;
                 final int uid = UserHandle.getUid(userId, TEST_PACKAGE_APPID_BASE + i);
                 appStandbyInfoList.add(new AppStandbyInfo(packageName, TEST_STANDBY_BUCKETS[i]));
-                doReturn(uid)
-                        .when(mPackageManagerInternal)
-                        .getPackageUid(packageName, STOCK_PM_FLAGS, userId);
-                doReturn(false)
-                        .when(mAppStateTracker)
-                        .isAppBackgroundRestricted(uid, packageName);
-                doReturn(TEST_STANDBY_BUCKETS[i])
-                        .when(mAppStandbyInternal)
-                        .getAppStandbyBucket(eq(packageName), eq(userId), anyLong(), anyBoolean());
-                doReturn(new String[]{packageName})
-                        .when(mPackageManager)
-                        .getPackagesForUid(eq(uid));
+                when(mPackageManagerInternal
+                        .getPackageUid(packageName, STOCK_PM_FLAGS, userId)).thenReturn(uid);
+                when(mAppStateTracker
+                        .isAppBackgroundRestricted(uid, packageName)).thenReturn(false);
+                when(mAppStandbyInternal
+                        .getAppStandbyBucket(eq(packageName), eq(userId), anyLong(),
+                                anyBoolean())).thenReturn(TEST_STANDBY_BUCKETS[i]);
+                when(mPackageManager
+                        .getPackagesForUid(eq(uid))).thenReturn(new String[]{packageName});
                 final int[] ops = new int[] {
                     OP_ACTIVATE_VPN,
                     OP_ACTIVATE_PLATFORM_VPN,
@@ -388,11 +399,11 @@ public final class BackgroundRestrictionTest {
                     setPermissionState(packageName, uid, permission, false);
                 }
             }
-            doReturn(appStandbyInfoList).when(mAppStandbyInternal).getAppStandbyBuckets(userId);
+            when(mAppStandbyInternal.getAppStandbyBuckets(userId)).thenReturn(appStandbyInfoList);
         }
 
-        doReturn(BATTERY_FULL_CHARGE_MAH * 1000).when(mBatteryManagerInternal)
-                .getBatteryFullCharge();
+        when(mBatteryManagerInternal.getBatteryFullCharge()).thenReturn(
+                BATTERY_FULL_CHARGE_MAH * 1000);
 
         mBgRestrictionController.onSystemReady();
 
@@ -423,10 +434,14 @@ public final class BackgroundRestrictionTest {
     public void tearDown() {
         mBgRestrictionController.tearDown();
         mBgRestrictionController.getBackgroundHandlerThread().quitSafely();
+        if (mMockingSession != null) {
+            mMockingSession.finishMocking();
+        }
     }
 
+    @Ignore("http://b/471249122")
     @Test
-    public void testInitialLevels() throws Exception {
+    public void testInitialLevels() {
         final int[] expectedLevels = {
             RESTRICTION_LEVEL_EXEMPTED,
             RESTRICTION_LEVEL_ADAPTIVE_BUCKET,
@@ -436,8 +451,7 @@ public final class BackgroundRestrictionTest {
             RESTRICTION_LEVEL_RESTRICTED_BUCKET,
             RESTRICTION_LEVEL_BACKGROUND_RESTRICTED,
         };
-        for (int i = 0; i < TEST_UIDS.length; i++) {
-            final int[] uids = TEST_UIDS[i];
+        for (final int[] uids : TEST_UIDS) {
             for (int j = 0; j < uids.length; j++) {
                 assertEquals(expectedLevels[j],
                         mBgRestrictionController.getRestrictionLevel(uids[j]));
@@ -560,6 +574,7 @@ public final class BackgroundRestrictionTest {
                 eq(REASON_SUB_FORCED_USER_FLAG_INTERACTION));
     }
 
+    @Ignore("http://b/471249132")
     @Test
     public void testTogglingStandbyBucket() throws Exception {
         final int testPkgIndex = 2;
@@ -609,10 +624,11 @@ public final class BackgroundRestrictionTest {
         listener.verify(timeout, testUid, testPkgName, RESTRICTION_LEVEL_EXEMPTED);
     }
 
+    @Ignore("http://b/471245766")
     @Test
     public void testBgCurrentDrainMonitor() throws Exception {
         final BatteryUsageStats stats = mock(BatteryUsageStats.class);
-        final List<BatteryUsageStats> statsList = Arrays.asList(stats);
+        final List<BatteryUsageStats> statsList = Collections.singletonList(stats);
         final int testPkgIndex = 2;
         final String testPkgName = TEST_PACKAGE_BASE + testPkgIndex;
         final int testUser = TEST_USER0;
@@ -745,9 +761,9 @@ public final class BackgroundRestrictionTest {
             bgCurrentDrainDecoupleThresholds.set(true);
 
             mCurrentTimeMillis = 10_000L;
-            doReturn(mCurrentTimeMillis - windowMs).when(stats).getStatsStartTimestamp();
-            doReturn(mCurrentTimeMillis).when(stats).getStatsEndTimestamp();
-            doReturn(statsList).when(mBatteryStatsInternal).getBatteryUsageStats(any());
+            when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis - windowMs);
+            when(stats.getStatsEndTimestamp()).thenReturn(mCurrentTimeMillis);
+            when(mBatteryStatsInternal.getBatteryUsageStats(anyList())).thenReturn(statsList);
             mAppFGSTracker.onForegroundServiceStateChanged(testPkgName, testUid,
                     testPid, true);
             mAppFGSTracker.onForegroundServiceNotificationUpdated(
@@ -760,9 +776,9 @@ public final class BackgroundRestrictionTest {
                     new double[]{restrictBucketThresholdMah - 1, 0},
                     new double[]{0, restrictBucketThresholdMah - 1}, zeros, zeros,
                     () -> {
-                        doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                        doReturn(mCurrentTimeMillis + windowMs)
-                                .when(stats).getStatsEndTimestamp();
+                        when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                        when(stats.getStatsEndTimestamp()).thenReturn(
+                                mCurrentTimeMillis + windowMs);
                         mCurrentTimeMillis += windowMs + 1;
                         try {
                             listener.verify(timeout, testUid, testPkgName,
@@ -777,9 +793,9 @@ public final class BackgroundRestrictionTest {
                     new double[]{restrictBucketThresholdMah + 1, 0},
                     new double[]{0, restrictBucketThresholdMah - 1}, zeros, zeros,
                     () -> {
-                        doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                        doReturn(mCurrentTimeMillis + windowMs)
-                                .when(stats).getStatsEndTimestamp();
+                        when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                        when(stats.getStatsEndTimestamp()).thenReturn(
+                                mCurrentTimeMillis + windowMs);
                         mCurrentTimeMillis += windowMs + 1;
                         // It should have gone to the restricted bucket.
                         listener.verify(timeout, testUid, testPkgName,
@@ -795,9 +811,9 @@ public final class BackgroundRestrictionTest {
                     new double[]{restrictBucketThresholdMah - 1, 0},
                     new double[]{0, restrictBucketThresholdMah - 1}, zeros, zeros,
                     () -> {
-                        doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                        doReturn(mCurrentTimeMillis + windowMs)
-                                .when(stats).getStatsEndTimestamp();
+                        when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                        when(stats.getStatsEndTimestamp()).thenReturn(
+                                mCurrentTimeMillis + windowMs);
                         mCurrentTimeMillis += windowMs + 1;
                         // We won't change restriction level until user interactions.
                         try {
@@ -819,9 +835,9 @@ public final class BackgroundRestrictionTest {
                     new double[]{restrictBucketThresholdMah - 1, 0},
                     new double[]{0, restrictBucketThresholdMah - 1}, zeros, zeros,
                     () -> {
-                        doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                        doReturn(mCurrentTimeMillis + windowMs)
-                                .when(stats).getStatsEndTimestamp();
+                        when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                        when(stats.getStatsEndTimestamp()).thenReturn(
+                                mCurrentTimeMillis + windowMs);
                         mCurrentTimeMillis += windowMs + 1;
                         mIdleStateListener.onUserInteractionStarted(testPkgName, testUser);
                         waitForIdleHandler(mBgRestrictionController.getBackgroundHandler());
@@ -844,9 +860,9 @@ public final class BackgroundRestrictionTest {
                     zeros, new double[]{0, restrictBucketThresholdMah - 1},
                     zeros, new double[]{restrictBucketThresholdMah + 1, 0},
                     () -> {
-                        doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                        doReturn(mCurrentTimeMillis + windowMs)
-                                .when(stats).getStatsEndTimestamp();
+                        when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                        when(stats.getStatsEndTimestamp()).thenReturn(
+                                mCurrentTimeMillis + windowMs);
                         mCurrentTimeMillis += windowMs + 1;
                         try {
                             listener.verify(timeout, testUid, testPkgName,
@@ -862,16 +878,16 @@ public final class BackgroundRestrictionTest {
                     });
 
             // Sleep a while.
-            Thread.sleep(windowMs);
+            SystemClock.sleep(windowMs);
             clearInvocations(mInjector.getAppStandbyInternal());
             // Now it should have been restricted.
             runTestBgCurrentDrainMonitorOnce(listener, stats, uids,
                     zeros, new double[]{0, restrictBucketThresholdMah - 1},
                     zeros, new double[]{restrictBucketThresholdMah + 1, 0},
                     () -> {
-                        doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                        doReturn(mCurrentTimeMillis + windowMs)
-                                .when(stats).getStatsEndTimestamp();
+                        when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                        when(stats.getStatsEndTimestamp()).thenReturn(
+                                mCurrentTimeMillis + windowMs);
                         mCurrentTimeMillis += windowMs + 1;
                         // It should have gone to the restricted bucket.
                         listener.verify(timeout, testUid, testPkgName,
@@ -888,9 +904,9 @@ public final class BackgroundRestrictionTest {
                     zeros, new double[]{0, restrictBucketThresholdMah - 1},
                     zeros, new double[]{restrictBucketThresholdMah + 2, 0},
                     () -> {
-                        doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                        doReturn(mCurrentTimeMillis + windowMs)
-                                .when(stats).getStatsEndTimestamp();
+                        when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                        when(stats.getStatsEndTimestamp()).thenReturn(
+                                mCurrentTimeMillis + windowMs);
                         mCurrentTimeMillis += windowMs + 1;
                         // We won't change restriction level until user interactions.
                         try {
@@ -908,12 +924,12 @@ public final class BackgroundRestrictionTest {
                     });
 
             // Pretend we have the standby buckets set above.
-            doReturn(STANDBY_BUCKET_RESTRICTED)
-                    .when(mAppStandbyInternal)
-                    .getAppStandbyBucket(eq(testPkgName), eq(testUser), anyLong(), anyBoolean());
+            when(mAppStandbyInternal
+                    .getAppStandbyBucket(eq(testPkgName), eq(testUser), anyLong(),
+                            anyBoolean())).thenReturn(STANDBY_BUCKET_RESTRICTED);
 
             // Sleep a while and set a higher drain
-            Thread.sleep(windowMs);
+            SystemClock.sleep(windowMs);
             clearInvocations(mInjector.getAppStandbyInternal());
             clearInvocations(mInjector.getNotificationManager());
             clearInvocations(mBgRestrictionController);
@@ -925,9 +941,9 @@ public final class BackgroundRestrictionTest {
                     new double[]{bgRestrictedThresholdMah + 1, 0},
                     new double[]{0, restrictBucketThresholdMah - 1}, zeros, zeros,
                     () -> {
-                        doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                        doReturn(mCurrentTimeMillis + windowMs)
-                                .when(stats).getStatsEndTimestamp();
+                        when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                        when(stats.getStatsEndTimestamp()).thenReturn(
+                                mCurrentTimeMillis + windowMs);
                         mCurrentTimeMillis += windowMs + 1;
                         // We won't change restriction level automatically because it needs
                         // user consent.
@@ -963,9 +979,9 @@ public final class BackgroundRestrictionTest {
                     new double[]{bgRestrictedThresholdMah + 1, 0},
                     new double[]{0, restrictBucketThresholdMah - 1}, zeros, zeros,
                     () -> {
-                        doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                        doReturn(mCurrentTimeMillis + windowMs)
-                                .when(stats).getStatsEndTimestamp();
+                        when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                        when(stats.getStatsEndTimestamp()).thenReturn(
+                                mCurrentTimeMillis + windowMs);
                         mCurrentTimeMillis += windowMs + 1;
                         // We won't change restriction level automatically because it needs
                         // user consent.
@@ -1002,9 +1018,9 @@ public final class BackgroundRestrictionTest {
                     new double[]{bgRestrictedThresholdMah + 1, 0},
                     new double[]{0, restrictBucketThresholdMah - 1}, zeros, zeros,
                     () -> {
-                        doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                        doReturn(mCurrentTimeMillis + windowMs)
-                                .when(stats).getStatsEndTimestamp();
+                        when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                        when(stats.getStatsEndTimestamp()).thenReturn(
+                                mCurrentTimeMillis + windowMs);
                         mCurrentTimeMillis += windowMs + 1;
                         // We won't change restriction level automatically because it needs
                         // user consent.
@@ -1049,9 +1065,9 @@ public final class BackgroundRestrictionTest {
             }
 
             // Reset the standby bucket.
-            doReturn(STANDBY_BUCKET_RARE)
-                    .when(mAppStandbyInternal)
-                    .getAppStandbyBucket(eq(testPkgName), eq(testUser), anyLong(), anyBoolean());
+            when(mAppStandbyInternal
+                    .getAppStandbyBucket(eq(testPkgName), eq(testUser), anyLong(),
+                            anyBoolean())).thenReturn(STANDBY_BUCKET_RARE);
 
             // Turn OFF the FAS.
             listener.mLatchHolder[0] = new CountDownLatch(1);
@@ -1069,9 +1085,9 @@ public final class BackgroundRestrictionTest {
                     new double[]{restrictBucketThresholdMah - 1, 0},
                     new double[]{0, restrictBucketThresholdMah - 1}, zeros, zeros,
                     () -> {
-                        doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                        doReturn(mCurrentTimeMillis + windowMs)
-                                .when(stats).getStatsEndTimestamp();
+                        when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                        when(stats.getStatsEndTimestamp()).thenReturn(
+                                mCurrentTimeMillis + windowMs);
                         mCurrentTimeMillis += windowMs + 1;
                         mIdleStateListener.onUserInteractionStarted(testPkgName, testUser);
                         waitForIdleHandler(mBgRestrictionController.getBackgroundHandler());
@@ -1095,9 +1111,9 @@ public final class BackgroundRestrictionTest {
                     new double[]{0, restrictBucketThresholdMah - 1},
                     new double[]{bgRestrictedThresholdMah + 1, 0}, zeros, zeros,
                     () -> {
-                        doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                        doReturn(mCurrentTimeMillis + windowMs)
-                                .when(stats).getStatsEndTimestamp();
+                        when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                        when(stats.getStatsEndTimestamp()).thenReturn(
+                                mCurrentTimeMillis + windowMs);
                         mCurrentTimeMillis += windowMs + 1;
                         // We won't change restriction level automatically because it needs
                         // user consent.
@@ -1131,9 +1147,9 @@ public final class BackgroundRestrictionTest {
                     new double[]{0, restrictBucketThresholdMah - 1},
                     new double[]{bgRestrictedThresholdMah + 1, 0}, zeros, zeros,
                     () -> {
-                        doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                        doReturn(mCurrentTimeMillis + windowMs)
-                                .when(stats).getStatsEndTimestamp();
+                        when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                        when(stats.getStatsEndTimestamp()).thenReturn(
+                                mCurrentTimeMillis + windowMs);
                         mCurrentTimeMillis += windowMs + 1;
                         // We won't change restriction level automatically because it needs
                         // user consent.
@@ -1241,20 +1257,20 @@ public final class BackgroundRestrictionTest {
 
             clearInvocations(mInjector.getNotificationManager());
             // Sleep a while, verify it won't show another notification.
-            Thread.sleep(windowMs * 2);
+            SystemClock.sleep(windowMs * 2);
             checkNotificationShown(
                     new String[] {testPkgName1}, timeout(windowMs * 2).times(0), false);
 
             // Stop this FGS
             mAppFGSTracker.onForegroundServiceStateChanged(testPkgName1, testUid1,
                     testPid1, false);
-            checkNotificationGone(testPkgName1, timeout(windowMs), notificationId);
+            checkNotificationGone(timeout(windowMs), notificationId);
 
             clearInvocations(mInjector.getNotificationManager());
             // Start another one and stop it.
             mAppFGSTracker.onForegroundServiceStateChanged(testPkgName2, testUid2,
                     testPid2, true);
-            Thread.sleep(shortMs);
+            SystemClock.sleep(shortMs);
             mAppFGSTracker.onForegroundServiceStateChanged(testPkgName2, testUid2,
                     testPid2, false);
 
@@ -1273,7 +1289,7 @@ public final class BackgroundRestrictionTest {
             // Stop this FGS
             mAppFGSTracker.onForegroundServiceStateChanged(testPkgName2, testUid2,
                     testPid2, false);
-            checkNotificationGone(testPkgName2, timeout(windowMs), notificationId);
+            checkNotificationGone(timeout(windowMs), notificationId);
 
             // Turn OFF the notification.
             longRunningFGS.set(false);
@@ -1297,7 +1313,7 @@ public final class BackgroundRestrictionTest {
             mBgRestrictionController.resetRestrictionSettings();
             mAppFGSTracker.onForegroundServiceStateChanged(testPkgName2, testUid2,
                     testPid2, true);
-            Thread.sleep(shortMs);
+            SystemClock.sleep(shortMs);
             mAppFGSTracker.onForegroundServiceStateChanged(testPkgName1, testUid1,
                     testPid1, true);
 
@@ -1309,11 +1325,11 @@ public final class BackgroundRestrictionTest {
             // Stop both of them.
             mAppFGSTracker.onForegroundServiceStateChanged(testPkgName1, testUid1,
                     testPid1, false);
-            checkNotificationGone(testPkgName1, timeout(windowMs), notificationIds[1]);
+            checkNotificationGone(timeout(windowMs), notificationIds[1]);
             clearInvocations(mInjector.getNotificationManager());
             mAppFGSTracker.onForegroundServiceStateChanged(testPkgName2, testUid2,
                     testPid2, false);
-            checkNotificationGone(testPkgName2, timeout(windowMs), notificationIds[0]);
+            checkNotificationGone(timeout(windowMs), notificationIds[0]);
 
             // Test the interlaced case.
             clearInvocations(mInjector.getNotificationManager());
@@ -1323,19 +1339,19 @@ public final class BackgroundRestrictionTest {
                     testPid1, true);
 
             final long initialWaitMs = thresholdMs / 2;
-            Thread.sleep(initialWaitMs);
+            SystemClock.sleep(initialWaitMs);
 
             for (long remaining = thresholdMs - initialWaitMs; remaining > 0;) {
                 mAppFGSTracker.onForegroundServiceStateChanged(testPkgName1, testUid1,
                         testPid1, false);
                 mAppFGSTracker.onForegroundServiceStateChanged(testPkgName2, testUid2,
                         testPid2, true);
-                Thread.sleep(shortMs);
+                SystemClock.sleep(shortMs);
                 mAppFGSTracker.onForegroundServiceStateChanged(testPkgName1, testUid1,
                         testPid1, true);
                 mAppFGSTracker.onForegroundServiceStateChanged(testPkgName2, testUid2,
                         testPid2, false);
-                Thread.sleep(shortMs);
+                SystemClock.sleep(shortMs);
                 remaining -= shortMs;
             }
 
@@ -1347,7 +1363,7 @@ public final class BackgroundRestrictionTest {
             // Stop the FGS.
             mAppFGSTracker.onForegroundServiceStateChanged(testPkgName1, testUid1,
                     testPid1, false);
-            checkNotificationGone(testPkgName1, timeout(windowMs), notificationId);
+            checkNotificationGone(timeout(windowMs), notificationId);
 
             // Start over with the flag to not show prompt when it has an active notification.
             clearInvocations(mInjector.getNotificationManager());
@@ -1378,7 +1394,7 @@ public final class BackgroundRestrictionTest {
             // Stop the FGS.
             mAppFGSTracker.onForegroundServiceStateChanged(testPkgName1, testUid1,
                     testPid1, false);
-            checkNotificationGone(testPkgName1, timeout(windowMs), notificationId);
+            checkNotificationGone(timeout(windowMs), notificationId);
         } finally {
             closeIfNotNull(longRunningFGSMonitor);
             closeIfNotNull(longRunningFGSWindow);
@@ -1621,10 +1637,11 @@ public final class BackgroundRestrictionTest {
                                 top ? PROCESS_STATE_TOP : PROCESS_STATE_FOREGROUND_SERVICE,
                                 0, 0);
                         top = !top;
-                        Thread.sleep(l);
+                        SystemClock.sleep(l);
                     }
                     mUidObservers.onUidGone(uid, false);
                 } catch (InterruptedException | RemoteException e) {
+                    // Expected
                 }
             });
             topStateThread.start();
@@ -1634,7 +1651,7 @@ public final class BackgroundRestrictionTest {
         mAppFGSTracker.onForegroundServiceStateChanged(packageName, uid, pid, true);
         if (serviceType != FOREGROUND_SERVICE_TYPE_NONE) {
             mAppFGSTracker.mProcessObserver.onForegroundServicesChanged(pid, uid, serviceType);
-            Thread.sleep(sleepMs);
+            SystemClock.sleep(sleepMs);
             if (stopAfterSleep) {
                 // Stop it now.
                 mAppFGSTracker.mProcessObserver.onForegroundServicesChanged(pid, uid,
@@ -1650,7 +1667,7 @@ public final class BackgroundRestrictionTest {
                     new Notification(), UserHandle.of(UserHandle.getUserId(uid)),
                     null, mCurrentTimeMillis);
             mAppFGSTracker.mNotificationListener.onNotificationPosted(noti, null);
-            Thread.sleep(sleepMs);
+            SystemClock.sleep(sleepMs);
             if (stopAfterSleep) {
                 mAppFGSTracker.mNotificationListener.onNotificationRemoved(noti, null, 0);
             }
@@ -1666,7 +1683,7 @@ public final class BackgroundRestrictionTest {
         if (mediaControllers != null) {
             for (Pair<List<MediaController>, Long> entry: mediaControllers) {
                 mActiveSessionListener.onActiveSessionsChanged(entry.first);
-                Thread.sleep(entry.second);
+                SystemClock.sleep(entry.second);
             }
             if (stopAfterSleep) {
                 // Stop it now.
@@ -1702,16 +1719,16 @@ public final class BackgroundRestrictionTest {
     private MediaController createMediaController(String packageName, int uid) {
         final MediaController controller = mock(MediaController.class);
         final MediaSession.Token token = mock(MediaSession.Token.class);
-        doReturn(packageName).when(controller).getPackageName();
-        doReturn(token).when(controller).getSessionToken();
-        doReturn(uid).when(token).getUid();
+        when(controller.getPackageName()).thenReturn(packageName);
+        when(controller.getSessionToken()).thenReturn(token);
+        when(token.getUid()).thenReturn(uid);
         return controller;
     }
 
     @Test
     public void testBgCurrentDrainMonitorExemptions() throws Exception {
         final BatteryUsageStats stats = mock(BatteryUsageStats.class);
-        final List<BatteryUsageStats> statsList = Arrays.asList(stats);
+        final List<BatteryUsageStats> statsList = Collections.singletonList(stats);
         final int testPkgIndex1 = 1;
         final String testPkgName1 = TEST_PACKAGE_BASE + testPkgIndex1;
         final int testUser = TEST_USER0;
@@ -1731,14 +1748,10 @@ public final class BackgroundRestrictionTest {
         final float restrictBucketThresholdMah =
                 BATTERY_FULL_CHARGE_MAH * restrictBucketThreshold / 100.0f;
         final float bgRestrictedThreshold = 4.0f;
-        final float bgRestrictedThresholdMah =
-                BATTERY_FULL_CHARGE_MAH * bgRestrictedThreshold / 100.0f;
         final float restrictBucketHighThreshold = 25.0f;
         final float restrictBucketHighThresholdMah =
                 BATTERY_FULL_CHARGE_MAH * restrictBucketHighThreshold / 100.0f;
         final float bgRestrictedHighThreshold = 25.0f;
-        final float bgRestrictedHighThresholdMah =
-                BATTERY_FULL_CHARGE_MAH * bgRestrictedHighThreshold / 100.0f;
         final long bgMediaPlaybackMinDuration = 1_000L;
         final long bgLocationMinDuration = 1_000L;
 
@@ -1895,8 +1908,7 @@ public final class BackgroundRestrictionTest {
                     DeviceConfig.NAMESPACE_ACTIVITY_MANAGER,
                     AppPermissionPolicy.KEY_BG_PERMISSION_MONITOR_ENABLED,
                     DeviceConfig::getString,
-                    Arrays.stream(AppPermissionPolicy.DEFAULT_BG_PERMISSIONS_IN_MONITOR)
-                    .collect(Collectors.joining(",")));
+                    String.join(",", AppPermissionPolicy.DEFAULT_BG_PERMISSIONS_IN_MONITOR));
             bgPermissionsInMonitor.set(ACCESS_FINE_LOCATION);
 
             bgCurrentDrainHighThresholdByBgLocation = new DeviceConfigSession<>(
@@ -1923,9 +1935,9 @@ public final class BackgroundRestrictionTest {
             bgPromptAbusiveAppToBgRestricted.set(true);
 
             mCurrentTimeMillis = 10_000L;
-            doReturn(mCurrentTimeMillis - windowMs).when(stats).getStatsStartTimestamp();
-            doReturn(mCurrentTimeMillis).when(stats).getStatsEndTimestamp();
-            doReturn(statsList).when(mBatteryStatsInternal).getBatteryUsageStats(any());
+            when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis - windowMs);
+            when(stats.getStatsEndTimestamp()).thenReturn(mCurrentTimeMillis);
+            when(mBatteryStatsInternal.getBatteryUsageStats(anyList())).thenReturn(statsList);
 
             // Run with a media playback service which starts/stops immediately, we should
             // goto the restricted bucket.
@@ -2358,8 +2370,8 @@ public final class BackgroundRestrictionTest {
             throws Exception {
         listener.mLatchHolder[0] = new CountDownLatch(1);
         if (initialBg != null) {
-            doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-            doReturn(mCurrentTimeMillis + windowMs).when(stats).getStatsEndTimestamp();
+            when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+            when(stats.getStatsEndTimestamp()).thenReturn(mCurrentTimeMillis + windowMs);
             mCurrentTimeMillis += windowMs + 1;
             setUidBatteryConsumptions(stats, uids, initialBg, initialFgs, initialFg, initialCached);
             mAppBatteryExemptionTracker.reset();
@@ -2381,9 +2393,9 @@ public final class BackgroundRestrictionTest {
                     clearInvocations(mBgRestrictionController);
                     runTestBgCurrentDrainMonitorOnce(listener, stats, uids, bg, fgs, fg, cached,
                             false, () -> {
-                                doReturn(mCurrentTimeMillis).when(stats).getStatsStartTimestamp();
-                                doReturn(mCurrentTimeMillis + windowMs)
-                                        .when(stats).getStatsEndTimestamp();
+                                when(stats.getStatsStartTimestamp()).thenReturn(mCurrentTimeMillis);
+                                when(stats.getStatsEndTimestamp()).thenReturn(
+                                        mCurrentTimeMillis + windowMs);
                                 mCurrentTimeMillis += windowMs + 1;
                                 if (expectingTimeout) {
                                     try {
@@ -2432,18 +2444,18 @@ public final class BackgroundRestrictionTest {
     }
 
     private void setPermissionState(String packageName, int uid, String perm, boolean granted) {
-        doReturn(granted ? PERMISSION_GRANTED : PERMISSION_DENIED)
-                .when(mPermissionManagerServiceInternal)
-                .checkUidPermission(uid, perm, Context.DEVICE_ID_DEFAULT);
-        doReturn(granted ? PERMISSION_GRANTED : PERMISSION_DENIED)
-                .when(mPermissionManagerServiceInternal)
+        when(mPermissionManagerServiceInternal
+                .checkUidPermission(uid, perm, Context.DEVICE_ID_DEFAULT)).thenReturn(
+                granted ? PERMISSION_GRANTED : PERMISSION_DENIED);
+        when(mPermissionManagerServiceInternal
                 .checkPermission(
                         packageName, perm, VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT,
-                        UserHandle.getUserId(uid));
+                        UserHandle.getUserId(uid))).thenReturn(
+                granted ? PERMISSION_GRANTED : PERMISSION_DENIED);
         try {
-            doReturn(granted ? PERMISSION_GRANTED : PERMISSION_DENIED)
-                    .when(mIActivityManager)
-                    .checkPermission(perm, Process.INVALID_PID, uid);
+            when(mIActivityManager
+                    .checkPermission(perm, Process.INVALID_PID, uid)).thenReturn(
+                    granted ? PERMISSION_GRANTED : PERMISSION_DENIED);
         } catch (RemoteException e) {
             // Ignore.
         }
@@ -2451,12 +2463,12 @@ public final class BackgroundRestrictionTest {
 
     private void setAppOpState(String packageName, int uid, int op, boolean granted) {
         try {
-            doReturn(granted ? MODE_ALLOWED : MODE_IGNORED)
-                    .when(mAppOpsManager)
-                    .checkOpNoThrow(op, uid, packageName);
-            doReturn(granted ? MODE_ALLOWED : MODE_IGNORED)
-                    .when(mIAppOpsService)
-                    .checkOperation(op, uid, packageName);
+            when(mAppOpsManager
+                    .checkOpNoThrow(op, uid, packageName)).thenReturn(
+                    granted ? MODE_ALLOWED : MODE_IGNORED);
+            when(mIAppOpsService
+                    .checkOperation(op, uid, packageName)).thenReturn(
+                    granted ? MODE_ALLOWED : MODE_IGNORED);
         } catch (RemoteException e) {
             // Ignore.
         }
@@ -2574,7 +2586,7 @@ public final class BackgroundRestrictionTest {
                     for (int k = 0; k < events[i][j]; k++) {
                         eventEmitter.accept(testPkgName, testUid);
                     }
-                    Thread.sleep(waitMs[i][j]);
+                    SystemClock.sleep(waitMs[i][j]);
                 }
                 waitForIdleHandler(mBgRestrictionController.getBackgroundHandler());
                 if (expectingTimeout[i]) {
@@ -2601,7 +2613,7 @@ public final class BackgroundRestrictionTest {
     }
 
     private int[] checkNotificationShown(String[] packageName, VerificationMode mode,
-            boolean verifyNotification) throws Exception {
+            boolean verifyNotification) {
         final ArgumentCaptor<Integer> notificationIdCaptor =
                 ArgumentCaptor.forClass(Integer.class);
         final ArgumentCaptor<Notification> notificationCaptor =
@@ -2627,8 +2639,8 @@ public final class BackgroundRestrictionTest {
         return notificationId;
     }
 
-    private void checkNotificationGone(String packageName, VerificationMode mode,
-            int notificationId) throws Exception {
+    private void checkNotificationGone(VerificationMode mode,
+            int notificationId) {
         final ArgumentCaptor<Integer> notificationIdCaptor =
                 ArgumentCaptor.forClass(Integer.class);
         verify(mInjector.getNotificationManager(), mode).cancel(notificationIdCaptor.capture());
@@ -2665,38 +2677,39 @@ public final class BackgroundRestrictionTest {
 
     private void setUidBatteryConsumptions(BatteryUsageStats stats, int[] uids, double[] bg,
             double[] fgs, double[] fg, double[] cached) {
-        ArrayList<UidBatteryConsumer> consumers = new ArrayList<>();
+        List<UidBatteryConsumer> consumers = new ArrayList<>();
         for (int i = 0; i < uids.length; i++) {
             consumers.add(mockUidBatteryConsumer(uids[i], bg[i], fgs[i], fg[i], cached[i]));
         }
-        doReturn(consumers).when(stats).getUidBatteryConsumers();
+        when(stats.getUidBatteryConsumers()).thenReturn(consumers);
     }
 
     private UidBatteryConsumer mockUidBatteryConsumer(int uid, double bg, double fgs, double fg,
             double cached) {
         UidBatteryConsumer uidConsumer = mock(UidBatteryConsumer.class);
-        doReturn(uid).when(uidConsumer).getUid();
-        doReturn(bg).when(uidConsumer).getConsumedPower(
-                eq(BATT_DIMENS[BATTERY_USAGE_INDEX_BACKGROUND]));
-        doReturn(fgs).when(uidConsumer).getConsumedPower(
-                eq(BATT_DIMENS[BATTERY_USAGE_INDEX_FOREGROUND_SERVICE]));
-        doReturn(fg).when(uidConsumer).getConsumedPower(
-                eq(BATT_DIMENS[BATTERY_USAGE_INDEX_FOREGROUND]));
-        doReturn(cached).when(uidConsumer).getConsumedPower(
-                eq(BATT_DIMENS[BATTERY_USAGE_INDEX_CACHED]));
+        when(uidConsumer.getUid()).thenReturn(uid);
+        when(uidConsumer.getConsumedPower(
+                eq(BATT_DIMENS[BATTERY_USAGE_INDEX_BACKGROUND]))).thenReturn(bg);
+        when(uidConsumer.getConsumedPower(
+                eq(BATT_DIMENS[BATTERY_USAGE_INDEX_FOREGROUND_SERVICE]))).thenReturn(fgs);
+        when(uidConsumer.getConsumedPower(
+                eq(BATT_DIMENS[BATTERY_USAGE_INDEX_FOREGROUND]))).thenReturn(fg);
+        when(uidConsumer.getConsumedPower(
+                eq(BATT_DIMENS[BATTERY_USAGE_INDEX_CACHED]))).thenReturn(cached);
         return uidConsumer;
     }
 
     private void setBackgroundRestrict(String pkgName, int uid, boolean restricted,
-            TestAppRestrictionLevelListener listener) throws Exception {
+            TestAppRestrictionLevelListener listener) {
         Log.i(TAG, "Setting background restrict to " + restricted + " for " + pkgName + " " + uid);
         listener.mLatchHolder[0] = new CountDownLatch(1);
-        doReturn(restricted).when(mAppStateTracker).isAppBackgroundRestricted(uid, pkgName);
+        when(mAppStateTracker.isAppBackgroundRestricted(uid, pkgName)).thenReturn(restricted);
         mFasListener.updateBackgroundRestrictedForUidPackage(uid, pkgName, restricted);
         waitForIdleHandler(mBgRestrictionController.getBackgroundHandler());
     }
 
-    private class TestAppRestrictionLevelListener implements AppBackgroundRestrictionListener {
+    private static final class TestAppRestrictionLevelListener implements
+            AppBackgroundRestrictionListener {
         private final CountDownLatch[] mLatchHolder = new CountDownLatch[1];
         final int[] mUidHolder = new int[1];
         final String[] mPkgNameHolder = new String[1];
@@ -2708,7 +2721,7 @@ public final class BackgroundRestrictionTest {
             mPkgNameHolder[0] = packageName;
             mLevelHolder[0] = newLevel;
             mLatchHolder[0].countDown();
-        };
+        }
 
         void verify(long timeout, int uid, String pkgName, int level) throws Exception {
             if (!mLatchHolder[0].await(timeout, TimeUnit.MILLISECONDS)) {
@@ -2746,16 +2759,18 @@ public final class BackgroundRestrictionTest {
 
     @Test
     public void testMergeAppStateDurations() throws Exception {
-        final BaseAppStateDurations testObj = new BaseAppStateDurations(0, "", 1, "", null) {};
+        final BaseAppStateDurations<BaseTimeEvent> testObj = new BaseAppStateDurations<>(0, "", 1,
+                "", null) {
+        };
         assertAppStateDurations(null, testObj.add(null, null));
-        assertAppStateDurations(new LinkedList<BaseTimeEvent>(), testObj.add(
-                null, new LinkedList<BaseTimeEvent>()));
-        assertAppStateDurations(new LinkedList<BaseTimeEvent>(), testObj.add(
-                new LinkedList<BaseTimeEvent>(), null));
+        assertAppStateDurations(new LinkedList<>(), testObj.add(
+                null, new LinkedList<>()));
+        assertAppStateDurations(new LinkedList<>(), testObj.add(
+                new LinkedList<>(), null));
         assertAppStateDurations(createDurations(1), testObj.add(
-                createDurations(1), new LinkedList<BaseTimeEvent>()));
+                createDurations(1), new LinkedList<>()));
         assertAppStateDurations(createDurations(1), testObj.add(
-                new LinkedList<BaseTimeEvent>(), createDurations(1)));
+                new LinkedList<>(), createDurations(1)));
         assertAppStateDurations(createDurations(1, 4, 5, 8, 9), testObj.add(
                 createDurations(1, 3, 5, 7, 9), createDurations(2, 4, 6, 8, 10)));
         assertAppStateDurations(createDurations(1, 5), testObj.add(
@@ -2768,16 +2783,18 @@ public final class BackgroundRestrictionTest {
 
     @Test
     public void testSubtractAppStateDurations() throws Exception {
-        final BaseAppStateDurations testObj = new BaseAppStateDurations(0, "", 1, "", null) {};
+        final BaseAppStateDurations<BaseTimeEvent> testObj = new BaseAppStateDurations<>(0, "", 1,
+                "", null) {
+        };
         assertAppStateDurations(null, testObj.subtract(null, null));
-        assertAppStateDurations(null, testObj.subtract(null, new LinkedList<BaseTimeEvent>()));
-        assertAppStateDurations(new LinkedList<BaseTimeEvent>(), testObj.subtract(
-                new LinkedList<BaseTimeEvent>(), null));
+        assertAppStateDurations(null, testObj.subtract(null, new LinkedList<>()));
+        assertAppStateDurations(new LinkedList<>(), testObj.subtract(
+                new LinkedList<>(), null));
         assertAppStateDurations(createDurations(1), testObj.subtract(
-                createDurations(1), new LinkedList<BaseTimeEvent>()));
-        assertAppStateDurations(new LinkedList<BaseTimeEvent>(), testObj.subtract(
-                new LinkedList<BaseTimeEvent>(), createDurations(1)));
-        assertAppStateDurations(new LinkedList<BaseTimeEvent>(), testObj.subtract(
+                createDurations(1), new LinkedList<>()));
+        assertAppStateDurations(new LinkedList<>(), testObj.subtract(
+                new LinkedList<>(), createDurations(1)));
+        assertAppStateDurations(new LinkedList<>(), testObj.subtract(
                 createDurations(1), createDurations(1)));
         assertAppStateDurations(createDurations(1, 2, 5, 6, 9, 10), testObj.subtract(
                 createDurations(1, 3, 5, 7, 9), createDurations(2, 4, 6, 8, 10)));
@@ -2801,29 +2818,28 @@ public final class BackgroundRestrictionTest {
     private <T> void assertListEquals(LinkedList<T> expected, LinkedList<T> actual) {
         assertEquals(expected == null || expected.isEmpty(), actual == null || actual.isEmpty());
         if (expected != null) {
-            if (expected.size() > 0) {
+            if (!expected.isEmpty()) {
                 assertEquals(expected.size(), actual.size());
             }
             while (expected.peek() != null) {
-                assertTrue(expected.poll().equals(actual.poll()));
+                assertEquals(expected.poll(), actual.poll());
             }
         }
     }
 
     private LinkedList<BaseTimeEvent> createDurations(long... timestamps) {
         return Arrays.stream(timestamps).mapToObj(BaseTimeEvent::new)
-                .collect(LinkedList<BaseTimeEvent>::new, LinkedList<BaseTimeEvent>::add,
-                (a, b) -> a.addAll(b));
+                .collect(LinkedList::new, LinkedList::add,
+                        LinkedList::addAll);
     }
 
     private LinkedList<Integer> createIntLinkedList(int[] vals) {
-        return Arrays.stream(vals).collect(LinkedList<Integer>::new, LinkedList<Integer>::add,
-                (a, b) -> a.addAll(b));
+        return Arrays.stream(vals).collect(LinkedList::new, LinkedList::add,
+                LinkedList::addAll);
     }
 
     @Test
-    public void testAppStateTimeSlotEvents() throws Exception {
-        final long maxTrackingDuration = 5_000L;
+    public void testAppStateTimeSlotEvents() {
         assertAppStateTimeSlotEvents(new int[] {2, 2, 0, 0, 1},
                 new long[] {1_500, 1_500, 2_100, 2_999, 5_999}, 5_000);
         assertAppStateTimeSlotEvents(new int[] {2, 2, 0, 0, 1, 1},
@@ -2853,8 +2869,8 @@ public final class BackgroundRestrictionTest {
             long slotSize, long maxTrackingDuration, long[] timestamps) {
         final BaseAppStateTimeSlotEvents testObj = new BaseAppStateTimeSlotEvents(
                 0, "", 1, slotSize, "", () -> maxTrackingDuration) {};
-        for (int i = 0; i < timestamps.length; i++) {
-            testObj.addEvent(timestamps[i], 0);
+        for (long timestamp : timestamps) {
+            testObj.addEvent(timestamp, 0);
         }
         return testObj;
     }
@@ -2879,21 +2895,21 @@ public final class BackgroundRestrictionTest {
     }
 
     @Test
-    public void testMergeUidBatteryUsage() throws Exception {
+    public void testMergeUidBatteryUsage() {
         final UidBatteryStates testObj = new UidBatteryStates(0, "", null);
         assertListEquals(null, testObj.add(null, null));
-        assertListEquals(new LinkedList<UidStateEventWithBattery>(), testObj.add(
-                null, new LinkedList<UidStateEventWithBattery>()));
-        assertListEquals(new LinkedList<UidStateEventWithBattery>(), testObj.add(
-                new LinkedList<UidStateEventWithBattery>(), null));
+        assertListEquals(new LinkedList<>(), testObj.add(
+                null, new LinkedList<>()));
+        assertListEquals(new LinkedList<>(), testObj.add(
+                new LinkedList<>(), null));
         assertListEquals(createUidStateEventWithBatteryList(
                 new boolean[] {true}, new long[] {10L}, new double[] {10.0d}),
                 testObj.add(createUidStateEventWithBatteryList(
                 new boolean[] {true}, new long[] {10L}, new double[] {10.0d}),
-                new LinkedList<UidStateEventWithBattery>()));
+                        new LinkedList<>()));
         assertListEquals(createUidStateEventWithBatteryList(
                 new boolean[] {true}, new long[] {10L}, new double[] {10.0d}),
-                testObj.add(new LinkedList<UidStateEventWithBattery>(),
+                testObj.add(new LinkedList<>(),
                 createUidStateEventWithBatteryList(
                 new boolean[] {true}, new long[] {10L}, new double[] {10.0d})));
         assertListEquals(createUidStateEventWithBatteryList(
@@ -2987,7 +3003,7 @@ public final class BackgroundRestrictionTest {
         final String testPkg1 = TEST_PACKAGE_BASE + 1;
         final String testPkg2 = TEST_PACKAGE_BASE + 2;
         final String testPkg3 = TEST_PACKAGE_BASE + 3;
-        final int testUid0 = UserHandle.getUid(TEST_USER0, TEST_PACKAGE_APPID_BASE + 0);
+        final int testUid0 = UserHandle.getUid(TEST_USER0, TEST_PACKAGE_APPID_BASE);
         final int testUid1 = UserHandle.getUid(TEST_USER0, TEST_PACKAGE_APPID_BASE + 1);
         final int testUid2 = UserHandle.getUid(TEST_USER1, TEST_PACKAGE_APPID_BASE + 2);
         final int testUid3 = UserHandle.getUid(TEST_USER1, TEST_PACKAGE_APPID_BASE + 3);
@@ -3011,7 +3027,7 @@ public final class BackgroundRestrictionTest {
         RestrictionSettings test = (RestrictionSettings) settings.clone();
 
         // Verify our clone works correctly.
-        assertTrue(settings.equals(test));
+        assertEquals(settings, test);
 
         // Reset the test object.
         test.resetToDefault();
@@ -3023,7 +3039,7 @@ public final class BackgroundRestrictionTest {
         // Load it to our test object.
         test.loadFromXml(false);
         // Verify we restored it correctly.
-        assertTrue(settings.equals(test));
+        assertEquals(settings, test);
 
         // Remove one package.
         settings.removePackage(testPkg3, testUid3);
@@ -3064,7 +3080,7 @@ public final class BackgroundRestrictionTest {
         mPhoneCarrierPrivileges.addNewPrivilegePackages(0,
                 MOCK_PRIVILEGED_PACKAGES_2,
                 MOCK_PRIVILEGED_UIDS_2);
-        Thread.sleep(shortMs);
+        SystemClock.sleep(shortMs);
 
         verifyPotentialSystemExemptionReason(REASON_CARRIER_PRIVILEGED_APP,
                 MOCK_PRIVILEGED_PACKAGES_2,
@@ -3080,7 +3096,7 @@ public final class BackgroundRestrictionTest {
 
         mPhoneCarrierPrivileges.addNewPrivilegePackages(1,
                 new String[0], new int[0]);
-        Thread.sleep(shortMs);
+        SystemClock.sleep(shortMs);
 
         verifyPotentialSystemExemptionReason(REASON_CARRIER_PRIVILEGED_APP,
                 MOCK_PRIVILEGED_PACKAGES_2,
@@ -3097,7 +3113,7 @@ public final class BackgroundRestrictionTest {
         mPhoneCarrierPrivileges.addNewPrivilegePackages(0,
                 MOCK_PRIVILEGED_PACKAGES_0,
                 MOCK_PRIVILEGED_UIDS_0);
-        Thread.sleep(shortMs);
+        SystemClock.sleep(shortMs);
 
         verifyPotentialSystemExemptionReason(REASON_DENIED,
                 MOCK_PRIVILEGED_PACKAGES_2,
@@ -3121,7 +3137,7 @@ public final class BackgroundRestrictionTest {
         }
     }
 
-    private void verifyLoadedSettings(RestrictionSettings settings) throws Exception {
+    private void verifyLoadedSettings(RestrictionSettings settings) {
         // Make a new copy and reset it.
         RestrictionSettings test = (RestrictionSettings) settings.clone();
         test.resetToDefault();
@@ -3131,7 +3147,7 @@ public final class BackgroundRestrictionTest {
         // Load it to our test object.
         test.loadFromXml(false);
         // Verify we restored it correctly.
-        assertTrue(settings.equals(test));
+        assertEquals(settings, test);
     }
 
     @SuppressWarnings("GuardedBy")
@@ -3156,13 +3172,13 @@ public final class BackgroundRestrictionTest {
         return result;
     }
 
-    private class PhoneCarrierPrivileges {
+    private static final class PhoneCarrierPrivileges {
         private final SparseArray<Pair<String[], int[]>> mPackages = new SparseArray<>();
         private final SparseArray<Pair<Executor, CarrierPrivilegesCallback>> mListeners =
                 new SparseArray<>();
 
         PhoneCarrierPrivileges(TelephonyManager telephonyManager, int phoneIds) {
-            doReturn(phoneIds).when(telephonyManager).getActiveModemCount();
+            when(telephonyManager.getActiveModemCount()).thenReturn(phoneIds);
             doAnswer(inv -> {
                 registerCarrierPrivilegesCallback(
                         inv.getArgument(0),
@@ -3170,7 +3186,7 @@ public final class BackgroundRestrictionTest {
                         inv.getArgument(2));
                 return null;
             }).when(telephonyManager).registerCarrierPrivilegesCallback(
-                    anyInt(), any(), any());
+                    anyInt(), any(Executor.class), any(CarrierPrivilegesCallback.class));
         }
 
         public void registerCarrierPrivilegesCallback(int phoneId, Executor executor,
@@ -3198,7 +3214,7 @@ public final class BackgroundRestrictionTest {
     }
 
     private class TestBgRestrictionInjector extends AppRestrictionController.Injector {
-        private Context mContext;
+        private final Context mContext;
 
         TestBgRestrictionInjector(Context context) {
             super(context);

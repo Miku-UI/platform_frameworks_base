@@ -20,4 +20,8 @@
     <string name="settingslib_expressive_text_expand" msgid="7520894876795775876">"বড় করুন"</string>
     <string name="settingslib_expressive_text_collapse" msgid="5625043934702341576">"আড়াল করুন"</string>
     <string name="settingslib_dismiss_button_content_description" msgid="6466433970910120385">"বাতিল করুন"</string>
+    <string name="settingslib_expressive_expanded_state_expanded" msgid="7720903413665990380">"সম্পূর্ণ বড় করা হয়েছে"</string>
+    <string name="settingslib_expressive_expanded_state_collapsed" msgid="3183852630776308202">"আড়াল করা হয়েছে"</string>
+    <string name="settingslib_spinner_item_selected" msgid="4339232352717298426">"বেছে নেওয়া হয়েছে"</string>
+    <string name="settingslib_spinner_item_not_selected" msgid="2953994594850171841">"বেছে নেওয়া হয়নি"</string>
 </resources>

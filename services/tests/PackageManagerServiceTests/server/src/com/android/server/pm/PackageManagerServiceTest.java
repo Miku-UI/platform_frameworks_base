@@ -16,10 +16,13 @@
 
 package com.android.server.pm;
 
+import static android.Manifest.permission.INJECT_EVENTS;
+
 import static com.android.compatibility.common.util.ShellUtils.runShellCommand;
 
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 
@@ -28,8 +31,10 @@ import static java.lang.reflect.Modifier.isPublic;
 import static java.lang.reflect.Modifier.isStatic;
 
 import android.app.AppGlobals;
+import android.app.UiAutomation;
 import android.content.pm.IPackageManager;
 import android.content.pm.PackageManager;
+import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.platform.test.annotations.Postsubmit;
@@ -72,14 +77,18 @@ public class PackageManagerServiceTest {
     private static final String TEST_PKG_NAME = "com.android.servicestests.apps.stubapp";
 
     private IPackageManager mIPackageManager;
+    private UiAutomation mUiAutomation;
 
     @Before
     public void setUp() throws Exception {
         mIPackageManager = AppGlobals.getPackageManager();
+        mUiAutomation = androidx.test.platform.app.InstrumentationRegistry
+                .getInstrumentation().getUiAutomation();
     }
 
     @After
     public void tearDown() throws Exception {
+        mUiAutomation.dropShellPermissionIdentity();
     }
 
     @Test
@@ -614,5 +623,88 @@ public class PackageManagerServiceTest {
                     PackageManager.USER_MIN_ASPECT_RATIO_UNSET);
         });
         runShellCommand("pm uninstall " + TEST_PKG_NAME);
+    }
+
+    @Test
+    public void testGetVirtualGamepadUserOption_withoutPermission_samePackage_succeeds()
+            throws Exception {
+        assertEquals(PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_UNSET,
+                mIPackageManager.getVirtualGamepadUserOption(PACKAGE_NAME, UserHandle.myUserId()));
+    }
+
+    @Test
+    public void testGetVirtualGamepadUserOption_withoutPermission_differentPackage_fails() {
+        final File testApk = new File(TEST_DATA_PATH, TEST_APP_APK);
+        runShellCommand("pm install " + testApk);
+        assertThrows(SecurityException.class, () -> {
+            mIPackageManager.getVirtualGamepadUserOption(TEST_PKG_NAME, UserHandle.myUserId());
+        });
+        runShellCommand("pm uninstall " + TEST_PKG_NAME);
+    }
+
+    @Test
+    public void testGetVirtualGamepadUserOption_withPermission_succeeds() throws Exception {
+        final File testApk = new File(TEST_DATA_PATH, TEST_APP_APK);
+        runShellCommand("pm install " + testApk);
+        mUiAutomation.adoptShellPermissionIdentity(INJECT_EVENTS);
+
+        mIPackageManager.getVirtualGamepadUserOption(TEST_PKG_NAME, UserHandle.myUserId());
+
+        runShellCommand("pm uninstall " + TEST_PKG_NAME);
+    }
+
+    @Test
+    public void testSetVirtualGamepadUserOption_withPermission_succeeds() throws Exception {
+        final File testApk = new File(TEST_DATA_PATH, TEST_APP_APK);
+        mUiAutomation.adoptShellPermissionIdentity(INJECT_EVENTS);
+        runShellCommand("pm install " + testApk);
+
+        try {
+            // Initial value is unset
+            assertEquals(PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_UNSET,
+                    mIPackageManager.getVirtualGamepadUserOption(TEST_PKG_NAME,
+                            UserHandle.myUserId()));
+
+            // Update to opt out
+            mIPackageManager.setVirtualGamepadUserOption(TEST_PKG_NAME, UserHandle.myUserId(),
+                    PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_OPT_OUT);
+            assertEquals(PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_OPT_OUT,
+                    mIPackageManager.getVirtualGamepadUserOption(TEST_PKG_NAME,
+                            UserHandle.myUserId()));
+
+            // Update to unset
+            mIPackageManager.setVirtualGamepadUserOption(TEST_PKG_NAME, UserHandle.myUserId(),
+                    PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_UNSET);
+            assertEquals(PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_UNSET,
+                    mIPackageManager.getVirtualGamepadUserOption(TEST_PKG_NAME,
+                            UserHandle.myUserId()));
+        } finally {
+            runShellCommand("pm uninstall " + TEST_PKG_NAME);
+        }
+    }
+
+    @Test
+    public void testSetVirtualGamepadUserOption_withoutPermission_fails() {
+        assertThrows(SecurityException.class, () -> {
+            mIPackageManager.setVirtualGamepadUserOption(PACKAGE_NAME, UserHandle.myUserId(),
+                    PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_UNSET);
+        });
+    }
+
+    @Test
+    public void getAppUidForPccUid_nonPccUid_returnsInvalid() throws Exception {
+        // A regular app UID is not a PCC UID, so the method should return INVALID_UID.
+        final int nonPccUid = Process.myUid();
+        Assert.assertEquals(Process.INVALID_UID,
+                            mIPackageManager.getAppUidForPrivateComputeCoreUid(nonPccUid));
+    }
+
+    @Test
+    public void getAppUidForPccUid_unknownPccUid_returnsInvalid() throws Exception {
+        // Use a valid PCC UID that is not associated with any installed package.
+        // The method should return INVALID_UID as no matching package setting will be found.
+        final int pccUid = Process.FIRST_PCC_UID;
+        Assert.assertEquals(Process.INVALID_UID,
+                            mIPackageManager.getAppUidForPrivateComputeCoreUid(pccUid));
     }
 }

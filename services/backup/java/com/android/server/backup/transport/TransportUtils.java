@@ -32,7 +32,7 @@ public class TransportUtils {
     private static final String TAG = "TransportUtils";
 
     /**
-     * Throws {@link TransportNotAvailableException} if {@param transport} is null. The semantics is
+     * Throws {@link TransportNotAvailableException} if {@code transport} is null. The semantics is
      * similar to a {@link DeadObjectException} coming from a dead transport binder.
      */
     public static IBackupTransport checkTransportNotNull(@Nullable IBackupTransport transport)

@@ -34,19 +34,13 @@ import org.junit.Test
  * - the IME changes the nav bar color
  */
 interface ImeBecomesVisibleAndBubbleIsShrunkTestCase : BubbleFlickerSubjects {
-    /**
-     * The screenshot took at the end of the transition.
-     */
+    /** The screenshot took at the end of the transition. */
     val bitmapAtEnd: Bitmap
 
-    /**
-     * The IME inset observed from [testApp]
-     */
+    /** The IME inset observed from [testApp] */
     val expectedImeInset: Int
 
-    /**
-     * Verifies the IME window becomes visible.
-     */
+    /** Verifies the IME window becomes visible. */
     @Test
     fun imeWindowBecomesVisible() {
         wmTraceSubject
@@ -56,52 +50,38 @@ interface ImeBecomesVisibleAndBubbleIsShrunkTestCase : BubbleFlickerSubjects {
             .forAllEntries()
     }
 
-    /**
-     * Verifies the IME layer becomes visible.
-     */
+    /** Verifies the IME layer becomes visible. */
     @Test
     fun imeLayerBecomesVisible() {
-        layersTraceSubject
-            .isInvisible(IME)
-            .then()
-            .isVisible(IME)
-            .forAllEntries()
+        layersTraceSubject.isInvisible(IME).then().isVisible(IME).forAllEntries()
     }
 
-    /**
-     * Verifies the IME layer is invisible at the start of the transition.
-     */
+    /** Verifies the IME layer is invisible at the start of the transition. */
     @Test
     fun imeLayerIsInvisibleAtStart() {
         layerTraceEntrySubjectAtStart.isInvisible(IME)
     }
 
-    /**
-     * Verifies the IME layer is visible at the end of the transition.
-     */
+    /** Verifies the IME layer is visible at the end of the transition. */
     @Test
     fun imeLayerIsVisibleAtEnd() {
         layerTraceEntrySubjectAtEnd.isVisible(IME)
     }
 
-    /**
-     * Verifies the bubble app visible region is smaller with IME shown.
-     */
+    /** Verifies the bubble app visible region is smaller with IME shown. */
     @Test
     fun bubbleLayerVisibleRegionIsSmallerThanDisplayAtEnd() {
-        layerTraceEntrySubjectAtEnd.visibleRegion(testApp)
+        layerTraceEntrySubjectAtEnd
+            .visibleRegion(testApp)
             .isStrictlySmallerThan(Region(WindowUtils.displayBounds))
     }
 
-    /**
-     * Verifies the bubble app visible region is smaller with IME shown.
-     */
+    /** Verifies the bubble app visible region is smaller with IME shown. */
     @Test
     fun bubbleLayerVisibleRegionInsetsMatchesImeInsets() {
-        val bubbleAppLayerBottom = layerTraceEntrySubjectAtEnd.visibleRegion(testApp)
-            .region.bounds.bottom
-        val bubbleAppWindowBottom = wmStateSubjectAtEnd.visibleRegion(testApp)
-            .region.bounds.bottom
+        val bubbleAppLayerBottom =
+            layerTraceEntrySubjectAtEnd.visibleRegion(testApp).region.bounds.bottom
+        val bubbleAppWindowBottom = wmStateSubjectAtEnd.visibleRegion(testApp).region.bounds.bottom
         // The observed offset between the bubble app's layer and its window is caused by the IME
         // surface consuming a segment of the bubble app's defined bounds. This occupied area
         // corresponds to the bubble app's IME inset.
@@ -110,9 +90,7 @@ interface ImeBecomesVisibleAndBubbleIsShrunkTestCase : BubbleFlickerSubjects {
         assertThat(actualImeInset).isEqualTo(expectedImeInset)
     }
 
-    /**
-     * Verifies IME changes nav or task bar color.
-     */
+    /** Verifies IME changes nav or task bar color. */
     @Test
     fun imeChangesNavBarColor() {
         assertImeCanChangeNavBarColor(bitmapAtEnd)

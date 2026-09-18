@@ -16,9 +16,12 @@
 
 package com.android.server.usb;
 
+import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
 import android.app.PendingIntent;
+import android.app.admin.DevicePolicyManager;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
@@ -27,8 +30,6 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.hardware.SensorPrivacyManager.Sensors;
 import android.hardware.SensorPrivacyManagerInternal;
-import android.hardware.usb.AccessoryFilter;
-import android.hardware.usb.DeviceFilter;
 import android.hardware.usb.UsbAccessory;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
@@ -38,12 +39,11 @@ import android.os.Environment;
 import android.os.Process;
 import android.os.UserHandle;
 import android.service.usb.UsbAccessoryPermissionProto;
-import android.service.usb.UsbAccessoryPersistentPermissionProto;
 import android.service.usb.UsbDevicePermissionProto;
-import android.service.usb.UsbDevicePersistentPermissionProto;
-import android.service.usb.UsbUidPermissionProto;
 import android.service.usb.UsbUserPermissionsManagerProto;
+import android.text.TextUtils;
 import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.AtomicFile;
 import android.util.EventLog;
 import android.util.Slog;
@@ -51,11 +51,14 @@ import android.util.SparseBooleanArray;
 import android.util.Xml;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.content.PackageMonitor;
 import com.android.internal.util.XmlUtils;
 import com.android.internal.util.dump.DualDumpOutputStream;
 import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
 import com.android.server.LocalServices;
+import com.android.server.usb.flags.Flags;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -65,6 +68,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * UsbUserPermissionManager manages usb device or accessory access permissions.
@@ -77,57 +83,106 @@ class UsbUserPermissionManager {
 
     private static final int SNET_EVENT_LOG_ID = 0x534e4554;
 
+    /** Record class for combining packageName + uid used for tracking permissions. */
+    public record PackageAndUid(String packageName, int uid) {}
+
+    // Maps UsbDevice address to set of temporary permissions (for Package+UID).
+    // Entries are removed when the device is disconnected.
     @GuardedBy("mLock")
-    /** Mapping of USB device name to list of UIDs with permissions for the device
-     * Each entry lasts until device is disconnected*/
-    private final ArrayMap<String, SparseBooleanArray> mDevicePermissionMap =
-            new ArrayMap<>();
-    @GuardedBy("mLock")
-    /** Temporary mapping UsbAccessory to list of UIDs with permissions for the accessory
-     * Each entry lasts until accessory is disconnected*/
-    private final ArrayMap<UsbAccessory, SparseBooleanArray> mAccessoryPermissionMap =
+    private final ArrayMap<String, ArraySet<PackageAndUid>> mTemporaryDevicePermissionMap =
             new ArrayMap<>();
 
+    // Maps UsbAccessory to set of temporary permissions (for Package+UID).
+    // Entries are removed when the accessory is disconnected.
     @GuardedBy("mLock")
-    /** Maps USB device to list of UIDs with persistent permissions for the device*/
-    private final ArrayMap<DeviceFilter, SparseBooleanArray>
-            mDevicePersistentPermissionMap = new ArrayMap<>();
+    private final ArrayMap<UsbAccessory, ArraySet<PackageAndUid>> mTemporaryAccessoryPermissionMap =
+            new ArrayMap<>();
+
+    // Maps UsbDeviceFingerprint to set of persistent permissions (for Package+UID).
     @GuardedBy("mLock")
-    /** Maps Usb Accessory to list of UIDs with persistent permissions for the accessory*/
-    private final ArrayMap<AccessoryFilter, SparseBooleanArray>
-            mAccessoryPersistentPermissionMap = new ArrayMap<>();
+    private final ArrayMap<UsbDeviceFingerprint, ArraySet<PackageAndUid>>
+            mPersistentDevicePermissionMap = new ArrayMap<>();
+
+    @GuardedBy("mLock")
+    /*
+     * Temporary mapping of USB device name to list of UIDs with permissions for
+     * the device. Each entry lasts until device is disconnected.
+     */
+    private final ArrayMap<String, SparseBooleanArray> mDevicePermissionMap = new ArrayMap<>();
+
+    @GuardedBy("mLock")
+    /*
+     * Temporary mapping of UsbAccessory to list of UIDs with permissions for the
+     * accessory. Each entry lasts until accessory is disconnected.
+     */
+    private final ArrayMap<UsbAccessory, SparseBooleanArray> mAccessoryPermissionMap =
+            new ArrayMap<>();
 
     private final Context mContext;
     private final UserHandle mUser;
     private final UsbUserSettingsManager mUsbUserSettingsManager;
+    private final DevicePolicyManager mDevicePolicyManager;
     private final boolean mDisablePermissionDialogs;
 
     private final @NonNull AtomicFile mPermissionsFile;
 
     private final Object mLock = new Object();
 
+    private class LocalPackageMonitor extends PackageMonitor {
+        @Override
+        public void onPackageRemoved(String packageName, int uid) {
+            removePackagePermissions(packageName, uid);
+        }
+    }
+
+    private LocalPackageMonitor mPackageMonitor = new LocalPackageMonitor();
+
+    // XML serialization constant strings.
+    private static final String XML_ROOT_NAME = "permissions";
+    private static final String PERMISSION_TAG_NAME = "permission";
+    private static final String PACKAGE_NAME_ATTR = "packageName";
+    private static final String UID_ATTR = "uid";
+
     /**
-     * If a async task to persist the mDevicePersistentPreferenceMap and
-     * mAccessoryPersistentPreferenceMap is currently scheduled.
+     * If a async task to persist the mPersistentDevicePermissionMap is currently scheduled.
      */
     @GuardedBy("mLock")
     private boolean mIsCopyPermissionsScheduled;
     private final SensorPrivacyManagerInternal mSensorPrivacyMgrInternal;
 
-    UsbUserPermissionManager(@NonNull Context context,
-            @NonNull UsbUserSettingsManager usbUserSettingsManager) {
+    UsbUserPermissionManager(
+            @NonNull Context context,
+            @NonNull UsbUserSettingsManager usbUserSettingsManager,
+            String storageDirPath) {
         mContext = context;
         mUser = context.getUser();
         mUsbUserSettingsManager = usbUserSettingsManager;
+        mDevicePolicyManager = LocalServices.getService(DevicePolicyManager.class);
         mSensorPrivacyMgrInternal = LocalServices.getService(SensorPrivacyManagerInternal.class);
         mDisablePermissionDialogs = context.getResources().getBoolean(
                 com.android.internal.R.bool.config_disableUsbPermissionDialogs);
 
-        mPermissionsFile = new AtomicFile(new File(
-                Environment.getUserSystemDirectory(mUser.getIdentifier()),
-                "usb_permissions.xml"), "usb-permissions");
+        if (android.hardware.usb.flags.Flags.enablePersistentUsbDevicePermissions()) {
+            mPackageMonitor.register(context, null, UserHandle.ALL, true);
+        }
+
+        File parentDir;
+        if (storageDirPath != null) {
+            parentDir = new File(storageDirPath);
+        } else {
+            parentDir = Environment.getUserSystemDirectory(mUser.getIdentifier());
+        }
+
+        mPermissionsFile =
+                new AtomicFile(new File(parentDir, "usb_permissions.xml"), "usb-permissions");
         synchronized (mLock) {
             readPermissionsLocked();
+        }
+    }
+
+    void unregisterReceivers() {
+        if (android.hardware.usb.flags.Flags.enablePersistentUsbDevicePermissions()) {
+            mPackageMonitor.unregister();
         }
     }
 
@@ -138,7 +193,11 @@ class UsbUserPermissionManager {
      */
     void removeAccessoryPermissions(@NonNull UsbAccessory accessory) {
         synchronized (mLock) {
-            mAccessoryPermissionMap.remove(accessory);
+            if (android.hardware.usb.flags.Flags.enablePersistentUsbDevicePermissions()) {
+                mTemporaryAccessoryPermissionMap.remove(accessory);
+            } else {
+                mAccessoryPermissionMap.remove(accessory);
+            }
         }
     }
 
@@ -149,7 +208,110 @@ class UsbUserPermissionManager {
      */
     void removeDevicePermissions(@NonNull UsbDevice device) {
         synchronized (mLock) {
-            mDevicePermissionMap.remove(device.getDeviceName());
+            if (android.hardware.usb.flags.Flags.enablePersistentUsbDevicePermissions()) {
+                mTemporaryDevicePermissionMap.remove(device.getDeviceName());
+            } else {
+                mDevicePermissionMap.remove(device.getDeviceName());
+            }
+        }
+    }
+
+    void removePackagePermissions(String packageName, int uid) {
+        synchronized (mLock) {
+            // Remove this package + uid pair from all permission maps
+            PackageAndUid identifier = new PackageAndUid(packageName, uid);
+
+            mTemporaryDevicePermissionMap.forEach(
+                    (k, v) -> {
+                        v.remove(identifier);
+                    });
+            mTemporaryAccessoryPermissionMap.forEach(
+                    (k, v) -> {
+                        v.remove(identifier);
+                    });
+            mPersistentDevicePermissionMap.forEach(
+                    (k, v) -> {
+                        v.remove(identifier);
+                    });
+        }
+    }
+
+    // Check if a package/uid pair is valid by getting all packages for that uid and
+    // making sure the given package is part of that list.
+    private boolean isValidPackageUidPair(PackageAndUid packageAndUid) {
+        String[] packages = mContext.getPackageManager().getPackagesForUid(packageAndUid.uid);
+        return packages != null && Arrays.asList(packages).contains(packageAndUid.packageName);
+    }
+
+    // Send broadcast intent for permission changes on a device or accessory.
+    //
+    // The broadcast is informational to make sure stale data about permissions
+    // isn't used by system applications and will only be sent to registered
+    // listeners.
+    private void permissionChangedBroadcastIntent(UsbDevice device, UsbAccessory accessory) {
+        Intent intent = new Intent(UsbManager.ACTION_USB_PERMISSION_CHANGED);
+        if (device != null) {
+            intent.putExtra(UsbManager.EXTRA_DEVICE, device);
+        } else {
+            intent.putExtra(UsbManager.EXTRA_ACCESSORY, accessory);
+        }
+
+        intent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY);
+        mContext.sendBroadcastAsUser(intent, UserHandle.ALL, Manifest.permission.MANAGE_USB);
+    }
+
+    @VisibleForTesting
+    void grantDevicePermissionInternal(
+            @NonNull UsbDevice device,
+            UsbDeviceFingerprint fingerprint,
+            String packageName,
+            int uid,
+            boolean isPersistent) {
+        boolean wasAdded = false;
+
+        synchronized (mLock) {
+            PackageAndUid identifier = new PackageAndUid(packageName, uid);
+            String deviceAddr = device.getDeviceName();
+            boolean needsWrite = false;
+
+            if (!isValidPackageUidPair(identifier)) {
+                throw new IllegalArgumentException(
+                        "Provided packageName and uid pair are not valid");
+            }
+
+            ArraySet<PackageAndUid> permissions;
+
+            // Any connected device should have a fingerprint. If we can't find
+            // the fingerprint, we can't persist the device permission so just
+            // fall back to using a temporary permission.
+            //
+            // We use device address for temporary permissions because we will
+            // remove it via usbDeviceRemoved if necessary.
+            if (isPersistent && fingerprint != null) {
+                needsWrite = true;
+                permissions = mPersistentDevicePermissionMap.get(fingerprint);
+                if (permissions == null) {
+                    permissions = new ArraySet<>();
+                    mPersistentDevicePermissionMap.put(fingerprint, permissions);
+                }
+            } else {
+                permissions = mTemporaryDevicePermissionMap.get(deviceAddr);
+                if (permissions == null) {
+                    permissions = new ArraySet<>();
+                    mTemporaryDevicePermissionMap.put(deviceAddr, permissions);
+                }
+            }
+
+            // Only send broadcast for it didn't already exist
+            wasAdded = permissions.add(identifier);
+
+            if (wasAdded && needsWrite) {
+                scheduleWritePermissionsLocked();
+            }
+        }
+
+        if (wasAdded) {
+            permissionChangedBroadcastIntent(device, null);
         }
     }
 
@@ -157,17 +319,51 @@ class UsbUserPermissionManager {
      * Grants permission for USB device without showing system dialog for package with uid.
      *
      * @param device to grant permission for
+     * @param fingerprint to use if we need to persist this permission
+     * @param packageName to grant permission for
      * @param uid to grant permission for
+     * @param isPersistent to set whether permission is temporary or persisted
      */
-    void grantDevicePermission(@NonNull UsbDevice device, int uid) {
-        synchronized (mLock) {
-            String deviceName = device.getDeviceName();
-            SparseBooleanArray uidList = mDevicePermissionMap.get(deviceName);
-            if (uidList == null) {
-                uidList = new SparseBooleanArray(1);
-                mDevicePermissionMap.put(deviceName, uidList);
+    void grantDevicePermission(@NonNull UsbDevice device, UsbDeviceFingerprint fingerprint,
+            String packageName, int uid, boolean isPersistent) {
+        if (android.hardware.usb.flags.Flags.enablePersistentUsbDevicePermissions()) {
+            grantDevicePermissionInternal(device, fingerprint, packageName, uid, isPersistent);
+        } else {
+            synchronized (mLock) {
+                String deviceName = device.getDeviceName();
+                SparseBooleanArray uidList = mDevicePermissionMap.get(deviceName);
+                if (uidList == null) {
+                    uidList = new SparseBooleanArray(1);
+                    mDevicePermissionMap.put(deviceName, uidList);
+                }
+                uidList.put(uid, true);
             }
-            uidList.put(uid, true);
+        }
+    }
+
+    @VisibleForTesting
+    void grantAccessoryPermissionInternal(
+            @NonNull UsbAccessory accessory, String packageName, int uid) {
+        boolean wasAdded = false;
+
+        synchronized (mLock) {
+            PackageAndUid identifier = new PackageAndUid(packageName, uid);
+            if (!isValidPackageUidPair(identifier)) {
+                throw new IllegalArgumentException(
+                        "Provided packageName and uid pair are not valid");
+            }
+
+            ArraySet<PackageAndUid> permissions = mTemporaryAccessoryPermissionMap.get(accessory);
+            if (permissions == null) {
+                permissions = new ArraySet<>();
+                mTemporaryAccessoryPermissionMap.put(accessory, permissions);
+            }
+
+            wasAdded = permissions.add(identifier);
+        }
+
+        if (wasAdded) {
+            permissionChangedBroadcastIntent(null, accessory);
         }
     }
 
@@ -175,16 +371,52 @@ class UsbUserPermissionManager {
      * Grants permission for USB accessory without showing system dialog for package with uid.
      *
      * @param accessory to grant permission for
+     * @param packageName to grant permission for
      * @param uid to grant permission for
      */
-    void grantAccessoryPermission(@NonNull UsbAccessory accessory, int uid) {
-        synchronized (mLock) {
-            SparseBooleanArray uidList = mAccessoryPermissionMap.get(accessory);
-            if (uidList == null) {
-                uidList = new SparseBooleanArray(1);
-                mAccessoryPermissionMap.put(accessory, uidList);
+    void grantAccessoryPermission(@NonNull UsbAccessory accessory, String packageName, int uid) {
+        if (android.hardware.usb.flags.Flags.enablePersistentUsbDevicePermissions()) {
+            grantAccessoryPermissionInternal(accessory, packageName, uid);
+        } else {
+            synchronized (mLock) {
+                SparseBooleanArray uidList = mAccessoryPermissionMap.get(accessory);
+                if (uidList == null) {
+                    uidList = new SparseBooleanArray(1);
+                    mAccessoryPermissionMap.put(accessory, uidList);
+                }
+                uidList.put(uid, true);
             }
-            uidList.put(uid, true);
+        }
+    }
+
+    @VisibleForTesting
+    boolean hasPermissionInternal(
+            UsbDevice device, UsbDeviceFingerprint fingerprint, String packageName, int uid) {
+        synchronized (mLock) {
+            if (uid == Process.SYSTEM_UID || mDisablePermissionDialogs) {
+                return true;
+            }
+
+            PackageAndUid identifier = new PackageAndUid(packageName, uid);
+            String deviceAddr = device.getDeviceName();
+
+            // Check for persistent permissions first and fall back to
+            // temporary permissions if not found.
+            if (fingerprint != null) {
+                ArraySet<PackageAndUid> permissionsForDevice =
+                        mPersistentDevicePermissionMap.get(fingerprint);
+                if (permissionsForDevice != null && permissionsForDevice.contains(identifier)) {
+                    return true;
+                }
+            }
+
+            ArraySet<PackageAndUid> tmpPermissionsForDevice =
+                    mTemporaryDevicePermissionMap.get(deviceAddr);
+            if (tmpPermissionsForDevice != null) {
+                return tmpPermissionsForDevice.contains(identifier);
+            }
+
+            return false;
         }
     }
 
@@ -192,19 +424,34 @@ class UsbUserPermissionManager {
      * Returns true if package with uid has permission to access the device.
      *
      * @param device to check permission for
+     * @param fingerprint to use for checking persistent permissions
      * @param pid to check permission for
      * @param uid to check permission for
      * @return {@code true} if package with uid has permission
      */
-    boolean hasPermission(@NonNull UsbDevice device, @NonNull String packageName, int pid,
-            int uid) {
+    @SuppressLint("AndroidFrameworkRequiresPermission")
+    boolean hasPermission(@NonNull UsbDevice device, UsbDeviceFingerprint fingerprint,
+            @NonNull String packageName, int pid, int uid) {
         if (device.getHasVideoCapture()) {
             boolean isCameraPrivacyEnabled = mSensorPrivacyMgrInternal.isSensorPrivacyEnabled(
                     UserHandle.getUserId(uid), Sensors.CAMERA);
+
+            boolean isCameraDisabled = false;
+            if (Flags.enableCameraPolicyCheck()) {
+                try {
+                    isCameraDisabled = mDevicePolicyManager.getCameraDisabled(null);
+                } catch (Exception e) {
+                    Slog.e(TAG, "Failed to check camera disabled policy", e);
+                }
+            }
+
             if (DEBUG) {
                 Slog.d(TAG, "isCameraPrivacyEnabled: " + isCameraPrivacyEnabled);
+                Slog.d(TAG, "isCameraDisabled: " + isCameraDisabled);
             }
-            if (isCameraPrivacyEnabled || !isCameraPermissionGranted(packageName, pid, uid)) {
+
+            if (isCameraPrivacyEnabled || isCameraDisabled
+                    || !isCameraPermissionGranted(packageName, pid, uid)) {
                 return false;
             }
         }
@@ -219,23 +466,40 @@ class UsbUserPermissionManager {
             }
             return false;
         }
+
+        if (android.hardware.usb.flags.Flags.enablePersistentUsbDevicePermissions()) {
+            return hasPermissionInternal(device, fingerprint, packageName, uid);
+        } else {
+            synchronized (mLock) {
+                if (uid == Process.SYSTEM_UID || mDisablePermissionDialogs) {
+                    return true;
+                }
+                SparseBooleanArray uidList = mDevicePermissionMap.get(device.getDeviceName());
+                if (uidList == null) {
+                    return false;
+                }
+                return uidList.get(uid);
+            }
+        }
+    }
+
+    @VisibleForTesting
+    boolean hasPermissionInternal(UsbAccessory accessory, String packageName, int pid, int uid) {
         synchronized (mLock) {
-            if (uid == Process.SYSTEM_UID || mDisablePermissionDialogs) {
+            if (uid == Process.SYSTEM_UID
+                    || mDisablePermissionDialogs
+                    || mContext.checkPermission(android.Manifest.permission.MANAGE_USB, pid, uid)
+                            == android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 return true;
             }
-            DeviceFilter filter = new DeviceFilter(device);
-            SparseBooleanArray permissionsForDevice = mDevicePersistentPermissionMap.get(filter);
-            if (permissionsForDevice != null) {
-                int idx = permissionsForDevice.indexOfKey(uid);
-                if (idx >= 0) {
-                    return permissionsForDevice.valueAt(idx);
-                }
-            }
-            SparseBooleanArray uidList = mDevicePermissionMap.get(device.getDeviceName());
-            if (uidList == null) {
+
+            PackageAndUid identifier = new PackageAndUid(packageName, uid);
+            ArraySet<PackageAndUid> permissions = mTemporaryAccessoryPermissionMap.get(accessory);
+            if (permissions == null) {
                 return false;
             }
-            return uidList.get(uid);
+
+            return permissions.contains(identifier);
         }
     }
 
@@ -243,160 +507,143 @@ class UsbUserPermissionManager {
      * Returns true if caller has permission to access the accessory.
      *
      * @param accessory to check permission for
+     * @param packageName to check permission for
      * @param uid to check permission for
      * @return {@code true} if caller has permssion
      */
-    boolean hasPermission(@NonNull UsbAccessory accessory, int pid, int uid) {
-        synchronized (mLock) {
-            if (uid == Process.SYSTEM_UID
-                    || mDisablePermissionDialogs
-                    || mContext.checkPermission(
-                        android.Manifest.permission.MANAGE_USB, pid, uid)
-                         == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                return true;
-            }
-            AccessoryFilter filter = new AccessoryFilter(accessory);
-            SparseBooleanArray permissionsForAccessory =
-                    mAccessoryPersistentPermissionMap.get(filter);
-            if (permissionsForAccessory != null) {
-                int idx = permissionsForAccessory.indexOfKey(uid);
-                if (idx >= 0) {
-                    return permissionsForAccessory.valueAt(idx);
+    boolean hasPermission(@NonNull UsbAccessory accessory, String packageName, int pid, int uid) {
+        if (android.hardware.usb.flags.Flags.enablePersistentUsbDevicePermissions()) {
+            return hasPermissionInternal(accessory, packageName, pid, uid);
+        } else {
+            synchronized (mLock) {
+                if (uid == Process.SYSTEM_UID
+                        || mDisablePermissionDialogs
+                        || mContext.checkPermission(
+                                android.Manifest.permission.MANAGE_USB, pid, uid)
+                        == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    return true;
                 }
-            }
-            SparseBooleanArray uidList = mAccessoryPermissionMap.get(accessory);
-            if (uidList == null) {
-                return false;
-            }
-            return uidList.get(uid);
-        }
-    }
-
-    void setDevicePersistentPermission(@NonNull UsbDevice device, int uid, boolean isGranted) {
-
-        boolean isChanged;
-        DeviceFilter filter = new DeviceFilter(device);
-        synchronized (mLock) {
-            SparseBooleanArray permissionsForDevice = mDevicePersistentPermissionMap.get(filter);
-            if (permissionsForDevice == null) {
-                permissionsForDevice = new SparseBooleanArray();
-                mDevicePersistentPermissionMap.put(filter, permissionsForDevice);
-            }
-            int idx = permissionsForDevice.indexOfKey(uid);
-            if (idx >= 0) {
-                isChanged = permissionsForDevice.valueAt(idx) != isGranted;
-                permissionsForDevice.setValueAt(idx, isGranted);
-            } else {
-                isChanged = true;
-                permissionsForDevice.put(uid, isGranted);
-            }
-
-            if (isChanged) {
-                scheduleWritePermissionsLocked();
+                SparseBooleanArray uidList = mAccessoryPermissionMap.get(accessory);
+                if (uidList == null) {
+                    return false;
+                }
+                return uidList.get(uid);
             }
         }
     }
 
-    void setAccessoryPersistentPermission(@NonNull UsbAccessory accessory, int uid,
-            boolean isGranted) {
-
-        boolean isChanged;
-        AccessoryFilter filter = new AccessoryFilter(accessory);
-        synchronized (mLock) {
-            SparseBooleanArray permissionsForAccessory =
-                    mAccessoryPersistentPermissionMap.get(filter);
-            if (permissionsForAccessory == null) {
-                permissionsForAccessory = new SparseBooleanArray();
-                mAccessoryPersistentPermissionMap.put(filter, permissionsForAccessory);
-            }
-            int idx = permissionsForAccessory.indexOfKey(uid);
-            if (idx >= 0) {
-                isChanged = permissionsForAccessory.valueAt(idx) != isGranted;
-                permissionsForAccessory.setValueAt(idx, isGranted);
-            } else {
-                isChanged = true;
-                permissionsForAccessory.put(uid, isGranted);
-            }
-
-            if (isChanged) {
-                scheduleWritePermissionsLocked();
-            }
-        }
-    }
-
-    private void readPermission(@NonNull XmlPullParser parser) throws XmlPullParserException,
-            IOException {
+    private void readPermission(
+            @NonNull TypedXmlPullParser parser,
+            ArrayMap<UsbDeviceFingerprint, ArraySet<PackageAndUid>> allPermissions)
+            throws XmlPullParserException, IOException {
+        String packageName;
         int uid;
-        boolean isGranted;
+        int outerDepth = parser.getDepth();
 
         try {
-            uid = XmlUtils.readIntAttribute(parser, "uid");
+            uid = parser.getAttributeInt(null, UID_ATTR);
         } catch (NumberFormatException e) {
             Slog.e(TAG, "error reading usb permission uid", e);
             XmlUtils.skipCurrentTag(parser);
             return;
         }
 
-        // only use "true"/"false" as valid values
-        String isGrantedString = parser.getAttributeValue(null, "granted");
-        if (isGrantedString == null || !(isGrantedString.equals(Boolean.TRUE.toString())
-                || isGrantedString.equals(Boolean.FALSE.toString()))) {
-            Slog.e(TAG, "error reading usb permission granted state");
+        packageName = parser.getAttributeValue(null, PACKAGE_NAME_ATTR);
+        if (packageName == null) {
+            Slog.e(TAG, "error reading usb permission package");
             XmlUtils.skipCurrentTag(parser);
             return;
         }
-        isGranted = isGrantedString.equals(Boolean.TRUE.toString());
-        XmlUtils.nextElement(parser);
-        if ("usb-device".equals(parser.getName())) {
-            DeviceFilter filter = DeviceFilter.read(parser);
-            int idx = mDevicePersistentPermissionMap.indexOfKey(filter);
+
+        PackageAndUid entry = new PackageAndUid(packageName, uid);
+        if (!isValidPackageUidPair(entry)) {
+            Slog.e(
+                    TAG,
+                    TextUtils.formatSimple(
+                            "Skipping invalid package + uid pair: %s:%d", packageName, uid));
+            XmlUtils.skipCurrentTag(parser);
+            return;
+        }
+
+        XmlUtils.nextElementWithin(parser, outerDepth);
+
+        UsbDeviceFingerprint fingerprint = null;
+        if (UsbDeviceFingerprint.XML_ROOT_NAME.equals(parser.getName())
+                && (fingerprint = UsbDeviceFingerprint.read(parser)) != null) {
+            int idx = allPermissions.indexOfKey(fingerprint);
             if (idx >= 0) {
-                SparseBooleanArray permissionsForDevice =
-                        mDevicePersistentPermissionMap.valueAt(idx);
-                permissionsForDevice.put(uid, isGranted);
+                ArraySet<PackageAndUid> permissionsForDevice = allPermissions.valueAt(idx);
+                permissionsForDevice.add(entry);
             } else {
-                SparseBooleanArray permissionsForDevice = new SparseBooleanArray();
-                mDevicePersistentPermissionMap.put(filter, permissionsForDevice);
-                permissionsForDevice.put(uid, isGranted);
+                ArraySet<PackageAndUid> permissionsForDevice = new ArraySet<>();
+                allPermissions.put(fingerprint, permissionsForDevice);
+                permissionsForDevice.add(entry);
             }
-        } else if ("usb-accessory".equals(parser.getName())) {
-            AccessoryFilter filter = AccessoryFilter.read(parser);
-            int idx = mAccessoryPersistentPermissionMap.indexOfKey(filter);
-            if (idx >= 0) {
-                SparseBooleanArray permissionsForAccessory =
-                        mAccessoryPersistentPermissionMap.valueAt(idx);
-                permissionsForAccessory.put(uid, isGranted);
+        }
+
+        while (parser.getDepth() > outerDepth) {
+            parser.nextTag(); // ignore unknown tags
+        }
+    }
+
+    @VisibleForTesting
+    void readPermissions(
+            @NonNull TypedXmlPullParser parser,
+            ArrayMap<UsbDeviceFingerprint, ArraySet<PackageAndUid>> allPermissions)
+            throws XmlPullParserException, IOException {
+        XmlUtils.nextElement(parser);
+
+        while (parser.getEventType() != XmlPullParser.END_DOCUMENT) {
+            if (parser.getEventType() != XmlPullParser.START_TAG) {
+                XmlUtils.nextElement(parser);
+                continue;
+            }
+
+            String tagName = parser.getName();
+            if (PERMISSION_TAG_NAME.equals(tagName)) {
+                readPermission(parser, allPermissions);
             } else {
-                SparseBooleanArray permissionsForAccessory = new SparseBooleanArray();
-                mAccessoryPersistentPermissionMap.put(filter, permissionsForAccessory);
-                permissionsForAccessory.put(uid, isGranted);
+                XmlUtils.nextElement(parser);
             }
         }
     }
 
     @GuardedBy("mLock")
     private void readPermissionsLocked() {
-        mDevicePersistentPermissionMap.clear();
-        mAccessoryPersistentPermissionMap.clear();
+        mPersistentDevicePermissionMap.clear();
 
         try (FileInputStream in = mPermissionsFile.openRead()) {
             TypedXmlPullParser parser = Xml.resolvePullParser(in);
-
-            XmlUtils.nextElement(parser);
-            while (parser.getEventType() != XmlPullParser.END_DOCUMENT) {
-                String tagName = parser.getName();
-                if ("permission".equals(tagName)) {
-                    readPermission(parser);
-                } else {
-                    XmlUtils.nextElement(parser);
-                }
-            }
+            readPermissions(parser, mPersistentDevicePermissionMap);
         } catch (FileNotFoundException e) {
             if (DEBUG) Slog.d(TAG, "usb permissions file not found");
         } catch (Exception e) {
             Slog.e(TAG, "error reading usb permissions file, deleting to start fresh", e);
             mPermissionsFile.delete();
         }
+    }
+
+    void writeToSerializer(TypedXmlSerializer serializer, UsbDeviceFingerprint[] devices,
+            PackageAndUid[][] packageAndUidsForDevices) throws IOException {
+        int numDevices = devices.length;
+
+        serializer.startDocument(null, true);
+        serializer.startTag(null, XML_ROOT_NAME);
+
+        for (int i = 0; i < numDevices; i++) {
+            int numPermissions = packageAndUidsForDevices[i].length;
+            for (int j = 0; j < numPermissions; j++) {
+                serializer.startTag(null, PERMISSION_TAG_NAME);
+                PackageAndUid entry = packageAndUidsForDevices[i][j];
+                serializer.attributeInt(null, UID_ATTR, entry.uid);
+                serializer.attribute(null, PACKAGE_NAME_ATTR, entry.packageName);
+                devices[i].write(serializer);
+                serializer.endTag(null, PERMISSION_TAG_NAME);
+            }
+        }
+
+        serializer.endTag(null, XML_ROOT_NAME);
+        serializer.endDocument();
     }
 
     @GuardedBy("mLock")
@@ -406,106 +653,54 @@ class UsbUserPermissionManager {
         }
         mIsCopyPermissionsScheduled = true;
 
-        AsyncTask.execute(() -> {
-            int numDevices;
-            DeviceFilter[] devices;
-            int[][] uidsForDevices;
-            boolean[][] grantedValuesForDevices;
+        AsyncTask.execute(
+                () -> {
+                    int numDevices;
+                    UsbDeviceFingerprint[] devices;
+                    PackageAndUid[][] packageAndUidsForDevices;
 
-            int numAccessories;
-            AccessoryFilter[] accessories;
-            int[][] uidsForAccessories;
-            boolean[][] grantedValuesForAccessories;
+                    synchronized (mLock) {
+                        // Copy the permission state so we can write outside of lock
+                        numDevices = mPersistentDevicePermissionMap.size();
+                        devices = new UsbDeviceFingerprint[numDevices];
+                        packageAndUidsForDevices = new PackageAndUid[numDevices][];
 
-            synchronized (mLock) {
-                // Copy the permission state so we can write outside of lock
-                numDevices = mDevicePersistentPermissionMap.size();
-                devices = new DeviceFilter[numDevices];
-                uidsForDevices = new int[numDevices][];
-                grantedValuesForDevices = new boolean[numDevices][];
-                for (int deviceIdx = 0; deviceIdx < numDevices; deviceIdx++) {
-                    devices[deviceIdx] =
-                            new DeviceFilter(mDevicePersistentPermissionMap.keyAt(deviceIdx));
-                    SparseBooleanArray permissions =
-                            mDevicePersistentPermissionMap.valueAt(deviceIdx);
-                    int numPermissions = permissions.size();
-                    uidsForDevices[deviceIdx] = new int[numPermissions];
-                    grantedValuesForDevices[deviceIdx] = new boolean[numPermissions];
-                    for (int permissionIdx = 0; permissionIdx < numPermissions; permissionIdx++) {
-                        uidsForDevices[deviceIdx][permissionIdx] = permissions.keyAt(permissionIdx);
-                        grantedValuesForDevices[deviceIdx][permissionIdx] =
-                                permissions.valueAt(permissionIdx);
+                        for (int deviceIdx = 0; deviceIdx < numDevices; deviceIdx++) {
+                            devices[deviceIdx] =
+                                    new UsbDeviceFingerprint(
+                                            mPersistentDevicePermissionMap.keyAt(deviceIdx));
+                            ArraySet<PackageAndUid> permissions =
+                                    mPersistentDevicePermissionMap.valueAt(deviceIdx);
+
+                            int numPermissions = permissions.size();
+                            int permissionIdx = 0;
+                            packageAndUidsForDevices[deviceIdx] = new PackageAndUid[numPermissions];
+
+                            for (PackageAndUid item : permissions) {
+                                packageAndUidsForDevices[deviceIdx][permissionIdx] =
+                                        new PackageAndUid(item.packageName, item.uid);
+                                permissionIdx++;
+                            }
+                        }
+
+                        mIsCopyPermissionsScheduled = false;
                     }
-                }
 
-                numAccessories = mAccessoryPersistentPermissionMap.size();
-                accessories = new AccessoryFilter[numAccessories];
-                uidsForAccessories = new int[numAccessories][];
-                grantedValuesForAccessories = new boolean[numAccessories][];
-                for (int accessoryIdx = 0; accessoryIdx < numAccessories; accessoryIdx++) {
-                    accessories[accessoryIdx] = new AccessoryFilter(
-                                    mAccessoryPersistentPermissionMap.keyAt(accessoryIdx));
-                    SparseBooleanArray permissions =
-                            mAccessoryPersistentPermissionMap.valueAt(accessoryIdx);
-                    int numPermissions = permissions.size();
-                    uidsForAccessories[accessoryIdx] = new int[numPermissions];
-                    grantedValuesForAccessories[accessoryIdx] = new boolean[numPermissions];
-                    for (int permissionIdx = 0; permissionIdx < numPermissions; permissionIdx++) {
-                        uidsForAccessories[accessoryIdx][permissionIdx] =
-                                permissions.keyAt(permissionIdx);
-                        grantedValuesForAccessories[accessoryIdx][permissionIdx] =
-                                permissions.valueAt(permissionIdx);
-                    }
-                }
-                mIsCopyPermissionsScheduled = false;
-            }
-
-            synchronized (mPermissionsFile) {
-                FileOutputStream out = null;
-                try {
-                    out = mPermissionsFile.startWrite();
-                    TypedXmlSerializer serializer = Xml.resolveSerializer(out);
-                    serializer.startDocument(null, true);
-                    serializer.startTag(null, "permissions");
-
-                    for (int i = 0; i < numDevices; i++) {
-                        int numPermissions = uidsForDevices[i].length;
-                        for (int j = 0; j < numPermissions; j++) {
-                            serializer.startTag(null, "permission");
-                            serializer.attribute(null, "uid",
-                                    Integer.toString(uidsForDevices[i][j]));
-                            serializer.attribute(null, "granted",
-                                    Boolean.toString(grantedValuesForDevices[i][j]));
-                            devices[i].write(serializer);
-                            serializer.endTag(null, "permission");
+                    synchronized (mPermissionsFile) {
+                        FileOutputStream out = null;
+                        try {
+                            out = mPermissionsFile.startWrite();
+                            TypedXmlSerializer serializer = Xml.resolveSerializer(out);
+                            writeToSerializer(serializer, devices, packageAndUidsForDevices);
+                            mPermissionsFile.finishWrite(out);
+                        } catch (IOException e) {
+                            Slog.e(TAG, "Failed to write permissions", e);
+                            if (out != null) {
+                                mPermissionsFile.failWrite(out);
+                            }
                         }
                     }
-
-                    for (int i = 0; i < numAccessories; i++) {
-                        int numPermissions = uidsForAccessories[i].length;
-                        for (int j = 0; j < numPermissions; j++) {
-                            serializer.startTag(null, "permission");
-                            serializer.attribute(null, "uid",
-                                    Integer.toString(uidsForAccessories[i][j]));
-                            serializer.attribute(null, "granted",
-                                    Boolean.toString(grantedValuesForDevices[i][j]));
-                            accessories[i].write(serializer);
-                            serializer.endTag(null, "permission");
-                        }
-                    }
-
-                    serializer.endTag(null, "permissions");
-                    serializer.endDocument();
-
-                    mPermissionsFile.finishWrite(out);
-                } catch (IOException e) {
-                    Slog.e(TAG, "Failed to write permissions", e);
-                    if (out != null) {
-                        mPermissionsFile.failWrite(out);
-                    }
-                }
-            }
-        });
+                });
     }
 
     /**
@@ -592,48 +787,6 @@ class UsbUserPermissionManager {
 
                 dump.end(accessoryPermissionToken);
             }
-
-            numMappings = mDevicePersistentPermissionMap.size();
-            for (int mappingsIdx = 0; mappingsIdx < numMappings; mappingsIdx++) {
-                DeviceFilter filter = mDevicePersistentPermissionMap.keyAt(mappingsIdx);
-                long devicePermissionToken = dump.start("device_persistent_permissions",
-                        UsbUserPermissionsManagerProto.DEVICE_PERSISTENT_PERMISSIONS);
-                filter.dump(dump, "device",
-                        UsbDevicePersistentPermissionProto.DEVICE_FILTER);
-                SparseBooleanArray permissions =
-                        mDevicePersistentPermissionMap.valueAt(mappingsIdx);
-                int numPermissions = permissions.size();
-                for (int permissionsIdx = 0; permissionsIdx < numPermissions; permissionsIdx++) {
-                    long uidPermissionToken = dump.start("uid_permission",
-                            UsbDevicePersistentPermissionProto.PERMISSION_VALUES);
-                    dump.write("uid", UsbUidPermissionProto.UID, permissions.keyAt(permissionsIdx));
-                    dump.write("is_granted",
-                            UsbUidPermissionProto.IS_GRANTED, permissions.valueAt(permissionsIdx));
-                    dump.end(uidPermissionToken);
-                }
-                dump.end(devicePermissionToken);
-            }
-
-            numMappings = mAccessoryPersistentPermissionMap.size();
-            for (int mappingsIdx = 0; mappingsIdx < numMappings; mappingsIdx++) {
-                AccessoryFilter filter = mAccessoryPersistentPermissionMap.keyAt(mappingsIdx);
-                long accessoryPermissionToken = dump.start("accessory_persistent_permissions",
-                        UsbUserPermissionsManagerProto.ACCESSORY_PERSISTENT_PERMISSIONS);
-                filter.dump(dump, "accessory",
-                        UsbAccessoryPersistentPermissionProto.ACCESSORY_FILTER);
-                SparseBooleanArray permissions =
-                        mAccessoryPersistentPermissionMap.valueAt(mappingsIdx);
-                int numPermissions = permissions.size();
-                for (int permissionsIdx = 0; permissionsIdx < numPermissions; permissionsIdx++) {
-                    long uidPermissionToken = dump.start("uid_permission",
-                            UsbAccessoryPersistentPermissionProto.PERMISSION_VALUES);
-                    dump.write("uid", UsbUidPermissionProto.UID, permissions.keyAt(permissionsIdx));
-                    dump.write("is_granted",
-                            UsbUidPermissionProto.IS_GRANTED, permissions.valueAt(permissionsIdx));
-                    dump.end(uidPermissionToken);
-                }
-                dump.end(accessoryPermissionToken);
-            }
         }
         dump.end(token);
     }
@@ -672,15 +825,17 @@ class UsbUserPermissionManager {
         return true;
     }
 
-    public void checkPermission(UsbDevice device, String packageName, int pid, int uid) {
-        if (!hasPermission(device, packageName, pid, uid)) {
+    public void checkPermission(
+            UsbDevice device, UsbDeviceFingerprint fingerprint,
+            String packageName, int pid, int uid) {
+        if (!hasPermission(device, fingerprint, packageName, pid, uid)) {
             throw new SecurityException("User has not given " + uid + "/" + packageName
                     + " permission to access device " + device.getDeviceName());
         }
     }
 
-    public void checkPermission(UsbAccessory accessory, int pid, int uid) {
-        if (!hasPermission(accessory, pid, uid)) {
+    public void checkPermission(UsbAccessory accessory, String packageName, int pid, int uid) {
+        if (!hasPermission(accessory, packageName, pid, uid)) {
             throw new SecurityException("User has not given " + uid + " permission to accessory "
                     + accessory);
         }
@@ -713,12 +868,12 @@ class UsbUserPermissionManager {
         requestPermissionDialog(device, accessory, canBeDefault, packageName, uid, mContext, pi);
     }
 
-    public void requestPermission(UsbDevice device, String packageName, PendingIntent pi, int pid,
-            int uid) {
+    public void requestPermission(UsbDevice device, UsbDeviceFingerprint fingerprint,
+            String packageName, PendingIntent pi, int pid, int uid) {
         Intent intent = new Intent();
 
         // respond immediately if permission has already been granted
-        if (hasPermission(device, packageName, pid, uid)) {
+        if (hasPermission(device, fingerprint, packageName, pid, uid)) {
             intent.putExtra(UsbManager.EXTRA_DEVICE, device);
             intent.putExtra(UsbManager.EXTRA_PERMISSION_GRANTED, true);
             try {
@@ -751,7 +906,7 @@ class UsbUserPermissionManager {
     public void requestPermission(UsbAccessory accessory, String packageName, PendingIntent pi,
             int pid, int uid) {
         // respond immediately if permission has already been granted
-        if (hasPermission(accessory, pid, uid)) {
+        if (hasPermission(accessory, packageName, pid, uid)) {
             Intent intent = new Intent();
             intent.putExtra(UsbManager.EXTRA_ACCESSORY, accessory);
             intent.putExtra(UsbManager.EXTRA_PERMISSION_GRANTED, true);
@@ -765,5 +920,82 @@ class UsbUserPermissionManager {
 
         requestPermissionDialog(null, accessory,
                 mUsbUserSettingsManager.canBeDefault(accessory, packageName), packageName, pi, uid);
+    }
+
+    /** Revoke device access permission for packageName + uid. */
+    public void revokeDevicePermission(
+            @NonNull UsbDevice device,
+            UsbDeviceFingerprint fingerprint,
+            String packageName,
+            int uid) {
+        if (!android.hardware.usb.flags.Flags.enablePersistentUsbDevicePermissions()) {
+            return;
+        }
+
+        PackageAndUid identifier = new PackageAndUid(packageName, uid);
+        String deviceAddr = device.getDeviceName();
+        boolean removed = false;
+
+        if (!isValidPackageUidPair(identifier)) {
+            throw new IllegalArgumentException(
+                    "Provided packageName and uid pair are not valid");
+        }
+
+
+        synchronized (mLock) {
+            if (fingerprint != null) {
+                ArraySet<PackageAndUid> permissionsForDevice =
+                        mPersistentDevicePermissionMap.get(fingerprint);
+                if (permissionsForDevice != null) {
+                    if (permissionsForDevice.remove(identifier)) {
+                        scheduleWritePermissionsLocked();
+                        removed = true;
+                    }
+                }
+            }
+
+            ArraySet<PackageAndUid> temporaryPermissions =
+                    mTemporaryDevicePermissionMap.get(deviceAddr);
+            if (temporaryPermissions != null) {
+                removed |= temporaryPermissions.remove(identifier);
+            }
+        }
+
+        if (removed) {
+            permissionChangedBroadcastIntent(device, null);
+        }
+    }
+
+    /**
+     * Get a list of packages that have both temporary and persistent permissions for given device.
+     *
+     * @param device - USB device to check
+     * @return list of packages that have permissions to this UsbDevice.
+     */
+    public List<String> getPackagesWithDevicePermission(
+            UsbDevice device, UsbDeviceFingerprint fingerprint) {
+        ArraySet<String> packages = new ArraySet<>();
+
+        if (android.hardware.usb.flags.Flags.enablePersistentUsbDevicePermissions()) {
+            synchronized (mLock) {
+                String deviceAddr = device.getDeviceName();
+                if (fingerprint != null
+                        && mPersistentDevicePermissionMap.get(fingerprint) != null) {
+                    for (PackageAndUid entry : mPersistentDevicePermissionMap.get(fingerprint)) {
+                        packages.add(entry.packageName);
+                    }
+                }
+
+                ArraySet<PackageAndUid> tmpPermissions =
+                        mTemporaryDevicePermissionMap.get(deviceAddr);
+                if (tmpPermissions != null) {
+                    for (PackageAndUid entry : tmpPermissions) {
+                        packages.add(entry.packageName);
+                    }
+                }
+            }
+        }
+
+        return new ArrayList<String>(packages);
     }
 }

@@ -43,7 +43,8 @@ enum class FilterPolicy(val policyStringOrPrefix: String) {
      * will be treated as [Keep] -- but its members will default to [Experimental] instead of
      * [Keep].
      *
-     * This policy _is_ considered to be supported. (See [isSupported] for why.)
+     * This policy _is_ considered to be supported, but the members will not.
+     * (See [isSupported] for the details.)
      *
      * The text policy parser has a special case for this policy. If a package or a class
      * has an "experimental" policy, the parser will automatically convert it to
@@ -51,6 +52,36 @@ enum class FilterPolicy(val policyStringOrPrefix: String) {
      * file.
      */
     ExperimentalClass("experimentalclass"),
+
+    /**
+     * Only usable with classes. This is similar to [KeepClass] -- specifically, the class
+     * will be treated as [Keep] -- but its members will default to [Ignore] instead of
+     * [Keep].
+     *
+     * This policy _is_ considered to be supported, but the members will not.
+     * (See [isSupported] for the details.)
+     *
+     * The text policy parser has a special case for this policy. If a package or a class
+     * has an "ignore" policy, the parser will automatically convert it to
+     * [IgnoreClass]. So the label "ignoreclass" will not be used in the text policy
+     * file.
+     */
+    IgnoreClass("ignoreclass"),
+
+    /**
+     * Only usable with classes. This is similar to [KeepClass] -- specifically, the class
+     * will be treated as [Keep] -- but its members will default to [Experimental] instead of
+     * [Keep].
+     *
+     * This policy _is_ considered to be supported, but the members will not.
+     * (See [isSupported] for the details.)
+     *
+     * The text policy parser has a special case for this policy. If a package or a class
+     * has an "throw" policy, the parser will automatically convert it to
+     * [ThrowClass]. So the label "throwclass" will not be used in the text policy
+     * file.
+     */
+    ThrowClass("throwclass"),
 
     /**
      * Only usable with methods. Replace a method with a "substitution" method.
@@ -112,7 +143,8 @@ enum class FilterPolicy(val policyStringOrPrefix: String) {
     val isUsableWithClasses: Boolean
         get() {
             return when (this) {
-                Keep, KeepClass, ExperimentalClass, Remove, AnnotationAllowed -> true
+                Keep, KeepClass, ExperimentalClass, IgnoreClass, ThrowClass,
+                Remove, AnnotationAllowed -> true
                 // Note, classes can't have Experimental. Use ExperimentalClass instead.
                 else -> false
             }
@@ -159,7 +191,9 @@ enum class FilterPolicy(val policyStringOrPrefix: String) {
                 //
                 // When we "distribute" this policy to members, they will get [Experimental],
                 // not [ExperimentClass], so such members will be considered "not supported".
-                ExperimentalClass -> true
+                //
+                // Same for [IgnoreClass] and [ThrowClass].
+                ExperimentalClass, IgnoreClass, ThrowClass -> true
                 else -> false
             }
         }
@@ -184,7 +218,7 @@ enum class FilterPolicy(val policyStringOrPrefix: String) {
     val isClassWide: Boolean
         get() {
             return when (this) {
-                Remove, KeepClass, ExperimentalClass -> true
+                Remove, KeepClass, ExperimentalClass, IgnoreClass, ThrowClass -> true
                 else -> false
             }
         }
@@ -217,6 +251,8 @@ enum class FilterPolicy(val policyStringOrPrefix: String) {
         return when (this) {
             KeepClass -> Keep
             ExperimentalClass -> Experimental
+            IgnoreClass -> Ignore
+            ThrowClass -> Throw
             else -> this
         }
     }

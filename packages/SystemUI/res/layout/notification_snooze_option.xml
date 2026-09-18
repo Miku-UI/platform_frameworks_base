@@ -19,8 +19,8 @@
         xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
         android:layout_width="match_parent"
         android:layout_height="@*android:dimen/notification_headerless_min_height"
-        android:layout_marginStart="@*android:dimen/notification_content_margin_end"
-        android:layout_marginEnd="@*android:dimen/notification_content_margin_end"
+        android:layout_marginStart="@*android:dimen/notification_2025_margin"
+        android:layout_marginEnd="@*android:dimen/notification_2025_margin"
         android:gravity="center_vertical"
         android:textSize="14sp"
-        android:textColor="@androidprv:color/materialColorOnSurfaceVariant"/>
+        android:textColor="@color/materialColorOnSurfaceVariant"/>

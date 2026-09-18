@@ -19,44 +19,61 @@ package {
 }
 
 rust_bindgen {
-    name: "libdlext_bindgen",
-    crate_name: "dlext_bindgen",
-    wrapper_src: "src/bindings/dlext.h",
-    source_stem: "dlext_bindings",
-    shared_libs: [
-        "libdl_android",
-    ],
-}
-
-rust_bindgen {
-    name: "liblooper_bindgen",
-    crate_name: "looper_bindgen",
-    wrapper_src: "src/bindings/looper.h",
-    source_stem: "looper_bindings",
+    name: "libnative_activity_thread_bindgen",
+    crate_name: "native_activity_thread_bindgen",
+    wrapper_src: "src/bindings.h",
+    source_stem: "native_activity_thread_bindings",
     header_libs: [
+        "libandroid_headers_private",
+        "libcutils_headers",
         "native_headers",
     ],
     shared_libs: [
         "libandroid",
+        "libbinder_ndk",
+        "libcutils",
+        "libdl_android",
     ],
 }
 
-rust_bindgen {
-    name: "libnative_service_bindgen",
-    crate_name: "native_service_bindgen",
-    wrapper_src: "src/bindings/native_service.h",
-    source_stem: "native_service_bindings",
+cc_library_shared {
+    name: "libminikin_system_font_bridge",
+    srcs: [
+        "src/ffi/SystemFontsBridge.cpp",
+    ],
     header_libs: [
-        "libandroid_headers_private",
+        "libminikin_headers",
+        "libhwui_internal_headers",
+        "libminikin_system_font_bridge_headers",
     ],
     shared_libs: [
-        "libandroid",
-        "libbinder_ndk",
+        "libharfbuzz_ng",
+        "libhwui",
+        "libminikin",
+    ],
+    generated_headers: [
+        "cxx-bridge-header",
+    ],
+    generated_sources: [
+        "libminikin_system_font_bridge_code",
     ],
 }
 
-rust_library {
-    name: "libnative_activity_thread",
+genrule {
+    name: "libminikin_system_font_bridge_code",
+    tools: ["cxxbridge"],
+    cmd: "$(location cxxbridge) $(in) > $(out)",
+    srcs: ["src/font.rs"],
+    out: ["libminikin_system_font_bridge_cxx_generated.cc"],
+}
+
+cc_library_headers {
+    name: "libminikin_system_font_bridge_headers",
+    export_include_dirs: ["src/ffi/include"],
+}
+
+rust_defaults {
+    name: "libnative_activity_thread_defaults",
     crate_name: "native_activity_thread",
     edition: "2021",
     srcs: [
@@ -66,14 +83,41 @@ rust_library {
         "activitymanager_structured_aidl-rust",
         "libanyhow",
         "libatrace_rust",
+        "libbitflags",
         "libbinder_rs",
-        "libdlext_bindgen",
+        "libcxx",
         "liblogger",
         "liblibc",
+        "libnix",
         "liblog_rust",
-        "liblooper_bindgen",
-        "libnative_service_bindgen",
+        "librustutils",
         "native_application_thread_aidl-rust",
         "libactivity_manager_procstate_aidl-rust",
     ],
+    rlibs: [
+        "libnative_activity_thread_bindgen",
+    ],
+    features: select(release_flag("RELEASE_BUILD_EXECUTE_ONLY_MEMORY"), {
+        true: [
+            "build_execute_only_memory",
+        ],
+        default: [],
+    }),
+    shared_libs: [
+        "libminikin_system_font_bridge",
+        "libminikin",
+        "libharfbuzz_ng",
+    ],
+}
+
+rust_library {
+    name: "libnative_activity_thread",
+    defaults: ["libnative_activity_thread_defaults"],
+}
+
+rust_test {
+    name: "libnative_activity_thread_tests",
+    defaults: ["libnative_activity_thread_defaults"],
+    test_suites: ["general-tests"],
+    team: "trendy_team_system_performance",
 }

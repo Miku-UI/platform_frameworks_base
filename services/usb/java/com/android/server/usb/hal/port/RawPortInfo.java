@@ -15,11 +15,17 @@
  */
 package com.android.server.usb.hal.port;
 
+import android.hardware.usb.DisplayPortAltModeInfo;
+import android.hardware.usb.PowerProfileInfo;
+import android.hardware.usb.PowerProfileMatchInfo;
 import android.hardware.usb.UsbPort;
 import android.hardware.usb.UsbPortStatus;
-import android.hardware.usb.DisplayPortAltModeInfo;
 import android.os.Parcel;
 import android.os.Parcelable;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Used for storing the raw data from the HAL.
@@ -47,86 +53,104 @@ public final class RawPortInfo implements Parcelable {
     public int plugState;
     public int supportedAltModes;
     public DisplayPortAltModeInfo displayPortAltModeInfo;
+    public boolean supportsPartnerBc12Type;
+    public int partnerBc12Type;
+    public boolean supportsPowerProfiles;
+    public ArrayList<PowerProfileInfo> portSinkPowerProfiles;
+    public ArrayList<PowerProfileInfo> portSourcePowerProfiles;
+    public ArrayList<PowerProfileInfo> partnerSinkPowerProfiles;
+    public ArrayList<PowerProfileInfo> partnerSourcePowerProfiles;
+    public ArrayList<PowerProfileMatchInfo> portSinkPowerProfileMatches;
+    public ArrayList<PowerProfileMatchInfo> portSourcePowerProfileMatches;
 
-    public RawPortInfo(String portId, int supportedModes) {
-        this.portId = portId;
-        this.supportedModes = supportedModes;
-        this.supportedContaminantProtectionModes = UsbPortStatus.CONTAMINANT_PROTECTION_NONE;
-        this.supportsEnableContaminantPresenceProtection = false;
-        this.contaminantProtectionStatus = UsbPortStatus.CONTAMINANT_PROTECTION_NONE;
-        this.supportsEnableContaminantPresenceDetection = false;
-        this.contaminantDetectionStatus = UsbPortStatus.CONTAMINANT_DETECTION_NOT_SUPPORTED;
-        this.usbDataStatus = UsbPortStatus.DATA_STATUS_UNKNOWN;
-        this.powerTransferLimited = false;
-        this.powerBrickConnectionStatus = UsbPortStatus.POWER_BRICK_STATUS_UNKNOWN;
-        this.supportsComplianceWarnings = false;
-        this.complianceWarnings = new int[] {};
-        this.plugState = UsbPortStatus.PLUG_STATE_UNKNOWN;
-        this.supportedAltModes = 0;
-        this.displayPortAltModeInfo = null;
-    }
-
-    public RawPortInfo(String portId, int supportedModes, int supportedContaminantProtectionModes,
-            int currentMode, boolean canChangeMode,
-            int currentPowerRole, boolean canChangePowerRole,
-            int currentDataRole, boolean canChangeDataRole,
-            boolean supportsEnableContaminantPresenceProtection,
-            int contaminantProtectionStatus,
-            boolean supportsEnableContaminantPresenceDetection,
-            int contaminantDetectionStatus,
-            int usbDataStatus,
-            boolean powerTransferLimited,
-            int powerBrickConnectionStatus) {
-        this(portId, supportedModes, supportedContaminantProtectionModes,
-                    currentMode, canChangeMode,
-                    currentPowerRole, canChangePowerRole,
-                    currentDataRole, canChangeDataRole,
-                    supportsEnableContaminantPresenceProtection, contaminantProtectionStatus,
-                    supportsEnableContaminantPresenceDetection, contaminantDetectionStatus,
-                    usbDataStatus, powerTransferLimited, powerBrickConnectionStatus,
-                    false, new int[] {}, UsbPortStatus.PLUG_STATE_UNKNOWN,
-                    0, null);
-    }
-
-    public RawPortInfo(String portId, int supportedModes, int supportedContaminantProtectionModes,
-            int currentMode, boolean canChangeMode,
-            int currentPowerRole, boolean canChangePowerRole,
-            int currentDataRole, boolean canChangeDataRole,
-            boolean supportsEnableContaminantPresenceProtection,
-            int contaminantProtectionStatus,
-            boolean supportsEnableContaminantPresenceDetection,
-            int contaminantDetectionStatus,
-            int usbDataStatus,
-            boolean powerTransferLimited,
-            int powerBrickConnectionStatus,
-            boolean supportsComplianceWarnings,
-            int[] complianceWarnings,
-            int plugState,
-            int supportedAltModes,
-            DisplayPortAltModeInfo displayPortAltModeInfo) {
-        this.portId = portId;
-        this.supportedModes = supportedModes;
-        this.supportedContaminantProtectionModes = supportedContaminantProtectionModes;
-        this.currentMode = currentMode;
-        this.canChangeMode = canChangeMode;
-        this.currentPowerRole = currentPowerRole;
-        this.canChangePowerRole = canChangePowerRole;
-        this.currentDataRole = currentDataRole;
-        this.canChangeDataRole = canChangeDataRole;
+    private RawPortInfo(Builder builder) {
+        this.portId = builder.mPortId;
+        this.supportedModes = builder.mSupportedModes;
+        this.supportedContaminantProtectionModes = builder.mSupportedContaminantProtectionModes;
+        this.currentMode = builder.mCurrentMode;
+        this.canChangeMode = builder.mCanChangeMode;
+        this.currentPowerRole = builder.mCurrentPowerRole;
+        this.canChangePowerRole = builder.mCanChangePowerRole;
+        this.currentDataRole = builder.mCurrentDataRole;
+        this.canChangeDataRole = builder.mCanChangeDataRole;
         this.supportsEnableContaminantPresenceProtection =
-                supportsEnableContaminantPresenceProtection;
-        this.contaminantProtectionStatus = contaminantProtectionStatus;
+                builder.mSupportsEnableContaminantPresenceProtection;
+        this.contaminantProtectionStatus = builder.mContaminantProtectionStatus;
         this.supportsEnableContaminantPresenceDetection =
-                supportsEnableContaminantPresenceDetection;
-        this.contaminantDetectionStatus = contaminantDetectionStatus;
-        this.usbDataStatus = usbDataStatus;
-        this.powerTransferLimited = powerTransferLimited;
-        this.powerBrickConnectionStatus = powerBrickConnectionStatus;
-        this.supportsComplianceWarnings = supportsComplianceWarnings;
-        this.complianceWarnings = complianceWarnings;
-        this.plugState = plugState;
-        this.supportedAltModes = supportedAltModes;
-        this.displayPortAltModeInfo = displayPortAltModeInfo;
+                builder.mSupportsEnableContaminantPresenceDetection;
+        this.contaminantDetectionStatus = builder.mContaminantDetectionStatus;
+        this.usbDataStatus = builder.mUsbDataStatus;
+        this.powerTransferLimited = builder.mPowerTransferLimited;
+        this.powerBrickConnectionStatus = builder.mPowerBrickConnectionStatus;
+        this.supportsComplianceWarnings = builder.mSupportsComplianceWarnings;
+        this.complianceWarnings = builder.mComplianceWarnings;
+        this.plugState = builder.mPlugState;
+        this.supportedAltModes = builder.mSupportedAltModes;
+        this.displayPortAltModeInfo = builder.mDisplayPortAltModeInfo;
+        this.supportsPartnerBc12Type = builder.mSupportsPartnerBc12Type;
+        this.partnerBc12Type = builder.mPartnerBc12Type;
+        this.supportsPowerProfiles = builder.mSupportsPowerProfiles;
+        this.portSinkPowerProfiles = builder.mPortSinkPowerProfiles;
+        this.portSourcePowerProfiles = builder.mPortSourcePowerProfiles;
+        this.partnerSinkPowerProfiles = builder.mPartnerSinkPowerProfiles;
+        this.partnerSourcePowerProfiles = builder.mPartnerSourcePowerProfiles;
+        this.portSinkPowerProfileMatches = builder.mPortSinkPowerProfileMatches;
+        this.portSourcePowerProfileMatches = builder.mPortSourcePowerProfileMatches;
+    }
+
+    private RawPortInfo(Parcel in) {
+        this.portId = in.readString();
+        this.supportedModes = in.readInt();
+        this.supportedContaminantProtectionModes = in.readInt();
+        this.currentMode = in.readInt();
+        this.canChangeMode = in.readByte() != 0;
+        this.currentPowerRole = in.readInt();
+        this.canChangePowerRole = in.readByte() != 0;
+        this.currentDataRole = in.readInt();
+        this.canChangeDataRole = in.readByte() != 0;
+        this.supportsEnableContaminantPresenceProtection = in.readByte() != 0;
+        this.contaminantProtectionStatus = in.readInt();
+        this.supportsEnableContaminantPresenceDetection = in.readByte() != 0;
+        this.contaminantDetectionStatus = in.readInt();
+        this.usbDataStatus = in.readInt();
+        this.powerTransferLimited = in.readByte() != 0;
+        this.powerBrickConnectionStatus = in.readInt();
+        this.supportsComplianceWarnings = in.readByte() != 0;
+        this.complianceWarnings = in.createIntArray();
+        this.plugState = in.readInt();
+        this.supportedAltModes = in.readInt();
+        if ((this.supportedAltModes & UsbPort.FLAG_ALT_MODE_TYPE_DISPLAYPORT) != 0) {
+            this.displayPortAltModeInfo = DisplayPortAltModeInfo.CREATOR.createFromParcel(in);
+        } else {
+            this.displayPortAltModeInfo = null;
+        }
+        this.supportsPartnerBc12Type = in.readByte() != 0;
+        this.partnerBc12Type = in.readInt();
+        this.supportsPowerProfiles = in.readByte() != 0;
+        ArrayList<PowerProfileInfo> portSinkPowerProfiles = new ArrayList<>();
+        ArrayList<PowerProfileInfo> portSourcePowerProfiles = new ArrayList<>();
+        ArrayList<PowerProfileInfo> partnerSinkPowerProfiles = new ArrayList<>();
+        ArrayList<PowerProfileInfo> partnerSourcePowerProfiles = new ArrayList<>();
+        in.readParcelableList(portSinkPowerProfiles, ClassLoader.getSystemClassLoader(),
+                PowerProfileInfo.class);
+        in.readParcelableList(portSourcePowerProfiles, ClassLoader.getSystemClassLoader(),
+                PowerProfileInfo.class);
+        in.readParcelableList(partnerSinkPowerProfiles, ClassLoader.getSystemClassLoader(),
+                PowerProfileInfo.class);
+        in.readParcelableList(partnerSourcePowerProfiles, ClassLoader.getSystemClassLoader(),
+                PowerProfileInfo.class);
+        this.portSinkPowerProfiles = portSinkPowerProfiles;
+        this.portSourcePowerProfiles = portSourcePowerProfiles;
+        this.partnerSinkPowerProfiles = partnerSinkPowerProfiles;
+        this.partnerSourcePowerProfiles = partnerSourcePowerProfiles;
+        ArrayList<PowerProfileMatchInfo> portSinkPowerProfileMatches = new ArrayList<>();
+        ArrayList<PowerProfileMatchInfo> portSourcePowerProfileMatches = new ArrayList<>();
+        in.readParcelableList(portSinkPowerProfileMatches, ClassLoader.getSystemClassLoader(),
+                PowerProfileMatchInfo.class);
+        in.readParcelableList(portSourcePowerProfileMatches,
+                ClassLoader.getSystemClassLoader(), PowerProfileMatchInfo.class);
+        this.portSinkPowerProfileMatches = portSinkPowerProfileMatches;
+        this.portSourcePowerProfileMatches = portSourcePowerProfileMatches;
     }
 
     @Override
@@ -159,50 +183,22 @@ public final class RawPortInfo implements Parcelable {
         if ((supportedAltModes & UsbPort.FLAG_ALT_MODE_TYPE_DISPLAYPORT) != 0) {
             displayPortAltModeInfo.writeToParcel(dest, 0);
         }
+        dest.writeBoolean(supportsPartnerBc12Type);
+        dest.writeInt(partnerBc12Type);
+        dest.writeBoolean(supportsPowerProfiles);
+        dest.writeParcelableList(portSinkPowerProfiles, 0);
+        dest.writeParcelableList(portSourcePowerProfiles, 0);
+        dest.writeParcelableList(partnerSinkPowerProfiles, 0);
+        dest.writeParcelableList(partnerSourcePowerProfiles, 0);
+        dest.writeParcelableList(portSinkPowerProfileMatches, 0);
+        dest.writeParcelableList(portSourcePowerProfileMatches, 0);
     }
 
     public static final Parcelable.Creator<RawPortInfo> CREATOR =
             new Parcelable.Creator<RawPortInfo>() {
         @Override
         public RawPortInfo createFromParcel(Parcel in) {
-            DisplayPortAltModeInfo displayPortAltModeInfo;
-
-            String id = in.readString();
-            int supportedModes = in.readInt();
-            int supportedContaminantProtectionModes = in.readInt();
-            int currentMode = in.readInt();
-            boolean canChangeMode = in.readByte() != 0;
-            int currentPowerRole = in.readInt();
-            boolean canChangePowerRole = in.readByte() != 0;
-            int currentDataRole = in.readInt();
-            boolean canChangeDataRole = in.readByte() != 0;
-            boolean supportsEnableContaminantPresenceProtection = in.readBoolean();
-            int contaminantProtectionStatus = in.readInt();
-            boolean supportsEnableContaminantPresenceDetection = in.readBoolean();
-            int contaminantDetectionStatus = in.readInt();
-            int usbDataStatus = in.readInt();
-            boolean powerTransferLimited = in.readBoolean();
-            int powerBrickConnectionStatus = in.readInt();
-            boolean supportsComplianceWarnings = in.readBoolean();
-            int[] complianceWarnings = in.createIntArray();
-            int plugState = in.readInt();
-            int supportedAltModes = in.readInt();
-            if ((supportedAltModes & UsbPort.FLAG_ALT_MODE_TYPE_DISPLAYPORT) != 0) {
-                displayPortAltModeInfo = DisplayPortAltModeInfo.CREATOR.createFromParcel(in);
-            } else {
-                displayPortAltModeInfo = null;
-            }
-            return new RawPortInfo(id, supportedModes,
-                    supportedContaminantProtectionModes, currentMode, canChangeMode,
-                    currentPowerRole, canChangePowerRole,
-                    currentDataRole, canChangeDataRole,
-                    supportsEnableContaminantPresenceProtection,
-                    contaminantProtectionStatus,
-                    supportsEnableContaminantPresenceDetection,
-                    contaminantDetectionStatus, usbDataStatus,
-                    powerTransferLimited, powerBrickConnectionStatus,
-                    supportsComplianceWarnings, complianceWarnings,
-                    plugState, supportedAltModes, displayPortAltModeInfo);
+            return new RawPortInfo(in);
         }
 
         @Override
@@ -210,4 +206,351 @@ public final class RawPortInfo implements Parcelable {
             return new RawPortInfo[size];
         }
     };
+
+    public static class Builder {
+        private final String mPortId;
+        private int mSupportedModes;
+        private int mSupportedContaminantProtectionModes;
+        private int mCurrentMode;
+        private boolean mCanChangeMode;
+        private int mCurrentPowerRole;
+        private boolean mCanChangePowerRole;
+        private int mCurrentDataRole;
+        private boolean mCanChangeDataRole;
+        private boolean mSupportsEnableContaminantPresenceProtection;
+        private int mContaminantProtectionStatus;
+        private boolean mSupportsEnableContaminantPresenceDetection;
+        private int mContaminantDetectionStatus;
+        private int mUsbDataStatus;
+        private boolean mPowerTransferLimited;
+        private int mPowerBrickConnectionStatus;
+        private boolean mSupportsComplianceWarnings;
+        private int[] mComplianceWarnings;
+        private int mPlugState;
+        private int mSupportedAltModes;
+        private DisplayPortAltModeInfo mDisplayPortAltModeInfo;
+        private boolean mSupportsPartnerBc12Type;
+        private int mPartnerBc12Type;
+        private boolean mSupportsPowerProfiles;
+        private ArrayList<PowerProfileInfo> mPortSinkPowerProfiles;
+        private ArrayList<PowerProfileInfo> mPortSourcePowerProfiles;
+        private ArrayList<PowerProfileInfo> mPartnerSinkPowerProfiles;
+        private ArrayList<PowerProfileInfo> mPartnerSourcePowerProfiles;
+        private ArrayList<PowerProfileMatchInfo> mPortSinkPowerProfileMatches;
+        private ArrayList<PowerProfileMatchInfo> mPortSourcePowerProfileMatches;
+
+        public Builder(String portId) {
+            this.mPortId = portId;
+            mSupportedModes = UsbPortStatus.MODE_NONE;
+            mSupportedContaminantProtectionModes = UsbPortStatus.CONTAMINANT_PROTECTION_NONE;
+            mCurrentMode = UsbPortStatus.MODE_NONE;
+            mCanChangeMode = false;
+            mCurrentPowerRole = UsbPortStatus.POWER_ROLE_NONE;
+            mCanChangePowerRole = false;
+            mCurrentDataRole = UsbPortStatus.DATA_ROLE_NONE;
+            mCanChangeDataRole = false;
+            mSupportsEnableContaminantPresenceProtection = false;
+            mContaminantProtectionStatus = UsbPortStatus.CONTAMINANT_PROTECTION_NONE;
+            mSupportsEnableContaminantPresenceDetection = false;
+            mContaminantDetectionStatus = UsbPortStatus.CONTAMINANT_DETECTION_NOT_SUPPORTED;
+            mUsbDataStatus = UsbPortStatus.DATA_STATUS_UNKNOWN;
+            mPowerTransferLimited = false;
+            mPowerBrickConnectionStatus = UsbPortStatus.POWER_BRICK_STATUS_UNKNOWN;
+            mSupportsComplianceWarnings = false;
+            mComplianceWarnings = new int[] {};
+            mPlugState = UsbPortStatus.PLUG_STATE_UNKNOWN;
+            mSupportedAltModes = 0;
+            mDisplayPortAltModeInfo = null;
+            mSupportsPartnerBc12Type = false;
+            mPartnerBc12Type = UsbPortStatus.BC12_TYPE_UNKNOWN;
+            mSupportsPowerProfiles = false;
+            mPortSinkPowerProfiles = new ArrayList<>();
+            mPortSourcePowerProfiles = new ArrayList<>();
+            mPartnerSinkPowerProfiles = new ArrayList<>();
+            mPartnerSourcePowerProfiles = new ArrayList<>();
+            mPortSinkPowerProfileMatches = new ArrayList<>();
+            mPortSourcePowerProfileMatches = new ArrayList<>();
+        }
+
+        /**
+         * Sets the supported modes of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setSupportedModes(int modes) {
+            mSupportedModes = modes;
+            return this;
+        }
+
+        /**
+         * Sets the supported contaminant protection modes of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setSupportedContaminantProtectionModes(int modes) {
+            mSupportedContaminantProtectionModes = modes;
+            return this;
+        }
+
+        /**
+         * Sets the current mode of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setCurrentMode(int val) {
+            mCurrentMode = val;
+            return this;
+        }
+
+        /**
+         * Sets the mode change capability of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setCanChangeMode(boolean val) {
+            mCanChangeMode = val;
+            return this;
+        }
+
+        /**
+         * Sets the current power role of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setCurrentPowerRole(int val) {
+            mCurrentPowerRole = val;
+            return this;
+        }
+
+        /**
+         * Sets the power role change capability of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setCanChangePowerRole(boolean val) {
+            mCanChangePowerRole = val;
+            return this;
+        }
+
+        /**
+         * Sets the current data role of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setCurrentDataRole(int val) {
+            mCurrentDataRole = val;
+            return this;
+        }
+
+        /**
+         * Sets the data role change capability of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setCanChangeDataRole(boolean val) {
+            mCanChangeDataRole = val;
+            return this;
+        }
+
+        /**
+         * Sets the enable contaminant presence protection capability of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setSupportsEnableContaminantPresenceProtection(boolean val) {
+            mSupportsEnableContaminantPresenceProtection = val;
+            return this;
+        }
+
+        /**
+         * Sets the contaminant protection status of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setContaminantProtectionStatus(int val) {
+            mContaminantProtectionStatus = val;
+            return this;
+        }
+
+        /**
+         * Sets the enable contaminant presence detection capability of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setSupportsEnableContaminantPresenceDetection(boolean val) {
+            mSupportsEnableContaminantPresenceDetection = val;
+            return this;
+        }
+
+        /**
+         * Sets the contaminant detection status of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setContaminantDetectionStatus(int val) {
+            mContaminantDetectionStatus = val;
+            return this;
+        }
+
+        /**
+         * Sets the usb data status of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setUsbDataStatus(int val) {
+            mUsbDataStatus = val;
+            return this;
+        }
+
+        /**
+         * Sets the power transfer limited status of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setPowerTransferLimited(boolean val) {
+            mPowerTransferLimited = val;
+            return this;
+        }
+
+        /**
+         * Sets the power brick connection status of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setPowerBrickConnectionStatus(int val) {
+            mPowerBrickConnectionStatus = val;
+            return this;
+        }
+
+        /**
+         * Sets the compliance warning capabilities of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setSupportsComplianceWarnings(boolean val) {
+            mSupportsComplianceWarnings = val;
+            return this;
+        }
+
+        /**
+         * Sets the current compliance warnings of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setComplianceWarnings(int[] val) {
+            mComplianceWarnings = val;
+            return this;
+        }
+
+        /**
+         * Sets the plug state of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setPlugState(int val) {
+            mPlugState = val;
+            return this;
+        }
+
+        /**
+         * Sets the supported alt modes of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setSupportedAltModes(int val) {
+            mSupportedAltModes = val;
+            return this;
+        }
+
+        /**
+         * Sets the DisplayPort Alt Mode info of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setDisplayPortAltModeInfo(DisplayPortAltModeInfo val) {
+            mDisplayPortAltModeInfo = val;
+            return this;
+        }
+
+        /**
+         * Sets the partner BC 1.2 type reporting capability of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setSupportsPartnerBc12Type(boolean val) {
+            mSupportsPartnerBc12Type = val;
+            return this;
+        }
+
+        /**
+         * Sets the current partner BC 1.2 type of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setPartnerBc12Type(int val) {
+            mPartnerBc12Type = val;
+            return this;
+        }
+
+        /**
+         * Sets the power profile reporting capability of {@link RawPortInfo}
+         *
+         * @return instance of {@link Builder}
+         */
+        public Builder setSupportsPowerProfiles(boolean val) {
+            mSupportsPowerProfiles = val;
+            return this;
+        }
+
+        /**
+         * Sets the port power profiles of {@link RawPortInfo}
+         *
+         * @return Instance of {@link Builder}
+         */
+        public Builder setPortPowerProfiles(PowerProfileInfo[] sinkPowerProfiles,
+                                            PowerProfileInfo[] sourcePowerProfiles) {
+            List<PowerProfileInfo> sinkProfilesList = Arrays.asList(sinkPowerProfiles);
+            List<PowerProfileInfo> sourceProfilesList = Arrays.asList(sourcePowerProfiles);
+            mPortSinkPowerProfiles.addAll(new ArrayList<>(sinkProfilesList));
+            mPortSourcePowerProfiles.addAll(new ArrayList<>(sourceProfilesList));
+            return this;
+        }
+
+        /**
+         * Sets the partner power profiles of {@link RawPortInfo}
+         *
+         * @return Instance of {@link Builder}
+         */
+        public Builder setPartnerPowerProfiles(PowerProfileInfo[] sinkPowerProfiles,
+                                               PowerProfileInfo[] sourcePowerProfiles) {
+            List<PowerProfileInfo> sinkProfilesList = Arrays.asList(sinkPowerProfiles);
+            List<PowerProfileInfo> sourceProfilesList = Arrays.asList(sourcePowerProfiles);
+            mPartnerSinkPowerProfiles.addAll(new ArrayList<>(sinkProfilesList));
+            mPartnerSourcePowerProfiles.addAll(new ArrayList<>(sourceProfilesList));
+            return this;
+        }
+
+        /**
+         * Sets the power profile match results of {@link RawPortInfo}
+         *
+         * @return Instance of {@link Builder}
+         */
+        public Builder setPowerProfileMatchInfo(PowerProfileMatchInfo[] portSinkMatches,
+                PowerProfileMatchInfo[] portSourceMatches) {
+            List<PowerProfileMatchInfo> portSinkMatchList = Arrays.asList(portSinkMatches);
+            List<PowerProfileMatchInfo> portSourceMatchList = Arrays.asList(portSourceMatches);
+            mPortSinkPowerProfileMatches.addAll(new ArrayList<>(portSinkMatchList));
+            mPortSourcePowerProfileMatches.addAll(new ArrayList<>(portSourceMatchList));
+            return this;
+        }
+
+        /**
+         * Use the Builder info to create a new {@link RawPortInfo} instance
+         *
+         * @return instance of {@link RawPortInfo}
+         */
+        public RawPortInfo build() {
+            return new RawPortInfo(this);
+        }
+    }
 }

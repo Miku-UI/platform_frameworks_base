@@ -16,28 +16,21 @@
 
 package com.android.systemui.shade.domain.interactor
 
+import android.platform.test.annotations.DisableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
-import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
-import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.StatusBarState
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.runTest
-import com.android.systemui.kosmos.testScope
-import com.android.systemui.scene.domain.interactor.sceneInteractor
-import com.android.systemui.shade.data.repository.fakeShadeRepository
-import com.android.systemui.shade.shadeTestUtil
+import com.android.systemui.shade.data.repository.shadeRepository
 import com.android.systemui.testKosmos
-import com.android.systemui.user.data.repository.fakeUserRepository
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,11 +38,11 @@ import org.junit.runner.RunWith
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @DisableSceneContainer
+@DisableFlags(FLAG_DUAL_SHADE)
 class ShadeInteractorLegacyImplTest : SysuiTestCase() {
 
     private val kosmos = testKosmos()
-    private val shadeRepository = kosmos.fakeShadeRepository
-    private val Kosmos.underTest by Kosmos.Fixture { kosmos.shadeInteractorLegacyImpl }
+    private val Kosmos.underTest by Kosmos.Fixture { shadeInteractorLegacyImpl }
 
     @Test
     fun fullShadeExpansionWhenShadeLocked() =

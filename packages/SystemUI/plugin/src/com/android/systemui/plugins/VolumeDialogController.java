@@ -121,6 +121,7 @@ public interface VolumeDialogController {
         public int ringerModeInternal;
         public int ringerModeExternal;
         public int zenMode;
+        public boolean hapticsEnabled;
         public ComponentName effectsSuppressor;
         public String effectsSuppressorName;
         public int activeStream = NO_ACTIVE_STREAM;
@@ -137,6 +138,7 @@ public interface VolumeDialogController {
             rt.ringerModeExternal = ringerModeExternal;
             rt.ringerModeInternal = ringerModeInternal;
             rt.zenMode = zenMode;
+            rt.hapticsEnabled = hapticsEnabled;
             if (effectsSuppressor != null) {
                 rt.effectsSuppressor = effectsSuppressor.clone();
             }
@@ -172,6 +174,7 @@ public interface VolumeDialogController {
             sep(sb, indent); sb.append("ringerModeExternal:").append(ringerModeExternal);
             sep(sb, indent); sb.append("ringerModeInternal:").append(ringerModeInternal);
             sep(sb, indent); sb.append("zenMode:").append(zenMode);
+            sep(sb, indent); sb.append("hapticsEnabled:").append(hapticsEnabled);
             sep(sb, indent); sb.append("effectsSuppressor:").append(effectsSuppressor);
             sep(sb, indent); sb.append("effectsSuppressorName:").append(effectsSuppressorName);
             sep(sb, indent); sb.append("activeStream:").append(activeStream);

@@ -96,52 +96,52 @@
     <string name="bluetooth_connected_no_headset_battery_level" msgid="2661863370509206428">"已连接（无手机信号），电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> <xliff:g id="ACTIVE_DEVICE">%2$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp_battery_level" msgid="6499078454894324287">"已连接（无媒体信号），电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> <xliff:g id="ACTIVE_DEVICE">%2$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp_battery_level" msgid="8477440576953067242">"已连接（无手机或媒体信号），电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> <xliff:g id="ACTIVE_DEVICE">%2$s</xliff:g>"</string>
-    <string name="bluetooth_active_battery_level" msgid="2685517576209066008">"使用中。电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
-    <string name="bluetooth_active_battery_level_untethered" msgid="4961338936672922617">"使用中。左侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，右侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
-    <string name="bluetooth_active_battery_level_untethered_left" msgid="2895644748625343977">"使用中。左侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
-    <string name="bluetooth_active_battery_level_untethered_right" msgid="7407517998880370179">"使用中。右侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
+    <string name="bluetooth_active_battery_level" msgid="2685517576209066008">"已开启。电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
+    <string name="bluetooth_active_battery_level_untethered" msgid="4961338936672922617">"正在使用。左侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>；右侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
+    <string name="bluetooth_active_battery_level_untethered_left" msgid="2895644748625343977">"正在使用。左侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
+    <string name="bluetooth_active_battery_level_untethered_right" msgid="7407517998880370179">"正在使用。右侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
     <string name="bluetooth_battery_level" msgid="2893696778200201555">"<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> 的电量"</string>
     <string name="tv_bluetooth_battery_level" msgid="8786353985605532846">"电池电量 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
-    <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"左侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，右侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
+    <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"左侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>；右侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"左侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"右侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"保护壳：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> 电池电量"</string>
     <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"左侧：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，保护壳：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> 电池电量"</string>
     <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"右侧：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，保护壳：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> 电池电量"</string>
     <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"左侧：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，右侧：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> 电池电量"</string>
-    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"左侧：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>；保护壳：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>；右侧：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> 电池电量"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"左侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>；充电盒电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>；右侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"左耳机电池电量 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"右耳机电池电量 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"使用中"</string>
     <string name="bluetooth_saved_device" msgid="4895871321722311428">"已保存的设备"</string>
-    <string name="bluetooth_hearing_aid_left_active" msgid="8330226430756799572">"使用中（仅左耳）"</string>
-    <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"使用中（仅右耳助听器）"</string>
-    <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"使用中（左右耳助听器）"</string>
+    <string name="bluetooth_hearing_aid_left_active" msgid="8330226430756799572">"正在使用（仅左耳）"</string>
+    <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"正在使用（仅右耳助听器）"</string>
+    <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"正在使用（左右耳助听器）"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"无法更新周围声音"</string>
     <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"无法更新预设"</string>
     <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"已选择"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"使用中（仅限媒体）。电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
-    <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"使用中（仅限媒体）。左侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，右侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
+    <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"正在使用（仅限媒体）。左侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>；右侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"访客设备。电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
-    <string name="bluetooth_guest_battery_level_untethered" msgid="5404013822067644960">"访客设备。左侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，右侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
+    <string name="bluetooth_guest_battery_level_untethered" msgid="5404013822067644960">"访客设备。左侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>；右侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
     <string name="bluetooth_guest_media_only_battery_level" msgid="7928347900623812299">"访客设备（仅限媒体）。电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
-    <string name="bluetooth_guest_media_only_battery_level_untethered" msgid="4458143141394300892">"访客设备（仅限媒体）。左侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，右侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
-    <string name="bluetooth_battery_level_lea_support" msgid="5968584103507988820">"已连接（支持音频分享）。电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
-    <string name="bluetooth_battery_level_untethered_lea_support" msgid="803110681688633362">"已连接（支持音频分享）。左侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，右侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
-    <string name="bluetooth_battery_level_untethered_left_lea_support" msgid="7707464334346454950">"已连接（支持音频分享）。左侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
-    <string name="bluetooth_battery_level_untethered_right_lea_support" msgid="8941549024377771038">"已连接（支持音频分享）。右侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
+    <string name="bluetooth_guest_media_only_battery_level_untethered" msgid="4458143141394300892">"访客设备（仅限媒体）。左侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>；右侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
+    <string name="bluetooth_battery_level_lea_support" msgid="5968584103507988820">"已连接（支持音频分享）。电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
+    <string name="bluetooth_battery_level_untethered_lea_support" msgid="803110681688633362">"已连接（支持音频分享）。左侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>；右侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
+    <string name="bluetooth_battery_level_untethered_left_lea_support" msgid="7707464334346454950">"已连接（支持音频分享）。左侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
+    <string name="bluetooth_battery_level_untethered_right_lea_support" msgid="8941549024377771038">"已连接（支持音频分享）。右侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
     <string name="bluetooth_no_battery_level_lea_support" msgid="5721725041048434075">"已连接（支持音频分享）"</string>
     <string name="bluetooth_guest_battery_level_lea_support" msgid="8098327939585013928">"访客设备（支持音频分享）。电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
-    <string name="bluetooth_guest_battery_level_untethered_lea_support" msgid="3701035025565668360">"访客设备（支持音频分享）。左侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，右侧电池电量为 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
+    <string name="bluetooth_guest_battery_level_untethered_lea_support" msgid="3701035025565668360">"访客设备（支持音频分享）。左侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>；右侧电量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
     <string name="bluetooth_guest_no_battery_level_lea_support" msgid="2977038548753103470">"访客设备（支持音频分享）"</string>
     <string name="bluetooth_active_media_only_no_battery_level" msgid="71106861912593126">"使用中（仅限媒体）"</string>
     <string name="bluetooth_guest_no_battery_level" msgid="9122974160381136920">"访客设备"</string>
     <string name="bluetooth_guest_media_only_no_battery_level" msgid="7666347601796705721">"访客设备（仅限媒体）"</string>
     <string name="bluetooth_saved_device_lea_support" msgid="7231323139968285768">"支持音频分享"</string>
     <string name="bluetooth_guest_saved_device_lea_support" msgid="5621291599518569876">"访客设备。支持音频分享"</string>
-    <string name="bluetooth_hearing_aid_media_only_left_active" msgid="1632152540901488645">"使用中（仅限媒体），仅左侧"</string>
+    <string name="bluetooth_hearing_aid_media_only_left_active" msgid="1632152540901488645">"正在使用（仅限媒体），仅左侧"</string>
     <string name="bluetooth_hearing_aid_media_only_right_active" msgid="3854140683042617230">"使用中（仅限媒体），仅右侧"</string>
-    <string name="bluetooth_hearing_aid_media_only_left_and_right_active" msgid="1299913413062528417">"使用中（仅限媒体），左侧和右侧"</string>
+    <string name="bluetooth_hearing_aid_media_only_left_and_right_active" msgid="1299913413062528417">"正在使用（仅限媒体），左侧和右侧"</string>
     <string name="bluetooth_profile_a2dp" msgid="4632426382762851724">"媒体音频"</string>
     <string name="bluetooth_profile_headset" msgid="5395952236133499331">"通话"</string>
     <string name="bluetooth_profile_opp" msgid="6692618568149493430">"文件传输"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"WLAN 信号强度为三格。"</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"WLAN 信号满格。"</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"已连接到您的设备。"</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"此设备上的所有用户都可以查看和连接。"</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"开放网络"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"安全网络"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android 操作系统"</string>
@@ -268,15 +269,15 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"此用户无权修改接入点名称设置"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB 调试"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"连接 USB 后启用调试模式"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"撤消 USB 调试授权"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"撤销 adb 调试授权"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"无线调试"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"连接到 Wi-Fi 后启用调试模式"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"错误"</string>
     <string name="adb_wireless_settings" msgid="2295017847215680229">"无线调试"</string>
     <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"如要查看并使用可用的设备，请开启无线调试"</string>
-    <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"使用二维码配对设备"</string>
+    <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"扫描二维码配对设备"</string>
     <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"使用二维码扫描器配对新设备"</string>
-    <string name="adb_pair_method_code_title" msgid="1122590300445142904">"使用配对码配对设备"</string>
+    <string name="adb_pair_method_code_title" msgid="1122590300445142904">"输入配对码配对设备"</string>
     <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"使用六位数的配对码配对新设备"</string>
     <string name="adb_paired_devices_title" msgid="5268997341526217362">"已配对的设备"</string>
     <string name="adb_wireless_device_connected_summary" msgid="3039660790249148713">"当前已连接"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"正在配对设备…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"无法配对设备。可能是因为二维码不正确，或者设备未连接到同一网络。"</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP 地址和端口"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"不可用（未获允许）"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"不可用（Wi-Fi 已断开连接）"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"扫描二维码"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"扫描二维码即可通过 WLAN 配对设备"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"请连接到 WLAN 网络"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB 调试仅用于开发目的。该功能可用于在您的计算机和设备之间复制数据、在您的设备上安装应用（事先不发通知）以及读取日志数据。"</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"要允许无线调试吗？"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"无线调试仅用于开发目的。该功能可用于在您的计算机和设备之间复制数据、在您的设备上安装应用（事先不发通知）以及读取日志数据。"</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"是否针对您之前授权的所有计算机撤消 USB 调试的访问权限？"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"要针对您之前授权的所有计算机和网络撤销 adb 调试的访问权限吗？"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"允许开发设置？"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"这些设置仅适用于开发工作。一旦启用，会导致您的设备以及设备上的应用崩溃或出现异常。"</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"验证通过 USB 安装的应用"</string>
@@ -440,8 +443,8 @@
     <string name="verbose_vendor_logging_notification_action" msgid="1190831050259046071">"再启用一天"</string>
     <string name="verbose_vendor_logging_preference_summary_will_disable" msgid="6175431593394522553">"一天后停用"</string>
     <string name="verbose_vendor_logging_preference_summary_on" msgid="9017757242481762036">"已无限期启用"</string>
-    <string name="window_animation_scale_title" msgid="5236381298376812508">"窗口动画缩放"</string>
-    <string name="transition_animation_scale_title" msgid="1278477690695439337">"过渡动画缩放"</string>
+    <string name="window_animation_scale_title" msgid="5236381298376812508">"窗口动画速度"</string>
+    <string name="transition_animation_scale_title" msgid="1278477690695439337">"过渡动画速度"</string>
     <string name="animator_duration_scale_title" msgid="7082913931326085176">"Animator 时长缩放"</string>
     <string name="overlay_display_devices_title" msgid="5411894622334469607">"模拟辅助显示设备"</string>
     <string name="shade_display_awareness_title" msgid="8000009404669495876">"通知栏显示位置"</string>
@@ -545,7 +548,7 @@
     <string name="battery_info_status_charging_v2" msgid="6118522107222245505">"正在充电"</string>
     <string name="battery_info_status_charging_fast_v2" msgid="1825439848151256589">"正在快速充电"</string>
     <string name="disabled_by_admin_summary_text" msgid="5343911767402923057">"由管理员控制"</string>
-    <string name="disabled_by_app_ops_text" msgid="8373595926549098012">"由受限设置控制"</string>
+    <string name="disabled_by_app_ops_text" msgid="8373595926549098012">"因系统安全设置受限"</string>
     <string name="disabled_in_phone_call_text" msgid="6568931334337318320">"通话期间无法使用"</string>
     <string name="disabled" msgid="8017887509554714950">"已停用"</string>
     <string name="enabled" msgid="3997122818554810678">"已启用"</string>
@@ -664,7 +667,7 @@
     <string name="user_add_profile_item_title" msgid="3111051717414643029">"受限个人资料"</string>
     <string name="user_add_user_title" msgid="5457079143694924885">"要添加新用户吗？"</string>
     <string name="user_add_user_message_long" msgid="1527434966294733380">"创建新用户后，您就能够与其他人共用此设备。每位用户都有自己的专属空间，而且在自己的个人空间内还可以自行安装自己想要的应用、设置壁纸等。此外，用户还可以调整会影响所有用户的设备设置（例如 WLAN 设置）。\n\n新添加的用户需要自行设置个人空间。\n\n任何用户都可为所有其他用户更新应用。无障碍功能设置和服务可能无法转移给新用户。"</string>
-    <string name="user_add_user_message_short" msgid="3295959985795716166">"新添加的用户需要自行设置个人空间。\n\n任何用户都可为所有其他用户更新应用。"</string>
+    <string name="user_add_user_message_short" msgid="3295959985795716166">"新添加的用户需要自行设置个人空间。\n\n所有用户都可为其他用户更新应用。"</string>
     <string name="user_grant_admin_title" msgid="5157031020083343984">"将此用户设为管理员？"</string>
     <string name="user_grant_admin_message" msgid="1673791931033486709">"管理员拥有其他用户没有的特殊权限。管理员可以管理所有用户、更新或重置此设备、修改设置、查看所有已安装的应用，以及授予或撤消其他用户的管理员权限。"</string>
     <string name="user_grant_admin_button" msgid="5441486731331725756">"设为管理员"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"以太网已断开连接。"</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"以太网。"</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"不启用通话。"</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"实体键盘"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"选择键盘布局"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"默认"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"屏幕唤醒设置"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"允许唤醒屏幕"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"允许应用唤醒屏幕。如获授权，该应用便可在您未明确表达意愿的情况下随时唤醒屏幕。"</string>

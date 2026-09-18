@@ -19,9 +19,6 @@
     },
     {
       "name": "service.incremental_test"
-    },
-    {
-      "name": "CtsInstalledLoadingProgressHostTests"
     }
    ],
   "presubmit-large": [

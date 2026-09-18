@@ -119,6 +119,10 @@ int JTvInputHal::addOrUpdateStream(int deviceId, int streamId, const sp<Surface>
 
 int JTvInputHal::removeStream(int deviceId, int streamId) {
     Mutex::Autolock autoLock(&mStreamLock);
+    return removeStreamInternal(deviceId, streamId);
+}
+
+int JTvInputHal::removeStreamInternal(int deviceId, int streamId) {
     KeyedVector<int, Connection>& connections = mConnections.editValueFor(deviceId);
     if (connections.indexOfKey(streamId) < 0) {
         return BAD_VALUE;
@@ -286,7 +290,7 @@ void JTvInputHal::onDeviceUnavailable(int deviceId) {
         Mutex::Autolock autoLock(&mStreamLock);
         KeyedVector<int, Connection>& connections = mConnections.editValueFor(deviceId);
         for (size_t i = 0; i < connections.size(); ++i) {
-            removeStream(deviceId, connections.keyAt(i));
+            removeStreamInternal(deviceId, connections.keyAt(i));
         }
         connections.clear();
         mConnections.removeItem(deviceId);

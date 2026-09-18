@@ -70,6 +70,8 @@ value class VPointF(val data: ULong) {
 
     fun dot(pt: VPointF): Float = x * pt.x + y * pt.y
 
+    fun swap() = VPointF(y, x)
+
     fun normalize(): VPointF {
         val length = this.length()
         return VPointF(x / length, y / length)
@@ -158,9 +160,13 @@ value class VPoint(val data: ULong) {
 
     fun toPoint() = AndroidPoint(x, y)
 
+    fun toVPointF() = VPointF(x.toFloat(), y.toFloat())
+
     fun toLong(): Long = data.toLong()
 
     fun abs() = VPoint(abs(x), abs(y))
+
+    fun swap() = VPoint(y, x)
 
     operator fun component1(): Int = x
 
@@ -230,5 +236,36 @@ value class VPoint(val data: ULong) {
 
         val AndroidRect.size: VPoint
             get() = VPoint(width(), height())
+    }
+}
+
+@JvmInline
+value class VMeasurePoint(val data: ULong) {
+    val width: VMeasureSpec
+        get() = VMeasureSpec(unpackX(data))
+
+    val height: VMeasureSpec
+        get() = VMeasureSpec(unpackY(data))
+
+    val size: VPoint
+        get() = VPoint(width.size, height.size)
+
+    val mode: VPoint
+        get() = VPoint(width.mode.value, height.mode.value)
+
+    constructor(width: VMeasureSpec, height: VMeasureSpec) : this(pack(width.spec, height.spec))
+
+    fun toLong(): Long = data.toLong()
+
+    operator fun component1(): VMeasureSpec = width
+
+    operator fun component2(): VMeasureSpec = height
+
+    override fun toString() = "({$width}, {$height})"
+
+    companion object {
+        fun fromSpecs(width: Int, height: Int) = VMeasurePoint(pack(width, height))
+
+        fun fromLong(data: Long) = VMeasurePoint(data.toULong())
     }
 }

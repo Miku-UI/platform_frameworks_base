@@ -17,18 +17,36 @@
 package com.android.systemui.deviceentry.domain.interactor
 
 import android.content.mockedContext
+import android.content.testableContext
 import com.android.systemui.bouncer.domain.interactor.alternateBouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.primaryBouncerInteractor
 import com.android.systemui.communal.domain.interactor.communalSceneInteractor
 import com.android.systemui.keyguard.data.repository.deviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
-import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.plugins.activityStarter
 import com.android.systemui.power.domain.interactor.powerInteractor
+import com.android.systemui.scene.domain.interactor.sceneInteractor
 
 val Kosmos.occludingAppDeviceEntryInteractor by
+    Kosmos.Fixture {
+        OccludingAppDeviceEntryInteractor(
+            biometricMessageInteractor = biometricMessageInteractor,
+            fingerprintAuthRepository = deviceEntryFingerprintAuthRepository,
+            keyguardInteractor = keyguardInteractor,
+            primaryBouncerInteractor = primaryBouncerInteractor,
+            alternateBouncerInteractor = alternateBouncerInteractor,
+            scope = applicationCoroutineScope,
+            context = testableContext,
+            activityStarter = activityStarter,
+            powerInteractor = powerInteractor,
+            sceneInteractor = { sceneInteractor },
+            communalSceneInteractor = communalSceneInteractor,
+        )
+    }
+
+val Kosmos.occludingAppDeviceEntryInteractorWithMockedContext by
     Kosmos.Fixture {
         OccludingAppDeviceEntryInteractor(
             biometricMessageInteractor = biometricMessageInteractor,
@@ -40,7 +58,7 @@ val Kosmos.occludingAppDeviceEntryInteractor by
             context = mockedContext,
             activityStarter = activityStarter,
             powerInteractor = powerInteractor,
-            keyguardTransitionInteractor = keyguardTransitionInteractor,
+            sceneInteractor = { sceneInteractor },
             communalSceneInteractor = communalSceneInteractor,
         )
     }

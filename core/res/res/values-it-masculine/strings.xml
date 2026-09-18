@@ -20,5 +20,7 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="page_size_compat_elf_warning_4kb" msgid="5005239480522831311">"Questo avviso viene visualizzato perché si tratta di un\'app di cui è possibile eseguire il debug che è attualmente in fase di test. Se non sei tu lo sviluppatore dell\'app, parlane con lo sviluppatore e chiedi un\'app di cui è possibile eseguire il debug. &lt;br&gt;&lt;br&gt; Questa app non è compatibile con dimensioni pagina di 16 kB. Controllo allineamento ELF non riuscito. Segui la procedura su &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Le seguenti librerie non sono allineate con dimensioni pagina di 16 kB: &lt;br&gt;&lt;br&gt;"</string>
     <string name="relationTypeSpouse" msgid="6916682664436031703">"Marito"</string>
+    <string name="satellite_sos_not_provisioned_notification_summary" msgid="3127320958911180629">"Assicurati di essere connesso a internet attiva e prova a ripetere la configurazione"</string>
 </resources>

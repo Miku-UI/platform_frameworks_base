@@ -18,9 +18,11 @@
 package android.hardware.usb;
 
 import static android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
+import static android.hardware.usb.UsbPortStatus.Bc12Type;
 import static android.hardware.usb.UsbPortStatus.DATA_STATUS_DISABLED_FORCE;
 
 import android.Manifest;
+import android.annotation.BroadcastBehavior;
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
@@ -36,6 +38,7 @@ import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
+import android.annotation.UserHandleAware;
 import android.app.PendingIntent;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.ComponentName;
@@ -48,12 +51,12 @@ import android.hardware.usb.gadget.UsbSpeed;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
-import android.system.ErrnoException;
-import android.system.Os;
 import android.os.ParcelFileDescriptor;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemProperties;
+import android.system.ErrnoException;
+import android.system.Os;
 import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Slog;
@@ -62,9 +65,9 @@ import com.android.internal.annotations.GuardedBy;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.InterruptedIOException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -154,6 +157,31 @@ public class UsbManager {
     @RequiresPermission(Manifest.permission.MANAGE_USB)
     public static final String ACTION_USB_PORT_COMPLIANCE_CHANGED =
             "android.hardware.usb.action.USB_PORT_COMPLIANCE_CHANGED";
+
+    /**
+     * Broadcast Action: A broadcast for USB permission changes.
+     *
+     * <p>This intent is sent when the permission for a USB device or accessory has changed. Only
+     * one of {@link #EXTRA_DEVICE} or {@link #EXTRA_ACCESSORY} will be provided depending on the
+     * source of the broadcast. This broadcast is only sent to registered receivers (as it is
+     * informational).
+     *
+     * <ul>
+     *   <li>{@link #EXTRA_DEVICE} containing the {@link android.hardware.usb.UsbDevice} for the
+     *       attached device.
+     *   <li>{@link #EXTRA_ACCESSORY} containing the {@link android.hardware.usb.UsbAccessory} for
+     *       the attached accessory.
+     * </ul>
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_PERSISTENT_USB_DEVICE_PERMISSIONS)
+    @SystemApi
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    @SdkConstant(SdkConstantType.BROADCAST_INTENT_ACTION)
+    @BroadcastBehavior(registeredOnly = true)
+    public static final String ACTION_USB_PERMISSION_CHANGED =
+            "android.hardware.usb.action.USB_PERMISSION_CHANGED";
 
     /**
      * Activity intent sent when user attaches a USB device.
@@ -593,6 +621,51 @@ public class UsbManager {
     public static final int USB_DATA_TRANSFER_RATE_40G = 40 * 1024;
 
     /**
+     * Usb tunnel control is supported on current system.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_PCI_TUNNEL_CONTROL)
+    @SystemApi
+    public static final int PCI_TUNNEL_CTRL_SUPPORTED = 0;
+
+    /**
+     * Usb tunnel control is not supported on the current system.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_PCI_TUNNEL_CONTROL)
+    @SystemApi
+    public static final int PCI_TUNNEL_CTRL_UNSUPPORTED = 1;
+
+    /**
+     * Usb tunnel control is not supported for current, non-admin user.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_PCI_TUNNEL_CONTROL)
+    @SystemApi
+    public static final int PCI_TUNNEL_CTRL_DISALLOWED_FOR_NONADMIN_USER = 2;
+
+    /**
+     * Usb tunnel control is disabled by enterprise policy.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_PCI_TUNNEL_CONTROL)
+    @SystemApi
+    public static final int PCI_TUNNEL_CTRL_DISALLOWED_BY_ENTERPRISE_POLICY = 3;
+
+    /**
+     * Usb tunnel control is disabled by Advanced Protection Mode (APM).
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_PCI_TUNNEL_CONTROL)
+    @SystemApi
+    public static final int PCI_TUNNEL_CTRL_DISALLOWED_BY_APM = 4;
+
+    /**
      * Returned when the client has to retry querying the version.
      *
      * @hide
@@ -790,6 +863,19 @@ public class UsbManager {
     @Retention(RetentionPolicy.SOURCE)
     public @interface UsbHalVersion {}
 
+    /** @hide */
+    @IntDef(
+            prefix = {"PCI_TUNNEL_CTRL_"},
+            value = {
+                PCI_TUNNEL_CTRL_SUPPORTED,
+                PCI_TUNNEL_CTRL_UNSUPPORTED,
+                PCI_TUNNEL_CTRL_DISALLOWED_FOR_NONADMIN_USER,
+                PCI_TUNNEL_CTRL_DISALLOWED_BY_ENTERPRISE_POLICY,
+                PCI_TUNNEL_CTRL_DISALLOWED_BY_APM,
+            })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface PciTunnelControlAllowedStatus {}
+
     /**
      * Listener to register for when the {@link DisplayPortAltModeInfo} changes on a
      * {@link UsbPort}.
@@ -807,6 +893,49 @@ public class UsbManager {
          */
         public void onDisplayPortAltModeInfoChanged(@NonNull String portId,
                 @NonNull DisplayPortAltModeInfo info);
+    }
+
+    /**
+     * Listener to register when the partner Bc12Type for a {@link UsbPortStatus} changes on a
+     * {@link UsbPort}
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_ENABLE_POWER_PROFILE_REPORTING)
+    public interface Bc12TypeListener {
+        /**
+         * Callback to be executed when the partner BC 1.2 type changes on a {@link UsbPort}
+         *
+         * @param port              The {@link UsbPort} where the partner BC 1.2 type was changed.
+         * @param partnerBc12Type   New {@link Bc12Type} for the corresponding portId.
+         */
+        public void onPartnerBc12TypeChanged(@NonNull UsbPort port, @Bc12Type int partnerBc12Type);
+    }
+
+    /**
+     * Listener to register when the PowerProfileInfo representations belonging to
+     * {@link UsbPortStatus} change on a {@link UsbPort}
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_ENABLE_POWER_PROFILE_REPORTING)
+    public interface PowerProfileInfoListener {
+        /**
+         * Callback to be executed when the {@link PowerProfileInfo} objects change on a
+         * {@link UsbPort}. The local port sink and source power profiles can change if the local
+         * USB port can modify its sink and source capabilities dynamically depending on the use
+         * case. The partner port sink and source power profiles will change when a USB device is
+         * connected or disconnected, or if the partner port is also able to modify its sink and
+         * source capabilities dynamically.
+         *
+         * @param port          The {@link UsbPort} where the {@link PowerProfileInfo} changed as
+         * described above.
+         * @param portStatus    New {@link UsbPortStatus} for the corresponding portId.
+         */
+        public void onPowerProfileInfoChanged(@NonNull UsbPort port,
+                @NonNull UsbPortStatus portStatus);
     }
 
     /**
@@ -838,6 +967,75 @@ public class UsbManager {
     }
 
     /**
+     * Holds callback and executor data to be passed across UsbService.
+     */
+    private class Bc12TypeDispatchingListener extends
+            IBc12TypeListener.Stub {
+        UsbManager mUsbManager;
+
+        Bc12TypeDispatchingListener(UsbManager usbManager) {
+            mUsbManager = usbManager;
+        }
+
+        public void onPartnerBc12TypeChanged(ParcelableUsbPort parcelablePort,
+                @Bc12Type int partnerBc12Type) {
+            UsbPort port = parcelablePort.getUsbPort(mUsbManager);
+
+            synchronized(mBc12TypeListenersLock) {
+                for (Map.Entry<Bc12TypeListener, Executor> entry : mBc12TypeListeners.entrySet()) {
+                    Executor executor = entry.getValue();
+                    Bc12TypeListener callback = entry.getKey();
+                    final long token = Binder.clearCallingIdentity();
+                    try {
+                        executor.execute(() -> callback.onPartnerBc12TypeChanged(port,
+                                partnerBc12Type));
+                    } catch (Exception e) {
+                        Slog.e(TAG, "Exception during onPartnerBc12TypeChanged from "
+                                + "executor: " + executor, e);
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Holds callback and executor data to be passed across UsbService.
+     */
+    private class PowerProfileInfoDispatchingListener extends
+            IPowerProfileInfoListener.Stub {
+        UsbManager mUsbManager;
+
+        PowerProfileInfoDispatchingListener(UsbManager usbManager) {
+            mUsbManager = usbManager;
+        }
+
+        public void onPowerProfileInfoChanged(ParcelableUsbPort parcelablePort,
+                UsbPortStatus portStatus) {
+            UsbPort port = parcelablePort.getUsbPort(mUsbManager);
+
+            synchronized(mPowerProfileInfoListenersLock) {
+                for (Map.Entry<PowerProfileInfoListener, Executor> entry :
+                        mPowerProfileInfoListeners.entrySet()) {
+                    Executor executor = entry.getValue();
+                    PowerProfileInfoListener callback = entry.getKey();
+                    final long token = Binder.clearCallingIdentity();
+                    try {
+                        executor.execute(() -> callback.onPowerProfileInfoChanged(port,
+                                portStatus));
+                    } catch (Exception e) {
+                        Slog.e(TAG, "Exception during onPowerProfileInfoChanged from "
+                                + "executor: " + executor, e);
+                    } finally {
+                        Binder.restoreCallingIdentity(token);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Opens the handle for accessory, marks it as input or output, and adds it to the map
      * if it is the first time the accessory has had an I/O stream associated with it.
      */
@@ -852,7 +1050,8 @@ public class UsbManager {
             // If accessory isn't available in map
             if (!mAccessoryHandleMap.containsKey(accessory)) {
                 // open accessory and store associated AccessoryHandle in map
-                ParcelFileDescriptor pfd = mService.openAccessory(accessory);
+                ParcelFileDescriptor pfd = mService.openAccessory(
+                        accessory, mContext.getPackageName());
                 AccessoryHandle newHandle = new AccessoryHandle(pfd, openingInputStream,
                         !openingInputStream);
                 mAccessoryHandleMap.put(accessory, newHandle);
@@ -1085,6 +1284,17 @@ public class UsbManager {
     private ArrayMap<DisplayPortAltModeInfoListener, Executor> mDisplayPortListeners;
     @GuardedBy("mDisplayPortListenersLock")
     private DisplayPortAltModeInfoDispatchingListener mDisplayPortServiceListener;
+    private final Object mBc12TypeListenersLock = new Object();
+    @GuardedBy("mBc12TypeListenersLock")
+    private ArrayMap<Bc12TypeListener, Executor> mBc12TypeListeners;
+    @GuardedBy("mBc12TypeListenersLock")
+    private Bc12TypeDispatchingListener mBc12TypeServiceListener;
+
+    private final Object mPowerProfileInfoListenersLock = new Object();
+    @GuardedBy("mPowerProfileInfoListenersLock")
+    private ArrayMap<PowerProfileInfoListener, Executor> mPowerProfileInfoListeners;
+    @GuardedBy("mPowerProfileInfoListenersLock")
+    private PowerProfileInfoDispatchingListener mPowerProfileInfoServiceListener;
 
     private final Object mAccessoryHandleMapLock = new Object();
     @GuardedBy("mAccessoryHandleMapLock")
@@ -1192,7 +1402,7 @@ public class UsbManager {
     @RequiresFeature(PackageManager.FEATURE_USB_ACCESSORY)
     public ParcelFileDescriptor openAccessory(UsbAccessory accessory) {
         try {
-            return mService.openAccessory(accessory);
+            return mService.openAccessory(accessory, mContext.getPackageName());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -1217,7 +1427,7 @@ public class UsbManager {
             if (isAccessoryFfsEnabled) {
                 return new AccessoryAutoCloseInputStream(
                         accessory,
-                        mService.openAccessoryForInputStream(accessory),
+                        mService.openAccessoryForInputStream(accessory, mContext.getPackageName()),
                         isAccessoryFfsEnabled);
             }
             return new AccessoryAutoCloseInputStream(
@@ -1244,7 +1454,7 @@ public class UsbManager {
             if (isAccessoryFfsEnabled) {
                 return new AccessoryAutoCloseOutputStream(
                         accessory,
-                        mService.openAccessoryForOutputStream(accessory),
+                        mService.openAccessoryForOutputStream(accessory, mContext.getPackageName()),
                         mService.getMaxPacketSize(accessory),
                         isAccessoryFfsEnabled);
             }
@@ -1300,11 +1510,17 @@ public class UsbManager {
     }
 
     /**
-     * Returns true if the caller has permission to access the device. It's similar to the
+     * Returns true if the package has permission to access the device. It's similar to the
      * {@link #hasPermission(UsbDevice)} but allows to specify a different package/uid/pid.
      *
      * <p>Not for third-party apps.</p>
      *
+     * @param device to check permissions for
+     * @param packageName to check permissions for
+     * @param pid of package to check
+     * @param uid of package to check
+     *
+     * @return true if provided package/uid/pid has permission for device
      * @hide
      */
     @RequiresPermission(Manifest.permission.MANAGE_USB)
@@ -1336,28 +1552,35 @@ public class UsbManager {
             return false;
         }
         try {
-            return mService.hasAccessoryPermission(accessory);
+            return mService.hasAccessoryPermission(accessory, mContext.getPackageName());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
     }
 
     /**
-     * Returns true if the caller has permission to access the accessory. It's similar to the
+     * Returns true if the package has permission to access the accessory. It's similar to the
      * {@link #hasPermission(UsbAccessory)} but allows to specify a different uid/pid.
      *
      * <p>Not for third-party apps.</p>
      *
+     * @param accessory to check permissions for
+     * @param packageName to check permissions for
+     * @param pid of package to check
+     * @param uid of package to check
+     *
+     * @return true if provided package/uid/pid has permission for accessory
      * @hide
      */
     @RequiresPermission(Manifest.permission.MANAGE_USB)
     @RequiresFeature(PackageManager.FEATURE_USB_ACCESSORY)
-    public boolean hasPermission(@NonNull UsbAccessory accessory, int pid, int uid) {
+    public boolean hasPermission(
+            @NonNull UsbAccessory accessory, String packageName, int pid, int uid) {
         if (mService == null) {
             return false;
         }
         try {
-            return mService.hasAccessoryPermissionWithIdentity(accessory, pid, uid);
+            return mService.hasAccessoryPermissionWithIdentity(accessory, packageName, pid, uid);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -1429,20 +1652,21 @@ public class UsbManager {
      * @hide
      */
     public void grantPermission(UsbDevice device) {
-        grantPermission(device, Process.myUid());
+        grantPermission(device, mContext.getPackageName(), Process.myUid());
     }
 
     /**
-     * Grants permission for USB device to given uid without showing system dialog.
-     * Only system components can call this function.
-     * @param device to request permissions for
-     * @uid uid to give permission
+     * Grants permission for USB device to given uid without showing system dialog. Only system
+     * components can call this function and permissions are temporary.
      *
+     * @param device to request permissions for
+     * @param packageName to give permission
+     * @param uid to give permission
      * @hide
      */
-    public void grantPermission(UsbDevice device, int uid) {
+    public void grantPermission(UsbDevice device, String packageName, int uid) {
         try {
-            mService.grantDevicePermission(device, uid);
+            mService.grantDevicePermission(device, packageName, uid, /* isPersistent= */ false);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -1462,9 +1686,55 @@ public class UsbManager {
         try {
             int uid = mContext.getPackageManager()
                 .getPackageUidAsUser(packageName, mContext.getUserId());
-            grantPermission(device, uid);
+            grantPermission(device, packageName, uid);
         } catch (NameNotFoundException e) {
             Log.e(TAG, "Package " + packageName + " not found.", e);
+        }
+    }
+
+    /**
+     * Revoke access to the UsbDevice for the given app.
+     *
+     * <p>Note: If the revoked app is also the Default app for this USB device, that setting will
+     * also be removed.
+     *
+     * @param device - USB device to remove permissions from.
+     * @param packageName - App that should have access revoked.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_PERSISTENT_USB_DEVICE_PERMISSIONS)
+    @SystemApi
+    @UserHandleAware
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    public void revokePermission(@NonNull UsbDevice device, @NonNull String packageName) {
+        try {
+            int uid =
+                    mContext.getPackageManager()
+                            .getPackageUidAsUser(packageName, mContext.getUserId());
+            mService.revokeDevicePermission(device, packageName, uid);
+        } catch (NameNotFoundException e) {
+            Log.e(TAG, "Package " + packageName + " not found.", e);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Returns the list of packages that have permission to access the given USB Device for the
+     * current user.
+     *
+     * <p>This includes the Default app if one was configured.
+     *
+     * @param device - USB device to check for permissions.
+     * @return List of package names.
+     * @hide
+     */
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    public @NonNull List<String> getPackagesWithPermission(@NonNull UsbDevice device) {
+        try {
+            return mService.getPackagesWithDevicePermission(device);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
         }
     }
 
@@ -2100,6 +2370,211 @@ public class UsbManager {
         return;
     }
 
+    @GuardedBy("mBc12TypeListenersLock")
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    private boolean registerBc12TypeEventsIfNeededLocked() {
+        Bc12TypeDispatchingListener bc12TypeDispatchingListener =
+                new Bc12TypeDispatchingListener(this);
+        try {
+            if (mService.registerForBc12TypeEvents(bc12TypeDispatchingListener)) {
+                mBc12TypeServiceListener = bc12TypeDispatchingListener;
+                return true;
+            }
+            return false;
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Registers the given listener to listen for partner Bc12 type changes
+     * <p>
+     * If this method returns without Exceptions, the caller should ensure to call
+     * {@link #unregisterBc12TypeListener} when it no longer requires updates.
+     *
+     * @param executor          Executor on which to run the listener.
+     * @param listener          Bc12TypeListener invoked on UsbPortStatus' bc12Type changes.
+     *                          See {@link #Bc12TypeListener} for listener details.
+     *
+     * @throws IllegalStateException if listener has already been registered previously but not
+     * unregistered or an unexpected system failure occurs.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_POWER_PROFILE_REPORTING)
+    @SystemApi
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    public void registerBc12TypeListener(
+            @NonNull @CallbackExecutor Executor executor,
+            @NonNull Bc12TypeListener listener) {
+        Objects.requireNonNull(executor, "registerBc12TypeListener: "
+                + "executor must not be null.");
+        Objects.requireNonNull(listener, "registerBc12TypeListener: "
+                + "listener must not be null.");
+
+        synchronized (mBc12TypeListenersLock) {
+            if (mBc12TypeListeners == null) {
+                mBc12TypeListeners = new ArrayMap<Bc12TypeListener, Executor>();
+            }
+
+            if (mBc12TypeServiceListener == null) {
+                if (!registerBc12TypeEventsIfNeededLocked()) {
+                    throw new IllegalStateException("Unexpected failure registering service "
+                            + "listener");
+                }
+            }
+            if (mBc12TypeListeners.containsKey(listener)) {
+                throw new IllegalStateException("Listener has already been registered.");
+            }
+
+            mBc12TypeListeners.put(listener, executor);
+        }
+    }
+
+    @GuardedBy("mBc12TypeListenersLock")
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    private void unregisterBc12TypeEventsLocked() {
+        if (mBc12TypeServiceListener != null) {
+            try {
+                mService.unregisterForBc12TypeEvents(mBc12TypeServiceListener);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            } finally {
+                // If there was a RemoteException, the system server may have died,
+                // and this listener probably became unregistered, so clear it for re-registration.
+                mBc12TypeServiceListener = null;
+            }
+        }
+    }
+
+    /**
+     * Unregisters the given listener if it was previously passed to
+     * registerBc12TypeListener.
+     *
+     * @param listener          Bc12TypeListener used to register the listener
+     *                          in registerBc12TypeListener.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_POWER_PROFILE_REPORTING)
+    @SystemApi
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    public void unregisterBc12TypeListener(
+            @NonNull Bc12TypeListener listener) {
+        synchronized (mBc12TypeListenersLock) {
+            if (mBc12TypeListeners == null) {
+                return;
+            }
+            mBc12TypeListeners.remove(listener);
+            if (mBc12TypeListeners.isEmpty()) {
+                unregisterBc12TypeEventsLocked();
+            }
+        }
+    }
+
+    @GuardedBy("mPowerProfileInfoListenersLock")
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    private boolean registerPowerProfileInfoEventsIfNeededLocked() {
+        PowerProfileInfoDispatchingListener dispatchingListener =
+                new PowerProfileInfoDispatchingListener(this);
+        try {
+            if (mService.registerForPowerProfileInfoEvents(dispatchingListener)) {
+                mPowerProfileInfoServiceListener = dispatchingListener;
+                return true;
+            }
+            return false;
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Registers the given listener to listen for PowerProfileInfo changes.
+     * <p>
+     * If this method returns without Exceptions, the caller should ensure to call
+     * {@link #unregisterPowerProfileInfoListener} when it no longer requires updates.
+     *
+     * @param executor          Executor on which to run the listener.
+     * @param listener          PowerProfileInfoListener invoked on UsbPortStatus'
+     *                          PowerProfileInfo changes. See {@link #PowerProfileInfoListener}
+     *                          for listener details.
+     *
+     * @throws IllegalStateException if listener has already been registered previously but not
+     * unregistered or an unexpected system failure occurs.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_POWER_PROFILE_REPORTING)
+    @SystemApi
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    public void registerPowerProfileInfoListener(
+            @NonNull @CallbackExecutor Executor executor,
+            @NonNull PowerProfileInfoListener listener) {
+        Objects.requireNonNull(executor, "registerPowerProfileInfoListener: "
+                + "executor must not be null.");
+        Objects.requireNonNull(listener, "registerPowerProfileInfoListener: "
+                + "listener must not be null.");
+
+        synchronized (mPowerProfileInfoListenersLock) {
+            if (mPowerProfileInfoListeners == null) {
+                mPowerProfileInfoListeners = new ArrayMap<PowerProfileInfoListener, Executor>();
+            }
+
+            if (mPowerProfileInfoServiceListener == null) {
+                if (!registerPowerProfileInfoEventsIfNeededLocked()) {
+                    throw new IllegalStateException("Unexpected failure registering service "
+                            + "listener");
+                }
+            }
+            if (mPowerProfileInfoListeners.containsKey(listener)) {
+                throw new IllegalStateException("Listener has already been registered.");
+            }
+
+            mPowerProfileInfoListeners.put(listener, executor);
+        }
+    }
+
+    @GuardedBy("mPowerProfileInfoListenersLock")
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    private void unregisterPowerProfileInfoEventsLocked() {
+        if (mPowerProfileInfoServiceListener != null) {
+            try {
+                mService.unregisterForPowerProfileInfoEvents(mPowerProfileInfoServiceListener);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            } finally {
+                // If there was a RemoteException, the system server may have died,
+                // and this listener probably became unregistered, so clear it for re-registration.
+                mPowerProfileInfoServiceListener = null;
+            }
+        }
+    }
+
+    /**
+     * Unregisters the given listener if it was previously passed to
+     * registerPowerProfileInfoListener.
+     *
+     * @param listener          PowerProfileInfoListener used to register the listener
+     *                          in registerPowerProfileInfoListener.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_POWER_PROFILE_REPORTING)
+    @SystemApi
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    public void unregisterPowerProfileInfoListener(
+            @NonNull PowerProfileInfoListener listener) {
+        synchronized (mPowerProfileInfoListenersLock) {
+            if (mPowerProfileInfoListeners == null) {
+                return;
+            }
+            mPowerProfileInfoListeners.remove(listener);
+            if (mPowerProfileInfoListeners.isEmpty()) {
+                unregisterPowerProfileInfoEventsLocked();
+            }
+        }
+    }
+
     /**
      * Sets the component that will handle USB device connection.
      * <p>
@@ -2256,5 +2731,57 @@ public class UsbManager {
         }
 
         return halVersion;
+    }
+
+    /**
+     * Enable PCI tunneling over USB Type-C for alternate modes that support it.
+     *
+     * @param enable - Enable PCI tunneling
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_PCI_TUNNEL_CONTROL)
+    @SystemApi
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    public void setPciTunnelingEnabled(boolean enable) {
+        try {
+            mService.setPciTunnelingEnabled(enable);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Check whether PCI tunneling is currently enabled.
+     *
+     * @return True if pci tunneling is enabled, false otherwise.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_PCI_TUNNEL_CONTROL)
+    @SystemApi
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    public boolean isPciTunnelingEnabled() {
+        try {
+            return mService.isPciTunnelingEnabled();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Checks whether control of PCI tunneling is allowed.
+     *
+     * @return {@link PciTunnelControlAllowedStatus}
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_PCI_TUNNEL_CONTROL)
+    @SystemApi
+    @RequiresPermission(Manifest.permission.MANAGE_USB)
+    @PciTunnelControlAllowedStatus
+    public int getPciTunnelingControlAllowedStatus() {
+        try {
+            return mService.getPciTunnelingControlAllowedStatus();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
     }
 }

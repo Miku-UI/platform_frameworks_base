@@ -300,6 +300,18 @@ object PermissionFlags {
      */
     const val PURPOSE_REVOKED = 1 shl 24
 
+    /**
+     * Permission flag: The user has consented to using a trusted system component in the
+     * application. When set, the system doesn't show the consent dialog for future interactions.
+     */
+    const val TRUSTED_UI_SHOWN = 1 shl 25
+
+    /**
+     * Permission flag: The user has consented to using a trusted system component in the
+     * application. When set, the system doesn't show the consent dialog for future interactions.
+     */
+    const val TRUSTED_UI_CONSENTED = 1 shl 26
+
     /** Mask for all permission flags. */
     const val MASK_ALL = 0.inv()
 
@@ -325,7 +337,9 @@ object PermissionFlags {
             APP_OP_REVOKED or
             ONE_TIME or
             HIBERNATION or
-            USER_SELECTED
+            USER_SELECTED or
+            TRUSTED_UI_SHOWN or
+            TRUSTED_UI_CONSENTED
 
     /** Mask for all permission flags about permission exemption. */
     const val MASK_EXEMPT = INSTALLER_EXEMPT or SYSTEM_EXEMPT or UPGRADE_EXEMPT
@@ -427,6 +441,12 @@ object PermissionFlags {
         if (flags.hasBits(USER_SELECTED)) {
             apiFlags = apiFlags or PackageManager.FLAG_PERMISSION_SELECTED_LOCATION_ACCURACY
         }
+        if (flags.hasBits(TRUSTED_UI_SHOWN)) {
+            apiFlags = apiFlags or PackageManager.FLAG_PERMISSION_TRUSTED_UI_SHOWN
+        }
+        if (flags.hasBits(TRUSTED_UI_CONSENTED)) {
+            apiFlags = apiFlags or PackageManager.FLAG_PERMISSION_TRUSTED_UI_CONSENTED
+        }
         return apiFlags
     }
 
@@ -506,6 +526,12 @@ object PermissionFlags {
         if (apiFlags.hasBits(PackageManager.FLAG_PERMISSION_SELECTED_LOCATION_ACCURACY)) {
             flags = flags or USER_SELECTED
         }
+        if (apiFlags.hasBits(PackageManager.FLAG_PERMISSION_TRUSTED_UI_SHOWN)) {
+            flags = flags or TRUSTED_UI_SHOWN
+        }
+        if (apiFlags.hasBits(PackageManager.FLAG_PERMISSION_TRUSTED_UI_CONSENTED)) {
+            flags = flags or TRUSTED_UI_CONSENTED
+        }
         flags = flags or (oldFlags and PURPOSE_REVOKED)
         return flags
     }
@@ -537,6 +563,8 @@ object PermissionFlags {
             HIBERNATION -> "HIBERNATION"
             USER_SELECTED -> "USER_SELECTED"
             PURPOSE_REVOKED -> "PURPOSE_REVOKED"
+            TRUSTED_UI_SHOWN -> "TRUSTED_UI_SHOWN"
+            TRUSTED_UI_CONSENTED -> "TRUSTED_UI_CONSENTED"
             else -> "0x${flag.toUInt().toString(16).uppercase()}"
         }
 

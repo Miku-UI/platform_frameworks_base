@@ -119,7 +119,9 @@ public class RestrictedTopLevelPreference extends Preference implements
      *
      * @param admin details of the admin who enforced the restriction. If it is {@code null}, then
      *              this preference will be enabled. Otherwise, it will be disabled.
+     * @deprecated Use {@link #setDisabledByAdmin(EnforcingAdmin)} instead.
      */
+    @Deprecated
     public void setDisabledByAdmin(EnforcedAdmin admin) {
         if (mHelper.setDisabledByAdmin(admin)) {
             notifyChanged();

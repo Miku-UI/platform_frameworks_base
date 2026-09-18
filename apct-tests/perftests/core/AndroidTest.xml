@@ -70,6 +70,8 @@
         <option name="instrumentation-arg" key="perfetto_config_file" value="trace_config.textproto" />
 
         <option name="instrumentation-arg" key="newRunListenerMode" value="true" />
+        <option name="instrumentation-arg" key="androidx.benchmark.suppressErrors"
+                value="UNLOCKED"/>
 
         <!-- Listener related args for collecting the traces and waiting for the device to stabilize. -->
 

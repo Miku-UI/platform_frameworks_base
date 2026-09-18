@@ -57,9 +57,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.compose.PlatformIconButton
 import com.android.compose.PlatformSliderColors
-import com.android.compose.modifiers.padding
-import com.android.compose.modifiers.thenIf
-import com.android.systemui.Flags
 import com.android.systemui.compose.modifiers.sysuiResTag
 import com.android.systemui.res.R
 import com.android.systemui.volume.panel.component.volume.slider.ui.viewmodel.SliderViewModel
@@ -93,11 +90,7 @@ fun ColumnVolumeSliders(
             val sliderPadding by topSliderPadding(isExpandable)
 
             VolumeSlider(
-                modifier =
-                    Modifier.thenIf(!Flags.volumeRedesign()) {
-                            Modifier.padding(end = { sliderPadding.roundToPx() })
-                        }
-                        .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 state = sliderState,
                 onValueChange = { newValue: Float ->
                     sliderViewModel.onValueChanged(sliderState, newValue)
@@ -106,38 +99,19 @@ fun ColumnVolumeSliders(
                 onIconTapped = { sliderViewModel.toggleMuted(sliderState) },
                 sliderColors = sliderColors,
                 hapticsViewModelFactory = sliderViewModel.getSliderHapticsViewModelFactory(),
-                button =
-                    if (Flags.volumeRedesign()) {
-                        {
-                            ExpandButton(
-                                modifier =
-                                    Modifier.sysuiResTag(
-                                        ColumnVolumeSlidersMotionTestKeys
-                                            .TOGGLE_EXPANSION_BUTTON_TAG
-                                    ),
-                                isExpanded = isExpanded,
-                                isExpandable = isExpandable,
-                                onExpandedChanged = onExpandedChanged,
-                            )
-                        }
-                    } else {
-                        null
-                    },
-            )
-
-            if (!Flags.volumeRedesign()) {
-                ExpandButtonLegacy(
-                    modifier =
-                        Modifier.align(Alignment.CenterEnd)
-                            .sysuiResTag(
+                button = {
+                    ExpandButton(
+                        modifier =
+                            Modifier.sysuiResTag(
                                 ColumnVolumeSlidersMotionTestKeys.TOGGLE_EXPANSION_BUTTON_TAG
                             ),
-                    isExpanded = isExpanded,
-                    isExpandable = isExpandable,
-                    onExpandedChanged = onExpandedChanged,
-                    sliderColors = sliderColors,
-                )
-            }
+                        isExpanded = isExpanded,
+                        isExpandable = isExpandable,
+                        onExpandedChanged = onExpandedChanged,
+                    )
+                },
+                materialSliderColors = VolumeSliderColors.Defaults,
+            )
         }
         AnimatedVisibility(
             visible = isExpanded || !isExpandable,
@@ -183,7 +157,7 @@ fun ColumnVolumeSliders(
                                                 totalCount = viewModels.size,
                                             ),
                                     )
-                                    .padding(top = if (Flags.volumeRedesign()) 4.dp else 16.dp),
+                                    .padding(top = 4.dp),
                             state = sliderState,
                             onValueChange = { newValue: Float ->
                                 sliderViewModel.onValueChanged(sliderState, newValue)
@@ -193,6 +167,7 @@ fun ColumnVolumeSliders(
                             sliderColors = sliderColors,
                             hapticsViewModelFactory =
                                 sliderViewModel.getSliderHapticsViewModelFactory(),
+                            materialSliderColors = VolumeSliderColors.Defaults,
                         )
                     }
                 }

@@ -18,10 +18,6 @@ package android.window;
 
 import static android.window.SystemOverrideOnBackInvokedCallback.OVERRIDE_UNDEFINED;
 
-import static com.android.window.flags.Flags.multipleSystemNavigationObserverCallbacks;
-import static com.android.window.flags.Flags.predictiveBackCallbackCancellationFix;
-import static com.android.window.flags.Flags.predictiveBackStopKeycodeBackForwarding;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.Activity;
@@ -107,8 +103,8 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
     @Nullable
     private ImeBackAnimationController mImeBackAnimationController;
 
-    @GuardedBy("mLock")
     /** Convenience hashmap to quickly decide if a callback has been added. */
+    @GuardedBy("mLock")
     private final HashMap<OnBackInvokedCallback, Integer> mAllCallbacks = new HashMap<>();
     /** Holds all callbacks by priorities. */
 
@@ -117,8 +113,6 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
     public final TreeMap<Integer, ArrayList<OnBackInvokedCallback>>
             mOnBackInvokedCallbacks = new TreeMap<>();
 
-    @VisibleForTesting
-    public OnBackInvokedCallback mSystemNavigationObserverCallback = null;
     @VisibleForTesting
     public Set<OnBackInvokedCallback> mSystemNavigationObserverCallbacks = new HashSet<>();
 
@@ -199,11 +193,7 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
                 }
                 removeCallbackInternal(callback);
             }
-            if (multipleSystemNavigationObserverCallbacks()) {
-                mSystemNavigationObserverCallbacks.add(callback);
-            } else {
-                mSystemNavigationObserverCallback = callback;
-            }
+            mSystemNavigationObserverCallbacks.add(callback);
         }
     }
 
@@ -249,21 +239,11 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
                 Integer prevPriority = mAllCallbacks.get(callback);
                 mOnBackInvokedCallbacks.get(prevPriority).remove(callback);
             }
-            if (multipleSystemNavigationObserverCallbacks()) {
-                if (mSystemNavigationObserverCallbacks.contains(callback)) {
-                    mSystemNavigationObserverCallbacks.remove(callback);
-                    if (DEBUG) {
-                        Log.i(TAG, "Callback already registered (as system-navigation-observer "
-                                + "callback). Removing and re-adding it.");
-                    }
-                }
-            } else {
-                if (mSystemNavigationObserverCallback == callback) {
-                    mSystemNavigationObserverCallback = null;
-                    if (DEBUG) {
-                        Log.i(TAG, "Callback already registered (as system-navigation-observer "
-                                + "callback). Removing and re-adding it.");
-                    }
+            if (mSystemNavigationObserverCallbacks.contains(callback)) {
+                mSystemNavigationObserverCallbacks.remove(callback);
+                if (DEBUG) {
+                    Log.i(TAG, "Callback already registered (as system-navigation-observer "
+                            + "callback). Removing and re-adding it.");
                 }
             }
 
@@ -285,16 +265,9 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
                 mImeBackCallbackSender.unregisterOnBackInvokedCallback(callback);
                 return;
             }
-            if (multipleSystemNavigationObserverCallbacks()) {
-                if (mSystemNavigationObserverCallbacks.contains(callback)) {
-                    mSystemNavigationObserverCallbacks.remove(callback);
-                    return;
-                }
-            } else {
-                if (mSystemNavigationObserverCallback == callback) {
-                    mSystemNavigationObserverCallback = null;
-                    return;
-                }
+            if (mSystemNavigationObserverCallbacks.contains(callback)) {
+                mSystemNavigationObserverCallbacks.remove(callback);
+                return;
             }
             if (callback instanceof ImeBackCallbackProxy.DefaultImeOnBackAnimationCallback) {
                 callback = mImeBackAnimationController;
@@ -321,16 +294,9 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
         // Re-populate the top callback to WM if the removed callback was previously the top one.
         if (previousTopCallback == callback) {
             setTopOnBackInvokedCallback(getTopCallback());
-            if (!predictiveBackCallbackCancellationFix()) {
-                // We should call onBackCancelled() when an active callback is removed from the
-                // dispatcher.
-                mProgressAnimator.removeOnBackCancelledFinishCallback();
-                sendCancelledIfInProgress(callback);
-                mHandler.post(mProgressAnimator::reset);
-            }
         }
 
-        if (predictiveBackCallbackCancellationFix() && mProgressAnimator.isBackAnimationInProgress()
+        if (mProgressAnimator.isBackAnimationInProgress()
                 && mProgressAnimator.getActiveBackCallback() == callback) {
             // We should call onBackCancelled() when an active callback is removed from the
             // dispatcher.
@@ -369,8 +335,7 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
 
     private void sendCancelledIfInProgress(@Nullable OnBackInvokedCallback callback) {
         boolean isInProgress = callback != null && mProgressAnimator.isBackAnimationInProgress()
-                && (!predictiveBackCallbackCancellationFix()
-                        || mProgressAnimator.getActiveBackCallback() == callback);
+                && mProgressAnimator.getActiveBackCallback() == callback;
         if (isInProgress && callback instanceof OnBackAnimationCallback) {
             OnBackAnimationCallback animatedCallback = (OnBackAnimationCallback) callback;
             animatedCallback.onBackCancelled();
@@ -393,17 +358,7 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
                 mImeBackCallbackSender = null;
             }
             if (!mAllCallbacks.isEmpty()) {
-                if (predictiveBackCallbackCancellationFix()) {
-                    sendCancelledIfInProgress(mProgressAnimator.getActiveBackCallback());
-                } else {
-                    OnBackInvokedCallback topCallback = getTopCallback();
-                    if (topCallback != null) {
-                        sendCancelledIfInProgress(topCallback);
-                    } else {
-                        // Should not be possible
-                        Log.e(TAG, "There is no topCallback, even if mAllCallbacks is not empty");
-                    }
-                }
+                sendCancelledIfInProgress(mProgressAnimator.getActiveBackCallback());
                 // Clear binder references in WM.
                 setTopOnBackInvokedCallback(null);
             }
@@ -413,7 +368,6 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
             mHandler.post(mProgressAnimator::reset);
             mAllCallbacks.clear();
             mOnBackInvokedCallbacks.clear();
-            mSystemNavigationObserverCallback = null;
             mSystemNavigationObserverCallbacks.clear();
         }
     }
@@ -437,13 +391,11 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
      */
     public void onBackStarted(OnBackInvokedCallback callback, BackEvent backEvent,
             boolean observerOnly) {
-        if (predictiveBackStopKeycodeBackForwarding()) {
-            forEachObserverCallback((observerCallback) -> {
-                if (observerCallback instanceof ObserverOnBackAnimationCallback) {
-                    ((ObserverOnBackAnimationCallback) observerCallback).onBackStarted(backEvent);
-                }
-            });
-        }
+        forEachObserverCallback((observerCallback) -> {
+            if (observerCallback instanceof ObserverOnBackAnimationCallback) {
+                ((ObserverOnBackAnimationCallback) observerCallback).onBackStarted(backEvent);
+            }
+        });
         if (callback instanceof OnBackAnimationCallback && !observerOnly) {
             ((OnBackAnimationCallback) callback).onBackStarted(backEvent);
         }
@@ -457,13 +409,11 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
      * @param callback The callback to call {@link OnBackAnimationCallback#onBackCancelled} on.
      */
     public void onBackCancelled(OnBackInvokedCallback callback) {
-        if (predictiveBackStopKeycodeBackForwarding()) {
-            forEachObserverCallback((observerCallback) -> {
-                if (observerCallback instanceof ObserverOnBackAnimationCallback) {
-                    ((ObserverOnBackAnimationCallback) observerCallback).onBackCancelled();
-                }
-            });
-        }
+        forEachObserverCallback((observerCallback) -> {
+            if (observerCallback instanceof ObserverOnBackAnimationCallback) {
+                ((ObserverOnBackAnimationCallback) observerCallback).onBackCancelled();
+            }
+        });
         if (callback instanceof OnBackAnimationCallback) {
             ((OnBackAnimationCallback) callback).onBackCancelled();
         }
@@ -497,19 +447,13 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
      * @param action The action to execute for each callback.
      */
     private void forEachObserverCallback(Consumer<OnBackInvokedCallback> action) {
-        if (multipleSystemNavigationObserverCallbacks()) {
-            if (mSystemNavigationObserverCallbacks.isEmpty()) return;
-            Set<OnBackInvokedCallback> observerCallbacks;
-            synchronized (mLock) {
-                observerCallbacks = new HashSet<>(mSystemNavigationObserverCallbacks);
-            }
-            for (OnBackInvokedCallback observerCallback : observerCallbacks) {
-                action.accept(observerCallback);
-            }
-        } else {
-            if (mSystemNavigationObserverCallback != null) {
-                action.accept(mSystemNavigationObserverCallback);
-            }
+        if (mSystemNavigationObserverCallbacks.isEmpty()) return;
+        Set<OnBackInvokedCallback> observerCallbacks;
+        synchronized (mLock) {
+            observerCallbacks = new HashSet<>(mSystemNavigationObserverCallbacks);
+        }
+        for (OnBackInvokedCallback observerCallback : observerCallbacks) {
+            action.accept(observerCallback);
         }
     }
 
@@ -668,12 +612,8 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
                 WindowOnBackInvokedDispatcher.this.onBackStarted(mCallback.get(),
                         BackEvent.fromBackMotionEvent(backEvent), /* observerOnly */ false);
                 if (callback != null) {
-                    if (predictiveBackCallbackCancellationFix()) {
-                        mProgressAnimator.onBackStarted(backEvent, callback::onBackProgressed,
-                                callback);
-                    } else {
-                        mProgressAnimator.onBackStarted(backEvent, callback::onBackProgressed);
-                    }
+                    mProgressAnimator.onBackStarted(backEvent, callback::onBackProgressed,
+                            callback);
                 }
             });
         }
@@ -688,11 +628,9 @@ public class WindowOnBackInvokedDispatcher implements OnBackInvokedDispatcher {
             // This is only called in some special cases such as when activity embedding is active
             // or when the activity is letterboxed. Otherwise mProgressAnimator#onBackProgressed is
             // called from WindowOnBackInvokedDispatcher#onMotionEvent
-            mHandler.post(() -> {
-                if (getBackAnimationCallback() != null) {
-                    mProgressAnimator.onBackProgressed(backEvent);
-                }
-            });
+            if (getBackAnimationCallback() != null) {
+                mHandler.post(() -> mProgressAnimator.onBackProgressed(backEvent));
+            }
         }
 
         @Override

@@ -16,13 +16,14 @@
 
 package com.android.systemui.customization.clocks
 
+import android.annotation.SuppressLint
 import android.icu.util.TimeZone
 import android.view.View
-import android.view.View.MeasureSpec
 import com.android.systemui.log.LogcatOnlyMessageBuffer
 import com.android.systemui.log.core.LogLevel
 import com.android.systemui.log.core.Logger
 import com.android.systemui.log.core.MessageBuffer
+import com.android.systemui.plugins.keyguard.VMeasurePoint
 import com.android.systemui.plugins.keyguard.VPointF
 import com.android.systemui.plugins.keyguard.VRect
 import com.android.systemui.plugins.keyguard.ui.clocks.TimeFormatKind
@@ -47,7 +48,7 @@ class ClockLogger(private val view: View?, buffer: MessageBuffer, tag: String) :
     }
 
     fun requestLayout() {
-        if (view?.isLayoutRequested() == false) {
+        if (view?.isLayoutRequested == false) {
             d("requestLayout()")
         }
     }
@@ -64,11 +65,8 @@ class ClockLogger(private val view: View?, buffer: MessageBuffer, tag: String) :
         d({ "onLocaleChanged($str1)" }) { str1 = "$formatKind" }
     }
 
-    fun onMeasure(widthSpec: Int, heightSpec: Int) {
-        d({ "onMeasure(${getSpecText(int1)}, ${getSpecText(int2)})" }) {
-            int1 = widthSpec
-            int2 = heightSpec
-        }
+    fun onMeasure(specPt: VMeasurePoint) {
+        d({ "onMeasure(${VMeasurePoint.fromLong(long1)})" }) { long1 = specPt.toLong() }
     }
 
     fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
@@ -87,7 +85,7 @@ class ClockLogger(private val view: View?, buffer: MessageBuffer, tag: String) :
     }
 
     fun onDraw(lsStr: String?, aodStr: String?) {
-        d({ "onDraw(ls = ${escapeTime(str1)}, aod = ${escapeTime(str2)}" }) {
+        d({ "onDraw(ls = ${escapeTime(str1)}, aod = ${escapeTime(str2)})" }) {
             str1 = lsStr
             str2 = aodStr
         }
@@ -147,6 +145,7 @@ class ClockLogger(private val view: View?, buffer: MessageBuffer, tag: String) :
         // Debug is primarially used for tests, but can also be used for tracking down hard issues.
         val DEBUG_MESSAGE_BUFFER = LogcatOnlyMessageBuffer(LogLevel.DEBUG)
 
+        @SuppressLint("StaticFieldLeak")
         // Only intended for use during initialization steps before the logger is initialized
         val INIT_LOGGER = ClockLogger(null, LogcatOnlyMessageBuffer(LogLevel.ERROR), "CLOCK_INIT")
 
@@ -158,20 +157,6 @@ class ClockLogger(private val view: View?, buffer: MessageBuffer, tag: String) :
                 View.VISIBLE -> "VISIBLE"
                 else -> "$visibility"
             }
-        }
-
-        @JvmStatic
-        fun getSpecText(spec: Int): String {
-            val size = MeasureSpec.getSize(spec)
-            val mode = MeasureSpec.getMode(spec)
-            val modeText =
-                when (mode) {
-                    MeasureSpec.EXACTLY -> "EXACTLY"
-                    MeasureSpec.AT_MOST -> "AT MOST"
-                    MeasureSpec.UNSPECIFIED -> "UNSPECIFIED"
-                    else -> "$mode"
-                }
-            return "($size, $modeText)"
         }
 
         @JvmStatic

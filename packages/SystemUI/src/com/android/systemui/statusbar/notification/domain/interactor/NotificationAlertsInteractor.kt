@@ -17,15 +17,15 @@
 package com.android.systemui.statusbar.notification.domain.interactor
 
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.statusbar.disableflags.domain.interactor.DisableFlagsInteractor
+import com.android.systemui.shade.domain.interactor.ShadeStatusBarComponentsInteractor
 import javax.inject.Inject
 
 /** Interactor for notification alerting. */
 @SysUISingleton
 class NotificationAlertsInteractor
 @Inject
-constructor(private val disableFlagsInteractor: DisableFlagsInteractor) {
+constructor(private val shadeStatusBarComponentsInteractor: ShadeStatusBarComponentsInteractor) {
     /** Returns true if notification alerts are allowed. */
     fun areNotificationAlertsEnabled(): Boolean =
-        disableFlagsInteractor.disableFlags.value.areNotificationAlertsEnabled()
+        shadeStatusBarComponentsInteractor.disableFlags.value.areNotificationAlertsEnabled()
 }

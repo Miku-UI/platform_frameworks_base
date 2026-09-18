@@ -56,6 +56,7 @@ import android.content.SyncInfo;
 import android.content.SyncResult;
 import android.content.SyncStatusInfo;
 import android.content.SyncStatusInfo.Stats;
+import android.content.flags.Flags;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
@@ -728,12 +729,7 @@ public class SyncManager {
 
         IntentFilter intentFilter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
 
-        if (com.android.server.am.Flags.syncmanagerOffMainThread()) {
-            context.registerReceiver(mConnectivityIntentReceiver, intentFilter, null,
-                    mSyncHandler);
-        } else {
-            context.registerReceiver(mConnectivityIntentReceiver, intentFilter);
-        }
+        context.registerReceiver(mConnectivityIntentReceiver, intentFilter, null, mSyncHandler);
 
         intentFilter = new IntentFilter(Intent.ACTION_SHUTDOWN);
         intentFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
@@ -744,9 +740,7 @@ public class SyncManager {
         intentFilter.addAction(Intent.ACTION_USER_UNLOCKED);
         intentFilter.addAction(Intent.ACTION_USER_STOPPED);
         mContext.registerReceiverAsUser(
-                mUserIntentReceiver, UserHandle.ALL, intentFilter, null,
-                com.android.server.am.Flags.syncmanagerOffMainThread() ? mSyncHandler : null);
-
+                mUserIntentReceiver, UserHandle.ALL, intentFilter, null, mSyncHandler);
 
         mPackageMonitor = new PackageMonitorImpl();
         mPackageMonitor.register(mContext, null /* thread */, UserHandle.ALL,
@@ -1252,24 +1246,48 @@ public class SyncManager {
                         mLogger.log("scheduleSync: schedule initialisation sync ",
                                 account, " ", authority);
 
-                        postScheduleSyncMessage(
-                                new SyncOperation(account.account, account.userId,
-                                        owningUid, owningPackage, reason, source,
-                                        authority, newExtras, allowParallelSyncs,
-                                        syncExemptionFlag),
-                                minDelayMillis
-                        );
+                        final SyncOperation op;
+                        if (Flags.syncoperationEnforceBundleSanitization()) {
+                            try {
+                                op = new SyncOperation(account.account, account.userId, owningUid,
+                                        owningPackage, reason, source, authority, newExtras,
+                                        allowParallelSyncs, syncExemptionFlag,
+                                        true /* validateExtras */);
+                            } catch (IllegalArgumentException e) {
+                                Slog.w(TAG, "Dropping init sync for " + info.toSafeString()
+                                        + ", invalid extras");
+                                continue;
+                            }
+                        } else {
+                            op = new SyncOperation(account.account, account.userId, owningUid,
+                                    owningPackage, reason, source, authority, newExtras,
+                                    allowParallelSyncs, syncExemptionFlag);
+                        }
+                        postScheduleSyncMessage(op, minDelayMillis);
                     }
                 } else if (targetSyncState == AuthorityInfo.UNDEFINED
                         || targetSyncState == isSyncable) {
                     mLogger.log("scheduleSync: scheduling sync ",
                             account, " ", authority);
-                    postScheduleSyncMessage(
-                            new SyncOperation(account.account, account.userId,
-                                    owningUid, owningPackage, reason, source,
-                                    authority, extras, allowParallelSyncs, syncExemptionFlag),
-                            minDelayMillis
-                    );
+
+                    final SyncOperation op;
+                    if (Flags.syncoperationEnforceBundleSanitization()) {
+                        try {
+                            op = new SyncOperation(account.account, account.userId, owningUid,
+                                    owningPackage, reason, source, authority, extras,
+                                    allowParallelSyncs, syncExemptionFlag,
+                                    true /* validateExtras */);
+                        } catch (IllegalArgumentException e) {
+                            Slog.w(TAG, "Dropping sync for " + info.toSafeString()
+                                    + ", invalid extras");
+                            continue;
+                        }
+                    } else {
+                        op = new SyncOperation(account.account, account.userId, owningUid,
+                                owningPackage, reason, source, authority, extras,
+                                allowParallelSyncs, syncExemptionFlag);
+                    }
+                    postScheduleSyncMessage(op, minDelayMillis);
                 } else {
                     mLogger.log("scheduleSync: not handling ",
                             account, " ", authority);
@@ -1312,15 +1330,12 @@ public class SyncManager {
 
     /**
      * Returns whether the package is in a stopped state or not.
-     * Always returns {@code false} if the {@code android.content.pm.stay_stopped} flag is not set.
      */
     private boolean isPackageStopped(String packageName, int userId) {
-        if (android.content.pm.Flags.stayStopped()) {
-            try {
-                return mPackageManagerInternal.isPackageStopped(packageName, userId);
-            } catch (NameNotFoundException e) {
-                Log.e(TAG, "Couldn't determine stopped state for unknown package: " + packageName);
-            }
+        try {
+            return mPackageManagerInternal.isPackageStopped(packageName, userId);
+        } catch (NameNotFoundException e) {
+            Log.e(TAG, "Couldn't determine stopped state for unknown package: " + packageName);
         }
         return false;
     }
@@ -3593,11 +3608,28 @@ public class SyncManager {
                 return;
             }
 
-            SyncOperation op = new SyncOperation(target, syncAdapterInfo.uid,
-                    syncAdapterInfo.componentName.getPackageName(), SyncOperation.REASON_PERIODIC,
-                    SyncStorageEngine.SOURCE_PERIODIC, extras,
-                    syncAdapterInfo.type.allowParallelSyncs(), true, SyncOperation.NO_JOB_ID,
-                    pollFrequencyMillis, flexMillis, ContentResolver.SYNC_EXEMPTION_NONE);
+            final SyncOperation op;
+            if (Flags.syncoperationEnforceBundleSanitization()) {
+                try {
+                    op = new SyncOperation(target, syncAdapterInfo.uid,
+                            syncAdapterInfo.componentName.getPackageName(),
+                            SyncOperation.REASON_PERIODIC, SyncStorageEngine.SOURCE_PERIODIC,
+                            extras, syncAdapterInfo.type.allowParallelSyncs(), true,
+                            SyncOperation.NO_JOB_ID, pollFrequencyMillis, flexMillis,
+                            ContentResolver.SYNC_EXEMPTION_NONE, true /* validateExtras */);
+                } catch (IllegalArgumentException e) {
+                    Slog.w(TAG, "Dropping periodic sync request for " + target.toSafeString()
+                            + ", invalid extras");
+                    return;
+                }
+            } else {
+                op = new SyncOperation(target, syncAdapterInfo.uid,
+                        syncAdapterInfo.componentName.getPackageName(),
+                        SyncOperation.REASON_PERIODIC, SyncStorageEngine.SOURCE_PERIODIC,
+                        extras, syncAdapterInfo.type.allowParallelSyncs(), true,
+                        SyncOperation.NO_JOB_ID, pollFrequencyMillis, flexMillis,
+                        ContentResolver.SYNC_EXEMPTION_NONE);
+            }
 
             final int syncOpState = computeSyncOpState(op);
             if (syncOpState == SYNC_OP_STATE_INVALID_NO_ACCOUNT_ACCESS) {
@@ -4009,13 +4041,28 @@ public class SyncManager {
                         new UserHandle(info.userId));
             }
             if (syncResult != null && syncResult.fullSyncRequested) {
-                scheduleSyncOperationH(
-                        new SyncOperation(info.account, info.userId,
+                final SyncOperation op;
+                if (Flags.syncoperationEnforceBundleSanitization()) {
+                    try {
+                        op = new SyncOperation(info.account, info.userId,
                                 syncOperation.owningUid, syncOperation.owningPackage,
                                 syncOperation.reason,
                                 syncOperation.syncSource, info.provider, new Bundle(),
                                 syncOperation.allowParallelSyncs,
-                                syncOperation.syncExemptionFlag));
+                                syncOperation.syncExemptionFlag, true /* validateExtras */);
+                    } catch (IllegalArgumentException e) {
+                        Slog.wtf(TAG, "Error creating SyncOperation for fullSyncRequested", e);
+                        return;
+                    }
+                } else {
+                    op = new SyncOperation(info.account, info.userId,
+                            syncOperation.owningUid, syncOperation.owningPackage,
+                            syncOperation.reason,
+                            syncOperation.syncSource, info.provider, new Bundle(),
+                            syncOperation.allowParallelSyncs,
+                            syncOperation.syncExemptionFlag);
+                }
+                scheduleSyncOperationH(op);
             }
         }
 

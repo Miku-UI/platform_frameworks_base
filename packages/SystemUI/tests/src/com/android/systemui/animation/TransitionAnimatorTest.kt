@@ -23,14 +23,11 @@ import android.animation.recordMotion
 import android.graphics.Color
 import android.graphics.PointF
 import android.graphics.drawable.GradientDrawable
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.annotations.MotionTest
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.activity.EmptyTestActivity
 import com.android.systemui.concurrency.fakeExecutor
@@ -43,6 +40,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import platform.test.motion.MotionTestRule
 import platform.test.motion.RecordedMotion
+import platform.test.motion.golden.feature
 import platform.test.motion.view.DrawableFeatureCaptures
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4
 import platform.test.runner.parameterized.Parameters
@@ -121,8 +119,8 @@ class TransitionAnimatorTest(
             kosmos.fakeExecutor,
             ActivityTransitionAnimator.TIMINGS,
             ActivityTransitionAnimator.INTERPOLATORS,
-            ActivityTransitionAnimator.SPRING_TIMINGS,
-            ActivityTransitionAnimator.SPRING_INTERPOLATORS,
+            TransitionAnimator.SPRING_TIMINGS,
+            TransitionAnimator.SPRING_INTERPOLATORS,
         )
 
     @get:Rule(order = 1) val activityRule = ActivityScenarioRule(EmptyTestActivity::class.java)
@@ -134,21 +132,6 @@ class TransitionAnimatorTest(
             pathManager,
         )
 
-    @DisableFlags(Flags.FLAG_MOVE_TRANSITION_ANIMATION_LAYER)
-    @Test
-    fun backgroundAnimationTimeSeries() {
-        val transitionContainer = createScene()
-        val backgroundLayer = createBackgroundLayer()
-        val animation = createAnimation(transitionContainer, backgroundLayer)
-
-        val recordedMotion = record(backgroundLayer, animation)
-
-        motionRule
-            .assertThat(recordedMotion)
-            .timeSeriesMatchesGolden("backgroundAnimationTimeSeries")
-    }
-
-    @EnableFlags(Flags.FLAG_MOVE_TRANSITION_ANIMATION_LAYER)
     @Test
     fun backgroundAnimationTimeSeries_drawHoleAfterFadeout() {
         val transitionContainer = createScene()
@@ -236,9 +219,9 @@ class TransitionAnimatorTest(
 
         return motionRule.recordMotion(
             AnimatorRuleRecordingSpec(backgroundLayer, motionControl, sampleIntervalMs) {
-                feature(DrawableFeatureCaptures.bounds, "bounds")
-                feature(DrawableFeatureCaptures.cornerRadii, "corner_radii")
-                feature(DrawableFeatureCaptures.alpha, "alpha")
+                feature("bounds", DrawableFeatureCaptures.bounds)
+                feature("corner_radii", DrawableFeatureCaptures.cornerRadii)
+                feature("alpha", DrawableFeatureCaptures.alpha)
             }
         )
     }

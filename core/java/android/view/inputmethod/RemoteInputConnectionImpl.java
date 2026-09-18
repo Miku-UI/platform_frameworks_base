@@ -1448,7 +1448,7 @@ final class RemoteInputConnectionImpl extends IRemoteInputConnection.Stub {
                         if (!checkSessionId(header)) {
                             return; // cancelled.
                         }
-                        InputConnection ic = getInputConnection();
+                        final InputConnection ic = getInputConnection();
                         if (ic == null || mDeactivateRequested.get()) {
                             Log.w(TAG, "commitText on inactive InputConnection");
                             return;
@@ -1465,7 +1465,7 @@ final class RemoteInputConnectionImpl extends IRemoteInputConnection.Stub {
                         if (!checkSessionId(header)) {
                             return; // cancelled.
                         }
-                        InputConnection ic = getInputConnection();
+                        final InputConnection ic = getInputConnection();
                         if (ic == null || mDeactivateRequested.get()) {
                             Log.w(TAG, "replaceText on inactive InputConnection");
                             return;
@@ -1483,12 +1483,29 @@ final class RemoteInputConnectionImpl extends IRemoteInputConnection.Stub {
                         if (!checkSessionId(header)) {
                             return; // cancelled.
                         }
-                        InputConnection ic = getInputConnection();
+                        final InputConnection ic = getInputConnection();
                         if (ic == null || mDeactivateRequested.get()) {
                             Log.w(TAG, "sendKeyEvent on inactive InputConnection");
                             return;
                         }
                         ic.sendKeyEvent(event);
+                    });
+                }
+
+                @Dispatching(cancellable = true)
+                @Override
+                public void performEditorAction(InputConnectionCommandHeader header,
+                        int actionCode) {
+                    dispatchWithTracing("performEditorActionFromComputerControl", () -> {
+                        if (!checkSessionId(header)) {
+                            return; // cancelled.
+                        }
+                        final InputConnection ic = getInputConnection();
+                        if (ic == null || mDeactivateRequested.get()) {
+                            Log.w(TAG, "performEditorAction on inactive InputConnection");
+                            return;
+                        }
+                        ic.performEditorAction(actionCode);
                     });
                 }
             };

@@ -14,3 +14,7 @@ per-file /apct-tests/perftests/core/src/android/content/om/* = file:/core/java/a
 
 # Bug component: 44215
 per-file **Accessibility* = file:/core/java/android/view/accessibility/OWNERS
+
+# Bug component: 46626
+per-file /apct-tests/perftests/core/src/android/content/ExternalStorageProviderPerfTest.java = file:platform/packages/apps/DocumentsUI:/OWNERS
+

@@ -22,6 +22,7 @@ import com.android.systemui.graphics.imageLoader
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.media.controls.shared.mediaLogger
 import com.android.systemui.media.controls.util.fakeMediaControllerFactory
 import com.android.systemui.media.controls.util.mediaFlags
 
@@ -36,5 +37,6 @@ val Kosmos.mediaDataLoader by
             imageLoader,
             statusBarManager,
             media3ActionFactory,
+            mediaLogger,
         )
     }

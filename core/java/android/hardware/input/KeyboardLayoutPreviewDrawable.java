@@ -28,6 +28,7 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Slog;
 import android.util.TypedValue;
 import android.view.KeyEvent;
@@ -41,6 +42,7 @@ import java.util.List;
 /**
  * A custom drawable class that draws preview of a Physical keyboard layout.
  */
+@RavenwoodKeepWholeClass
 final class KeyboardLayoutPreviewDrawable extends Drawable {
 
     private static final String TAG = "KeyboardLayoutPreview";

@@ -115,10 +115,6 @@ interface IActivityTaskManager {
             in String callingFeatureId, in Intent intent, in String resolvedType,
             in IBinder resultTo, in String resultWho, int requestCode, int flags,
             in ProfilerInfo profilerInfo, in Bundle options, int userId);
-    int startActivityWithConfig(in IApplicationThread caller, in String callingPackage,
-            in String callingFeatureId, in Intent intent, in String resolvedType,
-            in IBinder resultTo, in String resultWho, int requestCode, int startFlags,
-            in Configuration newConfig, in Bundle options, int userId);
     int startVoiceActivity(in String callingPackage, in String callingFeatureId, int callingPid,
             int callingUid, in Intent intent, in String resolvedType,
             in IVoiceInteractionSession session, in IVoiceInteractor interactor, int flags,
@@ -139,7 +135,6 @@ interface IActivityTaskManager {
 
     boolean isActivityStartAllowedOnDisplay(int displayId, in Intent intent, in String resolvedType,
             int userId);
-    boolean isTaskMoveAllowedOnDisplay(int displayId);
 
     void unhandledBack();
 
@@ -182,6 +177,7 @@ interface IActivityTaskManager {
     List<IBinder> getAppTasks(in String callingPackage);
     void startSystemLockTaskMode(int taskId);
     void stopSystemLockTaskMode();
+    void rebuildSystemLockTaskPinnedMode();
     void finishVoiceTask(in IVoiceInteractionSession session);
     int addAppTask(in IBinder activityToken, in Intent intent,
             in ActivityManager.TaskDescription description, in Bitmap thumbnail);
@@ -231,8 +227,6 @@ interface IActivityTaskManager {
             boolean focused, boolean newSessionId);
     boolean requestAutofillData(in IAssistDataReceiver receiver, in Bundle receiverExtras,
             in IBinder activityToken, int flags);
-    // @deprecated Use ActivityTaskManagerInternal#isAssistDataAllowed instead.
-    boolean isAssistDataAllowed();
     boolean requestAssistDataForTask(in IAssistDataReceiver receiver, int taskId,
             in String callingPackageName, String callingAttributionTag, boolean fetchStructure);
 
@@ -265,31 +259,6 @@ interface IActivityTaskManager {
 
     /** Cancels the window transitions for the given task. */
     void cancelTaskWindowTransition(int taskId);
-
-    /**
-     * Fetches the snapshot for the task with the given id, taking a new snapshot if it is not in
-     * the task snapshot cache and it is requested.
-     *
-     * @param taskId the id of the task to retrieve the sAutoapshots for
-     * @param isLowResolution if set, if the snapshot needs to be loaded from disk, this will load
-     *                          a reduced resolution of it, which is much faster
-     * @return a graphic buffer representing a screenshot of a task
-     */
-    android.window.TaskSnapshot getTaskSnapshot(
-            int taskId, boolean isLowResolution);
-
-    /**
-     * Requests for a new snapshot to be taken for the task with the given id, storing it in the
-     * task snapshot cache only if requested.
-     *
-     * @param taskId the id of the task to take a snapshot of
-     * @param updateCache Whether to store the new snapshot in the system's task snapshot cache.
-     *                    If it is true, the snapshot can be either real content or app-theme mode
-     *                    depending on the attributes of app. Otherwise, the snapshot will be taken
-     *                    with real content.
-     * @return a graphic buffer representing a screenshot of a task
-     */
-    android.window.TaskSnapshot takeTaskSnapshot(int taskId, boolean updateCache);
 
     /**
      * Return the user id of last resumed activity.
@@ -348,8 +317,9 @@ interface IActivityTaskManager {
      * When the Picture-in-picture state has changed.
      * @param pipState the {@link PictureInPictureUiState} is sent to current pip task if there is
      * any -or- the top most task (state like entering PiP does not require a pinned task).
+     * @param displayId the id of the display in {@link PipDisplayLayoutState}.
      */
-    void onPictureInPictureUiStateChanged(in PictureInPictureUiState pipState);
+    void onPictureInPictureUiStateChanged(in PictureInPictureUiState pipState, in int displayId);
 
     /**
      * Re-attach navbar to the display during a recents transition.
@@ -358,12 +328,23 @@ interface IActivityTaskManager {
     void detachNavigationBarFromApp(in IBinder transition);
 
     /**
-     * Marks a process as a delegate for the currently playing remote transition animation. This
-     * must be called from a process that is already a remote transition player or delegate. Any
-     * marked delegates are cleaned-up automatically at the end of the transition.
-     * @param caller is the IApplicationThread representing the calling process.
+     * Informs the transition system that the current transition is about to be animated by a
+     * remote process rather than the calling process. Core must have already been informed of
+     * the delegate process via RemoteTransition or WindowContainerTransaction.setAnimationDelegate.
+     * This must be called from a process that is already a remote transition player or delegate.
+     * Delegates are cleaned-up automatically at the end of the transition.
+     * @param transition is the token representing the transition being animated.
      */
-    void setRunningRemoteTransitionDelegate(in IApplicationThread caller);
+    void setRunningRemoteTransitionDelegate(in IBinder transition);
+
+    /**
+     * Simulate inject touch event to trigger potential focus change in the server.
+     * Called when navigation bar is about to trigger back event but won't inject back key to input
+     * manager.
+     * @param displayId Id of the display the user just touched.
+     * @return Return true if display order will change.
+     */
+    boolean simulateTouchDisplay(int displayId);
 
     /**
      * Prepare the back navigation in the server. This setups the leashed for sysui to animate
@@ -440,4 +421,16 @@ interface IActivityTaskManager {
      * @hide
      */
     void reportHandoffActivityData(in IBinder requestToken, in List<HandoffActivityData> data);
+
+    /**
+     * Retrieves the destination activity's package name associated
+     * with an original launching activity.
+     * This is used for Activity Trampolines, where an initial activity redirects to a final
+     * destination activity.
+     *
+     * @param originalPackageName The package name of the first activity in the launch chain.
+     * @return The package name of the final destination activity, or the provided
+     * {@code originalPackageName} if no redirection is found.
+     */
+    String getDestinationPackage(in String originalPackageName);
 }

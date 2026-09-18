@@ -17,8 +17,9 @@
 package android.app;
 
 import static android.app.Notification.EXTRA_METRICS;
-import static android.view.View.GONE;
-import static android.view.View.VISIBLE;
+import static android.app.Notification.EXTRA_METRICS_CRITICAL_INDEX;
+import static android.app.Notification.FLAG_PROMOTED_ONGOING;
+import static android.app.Notification.SEMANTIC_STYLE_CAUTION;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -26,13 +27,14 @@ import android.app.Notification.Metric;
 import android.app.Notification.Metric.FixedDate;
 import android.app.Notification.Metric.FixedFloat;
 import android.app.Notification.Metric.FixedInt;
-import android.app.Notification.Metric.FixedString;
+import android.app.Notification.Metric.FixedText;
 import android.app.Notification.Metric.FixedTime;
 import android.app.Notification.Metric.MetricValue.ValueString;
 import android.app.Notification.Metric.TimeDifference;
 import android.app.Notification.MetricStyle;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.platform.test.annotations.DisableFlags;
@@ -40,7 +42,6 @@ import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
-import android.view.View;
 import android.widget.Chronometer;
 import android.widget.FrameLayout;
 import android.widget.RemoteViews;
@@ -65,6 +66,7 @@ import java.time.InstantSource;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 
@@ -94,6 +96,7 @@ public class NotificationMetricStyleTest {
 
     private static final long ELAPSED_REALTIME = 300_000;
 
+    private static final String NBSP = "\u00a0";
     private static final String NNBSP = "\u202f";
 
     private Context mContext;
@@ -101,9 +104,16 @@ public class NotificationMetricStyleTest {
     private TimeZone mPreviousTimeZone;
     private String mPrevious24HourSetting;
 
+    private Notification.Colors mDefaultColors;
+
     @Before
     public void setUp() {
         mContext = InstrumentationRegistry.getInstrumentation().getContext();
+
+        mDefaultColors = new Notification.Colors();
+        boolean nightMode = (mContext.getResources().getConfiguration().uiMode
+                & Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES;
+        mDefaultColors.resolvePalette(mContext, Notification.COLOR_DEFAULT, false, nightMode);
 
         // Force some values that can depend on device current settings to a known state.
         mPreviousLocale = Locale.getDefault();
@@ -139,16 +149,17 @@ public class NotificationMetricStyleTest {
                 .addMetric(new Metric(new FixedInt(5, "rings"), "5"))
                 .addMetric(new Metric(new FixedInt(6, "geese"), "6"))
                 .addMetric(new Metric(new FixedInt(7, "swans"), "7"))
-                .addMetric(new Metric(new FixedInt(8, "maids"), "8"));
+                .addMetric(new Metric(new FixedInt(8, "maids"), "8"))
+                .setCriticalMetric(2);
 
         Bundle bundle = new Bundle();
         style.addExtras(bundle);
 
         ArrayList<Bundle> storedBundles = bundle.getParcelableArrayList(EXTRA_METRICS,
                 Bundle.class);
-
         assertThat(storedBundles).isNotNull();
         assertThat(storedBundles).hasSize(5);
+        assertThat(bundle.getInt(EXTRA_METRICS_CRITICAL_INDEX)).isEqualTo(2);
     }
 
     @Test
@@ -186,9 +197,10 @@ public class NotificationMetricStyleTest {
                         new FixedFloat(12.345f, null, 0, 3),
                         "Active time"))
                 .addMetric(new Metric(
-                        new FixedString("A LOT", "things"), "With unit"))
+                        new FixedText("A LOT", "things"), "With unit"))
                 .addMetric(new Metric(
-                        new FixedString("This is the last"), "Last"));
+                        new FixedText("This is the last"), "Last"))
+                .setCriticalMetric(5);
 
         original.addExtras(bundle);
         MetricStyle recovered = new MetricStyle();
@@ -246,14 +258,14 @@ public class NotificationMetricStyleTest {
                 .addMetric(new Metric(new FixedInt(1), "a"))
                 .addMetric(new Metric(new FixedInt(2), "b"))
                 .addMetric(new Metric(new FixedInt(3), "c"))
-                .addMetric(new Metric(new FixedString("Ignored thing"), "d"));
+                .addMetric(new Metric(new FixedText("Ignored thing"), "d"));
 
         MetricStyle style2 = new MetricStyle()
                 .addMetric(new Metric(new FixedInt(1), "a"))
                 .addMetric(new Metric(new FixedInt(2), "b"))
                 .addMetric(new Metric(new FixedInt(3), "c"))
-                .addMetric(new Metric(new FixedString("Also ignored"), "d"))
-                .addMetric(new Metric(new FixedString("And this too"), "e"));
+                .addMetric(new Metric(new FixedText("Also ignored"), "d"))
+                .addMetric(new Metric(new FixedText("And this too"), "e"));
 
         assertThat(style1.areNotificationsVisiblyDifferent(style2)).isFalse();
         assertThat(style2.areNotificationsVisiblyDifferent(style1)).isFalse();
@@ -284,7 +296,8 @@ public class NotificationMetricStyleTest {
     }
 
     @Test
-    public void valueToString_fixedDateFormats() {
+    @DisableFlags(Flags.FLAG_METRIC_VALUE_ALTERNATIVE_STRINGS)
+    public void valueToString_fixedDateFormats_withoutAlternativeStrings() {
         FixedDate soonAuto = new FixedDate(TOMORROW, FixedDate.FORMAT_AUTOMATIC);
         expect.that(soonAuto.toValueString(mContext)).isEqualTo(new ValueString("5/31"));
 
@@ -326,6 +339,49 @@ public class NotificationMetricStyleTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_METRIC_VALUE_ALTERNATIVE_STRINGS)
+    public void valueToString_fixedDateFormats_withAlternativeStrings() {
+        FixedDate soonAuto = new FixedDate(TOMORROW, FixedDate.FORMAT_AUTOMATIC);
+        expect.that(soonAuto.toValueString(mContext)).isEqualTo(new ValueString("5/31"));
+
+        FixedDate soonLong = new FixedDate(TOMORROW, FixedDate.FORMAT_LONG_DATE);
+        expect.that(soonLong.toValueString(mContext)).isEqualTo(
+                new ValueString(List.of("May 31, 2025", "May 31", "5/31"), null));
+
+        FixedDate soonShort = new FixedDate(TOMORROW, FixedDate.FORMAT_SHORT_DATE);
+        expect.that(soonShort.toValueString(mContext)).isEqualTo(
+                new ValueString(List.of("5/31/2025", "5/31"), null));
+
+        withLocale(Locale.FRANCE, () -> {
+            expect.that(soonAuto.toValueString(mContext)).isEqualTo(new ValueString("31/05"));
+            expect.that(soonLong.toValueString(mContext)).isEqualTo(
+                    new ValueString(List.of("31 mai 2025", "31 mai", "31/05"), null));
+            expect.that(soonShort.toValueString(mContext)).isEqualTo(
+                    new ValueString(List.of("31/05/2025", "31/05"), null));
+        });
+
+        FixedDate farAwayAuto = new FixedDate(FAR_AWAY, FixedDate.FORMAT_AUTOMATIC);
+        expect.that(farAwayAuto.toValueString(mContext)).isEqualTo(new ValueString("12/18/2025"));
+
+        FixedDate farAwayLong = new FixedDate(FAR_AWAY, FixedDate.FORMAT_LONG_DATE);
+        expect.that(farAwayLong.toValueString(mContext)).isEqualTo(
+                new ValueString(List.of("Dec 18, 2025", "12/18/2025"), null));
+
+        FixedDate farAwayShort = new FixedDate(FAR_AWAY, FixedDate.FORMAT_SHORT_DATE);
+        expect.that(farAwayShort.toValueString(mContext)).isEqualTo(
+                new ValueString("12/18/2025"));
+
+        withLocale(Locale.FRANCE, () -> {
+            expect.that(farAwayAuto.toValueString(mContext)).isEqualTo(
+                    new ValueString("18/12/2025"));
+            expect.that(farAwayLong.toValueString(mContext)).isEqualTo(
+                    new ValueString(List.of("18 déc. 2025", "18/12/2025"), null));
+            expect.that(farAwayShort.toValueString(mContext)).isEqualTo(
+                    new ValueString("18/12/2025"));
+        });
+    }
+
+    @Test
     public void valueToString_fixedDate_notAffectedByTimeZone() {
         FixedDate today = new FixedDate(TODAY, FixedDate.FORMAT_AUTOMATIC);
 
@@ -359,6 +415,17 @@ public class NotificationMetricStyleTest {
         FixedTime afterMidnight = new FixedTime(LocalTime.of(0, 1));
         expect.that(afterMidnight.toValueString(mContext)).isEqualTo(
                 new ValueString("12:01" + NNBSP + "AM"));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_METRIC_VALUE_ALTERNATIVE_STRINGS)
+    public void valueToString_fixedTime_withAlternativeStrings() {
+        FixedTime time = new FixedTime(LocalTime.of(14, 0));
+        expect.that(time.toValueString(mContext)).isEqualTo(new ValueString(
+                List.of(
+                        "2:00" + NNBSP + "PM",
+                        "2" + NNBSP + "PM"),
+                null));
     }
 
     @Test
@@ -404,36 +471,111 @@ public class NotificationMetricStyleTest {
     @Test
     public void valueToString_fixedInt() {
         FixedInt withUnit = new FixedInt(42, "km");
-        assertThat(withUnit.toValueString(mContext)).isEqualTo(new ValueString("42", "km"));
+        expect.that(withUnit.toValueString(mContext)).isEqualTo(new ValueString("42", "km"));
 
         FixedInt noUnit = new FixedInt(42);
-        assertThat(noUnit.toValueString(mContext)).isEqualTo(new ValueString("42", null));
+        expect.that(noUnit.toValueString(mContext)).isEqualTo(new ValueString("42", null));
     }
 
     @Test
-    public void valueToString_fixedFloat() {
+    @DisableFlags(Flags.FLAG_METRIC_VALUE_ALTERNATIVE_STRINGS)
+    public void valueToString_fixedInt_withoutAlternativeStrings() {
+        FixedInt big = new FixedInt(3_499_451); // Population of Uruguay :)
+        expect.that(big.toValueString(mContext)).isEqualTo(new ValueString("3,499,451", null));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_METRIC_VALUE_ALTERNATIVE_STRINGS)
+    public void valueToString_fixedInt_withAlternativeStrings() {
+        FixedInt big = new FixedInt(3_499_451); // Population of Uruguay :)
+        expect.that(big.toValueString(mContext)).isEqualTo(new ValueString(
+                List.of(
+                        "3,499,451",
+                        "3.5M"
+                ),
+                null));
+
+        withLocale(Locale.of("ro-RO"), () ->
+                expect.that(big.toValueString(mContext)).isEqualTo(new ValueString(
+                        List.of(
+                                "3.499.451",
+                                "3,5" + NBSP + "mil."
+                        ),
+                        null)));
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_METRIC_VALUE_ALTERNATIVE_STRINGS)
+    public void valueToString_fixedFloat_withoutAlternativeStrings() {
         FixedFloat defaultDigits = new FixedFloat(1612.3456789f);
-        assertThat(defaultDigits.toValueString(mContext)).isEqualTo(
+        expect.that(defaultDigits.toValueString(mContext)).isEqualTo(
                 new ValueString("1,612.35", null));
 
         FixedFloat minDigits = new FixedFloat(42, "km", 2, 4);
-        assertThat(minDigits.toValueString(mContext)).isEqualTo(new ValueString("42.00", "km"));
+        expect.that(minDigits.toValueString(mContext)).isEqualTo(new ValueString("42.00", "km"));
 
         FixedFloat maxDigits = new FixedFloat(42.1111111f, "km", 2, 4);
-        assertThat(maxDigits.toValueString(mContext)).isEqualTo(new ValueString("42.1111", "km"));
+        expect.that(maxDigits.toValueString(mContext)).isEqualTo(new ValueString("42.1111", "km"));
+
+        FixedFloat hugeNumber = new FixedFloat(20_511_110_000_000f);
+        expect.that(hugeNumber.toValueString(mContext)).isEqualTo(
+                new ValueString("20,511,109,152,768", null)); // Float is not precise :(
     }
 
     @Test
-    public void valueToString_fixedString() {
-        FixedString withUnit = new FixedString("120/80", "mmHg");
-        assertThat(withUnit.toValueString(mContext)).isEqualTo(new ValueString("120/80", "mmHg"));
+    @EnableFlags(Flags.FLAG_METRIC_VALUE_ALTERNATIVE_STRINGS)
+    public void valueToString_fixedFloat_withAlternativeStrings() {
+        FixedFloat defaultDigits = new FixedFloat(1612.3456789f);
+        expect.that(defaultDigits.toValueString(mContext)).isEqualTo(new ValueString(
+                List.of(
+                        "1,612.35", // Default min/max digits
+                        "1.6K" // Compact
+                ),
+                null));
 
-        FixedString noUnit = new FixedString("Boring");
-        assertThat(noUnit.toValueString(mContext)).isEqualTo(new ValueString("Boring", null));
+        FixedFloat minDigits = new FixedFloat(42, "km", 2, 4);
+        expect.that(minDigits.toValueString(mContext)).isEqualTo(new ValueString(
+                List.of(
+                        "42.00", // Min 2 fraction digits
+                        "42" // Compact
+                ),
+                "km"));
+
+        FixedFloat maxDigits = new FixedFloat(42.1111111f, "km", 2, 4);
+        expect.that(maxDigits.toValueString(mContext)).isEqualTo(new ValueString(
+                List.of(
+                    "42.1111", // Max 4 fraction digits
+                    "42" // Compact
+                ),
+                "km"));
+
+        FixedFloat hugeNumber = new FixedFloat(20_511_110_000_000f);
+        expect.that(hugeNumber.toValueString(mContext)).isEqualTo(new ValueString(
+                List.of(
+                        "20,511,109,152,768", // Float is not precise :(
+                        "21T" // Compact
+                ),
+                null));
+
+        withLocale(Locale.SIMPLIFIED_CHINESE, () ->
+                expect.that(hugeNumber.toValueString(mContext)).isEqualTo(new ValueString(
+                        List.of(
+                                "20,511,109,152,768",
+                                "21万亿"
+                        ),
+                        null)));
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_METRIC_STYLE_UNIT_IN_LABEL)
+    public void valueToString_fixedText() {
+        FixedText withUnit = new FixedText("120/80", "mmHg");
+        expect.that(withUnit.toValueString(mContext)).isEqualTo(new ValueString("120/80", "mmHg"));
+
+        FixedText noUnit = new FixedText("Boring");
+        expect.that(noUnit.toValueString(mContext)).isEqualTo(new ValueString("Boring", null));
+    }
+
+    @Test
     public void makeContentView_displaysLabelButNoUnit() {
         Notification.Builder n = new Notification.Builder(mContext, "channel")
                 .setStyle(new MetricStyle()
@@ -448,69 +590,14 @@ public class NotificationMetricStyleTest {
                 .isEqualTo("Answer:");
         assertThat(((TextView) container.findViewById(R.id.metric_value_0)).getText().toString())
                 .isEqualTo("42");
-        assertThat((View) container.findViewById(R.id.metric_unit_0)).isNull();
 
         assertThat(((TextView) container.findViewById(R.id.metric_label_1)).getText().toString())
                 .isEqualTo("Temp:");
         assertThat(((TextView) container.findViewById(R.id.metric_value_1)).getText().toString())
                 .isEqualTo("273");
-        assertThat((View) container.findViewById(R.id.metric_unit_1)).isNull();
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_METRIC_STYLE_UNIT_IN_LABEL)
-    public void makeContentView_displaysLabelButNoUnit_evenWithUnitInLabelFlag() {
-        Notification.Builder n = new Notification.Builder(mContext, "channel")
-                .setStyle(new MetricStyle()
-                        .addMetric(new Metric(new FixedInt(42), "Answer"))
-                        .addMetric(new Metric(new FixedInt(273, "°K"), "Temp")));
-
-        RemoteViews remoteViews = n.getStyle().makeContentView();
-        FrameLayout container = new FrameLayout(mContext);
-        container.addView(remoteViews.apply(mContext, container));
-
-        assertThat(((TextView) container.findViewById(R.id.metric_label_0)).getText().toString())
-                .isEqualTo("Answer:");
-        assertThat(((TextView) container.findViewById(R.id.metric_value_0)).getText().toString())
-                .isEqualTo("42");
-        assertThat((View) container.findViewById(R.id.metric_unit_0)).isNull();
-
-        assertThat(((TextView) container.findViewById(R.id.metric_label_1)).getText().toString())
-                .isEqualTo("Temp:");
-        assertThat(((TextView) container.findViewById(R.id.metric_value_1)).getText().toString())
-                .isEqualTo("273");
-        assertThat((View) container.findViewById(R.id.metric_unit_1)).isNull();
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_METRIC_STYLE_UNIT_IN_LABEL)
-    public void makeExpandedContentView_displaysLabelAndUnit() {
-        Notification.Builder n = new Notification.Builder(mContext, "channel")
-                .setStyle(new MetricStyle()
-                        .addMetric(new Metric(new FixedInt(42), "Answer"))
-                        .addMetric(new Metric(new FixedInt(273, "°K"), "Temp")));
-
-        RemoteViews remoteViews = n.getStyle().makeExpandedContentView();
-        FrameLayout container = new FrameLayout(mContext);
-        container.addView(remoteViews.apply(mContext, container));
-
-        assertThat(((TextView) container.findViewById(R.id.metric_label_0)).getText().toString())
-                .isEqualTo("Answer");
-        assertThat(((TextView) container.findViewById(R.id.metric_value_0)).getText().toString())
-                .isEqualTo("42");
-        assertThat(container.findViewById(R.id.metric_unit_0).getVisibility()).isEqualTo(GONE);
-
-        assertThat(((TextView) container.findViewById(R.id.metric_label_1)).getText().toString())
-                .isEqualTo("Temp");
-        assertThat(((TextView) container.findViewById(R.id.metric_value_1)).getText().toString())
-                .isEqualTo("273");
-        assertThat(container.findViewById(R.id.metric_unit_1).getVisibility()).isEqualTo(VISIBLE);
-        assertThat(((TextView) container.findViewById(R.id.metric_unit_1)).getText().toString())
-                .isEqualTo("°K");
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_METRIC_STYLE_UNIT_IN_LABEL)
     public void makeExpandedContentView_concatenatesLabelAndUnit() {
         Notification.Builder n = new Notification.Builder(mContext, "channel")
                 .setStyle(new MetricStyle()
@@ -525,13 +612,11 @@ public class NotificationMetricStyleTest {
                 .isEqualTo("Answer");
         assertThat(((TextView) container.findViewById(R.id.metric_value_0)).getText().toString())
                 .isEqualTo("42");
-        assertThat(container.findViewById(R.id.metric_unit_0).getVisibility()).isEqualTo(GONE);
 
         assertThat(((TextView) container.findViewById(R.id.metric_label_1)).getText().toString())
                 .isEqualTo("Temp (°K)");
         assertThat(((TextView) container.findViewById(R.id.metric_value_1)).getText().toString())
                 .isEqualTo("273");
-        assertThat(container.findViewById(R.id.metric_unit_1).getVisibility()).isEqualTo(GONE);
     }
 
     @Test
@@ -612,6 +697,48 @@ public class NotificationMetricStyleTest {
             container.addView(compactHeadsUp.apply(mContext, container));
         }
         // No crashes.
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+    public void makeContentView_semanticStyleAndPromoted_appliesColor() {
+        Notification.Builder n = new Notification.Builder(mContext, "channel")
+                .setStyle(new MetricStyle()
+                        .addMetric(new Metric(
+                                TimeDifference.forPausedStopwatch(Duration.ofSeconds(10),
+                                        TimeDifference.FORMAT_CHRONOMETER),
+                                "Paused stopwatch",
+                                SEMANTIC_STYLE_CAUTION)))
+                .setFlag(FLAG_PROMOTED_ONGOING, true);
+
+        RemoteViews remoteViews = n.getStyle().makeExpandedContentView();
+        FrameLayout container = new FrameLayout(mContext);
+        container.addView(remoteViews.apply(mContext, container));
+        Chronometer chronometer = container.findViewById(R.id.metric_chronometer_0);
+
+        assertThat(chronometer.getTextColors().getColors()[0]).isEqualTo(
+                mDefaultColors.getSemanticColor(SEMANTIC_STYLE_CAUTION));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+    public void makeContentView_semanticStyleButNotPromoted_doesNotApplyColor() {
+        Notification.Builder n = new Notification.Builder(mContext, "channel")
+                .setStyle(new MetricStyle()
+                        .addMetric(new Metric(
+                                TimeDifference.forPausedStopwatch(Duration.ofSeconds(10),
+                                        TimeDifference.FORMAT_CHRONOMETER),
+                                "Paused stopwatch",
+                                SEMANTIC_STYLE_CAUTION)))
+                .setFlag(FLAG_PROMOTED_ONGOING, false);
+
+        RemoteViews remoteViews = n.getStyle().makeExpandedContentView();
+        FrameLayout container = new FrameLayout(mContext);
+        container.addView(remoteViews.apply(mContext, container));
+        Chronometer chronometer = container.findViewById(R.id.metric_chronometer_0);
+
+        assertThat(chronometer.getTextColors().getColors()[0]).isNotEqualTo(
+                mDefaultColors.getSemanticColor(SEMANTIC_STYLE_CAUTION));
     }
 
     private void withLocale(Locale locale, Runnable r) {

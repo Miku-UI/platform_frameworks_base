@@ -24,6 +24,7 @@ import android.util.Base64;
 import android.util.Slog;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.TreeSet;
@@ -86,6 +87,15 @@ public class InferenceInfoStore {
         }
     }
 
+    public synchronized void add(InferenceInfo info) {
+        while (!inferenceInfos.isEmpty()
+                && System.currentTimeMillis() - inferenceInfos.first().getStartTimeMillis()
+                > maxAgeMs) {
+            inferenceInfos.pollFirst();
+        }
+        inferenceInfos.add(info);
+    }
+
     private synchronized void add(com.android.server.ondeviceintelligence.nano.InferenceInfo info) {
         while (!inferenceInfos.isEmpty()
                 && System.currentTimeMillis() - inferenceInfos.first().getStartTimeMillis()
@@ -100,5 +110,15 @@ public class InferenceInfoStore {
         return new InferenceInfo.Builder(info.uid).setStartTimeMillis(
                 info.startTimeMs).setEndTimeMillis(info.endTimeMs).setSuspendedTimeMillis(
                 info.suspendedTimeMs).build();
+    }
+
+    public synchronized void dump(String prefix, PrintWriter writer) {
+        writer.println(prefix + "InferenceInfoStore:");
+        String newPrefix = prefix + "  ";
+        writer.println(newPrefix + "maxAgeMs: " + maxAgeMs);
+        writer.println(newPrefix + "inferenceInfos (" + inferenceInfos.size() + " total):");
+        for (InferenceInfo info : inferenceInfos) {
+            writer.println(newPrefix + "  " + info.toString());
+        }
     }
 }

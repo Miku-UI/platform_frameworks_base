@@ -96,7 +96,7 @@ constructor(
         return false
     }
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         // Collect to keep this flow hot for this interactor.
         telephonyInteractor.isInCall.collect {}
     }

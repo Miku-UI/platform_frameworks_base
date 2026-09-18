@@ -236,15 +236,31 @@ class ShortcutRequestPinProcessor {
         mLock = lock;
     }
 
-    public boolean isRequestPinItemSupported(int callingUserId, int requestType) {
-        return getRequestPinConfirmationActivity(callingUserId, requestType) != null;
+    public boolean isRequestPinItemSupported(String callingPackageName,
+            int callingUserId, int requestType) {
+        return !isPackageAppLockEnabled(callingPackageName, callingUserId)
+            && getRequestPinConfirmationActivity(callingUserId, requestType) != null;
+    }
+
+    /**
+     * Returns true if the package is app lock enabled.
+     *
+     * @param packageName The package name to check.
+     * @return true if the package is app lock enabled.
+     */
+    private boolean isPackageAppLockEnabled(String packageName, int userId) {
+        if (android.content.pm.Flags.appLockShortcutRemoval()
+                && mService.isPackageAppLockEnabled(packageName, userId)) {
+            return true;
+        }
+        return false;
     }
 
     /**
      * Handle {@link android.content.pm.ShortcutManager#requestPinShortcut)} and
      * {@link android.appwidget.AppWidgetManager#requestPinAppWidget}.
      * In this flow the PinItemRequest is delivered directly to the default launcher app.
-     * One of {@param inShortcut} and {@param inAppWidget} is always non-null and the other is
+     * One of {@code inShortcut} and {@code inAppWidget} is always non-null and the other is
      * always null.
      */
     public boolean requestPinItemLocked(ShortcutInfo inShortcut, AppWidgetProviderInfo inAppWidget,
@@ -261,6 +277,18 @@ class ShortcutRequestPinProcessor {
         // If the launcher doesn't support it, just return a rejected result and finish.
         if (confirmActivity == null) {
             Log.w(TAG, "Launcher doesn't support requestPinnedShortcut(). Shortcut not created.");
+            return false;
+        }
+
+        // extract targetPackageName from either shortcut or appwidget then check if applock is
+        // enabled for that package.
+        String targetPackageName = inShortcut != null ? inShortcut.getPackage()
+                : inAppWidget.provider.getPackageName();
+        if (isPackageAppLockEnabled(targetPackageName, userId)) {
+            if(DEBUG) {
+                Slog.i(TAG,"targetPackage: " + targetPackageName
+                        + " is applock enabled - not creating widget or shortcut");
+            }
             return false;
         }
 

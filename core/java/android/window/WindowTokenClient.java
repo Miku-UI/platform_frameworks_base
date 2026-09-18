@@ -15,6 +15,7 @@
  */
 package android.window;
 
+import static android.view.Display.INVALID_DISPLAY;
 import static android.window.ConfigurationHelper.freeTextLayoutCachesIfNeeded;
 import static android.window.ConfigurationHelper.isDifferentDisplay;
 import static android.window.ConfigurationHelper.shouldUpdateResources;
@@ -37,6 +38,7 @@ import android.os.Build;
 import android.os.Debug;
 import android.os.Handler;
 import android.util.Log;
+import android.view.Display;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
@@ -134,6 +136,9 @@ public class WindowTokenClient extends Binder {
      * Context's {@code Configuration} via {@link WindowTokenClientController#attachToDisplayArea}
      * or {@link WindowTokenClientController#attachToDisplayContent}.
      *
+     * @param newConfig the {@link Configuration} to apply
+     * @param newDisplayId the display to apply, or {@link Display#INVALID_DISPLAY} to indicate
+     *                     no display update
      * @param shouldReportConfigChange {@code true} to indicate that the {@code Configuration}
      *                                 should be dispatched to listeners.
      */
@@ -164,7 +169,9 @@ public class WindowTokenClient extends Binder {
     @VisibleForTesting
     public void onConfigurationChangedInner(@NonNull Context context,
             @NonNull Configuration newConfig, int newDisplayId, boolean shouldReportConfigChange) {
-        CompatibilityInfo.applyOverrideIfNeeded(newConfig, newDisplayId);
+        final int displayId = newDisplayId == INVALID_DISPLAY
+                ? context.getDisplayId() : newDisplayId;
+        CompatibilityInfo.applyOverrideIfNeeded(newConfig, displayId);
         final boolean displayChanged;
         final boolean shouldUpdateResources;
         final int publicDiff;
@@ -196,7 +203,7 @@ public class WindowTokenClient extends Binder {
         }
         if (shouldUpdateResources) {
             // TODO(ag/9789103): update resource manager logic to track non-activity tokens
-            mResourcesManager.updateResourcesForActivity(this, newConfig, newDisplayId);
+            mResourcesManager.updateResourcesForActivity(this, newConfig, displayId);
 
             if (shouldReportConfigChange && context instanceof ConfigurationDispatcher dispatcher) {
                 // Updating resources implies some fields of configuration are updated despite they

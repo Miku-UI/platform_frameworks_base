@@ -21,9 +21,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 
-/**
- * A Handler that can track posts/sends and wait for them to be completed.
- */
+/** A Handler that can track posts/sends and wait for them to be completed. */
 public class TestHandler extends Handler {
 
     private final Object mMonitor = new Object();
@@ -43,15 +41,16 @@ public class TestHandler extends Handler {
         Runnable callback = msg.getCallback();
         // Have the callback increment the mMessagesProcessed when it is done. It will notify
         // any threads waiting for all messages to be processed if appropriate.
-        Runnable newCallback = () -> {
-            callback.run();
-            synchronized (mMonitor) {
-                mMessagesProcessed++;
-                if (mMessagesSent == mMessagesProcessed) {
-                    mMonitor.notifyAll();
-                }
-            }
-        };
+        Runnable newCallback =
+                () -> {
+                    callback.run();
+                    synchronized (mMonitor) {
+                        mMessagesProcessed++;
+                        if (mMessagesSent == mMessagesProcessed) {
+                            mMonitor.notifyAll();
+                        }
+                    }
+                };
         msg.setCallback(newCallback);
         return super.sendMessageAtTime(msg, uptimeMillis);
     }
@@ -63,9 +62,7 @@ public class TestHandler extends Handler {
         }
     }
 
-    /**
-     * Waits for all enqueued work to be completed before returning.
-     */
+    /** Waits for all enqueued work to be completed before returning. */
     public void waitForMessagesToBeProcessed() {
         synchronized (mMonitor) {
             if (mMessagesSent != mMessagesProcessed) {

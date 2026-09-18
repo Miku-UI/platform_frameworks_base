@@ -16,6 +16,7 @@
 
 package android.app.job;
 
+import android.annotation.NonNull;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -105,7 +106,7 @@ public class JobSnapshot implements Parcelable {
         out.writeBoolean(mIsRunnable);
     }
 
-    public static final @android.annotation.NonNull Creator<JobSnapshot> CREATOR = new Creator<JobSnapshot>() {
+    public static final @NonNull Creator<JobSnapshot> CREATOR = new Creator<JobSnapshot>() {
         @Override
         public JobSnapshot createFromParcel(Parcel in) {
             return new JobSnapshot(in);

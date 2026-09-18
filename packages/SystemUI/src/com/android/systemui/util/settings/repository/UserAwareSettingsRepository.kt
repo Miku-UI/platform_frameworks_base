@@ -64,6 +64,16 @@ abstract class UserAwareSettingsRepository(
             .flowOn(backgroundDispatcher)
     }
 
+    fun stringSetting(name: String, defaultValue: String?): Flow<String?> =
+        userRepository.selectedUserInfo
+            .flatMapLatest { userInfo ->
+                settingObserver(name, userInfo.id) {
+                    userSettings.getStringForUser(name, defaultValue, userInfo.id)
+                }
+            }
+            .distinctUntilChanged()
+            .flowOn(backgroundDispatcher)
+
     private fun <T> settingObserver(name: String, userId: Int, settingsReader: () -> T): Flow<T> {
         return userSettings
             .observerFlow(userId, name)
@@ -86,6 +96,12 @@ abstract class UserAwareSettingsRepository(
     suspend fun setBoolean(name: String, value: Boolean) {
         withContext(bgContext) {
             userSettings.putBoolForUser(name, value, userRepository.getSelectedUserInfo().id)
+        }
+    }
+
+    suspend fun setString(name: String, value: String?) {
+        withContext(bgContext) {
+            userSettings.putStringForUser(name, value, userRepository.getSelectedUserInfo().id)
         }
     }
 

@@ -26,9 +26,7 @@ android_test {
         "servicestests-utils",
         "services.core",
         "truth",
-        "Nene",
-        "Harrier",
-        "TestApp",
+        "bedstead",
     ],
     data: [
         ":TestIntrusionDetectionApp",

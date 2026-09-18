@@ -20,7 +20,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import android.annotation.NonNull;
@@ -60,7 +59,9 @@ import org.mockito.MockitoAnnotations;
 
 import java.io.FileDescriptor;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -81,8 +82,6 @@ public class BugreportManagerServiceImplTest {
     private BugreportManagerServiceImpl.BugreportFileManager mBugreportFileManager;
 
     @Mock
-    private PackageManager mPackageManager;
-    @Mock
     private UserManager mMockUserManager;
     @Mock
     private DevicePolicyManager mMockDevicePolicyManager;
@@ -90,7 +89,7 @@ public class BugreportManagerServiceImplTest {
     private TestInjector mInjector;
 
     private int mCallingUid = 1234;
-    private String mCallingPackage  = "test.package";
+    private String mCallingPackage;
     private AtomicFile mMappingFile;
 
     private String mBugreportFile = "bugreport-file.zip";
@@ -100,14 +99,18 @@ public class BugreportManagerServiceImplTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         mContext = InstrumentationRegistry.getInstrumentation().getContext();
+        mCallingPackage = mContext.getPackageName();
         mMappingFile = new AtomicFile(mContext.getFilesDir(), "bugreport-mapping.xml");
-        ArraySet<String> mAllowlistedPackages = new ArraySet<>();
-        mAllowlistedPackages.add(mContext.getPackageName());
-        mInjector = new TestInjector(mContext, mAllowlistedPackages, mMappingFile,
+        ArraySet<String> allowlistedPackages = new ArraySet<>();
+        allowlistedPackages.add(mCallingPackage);
+        mInjector = new TestInjector(mContext, allowlistedPackages, mMappingFile,
                 mMockUserManager, mMockDevicePolicyManager, null);
         mService = new BugreportManagerServiceImpl(mInjector);
-        mBugreportFileManager = new BugreportManagerServiceImpl.BugreportFileManager(mMappingFile);
-        when(mPackageManager.getPackageUidAsUser(anyString(), anyInt())).thenReturn(mCallingUid);
+        mBugreportFileManager =
+                new BugreportManagerServiceImpl.BugreportFileManager(mMappingFile);
+
+        // The real PackageManager is used, so we need to use a real package and UID.
+        mCallingUid = Process.myUid();
         // The calling user is an admin user by default.
         when(mMockUserManager.isUserAdmin(anyInt())).thenReturn(true);
     }
@@ -127,14 +130,14 @@ public class BugreportManagerServiceImplTest {
 
         assertThrows(IllegalArgumentException.class, () ->
                 mBugreportFileManager.ensureCallerPreviouslyGeneratedFile(
-                        mContext, mPackageManager,  callingInfo,
+                        mContext, mContext.getPackageManager(), callingInfo,
                         Process.myUserHandle().getIdentifier(), "unknown-file.zip",
                         /* forceUpdateMapping= */ true));
 
         // No exception should be thrown.
         mBugreportFileManager.ensureCallerPreviouslyGeneratedFile(
-                mContext, mPackageManager, callingInfo, mContext.getUserId(), mBugreportFile,
-                /* forceUpdateMapping= */ true);
+                mContext, mContext.getPackageManager(), callingInfo, mContext.getUserId(),
+                mBugreportFile, /* forceUpdateMapping= */ true);
     }
 
     @Test
@@ -146,8 +149,8 @@ public class BugreportManagerServiceImplTest {
                 callingInfo, mBugreportFile, /* keepOnRetrieval= */ true);
 
         mBugreportFileManager.ensureCallerPreviouslyGeneratedFile(
-                mContext, mPackageManager, callingInfo, mContext.getUserId(), mBugreportFile,
-                /* forceUpdateMapping= */ true);
+                mContext, mContext.getPackageManager(), callingInfo, mContext.getUserId(),
+                mBugreportFile, /* forceUpdateMapping= */ true);
 
         assertThat(mBugreportFileManager.mBugreportFilesToPersist).containsExactly(mBugreportFile);
     }
@@ -163,11 +166,11 @@ public class BugreportManagerServiceImplTest {
 
         // No exception should be thrown.
         mBugreportFileManager.ensureCallerPreviouslyGeneratedFile(
-                mContext, mPackageManager, callingInfo, mContext.getUserId(), mBugreportFile,
-                /* forceUpdateMapping= */ true);
+                mContext, mContext.getPackageManager(), callingInfo, mContext.getUserId(),
+                mBugreportFile, /* forceUpdateMapping= */ true);
         mBugreportFileManager.ensureCallerPreviouslyGeneratedFile(
-                mContext, mPackageManager, callingInfo, mContext.getUserId(), mBugreportFile2,
-                /* forceUpdateMapping= */ true);
+                mContext, mContext.getPackageManager(), callingInfo, mContext.getUserId(),
+                mBugreportFile2, /* forceUpdateMapping= */ true);
     }
 
     @Test
@@ -175,21 +178,23 @@ public class BugreportManagerServiceImplTest {
         Pair<Integer, String> callingInfo = new Pair<>(mCallingUid, mCallingPackage);
         assertThrows(IllegalArgumentException.class,
                 () -> mBugreportFileManager.ensureCallerPreviouslyGeneratedFile(
-                        mContext, mPackageManager, callingInfo,
+                        mContext, mContext.getPackageManager(), callingInfo,
                         Process.myUserHandle().getIdentifier(), "test-file.zip",
                         /* forceUpdateMapping= */ true));
     }
 
     @Test
     public void testStartBugreport() throws Exception {
+        CountDownLatch hasStarted = new CountDownLatch(1);
         mService.startBugreport(mCallingUid, mContext.getPackageName(),
                 new FileDescriptor(), /* screenshotFd= */ null,
                 BugreportParams.BUGREPORT_MODE_FULL,
-                /* flags= */ 0, new Listener(new CountDownLatch(1)),
+                /* flags= */ 0, new Listener(hasStarted),
                 /* isScreenshotRequested= */ false,
                 /* skipUserConsentUnused = */ false);
 
-        assertThat(mInjector.isBugreportStarted()).isTrue();
+        assertThat(hasStarted.await(60, TimeUnit.SECONDS)).isTrue();
+        assertThat(mInjector.getNumBugreportsStarted()).isEqualTo(1);
     }
 
     @Test
@@ -197,21 +202,31 @@ public class BugreportManagerServiceImplTest {
         int callingUid = Binder.getCallingUid();
         int callingUserId = UserHandle.getUserId(callingUid);
         when(mMockUserManager.isUserAdmin(callingUserId)).thenReturn(false);
+        if (android.multiuser.Flags.hsuNotAdmin()
+                && !android.multiuser.Flags.hsuNotAdminNoExemptions()) {
+            mInjector.setTreatCallerAsAdmin(false);
+        }
         when(mMockUserManager.getProfileParent(callingUserId)).thenReturn(ADMIN_USER_INFO);
 
+        CountDownLatch hasStarted = new CountDownLatch(1);
         mService.startBugreport(mCallingUid, mContext.getPackageName(),
                 new FileDescriptor(), /* screenshotFd= */ null,
                 BugreportParams.BUGREPORT_MODE_FULL,
-                /* flags= */ 0, new Listener(new CountDownLatch(1)),
+                /* flags= */ 0, new Listener(hasStarted),
                 /* isScreenshotRequested= */ false,
                 /* skipUserConsentUnused = */ false);
 
-        assertThat(mInjector.isBugreportStarted()).isTrue();
+        assertThat(hasStarted.await(60, TimeUnit.SECONDS)).isTrue();
+        assertThat(mInjector.getNumBugreportsStarted()).isEqualTo(1);
     }
 
     @Test
     public void testStartBugreport_throwsForNonAdminUser() throws Exception {
         when(mMockUserManager.isUserAdmin(anyInt())).thenReturn(false);
+        if (android.multiuser.Flags.hsuNotAdmin()
+                && !android.multiuser.Flags.hsuNotAdminNoExemptions()) {
+            mInjector.setTreatCallerAsAdmin(false);
+        }
 
         Exception thrown = assertThrows(IllegalArgumentException.class,
                 () -> mService.startBugreport(mCallingUid, mContext.getPackageName(),
@@ -227,6 +242,10 @@ public class BugreportManagerServiceImplTest {
     @Test
     public void testStartBugreport_throwsForNotAffiliatedUser() throws Exception {
         when(mMockUserManager.isUserAdmin(anyInt())).thenReturn(false);
+        if (android.multiuser.Flags.hsuNotAdmin()
+                && !android.multiuser.Flags.hsuNotAdminNoExemptions()) {
+            mInjector.setTreatCallerAsAdmin(false);
+        }
         when(mMockDevicePolicyManager.getDeviceOwnerUserId()).thenReturn(-1);
         when(mMockDevicePolicyManager.isAffiliatedUser(anyInt())).thenReturn(false);
 
@@ -242,17 +261,77 @@ public class BugreportManagerServiceImplTest {
     }
 
     @Test
+    public void testStartBugreport_nonAdminWithPermission_flagEnabled() throws Exception {
+        when(mMockUserManager.isUserAdmin(anyInt())).thenReturn(false);
+        mInjector.grantPermission(android.Manifest.permission.INITIATE_BUGREPORT_AS_NON_ADMIN);
+        mInjector.setInitiateBugreportAsNonAdminEnabled(true);
+
+        CountDownLatch hasStarted = new CountDownLatch(1);
+        mService.startBugreport(mCallingUid, mContext.getPackageName(),
+                new FileDescriptor(), /* screenshotFd= */ null,
+                BugreportParams.BUGREPORT_MODE_FULL,
+                /* flags= */ 0, new Listener(hasStarted),
+                /* isScreenshotRequested= */ false,
+                /* skipUserConsentUnused = */ false);
+
+        assertThat(hasStarted.await(60, TimeUnit.SECONDS)).isTrue();
+        assertThat(mInjector.getNumBugreportsStarted()).isEqualTo(1);
+    }
+
+    @Test
+    public void testStartBugreport_nonAdminWithPermission_flagDisabled() throws Exception {
+        when(mMockUserManager.isUserAdmin(anyInt())).thenReturn(false);
+        mInjector.grantPermission(android.Manifest.permission.INITIATE_BUGREPORT_AS_NON_ADMIN);
+        mInjector.setInitiateBugreportAsNonAdminEnabled(false);
+        if (android.multiuser.Flags.hsuNotAdmin()
+                && !android.multiuser.Flags.hsuNotAdminNoExemptions()) {
+            mInjector.setTreatCallerAsAdmin(false);
+        }
+
+        Exception thrown = assertThrows(IllegalArgumentException.class,
+                () -> mService.startBugreport(mCallingUid, mContext.getPackageName(),
+                        new FileDescriptor(), /* screenshotFd= */ null,
+                        BugreportParams.BUGREPORT_MODE_FULL,
+                        /* flags= */ 0, new Listener(new CountDownLatch(1)),
+                        /* isScreenshotRequested= */ false,
+                        /* skipUserConsentUnused = */ false));
+
+        assertThat(thrown.getMessage()).contains("not an admin user");
+    }
+
+    @Test
+    public void testStartBugreport_nonAdminWithoutPermission_flagEnabled() throws Exception {
+        when(mMockUserManager.isUserAdmin(anyInt())).thenReturn(false);
+        if (android.multiuser.Flags.hsuNotAdmin()
+                && !android.multiuser.Flags.hsuNotAdminNoExemptions()) {
+            mInjector.setTreatCallerAsAdmin(false);
+        }
+
+        Exception thrown = assertThrows(IllegalArgumentException.class,
+                () -> mService.startBugreport(mCallingUid, mContext.getPackageName(),
+                        new FileDescriptor(), /* screenshotFd= */ null,
+                        BugreportParams.BUGREPORT_MODE_FULL,
+                        /* flags= */ 0, new Listener(new CountDownLatch(1)),
+                        /* isScreenshotRequested= */ false,
+                        /* skipUserConsentUnused = */ false));
+
+        assertThat(thrown.getMessage()).contains("not an admin user");
+    }
+
+    @Test
     @RequiresFlagsEnabled(android.os.Flags.FLAG_BUGREPORT_MULTI_DISPLAY_SCREENSHOT_ENABLED)
-    public void testStartBugreportWithMultiDisplayScreenshotFlag() {
+    public void testStartBugreportWithMultiDisplayScreenshotFlag() throws Exception {
+        CountDownLatch hasStarted = new CountDownLatch(1);
         mService.startBugreport(mCallingUid, mContext.getPackageName(),
                 new FileDescriptor(), new FileDescriptor(),
                 BugreportParams.BUGREPORT_MODE_FULL,
                 BugreportParams.BUGREPORT_FLAG_CAPTURE_MULTI_DISPLAY_SCREENSHOT,
-                new Listener(new CountDownLatch(1)),
+                new Listener(hasStarted),
                 /* isScreenshotRequested= */ true,
                 /* skipUserConsentUnused = */ false);
 
-        assertThat(mInjector.isBugreportStarted()).isTrue();
+        assertThat(hasStarted.await(60, TimeUnit.SECONDS)).isTrue();
+        assertThat(mInjector.getNumBugreportsStarted()).isEqualTo(1);
     }
 
     @Test
@@ -262,7 +341,7 @@ public class BugreportManagerServiceImplTest {
         mService.retrieveBugreport(Binder.getCallingUid(), mContext.getPackageName(),
                 mContext.getUserId(), new FileDescriptor(), mBugreportFile,
                 /* keepOnRetrieval= */ false, /* skipUserConsent = */ false, listener);
-        assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
+        assertThat(latch.await(60, TimeUnit.SECONDS)).isTrue();
         assertThat(listener.getErrorCode()).isEqualTo(
                 BugreportCallback.BUGREPORT_ERROR_NO_BUGREPORT_TO_RETRIEVE);
     }
@@ -304,6 +383,7 @@ public class BugreportManagerServiceImplTest {
 
         @Override
         public void onProgress(int progress) throws RemoteException {
+            mLatch.countDown();
         }
 
         @Override
@@ -346,6 +426,10 @@ public class BugreportManagerServiceImplTest {
         private final UserManager mUserManager;
         private final DevicePolicyManager mDevicePolicyManager;
         private boolean mBugreportStarted = false;
+        private int mNumBugreportsStarted = 0;
+        private boolean mTreatCallerAsAdmin = false;
+        private final Set<String> mGrantedPermissions = new HashSet<>();
+        private boolean mIsInitiateBugreportAsNonAdminEnabled = false;
 
         TestInjector(Context context, ArraySet<String> allowlistedPackages, AtomicFile mappingFile,
                 UserManager um, DevicePolicyManager dpm, String grantedRole) {
@@ -367,28 +451,63 @@ public class BugreportManagerServiceImplTest {
         }
 
         @Override
-        public UserManager getUserManager() {
+        UserManager getUserManager() {
             return mUserManager;
         }
 
         @Override
-        public DevicePolicyManager getDevicePolicyManager() {
+        DevicePolicyManager getDevicePolicyManager() {
             return mDevicePolicyManager;
         }
 
         @Override
-        public void setSystemProperty(String key, String value) {
+        void setSystemProperty(String key, String value) {
             // Calling SystemProperties.set() will throw a RuntimeException due to permission error.
             // Instead, we are just marking a flag to store the state for testing.
             if (SYSTEM_PROPERTY_BUGREPORT_START.equals(key)) {
                 mBugreportStarted = true;
+                mNumBugreportsStarted++;
             } else if (SYSTEM_PROPERTY_BUGREPORT_STOP.equals(key)) {
                 mBugreportStarted = false;
             }
         }
 
-        public boolean isBugreportStarted() {
+        boolean isBugreportStarted() {
             return mBugreportStarted;
+        }
+
+        int getNumBugreportsStarted() {
+            return mNumBugreportsStarted;
+        }
+
+        void setTreatCallerAsAdmin(boolean treatCallerAsAdmin) {
+            mTreatCallerAsAdmin = treatCallerAsAdmin;
+        }
+
+        @Override
+        boolean treatAsAdminAnyway(int userId) {
+            return mTreatCallerAsAdmin;
+        }
+
+        @Override
+        int checkCallingOrSelfPermission(String permission) {
+            if (mGrantedPermissions.contains(permission)) {
+                return PackageManager.PERMISSION_GRANTED;
+            }
+            return PackageManager.PERMISSION_DENIED;
+        }
+
+        @Override
+        boolean isInitiateBugreportAsNonAdminEnabled() {
+            return mIsInitiateBugreportAsNonAdminEnabled;
+        }
+
+        void grantPermission(String permission) {
+            mGrantedPermissions.add(permission);
+        }
+
+        void setInitiateBugreportAsNonAdminEnabled(boolean enabled) {
+            mIsInitiateBugreportAsNonAdminEnabled = enabled;
         }
     }
 }

@@ -23,16 +23,18 @@ import com.android.settingslib.spaprivileged.model.app.AppRecord
 import com.android.settingslib.spa.widget.preference.TwoTargetButtonPreference
 
 @Composable
-fun <T : AppRecord> AppListItemModel<T>.AppListButtonItem (
-    onClick: () -> Unit,
+fun <T : AppRecord> AppListItemModel<T>.AppListButtonItem(
+    onClick: (() -> Unit)? = null,
     onButtonClick: () -> Unit,
     buttonIcon: ImageVector,
     buttonIconDescription: String,
+    enabled: Boolean = true,
 ) {
         TwoTargetButtonPreference(
                 title = label,
                 summary = this@AppListButtonItem.summary,
                 icon = { AppIcon(record.app, SettingsDimension.appIconItemSize) },
+                enabled = enabled,
                 onClick = onClick,
                 buttonIcon = buttonIcon,
                 buttonIconDescription = buttonIconDescription,

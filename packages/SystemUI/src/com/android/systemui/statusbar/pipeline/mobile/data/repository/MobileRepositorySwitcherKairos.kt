@@ -21,13 +21,11 @@ import androidx.annotation.VisibleForTesting
 import com.android.settingslib.SignalIcon
 import com.android.settingslib.mobile.MobileMappings
 import com.android.systemui.KairosActivatable
-import com.android.systemui.KairosBuilder
 import com.android.systemui.activated
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.demomode.DemoMode
 import com.android.systemui.demomode.DemoModeController
 import com.android.systemui.kairos.Events
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.Incremental
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.flatMap
@@ -35,11 +33,12 @@ import com.android.systemui.kairos.map
 import com.android.systemui.kairos.switchEvents
 import com.android.systemui.kairos.switchIncremental
 import com.android.systemui.kairos.util.nameTag
-import com.android.systemui.kairosBuilder
 import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.demo.DemoMobileConnectionsRepositoryKairos
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.prod.MobileConnectionsRepositoryKairosImpl
+import com.android.systemui.util.lifecycle.kairos.KairosBuilder
+import com.android.systemui.util.lifecycle.kairos.kairosBuilder
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import dagger.Binds
 import dagger.Provides
@@ -70,7 +69,6 @@ import kotlinx.coroutines.channels.awaitClose
  * a change (due to `distinctUntilChanged`) and will not refresh their data providers to the demo
  * implementation.
  */
-@ExperimentalKairosApi
 @SysUISingleton
 class MobileRepositorySwitcherKairos
 @Inject
@@ -134,7 +132,7 @@ constructor(
     override val activeSubChangedInGroupEvent: Events<Unit> =
         activeRepo.map { it.activeSubChangedInGroupEvent }.switchEvents()
 
-    override val defaultDataSubRatConfig: State<MobileMappings.Config> =
+    override val defaultDataSubRatConfig: State<MobileMappings.Config?> =
         activeRepo.flatMap { it.defaultDataSubRatConfig }
 
     override val defaultMobileIconMapping: State<Map<String, SignalIcon.MobileIconGroup>> =

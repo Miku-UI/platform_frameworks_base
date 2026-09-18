@@ -89,6 +89,13 @@ public interface TouchHandler {
          * Returns the bounds of the display the touch region.
          */
         Rect getBounds();
+
+        /**
+         * Explicitly requests pilfering of the current gesture.
+         * This is useful for asynchronous gestures (e.g. Long Press) where the consumption cannot
+         * be determined synchronously during an InputEvent.
+         */
+        void pilfer();
     }
 
     /**

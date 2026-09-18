@@ -73,6 +73,7 @@ import android.util.proto.ProtoOutputStream;
 import android.util.proto.ProtoUtils;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -288,6 +289,35 @@ public class RemoteViewsSerializers {
         }
 
         return Duration.ofSeconds(seconds, nanos);
+    }
+
+    /** Write {@code List<CharSequence>} to proto. */
+    public static void writeCharSequenceListToProto(@NonNull ProtoOutputStream out,
+            @Nullable List<CharSequence> list) {
+        if (list != null) {
+            for (CharSequence cs : list) {
+                long itemToken = out.start(RemoteViewsProto.CharSequenceList.ITEMS);
+                writeCharSequenceToProto(out, cs);
+                out.end(itemToken);
+            }
+        }
+    }
+
+    /** Create {@code List<CharSequence>} from proto. */
+    public static List<CharSequence> createCharSequenceListFromProto(@NonNull ProtoInputStream in)
+            throws Exception {
+        List<CharSequence> list = new ArrayList<>();
+        while (in.nextField() != NO_MORE_FIELDS) {
+            if (in.getFieldNumber() == (int) RemoteViewsProto.CharSequenceList.ITEMS) {
+                long itemToken = in.start(RemoteViewsProto.CharSequenceList.ITEMS);
+                list.add(createCharSequenceFromProto(in));
+                in.end(itemToken);
+            } else {
+                Log.w(TAG, "Unhandled field while reading CharSequenceList proto!\n"
+                        + ProtoUtils.currentFieldToString(in));
+            }
+        }
+        return list;
     }
 
     public static void writeCharSequenceToProto(@NonNull ProtoOutputStream out,

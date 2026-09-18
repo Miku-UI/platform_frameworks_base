@@ -56,6 +56,16 @@ internal class NestedSceneTransitionLayoutState(
         return false
     }
 
+    override fun isCurrentScene(content: SceneKey): Boolean {
+        forEachState { state -> if (state.isCurrentScene(content)) return true }
+        return false
+    }
+
+    override fun isInCurrentOverlays(content: OverlayKey): Boolean {
+        forEachState { state -> if (state.isInCurrentOverlays(content)) return true }
+        return false
+    }
+
     private inline fun forEachState(action: (SceneTransitionLayoutState) -> Unit) {
         action(delegate)
         ancestors.fastForEach { action(it) }

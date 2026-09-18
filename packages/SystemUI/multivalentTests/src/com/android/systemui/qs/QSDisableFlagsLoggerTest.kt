@@ -19,10 +19,11 @@ package com.android.systemui.qs
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.dump.DumpManager
-import com.android.systemui.log.LogBufferFactory
+import com.android.systemui.dump.realDumpManager
 import com.android.systemui.log.LogcatEchoTracker
+import com.android.systemui.log.impl.LogBufferFactoryImpl
 import com.android.systemui.statusbar.disableflags.DisableFlagsLogger
+import com.android.systemui.testKosmosNew
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -34,12 +35,14 @@ import org.mockito.Mockito.mock
 @RunWith(AndroidJUnit4::class)
 class QSDisableFlagsLoggerTest : SysuiTestCase() {
 
+    private val kosmos = testKosmosNew()
     private val buffer =
-        LogBufferFactory(DumpManager(), mock(LogcatEchoTracker::class.java)).create("buffer", 10)
+        LogBufferFactoryImpl(kosmos.realDumpManager, mock(LogcatEchoTracker::class.java))
+            .create("buffer", 10)
     private val disableFlagsLogger =
         DisableFlagsLogger(
             listOf(DisableFlagsLogger.DisableFlag(0b001, 'A', 'a')),
-            listOf(DisableFlagsLogger.DisableFlag(0b001, 'B', 'b'))
+            listOf(DisableFlagsLogger.DisableFlag(0b001, 'B', 'b')),
         )
     private val logger = QSDisableFlagsLogger(buffer, disableFlagsLogger)
 

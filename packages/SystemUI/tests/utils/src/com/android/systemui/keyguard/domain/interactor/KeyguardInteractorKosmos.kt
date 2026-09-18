@@ -23,6 +23,7 @@ import com.android.systemui.keyguard.data.repository.keyguardRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.shade.data.repository.shadeConfigRepository
 import com.android.systemui.shade.data.repository.shadeRepository
 import com.android.systemui.wallpapers.domain.interactor.wallpaperFocalAreaInteractor
 
@@ -33,11 +34,13 @@ val Kosmos.keyguardInteractor: KeyguardInteractor by
             bouncerRepository = keyguardBouncerRepository,
             configurationInteractor = configurationInteractor,
             shadeRepository = shadeRepository,
+            shadeConfigRepository = shadeConfigRepository,
             keyguardTransitionInteractor = keyguardTransitionInteractor,
             sceneInteractorProvider = { sceneInteractor },
             fromGoneTransitionInteractor = { fromGoneTransitionInteractor },
             fromLockscreenTransitionInteractor = { fromLockscreenTransitionInteractor },
             fromOccludedTransitionInteractor = { fromOccludedTransitionInteractor },
+            fromDreamingTransitionInteractor = { fromDreamingTransitionInteractor },
             fromAlternateBouncerTransitionInteractor = { fromAlternateBouncerTransitionInteractor },
             applicationScope = testScope.backgroundScope,
             wallpaperFocalAreaInteractor = wallpaperFocalAreaInteractor,

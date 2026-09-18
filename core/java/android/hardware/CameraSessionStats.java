@@ -56,6 +56,7 @@ public class CameraSessionStats implements Parcelable {
     private int mApiLevel;
     private boolean mIsNdk;
     private int mLatencyMs;
+    private int mInputFormat;
     private long mLogId;
     private int mSessionType;
     private int mInternalReconfigure;
@@ -70,7 +71,9 @@ public class CameraSessionStats implements Parcelable {
     private boolean mUsedZoomOverride;
     private Range<Integer> mMostRequestedFpsRange;
     private int mSessionIndex;
+    private int mErrorState;
     private CameraExtensionSessionStats mCameraExtensionSessionStats;
+    private boolean mSharedMode;
 
     public CameraSessionStats() {
         mFacing = -1;
@@ -78,6 +81,7 @@ public class CameraSessionStats implements Parcelable {
         mApiLevel = -1;
         mIsNdk = false;
         mLatencyMs = -1;
+        mInputFormat = -1;
         mLogId = 0;
         mMaxPreviewFps = 0;
         mSessionType = -1;
@@ -91,13 +95,15 @@ public class CameraSessionStats implements Parcelable {
         mUsedZoomOverride = false;
         mMostRequestedFpsRange = new Range<Integer>(0, 0);
         mSessionIndex = 0;
+        mErrorState = 0;
         mCameraExtensionSessionStats = new CameraExtensionSessionStats();
+        mSharedMode = false;
     }
 
     public CameraSessionStats(String cameraId, int facing, int newCameraState,
             String clientName, int apiLevel, boolean isNdk, int creationDuration,
             float maxPreviewFps, int sessionType, int internalReconfigure, long logId,
-            int sessionIdx) {
+            int sessionIdx, int errorState, boolean sharedMode) {
         mCameraId = cameraId;
         mFacing = facing;
         mNewCameraState = newCameraState;
@@ -105,6 +111,7 @@ public class CameraSessionStats implements Parcelable {
         mApiLevel = apiLevel;
         mIsNdk = isNdk;
         mLatencyMs = creationDuration;
+        mInputFormat = -1;
         mLogId = logId;
         mMaxPreviewFps = maxPreviewFps;
         mSessionType = sessionType;
@@ -115,7 +122,9 @@ public class CameraSessionStats implements Parcelable {
         mUsedZoomOverride = false;
         mMostRequestedFpsRange = new Range<Integer>(0, 0);
         mSessionIndex = sessionIdx;
+        mErrorState = errorState;
         mCameraExtensionSessionStats = new CameraExtensionSessionStats();
+        mSharedMode = sharedMode;
     }
 
     public static final @android.annotation.NonNull Parcelable.Creator<CameraSessionStats> CREATOR =
@@ -149,6 +158,7 @@ public class CameraSessionStats implements Parcelable {
         dest.writeInt(mApiLevel);
         dest.writeBoolean(mIsNdk);
         dest.writeInt(mLatencyMs);
+        dest.writeInt(mInputFormat);
         dest.writeLong(mLogId);
         dest.writeFloat(mMaxPreviewFps);
         dest.writeInt(mSessionType);
@@ -162,9 +172,11 @@ public class CameraSessionStats implements Parcelable {
         dest.writeBoolean(mUsedUltraWide);
         dest.writeBoolean(mUsedZoomOverride);
         dest.writeInt(mSessionIndex);
+        dest.writeInt(mErrorState);
         mCameraExtensionSessionStats.writeToParcel(dest, 0);
         dest.writeInt(mMostRequestedFpsRange.getLower());
         dest.writeInt(mMostRequestedFpsRange.getUpper());
+        dest.writeBoolean(mSharedMode);
     }
 
     public void readFromParcel(Parcel in) {
@@ -175,6 +187,7 @@ public class CameraSessionStats implements Parcelable {
         mApiLevel = in.readInt();
         mIsNdk = in.readBoolean();
         mLatencyMs = in.readInt();
+        mInputFormat = in.readInt();
         mLogId = in.readLong();
         mMaxPreviewFps = in.readFloat();
         mSessionType = in.readInt();
@@ -194,10 +207,16 @@ public class CameraSessionStats implements Parcelable {
         mUsedZoomOverride = in.readBoolean();
 
         mSessionIndex = in.readInt();
+        mErrorState = in.readInt();
         mCameraExtensionSessionStats = CameraExtensionSessionStats.CREATOR.createFromParcel(in);
         int minFps = in.readInt();
         int maxFps = in.readInt();
         mMostRequestedFpsRange = new Range<Integer>(minFps, maxFps);
+        mSharedMode = in.readBoolean();
+    }
+
+    public boolean getSharedMode() {
+        return mSharedMode;
     }
 
     public String getCameraId() {
@@ -226,6 +245,10 @@ public class CameraSessionStats implements Parcelable {
 
     public int getLatencyMs() {
         return mLatencyMs;
+    }
+
+    public int getInputFormat() {
+        return mInputFormat;
     }
 
     public long getLogId() {
@@ -278,6 +301,10 @@ public class CameraSessionStats implements Parcelable {
 
     public int getSessionIndex() {
         return mSessionIndex;
+    }
+
+    public int getErrorState() {
+        return mErrorState;
     }
 
     public CameraExtensionSessionStats getExtensionSessionStats() {

@@ -16,6 +16,7 @@
 
 package com.android.server.wm.flicker.helpers
 
+import android.app.ActivityOptions
 import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
 import android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN
 import android.content.Context
@@ -31,6 +32,7 @@ import android.tools.PlatformConsts
 import android.tools.device.apphelpers.IStandardAppHelper
 import android.tools.device.apphelpers.StandardAppHelper
 import android.tools.helpers.SYSTEMUI_PACKAGE
+import android.tools.traces.component.IComponentMatcher
 import android.tools.traces.parsers.WindowManagerStateHelper
 import android.tools.traces.wm.WindowingMode
 import android.view.Display.DEFAULT_DISPLAY
@@ -45,7 +47,6 @@ import android.view.KeyEvent.META_CTRL_ON
 import android.view.KeyEvent.META_META_ON
 import android.view.WindowInsets
 import android.view.WindowManager
-import android.window.DesktopModeFlags
 import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.BySelector
@@ -53,6 +54,7 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 import com.android.server.wm.flicker.helpers.MotionEventHelper.InputMethod.TOUCH
+import com.android.window.flags.Flags
 import java.time.Duration
 import kotlin.math.abs
 
@@ -82,12 +84,15 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         NON_RESIZABLE
     }
 
+    val appName = innerHelper.appName
+
     /** Launch an app and ensure it's moved to Desktop if it has not. */
     fun enterDesktopMode(
         wmHelper: WindowManagerStateHelper,
         device: UiDevice,
         motionEventHelper: MotionEventHelper = MotionEventHelper(getInstrumentation(), TOUCH),
         shouldUseDragToDesktop: Boolean = false,
+        isImmersiveApp: Boolean = false,
     ) {
         innerHelper.launchViaIntent(wmHelper)
         if (isInDesktopWindowingMode(wmHelper)) return
@@ -99,7 +104,7 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
                 motionEventHelper = motionEventHelper
             )
         } else {
-            enterDesktopModeFromAppHandleMenu(wmHelper, device)
+            enterDesktopModeFromAppHandleMenu(wmHelper, device, isImmersiveApp = isImmersiveApp)
         }
     }
 
@@ -131,8 +136,7 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         val endY = displayRect.centerY() / 2
 
         // drag the window to move to desktop
-        if (motionEventHelper.inputMethod == TOUCH
-            && DesktopModeFlags.ENABLE_HOLD_TO_DRAG_APP_HANDLE.isTrue) {
+        if (motionEventHelper.inputMethod == TOUCH) {
             // Touch requires hold-to-drag.
             motionEventHelper.holdToDrag(startX, startY, startX, endY, steps = 100)
         } else {
@@ -178,8 +182,7 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         val steps = 100 // Number of move steps in the drag gesture.
 
         // Perform the drag action.
-        if (motionEventHelper.inputMethod == TOUCH
-            && DesktopModeFlags.ENABLE_HOLD_TO_DRAG_APP_HANDLE.isTrue) {
+        if (motionEventHelper.inputMethod == TOUCH) {
             // We need more sleep because we are waiting for the split screen indicator.
             motionEventHelper.holdToDrag(startX, startY, endX, endY, steps, sleepTimeBeforeDrop = 1000)
         } else {
@@ -210,13 +213,15 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
     fun maximiseDesktopApp(
         wmHelper: WindowManagerStateHelper,
         device: UiDevice,
-        trigger: MaximizeDesktopAppTrigger = MaximizeDesktopAppTrigger.MAXIMIZE_MENU,
+        trigger: MaximizeDesktopAppTrigger = MaximizeDesktopAppTrigger.LAYOUT_MENU,
     ) {
+        val window = wmHelper.getWindow(innerHelper) ?: error("Unable to find the window\n")
+        val displayId = window.displayId
         val caption = getCaptionForTheApp(wmHelper, device)!!
         val maximizeButton = getMaximizeButtonForTheApp(caption)
 
         when (trigger) {
-            MaximizeDesktopAppTrigger.MAXIMIZE_MENU -> maximizeButton.click()
+            MaximizeDesktopAppTrigger.LAYOUT_MENU -> maximizeButton.click()
             MaximizeDesktopAppTrigger.DOUBLE_TAP_APP_HEADER -> {
                 caption.click()
                 Thread.sleep(50)
@@ -230,12 +235,12 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
 
             MaximizeDesktopAppTrigger.MAXIMIZE_BUTTON_IN_MENU -> {
                 maximizeButton.longClick()
-                wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+                wmHelper.StateSyncBuilder().withAppTransitionIdle(displayId).waitForAndVerify()
                 val buttonResId = MAXIMIZE_BUTTON_IN_MENU
-                val maximizeMenu = getDesktopAppViewByRes(MAXIMIZE_MENU)
+                val layoutMenu = getDesktopAppViewByRes(LAYOUT_MENU)
                 val maximizeButtonInMenu =
-                    maximizeMenu
-                        ?.wait(
+                    layoutMenu
+                        .wait(
                             Until.findObject(By.res(SYSTEMUI_PACKAGE, buttonResId)),
                             TIMEOUT.toMillis()
                         )
@@ -243,7 +248,7 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
                 maximizeButtonInMenu.click()
             }
         }
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+        wmHelper.StateSyncBuilder().withAppTransitionIdle(displayId).waitForAndVerify()
     }
 
     private fun getMinimizeButtonForTheApp(caption: UiObject2?): UiObject2 {
@@ -259,6 +264,7 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         isPip: Boolean = false,
         usingKeyboard: Boolean = false,
     ) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
         if (usingKeyboard) {
             val keyEventHelper = KeyEventHelper(getInstrumentation())
             keyEventHelper.press(KEYCODE_MINUS, META_META_ON)
@@ -270,11 +276,11 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
 
         wmHelper
             .StateSyncBuilder()
-            .withAppTransitionIdle()
+            .withAppTransitionIdle(displayId)
             .apply {
                 if (isPip) withPipShown()
                 else
-                    withWindowSurfaceDisappeared(innerHelper)
+                    withWindowSurfaceDisappeared(innerHelper, displayId)
                         .withActivityState(innerHelper, PlatformConsts.STATE_STOPPED)
             }
             .waitForAndVerify()
@@ -287,16 +293,34 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
             ?: error("Unable to find resource $HEADER_EMPTY_VIEW\n")
     }
 
-    /** Click on an existing window's header to bring it to the front. */
+    /** Click on an existing window to bring the app to the front. */
     fun bringToFront(wmHelper: WindowManagerStateHelper, device: UiDevice) {
-        val caption = getCaptionForTheApp(wmHelper, device)
-        val openHeaderView = getHeaderEmptyView(caption)
-        openHeaderView.click()
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
+        if (isInDesktopWindowingMode(wmHelper)) {
+            val caption = getCaptionForTheApp(wmHelper, device)
+            val openHeaderView = getHeaderEmptyView(caption)
+            openHeaderView.click()
+        } else {
+            // Caption and header exist only in desktop mode windows, so click the app handle
+            // coordinate instead.
+            clickAppHandle(wmHelper, device)
+        }
         wmHelper
             .StateSyncBuilder()
-            .withAppTransitionIdle()
-            .withTopVisibleApp(innerHelper)
+            .withAppTransitionIdle(displayId)
+            .withTopVisibleApp(innerHelper, displayId)
             .waitForAndVerify()
+    }
+
+    private fun openMaximizeMenu(
+        wmHelper: WindowManagerStateHelper,
+        device: UiDevice,
+    ) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
+        val caption = getCaptionForTheApp(wmHelper, device)
+        val maximizeButton = getMaximizeButtonForTheApp(caption)
+        maximizeButton.longClick()
+        wmHelper.StateSyncBuilder().withAppTransitionIdle(displayId).waitForAndVerify()
     }
 
     /** Open maximize menu and click snap resize button on the app header for the given app. */
@@ -306,17 +330,14 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         context: Context,
         toLeft: Boolean
     ) {
-        val caption = getCaptionForTheApp(wmHelper, device)
-        val maximizeButton = getMaximizeButtonForTheApp(caption)
-        maximizeButton.longClick()
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+        openMaximizeMenu(wmHelper, device)
 
         val buttonResId = if (toLeft) SNAP_LEFT_BUTTON else SNAP_RIGHT_BUTTON
-        val maximizeMenu = getDesktopAppViewByRes(MAXIMIZE_MENU)
+        val layoutMenu = getDesktopAppViewByRes(LAYOUT_MENU)
 
         val snapResizeButton =
-            maximizeMenu
-                ?.wait(Until.findObject(By.res(SYSTEMUI_PACKAGE, buttonResId)), TIMEOUT.toMillis())
+            layoutMenu
+                .wait(Until.findObject(By.res(SYSTEMUI_PACKAGE, buttonResId)), TIMEOUT.toMillis())
                 ?: error("Unable to find object with resource id $buttonResId")
         snapResizeButton.click()
 
@@ -339,6 +360,7 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         context: Context,
         toLeft: Boolean
     ) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
         val displayRect = getDisplayRect(wmHelper)
         val insets = getWindowInsets(
             context, WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars()
@@ -350,7 +372,7 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
             if (toLeft) right -= expectedWidth else left += expectedWidth
         }
         wmHelper.StateSyncBuilder()
-            .withAppTransitionIdle()
+            .withAppTransitionIdle(displayId)
             .withSurfaceMatchingVisibleRegion(
                 this,
                 Region(expectedRect),
@@ -367,14 +389,15 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         wmHelper: WindowManagerStateHelper,
         device: UiDevice,
         ) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
         val caption = getCaptionForTheApp(wmHelper, device)
         val closeButton = caption?.children?.find { it.resourceName.endsWith(CLOSE_BUTTON) }
         closeButton?.click()
 
         wmHelper
             .StateSyncBuilder()
-            .withAppTransitionIdle()
-            .withWindowSurfaceDisappeared(innerHelper)
+            .withAppTransitionIdle(displayId)
+            .withWindowSurfaceDisappeared(innerHelper, displayId)
             .waitForAndVerify()
     }
 
@@ -382,16 +405,20 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         wmHelper: WindowManagerStateHelper,
         device: UiDevice
     ): UiObject2? {
+        val window = wmHelper.getWindow(innerHelper) ?: error("Unable to find the window\n")
         if (
-            wmHelper.getWindow(innerHelper)?.windowingMode !=
-            WindowingMode.WINDOWING_MODE_FREEFORM.value
+            window.windowingMode != WindowingMode.WINDOWING_MODE_FREEFORM.value
         ) error("expected a freeform window with caption but window is not in freeform mode")
+        val displayId = window.displayId
         val captions =
-            device.wait(Until.findObjects(caption), TIMEOUT.toMillis())
+            device.wait(Until.findObjects(caption.displayId(displayId)), TIMEOUT.toMillis())
                 ?: error("Unable to find view $caption\n")
 
+        val task = wmHelper.currentState.wmState.getTaskForActivity(innerHelper)
+            ?: error("Unable to find task for $innerHelper")
+
         return captions.find {
-            wmHelper.getWindowRegion(innerHelper).bounds.contains(it.visibleBounds)
+            task.bounds.contains(it.visibleBounds)
         }
     }
 
@@ -417,9 +444,11 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
     /** Resize a desktop app from its edges. */
     fun edgeResize(
         wmHelper: WindowManagerStateHelper,
-        motionEvent: MotionEventHelper,
+        inputMethod: MotionEventHelper.InputMethod = MotionEventHelper.InputMethod.TOUCH,
         edge: Edges
     ) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
+        val motionEvent = MotionEventHelper(getInstrumentation(), inputMethod, displayId)
         val windowRect = wmHelper.getWindowRegion(innerHelper).bounds
         val (startX, startY) = getStartCoordinatesForEdgeResize(windowRect, edge)
         val verticalChange = when (edge) {
@@ -445,7 +474,7 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         motionEvent.actionUp(endX, endY, downTime = downTime)
         wmHelper
             .StateSyncBuilder()
-            .withAppTransitionIdle()
+            .withAppTransitionIdle(displayId)
             .waitForAndVerify()
     }
 
@@ -456,10 +485,11 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         wmHelper: WindowManagerStateHelper,
         device: UiDevice
     ) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
         device.drag(startX, startY, endX, endY, /* steps= */ 100)
         wmHelper
             .StateSyncBuilder()
-            .withAppTransitionIdle()
+            .withAppTransitionIdle(displayId)
             .waitForAndVerify()
     }
 
@@ -483,6 +513,7 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         wmHelper: WindowManagerStateHelper,
         direction: WindowDraggingDirection = WindowDraggingDirection.CENTER,
     ) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
         val windowBounds = wmHelper.getWindowRegion(this).bounds
         val displayBounds = getDisplayRect(wmHelper)
         // We take start dragging point with some offset to use app moving instead of resizing.
@@ -503,7 +534,7 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         )
         wmHelper
             .StateSyncBuilder()
-            .withAppTransitionIdle()
+            .withAppTransitionIdle(displayId)
             .waitForAndVerify()
     }
 
@@ -511,6 +542,7 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
     fun dragToSnapResizeRegion(
         wmHelper: WindowManagerStateHelper,
         device: UiDevice,
+        context: Context,
         isLeft: Boolean,
     ) {
         val windowRect = wmHelper.getWindowRegion(innerHelper).bounds
@@ -529,13 +561,11 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
 
         // drag the window to snap resize
         device.drag(startX, startY, endX, endY, /* steps= */ 100)
-        wmHelper
-            .StateSyncBuilder()
-            .withAppTransitionIdle()
-            .waitForAndVerify()
+        waitAndVerifySnapResize(wmHelper, context, isLeft)
     }
 
     fun dragRight(wmHelper: WindowManagerStateHelper, device: UiDevice, distance: Int) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
         val windowRect = wmHelper.getWindowRegion(innerHelper).bounds
         // Set start x-coordinate as center of app header.
         val startX = windowRect.centerX()
@@ -548,7 +578,7 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         device.drag(startX, startY, endX, endY, /* steps= */ 100)
         wmHelper
             .StateSyncBuilder()
-            .withAppTransitionIdle()
+            .withAppTransitionIdle(displayId)
             .waitForAndVerify()
     }
 
@@ -594,12 +624,13 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
     }
 
     private fun dragAppWindowToTopDragZone(wmHelper: WindowManagerStateHelper, device: UiDevice) {
-        val windowRect = wmHelper.getWindowRegion(innerHelper).bounds
+        val task = wmHelper.currentState.wmState.getTaskForActivity(innerHelper)
+            ?: error("Unable to find task for $innerHelper")
         val displayRect = getDisplayRect(wmHelper)
 
-        val startX = windowRect.centerX()
+        val startX = task.bounds.centerX()
         val endX = displayRect.centerX()
-        val startY = windowRect.top
+        val startY = task.bounds.top
         val endY = 0 // top of the screen
 
         // drag the app window to top drag zone
@@ -618,20 +649,24 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
 
     fun exitDesktopModeToFullScreenViaKeyboard(
         wmHelper: WindowManagerStateHelper,
+        displayId: Int = DEFAULT_DISPLAY
     ) {
         val keyEventHelper = KeyEventHelper(getInstrumentation())
         keyEventHelper.press(KEYCODE_DPAD_UP, META_META_ON or META_CTRL_ON)
-        waitForTransitionToFullscreen(wmHelper)
+        waitForTransitionToFullscreen(wmHelper, displayId)
     }
 
     private fun clickAppHandle(wmHelper: WindowManagerStateHelper, device: UiDevice) {
-        val windowRect = wmHelper.getWindowRegion(innerHelper).bounds
-        val startX = windowRect.centerX()
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
+        val task = wmHelper.currentState.wmState.getTaskForActivity(innerHelper)
+            ?: error("Unable to find task for $innerHelper")
+        val startX = task.bounds.centerX()
         // Click a little under the top to prevent opening the notification shade.
-        val startY = windowRect.top + 30
+        val startY = task.bounds.top + 30
 
         // Click on the app handle coordinates.
         device.click(startX, startY)
+        wmHelper.StateSyncBuilder().withAppTransitionIdle(displayId).waitForAndVerify()
     }
 
     fun enterDesktopModeFromAppHandleMenu(
@@ -649,7 +684,6 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
             device.swipe(startX, startY, startX, endY, 10)
         }
         clickAppHandle(wmHelper, device)
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
 
         val pill = getDesktopAppViewByRes(PILL_CONTAINER)
         val desktopModeButton =
@@ -660,39 +694,45 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         waitForTransitionToFreeform(wmHelper)
     }
 
-    fun enterImmersiveMode(
-        wmHelper: WindowManagerStateHelper,
-        device: UiDevice
-    ) {
+    fun enterImmersiveMode(wmHelper: WindowManagerStateHelper, device: UiDevice) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
         val caption = getCaptionForTheApp(wmHelper, device)
         val maximizeButton = getMaximizeButtonForTheApp(caption)
         maximizeButton.longClick()
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+        wmHelper.StateSyncBuilder().withAppTransitionIdle(displayId).waitForAndVerify()
 
         val buttonResId = IMMERSIVE_BUTTON_IN_MENU
-        val maximizeMenu = getDesktopAppViewByRes(MAXIMIZE_MENU)
+        val layoutMenu = getDesktopAppViewByRes(LAYOUT_MENU)
 
         val immersiveButton =
-            maximizeMenu
-                ?.wait(Until.findObject(By.res(SYSTEMUI_PACKAGE, buttonResId)), TIMEOUT.toMillis())
+            layoutMenu
+                .wait(Until.findObject(By.res(SYSTEMUI_PACKAGE, buttonResId)), TIMEOUT.toMillis())
                 ?: error("Unable to find object with resource id $buttonResId")
+
         immersiveButton.click()
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+        wmHelper.StateSyncBuilder().withAppTransitionIdle(displayId).waitForAndVerify()
     }
 
     /** Exits immersive mode to maximized in desktop window via META+= keyboard shortcut. */
-    fun exitImmersiveToDesktopWithKeyboard(
-        wmHelper: WindowManagerStateHelper
-    ) {
+    fun exitImmersiveToDesktopWithKeyboard(wmHelper: WindowManagerStateHelper, targetApp: IComponentMatcher) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
         val keyEventHelper = KeyEventHelper(getInstrumentation())
         keyEventHelper.press(KEYCODE_EQUALS, META_META_ON)
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+        wmHelper
+            .StateSyncBuilder()
+            .withFreeformApp(targetApp, displayId)
+            .withAppTransitionIdle(displayId)
+            .withTopVisibleApp(targetApp, displayId)
+            .withStatusBarVisible()
+            .withNavOrTaskBarVisible()
+            .waitForAndVerify()
     }
 
     fun enterSplitScreenFromAppHandleMenu(
         wmHelper: WindowManagerStateHelper,
         device: UiDevice
     ) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
         clickAppHandle(wmHelper, device)
 
         val pill = getDesktopAppViewByRes(PILL_CONTAINER)
@@ -701,13 +741,34 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
                 ?: error("Unable to find Split Screen button")
 
         splitScreenButton.click()
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+        wmHelper.StateSyncBuilder().withAppTransitionIdle(displayId).waitForAndVerify()
     }
 
-    fun exitDesktopModeToFullScreenWithAppHeader(wmHelper: WindowManagerStateHelper) {
+    fun clickOpenMenuButton(wmHelper: WindowManagerStateHelper) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
         val openMenuButton = getDesktopAppViewByRes(OPEN_MENU_BUTTON)
         openMenuButton?.click()
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+        wmHelper.StateSyncBuilder().withAppTransitionIdle(displayId).waitForAndVerify()
+    }
+
+    /** Moves the given app to Fullscreen if it isn't already there. */
+    fun exitDesktopModeToFullScreenIfNeeded(
+        wmHelper: WindowManagerStateHelper,
+        device: UiDevice,
+    ) {
+        if (isInFullscreenMode(wmHelper)) return
+        exitDesktopModeToFullScreenWithDesktopLayoutMenu(wmHelper, device)
+    }
+
+    fun exitDesktopModeToFullScreenWithDesktopLayoutMenu(
+        wmHelper: WindowManagerStateHelper,
+        device: UiDevice,
+    ) {
+        if (Flags.enableConsolidatedWindowOptions()) {
+            openMaximizeMenu(wmHelper, device)
+        } else {
+            clickOpenMenuButton(wmHelper)
+        }
 
         val pill = getDesktopAppViewByRes(PILL_CONTAINER)
         val fullScreenModeButton =
@@ -716,13 +777,19 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
                 ?.find { it.resourceName.endsWith(FULL_SCREEN_BUTTON) }
 
         fullScreenModeButton?.click()
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+        waitForTransitionToFullscreen(wmHelper)
     }
 
-    fun exitDesktopModeToSplitScreenWithAppHeader(wmHelper: WindowManagerStateHelper) {
-        val openMenuButton = getDesktopAppViewByRes(OPEN_MENU_BUTTON)
-        openMenuButton?.click()
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+    fun exitDesktopModeToSplitScreenWithDesktopLayoutMenu(
+        wmHelper: WindowManagerStateHelper,
+        device: UiDevice,
+    ) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
+        if (Flags.enableConsolidatedWindowOptions()) {
+            openMaximizeMenu(wmHelper, device)
+        } else {
+            clickOpenMenuButton(wmHelper)
+        }
 
         val pill = getDesktopAppViewByRes(PILL_CONTAINER)
         val splitScreenModeButton =
@@ -731,28 +798,31 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
                 ?.find { it.resourceName.endsWith(SPLIT_SCREEN_BUTTON) }
 
         splitScreenModeButton?.click()
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+        wmHelper.StateSyncBuilder().withAppTransitionIdle(displayId).waitForAndVerify()
     }
 
     fun restartFromAppHandleMenu(wmHelper: WindowManagerStateHelper) {
-        val openMenuButton = getDesktopAppViewByRes(OPEN_MENU_BUTTON)
-        openMenuButton?.click()
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
+        clickOpenMenuButton(wmHelper)
 
         val restartHandleMenu = getDesktopAppViewByRes(RESTART_BUTTON)
         restartHandleMenu?.click()
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+        wmHelper.StateSyncBuilder().withAppTransitionIdle(displayId).waitForAndVerify()
 
         val restartDialogConfirmButton =
             getDesktopAppViewByRes(RESTART_DIALOG_RESTART_BUTTON)
         restartDialogConfirmButton?.click()
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+        wmHelper.StateSyncBuilder().withAppTransitionIdle(displayId).waitForAndVerify()
     }
 
     fun moveToNextDisplayViaKeyboard(wmHelper: WindowManagerStateHelper, expectedDisplayId: Int) {
+        val initialDisplayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
         val keyEventHelper = KeyEventHelper(getInstrumentation())
         keyEventHelper.press(KEYCODE_D, META_META_ON or META_CTRL_ON)
-        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+        wmHelper.StateSyncBuilder()
+            .withAppTransitionIdle(initialDisplayId)
+            .withAppTransitionIdle(expectedDisplayId)
+            .waitForAndVerify()
 
         wmHelper.StateSyncBuilder().apply {
             add("App is on display #$expectedDisplayId") { dump ->
@@ -762,6 +832,35 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
                 display.containsActivity(innerHelper)
             }
         }.waitForAndVerify()
+    }
+
+    fun clickNewWindowButton(
+        wmHelper: WindowManagerStateHelper,
+        device: UiDevice
+    ) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
+        clickOpenMenuButton(wmHelper)
+
+        val newWindowButton = device.wait(Until.findObject(By.text("New Window")), TIMEOUT.toMillis())
+
+        newWindowButton.click()
+        wmHelper.StateSyncBuilder().withAppTransitionIdle(displayId).waitForAndVerify()
+    }
+
+    fun clickOpenAppInBrowserButton(
+        wmHelper: WindowManagerStateHelper,
+        device: UiDevice,
+        isDesktop: Boolean,
+    ) {
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
+        if (isDesktop) {
+            clickOpenMenuButton(wmHelper)
+        } else {
+            clickAppHandle(wmHelper, device)
+        }
+        val openInBrowserButton = getDesktopAppViewByRes(OPEN_IN_APP_OR_BROWSER_BUTTON)
+        openInBrowserButton.click()
+        wmHelper.StateSyncBuilder().withAppTransitionIdle(displayId).waitForAndVerify()
     }
 
     /**
@@ -787,44 +886,60 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
     fun clickCaption(
         wmHelper: WindowManagerStateHelper,
         device: UiDevice,
-        displayId: Int = DEFAULT_DISPLAY
     ) {
         val caption = checkNotNull(getCaptionForTheApp(wmHelper, device)) {
            "Unable to find caption"
         }
         caption.click()
+        val displayId = wmHelper.getWindow(innerHelper)?.displayId ?: DEFAULT_DISPLAY
         wmHelper
             .StateSyncBuilder()
             .withAppTransitionIdle(displayId)
-            .withTopVisibleApp(innerHelper)
+            .withTopVisibleApp(innerHelper, displayId)
             .waitForAndVerify()
     }
 
     private fun getDesktopAppViewByRes(viewResId: String): UiObject2 =
         DeviceHelpers.waitForObj(By.res(SYSTEMUI_PACKAGE, viewResId), TIMEOUT)
 
-    private fun getDisplayRect(wmHelper: WindowManagerStateHelper): Rect =
-        wmHelper.currentState.wmState.getDefaultDisplay()?.displayRect
-            ?: throw IllegalStateException("Default display is null")
-
+    private fun getDisplayRect(wmHelper: WindowManagerStateHelper): Rect {
+        val window = wmHelper.getWindow(innerHelper)
+            ?: error("Unable to find the window for $innerHelper")
+        val displayId = window.displayId
+        return wmHelper.currentState.wmState.getDisplay(displayId)?.displayRect
+            ?: throw IllegalStateException("Display $displayId is null")
+    }
 
     /** Wait for transition to full screen to finish. */
-    fun waitForTransitionToFullscreen(wmHelper: WindowManagerStateHelper) {
+    fun waitForTransitionToFullscreen(
+        wmHelper: WindowManagerStateHelper,
+        displayId: Int = DEFAULT_DISPLAY,
+    ) {
         wmHelper
             .StateSyncBuilder()
-            .withFullScreenApp(innerHelper)
-            .withAppTransitionIdle()
+            .withFullScreenApp(innerHelper, displayId)
+            .withAppTransitionIdle(displayId)
             .waitForAndVerify()
     }
 
     /** Wait for transition to freeform to finish. */
-    fun waitForTransitionToFreeform(wmHelper: WindowManagerStateHelper) {
+    fun waitForTransitionToFreeform(
+        wmHelper: WindowManagerStateHelper,
+        displayId: Int = DEFAULT_DISPLAY,
+    ) {
         wmHelper
             .StateSyncBuilder()
-            .withWindowSurfaceAppeared(innerHelper)
-            .withFreeformApp(innerHelper)
-            .withAppTransitionIdle()
+            .withWindowSurfaceAppeared(innerHelper, displayId)
+            .withFreeformApp(innerHelper, displayId)
+            .withAppTransitionIdle(displayId)
             .waitForAndVerify()
+    }
+
+    fun launchViaIntentOnDisplay(wmHelper: WindowManagerStateHelper, displayId: Int) {
+        innerHelper.launchViaIntent(
+            wmHelper = wmHelper,
+            options = ActivityOptions.makeBasic().setLaunchDisplayId(displayId)
+        )
     }
 
     private fun getWindowInsets(context: Context, typeMask: Int): Insets {
@@ -872,7 +987,7 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
     }
 
     enum class MaximizeDesktopAppTrigger {
-        MAXIMIZE_MENU,
+        LAYOUT_MENU,
         DOUBLE_TAP_APP_HEADER,
         KEYBOARD_SHORTCUT,
         MAXIMIZE_BUTTON_IN_MENU
@@ -892,13 +1007,13 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         const val SNAP_RESIZE_DRAG_INSET: Int = 5 // inset to avoid dragging to display edge
         const val CAPTION: String = "desktop_mode_caption"
         const val MAXIMIZE_BUTTON_VIEW: String = "maximize_button_view"
-        const val MAXIMIZE_MENU: String = "maximize_menu"
+        const val LAYOUT_MENU: String = "layout_menu"
         const val CLOSE_BUTTON: String = "close_window"
         const val PILL_CONTAINER: String = "windowing_pill"
         const val DESKTOP_MODE_BUTTON: String = "desktop_button"
-        const val SNAP_LEFT_BUTTON: String = "maximize_menu_snap_left_button"
-        const val SNAP_RIGHT_BUTTON: String = "maximize_menu_snap_right_button"
-        const val MAXIMIZE_BUTTON_IN_MENU: String = "maximize_menu_size_toggle_button"
+        const val SNAP_LEFT_BUTTON: String = "layout_menu_snap_left_button"
+        const val SNAP_RIGHT_BUTTON: String = "layout_menu_snap_right_button"
+        const val MAXIMIZE_BUTTON_IN_MENU: String = "layout_menu_size_toggle_button"
         const val MINIMIZE_BUTTON_VIEW: String = "minimize_window"
         const val HEADER_EMPTY_VIEW: String = "caption_handle"
         const val OPEN_MENU_BUTTON: String = "open_menu_button"
@@ -906,7 +1021,8 @@ open class DesktopModeAppHelper(private val innerHelper: StandardAppHelper) :
         const val RESTART_DIALOG_RESTART_BUTTON: String = "letterbox_restart_dialog_restart_button"
         const val FULL_SCREEN_BUTTON: String = "fullscreen_button"
         const val SPLIT_SCREEN_BUTTON: String = "split_screen_button"
-        const val IMMERSIVE_BUTTON_IN_MENU: String = "maximize_menu_immersive_toggle_button"
+        const val IMMERSIVE_BUTTON_IN_MENU: String = "layout_menu_immersive_toggle_button"
+        const val OPEN_IN_APP_OR_BROWSER_BUTTON: String = "open_in_app_or_browser_button"
         val caption: BySelector
             get() = By.res(SYSTEMUI_PACKAGE, CAPTION)
 

@@ -51,9 +51,10 @@ object BiometricCustomizedViewBinder {
     fun bind(
         customizedViewContainer: LinearLayout,
         contentView: PromptContentView?,
-        legacyCallback: Spaghetti.Callback
+        onMoreOptionsPressed: () -> Unit,
     ) {
         customizedViewContainer.repeatWhenAttached { containerView ->
+            customizedViewContainer.removeAllViews()
             if (contentView == null) {
                 containerView.visibility = View.GONE
                 return@repeatWhenAttached
@@ -63,9 +64,9 @@ object BiometricCustomizedViewBinder {
                 if (containerWidth == 0) {
                     return@width
                 }
-                (containerView as LinearLayout).addView(
-                    contentView.toView(containerView.context, containerWidth, legacyCallback),
-                    LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+                customizedViewContainer.addView(
+                    contentView.toView(containerView.context, containerWidth, onMoreOptionsPressed),
+                    LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT),
                 )
                 containerView.visibility = View.VISIBLE
             }
@@ -76,11 +77,11 @@ object BiometricCustomizedViewBinder {
 private fun PromptContentView.toView(
     context: Context,
     containerViewWidth: Int,
-    legacyCallback: Spaghetti.Callback
+    onMoreOptionsPressed: () -> Unit,
 ): View {
     return when (this) {
         is PromptVerticalListContentView -> initLayout(context, containerViewWidth)
-        is PromptContentViewWithMoreOptionsButton -> initLayout(context, legacyCallback)
+        is PromptContentViewWithMoreOptionsButton -> initLayout(context, onMoreOptionsPressed)
         else -> {
             throw IllegalStateException("No such PromptContentView: $this")
         }
@@ -102,29 +103,29 @@ private fun LayoutInflater.inflateContentView(id: Int, description: String?): Li
 
 private fun PromptContentViewWithMoreOptionsButton.initLayout(
     context: Context,
-    legacyCallback: Spaghetti.Callback
+    onMoreOptionsPressed: () -> Unit,
 ): View {
     val inflater = LayoutInflater.from(context)
     val contentView =
         inflater.inflateContentView(
             R.layout.biometric_prompt_content_with_button_layout,
-            description
+            description,
         )
     val buttonView = contentView.requireViewById<Button>(R.id.customized_view_more_options_button)
-    buttonView.setOnClickListener { legacyCallback.onContentViewMoreOptionsButtonPressed() }
+    buttonView.setOnClickListener { onMoreOptionsPressed() }
     return contentView
 }
 
 private fun PromptVerticalListContentView.initLayout(
     context: Context,
-    containerViewWidth: Int
+    containerViewWidth: Int,
 ): View {
     val inflater = LayoutInflater.from(context)
     context.resources
     val contentView =
         inflater.inflateContentView(
             R.layout.biometric_prompt_vertical_list_content_layout,
-            description
+            description,
         )
     val listItemsToShow = ArrayList<PromptContentItem>(listItems)
     // Show two column by default, once there is an item exceeding max lines, show single
@@ -192,7 +193,7 @@ private fun PromptContentItem.doesExceedMaxLinesIfTwoColumn(
             val attributes =
                 context.obtainStyledAttributes(
                     R.style.TextAppearance_AuthCredential_ContentViewListItem,
-                    intArrayOf(android.R.attr.textSize)
+                    intArrayOf(android.R.attr.textSize),
                 )
             paint.textSize = attributes.getDimensionPixelSize(0, 0).toFloat()
             val textWidth = paint.measureText(passedInText)
@@ -211,10 +212,7 @@ private fun PromptContentItem.doesExceedMaxLinesIfTwoColumn(
     }
 }
 
-private fun PromptContentItem.toView(
-    context: Context,
-    inflater: LayoutInflater,
-): TextView {
+private fun PromptContentItem.toView(context: Context, inflater: LayoutInflater): TextView {
     val resources = context.resources
     // Somehow xml layout params settings doesn't work, set it again here.
     val textView =
@@ -233,7 +231,7 @@ private fun PromptContentItem.toView(
                 BulletSpan(
                     getListItemBulletGapWidth(resources),
                     getListItemBulletColor(context),
-                    getListItemBulletRadius(resources)
+                    getListItemBulletRadius(resources),
                 )
             bulletedText.setSpan(span, 0 /* start */, text.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             textView.text = bulletedText
@@ -253,8 +251,8 @@ private fun LinearLayout.addSpaceViewBetweenListItem() =
             resources.getDimensionPixelSize(
                 R.dimen.biometric_prompt_content_space_width_between_items
             ),
-            MATCH_PARENT
-        )
+            MATCH_PARENT,
+        ),
     )
 
 /* [contentView] function*/

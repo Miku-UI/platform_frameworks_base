@@ -20,11 +20,6 @@
 <!-- These resources are around just to allow their values to be customized
      for different hardware and product builds. -->
 <resources>
-    <!-- The maximum number of rows in the QuickSettings -->
-    <integer name="quick_settings_max_rows">2</integer>
-
-    <integer name="quick_settings_num_columns">4</integer>
-
     <!-- The number of rows in the paginated grid QuickSettings -->
     <integer name="quick_settings_paginated_grid_num_rows">2</integer>
 

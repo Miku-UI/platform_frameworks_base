@@ -17,29 +17,30 @@
 package com.android.systemui.keyguard.data.repository
 
 import android.app.ActivityManager.RunningTaskInfo
-import android.app.WindowConfiguration
+import android.view.Display
+import com.android.internal.policy.IKeyguardService
+import com.android.keyguard.logging.KeyguardLogger
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.keyguard.WindowManagerOcclusionManager
+import com.android.systemui.keyguard.data.model.OcclusionEventModel
+import com.android.systemui.keyguard.data.model.ShowWhenLockedActivityInfoModel
+import com.android.systemui.keyguard.shared.DriveDreamStateFromOcclusion
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
+import com.android.wm.shell.ShellTaskOrganizer
+import com.android.wm.shell.keyguard.KeyguardTransitions
 import javax.inject.Inject
-import kotlinx.coroutines.flow.MutableStateFlow
-
-/**
- * Information about the SHOW_WHEN_LOCKED activity that is either newly on top of the task stack, or
- * newly not on top of the task stack.
- */
-data class ShowWhenLockedActivityInfo(
-    /** Whether the activity is on top. If not, we're unoccluding and will be animating it out. */
-    val isOnTop: Boolean,
-
-    /**
-     * Information about the activity, which we use for transition internals and also to customize
-     * animations.
-     */
-    val taskInfo: RunningTaskInfo? = null
-) {
-    fun isDream(): Boolean {
-        return taskInfo?.topActivityType == WindowConfiguration.ACTIVITY_TYPE_DREAM
-    }
-}
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.scan
+import kotlinx.coroutines.flow.stateIn
 
 /**
  * Maintains state about "occluding" activities - activities with FLAG_SHOW_WHEN_LOCKED, which are
@@ -52,35 +53,117 @@ data class ShowWhenLockedActivityInfo(
  * lockscreen.
  *
  * This dual definition is confusing, so this repository collects all of the signals WM gives us,
- * and consolidates them into [showWhenLockedActivityInfo.isOnTop], which is the actual question WM
- * is answering when they say whether we're 'occluded'. Keyguard then uses this signal to
- * conditionally transition to [KeyguardState.OCCLUDED] where appropriate.
+ * and consolidates them into [showWhenLockedActivityInfo], which is the actual question WM is
+ * answering when they say whether we're 'occluded'. Keyguard then uses this signal to conditionally
+ * transition to [KeyguardState.OCCLUDED] where appropriate.
  */
+interface KeyguardOcclusionRepository {
+    val showWhenLockedActivityInfo: StateFlow<ShowWhenLockedActivityInfoModel>
+
+    /** Called by [IKeyguardService.setOccluded] to set the occlusion boolean. */
+    fun setOccludedFromWm(isOccluded: Boolean)
+
+    /** Called by [WindowManagerOcclusionManager] during occlude/unocclude remote animations. */
+    fun setOccludedFromRemoteAnimation(onTop: Boolean, taskInfo: RunningTaskInfo?)
+}
+
 @SysUISingleton
-class KeyguardOcclusionRepository @Inject constructor() {
-    val showWhenLockedActivityInfo = MutableStateFlow(ShowWhenLockedActivityInfo(isOnTop = false))
+class KeyguardOcclusionRepositoryImpl
+@Inject
+constructor(
+    val keyguardTransitions: KeyguardTransitions,
+    val logger: KeyguardLogger,
+    @param:Application val applicationScope: CoroutineScope,
+) : KeyguardOcclusionRepository {
+
+    private companion object {
+        private val INITIAL_STATE =
+            ShowWhenLockedActivityInfoModel(isOnTop = false, taskInfo = null)
+    }
 
     /**
-     * Sets whether there's a SHOW_WHEN_LOCKED activity on top of the task stack, and optionally,
-     * information about the activity itself.
-     *
-     * If no value is provided for [taskInfo], we'll default to the current [taskInfo].
-     *
-     * The [taskInfo] is always present when this method is called from the occlude/unocclude
-     * animation runners. We use the default when calling from [KeyguardService.isOccluded], since
-     * we only receive a true/false value there. isOccluded is mostly redundant - it's almost always
-     * called with true after an occlusion animation has started, and with false after an unocclude
-     * animation has started. In those cases, we don't want to clear out the taskInfo just because
-     * it wasn't available at that call site.
+     * [Channel] for occlusion events from sources external to this class, such as from
+     * [WindowManagerOcclusionManager] or [IKeyguardService.setOccluded]. These events are merged
+     * with events that the repository listens for internally (see [getWmShellEvents]) to produce
+     * the final [showWhenLockedActivityInfo] flow.
      */
-    fun setShowWhenLockedActivityInfo(
-        onTop: Boolean,
-        taskInfo: RunningTaskInfo? = showWhenLockedActivityInfo.value.taskInfo
-    ) {
-        showWhenLockedActivityInfo.value =
-            ShowWhenLockedActivityInfo(
-                isOnTop = onTop,
-                taskInfo = taskInfo,
+    private val externalEvents = Channel<OcclusionEventModel>(capacity = Channel.BUFFERED)
+
+    override val showWhenLockedActivityInfo: StateFlow<ShowWhenLockedActivityInfoModel> =
+        merge(externalEvents.receiveAsFlow(), getWmShellEvents())
+            .scan(INITIAL_STATE) { state, event ->
+                val newState =
+                    when (event) {
+                        is OcclusionEventModel.OccludedFromWm -> {
+                            if (event.isOccluded) {
+                                // Become occluded, retain the taskInfo we already buffered
+                                state.copy(isOnTop = true)
+                            } else {
+                                // Unocclude, clear everything
+                                state.copy(isOnTop = false, taskInfo = null)
+                            }
+                        }
+
+                        is OcclusionEventModel.OccludingTaskChanged -> {
+                            if (state.isOnTop && event.taskInfo == null) {
+                                // Prevent intermittent state drop: if we are occluded and task goes
+                                // null, retain current taskInfo until OccludedFromWm(false)
+                                // arrives.
+                                state
+                            } else {
+                                state.copy(taskInfo = event.taskInfo)
+                            }
+                        }
+
+                        is OcclusionEventModel.StartedRemoteAnimation -> {
+                            ShowWhenLockedActivityInfoModel(
+                                isOnTop = event.onTop,
+                                taskInfo = event.taskInfo,
+                            )
+                        }
+                    }
+
+                if (state != newState) {
+                    logger.logOcclusionStateChange(event, state, newState)
+                }
+                newState
+            }
+            .stateIn(
+                scope = applicationScope,
+                started = SharingStarted.Eagerly,
+                initialValue = INITIAL_STATE,
             )
+
+    /**
+     * The external occlusion signals such as [OcclusionEventModel.OccludedFromWm] and
+     * [OcclusionEventModel.StartedRemoteAnimation] tell us when the keyguard initially becomes
+     * occluded, but don't tell us when the occluding task changes. This can happen if we are
+     * dreaming on top of another showWhenLocked activity, such as Maps. When the dream ends, the
+     * keyguard occlusion state doesn't change (we are still occluded), but the top task does
+     * change. To handle this case, we also need to listen to task changes.
+     */
+    private fun getWmShellEvents(): Flow<OcclusionEventModel> {
+        if (!DriveDreamStateFromOcclusion.isEnabled) {
+            return emptyFlow()
+        }
+
+        return conflatedCallbackFlow {
+            val listener =
+                ShellTaskOrganizer.KeyguardOccludingTaskListener { displayId, taskInfo ->
+                    if (displayId == Display.DEFAULT_DISPLAY) {
+                        trySend(OcclusionEventModel.OccludingTaskChanged(taskInfo))
+                    }
+                }
+            keyguardTransitions.registerOccludingTaskListener(listener)
+            awaitClose { keyguardTransitions.unregisterOccludingTaskListener(listener) }
+        }
+    }
+
+    override fun setOccludedFromWm(isOccluded: Boolean) {
+        externalEvents.trySend(OcclusionEventModel.OccludedFromWm(isOccluded))
+    }
+
+    override fun setOccludedFromRemoteAnimation(onTop: Boolean, taskInfo: RunningTaskInfo?) {
+        externalEvents.trySend(OcclusionEventModel.StartedRemoteAnimation(onTop, taskInfo))
     }
 }

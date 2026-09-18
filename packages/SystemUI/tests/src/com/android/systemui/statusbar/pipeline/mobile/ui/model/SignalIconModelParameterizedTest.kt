@@ -21,10 +21,10 @@ import com.android.settingslib.graph.SignalDrawable
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.statusbar.pipeline.mobile.domain.model.SignalIconModel
 import com.google.common.truth.Truth.assertThat
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4
-import platform.test.runner.parameterized.Parameters
 import org.junit.Test
 import org.junit.runner.RunWith
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4
+import platform.test.runner.parameterized.Parameters
 
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4::class)
@@ -32,15 +32,15 @@ internal class SignalIconModelParameterizedTest(private val testCase: TestCase) 
     @Test
     fun drawableFromModel_level0_numLevels4_noExclamation_notCarrierNetworkChange() {
         val model =
-            SignalIconModel.Cellular(
+            SignalIconModel.CellularTypeIconModel.Cellular(
                 level = 0,
                 numberOfLevels = 4,
                 showExclamationMark = false,
-                carrierNetworkChange = false
+                carrierNetworkChange = false,
             )
 
         val expected =
-            SignalDrawable.getState(/* level = */ 0, /* numLevels = */ 4, /* cutOut = */ false)
+            SignalDrawable.getState(/* level= */ 0, /* numLevels= */ 4, /* cutOut= */ false)
 
         assertThat(model.toSignalDrawableState()).isEqualTo(expected)
     }
@@ -59,7 +59,7 @@ internal class SignalIconModelParameterizedTest(private val testCase: TestCase) 
         val expected: Int,
     ) {
         fun toSignalIconModel() =
-            SignalIconModel.Cellular(
+            SignalIconModel.CellularTypeIconModel.Cellular(
                 level = level,
                 numberOfLevels = numberOfLevels,
                 showExclamationMark = showExclamation,
@@ -83,35 +83,35 @@ internal class SignalIconModelParameterizedTest(private val testCase: TestCase) 
                     numberOfLevels = 4,
                     showExclamation = false,
                     carrierNetworkChange = false,
-                    expected = SignalDrawable.getState(0, 4, false)
+                    expected = SignalDrawable.getState(0, 4, false),
                 ),
                 TestCase(
                     level = 0,
                     numberOfLevels = 4,
                     showExclamation = false,
                     carrierNetworkChange = true,
-                    expected = SignalDrawable.getCarrierChangeState(4)
+                    expected = SignalDrawable.getCarrierChangeState(4),
                 ),
                 TestCase(
                     level = 2,
                     numberOfLevels = 5,
                     showExclamation = false,
                     carrierNetworkChange = false,
-                    expected = SignalDrawable.getState(2, 5, false)
+                    expected = SignalDrawable.getState(2, 5, false),
                 ),
                 TestCase(
                     level = 2,
                     numberOfLevels = 5,
                     showExclamation = true,
                     carrierNetworkChange = false,
-                    expected = SignalDrawable.getState(2, 5, true)
+                    expected = SignalDrawable.getState(2, 5, true),
                 ),
                 TestCase(
                     level = 2,
                     numberOfLevels = 5,
                     showExclamation = true,
                     carrierNetworkChange = true,
-                    expected = SignalDrawable.getCarrierChangeState(5)
+                    expected = SignalDrawable.getCarrierChangeState(5),
                 ),
             )
     }

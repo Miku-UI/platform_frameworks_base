@@ -155,37 +155,9 @@ class FromAlternateBouncerTransitionInteractorTest(flags: FlagsParameterization)
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR, Flags.FLAG_HUB_EDIT_MODE_TRANSITION)
-    @DisableSceneContainer
-    fun transitionToGone_whenEnteringHubEditMode_flagOff_transitionToGone() =
-        kosmos.runTest {
-            transitionRepository.transitionTo(
-                from = KeyguardState.LOCKSCREEN,
-                to = KeyguardState.ALTERNATE_BOUNCER,
-            )
-            reset(transitionRepository)
-
-            fakeKeyguardBouncerRepository.setKeyguardAuthenticatedBiometrics(null)
-            fakeKeyguardRepository.setKeyguardOccluded(true)
-            runCurrent()
-            assertThat(transitionRepository).noTransitionsStarted()
-
-            communalSceneInteractor.setEditModeState(EditModeState.STARTING)
-
-            fakeKeyguardBouncerRepository.setKeyguardAuthenticatedBiometrics(true)
-            runCurrent()
-            fakeKeyguardBouncerRepository.setKeyguardAuthenticatedBiometrics(null)
-            runCurrent()
-
-            assertThat(transitionRepository)
-                .startedTransition(from = KeyguardState.ALTERNATE_BOUNCER, to = KeyguardState.GONE)
-        }
-
-    @Test
     @DisableFlags(Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR)
-    @EnableFlags(Flags.FLAG_HUB_EDIT_MODE_TRANSITION)
     @DisableSceneContainer
-    fun transitionToGone_whenEnteringHubEditMode_flagOn_doNothing() =
+    fun transitionToGone_whenEnteringHubEditMode_doNothing() =
         kosmos.runTest {
             transitionRepository.transitionTo(
                 from = KeyguardState.LOCKSCREEN,
@@ -228,6 +200,7 @@ class FromAlternateBouncerTransitionInteractorTest(flags: FlagsParameterization)
         }
 
     @Test
+    @DisableSceneContainer
     fun transitionToOccluded() =
         testScope.runTest {
             kosmos.fakePowerRepository.updateWakefulness(
@@ -292,6 +265,7 @@ class FromAlternateBouncerTransitionInteractorTest(flags: FlagsParameterization)
         }
 
     @Test
+    @DisableSceneContainer
     fun transitionToDreaming() =
         kosmos.runTest {
             // Advance past initial dreaming/doze delay

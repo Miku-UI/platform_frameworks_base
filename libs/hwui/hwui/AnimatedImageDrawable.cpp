@@ -18,12 +18,15 @@
 
 #include <SkPicture.h>
 #include <SkRefCnt.h>
+#include <com_android_graphics_hwui_flags.h>
 #include <gui/TraceUtils.h>
 
 #include <optional>
 
 #include "AnimatedImageThread.h"
 #include "pipeline/skia/SkiaUtils.h"
+
+namespace hwui_flags = com::android::graphics::hwui::flags;
 
 namespace android {
 
@@ -46,17 +49,38 @@ bool AnimatedImageDrawable::start() {
     mStarting = true;
 
     mRunning = true;
+    mLastFrameDurationMs = -1;  // Reset to force hint on first frame
+
+    if (hwui_flags::animated_image_frame_rate_hint() && mFrameRateHintListener) {
+        float fps = 1000.0f / currentFrameDuration();
+        mFrameRateHintListener->onFrameRateHint(fps);
+        ATRACE_FORMAT("AnimatedImageDrawable::start fps=%.2f", fps);
+    }
+
     return true;
 }
 
 bool AnimatedImageDrawable::stop() {
     bool wasRunning = mRunning;
     mRunning = false;
+
+    if (hwui_flags::animated_image_frame_rate_hint() && mFrameRateHintListener) {
+        mFrameRateHintListener->onFrameRateHint(0.0f);
+        ATRACE_FORMAT("AnimatedImageDrawable::stop fps=%.2f", 0.0f);
+    }
+    mLastFrameDurationMs = -1;
     return wasRunning;
 }
 
 bool AnimatedImageDrawable::isRunning() {
     return mRunning;
+}
+
+void AnimatedImageDrawable::setOnFrameRateHintListener(
+        std::unique_ptr<OnFrameRateHintListener> listener) {
+    if (hwui_flags::animated_image_frame_rate_hint()) {
+        mFrameRateHintListener = std::move(listener);
+    }
 }
 
 bool AnimatedImageDrawable::nextSnapshotReady() const {
@@ -106,11 +130,21 @@ bool AnimatedImageDrawable::isDirty(nsecs_t* outDelay) {
 // Only called on the AnimatedImageThread.
 AnimatedImageDrawable::Snapshot AnimatedImageDrawable::decodeNextFrame() {
     Snapshot snap;
+    int currentDurationMs;
     {
         std::unique_lock lock{mImageLock};
         snap.mDurationMS = adjustFrameDuration(mSkAnimatedImage->decodeNextFrame());
         snap.mPic = mSkAnimatedImage->makePictureSnapshot();
+        currentDurationMs = snap.mDurationMS;
     }
+
+    if (hwui_flags::animated_image_frame_rate_hint() && mFrameRateHintListener) {
+        if (currentDurationMs > 0 && std::abs(currentDurationMs - mLastFrameDurationMs) > 0.1f) {
+            float fps = 1000.0f / currentDurationMs;
+            ATRACE_FORMAT("AnimatedImageDrawable::decodeNextFrame fps changed fps=%.2f", fps);
+        }
+    }
+    mLastFrameDurationMs = currentDurationMs;
 
     return snap;
 }
@@ -118,13 +152,22 @@ AnimatedImageDrawable::Snapshot AnimatedImageDrawable::decodeNextFrame() {
 // Only called on the AnimatedImageThread.
 AnimatedImageDrawable::Snapshot AnimatedImageDrawable::reset() {
     Snapshot snap;
+    int currentDurationMs;
     {
         std::unique_lock lock{mImageLock};
         mSkAnimatedImage->reset();
         snap.mPic = mSkAnimatedImage->makePictureSnapshot();
         snap.mDurationMS = currentFrameDuration();
+        currentDurationMs = snap.mDurationMS;
     }
 
+    if (hwui_flags::animated_image_frame_rate_hint() && mFrameRateHintListener) {
+        if (currentDurationMs > 0 && std::abs(currentDurationMs - mLastFrameDurationMs) > 0.1f) {
+            float fps = 1000.0f / currentDurationMs;
+            ATRACE_FORMAT("AnimatedImageDrawable::reset fps changed fps=%.2f", fps);
+        }
+    }
+    mLastFrameDurationMs = currentDurationMs;
     return snap;
 }
 

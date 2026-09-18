@@ -70,8 +70,20 @@ protected:
     virtual void onDraw(SkCanvas* canvas) override;
 
 private:
-    void drawShadow(SkCanvas* canvas, RenderNodeDrawable* caster);
+    struct ShadowInfo {
+        const SkPath* casterPath;
+        float ambientAlpha;
+        float spotAlpha;
+        SkColor ambientColor;
+        SkColor spotColor;
+        SkScalar casterAlpha;
+    };
+    static bool computeShadowInfo(const RenderNode* casterNode, ShadowInfo& shadowInfo);
+    static void drawShadow(SkCanvas* canvas, const RenderNode* casterNode,
+                           const ShadowInfo& shadowInfo);
     StartReorderBarrierDrawable* mStartBarrier;
+
+    friend class BackdropFilterDrawable;
 };
 
 }  // namespace skiapipeline

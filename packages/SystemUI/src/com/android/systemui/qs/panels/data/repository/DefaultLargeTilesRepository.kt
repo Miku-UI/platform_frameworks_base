@@ -16,8 +16,13 @@
 
 package com.android.systemui.qs.panels.data.repository
 
+import android.annotation.SuppressLint
+import android.content.res.Resources
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.qs.flags.QsSplitInternetTile
 import com.android.systemui.qs.pipeline.shared.TileSpec
+import com.android.systemui.res.R
 import javax.inject.Inject
 
 /** Repository for the default set of [TileSpec] that should be displayed as large tiles. */
@@ -26,12 +31,21 @@ interface DefaultLargeTilesRepository {
 }
 
 @SysUISingleton
-class DefaultLargeTilesRepositoryImpl @Inject constructor() : DefaultLargeTilesRepository {
+@SuppressLint("ShadeDisplayAwareContextChecker")
+class DefaultLargeTilesRepositoryImpl @Inject constructor(@Main resources: Resources) :
+    DefaultLargeTilesRepository {
     override val defaultLargeTiles =
-        setOf(
-            TileSpec.create("internet"),
-            TileSpec.create("bt"),
-            TileSpec.create("dnd"),
-            TileSpec.create("cast"),
-        )
+        if (QsSplitInternetTile.isEnabled) {
+            resources
+                .getStringArray(R.array.quick_settings_large_tiles_default_split)
+                .map(TileSpec::create)
+                .toSet()
+        } else {
+            setOf(
+                TileSpec.create("internet"),
+                TileSpec.create("bt"),
+                TileSpec.create("dnd"),
+                TileSpec.create("cast"),
+            )
+        }
 }

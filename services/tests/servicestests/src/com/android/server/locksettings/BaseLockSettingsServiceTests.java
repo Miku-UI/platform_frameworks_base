@@ -16,6 +16,8 @@
 
 package com.android.server.locksettings;
 
+import static com.android.server.locksettings.UnifiedProfilePasswordCrypto.encryptProfilePasswordLegacy;
+
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,17 +27,20 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import android.annotation.Nullable;
 import android.app.IActivityManager;
 import android.app.KeyguardManager;
 import android.app.NotificationManager;
 import android.app.admin.DevicePolicyManager;
 import android.app.admin.DevicePolicyManagerInternal;
 import android.app.admin.DeviceStateCache;
+import android.app.supervision.SupervisionManagerInternal;
 import android.app.test.PropertyInvalidatedCacheTestRule;
 import android.app.trust.TrustManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.content.pm.PackageManagerInternal;
 import android.content.pm.UserInfo;
 import android.content.res.Resources;
 import android.hardware.authsecret.IAuthSecret;
@@ -43,6 +48,7 @@ import android.hardware.face.FaceManager;
 import android.hardware.fingerprint.FingerprintManager;
 import android.os.FileUtils;
 import android.os.IProgressListener;
+import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.storage.IStorageManager;
@@ -101,6 +107,7 @@ public abstract class BaseLockSettingsServiceTests {
     FakeGateKeeperService mGateKeeperService;
     NotificationManager mNotificationManager;
     UserManager mUserManager;
+    SupervisionManagerInternal mSupervisionManagerInternal;
     FakeStorageManager mStorageManager;
     IActivityManager mActivityManager;
     DevicePolicyManager mDevicePolicyManager;
@@ -108,6 +115,7 @@ public abstract class BaseLockSettingsServiceTests {
     MockSyntheticPasswordManager mSpManager;
     IAuthSecret mAuthSecretService;
     WindowManagerInternal mMockWindowManager;
+    PackageManagerInternal mMockPackageManagerInternal;
     FakeGsiService mGsiService;
     PasswordSlotManagerTestable mPasswordSlotManager;
     RecoverableKeyStoreManager mRecoverableKeyStoreManager;
@@ -133,11 +141,13 @@ public abstract class BaseLockSettingsServiceTests {
         mGateKeeperService = new FakeGateKeeperService();
         mNotificationManager = mock(NotificationManager.class);
         mUserManager = mock(UserManager.class);
+        mSupervisionManagerInternal = mock(SupervisionManagerInternal.class);
         mStorageManager = new FakeStorageManager();
         mActivityManager = mock(IActivityManager.class);
         mDevicePolicyManager = mock(DevicePolicyManager.class);
         mDevicePolicyManagerInternal = mock(DevicePolicyManagerInternal.class);
         mMockWindowManager = mock(WindowManagerInternal.class);
+        mMockPackageManagerInternal = mock(PackageManagerInternal.class);
         mGsiService = new FakeGsiService();
         mPasswordSlotManager = new PasswordSlotManagerTestable();
         mRecoverableKeyStoreManager = mock(RecoverableKeyStoreManager.class);
@@ -150,11 +160,15 @@ public abstract class BaseLockSettingsServiceTests {
         mStrongAuthTracker = mock(LockSettingsService.SynchronizedStrongAuthTracker.class);
         mInvalidateLockoutEndTimeCacheMock = mock(Runnable.class);
 
+        FakeKeyStore.setFakeGatekeeperService(mGateKeeperService);
+
         LocalServices.removeServiceForTest(LockSettingsInternal.class);
         LocalServices.removeServiceForTest(DevicePolicyManagerInternal.class);
         LocalServices.removeServiceForTest(WindowManagerInternal.class);
+        LocalServices.removeServiceForTest(PackageManagerInternal.class);
         LocalServices.addService(DevicePolicyManagerInternal.class, mDevicePolicyManagerInternal);
         LocalServices.addService(WindowManagerInternal.class, mMockWindowManager);
+        LocalServices.addService(PackageManagerInternal.class, mMockPackageManagerInternal);
 
         mSecureLockDeviceServiceInternal = mock(SecureLockDeviceServiceInternal.class);
         LocalServices.removeServiceForTest(SecureLockDeviceServiceInternal.class);
@@ -175,8 +189,13 @@ public abstract class BaseLockSettingsServiceTests {
             storageDir.mkdirs();
         }
 
-        mSpManager = new MockSyntheticPasswordManager(mContext, mStorage, mGateKeeperService,
-                mUserManager, mPasswordSlotManager);
+        mSpManager =
+                new MockSyntheticPasswordManager(
+                        mContext,
+                        mStorage,
+                        mUserManager,
+                        mPasswordSlotManager,
+                        mKeyStoreRule.getKeyStore());
         mAuthSecretService = mock(IAuthSecret.class);
         mInjector =
                 new LockSettingsServiceTestable.MockInjector(
@@ -188,6 +207,7 @@ public abstract class BaseLockSettingsServiceTests {
                         mock(IStorageManager.class),
                         setUpStorageManagerInternalMock(),
                         mSpManager,
+                        mSupervisionManagerInternal,
                         mGsiService,
                         mRecoverableKeyStoreManager,
                         mUserManagerInternal,
@@ -254,6 +274,7 @@ public abstract class BaseLockSettingsServiceTests {
         when(mDevicePolicyManager.getDeviceOwnerComponentOnAnyUser()).thenReturn(
                 new ComponentName("com.dummy.package", ".FakeDeviceOwner"));
         when(mDeviceStateCache.isUserOrganizationManaged(anyInt())).thenReturn(true);
+        when(mSupervisionManagerInternal.isEscrowTokenRequired(anyInt())).thenReturn(false);
         when(mDeviceStateCache.isDeviceProvisioned()).thenReturn(true);
         mockBiometricsHardwareFingerprintsAndTemplates(PRIMARY_USER_ID);
         mockBiometricsHardwareFingerprintsAndTemplates(MANAGED_PROFILE_USER_ID);
@@ -428,4 +449,88 @@ public abstract class BaseLockSettingsServiceTests {
         return LockscreenCredential.createNone();
     }
 
+    protected void setUpChildProfileLockFileIfNeeded(
+            boolean hasChildProfileLockBefore,
+            @Nullable LockscreenCredential unifiedProfilePassword) {
+        setUpChildProfileLockFileIfNeeded(
+                hasChildProfileLockBefore, /* removeExisting= */ true, unifiedProfilePassword);
+    }
+
+    protected void setUpChildProfileLockFileIfNeeded(
+            boolean hasChildProfileLockBefore,
+            boolean removeExisting,
+            @Nullable LockscreenCredential unifiedProfilePassword) {
+        if (!hasChildProfileLockBefore && removeExisting) {
+            mStorage.removeChildProfileLock(MANAGED_PROFILE_USER_ID);
+        } else {
+            if (!mStorage.hasChildProfileLock(MANAGED_PROFILE_USER_ID)) {
+                tieProfilePasswordToParent(unifiedProfilePassword);
+            }
+        }
+    }
+
+    /**
+     * Sets up an encrypted password protected by a new encryption key bound to the parent sid. The
+     * credential must be a PASSWORD, rather than NONE.
+     */
+    void tieProfilePasswordToParent(LockscreenCredential password) {
+        final long parentSid;
+        try {
+            parentSid =
+                    mGateKeeperService.getSecureUserId(
+                            BaseLockSettingsServiceTests.PRIMARY_USER_ID);
+        } catch (RemoteException e) {
+            throw new IllegalStateException("Failed to talk to GateKeeper service", e);
+        }
+        byte[] encryptedPasswordData =
+                encryptProfilePasswordLegacy(
+                        mKeyStoreRule.getKeyStore(),
+                        BaseLockSettingsServiceTests.MANAGED_PROFILE_USER_ID,
+                        parentSid,
+                        password);
+        mStorage.writeChildProfileLock(
+                BaseLockSettingsServiceTests.MANAGED_PROFILE_USER_ID, encryptedPasswordData);
+    }
+
+    protected void setUpSpProtectorPasswordIfNeeded(
+            boolean hasSpProtectorPasswordBefore,
+            @Nullable LockscreenCredential unifiedProfilePassword) {
+        setUpSpProtectorPasswordIfNeeded(
+                hasSpProtectorPasswordBefore, /* removeExisting= */ true, unifiedProfilePassword);
+    }
+
+    /**
+     * Sets up the protector password based on whether one is expected.
+     *
+     * @param hasSpProtectorPasswordBefore If a protector password is expected already. If so, AND
+     *     one doesn't exist, sets it up with the given password, if it exists.
+     * @param removeExisting If an existing protector password should be removed.
+     * @param unifiedProfilePassword The new password to set. Only used when
+     *     hasSpProtectorPasswordBefore is true and no password exists.
+     */
+    protected void setUpSpProtectorPasswordIfNeeded(
+            boolean hasSpProtectorPasswordBefore,
+            boolean removeExisting,
+            @Nullable LockscreenCredential unifiedProfilePassword) {
+        if (hasSpProtectorPasswordBefore) {
+            if (unifiedProfilePassword != null
+                    && !hasSpProtectorPassword(MANAGED_PROFILE_USER_ID)) {
+                mSpManager.tieProtectorToParent(
+                        mGateKeeperService,
+                        MANAGED_PROFILE_USER_ID,
+                        mService.getCurrentLskfBasedProtectorId(MANAGED_PROFILE_USER_ID),
+                        PRIMARY_USER_ID,
+                        unifiedProfilePassword);
+            }
+        } else if (removeExisting) {
+            mSpManager.removeProfilePassword(
+                    MANAGED_PROFILE_USER_ID,
+                    mService.getCurrentLskfBasedProtectorId(MANAGED_PROFILE_USER_ID));
+        }
+    }
+
+    protected boolean hasSpProtectorPassword(int profileUserId) {
+        return mSpManager.hasProfilePassword(
+                profileUserId, mService.getCurrentLskfBasedProtectorId(profileUserId));
+    }
 }

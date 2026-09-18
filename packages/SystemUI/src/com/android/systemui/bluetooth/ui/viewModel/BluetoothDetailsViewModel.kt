@@ -31,4 +31,6 @@ class BluetoothDetailsViewModel(
 
     override val subTitle: String
         get() = detailsContentViewModel.subTitle
+
+    override val requiresAsyncLoading: Boolean = true
 }

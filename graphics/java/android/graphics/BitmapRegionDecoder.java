@@ -47,7 +47,7 @@ public final class BitmapRegionDecoder {
 
     /**
      * Create a BitmapRegionDecoder from the specified byte array.
-     * Currently only the JPEG, PNG, WebP and HEIF formats are supported.
+     * Currently only the JPEG, PNG, WebP, HEIF and AVIF formats are supported.
      *
      * @param data byte array of compressed image data.
      * @param offset offset into data for where the decoder should begin
@@ -67,7 +67,7 @@ public final class BitmapRegionDecoder {
 
     /**
      * Create a BitmapRegionDecoder from the specified byte array.
-     * Currently only the JPEG, PNG, WebP and HEIF formats are supported.
+     * Currently only the JPEG, PNG, WebP, HEIF and AVIF formats are supported.
      *
      * @param data byte array of compressed image data.
      * @param offset offset into data for where the decoder should begin
@@ -88,7 +88,7 @@ public final class BitmapRegionDecoder {
      * Create a BitmapRegionDecoder from the file descriptor.
      * The position within the descriptor will not be changed when
      * this returns, so the descriptor can be used again as is.
-     * Currently only the JPEG, PNG, WebP and HEIF formats are supported.
+     * Currently only the JPEG, PNG, WebP, HEIF and AVIF formats are supported.
      *
      * @param fd The file descriptor containing the data to decode
      * @param isShareable This field has been ignored since
@@ -107,7 +107,7 @@ public final class BitmapRegionDecoder {
      * Create a BitmapRegionDecoder from the file descriptor.
      * The position within the descriptor will not be changed when
      * this returns, so the descriptor can be used again as is.
-     * Currently only the JPEG, PNG, WebP and HEIF formats are supported.
+     * Currently only the JPEG, PNG, WebP, HEIF and AVIF formats are supported.
      *
      * @param pfd The parcel file descriptor containing the data to decode
      * @throws IOException if the image format is not supported or can not be decoded.
@@ -122,7 +122,7 @@ public final class BitmapRegionDecoder {
      * Create a BitmapRegionDecoder from an input stream.
      * The stream's position will be where ever it was after the encoded data
      * was read.
-     * Currently only the JPEG, PNG, WebP and HEIF formats are supported.
+     * Currently only the JPEG, PNG, WebP, HEIF and AVIF formats are supported.
      *
      * @param is The input stream that holds the raw data to be decoded into a
      *           BitmapRegionDecoder.
@@ -147,7 +147,7 @@ public final class BitmapRegionDecoder {
      * Create a BitmapRegionDecoder from an input stream.
      * The stream's position will be where ever it was after the encoded data
      * was read.
-     * Currently only the JPEG, PNG, WebP and HEIF formats are supported.
+     * Currently only the JPEG, PNG, WebP, HEIF and AVIF formats are supported.
      *
      * @param is The input stream that holds the raw data to be decoded into a
      *           BitmapRegionDecoder.
@@ -170,7 +170,7 @@ public final class BitmapRegionDecoder {
 
     /**
      * Create a BitmapRegionDecoder from a file path.
-     * Currently only the JPEG, PNG, WebP and HEIF formats are supported.
+     * Currently only the JPEG, PNG, WebP, HEIF and AVIF formats are supported.
      *
      * @param pathName complete path name for the file to be decoded.
      * @param isShareable This field has always been ignored.
@@ -186,7 +186,7 @@ public final class BitmapRegionDecoder {
 
     /**
      * Create a BitmapRegionDecoder from a file path.
-     * Currently only the JPEG, PNG, WebP and HEIF formats are supported.
+     * Currently only the JPEG, PNG, WebP, HEIF and AVIF formats are supported.
      *
      * @param pathName complete path name for the file to be decoded.
      * @throws IOException if the image format is not supported or can not be decoded.

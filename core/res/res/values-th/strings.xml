@@ -158,6 +158,10 @@
     <string name="wfc_mode_wifi_preferred_summary" msgid="1035175836270943089">"โทรผ่าน Wi-Fi"</string>
     <string name="wfc_mode_cellular_preferred_summary" msgid="4958965609212575619">"โทรผ่านเครือข่ายมือถือ"</string>
     <string name="wfc_mode_wifi_only_summary" msgid="104951993894678665">"Wi-Fi เท่านั้น"</string>
+    <string name="adaptive_low_frequency_less_than_one_minute" msgid="8869498183646028708">"~ %s"</string>
+    <string name="adaptive_low_frequency_neg_less_than_one_minute" msgid="2590062535985417056">"~ −%s"</string>
+    <string name="elapsed_time_low_frequency_short_format_h_mm" msgid="6728141238066668781">"%1$d:%2$02d:--"</string>
+    <string name="elapsed_time_low_frequency_short_format_mm" msgid="2405181895215514414">"%1$02d:--"</string>
     <!-- no translation found for crossSimFormat_spn (9125246077491634262) -->
     <skip />
     <string name="crossSimFormat_spn_cross_sim_calling" msgid="5620807020002879057">"การสำรองข้อมูลการโทรจาก <xliff:g id="SPN">%s</xliff:g>"</string>
@@ -278,6 +282,7 @@
     <string name="global_action_restart" msgid="4678451019561687074">"รีสตาร์ท"</string>
     <string name="global_action_emergency" msgid="1387617624177105088">"เหตุฉุกเฉิน"</string>
     <string name="global_action_bug_report" msgid="5127867163044170003">"รายงานข้อบกพร่อง"</string>
+    <string name="global_action_feedback" msgid="3480836834202300036">"ฟีดแบ็ก"</string>
     <string name="global_action_logout" msgid="6093581310002476511">"จบเซสชัน"</string>
     <string name="global_action_screenshot" msgid="2610053466156478564">"ภาพหน้าจอ"</string>
     <string name="global_action_standby" msgid="6786920589970257642">"สแตนด์บาย"</string>
@@ -326,6 +331,7 @@
     <string name="notification_channel_accessibility_hearing_device" msgid="7816963856388758952">"เครื่องช่วยฟัง"</string>
     <string name="notification_channel_accessibility_security_policy" msgid="1727787021725251912">"การใช้งานการช่วยเหลือพิเศษ"</string>
     <string name="notification_channel_display" msgid="6905032605735615090">"จอแสดงผล"</string>
+    <string name="notification_channel_parental_controls" msgid="2963963315750128538">"การควบคุมโดยผู้ปกครอง"</string>
     <string name="foreground_service_app_in_background" msgid="1439289699671273555">"<xliff:g id="APP_NAME">%1$s</xliff:g> กำลังใช้แบตเตอรี่"</string>
     <string name="foreground_service_apps_in_background" msgid="7340037176412387863">"แอป <xliff:g id="NUMBER">%1$d</xliff:g> แอปกำลังใช้แบตเตอรี่"</string>
     <string name="foreground_service_tap_for_details" msgid="9078123626015586751">"แตะเพื่อดูรายละเอียดเกี่ยวกับแบตเตอรี่และปริมาณการใช้อินเทอร์เน็ต"</string>
@@ -548,6 +554,8 @@
     <string name="permdesc_backgroundCamera" msgid="1615291686191138250">"แอปนี้ถ่ายภาพและวิดีโอด้วยกล้องได้ทุกเมื่อ"</string>
     <string name="permlab_systemCamera" msgid="3642917457796210580">"อนุญาตให้แอปพลิเคชันหรือบริการเข้าถึงกล้องของระบบเพื่อถ่ายภาพและวิดีโอ"</string>
     <string name="permdesc_systemCamera" msgid="5938360914419175986">"แอปของระบบหรือที่ได้รับสิทธิ์นี้จะถ่ายภาพและบันทึกวิดีโอโดยใช้กล้องของระบบได้ทุกเมื่อ แอปต้องมีสิทธิ์ android.permission.CAMERA ด้วย"</string>
+    <string name="permlab_warmUpCamera" msgid="6135692056406854923">"อนุญาตให้แอปพลิเคชันหรือบริการส่งสัญญาณเตรียมความพร้อมล่วงหน้าไปยังระบบย่อยของกล้อง"</string>
+    <string name="permdesc_warmUpCamera" msgid="925343364567764736">"แอปของระบบหรือแอปที่ได้รับสิทธิ์นี้สามารถส่งสัญญาณไปยังระบบย่อยของกล้องเพื่อเตรียมความพร้อมอุปกรณ์กล้องล่วงหน้าเพื่อช่วยปรับปรุงประสิทธิภาพการใช้งานและประโยชน์ด้านอื่นๆ"</string>
     <string name="permlab_cameraOpenCloseListener" msgid="5548732769068109315">"อนุญาตให้แอปพลิเคชันหรือบริการได้รับ Callback เมื่อมีการเปิดหรือปิดอุปกรณ์กล้อง"</string>
     <string name="permdesc_cameraOpenCloseListener" msgid="2002636131008772908">"แอปนี้จะได้รับ Callback เมื่อมีการปิดหรือเปิดอุปกรณ์กล้อง (โดยแอปพลิเคชันที่เปิด)"</string>
     <string name="permlab_cameraHeadlessSystemUser" msgid="680194666834500050">"อนุญาตให้แอปพลิเคชันหรือบริการเข้าถึงกล้องในฐานะผู้ใช้ระบบแบบไม่มีส่วนหัว"</string>
@@ -641,6 +649,10 @@
     <string name="permdesc_nearby_wifi_devices" msgid="3054307728646332906">"อนุญาตให้แอปแสดงข้อมูล เชื่อมต่อ และระบุตำแหน่งซึ่งสัมพันธ์กับอุปกรณ์ Wi-Fi ที่อยู่ใกล้เคียง"</string>
     <string name="permlab_access_local_network" msgid="3420360767259066877">"เข้าถึงอุปกรณ์ในเครือข่ายในพื้นที่"</string>
     <string name="permdesc_access_local_network" msgid="6364679803386822638">"อนุญาตให้แอปเข้าถึงอุปกรณ์ในเครือข่ายในพื้นที่"</string>
+    <string name="permlab_use_loopback_interface" msgid="8032765172835686213">"ใช้อินเทอร์เฟซ Loopbackd"</string>
+    <string name="permdesc_use_loopback_interface" msgid="47684087751145157">"อนุญาตให้แอปโต้ตอบกับแอปอื่นๆ ผ่านอินเทอร์เฟซ Loopback"</string>
+    <string name="permlab_force_use_loopback_interface" msgid="1319727311706416481">"บังคับใช้อินเทอร์เฟซ Loopback"</string>
+    <string name="permdesc_force_use_loopback_interface" msgid="5829032514048681980">"อนุญาตให้แอปโต้ตอบกับแอปอื่นๆ ผ่านอินเทอร์เฟซ Loopback โดยไม่ต้องให้แอปอื่นๆ มีสิทธิ์ Loopback"</string>
     <string name="permlab_ranging" msgid="2854543350668593390">"ระบุตำแหน่งสัมพันธ์ระหว่างอุปกรณ์ที่อยู่ใกล้เคียง"</string>
     <string name="permdesc_ranging" msgid="6703905535621521710">"อนุญาตให้แอประบุตำแหน่งสัมพันธ์ระหว่างอุปกรณ์ที่อยู่ใกล้เคียง"</string>
     <string name="permlab_preferredPaymentInfo" msgid="5274423844767445054">"ข้อมูลบริการชำระเงิน NFC ที่ต้องการ"</string>
@@ -748,33 +760,48 @@
     <string name="fingerprint_icon_content_description" msgid="4741068463175388817">"ไอคอนลายนิ้วมือ"</string>
     <string name="device_unlock_notification_name" msgid="2632928999862915709">"การปลดล็อกอุปกรณ์"</string>
     <string name="alternative_unlock_setup_notification_title" msgid="6241508547901933544">"ลองใช้วิธีอื่นในการปลดล็อก"</string>
-    <string name="alternative_face_setup_notification_content" msgid="3384959224091897331">"ใช้การปลดล็อกด้วยใบหน้าเมื่อระบบจำลายนิ้วมือของคุณไม่ได้ เช่น เมื่อนิ้วมือเปียก"</string>
+    <string name="alternative_face_setup_notification_content" product="default" msgid="3384959224091897331">"ใช้การปลดล็อกด้วยใบหน้าเมื่อระบบจำลายนิ้วมือของคุณไม่ได้ เช่น เมื่อนิ้วมือเปียก"</string>
+    <string name="alternative_face_setup_notification_content" product="desktop" msgid="8589631194028810041">"ปลดล็อกด้วยใบหน้าเมื่อระบบจำลายนิ้วมือของคุณไม่ได้ เช่น เมื่อนิ้วมือเปียก"</string>
     <string name="alternative_fp_setup_notification_content" msgid="7454096947415721639">"ใช้การปลดล็อกด้วยลายนิ้วมือเมื่อระบบจำใบหน้าของคุณไม่ได้ เช่น เมื่อมีแสงสว่างไม่เพียงพอ"</string>
-    <string name="face_recalibrate_notification_name" msgid="7311163114750748686">"การปลดล็อกด้วยใบหน้า"</string>
-    <string name="face_recalibrate_notification_title" msgid="2524791952735579082">"มีปัญหาเกี่ยวกับฟีเจอร์ปลดล็อกด้วยใบหน้า"</string>
+    <string name="face_recalibrate_notification_name" product="default" msgid="7311163114750748686">"การปลดล็อกด้วยใบหน้า"</string>
+    <string name="face_recalibrate_notification_name" product="desktop" msgid="6343244778393495390">"ปลดล็อกด้วยใบหน้า"</string>
+    <string name="face_recalibrate_notification_title" product="default" msgid="2524791952735579082">"มีปัญหาเกี่ยวกับฟีเจอร์ปลดล็อกด้วยใบหน้า"</string>
+    <string name="face_recalibrate_notification_title" product="desktop" msgid="7502893130398903561">"ปัญหาในการปลดล็อกด้วยใบหน้า"</string>
     <string name="face_recalibrate_notification_content" msgid="3064513770251355594">"แตะเพื่อลบรูปแบบใบหน้า แล้วเพิ่มใบหน้าอีกครั้ง"</string>
-    <string name="face_sensor_privacy_enabled" msgid="7407126963510598508">"หากต้องการใช้ปลดล็อกด้วยใบหน้า ให้เปิด"<b>"การเข้าถึงกล้อง"</b>"ในการตั้งค่าและความเป็นส่วนตัว"</string>
+    <string name="face_sensor_privacy_enabled" product="default" msgid="7407126963510598508">"หากต้องการใช้ปลดล็อกด้วยใบหน้า ให้เปิด"<b>"การเข้าถึงกล้อง"</b>"ในการตั้งค่าและความเป็นส่วนตัว"</string>
+    <string name="face_sensor_privacy_enabled" product="desktop" msgid="7690221855638766930">"หากต้องการปลดล็อกด้วยใบหน้า ให้เปิด"<b>"การเข้าถึงกล้อง"</b>"ในการตั้งค่าและความเป็นส่วนตัว"</string>
     <string name="fingerprint_recalibrate_notification_name" msgid="1414578431898579354">"ปลดล็อกด้วยลายนิ้วมือ"</string>
     <string name="fingerprint_recalibrate_notification_title" msgid="2406561052064558497">"ใช้เซ็นเซอร์ลายนิ้วมือไม่ได้"</string>
     <string name="fingerprint_recalibrate_notification_content" msgid="8519935717822194943">"โปรดติดต่อผู้ให้บริการซ่อม"</string>
     <string name="face_acquired_insufficient" msgid="6889245852748492218">"สร้างรูปแบบใบหน้าไม่ได้ โปรดลองอีกครั้ง"</string>
     <string name="face_acquired_too_bright" msgid="8070756048978079164">"สว่างเกินไป ลองหาตำแหน่งที่แสงน้อยกว่านี้"</string>
     <string name="face_acquired_too_dark" msgid="8539853432479385326">"แสงสว่างไม่เพียงพอ"</string>
-    <string name="face_acquired_too_close" msgid="4453646176196302462">"ถือโทรศัพท์ให้ห่างกว่านี้"</string>
-    <string name="face_acquired_too_far" msgid="2922278214231064859">"ถือโทรศัพท์ให้ใกล้กว่านี้"</string>
-    <string name="face_acquired_too_high" msgid="8278815780046368576">"ยกโทรศัพท์ให้สูงขึ้น"</string>
-    <string name="face_acquired_too_low" msgid="4075391872960840081">"ถือโทรศัพท์ให้ต่ำลง"</string>
-    <string name="face_acquired_too_right" msgid="6245286514593540859">"เลื่อนโทรศัพท์ไปทางซ้าย"</string>
-    <string name="face_acquired_too_left" msgid="9201762240918405486">"เลื่อนโทรศัพท์ไปทางขวา"</string>
-    <string name="face_acquired_poor_gaze" msgid="4427153558773628020">"โปรดมองตรงมาที่อุปกรณ์"</string>
-    <string name="face_acquired_not_detected" msgid="1057966913397548150">"ไม่เห็นใบหน้า ถือโทรศัพท์ไว้ที่ระดับสายตา"</string>
-    <string name="face_acquired_too_much_motion" msgid="8199691445085189528">"มีการเคลื่อนไหวมากเกินไป ถือโทรศัพท์นิ่งๆ"</string>
+    <string name="face_acquired_too_close" product="default" msgid="4453646176196302462">"ถือโทรศัพท์ให้ห่างกว่านี้"</string>
+    <string name="face_acquired_too_close" product="desktop" msgid="7189579448504853047">"ถืออุปกรณ์ให้ห่างกว่านี้"</string>
+    <string name="face_acquired_too_far" product="default" msgid="2922278214231064859">"ถือโทรศัพท์ให้ใกล้กว่านี้"</string>
+    <string name="face_acquired_too_far" product="desktop" msgid="6590730829823321223">"ถืออุปกรณ์ให้ใกล้กว่านี้"</string>
+    <string name="face_acquired_too_high" product="default" msgid="8278815780046368576">"ยกโทรศัพท์ให้สูงขึ้น"</string>
+    <string name="face_acquired_too_high" product="desktop" msgid="717393614154504299">"ยกอุปกรณ์ให้สูงขึ้น"</string>
+    <string name="face_acquired_too_low" product="default" msgid="4075391872960840081">"ถือโทรศัพท์ให้ต่ำลง"</string>
+    <string name="face_acquired_too_low" product="desktop" msgid="7695733281069538045">"ถืออุปกรณ์ให้ต่ำลง"</string>
+    <string name="face_acquired_too_right" product="default" msgid="6245286514593540859">"เลื่อนโทรศัพท์ไปทางซ้าย"</string>
+    <string name="face_acquired_too_right" product="desktop" msgid="4058756237538843740">"เลื่อนอุปกรณ์ไปทางซ้าย"</string>
+    <string name="face_acquired_too_left" product="default" msgid="9201762240918405486">"เลื่อนโทรศัพท์ไปทางขวา"</string>
+    <string name="face_acquired_too_left" product="desktop" msgid="5804819007366973778">"เลื่อนอุปกรณ์ไปทางขวา"</string>
+    <string name="face_acquired_poor_gaze" msgid="6746437451436776485">"มองตรงมาที่กล้องมากกว่านี้"</string>
+    <string name="face_acquired_not_detected" product="default" msgid="1057966913397548150">"ไม่เห็นใบหน้า ถือโทรศัพท์ไว้ที่ระดับสายตา"</string>
+    <string name="face_acquired_not_detected" product="desktop" msgid="1047701586390904260">"ไม่เห็นหน้า ถืออุปกรณ์ไว้ที่ระดับสายตา"</string>
+    <string name="face_acquired_too_much_motion" product="default" msgid="8199691445085189528">"มีการเคลื่อนไหวมากเกินไป ถือโทรศัพท์นิ่งๆ"</string>
+    <string name="face_acquired_too_much_motion" product="desktop" msgid="7135563968992659161">"มีการเคลื่อนไหวมากเกินไป ถืออุปกรณ์ให้นิ่ง"</string>
     <string name="face_acquired_recalibrate" msgid="8724013080976469746">"โปรดลงทะเบียนใบหน้าอีกครั้ง"</string>
     <string name="face_acquired_too_different" msgid="4505278456634706967">"ไม่รู้จักใบหน้า โปรดลองอีกครั้ง"</string>
     <string name="face_acquired_too_similar" msgid="8882920552674125694">"เปลี่ยนตำแหน่งของศีรษะเล็กน้อย"</string>
-    <string name="face_acquired_pan_too_extreme" msgid="5417928604710621088">"มองตรงมาที่โทรศัพท์"</string>
-    <string name="face_acquired_tilt_too_extreme" msgid="5715715666540716620">"มองตรงมาที่โทรศัพท์"</string>
-    <string name="face_acquired_roll_too_extreme" msgid="8261939882838881194">"มองตรงมาที่โทรศัพท์"</string>
+    <string name="face_acquired_pan_too_extreme" product="default" msgid="5417928604710621088">"มองตรงมาที่โทรศัพท์"</string>
+    <string name="face_acquired_pan_too_extreme" product="desktop" msgid="821456302944137576">"มองตรงไปที่อุปกรณ์มากกว่านี้"</string>
+    <string name="face_acquired_tilt_too_extreme" product="default" msgid="5715715666540716620">"มองตรงมาที่โทรศัพท์"</string>
+    <string name="face_acquired_tilt_too_extreme" product="desktop" msgid="1119243364774233108">"มองตรงไปที่อุปกรณ์มากกว่านี้"</string>
+    <string name="face_acquired_roll_too_extreme" product="default" msgid="8261939882838881194">"มองตรงมาที่โทรศัพท์"</string>
+    <string name="face_acquired_roll_too_extreme" product="desktop" msgid="3665467581072397682">"มองตรงไปที่อุปกรณ์มากกว่านี้"</string>
     <string name="face_acquired_obscured" msgid="4917643294953326639">"เอาสิ่งที่ปิดบังใบหน้าออก"</string>
     <string name="face_acquired_sensor_dirty" msgid="8968391891086721678">"ทำความสะอาดด้านบนของหน้าจอ รวมถึงแถบสีดำ"</string>
     <!-- no translation found for face_acquired_dark_glasses_detected (5643703296620631986) -->
@@ -787,19 +814,25 @@
   <string-array name="face_acquired_vendor">
   </string-array>
     <string name="face_error_hw_not_available" msgid="5085202213036026288">"ยืนยันใบหน้าไม่ได้ ฮาร์ดแวร์ไม่พร้อมใช้งาน"</string>
-    <string name="face_error_timeout" msgid="2598544068593889762">"ลองใช้การปลดล็อกด้วยใบหน้าอีกครั้ง"</string>
+    <string name="face_error_timeout" product="default" msgid="2598544068593889762">"ลองใช้การปลดล็อกด้วยใบหน้าอีกครั้ง"</string>
+    <string name="face_error_timeout" product="desktop" msgid="8136501408214657840">"ลองปลดล็อกด้วยใบหน้าอีกครั้ง"</string>
     <string name="face_error_no_space" msgid="5649264057026021723">"จัดเก็บข้อมูลใบหน้าใหม่ไม่ได้ ลบข้อมูลเก่าออกไปก่อน"</string>
     <string name="face_error_canceled" msgid="2164434737103802131">"ยกเลิกการดำเนินการกับใบหน้าแล้ว"</string>
-    <string name="face_error_user_canceled" msgid="5766472033202928373">"ผู้ใช้ยกเลิกการใช้การปลดล็อกด้วยใบหน้า"</string>
+    <string name="face_error_user_canceled" product="default" msgid="5766472033202928373">"ผู้ใช้ยกเลิกการใช้การปลดล็อกด้วยใบหน้า"</string>
+    <string name="face_error_user_canceled" product="desktop" msgid="8903551031462609651">"ผู้ใช้ยกเลิกการปลดล็อกด้วยใบหน้า"</string>
     <string name="face_error_lockout" msgid="7864408714994529437">"ดำเนินการหลายครั้งเกินไป ลองอีกครั้งในภายหลัง"</string>
-    <string name="face_error_lockout_permanent" msgid="8533257333130473422">"ลองหลายครั้งเกินไป การปลดล็อกด้วยใบหน้าไม่พร้อมใช้งาน"</string>
+    <string name="face_error_lockout_permanent" product="default" msgid="8533257333130473422">"ลองหลายครั้งเกินไป การปลดล็อกด้วยใบหน้าไม่พร้อมใช้งาน"</string>
+    <string name="face_error_lockout_permanent" product="desktop" msgid="1885291877517229762">"ลองหลายครั้งเกินไป ปลดล็อกด้วยใบหน้าไม่ได้"</string>
     <string name="face_error_lockout_screen_lock" msgid="5062609811636860928">"ลองหลายครั้งเกินไป ใช้การล็อกหน้าจอแทน"</string>
     <string name="face_error_unable_to_process" msgid="5723292697366130070">"ยืนยันใบหน้าไม่ได้ ลองอีกครั้ง"</string>
-    <string name="face_error_not_enrolled" msgid="1134739108536328412">"คุณยังไม่ได้ตั้งค่าการปลดล็อกด้วยใบหน้า"</string>
-    <string name="face_error_hw_not_present" msgid="7940978724978763011">"อุปกรณ์นี้ยังไม่รองรับการปลดล็อกด้วยใบหน้า"</string>
+    <string name="face_error_not_enrolled" product="default" msgid="1134739108536328412">"คุณยังไม่ได้ตั้งค่าการปลดล็อกด้วยใบหน้า"</string>
+    <string name="face_error_not_enrolled" product="desktop" msgid="7350396330456504527">"ยังไม่ได้ตั้งค่าการปลดล็อกด้วยใบหน้า"</string>
+    <string name="face_error_hw_not_present" product="default" msgid="7940978724978763011">"อุปกรณ์นี้ยังไม่รองรับการปลดล็อกด้วยใบหน้า"</string>
+    <string name="face_error_hw_not_present" product="desktop" msgid="4947323392112708365">"อุปกรณ์นี้ไม่รองรับการปลดล็อกด้วยใบหน้า"</string>
     <string name="face_error_security_update_required" msgid="5076017208528750161">"ปิดใช้เซ็นเซอร์ชั่วคราวแล้ว"</string>
     <string name="face_name_template" msgid="3877037340223318119">"ใบหน้า <xliff:g id="FACEID">%d</xliff:g>"</string>
-    <string name="face_app_setting_name" msgid="5854024256907828015">"ใช้การปลดล็อกด้วยใบหน้า"</string>
+    <string name="face_app_setting_name" product="default" msgid="5854024256907828015">"ใช้การปลดล็อกด้วยใบหน้า"</string>
+    <string name="face_app_setting_name" product="desktop" msgid="8226850671242901114">"ปลดล็อกด้วยใบหน้า"</string>
     <string name="face_or_screen_lock_app_setting_name" msgid="1603149075605709106">"ใช้การล็อกด้วยใบหน้าหรือการล็อกหน้าจอ"</string>
     <string name="face_dialog_default_subtitle" msgid="6620492813371195429">"ใช้ใบหน้าของคุณเพื่อดำเนินการต่อ"</string>
     <string name="face_or_screen_lock_dialog_default_subtitle" msgid="5006381531158341844">"ใช้ใบหน้าหรือการล็อกหน้าจอเพื่อดำเนินการต่อ"</string>
@@ -821,6 +854,8 @@
     <string name="permdesc_readMediaVideo" msgid="3846400073770403528">"อนุญาตให้แอปอ่านไฟล์วิดีโอจากพื้นที่เก็บข้อมูลที่แชร์"</string>
     <string name="permlab_readMediaImages" msgid="4057590631020986789">"อ่านไฟล์ภาพจากพื้นที่เก็บข้อมูลที่แชร์"</string>
     <string name="permdesc_readMediaImages" msgid="5836219373138469259">"อนุญาตให้แอปอ่านไฟล์ภาพจากพื้นที่เก็บข้อมูลที่แชร์"</string>
+    <string name="permlab_readMediaDocuments" msgid="5716810755602938263">"อ่านไฟล์เอกสารจากพื้นที่เก็บข้อมูลที่ใช้ร่วมกัน"</string>
+    <string name="permdesc_readMediaDocuments" msgid="5665930210237304120">"อนุญาตให้แอปอ่านไฟล์เอกสารจากพื้นที่เก็บข้อมูลที่ใช้ร่วมกัน"</string>
     <string name="permlab_readVisualUserSelect" msgid="5516204215354667586">"อ่านไฟล์รูปภาพและวิดีโอที่ผู้ใช้เลือกจากพื้นที่เก็บข้อมูลที่ใช้ร่วมกัน"</string>
     <string name="permdesc_readVisualUserSelect" msgid="8027174717714968217">"อนุญาตให้แอปอ่านไฟล์รูปภาพและวิดีโอที่คุณเลือกจากพื้นที่เก็บข้อมูลที่ใช้ร่วมกัน"</string>
     <string name="permlab_sdcardWrite" msgid="4863021819671416668">"แก้ไขหรือลบเนื้อหาในพื้นที่จัดเก็บข้อมูลที่ใช้ร่วมกัน"</string>
@@ -1054,8 +1089,12 @@
     <string name="lockscreen_pattern_correct" msgid="8050630103651508582">"ถูกต้อง!"</string>
     <string name="lockscreen_pattern_wrong" msgid="2940138714468358458">"ลองอีกครั้ง"</string>
     <string name="lockscreen_password_wrong" msgid="8605355913868947490">"ลองอีกครั้ง"</string>
+    <string name="lockscreen_click_to_unlock_hint" msgid="6056691847669178119">"คลิกเพื่อปลดล็อก"</string>
+    <string name="lockscreen_enter_to_unlock_hint" msgid="4248057180339112937">"กด Enter เพื่อปลดล็อก"</string>
+    <string name="lockscreen_key_to_unlock_hint" msgid="9042402393653798264">"กดแป้นใดก็ได้เพื่อปลดล็อก"</string>
     <string name="lockscreen_storage_locked" msgid="634993789186443380">"ปลดล็อกฟีเจอร์และข้อมูลทั้งหมด"</string>
-    <string name="faceunlock_multiple_failures" msgid="681991538434031708">"ลองใช้การปลดล็อกด้วยใบหน้าเกินจำนวนครั้งที่กำหนดแล้ว"</string>
+    <string name="faceunlock_multiple_failures" product="default" msgid="681991538434031708">"ลองใช้การปลดล็อกด้วยใบหน้าเกินจำนวนครั้งที่กำหนดแล้ว"</string>
+    <string name="faceunlock_multiple_failures" product="desktop" msgid="5388142244463490793">"ลองปลดล็อกด้วยใบหน้าครบจำนวนครั้งสูงสุดแล้ว"</string>
     <string name="lockscreen_missing_sim_message_short" msgid="1229301273156907613">"ไม่มีซิม"</string>
     <string name="lockscreen_missing_sim_message" product="tablet" msgid="3986843848305639161">"ไม่มี SIM ในแท็บเล็ต"</string>
     <string name="lockscreen_missing_sim_message" product="tv" msgid="3903140876952198273">"ไม่มี SIM ในอุปกรณ์ Android TV"</string>
@@ -1109,6 +1148,7 @@
     <string name="lockscreen_access_pattern_cell_added_verbose" msgid="2931364927622563465">"เพิ่มแล้ว <xliff:g id="CELL_INDEX">%1$s</xliff:g> เซลล์"</string>
     <string name="lockscreen_access_pattern_detected" msgid="3931150554035194012">"วาดรูปแบบเสร็จสิ้น"</string>
     <string name="lockscreen_access_pattern_area" msgid="1288780416685002841">"พื้นที่สำหรับรูปแบบ"</string>
+    <string name="lockscreen_access_pattern_cell_verbose" msgid="6670905066468035137">"เซลล์ <xliff:g id="CELL_INDEX">%1$s</xliff:g>"</string>
     <string name="keyguard_accessibility_widget_changed" msgid="7298011259508200234">"%1$s วิดเจ็ต %2$d ของ %3$d"</string>
     <string name="keyguard_accessibility_add_widget" msgid="8245795023551343672">"เพิ่มวิดเจ็ต"</string>
     <string name="keyguard_accessibility_widget_empty_slot" msgid="544239307077644480">"ว่าง"</string>
@@ -1125,7 +1165,8 @@
     <string name="keyguard_accessibility_expand_lock_area" msgid="4215280881346033434">"ขยายพื้นที่ปลดล็อก"</string>
     <string name="keyguard_accessibility_slide_unlock" msgid="2968195219692413046">"การปลดล็อกด้วยการเลื่อน"</string>
     <string name="keyguard_accessibility_pattern_unlock" msgid="8669128146589233293">"การปลดล็อกด้วยรูปแบบ"</string>
-    <string name="keyguard_accessibility_face_unlock" msgid="4533832120787386728">"การปลดล็อกด้วยใบหน้า"</string>
+    <string name="keyguard_accessibility_face_unlock" product="default" msgid="4533832120787386728">"การปลดล็อกด้วยใบหน้า"</string>
+    <string name="keyguard_accessibility_face_unlock" product="desktop" msgid="6739732585954513653">"ปลดล็อกด้วยใบหน้า"</string>
     <string name="keyguard_accessibility_pin_unlock" msgid="4020864007967340068">"การปลดล็อกด้วย PIN"</string>
     <string name="keyguard_accessibility_sim_pin_unlock" msgid="4895939120871890557">"การปลดล็อก PIN ของซิม"</string>
     <string name="keyguard_accessibility_sim_puk_unlock" msgid="3459003464041899101">"การปลดล็อก PUK ของซิม"</string>
@@ -1275,6 +1316,7 @@
     <string name="whichApplicationLabel" msgid="7852182961472531728">"ทำงานให้เสร็จสิ้น"</string>
     <string name="whichViewApplication" msgid="5733194231473132945">"เปิดด้วย"</string>
     <string name="whichViewApplicationNamed" msgid="415164730629690105">"เปิดด้วย %1$s"</string>
+    <string name="open_app_name" msgid="6114096770130122912">"เปิด <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="whichViewApplicationLabel" msgid="7367556735684742409">"เปิด"</string>
     <string name="whichOpenHostLinksWith" msgid="7645631470199397485">"เปิดลิงก์ <xliff:g id="HOST">%1$s</xliff:g> ด้วย"</string>
     <string name="whichOpenLinksWith" msgid="1120936181362907258">"เปิดลิงก์ด้วย"</string>
@@ -1441,6 +1483,9 @@
     <string name="carrier_app_notification_text" msgid="6567057546341958637">"แตะเพื่อตั้งค่า"</string>
     <string name="time_zone_change_notification_title" msgid="5232503069219193218">"เขตเวลามีการเปลี่ยนแปลง"</string>
     <string name="time_zone_change_notification_body" msgid="6135793674904665585">"ตอนนี้คุณอยู่ในเขตเวลา <xliff:g id="TIME_ZONE_DISPLAY_NAME">%1$s</xliff:g> (<xliff:g id="TIME_ZONE_OFFSET">%2$s</xliff:g>)"</string>
+    <string name="time_zone_offset_change_notification_title" msgid="8232305835199459588">"การเปลี่ยนแปลงของนาฬิกา"</string>
+    <string name="time_zone_offset_change_notification_body_forward" msgid="1299493962341887576">"นาฬิกาปรับไปข้างหน้า <xliff:g id="TIME_ZONE_OFFSET_DURATION">%1$s</xliff:g> ตอนนี้คุณอยู่ในเขตเวลา <xliff:g id="TIME_ZONE_DISPLAY_NAME">%2$s</xliff:g> (<xliff:g id="TIME_ZONE_OFFSET_0">%3$s</xliff:g>)"</string>
+    <string name="time_zone_offset_change_notification_body_backward" msgid="6643532078142642118">"นาฬิกาปรับถอยหลัง <xliff:g id="TIME_ZONE_OFFSET_DURATION">%1$s</xliff:g> ตอนนี้คุณอยู่ในเขตเวลา <xliff:g id="TIME_ZONE_DISPLAY_NAME">%2$s</xliff:g> (<xliff:g id="TIME_ZONE_OFFSET_0">%3$s</xliff:g>)"</string>
     <string name="time_picker_dialog_title" msgid="9053376764985220821">"ตั้งเวลา"</string>
     <string name="date_picker_dialog_title" msgid="5030520449243071926">"ตั้งวันที่"</string>
     <string name="date_time_set" msgid="4603445265164486816">"ตั้งค่า"</string>
@@ -1480,6 +1525,14 @@
     <string name="usb_contaminant_detected_message" msgid="7346100585390795743">"พอร์ต USB ปิดใช้โดยอัตโนมัติ แตะเพื่อดูข้อมูลเพิ่มเติม"</string>
     <string name="usb_contaminant_not_detected_title" msgid="2651167729563264053">"ใช้พอร์ต USB ได้แล้ว"</string>
     <string name="usb_contaminant_not_detected_message" msgid="892863190942660462">"โทรศัพท์ไม่ได้ตรวจจับของเหลวและฝุ่นละอองแล้ว"</string>
+    <string name="usb_authorization_notify_on_screenlock_title" msgid="4219670768084927681">"เชื่อมต่ออุปกรณ์ USB ใหม่แล้ว"</string>
+    <string name="usb_authorization_notify_on_screenlock_message" msgid="3391658768099414499">"ลงชื่อเข้าใช้เพื่อให้สิทธิ์เข้าถึงแก่อุปกรณ์ USB นี้และเริ่มใช้งาน"</string>
+    <string name="usb_authorization_notify_on_screenlock_message_multiple" msgid="1722575755931059980">"ลงชื่อเข้าใช้เพื่อให้สิทธิ์เข้าถึงแก่อุปกรณ์ USB เหล่านี้และเริ่มใช้งาน"</string>
+    <string name="usb_authorization_notify_finish_logging_in_title" msgid="3417036506115006412">"เชื่อมต่ออุปกรณ์ USB ใหม่แล้ว"</string>
+    <string name="usb_authorization_notify_finish_logging_in_message" msgid="7996802340128367690">"ลงชื่อเข้าใช้ภายใน <xliff:g id="NUM_SECONDS">%1$d</xliff:g> วินาทีเพื่ออนุญาตให้อุปกรณ์ USB นี้เข้าถึงได้อย่างเต็มรูปแบบ หากดำเนินการไม่ทันภายในเวลาที่กำหนด คุณจะต้องถอดแล้วเสียบอุปกรณ์ใหม่อีกครั้ง"</string>
+    <string name="usb_authorization_notify_finish_logging_in_title_multiple" msgid="3184839817149193434">"เชื่อมต่ออุปกรณ์ USB ใหม่แล้ว"</string>
+    <string name="usb_authorization_notify_finish_logging_in_message_multiple" msgid="6745916608298736853">"ลงชื่อเข้าใช้ภายใน <xliff:g id="NUM_SECONDS">%1$d</xliff:g> วินาทีเพื่ออนุญาตให้อุปกรณ์ USB เหล่านี้เข้าถึงได้อย่างเต็มรูปแบบ หากดำเนินการไม่ทันภายในเวลาที่กำหนด คุณจะต้องถอดแล้วเสียบอุปกรณ์ใหม่อีกครั้ง"</string>
+    <string name="notification_channel_usb_authorization" msgid="7567851967410736399">"การให้สิทธิ์อุปกรณ์ USB"</string>
     <string name="taking_remote_bugreport_notification_title" msgid="1582531382166919850">"กำลังสร้างรายงานข้อบกพร่อง…"</string>
     <string name="share_remote_bugreport_notification_title" msgid="6708897723753334999">"แชร์รายงานข้อบกพร่องไหม"</string>
     <string name="sharing_remote_bugreport_notification_title" msgid="3077385149217638550">"กำลังแชร์รายงานข้อบกพร่อง…"</string>
@@ -1623,6 +1676,9 @@
     <string name="gpsNotifMessage" msgid="7346649122793758032">"ร้องขอโดย <xliff:g id="NAME">%1$s</xliff:g> (<xliff:g id="SERVICE">%2$s</xliff:g>)"</string>
     <string name="gpsVerifYes" msgid="3719843080744112940">"ใช่"</string>
     <string name="gpsVerifNo" msgid="1671201856091564741">"ไม่"</string>
+    <string name="emergency_location_notification_title" msgid="917557758257778958">"แชร์ตำแหน่งสำหรับกรณีฉุกเฉินแล้ว"</string>
+    <string name="emergency_location_notification_message" msgid="1877038822515882885">"บริการช่วยเหลือฉุกเฉินได้รับตำแหน่งของคุณจากผู้ให้บริการ"</string>
+    <string name="emergency_location_notification_learn_more" msgid="8718634939217070481">"ดูข้อมูลเพิ่มเติม"</string>
     <string name="sync_too_many_deletes" msgid="6999440774578705300">"เกินจำนวนการนำออกสูงสุด"</string>
     <string name="sync_too_many_deletes_desc" msgid="7409327940303504440">"มีรายการที่จะลบ <xliff:g id="NUMBER_OF_DELETED_ITEMS">%1$d</xliff:g> รายการสำหรับ <xliff:g id="TYPE_OF_SYNC">%2$s</xliff:g> ในบัญชี <xliff:g id="ACCOUNT_NAME">%3$s</xliff:g> คุณต้องการทำสิ่งใด"</string>
     <string name="sync_really_delete" msgid="5657871730315579051">"ลบรายการ"</string>
@@ -1793,8 +1849,8 @@
     <string name="accessibility_shortcut_single_service_warning" msgid="6363127705112844257">"การกดปุ่มปรับระดับเสียงทั้ง 2 ปุ่มค้างไว้ 2-3 วินาทีจะเปิด <xliff:g id="SERVICE">%1$s</xliff:g> ซึ่งเป็นฟีเจอร์การช่วยเหลือพิเศษ การดำเนินการนี้อาจเปลี่ยนแปลงลักษณะการทำงานของอุปกรณ์\n\nคุณแก้ไขทางลัดนี้ให้เปิดฟีเจอร์อื่นได้ในการตั้งค่า &gt; การช่วยเหลือพิเศษ"</string>
     <string name="accessibility_shortcut_on" msgid="5463618449556111344">"เปิด"</string>
     <string name="accessibility_shortcut_off" msgid="3651336255403648739">"ไม่ต้องเปิด"</string>
-    <string name="accessibility_shortcut_menu_item_status_on" msgid="6608392117189732543">"เปิด"</string>
-    <string name="accessibility_shortcut_menu_item_status_off" msgid="5531598275559472393">"ปิด"</string>
+    <string name="accessibility_shortcut_menu_item_status_on" msgid="6162756705754654002">"เปิด"</string>
+    <string name="accessibility_shortcut_menu_item_status_off" msgid="6274512913017713543">"ปิด"</string>
     <string name="accessibility_enable_service_title" msgid="3931558336268541484">"อนุญาตให้ <xliff:g id="SERVICE">%1$s</xliff:g> ควบคุมอุปกรณ์อย่างเต็มที่ไหม"</string>
     <string name="accessibility_service_warning_description" msgid="291674995220940133">"การควบคุมอย่างเต็มรูปแบบเหมาะสำหรับแอปเกี่ยวกับความช่วยเหลือพิเศษ แต่ไม่เหมาะสำหรับ​แอปส่วนใหญ่"</string>
     <string name="accessibility_service_screen_control_title" msgid="190017412626919776">"ดูและควบคุมหน้าจอ"</string>
@@ -1808,6 +1864,12 @@
     <string name="accessibility_select_shortcut_menu_title" msgid="6002726538854613272">"แตะฟีเจอร์เพื่อเริ่มใช้"</string>
     <string name="accessibility_edit_shortcut_menu_button_title" msgid="239446795930436325">"เลือกฟีเจอร์ที่จะใช้กับปุ่มการช่วยเหลือพิเศษ"</string>
     <string name="accessibility_edit_shortcut_menu_volume_title" msgid="2245540598834891500">"เลือกฟีเจอร์ที่จะใช้กับทางลัดปุ่มปรับระดับเสียง"</string>
+    <string name="accessibility_shortcut_label_button" msgid="6473341300585254821">"ปุ่มการช่วยเหลือพิเศษ"</string>
+    <string name="accessibility_shortcut_label_volume_keys" msgid="5642990791242136231">"ปุ่มปรับระดับเสียง"</string>
+    <string name="accessibility_shortcut_label_gesture" msgid="7987298674836890931">"ท่าทางสัมผัส"</string>
+    <string name="accessibility_shortcut_label_quick_settings" msgid="6851280333772213611">"การตั้งค่าด่วน"</string>
+    <string name="accessibility_shortcut_label_triple_tap" msgid="9058975959054454796">"แตะสามครั้ง"</string>
+    <string name="accessibility_shortcut_label_top_row_key" msgid="1488840908672437180">"ปุ่มการช่วยเหลือพิเศษ"</string>
     <string name="accessibility_uncheck_legacy_item_warning" msgid="8047830891064817447">"ปิด <xliff:g id="SERVICE_NAME">%s</xliff:g> แล้ว"</string>
     <string name="edit_accessibility_shortcut_menu_button" msgid="8885752738733772935">"แก้ไขทางลัด"</string>
     <string name="done_accessibility_shortcut_menu_button" msgid="3668407723770815708">"เสร็จ"</string>
@@ -1841,7 +1903,7 @@
     <string name="hearing_device_notification_switch_button" msgid="3619524619430941300">"เปลี่ยน"</string>
     <string name="hearing_device_notification_settings_button" msgid="6673651052880279178">"การตั้งค่า"</string>
     <string name="user_switching_message" msgid="1912993630661332336">"กำลังเปลี่ยนเป็น<xliff:g id="NAME">%1$s</xliff:g>…"</string>
-    <string name="user_logging_out_message" msgid="7216437629179710359">"กำลังออกจากระบบ <xliff:g id="NAME">%1$s</xliff:g>…"</string>
+    <string name="user_logging_out_message" msgid="2968888364742643174">"กำลังออกจากระบบ…"</string>
     <string name="owner_name" msgid="8713560351570795743">"เจ้าของ"</string>
     <string name="guest_name" msgid="8502103277839834324">"ผู้ใช้ชั่วคราว"</string>
     <string name="headless_system_user_name" msgid="1849150903255530049">"ผู้ใช้ระบบ"</string>
@@ -1979,6 +2041,7 @@
     <string name="managed_profile_label_badge_3" msgid="6882151970556391957">"<xliff:g id="LABEL">%1$s</xliff:g> งานที่ 3"</string>
     <string name="clone_profile_label_badge" msgid="1871997694718793964">"โคลน <xliff:g id="LABEL">%1$s</xliff:g>"</string>
     <string name="private_profile_label_badge" msgid="1712086003787839183">"<xliff:g id="LABEL">%1$s</xliff:g> ส่วนตัว"</string>
+    <string name="hsu_label_badge" msgid="1357272000281944932">"ระบบ <xliff:g id="LABEL">%1$s</xliff:g>"</string>
     <string name="lock_to_app_unlock_pin" msgid="3890940811866290782">"ขอ PIN ก่อนเลิกปักหมุด"</string>
     <string name="lock_to_app_unlock_pattern" msgid="2694204070499712503">"ขอรูปแบบการปลดล็อกก่อนเลิกปักหมุด"</string>
     <string name="lock_to_app_unlock_password" msgid="9126722403506560473">"ขอรหัสผ่านก่อนเลิกปักหมุด"</string>
@@ -2052,6 +2115,9 @@
     <string name="notification_metric_label_unit" msgid="309618413505128451">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>)"</string>
     <string name="notification_metric_label_unit_separator" msgid="5631839566551764472">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>):"</string>
     <string name="notification_metric_label_separator" msgid="8416027475779515033">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>:"</string>
+    <string name="notification_history_metric_subtext" msgid="7408216222655116821">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>: <xliff:g id="METRIC_VALUE">%2$s</xliff:g>"</string>
+    <string name="notification_metric_running_timer" msgid="1096459900744921213">"กำลังจับเวลา"</string>
+    <string name="notification_metric_running_stopwatch" msgid="8039546029949295377">"นาฬิกาจับเวลาวิ่ง"</string>
     <string name="call_notification_answer_action" msgid="5999246836247132937">"รับสาย"</string>
     <string name="call_notification_answer_video_action" msgid="2086030940195382249">"วิดีโอ"</string>
     <string name="call_notification_decline_action" msgid="3700345945214000726">"ปฏิเสธ"</string>
@@ -2084,6 +2150,38 @@
     <string name="app_suspended_default_message" msgid="6451215678552004172">"เปิด <xliff:g id="APP_NAME_0">%1$s</xliff:g> ไม่ได้ในขณะนี้ แอปนี้จัดการโดย <xliff:g id="APP_NAME_1">%2$s</xliff:g>"</string>
     <string name="app_suspended_more_details" msgid="211260942831587014">"ดูข้อมูลเพิ่มเติม"</string>
     <string name="app_suspended_unsuspend_message" msgid="1665438589450555459">"ยกเลิกการหยุดแอปชั่วคราว"</string>
+    <string name="app_lock_add_screen_lock_button_text" msgid="9209013414563206600">"เพิ่มการล็อกหน้าจอ"</string>
+    <string name="app_lock_add_screen_lock_message" msgid="6107009360675769892">"การล็อกหน้าจออาจเป็น PIN, รูปแบบ หรือรหัสผ่านก็ได้ คุณจะใช้สิ่งนี้เพื่อปลดล็อกอุปกรณ์และเข้าถึงแอปที่ล็อกไว้"</string>
+    <string name="app_lock_add_screen_lock_title" msgid="6905612843620128689">"ก่อนอื่น ให้เพิ่มการล็อกหน้าจอ"</string>
+    <string name="enable_app_lock_success_toast_message" msgid="3339622779190529987">"<xliff:g id="APP_NAME">%1$s</xliff:g> ล็อกอยู่"</string>
+    <string name="enable_app_lock_failure_toast_message" msgid="1055838896510445566">"ล็อก <xliff:g id="APP_NAME">%1$s</xliff:g> ไม่ได้"</string>
+    <string name="disable_app_lock_success_toast_message" msgid="360172251656799346">"นำการล็อกแอปออกแล้ว"</string>
+    <string name="enable_app_lock_biometric_prompt_subtitle" msgid="8215241065630017088">"ระบบจะเพิ่มการล็อกแอปไปยัง <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
+    <string name="disable_app_lock_biometric_prompt_subtitle" msgid="3963064765974508170">"ระบบจะนำการล็อกแอปออกจาก <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
+    <string name="locked_app_biometric_prompt_description" msgid="5892653396104581919">"แอปนี้ได้รับการปกป้องด้วยการล็อกแอป"</string>
+    <string name="locked_app_external_display_message" msgid="5483884799685545338">"หากต้องการเข้าถึงแอปบนจอแสดงผลนี้ ให้ยืนยันตัวตนในอุปกรณ์อีกเครื่องของคุณก่อน"</string>
+    <string name="app_lock_edu_dialog_enable_app_lock_title" msgid="283314042336592322">"หากต้องเพิ่มการล็อกแอปให้กับ <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
+    <string name="app_lock_edu_dialog_description_template" msgid="8563718120753342530">"เพื่อความปลอดภัย คุณเท่านั้นที่จะเข้าถึงแอปนี้ได้ด้วย %1$s หรือ %2$s ของคุณ"</string>
+    <string name="app_lock_edu_dialog_description_template_no_biometrics" msgid="7122017109150633691">"เพื่อความปลอดภัย คุณเท่านั้นที่จะเข้าถึงแอปนี้ได้ด้วย %1$s ของคุณ"</string>
+    <string name="app_lock_edu_dialog_info_header" msgid="5876120209204270990">"เมื่อล็อกแอป"</string>
+    <string name="app_lock_edu_dialog_info_notifications" msgid="1124438392204873305">"ระบบจะซ่อนเนื้อหาการแจ้งเตือน"</string>
+    <string name="app_lock_edu_dialog_info_widgets" msgid="8809009414650740872">"ระบบจะนำวิดเจ็ตและทางลัดออก"</string>
+    <string name="app_lock_edu_dialog_info_ai_disclaimer" msgid="5623615653703542050">"AI Agent และบริการที่คุณอนุญาตให้เข้าถึง %1$s จะยังคงเข้าถึงข้อมูลได้"</string>
+    <string name="app_lock_edu_dialog_button_lock" msgid="3914687128135704801">"เพิ่มการล็อกแอป"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_face" product="default" msgid="1348151645996748654">"ปลดล็อกด้วยใบหน้า"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_face" product="desktop" msgid="380233309639495358">"ปลดล็อกด้วยใบหน้า"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint" msgid="5206107469561561455">"ปลดล็อกด้วยลายนิ้วมือ"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint_and_face" product="default" msgid="6551410616110497401">"ปลดล็อกด้วยลายนิ้วมือ ปลดล็อกด้วยใบหน้า"</string>
+    <string name="app_lock_edu_dialog_biometric_description_has_fingerprint_and_face" product="desktop" msgid="4797005135507921547">"ปลดล็อกด้วยลายนิ้วมือ ปลดล็อกด้วยใบหน้า"</string>
+    <string name="app_lock_edu_dialog_lockscreen_password_name" msgid="6019284267033007445">"รหัสผ่าน"</string>
+    <string name="app_lock_edu_dialog_lockscreen_pattern_name" msgid="2370939002644936965">"รูปแบบ"</string>
+    <string name="app_lock_edu_dialog_lockscreen_pin_name" msgid="6458607126966304795">"PIN"</string>
+    <string name="app_lock_permission_review_dialog_title_photos" msgid="6193222920123912729">"รูปภาพของคุณอาจยังคงแสดงในแอปอื่นๆ"</string>
+    <string name="app_lock_permission_review_dialog_subtitle_photos" msgid="1854948251386976703">"แอปที่มีสิทธิ์เข้าถึงรูปภาพของคุณ"</string>
+    <string name="app_lock_permission_review_dialog_title_files" msgid="8820759644609198515">"ไฟล์ของคุณอาจยังคงแสดงในแอปอื่นๆ"</string>
+    <string name="app_lock_permission_review_dialog_subtitle_files" msgid="2999447193189851364">"แอปที่มีสิทธิ์เข้าถึงไฟล์ของคุณ"</string>
+    <string name="app_lock_permission_review_expand_app_list_button" msgid="3214809707125223273">"ดูทั้งหมด"</string>
+    <string name="app_lock_permission_review_continue_button" msgid="4045066724173414043">"ต่อไป"</string>
     <string name="work_mode_off_title" msgid="6367463960165135829">"ยกเลิกการหยุดแอปงานชั่วคราวไหม"</string>
     <string name="work_mode_turn_on" msgid="5316648862401307800">"ยกเลิกการหยุดชั่วคราว"</string>
     <string name="work_mode_emergency_call_button" msgid="6818855962881612322">"ฉุกเฉิน"</string>
@@ -2162,13 +2260,21 @@
     <string name="autofill_picker_no_suggestions" msgid="1076022650427481509">"ไม่มีคำแนะนำสำหรับการป้อนอัตโนมัติ"</string>
     <string name="autofill_picker_some_suggestions" msgid="5560549696296202701">"{count,plural, =1{คำแนะนำการป้อนข้อความอัตโนมัติ 1 รายการ}other{คำแนะนำการป้อนข้อความอัตโนมัติ # รายการ}}"</string>
     <string name="autofill_save_title" msgid="7719802414283739775">"บันทึกลงใน "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b>" ไหม"</string>
+    <string name="autofill_save_title_expressive" msgid="2665408870424848558">"บันทึกข้อมูลไปยัง "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b></string>
     <string name="autofill_save_title_with_type" msgid="3002460014579799605">"บันทึก<xliff:g id="TYPE">%1$s</xliff:g>ลงใน "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b>" ไหม"</string>
+    <string name="autofill_save_title_with_type_expressive" msgid="6063660551496235255">"บันทึก<xliff:g id="TYPE">%1$s</xliff:g>ไปยัง "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b></string>
     <string name="autofill_save_title_with_2types" msgid="3783270967447869241">"บันทึก<xliff:g id="TYPE_0">%1$s</xliff:g>และ<xliff:g id="TYPE_1">%2$s</xliff:g>ลงใน "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b>" ไหม"</string>
+    <string name="autofill_save_title_with_2types_expressive" msgid="2996687022212666293">"บันทึก<xliff:g id="TYPE_0">%1$s</xliff:g>และ<xliff:g id="TYPE_1">%2$s</xliff:g>ไปยัง "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b></string>
     <string name="autofill_save_title_with_3types" msgid="6598228952100102578">"บันทึก<xliff:g id="TYPE_0">%1$s</xliff:g> <xliff:g id="TYPE_1">%2$s</xliff:g> และ<xliff:g id="TYPE_2">%3$s</xliff:g>ลงใน "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b>" ไหม"</string>
+    <string name="autofill_save_title_with_3types_expressive" msgid="3301676215501214049">"บันทึก<xliff:g id="TYPE_0">%1$s</xliff:g> <xliff:g id="TYPE_1">%2$s</xliff:g> และ<xliff:g id="TYPE_2">%3$s</xliff:g>ไปยัง "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b></string>
     <string name="autofill_update_title" msgid="3630695947047069136">"อัปเดตใน "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b>" ไหม"</string>
+    <string name="autofill_update_title_expressive" msgid="7660582214109012920">"อัปเดตข้อมูลใน "<b>"<xliff:g id="LABEL">%1$s</xliff:g>"</b></string>
     <string name="autofill_update_title_with_type" msgid="5264152633488495704">"อัปเดต<xliff:g id="TYPE">%1$s</xliff:g>ใน "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b>" ไหม"</string>
+    <string name="autofill_update_title_with_type_expressive" msgid="6162413585161767846">"อัปเดต<xliff:g id="TYPE">%1$s</xliff:g>ใน "<b>"<xliff:g id="LABEL">%2$s</xliff:g>"</b></string>
     <string name="autofill_update_title_with_2types" msgid="1797514386321086273">"อัปเดต<xliff:g id="TYPE_0">%1$s</xliff:g>และ<xliff:g id="TYPE_1">%2$s</xliff:g>ใน "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b>" ไหม"</string>
+    <string name="autofill_update_title_with_2types_expressive" msgid="1911825941498393471">"อัปเดต<xliff:g id="TYPE_0">%1$s</xliff:g>และ<xliff:g id="TYPE_1">%2$s</xliff:g>ใน "<b>"<xliff:g id="LABEL">%3$s</xliff:g>"</b></string>
     <string name="autofill_update_title_with_3types" msgid="8285767070604652626">"อัปเดตข้อมูล<xliff:g id="TYPE_0">%1$s</xliff:g> <xliff:g id="TYPE_1">%2$s</xliff:g> และ<xliff:g id="TYPE_2">%3$s</xliff:g>ใน "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b>" ไหม"</string>
+    <string name="autofill_update_title_with_3types_expressive" msgid="6040725201378429027">"อัปเดตรายการเหล่านี้ใน "<b>"<xliff:g id="LABEL">%4$s</xliff:g>"</b>": <xliff:g id="TYPE_0">%1$s</xliff:g> <xliff:g id="TYPE_1">%2$s</xliff:g> และ<xliff:g id="TYPE_2">%3$s</xliff:g>"</string>
     <string name="autofill_save_yes" msgid="8035743017382012850">"บันทึก"</string>
     <string name="autofill_save_no" msgid="9212826374207023544">"ไม่เป็นไร"</string>
     <string name="autofill_save_notnow" msgid="2853932672029024195">"ไว้ทีหลัง"</string>
@@ -2362,8 +2468,8 @@
     <string name="PERSOSUBSTATE_SIM_IMPI_ENTRY" msgid="7043865376145617024">"PIN ปลดล็อก IMPI"</string>
     <string name="PERSOSUBSTATE_SIM_NS_SP_ENTRY" msgid="6144227308185112176">"PIN ปลดล็อกผู้ให้บริการในเครือข่ายย่อย"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_IN_PROGRESS" msgid="4233355366318061180">"กำลังขอปลดล็อกเครือข่ายที่ใช้กับ SIM…"</string>
-    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_IN_PROGRESS" msgid="6742563947637715645">"กำลังขอปลดล็อกเครือข่ายย่อยที่ใช้กับ SIM…"</string>
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_IN_PROGRESS" msgid="2033399698172403560">"กำลังขอปลดล็อกผู้ให้บริการที่ใช้กับ SIM…"</string>
+    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_IN_PROGRESS" msgid="2917242135129860371">"กำลังขอปลดล็อกเครือข่ายย่อยที่รองรับซิม…"</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_IN_PROGRESS" msgid="4435641041692795695">"กำลังขอปลดล็อกผู้ให้บริการที่รองรับซิม…"</string>
     <string name="PERSOSUBSTATE_SIM_CORPORATE_IN_PROGRESS" msgid="4795977251920732254">"กำลังขอปลดล็อกองค์กรที่ใช้กับ SIM…"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_PUK_IN_PROGRESS" msgid="1090425878157254446">"กำลังขอปลดล็อก PUK…"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_PUK_IN_PROGRESS" msgid="6476898876518094438">"กำลังขอปลดล็อก PUK…"</string>
@@ -2389,15 +2495,15 @@
     <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_PUK_IN_PROGRESS" msgid="2695678959963807782">"กำลังขอปลดล็อก PUK…"</string>
     <string name="PERSOSUBSTATE_RUIM_RUIM_PUK_IN_PROGRESS" msgid="1230605365926493599">"กำลังขอปลดล็อก PUK…"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_ERROR" msgid="1924844017037151535">"ขอปลดล็อกเครือข่ายที่ใช้กับ SIM ไม่สำเร็จ"</string>
-    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_ERROR" msgid="3372797822292089708">"ขอปลดล็อกเครือข่ายย่อยที่ใช้กับ SIM ไม่สำเร็จ"</string>
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_ERROR" msgid="1878443146720411381">"ขอปลดล็อกผู้ให้บริการที่ใช้กับ SIM ไม่สำเร็จ"</string>
+    <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_ERROR" msgid="7136658591279283417">"ขอปลดล็อกเครือข่ายย่อยที่รองรับซิมไม่สำเร็จ"</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_ERROR" msgid="8344463467085504202">"ขอปลดล็อกผู้ให้บริการที่รองรับซิมไม่สำเร็จ"</string>
     <string name="PERSOSUBSTATE_SIM_CORPORATE_ERROR" msgid="7664778312218023192">"ขอปลดล็อกองค์กรที่ใช้กับ SIM ไม่สำเร็จ"</string>
     <string name="PERSOSUBSTATE_SIM_SIM_ERROR" msgid="2472944311643350302">"ขอปลดล็อก SIM ไม่สำเร็จ"</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK1_ERROR" msgid="828089694480999120">"ขอปลดล็อกเครือข่ายประเภท 1 ที่ใช้กับ RUIM ไม่สำเร็จ"</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK2_ERROR" msgid="17619001007092511">"ขอปลดล็อกเครือข่ายประเภท 2 ที่ใช้กับ RUIM ไม่สำเร็จ"</string>
     <string name="PERSOSUBSTATE_RUIM_HRPD_ERROR" msgid="807214229604353614">"ขอปลดล็อก HRPD ที่ใช้กับ RUIM ไม่สำเร็จ"</string>
     <string name="PERSOSUBSTATE_RUIM_CORPORATE_ERROR" msgid="8644184447744175747">"ขอปลดล็อกองค์กรที่ใช้กับ RUIM ไม่สำเร็จ"</string>
-    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_ERROR" msgid="3801002648649640407">"ขอปลดล็อกผู้ให้บริการที่ใช้กับ RUIM ไม่สำเร็จ"</string>
+    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_ERROR" msgid="1882547895012628428">"ขอปลดล็อกผู้ให้บริการที่รองรับ RUIM ไม่สำเร็จ"</string>
     <string name="PERSOSUBSTATE_RUIM_RUIM_ERROR" msgid="707397021218680753">"ขอปลดล็อก RUIM ไม่สำเร็จ"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_PUK_ERROR" msgid="894358680773257820">"ปลดล็อก PUK ไม่สำเร็จ"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_PUK_ERROR" msgid="352466878146726991">"ปลดล็อก PUK ไม่สำเร็จ"</string>
@@ -2417,13 +2523,13 @@
     <string name="PERSOSUBSTATE_SIM_NS_SP_ERROR" msgid="1890493954453456758">"ขอปลดล็อกผู้ให้บริการในเครือข่ายย่อยไม่สำเร็จ"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUCCESS" msgid="4886243367747126325">"ปลดล็อกเครือข่ายที่ใช้กับ SIM สำเร็จแล้ว"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_SUBSET_SUCCESS" msgid="4053809277733513987">"ปลดล็อกเครือข่ายย่อยที่ใช้กับ SIM สำเร็จแล้ว"</string>
-    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_SUCCESS" msgid="8249342930499801740">"ปลดล็อกผู้ให้บริการที่ใช้กับ SIM สำเร็จแล้ว"</string>
+    <string name="PERSOSUBSTATE_SIM_SERVICE_PROVIDER_SUCCESS" msgid="6233653087159353652">"ปลดล็อกผู้ให้บริการที่รองรับซิมสำเร็จแล้ว"</string>
     <string name="PERSOSUBSTATE_SIM_CORPORATE_SUCCESS" msgid="2339794542560381270">"ปลดล็อกองค์กรที่ใช้กับ SIM สำเร็จแล้ว"</string>
     <string name="PERSOSUBSTATE_SIM_SIM_SUCCESS" msgid="6975608174152828954">"ปลดล็อก SIM สำเร็จแล้ว"</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK1_SUCCESS" msgid="2846699261330463192">"ปลดล็อกเครือข่ายประเภท 1 ที่ใช้กับ RUIM สำเร็จแล้ว"</string>
     <string name="PERSOSUBSTATE_RUIM_NETWORK2_SUCCESS" msgid="5335414726057102801">"ปลดล็อกเครือข่ายประเภท 2 ที่ใช้กับ RUIM สำเร็จแล้ว"</string>
     <string name="PERSOSUBSTATE_RUIM_HRPD_SUCCESS" msgid="8868100318474971969">"ปลดล็อก HRPD ที่ใช้กับ RUIM สำเร็จแล้ว"</string>
-    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_SUCCESS" msgid="6020936629725666932">"ปลดล็อกผู้ให้บริการที่ใช้กับ RUIM สำเร็จแล้ว"</string>
+    <string name="PERSOSUBSTATE_RUIM_SERVICE_PROVIDER_SUCCESS" msgid="6724555357287036238">"ปลดล็อกผู้ให้บริการที่รองรับ RUIM สำเร็จแล้ว"</string>
     <string name="PERSOSUBSTATE_RUIM_CORPORATE_SUCCESS" msgid="6944873647584595489">"ปลดล็อกองค์กรที่ใช้กับ RUIM สำเร็จแล้ว"</string>
     <string name="PERSOSUBSTATE_RUIM_RUIM_SUCCESS" msgid="2526483514124121988">"ปลดล็อก RUIM สำเร็จแล้ว"</string>
     <string name="PERSOSUBSTATE_SIM_NETWORK_PUK_SUCCESS" msgid="7662200333621664621">"ปลดล็อก PUK สำเร็จแล้ว"</string>
@@ -2515,6 +2621,8 @@
     <string name="accessibility_label_clone_profile" msgid="7579118375042398784">"โคลน"</string>
     <string name="accessibility_label_communal_profile" msgid="1437173163111334791">"ส่วนกลาง"</string>
     <string name="private_space_biometric_prompt_title" msgid="5777592909271728154">"พื้นที่ส่วนตัว"</string>
+    <string name="app_locked_new_notification" msgid="4409730436247596215">"การแจ้งเตือนใหม่"</string>
+    <string name="app_locked_notification_message" msgid="4576179600328065280">"ข้อความใหม่"</string>
     <string name="redacted_notification_message" msgid="1520587845842228816">"เนื้อหาการแจ้งเตือนที่ละเอียดอ่อนซ่อนอยู่"</string>
     <string name="redacted_notification_action_title" msgid="6942924973335920935"></string>
     <string name="screen_not_shared_sensitive_content" msgid="7058419185079565001">"ซ่อนเนื้อหาแอปจากการแชร์หน้าจอแล้วเพื่อความปลอดภัย"</string>
@@ -2554,13 +2662,16 @@
     <string name="satellite_messaging_unsupported_default_sms_app_notification_summary" msgid="17084124893763593">"หากต้องการรับส่งข้อความผ่านดาวเทียม ให้ตั้ง Google Messages เป็นแอปรับส่งข้อความเริ่มต้น"</string>
     <string name="satellite_messaging_location_disabled_notification_title" msgid="7270641894250928494">"การรับส่งข้อความผ่านดาวเทียมไม่พร้อมใช้งาน"</string>
     <string name="satellite_messaging_location_disabled_notification_summary" msgid="1450824950686221810">"หากต้องการตรวจสอบว่าการรับส่งข้อความผ่านดาวเทียมพร้อมให้บริการในประเทศหรือภูมิภาคนี้หรือไม่ ให้เปิดการตั้งค่าตำแหน่ง"</string>
+    <string name="satellite_indicator" msgid="6846063647532086110">"SAT"</string>
     <string name="fingerprint_dangling_notification_title" msgid="7362075195588639989">"ตั้งค่าการปลดล็อกด้วยลายนิ้วมืออีกครั้ง"</string>
     <string name="fingerprint_dangling_notification_msg_1" msgid="5851784577768803510">"ระบบไม่จดจำ <xliff:g id="FINGERPRINT">%s</xliff:g> อีกต่อไป"</string>
     <string name="fingerprint_dangling_notification_msg_2" msgid="7925203589860744456">"ระบบไม่จดจำ <xliff:g id="FINGERPRINT_0">%1$s</xliff:g> และ <xliff:g id="FINGERPRINT_1">%2$s</xliff:g> อีกต่อไป"</string>
     <string name="fingerprint_dangling_notification_msg_all_deleted_1" msgid="1824812666549916586">"ระบบไม่จดจำ <xliff:g id="FINGERPRINT">%s</xliff:g> อีกต่อไป ตั้งค่าการปลดล็อกด้วยลายนิ้วมืออีกครั้ง"</string>
     <string name="fingerprint_dangling_notification_msg_all_deleted_2" msgid="5974657382960155099">"ระบบไม่จดจำ <xliff:g id="FINGERPRINT_0">%1$s</xliff:g> และ <xliff:g id="FINGERPRINT_1">%2$s</xliff:g> อีกต่อไป ตั้งค่าการปลดล็อกด้วยลายนิ้วมืออีกครั้ง"</string>
-    <string name="face_dangling_notification_title" msgid="947852541060975473">"ตั้งค่าการปลดล็อกด้วยใบหน้าอีกครั้ง"</string>
-    <string name="face_dangling_notification_msg" msgid="746235263598985384">"ระบบไม่จดจำรูปแบบใบหน้าของคุณอีกต่อไป ตั้งค่าการปลดล็อกด้วยใบหน้าอีกครั้ง"</string>
+    <string name="face_dangling_notification_title" product="default" msgid="947852541060975473">"ตั้งค่าการปลดล็อกด้วยใบหน้าอีกครั้ง"</string>
+    <string name="face_dangling_notification_title" product="desktop" msgid="4632690536207343589">"ตั้งค่าการปลดล็อกด้วยใบหน้าอีกครั้ง"</string>
+    <string name="face_dangling_notification_msg" product="default" msgid="746235263598985384">"ระบบไม่จดจำรูปแบบใบหน้าของคุณอีกต่อไป ตั้งค่าการปลดล็อกด้วยใบหน้าอีกครั้ง"</string>
+    <string name="face_dangling_notification_msg" product="desktop" msgid="5982979430103820891">"ระบบไม่จดจำรูปแบบใบหน้าของคุณอีกต่อไป ตั้งค่าการปลดล็อกด้วยใบหน้าอีกครั้ง"</string>
     <string name="biometric_dangling_notification_action_set_up" msgid="8246885009807817961">"ตั้งค่า"</string>
     <string name="biometric_dangling_notification_action_not_now" msgid="8095249216864443491">"ไว้ทีหลัง"</string>
     <string name="bg_user_sound_notification_title_alarm" msgid="5251678483393143527">"นาฬิกาปลุกสำหรับ \"<xliff:g id="USER_NAME">%s</xliff:g>\""</string>
@@ -2594,7 +2705,17 @@
     <string name="fingerprint_frr_notification_msg" msgid="2162966846624639252">"แตะเพื่อดูเคล็ดลับในการปรับปรุงประสบการณ์การปลดล็อก"</string>
     <string name="no_blink_accessibility_text_cursor_blink_label" msgid="223072797385428874">"ไม่ต้องกะพริบ"</string>
     <string name="long_press_power_to_turn_off_tv_toast" msgid="2231397748028498986">"กดปุ่มเปิด/ปิดค้างไว้เพื่อปิดทีวี"</string>
-    <string name="tv_watchdog_notification_channel_name" msgid="4936803270000103737">"การแจ้งเตือนทรัพยากรระบบ"</string>
-    <string name="tv_watchdog_notification_title" msgid="195239206215922517">"การใช้ทรัพยากรมากเกินไป"</string>
-    <string name="tv_watchdog_notification_content" msgid="6444873431710133936">"แอป <xliff:g id="APP_NAME">%1$s</xliff:g> ใช้ทรัพยากรมากเกินไป"</string>
+    <string name="supervision_blocked_app_title" msgid="5546803865875383588">"อัปเดตจากผู้ปกครองของคุณ"</string>
+    <string name="supervision_blocked_app_content" msgid="4125452996088641559">"<xliff:g id="APP_NAME">%1$s</xliff:g> ถูกลบออกแล้วในตอนนี้"</string>
+    <string name="supervision_unblocked_app_content" msgid="8282985265957852278">"<xliff:g id="APP_NAME">%1$s</xliff:g> พร้อมใช้งานแล้ว"</string>
+    <string name="media_route_chooser_share_cast_others" msgid="8797886650999355673">"แคสต์ไปยังอุปกรณ์อื่นๆ"</string>
+    <string name="activity_embedding_divider_drag_handle_description" msgid="4922243158119077780">"ตัวแบ่งที่ลากได้"</string>
+    <string name="brightness_unable_adjust_msg" msgid="739363986705194491">"ปรับความสว่างไม่ได้เนื่องจากควบคุมโดยแอปที่อยู่ด้านบน"</string>
+    <string name="airplane_mode_sync_notification_channel_name" msgid="474278137226432576">"การซิงค์โหมดบนเครื่องบิน"</string>
+    <string name="airplane_mode_sync_notification_title" msgid="1093374489486832486">"โหมดบนเครื่องบิน"</string>
+    <string name="airplane_mode_sync_notification_content" msgid="300807352375759726">"ตอนนี้โหมดบนเครื่องบินจะซิงค์กันระหว่างโทรศัพท์กับนาฬิกา\n\nจัดการค่ากำหนดการซิงค์โหมดในการตั้งค่านาฬิกาและโทรศัพท์"</string>
+    <string name="apm_sync_notification_settings_action" msgid="3453490777165524861">"จัดการการตั้งค่า"</string>
+    <string name="do_not_disturb_sync_notification_channel_name" msgid="8652220979613037381">"การซิงค์โหมดห้ามรบกวน"</string>
+    <string name="do_not_disturb_sync_notification_title" msgid="6732475150089465528">"ห้ามรบกวน"</string>
+    <string name="do_not_disturb_sync_notification_content" msgid="2755604717509797896">"ซิงค์จากอุปกรณ์ที่อยู่ใกล้เคียงแล้ว"</string>
 </resources>

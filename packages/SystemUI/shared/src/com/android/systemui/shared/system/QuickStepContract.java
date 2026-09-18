@@ -36,6 +36,7 @@ import android.view.WindowManagerPolicyConstants;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.android.internal.accessibility.common.ShortcutChooserDialogConstants;
 import com.android.internal.policy.ScreenDecorationsUtils;
 
 import java.lang.annotation.Retention;
@@ -139,6 +140,8 @@ public class QuickStepContract {
     public static final long SYSUI_STATE_BACK_DISMISS_IME = 1L << 36;
     // Whether WindowManagerService/DisplayPolicy returns false for hasNavigationBar().
     public static final long SYSUI_STATE_NAVIGATION_BAR_DISABLED = 1L << 37;
+    // Whether dual shade is enabled.
+    public static final long SYSUI_STATE_DUAL_SHADE_ENABLED = 1L << 38;
 
     // Mask for SystemUiStateFlags to isolate SYSUI_STATE_AWAKE and
     // SYSUI_STATE_WAKEFULNESS_TRANSITION, to match WAKEFULNESS_* constants
@@ -191,6 +194,7 @@ public class QuickStepContract {
             SYSUI_STATE_DISABLE_GESTURE_PIP_ANIMATING,
             SYSUI_STATE_COMMUNAL_HUB_SHOWING,
             SYSUI_STATE_BACK_DISMISS_IME,
+            SYSUI_STATE_DUAL_SHADE_ENABLED,
     })
     public @interface SystemUiStateFlags {}
 
@@ -307,6 +311,9 @@ public class QuickStepContract {
         if ((flags & SYSUI_STATE_NAVIGATION_BAR_DISABLED) != 0) {
             str.add("hasNavigationBar=false");
         }
+        if ((flags & SYSUI_STATE_DUAL_SHADE_ENABLED) != 0) {
+            str.add("dual_shade_enabled");
+        }
 
         return str.toString();
     }
@@ -331,7 +338,7 @@ public class QuickStepContract {
         if ((sysuiStateFlags & SYSUI_STATE_ALLOW_GESTURE_IGNORING_BAR_VISIBILITY) != 0) {
             sysuiStateFlags &= ~SYSUI_STATE_NAV_BAR_HIDDEN;
         }
-        // Disable when in quick settings, screen pinning, immersive, the bouncer is showing, 
+        // Disable when in quick settings, screen pinning, immersive, the bouncer is showing,
         // or search is disabled
         long disableFlags = SYSUI_STATE_SCREEN_PINNING
                 | SYSUI_STATE_NAV_BAR_HIDDEN
@@ -448,4 +455,20 @@ public class QuickStepContract {
             }
         }
     }
+
+    /** Broadcast action to launch the accessibility shortcut chooser dialog in SystemUI. */
+    public static final String ACTION_LAUNCH_ACCESSIBILITY_SHORTCUT_CHOOSER_DIALOG =
+            ShortcutChooserDialogConstants.LAUNCH_SHORTCUT_CHOOSER_DIALOG_ACTION;
+
+    /** Extra key for the accessibility shortcut type in the chooser dialog intent. */
+    public static final String EXTRA_ACCESSIBILITY_SHORTCUT_TYPE =
+            ShortcutChooserDialogConstants.SHORTCUT_TYPE;
+
+    /** Extra key for the display id in the chooser dialog intent. */
+    public static final String EXTRA_ACCESSIBILITY_DISPLAY_ID =
+            ShortcutChooserDialogConstants.DISPLAY_ID;
+
+    /** Package name of the SystemUI. */
+    public static final String SYSUI_PACKAGE =
+            Resources.getSystem().getString(com.android.internal.R.string.config_systemUi);
 }

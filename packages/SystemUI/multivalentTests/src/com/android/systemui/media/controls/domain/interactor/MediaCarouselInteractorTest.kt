@@ -20,17 +20,14 @@ import android.os.UserHandle
 import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.compose.animation.scene.ObservableTransitionState
-import com.android.compose.animation.scene.SceneKey
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
-import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
-import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.media.controls.domain.pipeline.interactor.MediaCarouselInteractor
@@ -38,15 +35,11 @@ import com.android.systemui.media.controls.domain.pipeline.interactor.mediaCarou
 import com.android.systemui.media.controls.shared.model.MediaData
 import com.android.systemui.media.remedia.data.repository.MediaPipelineRepository
 import com.android.systemui.media.remedia.data.repository.mediaPipelineRepository
-import com.android.systemui.scene.domain.interactor.sceneInteractor
-import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.scene.SceneHelper.setDeviceEntered
 import com.android.systemui.testKosmos
 import com.android.systemui.util.settings.fakeSettings
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -73,7 +66,7 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
 
     @Test
     fun addUserMediaEntry_activeThenInactivate() =
-        testScope.runTest {
+        kosmos.runTest {
             val hasActiveMedia by collectLastValue(underTest.hasActiveMedia)
 
             val userMedia = MediaData(active = true)
@@ -93,7 +86,7 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
 
     @Test
     fun addInactiveUserMediaEntry_thenRemove() =
-        testScope.runTest {
+        kosmos.runTest {
             val hasActiveMedia by collectLastValue(underTest.hasActiveMedia)
 
             val userMedia = MediaData(active = false)
@@ -115,22 +108,22 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
 
     @Test
     fun hasAnyMedia_noMediaSet_returnsFalse() =
-        testScope.runTest { assertThat(underTest.hasAnyMedia()).isFalse() }
+        kosmos.runTest { assertThat(underTest.hasAnyMedia()).isFalse() }
 
     @Test
     fun hasActiveMedia_noMediaSet_returnsFalse() =
-        testScope.runTest { assertThat(underTest.hasActiveMedia()).isFalse() }
+        kosmos.runTest { assertThat(underTest.hasActiveMedia()).isFalse() }
 
     @DisableSceneContainer
     @Test
     fun onLockscreen_mediaAllowed_lockedAndHidden_returnsFalse() =
-        testScope.runTest {
+        kosmos.runTest {
             val isLockedAndHidden by collectLastValue(underTest.isLockedAndHidden)
 
             transitionRepository.sendTransitionSteps(
                 from = KeyguardState.GONE,
                 to = KeyguardState.LOCKSCREEN,
-                this,
+                testScope,
             )
 
             assertThat(isLockedAndHidden).isFalse()
@@ -139,7 +132,7 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
     @DisableSceneContainer
     @Test
     fun onLockscreen_mediaNotAllowed_lockedAndHidden_returnsTrue() =
-        testScope.runTest {
+        kosmos.runTest {
             val isLockedAndHidden by collectLastValue(underTest.isLockedAndHidden)
 
             kosmos.fakeSettings.putBoolForUser(
@@ -150,7 +143,7 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
             transitionRepository.sendTransitionSteps(
                 from = KeyguardState.GONE,
                 to = KeyguardState.LOCKSCREEN,
-                this,
+                testScope,
             )
 
             assertThat(isLockedAndHidden).isTrue()
@@ -159,13 +152,13 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
     @DisableSceneContainer
     @Test
     fun onKeyguardGone_mediaAllowed_lockedAndHidden_returnsFalse() =
-        testScope.runTest {
+        kosmos.runTest {
             val isLockedAndHidden by collectLastValue(underTest.isLockedAndHidden)
 
             transitionRepository.sendTransitionSteps(
                 from = KeyguardState.LOCKSCREEN,
                 to = KeyguardState.GONE,
-                this,
+                testScope,
             )
 
             assertThat(isLockedAndHidden).isFalse()
@@ -174,7 +167,7 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
     @DisableSceneContainer
     @Test
     fun onKeyguardGone_mediaNotAllowed_lockedAndHidden_returnsFalse() =
-        testScope.runTest {
+        kosmos.runTest {
             val isLockedAndHidden by collectLastValue(underTest.isLockedAndHidden)
 
             kosmos.fakeSettings.putBoolForUser(
@@ -185,7 +178,7 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
             transitionRepository.sendTransitionSteps(
                 from = KeyguardState.LOCKSCREEN,
                 to = KeyguardState.GONE,
-                this,
+                testScope,
             )
 
             assertThat(isLockedAndHidden).isFalse()
@@ -194,13 +187,13 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
     @DisableSceneContainer
     @Test
     fun goingToDozing_mediaAllowed_lockedAndHidden_returnsFalse() =
-        testScope.runTest {
+        kosmos.runTest {
             val isLockedAndHidden by collectLastValue(underTest.isLockedAndHidden)
 
             transitionRepository.sendTransitionSteps(
                 from = KeyguardState.GONE,
                 to = KeyguardState.DOZING,
-                this,
+                testScope,
             )
 
             assertThat(isLockedAndHidden).isFalse()
@@ -209,7 +202,7 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
     @DisableSceneContainer
     @Test
     fun goingToDozing_mediaNotAllowed_lockedAndHidden_returnsTrue() =
-        testScope.runTest {
+        kosmos.runTest {
             val isLockedAndHidden by collectLastValue(underTest.isLockedAndHidden)
 
             kosmos.fakeSettings.putBoolForUser(
@@ -220,7 +213,7 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
             transitionRepository.sendTransitionSteps(
                 from = KeyguardState.GONE,
                 to = KeyguardState.DOZING,
-                this,
+                testScope,
             )
 
             assertThat(isLockedAndHidden).isTrue()
@@ -229,7 +222,7 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
     @EnableSceneContainer
     @Test
     fun deviceNotEntered_mediaNotAllowed_lockedAndHidden() =
-        testScope.runTest {
+        kosmos.runTest {
             val isLockedAndHidden by collectLastValue(underTest.isLockedAndHidden)
 
             kosmos.fakeSettings.putBoolForUser(
@@ -245,7 +238,7 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
     @EnableSceneContainer
     @Test
     fun deviceNotEntered_mediaAllowed_notLockedAndHidden() =
-        testScope.runTest {
+        kosmos.runTest {
             val isLockedAndHidden by collectLastValue(underTest.isLockedAndHidden)
 
             setDeviceEntered(false)
@@ -256,7 +249,7 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
     @EnableSceneContainer
     @Test
     fun deviceEntered_mediaNotAllowed_notLockedAndHidden() =
-        testScope.runTest {
+        kosmos.runTest {
             val isLockedAndHidden by collectLastValue(underTest.isLockedAndHidden)
 
             kosmos.fakeSettings.putBoolForUser(
@@ -272,37 +265,11 @@ class MediaCarouselInteractorTest : SysuiTestCase() {
     @EnableSceneContainer
     @Test
     fun deviceEntered_mediaAllowed_notLockedAndHidden() =
-        testScope.runTest {
+        kosmos.runTest {
             val isLockedAndHidden by collectLastValue(underTest.isLockedAndHidden)
 
             setDeviceEntered(true)
 
             assertThat(isLockedAndHidden).isFalse()
         }
-
-    private fun TestScope.setDeviceEntered(isEntered: Boolean) {
-        if (isEntered) {
-            // Unlock the device, marking the device as entered
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-                SuccessFingerprintAuthenticationStatus(0, true)
-            )
-            runCurrent()
-        }
-        setScene(
-            if (isEntered) {
-                Scenes.Gone
-            } else {
-                Scenes.Lockscreen
-            }
-        )
-        assertThat(kosmos.deviceEntryInteractor.isDeviceEntered.value).isEqualTo(isEntered)
-    }
-
-    private fun TestScope.setScene(key: SceneKey) {
-        kosmos.sceneInteractor.changeScene(key, "test")
-        kosmos.sceneInteractor.setTransitionState(
-            MutableStateFlow<ObservableTransitionState>(ObservableTransitionState.Idle(key))
-        )
-        runCurrent()
-    }
 }

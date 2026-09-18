@@ -1,10 +1,6 @@
 {
   "wm": [
     {
-      "name": "WMShellExplicitFlickerTestsBubbles-CatchAll",
-      "keywords": ["device"]
-    },
-    {
       "name": "WMShellExplicitFlickerTestsBubbles-BubbleBarMovesTest",
       "keywords": ["device"]
     },
@@ -17,11 +13,23 @@
       "keywords": ["device"]
     },
     {
+      "name": "WMShellExplicitFlickerTestsBubbles-CollapseBackOverriddenAppViaBackTest",
+      "keywords": ["device"]
+    },
+    {
       "name": "WMShellExplicitFlickerTestsBubbles-CollapseBubbleAppFromOverviewTest",
       "keywords": ["device"]
     },
     {
       "name": "WMShellExplicitFlickerTestsBubbles-CollapseBubbleAppViaBackTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-CollapseBubbleAppViaClickBubbleIconAfterSwitchTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-CollapseBubbleAppViaClickBubbleIconTest",
       "keywords": ["device"]
     },
     {
@@ -53,6 +61,22 @@
       "keywords": ["device"]
     },
     {
+      "name": "WMShellExplicitFlickerTestsBubbles-EnterBubbleFromHomeScreenTrampolineTwiceTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-EnterBubbleFromOverviewTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-EnterBubbleFromOverviewSingleAppWithImeTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-EnterBubbleFromOverviewLiveTileTest",
+      "keywords": ["device"]
+    },
+    {
       "name": "WMShellExplicitFlickerTestsBubbles-EnterBubbleViaBubbleMenuTest",
       "keywords": ["device"]
     },
@@ -73,11 +97,45 @@
       "keywords": ["device"]
     },
     {
-      "name": "WMShellExplicitFlickerTestsBubbles-ExpandBubbleViaBubbleStackTest",
+      "name": "WMShellExplicitFlickerTestsBubbles-EnterOverviewWhenAppBubbleIsExpandedTest",
       "keywords": ["device"]
     },
     {
+      "name": "WMShellExplicitFlickerTestsBubbles-EnterOverviewWhenChatBubbleIsExpandedTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-ExpandBubbleViaRelaunchFromSplitDifferentAppTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-ExpandBubbleViaRelaunchInDesktopTest",
+      // The "desktop" keyword is used by the _device_desktop template in
+      // //configs/wireless/android/testing/atp/prod/android-window-manager/wm-presubmit.gcl
+      // to filter tests for devices that support desktop mode.
+      "keywords": [
+        "device",
+        "desktop"
+      ]
+    },
+    {
       "name": "WMShellExplicitFlickerTestsBubbles-ExpandBubbleWithImeViaBubbleBarTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-ExpandTaskTrampolineBubbleAfterSecondLaunchTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-FinishExpandedBubbleToExpandCollapsedTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-LaunchMultipleBubbleTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-LaunchNewTaskFromBubbleTest",
       "keywords": ["device"]
     },
     {
@@ -85,7 +143,51 @@
       "keywords": ["device"]
     },
     {
-      "name": "WMShellExplicitFlickerTestsBubbles-LaunchMultipleBubbleTest",
+      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchFullscreenToBubbleTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchFullscreenToBubbleTrampolineTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchSplitScreenToBubbleTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchSplitScreenToBubbleTrampolineTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchBubbleToFullscreenViaAppIconTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchBubbleToFullscreenViaShortcutTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchBubbleToFullscreenViaTaskbarAppIconTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchBubbleToFullscreenViaTaskbarShortcutTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchBubbleToSameAppSplitScreenTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchVisibleFullscreenAppToBubbleTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchVisibleSplitAppToBubbleTest",
+      "keywords": ["device"]
+    },
+    {
+      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchVisibleSplitAppToBubbleTrampolineTest",
       "keywords": ["device"]
     },
     {
@@ -97,11 +199,11 @@
       "keywords": ["device"]
     },
     {
-      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchSplitScreenToBubbleTest",
+      "name": "WMShellExplicitFlickerTestsBubbles-SwitchBetweenBubblesTwiceTest",
       "keywords": ["device"]
     },
     {
-      "name": "WMShellExplicitFlickerTestsBubbles-RelaunchBubbleIntoSplitScreenTest",
+      "name": "WMShellExplicitFlickerTestsBubbles-SwitchToOverflowBubbleTest",
       "keywords": ["device"]
     }
   ]

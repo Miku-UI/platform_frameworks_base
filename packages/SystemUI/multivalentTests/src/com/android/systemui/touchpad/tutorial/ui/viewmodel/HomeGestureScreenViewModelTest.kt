@@ -17,9 +17,11 @@
 package com.android.systemui.touchpad.tutorial.ui.viewmodel
 
 import android.content.res.mockResources
+import android.platform.test.annotations.EnableFlags
 import android.view.MotionEvent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
 import com.android.systemui.inputdevice.tutorial.inputDeviceTutorialLogger
@@ -46,6 +48,7 @@ import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@EnableFlags(Flags.FLAG_TOUCHPAD_GESTURE_TUTORIAL_BUG_FIXES)
 class HomeGestureScreenViewModelTest : SysuiTestCase() {
 
     companion object {
@@ -86,7 +89,7 @@ class HomeGestureScreenViewModelTest : SysuiTestCase() {
                 expected =
                     InProgress(
                         progress = 1f,
-                        startMarker = "drag with gesture",
+                        startMarker = "drag with gesture 1",
                         endMarker = "release playback realtime",
                     ),
             )
@@ -96,13 +99,19 @@ class HomeGestureScreenViewModelTest : SysuiTestCase() {
     fun emitsFinishedStateWithSuccessAnimation() =
         kosmos.runTest {
             assertStateAfterEvents(
-                events = ThreeFingerGesture.swipeUp(),
-                expected = Finished(successAnimation = R.raw.trackpad_home_success),
+                events = ThreeFingerGesture.swipeUp() + ThreeFingerGesture.swipeUp(),
+                expected = Finished(successAnimation = R.raw.trackpad_recent_then_home_success),
             )
         }
 
     private fun performHomeGesture() {
-        ThreeFingerGesture.swipeUp().forEach { viewModel.handleEvent(it) }
+        // The Home gesture requires two three-finger swipe ups. Complete the first swipe up fully,
+        // then perform a second swipe up to assess the state.
+        val firstGesture =
+            ThreeFingerGesture.eventsForFullGesture { move(deltaY = -SWIPE_DISTANCE) }
+        firstGesture.forEach { viewModel.handleEvent(it) }
+
+        ThreeFingerGesture.swipeUp(SWIPE_DISTANCE).forEach { viewModel.handleEvent(it) }
     }
 
     @Test

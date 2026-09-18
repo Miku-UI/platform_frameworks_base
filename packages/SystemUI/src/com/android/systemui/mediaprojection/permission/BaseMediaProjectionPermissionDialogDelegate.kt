@@ -15,13 +15,12 @@
  */
 package com.android.systemui.mediaprojection.permission
 
-import android.app.AlertDialog
+import android.content.Context
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
-import android.widget.Spinner
 import android.widget.TextView
 import androidx.annotation.CallSuper
 import androidx.annotation.ColorRes
@@ -29,10 +28,11 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import com.android.systemui.mediaprojection.MediaProjectionMetricsLogger
 import com.android.systemui.res.R
-import com.android.systemui.statusbar.phone.DialogDelegate
+import com.android.systemui.statusbar.phone.SystemUIDialog
 
 /** Base permission dialog for screen share and recording */
-abstract class BaseMediaProjectionPermissionDialogDelegate<T : AlertDialog>(
+abstract class BaseMediaProjectionPermissionDialogDelegate(
+    private val context: Context,
     private val screenShareOptions: List<ScreenShareOption>,
     private val appName: String?,
     private val hostUid: Int,
@@ -40,11 +40,11 @@ abstract class BaseMediaProjectionPermissionDialogDelegate<T : AlertDialog>(
     @DrawableRes private val dialogIconDrawable: Int? = null,
     @ColorRes private val dialogIconTint: Int? = null,
     @ScreenShareMode val defaultSelectedMode: Int = screenShareOptions.first().mode,
-) : DialogDelegate<T> {
+    private val systemUIDialogFactory: SystemUIDialog.Factory,
+) : SystemUIDialog.Delegate {
     private lateinit var dialogTitle: TextView
     private lateinit var cancelButton: TextView
-    private lateinit var screenShareModeSpinner: Spinner
-    protected lateinit var dialog: AlertDialog
+    protected lateinit var dialog: SystemUIDialog
     protected lateinit var contentManager: BaseMediaProjectionPermissionContentManager
 
     /**
@@ -61,13 +61,17 @@ abstract class BaseMediaProjectionPermissionDialogDelegate<T : AlertDialog>(
         )
     }
 
+    override fun createDialog(): SystemUIDialog {
+        return systemUIDialogFactory.create(this, context)
+    }
+
     @CallSuper
-    override fun onStop(dialog: T) {
+    override fun onStop(dialog: SystemUIDialog) {
         contentManager.unbind()
     }
 
     @CallSuper
-    override fun onCreate(dialog: T, savedInstanceState: Bundle?) {
+    override fun onCreate(dialog: SystemUIDialog, savedInstanceState: Bundle?) {
         this.dialog = dialog
         dialog.window?.addPrivateFlags(WindowManager.LayoutParams.SYSTEM_FLAG_SHOW_FOR_ALL_USERS)
         dialog.window?.setGravity(Gravity.CENTER)

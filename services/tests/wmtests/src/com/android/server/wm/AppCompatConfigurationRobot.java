@@ -59,14 +59,14 @@ class AppCompatConfigurationRobot {
                 .getIsSplitScreenAspectRatioForUnresizableAppsEnabled();
     }
 
-    void enableCameraCompatForceRotateTreatmentAtBuildTime(boolean enabled) {
+    void enableCameraCompatSimReqOrientationTreatment(boolean enabled) {
         doReturn(enabled).when(mAppCompatConfiguration)
-                .isCameraCompatForceRotateTreatmentEnabledAtBuildTime();
+                .isCameraCompatSimReqOrientationTreatmentEnabled();
     }
 
-    void enableCameraCompatSimulateRequestedOrientationTreatment(boolean enabled) {
+    void enableCameraCompatLandscapeToPortraitTreatment(boolean enabled) {
         doReturn(enabled).when(mAppCompatConfiguration)
-                .isCameraCompatSimulateRequestedOrientationTreatmentEnabled();
+                .isCameraCompatLandscapeTreatmentEnabled();
     }
 
     void setCameraCompatAspectRatio(float aspectRatio) {
@@ -143,6 +143,10 @@ class AppCompatConfigurationRobot {
     void setLetterboxBackgroundWallpaperDarkScrimAlpha(float darkScrimAlpha) {
         doReturn(darkScrimAlpha).when(mAppCompatConfiguration)
                 .getLetterboxBackgroundWallpaperDarkScrimAlpha();
+    }
+
+    void setCanEnterDesktopMode(boolean canEnter) {
+        doReturn(canEnter).when(mAppCompatConfiguration).canEnterDesktopMode();
     }
 
     void checkToNextLeftStop(boolean invoked) {

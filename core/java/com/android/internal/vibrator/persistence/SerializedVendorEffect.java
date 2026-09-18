@@ -43,6 +43,7 @@ import java.io.IOException;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 final class SerializedVendorEffect implements XmlSerializedVibration<VibrationEffect.VendorEffect> {
 
     @NonNull

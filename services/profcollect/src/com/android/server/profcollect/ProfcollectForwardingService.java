@@ -93,6 +93,11 @@ public final class ProfcollectForwardingService extends SystemService {
     private final ScheduledExecutorService mScheduledExecutorService =
             Executors.newSingleThreadScheduledExecutor();
 
+    // For exponential backoff reconnect.
+    private static final long INITIAL_CONNECTION_RETRY_DELAY = TimeUnit.SECONDS.toMillis(5);
+    private static final long MAX_CONNECTION_RETRY_DELAY = TimeUnit.MINUTES.toMillis(60);
+    private long mConnectionRetryDelay = INITIAL_CONNECTION_RETRY_DELAY;
+
     private IProviderStatusCallback mProviderStatusCallback = new IProviderStatusCallback.Stub() {
         public void onProviderReady() {
             mHandler.sendEmptyMessage(ProfcollectdHandler.MESSAGE_REGISTER_SCHEDULERS);
@@ -183,7 +188,7 @@ public final class ProfcollectForwardingService extends SystemService {
 
     @Override
     public void onStart() {
-        connectNativeService();
+        tryConnectNativeService();
     }
 
     @Override
@@ -249,10 +254,17 @@ public final class ProfcollectForwardingService extends SystemService {
 
     private boolean tryConnectNativeService() {
         if (connectNativeService()) {
+            // Reset delay on successful connection.
+            mConnectionRetryDelay = INITIAL_CONNECTION_RETRY_DELAY;
             return true;
         }
-        // Cannot connect to the native service at this time, retry after a short delay.
-        mHandler.sendEmptyMessageDelayed(ProfcollectdHandler.MESSAGE_BINDER_CONNECT, 5000);
+
+        // Cannot connect to the native service at this time, retry with backoff.
+        Log.w(LOG_TAG, "Failed to connect to profcollectd. Retrying in "
+                + mConnectionRetryDelay + "ms");
+        mHandler.sendEmptyMessageDelayed(ProfcollectdHandler.MESSAGE_BINDER_CONNECT,
+                mConnectionRetryDelay);
+        mConnectionRetryDelay = Math.min(mConnectionRetryDelay * 2, MAX_CONNECTION_RETRY_DELAY);
         return false;
     }
 
@@ -282,7 +294,7 @@ public final class ProfcollectForwardingService extends SystemService {
         public void handleMessage(android.os.Message message) {
             switch (message.what) {
                 case MESSAGE_BINDER_CONNECT:
-                    connectNativeService();
+                    tryConnectNativeService();
                     break;
                 case MESSAGE_REGISTER_SCHEDULERS:
                     // Register trace hint events observers.
@@ -396,7 +408,20 @@ public final class ProfcollectForwardingService extends SystemService {
         if (Utils.withFrequency("dex2oat_trace_freq", 75)) {
             // Dex2oat could take a while before it starts. Add a short delay before start tracing.
             Utils.traceSystem(sIProfcollect, "dex2oat", /* durationMs */ 0, /* delayMs */ 1000);
+            scheduleDex2oatPeriodicTrace();
         }
+    }
+
+    private void scheduleDex2oatPeriodicTrace() {
+        mScheduledExecutorService.schedule(() -> {
+            // https://source.android.com/docs/core/runtime/configure/art-service#determine_whether_background_dexopt_is_running
+            JobScheduler js = getContext().getSystemService(JobScheduler.class);
+            int reason = js.getPendingJobReason(27873780);
+            if (reason == JobScheduler.PENDING_JOB_REASON_EXECUTING) {
+                Utils.traceSystem(sIProfcollect, "dex2oatP", /* durationMs */ 0);
+                scheduleDex2oatPeriodicTrace();
+            }
+        }, 5, TimeUnit.MINUTES);
     }
 
     private void registerOTAObserver() {

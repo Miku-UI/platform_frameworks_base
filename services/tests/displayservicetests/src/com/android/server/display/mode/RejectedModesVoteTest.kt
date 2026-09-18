@@ -43,16 +43,16 @@ class RejectedModesVoteTest {
 
         rejectedModesVote.updateSummary(summary)
 
-        assertThat(summary.rejectedModeIds).containsExactlyElementsIn(rejectedModes)
+        assertThat(summary.rejectedSfModeIds).containsExactlyElementsIn(rejectedModes)
     }
 
     @Test
     fun addsRejectedModeIds_summaryIsNotEmpty() {
         val summary = createVotesSummary()
-        summary.rejectedModeIds.add(otherMode)
+        summary.rejectedSfModeIds.add(otherMode)
 
         rejectedModesVote.updateSummary(summary)
 
-        assertThat(summary.rejectedModeIds).containsExactlyElementsIn(rejectedModes + otherMode)
+        assertThat(summary.rejectedSfModeIds).containsExactlyElementsIn(rejectedModes + otherMode)
     }
 }

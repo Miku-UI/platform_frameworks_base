@@ -41,26 +41,11 @@ object Flags {
     @JvmField val NULL_FLAG = unreleasedFlag("null_flag")
 
     // 100 - notification
-    // TODO(b/254512751): Tracking Bug
-    val NOTIFICATION_PIPELINE_DEVELOPER_LOGGING =
-        unreleasedFlag("notification_pipeline_developer_logging")
-
-    // TODO(b/254512732): Tracking Bug
-    @JvmField val NSSL_DEBUG_LINES = unreleasedFlag("nssl_debug_lines")
-
-    // TODO(b/254512505): Tracking Bug
-    @JvmField val NSSL_DEBUG_REMOVE_ANIMATION = unreleasedFlag("nssl_debug_remove_animation")
 
     // TODO(b/254512624): Tracking Bug
     @JvmField
     val NOTIFICATION_DRAG_TO_CONTENTS =
         resourceBooleanFlag(R.bool.config_notificationToContents, "notification_drag_to_contents")
-
-    // TODO(b/280783617): Tracking Bug
-    @Keep
-    @JvmField
-    val BUILDER_EXTRAS_OVERRIDE =
-        sysPropBooleanFlag("persist.sysui.notification.builder_extras_override", default = true)
 
     // 200 - keyguard/lockscreen
     // ** Flag retired **
@@ -70,11 +55,6 @@ object Flags {
     // TODO(b/254512750): Tracking Bug
     val NEW_UNLOCK_SWIPE_ANIMATION = releasedFlag("new_unlock_swipe_animation")
     val CHARGING_RIPPLE = resourceBooleanFlag(R.bool.flag_charging_ripple, "charging_ripple")
-
-    // TODO(b/254512676): Tracking Bug
-    @JvmField
-    val LOCKSCREEN_CUSTOM_CLOCKS =
-        resourceBooleanFlag(R.bool.config_enableLockScreenCustomClocks, "lockscreen_custom_clocks")
 
     /** Flag to control the revamp of keyguard biometrics progress animation */
     // TODO(b/244313043): Tracking bug
@@ -247,17 +227,6 @@ object Flags {
     val USER_TRACKER_BACKGROUND_CALLBACKS = unreleasedFlag("user_tracker_background_callbacks")
 
     // 2700 - unfold transitions
-    // TODO(b/265764985): Tracking Bug
-    @Keep
-    @JvmField
-    val ENABLE_DARK_VIGNETTE_WHEN_FOLDING = unreleasedFlag("enable_dark_vignette_when_folding")
-
-    // TODO(b/316157842): Tracking Bug
-    // Adds extra delay to notifications measure
-    @Keep
-    @JvmField
-    val ENABLE_NOTIFICATIONS_SIMULATE_SLOW_MEASURE =
-        unreleasedFlag("enable_notifications_simulate_slow_measure")
 
     // TODO(b259590361): Tracking bug
     val EXPERIMENTAL_FLAG = unreleasedFlag("exp_flag_release")

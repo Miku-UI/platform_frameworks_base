@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright 2025, The Android Open Source Project
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+
+<!-- extends LinearLayout -->
+<com.android.systemui.statusbar.notification.row.BridgedNotificationInfo
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+    android:id="@+id/notification_guts"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:focusable="true"
+    android:clipChildren="false"
+    android:clipToPadding="true"
+    android:orientation="vertical"
+    android:paddingStart="@*android:dimen/notification_2025_margin">
+
+    <!-- Package Info -->
+    <LinearLayout
+        android:id="@+id/header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:clipChildren="false"
+        android:clipToPadding="true">
+        <ImageView
+            android:id="@+id/pkg_icon"
+            android:layout_width="@*android:dimen/notification_2025_icon_circle_size"
+            android:layout_height="@*android:dimen/notification_2025_icon_circle_size"
+            android:layout_marginTop="@*android:dimen/notification_2025_margin"
+            android:layout_marginEnd="@*android:dimen/notification_2025_margin" />
+        <LinearLayout
+            android:id="@+id/names"
+            android:layout_weight="1"
+            android:layout_width="0dp"
+            android:orientation="vertical"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@*android:dimen/notification_2025_margin"
+            android:minHeight="@*android:dimen/notification_2025_icon_circle_size">
+            <TextView
+                android:id="@+id/channel_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textDirection="locale"
+                style="@style/TextAppearance.NotificationImportanceChannel"/>
+            <TextView
+                android:id="@+id/group_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textDirection="locale"
+                android:ellipsize="end"
+                style="@style/TextAppearance.NotificationImportanceChannelGroup"/>
+            <TextView
+                android:id="@+id/pkg_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/TextAppearance.NotificationImportanceApp"
+                android:ellipsize="end"
+                android:textDirection="locale"
+                android:maxLines="1"/>
+            <TextView
+                android:id="@+id/delegate_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/TextAppearance.NotificationImportanceHeader"
+                android:ellipsize="end"
+                android:textDirection="locale"
+                android:text="@string/notification_delegate_header"
+                android:maxLines="1" />
+            <TextView
+                android:id="@+id/summarized_by"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/TextAppearance.NotificationImportanceHeader"
+                android:ellipsize="end"
+                android:textDirection="locale"
+                android:visibility="gone"
+                android:maxLines="1" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/inline_controls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="@*android:dimen/notification_2025_margin"
+        android:layout_marginTop="@*android:dimen/notification_2025_margin"
+        android:clipChildren="false"
+        android:clipToPadding="false"
+        android:orientation="vertical">
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="60dp"
+            android:layout_marginTop="@dimen/notification_importance_button_separation"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:paddingHorizontal="16dp"
+            android:gravity="center_vertical"
+            android:background="@drawable/notification_guts_promoted_explain_bg"
+            >
+            <TextView
+                android:id="@+id/bridged_label"
+                android:text="@string/notification_bridged_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:gravity="start|center_vertical"
+                android:importantForAccessibility="yes"
+                style="@style/TextAppearance.NotificationImportanceButton"/>
+            <TextView
+                android:id="@+id/bridged_summary"
+                android:text="@string/notification_channel_summary_bridged"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_below="@id/bridged_label"
+                android:gravity="start|center_vertical"
+                android:maxWidth="200dp"
+                android:importantForAccessibility="yes"
+                style="@style/TextAppearance.NotificationImportanceDetail"/>
+        </RelativeLayout>
+
+        <RelativeLayout
+            android:id="@+id/bottom_buttons"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@*android:dimen/notification_2025_margin"
+            android:minHeight="@dimen/notification_2025_guts_button_size"
+            android:layout_gravity="center_vertical"
+            android:theme="@style/Theme.SystemUI.Dialog"
+            >
+            <Button
+                android:id="@+id/inline_dismiss"
+                android:text="@string/notification_inline_dismiss"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentStart="true"
+                android:gravity="center"
+                android:minWidth="@dimen/notification_2025_min_tap_target_size"
+                android:minHeight="@dimen/notification_2025_min_tap_target_size"
+                android:maxWidth="200dp"
+                android:layout_marginEnd="8dp"
+                style="@style/Widget.Dialog.Button.BorderButton"
+                />
+            <Button
+                android:id="@+id/bridged_open_associated_device_settings"
+                android:text="@string/inline_bridged_open_associated_device_settings"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_toEndOf="@id/inline_dismiss"
+                android:gravity="center"
+                android:minWidth="@dimen/notification_2025_min_tap_target_size"
+                android:minHeight="@dimen/notification_2025_min_tap_target_size"
+                android:maxWidth="225dp"
+                style="@style/Widget.Dialog.Button.BorderButton"
+                />
+            <Button
+                android:id="@+id/done"
+                android:text="@string/inline_done_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:gravity="center"
+                android:minWidth="@dimen/notification_2025_min_tap_target_size"
+                android:minHeight="@dimen/notification_2025_min_tap_target_size"
+                android:maxWidth="125dp"
+                style="@style/Widget.Dialog.Button"
+                />
+        </RelativeLayout>
+    </LinearLayout>
+</com.android.systemui.statusbar.notification.row.BridgedNotificationInfo>

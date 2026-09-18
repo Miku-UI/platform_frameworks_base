@@ -34,7 +34,7 @@ abstract class RelativeTouchListener : View.OnTouchListener {
      * Called when an ACTION_DOWN event is received for the given view.
      *
      * @return False if the object is not interested in MotionEvents at this time, or true if we
-     * should consume this event and subsequent events, and begin calling [onMove].
+     *   should consume this event and subsequent events, and begin calling [onMove].
      */
     abstract fun onDown(v: View, ev: MotionEvent): Boolean
 
@@ -53,7 +53,7 @@ abstract class RelativeTouchListener : View.OnTouchListener {
         viewInitialX: Float,
         viewInitialY: Float,
         dx: Float,
-        dy: Float
+        dy: Float,
     )
 
     /**
@@ -75,15 +75,10 @@ abstract class RelativeTouchListener : View.OnTouchListener {
         dx: Float,
         dy: Float,
         velX: Float,
-        velY: Float
+        velY: Float,
     )
 
-    open fun onCancel(
-        v: View,
-        ev: MotionEvent,
-        viewInitialX: Float,
-        viewInitialY: Float
-    ) {}
+    open fun onCancel(v: View, ev: MotionEvent, viewInitialX: Float, viewInitialY: Float) {}
 
     /** The raw coordinates of the last ACTION_DOWN event. */
     private var touchDown: PointF? = null
@@ -118,11 +113,14 @@ abstract class RelativeTouchListener : View.OnTouchListener {
                 viewPositionOnTouchDown.set(v.translationX, v.translationY)
 
                 performedLongClick = false
-                v.handler?.postDelayed({
-                    if (v.isLongClickable) {
-                        performedLongClick = v.performLongClick()
-                    }
-                }, ViewConfiguration.getLongPressTimeout().toLong())
+                v.handler?.postDelayed(
+                    {
+                        if (v.isLongClickable) {
+                            performedLongClick = v.performLongClick()
+                        }
+                    },
+                    ViewConfiguration.getLongPressTimeout().toLong(),
+                )
             }
 
             MotionEvent.ACTION_MOVE -> {
@@ -141,8 +139,16 @@ abstract class RelativeTouchListener : View.OnTouchListener {
                 if (touchDown == null) return false
                 if (movedEnough) {
                     velocityTracker.computeCurrentVelocity(1000 /* units */)
-                    onUp(v, ev, viewPositionOnTouchDown.x, viewPositionOnTouchDown.y, dx, dy,
-                            velocityTracker.xVelocity, velocityTracker.yVelocity)
+                    onUp(
+                        v,
+                        ev,
+                        viewPositionOnTouchDown.x,
+                        viewPositionOnTouchDown.y,
+                        dx,
+                        dy,
+                        velocityTracker.xVelocity,
+                        velocityTracker.yVelocity,
+                    )
                 } else if (!performedLongClick) {
                     v.performClick()
                 } else {
@@ -167,9 +173,7 @@ abstract class RelativeTouchListener : View.OnTouchListener {
         return true
     }
 
-    /**
-     * Adds a movement to the velocity tracker using raw screen coordinates.
-     */
+    /** Adds a movement to the velocity tracker using raw screen coordinates. */
     private fun addMovement(event: MotionEvent) {
         val deltaX = event.rawX - event.x
         val deltaY = event.rawY - event.y

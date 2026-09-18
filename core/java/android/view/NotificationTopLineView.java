@@ -16,13 +16,10 @@
 
 package android.view;
 
-import static android.app.Flags.notificationsRedesignTemplates;
-
 import android.annotation.Nullable;
 import android.content.Context;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
-import android.graphics.Rect;
 import android.os.Trace;
 import android.util.AttributeSet;
 import android.widget.RemoteViews;
@@ -46,13 +43,14 @@ public class NotificationTopLineView extends ViewGroup {
     private final int mChildHideWidth;
     @Nullable private View mAppName;
     @Nullable private View mTitle;
+    @Nullable private View mAltTitle;
+    @Nullable private View mAppNameDivider;
     private View mHeaderText;
     private View mHeaderTextDivider;
     private View mSecondaryHeaderText;
     private View mSecondaryHeaderTextDivider;
-    private OnClickListener mFeedbackListener;
-    private HeaderTouchListener mTouchListener = new HeaderTouchListener();
-    private View mFeedbackIcon;
+    private View mVerificationText;
+    private View mExtraToplineContent;
     private int mHeaderTextMarginEnd;
 
     private Set<View> mViewsToDisappear = new HashSet<>();
@@ -100,11 +98,14 @@ public class NotificationTopLineView extends ViewGroup {
         super.onFinishInflate();
         mAppName = findViewById(R.id.app_name_text);
         mTitle = findViewById(R.id.title);
+        mAltTitle = findViewById(R.id.alt_title);
+        mAppNameDivider = findViewById(R.id.app_name_text_divider);
         mHeaderText = findViewById(R.id.header_text);
         mHeaderTextDivider = findViewById(R.id.header_text_divider);
         mSecondaryHeaderText = findViewById(R.id.header_text_secondary);
         mSecondaryHeaderTextDivider = findViewById(R.id.header_text_secondary_divider);
-        mFeedbackIcon = findViewById(R.id.feedback);
+        mVerificationText = findViewById(R.id.verification_text);
+        mExtraToplineContent = findViewById(R.id.extra_topline_content);
     }
 
     @Override
@@ -114,9 +115,7 @@ public class NotificationTopLineView extends ViewGroup {
         final int givenHeight = MeasureSpec.getSize(heightMeasureSpec);
         final boolean wrapHeight = MeasureSpec.getMode(heightMeasureSpec) == MeasureSpec.AT_MOST;
         int wrapContentWidthSpec = MeasureSpec.makeMeasureSpec(givenWidth, MeasureSpec.AT_MOST);
-        int heightSpec = notificationsRedesignTemplates()
-                ? MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
-                : MeasureSpec.makeMeasureSpec(givenHeight, MeasureSpec.AT_MOST);
+        int heightSpec = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED);
         int totalWidth = getPaddingStart();
         int maxChildHeight = -1;
         mMaxAscent = -1;
@@ -151,16 +150,26 @@ public class NotificationTopLineView extends ViewGroup {
 
             mOverflowAdjuster.resetForOverflow(overFlow, heightSpec)
                     // First shrink the app name, down to a minimum size
-                    .adjust(mAppName, null, mChildMinWidth)
+                    .adjust(mAppName, mAppNameDivider, mChildMinWidth)
                     // Next, shrink the header text (this usually has subText)
                     //   This shrinks the subtext first, but not all the way (yet!)
                     .adjust(mHeaderText, mHeaderTextDivider, mChildMinWidth)
                     // Next, shrink the secondary header text  (this rarely has conversationTitle)
                     .adjust(mSecondaryHeaderText, mSecondaryHeaderTextDivider, 0)
+                    // Next, shrink the verification text for CallStyle
+                    .adjust(mVerificationText, null, mChildMinWidth)
+                    // Next, shrink the extra content for MetricStyle
+                    .adjust(mExtraToplineContent, null, mChildMinWidth)
                     // Next, shrink the title text (this has contentTitle; only in headerless views)
                     .adjust(mTitle, null, mChildMinWidth)
+                    .adjust(mAltTitle, null, mChildMinWidth)
                     // Next, shrink the header down to 0 if still necessary.
                     .adjust(mHeaderText, mHeaderTextDivider, 0)
+                    // Next, shrink the verification text down to 0 if still necessary. The
+                    // verification icon will always remain present though.
+                    .adjust(mVerificationText, null, 0)
+                    // Next, shrink the extra topline contentdown to 0 if still necessary.
+                    .adjust(mExtraToplineContent, null, 0)
                     // Finally, shrink the title to 0 if necessary (media is super cramped)
                     .adjust(mTitle, null, 0)
                     // Clean up
@@ -233,7 +242,7 @@ public class NotificationTopLineView extends ViewGroup {
                 // If this is the first child, don't include the start margin. The children will
                 // generally have a 2dp start margin by default to space them out, but if the child
                 // is first we don't need that.
-                if (!android.app.Flags.notificationTopLineMarginFix() || !isFirstVisibleChild) {
+                if (!isFirstVisibleChild) {
                     start += params.getMarginStart();
                 }
                 int end = start + child.getMeasuredWidth();
@@ -244,30 +253,11 @@ public class NotificationTopLineView extends ViewGroup {
             }
             isFirstVisibleChild = false;
         }
-        updateTouchListener();
     }
 
     @Override
     public LayoutParams generateLayoutParams(AttributeSet attrs) {
         return new MarginLayoutParams(getContext(), attrs);
-    }
-
-    private void updateTouchListener() {
-        if (mFeedbackListener == null) {
-            setOnTouchListener(null);
-            return;
-        }
-        setOnTouchListener(mTouchListener);
-        mTouchListener.bindTouchRects();
-    }
-
-    /**
-     * Sets onclick listener for feedback icon.
-     */
-    public void setFeedbackOnClickListener(OnClickListener l) {
-        mFeedbackListener = l;
-        mFeedbackIcon.setOnClickListener(mFeedbackListener);
-        updateTouchListener();
     }
 
     /**
@@ -298,94 +288,6 @@ public class NotificationTopLineView extends ViewGroup {
         setPaddingRelative(paddingStart, getPaddingTop(), getPaddingEnd(), getPaddingBottom());
     }
 
-    private class HeaderTouchListener implements OnTouchListener {
-
-        private Rect mFeedbackRect;
-        private int mTouchSlop;
-        private boolean mTrackGesture;
-        private float mDownX;
-        private float mDownY;
-
-        HeaderTouchListener() {
-        }
-
-        public void bindTouchRects() {
-            mFeedbackRect = getRectAroundView(mFeedbackIcon);
-            mTouchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
-        }
-
-        private Rect getRectAroundView(View view) {
-            float size = 48 * getResources().getDisplayMetrics().density;
-            float width = Math.max(size, view.getWidth());
-            float height = Math.max(size, view.getHeight());
-            final Rect r = new Rect();
-            if (view.getVisibility() == GONE) {
-                view = getFirstChildNotGone();
-                r.left = (int) (view.getLeft() - width / 2.0f);
-            } else {
-                r.left = (int) ((view.getLeft() + view.getRight()) / 2.0f - width / 2.0f);
-            }
-            r.top = (int) ((view.getTop() + view.getBottom()) / 2.0f - height / 2.0f);
-            r.bottom = (int) (r.top + height);
-            r.right = (int) (r.left + width);
-            return r;
-        }
-
-        @Override
-        public boolean onTouch(View v, MotionEvent event) {
-            float x = event.getX();
-            float y = event.getY();
-            switch (event.getActionMasked() & MotionEvent.ACTION_MASK) {
-                case MotionEvent.ACTION_DOWN:
-                    mTrackGesture = false;
-                    if (isInside(x, y)) {
-                        mDownX = x;
-                        mDownY = y;
-                        mTrackGesture = true;
-                        return true;
-                    }
-                    break;
-                case MotionEvent.ACTION_MOVE:
-                    if (mTrackGesture) {
-                        if (Math.abs(mDownX - x) > mTouchSlop
-                                || Math.abs(mDownY - y) > mTouchSlop) {
-                            mTrackGesture = false;
-                        }
-                    }
-                    break;
-                case MotionEvent.ACTION_UP:
-                    if (mTrackGesture && onTouchUp(x, y, mDownX, mDownY)) {
-                        return true;
-                    }
-                    break;
-            }
-            return mTrackGesture;
-        }
-
-        private boolean onTouchUp(float upX, float upY, float downX, float downY) {
-            if (mFeedbackIcon.isVisibleToUser()
-                    && (mFeedbackRect.contains((int) upX, (int) upY)
-                    || mFeedbackRect.contains((int) downX, (int) downY))) {
-                mFeedbackIcon.performClick();
-                return true;
-            }
-            return false;
-        }
-
-        private boolean isInside(float x, float y) {
-            return mFeedbackRect.contains((int) x, (int) y);
-        }
-    }
-
-    private View getFirstChildNotGone() {
-        for (int i = 0; i < getChildCount(); i++) {
-            final View child = getChildAt(i);
-            if (child.getVisibility() != GONE) {
-                return child;
-            }
-        }
-        return this;
-    }
 
     @Override
     public boolean hasOverlappingRendering() {
@@ -403,20 +305,14 @@ public class NotificationTopLineView extends ViewGroup {
      * Determine if the given point is touching an active part of the top line.
      */
     public boolean isInTouchRect(float x, float y) {
-        if (mFeedbackListener == null) {
-            return false;
-        }
-        return mTouchListener.isInside(x, y);
+        return false;
     }
 
     /**
      * Perform a click on an active part of the top line, if touching.
      */
     public boolean onTouchUp(float upX, float upY, float downX, float downY) {
-        if (mFeedbackListener == null) {
-            return false;
-        }
-        return mTouchListener.onTouchUp(upX, upY, downX, downY);
+        return false;
     }
 
     private final class OverflowAdjuster {

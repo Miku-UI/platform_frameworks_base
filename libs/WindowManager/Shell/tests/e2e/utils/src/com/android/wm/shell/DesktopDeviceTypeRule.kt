@@ -29,9 +29,7 @@ import org.junit.rules.TestRule
 import org.junit.runner.Description
 import org.junit.runners.model.Statement
 
-/**
- * Rule that allow tests to be executed only on [ProjectedOnly] or [ExtendedOnly].
- */
+/** Rule that allow tests to be executed only on [ProjectedOnly] or [ExtendedOnly]. */
 class DesktopDeviceTypeRule : TestRule {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -43,12 +41,18 @@ class DesktopDeviceTypeRule : TestRule {
         val projectedOnly = description.hasAnnotationInClassOrMethod(ProjectedOnly::class.java)
         val extendedOnly = description.hasAnnotationInClassOrMethod(ExtendedOnly::class.java)
         return when {
-            projectedOnly && extendedOnly -> throw RuntimeException(
-                "Test cannot be annotated with both @ProjectedOnly and @ExtendedOnly")
-            projectedOnly && canEnterExtended -> wrongDeviceTypeStatement(
-                "Skipping test on ${Build.PRODUCT} as it doesn't support projected mode.")
-            extendedOnly && !canEnterExtended -> wrongDeviceTypeStatement(
-                "Skipping test on ${Build.PRODUCT} as it doesn't support extended mode.")
+            projectedOnly && extendedOnly ->
+                throw RuntimeException(
+                    "Test cannot be annotated with both @ProjectedOnly and @ExtendedOnly"
+                )
+            projectedOnly && canEnterExtended ->
+                wrongDeviceTypeStatement(
+                    "Skipping test on ${Build.PRODUCT} as it doesn't support projected mode."
+                )
+            extendedOnly && !canEnterExtended ->
+                wrongDeviceTypeStatement(
+                    "Skipping test on ${Build.PRODUCT} as it doesn't support extended mode."
+                )
             else -> base
         }
     }
@@ -66,11 +70,7 @@ private fun wrongDeviceTypeStatement(message: String) =
     }
 
 /** The test will run only on devices that support projected mode. */
-@Retention(RUNTIME)
-@Target(CLASS, FUNCTION)
-annotation class ProjectedOnly
+@Retention(RUNTIME) @Target(CLASS, FUNCTION) annotation class ProjectedOnly
 
 /** The test will run only on devices that support extended mode. */
-@Retention(RUNTIME)
-@Target(CLASS, FUNCTION)
-annotation class ExtendedOnly
+@Retention(RUNTIME) @Target(CLASS, FUNCTION) annotation class ExtendedOnly

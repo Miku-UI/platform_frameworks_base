@@ -42,6 +42,11 @@ cc_aconfig_library {
     name: "hwui_flags_cc_lib",
     host_supported: true,
     aconfig_declarations: "hwui_flags",
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
 }
 
 cc_defaults {
@@ -52,6 +57,7 @@ cc_defaults {
         //"hwui_bugreport_font_cache_usage",
         //"hwui_compile_for_perf",
         "hwui_lto",
+        "no_bti",
     ],
 
     cflags: [
@@ -113,6 +119,9 @@ cc_defaults {
         "android.hardware.graphics.composer3-ndk_shared",
     ],
     shared_libs: [
+        "aconfig_text_flags_c_lib",
+        "aconfig_view_accessibility_flags_c_lib",
+        "libaconfig_storage_read_api_cc",
         "libbase",
         "libharfbuzz_ng",
         "libminikin",
@@ -120,6 +129,11 @@ cc_defaults {
 
     static_libs: [
         "libui-types",
+    ],
+
+    whole_static_libs: [
+        "hwui_flags_cc_lib",
+        "libsurfaceflingerflags",
     ],
 
     target: {
@@ -143,10 +157,7 @@ cc_defaults {
                 "libsync",
                 "libgui",
                 "libui",
-                "aconfig_text_flags_c_lib",
-                "aconfig_view_accessibility_flags_c_lib",
                 "server_configurable_flags",
-                "libaconfig_storage_read_api_cc",
                 "libgraphicsenv",
             ],
             static_libs: [
@@ -157,10 +168,8 @@ cc_defaults {
                 "libstatspull_lazy",
                 "libstatssocket_lazy",
                 "libtonemap",
-            ],
-            whole_static_libs: [
-                "hwui_flags_cc_lib",
-                "libsurfaceflingerflags",
+                "libgui_aidl",
+                "libipcrenderbuffer_static",
             ],
         },
         host: {
@@ -168,14 +177,6 @@ cc_defaults {
                 "libandroidfw",
                 "libhostgraphics",
                 "libutils",
-            ],
-        },
-        host_linux: {
-            shared_libs: [
-                "libaconfig_storage_read_api_cc",
-            ],
-            whole_static_libs: [
-                "hwui_flags_cc_lib",
             ],
         },
     },
@@ -444,6 +445,7 @@ cc_defaults {
         "liblog",
         "libminikin",
         "libz",
+        "libguiflags",
         "libtracing_perfetto",
         "libperfetto_c",
     ],
@@ -605,6 +607,7 @@ cc_defaults {
         "hwui/Canvas.cpp",
         "hwui/ImageDecoder.cpp",
         "hwui/MinikinSkia.cpp",
+        "hwui/OutOfProcessRendering.cpp",
         "hwui/MinikinUtils.cpp",
         "hwui/PaintImpl.cpp",
         "hwui/Typeface.cpp",
@@ -672,6 +675,7 @@ cc_defaults {
                 "pipeline/skia/PipelineCache.cpp",
                 "pipeline/skia/ShaderCache.cpp",
                 "pipeline/skia/SkiaGpuPipeline.cpp",
+                "pipeline/skia/SkiaIpcPipeline.cpp",
                 "pipeline/skia/SkiaMemoryTracer.cpp",
                 "pipeline/skia/SkiaOpenGLPipeline.cpp",
                 "pipeline/skia/SkiaProfileRenderer.cpp",
@@ -695,6 +699,10 @@ cc_defaults {
                 "Readback.cpp",
                 "WebViewFunctorManager.cpp",
                 "protos/graphicsstats.proto",
+            ],
+
+            static_libs: [
+                "libipcrenderbuffer_static",
             ],
 
             // Allow implicit fallthroughs in HardwareBitmapUploader.cpp until they are fixed.
@@ -761,8 +769,12 @@ cc_defaults {
         android: {
             local_include_dirs: ["platform/android"],
             shared_libs: [
+                "libbinder",
                 "libgui",
                 "libui",
+            ],
+            static_libs: [
+                "libipcrenderbuffer_static",
             ],
         },
     },
@@ -793,6 +805,7 @@ cc_test {
         "libflagtest",
         "libgmock",
         "libhwui_static",
+        "libipcrenderbuffer_static",
     ],
     shared_libs: [
         "libmemunreachable",

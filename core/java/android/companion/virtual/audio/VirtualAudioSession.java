@@ -32,6 +32,7 @@ import android.media.audiopolicy.AudioMix;
 import android.media.audiopolicy.AudioMixingRule;
 import android.media.audiopolicy.AudioPolicy;
 import android.os.Binder;
+import android.os.SystemClock;
 import android.util.IntArray;
 import android.util.Log;
 
@@ -54,6 +55,10 @@ import java.util.concurrent.Executor;
 public final class VirtualAudioSession extends IAudioRoutingCallback.Stub implements
         UserRestrictionsCallback, Closeable {
     private static final String TAG = "VirtualAudioSession";
+    // Number of retries for creating an initialized AudioTrack or AudioRecord for an AudioMix
+    private static final int MAX_RETRIES = 3;
+    // The initial delay after which to retry creating the AudioTrack or AudioRecord for an AudioMix
+    private static final long INITIAL_RETRY_DELAY_MS = 10;
 
     private final Context mContext;
     private final UserRestrictionsDetector mUserRestrictionsDetector;
@@ -267,20 +272,86 @@ public final class VirtualAudioSession extends IAudioRoutingCallback.Stub implem
                 Log.e(TAG, "Failed to register audio policy!");
             }
 
-            AudioRecord audioRecord =
-                    audioRecordMix != null ? mAudioPolicy.createAudioRecordSink(audioRecordMix)
-                            : null;
-            AudioTrack audioTrack =
-                    audioTrackMix != null ? mAudioPolicy.createAudioTrackSource(audioTrackMix)
-                            : null;
-
             if (mAudioCapture != null) {
-                mAudioCapture.setAudioRecord(audioRecord);
+                mAudioCapture.setAudioRecord(createAudioRecordForMix(audioRecordMix));
             }
             if (mAudioInjection != null) {
-                mAudioInjection.setAudioTrack(audioTrack);
+                mAudioInjection.setAudioTrack(createAudioTrackForMix(audioTrackMix));
             }
         }
+    }
+
+    @Nullable
+    private AudioTrack createAudioTrackForMix(@Nullable AudioMix audioTrackMix) {
+        if (audioTrackMix == null || mAudioPolicy == null) {
+            return null;
+        }
+        int retries = MAX_RETRIES;
+        long retryDelayMs = INITIAL_RETRY_DELAY_MS;
+        try {
+            // avoid getting an uninitialized AudioTrack, prefer to log and fail
+            // retry a few times with an exponential backoff waiting time to account for race
+            // conditions when connecting the audio policy AudioPorts
+            // TODO: b/454056836 remove retries
+            while (retries-- > 0) {
+                final AudioTrack audioTrack = mAudioPolicy.createAudioTrackSource(audioTrackMix);
+                if (audioTrack == null) {
+                    break;
+                }
+
+                if (audioTrack.getState() == AudioTrack.STATE_INITIALIZED) {
+                    return audioTrack;
+                } else {
+                    Log.w(TAG, "Failed to initialize AudioTrack for AudioMix, retries left: "
+                            + retries);
+                    audioTrack.release();
+                    SystemClock.sleep(retryDelayMs);
+                    retryDelayMs *= 2;
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Exception creating AudioTrack: ", e);
+        }
+
+        Log.e(TAG, "Failed to create AudioTrack for AudioMix!");
+        return null;
+    }
+
+
+    @Nullable
+    private AudioRecord createAudioRecordForMix(@Nullable AudioMix audioRecordMix) {
+        if (audioRecordMix == null || mAudioPolicy == null) {
+            return null;
+        }
+        int retries = MAX_RETRIES;
+        long retryDelayMs = INITIAL_RETRY_DELAY_MS;
+        try {
+            // avoid getting an uninitialized AudioRecord, prefer to log and fail
+            // retry a few times with an exponential backoff waiting time to account for race
+            // conditions when connecting the audio policy AudioPorts
+            // TODO: b/454056836 remove retries
+            while (retries-- > 0) {
+                final AudioRecord audioRecord = mAudioPolicy.createAudioRecordSink(audioRecordMix);
+                if (audioRecord == null) {
+                    break;
+                }
+
+                if (audioRecord.getState() == AudioRecord.STATE_INITIALIZED) {
+                    return audioRecord;
+                } else {
+                    Log.w(TAG, "Failed to initialize AudioRecord for AudioMix, retries left: "
+                            + retries);
+                    audioRecord.release();
+                    SystemClock.sleep(retryDelayMs);
+                    retryDelayMs *= 2;
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Exception creating AudioRecord: ", e);
+        }
+
+        Log.e(TAG, "Failed to create AudioRecord for AudioMix!");
+        return null;
     }
 
     @RequiresPermission(android.Manifest.permission.MODIFY_AUDIO_ROUTING)

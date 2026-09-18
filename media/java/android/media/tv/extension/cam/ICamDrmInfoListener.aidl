@@ -22,5 +22,11 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface ICamDrmInfoListener {
+    /**
+     * Notify the DRM info change for a specific CICAM.
+     *
+     * @param slotId The ID of the corresponding CICAM slot.
+     * @param appInfo An input bundle where keys defined as @CamConstants.CamDrmInfoBundleKey.
+     */
     void onCamDrmInfoChanged(int slotId, in Bundle camDrmInfo);
 }

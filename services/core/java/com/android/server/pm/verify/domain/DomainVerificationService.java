@@ -862,7 +862,8 @@ public class DomainVerificationService extends SystemService
     }
 
     @NonNull
-    public List<DomainOwner> getOwnersForDomain(@NonNull String domain, @UserIdInt int userId) {
+    public List<DomainOwner> getOwnersForDomain(@NonNull String domain, @UserIdInt int userId,
+            boolean includeUnverifiedOwners) {
         Objects.requireNonNull(domain);
         mEnforcer.assertOwnerQuerent(mConnection.getCallingUid(), mConnection.getCallingUserId(),
                 userId);
@@ -878,6 +879,12 @@ public class DomainVerificationService extends SystemService
         int size = levelToPackages.size();
         for (int index = 0; index < size; index++) {
             int level = levelToPackages.keyAt(index);
+            if (android.view.flags.Flags.redactWebOtpSmsApi()
+                    && !includeUnverifiedOwners
+                    && level != APPROVAL_LEVEL_VERIFIED) {
+                // We only want to include verified owners, hence skipping otherwise.
+                continue;
+            }
             boolean overrideable = level <= APPROVAL_LEVEL_SELECTION;
             List<String> packages = levelToPackages.valueAt(index);
             int packagesSize = packages.size();
@@ -1542,7 +1549,7 @@ public class DomainVerificationService extends SystemService
     }
 
     /**
-     * Determine whether or not a broadcast should be sent at boot for the given {@param pkgState}.
+     * Determine whether or not a broadcast should be sent at boot for the given {@code pkgState}.
      * Sends only if the only states recorded are default as decided by {@link
      * DomainVerificationState#isDefault(int)}.
      *
@@ -2030,7 +2037,14 @@ public class DomainVerificationService extends SystemService
                 }
 
                 String domain = stateMap.keyAt(index);
-                if (domain.startsWith("*.") && host.endsWith(domain.substring(2))) {
+                // Ensure that a wildcard domain (e.g. *.xyz.com) only matches the following:
+                // 1. The domain itself (in this case xyz.com exactly)
+                // 2. Subdomains ending in the domain (such as abc.xyz.com)
+                // This should not match every single domain ending in this string (xyz.com) e.g.
+                // *.xyz.com should not match abcxyz.com.
+                if (domain.startsWith("*.")
+                        && (host.endsWith(domain.substring(1))
+                            || host.equals(domain.substring(2)))) {
                     if (debug) {
                         debugApproval(packageName, debugObject, userId, true,
                                 "host verified by wildcard");

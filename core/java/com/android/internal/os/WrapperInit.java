@@ -172,7 +172,7 @@ public class WrapperInit {
         // Perform the same initialization that would happen after the Zygote forks.
         Zygote.nativePreApplicationInit();
         return RuntimeInit.applicationInit(targetSdkVersion, /*disabledCompatChanges*/ null,
-                argv, classLoader);
+                /*enabledCompatChanges*/ null, argv, classLoader);
     }
 
     /**

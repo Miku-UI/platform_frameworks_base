@@ -281,7 +281,7 @@ public final class MathUtils {
     }
 
     /**
-     * Resize a {@link Rect} so one size would be {@param largestSide}.
+     * Resize a {@link Rect} so one size would be {@code largestSide}.
      *
      * @param outToResize Rectangle that will be resized.
      * @param largestSide Size of the largest side.

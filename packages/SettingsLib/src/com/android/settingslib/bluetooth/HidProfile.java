@@ -192,7 +192,7 @@ public class HidProfile implements LocalBluetoothProfile {
     /** Set preferred transport for the device */
     public boolean setPreferredTransport(@NonNull BluetoothDevice device, int transport) {
         if (mService != null) {
-            mService.setPreferredTransport(device, transport);
+            return mService.setPreferredTransport(device, transport);
         }
         return false;
     }

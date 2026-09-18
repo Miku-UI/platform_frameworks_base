@@ -16,6 +16,7 @@
 
 package android.app.ondeviceintelligence;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.Bundle;

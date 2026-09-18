@@ -15,13 +15,9 @@
  */
 package com.android.systemui.statusbar.notification.collection.coordinator
 
-import android.app.Flags.FLAG_LIFETIME_EXTENSION_REFACTOR
-import android.app.Flags.lifetimeExtensionRefactor
 import android.app.Notification
 import android.app.RemoteInputHistoryItem
 import android.os.Handler
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.service.notification.StatusBarNotification
 import android.testing.TestableLooper.RunWithLooper
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -104,12 +100,6 @@ class RemoteInputCoordinatorTest : SysuiTestCase() {
     val remoteInputActiveExtender
         get() = coordinator.mRemoteInputActiveExtender
 
-    val remoteInputHistoryExtender
-        get() = coordinator.mRemoteInputHistoryExtender
-
-    val smartReplyHistoryExtender
-        get() = coordinator.mSmartReplyHistoryExtender
-
     val collectionListeners
         get() = captureMany { verify(pipeline, times(1)).addCollectionListener(capture()) }
 
@@ -117,31 +107,6 @@ class RemoteInputCoordinatorTest : SysuiTestCase() {
     fun testRemoteInputActive() {
         `when`(remoteInputManager.isRemoteInputActive(entry1)).thenReturn(true)
         assertThat(remoteInputActiveExtender.maybeExtendLifetime(entry1, 0)).isTrue()
-        if (!lifetimeExtensionRefactor()) {
-            assertThat(remoteInputHistoryExtender.maybeExtendLifetime(entry1, 0)).isFalse()
-            assertThat(smartReplyHistoryExtender.maybeExtendLifetime(entry1, 0)).isFalse()
-        }
-        assertThat(listener.isNotificationKeptForRemoteInputHistory(entry1.key)).isFalse()
-    }
-
-    @Test
-    @DisableFlags(FLAG_LIFETIME_EXTENSION_REFACTOR)
-    fun testRemoteInputHistory() {
-        `when`(remoteInputManager.shouldKeepForRemoteInputHistory(entry1)).thenReturn(true)
-        assertThat(remoteInputActiveExtender.maybeExtendLifetime(entry1, 0)).isFalse()
-        assertThat(remoteInputHistoryExtender.maybeExtendLifetime(entry1, 0)).isTrue()
-        assertThat(smartReplyHistoryExtender.maybeExtendLifetime(entry1, 0)).isFalse()
-        assertThat(listener.isNotificationKeptForRemoteInputHistory(entry1.key)).isTrue()
-    }
-
-    @Test
-    @DisableFlags(FLAG_LIFETIME_EXTENSION_REFACTOR)
-    fun testSmartReplyHistory() {
-        `when`(remoteInputManager.shouldKeepForSmartReplyHistory(entry1)).thenReturn(true)
-        assertThat(remoteInputActiveExtender.maybeExtendLifetime(entry1, 0)).isFalse()
-        assertThat(remoteInputHistoryExtender.maybeExtendLifetime(entry1, 0)).isFalse()
-        assertThat(smartReplyHistoryExtender.maybeExtendLifetime(entry1, 0)).isTrue()
-        assertThat(listener.isNotificationKeptForRemoteInputHistory(entry1.key)).isTrue()
     }
 
     @Test
@@ -163,7 +128,6 @@ class RemoteInputCoordinatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_LIFETIME_EXTENSION_REFACTOR)
     fun testOnlyRemoteInputActiveLifetimeExtenderExtends() {
         `when`(remoteInputManager.isRemoteInputActive(entry1)).thenReturn(true)
         assertThat(remoteInputActiveExtender.maybeExtendLifetime(entry1, 0)).isTrue()
@@ -180,7 +144,6 @@ class RemoteInputCoordinatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_LIFETIME_EXTENSION_REFACTOR)
     fun testRemoteInputLifetimeExtensionListenerTrigger() {
         // Create notification with LIFETIME_EXTENDED_BY_DIRECT_REPLY flag.
         val entry =
@@ -198,7 +161,6 @@ class RemoteInputCoordinatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_LIFETIME_EXTENSION_REFACTOR)
     fun testSmartReplyLifetimeExtensionListenerTrigger() {
         // Create notification with LIFETIME_EXTENDED_BY_DIRECT_REPLY flag.
         val entry =
@@ -216,7 +178,6 @@ class RemoteInputCoordinatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_LIFETIME_EXTENSION_REFACTOR)
     fun testRepeatedUpdateTriggersRebuild() {
         // Create notification with LIFETIME_EXTENDED_BY_DIRECT_REPLY flag.
         val entry =
@@ -233,7 +194,6 @@ class RemoteInputCoordinatorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_LIFETIME_EXTENSION_REFACTOR)
     fun testLifetimeExtensionListenerClearsRemoteInputs() {
         // Create notification with LIFETIME_EXTENDED_BY_DIRECT_REPLY flag.
         val entry =

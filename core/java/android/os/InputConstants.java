@@ -16,7 +16,10 @@
 
 package android.os;
 
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+
 /** @hide */
+@RavenwoodKeepWholeClass
 public class InputConstants {
     public static final int DEFAULT_DISPATCHING_TIMEOUT_MILLIS =
             IInputConstants.UNMULTIPLIED_DEFAULT_DISPATCHING_TIMEOUT_MILLIS

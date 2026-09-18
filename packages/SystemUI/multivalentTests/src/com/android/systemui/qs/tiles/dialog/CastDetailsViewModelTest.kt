@@ -132,4 +132,18 @@ class CastDetailsViewModelTest : SysuiTestCase() {
 
         assertThat(viewModel.deviceIcon).isEqualTo(testIcon)
     }
+
+    @Test
+    fun dismissView_togglesViewUpdateKey() {
+        val viewModel =
+            CastDetailsViewModel(inputHandler, context, MediaRouter.ROUTE_TYPE_REMOTE_DISPLAY)
+
+        assertThat(viewModel.viewUpdateKey).isFalse()
+
+        viewModel.dismissView()
+        assertThat(viewModel.viewUpdateKey).isTrue()
+
+        viewModel.dismissView()
+        assertThat(viewModel.viewUpdateKey).isFalse()
+    }
 }

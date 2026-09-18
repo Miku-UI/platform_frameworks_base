@@ -89,8 +89,6 @@ class FakeShadeRepository @Inject constructor() : ShadeRepository {
     @Deprecated("Use ShadeInteractor instead")
     override val legacyExpandImmediate = _legacyExpandImmediate.asStateFlow()
 
-    override val legacyUseSplitShade = MutableStateFlow(false)
-
     @Deprecated("Use ShadeInteractor instead")
     override fun setLegacyExpandImmediate(legacyExpandImmediate: Boolean) {
         _legacyExpandImmediate.value = legacyExpandImmediate

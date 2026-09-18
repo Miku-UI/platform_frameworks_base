@@ -26,7 +26,6 @@ import com.android.systemui.keyguard.domain.interactor.KeyguardBlueprintInteract
 import com.android.systemui.keyguard.ui.view.layout.blueprints.transitions.IntraBlueprintTransition.Config
 import com.android.systemui.keyguard.ui.view.layout.blueprints.transitions.IntraBlueprintTransition.Type
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardClockViewModel
-import com.android.systemui.keyguard.ui.viewmodel.KeyguardRootViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardSmartspaceViewModel
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.plugins.keyguard.VRectF
@@ -39,7 +38,6 @@ object KeyguardSmartspaceViewBinder {
     @JvmStatic
     fun bind(
         keyguardRootView: ConstraintLayout,
-        keyguardRootViewModel: KeyguardRootViewModel,
         clockViewModel: KeyguardClockViewModel,
         smartspaceViewModel: KeyguardSmartspaceViewModel,
         blueprintInteractor: KeyguardBlueprintInteractor,
@@ -53,15 +51,6 @@ object KeyguardSmartspaceViewBinder {
                             ::Pair,
                         )
                         .collect {
-                            if (
-                                !com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout()
-                            ) {
-                                updateDateWeatherToBurnInLayer(
-                                    keyguardRootView,
-                                    clockViewModel,
-                                    smartspaceViewModel,
-                                )
-                            }
                             blueprintInteractor.refreshBlueprint(
                                 Config(
                                     Type.SmartspaceVisibility,
@@ -85,106 +74,102 @@ object KeyguardSmartspaceViewBinder {
                     }
                 }
 
-                if (com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout()) {
-                    val xBuffer =
-                        keyguardRootView.context.resources.getDimensionPixelSize(
-                            R.dimen.smartspace_padding_horizontal
+                val xBuffer =
+                    keyguardRootView.context.resources.getDimensionPixelSize(
+                        R.dimen.smartspace_padding_horizontal
+                    )
+                val yBuffer =
+                    keyguardRootView.context.resources.getDimensionPixelSize(
+                        R.dimen.smartspace_padding_vertical
+                    )
+
+                val smallViewId = sharedR.id.date_smartspace_view
+                val largeViewId = sharedR.id.date_smartspace_view_large
+
+                launch("$TAG#smartspaceViewModel.isLargeClockVisible") {
+                    combine(
+                            clockViewModel.isLargeClockVisible,
+                            clockViewModel.shouldDateWeatherBeBelowLargeClock,
+                            clockViewModel.hasCustomWeatherDataDisplay,
+                            ::Triple,
                         )
-                    val yBuffer =
-                        keyguardRootView.context.resources.getDimensionPixelSize(
-                            R.dimen.smartspace_padding_vertical
-                        )
-
-                    val smallViewId = sharedR.id.date_smartspace_view
-                    val largeViewId = sharedR.id.date_smartspace_view_large
-
-                    launch("$TAG#smartspaceViewModel.isLargeClockVisible") {
-                        combine(
-                                clockViewModel.isLargeClockVisible,
-                                clockViewModel.shouldDateWeatherBeBelowLargeClock,
-                                ::Pair,
-                            )
-                            .collect { (isLargeClock, belowLargeclock) ->
-                                if (isLargeClock && belowLargeclock) {
-                                    // hide small clock date/weather
-                                    keyguardRootView.findViewById<View>(smallViewId)?.let {
-                                        it.visibility = View.GONE
-                                    }
-                                    removeDateWeatherFromBurnInLayer(
-                                        keyguardRootView,
-                                        smartspaceViewModel,
-                                    )
-                                } else {
-                                    addDateWeatherToBurnInLayer(
-                                        keyguardRootView,
-                                        smartspaceViewModel,
-                                    )
-                                }
-                                clockViewModel.burnInLayer?.updatePostLayout(keyguardRootView)
-                            }
-                    }
-
-                    launch("$TAG#clockEventController.largeClockBounds") {
-                        // Whenever the doze amount changes, the clock may update it's view bounds.
-                        // We need to update our layout position as a result. We could do this via
-                        // `requestLayout`, but that's quite expensive when enclosed in since this
-                        // recomputes the entire ConstraintLayout, so instead we do it manually. We
-                        // would use translationX/Y for this, but that's used by burnin.
-                        combine(
-                                clockViewModel.isLargeClockVisible,
-                                clockViewModel.shouldDateWeatherBeBelowLargeClock,
-                                clockViewModel.clockEventController.largeClockBounds,
-                                ::Triple,
-                            )
-                            .collect { (isLargeClock, belowLarge, largeBounds) ->
-                                if (!isLargeClock) return@collect
+                        .collect { (isLargeClock, belowLargeClock, hasCustomWeather) ->
+                            if (isLargeClock && (belowLargeClock || hasCustomWeather)) {
+                                // hide small clock date/weather
                                 keyguardRootView.findViewById<View>(smallViewId)?.let {
                                     it.visibility = View.GONE
                                 }
+                                removeDateWeatherFromBurnInLayer(
+                                    keyguardRootView,
+                                    smartspaceViewModel,
+                                )
+                            } else {
+                                addDateWeatherToBurnInLayer(keyguardRootView, smartspaceViewModel)
+                            }
+                            clockViewModel.burnInLayer?.updatePostLayout(keyguardRootView)
+                        }
+                }
 
-                                if (!belowLarge) return@collect
-                                if (largeBounds == VRectF.ZERO) return@collect
-                                val largeDateHeight =
-                                    keyguardRootView
-                                        .findViewById<View>(sharedR.id.date_smartspace_view_large)
-                                        ?.height ?: 0
+                launch("$TAG#clockEventController.largeClockBounds") {
+                    // Whenever the doze amount changes, the clock may update it's view bounds.
+                    // We need to update our layout position as a result. We could do this via
+                    // `requestLayout`, but that's quite expensive when enclosed in since this
+                    // recomputes the entire ConstraintLayout, so instead we do it manually. We
+                    // would use translationX/Y for this, but that's used by burnin.
+                    combine(
+                            clockViewModel.isLargeClockVisible,
+                            clockViewModel.shouldDateWeatherBeBelowLargeClock,
+                            clockViewModel.clockEventController.largeClockBounds,
+                            ::Triple,
+                        )
+                        .collect { (isLargeClock, belowLarge, largeBounds) ->
+                            if (!isLargeClock) return@collect
+                            keyguardRootView.findViewById<View>(smallViewId)?.let {
+                                it.visibility = View.GONE
+                            }
 
-                                keyguardRootView.findViewById<View>(largeViewId)?.let { view ->
-                                    val viewHeight = view.height
-                                    val offset = (largeDateHeight - viewHeight) / 2
-                                    view.top = (largeBounds.bottom + yBuffer + offset).toInt()
-                                    view.bottom = view.top + viewHeight
+                            if (!belowLarge) return@collect
+                            if (largeBounds == VRectF.ZERO) return@collect
+                            val largeDateHeight =
+                                keyguardRootView
+                                    .findViewById<View>(sharedR.id.date_smartspace_view_large)
+                                    ?.height ?: 0
+
+                            keyguardRootView.findViewById<View>(largeViewId)?.let { view ->
+                                val viewHeight = view.height
+                                val offset = (largeDateHeight - viewHeight) / 2
+                                view.top = (largeBounds.bottom + yBuffer + offset).toInt()
+                                view.bottom = view.top + viewHeight
+                            }
+                        }
+                }
+
+                launch("$TAG#clockEventController.smallClockBounds") {
+                    combine(
+                            clockViewModel.isLargeClockVisible,
+                            clockViewModel.shouldDateWeatherBeBelowSmallClock,
+                            clockViewModel.clockEventController.smallClockBounds,
+                            ::Triple,
+                        )
+                        .collect { (isLargeClock, belowSmall, smallBounds) ->
+                            if (isLargeClock) return@collect
+                            keyguardRootView.findViewById<View>(largeViewId)?.let {
+                                it.visibility = View.GONE
+                            }
+
+                            if (belowSmall) return@collect
+                            if (smallBounds == VRectF.ZERO) return@collect
+                            keyguardRootView.findViewById<View>(smallViewId)?.let { view ->
+                                val viewWidth = view.width
+                                if (view.isLayoutRtl()) {
+                                    view.right = (smallBounds.left - xBuffer).toInt()
+                                    view.left = view.right - viewWidth
+                                } else {
+                                    view.left = (smallBounds.right + xBuffer).toInt()
+                                    view.right = view.left + viewWidth
                                 }
                             }
-                    }
-
-                    launch("$TAG#clockEventController.smallClockBounds") {
-                        combine(
-                                clockViewModel.isLargeClockVisible,
-                                clockViewModel.shouldDateWeatherBeBelowSmallClock,
-                                clockViewModel.clockEventController.smallClockBounds,
-                                ::Triple,
-                            )
-                            .collect { (isLargeClock, belowSmall, smallBounds) ->
-                                if (isLargeClock) return@collect
-                                keyguardRootView.findViewById<View>(largeViewId)?.let {
-                                    it.visibility = View.GONE
-                                }
-
-                                if (belowSmall) return@collect
-                                if (smallBounds == VRectF.ZERO) return@collect
-                                keyguardRootView.findViewById<View>(smallViewId)?.let { view ->
-                                    val viewWidth = view.width
-                                    if (view.isLayoutRtl()) {
-                                        view.right = (smallBounds.left - xBuffer).toInt()
-                                        view.left = view.right - viewWidth
-                                    } else {
-                                        view.left = (smallBounds.right + xBuffer).toInt()
-                                        view.right = view.left + viewWidth
-                                    }
-                                }
-                            }
-                    }
+                        }
                 }
             }
         }
@@ -225,10 +210,7 @@ object KeyguardSmartspaceViewBinder {
         smartspaceViewModel: KeyguardSmartspaceViewModel,
     ) {
         constraintLayout.findViewById<Layer>(R.id.burn_in_layer)?.apply {
-            if (
-                smartspaceViewModel.isSmartspaceEnabled &&
-                    smartspaceViewModel.isDateWeatherDecoupled
-            ) {
+            if (smartspaceViewModel.isSmartspaceEnabled) {
                 val dateView =
                     constraintLayout.requireViewById<View>(sharedR.id.date_smartspace_view)
                 addView(dateView)
@@ -241,10 +223,7 @@ object KeyguardSmartspaceViewBinder {
         smartspaceViewModel: KeyguardSmartspaceViewModel,
     ) {
         constraintLayout.findViewById<Layer>(R.id.burn_in_layer)?.apply {
-            if (
-                smartspaceViewModel.isSmartspaceEnabled &&
-                    smartspaceViewModel.isDateWeatherDecoupled
-            ) {
+            if (smartspaceViewModel.isSmartspaceEnabled) {
                 val dateView =
                     constraintLayout.requireViewById<View>(sharedR.id.date_smartspace_view)
                 removeView(dateView)

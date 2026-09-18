@@ -15,29 +15,25 @@
  */
 package com.android.server.adb;
 
-/** The AdbConnectionInfo class stores the last known ADBWifi configuration. */
+/** The AdbConnectionInfo class stores the last known ADBWifi network configuration. */
 public class AdbConnectionInfo {
 
     private String mBssid;
     private String mSsid;
-    private int mPort;
 
     AdbConnectionInfo() {
         mBssid = "";
         mSsid = "";
-        mPort = 0;
     }
 
     AdbConnectionInfo(String bssid, String ssid) {
         mBssid = bssid;
         mSsid = ssid;
-        mPort = 0;
     }
 
     synchronized void copy(AdbConnectionInfo other) {
         mBssid = other.mBssid;
         mSsid = other.mSsid;
-        mPort = other.mPort;
     }
 
     public synchronized String getBSSID() {
@@ -48,18 +44,8 @@ public class AdbConnectionInfo {
         return mSsid;
     }
 
-    public synchronized int getPort() {
-        return mPort;
-    }
-
-    public synchronized void setPort(int port) {
-        mPort = port;
-    }
-
-    /** */
     public synchronized void clear() {
         mBssid = "";
         mSsid = "";
-        mPort = 0;
     }
 }

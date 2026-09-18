@@ -73,11 +73,13 @@ import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.qs.flags.QsDetailedView;
 import com.android.systemui.res.R;
+import com.android.systemui.retail.domain.interactor.RetailModeInteractor;
 import com.android.systemui.shade.ShadeDisplayAware;
 import com.android.systemui.shade.domain.interactor.ShadeDialogContextInteractor;
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor;
 import com.android.systemui.statusbar.phone.SystemUIDialog;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
+import com.android.systemui.user.data.repository.UserRepository;
 import com.android.wifitrackerlib.WifiEntry;
 
 import dagger.assisted.Assisted;
@@ -93,7 +95,13 @@ import java.util.concurrent.Executor;
 
 /**
  * Dialog for showing mobile network, connected Wi-Fi network and Wi-Fi networks.
+ *
+ * DEPRECATED: This class is deprecated and will be removed in the future.
+ * Do not make any changes to this file unless strictly necessary for legacy support.
+ *
+ * @deprecated Use {@link InternetDetailsContentManager} instead.
  */
+@Deprecated
 public class InternetDialogDelegateLegacy implements
         SystemUIDialog.Delegate,
         InternetDetailsContentController.InternetDialogCallback {
@@ -211,10 +219,13 @@ public class InternetDialogDelegateLegacy implements
             KeyguardStateController keyguardStateController,
             SystemUIDialog.Factory systemUIDialogFactory,
             ShadeDialogContextInteractor shadeDialogContextInteractor,
-            ShadeModeInteractor shadeModeInteractor) {
+            ShadeModeInteractor shadeModeInteractor,
+            RetailModeInteractor retailModeInteractor,
+            UserRepository userRepository) {
         // TODO (b/393628355): remove this after the details view is supported for single shade.
-        if (shadeModeInteractor.isDualShade()) {
+        if (shadeModeInteractor.isDualShade() && !retailModeInteractor.isInRetailMode()) {
             // If `QsDetailedView` is enabled, it should show the details view.
+            // Will still show the dialog if it's not dual shade mode, or it's in retail mode.
             QsDetailedView.assertInLegacyMode();
         }
 
@@ -238,7 +249,8 @@ public class InternetDialogDelegateLegacy implements
         mCoroutineScope = coroutineScope;
         mUiEventLogger = uiEventLogger;
         mDialogTransitionAnimator = dialogTransitionAnimator;
-        mAdapter = new InternetAdapter(mInternetDetailsContentController, coroutineScope);
+        mAdapter = new InternetAdapter(
+                mInternetDetailsContentController, coroutineScope, false, userRepository);
     }
 
     @Override
@@ -336,7 +348,7 @@ public class InternetDialogDelegateLegacy implements
 
         mLifecycleRegistry.setCurrentState(Lifecycle.State.RESUMED);
 
-        mInternetDetailsContentController.onStart(this, mCanConfigWifi);
+        mInternetDetailsContentController.onStart(this, mCanConfigWifi, mCoroutineScope);
         if (!mCanConfigWifi) {
             hideWifiViews();
         }
@@ -582,13 +594,28 @@ public class InternetDialogDelegateLegacy implements
                         mInternetDetailsContentController.isMobileDataEnabled());
                 mMobileTitleText.setText(getMobileNetworkTitle(mDefaultDataSubId));
                 int activeDataSubId = internetContent.mActiveDataSubId;
+                int autoSwitchNonDdsSubId = internetContent.mActiveAutoSwitchNonDdsSubId;
                 Log.d(TAG, "setMobileDataLayout(), activeDataSubId: " + activeDataSubId
-                        + ", mDefaultDataSubId:" + mDefaultDataSubId);
-                boolean validDataSubId =
-                        activeDataSubId != SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+                        + ", mDefaultDataSubId:" + mDefaultDataSubId
+                        + ", autoSwitchNonDdsSubId: " + autoSwitchNonDdsSubId);
+
+                // SIM Display Logic for Dual SIM Scenarios
+                // There are three case of two SIMs:
+                // 1. Standard: Displays the Active Data SIM only (DDS SIM is the same as active
+                //    data SIM)
+                // 2. Automatic data switching Enabled & Non-DDS is active data:
+                //    Displays DDS SIM and non-DDS SIM.
+                //    - DDS SIM: Displays "Poor connection."
+                //    - Non-DDS SIM: Displays "Temporarily connected."
+                // 3. CBRS SIMs set (Non-DDS CBRS SIM is active data):
+                //    Displays the Active Data SIM only
+                boolean useActiveDataSubId =
+                        activeDataSubId != SubscriptionManager.INVALID_SUBSCRIPTION_ID
+                                && autoSwitchNonDdsSubId
+                                == SubscriptionManager.INVALID_SUBSCRIPTION_ID;
                 mBackgroundExecutor.execute(() -> {
                     String summary = getMobileNetworkSummary(
-                            validDataSubId ? activeDataSubId : mDefaultDataSubId);
+                            useActiveDataSubId ? activeDataSubId : mDefaultDataSubId);
                     mHandler.post(() -> {
                         if (!TextUtils.isEmpty(summary)) {
                             mMobileSummaryText.setText(
@@ -611,7 +638,6 @@ public class InternetDialogDelegateLegacy implements
                         : R.color.disconnected_network_primary_color;
                 mMobileToggleDivider.setBackgroundColor(context.getColor(primaryColor));
                 // Display the info for the non-DDS if it's actively being used
-                int autoSwitchNonDdsSubId = internetContent.mActiveAutoSwitchNonDdsSubId;
 
                 int nonDdsVisibility = autoSwitchNonDdsSubId
                         != SubscriptionManager.INVALID_SUBSCRIPTION_ID ? View.VISIBLE : View.GONE;

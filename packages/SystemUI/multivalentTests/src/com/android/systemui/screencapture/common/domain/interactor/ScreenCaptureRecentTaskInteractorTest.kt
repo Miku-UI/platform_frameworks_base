@@ -27,6 +27,7 @@ import com.android.systemui.mediaprojection.appselector.data.RecentTask
 import com.android.systemui.screencapture.common.data.repository.fakeScreenCaptureRecentTaskRepository
 import com.android.systemui.screencapture.common.domain.model.ScreenCaptureRecentTask
 import com.android.systemui.testKosmosNew
+import com.android.users.UserType
 import com.android.wm.shell.shared.split.SplitBounds
 import com.android.wm.shell.shared.split.SplitScreenConstants
 import com.google.common.truth.Truth.assertThat
@@ -62,9 +63,10 @@ class ScreenCaptureRecentTaskInteractorTest : SysuiTestCase() {
                     userId = 3,
                     topActivityComponent = fakeTopComponent,
                     baseIntentComponent = fakeBaseComponent,
+                    baseIntent = null,
                     colorBackground = 0x99123456.toInt(),
                     isForegroundTask = true,
-                    userType = RecentTask.UserType.STANDARD,
+                    userType = UserType.MAIN,
                     splitBounds = fakeSplitBounds,
                 )
 
@@ -73,8 +75,7 @@ class ScreenCaptureRecentTaskInteractorTest : SysuiTestCase() {
             fakeScreenCaptureRecentTaskRepository.setRecentTasks(fakeTask)
 
             // Assert
-            assertThat(result).hasSize(2)
-            assertThat(result[0]).isNull()
-            assertThat(result[1]).containsExactly(ScreenCaptureRecentTask(task = fakeTask))
+            assertThat(result).hasSize(1)
+            assertThat(result[0]).containsExactly(ScreenCaptureRecentTask(task = fakeTask))
         }
 }

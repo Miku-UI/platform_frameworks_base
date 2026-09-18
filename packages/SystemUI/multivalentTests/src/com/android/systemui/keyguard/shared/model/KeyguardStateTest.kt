@@ -16,11 +16,13 @@
 
 package com.android.systemui.keyguard.shared.model
 
+import android.platform.test.flag.junit.SetFlagsRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.flags.EnableSceneContainer
 import com.google.common.truth.Truth.assertThat
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -28,24 +30,30 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class KeyguardStateTest : SysuiTestCase() {
 
+    @get:Rule val flagsRule: SetFlagsRule = SetFlagsRule()
+
     /**
      * This test makes sure that the result of [deviceIsAwakeInState] are equal for all the states
      * that are obsolete with scene container enabled and UNDEFINED. This means for example that if
      * GONE is transformed to UNDEFINED it makes sure that GONE and UNDEFINED need to have the same
      * value. This assumption is important as with scene container flag enabled call sites will only
      * check the result passing in UNDEFINED.
-     *
-     * This is true today, but as more states may become obsolete this assumption may not be true
-     * anymore and therefore [deviceIsAwakeInState] would need to be rewritten to factor in the
-     * scene state.
      */
     @Test
-    @EnableSceneContainer
     fun assertUndefinedResultMatchesObsoleteStateResults() {
         for (state in KeyguardState.entries) {
+            if (state == KeyguardState.UNDEFINED) {
+                continue
+            }
+            flagsRule.enableFlags(Flags.FLAG_SCENE_CONTAINER)
             val isAwakeInSceneContainer =
-                KeyguardState.deviceIsAwakeInState(state.mapToSceneContainerState())
-            val isAwake = KeyguardState.deviceIsAwakeInState(state)
+                KeyguardState.deviceIsAwakeInState(
+                    state.mapToSceneContainerState(),
+                    state.mapToSceneContainerContent(),
+                )
+
+            flagsRule.disableFlags(Flags.FLAG_SCENE_CONTAINER)
+            val isAwake = KeyguardState.deviceIsAwakeInState(state, null)
             assertThat(isAwakeInSceneContainer).isEqualTo(isAwake)
         }
     }

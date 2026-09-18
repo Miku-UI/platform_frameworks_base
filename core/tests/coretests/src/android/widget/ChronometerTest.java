@@ -35,6 +35,7 @@ import android.app.Activity;
 import android.os.SystemClock;
 import android.test.ActivityInstrumentationTestCase2;
 import android.test.UiThreadTest;
+import android.util.Pair;
 
 import androidx.test.filters.LargeTest;
 
@@ -46,6 +47,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -58,6 +60,8 @@ import java.util.function.Consumer;
 @LargeTest
 public class ChronometerTest extends ActivityInstrumentationTestCase2<ChronometerActivity> {
 
+    private Locale mOriginalLocale;
+
     private Activity mActivity;
     private Chronometer mChronometer;
 
@@ -69,8 +73,17 @@ public class ChronometerTest extends ActivityInstrumentationTestCase2<Chronomete
     protected void setUp() throws Exception {
         super.setUp();
 
+        mOriginalLocale = Locale.getDefault();
+        Locale.setDefault(Locale.ENGLISH);
+
         mActivity = getActivity();
         mChronometer = mActivity.findViewById(R.id.chronometer);
+    }
+
+    @Override
+    protected void tearDown() throws Exception {
+        Locale.setDefault(mOriginalLocale);
+        super.tearDown();
     }
 
     @UiThreadTest
@@ -251,71 +264,6 @@ public class ChronometerTest extends ActivityInstrumentationTestCase2<Chronomete
     }
 
     @UiThreadTest
-    public void testChronometerAdaptiveFormatSignificantParts() {
-        Chronometer chronometer = new Chronometer(mActivity);
-        chronometer.setUseAdaptiveFormat(true);
-        chronometer.setCountDown(true);
-        mActivity.setContentView(chronometer);
-
-        // Days and Hours
-        chronometer.setPausedDuration(Duration.ofDays(2).plusHours(3).plusMinutes(4));
-        assertThat(chronometer.getText().toString()).isEqualTo("2d 3h");
-
-        // Hours and Minutes
-        chronometer.setPausedDuration(Duration.ofHours(3).plusMinutes(4).plusSeconds(5));
-        assertThat(chronometer.getText().toString()).isEqualTo("3h 4m");
-
-        // Minutes and Seconds
-        chronometer.setPausedDuration(Duration.ofMinutes(4).plusSeconds(30));
-        assertThat(chronometer.getText().toString()).isEqualTo("4m");
-
-        chronometer.setPausedDuration(Duration.ofMinutes(4).plusSeconds(5));
-        assertThat(chronometer.getText().toString()).isEqualTo("4m");
-
-        chronometer.setPausedDuration(Duration.ofMinutes(3).plusSeconds(5));
-        assertThat(chronometer.getText().toString()).isEqualTo("3m");
-
-        chronometer.setPausedDuration(Duration.ofMinutes(2).plusSeconds(5));
-        assertThat(chronometer.getText().toString()).isEqualTo("2m 5s");
-
-        chronometer.setPausedDuration(Duration.ofMinutes(2));
-        assertThat(chronometer.getText().toString()).isEqualTo("2m 0s");
-
-        // Only Seconds
-        chronometer.setPausedDuration(Duration.ofSeconds(5));
-        assertThat(chronometer.getText().toString()).isEqualTo("5s");
-
-        // Negative time
-        chronometer.setPausedDuration(Duration.ofSeconds(-5));
-        assertThat(chronometer.getText().toString()).isEqualTo("−5s");
-
-        chronometer.setPausedDuration(Duration.ofMinutes(-1).plusSeconds(-5));
-        assertThat(chronometer.getText().toString()).isEqualTo("−1m 5s");
-
-        chronometer.setPausedDuration(Duration.ofHours(-1).plusMinutes(-5));
-        assertThat(chronometer.getText().toString()).isEqualTo("−1h 5m");
-
-        chronometer.setPausedDuration(Duration.ofDays(-1).plusHours(-5));
-        assertThat(chronometer.getText().toString()).isEqualTo("−1d 5h");
-
-        // Zero seconds
-        chronometer.setPausedDuration(Duration.ZERO);
-        assertThat(chronometer.getText().toString()).isEqualTo("0s");
-
-        chronometer.setPausedDuration(Duration.ofMinutes(4));
-        assertThat(chronometer.getText().toString()).isEqualTo("4m");
-
-        chronometer.setPausedDuration(Duration.ofMinutes(3));
-        assertThat(chronometer.getText().toString()).isEqualTo("3m");
-
-        chronometer.setPausedDuration(Duration.ofMinutes(2));
-        assertThat(chronometer.getText().toString()).isEqualTo("2m 0s");
-
-        chronometer.setPausedDuration(Duration.ofMinutes(1));
-        assertThat(chronometer.getText().toString()).isEqualTo("1m 0s");
-    }
-
-    @UiThreadTest
     public void testScheduledTicks() {
         long base = SystemClock.elapsedRealtime();
 
@@ -376,6 +324,58 @@ public class ChronometerTest extends ActivityInstrumentationTestCase2<Chronomete
                 /* expectedDelay= */ 400);
     }
 
+    @UiThreadTest
+    public void testLowFrequencyMode_ChronometerFormat() throws Throwable {
+        long baseTime = SystemClock.elapsedRealtime();
+        final List<Pair<Long, String>> testCases = Arrays.asList(
+                Pair.create(baseTime - 2 * 3600 * 1000 - 330 * 1000, "−2:05:--"),
+                Pair.create(baseTime - 2 * 3600 * 1000, "−2:00:--"),
+                Pair.create(baseTime - 330 * 1000, "−05:--"),
+                Pair.create(baseTime - 90 * 1000, "−01:--"),
+                Pair.create(baseTime - 60 * 1000, "−01:--"),
+                Pair.create(baseTime - 59 * 1000, "−00:--"),
+                Pair.create(baseTime - 30 * 1000, "−00:--"),
+                Pair.create(baseTime + 30 * 1000, "00:--"),
+                Pair.create(baseTime + 59 * 1000, "00:--"),
+                Pair.create(baseTime + 60 * 1000, "01:--"),
+                Pair.create(baseTime + 90 * 1000, "01:--"),
+                Pair.create(baseTime + 330 * 1000, "05:--"),
+                Pair.create(baseTime + 2 * 3600 * 1000, "2:00:--"),
+                Pair.create(baseTime + 2 * 3600 * 1000 + 330 * 1000, "2:05:--")
+        );
+        testChronometerTicks(Instant.ofEpochMilli(baseTime), chronometer -> {
+            chronometer.setBase(baseTime);
+            chronometer.setLowFrequency(true);
+        }, testCases);
+    }
+
+    @UiThreadTest
+    public void testLowFrequencyMode_AdaptiveFormat() throws Throwable {
+        long baseTime = SystemClock.elapsedRealtime();
+        final List<Pair<Long, String>> testCases = Arrays.asList(
+                Pair.create(baseTime - 2 * 3600 * 1000 - 330 * 1000, "−2h 5m"),
+                Pair.create(baseTime - 2 * 3600 * 1000, "−2h"),
+                Pair.create(baseTime - 330 * 1000, "−5m"),
+                Pair.create(baseTime - 90 * 1000, "−1m"),
+                Pair.create(baseTime - 60 * 1000, "−1m"),
+                Pair.create(baseTime - 59 * 1000, "~ −1m"),
+                Pair.create(baseTime - 30 * 1000, "~ −1m"),
+                Pair.create(baseTime + 30 * 1000, "~ 1m"),
+                Pair.create(baseTime + 59 * 1000, "~ 1m"),
+                Pair.create(baseTime + 60 * 1000, "1m"),
+                Pair.create(baseTime + 90 * 1000, "1m"),
+                Pair.create(baseTime + 330 * 1000, "5m"),
+                Pair.create(baseTime + 2 * 3600 * 1000, "2h"),
+                Pair.create(baseTime + 2 * 3600 * 1000 + 330 * 1000, "2h 5m")
+        );
+        testChronometerTicks(Instant.ofEpochMilli(baseTime), chronometer -> {
+            chronometer.setBase(baseTime);
+            chronometer.setLowFrequency(true);
+            chronometer.setUseAdaptiveFormat(true);
+            chronometer.setCountDown(false);
+        }, testCases);
+    }
+
     private void verifyNextTickScheduledIn(boolean adaptive, boolean countdown, long base, long now,
             long expectedDelay) {
         AtomicLong elapsedRealtime = new AtomicLong(0);
@@ -396,6 +396,28 @@ public class ChronometerTest extends ActivityInstrumentationTestCase2<Chronomete
         // Chronometer adds a small delay to prevent transitions *exactly* on the time, but for
         // testing it's better to hide this.
         verify(chronometer).postDelayed(any(), eq(expectedDelay + 3));
+    }
+
+    private void testChronometerTicks(
+            Instant clockSystemNow,
+            Consumer<Chronometer> chronometerConfigurator,
+            List<Pair<Long, String>> testCases) throws Throwable {
+
+        var clocks = new Object() {
+            Instant systemNow = clockSystemNow;
+            long elapsedRealtime = 1000L;
+        };
+
+        Chronometer chronometer = new Chronometer(mActivity, () -> clocks.elapsedRealtime,
+                () -> clocks.systemNow, null, 0, 0);
+        chronometerConfigurator.accept(chronometer);
+        mActivity.setContentView(chronometer);
+
+        for (Pair<Long, String> testCase : testCases) {
+            clocks.elapsedRealtime = testCase.first;
+            chronometer.updateText();
+            assertThat(chronometer.getText().toString()).isEqualTo(testCase.second);
+        }
     }
 
     private void testChronometerTicks(

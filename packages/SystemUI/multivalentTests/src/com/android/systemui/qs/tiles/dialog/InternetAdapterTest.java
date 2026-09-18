@@ -16,6 +16,8 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.testing.TestableLooper;
 import android.testing.TestableResources;
@@ -27,12 +29,11 @@ import androidx.test.filters.SmallTest;
 import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.flags.SceneContainerFlagParameterizationKt;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.qs.flags.QsDetailedView;
-import com.android.systemui.qs.flags.QsWifiConfig;
 import com.android.systemui.res.R;
 import com.android.wifitrackerlib.WifiEntry;
 
-import kotlinx.coroutines.CoroutineScope;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -59,13 +60,12 @@ public class InternetAdapterTest extends SysuiTestCase {
     private static final String WIFI_SUMMARY = "Wi-Fi Summary";
     private static final int GEAR_ICON_RES_ID = R.drawable.ic_settings_24dp;
     private static final int LOCK_ICON_RES_ID = R.drawable.ic_friction_lock_closed;
+    private static final int SHARED_ICON_RES_ID = R.drawable.ic_group_24dp;
 
     @Rule
     public MockitoRule mRule = MockitoJUnit.rule();
     @Spy
     private Context mSpyContext = mContext;
-    @Mock
-    CoroutineScope mScope;
 
     @Mock
     private WifiEntry mInternetWifiEntry;
@@ -81,15 +81,19 @@ public class InternetAdapterTest extends SysuiTestCase {
     private Drawable mGearIcon;
     @Mock
     private Drawable mLockIcon;
+    @Mock
+    private Drawable mSharedIcon;
 
     private TestableResources mTestableResources;
     private InternetAdapter mInternetAdapter;
     private InternetAdapter.InternetViewHolder mViewHolder;
+    private KosmosJavaAdapter mKosmos;
 
     @Parameters(name = "{0}")
     public static List<FlagsParameterization> getParams() {
         List<FlagsParameterization> aconfigCombinations = allCombinationsOf(
                 Flags.FLAG_QS_WIFI_CONFIG,
+                Flags.FLAG_QS_WIFI_MULTIUSER,
                 Flags.FLAG_QS_TILE_DETAILED_VIEW
         );
 
@@ -116,9 +120,16 @@ public class InternetAdapterTest extends SysuiTestCase {
         when(mWifiDrawable.mutate()).thenReturn(mWifiDrawable);
         when(mGearIcon.mutate()).thenReturn(mGearIcon);
         when(mLockIcon.mutate()).thenReturn(mLockIcon);
+        when(mSharedIcon.mutate()).thenReturn(mSharedIcon);
 
-        mInternetAdapter = new InternetAdapter(mInternetDetailsContentController, mScope,
-                QsDetailedView.isEnabled());
+        mTestableResources.addOverride(GEAR_ICON_RES_ID, mGearIcon);
+        mTestableResources.addOverride(LOCK_ICON_RES_ID, mLockIcon);
+        mTestableResources.addOverride(SHARED_ICON_RES_ID, mSharedIcon);
+
+        mKosmos = new KosmosJavaAdapter(this);
+        mInternetAdapter = new InternetAdapter(mInternetDetailsContentController,
+            mKosmos.getTestScope(), QsDetailedView.isEnabled(),
+            mKosmos.getFakeUserRepository());
         mViewHolder = mInternetAdapter.onCreateViewHolder(new LinearLayout(mContext), 0);
         mInternetAdapter.setWifiEntries(Arrays.asList(mWifiEntry), 1 /* wifiEntriesCount */);
     }
@@ -140,7 +151,10 @@ public class InternetAdapterTest extends SysuiTestCase {
         assertThat(mViewHolder.mWifiTitleText.getVisibility()).isEqualTo(View.VISIBLE);
         assertThat(mViewHolder.mWifiSummaryText.getVisibility()).isEqualTo(View.VISIBLE);
         assertThat(mViewHolder.mWifiIcon.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mViewHolder.mWifiEndIcon.getVisibility()).isEqualTo(View.GONE);
+        assertThat(mViewHolder.mFirstWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
+        assertThat(mViewHolder.mSecondWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
     }
 
     @Test
@@ -151,7 +165,10 @@ public class InternetAdapterTest extends SysuiTestCase {
         assertThat(mViewHolder.mWifiTitleText.getVisibility()).isEqualTo(View.VISIBLE);
         assertThat(mViewHolder.mWifiSummaryText.getVisibility()).isEqualTo(View.VISIBLE);
         assertThat(mViewHolder.mWifiIcon.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mViewHolder.mWifiEndIcon.getVisibility()).isEqualTo(View.VISIBLE);
+        assertThat(mViewHolder.mFirstWifiEndIcon.getVisibility())
+                .isEqualTo(View.VISIBLE);
+        assertThat(mViewHolder.mSecondWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
     }
 
     @Test
@@ -289,39 +306,196 @@ public class InternetAdapterTest extends SysuiTestCase {
 
     @Test
     public void viewHolderUpdateEndIcon_wifiConnected_updateGearIcon() {
-        mTestableResources.addOverride(GEAR_ICON_RES_ID, mGearIcon);
+        when(mInternetWifiEntry.getConnectedState()).thenReturn(
+                WifiEntry.CONNECTED_STATE_CONNECTED);
+        when(mInternetWifiEntry.getSecurity()).thenReturn(
+                WifiEntry.SECURITY_PSK);
 
-        mViewHolder.updateEndIcon(WifiEntry.CONNECTED_STATE_CONNECTED, WifiEntry.SECURITY_PSK);
+        mViewHolder.updateEndIcons(
+                mInternetWifiEntry,
+                false /*mHasMultipleFullUsers*/);
 
-        assertThat(mViewHolder.mWifiEndIcon.getDrawable()).isEqualTo(mGearIcon);
+        assertThat(mViewHolder.mFirstWifiEndIcon.getDrawable())
+                .isEqualTo(mGearIcon);
+        assertThat(mViewHolder.mSecondWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
     }
 
     @Test
     public void viewHolderUpdateEndIcon_wifiDisconnectedAndSecurityPsk_updateLockIcon() {
-        mTestableResources.addOverride(LOCK_ICON_RES_ID, mLockIcon);
+        when(mInternetWifiEntry.getConnectedState()).thenReturn(
+                WifiEntry.CONNECTED_STATE_DISCONNECTED);
+        when(mInternetWifiEntry.getSecurity()).thenReturn(
+                WifiEntry.SECURITY_PSK);
 
-        mViewHolder.updateEndIcon(WifiEntry.CONNECTED_STATE_DISCONNECTED, WifiEntry.SECURITY_PSK);
+        mViewHolder.updateEndIcons(
+                mInternetWifiEntry,
+                false /*mHasMultipleFullUsers*/);
 
-        assertThat(mViewHolder.mWifiEndIcon.getDrawable()).isEqualTo(mLockIcon);
+        assertThat(mViewHolder.mFirstWifiEndIcon.getDrawable())
+                .isEqualTo(mLockIcon);
+        assertThat(mViewHolder.mSecondWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
     }
 
     @Test
     public void viewHolderUpdateEndIcon_wifiDisconnectedAndSecurityNone_hideIcon() {
-        mViewHolder.updateEndIcon(WifiEntry.CONNECTED_STATE_DISCONNECTED, WifiEntry.SECURITY_NONE);
+        when(mInternetWifiEntry.getConnectedState()).thenReturn(
+                WifiEntry.CONNECTED_STATE_DISCONNECTED);
+        when(mInternetWifiEntry.getSecurity()).thenReturn(
+                WifiEntry.SECURITY_NONE);
 
-        assertThat(mViewHolder.mWifiEndIcon.getVisibility()).isEqualTo(View.GONE);
+        mViewHolder.updateEndIcons(
+                mInternetWifiEntry,
+                false /*mHasMultipleFullUsers*/);
+
+        assertThat(mViewHolder.mFirstWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
+        assertThat(mViewHolder.mSecondWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
     }
 
     @Test
+    @DisableFlags({Flags.FLAG_QS_WIFI_CONFIG, Flags.FLAG_QS_WIFI_MULTIUSER})
+    public void viewHolderUpdateEndIcon_qsWifiConfigFlagDisabled_hideSharedIcon() {
+        when(mInternetWifiEntry.isSharedWithOtherUsers()).thenReturn(true);
+        when(mInternetWifiEntry.getConnectedState()).thenReturn(
+                WifiEntry.CONNECTED_STATE_DISCONNECTED);
+        when(mInternetWifiEntry.getSecurity()).thenReturn(
+                WifiEntry.SECURITY_NONE);
+
+        mViewHolder.updateEndIcons(
+                mInternetWifiEntry,
+                true /*mHasMultipleFullUsers*/);
+
+        assertThat(mViewHolder.mFirstWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
+        assertThat(mViewHolder.mSecondWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_QS_TILE_DETAILED_VIEW)
+    public void viewHolderUpdateEndIcon_qsTileDetailedViewFlagDisabled_hideSharedIcon() {
+        when(mInternetWifiEntry.isSharedWithOtherUsers()).thenReturn(true);
+        when(mInternetWifiEntry.getConnectedState()).thenReturn(
+                WifiEntry.CONNECTED_STATE_DISCONNECTED);
+        when(mInternetWifiEntry.getSecurity()).thenReturn(
+                WifiEntry.SECURITY_NONE);
+
+        mViewHolder.updateEndIcons(
+                mInternetWifiEntry,
+                true /*mHasMultipleFullUsers*/);
+
+        assertThat(mViewHolder.mFirstWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
+        assertThat(mViewHolder.mSecondWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
+    }
+
+    @Test
+    @EnableFlags({Flags.FLAG_QS_WIFI_MULTIUSER, Flags.FLAG_QS_TILE_DETAILED_VIEW})
+    public void viewHolderUpdateEndIcon_wifiShared_singleUser_hideSharedIcon() {
+        when(mInternetWifiEntry.isSharedWithOtherUsers()).thenReturn(true);
+        when(mInternetWifiEntry.getConnectedState()).thenReturn(
+                WifiEntry.CONNECTED_STATE_DISCONNECTED);
+        when(mInternetWifiEntry.getSecurity()).thenReturn(
+                WifiEntry.SECURITY_NONE);
+
+        mViewHolder.updateEndIcons(
+                mInternetWifiEntry,
+                false /*mHasMultipleFullUsers*/);
+
+        assertThat(mViewHolder.mFirstWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
+        assertThat(mViewHolder.mSecondWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
+    }
+
+    @Test
+    @EnableFlags({Flags.FLAG_QS_WIFI_MULTIUSER, Flags.FLAG_QS_TILE_DETAILED_VIEW})
+    public void viewHolderUpdateEndIcon_wifiConnectedAndShared_hideSharedIcon() {
+        when(mInternetWifiEntry.isSharedWithOtherUsers()).thenReturn(true);
+        when(mInternetWifiEntry.getConnectedState()).thenReturn(
+                WifiEntry.CONNECTED_STATE_CONNECTED);
+        when(mInternetWifiEntry.getSecurity()).thenReturn(
+                WifiEntry.SECURITY_NONE);
+
+        mViewHolder.updateEndIcons(
+                mInternetWifiEntry,
+                true /*mHasMultipleFullUsers*/);
+
+        assertThat(mViewHolder.mFirstWifiEndIcon.getDrawable())
+                .isNotEqualTo(mSharedIcon);
+        assertThat(mViewHolder.mSecondWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
+    }
+
+    @Test
+    @EnableFlags({Flags.FLAG_QS_WIFI_MULTIUSER, Flags.FLAG_QS_TILE_DETAILED_VIEW})
+    public void viewHolderUpdateEndIcon_wifiDisconnectedAndShared_showSharedIcon() {
+        when(mInternetWifiEntry.isSharedWithOtherUsers()).thenReturn(true);
+        when(mInternetWifiEntry.getConnectedState()).thenReturn(
+                WifiEntry.CONNECTED_STATE_DISCONNECTED);
+        when(mInternetWifiEntry.getSecurity()).thenReturn(
+                WifiEntry.SECURITY_NONE);
+
+        mViewHolder.updateEndIcons(
+                mInternetWifiEntry,
+                true /*mHasMultipleFullUsers*/);
+
+        assertThat(mViewHolder.mFirstWifiEndIcon.getDrawable())
+                .isEqualTo(mSharedIcon);
+        assertThat(mViewHolder.mSecondWifiEndIcon.getVisibility())
+                .isEqualTo(View.GONE);
+    }
+
+    @Test
+    @EnableFlags({Flags.FLAG_QS_WIFI_MULTIUSER, Flags.FLAG_QS_TILE_DETAILED_VIEW})
+    public void viewHolderUpdateEndIcon_wifiSharedAndSecurityPsk_showSharedAndLockIcon() {
+        when(mInternetWifiEntry.isSharedWithOtherUsers()).thenReturn(true);
+        when(mInternetWifiEntry.getConnectedState()).thenReturn(
+                WifiEntry.CONNECTED_STATE_DISCONNECTED);
+        when(mInternetWifiEntry.getSecurity()).thenReturn(
+                WifiEntry.SECURITY_PSK);
+
+        mViewHolder.updateEndIcons(
+                mInternetWifiEntry,
+                true /*mHasMultipleFullUsers*/);
+
+        assertThat(mViewHolder.mFirstWifiEndIcon.getDrawable())
+                .isEqualTo(mSharedIcon);
+        assertThat(mViewHolder.mSecondWifiEndIcon.getDrawable())
+                .isEqualTo(mLockIcon);
+    }
+
+    @Test
+    @DisableFlags({Flags.FLAG_QS_WIFI_CONFIG, Flags.FLAG_QS_WIFI_MULTIUSER})
+    public void setShowAllWifi_qsWifiConfigFlagDisabled_returnWifiEntriesCount() {
+        int wifiEntryCount = MAX_WIFI_ENTRY_COUNT * 2;
+        when(mWifiEntries.size()).thenReturn(wifiEntryCount);
+        mInternetAdapter.setShowAllWifi();
+        mInternetAdapter.setWifiEntries(mWifiEntries, wifiEntryCount);
+        assertThat(mInternetAdapter.getItemCount()).isEqualTo(MAX_WIFI_ENTRY_COUNT);
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_QS_TILE_DETAILED_VIEW)
+    public void setShowAllWifi_qsTileDetailedViewFlagDisabled_returnWifiEntriesCount() {
+        int wifiEntryCount = MAX_WIFI_ENTRY_COUNT * 2;
+        when(mWifiEntries.size()).thenReturn(wifiEntryCount);
+        mInternetAdapter.setShowAllWifi();
+        mInternetAdapter.setWifiEntries(mWifiEntries, wifiEntryCount);
+        assertThat(mInternetAdapter.getItemCount()).isEqualTo(MAX_WIFI_ENTRY_COUNT);
+    }
+
+    @Test
+    @EnableFlags({Flags.FLAG_QS_WIFI_MULTIUSER, Flags.FLAG_QS_TILE_DETAILED_VIEW})
     public void setShowAllWifi_returnWifiEntriesCount() {
         int wifiEntryCount = MAX_WIFI_ENTRY_COUNT * 2;
         when(mWifiEntries.size()).thenReturn(wifiEntryCount);
         mInternetAdapter.setShowAllWifi();
         mInternetAdapter.setWifiEntries(mWifiEntries, wifiEntryCount);
-        if (QsWifiConfig.isEnabled()) {
-            assertThat(mInternetAdapter.getItemCount()).isEqualTo(wifiEntryCount);
-        } else {
-            assertThat(mInternetAdapter.getItemCount()).isEqualTo(MAX_WIFI_ENTRY_COUNT);
-        }
+        assertThat(mInternetAdapter.getItemCount()).isEqualTo(wifiEntryCount);
     }
 }

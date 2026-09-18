@@ -19,6 +19,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.hardware.display.DisplayManager;
 import android.os.Handler;
@@ -46,6 +47,8 @@ public class SysuiTestableContext extends TestableContext {
     private final Map<UserHandle, Context> mContextForUser = new HashMap<>();
     private final Map<String, Context> mContextForPackage = new HashMap<>();
     private final Map<Pair<String, UserHandle>, Context> mContextForPackageUser = new HashMap<>();
+
+    private boolean mIgnoreUnregisterReceiverExceptions = false;
 
     @Nullable
     private Display mCustomDisplay;
@@ -184,7 +187,24 @@ public class SysuiTestableContext extends TestableContext {
                 mRegisteredReceivers.remove(receiver);
             }
         }
-        super.unregisterReceiver(receiver);
+        if (mIgnoreUnregisterReceiverExceptions) {
+            try {
+                super.unregisterReceiver(receiver);
+            } catch (IllegalArgumentException e) {
+                // b/22852700 - RemoteViews with DateTimeView can be finicky when the context isn't
+                // set up perfectly, so let's avoid crashing the test due to "Receiver not
+                // registered" type errors.
+                Log.e("SysuiTestableContext",
+                        "Receiver " + receiver + " not unregistered from Context: "
+                                + e.getMessage());
+            }
+        } else {
+            super.unregisterReceiver(receiver);
+        }
+    }
+
+    public void setIgnoreUnregisterReceiverExceptions(boolean ignoreUnregisterReceiverExceptions) {
+        mIgnoreUnregisterReceiverExceptions = ignoreUnregisterReceiverExceptions;
     }
 
     /**
@@ -241,5 +261,15 @@ public class SysuiTestableContext extends TestableContext {
             return packageUserContext;
         }
         return super.createPackageContextAsUser(packageName, flags, user);
+    }
+
+    @Override
+    public Context createApplicationContext(ApplicationInfo application, int flags)
+            throws PackageManager.NameNotFoundException {
+        Context packageContext = mContextForPackage.get(application.packageName);
+        if (packageContext != null) {
+            return packageContext;
+        }
+        return super.createApplicationContext(application, flags);
     }
 }

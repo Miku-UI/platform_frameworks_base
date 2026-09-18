@@ -11,6 +11,8 @@ import com.android.systemui.biometrics.domain.interactor.promptSelectorInteracto
 import com.android.systemui.biometrics.promptInfo
 import com.android.systemui.biometrics.shared.model.BiometricModalities
 import com.android.systemui.biometrics.shared.model.PromptKind
+import com.android.systemui.biometrics.ui.biometricPromptLogoProvider
+import com.android.systemui.display.domain.interactor.displayStateInteractor
 import com.android.systemui.haptics.msdl.msdlPlayer
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.shade.domain.interactor.shadeInteractor
@@ -30,6 +32,7 @@ import org.junit.runner.RunWith
 private const val USER_ID = 9
 private const val REQUEST_ID = 9L
 private const val OPERATION_ID = 10L
+private const val OP_PACKAGE_NAME = "biometric.testapp"
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -52,6 +55,8 @@ class CredentialViewModelTest : SysuiTestCase() {
                 kosmos.shadeInteractor,
                 kosmos.promptSelectorInteractor,
                 kosmos.msdlPlayer,
+                kosmos.displayStateInteractor,
+                kosmos.biometricPromptLogoProvider,
             )
 
         kosmos.testScope.runCurrent()
@@ -195,6 +200,7 @@ class CredentialViewModelTest : SysuiTestCase() {
                 REQUEST_ID,
                 OPERATION_ID,
                 kind,
+                OP_PACKAGE_NAME,
             )
             block()
         }

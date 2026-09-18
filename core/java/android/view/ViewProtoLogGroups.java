@@ -41,6 +41,8 @@ public final class ViewProtoLogGroups {
             "INPUT_METHOD_MANAGER", "InputMethodManager", false /* logToLogcat */);
     public static final ProtoLogGroup INPUT_METHOD_MANAGER_WITH_LOGCAT = new ProtoLogGroup(
             "INPUT_METHOD_MANAGER_LOGCAT", "InputMethodManager", true /* logToLogcat */);
+    public static final ProtoLogGroup SURFACE_CONTROL_REGISTRY = new ProtoLogGroup(
+            "SURFACE_CONTROL_REGISTRY", "SurfaceControlRegistry", true /* logToLogcat */);
 
     static final ProtoLogGroup[] ALL_GROUPS = {
             IME_INSETS_CONTROLLER,
@@ -49,6 +51,7 @@ public final class ViewProtoLogGroups {
             IME_TRACKER,
             INPUT_METHOD_MANAGER_WITH_LOGCAT,
             INPUT_METHOD_MANAGER_DEBUG,
+            SURFACE_CONTROL_REGISTRY,
     };
 }
 

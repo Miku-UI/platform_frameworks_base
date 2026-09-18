@@ -21,8 +21,12 @@ import android.app.admin.devicePolicyManager
 import android.app.role.RoleManager
 import android.app.role.roleManager
 import android.app.supervision.SupervisionManager
+import android.app.supervision.flags.Flags
 import android.content.ComponentName
+import android.content.pm.UserInfo
 import android.os.UserHandle
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.SetFlagsRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -50,8 +54,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.junit.MockitoJUnit
 import org.mockito.junit.MockitoRule
+import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.never
+import org.mockito.kotlin.reset
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoMoreInteractions
 import org.mockito.kotlin.whenever
@@ -94,7 +102,10 @@ class SupervisionRepositoryImplTest : SysuiTestCase() {
 
             assertNotNull(currentSupervisionModel)
             verify(supervisionManager)
-                .registerSupervisionListener(supervisionListenerCaptor.capture())
+                .registerSupervisionListenerForUser(
+                    eq(USER_ID),
+                    supervisionListenerCaptor.capture(),
+                )
             verify(supervisionManager).isSupervisionEnabledForUser(eq(USER_ID))
 
             supervisionListenerCaptor.lastValue.onSupervisionDisabled(USER_ID)
@@ -110,7 +121,10 @@ class SupervisionRepositoryImplTest : SysuiTestCase() {
 
             assertNotNull(currentSupervisionModel)
             verify(supervisionManager)
-                .registerSupervisionListener(supervisionListenerCaptor.capture())
+                .registerSupervisionListenerForUser(
+                    eq(USER_ID),
+                    supervisionListenerCaptor.capture(),
+                )
             verify(supervisionManager).isSupervisionEnabledForUser(eq(USER_ID))
 
             supervisionListenerCaptor.lastValue.onSupervisionEnabled(USER_ID)
@@ -120,13 +134,17 @@ class SupervisionRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SUPERVISION_SETTINGS_UI_UPDATES)
     fun getProperties_returnsGenericPinSupervisionResources() =
         testScope.runTest {
             val currentSupervisionModel by collectLastValue(underTest.supervision)
 
             assertNotNull(currentSupervisionModel)
             verify(supervisionManager)
-                .registerSupervisionListener(supervisionListenerCaptor.capture())
+                .registerSupervisionListenerForUser(
+                    eq(USER_ID),
+                    supervisionListenerCaptor.capture(),
+                )
             verify(supervisionManager).isSupervisionEnabledForUser(eq(USER_ID))
 
             whenever(
@@ -166,13 +184,17 @@ class SupervisionRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SUPERVISION_SETTINGS_UI_UPDATES)
     fun getProperties_returnsParentalControlsResources() =
         testScope.runTest {
             val currentSupervisionModel by collectLastValue(underTest.supervision)
 
             assertNotNull(currentSupervisionModel)
             verify(supervisionManager)
-                .registerSupervisionListener(supervisionListenerCaptor.capture())
+                .registerSupervisionListenerForUser(
+                    eq(USER_ID),
+                    supervisionListenerCaptor.capture(),
+                )
             verify(supervisionManager).isSupervisionEnabledForUser(eq(USER_ID))
 
             whenever(
@@ -195,9 +217,9 @@ class SupervisionRepositoryImplTest : SysuiTestCase() {
             val expectedLabel = context.getString(R.string.status_bar_supervision)
             val expectedIcon = context.getDrawable(R.drawable.ic_supervision)
             val expectedDisclaimerText =
-                context.getString(R.string.monitoring_description_parental_controls)
+                context.getString(R.string.monitoring_description_parental_controls_legacy)
             val expectedFooterText =
-                context.getString(R.string.quick_settings_disclosure_parental_controls)
+                context.getString(R.string.quick_settings_disclosure_parental_controls_legacy)
             assertEquals(expectedLabel, currentSupervisionModel!!.label)
             assertTrue(currentSupervisionModel!!.icon.toBitmap()!!.sameAs(expectedIcon.toBitmap()))
             assertEquals(expectedDisclaimerText, currentSupervisionModel!!.disclaimerText)
@@ -212,13 +234,17 @@ class SupervisionRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SUPERVISION_SETTINGS_UI_UPDATES)
     fun getProperties_isSupervisionProfileOwner_returnsParentalControlsResources() =
         testScope.runTest {
             val currentSupervisionModel by collectLastValue(underTest.supervision)
 
             assertNotNull(currentSupervisionModel)
             verify(supervisionManager)
-                .registerSupervisionListener(supervisionListenerCaptor.capture())
+                .registerSupervisionListenerForUser(
+                    eq(USER_ID),
+                    supervisionListenerCaptor.capture(),
+                )
             verify(supervisionManager).isSupervisionEnabledForUser(eq(USER_ID))
 
             whenever(
@@ -249,9 +275,9 @@ class SupervisionRepositoryImplTest : SysuiTestCase() {
             val expectedLabel = context.getString(R.string.status_bar_supervision)
             val expectedIcon = context.getDrawable(R.drawable.ic_supervision)
             val expectedDisclaimerText =
-                context.getString(R.string.monitoring_description_parental_controls)
+                context.getString(R.string.monitoring_description_parental_controls_legacy)
             val expectedFooterText =
-                context.getString(R.string.quick_settings_disclosure_parental_controls)
+                context.getString(R.string.quick_settings_disclosure_parental_controls_legacy)
             assertEquals(expectedLabel, currentSupervisionModel!!.label)
             assertTrue(currentSupervisionModel!!.icon.toBitmap()!!.sameAs(expectedIcon.toBitmap()))
             assertEquals(expectedDisclaimerText, currentSupervisionModel!!.disclaimerText)
@@ -266,13 +292,46 @@ class SupervisionRepositoryImplTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(Flags.FLAG_ENABLE_SUPERVISION_SETTINGS_UI_UPDATES)
+    fun getProperties_uiUpdatesEnabled_returnsNewParentalControlsResources() =
+        testScope.runTest {
+            val currentSupervisionModel by collectLastValue(underTest.supervision)
+
+            assertNotNull(currentSupervisionModel)
+            verify(supervisionManager)
+                .registerSupervisionListenerForUser(
+                    eq(USER_ID),
+                    supervisionListenerCaptor.capture(),
+                )
+            verify(supervisionManager).isSupervisionEnabledForUser(eq(USER_ID))
+
+            supervisionListenerCaptor.lastValue.onSupervisionEnabled(USER_ID)
+
+            val expectedLabel = context.getString(R.string.status_bar_supervision)
+            val expectedIcon = context.getDrawable(R.drawable.ic_pin_supervision)
+            val expectedDisclaimerText =
+                context.getString(R.string.monitoring_description_parental_controls)
+            val expectedFooterText =
+                context.getString(R.string.quick_settings_disclosure_parental_controls)
+            assertEquals(expectedLabel, currentSupervisionModel!!.label)
+            assertTrue(currentSupervisionModel!!.icon.toBitmap()!!.sameAs(expectedIcon.toBitmap()))
+            assertEquals(expectedDisclaimerText, currentSupervisionModel!!.disclaimerText)
+            assertEquals(expectedFooterText, currentSupervisionModel!!.footerText)
+
+            verify(roleManager, never()).getRoleHoldersAsUser(any(), any())
+        }
+
+    @Test
     fun getProperties_supervisionIsDisabled_returnsNull() =
         testScope.runTest {
             val currentSupervisionModel by collectLastValue(underTest.supervision)
 
             assertNotNull(currentSupervisionModel)
             verify(supervisionManager)
-                .registerSupervisionListener(supervisionListenerCaptor.capture())
+                .registerSupervisionListenerForUser(
+                    eq(USER_ID),
+                    supervisionListenerCaptor.capture(),
+                )
             verify(supervisionManager).isSupervisionEnabledForUser(eq(USER_ID))
 
             whenever(
@@ -297,6 +356,56 @@ class SupervisionRepositoryImplTest : SysuiTestCase() {
             assertNull(currentSupervisionModel!!.disclaimerText)
             assertNull(currentSupervisionModel!!.footerText)
         }
+
+    @Test
+    fun unregisterSupervisionListenerOnUserSwitch() =
+        testScope.runTest {
+            val userCount = 2
+            val userInfos = createUserInfos(userCount)
+            val primaryUserInfo = userInfos[0]
+            val secondaryUserInfo = userInfos[1]
+            userRepository.setUserInfos(userInfos)
+            reset(supervisionManager)
+
+            val currentSupervisionModel by collectLastValue(underTest.supervision)
+
+            verify(supervisionManager)
+                .registerSupervisionListenerForUser(
+                    eq(primaryUserInfo.id),
+                    supervisionListenerCaptor.capture(),
+                )
+            assertNotNull(currentSupervisionModel)
+            verify(supervisionManager).isSupervisionEnabledForUser(eq(primaryUserInfo.id))
+
+            userRepository.setSelectedUserInfo(secondaryUserInfo)
+            verify(supervisionManager)
+                .unregisterSupervisionListener(supervisionListenerCaptor.lastValue)
+            verify(supervisionManager)
+                .registerSupervisionListenerForUser(
+                    eq(secondaryUserInfo.id),
+                    supervisionListenerCaptor.capture(),
+                )
+            assertNotNull(currentSupervisionModel)
+            verify(supervisionManager).isSupervisionEnabledForUser(eq(secondaryUserInfo.id))
+        }
+
+    private fun createUserInfos(count: Int): List<UserInfo> {
+        return (0 until count).map { index ->
+            createUserInfo(id = index, name = "user_$index", isPrimary = index == 0)
+        }
+    }
+
+    private fun createUserInfo(id: Int, name: String, isPrimary: Boolean = false): UserInfo =
+        UserInfo(
+            id,
+            name,
+            /* iconPath= */ "",
+            /* flags= */ if (isPrimary) {
+                UserInfo.FLAG_MAIN or UserInfo.FLAG_ADMIN or UserInfo.FLAG_FULL
+            } else {
+                UserInfo.FLAG_FULL
+            },
+        )
 
     companion object {
         const val USER_ID = FakeUserRepository.DEFAULT_SELECTED_USER

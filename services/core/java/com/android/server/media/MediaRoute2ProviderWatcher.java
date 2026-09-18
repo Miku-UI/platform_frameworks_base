@@ -17,9 +17,7 @@
 package com.android.server.media;
 
 import static android.content.pm.PackageManager.GET_RESOLVED_FILTER;
-import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 
-import android.Manifest;
 import android.annotation.NonNull;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -92,9 +90,6 @@ final class MediaRoute2ProviderWatcher {
             filter.addAction(Intent.ACTION_PACKAGE_REMOVED);
             filter.addAction(Intent.ACTION_PACKAGE_CHANGED);
             filter.addAction(Intent.ACTION_PACKAGE_REPLACED);
-            if (!Flags.enablePreventionOfKeepAliveRouteProviders()) {
-                filter.addAction(Intent.ACTION_PACKAGE_RESTARTED);
-            }
             filter.addDataScheme("package");
             mContext.registerReceiverAsUser(mScanPackagesReceiver,
                     new UserHandle(mUserId), filter, null, mHandler);
@@ -140,18 +135,13 @@ final class MediaRoute2ProviderWatcher {
                         String category = categoriesIterator.next();
                         isSelfScanOnlyProvider |=
                                 MediaRoute2ProviderService.CATEGORY_SELF_SCAN_ONLY.equals(category);
-                        supportsSystemMediaRouting |=
-                                MediaRoute2ProviderService.CATEGORY_SYSTEM_MEDIA.equals(category);
                     }
                 }
                 int sourceIndex = findProvider(serviceInfo.packageName, serviceInfo.name);
                 if (sourceIndex < 0) {
+                    // TODO: b/479156700 - Guard system media routing behind a "privileged routing"
+                    // permission.
                     supportsSystemMediaRouting &= Flags.enableMirroringInMediaRouter2();
-                    supportsSystemMediaRouting &=
-                            mPackageManager.checkPermission(
-                                            Manifest.permission.MODIFY_AUDIO_ROUTING,
-                                            serviceInfo.packageName)
-                                    == PERMISSION_GRANTED;
                     MediaRoute2ProviderServiceProxy proxy =
                             new MediaRoute2ProviderServiceProxy(
                                     mContext,
@@ -175,9 +165,7 @@ final class MediaRoute2ProviderWatcher {
                     mCallback.onAddProviderService(proxy);
                 } else if (sourceIndex >= targetIndex) {
                     MediaRoute2ProviderServiceProxy proxy = mProxies.get(sourceIndex);
-                    proxy.start(
-                            /* rebindIfDisconnected= */
-                                    !Flags.enablePreventionOfKeepAliveRouteProviders());
+                    proxy.start(/* rebindIfDisconnected= */ false);
                     Collections.swap(mProxies, sourceIndex, targetIndex++);
                 }
             }

@@ -20,7 +20,6 @@ import android.annotation.EnforcePermission;
 import android.annotation.FlaggedApi;
 import android.annotation.SdkConstant;
 import android.app.Service;
-import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -46,7 +45,7 @@ import java.util.List;
  *     <li> set {@code android:exported="true"}
  *     <li> be protected by {@value android.Manifest.permission#MANAGE_MEDIA_PROJECTION}
  *     <li> set
- *     {@link MediaProjectionConfig.Builder#setOwnAppContentProvided(Context, boolean)} to
+ *     {@link MediaProjectionConfig.Builder#setOwnAppContentProvided(boolean)} to
  *     {@code true}
  * </ol>
  * <p>
@@ -93,10 +92,18 @@ public abstract class AppContentProjectionService extends Service {
 
         @Override
         @EnforcePermission(allOf = {"MANAGE_MEDIA_PROJECTION"})
-        public void onContentRequest(RemoteCallback newContentConsumer, int width, int height) {
+        public void onContentRequest(RemoteCallback newContentConsumer, int thumbnailWidth,
+                int thumbnailHeight, int iconWidth, int iconHeight) {
             onContentRequest_enforcePermission();
+            Size thumbnailSize = new Size(thumbnailWidth, thumbnailHeight);
+            Size iconSize = new Size(iconWidth, iconHeight);
             AppContentProjectionService.this.onContentRequest(
-                    new AppContentRequest(new Size(width, height), mediaProjectionAppContents -> {
+                    new AppContentRequest(thumbnailSize,
+                            iconSize, mediaProjectionAppContents -> {
+                        for (int i = 0; i < mediaProjectionAppContents.length; i++) {
+                            mediaProjectionAppContents[i].optimizeResources(thumbnailSize,
+                                    iconSize);
+                        }
                         Bundle bundle = new Bundle();
                         bundle.putParcelableArray(EXTRA_APP_CONTENT,
                                 mediaProjectionAppContents);
@@ -107,13 +114,13 @@ public abstract class AppContentProjectionService extends Service {
         @Override
         @EnforcePermission(allOf = {"MANAGE_MEDIA_PROJECTION"})
         public void onLoopbackProjectionStarted(IAppContentProjectionSession session,
-                int contentId) {
+                int contentId, boolean isAudioRequested) {
             onLoopbackProjectionStarted_enforcePermission();
             if (mSession != null) {
                 throw new IllegalStateException(
                         "Only one single AppContentProjectionSession is supported");
             }
-            mSession = new AppContentProjectionSession(session);
+            mSession = new AppContentProjectionSession(session, isAudioRequested);
             AppContentProjectionService.this.onLoopbackProjectionStarted(
                     mSession, contentId
             );

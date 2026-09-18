@@ -109,6 +109,7 @@ IRenderPipeline::DrawResult SkiaCpuPipeline::draw(
 }
 
 bool SkiaCpuPipeline::setSurface(ANativeWindow* surface, SwapBehavior swapBehavior) {
+    mNativeWindow = surface;
     if (surface) {
         ANativeWindowBuffer* buffer;
         surface->dequeueBuffer(surface, &buffer, nullptr);

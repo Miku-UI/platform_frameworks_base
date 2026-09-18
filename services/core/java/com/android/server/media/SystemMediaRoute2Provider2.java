@@ -200,7 +200,9 @@ import java.util.stream.Stream;
                     var currentProxyRecord = existingSessionRecord.getProxyRecord();
                     if (currentProxyRecord != null) {
                         currentProxyRecord.releaseSession(
-                                requestId, existingSession.getOriginalId());
+                                requestId,
+                                existingSession.getOriginalId(),
+                                /* retainFocus= */ true);
                         existingSessionRecord.removeSelfFromSessionMaps();
                     }
                 }
@@ -371,7 +373,13 @@ import java.util.stream.Stream;
                 sessionRecord.removeSelfFromSessionMaps();
                 var proxyRecord = sessionRecord.getProxyRecord();
                 if (proxyRecord != null) {
-                    proxyRecord.releaseSession(requestId, sessionRecord.getServiceSessionId());
+                    // We don't attempt to retain focus because this is a session release, not a
+                    // transfer. This happens, for example, when the user presses "stop casting" in
+                    // the output switcher.
+                    proxyRecord.releaseSession(
+                            requestId,
+                            sessionRecord.getServiceSessionId(),
+                            /* retainFocus= */ false);
                 }
                 updateSessionInfo();
                 return;
@@ -577,6 +585,11 @@ import java.util.stream.Stream;
             int oldVolume = currentSessionInfo.getVolume();
             int newVolume = oldVolume + volumeStep;
             newVolume = Math.clamp(newVolume, /* min= */ 0, currentSessionInfo.getVolumeMax());
+            mHandler.removeCallbacks(mClearShouldShowVolumeUiFlagRunnable);
+            mHandler.postDelayed(
+                    mClearShouldShowVolumeUiFlagRunnable, SHOW_UI_FOR_VOLUME_CHANGE_TIMEOUT_MS);
+            mRecentRecipientOfVolumeKeyPressOriginalId =
+                    volumeAdjustmentTargetSessionRecord.mOriginalId;
             if (oldVolume != newVolume) {
                 String logMessage =
                         TextUtils.formatSimple(
@@ -585,11 +598,6 @@ import java.util.stream.Stream;
                                 currentSessionInfo.getVolumeMax(),
                                 currentSessionInfo.getOwnerPackageName());
                 Log.i(TAG, logMessage);
-                mHandler.removeCallbacks(mClearShouldShowVolumeUiFlagRunnable);
-                mHandler.postDelayed(
-                        mClearShouldShowVolumeUiFlagRunnable, SHOW_UI_FOR_VOLUME_CHANGE_TIMEOUT_MS);
-                mRecentRecipientOfVolumeKeyPressOriginalId =
-                        volumeAdjustmentTargetSessionRecord.mOriginalId;
                 proxyRecord.mProxy.setSessionVolume(
                         requestId,
                         volumeAdjustmentTargetSessionRecord.getServiceSessionId(),
@@ -597,12 +605,15 @@ import java.util.stream.Stream;
             } else {
                 String logMessage =
                         TextUtils.formatSimple(
-                                "Ignoring request to set volume to %d/%d on system media session"
-                                        + " managed by '%s'",
+                                "New volume from volume key press event matches current volume"
+                                    + " %d/%d (%s). Dispatching volume event with no change to"
+                                    + " display slider.",
                                 newVolume,
                                 currentSessionInfo.getVolumeMax(),
                                 currentSessionInfo.getOwnerPackageName());
                 Log.i(TAG, logMessage);
+                onSessionOverrideUpdated(
+                        volumeAdjustmentTargetSessionRecord.mTranslatedSessionInfo);
             }
             return true;
         }
@@ -721,18 +732,19 @@ import java.util.stream.Stream;
                 callback.onRequestFailed(
                         requestId, MediaRoute2ProviderService.REASON_ROUTE_NOT_AVAILABLE);
             } else {
-                mProxy.requestCreateSystemMediaSession(
-                        requestId,
-                        uid,
-                        packageName,
-                        targetRouteId,
-                        /* sessionHints= */ null,
-                        callback);
+                // TODO: b/479156700 - Request the creation of a new routing session by mProxy.
+                throw new UnsupportedOperationException();
             }
         }
 
-        public void releaseSession(long requestId, String originalSessionId) {
-            mProxy.releaseSession(requestId, originalSessionId);
+        /**
+         * Releases the corresponding session while optionally attempting to retain audio focus.
+         *
+         * <p>Audio focus retention is useful when transferring playback from the remote device to
+         * the sender while continuing playback.
+         */
+        public void releaseSession(long requestId, String originalSessionId, boolean retainFocus) {
+            mProxy.releaseSession(requestId, originalSessionId, retainFocus);
         }
 
         /**

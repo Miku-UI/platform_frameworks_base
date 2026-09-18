@@ -16,8 +16,15 @@
 
 package com.android.compose.animation
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.interaction.InteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ApproachLayoutModifierNode
 import androidx.compose.ui.layout.ApproachMeasureScope
@@ -31,11 +38,68 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
-/** A component that can bounce in one dimension, for instance when it is tapped. */
+/**
+ * A component that can bounce in one dimension, for instance when it is tapped.
+ *
+ * Both [animateExpansion] amd [animateToRest] will be called when the optional [InteractionSource]
+ * from [bounceable] receives press and release events.
+ */
 @Stable
 interface Bounceable {
     val bounce: Dp
+
+    suspend fun animateExpansion() {}
+
+    suspend fun animateToRest() {}
+}
+
+/**
+ * The default implementation of [Bounceable].
+ *
+ * @param bounceSize the size in [Dp] of the bounce when this component is pressed.
+ * @param animationSpec the [AnimationSpec] to be used when animating the bounce.
+ */
+class BounceableImpl(
+    private val bounceSize: Dp,
+    private val animationSpec: AnimationSpec<Dp> = spring(),
+) : Bounceable {
+    private val bounceAnimatable = Animatable(0.dp, Dp.VectorConverter)
+
+    override val bounce: Dp
+        get() = bounceAnimatable.value
+
+    override suspend fun animateExpansion() {
+        bounceAnimatable.animateTo(bounceSize, animationSpec)
+    }
+
+    override suspend fun animateToRest() {
+        waitUntil { bounceAnimatable.value > bounceSize * MINIMUM_BOUNCE_RATIO }
+        bounceAnimatable.animateTo(0.dp, animationSpec)
+    }
+
+    private suspend fun waitUntil(condition: () -> Boolean) {
+        // This is taken from the Material Expressive implementation of ButtonGroup, and is needed
+        // to ensure a minimum bounce is shown for quick taps.
+        val initialTimeMillis = withFrameMillis { it }
+        while (!condition()) {
+            val timeMillis = withFrameMillis { it }
+            if (timeMillis - initialTimeMillis > MAX_WAIT_TIME_MILLIS) return
+        }
+        return
+    }
+
+    private companion object {
+        // Minimum ratio of the bounce size the animation should reach before going back to rest on
+        // fast clicks
+        const val MINIMUM_BOUNCE_RATIO = .75f
+        const val MAX_WAIT_TIME_MILLIS = 1_000L
+    }
 }
 
 /**
@@ -59,6 +123,8 @@ interface Bounceable {
  *   This should preferably be `false` whenever possible, so that this modifier plays nicely with
  *   lookahead animations (e.g. SceneTransitionLayout animations), but is sometimes necessary when
  *   the size of a bounceable strictly depends on the size of its content.
+ * @param interactionSource an optional [InteractionSource] that will be used to drive the bounce
+ *   animation on presses. If null, the animation will have to be driven manually.
  */
 @Stable
 fun Modifier.bounceable(
@@ -68,9 +134,13 @@ fun Modifier.bounceable(
     orientation: Orientation,
     bounceEnd: Boolean = nextBounceable != null,
     isWrappingContent: Boolean = false,
+    interactionSource: InteractionSource? = null,
 ): Modifier {
-    return if (isWrappingContent) {
-        this then
+    val pressModifier =
+        interactionSource?.let { BounceOnPressElement(bounceable, interactionSource) } ?: Modifier
+
+    val bounceModifier =
+        if (isWrappingContent) {
             WrappingBounceableElement(
                 bounceable,
                 previousBounceable,
@@ -78,8 +148,7 @@ fun Modifier.bounceable(
                 orientation,
                 bounceEnd,
             )
-    } else {
-        this then
+        } else {
             BounceableElement(
                 bounceable,
                 previousBounceable,
@@ -87,7 +156,9 @@ fun Modifier.bounceable(
                 orientation,
                 bounceEnd,
             )
-    }
+        }
+
+    return this then pressModifier then bounceModifier
 }
 
 private data class BounceableElement(
@@ -275,5 +346,69 @@ private class WrappingBounceableNode(
             bounceEnd = bounceEnd,
             idleSize = lookaheadSize,
         )
+    }
+}
+
+private data class BounceOnPressElement(
+    val bounceable: Bounceable,
+    val interactionSource: InteractionSource,
+) : ModifierNodeElement<BounceOnPressNode>() {
+    override fun create(): BounceOnPressNode {
+        return BounceOnPressNode(bounceable, interactionSource)
+    }
+
+    override fun update(node: BounceOnPressNode) {
+        node.bounceable = bounceable
+        if (node.interactionSource != interactionSource) {
+            node.interactionSource = interactionSource
+            node.launchCollectionJob()
+        }
+    }
+}
+
+private class BounceOnPressNode(
+    var bounceable: Bounceable,
+    var interactionSource: InteractionSource,
+) : Modifier.Node() {
+    private var collectionJob: Job? = null
+
+    override fun onAttach() {
+        super.onAttach()
+        launchCollectionJob()
+    }
+
+    override fun onDetach() {
+        super.onDetach()
+        collectionJob?.cancel()
+        collectionJob = null
+    }
+
+    fun launchCollectionJob() {
+        collectionJob?.cancel()
+        collectionJob =
+            coroutineScope.launch {
+                val pressInteractions = mutableListOf<PressInteraction.Press>()
+                launch {
+                    interactionSource.interactions
+                        .map { interaction ->
+                            when (interaction) {
+                                is PressInteraction.Press -> pressInteractions.add(interaction)
+                                is PressInteraction.Release ->
+                                    pressInteractions.remove(interaction.press)
+                                is PressInteraction.Cancel ->
+                                    pressInteractions.remove(interaction.press)
+                            }
+                            pressInteractions.isNotEmpty()
+                        }
+                        .distinctUntilChanged()
+                        .collectLatest { pressed ->
+                            if (pressed) {
+                                launch { bounceable.animateExpansion() }
+                            } else {
+                                bounceable.animateToRest()
+                            }
+                        }
+                }
+            }
     }
 }

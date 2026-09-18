@@ -40,4 +40,13 @@ android_app {
         "androidx.annotation_annotation",
         "androidx.core_core",
     ],
+    required: [
+        "default-permissions_printrecommendationservice.xml",
+    ],
+}
+
+prebuilt_etc {
+    name: "default-permissions_printrecommendationservice.xml",
+    relative_install_path: "default-permissions",
+    srcs: ["default-permissions_printrecommendationservice.xml"],
 }

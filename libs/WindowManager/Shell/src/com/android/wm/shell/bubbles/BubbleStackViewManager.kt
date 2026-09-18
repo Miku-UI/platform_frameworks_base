@@ -39,29 +39,37 @@ interface BubbleStackViewManager {
     /** Allows callers to clear the runnable set by [hideCurrentInputMethod]. */
     fun clearImeHiddenRunnable()
 
+    /** Tells whether current active user using gesture navigation mode. */
+    fun isGestureNavigationMode(): Boolean
+
     companion object {
 
         @JvmStatic
-        fun fromBubbleController(controller: BubbleController) = object : BubbleStackViewManager {
-            override fun onAllBubblesAnimatedOut() {
-                controller.onAllBubblesAnimatedOut()
-            }
+        fun fromBubbleController(controller: BubbleController) =
+            object : BubbleStackViewManager {
+                override fun onAllBubblesAnimatedOut() {
+                    controller.onAllBubblesAnimatedOut()
+                }
 
-            override fun updateWindowFlagsForBackpress(interceptBack: Boolean) {
-                controller.updateWindowFlagsForBackpress(interceptBack)
-            }
+                override fun updateWindowFlagsForBackpress(interceptBack: Boolean) {
+                    controller.updateWindowFlagsForBackpress(interceptBack)
+                }
 
-            override fun checkNotificationPanelExpandedState(callback: Consumer<Boolean>) {
-                controller.isNotificationPanelExpanded(callback)
-            }
+                override fun checkNotificationPanelExpandedState(callback: Consumer<Boolean>) {
+                    controller.isNotificationPanelExpanded(callback)
+                }
 
-            override fun hideCurrentInputMethod(onImeHidden: Runnable?) {
-                controller.hideCurrentInputMethod(onImeHidden)
-            }
+                override fun hideCurrentInputMethod(onImeHidden: Runnable?) {
+                    controller.hideCurrentInputMethod(onImeHidden)
+                }
 
-            override fun clearImeHiddenRunnable() {
-                controller.clearImeHiddenRunnable()
+                override fun clearImeHiddenRunnable() {
+                    controller.clearImeHiddenRunnable()
+                }
+
+                override fun isGestureNavigationMode(): Boolean {
+                    return controller.isGestureNavigationMode()
+                }
             }
-        }
     }
 }

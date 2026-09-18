@@ -178,7 +178,9 @@ class DomainVerificationUserStateOverrideTest {
         assertThat(service.stateFor(PKG_TWO, DOMAIN_ONE)).isEqualTo(STATE_SELECTED)
 
         // 2 is the only owner
-        assertThat(service.getOwnersForDomain(DOMAIN_ONE, USER_ID).map { it.packageName })
+        assertThat(
+            service.getOwnersForDomain(DOMAIN_ONE, USER_ID, true /*= includeUnverifiedOwners */)
+                .map { it.packageName })
             .containsExactly(PKG_TWO)
     }
 
@@ -190,7 +192,9 @@ class DomainVerificationUserStateOverrideTest {
         service.setDomainVerificationStatus(UUID_ONE, setOf(DOMAIN_ONE),
             DomainVerificationState.STATE_SUCCESS)
         assertThat(service.stateFor(PKG_ONE, DOMAIN_ONE)).isEqualTo(STATE_VERIFIED)
-        assertThat(service.getOwnersForDomain(DOMAIN_ONE, USER_ID).map { it.packageName })
+        assertThat(
+            service.getOwnersForDomain(DOMAIN_ONE, USER_ID, true /*= includeUnverifiedOwners */)
+                .map { it.packageName })
             .containsExactly(PKG_ONE)
 
         // Attempt override by package 2

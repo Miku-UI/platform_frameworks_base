@@ -32,7 +32,7 @@ public class BatchSessionTest {
         ArrayList<String> updates = new ArrayList<>();
         BatchSession session = new BatchSession() {
             @Override
-            protected void onClose() {
+            protected void onLastClose() {
                 updates.add("CLOSED:" + mUpdateReason);
             }
         };
@@ -47,7 +47,7 @@ public class BatchSessionTest {
         ArrayList<String> updates = new ArrayList<>();
         BatchSession session = new BatchSession() {
             @Override
-            protected void onClose() {
+            protected void onLastClose() {
                 updates.add("CLOSED:" + mUpdateReason);
             }
         };
@@ -67,7 +67,7 @@ public class BatchSessionTest {
         ArrayList<String> updates = new ArrayList<>();
         BatchSession session = new BatchSession() {
             @Override
-            protected void onClose() {
+            protected void onLastClose() {
                 updates.add("CLOSED:" + mUpdateReason);
             }
         };

@@ -25,6 +25,7 @@ import android.testing.TestableLooper;
 import android.testing.TestableLooper.RunnableWithException;
 import android.util.AndroidRuntimeException;
 import android.util.Singleton;
+import android.util.TimeUtils;
 import android.view.Choreographer;
 import android.view.animation.AnimationUtils;
 
@@ -39,6 +40,7 @@ import org.junit.runners.model.Statement;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 /**
@@ -82,6 +84,8 @@ public final class AnimatorTestRule implements TestRule {
     };
     private final Object mTest;
     private final long mStartTime;
+
+    private @Nullable final ExecutorService mUiExecutor;
     private long mTotalTimeDelta = 0;
     private volatile boolean mCanLockAnimationClock;
     private Looper mLooperWithLockedAnimationClock;
@@ -91,8 +95,11 @@ public final class AnimatorTestRule implements TestRule {
      * @see #AnimatorTestRule(Object)
      */
     public AnimatorTestRule(Object test, long startTime) {
-        mTest = test;
-        mStartTime = startTime;
+        this(test, startTime, null);
+    }
+
+    public AnimatorTestRule(Object test, ExecutorService uiExecutor) {
+        this(test, SystemClock.uptimeMillis(), uiExecutor);
     }
 
     /**
@@ -104,7 +111,13 @@ public final class AnimatorTestRule implements TestRule {
      * @param test the test instance used to access the {@link TestableLooper} used by the class.
      */
     public AnimatorTestRule(Object test) {
-        this(test, SystemClock.uptimeMillis());
+        this(test, SystemClock.uptimeMillis(), null);
+    }
+
+    public AnimatorTestRule(Object test, long startTime, @Nullable ExecutorService uiExecutor) {
+        mTest = test;
+        mStartTime = startTime;
+        mUiExecutor = uiExecutor;
     }
 
     @NonNull
@@ -141,21 +154,33 @@ public final class AnimatorTestRule implements TestRule {
         if (wrapped != null) {
             return wrapped;
         }
-        return () -> runOnMainThrowing(runnable);
+        return () -> runOnUiThreadThrowing(runnable, mUiExecutor);
     }
 
-    private static void runOnMainThrowing(RunnableWithException runnable) throws Exception {
+    private static void runOnUiThreadThrowing(RunnableWithException runnable,
+            @Nullable ExecutorService mUiExecutor) throws Exception {
         if (Looper.myLooper() == Looper.getMainLooper()) {
             runnable.run();
         } else {
             final Throwable[] throwableBox = new Throwable[1];
-            InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
-                try {
-                    runnable.run();
-                } catch (Throwable t) {
-                    throwableBox[0] = t;
-                }
-            });
+            if (mUiExecutor != null) {
+                mUiExecutor.submit(() -> {
+                    try {
+                        runnable.run();
+                    } catch (Throwable t) {
+                        throwableBox[0] = t;
+                    }
+                    return null;
+                });
+            } else {
+                InstrumentationRegistry.getInstrumentation().runOnMainSync(() -> {
+                    try {
+                        runnable.run();
+                    } catch (Throwable t) {
+                        throwableBox[0] = t;
+                    }
+                });
+            }
             if (throwableBox[0] == null) {
                 return;
             } else if (throwableBox[0] instanceof RuntimeException ex) {
@@ -307,7 +332,6 @@ public final class AnimatorTestRule implements TestRule {
 
         public void doFrame() {
             mTestProvider.animateFrame();
-            mTestProvider.commitFrame();
         }
 
         @Override
@@ -331,21 +355,12 @@ public final class AnimatorTestRule implements TestRule {
     private class TestProvider implements AnimationHandler.AnimationFrameCallbackProvider {
         private long mFrameDelay = 10;
         private Choreographer.FrameCallback mFrameCallback = null;
-        private final List<Runnable> mCommitCallbacks = new ArrayList<>();
 
         public void animateFrame() {
             Choreographer.FrameCallback frameCallback = mFrameCallback;
             mFrameCallback = null;
             if (frameCallback != null) {
-                frameCallback.doFrame(getFrameTime());
-            }
-        }
-
-        public void commitFrame() {
-            List<Runnable> commitCallbacks = new ArrayList<>(mCommitCallbacks);
-            mCommitCallbacks.clear();
-            for (Runnable commitCallback : commitCallbacks) {
-                commitCallback.run();
+                frameCallback.doFrame(getCurrentTime() * TimeUtils.NANOS_PER_MS);
             }
         }
 
@@ -356,11 +371,6 @@ public final class AnimatorTestRule implements TestRule {
         }
 
         @Override
-        public void postCommitCallback(Runnable runnable) {
-            mCommitCallbacks.add(runnable);
-        }
-
-        @Override
         public void setFrameDelay(long delay) {
             mFrameDelay = delay;
         }
@@ -368,11 +378,6 @@ public final class AnimatorTestRule implements TestRule {
         @Override
         public long getFrameDelay() {
             return mFrameDelay;
-        }
-
-        @Override
-        public long getFrameTime() {
-            return getCurrentTime();
         }
     }
 }

@@ -1,0 +1,16 @@
+package: "com.android.media.mediadrm.flags"
+container: "system"
+
+flag {
+  name: "deprecate_platform_mediadrm_securestop_apis"
+  namespace: "media_drm"
+  description: "Deprecate platform MediaDrm.SecureStop APIs"
+  bug: "454071592"
+}
+
+flag {
+  name: "enable_multiple_binder_threads_for_drm_hal"
+  namespace: "media_drm"
+  description: "Enable multiple binder threads for DRM HAL"
+  bug: "404702857"
+}

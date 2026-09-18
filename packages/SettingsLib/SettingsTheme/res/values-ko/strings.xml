@@ -20,4 +20,8 @@
     <string name="settingslib_expressive_text_expand" msgid="7520894876795775876">"펼치기"</string>
     <string name="settingslib_expressive_text_collapse" msgid="5625043934702341576">"접기"</string>
     <string name="settingslib_dismiss_button_content_description" msgid="6466433970910120385">"닫기"</string>
+    <string name="settingslib_expressive_expanded_state_expanded" msgid="7720903413665990380">"완전히 펼쳐짐"</string>
+    <string name="settingslib_expressive_expanded_state_collapsed" msgid="3183852630776308202">"접음"</string>
+    <string name="settingslib_spinner_item_selected" msgid="4339232352717298426">"선택됨"</string>
+    <string name="settingslib_spinner_item_not_selected" msgid="2953994594850171841">"선택되지 않음"</string>
 </resources>

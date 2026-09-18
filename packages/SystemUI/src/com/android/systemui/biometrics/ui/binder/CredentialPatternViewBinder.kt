@@ -52,29 +52,15 @@ object CredentialPatternViewBinder {
                 launch { viewModel.stealthMode.collect { lockPatternView.isInStealthMode = it } }
 
                 // dismiss on a valid credential check
-                if (Flags.bpFallbackOptions()) {
-                    launch {
-                        combine(
-                                viewModel.validatedAttestation,
-                                viewModel.isCredentialAllowed,
-                                ::Pair,
-                            )
-                            .collect { (attestation, isAllowed) ->
-                                val matched = attestation != null
-                                lockPatternView.isEnabled = !matched
-                                if (matched) {
-                                    host.onCredentialMatched(attestation!!, isAllowed)
-                                }
+                launch {
+                    combine(viewModel.validatedAttestation, viewModel.isCredentialAllowed, ::Pair)
+                        .collect { (attestation, isAllowed) ->
+                            val matched = attestation != null
+                            lockPatternView.isEnabled = !matched
+                            if (matched) {
+                                host.onCredentialMatched(attestation!!, isAllowed)
                             }
-                    }
-                } else {
-                    viewModel.validatedAttestation.collect { attestation ->
-                        val matched = attestation != null
-                        lockPatternView.isEnabled = !matched
-                        if (matched) {
-                            host.onCredentialMatched(attestation!!)
                         }
-                    }
                 }
             }
         }

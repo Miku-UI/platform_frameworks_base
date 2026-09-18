@@ -16,6 +16,7 @@
 
 package com.android.server.credentials;
 
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
 import static android.Manifest.permission.CREDENTIAL_MANAGER_SET_ALLOWED_PROVIDERS;
 import static android.Manifest.permission.CREDENTIAL_MANAGER_SET_ORIGIN;
 import static android.content.Context.CREDENTIAL_SERVICE;
@@ -51,10 +52,12 @@ import android.credentials.ISetEnabledProvidersCallback;
 import android.credentials.PrepareGetCredentialResponseInternal;
 import android.credentials.RegisterCredentialDescriptionRequest;
 import android.credentials.UnregisterCredentialDescriptionRequest;
+import android.credentials.flags.Flags;
 import android.os.Binder;
 import android.os.CancellationSignal;
 import android.os.IBinder;
 import android.os.ICancellationSignal;
+import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.provider.DeviceConfig;
@@ -105,6 +108,12 @@ public final class CredentialManagerService
 
     private static final String DEVICE_CONFIG_ENABLE_CREDENTIAL_DESC_API =
             "enable_credential_description_api";
+
+    // LINT.IfChange(delim)
+    private static final String SETTINGS_DELIMITER = ":";
+    // LINT.ThenChange(
+    // /services/core/java/com/android/server/stats/pull/CredentialManagerUtil.java:delim
+    // )
 
     /**
      * Value stored in autofill pref when credential provider is primary. This is
@@ -902,13 +911,13 @@ public final class CredentialManagerService
             boolean writeEnabledStatus =
                     Settings.Secure.putStringForUser(getContext().getContentResolver(),
                             Settings.Secure.CREDENTIAL_SERVICE,
-                            String.join(":", enableProvider),
+                            String.join(SETTINGS_DELIMITER, enableProvider),
                             userId);
 
             boolean writePrimaryStatus =
                     Settings.Secure.putStringForUser(getContext().getContentResolver(),
                             Settings.Secure.CREDENTIAL_SERVICE_PRIMARY,
-                            String.join(":", primaryProviders),
+                            String.join(SETTINGS_DELIMITER, primaryProviders),
                             userId);
 
             if (!writeEnabledStatus || !writePrimaryStatus) {
@@ -1038,7 +1047,7 @@ public final class CredentialManagerService
                     resolvedUserId);
 
             if (!TextUtils.isEmpty(directValue)) {
-                String[] components = directValue.split(":");
+                String[] components = directValue.split(SETTINGS_DELIMITER);
                 for (String componentString : components) {
                     ComponentName component = ComponentName.unflattenFromString(componentString);
                     if (component != null) {
@@ -1174,13 +1183,17 @@ public final class CredentialManagerService
         int packageUid;
         PackageManager pm = mContext.createContextAsUser(
                 UserHandle.getUserHandleForUid(callingUid), 0).getPackageManager();
+        int hostAppUid = callingUid;
         try {
             packageUid = pm.getPackageUid(callingPackage,
                     PackageManager.PackageInfoFlags.of(0));
+            if (enablePccFrameworkSupport() && Process.isPrivateComputeCoreUid(callingUid)) {
+                hostAppUid = pm.getAppUidForPrivateComputeCoreUid(callingUid);
+            }
         } catch (PackageManager.NameNotFoundException e) {
             throw new SecurityException(callingPackage + " not found");
         }
-        if (packageUid != callingUid) {
+        if (packageUid != hostAppUid) {
             throw new SecurityException(callingPackage + " does not belong to uid " + callingUid);
         }
     }
@@ -1234,31 +1247,61 @@ public final class CredentialManagerService
                 Slog.e(TAG, "Failed to clear all credential providers");
             }
 
-            // Set the filtered primary providers to the settings key
-            if (!settingsWrapper.putStringForUser(
-                    Settings.Secure.CREDENTIAL_SERVICE_PRIMARY,
-                    String.join(":", filteredPrimaryProviders),
-                    UserHandle.myUserId(),
-                    /* overrideableByRestore= */ true)) {
-                Slog.e(TAG, "Failed to remove primary service: " + componentName);
-                return;
+            if (Flags.multiUserFixEnabled()) {
+                if (!settingsWrapper.putStringForUser(
+                        Settings.Secure.CREDENTIAL_SERVICE_PRIMARY,
+                        String.join(SETTINGS_DELIMITER, filteredPrimaryProviders),
+                        userId,
+                        /* overrideableByRestore= */ true)) {
+                    Slog.e(TAG, "Failed to remove primary service: " + componentName);
+                    return;
+                }
+            } else {
+                if (!settingsWrapper.putStringForUser(
+                        Settings.Secure.CREDENTIAL_SERVICE_PRIMARY,
+                        String.join(SETTINGS_DELIMITER, filteredPrimaryProviders),
+                        UserHandle.myUserId(),
+                        /* overrideableByRestore= */ true)) {
+                    Slog.e(TAG, "Failed to remove primary service: " + componentName);
+                    return;
+                }
             }
+
+            // Set the filtered primary providers to the settings key
+
         }
 
         // Read the credential providers to remove any reference of the removed service.
-        String rawCredentialProviders =
-                settingsWrapper.getStringForUser(
-                        Settings.Secure.CREDENTIAL_SERVICE, UserHandle.myUserId());
+        String rawCredentialProviders;
+        if (Flags.multiUserFixEnabled()) {
+            rawCredentialProviders =
+                    settingsWrapper.getStringForUser(
+                            Settings.Secure.CREDENTIAL_SERVICE, userId);
+        } else {
+            rawCredentialProviders =
+                    settingsWrapper.getStringForUser(
+                            Settings.Secure.CREDENTIAL_SERVICE, UserHandle.myUserId());
+        }
 
         // Remove any provider services that are same as the one being removed.
         Set<String> filteredCredentialProviders = getStoredProvidersExceptService(
                 rawCredentialProviders, componentName);
-        if (!settingsWrapper.putStringForUser(
-                Settings.Secure.CREDENTIAL_SERVICE,
-                String.join(":", filteredCredentialProviders),
-                UserHandle.myUserId(),
-                /* overrideableByRestore= */ true)) {
-            Slog.e(TAG, "Failed to remove secondary service: " + componentName);
+        if (Flags.multiUserFixEnabled()) {
+            if (!settingsWrapper.putStringForUser(
+                    Settings.Secure.CREDENTIAL_SERVICE,
+                    String.join(SETTINGS_DELIMITER, filteredCredentialProviders),
+                    userId,
+                    /* overrideableByRestore= */ true)) {
+                Slog.e(TAG, "Failed to remove secondary service: " + componentName);
+            }
+        } else {
+            if (!settingsWrapper.putStringForUser(
+                    Settings.Secure.CREDENTIAL_SERVICE,
+                    String.join(SETTINGS_DELIMITER, filteredCredentialProviders),
+                    UserHandle.myUserId(),
+                    /* overrideableByRestore= */ true)) {
+                Slog.e(TAG, "Failed to remove secondary service: " + componentName);
+            }
         }
     }
 
@@ -1318,7 +1361,7 @@ public final class CredentialManagerService
                     packageName);
             if (!settingsWrapper.putStringForUser(
                     Settings.Secure.CREDENTIAL_SERVICE_PRIMARY,
-                    String.join(":", primaryProviders),
+                    String.join(SETTINGS_DELIMITER, primaryProviders),
                     userId,
                     /* overrideableByRestore= */ true)) {
                 Slog.e(TAG, "Failed to remove primary package: " + packageName);
@@ -1374,7 +1417,7 @@ public final class CredentialManagerService
                 rawCredentialProviders, packageName);
         if (!settingsWrapper.putStringForUser(
                 Settings.Secure.CREDENTIAL_SERVICE,
-                String.join(":", credentialProviders),
+                String.join(SETTINGS_DELIMITER, credentialProviders),
                 userId,
                 /* overrideableByRestore= */ true)) {
             Slog.e(TAG, "Failed to remove secondary package: " + packageName);
@@ -1390,7 +1433,7 @@ public final class CredentialManagerService
         if (rawProviders == null || componentName == null) {
             return providers;
         }
-        for (String rawComponentName : rawProviders.split(":")) {
+        for (String rawComponentName : rawProviders.split(SETTINGS_DELIMITER)) {
             if (TextUtils.isEmpty(rawComponentName) || rawComponentName.equals("null")) {
                 Slog.d(TAG, "provider component name is empty or null");
                 continue;
@@ -1414,7 +1457,7 @@ public final class CredentialManagerService
         if (rawProviders == null || packageName == null) {
             return providers;
         }
-        for (String rawComponentName : rawProviders.split(":")) {
+        for (String rawComponentName : rawProviders.split(SETTINGS_DELIMITER)) {
             if (TextUtils.isEmpty(rawComponentName) || rawComponentName.equals("null")) {
                 Slog.d(TAG, "provider component name is empty or null");
                 continue;

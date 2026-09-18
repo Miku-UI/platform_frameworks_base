@@ -24,6 +24,8 @@ import static com.android.server.wm.LaunchParamsController.LaunchParamsModifier.
 import android.app.ActivityOptions;
 import android.content.pm.ActivityInfo;
 import android.graphics.Rect;
+import android.util.DisplayMetrics;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.InsetsSource;
 import android.view.InsetsState;
@@ -155,21 +157,23 @@ public class LaunchParamsModifierTestsBase<T extends LaunchParamsModifier> exten
     }
 
     static class WindowLayoutBuilder {
-        private int mWidth = -1;
-        private int mHeight = -1;
+        private int mComplexWidth = -1;
+        private int mComplexHeight = -1;
         private float mWidthFraction = -1f;
         private float mHeightFraction = -1f;
         private int mGravity = Gravity.NO_GRAVITY;
-        private int mMinWidth = -1;
-        private int mMinHeight = -1;
+        private int mComplexMinWidth = -1;
+        private int mComplexMinHeight = -1;
 
-        WindowLayoutBuilder setWidth(int width) {
-            mWidth = width;
+        WindowLayoutBuilder setWidth(int widthInPixels) {
+            mComplexWidth = TypedValue.createComplexDimension(widthInPixels,
+                    TypedValue.COMPLEX_UNIT_PX);
             return this;
         }
 
-        WindowLayoutBuilder setHeight(int height) {
-            mHeight = height;
+        WindowLayoutBuilder setHeight(int heightInPixels) {
+            mComplexHeight = TypedValue.createComplexDimension(heightInPixels,
+                    TypedValue.COMPLEX_UNIT_PX);
             return this;
         }
 
@@ -188,19 +192,24 @@ public class LaunchParamsModifierTestsBase<T extends LaunchParamsModifier> exten
             return this;
         }
 
-        WindowLayoutBuilder setMinWidth(int minWidth) {
-            mMinWidth = minWidth;
+        WindowLayoutBuilder setMinWidth(int minWidthInPixels) {
+            mComplexMinWidth = TypedValue.createComplexDimension(minWidthInPixels,
+                    TypedValue.COMPLEX_UNIT_PX);
             return this;
         }
 
-        WindowLayoutBuilder setMinHeight(int minHeight) {
-            mMinHeight = minHeight;
+        WindowLayoutBuilder setMinHeight(int minHeightInPixels) {
+            mComplexMinHeight = TypedValue.createComplexDimension(minHeightInPixels,
+                    TypedValue.COMPLEX_UNIT_PX);
             return this;
         }
 
         ActivityInfo.WindowLayout build() {
-            return new ActivityInfo.WindowLayout(mWidth, mWidthFraction, mHeight, mHeightFraction,
-                    mGravity, mMinWidth, mMinHeight);
+            // It's okay to use empty metrics as all complex values have pixel units.
+            final DisplayMetrics metrics = new DisplayMetrics();
+            return new ActivityInfo.WindowLayout(mComplexWidth, mWidthFraction, mComplexHeight,
+                    mHeightFraction, mGravity, mComplexMinWidth, mComplexMinHeight,
+                    null /* windowLayoutAffinity */, metrics);
         }
     }
 }

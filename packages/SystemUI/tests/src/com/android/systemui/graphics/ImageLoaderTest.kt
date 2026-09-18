@@ -1,5 +1,7 @@
 package com.android.systemui.graphics
 
+import android.content.ContentResolver
+import android.content.Context
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -12,8 +14,8 @@ import android.net.Uri
 import android.util.Size
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.res.R
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.res.R
 import com.google.common.truth.Truth.assertThat
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -27,6 +29,9 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -34,7 +39,7 @@ class ImageLoaderTest : SysuiTestCase() {
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private val testScope = TestScope(testDispatcher)
-    private val imageLoader = ImageLoader(context, testDispatcher)
+    private val imageLoader = ImageLoaderImpl(context, testDispatcher)
 
     private lateinit var imgFile: File
 
@@ -44,7 +49,7 @@ class ImageLoaderTest : SysuiTestCase() {
         val bitmap =
             BitmapFactory.decodeResource(
                 context.resources,
-                com.android.systemui.tests.R.drawable.romainguy_rockaway
+                com.android.systemui.tests.R.drawable.romainguy_rockaway,
             )
 
         imgFile = File.createTempFile("image", ".png", context.cacheDir)
@@ -80,7 +85,13 @@ class ImageLoaderTest : SysuiTestCase() {
     @Test
     fun invalidIcon_loadDrawable_returnsNull() =
         testScope.runTest {
-            assertThat(imageLoader.loadDrawable(Icon.createWithFilePath("this is broken"))).isNull()
+            assertThat(
+                    imageLoader.loadDrawable(
+                        Icon.createWithFilePath("this is broken"),
+                        context = context,
+                    )
+                )
+                .isNull()
         }
 
     @Test
@@ -108,14 +119,14 @@ class ImageLoaderTest : SysuiTestCase() {
             val bitmap =
                 BitmapFactory.decodeResource(
                     context.resources,
-                    com.android.systemui.tests.R.drawable.romainguy_rockaway
+                    com.android.systemui.tests.R.drawable.romainguy_rockaway,
                 )
             assertThat(bitmap).isNotNull()
             val loadedDrawable =
                 imageLoader.loadDrawable(
                     ImageLoader.Res(
                         com.android.systemui.tests.R.drawable.romainguy_rockaway,
-                        context
+                        context,
                     )
                 )
             assertBitmapEqualToDrawable(loadedDrawable, bitmap)
@@ -127,7 +138,7 @@ class ImageLoaderTest : SysuiTestCase() {
             val bitmap =
                 BitmapFactory.decodeResource(
                     context.resources,
-                    R.drawable.dessert_zombiegingerbread
+                    R.drawable.dessert_zombiegingerbread,
                 )
             val loadedBitmap =
                 imageLoader.loadBitmap(ImageLoader.Res(R.drawable.dessert_zombiegingerbread))
@@ -140,7 +151,7 @@ class ImageLoaderTest : SysuiTestCase() {
             val bitmap =
                 BitmapFactory.decodeResource(
                     context.resources,
-                    R.drawable.dessert_zombiegingerbread
+                    R.drawable.dessert_zombiegingerbread,
                 )
 
             val uri =
@@ -172,9 +183,9 @@ class ImageLoaderTest : SysuiTestCase() {
             val bitmap =
                 BitmapFactory.decodeResource(
                     context.resources,
-                    R.drawable.dessert_zombiegingerbread
+                    R.drawable.dessert_zombiegingerbread,
                 )
-            val loadedDrawable = imageLoader.loadDrawable(Icon.createWithBitmap(bitmap))
+            val loadedDrawable = imageLoader.loadDrawable(Icon.createWithBitmap(bitmap), context)
             assertBitmapEqualToDrawable(loadedDrawable, bitmap)
         }
 
@@ -184,7 +195,7 @@ class ImageLoaderTest : SysuiTestCase() {
             val bitmap =
                 BitmapFactory.decodeResource(
                     context.resources,
-                    R.drawable.dessert_zombiegingerbread
+                    R.drawable.dessert_zombiegingerbread,
                 )
             assertThat(imageLoader.loadSize(Icon.createWithBitmap(bitmap), context)).isNull()
         }
@@ -195,11 +206,12 @@ class ImageLoaderTest : SysuiTestCase() {
             val bitmap =
                 BitmapFactory.decodeResource(
                     context.resources,
-                    R.drawable.dessert_zombiegingerbread
+                    R.drawable.dessert_zombiegingerbread,
                 )
             val uri =
                 "android.resource://${context.packageName}/${R.drawable.dessert_zombiegingerbread}"
-            val loadedDrawable = imageLoader.loadDrawable(Icon.createWithContentUri(Uri.parse(uri)))
+            val loadedDrawable =
+                imageLoader.loadDrawable(Icon.createWithContentUri(Uri.parse(uri)), context)
             assertBitmapEqualToDrawable(loadedDrawable, bitmap)
         }
 
@@ -220,7 +232,7 @@ class ImageLoaderTest : SysuiTestCase() {
             val bitmap =
                 BitmapFactory.decodeResource(
                     context.resources,
-                    R.drawable.dessert_zombiegingerbread
+                    R.drawable.dessert_zombiegingerbread,
                 )
             val bos =
                 ByteArrayOutputStream(
@@ -229,7 +241,8 @@ class ImageLoaderTest : SysuiTestCase() {
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, bos)
 
             val array = bos.toByteArray()
-            val loadedDrawable = imageLoader.loadDrawable(Icon.createWithData(array, 0, array.size))
+            val loadedDrawable =
+                imageLoader.loadDrawable(Icon.createWithData(array, 0, array.size), context)
             assertBitmapEqualToDrawable(loadedDrawable, bitmap)
         }
 
@@ -239,7 +252,7 @@ class ImageLoaderTest : SysuiTestCase() {
             val bitmap =
                 BitmapFactory.decodeResource(
                     context.resources,
-                    R.drawable.dessert_zombiegingerbread
+                    R.drawable.dessert_zombiegingerbread,
                 )
             val bos =
                 ByteArrayOutputStream(
@@ -260,8 +273,9 @@ class ImageLoaderTest : SysuiTestCase() {
                 imageLoader.loadDrawable(
                     Icon.createWithResource(
                         "com.android.systemui.tests",
-                        R.drawable.dessert_zombiegingerbread
-                    )
+                        R.drawable.dessert_zombiegingerbread,
+                    ),
+                    context,
                 )
             assertBitmapEqualToDrawable(loadedDrawable, (bitmap as BitmapDrawable).bitmap)
         }
@@ -273,9 +287,9 @@ class ImageLoaderTest : SysuiTestCase() {
                     imageLoader.loadSize(
                         Icon.createWithResource(
                             "com.android.systemui.tests",
-                            R.drawable.dessert_zombiegingerbread
+                            R.drawable.dessert_zombiegingerbread,
                         ),
-                        context
+                        context,
                     )
                 )
                 .isNull()
@@ -288,7 +302,8 @@ class ImageLoaderTest : SysuiTestCase() {
                 Resources.getSystem().getDrawable(android.R.drawable.ic_dialog_alert, context.theme)
             val loadedDrawable =
                 imageLoader.loadDrawable(
-                    Icon.createWithResource("android", android.R.drawable.ic_dialog_alert)
+                    Icon.createWithResource("android", android.R.drawable.ic_dialog_alert),
+                    context,
                 )
             assertBitmapEqualToDrawable(loadedDrawable, (bitmap as BitmapDrawable).bitmap)
         }
@@ -299,7 +314,7 @@ class ImageLoaderTest : SysuiTestCase() {
             assertThat(
                     imageLoader.loadSize(
                         Icon.createWithResource("android", android.R.drawable.ic_dialog_alert),
-                        context
+                        context,
                     )
                 )
                 .isNull()
@@ -312,8 +327,9 @@ class ImageLoaderTest : SysuiTestCase() {
                 imageLoader.loadDrawable(
                     Icon.createWithResource(
                         "noooope.wrong.package",
-                        R.drawable.dessert_zombiegingerbread
-                    )
+                        R.drawable.dessert_zombiegingerbread,
+                    ),
+                    context,
                 )
             assertThat(loadedDrawable).isNull()
         }
@@ -325,7 +341,22 @@ class ImageLoaderTest : SysuiTestCase() {
                     imageLoader.loadDrawable(
                         Icon.createWithResource(
                             "noooope.wrong.package",
-                            R.drawable.dessert_zombiegingerbread
+                            R.drawable.dessert_zombiegingerbread,
+                        ),
+                        context,
+                    )
+                )
+                .isNull()
+        }
+
+    @Test
+    fun oversizedResource_returnsNull() =
+        testScope.runTest {
+            assertThat(
+                    imageLoader.loadDrawable(
+                        ImageLoader.Res(
+                            com.android.systemui.tests.R.drawable.test16000x16000,
+                            context,
                         )
                     )
                 )
@@ -359,7 +390,7 @@ class ImageLoaderTest : SysuiTestCase() {
                 imageLoader.loadDrawable(
                     ImageLoader.File(imgFile),
                     maxWidth = 160,
-                    maxHeight = ImageLoader.DO_NOT_RESIZE
+                    maxHeight = ImageLoaderImpl.DO_NOT_RESIZE,
                 )
             val loadedBitmap = assertBitmapInDrawable(loadedDrawable)
             assertThat(loadedBitmap.width).isEqualTo(160)
@@ -372,8 +403,8 @@ class ImageLoaderTest : SysuiTestCase() {
             val loadedDrawable =
                 imageLoader.loadDrawable(
                     ImageLoader.Res(R.drawable.bubble_thumbnail),
-                    maxWidth = ImageLoader.DO_NOT_RESIZE,
-                    maxHeight = 120
+                    maxWidth = ImageLoaderImpl.DO_NOT_RESIZE,
+                    maxHeight = 120,
                 )
             val loadedBitmap = assertBitmapInDrawable(loadedDrawable)
             assertThat(loadedBitmap.width).isEqualTo(123)
@@ -399,7 +430,10 @@ class ImageLoaderTest : SysuiTestCase() {
     fun validVectorDrawableIcon_loadDrawable_successfullyLoaded() =
         testScope.runTest {
             val loadedDrawable =
-                imageLoader.loadDrawable(Icon.createWithResource(context, R.drawable.ic_settings))
+                imageLoader.loadDrawable(
+                    Icon.createWithResource(context, R.drawable.ic_settings),
+                    context,
+                )
             assertThat(loadedDrawable).isNotNull()
             assertThat(loadedDrawable).isInstanceOf(VectorDrawable::class.java)
         }
@@ -410,7 +444,7 @@ class ImageLoaderTest : SysuiTestCase() {
             val loadedDrawable =
                 imageLoader.loadDrawable(
                     ImageLoader.File(imgFile),
-                    allocator = ImageDecoder.ALLOCATOR_HARDWARE
+                    allocator = ImageDecoder.ALLOCATOR_HARDWARE,
                 )
             assertThat(loadedDrawable).isNotNull()
             assertThat((loadedDrawable as BitmapDrawable).bitmap.config)
@@ -423,11 +457,37 @@ class ImageLoaderTest : SysuiTestCase() {
             val loadedDrawable =
                 imageLoader.loadDrawable(
                     ImageLoader.File(imgFile),
-                    allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                    allocator = ImageDecoder.ALLOCATOR_SOFTWARE,
                 )
             assertThat(loadedDrawable).isNotNull()
             assertThat((loadedDrawable as BitmapDrawable).bitmap.config)
                 .isNotEqualTo(Bitmap.Config.HARDWARE)
+        }
+
+    @Test
+    fun uriWithContext_loadsFromContext() =
+        testScope.runTest {
+            val bitmap =
+                BitmapFactory.decodeResource(
+                    context.resources,
+                    R.drawable.dessert_zombiegingerbread,
+                )
+
+            // Set up a non-default context
+            val secondaryUserContext = mock<Context>()
+            val secondaryContentResolver = mock<ContentResolver>()
+            whenever(secondaryUserContext.contentResolver).thenReturn(secondaryContentResolver)
+            whenever(secondaryContentResolver.openInputStream(any())).thenAnswer {
+                val bos = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, bos)
+                ByteArrayInputStream(bos.toByteArray())
+            }
+
+            // Load image using secondary user context
+            val uri = Uri.parse("android.resource://secondaryUserPackage/someBitmap")
+            val loadedBitmap = imageLoader.loadBitmap(ImageLoader.Uri(uri, secondaryUserContext))
+
+            assertBitmapEqualToBitmap(loadedBitmap, bitmap)
         }
 
     private fun assertBitmapInDrawable(drawable: Drawable?): Bitmap {

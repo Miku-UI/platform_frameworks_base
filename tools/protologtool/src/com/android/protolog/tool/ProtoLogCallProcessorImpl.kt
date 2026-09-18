@@ -24,14 +24,13 @@ import com.github.javaparser.ast.expr.MethodCallExpr
 import com.github.javaparser.ast.expr.NameExpr
 
 /**
- * Helper class for visiting all ProtoLog calls.
- * For every valid call in the given {@code CompilationUnit} a {@code ProtoLogCallVisitor} callback
- * is executed.
+ * Helper class for visiting all ProtoLog calls. For every valid call in the given {@code
+ * CompilationUnit} a {@code ProtoLogCallVisitor} callback is executed.
  */
 class ProtoLogCallProcessorImpl(
     private val protoLogClassName: String,
     private val protoLogGroupClassName: String,
-    private val groupMap: Map<String, LogGroup>
+    private val groupMap: Map<String, LogGroup>,
 ) : ProtoLogCallProcessor {
     private val protoLogSimpleClassName = protoLogClassName.substringAfterLast('.')
     private val protoLogGroupSimpleClassName = protoLogGroupClassName.substringAfterLast('.')
@@ -40,41 +39,56 @@ class ProtoLogCallProcessorImpl(
         expr: Expression,
         isClassImported: Boolean,
         staticImports: Set<String>,
-        fileName: String
+        fileName: String,
     ): String {
         val context = ParsingContext(fileName, expr)
         return when (expr) {
-            is NameExpr -> when {
-                expr.nameAsString in staticImports -> expr.nameAsString
-                else ->
-                    throw InvalidProtoLogCallException("Unknown/not imported ProtoLogGroup: $expr",
-                            context)
-            }
-            is FieldAccessExpr -> when {
-                expr.scope.toString() == protoLogGroupClassName || isClassImported &&
-                        expr.scope.toString() == protoLogGroupSimpleClassName -> expr.nameAsString
-                else ->
-                    throw InvalidProtoLogCallException("Unknown/not imported ProtoLogGroup: $expr",
-                            context)
-            }
-            else -> throw InvalidProtoLogCallException("Invalid group argument " +
-                    "- must be ProtoLogGroup enum member reference: $expr", context)
+            is NameExpr ->
+                when {
+                    expr.nameAsString in staticImports -> expr.nameAsString
+                    else ->
+                        throw InvalidProtoLogCallException(
+                            "Unknown/not imported ProtoLogGroup: $expr",
+                            context,
+                        )
+                }
+            is FieldAccessExpr ->
+                when {
+                    expr.scope.toString() == protoLogGroupClassName ||
+                        isClassImported && expr.scope.toString() == protoLogGroupSimpleClassName ->
+                        expr.nameAsString
+                    else ->
+                        throw InvalidProtoLogCallException(
+                            "Unknown/not imported ProtoLogGroup: $expr",
+                            context,
+                        )
+                }
+            else ->
+                throw InvalidProtoLogCallException(
+                    "Invalid group argument " +
+                        "- must be ProtoLogGroup enum member reference: $expr",
+                    context,
+                )
         }
     }
 
     private fun isProtoCall(
         call: MethodCallExpr,
         isLogClassImported: Boolean,
-        staticLogImports: Collection<String>
+        staticLogImports: Collection<String>,
     ): Boolean {
         return call.scope.isPresent && call.scope.get().toString() == protoLogClassName ||
-                isLogClassImported && call.scope.isPresent &&
+            isLogClassImported &&
+                call.scope.isPresent &&
                 call.scope.get().toString() == protoLogSimpleClassName ||
-                !call.scope.isPresent && staticLogImports.contains(call.name.toString())
+            !call.scope.isPresent && staticLogImports.contains(call.name.toString())
     }
 
-    fun process(code: CompilationUnit, logCallVisitor: ProtoLogCallVisitor?, fileName: String):
-            Collection<CodeProcessingException> {
+    fun process(
+        code: CompilationUnit,
+        logCallVisitor: ProtoLogCallVisitor?,
+        fileName: String,
+    ): Collection<CodeProcessingException> {
         return process(code, logCallVisitor, null, fileName)
     }
 
@@ -82,89 +96,96 @@ class ProtoLogCallProcessorImpl(
         code: CompilationUnit,
         logCallVisitor: ProtoLogCallVisitor?,
         otherCallVisitor: MethodCallVisitor?,
-        fileName: String
+        fileName: String,
     ): Collection<CodeProcessingException> {
         CodeUtils.checkWildcardStaticImported(code, protoLogClassName, fileName)
         CodeUtils.checkWildcardStaticImported(code, protoLogGroupClassName, fileName)
 
         val isLogClassImported = CodeUtils.isClassImportedOrSamePackage(code, protoLogClassName)
         val staticLogImports = CodeUtils.staticallyImportedMethods(code, protoLogClassName)
-        val isGroupClassImported = CodeUtils.isClassImportedOrSamePackage(code,
-                protoLogGroupClassName)
+        val isGroupClassImported =
+            CodeUtils.isClassImportedOrSamePackage(code, protoLogGroupClassName)
         val staticGroupImports = CodeUtils.staticallyImportedMethods(code, protoLogGroupClassName)
 
         val errors = mutableListOf<CodeProcessingException>()
-        code.findAll(MethodCallExpr::class.java)
-                .filter { call ->
-                    isProtoCall(call, isLogClassImported, staticLogImports)
-                }.forEach { call ->
-                    val context = ParsingContext(fileName, call)
+        code
+            .findAll(MethodCallExpr::class.java)
+            .filter { call -> isProtoCall(call, isLogClassImported, staticLogImports) }
+            .forEach { call ->
+                val context = ParsingContext(fileName, call)
 
-                    try {
-                        val logMethods = LogLevel.entries.map { it.shortCode }
-                        if (logMethods.contains(call.name.id)) {
-                            // Process a log call
-                            if (call.arguments.size < 2) {
-                                errors.add(InvalidProtoLogCallException(
+                try {
+                    val logMethods = LogLevel.entries.map { it.shortCode }
+                    if (logMethods.contains(call.name.id)) {
+                        // Process a log call
+                        if (call.arguments.size < 2) {
+                            errors.add(
+                                InvalidProtoLogCallException(
                                     "Method signature does not match " +
-                                            "any ProtoLog method: $call", context
-                                ))
-                                return@forEach
-                            }
-
-                            val messageString = CodeUtils.concatMultilineString(
-                                call.getArgument(1),
-                                context
-                            )
-                            val groupNameArg = call.getArgument(0)
-                            val groupName =
-                                getLogGroupName(
-                                    groupNameArg, isGroupClassImported,
-                                    staticGroupImports, fileName
+                                        "any ProtoLog method: $call",
+                                    context,
                                 )
-                            if (groupName !in groupMap) {
-                                errors.add(InvalidProtoLogCallException(
-                                    "Unknown group argument " +
-                                            "- not a ProtoLogGroup enum member: $call", context
-                                ))
-                                return@forEach
-                            }
-
-                            logCallVisitor?.processCall(
-                                call, messageString, getLevelForMethodName(
-                                    call.name.toString(), call, context
-                                ), groupMap.getValue(groupName),
-                                context.lineNumber
                             )
-                        } else if (call.name.id == "init"
-                            || call.name.id == "registerLogGroupInProcess") {
-                            // No processing
-                        } else {
-                            // Process non-log message calls
-                            otherCallVisitor?.processCall(call)
+                            return@forEach
                         }
-                    } catch (e: Throwable) {
-                        errors.add(InvalidProtoLogCallException(
-                            "Error processing log call: $call",
-                            context, e
-                        ))
+
+                        val messageString =
+                            CodeUtils.concatMultilineString(call.getArgument(1), context)
+                        val groupNameArg = call.getArgument(0)
+                        val groupName =
+                            getLogGroupName(
+                                groupNameArg,
+                                isGroupClassImported,
+                                staticGroupImports,
+                                fileName,
+                            )
+                        if (groupName !in groupMap) {
+                            errors.add(
+                                InvalidProtoLogCallException(
+                                    "Unknown group argument " +
+                                        "- not a ProtoLogGroup enum member: $call",
+                                    context,
+                                )
+                            )
+                            return@forEach
+                        }
+
+                        logCallVisitor?.processCall(
+                            call,
+                            messageString,
+                            getLevelForMethodName(call.name.toString(), call, context),
+                            groupMap.getValue(groupName),
+                            context.lineNumber,
+                        )
+                    } else if (
+                        call.name.id == "init" || call.name.id == "registerLogGroupInProcess"
+                    ) {
+                        // No processing
+                    } else {
+                        // Process non-log message calls
+                        otherCallVisitor?.processCall(call)
                     }
+                } catch (e: Throwable) {
+                    errors.add(
+                        InvalidProtoLogCallException("Error processing log call: $call", context, e)
+                    )
                 }
+            }
         return errors
     }
 
     private fun getLevelForMethodName(
         name: String,
         node: MethodCallExpr,
-        context: ParsingContext
-    ): LogLevel = when (name) {
+        context: ParsingContext,
+    ): LogLevel =
+        when (name) {
             "d" -> LogLevel.DEBUG
             "v" -> LogLevel.VERBOSE
             "i" -> LogLevel.INFO
             "w" -> LogLevel.WARN
             "e" -> LogLevel.ERROR
             "wtf" -> LogLevel.WTF
-            else ->
-                throw InvalidProtoLogCallException("Unknown log level $name in $node", context)
+            else -> throw InvalidProtoLogCallException("Unknown log level $name in $node", context)
         }
 }

@@ -31,6 +31,7 @@ import static android.internal.perfetto.protos.TracePacketOuterClass.TracePacket
 import android.annotation.NonNull;
 import android.internal.perfetto.protos.Protolog;
 import android.os.SystemClock;
+import android.tracing.perfetto.DataSource;
 import android.util.Log;
 import android.util.proto.ProtoInputStream;
 import android.util.proto.ProtoOutputStream;
@@ -45,7 +46,7 @@ public class Utils {
      * @param dataSource The datasource to dump the ProtoLog viewer config to.
      * @param viewerConfigInputStreamProvider The InputStream that provided the proto viewer config.
      */
-    public static void dumpViewerConfig(@NonNull ProtoLogDataSource dataSource,
+    public static void dumpViewerConfig(@NonNull DataSource dataSource,
             @NonNull ViewerConfigInputStreamProvider viewerConfigInputStreamProvider) {
         dataSource.trace(ctx -> {
             try (var pisWrapper = viewerConfigInputStreamProvider.getInputStream()) {

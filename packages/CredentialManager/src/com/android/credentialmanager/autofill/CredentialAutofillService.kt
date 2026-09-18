@@ -243,9 +243,8 @@ class CredentialAutofillService : AutofillService() {
                 fillRequest,
                 autofillId,
                 fillResponseBuilder,
-                getCredResponse.intent.putExtra(
-                    ProviderData.EXTRA_ENABLED_PROVIDER_DATA_LIST, ArrayList(candidateProviders)
-                )
+                getCredResponse.intent,
+                candidateProviders,
             )
         }
         fillResponseBuilder.setClientState(responseClientState)
@@ -399,22 +398,31 @@ class CredentialAutofillService : AutofillService() {
         fillRequest: FillRequest,
         autofillId: AutofillId,
         fillResponseBuilder: FillResponse.Builder,
-        bottomSheetIntent: Intent
+        bottomSheetIntent: Intent,
+        candidateProviders: List<GetCredentialProviderData>,
     ) {
         val inlineSuggestionsRequest = fillRequest.inlineSuggestionsRequest
         val inlinePresentationSpecs = inlineSuggestionsRequest?.inlinePresentationSpecs
         val inlinePresentationSpecsCount = inlinePresentationSpecs?.size ?: 0
-        val pinnedSpec = getLastInlinePresentationSpec(
-            inlinePresentationSpecs,
-            inlinePresentationSpecsCount
-        )
+        val pinnedSpec =
+            getLastInlinePresentationSpec(inlinePresentationSpecs, inlinePresentationSpecsCount)
+        insertCredentials(bottomSheetIntent, candidateProviders)
         addDropdownMoreOptionsPresentation(bottomSheetIntent, autofillId, fillResponseBuilder)
         if (pinnedSpec != null) {
-            addPinnedInlineSuggestion(
-                pinnedSpec, autofillId,
-                fillResponseBuilder, bottomSheetIntent
-            )
+            val pinnedIntent = bottomSheetIntent.clone() as Intent
+            insertCredentials(pinnedIntent, candidateProviders)
+            addPinnedInlineSuggestion(pinnedSpec, autofillId, fillResponseBuilder, pinnedIntent)
         }
+    }
+
+    private fun insertCredentials(
+        bottomSheetIntent: Intent,
+        candidateProviders: List<GetCredentialProviderData>,
+    ) {
+        bottomSheetIntent.putParcelableArrayListExtra(
+            ProviderData.EXTRA_ENABLED_PROVIDER_DATA_LIST,
+            ArrayList(candidateProviders.map { it.copy() }),
+        )
     }
 
     private fun constructPresentations(
@@ -818,3 +826,12 @@ class CredentialAutofillService : AutofillService() {
         return credentialOptions
     }
 }
+
+private fun GetCredentialProviderData.copy(): GetCredentialProviderData =
+    GetCredentialProviderData(
+        providerFlattenedComponentName,
+        credentialEntries,
+        actionChips,
+        authenticationEntries,
+        remoteEntry,
+    )

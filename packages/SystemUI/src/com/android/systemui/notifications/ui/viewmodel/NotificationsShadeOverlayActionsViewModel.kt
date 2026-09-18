@@ -24,39 +24,27 @@ import com.android.compose.animation.scene.UserActionResult.HideOverlay
 import com.android.compose.animation.scene.UserActionResult.ShowOverlay
 import com.android.compose.animation.scene.UserActionResult.ShowOverlay.HideCurrentOverlays
 import com.android.systemui.scene.shared.model.Overlays
-import com.android.systemui.scene.ui.viewmodel.SceneContainerArea.EndHalf
 import com.android.systemui.scene.ui.viewmodel.SceneContainerArea.TopEdgeEndHalf
 import com.android.systemui.scene.ui.viewmodel.UserActionsViewModel
-import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.flow.map
 
 /** Models the UI state for the user actions for navigating to other scenes or overlays. */
-class NotificationsShadeOverlayActionsViewModel
-@AssistedInject
-constructor(private val shadeModeInteractor: ShadeModeInteractor) : UserActionsViewModel() {
+class NotificationsShadeOverlayActionsViewModel @AssistedInject constructor() :
+    UserActionsViewModel() {
 
     override suspend fun hydrateActions(setActions: (Map<UserAction, UserActionResult>) -> Unit) {
-        val hideNotificationsShade = HideOverlay(Overlays.NotificationsShade)
-        val openQuickSettingsShade =
-            ShowOverlay(
-                Overlays.QuickSettingsShade,
-                hideCurrentOverlays = HideCurrentOverlays.Some(Overlays.NotificationsShade),
+        setActions(
+            mapOf(
+                Swipe.Up to HideOverlay(Overlays.NotificationsShade),
+                Back to HideOverlay(Overlays.NotificationsShade),
+                Swipe.Down(fromSource = TopEdgeEndHalf) to
+                    ShowOverlay(
+                        Overlays.QuickSettingsShade,
+                        hideCurrentOverlays = HideCurrentOverlays.Some(Overlays.NotificationsShade),
+                    ),
             )
-
-        shadeModeInteractor.isFullWidthShade
-            .map { isFullWidthShade ->
-                buildMap {
-                    put(Swipe.Up, hideNotificationsShade)
-                    put(Back, hideNotificationsShade)
-                    if (!isFullWidthShade) {
-                        put(Swipe.Down(fromSource = EndHalf), openQuickSettingsShade)
-                    }
-                    put(Swipe.Down(fromSource = TopEdgeEndHalf), openQuickSettingsShade)
-                }
-            }
-            .collect { actions -> setActions(actions) }
+        )
     }
 
     @AssistedFactory

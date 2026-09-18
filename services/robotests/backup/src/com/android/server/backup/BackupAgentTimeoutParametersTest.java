@@ -33,6 +33,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.shadows.ShadowLooper;
 
 /** Tests for {@link BackupAgentTimeoutParameters}. */
 @RunWith(RobolectricTestRunner.class)
@@ -165,6 +166,7 @@ public class BackupAgentTimeoutParametersTest {
                         + "="
                         + testTimeout;
         putStringAndNotify(setting);
+        ShadowLooper.idleMainLooper();
 
         long kvBackupAgentTimeoutMillis = mParameters.getKvBackupAgentTimeoutMillis();
 

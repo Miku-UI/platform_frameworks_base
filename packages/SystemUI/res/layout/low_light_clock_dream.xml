@@ -17,7 +17,7 @@
         android:autoSizeTextType="uniform"
         android:autoSizeMaxTextSize="@dimen/low_light_clock_text_size"
         android:format12Hour="h:mm"
-        android:format24Hour="H:mm"/>
+        android:format24Hour="HH:mm"/>
 
     <TextView
         android:id="@+id/charging_status_text_view"

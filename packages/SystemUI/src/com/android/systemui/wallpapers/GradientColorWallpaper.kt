@@ -28,7 +28,6 @@ import android.graphics.Shader
 import android.service.wallpaper.WallpaperService
 import android.util.Log
 import android.view.SurfaceHolder
-import android.window.DesktopExperienceFlags
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.toRectF
 import com.android.systemui.res.R
@@ -36,15 +35,7 @@ import com.android.systemui.res.R
 /** A wallpaper that shows a static gradient color image wallpaper. */
 class GradientColorWallpaper : WallpaperService() {
 
-    override fun onCreateEngine(): Engine =
-        if (DesktopExperienceFlags.ENABLE_CONNECTED_DISPLAYS_WALLPAPER.isTrue) {
-            GradientColorWallpaperEngine()
-        } else {
-            EmptyWallpaperEngine()
-        }
-
-    /** Empty engine used when the feature flag is disabled. */
-    inner class EmptyWallpaperEngine : Engine()
+    override fun onCreateEngine(): Engine = GradientColorWallpaperEngine()
 
     inner class GradientColorWallpaperEngine : Engine() {
         init {

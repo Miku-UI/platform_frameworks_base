@@ -46,20 +46,24 @@ import com.android.wm.shell.bubbles.BubbleController
 import com.android.wm.shell.bubbles.BubbleData
 import com.android.wm.shell.bubbles.BubbleDataRepository
 import com.android.wm.shell.bubbles.BubbleExpandedViewManager
-import com.android.wm.shell.bubbles.BubbleLogger
+import com.android.wm.shell.bubbles.BubbleHelper
 import com.android.wm.shell.bubbles.BubblePositioner
 import com.android.wm.shell.bubbles.BubbleResizabilityChecker
-import com.android.wm.shell.bubbles.BubbleTransitions
+import com.android.wm.shell.bubbles.Bubbles
 import com.android.wm.shell.bubbles.Bubbles.SysuiProxy
 import com.android.wm.shell.bubbles.FakeBubbleAppInfoProvider
 import com.android.wm.shell.bubbles.FakeBubbleExpandedViewManager
 import com.android.wm.shell.bubbles.FakeBubbleFactory
 import com.android.wm.shell.bubbles.FakeBubbleTaskViewFactory
+import com.android.wm.shell.bubbles.FakeBubbleViewInfoTaskFactory
 import com.android.wm.shell.bubbles.UiEventSubject.Companion.assertThat
 import com.android.wm.shell.bubbles.animation.AnimatableScaleMatrix
+import com.android.wm.shell.bubbles.logging.BubbleLogger
 import com.android.wm.shell.bubbles.logging.BubbleSessionTracker
 import com.android.wm.shell.bubbles.logging.BubbleSessionTrackerImpl
 import com.android.wm.shell.bubbles.storage.BubblePersistentRepository
+import com.android.wm.shell.bubbles.transitions.BubbleTransitions
+import com.android.wm.shell.bubbles.user.data.FakeBubbleUserResolver
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.DisplayImeController
 import com.android.wm.shell.common.DisplayInsetsController
@@ -71,11 +75,14 @@ import com.android.wm.shell.common.TestShellExecutor
 import com.android.wm.shell.shared.TransactionPool
 import com.android.wm.shell.shared.animation.PhysicsAnimatorTestUtils
 import com.android.wm.shell.shared.bubbles.BubbleBarLocation
+import com.android.wm.shell.shared.bubbles.BubbleBarUpdate
+import com.android.wm.shell.shared.bubbles.BubbleConstants.BUBBLE_BAR_EXPANDED_SCRIM_ALPHA
 import com.android.wm.shell.shared.bubbles.DeviceConfig
 import com.android.wm.shell.shared.bubbles.DragZone
 import com.android.wm.shell.shared.bubbles.DragZoneFactory
 import com.android.wm.shell.shared.bubbles.DragZoneFactory.SplitScreenModeChecker.SplitScreenMode
 import com.android.wm.shell.shared.bubbles.DraggedObject
+import com.android.wm.shell.shared.bubbles.FakeBubbleFeatureConfig
 import com.android.wm.shell.sysui.ShellCommandHandler
 import com.android.wm.shell.sysui.ShellController
 import com.android.wm.shell.sysui.ShellInit
@@ -88,8 +95,8 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 /** Tests for [BubbleBarLayerView] */
 @SmallTest
@@ -105,6 +112,8 @@ class BubbleBarLayerViewTest {
     @get:Rule val animatorTestRule: AnimatorTestRule = AnimatorTestRule(this)
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
+    private val bubbleHelper = mock<BubbleHelper>()
+    private lateinit var bubbleFeatureConfig: FakeBubbleFeatureConfig
 
     private lateinit var bubbleBarLayerView: BubbleBarLayerView
     private lateinit var uiEventLoggerFake: UiEventLoggerFake
@@ -117,6 +126,8 @@ class BubbleBarLayerViewTest {
     private lateinit var testBubblesList: MutableList<Bubble>
     private lateinit var dragZoneFactory: DragZoneFactory
     private lateinit var sessionTracker: BubbleSessionTracker
+    private lateinit var bubbleStateListener: FakeBubbleStateListener
+    private lateinit var bubbleViewInfoTaskFactory: FakeBubbleViewInfoTaskFactory
 
     @Before
     fun setUp() {
@@ -126,6 +137,8 @@ class BubbleBarLayerViewTest {
 
         uiEventLoggerFake = UiEventLoggerFake()
         bubbleLogger = BubbleLogger(uiEventLoggerFake)
+
+        bubbleFeatureConfig = FakeBubbleFeatureConfig()
 
         val instanceIdSequence = InstanceIdSequence(/* instanceIdMax= */ 10)
         sessionTracker = BubbleSessionTrackerImpl(instanceIdSequence, bubbleLogger)
@@ -144,27 +157,42 @@ class BubbleBarLayerViewTest {
                 isSmallTablet = false,
                 isLandscape = true,
                 isRtl = false,
-                insets = Insets.of(10, 20, 30, 40)
+                insets = Insets.of(10, 20, 30, 40),
             )
         bubblePositioner.update(deviceConfig)
 
         testBubblesList = mutableListOf()
-        val bubbleData = mock<BubbleData>()
-        whenever(bubbleData.bubbles).thenReturn(testBubblesList)
-        whenever(bubbleData.hasBubbles()).thenReturn(testBubblesList.isNotEmpty())
+        val bubbleData =
+            mock<BubbleData> {
+                on { bubbles } doReturn testBubblesList
+                on { hasBubbles() } doReturn testBubblesList.isNotEmpty()
+                on { initialStateForBubbleBar } doReturn BubbleBarUpdate()
+            }
 
-        val bubbleBarPropertiesProvider = object : DragZoneFactory.BubbleBarPropertiesProvider {
-            override fun getHeight() = 60
-            override fun getWidth() = 90
-            override fun getBottomPadding() = 20
-        }
+        val bubbleBarPropertiesProvider =
+            object : DragZoneFactory.BubbleBarPropertiesProvider {
+                override fun getHeight() = 60
+
+                override fun getWidth() = 90
+
+                override fun getBottomPadding() = 20
+            }
         dragZoneFactory =
             DragZoneFactory(
                 context,
                 deviceConfig,
                 { SplitScreenMode.UNSUPPORTED },
                 { false },
-                bubbleBarPropertiesProvider
+                bubbleBarPropertiesProvider,
+            )
+
+        bubbleViewInfoTaskFactory =
+            FakeBubbleViewInfoTaskFactory(
+                bubblePositioner,
+                FakeBubbleAppInfoProvider(),
+                mainExecutor,
+                bgExecutor,
+                FakeBubbleUserResolver(),
             )
 
         bubbleController =
@@ -177,13 +205,24 @@ class BubbleBarLayerViewTest {
                 bgExecutor,
             )
         bubbleController.asBubbles().setSysuiProxy(mock<SysuiProxy>())
+        bubbleStateListener = FakeBubbleStateListener()
+        bubbleController.registerBubbleStateListener(bubbleStateListener)
+        bubbleController.setLauncherHasBubbleBar(true)
         // Flush so that proxy gets set
         mainExecutor.flushAll()
 
-        bubbleBarLayerView = BubbleBarLayerView(context, bubbleController, bubbleData, bubbleLogger,
-            mainExecutor)
+        bubbleBarLayerView =
+            BubbleBarLayerView(
+                context,
+                bubbleController,
+                bubbleData,
+                bubbleFeatureConfig,
+                bubbleLogger,
+                mainExecutor,
+            )
 
-        expandedViewManager = FakeBubbleExpandedViewManager(bubbleBar = true, expanded = true)
+        expandedViewManager =
+            FakeBubbleExpandedViewManager(bubbleHelper, bubbleBar = true, expanded = true)
     }
 
     @After
@@ -253,11 +292,13 @@ class BubbleBarLayerViewTest {
             mock<IWindowManager>(),
             BubbleResizabilityChecker(),
             HomeIntentProvider(context),
-            FakeBubbleAppInfoProvider(),
             { Optional.empty() },
             Optional.empty(),
             { false },
             sessionTracker,
+            bubbleViewInfoTaskFactory,
+            bubbleHelper,
+            bubbleFeatureConfig,
         )
     }
 
@@ -329,14 +370,13 @@ class BubbleBarLayerViewTest {
         val firstBubble = createBubble("first")
         val secondBubble = createBubble("second")
 
-
         getInstrumentation().runOnMainSync { bubbleBarLayerView.showExpandedView(firstBubble) }
         waitForExpandedViewAnimation()
 
         getInstrumentation().runOnMainSync { bubbleBarLayerView.showExpandedView(secondBubble) }
         waitForExpandedViewAnimation()
 
-        firstBubble.preparingTransition = object : BubbleTransitions.BubbleTransition {}
+        firstBubble.currentTransition = object : BubbleTransitions.BubbleTransition {}
 
         getInstrumentation().runOnMainSync { bubbleBarLayerView.removeBubble(firstBubble) {} }
 
@@ -371,14 +411,22 @@ class BubbleBarLayerViewTest {
         val handleView = bubbleBarLayerView.findViewById<View>(R.id.bubble_bar_handle_view)
         assertThat(handleView).isNotNull()
 
-        val dragZones = dragZoneFactory.createSortedDragZones(
-            DraggedObject.ExpandedView(BubbleBarLocation.RIGHT))
+        val dragZones =
+            dragZoneFactory.createSortedDragZones(
+                DraggedObject.ExpandedView(BubbleBarLocation.RIGHT)
+            )
         val rightDragZone = dragZones.filterIsInstance<DragZone.Bubble.Right>().first()
-        val rightPoint = PointF(rightDragZone.bounds.rect.centerX().toFloat(),
-            rightDragZone.bounds.rect.centerY().toFloat())
+        val rightPoint =
+            PointF(
+                rightDragZone.bounds.rect.centerX().toFloat(),
+                rightDragZone.bounds.rect.centerY().toFloat(),
+            )
         val leftDragZone = dragZones.filterIsInstance<DragZone.Bubble.Left>().first()
-        val leftPoint = PointF(leftDragZone.bounds.rect.centerX().toFloat(),
-            leftDragZone.bounds.rect.centerY().toFloat())
+        val leftPoint =
+            PointF(
+                leftDragZone.bounds.rect.centerX().toFloat(),
+                leftDragZone.bounds.rect.centerY().toFloat(),
+            )
 
         // Drag from right to left
         handleView.dispatchTouchEvent(0L, MotionEvent.ACTION_DOWN, rightPoint)
@@ -405,14 +453,22 @@ class BubbleBarLayerViewTest {
         val handleView = bubbleBarLayerView.findViewById<View>(R.id.bubble_bar_handle_view)
         assertThat(handleView).isNotNull()
 
-        val dragZones = dragZoneFactory.createSortedDragZones(
-            DraggedObject.ExpandedView(BubbleBarLocation.LEFT))
+        val dragZones =
+            dragZoneFactory.createSortedDragZones(
+                DraggedObject.ExpandedView(BubbleBarLocation.LEFT)
+            )
         val rightDragZone = dragZones.filterIsInstance<DragZone.Bubble.Right>().first()
-        val rightPoint = PointF(rightDragZone.bounds.rect.centerX().toFloat(),
-            rightDragZone.bounds.rect.centerY().toFloat())
+        val rightPoint =
+            PointF(
+                rightDragZone.bounds.rect.centerX().toFloat(),
+                rightDragZone.bounds.rect.centerY().toFloat(),
+            )
         val leftDragZone = dragZones.filterIsInstance<DragZone.Bubble.Left>().first()
-        val leftPoint = PointF(leftDragZone.bounds.rect.centerX().toFloat(),
-            leftDragZone.bounds.rect.centerY().toFloat())
+        val leftPoint =
+            PointF(
+                leftDragZone.bounds.rect.centerX().toFloat(),
+                leftDragZone.bounds.rect.centerY().toFloat(),
+            )
 
         // Drag from left to right
         handleView.dispatchTouchEvent(0L, MotionEvent.ACTION_DOWN, leftPoint)
@@ -426,21 +482,85 @@ class BubbleBarLayerViewTest {
     }
 
     @Test
+    fun dragExpandedViewRight_shouldUpdateBubbleBarLocation() {
+        val bubble = createBubble("first")
+        bubblePositioner.bubbleBarLocation = BubbleBarLocation.LEFT
+
+        getInstrumentation().runOnMainSync {
+            bubbleBarLayerView.showExpandedView(bubble)
+            bubble.bubbleBarExpandedView!!.onContentVisibilityChanged(true /* visible */)
+        }
+        waitForExpandedViewAnimation()
+
+        val handleView = bubbleBarLayerView.findViewById<View>(R.id.bubble_bar_handle_view)
+        assertThat(handleView).isNotNull()
+
+        val dragZones =
+            dragZoneFactory.createSortedDragZones(
+                DraggedObject.ExpandedView(BubbleBarLocation.LEFT)
+            )
+        val rightDragZone = dragZones.filterIsInstance<DragZone.Bubble.Right>().first().bounds.rect
+        val rightPoint = PointF(rightDragZone.exactCenterX(), rightDragZone.exactCenterY())
+        val leftDragZone = dragZones.filterIsInstance<DragZone.Bubble.Left>().first().bounds.rect
+        val leftPoint = PointF(leftDragZone.exactCenterX(), leftDragZone.exactCenterY())
+
+        // Drag from left to right
+        handleView.dispatchTouchEvent(0L, MotionEvent.ACTION_DOWN, leftPoint)
+        handleView.dispatchTouchEvent(10L, MotionEvent.ACTION_MOVE, rightPoint)
+        handleView.dispatchTouchEvent(20L, MotionEvent.ACTION_UP, rightPoint)
+
+        assertThat(bubblePositioner.bubbleBarLocation).isEqualTo(BubbleBarLocation.RIGHT)
+        assertThat(bubbleStateListener.bubbleBarLocation).isEqualTo(BubbleBarLocation.RIGHT)
+    }
+
+    @Test
+    fun dragExpandedViewToRight_thenToDismiss_shouldNotUpdateBubbleBarLocation() {
+        val bubble = createBubble("first")
+        bubblePositioner.bubbleBarLocation = BubbleBarLocation.LEFT
+
+        getInstrumentation().runOnMainSync {
+            bubbleBarLayerView.showExpandedView(bubble)
+            bubble.bubbleBarExpandedView!!.onContentVisibilityChanged(true /* visible */)
+        }
+        waitForExpandedViewAnimation()
+
+        val handleView = bubbleBarLayerView.findViewById<View>(R.id.bubble_bar_handle_view)
+        assertThat(handleView).isNotNull()
+
+        val dragZones =
+            dragZoneFactory.createSortedDragZones(
+                DraggedObject.ExpandedView(BubbleBarLocation.LEFT)
+            )
+        val rightDragZone = dragZones.filterIsInstance<DragZone.Bubble.Right>().first().bounds.rect
+        val rightPoint = PointF(rightDragZone.exactCenterX(), rightDragZone.exactCenterY())
+        val leftDragZone = dragZones.filterIsInstance<DragZone.Bubble.Left>().first().bounds.rect
+        val leftPoint = PointF(leftDragZone.exactCenterX(), leftDragZone.exactCenterY())
+        val dismissZone = dragZones.filterIsInstance<DragZone.Dismiss>().first().bounds
+        val dismissPoint = PointF(dismissZone.x.toFloat(), dismissZone.y.toFloat())
+
+        // Drag from left to right then to dismiss
+        handleView.dispatchTouchEvent(0L, MotionEvent.ACTION_DOWN, leftPoint)
+        handleView.dispatchTouchEvent(10L, MotionEvent.ACTION_MOVE, rightPoint)
+        handleView.dispatchTouchEvent(20L, MotionEvent.ACTION_MOVE, dismissPoint)
+        handleView.dispatchTouchEvent(30L, MotionEvent.ACTION_UP, dismissPoint)
+
+        assertThat(bubblePositioner.bubbleBarLocation).isEqualTo(BubbleBarLocation.LEFT)
+        // since we dragged to dismiss, the bubble bar location should not be updated
+        assertThat(bubbleStateListener.bubbleBarLocation).isNull()
+    }
+
+    @Test
     fun testUpdateExpandedView_updateLocation() {
         bubblePositioner.bubbleBarLocation = BubbleBarLocation.RIGHT
         val bubble = createBubble("first")
 
-        getInstrumentation().runOnMainSync {
-            bubbleBarLayerView.showExpandedView(bubble)
-        }
+        getInstrumentation().runOnMainSync { bubbleBarLayerView.showExpandedView(bubble) }
         waitForExpandedViewAnimation()
 
         val previousX = bubble.bubbleBarExpandedView!!.x
 
         bubblePositioner.bubbleBarLocation = BubbleBarLocation.LEFT
-        getInstrumentation().runOnMainSync {
-            bubbleBarLayerView.updateExpandedView()
-        }
+        getInstrumentation().runOnMainSync { bubbleBarLayerView.updateExpandedView() }
 
         assertThat(bubble.bubbleBarExpandedView!!.x).isNotEqualTo(previousX)
     }
@@ -450,18 +570,14 @@ class BubbleBarLayerViewTest {
         bubblePositioner.bubbleBarLocation = BubbleBarLocation.RIGHT
         val bubble = createBubble("first")
 
-        getInstrumentation().runOnMainSync {
-            bubbleBarLayerView.showExpandedView(bubble)
-        }
+        getInstrumentation().runOnMainSync { bubbleBarLayerView.showExpandedView(bubble) }
         waitForExpandedViewAnimation()
 
         val previousX = bubble.bubbleBarExpandedView!!.x
         bubble.bubbleBarExpandedView!!.isAnimating = true
 
         bubblePositioner.bubbleBarLocation = BubbleBarLocation.LEFT
-        getInstrumentation().runOnMainSync {
-            bubbleBarLayerView.updateExpandedView()
-        }
+        getInstrumentation().runOnMainSync { bubbleBarLayerView.updateExpandedView() }
 
         // Expanded view is not updated while animating
         assertThat(bubble.bubbleBarExpandedView!!.x).isEqualTo(previousX)
@@ -539,10 +655,83 @@ class BubbleBarLayerViewTest {
         assertThat(bubbleBarLayerView.children.count { it is BubbleBarExpandedView }).isEqualTo(1)
     }
 
+    /** Tests scenario where desktop mode is disabled on this display, so the scrim is shown. */
+    @Test
+    fun showAndCollapse_updatesScrimAlpha() {
+        bubbleFeatureConfig.isScrimEnabled = true
+        validateScrimAlpha_showAndCollapse(0F, BUBBLE_BAR_EXPANDED_SCRIM_ALPHA)
+    }
+
+    /** Tests scenario where desktop mode is enabled on this display, so the scrim isn't shown. */
+    @Test
+    fun showAndCollapse_desktopSupported_hasNoScrim() {
+        bubbleFeatureConfig.isScrimEnabled = false
+        validateScrimAlpha_showAndCollapse(0F, 0F)
+    }
+
+    fun validateScrimAlpha_showAndCollapse(collapsedAlpha: Float, expandedAlpha: Float) {
+        val bubble = createBubble("first")
+        // Scrim is the first child added.
+        val scrimView = bubbleBarLayerView.getChildAt(0)
+        assertThat(scrimView.alpha).isEqualTo(collapsedAlpha)
+
+        // Show expanded view
+        getInstrumentation().runOnMainSync { bubbleBarLayerView.showExpandedView(bubble) }
+        waitForExpandedViewAnimation()
+
+        // Verify scrim is visible with the correct alpha
+        assertThat(scrimView.alpha).isEqualTo(expandedAlpha)
+
+        // Collapse the view
+        getInstrumentation().runOnMainSync { bubbleBarLayerView.collapse() }
+        waitForCollapseViewAnimation()
+
+        // Verify scrim is hidden
+        assertThat(scrimView.alpha).isEqualTo(collapsedAlpha)
+    }
+
+    @Test
+    fun testRemoveBubbleCleansUpBubbleViews() {
+        val bubble = createBubble("first")
+        getInstrumentation().runOnMainSync { bubbleBarLayerView.showExpandedView(bubble) }
+        waitForExpandedViewAnimation()
+
+        assertThat(bubble.bubbleBarExpandedView).isNotNull()
+        assertThat(bubble.icon).isNotNull()
+
+        val endAction = Runnable {}
+        getInstrumentation().runOnMainSync { bubbleBarLayerView.removeBubble(bubble, endAction) }
+        waitForCollapseViewAnimation()
+        assertThat(bubble.bubbleBarExpandedView).isNull()
+        assertThat(bubble.getIconView()).isNull()
+    }
+
+    @Test
+    fun removeLastBubble_collapsesView() {
+        // Create a single bubble and expand it.
+        val bubble = createBubble("first")
+        getInstrumentation().runOnMainSync { bubbleBarLayerView.showExpandedView(bubble) }
+        waitForExpandedViewAnimation()
+        assertThat(bubbleBarLayerView.isExpanded).isTrue()
+
+        // Remove the bubble from the data source, this makes it the "last" bubble being removed.
+        testBubblesList.remove(bubble)
+
+        var endActionCalled = false
+        val endAction = Runnable { endActionCalled = true }
+
+        // When the last bubble is removed, the expanded view should collapse.
+        getInstrumentation().runOnMainSync { bubbleBarLayerView.removeBubble(bubble, endAction) }
+        waitForCollapseViewAnimation()
+
+        // Verify the view is collapsed and the end action is executed.
+        assertThat(bubbleBarLayerView.isExpanded).isFalse()
+        assertThat(endActionCalled).isTrue()
+    }
+
     private fun createBubble(key: String): Bubble {
-        val bubble = FakeBubbleFactory.createChatBubble(context, key).also {
-            testBubblesList.add(it)
-        }
+        val bubble =
+            FakeBubbleFactory.createChatBubble(context, key).also { testBubblesList.add(it) }
         val bubbleTaskView = FakeBubbleTaskViewFactory(context, mainExecutor).create()
         bubbleTaskView.listener.onTaskCreated(/* taskId= */ 1, ComponentName("package", "class"))
         val bubbleBarExpandedView =
@@ -591,5 +780,18 @@ class BubbleBarLayerViewTest {
     private fun View.dispatchTouchEvent(eventTime: Long, action: Int, point: PointF) {
         val event = MotionEvent.obtain(0L, eventTime, action, point.x, point.y, 0)
         getInstrumentation().runOnMainSync { dispatchTouchEvent(event) }
+    }
+
+    class FakeBubbleStateListener : Bubbles.BubbleStateListener {
+
+        var bubbleBarLocation: BubbleBarLocation? = null
+
+        override fun onBubbleStateChange(update: BubbleBarUpdate) {
+            bubbleBarLocation = update.bubbleBarLocation
+        }
+
+        override fun animateBubbleBarLocation(location: BubbleBarLocation) {}
+
+        override fun showBubbleBarDropTargetAt(location: BubbleBarLocation?) {}
     }
 }

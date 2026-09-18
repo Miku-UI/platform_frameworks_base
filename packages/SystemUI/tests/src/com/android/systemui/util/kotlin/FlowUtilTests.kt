@@ -19,6 +19,10 @@ package com.android.systemui.util.kotlin
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.kosmos.runTest
+import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.testKosmos
 import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat
 import kotlin.time.Duration.Companion.milliseconds
@@ -41,6 +45,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.yield
@@ -214,6 +219,25 @@ class SampleFlowTest : SysuiTestCase() {
         assertThatFlow(sampler.sample(samplee) { a, b -> a to b })
             .emitsExactly(2 to 1, 3 to 3, 4 to 3)
     }
+
+    @Test
+    fun unconfinedDispatcher() =
+        testKosmos().useUnconfinedTestDispatcher().runTest {
+            val results = mutableListOf<String>()
+
+            val flowA = MutableStateFlow(0)
+            val flowB = MutableStateFlow(0)
+            val flowC = flowA.sample(flowB) { a, b -> "$a -> $b" }
+
+            // Using an unconfined test dispatcher here would trigger the race condition somehow.
+            val job = testScope.launch { flowC.collect { results.add(it) } }
+
+            testScope.advanceUntilIdle()
+
+            assertThat(results).containsExactly("0 -> 0")
+
+            job.cancel()
+        }
 }
 
 @SmallTest

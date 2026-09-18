@@ -22,23 +22,37 @@ public class LockTarget {
     public static final LockTarget NO_TARGET = new LockTarget("", null, null);
 
     // The lock which must be instrumented, in Java internal form (L<path>;).
-    private final String targetDesc;
+    private final String mTargetDesc;
     // The methods to be called when the lock is taken (released).  For non-scoped locks,
     // these are fully qualified static methods.  For scoped locks, these are the
     // unqualified names of a member method of the target lock.
-    private final String pre;
-    private final String post;
+    private final String mPre;
+    private final String mPost;
+    private final String mTraceBeforeAcquire;
+    private final String mTraceAfterAcquire;
+    private final String mTraceBeforeRelease;
+    private final String mTraceAfterRelease;
     // If true, the pre and post methods are virtual on the target class.  The pre and post methods
     // are both called while the lock is held.  If this field is false then the pre and post methods
     // take no parameters and the post method is called after the lock is released.  This is legacy
     // behavior.
-    private final boolean scoped;
+    private final boolean mScoped;
+
+    public LockTarget(String targetDesc, String pre, String post, String traceBeforeAcquire,
+            String traceAfterAcquire, String traceBeforeRelease, String traceAfterRelease,
+            boolean scoped) {
+        this.mTargetDesc = targetDesc;
+        this.mPre = pre;
+        this.mPost = post;
+        this.mTraceBeforeAcquire = traceBeforeAcquire;
+        this.mTraceAfterAcquire = traceAfterAcquire;
+        this.mTraceBeforeRelease = traceBeforeRelease;
+        this.mTraceAfterRelease = traceAfterRelease;
+        this.mScoped = scoped;
+    }
 
     public LockTarget(String targetDesc, String pre, String post, boolean scoped) {
-        this.targetDesc = targetDesc;
-        this.pre = pre;
-        this.post = post;
-        this.scoped = scoped;
+        this(targetDesc, pre, post, null, null, null, null, scoped);
     }
 
     public LockTarget(String targetDesc, String pre, String post) {
@@ -46,47 +60,109 @@ public class LockTarget {
     }
 
     public String getTargetDesc() {
-        return targetDesc;
+        return mTargetDesc;
     }
 
     public String getPre() {
-        return pre;
+        return mPre;
     }
 
     public String getPreOwner() {
-        if (scoped) {
-            return targetDesc.substring(1, targetDesc.length() - 1);
+        if (mPre == null) {
+            return null;
+        }
+        if (mScoped) {
+            return mTargetDesc.substring(1, mTargetDesc.length() - 1);
         } else {
-            return pre.substring(0, pre.lastIndexOf('.'));
+            return mPre.substring(0, mPre.lastIndexOf('.'));
         }
     }
 
     public String getPreMethod() {
-        return pre.substring(pre.lastIndexOf('.') + 1);
+        return mPre == null ? null : mPre.substring(mPre.lastIndexOf('.') + 1);
     }
 
     public String getPost() {
-        return post;
+        return mPost;
     }
 
     public String getPostOwner() {
-        if (scoped) {
-            return targetDesc.substring(1, targetDesc.length() - 1);
+        if (mPost == null) {
+            return null;
+        }
+        if (mScoped) {
+            return mTargetDesc.substring(1, mTargetDesc.length() - 1);
         } else {
-            return post.substring(0, post.lastIndexOf('.'));
+            return mPost.substring(0, mPost.lastIndexOf('.'));
         }
     }
 
     public String getPostMethod() {
-        return post.substring(post.lastIndexOf('.') + 1);
+        return mPost == null ? null : mPost.substring(mPost.lastIndexOf('.') + 1);
+    }
+
+    public String getTraceBeforeAcquire() {
+        return mTraceBeforeAcquire;
+    }
+
+    public String getTraceBeforeAcquireOwner() {
+        return mTraceBeforeAcquire == null ? null
+                : mTraceBeforeAcquire.substring(0, mTraceBeforeAcquire.lastIndexOf('.'));
+    }
+
+    public String getTraceBeforeAcquireMethod() {
+        return mTraceBeforeAcquire == null ? null
+                : mTraceBeforeAcquire.substring(mTraceBeforeAcquire.lastIndexOf('.') + 1);
+    }
+
+    public String getTraceAfterAcquire() {
+        return mTraceAfterAcquire;
+    }
+
+    public String getTraceAfterAcquireOwner() {
+        return mTraceAfterAcquire == null ? null
+                : mTraceAfterAcquire.substring(0, mTraceAfterAcquire.lastIndexOf('.'));
+    }
+
+    public String getTraceAfterAcquireMethod() {
+        return mTraceAfterAcquire == null ? null
+                : mTraceAfterAcquire.substring(mTraceAfterAcquire.lastIndexOf('.') + 1);
+    }
+
+    public String getTraceBeforeRelease() {
+        return mTraceBeforeRelease;
+    }
+
+    public String getTraceBeforeReleaseOwner() {
+        return mTraceBeforeRelease == null ? null
+                : mTraceBeforeRelease.substring(0, mTraceBeforeRelease.lastIndexOf('.'));
+    }
+
+    public String getTraceBeforeReleaseMethod() {
+        return mTraceBeforeRelease == null ? null
+                : mTraceBeforeRelease.substring(mTraceBeforeRelease.lastIndexOf('.') + 1);
+    }
+
+    public String getTraceAfterRelease() {
+        return mTraceAfterRelease;
+    }
+
+    public String getTraceAfterReleaseOwner() {
+        return mTraceAfterRelease == null ? null
+                : mTraceAfterRelease.substring(0, mTraceAfterRelease.lastIndexOf('.'));
+    }
+
+    public String getTraceAfterReleaseMethod() {
+        return mTraceAfterRelease == null ? null
+                : mTraceAfterRelease.substring(mTraceAfterRelease.lastIndexOf('.') + 1);
     }
 
     public boolean getScoped() {
-        return scoped;
+        return mScoped;
     }
 
     @Override
     public String toString() {
-        return targetDesc + ":" + pre + ":" + post;
+        return mTargetDesc + ":" + mPre + ":" + mPost;
     }
 }

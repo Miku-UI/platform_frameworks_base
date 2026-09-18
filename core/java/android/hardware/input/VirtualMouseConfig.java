@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 /**
  * Configurations to create virtual mouse.
@@ -27,6 +28,7 @@ import android.os.Parcelable;
  * @hide
  */
 @SystemApi
+@RavenwoodKeepWholeClass
 public final class VirtualMouseConfig extends VirtualInputDeviceConfig implements Parcelable {
     @NonNull
     public static final Creator<VirtualMouseConfig> CREATOR = new Creator<VirtualMouseConfig>() {

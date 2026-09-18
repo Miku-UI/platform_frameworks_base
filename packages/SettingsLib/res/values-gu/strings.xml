@@ -37,18 +37,18 @@
     <string name="wifi_security_wep" msgid="1413627788581122366">"WEP"</string>
     <string name="wifi_security_wpa" msgid="1072450904799930636">"WPA-વ્યક્તિગત"</string>
     <string name="wifi_security_wpa2" msgid="4038267581230425543">"WPA2-વ્યક્તિગત"</string>
-    <string name="wifi_security_wpa_wpa2" msgid="946853615482465986">"WPA/WPA2-વ્યક્તિગત"</string>
+    <string name="wifi_security_wpa_wpa2" msgid="946853615482465986">"WPA/WPA2-Personal"</string>
     <string name="wifi_security_eap" msgid="6179633834446852269">"WPA/WPA2/WPA3-એન્ટરપ્રાઇઝ"</string>
     <string name="wifi_security_eap_wpa" msgid="6189023812330549957">"WPA-એન્ટરપ્રાઇઝ"</string>
-    <string name="wifi_security_eap_wpa_wpa2" msgid="1089879674896108216">"WPA/WPA2-એન્ટરપ્રાઇઝ"</string>
+    <string name="wifi_security_eap_wpa_wpa2" msgid="1089879674896108216">"WPA/WPA2-Enterprise"</string>
     <string name="wifi_security_eap_wpa2_wpa3" msgid="2952912020876252266">"WPA2/WPA3-એન્ટરપ્રાઇઝ"</string>
-    <string name="wifi_security_eap_wpa3" msgid="7961135182909018796">"WPA3-એન્ટરપ્રાઇઝ"</string>
+    <string name="wifi_security_eap_wpa3" msgid="7961135182909018796">"WPA3-Enterprise"</string>
     <string name="wifi_security_passpoint" msgid="2209078477216565387">"Passpoint"</string>
-    <string name="wifi_security_sae" msgid="3644520541721422843">"WPA3-વ્યક્તિગત"</string>
+    <string name="wifi_security_sae" msgid="3644520541721422843">"WPA3-Personal"</string>
     <string name="wifi_security_psk_sae" msgid="8135104122179904684">"WPA2/WPA3-વ્યક્તિગત"</string>
     <string name="wifi_security_none_owe" msgid="5241745828327404101">"એકપણ નહીં/Enhanced Open"</string>
     <string name="wifi_security_owe" msgid="3343421403561657809">"Enhanced Open"</string>
-    <string name="wifi_security_eap_suiteb" msgid="415842785991698142">"WPA3-એન્ટરપ્રાઇઝ 192-બિટ"</string>
+    <string name="wifi_security_eap_suiteb" msgid="415842785991698142">"WPA3-Enterprise 192-બિટ"</string>
     <string name="wifi_remembered" msgid="3266709779723179188">"સાચવેલા"</string>
     <string name="wifi_disconnected" msgid="7054450256284661757">"ડિસ્કનેક્ટ કર્યું"</string>
     <string name="wifi_disabled_generic" msgid="2651916945380294607">"અક્ષમ કર્યો"</string>
@@ -130,7 +130,7 @@
     <string name="bluetooth_battery_level_untethered_lea_support" msgid="803110681688633362">"કનેક્ટેડ (ઑડિયો શેરિંગને સપોર્ટ કરે છે). ડાબી બાજુ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, જમણી બાજુ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> બૅટરી."</string>
     <string name="bluetooth_battery_level_untethered_left_lea_support" msgid="7707464334346454950">"કનેક્ટેડ (ઑડિયો શેરિંગને સપોર્ટ કરે છે). ડાબી બાજુ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> બૅટરી."</string>
     <string name="bluetooth_battery_level_untethered_right_lea_support" msgid="8941549024377771038">"કનેક્ટેડ (ઑડિયો શેરિંગને સપોર્ટ કરે છે). જમણી બાજુ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> બૅટરી."</string>
-    <string name="bluetooth_no_battery_level_lea_support" msgid="5721725041048434075">"કનેક્ટેડ (ઑડિયો શેરિંગને સપોર્ટ કરે છે)"</string>
+    <string name="bluetooth_no_battery_level_lea_support" msgid="5721725041048434075">"કનેક્ટ થયેલા (ઑડિયો શેરિંગને સપોર્ટ કરે છે)"</string>
     <string name="bluetooth_guest_battery_level_lea_support" msgid="8098327939585013928">"અતિથિ ડિવાઇસ (ઑડિયો શેરિંગને સપોર્ટ કરે છે). <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> બૅટરી."</string>
     <string name="bluetooth_guest_battery_level_untethered_lea_support" msgid="3701035025565668360">"અતિથિ ડિવાઇસ (ઑડિયો શેરિંગને સપોર્ટ કરે છે). ડાબી બાજુ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, જમણી બાજુ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> બૅટરી."</string>
     <string name="bluetooth_guest_no_battery_level_lea_support" msgid="2977038548753103470">"અતિથિ ડિવાઇસ (ઑડિયો શેરિંગને સપોર્ટ કરે છે)"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wifi ત્રણ બાર."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"પૂર્ણ Wifi સિગ્નલ."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"તમારા ડિવાઇસ સાથે કનેક્ટેડ છે."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"આ ડિવાઇસ પરના બધા વપરાશકર્તાઓ જોઈ શકે છે અને કનેક્ટ કરી શકે છે."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"નેટવર્ક ખોલો"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"સુરક્ષિત નેટવર્ક"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"અ‍ૅક્સેસ પૉઇન્ટનું નામ સેટિંગ આ વપરાશકર્તા માટે ઉપલબ્ધ નથી"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB ડિબગીંગ"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"જ્યારે USB કનેક્ટ કરેલું હોય ત્યારે ડિબગ મોડ"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"USB ડીબગિંગ પ્રમાણીકરણોને રદબાતલ કરો"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"adb ડિબગીંગ અધિકરણોને રદબાતલ કરો"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"વાયરલેસ ડિબગીંગ"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"વાઇ-ફાઇ કનેક્ટ કરેલું હોય ત્યારે ડિબગ મોડ"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"ભૂલ"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"ડિવાઇસનું જોડાણ બનાવી રહ્યાં છીએ…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"ડિવાઇસનું જોડાણ કરવામાં નિષ્ફળ રહ્યાં. કાં તો QR કોડ ખોટો હતો અથવા ડિવાઇસ સમાન નેટવર્ક સાથે કનેક્ટ કરેલું નથી."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP ઍડ્રેસ અને પોર્ટ"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"ઉપલબ્ધ નથી (મંજૂરી નથી)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"ઉપલબ્ધ નથી (વાઇ-ફાઇ ડિસ્કનેક્ટેડ છે)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"QR કોડ સ્કૅન કરો"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"QR કોડને સ્કૅન કરીને વાઇ-ફાઇ પર ડિવાઇસનું જોડાણ બનાવો"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"કૃપા કરીને વાઇ-ફાઇ નેટવર્કથી કનેક્ટ કરો"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB ડિબગીંગ ફક્ત વિકાસ હેતુઓ માટે જ બનાવાયેલ છે. તેનો ઉપયોગ તમારા કમ્પ્યુટર અને તમારા ડિવાઇસ વચ્ચે ડેટાને કૉપિ કરવા, નોટિફિકેશન વગર તમારા ડિવાઇસ પર ઍપ ઇન્સ્ટોલ કરવા અને લૉગ ડેટા વાંચવા માટે કરો."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"વાયરલેસ ડિબગીંગને મંજૂરી આપીએ?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"વાયરલેસ ડિબગીંગ ફક્ત ડેવલપમેન્ટના હેતુઓ માટે જ બનાવાયું છે. તેનો ઉપયોગ તમારા કમ્પ્યુટર અને તમારા ડિવાઇસ વચ્ચે ડેટાને કૉપિ કરવા, નોટિફિકેશન વગર તમારા ડિવાઇસ પર ઍપને ઇન્સ્ટૉલ કરવા અને લૉગ ડેટા વાંચવા માટે કરો."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"તમે અગાઉ અધિકૃત કરેલા તમામ કમ્પ્યુટર્સમાંથી USB ડિબગિંગ પરની અ‍ૅક્સેસ રદબાતલ કરીએ?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"તમે અગાઉ અધિકૃત કરેલા તમામ કમ્પ્યૂટર અને નેટવર્કમાંથી adb ડિબગીંગનો ઍક્સેસ રદબાતલ કરીએ?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"ડેવલપમેન્ટ સેટિંગને મંજૂરી આપીએ?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"આ સેટિંગ ફક્ત વિકાસનાં ઉપયોગ માટે જ હેતુબદ્ધ છે. તે તમારા ડિવાઇસ અને તેના પરની ઍપના ભંગ થવા અથવા ખરાબ વર્તનનું કારણ બની શકે છે."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"USB પર ઍપ ચકાસો"</string>
@@ -728,7 +731,7 @@
     <string name="media_transfer_wired_device_mic_name" msgid="7115192790725088698">"વાયર્ડ માઇક્રોફોન"</string>
     <string name="media_transfer_usb_device_mic_name" msgid="7171789543226269822">"USB માઇક્રોફોન"</string>
     <string name="media_transfer_bt_device_mic_name" msgid="1870669402238687618">"BT માઇક્રોફોન"</string>
-    <string name="wifi_hotspot_switch_on_text" msgid="9212273118217786155">"ચાલુ"</string>
+    <string name="wifi_hotspot_switch_on_text" msgid="9212273118217786155">"ચાલુ છે"</string>
     <string name="wifi_hotspot_switch_off_text" msgid="7245567251496959764">"બંધ"</string>
     <string name="carrier_network_change_mode" msgid="4257621815706644026">"કૅરીઅર નેટવર્કમાં ફેરફાર થઈ રહ્યો છે"</string>
     <string name="data_connection_3g" msgid="931852552688157407">"3G"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"ઇથરનેટ ડિસ્કનેક્ટ થયું."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"ઇથરનેટ."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"કોઈ કૉલિંગ નહીં."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"વાસ્તવિક કીબોર્ડ"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"કીબોર્ડ લેઆઉટ પસંદ કરો"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"ડિફૉલ્ટ"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"સ્ક્રીન ચાલુ કરવાનું નિયંત્રણ"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"સ્ક્રીન ચાલુ કરવાની મંજૂરી આપો"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"ઍપને સ્ક્રીન ચાલુ કરવાની મંજૂરી આપો. જો મંજૂરી આપી હોય, તો ઍપ તમારા સ્પષ્ટ હેતુ વિના કોઈપણ સમયે સ્ક્રીન ચાલુ કરી શકે છે."</string>

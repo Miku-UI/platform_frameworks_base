@@ -91,16 +91,15 @@ data class UninstallUserActionRequired(
 }
 
 data class UninstallSuccess(
-    val appInfo: ApplicationInfo,
     val resultIntent: Intent? = null,
     val activityResultCode: Int = 0,
     val messageResId: Int? = null,
     val isCloneApp: Boolean = false,
+    val appLabel: CharSequence,
 ) : UninstallStage(STAGE_SUCCESS) {
 
     fun getMessage(context: Context): String? {
         return messageResId?.let {
-            val appLabel = appInfo.loadSafeLabel(context.packageManager)
             context.getString(it, appLabel)
         }
     }

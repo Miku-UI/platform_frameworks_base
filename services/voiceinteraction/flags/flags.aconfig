@@ -8,3 +8,17 @@ flag {
     description: "This flags a feature to enable lazy binding to the VoiceInteractionService"
     bug: "404928803"
 }
+
+flag {
+    name: "disable_starting_contextual_search_via_vims"
+    namespace: "sysui_integrations"
+    description: "Disables code that allows starting contextual search via VoiceInteractionManagerService. This code is deprecated and no longer needed due to the functionality being moved to ContextualSearchInvoker from Android 17."
+    bug: "453666549"
+}
+
+flag {
+    name: "enable_restrict_vis_self_trigger"
+    namespace: "permissions"
+    description: "Prevents VIS service access to screen content when triggered from the background without a valid hotword event."
+    bug:  "454889405"
+}

@@ -27,7 +27,7 @@ data class ZenData(val zenMode: ZenMode, val descriptionId: String?) {
         ALARMS(ZEN_MODE_ALARMS);
 
         companion object {
-            fun fromInt(zenMode: Int) = values().firstOrNull { it.zenMode == zenMode }
+            fun fromInt(zenMode: Int) = entries.firstOrNull { it.zenMode == zenMode }
         }
     }
 }

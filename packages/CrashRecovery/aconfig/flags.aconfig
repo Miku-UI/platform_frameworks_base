@@ -33,23 +33,8 @@ flag {
 }
 
 flag {
-    name: "refactor_crashrecovery"
-    namespace: "modularization"
-    description: "Refactor required CrashRecovery code"
-    bug: "289203818"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "synchronous_reboot_in_rescue_party"
     namespace: "modularization"
     description: "Makes reboot and factory reset synchronous in RescueParty"
     bug: "328203835"
-}
-
-flag {
-    name: "extend_rollback_lifetime"
-    namespace: "modularization"
-    description: "Increase rollback lifetime on RollbackManagerService from 14 days to 60 days"
-    bug: "416259905"
 }

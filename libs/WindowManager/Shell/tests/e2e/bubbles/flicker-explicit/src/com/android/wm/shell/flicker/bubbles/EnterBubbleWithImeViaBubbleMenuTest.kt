@@ -18,32 +18,33 @@ package com.android.wm.shell.flicker.bubbles
 
 import android.graphics.Bitmap
 import android.platform.test.annotations.Presubmit
+import android.platform.test.annotations.RequiresFlagsDisabled
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.tools.NavBar
 import android.tools.Rotation
-import androidx.test.filters.FlakyTest
 import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.ImeShownOnAppStartHelper
 import com.android.wm.shell.Flags
-import com.android.wm.shell.Utils
+import com.android.wm.shell.Utils.testSetupRule
 import com.android.wm.shell.flicker.bubbles.EnterBubbleWithImeViaBubbleMenuTest.Companion.testApp
 import com.android.wm.shell.flicker.bubbles.testcase.EnterBubbleTestCases
 import com.android.wm.shell.flicker.bubbles.testcase.ImeBecomesVisibleAndBubbleIsShrunkTestCase
-import com.android.wm.shell.flicker.bubbles.utils.ApplyPerParameterRule
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.launchBubbleViaBubbleMenu
 import com.android.wm.shell.flicker.bubbles.utils.RecordTraceWithTransitionRule
+import com.android.wm.shell.flicker.bubbles.utils.RunOncePerParameterRule
 import org.junit.FixMethodOrder
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.MethodSorters
 import org.junit.runners.Parameterized
+import org.junit.runners.Parameterized.Parameters
 
 /**
  * Test entering bubble via clicking bubble menu and show IME.
  *
- * To run this test:
- *    `atest WMShellExplicitFlickerTestsBubbles:EnterBubbleWithImeViaBubbleMenuTest`
+ * To run this test: `atest WMShellExplicitFlickerTestsBubbles:EnterBubbleWithImeViaBubbleMenuTest`
  * Pre-steps:
  * ```
  *     Launch [initializeApp] to ensure IME is ready to show.
@@ -56,52 +57,52 @@ import org.junit.runners.Parameterized
  *     Click the bubble menu to launch [ImeActivityAutoFocus] into bubble.
  *     IME will show after [ImeActivityAutoFocus] is shown.
  * ```
+ *
  * Verified tests:
  * - [BubbleFlickerTestBase]
  * - [EnterBubbleViaBubbleMenuTest]
  * - [ImeBecomesVisibleAndBubbleIsShrunkTestCase]
  */
+// TODO(b/479182156) Remove this when bubbling is supported in desktop mode.
+@RequiresFlagsDisabled(Flags.FLAG_DISABLE_BUBBLE_ANYTHING_DESKTOP_WINDOWING)
 @RequiresFlagsEnabled(Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE)
 @RequiresDevice
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 @Presubmit
 @RunWith(Parameterized::class)
-class EnterBubbleWithImeViaBubbleMenuTest(navBar: NavBar) : BubbleFlickerTestBase(),
-    EnterBubbleTestCases, ImeBecomesVisibleAndBubbleIsShrunkTestCase {
+class EnterBubbleWithImeViaBubbleMenuTest(navBar: NavBar) :
+    BubbleFlickerTestBase(), EnterBubbleTestCases, ImeBecomesVisibleAndBubbleIsShrunkTestCase {
 
     companion object {
         private val testApp = ImeShownOnAppStartHelper(instrumentation, Rotation.ROTATION_0)
 
-        /**
-         * The screenshot took at the end of the transition.
-         */
+        /** The screenshot took at the end of the transition. */
         private lateinit var bitmapAtEnd: Bitmap
 
-        /**
-         * The IME inset observed from [testApp]
-         */
+        /** The IME inset observed from [testApp] */
         private var imeInset: Int = -1
 
-        private val recordTraceWithTransitionRule = RecordTraceWithTransitionRule(
-            transition = {
-                launchBubbleViaBubbleMenu(testApp, tapl, wmHelper)
-                testApp.waitIMEShown(wmHelper)
-                bitmapAtEnd = instrumentation.uiAutomation.takeScreenshot()
-                imeInset = testApp.retrieveImeBottomInset()
-            },
-            tearDownAfterTransition = { testApp.exit(wmHelper) }
-        )
+        private val recordTraceWithTransitionRule =
+            RecordTraceWithTransitionRule(
+                transition = {
+                    launchBubbleViaBubbleMenu(testApp, tapl, wmHelper)
+                    testApp.waitIMEShown(wmHelper)
+                    bitmapAtEnd = instrumentation.uiAutomation.takeScreenshot()
+                    imeInset = testApp.retrieveImeBottomInset()
+                },
+                tearDownAfterTransition = { testApp.exit(wmHelper) },
+            )
 
-        @Parameterized.Parameters(name = "{0}")
-        @JvmStatic
-        fun data(): List<NavBar> = listOf(NavBar.MODE_GESTURAL, NavBar.MODE_3BUTTON)
+        @Parameters(name = "{0}") @JvmStatic fun data(): List<NavBar> = NavBar.entries
     }
 
-    @get:Rule
-    val setUpRule = ApplyPerParameterRule(
-        Utils.testSetupRule(navBar).around(recordTraceWithTransitionRule),
-        params = arrayOf(navBar),
-    )
+    @get:Rule(order = 1)
+    val setUpRule =
+        RunOncePerParameterRule(
+            testClass = this::class,
+            wrappedRule = testSetupRule(navBar).around(recordTraceWithTransitionRule),
+            params = arrayOf(navBar),
+        )
 
     override val traceDataReader
         get() = recordTraceWithTransitionRule.reader
@@ -116,9 +117,7 @@ class EnterBubbleWithImeViaBubbleMenuTest(navBar: NavBar) : BubbleFlickerTestBas
     override val expectedImeInset
         get() = imeInset
 
-    @FlakyTest(bugId = 421000153)
+    @Ignore("Ime shows up during the transition, so the Bubble view can get occluded")
     @Test
-    override fun imeChangesNavBarColor() {
-        super.imeChangesNavBarColor()
-    }
+    override fun appLayerResizeConsistently() {}
 }

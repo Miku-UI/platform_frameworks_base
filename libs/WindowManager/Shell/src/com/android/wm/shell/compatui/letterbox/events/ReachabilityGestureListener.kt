@@ -43,11 +43,13 @@ class ReachabilityGestureListener(
     private val activityBounds = Rect()
 
     override fun onDoubleTap(e: MotionEvent): Boolean {
-        val x = e.rawX.toInt()
-        val y = e.rawY.toInt()
+        val rawX = e.rawX.toInt()
+        val rawY = e.rawY.toInt()
+        val x = e.x.toInt()
+        val y = e.y.toInt()
         if (!activityBounds.contains(x, y)) {
             letterboxState.lastInputSourceId = taskId
-            val wct = wctSupplier.get().apply { setReachabilityOffset(token!!, taskId, x, y) }
+            val wct = wctSupplier.get().apply { setReachabilityOffset(token!!, taskId, rawX, rawY) }
             transitions.startTransition(TRANSIT_MOVE_LETTERBOX_REACHABILITY, wct, animationHandler)
             return true
         }

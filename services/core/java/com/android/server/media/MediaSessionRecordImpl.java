@@ -47,6 +47,13 @@ public abstract class MediaSessionRecordImpl {
     public abstract String getPackageName();
 
     /**
+     * Get the package name of the session owner as seen by controllers.
+     *
+     * @return The owner package of the session.
+     */
+    public abstract String getOwnerPackageName();
+
+    /**
      * Get the UID this session was created for.
      *
      * @return The UID for this session.

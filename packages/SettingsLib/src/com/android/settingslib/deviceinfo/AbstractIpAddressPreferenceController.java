@@ -18,11 +18,18 @@ package com.android.settingslib.deviceinfo;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
+import android.net.ConnectivityManager.NetworkCallback;
 import android.net.LinkAddress;
 import android.net.LinkProperties;
+import android.net.Network;
 import android.net.wifi.WifiManager;
+import android.os.Handler;
+import android.os.Looper;
+import android.telephony.TelephonyCallback;
+import android.telephony.TelephonyManager;
 
 import androidx.annotation.VisibleForTesting;
+import androidx.lifecycle.DefaultLifecycleObserver;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceScreen;
 
@@ -35,7 +42,7 @@ import java.util.Iterator;
  * Preference controller for IP address
  */
 public abstract class AbstractIpAddressPreferenceController
-        extends AbstractConnectivityPreferenceController {
+        extends AbstractConnectivityPreferenceController implements DefaultLifecycleObserver {
 
     @VisibleForTesting
     static final String KEY_IP_ADDRESS = "wifi_ip_address";
@@ -48,10 +55,25 @@ public abstract class AbstractIpAddressPreferenceController
 
     private Preference mIpAddress;
     private final ConnectivityManager mCM;
+    private final TelephonyManager mTelephonyManager;
+    private final TelephonyCallback mTelephonyCallback = new DataConnectionStateCallback();
+
+    private final NetworkCallback mNetworkCallback = new NetworkCallback() {
+        @Override
+        public void onAvailable(Network network) {
+            updateConnectivity();
+        }
+
+        @Override
+        public void onLost(Network network) {
+            updateConnectivity();
+        }
+    };
 
     public AbstractIpAddressPreferenceController(Context context, Lifecycle lifecycle) {
         super(context, lifecycle);
         mCM = context.getSystemService(ConnectivityManager.class);
+        mTelephonyManager = context.getSystemService(TelephonyManager.class);
     }
 
     @Override
@@ -78,17 +100,47 @@ public abstract class AbstractIpAddressPreferenceController
 
     @Override
     protected void updateConnectivity() {
-        String ipAddress = getDefaultIpAddresses(mCM);
-        if (ipAddress != null) {
-            mIpAddress.setSummary(ipAddress);
-        } else {
-            mIpAddress.setSummary(R.string.status_unavailable);
+        if (mIpAddress == null) {
+            return;
+        }
+        new Handler(Looper.getMainLooper()).post(() -> {
+            String ipAddress = getDefaultIpAddresses(mCM);
+            if (ipAddress != null) {
+                mIpAddress.setSummary(ipAddress);
+            } else {
+                mIpAddress.setSummary(R.string.status_unavailable);
+            }
+        });
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (mNetworkCallback != null) {
+            mCM.registerDefaultNetworkCallback(mNetworkCallback);
+        }
+
+        if (mTelephonyCallback != null) {
+            mTelephonyManager.registerTelephonyCallback(
+                    mContext.getMainExecutor(), mTelephonyCallback);
+        }
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+        if (mNetworkCallback != null) {
+            mCM.unregisterNetworkCallback(mNetworkCallback);
+        }
+        if (mTelephonyCallback != null) {
+            mTelephonyManager.unregisterTelephonyCallback(mTelephonyCallback);
         }
     }
 
     /**
      * Returns the default link's IP addresses, if any, taking into account IPv4 and IPv6 style
      * addresses.
+     *
      * @param cm ConnectivityManager
      * @return the formatted and newline-separated IP addresses, or null if none.
      */
@@ -109,5 +161,13 @@ public abstract class AbstractIpAddressPreferenceController
             if (iter.hasNext()) addresses.append("\n");
         }
         return addresses.toString();
+    }
+
+    private class DataConnectionStateCallback extends TelephonyCallback implements
+            TelephonyCallback.DataConnectionStateListener {
+        @Override
+        public void onDataConnectionStateChanged(int state, int networkType) {
+            updateConnectivity();
+        }
     }
 }

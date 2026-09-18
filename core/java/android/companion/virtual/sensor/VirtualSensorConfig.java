@@ -251,7 +251,6 @@ public final class VirtualSensorConfig implements Parcelable {
      * @see Builder#setWakeUpSensor(boolean)
      * @see Sensor#isWakeUpSensor()
      */
-    @FlaggedApi(Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
     public boolean isWakeUpSensor() {
         return (mFlags & FLAG_WAKE_UP_SENSOR) > 0;
     }
@@ -274,7 +273,6 @@ public final class VirtualSensorConfig implements Parcelable {
      * @see Builder#setReportingMode(int)
      * @see Sensor#getReportingMode()
      */
-    @FlaggedApi(Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
     public @ReportingMode int getReportingMode() {
         return ((mFlags & REPORTING_MODE_MASK) >> REPORTING_MODE_SHIFT);
     }
@@ -454,7 +452,6 @@ public final class VirtualSensorConfig implements Parcelable {
          *
          * @see Sensor#isWakeUpSensor()
          */
-        @FlaggedApi(Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
         @NonNull
         public VirtualSensorConfig.Builder setWakeUpSensor(boolean wakeUpSensor) {
             if (wakeUpSensor) {
@@ -494,7 +491,6 @@ public final class VirtualSensorConfig implements Parcelable {
          *
          * @see Sensor#getReportingMode()
          */
-        @FlaggedApi(Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
         @NonNull
         public VirtualSensorConfig.Builder setReportingMode(@ReportingMode int reportingMode) {
             if (reportingMode != REPORTING_MODE_CONTINUOUS

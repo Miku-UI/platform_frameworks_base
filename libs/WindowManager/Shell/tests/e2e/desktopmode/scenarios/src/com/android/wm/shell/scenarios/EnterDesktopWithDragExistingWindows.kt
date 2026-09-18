@@ -16,6 +16,7 @@
 
 package com.android.wm.shell.scenarios
 
+import android.platform.test.annotations.WithDesktopTest
 import android.tools.Rotation
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.MailAppHelper
@@ -37,15 +38,17 @@ constructor(
     private val mailAppDesktopHelper = DesktopModeAppHelper(mailAppHelper)
 
     private val desktopConfig = DesktopConfig.fromContext(instrumentation.context)
-    private val maxNum = desktopConfig.maxTaskLimit
+    private val hasTaskLimit = desktopConfig.maxTaskLimit > 0
+    private val numWindows = if (hasTaskLimit) desktopConfig.maxTaskLimit - 1 else 15
 
     @Before
     fun setup() {
         mailAppDesktopHelper.enterDesktopMode(wmHelper, device)
-        mailAppDesktopHelper.openTasks(wmHelper, numTasks = maxNum - 1)
-        mailAppDesktopHelper.exitDesktopWithDragToTopDragZone(wmHelper, device)
+        mailAppDesktopHelper.openTasks(wmHelper, numTasks = numWindows)
+        mailAppDesktopHelper.exitDesktopModeToFullScreenViaKeyboard(wmHelper)
     }
 
+    @WithDesktopTest
     @Test
     open fun reenterDesktopWithDrag() {
         // By default this method uses drag to desktop

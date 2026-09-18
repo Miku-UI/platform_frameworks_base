@@ -17,6 +17,8 @@
 package com.android.systemui.screencapture.sharescreen
 
 import com.android.systemui.screencapture.common.ui.compose.ScreenCaptureContent
+import com.android.systemui.screencapture.sharescreen.domain.interactor.MediaProjectionServiceHelperWrapper
+import com.android.systemui.screencapture.sharescreen.domain.interactor.MediaProjectionServiceHelperWrapperImpl
 import com.android.systemui.screencapture.sharescreen.ui.compose.ScreenCaptureShareScreenContent
 import dagger.Binds
 import dagger.Module
@@ -25,4 +27,9 @@ import dagger.Module
 @Module
 interface ShareScreenModule {
     @Binds fun bindScreenCaptureContent(impl: ScreenCaptureShareScreenContent): ScreenCaptureContent
+
+    @Binds
+    fun bindMediaProjectionHelper(
+        impl: MediaProjectionServiceHelperWrapperImpl
+    ): MediaProjectionServiceHelperWrapper
 }

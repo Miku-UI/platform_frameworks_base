@@ -34,8 +34,8 @@ interface PrimaryBouncerTransition {
     val notificationBlurRadius: Flow<Float>
 
     fun transitionProgressToBlurRadius(
-        starBlurRadius: Float,
+        startBlurRadius: Float,
         endBlurRadius: Float,
         transitionProgress: Float,
-    ): Float = lerp(starBlurRadius, endBlurRadius, transitionProgress)
+    ): Float = lerp(startBlurRadius, endBlurRadius, transitionProgress)
 }

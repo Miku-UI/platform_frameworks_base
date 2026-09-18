@@ -95,8 +95,6 @@ constexpr double kMaxLoadHintsPerInterval = 20;
 // Replenish rate is used for new rate limiting behavior, it currently replenishes at a rate of
 // 20 / 2s = 1 per 100us, which is the same limit as before, just enforced differently
 constexpr double kReplenishRate = kMaxLoadHintsPerInterval / static_cast<double>(kLoadHintInterval);
-constexpr int64_t kSendHintTimeout = kLoadHintInterval / kMaxLoadHintsPerInterval;
-bool kForceNewHintBehavior = false;
 
 std::optional<size_t> kReportBatchSizeCap =
         android::os::adpf_cap_max_batch_size() ? std::make_optional(50) : std::nullopt;
@@ -104,10 +102,6 @@ std::optional<size_t> kReportBatchSizeCap =
 template <class T>
 constexpr int32_t enum_size() {
     return static_cast<int32_t>(*(ndk::enum_range<T>().end() - 1)) + 1;
-}
-
-bool useNewLoadHintBehavior() {
-    return android::os::adpf_use_load_hints() || kForceNewHintBehavior;
 }
 
 // Shared lock for the whole PerformanceHintManager and sessions
@@ -230,7 +224,7 @@ public:
     APerformanceHintSession(std::shared_ptr<IHintManager> hintManager,
                             std::shared_ptr<IHintSession> session, int64_t preferredRateNanos,
                             int64_t targetDurationNanos, bool isJava,
-                            std::optional<hal::SessionConfig> sessionConfig);
+                            std::optional<hal::SessionConfig> sessionConfig, hal::SessionTag tag);
     APerformanceHintSession() = delete;
     ~APerformanceHintSession();
 
@@ -245,6 +239,7 @@ public:
     int setPreferPowerEfficiency(bool enabled);
     int reportActualWorkDuration(AWorkDuration* workDuration);
     bool isJava();
+    hal::SessionTag getTag();
     status_t setNativeSurfaces(ANativeWindow** windows, size_t numWindows,
                                ASurfaceControl** controls, size_t numSurfaceControls);
 
@@ -272,6 +267,7 @@ private:
     // Is this session backing an SDK wrapper object
     const bool mIsJava;
     std::string mSessionName;
+    hal::SessionTag mTag;
     static int64_t sIDCounter GUARDED_BY(sHintMutex);
     // The most recent set of thread IDs
     std::vector<int32_t> mLastThreadIDs GUARDED_BY(sHintMutex);
@@ -460,7 +456,8 @@ int APerformanceHintManager::createSessionUsingConfig(ASessionCreationConfig* se
                                            sessionConfig.id == -1
                                                    ? std::nullopt
                                                    : std::make_optional<hal::SessionConfig>(
-                                                             std::move(sessionConfig)));
+                                                             std::move(sessionConfig)),
+                                           returnValue.tag);
 
     *sessionOut = out;
 
@@ -545,7 +542,8 @@ APerformanceHintSession::APerformanceHintSession(std::shared_ptr<IHintManager> h
                                                  std::shared_ptr<IHintSession> session,
                                                  int64_t preferredRateNanos,
                                                  int64_t targetDurationNanos, bool isJava,
-                                                 std::optional<hal::SessionConfig> sessionConfig)
+                                                 std::optional<hal::SessionConfig> sessionConfig,
+                                                 hal::SessionTag tag)
       : mHintManager(hintManager),
         mHintSession(std::move(session)),
         mPreferredRateNanos(preferredRateNanos),
@@ -554,6 +552,7 @@ APerformanceHintSession::APerformanceHintSession(std::shared_ptr<IHintManager> h
         mLastTargetMetTimestamp(0),
         mLastHintSentTimestamp(std::vector<int64_t>(kNumEnums, 0)),
         mIsJava(isJava),
+        mTag(tag),
         mSessionConfig(sessionConfig) {
     if (sessionConfig->id > INT32_MAX) {
         ALOGE("Session ID too large, must fit 32-bit integer");
@@ -607,6 +606,10 @@ bool APerformanceHintSession::isJava() {
     return mIsJava;
 }
 
+hal::SessionTag APerformanceHintSession::getTag() {
+    return mTag;
+}
+
 int APerformanceHintSession::sendHints(std::vector<hal::SessionHint>& hints, int64_t now,
                                        const char*) {
     auto& supportInfo = APerformanceHintManager::getInstance()->getSupportInfo();
@@ -627,18 +630,8 @@ int APerformanceHintSession::sendHints(std::vector<hal::SessionHint>& hints, int
     }
 
     std::scoped_lock lock(sHintMutex);
-    if (useNewLoadHintBehavior()) {
-        if (!APerformanceHintManager::getInstance()->canSendLoadHints(hints, now)) {
-            return EBUSY;
-        }
-    }
-    // keep old rate limiter behavior for legacy flag
-    else {
-        for (auto&& hint : hints) {
-            if (now < (mLastHintSentTimestamp[static_cast<int32_t>(hint)] + kSendHintTimeout)) {
-                return EBUSY;
-            }
-        }
+    if (!APerformanceHintManager::getInstance()->canSendLoadHints(hints, now)) {
+        return EBUSY;
     }
 
     if (!getFMQ().sendHints(mSessionConfig, hints, now)) {
@@ -652,10 +645,8 @@ int APerformanceHintSession::sendHints(std::vector<hal::SessionHint>& hints, int
         }
     }
 
-    if (!useNewLoadHintBehavior()) {
-        for (auto&& hint : hints) {
-            mLastHintSentTimestamp[static_cast<int32_t>(hint)] = now;
-        }
+    for (auto&& hint : hints) {
+        mLastHintSentTimestamp[static_cast<int32_t>(hint)] = now;
     }
 
     if (ATrace_isEnabled()) {
@@ -915,7 +906,7 @@ bool FMQWrapper::isSupported() {
     if (gForceFMQEnabled.has_value()) {
         return *gForceFMQEnabled;
     }
-    return android::os::adpf_use_fmq_channel_fixed();
+    return true;
 }
 
 bool FMQWrapper::startChannel(IHintManager* manager) {
@@ -1268,6 +1259,10 @@ int APerformanceHint_setPreferPowerEfficiency(APerformanceHintSession* session, 
 
 int APerformanceHint_reportActualWorkDuration2(APerformanceHintSession* session,
                                                AWorkDuration* workDurationPtr) {
+    if (session->getTag() == hal::SessionTag::GAME) {
+        ALOGV("Function called from a game, returning without reporting.");
+        return 0;
+    }
     VALIDATE_PTR(session)
     VALIDATE_PTR(workDurationPtr)
     VALIDATE_INT(workDurationPtr->durationNanos, > 0)
@@ -1403,10 +1398,6 @@ void APerformanceHint_getRateLimiterPropertiesForTesting(int32_t* maxLoadHintsPe
                                                          int64_t* loadHintInterval) {
     *maxLoadHintsPerInterval = kMaxLoadHintsPerInterval;
     *loadHintInterval = kLoadHintInterval;
-}
-
-void APerformanceHint_setUseNewLoadHintBehaviorForTesting(bool newBehavior) {
-    kForceNewHintBehavior = newBehavior;
 }
 
 void APerformanceHint_setReportBatchSizeCapForTesting(int cap) {

@@ -16,24 +16,28 @@
 package com.android.systemui.statusbar.notification.row
 
 import android.app.Notification
+import android.app.Notification.Metric
+import android.app.Notification.MetricStyle
 import android.app.Person
 import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper
 import android.view.View.GONE
+import androidx.core.view.isVisible
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.R
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.statusbar.notification.NmSummarizationAllFlag
 import com.android.systemui.statusbar.notification.collection.buildNotificationEntry
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.FLAG_CONTENT_VIEW_PUBLIC_SINGLE_LINE
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.FLAG_CONTENT_VIEW_SINGLE_LINE
 import com.android.systemui.statusbar.notification.row.SingleLineViewInflater.inflatePrivateSingleLineView
 import com.android.systemui.statusbar.notification.row.SingleLineViewInflater.inflatePublicSingleLineView
 import com.android.systemui.statusbar.notification.row.ui.viewbinder.SingleLineViewBinder
+import com.android.systemui.statusbar.notification.row.ui.viewmodel.SingleLineViewPayload
 import com.android.systemui.testKosmos
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
+import com.google.common.truth.Truth.assertThat
+import java.time.Duration
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -66,7 +70,7 @@ class SingleLineViewBinderTest : SysuiTestCase() {
 
         val view =
             inflatePrivateSingleLineView(
-                isConversation = false,
+                payload = SingleLineViewPayload.StandardPayload,
                 reinflateFlags = FLAG_CONTENT_VIEW_SINGLE_LINE,
                 entry = entry,
                 context = context,
@@ -75,18 +79,19 @@ class SingleLineViewBinderTest : SysuiTestCase() {
 
         val publicView =
             inflatePublicSingleLineView(
-                isConversation = false,
+                payload = SingleLineViewPayload.StandardPayload,
                 reinflateFlags = FLAG_CONTENT_VIEW_PUBLIC_SINGLE_LINE,
                 entry = entry,
                 context = context,
                 logger = mock(),
             )
-        assertNotNull(publicView)
+        assertThat(publicView).isNotNull()
 
         val viewModel =
             SingleLineViewInflater.inflateSingleLineViewModel(
                 notification = notification,
                 messagingStyle = null,
+                metricStyle = null,
                 builder = notificationBuilder,
                 systemUiContext = context,
                 redactText = false,
@@ -97,8 +102,8 @@ class SingleLineViewBinderTest : SysuiTestCase() {
         SingleLineViewBinder.bind(viewModel, view)
 
         // THEN: the single-line view should be bind with viewModel's title and content text
-        assertEquals(viewModel.titleText, view?.titleView?.text)
-        assertEquals(viewModel.contentText, view?.textView?.text)
+        assertThat(view?.titleView?.text).isEqualTo(viewModel.titleText)
+        assertThat(view?.textView?.text).isEqualTo(viewModel.contentText)
     }
 
     @Test
@@ -125,7 +130,12 @@ class SingleLineViewBinderTest : SysuiTestCase() {
 
         val view =
             inflatePrivateSingleLineView(
-                isConversation = true,
+                payload =
+                    SingleLineViewPayload.ConversationData(
+                        conversationSenderName = mock(),
+                        avatar = mock(),
+                        summarization = mock(),
+                    ),
                 reinflateFlags = FLAG_CONTENT_VIEW_SINGLE_LINE,
                 entry = entry,
                 context = context,
@@ -135,19 +145,25 @@ class SingleLineViewBinderTest : SysuiTestCase() {
 
         val publicView =
             inflatePublicSingleLineView(
-                isConversation = true,
+                payload =
+                    SingleLineViewPayload.ConversationData(
+                        conversationSenderName = mock(),
+                        avatar = mock(),
+                        summarization = mock(),
+                    ),
                 reinflateFlags = FLAG_CONTENT_VIEW_PUBLIC_SINGLE_LINE,
                 entry = entry,
                 context = context,
                 logger = mock(),
             )
                 as HybridConversationNotificationView
-        assertNotNull(publicView)
+        assertThat(publicView).isNotNull()
 
         val viewModel =
             SingleLineViewInflater.inflateSingleLineViewModel(
                 notification = notification,
                 messagingStyle = style,
+                metricStyle = null,
                 builder = notificationBuilder,
                 systemUiContext = context,
                 redactText = false,
@@ -158,12 +174,13 @@ class SingleLineViewBinderTest : SysuiTestCase() {
 
         // THEN: the single-line conversation view should be bound with view model's corresponding
         // fields
-        assertEquals(viewModel.titleText, view.titleView.text)
-        assertEquals(viewModel.contentText, view.textView.text)
-        assertEquals(
-            viewModel.conversationData?.conversationSenderName,
-            view.conversationSenderNameView.text,
-        )
+        assertThat(view.titleView?.text).isEqualTo(viewModel.titleText)
+        assertThat(view.textView?.text).isEqualTo(viewModel.contentText)
+        assertThat(view.conversationSenderNameView.text)
+            .isEqualTo(
+                (viewModel.payload as? SingleLineViewPayload.ConversationData)
+                    ?.conversationSenderName
+            )
     }
 
     @Test
@@ -176,7 +193,12 @@ class SingleLineViewBinderTest : SysuiTestCase() {
 
         val view =
             inflatePrivateSingleLineView(
-                isConversation = true,
+                payload =
+                    SingleLineViewPayload.ConversationData(
+                        conversationSenderName = mock(),
+                        avatar = mock(),
+                        summarization = mock(),
+                    ),
                 reinflateFlags = FLAG_CONTENT_VIEW_SINGLE_LINE,
                 entry = entry,
                 context = context,
@@ -185,18 +207,24 @@ class SingleLineViewBinderTest : SysuiTestCase() {
 
         val publicView =
             inflatePublicSingleLineView(
-                isConversation = true,
+                payload =
+                    SingleLineViewPayload.ConversationData(
+                        conversationSenderName = mock(),
+                        avatar = mock(),
+                        summarization = mock(),
+                    ),
                 reinflateFlags = FLAG_CONTENT_VIEW_PUBLIC_SINGLE_LINE,
                 entry = entry,
                 context = context,
                 logger = mock(),
             )
-        assertNotNull(publicView)
+        assertThat(publicView).isNotNull()
 
         val viewModel =
             SingleLineViewInflater.inflateSingleLineViewModel(
                 notification = notification,
                 messagingStyle = null,
+                metricStyle = null,
                 builder = notificationBuilder,
                 systemUiContext = context,
                 redactText = false,
@@ -207,16 +235,12 @@ class SingleLineViewBinderTest : SysuiTestCase() {
 
         // THEN: the single-line view should be bound with view model's corresponding
         // fields as a normal non-conversation single-line view
-        assertEquals(viewModel.titleText, view?.titleView?.text)
-        assertEquals(viewModel.contentText, view?.textView?.text)
-        assertNull(viewModel.conversationData)
+        assertThat(view?.titleView?.text).isEqualTo(viewModel.titleText)
+        assertThat(view?.textView?.text).isEqualTo(viewModel.contentText)
+        assertThat((viewModel.payload as? SingleLineViewPayload.ConversationData)).isNull()
     }
 
     @Test
-    @EnableFlags(
-        android.app.Flags.FLAG_NM_SUMMARIZATION_UI,
-        android.app.Flags.FLAG_NM_SUMMARIZATION,
-    )
     fun bindSummarizedGroupConversationSingleLineView() {
         // GIVEN a row with a group conversation notification
         val user = Person.Builder().setName(USER_NAME).build()
@@ -238,7 +262,12 @@ class SingleLineViewBinderTest : SysuiTestCase() {
 
         val view =
             inflatePrivateSingleLineView(
-                isConversation = true,
+                payload =
+                    SingleLineViewPayload.ConversationData(
+                        conversationSenderName = mock(),
+                        avatar = mock(),
+                        summarization = mock(),
+                    ),
                 reinflateFlags = FLAG_CONTENT_VIEW_SINGLE_LINE,
                 entry = entry,
                 context = context,
@@ -248,31 +277,233 @@ class SingleLineViewBinderTest : SysuiTestCase() {
 
         val publicView =
             inflatePublicSingleLineView(
-                isConversation = true,
+                payload =
+                    SingleLineViewPayload.ConversationData(
+                        conversationSenderName = mock(),
+                        avatar = mock(),
+                        summarization = mock(),
+                    ),
                 reinflateFlags = FLAG_CONTENT_VIEW_PUBLIC_SINGLE_LINE,
                 entry = entry,
                 context = context,
                 logger = mock(),
             )
                 as HybridConversationNotificationView
-        assertNotNull(publicView)
+        assertThat(publicView).isNotNull()
 
         val viewModel =
             SingleLineViewInflater.inflateSingleLineViewModel(
                 notification = notification,
                 messagingStyle = style,
+                metricStyle = null,
                 builder = notificationBuilder,
                 systemUiContext = context,
                 redactText = false,
-                summarization = "summary",
+                summarization = SUMMARIZATION,
             )
         // WHEN: binds the view
         SingleLineViewBinder.bind(viewModel, view)
 
         // THEN: the single-line conversation view should only include summarization content
-        assertEquals(viewModel.conversationData?.summarization, view.textView.text)
-        assertEquals("", view.conversationSenderNameView.text)
-        assertEquals(GONE, view.conversationSenderNameView.visibility)
+        assertThat(view.textView?.text).isEqualTo(SUMMARIZATION)
+        assertThat(view.conversationSenderNameView.text).isEqualTo("")
+        assertThat(view.conversationSenderNameView.visibility).isEqualTo(GONE)
+    }
+
+    @Test
+    @EnableFlags(NmSummarizationAllFlag.FLAG_NAME)
+    fun bindNonConversationSingleLineView_withSummarization() {
+        // GIVEN: a row with bigText style notification
+        val style = Notification.BigTextStyle().bigText(CONTENT_TEXT)
+        notificationBuilder.setStyle(style)
+        notificationBuilder.setSummarizedContent(SUMMARIZATION)
+        val notification = notificationBuilder.build()
+        val entry = kosmos.buildNotificationEntry(notification)
+
+        val view =
+            inflatePrivateSingleLineView(
+                payload = SingleLineViewPayload.StandardPayload,
+                reinflateFlags = FLAG_CONTENT_VIEW_SINGLE_LINE,
+                entry = entry,
+                context = context,
+                logger = mock(),
+            )
+
+        val publicView =
+            inflatePublicSingleLineView(
+                payload = SingleLineViewPayload.StandardPayload,
+                reinflateFlags = FLAG_CONTENT_VIEW_PUBLIC_SINGLE_LINE,
+                entry = entry,
+                context = context,
+                logger = mock(),
+            )
+        assertThat(publicView).isNotNull()
+
+        val viewModel =
+            SingleLineViewInflater.inflateSingleLineViewModel(
+                notification = notification,
+                messagingStyle = null,
+                metricStyle = null,
+                builder = notificationBuilder,
+                systemUiContext = context,
+                redactText = false,
+                summarization = SUMMARIZATION,
+            )
+
+        // WHEN: binds the viewHolder
+        SingleLineViewBinder.bind(viewModel, view)
+
+        // THEN: the single-line view should be bind with viewModel's title and summarization text
+        assertThat(view?.titleView?.text).isEqualTo(viewModel.titleText)
+        assertThat(view?.textView?.text).isEqualTo(viewModel.summarization)
+        assertThat(viewModel.summarization).isEqualTo(SUMMARIZATION)
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_API_METRIC_STYLE)
+    fun bindMetricSingleLineView_noTitle() {
+        // GIVEN: a row with MetricStyle notification with Text metric
+        val metric = Metric(Metric.FixedInt(1245), "Steps")
+        val style = MetricStyle()
+        style.addMetric(metric)
+        notificationBuilder.setStyle(style)
+        notificationBuilder.setContentTitle(null)
+        val notification = notificationBuilder.build()
+        val entry = kosmos.buildNotificationEntry(notification)
+
+        val view =
+            inflatePrivateSingleLineView(
+                payload = SingleLineViewPayload.MetricPayload(data = mock()),
+                reinflateFlags = FLAG_CONTENT_VIEW_SINGLE_LINE,
+                entry = entry,
+                context = context,
+                logger = mock(),
+            )
+                as HybridMetricNotificationView
+
+        val viewModel =
+            SingleLineViewInflater.inflateSingleLineViewModel(
+                notification = notification,
+                messagingStyle = null,
+                metricStyle = style,
+                builder = notificationBuilder,
+                systemUiContext = context,
+                redactText = false,
+                summarization = null,
+            )
+
+        // WHEN: binds the viewHolder
+        SingleLineViewBinder.bind(viewModel, view)
+
+        // THEN: the single-line view should be bind with viewModel's title and metric data
+        assertThat(view.titleView?.text).isEqualTo("Steps")
+        assertThat(view.textView?.text).isEqualTo("")
+
+        assertThat(view.metricLabel.text).isEqualTo("")
+        assertThat(view.metricLabel.isVisible).isFalse()
+        assertThat(view.metricChronometer.isVisible).isFalse()
+        assertThat(view.metricValue.isVisible).isTrue()
+        assertThat(view.metricValue.text).isEqualTo("1,245")
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_API_METRIC_STYLE)
+    fun bindMetricSingleLineView_withText() {
+        // GIVEN: a row with MetricStyle notification with Text metric
+        val metric = Metric(Metric.FixedInt(1245), "Steps")
+        val style = MetricStyle()
+        style.addMetric(metric)
+        notificationBuilder.setStyle(style)
+        notificationBuilder.setContentTitle("Title")
+        val notification = notificationBuilder.build()
+        val entry = kosmos.buildNotificationEntry(notification)
+
+        val view =
+            inflatePrivateSingleLineView(
+                payload = SingleLineViewPayload.MetricPayload(data = mock()),
+                reinflateFlags = FLAG_CONTENT_VIEW_SINGLE_LINE,
+                entry = entry,
+                context = context,
+                logger = mock(),
+            )
+                as HybridMetricNotificationView
+
+        val viewModel =
+            SingleLineViewInflater.inflateSingleLineViewModel(
+                notification = notification,
+                messagingStyle = null,
+                metricStyle = style,
+                builder = notificationBuilder,
+                systemUiContext = context,
+                redactText = false,
+                summarization = null,
+            )
+
+        // WHEN: binds the viewHolder
+        SingleLineViewBinder.bind(viewModel, view)
+
+        // THEN: the single-line view should be bind with viewModel's title and metric data
+        assertThat(view.titleView?.text).isEqualTo("Title")
+        assertThat(view.textView?.text).isEqualTo("")
+
+        assertThat(view.metricLabel.text).isEqualTo("Steps")
+        assertThat(view.metricChronometer.isVisible).isFalse()
+        assertThat(view.metricValue.isVisible).isTrue()
+        assertThat(view.metricValue.text).isEqualTo("1,245")
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_API_METRIC_STYLE)
+    fun bindMetricSingleLineView_withTimeDifference() {
+        // GIVEN: a row with MetricStyle notification with TimeDifference metric
+        val metric =
+            Metric(
+                Metric.TimeDifference.forPausedStopwatch(
+                    Duration.ofMinutes(10),
+                    Metric.TimeDifference.FORMAT_CHRONOMETER,
+                ),
+                "Timer",
+            )
+        val style = MetricStyle()
+        style.addMetric(metric)
+        notificationBuilder.setStyle(style)
+        notificationBuilder.setContentTitle("Title")
+        val notification = notificationBuilder.build()
+        val entry = kosmos.buildNotificationEntry(notification)
+
+        val view =
+            inflatePrivateSingleLineView(
+                payload = SingleLineViewPayload.MetricPayload(data = mock()),
+                reinflateFlags = FLAG_CONTENT_VIEW_SINGLE_LINE,
+                entry = entry,
+                context = context,
+                logger = mock(),
+            )
+                as HybridMetricNotificationView
+
+        val viewModel =
+            SingleLineViewInflater.inflateSingleLineViewModel(
+                notification = notification,
+                messagingStyle = null,
+                metricStyle = style,
+                builder = notificationBuilder,
+                systemUiContext = context,
+                redactText = false,
+                summarization = null,
+            )
+
+        // WHEN: binds the viewHolder
+        SingleLineViewBinder.bind(viewModel, view)
+
+        // THEN: the single-line view should be bind with viewModel's title and metric data
+        assertThat(view.titleView?.text).isEqualTo("Title")
+        assertThat(view.textView?.text).isEqualTo("")
+
+        assertThat(view.metricLabel.isVisible).isTrue()
+        assertThat(view.metricLabel.text).isEqualTo("Timer")
+        assertThat(view.metricChronometer.isVisible).isTrue()
+        assertThat(view.metricChronometer.text).isEqualTo("10:00")
+        assertThat(view.metricValue.isVisible).isFalse()
     }
 
     private companion object {

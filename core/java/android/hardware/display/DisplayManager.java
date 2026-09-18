@@ -146,6 +146,20 @@ public final class DisplayManager {
             "android.hardware.display.category.PRESENTATION";
 
     /**
+     * Display category: XR projected displays.
+     *
+     * <p>
+     * This category can be used to identify displays that are projected to a user on a connected
+     * XR Device.
+     * </p>
+     *
+     * @see #getDisplays(String)
+     */
+    @FlaggedApi(android.xr.Flags.FLAG_XR_MANIFEST_ENTRIES)
+    public static final String DISPLAY_CATEGORY_XR_PROJECTED =
+            "android.hardware.display.category.XR_PROJECTED";
+
+    /**
      * Display category: Built in displays.
      *
      * <p>
@@ -210,6 +224,7 @@ public final class DisplayManager {
             VIRTUAL_DISPLAY_FLAG_TOUCH_FEEDBACK_DISABLED,
             VIRTUAL_DISPLAY_FLAG_OWN_FOCUS,
             VIRTUAL_DISPLAY_FLAG_STEAL_TOP_FOCUS_DISABLED,
+            VIRTUAL_DISPLAY_FLAG_ALLOWS_CONTENT_MODE_SWITCH,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface VirtualDisplayFlag {}
@@ -488,7 +503,7 @@ public final class DisplayManager {
     /**
      * Virtual display flags: Indicates that the display maintains its own focus and touch mode.
      *
-     * This flag is similar to {@link com.android.internal.R.bool.config_perDisplayFocusEnabled} in
+     * This flag is similar to {@link com.android.internal.R.bool#config_perDisplayFocusEnabled} in
      * behavior, but only applies to the specific display instead of system-wide to all displays.
      *
      * Note: The display must be trusted in order to have its own focus.
@@ -521,6 +536,25 @@ public final class DisplayManager {
      */
     @SystemApi
     public static final int VIRTUAL_DISPLAY_FLAG_STEAL_TOP_FOCUS_DISABLED = 1 << 16;
+
+    /**
+     * Virtual display flags: Indicates that the display is allowed to switch the content mode
+     * between projected/extended and mirroring. This allows the display to dynamically add or
+     * remove the home and system decorations.
+     *
+     * Note that this flag requires {@link #VIRTUAL_DISPLAY_FLAG_PUBLIC} and
+     * {@link #VIRTUAL_DISPLAY_FLAG_TRUSTED}, and should not be enabled with either
+     * {@link #VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR}, {@link #VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY},
+     * or {@link #VIRTUAL_DISPLAY_FLAG_SHOULD_SHOW_SYSTEM_DECORATIONS} at the same time; otherwise
+     * it will be ignored.
+     *
+     * @see #createVirtualDisplay
+     * @hide
+     */
+    @FlaggedApi(com.android.server
+            .display.feature.flags.Flags.FLAG_VIRTUAL_DISPLAYS_SUPPORT_DESKTOP_MODE)
+    @SystemApi
+    public static final int VIRTUAL_DISPLAY_FLAG_ALLOWS_CONTENT_MODE_SWITCH = 1 << 17;
 
     /** @hide */
     @IntDef(prefix = {"MATCH_CONTENT_FRAMERATE_"}, value = {
@@ -616,6 +650,12 @@ public final class DisplayManager {
     public static final int EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_MIRROR = 2;
 
     /**
+     * @hide
+     */
+    public static final int EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_DEFAULT =
+            EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_ASK;
+
+    /**
      * Constants representing user options for external display connection. Each display can
      * have a unique connection preference, so there is no settings key, instead a displays's
      * unique id is the key, with one of the values below as the value. Default value is
@@ -632,6 +672,43 @@ public final class DisplayManager {
     })
     public @interface ExternalDisplayConnection {
     }
+
+    /**
+     * Value for {@link HdrPreference}.
+     * Limits Display mode to SDR only.
+     * @hide
+     */
+    public static final int HDR_PREFERENCE_SDR_ONLY = 0;
+
+    /**
+     * Value for {@link HdrPreference}.
+     * Prefer HDR mode, fallback to SDR in case HDR is not supported.
+     * @hide
+     */
+    public static final int HDR_PREFERENCE_HDR_ALLOWED = 1;
+
+    /**
+     * Default value for {@link HdrPreference}
+     *
+     * @hide
+     */
+    public static final int DEFAULT_HDR_PREFERENCE = HDR_PREFERENCE_HDR_ALLOWED;
+
+    /**
+     * Constant representing user preference for HDR mode. Each display can have its own
+     * configuration, so this setting is persisted per-display using uniqueId as the key. Use {@link
+     * #DEFAULT_HDR_PREFERENCE} to determine default value
+     *
+     * @hide
+     */
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef(
+            prefix = {"HDR_PREFERENCE_"},
+            value = {
+                HDR_PREFERENCE_SDR_ONLY,
+                HDR_PREFERENCE_HDR_ALLOWED,
+            })
+    public @interface HdrPreference {}
 
     /**
      * @hide
@@ -721,7 +798,6 @@ public final class DisplayManager {
      *
      * @see #registerDisplayListener(Executor, long, DisplayListener)
      */
-    @FlaggedApi(Flags.FLAG_SET_BRIGHTNESS_BY_UNIT)
     public static final long EVENT_TYPE_DISPLAY_BRIGHTNESS = 1L << 5;
 
     /**
@@ -743,6 +819,8 @@ public final class DisplayManager {
      * @see #registerDisplayListener(DisplayListener, Handler, long, long)
      * @hide
      */
+    @TestApi
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
     public static final long PRIVATE_EVENT_TYPE_DISPLAY_CONNECTION_CHANGED = 1L << 1;
 
     /**
@@ -761,7 +839,6 @@ public final class DisplayManager {
      * environment). When this type of used, 0 and 100 map to the current brightness minimum and
      * maximum respectively.
      */
-    @FlaggedApi(Flags.FLAG_SET_BRIGHTNESS_BY_UNIT)
     public static final int BRIGHTNESS_UNIT_PERCENTAGE = 1;
 
     /**
@@ -1004,6 +1081,8 @@ public final class DisplayManager {
      *
      * @hide
      */
+    @TestApi
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
     public void registerDisplayListener(@NonNull DisplayListener listener,
             @Nullable Handler handler, @EventType long eventFilter,
             @PrivateEventType long privateEventFilter) {
@@ -1176,16 +1255,19 @@ public final class DisplayManager {
      * Enable a connected display that is currently disabled.
      * @hide
      */
+    @TestApi
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
     @RequiresPermission("android.permission.MANAGE_DISPLAYS")
     public void enableConnectedDisplay(int displayId) {
         mGlobal.enableConnectedDisplay(displayId);
     }
 
-
     /**
      * Disable a connected display that is currently enabled.
      * @hide
      */
+    @TestApi
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
     @RequiresPermission("android.permission.MANAGE_DISPLAYS")
     public void disableConnectedDisplay(int displayId) {
         mGlobal.disableConnectedDisplay(displayId);
@@ -1609,6 +1691,23 @@ public final class DisplayManager {
         mGlobal.setTemporaryBrightness(displayId, brightness);
     }
 
+    /**
+     * Temporarily sets the brightness mode and waits until it is applied.
+     * <p>
+     *
+     * @param displayId      the id of the display
+     * @param brightnessMode The brightness mode:
+     *          - {@link android.provider.Settings.System#SCREEN_BRIGHTNESS_MODE_AUTOMATIC}
+     *          - {@link android.provider.Settings.System#SCREEN_BRIGHTNESS_MODE_MANUAL}
+     * @return whether the mode successfully changed.
+     * @hide
+     */
+    @TestApi
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+    @RequiresPermission(Manifest.permission.CONFIGURE_DISPLAY_BRIGHTNESS)
+    public boolean setTemporaryBrightnessMode(int displayId, int brightnessMode) {
+        return mGlobal.setTemporaryBrightnessMode(displayId, brightnessMode);
+    }
 
     /**
      * Sets the brightness of the specified display.
@@ -1633,7 +1732,6 @@ public final class DisplayManager {
      * @param value The brightness value to set
      * @param unit The unit of the brightness value
      */
-    @FlaggedApi(Flags.FLAG_SET_BRIGHTNESS_BY_UNIT)
     @RequiresPermission(Manifest.permission.WRITE_SETTINGS)
     public void setBrightness(int displayId, float value, @BrightnessUnit int unit) {
         mGlobal.setBrightness(displayId, value, unit);
@@ -1662,7 +1760,6 @@ public final class DisplayManager {
      * @param displayId The display of which brightness value to get from.
      * @param unit The unit of the brightness value
      */
-    @FlaggedApi(Flags.FLAG_SET_BRIGHTNESS_BY_UNIT)
     public float getBrightness(int displayId, @BrightnessUnit int unit) {
         return mGlobal.getBrightness(displayId, unit);
     }
@@ -1721,6 +1818,57 @@ public final class DisplayManager {
      */
     public int getExternalDisplayConnectionPreference(String uniqueId) {
         return mGlobal.getExternalDisplayConnectionPreference(uniqueId);
+    }
+
+    /**
+     * Sets the user HDR preferred mode for a given display.
+     *
+     * @param displayId The id of the display
+     * @param hdrPreference The integer HDR preferred mode value to save.
+     * @hide
+     */
+    @RequiresPermission(MANAGE_DISPLAYS)
+    public void setUserPreferredHdrMode(int displayId, @HdrPreference int hdrPreference) {
+        mGlobal.setUserPreferredHdrMode(displayId, hdrPreference);
+    }
+
+    /**
+     * Gets the user HDR preferred mode for a given display.
+     *
+     * @param displayId The id of the display
+     * @return The saved integer HDR preferred mode value.
+     * @hide
+     */
+    @RequiresPermission(MANAGE_DISPLAYS)
+    @HdrPreference
+    public int getUserPreferredHdrMode(int displayId) {
+        return mGlobal.getUserPreferredHdrMode(displayId);
+    }
+
+    /**
+     * Sets the {@link Display.Mode} on display.  The display mode includes preference for
+     * resolution and refresh rate. The mode change is applied per display.
+     * If the mode specified is not supported by the display, then no mode change
+     * occurs for that display.
+     *
+     * @param displayId The id of the display
+     * @param mode The {@link Display.Mode} to set, which can include resolution and/or
+     * refresh-rate. It is created using {@link Display.Mode.Builder}.
+     * @param storeMode whether the mode setting needs to be persisted across reconnections
+     *`
+     * @hide
+     */
+    @TestApi
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+    @RequiresPermission(Manifest.permission.MODIFY_USER_PREFERRED_DISPLAY_MODE)
+    public void setUserPreferredDisplayMode(
+            int displayId, @NonNull Display.Mode mode, boolean storeMode
+    ) {
+        // Create a new object containing default values for the unused fields like mode ID and
+        // alternative refresh rates.
+        Display.Mode preferredMode = new Display.Mode(mode.getPhysicalWidth(),
+                mode.getPhysicalHeight(), mode.getRefreshRate());
+        mGlobal.setUserPreferredDisplayMode(displayId, preferredMode, storeMode);
     }
 
     /**
@@ -1890,7 +2038,7 @@ public final class DisplayManager {
 
     /**
      * Sets the refresh rate switching type.
-     * This matches {@link android.provider.Settings.Secure.MATCH_CONTENT_FRAME_RATE}
+     * This matches {@link android.provider.Settings.Secure#MATCH_CONTENT_FRAME_RATE}
      *
      * @hide
      */
@@ -2066,7 +2214,7 @@ public final class DisplayManager {
 
     /**
      * @return The current display topology that represents the relative positions of extended
-     * displays.
+     * displays. It only includes the displays that can be reached with the mouse cursor.
      */
     @Nullable
     @FlaggedApi(Flags.FLAG_DISPLAY_TOPOLOGY_API)
@@ -2139,6 +2287,8 @@ public final class DisplayManager {
          * A display is always connected before being added.
          * @hide
          */
+        @TestApi
+        @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
         default void onDisplayConnected(int displayId) { }
 
         /**
@@ -2149,6 +2299,8 @@ public final class DisplayManager {
          * received by the listener.
          * @hide
          */
+        @TestApi
+        @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
         default void onDisplayDisconnected(int displayId) { }
     }
 

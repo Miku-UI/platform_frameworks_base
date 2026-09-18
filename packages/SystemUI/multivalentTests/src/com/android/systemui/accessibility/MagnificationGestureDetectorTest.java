@@ -28,7 +28,6 @@ import static org.mockito.Mockito.verify;
 
 import android.os.Handler;
 import android.os.SystemClock;
-import android.platform.test.annotations.EnableFlags;
 import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.view.View;
@@ -38,7 +37,6 @@ import androidx.test.core.view.PointerCoordsBuilder;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
-import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 
 import org.junit.After;
@@ -213,7 +211,6 @@ public class MagnificationGestureDetectorTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_WINDOW_MAGNIFICATION_MOVE_WITH_MOUSE_ON_EDGE)
     public void performDragWithMouse_invokeCallbacksUsingRelative() {
         mGestureDetector = new MagnificationGestureDetector(mContext, mHandler, mListener);
 

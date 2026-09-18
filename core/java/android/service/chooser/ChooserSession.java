@@ -82,6 +82,29 @@ public final class ChooserSession {
     public @interface State {}
 
     /**
+     * Holds information about the Chooser's bounds.
+     */
+    private static class BoundsInfo {
+        private final Rect mBounds;
+        private final Rect mDefaultBounds;
+
+        private BoundsInfo(@NonNull Rect bounds, @NonNull Rect defaultBounds) {
+            mBounds = bounds;
+            mDefaultBounds = defaultBounds;
+        }
+
+        @NonNull
+        Rect getBounds() {
+            return mBounds;
+        }
+
+        @NonNull
+        Rect getDefaultBounds() {
+            return mDefaultBounds;
+        }
+    }
+
+    /**
      * A callback interface for Chooser session state updates.
      */
     public interface StateListener {
@@ -202,7 +225,30 @@ public final class ChooserSession {
      */
     @Nullable
     public Rect getBounds() {
-        return mChooserSession.mBounds.get();
+        BoundsInfo boundsInfo = mChooserSession.mBoundsInfo.get();
+        return boundsInfo == null ? null : boundsInfo.getBounds();
+    }
+
+    /**
+     * Returns the initial resting bound for the Chooser, or {@code null} if bounds have not yet
+     * been received. This is the target position of the Chooser after any animation and data
+     * loading are complete.
+     *
+     * <p>This value is intended to help applications make an informed decision on how to react to
+     * Chooser bounds changes. For example, if the Chooser is a bottom sheet launched into a compact
+     * representation (but whose bounds can change later), this value can provide the dimensions for
+     * that initial compact representation. An application that wishes to limit its UI changes only
+     * to that specific size can use this value.</p>
+     *
+     * <p>It is possible for this value to change (e.g., after a configuration change or
+     * after a target intent update) and the updated value should be available to the clients at
+     * the time of {@link ChooserSession.StateListener#onBoundsChanged(Rect)} invocation.</p>
+     */
+    @FlaggedApi(Flags.FLAG_INTERACTIVE_CHOOSER_DEFAULT_BOUNDS)
+    @Nullable
+    public Rect getInitialRestingBounds() {
+        BoundsInfo boundsInfo = mChooserSession.mBoundsInfo.get();
+        return boundsInfo == null ? null : boundsInfo.getDefaultBounds();
     }
 
     /**
@@ -244,7 +290,7 @@ public final class ChooserSession {
         @ChooserSession.State
         private int mState = STATE_INITIALIZED;
 
-        private final AtomicReference<Rect> mBounds = new AtomicReference<>();
+        private final AtomicReference<BoundsInfo> mBoundsInfo = new AtomicReference<>();
 
         @Override
         public void registerChooserController(
@@ -289,8 +335,9 @@ public final class ChooserSession {
         }
 
         @Override
-        public void onBoundsChanged(@NonNull Rect bounds) {
-            mBounds.set(bounds);
+        public void onBoundsChanged(@NonNull Rect bounds, @NonNull Rect defaultBounds) {
+            BoundsInfo boundsInfo = new BoundsInfo(bounds, defaultBounds);
+            mBoundsInfo.set(boundsInfo);
             notifyListeners((listener) -> {
                 if (isActive()) {
                     listener.onBoundsChanged(bounds);

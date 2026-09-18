@@ -24,15 +24,14 @@ import android.annotation.SystemApi;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Handler;
-import android.os.HandlerExecutor;
 import android.os.IBinder;
 import android.os.RemoteException;
-
 import android.telephony.CallQuality;
 import android.util.ArrayMap;
 
 import com.android.internal.telecom.ICallDiagnosticService;
 import com.android.internal.telecom.ICallDiagnosticServiceAdapter;
+import com.android.modules.utils.HandlerExecutor;
 
 import java.util.Map;
 import java.util.concurrent.Executor;

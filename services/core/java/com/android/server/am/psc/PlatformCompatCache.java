@@ -160,9 +160,9 @@ public final class PlatformCompatCache {
     /**
      * Invalidate the cache for the given app.
      */
-    public void invalidate(ApplicationInfo app) {
+    public void invalidate(String packageName) {
         for (int i = mCaches.size() - 1; i >= 0; i--) {
-            mCaches.valueAt(i).invalidate(app);
+            mCaches.valueAt(i).invalidate(packageName);
         }
     }
 
@@ -205,9 +205,9 @@ public final class PlatformCompatCache {
             }
         }
 
-        void invalidate(ApplicationInfo app) {
+        void invalidate(String packageName) {
             synchronized (mLock) {
-                mCache.remove(app.packageName);
+                mCache.remove(packageName);
             }
         }
 

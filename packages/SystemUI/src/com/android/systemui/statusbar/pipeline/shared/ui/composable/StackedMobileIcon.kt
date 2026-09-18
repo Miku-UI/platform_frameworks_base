@@ -51,7 +51,6 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import com.android.systemui.common.ui.compose.load
 import com.android.systemui.res.R
-import com.android.systemui.statusbar.pipeline.mobile.ui.compose.ActivityIndicators
 import com.android.systemui.statusbar.pipeline.mobile.ui.model.DualSim
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.StackedMobileIconViewModel
 import com.android.systemui.statusbar.pipeline.shared.ui.composable.StackedMobileIconDimensions.BarBaseHeightFiveBarsSp
@@ -95,8 +94,8 @@ fun StackedMobileIcon(viewModel: StackedMobileIconViewModel, modifier: Modifier 
     ) {
         if (viewModel.activityContainerVisible) {
             ActivityIndicators(
-                activityInVisible = viewModel.activityInVisible,
-                activityOutVisible = viewModel.activityOutVisible,
+                isActivityInVisible = viewModel.activityInVisible,
+                isActivityOutVisible = viewModel.activityOutVisible,
                 color = contentColor,
             )
         }

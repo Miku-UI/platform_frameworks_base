@@ -32,8 +32,8 @@
         android:padding="@dimen/chipbar_outer_padding"
         android:background="@drawable/chipbar_background"
         android:layout_marginTop="20dp"
-        android:layout_marginStart="@dimen/notification_side_paddings"
-        android:layout_marginEnd="@dimen/notification_side_paddings"
+        android:layout_marginStart="@dimen/notification_side_paddings_single"
+        android:layout_marginEnd="@dimen/notification_side_paddings_single"
         android:translationZ="4dp"
         android:layout_marginBottom="8dp"
         android:clipToPadding="false"
@@ -56,7 +56,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             style="@style/Chipbar.Text"
-            android:textColor="@androidprv:color/materialColorOnSecondaryFixed"
+            android:textColor="@color/materialColorOnSecondaryFixed"
             android:alpha="0.0"
             />
         <!-- LINT.ThenChange(/packages/SystemUI/src/com/android/systemui/temporarydisplay/chipbar/ChipbarInfo.kt) -->
@@ -68,7 +68,7 @@
             android:layout_height="@dimen/chipbar_end_icon_size"
             android:layout_marginStart="@dimen/chipbar_end_item_start_margin"
             android:src="@drawable/ic_progress_activity"
-            android:tint="@androidprv:color/materialColorOnSecondaryFixedVariant"
+            android:tint="@color/materialColorOnSecondaryFixedVariant"
             android:alpha="0.0"
             />
 
@@ -88,7 +88,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/chipbar_end_item_start_margin"
             style="@style/Chipbar.Text"
-            android:textColor="@androidprv:color/materialColorOnPrimaryFixed"
+            android:textColor="@color/materialColorOnPrimaryFixed"
             android:paddingStart="@dimen/chipbar_outer_padding"
             android:paddingEnd="@dimen/chipbar_outer_padding"
             android:paddingTop="@dimen/chipbar_end_button_vertical_padding"

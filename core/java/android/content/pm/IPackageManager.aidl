@@ -17,6 +17,7 @@
 
 package android.content.pm;
 
+import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -41,6 +42,7 @@ import android.content.pm.InstrumentationInfo;
 import android.content.pm.KeySet;
 import android.content.pm.ModuleInfo;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageInfoList;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.ComponentEnabledSetting;
 import android.content.pm.ParceledListSlice;
@@ -156,13 +158,7 @@ interface IPackageManager {
     ParceledListSlice queryIntentContentProviders(in Intent intent,
             String resolvedType, long flags, int userId);
 
-    /**
-     * This implements getInstalledPackages via a "last returned row"
-     * mechanism that is not exposed in the API. This is to get around the IPC
-     * limit that kicks in when flags are included that bloat up the data
-     * returned.
-     */
-    ParceledListSlice getInstalledPackages(long flags, in int userId);
+    PackageInfoList getInstalledPackages(long flags, in int userId);
 
     @EnforcePermission("GET_APP_METADATA")
     @nullable ParcelFileDescriptor getAppMetadataFd(String packageName,
@@ -329,6 +325,14 @@ interface IPackageManager {
     Bundle getSuspendedPackageAppExtras(String packageName, int userId);
 
     String getSuspendingPackage(String packageName, int userId);
+
+    @EnforcePermission("LOCK_APPS")
+    @nullable PendingIntent getEnableAppLockIntentForPackage(String packageName, boolean enabled);
+
+    @PermissionManuallyEnforced
+    boolean setPackageAppLockEnabled(String packageName, int userId, boolean enabled);
+
+    boolean isPackageAppLockEnabled(String packageName, int userId);
 
     /**
      * Backup/restore support - only the system uid may use these.
@@ -499,9 +503,12 @@ interface IPackageManager {
      * @param packageName The package name of the application whose cache
      * files need to be deleted
      * @param observer a callback used to notify when the operation is completed.
+     * @param userId the user to delete application data for
+     * @param restorePregrantedPermissions whether to restore the pre-granted permissions, or leave
+     *        them untouched
      */
     @EnforcePermission("CLEAR_APP_USER_DATA")
-    void clearApplicationUserData(in String packageName, IPackageDataObserver observer, int userId);
+    void clearApplicationUserData(in String packageName, IPackageDataObserver observer, int userId, boolean restorePregrantedPermissions);
 
     /**
      * Clear the profile data of an application.
@@ -805,6 +812,11 @@ interface IPackageManager {
     @EnforcePermission("INSTALL_PACKAGES")
     void setUserMinAspectRatio(String packageName, int userId, int aspectRatio);
 
+    int getVirtualGamepadUserOption(String packageName, int userId);
+
+    @EnforcePermission("INJECT_EVENTS")
+    void setVirtualGamepadUserOption(String packageName, int userId, int userOption);
+
     List<String> getMimeGroup(String packageName, String group);
 
     boolean isAutoRevokeWhitelisted(String packageName);
@@ -852,4 +864,6 @@ interface IPackageManager {
     String getPageSizeCompatWarningMessage(in String packageName);
 
     List<String> getAllApexDirectories();
+
+    int getAppUidForPrivateComputeCoreUid(int pccUid);
 }

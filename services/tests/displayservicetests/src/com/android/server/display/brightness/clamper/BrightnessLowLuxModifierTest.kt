@@ -15,15 +15,12 @@
  */
 package com.android.server.display.brightness.clamper
 
-import android.os.UserHandle
-import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.testing.TestableContext
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.server.display.DisplayDeviceConfig
 import com.android.server.display.brightness.BrightnessReason
-import com.android.server.display.feature.flags.Flags
 import com.android.server.testutils.TestHandler
 import com.android.server.testutils.whenever
 import com.google.common.truth.Truth.assertThat
@@ -31,8 +28,6 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.mock
-
-private const val USER_ID = UserHandle.USER_CURRENT
 
 class BrightnessLowLuxModifierTest {
     @get:Rule
@@ -83,7 +78,6 @@ class BrightnessLowLuxModifierTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_EVEN_DIMMER)
     fun testLuxRestrictsBrightnessRange() {
         // test that high lux prevents low brightness range.
         modifier.setAmbientLux(400f)
@@ -97,7 +91,6 @@ class BrightnessLowLuxModifierTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_EVEN_DIMMER)
     fun testEnabledEvenWhenAutobrightnessIsOff() {
         // test that high lux prevents low brightness range.
         modifier.setAmbientLux(400f)

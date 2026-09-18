@@ -17,6 +17,9 @@
 package com.android.server.companion.utils;
 
 import android.annotation.UserIdInt;
+import android.companion.AssociationInfo;
+import android.companion.DeviceId;
+import android.net.MacAddress;
 
 public final class AssociationUtils {
 
@@ -36,6 +39,23 @@ public final class AssociationUtils {
      */
     public static int getLastAssociationIdForUser(@UserIdInt int userId) {
         return (userId + 1) * ASSOCIATIONS_IDS_PER_USER_RANGE;
+    }
+
+    /**
+     * Get the mac address of the association. Checks the device ID mac address as fallback.
+     */
+    public static MacAddress getMacAddress(AssociationInfo association) {
+        if (association == null) {
+            return null;
+        }
+        if (association.getDeviceMacAddress() != null) {
+            return association.getDeviceMacAddress();
+        }
+        final DeviceId deviceId = association.getDeviceId();
+        if (deviceId != null && deviceId.getMacAddress() != null) {
+            return deviceId.getMacAddress();
+        }
+        return null;
     }
 
     private AssociationUtils() {}

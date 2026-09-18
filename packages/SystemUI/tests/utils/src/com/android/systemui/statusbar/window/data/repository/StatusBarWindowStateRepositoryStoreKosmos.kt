@@ -17,9 +17,6 @@
 package com.android.systemui.statusbar.window.data.repository
 
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.kosmos.applicationCoroutineScope
-import com.android.systemui.settings.displayTracker
-import com.android.systemui.statusbar.commandQueue
 import com.android.systemui.statusbar.window.StatusBarWindowStateController
 import org.mockito.kotlin.mock
 
@@ -30,25 +27,3 @@ var Kosmos.statusBarWindowStateController by Kosmos.Fixture { mockStatusBarWindo
 
 val Kosmos.fakeStatusBarWindowStatePerDisplayRepository by
     Kosmos.Fixture { FakeStatusBarWindowStatePerDisplayRepository() }
-
-val Kosmos.fakeStatusBarWindowStateRepositoryStore by
-    Kosmos.Fixture { FakeStatusBarWindowStateRepositoryStore() }
-
-class KosmosStatusBarWindowStatePerDisplayRepositoryFactory(private val kosmos: Kosmos) :
-    StatusBarWindowStatePerDisplayRepositoryFactory {
-    override fun create(displayId: Int): StatusBarWindowStatePerDisplayRepositoryImpl {
-        return StatusBarWindowStatePerDisplayRepositoryImpl(
-            displayId,
-            kosmos.commandQueue,
-            kosmos.applicationCoroutineScope,
-        )
-    }
-}
-
-var Kosmos.statusBarWindowStateRepositoryStore: StatusBarWindowStateRepositoryStore by
-    Kosmos.Fixture {
-        StatusBarWindowStateRepositoryStoreImpl(
-            displayId = displayTracker.defaultDisplayId,
-            factory = KosmosStatusBarWindowStatePerDisplayRepositoryFactory(this),
-        )
-    }

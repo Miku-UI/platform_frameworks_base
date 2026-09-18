@@ -24,7 +24,6 @@ import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.SparseArray;
 
 import androidx.test.InstrumentationRegistry;
@@ -34,7 +33,6 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.os.KernelCpuUidBpfMapReader.BpfMapIterator;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -54,8 +52,6 @@ import java.util.concurrent.TimeUnit;
 @RunWith(AndroidJUnit4.class)
 @DisabledOnRavenwood(reason = "Needs kernel support")
 public class KernelCpuUidBpfMapReaderTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private Random mRand = new Random(12345);
     private KernelCpuUidTestBpfMapReader mReader;

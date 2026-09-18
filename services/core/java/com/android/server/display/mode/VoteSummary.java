@@ -24,6 +24,8 @@ import android.util.SparseArray;
 import android.view.Display;
 import android.view.SurfaceControl;
 
+import androidx.annotation.VisibleForTesting;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -42,6 +44,10 @@ final class VoteSummary {
     public int minWidth;
     public int minHeight;
     public boolean disableRefreshRateSwitching;
+    // True: Allow both HDR+SDR modes, False: Only allow SDR modes.
+    // If other vote has set this to be false (e.g. battery, performance reasons), other vote
+    // (e.g. user preference) should not override this to true
+    public boolean allowHdr;
     /**
      *  available modes should have mode with specific refresh rate
      */
@@ -58,19 +64,26 @@ final class VoteSummary {
     public List<Integer> supportedModeIds;
 
     /**
-     * set of rejected modes due to mode config failure for connected display
+     * Set of rejected SF mode IDs due to mode config failure for connected display
      */
-    public Set<Integer> rejectedModeIds = new HashSet<>();
+    public Set<Integer> rejectedSfModeIds = new HashSet<>();
 
     private final boolean mSupportedModesVoteEnabled;
     private final boolean mSupportsFrameRateOverride;
+    private final boolean mIsUserPreferredHdrModeAllowed;
     private final boolean mLoggingEnabled;
 
-    VoteSummary(boolean supportedModesVoteEnabled,
-            boolean loggingEnabled, boolean supportsFrameRateOverride) {
+    public SurfaceControl.WorkDuration workDurationsData = null;
+
+    VoteSummary(
+            boolean supportedModesVoteEnabled,
+            boolean loggingEnabled,
+            boolean supportsFrameRateOverride,
+            boolean isUserPreferredHdrModeAllowed) {
         mSupportedModesVoteEnabled = supportedModesVoteEnabled;
         mLoggingEnabled = loggingEnabled;
         mSupportsFrameRateOverride = supportsFrameRateOverride;
+        mIsUserPreferredHdrModeAllowed = isUserPreferredHdrModeAllowed;
         reset();
     }
 
@@ -154,6 +167,9 @@ final class VoteSummary {
             if (!validateModeRenderRateAchievable(mode)) {
                 continue;
             }
+            if (!validateSupportedHdrTypes(mode)) {
+                continue;
+            }
             availableModes.add(mode);
             if (equalsWithinFloatTolerance(mode.getRefreshRate(), appRequestBaseModeRefreshRate)) {
                 missingBaseModeRefreshRate = false;
@@ -168,26 +184,85 @@ final class VoteSummary {
 
     Display.Mode selectBaseMode(List<Display.Mode> availableModes, Display.Mode defaultMode) {
         // The base mode should be as close as possible to the app requested mode. Since all the
-        // available modes already have the same size, we just need to look for a matching refresh
-        // rate. If the summary doesn't include an app requested refresh rate, we'll use the default
-        // mode refresh rate. This is important because SurfaceFlinger can do only seamless switches
-        // by default. Some devices (e.g. TV) don't support seamless switching so the mode we select
-        // here won't be changed.
+        // available modes already have the same size, we just need to look for a matching
+        // refresh rate. If the summary doesn't include an app requested refresh rate, we'll use
+        // the default mode refresh rate. This is important because SurfaceFlinger can do only
+        // seamless switches by default. Some devices (e.g. TV) don't support seamless switching
+        // so the mode we select here won't be changed.
         float preferredRefreshRate =
                 appRequestBaseModeRefreshRate > 0
-                        ? appRequestBaseModeRefreshRate : defaultMode.getRefreshRate();
-        for (Display.Mode availableMode : availableModes) {
-            if (equalsWithinFloatTolerance(preferredRefreshRate, availableMode.getRefreshRate())) {
-                return availableMode;
+                        ? appRequestBaseModeRefreshRate
+                        : defaultMode.getRefreshRate();
+
+        if (!mIsUserPreferredHdrModeAllowed) {
+            for (Display.Mode availableMode : availableModes) {
+                if (equalsWithinFloatTolerance(
+                        preferredRefreshRate, availableMode.getRefreshRate())) {
+                    return availableMode;
+                }
             }
+
+            // If we couldn't find a mode id based on the refresh rate, it means that the available
+            // modes were filtered by the app requested size, which is different that the default
+            // mode size, and the requested app refresh rate was dropped from the summary due to a
+            // higher priority vote. Since we don't have any other hint about the refresh rate, we
+            // just pick the first.
+            return !availableModes.isEmpty() ? availableModes.get(0) : null;
         }
 
-        // If we couldn't find a mode id based on the refresh rate, it means that the available
-        // modes were filtered by the app requested size, which is different that the default mode
-        // size, and the requested app refresh rate was dropped from the summary due to a higher
-        // priority vote. Since we don't have any other hint about the refresh rate,
-        // we just pick the first.
-        return !availableModes.isEmpty() ? availableModes.get(0) : null;
+        Display.Mode bestMode = null;
+        for (Display.Mode mode : availableModes) {
+            if (isNewModeBetterForBaseMode(bestMode, mode, allowHdr, preferredRefreshRate)) {
+                bestMode = mode;
+            }
+        }
+        return bestMode;
+    }
+
+    // As HDR is only done on best-effort basis. Matching Mode refresh rate with
+    // the appRequested / default Mode takes priority over selecting HDR-capable Mode.
+    // Priority is as follows:
+    // - User-preferred HDR allowed: MatchRR_HDR -> MatchRR_SDR -> Any_HDR -> Any_SDR
+    // - User-preferred HDR disallowed: MatchRR_SDR -> Any_SDR
+    @VisibleForTesting
+    static boolean isNewModeBetterForBaseMode(
+            Display.Mode currentMode,
+            Display.Mode newMode,
+            boolean allowHdr,
+            float preferredRefreshRate) {
+        if (currentMode == null) {
+            return true;
+        }
+
+        boolean currentModeMatchingRr =
+                equalsWithinFloatTolerance(currentMode.getRefreshRate(), preferredRefreshRate);
+        boolean newModeMatchingRr =
+                equalsWithinFloatTolerance(newMode.getRefreshRate(), preferredRefreshRate);
+
+        // Priority #1
+        if (newModeMatchingRr && !currentModeMatchingRr) {
+            return true;
+        }
+        if (currentModeMatchingRr && !newModeMatchingRr) {
+            // Matching refresh rate takes priority even if the new mode is HDR-capable
+            return false;
+        }
+
+        // Priority #2
+        // Either both currentMode and newMode matches refresh rate or both not matching, select
+        // based on HDR preference.
+        // Note: This selection method runs with HDR mode splitting enabled, meaning that any
+        // HDR-capable mode will have SDR counterpart. Therefore, if there's no Mode with matching
+        // refresh rate on SDR, HDR-capable Mode with matching refresh rate won't exist either.
+        boolean currentModeIsHdr = currentMode.getSupportedHdrTypes().length > 0;
+        boolean newModeIsHdr = newMode.getSupportedHdrTypes().length > 0;
+
+        if (allowHdr) {
+            // If HDR is allowed, prefer HDR-capable mode.
+            return newModeIsHdr && !currentModeIsHdr;
+        }
+        // Strictly prefer SDR mode
+        return !newModeIsHdr && currentModeIsHdr;
     }
 
     void disableModeSwitching(float fps) {
@@ -199,10 +274,11 @@ final class VoteSummary {
         }
     }
 
-    void disableRenderRateSwitching(float fps) {
+    void disableRenderRateSwitching(float vsyncRate, float fps) {
         minRenderFrameRate = maxRenderFrameRate;
 
-        if (!isRenderRateAchievable(fps)) {
+        if (!isRenderRateAchievable(vsyncRate)) {
+            // in case vsync > peakRefreshRate, lock render rate to peakRefreshRate
             minRenderFrameRate = maxRenderFrameRate = fps;
         }
 
@@ -265,18 +341,45 @@ final class VoteSummary {
     }
 
     private boolean validateModeRenderRateAchievable(Display.Mode mode) {
-        float refreshRate = mode.getRefreshRate();
-        if (!isRenderRateAchievable(refreshRate)) {
+        float vsyncRate = mode.getVsyncRate();
+        if (!isRenderRateAchievable(vsyncRate)) {
             if (mLoggingEnabled) {
                 Slog.w(TAG, "Discarding mode " + mode.getModeId()
                         + ", outside frame rate bounds"
                         + ": minRenderFrameRate=" + minRenderFrameRate
                         + ", maxRenderFrameRate=" + maxRenderFrameRate
-                        + ", modePhysicalRefreshRate=" + refreshRate);
+                        + ", modeVsyncRate=" + vsyncRate);
             }
             return false;
         }
         return true;
+    }
+
+    private boolean validateSupportedHdrTypes(Display.Mode mode) {
+        if (!mIsUserPreferredHdrModeAllowed) {
+            return true;
+        }
+        // Default state, allow all modes.
+        // When switching from SDR-only to HDR-allowed, base mode selection might or might not
+        // change. The basic principle is HDR is a best effort basis, so HDR-capable mode will only
+        // be selected if there is a matching resolution-refreshRate pair for that SDR-only mode.
+        // Hence, if there is no matching mode that supports HDR, the current mode will be kept.
+        // For example, if SDR-only mode is capable of 4k@30fps, but there is only 2k@60fps for
+        // HDR-capable mode, allowing HDR here won't trigger mode change.
+        if (allowHdr) {
+            return true;
+        }
+        // SDR only
+        // This relies on the config_hdrModeSplittingEnabled. If this is true, this ensures
+        // all HDR-capable display modes, will have a SDR-only (supportedHdrTypes.length = 0) mode
+        // counterpart, ensuring that the check here always result in a mode selected.
+        if (mode.getSupportedHdrTypes().length == 0) {
+            return true;
+        }
+        if (mLoggingEnabled) {
+            Slog.w(TAG, "Discarding mode " + mode.getModeId() + ", SDR-only vote is requested");
+        }
+        return false;
     }
 
     private boolean validateModeSupported(Display.Mode mode) {
@@ -296,17 +399,20 @@ final class VoteSummary {
     }
 
     private boolean validateModeRejected(Display.Mode mode) {
-        if (rejectedModeIds == null) {
+        if (mode.getSfModeId() == INVALID_MODE_ID) {
             return true;
         }
-        if (!rejectedModeIds.contains(mode.getModeId())) {
+        if (rejectedSfModeIds == null) {
+            return true;
+        }
+        if (!rejectedSfModeIds.contains(mode.getSfModeId())) {
             return true;
         }
         if (mLoggingEnabled) {
             Slog.w(TAG, "Discarding mode" + mode.getModeId()
                     + ", is a rejectedMode"
-                    + ": mode.modeId=" + mode.getModeId()
-                    + ", rejectedModeIds=" + rejectedModeIds);
+                    + ": mode.sfModeId=" + mode.getSfModeId()
+                    + ", rejectedSfModeIds=" + rejectedSfModeIds);
         }
         return false;
     }
@@ -331,7 +437,7 @@ final class VoteSummary {
         return false;
     }
 
-    private boolean isRenderRateAchievable(float physicalRefreshRate) {
+    private boolean isRenderRateAchievable(float vsyncRate) {
         // Check whether the render frame rate range is achievable by the mode's physical
         // refresh rate, meaning that if a divisor of the physical refresh rate is in range
         // of the render frame rate.
@@ -341,9 +447,9 @@ final class VoteSummary {
         //   - 90hz is not in range as none of the even divisors (i.e. 90, 45, 30)
         //     fall within the acceptable render range.
         final int divisor =
-                (int) Math.ceil((physicalRefreshRate / maxRenderFrameRate)
+                (int) Math.ceil((vsyncRate / maxRenderFrameRate)
                         - FLOAT_TOLERANCE);
-        float adjustedPhysicalRefreshRate = physicalRefreshRate / divisor;
+        float adjustedPhysicalRefreshRate = vsyncRate / divisor;
         return adjustedPhysicalRefreshRate >= (minRenderFrameRate - FLOAT_TOLERANCE);
     }
 
@@ -395,6 +501,8 @@ final class VoteSummary {
                     || mode.getPhysicalHeight() < minHeight
                     || mode.getRefreshRate() < (minPhysicalRefreshRate - FLOAT_TOLERANCE)
                     || mode.getRefreshRate() > (maxPhysicalRefreshRate + FLOAT_TOLERANCE)
+                    || (mode.getSfModeId() != INVALID_MODE_ID
+                        && rejectedSfModeIds.contains(mode.getSfModeId()))
             ) {
                 continue;
             }
@@ -422,8 +530,9 @@ final class VoteSummary {
         appRequestBaseModeRefreshRate = 0f;
         requestedRefreshRates.clear();
         supportedRefreshRates = null;
+        allowHdr = true;
         supportedModeIds = null;
-        rejectedModeIds.clear();
+        rejectedSfModeIds.clear();
         if (mLoggingEnabled) {
             Slog.i(TAG, "Summary reset: " + this);
         }
@@ -447,8 +556,9 @@ final class VoteSummary {
                 + ", appRequestBaseModeRefreshRate=" + appRequestBaseModeRefreshRate
                 + ", requestRefreshRates=" + requestedRefreshRates
                 + ", supportedRefreshRates=" + supportedRefreshRates
+                + ", allowHdr=" + allowHdr
                 + ", supportedModeIds=" + supportedModeIds
-                + ", rejectedModeIds=" + rejectedModeIds
+                + ", rejectedModeIds=" + rejectedSfModeIds
                 + ", mSupportedModesVoteEnabled=" + mSupportedModesVoteEnabled
                 + ", mSupportsFrameRateOverride=" + mSupportsFrameRateOverride + " }";
     }

@@ -93,6 +93,7 @@ import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.common.ui.compose.Icon
 import com.android.systemui.common.ui.compose.load
 import com.android.systemui.compose.modifiers.sysuiResTag
+import com.android.systemui.qs.footer.domain.model.FooterTextButtonModel
 import com.android.systemui.qs.footer.ui.compose.FooterActionsDefaults.FOOTER_TEXT_FADE_DURATION_MILLIS
 import com.android.systemui.qs.footer.ui.compose.FooterActionsDefaults.FOOTER_TEXT_MINIMUM_SCALE_Y
 import com.android.systemui.qs.footer.ui.compose.FooterActionsDefaults.FooterButtonHeight
@@ -244,7 +245,7 @@ fun FooterActions(viewModel: FooterActionsViewModel, modifier: Modifier = Modifi
 
             // Only add the foreground services number if text shouldn't be displayed
             ForegroundServicesNumberButton(
-                { foregroundServices.takeIf { it?.displayText == false } },
+                { foregroundServices.takeIf { it?.model?.displayText == false } },
                 useModifierBasedExpandable,
             )
 
@@ -279,7 +280,7 @@ private fun AnimatedFooterTextButton(
     useModifierBasedExpandable: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val transition = updateTransition(textViewModel)
+    val transition = updateTransition(textViewModel?.model)
     val scaleY by transition.animateFloat { if (it == null) FOOTER_TEXT_MINIMUM_SCALE_Y else 1f }
     val alpha by transition.animateFloat { if (it == null) 0f else 1f }
     val onClick: ((Expandable) -> Unit)? =
@@ -319,13 +320,10 @@ private fun AnimatedFooterTextButton(
                 }
             ) {
                 when (it) {
-                    is TextFeedbackViewModel.LoadedTextFeedback -> {
-                        TextButtonContent(it.icon, it.text)
-                    }
-                    is FooterActionsSecurityButtonViewModel -> {
+                    is FooterTextButtonModel.FooterBasicButtonModel -> {
                         TextButtonContent(it.icon, it.text, showChevron = onClick != null)
                     }
-                    is FooterActionsForegroundServicesButtonViewModel -> {
+                    is FooterTextButtonModel.FooterForegroundServicesButtonModel -> {
                         TextButtonContent(
                             it.icon,
                             it.text,
@@ -333,6 +331,7 @@ private fun AnimatedFooterTextButton(
                             showNewDot = it.hasNewChanges,
                         )
                     }
+                    null -> {}
                 }
             }
         }
@@ -359,9 +358,9 @@ private fun ForegroundServicesNumberButton(
             }
 
         NumberButton(
-            it.foregroundServicesCount,
-            contentDescription = it.text,
-            showNewDot = it.hasNewChanges,
+            it.model.foregroundServicesCount,
+            contentDescription = it.model.text,
+            showNewDot = it.model.hasNewChanges,
             onClick = onClick,
             useModifierBasedExpandable,
             modifier = Modifier.graphicsLayer { this.alpha = alpha },

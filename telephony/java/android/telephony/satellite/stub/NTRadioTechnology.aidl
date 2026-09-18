@@ -38,6 +38,15 @@ enum NTRadioTechnology {
      */
     PROPRIETARY = 3,
     /**
+     * LTE Direct To Cell technology
+     */
+    LTE_DTC = 4,
+    /**
+     * NR Direct To Cell technology
+     */
+    NR_DTC = 5,
+
+    /**
      * Unknown Non-Terrestrial radio technology. This generic radio technology should be used
      * only when the radio technology cannot be mapped to other specific radio technologies.
      */

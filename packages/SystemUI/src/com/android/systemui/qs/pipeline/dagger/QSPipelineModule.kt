@@ -17,7 +17,6 @@
 package com.android.systemui.qs.pipeline.dagger
 
 import com.android.systemui.CoreStartable
-import com.android.systemui.Flags.resetTilesRemovesCustomTiles
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.LogBufferFactory
@@ -32,6 +31,7 @@ import com.android.systemui.qs.pipeline.data.repository.QSSettingsRestoredBroadc
 import com.android.systemui.qs.pipeline.data.repository.QSSettingsRestoredRepository
 import com.android.systemui.qs.pipeline.data.repository.TileSpecRepository
 import com.android.systemui.qs.pipeline.data.repository.TileSpecSettingsRepository
+import com.android.systemui.qs.pipeline.data.startable.PackageUninstalledCoreStartable
 import com.android.systemui.qs.pipeline.domain.interactor.CurrentTilesInteractor
 import com.android.systemui.qs.pipeline.domain.interactor.CurrentTilesInteractorImpl
 import com.android.systemui.qs.pipeline.domain.startable.QSPipelineCoreStartable
@@ -41,14 +41,12 @@ import com.android.systemui.qs.pipeline.shared.logging.QSPipelineLogger
 import com.android.systemui.qs.tiles.base.domain.interactor.DisabledByPolicyInteractor
 import com.android.systemui.qs.tiles.base.domain.interactor.DisabledByPolicyInteractorImpl
 import dagger.Binds
-import dagger.Lazy
 import dagger.Module
 import dagger.Provides
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
 import dagger.multibindings.IntoSet
 import dagger.multibindings.Multibinds
-import java.util.Optional
 
 @Module(includes = [QSAutoAddModule::class, RestoreProcessorsModule::class])
 abstract class QSPipelineModule {
@@ -85,6 +83,13 @@ abstract class QSPipelineModule {
     abstract fun provideCoreStartable(startable: QSPipelineCoreStartable): CoreStartable
 
     @Binds
+    @IntoMap
+    @ClassKey(PackageUninstalledCoreStartable::class)
+    abstract fun providePackageUninstalledCoreStartable(
+        startable: PackageUninstalledCoreStartable
+    ): CoreStartable
+
+    @Binds
     abstract fun provideQSSettingsRestoredRepository(
         impl: QSSettingsRestoredBroadcastRepository
     ): QSSettingsRestoredRepository
@@ -93,6 +98,10 @@ abstract class QSPipelineModule {
     abstract fun provideMinimumTilesRepository(
         impl: MinimumTilesResourceRepository
     ): MinimumTilesRepository
+
+    @Binds
+    @IntoSet
+    abstract fun bindTileDbUpgradeToV2(impl: RemoveAlreadyRemovedTiles): CustomTileAddedUpgrade
 
     companion object {
         /**
@@ -104,14 +113,6 @@ abstract class QSPipelineModule {
         @QSTileListLog
         fun provideQSTileListLogBuffer(factory: LogBufferFactory): LogBuffer {
             return factory.create(QSPipelineLogger.TILE_LIST_TAG, maxSize = 700, systrace = false)
-        }
-
-        @Provides
-        @IntoSet
-        fun bindTileDbUpgradeToV2(
-            impl: Lazy<RemoveAlreadyRemovedTiles>
-        ): Optional<CustomTileAddedUpgrade> {
-            return if (resetTilesRemovesCustomTiles()) Optional.of(impl.get()) else Optional.empty()
         }
 
         @Provides

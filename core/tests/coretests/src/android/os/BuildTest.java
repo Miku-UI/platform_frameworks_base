@@ -23,7 +23,6 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import android.platform.test.flag.junit.SetFlagsRule;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
@@ -42,8 +41,6 @@ import org.junit.runner.RunWith;
 public class BuildTest {
     private static final String TAG = "BuildTest";
 
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule(

@@ -98,6 +98,9 @@ public class DynamicLayout extends Layout {
             b.mHyphenationFrequency = Layout.HYPHENATION_FREQUENCY_NONE;
             b.mJustificationMode = Layout.JUSTIFICATION_MODE_NONE;
             b.mLineBreakConfig = LineBreakConfig.NONE;
+            if (Flags.fixDynamicLayoutBuilderRecycle()) {
+                b.mMinimumFontMetrics = null;
+            }
             return b;
         }
 
@@ -109,6 +112,9 @@ public class DynamicLayout extends Layout {
             b.mBase = null;
             b.mDisplay = null;
             b.mPaint = null;
+            if (Flags.fixDynamicLayoutBuilderRecycle()) {
+                b.mMinimumFontMetrics = null;
+            }
             sPool.release(b);
         }
 

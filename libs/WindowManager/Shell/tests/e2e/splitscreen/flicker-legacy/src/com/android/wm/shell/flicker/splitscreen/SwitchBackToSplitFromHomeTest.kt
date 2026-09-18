@@ -18,10 +18,10 @@ package com.android.wm.shell.flicker.splitscreen
 
 import android.platform.test.annotations.Presubmit
 import android.tools.NavBar
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import androidx.test.filters.FlakyTest
 import androidx.test.filters.RequiresDevice
 import com.android.wm.shell.flicker.splitscreen.benchmark.SwitchBackToSplitFromHomeBenchmark
@@ -70,7 +70,7 @@ class SwitchBackToSplitFromHomeTest(override val flicker: FlickerTest) :
         flicker.splitAppLayerBoundsIsVisibleAtEnd(
             primaryApp,
             landscapePosLeft = tapl.isTablet,
-            portraitPosTop = false
+            portraitPosTop = false,
         )
 
     @Presubmit
@@ -79,7 +79,7 @@ class SwitchBackToSplitFromHomeTest(override val flicker: FlickerTest) :
         flicker.splitAppLayerBoundsIsVisibleAtEnd(
             secondaryApp,
             landscapePosLeft = !tapl.isTablet,
-            portraitPosTop = true
+            portraitPosTop = true,
         )
 
     @Presubmit

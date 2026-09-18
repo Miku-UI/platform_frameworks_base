@@ -16,12 +16,18 @@
 
 package android.app.jank;
 
+import static android.os.Trace.TRACE_TAG_APP;
+
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
-import android.util.Pools.SimplePool;
+import android.os.Trace;
+import android.text.TextUtils;
+import android.util.Pools.SynchronizedPool;
 import android.view.Choreographer;
 
 import androidx.annotation.VisibleForTesting;
+
+import com.android.internal.annotations.GuardedBy;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,11 +56,15 @@ public class StateTracker {
     protected static final int MAX_PREVIOUSLY_ACTIVE_STATE_COUNT = 1000;
 
     // Pool to store the previously used StateData objects to save recreating them each time.
-    private final SimplePool<StateData> mStateDataObjectPool = new SimplePool<>(MAX_POOL_SIZE);
+    private final SynchronizedPool<StateData> mStateDataObjectPool =
+            new SynchronizedPool<>(MAX_POOL_SIZE, mLock);
+
     // Previously encountered states that have not been associated to a frame.
-    private ArrayList<StateData> mPreviousStates = new ArrayList<>();
+    @GuardedBy("mLock")
+    private final ArrayList<StateData> mPreviousStates = new ArrayList<>();
+
     // Currently active widgets and widget states
-    private ConcurrentHashMap<String, StateData> mActiveStates = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, StateData> mActiveStates = new ConcurrentHashMap<>();
 
     public StateTracker(@NonNull Choreographer choreographer) {
         mChoreographer = choreographer;
@@ -103,6 +113,8 @@ public class StateTracker {
                 mPreviousStates.add(stateData);
             }
         }
+
+        traceStateEnd(stateData);
     }
 
     /**
@@ -132,10 +144,11 @@ public class StateTracker {
         stateData.mStateDataKey = stateKey;
         stateData.mWidgetState = widgetState;
         stateData.mWidgetCategory = widgetCategory;
+        stateData.mStateTraceKey = TextUtils.formatSimple("J<%s::%s>", widgetCategory, widgetState);
         stateData.mWidgetId = widgetId;
         stateData.mVsyncIdEnd = Long.MAX_VALUE;
         mActiveStates.put(stateKey, stateData);
-
+        traceStateStart(stateData);
     }
 
     /**
@@ -188,13 +201,67 @@ public class StateTracker {
         return widgetCategory + widgetId + widgetState;
     }
 
-    /**
-     * @hide
-     */
-    public static class StateData {
+    /** Emits trace markers for Perfetto / IDE trace analysis - only if App tracing is enabled. */
+    private void traceStateStart(StateData stateData) {
+        if (!Trace.isTagEnabled(Trace.TRACE_TAG_APP)) {
+            return;
+        }
+
+        if (!isStateTraceable(stateData)) {
+            return;
+        }
+
+        Trace.asyncTraceForTrackBegin(
+                Trace.TRACE_TAG_APP,
+                stateData.mStateTraceKey,
+                stateData.mStateTraceKey,
+                (int) stateData.mVsyncIdStart);
+        Trace.instantForTrack(
+                TRACE_TAG_APP,
+                stateData.mStateTraceKey,
+                "FT#beginVsync#" + stateData.mVsyncIdStart);
+        Trace.instantForTrack(
+                TRACE_TAG_APP, stateData.mStateTraceKey, "FT#UIThread" + stateData.mVsyncIdStart);
+    }
+
+    /** Closes trace markers for tracing started with {@link #traceStateStart(StateData)}. */
+    private void traceStateEnd(StateData stateData) {
+        if (!Trace.isTagEnabled(Trace.TRACE_TAG_APP)) {
+            return;
+        }
+
+        if (!isStateTraceable(stateData)) {
+            return;
+        }
+
+        Trace.asyncTraceForTrackEnd(
+                Trace.TRACE_TAG_APP, stateData.mStateTraceKey, (int) stateData.mVsyncIdStart);
+        Trace.instantForTrack(
+                TRACE_TAG_APP, stateData.mStateTraceKey, "FT#endVsync#" + stateData.mVsyncIdEnd);
+        Trace.instantForTrack(TRACE_TAG_APP, stateData.mStateTraceKey, "FT#end");
+    }
+
+    /** Returns whether current state should be recorded in a trace. */
+    private static boolean isStateTraceable(StateData stateData) {
+        if (stateData.mWidgetCategory.equals(AppJankStats.WIDGET_CATEGORY_UNSPECIFIED)) {
+            return false;
+        }
+
+        if (stateData.mWidgetState.equals(AppJankStats.WIDGET_STATE_UNSPECIFIED)
+                || stateData.mWidgetState.equals(AppJankStats.WIDGET_STATE_NONE)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /** @hide */
+    public static final class StateData {
 
         // Concatenated string of widget category, widget state and widget id.
         public String mStateDataKey;
+        // State key used for trace markers.
+        public String mStateTraceKey;
         public String mWidgetCategory;
         public String mWidgetState;
         public String mWidgetId;

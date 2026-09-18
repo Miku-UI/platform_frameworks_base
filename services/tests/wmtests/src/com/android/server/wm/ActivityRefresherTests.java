@@ -24,7 +24,6 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static com.android.server.wm.AppCompatCameraOverrides.NONE;
 import static com.android.server.wm.AppCompatCameraOverrides.IN_PROGRESS;
 import static com.android.server.wm.AppCompatCameraOverrides.REQUESTED;
-import static com.android.window.flags.Flags.FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -41,8 +40,6 @@ import android.app.servertransaction.ResumeActivityItem;
 import android.content.ComponentName;
 import android.content.res.Configuration;
 import android.os.Handler;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.test.filters.SmallTest;
@@ -98,7 +95,6 @@ public class ActivityRefresherTests extends WindowTestsBase {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
     public void testShouldRefreshActivity_pollMechanism_refreshDisabled() throws Exception {
         when(mAppCompatConfiguration.isCameraCompatRefreshEnabled())
                 .thenReturn(false);
@@ -111,7 +107,6 @@ public class ActivityRefresherTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
     public void testShouldRefreshActivity_pushMechanism_refreshDisabled() {
         when(mAppCompatConfiguration.isCameraCompatRefreshEnabled()).thenReturn(false);
         configureActivityAndDisplay();
@@ -124,7 +119,6 @@ public class ActivityRefresherTests extends WindowTestsBase {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
     public void testShouldRefreshActivity_pollMechanism_refreshDisabledForActivity() {
         configureActivityAndDisplay();
         when(mActivity.mAppCompatController.getCameraOverrides()
@@ -137,7 +131,6 @@ public class ActivityRefresherTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
     public void testShouldRefreshActivity_pushMechanism_refreshDisabledForActivity() {
         configureActivityAndDisplay();
         when(mActivity.mAppCompatController.getCameraOverrides()
@@ -150,7 +143,6 @@ public class ActivityRefresherTests extends WindowTestsBase {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
     public void testShouldRefreshActivity_noRefreshTriggerers() {
         configureActivityAndDisplay();
 
@@ -160,7 +152,6 @@ public class ActivityRefresherTests extends WindowTestsBase {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
     public void testShouldRefreshActivity_refreshTriggerersReturnFalse() {
         configureActivityAndDisplay();
         mActivityRefresher.addEvaluator(mEvaluatorFalse);
@@ -171,7 +162,6 @@ public class ActivityRefresherTests extends WindowTestsBase {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
     public void testShouldRefreshActivity_anyRefreshTriggerersReturnTrue() {
         configureActivityAndDisplay();
         mActivityRefresher.addEvaluator(mEvaluatorFalse);
@@ -183,7 +173,6 @@ public class ActivityRefresherTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
     public void testShouldRefreshActivity_refreshNotRequested_activityNotRefreshed() {
         configureActivityAndDisplay();
 
@@ -193,7 +182,6 @@ public class ActivityRefresherTests extends WindowTestsBase {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
     public void testOnActivityConfigurationChanging_pollMechanism_cycleThroughStopDisabled() {
         mActivityRefresher.addEvaluator(mEvaluatorTrue);
         when(mAppCompatConfiguration.isCameraCompatRefreshCycleThroughStopEnabled())
@@ -206,7 +194,6 @@ public class ActivityRefresherTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
     public void testOnActivityConfigurationChanging_pushMechanism_cycleThroughStopDisabled() {
         when(mAppCompatConfiguration.isCameraCompatRefreshCycleThroughStopEnabled())
                 .thenReturn(false);
@@ -234,7 +221,6 @@ public class ActivityRefresherTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
     public void testOnActivityRefreshed_activityRelaunched_activityNotRefreshedAlso() {
         configureActivityAndDisplay();
         mActivityRefresher.requestRefresh(mActivity);
@@ -247,7 +233,6 @@ public class ActivityRefresherTests extends WindowTestsBase {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
     public void testOnActivityRefreshed_pollMechanism_setIsRefreshRequestedToFalse() {
         configureActivityAndDisplay();
         mActivityRefresher.addEvaluator(mEvaluatorTrue);

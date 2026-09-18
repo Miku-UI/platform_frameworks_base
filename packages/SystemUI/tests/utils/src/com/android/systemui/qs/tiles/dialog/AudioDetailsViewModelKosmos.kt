@@ -18,14 +18,13 @@ package com.android.systemui.qs.tiles.dialog
 
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.qs.tiles.base.domain.actions.FakeQSTileIntentUserInputHandler
-import com.android.systemui.volume.panel.ui.viewmodel.volumePanelViewModelFactory
 
 val Kosmos.audioDetailsViewModelFactory: AudioDetailsViewModel.Factory by
     Kosmos.Fixture {
         AudioDetailsViewModel.Factory {
             AudioDetailsViewModel(
                 qsTileIntentUserActionHandler = FakeQSTileIntentUserInputHandler(),
-                volumePanelViewModelFactory = volumePanelViewModelFactory,
+                defaultPageViewModelFactory = audioDetailsDefaultPageViewModelFactory,
             )
         }
     }

@@ -36,7 +36,6 @@ import android.location.IGnssStatusListener;
 import android.location.IGpsGeofenceHardware;
 import android.location.Location;
 import android.location.LocationManager;
-import android.location.flags.Flags;
 import android.location.provider.IGnssAssistanceCallback;
 import android.location.util.identity.CallerIdentity;
 import android.os.BatteryStats;
@@ -106,15 +105,12 @@ public class GnssManagerService implements GnssNative.GnssAssistanceCallbacks {
     /** Called when system is ready. */
     public void onSystemReady() {
         mGnssLocationProvider.onSystemReady();
-
-        if (Flags.gnssAssistanceInterfaceJni()) {
-            mProxyGnssAssistanceProvider =
-                    ProxyGnssAssistanceProvider.createAndRegister(mContext);
-            if (mProxyGnssAssistanceProvider == null) {
-                Log.e(TAG, "no gnss assistance provider found");
-            } else {
-                mGnssNative.setGnssAssistanceCallbacks(this);
-            }
+        mProxyGnssAssistanceProvider =
+                ProxyGnssAssistanceProvider.createAndRegister(mContext);
+        if (mProxyGnssAssistanceProvider == null) {
+            Log.e(TAG, "no gnss assistance provider found");
+        } else {
+            mGnssNative.setGnssAssistanceCallbacks(this);
         }
     }
 
@@ -341,9 +337,6 @@ public class GnssManagerService implements GnssNative.GnssAssistanceCallbacks {
 
     @Override
     public void onRequestGnssAssistanceInject() {
-        if (!Flags.gnssAssistanceInterfaceJni()) {
-            return;
-        }
         if (mProxyGnssAssistanceProvider == null) {
             Log.e(TAG, "ProxyGnssAssistanceProvider is null");
             return;

@@ -28,7 +28,6 @@ import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
-import android.annotation.TestApi;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.graphics.BlendMode;
 import android.graphics.Canvas;
@@ -50,7 +49,6 @@ import android.text.style.ReplacementSpan;
 import android.text.style.TabStopSpan;
 import android.widget.TextView;
 
-import com.android.graphics.hwui.flags.Flags;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.graphics.ColorUtils;
 import com.android.internal.util.ArrayUtils;
@@ -62,7 +60,6 @@ import java.text.BreakIterator;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
-import java.util.function.BiConsumer;
 
 /**
  * A base class that manages text layout in visual elements on
@@ -420,7 +417,7 @@ public abstract class Layout {
     }
 
     private void initSpanColors() {
-        if (mSpannedText && Flags.highContrastTextSmallTextRect()) {
+        if (mSpannedText) {
             if (mSpanColors == null) {
                 mSpanColors = new SpanColors();
             } else {
@@ -549,7 +546,7 @@ public abstract class Layout {
     }
 
     private static boolean shouldDrawHighlightsOnTop(Canvas canvas) {
-        return Flags.highContrastTextSmallTextRect() && canvas.isHighContrastTextEnabled();
+        return canvas.isHighContrastTextEnabled();
     }
 
     private static Paint setToHighlightPaint(Paint p, BlendMode blendMode, Paint outPaint) {
@@ -784,16 +781,6 @@ public abstract class Layout {
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public void drawText(Canvas canvas, int firstLine, int lastLine) {
-        drawText(canvas, firstLine, lastLine, null);
-    }
-
-    /**
-     * @hide
-     */
-    @FlaggedApi(com.android.text.flags.Flags.FLAG_FIX_SHIFT_DRAWING_AMOUNT_TEST_API)
-    @TestApi
-    public void drawText(@NonNull Canvas canvas, int firstLine, int lastLine,
-            @Nullable BiConsumer<Integer, Integer> drawOffsetCallback) {
         int previousLineBottom = getLineTop(firstLine);
         int previousLineEnd = getLineStart(firstLine);
         ParagraphStyle[] spans = NO_PARA_SPANS;
@@ -954,9 +941,6 @@ public abstract class Layout {
             if (directions == DIRS_ALL_LEFT_TO_RIGHT && !mSpannedText && !hasTab && !justify) {
                 // XXX: assumes there's nothing additional to be done
                 canvas.drawText(buf, start, end, x, lbaseline, paint);
-                if (drawOffsetCallback != null) {
-                    drawOffsetCallback.accept(x, lbaseline);
-                }
             } else {
                 tl.set(paint, buf, start, end, dir, directions, hasTab, tabStops,
                         getEllipsisStart(lineNum),
@@ -966,9 +950,6 @@ public abstract class Layout {
                     tl.justify(mJustificationMode, right - left - indentWidth);
                 }
                 tl.draw(canvas, x, ltop, lbaseline, lbottom);
-                if (drawOffsetCallback != null) {
-                    drawOffsetCallback.accept(x, ltop);
-                }
             }
         }
 

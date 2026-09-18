@@ -25,6 +25,7 @@ import android.os.Binder;
 import android.os.Environment;
 import android.os.FileUtils;
 import android.os.HandlerThread;
+import android.os.Trace;
 import android.os.storage.StorageManager;
 import android.util.DataUnit;
 import android.util.Slog;
@@ -140,19 +141,24 @@ public class BitmapOffloadService extends SystemService {
 
         @Override
         public void run() {
-            ContentValues values = new ContentValues();
-            if (compressBitmap()) {
-                File bitmapFile = new File(mPath);
-                long fileSize = bitmapFile.length();
-                // Update the Uri with the file size and status
-                values.put(BitmapOffloadContract.COLUMN_FILE_SIZE, fileSize);
-                values.put(BitmapOffloadContract.COLUMN_STATUS,
-                        BitmapOffloadContract.OFFLOAD_STATUS_COMPLETED);
-            } else {
-                values.put(BitmapOffloadContract.COLUMN_STATUS,
-                        BitmapOffloadContract.OFFLOAD_STATUS_FAILED);
+            Trace.traceBegin(Trace.TRACE_TAG_SYSTEM_SERVER, "compressAndWriteBitmapAsync");
+            try {
+                ContentValues values = new ContentValues();
+                if (compressBitmap()) {
+                    File bitmapFile = new File(mPath);
+                    long fileSize = bitmapFile.length();
+                    // Update the Uri with the file size and status
+                    values.put(BitmapOffloadContract.COLUMN_FILE_SIZE, fileSize);
+                    values.put(BitmapOffloadContract.COLUMN_STATUS,
+                            BitmapOffloadContract.OFFLOAD_STATUS_COMPLETED);
+                } else {
+                    values.put(BitmapOffloadContract.COLUMN_STATUS,
+                            BitmapOffloadContract.OFFLOAD_STATUS_FAILED);
+                }
+                mResolver.update(mUri, values, null);
+            } finally {
+                Trace.traceEnd(Trace.TRACE_TAG_SYSTEM_SERVER);
             }
-            mResolver.update(mUri, values, null);
         }
     }
 
@@ -190,6 +196,13 @@ public class BitmapOffloadService extends SystemService {
             } finally {
                 Binder.restoreCallingIdentity(token);
             }
+        }
+
+        @Override
+        public void removeBitmap(Uri uri) {
+            mOffloadThread.getThreadHandler().post(() -> {
+                mResolver.delete(uri, null, null);
+            });
         }
 
         @Override

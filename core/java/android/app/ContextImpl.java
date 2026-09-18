@@ -75,9 +75,11 @@ import android.os.Environment;
 import android.os.FileUtils;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.IUserManager;
 import android.os.Looper;
 import android.os.Process;
 import android.os.RemoteException;
+import android.os.ServiceManager;
 import android.os.StrictMode;
 import android.os.Trace;
 import android.os.UserHandle;
@@ -88,6 +90,7 @@ import android.permission.PermissionManager;
 import android.ravenwood.annotation.RavenwoodIgnore;
 import android.ravenwood.annotation.RavenwoodKeep;
 import android.ravenwood.annotation.RavenwoodKeepPartialClass;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.ravenwood.annotation.RavenwoodRedirect;
 import android.ravenwood.annotation.RavenwoodRedirectionClass;
 import android.ravenwood.annotation.RavenwoodReplace;
@@ -385,10 +388,10 @@ class ContextImpl extends Context {
     @UnsupportedAppUsage
     final Object[] mServiceCache = SystemServiceRegistry.createServiceCache();
 
-    static final int STATE_UNINITIALIZED = 0;
-    static final int STATE_INITIALIZING = 1;
-    static final int STATE_READY = 2;
-    static final int STATE_NOT_FOUND = 3;
+    static final byte STATE_UNINITIALIZED = 0;
+    static final byte STATE_INITIALIZING = 1;
+    static final byte STATE_READY = 2;
+    static final byte STATE_NOT_FOUND = 3;
 
     /** @hide */
     @IntDef(prefix = { "STATE_" }, value = {
@@ -405,7 +408,7 @@ class ContextImpl extends Context {
      * {@link #STATE_INITIALIZING} or {@link #STATE_READY},
      */
     @ServiceInitializationState
-    final int[] mServiceInitializationStateArray = new int[mServiceCache.length];
+    final byte[] mServiceInitializationStateArray = new byte[mServiceCache.length];
 
     private final Object mDeviceIdListenerLock = new Object();
     /**
@@ -459,7 +462,7 @@ class ContextImpl extends Context {
         return mPackageManager;
     }
 
-    @RavenwoodRedirect
+    @RavenwoodReplace
     private PackageManager getPackageManagerInner() {
         final IPackageManager pm = ActivityThread.getPackageManager();
         if (pm != null) {
@@ -468,7 +471,12 @@ class ContextImpl extends Context {
         return null;
     }
 
+    private PackageManager getPackageManagerInner$ravenwood() {
+        return new ApplicationPackageManager(this, null);
+    }
+
     @Override
+    @RavenwoodKeep
     public ContentResolver getContentResolver() {
         return mContentResolver;
     }
@@ -611,6 +619,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public SharedPreferences getSharedPreferences(String name, int mode) {
         // At least one application in the world actually passes in a null
         // name.  This happened to work because when we generated the file name
@@ -637,6 +646,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public SharedPreferences getSharedPreferences(File file, int mode) {
         SharedPreferencesImpl sp;
         synchronized (ContextImpl.class) {
@@ -644,21 +654,7 @@ class ContextImpl extends Context {
             sp = cache.get(file);
             if (sp == null) {
                 checkMode(mode);
-                if (getApplicationInfo().targetSdkVersion >= android.os.Build.VERSION_CODES.O) {
-                    if (isCredentialProtectedStorage()) {
-                        final UserManager um = getSystemService(UserManager.class);
-                        if (um == null) {
-                            throw new IllegalStateException("SharedPreferences cannot be accessed "
-                                    + "if UserManager is not available. "
-                                    + "(e.g. from inside an isolated process)");
-                        }
-                        if (!um.isUserUnlockingOrUnlocked(UserHandle.myUserId())) {
-                            throw new IllegalStateException("SharedPreferences in "
-                                    + "credential encrypted storage are not available until after "
-                                    + "user (id " + UserHandle.myUserId() + ") is unlocked");
-                        }
-                    }
-                }
+                credentialProtectedStorageCheck();
                 sp = new SharedPreferencesImpl(file, mode);
                 cache.put(file, sp);
                 return sp;
@@ -674,7 +670,27 @@ class ContextImpl extends Context {
         return sp;
     }
 
+    @RavenwoodIgnore(blockedBy = UserManager.class)
+    private void credentialProtectedStorageCheck() {
+        if (getApplicationInfo().targetSdkVersion >= android.os.Build.VERSION_CODES.O) {
+            if (isCredentialProtectedStorage()) {
+                final UserManager um = getSystemService(UserManager.class);
+                if (um == null) {
+                    throw new IllegalStateException("SharedPreferences cannot be accessed "
+                            + "if UserManager is not available. "
+                            + "(e.g. from inside an isolated process)");
+                }
+                if (!um.isUserUnlockingOrUnlocked(UserHandle.myUserId())) {
+                    throw new IllegalStateException("SharedPreferences in "
+                            + "credential encrypted storage are not available until after "
+                            + "user (id " + UserHandle.myUserId() + ") is unlocked");
+                }
+            }
+        }
+    }
+
     @GuardedBy("ContextImpl.class")
+    @RavenwoodKeep
     private ArrayMap<File, SharedPreferencesImpl> getSharedPreferencesCacheLocked() {
         if (sSharedPrefsCache == null) {
             sSharedPrefsCache = new ArrayMap<>();
@@ -784,6 +800,7 @@ class ContextImpl extends Context {
     }
 
     @UnsupportedAppUsage
+    @RavenwoodKeep
     private File getPreferencesDir() {
         synchronized (mPreferencesDirLock) {
             if (mPreferencesDir == null) {
@@ -2324,10 +2341,9 @@ class ContextImpl extends Context {
     }
 
     @Override
-    public void updateServiceBindings(@NonNull List<UpdateBindingParams> params) {
+    public void updateServiceBindings(@NonNull Collection<UpdateBindingParams> params) {
         final ArrayList<BindUpdateInfo> updates = new ArrayList<>(params.size());
-        for (int i = 0, size = params.size(); i < size; i++) {
-            final UpdateBindingParams param = params.get(i);
+        for (UpdateBindingParams param : params) {
             final ServiceConnection conn = param.getConnection();
             if (conn == null) {
                 throw new IllegalArgumentException("connection is null");
@@ -2442,6 +2458,7 @@ class ContextImpl extends Context {
 
     /** @hide */
     @Override
+    @RavenwoodKeep
     public boolean isUiContext() {
         switch (mContextType) {
             case CONTEXT_TYPE_ACTIVITY:
@@ -2468,7 +2485,7 @@ class ContextImpl extends Context {
      * TODO(b/147647877): Fix usages and remove.
      */
     @SuppressWarnings("AndroidFrameworkClientSidePermissionCheck")
-    @RavenwoodIgnore // Always false on Ravenwood.
+    @RavenwoodRedirect
     private static boolean isSystemOrSystemUI(Context context) {
         return ActivityThread.isSystem() || context.checkPermission(
                 "android.permission.STATUS_BAR_SERVICE",
@@ -2477,6 +2494,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodRedirect(comment = "Returns PERMISSION_DENIED by default on Ravenwood")
     public int checkPermission(String permission, int pid, int uid) {
         if (permission == null) {
             throw new IllegalArgumentException("permission is null");
@@ -2493,6 +2511,7 @@ class ContextImpl extends Context {
 
     /** @hide */
     @Override
+    @RavenwoodKeep
     public int checkPermission(String permission, int pid, int uid, IBinder callerToken) {
         if (permission == null) {
             throw new IllegalArgumentException("permission is null");
@@ -2512,6 +2531,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public int checkCallingPermission(String permission) {
         if (permission == null) {
             throw new IllegalArgumentException("permission is null");
@@ -2525,6 +2545,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public int checkCallingOrSelfPermission(String permission) {
         if (permission == null) {
             throw new IllegalArgumentException("permission is null");
@@ -2535,6 +2556,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public int checkSelfPermission(String permission) {
         if (permission == null) {
             throw new IllegalArgumentException("permission is null");
@@ -2547,6 +2569,7 @@ class ContextImpl extends Context {
         return checkPermission(permission, Process.myPid(), Process.myUid());
     }
 
+    @RavenwoodKeep
     private void enforce(
             String permission, int resultOfCheck,
             boolean selfToo, int uid, String message) {
@@ -2562,6 +2585,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public void enforcePermission(
             String permission, int pid, int uid, String message) {
         enforce(permission,
@@ -2572,6 +2596,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public void enforceCallingPermission(String permission, String message) {
         enforce(permission,
                 checkCallingPermission(permission),
@@ -2581,6 +2606,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public void enforceCallingOrSelfPermission(
             String permission, String message) {
         enforce(permission,
@@ -2597,6 +2623,11 @@ class ContextImpl extends Context {
         PermissionManager permissionManager = getSystemService(PermissionManager.class);
         return permissionManager.getPermissionRequestState(getOpPackageName(), permission,
                 getDeviceId());
+    }
+
+    @Override
+    public boolean shouldShowRequestPermissionRationale(@NonNull String permission) {
+        return getPackageManager().shouldShowRequestPermissionRationale(permission);
     }
 
     @Override
@@ -2833,6 +2864,7 @@ class ContextImpl extends Context {
         }
     }
 
+    @RavenwoodKeep
     private static Resources createResources(IBinder activityToken, LoadedApk pi, String splitName,
             @Nullable Integer overrideDisplayId, Configuration overrideConfig,
             CompatibilityInfo compatInfo, List<ResourcesLoader> resourcesLoader) {
@@ -2988,6 +3020,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public Context createConfigurationContext(Configuration overrideConfiguration) {
         if (overrideConfiguration == null) {
             throw new IllegalArgumentException("overrideConfiguration must not be null");
@@ -3057,7 +3090,7 @@ class ContextImpl extends Context {
     private void setDisplay(Display display) {
         mDisplay = display;
         if (display != null) {
-            updateDeviceIdIfChanged(display.getDisplayId());
+            updateDeviceIdIfChanged(display);
         }
         updateResourceOverlayConstraints();
     }
@@ -3315,16 +3348,44 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodRedirect(comment = "Returns null on Ravenwood, but enabled as experimental")
     public Display getDisplayNoVerify() {
-        if (mDisplay == null) {
-            return mResourcesManager.getAdjustedDisplay(Display.DEFAULT_DISPLAY,
-                    mResources);
+        return getDisplayNoVerifyInner();
+    }
+
+    Display getDisplayNoVerifyInner() {
+        if (!android.app.Flags.enableDynamicDisplayRetrieval()) {
+            if (mDisplay == null) {
+                return mResourcesManager.getAdjustedDisplay(Display.DEFAULT_DISPLAY,
+                        mResources);
+            }
+            return mDisplay;
+        }
+        if (mDisplay != null) {
+            return mDisplay;
         }
 
-        return mDisplay;
+        int targetDisplayId = Display.DEFAULT_DISPLAY;
+        // Using ServiceManager#getService() because Context#getSystemService() may throw
+        // a ServiceNotFoundExecption when SystemServiceRegistry is not ready.
+        IUserManager userManager =
+                IUserManager.Stub.asInterface(ServiceManager.getService(Context.USER_SERVICE));
+        if (userManager != null && UserManager.isVisibleBackgroundUsersEnabled()) {
+            try {
+                int mainDisplayId = userManager.getMainDisplayIdAssignedToUser(getUserId());
+                if (mainDisplayId != Display.INVALID_DISPLAY) {
+                    targetDisplayId = mainDisplayId;
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "Exception occurred when getting display id, fallback to default", e);
+            }
+        }
+
+        return mResourcesManager.getAdjustedDisplay(targetDisplayId, mResources);
     }
 
     @Override
+    @RavenwoodKeep
     public int getDisplayId() {
         final Display display = getDisplayNoVerify();
         return display != null ? display.getDisplayId() : Display.DEFAULT_DISPLAY;
@@ -3338,10 +3399,12 @@ class ContextImpl extends Context {
         }
     }
 
-    private void updateDeviceIdIfChanged(int displayId) {
+    private void updateDeviceIdIfChanged(Display display) {
         if (mIsExplicitDeviceId) {
             return;
         }
+
+        int displayId = display.getDisplayId();
 
         if ((displayId == Display.DEFAULT_DISPLAY || displayId == Display.INVALID_DISPLAY)
                 && mDeviceId == DEVICE_ID_DEFAULT) {
@@ -3350,15 +3413,19 @@ class ContextImpl extends Context {
             return;
         }
 
-        VirtualDeviceManager vdm = getSystemService(VirtualDeviceManager.class);
-        if (vdm != null) {
-            int deviceId = vdm.getDeviceIdForDisplayId(displayId);
-            if (deviceId != mDeviceId) {
-                mDeviceId = deviceId;
-                mAttributionSource =
-                        createAttributionSourceWithDeviceId(mAttributionSource, mDeviceId);
-                notifyOnDeviceChangedListeners(mDeviceId);
+        int deviceId = DEVICE_ID_DEFAULT;
+        if (display.getType() == Display.TYPE_VIRTUAL) {
+            VirtualDeviceManager vdm = getSystemService(VirtualDeviceManager.class);
+            if (vdm != null) {
+                deviceId = vdm.getDeviceIdForDisplayId(displayId);
             }
+        }
+
+        if (deviceId != mDeviceId) {
+            mDeviceId = deviceId;
+            mAttributionSource =
+                    createAttributionSourceWithDeviceId(mAttributionSource, mDeviceId);
+            notifyOnDeviceChangedListeners(mDeviceId);
         }
     }
 
@@ -3455,6 +3522,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public DisplayAdjustments getDisplayAdjustments(int displayId) {
         return mResources.getDisplayAdjustments();
     }
@@ -3748,7 +3816,7 @@ class ContextImpl extends Context {
         mParams = Objects.requireNonNull(params);
         mAttributionSource = createAttributionSource(attributionTag, nextAttributionSource,
                 params.getRenouncedPermissions(), params.shouldRegisterAttributionSource(), mDeviceId);
-        mContentResolver = newApplicationContentResolver(this, mainThread);
+        mContentResolver = new ApplicationContentResolver(this, mainThread);
     }
 
     @RavenwoodKeep
@@ -3798,8 +3866,7 @@ class ContextImpl extends Context {
 
         if (r != null) {
             // only do this if the user already has more than one preferred locale
-            if (android.content.res.Flags.defaultLocale()
-                    && r.getConfiguration().getLocales().size() > 1) {
+            if (r.getConfiguration().getLocales().size() > 1) {
                 LocaleConfig lc = LocaleConfig.fromContextIgnoringOverride(this);
                 mResources.setLocaleConfig(lc);
             }
@@ -3971,13 +4038,10 @@ class ContextImpl extends Context {
     // ----------------------------------------------------------------------
     // ----------------------------------------------------------------------
 
-    @RavenwoodIgnore
-    private static ApplicationContentResolver newApplicationContentResolver(
-            Context context, ActivityThread mainThread) {
-        return new ApplicationContentResolver(context, mainThread);
-    }
-
-    private static final class ApplicationContentResolver extends ContentResolver {
+    @RavenwoodKeepWholeClass
+    @RavenwoodRedirectionClass("ContextImpl_ravenwood$ContentResolver")
+    @RavenwoodProvidingImplementation(target = ContentResolver.class)
+    static final class ApplicationContentResolver extends ContentResolver {
         @UnsupportedAppUsage
         private final ActivityThread mMainThread;
 
@@ -3988,6 +4052,7 @@ class ContextImpl extends Context {
 
         @Override
         @UnsupportedAppUsage
+        @RavenwoodRedirect
         protected IContentProvider acquireProvider(Context context, String auth) {
             return mMainThread.acquireProvider(context,
                     ContentProvider.getAuthorityWithoutUserId(auth),
@@ -3995,6 +4060,7 @@ class ContextImpl extends Context {
         }
 
         @Override
+        @RavenwoodRedirect
         protected IContentProvider acquireExistingProvider(Context context, String auth) {
             return mMainThread.acquireExistingProvider(context,
                     ContentProvider.getAuthorityWithoutUserId(auth),
@@ -4002,11 +4068,13 @@ class ContextImpl extends Context {
         }
 
         @Override
+        @RavenwoodIgnore
         public boolean releaseProvider(IContentProvider provider) {
             return mMainThread.releaseProvider(provider, true);
         }
 
         @Override
+        @RavenwoodRedirect
         protected IContentProvider acquireUnstableProvider(Context c, String auth) {
             return mMainThread.acquireProvider(c,
                     ContentProvider.getAuthorityWithoutUserId(auth),
@@ -4014,16 +4082,19 @@ class ContextImpl extends Context {
         }
 
         @Override
+        @RavenwoodIgnore
         public boolean releaseUnstableProvider(IContentProvider icp) {
             return mMainThread.releaseProvider(icp, false);
         }
 
         @Override
+        @RavenwoodIgnore
         public void unstableProviderDied(IContentProvider icp) {
             mMainThread.handleUnstableProviderDied(icp.asBinder(), true);
         }
 
         @Override
+        @RavenwoodIgnore
         public void appNotRespondingViaProvider(IContentProvider icp) {
             mMainThread.appNotRespondingViaProvider(icp.asBinder());
         }

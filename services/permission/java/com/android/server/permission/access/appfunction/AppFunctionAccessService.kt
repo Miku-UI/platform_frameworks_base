@@ -22,17 +22,26 @@ import android.app.appfunctions.AppFunctionManager.ACCESS_FLAG_MASK_OTHER
 import android.app.appfunctions.AppFunctionManager.ACCESS_FLAG_MASK_USER
 import android.app.appfunctions.AppFunctionManager.ACCESS_FLAG_OTHER_DENIED
 import android.app.appfunctions.AppFunctionManager.ACCESS_REQUEST_STATE_UNREQUESTABLE
+import android.app.appfunctions.IOnAppFunctionAccessChangeListener
 import android.content.pm.SignedPackage
 import android.os.Binder
+import android.os.Handler
+import android.os.Looper
+import android.os.Message
+import android.os.RemoteCallbackList
+import android.os.RemoteException
 import android.os.UserHandle
 import android.permission.flags.Flags.appFunctionAccessServiceEnabled
 import android.util.Slog
+import android.util.SparseArray
+import com.android.server.FgThread
 import com.android.server.LocalManagerRegistry
 import com.android.server.LocalServices
 import com.android.server.permission.access.AccessCheckingService
 import com.android.server.permission.access.AppFunctionAccessUri
 import com.android.server.permission.access.UidUri
 import com.android.server.permission.access.collection.*
+import com.android.server.permission.access.immutable.*
 import com.android.server.permission.access.util.PermissionEnforcer
 import com.android.server.pm.PackageManagerLocal
 import com.android.server.pm.UserManagerInternal
@@ -49,12 +58,15 @@ class AppFunctionAccessService(private val service: AccessCheckingService) :
     private lateinit var packageManagerLocal: PackageManagerLocal
     private lateinit var userManagerInternal: UserManagerInternal
     private lateinit var permissionEnforcer: PermissionEnforcer
+    private lateinit var listeners: OnAccessChangeListeners
 
     fun initialize() {
         packageManagerLocal =
             LocalManagerRegistry.getManagerOrThrow(PackageManagerLocal::class.java)
         userManagerInternal = LocalServices.getService(UserManagerInternal::class.java)
         permissionEnforcer = PermissionEnforcer(context)
+        listeners = OnAccessChangeListeners(FgThread.get().looper)
+        policy.listener = listeners
     }
 
     override fun getAccessRequestState(
@@ -254,6 +266,38 @@ class AppFunctionAccessService(private val service: AccessCheckingService) :
         service.mutateState { with(pregrants) { applyIfNeeded(userId) } }
     }
 
+    override fun addOnAccessChangedListener(
+        listener: IOnAppFunctionAccessChangeListener,
+        userId: Int,
+    ) {
+        if (!appFunctionAccessServiceEnabled()) {
+            return
+        }
+        val methodName = "addOnAccessChangedListener"
+        enforceCallingOrSelfCrossUserPermission(methodName, userId)
+        permissionEnforcer.enforceCallingOrSelfAnyPermission(
+            methodName,
+            Manifest.permission.MANAGE_APP_FUNCTION_ACCESS,
+        )
+        listeners.addListener(listener, userId)
+    }
+
+    override fun removeOnAccessChangedListener(
+        listener: IOnAppFunctionAccessChangeListener,
+        userId: Int,
+    ) {
+        if (!appFunctionAccessServiceEnabled()) {
+            return
+        }
+        val methodName = "removeOnAccessChangedListener"
+        enforceCallingOrSelfCrossUserPermission(methodName, userId)
+        permissionEnforcer.enforceCallingOrSelfAnyPermission(
+            methodName,
+            Manifest.permission.MANAGE_APP_FUNCTION_ACCESS,
+        )
+        listeners.removeListener(listener, userId)
+    }
+
     private fun enforceCallingOrSelfCrossUserPermission(
         message: String?,
         agentUserId: Int,
@@ -317,6 +361,44 @@ class AppFunctionAccessService(private val service: AccessCheckingService) :
             return null
         }
         return state
+    }
+
+    private class OnAccessChangeListeners(looper: Looper) :
+        Handler(looper), AppIdAppFunctionAccessPolicy.OnAppFunctionAccessFlagsChangedListener {
+        private val listeners =
+            SparseArray<RemoteCallbackList<IOnAppFunctionAccessChangeListener>>()
+
+        private val changedAgentUids = MutableIntSet()
+
+        override fun handleMessage(msg: Message) {
+            val agentUid = msg.what
+            listeners[UserHandle.getUserId(agentUid)]?.broadcast { listener ->
+                try {
+                    listener.onAppFunctionAccessChanged(agentUid)
+                } catch (e: RemoteException) {
+                    Slog.e(LOG_TAG, "Error when calling OnAppFunctionAccessChangedListener", e)
+                }
+            }
+        }
+
+        fun addListener(listener: IOnAppFunctionAccessChangeListener, userId: Int) {
+            listeners.getOrPut(userId) { RemoteCallbackList() }.register(listener)
+        }
+
+        fun removeListener(listener: IOnAppFunctionAccessChangeListener, userId: Int) {
+            listeners[userId]?.unregister(listener)
+        }
+
+        override fun onAppFunctionAccessFlagsChanged(agentUid: Int) {
+            changedAgentUids += agentUid
+        }
+
+        override fun onStateMutated() {
+            changedAgentUids.forEachIndexed { _, agentUid ->
+                obtainMessage(agentUid).sendToTarget()
+            }
+            changedAgentUids.clear()
+        }
     }
 
     companion object {

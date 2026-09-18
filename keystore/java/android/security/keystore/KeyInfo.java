@@ -171,6 +171,8 @@ public class KeyInfo implements KeySpec {
 
     /**
      * Gets the size of the key in bits.
+     *
+     * @return {@code -1} for ML-DSA keys, otherwise the key size in bits.
      */
     public int getKeySize() {
         return mKeySize;

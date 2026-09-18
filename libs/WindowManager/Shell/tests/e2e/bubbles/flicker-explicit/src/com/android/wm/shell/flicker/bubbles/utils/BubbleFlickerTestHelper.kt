@@ -19,6 +19,7 @@ package com.android.wm.shell.flicker.bubbles.utils
 import android.content.Context
 import android.platform.systemui_tapl.ui.Bubble
 import android.platform.systemui_tapl.ui.BubbleBarItem
+import android.platform.systemui_tapl.ui.BubbleOverflow
 import android.platform.systemui_tapl.ui.Root
 import android.tools.device.apphelpers.BrowserAppHelper
 import android.tools.device.apphelpers.CalculatorAppHelper
@@ -44,19 +45,19 @@ import com.android.server.wm.flicker.helpers.ImeAppHelper
 import com.android.wm.shell.Flags
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.BubbleLaunchSource.FROM_ALL_APPS
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.BubbleLaunchSource.FROM_HOME_SCREEN
+import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.BubbleLaunchSource.FROM_OVERVIEW
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.BubbleLaunchSource.FROM_TASK_BAR
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.DismissSource.FROM_BUBBLE_BAR_HANDLE
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.DismissSource.FROM_BUBBLE_BAR_ITEM
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.DismissSource.FROM_FLOATING_BUBBLE_ICON
+import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.launchMultipleBubbleAppsViaBubbleMenuAndCollapse
 import com.android.wm.shell.flicker.utils.SplitScreenUtils
 import com.google.common.truth.Truth.assertWithMessage
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 
-/**
- * A helper to build the bubble operations.
- */
+/** A helper to build the bubble operations. */
 internal object BubbleFlickerTestHelper {
 
     /**
@@ -66,39 +67,49 @@ internal object BubbleFlickerTestHelper {
      * @param tapl the [LauncherInstrumentation]
      * @param wmHelper the [WindowManagerStateHelper]
      * @param fromSource the source of launching bubble
+     * @param trampolineApp trampoline that is used to launch the bubble and should open [testApp]
      */
     fun launchBubbleViaBubbleMenu(
         testApp: StandardAppHelper,
         tapl: LauncherInstrumentation,
         wmHelper: WindowManagerStateHelper,
         fromSource: BubbleLaunchSource = FROM_ALL_APPS,
+        trampolineApp: StandardAppHelper? = null,
     ) {
-        val appName = testApp.appName
-        val workspace = tapl.goHome()
-        // Go to all apps to launch app into a bubble.
-        val appIcon = when (fromSource) {
-            FROM_ALL_APPS -> workspace.switchToAllApps().getAppIcon(appName)
-            FROM_TASK_BAR -> {
-                SplitScreenUtils.createShortcutOnHotseatIfNotExist(tapl, appName)
-                val overview = tapl.goHome().switchToOverview()
-                val taskBar = overview.taskbar ?: error("Can't find TaskBar")
-                taskBar.getAppIcon(testApp.appName)
-            }
-            FROM_HOME_SCREEN -> {
-                val homeScreenIcon = workspace.tryGetWorkspaceAppIcon(testApp.appName)
-                if (homeScreenIcon != null) {
-                    // If there's an icon on the homeScreen, just use it.
-                    homeScreenIcon
-                } else {
-                    // If not, create a shortcut on the workspace by dragging it from all apps.
-                    workspace
-                        .switchToAllApps()
-                        .getAppIcon(appName)
-                        .dragToWorkspace(false /* startActivity */, false /* isWidgetShortcut */)
-                    tapl.workspace.getWorkspaceAppIcon(appName)
+        val appName = trampolineApp?.appName ?: testApp.appName
+        val appIcon =
+            when (fromSource) {
+                FROM_ALL_APPS -> tapl.goHome().switchToAllApps().getAppIcon(appName)
+                FROM_OVERVIEW -> {
+                    SplitScreenUtils.createShortcutOnHotseatIfNotExist(tapl, appName)
+                    val overview = tapl.goHome().switchToOverview()
+                    val taskBar = overview.taskbar ?: error("Can't find TaskBar")
+                    taskBar.getAppIcon(appName)
+                }
+                FROM_HOME_SCREEN -> {
+                    val workspace = tapl.goHome()
+                    val homeScreenIcon = workspace.tryGetWorkspaceAppIcon(appName)
+                    if (homeScreenIcon != null) {
+                        // If there's an icon on the homeScreen, just use it.
+                        homeScreenIcon
+                    } else {
+                        // If not, create a shortcut on the workspace by dragging it from all apps.
+                        workspace
+                            .switchToAllApps()
+                            .getAppIcon(appName)
+                            .dragToWorkspace(
+                                false /* startActivity */,
+                                false, /* isWidgetShortcut */
+                            )
+                        tapl.workspace.getWorkspaceAppIcon(appName)
+                    }
+                }
+                FROM_TASK_BAR -> {
+                    tapl.showTaskbarIfHidden()
+                    tapl.launchedAppState.assertTaskbarVisible()
+                    tapl.launchedAppState.taskbar.getAppIcon(appName)
                 }
             }
-        }
         launchAndWaitForBubbleAppExpanded(testApp, appIcon, wmHelper)
     }
 
@@ -108,22 +119,29 @@ internal object BubbleFlickerTestHelper {
      * @param testApp the test app to launch into bubble
      * @param tapl the [LauncherInstrumentation]
      * @param wmHelper the [WindowManagerStateHelper]
+     * @param trampolineApp trampoline that is used to launch the bubble and should open [testApp]
      */
     fun launchBubbleViaDragToBubbleBar(
         testApp: StandardAppHelper,
         tapl: LauncherInstrumentation,
         wmHelper: WindowManagerStateHelper,
+        trampolineApp: StandardAppHelper? = null,
     ) {
+        val appName = trampolineApp?.appName ?: testApp.appName
         // Switch to overview to show task bar.
         val overview = tapl.goHome().switchToOverview()
         val taskBar = overview.taskbar ?: error("Can't find TaskBar")
-        val taskBarAppIcon = taskBar.getAppIcon(testApp.appName)
+        val taskBarAppIcon = taskBar.getAppIcon(appName)
         taskBarAppIcon.dragToBubbleBarLocation(false /* isBubbleBarLeftDropTarget */)
 
         waitAndAssertBubbleAppInExpandedState(testApp, wmHelper)
-        tapl.launchedAppState.assertTaskbarHidden()
+        if (tapl.isTransientTaskbar) {
+            // Transient taskbar is stashed when bubble bar expands
+            tapl.launchedAppState.assertTaskbarHidden()
+        }
         assertWithMessage("The education must not show for Application bubble")
-            .that(Root.get().bubble.isEducationVisible).isFalse()
+            .that(Root.get().bubble.isEducationVisible)
+            .isFalse()
     }
 
     /**
@@ -133,7 +151,7 @@ internal object BubbleFlickerTestHelper {
      * @param wmHelper the [WindowManagerStateHelper]
      */
     fun launchBubbleViaOverflow(testApp: StandardAppHelper, wmHelper: WindowManagerStateHelper) {
-        val overflow = Root.get().expandedBubbleStack.openOverflow()
+        val overflow = clickOverflowIcon()
         overflow.verifyHasBubbles()
         overflow.openBubble()
 
@@ -196,6 +214,27 @@ internal object BubbleFlickerTestHelper {
         waitAndAssertBubbleAppInExpandedState(testApp, wmHelper)
     }
 
+    /** Gets the given bubble app icon. */
+    fun getBubbleAppIcon(app: StandardAppHelper): Bubble {
+        val bubbles = Root.get().expandedBubbleStack.bubbles
+        return bubbles.find { bubble -> bubble.containsBubbleApp(app) }
+            ?: error(
+                "Can't find the bubble with packageName=${app.packageName} " +
+                    "appName=${app.appName}. Bubbles are ${bubbles.describeAll()}"
+            )
+    }
+
+    /** Clicks on the given bubble app icon. */
+    fun clickBubbleAppIcon(appToClick: StandardAppHelper) {
+        val bubbleAppIcon = getBubbleAppIcon(appToClick)
+        bubbleAppIcon.click()
+    }
+
+    /** Clicks on the overflow icon. */
+    fun clickOverflowIcon(): BubbleOverflow {
+        return Root.get().expandedBubbleStack.openOverflow()
+    }
+
     /**
      * Switches from one expanded bubble to another.
      *
@@ -211,13 +250,7 @@ internal object BubbleFlickerTestHelper {
         // Checks the previous app is in expanded state.
         waitAndAssertBubbleAppInExpandedState(appSwitchedFrom, wmHelper)
 
-        val bubbles = Root.get().expandedBubbleStack.bubbles
-        val bubbleAppIcon =
-            bubbles.find { bubble -> bubble.containsBubbleApp(appSwitchTo) } ?: error(
-                "Can't find the bubble with ${appSwitchTo.packageName}. "
-                        + "Bubbles are ${bubbles.describeAll()}"
-            )
-        bubbleAppIcon.click()
+        clickBubbleAppIcon(appSwitchTo)
 
         waitAndAssertBubbleAppInExpandedState(appSwitchTo, wmHelper)
     }
@@ -225,6 +258,20 @@ internal object BubbleFlickerTestHelper {
     /** Returns a string describing all bubbles in the list for debugging messages. */
     private fun List<Bubble>.describeAll(): String {
         return joinToString(separator = ", ") { bubble -> bubble.contentDescription() }
+    }
+
+    /** Expands the bubble app [testApp], which is previously collapsed. */
+    fun expandCollapsedBubbleApp(
+        testApp: StandardAppHelper,
+        tapl: LauncherInstrumentation,
+        uiDevice: UiDevice,
+        wmHelper: WindowManagerStateHelper,
+    ) {
+        if (tapl.isTablet) {
+            expandBubbleAppViaBubbleBar(testApp, uiDevice, wmHelper)
+        } else {
+            expandBubbleAppViaTapOnBubbleStack(testApp, wmHelper)
+        }
     }
 
     /**
@@ -250,13 +297,13 @@ internal object BubbleFlickerTestHelper {
     }
 
     /**
-     * Dismisses the bubble app via dragging the bubble to dismiss view.
+     * Dismisses the bubble app via dragging the floating bubble to dismiss view.
      *
      * @param testApp the bubble app to dismiss
      * @param wmHelper the [WindowManagerStateHelper]
      * @param previousApp the last focused bubble app, which defaults to `null`
      */
-    fun dismissBubbleAppViaBubbleView(
+    fun dismissBubbleAppViaFloatingBubbleView(
         testApp: StandardAppHelper,
         wmHelper: WindowManagerStateHelper,
         previousApp: StandardAppHelper? = null,
@@ -308,29 +355,23 @@ internal object BubbleFlickerTestHelper {
 
         when (from) {
             FROM_FLOATING_BUBBLE_ICON -> {
-                val bubbles = Root.get().expandedBubbleStack.bubbles
-                bubbles.find { bubble -> bubble.containsBubbleApp(testApp) }
-                    ?.dismiss()
-                    ?: error(
-                        "Can't find the bubble with ${testApp.packageName}. "
-                                + "Bubbles are ${bubbles.describeAll()}"
-                    )
+                getBubbleAppIcon(testApp).dismiss()
             }
             FROM_BUBBLE_BAR_HANDLE -> {
                 Root.get().expandedBubbleStack.bubbleBarHandle.dragToDismiss()
             }
             FROM_BUBBLE_BAR_ITEM -> {
-                Root.get().bubbleBar.bubbles.find { item ->
-                    item.containsBubbleApp(testApp)
-                }
-                    ?.dragToDismiss()
-                    ?: error("Can't find the bubble bar item")
+                Root.get()
+                    .bubbleBar
+                    .bubbles
+                    .find { item -> item.containsBubbleApp(testApp) }
+                    ?.dragToDismiss() ?: error("Can't find the bubble bar item")
             }
         }
 
         if (previousApp != null) {
             // If there's a previous app, the app will be expanded.
-            waitAndAssertBubbleAppInExpandedState(testApp, wmHelper)
+            waitAndAssertBubbleAppInExpandedState(previousApp, wmHelper)
         } else {
             // Otherwise, if there's no previous app, the bubble bar or floating icon will be
             // dismissed.
@@ -344,10 +385,7 @@ internal object BubbleFlickerTestHelper {
      * @param tapl the [LauncherInstrumentation]
      * @param wmHelper the [WindowManagerStateHelper]
      */
-    fun dismissAllBubbles(
-        tapl: LauncherInstrumentation,
-        wmHelper: WindowManagerStateHelper,
-    ) {
+    fun dismissAllBubbles(tapl: LauncherInstrumentation, wmHelper: WindowManagerStateHelper) {
         Root.get().verifyNoExpandedBubbleIsVisible()
         if (tapl.isTablet) {
             Root.get().bubbleBar.dragToDismiss()
@@ -363,13 +401,9 @@ internal object BubbleFlickerTestHelper {
      * @param displayId The ID of the target display.
      */
     fun StateSyncBuilder.withBubbleFullyDismissedAndGone(displayId: Int = Display.DEFAULT_DISPLAY) =
-        withAppTransitionIdle(displayId)
-            .add(ConditionsFactory.isWMStateComplete())
-            .withBubbleGone()
+        withAppTransitionIdle(displayId).add(ConditionsFactory.isWMStateComplete()).withBubbleGone()
 
-    /**
-     * Waits and verifies the bubble (represented as bubble icon or bubble bar) is gone.
-     */
+    /** Waits and verifies the bubble (represented as bubble icon or bubble bar) is gone. */
     fun waitAndVerifyBubbleGone(wmHelper: WindowManagerStateHelper) {
         wmHelper.StateSyncBuilder().withBubbleFullyDismissedAndGone().waitForAndVerify()
     }
@@ -399,9 +433,7 @@ internal object BubbleFlickerTestHelper {
         return bubbles
     }
 
-    /**
-     * Dismisses all bubble apps launched by [launchMultipleBubbleAppsViaBubbleMenuAndCollapse].
-     */
+    /** Dismisses all bubble apps launched by [launchMultipleBubbleAppsViaBubbleMenuAndCollapse]. */
     fun dismissMultipleBubbles() {
         bubbleApps.forEach { app -> app.exit() }
     }
@@ -413,10 +445,11 @@ internal object BubbleFlickerTestHelper {
      */
     fun dumpViewHierarchy() {
         val uiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
-        val dumpFile = File(
-            ApplicationProvider.getApplicationContext<Context>().cacheDir,
-            "hierarchy_dump.xml"
-        )
+        val dumpFile =
+            File(
+                ApplicationProvider.getApplicationContext<Context>().cacheDir,
+                "hierarchy_dump.xml",
+            )
 
         try {
             FileOutputStream(dumpFile).use { outputStream ->
@@ -458,20 +491,23 @@ internal object BubbleFlickerTestHelper {
             .withBubbleShown()
 
     private fun assertBubbleIconsAligned(tapl: LauncherInstrumentation) {
-        val isBubbleIconsAligned = Root.get().expandedBubbleStack.bubbles.stream()
-            .mapToInt { bubbleIcon: Bubble ->
-                if (tapl.isTablet && !Flags.enableBubbleBar()) {
-                    // For large screen devices without bubble bar, the bubble icons are aligned
-                    // vertically.
-                    bubbleIcon.visibleCenter.x
-                } else {
-                    // Otherwise, the bubble icons are aligned horizontally.
-                    bubbleIcon.visibleCenter.y
+        val isBubbleIconsAligned =
+            Root.get()
+                .expandedBubbleStack
+                .bubbles
+                .stream()
+                .mapToInt { bubbleIcon: Bubble ->
+                    if (tapl.isTablet && !Flags.enableBubbleBar()) {
+                        // For large screen devices without bubble bar, the bubble icons are aligned
+                        // vertically.
+                        bubbleIcon.visibleCenter.x
+                    } else {
+                        // Otherwise, the bubble icons are aligned horizontally.
+                        bubbleIcon.visibleCenter.y
+                    }
                 }
-            }
-            .distinct()
-            .count() == 1L
-
+                .distinct()
+                .count() == 1L
 
         val bubblePositions = StringBuilder()
         if (!isBubbleIconsAligned) {
@@ -499,11 +535,13 @@ internal object BubbleFlickerTestHelper {
         // The bubble will be occluded if IME shows.
         if (testApp !is ImeAppHelper) {
             assertWithMessage("The education must not show for Application bubble")
-                .that(Root.get().bubble.isEducationVisible).isFalse()
+                .that(Root.get().bubble.isEducationVisible)
+                .isFalse()
         }
     }
 
-    private fun waitAndAssertBubbleAppInExpandedState(
+    /** Waits for the bubble app to be fully expanded. */
+    fun waitAndAssertBubbleAppInExpandedState(
         testApp: StandardAppHelper,
         wmHelper: WindowManagerStateHelper,
     ) {
@@ -515,7 +553,8 @@ internal object BubbleFlickerTestHelper {
         }
     }
 
-    private fun waitAndAssertBubbleAppInCollapseState(
+    /** Waits for the bubble app to be fully collapsed. */
+    fun waitAndAssertBubbleAppInCollapseState(
         testApp: StandardAppHelper,
         wmHelper: WindowManagerStateHelper,
     ) {
@@ -529,10 +568,12 @@ internal object BubbleFlickerTestHelper {
         By.pkg(launcherPackageName).res(launcherPackageName, resourcesId)
 
     private fun Bubble.containsBubbleApp(testApp: StandardAppHelper): Boolean =
-        contentDescription().contains(testApp.packageName)
+        contentDescription().contains(testApp.packageName) ||
+            contentDescription().contains(testApp.appName)
 
     private fun BubbleBarItem.containsBubbleApp(testApp: StandardAppHelper): Boolean =
-        item.contentDescription.contains(testApp.packageName)
+        item.contentDescription.contains(testApp.packageName) ||
+            item.contentDescription.contains(testApp.appName)
 
     /** The source to launch the bubble app by bubble menu. */
     internal enum class BubbleLaunchSource {
@@ -542,6 +583,9 @@ internal object BubbleFlickerTestHelper {
         /** Launches the bubble from home screen page. */
         FROM_HOME_SCREEN,
 
+        /** Launches the bubble from the task bar in overview. */
+        FROM_OVERVIEW,
+
         /** Launches the bubble from the task bar. */
         FROM_TASK_BAR,
     }
@@ -550,14 +594,15 @@ internal object BubbleFlickerTestHelper {
     private const val RES_ID_BUBBLE_BAR = "taskbar_bubbles"
 
     // TODO(b/396020056): The max number of bubbles is 5. Make the test more flexible
-//  if the max number could be overridden.
-    private val bubbleApps = listOf(
-        CalculatorAppHelper(),
-        BrowserAppHelper(),
-        MapsAppHelper(),
-        MessagingAppHelper(),
-        ClockAppHelper(),
-    )
+    //  if the max number could be overridden.
+    private val bubbleApps =
+        listOf(
+            CalculatorAppHelper(),
+            BrowserAppHelper(),
+            MapsAppHelper(),
+            MessagingAppHelper(),
+            ClockAppHelper(),
+        )
 
     private enum class DismissSource {
         /** Dismisses a bubble app from bubble icon. */

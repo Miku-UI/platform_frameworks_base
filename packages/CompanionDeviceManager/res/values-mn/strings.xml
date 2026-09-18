@@ -35,7 +35,6 @@
     <string name="profile_name_medical" msgid="5617160509499466400">"эрүүл мэндийн төхөөрөмж"</string>
     <string name="title_app_streaming" msgid="237666000400427614">"&lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt;-д таны <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>, &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;-н хооронд апп, системийн онцлогийг дамжуулахыг зөвшөөрөх үү?"</string>
     <string name="summary_app_streaming" msgid="8346968726357732862">"<xliff:g id="APP_NAME">%1$s</xliff:g>-д дараах зөвшөөрлүүдийг олгоно:"</string>
-    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> аудио, зураг, төлбөрийн мэдээлэл, нууц үг, мессеж зэрэг таны <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> дээр харагдаж эсвэл тоглуулж буй аливаа зүйлд хандах эрхтэй байх болно.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_1">%1$s</xliff:g> таныг энэ зөвшөөрөлд хандах эрхийг нь хасах хүртэл <xliff:g id="DEVICE_NAME">%3$s</xliff:g>-д апп дамжуулах боломжтой байх болно."</string>
     <string name="helper_summary_app_streaming" msgid="160149899100957545">"<xliff:g id="APP_NAME">%1$s</xliff:g> <xliff:g id="DEVICE_NAME">%2$s</xliff:g>-н өмнөөс таны төхөөрөмжүүдийн хооронд апп, системийн онцлогуудыг дамжуулах зөвшөөрлийг хүсэж байна."</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
@@ -43,12 +42,13 @@
     <string name="helper_summary_computer" msgid="2298803016482139668">"<xliff:g id="APP_NAME">%1$s</xliff:g> таны <xliff:g id="DEVICE_NAME">%2$s</xliff:g>-н өмнөөс <xliff:g id="DEVICE_TYPE">%3$s</xliff:g>-н зураг, медиа, мэдэгдэлд хандах зөвшөөрлийг хүсэж байна"</string>
     <string name="title_nearby_device_streaming" msgid="5342768208699657581">"&lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt;-д таны <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>, &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;-н хооронд апп, системийн онцлогийг дамжуулахыг зөвшөөрөх үү?"</string>
     <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"<xliff:g id="APP_NAME">%1$s</xliff:g>-д дараах зөвшөөрлүүдийг олгоно:"</string>
-    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> аудио, зураг, төлбөрийн мэдээлэл, нууц үг, мессеж зэрэг <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g> дээр харагдаж эсвэл тоглуулж буй аливаа зүйлд хандах эрхтэй болно.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%1$s</xliff:g> таныг энэ зөвшөөрөлд хандах эрхийг нь хасах хүртэл <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g>-д апп дамжуулах боломжтой байх болно."</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"<xliff:g id="APP_NAME">%1$s</xliff:g> <xliff:g id="DEVICE_NAME">%2$s</xliff:g>-н өмнөөс таны <xliff:g id="DEVICE_TYPE">%3$s</xliff:g>-с апп дамжуулах зөвшөөрлийг хүсэж байна"</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"&lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt;-д таны <xliff:g id="DEVICE_TYPE">%3$s</xliff:g>, &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt;-н хооронд аудио, системийн онцлогийг дамжуулахыг зөвшөөрөх үү?"</string>
     <string name="summary_virtual_device" msgid="1062189396947962635">"<xliff:g id="APP_NAME">%2$s</xliff:g>-д дараах зөвшөөрлүүдийг олгоно:"</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"төхөөрөмж"</string>
     <string name="summary_generic" msgid="1761976003668044801">"Энэ апп залгаж буй хүний нэр зэрэг мэдээллийг таны утас болон сонгосон төхөөрөмжийн хооронд синк хийх боломжтой болно"</string>
+    <string name="summary_generic_with_remote_ai_capability" msgid="5053633566439056634">"&lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt;-д таны <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>-с залгагчийн мэдээлэл зэрэг мэдээллийг синк хийх, ухаалаг үйлдэл ажиллуулахыг зөвшөөрнө үү"</string>
+    <string name="summary_with_permissions_and_remote_ai_capability" msgid="5240771314596527096">"&lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt;-д таны <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>-с дуудлага хийгчийн мэдээлэл зэрэг мэдээллийг синк хийх, ухаалаг үйлдэл ажиллуулах зөвшөөрөл өгнө үү"</string>
     <string name="consent_yes" msgid="8344487259618762872">"Зөвшөөрөх"</string>
     <string name="consent_no" msgid="2640796915611404382">"Бүү зөвшөөр"</string>
     <string name="consent_cancel" msgid="5655005528379285841">"Цуцлах"</string>
@@ -70,6 +70,7 @@
     <string name="permission_media_routing_control" msgid="5498639511586715253">"Медиа гаралтыг өөрчлөх"</string>
     <string name="permission_storage" msgid="6831099350839392343">"Зураг болон медиа"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"Мэдэгдэл"</string>
+    <string name="permission_app_streaming" msgid="4488910074894929222">"Дэлгэцийн тусгал үүсгэх, апп дамжуулах"</string>
     <string name="permission_create_virtual_device" msgid="1102905050922460040">"Өгөгдлийг өөрийн <xliff:g id="DEVICE_TYPE">%1$s</xliff:g>-д дамжуулах"</string>
     <string name="permission_add_mirror_display" msgid="3743433250535606288">"Таны дэлгэцийн тусгалыг үүсгэх"</string>
     <string name="permission_add_trusted_display" msgid="9052824856626276723">"Апп дамжуулах"</string>
@@ -83,15 +84,16 @@
     <string name="permission_microphone_summary" msgid="4862628553869973259">"Аудио бичих"</string>
     <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"Ойролцоох төхөөрөмжүүдийн харьцангуй байрлалыг олох, тодорхойлох болон тэдгээрт холбогдох"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"Харилцагчид, мессеж болон зургууд зэрэг мэдээллийг оруулаад бүх мэдэгдлийг унших"</string>
-    <string name="permission_notifications_summary" msgid="6819393427371255636">"• Харилцагчид, мессеж, зураг зэрэг мэдээллийг оруулаад бүх мэдэгдлийг унших&lt;br/&gt;• Танд мэдэгдэл илгээх&lt;br/&gt;&lt;br/&gt;Та хүссэн үедээ энэ аппын мэдэгдэл унших, илгээх чадамжийг Тохиргоо &gt; Мэдэгдлээс удирдах боломжтой."</string>
-    <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_notifications_summary" msgid="7491920318334824691">"• Харилцагчид, мессеж, зураг зэрэг мэдээллийг оруулаад бүх мэдэгдлийг унших&lt;br/&gt;• Танд мэдэгдэл илгээх&lt;br/&gt;&lt;br/&gt;Та энэ аппын мэдэгдэл унших, илгээх чадамжийг Тохиргоо › Мэдэгдлээс хүссэн үедээ удирдах боломжтой."</string>
+    <string name="permission_storage_summary" msgid="3779040306012319942">"Утасныхаа зураг, медиаг бусад төхөөрөмжтэйгөө хуваалцана уу."</string>
     <string name="permission_post_notifications_summary" msgid="1099188848900200165">"Танд мэдэгдэл илгээх"</string>
+    <string name="permission_app_streaming_summary" msgid="4114223538437344105">"Утасныхаа дэлгэцийг аппуудтай нь хамт төхөөрөмжүүдтэйгээ хуваалцана уу. Таны төхөөрөмжүүд таны утас түгжээтэй байсан ч аудио, зураг, төлбөрийн мэдээлэл, нууц үг, мессеж зэрэг таны утсан дээр харагдаж буй аливаа зүйлд хандах эрхтэй байх болно.&lt;br/&gt;&lt;br/&gt;Төхөөрөмжүүдээсээ микрофон, камер болон бусад мэдрэгчийн өгөгдлийг тэр дундаа хүрэх зангаа, хулганын товшилт зэрэг харилцан үйлдлийг утсандаа буцааж дамжуулна уу."</string>
     <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"&lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;-с микрофон, камер болон бусад мэдрэгчийн өгөгдлийг өөрийн <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>-д дамжуулна уу."</string>
     <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"Өөрийн <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>-н дэлгэцийг бичих, &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; руу дамжуулах эсвэл хуваалцана уу.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> аудио, зураг, төлбөрийн мэдээлэл, нууц үг, мессеж зэрэг таны <xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g> дээр харагдаж эсвэл тоглуулж буй аливаа зүйлд хандах эрхтэй байх болно."</string>
     <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"Өөрийн <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>-н аппыг &lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;/strong&gt; руу дамжуулна уу.&lt;br/&gt;&lt;br/&gt;Таны <xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g> түгжээтэй байсан ч <xliff:g id="APP_NAME">%1$s</xliff:g> аудио, зураг, төлбөрийн мэдээлэл, нууц үг, мессеж зэрэг <xliff:g id="DEVICE_NAME_2">%3$s</xliff:g> дээр харагдаж эсвэл тоглуулж буй аливаа зүйлд хандах эрхтэй байх болно."</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"Боломжтой төхөөрөмжүүдийн жагсаалтад хандаж, аль нь бусад аппаас аудио эсвэл видео дамжуулах, нэвтрүүлэхийг хянана уу"</string>
-    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
-    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="4263728689361283271">"Танд сэрэмжлүүлэг илгээнэ"</string>
+    <string name="permission_bypass_dnd_summary" msgid="3649231048838415756">"Бүү саад бол горим асаалттай байсан ч танд сэрэмжлүүлэг илгээнэ"</string>
     <string name="device_type" product="default" msgid="8268703872070046263">"утас"</string>
     <string name="device_type" product="tablet" msgid="5038791954983067774">"таблет"</string>
     <string name="device_type" product="tv" msgid="5355611506659405636">"тв"</string>

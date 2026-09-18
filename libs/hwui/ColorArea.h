@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <SkAndroidFrameworkUtils.h>
 #include <SkCanvas.h>
 #include <SkPaintFilterCanvas.h>
 
@@ -50,6 +51,17 @@ class ColorArea {
 public:
     ColorArea() {}
     ~ColorArea() {}
+
+    enum class GradientLightness {
+        Unknown,
+        Light,
+        Dark,
+    };
+
+    /**
+     * Evaluate the lightness of the gradient.
+     */
+    static GradientLightness computeGradient(SkAndroidFrameworkUtils::LinearGradientInfo& info);
 
     /**
      * Counts the given area of a draw call that is reasonably expected to draw a background:

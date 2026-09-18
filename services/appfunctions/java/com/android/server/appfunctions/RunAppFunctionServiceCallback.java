@@ -18,6 +18,7 @@ package com.android.server.appfunctions;
 import android.annotation.NonNull;
 import android.app.appfunctions.AppFunctionException;
 import android.app.appfunctions.ExecuteAppFunctionAidlRequest;
+import android.app.appfunctions.ExecuteAppFunctionRequest;
 import android.app.appfunctions.ExecuteAppFunctionResponse;
 import android.app.appfunctions.IAppFunctionService;
 import android.app.appfunctions.ICancellationCallback;
@@ -59,8 +60,16 @@ public class RunAppFunctionServiceCallback implements RunServiceCallCallback<IAp
         try {
             mSafeExecuteAppFunctionCallback.setExecutionStartTimeAfterBindMillis(
                     SystemClock.elapsedRealtime());
+            ExecuteAppFunctionRequest clientRequest;
+            if (android.app.appfunctions.flags.Flags.enableAppInteractionApi()) {
+                // Attribution contains caller information that can be used to identify the caller.
+                // This information should not be leaked to the target app.
+                clientRequest = mRequestInternal.getClientRequest().copyWithoutAttribution();
+            } else {
+                clientRequest = mRequestInternal.getClientRequest();
+            }
             service.executeAppFunction(
-                    mRequestInternal.getClientRequest(),
+                    clientRequest,
                     mRequestInternal.getCallingPackage(),
                     mCallerSigningInfo,
                     mCancellationCallback,

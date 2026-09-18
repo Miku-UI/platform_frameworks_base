@@ -17,6 +17,7 @@
 package com.android.server.input
 
 import android.Manifest
+import android.app.role.RoleManager
 import android.content.Context
 import android.content.PermissionChecker
 import android.content.pm.PackageManager
@@ -32,8 +33,11 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Process
 import android.os.SystemClock
+import android.os.UserHandle
+import android.os.UserManager
 import android.os.test.TestLooper
 import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.DisabledOnRavenwood
 import android.platform.test.annotations.EnableFlags
 import android.platform.test.annotations.Presubmit
 import android.platform.test.flag.junit.SetFlagsRule
@@ -95,24 +99,24 @@ import org.mockito.kotlin.times
 @Presubmit
 @RunWith(JUnitParamsRunner::class)
 @EnableFlags(
-    com.android.hardware.input.Flags.FLAG_KEYBOARD_A11Y_SHORTCUT_CONTROL,
+    com.android.hardware.input.Flags.FLAG_ENABLE_COLOR_INVERSION_KEY_GESTURES,
     com.android.hardware.input.Flags.FLAG_ENABLE_SELECT_TO_SPEAK_KEY_GESTURES,
-    com.android.hardware.input.Flags.FLAG_ENABLE_TALKBACK_AND_MAGNIFIER_KEY_GESTURES,
     com.android.hardware.input.Flags.FLAG_ENABLE_TALKBACK_KEY_GESTURES,
-    com.android.hardware.input.Flags.FLAG_ENABLE_VOICE_ACCESS_KEY_GESTURES,
-    com.android.window.flags.Flags.FLAG_CLOSE_TASK_KEYBOARD_SHORTCUT,
-    com.android.window.flags.Flags.FLAG_ENABLE_MOVE_TO_NEXT_DISPLAY_SHORTCUT,
-    com.android.window.flags.Flags.FLAG_ENABLE_TASK_RESIZING_KEYBOARD_SHORTCUTS,
-    com.android.window.flags.Flags.FLAG_KEYBOARD_SHORTCUTS_TO_SWITCH_DESKS,
-    com.android.hardware.input.Flags.FLAG_ENABLE_NEW_25Q2_KEYCODES,
+    com.android.hardware.input.Flags.FLAG_ENABLE_NEW_26Q2_KEYCODES,
     com.android.hardware.input.Flags.FLAG_ENABLE_QUICK_SETTINGS_PANEL_SHORTCUT,
-    com.android.hardware.input.Flags.FLAG_ENABLE_PARTIAL_SCREENSHOT_KEYBOARD_SHORTCUT,
     com.android.hardware.input.Flags.FLAG_KEYBOARD_BACKLIGHT_SHORTCUTS,
+    com.android.hardware.input.Flags.FLAG_ENABLE_CONTEXTUAL_SEARCH_DESKTOP_ENTRYPOINTS,
+    com.android.hardware.input.Flags.FLAG_ENABLE_NOTE_TAKING_KEYBOARD_SHORTCUT,
+    com.android.hardware.input.Flags.FLAG_ENABLE_CONTEXTUAL_INPUT_TRIGGER,
+    com.android.hardware.input.Flags.FLAG_ENABLE_CONTEXTUAL_CURSOR_DESKTOP_ENTRYPOINTS,
 )
+@DisabledOnRavenwood(reason = "Static mocking in bivalent tests is tricky", bug = 310268946)
 class KeyGestureControllerTests {
 
     companion object {
         const val DEVICE_ID = 1
+        const val USER_ID = 10
+        const val SECOND_USER_ID = 11
         val HOME_GESTURE_COMPLETE_EVENT =
             KeyGestureEvent.Builder()
                 .setDeviceId(DEVICE_ID)
@@ -179,6 +183,8 @@ class KeyGestureControllerTests {
     @Mock private lateinit var accessibilityShortcutController: AccessibilityShortcutController
     @Mock private lateinit var screenshotHelper: ScreenshotHelper
     @Mock private lateinit var windowManagerInternal: WindowManagerInternal
+    @Mock private lateinit var userManager: UserManager
+    @Mock private lateinit var roleManager: RoleManager
 
     private var currentPid = 0
     private lateinit var testableResources: TestableResources
@@ -198,6 +204,9 @@ class KeyGestureControllerTests {
         ExtendedMockito.doReturn(windowManagerInternal).`when` {
             LocalServices.getService(ArgumentMatchers.eq(WindowManagerInternal::class.java))
         }
+        testableContext.addMockSystemService(Context.USER_SERVICE, userManager)
+        Mockito.`when`(userManager.getUserHandles(anyBoolean()))
+            .thenReturn(listOf(UserHandle(USER_ID), UserHandle(SECOND_USER_ID)))
     }
 
     private fun setupBehaviors() {
@@ -215,6 +224,8 @@ class KeyGestureControllerTests {
         Mockito.`when`(packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK))
             .thenReturn(true)
         testableContext.setMockPackageManager(packageManager)
+        Mockito.`when`(roleManager.isRoleAvailable(RoleManager.ROLE_NOTES)).thenReturn(true)
+        testableContext.addMockSystemService(RoleManager::class.java, roleManager)
         testableResources.addOverride(
             R.integer.config_searchKeyBehavior,
             SEARCH_KEY_BEHAVIOR_TARGET_ACTIVITY,
@@ -290,6 +301,7 @@ class KeyGestureControllerTests {
             keyGestureController.appLaunchBookmarks.map { bookmark -> InputGestureData(bookmark) }
         }
         keyGestureController.systemRunning()
+        keyGestureController.setCurrentUserId(USER_ID)
         testLooper.dispatchAll()
     }
 
@@ -337,7 +349,7 @@ class KeyGestureControllerTests {
 
     @Test
     @Parameters(method = "systemGesturesTestArguments")
-    @EnableFlags(com.android.window.flags.Flags.FLAG_TOGGLE_FULLSCREEN_STATE_VIA_FULLSCREEN_KEY)
+    @EnableFlags(com.android.hardware.input.Flags.FLAG_ENABLE_PARTIAL_SCREENSHOT_KEYBOARD_SHORTCUT)
     fun testKeyGestures(test: KeyGestureData) {
         setupKeyGestureController()
         testKeyGestureProduced(test, PASS_THROUGH_APP)
@@ -356,7 +368,7 @@ class KeyGestureControllerTests {
     }
 
     @Test
-    @EnableFlags(com.android.window.flags.Flags.FLAG_TOGGLE_FULLSCREEN_STATE_VIA_FULLSCREEN_KEY)
+    @EnableFlags(com.android.hardware.input.Flags.FLAG_ENABLE_PARTIAL_SCREENSHOT_KEYBOARD_SHORTCUT)
     fun testCustomKeyGesturesNotAllowedForSystemGestures() {
         setupKeyGestureController()
         for (systemGesture in systemGesturesTestArguments()) {
@@ -378,7 +390,7 @@ class KeyGestureControllerTests {
             assertEquals(
                 "Can't set custom gesture trigger used by system gesture, $systemGesture",
                 InputManager.CUSTOM_INPUT_GESTURE_RESULT_ERROR_RESERVED_GESTURE,
-                keyGestureController.addCustomInputGesture(0, builder.build().aidlData),
+                keyGestureController.addCustomInputGesture(USER_ID, builder.build().aidlData),
             )
         }
     }
@@ -427,7 +439,7 @@ class KeyGestureControllerTests {
             assertEquals(
                 "Can't set custom gesture trigger used by a bookmark, $bookmark",
                 InputManager.CUSTOM_INPUT_GESTURE_RESULT_ERROR_RESERVED_GESTURE,
-                keyGestureController.addCustomInputGesture(0, builder.build().aidlData),
+                keyGestureController.addCustomInputGesture(USER_ID, builder.build().aidlData),
             )
         }
     }
@@ -439,7 +451,7 @@ class KeyGestureControllerTests {
 
     @Test
     @Parameters(method = "nonCapturableKeyGestures")
-    @EnableFlags(com.android.window.flags.Flags.FLAG_TOGGLE_FULLSCREEN_STATE_VIA_FULLSCREEN_KEY)
+    @EnableFlags(com.android.hardware.input.Flags.FLAG_ENABLE_PARTIAL_SCREENSHOT_KEYBOARD_SHORTCUT)
     fun testKeyGestures_withKeyCapture_nonCapturableGestures(test: KeyGestureData) {
         setupKeyGestureController()
         enableKeyCaptureForFocussedWindow()
@@ -454,6 +466,7 @@ class KeyGestureControllerTests {
 
     @Test
     @Parameters(method = "capturableKeyGestures")
+    @EnableFlags(com.android.hardware.input.Flags.FLAG_ENABLE_PARTIAL_SCREENSHOT_KEYBOARD_SHORTCUT)
     fun testKeyGestures_withKeyCapture_capturableGestures(test: KeyGestureData) {
         setupKeyGestureController()
         enableKeyCaptureForFocussedWindow()
@@ -467,6 +480,7 @@ class KeyGestureControllerTests {
 
     @Test
     @Parameters(method = "capturableKeyGestures_handledAsFallback")
+    @EnableFlags(com.android.hardware.input.Flags.FLAG_ENABLE_PARTIAL_SCREENSHOT_KEYBOARD_SHORTCUT)
     fun testKeyGestures_withKeyCapture_capturableGesturesHandledAsFallback(test: KeyGestureData) {
         setupKeyGestureController()
         enableKeyCaptureForFocussedWindow()
@@ -501,6 +515,8 @@ class KeyGestureControllerTests {
                 KeyEvent.KEYCODE_DO_NOT_DISTURB,
                 KeyEvent.KEYCODE_LOCK,
                 KeyEvent.KEYCODE_FULLSCREEN,
+                KeyEvent.KEYCODE_ACCESSIBILITY,
+                KeyEvent.KEYCODE_CONTEXTUAL_SEARCH,
             )
 
         var sentToApp = 0
@@ -612,7 +628,7 @@ class KeyGestureControllerTests {
                 intArrayOf(KeyGestureEvent.ACTION_GESTURE_COMPLETE),
             ),
             KeyGestureData(
-                "META + ALT + Q -> Launch app",
+                "CTRL + SHIFT + Q -> Launch app",
                 intArrayOf(
                     KeyEvent.KEYCODE_CTRL_LEFT,
                     KeyEvent.KEYCODE_SHIFT_LEFT,
@@ -623,6 +639,22 @@ class KeyGestureControllerTests {
                 KeyEvent.META_CTRL_ON or KeyEvent.META_SHIFT_ON,
                 intArrayOf(KeyGestureEvent.ACTION_GESTURE_COMPLETE),
                 AppLaunchData.createLaunchDataForComponent("com.test", "com.test.BookmarkTest"),
+            ),
+            KeyGestureData(
+                "CTRL + Overview -> Toggle Notification Panel",
+                intArrayOf(KeyEvent.KEYCODE_CTRL_LEFT, KeyEvent.KEYCODE_RECENT_APPS),
+                KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_NOTIFICATION_PANEL,
+                intArrayOf(KeyEvent.KEYCODE_RECENT_APPS),
+                KeyEvent.META_CTRL_ON,
+                intArrayOf(KeyGestureEvent.ACTION_GESTURE_COMPLETE),
+            ),
+            KeyGestureData(
+                "SHIFT + Brightness Up -> Keyboard Backlight Up",
+                intArrayOf(KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_BRIGHTNESS_UP),
+                KeyGestureEvent.KEY_GESTURE_TYPE_KEYBOARD_BACKLIGHT_UP,
+                intArrayOf(KeyEvent.KEYCODE_BRIGHTNESS_UP),
+                KeyEvent.META_SHIFT_ON,
+                intArrayOf(KeyGestureEvent.ACTION_GESTURE_COMPLETE),
             ),
         )
     }
@@ -646,12 +678,12 @@ class KeyGestureControllerTests {
         assertEquals(
             test.toString(),
             InputManager.CUSTOM_INPUT_GESTURE_RESULT_SUCCESS,
-            keyGestureController.addCustomInputGesture(0, builder.build().aidlData),
+            keyGestureController.addCustomInputGesture(USER_ID, builder.build().aidlData),
         )
         assertEquals(
             test.toString(),
             inputGestureData.aidlData,
-            keyGestureController.getInputGesture(0, trigger.aidlTrigger),
+            keyGestureController.getInputGesture(USER_ID, trigger.aidlTrigger),
         )
         testKeyGestureProduced(test, BLOCKING_APP)
     }
@@ -659,7 +691,6 @@ class KeyGestureControllerTests {
     @Test
     @Parameters(method = "customInputGesturesTestArguments")
     fun testCustomKeyGesturesSavedAndLoadedByController(test: KeyGestureData) {
-        val userId = 10
         setupKeyGestureController()
         val builder =
             InputGestureData.Builder()
@@ -674,34 +705,78 @@ class KeyGestureControllerTests {
             builder.setAppLaunchData(test.expectedAppLaunchData)
         }
         val inputGestureData = builder.build()
-
-        keyGestureController.setCurrentUserId(userId)
-        testLooper.dispatchAll()
-        keyGestureController.addCustomInputGesture(userId, inputGestureData.aidlData)
+        keyGestureController.addCustomInputGesture(USER_ID, inputGestureData.aidlData)
         testLooper.dispatchAll()
 
         // Reinitialize the gesture controller simulating a login/logout for the user.
         setupKeyGestureController()
-        keyGestureController.setCurrentUserId(userId)
         testLooper.dispatchAll()
 
-        val savedInputGestures = keyGestureController.getCustomInputGestures(userId, null)
+        // Test input gesture still produced with the new controller
+        testKeyGestureProduced(test, BLOCKING_APP)
+    }
+
+    @Test
+    @Parameters(method = "customInputGesturesTestArguments")
+    fun testCustomKeyGesturesNotProducedForOtherUser(test: KeyGestureData) {
+        setupKeyGestureController()
+        val builder =
+            InputGestureData.Builder()
+                .setKeyGestureType(test.expectedKeyGestureType)
+                .setTrigger(
+                    InputGestureData.createKeyTrigger(
+                        test.expectedKeys[0],
+                        test.expectedModifierState,
+                    )
+                )
+        if (test.expectedAppLaunchData != null) {
+            builder.setAppLaunchData(test.expectedAppLaunchData)
+        }
+        val inputGestureData = builder.build()
+        keyGestureController.addCustomInputGesture(USER_ID, inputGestureData.aidlData)
+        testLooper.dispatchAll()
+
+        keyGestureController.setCurrentUserId(SECOND_USER_ID)
+        testKeyGestureNotProduced(test, BLOCKING_APP)
+    }
+
+    @Test
+    fun testCustomKeyGesture_addedForNonCurrentUser_savedCorrectly() {
+        setupKeyGestureController()
+        val inputGestureData1 =
+            InputGestureData.Builder()
+                .setKeyGestureType(KeyGestureEvent.KEY_GESTURE_TYPE_HOME)
+                .setTrigger(
+                    InputGestureData.createKeyTrigger(KeyEvent.KEYCODE_H, KeyEvent.META_ALT_ON)
+                )
+                .build()
+        keyGestureController.addCustomInputGesture(SECOND_USER_ID, inputGestureData1.aidlData)
+        testLooper.dispatchAll()
+
+        // Re-initialize again with USER_ID as current user
+        setupKeyGestureController()
+        keyGestureController.setCurrentUserId(USER_ID)
+        testLooper.dispatchAll()
+
+        val inputGestureData2 =
+            InputGestureData.Builder()
+                .setKeyGestureType(KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_NOTIFICATION_PANEL)
+                .setTrigger(
+                    InputGestureData.createKeyTrigger(KeyEvent.KEYCODE_N, KeyEvent.META_ALT_ON)
+                )
+                .build()
+        keyGestureController.addCustomInputGesture(SECOND_USER_ID, inputGestureData2.aidlData)
+
+        // Irrespective of the current user, the data for second user should be updated correctly
         assertEquals(
-            "Test: $test doesn't produce correct number of saved input gestures",
-            1,
-            savedInputGestures.size,
-        )
-        assertEquals(
-            "Test: $test doesn't produce correct input gesture data",
-            inputGestureData,
-            InputGestureData(savedInputGestures[0]),
+            2,
+            keyGestureController.getCustomInputGestures(SECOND_USER_ID, /* filter= */ null).size,
         )
     }
 
     @Test
     @Parameters(method = "customInputGesturesTestArguments")
     fun testCustomKeyGestureRestoredFromBackup(test: KeyGestureData) {
-        val userId = 10
         setupKeyGestureController()
         val builder =
             InputGestureData.Builder()
@@ -717,20 +792,20 @@ class KeyGestureControllerTests {
         }
         val inputGestureData = builder.build()
 
-        keyGestureController.setCurrentUserId(userId)
+        keyGestureController.setCurrentUserId(USER_ID)
         testLooper.dispatchAll()
-        keyGestureController.addCustomInputGesture(userId, inputGestureData.aidlData)
+        keyGestureController.addCustomInputGesture(USER_ID, inputGestureData.aidlData)
         testLooper.dispatchAll()
-        val backupData = keyGestureController.getInputGestureBackupPayload(userId)
+        val backupData = keyGestureController.getInputGestureBackupPayload(USER_ID)
 
         // Delete the old data and reinitialize the controller simulating a "fresh" install.
         testDataStore.clear()
         setupKeyGestureController()
-        keyGestureController.setCurrentUserId(userId)
+        keyGestureController.setCurrentUserId(USER_ID)
         testLooper.dispatchAll()
 
         // Initially there should be no gestures registered.
-        var savedInputGestures = keyGestureController.getCustomInputGestures(userId, null)
+        var savedInputGestures = keyGestureController.getCustomInputGestures(USER_ID, null)
         assertEquals(
             "Test: $test doesn't produce correct number of saved input gestures",
             0,
@@ -738,8 +813,8 @@ class KeyGestureControllerTests {
         )
 
         // After the restore, there should be the original gesture re-registered.
-        keyGestureController.applyInputGesturesBackupPayload(backupData, userId)
-        savedInputGestures = keyGestureController.getCustomInputGestures(userId, null)
+        keyGestureController.applyInputGesturesBackupPayload(backupData, USER_ID)
+        savedInputGestures = keyGestureController.getCustomInputGestures(USER_ID, null)
         assertEquals(
             "Test: $test doesn't produce correct number of saved input gestures",
             1,
@@ -794,7 +869,7 @@ class KeyGestureControllerTests {
         }
         val inputGestureData = builder.build()
 
-        keyGestureController.addCustomInputGesture(0, inputGestureData.aidlData)
+        keyGestureController.addCustomInputGesture(USER_ID, inputGestureData.aidlData)
 
         val handledEvents = mutableListOf<KeyGestureEvent>()
         val handler = KeyGestureHandler { event, _ -> handledEvents.add(KeyGestureEvent(event)) }
@@ -835,7 +910,6 @@ class KeyGestureControllerTests {
     @Test
     @Parameters(method = "customTouchpadGesturesTestArguments")
     fun testCustomTouchpadGesturesSavedAndLoadedByController(test: TouchpadTestData) {
-        val userId = 10
         setupKeyGestureController()
         val builder =
             InputGestureData.Builder()
@@ -845,17 +919,17 @@ class KeyGestureControllerTests {
             builder.setAppLaunchData(test.expectedAppLaunchData)
         }
         val inputGestureData = builder.build()
-        keyGestureController.setCurrentUserId(userId)
+        keyGestureController.setCurrentUserId(USER_ID)
         testLooper.dispatchAll()
-        keyGestureController.addCustomInputGesture(userId, inputGestureData.aidlData)
+        keyGestureController.addCustomInputGesture(USER_ID, inputGestureData.aidlData)
         testLooper.dispatchAll()
 
         // Reinitialize the gesture controller simulating a login/logout for the user.
         setupKeyGestureController()
-        keyGestureController.setCurrentUserId(userId)
+        keyGestureController.setCurrentUserId(USER_ID)
         testLooper.dispatchAll()
 
-        val savedInputGestures = keyGestureController.getCustomInputGestures(userId, null)
+        val savedInputGestures = keyGestureController.getCustomInputGestures(USER_ID, null)
         assertEquals(
             "Test: $test doesn't produce correct number of saved input gestures",
             1,
@@ -871,7 +945,6 @@ class KeyGestureControllerTests {
     @Test
     @Parameters(method = "customTouchpadGesturesTestArguments")
     fun testCustomTouchpadGesturesRestoredFromBackup(test: TouchpadTestData) {
-        val userId = 10
         setupKeyGestureController()
         val builder =
             InputGestureData.Builder()
@@ -881,20 +954,20 @@ class KeyGestureControllerTests {
             builder.setAppLaunchData(test.expectedAppLaunchData)
         }
         val inputGestureData = builder.build()
-        keyGestureController.setCurrentUserId(userId)
+        keyGestureController.setCurrentUserId(USER_ID)
         testLooper.dispatchAll()
-        keyGestureController.addCustomInputGesture(userId, inputGestureData.aidlData)
+        keyGestureController.addCustomInputGesture(USER_ID, inputGestureData.aidlData)
         testLooper.dispatchAll()
-        val backupData = keyGestureController.getInputGestureBackupPayload(userId)
+        val backupData = keyGestureController.getInputGestureBackupPayload(USER_ID)
 
         // Delete the old data and reinitialize the controller simulating a "fresh" install.
         testDataStore.clear()
         setupKeyGestureController()
-        keyGestureController.setCurrentUserId(userId)
+        keyGestureController.setCurrentUserId(USER_ID)
         testLooper.dispatchAll()
 
         // Initially there should be no gestures registered.
-        var savedInputGestures = keyGestureController.getCustomInputGestures(userId, null)
+        var savedInputGestures = keyGestureController.getCustomInputGestures(USER_ID, null)
         assertEquals(
             "Test: $test doesn't produce correct number of saved input gestures",
             0,
@@ -902,8 +975,8 @@ class KeyGestureControllerTests {
         )
 
         // After the restore, there should be the original gesture re-registered.
-        keyGestureController.applyInputGesturesBackupPayload(backupData, userId)
-        savedInputGestures = keyGestureController.getCustomInputGestures(userId, null)
+        keyGestureController.applyInputGesturesBackupPayload(backupData, USER_ID)
+        savedInputGestures = keyGestureController.getCustomInputGestures(USER_ID, null)
         assertEquals(
             "Test: $test doesn't produce correct number of saved input gestures",
             1,
@@ -1076,6 +1149,7 @@ class KeyGestureControllerTests {
 
     @Test
     @Parameters(method = "screenshotTestArguments")
+    @DisableFlags(com.android.hardware.input.Flags.FLAG_ENABLE_PARTIAL_SCREENSHOT_KEYBOARD_SHORTCUT)
     fun testScreenshotShortcuts(testData: KeyGestureData) {
         setupKeyGestureController()
         sendKeys(testData.keys, displayId = RANDOM_DISPLAY_ID)
@@ -1093,6 +1167,78 @@ class KeyGestureControllerTests {
             RANDOM_DISPLAY_ID,
             requestCaptor.lastValue.displayId,
         )
+    }
+
+    @Keep
+    private fun partialScreenshotTestArguments(): Array<KeyGestureData> {
+        return arrayOf(
+            KeyGestureData(
+                "SYSRQ -> Take Screenshot (Flag ON, No Handler)",
+                intArrayOf(KeyEvent.KEYCODE_SYSRQ),
+                KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_SCREENSHOT,
+                intArrayOf(KeyEvent.KEYCODE_SYSRQ),
+                0,
+                intArrayOf(KeyGestureEvent.ACTION_GESTURE_COMPLETE),
+                // Prevent testKeyGestureProduced() helper from registering a dummy handler.
+                isGestureHandlerRegistered = true,
+            ),
+            KeyGestureData(
+                "SCREENSHOT -> Take Screenshot (Flag ON, No Handler)",
+                intArrayOf(KeyEvent.KEYCODE_SCREENSHOT),
+                KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_SCREENSHOT,
+                intArrayOf(KeyEvent.KEYCODE_SCREENSHOT),
+                0,
+                intArrayOf(KeyGestureEvent.ACTION_GESTURE_COMPLETE),
+                // Prevent testKeyGestureProduced() helper from registering a dummy handler.
+                isGestureHandlerRegistered = true,
+            ),
+            KeyGestureData(
+                "SYSRQ -> Take Partial Screenshot (Flag ON, Handler registered)",
+                intArrayOf(KeyEvent.KEYCODE_SYSRQ),
+                KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_PARTIAL_SCREENSHOT,
+                intArrayOf(KeyEvent.KEYCODE_SYSRQ),
+                0,
+                intArrayOf(KeyGestureEvent.ACTION_GESTURE_COMPLETE),
+                // Tells testKeyGestureProduced() helper to register a dummy handler.
+                isGestureHandlerRegistered = false,
+            ),
+            KeyGestureData(
+                "SCREENSHOT -> Take Partial Screenshot (Flag ON, Handler registered)",
+                intArrayOf(KeyEvent.KEYCODE_SCREENSHOT),
+                KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_PARTIAL_SCREENSHOT,
+                intArrayOf(KeyEvent.KEYCODE_SCREENSHOT),
+                0,
+                intArrayOf(KeyGestureEvent.ACTION_GESTURE_COMPLETE),
+                // Tells testKeyGestureProduced() helper to register a dummy handler.
+                isGestureHandlerRegistered = false,
+            ),
+        )
+    }
+
+    @Test
+    @Parameters(method = "partialScreenshotTestArguments")
+    @EnableFlags(com.android.hardware.input.Flags.FLAG_ENABLE_PARTIAL_SCREENSHOT_KEYBOARD_SHORTCUT)
+    fun testPartialScreenshotShortcuts(testData: KeyGestureData) {
+        setupKeyGestureController()
+        testKeyGestureProduced(testData, PASS_THROUGH_APP)
+
+        if (testData.isGestureHandlerRegistered) {
+            // Dummy handler was not registered for KEY_GESTURE_TYPE_TAKE_PARTIAL_SCREENSHOT.
+            // Default action of taking a screenshot is expected.
+            val requestCaptor = argumentCaptor<ScreenshotRequest>()
+            Mockito.verify(screenshotHelper, times(1))
+                .takeScreenshot(requestCaptor.capture(), any(), any())
+            assertEquals(
+                /* message= */ testData.name,
+                WindowManager.ScreenshotSource.SCREENSHOT_KEY_OTHER,
+                requestCaptor.lastValue.source,
+            )
+        } else {
+            // A dummy handler is registered for KEY_GESTURE_TYPE_TAKE_PARTIAL_SCREENSHOT. No
+            // screenshot should be taken.
+            Mockito.verify(screenshotHelper, never())
+                .takeScreenshot(any(ScreenshotRequest::class.java), any(), any())
+        }
     }
 
     @Test
@@ -1400,22 +1546,6 @@ class KeyGestureControllerTests {
         assertEquals(2, events.size)
         assertEquals(KeyGestureEvent.ACTION_GESTURE_COMPLETE, events[1].action)
         assertTrue(events[1].isCancelled)
-    }
-
-    @Test
-    @DisableFlags(com.android.window.flags.Flags.FLAG_TOGGLE_FULLSCREEN_STATE_VIA_FULLSCREEN_KEY)
-    fun testKeyGestures_fullscreenKey_toggleFullscreenStateFlagDisabled() {
-        val testData =
-            KeyGestureData(
-                "FULLSCREEN -> Turns a task into fullscreen",
-                intArrayOf(KeyEvent.KEYCODE_FULLSCREEN),
-                KeyGestureEvent.KEY_GESTURE_TYPE_MULTI_WINDOW_NAVIGATION,
-                intArrayOf(KeyEvent.KEYCODE_FULLSCREEN),
-                0,
-                intArrayOf(KeyGestureEvent.ACTION_GESTURE_COMPLETE),
-            )
-        setupKeyGestureController()
-        testKeyGestureProduced(testData, PASS_THROUGH_APP)
     }
 
     private fun testKeyGestureProduced(test: KeyGestureData, appDelegate: AppDelegate) {

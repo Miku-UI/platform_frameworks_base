@@ -26,20 +26,19 @@ import kotlinx.coroutines.channels.ChannelResult
 import kotlinx.coroutines.launch
 
 /**
- * Serializes the execution of suspendable work, ensuring that tasks are processed
- * sequentially in a First-In, First-Out (FIFO) order.
+ * Serializes the execution of suspendable work, ensuring that tasks are processed sequentially in a
+ * First-In, First-Out (FIFO) order.
  *
  * This class is useful for managing operations that need to be executed one after another,
- * preventing race conditions and ensuring a predictable order of execution. It uses a
- * [Channel] to queue incoming work and a single worker coroutine to process the queue.
+ * preventing race conditions and ensuring a predictable order of execution. It uses a [Channel] to
+ * queue incoming work and a single worker coroutine to process the queue.
  *
  * @param scope The [CoroutineScope] the serializer will use to launch its worker coroutine.
- *              Cancelling this scope will terminate the queue and stop all processing.
- * @param capacity The number of elements that can be buffered in the channel.
- *                 See [Channel] for options like [Channel.UNLIMITED], [Channel.BUFFERED], etc.
- *                 Defaults to [Channel.UNLIMITED].
+ *   Cancelling this scope will terminate the queue and stop all processing.
+ * @param capacity The number of elements that can be buffered in the channel. See [Channel] for
+ *   options like [Channel.UNLIMITED], [Channel.BUFFERED], etc. Defaults to [Channel.UNLIMITED].
  * @param overflowStrategy The action to take when the buffer is full. See [BufferOverflow].
- *                         Defaults to [BufferOverflow.SUSPEND].
+ *   Defaults to [BufferOverflow.SUSPEND].
  */
 class WorkSerializer(
     scope: CoroutineScope,
@@ -50,7 +49,8 @@ class WorkSerializer(
         Channel<suspend () -> Unit>(
             capacity = capacity,
             onBufferOverflow = overflowStrategy,
-            onUndeliveredElement = { onUndeliveredElement() })
+            onUndeliveredElement = { onUndeliveredElement() },
+        )
 
     init {
         // The single worker coroutine that processes the queue.
@@ -59,15 +59,9 @@ class WorkSerializer(
                 try {
                     work()
                 } catch (e: CancellationException) {
-                    ProtoLog.w(
-                        WM_SHELL, "CoroutineQueue got cancelled %s",
-                        e.printStackTrace()
-                    )
+                    ProtoLog.w(WM_SHELL, "CoroutineQueue got cancelled %s", e.printStackTrace())
                 } catch (e: Throwable) {
-                    ProtoLog.e(
-                        WM_SHELL, "Error in CoroutineQueue %s",
-                        e.printStackTrace()
-                    )
+                    ProtoLog.e(WM_SHELL, "Error in CoroutineQueue %s", e.printStackTrace())
                 }
             }
         }
@@ -84,15 +78,13 @@ class WorkSerializer(
             ProtoLog.w(
                 WM_SHELL,
                 "Failed to post work to WorkSerializer %s",
-                result.exceptionOrNull()?.stackTraceToString()
+                result.exceptionOrNull()?.stackTraceToString(),
             )
         }
         return result
     }
 
-    /**
-     * Closes the queue to new work. Pending work will be completed.
-     */
+    /** Closes the queue to new work. Pending work will be completed. */
     fun close() = channel.close()
 
     fun onUndeliveredElement() {

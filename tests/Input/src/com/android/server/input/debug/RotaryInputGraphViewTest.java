@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import android.content.Context;
+import android.platform.test.annotations.DisabledOnRavenwood;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
@@ -33,6 +34,7 @@ import org.junit.runner.RunWith;
  * atest RotaryInputGraphViewTest
  */
 @RunWith(AndroidJUnit4.class)
+@DisabledOnRavenwood(reason = "View subsystem unsupported", bug = 421246454)
 public class RotaryInputGraphViewTest {
 
     private RotaryInputGraphView mRotaryInputGraphView;

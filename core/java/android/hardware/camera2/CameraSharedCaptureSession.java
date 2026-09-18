@@ -116,7 +116,6 @@ import java.util.concurrent.Executor;
  *
  * @hide
  */
-@FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
 @SystemApi
 public abstract class CameraSharedCaptureSession extends CameraCaptureSession {
 
@@ -155,7 +154,6 @@ public abstract class CameraSharedCaptureSession extends CameraCaptureSession {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
     @SystemApi
     public abstract int startStreaming(@NonNull List<Surface> surfaces,
             @NonNull @CallbackExecutor Executor executor, @NonNull CaptureCallback listener)
@@ -174,7 +172,6 @@ public abstract class CameraSharedCaptureSession extends CameraCaptureSession {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
     @SystemApi
     public abstract void stopStreaming() throws CameraAccessException;
 }

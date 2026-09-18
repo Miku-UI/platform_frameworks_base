@@ -26,35 +26,60 @@ import android.view.WindowManager;
 import android.view.accessibility.AccessibilityManager;
 
 import com.android.settingslib.bluetooth.HearingAidDeviceManager;
+import com.android.systemui.accessibility.Magnification;
+import com.android.systemui.inputdevice.data.repository.PointerDeviceRepository;
+import com.android.systemui.keyboard.data.repository.KeyboardRepository;
+import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor;
 import com.android.systemui.navigationbar.NavigationModeController;
+import com.android.systemui.scene.domain.interactor.SceneInteractor;
 import com.android.systemui.util.settings.SecureSettings;
 
 /**
- * Controls the {@link MenuViewLayer} whether to be attached to the window via the interface
- * of {@link IAccessibilityFloatingMenu}.
+ * Controls the {@link MenuViewLayer} whether to be attached to the window via the interface of
+ * {@link IAccessibilityFloatingMenu}.
  */
 class MenuViewLayerController implements IAccessibilityFloatingMenu {
     private final WindowManager mWindowManager;
     private final MenuViewLayer mMenuViewLayer;
     private boolean mIsShowing;
 
-    MenuViewLayerController(Context context, WindowManager windowManager,
-            AccessibilityManager accessibilityManager, SecureSettings secureSettings,
+    MenuViewLayerController(
+            Context context,
+            WindowManager windowManager,
+            AccessibilityManager accessibilityManager,
+            SecureSettings secureSettings,
             NavigationModeController navigationModeController,
-            HearingAidDeviceManager hearingAidDeviceManager) {
+            HearingAidDeviceManager hearingAidDeviceManager,
+            KeyboardRepository keyboardRepository,
+            PointerDeviceRepository pointerDeviceRepository, Magnification magnification,
+            KeyguardTransitionInteractor keyguardTransitionInteractor,
+            SceneInteractor sceneInteractor) {
         mWindowManager = windowManager;
 
-        MenuViewModel menuViewModel = new MenuViewModel(
-                context, accessibilityManager, secureSettings, hearingAidDeviceManager);
+        MenuViewModel menuViewModel =
+                new MenuViewModel(
+                        context,
+                        accessibilityManager,
+                        secureSettings,
+                        hearingAidDeviceManager,
+                        keyboardRepository,
+                        pointerDeviceRepository,
+                        keyguardTransitionInteractor,
+                        sceneInteractor);
         MenuViewAppearance menuViewAppearance = new MenuViewAppearance(context, windowManager);
 
-        mMenuViewLayer = new MenuViewLayer(context, windowManager, accessibilityManager,
-                menuViewModel,
-                menuViewAppearance,
-                new MenuView(context, menuViewModel, menuViewAppearance, secureSettings),
-                this,
-                secureSettings,
-                navigationModeController);
+        mMenuViewLayer =
+                new MenuViewLayer(
+                        context,
+                        windowManager,
+                        accessibilityManager,
+                        menuViewModel,
+                        menuViewAppearance,
+                        new MenuView(context, menuViewModel,
+                                menuViewAppearance, secureSettings, magnification),
+                        this,
+                        secureSettings,
+                        navigationModeController);
     }
 
     @Override
@@ -83,16 +108,18 @@ class MenuViewLayerController implements IAccessibilityFloatingMenu {
     }
 
     private static WindowManager.LayoutParams createDefaultLayerLayoutParams() {
-        final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.TYPE_NAVIGATION_BAR_PANEL,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                PixelFormat.TRANSLUCENT);
+        final WindowManager.LayoutParams params =
+                new WindowManager.LayoutParams(
+                        WindowManager.LayoutParams.MATCH_PARENT,
+                        WindowManager.LayoutParams.MATCH_PARENT,
+                        WindowManager.LayoutParams.TYPE_NAVIGATION_BAR_PANEL,
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                        PixelFormat.TRANSLUCENT);
         params.setTitle("FloatingMenu");
         params.receiveInsetsIgnoringZOrder = true;
         params.privateFlags |=
-                PRIVATE_FLAG_EXCLUDE_FROM_SCREEN_MAGNIFICATION | SYSTEM_FLAG_SHOW_FOR_ALL_USERS
+                PRIVATE_FLAG_EXCLUDE_FROM_SCREEN_MAGNIFICATION
+                        | SYSTEM_FLAG_SHOW_FOR_ALL_USERS
                         | PRIVATE_FLAG_UNRESTRICTED_GESTURE_EXCLUSION;
         params.windowAnimations = android.R.style.Animation_Translucent;
         // Insets are configured to allow the menu to display over navigation and system bars.

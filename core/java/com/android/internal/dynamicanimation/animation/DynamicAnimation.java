@@ -692,11 +692,6 @@ public abstract class DynamicAnimation<T extends DynamicAnimation<T>>
         return finished;
     }
 
-    @Override
-    public void commitAnimationFrame(long frameTime) {
-        doAnimationFrame(frameTime);
-    }
-
     /**
      * Updates the animation state (i.e. value and velocity). This method is package private, so
      * subclasses can override this method to calculate the new value and velocity in their custom

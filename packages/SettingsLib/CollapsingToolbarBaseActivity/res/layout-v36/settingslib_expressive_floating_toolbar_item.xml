@@ -45,9 +45,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:maxLines="2"
         android:ellipsize="end"
         android:maxWidth="@dimen/settingslib_expressive_space_large3"
-        android:textAppearance="@style/TextAppearance.SettingsLib.LabelLarge"
+        style="@style/TextAppearance.SettingsLib.LabelLarge"
         android:textColor="@color/settingslib_materialColorOnSecondaryContainer" />
 </LinearLayout>

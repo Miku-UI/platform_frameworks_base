@@ -1,1 +1,5 @@
 include /core/java/com/android/internal/app/OWNERS
+
+# App Lock
+per-file *AppLock* = file:/core/java/android/content/pm/APP_LOCK_OWNERS
+per-file LockedAppActivityTest.java = file:/core/java/android/content/pm/APP_LOCK_OWNERS

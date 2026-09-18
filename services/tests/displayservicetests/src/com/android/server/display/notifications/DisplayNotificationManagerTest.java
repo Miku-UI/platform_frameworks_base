@@ -36,7 +36,6 @@ import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.display.ExternalDisplayStatsService;
-import com.android.server.display.feature.DisplayManagerFlags;
 import com.android.server.display.notifications.DisplayNotificationManager.Injector;
 
 import com.google.testing.junit.testparameterinjector.TestParameter;
@@ -63,8 +62,6 @@ public class DisplayNotificationManagerTest {
     private NotificationManager mMockedNotificationManager;
     @Mock
     private ExternalDisplayStatsService mMockedExternalDisplayStatsService;
-    @Mock
-    private DisplayManagerFlags mMockedFlags;
     @Captor
     private ArgumentCaptor<String> mNotifyTagCaptor;
     @Captor
@@ -82,16 +79,14 @@ public class DisplayNotificationManagerTest {
 
     @Test
     public void testNotificationOnHighTemperatureExternalDisplayNotAllowed() {
-        var dnm = createDisplayNotificationManager(/*isNotificationManagerAvailable=*/ true,
-                /*isErrorHandlingEnabled=*/ true);
+        var dnm = createDisplayNotificationManager(/*isNotificationManagerAvailable=*/ true);
         dnm.onHighTemperatureExternalDisplayNotAllowed();
         assertExpectedNotification();
     }
 
     @Test
     public void testNotificationOnHotplugConnectionError() {
-        var dnm = createDisplayNotificationManager(/*isNotificationManagerAvailable=*/ true,
-                /*isErrorHandlingEnabled=*/ true);
+        var dnm = createDisplayNotificationManager(/*isNotificationManagerAvailable=*/ true);
         dnm.onHotplugConnectionError();
         assertExpectedNotification();
         verify(mMockedExternalDisplayStatsService).onHotplugConnectionError();
@@ -99,8 +94,7 @@ public class DisplayNotificationManagerTest {
 
     @Test
     public void testNotificationOnDisplayPortLinkTrainingFailure() {
-        var dnm = createDisplayNotificationManager(/*isNotificationManagerAvailable=*/ true,
-                /*isErrorHandlingEnabled=*/ true);
+        var dnm = createDisplayNotificationManager(/*isNotificationManagerAvailable=*/ true);
         dnm.onDisplayPortLinkTrainingFailure();
         assertExpectedNotification();
         verify(mMockedExternalDisplayStatsService).onDisplayPortLinkTrainingFailure();
@@ -108,23 +102,15 @@ public class DisplayNotificationManagerTest {
 
     @Test
     public void testNotificationOnCableNotCapableDisplayPort() {
-        var dnm = createDisplayNotificationManager(/*isNotificationManagerAvailable=*/ true,
-                /*isErrorHandlingEnabled=*/ true);
+        var dnm = createDisplayNotificationManager(/*isNotificationManagerAvailable=*/ true);
         dnm.onCableNotCapableDisplayPort();
         assertExpectedNotification();
         verify(mMockedExternalDisplayStatsService).onCableNotCapableDisplayPort();
     }
 
     @Test
-    public void testNoErrorNotification(
-            @TestParameter final boolean isNotificationManagerAvailable,
-            @TestParameter final boolean isErrorHandlingEnabled) {
-        /* This case is tested by #testNotificationOnHotplugConnectionError,
-            #testNotificationOnDisplayPortLinkTrainingFailure,
-            #testNotificationOnCableNotCapableDisplayPort */
-        assumeFalse(isNotificationManagerAvailable && isErrorHandlingEnabled);
-        var dnm = createDisplayNotificationManager(isNotificationManagerAvailable,
-                isErrorHandlingEnabled);
+    public void testNoErrorNotification() {
+        var dnm = createDisplayNotificationManager(/*isNotificationManagerAvailable=*/ false);
         // None of these methods should trigger a notification now.
         dnm.onHotplugConnectionError();
         dnm.onDisplayPortLinkTrainingFailure();
@@ -135,23 +121,8 @@ public class DisplayNotificationManagerTest {
     }
 
     @Test
-    public void testNoErrorLogging() {
-        var dnm = createDisplayNotificationManager(/*isNotificationManagerAvailable=*/ true,
-                /*isErrorHandlingEnabled=*/ false);
-        // None of these methods should trigger logging now.
-        dnm.onHotplugConnectionError();
-        dnm.onDisplayPortLinkTrainingFailure();
-        dnm.onCableNotCapableDisplayPort();
-        verify(mMockedExternalDisplayStatsService, never()).onHotplugConnectionError();
-        verify(mMockedExternalDisplayStatsService, never()).onCableNotCapableDisplayPort();
-        verify(mMockedExternalDisplayStatsService, never()).onDisplayPortLinkTrainingFailure();
-    }
-
-
-    @Test
     public void testErrorLogging() {
-        var dnm = createDisplayNotificationManager(/*isNotificationManagerAvailable=*/ true,
-                /*isErrorHandlingEnabled=*/ true);
+        var dnm = createDisplayNotificationManager(/*isNotificationManagerAvailable=*/ true);
         // these methods should trigger logging now.
         dnm.onHotplugConnectionError();
         verify(mMockedExternalDisplayStatsService).onHotplugConnectionError();
@@ -162,17 +133,14 @@ public class DisplayNotificationManagerTest {
     }
 
     private DisplayNotificationManager createDisplayNotificationManager(
-            final boolean isNotificationManagerAvailable,
-            final boolean isErrorHandlingEnabled) {
-        when(mMockedFlags.isConnectedDisplayErrorHandlingEnabled()).thenReturn(
-                isErrorHandlingEnabled);
+            final boolean isNotificationManagerAvailable) {
         when(mMockedInjector.getExternalDisplayStatsService()).thenReturn(
                 mMockedExternalDisplayStatsService);
         when(mMockedInjector.getNotificationManager()).thenReturn(
                 (isNotificationManagerAvailable) ? mMockedNotificationManager : null);
         // Usb errors detector is tested in ConnectedDisplayUsbErrorsDetectorTest
         when(mMockedInjector.getUsbErrorsDetector()).thenReturn(/* usbErrorsDetector= */ null);
-        final var displayNotificationManager = new DisplayNotificationManager(mMockedFlags,
+        final var displayNotificationManager = new DisplayNotificationManager(
                 ApplicationProvider.getApplicationContext(), mMockedInjector);
         displayNotificationManager.onBootCompleted();
         return displayNotificationManager;

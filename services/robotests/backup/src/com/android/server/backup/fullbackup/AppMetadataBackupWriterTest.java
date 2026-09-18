@@ -5,9 +5,12 @@ import static com.android.server.backup.UserBackupManagerService.BACKUP_MANIFEST
 import static com.android.server.backup.UserBackupManagerService.BACKUP_METADATA_FILENAME;
 import static com.android.server.backup.UserBackupManagerService.BACKUP_METADATA_VERSION;
 import static com.android.server.backup.UserBackupManagerService.BACKUP_WIDGET_METADATA_TOKEN;
+import static com.android.server.backup.UserBackupManagerService.CROSS_PLATFORM_MANIFEST_FILENAME;
+import static com.android.server.backup.crossplatform.PlatformConfigParser.PLATFORM_IOS;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.Mockito.when;
 import static org.robolectric.Shadows.shadowOf;
 import static org.testng.Assert.expectThrows;
 
@@ -27,17 +30,22 @@ import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import android.os.UserHandle;
 
+import com.android.server.backup.crossplatform.CrossPlatformManifest;
+import com.android.server.backup.utils.BackupEligibilityRules;
 import com.android.server.testing.shadows.ShadowBackupDataInput;
 import com.android.server.testing.shadows.ShadowBackupDataOutput;
 import com.android.server.testing.shadows.ShadowFullBackup;
 
 import org.junit.After;
 import org.junit.Before;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
+import org.robolectric.annotation.LooperMode;
 import org.robolectric.shadows.ShadowApplicationPackageManager;
 import org.robolectric.shadows.ShadowEnvironment;
 
@@ -49,6 +57,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.attribute.FileTime;
+import java.util.Collections;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(
@@ -59,9 +68,9 @@ import java.nio.file.attribute.FileTime;
             ShadowFullBackup.class,
             ShadowSigningInfo.class,
         })
+@LooperMode(LooperMode.Mode.PAUSED)
 public class AppMetadataBackupWriterTest {
     private static final String TEST_PACKAGE = "com.test.package";
-    private static final String TEST_PACKAGE_INSTALLER = "com.test.package.installer";
     private static final Long TEST_PACKAGE_VERSION_CODE = 100L;
 
     private @UserIdInt int mUserId;
@@ -69,10 +78,13 @@ public class AppMetadataBackupWriterTest {
     private ShadowApplicationPackageManager mShadowPackageManager;
     private File mFilesDir;
     private File mBackupDataOutputFile;
+    private FullBackupDataOutput mOutput;
     private AppMetadataBackupWriter mBackupWriter;
+    @Mock private BackupEligibilityRules mBackupEligibilityRules;
 
     @Before
     public void setUp() throws Exception {
+        MockitoAnnotations.initMocks(this);
         Application application = RuntimeEnvironment.application;
 
         mUserId = UserHandle.USER_SYSTEM;
@@ -85,9 +97,7 @@ public class AppMetadataBackupWriterTest {
         ParcelFileDescriptor pfd =
                 ParcelFileDescriptor.open(
                         mBackupDataOutputFile, ParcelFileDescriptor.MODE_READ_WRITE);
-        FullBackupDataOutput output =
-                new FullBackupDataOutput(pfd, /* quota */ -1, /* transportFlags */ 0);
-        mBackupWriter = new AppMetadataBackupWriter(output, mPackageManager);
+        mOutput = new FullBackupDataOutput(pfd, /* quota */ -1, /* transportFlags */ 0);
     }
 
     @After
@@ -103,19 +113,20 @@ public class AppMetadataBackupWriterTest {
      *     package name
      *     package version code
      *     platform version code
-     *     installer package name (can be empty)
-     *     boolean (1 if archive includes .apk, otherwise 0)
+     *     empty line (installer package name)
+     *     0 (boolean withApk)
      *     # of signatures N
      *     N* (signature byte array in ascii format per Signature.toCharsString())
      * </pre>
      */
     @Test
-    public void testBackupManifest_withoutApkOrSignatures_writesCorrectData() throws Exception {
+    public void testBackupManifest_withoutSignatures_writesCorrectData() throws Exception {
         PackageInfo packageInfo =
-                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_INSTALLER, TEST_PACKAGE_VERSION_CODE);
-        File manifestFile = createFile(BACKUP_MANIFEST_FILENAME);
+                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_VERSION_CODE);
+        mBackupWriter = new AppMetadataBackupWriter(
+                mOutput, mPackageManager, packageInfo, mFilesDir);
 
-        mBackupWriter.backupManifest(packageInfo, manifestFile, mFilesDir, /* withApk */ false);
+        mBackupWriter.backupManifest();
 
         byte[] manifestBytes = getWrittenBytes(mBackupDataOutputFile, /* includeTarHeader */ false);
         String[] manifest = new String(manifestBytes, StandardCharsets.UTF_8).split("\n");
@@ -124,10 +135,9 @@ public class AppMetadataBackupWriterTest {
         assertThat(manifest[1]).isEqualTo(TEST_PACKAGE);
         assertThat(manifest[2]).isEqualTo(Long.toString(TEST_PACKAGE_VERSION_CODE));
         assertThat(manifest[3]).isEqualTo(Integer.toString(Build.VERSION.SDK_INT));
-        assertThat(manifest[4]).isEqualTo(TEST_PACKAGE_INSTALLER);
+        assertThat(manifest[4]).isEqualTo("");
         assertThat(manifest[5]).isEqualTo("0"); // withApk
         assertThat(manifest[6]).isEqualTo("0"); // signatures
-        manifestFile.delete();
     }
 
     /**
@@ -138,37 +148,8 @@ public class AppMetadataBackupWriterTest {
      *     package name
      *     package version code
      *     platform version code
-     *     installer package name (can be empty)
-     *     boolean (1 if archive includes .apk, otherwise 0)
-     *     # of signatures N
-     *     N* (signature byte array in ascii format per Signature.toCharsString())
-     * </pre>
-     */
-    @Test
-    public void testBackupManifest_withApk_writesApk() throws Exception {
-        PackageInfo packageInfo =
-                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_INSTALLER, TEST_PACKAGE_VERSION_CODE);
-        File manifestFile = createFile(BACKUP_MANIFEST_FILENAME);
-
-        mBackupWriter.backupManifest(packageInfo, manifestFile, mFilesDir, /* withApk */ true);
-
-        byte[] manifestBytes = getWrittenBytes(mBackupDataOutputFile, /* includeTarHeader */ false);
-        String[] manifest = new String(manifestBytes, StandardCharsets.UTF_8).split("\n");
-        assertThat(manifest.length).isEqualTo(7);
-        assertThat(manifest[5]).isEqualTo("1"); // withApk
-        manifestFile.delete();
-    }
-
-    /**
-     * The manifest format is:
-     *
-     * <pre>
-     *     BACKUP_MANIFEST_VERSION
-     *     package name
-     *     package version code
-     *     platform version code
-     *     installer package name (can be empty)
-     *     boolean (1 if archive includes .apk, otherwise 0)
+     *     empty line (installer package name)
+     *     0 (boolean withApk)
      *     # of signatures N
      *     N* (signature byte array in ascii format per Signature.toCharsString())
      * </pre>
@@ -176,7 +157,7 @@ public class AppMetadataBackupWriterTest {
     @Test
     public void testBackupManifest_withSignatures_writesCorrectSignatures() throws Exception {
         PackageInfo packageInfo =
-                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_INSTALLER, TEST_PACKAGE_VERSION_CODE);
+                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_VERSION_CODE);
         packageInfo.signingInfo =
                 new SigningInfo(
                         new SigningDetails(
@@ -184,9 +165,10 @@ public class AppMetadataBackupWriterTest {
                                 SigningDetails.SignatureSchemeVersion.SIGNING_BLOCK_V3,
                                 null,
                                 null));
-        File manifestFile = createFile(BACKUP_MANIFEST_FILENAME);
+        mBackupWriter = new AppMetadataBackupWriter(
+                mOutput, mPackageManager, packageInfo, mFilesDir);
 
-        mBackupWriter.backupManifest(packageInfo, manifestFile, mFilesDir, /* withApk */ false);
+        mBackupWriter.backupManifest();
 
         byte[] manifestBytes = getWrittenBytes(mBackupDataOutputFile, /* includeTarHeader */ false);
         String[] manifest = new String(manifestBytes, StandardCharsets.UTF_8).split("\n");
@@ -194,54 +176,30 @@ public class AppMetadataBackupWriterTest {
         assertThat(manifest[6]).isEqualTo("2"); // # of signatures
         assertThat(manifest[7]).isEqualTo("1234"); // first signature
         assertThat(manifest[8]).isEqualTo("5678"); // second signature
-        manifestFile.delete();
-    }
-
-    /**
-     * The manifest format is:
-     *
-     * <pre>
-     *     BACKUP_MANIFEST_VERSION
-     *     package name
-     *     package version code
-     *     platform version code
-     *     installer package name (can be empty)
-     *     boolean (1 if archive includes .apk, otherwise 0)
-     *     # of signatures N
-     *     N* (signature byte array in ascii format per Signature.toCharsString())
-     * </pre>
-     */
-    @Test
-    public void testBackupManifest_withoutInstallerPackage_writesEmptyInstaller() throws Exception {
-        PackageInfo packageInfo = createPackageInfo(TEST_PACKAGE, null, TEST_PACKAGE_VERSION_CODE);
-        File manifestFile = createFile(BACKUP_MANIFEST_FILENAME);
-
-        mBackupWriter.backupManifest(packageInfo, manifestFile, mFilesDir, /* withApk */ false);
-
-        byte[] manifestBytes = getWrittenBytes(mBackupDataOutputFile, /* includeTarHeader */ false);
-        String[] manifest = new String(manifestBytes, StandardCharsets.UTF_8).split("\n");
-        assertThat(manifest.length).isEqualTo(7);
-        assertThat(manifest[4]).isEqualTo(""); // installer package name
-        manifestFile.delete();
     }
 
     @Test
     public void testBackupManifest_whenRunPreviouslyWithSameData_producesSameBytesOnSecondRun()
             throws Exception {
         PackageInfo packageInfo =
-                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_INSTALLER, TEST_PACKAGE_VERSION_CODE);
-        File manifestFile = createFile(BACKUP_MANIFEST_FILENAME);
-        mBackupWriter.backupManifest(packageInfo, manifestFile, mFilesDir, /* withApk */ false);
+                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_VERSION_CODE);
+        mBackupWriter = new AppMetadataBackupWriter(
+                mOutput, mPackageManager, packageInfo, mFilesDir);
+        mBackupWriter.backupManifest();
         byte[] firstRunBytes = getWrittenBytes(mBackupDataOutputFile, /* includeTarHeader */ true);
-        // Simulate modifying the manifest file to ensure that file metadata does not change the
-        // backup bytes produced.
-        modifyFileMetadata(manifestFile);
+        mBackupDataOutputFile.delete();
+        mBackupDataOutputFile.createNewFile();
+        ParcelFileDescriptor pfd =
+                ParcelFileDescriptor.open(
+                        mBackupDataOutputFile, ParcelFileDescriptor.MODE_READ_WRITE);
+        mOutput = new FullBackupDataOutput(pfd, /* quota */ -1, /* transportFlags */ 0);
+        mBackupWriter = new AppMetadataBackupWriter(
+                mOutput, mPackageManager, packageInfo, mFilesDir);
 
-        mBackupWriter.backupManifest(packageInfo, manifestFile, mFilesDir, /* withApk */ false);
+        mBackupWriter.backupManifest();
 
         byte[] secondRunBytes = getWrittenBytes(mBackupDataOutputFile, /* includeTarHeader */ true);
         assertThat(firstRunBytes).isEqualTo(secondRunBytes);
-        manifestFile.delete();
     }
 
     /**
@@ -258,11 +216,12 @@ public class AppMetadataBackupWriterTest {
     @Test
     public void testBackupWidget_writesCorrectData() throws Exception {
         PackageInfo packageInfo =
-                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_INSTALLER, TEST_PACKAGE_VERSION_CODE);
-        File metadataFile = createFile(BACKUP_METADATA_FILENAME);
+                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_VERSION_CODE);
         byte[] widgetBytes = "widget".getBytes();
+        mBackupWriter = new AppMetadataBackupWriter(
+                mOutput, mPackageManager, packageInfo, mFilesDir);
 
-        mBackupWriter.backupWidget(packageInfo, metadataFile, mFilesDir, widgetBytes);
+        mBackupWriter.backupWidget(widgetBytes);
 
         byte[] writtenBytes = getWrittenBytes(mBackupDataOutputFile, /* includeTarHeader */ false);
         String[] widgetData = new String(writtenBytes, StandardCharsets.UTF_8).split("\n");
@@ -278,116 +237,88 @@ public class AppMetadataBackupWriterTest {
         stream.write(widgetBytes);
         stream.flush();
         assertThat(widgetData[2]).isEqualTo(expectedBytes.toString());
-        metadataFile.delete();
     }
 
     @Test
     public void testBackupWidget_withNullWidgetData_throwsNullPointerException() throws Exception {
         PackageInfo packageInfo =
-                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_INSTALLER, TEST_PACKAGE_VERSION_CODE);
-        File metadataFile = createFile(BACKUP_METADATA_FILENAME);
+                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_VERSION_CODE);
+        mBackupWriter = new AppMetadataBackupWriter(
+                mOutput, mPackageManager, packageInfo, mFilesDir);
 
-        expectThrows(
-                NullPointerException.class,
-                () ->
-                        mBackupWriter.backupWidget(
-                                packageInfo, metadataFile, mFilesDir, /* widgetData */ null));
-
-        metadataFile.delete();
+        expectThrows(NullPointerException.class, () -> mBackupWriter.backupWidget(null));
     }
 
     @Test
     public void testBackupWidget_withEmptyWidgetData_throwsIllegalArgumentException()
             throws Exception {
         PackageInfo packageInfo =
-                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_INSTALLER, TEST_PACKAGE_VERSION_CODE);
-        File metadataFile = createFile(BACKUP_METADATA_FILENAME);
+                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_VERSION_CODE);
+        mBackupWriter = new AppMetadataBackupWriter(
+                mOutput, mPackageManager, packageInfo, mFilesDir);
 
-        expectThrows(
-                IllegalArgumentException.class,
-                () ->
-                        mBackupWriter.backupWidget(
-                                packageInfo, metadataFile, mFilesDir, new byte[0]));
-
-        metadataFile.delete();
+        expectThrows(IllegalArgumentException.class, () -> mBackupWriter.backupWidget(new byte[0]));
     }
 
     @Test
     public void testBackupWidget_whenRunPreviouslyWithSameData_producesSameBytesOnSecondRun()
             throws Exception {
         PackageInfo packageInfo =
-                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_INSTALLER, TEST_PACKAGE_VERSION_CODE);
-        File metadataFile = createFile(BACKUP_METADATA_FILENAME);
+                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_VERSION_CODE);
         byte[] widgetBytes = "widget".getBytes();
-        mBackupWriter.backupWidget(packageInfo, metadataFile, mFilesDir, widgetBytes);
+        mBackupWriter = new AppMetadataBackupWriter(
+                mOutput, mPackageManager, packageInfo, mFilesDir);
+        mBackupWriter.backupWidget(widgetBytes);
         byte[] firstRunBytes = getWrittenBytes(mBackupDataOutputFile, /* includeTarHeader */ true);
-        // Simulate modifying the metadata file to ensure that file metadata does not change the
-        // backup bytes produced.
-        modifyFileMetadata(metadataFile);
+        mBackupDataOutputFile.delete();
+        mBackupDataOutputFile.createNewFile();
+        ParcelFileDescriptor pfd =
+                ParcelFileDescriptor.open(
+                        mBackupDataOutputFile, ParcelFileDescriptor.MODE_READ_WRITE);
+        mOutput = new FullBackupDataOutput(pfd, /* quota */ -1, /* transportFlags */ 0);
+        mBackupWriter = new AppMetadataBackupWriter(
+                mOutput, mPackageManager, packageInfo, mFilesDir);
 
-        mBackupWriter.backupWidget(packageInfo, metadataFile, mFilesDir, widgetBytes);
+        mBackupWriter.backupWidget(widgetBytes);
 
         byte[] secondRunBytes = getWrittenBytes(mBackupDataOutputFile, /* includeTarHeader */ true);
         assertThat(firstRunBytes).isEqualTo(secondRunBytes);
-        metadataFile.delete();
     }
 
     @Test
-    public void testBackupApk_writesCorrectBytesToOutput() throws Exception {
+    public void backupCrossPlatformManifest_writesCorrectData() throws Exception {
         PackageInfo packageInfo =
-                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_INSTALLER, TEST_PACKAGE_VERSION_CODE);
-        byte[] apkBytes = "apk".getBytes();
-        File apkFile = createApkFileAndWrite(apkBytes);
-        packageInfo.applicationInfo = new ApplicationInfo();
-        packageInfo.applicationInfo.sourceDir = apkFile.getPath();
+                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_VERSION_CODE);
+        packageInfo.signingInfo =
+                new SigningInfo(
+                        new SigningDetails(
+                                new Signature[] {new Signature("1234")},
+                                SigningDetails.SignatureSchemeVersion.SIGNING_BLOCK_V3,
+                                null,
+                                null));
+        mBackupWriter = new AppMetadataBackupWriter(
+                mOutput, mPackageManager, packageInfo, mFilesDir);
+        when(mBackupEligibilityRules.getPlatformSpecificParams(
+                        packageInfo.applicationInfo, PLATFORM_IOS))
+                .thenReturn(Collections.emptyList());
 
-        mBackupWriter.backupApk(packageInfo);
+        mBackupWriter.backupCrossPlatformManifest(mBackupEligibilityRules);
 
         byte[] writtenBytes = getWrittenBytes(mBackupDataOutputFile, /* includeTarHeader */ false);
-        assertThat(writtenBytes).isEqualTo(apkBytes);
-        apkFile.delete();
-    }
-
-    @Test
-    public void testBackupObb_withObbData_writesCorrectBytesToOutput() throws Exception {
-        PackageInfo packageInfo =
-                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_INSTALLER, TEST_PACKAGE_VERSION_CODE);
-        File obbDir = createObbDirForPackage(packageInfo.packageName);
-        byte[] obbBytes = "obb".getBytes();
-        File obbFile = createObbFileAndWrite(obbDir, obbBytes);
-
-        mBackupWriter.backupObb(mUserId, packageInfo);
-
-        byte[] writtenBytes = getWrittenBytes(mBackupDataOutputFile, /* includeTarHeader */ false);
-        assertThat(writtenBytes).isEqualTo(obbBytes);
-        obbFile.delete();
-    }
-
-    @Test
-    public void testBackupObb_withNoObbData_doesNotWriteBytesToOutput() {
-        PackageInfo packageInfo =
-                createPackageInfo(TEST_PACKAGE, TEST_PACKAGE_INSTALLER, TEST_PACKAGE_VERSION_CODE);
-        File obbDir = createObbDirForPackage(packageInfo.packageName);
-        // No obb file created.
-
-        mBackupWriter.backupObb(mUserId, packageInfo);
-
-        assertThat(mBackupDataOutputFile.length()).isEqualTo(0);
+        CrossPlatformManifest manifest = CrossPlatformManifest.parseFrom(writtenBytes);
+        assertThat(manifest.getPackageName()).isEqualTo(TEST_PACKAGE);
     }
 
     /**
-     * Creates a test package and registers it with the package manager. Also sets the installer
-     * package name if not {@code null}.
+     * Creates a test package and registers it with the package manager.
      */
-    private PackageInfo createPackageInfo(
-            String packageName, @Nullable String installerPackageName, long versionCode) {
+    private PackageInfo createPackageInfo(String packageName, long versionCode) {
         PackageInfo packageInfo = new PackageInfo();
         packageInfo.packageName = packageName;
+        packageInfo.applicationInfo = new ApplicationInfo();
+        packageInfo.applicationInfo.packageName = packageName;
         packageInfo.setLongVersionCode(versionCode);
         mShadowPackageManager.addPackage(packageInfo);
-        if (installerPackageName != null) {
-            mPackageManager.setInstallerPackageName(packageName, installerPackageName);
-        }
         return packageInfo;
     }
 
@@ -417,48 +348,10 @@ public class AppMetadataBackupWriterTest {
         return bytes;
     }
 
-    private File createFile(String fileName) throws IOException {
-        File file = new File(mFilesDir, fileName);
-        file.createNewFile();
-        return file;
-    }
-
-    /**
-     * Sets the last modified time of the {@code file} to the current time to edit the file's
-     * metadata.
-     */
-    private void modifyFileMetadata(File file) throws IOException {
-        Files.setLastModifiedTime(file.toPath(), FileTime.fromMillis(System.currentTimeMillis()));
-    }
-
     private File createApkFileAndWrite(byte[] data) throws IOException {
         File apkFile = new File(mFilesDir, "apk");
         apkFile.createNewFile();
         Files.write(apkFile.toPath(), data);
         return apkFile;
-    }
-
-    /** Creates an .obb file in the input directory. */
-    private File createObbFileAndWrite(File obbDir, byte[] data) throws IOException {
-        File obbFile = new File(obbDir, "obb");
-        obbFile.createNewFile();
-        Files.write(obbFile.toPath(), data);
-        return obbFile;
-    }
-
-    /**
-     * Creates a package specific obb data directory since the backup method checks for obb data
-     * there. See {@link Environment#buildExternalStorageAppObbDirs(String)}.
-     */
-    private File createObbDirForPackage(String packageName) {
-        ShadowEnvironment.addExternalDir("test");
-        Environment.UserEnvironment userEnv =
-                new Environment.UserEnvironment(UserHandle.USER_SYSTEM);
-        File obbDir =
-                new File(
-                        userEnv.getExternalDirs()[0],
-                        Environment.DIR_ANDROID + "/obb/" + packageName);
-        obbDir.mkdirs();
-        return obbDir;
     }
 }

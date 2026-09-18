@@ -16,8 +16,6 @@
 
 package android.view;
 
-import static android.view.flags.Flags.FLAG_SCROLL_CAPTURE_TARGET_Z_ORDER_FIX;
-
 import static androidx.test.InstrumentationRegistry.getTargetContext;
 
 import static org.junit.Assert.assertEquals;
@@ -32,7 +30,6 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.os.CancellationSignal;
 import android.os.SystemClock;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
 
@@ -107,7 +104,6 @@ public class ScrollCaptureSearchResultsTest {
      * A scrolling target should be excluded even when larger if it will be drawn over by another
      * scrolling target.
      */
-    @EnableFlags(FLAG_SCROLL_CAPTURE_TARGET_Z_ORDER_FIX)
     @Test
     public void testCoveredTargetsAreExcluded() {
         ScrollCaptureSearchResults results = new ScrollCaptureSearchResults(mDirectExec);

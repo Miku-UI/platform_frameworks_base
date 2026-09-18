@@ -20,6 +20,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.UiEventLogger
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.notetask.NoteTaskEventLogger.NoteTaskUiEvent.NOTE_OPENED_VIA_ACTION_CORNER
 import com.android.systemui.notetask.NoteTaskEventLogger.NoteTaskUiEvent.NOTE_CLOSED_VIA_STYLUS_TAIL_BUTTON
 import com.android.systemui.notetask.NoteTaskEventLogger.NoteTaskUiEvent.NOTE_CLOSED_VIA_STYLUS_TAIL_BUTTON_LOCKED
 import com.android.systemui.notetask.NoteTaskEventLogger.NoteTaskUiEvent.NOTE_OPENED_VIA_KEYGUARD_QUICK_AFFORDANCE
@@ -74,13 +75,11 @@ internal class NoteTaskEventLoggerTest : SysuiTestCase() {
     }
 
     @Test
-    fun onNoteTaskBubbleExpanded_entryPointTailButtonAndIsKeyguardUnlocked_noteOpenedViaTailButtonUnlocked() { // ktlint-disable max-line-length
+    @Suppress("MaxLineLength")
+    fun onNoteTaskBubbleExpanded_entryPointTailButtonAndIsKeyguardUnlocked_noteOpenedViaTailButtonUnlocked() {
         val info =
             createNoteTaskInfo()
-                .copy(
-                    entryPoint = NoteTaskEntryPoint.TAIL_BUTTON,
-                    isKeyguardLocked = false,
-                )
+                .copy(entryPoint = NoteTaskEntryPoint.TAIL_BUTTON, isKeyguardLocked = false)
 
         createNoteTaskEventLogger().logNoteTaskOpened(info)
 
@@ -89,13 +88,11 @@ internal class NoteTaskEventLoggerTest : SysuiTestCase() {
     }
 
     @Test
-    fun onNoteTaskBubbleExpanded_entryPointTailButtonAndIsKeyguardLocked_noteOpenedViaTailButtonLocked() { // ktlint-disable max-line-length
+    @Suppress("MaxLineLength")
+    fun onNoteTaskBubbleExpanded_entryPointTailButtonAndIsKeyguardLocked_noteOpenedViaTailButtonLocked() {
         val info =
             createNoteTaskInfo()
-                .copy(
-                    entryPoint = NoteTaskEntryPoint.TAIL_BUTTON,
-                    isKeyguardLocked = true,
-                )
+                .copy(entryPoint = NoteTaskEntryPoint.TAIL_BUTTON, isKeyguardLocked = true)
 
         createNoteTaskEventLogger().logNoteTaskOpened(info)
 
@@ -111,6 +108,17 @@ internal class NoteTaskEventLoggerTest : SysuiTestCase() {
 
         verifyNoMoreInteractions(uiEventLogger)
     }
+
+    @Test
+    fun logNoteTaskOpened_entryPointActionCorner_logsCorrectEvent() {
+        val info = createNoteTaskInfo().copy(entryPoint = NoteTaskEntryPoint.ACTION_CORNER)
+
+        createNoteTaskEventLogger().logNoteTaskOpened(info)
+
+        val expected = NOTE_OPENED_VIA_ACTION_CORNER
+        verify(uiEventLogger).log(expected, info.uid, info.packageName)
+    }
+
     // endregion
 
     // region logNoteTaskClosed
@@ -118,10 +126,7 @@ internal class NoteTaskEventLoggerTest : SysuiTestCase() {
     fun logNoteTaskClosed_entryPointTailButton_noteClosedViaTailButtonUnlocked() {
         val info =
             createNoteTaskInfo()
-                .copy(
-                    entryPoint = NoteTaskEntryPoint.TAIL_BUTTON,
-                    isKeyguardLocked = false,
-                )
+                .copy(entryPoint = NoteTaskEntryPoint.TAIL_BUTTON, isKeyguardLocked = false)
 
         createNoteTaskEventLogger().logNoteTaskClosed(info)
 
@@ -133,10 +138,7 @@ internal class NoteTaskEventLoggerTest : SysuiTestCase() {
     fun logNoteTaskClosed_entryPointTailButtonAndKeyguardLocked_noteClosedViaTailButtonLocked() {
         val info =
             createNoteTaskInfo()
-                .copy(
-                    entryPoint = NoteTaskEntryPoint.TAIL_BUTTON,
-                    isKeyguardLocked = true,
-                )
+                .copy(entryPoint = NoteTaskEntryPoint.TAIL_BUTTON, isKeyguardLocked = true)
 
         createNoteTaskEventLogger().logNoteTaskClosed(info)
 
@@ -152,6 +154,7 @@ internal class NoteTaskEventLoggerTest : SysuiTestCase() {
 
         verifyNoMoreInteractions(uiEventLogger)
     }
+
     // endregion
 
     private companion object {

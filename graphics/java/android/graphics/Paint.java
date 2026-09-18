@@ -849,7 +849,7 @@ public class Paint {
         }
         if (com.android.graphics.hwui.flags.Flags.runtimeColorFiltersBlenders()) {
             if (mXfermode instanceof RuntimeXfermode) {
-                long newNativeXfermode = ((RuntimeXfermode) mXfermode).createNativeInstance();
+                long newNativeXfermode = ((RuntimeXfermode) mXfermode).getNativeInstance();
                 if (newNativeXfermode != mNativeXfermode) {
                     mNativeXfermode = newNativeXfermode;
                     nSetXfermode(mNativePaint, mNativeXfermode);
@@ -1486,7 +1486,7 @@ public class Paint {
         if (com.android.graphics.hwui.flags.Flags.runtimeColorFiltersBlenders()) {
             if (xfermode instanceof RuntimeXfermode) {
                 mXfermode = xfermode;
-                nSetXfermode(mNativePaint, ((RuntimeXfermode) xfermode).createNativeInstance());
+                nSetXfermode(mNativePaint, ((RuntimeXfermode) xfermode).getNativeInstance());
                 return xfermode;
             }
         }

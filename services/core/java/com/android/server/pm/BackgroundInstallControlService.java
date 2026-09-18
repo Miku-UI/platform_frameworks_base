@@ -92,7 +92,7 @@ public class BackgroundInstallControlService extends SystemService {
     @Retention(RetentionPolicy.SOURCE)
     public @interface InstallEventType {}
 
-    private static final String TAG = "BackgroundInstallControlService";
+    private static final String TAG = "BicService";
 
     private static final String DISK_FILE_NAME = "states";
     private static final String DISK_DIR_NAME = "bic";
@@ -279,7 +279,9 @@ public class BackgroundInstallControlService extends SystemService {
 
         @Override
         public void handleMessage(Message msg) {
-            Slog.d(TAG, "Package event received: " + msg.what);
+            if (Build.IS_DEBUGGABLE && Log.isLoggable(TAG, Log.DEBUG)) {
+                Slog.d(TAG, "Package event received: " + msg.what);
+            }
             switch (msg.what) {
                 case MSG_USAGE_EVENT_RECEIVED:
                     mService.handleUsageEvent(

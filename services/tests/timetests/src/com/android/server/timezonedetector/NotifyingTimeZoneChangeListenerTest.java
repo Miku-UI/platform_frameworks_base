@@ -16,6 +16,8 @@
 
 package com.android.server.timezonedetector;
 
+import static com.android.server.SystemTimeZone.TIME_ZONE_CONFIDENCE_HIGH;
+import static com.android.server.SystemTimeZone.TIME_ZONE_CONFIDENCE_LOW;
 import static com.android.server.timezonedetector.NotifyingTimeZoneChangeListener.AUTO_REVERT_THRESHOLD;
 import static com.android.server.timezonedetector.NotifyingTimeZoneChangeListener.SIGNAL_TYPE_NONE;
 import static com.android.server.timezonedetector.NotifyingTimeZoneChangeListener.SIGNAL_TYPE_UNKNOWN;
@@ -23,37 +25,37 @@ import static com.android.server.timezonedetector.NotifyingTimeZoneChangeListene
 import static com.android.server.timezonedetector.NotifyingTimeZoneChangeListener.STATUS_SUPERSEDED;
 import static com.android.server.timezonedetector.NotifyingTimeZoneChangeListener.STATUS_UNKNOWN;
 import static com.android.server.timezonedetector.NotifyingTimeZoneChangeListener.STATUS_UNTRACKED;
+import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_FUSED;
 import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_LOCATION;
 import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_MANUAL;
 import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_TELEPHONY;
-import static com.android.server.SystemTimeZone.TIME_ZONE_CONFIDENCE_HIGH;
-import static com.android.server.SystemTimeZone.TIME_ZONE_CONFIDENCE_LOW;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
-import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.app.KeyguardManager;
-import android.app.Notification;
-import android.app.NotificationManager;
 import android.app.UiAutomation;
+import android.app.timezonedetector.NitzSignal;
+import android.app.timezonedetector.TelephonySignal;
+import android.app.timezonedetector.TelephonyTimeZoneSuggestion;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.BroadcastReceiver;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.content.res.Resources;
+import android.icu.util.TimeZone;
 import android.os.HandlerThread;
 import android.os.Process;
-import android.os.UserHandle;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
+import androidx.test.core.app.ApplicationProvider;
 import androidx.test.platform.app.InstrumentationRegistry;
 
-import com.android.server.flags.Flags;
+import com.android.internal.R;
 import com.android.server.timezonedetector.NotifyingTimeZoneChangeListener.TimeZoneChangeRecord;
 import com.android.server.timezonedetector.TimeZoneChangeListener.TimeZoneChangeEvent;
 
@@ -71,13 +73,13 @@ import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import java.time.Duration;
 import java.time.InstantSource;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /** White-box unit tests for {@link NotifyingTimeZoneChangeListener}. */
 @RunWith(JUnitParamsRunner.class)
-@EnableFlags(Flags.FLAG_DATETIME_NOTIFICATIONS)
 public class NotifyingTimeZoneChangeListenerTest {
 
     @ClassRule public static final SetFlagsRule.ClassRule mClassRule = new SetFlagsRule.ClassRule();
@@ -89,13 +91,14 @@ public class NotifyingTimeZoneChangeListenerTest {
     public final MockitoRule mockito = MockitoJUnit.rule();
 
     public static List<@TimeZoneDetectorStrategy.Origin Integer> getDetectionOrigins() {
-        return List.of(ORIGIN_LOCATION, ORIGIN_TELEPHONY);
+        return List.of(ORIGIN_LOCATION, ORIGIN_TELEPHONY, ORIGIN_FUSED);
     }
 
     private static final String INTERACT_ACROSS_USERS_FULL_PERMISSION =
             "android.permission.INTERACT_ACROSS_USERS_FULL";
 
-    private Context mContext;
+    private static final int PRIMARY_LOCATION_TIME_ZONE_PROVIDER_UID = 12345;
+
     private UiAutomation mUiAutomation;
 
     private FakeNotificationManager mNotificationManager;
@@ -104,17 +107,22 @@ public class NotifyingTimeZoneChangeListenerTest {
     private FakeServiceConfigAccessor mServiceConfigAccessor;
     private FakeEnvironment mFakeEnvironment;
     private int mUid;
-
-    @Mock private KeyguardManager mockKeyguardManager;
-
+    private ApplicationInfo mApplicationInfo;
     private NotifyingTimeZoneChangeListener mTimeZoneChangeTracker;
+    private FakeTimeZoneDetectorLogger mFakeTimeZoneDetectorLogger;
+    private TimeZoneDetectorTelemetry mTimeZoneDetectorTelemetry;
+
+    @Mock private Context mContext;
+    @Mock private KeyguardManager mockKeyguardManager;
+    @Mock private Resources mResources;
+    @Mock private PackageManager mMockPackageManager;
 
     @Before
-    public void setUp() {
+    public void setUp() throws Exception {
         mUid = Process.myUid();
         mFakeEnvironment = new FakeEnvironment();
         mFakeEnvironment.initializeClock(1735689600L, 1234L);
-
+        mFakeTimeZoneDetectorLogger = new FakeTimeZoneDetectorLogger();
         // Create a thread + handler for processing the work that the service posts.
         mHandlerThread = new HandlerThread("TimeZoneDetectorInternalTest");
         mHandlerThread.start();
@@ -147,15 +155,38 @@ public class NotifyingTimeZoneChangeListenerTest {
         mUiAutomation.adoptShellPermissionIdentity(INTERACT_ACROSS_USERS_FULL_PERMISSION);
 
         mNotificationManager = new FakeNotificationManager(mContext, InstantSource.system());
+        mApplicationInfo = new ApplicationInfo();
+
+        // Setup mock PackageManager to return a valid UID for the location time zone provider.
+        Resources resources = ApplicationProvider.getApplicationContext().getResources();
+        String packageName = null;
+        try {
+            packageName =
+                    resources.getString(R.string.config_primaryLocationTimeZoneProviderPackageName);
+        } catch (Resources.NotFoundException e) {
+            // Do nothing. Location time zone provider is not set on the test device.
+        }
+        ApplicationInfo mApplicationInfo = new ApplicationInfo();
+        mApplicationInfo.uid = PRIMARY_LOCATION_TIME_ZONE_PROVIDER_UID;
+        when(mMockPackageManager.getApplicationInfo(packageName, 0)).thenReturn(mApplicationInfo);
+
+        mTimeZoneDetectorTelemetry =
+                new TimeZoneDetectorTelemetryImpl(
+                        mContext,
+                        mFakeEnvironment,
+                        mFakeTimeZoneDetectorLogger,
+                        mMockPackageManager);
 
         mTimeZoneChangeTracker =
                 new NotifyingTimeZoneChangeListener(
                         mHandler,
                         mContext,
                         mServiceConfigAccessor,
+                        mTimeZoneDetectorTelemetry,
                         mNotificationManager,
                         mFakeEnvironment,
-                        mockKeyguardManager);
+                        mockKeyguardManager,
+                        mMockPackageManager);
     }
 
     @After
@@ -230,6 +261,8 @@ public class NotifyingTimeZoneChangeListenerTest {
             enableLocationTimeZoneDetection();
         } else if (origin == ORIGIN_TELEPHONY) {
             enableTelephonyTimeZoneDetection();
+        } else if (origin == ORIGIN_FUSED) {
+            enableAllTimeZoneDetectionAlgos();
         } else {
             throw new IllegalStateException(
                     "The given origin has not been implemented for this test: " + origin);
@@ -249,6 +282,7 @@ public class NotifyingTimeZoneChangeListenerTest {
                                 /* newZoneId= */ "Europe/London",
                                 /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
                                 /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+
                                 /* cause= */ "NO_REASON"));
         expectedTimeZoneChangeRecord.setStatus(STATUS_UNKNOWN, SIGNAL_TYPE_UNKNOWN);
 
@@ -275,6 +309,7 @@ public class NotifyingTimeZoneChangeListenerTest {
                                 /* newZoneId= */ "Europe/Paris",
                                 /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
                                 /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+
                                 /* cause= */ "NO_REASON"));
         expectedTimeZoneChangeRecord.setStatus(STATUS_UNKNOWN, SIGNAL_TYPE_UNKNOWN);
 
@@ -306,6 +341,7 @@ public class NotifyingTimeZoneChangeListenerTest {
                                     /* newZoneId= */ "Europe/London",
                                     /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
                                     /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+
                                     /* cause= */ "NO_REASON"));
             expectedTimeZoneChangeRecord.setStatus(STATUS_UNTRACKED, SIGNAL_TYPE_NONE);
 
@@ -344,6 +380,7 @@ public class NotifyingTimeZoneChangeListenerTest {
                                     /* newZoneId= */ "Europe/London",
                                     /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
                                     /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+
                                     /* cause= */ "NO_REASON"));
             expectedTimeZoneChangeRecord.setStatus(STATUS_UNTRACKED, SIGNAL_TYPE_NONE);
 
@@ -367,6 +404,8 @@ public class NotifyingTimeZoneChangeListenerTest {
             enableLocationTimeZoneDetection();
         } else if (origin == ORIGIN_TELEPHONY) {
             enableTelephonyTimeZoneDetection();
+        } else if (origin == ORIGIN_FUSED) {
+            enableAllTimeZoneDetectionAlgos();
         } else {
             throw new IllegalStateException(
                     "The given origin has not been implemented for this test: " + origin);
@@ -386,6 +425,7 @@ public class NotifyingTimeZoneChangeListenerTest {
                                 /* newZoneId= */ "Europe/London",
                                 /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
                                 /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+
                                 /* cause= */ "NO_REASON"));
         expectedTimeZoneChangeRecord.setStatus(STATUS_UNKNOWN, SIGNAL_TYPE_UNKNOWN);
 
@@ -412,6 +452,7 @@ public class NotifyingTimeZoneChangeListenerTest {
                                 /* newZoneId= */ "Europe/Paris",
                                 /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
                                 /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+
                                 /* cause= */ "NO_REASON"));
         expectedTimeZoneChangeRecord.setStatus(STATUS_UNKNOWN, SIGNAL_TYPE_UNKNOWN);
 
@@ -434,6 +475,8 @@ public class NotifyingTimeZoneChangeListenerTest {
             enableLocationTimeZoneDetection();
         } else if (origin == ORIGIN_TELEPHONY) {
             enableTelephonyTimeZoneDetection();
+        } else if (origin == ORIGIN_FUSED) {
+            enableAllTimeZoneDetectionAlgos();
         } else {
             throw new IllegalStateException(
                     "The given origin has not been implemented for this test: " + origin);
@@ -477,6 +520,8 @@ public class NotifyingTimeZoneChangeListenerTest {
             enableLocationTimeZoneDetection();
         } else if (origin == ORIGIN_TELEPHONY) {
             enableTelephonyTimeZoneDetection();
+        } else if (origin == ORIGIN_FUSED) {
+            enableAllTimeZoneDetectionAlgos();
         } else {
             throw new IllegalStateException(
                     "The given origin has not been implemented for this test: " + origin);
@@ -496,6 +541,7 @@ public class NotifyingTimeZoneChangeListenerTest {
                         /* newZoneId= */ "Europe/London",
                         /* oldConfidence= */ TIME_ZONE_CONFIDENCE_LOW,
                         /* newConfidence= */ TIME_ZONE_CONFIDENCE_LOW, // Zero confidence
+
                         /* cause= */ "NO_REASON");
 
         mTimeZoneChangeTracker.process(firstEvent);
@@ -558,7 +604,6 @@ public class NotifyingTimeZoneChangeListenerTest {
 
         // Now, the handler message should be enqueued.
         mHandler.assertTotalMessagesEnqueued(1);
-
     }
 
     @Test
@@ -585,6 +630,116 @@ public class NotifyingTimeZoneChangeListenerTest {
         mHandler.assertTotalMessagesEnqueued(1);
     }
 
+    @Test
+    @EnableFlags(android.timezone.flags.Flags.FLAG_ENABLE_AUTOMATIC_TIME_ZONE_REJECTION_LOGGING)
+    public void process_manualRejection_shouldLogWhenFlagEnabled() throws Exception {
+        enableTelephonyTimeZoneDetection();
+        enableNotificationsWithManualChangeTracking();
+
+        final String oldZoneId = "Europe/Paris";
+        final String autoZoneId = "Europe/London";
+        final String manualZoneId = "Europe/Paris";
+        final String mcc = "123";
+        final String mnc = "456";
+        final Duration nitzOffset = Duration.ofHours(1);
+        final Duration nitzDstOffset = Duration.ofMinutes(1);
+
+        TelephonyTimeZoneSuggestion telephonyTimeZoneSuggestion =
+                createTelephonyTimeZoneSuggestion(
+                        /* mcc= */ mcc,
+                        /* mnc= */ mnc,
+                        /* nitzOffsetSeconds= */ (int) nitzOffset.toMillis(),
+                        /* nitzDstOffsetSeconds= */ (int) nitzDstOffset.toMillis());
+
+        // Simulate telephony suggestion which later should be logged through telemetry.
+        mTimeZoneDetectorTelemetry.onTelephonyTimeZoneSuggestion(telephonyTimeZoneSuggestion);
+
+        // Make device time zone change, which saves telephony suggestion for rejection logging.
+        mTimeZoneDetectorTelemetry.onFusedTimeZoneChanged(autoZoneId);
+
+        TimeZoneChangeEvent autoEvent =
+                new TimeZoneChangeEvent(
+                        /* elapsedRealtimeMillis= */ 1000L,
+                        /* unixEpochTimeMillis= */ 1726597801000L,
+                        /* origin= */ ORIGIN_TELEPHONY,
+                        /* userId= */ mUid,
+                        /* oldZoneId= */ oldZoneId,
+                        /* newZoneId= */ autoZoneId,
+                        /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                        /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                        /* cause= */ "Auto Change");
+        mTimeZoneChangeTracker.process(autoEvent);
+
+        disableTimeZoneAutoDetection();
+        TimeZoneChangeEvent manualEvent =
+                new TimeZoneChangeEvent(
+                        /* elapsedRealtimeMillis= */ 1000L + AUTO_REVERT_THRESHOLD - 1,
+                        /* unixEpochTimeMillis= */ 1726597801000L + AUTO_REVERT_THRESHOLD - 1,
+                        /* origin= */ ORIGIN_MANUAL,
+                        /* userId= */ mUid,
+                        /* oldZoneId= */ autoZoneId,
+                        /* newZoneId= */ manualZoneId,
+                        /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                        /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                        /* cause= */ "Manual Override");
+
+        mTimeZoneChangeTracker.process(manualEvent);
+
+        assertEquals(1, mFakeTimeZoneDetectorLogger.getTimeZoneChangeRejectionLogCount());
+
+        // Assertions on the captured autoEvent
+        FakeTimeZoneDetectorLogger.TimeZoneChangeRejectionLog log =
+                mFakeTimeZoneDetectorLogger.getTimeZoneChangeRejectionLog(0);
+
+        assertEquals(ORIGIN_TELEPHONY, log.source());
+        assertEquals(mcc, log.mcc());
+        assertEquals(mnc, log.mnc());
+        assertEquals(nitzOffset.toSeconds(), log.nitzOffsetSeconds());
+        assertEquals(nitzDstOffset.toSeconds(), log.nitzDstOffsetSeconds());
+        assertEquals(oldZoneId, log.previousTimeZoneId());
+        assertEquals(autoZoneId, log.rejectedAutomaticTimeZone());
+        assertEquals(manualZoneId, log.manualTimeZone());
+        assertEquals(TimeZone.getTZDataVersion(), log.tzdbVersion());
+        assertEquals(PRIMARY_LOCATION_TIME_ZONE_PROVIDER_UID, log.locationTimeZoneProviderUid());
+    }
+
+    @Test
+    @DisableFlags(android.timezone.flags.Flags.FLAG_ENABLE_AUTOMATIC_TIME_ZONE_REJECTION_LOGGING)
+    public void process_manualRejection_shouldNotLogWhenFlagDisabled() {
+        enableTelephonyTimeZoneDetection();
+        enableNotificationsWithManualChangeTracking();
+
+        TimeZoneChangeEvent autoEvent =
+                new TimeZoneChangeEvent(
+                        /* elapsedRealtimeMillis= */ 1000L,
+                        /* unixEpochTimeMillis= */ 1726597801000L,
+                        /* origin= */ ORIGIN_TELEPHONY,
+                        /* userId= */ mUid,
+                        /* oldZoneId= */ "Europe/Paris",
+                        /* newZoneId= */ "Europe/London",
+                        /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                        /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                        /* cause= */ "Auto Change");
+        mTimeZoneChangeTracker.process(autoEvent);
+
+        disableTimeZoneAutoDetection();
+        TimeZoneChangeEvent manualEvent =
+                new TimeZoneChangeEvent(
+                        /* elapsedRealtimeMillis= */ 1000L + AUTO_REVERT_THRESHOLD - 1,
+                        /* unixEpochTimeMillis= */ 1726597801000L + AUTO_REVERT_THRESHOLD - 1,
+                        /* origin= */ ORIGIN_MANUAL,
+                        /* userId= */ mUid,
+                        /* oldZoneId= */ "Europe/London",
+                        /* newZoneId= */ "Europe/Paris",
+                        /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                        /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                        /* cause= */ "Manual Override");
+
+        mTimeZoneChangeTracker.process(manualEvent);
+
+        assertEquals(0, mFakeTimeZoneDetectorLogger.getTimeZoneChangeRejectionLogCount());
+    }
+
     private void enableLocationTimeZoneDetection() {
         ConfigurationInternal oldConfiguration =
                 mServiceConfigAccessor.getCurrentUserConfigurationInternal();
@@ -605,6 +760,21 @@ public class NotifyingTimeZoneChangeListenerTest {
                 toBuilder(oldConfiguration)
                         .setAutoDetectionEnabledSetting(true)
                         .setGeoDetectionEnabledSetting(false)
+                        .setTelephonyDetectionFeatureSupported(true)
+                        .setTelephonyFallbackSupported(true)
+                        .build();
+
+        mServiceConfigAccessor.simulateCurrentUserConfigurationInternalChange(newConfiguration);
+    }
+
+    private void enableAllTimeZoneDetectionAlgos() {
+        ConfigurationInternal oldConfiguration =
+                mServiceConfigAccessor.getCurrentUserConfigurationInternal();
+        ConfigurationInternal newConfiguration =
+                toBuilder(oldConfiguration)
+                        .setAutoDetectionEnabledSetting(true)
+                        .setGeoDetectionFeatureSupported(true)
+                        .setGeoDetectionEnabledSetting(true)
                         .setTelephonyDetectionFeatureSupported(true)
                         .setTelephonyFallbackSupported(true)
                         .build();
@@ -652,6 +822,25 @@ public class NotifyingTimeZoneChangeListenerTest {
         mServiceConfigAccessor.simulateCurrentUserConfigurationInternalChange(newConfiguration);
     }
 
+    private TelephonyTimeZoneSuggestion createTelephonyTimeZoneSuggestion(
+            String mcc, String mnc, int nitzOffsetSeconds, int nitzDstOffsetSeconds) {
+        return new TelephonyTimeZoneSuggestion.Builder(/* slotIndex= */ 0)
+                .setTelephonySignal(
+                        new TelephonySignal(
+                                mcc,
+                                mnc,
+                                /* defaultCountryIsoCod= */ "us",
+                                /* countryIsoCodes= */ Set.of("us"),
+                                new NitzSignal(
+                                        /* receiptElapsedMillis= */ 0L,
+                                        /* ageMillis= */ 0L,
+                                        /* zoneOffset= */ nitzOffsetSeconds,
+                                        /* dstOffset= */ nitzDstOffsetSeconds,
+                                        /* currentTimeMillis= */ 0L,
+                                        /* emulatorHostTimeZone= */ null)))
+                .build();
+    }
+
     private ConfigurationInternal.Builder toBuilder(ConfigurationInternal config) {
         return new ConfigurationInternal.Builder()
                 .setUserId(config.getUserId())
@@ -669,24 +858,5 @@ public class NotifyingTimeZoneChangeListenerTest {
                 .setNotificationsEnabledSetting(config.getNotificationsEnabledBehavior())
                 .setNotificationsSupported(config.areNotificationsSupported())
                 .setManualChangeTrackingSupported(config.isManualChangeTrackingSupported());
-    }
-
-    private static class FakeNotificationManager extends NotificationManager {
-
-        private final List<Notification> mNotifications = new ArrayList<>();
-
-        FakeNotificationManager(Context context, InstantSource clock) {
-            super(context, clock);
-        }
-
-        @Override
-        public void notifyAsUser(
-                @Nullable String tag, int id, Notification notification, UserHandle user) {
-            mNotifications.add(notification);
-        }
-
-        public List<Notification> getNotifications() {
-            return mNotifications;
-        }
     }
 }

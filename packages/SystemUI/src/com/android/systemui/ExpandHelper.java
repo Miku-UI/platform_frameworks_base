@@ -38,19 +38,22 @@ import androidx.core.animation.ObjectAnimator;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.jank.InteractionJankMonitor;
+import com.android.systemui.notifications.ui.composable.SwipeToExpandCallback;
 import com.android.systemui.res.R;
+import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.row.ExpandableView;
+import com.android.systemui.statusbar.notification.shared.NsslTouchDispatchFix;
 import com.android.systemui.statusbar.policy.ScrollAdapter;
 import com.android.wm.shell.animation.FlingAnimationUtils;
 
 public class ExpandHelper implements Gefingerpoken {
-    public interface Callback {
+    public interface Callback extends SwipeToExpandCallback {
         ExpandableView getChildAtRawPosition(float x, float y);
         ExpandableView getChildAtPosition(float x, float y);
         boolean canChildBeExpanded(View v);
         void setUserExpandedChild(View v, boolean userExpanded);
-        void setUserLockedChild(View v, boolean userLocked);
+        void setUserSwipingToExpand(View v, boolean isUserSwiping);
         void expansionStateChanged(boolean isExpanding);
         int getMaxExpandHeight(ExpandableView view);
         void setExpansionCancelled(View view);
@@ -282,6 +285,7 @@ public class ExpandHelper implements Gefingerpoken {
     }
 
     private float getTouchSlop(MotionEvent event) {
+        NsslTouchDispatchFix.assertInLegacyMode();
         // Adjust the touch slop if another gesture may be being performed.
         return event.getClassification() == MotionEvent.CLASSIFICATION_AMBIGUOUS_GESTURE
                 ? mTouchSlop * mSlopMultiplier
@@ -290,6 +294,7 @@ public class ExpandHelper implements Gefingerpoken {
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
+        NsslTouchDispatchFix.assertInLegacyMode();
         if (!isEnabled()) {
             return false;
         }
@@ -325,10 +330,14 @@ public class ExpandHelper implements Gefingerpoken {
                 final float xspan = mSGD.getCurrentSpanX();
                 if (xspan > mPullGestureMinXSpan &&
                         xspan > mSGD.getCurrentSpanY() && !mExpanding) {
-                    // detect a vertical pulling gesture with fingers somewhat separated
-                    if (DEBUG_SCALE) Log.v(TAG, "got pull gesture (xspan=" + xspan + "px)");
-                    startExpanding(mResizedView, PULL);
-                    mWatchingForPull = false;
+                        // Disable two-finger expand if SceneContainer, as it interferes with
+                        // scrolling.
+                        if (!SceneContainerFlag.isEnabled()) {
+                            // detect a vertical pulling gesture with fingers somewhat separated
+                            if (DEBUG_SCALE) Log.v(TAG, "got pull gesture (xspan=" + xspan + "px)");
+                            startExpanding(mResizedView, PULL);
+                            mWatchingForPull = false;
+                        }
                 }
                 if (mWatchingForPull) {
                     final float yDiff = ev.getRawY() - mInitialTouchY;
@@ -429,6 +438,7 @@ public class ExpandHelper implements Gefingerpoken {
 
     @Override
     public boolean onTouchEvent(MotionEvent ev) {
+        NsslTouchDispatchFix.assertInLegacyMode();
         if (!isEnabled() && !mExpanding) {
             // In case we're expanding we still want to finish the current motion.
             return false;
@@ -550,7 +560,7 @@ public class ExpandHelper implements Gefingerpoken {
         mExpanding = true;
         mCallback.expansionStateChanged(true);
         if (DEBUG) Log.d(TAG, "scale type " + expandType + " beginning on view: " + v);
-        mCallback.setUserLockedChild(v, true);
+        mCallback.setUserSwipingToExpand(v, true);
         mScaler.setView(v);
         mOldHeight = mScaler.getHeight();
         mCurrentHeight = mOldHeight;
@@ -559,6 +569,13 @@ public class ExpandHelper implements Gefingerpoken {
             if (DEBUG) Log.d(TAG, "working on an expandable child");
             mNaturalHeight = mScaler.getNaturalHeight();
             mSmallSize = v.getCollapsedHeight();
+            if (Flags.notificationExpandBundleHeaderSize()) {
+                // Ensure small size is at most equal to oldHeight
+                // fixes expanding Bundle headers
+                if (mSmallSize > mOldHeight) {
+                    mSmallSize = (int) mOldHeight;
+                }
+            }
         } else {
             if (DEBUG) Log.d(TAG, "working on a non-expandable child");
             mNaturalHeight = mOldHeight;
@@ -633,7 +650,7 @@ public class ExpandHelper implements Gefingerpoken {
                     } else {
                         mCallback.setExpansionCancelled(scaledView);
                     }
-                    mCallback.setUserLockedChild(scaledView, false);
+                    mCallback.setUserSwipingToExpand(scaledView, false);
                     mScaleAnimation.removeListener(this);
                     if (wasClosed) {
                         InteractionJankMonitor.getInstance().end(CUJ_NOTIFICATION_SHADE_ROW_EXPAND);
@@ -653,7 +670,7 @@ public class ExpandHelper implements Gefingerpoken {
                 mScaler.setHeight(targetHeight);
             }
             mCallback.setUserExpandedChild(mResizedView, nowExpanded);
-            mCallback.setUserLockedChild(mResizedView, false);
+            mCallback.setUserSwipingToExpand(mResizedView, false);
             mScaler.setView(null);
             if (wasClosed) {
                 InteractionJankMonitor.getInstance().end(CUJ_NOTIFICATION_SHADE_ROW_EXPAND);
@@ -679,6 +696,7 @@ public class ExpandHelper implements Gefingerpoken {
      * animations.
      */
     public void cancelImmediately() {
+        NsslTouchDispatchFix.assertInLegacyMode();
         cancel(false /* allowAnimation */);
     }
 
@@ -686,6 +704,7 @@ public class ExpandHelper implements Gefingerpoken {
      * Use this to abort any pending expansions in progress.
      */
     public void cancel() {
+        NsslTouchDispatchFix.assertInLegacyMode();
         cancel(true /* allowAnimation */);
     }
 
@@ -706,6 +725,7 @@ public class ExpandHelper implements Gefingerpoken {
      * @param onlyMovements Should only movements be observed?
      */
     public void onlyObserveMovements(boolean onlyMovements) {
+        NsslTouchDispatchFix.assertInLegacyMode();
         mOnlyMovements = onlyMovements;
     }
 }

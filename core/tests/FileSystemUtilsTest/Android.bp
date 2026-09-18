@@ -40,7 +40,7 @@ java_defaults {
     name: "app_with_4kb_elf_defaults",
     srcs: ["app_with_4kb_elf/src/**/*.java"],
     resource_dirs: ["app_with_4kb_elf/res"],
-    compile_multilib: "64",
+    compile_multilib: "both",
     jni_libs: [
         "libpunchtest_4kb",
     ],
@@ -91,7 +91,7 @@ android_test_helper_app {
     name: "embedded_native_libs_test_app",
     srcs: ["apk_embedded_native_libs/src/**/*.java"],
     manifest: "apk_embedded_native_libs/embedded_native_libs_test_app.xml",
-    compile_multilib: "64",
+    compile_multilib: "both",
     jni_libs: [
         "libpunchtest",
     ],
@@ -106,7 +106,7 @@ android_test_helper_app {
     name: "extract_native_libs_test_app",
     srcs: ["apk_extract_native_libs/src/**/*.java"],
     manifest: "apk_extract_native_libs/extract_native_libs_test_app.xml",
-    compile_multilib: "64",
+    compile_multilib: "both",
     jni_libs: [
         "libpunchtest",
     ],

@@ -77,9 +77,26 @@ class SoftwareRateLimiter {
      * guesses are forgotten.
      *
      * <p>5 minutes provides a reasonable balance between user convenience and minimizing the small
-     * security risk of wrong guesses being kept around in system_server memory. (Wrong guesses can
-     * be somewhat sensitive information, since they may be similar to the correct LSKF or they may
-     * be the correct LSKF for another device or user.)
+     * security risk of wrong guesses being kept around in system_server memory. This value was
+     * chosen carefully, and it should not be increased.
+     *
+     * <p>Specifically, this timeout mitigates attacks where:
+     *
+     * <ol>
+     *   <li>A user mis-enters their LSKF but doesn't follow through with a successful unlock.
+     *   <li>An attacker subsequently compromises the device enough to read system_server memory.
+     *   <li>The attacker finds the wrong guess cache in memory but can't find any other copies of
+     *       the LSKF (i.e. it was zeroized in all other cases -- not necessarily true currently).
+     *   <li>The attacker guesses the correct LSKF using the wrong LSKF as a hint. Alternatively, if
+     *       the user had mistakenly entered the correct LSKF for a different device, the attacker
+     *       would then be able to unlock that other device.
+     * </ol>
+     *
+     * <p>The timeout greatly limits the applicability of this attack. It requires the device to be
+     * compromised very soon after the wrong LSKF is entered.
+     *
+     * <p>Note that if the device is already compromised when the LSKF is entered, the attacker can
+     * simply compromise the LSKF directly. The wrong guess cache is irrelevant in that case.
      */
     @VisibleForTesting static final Duration SAVED_WRONG_GUESS_TIMEOUT = Duration.ofMinutes(5);
 
@@ -180,10 +197,8 @@ class SoftwareRateLimiter {
     SoftwareRateLimiter(Injector injector, boolean enforcing) {
         mInjector = injector;
         mEnforcing = enforcing;
-        if (android.security.Flags.manageLockoutEndTimeInService()) {
-            // The cache doesn't work until it's initialized.
-            mInjector.invalidateLockoutEndTimeCache();
-        }
+        // The cache doesn't work until it's initialized.
+        mInjector.invalidateLockoutEndTimeCache();
     }
 
     /**
@@ -272,6 +287,16 @@ class SoftwareRateLimiter {
                     //
                     // Likewise, rebooting causes any saved wrong guesses to be forgotten.
                     RateLimiterState state = new RateLimiterState(readFailureCounter(id));
+                    Duration hwTimeout = mInjector.getHardwareRateLimiterTimeout(id);
+                    if (hwTimeout.isPositive()) {
+                        Slogf.i(
+                                TAG,
+                                "Loaded hwTimeout=%s for user %d, protector %016x",
+                                hwTimeout,
+                                id.userId,
+                                id.protectorId);
+                        updateLockoutEndTime(state, now, now.plus(hwTimeout));
+                    }
                     evaluateSoftwareRateLimit(state, now);
                     return state;
                 });
@@ -328,9 +353,7 @@ class SoftwareRateLimiter {
         }
         if (!lockoutEndTime.equals(state.lockoutEndTime)) {
             state.lockoutEndTime = lockoutEndTime;
-            if (android.security.Flags.manageLockoutEndTimeInService()) {
-                mInjector.invalidateLockoutEndTimeCache();
-            }
+            mInjector.invalidateLockoutEndTimeCache();
         }
     }
 
@@ -338,9 +361,7 @@ class SoftwareRateLimiter {
     private void clearLockoutEndTime(RateLimiterState state) {
         if (!state.lockoutEndTime.isZero()) {
             state.lockoutEndTime = Duration.ZERO;
-            if (android.security.Flags.manageLockoutEndTimeInService()) {
-                mInjector.invalidateLockoutEndTimeCache();
-            }
+            mInjector.invalidateLockoutEndTimeCache();
         }
     }
 
@@ -402,7 +423,7 @@ class SoftwareRateLimiter {
         RateLimiterState state = getExistingState(id);
 
         Duration now = mInjector.getTimeSinceBoot();
-        if (android.security.Flags.manageLockoutEndTimeInService() && hwTimeout.isPositive()) {
+        if (hwTimeout.isPositive()) {
             // Always track any hardware timeouts, including when not enforcing.
             updateLockoutEndTime(state, now, now.plus(hwTimeout));
         }
@@ -411,9 +432,7 @@ class SoftwareRateLimiter {
         // counted by apply(), including having stats written for them. In enforcing mode, this
         // method isn't passed duplicate wrong guesses.
         if (!mEnforcing && ArrayUtils.contains(state.savedWrongGuesses, guess)) {
-            return android.security.Flags.manageLockoutEndTimeInService()
-                    ? computeRemainingTimeout(state, now)
-                    : Duration.ZERO;
+            return computeRemainingTimeout(state, now);
         }
 
         // Increment the failure counter regardless of whether the failure is a certainly wrong
@@ -561,9 +580,7 @@ class SoftwareRateLimiter {
     private void clearLskfStateAtIndex(int index) {
         final RateLimiterState state = mState.valueAt(index);
         forgetSavedWrongGuesses(state);
-        if (android.security.Flags.manageLockoutEndTimeInService()) {
-            clearLockoutEndTime(state);
-        }
+        clearLockoutEndTime(state);
         mState.removeAt(index);
     }
 
@@ -626,6 +643,8 @@ class SoftwareRateLimiter {
         void postDelayed(Runnable runnable, Object token, long delayMillis);
 
         int getHardwareRateLimiter(LskfIdentifier id);
+
+        Duration getHardwareRateLimiterTimeout(LskfIdentifier id);
 
         void invalidateLockoutEndTimeCache();
     }

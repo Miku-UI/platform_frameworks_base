@@ -41,7 +41,6 @@ object LegacyUserUiHelper {
         isAddUser: Boolean,
         isGuest: Boolean,
         isAddSupervisedUser: Boolean,
-        isSignOut: Boolean,
         isTablet: Boolean = false,
         isManageUsers: Boolean,
     ): Int {
@@ -53,8 +52,6 @@ object LegacyUserUiHelper {
             com.android.settingslib.R.drawable.ic_account_circle
         } else if (isAddSupervisedUser) {
             com.android.settingslib.R.drawable.ic_add_supervised_user
-        } else if (isSignOut) {
-            com.android.internal.R.drawable.ic_logout
         } else if (isManageUsers) {
             R.drawable.ic_manage_users
         } else {
@@ -84,7 +81,6 @@ object LegacyUserUiHelper {
                         isGuestUserResetting = isGuestUserResetting,
                         isAddUser = record.isAddUser,
                         isAddSupervisedUser = record.isAddSupervisedUser,
-                        isSignOut = record.isSignOut,
                         isTablet = isTablet,
                         isManageUsers = record.isManageUsers,
                     )
@@ -115,11 +111,10 @@ object LegacyUserUiHelper {
         isGuestUserResetting: Boolean,
         isAddUser: Boolean,
         isAddSupervisedUser: Boolean,
-        isSignOut: Boolean,
         isTablet: Boolean = false,
         isManageUsers: Boolean,
     ): Int {
-        check(isGuest || isAddUser || isAddSupervisedUser || isManageUsers || isSignOut)
+        check(isGuest || isAddUser || isAddSupervisedUser || isManageUsers)
 
         return when {
             isGuest && isGuestUserAutoCreated && isGuestUserResetting ->
@@ -129,7 +124,6 @@ object LegacyUserUiHelper {
             isGuest -> com.android.internal.R.string.guest_name
             isAddUser -> com.android.settingslib.R.string.user_add_user
             isAddSupervisedUser -> R.string.add_user_supervised
-            isSignOut -> com.android.internal.R.string.global_action_logout
             isManageUsers -> R.string.manage_users
             else -> error("This should never happen!")
         }

@@ -232,11 +232,13 @@ class SplitContainer {
     }
 
     static boolean shouldFinishPrimaryWithSecondary(@NonNull SplitRule splitRule) {
-        final boolean isPlaceholderContainer = splitRule instanceof SplitPlaceholderRule;
-        final boolean shouldFinishPrimaryWithSecondary = (splitRule instanceof SplitPairRule)
-                && ((SplitPairRule) splitRule).getFinishPrimaryWithSecondary()
-                != SplitRule.FINISH_NEVER;
-        return shouldFinishPrimaryWithSecondary || isPlaceholderContainer;
+        if (splitRule instanceof SplitPlaceholderRule placeholderRule) {
+            return placeholderRule.getFinishPrimaryWithPlaceholder() != SplitRule.FINISH_NEVER;
+        }
+        if (splitRule instanceof SplitPairRule pairRule) {
+            return pairRule.getFinishPrimaryWithSecondary() != SplitRule.FINISH_NEVER;
+        }
+        return false;
     }
 
     static boolean shouldFinishSecondaryWithPrimary(@NonNull SplitRule splitRule) {

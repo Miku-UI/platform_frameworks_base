@@ -72,8 +72,8 @@ import java.util.List;
 import java.util.ListIterator;
 
 class FlashNotificationsController {
-    private static final String LOG_TAG = "FlashNotifController";
-    private static final boolean DEBUG = false;
+    private static final String LOG_TAG = FlashNotificationsController.class.getSimpleName();
+    private static final boolean DEBUG = AccessibilityLogUtil.isDebugEnabled(LOG_TAG);
 
     private static final String WAKE_LOCK_TAG = "a11y:FlashNotificationsController";
 
@@ -382,7 +382,8 @@ class FlashNotificationsController {
             } catch (CameraAccessException e) {
                 Log.e(LOG_TAG, "CameraAccessException", e);
             }
-            mCameraManager.registerTorchCallback(mTorchCallback, null);
+            mCameraManager.registerTorchCallback(mTorchCallback,
+                    Flags.flashNotificationsTorchCallbackHandler() ? mMainHandler : null);
         }
     }
 

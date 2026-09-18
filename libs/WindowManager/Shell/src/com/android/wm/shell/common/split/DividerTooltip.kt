@@ -16,24 +16,19 @@
 package com.android.wm.shell.common.split
 
 import android.content.Context
-import android.graphics.Color
 import android.graphics.Rect
 import android.util.AttributeSet
-import android.util.Log
 import android.widget.FrameLayout
 import androidx.appcompat.widget.AppCompatTextView
+import androidx.core.graphics.toColorInt
 import com.android.wm.shell.R
 import com.android.wm.shell.common.pip.PipUtils.dpToPx
 import com.android.wm.shell.shared.TypefaceUtils
 import com.android.wm.shell.shared.TypefaceUtils.Companion.setTypeface
-import androidx.core.graphics.toColorInt
 
-/**
- * A small tooltip bubble that educates the user about split screen breakpoints.
- */
-class DividerTooltip(context: Context, attrs: AttributeSet?) :
-    AppCompatTextView(context, attrs) {
-    /** The length of the split divider handle, along its long edge, in px.  */
+/** A small tooltip bubble that educates the user about split screen breakpoints. */
+class DividerTooltip(context: Context, attrs: AttributeSet?) : AppCompatTextView(context, attrs) {
+    /** The length of the split divider handle, along its long edge, in px. */
     private val mDividerHandleLengthPx =
         resources.getDimensionPixelSize(R.dimen.split_divider_handle_width)
     private var mIsLeftRightSplit = false
@@ -53,7 +48,7 @@ class DividerTooltip(context: Context, attrs: AttributeSet?) :
         mIsLeftRightSplit = isLeftRightSplit
     }
 
-    /** Converts dp to px.  */
+    /** Converts dp to px. */
     private fun dpToPx(dpValue: Int): Int {
         return dpToPx(dpValue.toFloat(), mContext.resources.displayMetrics)
     }
@@ -66,7 +61,8 @@ class DividerTooltip(context: Context, attrs: AttributeSet?) :
         text: CharSequence,
         start: Int,
         lengthBefore: Int,
-        lengthAfter: Int) {
+        lengthAfter: Int,
+    ) {
         if (layoutParams == null) {
             return
         }
@@ -79,13 +75,17 @@ class DividerTooltip(context: Context, attrs: AttributeSet?) :
         lp.height = textBounds.height() + (dpToPx(TOOLTIP_PADDING_DP) * 2)
         lp.width = textBounds.width() + (dpToPx(TOOLTIP_PADDING_DP) * 2)
         if (mIsLeftRightSplit) {
-            lp.bottomMargin = ((mDividerHandleLengthPx / 2) + (lp.height / 2)
-                    + dpToPx(TOOLTIP_DISTANCE_FROM_HANDLE_DP))
+            lp.bottomMargin =
+                ((mDividerHandleLengthPx / 2) +
+                    (lp.height / 2) +
+                    dpToPx(TOOLTIP_DISTANCE_FROM_HANDLE_DP))
             lp.rightMargin = 0
         } else {
             lp.bottomMargin = 0
-            lp.rightMargin = ((mDividerHandleLengthPx / 2) + (lp.width / 2)
-                    + dpToPx(TOOLTIP_DISTANCE_FROM_HANDLE_DP))
+            lp.rightMargin =
+                ((mDividerHandleLengthPx / 2) +
+                    (lp.width / 2) +
+                    dpToPx(TOOLTIP_DISTANCE_FROM_HANDLE_DP))
         }
 
         layoutParams = lp
@@ -96,10 +96,12 @@ class DividerTooltip(context: Context, attrs: AttributeSet?) :
         private val TOOLTIP_BG_COLOR = "#F5E29D".toColorInt()
         private val TOOLTIP_FONT = TypefaceUtils.FontFamily.GSF_BODY_MEDIUM_EMPHASIZED
 
-        /** The padding between the tooltip's text and its outer border, on all four sides, in dp.  */
+        /**
+         * The padding between the tooltip's text and its outer border, on all four sides, in dp.
+         */
         private const val TOOLTIP_PADDING_DP = 12
 
-        /** The distance between the tooltip's border and the (full-sized) divider handle, in dp.  */
+        /** The distance between the tooltip's border and the (full-sized) divider handle, in dp. */
         private const val TOOLTIP_DISTANCE_FROM_HANDLE_DP = 16
     }
 }

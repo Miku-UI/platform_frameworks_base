@@ -171,7 +171,7 @@ public class ScreenPowerStatsCollector extends PowerStatsCollector {
             }
             mLastTopActivityTime.put(uid, topActivityTimeMs);
 
-            int mappedUid = mUidResolver.mapUid(uid);
+            int mappedUid = mUidResolver.getOwnerUid(uid);
             long[] uidStats = mPowerStats.uidStats.get(mappedUid);
             if (uidStats == null) {
                 uidStats = new long[mLayout.getUidStatsArrayLength()];

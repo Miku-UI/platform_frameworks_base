@@ -19,6 +19,7 @@ package android.os;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.platform.test.annotations.DisabledOnRavenwood;
 import android.provider.Settings;
 import android.service.dreams.DreamService;
 import android.service.dreams.IDreamManager;
@@ -31,6 +32,7 @@ import androidx.test.filters.SmallTest;
  * Tests dream aspects of PowerManager.
  */
 @MediumTest
+@DisabledOnRavenwood(blockedBy = PowerManager.class)
 public class PowerManagerVrTest extends ActivityInstrumentationTestCase2<TestVrActivity> {
     private PowerManager mPm;
     private IDreamManager mDm;

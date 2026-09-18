@@ -76,8 +76,6 @@
     <string name="bubble_accessibility_action_collapse_menu" msgid="2975310870146231463">"restrânge meniul"</string>
     <string name="bubble_accessibility_action_move_bar_left" msgid="4803535120353716759">"Deplasează spre stânga"</string>
     <string name="bubble_accessibility_action_move_bar_right" msgid="7686542531917510421">"Deplasează spre dreapta"</string>
-    <string name="bubble_accessibility_announce_expand" msgid="5388792092888203776">"extinde <xliff:g id="BUBBLE_TITLE">%1$s</xliff:g>"</string>
-    <string name="bubble_accessibility_announce_collapse" msgid="3178806224494537097">"restrânge <xliff:g id="BUBBLE_TITLE">%1$s</xliff:g>"</string>
     <string name="bubbles_app_settings" msgid="3617224938701566416">"Setări <xliff:g id="NOTIFICATION_TITLE">%1$s</xliff:g>"</string>
     <string name="bubble_dismiss_text" msgid="8816558050659478158">"Închide balonul"</string>
     <string name="bubble_fullscreen_text" msgid="1006758103218086231">"Treci la ecran complet"</string>
@@ -88,16 +86,13 @@
     <string name="bubbles_user_education_manage" msgid="3460756219946517198">"Atinge Gestionează pentru a dezactiva baloanele din această aplicație"</string>
     <string name="bubbles_user_education_got_it" msgid="3382046149225428296">"OK"</string>
     <string name="bubble_overflow_empty_title" msgid="2397251267073294968">"Nu există baloane recente"</string>
-    <string name="bubble_overflow_empty_subtitle" msgid="2627417924958633713">"Baloanele recente și baloanele respinse vor apărea aici"</string>
+    <string name="bubble_overflow_empty_subtitle" msgid="2627417924958633713">"Baloanele recente și baloanele închise vor apărea aici"</string>
     <string name="bubble_bar_education_stack_title" msgid="2486903590422497245">"Chat cu baloane"</string>
     <string name="bubble_bar_education_stack_text" msgid="2446934610817409820">"Conversațiile noi apar ca pictograme în colțul de jos al ecranului. Atinge pentru a le extinde sau trage pentru a le închide."</string>
     <string name="bubble_bar_education_manage_title" msgid="6148404487810835924">"Controlează baloanele oricând"</string>
     <string name="bubble_bar_education_manage_text" msgid="3199732148641842038">"Atinge aici pentru a gestiona aplicațiile și conversațiile care pot apărea în balon"</string>
     <string name="notification_bubble_title" msgid="6082910224488253378">"Balon"</string>
     <string name="manage_bubbles_text" msgid="7730624269650594419">"Gestionează"</string>
-    <string name="accessibility_bubble_dismissed" msgid="8367471990421247357">"Balonul a fost respins."</string>
-    <string name="bubble_shortcut_label" msgid="666269077944378311">"Baloane"</string>
-    <string name="bubble_shortcut_long_label" msgid="6088437544312894043">"Afișează Baloane"</string>
     <string name="restart_button_description" msgid="4564728020654658478">"Atinge ca să repornești aplicația pentru o vizualizare mai bună"</string>
     <string name="user_aspect_ratio_settings_button_hint" msgid="734835849600713016">"Schimbă raportul de dimensiuni al aplicației din Setări"</string>
     <string name="user_aspect_ratio_settings_button_description" msgid="4315566801697411684">"Schimbă raportul de dimensiuni"</string>
@@ -121,6 +116,7 @@
     <string name="maximize_button_text" msgid="8106849394538234709">"Maximizează <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="restore_button_text" msgid="5377571986086775288">"Restabilește <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="minimize_button_text" msgid="5213953162664451152">"Minimizează <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
+    <string name="exit_fullscreen_button_text" msgid="7970660979589417830">"Ieși din ecranul complet pentru <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="close_button_text" msgid="4544839489310949894">"Închide <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="back_button_text" msgid="1469718707134137085">"Înapoi"</string>
     <string name="handle_text" msgid="4419667835599523257">"Handle de aplicație"</string>
@@ -137,41 +133,52 @@
     <string name="new_window_text" msgid="6318648868380652280">"Fereastră nouă"</string>
     <string name="manage_windows_text" msgid="5567366688493093920">"Gestionează ferestrele"</string>
     <string name="change_aspect_ratio_text" msgid="9104456064548212806">"Schimbă raportul de dimensiuni"</string>
+    <string name="handle_menu_game_controls_text" msgid="8049059289860078063">"Comenzile jocului"</string>
     <string name="handle_menu_restart_text" msgid="3907767216238298098">"Optimizează afișarea"</string>
     <string name="handle_menu_error_icon_text" msgid="7200375184879808684">"Pictogramă de eroare"</string>
     <string name="close_text" msgid="4986518933445178928">"Închide"</string>
     <string name="collapse_menu_text" msgid="7515008122450342029">"Închide meniul"</string>
-    <string name="desktop_mode_app_header_chip_text" msgid="7617377295944971651">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ferestre pe desktop)"</string>
-    <string name="desktop_mode_maximize_menu_maximize_text" msgid="3275717276171114411">"Maximizează fereastra"</string>
-    <string name="desktop_mode_maximize_menu_snap_text" msgid="5673738963174074006">"Redimensionează"</string>
+    <string name="desktop_mode_header_chip_text" msgid="7171700244998923330">"<xliff:g id="APP_NAME">%1$s</xliff:g> (deschidere de ferestre ca pe desktop)"</string>
+    <string name="desktop_mode_layout_menu_maximize_text" msgid="7086608727256054454">"Maximizează fereastra"</string>
+    <string name="desktop_mode_layout_menu_snap_text" msgid="7558194147987254333">"Redimensionează"</string>
     <string name="desktop_mode_non_resizable_snap_text" msgid="3771776422751387878">"Aplicația nu poate fi mutată aici"</string>
-    <string name="desktop_mode_talkback_state_opening" msgid="8505494249513712682">"Se deschide o fereastră nouă a aplicației"</string>
     <string name="desktop_mode_talkback_state_closing" msgid="6791583518636526904">"Se închide fereastra aplicației"</string>
     <string name="desktop_mode_talkback_state_minimizing" msgid="7406911785134757827">"Se minimizează fereastra aplicației"</string>
     <string name="desktop_mode_talkback_state_focused" msgid="6287982923335568236">"<xliff:g id="APP_NAME">%1$s</xliff:g> (Focalizată)"</string>
     <string name="desktop_mode_talkback_state_not_focused" msgid="4640618691603218929">"<xliff:g id="APP_NAME">%1$s</xliff:g> (Nefocalizată)"</string>
-    <string name="desktop_mode_maximize_menu_immersive_button_text" msgid="559492223133829481">"Captivant"</string>
-    <string name="desktop_mode_maximize_menu_immersive_restore_button_text" msgid="4900114367354709257">"Restabilește"</string>
-    <string name="desktop_mode_maximize_menu_maximize_button_text" msgid="3090199175564175845">"Maximizează"</string>
-    <string name="desktop_mode_maximize_menu_restore_button_text" msgid="4234449220944704387">"Restabilește"</string>
-    <string name="desktop_mode_maximize_menu_snap_left_button_text" msgid="8077452201179893424">"Trage la stânga"</string>
-    <string name="desktop_mode_maximize_menu_snap_right_button_text" msgid="7117751068945657304">"Trage la dreapta"</string>
+    <string name="desktop_mode_layout_menu_immersive_button_text" msgid="9009888844507160172">"Captivant"</string>
+    <string name="desktop_mode_layout_menu_immersive_restore_button_text" msgid="3110073879417912032">"Restabilește"</string>
+    <string name="desktop_mode_layout_menu_maximize_button_text" msgid="5586863071181530250">"Maximizează"</string>
+    <string name="desktop_mode_layout_menu_restore_button_text" msgid="5422006898402949300">"Restabilește"</string>
+    <string name="desktop_mode_layout_menu_snap_left_button_text" msgid="6464364897343872665">"Trage la stânga"</string>
+    <string name="desktop_mode_layout_menu_snap_right_button_text" msgid="565024687319285843">"Trage la dreapta"</string>
     <string name="desktop_mode_a11y_action_snap_left" msgid="2932955411661734668">"Redimensionează fereastra aplicației la stânga"</string>
     <string name="desktop_mode_a11y_action_snap_right" msgid="4577032451624261787">"Redimensionează fereastra aplicației la dreapta"</string>
     <string name="desktop_mode_a11y_action_maximize_restore" msgid="8026037983417986686">"Maximizează sau restabilește dimensiunea ferestrei"</string>
+    <string name="desktop_mode_a11y_action_exit_fullscreen" msgid="1854054435132984004">"Ieși din ecranul complet"</string>
     <string name="app_handle_chip_accessibility_announce" msgid="499881698947450536">"Deschide meniul"</string>
     <string name="app_handle_menu_accessibility_announce" msgid="7928858564852785398">"Introdu <xliff:g id="WINDOWING_MODE">%1$s</xliff:g>"</string>
-    <string name="maximize_menu_talkback_action_snap_left_text" msgid="500309467459084564">"Redimensionează fereastra la stânga"</string>
-    <string name="maximize_menu_talkback_action_snap_right_text" msgid="7010831426654467163">"Redimensionează fereastra la dreapta"</string>
-    <string name="maximize_menu_talkback_action_maximize_restore_text" msgid="4942610897847934859">"Maximizează sau restabilește dimensiunea ferestrei"</string>
+    <string name="layout_menu_talkback_action_snap_left_text" msgid="8141501620544883986">"Redimensionează fereastra la stânga"</string>
+    <string name="layout_menu_talkback_action_snap_right_text" msgid="7819760135716721943">"Redimensionează fereastra la dreapta"</string>
+    <string name="layout_menu_talkback_action_maximize_restore_text" msgid="132471919764977708">"Maximizează dimensiunea ferestrei aplicației"</string>
+    <string name="layout_menu_talkback_action_restore_text" msgid="1791365751744400881">"Restabilește dimensiunea ferestrei"</string>
+    <string name="layout_menu_talkback_action_immersive_enter_text" msgid="1753945477839147586">"Intră în modul extins"</string>
+    <string name="layout_menu_talkback_action_immersive_restore_text" msgid="6913341567930893074">"Restabilește dimensiunea ferestrei"</string>
     <string name="app_header_talkback_action_maximize_button_text" msgid="8776156791095878638">"Maximizează dimensiunea ferestrei aplicației"</string>
     <string name="app_header_talkback_action_restore_button_text" msgid="2153022340772980863">"Restabilește dimensiunea ferestrei"</string>
     <string name="app_header_talkback_action_minimize_button_text" msgid="7491054416186901764">"Minimizează fereastra aplicației"</string>
     <string name="app_header_talkback_action_close_button_text" msgid="5159612596378268926">"Închide fereastra aplicației"</string>
+    <string name="fullscreen_header_talkback_action_exit_fullscreen_button_text" msgid="5271884324741706388">"Ieși din ecranul complet"</string>
     <string name="open_by_default_settings_text" msgid="2526548548598185500">"Setări de deschidere în mod prestabilit"</string>
     <string name="open_by_default_dialog_subheader_text" msgid="1729599730664063881">"Alege modul de deschidere a linkurilor web pentru aplicație"</string>
     <string name="open_by_default_dialog_in_app_text" msgid="6978022419634199806">"În aplicație"</string>
     <string name="open_by_default_dialog_in_browser_text" msgid="8042769465958497081">"În browser"</string>
     <string name="open_by_default_dialog_dismiss_button_text" msgid="3487238795534582291">"OK"</string>
     <string name="desktop_windowing_app_to_web_education_text" msgid="1599668769538703570">"Deschide rapid aplicații în browser aici"</string>
+    <string name="open_by_default_splash_dialog_title_text" msgid="2645214455870859991">"Cum dorești să deschizi linkurile &lt;b&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/b&gt;?"</string>
+    <string name="open_by_default_splash_dialog_checkbox_text" msgid="7367791478473586694">"Doresc să se rețină opțiunea"</string>
+    <string name="open_by_default_splash_dialog_browser_text" msgid="4439951040200685938">"Deschide în browser"</string>
+    <string name="open_by_default_splash_dialog_app_text" msgid="2680408983754147907">"Rămâi în aplicație"</string>
+    <string name="open_by_default_splash_dialog_ask_me_later_text" msgid="2706872945449736432">"Întreabă-mă mai târziu"</string>
+    <string name="package_update_text" msgid="196015273357188152">"Se actualizează…"</string>
 </resources>

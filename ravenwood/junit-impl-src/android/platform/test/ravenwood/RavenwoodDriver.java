@@ -23,39 +23,38 @@ import static com.android.modules.utils.ravenwood.RavenwoodHelper.RavenwoodInter
 import static org.junit.Assert.assertThrows;
 
 import android.annotation.Nullable;
-import android.app.ActivityManager;
-import android.app.AppCompatCallbacks;
+import android.app.ActivityManager_ravenwood;
 import android.app.RavenwoodAppDriver;
 import android.app.UiAutomation_ravenwood;
-import android.content.Context;
-import android.content.pm.ApplicationInfo;
 import android.graphics.Typeface;
 import android.icu.util.ULocale;
 import android.os.Binder;
 import android.os.Build;
 import android.os.HandlerThread;
 import android.os.Looper;
+import android.os.MessageQueue;
 import android.os.Process_ravenwood;
-import android.os.ServiceManager;
-import android.os.ServiceManager.ServiceNotFoundException;
+import android.os.ServiceManager_ravenwood;
 import android.os.SystemProperties;
 import android.provider.DeviceConfig_ravenwood;
 import android.system.ErrnoException;
 import android.system.Os;
+import android.text.Hyphenator;
 import android.util.Log;
 import android.util.Log_ravenwood;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.compat.CompatibilityRules;
 import com.android.internal.os.RuntimeInit;
 import com.android.ravenwood.OpenJdkWorkaround;
 import com.android.ravenwood.RavenwoodRuntimeNative;
 import com.android.ravenwood.common.RavenwoodInternalUtils;
 import com.android.ravenwood.common.SneakyThrow;
 import com.android.server.LocalServices;
-import com.android.server.compat.PlatformCompat;
 
-import org.junit.internal.management.ManagementFactory;
 import org.junit.runner.Description;
+import org.mockito.Mockito;
+import org.mockito.internal.progress.ThreadSafeMockingProgress;
 
 import java.io.File;
 import java.io.IOException;
@@ -71,7 +70,7 @@ import java.util.stream.Collectors;
  * Responsible for initializing and the environment.
  */
 public class RavenwoodDriver {
-    private static final String TAG = RavenwoodInternalUtils.TAG;
+    public static final String TAG = RavenwoodInternalUtils.TAG;
 
     private RavenwoodDriver() {
     }
@@ -171,8 +170,7 @@ public class RavenwoodDriver {
 
         // Parse ravenwood properties and initialize the "environment".
         // This also unlocks the ability to use android.util.Log.
-        var mainThread = new HandlerThread(RavenwoodEnvironment.MAIN_THREAD_NAME);
-        RavenwoodEnvironment.init(mainThread);
+        RavenwoodEnvironment.init();
         Log_ravenwood.setLogLevels(getLogTags());
 
         // Set up global error handling infrastructure
@@ -196,6 +194,12 @@ public class RavenwoodDriver {
 
         Log.i(TAG, "PWD=" + System.getProperty("user.dir"));
         Log.i(TAG, "RuntimePath=" + System.getProperty(RAVENWOOD_RUNTIME_PATH_JAVA_SYSPROP));
+        Log.i(TAG, "RootDir=" + RavenwoodEnvironment.getInstance().getRootDir());
+        Log.i(TAG, "TempDir=" + RavenwoodEnvironment.getInstance().getTempDir());
+        Log.i(TAG, "ArtifactsDir=" + RavenwoodEnvironment.getInstance().getArtifactsDir());
+
+        // Disable the built-in HostRuntime
+        System.setProperty("use_base_native_hostruntime", "false");
 
         // Make sure libravenwood_runtime is loaded.
         System.load(RavenwoodInternalUtils.getJniLibraryPath(RAVENWOOD_NATIVE_RUNTIME_NAME));
@@ -221,6 +225,9 @@ public class RavenwoodDriver {
         // Make sure libandroid_runtime is loaded.
         RavenwoodNativeLoader.loadFrameworkNativeCode();
 
+        // Integrity check.
+        RavenwoodIntegrityChecker.onFrameworkNativeInitialized();
+
         // Start method logging.
         RavenwoodMethodCallLogger.getInstance().enable(sRawStdOut);
 
@@ -233,29 +240,32 @@ public class RavenwoodDriver {
         Typeface.loadPreinstalledSystemFontMap();
         Typeface.loadNativeSystemFonts();
 
+        // Initialize Hyphenator
+        Hyphenator.init();
+
+        // Do it after the framework is initialized.
+        dumpFrameworkInfo();
+
         // This will let AndroidJUnit4 use the original runner.
         System.setProperty("android.junit.runner",
                 "androidx.test.internal.runner.junit4.AndroidJUnit4ClassRunner");
 
         assertMockitoVersion();
 
-        RavenwoodUtils.sPendingExceptionThrower =
-                RavenwoodErrorHandler::maybeThrowPendingRecoverableUncaughtExceptionNoClear;
-
-        ServiceManager.init$ravenwood();
+        ServiceManager_ravenwood.init();
         LocalServices.removeAllServicesForTest();
-        ActivityManager.init$ravenwood(SYSTEM.getIdentifier());
+        ActivityManager_ravenwood.init(SYSTEM.getIdentifier());
 
         // Start the main thread.
+        var mainThread = new HandlerThread(RavenwoodEnvironment.MAIN_THREAD_NAME);
         mainThread.start();
         Looper.setMainLooperForTest(mainThread.getLooper());
 
+        // Initialize compatibility rules.
+        CompatibilityRules.loadSystemRules();
+
         // Start app lifecycle.
         RavenwoodAppDriver.init();
-
-        // TODO(b/428775903) Make sure nothing would try to access compat-IDs before this call.
-        // We may want to do it within initAppDriver().
-        initializeCompatIds();
 
         // `pkill -USR2 -f tradefed-isolation.jar` will interrupt the test thread.
         final Thread testThread = Thread.currentThread();
@@ -278,19 +288,32 @@ public class RavenwoodDriver {
     }
 
     /**
-     * Partially reset and initialize before each test class invocation
+     * Partially reset and reinitialize some global state before each test class invocation
      */
     public static void initForRunner() {
-        // Reset some global state
         UiAutomation_ravenwood.reset();
         Process_ravenwood.reset();
         DeviceConfig_ravenwood.reset();
         Binder.restoreCallingIdentity(
                 RavenwoodEnvironment.getInstance().getDefaultCallingIdentity());
 
-        SystemProperties.clearChangeCallbacksForTest();
+        // The following 2 resets only affect mocks on the test thread. We might need to do
+        // something for other threads, but let's deal with that when actual issues arise.
+        //
+        // In theory these resets are unnecessary (as indicated by ThreadSafeMockingProgress
+        // being in the org.mockito.internal package), however when running tests with
+        // RAVENWOOD_RUN_DISABLED_TESTS=1, Mockito's internal errors may cause itself to be
+        // left in an invalid state, which prevents any subsequent usage of Mockito on the same
+        // thread. These mocking progress resets are the least hacky way to recover from that
+        // situation, albeit still hacky in nature due to the fact that we are poking into
+        // Mockito internal APIs.
+        ThreadSafeMockingProgress.mockingProgress().clearListeners();
+        ThreadSafeMockingProgress.mockingProgress().reset();
 
-        RavenwoodErrorHandler.maybeThrowPendingRecoverableUncaughtExceptionAndClear();
+        // This invalidates all inline mocks globally (NOT thread-local like those above).
+        Mockito.framework().clearInlineMocks();
+
+        SystemProperties.clearChangeCallbacksForTest();
     }
 
     /**
@@ -300,33 +323,6 @@ public class RavenwoodDriver {
         // TODO(b/375272444): this is a hacky workaround to ensure binder identity
         Binder.restoreCallingIdentity(
                 RavenwoodEnvironment.getInstance().getDefaultCallingIdentity());
-    }
-
-    private static void initializeCompatIds() {
-        // Set up compat-IDs for the app side.
-        // TODO: Inside the system server, all the compat-IDs should be enabled,
-        // Due to the `AppCompatCallbacks.install(new long[0], new long[0] ...` call in
-        // SystemServer.
-
-        var env = RavenwoodEnvironment.getInstance();
-
-        // Compat framework only uses the package name and the target SDK level.
-        ApplicationInfo appInfo = new ApplicationInfo();
-        appInfo.packageName = env.getTargetPackageName();
-        appInfo.targetSdkVersion = env.getTargetSdkLevel();
-
-        PlatformCompat platformCompat = null;
-        try {
-            platformCompat = (PlatformCompat) ServiceManager.getServiceOrThrow(
-                    Context.PLATFORM_COMPAT_SERVICE);
-        } catch (ServiceNotFoundException e) {
-            throw new RuntimeException(e);
-        }
-
-        var disabledChanges = platformCompat.getDisabledChanges(appInfo);
-        var loggableChanges = platformCompat.getLoggableChanges(appInfo);
-
-        AppCompatCallbacks.install(disabledChanges, loggableChanges, false);
     }
 
     private static final String MOCKITO_ERROR = "FATAL: Unsupported Mockito detected!"
@@ -354,13 +350,7 @@ public class RavenwoodDriver {
     private static void dumpCommandLineArgs() {
         Log.i(TAG, "JVM arguments:");
 
-        // Note, we use the wrapper in JUnit4, not the actual class (
-        // java.lang.management.ManagementFactory), because we can't see the later at the build
-        // because this source file is compiled for the device target, where ManagementFactory
-        // doesn't exist.
-        var args = ManagementFactory.getRuntimeMXBean().getInputArguments();
-
-        for (var arg : args) {
+        for (var arg : RavenwoodImplUtils.getJvmArguments()) {
             Log.i(TAG, "  " + arg);
         }
     }
@@ -388,7 +378,9 @@ public class RavenwoodDriver {
                         Map.Entry::getKey,
 
                         // Hide the values as needed.
-                        entry -> sSecretEnvPattern.matcher(entry.getKey()).find()
+                        entry ->
+                                (!entry.getKey().startsWith("RAVENWOOD_")
+                                && sSecretEnvPattern.matcher(entry.getKey()).find())
                                 ? "[redacted]" : entry.getValue(),
                         (oldValue, newValue) -> newValue,
                         HashMap::new
@@ -413,5 +405,9 @@ public class RavenwoodDriver {
 
         var itz = android.icu.util.TimeZone.getDefault();
         Log.i(TAG, "  android.icu.util.TimeZone="  + itz.getDisplayName() + " / " + itz);
+    }
+
+    private static void dumpFrameworkInfo() {
+        Log.i(TAG, "MessageQueue implementation=" + MessageQueue.getImplName());
     }
 }

@@ -23,13 +23,16 @@
     304,
     320,
     336,
+    352,
+    368,
     "after"
   ],
   "features": [
     {
-      "name": "bounceScale_bounceScale",
+      "name": "bounceScale",
       "type": "float",
       "data_points": [
+        1,
         1,
         1,
         1,
@@ -53,6 +56,7 @@
         1.0017592,
         1.0007079,
         1.0001465,
+        1,
         1
       ]
     }

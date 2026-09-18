@@ -22,6 +22,7 @@ import static junit.framework.Assert.fail;
 
 import android.Manifest;
 import android.content.Context;
+import android.media.AudioFormat;
 import android.os.Binder;
 import android.os.CombinedVibration;
 import android.os.IVibratorManagerService;
@@ -31,6 +32,9 @@ import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
+import android.os.vibrator.HapticGeneratorSession;
+import android.os.vibrator.IHapticGeneratorSession;
+import android.os.vibrator.IHapticGeneratorSessionCallback;
 import android.platform.test.annotations.Presubmit;
 
 import org.junit.After;
@@ -172,6 +176,31 @@ public class VibratorManagerServicePermissionTest {
         expectSecurityException("VIBRATE");
         mVibratorService.startVendorVibrationSession(Process.myUid(), DEVICE_ID, PACKAGE_NAME,
                 new int[] { 1 }, ATTRS, "testVibrate", null);
+    }
+
+    @Test
+    public void testStartHapticGeneratorSessionWithoutUserVibratorHapticGeneratorFails()
+            throws Exception {
+        expectSecurityException("USE_VIBRATOR_HAPTIC_GENERATOR");
+        AudioFormat audioFormat = new AudioFormat.Builder()
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setSampleRate(48000)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_HAPTIC_A)
+                .build();
+        HapticGeneratorSession.Config config = new HapticGeneratorSession.Config(audioFormat, null);
+        IHapticGeneratorSessionCallback callback = new IHapticGeneratorSessionCallback.Stub() {
+            @Override
+            public void onSessionStarted(IHapticGeneratorSession session)
+                    throws RemoteException {
+                // no-op
+            }
+
+            @Override
+            public void onError(int errorCode) throws RemoteException {
+                // no-op
+            }
+        };
+        mVibratorService.startHapticGeneratorSession(1, config, callback);
     }
 
     @Test

@@ -17,6 +17,6 @@
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval" >
     <size android:height="40dp" android:width="40dp" />
-    <solid android:color="@*android:color/surface_effect_1" />
+    <solid android:color="@*android:color/customColorSurfaceEffect1" />
     <corners android:radius="20dp" />
 </shape>

@@ -19,7 +19,6 @@ package com.android.systemui.deviceentry.ui.binder
 import android.content.packageManager
 import com.android.keyguard.keyguardUpdateMonitor
 import com.android.systemui.bouncer.domain.interactor.alternateBouncerInteractor
-import com.android.systemui.bouncer.domain.interactor.primaryBouncerInteractor
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryFaceAuthInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.kosmos.Kosmos
@@ -35,7 +34,6 @@ val Kosmos.liftToRunFaceAuthBinder by
             asyncSensorManager = asyncSensorManager,
             keyguardUpdateMonitor = keyguardUpdateMonitor,
             keyguardInteractor = keyguardInteractor,
-            primaryBouncerInteractor = primaryBouncerInteractor,
             alternateBouncerInteractor = alternateBouncerInteractor,
             deviceEntryFaceAuthInteractor = deviceEntryFaceAuthInteractor,
             powerInteractor = powerInteractor,

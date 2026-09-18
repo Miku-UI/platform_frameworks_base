@@ -16,11 +16,7 @@
 
 package com.android.server.wm;
 
-
-import static android.internal.perfetto.protos.Windowmanagerservice.IdentifierProto.HASH_CODE;
-import static android.internal.perfetto.protos.Windowmanagerservice.IdentifierProto.TITLE;
-import static android.internal.perfetto.protos.Windowmanagerservice.WindowStateProto.IDENTIFIER;
-
+import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_BACK_PREVIEW;
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_EMBEDDED_WINDOWS;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WITH_CLASS_NAME;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WM;
@@ -31,12 +27,12 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.ArrayMap;
 import android.util.Slog;
-import android.util.proto.ProtoOutputStream;
 import android.view.InputApplicationHandle;
 import android.view.InputChannel;
 import android.view.WindowInsets;
 import android.view.WindowInsets.Type.InsetsType;
 import android.window.InputTransferToken;
+import android.window.OnBackInvokedCallbackInfo;
 
 import com.android.internal.protolog.ProtoLog;
 import com.android.server.input.InputManagerService;
@@ -150,18 +146,28 @@ class EmbeddedWindowController {
         return mWindowsByWindowToken.get(windowToken);
     }
 
-    @Nullable ArrayList<EmbeddedWindow> getByHostWindow(WindowState host) {
-        ArrayList<EmbeddedWindow> windows = null;
+    @Nullable ArrayList<EmbeddedWindow> getPotentialFocusHostWindow(WindowState host) {
+        ArrayList<EmbeddedWindow> potentialWindows = null;
+        ArrayList<EmbeddedWindow> hostWindows = null;
         for (int i = mWindows.size() - 1; i >= 0; i--) {
             final EmbeddedWindow ew = mWindows.valueAt(i);
-            if (ew.mHostWindowState == host) {
-                if (windows == null) {
-                    windows = new ArrayList<>();
+            if (ew.mPotentialHostWhileFocused == host) {
+                if (potentialWindows == null) {
+                    potentialWindows = new ArrayList<>();
                 }
-                windows.add(ew);
+                potentialWindows.add(ew);
+            }
+            if (ew.mHostWindowState == host) {
+                if (hostWindows == null) {
+                    hostWindows = new ArrayList<>();
+                }
+                hostWindows.add(ew);
             }
         }
-        return windows;
+        if (potentialWindows != null) {
+            return potentialWindows;
+        }
+        return hostWindows;
     }
 
     private boolean isValidTouchGestureParams(WindowState hostWindowState,
@@ -242,6 +248,12 @@ class EmbeddedWindowController {
     static class EmbeddedWindow implements InputTarget {
         final IBinder mClient;
         @Nullable WindowState mHostWindowState;
+        // The system needs to track a host when an embedded window gains focus because an SCVH,
+        // unlike a normal host window, can request input focus without being directly connected to
+        // a visible window hierarchy. Therefore, the system assumes the currently focused host
+        // window is the potential host window for the SCVH to handle input-related events like
+        // onBackInvoked.
+        @Nullable WindowState mPotentialHostWhileFocused;
         @Nullable ActivityRecord mHostActivityRecord;
         String mName;
         final String mInputHandleName;
@@ -250,7 +262,7 @@ class EmbeddedWindowController {
         final WindowManagerService mWmService;
         final int mDisplayId;
         public Session mSession;
-        InputChannel mInputChannel;
+        IBinder mInputChannelToken;
         final int mWindowType;
 
         /**
@@ -268,6 +280,10 @@ class EmbeddedWindowController {
 
         /** Whether the gesture is transferred to embedded window. */
         boolean mGestureToEmbedded = false;
+        /**
+         * @see #setOnBackInvokedCallbackInfo(OnBackInvokedCallbackInfo)
+         */
+        private OnBackInvokedCallbackInfo mOnBackInvokedCallbackInfo;
 
         /**
          * @param session  calling session to check ownership of the window
@@ -312,17 +328,17 @@ class EmbeddedWindowController {
                     mHostWindowState.mInputWindowHandle.getInputApplicationHandle());
         }
 
-        void openInputChannel(@NonNull InputChannel outInputChannel) {
+        InputChannel openInputChannel() {
             final String name = toString();
-            mInputChannel = mWmService.mInputManager.createInputChannel(name);
-            mInputChannel.copyTo(outInputChannel);
+            InputChannel channel = mWmService.mInputManager.createInputChannel(name);
+            mInputChannelToken = channel.getToken();
+            return channel;
         }
 
         void onRemoved() {
-            if (mInputChannel != null) {
-                mWmService.mInputManager.removeInputChannel(mInputChannel.getToken());
-                mInputChannel.dispose();
-                mInputChannel = null;
+            if (mInputChannelToken != null) {
+                mWmService.mInputManager.removeInputChannel(mInputChannelToken);
+                mInputChannelToken = null;
             }
             if (mHostActivityRecord != null) {
                 final WindowProcessController wpc =
@@ -392,10 +408,7 @@ class EmbeddedWindowController {
         }
 
         IBinder getInputChannelToken() {
-            if (mInputChannel != null) {
-                return mInputChannel.getToken();
-            }
-            return null;
+            return mInputChannelToken;
         }
 
         void setIsFocusable(boolean isFocusable) {
@@ -412,7 +425,7 @@ class EmbeddedWindowController {
         }
 
         private void handleTap(boolean grantFocus) {
-            if (mInputChannel != null) {
+            if (mInputChannelToken != null) {
                 if (mHostWindowState != null) {
                     // Use null session since this is being granted by system server and doesn't
                     // require the host session to be passed in
@@ -470,18 +483,6 @@ class EmbeddedWindowController {
             return mHostActivityRecord;
         }
 
-        @Override
-        public void dumpProto(ProtoOutputStream proto, long fieldId,
-                              @WindowTracingLogLevel int logLevel) {
-            final long token = proto.start(fieldId);
-
-            final long token2 = proto.start(IDENTIFIER);
-            proto.write(HASH_CODE, System.identityHashCode(this));
-            proto.write(TITLE, "EmbeddedWindow");
-            proto.end(token2);
-            proto.end(token);
-        }
-
         public void updateHost(WindowState hostWindowState) {
             if (mHostWindowState == hostWindowState && mName != null) {
                 return;
@@ -496,6 +497,33 @@ class EmbeddedWindowController {
                     (mHostWindowState != null) ? "-" + mHostWindowState.getWindowTag().toString()
                             : "";
             mName = "Embedded{" + mInputHandleName + hostWindowName + "}";
+        }
+
+        void updatePotentialHostWhileFocus(WindowState hostWindowState) {
+            if (mPotentialHostWhileFocused == hostWindowState) {
+                return;
+            }
+
+            ProtoLog.d(WM_DEBUG_EMBEDDED_WINDOWS, "[%s] Updated potential host window "
+                            + "from %s to %s", this, mPotentialHostWhileFocused, hostWindowState);
+            mPotentialHostWhileFocused = hostWindowState;
+        }
+
+        /**
+         * Used by {@link android.window.WindowOnBackInvokedDispatcher} to set the callback to be
+         * called when a back navigation action is initiated.
+         * @see BackNavigationController
+         */
+        void setOnBackInvokedCallbackInfo(
+                @Nullable OnBackInvokedCallbackInfo callbackInfo) {
+            ProtoLog.d(WM_DEBUG_BACK_PREVIEW, "%s: Setting back callback %s",
+                    this, callbackInfo);
+            mOnBackInvokedCallbackInfo = callbackInfo;
+        }
+
+        @Nullable
+        OnBackInvokedCallbackInfo getOnBackInvokedCallbackInfo() {
+            return mOnBackInvokedCallbackInfo;
         }
     }
 }

@@ -56,6 +56,14 @@ public final class TvTrackInfo implements Parcelable {
     public static final int TYPE_SUBTITLE = 2;
 
     /**
+     * Default audio track id. This should be used for direct tuning or fallback when metadata is
+     * corrupted.
+     *
+     * @hide
+     */
+    public static final String DEFAULT_AUDIO_TRACK_ID = "default_audio_track_id";
+
+    /**
      * The component tag identifies a component carried by a MPEG-2 TS.
      *
      * This corresponds to the component_tag in the component descriptor in the
@@ -75,6 +83,86 @@ public final class TvTrackInfo implements Parcelable {
      * @hide
      */
     public static final String EXTRA_BUNDLE_KEY_PID = "pid";
+
+    /**
+     * Key for the type of current analog audio track mode.
+     * Expected value: Int, to indicate the type, such as mono, stereo, etc.
+     *
+     * @hide
+     */
+    public static final String EXTRA_BUNDLE_KEY_AUDIO_ANALOG_AUDIO_MODE = "analog_audio_mode";
+
+    /**
+     * Key for the audio track's AC-4 Audio Preselection Descriptor (APD) String.
+     * Expected value: String, extracted from the broadcast stream, such as eng-French commentary;
+     * if the value is null, the audio track is not a AC-4 track.
+     *
+     * @hide
+     */
+    public static final String EXTRA_BUNDLE_KEY_AUDIO_AC4_APD_TYPE = "extra_audio_ac4_apd_type";
+
+    /**
+     * Key for the audio track type specifically for the visual or hearing impaired.
+     * The value associated with this key is an {@code int} that follows the
+     * {@code audio_type} definition found in the <b>ISO/IEC 13818-1</b>
+     * ISO_639_language_descriptor.
+     * </p>
+     * <ul>
+     * <li>{@code 0x00}: Undefined (Main audio)</li>
+     * <li>{@code 0x01}: Clean effects (No dialogue)</li>
+     * <li>{@code 0x02}: Visual impaired (Audio Description)</li>
+     * <li>{@code 0x03}: Hearing impaired (Enhanced dialogue/cues)</li>
+     * </ul>
+     *
+     * @hide
+     */
+    public static final String EXTRA_BUNDLE_KEY_AUDIO_TYPE =
+            "extra_audio_type";
+
+    /**
+     * Key for the audio mix type specifically for accessibility tracks.
+     * <p>
+     * The value associated with this key is an {@code int} indicating whether the
+     * supplementary audio stream is intended to be mixed with the main audio or
+     * played as a standalone broadcast mix, as defined in <b>ETSI EN 300 468</b>.
+     * </p>
+     * <ul>
+     * <li>{@code 0}: Supplementary (Receiver should mix with main audio)</li>
+     * <li>{@code 1}: Independent (Standalone stream; replaces main audio)</li>
+     * </ul>
+     * @hide
+     */
+    public static final String EXTRA_BUNDLE_KEY_AUDIO_MIX_TYPE =
+            "extra_audio_mix_type";
+
+    /**
+     * Key for the audio editorial classification for accessibility tracks.
+     * <p>
+     * The value associated with this key is an {@code int} that defines the editorial
+     * class of the content, following the <b>Supplementary Audio Descriptor</b>
+     * (ETSI EN 300 468). This provides granular context for Assistive Services.
+     * </p>
+     * <ul>
+     * <li>{@code 0x00}: Main audio</li>
+     * <li>{@code 0x01}: Audio Description (AD) for the visually impaired</li>
+     * <li>{@code 0x02}: Clean Audio (Dialogue enhancement)</li>
+     * <li>{@code 0x03}: Spoken Subtitles (TTS of on-screen text)</li>
+     * </ul>
+     *
+     * @hide
+     */
+    public static final String EXTRA_BUNDLE_KEY_AUDIO_EDITORIAL_CLASS =
+            "extra_audio_editorial_class";
+
+    /**
+     * Key for the High Dynamic Range (HDR) format of the video track.
+     * Expected value: {@link android.media.quality.MediaQualityContract.StreamStatusValue}
+     * Note: This is a temporary solution before Media Quality framework could support per stream
+     * picture quality.
+     *
+     * @hide
+     */
+    public static final String EXTRA_BUNDLE_KEY_VIDEO_HDR_TYPE = "video_hdr_type";
 
     private final int mType;
     private final String mId;

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<security-patches xmlns="http://schemas.android.com/security/patches/1.0">
+    <patch>
+        <id>CVE-2026-09876</id>
+    </patch>
+</security-patches>

@@ -29,6 +29,7 @@ import android.os.Trace;
 import android.util.ArrayMap;
 import android.view.SurfaceControl;
 import android.view.SurfaceControl.Transaction;
+import android.window.TransitionInfo;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
@@ -40,10 +41,12 @@ import com.android.wm.shell.common.DisplayLayout;
 import com.android.wm.shell.common.MultiDisplayDragMoveBoundsCalculator;
 import com.android.wm.shell.common.pip.PipBoundsAlgorithm;
 import com.android.wm.shell.common.pip.PipBoundsState;
+import com.android.wm.shell.common.pip.PipDesktopState;
 import com.android.wm.shell.common.pip.PipDisplayLayoutState;
 import com.android.wm.shell.pip2.PipSurfaceTransactionHelper;
 import com.android.wm.shell.pip2.animation.PipResizeAnimator;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
+import com.android.wm.shell.shared.TransitionUtil;
 
 /**
  * Handler for moving PiP window to another display when the device is connected to external
@@ -67,8 +70,10 @@ public class PipDisplayTransferHandler implements
     private final Context mContext;
     private final PipDisplayLayoutState mPipDisplayLayoutState;
     private final PipBoundsAlgorithm mPipBoundsAlgorithm;
+    private final PipDesktopState mPipDesktopState;
 
     @VisibleForTesting boolean mWaitingForDisplayTransfer;
+    @VisibleForTesting boolean mPipRemovedMidDisplayTransfer = false;
     @VisibleForTesting
     ArrayMap<Integer, SurfaceControl> mOnDragMirrorPerDisplayId = new ArrayMap<>();
     @VisibleForTesting int mTargetDisplayId;
@@ -78,7 +83,8 @@ public class PipDisplayTransferHandler implements
             PipScheduler pipScheduler, RootTaskDisplayAreaOrganizer rootTaskDisplayAreaOrganizer,
             PipBoundsState pipBoundsState, DisplayController displayController,
             PipDisplayLayoutState pipDisplayLayoutState, PipBoundsAlgorithm pipBoundsAlgorithm,
-            PipSurfaceTransactionHelper pipSurfaceTransactionHelper) {
+            PipSurfaceTransactionHelper pipSurfaceTransactionHelper,
+            PipDesktopState pipDesktopState) {
         mContext = context;
         mPipTransitionState = pipTransitionState;
         mPipTransitionState.addPipTransitionStateChangedListener(this);
@@ -91,10 +97,18 @@ public class PipDisplayTransferHandler implements
         mDisplayController = displayController;
         mPipDisplayLayoutState = pipDisplayLayoutState;
         mPipBoundsAlgorithm = pipBoundsAlgorithm;
+        mPipDesktopState = pipDesktopState;
         mPipResizeAnimatorSupplier = PipResizeAnimator::new;
     }
 
-    void scheduleMovePipToDisplay(int originDisplayId, int targetDisplayId,
+    /**
+     * Starts a transition to move pip from one display to another.
+     *
+     * @param originDisplayId the starting display of the pip task
+     * @param targetDisplayId the destination display of the pip task
+     * @param boundsOnRelease the bounds pip should take in the new display
+     */
+    public void scheduleMovePipToDisplay(int originDisplayId, int targetDisplayId,
             Rect boundsOnRelease) {
         ProtoLog.v(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                 "%s scheduleMovePipToDisplay from=%d to=%d", TAG, originDisplayId, targetDisplayId);
@@ -123,8 +137,8 @@ public class PipDisplayTransferHandler implements
     }
 
     /**
-     * Restricts {@param bounds} to the allowed min/max size constraints and snaps bounds to the
-     * correct edge based on the snap fraction.
+     * Restricts {@code bounds} to the allowed min/max size constraints, and, if PiP is not
+     * allowed to free-float, snaps bounds to the correct edge based on the snap fraction.
      */
     private void snapBoundsWithinMinMaxSize(Rect bounds) {
         final float snapFraction = mPipBoundsAlgorithm.getSnapAlgorithm().getSnapFraction(
@@ -145,13 +159,16 @@ public class PipDisplayTransferHandler implements
             newHeight = maxSize.y;
         }
 
-        bounds.set(0, 0, newWidth, newHeight);
-
-        mPipBoundsAlgorithm.getSnapAlgorithm().applySnapFraction(bounds,
-                mPipBoundsAlgorithm.getMovementBounds(bounds), snapFraction,
-                mPipBoundsState.getStashedState(), mPipBoundsState.getStashOffset(),
-                mPipDisplayLayoutState.getDisplayBounds(),
-                mPipDisplayLayoutState.getDisplayLayout().stableInsets());
+        if (mPipDesktopState.isFreeFloatingPipEnabled()) {
+            bounds.set(bounds.left, bounds.top, bounds.left + newWidth, bounds.top + newHeight);
+        } else {
+            bounds.set(0, 0, newWidth, newHeight);
+            mPipBoundsAlgorithm.getSnapAlgorithm().applySnapFraction(bounds,
+                    mPipBoundsAlgorithm.getMovementBounds(bounds), snapFraction,
+                    mPipBoundsState.getStashedState(), mPipBoundsState.getStashOffset(),
+                    mPipDisplayLayoutState.getDisplayBounds(),
+                    mPipDisplayLayoutState.getDisplayLayout().stableInsets());
+        }
     }
 
     @Override
@@ -215,6 +232,24 @@ public class PipDisplayTransferHandler implements
                         duration, 0);
 
                 animator.setAnimationEndCallback(() -> {
+                    // If a request came in to remove PiP mid-display-transfer, reset all states
+                    // and finish the transition
+                    if (mPipRemovedMidDisplayTransfer) {
+                        ProtoLog.w(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
+                                "%s Request to remove PiP received in the middle of PiP "
+                                        + "display change to id=%d, finishing the transition and "
+                                        + "resetting states",
+                                TAG,
+                                mTargetDisplayId);
+                        // Pass in the previous cached bounds in PipBoundsState here to force a
+                        // no-op in PipScheduler#onFinishingPipBoundsChange
+                        mPipScheduler.scheduleFinishPipBoundsChange(mPipBoundsState.getBounds());
+                        mPipBoundsState.setHasUserResizedPip(false);
+                        mWaitingForDisplayTransfer = false;
+                        mPipRemovedMidDisplayTransfer = false;
+                        return;
+                    }
+
                     ProtoLog.v(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                             "%s Finished animating PiP display change to=%d", TAG,
                             mTargetDisplayId);
@@ -232,6 +267,23 @@ public class PipDisplayTransferHandler implements
                 removeMirrors();
                 break;
         }
+    }
+
+    /** Returns whether PiP is removed in the middle of a display transfer for PiP. */
+    public boolean isPipRemovedMidDisplayTransfer(TransitionInfo info) {
+        if (TransitionUtil.isClosingType(info.getType())
+                && mWaitingForDisplayTransfer && mPipTransitionState.getPipTaskInfo() != null) {
+            final int pipTaskId = mPipTransitionState.getPipTaskInfo().taskId;
+            for (TransitionInfo.Change change : info.getChanges()) {
+                if (change.getTaskInfo() != null
+                        && change.getTaskInfo().taskId == pipTaskId
+                        && TransitionUtil.isClosingMode(change.getMode())) {
+                    mPipRemovedMidDisplayTransfer = true;
+                    break;
+                }
+            }
+        }
+        return mPipRemovedMidDisplayTransfer;
     }
 
     /**

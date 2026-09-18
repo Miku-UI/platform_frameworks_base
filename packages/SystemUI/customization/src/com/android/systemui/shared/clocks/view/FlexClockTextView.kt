@@ -16,23 +16,20 @@
 
 package com.android.systemui.shared.clocks.view
 
-import android.util.AttributeSet
+import android.annotation.SuppressLint
 import com.android.systemui.animation.AxisDefinition
 import com.android.systemui.animation.GSFAxes
-import com.android.systemui.customization.clocks.ClockContext
-import com.android.systemui.customization.clocks.utils.FontUtils.set
 import com.android.systemui.customization.clocks.view.DigitalClockTextView
-import com.android.systemui.customization.clocks.view.DigitalClockTextView.FontVariations
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockAxisStyle
 import com.android.systemui.shared.clocks.FLEX_CLOCK_ID
+import com.android.systemui.shared.clocks.FlexClockContext
 
-class FlexClockTextView(
-    clockCtx: ClockContext,
-    isLargeClock: Boolean,
-    attrs: AttributeSet? = null,
-) : DigitalClockTextView(clockCtx, isLargeClock, attrs) {
-    private val isLegacyFlex: Boolean
-        get() = clockCtx.settings.clockId == FLEX_CLOCK_ID
+@SuppressLint("ViewConstructor")
+class FlexClockTextView(clockCtx: FlexClockContext, private val isLargeClock: Boolean) :
+    DigitalClockTextView(clockCtx) {
+    private val isLegacyFlex: Boolean = clockCtx.settings.clockId == FLEX_CLOCK_ID
+    override val typefaceCache = clockCtx.typefaceCache.getVariantCache(Unit)
+    override var fontVariations: FontVariations
 
     private val fixedAodAxes: ClockAxisStyle
         get() {
@@ -43,13 +40,13 @@ class FlexClockTextView(
             }
         }
 
-    override fun initializeFontVariations(): FontVariations {
+    init {
         val roundAxis = if (!isLegacyFlex) ROUND_AXIS else FLEX_ROUND_AXIS
         val lsFontAxes =
             if (!isLegacyFlex) fromAxes(LS_WEIGHT_AXIS, WIDTH_AXIS, ROUND_AXIS, SLANT_AXIS)
             else fromAxes(FLEX_LS_WEIGHT_AXIS, FLEX_LS_WIDTH_AXIS, FLEX_ROUND_AXIS, SLANT_AXIS)
         val aodAxes = fixedAodAxes.copyWith(fromAxes(roundAxis, SLANT_AXIS))
-        return buildFontVariations(lsFontAxes, aodAxes)
+        fontVariations = buildFontVariations(lsFontAxes, aodAxes)
     }
 
     override fun updateFontVariations(lsAxes: ClockAxisStyle): FontVariations {
@@ -86,7 +83,7 @@ class FlexClockTextView(
         private val FLEX_ROUND_AXIS = GSFAxes.ROUND to 100f
 
         private fun fromAxes(vararg axes: Pair<AxisDefinition, Float>): ClockAxisStyle {
-            return ClockAxisStyle(axes.map { (def, value) -> def.tag to value }.toMap())
+            return ClockAxisStyle(axes.associate { (def, value) -> def.tag to value })
         }
     }
 }

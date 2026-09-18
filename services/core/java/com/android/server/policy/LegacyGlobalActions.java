@@ -547,7 +547,7 @@ class LegacyGlobalActions implements DialogInterface.OnDismissListener, DialogIn
             List<UserInfo> users = um.getUsers();
             UserInfo currentUser = getCurrentUser();
             for (final UserInfo user : users) {
-                if (user.supportsSwitchToByUser()) {
+                if (user.isUiSwitchableHumanUser()) {
                     boolean isCurrentUser = currentUser == null
                             ? user.id == 0 : (currentUser.id == user.id);
                     Drawable icon = user.iconPath != null ? Drawable.createFromPath(user.iconPath)

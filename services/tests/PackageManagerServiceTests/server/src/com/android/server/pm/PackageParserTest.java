@@ -21,6 +21,7 @@ import static android.content.UriRelativeFilter.FRAGMENT;
 import static android.content.UriRelativeFilterGroup.ACTION_ALLOW;
 import static android.content.UriRelativeFilterGroup.ACTION_BLOCK;
 import static android.content.pm.ApplicationInfo.PRIVATE_FLAG_EXT_ALLOWLISTED_FOR_HIDDEN_APIS;
+import static android.content.pm.PermissionInfo.NO_TARGET_SDK_VERSION;
 import static android.os.PatternMatcher.PATTERN_ADVANCED_GLOB;
 import static android.os.PatternMatcher.PATTERN_LITERAL;
 import static android.os.PatternMatcher.PATTERN_PREFIX;
@@ -59,8 +60,10 @@ import android.content.pm.FeatureInfo;
 import android.content.pm.Flags;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager.Property;
+import android.content.pm.ProviderInfo;
 import android.content.pm.ServiceInfo;
 import android.content.pm.Signature;
+import android.content.pm.SignedPackage;
 import android.content.pm.SigningDetails;
 import android.os.Bundle;
 import android.os.Parcel;
@@ -68,6 +71,7 @@ import android.os.Parcelable;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
@@ -85,8 +89,10 @@ import com.android.internal.pm.parsing.PackageParserException;
 import com.android.internal.pm.parsing.pkg.PackageImpl;
 import com.android.internal.pm.parsing.pkg.ParsedPackage;
 import com.android.internal.pm.permission.CompatibilityPermissionInfo;
+import com.android.internal.pm.pkg.component.AconfigFlags;
 import com.android.internal.pm.pkg.component.ParsedActivity;
 import com.android.internal.pm.pkg.component.ParsedActivityImpl;
+import com.android.internal.pm.pkg.component.ParsedAllowComponentAccessPolicy;
 import com.android.internal.pm.pkg.component.ParsedApexSystemService;
 import com.android.internal.pm.pkg.component.ParsedComponent;
 import com.android.internal.pm.pkg.component.ParsedInstrumentation;
@@ -105,8 +111,8 @@ import com.android.internal.pm.pkg.component.ParsedServiceImpl;
 import com.android.internal.pm.pkg.component.ParsedUsesPermission;
 import com.android.internal.pm.pkg.component.ParsedUsesPermissionImpl;
 import com.android.internal.pm.pkg.parsing.ParsingPackage;
-import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
 import com.android.internal.util.ArrayUtils;
+import com.android.internal.util.HexDump;
 import com.android.server.pm.parsing.PackageCacher;
 import com.android.server.pm.parsing.PackageInfoUtils;
 import com.android.server.pm.parsing.PackageParserUtils;
@@ -168,7 +174,30 @@ public class PackageParserTest {
     private static final String TEST_APP8_APK = "PackageParserTestApp8.apk";
     private static final String TEST_APP9_APK = "PackageParserTestApp9.apk";
     private static final String TEST_APP10_APK = "PackageParserTestApp10.apk";
+    private static final String TEST_APP_PCC_APK = "PackageParserTestPcc.apk";
+    private static final String TEST_APP_PCC_AND_ISOLATED_SERVICE_APK =
+            "PackageParserTestPccAndIsolatedService.apk";
+    private static final String TEST_APP_ALLOW_ACCESS_APK =
+            "PackageParserTestAllowComponentAccess.apk";
+    private static final String TEST_APP_ALLOW_ACCESS_MULTI_CERT_APK =
+            "PackageParserAppAllowComponentAccessMultiCert.apk";
+    private static final String TEST_APP_BACKUP_AGENT_PROCESS_PCC_APK =
+            "PackageParserTestBackupAgentProcessPcc.apk";
+    private static final String TEST_APP_BACKUP_AGENT_PROCESS_PCC_NO_PCC_COMPONENTS_APK =
+            "PackageParserTestBackupAgentProcessPccNoPccComponents.apk";
+    private static final String TEST_APP_BACKUP_AGENT_PROCESS_MAIN_APK =
+            "PackageParserTestBackupAgentProcessMain.apk";
+    private static final String TEST_APP_BACKUP_AGENT_PROCESS_NOT_SPECIFIED_APK =
+            "PackageParserTestBackupAgentProcessNotSpecified.apk";
     private static final String PACKAGE_NAME = "com.android.servicestests.apps.packageparserapp";
+
+    private static final String DUMMY_CERT_PRIMARY =
+            "635e6f8c317c93f40d97ff40af0baccd32fd60f1abde2caf1b9c1f972195703b";
+    private static final String DUMMY_CERT_ADDITIONAL_1 =
+            "aabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabbaabb";
+    private static final String DUMMY_CERT_ADDITIONAL_2 =
+            "ccddccddccddccddccddccddccddccddccddccddccddccddccddccddccddccdd";
+
 
     @Before
     public void setUp() throws IOException {
@@ -861,7 +890,7 @@ public class PackageParserTest {
             flagValues.put("my.flag2", false);
             flagValues.put("my.flag3", false);
             flagValues.put("my.flag4", true);
-            ParsingPackageUtils.getAconfigFlags().addFlagValuesForTesting(flagValues);
+            AconfigFlags.getInstance().addFlagValuesForTesting(flagValues);
 
             // The manifest has:
             //    <permission android:name="PERM1" android:featureFlag="my.flag1 " />
@@ -899,7 +928,7 @@ public class PackageParserTest {
             flagValues.put("my.flag2", false);
             flagValues.put("my.flag3", false);
             flagValues.put("my.flag4", true);
-            ParsingPackageUtils.getAconfigFlags().addFlagValuesForTesting(flagValues);
+            AconfigFlags.getInstance().addFlagValuesForTesting(flagValues);
 
             // The manifest has:
             //    <permission android:name="PERM1" android:featureFlag="my.flag1 " />
@@ -954,6 +983,414 @@ public class PackageParserTest {
             assertFalse("killAfterRestore", pkg.isKillAfterRestoreAllowed());
             assertTrue("fullBackupOnly", pkg.isFullBackupOnly());
             assertTrue("backupInForeground", pkg.isBackupInForeground());
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testParsePrivateComputeComponents_FlagEnabled() throws Exception {
+        final File testFile = extractFile(TEST_APP_PCC_APK);
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+
+            // Check HAS_PCC_COMPONENTS flag
+            assertTrue(pkg.hasPccComponents());
+
+            // Check activities
+            final List<ParsedActivity> activities = pkg.getActivities();
+            assertThat(activities.stream().map(ParsedActivity::getName).collect(toList()))
+                    .containsAtLeast(
+                            PACKAGE_NAME + ".PccActivity",
+                            PACKAGE_NAME + ".PccActivityAlias",
+                            PACKAGE_NAME + ".PccActivityAliasToNormal",
+                            PACKAGE_NAME + ".MyActivity",
+                            PACKAGE_NAME + ".MyActivityAliasToPcc",
+                            PACKAGE_NAME + ".MyActivityExplicitlyNotPcc",
+                            PACKAGE_NAME + ".MyActivityAliasExplicitlyNotPcc",
+                            "android.app.AppDetailsActivity");
+
+            for (ParsedActivity activity : activities) {
+                final String name = activity.getName();
+                if (name.equals(PACKAGE_NAME + ".PccActivity")
+                        || name.equals(PACKAGE_NAME + ".PccActivityAlias")
+                        || name.equals(PACKAGE_NAME + ".PccActivityAliasToNormal")) {
+                    assertWithMessage("Activity " + name + " should be in PCC sandbox")
+                            .that(activity.getFlags() & ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isNotEqualTo(0);
+                } else if (name.equals(PACKAGE_NAME + ".MyActivity")
+                        || name.equals(PACKAGE_NAME + ".MyActivityAliasToPcc")
+                        || name.equals(PACKAGE_NAME + ".MyActivityExplicitlyNotPcc")
+                        || name.equals(PACKAGE_NAME + ".MyActivityAliasExplicitlyNotPcc")) {
+                    assertWithMessage("Activity " + name + " should not be in PCC sandbox")
+                            .that(activity.getFlags() & ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isEqualTo(0);
+                }
+            }
+
+            // Check services
+            final List<ParsedService> services = pkg.getServices();
+            assertThat(services.stream().map(ParsedService::getName).collect(toList()))
+                    .containsAtLeast(PACKAGE_NAME + ".PccService", PACKAGE_NAME + ".MyService",
+                            PACKAGE_NAME + ".MyServiceExplicitlyNotPcc");
+            for (ParsedService service : services) {
+                final String name = service.getName();
+                if (name.equals(PACKAGE_NAME + ".PccService")) {
+                    assertWithMessage("Service " + name + " should be in PCC sandbox")
+                            .that(service.getFlags() & ServiceInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isNotEqualTo(0);
+                } else if (name.equals(PACKAGE_NAME + ".MyService")
+                        || name.equals(PACKAGE_NAME + ".MyServiceExplicitlyNotPcc")) {
+                    assertWithMessage("Service " + name + " should not be in PCC sandbox")
+                            .that(service.getFlags() & ServiceInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isEqualTo(0);
+                }
+            }
+
+            // Check receivers
+            final List<ParsedActivity> receivers = pkg.getReceivers();
+            assertThat(receivers.stream().map(ParsedActivity::getName).collect(toList()))
+                    .containsAtLeast(PACKAGE_NAME + ".PccReceiver", PACKAGE_NAME + ".MyReceiver",
+                            PACKAGE_NAME + ".MyReceiverExplicitlyNotPcc");
+            for (ParsedActivity receiver : receivers) {
+                final String name = receiver.getName();
+                if (name.equals(PACKAGE_NAME + ".PccReceiver")) {
+                    assertWithMessage("Receiver " + name + " should be in PCC sandbox")
+                            .that(receiver.getFlags() & ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isNotEqualTo(0);
+                } else if (name.equals(PACKAGE_NAME + ".MyReceiver")
+                        || name.equals(PACKAGE_NAME + ".MyReceiverExplicitlyNotPcc")) {
+                    assertWithMessage("Receiver " + name + " should not be in PCC sandbox")
+                            .that(receiver.getFlags() & ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isEqualTo(0);
+                }
+            }
+
+            // Check providers
+            final List<ParsedProvider> providers = pkg.getProviders();
+            assertThat(providers.stream().map(ParsedProvider::getName).collect(toList()))
+                    .containsAtLeast(PACKAGE_NAME + ".PccProvider", PACKAGE_NAME + ".MyProvider",
+                            PACKAGE_NAME + ".MyProviderExplicitlyNotPcc");
+            for (ParsedProvider provider : providers) {
+                final String name = provider.getName();
+                if (name.equals(PACKAGE_NAME + ".PccProvider")) {
+                    assertWithMessage("Provider " + name + " should be in PCC sandbox")
+                            .that(provider.getFlags() & ProviderInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isNotEqualTo(0);
+                } else if (name.equals(PACKAGE_NAME + ".MyProvider")
+                        || name.equals(PACKAGE_NAME + ".MyProviderExplicitlyNotPcc")) {
+                    assertWithMessage("Provider " + name + " should not be in PCC sandbox")
+                            .that(provider.getFlags() & ProviderInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isEqualTo(0);
+                }
+            }
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsDisabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testParsePrivateComputeComponents_FlagDisabled() throws Exception {
+        final File testFile = extractFile(TEST_APP_PCC_APK);
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+
+            // Check HAS_PCC_COMPONENTS flag
+            assertFalse(pkg.hasPccComponents());
+
+            // Check that PCC components are parsed but don't have FLAG_RUN_IN_PCC_SANDBOX set.
+            // Check activities
+            final List<ParsedActivity> activities = pkg.getActivities();
+            assertThat(activities.stream().map(ParsedActivity::getName).collect(toList()))
+                    .containsAtLeast(
+                            PACKAGE_NAME + ".PccActivity",
+                            PACKAGE_NAME + ".PccActivityAlias",
+                            PACKAGE_NAME + ".PccActivityAliasToNormal",
+                            PACKAGE_NAME + ".MyActivity",
+                            PACKAGE_NAME + ".MyActivityAliasToPcc",
+                            PACKAGE_NAME + ".MyActivityExplicitlyNotPcc",
+                            PACKAGE_NAME + ".MyActivityAliasExplicitlyNotPcc",
+                            "android.app.AppDetailsActivity");
+
+            for (ParsedActivity activity : activities) {
+                final String name = activity.getName();
+                if (name.equals(PACKAGE_NAME + ".PccActivity")
+                        || name.equals(PACKAGE_NAME + ".PccActivityAlias")
+                        || name.equals(PACKAGE_NAME + ".PccActivityAliasToNormal")) {
+                    assertWithMessage("Activity " + name + " should be in PCC sandbox")
+                            .that(activity.getFlags() & ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isEqualTo(0);
+                } else if (name.equals(PACKAGE_NAME + ".MyActivity")
+                        || name.equals(PACKAGE_NAME + ".MyActivityAliasToPcc")
+                        || name.equals(PACKAGE_NAME + ".MyActivityExplicitlyNotPcc")
+                        || name.equals(PACKAGE_NAME + ".MyActivityAliasExplicitlyNotPcc")) {
+                    assertWithMessage("Activity " + name + " should not be in PCC sandbox")
+                            .that(activity.getFlags() & ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isEqualTo(0);
+                }
+            }
+
+            // Check services
+            final List<ParsedService> services = pkg.getServices();
+            assertThat(services.stream().map(ParsedService::getName).collect(toList()))
+                    .containsAtLeast(PACKAGE_NAME + ".PccService", PACKAGE_NAME + ".MyService",
+                            PACKAGE_NAME + ".MyServiceExplicitlyNotPcc");
+            for (ParsedService service : services) {
+                final String name = service.getName();
+                if (name.equals(PACKAGE_NAME + ".PccService")) {
+                    assertWithMessage("Service " + name + " should be in PCC sandbox")
+                            .that(service.getFlags() & ServiceInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isEqualTo(0);
+                } else if (name.equals(PACKAGE_NAME + ".MyService")
+                        || name.equals(PACKAGE_NAME + ".MyServiceExplicitlyNotPcc")) {
+                    assertWithMessage("Service " + name + " should not be in PCC sandbox")
+                            .that(service.getFlags() & ServiceInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isEqualTo(0);
+                }
+            }
+
+            // Check receivers
+            final List<ParsedActivity> receivers = pkg.getReceivers();
+            assertThat(receivers.stream().map(ParsedActivity::getName).collect(toList()))
+                    .containsAtLeast(PACKAGE_NAME + ".PccReceiver", PACKAGE_NAME + ".MyReceiver",
+                            PACKAGE_NAME + ".MyReceiverExplicitlyNotPcc");
+            for (ParsedActivity receiver : receivers) {
+                final String name = receiver.getName();
+                if (name.equals(PACKAGE_NAME + ".PccReceiver")) {
+                    assertWithMessage("Receiver " + name + " should be in PCC sandbox")
+                            .that(receiver.getFlags() & ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isEqualTo(0);
+                } else if (name.equals(PACKAGE_NAME + ".MyReceiver")
+                        || name.equals(PACKAGE_NAME + ".MyReceiverExplicitlyNotPcc")) {
+                    assertWithMessage("Receiver " + name + " should not be in PCC sandbox")
+                            .that(receiver.getFlags() & ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isEqualTo(0);
+                }
+            }
+
+            // Check providers
+            final List<ParsedProvider> providers = pkg.getProviders();
+            assertThat(providers.stream().map(ParsedProvider::getName).collect(toList()))
+                    .containsAtLeast(PACKAGE_NAME + ".PccProvider", PACKAGE_NAME + ".MyProvider",
+                            PACKAGE_NAME + ".MyProviderExplicitlyNotPcc");
+            for (ParsedProvider provider : providers) {
+                final String name = provider.getName();
+                if (name.equals(PACKAGE_NAME + ".PccProvider")) {
+                    assertWithMessage("Provider " + name + " should be in PCC sandbox")
+                            .that(provider.getFlags() & ProviderInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isEqualTo(0);
+                } else if (name.equals(PACKAGE_NAME + ".MyProvider")
+                        || name.equals(PACKAGE_NAME + ".MyProviderExplicitlyNotPcc")) {
+                    assertWithMessage("Provider " + name + " should not be in PCC sandbox")
+                            .that(provider.getFlags() & ProviderInfo.FLAG_RUN_IN_PCC_SANDBOX)
+                            .isEqualTo(0);
+                }
+            }
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testParsePccAndIsolatedServiceFails() throws Exception {
+        final File testFile = extractFile(TEST_APP_PCC_AND_ISOLATED_SERVICE_APK);
+        try {
+            new TestPackageParser2().parsePackage(testFile, 0, false);
+            fail("Parsing a service with both privateComputeCore and isolatedProcess"
+                    + " should fail.");
+        } catch (PackageParserException e) {
+            assertThat(e.getMessage()).contains(
+                    "Service has both isIsolatedProcess and privateComputeCore set.");
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_ALLOW_COMPONENT_ACCESS)
+    public void testParseAllowComponentAccess() throws Exception {
+        final File testFile = extractFile(TEST_APP_ALLOW_ACCESS_APK);
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+
+            // 1. Verify Policy Existence
+            ParsedAllowComponentAccessPolicy policy = pkg.getParsedAllowComponentAccessPolicy();
+            assertNotNull("Policy should not be null", policy);
+
+            List<SignedPackage> rules = policy.getParsedAllowlistedSignedPackages();
+            assertEquals("Should have parsed exactly 2 rules", 2, rules.size());
+
+            // 2. Verify Rule 1 (Name Only)
+            SignedPackage rule1 = rules.get(0);
+            assertEquals("com.example.partner", rule1.getPackageName());
+            assertFalse("Cert digest should be null for name-only rule",
+                    rule1.hasCertificateDigest());
+
+            // 3. Verify Rule 2 (Name + Cert)
+            SignedPackage rule2 = rules.get(1);
+            assertEquals("com.example.signed", rule2.getPackageName());
+
+            // Verify Hex Parsing (AA:BB:CC:DD -> 0xAABBCCDD)
+            byte[] expectedCert = new byte[] {(byte) 0xAA, (byte) 0xBB, (byte) 0xCC, (byte) 0xDD};
+            assertArrayEquals(
+                    "Cert digest did not parse correctly",
+                    expectedCert,
+                    rule2.getCertificateDigest());
+
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_ALLOW_COMPONENT_ACCESS)
+    public void testParseAllowComponentAccess_MultiCert() throws Exception {
+        final File testFile = extractFile(TEST_APP_ALLOW_ACCESS_MULTI_CERT_APK);
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+            ParsedAllowComponentAccessPolicy policy = pkg.getParsedAllowComponentAccessPolicy();
+            assertNotNull("Policy should be parsed", policy);
+
+            // Expect 3 entries: 1 primary + 2 additional
+            List<SignedPackage> rules = policy.getParsedAllowlistedSignedPackages();
+            assertEquals("Should have parsed 3 certificate entries", 3, rules.size());
+
+            Set<String> seenDigests = new HashSet<>();
+            for (int i = 0; i < rules.size(); i++) {
+                SignedPackage rule = rules.get(i);
+                assertEquals("com.example.target", rule.getPackageName());
+                String hexDigest = HexDump.toHexString(rule.getCertificateDigest()).toLowerCase();
+                seenDigests.add(hexDigest);
+            }
+
+            Set<String> expectedDigests = Set.of(
+                    DUMMY_CERT_PRIMARY,
+                    DUMMY_CERT_ADDITIONAL_1,
+                    DUMMY_CERT_ADDITIONAL_2
+            );
+
+            assertEquals("The policy must contain all unique certificates defined in the XML",
+                    expectedDigests, seenDigests);
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsDisabled(
+            android.app.privatecompute.flags.Flags.FLAG_ENABLE_ALLOW_COMPONENT_ACCESS)
+    public void testParseAllowComponentAccess_FlagDisabled() throws Exception {
+        final File testFile = extractFile(TEST_APP_ALLOW_ACCESS_APK);
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+
+            // Verify Policy is NULL when flag is disabled
+            ParsedAllowComponentAccessPolicy policy = pkg.getParsedAllowComponentAccessPolicy();
+            assertNull("Policy should be null when flag is disabled", policy);
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testParseBackupAgentProcess_Pcc_FlagEnabled() throws Exception {
+        final File testFile = extractFile(TEST_APP_BACKUP_AGENT_PROCESS_PCC_APK);
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+            assertThat(pkg.getBackupAgentProcess())
+                    .isEqualTo(ApplicationInfo.BACKUP_AGENT_PROCESS_PCC);
+            assertThat(pkg.hasPccComponents()).isTrue();
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsDisabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testParseBackupAgentProcess_Pcc_FlagDisabled() throws Exception {
+        final File testFile = extractFile(TEST_APP_BACKUP_AGENT_PROCESS_PCC_APK);
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+            assertThat(pkg.getBackupAgentProcess())
+                    .isEqualTo(ApplicationInfo.BACKUP_AGENT_PROCESS_MAIN);
+            assertThat(pkg.hasPccComponents()).isFalse();
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testParsetestParseBackupAgentProcess_Pcc_NoPccComponents_Fails() throws Exception {
+        final File testFile = extractFile(TEST_APP_BACKUP_AGENT_PROCESS_PCC_NO_PCC_COMPONENTS_APK);
+        try {
+            new TestPackageParser2().parsePackage(testFile, 0, false);
+            fail("Parsing a package setting backup agent process to pcc without pcc components "
+                    + "should fail");
+        } catch (PackageParserException e) {
+            assertThat(e.getMessage()).contains(
+                    "Application has private compute core backup agent without other"
+                            + " private compute core components");
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testParseBackupAgentProcess_Default_FlagEnabled() throws Exception {
+        final File testFile = extractFile(TEST_APP_BACKUP_AGENT_PROCESS_MAIN_APK);
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+            assertThat(pkg.getBackupAgentProcess())
+                    .isEqualTo(ApplicationInfo.BACKUP_AGENT_PROCESS_MAIN);
+            assertThat(pkg.hasPccComponents()).isFalse();
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsDisabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testParseBackupAgentProcess_Default_FlagDisabled() throws Exception {
+        final File testFile = extractFile(TEST_APP_BACKUP_AGENT_PROCESS_MAIN_APK);
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+            assertThat(pkg.getBackupAgentProcess())
+                    .isEqualTo(ApplicationInfo.BACKUP_AGENT_PROCESS_MAIN);
+            assertThat(pkg.hasPccComponents()).isFalse();
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testParseBackupAgentProcess_NotSpecified_FlagEnabled() throws Exception {
+        final File testFile = extractFile(TEST_APP_BACKUP_AGENT_PROCESS_NOT_SPECIFIED_APK);
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+            assertThat(pkg.getBackupAgentProcess())
+                    .isEqualTo(ApplicationInfo.BACKUP_AGENT_PROCESS_MAIN);
+            assertThat(pkg.hasPccComponents()).isFalse();
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsDisabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testParseBackupAgentProcess_NotSpecified_FlagDisabled() throws Exception {
+        final File testFile = extractFile(TEST_APP_BACKUP_AGENT_PROCESS_NOT_SPECIFIED_APK);
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+            assertThat(pkg.getBackupAgentProcess())
+                    .isEqualTo(ApplicationInfo.BACKUP_AGENT_PROCESS_MAIN);
+            assertThat(pkg.hasPccComponents()).isFalse();
         } finally {
             testFile.delete();
         }
@@ -1299,6 +1736,7 @@ public class PackageParserTest {
 
         ParsedPermissionImpl permission = new ParsedPermissionImpl();
         permission.setParsedPermissionGroup(new ParsedPermissionGroupImpl());
+        permission.setRequiresGeneralPurposeTargetSdkVersion(NO_TARGET_SDK_VERSION);
 
         ((ParsedPackage) pkg.setBaseRevisionCode(100)
                 .setHardwareAccelerated(true)
@@ -1320,7 +1758,7 @@ public class PackageParserTest {
                 .addProvider(new ParsedProviderImpl())
                 .addService(new ParsedServiceImpl())
                 .addInstrumentation(new ParsedInstrumentationImpl())
-                .addUsesPermission(new ParsedUsesPermissionImpl("foo7", 0, Collections.emptySet()))
+                .addUsesPermission(new ParsedUsesPermissionImpl("foo7", 0, 0, Collections.emptySet(), Collections.emptySet()))
                 .addImplicitPermission("foo25")
                 .addProtectedBroadcast("foo8")
                 .setSdkLibraryName("sdk12")
@@ -1416,5 +1854,49 @@ public class PackageParserTest {
             }
         }
     }
-}
 
+    @Test
+    @RequiresFlagsEnabled(com.android.internal.pm.pkg.component.flags.Flags
+            .FLAG_ENABLE_ACTIVITY_ALIAS_PERSISTABLE_MODE_BUGFIX)
+    public void testParseActivityAlias_inheritPersistableMode() throws Exception {
+        final File testFile = extractFile("PackageParserTestActivityAlias.apk");
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+            final List<ParsedActivity> activities = pkg.getActivities();
+            ParsedActivity activity = null;
+            for (ParsedActivity act : activities) {
+                if ((PACKAGE_NAME + ".AliasActivity").equals(act.getName())) {
+                    activity = act;
+                    break;
+                }
+            }
+            assertNotNull(activity);
+            assertEquals(ActivityInfo.PERSIST_ACROSS_REBOOTS, activity.getPersistableMode());
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    @RequiresFlagsDisabled(com.android.internal.pm.pkg.component.flags.Flags
+            .FLAG_ENABLE_ACTIVITY_ALIAS_PERSISTABLE_MODE_BUGFIX)
+    public void testParseActivityAlias_inheritPersistableMode_flagDisabled() throws Exception {
+        final File testFile = extractFile("PackageParserTestActivityAlias.apk");
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+            final List<ParsedActivity> activities = pkg.getActivities();
+            ParsedActivity activity = null;
+            for (ParsedActivity act : activities) {
+                if ((PACKAGE_NAME + ".AliasActivity").equals(act.getName())) {
+                    activity = act;
+                    break;
+                }
+            }
+            assertNotNull(activity);
+            // PERSIST_NEVER is 1, PERSIST_ACROSS_REBOOTS is 2. The default value is 0.
+            assertEquals(0, activity.getPersistableMode());
+        } finally {
+            testFile.delete();
+        }
+    }
+}

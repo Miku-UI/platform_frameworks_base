@@ -32,6 +32,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.UiModeManager;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothCsipSetCoordinator;
 import android.bluetooth.BluetoothDevice;
@@ -42,6 +43,7 @@ import android.bluetooth.BluetoothStatusCodes;
 import android.content.Context;
 import android.graphics.drawable.BitmapDrawable;
 import android.media.AudioManager;
+import android.os.ParcelUuid;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -53,7 +55,6 @@ import android.view.InputDevice;
 
 import com.android.settingslib.R;
 import com.android.settingslib.Utils;
-import com.android.settingslib.media.flags.Flags;
 import com.android.settingslib.testutils.shadow.ShadowBluetoothAdapter;
 import com.android.settingslib.utils.ThreadUtils;
 import com.android.settingslib.widget.AdaptiveOutlineDrawable;
@@ -83,6 +84,8 @@ public class CachedBluetoothDeviceTest {
     private static final String DEVICE_ADDRESS = "AA:BB:CC:DD:EE:FF";
     private static final String DEVICE_ALIAS_NEW = "TestAliasNew";
     private static final String TWS_BATTERY_LEFT = "15";
+    private static final ParcelUuid ANDROID_AUTO_UUID =
+            ParcelUuid.fromString("4de17a00-52cb-11e6-bdf4-0800200c9a66");
     private static final String TWS_BATTERY_RIGHT = "25";
     private static final String TWS_BATTERY_CASE = "10";
     private static final String TWS_LOW_BATTERY_THRESHOLD_LOW = "10";
@@ -118,6 +121,8 @@ public class CachedBluetoothDeviceTest {
     private HapClientProfile mHapClientProfile;
     @Mock
     private LeAudioProfile mLeAudioProfile;
+    @Mock
+    private UiModeManager mUiModeManager;
 
     @Mock
     private HidProfile mHidProfile;
@@ -148,9 +153,9 @@ public class CachedBluetoothDeviceTest {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-        mSetFlagsRule.enableFlags(Flags.FLAG_ENABLE_TV_MEDIA_OUTPUT_DIALOG);
         mSetFlagsRule.enableFlags(FLAG_ENABLE_LE_AUDIO_SHARING);
-        mContext = RuntimeEnvironment.application;
+        mContext = spy(RuntimeEnvironment.application);
+        doReturn(mUiModeManager).when(mContext).getSystemService(UiModeManager.class);
         mAudioManager = mContext.getSystemService(AudioManager.class);
         mShadowBluetoothAdapter = Shadow.extract(BluetoothAdapter.getDefaultAdapter());
         mShadowBluetoothAdapter.setIsLeAudioBroadcastSourceSupported(
@@ -246,6 +251,49 @@ public class CachedBluetoothDeviceTest {
         BluetoothProfile.CONNECTION_POLICY_UNKNOWN, null);
         testTransitionFromConnectingToDisconnected(mLeAudioProfile, mA2dpProfile,
         BluetoothProfile.CONNECTION_POLICY_UNKNOWN, null);
+    }
+
+    @Test
+    public void onProfileStateChanged_a2dpDisconnected_isAndroidAuto_noConnectionFailure() {
+        // Arrange
+        when(mProfileManager.getA2dpProfile()).thenReturn(mA2dpProfile);
+        when(mA2dpProfile.getConnectionPolicy(mDevice))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+        when(mA2dpProfile.isEnabled(mDevice)).thenReturn(true);
+        when(mUiModeManager.getActiveProjectionTypes())
+                .thenReturn(UiModeManager.PROJECTION_TYPE_AUTOMOTIVE);
+
+        // Set another profile to connected so that isConnected() is true.
+        updateProfileStatus(mLeAudioProfile, BluetoothProfile.STATE_CONNECTED);
+
+        // Act: A2DP transitions from connecting to disconnected
+        updateProfileStatus(mA2dpProfile, BluetoothProfile.STATE_CONNECTING);
+        updateProfileStatus(mA2dpProfile, BluetoothProfile.STATE_DISCONNECTED);
+
+        // Assert: No connection timeout summary because it's Android Auto
+        assertThat(mCachedDevice.getConnectionSummary()).isNull();
+    }
+
+    @Test
+    public void onProfileStateChanged_a2dpDisconnected_notAndroidAuto_showsConnectionFailure() {
+        // Arrange
+        when(mProfileManager.getA2dpProfile()).thenReturn(mA2dpProfile);
+        when(mA2dpProfile.getConnectionPolicy(mDevice))
+                .thenReturn(BluetoothProfile.CONNECTION_POLICY_ALLOWED);
+        when(mA2dpProfile.isEnabled(mDevice)).thenReturn(true);
+        when(mUiModeManager.getActiveProjectionTypes())
+                .thenReturn(UiModeManager.PROJECTION_TYPE_NONE);
+
+        // Set another profile to connected so that isConnected() is true.
+        updateProfileStatus(mLeAudioProfile, BluetoothProfile.STATE_CONNECTED);
+
+        // Act: A2DP transitions from connecting to disconnected
+        updateProfileStatus(mA2dpProfile, BluetoothProfile.STATE_CONNECTING);
+        updateProfileStatus(mA2dpProfile, BluetoothProfile.STATE_DISCONNECTED);
+
+        // Assert: Connection timeout summary is shown
+        String connectTimeoutString = mContext.getString(R.string.profile_connect_timeout_subtext);
+        assertThat(mCachedDevice.getConnectionSummary()).isEqualTo(connectTimeoutString);
     }
 
     @Test
@@ -2994,25 +3042,95 @@ public class CachedBluetoothDeviceTest {
     @EnableFlags(FLAG_ENABLE_BLUETOOTH_DIAGNOSIS)
     public void onBondingStateChanged_bondFailure_setFailureTime() {
         mCachedDevice.onBondingStateChanged(
-                BluetoothDevice.BOND_NONE, BluetoothDevice.BOND_BONDING);
+                BluetoothDevice.BOND_NONE,
+                BluetoothDevice.BOND_BONDING,
+                BluetoothDevice.PAIRING_CONTEXT_USER_APPROVAL_REQUESTED);
 
         assertThat(mCachedDevice.getBondFailureTimeMillis()).isNotEqualTo(-1);
     }
 
     @Test
     @EnableFlags(FLAG_ENABLE_BLUETOOTH_DIAGNOSIS)
+    public void onBondingStateChanged_bondFailureForRepairing_noFailureTime() {
+        mCachedDevice.onBondingStateChanged(
+                BluetoothDevice.BOND_NONE,
+                BluetoothDevice.BOND_BONDING,
+                BluetoothDevice.PAIRING_CONTEXT_REPAIRING);
+
+        assertThat(mCachedDevice.getBondFailureTimeMillis()).isEqualTo(-1);
+    }
+
+    @Test
+    @EnableFlags(FLAG_ENABLE_BLUETOOTH_DIAGNOSIS)
     public void onBondingStateChanged_bondSuccess_resetFailureTime() {
         mCachedDevice.onBondingStateChanged(
-                BluetoothDevice.BOND_NONE, BluetoothDevice.BOND_BONDING);
+                BluetoothDevice.BOND_NONE,
+                BluetoothDevice.BOND_BONDING,
+                BluetoothDevice.PAIRING_CONTEXT_USER_APPROVAL_REQUESTED);
 
         assertThat(mCachedDevice.getBondFailureTimeMillis()).isNotEqualTo(-1);
 
         mCachedDevice.onBondingStateChanged(
-                BluetoothDevice.BOND_BONDING, BluetoothDevice.BOND_NONE);
+                BluetoothDevice.BOND_BONDING,
+                BluetoothDevice.BOND_NONE,
+                BluetoothDevice.PAIRING_CONTEXT_USER_APPROVAL_REQUESTED);
         mCachedDevice.onBondingStateChanged(
-                BluetoothDevice.BOND_BONDED, BluetoothDevice.BOND_BONDING);
+                BluetoothDevice.BOND_BONDED,
+                BluetoothDevice.BOND_BONDING,
+                BluetoothDevice.PAIRING_CONTEXT_USER_APPROVAL_REQUESTED);
 
         assertThat(mCachedDevice.getBondFailureTimeMillis()).isEqualTo(-1);
+    }
+
+    @Test
+    public void isAndroidAuto_withUuid_returnsTrue() {
+        ParcelUuid[] uuids = {ANDROID_AUTO_UUID};
+        when(mDevice.getUuids()).thenReturn(uuids);
+
+        assertThat(mCachedDevice.isAndroidAuto()).isTrue();
+        verify(mUiModeManager, never()).getActiveProjectionTypes();
+    }
+
+    @Test
+    public void isAndroidAuto_withAutomotiveProjection_returnsTrue() {
+        when(mDevice.getUuids()).thenReturn(new ParcelUuid[0]);
+        when(mUiModeManager.getActiveProjectionTypes())
+                .thenReturn(UiModeManager.PROJECTION_TYPE_AUTOMOTIVE);
+
+        assertThat(mCachedDevice.isAndroidAuto()).isTrue();
+    }
+
+    @Test
+    public void isAndroidAuto_noUuidAndNoProjection_returnsFalse() {
+        when(mDevice.getUuids()).thenReturn(new ParcelUuid[0]);
+        when(mUiModeManager.getActiveProjectionTypes())
+                .thenReturn(UiModeManager.PROJECTION_TYPE_NONE);
+
+        assertThat(mCachedDevice.isAndroidAuto()).isFalse();
+    }
+
+    @Test
+    public void isAndroidAuto_getUuidsThrowsException_fallsBackToProjectionCheck() {
+        when(mDevice.getUuids()).thenThrow(new RuntimeException("Test Exception"));
+        when(mUiModeManager.getActiveProjectionTypes())
+                .thenReturn(UiModeManager.PROJECTION_TYPE_AUTOMOTIVE);
+
+        assertThat(mCachedDevice.isAndroidAuto()).isTrue();
+
+
+        when(mUiModeManager.getActiveProjectionTypes())
+                .thenReturn(UiModeManager.PROJECTION_TYPE_NONE);
+
+        assertThat(mCachedDevice.isAndroidAuto()).isFalse();
+    }
+
+    @Test
+    public void isAndroidAuto_nullUuids_fallsBackToProjectionCheck() {
+        when(mDevice.getUuids()).thenReturn(null);
+        when(mUiModeManager.getActiveProjectionTypes())
+                .thenReturn(UiModeManager.PROJECTION_TYPE_AUTOMOTIVE);
+
+        assertThat(mCachedDevice.isAndroidAuto()).isTrue();
     }
 
     private void updateProfileStatus(LocalBluetoothProfile profile, int status) {

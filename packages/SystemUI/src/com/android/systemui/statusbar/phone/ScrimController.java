@@ -516,14 +516,12 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
                 };
 
         // PRIMARY_BOUNCER->DREAMING
-        if (Flags.dreamBouncerTransitionFix()) {
-            collectFlow(behindScrim, mKeyguardTransitionInteractor.transition(
-                            Edge.Companion.create(PRIMARY_BOUNCER, Scenes.Dream),
-                            Edge.Companion.create(PRIMARY_BOUNCER, DREAMING)),
-                    mBouncerToDreamTransition, mMainDispatcher);
-            collectFlow(behindScrim, mPrimaryBouncerToDreamingTransitionViewModel.getScrimAlpha(),
-                    mDreamBehindScrimAlphaConsumer, mMainDispatcher);
-        }
+        collectFlow(behindScrim, mKeyguardTransitionInteractor.transition(
+                        Edge.Companion.create(PRIMARY_BOUNCER, Scenes.Dream),
+                        Edge.Companion.create(PRIMARY_BOUNCER, DREAMING)),
+                mBouncerToDreamTransition, mMainDispatcher);
+        collectFlow(behindScrim, mPrimaryBouncerToDreamingTransitionViewModel.getScrimAlpha(),
+                mDreamBehindScrimAlphaConsumer, mMainDispatcher);
 
         // PRIMARY_BOUNCER->GONE
         collectFlow(behindScrim, mKeyguardTransitionInteractor.transition(

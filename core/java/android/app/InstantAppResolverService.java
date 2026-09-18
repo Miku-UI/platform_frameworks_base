@@ -177,7 +177,7 @@ public abstract class InstantAppResolverService extends Service {
      * @see InstantAppResolveInfo
      *
      * @deprecated Should implement {@link #onGetInstantAppResolveInfo(InstantAppRequestInfo,
-     *             InstantAppResolutionCallback
+     *             InstantAppResolutionCallback)}
      */
     @Deprecated
     public void onGetInstantAppResolveInfo(@NonNull Intent sanitizedIntent,

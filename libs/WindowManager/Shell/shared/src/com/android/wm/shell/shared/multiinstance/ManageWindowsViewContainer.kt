@@ -15,6 +15,7 @@
  */
 
 package com.android.wm.shell.shared.multiinstance
+
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.AnimatorSet
@@ -22,11 +23,12 @@ import android.animation.ObjectAnimator
 import android.annotation.ColorInt
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Outline
 import android.graphics.drawable.ShapeDrawable
 import android.graphics.drawable.shapes.RoundRectShape
 import android.util.TypedValue
+import android.view.ViewOutlineProvider
 import android.view.MotionEvent.ACTION_OUTSIDE
-import android.view.SurfaceView
 import android.view.View
 import android.view.View.ALPHA
 import android.view.View.SCALE_X
@@ -34,61 +36,66 @@ import android.view.View.SCALE_Y
 import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
 import android.view.ViewGroup.MarginLayoutParams
 import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.window.TaskSnapshot
 import com.android.wm.shell.shared.R
 
 /**
- * View for the All Windows menu option, used by both Desktop Windowing and Taskbar.
- * The menu displays icons of all open instances of an app. Clicking the icon should launch
- * the instance, which will be performed by the child class.
+ * View for the All Windows menu option, used by both Desktop Windowing and Taskbar. The menu
+ * displays icons of all open instances of an app. Clicking the icon should launch the instance,
+ * which will be performed by the child class.
  */
 abstract class ManageWindowsViewContainer(
     val context: Context,
-    @ColorInt private val menuBackgroundColor: Int
+    @ColorInt private val menuBackgroundColor: Int,
 ) {
     lateinit var menuView: ManageWindowsView
 
     /** Creates the base menu view and fills it with icon views. */
-    fun createMenu(snapshotList: List<Pair<Int, TaskSnapshot?>>,
-             onIconClickListener: ((Int) -> Unit),
-             onOutsideClickListener: (() -> Unit)): ManageWindowsView {
-        val bitmapList = snapshotList
-            .filter { it.second != null }
-            .map { (index, snapshot) ->
-                index to Bitmap.wrapHardwareBuffer(snapshot!!.hardwareBuffer, snapshot.colorSpace)
-            }
-        return createAndShowMenuView(
-            bitmapList,
-            onIconClickListener,
-            onOutsideClickListener
-        )
+    fun createMenu(
+        snapshotList: List<Pair<Int, TaskSnapshot?>>,
+        onIconClickListener: ((Int) -> Unit),
+        onOutsideClickListener: (() -> Unit),
+    ): ManageWindowsView {
+        val bitmapList =
+            snapshotList
+                .filter { it.second != null }
+                .map { (index, snapshot) ->
+                    snapshot.let {
+                        val b: Bitmap? = it!!.wrapToBitmap()
+                        it.closeBuffer()
+                        index to b
+                    }
+                }
+        return createAndShowMenuView(bitmapList, onIconClickListener, onOutsideClickListener)
     }
 
     /** Creates the menu view with the given bitmaps, and displays it. */
     fun createAndShowMenuView(
         snapshotList: List<Pair<Int, Bitmap?>>,
         onIconClickListener: ((Int) -> Unit),
-        onOutsideClickListener: (() -> Unit)
+        onOutsideClickListener: (() -> Unit),
     ): ManageWindowsView {
-        menuView = ManageWindowsView(context, menuBackgroundColor).apply {
-            this.onOutsideClickListener = onOutsideClickListener
-            this.onIconClickListener = onIconClickListener
-            this.generateIconViews(snapshotList)
-        }
+        menuView =
+            ManageWindowsView(context, menuBackgroundColor).apply {
+                this.onOutsideClickListener = onOutsideClickListener
+                this.onIconClickListener = onIconClickListener
+                this.generateIconViews(snapshotList)
+            }
         addToContainer(menuView)
         return menuView
     }
 
     /** Play the animation for opening the menu. */
-    fun animateOpen() {
-        menuView.animateOpen()
+    fun animateOpen(onEnd: (() -> Unit)? = null) {
+        menuView.animateOpen(onEnd)
     }
 
     /**
-     * Play the animation for closing the menu. On finish, will run the provided callback,
-     * which will be responsible for removing the view from the container used in [addToContainer].
+     * Play the animation for closing the menu. On finish, will run the provided callback, which
+     * will be responsible for removing the view from the container used in [addToContainer].
      */
     fun animateClose() {
         menuView.animateClose { removeFromContainer() }
@@ -101,18 +108,14 @@ abstract class ManageWindowsViewContainer(
     abstract fun removeFromContainer()
 
     companion object {
-        const val MANAGE_WINDOWS_MINIMUM_INSTANCES = 2
+        const val MANAGE_WINDOWS_MINIMUM_ADDITIONAL_INSTANCES = 1
     }
 
-    class ManageWindowsView(
-        private val context: Context,
-        menuBackgroundColor: Int
-    ) {
+    class ManageWindowsView(private val context: Context, menuBackgroundColor: Int) {
         private val animators = mutableListOf<Animator>()
-        private val iconViews = mutableListOf<SurfaceView>()
-        val scrollableMenuView: ScrollView = ScrollView(context).apply {
-            isVerticalScrollBarEnabled = false
-        }
+        private val iconViews = mutableListOf<ImageView>()
+        val scrollableMenuView: ScrollView =
+            ScrollView(context).apply { isVerticalScrollBarEnabled = false }
         private val menuBaseView: LinearLayout = LinearLayout(context)
         var scrollableMenuHeight = 0
         var menuWidth = 0
@@ -121,20 +124,23 @@ abstract class ManageWindowsViewContainer(
 
         init {
             val menuLayoutParams = WindowManager.LayoutParams(WRAP_CONTENT, WRAP_CONTENT)
-            menuLayoutParams.flags = WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
+            menuLayoutParams.flags =
+                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
             scrollableMenuView.addView(menuBaseView, menuLayoutParams)
             menuBaseView.orientation = LinearLayout.VERTICAL
             val menuBackground = ShapeDrawable()
             val menuRadius = getDimensionPixelSize(MENU_RADIUS_DP)
-            menuBackground.shape = RoundRectShape(
-                FloatArray(8) { menuRadius },
-                null,
-                null
-            )
+            menuBackground.shape = RoundRectShape(FloatArray(8) { menuRadius }, null, null)
             menuBackground.paint.color = menuBackgroundColor
             scrollableMenuView.alpha = 0f
             scrollableMenuView.background = menuBackground
+            scrollableMenuView.outlineProvider = object : ViewOutlineProvider() {
+                override fun getOutline(view: View, outline: Outline) {
+                    outline.setRoundRect(0, 0, view.width, view.height, menuRadius)
+                }
+            }
+            scrollableMenuView.clipToOutline = true
             scrollableMenuView.elevation = getDimensionPixelSize(MENU_ELEVATION_DP)
             scrollableMenuView.setOnTouchListener { _, event ->
                 if (event.actionMasked == ACTION_OUTSIDE) {
@@ -146,13 +152,14 @@ abstract class ManageWindowsViewContainer(
         }
 
         private fun getDimensionPixelSize(sizeDp: Float): Float {
-            return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP,
-                sizeDp, context.resources.displayMetrics)
+            return TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP,
+                sizeDp,
+                context.resources.displayMetrics,
+            )
         }
 
-        fun generateIconViews(
-            snapshotList: List<Pair<Int, Bitmap?>>
-        ) {
+        fun generateIconViews(snapshotList: List<Pair<Int, Bitmap?>>) {
             menuWidth = 0
             menuBaseView.removeAllViews()
             val instanceIconHeight = getDimensionPixelSize(ICON_HEIGHT_DP)
@@ -177,23 +184,27 @@ abstract class ManageWindowsViewContainer(
                 }
 
                 val croppedBitmap = snapshotBitmap?.let { cropBitmap(it) }
-                val scaledSnapshotBitmap = croppedBitmap?.let {
-                    Bitmap.createScaledBitmap(
-                        it, instanceIconWidth.toInt(), instanceIconHeight.toInt(), true /* filter */
-                    )
+                val scaledSnapshotBitmap =
+                    croppedBitmap?.let {
+                        Bitmap.createScaledBitmap(
+                            it,
+                            instanceIconWidth.toInt(),
+                            instanceIconHeight.toInt(),
+                            true, /* filter */
+                        )
+                    }
+                val appSnapshotButton = ImageView(context)
+                appSnapshotButton.outlineProvider = object : ViewOutlineProvider() {
+                    override fun getOutline(view: View, outline: Outline) {
+                        outline.setRoundRect(0, 0, view.width, view.height, iconRadius)
+                    }
                 }
-                val appSnapshotButton = SurfaceView(context)
-                appSnapshotButton.cornerRadius = iconRadius
-                appSnapshotButton.setZOrderOnTop(true)
-                appSnapshotButton.contentDescription = context.resources.getString(
-                    R.string.manage_windows_icon_text, iconCount + 1
-                )
-                appSnapshotButton.setOnClickListener {
-                    onIconClickListener?.invoke(taskId)
-                }
-                val lp = MarginLayoutParams(
-                    instanceIconWidth.toInt(), instanceIconHeight.toInt()
-                )
+                appSnapshotButton.clipToOutline = true
+                appSnapshotButton.scaleType = ImageView.ScaleType.FIT_CENTER
+                appSnapshotButton.contentDescription =
+                    context.resources.getString(R.string.manage_windows_icon_text, iconCount + 1)
+                appSnapshotButton.setOnClickListener { onIconClickListener?.invoke(taskId) }
+                val lp = MarginLayoutParams(instanceIconWidth.toInt(), instanceIconHeight.toInt())
                 lp.apply {
                     marginStart = iconMargin.toInt()
                     topMargin = iconMargin.toInt()
@@ -206,23 +217,14 @@ abstract class ManageWindowsViewContainer(
                 rowLayout?.addView(appSnapshotButton)
                 appSnapshotButton.alpha = 0f
                 iconViews += appSnapshotButton
-                appSnapshotButton.requestLayout()
-                rowLayout?.post {
-                    appSnapshotButton.holder.surface
-                        .attachAndQueueBufferWithColorSpace(
-                            scaledSnapshotBitmap?.hardwareBuffer,
-                            scaledSnapshotBitmap?.colorSpace
-                        )
-                }
+                appSnapshotButton.setImageBitmap(scaledSnapshotBitmap)
             }
             // Add margin again for the right/bottom of the menu.
             menuWidth += iconMargin.toInt()
             scrollableMenuHeight += iconMargin.toInt()
         }
 
-        private fun cropBitmap(
-            bitmapToCrop: Bitmap
-        ): Bitmap {
+        private fun cropBitmap(bitmapToCrop: Bitmap): Bitmap {
             val ratioToMatch = ICON_WIDTH_DP / ICON_HEIGHT_DP
             val bitmapWidth = bitmapToCrop.width
             val bitmapHeight = bitmapToCrop.height
@@ -234,7 +236,7 @@ abstract class ManageWindowsViewContainer(
                     ((bitmapWidth - newWidth) / 2).toInt(),
                     0,
                     newWidth.toInt(),
-                    bitmapHeight
+                    bitmapHeight,
                 )
             } else {
                 // Crop based on width
@@ -244,32 +246,61 @@ abstract class ManageWindowsViewContainer(
                     0,
                     ((bitmapHeight - newHeight) / 2).toInt(),
                     bitmapWidth,
-                    newHeight.toInt()
+                    newHeight.toInt(),
                 )
             }
         }
 
         /** Play the animation for opening the menu. */
-        fun animateOpen() {
-            animateView(scrollableMenuView, MENU_BOUNDS_SHRUNK_SCALE, MENU_BOUNDS_FULL_SCALE,
-                MENU_START_ALPHA, MENU_FULL_ALPHA
+        fun animateOpen(onEnd: (() -> Unit)? = null) {
+            animateView(
+                scrollableMenuView,
+                MENU_BOUNDS_SHRUNK_SCALE,
+                MENU_BOUNDS_FULL_SCALE,
+                MENU_START_ALPHA,
+                MENU_FULL_ALPHA,
             )
             for (view in iconViews) {
-                animateView(view, MENU_BOUNDS_SHRUNK_SCALE, MENU_BOUNDS_FULL_SCALE,
-                    MENU_START_ALPHA, MENU_FULL_ALPHA, delay = MENU_ALPHA_ANIM_DELAY
+                animateView(
+                    view,
+                    MENU_BOUNDS_SHRUNK_SCALE,
+                    MENU_BOUNDS_FULL_SCALE,
+                    MENU_START_ALPHA,
+                    MENU_FULL_ALPHA,
+                    delay = MENU_ALPHA_ANIM_DELAY,
                 )
             }
-            createAnimatorSet().start()
+            createAnimatorSet().apply {
+                onEnd?.let {
+                    addListener(
+                        object : AnimatorListenerAdapter() {
+                            override fun onAnimationEnd(animation: Animator) {
+                                it.invoke()
+                            }
+                        }
+                    )
+                }
+                start()
+            }
         }
 
         /** Play the animation for closing the menu. */
         fun animateClose(callback: () -> Unit) {
-            animateView(scrollableMenuView, MENU_BOUNDS_FULL_SCALE, MENU_BOUNDS_SHRUNK_SCALE,
-                MENU_FULL_ALPHA, MENU_START_ALPHA
+            animateView(
+                scrollableMenuView,
+                MENU_BOUNDS_FULL_SCALE,
+                MENU_BOUNDS_SHRUNK_SCALE,
+                MENU_FULL_ALPHA,
+                MENU_START_ALPHA,
             )
             for (view in iconViews) {
-                animateView(view, MENU_BOUNDS_FULL_SCALE, MENU_BOUNDS_SHRUNK_SCALE,
-                    MENU_FULL_ALPHA, MENU_START_ALPHA, delay = MENU_ALPHA_ANIM_DELAY
+                animateView(
+                    view,
+                    MENU_BOUNDS_FULL_SCALE,
+                    MENU_BOUNDS_SHRUNK_SCALE,
+                    MENU_FULL_ALPHA,
+                    MENU_START_ALPHA,
+                    delay = MENU_ALPHA_ANIM_DELAY,
                 )
             }
             createAnimatorSet().apply {
@@ -290,39 +321,25 @@ abstract class ManageWindowsViewContainer(
             endBoundsScale: Float,
             startAlpha: Float,
             endAlpha: Float,
-            delay: Long = 0
+            delay: Long = 0,
         ) {
-            animators += ObjectAnimator.ofFloat(
-                view,
-                SCALE_X,
-                startBoundsScale,
-                endBoundsScale
-            ).apply {
-                duration = MENU_BOUNDS_ANIM_DURATION
-            }
-            animators += ObjectAnimator.ofFloat(
-                view,
-                SCALE_Y,
-                startBoundsScale,
-                endBoundsScale
-            ).apply {
-                duration = MENU_BOUNDS_ANIM_DURATION
-            }
-            animators += ObjectAnimator.ofFloat(
-                view,
-                ALPHA,
-                startAlpha,
-                endAlpha
-            ).apply {
-                duration = MENU_ALPHA_ANIM_DURATION
-                startDelay = delay
-            }
+            animators +=
+                ObjectAnimator.ofFloat(view, SCALE_X, startBoundsScale, endBoundsScale).apply {
+                    duration = MENU_BOUNDS_ANIM_DURATION
+                }
+            animators +=
+                ObjectAnimator.ofFloat(view, SCALE_Y, startBoundsScale, endBoundsScale).apply {
+                    duration = MENU_BOUNDS_ANIM_DURATION
+                }
+            animators +=
+                ObjectAnimator.ofFloat(view, ALPHA, startAlpha, endAlpha).apply {
+                    duration = MENU_ALPHA_ANIM_DURATION
+                    startDelay = delay
+                }
         }
 
         private fun createAnimatorSet(): AnimatorSet {
-            val animatorSet = AnimatorSet().apply {
-                playTogether(animators)
-            }
+            val animatorSet = AnimatorSet().apply { playTogether(animators) }
             animators.clear()
             return animatorSet
         }

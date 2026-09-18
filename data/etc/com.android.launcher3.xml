@@ -27,5 +27,12 @@
         <permission name="android.permission.STOP_APP_SWITCHES"/>
         <permission name="android.permission.ACCESS_SHORTCUTS"/>
         <permission name="android.permission.ACCESS_HIDDEN_PROFILES_FULL"/>
+        <permission name="android.permission.READ_REMOTE_TASKS"/>
+        <permission name="android.permission.REQUEST_TASK_HANDOFF"/>
+        <!-- Permissions for showing personal context results in cue bar -->
+        <permission name="android.permission.PERSONAL_CONTEXT_PUBLISH_HINTS"/>
+        <permission name="android.permission.PERSONAL_CONTEXT_RECEIVE_INSIGHTS"/>
+        <permission name="android.permission.PERSONAL_CONTEXT_HOST_INSIGHT_SURFACE"/>
+        <permission name="android.permission.PERSONAL_CONTEXT_READ_SETTINGS"/>
     </privapp-permissions>
 </permissions>

@@ -21,6 +21,7 @@ import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.shared.annotations.ShellBackgroundThread
 import com.android.wm.shell.shared.annotations.ShellDesktopThread
 import com.android.wm.shell.shared.annotations.ShellMainThread
+import com.android.wm.shell.shared.annotations.ShellMainThreadImmediate
 import dagger.Module
 import dagger.Provides
 import kotlin.coroutines.CoroutineContext
@@ -35,53 +36,58 @@ import kotlinx.coroutines.asCoroutineDispatcher
  * Providers for various WmShell-specific coroutines-related constructs.
  *
  * Providers of [MainCoroutineDispatcher] intentionally creates the dispatcher with a [Handler]
- * backing it instead of a [ShellExecutor] because [ShellExecutor.asCoroutineDispatcher] will
- * create a [CoroutineDispatcher] whose [CoroutineDispatcher.isDispatchNeeded] is effectively never
+ * backing it instead of a [ShellExecutor] because [ShellExecutor.asCoroutineDispatcher] will create
+ * a [CoroutineDispatcher] whose [CoroutineDispatcher.isDispatchNeeded] is effectively never
  * dispatching. This is because even if dispatched, the backing [ShellExecutor.execute] always runs
  * the [Runnable] immediately if called from the same thread, whereas
- * [Handler.asCoroutineDispatcher] will create a [MainCoroutineDispatcher] that correctly
- * dispatches (queues) when [CoroutineDispatcher.isDispatchNeeded] is true using [Handler.post].
- * For callers that do need a non-dispatching version, [MainCoroutineDispatcher.immediate] is
- * available.
+ * [Handler.asCoroutineDispatcher] will create a [MainCoroutineDispatcher] that correctly dispatches
+ * (queues) when [CoroutineDispatcher.isDispatchNeeded] is true using [Handler.post]. For callers
+ * that do need a non-dispatching version, [MainCoroutineDispatcher.immediate] is available.
  */
 @Module
 class WMShellCoroutinesModule {
-  @Provides
-  @ShellMainThread
-  fun provideMainDispatcher(
-    @ShellMainThread mainHandler: Handler
-  ): MainCoroutineDispatcher = mainHandler.asCoroutineDispatcher()
+    @Provides
+    @ShellMainThread
+    fun provideMainDispatcher(@ShellMainThread mainHandler: Handler): MainCoroutineDispatcher =
+        mainHandler.asCoroutineDispatcher()
 
-  @Provides
-  @ShellBackgroundThread
-  fun provideBackgroundDispatcher(
-      @ShellBackgroundThread backgroundHandler: Handler
-  ): MainCoroutineDispatcher = backgroundHandler.asCoroutineDispatcher()
+    @Provides
+    @ShellBackgroundThread
+    fun provideBackgroundDispatcher(
+        @ShellBackgroundThread backgroundHandler: Handler
+    ): MainCoroutineDispatcher = backgroundHandler.asCoroutineDispatcher()
 
-  @Provides
-  @ShellDesktopThread
-  fun provideDesktopDispatcher(
-    @ShellDesktopThread desktopHandler: Handler
-  ): MainCoroutineDispatcher = desktopHandler.asCoroutineDispatcher()
+    @Provides
+    @ShellDesktopThread
+    fun provideDesktopDispatcher(
+        @ShellDesktopThread desktopHandler: Handler
+    ): MainCoroutineDispatcher = desktopHandler.asCoroutineDispatcher()
 
-  @Provides
-  @WMSingleton
-  @ShellMainThread
-  fun provideApplicationScope(
-      @ShellMainThread applicationDispatcher: MainCoroutineDispatcher,
-  ): CoroutineScope = CoroutineScope(applicationDispatcher)
+    @Provides
+    @WMSingleton
+    @ShellMainThread
+    fun provideApplicationScope(
+        @ShellMainThread applicationDispatcher: MainCoroutineDispatcher
+    ): CoroutineScope = CoroutineScope(applicationDispatcher)
 
-  @Provides
-  @WMSingleton
-  @ShellBackgroundThread
-  fun provideBackgroundCoroutineScope(
-      @ShellBackgroundThread backgroundDispatcher: MainCoroutineDispatcher,
-  ): CoroutineScope = CoroutineScope(backgroundDispatcher)
+    @Provides
+    @WMSingleton
+    @ShellMainThreadImmediate
+    fun provideMainImmediateScope(
+        @ShellMainThread mainDispatcher: MainCoroutineDispatcher
+    ): CoroutineScope = CoroutineScope(mainDispatcher.immediate)
 
-  @Provides
-  @WMSingleton
-  @ShellBackgroundThread
-  fun provideBackgroundCoroutineContext(
-      @ShellBackgroundThread backgroundDispatcher: MainCoroutineDispatcher
-  ): CoroutineContext = backgroundDispatcher + SupervisorJob()
+    @Provides
+    @WMSingleton
+    @ShellBackgroundThread
+    fun provideBackgroundCoroutineScope(
+        @ShellBackgroundThread backgroundDispatcher: MainCoroutineDispatcher
+    ): CoroutineScope = CoroutineScope(backgroundDispatcher)
+
+    @Provides
+    @WMSingleton
+    @ShellBackgroundThread
+    fun provideBackgroundCoroutineContext(
+        @ShellBackgroundThread backgroundDispatcher: MainCoroutineDispatcher
+    ): CoroutineContext = backgroundDispatcher + SupervisorJob()
 }

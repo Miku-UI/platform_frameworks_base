@@ -1171,7 +1171,8 @@ public final class MediaRouter2Manager {
         }
 
         @Override
-        public void notifyRoutesUpdated(List<MediaRoute2Info> routes) {
+        public void notifyRoutesUpdated(List<MediaRoute2Info> routes,
+                List<String> unusedMissingPermissions) {
             mHandler.sendMessage(
                     obtainMessage(
                             MediaRouter2Manager::updateRoutesOnHandler,

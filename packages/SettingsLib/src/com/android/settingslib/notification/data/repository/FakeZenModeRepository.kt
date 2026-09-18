@@ -44,6 +44,8 @@ class FakeZenModeRepository : ZenModeRepository {
 
     override fun getModes(): List<ZenMode> = mutableModesFlow.value
 
+    override val hasNextAlarm: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
     private val activeModesDurations = mutableMapOf<String, Duration?>()
 
     init {

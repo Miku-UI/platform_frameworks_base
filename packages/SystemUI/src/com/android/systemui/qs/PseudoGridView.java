@@ -31,7 +31,7 @@ import java.lang.ref.WeakReference;
 /**
  * A view that arranges it's children in a grid with a fixed number of evenly spaced columns.
  *
- * {@see android.widget.GridView}
+ * @see android.widget.GridView
  */
 public class PseudoGridView extends ViewGroup {
 

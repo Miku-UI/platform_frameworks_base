@@ -26,6 +26,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.hardware.usb.UsbConstants;
 import android.hardware.usb.UsbDevice;
+import android.hardware.usb.UsbInterface;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.service.ServiceProtoEnums;
@@ -72,13 +73,30 @@ public class UsbHostManager {
 
     private final UsbAlsaManager mUsbAlsaManager;
     private final UsbPermissionManager mPermissionManager;
+    private UsbAuthManager mAuthManager;
 
     private final Object mLock = new Object();
+
     @GuardedBy("mLock")
     // contains all connected USB devices
     private final HashMap<String, UsbDevice> mDevices = new HashMap<>();
 
+    @GuardedBy("mLock")
+    // contains generated fingerprints for all connected USB devices
+    private final HashMap<String, UsbDeviceFingerprint> mDeviceFingerprints = new HashMap<>();
+
+    // Cache results of aconfig flags to collect fingerprints.
+    private boolean mCollectFingerprints;
+
+    @GuardedBy("mLock")
+    // Contains list of devices that are connected and authorized.
+    private final HashSet<String> mAuthorizedDevices = new HashSet<>();
+
+    // Caches the value of the USB authorization flag.
+    private final boolean mUsingAuthorization;
+
     private Object mSettingsLock = new Object();
+
     @GuardedBy("mSettingsLock")
     private UsbProfileGroupSettingsManager mCurrentSettings;
 
@@ -249,6 +267,7 @@ public class UsbHostManager {
                 com.android.internal.R.array.config_usbHostDenylist);
         mUsbAlsaManager = alsaManager;
         mPermissionManager = permissionManager;
+
         String deviceConnectionHandler = context.getResources().getString(
                 com.android.internal.R.string.config_UsbDeviceConnectionHandling_component);
         if (!TextUtils.isEmpty(deviceConnectionHandler)) {
@@ -256,6 +275,18 @@ public class UsbHostManager {
                     deviceConnectionHandler));
         }
         mHasMidiFeature = context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_MIDI);
+
+        // Collect device fingerprints when these flags are enabled.
+        mCollectFingerprints =
+                android.hardware.usb.flags.Flags.enablePersistentUsbDevicePermissions()
+                        || com.android.server.usb.flags.Flags.enableUsbHostAuthorization();
+
+        // Cache whether we are using authorization
+        mUsingAuthorization = com.android.server.usb.flags.Flags.enableUsbHostAuthorization();
+    }
+
+    void setAuthManager(UsbAuthManager authManager) {
+        mAuthManager = authManager;
     }
 
     public void setCurrentUserSettings(UsbProfileGroupSettingsManager settings) {
@@ -366,18 +397,20 @@ public class UsbHostManager {
             Slog.d(TAG, "usbDeviceAdded(" + deviceAddress + ") - start");
         }
 
-        if (isDenyListed(deviceAddress)) {
-            if (DEBUG) {
-                Slog.d(TAG, "device address is Deny listed");
+        if (!mUsingAuthorization) {
+            if (isDenyListed(deviceAddress)) {
+                if (DEBUG) {
+                    Slog.d(TAG, "device address is Deny listed");
+                }
+                return false;
             }
-            return false;
-        }
 
-        if (isDenyListed(deviceClass, deviceSubclass)) {
-            if (DEBUG) {
-                Slog.d(TAG, "device class is deny listed");
+            if (isDenyListed(deviceClass, deviceSubclass)) {
+                if (DEBUG) {
+                    Slog.d(TAG, "device class is deny listed");
+                }
+                return false;
             }
-            return false;
         }
 
         if (descriptors == null) {
@@ -386,13 +419,17 @@ public class UsbHostManager {
         }
 
         UsbDescriptorParser parser = new UsbDescriptorParser(deviceAddress, descriptors);
-        if (deviceClass == UsbConstants.USB_CLASS_PER_INTERFACE
-                && !checkUsbInterfacesDenyListed(parser)) {
-            return false;
+        if (!mUsingAuthorization) {
+            if (deviceClass == UsbConstants.USB_CLASS_PER_INTERFACE
+                    && !checkUsbInterfacesDenyListed(parser)) {
+                return false;
+            }
         }
 
         // Potentially can block as it may read data from the USB device.
         logUsbDevice(parser);
+
+        UsbDevice newDevice = null;
 
         synchronized (mLock) {
             if (mDevices.get(deviceAddress) != null) {
@@ -411,59 +448,24 @@ public class UsbHostManager {
             } else {
                 UsbSerialReader serialNumberReader = new UsbSerialReader(mContext,
                         mPermissionManager, newDeviceBuilder.serialNumber);
-                UsbDevice newDevice = newDeviceBuilder.build(serialNumberReader);
+                newDevice = newDeviceBuilder.build(serialNumberReader);
                 serialNumberReader.setDevice(newDevice);
 
                 mDevices.put(deviceAddress, newDevice);
                 Slog.d(TAG, "Added device " + newDevice);
 
-                // It is fine to call this only for the current user as all broadcasts are
-                // sent to all profiles of the user and the dialogs should only show once.
-                ComponentName usbDeviceConnectionHandler = getUsbDeviceConnectionHandler();
-                if (usbDeviceConnectionHandler == null) {
-                    getCurrentUserSettings().deviceAttached(newDevice);
-                } else {
-                    getCurrentUserSettings().deviceAttachedForFixedHandler(newDevice,
-                            usbDeviceConnectionHandler);
+                if (mCollectFingerprints) {
+                    UsbDeviceFingerprint fingerprint =
+                            UsbDeviceFingerprint.createLiveFingerprint(newDevice, parser);
+                    mDeviceFingerprints.put(deviceAddress, fingerprint);
+                    serialNumberReader.setDeviceFingerprint(fingerprint);
                 }
 
-                mUsbAlsaManager.usbDeviceAdded(deviceAddress, newDevice, parser);
-
-                if (mHasMidiFeature) {
-                    // Use a 3 digit code to associate MIDI devices with one another.
-                    // Each MIDI device already has mId for uniqueness. mId is generated
-                    // sequentially. For clarity, this code is not generated sequentially.
-                    String uniqueUsbDeviceIdentifier = generateNewUsbDeviceIdentifier();
-
-                    ArrayList<UsbDirectMidiDevice> midiDevices =
-                            new ArrayList<UsbDirectMidiDevice>();
-                    if (parser.containsUniversalMidiDeviceEndpoint()) {
-                        UsbDirectMidiDevice midiDevice = UsbDirectMidiDevice.create(mContext,
-                                newDevice, parser, true, uniqueUsbDeviceIdentifier);
-                        if (midiDevice != null) {
-                            midiDevices.add(midiDevice);
-                        } else {
-                            Slog.e(TAG, "Universal Midi Device is null.");
-                        }
-
-                        // Use UsbDirectMidiDevice only if this supports MIDI 2.0 as well.
-                        // ALSA removes the audio sound card if MIDI interfaces are removed.
-                        // This means that as long as ALSA is used for audio, MIDI 1.0 USB
-                        // devices should use the ALSA path for MIDI.
-                        if (parser.containsLegacyMidiDeviceEndpoint()) {
-                            midiDevice = UsbDirectMidiDevice.create(mContext,
-                                    newDevice, parser, false, uniqueUsbDeviceIdentifier);
-                            if (midiDevice != null) {
-                                midiDevices.add(midiDevice);
-                            } else {
-                                Slog.e(TAG, "Legacy Midi Device is null.");
-                            }
-                        }
-                    }
-
-                    if (!midiDevices.isEmpty()) {
-                        mMidiDevices.put(deviceAddress, midiDevices);
-                    }
+                // If we're not implementing authorization, keep the old ordering and
+                // immediately send new device attached broadcast.
+                if (!mUsingAuthorization) {
+                    usbDeviceAuthorizedInternal(deviceAddress, newDevice);
+                    addUsbAlsaDeviceAndMidiDevices(deviceAddress, newDevice, parser);
                 }
 
                 // Tracking
@@ -478,11 +480,100 @@ public class UsbHostManager {
             }
         }
 
+        // Inform authorization of valid new device outside of locked region to avoid a deadlock
+        // with usbDeviceAuthorized.
+        if (mAuthManager != null && newDevice != null) {
+            mAuthManager.usbDeviceAdded(deviceAddress);
+        }
+
         if (DEBUG) {
             Slog.d(TAG, "beginUsbDeviceAdded(" + deviceAddress + ") end");
         }
 
         return true;
+    }
+
+    /**
+     * Mark device at address as authorized.
+     *
+     * <p>After USB devices are added, they may be in an unauthorized state (i.e. not configured)
+     * until later (based on system state + policy). Call this when the device is authorized and we
+     * are ready to send the USB_DEVICE_ATTACHED broadcast.
+     *
+     * @param deviceAddress of device to authorize
+     * @return True if this was a known device and we've unblocked it.
+     */
+    boolean usbDeviceAuthorized(String deviceAddress) {
+        synchronized (mLock) {
+            UsbDevice device = mDevices.get(deviceAddress);
+
+            if (device != null) {
+                usbDeviceAuthorizedInternal(deviceAddress, device);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    @GuardedBy("mLock")
+    private void usbDeviceAuthorizedInternal(String deviceAddress, UsbDevice newDevice) {
+        if (DEBUG) {
+            Slog.d(TAG, "usbDeviceAuthorized(" + deviceAddress + ") - start");
+        }
+
+        int deviceClass = newDevice.getDeviceClass();
+        int deviceSubclass = newDevice.getDeviceSubclass();
+
+        // Check deny lists. If found in any, do not bother broadcasting.
+
+        if (isDenyListed(deviceAddress)) {
+            if (DEBUG) {
+                Slog.d(TAG, "device address is Deny listed");
+            }
+            return;
+        }
+
+        if (isDenyListed(deviceClass, deviceSubclass)) {
+            if (DEBUG) {
+                Slog.d(TAG, "device class is deny listed");
+            }
+            return;
+        }
+
+        // Only denied if ALL interfaces are also denylisted.
+        if (deviceClass == UsbConstants.USB_CLASS_PER_INTERFACE
+                && !checkUsbInterfacesDenyListed(newDevice)) {
+            return;
+        }
+
+        // Mark the device as authorized.
+        mAuthorizedDevices.add(deviceAddress);
+
+        if (mUsingAuthorization) {
+            ConnectionRecord current = mConnected.get(deviceAddress);
+            if (current != null) {
+                UsbDescriptorParser parser = new UsbDescriptorParser(deviceAddress,
+                        current.mDescriptors);
+                addUsbAlsaDeviceAndMidiDevices(deviceAddress, newDevice, parser);
+            } else {
+                Slog.e(TAG, "Cannot find descriptors for authorized device: " + deviceAddress);
+            }
+        }
+
+        // It is fine to call this only for the current user as all broadcasts are
+        // sent to all profiles of the user and the dialogs should only show once.
+        ComponentName usbDeviceConnectionHandler = getUsbDeviceConnectionHandler();
+        if (usbDeviceConnectionHandler == null) {
+            getCurrentUserSettings().deviceAttached(newDevice);
+        } else {
+            getCurrentUserSettings()
+                    .deviceAttachedForFixedHandler(newDevice, usbDeviceConnectionHandler);
+        }
+
+        if (DEBUG) {
+            Slog.d(TAG, "usbDeviceAuthorized(" + deviceAddress + ") - end");
+        }
     }
 
     /* Called from JNI in monitorUsbHostBus to report USB device removal */
@@ -494,24 +585,13 @@ public class UsbHostManager {
 
         synchronized (mLock) {
             UsbDevice device = mDevices.remove(deviceAddress);
+            if (mCollectFingerprints) {
+                mDeviceFingerprints.remove(deviceAddress);
+            }
+
             if (device != null) {
-                Slog.d(TAG, "Removed device at " + deviceAddress + ": " + device.getProductName());
-                mUsbAlsaManager.usbDeviceRemoved(deviceAddress);
-                mPermissionManager.usbDeviceRemoved(device);
+                usbDeviceDeauthorizedInternal(deviceAddress, device);
 
-                // MIDI
-                ArrayList<UsbDirectMidiDevice> midiDevices =
-                        mMidiDevices.remove(deviceAddress);
-                if (midiDevices != null) {
-                    for (UsbDirectMidiDevice midiDevice : midiDevices) {
-                        if (midiDevice != null) {
-                            IoUtils.closeQuietly(midiDevice);
-                        }
-                    }
-                    Slog.i(TAG, "USB MIDI Devices Removed: " + deviceAddress);
-                }
-
-                getCurrentUserSettings().usbDeviceRemoved(device);
                 ConnectionRecord current = mConnected.get(deviceAddress);
                 // Tracking
                 addConnectionRecord(deviceAddress, ConnectionRecord.DISCONNECT, null);
@@ -532,6 +612,70 @@ public class UsbHostManager {
         }
     }
 
+    /**
+     * Mark device at address as deauthorized.
+     *
+     * <p>USB devices can be deauthorized without being removed. In such a case, we need to treat
+     * this as a removal for apps without changing the internal state.
+     *
+     * @param deviceAddress of device to deauthorize
+     * @return True if this was a known device and we've deauthorized it.
+     */
+    boolean usbDeviceDeauthorized(String deviceAddress) {
+        synchronized (mLock) {
+            UsbDevice device = mDevices.get(deviceAddress);
+
+            if (device != null) {
+                usbDeviceDeauthorizedInternal(deviceAddress, device);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    @GuardedBy("mLock")
+    private void usbDeviceDeauthorizedInternal(String deviceAddress, UsbDevice device) {
+        if (DEBUG) {
+            Slog.d(TAG, "usbDeviceDeauthorizedInternal(" + deviceAddress + ") - start");
+        }
+
+        // If we are called directly by usbDeviceRemoved, assume we need to broadcast.
+        boolean wasRemoved = true;
+
+        if (mUsingAuthorization) {
+            // When supporting authorization, we may have deauthorized BEFORE removing. In that
+            // scenario, we should only broadcast if we actually removed from the set to avoid
+            // double sending.
+            wasRemoved = mAuthorizedDevices.remove(deviceAddress);
+        }
+
+        // Broadcast device removal to apps.
+        if (wasRemoved) {
+            Slog.d(TAG, "Removed device at " + deviceAddress + ": " + device.getProductName());
+            mUsbAlsaManager.usbDeviceRemoved(deviceAddress);
+            mPermissionManager.usbDeviceRemoved(device);
+
+            // MIDI
+            ArrayList<UsbDirectMidiDevice> midiDevices =
+                    mMidiDevices.remove(deviceAddress);
+            if (midiDevices != null) {
+                for (UsbDirectMidiDevice midiDevice : midiDevices) {
+                    if (midiDevice != null) {
+                        IoUtils.closeQuietly(midiDevice);
+                    }
+                }
+                Slog.i(TAG, "USB MIDI Devices Removed: " + deviceAddress);
+            }
+
+            getCurrentUserSettings().usbDeviceRemoved(device);
+        }
+
+        if (DEBUG) {
+            Slog.d(TAG, "usbDeviceDeauthorizedInternal(" + deviceAddress + ") - end");
+        }
+    }
+
     public void systemReady() {
         synchronized (mLock) {
             // Create a thread to call into native code to wait for USB host events.
@@ -545,8 +689,35 @@ public class UsbHostManager {
     public void getDeviceList(Bundle devices) {
         synchronized (mLock) {
             for (String name : mDevices.keySet()) {
+                if (mUsingAuthorization && !mAuthorizedDevices.contains(name)) {
+                    continue;
+                }
                 devices.putParcelable(name, mDevices.get(name));
             }
+        }
+    }
+
+    /**
+     * Gets the fingerprint for a connected device at the address.
+     *
+     * @param deviceAddr - Address of connected UsbDevice
+     * @return {@link UsbDeviceFingerprint} if device exists or null.
+     */
+    UsbDeviceFingerprint getConnectedDeviceFingerprintForAddress(String deviceAddr) {
+        synchronized (mLock) {
+            return mDeviceFingerprints.get(deviceAddr);
+        }
+    }
+
+    /**
+     * Gets {@link UsbDevice} for a connected device at the address.
+     *
+     * @param deviceAddr - Address of connected UsbDevice
+     * @return {@link UsbDevice} if device exists or null.
+     */
+    UsbDevice getConnectedDeviceForAddress(String deviceAddr) {
+        synchronized (mLock) {
+            return mDevices.get(deviceAddr);
         }
     }
 
@@ -566,7 +737,8 @@ public class UsbHostManager {
                         "device " + deviceAddress + " does not exist or is restricted");
             }
 
-            permissions.checkPermission(device, packageName, pid, uid);
+            UsbDeviceFingerprint fingerprint = mDeviceFingerprints.get(deviceAddress);
+            permissions.checkPermission(device, fingerprint, packageName, pid, uid);
             return nativeOpenDevice(deviceAddress);
         }
     }
@@ -625,6 +797,49 @@ public class UsbHostManager {
         }
     }
 
+    @GuardedBy("mLock")
+    private void addUsbAlsaDeviceAndMidiDevices(String deviceAddress, UsbDevice device,
+            UsbDescriptorParser parser) {
+        mUsbAlsaManager.usbDeviceAdded(deviceAddress, device, parser);
+
+        if (mHasMidiFeature) {
+            // Use a 3 digit code to associate MIDI devices with one another.
+            // Each MIDI device already has mId for uniqueness. mId is generated
+            // sequentially. For clarity, this code is not generated sequentially.
+            String uniqueUsbDeviceIdentifier = generateNewUsbDeviceIdentifier();
+
+            ArrayList<UsbDirectMidiDevice> midiDevices =
+                    new ArrayList<UsbDirectMidiDevice>();
+            if (parser.containsUniversalMidiDeviceEndpoint()) {
+                UsbDirectMidiDevice midiDevice = UsbDirectMidiDevice.create(mContext,
+                        device, parser, true, uniqueUsbDeviceIdentifier);
+                if (midiDevice != null) {
+                    midiDevices.add(midiDevice);
+                } else {
+                    Slog.e(TAG, "Universal Midi Device is null.");
+                }
+
+                // Use UsbDirectMidiDevice only if this supports MIDI 2.0 as well.
+                // ALSA removes the audio sound card if MIDI interfaces are removed.
+                // This means that as long as ALSA is used for audio, MIDI 1.0 USB
+                // devices should use the ALSA path for MIDI.
+                if (parser.containsLegacyMidiDeviceEndpoint()) {
+                    midiDevice = UsbDirectMidiDevice.create(mContext,
+                            device, parser, false, uniqueUsbDeviceIdentifier);
+                    if (midiDevice != null) {
+                        midiDevices.add(midiDevice);
+                    } else {
+                        Slog.e(TAG, "Legacy Midi Device is null.");
+                    }
+                }
+            }
+
+            if (!midiDevices.isEmpty()) {
+                mMidiDevices.put(deviceAddress, midiDevices);
+            }
+        }
+    }
+
     private boolean checkUsbInterfacesDenyListed(UsbDescriptorParser parser) {
         // Device class needs to be obtained through the device interface.  Ignore device only
         // if ALL interfaces are deny-listed.
@@ -639,6 +854,28 @@ public class UsbHostManager {
                 break;
             }
         }
+        if (shouldIgnoreDevice) {
+            if (DEBUG) {
+                Slog.d(TAG, "usb interface class is deny listed");
+            }
+            return false;
+        }
+        return true;
+    }
+
+    private boolean checkUsbInterfacesDenyListed(UsbDevice device) {
+        // Device class needs to be obtained through the device interface.  Ignore device only
+        // if ALL interfaces are deny-listed.
+        boolean shouldIgnoreDevice = false;
+        for (int i = 0; i < device.getInterfaceCount(); ++i) {
+            UsbInterface iface = device.getInterface(i);
+            shouldIgnoreDevice =
+                    isDenyListed(iface.getInterfaceClass(), iface.getInterfaceSubclass());
+            if (!shouldIgnoreDevice) {
+                break;
+            }
+        }
+
         if (shouldIgnoreDevice) {
             if (DEBUG) {
                 Slog.d(TAG, "usb interface class is deny listed");

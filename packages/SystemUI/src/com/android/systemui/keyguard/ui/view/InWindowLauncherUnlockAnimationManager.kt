@@ -111,14 +111,18 @@ constructor(
     fun prepareForUnlock() {
         launcherAnimationController?.let { launcher ->
             if (!preparedForUnlock) {
+                try {
+                    launcher.prepareForUnlock(
+                        false,
+                        Rect(),
+                        0,
+                    ) // Smartspace animation is not supported. See b/293894758 for context.
+                } catch (e: DeadObjectException) {
+                    Log.e(TAG, "Failed to call launcher.prepareForUnlock()", e)
+                    return
+                }
                 preparedForUnlock = true
                 manualUnlockAmount = null
-
-                launcher.prepareForUnlock(
-                    false,
-                    Rect(),
-                    0,
-                ) // TODO(b/293894758): Add smartspace animation support.
             }
         }
     }
@@ -160,9 +164,13 @@ constructor(
         startDelay: Long = UNLOCK_START_DELAY,
     ) {
         if (preparedForUnlock) {
-            launcherAnimationController?.let { launcher ->
-                launcher.playUnlockAnimation(unlocked, duration, startDelay)
-                interactor.setStartedUnlockAnimation(true)
+            try {
+                launcherAnimationController?.let { launcher ->
+                    launcher.playUnlockAnimation(unlocked, duration, startDelay)
+                    interactor.setStartedUnlockAnimation(true)
+                }
+            } catch (e: DeadObjectException) {
+                Log.e(TAG, "Failed to call launcher.playUnlockAnimation()", e)
             }
         } else {
             Log.e(TAG, "Attempted to call playUnlockAnimation() before prepareToUnlock().")

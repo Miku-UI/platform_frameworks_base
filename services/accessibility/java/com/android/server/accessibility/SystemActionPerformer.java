@@ -67,7 +67,7 @@ import java.util.function.Supplier;
  *             the predefined system actions.
  */
 public class SystemActionPerformer {
-    private static final String TAG = "SystemActionPerformer";
+    private static final String TAG = SystemActionPerformer.class.getSimpleName();
 
     interface SystemActionsChangedListener {
         void onSystemActionsChanged();
@@ -330,16 +330,12 @@ public class SystemActionPerformer {
                             InputDevice.SOURCE_KEYBOARD | InputDevice.SOURCE_DPAD);
                     return true;
                 case AccessibilityService.GLOBAL_ACTION_MENU:
-                    if (Flags.globalActionMenu()) {
-                        sendDownAndUpKeyEvents(KeyEvent.KEYCODE_MENU,
-                                InputDevice.SOURCE_KEYBOARD);
-                    }
+                    sendDownAndUpKeyEvents(KeyEvent.KEYCODE_MENU,
+                            InputDevice.SOURCE_KEYBOARD);
                     return true;
                 case AccessibilityService.GLOBAL_ACTION_MEDIA_PLAY_PAUSE:
-                    if (Flags.globalActionMediaPlayPause()) {
-                        sendDownAndUpKeyEvents(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                                InputDevice.SOURCE_KEYBOARD);
-                    }
+                    sendDownAndUpKeyEvents(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                            InputDevice.SOURCE_KEYBOARD);
                     return true;
                 default:
                     Slog.e(TAG, "Invalid action id: " + actionId);
@@ -415,9 +411,15 @@ public class SystemActionPerformer {
     }
 
     private boolean lockScreen() {
-        mContext.getSystemService(PowerManager.class).goToSleep(SystemClock.uptimeMillis(),
-                PowerManager.GO_TO_SLEEP_REASON_ACCESSIBILITY, 0);
-        mWindowManagerService.lockNow();
+        if (Flags.fixA11yLockScreenJank()) {
+            mWindowManagerService.lockNow();
+            mContext.getSystemService(PowerManager.class).goToSleep(SystemClock.uptimeMillis(),
+                    PowerManager.GO_TO_SLEEP_REASON_ACCESSIBILITY, 0);
+        } else {
+            mContext.getSystemService(PowerManager.class).goToSleep(SystemClock.uptimeMillis(),
+                    PowerManager.GO_TO_SLEEP_REASON_ACCESSIBILITY, 0);
+            mWindowManagerService.lockNow();
+        }
         return true;
     }
 

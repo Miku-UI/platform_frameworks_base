@@ -1,0 +1,299 @@
+// Ravenwood presubmit TEST_MAPPING for "framework-ish" tests
+// Selected from f/b/r/TEST_MAPPING.
+{
+  "ravenwood-presubmit": [
+    // Critical CTS tests:
+    {
+      "name": "CtsAppTestCasesRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "CtsContentTestCasesRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "CtsDatabaseTestCasesRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "CtsDeviceConfigTestCasesRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "CtsGraphicsTestCasesRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "CtsOsTestCasesRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "CtsProtoTestCasesRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "CtsResourcesTestCasesRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "CtsTextTestCasesRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "CtsUtilTestCasesRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+
+    // Framework unit tests:
+    {
+      "name": "FrameworksCoreSystemPropertiesTestsRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "FrameworksCoreTestsRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "FrameworksInputMethodSystemServerTestsRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "FrameworksServicesTestsRavenwood_Compat",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "FrameworksServicesTestsRavenwood_Uri",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "FrameworksUtilTestsRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "InternalTestsRavenwood",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+
+    // Core Ravenwood tests:
+    {
+      "name": "RavenwoodBivalentTest",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "RavenwoodCoreTest",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "RavenwoodMinimumTest",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "RavenwoodMockitoTest",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "RavenwoodResApkTest",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "RavenwoodRuntimeTest",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    },
+    {
+      "name": "RavenwoodServicesTest",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "android.platform.test.annotations.FlakyTest"
+        }
+      ],
+      "host": true
+    }
+  ]
+}

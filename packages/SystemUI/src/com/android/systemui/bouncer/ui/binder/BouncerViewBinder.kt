@@ -3,7 +3,6 @@ package com.android.systemui.bouncer.ui.binder
 import android.view.ViewGroup
 import com.android.keyguard.KeyguardMessageAreaController
 import com.android.keyguard.dagger.KeyguardBouncerComponent
-import com.android.systemui.Flags.contAuthPlugin
 import com.android.systemui.biometrics.plugins.AuthContextPlugins
 import com.android.systemui.bouncer.domain.interactor.BouncerMessageInteractor
 import com.android.systemui.bouncer.ui.viewmodel.KeyguardBouncerViewModel
@@ -62,7 +61,7 @@ constructor(
             deps.bouncerMessageInteractor,
             deps.bouncerLogger,
             deps.selectedUserInteractor,
-            if (contAuthPlugin()) contextPlugins.orElse(null) else null,
+            contextPlugins.orElse(null),
         )
     }
 }

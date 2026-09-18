@@ -17,26 +17,17 @@
 package com.android.systemui.topwindoweffects.dagger
 
 import com.android.systemui.CoreStartable
-import com.android.systemui.shared.Flags.enableLppAssistInvocationEffect
 import com.android.systemui.topwindoweffects.TopLevelWindowEffects
+import dagger.Binds
 import dagger.Module
-import dagger.Provides
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
 
 @Module(includes = [SqueezeEffectRepositoryModule::class])
-object TopLevelWindowEffectsModule {
+interface TopLevelWindowEffectsModule {
 
-    @Provides
+    @Binds
     @IntoMap
     @ClassKey(TopLevelWindowEffects::class)
-    fun provideTopLevelWindowEffectsCoreStartable(impl: TopLevelWindowEffects): CoreStartable {
-        return if (enableLppAssistInvocationEffect()) {
-            impl
-        } else {
-            CoreStartable {
-                // empty, no-op
-            }
-        }
-    }
+    fun provideTopLevelWindowEffectsCoreStartable(impl: TopLevelWindowEffects): CoreStartable
 }

@@ -48,7 +48,7 @@ public class BatteryStatsResetTest {
 
     private MockClock mMockClock;
     private MockBatteryStatsImpl mBatteryStatsImpl;
-    private BatteryStatsImpl.BatteryStatsConfig mConfig;
+    private BatteryStatsConfig mConfig;
 
     /**
      * Battery status. Must be one of the following:

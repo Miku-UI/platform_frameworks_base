@@ -139,6 +139,14 @@ public class CrossUserPackageVisibilityTests {
     }
 
     @Test
+    public void testGetVirtualGamepadUserOption_withCrossUserId() {
+        final int crossUserId = UserHandle.myUserId() + 1;
+        assertThrows(SecurityException.class,
+                () -> mIPackageManager.getVirtualGamepadUserOption(
+                        mInstrumentation.getContext().getPackageName(), crossUserId));
+    }
+
+    @Test
     public void testIsPackageSignedByKeySet_cannotDetectCrossUserPkg() throws Exception {
         final KeySet keySet = mIPackageManager.getSigningKeySet(mContext.getPackageName());
         assertThrows(IllegalArgumentException.class,
@@ -298,7 +306,8 @@ public class CrossUserPackageVisibilityTests {
                 }
             }
         };
-        mIPackageManager.clearApplicationUserData(packageName, localObserver, mCurrentUser.id());
+        mIPackageManager.clearApplicationUserData(packageName, localObserver, mCurrentUser.id(),
+                true);
         TestUtils.waitOn(result, () -> result.get() != -1, DEFAULT_TIMEOUT_MS,
                 "clearApplicationUserData: " + packageName);
         return result.get() == 1;

@@ -15,15 +15,23 @@
  */
 package com.android.systemui.qs.tiles.dialog
 
+import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
+import android.view.WindowManager
 import com.android.internal.jank.InteractionJankMonitor
+import com.android.systemui.Flags
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
+import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.coroutines.newTracingContext
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.qs.flags.QsDetailedView
+import com.android.systemui.res.R
+import com.android.systemui.retail.domain.interactor.RetailModeInteractor
+import com.android.systemui.shade.domain.interactor.ShadeDialogContextInteractor
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
 import com.android.systemui.statusbar.phone.SystemUIDialog
 import javax.inject.Inject
@@ -34,15 +42,19 @@ import kotlinx.coroutines.cancel
 private const val TAG = "InternetDialogFactory"
 private val DEBUG = Log.isLoggable(TAG, Log.DEBUG)
 
-/** Factory to create [InternetDialogDelegateLegacy] objects. */
+/** Factory to create Internet Dialog objects. */
 @SysUISingleton
 class InternetDialogManager
 @Inject
 constructor(
     private val dialogTransitionAnimator: DialogTransitionAnimator,
-    private val dialogFactory: InternetDialogDelegateLegacy.Factory,
+    private val contentManagerFactory: InternetDetailsContentManager.Factory,
+    private val internetDialogDelegateLegacyFactory: InternetDialogDelegateLegacy.Factory,
+    private val systemUIDialogFactory: SystemUIDialog.Factory,
+    private val shadeDialogContextInteractor: ShadeDialogContextInteractor,
     @Background private val bgDispatcher: CoroutineDispatcher,
     private val shadeModeInteractor: ShadeModeInteractor,
+    private val retailModeInteractor: RetailModeInteractor,
 ) {
     private lateinit var coroutineScope: CoroutineScope
 
@@ -51,9 +63,39 @@ constructor(
         var dialog: SystemUIDialog? = null
     }
 
+    private inner class InternetDialogDelegate(
+        private val contentManager: InternetDetailsContentManager,
+        private val aboveStatusBar: Boolean,
+    ) : SystemUIDialog.Delegate {
+        override fun createDialog(): SystemUIDialog {
+            val dialog = systemUIDialogFactory.create(this, shadeDialogContextInteractor.context)
+            if (!aboveStatusBar) {
+                dialog.window?.setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+            }
+            return dialog
+        }
+
+        override fun onCreate(dialog: SystemUIDialog, savedInstanceState: Bundle?) {
+            val view =
+                LayoutInflater.from(dialog.context)
+                    .inflate(R.layout.internet_connectivity_dialog, null)
+            dialog.window?.setContentView(view)
+            dialog.window?.setWindowAnimations(R.style.Animation_InternetDialog)
+            contentManager.bind(view, dialog, coroutineScope)
+        }
+
+        override fun onStart(dialog: SystemUIDialog) {
+            contentManager.initializeAndConfigure()
+        }
+
+        override fun onStop(dialog: SystemUIDialog) {
+            contentManager.unBind()
+            destroyDialog()
+        }
+    }
+
     /**
-     * Creates a [InternetDialogDelegateLegacy]. The dialog will be animated from [expandable] if it
-     * is not null.
+     * Creates an internet dialog. The dialog will be animated from [expandable] if it is not null.
      */
     fun create(
         aboveStatusBar: Boolean,
@@ -61,8 +103,9 @@ constructor(
         canConfigWifi: Boolean,
         expandable: Expandable?,
     ) {
-        if (shadeModeInteractor.isDualShade) {
+        if (shadeModeInteractor.isDualShade && !retailModeInteractor.isInRetailMode) {
             // If `QsDetailedView` is enabled, it should show the details view.
+            // Will still show the dialog if it's not dual shade mode, or it's in retail mode.
             QsDetailedView.assertInLegacyMode()
         }
         if (dialog != null) {
@@ -70,25 +113,45 @@ constructor(
                 Log.d(TAG, "InternetDialog is showing, do not create it twice.")
             }
             return
-        } else {
-            coroutineScope = CoroutineScope(bgDispatcher + newTracingContext("InternetDialogScope"))
-            dialog =
-                dialogFactory
-                    .create(aboveStatusBar, canConfigMobileData, canConfigWifi, coroutineScope)
-                    .createDialog()
+        }
+        coroutineScope = CoroutineScope(bgDispatcher + newTracingContext("InternetDialogScope"))
 
-            val controller =
-                expandable?.dialogTransitionController(
-                    DialogCuj(InteractionJankMonitor.CUJ_SHADE_DIALOG_OPEN, INTERACTION_JANK_TAG)
+        val delegate: SystemUIDialog.Delegate
+        if (Flags.internetDialogDelegateLegacyDeprecation()) {
+            val contentManager =
+                contentManagerFactory.create(
+                    canConfigMobileData = canConfigMobileData,
+                    canConfigWifi = canConfigWifi,
+                    isInDialog = true,
                 )
-            controller?.let {
+            delegate = InternetDialogDelegate(contentManager, aboveStatusBar)
+        } else {
+            delegate =
+                internetDialogDelegateLegacyFactory.create(
+                    aboveStatusBar,
+                    canConfigMobileData,
+                    canConfigWifi,
+                    coroutineScope,
+                )
+        }
+
+        dialog = delegate.createDialog()
+        val controller =
+            expandable?.dialogTransitionController(
+                DialogCuj(InteractionJankMonitor.CUJ_SHADE_DIALOG_OPEN, INTERACTION_JANK_TAG)
+            )
+        controller?.let {
+            if (TransitionAnimator.dynamicTargetResolutionEnabled()) {
                 dialogTransitionAnimator.show(
                     dialog!!,
-                    controller,
+                    expandable::dialogTransitionController,
+                    it.cuj,
                     animateBackgroundBoundsChange = true,
                 )
-            } ?: dialog?.show()
-        }
+            } else {
+                dialogTransitionAnimator.show(dialog!!, it, animateBackgroundBoundsChange = true)
+            }
+        } ?: dialog?.show()
     }
 
     fun destroyDialog() {

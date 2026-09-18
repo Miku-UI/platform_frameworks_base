@@ -92,7 +92,7 @@ public class RecentsAnimationTest extends WindowTestsBase {
         // Assume its process is alive because the caller should be the recents service.
         final WindowProcessController proc = mSystemServicesTestRule.addProcess(aInfo.packageName,
                 aInfo.processName, 12345 /* pid */, aInfo.applicationInfo.uid);
-        proc.setCurrentProcState(PROCESS_STATE_HOME);
+        proc.onCurProcStateChanged(PROCESS_STATE_HOME);
 
         Intent recentsIntent = new Intent().setComponent(mRecentsComponent);
         // Null animation indicates to preload.

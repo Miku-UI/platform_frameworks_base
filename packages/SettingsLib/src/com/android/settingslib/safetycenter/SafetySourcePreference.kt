@@ -31,7 +31,7 @@ import androidx.core.content.withStyledAttributes
 class SafetySourcePreference @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0,
+    defStyleAttr: Int = androidx.preference.R.attr.preferenceStyle,
     defStyleRes: Int = 0
 ) : Preference(context, attrs, defStyleAttr, defStyleRes) {
 

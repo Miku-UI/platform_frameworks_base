@@ -68,4 +68,7 @@
     <bool name="is_small_screen_landscape">false</bool>
 
     <bool name="volume_dialog_ringer_drawer_should_open_to_the_side">false</bool>
+
+    <!-- windowLightStatusBar value for the post recording activity -->
+    <bool name="post_recording_light_toolbar">true</bool>
 </resources>

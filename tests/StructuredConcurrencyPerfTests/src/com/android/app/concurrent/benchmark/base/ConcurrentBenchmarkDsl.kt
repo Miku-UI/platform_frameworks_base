@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
-import org.junit.Assert.assertEquals
 import org.junit.Assert.fail
 
 @DslMarker annotation class ConcurrentBenchmarkDslMarker
@@ -57,9 +56,11 @@ class ConcurrentBenchmarkDsl(build: ConcurrentBenchmarkDsl.() -> Unit) {
 
     private var beforeFirstIteration: (() -> Unit) by SetOnceDelegate { /* do nothing */ }
 
+    private var checkNumPartiesOnEachIteration = true
+
     private var withBarrier = mutableListOf<WithBarrierDsl>()
 
-    private var onEachIteration: ((Int) -> Unit) by SetOnceDelegate { n -> /* do nothing */ }
+    private var onEachIteration: ((Int) -> Unit) by SetOnceDelegate { /* do nothing */ }
 
     private var afterLastIteration: (() -> Unit) by SetOnceDelegate { /* do nothing */ }
 
@@ -80,6 +81,10 @@ class ConcurrentBenchmarkDsl(build: ConcurrentBenchmarkDsl.() -> Unit) {
      */
     fun beforeFirstIteration(block: () -> Unit) {
         beforeFirstIteration = block
+    }
+
+    fun disableNumPartiesCheck() {
+        checkNumPartiesOnEachIteration = false
     }
 
     /**
@@ -133,31 +138,31 @@ class ConcurrentBenchmarkDsl(build: ConcurrentBenchmarkDsl.() -> Unit) {
         rule.measureRepeated(
             beforeFirstIteration = {
                 barrierTasks.forEach { it.beforeFirstIteration() }
-                beforeFirstIteration.invoke()
+                beforeFirstIteration()
                 try {
                     // wait for all bg setup to be completed
                     barrier.await(BARRIER_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
                 } catch (e: TimeoutException) {
-                    fail("Timeout while awaiting initial setup")
-                    throw e
+                    throw AssertionError("Timeout while awaiting initial setup", e)
                 }
             },
             onEachIteration = { n: Int ->
-                assertEquals(
-                    "Barrier should have 0 parties awaiting before mainBlock runs",
-                    0,
-                    barrier.numberWaiting,
-                )
+                if (checkNumPartiesOnEachIteration) {
+                    val numWaiting = barrier.numberWaiting
+                    if (numWaiting != 0) {
+                        fail(
+                            "Barrier should have 0 parties awaiting before mainBlock runs, " +
+                                "was $numWaiting instead"
+                        )
+                    }
+                }
                 barrierTasks.forEach { it.onEachIteration(n) }
-                dbg { "mainBlock n=$n" }
                 onEachIteration(n)
                 try {
                     barrier.await(BARRIER_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)
                 } catch (e: TimeoutException) {
-                    fail("Timeout while awaiting iteration #$n")
-                    throw e
+                    throw AssertionError("Timeout while awaiting iteration #$n", e)
                 }
-                barrierTasks.forEach { it.afterEachIteration(n) }
                 if (!stateChecker.isInExpectedState(n)) {
                     var message = "Benchmark is not in expected state."
                     message += " Expected (${stateChecker.expectedStr}) == true, "
@@ -166,42 +171,42 @@ class ConcurrentBenchmarkDsl(build: ConcurrentBenchmarkDsl.() -> Unit) {
                     fail(message)
                 }
             },
-            afterLastIteration = afterLastIteration,
+            afterLastIteration = {
+                barrierTasks.forEach { it.afterLastIteration() }
+                afterLastIteration()
+                barrier.reset()
+            },
         )
     }
 }
 
 @ConcurrentBenchmarkDslMarker
-class WithBarrier(
+class IteratorOperations(
     val beforeFirstIteration: () -> Unit,
     val onEachIteration: (Int) -> Unit,
-    val afterEachIteration: (Int) -> Unit,
+    val afterLastIteration: () -> Unit,
 )
 
 @ConcurrentBenchmarkDslMarker
-class WithBarrierDsl(count: Int) {
+class WithBarrierDsl(private val count: Int) {
 
-    private val barrierBuilder = CyclicCountDownBarrier.Builder(count)
-
-    fun build(barrier: CyclicBarrier): WithBarrier {
-        val barrier = barrierBuilder.build(barrier)
-        return WithBarrier(
+    fun build(barrier: CyclicBarrier): IteratorOperations {
+        val barrier = CyclicCountDownBarrier(barrier, count)
+        return IteratorOperations(
             beforeFirstIteration = { beforeFirstIteration(barrier) },
             onEachIteration = { n: Int -> onEachIteration(n, barrier) },
-            afterEachIteration = afterEachIteration,
+            afterLastIteration = afterLastIteration,
         )
     }
 
     private var beforeFirstIteration:
         (CyclicCountDownBarrier) -> Unit by SetOnceDelegate { /* do nothing */ }
 
-    private var onEachIteration: (Int, CyclicCountDownBarrier) -> Unit by SetOnceDelegate {
-        n,
-        barrier ->
+    private var onEachIteration: (Int, CyclicCountDownBarrier) -> Unit by SetOnceDelegate { _, _ ->
         /* do nothing */
     }
 
-    private var afterEachIteration: (Int) -> Unit by SetOnceDelegate { /* do nothing */ }
+    private var afterLastIteration: () -> Unit by SetOnceDelegate { /* do nothing */ }
 
     /**
      * Setup step that runs before the [ConcurrentBenchmarkDsl.beforeFirstIteration] is called and
@@ -221,8 +226,9 @@ class WithBarrierDsl(count: Int) {
         onEachIteration = block
     }
 
-    fun afterEachIteration(block: (Int) -> Unit) {
-        afterEachIteration = block
+    /** Runs after the last iteration. */
+    fun afterLastIteration(block: () -> Unit) {
+        afterLastIteration = block
     }
 }
 
@@ -233,9 +239,5 @@ open class StateChecker(
     val expectedCalc: (Int) -> String,
 ) {
     object NoOpStateChecker :
-        StateChecker(
-            isInExpectedState = { n -> true },
-            expectedStr = "",
-            expectedCalc = { n -> "" },
-        )
+        StateChecker(isInExpectedState = { true }, expectedStr = "", expectedCalc = { "" })
 }

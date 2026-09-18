@@ -36,4 +36,7 @@ public final class MagnificationConstants {
     /** Maximum supported value for magnification scale. Default of 8.0. */
     public static final float SCALE_MAX_VALUE =
             Float.parseFloat(SystemProperties.get("ro.config.max_magnification_scale", "8.0"));
+
+    /** Default enabled for the magnification always on settings preference */
+    public static final int ALWAYS_ON_SETTINGS_PREFERENCE_DEFAULT_ENABLED = 1;
 }

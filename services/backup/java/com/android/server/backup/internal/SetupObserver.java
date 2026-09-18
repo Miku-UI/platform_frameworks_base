@@ -20,6 +20,7 @@ import static com.android.server.backup.BackupManagerService.DEBUG;
 import static com.android.server.backup.BackupManagerService.TAG;
 import static com.android.server.backup.UserBackupManagerService.getSetupCompleteSettingForUser;
 
+import android.app.backup.DelayedRestoreRequest;
 import android.content.Context;
 import android.database.ContentObserver;
 import android.os.Handler;
@@ -79,6 +80,9 @@ public class SetupObserver extends ContentObserver {
                 KeyValueBackupJob.schedule(mUserBackupManagerService.getUserId(), mContext,
                         mUserBackupManagerService);
                 mUserBackupManagerService.scheduleNextFullBackupJob(0);
+                mUserBackupManagerService.onDelayedRestoreConditionMet(
+                        new DelayedRestoreRequest.Builder(
+                                DelayedRestoreRequest.TYPE_SETUP_COMPLETE).build());
             }
         }
     }

@@ -15,64 +15,110 @@
  */
 package com.android.systemui.keyguard.shared.model
 
+import com.android.systemui.deviceentry.shared.model.DeviceUnlockSource
+
 /**
  * Model [BiometricUnlockMode] with [BiometricUnlockSource].
  *
  * @param source can be null as a starting state or if the unlock isn't coming from a biometric (the
  *   latter should be deprecated in the future, b/338578036)
  */
-data class BiometricUnlockModel(
-    val mode: BiometricUnlockMode,
-    val source: BiometricUnlockSource?,
-)
+data class BiometricUnlockModel(val mode: BiometricUnlockMode, val source: BiometricUnlockSource?)
 
-/** Model device wakefulness states. */
+/**
+ * Maps BiometricUnlockModel to an unlockSource.
+ *
+ * @return the DeviceUnlockSource corresponding with the BiometricUnlockModel. This can return null
+ *   if the BiometricUnlockModel does not mean the device was unlocked.
+ */
+fun BiometricUnlockModel.toDeviceUnlockSource(): DeviceUnlockSource? {
+    return when (mode) {
+        BiometricUnlockMode.NONE,
+        BiometricUnlockMode.SHOW_BOUNCER,
+        BiometricUnlockMode.ONLY_WAKE -> null
+
+        BiometricUnlockMode.DISMISS,
+        BiometricUnlockMode.DISMISS_BOUNCER,
+        BiometricUnlockMode.WAKE_AND_DISMISS,
+        BiometricUnlockMode.WAKE_AND_DISMISS_FROM_DREAM,
+        BiometricUnlockMode.WAKE_AND_DISMISS_PULSING ->
+            when (source) {
+                BiometricUnlockSource.FINGERPRINT_SENSOR -> DeviceUnlockSource.Fingerprint
+                BiometricUnlockSource.FACE_SENSOR -> DeviceUnlockSource.FaceWithBypassOrUnlockIntent
+                null -> null
+            }
+
+        // These states are only valid for passive auth (ie: face)
+        BiometricUnlockMode.NONE_UNLOCKED,
+        BiometricUnlockMode.ONLY_WAKE_UNLOCKED ->
+            when (source) {
+                BiometricUnlockSource.FACE_SENSOR -> DeviceUnlockSource.FaceWithoutBypass
+                else -> null
+            }
+    }
+}
+
+/**
+ * Model whether device is waking, unlocking, and/or dismissing keyguard. Dismissing implies the
+ * device was unlocked.
+ */
 enum class BiometricUnlockMode {
-    /** Mode in which we don't need to wake up the device when we authenticate. */
+    /**
+     * Mode in which we don't need to wake up the device when we attempted authentication. No
+     * authentication occurred.
+     */
     NONE,
+    /**
+     * Mode in which we don't need to wake up the device when we authenticate. Authentication was
+     * successful.
+     */
+    NONE_UNLOCKED,
     /**
      * Mode in which we wake up the device, and directly dismiss Keyguard. Active when we acquire a
      * fingerprint while the screen is off and the device was sleeping.
      */
-    WAKE_AND_UNLOCK,
+    WAKE_AND_DISMISS,
     /**
      * Mode in which we wake the device up, and fade out the Keyguard contents because they were
      * already visible while pulsing in doze mode.
      */
-    WAKE_AND_UNLOCK_PULSING,
+    WAKE_AND_DISMISS_PULSING,
     /**
      * Mode in which we wake up the device, but play the normal dismiss animation. Active when we
      * acquire a fingerprint pulsing in doze mode.
      */
     SHOW_BOUNCER,
     /**
-     * Mode in which we only wake up the device, and keyguard was not showing when we authenticated.
+     * Mode in which we only wake up the device, and keyguard was not showing when we attempted
+     * authentication. No authentication occurred.
      */
     ONLY_WAKE,
+    /** Mode in which we only wake up the device. Authentication was successful. */
+    ONLY_WAKE_UNLOCKED,
     /**
      * Mode in which fingerprint unlocks the device or passive auth (ie face auth) unlocks the
      * device while being requested when keyguard is occluded or showing.
      */
-    UNLOCK_COLLAPSING,
+    DISMISS,
     /** When bouncer is visible and will be dismissed. */
     DISMISS_BOUNCER,
     /** Mode in which fingerprint wakes and unlocks the device from a dream. */
-    WAKE_AND_UNLOCK_FROM_DREAM;
+    WAKE_AND_DISMISS_FROM_DREAM;
 
     companion object {
-        private val wakeAndUnlockModes =
-            setOf(WAKE_AND_UNLOCK, WAKE_AND_UNLOCK_FROM_DREAM, WAKE_AND_UNLOCK_PULSING)
+        private val wakeAndDismissModes =
+            setOf(WAKE_AND_DISMISS, WAKE_AND_DISMISS_FROM_DREAM, WAKE_AND_DISMISS_PULSING)
         private val dismissesKeyguardModes =
             setOf(
-                WAKE_AND_UNLOCK,
-                WAKE_AND_UNLOCK_PULSING,
-                UNLOCK_COLLAPSING,
-                WAKE_AND_UNLOCK_FROM_DREAM,
-                DISMISS_BOUNCER
+                WAKE_AND_DISMISS,
+                WAKE_AND_DISMISS_PULSING,
+                DISMISS,
+                WAKE_AND_DISMISS_FROM_DREAM,
+                DISMISS_BOUNCER,
             )
 
-        fun isWakeAndUnlock(mode: BiometricUnlockMode): Boolean {
-            return wakeAndUnlockModes.contains(mode)
+        fun isWakeAndDismiss(mode: BiometricUnlockMode): Boolean {
+            return wakeAndDismissModes.contains(mode)
         }
 
         fun dismissesKeyguard(mode: BiometricUnlockMode): Boolean {

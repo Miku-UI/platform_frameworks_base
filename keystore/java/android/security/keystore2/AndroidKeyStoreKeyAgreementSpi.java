@@ -136,7 +136,7 @@ public class AndroidKeyStoreKeyAgreementSpi extends KeyAgreementSpi
             throw new InvalidKeyException("Only public keys supported. Key: " + key);
         } else if (mKey instanceof ECKey && !(key instanceof ECKey)
                 /*&& !(mKey instanceof XECKey && key instanceof XECKey)*/) {
-        /** TODO This condition is temporary modified, because OpenSSL implementation does not
+        /* TODO This condition is temporary modified, because OpenSSL implementation does not
          * implement OpenSSLX25519PublicKey from XECKey interface (b/214203951).
          * This change has to revert once conscrypt implements OpenSSLX25519PublicKey from
          * XECKey interface.

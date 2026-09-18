@@ -39,8 +39,10 @@ interface ISystemUiProxy {
 
     /**
      * Notifies SystemUI that Overview is shown.
+     *
+     * @deprecated use {@link #onOverviewShown(int displayId) instead.
      */
-    oneway void onOverviewShown(boolean fromHome) = 6;
+    oneway void onOverviewShownDeprecated(boolean fromHome) = 6;
 
     /**
      * Proxies motion events from the homescreen UI to the status bar. Only called when
@@ -195,5 +197,15 @@ interface ISystemUiProxy {
      */
     oneway void onKeyEvent(int keycode, int displayId) = 60;
 
-    // Next id = 61
+    /**
+     * Notifies SystemUI that Overview is shown in the given display.
+     */
+    oneway void onOverviewShown(int displayId) = 61;
+
+    /**
+     * Notifies SystemUI that Overview is shown in the given display.
+     */
+    oneway void onOverviewHidden(int displayId) = 62;
+
+    // Next id = 63
 }

@@ -28,7 +28,6 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.RemoteCallbackList;
 import android.os.RemoteException;
-import android.window.TaskSnapshot;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.os.SomeArgs;
@@ -48,7 +47,6 @@ class TaskChangeNotificationController {
     private static final int NOTIFY_ACTIVITY_REQUESTED_ORIENTATION_CHANGED_LISTENERS = 12;
     private static final int NOTIFY_TASK_REMOVAL_STARTED_LISTENERS = 13;
     private static final int NOTIFY_TASK_PROFILE_LOCKED_LISTENERS_MSG = 14;
-    private static final int NOTIFY_TASK_SNAPSHOT_CHANGED_LISTENERS_MSG = 15;
     private static final int NOTIFY_ACTIVITY_UNPINNED_LISTENERS_MSG = 17;
     private static final int NOTIFY_ACTIVITY_LAUNCH_ON_SECONDARY_DISPLAY_FAILED_MSG = 18;
     private static final int NOTIFY_ACTIVITY_LAUNCH_ON_SECONDARY_DISPLAY_REROUTED_MSG = 19;
@@ -57,11 +55,9 @@ class TaskChangeNotificationController {
     private static final int NOTIFY_TASK_LIST_UPDATED_LISTENERS_MSG = 22;
     private static final int NOTIFY_TASK_LIST_FROZEN_UNFROZEN_MSG = 23;
     private static final int NOTIFY_TASK_FOCUS_CHANGED_MSG = 24;
-    private static final int NOTIFY_TASK_REQUESTED_ORIENTATION_CHANGED_MSG = 25;
     private static final int NOTIFY_ACTIVITY_ROTATED_MSG = 26;
     private static final int NOTIFY_TASK_MOVED_TO_BACK_LISTENERS_MSG = 27;
     private static final int NOTIFY_LOCK_TASK_MODE_CHANGED_MSG = 28;
-    private static final int NOTIFY_TASK_SNAPSHOT_INVALIDATED_LISTENERS_MSG = 29;
     private static final int NOTIFY_RECENT_TASK_REMOVED_FOR_ADD_TASK_LISTENERS_MSG = 30;
 
     // Delay in notifying task stack change listeners (in millis)
@@ -148,20 +144,6 @@ class TaskChangeNotificationController {
         l.onTaskProfileLocked((RunningTaskInfo) m.obj, m.arg1);
     };
 
-    private final TaskStackConsumer mNotifyTaskSnapshotChanged = (l, m) -> {
-        l.onTaskSnapshotChanged(m.arg1, (TaskSnapshot) m.obj);
-    };
-
-    private final TaskStackConsumer mNotifyTaskSnapshotChangedRemote = (l, m) -> {
-        final TaskSnapshot taskSnapshot = (TaskSnapshot) m.obj;
-        taskSnapshot.addReference(TaskSnapshot.REFERENCE_WRITE_TO_PARCEL);
-        l.onTaskSnapshotChanged(m.arg1, taskSnapshot);
-    };
-
-    private final TaskStackConsumer mNotifyTaskSnapshotInvalidated = (l, m) -> {
-        l.onTaskSnapshotInvalidated(m.arg1);
-    };
-
     private final TaskStackConsumer mNotifyTaskDisplayChanged = (l, m) -> {
         l.onTaskDisplayChanged(m.arg1, m.arg2);
     };
@@ -180,10 +162,6 @@ class TaskChangeNotificationController {
 
     private final TaskStackConsumer mNotifyTaskFocusChanged = (l, m) -> {
         l.onTaskFocusChanged(m.arg1, m.arg2 != 0);
-    };
-
-    private final TaskStackConsumer mNotifyTaskRequestedOrientationChanged = (l, m) -> {
-        l.onTaskRequestedOrientationChanged(m.arg1, m.arg2);
     };
 
     private final TaskStackConsumer mNotifyOnActivityRotation = (l, m) -> {
@@ -256,10 +234,6 @@ class TaskChangeNotificationController {
                 case NOTIFY_TASK_PROFILE_LOCKED_LISTENERS_MSG:
                     forAllRemoteListeners(mNotifyTaskProfileLocked, msg);
                     break;
-                case NOTIFY_TASK_SNAPSHOT_CHANGED_LISTENERS_MSG:
-                    forAllRemoteListeners(mNotifyTaskSnapshotChangedRemote, msg);
-                    ((TaskSnapshot) msg.obj).removeReference(TaskSnapshot.REFERENCE_BROADCAST);
-                    break;
                 case NOTIFY_BACK_PRESSED_ON_TASK_ROOT:
                     forAllRemoteListeners(mNotifyBackPressedOnTaskRoot, msg);
                     break;
@@ -278,9 +252,6 @@ class TaskChangeNotificationController {
                 case NOTIFY_TASK_FOCUS_CHANGED_MSG:
                     forAllRemoteListeners(mNotifyTaskFocusChanged, msg);
                     break;
-                case NOTIFY_TASK_REQUESTED_ORIENTATION_CHANGED_MSG:
-                    forAllRemoteListeners(mNotifyTaskRequestedOrientationChanged, msg);
-                    break;
                 case NOTIFY_ACTIVITY_ROTATED_MSG:
                     forAllRemoteListeners(mNotifyOnActivityRotation, msg);
                     break;
@@ -289,9 +260,6 @@ class TaskChangeNotificationController {
                     break;
                 case NOTIFY_LOCK_TASK_MODE_CHANGED_MSG:
                     forAllRemoteListeners(mNotifyLockTaskModeChanged, msg);
-                    break;
-                case NOTIFY_TASK_SNAPSHOT_INVALIDATED_LISTENERS_MSG:
-                    forAllRemoteListeners(mNotifyTaskSnapshotInvalidated, msg);
                     break;
             }
             if (msg.obj instanceof SomeArgs) {
@@ -491,27 +459,6 @@ class TaskChangeNotificationController {
     }
 
     /**
-     * Notify listeners that the snapshot of a task has changed.
-     */
-    void notifyTaskSnapshotChanged(int taskId, TaskSnapshot snapshot) {
-        snapshot.addReference(TaskSnapshot.REFERENCE_BROADCAST);
-        final Message msg = mHandler.obtainMessage(NOTIFY_TASK_SNAPSHOT_CHANGED_LISTENERS_MSG,
-                taskId, 0, snapshot);
-        forAllLocalListeners(mNotifyTaskSnapshotChanged, msg);
-        msg.sendToTarget();
-    }
-
-    /**
-     * Notify listeners that the snapshot of a task is invalidated.
-     */
-    void notifyTaskSnapshotInvalidated(int taskId) {
-        final Message msg = mHandler.obtainMessage(NOTIFY_TASK_SNAPSHOT_INVALIDATED_LISTENERS_MSG,
-                taskId, 0 /* unused */);
-        forAllLocalListeners(mNotifyTaskSnapshotInvalidated, msg);
-        msg.sendToTarget();
-    }
-
-    /**
      * Notify listeners that an activity received a back press when there are no other activities
      * in the back stack.
      */
@@ -563,14 +510,6 @@ class TaskChangeNotificationController {
         final Message msg = mHandler.obtainMessage(NOTIFY_TASK_FOCUS_CHANGED_MSG,
                 taskId, focused ? 1 : 0);
         forAllLocalListeners(mNotifyTaskFocusChanged, msg);
-        msg.sendToTarget();
-    }
-
-    /** @see android.app.ITaskStackListener#onTaskRequestedOrientationChanged(int, int) */
-    void notifyTaskRequestedOrientationChanged(int taskId, int requestedOrientation) {
-        final Message msg = mHandler.obtainMessage(NOTIFY_TASK_REQUESTED_ORIENTATION_CHANGED_MSG,
-                taskId, requestedOrientation);
-        forAllLocalListeners(mNotifyTaskRequestedOrientationChanged, msg);
         msg.sendToTarget();
     }
 

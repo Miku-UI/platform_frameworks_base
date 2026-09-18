@@ -15,8 +15,10 @@
  */
 package android.app;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.backup.BackupAgent;
 import android.content.BroadcastReceiver;
 import android.content.ContentProvider;
 import android.content.Intent;
@@ -147,6 +149,31 @@ public class AppComponentFactory {
             @NonNull String className)
             throws InstantiationException, IllegalAccessException, ClassNotFoundException {
         return (ContentProvider) cl.loadClass(className).newInstance();
+    }
+
+    /**
+     * Allows application to override the creation of backupAgents. This can be used to
+     * perform things such as dependency injection or class loader changes to these
+     * classes.
+     * <p>
+     * This method is only intended to provide a hook for instantiation. It does not provide
+     * earlier access to the BackupAgent object. The returned object will not be initialized
+     * with a Context yet and should not be used to interact with other android APIs.
+     * <p>
+     * <b>Note:</b> The {@code className} is provided by the system based on the
+     * {@code android:backupAgent} manifest attribute or a system default.
+     * Implementations must return a {@link BackupAgent} instance that is compatible with the
+     * expected backup configuration. Returning an incompatible agent or a different class may
+     * result in backup or restore failures.
+     *
+     * @param cl        The default classloader to use for instantiation.
+     * @param className The class to be instantiated.
+     */
+    @FlaggedApi(Flags.FLAG_CUSTOM_BACKUPAGENT_CREATION)
+    public @NonNull BackupAgent instantiateBackupAgent(@NonNull ClassLoader cl,
+            @NonNull String className)
+            throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+        return (BackupAgent) cl.loadClass(className).newInstance();
     }
 
     /**

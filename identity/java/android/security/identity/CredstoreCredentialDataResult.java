@@ -16,12 +16,18 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
 import java.util.Collection;
 import java.util.LinkedList;
 
+/**
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
+ */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 class CredstoreCredentialDataResult extends CredentialDataResult {
 
     ResultData mDeviceSignedResult;

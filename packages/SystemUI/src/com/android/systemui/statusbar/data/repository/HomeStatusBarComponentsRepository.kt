@@ -17,13 +17,11 @@
 package com.android.systemui.statusbar.data.repository
 
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
 import com.android.systemui.statusbar.core.StatusBarInitializer.StatusBarViewLifecycleListener
 import com.android.systemui.statusbar.phone.fragment.dagger.HomeStatusBarComponent
-import dagger.Lazy
+import dagger.Binds
 import dagger.Module
-import dagger.Provides
-import dagger.multibindings.ElementsIntoSet
+import dagger.multibindings.IntoSet
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,17 +55,11 @@ class HomeStatusBarComponentsRepository @Inject constructor() : StatusBarViewLif
 }
 
 @Module
-object HomeStatusBarComponentsRepositoryModule {
+interface HomeStatusBarComponentsRepositoryModule {
 
-    @Provides
-    @ElementsIntoSet
+    @Binds
+    @IntoSet
     fun repositoryAsLifecycleListener(
-        repo: Lazy<HomeStatusBarComponentsRepository>
-    ): Set<StatusBarViewLifecycleListener> {
-        return if (StatusBarConnectedDisplays.isEnabled) {
-            setOf(repo.get())
-        } else {
-            emptySet()
-        }
-    }
+        repo: HomeStatusBarComponentsRepository
+    ): StatusBarViewLifecycleListener
 }

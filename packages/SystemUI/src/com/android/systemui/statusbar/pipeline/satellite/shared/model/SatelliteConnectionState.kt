@@ -26,10 +26,9 @@ import android.telephony.satellite.SatelliteManager.SATELLITE_MODEM_STATE_NOT_CO
 import android.telephony.satellite.SatelliteManager.SATELLITE_MODEM_STATE_OFF
 import android.telephony.satellite.SatelliteManager.SATELLITE_MODEM_STATE_UNAVAILABLE
 import android.telephony.satellite.SatelliteManager.SATELLITE_MODEM_STATE_UNKNOWN
-import com.android.systemui.log.table.Diffable
-import com.android.systemui.log.table.TableRowLogger
+import com.android.systemui.log.table.EnumDiffable
 
-enum class SatelliteConnectionState : Diffable<SatelliteConnectionState> {
+enum class SatelliteConnectionState : EnumDiffable<SatelliteConnectionState> {
     // State is unknown or undefined
     Unknown,
     // Radio is off
@@ -39,15 +38,10 @@ enum class SatelliteConnectionState : Diffable<SatelliteConnectionState> {
     // Radio is connected, aka satellite is available for use
     Connected;
 
-    override fun logDiffs(prevVal: SatelliteConnectionState, row: TableRowLogger) {
-        if (prevVal != this) {
-            row.logChange(COL_CONNECTION_STATE, name)
-        }
-    }
+    override val columnName = "connState"
+    override val valueFetcher = { this.name }
 
     companion object {
-        const val COL_CONNECTION_STATE = "connState"
-
         // TODO(b/316635648): validate these states. We don't need the level of granularity that
         //  SatelliteManager gives us.
         fun fromModemState(@SatelliteManager.SatelliteModemState modemState: Int) =

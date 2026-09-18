@@ -52,7 +52,7 @@ import java.util.Set;
  * @hide
  */
 public final class AccessibilityCheckerManager {
-    private static final String LOG_TAG = "AccessibilityCheckerManager";
+    private static final String LOG_TAG = AccessibilityCheckerManager.class.getSimpleName();
 
     private final PackageManager mPackageManager;
     private final Set<AccessibilityHierarchyCheck> mHierarchyChecks;

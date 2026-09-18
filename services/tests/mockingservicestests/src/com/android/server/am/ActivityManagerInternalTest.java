@@ -16,17 +16,26 @@
 
 package com.android.server.am;
 
+import static com.android.server.am.Flags.FLAG_GET_PACKAGE_NAMES_FOR_PID_API;
+
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import android.app.ActivityManagerInternal;
 import android.os.SystemClock;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
+
+import com.android.server.am.psc.ProcessStateController;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -34,11 +43,13 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.util.Arrays;
+
 /**
  * Test class for {@link ActivityManagerInternal}.
  *
  * Build/Install/Run:
- *  atest FrameworksServicesTests:ActivityManagerInternalTest
+ *  atest FrameworksMockingServicesTests:ActivityManagerInternalTest
  */
 @Presubmit
 @SmallTest
@@ -49,13 +60,27 @@ public class ActivityManagerInternalTest {
     private static final long TEST_PROC_STATE_SEQ1 = 1111;
     private static final long TEST_PROC_STATE_SEQ2 = 1112;
 
+    private static final int TEST_PID = 1234;
+    private static final String TEST_PKG1 = "com.test.app1";
+    private static final String TEST_PKG2 = "com.test.app2";
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule(
+            SetFlagsRule.DefaultInitValueType.DEVICE_DEFAULT);
+
     @Rule public final ApplicationExitInfoTest.ServiceThreadRule
             mServiceThreadRule = new ApplicationExitInfoTest.ServiceThreadRule();
 
     @Mock private ActivityManagerService.Injector mMockInjector;
 
+    @Mock
+    private ProcessRecord mProc;
+
+    @Mock
+    private ProcessStateController mPscMock;
+
     private ActivityManagerService mAms;
-    private ActivityManagerInternal mAmi;
+    private ActivityManagerService.LocalService mAmi;
 
     @Before
     public void setUp() {
@@ -68,6 +93,7 @@ public class ActivityManagerInternalTest {
         final ProcessList dummyList = new ProcessList();
         doReturn(dummyList).when(mMockInjector).getProcessList(any());
         mAms = new ActivityManagerService(mMockInjector, mServiceThreadRule.getThread());
+        mAms.mProcessStateController = mPscMock;
         mAmi = mAms.new LocalService();
     }
 
@@ -91,6 +117,59 @@ public class ActivityManagerInternalTest {
                 TEST_PROC_STATE_SEQ1, // lastNetworkUpdateProcStateSeq
                 TEST_PROC_STATE_SEQ1, // procStateSeq to notify
                 false); // expectNotify
+    }
+
+    @Test
+    @EnableFlags(FLAG_GET_PACKAGE_NAMES_FOR_PID_API)
+    public void testGetPackageNamesForPid() {
+        String[] expected = new String[]{TEST_PKG1, TEST_PKG2};
+        doReturn(expected).when(mProc).getProcessPackageNames();
+        mAms.mPidsSelfLocked.doAddInternal(TEST_PID, mProc);
+
+        String[] resultFound = mAmi.getPackageNamesForPid(TEST_PID, mProc.uid);
+        Arrays.sort(resultFound);
+        assertArrayEquals("Should return correct package names", expected, resultFound);
+
+        mAms.mPidsSelfLocked.doRemoveInternal(TEST_PID, mProc);
+
+        String[] resultAfterRemove = mAmi.getPackageNamesForPid(TEST_PID, mProc.uid);
+        assertEquals("Should return empty array after removal", 0, resultAfterRemove.length);
+    }
+
+    @Test
+    @EnableFlags(FLAG_GET_PACKAGE_NAMES_FOR_PID_API)
+    public void testGetPackageNamesForPid_differentUid_returnsEmptyArray() {
+        String[] expected = new String[]{TEST_PKG1, TEST_PKG2};
+        doReturn(expected).when(mProc).getProcessPackageNames();
+        mAms.mPidsSelfLocked.doAddInternal(TEST_PID, mProc);
+
+        String[] resultFound = mAmi.getPackageNamesForPid(TEST_PID, 1234);
+        assertEquals(0, resultFound.length);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SIMPLIFY_TOAST_IMPORTANCE)
+    public void setIsToastActive_active() {
+        mAms.mPidsSelfLocked.doAddInternal(TEST_PID, mProc);
+        mAmi.setIsToastActive(TEST_PID, true);
+        verify(mPscMock).setForcingToImportant(mProc, ActivityManagerInternal.TOAST_TOKEN);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SIMPLIFY_TOAST_IMPORTANCE)
+    public void setIsToastActive_inactive() {
+        mAms.mPidsSelfLocked.doAddInternal(TEST_PID, mProc);
+        mAmi.setIsToastActive(TEST_PID, false);
+        verify(mPscMock).setForcingToImportant(mProc, null);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SIMPLIFY_TOAST_IMPORTANCE)
+    public void setIsToastActive_unknownPid() {
+        // mPidsSelfLocked should not contain TEST_PID by default.
+        mAmi.setIsToastActive(TEST_PID, true);
+        mAmi.setIsToastActive(TEST_PID, false);
+        verify(mPscMock, never()).setForcingToImportant(any(), any());
     }
 
     private void verifyNetworkUpdatedProcStateSeq(long curProcStateSeq,
@@ -130,7 +209,7 @@ public class ActivityManagerInternalTest {
             long lastNetworkUpdatedProcStateSeq) {
         final UidRecord record = new UidRecord(uid, mAms);
         record.lastNetworkUpdatedProcStateSeq = lastNetworkUpdatedProcStateSeq;
-        record.curProcStateSeq = curProcStateSeq;
+        mAms.mProcessStateController.setUidCurProcStateSeq(record, curProcStateSeq);
         record.procStateSeqWaitingForNetwork = 1;
         addActiveUidRecord(uid, record);
         return record;

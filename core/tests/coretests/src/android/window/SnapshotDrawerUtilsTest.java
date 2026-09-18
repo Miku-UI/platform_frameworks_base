@@ -66,9 +66,15 @@ public class SnapshotDrawerUtilsTest {
         TaskDescription taskDescription = createTaskDescription(Color.WHITE,
                 Color.RED, Color.BLUE);
 
-        mSystemBarBackgroundPainter = new SnapshotDrawerUtils.SystemBarBackgroundPainter(
-                windowFlags, 0 /* windowPrivateFlags */, 0 /* appearance */,
-                taskDescription, 1f /* scale */, WindowInsets.Type.defaultVisible());
+        mSystemBarBackgroundPainter =
+                new SnapshotDrawerUtils.SystemBarBackgroundPainter(
+                        windowFlags,
+                        0 /* windowPrivateFlags */,
+                        0 /* windowRenderingHints */,
+                        0 /* appearance */,
+                        taskDescription,
+                        1f /* scale */,
+                        WindowInsets.Type.defaultVisible());
         mSystemBarBackgroundPainter.setInsets(contentInsets);
     }
 

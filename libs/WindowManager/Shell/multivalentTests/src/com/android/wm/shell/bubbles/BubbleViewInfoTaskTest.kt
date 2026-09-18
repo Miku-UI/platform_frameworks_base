@@ -17,11 +17,13 @@
 package com.android.wm.shell.bubbles
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.LauncherApps
 import android.content.pm.ShortcutInfo
 import android.content.res.Resources
 import android.graphics.Color
 import android.os.Handler
+import android.os.UserHandle
 import android.os.UserManager
 import android.view.IWindowManager
 import android.view.WindowManager
@@ -36,9 +38,13 @@ import com.android.internal.protolog.ProtoLog
 import com.android.internal.statusbar.IStatusBarService
 import com.android.launcher3.icons.BubbleIconFactory
 import com.android.wm.shell.ShellTaskOrganizer
+import com.android.wm.shell.bubbles.logging.BubbleLogger
 import com.android.wm.shell.bubbles.logging.BubbleSessionTracker
 import com.android.wm.shell.bubbles.logging.BubbleSessionTrackerImpl
+import com.android.wm.shell.bubbles.model.BubbleIcon
 import com.android.wm.shell.bubbles.storage.BubblePersistentRepository
+import com.android.wm.shell.bubbles.transitions.BubbleTransitions
+import com.android.wm.shell.bubbles.user.data.FakeBubbleUserResolver
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.DisplayImeController
 import com.android.wm.shell.common.DisplayInsetsController
@@ -48,6 +54,7 @@ import com.android.wm.shell.common.SyncTransactionQueue
 import com.android.wm.shell.common.TaskStackListenerImpl
 import com.android.wm.shell.common.TestShellExecutor
 import com.android.wm.shell.shared.TransactionPool
+import com.android.wm.shell.shared.bubbles.FakeBubbleFeatureConfig
 import com.android.wm.shell.sysui.ShellCommandHandler
 import com.android.wm.shell.sysui.ShellController
 import com.android.wm.shell.sysui.ShellInit
@@ -82,9 +89,10 @@ class BubbleViewInfoTaskTest {
     private lateinit var expandedViewManager: BubbleExpandedViewManager
     private lateinit var appInfoProvider: FakeBubbleAppInfoProvider
     private lateinit var sessionTracker: BubbleSessionTracker
+    private lateinit var bubbleViewInfoTaskFactory: BubbleViewInfoTask.Factory
 
     private val bubbleTaskViewFactory = BubbleTaskViewFactory {
-        BubbleTaskView(mock<TaskView>(), directExecutor())
+        BubbleTaskView(mock<TaskView>(), directExecutor(), bubbleController)
     }
 
     @Before
@@ -97,7 +105,7 @@ class BubbleViewInfoTaskTest {
                 60,
                 30,
                 Color.RED,
-                context.resources.getDimensionPixelSize(R.dimen.importance_ring_stroke_width)
+                context.resources.getDimensionPixelSize(R.dimen.importance_ring_stroke_width),
             )
 
         mainExecutor = TestShellExecutor()
@@ -112,20 +120,22 @@ class BubbleViewInfoTaskTest {
                 shellCommandHandler,
                 mock<DisplayInsetsController>(),
                 mock<UserManager>(),
-                mainExecutor
+                mainExecutor,
             )
         bubblePositioner = BubblePositioner(context, windowManager)
         bubbleLogger = BubbleLogger(UiEventLoggerFake())
         val instanceIdSequence = InstanceIdSequence(/* instanceIdMax= */ 10)
         sessionTracker = BubbleSessionTrackerImpl(instanceIdSequence, bubbleLogger)
+        appInfoProvider = FakeBubbleAppInfoProvider()
         val bubbleData =
             BubbleData(
                 context,
                 bubbleLogger,
                 bubblePositioner,
                 BubbleEducationController(context),
+                appInfoProvider,
                 mainExecutor,
-                bgExecutor
+                bgExecutor,
             )
 
         val surfaceSynchronizer = { obj: Runnable -> obj.run() }
@@ -135,10 +145,17 @@ class BubbleViewInfoTaskTest {
                 mock<LauncherApps>(),
                 mainExecutor,
                 bgExecutor,
-                BubblePersistentRepository(context)
+                BubblePersistentRepository(context),
             )
 
-        appInfoProvider = FakeBubbleAppInfoProvider()
+        bubbleViewInfoTaskFactory =
+            FakeBubbleViewInfoTaskFactory(
+                bubblePositioner,
+                appInfoProvider,
+                mainExecutor,
+                bgExecutor,
+                FakeBubbleUserResolver(),
+            )
 
         bubbleController =
             BubbleController(
@@ -173,27 +190,30 @@ class BubbleViewInfoTaskTest {
                 mock<IWindowManager>(),
                 BubbleResizabilityChecker(),
                 HomeIntentProvider(context),
-                appInfoProvider,
                 { Optional.empty() },
                 Optional.empty(),
                 { false },
                 sessionTracker,
+                bubbleViewInfoTaskFactory,
+                mock<BubbleHelper>(),
+                FakeBubbleFeatureConfig(),
             )
 
         // TODO: (b/371829099) - when optional overflow is no longer flagged we can enable this
         //  again, something about the overflow being added uncovers an issue with Robolectric and
         //  bitmaps; this is switched to a mock to work around that (b/375513387).
-//        val bubbleStackViewManager = BubbleStackViewManager.fromBubbleController(bubbleController)
-//        bubbleStackView = BubbleStackView(
-//                context,
-//                bubbleStackViewManager,
-//                bubblePositioner,
-//                bubbleData,
-//                surfaceSynchronizer,
-//                FloatingContentCoordinator(),
-//                bubbleController,
-//                mainExecutor
-//            )
+        //        val bubbleStackViewManager =
+        // BubbleStackViewManager.fromBubbleController(bubbleController)
+        //        bubbleStackView = BubbleStackView(
+        //                context,
+        //                bubbleStackViewManager,
+        //                bubblePositioner,
+        //                bubbleData,
+        //                surfaceSynchronizer,
+        //                FloatingContentCoordinator(),
+        //                bubbleController,
+        //                mainExecutor
+        //            )
         bubbleStackView = mock<BubbleStackView>()
         whenever(bubbleStackView.generateLayoutParams(any()))
             .thenReturn(FrameLayout.LayoutParams(1000, 1000))
@@ -274,6 +294,24 @@ class BubbleViewInfoTaskTest {
     }
 
     @Test
+    fun appBubble_usesAppIcon() {
+        val bubble = createAppBubble()
+        val task = createBubbleViewInfoTask(bubble)
+        task.startSync()
+
+        assertThat(bubble.bubbleIcon).isInstanceOf(BubbleIcon.AppIcon::class.java)
+    }
+
+    @Test
+    fun chatBubble_usesCustomBubbleIcon() {
+        val bubble = createBubbleWithShortcut()
+        val task = createBubbleViewInfoTask(bubble)
+        task.startSync()
+
+        assertThat(bubble.bubbleIcon).isInstanceOf(BubbleIcon.Custom::class.java)
+    }
+
+    @Test
     fun cancel_beforeBackgroundWorkStarts_bubbleNotInflated() {
         val bubble = createBubbleWithShortcut()
         val task = createBubbleViewInfoTask(bubble)
@@ -330,30 +368,29 @@ class BubbleViewInfoTaskTest {
             0 /* taskId */,
             "mockLocus",
             true /* isDismissible */,
-            mainExecutor,
-            bgExecutor,
-            metadataFlagListener
+            metadataFlagListener,
         )
+    }
+
+    private fun createAppBubble(): Bubble {
+        val intent = Intent().apply { setPackage("com.app.bubble") }
+        return Bubble.createAppBubble(intent, UserHandle.of(0), null)
     }
 
     private fun createBubbleViewInfoTask(
         bubble: Bubble,
-        callback: BubbleViewInfoTask.Callback? = null
+        callback: BubbleViewInfoTask.Callback? = null,
     ): BubbleViewInfoTask {
-        return BubbleViewInfoTask(
+        return bubbleViewInfoTaskFactory.create(
             bubble,
             context,
             expandedViewManager,
             bubbleTaskViewFactory,
-            bubblePositioner,
             bubbleStackView,
             null /* layerView */,
             iconFactory,
-            appInfoProvider,
             false /* skipInflation */,
             callback,
-            mainExecutor,
-            bgExecutor
         )
     }
 }

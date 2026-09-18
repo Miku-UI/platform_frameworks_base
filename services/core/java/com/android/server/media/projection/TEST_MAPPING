@@ -24,7 +24,7 @@
       ]
     },
     {
-      "name": "CtsStatsdAtomHostTestCases",
+      "name": "CtsMediaAtomHostTestCases",
       "options": [
         {
           "include-filter": "android.cts.statsdatom.media.projection.MediaProjectionAtomsTests"

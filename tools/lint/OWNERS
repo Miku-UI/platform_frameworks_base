@@ -2,7 +2,11 @@ mattgilbride@google.com
 azharaa@google.com
 
 per-file *CallingSettingsNonUserGetterMethods* = file:/packages/SettingsProvider/OWNERS
-per-file *PreconditionsDetector* = shayba@google.com
+
+# System health-related lint rules
+per-file *DebugField* = file:/PERFORMANCE_OWNERS
+per-file *EnumReflection* = file:/PERFORMANCE_OWNERS
+per-file *Preconditions* = file:/PERFORMANCE_OWNERS
 
 # Android lint in the Android platform maintainers
 colefaust@google.com

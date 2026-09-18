@@ -34,9 +34,6 @@ constructor(
     @Background private val scope: CoroutineScope,
 ) : CoreStartable {
     override fun start() {
-        if (!android.app.supervision.flags.Flags.enableSupervisionAppService()) {
-            return
-        }
         scope.launch {
             supervisionRepository.supervision.collectLatest { model ->
                 securityController.supervisionModel = model

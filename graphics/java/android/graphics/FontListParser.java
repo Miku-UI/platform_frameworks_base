@@ -309,12 +309,7 @@ public class FontListParser {
             @Nullable Map<String, File> updatableFontMap, boolean allowNonExistingFile)
             throws XmlPullParserException, IOException {
         final String name = parser.getAttributeValue(null, "name");
-        final String fallback;
-        if (com.android.text.flags.Flags.customFallbackForCustomization()) {
-            fallback = parser.getAttributeValue(null, "fallback");
-        } else {
-            fallback = null;
-        }
+        final String fallback = parser.getAttributeValue(null, "fallback");
         throwIfAttributeExists("lang", parser);
         throwIfAttributeExists("variant", parser);
         throwIfAttributeExists("ignore", parser);
@@ -335,12 +330,7 @@ public class FontListParser {
             @Nullable Map<String, File> updatableFontMap, boolean allowNonExistingFile)
             throws XmlPullParserException, IOException {
         final String name = parser.getAttributeValue(null, "name");
-        final String fallback;
-        if (com.android.text.flags.Flags.customFallbackForCustomization()) {
-            fallback = parser.getAttributeValue(null, "fallback");
-        } else {
-            fallback = null;
-        }
+        final String fallback = parser.getAttributeValue(null, "fallback");
         final List<FontConfig.FontFamily> familyList = new ArrayList<>();
         while (keepReading(parser)) {
             if (parser.getEventType() != XmlPullParser.START_TAG) continue;

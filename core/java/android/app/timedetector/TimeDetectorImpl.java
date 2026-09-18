@@ -35,8 +35,9 @@ public final class TimeDetectorImpl implements TimeDetector {
     private final ITimeDetectorService mITimeDetectorService;
 
     public TimeDetectorImpl() throws ServiceNotFoundException {
-        mITimeDetectorService = ITimeDetectorService.Stub.asInterface(
-                ServiceManager.getServiceOrThrow(Context.TIME_DETECTOR_SERVICE));
+        mITimeDetectorService =
+                ITimeDetectorService.Stub.asInterface(
+                        ServiceManager.getServiceOrThrow(Context.TIME_DETECTOR_SERVICE));
     }
 
     @Override

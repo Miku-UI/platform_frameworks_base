@@ -20,20 +20,19 @@ import android.content.Context
 import android.view.LayoutInflater
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.isVisible
 import com.android.compose.animation.scene.ElementContentScope
-import com.android.compose.modifiers.padding
+import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.ui.binder.KeyguardSettingsViewBinder
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardSettingsMenuViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardTouchHandlingViewModel
 import com.android.systemui.plugins.ActivityStarter
+import com.android.systemui.plugins.keyguard.ui.composable.elements.BaseLockscreenElement.ElementSource
 import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElement
 import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementKeys
 import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementProvider
@@ -45,6 +44,7 @@ import javax.inject.Inject
 import kotlin.collections.List
 import kotlinx.coroutines.DisposableHandle
 
+@SysUISingleton
 class SettingsMenuElementProvider
 @Inject
 constructor(
@@ -59,6 +59,7 @@ constructor(
     private inner class SettingsMenuElement : LockscreenElement {
         override val key = LockscreenElementKeys.SettingsMenu
         override val context = this@SettingsMenuElementProvider.context
+        override val source = ElementSource.STANDARD
 
         @Composable
         override fun LockscreenScope<ElementContentScope>.LockscreenElement() {

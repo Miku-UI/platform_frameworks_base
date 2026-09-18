@@ -18,8 +18,10 @@ package com.android.server.display;
 
 import android.annotation.Nullable;
 import android.os.IBinder;
+import android.os.PowerManager;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.display.feature.flags.Flags;
 
 import java.io.PrintWriter;
 import java.util.function.BooleanSupplier;
@@ -27,6 +29,8 @@ import java.util.function.BooleanSupplier;
 class BrightnessRangeController {
 
     private final HighBrightnessModeController mHbmController;
+
+    @Nullable
     private final NormalBrightnessModeController mNormalBrightnessModeController;
 
     private final Runnable mModeChangeCallback;
@@ -34,18 +38,21 @@ class BrightnessRangeController {
     BrightnessRangeController(HighBrightnessModeController hbmController,
             Runnable modeChangeCallback, DisplayDeviceConfig displayDeviceConfig) {
         this(hbmController, modeChangeCallback, displayDeviceConfig,
-                new NormalBrightnessModeController());
+                Flags.refactorNormalBrightnessModeController() ? null
+                        : new NormalBrightnessModeController());
     }
 
     @VisibleForTesting
     BrightnessRangeController(HighBrightnessModeController hbmController,
             Runnable modeChangeCallback, DisplayDeviceConfig displayDeviceConfig,
-            NormalBrightnessModeController normalBrightnessModeController) {
+            @Nullable NormalBrightnessModeController normalBrightnessModeController) {
         mHbmController = hbmController;
         mModeChangeCallback = modeChangeCallback;
         mNormalBrightnessModeController = normalBrightnessModeController;
-        mNormalBrightnessModeController.resetNbmData(
-                displayDeviceConfig.getLuxThrottlingData());
+        if (mNormalBrightnessModeController != null) {
+            mNormalBrightnessModeController.resetNbmData(
+                    displayDeviceConfig.getLuxThrottlingData());
+        }
         // HDR boost is handled by HdrBrightnessModifier and should be disabled in HbmController
         mHbmController.disableHdrBoost();
     }
@@ -53,12 +60,19 @@ class BrightnessRangeController {
     void dump(PrintWriter pw) {
         pw.println("BrightnessRangeController:");
         mHbmController.dump(pw);
-        mNormalBrightnessModeController.dump(pw);
+        if (mNormalBrightnessModeController != null) {
+            mNormalBrightnessModeController.dump(pw);
+        }
     }
 
     void onAmbientLuxChange(float ambientLux) {
         applyChanges(
-                () -> mNormalBrightnessModeController.onAmbientLuxChange(ambientLux),
+                () -> {
+                    if (mNormalBrightnessModeController == null) {
+                        return false;
+                    }
+                    return mNormalBrightnessModeController.onAmbientLuxChange(ambientLux);
+                },
                 () -> mHbmController.onAmbientLuxChange(ambientLux)
         );
     }
@@ -70,8 +84,13 @@ class BrightnessRangeController {
     void loadFromConfig(@Nullable HighBrightnessModeMetadata hbmMetadata, IBinder token,
             DisplayDeviceInfo info, DisplayDeviceConfig displayDeviceConfig) {
         applyChanges(
-                () -> mNormalBrightnessModeController.resetNbmData(
-                        displayDeviceConfig.getLuxThrottlingData()),
+                () -> {
+                    if (mNormalBrightnessModeController == null) {
+                        return false;
+                    }
+                    return mNormalBrightnessModeController.resetNbmData(
+                            displayDeviceConfig.getLuxThrottlingData());
+                },
                 () -> {
                     mHbmController.setHighBrightnessModeMetadata(hbmMetadata);
                     mHbmController.resetHbmData(info.width, info.height, token, info.uniqueId,
@@ -87,7 +106,12 @@ class BrightnessRangeController {
 
     void setAutoBrightnessEnabled(int state) {
         applyChanges(
-                () -> mNormalBrightnessModeController.setAutoBrightnessState(state),
+                () -> {
+                    if (mNormalBrightnessModeController == null) {
+                        return false;
+                    }
+                    return mNormalBrightnessModeController.setAutoBrightnessState(state);
+                },
                 () ->  mHbmController.setAutoBrightnessEnabled(state)
         );
     }
@@ -110,7 +134,9 @@ class BrightnessRangeController {
         // hbm is currently not allowed
         if (!mHbmController.deviceSupportsHbm() || !mHbmController.isHbmCurrentlyAllowed()) {
             return Math.min(mHbmController.getCurrentBrightnessMax(),
-                    mNormalBrightnessModeController.getCurrentBrightnessMax());
+                    mNormalBrightnessModeController != null
+                            ? mNormalBrightnessModeController.getCurrentBrightnessMax()
+                            : PowerManager.BRIGHTNESS_MAX);
         }
         return mHbmController.getCurrentBrightnessMax();
     }
@@ -125,6 +151,10 @@ class BrightnessRangeController {
 
     float getTransitionPoint() {
         return mHbmController.getTransitionPoint();
+    }
+
+    boolean isHbmCurrentlyAllowed() {
+        return mHbmController.isHbmCurrentlyAllowed();
     }
 
     private void applyChanges(BooleanSupplier nbmChangesFunc, Runnable hbmChangesFunc) {

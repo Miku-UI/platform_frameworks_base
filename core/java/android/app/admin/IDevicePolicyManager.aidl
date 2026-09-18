@@ -33,10 +33,12 @@ import android.app.admin.PackagePolicy;
 import android.app.admin.PasswordMetrics;
 import android.app.admin.FactoryResetProtectionPolicy;
 import android.app.admin.IAuditLogEventsCallback;
+import android.app.admin.IDeviceProvisioningCallback;
 import android.app.admin.ManagedProfileProvisioningParams;
 import android.app.admin.FullyManagedDeviceProvisioningParams;
 import android.app.admin.ManagedSubscriptionsPolicy;
-import android.app.admin.MultiUserDeviceProvisioningParamsTransport;
+import android.app.admin.MultiuserManagedDeviceProvisioningParamsTransport;
+import android.app.admin.MultiuserManagedUserProvisioningParamsTransport;
 import android.app.admin.WifiSsidPolicy;
 import android.content.ComponentName;
 import android.content.Intent;
@@ -173,7 +175,7 @@ interface IDevicePolicyManager {
     void removeActiveAdmin(in ComponentName policyReceiver, int userHandle);
     void forceRemoveActiveAdmin(in ComponentName policyReceiver, int userHandle);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.MANAGE_PROFILE_AND_DEVICE_OWNERS)")
-    void clearMultiUserDeviceManagement(in ComponentName admin);
+    void clearMultiuserDeviceManagement(in String deviceControllerPackageName);
     boolean hasGrantedPolicy(in ComponentName policyReceiver, int usesPolicy, int userHandle);
 
     void reportPasswordChanged(in PasswordMetrics metrics, int userId);
@@ -191,7 +193,11 @@ interface IDevicePolicyManager {
     String getDeviceOwnerName();
     void clearDeviceOwner(String packageName);
     int getDeviceOwnerUserId();
-    boolean isDeviceManaged();
+    boolean isDeviceManaged(String packageName);
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.MANAGE_MULTIUSER_DEVICE_PROVISIONING_STATE)")
+    int getMultiuserManagedDeviceProvisioningState();
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.MANAGE_MULTIUSER_DEVICE_PROVISIONING_STATE)")
+    void startMultiuserManagedDeviceProvisioning();
 
     boolean setProfileOwner(in ComponentName who, int userHandle);
     ComponentName getProfileOwnerAsUser(int userHandle);
@@ -206,7 +212,7 @@ interface IDevicePolicyManager {
 
     boolean checkDeviceIdentifierAccess(in String packageName, int pid, int uid);
 
-    void setDeviceOwnerLockScreenInfo(in ComponentName who, CharSequence deviceOwnerInfo);
+    void setDeviceOwnerLockScreenInfo(in ComponentName who, String callerPackageName, CharSequence deviceOwnerInfo);
     CharSequence getDeviceOwnerLockScreenInfo();
 
     String[] setPackagesSuspended(in ComponentName admin, in String callerPackage, in String[] packageNames, boolean suspended);
@@ -584,8 +590,8 @@ interface IDevicePolicyManager {
     UserHandle createManagedProfile(in ManagedProfileProvisioningParams provisioningParams, in String callerPackage);
     void finalizeCreateManagedProfile(in ManagedProfileProvisioningParams provisioningParams, in UserHandle managedProfileUser);
     void provisionFullyManagedDevice(in FullyManagedDeviceProvisioningParams provisioningParams, in String callerPackage);
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.MANAGE_PROFILE_AND_DEVICE_OWNERS)")
-    void provisionMultiUserDevice(in MultiUserDeviceProvisioningParamsTransport provisioningParamsTransport, in String callerPackage);
+    void provisionMultiuserManagedDevice(in MultiuserManagedDeviceProvisioningParamsTransport provisioningParamsTransport, in String callerPackage, in IDeviceProvisioningCallback callback);
+    void provisionMultiuserManagedUser(in MultiuserManagedUserProvisioningParamsTransport provisioningParamsTransport, in String callerPackage);
 
     void finalizeWorkProfileProvisioning(in UserHandle managedProfileUser, in Account migratedAccount);
 
@@ -623,6 +629,8 @@ interface IDevicePolicyManager {
 
     void resetShouldAllowBypassingDevicePolicyManagementRoleQualificationState();
     boolean shouldAllowBypassingDevicePolicyManagementRoleQualification();
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.MANAGE_ROLE_HOLDERS)")
+    boolean isPackageAllowedToBypassDevicePolicyManagementRoleQualification(String packageName, int user);
 
     List<UserHandle> getPolicyManagedProfiles(in UserHandle userHandle);
 
@@ -658,9 +666,16 @@ interface IDevicePolicyManager {
     int getPolicySizeForAdmin(String callerPackageName, in EnforcingAdmin admin);
 
     int getHeadlessDeviceOwnerMode(String callerPackageName);
+    boolean isOutgoingTransferAllowedForSubscription(String callerPackageName, int subscriptionId);
 
     void setAppFunctionsPolicy(String callerPackageName, int policy);
     int getAppFunctionsPolicy(String callerPackageName, int userId);
 
     void setPolicy(in String callerPackageName, in String policy, in int scope, in PolicyValueTransport value);
+    PolicyValueTransport getPolicy(in String callerPackageName, in String policy, in int scope);
+    PolicyValueTransport getResolvedDeviceWidePolicy(in String callerPackageName, in String policy);
+    PolicyValueTransport getResolvedPerUserPolicy(in String callerPackageName, in int userId, in String policy);
+
+    KeymasterCertificateChain generateKeyPairWithScope(in String callerPackage, in String algorithm, in ParcelableKeyGenParameterSpec keySpec,
+            in int idAttestationFlags, int scope);
 }

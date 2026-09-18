@@ -15,12 +15,14 @@
  */
 package android.app.search;
 
+import android.annotation.FlaggedApi;
 import android.annotation.FloatRange;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.StringDef;
 import android.annotation.SystemApi;
+import android.app.search.flags.Flags;
 import android.app.slice.SliceManager;
 import android.appwidget.AppWidgetProviderInfo;
 import android.content.pm.PackageManager;
@@ -31,6 +33,7 @@ import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.UserHandle;
+import android.widget.RemoteViews;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -139,6 +142,8 @@ public final class SearchTarget implements Parcelable {
     private final AppWidgetProviderInfo mAppWidgetProviderInfo;
     @Nullable
     private final Uri mSliceUri;
+    @Nullable
+    private final RemoteViews mRemoteViews;
 
     @NonNull
     private final Bundle mExtras;
@@ -157,6 +162,7 @@ public final class SearchTarget implements Parcelable {
         mShortcutInfo = parcel.readTypedObject(ShortcutInfo.CREATOR);
         mAppWidgetProviderInfo = parcel.readTypedObject(AppWidgetProviderInfo.CREATOR);
         mSliceUri = parcel.readTypedObject(Uri.CREATOR);
+        mRemoteViews = parcel.readTypedObject(RemoteViews.CREATOR);
         mExtras = parcel.readBundle(getClass().getClassLoader());
     }
 
@@ -171,6 +177,7 @@ public final class SearchTarget implements Parcelable {
             @Nullable SearchAction action,
             @Nullable ShortcutInfo shortcutInfo,
             @Nullable Uri sliceUri,
+            @Nullable RemoteViews remoteViews,
             @Nullable AppWidgetProviderInfo appWidgetProviderInfo,
             @NonNull Bundle extras) {
         mResultType = resultType;
@@ -185,11 +192,12 @@ public final class SearchTarget implements Parcelable {
         mShortcutInfo = shortcutInfo;
         mAppWidgetProviderInfo = appWidgetProviderInfo;
         mSliceUri = sliceUri;
+        mRemoteViews = remoteViews;
         mExtras = extras != null ? extras : new Bundle();
     }
 
     /**
-     * Retrieves the result type {@see SearchResultType}.
+     * Retrieves the result type.
      */
     public @SearchResultType int getResultType() {
         return mResultType;
@@ -285,6 +293,15 @@ public final class SearchTarget implements Parcelable {
     }
 
     /**
+     * Returns a remote view.
+     */
+    @FlaggedApi(Flags.FLAG_REMOTE_VIEWS)
+    @Nullable
+    public RemoteViews getRemoteViews() {
+        return mRemoteViews;
+    }
+
+    /**
      * Returns a search action.
      */
     @Nullable
@@ -319,6 +336,7 @@ public final class SearchTarget implements Parcelable {
         parcel.writeTypedObject(mShortcutInfo, flags);
         parcel.writeTypedObject(mAppWidgetProviderInfo, flags);
         parcel.writeTypedObject(mSliceUri, flags);
+        parcel.writeTypedObject(mRemoteViews, flags);
         parcel.writeBundle(mExtras);
     }
 
@@ -363,6 +381,8 @@ public final class SearchTarget implements Parcelable {
         private ShortcutInfo mShortcutInfo;
         @Nullable
         private Uri mSliceUri;
+        @Nullable
+        private RemoteViews mRemoteViews;
         @Nullable
         private AppWidgetProviderInfo mAppWidgetProviderInfo;
         @NonNull
@@ -444,6 +464,16 @@ public final class SearchTarget implements Parcelable {
         }
 
         /**
+         * Sets the remote view.
+         */
+        @FlaggedApi(Flags.FLAG_REMOTE_VIEWS)
+        @NonNull
+        public Builder setRemoteViews(@NonNull RemoteViews remoteViews) {
+            mRemoteViews = remoteViews;
+            return this;
+        }
+
+        /**
          * Set the {@link SearchAction} object to this target.
          */
         @NonNull
@@ -500,7 +530,7 @@ public final class SearchTarget implements Parcelable {
         public SearchTarget build() {
             return new SearchTarget(mResultType, mLayoutType, mId, mParentId, mScore, mHidden,
                     mPackageName, mUserHandle,
-                    mSearchAction, mShortcutInfo, mSliceUri, mAppWidgetProviderInfo,
+                    mSearchAction, mShortcutInfo, mSliceUri, mRemoteViews, mAppWidgetProviderInfo,
                     mExtras);
         }
     }

@@ -16,13 +16,15 @@
 
 package android.app.ondeviceintelligence;
 
+import android.annotation.FlaggedApi;
+import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
+import android.app.ondeviceintelligence.flags.Flags;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.PersistableBundle;
-
 import java.util.Objects;
 
 /**
@@ -41,6 +43,7 @@ public final class Feature implements Parcelable {
     private final int mVariant;
     @NonNull
     private final PersistableBundle mFeatureParams;
+    private final int mVersion;
 
     /* package-private */ Feature(
             int id,
@@ -48,14 +51,16 @@ public final class Feature implements Parcelable {
             @Nullable String modelName,
             int type,
             int variant,
-            @NonNull PersistableBundle featureParams) {
+            @NonNull PersistableBundle featureParams,
+            int version) {
         this.mId = id;
         this.mName = name;
         this.mModelName = modelName;
         this.mType = type;
         this.mVariant = variant;
         this.mFeatureParams = Objects.requireNonNull(featureParams,
-                "featureParams should be non-null.");
+                "featureParams must not be null.");
+        this.mVersion = version;
     }
 
     /** Returns the unique and immutable identifier of this feature. */
@@ -87,6 +92,13 @@ public final class Feature implements Parcelable {
         return mFeatureParams;
     }
 
+    /** Returns a non-negative  integer representing the version of this feature. */
+    @FlaggedApi(Flags.FLAG_ON_DEVICE_INTELLIGENCE_26Q2)
+    @IntRange(from = 0)
+    public int getVersion() {
+        return mVersion;
+    }
+
     @Override
     public String toString() {
         return "Feature { " +
@@ -95,7 +107,8 @@ public final class Feature implements Parcelable {
                 "modelName = " + mModelName + ", " +
                 "type = " + mType + ", " +
                 "variant = " + mVariant + ", " +
-                "featureParams = " + mFeatureParams +
+                "featureParams = " + mFeatureParams + ", " +
+                "version = " + mVersion +
                 " }";
     }
 
@@ -112,7 +125,8 @@ public final class Feature implements Parcelable {
                 && java.util.Objects.equals(mModelName, that.mModelName)
                 && mType == that.mType
                 && mVariant == that.mVariant
-                && java.util.Objects.equals(mFeatureParams, that.mFeatureParams);
+                && java.util.Objects.equals(mFeatureParams, that.mFeatureParams)
+                && mVersion == that.mVersion;
     }
 
     @Override
@@ -124,6 +138,7 @@ public final class Feature implements Parcelable {
         _hash = 31 * _hash + mType;
         _hash = 31 * _hash + mVariant;
         _hash = 31 * _hash + java.util.Objects.hashCode(mFeatureParams);
+        _hash = 31 * _hash + mVersion;
         return _hash;
     }
 
@@ -139,6 +154,7 @@ public final class Feature implements Parcelable {
         dest.writeInt(mType);
         dest.writeInt(mVariant);
         dest.writeTypedObject(mFeatureParams, flags);
+        dest.writeInt(mVersion);
     }
 
     @Override
@@ -157,13 +173,16 @@ public final class Feature implements Parcelable {
         int variant = in.readInt();
         PersistableBundle featureParams = (PersistableBundle) in.readTypedObject(
                 PersistableBundle.CREATOR);
+        int version = in.readInt();
 
         this.mId = id;
         this.mName = name;
         this.mModelName = modelName;
         this.mType = type;
         this.mVariant = variant;
-        this.mFeatureParams = featureParams;
+        this.mFeatureParams = Objects.requireNonNull(featureParams,
+                "featureParams must not be null.");
+        this.mVersion = version;
     }
 
     public static final @NonNull Parcelable.Creator<Feature> CREATOR
@@ -190,12 +209,12 @@ public final class Feature implements Parcelable {
         private int mType;
         private int mVariant;
         private @NonNull PersistableBundle mFeatureParams;
+        private int mVersion;
 
         private long mBuilderFieldsSet = 0L;
 
         /**
          * Provides a builder instance to create a feature for given id.
-         *
          * @param id the unique identifier for the feature.
          */
         public Builder(int id) {
@@ -238,10 +257,21 @@ public final class Feature implements Parcelable {
             return this;
         }
 
+        /**
+         * Sets the version of the feature.
+         */
+        @FlaggedApi(Flags.FLAG_ON_DEVICE_INTELLIGENCE_26Q2)
+        public @NonNull Builder setVersion(int value) {
+            checkNotUsed();
+            mBuilderFieldsSet |= 0x40;
+            mVersion = value;
+            return this;
+        }
+
         /** Builds the instance. This builder should not be touched after calling this! */
         public @NonNull Feature build() {
             checkNotUsed();
-            mBuilderFieldsSet |= 0x40; // Mark builder used
+            mBuilderFieldsSet |= 0x80; // Mark builder used
 
             Feature o = new Feature(
                     mId,
@@ -249,12 +279,13 @@ public final class Feature implements Parcelable {
                     mModelName,
                     mType,
                     mVariant,
-                    mFeatureParams);
+                    mFeatureParams,
+                    mVersion);
             return o;
         }
 
         private void checkNotUsed() {
-            if ((mBuilderFieldsSet & 0x40) != 0) {
+            if ((mBuilderFieldsSet & 0x80) != 0) {
                 throw new IllegalStateException(
                         "This Builder should not be reused. Use a new Builder instance instead");
             }

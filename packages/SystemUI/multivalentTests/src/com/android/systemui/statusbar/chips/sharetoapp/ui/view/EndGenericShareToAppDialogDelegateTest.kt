@@ -27,7 +27,6 @@ import android.view.View
 import android.view.Window
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags.FLAG_STATUS_BAR_SHARE_DIALOG_WITH_APP_NAME
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.mediaprojection.data.model.MediaProjectionState
@@ -59,8 +58,7 @@ class EndGenericShareToAppDialogDelegateTest : SysuiTestCase() {
     private lateinit var underTest: EndGenericShareToAppDialogDelegate
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_SHARE_DIALOG_WITH_APP_NAME)
-    fun message_unknownHostPackage_appNameFlagOn_isGeneric() {
+    fun message_unknownHostPackage_isGeneric() {
         createAndSetDelegate()
         whenever(kosmos.packageManager.getApplicationInfo(eq(HOST_PACKAGE), any<Int>()))
             .thenThrow(PackageManager.NameNotFoundException())
@@ -72,21 +70,7 @@ class EndGenericShareToAppDialogDelegateTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(FLAG_STATUS_BAR_SHARE_DIALOG_WITH_APP_NAME)
-    fun message_unknownHostPackage_appNameFlagOff_isGeneric() {
-        createAndSetDelegate()
-        whenever(kosmos.packageManager.getApplicationInfo(eq(HOST_PACKAGE), any<Int>()))
-            .thenThrow(PackageManager.NameNotFoundException())
-
-        underTest.beforeCreate(sysuiDialog, /* savedInstanceState= */ null)
-
-        verify(sysuiDialog)
-            .setMessage(context.getString(R.string.share_to_app_stop_dialog_message_generic))
-    }
-
-    @Test
-    @EnableFlags(FLAG_STATUS_BAR_SHARE_DIALOG_WITH_APP_NAME)
-    fun message_hasHostPackage_appNameFlagOn_hasAppName() {
+    fun message_hasHostPackage_hasAppName() {
         createAndSetDelegate()
         val hostAppInfo = mock<ApplicationInfo>()
         whenever(hostAppInfo.loadLabel(kosmos.packageManager)).thenReturn("Host Package")
@@ -102,21 +86,6 @@ class EndGenericShareToAppDialogDelegateTest : SysuiTestCase() {
                     "Host Package",
                 )
             )
-    }
-
-    @Test
-    @DisableFlags(FLAG_STATUS_BAR_SHARE_DIALOG_WITH_APP_NAME)
-    fun message_hasHostPackage_appNameFlagOff_isGeneric() {
-        createAndSetDelegate()
-        val hostAppInfo = mock<ApplicationInfo>()
-        whenever(hostAppInfo.loadLabel(kosmos.packageManager)).thenReturn("Host Package")
-        whenever(kosmos.packageManager.getApplicationInfo(eq(HOST_PACKAGE), any<Int>()))
-            .thenReturn(hostAppInfo)
-
-        underTest.beforeCreate(sysuiDialog, /* savedInstanceState= */ null)
-
-        verify(sysuiDialog)
-            .setMessage(context.getString(R.string.share_to_app_stop_dialog_message_generic))
     }
 
     @Test

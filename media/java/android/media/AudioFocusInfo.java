@@ -21,6 +21,7 @@ import android.annotation.Nullable;
 import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import java.util.Objects;
 
@@ -29,6 +30,7 @@ import java.util.Objects;
  * A class to encapsulate information about an audio focus owner or request.
  */
 @SystemApi
+@RavenwoodKeepWholeClass
 public final class AudioFocusInfo implements Parcelable {
 
     private final @NonNull AudioAttributes mAttributes;

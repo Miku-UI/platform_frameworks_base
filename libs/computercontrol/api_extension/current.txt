@@ -1,0 +1,137 @@
+// Signature format: 6.0
+// - style=java
+package com.android.extensions.computercontrol {
+
+  public class ComputerControlExtensions {
+    method @Deprecated @Nullable public static com.android.extensions.computercontrol.ComputerControlExtensions getInstance(@NonNull android.content.Context);
+    method @Nullable public static com.android.extensions.computercontrol.ComputerControlExtensions getInstance(@NonNull android.content.Context, int);
+    method public static int getVersion();
+    method @Deprecated public static boolean isSessionCreationAvailable(@NonNull android.content.Context);
+    method public static boolean isSessionCreationAvailable(@NonNull android.content.Context, int);
+    method @RequiresPermission(allOf={android.Manifest.permission.ACCESS_COMPUTER_CONTROL, android.Manifest.permission.POST_NOTIFICATIONS}) public void requestSession(@NonNull com.android.extensions.computercontrol.ComputerControlSession.Params, @NonNull java.util.concurrent.Executor, @NonNull com.android.extensions.computercontrol.ComputerControlSession.Callback);
+  }
+
+  public final class ComputerControlSession implements AutoCloseable {
+    method @Deprecated public void attachNotificationInfo(int, @Nullable String);
+    method public void clearLifecycleCallback();
+    method public void clearStabilityListener();
+    method public void close();
+    method @NonNull public java.util.List<android.view.accessibility.AccessibilityWindowInfo> getAccessibilityWindows();
+    method @NonNull public android.util.Size getDisplaySize();
+    method @Deprecated @Nullable public android.media.Image getScreenshot();
+    method public void handOverApplications();
+    method public void insertText(@NonNull String, boolean, boolean);
+    method public void launchApplication(@NonNull android.content.ComponentName);
+    method public void launchApplication(@NonNull String);
+    method public void longPress(@IntRange(from=0) int, @IntRange(from=0) int);
+    method public void notifyBlocked();
+    method public void performAction(int);
+    method public void requestScreenshot(@NonNull java.util.concurrent.Executor, @NonNull android.os.OutcomeReceiver<android.media.Image, com.android.extensions.computercontrol.ComputerControlSession.ScreenshotException>, @Nullable android.os.CancellationSignal);
+    method public void setLifecycleCallback(@NonNull java.util.concurrent.Executor, @NonNull com.android.extensions.computercontrol.ComputerControlSession.LifecycleCallback);
+    method public void setPreviewIntent(@Nullable android.app.PendingIntent);
+    method public void setStabilityListener(@NonNull java.time.Duration, @NonNull java.util.concurrent.Executor, @NonNull com.android.extensions.computercontrol.ComputerControlSession.StabilityListener);
+    method public void setStabilityListener(@NonNull java.util.concurrent.Executor, @NonNull com.android.extensions.computercontrol.ComputerControlSession.StabilityListener);
+    method public void setStabilityListener(long, @NonNull java.util.concurrent.Executor, @NonNull com.android.extensions.computercontrol.ComputerControlSession.StabilityListener);
+    method public void swipe(@IntRange(from=0) int, @IntRange(from=0) int, @IntRange(from=0) int, @IntRange(from=0) int);
+    method public void tap(@IntRange(from=0) int, @IntRange(from=0) int);
+    field public static final int ACTION_GO_BACK = 1; // 0x1
+    field public static final int BLOCK_REASON_CALLER_INITIATED = 3; // 0x3
+    field public static final int BLOCK_REASON_DISALLOWED_ACTIVITY_LAUNCH = 2; // 0x2
+    field public static final int BLOCK_REASON_SECURE_CONTENT = 1; // 0x1
+    field public static final int BLOCK_REASON_UNKNOWN = 0; // 0x0
+    field public static final int CLOSE_REASON_CALLER_INITIATED = 1; // 0x1
+    field public static final int CLOSE_REASON_SESSION_EMPTY = 4; // 0x4
+    field public static final int CLOSE_REASON_SESSION_TIMED_OUT = 3; // 0x3
+    field public static final int CLOSE_REASON_UNKNOWN = 0; // 0x0
+    field public static final int CLOSE_REASON_USER_INITIATED = 2; // 0x2
+    field public static final int ERROR_DEVICE_LOCKED = 2; // 0x2
+    field public static final int ERROR_PERMISSION_DENIED = 3; // 0x3
+    field public static final int ERROR_SESSION_LIMIT_REACHED = 1; // 0x1
+    field public static final int ERROR_UNKNOWN = 0; // 0x0
+    field public static final int UNSTABLE_REASON_CALLER_INTERACTION = 1; // 0x1
+    field public static final int UNSTABLE_REASON_UNKNOWN = 0; // 0x0
+  }
+
+  public static interface ComputerControlSession.Callback {
+    method @Deprecated public void onSessionClosed();
+    method public void onSessionCreated(@NonNull com.android.extensions.computercontrol.ComputerControlSession);
+    method public void onSessionCreationFailed(int);
+    method public void onSessionPending(@NonNull android.content.IntentSender);
+  }
+
+  public static interface ComputerControlSession.LifecycleCallback {
+    method public void onActive();
+    method public void onBlocked(int, @Nullable String);
+    method public void onClosed(int);
+  }
+
+  public static final class ComputerControlSession.NotificationParams {
+    method @NonNull public android.app.Notification getNotification();
+    method public int getNotificationId();
+    method @Nullable public String getNotificationTag();
+  }
+
+  public static final class ComputerControlSession.NotificationParams.Builder {
+    ctor public ComputerControlSession.NotificationParams.Builder(@NonNull android.app.Notification, int);
+    method @NonNull public com.android.extensions.computercontrol.ComputerControlSession.NotificationParams build();
+    method @NonNull public com.android.extensions.computercontrol.ComputerControlSession.NotificationParams.Builder setNotificationTag(@Nullable String);
+  }
+
+  public static class ComputerControlSession.Params {
+    method @Nullable public android.app.AppInteractionAttribution getAppInteractionAttribution();
+    method @Nullable public android.companion.DeviceId getCompanionDeviceId();
+    method @NonNull public android.content.Context getContext();
+    method @NonNull public String getName();
+    method @Nullable public com.android.extensions.computercontrol.ComputerControlSession.NotificationParams getNotificationParams();
+    method @NonNull public java.util.List<String> getTargetPackageNames();
+  }
+
+  public static class ComputerControlSession.Params.Builder {
+    ctor public ComputerControlSession.Params.Builder(@NonNull android.content.Context);
+    method @NonNull public com.android.extensions.computercontrol.ComputerControlSession.Params build();
+    method @NonNull public com.android.extensions.computercontrol.ComputerControlSession.Params.Builder setAppInteractionAttribution(@Nullable android.app.AppInteractionAttribution);
+    method @NonNull public com.android.extensions.computercontrol.ComputerControlSession.Params.Builder setCompanionDeviceId(@Nullable android.companion.DeviceId);
+    method @NonNull public com.android.extensions.computercontrol.ComputerControlSession.Params.Builder setName(@NonNull String);
+    method @NonNull public com.android.extensions.computercontrol.ComputerControlSession.Params.Builder setNotificationParams(@Nullable com.android.extensions.computercontrol.ComputerControlSession.NotificationParams);
+    method @NonNull public com.android.extensions.computercontrol.ComputerControlSession.Params.Builder setPreviewIntent(@Nullable android.app.PendingIntent);
+    method @NonNull public com.android.extensions.computercontrol.ComputerControlSession.Params.Builder setTargetPackageNames(@NonNull java.util.List<String>);
+  }
+
+  public static class ComputerControlSession.ScreenshotException extends Exception {
+    method public int getErrorCode();
+    field public static final int ERROR_CANCELED = 2; // 0x2
+    field public static final int ERROR_DUPLICATE_REQUEST = 6; // 0x6
+    field public static final int ERROR_INTERNAL = 4; // 0x4
+    field public static final int ERROR_PROHIBITED = 3; // 0x3
+    field public static final int ERROR_REMOTE = 5; // 0x5
+    field public static final int ERROR_SCREEN_UNCHANGED = 7; // 0x7
+    field public static final int ERROR_TIMEOUT = 1; // 0x1
+    field public static final int ERROR_UNKNOWN = 0; // 0x0
+  }
+
+  public static interface ComputerControlSession.StabilityListener {
+    method public void onSessionStable();
+    method public default void onSessionUnstable(int);
+  }
+
+}
+
+package com.android.extensions.computercontrol.view {
+
+  @MainThread public class MirrorView extends android.widget.FrameLayout {
+    ctor public MirrorView(android.content.Context);
+    ctor public MirrorView(android.content.Context, android.util.AttributeSet);
+    ctor public MirrorView(android.content.Context, android.util.AttributeSet, int);
+    ctor public MirrorView(android.content.Context, android.util.AttributeSet, int, int);
+    method public int getScaleType();
+    method public void setComputerControlSession(@Nullable com.android.extensions.computercontrol.ComputerControlSession);
+    method public void setCornerRadius(int);
+    method public void setInteractive(boolean);
+    method public void setScaleType(int);
+    field public static final int SCALE_TYPE_FILL_CENTER = 2; // 0x2
+    field public static final int SCALE_TYPE_FIT_CENTER = 1; // 0x1
+    field public static final int SCALE_TYPE_UNKNOWN = 0; // 0x0
+  }
+
+}
+

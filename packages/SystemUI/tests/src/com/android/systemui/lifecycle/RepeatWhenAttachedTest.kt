@@ -23,6 +23,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.kosmos.testDispatcher
+import com.android.systemui.kosmos.testScope
+import com.android.systemui.testKosmos
 import com.android.systemui.util.Assert
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
@@ -31,13 +34,12 @@ import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -50,6 +52,8 @@ import org.mockito.Mockito.`when` as whenever
 import org.mockito.junit.MockitoJUnit
 import org.mockito.kotlin.KArgumentCaptor
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
 
 @SmallTest
 @RunWith(JUnit4::class)
@@ -61,15 +65,15 @@ class RepeatWhenAttachedTest : SysuiTestCase() {
     @Mock private lateinit var view: View
     @Mock private lateinit var viewTreeObserver: ViewTreeObserver
 
+    private val kosmos = testKosmos()
+    private val testScope = kosmos.testScope
+
     private lateinit var block: Block
     private lateinit var attachListeners: MutableList<View.OnAttachStateChangeListener>
-    private lateinit var testScope: TestScope
 
     @Before
     fun setUp() {
-        val testDispatcher = StandardTestDispatcher()
-        testScope = TestScope(testDispatcher)
-        Dispatchers.setMain(testDispatcher)
+        Dispatchers.setMain(kosmos.testDispatcher)
         Assert.setTestThread(Thread.currentThread())
         whenever(view.viewTreeObserver).thenReturn(viewTreeObserver)
         whenever(view.windowVisibility).thenReturn(View.GONE)
@@ -89,29 +93,32 @@ class RepeatWhenAttachedTest : SysuiTestCase() {
         Dispatchers.resetMain()
     }
 
-    @Test(expected = IllegalStateException::class)
+    @Test
     fun repeatWhenAttached_enforcesMainThread() =
         testScope.runTest {
             Assert.setTestThread(null)
 
-            repeatWhenAttached()
+            assertThrows(IllegalStateException::class.java) { repeatWhenAttached() }
         }
 
-    @Test(expected = IllegalStateException::class)
-    fun repeatWhenAttachedToWindow_enforcesMainThread() =
-        testScope.runTest {
-            Assert.setTestThread(null)
+    @Test
+    fun repeatWhenAttachedToWindow_enforcesMainThread() {
+        assertThrows(IllegalStateException::class.java) {
+            testScope.runTest {
+                Assert.setTestThread(null)
 
-            view.repeatWhenAttachedToWindow {}
+                view.repeatWhenAttachedToWindow {}
+            }
         }
+    }
 
-    @Test(expected = IllegalStateException::class)
+    @Test
     fun repeatWhenAttached_disposeEnforcesMainThread() =
         testScope.runTest {
             val disposableHandle = repeatWhenAttached()
             Assert.setTestThread(null)
 
-            disposableHandle.dispose()
+            assertThrows(IllegalStateException::class.java) { disposableHandle.dispose() }
         }
 
     @Test
@@ -477,6 +484,35 @@ class RepeatWhenAttachedTest : SysuiTestCase() {
             assertThat(attachListeners).isEmpty()
             assertThat(block.invocationCount).isEqualTo(1)
             assertThat(block.latestLifecycleState).isEqualTo(Lifecycle.State.DESTROYED)
+        }
+
+    @Test
+    fun repeatWhenAttached_viewTreeObserverChanges_correctlyUnregistersListeners() =
+        testScope.runTest {
+            val vto1 = viewTreeObserver
+            whenever(vto1.isAlive).thenReturn(true)
+            val vto2 = mock<ViewTreeObserver>()
+            whenever(vto2.isAlive).thenReturn(true)
+
+            whenever(view.isAttachedToWindow).thenReturn(true)
+            repeatWhenAttached()
+
+            verify(vto1).addOnWindowFocusChangeListener(any())
+            verify(vto1).addOnWindowVisibilityChangeListener(any())
+
+            // Change VTO before detachment
+            whenever(view.viewTreeObserver).thenReturn(vto2)
+            whenever(view.isAttachedToWindow).thenReturn(false)
+            attachListeners.last().onViewDetachedFromWindow(view)
+
+            runCurrent()
+
+            // Should still remove from vto1
+            verify(vto1).removeOnWindowFocusChangeListener(any())
+            verify(vto1).removeOnWindowVisibilityChangeListener(any())
+            // Should NOT attempt to remove from vto2
+            verify(vto2, never()).removeOnWindowFocusChangeListener(any())
+            verify(vto2, never()).removeOnWindowVisibilityChangeListener(any())
         }
 
     private fun CoroutineScope.repeatWhenAttached(): DisposableHandle {

@@ -119,7 +119,7 @@ class ShadeAnimationInteractorSceneContainerImplTest : SysuiTestCase() {
         testScope.runTest {
             Truth.assertThat(underTest.isLaunchingActivity.value).isEqualTo(false)
 
-            underTest.setIsLaunchingActivity(true)
+            underTest.setIsLaunchingActivity(true, "test")
             Truth.assertThat(underTest.isLaunchingActivity.value).isEqualTo(true)
         }
 

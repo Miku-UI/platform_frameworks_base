@@ -99,20 +99,17 @@ public class NotificationRankingUpdateTest {
                     getExplanation(key),
                     getOverrideGroupKey(key),
                     getChannel(key, i),
-                    getPeople(key, i),
                     getSnoozeCriteria(key, i),
                     getShowBadge(i),
                     getUserSentiment(i),
                     getHidden(i),
                     lastAudiblyAlerted(i),
-                    getNoisy(i),
                     getSmartActions(key, i, context),
                     getSmartReplies(key, i),
                     canBubble(i),
                     isTextChanged(i),
                     isConversation(i),
                     getShortcutInfo(i),
-                    getRankingAdjustment(i),
                     isBubble(i),
                     getProposedImportance(i),
                     hasSensitiveContent(i),
@@ -209,24 +206,6 @@ public class NotificationRankingUpdateTest {
     }
 
     /**
-     * Produces a boolean that can be used to represent "noisy," based on the provided index.
-     */
-    public static boolean getNoisy(int index) {
-        return index < 1;
-    }
-
-    /**
-     * Produces strings that can be used to represent people, based on the provided key and index.
-     */
-    public static ArrayList<String> getPeople(String key, int index) {
-        ArrayList<String> people = new ArrayList<>();
-        for (int i = 0; i < index; i++) {
-            people.add(i + key);
-        }
-        return people;
-    }
-
-    /**
      * Produces a number of snoozeCriteria, based on the provided key and index.
      */
     public static ArrayList<SnoozeCriterion> getSnoozeCriteria(String key, int index) {
@@ -304,13 +283,6 @@ public class NotificationRankingUpdateTest {
     }
 
     /**
-     * Produces a rankingAdjustment value, based on the provided index.
-     */
-    public static int getRankingAdjustment(int index) {
-        return index % 3 - 1;
-    }
-
-    /**
      * Produces a proposedImportance, based on the provided index.
      */
     public static int getProposedImportance(int index) {
@@ -330,10 +302,7 @@ public class NotificationRankingUpdateTest {
      * index.
      */
     public static String getSummarization(int index) {
-        if ((android.app.Flags.nmSummarizationUi() || android.app.Flags.nmSummarization())) {
-            return "summary " + index;
-        }
-        return null;
+        return "summary " + index;
     }
 
     /**
@@ -380,14 +349,12 @@ public class NotificationRankingUpdateTest {
         Assert.assertEquals(comment, a.getImportanceExplanation(), b.getImportanceExplanation());
         Assert.assertEquals(comment, a.getOverrideGroupKey(), b.getOverrideGroupKey());
         Assert.assertEquals(comment, a.getChannel().toString(), b.getChannel().toString());
-        Assert.assertEquals(comment, a.getAdditionalPeople(), b.getAdditionalPeople());
         Assert.assertEquals(comment, a.getSnoozeCriteria(), b.getSnoozeCriteria());
         Assert.assertEquals(comment, a.canShowBadge(), b.canShowBadge());
         Assert.assertEquals(comment, a.getUserSentiment(), b.getUserSentiment());
         Assert.assertEquals(comment, a.isSuspended(), b.isSuspended());
         Assert.assertEquals(comment, a.getLastAudiblyAlertedMillis(),
                 b.getLastAudiblyAlertedMillis());
-        Assert.assertEquals(comment, a.isNoisy(), b.isNoisy());
         Assert.assertEquals(comment, a.getSmartReplies(), b.getSmartReplies());
         Assert.assertEquals(comment, a.canBubble(), b.canBubble());
         Assert.assertEquals(comment, a.isConversation(), b.isConversation());
@@ -442,20 +409,17 @@ public class NotificationRankingUpdateTest {
                 /* explanation= */ null,
                 /* overrideGroupKey= */ null,
                 mNotificationChannel,
-                /* overridePeople= */ null,
                 /* snoozeCriteria= */ null,
                 /* showBadge= */ true,
                 /* userSentiment= */ 0,
                 /* hidden= */ false,
                 /* lastAudiblyAlertedMs= */ -1,
-                /* noisy= */ false,
                 /* smartActions= */ actions,
                 /* smartReplies= */ null,
                 /* canBubble= */ false,
                 /* isTextChanged= */ false,
                 /* isConversation= */ false,
                 /* shortcutInfo= */ null,
-                /* rankingAdjustment= */ 0,
                 /* isBubble= */ false,
                 /* proposedImportance= */ 0,
                 /* sensitiveContent= */ false,
@@ -528,20 +492,17 @@ public class NotificationRankingUpdateTest {
                 tweak.getImportanceExplanation(),
                 tweak.getOverrideGroupKey(),
                 tweak.getChannel(),
-                (ArrayList) tweak.getAdditionalPeople(),
                 (ArrayList) tweak.getSnoozeCriteria(),
                 tweak.canShowBadge(),
                 tweak.getUserSentiment(),
                 tweak.isSuspended(),
                 tweak.getLastAudiblyAlertedMillis(),
-                tweak.isNoisy(),
                 (ArrayList) tweak.getSmartActions(),
                 (ArrayList) tweak.getSmartReplies(),
                 tweak.canBubble(),
                 tweak.isTextChanged(),
                 tweak.isConversation(),
                 tweak.getConversationShortcutInfo(),
-                tweak.getRankingAdjustment(),
                 tweak.isBubble(),
                 tweak.getProposedImportance(),
                 tweak.hasSensitiveContent(),

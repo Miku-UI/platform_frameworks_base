@@ -20,15 +20,34 @@ import com.android.systemui.animation.ActivityTransitionAnimator
 import com.android.systemui.animation.DelegateTransitionAnimatorController
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
 import com.android.systemui.communal.shared.model.CommunalScenes
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.SceneFamilies
+import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.statusbar.phone.CentralSurfaces
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import java.util.Optional
 
 /**
  * An [ActivityTransitionAnimator.Controller] that takes care of updating the state of the Communal
  * Hub at the right time.
  */
-class CommunalTransitionAnimatorController(
-    delegate: ActivityTransitionAnimator.Controller,
+class CommunalTransitionAnimatorController
+@AssistedInject
+constructor(
+    @Assisted delegate: ActivityTransitionAnimator.Controller,
+    private val centralSurfaces: Optional<CentralSurfaces>,
     private val communalSceneInteractor: CommunalSceneInteractor,
 ) : DelegateTransitionAnimatorController(delegate) {
+
+    @AssistedFactory
+    interface Factory {
+        fun create(
+            delegate: ActivityTransitionAnimator.Controller
+        ): CommunalTransitionAnimatorController
+    }
+
     override fun onIntentStarted(willAnimate: Boolean) {
         if (!willAnimate) {
             // Other callbacks won't happen, so reset the state here.
@@ -39,6 +58,26 @@ class CommunalTransitionAnimatorController(
 
     override fun onTransitionAnimationStart(isExpandingFullyAbove: Boolean) {
         delegate.onTransitionAnimationStart(isExpandingFullyAbove)
+        // When launching an activity from the communal hub, we need to transition to the
+        // correct scene after the animation. This is delayed by the animation duration to
+        // ensure a smooth transition.
+        centralSurfaces.ifPresent {
+            val newScene =
+                if (SceneContainerFlag.isEnabled) {
+                    if (it.isLaunchingActivityOverLockscreen) {
+                        Scenes.Occluded
+                    } else {
+                        SceneFamilies.Home
+                    }
+                } else {
+                    CommunalScenes.Blank
+                }
+            communalSceneInteractor.snapToScene(
+                newScene,
+                "CommunalTransitionAnimatorController",
+                delayMillis = ActivityTransitionAnimator.TIMINGS.totalDuration,
+            )
+        }
     }
 
     override fun onTransitionAnimationCancelled(newKeyguardOccludedState: Boolean?) {
@@ -49,9 +88,5 @@ class CommunalTransitionAnimatorController(
     override fun onTransitionAnimationEnd(isExpandingFullyAbove: Boolean) {
         communalSceneInteractor.setIsLaunchingWidget(false)
         delegate.onTransitionAnimationEnd(isExpandingFullyAbove)
-        communalSceneInteractor.snapToScene(
-            CommunalScenes.Blank,
-            "CommunalTransitionAnimatorController",
-        )
     }
 }

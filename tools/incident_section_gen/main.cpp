@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <absl/strings/str_replace.h>
 #include <frameworks/base/core/proto/android/os/incident.pb.h>
 
 #include <map>
@@ -114,7 +115,7 @@ static bool generateIncidentSectionsCpp(Descriptor const* descriptor)
     N = descriptor->field_count();
     for (int i=0; i<N; i++) {
         const FieldDescriptor* field = descriptor->field(i);
-        sections[field->name()] = field;
+        sections[std::string(field->name())] = field;
     }
 
     printf("IncidentSection const INCIDENT_SECTIONS[] = {\n");
@@ -123,7 +124,8 @@ static bool generateIncidentSectionsCpp(Descriptor const* descriptor)
     for (map<string,FieldDescriptor const*>::const_iterator it = sections.begin();
             it != sections.end(); it++, i++) {
         const FieldDescriptor* field = it->second;
-        printf("    { %d, \"%s\" }", field->number(), field->name().c_str());
+        const auto name = field->name();
+        printf("    { %d, \"%.*s\" }", field->number(), static_cast<int>(name.size()), name.data());
         if (i != N-1) {
             printf(",\n");
         } else {
@@ -219,14 +221,14 @@ static inline string getDestString(const Destination dest) {
 // Get Names ===========================================================================================
 static inline string getFieldName(const FieldDescriptor* field) {
     // replace . with double underscores to avoid name conflicts since fields use snake naming convention
-    return replaceAll(field->full_name(), '.', "__");
+    return absl::StrReplaceAll(field->full_name(), {{".", "__"}});
 }
 
 
 static inline string getMessageName(const Descriptor* descriptor, const Destination overridden) {
     // replace . with one underscore since messages use camel naming convention
-    return replaceAll(descriptor->full_name(), '.', "_") + "__MSG__" +
-            to_string(getMessageDest(descriptor, overridden));
+    return absl::StrCat(absl::StrReplaceAll(descriptor->full_name(), {{".", "_"}}), "__MSG__",
+                        getMessageDest(descriptor, overridden));
 }
 
 // IsDefault ============================================================================================
@@ -246,7 +248,7 @@ static inline bool isDefaultField(const FieldDescriptor* field, const Destinatio
 static bool isDefaultMessageImpl(const Descriptor* descriptor, const Destination dest, set<string>* parents) {
     const int N = descriptor->field_count();
     const Destination messageDest = getMessageDest(descriptor, dest);
-    parents->insert(descriptor->full_name());
+    parents->insert(std::string(descriptor->full_name()));
     for (int i=0; i<N; ++i) {
         const FieldDescriptor* field = descriptor->field(i);
         const Destination fieldDest = getFieldDest(field);
@@ -255,7 +257,10 @@ static bool isDefaultMessageImpl(const Descriptor* descriptor, const Destination
         switch (field->type()) {
             case FieldDescriptor::TYPE_MESSAGE:
                 // if self recursion, don't go deep.
-                if (parents->find(field->message_type()->full_name()) != parents->end()) break;
+                if (parents->find(std::string(field->message_type()->full_name())) !=
+                    parents->end()) {
+                    break;
+                }
                 // if is a default message, just continue
                 if (isDefaultMessageImpl(field->message_type(), fieldDest, parents)) break;
                 // sub message is not default, so this message is always not default
@@ -267,7 +272,7 @@ static bool isDefaultMessageImpl(const Descriptor* descriptor, const Destination
                 break;
         }
     }
-    parents->erase(descriptor->full_name());
+    parents->erase(std::string(descriptor->full_name()));
     return true;
 }
 
@@ -478,7 +483,8 @@ static bool generateSectionListCpp(Descriptor const* descriptor) {
         const FieldDescriptor* field = fieldsInOrder[i];
         const string fieldName = getFieldName(field);
         const Destination fieldDest = getFieldDest(field);
-        printf("\n// Incident Report Section: %s (%d)\n", field->name().c_str(), field->number());
+        printf("\n// Incident Report Section: %.*s (%d)\n", static_cast<int>(field->name().size()),
+               field->name().data(), field->number());
         if (field->type() != FieldDescriptor::TYPE_MESSAGE) {
             printPrivacy(fieldName, field, "NULL", fieldDest, "NULL");
             continue;
@@ -574,10 +580,10 @@ static void generateCsv(Descriptor const* descriptor, const string& indent, set<
         text << ")";
         printf("%s%s,\n", indent.c_str(), replace_string(text.str(), '\n', ' ').c_str());
         if (field->type() == FieldDescriptor::TYPE_MESSAGE &&
-            parents->find(field->message_type()->full_name()) == parents->end()) {
-            parents->insert(field->message_type()->full_name());
+            parents->find(std::string(field->message_type()->full_name())) == parents->end()) {
+            parents->insert(std::string(field->message_type()->full_name()));
             generateCsv(field->message_type(), indent + ",", parents, fieldDest);
-            parents->erase(field->message_type()->full_name());
+            parents->erase(std::string(field->message_type()->full_name()));
         }
     }
 }
@@ -601,10 +607,9 @@ int main(int argc, char const *argv[])
         int sectionId = atoi(argv[2]);
         for (int i=0; i<descriptor->field_count(); i++) {
             const FieldDescriptor* field = descriptor->field(i);
-            if (strcmp(field->name().c_str(), argv[2]) == 0
-                || field->number() == sectionId) {
+            if (field->name() == argv[2] || field->number() == sectionId) {
                 set<string> parents;
-                printf("%s\n", field->name().c_str());
+                printf("%.*s\n", static_cast<int>(field->name().size()), field->name().data());
                 generateCsv(field->message_type(), "", &parents, getFieldDest(field));
                 break;
             }

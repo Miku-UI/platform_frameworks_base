@@ -39,6 +39,7 @@ import com.android.systemui.dock.DockManagerFake
 import com.android.systemui.flags.FakeFeatureFlags
 import com.android.systemui.flags.Flags
 import com.android.systemui.haptics.msdl.msdlPlayer
+import com.android.systemui.inputdevice.domain.interactor.pointerDeviceInteractor
 import com.android.systemui.keyguard.data.quickaffordance.FakeKeyguardQuickAffordanceConfig
 import com.android.systemui.keyguard.data.quickaffordance.FakeKeyguardQuickAffordanceProviderClientFactory
 import com.android.systemui.keyguard.data.quickaffordance.KeyguardQuickAffordanceLegacySettingSyncer
@@ -178,14 +179,13 @@ class CustomizationProviderTest : SysuiTestCase() {
                 userHandle = UserHandle.SYSTEM,
             )
         val featureFlags =
-            FakeFeatureFlags().apply {
-                set(Flags.LOCKSCREEN_CUSTOM_CLOCKS, true)
-                set(Flags.WALLPAPER_FULLSCREEN_PREVIEW, true)
-            }
-        underTest.interactor =
+            FakeFeatureFlags().apply { set(Flags.WALLPAPER_FULLSCREEN_PREVIEW, true) }
+
+        val interactor =
             KeyguardQuickAffordanceInteractor(
                 keyguardInteractor =
                     KeyguardInteractorFactory.create(
+                            context = mContext,
                             featureFlags = featureFlags,
                             sceneInteractor =
                                 mock {
@@ -206,20 +206,26 @@ class CustomizationProviderTest : SysuiTestCase() {
                 secureLockDeviceInteractor = { kosmos.secureLockDeviceInteractor },
                 devicePolicyManager = devicePolicyManager,
                 dockManager = dockManager,
+                pointerDeviceInteractor = kosmos.pointerDeviceInteractor,
                 biometricSettingsRepository = biometricSettingsRepository,
                 backgroundDispatcher = testDispatcher,
                 appContext = mContext,
                 accessibilityInteractor = kosmos.accessibilityInteractor,
                 sceneInteractor = { kosmos.sceneInteractor },
-                msdlPlayer = kosmos.msdlPlayer,
+                msdlPlayer = { kosmos.msdlPlayer },
             )
-        underTest.previewManager =
+        val previewManager =
             KeyguardRemotePreviewManager(
-                applicationScope = testScope.backgroundScope,
+                mainImmediateScope = testScope.backgroundScope,
                 previewFactory = previewFactory,
                 mainDispatcher = testDispatcher,
                 backgroundHandler = backgroundHandler,
             )
+
+        underTest.interactor = dagger.Lazy { interactor }
+        underTest.shadeModeInteractor = dagger.Lazy { mock() }
+        underTest.fingerprintPropertyInteractor = dagger.Lazy { mock() }
+        underTest.previewManager = dagger.Lazy { previewManager }
         underTest.mainDispatcher = testDispatcher
 
         underTest.attachInfoForTesting(

@@ -44,6 +44,8 @@ final class OnDeviceIntelligenceShellCommand extends ShellCommand {
                 return setTemporaryServices();
             case "get-services":
                 return getConfiguredServices();
+            case "get-configurations":
+                return getConfigurations();
             case "set-model-broadcasts":
                 return setBroadcastKeys();
             case "set-deviceconfig-namespace":
@@ -67,6 +69,8 @@ final class OnDeviceIntelligenceShellCommand extends ShellCommand {
         pw.println("    To reset, call without any arguments.");
 
         pw.println("  get-services To get the names of services that are currently being used.");
+        pw.println("  get-configurations To get the names of services and device config "
+                + "namespace that are currently being used from the overlay config.");
         pw.println(
                 "  set-model-broadcasts [ModelLoadedBroadcastKey] [ModelUnloadedBroadcastKey] "
                         + "[ReceiverPackageName] "
@@ -109,6 +113,15 @@ final class OnDeviceIntelligenceShellCommand extends ShellCommand {
         String[] services = mService.getServiceNames();
         out.println("OnDeviceIntelligenceService set to :  " + services[0]
                 + " \n and \n OnDeviceTrustedInferenceService set to : " + services[1]);
+        return 0;
+    }
+
+    private int getConfigurations() {
+        final PrintWriter out = getOutPrintWriter();
+        String[] configs = mService.getConfigurations();
+        out.println("OnDeviceIntelligenceService=" + configs[0]);
+        out.println("OnDeviceTrustedInferenceService=" + configs[1]);
+        out.println("OnDeviceIntelligenceDeviceConfigNamespace=" + configs[2]);
         return 0;
     }
 

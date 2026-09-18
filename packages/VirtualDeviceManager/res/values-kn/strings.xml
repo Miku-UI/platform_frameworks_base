@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_label" msgid="1092971641119916701">"ವರ್ಚುವಲ್ ಡಿವೈಸ್ ಮ್ಯಾನೇಜರ್"</string>
+    <string name="request_computer_control_access_dialog_title" msgid="1970509993635617382">"ಸ್ಕ್ರೀನ್ ಆಟೋಮೇಷನ್ ಬಳಸಲು &lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; ಗೆ ಅನುಮತಿಸಬೇಕೇ?"</string>
+    <string name="request_computer_control_access_per_app_consent_dialog_title" msgid="8118885324223570680">"&lt;strong&gt;<xliff:g id="AUTOMATABLE_APP_NAME">%2$s</xliff:g>&lt;/strong&gt; ಜೊತೆ ಸ್ಕ್ರೀನ್ ಆಟೋಮೇಷನ್ ಬಳಸಲು &lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; ಗೆ ಅನುಮತಿಸಬೇಕೇ?"</string>
+    <string name="request_computer_control_access_dialog_description" msgid="3423347516805473691">"ಕಾರ್ಯಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಲು ನಿಮಗೆ ನೆರವಾಗುವುದಕ್ಕಾಗಿ, ಈ ಆ್ಯಪ್‌ಗೆ ಇತರ ಆ್ಯಪ್‌ಗಳು ಹಿನ್ನೆಲೆಯಲ್ಲಿರುವಾಗಲೂ ಸಹ ಅವುಗಳ ಸ್ಕ್ರೀನ್ ಕಂಟೆಂಟ್ ಅನ್ನು ನೋಡಲು ಮತ್ತು ಅದರೊಂದಿಗೆ ಸಂವಹನ ನಡೆಸಲು ಸಾಧ್ಯವಾಗುತ್ತದೆ"</string>
+    <string name="request_computer_control_access_dialog_button_allow" msgid="6210271960695301518">"ಈ ಬಾರಿ ಮಾತ್ರ"</string>
+    <string name="request_computer_control_access_dialog_button_dont_allow" msgid="4793579155406896411">"ಅನುಮತಿಸಬೇಡಿ"</string>
+    <string name="request_computer_control_access_dialog_button_always_allow" msgid="1551784758130170359">"ಯಾವಾಗಲೂ ಅನುಮತಿಸಿ"</string>
+    <string name="automated_app_launch_warning_dialog_title" msgid="5210938311581044737">"<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>, <xliff:g id="TARGET_APP_NAME">%2$s</xliff:g> ಅನ್ನು ಬಳಸುತ್ತಿದೆ"</string>
+    <string name="automated_app_launch_warning_dialog_description" msgid="5372128583106771831">"ಕಾರ್ಯದ ಪ್ರಗತಿಯನ್ನು ವೀಕ್ಷಿಸಲು, <xliff:g id="AGENT_APP_NAME_0">%1$s</xliff:g> ಆ್ಯಪ್ ಅನ್ನು ತೆರೆಯಿರಿ.<xliff:g id="EMPTY_LINE">
+
+</xliff:g>ನೀವು ಈಗ ಕಾರ್ಯವನ್ನು ನಿಲ್ಲಿಸಿದರೆ, ನಿಮ್ಮ ಪ್ರಗತಿಯನ್ನು ನೀವು ಕಳೆದುಕೊಳ್ಳಬಹುದು. ಮರುಪ್ರಾರಂಭಿಸಲು, <xliff:g id="AGENT_APP_NAME_1">%1$s</xliff:g> ಆ್ಯಪ್ ಅನ್ನು ತೆರೆಯಿರಿ."</string>
+    <string name="automated_app_launch_warning_dialog_stop" msgid="5255022618671675595">"ಕಾರ್ಯವನ್ನು ನಿಲ್ಲಿಸಿ ಮತ್ತು ಆ್ಯಪ್ ತೆರೆಯಿರಿ"</string>
+    <string name="automated_app_launch_warning_dialog_wait" msgid="3472782366270857170">"ಮುಚ್ಚಿರಿ"</string>
+</resources>

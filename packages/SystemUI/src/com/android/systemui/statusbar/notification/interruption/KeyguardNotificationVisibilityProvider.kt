@@ -24,7 +24,6 @@ import com.android.systemui.statusbar.SysuiStatusBarStateController
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.PipelineEntry
 import com.android.systemui.statusbar.notification.collection.provider.HighPriorityProvider
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.statusbar.policy.KeyguardStateController
 import com.android.systemui.util.ListenerSet
 import com.android.systemui.util.asIndenting
@@ -114,7 +113,7 @@ constructor(
             }
 
             override fun onDreamingStateChanged(dreaming: Boolean) {
-                if (OngoingActivityChipsOnDream.isEnabled && NotificationBundleUi.isEnabled) {
+                if (OngoingActivityChipsOnDream.isEnabled) {
                     // Only notify if we're no longer dreaming, otherwise this will cause a
                     // flicker as the device transitions to dreaming
                     if (!dreaming) {

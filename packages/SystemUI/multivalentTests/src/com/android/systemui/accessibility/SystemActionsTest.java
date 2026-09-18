@@ -26,14 +26,10 @@ import static org.mockito.Mockito.when;
 
 import android.hardware.input.InputManager;
 import android.os.RemoteException;
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.telecom.TelecomManager;
 import android.telephony.TelephonyManager;
 import android.testing.TestableLooper;
 import android.view.KeyEvent;
-import android.view.accessibility.Flags;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
@@ -48,7 +44,6 @@ import com.android.systemui.statusbar.NotificationShadeWindowController;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -81,9 +76,6 @@ public class SystemActionsTest extends SysuiTestCase {
     private final FakeDisplayTracker mDisplayTracker = new FakeDisplayTracker(mContext);
 
     private SystemActions mSystemActions;
-
-    @Rule
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     @Before
     public void setUp() throws RemoteException {
@@ -141,7 +133,6 @@ public class SystemActionsTest extends SysuiTestCase {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_GLOBAL_ACTION_MENU)
     public void handleMenu_injectsKeyEvents() {
         final List<KeyEvent> keyEvents = new ArrayList<>();
         doAnswer(invocation -> {
@@ -159,7 +150,6 @@ public class SystemActionsTest extends SysuiTestCase {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_GLOBAL_ACTION_MEDIA_PLAY_PAUSE)
     public void handleMediaPlayPause_injectsKeyEvents() {
         final List<KeyEvent> keyEvents = new ArrayList<>();
         doAnswer(invocation -> {

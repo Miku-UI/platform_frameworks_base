@@ -37,7 +37,6 @@ import android.platform.test.annotations.Presubmit;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -48,6 +47,7 @@ import org.mockito.MockitoAnnotations;
 public class VirtualDeviceTest {
 
     private static final int VIRTUAL_DEVICE_ID = 42;
+    private static final int DEVICE_PROFILE = VirtualDevice.DEVICE_PROFILE_APP_STREAMING;
     private static final String PERSISTENT_ID = "persistentId";
     private static final String DEVICE_NAME = "VirtualDeviceName";
     private static final String DISPLAY_NAME = "DisplayName";
@@ -64,39 +64,39 @@ public class VirtualDeviceTest {
     public void build_invalidId_shouldThrowIllegalArgumentException() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new VirtualDevice(
-                        mVirtualDevice, DEVICE_ID_INVALID, PERSISTENT_ID, DEVICE_NAME));
+                () -> new VirtualDevice(mVirtualDevice, DEVICE_ID_INVALID, DEVICE_PROFILE,
+                        PERSISTENT_ID, DEVICE_NAME, DISPLAY_NAME));
     }
 
     @Test
     public void build_defaultId_shouldThrowIllegalArgumentException() {
         assertThrows(
                 IllegalArgumentException.class,
-                () -> new VirtualDevice(
-                        mVirtualDevice, DEVICE_ID_DEFAULT, PERSISTENT_ID, DEVICE_NAME));
+                () -> new VirtualDevice(mVirtualDevice, DEVICE_ID_DEFAULT, DEVICE_PROFILE,
+                        PERSISTENT_ID, DEVICE_NAME, DISPLAY_NAME));
     }
 
     @Test
     public void build_onlyRequiredFields() {
-        VirtualDevice virtualDevice =
-                new VirtualDevice(
-                        mVirtualDevice, VIRTUAL_DEVICE_ID, /*persistentId=*/null, /*name=*/null);
+        VirtualDevice virtualDevice = new VirtualDevice(mVirtualDevice, VIRTUAL_DEVICE_ID,
+                DEVICE_PROFILE, /*persistentId=*/ null, /*name=*/ null, /*displayName=*/ null);
         assertThat(virtualDevice.getDeviceId()).isEqualTo(VIRTUAL_DEVICE_ID);
+        assertThat(virtualDevice.getDeviceProfile()).isEqualTo(DEVICE_PROFILE);
         assertThat(virtualDevice.getPersistentDeviceId()).isNull();
         assertThat(virtualDevice.getName()).isNull();
     }
 
     @Test
     public void parcelable_shouldRecreateSuccessfully() {
-        VirtualDevice originalDevice =
-                new VirtualDevice(mVirtualDevice, VIRTUAL_DEVICE_ID, PERSISTENT_ID, DEVICE_NAME,
-                        DISPLAY_NAME);
+        VirtualDevice originalDevice = new VirtualDevice(mVirtualDevice, VIRTUAL_DEVICE_ID,
+                DEVICE_PROFILE, PERSISTENT_ID, DEVICE_NAME, DISPLAY_NAME);
         Parcel parcel = Parcel.obtain();
         originalDevice.writeToParcel(parcel, 0);
         parcel.setDataPosition(0);
 
         VirtualDevice device = VirtualDevice.CREATOR.createFromParcel(parcel);
         assertThat(device.getDeviceId()).isEqualTo(VIRTUAL_DEVICE_ID);
+        assertThat(device.getDeviceProfile()).isEqualTo(DEVICE_PROFILE);
         assertThat(device.getPersistentDeviceId()).isEqualTo(PERSISTENT_ID);
         assertThat(device.getName()).isEqualTo(DEVICE_NAME);
         assertThat(device.getDisplayName().toString()).isEqualTo(DISPLAY_NAME);
@@ -104,9 +104,8 @@ public class VirtualDeviceTest {
 
     @Test
     public void virtualDevice_getDisplayIds() throws Exception {
-        VirtualDevice virtualDevice =
-                new VirtualDevice(
-                        mVirtualDevice, VIRTUAL_DEVICE_ID, /*persistentId=*/null, /*name=*/null);
+        VirtualDevice virtualDevice = new VirtualDevice(mVirtualDevice, VIRTUAL_DEVICE_ID,
+                DEVICE_PROFILE, /*persistentId=*/ null, /*name=*/ null, /*displayName=*/ null);
 
         when(mVirtualDevice.getDisplayIds()).thenReturn(new int[0]);
         assertThat(virtualDevice.getDisplayIds()).hasLength(0);
@@ -118,9 +117,8 @@ public class VirtualDeviceTest {
 
     @Test
     public void virtualDevice_hasCustomSensorSupport() throws Exception {
-        VirtualDevice virtualDevice =
-                new VirtualDevice(
-                        mVirtualDevice, VIRTUAL_DEVICE_ID, /*persistentId=*/null, /*name=*/null);
+        VirtualDevice virtualDevice = new VirtualDevice(mVirtualDevice, VIRTUAL_DEVICE_ID,
+                DEVICE_PROFILE, /*persistentId=*/ null, /*name=*/ null, /*displayName=*/ null);
 
         when(mVirtualDevice.getDevicePolicy(POLICY_TYPE_SENSORS)).thenReturn(DEVICE_POLICY_DEFAULT);
         assertThat(virtualDevice.hasCustomSensorSupport()).isFalse();
@@ -131,10 +129,8 @@ public class VirtualDeviceTest {
 
     @Test
     public void virtualDevice_hasCustomAudioInputSupport() throws Exception {
-
-        VirtualDevice virtualDevice =
-                new VirtualDevice(
-                        mVirtualDevice, VIRTUAL_DEVICE_ID, /*persistentId=*/null, /*name=*/null);
+        VirtualDevice virtualDevice = new VirtualDevice(mVirtualDevice, VIRTUAL_DEVICE_ID,
+                DEVICE_PROFILE, /*persistentId=*/ null, /*name=*/ null, /*displayName=*/ null);
 
         when(mVirtualDevice.getDevicePolicy(POLICY_TYPE_AUDIO)).thenReturn(DEVICE_POLICY_DEFAULT);
         assertThat(virtualDevice.hasCustomAudioInputSupport()).isFalse();
@@ -149,9 +145,8 @@ public class VirtualDeviceTest {
 
     @Test
     public void virtualDevice_hasCustomCameraSupport() throws Exception {
-        VirtualDevice virtualDevice =
-                new VirtualDevice(
-                        mVirtualDevice, VIRTUAL_DEVICE_ID, /*persistentId=*/null, /*name=*/null);
+        VirtualDevice virtualDevice = new VirtualDevice(mVirtualDevice, VIRTUAL_DEVICE_ID,
+                DEVICE_PROFILE, /*persistentId=*/ null, /*name=*/ null, /*displayName=*/ null);
 
         when(mVirtualDevice.getDevicePolicy(POLICY_TYPE_CAMERA)).thenReturn(DEVICE_POLICY_DEFAULT);
         assertThat(virtualDevice.hasCustomCameraSupport()).isFalse();

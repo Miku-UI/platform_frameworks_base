@@ -31,10 +31,13 @@ class PlatformAnimatorIsolationRule : TestRule {
 
     private class IsolatingAnimationHandler(ruleThread: Thread) : AnimationHandler() {
         private val exceptionDeferrer = TestExceptionDeferrer(TAG, ruleThread)
-        override fun addOneShotCommitCallback(callback: AnimationFrameCallback?) = onError()
+
         override fun removeCallback(callback: AnimationFrameCallback?) = onError()
+
         override fun setProvider(provider: AnimationFrameCallbackProvider?) = onError()
+
         override fun autoCancelBasedOn(objectAnimator: ObjectAnimator?) = onError()
+
         override fun addAnimationFrameCallback(callback: AnimationFrameCallback?, delay: Long) =
             onError()
 

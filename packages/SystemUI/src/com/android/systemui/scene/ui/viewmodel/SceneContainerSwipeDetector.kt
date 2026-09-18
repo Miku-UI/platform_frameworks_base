@@ -18,10 +18,10 @@ package com.android.systemui.scene.ui.viewmodel
 
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import com.android.compose.animation.scene.DynamicSizeEdgeDetector
 import com.android.compose.animation.scene.Edge
 import com.android.compose.animation.scene.FixedSizeEdgeDetector
 import com.android.compose.animation.scene.SwipeSource
@@ -115,11 +115,20 @@ sealed class SceneContainerArea(private val resolveArea: (LayoutDirection) -> Re
  * and [SceneContainerArea.EndHalf] will be resolved appropriately to
  * [SceneContainerArea.Resolved.LeftHalf] and [SceneContainerArea.Resolved.RightHalf].
  *
- * @param edgeSize The fixed size of each edge.
+ * @param dynamicSizeEdgeDetector The edge detector with knowledge about screen edge sizes.
+ * @param invocationGestureSplitRatio The ratio split between "start" and "end". Must be in the
+ *   range (0.. 1.0).
  */
-class SceneContainerSwipeDetector(val edgeSize: Dp) : SwipeSourceDetector {
+class SceneContainerSwipeDetector(
+    private val dynamicSizeEdgeDetector: DynamicSizeEdgeDetector,
+    private val invocationGestureSplitRatio: Float,
+) : SwipeSourceDetector {
 
-    private val fixedEdgeDetector = FixedSizeEdgeDetector(edgeSize)
+    init {
+        require(invocationGestureSplitRatio > 0f && invocationGestureSplitRatio < 1f) {
+            "invocationGestureSplitRatio must be in the range (0..1.0)"
+        }
+    }
 
     override fun source(
         layoutSize: IntSize,
@@ -127,20 +136,21 @@ class SceneContainerSwipeDetector(val edgeSize: Dp) : SwipeSourceDetector {
         density: Density,
         orientation: Orientation,
     ): SceneContainerArea.Resolved {
-        val fixedEdge = fixedEdgeDetector.source(layoutSize, position, density, orientation)
-        return when (fixedEdge) {
+        val detectedEdge =
+            dynamicSizeEdgeDetector.source(layoutSize, position, density, orientation)
+        return when (detectedEdge) {
             Edge.Resolved.Left -> SceneContainerArea.Resolved.LeftEdge
             Edge.Resolved.Bottom -> SceneContainerArea.Resolved.BottomEdge
             Edge.Resolved.Right -> SceneContainerArea.Resolved.RightEdge
             Edge.Resolved.Top -> {
-                if (position.x < layoutSize.width * 0.5f) {
+                if (position.x < layoutSize.width * invocationGestureSplitRatio) {
                     SceneContainerArea.Resolved.TopEdgeLeftHalf
                 } else {
                     SceneContainerArea.Resolved.TopEdgeRightHalf
                 }
             }
             null -> {
-                if (position.x < layoutSize.width * 0.5f) {
+                if (position.x < layoutSize.width * invocationGestureSplitRatio) {
                     SceneContainerArea.Resolved.LeftHalf
                 } else {
                     SceneContainerArea.Resolved.RightHalf

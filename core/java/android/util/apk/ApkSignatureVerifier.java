@@ -22,11 +22,13 @@ import static android.content.pm.PackageManager.INSTALL_PARSE_FAILED_INCONSISTEN
 import static android.content.pm.PackageManager.INSTALL_PARSE_FAILED_NO_CERTIFICATES;
 import static android.content.pm.PackageManager.INSTALL_PARSE_FAILED_UNEXPECTED_EXCEPTION;
 import static android.os.Trace.TRACE_TAG_PACKAGE_MANAGER;
+import static android.util.apk.ApkSignatureSchemeV3Verifier.APK_SIGNATURE_SCHEME_V32_BLOCK_ID;
 import static android.util.apk.ApkSignatureSchemeV4Verifier.APK_SIGNATURE_SCHEME_DEFAULT;
 
 import android.annotation.NonNull;
 import android.content.pm.Signature;
 import android.content.pm.SigningDetails;
+import android.content.pm.SigningDetails.SignatureSchemeMinorVersion;
 import android.content.pm.SigningDetails.SignatureSchemeVersion;
 import android.content.pm.parsing.ApkLiteParseUtils;
 import android.content.pm.parsing.result.ParseInput;
@@ -382,9 +384,12 @@ public class ApkSignatureVerifier {
                     pastSignerSigs[i].setFlags(vSigner.por.flagsList.get(i));
                 }
             }
-            return input.success(new SigningDetailsWithDigests(new SigningDetails(signerSigs,
-                    SignatureSchemeVersion.SIGNING_BLOCK_V3, pastSignerSigs),
-                    vSigner.contentDigests));
+            int signatureSchemeMinorVersion = vSigner.blockId == APK_SIGNATURE_SCHEME_V32_BLOCK_ID
+                    ? SignatureSchemeMinorVersion.MINOR_VERSION_32_HYBRID
+                    : SignatureSchemeMinorVersion.MINOR_VERSION_DEFAULT;
+            return input.success(new SigningDetailsWithDigests(
+                    new SigningDetails(signerSigs, SignatureSchemeVersion.SIGNING_BLOCK_V3,
+                            signatureSchemeMinorVersion, pastSignerSigs), vSigner.contentDigests));
         } catch (SignatureNotFoundException e) {
             throw e;
         } catch (Exception e) {

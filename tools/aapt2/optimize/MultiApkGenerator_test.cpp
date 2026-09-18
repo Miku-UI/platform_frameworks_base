@@ -60,12 +60,7 @@ class MultiApkGeneratorWrapper : public MultiApkGenerator {
       : MultiApkGenerator(apk, context) {
   }
 
-  std::unique_ptr<ResourceTable> FilterTable(IAaptContext* context,
-                                             const configuration::OutputArtifact& artifact,
-                                             const ResourceTable& old_table,
-                                             FilterChain* filter_chain) override {
-    return MultiApkGenerator::FilterTable(context, artifact, old_table, filter_chain);
-  }
+  using MultiApkGenerator::FilterTable;
 };
 
 /** MultiApkGenerator test fixture. */

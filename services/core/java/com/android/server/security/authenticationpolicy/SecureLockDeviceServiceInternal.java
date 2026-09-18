@@ -64,14 +64,12 @@ public abstract class SecureLockDeviceServiceInternal {
      * @param user {@link UserHandle} secure lock device is being disabled for
      * @param params {@link DisableSecureLockDeviceParams} for caller to supply params related
      *               to the secure lock device request
-     * @param authenticationComplete indicates if secure lock device is being disabled as a result
-     *                               of successful two-factor primary and biometric authentication
      * @return {@link DisableSecureLockDeviceRequestStatus} int indicating the result of the
      * secure lock device request
      */
     @DisableSecureLockDeviceRequestStatus
     public abstract int disableSecureLockDevice(UserHandle user,
-            DisableSecureLockDeviceParams params, boolean authenticationComplete);
+            DisableSecureLockDeviceParams params);
 
     /**
      * @see SecureLockDeviceService#onStrongBiometricAuthenticationSuccess

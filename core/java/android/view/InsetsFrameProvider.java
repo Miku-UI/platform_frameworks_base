@@ -16,6 +16,16 @@
 
 package android.view;
 
+import static android.internal.perfetto.protos.Windowlayoutparams.InsetsFrameProviderProto.ID;
+import static android.internal.perfetto.protos.Windowlayoutparams.InsetsFrameProviderProto.TYPE;
+import static android.internal.perfetto.protos.Windowlayoutparams.InsetsFrameProviderProto.SOURCE;
+import static android.internal.perfetto.protos.Windowlayoutparams.InsetsFrameProviderProto.ARBITRARY_RECTANGLE;
+import static android.internal.perfetto.protos.Windowlayoutparams.InsetsFrameProviderProto.FLAGS;
+import static android.internal.perfetto.protos.Windowlayoutparams.InsetsFrameProviderProto.INSETS_SIZE;
+import static android.internal.perfetto.protos.Windowlayoutparams.InsetsFrameProviderProto.INSETS_SIZE_OVERRIDE;
+import static android.internal.perfetto.protos.Windowlayoutparams.InsetsFrameProviderProto.MINIMAL_INSETS_SIZE_IN_DISPLAY_CUTOUT_SAFE;
+import static android.internal.perfetto.protos.Windowlayoutparams.InsetsFrameProviderProto.BOUNDING_RECTS;
+
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -23,6 +33,7 @@ import android.graphics.Insets;
 import android.graphics.Rect;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.util.proto.ProtoOutputStream;
 import android.view.InsetsSource.Flags;
 import android.view.WindowInsets.Type.InsetsType;
 
@@ -128,6 +139,13 @@ public class InsetsFrameProvider implements Parcelable {
      */
     @Nullable
     private Rect[] mBoundingRects = null;
+
+    /**
+     * Describes the bounding rectangles within the provided insets frame, in relative coordinates
+     * to the source frame.
+     */
+    @Nullable
+    private InsetsBoundingRect[] mInsetsBoundingRects = null;
 
     /**
      * Creates an InsetsFrameProvider which describes what frame an insets source should have.
@@ -253,11 +271,34 @@ public class InsetsFrameProvider implements Parcelable {
     }
 
     /**
-     * Returns the arbitrary bounding rects, or null if none were set.
+     * Sets the bounding rectangles within and relative to the source frame.
      */
+    @NonNull
+    public InsetsFrameProvider setBoundingRects(@Nullable InsetsBoundingRect[] boundingRects) {
+        mInsetsBoundingRects = boundingRects == null ? null : boundingRects.clone();
+        return this;
+    }
+
+    /**
+     * Returns the arbitrary bounding rects, or null if none were set.
+     * @deprecated Use {@link #getInsetsBoundingRects()} instead.
+     */
+    @Deprecated
     @Nullable
     public Rect[] getBoundingRects() {
         return mBoundingRects;
+    }
+
+    // TODO(b/474542908): Rename this to getBoundingRects once the legacy one is not needed. The
+    //                    caller should always use this one when
+    //                    {@link com.android.window.flags.Flags#improveFluidResizingPerformance()}
+    //                    is enabled.
+    /**
+     * Returns {@link InsetsBoundingRect}s of this InsetsFrameProvider.
+     */
+    @Nullable
+    public InsetsBoundingRect[] getInsetsBoundingRects() {
+        return mInsetsBoundingRects;
     }
 
     @Override
@@ -289,9 +330,49 @@ public class InsetsFrameProvider implements Parcelable {
         if (mBoundingRects != null) {
             sb.append(", mBoundingRects=").append(Arrays.toString(mBoundingRects));
         }
+        if (mInsetsBoundingRects != null) {
+            sb.append(", mInsetsBoundingRects=").append(Arrays.toString(mInsetsBoundingRects));
+        }
         sb.append("}");
         return sb.toString();
     }
+
+    /**
+     * Write to a protocol buffer output stream.
+     * Protocol buffer message definition at {@link InsetsFrameProviderProto}
+     *
+     * @param proto Stream to write the InsetsFrameProvider object to.
+     * @param fieldId Field Id of the InsetsFrameProvider as defined in the parent message.
+     */
+    public void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId) {
+        final long token = proto.start(fieldId);
+        proto.write(ID, mId);
+        proto.write(TYPE, getType());
+        proto.write(SOURCE, mSource);
+        if (mArbitraryRectangle != null) {
+            mArbitraryRectangle.dumpDebug(proto, ARBITRARY_RECTANGLE);
+        }
+        proto.write(FLAGS, mFlags);
+        if (mInsetsSize != null) {
+            mInsetsSize.dumpDebug(proto, INSETS_SIZE);
+        }
+        if (mInsetsSizeOverrides != null) {
+            for (InsetsSizeOverride override : mInsetsSizeOverrides) {
+                override.dumpDebug(proto, INSETS_SIZE_OVERRIDE);
+            }
+        }
+        if (mMinimalInsetsSizeInDisplayCutoutSafe != null) {
+            mMinimalInsetsSizeInDisplayCutoutSafe.dumpDebug(proto,
+                    MINIMAL_INSETS_SIZE_IN_DISPLAY_CUTOUT_SAFE);
+        }
+        if (mBoundingRects != null) {
+            for (Rect boundingRect : mBoundingRects) {
+                boundingRect.dumpDebug(proto, BOUNDING_RECTS);
+            }
+        }
+        proto.end(token);
+    }
+
 
     @NonNull
     private static String sourceToString(int source) {
@@ -319,6 +400,7 @@ public class InsetsFrameProvider implements Parcelable {
         mArbitraryRectangle = in.readTypedObject(Rect.CREATOR);
         mMinimalInsetsSizeInDisplayCutoutSafe = in.readTypedObject(Insets.CREATOR);
         mBoundingRects = in.createTypedArray(Rect.CREATOR);
+        mInsetsBoundingRects = in.createTypedArray(InsetsBoundingRect.CREATOR);
     }
 
     @Override
@@ -331,6 +413,7 @@ public class InsetsFrameProvider implements Parcelable {
         out.writeTypedObject(mArbitraryRectangle, flags);
         out.writeTypedObject(mMinimalInsetsSizeInDisplayCutoutSafe, flags);
         out.writeTypedArray(mBoundingRects, flags);
+        out.writeTypedArray(mInsetsBoundingRects, flags);
     }
 
     public boolean idEquals(@NonNull InsetsFrameProvider o) {
@@ -352,14 +435,16 @@ public class InsetsFrameProvider implements Parcelable {
                 && Objects.equals(mArbitraryRectangle, other.mArbitraryRectangle)
                 && Objects.equals(mMinimalInsetsSizeInDisplayCutoutSafe,
                         other.mMinimalInsetsSizeInDisplayCutoutSafe)
-                && Arrays.equals(mBoundingRects, other.mBoundingRects);
+                && Arrays.equals(mBoundingRects, other.mBoundingRects)
+                && Arrays.equals(mInsetsBoundingRects, other.mInsetsBoundingRects);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(mId, mSource, mFlags, mInsetsSize,
                 Arrays.hashCode(mInsetsSizeOverrides), mArbitraryRectangle,
-                mMinimalInsetsSizeInDisplayCutoutSafe, Arrays.hashCode(mBoundingRects));
+                mMinimalInsetsSizeInDisplayCutoutSafe, Arrays.hashCode(mBoundingRects),
+                Arrays.hashCode(mInsetsBoundingRects));
     }
 
     @NonNull
@@ -440,6 +525,22 @@ public class InsetsFrameProvider implements Parcelable {
                         "type", mWindowType)
                     + ", insetsSize=" + mInsetsSize
                     + "}";
+        }
+
+        /**
+         * Write to a protocol buffer output stream.
+         * Protocol buffer message definition at {@link InsetsSizeOverrideProto}
+         *
+         * @param proto Stream to write the InsetsSizeOverride object to.
+         * @param fieldId Field Id of the InsetsSizeOverride as defined in the parent message.
+         */
+        public void dumpDebug(ProtoOutputStream proto, long fieldId) {
+            final long token = proto.start(fieldId);
+            proto.write(InsetsSizeOverrideProto.WINDOW_TYPE, mWindowType);
+            if (mInsetsSize != null) {
+                mInsetsSize.dumpDebug(proto, InsetsSizeOverrideProto.INSETS_SIZE);
+            }
+            proto.end(token);
         }
 
         @Override

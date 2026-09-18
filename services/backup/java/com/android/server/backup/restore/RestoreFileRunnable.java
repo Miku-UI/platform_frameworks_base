@@ -29,7 +29,7 @@ import java.io.IOException;
  * Runner that can be placed in a separate thread to do in-process invocations of the full restore
  * API asynchronously. Used by adb restore.
  */
-class RestoreFileRunnable implements Runnable {
+public class RestoreFileRunnable implements Runnable {
 
     private final IBackupAgent mAgent;
     private final FileMetadata mInfo;
@@ -37,7 +37,7 @@ class RestoreFileRunnable implements Runnable {
     private final int mToken;
     private final UserBackupManagerService mBackupManagerService;
 
-    RestoreFileRunnable(UserBackupManagerService backupManagerService, IBackupAgent agent,
+    public RestoreFileRunnable(UserBackupManagerService backupManagerService, IBackupAgent agent,
             FileMetadata info, ParcelFileDescriptor socket, int token) throws IOException {
         mAgent = agent;
         mInfo = info;

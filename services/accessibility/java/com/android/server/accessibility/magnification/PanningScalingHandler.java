@@ -22,7 +22,6 @@ import android.annotation.NonNull;
 import android.annotation.UiContext;
 import android.content.Context;
 import android.os.Handler;
-import android.util.Log;
 import android.util.Slog;
 import android.util.TypedValue;
 import android.view.GestureDetector;
@@ -31,6 +30,7 @@ import android.view.ScaleGestureDetector;
 import android.view.ViewConfiguration;
 
 import com.android.internal.R;
+import com.android.server.accessibility.AccessibilityLogUtil;
 
 /**
  * Handles the behavior while receiving scaling and panning gestures if it's enabled.
@@ -41,8 +41,8 @@ class PanningScalingHandler extends
         GestureDetector.SimpleOnGestureListener
         implements ScaleGestureDetector.OnScaleGestureListener {
 
-    private static final String TAG = "PanningScalingHandler";
-    private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
+    private static final String TAG = PanningScalingHandler.class.getSimpleName();
+    private static final boolean DEBUG = AccessibilityLogUtil.isDebugEnabled(TAG);
 
     // TODO(b/312372035): Revisit the scope of usage of the interface
     interface MagnificationDelegate {

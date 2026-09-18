@@ -38,6 +38,7 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.util.function.TriConsumer;
 import com.android.wm.shell.R;
 import com.android.wm.shell.ShellTestCase;
+import com.android.wm.shell.TestShellExecutor;
 import com.android.wm.shell.common.DisplayController;
 import com.android.wm.shell.sysui.ShellInit;
 
@@ -278,16 +279,19 @@ public class PipBoundsStateTest extends ShellTestCase {
 
     @Test
     public void testSetBounds_updatesPipExclusionBounds() {
+        final TestShellExecutor executor = new TestShellExecutor();
         final Consumer<Rect> callback = mock(Consumer.class);
         final Rect currentBounds = new Rect(10, 10, 20, 15);
         final Rect newBounds = new Rect(50, 50, 100, 75);
         mPipBoundsState.setBounds(currentBounds);
 
-        mPipBoundsState.addPipExclusionBoundsChangeCallback(callback);
+        mPipBoundsState.addPipExclusionBoundsChangeCallback(executor, callback);
+        executor.flushAll();
         // Setting the listener immediately calls back with the current bounds.
         verify(callback).accept(currentBounds);
 
         mPipBoundsState.setBounds(newBounds);
+        executor.flushAll();
         // Updating the bounds makes the listener call back back with the new rect.
         verify(callback).accept(newBounds);
     }

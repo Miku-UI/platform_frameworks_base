@@ -16,6 +16,7 @@
 
 package android.tracing.perfetto;
 
+import android.annotation.Nullable;
 import android.util.proto.ProtoOutputStream;
 
 import java.util.ArrayList;
@@ -132,8 +133,10 @@ public class TracingContext<DataSourceInstanceType extends DataSourceInstance, T
      * Gets the datasource instance for this state with a lock.
      * releaseDataSourceInstanceLocked must be called before this can be called again.
      * @return The data source instance for this state.
-     *         Null if the datasource instance no longer exists.
+     *         Null if the datasource instance no longer exists or if we failed to allocate the
+     *         instance.
      */
+    @Nullable
     public DataSourceInstanceType getDataSourceInstanceLocked() {
         return mDataSource.getDataSourceInstanceLocked(mInstanceIndex);
     }

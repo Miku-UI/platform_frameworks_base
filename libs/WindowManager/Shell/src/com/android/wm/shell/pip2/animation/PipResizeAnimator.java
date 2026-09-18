@@ -35,7 +35,7 @@ import com.android.wm.shell.shared.animation.Interpolators;
 /**
  * Animator that handles any resize related animation for PIP.
  */
-public class PipResizeAnimator extends ValueAnimator {
+public class PipResizeAnimator extends PipAnimator {
     @NonNull
     private final Context mContext;
     @NonNull
@@ -44,10 +44,7 @@ public class PipResizeAnimator extends ValueAnimator {
     private SurfaceControl.Transaction mStartTx;
     @Nullable
     private SurfaceControl.Transaction mFinishTx;
-    @Nullable
-    private Runnable mAnimationStartCallback;
-    @Nullable
-    private Runnable mAnimationEndCallback;
+    private SyncMenuListener mSyncMenuListener;
     private RectEvaluator mRectEvaluator;
 
     // Bounds relative to which scaling/cropping must be done.
@@ -105,6 +102,11 @@ public class PipResizeAnimator extends ValueAnimator {
                     final float degrees = (1.0f - fraction) * mDelta;
                     setBoundsAndRotation(tx, mLeash, mBaseBounds, mAnimatedRect, degrees,
                             mSurfaceTransactionHelper);
+                    // Update TV menu positioning as well.
+                    if (mSyncMenuListener != null) {
+                        mSyncMenuListener.onSync(tx, mAnimatedRect);
+                    }
+
                     tx.apply();
                 }
             };
@@ -143,12 +145,20 @@ public class PipResizeAnimator extends ValueAnimator {
         setDuration(duration);
     }
 
-    public void setAnimationStartCallback(@NonNull Runnable runnable) {
-        mAnimationStartCallback = runnable;
+    /**
+     * An interface to allow for TV PiP menu to be moved on every animation frame.
+     */
+    public interface SyncMenuListener {
+        /**
+         * Called on every animation frame.
+         * @param tx The transaction for the current frame.
+         * @param animatedRect The animated bounds for the current frame.
+         */
+        void onSync(SurfaceControl.Transaction tx, Rect animatedRect);
     }
 
-    public void setAnimationEndCallback(@NonNull Runnable runnable) {
-        mAnimationEndCallback = runnable;
+    public void setSyncMenuListener(SyncMenuListener listener) {
+        mSyncMenuListener = listener;
     }
 
     /**

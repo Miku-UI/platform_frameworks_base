@@ -18,13 +18,15 @@ package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
 import android.tools.Rotation
+import android.tools.traces.ConditionsFactory
 import android.tools.traces.parsers.WindowManagerStateHelper
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.ImmersiveAppHelper
-import org.junit.Before
 import org.junit.After
+import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 
@@ -39,14 +41,23 @@ abstract class EnterImmersiveViaHeaderMenu(val rotation: Rotation = Rotation.ROT
     val immersiveApp = DesktopModeAppHelper(immersiveAppHelper)
 
     @Before
-    fun setup(){
+    fun setup() {
         immersiveAppHelper.launchViaIntent(wmHelper)
-        immersiveApp.enterDesktopModeFromAppHandleMenu(wmHelper, device, true)
+        immersiveApp.enterDesktopMode(wmHelper, device, isImmersiveApp = true)
     }
 
     @Test
     open fun enterImmersiveViaHeaderMenu() {
         immersiveApp.enterImmersiveMode(wmHelper, device)
+        assertTrue(
+            "System bar should not be visible when entering immersive mode.",
+            wmHelper
+                .StateSyncBuilder()
+                .withAppTransitionIdle()
+                .add(ConditionsFactory.isStatusBarVisible().negate())
+                .add(ConditionsFactory.isNavOrTaskBarVisible().negate())
+                .waitFor(),
+        )
     }
 
     @After

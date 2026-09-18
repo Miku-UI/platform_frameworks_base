@@ -39,7 +39,6 @@ val Kosmos.mediaDataProcessor by
             applicationScope = applicationCoroutineScope,
             backgroundDispatcher = testDispatcher,
             backgroundExecutor = fakeExecutor,
-            uiExecutor = fakeExecutor,
             foregroundExecutor = fakeExecutor,
             mainDispatcher = testDispatcher,
             mediaControllerFactory = fakeMediaControllerFactory,

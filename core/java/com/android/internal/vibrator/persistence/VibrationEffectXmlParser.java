@@ -143,6 +143,7 @@ import java.util.List;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class VibrationEffectXmlParser {
 
     /**
@@ -180,10 +181,8 @@ public class VibrationEffectXmlParser {
 
         switch (parser.getName()) {
             case TAG_VENDOR_EFFECT:
-                if (Flags.vendorVibrationEffects()) {
-                    serializedVibration = SerializedVendorEffect.Parser.parseNext(parser, flags);
-                    break;
-                } // else fall through
+                serializedVibration = SerializedVendorEffect.Parser.parseNext(parser, flags);
+                break;
             case TAG_PREDEFINED_EFFECT:
                 serializedVibration = new SerializedComposedEffect(
                         SerializedPredefinedEffect.Parser.parseNext(parser, flags));

@@ -74,8 +74,8 @@ import java.util.stream.Collectors;
  * {@link WindowInfo}s.
  */
 public class AccessibilityWindowManager {
-    private static final String LOG_TAG = "AccessibilityWindowManager";
-    private static final boolean DEBUG = false;
+    private static final String LOG_TAG = AccessibilityWindowManager.class.getSimpleName();
+    private static final boolean DEBUG = AccessibilityLogUtil.isDebugEnabled(LOG_TAG);
     private static final boolean VERBOSE = false;
 
     private static int sNextWindowId;
@@ -1034,6 +1034,10 @@ public class AccessibilityWindowManager {
 
                 case WindowManager.LayoutParams.TYPE_ACCESSIBILITY_MAGNIFICATION_OVERLAY: {
                     return AccessibilityWindowInfo.TYPE_MAGNIFICATION_OVERLAY;
+                }
+
+                case WindowManager.LayoutParams.TYPE_APPLICATION_CAPTION_BAR: {
+                    return AccessibilityWindowInfo.TYPE_WINDOW_CONTROL;
                 }
 
                 default: {

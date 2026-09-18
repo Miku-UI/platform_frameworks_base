@@ -1508,7 +1508,7 @@ public abstract class AbstractMessageParser {
     /** Returns the tokens in this part. */
     public ArrayList<Token> getTokens() { return tokens; }
 
-    /** Adds the tokens into the given builder as an array. */
+//    /** Adds the tokens into the given builder as an array. */
 //    public void toArray(JSArrayBuilder array) {
 //      if (isMedia()) {
 //        // For media, we send its array (i.e., we don't wrap this in another

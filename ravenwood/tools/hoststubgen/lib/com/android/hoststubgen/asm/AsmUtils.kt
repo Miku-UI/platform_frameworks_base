@@ -577,10 +577,11 @@ abstract class UnifiedVisitor {
             }
         }
 
-        fun AnnotationVisitor.addParams(params: List<NameValue>) {
+        fun AnnotationVisitor.addParams(params: List<NameValue>): AnnotationVisitor {
             params.forEach {
                 this.visit(it.name, it.value)
             }
+            return this
         }
     }
 }

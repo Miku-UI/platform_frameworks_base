@@ -16,10 +16,10 @@
 
 package com.android.wm.shell.util
 
+import com.android.testing.wm.util.BaseChangeTestContext
 import com.android.wm.shell.compatui.letterbox.config.LetterboxDependenciesHelper
 
-@DslMarker
-annotation class LetterboxDependenciesHelperTagMarker
+@DslMarker annotation class LetterboxDependenciesHelperTagMarker
 
 @LetterboxDependenciesHelperTagMarker
 class LetterboxDependenciesHelperTestContext(
@@ -34,12 +34,10 @@ class LetterboxDependenciesHelperTestContext(
     }
 }
 
-/**
- * Function to run tests for the different [LetterboxDependenciesHelper] implementations.
- */
+/** Function to run tests for the different [LetterboxDependenciesHelper] implementations. */
 fun testLetterboxDependenciesHelper(
     testSubjectFactory: () -> LetterboxDependenciesHelper,
-    init: LetterboxDependenciesHelperTestContext.() -> Unit
+    init: LetterboxDependenciesHelperTestContext.() -> Unit,
 ): LetterboxDependenciesHelperTestContext {
     val testContext = LetterboxDependenciesHelperTestContext(testSubjectFactory)
     testContext.init()

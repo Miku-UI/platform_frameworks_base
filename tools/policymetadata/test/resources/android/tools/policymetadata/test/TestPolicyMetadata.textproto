@@ -1,0 +1,623 @@
+policy_metadata {
+  identifier {
+    field_name: "SIMPLE_BOOLEAN_POLICY"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Boolean"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy 1\n Second line "
+  type_specific_metadata {
+    boolean_metadata {
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  allowed_scopes: POLICY_SCOPE_DEVICE
+  affected_resource: RESOURCE_PER_USER
+  required_permission: "android.permission.MANAGE_POLICY_SIMPLE_BOOLEAN"
+  required_cross_user_permission: "android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS_FULL"
+}
+policy_metadata {
+  identifier {
+    field_name: "SIMPLE_ENUM_POLICY"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy 2 "
+  type_specific_metadata {
+    enum_metadata {
+      default_value: 1
+      int_def_name: "android.app.admin.PolicyIdentifier.SimpleEnumPolicyEnum"
+      documentation: "Enum for {@link SIMPLE_ENUM_POLICY}\n\n@hide"
+      values {
+        field_name {
+          field_name: "ENUM_ENTRY_1"
+          class_name: "PolicyIdentifier"
+          package_name: "android.app.admin"
+        }
+        documentation: "First entry "
+      }
+      values {
+        field_name {
+          field_name: "ENUM_ENTRY_2"
+          class_name: "PolicyIdentifier"
+          package_name: "android.app.admin"
+        }
+        int_value: 1
+        documentation: "Second entry "
+      }
+      values {
+        field_name {
+          field_name: "ENUM_ENTRY_3"
+          class_name: "PolicyIdentifier"
+          package_name: "android.app.admin"
+        }
+        int_value: 2
+        documentation: "Third entry "
+      }
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_DEVICE
+  allowed_scopes: POLICY_SCOPE_PARENT_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+  required_permission: "android.permission.MANAGE_POLICY_SIMPLE_ENUM"
+  required_cross_user_permission: "android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS"
+}
+policy_metadata {
+  identifier {
+    field_name: "MOST_RESTRICTIVE_ENUM_POLICY"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Enum policy with mostRestrictive resolution mechanism. "
+  type_specific_metadata {
+    enum_metadata {
+      default_value: 1
+      int_def_name: "android.app.admin.PolicyIdentifier.SimpleEnumPolicyEnum"
+      documentation: "Enum for {@link SIMPLE_ENUM_POLICY}\n\n@hide"
+      values {
+        field_name {
+          field_name: "ENUM_ENTRY_1"
+          class_name: "PolicyIdentifier"
+          package_name: "android.app.admin"
+        }
+        documentation: "First entry "
+      }
+      values {
+        field_name {
+          field_name: "ENUM_ENTRY_2"
+          class_name: "PolicyIdentifier"
+          package_name: "android.app.admin"
+        }
+        int_value: 1
+        documentation: "Second entry "
+      }
+      values {
+        field_name {
+          field_name: "ENUM_ENTRY_3"
+          class_name: "PolicyIdentifier"
+          package_name: "android.app.admin"
+        }
+        int_value: 2
+        documentation: "Third entry "
+      }
+      resolution_mechanism {
+        most_restrictive {
+          most_to_least_restrictive: 0
+          most_to_least_restrictive: 1
+          most_to_least_restrictive: 2
+        }
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_DEVICE
+  allowed_scopes: POLICY_SCOPE_PARENT_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+  required_permission: "android.permission.MANAGE_POLICY_SIMPLE_ENUM"
+  required_cross_user_permission: "android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS"
+}
+policy_metadata {
+  identifier {
+    field_name: "SIMPLE_INTEGER_POLICY"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy 3 "
+  type_specific_metadata {
+    integer_metadata {
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+}
+policy_metadata {
+  identifier {
+    field_name: "SIMPLE_INTEGER_POLICY_WITH_RANGE"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy with an integer range. "
+  type_specific_metadata {
+    integer_metadata {
+      min_value: -100
+      max_value: 100
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+}
+policy_metadata {
+  identifier {
+    field_name: "TEST_DEFAULT_DEVICE_OWNER_ALLOWED"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy verifying processing of DEFAULT_DEVICE_OWNER allowed. "
+  type_specific_metadata {
+    integer_metadata {
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+  allowed_dpc_types: DPC_TYPE_DEVICE_OWNER
+}
+policy_metadata {
+  identifier {
+    field_name: "TEST_FINANCED_DEVICE_OWNER_ALLOWED"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy verifying processing of FINANCED_DEVICE_OWNER allowed. "
+  type_specific_metadata {
+    integer_metadata {
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+  allowed_dpc_types: DPC_TYPE_FINANCED_DEVICE_OWNER
+}
+policy_metadata {
+  identifier {
+    field_name: "TEST_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_ALLOWED"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy verifying processing of PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE allowed. "
+  type_specific_metadata {
+    integer_metadata {
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+  allowed_dpc_types: DPC_TYPE_MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE
+}
+policy_metadata {
+  identifier {
+    field_name: "TEST_PROFILE_OWNER_ON_USER0_ALLOWED"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy verifying processing of PROFILE_OWNER_ON_USER0 allowed. "
+  type_specific_metadata {
+    integer_metadata {
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+  allowed_dpc_types: DPC_TYPE_PROFILE_OWNER_ON_USER0
+}
+policy_metadata {
+  identifier {
+    field_name: "TEST_PROFILE_OWNER_ALLOWED"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy verifying processing of PROFILE_OWNER allowed. "
+  type_specific_metadata {
+    integer_metadata {
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+  allowed_dpc_types: DPC_TYPE_MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE
+}
+policy_metadata {
+  identifier {
+    field_name: "TEST_PROFILE_OWNER_ON_USER_ALLOWED"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy verifying processing of PROFILE_OWNER_ON_USER allowed. "
+  type_specific_metadata {
+    integer_metadata {
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+  allowed_dpc_types: DPC_TYPE_UNAFFILIATED_FULL_USER_PROFILE_OWNER
+  allowed_dpc_types: DPC_TYPE_AFFILIATED_FULL_USER_PROFILE_OWNER
+}
+policy_metadata {
+  identifier {
+    field_name: "TEST_AFFILIATED_PROFILE_OWNER_ON_USER_ALLOWED"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy verifying processing of AFFILIATED_PROFILE_OWNER_ON_USER allowed. "
+  type_specific_metadata {
+    integer_metadata {
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+  allowed_dpc_types: DPC_TYPE_AFFILIATED_FULL_USER_PROFILE_OWNER
+}
+policy_metadata {
+  identifier {
+    field_name: "TEST_AFFILIATED_PROFILE_OWNER_ON_USER_SAME_AS_UNAFFILIATED"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy verifying processing of AFFILIATED_PROFILE_OWNER_ON_USER_SAME_AS_UNAFFILIATED."
+  type_specific_metadata {
+    integer_metadata {
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+  allowed_dpc_types: DPC_TYPE_UNAFFILIATED_FULL_USER_PROFILE_OWNER
+  allowed_dpc_types: DPC_TYPE_AFFILIATED_FULL_USER_PROFILE_OWNER
+}
+policy_metadata {
+  identifier {
+    field_name: "TEST_AFFILIATED_PROFILE_OWNER_ON_USER_SAME_AS_UNAFFILIATED_DISALLOWED"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy verifying processing of\nAFFILIATED_PROFILE_OWNER_ON_USER_SAME_AS_UNAFFILIATED_DISALLOWED."
+  type_specific_metadata {
+    integer_metadata {
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+}
+policy_metadata {
+  identifier {
+    field_name: "TEST_MULTIPLE_DPC_TYPES_ALLOWED"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy verifying processing of multiple allowed DPC types. "
+  type_specific_metadata {
+    integer_metadata {
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+  allowed_dpc_types: DPC_TYPE_DEVICE_OWNER
+  allowed_dpc_types: DPC_TYPE_MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE
+  allowed_dpc_types: DPC_TYPE_MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE
+  allowed_dpc_types: DPC_TYPE_AFFILIATED_FULL_USER_PROFILE_OWNER
+}
+policy_metadata {
+  identifier {
+    field_name: "FLAGGED_POLICY"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy that is flagged. "
+  type_specific_metadata {
+    integer_metadata {
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+  flag: "my.flagged.api"
+}
+policy_metadata {
+  identifier {
+    field_name: "SIMPLE_LONG_POLICY"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Long"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy for Long "
+  type_specific_metadata {
+    long_metadata {
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+}
+policy_metadata {
+  identifier {
+    field_name: "SIMPLE_LONG_POLICY_WITH_RANGE"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Long"
+    package_name: "java.lang"
+  }
+  documentation: "Test long policy with min and max values. "
+  type_specific_metadata {
+    long_metadata {
+      min_value: 10
+      max_value: 100
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+}
+policy_metadata {
+  identifier {
+    field_name: "SIMPLE_STRING_POLICY"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "String"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy 4 "
+  type_specific_metadata {
+    string_metadata {
+      empty_string_allowed: false
+      unprintable_characters_allowed: true
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+}
+policy_metadata {
+  identifier {
+    field_name: "SIMPLE_STRING_LIST_POLICY"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "List<java.lang.String>"
+    package_name: "java.util"
+  }
+  documentation: "Test policy 5 "
+  type_specific_metadata {
+    list_metadata {
+      string_metadata {
+        empty_string_allowed: true
+        unprintable_characters_allowed: false
+      }
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+}
+policy_metadata {
+  identifier {
+    field_name: "STRING_POLICY_WITH_MAX_LENGTH"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "String"
+    package_name: "java.lang"
+  }
+  documentation: "Test policy with max length. "
+  type_specific_metadata {
+    string_metadata {
+      max_length: 10
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+}
+policy_metadata {
+  identifier {
+    field_name: "SIMPLE_PACKAGE_POLICY"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "PackageIdentifier"
+    package_name: "android.app.admin"
+  }
+  documentation: "Test policy 6 "
+  type_specific_metadata {
+    package_metadata {
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+}
+policy_metadata {
+  identifier {
+    field_name: "NOT_COEXISTANT_ENUM_POLICY"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "Integer"
+    package_name: "java.lang"
+  }
+  documentation: "Enum policy with notCoexistable resolution mechanism. "
+  type_specific_metadata {
+    enum_metadata {
+      default_value: 1
+      int_def_name: "android.app.admin.PolicyIdentifier.SimpleEnumPolicyEnum"
+      documentation: "Enum for {@link SIMPLE_ENUM_POLICY}\n\n@hide"
+      values {
+        field_name {
+          field_name: "ENUM_ENTRY_1"
+          class_name: "PolicyIdentifier"
+          package_name: "android.app.admin"
+        }
+        documentation: "First entry "
+      }
+      values {
+        field_name {
+          field_name: "ENUM_ENTRY_2"
+          class_name: "PolicyIdentifier"
+          package_name: "android.app.admin"
+        }
+        int_value: 1
+        documentation: "Second entry "
+      }
+      values {
+        field_name {
+          field_name: "ENUM_ENTRY_3"
+          class_name: "PolicyIdentifier"
+          package_name: "android.app.admin"
+        }
+        int_value: 2
+        documentation: "Third entry "
+      }
+      resolution_mechanism {
+        not_coexistable: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_DEVICE
+  allowed_scopes: POLICY_SCOPE_PARENT_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+  required_permission: "android.permission.MANAGE_POLICY_SIMPLE_ENUM"
+  required_cross_user_permission: "android.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS"
+}
+policy_metadata {
+  identifier {
+    field_name: "SIMPLE_PACKAGE_LIST_POLICY"
+    class_name: "PolicyIdentifier"
+    package_name: "android.app.admin"
+  }
+  type {
+    class_name: "List<android.app.admin.PackageIdentifier>"
+    package_name: "java.util"
+  }
+  documentation: "Test policy 7 "
+  type_specific_metadata {
+    list_metadata {
+      package_metadata {
+      }
+      resolution_mechanism {
+        custom: true
+      }
+    }
+  }
+  allowed_scopes: POLICY_SCOPE_USER
+  affected_resource: RESOURCE_DEVICE_WIDE
+}

@@ -127,6 +127,8 @@ public class HidlToAidlSensorAdapter extends Sensor implements IHwBinder.DeathRe
         Slog.d(TAG, "Fingerprint HAL died.");
         mSession = null;
         mDaemon = null;
+        mCurrentUserId = UserHandle.USER_NULL;
+        onBinderDied();
     }
 
     @Override

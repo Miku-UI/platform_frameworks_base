@@ -18,7 +18,7 @@ syntax = "proto3";
 
 package com.android.systemui.qs;
 
-import "frameworks/base/packages/SystemUI/src/com/android/systemui/util/proto/component_name.proto";
+import "src/com/android/systemui/util/proto/component_name.proto";
 
 option java_multiple_files = true;
 

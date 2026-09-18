@@ -17,6 +17,7 @@
 package com.android.internal.inputmethod;
 
 import android.annotation.Nullable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.text.TextUtils;
 
 import java.util.Locale;
@@ -26,6 +27,7 @@ import java.util.Locale;
  * {@link android.view.inputmethod.InputMethodSubtype} and
  * {@link android.view.textservice.SpellCheckerSubtype}.
  */
+@RavenwoodKeepWholeClass
 public class SubtypeLocaleUtils {
     /**
      * Maintains deprecated logic about how subtype locales specified in XML resources have been

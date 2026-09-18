@@ -21,6 +21,8 @@ import static android.Manifest.permission.MANAGE_ROLE_HOLDERS;
 import static android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE;
 import static android.Manifest.permission.RECEIVE_SENSITIVE_NOTIFICATIONS;
 
+import static com.android.internal.telephony.flags.Flags.FLAG_MESSAGE_PROMOTION;
+
 import android.Manifest;
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
@@ -43,6 +45,7 @@ import android.companion.CompanionDeviceManager;
 import android.compat.Compatibility;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.EnabledAfter;
+import android.compat.annotation.EnabledSince;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.content.pm.PackageInfo;
@@ -312,9 +315,11 @@ public final class SmsManager {
      * SMS: To handle basic SMS tasks
      * ASSISTANT: To perform actions with all SMS messages
      * DIALER: The Dialer role has SMS permissions, and is considered trusted
+     * DEVICE_POLICY_MANAGEMENT: For enterprise device policy management
      */
     private static final List<String> SMS_OTP_READING_ROLES = List.of(RoleManager.ROLE_SMS,
-            RoleManager.ROLE_ASSISTANT, RoleManager.ROLE_DIALER);
+            RoleManager.ROLE_ASSISTANT, RoleManager.ROLE_DIALER,
+            RoleManager.ROLE_DEVICE_POLICY_MANAGEMENT);
 
     /**
      * 3gpp2 SMS priority is not specified
@@ -848,6 +853,114 @@ public final class SmsManager {
         sendTextMessageInternal(destinationAddress, scAddress, text, sentIntent, deliveryIntent,
                 false /* persistMessage */, getOpPackageName(),
                 getAttributionTag(), 0L /* messageId */);
+    }
+
+    /**
+     * Send a stored text based SMS.
+     *
+     * <p class="note"><strong>Note:</strong> This method is intended for internal use by privileged
+     * applications like Bluetooth etc. Caller should write the message into the SMS Provider and
+     * pass the {@code contentUri} of the message to this method. If message upgrade is supported,
+     * the Telephony framework will try to send this message to the default SMS app via
+     * {@link android.service.messaging.AlternativeMessageTransportService}. If default SMS app has
+     * accepted the upgrade request, message will be sent by the SMS app otherwise message will be
+     * sent by the Telephony framework.
+     * </p>
+     *
+     * @throws UnsupportedOperationException If the device does not have
+     *  {@link PackageManager#FEATURE_TELEPHONY_MESSAGING}.
+     *
+     * @param contentUri the uri of the stored message.
+     * @param sentIntent if not null this <code>PendingIntent</code> is broadcast when the message
+     *                   is successfully sent, or failed. The result code will be
+     *                   {@code Activity.RESULT_OK} for success, or one of the error codes from
+     *                   {@link Result}.
+     * @param deliveryIntent if not null this <code>PendingIntent</code> is broadcast when the
+     *                       message is delivered to the recipient. The raw pdu of the status
+     *                       report is in the extended data ("pdu").
+     * @hide
+     */
+    @RequiresPermission(allOf = {
+            android.Manifest.permission.MODIFY_PHONE_STATE,
+            android.Manifest.permission.SEND_SMS
+    })
+    @RequiresFeature(PackageManager.FEATURE_TELEPHONY_MESSAGING)
+    @SystemApi
+    @FlaggedApi(FLAG_MESSAGE_PROMOTION)
+    public void sendStoredTextMessage(
+            @NonNull Uri contentUri,
+            @Nullable PendingIntent sentIntent,
+            @Nullable PendingIntent deliveryIntent) {
+        Objects.requireNonNull(contentUri, "contentUri cannot be null");
+
+        try {
+            ISms iSms = getISmsServiceOrThrow();
+            iSms.sendStoredText(getSubscriptionId(), getOpPackageName(), getAttributionTag(),
+                    contentUri, null /* scAddress*/, sentIntent, deliveryIntent);
+        } catch (RemoteException e) {
+            Log.e(TAG, "sendStoredTextMessage: Couldn't send SMS - "
+                    + e.getMessage() + " " + formatCrossStackMessageId(0L));
+            notifySmsError(sentIntent, RESULT_REMOTE_EXCEPTION);
+        }
+    }
+
+    /**
+     * Send a stored multi-part text based SMS.
+     *
+     * <p class="note"><strong>Note:</strong> This method is intended for internal use by privileged
+     * applications like Bluetooth etc. Caller should write the message into the SMS Provider and
+     * pass the {@code contentUri} of the message to this method. If message upgrade is supported,
+     * the Telephony framework will try to send this message to the default SMS app via
+     * {@link android.service.messaging.AlternativeMessageTransportService}. If default SMS app has
+     * accepted the upgrade request, message will be sent by the SMS app otherwise message will be
+     * sent by the Telephony framework.
+     * </p>
+     *
+     * @throws UnsupportedOperationException If the device does not have
+     *  {@link PackageManager#FEATURE_TELEPHONY_MESSAGING}.
+     *
+     * @param contentUri the uri of the stored message.
+     * @param sentIntents if not null, a <code>List</code> of <code>PendingIntent</code>s. Each
+     *                    {@link PendingIntent} in the list corresponds to a single part of the
+     *                    multipart message. The order of {@link PendingIntent}s in this list
+     *                    matches the order of the message parts which are created by calling
+     *                    <code>divideMessage</code>. The {@link PendingIntent} at index {@code i}
+     *                    will be broadcast when the message part at index {@code i} is
+     *                    successfully sent, or failed. The result code will be
+     *                    {@code Activity.RESULT_OK} for success, or one of the error codes from
+     *                    {@link Result}.
+     * @param deliveryIntents if not null, a <code>List</code> of <code>PendingIntent</code>s. Each
+     *                        {@link PendingIntent} in the list corresponds to a single part of the
+     *                        multipart message. The order of {@link PendingIntent}s in this list
+     *                        matches the order of the message parts which are created by calling
+     *                        <code>divideMessage</code>. The {@link PendingIntent} at index
+     *                        {@code i} will be broadcast when the message part at index {@code i}
+     *                        is successfully delivered to the recipient.
+     * @hide
+     */
+    @RequiresPermission(allOf = {
+            android.Manifest.permission.MODIFY_PHONE_STATE,
+            android.Manifest.permission.SEND_SMS
+    })
+    @RequiresFeature(PackageManager.FEATURE_TELEPHONY_MESSAGING)
+    @SystemApi
+    @FlaggedApi(FLAG_MESSAGE_PROMOTION)
+    public void sendStoredMultipartTextMessage(
+            @NonNull Uri contentUri,
+            @Nullable List<PendingIntent> sentIntents,
+            @Nullable List<PendingIntent> deliveryIntents) {
+        Objects.requireNonNull(contentUri, "contentUri cannot be null");
+
+        try {
+            ISms iSms = getISmsServiceOrThrow();
+            iSms.sendStoredMultipartText(getSubscriptionId(), getOpPackageName(),
+                    getAttributionTag(), contentUri, null /* scAddress */, sentIntents,
+                    deliveryIntents);
+        } catch (RemoteException e) {
+            Log.e(TAG, "sendStoredMultipartTextMessage: Couldn't send SMS - "
+                    + e.getMessage() + " " + formatCrossStackMessageId(0L));
+            notifySmsError(sentIntents, RESULT_REMOTE_EXCEPTION);
+        }
     }
 
     private void sendTextMessageInternal(
@@ -1808,6 +1921,17 @@ public final class SmsManager {
     @ChangeId
     @EnabledAfter(targetSdkVersion = Build.VERSION_CODES.P)
     private static final long GET_TARGET_SDK_VERSION_CODE_CHANGE = 145147528L;
+
+    /**
+     * Generic OTP Protection SDK Gating, for app compatibility of Generic OTP Protection.
+     * For packages that target SDK >= CINNAMON_BUN, generic OTP protection is strictly enforced.
+     * Otherwise, we will still allow packages that do not target CINNAMON_BUN (or above) to
+     * receive and read generic OTP SMS.
+     * @hide
+     */
+    @ChangeId
+    @EnabledSince(targetSdkVersion = Build.VERSION_CODES.CINNAMON_BUN)
+    public static final long FILTER_GENERIC_OTP = 437043173L;
 
     private void sendResolverResult(SubscriptionResolverResult resolverResult, int subId,
             boolean pickActivityShown) {
@@ -3698,10 +3822,10 @@ public final class SmsManager {
                 Rlog.e(TAG, "getSmscIdentity(): IPhoneSubInfo instance is NULL");
                 throw new IllegalStateException("Telephony service is not available");
             }
-            /** Fetches the SIM EF_PSISMSC value based on subId and appType */
+            /* Fetches the SIM EF_PSISMSC value based on subId and appType */
             smscUri = info.getSmscIdentity(getSubscriptionId(), TelephonyManager.APPTYPE_ISIM);
             if (Uri.EMPTY.equals(smscUri)) {
-                /** Fallback in case where ISIM is not available */
+                /* Fallback in case where ISIM is not available */
                 smscUri = info.getSmscIdentity(getSubscriptionId(), TelephonyManager.APPTYPE_USIM);
             }
         } catch (RemoteException ex) {
@@ -3754,7 +3878,13 @@ public final class SmsManager {
         if (user == null || user == UserHandle.ALL) {
             user = context.getUser();
         }
-        Context userContext = context.createContextAsUser(user, 0);
+        Context userContext;
+        try {
+            userContext = context.createContextAsUser(user, 0);
+        } catch (IllegalStateException e) {
+            Log.w(TAG, "Failed to create context for user " + user, e);
+            return new ArraySet<>();
+        }
         PackageManager pm = userContext.getPackageManager();
         Set<String> trustedPackages = new ArraySet<>();
         final long token = Binder.clearCallingIdentity();
@@ -3816,8 +3946,18 @@ public final class SmsManager {
         final long token = Binder.clearCallingIdentity();
         try {
             Trace.beginSection("isAppTrustedForSmsOtp");
-            Context userContext =
-                    context.createContextAsUser(UserHandle.getUserHandleForUid(uid), 0);
+            UserHandle userHandle = UserHandle.getUserHandleForUid(uid);
+            Context userContext;
+            try {
+                // We use the "android" package name here because it is guaranteed to be "installed"
+                // for every user/profile on the device. This avoids IllegalStateException when the
+                // telephony provider package is not present in a sub-user (e.g. cloned profile).
+                userContext = context.createPackageContextAsUser("android", 0, userHandle);
+            } catch (PackageManager.NameNotFoundException e) {
+                Log.wtf(TAG, "Package 'android' not found", e);
+                return false;
+            }
+
             // Holders of the RECEIVE_SENSITIVE_NOTIFICATIONS permission have access
             if (userContext.getPackageManager()
                     .checkPermission(RECEIVE_SENSITIVE_NOTIFICATIONS, packageName)
@@ -3825,7 +3965,8 @@ public final class SmsManager {
                 return true;
             }
 
-            if (userContext.getSystemService(DevicePolicyManager.class).isDeviceManaged()) {
+            DevicePolicyManager dpm = userContext.getSystemService(DevicePolicyManager.class);
+            if (dpm != null && dpm.isDeviceManaged()) {
                 return true;
             }
 
@@ -3865,6 +4006,9 @@ public final class SmsManager {
     @SuppressLint("MissingPermission")
     private static Set<String> getTrustedOtpSmsRolePackages(Context context, UserHandle user) {
         RoleManager rm = context.getSystemService(RoleManager.class);
+        if (rm == null) {
+            return new ArraySet<>();
+        }
         Set<String> roleHoldingPackages = new ArraySet<>();
         for (String role: SMS_OTP_READING_ROLES) {
             List<String> holders = rm.getRoleHoldersAsUser(role, user);
@@ -3880,6 +4024,9 @@ public final class SmsManager {
 
     private static boolean hasSmsOtpAppOp(Context context, String packageName, int uid) {
         AppOpsManager aom = context.getSystemService(AppOpsManager.class);
+        if (aom == null) {
+            return false;
+        }
         return aom.checkOpNoThrow(AppOpsManager.OP_READ_OTP_SMS, uid, packageName)
                 == AppOpsManager.MODE_ALLOWED;
     }
@@ -3919,6 +4066,9 @@ public final class SmsManager {
     @SuppressLint("MissingPermission")
     private static List<AssociationInfo> getAllCdmAssociations(Context context) {
         CompanionDeviceManager cdm = context.getSystemService(CompanionDeviceManager.class);
+        if (cdm == null) {
+            return new ArrayList<>();
+        }
         return cdm.getAllAssociations();
     }
 }

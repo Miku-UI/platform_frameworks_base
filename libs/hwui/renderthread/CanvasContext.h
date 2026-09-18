@@ -50,8 +50,13 @@
 #include "utils/ForceDark.h"
 #include "utils/RingBuffer.h"
 
+#ifdef __ANDROID__
+#include <gui/SurfaceComposerClient.h>
+#endif
+
 namespace android {
 
+class BLASTBufferQueue;
 class SurfaceStats;
 
 namespace uirenderer {
@@ -74,7 +79,7 @@ class CanvasContext : public IFrameCallback, public IGpuContextCallback {
 public:
     static CanvasContext* create(RenderThread& thread, bool translucent, RenderNode* rootRenderNode,
                                  IContextFactory* contextFactory, pid_t uiThreadId,
-                                 pid_t renderThreadId);
+                                 pid_t renderThreadId, bool useIpcCanvas = false);
     virtual ~CanvasContext();
 
     /**
@@ -136,10 +141,32 @@ public:
     void setHardwareBuffer(AHardwareBuffer* buffer);
     void setSurface(ANativeWindow* window, bool enableTimeout = true);
     void setSurfaceControl(sp<SurfaceControl> surfaceControl);
+
+    void setBLASTBufferQueue(const sp<BLASTBufferQueue>& surfaceControl);
+
+#ifdef __ANDROID__
+    void setCornerRadiiCallback(std::function<void(const gui::CornerRadii&)> cornerRadiiCallback);
+    void setWaitForBufferReleaseCallback(std::function<void(int64_t)> callback);
+    bool syncNextTransaction(std::function<void(SurfaceComposerClient::Transaction*)>, bool);
+    void mergeWithNextTransaction(SurfaceComposerClient::Transaction*, uint64_t);
+    void applyPendingTransactions(uint64_t);
+    void clearSyncTransaction();
+    SurfaceComposerClient::Transaction* gatherPendingTransactions(uint64_t);
+#endif
+    void updateRenderTargetSize(uint64_t width, uint64_t height);
+
     bool pauseSurface();
     void setStopped(bool stopped);
     bool isStopped() { return mStopped || !hasOutputTarget(); }
-    bool hasOutputTarget() const { return mNativeSurface.get() || mHardwareBuffer; }
+    bool hasOutputTarget() const {
+        if (mNativeSurface.get() || mHardwareBuffer) return true;
+#ifdef __ANDROID__
+        if (mSurfaceControl != nullptr) {
+            return true;
+        }
+#endif
+        return false;
+    }
     void allocateBuffers();
 
     void setLightAlpha(uint8_t ambientShadowAlpha, uint8_t spotShadowAlpha);
@@ -156,6 +183,7 @@ public:
 
     // IFrameCallback, Choreographer-driven frame callback entry point
     virtual void doFrame() override;
+    virtual std::chrono::nanoseconds getExpectedDuration() override;
     void prepareAndDraw(RenderNode* node);
 
     void buildLayer(RenderNode* node);
@@ -204,6 +232,8 @@ public:
 
     void setForceDark(ForceDarkType type) { mForceDarkType = type; }
 
+    void setDrawingEnabled(bool enabled) { mDrawingEnabled = enabled; }
+
     ForceDarkType getForceDarkType() { return mForceDarkType; }
 
     SkISize getNextFrameSize() const;
@@ -246,9 +276,13 @@ public:
 
     void startHintSession();
 
+    void setHintSessionEnabled(bool enabled);
+
     static bool shouldDither();
 
     void visitAllRenderNodes(std::function<void(const RenderNode&)>) const;
+
+    void setRtAnimationsEnabled(bool enabled) { mEnableRTAnimations = enabled; }
 
 private:
     CanvasContext(RenderThread& thread, bool translucent, RenderNode* rootRenderNode,
@@ -337,6 +371,10 @@ private:
     LightInfo mLightInfo;
     LightGeometry mLightGeometry = {{0, 0, 0}, 0};
 
+    // Whether drawing is enabled for this CanvasContext, separate from whether drawing is enabled
+    // globally through Properties::isDrawingEnabled().
+    bool mDrawingEnabled = true;
+
     bool mHaveNewSurface = false;
     DamageAccumulator mDamageAccumulator;
     ColorArea mColorArea;
@@ -372,10 +410,13 @@ private:
     // If set to true, we expect that callbacks into onSurfaceStatsAvailable
     bool mExpectSurfaceStats = false;
 
+    bool mEnableRTAnimations = true;
+
     std::function<bool(int64_t, int64_t, int64_t)> mASurfaceTransactionCallback;
     std::function<void()> mPrepareSurfaceControlForWebviewCallback;
 
     std::shared_ptr<HintSessionWrapper> mHintSessionWrapper;
+    bool mIsHintSessionEnabled = true;
     nsecs_t mLastDequeueBufferDuration = 0;
     nsecs_t mSyncDelayDuration = 0;
     nsecs_t mIdleDuration = 0;
@@ -397,6 +438,8 @@ private:
      *    used. All other nodes are treated in MODE_RT, using their main displaylists.
      */
     void determineColors(const RenderNode* target);
+
+    int64_t mExpectedFrameCallbackDuration;
 };
 
 } /* namespace renderthread */

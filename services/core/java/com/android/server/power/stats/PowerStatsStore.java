@@ -306,6 +306,31 @@ public class PowerStatsStore {
     }
 
     /**
+     * Gets the storage size of all files, in bytes.
+     */
+    long getStorageSize() {
+        lockStoreDirectory();
+        try {
+            final File[] files = mStoreDir.listFiles();
+            if (files == null) {
+                return 0L;
+            }
+
+            long totalSize = 0L;
+            for (File file : files) {
+                final long fileSize = file.length();
+                totalSize += fileSize;
+            }
+            return totalSize;
+        } catch (Exception e) {
+            Slog.e(TAG, "Failed to get the power stats storage size", e);
+            return -1L;
+        } finally {
+            unlockStoreDirectory();
+        }
+    }
+
+    /**
      * Deletes all contents from the store.
      */
     public void reset() {

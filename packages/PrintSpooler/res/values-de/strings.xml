@@ -44,6 +44,7 @@
     <string name="expand_handle" msgid="7282974448109280522">"Steuerelement zum Einblenden"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"Steuerelement zum Ausblenden"</string>
     <string name="print_button" msgid="645164566271246268">"Drucken"</string>
+    <string name="setup_button" msgid="323390526074568450">"Einrichten"</string>
     <string name="savetopdf_button" msgid="2976186791686924743">"Als PDF speichern"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"Druckoptionen eingeblendet"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"Druckoptionen ausgeblendet"</string>

@@ -36,6 +36,7 @@ import java.util.Arrays;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 final class SerializedComposedEffect implements XmlSerializedVibration<VibrationEffect.Composed> {
 
     @NonNull

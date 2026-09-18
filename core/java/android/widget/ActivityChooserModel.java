@@ -723,7 +723,7 @@ public class ActivityChooserModel extends DataSetObservable {
                 ResolveInfo resolveInfo = resolveInfos.get(i);
                 ActivityInfo activityInfo = resolveInfo.activityInfo;
                 if (ActivityManager.checkComponentPermission(activityInfo.permission,
-                        android.os.Process.myUid(), activityInfo.applicationInfo.uid,
+                        android.os.Process.myUid(), activityInfo.getUid(),
                         activityInfo.exported) == PackageManager.PERMISSION_GRANTED) {
                     mActivities.add(new ActivityResolveInfo(resolveInfo));
                 }

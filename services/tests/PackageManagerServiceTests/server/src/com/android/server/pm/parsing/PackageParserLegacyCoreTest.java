@@ -16,6 +16,9 @@
 
 package com.android.server.pm.parsing;
 
+import static android.content.pm.ActivityInfo.SKIP_ACTIVITY_RECREATION_ON_CONFIG_CHANGE;
+import static com.android.window.flags.Flags.FLAG_ENABLE_LESS_ACTIVITY_RECREATION_ON_CONFIG_CHANGE;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -31,6 +34,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.FileUtils;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.Pair;
 import android.util.SparseIntArray;
 
@@ -50,6 +57,8 @@ import com.android.server.pm.pkg.AndroidPackage;
 import com.android.server.pm.test.service.server.R;
 
 import com.google.common.truth.Expect;
+
+import libcore.junit.util.compat.CoreCompatChangeRule.EnableCompatChanges;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -97,6 +106,9 @@ public class PackageParserLegacyCoreTest {
     private static final int DISALLOW_RELEASED = -1;
 
     @Rule public final Expect expect = Expect.create();
+
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private void verifyComputeMinSdkVersion(int minSdkVersion, String minSdkCodename,
             boolean isPlatformReleased, int expectedMinSdk) {
@@ -347,7 +359,8 @@ public class PackageParserLegacyCoreTest {
      * recreateOnConfigChanges, the bit is changed to 1 in the final configChanges by default.
      */
     @Test
-    public void testGetActivityConfigChanges() {
+    @RequiresFlagsDisabled(FLAG_ENABLE_LESS_ACTIVITY_RECREATION_ON_CONFIG_CHANGE)
+    public void testGetActivityConfigChanges_flagDisabled() {
         // Not set in either configChanges or recreateOnConfigChanges.
         int configChanges = 0x0000; // 00000000.
         int recreateOnConfigChanges = 0x0000; // 00000000.
@@ -380,6 +393,50 @@ public class PackageParserLegacyCoreTest {
         finalConfigChanges = ParsedActivityUtils.getActivityConfigChanges(configChanges,
                 recreateOnConfigChanges);
         assertEquals(0x0083, finalConfigChanges); // Should be 10000011.
+    }
+
+    /**
+     * Unit test for PackageParser.getActivityConfigChanges().
+     * If the bit is 1 in the original configChanges, it is still 1 in the final configChanges.
+     * If the bit is 0 in the original configChanges and the bit is not set to 1 in
+     * recreateOnConfigChanges, the bit is changed to 1 in the final configChanges by default.
+     */
+    @Test
+    @RequiresFlagsEnabled(FLAG_ENABLE_LESS_ACTIVITY_RECREATION_ON_CONFIG_CHANGE)
+    @EnableCompatChanges(SKIP_ACTIVITY_RECREATION_ON_CONFIG_CHANGE)
+    public void testGetActivityConfigChanges_flagEnabled() {
+        // Not set in either configChanges or recreateOnConfigChanges.
+        int configChanges = 0x0000; // 000000000000000.
+        int recreateOnConfigChanges = 0x0000; // 000000000000000.
+        int finalConfigChanges = ParsedActivityUtils.getActivityConfigChanges(configChanges,
+                recreateOnConfigChanges);
+        assertEquals(0x407B, finalConfigChanges); // Should be 100000001111011.
+
+        // Not set in configChanges, but set in recreateOnConfigChanges.
+        configChanges = 0x0000; // 000000000000000.
+        recreateOnConfigChanges = 0x407B; // 100000001111011.
+        finalConfigChanges = ParsedActivityUtils.getActivityConfigChanges(configChanges,
+                recreateOnConfigChanges);
+        assertEquals(0x0000, finalConfigChanges); // Should be 000000000000000.
+
+        // Set in configChanges.
+        configChanges = 0x407B; // 100000001111011.
+        recreateOnConfigChanges = 0X0000; // 000000000000000.
+        finalConfigChanges = ParsedActivityUtils.getActivityConfigChanges(configChanges,
+                recreateOnConfigChanges);
+        assertEquals(0x407B, finalConfigChanges); // Should be 100000001111011.
+
+        recreateOnConfigChanges = 0x407B; // 100000001111011.
+        finalConfigChanges = ParsedActivityUtils.getActivityConfigChanges(configChanges,
+                recreateOnConfigChanges);
+        assertEquals(0x407B, finalConfigChanges); // Should still be 100000001111011.
+
+        // Other bit set in configChanges.
+        configChanges = 0x0100; // 000000010000000, screenLayout.
+        recreateOnConfigChanges = 0x0000; // 000000000000000.
+        finalConfigChanges = ParsedActivityUtils.getActivityConfigChanges(configChanges,
+                recreateOnConfigChanges);
+        assertEquals(0x417B, finalConfigChanges); // Should be 100000001111011.
     }
 
     /**

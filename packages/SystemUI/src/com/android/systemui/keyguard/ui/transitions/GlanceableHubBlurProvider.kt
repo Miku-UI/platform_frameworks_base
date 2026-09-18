@@ -17,6 +17,7 @@
 package com.android.systemui.keyguard.ui.transitions
 
 import android.util.MathUtils
+import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
@@ -32,20 +33,57 @@ class GlanceableHubBlurProvider
 constructor(
     transitionAnimation: KeyguardTransitionAnimationFlow.FlowBuilder,
     blurConfig: BlurConfig,
+    communalSceneInteractor: CommunalSceneInteractor,
 ) {
+    private var wasInEditModeAtStart = false
+
     val exitBlurRadius: Flow<Float> =
         transitionAnimation.sharedFlow(
-            onStep = { MathUtils.lerp(blurConfig.maxBlurRadiusPx, blurConfig.minBlurRadiusPx, it) },
-            onStart = { blurConfig.maxBlurRadiusPx },
+            onStep = {
+                if (wasInEditModeAtStart) {
+                    blurConfig.minBlurRadiusPx
+                } else {
+                    MathUtils.lerp(blurConfig.maxBlurRadiusPx, blurConfig.minBlurRadiusPx, it)
+                }
+            },
+            onStart = {
+                wasInEditModeAtStart = communalSceneInteractor.editModeState.value != null
+                if (wasInEditModeAtStart) {
+                    blurConfig.minBlurRadiusPx
+                } else {
+                    blurConfig.maxBlurRadiusPx
+                }
+            },
             onFinish = { blurConfig.minBlurRadiusPx },
-            onCancel = { blurConfig.maxBlurRadiusPx },
+            onCancel = {
+                if (wasInEditModeAtStart) {
+                    blurConfig.minBlurRadiusPx
+                } else {
+                    blurConfig.maxBlurRadiusPx
+                }
+            },
         )
 
     val enterBlurRadius: Flow<Float> =
         transitionAnimation.sharedFlow(
-            onStep = { MathUtils.lerp(blurConfig.minBlurRadiusPx, blurConfig.maxBlurRadiusPx, it) },
-            onStart = { blurConfig.minBlurRadiusPx },
-            onFinish = { blurConfig.maxBlurRadiusPx },
+            onStep = {
+                if (wasInEditModeAtStart) {
+                    blurConfig.minBlurRadiusPx
+                } else {
+                    MathUtils.lerp(blurConfig.minBlurRadiusPx, blurConfig.maxBlurRadiusPx, it)
+                }
+            },
+            onStart = {
+                wasInEditModeAtStart = communalSceneInteractor.editModeState.value != null
+                blurConfig.minBlurRadiusPx
+            },
+            onFinish = {
+                if (wasInEditModeAtStart) {
+                    blurConfig.minBlurRadiusPx
+                } else {
+                    blurConfig.maxBlurRadiusPx
+                }
+            },
             onCancel = { blurConfig.minBlurRadiusPx },
         )
 }

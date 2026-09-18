@@ -356,6 +356,9 @@ class SplashscreenWindowCreator extends AbsSplashWindowCreator {
         }
         if (shouldSaveView) {
             mStartingWindowRecordManager.removeWindow(taskId);
+            // Release potential remaining SurfaceControlViewHost of the task because the core is
+            // asking for a new one.
+            onAppSplashScreenViewRemoved(taskId);
             saveSplashScreenRecord(appToken, taskId, view, suggestType);
         }
         return shouldSaveView;

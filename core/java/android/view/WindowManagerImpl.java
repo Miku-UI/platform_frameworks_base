@@ -32,12 +32,16 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Region;
+import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.StrictMode;
+import android.util.ArrayMap;
 import android.util.Log;
+import android.util.SparseIntArray;
+import android.window.IDisplayEngagementModeCallback;
 import android.window.ITaskFpsCallback;
 import android.window.InputTransferToken;
 import android.window.TaskFpsCallback;
@@ -53,6 +57,7 @@ import com.android.internal.os.IResultReceiver;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Executor;
@@ -117,6 +122,22 @@ public final class WindowManagerImpl implements WindowManager {
     @GuardedBy("mOnFpsCallbackListenerProxies")
     private final ArrayList<OnFpsCallbackListenerProxy> mOnFpsCallbackListenerProxies =
             new ArrayList<>();
+
+    private final Object mDisplayEngagementModeLock = new Object();
+    @GuardedBy("mDisplayEngagementModeLock")
+    private DisplayEngagementModeCallbackImpl mDisplayEngagementModeCallback;
+    @GuardedBy("mDisplayEngagementModeLock")
+    private final ArrayMap<Consumer<DisplayEngagementModeState>, Executor>
+            mDisplayEngagementModeCallbacks = new ArrayMap<>();
+    @GuardedBy("mDisplayEngagementModeLock")
+    private final SparseIntArray mLastReportedEngagementModes = new SparseIntArray();
+
+    private final Object mEngagementControlLock = new Object();
+    @GuardedBy("mEngagementControlLock")
+    private EngagementControlRequestConsumerImpl mEngagementControlConsumer;
+    @GuardedBy("mEngagementControlLock")
+    private final ArrayMap<Consumer<EngagementControlRequest>, Executor>
+            mEngagementControlCallbacks = new ArrayMap<>();
 
     /** A controller to handle {@link WindowMetrics} related APIs */
     @NonNull
@@ -500,6 +521,27 @@ public final class WindowManagerImpl implements WindowManager {
         }
     }
 
+    private class DisplayEngagementModeCallbackImpl extends IDisplayEngagementModeCallback.Stub {
+        @Override
+        public void onEngagementModeChanged(
+                int displayId, @EngagementModeFlags int engagementMode) {
+            Map<Consumer<DisplayEngagementModeState>, Executor> callbacks;
+            synchronized (mDisplayEngagementModeLock) {
+                mLastReportedEngagementModes.put(displayId, engagementMode);
+                callbacks = new ArrayMap<>(mDisplayEngagementModeCallbacks);
+            }
+
+            for (Map.Entry<Consumer<DisplayEngagementModeState>, Executor> entry
+                    : callbacks.entrySet()) {
+                Executor executor = entry.getValue();
+                Consumer<DisplayEngagementModeState> callback = entry.getKey();
+                executor.execute(() -> {
+                    callback.accept(new DisplayEngagementModeState(displayId, engagementMode));
+                });
+            }
+        }
+    }
+
     @Override
     public Bitmap snapshotTaskForRecents(int taskId) {
         try {
@@ -649,6 +691,231 @@ public final class WindowManagerImpl implements WindowManager {
         if (screenRecordingCallbacks()) {
             Objects.requireNonNull(callback, "callback must not be null");
             ScreenRecordingCallbacks.getInstance().removeCallback(callback);
+        }
+    }
+
+    @Override
+    public void setDisplayEngagementMode(
+            int displayId, @EngagementModeFlags int engagementModeFlags) {
+        try {
+            WindowManagerGlobal.getWindowManagerService().setDisplayEngagementMode(
+                    displayId, engagementModeFlags);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @Override
+    public @EngagementModeFlags int getDisplayEngagementMode(int displayId) {
+        try {
+            return WindowManagerGlobal.getWindowManagerService().getDisplayEngagementMode(
+                    displayId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @Override
+    public void registerDisplayEngagementModeCallback(@NonNull @CallbackExecutor Executor executor,
+            @NonNull Consumer<DisplayEngagementModeState> callback) {
+        DisplayEngagementModeCallbackImpl callbackToRegister = null;
+        SparseIntArray initialStates = new SparseIntArray();
+
+        synchronized (mDisplayEngagementModeLock) {
+            // Ignore registration if this exact callback instance is already registered.
+            if (mDisplayEngagementModeCallbacks.containsKey(callback)) {
+                Log.w(TAG, "Attempted to register DisplayEngagementModeState callback"
+                        + " that is already registered: " + callback);
+                return;
+            }
+
+            if (mDisplayEngagementModeCallbacks.isEmpty()) {
+                // First listener, register the single proxy with WMS.
+                if (mDisplayEngagementModeCallback == null) {
+                    mDisplayEngagementModeCallback = new DisplayEngagementModeCallbackImpl();
+                }
+                callbackToRegister = mDisplayEngagementModeCallback;
+
+                // Clear cache before registering, as registration will send initial state.
+                mLastReportedEngagementModes.clear();
+            }
+
+            // Add the local callback and its executor to internal map.
+            mDisplayEngagementModeCallbacks.put(callback, executor);
+
+            // Copy current states to dispatch outside the lock
+            for (int i = 0; i < mLastReportedEngagementModes.size(); i++) {
+                initialStates.put(mLastReportedEngagementModes.keyAt(i),
+                        mLastReportedEngagementModes.valueAt(i));
+            }
+        }
+
+        // Make IPC call safely outside the lock.
+        if (callbackToRegister != null) {
+            try {
+                WindowManagerGlobal.getWindowManagerService()
+                        .registerDisplayEngagementModeCallback(callbackToRegister);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+        }
+
+        // Immediately notify the new callback of all current states outside the lock.
+        for (int i = 0; i < initialStates.size(); i++) {
+            final int displayId = initialStates.keyAt(i);
+            final int engagementMode = initialStates.valueAt(i);
+            executor.execute(() -> {
+                callback.accept(new DisplayEngagementModeState(displayId, engagementMode));
+            });
+        }
+    }
+
+    @Override
+    public void unregisterDisplayEngagementModeCallback(
+            @NonNull Consumer<DisplayEngagementModeState> callback) {
+        DisplayEngagementModeCallbackImpl callbackToUnregister = null;
+
+        synchronized (mDisplayEngagementModeLock) {
+            // Remove the local callback from internal map
+            mDisplayEngagementModeCallbacks.remove(callback);
+
+            // Last listener removed, prepare to unregister the single proxy from WMS.
+            if (mDisplayEngagementModeCallbacks.isEmpty()
+                    && mDisplayEngagementModeCallback != null) {
+                callbackToUnregister = mDisplayEngagementModeCallback;
+            }
+        }
+
+        // Make IPC call safely outside the lock.
+        if (callbackToUnregister != null) {
+            try {
+                WindowManagerGlobal
+                        .getWindowManagerService().unregisterDisplayEngagementModeCallback(
+                                callbackToUnregister);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+
+            // Re-acquire lock to clear the cache safely AFTER the IPC unregister completes.
+            // This prevents in-flight events from dirtying the cache.
+            synchronized (mDisplayEngagementModeLock) {
+                if (mDisplayEngagementModeCallbacks.isEmpty()) {
+                    mLastReportedEngagementModes.clear();
+                }
+            }
+        }
+    }
+
+    private class EngagementControlRequestConsumerImpl
+            extends android.window.IEngagementControlRequestConsumer.Stub {
+        @Override
+        public void onEngagementControlRequest(
+                int displayId, int taskId, int engagementControlFlags) {
+            Map<Consumer<EngagementControlRequest>, Executor> callbacks;
+            synchronized (mEngagementControlLock) {
+                callbacks = new ArrayMap<>(mEngagementControlCallbacks);
+            }
+
+            final long token = Binder.clearCallingIdentity();
+            try {
+                for (Map.Entry<Consumer<EngagementControlRequest>, Executor> entry :
+                        callbacks.entrySet()) {
+                    Executor executor = entry.getValue();
+                    Consumer<EngagementControlRequest> callback = entry.getKey();
+                    executor.execute(() -> {
+                        callback.accept(new EngagementControlRequest(
+                                displayId, taskId, engagementControlFlags));
+                    });
+                }
+            } finally {
+                Binder.restoreCallingIdentity(token);
+            }
+        }
+    }
+
+    @Override
+    public void requestEngagementControlState(int engagementControlFlags) {
+        if (!com.android.window.flags.Flags.engagementControlApi()) {
+            return;
+        }
+
+        final IBinder token = mParentWindow != null ? mParentWindow.getAttributes().token
+                : mContext.getWindowContextToken();
+        if (token == null) {
+            throw new IllegalStateException(
+                    "WindowManager must be attached to a window to request engagement control.");
+        }
+
+        try {
+            WindowManagerGlobal.getWindowManagerService().requestEngagementControlState(
+                    token, engagementControlFlags);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @Override
+    public void addEngagementControlRequestConsumer(@NonNull @CallbackExecutor Executor executor,
+            @NonNull Consumer<EngagementControlRequest> consumer) {
+        if (!com.android.window.flags.Flags.engagementControlApi()) {
+            return;
+        }
+        EngagementControlRequestConsumerImpl consumerToRegister = null;
+        synchronized (mEngagementControlLock) {
+            if (mEngagementControlCallbacks.containsKey(consumer)) {
+                return;
+            }
+
+            if (mEngagementControlCallbacks.isEmpty()) {
+                if (mEngagementControlConsumer == null) {
+                    mEngagementControlConsumer = new EngagementControlRequestConsumerImpl();
+                }
+                consumerToRegister = mEngagementControlConsumer;
+            }
+
+            mEngagementControlCallbacks.put(consumer, executor);
+        }
+
+        // Make IPC call safely outside the lock.
+        if (consumerToRegister != null) {
+            try {
+                WindowManagerGlobal
+                        .getWindowManagerService()
+                        .registerEngagementControlRequestConsumer(consumerToRegister);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+        }
+    }
+
+    @Override
+    public void removeEngagementControlRequestConsumer(
+            @NonNull Consumer<EngagementControlRequest> consumer) {
+        if (!com.android.window.flags.Flags.engagementControlApi()) {
+            return;
+        }
+        boolean needsUnregistration = false;
+        EngagementControlRequestConsumerImpl consumerToUnregister = null;
+
+        synchronized (mEngagementControlLock) {
+            mEngagementControlCallbacks.remove(consumer);
+
+            if (mEngagementControlCallbacks.isEmpty() && mEngagementControlConsumer != null) {
+                needsUnregistration = true;
+                consumerToUnregister = mEngagementControlConsumer;
+                mEngagementControlConsumer = null;
+            }
+        }
+
+        // Make IPC call safely outside the lock.
+        if (needsUnregistration) {
+            try {
+                WindowManagerGlobal
+                        .getWindowManagerService()
+                        .unregisterEngagementControlRequestConsumer(consumerToUnregister);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
         }
     }
 }

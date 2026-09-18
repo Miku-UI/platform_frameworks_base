@@ -24,7 +24,9 @@ import android.view.InputDevice.SOURCE_MOUSE
 import android.view.InputDevice.SOURCE_TOUCHSCREEN
 import android.view.MotionEvent
 import android.view.MotionEvent.ACTION_CANCEL
+import android.view.MotionEvent.ACTION_HOVER_ENTER
 import android.view.SurfaceControl
+import android.view.accessibility.AccessibilityManager
 import androidx.test.filters.SmallTest
 import com.android.dx.mockito.inline.extended.ExtendedMockito
 import com.android.modules.utils.testing.ExtendedMockitoRule
@@ -95,6 +97,9 @@ class PipTouchHandlerTest : ShellTestCase() {
     private val mockMotionEvent = mock<MotionEvent>()
     private val mockPipDismissTargetHandler = mock<PipDismissTargetHandler>()
     private val mockPipResizeGestureHandler = mock<PipResizeGestureHandler>()
+    private val mockPipInteractionHandler = mock<PipInteractionHandler>()
+    private val mockPipInputConsumer = mock<PipInputConsumer>()
+    private val mockAccessibilityManager = mock<AccessibilityManager>()
 
     private lateinit var pipTouchHandler: PipTouchHandler
     private lateinit var pipTouchGesture: PipTouchGesture
@@ -108,18 +113,34 @@ class PipTouchHandlerTest : ShellTestCase() {
 
     @Before
     fun setUp() {
-        pipTouchHandler = PipTouchHandler(
-            mContext, mockPipSurfaceTransactionHelper, mockShellInit, mockShellCommandHandler,
-            mockMenuPhoneController, mockPipBoundsAlgorithm, mockPipBoundsState,
-            mockPipTransitionState, mockPipScheduler, mockSizeSpecSource, mockPipDisplayLayoutState,
-            mockPipDesktopState, mockDisplayController, mockPipMotionHelper,
-            mockFloatingContentCoordinator, mockPipUiEventLogger, shellExecutor,
-            Optional.of(mockPipPerfHintController), mockPipDisplayTransferHandler
-        )
+        pipTouchHandler =
+            PipTouchHandler(
+                mContext,
+                mockPipSurfaceTransactionHelper,
+                mockShellInit,
+                mockShellCommandHandler,
+                mockMenuPhoneController,
+                mockPipBoundsAlgorithm,
+                mockPipBoundsState,
+                mockPipTransitionState,
+                mockPipScheduler,
+                mockSizeSpecSource,
+                mockPipDisplayLayoutState,
+                mockPipDesktopState,
+                mockDisplayController,
+                mockPipMotionHelper,
+                mockFloatingContentCoordinator,
+                mockPipUiEventLogger,
+                shellExecutor,
+                Optional.of(mockPipPerfHintController),
+                mockPipDisplayTransferHandler,
+                mockPipInteractionHandler,
+            )
         pipTouchGesture = pipTouchHandler.touchGesture
         pipTouchHandler.setPipTouchState(pipTouchState)
         pipTouchHandler.setPipDismissTargetHandler(mockPipDismissTargetHandler)
         pipTouchHandler.pipResizeGestureHandler = mockPipResizeGestureHandler
+        pipTouchHandler.setPipInputConsumer(mockPipInputConsumer)
 
         whenever(pipTouchState.downTouchPosition).thenReturn(mockTouchPosition)
         whenever(pipTouchState.velocity).thenReturn(mockTouchPosition)
@@ -135,16 +156,21 @@ class PipTouchHandlerTest : ShellTestCase() {
         whenever(mockPipBoundsState.displayBounds).thenReturn(DISPLAY_BOUNDS)
         whenever(mockPipBoundsState.motionBoundsState).thenReturn(mockMotionBoundsState)
         whenever(pipTouchHandler.possiblyMotionBounds).thenReturn(PIP_BOUNDS)
-        whenever(mockDisplayController.getDisplayLayout(anyInt()))
-            .thenReturn(mockDisplayLayout)
+        whenever(mockDisplayController.getDisplayLayout(anyInt())).thenReturn(mockDisplayLayout)
+        whenever(MultiDisplayDragMoveBoundsCalculator.convertGlobalDpToLocalPxForRect(any(), any()))
+            .thenReturn(PIP_BOUNDS)
         whenever(
-            MultiDisplayDragMoveBoundsCalculator.convertGlobalDpToLocalPxForRect(any(), any())
-        ).thenReturn(PIP_BOUNDS)
-        whenever(
-            MultiDisplayDragMoveBoundsCalculator.calculateGlobalDpBoundsForDrag(
-                any(), any(), any(), any(), any(), any()
+                MultiDisplayDragMoveBoundsCalculator.calculateGlobalDpBoundsForDrag(
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                )
             )
-        ).thenReturn(GLOBAL_BOUNDS)
+            .thenReturn(GLOBAL_BOUNDS)
+        pipTouchHandler.mAccessibilityManager = mockAccessibilityManager
     }
 
     @Test
@@ -159,18 +185,22 @@ class PipTouchHandlerTest : ShellTestCase() {
 
         ExtendedMockito.verify {
             MultiDisplayDragMoveBoundsCalculator.calculateGlobalDpBoundsForDrag(
-                any(), any(), any(), any(), any(), any()
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
             )
         }
         ExtendedMockito.verify {
             MultiDisplayDragMoveBoundsCalculator.convertGlobalDpToLocalPxForRect(
                 eq(GLOBAL_BOUNDS),
-                eq(mockDisplayLayout)
+                eq(mockDisplayLayout),
             )
         }
-        verify(mockPipDisplayTransferHandler).showDragMirrorOnConnectedDisplays(
-            eq(GLOBAL_BOUNDS), eq(ORIGIN_DISPLAY_ID)
-        )
+        verify(mockPipDisplayTransferHandler)
+            .showDragMirrorOnConnectedDisplays(eq(GLOBAL_BOUNDS), eq(ORIGIN_DISPLAY_ID))
         verify(mockPipMotionHelper).movePip(eq(PIP_BOUNDS), eq(true), eq(ORIGIN_DISPLAY_ID))
     }
 
@@ -184,11 +214,8 @@ class PipTouchHandlerTest : ShellTestCase() {
         whenever(pipTouchState.lastTouchDisplayId).thenReturn(TARGET_DISPLAY_ID)
         pipTouchGesture.onUp(pipTouchState)
 
-        verify(mockPipDisplayTransferHandler).scheduleMovePipToDisplay(
-            eq(ORIGIN_DISPLAY_ID),
-            eq(TARGET_DISPLAY_ID),
-            eq(PIP_BOUNDS)
-        )
+        verify(mockPipDisplayTransferHandler)
+            .scheduleMovePipToDisplay(eq(ORIGIN_DISPLAY_ID), eq(TARGET_DISPLAY_ID), eq(PIP_BOUNDS))
     }
 
     @Test
@@ -231,6 +258,28 @@ class PipTouchHandlerTest : ShellTestCase() {
     }
 
     @Test
+    fun handleTouchEvent_hoverEnter_isStashed_dontShowMenu() {
+        whenever(mockMotionEvent.action).thenReturn(ACTION_HOVER_ENTER)
+        whenever(mockAccessibilityManager.isTouchExplorationEnabled).thenReturn(false)
+        whenever(mockPipBoundsState.isStashed).thenReturn(true)
+
+        pipTouchHandler.handleTouchEvent(mockMotionEvent)
+
+        verify(mockMenuPhoneController, never()).showMenu(any(), any(), any(), any())
+    }
+
+    @Test
+    fun handleTouchEvent_hoverEnter_isNotStashed_showMenu() {
+        whenever(mockMotionEvent.action).thenReturn(ACTION_HOVER_ENTER)
+        whenever(mockAccessibilityManager.isTouchExplorationEnabled).thenReturn(false)
+        whenever(mockPipBoundsState.isStashed).thenReturn(false)
+
+        pipTouchHandler.handleTouchEvent(mockMotionEvent)
+
+        verify(mockMenuPhoneController).showMenu(any(), any(), any(), any())
+    }
+
+    @Test
     fun onMove_crossDisplayFlagDisabled_shouldShowDismissTarget() {
         whenever(mockPipDesktopState.isDraggingPipAcrossDisplaysEnabled()).thenReturn(false)
         whenever(pipTouchState.startedDragging()).thenReturn(true)
@@ -266,7 +315,6 @@ class PipTouchHandlerTest : ShellTestCase() {
         verify(mockPipDismissTargetHandler, never()).showDismissTargetMaybe()
     }
 
-
     @Test
     fun handleTouchEvent_crossDisplayDragFlagEnabled_actionCancel_removesMirrors() {
         whenever(mockPipDesktopState.isDraggingPipAcrossDisplaysEnabled()).thenReturn(true)
@@ -297,7 +345,6 @@ class PipTouchHandlerTest : ShellTestCase() {
         verify(mockPipDisplayTransferHandler, never()).removeMirrors()
     }
 
-
     @Test
     fun pipTouchGesture_onUpMotionBoundsDroppingOnLeft_pipStashedToEdge() {
         pipTouchGesture.onDown(pipTouchState)
@@ -308,9 +355,7 @@ class PipTouchHandlerTest : ShellTestCase() {
         whenever(mockPipBoundsState.bounds).thenReturn(PIP_BOUNDS)
         pipTouchGesture.onUp(pipTouchState)
 
-        verify(mockPipMotionHelper).stashToEdge(
-            any(), any(), anyOrNull()
-        )
+        verify(mockPipMotionHelper).stashToEdge(any(), any(), anyOrNull())
     }
 
     @Test
@@ -325,9 +370,49 @@ class PipTouchHandlerTest : ShellTestCase() {
         whenever(pipTouchState.lastTouchDisplayId).thenReturn(TARGET_DISPLAY_ID)
         pipTouchGesture.onUp(pipTouchState)
 
-        verify(mockPipMotionHelper, never()).stashToEdge(
-            any(), any(), anyOrNull()
-        )
+        verify(mockPipMotionHelper, never()).stashToEdge(any(), any(), anyOrNull())
+    }
+
+    @Test
+    fun pipTouchGesture_onUpFreeFloatingDisabled_pipStashedToEdge() {
+        whenever(mockPipDesktopState.isFreeFloatingPipEnabled()).thenReturn(false)
+        pipTouchHandler.mEnableStash = false
+        whenever(pipTouchState.isDragging).thenReturn(true)
+        PIP_BOUNDS.offset(-500, 0)
+        whenever(mockPipBoundsState.bounds).thenReturn(PIP_BOUNDS)
+
+        pipTouchGesture.onUp(pipTouchState)
+
+        verify(mockPipMotionHelper).stashToEdge(any(), any(), anyOrNull())
+    }
+
+    @Test
+    fun pipTouchGesture_onUpFreeFloatingEnabled_disallowsStashing() {
+        whenever(mockPipDesktopState.isFreeFloatingPipEnabled()).thenReturn(true)
+        pipTouchHandler.mEnableStash = true
+        whenever(pipTouchState.isDragging).thenReturn(true)
+        PIP_BOUNDS.offset(-500, 0)
+        whenever(mockPipBoundsState.bounds).thenReturn(PIP_BOUNDS)
+
+        pipTouchGesture.onUp(pipTouchState)
+
+        verify(mockPipMotionHelper, never()).stashToEdge(any(), any(), anyOrNull())
+    }
+
+    @Test
+    fun pipTouchGesture_onUpFreeFloatingEnabled_thenDisabled_stashingUpdated() {
+        whenever(mockPipDesktopState.isFreeFloatingPipEnabled()).thenReturn(true)
+        pipTouchHandler.mEnableStash = true
+        whenever(pipTouchState.isDragging).thenReturn(true)
+        PIP_BOUNDS.offset(-500, 0)
+        whenever(mockPipBoundsState.bounds).thenReturn(PIP_BOUNDS)
+
+        pipTouchGesture.onUp(pipTouchState)
+        verify(mockPipMotionHelper, never()).stashToEdge(any(), any(), anyOrNull())
+
+        whenever(mockPipDesktopState.isFreeFloatingPipEnabled()).thenReturn(false)
+        pipTouchGesture.onUp(pipTouchState)
+        verify(mockPipMotionHelper).stashToEdge(any(), any(), anyOrNull())
     }
 
     @Test
@@ -342,11 +427,28 @@ class PipTouchHandlerTest : ShellTestCase() {
         whenever(mockPipDisplayTransferHandler.isMirrorShown).thenReturn(true)
         pipTouchGesture.onUp(pipTouchState)
 
-        verify(mockPipMotionHelper, never()).stashToEdge(
-            any(), any(), anyOrNull()
-        )
+        verify(mockPipMotionHelper, never()).stashToEdge(any(), any(), anyOrNull())
     }
 
+    @Test
+    fun onRegistrationChanged_isRegistered_registersAccessibilityConnection() {
+        // Act: Call onRegistrationChanged with isRegistered = true.
+        pipTouchHandler.onRegistrationChanged(true)
+
+        // Assert: Verify that an accessibility connection is registered with the manager.
+        // This tests the observable side-effect rather than the internal implementation detail
+        // of interacting with a private helper class, making the test more resilient.
+        verify(mockAccessibilityManager).setPictureInPictureActionReplacingConnection(any())
+    }
+
+    @Test
+    fun onRegistrationChanged_isNotRegistered_unregistersAccessibilityConnection() {
+        // Act: Call onRegistrationChanged with isRegistered = false.
+        pipTouchHandler.onRegistrationChanged(false)
+
+        // Assert: Verify that the system's accessibility connection is cleared.
+        verify(mockAccessibilityManager).setPictureInPictureActionReplacingConnection(null)
+    }
 
     private companion object {
         const val ORIGIN_DISPLAY_ID = 0

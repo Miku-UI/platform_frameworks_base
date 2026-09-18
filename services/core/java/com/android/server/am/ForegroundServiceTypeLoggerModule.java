@@ -27,6 +27,7 @@ import static android.app.ActivityManager.FOREGROUND_SERVICE_API_TYPE_PHONE_CALL
 import static android.app.ActivityManager.FOREGROUND_SERVICE_API_TYPE_USB;
 import static android.os.Process.INVALID_UID;
 
+import static com.android.internal.util.FrameworkStatsLog.FOREGROUND_SERVICE_STATE_CHANGED__FGS_NOTIFICATION_PERMISSION_STATE__FGS_NOTIFICATION_PERMISSION_UNKNOWN;
 import static com.android.internal.util.FrameworkStatsLog.FOREGROUND_SERVICE_STATE_CHANGED__FGS_START_API__FGSSTARTAPI_NA;
 
 import android.annotation.IntDef;
@@ -543,7 +544,8 @@ public class ForegroundServiceTypeLoggerModule {
                 r.mAllowStart_inBindService,
                 r.mAllowStart_byBindings,
                 FOREGROUND_SERVICE_STATE_CHANGED__FGS_START_API__FGSSTARTAPI_NA,
-                false
+                false,
+                FOREGROUND_SERVICE_STATE_CHANGED__FGS_NOTIFICATION_PERMISSION_STATE__FGS_NOTIFICATION_PERMISSION_UNKNOWN
         );
     }
 
@@ -604,7 +606,8 @@ public class ForegroundServiceTypeLoggerModule {
                 0,
                 0,
                 FOREGROUND_SERVICE_STATE_CHANGED__FGS_START_API__FGSSTARTAPI_NA,
-                false
+                false,
+                FOREGROUND_SERVICE_STATE_CHANGED__FGS_NOTIFICATION_PERMISSION_STATE__FGS_NOTIFICATION_PERMISSION_UNKNOWN
         );
     }
 

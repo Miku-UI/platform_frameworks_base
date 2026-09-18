@@ -418,7 +418,6 @@ public class UserInfo implements Parcelable {
         return UserManager.isUserTypePrivateProfile(userType);
     }
 
-    @FlaggedApi(android.multiuser.Flags.FLAG_ALLOW_SUPERVISING_PROFILE)
     public boolean isSupervisingProfile() {
         return UserManager.isUserTypeSupervisingProfile(userType);
     }
@@ -513,14 +512,16 @@ public class UserInfo implements Parcelable {
     }
 
     /**
-     * @return true if this user can be switched to by an end user through the UI.
-     * This method checks if supportsSwitchTo() is true AND the user is a full user.
+     * Returns whether this is a human user that should be able to be switched to via the UI.
+     *
+     * <p>This method checks if {@link #supportsSwitchTo()} is true AND the user is a full user.
      * It specifically excludes the headless system user, as switching to that user
-     * is typically a framework-level operation and not available to regular users
-     * via the UI.
+     * is typically a framework-level operation and not available via the usual switcher UIs.
+     *
+     * @hide
      */
     @android.ravenwood.annotation.RavenwoodThrow
-    public boolean supportsSwitchToByUser() {
+    public boolean isUiSwitchableHumanUser() {
         return supportsSwitchTo() && isFull();
     }
 
@@ -535,10 +536,11 @@ public class UserInfo implements Parcelable {
         // NOTE: profiles used to be restricted just to the system user (and later to the main
         // user), but from the framework point of view there is no need for such restriction, hence
         // it's lifted
+        // TODO(b/488421414): Update the logic so that config_ is properly tied to profile type.
         return isMainUnlogged()
                 || (android.multiuser.Flags.profilesForAll()
-                        && Resources.getSystem().getBoolean(
-                                com.android.internal.R.bool.config_supportProfilesOnNonMainUser));
+                        && Resources.getSystem().getBoolean(com.android.internal.R.bool
+                                .config_supportManagedProfileOnNonMainUser));
     }
 
     /**
@@ -591,7 +593,6 @@ public class UserInfo implements Parcelable {
         return UserHandle.of(id);
     }
 
-    // TODO(b/142482943): Probably include mUserType here, which means updating TestDevice, etc.
     @Override
     public String toString() {
         // NOTE:  do not change this string, it's used by 'pm list users', which in turn is

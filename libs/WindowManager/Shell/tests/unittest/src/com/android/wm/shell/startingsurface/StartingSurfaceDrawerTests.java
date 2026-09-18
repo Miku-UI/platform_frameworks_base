@@ -75,6 +75,7 @@ import com.android.wm.shell.ShellTestCase;
 import com.android.wm.shell.common.HandlerExecutor;
 import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.shared.TransactionPool;
+import com.android.wm.shell.sysui.ShellController;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -99,6 +100,8 @@ public class StartingSurfaceDrawerTests extends ShellTestCase {
     private IconProvider mIconProvider;
     @Mock
     private TransactionPool mTransactionPool;
+    @Mock
+    private ShellController mShellController;
 
     private final Handler mTestHandler = new Handler(Looper.getMainLooper());
     private ShellExecutor mTestExecutor;
@@ -134,11 +137,9 @@ public class StartingSurfaceDrawerTests extends ShellTestCase {
         doReturn(metrics).when(mMockWindowManager).getMaximumWindowMetrics();
         doNothing().when(mMockWindowManager).addView(any(), any());
         mTestExecutor = new HandlerExecutor(mTestHandler);
-        mStartingSurfaceDrawer = new StartingSurfaceDrawer(mTestContext, mTestExecutor,
-                mIconProvider, mTransactionPool);
         mStartingSurfaceDrawer = spy(
                 new StartingSurfaceDrawer(mTestContext, mTestExecutor, mIconProvider,
-                        mTransactionPool));
+                        mTransactionPool, 0, mTestExecutor, mShellController));
         spyOn(mStartingSurfaceDrawer.mSplashscreenWindowCreator);
         spyOn(mStartingSurfaceDrawer.mWindowRecords);
         spyOn(mStartingSurfaceDrawer.mWindowlessRecords);
@@ -224,7 +225,7 @@ public class StartingSurfaceDrawerTests extends ShellTestCase {
         final TaskSnapshotWindow mockSnapshotWindow = new TaskSnapshotWindow(
                 snapshot, SnapshotDrawerUtils.getOrCreateTaskDescription(windowInfo.taskInfo),
                 snapshot.getOrientation(),
-                () -> {}, mTestExecutor);
+                () -> {}, mTestExecutor, new WindowManager.LayoutParams());
         spyOn(mockSnapshotWindow);
         try (AutoCloseable mockTaskSnapshotSession = new AutoCloseable() {
             MockitoSession mockSession = mockitoSession()

@@ -16,9 +16,11 @@
 package com.android.internal.widget.remotecompose.core.operations.layout.modifiers;
 
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.FLOAT;
+import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.INT;
 
 import android.annotation.NonNull;
 
+import com.android.internal.widget.remotecompose.core.CoreDocument;
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
 import com.android.internal.widget.remotecompose.core.PaintContext;
@@ -99,6 +101,22 @@ public class MarqueeModifierOperation extends DecoratorModifierOperation impleme
     public void reset() {
         mLastTime = 0;
         mScrollX = 0f;
+    }
+
+    @Override
+    public void applyEdgeEffect(@NonNull PaintContext context,
+            @NonNull Component component, int phase) {
+        // nothing
+    }
+
+    @Override
+    public float contentWidth() {
+        return mContentWidth;
+    }
+
+    @Override
+    public float contentHeight() {
+        return mContentHeight;
     }
 
     @Override
@@ -249,8 +267,14 @@ public class MarqueeModifierOperation extends DecoratorModifierOperation impleme
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
         doc.operation("Modifier Operations", OP_CODE, CLASS_NAME)
-                .description("specify a Marquee Modifier")
-                .field(FLOAT, "value", "");
+                .additionalDocumentation("modifier_marquee")
+                .description("Define a scrolling marquee effect for a component")
+                .field(INT, "iterations", "Number of iterations")
+                .field(INT, "animationMode", "Animation mode")
+                .field(FLOAT, "repeatDelayMillis", "Repeat delay in ms")
+                .field(FLOAT, "initialDelayMillis", "Initial delay in ms")
+                .field(FLOAT, "spacing", "Spacing between marquee iterations")
+                .field(FLOAT, "velocity", "Velocity of the marquee animation");
     }
 
     @Override
@@ -261,9 +285,15 @@ public class MarqueeModifierOperation extends DecoratorModifierOperation impleme
             float height) {
         mComponentWidth = width;
         mComponentHeight = height;
+
+        float spacing = mSpacing;
+        if (context.getDensityBehavior() == CoreDocument.DENSITY_BEHAVIOR_DP) {
+            spacing *= context.getDensity();
+        }
+
         if (component instanceof LayoutComponent) {
             LayoutComponent layoutComponent = (LayoutComponent) component;
-            setContentWidth(layoutComponent.minIntrinsicWidth(context));
+            setContentWidth(layoutComponent.minIntrinsicWidth(context) + spacing);
             setContentHeight(layoutComponent.minIntrinsicHeight(context));
         }
     }

@@ -55,10 +55,13 @@
     <item name="message_progress_dialog_letter_spacing" format="float" type="dimen">0.021</item>
 
     <!-- fallback for screen percentage widths -->
-    <dimen name="screen_percentage_05">0dp</dimen>
-    <dimen name="screen_percentage_10">0dp</dimen>
-    <dimen name="screen_percentage_12">0dp</dimen>
-    <dimen name="screen_percentage_15">0dp</dimen>
+    <dimen name="screen_percentage_0416">7.99dp</dimen>
+    <dimen name="screen_percentage_05">9.6dp</dimen>
+    <dimen name="screen_percentage_052">9.98dp</dimen>
+    <dimen name="screen_percentage_10">19.2dp</dimen>
+    <dimen name="screen_percentage_12">23.04dp</dimen>
+    <dimen name="screen_percentage_15">28.8dp</dimen>
+    <dimen name="screen_percentage_3646">69.99dp</dimen>
 
     <!-- dialog elevation [overrides 18dp] -->
     <dimen name="floating_window_z">2dp</dimen>

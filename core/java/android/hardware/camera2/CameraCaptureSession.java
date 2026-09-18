@@ -17,13 +17,16 @@
 package android.hardware.camera2;
 
 import android.annotation.CallbackExecutor;
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.hardware.camera2.CameraOfflineSession;
 import android.hardware.camera2.CameraOfflineSession.CameraOfflineSessionCallback;
 import android.hardware.camera2.params.OutputConfiguration;
+import android.hardware.camera2.params.SessionConfiguration;
 import android.os.Handler;
 import android.view.Surface;
+
+import com.android.internal.camera.flags.Flags;
 
 import java.util.Collection;
 import java.util.List;
@@ -264,6 +267,12 @@ public abstract class CameraCaptureSession implements AutoCloseable {
      * <p>If the provided OutputConfigurations are unchanged from session creation, this function
      * call has no effect. This function must only be called once for a particular output
      * configuration. </p>
+     *
+     * <p>Starting with {@link android.os.Build.VERSION_CODES#CINNAMON_BUN Android C} deferred
+     * Surfaces can be dynamically updated by calling {@link #updateOutputConfigurations(List)}.
+     * Using deferred surface updates, clients will no longer be limited to finalizing surfaces
+     * a single time and will be enabled to switch to and from deferred surface state at any
+     * time.</p>
      *
      * <p>The output Surfaces included by this list of
      * {@link OutputConfiguration OutputConfigurations} can be used as {@link CaptureRequest}
@@ -1023,6 +1032,47 @@ public abstract class CameraCaptureSession implements AutoCloseable {
      */
     @Override
     public abstract void close();
+
+    /**
+     * Update the output configurations for this camera session.
+     *
+     * <p>This method allows for updating the surfaces associated with the currently configured
+     * output {@link OutputConfiguration configurations}. It is used to
+     * {@link OutputConfiguration#addSurface replace }
+     * {@link OutputConfiguration#makeDeferredAndRemoveSurfaces deferred} surfaces with active surface instances
+     * or to swap surfaces for seamless transitions between use cases without re-initializing the
+     * entire camera session.</p>
+     *
+     * <p>The number of provided configurations must match the number of currently configured
+     * outputs. Each provided {@link OutputConfiguration} must correspond to an already existing
+     * output configuration passed previously to
+     * {@link CameraDevice#createCaptureSession(SessionConfiguration)}.
+     * The {@link OutputConfiguration} is identified by its properties (size, format, etc.), but can
+     * have a new surface associated with it (see {@link OutputConfiguration#addSurface}) or be
+     * marked as deferred (see {@link OutputConfiguration#makeDeferredAndRemoveSurfaces}).</p>
+     *
+     * <p>This method is not for adding or removing new
+     * {@link OutputConfiguration configurations}.</p>
+     *
+     * <p>Any active requests that target replaced surfaces will be stopped by this call.
+     * When a surface with active capture requests is replaced, the framework will keep track of
+     * the old surface to ensure that any in-flight buffers can return successfully
+     * before the connection is terminated.</p>
+     *
+     * @param configurations A list of {@link OutputConfiguration} objects with the updated
+     *                       surface information. The size of this list must be equal to the
+     *                       number of currently configured outputs.
+     *
+     * @throws CameraAccessException if the camera device has encountered a fatal error, or if the
+     *                               update operation fails.
+     * @throws IllegalArgumentException if the list of configurations is invalid (e.g., wrong size,
+     *                                  or contains an unknown configuration).
+     */
+    @FlaggedApi(Flags.FLAG_SEAMLESS_TRANSITIONS)
+    public void updateOutputConfigurations(@NonNull List<OutputConfiguration> configurations)
+            throws CameraAccessException {
+        throw new UnsupportedOperationException("Subclasses must override this method");
+    }
 
     /**
      * A callback object for receiving updates about the state of a camera capture session.

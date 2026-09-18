@@ -17,7 +17,6 @@
 package com.android.systemui.volume.panel.component.mediaoutput.domain.interactor
 
 import android.content.Context
-import com.android.media.flags.Flags.enableOutputSwitcherPersonalAudioSharing
 import com.android.settingslib.media.PhoneMediaDevice.inputRoutingEnabledAndIsDesktop
 import com.android.settingslib.volume.domain.interactor.AudioModeInteractor
 import com.android.systemui.dagger.qualifiers.Application
@@ -95,16 +94,13 @@ constructor(
                         )
                     )
                 } else {
-                    val canOpenAudioSwitcherForAudioSharing: Boolean =
-                        enableOutputSwitcherPersonalAudioSharing() || !isInAudioSharing
                     sessionWithPlaybackState.filterData().map { sessionWithPlaybackState ->
                         if (sessionWithPlaybackState == null) {
                             MediaOutputComponentModel.Idle(
                                 device = currentAudioDevice,
                                 isInAudioSharing = isInAudioSharing,
                                 canOpenAudioSwitcher =
-                                    canOpenAudioSwitcherForAudioSharing &&
-                                        currentAudioDevice !is AudioOutputDevice.Unknown,
+                                    currentAudioDevice !is AudioOutputDevice.Unknown,
                             )
                         } else {
                             MediaOutputComponentModel.MediaSession(
@@ -113,8 +109,7 @@ constructor(
                                 device = currentAudioDevice,
                                 isInAudioSharing = isInAudioSharing,
                                 canOpenAudioSwitcher =
-                                    canOpenAudioSwitcherForAudioSharing &&
-                                        currentAudioDevice !is AudioOutputDevice.Unknown,
+                                    currentAudioDevice !is AudioOutputDevice.Unknown,
                             )
                         }
                     }

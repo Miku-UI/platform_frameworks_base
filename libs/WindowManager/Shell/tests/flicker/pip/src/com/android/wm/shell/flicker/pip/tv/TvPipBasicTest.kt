@@ -57,8 +57,7 @@ class TvPipBasicTest(private val radioButtonId: String, private val pipWindowRat
         // Make sure Pip Window ration remained the same after Pip menu was closed
         testApp.ui?.visibleBounds?.let { newBounds ->
             assertEquals("Pip window ratio has changed", actualRatio, newBounds.ratio)
-        }
-            ?: fail("Application UI not found")
+        } ?: fail("Application UI not found")
 
         // Close Pip
         testApp.closePipWindow()
@@ -76,7 +75,7 @@ class TvPipBasicTest(private val radioButtonId: String, private val pipWindowRat
                 arrayOf("ratio_default", null),
                 arrayOf("ratio_square", 1 to 1),
                 arrayOf("ratio_wide", 2 to 1),
-                arrayOf("ratio_tall", 1 to 2)
+                arrayOf("ratio_tall", 1 to 2),
             )
         }
     }

@@ -816,6 +816,15 @@
             </intent-filter>
         </activity>
 
+        <activity android:name="BackdropBlurShadowActivity"
+                  android:label="RenderEffect/BackdropBlurShadow"
+                  android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="com.android.test.hwui.TEST"/>
+            </intent-filter>
+        </activity>
+
         <activity android:name="BlurActivity"
                   android:label="RenderEffect/Blur"
                   android:exported="true">

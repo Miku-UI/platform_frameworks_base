@@ -18,6 +18,7 @@ package com.android.server.am;
 
 import static android.app.ActivityManager.ASSIST_CONTEXT_CONTENT;
 import static android.app.ActivityManager.ASSIST_CONTEXT_FULL;
+import static android.app.ActivityManager.ASSIST_CONTEXT_SKIP_SCREEN_CONTENT;
 import static android.app.AppOpsManager.MODE_ALLOWED;
 import static android.app.AppOpsManager.OP_NONE;
 
@@ -88,9 +89,9 @@ public class AssistDataRequester extends IAssistDataReceiver.Stub {
 
         /**
          * Called when we receive asynchronous assist data. This call is only made if the
-         * {@param fetchData} argument to requestAssistData() is true, and if the current activity
+         * {@code fetchData} argument to requestAssistData() is true, and if the current activity
          * allows assist data to be fetched.  In addition, the callback will be made with the
-         * {@param mCallbacksLock} held, and only if {@link #canHandleReceivedAssistDataLocked()}
+         * {@code mCallbacksLock} held, and only if {@link #canHandleReceivedAssistDataLocked()}
          * is true.
          */
         @GuardedBy("mCallbacksLock")
@@ -100,9 +101,9 @@ public class AssistDataRequester extends IAssistDataReceiver.Stub {
 
         /**
          * Called when we receive asynchronous assist screenshot. This call is only made if
-         * {@param fetchScreenshot} argument to requestAssistData() is true, and if the current
+         * {@code fetchScreenshot} argument to requestAssistData() is true, and if the current
          * activity allows assist data to be fetched.  In addition, the callback will be made with
-         * the {@param mCallbacksLock} held, and only if
+         * the {@code mCallbacksLock} held, and only if
          * {@link #canHandleReceivedAssistDataLocked()} is true.
          */
         @GuardedBy("mCallbacksLock")
@@ -113,7 +114,7 @@ public class AssistDataRequester extends IAssistDataReceiver.Stub {
         /**
          * Called when there is no more pending assist data or screenshots for the last request.
          * If the request was canceled, then this callback will not be made. In addition, the
-         * callback will be made with the {@param mCallbacksLock} held, and only if
+         * callback will be made with the {@code mCallbacksLock} held, and only if
          * {@link #canHandleReceivedAssistDataLocked()} is true.
          */
         @GuardedBy("mCallbacksLock")
@@ -125,7 +126,7 @@ public class AssistDataRequester extends IAssistDataReceiver.Stub {
     /**
      * @param callbacks The callbacks to handle the asynchronous reply with the assist data.
      * @param callbacksLock The lock for the requester to hold when calling any of the
-     *                     {@param callbacks}. The owner should also take care in locking
+     *                     {@code callbacks}. The owner should also take care in locking
      *                     appropriately when calling into this requester.
      * @param requestStructureAppOps The app ops to check before requesting the assist structure
      * @param requestScreenshotAppOps The app ops to check before requesting the assist screenshot.
@@ -150,65 +151,113 @@ public class AssistDataRequester extends IAssistDataReceiver.Stub {
      * Request that assist data be loaded asynchronously. The resulting data will be provided
      * through the {@link AssistDataRequesterCallbacks}.
      *
-     * See {@link #requestData(List, boolean, boolean, boolean, boolean, boolean, boolean, boolean,
-     * int, String, String)}.
+     * <p>See {@link #requestData(List, boolean, boolean, boolean, boolean, boolean, boolean,
+     * boolean, boolean, int, String, String)}.
      */
-    public void requestAssistData(@NonNull List<IBinder> activityTokens, final boolean fetchData,
-            final boolean fetchScreenshot, boolean allowFetchData, boolean allowFetchScreenshot,
-            int callingUid, @NonNull String callingPackage,
+    public void requestAssistData(
+            @NonNull List<IBinder> activityTokens,
+            final boolean fetchData,
+            final boolean fetchScreenshot,
+            final boolean fetchAssistStructureScreenContent,
+            boolean allowFetchData,
+            boolean allowFetchScreenshot,
+            boolean allowFetchAssistStructureScreenContent,
+            int callingUid,
+            @NonNull String callingPackage,
             @Nullable String callingAttributionTag) {
-        requestAssistData(activityTokens, fetchData, fetchScreenshot, true /* fetchStructure */,
-                allowFetchData, allowFetchScreenshot, false /* ignoreTopActivityCheck */,
-                callingUid, callingPackage, callingAttributionTag);
+        requestAssistData(
+                activityTokens,
+                fetchData,
+                fetchScreenshot,
+                true /* fetchStructure */,
+                fetchAssistStructureScreenContent,
+                allowFetchData,
+                allowFetchScreenshot,
+                allowFetchAssistStructureScreenContent,
+                false /* ignoreTopActivityCheck */,
+                callingUid,
+                callingPackage,
+                callingAttributionTag);
     }
 
     /**
      * Request that assist data be loaded asynchronously. The resulting data will be provided
      * through the {@link AssistDataRequesterCallbacks}.
      *
-     * See {@link #requestData(List, boolean, boolean, boolean, boolean, boolean, boolean, boolean,
-     * int, String, String)}.
+     * <p>See {@link #requestData(List, boolean, boolean, boolean, boolean, boolean, boolean,
+     * boolean, boolean, int, String, String)}.
      */
-    public void requestAssistData(@NonNull List<IBinder> activityTokens, final boolean fetchData,
-            final boolean fetchScreenshot, final boolean fetchStructure, boolean allowFetchData,
-            boolean allowFetchScreenshot, boolean ignoreTopActivityCheck, int callingUid,
-            @NonNull String callingPackage, @Nullable String callingAttributionTag) {
-        requestData(activityTokens, false /* requestAutofillData */, fetchData, fetchScreenshot,
-                fetchStructure, allowFetchData, allowFetchScreenshot, ignoreTopActivityCheck,
-                callingUid, callingPackage, callingAttributionTag);
+    public void requestAssistData(
+            @NonNull List<IBinder> activityTokens,
+            final boolean fetchData,
+            final boolean fetchScreenshot,
+            final boolean fetchStructure,
+            final boolean fetchAssistStructureScreenContent,
+            boolean allowFetchData,
+            boolean allowFetchScreenshot,
+            boolean allowFetchAssistStructureScreenContent,
+            boolean ignoreTopActivityCheck,
+            int callingUid,
+            @NonNull String callingPackage,
+            @Nullable String callingAttributionTag) {
+        requestData(
+                activityTokens,
+                false /* requestAutofillData */,
+                fetchData,
+                fetchScreenshot,
+                fetchStructure,
+                fetchAssistStructureScreenContent,
+                allowFetchData,
+                allowFetchScreenshot,
+                allowFetchAssistStructureScreenContent,
+                ignoreTopActivityCheck,
+                callingUid,
+                callingPackage,
+                callingAttributionTag);
     }
 
     /**
      * Request that assist data be loaded asynchronously. The resulting data will be provided
      * through the {@link AssistDataRequesterCallbacks}.
      *
-     * @param activityTokens the list of visible activities
-     * @param requestAutofillData if true, will fetch the autofill data, otherwise, will fetch the
-     *     assist context data
-     * @param fetchData whether or not to fetch the assist data, only applies if the caller is
+     * @param activityTokens The list of visible activities.
+     * @param requestAutofillData If true, will fetch the autofill data, otherwise, will fetch the
+     *     assist context data.
+     * @param fetchData Whether or not to fetch the assist data. This only applies if the caller is
      *     allowed to fetch the assist data, and the current activity allows assist data to be
-     *     fetched from it
-     * @param fetchScreenshot whether or not to fetch the screenshot, only applies if fetchData is
-     *     true, the caller is allowed to fetch the assist data, and the current activity allows
-     *     assist data to be fetched from it
-     * @param fetchStructure whether or not to fetch the AssistStructure along with the
-     *     AssistContent
-     * @param allowFetchData to be joined with other checks, determines whether or not the requester
-     *     is allowed to fetch the assist data
-     * @param allowFetchScreenshot to be joined with other checks, determines whether or not the
-     *     requester is allowed to fetch the assist screenshot
-     * @param ignoreTopActivityCheck overrides the check for whether the activity is in focus when
+     *     fetched from it.
+     * @param fetchScreenshot Whether or not to fetch the screenshot. This only applies if fetchData
+     *     is true, the caller is allowed to fetch the assist data, and the current activity allows
+     *     assist data to be fetched from it.
+     * @param fetchStructure Whether or not to fetch the AssistStructure along with the
+     *     AssistContent.
+     * @param fetchAssistStructureScreenContent Whether to fetch the screen content within the
+     *     assist structure.
+     * @param allowFetchData To be joined with other checks, determines whether or not the requester
+     *     is allowed to fetch the assist data.
+     * @param allowFetchScreenshot To be joined with other checks, determines whether or not the
+     *     requester is allowed to fetch the assist screenshot.
+     * @param ignoreTopActivityCheck Overrides the check for whether the activity is in focus when
      *     making the request. Used when passing an activity from Recents.
-     * @param callingUid the uid of the real caller
-     * @param callingPackage the package name of the real caller
-     * @param callingAttributionTag The {@link Context#createAttributionContext attribution tag}
-     *     of the calling context or {@code null} for default attribution
+     * @param callingUid The uid of the real caller.
+     * @param callingPackage The package name of the real caller.
+     * @param callingAttributionTag The {@link Context#createAttributionContext attribution tag} of
+     *     the calling context or {@code null} for default attribution.
      */
-    private void requestData(@NonNull List<IBinder> activityTokens,
-            final boolean requestAutofillData, final boolean fetchData,
-            final boolean fetchScreenshot, final boolean fetchStructure, boolean allowFetchData,
-            boolean allowFetchScreenshot, boolean ignoreTopActivityCheck, int callingUid,
-            @NonNull String callingPackage, @Nullable String callingAttributionTag) {
+    private void requestData(
+            @NonNull List<IBinder> activityTokens,
+            final boolean requestAutofillData,
+            final boolean fetchData,
+            final boolean fetchScreenshot,
+            final boolean fetchStructure,
+            final boolean fetchAssistStructureScreenContent,
+            boolean allowFetchData,
+            boolean allowFetchScreenshot,
+            boolean allowFetchAssistStructureScreenContent,
+            boolean ignoreTopActivityCheck,
+            int callingUid,
+            @NonNull String callingPackage,
+            @Nullable String callingAttributionTag) {
         // TODO(b/34090158): Known issue, if the assist data is not allowed on the current activity,
         //                   then no assist data is requested for any of the other activities
 
@@ -223,22 +272,13 @@ public class AssistDataRequester extends IAssistDataReceiver.Stub {
         }
 
         // Ensure that the current activity supports assist data
-        boolean isAssistDataAllowed = false;
-        if (com.android.window.flags.Flags.supportGeminiOnMultiDisplay()) {
-            isAssistDataAllowed = LocalServices.getService(
-                    ActivityTaskManagerInternal.class).isAssistDataForActivitiesAllowed(
-                    activityTokens);
-        } else {
-            try {
-                isAssistDataAllowed = mActivityTaskManager.isAssistDataAllowed();
-            } catch (RemoteException e) {
-                // Should never happen
-            }
-        }
-
+        final boolean isAssistDataAllowed = LocalServices.getService(
+                ActivityTaskManagerInternal.class).isAssistDataForActivitiesAllowed(
+                activityTokens);
         allowFetchData &= isAssistDataAllowed;
         allowFetchScreenshot &= fetchData && isAssistDataAllowed
                 && (mRequestScreenshotAppOps != OP_NONE);
+        allowFetchAssistStructureScreenContent &= fetchAssistStructureScreenContent;
 
         mCanceled = false;
         mPendingDataCount = 0;
@@ -263,8 +303,12 @@ public class AssistDataRequester extends IAssistDataReceiver.Stub {
                             result = mActivityTaskManager.requestAutofillData(this, receiverExtras,
                                     topActivity, 0 /* flags */);
                         } else {
-                            int requestType = fetchStructure ? ASSIST_CONTEXT_FULL :
-                                    ASSIST_CONTEXT_CONTENT;
+                            int requestType =
+                                    fetchStructure
+                                            ? allowFetchAssistStructureScreenContent
+                                                    ? ASSIST_CONTEXT_FULL
+                                                    : ASSIST_CONTEXT_SKIP_SCREEN_CONTENT
+                                            : ASSIST_CONTEXT_CONTENT;
                             result = mActivityTaskManager.requestAssistContextExtras(
                                         requestType, this, receiverExtras, topActivity,
                                         /* checkActivityIsTop= */ (i == 0)
@@ -303,16 +347,8 @@ public class AssistDataRequester extends IAssistDataReceiver.Stub {
                     && allowFetchScreenshot) {
                 MetricsLogger.count(mContext, "assist_with_screen", 1);
                 mPendingScreenshotCount++;
-                if (com.android.window.flags.Flags.supportGeminiOnMultiDisplay()) {
-                    LocalServices.getService(WindowManagerInternal.class).requestAssistScreenshot(
-                            this, activityTokens.get(0));
-                } else {
-                    try {
-                        mWindowManager.requestAssistScreenshot(this);
-                    } catch (RemoteException e) {
-                        // Can't happen
-                    }
-                }
+                LocalServices.getService(WindowManagerInternal.class).requestAssistScreenshot(this,
+                        activityTokens.get(0));
             } else {
                 if (mCallbacks.canHandleReceivedAssistDataLocked()) {
                     dispatchAssistScreenshotReceived(null);

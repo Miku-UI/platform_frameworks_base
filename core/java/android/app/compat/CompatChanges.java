@@ -22,6 +22,7 @@ import android.annotation.SystemApi;
 import android.compat.Compatibility;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.ravenwood.annotation.RavenwoodRedirect;
 import android.util.ArrayMap;
 
 import com.android.internal.compat.CompatibilityOverrideConfig;
@@ -39,10 +40,16 @@ import java.util.Set;
  */
 @SystemApi
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
+@android.ravenwood.annotation.RavenwoodRedirectionClass("CompatChanges_ravenwood")
 public final class CompatChanges {
     private static final ChangeIdStateCache QUERY_CACHE = new ChangeIdStateCache();
 
     private CompatChanges() {}
+
+    /** Provide a hook to Ravenwood-core. */
+    @RavenwoodRedirect
+    private static void validateChangeId(long changeId) {
+    }
 
     /**
      * Query if a given compatibility change is enabled for the current process. This method is
@@ -56,6 +63,7 @@ public final class CompatChanges {
      * @return {@code true} if the change is enabled for the current app.
      */
     public static boolean isChangeEnabled(long changeId) {
+        validateChangeId(changeId);
         return Compatibility.isChangeEnabled(changeId);
     }
 
@@ -75,6 +83,7 @@ public final class CompatChanges {
             android.Manifest.permission.LOG_COMPAT_CHANGE})
     public static boolean isChangeEnabled(long changeId, @NonNull String packageName,
             @NonNull UserHandle user) {
+        validateChangeId(changeId);
         return QUERY_CACHE.query(ChangeIdStateQuery.byPackageName(changeId, packageName,
                                                            user.getIdentifier()));
     }
@@ -97,6 +106,7 @@ public final class CompatChanges {
     @RequiresPermission(allOf = {android.Manifest.permission.READ_COMPAT_CHANGE_CONFIG,
             android.Manifest.permission.LOG_COMPAT_CHANGE})
     public static boolean isChangeEnabled(long changeId, int uid) {
+        validateChangeId(changeId);
         return QUERY_CACHE.query(ChangeIdStateQuery.byUid(changeId, uid));
     }
 

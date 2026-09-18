@@ -23,8 +23,6 @@ import static com.google.common.truth.Truth.assertThat;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
-import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
@@ -39,15 +37,11 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.R;
 import com.android.internal.graphics.ColorUtils;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith(AndroidJUnit4.class)
-@DisabledOnRavenwood(blockedBy = Color.class)
 public class ContrastColorUtilTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     @Test
     @SmallTest

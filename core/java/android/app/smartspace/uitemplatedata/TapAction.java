@@ -171,7 +171,7 @@ public final class TapAction implements Parcelable {
     public String toString() {
         return "SmartspaceTapAction{"
                 + "mId=" + mId
-                + "mIntent=" + mIntent
+                + ", mIntent=" + mIntent
                 + ", mPendingIntent=" + mPendingIntent
                 + ", mUserHandle=" + mUserHandle
                 + ", mExtras=" + mExtras

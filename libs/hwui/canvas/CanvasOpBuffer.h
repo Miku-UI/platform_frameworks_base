@@ -28,6 +28,7 @@
 
 namespace android::uirenderer {
 
+class Matrix4;
 class RenderNode;
 
 template <CanvasOpType T>
@@ -98,7 +99,8 @@ public:
     void updateChildren(std::function<void(RenderNode*)> updateFn);
     bool prepareListAndChildren(
             TreeObserver& observer, TreeInfo& info, bool functorsNeedLayer,
-            std::function<void(RenderNode*, TreeObserver&, TreeInfo&, bool)> childFn);
+            std::function<void(RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool)>
+                    childFn);
     void syncContents(const WebViewSyncData& data);
     void onRemovedFromTree();
     void applyColorTransform(ColorTransform transform);

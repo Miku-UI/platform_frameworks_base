@@ -527,8 +527,8 @@ class WebViewUpdateServiceImpl2 {
     }
 
     /**
-     * Return true iff {@param packageInfos} point to only installed and enabled packages.
-     * The given packages {@param packageInfos} should all be pointing to the same package, but each
+     * Return true iff {@code packageInfos} point to only installed and enabled packages.
+     * The given packages {@code packageInfos} should all be pointing to the same package, but each
      * PackageInfo representing a different user's package.
      */
     private static boolean isInstalledAndEnabledForAllUsers(

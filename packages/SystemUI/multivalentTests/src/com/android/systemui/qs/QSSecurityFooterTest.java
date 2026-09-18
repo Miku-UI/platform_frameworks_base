@@ -51,11 +51,13 @@ import androidx.annotation.Nullable;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
+import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.animation.Expandable;
 import com.android.systemui.broadcast.BroadcastDispatcher;
 import com.android.systemui.common.shared.model.Icon;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.qs.footer.domain.model.SecurityButtonConfig;
 import com.android.systemui.res.R;
@@ -121,10 +123,12 @@ public class QSSecurityFooterTest extends SysuiTestCase {
         mShadeDialogContextInteractor = new FakeShadeDialogContextInteractor(mContext);
         Handler mainHandler = new Handler(looper);
         when(mUserTracker.getUserInfo()).thenReturn(mock(UserInfo.class));
+        KosmosJavaAdapter kosmos = new KosmosJavaAdapter(this);
         mFooterUtils = new QSSecurityFooterUtils(getContext(),
                 getContext().getSystemService(DevicePolicyManager.class), mUserTracker,
                 mainHandler, mActivityStarter, mSecurityController, looper,
-                mDialogTransitionAnimator, mShadeDialogContextInteractor);
+                mDialogTransitionAnimator, mShadeDialogContextInteractor,
+                kosmos.getSystemUIDialogDotFactory());
 
         when(mSecurityController.getDeviceOwnerComponentOnAnyUser())
                 .thenReturn(DEVICE_OWNER_COMPONENT);
@@ -662,7 +666,7 @@ public class QSSecurityFooterTest extends SysuiTestCase {
         when(mSecurityController.getIcon(any())).thenReturn(null);
         SecurityButtonConfig buttonConfig = getButtonConfig();
         assertEquals(
-                mContext.getString(R.string.quick_settings_disclosure_parental_controls),
+                mContext.getString(R.string.quick_settings_disclosure_parental_controls_legacy),
                 buttonConfig.getText());
         assertIsDefaultIcon(buttonConfig.getIcon());
 
@@ -672,7 +676,7 @@ public class QSSecurityFooterTest extends SysuiTestCase {
         buttonConfig = getButtonConfig();
         assertNotNull(buttonConfig);
         assertEquals(
-                mContext.getString(R.string.quick_settings_disclosure_parental_controls),
+                mContext.getString(R.string.quick_settings_disclosure_parental_controls_legacy),
                 buttonConfig.getText());
         assertIsIconDrawable(buttonConfig.getIcon(), testDrawable);
 
@@ -694,7 +698,7 @@ public class QSSecurityFooterTest extends SysuiTestCase {
         when(mSecurityController.getIcon()).thenReturn(null);
         SecurityButtonConfig buttonConfig = getButtonConfig();
         assertEquals(
-                mContext.getString(R.string.quick_settings_disclosure_parental_controls),
+                mContext.getString(R.string.quick_settings_disclosure_parental_controls_legacy),
                 buttonConfig.getText());
         assertIsDefaultIcon(buttonConfig.getIcon());
 
@@ -704,7 +708,7 @@ public class QSSecurityFooterTest extends SysuiTestCase {
         buttonConfig = getButtonConfig();
         assertNotNull(buttonConfig);
         assertEquals(
-                mContext.getString(R.string.quick_settings_disclosure_parental_controls),
+                mContext.getString(R.string.quick_settings_disclosure_parental_controls_legacy),
                 buttonConfig.getText());
         assertIsIconDrawable(buttonConfig.getIcon(), testDrawable);
 
@@ -717,8 +721,7 @@ public class QSSecurityFooterTest extends SysuiTestCase {
 
     @Test
     @EnableFlags({
-        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS,
-        android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE
+        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS
     })
     public void testParentalControls_newSupervisionApisGetInfoFromSupervisionModel() {
         // Make sure the security footer is visible, so that the images are updated.
@@ -771,48 +774,8 @@ public class QSSecurityFooterTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags({
-        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS,
-        android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE
-    })
-    public void testParentalControlsDialog() {
-        when(mSecurityController.isParentalControlsEnabled()).thenReturn(true);
-        when(mSecurityController.getLabel(any())).thenReturn(PARENTAL_CONTROLS_LABEL);
-
-        View view = mFooterUtils.createDialogView(getContext());
-        TextView textView = (TextView) view.findViewById(R.id.parental_controls_title);
-        assertEquals(PARENTAL_CONTROLS_LABEL, textView.getText().toString());
-        TextView contentView = view.findViewById(R.id.parental_controls_warning);
-        assertEquals(
-                mContext.getString(R.string.monitoring_description_parental_controls),
-                contentView.getText().toString());
-    }
-
-    @Test
-    @EnableFlags(android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS)
-    @DisableFlags(android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE)
-    public void testParentalControlsDialog_newSupervisionApisDefaultDisclaimerText() {
-        FakeSupervisionRepository supervisionRepository = new FakeSupervisionRepository();
-        supervisionRepository.setIsSupervisionEnabled(true);
-        supervisionRepository.setLabel(PARENTAL_CONTROLS_LABEL);
-        when(mSecurityController.isParentalControlsEnabled()).thenReturn(true);
-        when(mSecurityController.getLabel()).thenReturn(PARENTAL_CONTROLS_LABEL);
-        when(mSecurityController.getSupervisionModel())
-                .thenReturn(supervisionRepository.getSupervisionModel());
-
-        View view = mFooterUtils.createDialogView(getContext());
-        TextView textView = (TextView) view.findViewById(R.id.parental_controls_title);
-        assertEquals(PARENTAL_CONTROLS_LABEL, textView.getText().toString());
-        TextView contentView = view.findViewById(R.id.parental_controls_warning);
-        assertEquals(
-                mContext.getString(R.string.monitoring_description_parental_controls),
-                contentView.getText().toString());
-    }
-
-    @Test
     @EnableFlags({
-        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS,
-        android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE
+        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS
     })
     public void testParentalControlsDialog_newSupervisionApisCustomDisclaimerText() {
         FakeSupervisionRepository supervisionRepository = new FakeSupervisionRepository();
@@ -856,6 +819,7 @@ public class QSSecurityFooterTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
     public void testFinancedDeviceUsesSettingsButtonText() {
         when(mSecurityController.isDeviceManaged()).thenReturn(true);
         when(mSecurityController.getDeviceOwnerOrganizationName())
@@ -869,7 +833,35 @@ public class QSSecurityFooterTest extends SysuiTestCase {
         ArgumentCaptor<AlertDialog> dialogCaptor = ArgumentCaptor.forClass(AlertDialog.class);
 
         mTestableLooper.processAllMessages();
-        verify(mDialogTransitionAnimator).show(dialogCaptor.capture(), any());
+        verify(mDialogTransitionAnimator)
+                .show(dialogCaptor.capture(), any(DialogTransitionAnimator.Controller.class));
+
+        AlertDialog dialog = dialogCaptor.getValue();
+        dialog.create();
+
+        assertEquals(mFooterUtils.getSettingsButton(),
+                dialog.getButton(DialogInterface.BUTTON_NEGATIVE).getText());
+
+        dialog.dismiss();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
+    public void testFinancedDeviceUsesSettingsButtonText_withDynamicTargetResolutionEnabled() {
+        when(mSecurityController.isDeviceManaged()).thenReturn(true);
+        when(mSecurityController.getDeviceOwnerOrganizationName())
+                .thenReturn(MANAGING_ORGANIZATION);
+        when(mSecurityController.isFinancedDevice()).thenReturn(true);
+
+        Expandable expandable = mock(Expandable.class);
+        when(expandable.dialogTransitionController(any())).thenReturn(
+                mock(DialogTransitionAnimator.Controller.class));
+        mFooterUtils.showDeviceMonitoringDialog(getContext(), expandable);
+        ArgumentCaptor<AlertDialog> dialogCaptor = ArgumentCaptor.forClass(AlertDialog.class);
+
+        mTestableLooper.processAllMessages();
+        verify(mDialogTransitionAnimator)
+                .show(dialogCaptor.capture(), any(), any());
 
         AlertDialog dialog = dialogCaptor.getValue();
         dialog.create();

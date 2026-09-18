@@ -3,6 +3,7 @@
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_label" msgid="8016145283189546017">"Vhodne naprave"</string>
     <string name="keyboard_layouts_label" msgid="6688773268302087545">"Tipkovnica Android"</string>
+    <string name="keyboard_layout_english_ca_label" msgid="2415799429045326926">"angleščina (Kanada)"</string>
     <string name="keyboard_layout_english_uk_label" msgid="6664258463319999632">"angleška (Združeno kraljestvo)"</string>
     <string name="keyboard_layout_english_us_label" msgid="8994890249649106291">"angleška (ZDA)"</string>
     <string name="keyboard_layout_english_us_intl" msgid="3705168594034233583">"angleška (ZDA), mednarodni slog"</string>
@@ -19,7 +20,7 @@
     <string name="keyboard_layout_swiss_german_label" msgid="2305520941993314258">"švicarska nemška"</string>
     <string name="keyboard_layout_belgian" msgid="2011984572838651558">"belgijska"</string>
     <string name="keyboard_layout_bulgarian" msgid="8951224309972028398">"bolgarska"</string>
-    <string name="keyboard_layout_bulgarian_phonetic" msgid="7568914730360106653">"bolgarščina (fonetična)"</string>
+    <string name="keyboard_layout_bulgarian_phonetic" msgid="7568914730360106653">"bolgarska, fonetična"</string>
     <string name="keyboard_layout_italian" msgid="6497079660449781213">"italijanska"</string>
     <string name="keyboard_layout_danish" msgid="8036432066627127851">"danska"</string>
     <string name="keyboard_layout_norwegian" msgid="9090097917011040937">"norveška"</string>
@@ -27,35 +28,52 @@
     <string name="keyboard_layout_finnish" msgid="5585659438924315466">"finska"</string>
     <string name="keyboard_layout_croatian" msgid="4172229471079281138">"hrvaška"</string>
     <string name="keyboard_layout_czech" msgid="1349256901452975343">"češka"</string>
-    <string name="keyboard_layout_czech_qwerty" msgid="3331402534128515501">"Razpored QWERTY za češčino"</string>
+    <string name="keyboard_layout_czech_qwerty" msgid="3331402534128515501">"češka, razpored QWERTY"</string>
     <string name="keyboard_layout_estonian" msgid="8775830985185665274">"estonska"</string>
     <string name="keyboard_layout_hungarian" msgid="4154963661406035109">"madžarska"</string>
     <string name="keyboard_layout_icelandic" msgid="5836645650912489642">"islandska"</string>
     <string name="keyboard_layout_brazilian" msgid="5117896443147781939">"brazilska"</string>
     <string name="keyboard_layout_portuguese" msgid="2888198587329660305">"portugalska"</string>
     <string name="keyboard_layout_slovak" msgid="2469379934672837296">"slovaška"</string>
+    <string name="keyboard_layout_slovak_qwerty" msgid="2786027565675359502">"slovaščina, razpored QWERTY"</string>
     <string name="keyboard_layout_slovenian" msgid="1735933028924982368">"slovenska"</string>
     <string name="keyboard_layout_turkish" msgid="7736163250907964898">"turška"</string>
-    <string name="keyboard_layout_turkish_f" msgid="9130320856010776018">"Turščina F"</string>
+    <string name="keyboard_layout_turkish_f" msgid="9130320856010776018">"turška F"</string>
     <string name="keyboard_layout_ukrainian" msgid="8176637744389480417">"ukrajinska"</string>
     <string name="keyboard_layout_arabic" msgid="5671970465174968712">"arabska"</string>
-    <string name="keyboard_layout_greek" msgid="7289253560162386040">"grščina"</string>
-    <string name="keyboard_layout_hebrew" msgid="7241473985890173812">"hebrejščina"</string>
-    <string name="keyboard_layout_lithuanian" msgid="6943110873053106534">"litovščina"</string>
-    <string name="keyboard_layout_spanish_latin" msgid="5690539836069535697">"španščina (Latinska Amerika)"</string>
-    <string name="keyboard_layout_latvian" msgid="4405417142306250595">"latvijščina"</string>
-    <string name="keyboard_layout_persian" msgid="3920643161015888527">"perzijščina"</string>
-    <string name="keyboard_layout_azerbaijani" msgid="7315895417176467567">"azerbajdžanščina"</string>
-    <string name="keyboard_layout_polish" msgid="1121588624094925325">"poljščina"</string>
-    <string name="keyboard_layout_belarusian" msgid="7619281752698687588">"beloruščina"</string>
-    <string name="keyboard_layout_mongolian" msgid="7678483495823936626">"mongolščina"</string>
-    <string name="keyboard_layout_georgian" msgid="4596185456863747454">"gruzinščina"</string>
-    <string name="keyboard_layout_thai_kedmanee" msgid="6637147314580760938">"tajščina (Kedmanee)"</string>
-    <string name="keyboard_layout_thai_pattachote" msgid="2547992342794252205">"tajščina (Pattachote)"</string>
-    <string name="keyboard_layout_serbian_latin" msgid="3128791759390046571">"srbščina (latinica)"</string>
-    <string name="keyboard_layout_montenegrin_latin" msgid="1467832503378949945">"črnogorščina (latinica)"</string>
-    <string name="keyboard_layout_serbian_cyrillic" msgid="7013541044323542196">"srbščina (cirilica)"</string>
-    <string name="keyboard_layout_montenegrin_cyrillic" msgid="2391253952894077421">"črnogorščina (cirilica)"</string>
-    <string name="keyboard_layout_romanian" msgid="8698989892731726903">"romunščina"</string>
-    <string name="keyboard_layout_english_india" msgid="7962353311188603367">"angleščina (Indija)"</string>
+    <string name="keyboard_layout_greek" msgid="7289253560162386040">"grška"</string>
+    <string name="keyboard_layout_hebrew" msgid="7241473985890173812">"hebrejska"</string>
+    <string name="keyboard_layout_lithuanian" msgid="6943110873053106534">"litovska"</string>
+    <string name="keyboard_layout_spanish_latin" msgid="5690539836069535697">"španska (Latinska Amerika)"</string>
+    <string name="keyboard_layout_latvian" msgid="4405417142306250595">"latvijska"</string>
+    <string name="keyboard_layout_persian" msgid="3920643161015888527">"perzijska"</string>
+    <string name="keyboard_layout_azerbaijani" msgid="7315895417176467567">"azerbajdžanska"</string>
+    <string name="keyboard_layout_polish" msgid="1121588624094925325">"poljska"</string>
+    <string name="keyboard_layout_belarusian" msgid="7619281752698687588">"beloruska"</string>
+    <string name="keyboard_layout_mongolian" msgid="7678483495823936626">"mongolska"</string>
+    <string name="keyboard_layout_georgian" msgid="4596185456863747454">"gruzijska"</string>
+    <string name="keyboard_layout_thai_kedmanee" msgid="6637147314580760938">"tajska (Kedmanee)"</string>
+    <string name="keyboard_layout_thai_pattachote" msgid="2547992342794252205">"tajska (Pattachote)"</string>
+    <string name="keyboard_layout_serbian_latin" msgid="3128791759390046571">"srbska (latinica)"</string>
+    <string name="keyboard_layout_montenegrin_latin" msgid="1467832503378949945">"črnogorska (latinica)"</string>
+    <string name="keyboard_layout_serbian_cyrillic" msgid="7013541044323542196">"srbska (cirilica)"</string>
+    <string name="keyboard_layout_montenegrin_cyrillic" msgid="2391253952894077421">"črnogorska (cirilica)"</string>
+    <string name="keyboard_layout_romanian" msgid="8698989892731726903">"romunska"</string>
+    <string name="keyboard_layout_english_india" msgid="7962353311188603367">"angleška (Indija)"</string>
+    <string name="playstation_controller_circle_button" msgid="3436949457993997215">"Gumb s krogom"</string>
+    <string name="playstation_controller_triangle_button" msgid="7058016183388142515">"Gumb s trikotnikom"</string>
+    <string name="playstation_controller_square_button" msgid="1611460593522078301">"Gumb s kvadratom"</string>
+    <string name="playstation_controller_cross_button" msgid="5263132258994089833">"Gumb s križcem"</string>
+    <string name="default_game_controller_down_button" msgid="5298575601656661456">"Gumb za pomik navzdol"</string>
+    <string name="default_game_controller_left_button" msgid="8135197345326445929">"Gumb za pomik levo"</string>
+    <string name="default_game_controller_right_button" msgid="7213665536684737133">"Gumb za pomik desno"</string>
+    <string name="default_game_controller_up_button" msgid="5466016771871639338">"Gumb za pomik navzgor"</string>
+    <string name="nintendo_game_controller_l_button" msgid="4725333055757177703">"Gumb L"</string>
+    <string name="nintendo_game_controller_r_button" msgid="1916817307166823755">"Gumb R"</string>
+    <string name="nintendo_game_controller_zl_button" msgid="7980363034784417011">"Gumb ZL"</string>
+    <string name="nintendo_game_controller_zr_button" msgid="301860128142672009">"Gumb ZR"</string>
+    <string name="xbox_game_controller_lb_button" msgid="3531058576782769049">"Gumb LB"</string>
+    <string name="xbox_game_controller_rb_button" msgid="7009478913470850721">"Gumb RB"</string>
+    <string name="xbox_game_controller_lt_button" msgid="6613016668751667815">"Gumb LT"</string>
+    <string name="xbox_game_controller_rt_button" msgid="1259415225164057316">"Gumb RT"</string>
 </resources>

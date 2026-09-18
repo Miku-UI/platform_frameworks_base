@@ -21,6 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertTrue;
 
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
@@ -42,6 +43,8 @@ import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.UserHandle;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
 import android.view.Window;
 
@@ -51,6 +54,7 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.logging.UiEventLogger;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.settingslib.fuelgauge.BatterySaverUtils;
+import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.animation.Expandable;
@@ -246,7 +250,25 @@ public class PowerNotificationWarningsTest extends SysuiTestCase {
     }
 
     @Test
-    public void testDialogStartedFromLauncher_viewVisible() {
+    @EnableFlags(Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
+    public void testDialogStartedFromLauncher_viewVisible_withDynamicTargetResolution() {
+        when(mBatteryController.getLastPowerSaverStartExpandable())
+                .thenReturn(new WeakReference<>(mExpandable));
+        when(mExpandable.dialogTransitionController(any())).thenReturn(mController);
+
+        Intent intent = new Intent(BatterySaverUtils.ACTION_SHOW_START_SAVER_CONFIRMATION);
+        intent.putExtras(new Bundle());
+
+        mReceiver.onReceive(mContext, intent);
+
+        verify(mDialogTransitionAnimator).show(any(), any(), any());
+
+        mPowerNotificationWarnings.getSaverConfirmationDialog().dismiss();
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
+    public void testDialogStartedFromLauncher_viewVisible_withoutDynamicTargetResolution() {
         when(mBatteryController.getLastPowerSaverStartExpandable())
                 .thenReturn(new WeakReference<>(mExpandable));
         when(mExpandable.dialogTransitionController(any())).thenReturn(mController);
@@ -271,7 +293,7 @@ public class PowerNotificationWarningsTest extends SysuiTestCase {
 
         mReceiver.onReceive(mContext, intent);
 
-        verify(mDialogTransitionAnimator, never()).show(any(), any());
+        verify(mDialogTransitionAnimator, never()).show(any(), any(), anyBoolean());
 
         verify(mPowerNotificationWarnings.getSaverConfirmationDialog()).show();
         mPowerNotificationWarnings.getSaverConfirmationDialog().dismiss();

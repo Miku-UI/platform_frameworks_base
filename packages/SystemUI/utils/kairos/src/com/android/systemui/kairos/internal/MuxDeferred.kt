@@ -17,85 +17,67 @@
 package com.android.systemui.kairos.internal
 
 import androidx.collection.ScatterSet
-import com.android.systemui.kairos.internal.store.MapK
-import com.android.systemui.kairos.internal.store.MutableArrayMapK
+import com.android.systemui.kairos.internal.store.ArrayMapK
+import com.android.systemui.kairos.internal.store.FastIterable
 import com.android.systemui.kairos.internal.store.MutableMapK
+import com.android.systemui.kairos.internal.store.NoValue
 import com.android.systemui.kairos.internal.store.SingletonMapK
-import com.android.systemui.kairos.internal.store.StoreEntry
-import com.android.systemui.kairos.internal.store.asArrayHolder
-import com.android.systemui.kairos.internal.store.asSingle
-import com.android.systemui.kairos.internal.store.singleOf
+import com.android.systemui.kairos.internal.store.asArrayMapK
+import com.android.systemui.kairos.internal.store.asSingletonMapK
+import com.android.systemui.kairos.internal.store.isNotEmpty
+import com.android.systemui.kairos.internal.store.singletonMapKOf
 import com.android.systemui.kairos.internal.util.fastForEach
 import com.android.systemui.kairos.internal.util.hashString
 import com.android.systemui.kairos.internal.util.logDuration
-import com.android.systemui.kairos.util.Maybe
-import com.android.systemui.kairos.util.Maybe.Absent
-import com.android.systemui.kairos.util.Maybe.Present
 import com.android.systemui.kairos.util.NameData
 import com.android.systemui.kairos.util.These
-import com.android.systemui.kairos.util.flatMap
 import com.android.systemui.kairos.util.forceInit
-import com.android.systemui.kairos.util.getMaybe
-import com.android.systemui.kairos.util.maybeFirst
-import com.android.systemui.kairos.util.maybeSecond
-import com.android.systemui.kairos.util.merge
-import com.android.systemui.kairos.util.orError
 import com.android.systemui.kairos.util.plus
-import com.android.systemui.kairos.util.these
 
-internal class MuxDeferredNode<W, K, V>(
+internal class MuxDeferredNode<W, K, V, R>(
     nameData: NameData,
-    lifecycle: MuxLifecycle<W, K, V>,
-    val spec: MuxActivator<W, K, V>,
-) : MuxNode<W, K, V>(nameData, lifecycle) {
+    lifecycle: MuxLifecycle<W, K, V, R>,
+    val spec: MuxActivator<W, K, V, R>,
+    val combiner: EvalScope.(MuxResult<W, K, V>) -> R,
+) : MuxNode<W, K, V, R>(nameData, lifecycle) {
 
     val schedulable = Schedulable.M(this)
-    var patches: NodeConnection<Iterable<Map.Entry<K, Maybe<EventsImpl<V>>>>>? = null
-    var patchData: Iterable<Map.Entry<K, Maybe<EventsImpl<V>>>>? = null
+    var patches: NodeConnection<FastIterable<K, EventsImpl<V>?>>? = null
+    var patchData: FastIterable<K, EventsImpl<V>?>? = null
 
     override fun visit(logIndent: Int, evalScope: EvalScope) {
         check(epoch < evalScope.epoch) { "node unexpectedly visited multiple times in transaction" }
         logDuration(logIndent, { "MuxDeferred[$nameData].visit" }) {
-            val scheduleDownstream: Boolean
-            val result: MapK<W, K, PullNode<V>>
-            logDuration(getPrefix = { "copying upstream data" }, start = false) {
-                scheduleDownstream = upstreamData.isNotEmpty()
-                result = upstreamData.readOnlyCopy()
-                upstreamData.clear()
-            }
-            val compactDownstream = depthTracker.isDirty()
-            if (scheduleDownstream || compactDownstream) {
-                if (compactDownstream) {
-                    logDuration(getPrefix = { "compactDownstream" }, start = false) {
-                        depthTracker.applyChanges(
-                            evalScope.scheduler,
-                            downstreamSet,
-                            owner = this@MuxDeferredNode,
-                        )
-                    }
+            if (depthTracker.isDirty()) {
+                logDuration(getPrefix = { "compactDownstream" }, start = false) {
+                    depthTracker.applyChanges(
+                        evalScope.scheduler,
+                        downstreamSet,
+                        owner = this@MuxDeferredNode,
+                    )
                 }
-                if (scheduleDownstream) {
-                    logDuration({ "scheduleDownstream" }) {
-                        transactionCache.put(evalScope, result)
-                        if (!scheduleAll(currentLogIndent, downstreamSet, evalScope)) {
-                            evalScope.scheduleDeactivation(this@MuxDeferredNode)
-                        }
+            }
+            if (upstreamData.isNotEmpty()) {
+                val result: R
+                logDuration(getPrefix = { "copying upstream data" }, start = false) {
+                    result = evalScope.combiner(upstreamData)
+                    upstreamData.clear()
+                }
+                logDuration({ "scheduleDownstream" }) {
+                    transactionCache.put(evalScope, result)
+                    if (!scheduleAll(currentLogIndent, downstreamSet, evalScope)) {
+                        evalScope.scheduleDeactivation(this@MuxDeferredNode)
                     }
                 }
             }
         }
     }
-
-    override fun getPushEvent(logIndent: Int, evalScope: EvalScope): MuxResult<W, K, V> =
-        logDuration(logIndent, { "MuxDeferred.getPushEvent" }) {
-            transactionCache.getCurrentValue(evalScope)
-        }
 
     private fun compactIfNeeded(evalScope: EvalScope) {
         depthTracker.propagateChanges(evalScope.compactor, this)
     }
 
-    override fun doDeactivate() {
+    override fun doDeactivate(evalScope: EvalScope) {
         check(downstreamSet.isEmpty()) { "cannot deactivate a node with downstreams" }
         // Update lifecycle
         if (lifecycle.lifecycleState !is MuxLifecycleState.Active) return
@@ -103,10 +85,16 @@ internal class MuxDeferredNode<W, K, V>(
         lifecycle.lifecycleState = MuxLifecycleState.Inactive(spec)
         // Process branch nodes
         switchedIn.forEach { _, branchNode ->
-            branchNode.upstream.removeDownstreamAndDeactivateIfNeeded(branchNode.schedulable)
+            branchNode.upstream.removeDownstreamAndDeactivateIfNeeded(
+                downstream = branchNode.schedulable,
+                evalScope = evalScope,
+            )
         }
         // Process patch node
-        patches?.removeDownstreamAndDeactivateIfNeeded(schedulable)
+        patches?.removeDownstreamAndDeactivateIfNeeded(
+            downstream = schedulable,
+            evalScope = evalScope,
+        )
     }
 
     // MOVE phase
@@ -121,10 +109,10 @@ internal class MuxDeferredNode<W, K, V>(
         // We have a patch, process additions/updates and removals
         val adds = mutableListOf<Pair<K, EventsImpl<V>>>()
         val removes = mutableListOf<K>()
-        patch.forEach { (k, newUpstream) ->
+        patch.forEach { k, newUpstream ->
             when (newUpstream) {
-                is Present -> adds.add(k to newUpstream.value)
-                Absent -> removes.add(k)
+                null -> removes.add(k)
+                else -> adds.add(k to newUpstream)
             }
         }
 
@@ -203,7 +191,7 @@ internal class MuxDeferredNode<W, K, V>(
     fun removeIndirectPatchNode(
         scheduler: Scheduler,
         depth: Int,
-        indirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
+        indirectSet: ScatterSet<MuxDeferredNode<*, *, *, *>>,
     ) {
         // indirectly connected patches forward the indirectSet
         if (
@@ -218,7 +206,7 @@ internal class MuxDeferredNode<W, K, V>(
     fun moveIndirectPatchNodeToDirect(
         scheduler: Scheduler,
         oldIndirectDepth: Int,
-        oldIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
+        oldIndirectSet: ScatterSet<MuxDeferredNode<*, *, *, *>>,
     ) {
         // directly connected patches are stored as an indirect singleton set of the patchNode
         if (
@@ -233,7 +221,7 @@ internal class MuxDeferredNode<W, K, V>(
     fun moveDirectPatchNodeToIndirect(
         scheduler: Scheduler,
         newIndirectDepth: Int,
-        newIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
+        newIndirectSet: ScatterSet<MuxDeferredNode<*, *, *, *>>,
     ) {
         // indirectly connected patches forward the indirectSet
         if (
@@ -249,8 +237,8 @@ internal class MuxDeferredNode<W, K, V>(
         scheduler: Scheduler,
         oldDepth: Int,
         newDepth: Int,
-        removals: ScatterSet<MuxDeferredNode<*, *, *>>,
-        additions: ScatterSet<MuxDeferredNode<*, *, *>>,
+        removals: ScatterSet<MuxDeferredNode<*, *, *, *>>,
+        additions: ScatterSet<MuxDeferredNode<*, *, *, *>>,
     ) {
         // indirectly connected patches forward the indirectSet
         if (
@@ -282,35 +270,39 @@ internal inline fun <A> switchDeferredImplSingle(
     crossinline getPatches: EvalScope.() -> EventsImpl<EventsImpl<A>>,
 ): EventsImpl<A> {
     val patches =
-        mapImpl(getPatches, nameData + "patches") { newEvents, _ ->
-            singleOf(Maybe.present(newEvents)).asIterable()
-        }
+        mapImpl(getPatches, nameData + "patches") { newEvents, _ -> singletonMapKOf(newEvents) }
     val switchDeferredImpl =
         switchDeferredImpl(
             nameData,
-            getStorage = { singleOf(getStorage()).asIterable() },
+            getStorage = { singletonMapKOf(getStorage()) },
             getPatches = { patches },
-            storeFactory = SingletonMapK.Factory(),
-        )
-    return mapImpl({ switchDeferredImpl }, nameData + "getResult") { map, logIndent ->
-        map.asSingle().getValue(Unit).getPushEvent(logIndent, this)
+            storeFactory = SingletonMapK.Factory,
+        ) { singletonMap ->
+            @Suppress("UNCHECKED_CAST")
+            singletonMap.asSingletonMapK().value as PullNode<A>
+        }
+    return mapImpl({ switchDeferredImpl }, nameData + "getResult") { node, logIndent ->
+        node.getPushEvent(logIndent, this)
     }
 }
 
-internal fun <W, K, V> switchDeferredImpl(
+internal fun <W, K, V, R> switchDeferredImpl(
     nameData: NameData,
-    getStorage: EvalScope.() -> Iterable<Map.Entry<K, EventsImpl<V>>>,
-    getPatches: EvalScope.() -> EventsImpl<Iterable<Map.Entry<K, Maybe<EventsImpl<V>>>>>,
+    // TODO: we might want to change this to skip the Iterable and just return the MutableMapK
+    getStorage: EvalScope.() -> FastIterable<K, EventsImpl<V>>,
+    getPatches: EvalScope.() -> EventsImpl<FastIterable<K, EventsImpl<V>?>>,
     storeFactory: MutableMapK.Factory<W, K>,
-): EventsImpl<MuxResult<W, K, V>> =
-    MuxLifecycle(MuxDeferredActivator(nameData, getStorage, storeFactory, getPatches))
+    combiner: EvalScope.(MuxResult<W, K, V>) -> R,
+): EventsImpl<R> =
+    MuxLifecycle(MuxDeferredActivator(nameData, getStorage, storeFactory, getPatches, combiner))
 
-private class MuxDeferredActivator<W, K, V>(
+private class MuxDeferredActivator<W, K, V, R>(
     private val nameData: NameData,
-    private val getStorage: EvalScope.() -> Iterable<Map.Entry<K, EventsImpl<V>>>,
+    private val getStorage: EvalScope.() -> FastIterable<K, EventsImpl<V>>,
     private val storeFactory: MutableMapK.Factory<W, K>,
-    private val getPatches: EvalScope.() -> EventsImpl<Iterable<Map.Entry<K, Maybe<EventsImpl<V>>>>>,
-) : MuxActivator<W, K, V> {
+    private val getPatches: EvalScope.() -> EventsImpl<FastIterable<K, EventsImpl<V>?>>,
+    private val combiner: EvalScope.(MuxResult<W, K, V>) -> R,
+) : MuxActivator<W, K, V, R> {
 
     init {
         nameData.forceInit()
@@ -318,11 +310,11 @@ private class MuxDeferredActivator<W, K, V>(
 
     override fun activate(
         evalScope: EvalScope,
-        lifecycle: MuxLifecycle<W, K, V>,
-    ): Pair<MuxNode<W, K, V>, (() -> Boolean)?> {
+        lifecycle: MuxLifecycle<W, K, V, R>,
+    ): Pair<MuxNode<W, K, V, R>, (() -> Boolean)?> {
         // Initialize mux node and switched-in connections.
         val muxNode =
-            MuxDeferredNode(nameData, lifecycle, this).apply {
+            MuxDeferredNode(nameData, lifecycle, this, combiner).apply {
                 initializeUpstream(evalScope, getStorage, storeFactory)
                 // Update depth based on all initial switched-in nodes.
                 initializeDepth()
@@ -388,84 +380,132 @@ internal inline fun <A> mergeNodes(
     nameData: NameData,
     crossinline getPulse: EvalScope.() -> EventsImpl<A>,
     crossinline getOther: EvalScope.() -> EventsImpl<A>,
-    crossinline f: EvalScope.(A, A) -> A,
-): EventsImpl<A> {
-    val mergedThese: EventsImpl<These<A, A>> =
-        mergeNodes(nameData + "mergedThese", getPulse, getOther)
-    val merged: EventsImpl<A> =
-        mapImpl({ mergedThese }, nameData) { these, _ ->
-            these.merge { thiz, that -> f(thiz, that) }
+    crossinline mergeBoth: EvalScope.(A, A) -> A,
+): EventsImpl<A> =
+    switchDeferredImpl(
+            nameData,
+            getStorage = { listOf(getPulse(), getOther()).asIterableWithIndex() },
+            getPatches = { neverImpl },
+            storeFactory = ArrayMapK.Factory,
+        ) {
+            val results = it.asArrayMapK()
+            val firstNode = results[0]
+            val secondNode = results[1]
+            if (firstNode == null) {
+                checkNotNull(secondNode) { "unexpected missing merge result" }
+                secondNode.getPushEvent(logIndent = 0, evalScope = this)
+            } else {
+                val first = firstNode.getPushEvent(logIndent = 0, evalScope = this)
+                if (secondNode == null) {
+                    first
+                } else {
+                    val second = secondNode.getPushEvent(logIndent = 0, evalScope = this)
+                    mergeBoth(first, second)
+                }
+            }
         }
-    return merged.cached(nameData + "cached")
-}
+        .cached(nameData + "cached")
 
-internal fun <T> Iterable<T>.asIterableWithIndex(): Iterable<Map.Entry<Int, T>> =
-    asSequence().mapIndexed { i, t -> StoreEntry(i, t) }.asIterable()
+internal fun <T> Iterable<T>.asIterableWithIndex() = FastIterable { yield ->
+    forEachIndexed { index, t -> yield(index, t) }
+}
 
 internal inline fun <A, B> mergeNodes(
     nameData: NameData,
     crossinline getPulse: EvalScope.() -> EventsImpl<A>,
     crossinline getOther: EvalScope.() -> EventsImpl<B>,
-): EventsImpl<These<A, B>> {
-    val storage =
-        listOf(
-                mapImpl(getPulse, nameData + "firstMergeInput") { it, _ -> These.first(it) },
-                mapImpl(getOther, nameData + "secondMergeInput") { it, _ -> These.second(it) },
-            )
-            .asIterableWithIndex()
-    val switchNode =
-        switchDeferredImpl(
-            nameData,
-            getStorage = { storage },
-            getPatches = { neverImpl },
-            storeFactory = MutableArrayMapK.Factory(),
-        )
-    val merged =
-        mapImpl({ switchNode }, nameData + "mergeResults") { it, logIndent ->
-            val mergeResults = it.asArrayHolder()
-            val first =
-                mergeResults.getMaybe(0).flatMap { it.getPushEvent(logIndent, this).maybeFirst() }
-            val second =
-                mergeResults.getMaybe(1).flatMap { it.getPushEvent(logIndent, this).maybeSecond() }
-            these(first, second).orError { "unexpected missing merge result" }
-        }
-    return merged.cached(nameData + "cached")
-}
+): EventsImpl<These<A, B>> =
+    mergeNodes(
+        nameData,
+        { mapImpl(getPulse, nameData + "firstMergeInput") { it, _ -> These.first(it) } },
+        { mapImpl(getOther, nameData + "secondMergeInput") { it, _ -> These.second(it) } },
+    ) { f, s ->
+        f as These.First
+        s as These.Second
+        These.both(f.value, s.value)
+    }
 
 internal inline fun <A> mergeNodes(
     nameData: NameData,
     crossinline getPulses: EvalScope.() -> Iterable<EventsImpl<A>>,
-): EventsImpl<List<A>> {
-    val switchNode =
-        switchDeferredImpl(
+): EventsImpl<List<A>> =
+    switchDeferredImpl(
             nameData,
             getStorage = { getPulses().asIterableWithIndex() },
             getPatches = { neverImpl },
-            storeFactory = MutableArrayMapK.Factory(),
-        )
-    val merged =
-        mapImpl({ switchNode }, nameData + "getMergeResults") { it, logIndent ->
-            val mergeResults = it.asArrayHolder()
-            mergeResults.map { (_, node) -> node.getPushEvent(logIndent, this) }
+            storeFactory = ArrayMapK.Factory,
+        ) { results ->
+            buildList {
+                results.asArrayMapK().forEach { i, node ->
+                    add(node.getPushEvent(logIndent = 0, evalScope = this@switchDeferredImpl))
+                }
+            }
         }
-    return merged.cached(nameData + "cached")
-}
+        .cached(nameData + "cached")
+
+internal inline fun <A, B : A> mergeReduceNodes(
+    nameData: NameData,
+    crossinline getPulses: EvalScope.() -> Iterable<EventsImpl<B>>,
+    crossinline reduce: EvalScope.(A, B) -> A,
+): EventsImpl<A> =
+    switchDeferredImpl(
+            nameData,
+            getStorage = { getPulses().asIterableWithIndex() },
+            getPatches = { neverImpl },
+            storeFactory = ArrayMapK.Factory,
+        ) { results ->
+            var reduced: Any? = NoValue
+            results.asArrayMapK().forEach { _, node ->
+                val a = node.getPushEvent(logIndent = 0, evalScope = this@switchDeferredImpl)
+                reduced =
+                    if (reduced === NoValue) {
+                        a
+                    } else {
+                        @Suppress("UNCHECKED_CAST") reduce(reduced as A, a)
+                    }
+            }
+            @Suppress("UNCHECKED_CAST")
+            reduced as A
+        }
+        .cached(nameData + "cached")
+
+internal inline fun <A, B> mergeFoldNodes(
+    nameData: NameData,
+    initialValue: B,
+    crossinline getPulses: EvalScope.() -> Iterable<EventsImpl<A>>,
+    crossinline reduce: EvalScope.(A, B) -> B,
+): EventsImpl<B> =
+    switchDeferredImpl(
+            nameData,
+            getStorage = { getPulses().asIterableWithIndex() },
+            getPatches = { neverImpl },
+            storeFactory = ArrayMapK.Factory,
+        ) { results ->
+            var reduced: B = initialValue
+            results.asArrayMapK().forEach { _, node ->
+                reduced =
+                    reduce(
+                        node.getPushEvent(logIndent = 0, evalScope = this@switchDeferredImpl),
+                        reduced,
+                    )
+            }
+            reduced
+        }
+        .cached(nameData + "cached")
 
 internal inline fun <A> mergeNodesLeft(
     nameData: NameData,
     crossinline getPulses: EvalScope.() -> Iterable<EventsImpl<A>>,
-): EventsImpl<A> {
-    val switchNode =
-        switchDeferredImpl(
+): EventsImpl<A> =
+    switchDeferredImpl(
             nameData,
             getStorage = { getPulses().asIterableWithIndex() },
             getPatches = { neverImpl },
-            storeFactory = MutableArrayMapK.Factory(),
-        )
-    val merged =
-        mapImpl({ switchNode }, nameData + "getLeftResult") { it, logIndent ->
-            val mergeResults = it.asArrayHolder()
-            mergeResults.values.first().getPushEvent(logIndent, this)
+            storeFactory = ArrayMapK.Factory,
+        ) combiner@{ results ->
+            results.asArrayMapK().forEach { i, node ->
+                return@combiner node.getPushEvent(logIndent = 0, evalScope = this)
+            }
+            error("unexpected missing merge result")
         }
-    return merged.cached(nameData + "cached")
-}
+        .cached(nameData + "cached")

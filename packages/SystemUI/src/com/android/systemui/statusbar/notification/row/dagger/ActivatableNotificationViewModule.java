@@ -16,22 +16,32 @@
 
 package com.android.systemui.statusbar.notification.row.dagger;
 
+import android.content.Context;
+import com.android.systemui.statusbar.notification.row.AutomationNotificationBackground;
+import com.android.systemui.statusbar.notification.row.AutomationNotificationBackgroundProvider;
 import com.android.systemui.statusbar.notification.row.ActivatableNotificationView;
 import com.android.systemui.statusbar.notification.row.ExpandableOutlineView;
 import com.android.systemui.statusbar.notification.row.ExpandableView;
 
 import dagger.Binds;
+import dagger.BindsOptionalOf;
 import dagger.Module;
 
-/**
- * Module for NotificationRowComponent.
- */
+/** Module for NotificationRowComponent. */
 @Module
 public interface ActivatableNotificationViewModule {
     /** ExpandableView is provided as an instance of ActivatableNotificationView. */
     @Binds
     ExpandableView bindExpandableView(ActivatableNotificationView view);
+
     /** ExpandableOutlineView is provided as an instance of ActivatableNotificationView. */
     @Binds
     ExpandableOutlineView bindExpandableOutlineView(ActivatableNotificationView view);
+
+    /**
+     * Adds optional binding for AlternateNotificationBackgroundBuilder for
+     * AutomationNotificationBackground.
+     */
+    @BindsOptionalOf
+    AutomationNotificationBackgroundProvider providesAutomationBackgroundBuilder();
 }

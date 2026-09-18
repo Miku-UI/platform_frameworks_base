@@ -1,9 +1,6 @@
 # Display
 per-file BrightnessLimit.java = file:/services/core/java/com/android/server/display/OWNERS
 
-# Haptics
-per-file *Vibrat*.java = file:/services/core/java/com/android/server/vibrator/OWNERS
-
 # Power
 per-file PowerManager*.java = file:/services/core/java/com/android/server/power/OWNERS
 
@@ -24,6 +21,7 @@ per-file MessageQueueTest.java = file:/MESSAGE_QUEUE_OWNERS
 per-file MessageHeapTest.java = file:/MESSAGE_QUEUE_OWNERS
 per-file MessageStackTest.java = file:/MESSAGE_QUEUE_OWNERS
 per-file WaitStateTest.java = file:/MESSAGE_QUEUE_OWNERS
+per-file LooperDoctorTest.java = file:/MESSAGE_QUEUE_OWNERS
 
 # Perfetto SDK
 per-file PerfettoTrace*Test.java = file:/PERFETTO_OWNERS

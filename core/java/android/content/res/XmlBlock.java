@@ -29,7 +29,6 @@ import android.util.TypedValue;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.pm.pkg.component.AconfigFlags;
-import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
 import com.android.internal.util.XmlUtils;
 
 import dalvik.annotation.optimization.CriticalNative;
@@ -350,7 +349,7 @@ public final class XmlBlock implements AutoCloseable {
             if (Flags.layoutReadwriteFlags() && mUsesFeatureFlags && ev == START_TAG) {
                 FlagInfo flag = nativeGetFlagInfo(mParseState);
                 if (flag != null && flag.mNameIndex > 0) {
-                    AconfigFlags flags = ParsingPackageUtils.getAconfigFlags();
+                    AconfigFlags flags = AconfigFlags.getInstance();
                     String flagName = getSequenceString(mStrings.getSequence(flag.mNameIndex));
                     if (flags.skip(/* pkg= */ null, flagName, flag.mNegated)) {
                         int depth = 1;

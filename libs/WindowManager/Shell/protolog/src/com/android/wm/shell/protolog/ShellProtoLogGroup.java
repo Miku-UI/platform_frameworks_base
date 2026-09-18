@@ -1,0 +1,127 @@
+/*
+ * Copyright (C) 2020 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.wm.shell.protolog;
+
+import com.android.internal.protolog.common.IProtoLogGroup;
+
+import java.util.UUID;
+
+/**
+ * Defines logging groups for ProtoLog.
+ *
+ * This file is used by the ProtoLogTool to generate optimized logging code.
+ */
+public enum ShellProtoLogGroup implements IProtoLogGroup {
+    // NOTE: Since we enable these from the same WM ShellCommand, these names should not conflict
+    // with those in the framework ProtoLogGroup
+    WM_SHELL(Consts.ENABLE_DEBUG, true, Consts.TAG_WM_SHELL),
+    WM_SHELL_INIT(Consts.ENABLE_DEBUG, true, Consts.TAG_WM_SHELL),
+    WM_SHELL_TASK_ORG(Consts.ENABLE_DEBUG, true, "ShellTaskOrganizer"),
+    WM_SHELL_TASK_ORG_NOISY(Consts.ENABLE_DEBUG, false, "ShellTaskOrganizer"),
+    WM_SHELL_TRANSITIONS(Consts.ENABLE_DEBUG, true, Consts.TAG_WM_SHELL),
+    WM_SHELL_MIXPATCHER(Consts.ENABLE_DEBUG, true, "TransitionMixpatcher"),
+    WM_SHELL_IME_CONTROLLER(Consts.ENABLE_DEBUG, false, "ShellIme"),
+    WM_SHELL_RECENTS_TRANSITION(Consts.ENABLE_DEBUG, true, "ShellRecents"),
+    WM_SHELL_DRAG_AND_DROP(Consts.ENABLE_DEBUG, true, "ShellDragAndDrop"),
+    WM_SHELL_STARTING_WINDOW(Consts.ENABLE_DEBUG, false, Consts.TAG_WM_STARTING_WINDOW),
+    WM_SHELL_REMOVE_STARTING_TRACKER(Consts.ENABLE_DEBUG, false, Consts.TAG_WM_STARTING_WINDOW),
+    WM_SHELL_BACK_PREVIEW(Consts.ENABLE_DEBUG, true, "ShellBackPreview"),
+    WM_SHELL_RECENT_TASKS(Consts.ENABLE_DEBUG, true, "RecentTasksController"),
+    WM_SHELL_TASK_OBSERVER(Consts.ENABLE_DEBUG, true, Consts.TAG_WM_SHELL),
+    // TODO(b/282232877): turn logToLogcat to false.
+    WM_SHELL_PICTURE_IN_PICTURE(Consts.ENABLE_DEBUG, true, Consts.TAG_WM_SHELL),
+    WM_SHELL_SPLIT_SCREEN(Consts.ENABLE_DEBUG, true, Consts.TAG_WM_SPLIT_SCREEN),
+    WM_SHELL_SYSUI_EVENTS(Consts.ENABLE_DEBUG, false, Consts.TAG_WM_SHELL),
+    WM_SHELL_DESKTOP_MODE(Consts.ENABLE_DEBUG, true, Consts.TAG_WM_DESKTOP_MODE),
+    WM_SHELL_WINDOW_DECORATION(Consts.ENABLE_DEBUG, true, Consts.TAG_WM_WINDOW_DECORATION),
+    WM_SHELL_FLOATING_APPS(Consts.ENABLE_DEBUG, false, Consts.TAG_WM_SHELL),
+    WM_SHELL_FOLDABLE(Consts.ENABLE_DEBUG, false, Consts.TAG_WM_SHELL),
+    WM_SHELL_BUBBLES_NOISY(Consts.ENABLE_DEBUG, false, Consts.TAG_WM_BUBBLES),
+    WM_SHELL_BUBBLES(Consts.ENABLE_DEBUG, true, Consts.TAG_WM_BUBBLES),
+    WM_SHELL_COMPAT_UI(Consts.ENABLE_DEBUG, true, Consts.TAG_WM_COMPAT_UI),
+    WM_SHELL_APP_COMPAT(Consts.ENABLE_DEBUG, true, Consts.TAG_WM_APP_COMPAT),
+    WM_SHELL_DESKTOP_AI(Consts.ENABLE_DEBUG, true, Consts.TAG_WM_DESKTOP_AI),
+    WM_SHELL_APP_HANDLES(Consts.ENABLE_DEBUG, false, Consts.TAG_WM_APP_HANDLES),
+    WM_SHELL_WINDOWING_LAYER(Consts.ENABLE_DEBUG, false, Consts.TAG_WM_WINDOWING_LAYER),
+    WM_SHELL_PACKAGE_UPDATE(Consts.ENABLE_DEBUG, true, Consts.TAG_WM_PACKAGE_UPDATE),
+    WM_SHELL_INTERACTIVE_TASKS(Consts.ENABLE_DEBUG, false, Consts.TAG_WM_SHELL),
+    WM_SHELL_MODES(Consts.ENABLE_DEBUG, true, "ShellModes"),
+    TEST_GROUP(true, false, "WindowManagerShellProtoLogTest");
+
+    private final boolean mEnabled;
+    private volatile boolean mLogToLogcat;
+    private final String mTag;
+
+    /**
+     * @param enabled     set to false to exclude all log statements for this group from
+     *                    compilation, they will not be available in runtime.
+     * @param logToLogcat enable text logging for the group
+     * @param tag         name of the source of the logged message
+     */
+    ShellProtoLogGroup(boolean enabled, boolean logToLogcat, String tag) {
+        this.mEnabled = enabled;
+        this.mLogToLogcat = logToLogcat;
+        this.mTag = tag;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return mEnabled;
+    }
+
+    @Override
+    public boolean isLogToLogcat() {
+        return mLogToLogcat;
+    }
+
+    @Override
+    public String getTag() {
+        return mTag;
+    }
+
+    @Override
+    public void setLogToLogcat(boolean logToLogcat) {
+        this.mLogToLogcat = logToLogcat;
+    }
+
+    @Override
+    public int getId() {
+        return Consts.START_ID + this.ordinal();
+    }
+
+    private static class Consts {
+        private static final String TAG_WM_SHELL = "WindowManagerShell";
+        private static final String TAG_WM_STARTING_WINDOW = "ShellStartingWindow";
+        private static final String TAG_WM_SPLIT_SCREEN = "ShellSplitScreen";
+        private static final String TAG_WM_DESKTOP_MODE = "ShellDesktopMode";
+        private static final String TAG_WM_WINDOW_DECORATION = "ShellWindowDecoration";
+        private static final String TAG_WM_COMPAT_UI = "CompatUi";
+        private static final String TAG_WM_APP_COMPAT = "AppCompat";
+        private static final String TAG_WM_DESKTOP_AI = "DesktopAi";
+        private static final String TAG_WM_BUBBLES = "Bubbles";
+        private static final String TAG_WM_APP_HANDLES = "AppHandles";
+        private static final String TAG_WM_WINDOWING_LAYER = "WindowingLayer";
+        private static final String TAG_WM_PACKAGE_UPDATE = "ShellPackageUpdate";
+
+        private static final boolean ENABLE_DEBUG = true;
+        private static final boolean ENABLE_LOG_TO_PROTO_DEBUG = true;
+
+        private static final int START_ID = (int) (
+                UUID.nameUUIDFromBytes(ShellProtoLogGroup.class.getName().getBytes())
+                        .getMostSignificantBits() % Integer.MAX_VALUE);
+    }
+}

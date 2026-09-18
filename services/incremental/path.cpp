@@ -171,9 +171,19 @@ std::string_view dirname(std::string_view path) {
 }
 
 details::CStrWrapper::CStrWrapper(std::string_view sv) {
-    if (!sv.data()) {
+    auto is_string_view_nul_terminated = [](std::string_view sv) {
+        // NOTE(ag/38334313): `sv.data()[sv.size()]` is used instead of
+        // `sv[sv.size()]` to avoid libcxx hardening checks. It's required that
+        // users only pass `string_view`s here that are constructed from
+        // underlying, nul-terminated C strings, and it's required that users
+        // not pass `string_view`s with nul characters embedded in them.
+        // Hence, reaching one past the end is always safe.
+        return sv.data()[sv.size()] == '\0';
+    };
+
+    if (sv.empty()) {
         mCstr = "";
-    } else if (sv[sv.size()] == '\0') {
+    } else if (is_string_view_nul_terminated(sv)) {
         mCstr = sv.data();
     } else {
         mCopy.emplace(sv);

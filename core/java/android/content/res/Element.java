@@ -153,6 +153,8 @@ public class Element {
     protected static final String TAG_ATTR_VERSION_NAME = "versionName";
     protected static final String TAG_ATTR_WRITE_PERMISSION = "writePermission";
     protected static final String TAG_ATTR_ZYGOTE_PRELOAD_NAME = "zygotePreloadName";
+    protected static final String TAG_ATTR_ZYGOTE_PRELOAD_NATIVE_LIB = "zygotePreloadNativeLib";
+    protected static final String TAG_ATTR_ZYGOTE_PRELOAD_NATIVE_FUNC = "zygotePreloadNativeFunc";
 
     // The length of mTagCounters corresponds to the number of tags defined in getCounterIdx. If new
     // tags are added then the size here should be increased to match.
@@ -410,6 +412,8 @@ public class Element {
             case TAG_ATTR_WRITE_PERMISSION:
             case TAG_ATTR_VERSION_NAME:
             case TAG_ATTR_ZYGOTE_PRELOAD_NAME:
+            case TAG_ATTR_ZYGOTE_PRELOAD_NATIVE_LIB:
+            case TAG_ATTR_ZYGOTE_PRELOAD_NATIVE_FUNC:
                 return MAX_ATTR_LEN_NAME;
             case TAG_ATTR_FRAGMENT:
             case TAG_ATTR_FRAGMENT_ADVANCED_PATTERN:
@@ -535,6 +539,8 @@ public class Element {
             case R.styleable.AndroidManifestApplication_restrictedAccountType:
             case R.styleable.AndroidManifestApplication_taskAffinity:
             case R.styleable.AndroidManifestApplication_zygotePreloadName:
+            case R.styleable.AndroidManifestApplication_zygotePreloadNativeLib:
+            case R.styleable.AndroidManifestApplication_zygotePreloadNativeFunc:
                 return MAX_ATTR_LEN_NAME;
             default:
                 return DEFAULT_MAX_STRING_ATTR_LENGTH;
@@ -798,6 +804,8 @@ public class Element {
                     case TAG_ATTR_BACKUP_AGENT:
                     case TAG_ATTR_NAME:
                     case TAG_ATTR_ZYGOTE_PRELOAD_NAME:
+                    case TAG_ATTR_ZYGOTE_PRELOAD_NATIVE_LIB:
+                    case TAG_ATTR_ZYGOTE_PRELOAD_NATIVE_FUNC:
                         return true;
                     default:
                         return false;
@@ -827,7 +835,9 @@ public class Element {
             case TAG_APPLICATION:
                 return index == R.styleable.AndroidManifestApplication_backupAgent
                         || index == R.styleable.AndroidManifestApplication_name
-                        || index == R.styleable.AndroidManifestApplication_zygotePreloadName;
+                        || index == R.styleable.AndroidManifestApplication_zygotePreloadName
+                        || index == R.styleable.AndroidManifestApplication_zygotePreloadNativeLib
+                        || index == R.styleable.AndroidManifestApplication_zygotePreloadNativeFunc;
             case TAG_INSTRUMENTATION:
                 return index ==  R.styleable.AndroidManifestInstrumentation_name;
             case TAG_PROVIDER:

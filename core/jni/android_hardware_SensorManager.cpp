@@ -16,25 +16,28 @@
 #undef ANDROID_UTILS_REF_BASE_DISABLE_IMPLICIT_CONSTRUCTION // TODO:remove this and fix code
 #define LOG_TAG "SensorManager"
 
-#include <nativehelper/JNIHelp.h>
-#include "android_os_MessageQueue.h"
-#include "core_jni_helpers.h"
-#include "jni.h"
-
-#include <nativehelper/ScopedUtfChars.h>
-#include <nativehelper/ScopedLocalRef.h>
+#include <android/hardware/sensor/ISensorClientListener.h>
 #include <android_runtime/AndroidRuntime.h>
 #include <android_runtime/android_hardware_HardwareBuffer.h>
-#include <vndk/hardware_buffer.h>
+#include <binder/Parcel.h>
+#include <cutils/native_handle.h>
+#include <nativehelper/JNIHelp.h>
+#include <nativehelper/ScopedLocalRef.h>
+#include <nativehelper/ScopedUtfChars.h>
 #include <sensor/Sensor.h>
 #include <sensor/SensorEventQueue.h>
 #include <sensor/SensorManager.h>
-#include <cutils/native_handle.h>
 #include <utils/Log.h>
 #include <utils/Looper.h>
 #include <utils/Vector.h>
+#include <vndk/hardware_buffer.h>
 
 #include <map>
+
+#include "android_os_MessageQueue.h"
+#include "android_util_Binder.h"
+#include "core_jni_helpers.h"
+#include "jni.h"
 
 namespace {
 
@@ -356,6 +359,8 @@ class Receiver : public LooperCallback {
     jobject mReceiverWeakGlobal;
     jfloatArray mFloatScratch;
     jintArray   mIntScratch;
+    ASensorEvent mBuffer[SensorEventQueue::MAX_RECEIVE_BUFFER_EVENT_COUNT];
+
 public:
     Receiver(const sp<SensorEventQueue>& sensorQueue,
             const sp<MessageQueue>& messageQueue,
@@ -395,83 +400,77 @@ private:
         ScopedLocalRef<jobject> receiverObj(env, GetReferent(env, mReceiverWeakGlobal));
 
         ssize_t n;
-        ASensorEvent buffer[16];
-        while ((n = q->read(buffer, 16)) > 0) {
+        while ((n = q->read(mBuffer, NELEM(mBuffer))) > 0) {
             for (int i=0 ; i<n ; i++) {
-                if (buffer[i].type == SENSOR_TYPE_STEP_COUNTER) {
+                if (mBuffer[i].type == SENSOR_TYPE_STEP_COUNTER) {
                     // step-counter returns a uint64, but the java API only deals with floats
-                    float value = float(buffer[i].u64.step_counter);
+                    float value = float(mBuffer[i].u64.step_counter);
                     env->SetFloatArrayRegion(mFloatScratch, 0, 1, &value);
-                } else if (buffer[i].type == SENSOR_TYPE_DYNAMIC_SENSOR_META) {
+                } else if (mBuffer[i].type == SENSOR_TYPE_DYNAMIC_SENSOR_META) {
                     float value[2];
-                    value[0] = buffer[i].dynamic_sensor_meta.connected ? 1.f: 0.f;
-                    value[1] = float(buffer[i].dynamic_sensor_meta.handle);
+                    value[0] = mBuffer[i].dynamic_sensor_meta.connected ? 1.f : 0.f;
+                    value[1] = float(mBuffer[i].dynamic_sensor_meta.handle);
                     env->SetFloatArrayRegion(mFloatScratch, 0, 2, value);
-                } else if (buffer[i].type == SENSOR_TYPE_ADDITIONAL_INFO) {
+                } else if (mBuffer[i].type == SENSOR_TYPE_ADDITIONAL_INFO) {
                     env->SetIntArrayRegion(mIntScratch, 0, 14,
-                                           buffer[i].additional_info.data_int32);
+                                           mBuffer[i].additional_info.data_int32);
                     env->SetFloatArrayRegion(mFloatScratch, 0, 14,
-                                             buffer[i].additional_info.data_float);
+                                             mBuffer[i].additional_info.data_float);
                 } else {
-                    env->SetFloatArrayRegion(mFloatScratch, 0, 16, buffer[i].data);
+                    env->SetFloatArrayRegion(mFloatScratch, 0, 16, mBuffer[i].data);
                 }
 
-                if (buffer[i].type == SENSOR_TYPE_META_DATA) {
+                if (mBuffer[i].type == SENSOR_TYPE_META_DATA) {
                     // This is a flush complete sensor event. Call dispatchFlushCompleteEvent
                     // method.
                     if (receiverObj.get()) {
                         env->CallVoidMethod(receiverObj.get(),
                                             gBaseEventQueueClassInfo.dispatchFlushCompleteEvent,
-                                            buffer[i].meta_data.sensor);
+                                            mBuffer[i].meta_data.sensor);
                     }
-                } else if (buffer[i].type == SENSOR_TYPE_ADDITIONAL_INFO) {
+                } else if (mBuffer[i].type == SENSOR_TYPE_ADDITIONAL_INFO) {
                     // This is a flush complete sensor event. Call dispatchAdditionalInfoEvent
                     // method.
                     if (receiverObj.get()) {
-                        int type = buffer[i].additional_info.type;
-                        int serial = buffer[i].additional_info.serial;
+                        int type = mBuffer[i].additional_info.type;
+                        int serial = mBuffer[i].additional_info.serial;
                         env->CallVoidMethod(receiverObj.get(),
                                             gBaseEventQueueClassInfo.dispatchAdditionalInfoEvent,
-                                            buffer[i].sensor,
-                                            type, serial,
-                                            mFloatScratch,
-                                            mIntScratch,
-                                            buffer[i].timestamp);
+                                            mBuffer[i].sensor, type, serial, mFloatScratch,
+                                            mIntScratch, mBuffer[i].timestamp);
                     }
-                }else {
+                } else {
                     int8_t status;
-                    switch (buffer[i].type) {
-                    case SENSOR_TYPE_ORIENTATION:
-                    case SENSOR_TYPE_MAGNETIC_FIELD:
-                    case SENSOR_TYPE_ACCELEROMETER:
-                    case SENSOR_TYPE_GYROSCOPE:
-                    case SENSOR_TYPE_GRAVITY:
-                    case SENSOR_TYPE_LINEAR_ACCELERATION:
-                        status = buffer[i].vector.status;
-                        break;
-                    case SENSOR_TYPE_HEART_RATE:
-                        status = buffer[i].heart_rate.status;
-                        break;
-                    default:
-                        status = SENSOR_STATUS_ACCURACY_HIGH;
-                        break;
+                    switch (mBuffer[i].type) {
+                        case SENSOR_TYPE_ORIENTATION:
+                        case SENSOR_TYPE_MAGNETIC_FIELD:
+                        case SENSOR_TYPE_ACCELEROMETER:
+                        case SENSOR_TYPE_GYROSCOPE:
+                        case SENSOR_TYPE_GRAVITY:
+                        case SENSOR_TYPE_LINEAR_ACCELERATION:
+                            status = mBuffer[i].vector.status;
+                            break;
+                        case SENSOR_TYPE_HEART_RATE:
+                            status = mBuffer[i].heart_rate.status;
+                            break;
+                        default:
+                            status = SENSOR_STATUS_ACCURACY_HIGH;
+                            break;
                     }
                     if (receiverObj.get()) {
                         env->CallVoidMethod(receiverObj.get(),
                                             gBaseEventQueueClassInfo.dispatchSensorEvent,
-                                            buffer[i].sensor,
-                                            mFloatScratch,
-                                            status,
-                                            buffer[i].timestamp);
+                                            mBuffer[i].sensor, mFloatScratch, status,
+                                            mBuffer[i].timestamp);
                     }
                 }
                 if (env->ExceptionCheck()) {
-                    mSensorQueue->sendAck(buffer, n);
+                    mSensorQueue->sendAck(mBuffer, n);
                     ALOGE("Exception dispatching input event.");
                     return 1;
                 }
             }
-            mSensorQueue->sendAck(buffer, n);
+            mSensorQueue->sendAck(mBuffer, n);
         }
         if (n<0 && n != -EAGAIN) {
             // FIXME: error receiving events, what to do in this case?
@@ -544,12 +543,35 @@ static jint nativeInjectSensorData(JNIEnv *env, jclass clazz, jlong eventQ, jint
     env->GetFloatArrayRegion(values, 0, env->GetArrayLength(values), sensor_event.data);
     return receiver->getSensorEventQueue()->injectSensorEvent(sensor_event);
 }
+
+static void nativeRegisterClientListener(JNIEnv *env, jclass clazz, jlong sensorManager,
+                                         jobject listener) {
+    SensorManager *sm = reinterpret_cast<SensorManager *>(sensorManager);
+    if (sm == nullptr) {
+        ALOGE("nativeRegisterClientListener: sensorManager is nullptr");
+        return;
+    }
+    sp<IBinder> binder = ibinderForJavaObject(env, listener);
+    if (binder == nullptr) {
+        ALOGE("nativeRegisterClientListener: binder is nullptr");
+        return;
+    }
+    sp<android::hardware::sensor::ISensorClientListener> clientListener =
+            interface_cast<android::hardware::sensor::ISensorClientListener>(binder);
+    if (clientListener == nullptr) {
+        ALOGE("nativeRegisterClientListener: clientListener is nullptr");
+        return;
+    }
+    sm->registerClientListener(clientListener);
+}
+
 //----------------------------------------------------------------------------
 
 static const JNINativeMethod gSystemSensorManagerMethods[] = {
         {"nativeClassInit", "()V", (void *)nativeClassInit},
         {"nativeCreate", "(Ljava/lang/String;)J", (void *)nativeCreate},
-
+        {"nativeRegisterClientListener", "(JLandroid/os/IBinder;)V",
+         (void *)nativeRegisterClientListener},
         {"nativeGetSensorAtIndex", "(JLandroid/hardware/Sensor;I)Z",
          (void *)nativeGetSensorAtIndex},
 

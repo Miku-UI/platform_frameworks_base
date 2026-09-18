@@ -33,8 +33,8 @@ import android.view.DisplayAddress;
 import android.view.Surface;
 import android.view.SurfaceControl;
 
-import com.android.server.display.feature.flags.Flags;
 import com.android.server.display.mode.DisplayModeDirector;
+import com.android.server.display.utils.DebugTransactionDetails;
 
 import java.io.PrintWriter;
 import java.util.Arrays;
@@ -46,7 +46,7 @@ import java.util.Arrays;
  * Display devices are guarded by the {@link DisplayManagerService.SyncRoot} lock.
  * </p>
  */
-abstract class DisplayDevice {
+public abstract class DisplayDevice {
     /**
      * Maximum acceptable anisotropy for the output image.
      *
@@ -82,13 +82,30 @@ abstract class DisplayDevice {
     // DEBUG STATE: Last device info which was written to the log, or null if none.
     // Do not use for any other purpose.
     DisplayDeviceInfo mDebugLastLoggedDeviceInfo;
-    DisplayDevice(DisplayAdapter displayAdapter, IBinder displayToken, String uniqueId,
+    public DisplayDevice(DisplayAdapter displayAdapter, IBinder displayToken, String uniqueId,
             Context context) {
         mDisplayAdapter = displayAdapter;
         mDisplayToken = displayToken;
         mUniqueId = uniqueId;
         mDisplayDeviceConfig = null;
         mContext = context;
+    }
+
+    static int findUserPreferredModeIdLocked(
+            @Nullable Display.Mode userPreferredMode,
+            Display.Mode[] supportedModes
+    ) {
+        if (userPreferredMode != null) {
+            for (int i = 0; i < supportedModes.length; i++) {
+                Display.Mode supportedMode = supportedModes[i];
+                if (userPreferredMode.matches(supportedMode.getPhysicalWidth(),
+                        supportedMode.getPhysicalHeight(),
+                        supportedMode.getRefreshRate())) {
+                    return supportedMode.getModeId();
+                }
+            }
+        }
+        return Display.Mode.INVALID_MODE_ID;
     }
 
     /**
@@ -156,19 +173,10 @@ abstract class DisplayDevice {
         DisplayDeviceInfo displayDeviceInfo = getDisplayDeviceInfoLocked();
         var width = displayDeviceInfo.width;
         var height = displayDeviceInfo.height;
-        Display.Mode userMode = getUserPreferredDisplayModeLocked();
-        if (displayDeviceInfo.type == Display.TYPE_EXTERNAL && userMode != null
-                && (userMode.getFlags() & Display.Mode.FLAG_SIZE_OVERRIDE) != 0) {
-            width = userMode.getPhysicalWidth();
-            height = userMode.getPhysicalHeight();
-        } else if (!Flags.enableAnisotropyCorrectedModes()
-                && displayDeviceInfo.type == Display.TYPE_EXTERNAL
-                && displayDeviceInfo.yDpi > 0 && displayDeviceInfo.xDpi > 0) {
-            if (displayDeviceInfo.xDpi > displayDeviceInfo.yDpi * MAX_ANISOTROPY) {
-                height = (int) (height * displayDeviceInfo.xDpi / displayDeviceInfo.yDpi + 0.5);
-            } else if (displayDeviceInfo.xDpi * MAX_ANISOTROPY < displayDeviceInfo.yDpi) {
-                width = (int) (width * displayDeviceInfo.yDpi / displayDeviceInfo.xDpi + 0.5);
-            }
+        Display.Mode sizeOverrideMode = displayDeviceInfo.getDisplayModeForSizeOverride();
+        if (sizeOverrideMode != null) {
+            width = sizeOverrideMode.getPhysicalWidth();
+            height = sizeOverrideMode.getPhysicalHeight();
         }
         return isRotatedLocked() ? new Point(height, width) : new Point(width, height);
     }
@@ -251,9 +259,12 @@ abstract class DisplayDevice {
     /**
      * Sets the user preferred display mode. Removes the user preferred display mode and sets
      * default display mode as the mode chosen by HAL, if 'mode' is null
-     * Returns true if the mode set by user is supported by the display.
+     * Returns true if the mode set by user is a valid supported mode by the device, and it
+     * changes the current display mode.
      */
-    public void setUserPreferredDisplayModeLocked(Display.Mode mode) { }
+    public boolean setUserPreferredDisplayModeLocked(Display.Mode mode) {
+        return false;
+    }
 
     /**
      * Returns the user preferred display mode.
@@ -356,9 +367,11 @@ abstract class DisplayDevice {
      * @param displayRect defines where on the display will layerStackRect be
      *            mapped to. displayRect is specified post-orientation, that is
      *            it uses the orientation seen by the end-user
+     * @param debugTransactionDetails optional object to populate filled transaction details to
      */
     public final void setProjectionLocked(SurfaceControl.Transaction t, int orientation,
-            Rect layerStackRect, Rect displayRect) {
+            Rect layerStackRect, Rect displayRect,
+            @Nullable DebugTransactionDetails debugTransactionDetails) {
         if (mCurrentOrientation != orientation
                 || mCurrentLayerStackRect == null
                 || !mCurrentLayerStackRect.equals(layerStackRect)
@@ -378,29 +391,39 @@ abstract class DisplayDevice {
 
             t.setDisplayProjection(mDisplayToken,
                     orientation, layerStackRect, displayRect);
+
+            if (debugTransactionDetails != null) {
+                debugTransactionDetails.setProjection(orientation, layerStackRect, displayRect);
+            }
         }
     }
 
     /**
      * Configure transaction with the display size.
      */
-    public void configureDisplaySizeLocked(SurfaceControl.Transaction t) {
+    public void configureDisplaySizeLocked(SurfaceControl.Transaction t,
+            DebugTransactionDetails debugTransactionDetails) {
         DisplayDeviceInfo info = getDisplayDeviceInfoLocked();
         boolean isInstalledRotated = info.installOrientation == ROTATION_90
                 || info.installOrientation == ROTATION_270;
         int displayWidth = isInstalledRotated ? info.height : info.width;
         int displayHeight = isInstalledRotated ? info.width : info.height;
-        setDisplaySizeLocked(t, displayWidth, displayHeight);
+        setDisplaySizeLocked(t, displayWidth, displayHeight, debugTransactionDetails);
     }
 
     /**
      * Sets display size while in a transaction.
      */
-    public final void setDisplaySizeLocked(SurfaceControl.Transaction t, int width, int height) {
+    public final void setDisplaySizeLocked(SurfaceControl.Transaction t, int width, int height,
+            DebugTransactionDetails debugTransactionDetails) {
         if (width != mLastDisplayWidth || height != mLastDisplayHeight) {
             mLastDisplayWidth = width;
             mLastDisplayHeight = height;
             t.setDisplaySize(mDisplayToken, width, height);
+
+            if (debugTransactionDetails != null) {
+                debugTransactionDetails.setDisplaySize(width, height);
+            }
         }
     }
 
@@ -440,11 +463,9 @@ abstract class DisplayDevice {
 
         viewport.uniqueId = info.uniqueId;
 
-        if (info.address instanceof DisplayAddress.Physical) {
-            viewport.physicalPort = ((DisplayAddress.Physical) info.address).getPort();
-        } else {
-            viewport.physicalPort = null;
-        }
+        final int port = info.address != null ? info.address.getPort()
+                : DisplayAddress.INVALID_PORT;
+        viewport.physicalPort = port != DisplayAddress.INVALID_PORT ? port : null;
     }
 
     /**

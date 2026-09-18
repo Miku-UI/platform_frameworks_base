@@ -42,6 +42,7 @@ class OrderMenuPreference @JvmOverloads constructor(
     override var menuItemClickListener: MenuHandler.OnMenuItemClickListener? = null
     override var menuButton: MaterialButton? = null
     override var preference: Preference? = this
+    override var onPostInflateListener: MenuHandler.OnPostInflateListener? = null
     override var showIconsInPopupMenu: Boolean = false
 
     override var menuButtonContentDescription: String? = null

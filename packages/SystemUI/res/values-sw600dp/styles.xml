@@ -22,7 +22,7 @@
 
     <style name="TextAppearance.QS.UserSwitcher">
         <item name="android:textSize">@dimen/kg_user_switcher_text_size</item>
-        <item name="android:textColor">?android:attr/textColorSecondary</item>
+        <item name="android:textColor">@color/materialColorOnSurfaceVariant</item>
         <item name="android:fontFamily">@*android:string/config_headlineFontFamily</item>
     </style>
 

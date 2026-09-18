@@ -43,21 +43,9 @@ class BindServiceOnMainThreadDetector : Detector(), SourceCodeScanner {
         return listOf("bindService", "bindServiceAsUser", "unbindService")
     }
 
-    private fun hasWorkerThreadAnnotation(
-        context: JavaContext,
-        annotated: PsiModifierListOwner?
-    ): Boolean {
-        return context.evaluator.getAnnotations(annotated, inHierarchy = true).any { uAnnotation ->
-            uAnnotation.qualifiedName == "androidx.annotation.WorkerThread"
-        }
-    }
-
     override fun visitMethodCall(context: JavaContext, node: UCallExpression, method: PsiMethod) {
         if (context.evaluator.isMemberInSubClassOf(method, CLASS_CONTEXT)) {
-            if (
-                !hasWorkerThreadAnnotation(context, node.getParentOfType(UMethod::class.java)) &&
-                    !hasWorkerThreadAnnotation(context, node.getParentOfType(UClass::class.java))
-            ) {
+            if (!node.containingMethodOrClassHasWorkerThreadAnnotation(context)) {
                 context.report(
                     issue = ISSUE,
                     location = context.getLocation(node),
@@ -70,6 +58,27 @@ class BindServiceOnMainThreadDetector : Detector(), SourceCodeScanner {
     }
 
     companion object {
+        /**
+         * Returns true if this call node is contained within a method or class annotated with
+         * `@WorkerThread`.
+         */
+        fun UCallExpression.containingMethodOrClassHasWorkerThreadAnnotation(
+            context: JavaContext
+        ): Boolean {
+            return hasWorkerThreadAnnotation(context, this.getParentOfType(UMethod::class.java)) ||
+                hasWorkerThreadAnnotation(context, this.getParentOfType(UClass::class.java))
+        }
+
+        private fun hasWorkerThreadAnnotation(
+            context: JavaContext,
+            annotated: PsiModifierListOwner?,
+        ): Boolean {
+            return context.evaluator.getAnnotations(annotated, inHierarchy = true).any { uAnnotation
+                ->
+                uAnnotation.qualifiedName == "androidx.annotation.WorkerThread"
+            }
+        }
+
         @JvmField
         val ISSUE: Issue =
             Issue.create(
@@ -88,8 +97,8 @@ class BindServiceOnMainThreadDetector : Detector(), SourceCodeScanner {
                 implementation =
                     Implementation(
                         BindServiceOnMainThreadDetector::class.java,
-                        Scope.JAVA_FILE_SCOPE
-                    )
+                        Scope.JAVA_FILE_SCOPE,
+                    ),
             )
     }
 }

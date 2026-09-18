@@ -660,6 +660,46 @@ public class HdmiCecNetworkTest {
     }
 
     @Test
+    public void updateCecSwitchInfo_parentDeviceAdded_notifiesChildDevice() {
+        // Add a child device to the network.
+        int childLogicalAddress = Constants.ADDR_PLAYBACK_2;
+        int childPhysicalAddress = 0x1200;
+        int childDeviceType = HdmiDeviceInfo.DEVICE_PLAYBACK;
+        mHdmiCecNetwork.handleCecMessage(
+                HdmiCecMessageBuilder.buildReportPhysicalAddressCommand(childLogicalAddress,
+                        childPhysicalAddress, childDeviceType));
+
+        // The initial add should trigger one ADD_DEVICE event.
+        assertThat(mDeviceEventListenerStatuses).containsExactly(
+                HdmiControlManager.DEVICE_EVENT_ADD_DEVICE);
+        assertThat(mHdmiCecNetwork.getSafeCecDevicesLocked()).hasSize(1);
+
+        // Clear the listener statuses for the next step.
+        mDeviceEventListenerStatuses.clear();
+
+        // Add a parent device (an audio system, which acts as a switch).
+        int parentLogicalAddress = Constants.ADDR_AUDIO_SYSTEM;
+        int parentPhysicalAddress = 0x1000; // Parent path of 0x1200
+        int parentDeviceType = HdmiDeviceInfo.DEVICE_AUDIO_SYSTEM;
+        mHdmiCecNetwork.handleCecMessage(
+                HdmiCecMessageBuilder.buildReportPhysicalAddressCommand(parentLogicalAddress,
+                        parentPhysicalAddress, parentDeviceType));
+
+        // Adding the parent device should trigger two events:
+        // 1. An ADD_DEVICE event for the existing child device (due to the new logic).
+        // 2. An ADD_DEVICE event for the new parent device itself.
+        assertThat(mDeviceEventListenerStatuses).containsExactly(
+                HdmiControlManager.DEVICE_EVENT_ADD_DEVICE,
+                HdmiControlManager.DEVICE_EVENT_ADD_DEVICE
+        );
+
+        // Verify both devices are now in the network.
+        assertThat(mHdmiCecNetwork.getSafeCecDevicesLocked()).hasSize(2);
+        assertThat(mHdmiCecNetwork.getCecDeviceInfo(childLogicalAddress)).isNotNull();
+        assertThat(mHdmiCecNetwork.getCecDeviceInfo(parentLogicalAddress)).isNotNull();
+    }
+
+    @Test
     public void getSafeCecDevicesLocked_addDevice_sizeOne() {
         mHdmiCecNetwork.addCecDevice(HdmiDeviceInfo.INACTIVE_DEVICE);
 

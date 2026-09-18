@@ -48,7 +48,6 @@ import com.android.systemui.statusbar.notification.collection.listbuilder.plugga
 import com.android.systemui.statusbar.notification.collection.provider.VisualStabilityProvider;
 import com.android.systemui.statusbar.notification.data.repository.HeadsUpRepository;
 import com.android.systemui.statusbar.notification.domain.interactor.SeenNotificationsInteractor;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.statusbar.notification.shared.NotificationMinimalism;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.util.concurrency.DelayableExecutor;
@@ -96,6 +95,7 @@ public class VisualStabilityCoordinator implements Coordinator, Dumpable {
     private boolean mNotifPanelLaunchingActivity;
     private boolean mCommunalShowing = false;
     private boolean mLockscreenShowing = false;
+    private String mLockscreenShowingReason = "unset";
     private boolean mTrackingHeadsUp = false;
     private boolean mLockscreenInGoneTransition = false;
     private Set<String> mHeadsUpGroupKeys = new HashSet<>();
@@ -158,6 +158,7 @@ public class VisualStabilityCoordinator implements Coordinator, Dumpable {
         mWakefulnessLifecycle.addObserver(mWakefulnessObserver);
         mSleepy = mWakefulnessLifecycle.getWakefulness() == WAKEFULNESS_ASLEEP;
         mFullyDozed = mStatusBarStateController.getDozeAmount() == 1f;
+        mPanelExpanded = mStatusBarStateController.isExpanded();
 
         mStatusBarStateController.addCallback(mStatusBarStateControllerListener);
         mPulsing = mStatusBarStateController.isPulsing();
@@ -181,18 +182,26 @@ public class VisualStabilityCoordinator implements Coordinator, Dumpable {
             mJavaAdapter.alwaysCollectFlow(mKeyguardTransitionInteractor.transitionValue(
                             KeyguardState.LOCKSCREEN),
                     this::onLockscreenKeyguardStateTransitionValueChanged);
+
+            mJavaAdapter.alwaysCollectFlow(mKeyguardTransitionInteractor.isFinishedIn(
+                            Scenes.Gone, KeyguardState.GONE),
+                    this::onFinishedInGone);
+
             mJavaAdapter.alwaysCollectFlow(mHeadsUpRepository.isTrackingHeadsUp(),
                     this::onTrackingHeadsUpModeChanged);
-        }
-
-        if (SceneContainerFlag.isEnabled()) {
             mJavaAdapter.alwaysCollectFlow(mKeyguardTransitionInteractor.isInTransition(
                             Edge.create(KeyguardState.LOCKSCREEN, Scenes.Gone), null),
                     this::onLockscreenInGoneTransitionChanged);
         } else {
+            setLockscreenShowing(mKeyguardStateController.isShowing(), "attach with flexi off");
             mKeyguardStateController.addCallback(mKeyguardFadeAwayAnimationCallback);
         }
         pipeline.setVisualStabilityManager(mNotifStabilityManager);
+    }
+
+    private void setLockscreenShowing(boolean isShowing, String reason) {
+        mLockscreenShowing = isShowing;
+        mLockscreenShowingReason = reason;
     }
 
     /**
@@ -518,9 +527,6 @@ public class VisualStabilityCoordinator implements Coordinator, Dumpable {
      * @param now current time SystemClock.elapsedRealtime
      */
     public void temporarilyAllowFreeMovement(@NonNull NotificationEntry entry, long now) {
-        if (NotificationBundleUi.isUnexpectedlyInLegacyMode()) {
-            return;
-        }
         final String entryKey = entry.getKey();
         final Runnable existing = mEntriesThatCanMoveFreely.get(entryKey);
         final boolean wasAllowedToMoveFreely = existing != null;
@@ -575,9 +581,6 @@ public class VisualStabilityCoordinator implements Coordinator, Dumpable {
     }
 
     private boolean canFreelyMoveEntry(@NonNull GroupEntry entry) {
-        if (!NotificationBundleUi.isEnabled()) {
-            return false;
-        }
         @Nullable NotificationEntry representativeEntry = entry.getRepresentativeEntry();
         if (representativeEntry == null) {
             return false;
@@ -586,11 +589,7 @@ public class VisualStabilityCoordinator implements Coordinator, Dumpable {
     }
 
     private boolean canFreelyMoveEntry(@NonNull NotificationEntry entry) {
-        if (NotificationBundleUi.isEnabled()) {
-            return mEntriesThatCanMoveFreely.containsKey(entry.getKey());
-        } else {
-            return false;
-        }
+        return mEntriesThatCanMoveFreely.containsKey(entry.getKey());
     }
 
     final StatusBarStateController.StateListener mStatusBarStateControllerListener =
@@ -641,6 +640,9 @@ public class VisualStabilityCoordinator implements Coordinator, Dumpable {
         pw.println("  sleepy: " + mSleepy);
         pw.println("  fullyDozed: " + mFullyDozed);
         pw.println("  panelExpanded: " + mPanelExpanded);
+        pw.println("  lockscreenShowing: " + mLockscreenShowing);
+        pw.println("  lockscreenShowingReason: " + mLockscreenShowingReason);
+        pw.println("  trackingHeadsUp: " + mTrackingHeadsUp);
         pw.println("  pulsing: " + mPulsing);
         pw.println("  communalShowing: " + mCommunalShowing);
         pw.println("isSuppressingPipelineRun: " + mIsSuppressingPipelineRun);
@@ -684,9 +686,21 @@ public class VisualStabilityCoordinator implements Coordinator, Dumpable {
         if (isShowing == mLockscreenShowing) {
             return;
         }
+        String reason = "transitionValueShowing:" + isShowing;
+        setLockscreenShowing(isShowing, reason);
+        updateAllowedStates(reason, isShowing);
+    }
 
-        mLockscreenShowing = isShowing;
-        updateAllowedStates("lockscreenShowing", isShowing);
+    private void onFinishedInGone(boolean isFinishedInGone) {
+        if (SceneContainerFlag.isUnexpectedlyInLegacyMode()) {
+            return;
+        }
+        if (isFinishedInGone) {
+            if (mLockscreenShowing) {
+                setLockscreenShowing(false, "inGone");
+            }
+            updateAllowedStates("onFinishedInGone", false);
+        }
     }
 
     private void onTrackingHeadsUpModeChanged(boolean isTrackingHeadsUp) {

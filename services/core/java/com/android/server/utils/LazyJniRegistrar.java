@@ -39,9 +39,6 @@ public final class LazyJniRegistrar {
     // Note: {@link SystemServer#run} loads the native "android_servers" lib, so no need to do so
     // explicitly here. Classes that use this registration must not be initialized before this.
 
-    /** Registers native methods for ConsumerIrService. */
-    public static native void registerConsumerIrService();
-
     /** Registers native methods for GameManagerService. */
     public static native void registerGameManagerService();
 

@@ -22,16 +22,16 @@ import android.app.time.TimeConfiguration;
 import com.android.server.timezonedetector.StateChangeListener;
 
 /**
- * An interface that provides access to service configuration for time detection. This hides
- * how configuration is split between static, compile-time config, dynamic server-pushed flags and
- * user settings. It provides listeners to signal when values that affect different components have
+ * An interface that provides access to service configuration for time detection. This hides how
+ * configuration is split between static, compile-time config, dynamic server-pushed flags and user
+ * settings. It provides listeners to signal when values that affect different components have
  * changed.
  */
 public interface ServiceConfigAccessor {
 
     /**
-     * Adds a listener that will be invoked when {@link ConfigurationInternal} may have changed.
-     * The listener is invoked on the main thread.
+     * Adds a listener that will be invoked when {@link ConfigurationInternal} may have changed. The
+     * listener is invoked on the main thread.
      */
     void addConfigurationInternalChangeListener(@NonNull StateChangeListener listener);
 
@@ -44,8 +44,7 @@ public interface ServiceConfigAccessor {
     /**
      * Returns a snapshot of the {@link ConfigurationInternal} for the current user. This is only a
      * snapshot so callers must use {@link
-     * #addConfigurationInternalChangeListener(StateChangeListener)} to be notified when it
-     * changes.
+     * #addConfigurationInternalChangeListener(StateChangeListener)} to be notified when it changes.
      */
     @NonNull
     ConfigurationInternal getCurrentUserConfigurationInternal();
@@ -57,10 +56,11 @@ public interface ServiceConfigAccessor {
      * otherwise.
      *
      * @param bypassUserPolicyChecks {@code true} for device policy manager use cases where device
-     *   policy restrictions that should apply to actual users can be ignored
+     *     policy restrictions that should apply to actual users can be ignored
      */
     boolean updateConfiguration(
-            @UserIdInt int userId, @NonNull TimeConfiguration requestedConfiguration,
+            @UserIdInt int userId,
+            @NonNull TimeConfiguration requestedConfiguration,
             boolean bypassUserPolicyChecks);
 
     /**

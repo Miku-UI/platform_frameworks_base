@@ -32,6 +32,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.UserHandle;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.provider.DeviceConfig;
 import android.provider.Settings;
 import android.testing.TestableLooper;
@@ -40,6 +42,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.config.sysui.SystemUiDeviceConfigFlags;
+import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.util.DeviceConfigProxyFake;
@@ -73,6 +76,14 @@ public class QRCodeScannerControllerTest extends SysuiTestCase {
 
     private void setUpLocal(String deviceConfigActivity, String defaultActivity,
             boolean validateActivity, boolean enableSetting, boolean enableOnLockScreen) {
+        setUpLocal(deviceConfigActivity, /* deviceConfigIntentAction */ null, defaultActivity,
+                /* defaultIntentAction */ "", validateActivity, enableSetting,
+                enableOnLockScreen);
+    }
+
+    private void setUpLocal(String deviceConfigActivity, String deviceConfigIntentAction,
+            String defaultActivity, String defaultIntentAction,
+            boolean validateActivity, boolean enableSetting, boolean enableOnLockScreen) {
         MockitoAnnotations.initMocks(this);
         int enableSettingInt = enableSetting ? 1 : 0;
 
@@ -90,6 +101,9 @@ public class QRCodeScannerControllerTest extends SysuiTestCase {
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA)).thenReturn(true);
         mContext.getOrCreateTestableResources().addOverride(
                 com.android.internal.R.string.config_defaultQrCodeComponent, defaultActivity);
+        mContext.getOrCreateTestableResources().addOverride(
+                com.android.internal.R.string.config_defaultQrCodeComponentIntentAction,
+                defaultIntentAction);
 
         mContext.getOrCreateTestableResources().addOverride(
                 android.R.bool.config_enableQrCodeScannerOnLockScreen, enableOnLockScreen);
@@ -98,6 +112,9 @@ public class QRCodeScannerControllerTest extends SysuiTestCase {
         mProxyFake.setProperty(DeviceConfig.NAMESPACE_SYSTEMUI,
                 SystemUiDeviceConfigFlags.DEFAULT_QR_CODE_SCANNER,
                 deviceConfigActivity, false);
+        mProxyFake.setProperty(DeviceConfig.NAMESPACE_SYSTEMUI,
+                SystemUiDeviceConfigFlags.DEFAULT_QR_CODE_SCANNER_INTENT_ACTION,
+                deviceConfigIntentAction, false);
 
         when(mUserTracker.getUserId()).thenReturn(UserHandle.USER_CURRENT);
 
@@ -245,6 +262,71 @@ public class QRCodeScannerControllerTest extends SysuiTestCase {
         assertThat(mController.isEnabledForLockScreenButton()).isFalse();
         assertThat(mController.isAbleToLaunchScannerActivity()).isFalse();
         verify(mCallback, times(2)).onQRCodeScannerActivityChanged();
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_QR_CODE_SCANNER_INTENT_ACTION)
+    public void qrCodeScannerInit_withIntentActionDisabled() {
+        setUpLocal(
+               /* deviceConfigActivity */ "abc/.def",
+               /* deviceConfigAction */ "test.action",
+               /* defaultActivity */ "",
+               /* defaultAction */ "default.action",
+               /* validateActivity */ true,
+               /* enableSetting */ true,
+               /* enableOnLockScreen */ true);
+        verifyActivityDetails("abc/.def");
+        assertThat(mController.getIntent().getAction()).isNull();
+        assertThat(mController.isEnabledForLockScreenButton()).isTrue();
+        assertThat(mController.isAbleToLaunchScannerActivity()).isTrue();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_QR_CODE_SCANNER_INTENT_ACTION)
+    public void qrCodeScannerInit_withDeviceConfigAction() {
+        setUpLocal(/* deviceConfigActivity */ "abc/.def",
+                /* deviceConfigAction */ "test.action",
+                /* defaultActivity */ "",
+                /* defaultAction */ "default.action",
+                /* validateActivity */ true,
+                /* enableSetting */ true,
+                /* enableOnLockScreen */ true);
+        verifyActivityDetails("abc/.def");
+        assertThat(mController.getIntent().getAction()).isEqualTo("test.action");
+        assertThat(mController.isEnabledForLockScreenButton()).isTrue();
+        assertThat(mController.isAbleToLaunchScannerActivity()).isTrue();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_QR_CODE_SCANNER_INTENT_ACTION)
+    public void qrCodeScannerInit_withDefaultAction() {
+        setUpLocal(/* deviceConfigActivity */ "",
+                /* deviceConfigAction */ "",
+                /* defaultActivity */ "abc/.def",
+                /* defaultAction */ "test.default.action",
+                /* validateActivity */ true,
+                /* enableSetting */ true,
+                /* enableOnLockScreen */ true);
+        verifyActivityDetails("abc/.def");
+        assertThat(mController.getIntent().getAction()).isEqualTo("test.default.action");
+        assertThat(mController.isEnabledForLockScreenButton()).isTrue();
+        assertThat(mController.isAbleToLaunchScannerActivity()).isTrue();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_QR_CODE_SCANNER_INTENT_ACTION)
+    public void qrCodeScannerInit_withDeviceConfigActivity_withoutDeviceConfigAction() {
+        setUpLocal(/* deviceConfigActivity */ "abc/.def",
+                /* deviceConfigAction */ null,
+                /* defaultActivity */ "xyz/.qrs",
+                /* defaultAction */ "test.default.action",
+                /* validateActivity */ true,
+                /* enableSetting */ true,
+                /* enableOnLockScreen */ true);
+        verifyActivityDetails("abc/.def");
+        assertThat(mController.getIntent().getAction()).isNull();
+        assertThat(mController.isEnabledForLockScreenButton()).isTrue();
+        assertThat(mController.isAbleToLaunchScannerActivity()).isTrue();
     }
 
     @Test

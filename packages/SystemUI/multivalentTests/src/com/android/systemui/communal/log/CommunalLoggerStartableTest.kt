@@ -23,13 +23,16 @@ import com.android.compose.animation.scene.SceneKey
 import com.android.internal.logging.UiEventLogger
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
+import com.android.systemui.communal.domain.interactor.communalInteractor
 import com.android.systemui.communal.domain.interactor.communalSceneInteractor
 import com.android.systemui.communal.shared.log.CommunalUiEvent
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.keyguard.data.repository.FakeKeyguardRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
+import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.testKosmos
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -66,10 +69,13 @@ class CommunalLoggerStartableTest : SysuiTestCase() {
 
         underTest =
             CommunalLoggerStartable(
+                kosmos.applicationCoroutineScope,
                 testScope.backgroundScope,
                 communalSceneInteractor,
                 kosmos.keyguardInteractor,
                 uiEventLogger,
+                kosmos.communalInteractor,
+                logcatTableLogBuffer(kosmos, "CommunalLoggerStartableTest"),
             )
         underTest.start()
     }

@@ -15,20 +15,18 @@
  */
 #undef ANDROID_UTILS_REF_BASE_DISABLE_IMPLICIT_CONSTRUCTION // TODO:remove this and fix code
 
-#include "jni.h"
-#include <nativehelper/JNIHelp.h>
+#include <android/graphics/canvas.h>
 #include <android_runtime/AndroidRuntime.h>
 #include <android_runtime/android_graphics_SurfaceTexture.h>
-
-#include <ui/Region.h>
-#include <ui/Rect.h>
-
+#include <com_android_graphics_libgui_flags.h>
 #include <gui/GLConsumer.h>
 #include <gui/Surface.h>
-
-#include <android/graphics/canvas.h>
+#include <nativehelper/JNIHelp.h>
+#include <ui/Rect.h>
+#include <ui/Region.h>
 
 #include "core_jni_helpers.h"
+#include "jni.h"
 
 namespace android {
 
@@ -83,9 +81,12 @@ static int32_t native_window_unlockAndPost(ANativeWindow* window) {
 
 static void android_view_TextureView_createNativeWindow(JNIEnv* env, jobject textureView,
         jobject surface) {
-
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_SURFACETEXTURE)
+    sp<ANativeWindow> window = SurfaceTexture_getSurface(env, surface);
+#else
     sp<IGraphicBufferProducer> producer(SurfaceTexture_getProducer(env, surface));
     sp<ANativeWindow> window = sp<Surface>::make(producer, true);
+#endif
 
     window->incStrong((void*)android_view_TextureView_createNativeWindow);
     SET_LONG(textureView, gTextureViewClassInfo.nativeWindow, jlong(window.get()));

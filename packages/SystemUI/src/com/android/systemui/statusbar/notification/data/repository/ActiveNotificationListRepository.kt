@@ -15,7 +15,9 @@
  */
 package com.android.systemui.statusbar.notification.data.repository
 
+import com.android.systemui.Dumpable
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dump.DumpManager
 import com.android.systemui.statusbar.notification.data.model.NotifStats
 import com.android.systemui.statusbar.notification.data.repository.ActiveNotificationsStore.Key
 import com.android.systemui.statusbar.notification.shared.ActiveBundleModel
@@ -23,6 +25,11 @@ import com.android.systemui.statusbar.notification.shared.ActiveNotificationEntr
 import com.android.systemui.statusbar.notification.shared.ActiveNotificationGroupModel
 import com.android.systemui.statusbar.notification.shared.ActiveNotificationModel
 import com.android.systemui.statusbar.notification.shared.ActivePipelineEntryModel
+import com.android.systemui.util.asIndenting
+import com.android.systemui.util.printCollection
+import com.android.systemui.util.printSection
+import com.android.systemui.util.println
+import java.io.PrintWriter
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -34,7 +41,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
  * notifications presentation codebase.
  */
 @SysUISingleton
-class ActiveNotificationListRepository @Inject constructor() {
+class ActiveNotificationListRepository @Inject constructor(dumpManager: DumpManager) : Dumpable {
     /** Notifications actively presented to the user in the notification list. */
     val activeNotifications = MutableStateFlow(ActiveNotificationsStore())
 
@@ -49,6 +56,35 @@ class ActiveNotificationListRepository @Inject constructor() {
 
     /** The key of the top unseen notification */
     val topUnseenNotificationKey = MutableStateFlow<String?>(null)
+
+    init {
+        dumpManager.registerCriticalDumpable(this)
+    }
+
+    override fun dump(pw: PrintWriter, args: Array<out String>) {
+        pw.asIndenting().run {
+            println("hasFilteredOutSeenNotifications", hasFilteredOutSeenNotifications.value)
+            println("topOngoingNotificationKey", topOngoingNotificationKey.value)
+            println("topUnseenNotificationKey", topUnseenNotificationKey.value)
+            printSection("notifStats") {
+                val stats = notifStats.value
+                println("hasClearableSilentNotifs", stats.hasClearableSilentNotifs)
+                println("hasClearableAlertingNotifs", stats.hasClearableAlertingNotifs)
+                println("hasNonClearableSilentNotifs", stats.hasNonClearableSilentNotifs)
+                println("hasNonClearableAlertingNotifs", stats.hasNonClearableAlertingNotifs)
+            }
+            printSection("activeNotifications") {
+                val store = activeNotifications.value
+                printCollection("bundles", store.bundles.values)
+                printCollection("groups", store.groups.values)
+                printCollection("individuals", store.individuals.values)
+                printCollection("renderList", store.renderList)
+                printCollection("rankingsMap", store.rankingsMap.entries) { (key, rank) ->
+                    append(key).append("=").println(rank)
+                }
+            }
+        }
+    }
 }
 
 /** Represents the notification list, comprised of groups and individual notifications. */

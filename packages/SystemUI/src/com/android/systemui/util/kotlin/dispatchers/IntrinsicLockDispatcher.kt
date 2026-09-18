@@ -48,7 +48,15 @@ class IntrinsicLockDispatcher(
     dispatcherName: String = "IntrinsicLockDispatcherPool"
 ) : CoroutineDispatcher(), Closeable {
 
-    private val executor: ExecutorService
+    private val queue: SynchronizedLinkedBlockingQueue = SynchronizedLinkedBlockingQueue()
+    private val executor: ExecutorService = ThreadPoolExecutor(
+        corePoolSize,
+        maxPoolSize,
+        keepAliveTime,
+        unit,
+        queue,
+        threadFactory(dispatcherName)
+    )
 
     companion object {
         /**
@@ -63,22 +71,13 @@ class IntrinsicLockDispatcher(
         }
     }
 
-    init {
-        executor = ThreadPoolExecutor(
-            corePoolSize,
-            maxPoolSize,
-            keepAliveTime,
-            unit,
-            SynchronizedLinkedBlockingQueue(),
-            threadFactory(dispatcherName)
-        )
-    }
     override fun dispatch(context: CoroutineContext, block: Runnable) {
         executor.execute(block)
     }
 
     override fun close() {
         executor.shutdown()
+        queue.close()
     }
 }
 

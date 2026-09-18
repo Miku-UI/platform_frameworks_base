@@ -21,8 +21,10 @@ import android.view.Display
 import com.android.keyguard.KeyguardDisplayManager
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
+import com.android.systemui.display.data.repository.DisplayRepository
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.log.DebugLogger.debugLog
+import com.android.systemui.shade.domain.interactor.ShadeDisplaysInteractor
 import com.android.systemui.statusbar.policy.data.repository.DeviceProvisioningRepository
 import com.android.systemui.wallpapers.domain.interactor.DisplayWallpaperPresentationInteractor.WallpaperPresentationType
 import com.android.systemui.wallpapers.domain.interactor.DisplayWallpaperPresentationInteractor.WallpaperPresentationType.KEYGUARD
@@ -35,6 +37,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted.Companion.Eagerly
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 
 /**
@@ -50,36 +53,77 @@ constructor(
     private val keyguardInteractor: Lazy<KeyguardInteractor>,
     private val deviceProvisioningRepository: Lazy<DeviceProvisioningRepository>,
     private val keyguardDisplayManager: Lazy<KeyguardDisplayManager>,
+    private val shadeDisplaysInteractor: Lazy<ShadeDisplaysInteractor>,
+    private val displayRepository: Lazy<DisplayRepository>,
 ) : DisplayWallpaperPresentationInteractor {
+
     override val presentationFactoryFlow: StateFlow<WallpaperPresentationType> by lazy {
         val keyguardShowingFlow = keyguardInteractor.get().isKeyguardShowing
         val deviceProvisionedFlow = deviceProvisioningRepository.get().isDeviceProvisioned
-        combine(keyguardShowingFlow, deviceProvisionedFlow) {
+        // Use a "Pending" state to preemptively handle the shade's move to the default display.
+        // This prevents a race condition where the keyguard is incorrectly shown on the old display
+        // while the shade is in transit, avoiding visual artifacts on the lock screen.
+        // If the move fails, the pending display id will be reset anyway.
+        val shadeDisplayIdFlow = shadeDisplaysInteractor.get().pendingDisplayId
+        val isDreamingWithOverlayFlow = keyguardInteractor.get().isDreamingWithOverlay
+        val isMirroringEnabledFlow = displayRepository.get().isMirroringEnabled
+        combine(
+                keyguardShowingFlow,
+                deviceProvisionedFlow,
+                shadeDisplayIdFlow,
+                isDreamingWithOverlayFlow,
+                isMirroringEnabledFlow,
+            ) {
                 isKeyguardShowing,
-                isDeviceProvisioned ->
-                debugLog(enabled = DEBUG, tag = TAG) {
-                    "Display ${display.displayId} - isKeyguardShowing: $isKeyguardShowing, " +
-                        "isDeviceProvisioned: $isDeviceProvisioned"
-                }
-                when {
-                    !isDeviceProvisioned ->
-                        if (ProvisioningPresentationCompatibility.isCompatibleForDisplay(display)) {
-                            PROVISIONING
-                        } else {
-                            NONE
+                isDeviceProvisioned,
+                shadeDisplayId,
+                isDreamingWithOverlay,
+                isMirroringEnabled ->
+                determinePresentationType(
+                        isKeyguardShowing,
+                        isDeviceProvisioned,
+                        shadeDisplayId,
+                        isDreamingWithOverlay,
+                        isMirroringEnabled,
+                    )
+                    .also { type ->
+                        debugLog(enabled = DEBUG, tag = TAG) {
+                            "Display ${display.displayId} - isKeyguardShowing: $isKeyguardShowing, " +
+                                "isDeviceProvisioned: $isDeviceProvisioned, " +
+                                "shadeDisplayId: $shadeDisplayId, " +
+                                "isDreamingWithOverlay: $isDreamingWithOverlay, " +
+                                "isMirroringEnabled: $isMirroringEnabled " +
+                                "-> presentationType: $type"
                         }
-
-                    isKeyguardShowing ->
-                        if (keyguardDisplayManager.get().isKeyguardShowable(display)) {
-                            KEYGUARD
-                        } else {
-                            NONE
-                        }
-
-                    else -> NONE
-                }
+                    }
             }
+            .distinctUntilChanged()
             .stateIn(displayCoroutineScope, Eagerly, NONE)
+    }
+
+    private fun determinePresentationType(
+        isKeyguardShowing: Boolean,
+        isDeviceProvisioned: Boolean,
+        shadeDisplayId: Int,
+        isDreamingWithOverlay: Boolean,
+        isMirroringEnabled: Boolean,
+    ): WallpaperPresentationType {
+        return when {
+            isDreamingWithOverlay && isMirroringEnabled -> NONE
+            !isDeviceProvisioned ->
+                if (ProvisioningPresentationCompatibility.isCompatibleForDisplay(display)) {
+                    PROVISIONING
+                } else {
+                    NONE
+                }
+            isKeyguardShowing ->
+                if (keyguardDisplayManager.get().isKeyguardShowable(display, shadeDisplayId)) {
+                    KEYGUARD
+                } else {
+                    NONE
+                }
+            else -> NONE
+        }
     }
 
     private companion object {

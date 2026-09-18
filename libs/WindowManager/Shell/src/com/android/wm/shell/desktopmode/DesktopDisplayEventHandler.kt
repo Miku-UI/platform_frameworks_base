@@ -30,7 +30,6 @@ import android.view.SurfaceControl
 import android.view.WindowManager.TRANSIT_CHANGE
 import android.window.DesktopExperienceFlags
 import android.window.DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_ACTIVATION_IN_DESKTOP_FIRST_DISPLAYS
-import android.window.DesktopModeFlags
 import android.window.DisplayAreaInfo
 import android.window.TransitionInfo
 import com.android.app.tracing.traceSection
@@ -84,16 +83,8 @@ class DesktopDisplayEventHandler(
     KeyguardChangeListener {
 
     private val onDisplayAreaChangeListener = OnDisplayAreaChangeListener { displayId ->
-        val keyguardLocked = keyguardManager.isKeyguardLocked
-        logV(
-            "displayAreaChanged in displayId=%d, keyguardLocked=%b",
-            displayId,
-            keyguardLocked
-        )
-        // Do not create default desk if keyguard is locked. It will be handled on unlock.
-        if (!handlePotentialReconnect(displayId) && !keyguardLocked) {
-            createDefaultDesksIfNeeded(displayIds = listOf(displayId), userId = null)
-        }
+        logV("displayAreaChanged in displayId=%d", displayId)
+        reconnectOrCreateDefaultDesk(displayId)
     }
 
     // Mapping of display uniqueIds to displayId. Used to match a disconnected
@@ -112,21 +103,21 @@ class DesktopDisplayEventHandler(
     private fun onInit() {
         displayController.addDisplayWindowListener(this)
 
-        if (DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-            desktopTasksController.onDeskRemovedListener = this
-            shellController.addUserChangeListener(
-                object : UserChangeListener {
-                    override fun onUserChanged(newUserId: Int, userContext: Context) {
-                        val displayIds = rootTaskDisplayAreaOrganizer.displayIds.toSet()
-                        logV("onUserChanged newUserId=%d displays=%s", newUserId, displayIds)
-                        createDefaultDesksIfNeeded(displayIds, newUserId)
+        desktopTasksController.onDeskRemovedListener = this
+        shellController.addUserChangeListener(
+            object : UserChangeListener {
+                override fun onUserChanged(newUserId: Int, userContext: Context) {
+                    val displayIds = rootTaskDisplayAreaOrganizer.displayIds.toSet()
+                    logV("onUserChanged newUserId=%d displays=%s", newUserId, displayIds)
+                    for (displayId in displayIds) {
+                        reconnectOrCreateDefaultDesk(displayId, newUserId)
                     }
                 }
-            )
-            if (DesktopExperienceFlags.ENABLE_DISPLAY_RECONNECT_INTERACTION.isTrue) {
-                desktopTasksController.preserveDisplayRequestHandler = this
-                shellController.addKeyguardChangeListener(this)
             }
+        )
+        if (DesktopExperienceFlags.ENABLE_DISPLAY_RECONNECT_INTERACTION.isTrue) {
+            desktopTasksController.preserveDisplayRequestHandler = this
+            shellController.addKeyguardChangeListener(this)
         }
     }
 
@@ -139,10 +130,14 @@ class DesktopDisplayEventHandler(
         val oldDisplayLayout = oldDpiLayoutByDisplayId[displayId] ?: oldLayout
         if (oldDisplayLayout == null || newDisplayLayout == null) return
         newConfig?.let { displayConfigById.put(displayId, it) }
-        if (newDisplayLayout.densityDpi() == oldDisplayLayout.densityDpi()) {
+        if (
+            newDisplayLayout.densityDpi() == oldDisplayLayout.densityDpi() &&
+                newDisplayLayout.width() == oldDisplayLayout.width() &&
+                newDisplayLayout.height() == oldDisplayLayout.height()
+        ) {
             return
         }
-        oldDpiLayoutByDisplayId.put(displayId, oldDisplayLayout)
+        oldDpiLayoutByDisplayId[displayId] = oldDisplayLayout
         val oldStableBounds = Rect()
         val newStableBounds = Rect()
         oldDisplayLayout.getStableBounds(oldStableBounds)
@@ -184,7 +179,6 @@ class DesktopDisplayEventHandler(
         val newLayout = displayController.getDisplayLayout(displayId)
         val config = displayConfigById[displayId]
         if (oldestLayout == null || newLayout == null) return
-        oldDpiLayoutByDisplayId.put(displayId, oldestLayout)
         oldestLayout.getStableBounds(oldStableBounds)
         newLayout.getStableBounds(newStableBounds)
         when {
@@ -201,6 +195,22 @@ class DesktopDisplayEventHandler(
             }
         }
         resizeTasksIfPreconditionsSatisfied(displayId, config)
+    }
+
+    private fun reconnectOrCreateDefaultDesk(
+        displayId: Int,
+        userId: Int? = desktopUserRepositories.current.userId,
+    ) {
+        val keyguardLocked = keyguardManager.isKeyguardLocked
+        logV(
+            "reconnectOrCreateDefaultDesk displayId=%d, keyguardLocked=%b",
+            displayId,
+            keyguardLocked,
+        )
+        // Do not create default desk if keyguard is locked. It will be handled on unlock.
+        if (!handlePotentialReconnect(displayId, userId) && !keyguardManager.isKeyguardLocked) {
+            createDefaultDesksIfNeeded(displayIds = listOf(displayId), userId = userId)
+        }
     }
 
     private fun displayResolutionChanged(
@@ -220,7 +230,7 @@ class DesktopDisplayEventHandler(
         when {
             config == null -> {}
             dpiChangedAndInsetsReadyForDisplay(displayId) -> {
-                desktopTasksController.onDisplayDpiChanging(
+                desktopTasksController.onDisplayResolutionOrSizeChanging(
                     displayId,
                     config,
                     oldDpiLayoutByDisplayId[displayId],
@@ -229,7 +239,7 @@ class DesktopDisplayEventHandler(
                 stableBoundsChangedByDisplayId.remove(displayId)
             }
             resolutionChangedAndInsetsReadyForDisplay(displayId, boundsChangeReady) -> {
-                desktopTasksController.onDisplayDpiChanging(
+                desktopTasksController.onDisplayResolutionOrSizeChanging(
                     displayId,
                     config,
                     oldDpiLayoutByDisplayId[displayId],
@@ -257,12 +267,7 @@ class DesktopDisplayEventHandler(
             Trace.TRACE_TAG_WINDOW_MANAGER,
             "DesktopDisplayEventHandler#onDisplayAdded: $displayId",
         ) {
-            if (DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-                rootTaskDisplayAreaOrganizer.registerListener(
-                    displayId,
-                    onDisplayAreaChangeListener,
-                )
-            }
+            rootTaskDisplayAreaOrganizer.registerListener(displayId, onDisplayAreaChangeListener)
             if (displayId != DEFAULT_DISPLAY) {
                 desktopDisplayModeController.updateExternalDisplayWindowingMode(displayId)
             }
@@ -282,12 +287,7 @@ class DesktopDisplayEventHandler(
             Trace.TRACE_TAG_WINDOW_MANAGER,
             "DesktopDisplayEventHandler#onDisplayRemoved: $displayId",
         ) {
-            if (DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-                rootTaskDisplayAreaOrganizer.unregisterListener(
-                    displayId,
-                    onDisplayAreaChangeListener,
-                )
-            }
+            rootTaskDisplayAreaOrganizer.unregisterListener(displayId, onDisplayAreaChangeListener)
             if (displayId != DEFAULT_DISPLAY) {
                 desktopDisplayModeController.updateDefaultDisplayWindowingMode()
             }
@@ -318,24 +318,11 @@ class DesktopDisplayEventHandler(
     private fun handlePotentialDeskDisplayChange(displayId: Int) {
         if (desktopState.isDesktopModeSupportedOnDisplay(displayId)) {
             // A display has become desktop eligible. Treat this as a potential reconnect.
-            val keyguardLocked = keyguardManager.isKeyguardLocked
             logV(
-                "onDesktopModeEligibleChanged: keyguardLocked=%b, " +
-                        "displayId=%d has become desktop eligible",
-                displayId,
-                keyguardLocked
-            )
-            // Do not create default desk if keyguard is locked. It will be handled on unlock.
-            if (!handlePotentialReconnect(displayId) && !keyguardLocked) {
-                createDefaultDesksIfNeeded(displayIds = listOf(displayId), userId = null)
-            }
-        } else {
-            // A display has become desktop ineligible. Treat this as a potential disconnect.
-            logV(
-                "onDesktopModeEligibleChanged: displayId=%d has become desktop ineligible",
+                "handlePotentialDeskDisplayChange: displayId=%d has become desktop eligible",
                 displayId,
             )
-            desktopTasksController.disconnectDisplay(displayId)
+            reconnectOrCreateDefaultDesk(displayId)
         }
     }
 
@@ -349,66 +336,100 @@ class DesktopDisplayEventHandler(
         val defaultDeskDisplayIds = mutableSetOf<Int>()
         for (displayIdByUniqueId in displaysByUniqueId) {
             val displayId = displayIdByUniqueId.value
-            if (displayId != DEFAULT_DISPLAY && !handlePotentialReconnect(displayId)) {
+            if (!handlePotentialReconnect(displayId)) {
                 defaultDeskDisplayIds.add(displayIdByUniqueId.value)
             }
         }
+        logV("onKeyguardVisibilityChanged: defaultDeskDisplayIds=%s", defaultDeskDisplayIds)
         createDefaultDesksIfNeeded(defaultDeskDisplayIds, null)
     }
 
-    private fun handlePotentialReconnect(displayId: Int): Boolean {
+    private fun handlePotentialReconnect(displayId: Int, userId: Int? = null): Boolean {
         // Do not handle restoration while locked; it will be handled when keyguard is gone.
-        if (keyguardManager.isKeyguardLocked) return false
-        val uniqueDisplayId = displayController.getDisplay(displayId)?.uniqueId ?: return false
+        if (keyguardManager.isKeyguardLocked)
+            return false.also { logV("handlePotentialReconnect: Keyguard locked; aborting.") }
+        if (displayId == DEFAULT_DISPLAY)
+            return false.also { logV("handlePotentialReconnect: default display; aborting.") }
+        val uniqueDisplayId =
+            displayController.getDisplay(displayId)?.uniqueId
+                ?: return false.also {
+                    logV(
+                        "handlePotentialReconnect: display(%d) uniqueId not found; aborting.",
+                        displayId,
+                    )
+                }
         uniqueIdByDisplayId[displayId] = uniqueDisplayId
-        val currentUserRepository = desktopUserRepositories.current
+        val userRepository =
+            if (userId != null) {
+                desktopUserRepositories.getProfile(userId)
+            } else {
+                desktopUserRepositories.current
+            }
         if (!DesktopExperienceFlags.ENABLE_DISPLAY_RECONNECT_INTERACTION.isTrue) {
             logV("handlePotentialReconnect: Reconnect not supported; aborting.")
             return false
         }
         // To ensure only one restoreDisplay is actually called, remove the preserved display.
-        val preservedDisplay = currentUserRepository.removePreservedDisplay(uniqueDisplayId)
+        val preservedDisplay = userRepository.removePreservedDisplay(uniqueDisplayId)
         if (preservedDisplay == null) {
             logV(
                 "handlePotentialReconnect: No preserved display found for " +
-                    "uniqueDisplayId=$uniqueDisplayId; aborting."
+                    "uniqueDisplayId=%s; aborting.",
+                uniqueDisplayId,
             )
             return false
         }
-        val preservedTasks =
-            currentUserRepository.getPreservedTasks(preservedDisplay).toMutableList()
+        val preservedTasks = userRepository.getPreservedTasks(preservedDisplay).toMutableList()
         // Projected mode: Do not move anything focused on the internal display.
         if (!desktopState.isDesktopModeSupportedOnDisplay(DEFAULT_DISPLAY)) {
-            val focusedDefaultDisplayTaskIds =
+            val excludedFromRestoreTasks =
                 desktopTasksController
-                    .getFocusedNonDesktopTasks(DEFAULT_DISPLAY, currentUserRepository.userId)
+                    .getExcludedFromProjectedRestoreTasks(DEFAULT_DISPLAY, userRepository.userId)
                     .map { task -> task.taskId }
-            preservedTasks.removeAll { taskId -> focusedDefaultDisplayTaskIds.contains(taskId) }
+            preservedTasks.removeAll { taskId -> excludedFromRestoreTasks.contains(taskId) }
         }
         if (preservedTasks.isEmpty()) {
             // If we don't restore anything, skip the restoration and return false so we
             // create a default desk.
             return false
         }
+        // In some cases, restoreDisplay can occur before the display is regarded as desktop first.
+        // Update here to ensure restored tasks aren't moved to fullscreen.
+        desktopDisplayModeController.updateExternalDisplayWindowingMode(displayId)
         desktopTasksController.restoreDisplay(
             displayId = displayId,
             preservedDisplay = preservedDisplay,
-            userId = desktopUserRepositories.current.userId,
+            userId = userRepository.userId,
         )
         return true
     }
 
-    override fun onDeskRemoved(lastDisplayId: Int, deskId: Int) {
-        if (!DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) return
-        logV("onDeskRemoved deskId=%d displayId=%d", deskId, lastDisplayId)
-        createDefaultDesksIfNeeded(listOf(lastDisplayId), userId = null)
+    override fun onDeskRemoved(
+        lastDisplayId: Int,
+        deskId: Int,
+        userId: Int,
+        onlyDeskInDisplay: Boolean,
+    ) {
+        logV(
+            "onDeskRemoved deskId=%d displayId=%d userId=%d onlyDeskInDisplay=%b",
+            deskId,
+            lastDisplayId,
+            userId,
+            onlyDeskInDisplay,
+        )
+        if (onlyDeskInDisplay) {
+            createDefaultDesksIfNeeded(listOf(lastDisplayId), userId = userId)
+        }
     }
 
     private fun createDefaultDesksIfNeeded(displayIds: Collection<Int>, userId: Int?) {
-        if (!DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) return
         logV("createDefaultDesksIfNeeded displays=%s userId=%d", displayIds, userId)
         if (userId != null && !isUserDesktopEligible(userId)) {
             logW("createDefaultDesksIfNeeded ignoring attempt for ineligible user")
+            return
+        }
+        if (displayIds.isEmpty()) {
+            logW("createDefaultDesksIfNeeded ignoring attempt with empty displayIds")
             return
         }
         mainScope.launch {
@@ -468,14 +489,16 @@ class DesktopDisplayEventHandler(
     }
 
     private fun isUserDesktopEligible(userId: Int): Boolean =
-        !(DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_HSUM.isTrue &&
-            UserManager.isHeadlessSystemUserMode() &&
-            UserHandle.USER_SYSTEM == userId)
+        !(UserManager.isHeadlessSystemUserMode() && UserHandle.USER_SYSTEM == userId)
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logV(msg: String, vararg arguments: Any?) {
         ProtoLog.v(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logW(msg: String, vararg arguments: Any?) {
         ProtoLog.w(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }

@@ -18,9 +18,7 @@ package com.android.wm.shell.util
 
 import kotlin.test.assertEquals
 
-/**
- * Utility class for testing a simple logger as [String] consumer.
- */
+/** Utility class for testing a simple logger as [String] consumer. */
 class FakeLogger {
 
     var loggerInvokeTimes = 0

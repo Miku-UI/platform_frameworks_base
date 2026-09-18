@@ -144,6 +144,7 @@ import java.util.List;
  *   <li>{@link #getFromIndex()} - The text change start index.</li>
  *   <li>{@link #getAddedCount()} - The number of added characters.</li>
  *   <li>{@link #getRemovedCount()} - The number of removed characters.</li>
+ *   <li>{@link #getTextChangeTypes()} - The type of text changes, if any.</li>
  * </ul>
  * </p>
  * <p>
@@ -938,6 +939,52 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
      */
     public static final int WINDOWS_CHANGE_PIP = 1 << 10;
 
+    /**
+     * Change type for {@link #TYPE_VIEW_TEXT_CHANGED} event indicating the type of the
+     * text change is not defined.
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_TEXT_CHANGE_TYPES_API)
+    public static final int TEXT_CHANGE_TYPE_UNDEFINED = 0;
+
+    /**
+     * Change type for {@link #TYPE_VIEW_TEXT_CHANGED} event indicating that the text
+     * change occurred within an ongoing IME composition.
+     *
+     * <p>
+     * The text change occurred within an ongoing IME composition. This indicates
+     * the text is transient and not yet committed. For IMEs that predict text or
+     * requires multiple steps to compose a glyph or word, the TYPE_VIEW_TEXT_CHANGED
+     * event may appear as a replacement of the entire composing text rather than
+     * an incremental change. This flag helps services understand the nature of
+     * such intermediate text updates.
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_TEXT_CHANGE_TYPES_API)
+    public static final int TEXT_CHANGE_TYPE_IN_COMPOSITION = 1 << 0;
+
+    /**
+     * Change type for {@link #TYPE_VIEW_TEXT_CHANGED} event indicating that the text
+     * change is the result of an IME committing its composing text.
+     *
+     * <p>
+     * The TYPE_VIEW_TEXT_CHANGED event may appear as a replacement of
+     * the text with an identical string, but this type can be a signal to
+     * accessibility services that this change represents text finalization.
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_TEXT_CHANGE_TYPES_API)
+    public static final int TEXT_CHANGE_TYPE_COMMITTED_BY_IME = 1 << 1;
+
+    /**
+     * Change type for {@link #TYPE_VIEW_TEXT_CHANGED} event indicating that the text
+     * change was triggered by the user selecting a conversion suggestion from an IME.
+     *
+     * <p>
+     * This type provides a hint to accessibility services that the IME might also send
+     * a separate, more detailed event representing the selection itself. That event
+     * may provide more comprehensive information than this text change event.
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_TEXT_CHANGE_TYPES_API)
+    public static final int TEXT_CHANGE_TYPE_CONVERSION_SUGGESTION_SELECTED_BY_IME = 1 << 2;
+
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(flag = true, prefix = { "WINDOWS_CHANGE_" }, value = {
@@ -978,6 +1025,7 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
                 CONTENT_CHANGE_TYPE_CHECKED,
                 CONTENT_CHANGE_TYPE_EXPANDED,
                 CONTENT_CHANGE_TYPE_SUPPLEMENTAL_DESCRIPTION,
+                CONTENT_CHANGE_TYPE_SORT_DIRECTION
             })
     public @interface ContentChangeTypes {}
 
@@ -993,6 +1041,20 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
                 SPEECH_STATE_LISTENING_END
             })
     public @interface SpeechStateChangeTypes {}
+
+    /** @hide */
+    @FlaggedApi(Flags.FLAG_A11Y_TEXT_CHANGE_TYPES_API)
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef(
+            flag = true,
+            prefix = {"TEXT_CHANGE_TYPE_"},
+            value = {
+                TEXT_CHANGE_TYPE_UNDEFINED,
+                TEXT_CHANGE_TYPE_IN_COMPOSITION,
+                TEXT_CHANGE_TYPE_COMMITTED_BY_IME,
+                TEXT_CHANGE_TYPE_CONVERSION_SUGGESTION_SELECTED_BY_IME,
+            })
+    public @interface TextChangeTypes {}
 
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
@@ -1074,6 +1136,7 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
     int mContentChangeTypes;
     int mWindowChangeTypes;
     int mSpeechStateChangeTypes;
+    int mTextChangeTypes;
 
     /**
      * The stack trace describing where this event originated from on the app side.
@@ -1129,6 +1192,9 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
         mContentChangeTypes = event.mContentChangeTypes;
         mSpeechStateChangeTypes = event.mSpeechStateChangeTypes;
         mWindowChangeTypes = event.mWindowChangeTypes;
+        if (Flags.a11yTextChangeTypesApi()) {
+            mTextChangeTypes = event.mTextChangeTypes;
+        }
         mEventTime = event.mEventTime;
         mPackageName = event.mPackageName;
         if (event.mRecords != null) {
@@ -1171,7 +1237,7 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
     /**
      * Appends an {@link AccessibilityRecord} to the end of event records.
      *
-     * @param record The record to append.
+     * @param record The record to append. A null record is ignored.
      *
      * @throws IllegalStateException If called from an AccessibilityService.
      */
@@ -1179,6 +1245,9 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
         enforceNotSealed();
         if (mRecords == null) {
             mRecords = new ArrayList<AccessibilityRecord>();
+        }
+        if (record == null) {
+            return;
         }
         mRecords.add(record);
     }
@@ -1211,23 +1280,7 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
      * {@link #TYPE_WINDOW_CONTENT_CHANGED} event or {@link #TYPE_WINDOW_STATE_CHANGED}. A single
      * event may represent multiple change types.
      *
-     * @return The bit mask of change types. One or more of:
-     *         <ul>
-     *         <li>{@link #CONTENT_CHANGE_TYPE_CONTENT_DESCRIPTION}
-     *         <li>{@link #CONTENT_CHANGE_TYPE_STATE_DESCRIPTION}
-     *         <li>{@link #CONTENT_CHANGE_TYPE_SUBTREE}
-     *         <li>{@link #CONTENT_CHANGE_TYPE_TEXT}
-     *         <li>{@link #CONTENT_CHANGE_TYPE_PANE_TITLE}
-     *         <li>{@link #CONTENT_CHANGE_TYPE_UNDEFINED}
-     *         <li>{@link #CONTENT_CHANGE_TYPE_PANE_APPEARED}
-     *         <li>{@link #CONTENT_CHANGE_TYPE_PANE_DISAPPEARED}
-     *         <li>{@link #CONTENT_CHANGE_TYPE_DRAG_STARTED}
-     *         <li>{@link #CONTENT_CHANGE_TYPE_DRAG_DROPPED}
-     *         <li>{@link #CONTENT_CHANGE_TYPE_DRAG_CANCELLED}
-     *         <li>{@link #CONTENT_CHANGE_TYPE_CONTENT_INVALID}
-     *         <li>{@link #CONTENT_CHANGE_TYPE_ERROR}
-     *         <li>{@link #CONTENT_CHANGE_TYPE_ENABLED}
-     *         </ul>
+     * @return The bit mask of change types.
      */
     @ContentChangeTypes
     public int getContentChangeTypes() {
@@ -1337,12 +1390,8 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
      * Gets the bit mask of the speech state signaled by a {@link #TYPE_SPEECH_STATE_CHANGE} event.
      *
      * @return The bit mask of speech change types.
-     *
-     * @see #SPEECH_STATE_SPEAKING_START
-     * @see #SPEECH_STATE_SPEAKING_END
-     * @see #SPEECH_STATE_LISTENING_START
-     * @see #SPEECH_STATE_LISTENING_END
      */
+    @SpeechStateChangeTypes
     public int getSpeechStateChangeTypes() {
         return mSpeechStateChangeTypes;
     }
@@ -1373,11 +1422,6 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
      * The sender is responsible for ensuring that  the state change types  make sense. For example,
      * the sender should not send
      * {@link #SPEECH_STATE_SPEAKING_START} and {@link #SPEECH_STATE_SPEAKING_END} together.
-     *
-     * @see #SPEECH_STATE_SPEAKING_START
-     * @see #SPEECH_STATE_SPEAKING_END
-     * @see #SPEECH_STATE_LISTENING_START
-     * @see #SPEECH_STATE_LISTENING_END
      */
     public void setSpeechStateChangeTypes(@SpeechStateChangeTypes int state) {
         enforceNotSealed();
@@ -1389,18 +1433,6 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
      * single event may represent multiple change types.
      *
      * @return The bit mask of change types.
-     *
-     * @see #WINDOWS_CHANGE_ADDED
-     * @see #WINDOWS_CHANGE_REMOVED
-     * @see #WINDOWS_CHANGE_TITLE
-     * @see #WINDOWS_CHANGE_BOUNDS
-     * @see #WINDOWS_CHANGE_LAYER
-     * @see #WINDOWS_CHANGE_ACTIVE
-     * @see #WINDOWS_CHANGE_FOCUSED
-     * @see #WINDOWS_CHANGE_ACCESSIBILITY_FOCUSED
-     * @see #WINDOWS_CHANGE_PARENT
-     * @see #WINDOWS_CHANGE_CHILDREN
-     * @see #WINDOWS_CHANGE_PIP
      */
     @WindowsChangeTypes
     public int getWindowChanges() {
@@ -1432,6 +1464,47 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
             case WINDOWS_CHANGE_PIP: return "WINDOWS_CHANGE_PIP";
             default: return Integer.toHexString(type);
         }
+    }
+
+    /**
+     * Sets the bit mask of the text change types signaled by a
+     * {@link #TYPE_VIEW_TEXT_CHANGED} event.
+     * Providing these change types is optional. If it is not provided,
+     * it will default to {@link #TEXT_CHANGE_TYPE_UNDEFINED}.
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_TEXT_CHANGE_TYPES_API)
+    public void setTextChangeTypes(@TextChangeTypes int types) {
+        enforceNotSealed();
+        mTextChangeTypes = types;
+    }
+
+    /**
+     * Gets the bit mask of the text change types signaled by a
+     * {@link #TYPE_VIEW_TEXT_CHANGED} event. A single event may represent
+     * multiple change types. Accessibility services can use these types
+     * to better understand the nature of text changes.
+     *
+     * @return The bit mask of change types.
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_TEXT_CHANGE_TYPES_API)
+    @TextChangeTypes
+    public int getTextChangeTypes() {
+        return mTextChangeTypes;
+    }
+
+    private static String textChangeTypesToString(@TextChangeTypes int types) {
+        return BitUtils.flagsToString(types, AccessibilityEvent::singleTextChangeTypeToString);
+    }
+
+    private static String singleTextChangeTypeToString(int type) {
+        return switch (type) {
+            case TEXT_CHANGE_TYPE_UNDEFINED -> "TEXT_CHANGE_TYPE_UNDEFINED";
+            case TEXT_CHANGE_TYPE_IN_COMPOSITION -> "TEXT_CHANGE_TYPE_IN_COMPOSITION";
+            case TEXT_CHANGE_TYPE_COMMITTED_BY_IME -> "TEXT_CHANGE_TYPE_COMMITTED_BY_IME";
+            case TEXT_CHANGE_TYPE_CONVERSION_SUGGESTION_SELECTED_BY_IME ->
+                "TEXT_CHANGE_TYPE_CONVERSION_SUGGESTION_SELECTED_BY_IME";
+            default -> Integer.toHexString(type);
+        };
     }
 
     /**
@@ -1646,6 +1719,9 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
         mContentChangeTypes = 0;
         mWindowChangeTypes = 0;
         mSpeechStateChangeTypes = 0;
+        if (Flags.a11yTextChangeTypesApi()) {
+            mTextChangeTypes = 0;
+        }
         mPackageName = null;
         mEventTime = 0;
         if (mRecords != null) {
@@ -1669,6 +1745,9 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
         mContentChangeTypes = parcel.readInt();
         mWindowChangeTypes = parcel.readInt();
         mSpeechStateChangeTypes = parcel.readInt();
+        if (Flags.a11yTextChangeTypesApi()) {
+            mTextChangeTypes = parcel.readInt();
+        }
         mPackageName = TextUtils.CHAR_SEQUENCE_CREATOR.createFromParcel(parcel);
         mEventTime = parcel.readLong();
         mConnectionId = parcel.readInt();
@@ -1725,6 +1804,7 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
         record.mParcelableData = parcel.readParcelable(null);
         parcel.readList(record.mText, null, java.lang.CharSequence.class);
         record.mSourceWindowId = parcel.readInt();
+        record.mEmbeddingHostWindowId = parcel.readInt();
         record.mSourceNodeId = parcel.readLong();
         record.mSourceDisplayId = parcel.readInt();
         record.mSealed = (parcel.readInt() == 1);
@@ -1741,6 +1821,9 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
         parcel.writeInt(mContentChangeTypes);
         parcel.writeInt(mWindowChangeTypes);
         parcel.writeInt(mSpeechStateChangeTypes);
+        if (Flags.a11yTextChangeTypesApi()) {
+            parcel.writeInt(mTextChangeTypes);
+        }
         TextUtils.writeToParcel(mPackageName, parcel, 0);
         parcel.writeLong(mEventTime);
         parcel.writeInt(mConnectionId);
@@ -1793,6 +1876,7 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
         parcel.writeParcelable(record.mParcelableData, flags);
         parcel.writeList(record.mText);
         parcel.writeInt(record.mSourceWindowId);
+        parcel.writeInt(record.mEmbeddingHostWindowId);
         parcel.writeLong(record.mSourceNodeId);
         parcel.writeInt(record.mSourceDisplayId);
         parcel.writeInt(record.mSealed ? 1 : 0);
@@ -1825,6 +1909,13 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
             builder.append("; WindowChangeTypes: ").append(
                     windowChangeTypesToString(mWindowChangeTypes));
         }
+        if (Flags.a11yTextChangeTypesApi()) {
+            if (!DEBUG_CONCISE_TOSTRING || mTextChangeTypes != 0) {
+                builder.append("; TextChangeTypes: ").append(
+                        textChangeTypesToString(mTextChangeTypes));
+            }
+        }
+
         super.appendTo(builder);
         if (DEBUG || DEBUG_CONCISE_TOSTRING) {
             if (!DEBUG_CONCISE_TOSTRING) {

@@ -16,6 +16,7 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -23,6 +24,11 @@ import android.content.pm.FeatureInfo;
 import android.content.pm.PackageManager;
 import android.os.ServiceManager;
 
+/**
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
+ */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 class CredstoreIdentityCredentialStore extends IdentityCredentialStore {
 
     private static final String TAG = "CredstoreIdentityCredentialStore";

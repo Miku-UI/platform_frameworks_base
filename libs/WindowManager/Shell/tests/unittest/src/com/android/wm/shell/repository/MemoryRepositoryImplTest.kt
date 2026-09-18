@@ -20,21 +20,20 @@ import android.testing.AndroidTestingRunner
 import androidx.test.filters.SmallTest
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.util.FakeLogger
-import org.junit.Before
-import org.junit.Test
-import org.junit.runner.RunWith
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
 
 /**
  * Tests for [MemoryRepositoryImpl].
  *
- * Build/Install/Run:
- *  atest WMShellUnitTests:MemoryRepositoryImplTest
+ * Build/Install/Run: atest WMShellUnitTests:MemoryRepositoryImplTest
  */
 @RunWith(AndroidTestingRunner::class)
 @SmallTest
@@ -122,9 +121,7 @@ class MemoryRepositoryImplTest : ShellTestCase() {
         assertEquals(item2, repository.find(FakeKey(1, "test1")))
 
         // Insert when the item is already present but overrideIfPresent is false.
-        assertFalse(
-            repository.insert(FakeKey(1, "test1"), item1, overrideIfPresent = false)
-        )
+        assertFalse(repository.insert(FakeKey(1, "test1"), item1, overrideIfPresent = false))
         assertNotNull(repository.find(FakeKey(1, "test1")))
         assertEquals(item2, repository.find(FakeKey(1, "test1")))
     }
@@ -144,9 +141,10 @@ class MemoryRepositoryImplTest : ShellTestCase() {
 
     @Test
     fun `Item is not updated if not present`() {
-        val result = repository.update(FakeKey(id1 = 1, id2 = "test")) { item ->
-            fail("This should not be invoked")
-        }
+        val result =
+            repository.update(FakeKey(id1 = 1, id2 = "test")) { item ->
+                fail("This should not be invoked")
+            }
         assertFalse(result)
     }
 
@@ -156,10 +154,11 @@ class MemoryRepositoryImplTest : ShellTestCase() {
         val item2 = FakeItem(2, "test2")
         repository.insert(FakeKey(id1 = 1, id2 = "test"), item1)
 
-        val result = repository.update(FakeKey(id1 = 1, id2 = "test")) { item ->
-            assert(item == item1)
-            item2
-        }
+        val result =
+            repository.update(FakeKey(id1 = 1, id2 = "test")) { item ->
+                assert(item == item1)
+                item2
+            }
         assertTrue(result)
         assertTrue(repository.find { key, _ -> key.id1 == 1 }.size == 1)
         assertTrue(repository.find { key, _ -> key.id1 == 1 }[0] == item2)

@@ -28,6 +28,8 @@ import android.annotation.Nullable;
  * <p>
  * In the context of theming, this is used to read device-specific properties like
  * {@code ro.boot.hardware.color}, which can define the default theme for a device out of the box.
+ *
+ * @hide
  */
 public interface SystemPropertiesReader {
     /**

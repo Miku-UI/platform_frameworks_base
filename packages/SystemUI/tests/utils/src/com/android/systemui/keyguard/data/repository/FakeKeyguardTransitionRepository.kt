@@ -18,11 +18,13 @@
 package com.android.systemui.keyguard.data.repository
 
 import android.annotation.FloatRange
+import android.util.Log
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionInfo
 import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionStep
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import dagger.Binds
 import dagger.Module
 import java.util.UUID
@@ -262,6 +264,33 @@ class FakeKeyguardTransitionRepository(
     }
 
     suspend fun sendTransitionStep(step: TransitionStep, validateStep: Boolean = true) {
+        val step =
+            if (SceneContainerFlag.isEnabled) {
+                val newStep =
+                    TransitionStep(
+                        from = step.from.mapToSceneContainerState(),
+                        to = step.to.mapToSceneContainerState(),
+                        value = step.value,
+                        transitionState = step.transitionState,
+                    )
+                if (
+                    newStep.from == KeyguardState.UNDEFINED && newStep.to == KeyguardState.UNDEFINED
+                ) {
+                    Log.e(
+                        "FakeKeyguardTransitionRepository",
+                        """This test has SceneContainer enabled 
+                            and uses two KTF states (to=${step.from}, from=${step.to}) that after 
+                            "conversion became a UNDEFINED => UNDEFINED edge. These edges do not 
+                            "exist and will never be emitted in prod and therefore should not
+                            "validate your test. You should either a) adjust the emitted steps (use
+                            "kosmos.setTransition() for convenient flag on/off versions or 
+                            "b) annotate your test with @DisableSceneContainer"""
+                            .trimIndent(),
+                    )
+                    return
+                }
+                newStep
+            } else step
         this.sendTransitionStep(
             step = step,
             validateStep = validateStep,

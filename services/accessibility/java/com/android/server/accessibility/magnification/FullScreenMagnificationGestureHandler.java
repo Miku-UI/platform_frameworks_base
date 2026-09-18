@@ -68,6 +68,7 @@ import com.android.internal.accessibility.util.AccessibilityStatsLogUtils;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.modules.expresslog.Histogram;
 import com.android.server.accessibility.AccessibilityManagerService;
+import com.android.server.accessibility.AccessibilityMotionEventBuilder;
 import com.android.server.accessibility.AccessibilityTraceManager;
 import com.android.server.accessibility.Flags;
 import com.android.server.accessibility.gestures.GestureUtils;
@@ -182,16 +183,12 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
     private final int mMinimumVelocity;
     private final int mMaximumVelocity;
 
-    @Nullable
-    private final MouseEventHandler mMouseEventHandler;
-
     public FullScreenMagnificationGestureHandler(
             @UiContext Context context,
             FullScreenMagnificationController fullScreenMagnificationController,
             AccessibilityTraceManager trace,
             Callback callback,
             boolean detectSingleFingerTripleTap,
-            boolean detectTwoFingerTripleTap,
             boolean detectShortcutTrigger,
             @NonNull WindowMagnificationPromptController promptController,
             int displayId,
@@ -202,7 +199,6 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                 trace,
                 callback,
                 detectSingleFingerTripleTap,
-                detectTwoFingerTripleTap,
                 detectShortcutTrigger,
                 promptController,
                 displayId,
@@ -221,7 +217,6 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
             AccessibilityTraceManager trace,
             Callback callback,
             boolean detectSingleFingerTripleTap,
-            boolean detectTwoFingerTripleTap,
             boolean detectShortcutTrigger,
             @NonNull WindowMagnificationPromptController promptController,
             int displayId,
@@ -229,13 +224,11 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
             MagnificationLogger magnificationLogger,
             ViewConfiguration viewConfiguration,
             OneFingerPanningSettingsProvider oneFingerPanningSettingsProvider) {
-        super(displayId, detectSingleFingerTripleTap, detectTwoFingerTripleTap,
-                detectShortcutTrigger, trace, callback);
+        super(displayId, detectSingleFingerTripleTap, detectShortcutTrigger, trace, callback);
         if (DEBUG_ALL) {
-            Log.i(mLogTag,
+            Log.i(mTag,
                     "FullScreenMagnificationGestureHandler(detectSingleFingerTripleTap = "
                             + detectSingleFingerTripleTap
-                            + ", detectTwoFingerTripleTap = " + detectTwoFingerTripleTap
                             + ", detectShortcutTrigger = " + detectShortcutTrigger + ")");
         }
 
@@ -293,11 +286,6 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                 public void logMagnificationTripleTap(boolean enabled) {
                     AccessibilityStatsLogUtils.logMagnificationTripleTap(enabled);
                 }
-
-                @Override
-                public void logMagnificationTwoFingerTripleTap(boolean enabled) {
-                    AccessibilityStatsLogUtils.logMagnificationTwoFingerTripleTap(enabled);
-                }
             };
         }
 
@@ -314,9 +302,6 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
         mOverscrollEdgeSlop = context.getResources().getDimensionPixelSize(
                 R.dimen.accessibility_fullscreen_magnification_gesture_edge_slop);
         mIsWatch = context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH);
-        mMouseEventHandler =
-                Flags.enableMagnificationFollowsMouseWithPointerMotionFilter()
-                        ? null : new MouseEventHandler(mFullScreenMagnificationController);
 
         if (mDetectShortcutTrigger) {
             mScreenStateReceiver = new ScreenStateReceiver(context, this);
@@ -338,20 +323,6 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
         }
     }
 
-    @Override
-    void handleMouseOrStylusEvent(MotionEvent event, MotionEvent rawEvent, int policyFlags) {
-        if (mMouseEventHandler == null
-                || !mFullScreenMagnificationController.isActivated(mDisplayId)) {
-            return;
-        }
-
-        // TODO(b/354696546): Allow mouse/stylus to activate whichever display they are
-        // over, rather than only interacting with the current display.
-
-        // Send through the mouse/stylus event handler.
-        mMouseEventHandler.onEvent(event, mDisplayId);
-    }
-
     private void handleTouchEventWith(
             State stateHandler, MotionEvent event, MotionEvent rawEvent, int policyFlags) {
 
@@ -363,7 +334,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
         try {
             stateHandler.onMotionEvent(event, rawEvent, policyFlags);
         } catch (GestureException e) {
-            Slog.e(mLogTag, "Error processing motion event", e);
+            Slog.e(mTag, "Error processing motion event", e);
             clearAndTransitionToStateDetecting();
         }
     }
@@ -380,7 +351,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
     @Override
     public void onDestroy(boolean resetMagnification) {
         if (DEBUG_STATE_TRANSITIONS) {
-            Slog.i(mLogTag, "onDestroy(); delayed = "
+            Slog.i(mTag, "onDestroy(); delayed = "
                     + MotionEventInfo.toString(mDetectingState.mDelayedEventQueue));
         }
         mOneFingerPanningSettingsProvider.unregister();
@@ -432,7 +403,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
     @VisibleForTesting
     void transitionTo(State state) {
         if (DEBUG_STATE_TRANSITIONS) {
-            Slog.i(mLogTag,
+            Slog.i(mTag,
                     (State.nameOf(mCurrentState) + " -> " + State.nameOf(state)
                     + " at " + asList(copyOfRange(new RuntimeException().getStackTrace(), 1, 5)))
                     .replace(getClass().getName(), ""));
@@ -447,7 +418,6 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
     /** An interface that allows testing magnification log events. */
     interface MagnificationLogger {
         void logMagnificationTripleTap(boolean enabled);
-        void logMagnificationTwoFingerTripleTap(boolean enabled);
     }
 
     interface State {
@@ -583,7 +553,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                 }
             }
 
-            if (DEBUG_PANNING_SCALING) Slog.i(mLogTag, "Scaled content to: " + scale + "x");
+            if (DEBUG_PANNING_SCALING) Slog.i(mTag, "Scaled content to: " + scale + "x");
             mFullScreenMagnificationController.setScale(mDisplayId, scale, pivotX, pivotY,
                     /* isScaleTransient= */ true, /* animate= */ false,
                     AccessibilityManagerService.MAGNIFICATION_GESTURE_HANDLER_ID);
@@ -598,7 +568,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                 return true;
             }
             if (DEBUG_PANNING_SCALING) {
-                Slog.i(mLogTag, "Panned content by scrollX: " + distanceX
+                Slog.i(mTag, "Panned content by scrollX: " + distanceX
                         + " scrollY: " + distanceY);
             }
             onPan(second);
@@ -699,11 +669,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                 }
                 break;
                 case ACTION_MOVE: {
-                    if (Flags.enableMagnificationMultipleFingerMultipleTapGesture()) {
-                        if (event.getPointerCount() > 2) {
-                            throw new GestureException("Should have at most two pointers down.");
-                        }
-                    } else if (event.getPointerCount() != 1) {
+                    if (event.getPointerCount() != 1) {
                         throw new GestureException("Should have one pointer down.");
                     }
                     final float eventX = event.getX();
@@ -727,26 +693,16 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                     // after exiting dragging state.
                     // Otherwise, the magnifier should be disabled.
                     if (mScaleToRecoverAfterDraggingEnd >= 1.0f) {
-                        zoomToScale(mScaleToRecoverAfterDraggingEnd, event.getX(),
-                                event.getY());
+                        zoomToScale(mScaleToRecoverAfterDraggingEnd, event.getX(), event.getY());
                     } else {
                         zoomOff();
                     }
-                    clear();
-                    mScaleToRecoverAfterDraggingEnd = Float.NaN;
-                    transitionTo(mDetectingState);
+                    clearAndTransitToDetectingState();
                 }
                     break;
 
+                case ACTION_DOWN:
                 case ACTION_POINTER_UP: {
-                    if (!Flags.enableMagnificationMultipleFingerMultipleTapGesture()) {
-                        throw new GestureException(
-                                "Unexpected event type: " + MotionEvent.actionToString(action));
-                    }
-                }
-                break;
-
-                case ACTION_DOWN: {
                     throw new GestureException(
                             "Unexpected event type: " + MotionEvent.actionToString(action));
                 }
@@ -755,6 +711,12 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
 
         private boolean isAlwaysOnMagnificationEnabled() {
             return mFullScreenMagnificationController.isAlwaysOnMagnificationEnabled();
+        }
+
+        private void clearAndTransitToDetectingState() {
+            clear();
+            mCallback.onTemporaryModeEnd(mDisplayId, getMode());
+            transitionTo(mDetectingState);
         }
 
         public void prepareForZoomInTemporary(boolean shortcutTriggered) {
@@ -774,6 +736,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                 shouldRecoverAfterDraggingEnd = false;
             }
 
+            mCallback.onTemporaryModeStart(mDisplayId, getMode());
             mScaleToRecoverAfterDraggingEnd = shouldRecoverAfterDraggingEnd
                     ? mFullScreenMagnificationController.getScale(mDisplayId) : Float.NaN;
         }
@@ -788,7 +751,6 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
         @Override
         public void clear() {
             mLastMoveOutsideMagnifiedRegion = false;
-
             mScaleToRecoverAfterDraggingEnd = Float.NaN;
         }
 
@@ -831,8 +793,21 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                 // by stale events. After the cached events, which always have a down, are
                 // injected we need to also update the down time of all subsequent non cached
                 // events. All delegated events cached and non-cached are delivered here.
-                event.setDownTime(mLastDelegatedDownEventTime);
-                dispatchTransformedEvent(event, rawEvent, policyFlags);
+                if (Flags.fixFullScreenMagnificationEventTimeCorruption()) {
+                    long eventDownTime = event.getDownTime();
+                    long diff = mLastDelegatedDownEventTime - eventDownTime;
+                    if (diff != 0) {
+                        MotionEvent adjusted = AccessibilityMotionEventBuilder.fromBaseEvent(event)
+                                .setTimeOffset(diff).build();
+                        dispatchTransformedEvent(adjusted, rawEvent, policyFlags);
+                        adjusted.recycle();
+                    } else {
+                        dispatchTransformedEvent(event, rawEvent, policyFlags);
+                    }
+                } else {
+                    event.setDownTime(mLastDelegatedDownEventTime);
+                    dispatchTransformedEvent(event, rawEvent, policyFlags);
+                }
             }
         }
     }
@@ -860,7 +835,6 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
         final int mSwipeMinDistance;
         final int mMultiTapMaxDelay;
         final int mMultiTapMaxDistance;
-        @Nullable final TwoFingerDoubleTapHandler mTwoFingerDoubleTapHandler;
 
         private MotionEventInfo mDelayedEventQueue;
         private MotionEvent mLastDown;
@@ -882,9 +856,6 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                     MagnificationGestureMatcher.getMagnificationMultiTapTimeout(context);
             mSwipeMinDistance = ViewConfiguration.get(context).getScaledTouchSlop();
             mMultiTapMaxDistance = ViewConfiguration.get(context).getScaledDoubleTapSlop();
-            mTwoFingerDoubleTapHandler =
-                    Flags.enableMagnificationMultipleFingerMultipleTapGesture()
-                            ? new TwoFingerDoubleTapHandler() : null;
         }
 
         @Override
@@ -924,75 +895,49 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
 
                     if (!mFullScreenMagnificationController.magnificationRegionContains(
                             mDisplayId, event.getX(), event.getY())) {
-
                         transitionToDelegatingStateAndClear();
-
                     } else if (!isActivated() && !mShortcutTriggered
                             && mFullScreenMagnificationController.imeRegionContains(
-                                    mDisplayId, event.getX(), event.getY())) {
+                            mDisplayId, event.getX(), event.getY())) {
                         // Delegate new taps performed over the IME while unmagnified. This removes
                         // any observable delay while typing on an unmagnified keyboard.
                         transitionToDelegatingStateAndClear();
-
-                    } else if (isMultiTapTriggered(2 /* taps */)) {
-
+                    } else if (isMultiTapTriggered(/* taps */ 2)) {
                         // 3tap and hold
                         afterLongTapTimeoutTransitionToDraggingState(event);
-
                     } else if (isTapOutOfDistanceSlop()) {
-
                         transitionToDelegatingStateAndClear();
-
                     } else if (mDetectSingleFingerTripleTap
-                            || (mTwoFingerDoubleTapHandler != null && mDetectTwoFingerTripleTap)
                             // If activated, delay an ACTION_DOWN for mMultiTapMaxDelay
                             // to ensure reachability of
                             // STATE_PANNING_SCALING(triggerable with ACTION_POINTER_DOWN)
                             || isActivated()) {
-
                         afterMultiTapTimeoutTransitionToDelegatingState();
-
                     } else {
-
                         // Delegate pending events without delay
                         transitionToDelegatingStateAndClear();
                     }
                 }
                 break;
                 case ACTION_POINTER_DOWN: {
-                    if (mTwoFingerDoubleTapHandler != null) {
-                        mTwoFingerDoubleTapHandler.onPointerDown(event);
-                        break;
-                    }
-
-                    // LINT.IfChange(action_pointer_down)
                     if (isActivated() && event.getPointerCount() == 2) {
                         storePointerDownLocation(mSecondPointerDownLocation, event);
-                        mHandler.sendEmptyMessageDelayed(MESSAGE_TRANSITION_TO_PANNINGSCALING_STATE,
+                        if (Flags.reduceInteractiveDelayWithMagnification()) {
+                            mHandler.removeMessages(MESSAGE_TRANSITION_TO_DELEGATING_STATE);
+                        }
+                        mHandler.sendEmptyMessageDelayed(
+                                MESSAGE_TRANSITION_TO_PANNINGSCALING_STATE,
                                 ViewConfiguration.getTapTimeout());
                     } else {
                         transitionToDelegatingStateAndClear();
                     }
-                    // LINT.ThenChange(FullScreenMagnificationGestureHandler.java:action_pointer_down_with_multi_finger)
                 }
                 break;
                 case ACTION_POINTER_UP: {
-                    if (mTwoFingerDoubleTapHandler != null) {
-                        mTwoFingerDoubleTapHandler.onPointerUp();
-                        break;
-                    }
-                    // LINT.IfChange(action_pointer_up)
                     transitionToDelegatingStateAndClear();
-                    // LINT.ThenChange(FullScreenMagnificationGestureHandler.java:action_pointer_up_with_multi_finger)
                 }
                 break;
                 case ACTION_MOVE: {
-                    if (mTwoFingerDoubleTapHandler != null) {
-                        mTwoFingerDoubleTapHandler.onMove(event);
-                        break;
-                    }
-
-                    // LINT.IfChange(action_move)
                     if (isFingerDown()
                             && distance(mLastDown, /* move */ event) > mSwipeMinDistance) {
                         // Swipe detected - transition immediately
@@ -1033,20 +978,10 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                         //Second pointer is swiping, so transit to PanningScalingState
                         transitToPanningScalingStateAndClear();
                     }
-                    // LINT.ThenChange(FullScreenMagnificationGestureHandler.java:action_move_with_multi_finger)
                 }
                 break;
                 case ACTION_UP: {
-
                     mHandler.removeMessages(MESSAGE_ON_TRIPLE_TAP_AND_HOLD);
-
-                    if (mTwoFingerDoubleTapHandler != null) {
-                        mHandler.removeMessages(MESSAGE_TRANSITION_TO_PANNINGSCALING_STATE);
-                        mTwoFingerDoubleTapHandler.onUp(event);
-                        break;
-                    }
-
-                    // LINT.IfChange(action_up)
                     if (!mFullScreenMagnificationController.magnificationRegionContains(
                             mDisplayId, event.getX(), event.getY())) {
                         transitionToDelegatingStateAndClear();
@@ -1071,8 +1006,10 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                                     || (distance(mLastDown, mLastUp) >= mSwipeMinDistance))) {
                         transitionToDelegatingStateAndClear();
 
+                    } else if (Flags.reduceInteractiveDelayWithMagnification()
+                            && !mDetectSingleFingerTripleTap) {
+                        transitionToDelegatingStateAndClear();
                     }
-                    // LINT.ThenChange(FullScreenMagnificationGestureHandler.java:action_up_with_multi_finger)
                 }
                 break;
             }
@@ -1099,7 +1036,6 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
         }
 
         public boolean isMultiTapTriggered(int numTaps) {
-
             // Shortcut acts as the 2 initial taps
             if (mShortcutTriggered) return tapCount() + 2 >= numTaps;
 
@@ -1172,9 +1108,6 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
 
         @Override
         public void clear() {
-            if (mTwoFingerDoubleTapHandler != null) {
-                mTwoFingerDoubleTapHandler.mCompletedTapCount = 0;
-            }
             setShortcutTriggered(false);
             removePendingDelayedMessages();
             clearDelayedMotionEvents();
@@ -1230,8 +1163,11 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                 MotionEventInfo info = mDelayedEventQueue;
                 mDelayedEventQueue = info.mNext;
 
-                info.event.setDownTime(info.event.getDownTime() + offset);
-                handleTouchEventWith(mDelegatingState, info.event, info.rawEvent, info.policyFlags);
+                MotionEvent newEvent = AccessibilityMotionEventBuilder.fromBaseEvent(info.event)
+                        .setTimeOffset(offset).build();
+                handleTouchEventWith(mDelegatingState, newEvent, info.rawEvent,
+                        info.policyFlags);
+                newEvent.recycle();
 
                 info.recycle();
             } while (mDelayedEventQueue != null);
@@ -1250,9 +1186,6 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
         }
 
         void transitionToDelegatingStateAndClear() {
-            if (mTwoFingerDoubleTapHandler != null) {
-                mTwoFingerDoubleTapHandler.mCompletedTapCount = 0;
-            }
             transitionTo(mDelegatingState);
             sendDelayedMotionEvents();
             removePendingDelayedMessages();
@@ -1267,7 +1200,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
          */
         protected void onTripleTap(MotionEvent up) {
             if (DEBUG_DETECTING) {
-                Slog.i(mLogTag, "onTripleTap(); delayed: "
+                Slog.i(mTag, "onTripleTap(); delayed: "
                         + MotionEventInfo.toString(mDelayedEventQueue));
             }
 
@@ -1291,20 +1224,14 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
 
         void transitionToViewportDraggingStateAndClear(MotionEvent down) {
 
-            if (DEBUG_DETECTING) Slog.i(mLogTag, "onTripleTapAndHold()");
+            if (DEBUG_DETECTING) Slog.i(mTag, "onTripleTapAndHold()");
             final boolean shortcutTriggered = mShortcutTriggered;
 
             // Only log the 3tap and hold event
             if (!shortcutTriggered) {
+                // Triple tap and hold also belongs to triple tap event
                 final boolean enabled = !isActivated();
-                if (mTwoFingerDoubleTapHandler != null
-                        && mTwoFingerDoubleTapHandler.shouldLogTwoFingerDoubleTap()) {
-                    // Two finger double tap and hold
-                    mMagnificationLogger.logMagnificationTwoFingerTripleTap(enabled);
-                } else {
-                    // Triple tap and hold also belongs to triple tap event
-                    mMagnificationLogger.logMagnificationTripleTap(enabled);
-                }
+                mMagnificationLogger.logMagnificationTripleTap(enabled);
             }
             clear();
 
@@ -1330,8 +1257,9 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
             if (mShortcutTriggered == state) {
                 return;
             }
-            if (DEBUG_DETECTING) Slog.i(mLogTag, "setShortcutTriggered(" + state + ")");
+            if (DEBUG_DETECTING) Slog.i(mTag, "setShortcutTriggered(" + state + ")");
 
+            mCallback.onShortcutTriggerChanged(mDisplayId, getMode(), state);
             mShortcutTriggered = state;
         }
 
@@ -1363,182 +1291,6 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
             }
             return false;
         }
-
-        final class TwoFingerDoubleTapHandler {
-            private static final int TWO_FINGER_GESTURE_MAX_TAPS = 2;
-            // A tap counts when two fingers are down and up once.
-            private int mCompletedTapCount;
-            // A flag set to true when two fingers have touched down.
-            // Used to indicate what next finger action should be.
-            private boolean mIsTwoFingerCountReached;
-
-            TwoFingerDoubleTapHandler() {
-                mCompletedTapCount = 0;
-                mIsTwoFingerCountReached = false;
-            }
-
-            private void onPointerDown(MotionEvent event) {
-                mIsTwoFingerCountReached = mDetectTwoFingerTripleTap
-                        && event.getPointerCount() == 2;
-                mHandler.removeMessages(MESSAGE_TRANSITION_TO_DELEGATING_STATE);
-
-                // LINT.IfChange(action_pointer_down_with_multi_finger)
-                if (event.getPointerCount() == 2) {
-                    if (isMultiFingerMultiTapTriggered(
-                            TWO_FINGER_GESTURE_MAX_TAPS - 1, event)) {
-                        // 3tap and hold
-                        afterLongTapTimeoutTransitionToDraggingState(event);
-                    } else {
-                        if (mDetectTwoFingerTripleTap) {
-                            // If mDetectTwoFingerTripleTap, delay transition to the delegating
-                            // state for mMultiTapMaxDelay to ensure reachability of
-                            // multi finger multi tap
-                            afterMultiTapTimeoutTransitionToDelegatingState();
-                        }
-
-                        if (isActivated()) {
-                            // If activated, delay transition to the panning scaling
-                            // state for tap timeout to ensure reachability of
-                            // multi finger multi tap
-                            storePointerDownLocation(mSecondPointerDownLocation, event);
-                            mHandler.sendEmptyMessageDelayed(
-                                    MESSAGE_TRANSITION_TO_PANNINGSCALING_STATE,
-                                    ViewConfiguration.getTapTimeout());
-                        }
-                    }
-                } else {
-                    transitionToDelegatingStateAndClear();
-                }
-                // LINT.ThenChange(FullScreenMagnificationGestureHandler.java:action_pointer_down)
-            }
-
-            private void onMove(MotionEvent event) {
-                // LINT.IfChange(action_move_with_multi_finger)
-                if (isFingerDown()
-                        && distance(mLastDown, /* move */ event) > mSwipeMinDistance) {
-                    // Swipe detected - transition immediately
-
-                    // For convenience, viewport dragging takes precedence
-                    // over insta-delegating on 3tap&swipe
-                    // (which is a rare combo to be used aside from magnification)
-                    if (isMultiTapTriggered(2 /* taps */) && event.getPointerCount() == 1) {
-                        transitionToViewportDraggingStateAndClear(event);
-                    } else if (isMultiFingerMultiTapTriggered(
-                            TWO_FINGER_GESTURE_MAX_TAPS - 1, event)
-                            && event.getPointerCount() == 2) {
-                        transitionToViewportDraggingStateAndClear(event);
-                    } else if (isActivated() && event.getPointerCount() == 2) {
-                        if (mOverscrollHandler != null
-                                && overscrollState(event, mFirstPointerDownLocation)
-                                == OVERSCROLL_VERTICAL_EDGE) {
-                            transitionToDelegatingStateAndClear();
-                        } else {
-                            //Primary pointer is swiping, so transit to PanningScalingState
-                            transitToPanningScalingStateAndClear();
-                        }
-                    } else if (mOneFingerPanningSettingsProvider.isOneFingerPanningEnabled()
-                            && isActivated()
-                            && event.getPointerCount() == 1) {
-                        if (mOverscrollHandler != null
-                                && overscrollState(event, mFirstPointerDownLocation)
-                                == OVERSCROLL_VERTICAL_EDGE) {
-                            transitionToDelegatingStateAndClear();
-                        } else if (overscrollState(event, mFirstPointerDownLocation)
-                                != OVERSCROLL_NONE) {
-                            transitionToDelegatingStateAndClear();
-                        } else {
-                            transitToSinglePanningStateAndClear();
-                        }
-                    } else if (!mIsTwoFingerCountReached) {
-                        // If it is a two-finger gesture, do not transition to the
-                        // delegating state to ensure the reachability of
-                        // the two-finger triple tap (triggerable with ACTION_UP)
-                        transitionToDelegatingStateAndClear();
-                    }
-                } else if (isActivated() && pointerDownValid(mSecondPointerDownLocation)
-                        && distanceClosestPointerToPoint(
-                        mSecondPointerDownLocation, /* move */ event) > mSwipeMinDistance) {
-                    // Second pointer is swiping, so transit to PanningScalingState
-                    // Delay an ACTION_MOVE for tap timeout to ensure it is not trigger from
-                    // multi finger multi tap
-                    storePointerDownLocation(mSecondPointerDownLocation, event);
-                    mHandler.sendEmptyMessageDelayed(
-                            MESSAGE_TRANSITION_TO_PANNINGSCALING_STATE,
-                            ViewConfiguration.getTapTimeout());
-                }
-                // LINT.ThenChange(FullScreenMagnificationGestureHandler.java:action_move)
-            }
-
-            private void onPointerUp() {
-                // If it is a two-finger gesture, do not transition to the delegating state
-                // to ensure the reachability of
-                // the two-finger triple tap (triggerable with ACTION_MOVE and ACTION_UP)
-                // LINT.IfChange(action_pointer_up_with_multi_finger)
-                if (!mIsTwoFingerCountReached) {
-                    transitionToDelegatingStateAndClear();
-                }
-                // LINT.ThenChange(FullScreenMagnificationGestureHandler.java:action_pointer_up)
-            }
-
-            private void onUp(MotionEvent event) {
-                // LINT.IfChange(action_up_with_multi_finger)
-                if (!mFullScreenMagnificationController.magnificationRegionContains(
-                        mDisplayId, event.getX(), event.getY())) {
-                    transitionToDelegatingStateAndClear();
-
-                } else if (isActivated() && !mShortcutTriggered
-                            && mFullScreenMagnificationController.imeRegionContains(
-                                    mDisplayId, event.getX(), event.getY())) {
-                    // Delegate completed taps performed over the IME while magnified. Benefits:
-                    // - Removes any observable delay while typing on a magnified keyboard.
-                    // - Ensures that quick taps (e.g. "www") do not accidentally trigger the
-                    //   triple-tap shortcut and deactivate magnification.
-                    transitionToDelegatingStateAndClear();
-
-                } else if (isMultiFingerMultiTapTriggered(
-                        TWO_FINGER_GESTURE_MAX_TAPS, event)) {
-                    // Placing multiple fingers before a single finger, because achieving a
-                    // multi finger multi tap also means achieving a single finger
-                    // triple tap
-                    onTripleTap(event);
-
-                } else if (isMultiTapTriggered(3 /* taps */)) {
-                    onTripleTap(/* up */ event);
-
-                } else if (
-                    // Possible to be false on: 3tap&drag -> scale -> PTR_UP -> UP
-                        isFingerDown()
-                                //TODO long tap should never happen here
-                                && ((timeBetween(mLastDown, mLastUp) >= mLongTapMinDelay)
-                                || (distance(mLastDown, mLastUp) >= mSwipeMinDistance))
-                                // If it is a two-finger but not reach 3 tap, do not
-                                // transition to the delegating state to ensure the
-                                // reachability of the triple tap
-                                && mCompletedTapCount == 0) {
-                    transitionToDelegatingStateAndClear();
-                }
-                // LINT.ThenChange(FullScreenMagnificationGestureHandler.java:action_up)
-            }
-
-            private boolean isMultiFingerMultiTapTriggered(int targetTapCount, MotionEvent event) {
-                if (event.getActionMasked() == ACTION_UP && mIsTwoFingerCountReached) {
-                    mCompletedTapCount++;
-                    mIsTwoFingerCountReached = false;
-                }
-
-                if (mDetectTwoFingerTripleTap
-                        && mCompletedTapCount > TWO_FINGER_GESTURE_MAX_TAPS - 1) {
-                    final boolean enabled = !isActivated();
-                    mMagnificationLogger.logMagnificationTwoFingerTripleTap(enabled);
-                }
-                return mDetectTwoFingerTripleTap && mCompletedTapCount == targetTapCount;
-            }
-
-            private boolean shouldLogTwoFingerDoubleTap() {
-                return mCompletedTapCount
-                        == TwoFingerDoubleTapHandler.TWO_FINGER_GESTURE_MAX_TAPS - 1;
-            }
-        }
     }
 
     private void zoomInTemporary(float centerX, float centerY, boolean shortcutTriggered) {
@@ -1560,7 +1312,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
 
     private void zoomOn(float centerX, float centerY) {
         if (DEBUG_DETECTING) {
-            Slog.i(mLogTag, "zoomOn(" + centerX + ", " + centerY + ")");
+            Slog.i(mTag, "zoomOn(" + centerX + ", " + centerY + ")");
         }
 
         final float scale = MathUtils.constrain(
@@ -1579,7 +1331,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
 
     private void zoomOff() {
         if (DEBUG_DETECTING) {
-            Slog.i(mLogTag, "zoomOff()");
+            Slog.i(mTag, "zoomOff()");
         }
         mFullScreenMagnificationController.reset(mDisplayId, /* animate */ true);
     }
@@ -1773,7 +1525,8 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
      * BroadcastReceiver used to cancel the magnification shortcut when the screen turns off
      */
     private static class ScreenStateReceiver extends BroadcastReceiver {
-        private static final String TAG = ScreenStateReceiver.class.getName();
+        private static final String SCREEN_STATE_RECEIVER_TAG =
+                ScreenStateReceiver.class.getName();
         private final Context mContext;
         private final FullScreenMagnificationGestureHandler mGestureHandler;
 
@@ -1796,7 +1549,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                 // will not affect the user experience since it's for the destroyed handler.
                 // Therefore, we use try-catch here, to catch the exception to prevent crash, and
                 // log the exception for future investigations.
-                Slog.e(TAG, "Failed to unregister receiver: " + exception);
+                Slog.e(SCREEN_STATE_RECEIVER_TAG, "Failed to unregister receiver: " + exception);
             }
         }
 
@@ -1838,7 +1591,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
         }
 
         if (mVelocityTracker == null) {
-            Log.e(mLogTag, "onPanningFinished: mVelocityTracker is null");
+            Log.e(mTag, "onPanningFinished: mVelocityTracker is null");
             return;
         }
         mVelocityTracker.addMovement(event);
@@ -1852,7 +1605,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
 
         if (DEBUG_PANNING_SCALING) {
             Slog.v(
-                    mLogTag,
+                    mTag,
                     "onPanningFinished: pixelsPerSecond: "
                             + xPixelsPerSecond
                             + ", "
@@ -1921,7 +1674,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                     AccessibilityManagerService.MAGNIFICATION_GESTURE_HANDLER_ID);
             if (DEBUG_PANNING_SCALING) {
                 Slog.i(
-                        mLogTag,
+                        mTag,
                         "SinglePanningState Panned content by scrollX: "
                                 + distanceX
                                 + " scrollY: "
@@ -2079,7 +1832,7 @@ public class FullScreenMagnificationGestureHandler extends MagnificationGestureH
                     onHorizontalOverscroll(second);
                     break;
                 default:
-                    Slog.d(mLogTag, "Invalid overscroll state");
+                    Slog.d(mTag, "Invalid overscroll state");
                     break;
             }
         }

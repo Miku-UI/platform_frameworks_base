@@ -18,6 +18,7 @@
 #define LOG_TAG "GnssAntInfoCbJni"
 
 #include "GnssAntennaInfoCallback.h"
+
 #include "Utils.h"
 
 namespace android::gnss {
@@ -326,6 +327,8 @@ jobject GnssAntennaInfoCallbackUtil::translateSingleGnssAntennaInfo(JNIEnv* env,
     env->DeleteLocalRef(phaseCenterOffset);
     env->DeleteLocalRef(phaseCenterVariationCorrections);
     env->DeleteLocalRef(signalGainCorrections);
+
+    env->DeleteLocalRef(gnssAntennaInfoBuilderObject);
 
     return gnssAntennaInfoObject;
 }

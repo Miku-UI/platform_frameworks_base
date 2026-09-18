@@ -29,7 +29,6 @@ import com.android.systemui.kairos.util.toNameData
  * These operations do not accumulate state, which makes [TransactionScope] weaker than
  * [StateScope], but allows it to be used in more places.
  */
-@ExperimentalKairosApi
 interface TransactionScope : KairosScope {
 
     /**
@@ -88,7 +87,6 @@ interface TransactionScope : KairosScope {
  * Returns an [Events] that emits the value sampled from the [Transactional] produced by each
  * emission of the original [Events], within the same transaction of the original emission.
  */
-@ExperimentalKairosApi
 fun <A> Events<Transactional<A>>.sampleTransactionals(): Events<A> =
     sampleTransactionals(
         nameTag("Events.sampleTransactionals").toNameData("Events.sampleTransactionals")
@@ -98,7 +96,6 @@ internal fun <A> Events<Transactional<A>>.sampleTransactionals(nameData: NameDat
     map(nameData) { it.sample() }
 
 /** @see TransactionScope.sample */
-@ExperimentalKairosApi
 fun <A, B, C> Events<A>.sample(
     state: State<B>,
     transform: TransactionScope.(A, B) -> C,
@@ -112,7 +109,6 @@ internal fun <A, B, C> Events<A>.sample(
 ): Events<C> = map(nameData) { transform(it, state.sample()) }
 
 /** @see TransactionScope.sample */
-@ExperimentalKairosApi
 fun <A, B, C> Events<A>.sample(
     transactional: Transactional<B>,
     transform: TransactionScope.(A, B) -> C,
@@ -138,7 +134,6 @@ internal fun <A, B, C> Events<A>.sample(
  *
  * @see sample
  */
-@ExperimentalKairosApi
 fun <A, B, C> Events<A>.samplePromptly(
     state: State<B>,
     transform: TransactionScope.(A, B) -> C,

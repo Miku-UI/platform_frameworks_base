@@ -37,8 +37,8 @@ import static android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS;
 import static android.view.WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH;
 import static android.view.WindowManager.LayoutParams.INPUT_FEATURE_NO_INPUT_CHANNEL;
 import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_EDGE_TO_EDGE_ENFORCED;
-import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_FORCE_DRAW_BAR_BACKGROUNDS;
 import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY;
+import static android.view.WindowManager.LayoutParams.RENDERING_HINT_FORCE_DRAW_BAR_BACKGROUNDS;
 
 import static com.android.internal.policy.DecorView.NAVIGATION_BAR_COLOR_VIEW_ATTRIBUTES;
 import static com.android.internal.policy.DecorView.STATUS_BAR_COLOR_VIEW_ATTRIBUTES;
@@ -51,7 +51,6 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
-import android.hardware.HardwareBuffer;
 import android.os.IBinder;
 import android.util.Log;
 import android.view.SurfaceControl;
@@ -60,7 +59,6 @@ import android.view.WindowInsets;
 import android.view.WindowManager;
 
 import com.android.internal.R;
-import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.policy.DecorView;
 
 /**
@@ -101,8 +99,7 @@ public class SnapshotDrawerUtils {
     /**
      * The internal object to hold the surface and drawing on it.
      */
-    @VisibleForTesting
-    public static class SnapshotSurface {
+    private static class SnapshotSurface {
         private final SurfaceControl.Transaction mTransaction = new SurfaceControl.Transaction();
         private final SurfaceControl mRootSurface;
         private final TaskSnapshot mSnapshot;
@@ -113,24 +110,18 @@ public class SnapshotDrawerUtils {
         private final int mContainerW;
         private final int mContainerH;
 
-        public SnapshotSurface(SurfaceControl rootSurface, TaskSnapshot snapshot,
+        SnapshotSurface(SurfaceControl rootSurface, TaskSnapshot snapshot,
                 Rect windowBounds, CharSequence title) {
             mRootSurface = rootSurface;
             mSnapshot = snapshot;
             mTitle = title;
-            if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-                mSnapshotH = snapshot.getHardwareBufferHeight();
-                mSnapshotW = snapshot.getHardwareBufferWidth();
-            } else {
-                final HardwareBuffer hwBuffer = snapshot.getHardwareBuffer();
-                mSnapshotW = hwBuffer.getWidth();
-                mSnapshotH = hwBuffer.getHeight();
-            }
+            mSnapshotH = snapshot.getHardwareBufferHeight();
+            mSnapshotW = snapshot.getHardwareBufferWidth();
             mContainerW = windowBounds.width();
             mContainerH = windowBounds.height();
         }
 
-        private void drawSnapshot(boolean releaseAfterDraw) {
+        void drawSnapshot(@Nullable Runnable reportDrawn, boolean releaseAfterDraw) {
             final Rect letterboxInsets = mSnapshot.getLetterboxInsets();
             final boolean sizeMismatch = mContainerW != mSnapshotW || mContainerH != mSnapshotH
                     || letterboxInsets.left != 0 || letterboxInsets.top != 0;
@@ -143,50 +134,41 @@ public class SnapshotDrawerUtils {
             } else {
                 drawSizeMatchSnapshot();
             }
+            if (reportDrawn != null) {
+                reportDrawn.run();
+            }
 
             // In case window manager leaks us, make sure we don't retain the snapshot.
-            if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-                mSnapshot.closeBuffer();
-            } else {
-                if (mSnapshot.getHardwareBuffer() != null) {
-                    mSnapshot.getHardwareBuffer().close();
-                }
-            }
+            mSnapshot.closeBuffer();
             if (releaseAfterDraw) {
                 mRootSurface.release();
             }
         }
 
         private void drawSizeMatchSnapshot() {
-            if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-                mSnapshot.setBufferToSurface(mTransaction, mRootSurface);
-            } else {
-                mTransaction.setBuffer(mRootSurface, mSnapshot.getHardwareBuffer());
-            }
+            mSnapshot.setBufferToSurface(mTransaction, mRootSurface);
             mTransaction.setColorSpace(mRootSurface, mSnapshot.getColorSpace()).apply();
         }
 
         private void drawSizeMismatchSnapshot() {
-            // Keep a reference to it such that it doesn't get destroyed when finalized.
-            final SurfaceControl.Builder builder = new SurfaceControl.Builder()
-                    .setName(mTitle + " - task-snapshot-surface")
-                    .setBLASTLayer()
-                    .setParent(mRootSurface)
-                    .setCallsite("TaskSnapshotWindow.drawSizeMismatchSnapshot");
-            if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-                builder.setFormat(mSnapshot.getHardwareBufferFormat());
+            final SurfaceControl childSurfaceControl;
+            if (WindowManager.useClientSurface()) {
+                childSurfaceControl = mRootSurface;
             } else {
-                final HardwareBuffer buffer = mSnapshot.getHardwareBuffer();
-                builder.setFormat(buffer.getFormat());
+                final SurfaceControl.Builder builder = new SurfaceControl.Builder()
+                        .setName(mTitle + " - task-snapshot-surface")
+                        .setBLASTLayer()
+                        .setParent(mRootSurface)
+                        .setCallsite("TaskSnapshotWindow.drawSizeMismatchSnapshot")
+                        .setFormat(mSnapshot.getHardwareBufferFormat());
+                childSurfaceControl = builder.build();
+                // Show the surface here as it will still be hidden as the parent is still hidden.
+                mTransaction.show(childSurfaceControl);
             }
-            SurfaceControl childSurfaceControl = builder.build();
 
             final Rect letterboxInsets = mSnapshot.getLetterboxInsets();
             float offsetX = letterboxInsets.left;
             float offsetY = letterboxInsets.top;
-            // We can just show the surface here as it will still be hidden as the parent is
-            // still hidden.
-            mTransaction.show(childSurfaceControl);
 
             // Align the snapshot with content area.
             if (offsetX != 0f || offsetY != 0f) {
@@ -199,13 +181,11 @@ public class SnapshotDrawerUtils {
             final float scaleY = (float) mContainerH / mSnapshotH;
             mTransaction.setScale(childSurfaceControl, scaleX, scaleY);
             mTransaction.setColorSpace(childSurfaceControl, mSnapshot.getColorSpace());
-            if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-                mSnapshot.setBufferToSurface(mTransaction, childSurfaceControl);
-            } else {
-                mTransaction.setBuffer(childSurfaceControl, mSnapshot.getHardwareBuffer());
-            }
+            mSnapshot.setBufferToSurface(mTransaction, childSurfaceControl);
             mTransaction.apply();
-            childSurfaceControl.release();
+            if (!WindowManager.useClientSurface()) {
+                childSurfaceControl.release();
+            }
         }
     }
 
@@ -225,6 +205,17 @@ public class SnapshotDrawerUtils {
     }
 
     /**
+     * Draws the snapshot on the surface with invoking the drawn callback and releases the surface.
+     */
+    public static void drawSnapshotOnSurface(WindowManager.LayoutParams lp,
+            SurfaceControl rootSurface, TaskSnapshot snapshot,
+            Rect windowBounds, Runnable reportDrawn) {
+        new SnapshotSurface(rootSurface, snapshot, windowBounds, lp.getTitle())
+                .drawSnapshot(reportDrawn, !com.android.window.flags.Flags
+                        .onlyCacheLowResTaskSnapshot() /* releaseAfterDraw */);
+    }
+
+    /**
      * Help method to draw the snapshot on a surface.
      */
     public static void drawSnapshotOnSurface(WindowManager.LayoutParams lp,
@@ -236,7 +227,7 @@ public class SnapshotDrawerUtils {
         }
         final SnapshotSurface drawSurface = new SnapshotSurface(
                 rootSurface, snapshot, windowBounds, lp.getTitle());
-        drawSurface.drawSnapshot(releaseAfterDraw);
+        drawSurface.drawSnapshot(null /* reportDrawn */, releaseAfterDraw);
     }
 
     /**
@@ -255,22 +246,23 @@ public class SnapshotDrawerUtils {
         final int appearance = attrs.insetsFlags.appearance;
         final int windowFlags = attrs.flags;
         final int windowPrivateFlags = attrs.privateFlags;
+        final int windowRenderingHints = attrs.renderingHints;
 
         layoutParams.packageName = attrs.packageName;
         layoutParams.windowAnimations = attrs.windowAnimations;
         layoutParams.dimAmount = attrs.dimAmount;
+        layoutParams.dimColor = attrs.dimColor;
         layoutParams.type = windowType;
         layoutParams.format = pixelFormat;
         layoutParams.flags = (windowFlags & ~FLAG_INHERIT_EXCLUDES)
                 | FLAG_NOT_FOCUSABLE
                 | FLAG_NOT_TOUCHABLE;
-        layoutParams.privateFlags =
-                (windowPrivateFlags
-                        & (PRIVATE_FLAG_FORCE_DRAW_BAR_BACKGROUNDS
-                        | PRIVATE_FLAG_EDGE_TO_EDGE_ENFORCED))
-                // Setting as trusted overlay to let touches pass through. This is safe because this
-                // window is controlled by the system.
-                | PRIVATE_FLAG_TRUSTED_OVERLAY;
+        layoutParams.privateFlags = (windowPrivateFlags & PRIVATE_FLAG_EDGE_TO_EDGE_ENFORCED);
+        // Setting as trusted overlay to let touches pass through. This is safe because this window
+        // is controlled by the system.
+        layoutParams.privateFlags |= PRIVATE_FLAG_TRUSTED_OVERLAY;
+        layoutParams.renderingHints =
+                (windowRenderingHints & RENDERING_HINT_FORCE_DRAW_BAR_BACKGROUNDS);
         layoutParams.token = token;
         layoutParams.width = ViewGroup.LayoutParams.MATCH_PARENT;
         layoutParams.height = ViewGroup.LayoutParams.MATCH_PARENT;
@@ -300,15 +292,22 @@ public class SnapshotDrawerUtils {
         private final int mNavigationBarColor;
         private final int mWindowFlags;
         private final int mWindowPrivateFlags;
+        private final int mWindowRenderingHints;
         private final float mScale;
         private final @WindowInsets.Type.InsetsType int mRequestedVisibleTypes;
         private final Rect mSystemBarInsets = new Rect();
 
-        public SystemBarBackgroundPainter(int windowFlags, int windowPrivateFlags, int appearance,
-                ActivityManager.TaskDescription taskDescription, float scale,
+        public SystemBarBackgroundPainter(
+                int windowFlags,
+                int windowPrivateFlags,
+                int windowRenderingHints,
+                int appearance,
+                ActivityManager.TaskDescription taskDescription,
+                float scale,
                 @WindowInsets.Type.InsetsType int requestedVisibleTypes) {
             mWindowFlags = windowFlags;
             mWindowPrivateFlags = windowPrivateFlags;
+            mWindowRenderingHints = windowRenderingHints;
             mScale = scale;
             final Context context = ActivityThread.currentActivityThread().getSystemUiContext();
             final int semiTransparent = context.getColor(
@@ -340,7 +339,7 @@ public class SnapshotDrawerUtils {
 
         int getStatusBarColorViewHeight() {
             final boolean forceBarBackground =
-                    (mWindowPrivateFlags & PRIVATE_FLAG_FORCE_DRAW_BAR_BACKGROUNDS) != 0;
+                    (mWindowRenderingHints & RENDERING_HINT_FORCE_DRAW_BAR_BACKGROUNDS) != 0;
             if (STATUS_BAR_COLOR_VIEW_ATTRIBUTES.isVisible(
                     mRequestedVisibleTypes, mStatusBarColor, mWindowFlags,
                     forceBarBackground)) {
@@ -352,7 +351,7 @@ public class SnapshotDrawerUtils {
 
         private boolean isNavigationBarColorViewVisible() {
             final boolean forceBarBackground =
-                    (mWindowPrivateFlags & PRIVATE_FLAG_FORCE_DRAW_BAR_BACKGROUNDS) != 0;
+                    (mWindowRenderingHints & RENDERING_HINT_FORCE_DRAW_BAR_BACKGROUNDS) != 0;
             return NAVIGATION_BAR_COLOR_VIEW_ATTRIBUTES.isVisible(
                     mRequestedVisibleTypes, mNavigationBarColor, mWindowFlags,
                     forceBarBackground);

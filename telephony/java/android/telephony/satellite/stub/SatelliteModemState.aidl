@@ -54,6 +54,15 @@ enum SatelliteModemState {
      */
     SATELLITE_MODEM_STATE_IN_SERVICE = 7,
     /**
+     * The satellite modem is in suspension.
+     * In this state, the modem is still powered on and in satellite enabled state,
+     * but all satellite communication is unavailable and it will not attach to TN networks.
+     * Modem will enter or exit this state only when it receives the explicit request
+     * {@code ISatellite#requestSatelliteSuspended} from the Telephony framework or when the
+     * modem is rebooted.
+     */
+    SATELLITE_MODEM_STATE_SUSPENDED = 8,
+    /**
      * Satellite modem state is unknown. This generic modem state should be used only when the
      * modem state cannot be mapped to other specific modem states.
      */

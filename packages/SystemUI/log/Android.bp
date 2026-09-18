@@ -27,8 +27,8 @@ java_library {
     name: "SystemUILogCoreLib",
     device_supported: true,
     srcs: [
-        "src/**/core/*.java",
-        "src/**/core/*.kt",
+        "core/src/**/*.java",
+        "core/src/**/*.kt",
     ],
     static_libs: [
         "error_prone_annotations",
@@ -43,10 +43,6 @@ java_library {
     srcs: [
         "src/**/*.java",
         "src/**/*.kt",
-    ],
-    exclude_srcs: [
-        "src/**/core/*.java",
-        "src/**/core/*.kt",
     ],
     static_libs: [
         "SystemUICommon",

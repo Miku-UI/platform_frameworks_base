@@ -11,6 +11,7 @@ filegroup {
     name: "services.companion-sources",
     srcs: [
         "java/**/*.java",
+        "java/**/*.proto",
     ],
     path: "java",
     visibility: ["//frameworks/base/services"],
@@ -21,16 +22,45 @@ java_library_static {
     defaults: ["platform_service_defaults"],
     srcs: [
         ":services.companion-sources",
+        ":statslog-computercontrol-java-gen",
     ],
+    proto: {
+        type: "stream",
+    },
     libs: [
+        "androidx.annotation_annotation",
         "app-compat-annotations",
         "services.core",
     ],
     static_libs: [
         "ukey2_jni",
         "virtual_camera_service_aidl-java",
+        "com_android_crossdevicesync_flags_lib",
+        "connectivity_flags_lib",
+        "submerge_java",
+        "android.service.notification.flags-aconfig-java",
     ],
     lint: {
         baseline_filename: "lint-baseline.xml",
     },
+    errorprone: {
+        extra_check_modules: ["//external/nullaway:nullaway_plugin"],
+        javacflags: [
+            "-XepOpt:NullAway:AnnotatedPackages=com.android.server.companion.virtual",
+            "-Xep:GuardedBy:ERROR",
+            "-Xep:NullAway:ERROR",
+            // Exclude @AutoValue generated code.
+            "-XepExcludedPaths:.*/virtual/.*AutoValue_.*",
+        ],
+    },
+}
+
+genrule {
+    name: "statslog-computercontrol-java-gen",
+    tools: ["stats-log-api-gen"],
+    cmd: "$(location stats-log-api-gen) --java $(out)" +
+        " --module computercontrol" +
+        " --javaPackage com.android.server.companion.virtual.computercontrol" +
+        " --javaClass ComputerControlStatsLog",
+    out: ["com/android/server/companion/virtual/computercontrol/ComputerControlStatsLog.java"],
 }

@@ -39,12 +39,14 @@ public class FakeAppCompatCameraStatePolicy implements AppCompatCameraStatePolic
     }
 
     @Override
-    public void onCameraOpened(@NonNull WindowProcessController appProcess, @NonNull Task task) {
+    public void onCameraOpened(@NonNull CameraAppInfo cameraAppInfo,
+            @NonNull WindowProcessController appProcess,
+            @NonNull Task cameraTask) {
         mOnCameraOpenedCounter++;
     }
 
     @Override
-    public boolean canCameraBeClosed(@NonNull String cameraId, @NonNull Task task) {
+    public boolean canCameraBeClosed(@NonNull CameraAppInfo cameraAppInfo, @NonNull Task task) {
         mCheckCanCloseCounter++;
         final boolean returnValue = mCheckCanCloseReturnValue;
         // If false, return false only the first time, so it doesn't fall in the infinite retry
@@ -54,7 +56,8 @@ public class FakeAppCompatCameraStatePolicy implements AppCompatCameraStatePolic
     }
 
     @Override
-    public void onCameraClosed(@Nullable WindowProcessController appProcess, @Nullable Task task) {
+    public void onCameraClosed(@NonNull CameraAppInfo cameraAppInfo,
+            @Nullable WindowProcessController appProcess, @Nullable Task task) {
         mOnCameraClosedCounter++;
     }
 }

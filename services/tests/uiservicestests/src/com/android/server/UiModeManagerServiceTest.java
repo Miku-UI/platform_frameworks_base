@@ -17,9 +17,9 @@
 package com.android.server;
 
 import static android.Manifest.permission.MODIFY_DAY_NIGHT_MODE;
+import static android.app.UiModeManager.FORCE_INVERT_PACKAGE_ALLOWED;
 import static android.app.UiModeManager.FORCE_INVERT_PACKAGE_ALWAYS_DISABLE;
 import static android.app.UiModeManager.FORCE_INVERT_PACKAGE_ALWAYS_ENABLE;
-import static android.app.UiModeManager.FORCE_INVERT_PACKAGE_ALLOWED;
 import static android.app.UiModeManager.FORCE_INVERT_TYPE_DARK;
 import static android.app.UiModeManager.FORCE_INVERT_TYPE_OFF;
 import static android.app.UiModeManager.MODE_ATTENTION_THEME_OVERLAY_DAY;
@@ -91,10 +91,10 @@ import android.os.PowerManager;
 import android.os.PowerManagerInternal;
 import android.os.PowerSaveState;
 import android.os.Process;
+import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.test.FakePermissionEnforcer;
-import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
@@ -1592,17 +1592,6 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
 
     @Test
     @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
-    @DisableFlags(android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER)
-    public void getForceInvertState_nightModeFalse_returnsOff_legacy() throws RemoteException {
-        mService.setNightModeActivated(false);
-
-        assertThat(mUiManagerService.getForceInvertStateInternal())
-                .isEqualTo(FORCE_INVERT_TYPE_OFF);
-    }
-
-    @Test
-    @EnableFlags({ android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR,
-            android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER })
     public void getForceInvertState_nightModeFalse_returnsOff() throws RemoteException {
         int testUserId = 9;
         switchUser(testUserId);
@@ -1615,23 +1604,6 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
 
     @Test
     @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
-    @DisableFlags(android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER)
-    public void getForceInvertState_nightModeTrueAndForceInvertOff_returnsOff_legacy()
-            throws RemoteException {
-        mService.setNightModeActivated(true);
-
-        Settings.Secure.putInt(
-                mContentResolver,
-                Settings.Secure.ACCESSIBILITY_FORCE_INVERT_COLOR_ENABLED,
-                /* value= */ 0);
-
-        assertThat(mUiManagerService.getForceInvertStateInternal())
-                .isEqualTo(FORCE_INVERT_TYPE_OFF);
-    }
-
-    @Test
-    @EnableFlags({ android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR,
-            android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER })
     public void getForceInvertState_nightModeTrueAndForceInvertOff_returnsOff()
             throws RemoteException {
         int testUserId = 9;
@@ -1650,22 +1622,6 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
 
     @Test
     @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
-    @DisableFlags(android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER)
-    public void getForceInvertState_nightModeTrueAndForceInvertOn_returnsDark_legacy()
-            throws Exception {
-        mService.setNightModeActivated(true);
-        Settings.Secure.putInt(
-                mContentResolver,
-                Settings.Secure.ACCESSIBILITY_FORCE_INVERT_COLOR_ENABLED,
-                /* value= */ 1);
-
-        assertThat(mUiManagerService.getForceInvertStateInternal())
-                .isEqualTo(FORCE_INVERT_TYPE_DARK);
-    }
-
-    @Test
-    @EnableFlags({ android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR,
-            android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER })
     public void getForceInvertState_nightModeTrueAndForceInvertOn_returnsDark() throws Exception {
         int testUserId = 9;
         switchUser(testUserId);
@@ -1722,6 +1678,28 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
 
     @Test
     @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
+    public void getForceInvertOverrideState_addPackageInDisableList_returnsDisable()
+            throws Exception {
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_NAME), anyInt()))
+                .thenReturn(TestInjector.DEFAULT_CALLING_UID);
+        int testUserId = 9;
+        switchUser(testUserId);
+        mUiManagerService.mUiModeManagerCallbacks.put(testUserId, new RemoteCallbackList<>());
+        assertThat(mService.getForceInvertOverrideState(testUserId, PACKAGE_NAME))
+                .isEqualTo(FORCE_INVERT_PACKAGE_ALLOWED);
+        Settings.System.putStringForUser(
+                mContentResolver,
+                Settings.System.ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_DISABLE,
+                PACKAGE_NAME,
+                testUserId);
+
+        mUiManagerService.mForceInvertOverrideObserver.onChange(/* selfChange= */ true);
+        assertThat(mService.getForceInvertOverrideState(testUserId, PACKAGE_NAME))
+                .isEqualTo(FORCE_INVERT_PACKAGE_ALWAYS_DISABLE);
+    }
+
+    @Test
+    @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
     public void getForceInvertOverrideState_packageInEnableList_returnsEnable() throws Exception {
         when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_NAME), anyInt()))
                 .thenReturn(TestInjector.DEFAULT_CALLING_UID);
@@ -1740,12 +1718,18 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
     @Test
     @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
     public void getForceInvertOverrideState_packageInBlockList_returnsDisable() throws Exception {
+        int testUserId = 9;
+        switchUser(testUserId);
+        Settings.System.putStringForUser(
+                mContentResolver,
+                Settings.System.ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_DISABLE,
+                null,
+                testUserId
+        );
         when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_NAME), anyInt()))
                 .thenReturn(TestInjector.DEFAULT_CALLING_UID);
         when(mResources.getStringArray(R.array.config_forceInvertPackageBlocklist))
                 .thenReturn(new String[]{PACKAGE_NAME});
-        int testUserId = 9;
-        switchUser(testUserId);
 
         assertThat(mService.getForceInvertOverrideState(testUserId, PACKAGE_NAME))
                 .isEqualTo(FORCE_INVERT_PACKAGE_ALWAYS_DISABLE);
@@ -1753,29 +1737,6 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
 
     @Test
     @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
-    public void getForceInvertOverrideState_packageInBlockList_overrideEnabled_returnsEnable()
-            throws Exception {
-        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_NAME), anyInt()))
-                .thenReturn(TestInjector.DEFAULT_CALLING_UID);
-        when(mResources.getStringArray(R.array.config_forceInvertPackageBlocklist))
-                .thenReturn(new String[]{PACKAGE_NAME});
-        int testUserId = 9;
-        switchUser(testUserId);
-        Settings.System.putStringForUser(
-                mContentResolver,
-                Settings.System.ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_ENABLE,
-                PACKAGE_NAME,
-                testUserId);
-
-        assertThat(mService.getForceInvertOverrideState(testUserId, PACKAGE_NAME))
-                .isEqualTo(FORCE_INVERT_PACKAGE_ALWAYS_ENABLE);
-        assertThat(mService.getForceInvertOverrideState(testUserId + 1, PACKAGE_NAME))
-                .isEqualTo(FORCE_INVERT_PACKAGE_ALWAYS_DISABLE);
-    }
-
-    @Test
-    @EnableFlags({ android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR,
-            android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER })
     public void nightModeFalse_batterySaverOn_forceInvertTypeDark() throws RemoteException {
         int testUserId = 9;
         switchUser(testUserId);

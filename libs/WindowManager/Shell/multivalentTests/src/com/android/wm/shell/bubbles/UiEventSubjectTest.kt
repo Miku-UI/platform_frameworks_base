@@ -22,6 +22,7 @@ import com.android.internal.logging.InstanceId
 import com.android.internal.logging.testing.UiEventLoggerFake
 import com.android.internal.logging.testing.UiEventLoggerFake.FakeUiEvent
 import com.android.wm.shell.bubbles.UiEventSubject.Companion.assertThat
+import com.android.wm.shell.bubbles.logging.BubbleLogger
 import com.google.common.truth.ExpectFailure.assertThat
 import com.google.common.truth.ExpectFailure.expectFailure
 import com.google.common.truth.Subject
@@ -31,7 +32,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 /** Test for [UiEventSubject] */
 @SmallTest

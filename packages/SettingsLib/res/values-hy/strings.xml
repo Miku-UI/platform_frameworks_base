@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wi-Fi-ի ուժգնությունը՝ երեք գիծ:"</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Wi-Fi-ի ազդանշանը ուժեղ է:"</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Միացած է ձեր սարքին։"</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Այս սարքի բոլոր օգտատերերը կարող են տեսնել ցանցը և միանալ դրան։"</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Բաց ցանց"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Անվտանգ ցանց"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Մուտքի կետի անվան կարգավորումները հասանելի չեն այս օգտատիրոջը"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB-ով վրիպազերծում"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Միացնել վրիպազերծման ռեժիմը, երբ USB-ն միացված է"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Չեղարկել USB-ով վրիպազերծման թույլտվությունները"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Փակե՞լ adb վրիպազերծման թույլտվությունները"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Անլար վրիպազերծում"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Ակտիվացնել վրիպազերծման ռեժիմը, երբ Wi-Fi-ը միացված է"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Սխալ"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Սարքը զուգակցվում է…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Չհաջողվեց զուգակցել սարքի հետ։ Հնարավոր է, որ QR կոդը սխալ է, կամ սարքը միացված չէ միևնույն ցանցին։"</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP հասցե և միացք"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Հասանելի չէ (արգելված է)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Անհասանելի է (Wi‑Fi-ն անջատված է)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"QR կոդի սկանավորում"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Զուգակցեք սարքը՝ Wi‑Fi-ի օգնությամբ սկանավորելով QR կոդը"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Միացեք Wi-Fi ցանցի"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB-ով վրիպազերծումը միայն ծրագրավորման նպատակների համար է: Օգտագործեք այն ձեր համակարգչից տվյալները ձեր սարք պատճենելու համար, առանց ծանուցման ձեր սարքի վրա ծրագրեր տեղադրելու և տվյալների մատյանը ընթերցելու համար:"</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Թույլատրե՞լ անլար վրիպազերծումը"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Անլար վրիպազերծումը նախատեսված է միայն ծրագրավորման համար: Այն թույլ է տալիս համակարգչի և սարքի միջև տվյալներ պատճենել, առանց ծանուցման ձեր սարքի վրա հավելվածներ տեղադրել և մատյանի ֆայլերը ընթերցել։"</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Չեղարկե՞լ USB-ով վրիպազերծման հասանելիությունը` անջատելով այն բոլոր համակարգիչներից, որտեղ նախկինում թույլատրել էիք:"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Հեռացնե՞լ adb վրիպազերծման հնարավորությունը այն բոլոր համակարգիչներից և ցանցերից, որոնց նախկինում դա թույլատրել էիք։"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Ընդունե՞լ ծրագրավորման կարգավորումներ:"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Այս կարգավորումները միայն ծրագրավորման նպատակների համար են նախատեսված: Դրանք կարող են խանգարել ձեր սարքի կամ ծրագրի աշխատանքին:"</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Ստուգել հավելվածները USB-ի նկատմամբ"</string>
@@ -572,7 +575,7 @@
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Հատուկ (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Ընտրացանկ"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Մուտքագրեք գաղտնաբառը՝ ցուցադրական ռեժիմում գործարանային կարգավորումների վերականգնում կատարելու համար"</string>
-    <string name="retail_demo_reset_next" msgid="3688129033843885362">"Հաջորդը"</string>
+    <string name="retail_demo_reset_next" msgid="3688129033843885362">"Հաջորդ"</string>
     <string name="retail_demo_reset_title" msgid="1866911701095959800">"Պահանջվում է գաղտնաբառ"</string>
     <string name="active_input_method_subtypes" msgid="4232680535471633046">"Մուտքագրման ակտիվ տարբերակներ"</string>
     <string name="use_system_language_to_select_input_method_subtypes" msgid="4865195835541387040">"Օգտագործել համակարգի լեզուները"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet-ը անջատված է:"</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet։"</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Զանգել հնարավոր չէ։"</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Ֆիզիկական ստեղնաշար"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Ընտրեք ստեղնաշարի դասավորությունը"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Կանխադրված"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Էկրանի միացման կառավարում"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Թույլատրել հավելվածին միացնել էկրանը"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Եթե թույլ տաք, հավելվածը ցանկացած ժամանակ կկարողանա միացնել էկրանը՝ առանց ձեր բացահայտ համաձայնության։"</string>

@@ -10,16 +10,6 @@ flag {
 }
 
 flag {
-  name: "notify_keyguard_events"
-  namespace: "systemui"
-  description: "Send keyguard showing/hiding/going-away events to wallpaper as wallpaper commands (guarded by permission)"
-  bug: "395897130"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "enable_wallpaper_transform_surface_control_command"
   namespace: "systemui"
   description: "Enables sending SurfaceControl to onCommand that could be used to transform the wallpaper"
@@ -30,38 +20,46 @@ flag {
 }
 
 flag {
-  name: "enable_connected_displays_wallpaper"
-  namespace: "lse_desktop_experience"
-  description: "Enable wallpaper support in connected displays"
-  bug: "366461618"
+  name: "enable_wallpaper_description_set_component"
+  namespace: "systemui"
+  description: "Expose setComponent method in WallpaperDescription"
+  bug: "448138290"
+  is_exported: true
 }
 
 flag {
-  name: "update_recents_from_system"
+  name: "postpone_wallpaper_change_notification_on_unlock_user"
   namespace: "systemui"
-  description: "Update recent wallpapers list more reliably. Only effective after rebooting."
-  bug: "395679036"
+  description: "Wait until wallpaper is successfully bound before notifying wallpaper change on unlock user"
+  bug: "466054968"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
 }
 
 flag {
-  name: "fix_wallpaper_crops_on_restore"
+  name: "fix_large_screen_wallpaper_crops_on_restore"
   namespace: "systemui"
-  description: "Preserve center for wallpaper crops on restore"
-  bug: "332937943"
+  description: "Properly adjust the wallpapers crops on restore for large screens. Also improves logic for legacy backups."
+  bug: "441675312"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
 }
 
 flag {
-  name: "always_rebind_user_set_wallpaper"
-    namespace: "systemui"
-    description: "Always rebind wallpapers after a change via WallpaperManager API"
-    bug: "438411848"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
+  name: "use_default_wallpaper_until_unlocked"
+  namespace: "users_and_accounts"
+  description: "Use default wallpaper until the user is unlocked."
+  bug: "484037479"
+}
+
+flag {
+  name: "optimize_default_wallpaper"
+  namespace: "systemui"
+  description: "Optimize the default wallpaper image by scaling it to the display's resolution."
+  bug: "443948180"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
 }

@@ -71,9 +71,11 @@ import com.android.systemui.dump.DumpManager;
 import com.android.systemui.log.LogBuffer;
 import com.android.systemui.log.core.LogLevel;
 import com.android.systemui.log.dagger.StatusBarNetworkControllerLog;
+import com.android.systemui.qs.flags.QsDetailedView;
 import com.android.systemui.qs.tiles.dialog.InternetDialogManager;
 import com.android.systemui.res.R;
 import com.android.systemui.settings.UserTracker;
+import com.android.systemui.shade.domain.interactor.ShadeModeInteractor;
 import com.android.systemui.statusbar.pipeline.StatusBarPipelineFlags;
 import com.android.systemui.statusbar.policy.ConfigurationController;
 import com.android.systemui.statusbar.policy.DataSaverController;
@@ -203,6 +205,7 @@ public class NetworkControllerImpl extends BroadcastReceiver
     private boolean mForceCellularValidated;
     private InternetDialogManager mInternetDialogManager;
     private Handler mMainHandler;
+    private ShadeModeInteractor mShadeModeInteractor;
 
     private ConfigurationController.ConfigurationListener mConfigurationListener =
             new ConfigurationController.ConfigurationListener() {
@@ -245,9 +248,10 @@ public class NetworkControllerImpl extends BroadcastReceiver
             WifiStatusTrackerFactory trackerFactory,
             MobileSignalControllerFactory mobileFactory,
             @Main Handler handler,
-            InternetDialogManager internetDialogManager,
             DumpManager dumpManager,
-            @StatusBarNetworkControllerLog LogBuffer logBuffer) {
+            InternetDialogManager internetDialogManager,
+            @StatusBarNetworkControllerLog LogBuffer logBuffer,
+            ShadeModeInteractor shadeModeInteractor) {
         this(context, connectivityManager,
                 telephonyManager,
                 telephonyListenerManager,
@@ -270,7 +274,8 @@ public class NetworkControllerImpl extends BroadcastReceiver
                 mobileFactory,
                 handler,
                 dumpManager,
-                logBuffer);
+                logBuffer,
+                shadeModeInteractor);
         mReceiverHandler.post(mRegisterListeners);
         mInternetDialogManager = internetDialogManager;
     }
@@ -298,8 +303,8 @@ public class NetworkControllerImpl extends BroadcastReceiver
             MobileSignalControllerFactory mobileFactory,
             @Main Handler handler,
             DumpManager dumpManager,
-            LogBuffer logBuffer
-    ) {
+            LogBuffer logBuffer,
+            ShadeModeInteractor shadeModeInteractor) {
         mContext = context;
         mTelephonyListenerManager = telephonyListenerManager;
         mConfig = config;
@@ -321,6 +326,7 @@ public class NetworkControllerImpl extends BroadcastReceiver
         mCarrierConfigTracker = carrierConfigTracker;
         mDumpManager = dumpManager;
         mLogBuffer = logBuffer;
+        mShadeModeInteractor = shadeModeInteractor;
 
         // telephony
         mPhone = telephonyManager;
@@ -514,7 +520,6 @@ public class NetworkControllerImpl extends BroadcastReceiver
         filter.addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED);
         filter.addAction(Intent.ACTION_SERVICE_STATE);
         filter.addAction(Intent.ACTION_SIM_STATE_CHANGED);
-        filter.addAction(Settings.Panel.ACTION_INTERNET_CONNECTIVITY);
         filter.addAction(TelephonyManager.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED);
         filter.addAction(TelephonyManager.ACTION_DEFAULT_VOICE_SUBSCRIPTION_CHANGED);
         filter.addAction(TelephonyManager.ACTION_SERVICE_PROVIDERS_UPDATED);
@@ -831,11 +836,6 @@ public class NetworkControllerImpl extends BroadcastReceiver
             case CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED:
                 mConfig = Config.readConfig(mContext);
                 mReceiverHandler.post(this::handleConfigurationChanged);
-                break;
-            case Settings.Panel.ACTION_INTERNET_CONNECTIVITY:
-                mMainHandler.post(() -> mInternetDialogManager.create(true,
-                        mAccessPoints.canConfigMobileData(), mAccessPoints.canConfigWifi(),
-                        null /* view */));
                 break;
             default:
                 int subId = intent.getIntExtra(SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX,
@@ -1423,8 +1423,27 @@ public class NetworkControllerImpl extends BroadcastReceiver
     }
 
     private SubscriptionInfo addDemoModeSignalController(int id, int simSlotIndex) {
-        SubscriptionInfo info = new SubscriptionInfo(id, "", simSlotIndex, "", "", 0, 0, "", 0,
-                null, null, null, "", false, null, null);
+        SubscriptionInfo info = new SubscriptionInfo.Builder()
+                .setId(id)
+                .setIccId("")
+                .setSimSlotIndex(simSlotIndex)
+                .setDisplayName("")
+                .setCarrierName("")
+                .setDisplayNameSource(0)
+                .setIconTint(0)
+                .setNumber("")
+                .setDataRoaming(0)
+                .setIcon(null)
+                .setMcc("")
+                .setMnc("")
+                .setCountryIso("")
+                .setEmbedded(false)
+                .setNativeAccessRules(null)
+                .setCardString("")
+                .setCardId(-1)
+                .setPortIndex(0)
+                .setUsageSetting(SubscriptionManager.USAGE_SETTING_DEFAULT)
+                .build();
 
         MobileSignalController controller = mMobileFactory.createMobileSignalController(
                 mConfig,

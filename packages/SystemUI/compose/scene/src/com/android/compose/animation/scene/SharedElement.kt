@@ -18,7 +18,6 @@ package com.android.compose.animation.scene
 
 import com.android.compose.animation.scene.content.state.TransitionState
 import com.android.compose.animation.scene.transformation.SharedElementTransformation
-import com.android.compose.animation.scene.transformation.TransformationWithRange
 
 internal fun shouldPlaceSharedElement(
     layoutImpl: SceneTransitionLayoutImpl,
@@ -35,6 +34,10 @@ internal fun shouldPlaceSharedElement(
             toContentZIndex = layoutImpl.content(transition.toContent).globalZIndex,
         )
 
+    log(elementKey, content) {
+        "shouldPlaceSharedElement() pickedContent=$pickedContent, " +
+            "isAncestor=${layoutImpl.isAncestorContent(pickedContent)} "
+    }
     return pickedContent == content || layoutImpl.isAncestorContent(pickedContent)
 }
 
@@ -42,13 +45,13 @@ internal fun isSharedElementEnabled(
     element: ElementKey,
     transition: TransitionState.Transition,
 ): Boolean {
-    return sharedElementTransformation(element, transition)?.transformation?.enabled ?: true
+    return sharedElementTransformation(element, transition)?.enabled ?: true
 }
 
 internal fun sharedElementTransformation(
     element: ElementKey,
     transition: TransitionState.Transition,
-): TransformationWithRange<SharedElementTransformation>? {
+): SharedElementTransformation? {
     val transformationSpec = transition.transformationSpec
     val sharedInFromContent =
         transformationSpec.transformations(element, transition.fromContent)?.shared

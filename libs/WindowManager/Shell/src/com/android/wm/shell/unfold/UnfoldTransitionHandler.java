@@ -110,7 +110,7 @@ public class UnfoldTransitionHandler implements TransitionHandler, UnfoldListene
     public UnfoldTransitionHandler(ShellInit shellInit,
             ShellUnfoldProgressProvider unfoldProgressProvider,
             FullscreenUnfoldTaskAnimator fullscreenUnfoldAnimator,
-            SplitTaskUnfoldAnimator splitUnfoldTaskAnimator,
+            Optional<SplitTaskUnfoldAnimator> splitUnfoldTaskAnimator,
             TransactionPool transactionPool,
             Executor executor,
             Handler handler,
@@ -123,7 +123,7 @@ public class UnfoldTransitionHandler implements TransitionHandler, UnfoldListene
         mHandler = handler;
         mBubbleTaskUnfoldTransitionMerger = bubbleTaskUnfoldTransitionMerger;
 
-        mAnimators.add(splitUnfoldTaskAnimator);
+        splitUnfoldTaskAnimator.ifPresent(mAnimators::add);
         mAnimators.add(fullscreenUnfoldAnimator);
         // TODO(b/238217847): Temporarily add this check here until we can remove the dynamic
         //                    override for this controller from the base module
@@ -157,7 +157,7 @@ public class UnfoldTransitionHandler implements TransitionHandler, UnfoldListene
             info.getChanges().forEach(change -> {
                 if (change.getTaskInfo() != null) {
                     ProtoLog.v(WM_SHELL_TRANSITIONS,
-                            "startAnimation, check taskInfo: %s, mode: %s, isApplicableTask: %s",
+                            "startAnimation, check taskInfo: %s, mode: %s, isApplicableTask: %b",
                             change.getTaskInfo(), TransitionInfo.modeToString(change.getMode()),
                             animator.isApplicableTask(change.getTaskInfo()));
                 }
@@ -315,16 +315,25 @@ public class UnfoldTransitionHandler implements TransitionHandler, UnfoldListene
         if (!ValueAnimator.areAnimatorsEnabled()) return false;
 
         return (request.getType() == TRANSIT_CHANGE
-                && getDefaultDisplayChange(request.getDisplayChange())
+                && getDefaultDisplayChange(request.getDisplayChanges())
                 == DefaultDisplayChange.DEFAULT_DISPLAY_UNFOLD);
     }
 
     @DefaultDisplayChange
     private int getDefaultDisplayChange(
-            @Nullable TransitionRequestInfo.DisplayChange displayChange) {
-        if (displayChange == null) return DefaultDisplayChange.DEFAULT_DISPLAY_NO_CHANGE;
+            @Nullable List<TransitionRequestInfo.DisplayChange> displayChanges) {
+        if (displayChanges == null) return DefaultDisplayChange.DEFAULT_DISPLAY_NO_CHANGE;
 
-        if (displayChange.getDisplayId() != DEFAULT_DISPLAY) {
+        TransitionRequestInfo.DisplayChange displayChange = null;
+        for (int i = 0; i < displayChanges.size(); i++) {
+            TransitionRequestInfo.DisplayChange change = displayChanges.get(i);
+            if (change.getDisplayId() == DEFAULT_DISPLAY) {
+                displayChange = change;
+                break;
+            }
+        }
+
+        if (displayChange == null) {
             return DefaultDisplayChange.DEFAULT_DISPLAY_NO_CHANGE;
         }
 

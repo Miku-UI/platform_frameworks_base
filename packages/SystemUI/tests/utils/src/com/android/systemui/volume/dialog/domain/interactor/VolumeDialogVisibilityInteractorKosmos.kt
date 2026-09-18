@@ -37,6 +37,6 @@ val Kosmos.volumeDialogVisibilityInteractor by
             volumeDialogController,
             secureSettingsRepository,
             shadeInteractor,
-            desktopAudioTileDetailsFeatureInteractor,
+            expandedAudioTileDetailsFeatureInteractor,
         )
     }

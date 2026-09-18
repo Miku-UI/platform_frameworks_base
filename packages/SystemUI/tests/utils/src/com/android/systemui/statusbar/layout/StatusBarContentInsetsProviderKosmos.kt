@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.layout
 
 import android.content.applicationContext
+import android.view.Display
 import com.android.systemui.SysUICutoutProvider
 import com.android.systemui.dump.dumpManager
 import com.android.systemui.kosmos.Kosmos
@@ -36,11 +37,6 @@ val Kosmos.statusBarContentInsetsProvider by
             dumpManager,
             commandRegistry,
             mock<SysUICutoutProvider>(),
+            Display.DEFAULT_DISPLAY,
         )
     }
-
-val Kosmos.fakeStatusBarContentInsetsProviderFactory by
-    Kosmos.Fixture { FakeStatusBarContentInsetsProviderFactory() }
-
-var Kosmos.statusBarContentInsetsProviderFactory: StatusBarContentInsetsProviderImpl.Factory by
-    Kosmos.Fixture { fakeStatusBarContentInsetsProviderFactory }

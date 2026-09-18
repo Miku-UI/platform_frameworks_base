@@ -18,7 +18,6 @@ package com.android.wm.shell.desktopmode
 
 import android.os.IBinder
 import android.view.SurfaceControl
-import android.window.DesktopModeFlags
 import android.window.TransitionInfo
 import com.android.internal.protolog.ProtoLog
 import com.android.wm.shell.desktopmode.multidesks.DesksTransitionObserver
@@ -35,7 +34,6 @@ class DesktopInOrderTransitionObserver(
     private val desktopImeHandler: Optional<DesktopImeHandler>,
     private val desktopBackNavTransitionObserver: Optional<DesktopBackNavTransitionObserver>,
     private val desktopModeLoggerTransitionObserver: DesktopModeLoggerTransitionObserver,
-    private val displayFocusResolver: Optional<DisplayFocusResolver>,
 ) : Transitions.TransitionObserver {
 
     override fun onTransitionReady(
@@ -49,13 +47,11 @@ class DesktopInOrderTransitionObserver(
         // transition, such as when unminimizing a task from an inactive desk.
         desksTransitionObserver.ifPresent { it.onTransitionReady(transition, info) }
 
-        if (DesktopModeFlags.ENABLE_FULLY_IMMERSIVE_IN_DESKTOP.isTrue) {
-            // TODO(b/367268953): Remove when DesktopTaskListener is introduced and the repository
-            //  is updated from there **before** the |mWindowDecorViewModel| methods are invoked.
-            //  Otherwise window decoration relayout won't run with the immersive state up to date.
-            desktopImmersiveController.ifPresent {
-                it.onTransitionReady(transition, info, startT, finishT)
-            }
+        // TODO(b/367268953): Remove when DesktopTaskListener is introduced and the repository
+        //  is updated from there **before** the |mWindowDecorViewModel| methods are invoked.
+        //  Otherwise window decoration relayout won't run with the immersive state up to date.
+        desktopImmersiveController.ifPresent {
+            it.onTransitionReady(transition, info, startT, finishT)
         }
         // Update focus state first to ensure the correct state can be queried from listeners.
         // TODO(371503964): Remove this once the unified task repository is ready.
@@ -65,35 +61,28 @@ class DesktopInOrderTransitionObserver(
         desktopImeHandler.ifPresent { it.onTransitionReady(transition, info) }
         desktopBackNavTransitionObserver.ifPresent { it.onTransitionReady(transition, info) }
         desktopModeLoggerTransitionObserver.onTransitionReady(transition, info, startT, finishT)
-        displayFocusResolver.ifPresent { it.onTransitionReady(info) }
     }
 
     override fun onTransitionStarting(transition: IBinder) {
-        if (DesktopModeFlags.ENABLE_FULLY_IMMERSIVE_IN_DESKTOP.isTrue) {
-            // TODO(b/367268953): Remove when DesktopTaskListener is introduced.
-            desktopImmersiveController.ifPresent { it.onTransitionStarting(transition) }
-        }
+        // TODO(b/367268953): Remove when DesktopTaskListener is introduced.
+        desktopImmersiveController.ifPresent { it.onTransitionStarting(transition) }
     }
 
     override fun onTransitionMerged(merged: IBinder, playing: IBinder) {
         desksTransitionObserver.ifPresent { it.onTransitionMerged(merged, playing) }
-        if (DesktopModeFlags.ENABLE_FULLY_IMMERSIVE_IN_DESKTOP.isTrue) {
-            // TODO(b/367268953): Remove when DesktopTaskListener is introduced.
-            desktopImmersiveController.ifPresent { it.onTransitionMerged(merged, playing) }
-        }
+        // TODO(b/367268953): Remove when DesktopTaskListener is introduced.
+        desktopImmersiveController.ifPresent { it.onTransitionMerged(merged, playing) }
     }
 
     override fun onTransitionFinished(transition: IBinder, aborted: Boolean) {
         desksTransitionObserver.ifPresent { it.onTransitionFinished(transition) }
-        if (DesktopModeFlags.ENABLE_FULLY_IMMERSIVE_IN_DESKTOP.isTrue) {
-            // TODO(b/367268953): Remove when DesktopTaskListener is introduced.
-            desktopImmersiveController.ifPresent { h ->
-                h.onTransitionFinished(transition, aborted)
-            }
-        }
+        // TODO(b/367268953): Remove when DesktopTaskListener is introduced.
+        desktopImmersiveController.ifPresent { h -> h.onTransitionFinished(transition, aborted) }
         desktopModeLoggerTransitionObserver.onTransitionFinished(transition, aborted)
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logD(msg: String, vararg arguments: Any?) {
         ProtoLog.d(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }

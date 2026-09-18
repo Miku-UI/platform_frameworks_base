@@ -34,13 +34,12 @@ import org.junit.Test
 /**
  * Base class for testing unminimizing apps via Alt-Tab in Desktop Mode.
  *
- * Sets up Calculator, Clock, and YouTube in Desktop Mode, minimises YouTube, then tests if
- * a quick switch action re-opens YouTube.
+ * Sets up Calculator, Clock, and YouTube in Desktop Mode, minimises YouTube, then tests if a quick
+ * switch action re-opens YouTube.
  */
 @Ignore("Test Base Class")
-abstract class AltTabSwitchToUnminimizeInDesktopMode(
-    val rotation: Rotation = Rotation.ROTATION_0
-) : TestScenarioBase(rotation) {
+abstract class AltTabSwitchToUnminimizeInDesktopMode(val rotation: Rotation = Rotation.ROTATION_0) :
+    TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val tapl = LauncherInstrumentation()
@@ -79,8 +78,6 @@ abstract class AltTabSwitchToUnminimizeInDesktopMode(
 
     @After
     fun teardown() {
-        appsInDesktop.reversed().forEach { desktopApp ->
-            desktopApp.exit(wmHelper)
-        }
+        appsInDesktop.reversed().forEach { desktopApp -> desktopApp.exit(wmHelper) }
     }
 }

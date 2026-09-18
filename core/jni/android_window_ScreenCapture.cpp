@@ -82,6 +82,7 @@ static struct {
     jfieldID preserveDisplayColors;
     jfieldID useDisplayInstallationOrientation;
     jfieldID includeAllLayers;
+    jfieldID exclusionMask;
 } gCaptureArgsClassInfo;
 
 static struct {
@@ -249,6 +250,8 @@ static void getCaptureArgs(JNIEnv* env, jobject captureArgsObject, CaptureArgs& 
                                  gCaptureArgsClassInfo.useDisplayInstallationOrientation);
     captureArgs.includeAllLayers =
             env->GetBooleanField(captureArgsObject, gCaptureArgsClassInfo.includeAllLayers);
+    captureArgs.exclusionMask =
+            env->GetIntField(captureArgsObject, gCaptureArgsClassInfo.exclusionMask);
 }
 
 static DisplayCaptureArgs displayCaptureArgsFromObject(JNIEnv* env,
@@ -394,6 +397,8 @@ int register_android_window_ScreenCapture(JNIEnv* env) {
             GetFieldIDOrDie(env, captureArgsClazz, "mUseDisplayInstallationOrientation", "Z");
     gCaptureArgsClassInfo.includeAllLayers =
             GetFieldIDOrDie(env, captureArgsClazz, "mIncludeSystemOverlays", "Z");
+    gCaptureArgsClassInfo.exclusionMask =
+            GetFieldIDOrDie(env, captureArgsClazz, "mExclusionMask", "I");
 
     jclass displayCaptureArgsClazz =
             FindClassOrDie(env, "android/window/ScreenCaptureInternal$DisplayCaptureArgs");

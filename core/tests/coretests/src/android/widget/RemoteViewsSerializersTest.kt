@@ -124,6 +124,7 @@ import android.widget.RemoteViewsSerializers.writeTypefaceSpanToProto
 import android.widget.RemoteViewsSerializers.writeURLSpanToProto
 import android.widget.RemoteViewsSerializers.writeUnderlineSpanToProto
 import androidx.core.os.persistableBundleOf
+import androidx.core.text.toSpanned
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.frameworks.coretests.R
@@ -215,6 +216,24 @@ class RemoteViewsSerializersTest {
         val copy = RemoteViewsSerializers.createDurationFromProto(input)
 
         assertThat(copy).isEqualTo(duration)
+    }
+
+    @Test
+    fun writeCharSequenceListToProto() {
+        val charSequenceList = listOf(
+            SpannableStringBuilder().append("Hello", ForegroundColorSpan(Color.BLUE), 0),
+            "plain string world"
+        )
+
+        val out = ProtoOutputStream()
+        RemoteViewsSerializers.writeCharSequenceListToProto(out, charSequenceList)
+        val input = ProtoInputStream(out.bytes)
+        val copy = RemoteViewsSerializers.createCharSequenceListFromProto(input)
+
+        assertThat(copy).hasSize(2)
+        assertThat(copy.get(0).toString()).isEqualTo("Hello")
+        assertThat(copy.get(0).toSpanned().getSpans(0, copy.get(0).length, ForegroundColorSpan::class.java)).hasLength(1)
+        assertThat(copy.get(1).toString()).isEqualTo("plain string world")
     }
 
     @Test

@@ -299,6 +299,11 @@ public class Task {
     @ViewDebug.ExportedProperty(category="recents")
     public boolean isLocked;
 
+    // TODO(b/464299436): Consider using the App Lock locked state instead of the App Lock enabled
+    //  state for recents.
+    @ViewDebug.ExportedProperty(category = "recents")
+    public boolean isAppLockEnabled;
+
     public Point positionInParent;
 
     public Rect appBounds;
@@ -320,7 +325,7 @@ public class Task {
         ActivityManager.TaskDescription td = taskInfo.taskDescription;
         // Also consider undefined activity type to include tasks in overview right after rebooting
         // the device.
-        final boolean isDockable = taskInfo.supportsMultiWindow
+        final boolean isDockable = taskInfo.supportsMultiWindowWithoutConstraints
                 && ArrayUtils.contains(
                         CONTROLLED_WINDOWING_MODES_WHEN_ACTIVE, taskInfo.getWindowingMode())
                 && (taskInfo.getActivityType() == ACTIVITY_TYPE_UNDEFINED
@@ -330,6 +335,7 @@ public class Task {
                 td != null ? td.getBackgroundColor() : 0, isDockable , isLocked, td,
                 taskInfo.topActivity);
         result.appBounds = taskInfo.configuration.windowConfiguration.getAppBounds();
+        result.isAppLockEnabled = taskInfo.isRealActivityAppLockEnabled;
         return result;
     }
 
@@ -352,6 +358,7 @@ public class Task {
         appBounds = other.appBounds;
         isVisible = other.isVisible;
         isMinimized = other.isMinimized;
+        isAppLockEnabled = other.isAppLockEnabled;
     }
 
     /**
@@ -415,6 +422,9 @@ public class Task {
         }
         if (isLocked) {
             writer.print(" locked=Y");
+        }
+        if (isAppLockEnabled) {
+            writer.print(" appLockEnabled=Y");
         }
         writer.print(" "); writer.print(title);
         writer.println();

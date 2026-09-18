@@ -39,6 +39,7 @@ import com.android.wm.shell.bubbles.BubblePositioner;
 import com.android.wm.shell.bubbles.BubbleStackView;
 import com.android.wm.shell.shared.animation.Interpolators;
 import com.android.wm.shell.shared.animation.PhysicsAnimator;
+import com.android.wm.shell.shared.bubbles.logging.BubbleLog;
 import com.android.wm.shell.shared.magnetictarget.MagnetizedObject;
 
 import com.google.android.collect.Sets;
@@ -94,7 +95,8 @@ public class ExpandedAnimationController
     private float mBubbleSizePx;
     /** Whether the expand / collapse animation is running. */
     private boolean mAnimatingExpand = false;
-
+    /** Whether the expand is part of jumpcut switching. */
+    private boolean mAnimatingExpandAsJumpcutSwitching = false;
     /**
      * Whether we are animating other Bubbles UI elements out in preparation for a call to
      * {@link #collapseBackToStack}. If true, we won't animate bubbles in response to adds or
@@ -105,6 +107,8 @@ public class ExpandedAnimationController
     private boolean mAnimatingCollapse = false;
     @Nullable
     private Runnable mAfterExpand;
+    @Nullable
+    private Runnable mAfterExpandAsJumpcutSwitching;
     private Runnable mAfterCollapse;
     private PointF mCollapsePoint;
     private boolean mFadeBubblesDuringCollapse = false;
@@ -187,6 +191,12 @@ public class ExpandedAnimationController
         mPreparingToCollapse = false;
         mAnimatingCollapse = false;
         mAnimatingExpand = true;
+        mAnimatingExpandAsJumpcutSwitching = false;
+        if (mAfterExpand != null || mAfterExpandAsJumpcutSwitching != null) {
+            // This may result the previous mAfterExpand never being called.
+            BubbleLog.w("Starting a new expandFromStack before the previous one has finished.");
+        }
+        executeAfterExpandAsJumpcutSwitchingIfNeeded();
         mAfterExpand = after;
         mLeadBubbleEndAction = leadBubbleEndAction;
 
@@ -214,6 +224,12 @@ public class ExpandedAnimationController
     public void collapseBackToStack(PointF collapsePoint, boolean fadeBubblesDuringCollapse,
             Runnable after) {
         mAnimatingExpand = false;
+        mAnimatingExpandAsJumpcutSwitching = false;
+        if (mAfterExpand != null || mAfterExpandAsJumpcutSwitching != null) {
+            // This may result the previous mAfterExpand never being called.
+            BubbleLog.w("Starting collapseBackToStack before the previous expand has finished.");
+        }
+        executeAfterExpandAsJumpcutSwitchingIfNeeded();
         mPreparingToCollapse = false;
         mAnimatingCollapse = true;
         mAfterCollapse = after;
@@ -248,13 +264,16 @@ public class ExpandedAnimationController
 
                 if (mAfterExpand != null) {
                     mAfterExpand.run();
+                    mAfterExpand = null;
                 }
-
-                mAfterExpand = null;
+                executeAfterExpandAsJumpcutSwitchingIfNeeded();
 
                 // Update bubble positions in case any bubbles were added or removed during the
                 // expansion animation.
                 updateBubblePositions();
+
+                // Reset after Bubble positions update.
+                mAnimatingExpandAsJumpcutSwitching = false;
             };
         } else {
             after = () -> {
@@ -552,12 +571,30 @@ public class ExpandedAnimationController
 
     @Override
     void onChildAdded(View child, int index) {
+        final boolean isJumpcutBubbleSwitching = mBubbleStackView.isJumpcutBubbleSwitching();
+
         // If a bubble is added while the expand/collapse animations are playing, update the
         // animation to include the new bubble.
         if (mAnimatingExpand) {
+            if (isJumpcutBubbleSwitching) {
+                // New Bubble icon add during previous expand animation is more common for Task
+                // trampoline, because the transition for the trampoline Task won't wait for Bubble
+                // icon animation.
+                // No need to animate the new child, but waiting #mAfterExpand to update at the end.
+                // Cache the jumpcut switching because the transition could have been finished
+                // earlier, which only wait for the TaskView animation.
+                mAnimatingExpandAsJumpcutSwitching = true;
+                // Keep the new Bubble invisible until the previous expand is done.
+                child.setVisibility(View.INVISIBLE);
+                return;
+            }
             startOrUpdatePathAnimation(true /* expanding */);
         } else if (mAnimatingCollapse) {
             startOrUpdatePathAnimation(false /* expanding */);
+        } else if (isJumpcutBubbleSwitching) {
+            // During Task trampoline, we want to switch the Bubble icon as a jumpcut, so for the
+            // second Bubble icon added, directly update all Bubbles' positions.
+            updateBubblePositions();
         } else {
             boolean onLeft = mPositioner.isStackOnLeft(mCollapsePoint);
             final PointF p = mPositioner.getExpandedBubbleXY(index, mBubbleStackView.getState());
@@ -597,6 +634,22 @@ public class ExpandedAnimationController
             mMagnetizedBubbleDraggingOut = null;
             finishRemoval.run();
             mOnBubbleAnimatedOutAction.run();
+        } else if (mBubbleStackView.isJumpcutBubbleSwitching()) {
+            if (mAnimatingExpand) {
+                // In case it is animating, wait until the current expanding animation is done to
+                // remove the transient view.
+                final Runnable prevAfter = mAfterExpandAsJumpcutSwitching;
+                mAfterExpandAsJumpcutSwitching = () -> {
+                    if (prevAfter != null) {
+                        prevAfter.run();
+                    }
+                    finishRemoval.run();
+                    mOnBubbleAnimatedOutAction.run();
+                };
+            } else {
+                finishRemoval.run();
+                mOnBubbleAnimatedOutAction.run();
+            }
         } else {
             PhysicsAnimator.getInstance(child)
                     .spring(DynamicAnimation.ALPHA, 0f)
@@ -637,10 +690,19 @@ public class ExpandedAnimationController
         updateBubblePositions();
     }
 
+    private void executeAfterExpandAsJumpcutSwitchingIfNeeded() {
+        if (mAfterExpandAsJumpcutSwitching != null) {
+            mAfterExpandAsJumpcutSwitching.run();
+            mAfterExpandAsJumpcutSwitching = null;
+        }
+    }
+
     private void updateBubblePositions() {
         if (mAnimatingExpand || mAnimatingCollapse) {
             return;
         }
+        final boolean isJumpcutBubbleSwitching = mAnimatingExpandAsJumpcutSwitching
+                || mBubbleStackView.isJumpcutBubbleSwitching();
         for (int i = 0; i < mLayout.getChildCount(); i++) {
             final View bubble = mLayout.getChildAt(i);
 
@@ -650,11 +712,18 @@ public class ExpandedAnimationController
                 return;
             }
 
+            bubble.setVisibility(View.VISIBLE);
             final PointF p = mPositioner.getExpandedBubbleXY(i, mBubbleStackView.getState());
-            animationForChild(bubble)
-                    .translationX(p.x)
-                    .translationY(p.y)
-                    .start();
+            if (isJumpcutBubbleSwitching) {
+                // Directly apply the final position.
+                bubble.setTranslationX(p.x);
+                bubble.setTranslationY(p.y);
+            } else {
+                animationForChild(bubble)
+                        .translationX(p.x)
+                        .translationY(p.y)
+                        .start();
+            }
         }
     }
 

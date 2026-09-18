@@ -18,9 +18,9 @@ package android.hardware.lights;
 
 import android.Manifest;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.content.Context;
-import android.hardware.lights.LightsManager.LightsSession;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.ServiceManager.ServiceNotFoundException;
@@ -28,6 +28,7 @@ import android.util.CloseGuard;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.Preconditions;
+import com.android.server.lights.feature.flags.Flags;
 
 import java.lang.ref.Reference;
 import java.util.List;
@@ -88,6 +89,22 @@ public final class SystemLightsManager extends LightsManager {
         Preconditions.checkNotNull(light);
         try {
             return mService.getLightState(light.getId());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Returns the color sequence associated with a light if the light is playing an effect.
+     *
+     * @hide
+     */
+    @RequiresPermission(Manifest.permission.CONTROL_DEVICE_LIGHTS)
+    @Override
+    public @Nullable ColorSequence getLightSequence(@NonNull Light light) {
+        Preconditions.checkNotNull(light);
+        try {
+            return mService.getLightSequence(light.getId());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -161,21 +178,45 @@ public final class SystemLightsManager extends LightsManager {
         public void requestLights(@NonNull LightsRequest request) {
             Preconditions.checkNotNull(request);
             if (!mClosed) {
-                try {
-                    List<Integer> idList = request.getLights();
-                    List<LightState> stateList = request.getLightStates();
-                    int[] ids = new int[idList.size()];
-                    for (int i = 0; i < idList.size(); i++) {
-                        ids[i] = idList.get(i);
+                if (Flags.enableLightAnimations()) {
+                    if (request.getLights().size() > 0) {
+                        sendStaticStates(request);
                     }
-                    LightState[] states = new LightState[stateList.size()];
-                    for (int i = 0; i < stateList.size(); i++) {
-                        states[i] = stateList.get(i);
+
+                    if (request.getEffect() != null) {
+                        sendEffect(request);
                     }
-                    mService.setLightStates(getToken(), ids, states);
-                } catch (RemoteException e) {
-                    throw e.rethrowFromSystemServer();
+                } else {
+                    sendStaticStates(request);
                 }
+            }
+        }
+
+        @RequiresPermission(Manifest.permission.CONTROL_DEVICE_LIGHTS)
+        private void sendStaticStates(@NonNull LightsRequest request) {
+            try {
+                List<Integer> idList = request.getLights();
+                List<LightState> stateList = request.getLightStates();
+                int[] ids = new int[idList.size()];
+                for (int i = 0; i < idList.size(); i++) {
+                    ids[i] = idList.get(i);
+                }
+                LightState[] states = new LightState[stateList.size()];
+                for (int i = 0; i < stateList.size(); i++) {
+                    states[i] = stateList.get(i);
+                }
+                mService.setLightStates(getToken(), ids, states);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+        }
+
+        @RequiresPermission(Manifest.permission.CONTROL_DEVICE_LIGHTS)
+        private void sendEffect(@NonNull LightsRequest request) {
+            try {
+                mService.setLightEffect(getToken(), request.getEffect());
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
             }
         }
 

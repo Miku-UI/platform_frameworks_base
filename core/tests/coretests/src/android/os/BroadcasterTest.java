@@ -16,19 +16,14 @@
 
 package android.os;
 
-import android.platform.test.ravenwood.RavenwoodRule;
-
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 @RunWith(AndroidJUnit4.class)
 public class BroadcasterTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private static final int MESSAGE_A = 23234;
     private static final int MESSAGE_B = 3;

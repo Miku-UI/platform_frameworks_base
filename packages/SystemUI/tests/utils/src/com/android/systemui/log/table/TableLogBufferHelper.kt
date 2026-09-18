@@ -33,7 +33,10 @@ fun logcatTableLogBuffer(kosmos: Kosmos, name: String = "EchoToLogcatTableLogBuf
  * Creates a [TableLogBuffer] that will echo everything to logcat, which is useful for debugging
  * tests.
  */
-fun logcatTableLogBuffer(systemClock: SystemClock, name: String = "EchoToLogcatTableLogBuffer") =
+fun logcatTableLogBuffer(
+    systemClock: SystemClock,
+    name: String = "EchoToLogcatTableLogBuffer",
+): TableLogBuffer =
     TableLogBufferImpl(
         maxSize = 50,
         name,

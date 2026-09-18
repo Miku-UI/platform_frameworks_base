@@ -90,10 +90,10 @@ public class DisableFlagsControllerTest {
 
         mDisableFlagsController.applySecureLockDeviceValue(mSettingState, TEST_USER_ID);
 
-        verify(mStatusBarService).disable(eq(DISABLE_FLAGS), any(),
-                eq(TEST_PACKAGE_NAME));
-        verify(mStatusBarService).disable2(eq(DISABLE2_FLAGS), any(),
-                eq(TEST_PACKAGE_NAME));
+        verify(mStatusBarService).disableForUser(eq(DISABLE_FLAGS), any(),
+                eq(TEST_PACKAGE_NAME), eq(TEST_USER_ID));
+        verify(mStatusBarService).disable2ForUser(eq(DISABLE2_FLAGS), any(),
+                eq(TEST_PACKAGE_NAME), eq(TEST_USER_ID));
     }
 
     @Test
@@ -103,8 +103,8 @@ public class DisableFlagsControllerTest {
 
         controller.applySecureLockDeviceValue(mSettingState, TEST_USER_ID);
 
-        verify(mStatusBarService, never()).disable(anyInt(), any(), anyString());
-        verify(mStatusBarService, never()).disable2(anyInt(), any(), anyString());
+        verify(mStatusBarService, never()).disableForUser(anyInt(), any(), anyString(), anyInt());
+        verify(mStatusBarService, never()).disable2ForUser(anyInt(), any(), anyString(), anyInt());
     }
 
     @Test
@@ -114,8 +114,10 @@ public class DisableFlagsControllerTest {
 
         mDisableFlagsController.restoreFromOriginalValue(mSettingState, TEST_USER_ID);
 
-        verify(mStatusBarService).disable(eq(DISABLE_FLAGS), any(), eq(TEST_PACKAGE_NAME));
-        verify(mStatusBarService).disable2(eq(DISABLE2_FLAGS), any(), eq(TEST_PACKAGE_NAME));
+        verify(mStatusBarService).disableForUser(eq(DISABLE_FLAGS), any(), eq(TEST_PACKAGE_NAME),
+                eq(TEST_USER_ID));
+        verify(mStatusBarService).disable2ForUser(eq(DISABLE2_FLAGS), any(), eq(TEST_PACKAGE_NAME),
+                eq(TEST_USER_ID));
     }
 
     @Test
@@ -126,8 +128,8 @@ public class DisableFlagsControllerTest {
 
         controller.restoreFromOriginalValue(mSettingState, TEST_USER_ID);
 
-        verify(mStatusBarService, never()).disable(anyInt(), any(), anyString());
-        verify(mStatusBarService, never()).disable2(anyInt(), any(), anyString());
+        verify(mStatusBarService, never()).disableForUser(anyInt(), any(), anyString(), anyInt());
+        verify(mStatusBarService, never()).disable2ForUser(anyInt(), any(), anyString(), anyInt());
     }
 
     @Test
@@ -136,8 +138,8 @@ public class DisableFlagsControllerTest {
 
         mDisableFlagsController.restoreFromOriginalValue(mSettingState, TEST_USER_ID);
 
-        verify(mStatusBarService, never()).disable(anyInt(), any(), anyString());
-        verify(mStatusBarService, never()).disable2(anyInt(), any(), anyString());
+        verify(mStatusBarService, never()).disableForUser(anyInt(), any(), anyString(), anyInt());
+        verify(mStatusBarService, never()).disable2ForUser(anyInt(), any(), anyString(), anyInt());
     }
 
 }

@@ -134,7 +134,7 @@ public class ActivityMetricsLaunchObserver {
      * will later terminate by either finishing or cancelling.
      *
      * The initial activity is the first activity to be started as part of a launch sequence:
-     * it is represented by {@param activity} However, it isn't
+     * it is represented by {@code activity} However, it isn't
      * necessarily the activity which will be considered as displayed when the activity
      * finishes launching (e.g. {@code activity} in {@link #onActivityLaunchFinished}).
      *

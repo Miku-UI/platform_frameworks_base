@@ -28,7 +28,7 @@ import static android.app.ActivityManager.PROCESS_STATE_RECEIVER;
 import static android.app.ActivityManager.PROCESS_STATE_SERVICE;
 import static android.app.ActivityManager.PROCESS_STATE_TOP;
 
-import static com.android.server.am.ProcessList.UNKNOWN_ADJ;
+import static com.android.server.am.psc.Constants.UNKNOWN_ADJ;
 
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertNotNull;

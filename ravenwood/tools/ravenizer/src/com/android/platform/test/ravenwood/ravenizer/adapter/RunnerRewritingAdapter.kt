@@ -28,6 +28,7 @@ import com.android.hoststubgen.visitors.OPCODE_VERSION
 import com.android.platform.test.ravenwood.ravenizer.RavenizerInternalException
 import com.android.platform.test.ravenwood.ravenizer.classRuleAnotType
 import com.android.platform.test.ravenwood.ravenizer.innerRunnerAnotType
+import com.android.platform.test.ravenwood.ravenizer.isJUnit3LookingClass
 import com.android.platform.test.ravenwood.ravenizer.isTestLookingClass
 import com.android.platform.test.ravenwood.ravenizer.noRavenizerAnotType
 import com.android.platform.test.ravenwood.ravenizer.ravenwoodTestRunnerType
@@ -69,6 +70,9 @@ class RunnerRewritingAdapter(
     /** True if this visitor is generating code. */
     var isGeneratingCode = false
 
+    /** True if the current class is a JUnit3 test class. */
+    var isJUnit3LookingClass = false
+
     /** Run a [block] with [isGeneratingCode] set to true. */
     private inline fun <T> generateCode(block: () -> T): T {
         isGeneratingCode = true
@@ -92,14 +96,18 @@ class RunnerRewritingAdapter(
         if (!isTestLookingClass(classes, name)) {
             throw RavenizerInternalException("This adapter shouldn't be used for non-test class")
         }
+        isJUnit3LookingClass = isJUnit3LookingClass(classes, name)
         super.visit(version, access, name, signature, superName, interfaces)
 
         generateCode {
             injectRunWithAnnotation()
-            if (!classes.hasClassInitializer(classInternalName)) {
-                injectStaticInitializer()
+            if (!isJUnit3LookingClass) {
+                // Inject JUnit4 rules for method hooks
+                if (!classes.hasClassInitializer(classInternalName)) {
+                    injectStaticInitializer()
+                }
+                injectRules()
             }
-            injectRules()
         }
     }
 
@@ -226,16 +234,10 @@ class RunnerRewritingAdapter(
         )
      */
 
-    val sRavenwood_ClassRuleMin = "sRavenwood_ClassRuleMin"
-    val sRavenwood_ClassRuleMax = "sRavenwood_ClassRuleMax"
     val mRavenwood_InstRuleMin = "mRavenwood_InstRuleMin"
-    val mRavenwood_InstRuleMax = "mRavenwood_InstRuleMax"
 
     private fun injectRules() {
-        injectRule(sRavenwood_ClassRuleMin, true, Integer.MIN_VALUE)
-        injectRule(sRavenwood_ClassRuleMax, true, Integer.MAX_VALUE)
         injectRule(mRavenwood_InstRuleMin, false, Integer.MIN_VALUE)
-        injectRule(mRavenwood_InstRuleMax, false, Integer.MAX_VALUE)
     }
 
     private fun injectRule(fieldName: String, isStatic: Boolean, order: Int) {
@@ -263,68 +265,14 @@ class RunnerRewritingAdapter(
         exceptions: Array<String>?,
     ): MethodVisitor {
         val next = super.visitMethod(access, name, descriptor, signature, exceptions)
-        if (name == CLASS_INITIALIZER_NAME && descriptor == CLASS_INITIALIZER_DESC) {
-            return ClassInitializerVisitor(
-                access, name, descriptor, signature, exceptions, next)
-        }
-        if (name == CTOR_NAME) {
+        if (!isJUnit3LookingClass && name == CTOR_NAME) {
             return ConstructorVisitor(
                 access, name, descriptor, signature, exceptions, next)
         }
         return next
     }
 
-    /*
-
-  static {};
-    descriptor: ()V
-    flags: (0x0008) ACC_STATIC
-    Code:
-      stack=1, locals=0, args_size=0
-         0: getstatic     #36                 // Field android/platform/test/ravenwood/RavenwoodAwareTestRunner.RavenwoodImplicitClassMinRule:Lorg/junit/rules/TestRule;
-         3: putstatic     #39                 // Field sRavenwoodImplicitClassMinRule:Lorg/junit/rules/TestRule;
-         6: getstatic     #42                 // Field android/platform/test/ravenwood/RavenwoodAwareTestRunner.RavenwoodImplicitClassMaxRule:Lorg/junit/rules/TestRule;
-         9: putstatic     #45                 // Field sRavenwoodImplicitClassMaxRule:Lorg/junit/rules/TestRule;
-        12: return
-      LineNumberTable:
-        line 33: 0
-        line 36: 6
-     */
-    private inner class ClassInitializerVisitor(
-        access: Int,
-        val name: String,
-        val descriptor: String,
-        signature: String?,
-        exceptions: Array<String>?,
-        next: MethodVisitor?,
-    ) : MethodVisitor(OPCODE_VERSION, next) {
-        override fun visitCode() {
-            visitFieldInsn(Opcodes.GETSTATIC,
-                ravenwoodTestRunnerType.internlName,
-                IMPLICIT_CLASS_OUTER_RULE_NAME,
-                testRuleType.desc
-            )
-            visitFieldInsn(Opcodes.PUTSTATIC,
-                classInternalName,
-                sRavenwood_ClassRuleMin,
-                testRuleType.desc
-            )
-
-            visitFieldInsn(Opcodes.GETSTATIC,
-                ravenwoodTestRunnerType.internlName,
-                IMPLICIT_CLASS_INNER_RULE_NAME,
-                testRuleType.desc
-            )
-            visitFieldInsn(Opcodes.PUTSTATIC,
-                classInternalName,
-                sRavenwood_ClassRuleMax,
-                testRuleType.desc
-            )
-
-            super.visitCode()
-        }
-    }
-
+    // NOTE: sRavenwoodImplicitInstanceMaxRule no longer used
     /*
   public com.android.ravenwoodtest.bivalenttest.runnertest.RavenwoodRunnerTest();
     descriptor: ()V
@@ -366,18 +314,6 @@ class RunnerRewritingAdapter(
             visitFieldInsn(Opcodes.PUTFIELD,
                 classInternalName,
                 mRavenwood_InstRuleMin,
-                testRuleType.desc
-            )
-
-            visitVarInsn(ALOAD, 0)
-            visitFieldInsn(Opcodes.GETSTATIC,
-                ravenwoodTestRunnerType.internlName,
-                IMPLICIT_INST_INNER_RULE_NAME,
-                testRuleType.desc
-            )
-            visitFieldInsn(Opcodes.PUTFIELD,
-                classInternalName,
-                mRavenwood_InstRuleMax,
                 testRuleType.desc
             )
         }
@@ -434,10 +370,7 @@ class RunnerRewritingAdapter(
     }
 
     companion object {
-        const val IMPLICIT_CLASS_OUTER_RULE_NAME = "sImplicitClassOuterRule"
-        const val IMPLICIT_CLASS_INNER_RULE_NAME = "sImplicitClassInnerRule"
         const val IMPLICIT_INST_OUTER_RULE_NAME = "sImplicitInstOuterRule"
-        const val IMPLICIT_INST_INNER_RULE_NAME = "sImplicitInstInnerRule"
 
         fun shouldProcess(classes: ClassNodes, className: String): Boolean {
             if (!isTestLookingClass(classes, className)) {

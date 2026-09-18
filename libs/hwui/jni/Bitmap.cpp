@@ -2,9 +2,7 @@
 #include "Bitmap.h"
 
 #include <android-base/unique_fd.h>
-#ifdef __linux__
 #include <com_android_graphics_hwui_flags.h>
-#endif
 #include <fcntl.h>
 #include <hwui/Bitmap.h>
 #include <hwui/Paint.h>
@@ -29,6 +27,7 @@
 #include "SkColor.h"
 #include "SkColorSpace.h"
 #include "SkData.h"
+#include "SkImage.h"
 #include "SkImageInfo.h"
 #include "SkPaint.h"
 #include "SkPixmap.h"
@@ -46,7 +45,7 @@
 #include "perfetto/public/te_category_macros.h"
 #include "perfetto/public/te_macros.h"
 #include "perfetto/public/track_event.h"
-#include "tracing_perfetto.h"
+#include "trace_categories.h"
 
 #define DEBUG_PARCEL 0
 
@@ -198,15 +197,10 @@ static void traceSliceBeginWithGlobalFlow(const char* name, uint64_t bitmap_id, 
                                           int32_t width, int32_t height, int32_t density,
                                           int32_t config, bool is_mutable,
                                           int32_t pixel_storage_type, uint64_t parcel_id) {
-    struct PerfettoTeCategory* perfettoTeCategory =
-            tracing_perfetto::getPerfettoCategory(ATRACE_TAG_GRAPHICS);
-
-    if (perfettoTeCategory) {
-        PERFETTO_TE(*perfettoTeCategory, PERFETTO_TE_SLICE_BEGIN(name),
-                    PROTO_FIELDS(size, width, height, density, config, is_mutable,
-                                 pixel_storage_type, bitmap_id),
-                    PERFETTO_TE_FLOW(PerfettoTeGlobalFlow(parcel_id)));
-    }
+    PERFETTO_TE(tracing_perfetto::track_event_categories::bitmap, PERFETTO_TE_SLICE_BEGIN(name),
+                PROTO_FIELDS(size, width, height, density, config, is_mutable,
+                                pixel_storage_type, bitmap_id),
+                PERFETTO_TE_FLOW(PerfettoTeGlobalFlow(parcel_id)));
 }
 
 static void traceSliceBeginWithGlobalTerminatingFlow(const char* name, uint64_t bitmap_id,
@@ -214,37 +208,22 @@ static void traceSliceBeginWithGlobalTerminatingFlow(const char* name, uint64_t 
                                                      int32_t density, int32_t config,
                                                      bool is_mutable, int32_t pixel_storage_type,
                                                      uint64_t parcel_id) {
-    struct PerfettoTeCategory* perfettoTeCategory =
-            tracing_perfetto::getPerfettoCategory(ATRACE_TAG_GRAPHICS);
-
-    if (perfettoTeCategory) {
-        PERFETTO_TE(*perfettoTeCategory, PERFETTO_TE_SLICE_BEGIN(name),
-                    PROTO_FIELDS(size, width, height, density, config, is_mutable,
-                                 pixel_storage_type, bitmap_id),
-                    PERFETTO_TE_TERMINATING_FLOW(PerfettoTeGlobalFlow(parcel_id)));
-    }
+    PERFETTO_TE(tracing_perfetto::track_event_categories::bitmap, PERFETTO_TE_SLICE_BEGIN(name),
+                PROTO_FIELDS(size, width, height, density, config, is_mutable,
+                                pixel_storage_type, bitmap_id),
+                PERFETTO_TE_TERMINATING_FLOW(PerfettoTeGlobalFlow(parcel_id)));
 }
 
 static void traceSliceBegin(const char* name, uint64_t bitmap_id, int64_t size, int32_t width,
                             int32_t height, int32_t density, int32_t config, bool is_mutable,
                             int32_t pixel_storage_type) {
-    struct PerfettoTeCategory* perfettoTeCategory =
-            tracing_perfetto::getPerfettoCategory(ATRACE_TAG_GRAPHICS);
-
-    if (perfettoTeCategory) {
-        PERFETTO_TE(*perfettoTeCategory, PERFETTO_TE_SLICE_BEGIN(name),
-                    PROTO_FIELDS(size, width, height, density, config, is_mutable,
-                                 pixel_storage_type, bitmap_id));
-    }
+    PERFETTO_TE(tracing_perfetto::track_event_categories::bitmap, PERFETTO_TE_SLICE_BEGIN(name),
+                PROTO_FIELDS(size, width, height, density, config, is_mutable,
+                                pixel_storage_type, bitmap_id));
 }
 
 static void traceSliceEnd(void) {
-    struct PerfettoTeCategory* perfettoTeCategory =
-            tracing_perfetto::getPerfettoCategory(ATRACE_TAG_GRAPHICS);
-
-    if (perfettoTeCategory) {
-        PERFETTO_TE(*perfettoTeCategory, PERFETTO_TE_SLICE_END());
-    }
+    PERFETTO_TE(tracing_perfetto::track_event_categories::bitmap, PERFETTO_TE_SLICE_END());
 }
 
 // Assert that bitmap's SkAlphaType is consistent with isPremultiplied.
@@ -545,6 +524,40 @@ static jobject Bitmap_copyAshmemConfig(JNIEnv* env, jobject, jlong srcHandle, ji
     return ret;
 }
 
+static jobject Bitmap_createEmptyAshmemBitmap(JNIEnv* env, jobject, jint width, jint height,
+                                              jint configHandle, jlong colorSpacePtr) {
+    SkColorType colorType = GraphicsJNI::legacyBitmapConfigToColorType(configHandle);
+    if (colorType == kARGB_4444_SkColorType) {
+        colorType = kN32_SkColorType;
+    }
+
+    sk_sp<SkColorSpace> colorSpace;
+    if (colorType == kAlpha_8_SkColorType) {
+        colorSpace = nullptr;
+    } else {
+        colorSpace = GraphicsJNI::getNativeColorSpace(colorSpacePtr);
+    }
+
+    SkImageInfo info = SkImageInfo::Make(width, height, colorType, kPremul_SkAlphaType, colorSpace);
+
+    SkBitmap result;
+    AshmemPixelAllocator allocator(env);
+    if (!result.setInfo(info) || !result.tryAllocPixels(&allocator)) {
+        ALOGE("OOM allocating Ashmem Bitmap with dimensions %i x %i", width, height);
+        doThrowOOME(env);
+        return NULL;
+    }
+
+    auto bitmap = allocator.getStorageObjAndReset();
+    if (!bitmap) {
+        ALOGE("OOM allocating Ashmem Bitmap with dimensions %i x %i", width, height);
+        doThrowOOME(env);
+        return NULL;
+    }
+
+    return createBitmap(env, bitmap, getPremulBitmapCreateFlags(true));
+}
+
 static jint Bitmap_getAshmemFd(JNIEnv* env, jobject, jlong bitmapHandle) {
     LocalScopedBitmap bitmap(bitmapHandle);
     return (bitmap.valid()) ? bitmap->bitmap().getAshmemFd() : -1;
@@ -784,48 +797,27 @@ static binder_status_t writeBlob(AParcel* parcel, uint64_t bitmapId, const SkBit
                                             bitmap.width(), bitmap.height(), size);
         base::unique_fd fd;
 
-        if (com::android::graphics::hwui::flags::bitmap_use_memfd()) {
-            fd.reset(syscall(__NR_memfd_create, ashmemId.c_str(), MFD_CLOEXEC | MFD_ALLOW_SEALING));
-            if (fd.get() < 0) {
-                return STATUS_NO_MEMORY;
-            }
+        fd.reset(syscall(__NR_memfd_create, ashmemId.c_str(), MFD_CLOEXEC | MFD_ALLOW_SEALING));
+        if (fd.get() < 0) {
+            return STATUS_NO_MEMORY;
+        }
 
-            ssize_t written = write(fd.get(), data, size);
-            if (written != size) {
-                return STATUS_NO_MEMORY;
-            }
+        ssize_t written = write(fd.get(), data, size);
+        if (written != size) {
+            return STATUS_NO_MEMORY;
+        }
 
-            if (fcntl(fd, F_ADD_SEALS,
-                      // Disallow growing / shrinking.
-                      F_SEAL_GROW | F_SEAL_SHRINK
-                      // If immutable, disallow writing.
-                      // Use F_SEAL_FUTURE_WRITE instead of F_SEAL_WRITE to work around a bug in
-                      // pre-6.7 kernels.
-                      // There are no writable mappings made prior to this, so both seals are
-                      // functionally equivalent.
-                      // See: b/409846908#comment39
-                      | (immutable ? F_SEAL_FUTURE_WRITE : 0))) {
-                return STATUS_UNKNOWN_ERROR;
-            }
-
-        } else {
-            fd.reset(ashmem_create_region(ashmemId.c_str(), size));
-            if (fd.get() < 0) {
-                return STATUS_NO_MEMORY;
-            }
-
-            {
-                void* dest = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd.get(), 0);
-                if (dest == MAP_FAILED) {
-                    return STATUS_NO_MEMORY;
-                }
-                memcpy(dest, data, size);
-                munmap(dest, size);
-            }
-
-            if (immutable && ashmem_set_prot_region(fd.get(), PROT_READ) < 0) {
-                return STATUS_UNKNOWN_ERROR;
-            }
+        if (fcntl(fd, F_ADD_SEALS,
+                    // Disallow growing / shrinking.
+                    F_SEAL_GROW | F_SEAL_SHRINK
+                    // If immutable, disallow writing.
+                    // Use F_SEAL_FUTURE_WRITE instead of F_SEAL_WRITE to work around a bug in
+                    // pre-6.7 kernels.
+                    // There are no writable mappings made prior to this, so both seals are
+                    // functionally equivalent.
+                    // See: b/409846908#comment39
+                    | (immutable ? F_SEAL_FUTURE_WRITE : 0))) {
+            return STATUS_UNKNOWN_ERROR;
         }
 
         // Workaround b/149851140 in AParcel_writeParcelFileDescriptor
@@ -903,7 +895,8 @@ static jobject Bitmap_createFromParcel(JNIEnv* env, jobject, jobject parcel) {
             kRGBA_F16_SkColorType != colorType &&
             kRGB_565_SkColorType != colorType &&
             kARGB_4444_SkColorType != colorType &&
-            kAlpha_8_SkColorType != colorType) {
+            kAlpha_8_SkColorType != colorType &&
+            kRGBA_1010102_SkColorType != colorType) {
         jniThrowExceptionFmt(env, BadParcelableException,
                              "Bitmap_createFromParcel unknown colortype: %d\n", colorType);
         return NULL;
@@ -1418,6 +1411,8 @@ static void Bitmap_setSourceId(JNIEnv*, jobject, jlong bitmapHandle, jlong sourc
 static const JNINativeMethod gBitmapMethods[] = {
         {"nativeCreate", "([IIIIIIZJ)Landroid/graphics/Bitmap;", (void*)Bitmap_creator},
         {"nativeCopy", "(JIZ)Landroid/graphics/Bitmap;", (void*)Bitmap_copy},
+        {"nativeCreateEmptyAshmemBitmap", "(IIIJ)Landroid/graphics/Bitmap;",
+         (void*)Bitmap_createEmptyAshmemBitmap},
         {"nativeCopyAshmem", "(J)Landroid/graphics/Bitmap;", (void*)Bitmap_copyAshmem},
         {"nativeCopyAshmemConfig", "(JI)Landroid/graphics/Bitmap;", (void*)Bitmap_copyAshmemConfig},
         {"nativeGetAshmemFD", "(J)I", (void*)Bitmap_getAshmemFd},

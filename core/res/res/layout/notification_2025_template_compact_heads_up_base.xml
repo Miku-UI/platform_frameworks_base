@@ -18,26 +18,25 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/status_bar_latest_event_content"
     android:layout_width="match_parent"
-    android:layout_height="@dimen/notification_header_height"
+    android:layout_height="@dimen/notification_compact_header_height"
     android:clipChildren="false"
     android:tag="compactHUN"
     android:gravity="center_vertical"
-    android:theme="@style/Theme.DeviceDefault.Notification"
     android:importantForAccessibility="no">
     <com.android.internal.widget.NotificationRowIconView
         android:id="@+id/icon"
-        android:layout_width="@dimen/notification_icon_circle_size"
-        android:layout_height="@dimen/notification_icon_circle_size"
+        android:layout_width="@dimen/notification_compact_icon_circle_size"
+        android:layout_height="@dimen/notification_compact_icon_circle_size"
         android:layout_gravity="center_vertical|start"
-        android:layout_marginStart="@dimen/notification_icon_circle_start"
+        android:layout_marginStart="@dimen/notification_2025_margin"
         android:background="@drawable/notification_icon_circle"
-        android:padding="@dimen/notification_icon_circle_padding"
-        android:maxDrawableWidth="@dimen/notification_icon_circle_size"
-        android:maxDrawableHeight="@dimen/notification_icon_circle_size"
+        android:padding="@dimen/notification_compact_icon_circle_padding"
+        android:maxDrawableWidth="@dimen/notification_compact_icon_circle_size"
+        android:maxDrawableHeight="@dimen/notification_compact_icon_circle_size"
         />
     <FrameLayout
         android:id="@+id/alternate_expand_target"
-        android:layout_width="@dimen/notification_content_margin_start"
+        android:layout_width="@dimen/notification_compact_content_margin_start"
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:importantForAccessibility="no"
@@ -46,7 +45,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginStart="@dimen/notification_content_margin_start"
+        android:layout_marginStart="@dimen/notification_compact_content_margin_start"
         android:orientation="horizontal"
         >
         <NotificationTopLineView
@@ -57,7 +56,6 @@
             android:layout_weight="1"
             android:clipChildren="false"
             android:gravity="center_vertical"
-            android:theme="@style/Theme.DeviceDefault.Notification"
             >
             <TextView
                 android:id="@+id/title"

@@ -34,9 +34,10 @@ class WMShellGoldenPathManager(pathConfig: PathConfig) :
             "frameworks/base/libs/WindowManager/Shell/multivalentScreenshotTests/goldens/onDevice"
         private const val ASSETS_PATH_ROBO =
             "frameworks/base/libs/WindowManager/Shell/multivalentScreenshotTests/goldens/" +
-                    "robolectric"
+                "robolectric"
         private val assetPath: String
             get() = if (Build.FINGERPRINT.contains("robolectric")) ASSETS_PATH_ROBO else ASSETS_PATH
+
         private val deviceLocalPath: String
             get() =
                 InstrumentationRegistry.getInstrumentation()
@@ -45,6 +46,7 @@ class WMShellGoldenPathManager(pathConfig: PathConfig) :
                     .absolutePath
                     .toString() + "/wmshell_screenshots"
     }
+
     override fun toString(): String {
         // This string is appended to all actual/expected screenshots on the device, so make sure
         // it is a static value.

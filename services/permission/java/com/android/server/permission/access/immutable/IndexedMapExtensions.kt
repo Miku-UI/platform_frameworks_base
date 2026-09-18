@@ -61,6 +61,9 @@ fun <K, V> IndexedMap<K, V>?.getWithDefault(key: K, defaultValue: V): V {
     return if (index >= 0) valueAt(index) else defaultValue
 }
 
+@Suppress("NOTHING_TO_INLINE")
+inline fun <K, V> IndexedMap<K, V>.isNotEmpty(): Boolean = !isEmpty()
+
 inline val <K, V> IndexedMap<K, V>.lastIndex: Int
     get() = size - 1
 

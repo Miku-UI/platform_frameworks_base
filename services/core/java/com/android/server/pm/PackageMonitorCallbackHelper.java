@@ -191,8 +191,9 @@ public class PackageMonitorCallbackHelper {
                 || TextUtils.equals(action, Intent.ACTION_EXTERNAL_APPLICATIONS_UNAVAILABLE)
                 || TextUtils.equals(action, Intent.ACTION_PACKAGE_DATA_CLEARED)
                 || TextUtils.equals(action, Intent.ACTION_PACKAGE_RESTARTED)
-                || TextUtils.equals(action, Intent.ACTION_PACKAGE_UNSTOPPED);
-
+                || TextUtils.equals(action, Intent.ACTION_PACKAGE_UNSTOPPED)
+                || TextUtils.equals(action,
+                PackageManager.ACTION_PACKAGE_APP_LOCK_ENABLED_STATE_CHANGED);
     }
 
     private void doNotifyCallbacksByIntent(Intent intent, int userId,

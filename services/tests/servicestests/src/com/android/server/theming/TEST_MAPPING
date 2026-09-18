@@ -2,6 +2,17 @@
   "presubmit": [
     {
       "name": "FrameworksServicesTests_theme"
+    },
+    {
+      "name": "CtsSystemUiTestCases",
+      "options": [
+        {
+          "include-filter": "android.systemui.cts.DynamicColorsTest"
+        },
+        {
+          "include-filter": "android.systemui.cts.SystemPaletteTest"
+        }
+      ]
     }
   ]
 }

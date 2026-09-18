@@ -20,7 +20,11 @@ import android.content.Context
 import android.view.View
 import android.view.WindowManagerPolicyConstants
 
-/** Simplifies accessing context fields. */
+/**
+ * **These functions provide accurate results only when used with the current user's context.**
+ *
+ * Simplifies access to context-dependent properties.
+ */
 object ContextUtils {
 
     /** Gets navigation mode. */
@@ -37,4 +41,12 @@ object ContextUtils {
     @JvmStatic
     val Context.isRtl: Boolean
         get() = resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
+
+    /** Returns whether non-resizable activities are supported in multi-window on small screens. */
+    @JvmStatic
+    val Context.supportsNonResizableMultiWindowOnSmallScreen: Boolean
+        get() =
+            resources.getInteger(
+                com.android.internal.R.integer.config_supportsNonResizableMultiWindow
+            ) == 1
 }

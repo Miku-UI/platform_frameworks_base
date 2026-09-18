@@ -20,10 +20,6 @@ import android.app.admin.DevicePolicyManager
 import android.app.admin.DevicePolicyResources.Strings.Settings
 import android.app.admin.EnforcingAdmin
 import android.content.Context
-import android.platform.test.annotations.RequiresFlagsDisabled
-import android.platform.test.annotations.RequiresFlagsEnabled
-import android.platform.test.flag.junit.CheckFlagsRule
-import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.security.Flags
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -46,10 +42,6 @@ import org.mockito.kotlin.whenever
 
 @RunWith(AndroidJUnit4::class)
 class RestrictedModeTest {
-    @Rule
-    @JvmField
-    val mCheckFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
-
     @get:Rule
     val mockito: MockitoRule = MockitoJUnit.rule()
 
@@ -91,29 +83,6 @@ class RestrictedModeTest {
         whenever(context.devicePolicyManager).thenReturn(devicePolicyManager)
     }
 
-    @RequiresFlagsDisabled(Flags.FLAG_AAPM_API)
-    @Test
-    fun blockedByAdmin_getSummaryWhenChecked() {
-        val blockedByAdmin = BlockedByAdminImpl(context, ENFORCED_ADMIN, USER_ID,
-            fakeEnterpriseRepository)
-
-        val summary = blockedByAdmin.getSummary(true)
-
-        assertThat(summary).isEqualTo(ENABLED_BY_ADMIN)
-    }
-
-    @RequiresFlagsDisabled(Flags.FLAG_AAPM_API)
-    @Test
-    fun blockedByAdmin_getSummaryNotWhenChecked() {
-        val blockedByAdmin = BlockedByAdminImpl(context, ENFORCED_ADMIN, USER_ID,
-            fakeEnterpriseRepository)
-
-        val summary = blockedByAdmin.getSummary(false)
-
-        assertThat(summary).isEqualTo(DISABLED_BY_ADMIN)
-    }
-
-    @RequiresFlagsEnabled(Flags.FLAG_AAPM_API)
     @Test
     fun blockedByAdmin_disabledByAdvancedProtection_getSummaryWhenChecked() {
         val blockedByAdmin =
@@ -132,7 +101,6 @@ class RestrictedModeTest {
         assertThat(summary).isEqualTo(ENABLED)
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_AAPM_API)
     @Test
     fun blockedByAdmin_disabledByAdvancedProtection_getSummaryWhenNotChecked() {
         val blockedByAdmin =
@@ -151,7 +119,6 @@ class RestrictedModeTest {
         assertThat(summary).isEqualTo(DISABLED)
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_AAPM_API)
     @Test
     fun blockedByAdmin_notDisabledByAdvancedProtection_getSummaryWhenChecked() {
         val blockedByAdmin =
@@ -170,7 +137,6 @@ class RestrictedModeTest {
         assertThat(summary).isEqualTo(ENABLED_BY_ADMIN)
     }
 
-    @RequiresFlagsEnabled(Flags.FLAG_AAPM_API)
     @Test
     fun blockedByAdmin_notDisabledByAdvancedProtection_getSummaryWhenNotChecked() {
         val blockedByAdmin =

@@ -179,7 +179,7 @@ class DisplayWindowPolicyControllerHelper {
                         UserHandle.USER_NULL);
             } else {
                 mDisplayWindowPolicyController.onTopActivityChanged(
-                        topActivity.info.getComponentName(), topActivity.info.applicationInfo.uid,
+                        topActivity.info.getComponentName(), topActivity.getUid(),
                         topActivity.mUserId);
             }
         }

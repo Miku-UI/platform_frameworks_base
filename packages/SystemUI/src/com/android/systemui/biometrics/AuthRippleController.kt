@@ -16,17 +16,14 @@
 
 package com.android.systemui.biometrics
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Point
+import android.graphics.PointF
 import android.hardware.biometrics.BiometricFingerprintConstants
 import android.hardware.biometrics.BiometricSourceType
 import android.util.DisplayMetrics
 import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.repeatOnLifecycle
-import com.android.app.animation.Interpolators
 import com.android.keyguard.KeyguardUpdateMonitor
 import com.android.keyguard.KeyguardUpdateMonitorCallback
 import com.android.keyguard.logging.KeyguardLogger
@@ -37,20 +34,16 @@ import com.android.systemui.biometrics.shared.model.UdfpsOverlayParams
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.deviceentry.domain.interactor.AuthRippleInteractor
-import com.android.systemui.keyguard.WakefulnessLifecycle
 import com.android.systemui.keyguard.shared.model.BiometricUnlockSource
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.res.R
-import com.android.systemui.shared.Flags.ambientAod
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.statusbar.CircleReveal
-import com.android.systemui.statusbar.LiftReveal
 import com.android.systemui.statusbar.LightRevealEffect
-import com.android.systemui.statusbar.LightRevealScrim
 import com.android.systemui.statusbar.NotificationShadeWindowController
 import com.android.systemui.statusbar.commandline.Command
 import com.android.systemui.statusbar.commandline.CommandRegistry
-import com.android.systemui.statusbar.phone.BiometricUnlockController
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.KeyguardStateController
 import com.android.systemui.util.ViewController
@@ -75,26 +68,17 @@ constructor(
     @Main private val configurationController: ConfigurationController,
     private val keyguardUpdateMonitor: KeyguardUpdateMonitor,
     private val keyguardStateController: KeyguardStateController,
-    private val wakefulnessLifecycle: WakefulnessLifecycle,
     private val commandRegistry: CommandRegistry,
     private val notificationShadeWindowController: NotificationShadeWindowController,
     private val udfpsControllerProvider: Provider<UdfpsController>,
     private val statusBarStateController: StatusBarStateController,
     private val displayMetrics: DisplayMetrics,
     private val logger: KeyguardLogger,
-    private val biometricUnlockController: BiometricUnlockController,
-    private val lightRevealScrim: LightRevealScrim,
     private val authRippleInteractor: AuthRippleInteractor,
     private val facePropertyRepository: FacePropertyRepository,
     rippleView: AuthRippleView?,
-) :
-    ViewController<AuthRippleView>(rippleView),
-    CoreStartable,
-    KeyguardStateController.Callback,
-    WakefulnessLifecycle.Observer {
+) : ViewController<AuthRippleView>(rippleView), CoreStartable {
 
-    @VisibleForTesting internal var startLightRevealScrimOnKeyguardFadingAway = false
-    var lightRevealScrimAnimator: ValueAnimator? = null
     var fingerprintSensorLocation: Point? = null
     private var faceSensorLocation: Point? = null
     private var circleReveal: LightRevealEffect? = null
@@ -107,13 +91,15 @@ constructor(
     }
 
     init {
-        rippleView?.repeatWhenAttached {
-            repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.CREATED) {
-                authRippleInteractor.showUnlockRipple.collect { biometricUnlockSource ->
-                    if (biometricUnlockSource == BiometricUnlockSource.FINGERPRINT_SENSOR) {
-                        showUnlockRippleInternal(BiometricSourceType.FINGERPRINT)
-                    } else {
-                        showUnlockRippleInternal(BiometricSourceType.FACE)
+        if (!SceneContainerFlag.isEnabled) {
+            rippleView?.repeatWhenAttached {
+                repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.CREATED) {
+                    authRippleInteractor.showUnlockRipple.collect { biometricUnlockSource ->
+                        if (biometricUnlockSource == BiometricUnlockSource.FINGERPRINT_SENSOR) {
+                            showUnlockRippleInternal(BiometricSourceType.FINGERPRINT)
+                        } else {
+                            showUnlockRippleInternal(BiometricSourceType.FACE)
+                        }
                     }
                 }
             }
@@ -128,8 +114,6 @@ constructor(
         udfpsController?.addCallback(udfpsControllerCallback)
         configurationController.addCallback(configurationChangedListener)
         keyguardUpdateMonitor.registerCallback(keyguardUpdateMonitorCallback)
-        keyguardStateController.addCallback(this)
-        wakefulnessLifecycle.addObserver(this)
         commandRegistry.registerCommand("auth-ripple") { AuthRippleCommand() }
     }
 
@@ -139,8 +123,6 @@ constructor(
         authController.removeCallback(authControllerCallback)
         keyguardUpdateMonitor.removeCallback(keyguardUpdateMonitorCallback)
         configurationController.removeCallback(configurationChangedListener)
-        keyguardStateController.removeCallback(this)
-        wakefulnessLifecycle.removeObserver(this)
         commandRegistry.unregisterCommand("auth-ripple")
 
         notificationShadeWindowController.setForcePluginOpen(false, this)
@@ -194,77 +176,10 @@ constructor(
     private fun showUnlockedRipple() {
         notificationShadeWindowController.setForcePluginOpen(true, this)
 
-        // This code path is not used if the KeyguardTransitionRepository is managing the light
-        // reveal scrim.
-        if (!ambientAod()) {
-            if (statusBarStateController.isDozing || biometricUnlockController.isWakeAndUnlock) {
-                circleReveal?.let {
-                    lightRevealScrim.revealAmount = 0f
-                    lightRevealScrim.revealEffect = it
-                    startLightRevealScrimOnKeyguardFadingAway = true
-                }
-            }
-        }
-
         mView.startUnlockedRipple(
             /* end runnable */
             Runnable { notificationShadeWindowController.setForcePluginOpen(false, this) }
         )
-    }
-
-    override fun onKeyguardFadingAwayChanged() {
-        if (ambientAod()) {
-            return
-        }
-
-        if (keyguardStateController.isKeyguardFadingAway) {
-            if (startLightRevealScrimOnKeyguardFadingAway) {
-                lightRevealScrimAnimator?.cancel()
-                lightRevealScrimAnimator =
-                    ValueAnimator.ofFloat(.1f, 1f).apply {
-                        interpolator = Interpolators.LINEAR_OUT_SLOW_IN
-                        duration = RIPPLE_ANIMATION_DURATION
-                        startDelay = keyguardStateController.keyguardFadingAwayDelay
-                        addUpdateListener { animator ->
-                            if (lightRevealScrim.revealEffect != circleReveal) {
-                                // if something else took over the reveal, let's cancel ourselves
-                                cancel()
-                                return@addUpdateListener
-                            }
-                            lightRevealScrim.revealAmount = animator.animatedValue as Float
-                        }
-                        addListener(
-                            object : AnimatorListenerAdapter() {
-                                override fun onAnimationEnd(animation: Animator) {
-                                    // Reset light reveal scrim to the default, so the
-                                    // CentralSurfaces
-                                    // can handle any subsequent light reveal changes
-                                    // (ie: from dozing changes)
-                                    if (lightRevealScrim.revealEffect == circleReveal) {
-                                        lightRevealScrim.revealEffect = LiftReveal
-                                    }
-
-                                    lightRevealScrimAnimator = null
-                                }
-                            }
-                        )
-                        start()
-                    }
-                startLightRevealScrimOnKeyguardFadingAway = false
-            }
-        }
-    }
-
-    /**
-     * Whether we're animating the light reveal scrim from a call to [onKeyguardFadingAwayChanged].
-     */
-    fun isAnimatingLightRevealScrim(): Boolean {
-        return lightRevealScrimAnimator?.isRunning ?: false
-    }
-
-    override fun onStartedGoingToSleep() {
-        // reset the light reveal start in case we were pending an unlock
-        startLightRevealScrimOnKeyguardFadingAway = false
     }
 
     fun updateSensorLocation() {
@@ -294,13 +209,25 @@ constructor(
                 isStrongBiometric: Boolean,
             ) {
                 if (biometricSourceType == BiometricSourceType.FINGERPRINT) {
-                    mView.fadeDwellRipple()
+                    if (SceneContainerFlag.isEnabled) {
+                        authRippleInteractor.sendAuthRippleEvent(
+                            AuthRippleInteractor.AuthRippleEvent.FadeOut
+                        )
+                    } else {
+                        mView.fadeDwellRipple()
+                    }
                 }
             }
 
             override fun onBiometricAuthFailed(biometricSourceType: BiometricSourceType) {
                 if (biometricSourceType == BiometricSourceType.FINGERPRINT) {
-                    mView.retractDwellRipple()
+                    if (SceneContainerFlag.isEnabled) {
+                        authRippleInteractor.sendAuthRippleEvent(
+                            AuthRippleInteractor.AuthRippleEvent.Retract
+                        )
+                    } else {
+                        mView.retractDwellRipple()
+                    }
                 }
             }
 
@@ -313,14 +240,26 @@ constructor(
                         BiometricFingerprintConstants.shouldDisableUdfpsDisplayMode(acquireInfo) &&
                         acquireInfo != BiometricFingerprintConstants.FINGERPRINT_ACQUIRED_GOOD
                 ) {
-                    // received an 'acquiredBad' message, so immediately retract
-                    mView.retractDwellRipple()
+                    if (SceneContainerFlag.isEnabled) {
+                        authRippleInteractor.sendAuthRippleEvent(
+                            AuthRippleInteractor.AuthRippleEvent.Retract
+                        )
+                    } else {
+                        // received an 'acquiredBad' message, so immediately retract
+                        mView.retractDwellRipple()
+                    }
                 }
             }
 
             override fun onKeyguardBouncerStateChanged(bouncerIsOrWillBeShowing: Boolean) {
                 if (bouncerIsOrWillBeShowing) {
-                    mView.fadeDwellRipple()
+                    if (SceneContainerFlag.isEnabled) {
+                        authRippleInteractor.sendAuthRippleEvent(
+                            AuthRippleInteractor.AuthRippleEvent.FadeOut
+                        )
+                    } else {
+                        mView.fadeDwellRipple()
+                    }
                 }
             }
         }
@@ -341,12 +280,24 @@ constructor(
             override fun onFingerDown() {
                 // only show dwell ripple for device entry
                 if (keyguardUpdateMonitor.isFingerprintDetectionRunning) {
-                    showDwellRipple()
+                    if (SceneContainerFlag.isEnabled) {
+                        authRippleInteractor.sendAuthRippleEvent(
+                            AuthRippleInteractor.AuthRippleEvent.PulseOut
+                        )
+                    } else {
+                        showDwellRipple()
+                    }
                 }
             }
 
             override fun onFingerUp() {
-                mView.retractDwellRipple()
+                if (SceneContainerFlag.isEnabled) {
+                    authRippleInteractor.sendAuthRippleEvent(
+                        AuthRippleInteractor.AuthRippleEvent.Retract
+                    )
+                } else {
+                    mView.retractDwellRipple()
+                }
             }
         }
 
@@ -381,22 +332,52 @@ constructor(
             } else {
                 when (args[0]) {
                     "dwell" -> {
-                        showDwellRipple()
-                        pw.println(
-                            "lock screen dwell ripple: " +
-                                "\n\tsensorLocation=$fingerprintSensorLocation" +
-                                "\n\tudfpsRadius=$udfpsRadius"
-                        )
+                        if (SceneContainerFlag.isEnabled) {
+                            authRippleInteractor.sendAuthRippleEvent(
+                                AuthRippleInteractor.AuthRippleEvent.PulseOut
+                            )
+                            pw.println(
+                                "lock screen dwell ripple: " +
+                                    "\n\tsensorLocation=${authRippleInteractor.udfpsLocation.value}" +
+                                    "\n\tudfpsRadius=${authRippleInteractor.udfpsRadius.value}"
+                            )
+                        } else {
+                            showDwellRipple()
+                            pw.println(
+                                "lock screen dwell ripple: " +
+                                    "\n\tsensorLocation=$fingerprintSensorLocation" +
+                                    "\n\tudfpsRadius=$udfpsRadius"
+                            )
+                        }
                     }
+
                     "fingerprint" -> {
-                        pw.println("fingerprint ripple sensorLocation=$fingerprintSensorLocation")
-                        showUnlockRippleInternal(BiometricSourceType.FINGERPRINT)
+                        if (SceneContainerFlag.isEnabled) {
+                            authRippleInteractor.sendAdbCommand(BiometricSourceType.FINGERPRINT)
+                            pw.println(
+                                "fingerprint ripple sensorLocation=${authRippleInteractor.sensorOrigin.value}"
+                            )
+                        } else {
+                            pw.println(
+                                "fingerprint ripple sensorLocation=$fingerprintSensorLocation"
+                            )
+                            showUnlockRippleInternal(BiometricSourceType.FINGERPRINT)
+                        }
                     }
+
                     "face" -> {
                         // note: only shows when about to proceed to the home screen
-                        pw.println("face ripple sensorLocation=$faceSensorLocation")
-                        showUnlockRippleInternal(BiometricSourceType.FACE)
+                        if (SceneContainerFlag.isEnabled) {
+                            authRippleInteractor.sendAdbCommand(BiometricSourceType.FACE)
+                            pw.println(
+                                "face ripple sensorLocation=${authRippleInteractor.sensorOrigin.value}"
+                            )
+                        } else {
+                            pw.println("face ripple sensorLocation=$faceSensorLocation")
+                            showUnlockRippleInternal(BiometricSourceType.FACE)
+                        }
                     }
+
                     "custom" -> {
                         if (
                             args.size != 3 ||
@@ -407,9 +388,17 @@ constructor(
                             return
                         }
                         pw.println("custom ripple sensorLocation=" + args[1] + ", " + args[2])
-                        mView.setSensorLocation(Point(args[1].toInt(), args[2].toInt()))
-                        showUnlockedRipple()
+                        if (SceneContainerFlag.isEnabled) {
+                            authRippleInteractor.setSensorLocation(
+                                PointF(args[1].toFloat(), args[2].toFloat())
+                            )
+                            authRippleInteractor.sendAdbCommand(null)
+                        } else {
+                            mView.setSensorLocation(Point(args[1].toInt(), args[2].toInt()))
+                            showUnlockedRipple()
+                        }
                     }
+
                     else -> invalidCommand(pw)
                 }
             }

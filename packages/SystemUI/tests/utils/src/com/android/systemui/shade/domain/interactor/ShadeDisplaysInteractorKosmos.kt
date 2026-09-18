@@ -52,14 +52,14 @@ val Kosmos.shadeDisplaysInteractor by
             mockedWindowContext,
             testScope.backgroundScope,
             testScope.backgroundScope.coroutineContext,
-            mockedShadeDisplayChangePerformanceTracker,
-            shadeExpandedStateInteractor,
+            { mockedShadeDisplayChangePerformanceTracker },
+            { shadeExpandedStateInteractor },
             shadeExpansionIntent,
             activeNotificationsInteractor,
             notificationStackRebindingHider,
             configurationController,
             logcatLogBuffer("ShadeDisplaysInteractor"),
-            shadeDisplaysWaitInteractor,
+            { shadeDisplaysWaitInteractor },
         )
     }
 

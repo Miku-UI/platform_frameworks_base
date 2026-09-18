@@ -407,4 +407,16 @@ interface IVoiceInteractionManagerService {
      */
      oneway void unregisterAccessibilityDetectionSettingsListener(
             in IVoiceInteractionAccessibilitySettingsListener listener);
+
+    /** Returns the read screen context request state for the specified assistant app's uid */
+    @PermissionManuallyEnforced
+    int getReadScreenContextRequestState(int uid);
+
+    /** Increments the current request denial count */
+    @PermissionManuallyEnforced
+    void incrementReadScreenContextRequestDeniedCountForUser(int userId);
+
+    /** Clears the request denial count */
+    @PermissionManuallyEnforced
+    void clearReadScreenContextRequestDeniedCountForUser(int userId);
 }

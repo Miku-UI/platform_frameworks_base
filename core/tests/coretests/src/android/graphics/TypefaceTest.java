@@ -27,7 +27,6 @@ import android.graphics.fonts.FontFamily;
 import android.graphics.fonts.SystemFonts;
 import android.os.SharedMemory;
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.text.FontConfig;
@@ -40,7 +39,6 @@ import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
 
 import com.android.frameworks.coretests.R;
-import com.android.text.flags.Flags;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -229,56 +227,6 @@ public class TypefaceTest {
             for (Typeface typeface : copiedFontMap.values()) {
                 typeface.releaseNativeObjectForTest();
             }
-        }
-    }
-
-    @RequiresFlagsDisabled(Flags.FLAG_DO_NOT_OVERWRITE_STATIC_FINAL_FIELD)
-    @SmallTest
-    @Test
-    public void testSetSystemFontMap() throws Exception {
-
-        // Typeface.setSystemFontMap mutate the returned map. So copying for the backup.
-        HashMap<String, Typeface> backup = new HashMap<>(Typeface.getSystemFontMap());
-
-        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        Resources res = context.getResources();
-        Map<String, Typeface> fontMap = Map.of(
-                "sans-serif", Typeface.create(res.getFont(R.font.samplefont), Typeface.NORMAL),
-                "serif", Typeface.create(res.getFont(R.font.samplefont2), Typeface.NORMAL),
-                "monospace", Typeface.create(res.getFont(R.font.samplefont3), Typeface.NORMAL),
-                "sample", Typeface.create(res.getFont(R.font.samplefont4), Typeface.NORMAL),
-                "sample-italic", Typeface.create(res.getFont(R.font.samplefont4), Typeface.ITALIC));
-
-        try {
-            Typeface.setSystemFontMap(fontMap);
-
-            // Test public static final fields
-            assertEquals(fontMap.get("sans-serif"), Typeface.DEFAULT);
-            assertEquals(Typeface.BOLD, Typeface.DEFAULT_BOLD.getStyle());
-            assertEquals(fontMap.get("sans-serif"), Typeface.SANS_SERIF);
-            assertEquals(fontMap.get("serif"), Typeface.SERIF);
-            assertEquals(fontMap.get("monospace"), Typeface.MONOSPACE);
-
-            // Test defaults
-            assertEquals(fontMap.get("sans-serif"), Typeface.defaultFromStyle(Typeface.NORMAL));
-            for (int style : STYLES) {
-                String msg = "style = " + style;
-                assertNotNull(msg, Typeface.defaultFromStyle(style));
-                assertEquals(msg, style, Typeface.defaultFromStyle(style).getStyle());
-            }
-
-            // Test create()
-            assertEquals(fontMap.get("sample"), Typeface.create("sample", Typeface.NORMAL));
-            assertEquals(
-                    fontMap.get("sample-italic"),
-                    Typeface.create("sample-italic", Typeface.ITALIC));
-        } finally {
-            // This tests breaks many default font configuration and break the assumption of the
-            // subsequent test cases. To recover the original configuration, call the
-            // setSystemFontMap function with the original data even if it is a test target.
-            // Ideally, this test should be isolated and app should be restart after this test
-            // been executed.
-            Typeface.setSystemFontMap(backup);
         }
     }
 

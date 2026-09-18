@@ -19,11 +19,14 @@ package com.android.systemui.statusbar.events
 import android.location.flags.Flags.locationIndicatorsEnabled
 import android.os.Process
 import android.provider.DeviceConfig
+import android.view.Display
 import androidx.core.animation.Animator
 import androidx.core.animation.AnimatorListenerAdapter
 import androidx.core.animation.AnimatorSet
 import com.android.app.tracing.coroutines.launchTraced as launch
-import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.privacy.PrivacyItem
 import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState.AnimatingIn
@@ -36,7 +39,9 @@ import com.android.systemui.statusbar.window.StatusBarWindowControllerStore
 import com.android.systemui.util.Assert
 import com.android.systemui.util.time.SystemClock
 import java.io.PrintWriter
+import java.util.concurrent.Executor
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -69,16 +74,20 @@ import kotlinx.coroutines.withTimeout
  * their respective views based on the progress of the animator.
  */
 @OptIn(FlowPreview::class)
+@PerDisplaySingleton
 open class SystemStatusAnimationSchedulerImpl
 @Inject
 constructor(
-    private val coordinator: SystemEventCoordinator,
-    private val chipAnimationController: SystemEventChipAnimationController,
+    @DisplayAware private val coordinator: SystemEventCoordinator,
+    @DisplayAware private val chipAnimationController: SystemEventChipAnimationController,
+    @DisplayAware private val displayId: Int,
     private val statusBarWindowControllerStore: StatusBarWindowControllerStore,
-    dumpManager: DumpManager,
+    private val dumpManager: DumpManager,
     private val systemClock: SystemClock,
-    @Application private val coroutineScope: CoroutineScope,
+    @DisplayAware private val coroutineScope: CoroutineScope,
     private val logger: SystemStatusAnimationSchedulerLogger?,
+    @Main private val mainCoroutineContext: CoroutineContext,
+    @Main private val mainExecutor: Executor,
 ) : SystemStatusAnimationScheduler {
 
     companion object {
@@ -110,11 +119,20 @@ constructor(
     /** The job that is controlling the animators when an event is cancelled. */
     private var eventCancellationJob: Job? = null
 
+    private val dumpableName: String
+
     init {
         coordinator.attachScheduler(this)
-        dumpManager.registerCriticalDumpable(TAG, this)
+        val dumpableTagSuffix =
+            if (displayId == Display.DEFAULT_DISPLAY) {
+                ""
+            } else {
+                displayId.toString()
+            }
+        dumpableName = "$TAG$dumpableTagSuffix"
+        dumpManager.registerCriticalDumpable(dumpableName, this)
 
-        coroutineScope.launch {
+        coroutineScope.launch(context = mainCoroutineContext) {
             // Wait for animationState to become ANIMATION_QUEUED and scheduledEvent to be non null.
             // Once this combination is stable for at least DEBOUNCE_DELAY, then start a chip enter
             // animation
@@ -131,11 +149,26 @@ constructor(
                 }
         }
 
-        coroutineScope.launch { _animationState.collect { logger?.logAnimationStateUpdate(it) } }
+        coroutineScope.launch(context = mainCoroutineContext) {
+            _animationState.collect { logger?.logAnimationStateUpdate(it) }
+        }
+    }
+
+    override fun stop() {
+        mainExecutor.execute {
+            coordinator.stopObserving()
+            listeners.clear()
+            chipAnimationController.stop()
+            dumpManager.unregisterDumpable(dumpableName)
+        }
     }
 
     override fun onStatusEvent(event: StatusEvent) {
         Assert.isMainThread()
+
+        val priorityCondition =
+            (event.priority >= (scheduledEvent.value?.priority ?: -1)) &&
+                (event.priority >= (currentlyDisplayedEvent?.priority ?: -1))
 
         // Ignore any updates until the system is up and running. However, for important events that
         // request to be force visible (like privacy), ignore whether it's too early.
@@ -156,13 +189,10 @@ constructor(
             // location, and one that requests any other privacy item(s).
             logger?.logNotifyEvent(event)
             notifyTransitionToPersistentDot(event)
-        } else if (
-            (event.priority > (scheduledEvent.value?.priority ?: -1)) &&
-                (event.priority > (currentlyDisplayedEvent?.priority ?: -1)) &&
-                !hasPersistentDot
-        ) {
-            // a event can only be scheduled if no other event is in progress or it has a higher
-            // priority. If a persistent dot is currently displayed, don't schedule the event.
+        } else if (priorityCondition && !hasPersistentDot) {
+            // An event can only be scheduled if no other event is in progress or it has equal or
+            // higher priority. If a persistent dot is currently displayed, don't schedule the
+            // event.
             logger?.logScheduleEvent(event)
             scheduleEvent(event)
         } else if (currentlyDisplayedEvent?.shouldUpdateFromEvent(event) == true) {
@@ -179,6 +209,16 @@ constructor(
 
     override fun removePersistentDot() {
         Assert.isMainThread()
+
+        if (_animationState.value == AnimationQueued) {
+            // If we're in the queued state, it means an event has been scheduled but the
+            // debounce period hasn't passed yet. If we're removing the dot, it's because the
+            // event that triggered the animation is no longer active, so we should just cancel
+            // the animation
+            scheduledEvent.value = null
+            _animationState.value = Idle
+            return
+        }
 
         // If there is an event scheduled currently, set its forceVisible flag to false, such that
         // it will never transform into a persistent dot
@@ -239,7 +279,7 @@ constructor(
      */
     private fun cancelCurrentlyDisplayedEvent() {
         eventCancellationJob =
-            coroutineScope.launch {
+            coroutineScope.launch(context = mainCoroutineContext) {
                 withTimeout(APPEAR_ANIMATION_DURATION) {
                     // wait for animationState to become RUNNING_CHIP_ANIM, then cancel the running
                     // animation job and run the disappear animation immediately
@@ -270,7 +310,7 @@ constructor(
 
         chipAnimationController.prepareChipAnimation(event.viewCreator)
         currentlyRunningAnimationJob =
-            coroutineScope.launch {
+            coroutineScope.launch(context = mainCoroutineContext) {
                 runChipAppearAnimation()
                 announceForAccessibilityIfNeeded(event)
                 delay(APPEAR_ANIMATION_DURATION + DISPLAY_LENGTH)
@@ -295,10 +335,12 @@ constructor(
     private fun runChipAppearAnimation() {
         Assert.isMainThread()
         if (hasPersistentDot) {
-            statusBarWindowControllerStore.defaultDisplay.setForceStatusBarVisible(
-                true,
-                source = "SystemStatusAnimSchedule#runChipAppearAnimation",
-            )
+            statusBarWindowControllerStore
+                .forDisplay(displayId)
+                ?.setForceStatusBarVisible(
+                    true,
+                    source = "SystemStatusAnimSchedule#runChipAppearAnimation",
+                )
         }
         _animationState.value = AnimatingIn
 
@@ -332,10 +374,12 @@ constructor(
                             scheduledEvent.value != null -> AnimationQueued
                             else -> Idle
                         }
-                    statusBarWindowControllerStore.defaultDisplay.setForceStatusBarVisible(
-                        false,
-                        source = "SystemStatusAnimSchedule#runChipDisappearAnimation",
-                    )
+                    statusBarWindowControllerStore
+                        .forDisplay(displayId)
+                        ?.setForceStatusBarVisible(
+                            false,
+                            source = "SystemStatusAnimSchedule#runChipDisappearAnimation",
+                        )
                 }
             }
         )

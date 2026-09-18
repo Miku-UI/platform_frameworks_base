@@ -84,7 +84,6 @@ class DarkIconInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_STATUS_BAR_DARK_ICON_INTERACTOR_MIXED_FIX)
     fun isDarkTheme_nonEmptyDarkIconAreas_iconOutsideDarkIconArea_isDarkTheme() =
         kosmos.runTest {
             val isAreaDark by collectLastValue(underTest.isAreaDark(DEFAULT_DISPLAY_ID))

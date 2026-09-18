@@ -16,10 +16,8 @@
 
 package com.android.systemui.bouncer.ui.composable
 
-import android.app.AlertDialog
 import android.platform.test.annotations.MotionTest
 import android.testing.TestableLooper.RunWithLooper
-import android.view.View
 import androidx.activity.BackEventCompat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -43,7 +41,6 @@ import com.android.compose.animation.scene.UserActionResult
 import com.android.compose.animation.scene.isElement
 import com.android.compose.theme.PlatformTheme
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.bouncer.ui.BouncerDialogFactory
 import com.android.systemui.bouncer.ui.viewmodel.BouncerOverlayContentViewModel
 import com.android.systemui.bouncer.ui.viewmodel.BouncerUserActionsViewModel
 import com.android.systemui.bouncer.ui.viewmodel.bouncerOverlayContentViewModel
@@ -64,10 +61,11 @@ import com.android.systemui.scene.shared.model.sceneDataSourceDelegator
 import com.android.systemui.scene.ui.composable.Scene
 import com.android.systemui.scene.ui.composable.SceneContainer
 import com.android.systemui.scene.ui.view.sceneJankMonitorFactory
+import com.android.systemui.scene.ui.view.sceneTransitionLatencyMonitor
+import com.android.systemui.statusbar.phone.SystemUIDialog
 import com.android.systemui.testKosmos
 import kotlin.test.Ignore
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -75,8 +73,9 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mock
 import org.mockito.MockitoAnnotations
-import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 import platform.test.motion.compose.ComposeFeatureCaptures.positionInRoot
 import platform.test.motion.compose.ComposeRecordingSpec
 import platform.test.motion.compose.MotionControl
@@ -114,8 +113,6 @@ class BouncerPredictiveBackTest : SysuiTestCase() {
             sceneTransitionsBuilder,
         )
     }
-    private val view = mock<View>()
-
     private val transitionState by lazy {
         MutableStateFlow<ObservableTransitionState>(
             ObservableTransitionState.Idle(kosmos.sceneContainerConfig.initialSceneKey)
@@ -124,16 +121,12 @@ class BouncerPredictiveBackTest : SysuiTestCase() {
 
     private val sceneContainerViewModel by lazy {
         kosmos.sceneContainerViewModelFactory
-            .create(view) {}
+            .create {}
             .apply { setTransitionState(transitionState) }
     }
 
-    private val bouncerDialogFactory =
-        object : BouncerDialogFactory {
-            override fun invoke(): AlertDialog {
-                throw AssertionError()
-            }
-        }
+    @Mock private lateinit var bouncerDialogFactory: SystemUIDialog.Factory
+
     private val bouncerSceneActionsViewModelFactory =
         object : BouncerUserActionsViewModel.Factory {
             override fun create() = BouncerUserActionsViewModel()
@@ -153,6 +146,8 @@ class BouncerPredictiveBackTest : SysuiTestCase() {
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
+
+        whenever(bouncerDialogFactory.create()).thenThrow(AssertionError())
 
         mBouncerOverlayContentViewModel = kosmos.bouncerOverlayContentViewModel
 
@@ -180,6 +175,10 @@ class BouncerPredictiveBackTest : SysuiTestCase() {
                                 overlayByKey = mapOf(Overlays.Bouncer to bouncerScene),
                                 dataSourceDelegator = kosmos.sceneDataSourceDelegator,
                                 sceneJankMonitorFactory = kosmos.sceneJankMonitorFactory,
+                                sceneTransitionLatencyMonitor =
+                                    kosmos.sceneTransitionLatencyMonitor,
+                                onTransitionStart = { _, _ -> },
+                                onSnap = {},
                             )
                         }
                     },
@@ -187,12 +186,12 @@ class BouncerPredictiveBackTest : SysuiTestCase() {
                         MotionControl(
                             delayRecording = {
                                 awaitCondition {
-                                    sceneInteractor.transitionState.value.isTransitioning()
+                                    sceneInteractor.transitionStateFlow.value.isTransitioning()
                                 }
                             }
                         ) {
                             awaitCondition {
-                                sceneInteractor.transitionState.value.isIdle(Scenes.Lockscreen)
+                                sceneInteractor.transitionStateFlow.value.isIdle(Scenes.Lockscreen)
                             }
                         }
                     ) {
@@ -261,7 +260,5 @@ class BouncerPredictiveBackTest : SysuiTestCase() {
                 Text(text = "Fake Lockscreen")
             }
         }
-
-        override suspend fun onActivated() = awaitCancellation()
     }
 }

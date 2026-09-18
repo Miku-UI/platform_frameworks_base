@@ -104,6 +104,7 @@ public class EditorInfo implements InputType, Parcelable {
      *               1                   TYPE_TEXT_FLAG_IME_MULTI_LINE
      *              1                    TYPE_TEXT_FLAG_NO_SUGGESTIONS
      *             1                     TYPE_TEXT_FLAG_ENABLE_TEXT_CONVERSION_SUGGESTIONS
+     *            1                      TYPE_TEXT_FLAG_ENABLE_TEXT_SUGGESTION_SELECTED
      * |-------|-------|-------|-------|
      *                                1  TYPE_CLASS_NUMBER
      *                             1     TYPE_NUMBER_VARIATION_PASSWORD
@@ -1365,7 +1366,7 @@ public class EditorInfo implements InputType, Parcelable {
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeInt(inputType);
         dest.writeInt(imeOptions);
-        dest.writeString(privateImeOptions);
+        dest.writeString8(privateImeOptions);
         dest.writeInt(internalImeOptions);
         TextUtils.writeToParcel(actionLabel, dest, flags);
         dest.writeInt(actionId);
@@ -1375,10 +1376,10 @@ public class EditorInfo implements InputType, Parcelable {
         dest.writeInt(mInitialToolType);
         TextUtils.writeToParcel(hintText, dest, flags);
         TextUtils.writeToParcel(label, dest, flags);
-        dest.writeString(packageName);
+        dest.writeString8(packageName);
         dest.writeParcelable(autofillId, flags);
         dest.writeInt(fieldId);
-        dest.writeString(fieldName);
+        dest.writeString8(fieldName);
         dest.writeBundle(extras);
         dest.writeInt(mSupportedHandwritingGestureTypes);
         dest.writeInt(mSupportedHandwritingGesturePreviewTypes);
@@ -1394,7 +1395,7 @@ public class EditorInfo implements InputType, Parcelable {
         } else {
             LocaleList.getEmptyLocaleList().writeToParcel(dest, flags);
         }
-        dest.writeStringArray(contentMimeTypes);
+        dest.writeString8Array(contentMimeTypes);
         UserHandle.writeToParcel(targetInputMethodUser, dest);
         dest.writeBoolean(mWritingToolsEnabled);
         UserHandle.writeToParcel(targetDevicePolicyUser, dest);
@@ -1409,7 +1410,7 @@ public class EditorInfo implements InputType, Parcelable {
                     EditorInfo res = new EditorInfo();
                     res.inputType = source.readInt();
                     res.imeOptions = source.readInt();
-                    res.privateImeOptions = source.readString();
+                    res.privateImeOptions = source.readString8();
                     res.internalImeOptions = source.readInt();
                     res.actionLabel = TextUtils.CHAR_SEQUENCE_CREATOR.createFromParcel(source);
                     res.actionId = source.readInt();
@@ -1419,10 +1420,10 @@ public class EditorInfo implements InputType, Parcelable {
                     res.mInitialToolType = source.readInt();
                     res.hintText = TextUtils.CHAR_SEQUENCE_CREATOR.createFromParcel(source);
                     res.label = TextUtils.CHAR_SEQUENCE_CREATOR.createFromParcel(source);
-                    res.packageName = source.readString();
+                    res.packageName = source.readString8();
                     res.autofillId = source.readParcelable(AutofillId.class.getClassLoader(), android.view.autofill.AutofillId.class);
                     res.fieldId = source.readInt();
-                    res.fieldName = source.readString();
+                    res.fieldName = source.readString8();
                     res.extras = source.readBundle();
                     res.mSupportedHandwritingGestureTypes = source.readInt();
                     res.mSupportedHandwritingGesturePreviewTypes = source.readInt();
@@ -1436,7 +1437,7 @@ public class EditorInfo implements InputType, Parcelable {
                     }
                     LocaleList hintLocales = LocaleList.CREATOR.createFromParcel(source);
                     res.hintLocales = hintLocales.isEmpty() ? null : hintLocales;
-                    res.contentMimeTypes = source.readStringArray();
+                    res.contentMimeTypes = source.createString8Array();
                     res.targetInputMethodUser = UserHandle.readFromParcel(source);
                     res.mWritingToolsEnabled = source.readBoolean();
                     res.targetDevicePolicyUser = UserHandle.readFromParcel(source);

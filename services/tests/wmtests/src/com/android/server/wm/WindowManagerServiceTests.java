@@ -17,6 +17,7 @@
 package com.android.server.wm;
 
 import static android.Manifest.permission.ADD_TRUSTED_DISPLAY;
+import static android.Manifest.permission.MANAGE_DISPLAYS;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_HOME;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
@@ -36,6 +37,7 @@ import static android.view.WindowManager.LayoutParams.INVALID_WINDOW_TYPE;
 import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_INTERCEPT_GLOBAL_DRAG_AND_DROP;
 import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_IS_ROUNDED_CORNERS_OVERLAY;
 import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY;
+import static android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
@@ -43,10 +45,12 @@ import static android.view.WindowManager.LayoutParams.TYPE_BASE_APPLICATION;
 import static android.view.WindowManager.LayoutParams.TYPE_INPUT_METHOD;
 import static android.view.WindowManager.LayoutParams.TYPE_INPUT_METHOD_DIALOG;
 import static android.view.WindowManager.LayoutParams.TYPE_NOTIFICATION_SHADE;
+import static android.view.WindowManager.LayoutParams.TYPE_SCREENSHOT;
 import static android.view.WindowManager.LayoutParams.TYPE_TOAST;
 import static android.view.flags.Flags.FLAG_SENSITIVE_CONTENT_APP_PROTECTION;
 import static android.window.DisplayAreaOrganizer.FEATURE_VENDOR_FIRST;
 
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.doAnswer;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doNothing;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
@@ -61,6 +65,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
@@ -68,9 +73,11 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.description;
 import static org.mockito.Mockito.mock;
@@ -83,6 +90,7 @@ import android.app.ActivityManager;
 import android.app.ActivityThread;
 import android.app.IApplicationThread;
 import android.content.pm.ActivityInfo;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Rect;
 import android.os.Binder;
@@ -111,7 +119,9 @@ import android.view.InputDevice;
 import android.view.InsetsSourceControl;
 import android.view.InsetsState;
 import android.view.SurfaceControl;
+import android.view.SurfaceControlViewHost;
 import android.view.View;
+import android.view.WindowInputChannelParams;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
@@ -120,6 +130,7 @@ import android.view.WindowRelayoutResult;
 import android.window.ActivityWindowInfo;
 import android.window.ClientWindowFrames;
 import android.window.ConfigurationChangeSetting;
+import android.window.IDisplayEngagementModeCallback;
 import android.window.InputTransferToken;
 import android.window.ScreenCaptureInternal;
 import android.window.WindowContainerToken;
@@ -128,8 +139,10 @@ import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.compatibility.common.util.AdoptShellPermissionsRule;
+import com.android.internal.os.ApplicationSharedMemory;
 import com.android.internal.os.IResultReceiver;
 import com.android.server.LocalServices;
+import com.android.server.StorageManagerInternal;
 import com.android.server.wm.SensitiveContentPackages.PackageInfo;
 import com.android.server.wm.WindowManagerService.WindowContainerInfo;
 import com.android.window.flags.Flags;
@@ -152,6 +165,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 
 /**
@@ -166,10 +182,18 @@ public class WindowManagerServiceTests extends WindowTestsBase {
     private final IApplicationThread mAppThread = ActivityThread.currentActivityThread()
             .getApplicationThread();
 
+    private ApplicationSharedMemory mSavedSharedMemory;
+
+    @Override
+    protected void onBeforeSystemServicesCreated() {
+        mSavedSharedMemory = ApplicationSharedMemory.sInstance;
+        ApplicationSharedMemory.sInstance = ApplicationSharedMemory.create();
+    }
+
     @Rule
     public AdoptShellPermissionsRule mAdoptShellPermissionsRule = new AdoptShellPermissionsRule(
             InstrumentationRegistry.getInstrumentation().getUiAutomation(),
-            ADD_TRUSTED_DISPLAY);
+            ADD_TRUSTED_DISPLAY, MANAGE_DISPLAYS);
 
     @Rule
     public Expect mExpect = Expect.create();
@@ -184,6 +208,10 @@ public class WindowManagerServiceTests extends WindowTestsBase {
 
     @After
     public void tearDown() {
+        if (ApplicationSharedMemory.sInstance != null) {
+            ApplicationSharedMemory.sInstance.close();
+        }
+        ApplicationSharedMemory.sInstance = mSavedSharedMemory;
         mWm.mSensitiveContentPackages.clearBlockedApps();
         Settings.System.clearProviderForTest();
     }
@@ -203,7 +231,6 @@ public class WindowManagerServiceTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(android.companion.virtualdevice.flags.Flags.FLAG_ENABLE_ANIMATIONS_PER_DISPLAY)
     public void testEnableDisableAnimationsForDisplay() {
         // Set non-zero default animation scales for window and transition animations.
         float defaultScale = 5f;
@@ -305,6 +332,51 @@ public class WindowManagerServiceTests extends WindowTestsBase {
     }
 
     @Test
+    public void testTaskFocusChange_rootTaskHomeTypeWithNonActivityFocusOnSameDA_focusNotChange() {
+        final DisplayContent display = createNewDisplay();
+
+        // Current focused window
+        final WindowState focusedWindow = newWindowBuilder("shade", TYPE_NOTIFICATION_SHADE)
+                .setDisplay(display)
+                .build();
+        spyOn(mWm);
+        doReturn(focusedWindow).when(mWm).getFocusedWindowLocked();
+
+        // Tapped home task
+        final Task tappedRootTask = createTask(
+                display, WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_HOME);
+        final Task tappedTask = createTaskInRootTask(tappedRootTask, 0 /* userId */);
+        spyOn(mWm.mAtmService);
+
+        mWm.handleTaskFocusChange(tappedTask, null /* window */);
+
+        verify(mWm.mAtmService, never()).setFocusedTask(tappedTask.mTaskId, null);
+    }
+
+    @Test
+    public void testTaskFocusChange_rootTaskHomeTypeWithNonActivityFocusOnDiffDA_focusChange() {
+        final DisplayContent display1 = createNewDisplay();
+        final DisplayContent display2 = createNewDisplay();
+
+        // Current focused window
+        final WindowState focusedWindow = newWindowBuilder("shade", TYPE_NOTIFICATION_SHADE)
+                .setDisplay(display1)
+                .build();
+        spyOn(mWm);
+        doReturn(focusedWindow).when(mWm).getFocusedWindowLocked();
+
+        // Tapped home task of different display
+        final Task tappedRootTask = createTask(
+                display2, WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_HOME);
+        final Task tappedTask = createTaskInRootTask(tappedRootTask, 0 /* userId */);
+        spyOn(mWm.mAtmService);
+
+        mWm.handleTaskFocusChange(tappedTask, null /* window */);
+
+        verify(mWm.mAtmService).setFocusedTask(tappedTask.mTaskId, null);
+    }
+
+    @Test
     public void testTrackOverlayWindow() {
         final WindowProcessController wpc = mSystemServicesTestRule.addProcess(
                 "pkgName", "processName", 1000 /* pid */, Process.SYSTEM_UID);
@@ -323,10 +395,8 @@ public class WindowManagerServiceTests extends WindowTestsBase {
         final WindowState win = newWindowBuilder("appWin", TYPE_BASE_APPLICATION).build();
         win.mWinAnimator.mDrawState = WindowStateAnimator.HAS_DRAWN;
         win.mWinAnimator.mSurfaceControl = mock(SurfaceControl.class);
-        spyOn(win.mTransitionController);
-        doReturn(true).when(win.mTransitionController).isShellTransitionsEnabled();
-        doReturn(true).when(win.mTransitionController).inTransition(
-                eq(win.mActivityRecord));
+        spyOn(win);
+        doReturn(true).when(win).isSelfAnimating(anyInt(), anyInt());
         win.mViewVisibility = View.VISIBLE;
         win.mHasSurface = true;
         win.mActivityRecord.mAppStopped = true;
@@ -345,11 +415,11 @@ public class WindowManagerServiceTests extends WindowTestsBase {
                 outConfig, outInsetsState, outControls);
         mWm.relayoutWindow(win.mSession, win.mClient, win.mAttrs, w, h, View.GONE, 0, 0, 0,
                 outRelayoutResult, outSurfaceControl);
-        // The window is in transition, so its destruction is deferred.
+        // The window is animating, so its destruction is deferred.
         assertTrue(win.mAnimatingExit);
         assertFalse(win.mDestroying);
-        assertTrue(win.mTransitionController.mAnimatingExitWindows.contains(win));
 
+        doReturn(false).when(win).isSelfAnimating(anyInt(), anyInt());
         win.mAnimatingExit = false;
         win.mViewVisibility = View.VISIBLE;
         win.mActivityRecord.setVisibleRequested(false);
@@ -362,7 +432,23 @@ public class WindowManagerServiceTests extends WindowTestsBase {
         assertFalse(win.mHasSurface);
         assertNull(win.mWinAnimator.mSurfaceControl);
 
+        // If the previous relayout-to-invisible comes after the next visible request, it doesn't
+        // need to destroy the surface.
+        if (com.android.window.flags.Flags.avoidIntermediateDestroyingState()) {
+            win.mActivityRecord.mAppStopped = false;
+            win.mViewVisibility = View.VISIBLE;
+            win.mHasSurface = true;
+            win.mWinAnimator.mSurfaceControl = mock(SurfaceControl.class);
+            requestTransition(win.mActivityRecord, WindowManager.TRANSIT_OPEN);
+            win.mActivityRecord.setVisibility(true);
+            mWm.relayoutWindow(win.mSession, win.mClient, win.mAttrs, w, h, View.GONE, 0, 0, 0,
+                    outRelayoutResult, outSurfaceControl);
+            assertFalse(win.mDestroying);
+            assertTrue(win.mHasSurface);
+        }
+
         // Invisible requested activity should not get the last config even if its view is visible.
+        win.mActivityRecord.setVisibleRequested(false);
         mWm.relayoutWindow(win.mSession, win.mClient, win.mAttrs, w, h, View.VISIBLE, 0, 0, 0,
                 outRelayoutResult, outSurfaceControl);
         assertEquals(0, outConfig.getMergedConfiguration().densityDpi);
@@ -707,6 +793,67 @@ public class WindowManagerServiceTests extends WindowTestsBase {
     }
 
     @Test
+    public void testScreenshotOverlayIsBehindAccessibilityOverlay_AddedWhenPlayingTransition() {
+        TestTransitionPlayer player = registerTestTransitionPlayer();
+
+        final Session session = createTestSession(mAtm, 1234 /* pid */, Process.SYSTEM_UID);
+
+        final Binder accessibilityToken = new Binder();
+        mWm.addWindowToken(accessibilityToken, TYPE_ACCESSIBILITY_OVERLAY, DEFAULT_DISPLAY, null);
+
+        final WindowManager.LayoutParams accessibilityParams =
+                new WindowManager.LayoutParams(TYPE_ACCESSIBILITY_OVERLAY);
+        accessibilityParams.token = accessibilityToken;
+        final IWindow accessibilityWindow = new TestIWindow();
+        mWm.addWindow(session, accessibilityWindow, accessibilityParams, View.VISIBLE,
+                DEFAULT_DISPLAY, UserHandle.USER_SYSTEM, WindowInsets.Type.defaultVisible(), null,
+                new WindowRelayoutResult());
+
+        // Generate an activity launch transition
+        final ActivityRecord activity = new ActivityBuilder(mAtm)
+                .setCreateTask(true).setVisible(false).build();
+        requestTransition(activity, WindowManager.TRANSIT_OPEN);
+        mWm.mRoot.resumeFocusedTasksTopActivities();
+        final Transition transition = activity.mTransitionController.getCollectingTransition();
+        assertNotNull(transition);
+        mWm.mAnimator.ready();
+        activity.mTransitionController.requestStartTransition(
+                transition, activity.getTask(), null, null);
+        assertEquals(transition, player.mLastTransit);
+        player.startTransition();
+
+        final WindowManager.LayoutParams screenshotParams =
+                new WindowManager.LayoutParams(TYPE_SCREENSHOT);
+        final IWindow screenshotWindow = new TestIWindow();
+        mWm.addWindow(session, screenshotWindow, screenshotParams, View.VISIBLE, DEFAULT_DISPLAY,
+                UserHandle.USER_SYSTEM, WindowInsets.Type.defaultVisible(), null,
+                new WindowRelayoutResult());
+
+        final WindowState screenshotWindowState = mWm.windowForClient(session, screenshotWindow);
+        assertTrue(player.mLastTransit.isInTransition(screenshotWindowState));
+
+        final ActionChain chain = ActionChain.testFinish(player.mLastTransit);
+        player.mLastTransit.onTransactionReady(player.mLastTransit.getSyncId(), mTransaction);
+        player.mLastTransit.finishTransition(chain);
+
+        final ArgumentCaptor<Integer> screenshotLayerCaptor =
+                ArgumentCaptor.forClass(Integer.class);
+        verify(mTransaction, atLeastOnce()).setLayer(
+                eq(screenshotWindowState.getParentSurfaceControl()),
+                screenshotLayerCaptor.capture());
+
+        final ArgumentCaptor<Integer> accessibilityLayerCaptor =
+                ArgumentCaptor.forClass(Integer.class);
+        final WindowState accessibilityWindowState =
+                mWm.windowForClient(session, accessibilityWindow);
+        verify(mTransaction, atLeastOnce()).setLayer(
+                eq(accessibilityWindowState.getParentSurfaceControl()),
+                accessibilityLayerCaptor.capture());
+
+        assertTrue(screenshotLayerCaptor.getValue() < accessibilityLayerCaptor.getValue());
+    }
+
+    @Test
     public void testAddWindowWithSubWindowTypeByWindowContext() {
         spyOn(mWm.mWindowContextListenerController);
 
@@ -726,7 +873,13 @@ public class WindowManagerServiceTests extends WindowTestsBase {
                 .hasListener(eq(windowContextToken));
         doReturn(TYPE_INPUT_METHOD).when(mWm.mWindowContextListenerController)
                 .getWindowType(eq(windowContextToken));
-        doReturn(true).when(mWm.mUmInternal).isUserVisible(anyInt(), anyInt());
+        // Clean up with the allow_current_user_access_unassigned_displays_in_mumd flag.
+        if (Flags.currentUserAccessUnassignedDisplays()) {
+            doReturn(UserHandle.getUserId(session.mUid))
+                .when(mWm.mUmInternal).getUserAssignedToDisplay(anyInt());
+        } else {
+            doReturn(true).when(mWm.mUmInternal).isUserVisible(anyInt(), anyInt());
+        }
 
         mWm.addWindow(session, new TestIWindow(), params, View.VISIBLE, DEFAULT_DISPLAY,
                 UserHandle.USER_SYSTEM, WindowInsets.Type.defaultVisible(), null,
@@ -748,6 +901,55 @@ public class WindowManagerServiceTests extends WindowTestsBase {
         session.binderDied();
         assertFalse(parentWin.hasChild());
         assertFalse(parentWin.isAttached());
+    }
+
+    @Test
+    @EnableFlags(android.view.inputmethod.Flags.FLAG_WARM_WORK_PROFILE_IME)
+    public void testAddWindow_staleImeWindow_ignored() {
+        // Setup the active IME token on the display
+        final WindowToken activeImeToken = createImeWindowToken(mDisplayContent);
+        mDisplayContent.getImeContainer().setImeWindowToken(activeImeToken.asImeToken());
+
+        // Create a stale IME window token
+        final WindowToken staleImeToken = createImeWindowToken(mDisplayContent);
+
+        // Add an IME window using the stale token
+        final WindowManager.LayoutParams params = new WindowManager.LayoutParams(TYPE_INPUT_METHOD);
+        params.token = staleImeToken.token;
+        final IWindow staleImeWindow = new TestIWindow();
+        final Session session = createTestSession(mAtm, 1234 /* pid */, Process.SYSTEM_UID);
+
+        final int result = mWm.addWindow(session, staleImeWindow, params, View.VISIBLE,
+                DEFAULT_DISPLAY, UserHandle.USER_SYSTEM, WindowInsets.Type.defaultVisible(), null,
+                new WindowRelayoutResult());
+        assertThat(result).isAtLeast(WindowManagerGlobal.ADD_OKAY);
+
+        final WindowState win = mWm.windowForClient(session, staleImeWindow);
+        // The display's IME window should not be set to the stale window
+        assertThat(mDisplayContent.getImeWindow()).isNotEqualTo(win);
+    }
+
+    @Test
+    @EnableFlags(android.view.inputmethod.Flags.FLAG_WARM_WORK_PROFILE_IME)
+    public void testAddWindow_validImeWindow_added() {
+        // Setup the active IME token on the display
+        final WindowToken activeImeToken = createImeWindowToken(mDisplayContent);
+        mDisplayContent.getImeContainer().setImeWindowToken(activeImeToken.asImeToken());
+
+        // Add an IME window using the active token
+        final WindowManager.LayoutParams params = new WindowManager.LayoutParams(TYPE_INPUT_METHOD);
+        params.token = activeImeToken.token;
+        final IWindow activeImeWindow = new TestIWindow();
+        final Session session = createTestSession(mAtm, 1234 /* pid */, Process.SYSTEM_UID);
+
+        final int result = mWm.addWindow(session, activeImeWindow, params, View.VISIBLE,
+                DEFAULT_DISPLAY, UserHandle.USER_SYSTEM, WindowInsets.Type.defaultVisible(), null,
+                new WindowRelayoutResult());
+        assertThat(result).isAtLeast(WindowManagerGlobal.ADD_OKAY);
+
+        final WindowState win = mWm.windowForClient(session, activeImeWindow);
+        // The display's IME window should be set to the valid window
+        assertThat(mDisplayContent.getImeWindow()).isEqualTo(win);
     }
 
     @Test
@@ -1373,11 +1575,18 @@ public class WindowManagerServiceTests extends WindowTestsBase {
         final IBinder window = new Binder();
         final InputTransferToken inputTransferToken = mock(InputTransferToken.class);
 
+        final WindowInputChannelParams invalidParams = new WindowInputChannelParams();
+        invalidParams.displayId = DEFAULT_DISPLAY;
+        invalidParams.clientToken = window;
+        invalidParams.inputTransferToken = inputTransferToken;
+        invalidParams.surface = surfaceControl;
+        invalidParams.type = TYPE_APPLICATION;
+        invalidParams.flags = FLAG_NOT_FOCUSABLE;
+        invalidParams.privateFlags = PRIVATE_FLAG_TRUSTED_OVERLAY;
+        invalidParams.inputFeatures = INPUT_FEATURE_SPY;
+        invalidParams.inputHandleName = "TestInputChannel";
         assertThrows(SecurityException.class, () ->
-                mWm.grantInputChannel(session, callingUid, callingPid, DEFAULT_DISPLAY,
-                        surfaceControl, window, null /* hostInputToken */, FLAG_NOT_FOCUSABLE,
-                        PRIVATE_FLAG_TRUSTED_OVERLAY, INPUT_FEATURE_SPY, TYPE_APPLICATION,
-                        null /* windowToken */, inputTransferToken, "TestInputChannel"));
+                mWm.grantInputChannel(session, callingUid, callingPid, invalidParams));
     }
 
     @Test
@@ -1389,11 +1598,17 @@ public class WindowManagerServiceTests extends WindowTestsBase {
         final IBinder window = new Binder();
         final InputTransferToken inputTransferToken = mock(InputTransferToken.class);
 
-        mWm.grantInputChannel(session, callingUid, callingPid,
-                DEFAULT_DISPLAY, surfaceControl, window, null /* hostInputToken */,
-                FLAG_NOT_FOCUSABLE, PRIVATE_FLAG_TRUSTED_OVERLAY,
-                INPUT_FEATURE_SPY, TYPE_APPLICATION, null /* windowToken */, inputTransferToken,
-                "TestInputChannel");
+        final WindowInputChannelParams params = new WindowInputChannelParams();
+        params.displayId = DEFAULT_DISPLAY;
+        params.clientToken = window;
+        params.inputTransferToken = inputTransferToken;
+        params.surface = surfaceControl;
+        params.type = TYPE_APPLICATION;
+        params.flags = FLAG_NOT_FOCUSABLE;
+        params.privateFlags = PRIVATE_FLAG_TRUSTED_OVERLAY;
+        params.inputFeatures = INPUT_FEATURE_SPY;
+        params.inputHandleName = "TestInputChannel";
+        mWm.grantInputChannel(session, callingUid, callingPid, params);
 
         verify(mTransaction).setInputWindowInfo(
                 eq(surfaceControl),
@@ -1409,12 +1624,17 @@ public class WindowManagerServiceTests extends WindowTestsBase {
         final IBinder window = new Binder();
         final InputTransferToken inputTransferToken = mock(InputTransferToken.class);
 
+        final WindowInputChannelParams invalidParams = new WindowInputChannelParams();
+        invalidParams.displayId = DEFAULT_DISPLAY;
+        invalidParams.clientToken = window;
+        invalidParams.inputTransferToken = inputTransferToken;
+        invalidParams.surface = surfaceControl;
+        invalidParams.type = TYPE_APPLICATION;
+        invalidParams.privateFlags = PRIVATE_FLAG_TRUSTED_OVERLAY;
+        invalidParams.inputFeatures = INPUT_FEATURE_DISPLAY_TOPOLOGY_AWARE;
+        invalidParams.inputHandleName = "TestInputChannel";
         assertThrows(SecurityException.class, () ->
-                mWm.grantInputChannel(session, callingUid, callingPid, DEFAULT_DISPLAY,
-                        surfaceControl, window, null /* hostInputToken */, 0 /* flags */,
-                        PRIVATE_FLAG_TRUSTED_OVERLAY, INPUT_FEATURE_DISPLAY_TOPOLOGY_AWARE,
-                        TYPE_APPLICATION, null /* windowToken */, inputTransferToken,
-                        "TestInputChannel"));
+                mWm.grantInputChannel(session, callingUid, callingPid, invalidParams));
     }
 
     @Test
@@ -1426,20 +1646,29 @@ public class WindowManagerServiceTests extends WindowTestsBase {
         final IBinder window = new Binder();
         final InputTransferToken inputTransferToken = mock(InputTransferToken.class);
 
+        final WindowInputChannelParams params = new WindowInputChannelParams();
+        params.displayId = DEFAULT_DISPLAY;
+        params.clientToken = window;
+        params.inputTransferToken = inputTransferToken;
+        params.surface = surfaceControl;
+        params.type = TYPE_APPLICATION;
+        params.flags = FLAG_NOT_FOCUSABLE;
+        params.privateFlags = PRIVATE_FLAG_TRUSTED_OVERLAY;
+        params.inputHandleName = "TestInputChannel";
         final InputChannel inputChannel = mWm.grantInputChannel(session, callingUid, callingPid,
-                DEFAULT_DISPLAY, surfaceControl, window, null /* hostInputToken */,
-                FLAG_NOT_FOCUSABLE, PRIVATE_FLAG_TRUSTED_OVERLAY,
-                0 /* inputFeatures */, TYPE_APPLICATION, null /* windowToken */, inputTransferToken,
-                "TestInputChannel");
+                params);
         verify(mTransaction).setInputWindowInfo(
                 eq(surfaceControl),
                 argThat(h -> (h.inputConfig & InputConfig.SPY) == 0));
 
-        assertThrows(SecurityException.class, () ->
-                mWm.updateInputChannel(inputChannel.getToken(), null /* hostInputToken */,
-                        DEFAULT_DISPLAY, surfaceControl,
-                        FLAG_NOT_FOCUSABLE, PRIVATE_FLAG_TRUSTED_OVERLAY, INPUT_FEATURE_SPY,
-                        null /* region */));
+        final WindowInputChannelParams invalidParams = new WindowInputChannelParams();
+        invalidParams.displayId = DEFAULT_DISPLAY;
+        invalidParams.channelToken = inputChannel.getToken();
+        invalidParams.surface = surfaceControl;
+        invalidParams.flags = FLAG_NOT_FOCUSABLE;
+        invalidParams.privateFlags = PRIVATE_FLAG_TRUSTED_OVERLAY;
+        invalidParams.inputFeatures = INPUT_FEATURE_SPY;
+        assertThrows(SecurityException.class, () -> mWm.updateInputChannel(invalidParams));
     }
 
     @Test
@@ -1451,19 +1680,29 @@ public class WindowManagerServiceTests extends WindowTestsBase {
         final IBinder window = new Binder();
         final InputTransferToken inputTransferToken = mock(InputTransferToken.class);
 
+        final WindowInputChannelParams params = new WindowInputChannelParams();
+        params.displayId = DEFAULT_DISPLAY;
+        params.clientToken = window;
+        params.inputTransferToken = inputTransferToken;
+        params.surface = surfaceControl;
+        params.type = TYPE_APPLICATION;
+        params.flags = FLAG_NOT_FOCUSABLE;
+        params.privateFlags = PRIVATE_FLAG_TRUSTED_OVERLAY;
+        params.inputHandleName = "TestInputChannel";
         final InputChannel inputChannel = mWm.grantInputChannel(session, callingUid, callingPid,
-                DEFAULT_DISPLAY, surfaceControl,
-                window, null /* hostInputToken */, FLAG_NOT_FOCUSABLE, PRIVATE_FLAG_TRUSTED_OVERLAY,
-                0 /* inputFeatures */, TYPE_APPLICATION, null /* windowToken */, inputTransferToken,
-                "TestInputChannel");
+                params);
         verify(mTransaction).setInputWindowInfo(
                 eq(surfaceControl),
                 argThat(h -> (h.inputConfig & InputConfig.SPY) == 0));
 
-        mWm.updateInputChannel(inputChannel.getToken(), null /* hostInputToken */,
-                DEFAULT_DISPLAY, surfaceControl,
-                FLAG_NOT_FOCUSABLE, PRIVATE_FLAG_TRUSTED_OVERLAY, INPUT_FEATURE_SPY,
-                null /* region */);
+        final WindowInputChannelParams updateParams = new WindowInputChannelParams();
+        updateParams.displayId = DEFAULT_DISPLAY;
+        updateParams.channelToken = inputChannel.getToken();
+        updateParams.surface = surfaceControl;
+        updateParams.flags = FLAG_NOT_FOCUSABLE;
+        updateParams.privateFlags = PRIVATE_FLAG_TRUSTED_OVERLAY;
+        updateParams.inputFeatures = INPUT_FEATURE_SPY;
+        mWm.updateInputChannel(updateParams);
         verify(mTransaction).setInputWindowInfo(
                 eq(surfaceControl),
                 argThat(h -> (h.inputConfig & InputConfig.SPY) == InputConfig.SPY));
@@ -1478,23 +1717,37 @@ public class WindowManagerServiceTests extends WindowTestsBase {
         final IBinder window = new Binder();
         final InputTransferToken inputTransferToken = mock(InputTransferToken.class);
 
+        final WindowInputChannelParams invalidParams = new WindowInputChannelParams();
+        invalidParams.displayId = DEFAULT_DISPLAY;
+        invalidParams.clientToken = window;
+        invalidParams.inputTransferToken = inputTransferToken;
+        invalidParams.surface = surfaceControl;
+        invalidParams.type = TYPE_APPLICATION;
+        invalidParams.flags = FLAG_NOT_FOCUSABLE;
+        invalidParams.inputFeatures = INPUT_FEATURE_SENSITIVE_FOR_PRIVACY;
+        invalidParams.inputHandleName = "TestInputChannel";
         assertThrows(SecurityException.class, () -> mWm.grantInputChannel(session, callingUid,
-                callingPid, DEFAULT_DISPLAY, surfaceControl,
-                window, null /* hostInputToken */, FLAG_NOT_FOCUSABLE, 0 /* privateFlags */,
-                INPUT_FEATURE_SENSITIVE_FOR_PRIVACY, TYPE_APPLICATION, null /* windowToken */,
-                inputTransferToken, "TestInputChannel"));
+                callingPid, invalidParams));
 
+        final WindowInputChannelParams params = new WindowInputChannelParams();
+        params.displayId = DEFAULT_DISPLAY;
+        params.clientToken = window;
+        params.inputTransferToken = inputTransferToken;
+        params.surface = surfaceControl;
+        params.type = TYPE_APPLICATION;
+        params.flags = FLAG_NOT_FOCUSABLE;
+        params.inputHandleName = "TestInputChannel";
         final InputChannel inputChannel = mWm.grantInputChannel(session, callingUid, callingPid,
-                DEFAULT_DISPLAY, surfaceControl,
-                window, null /* hostInputToken */, FLAG_NOT_FOCUSABLE, 0 /* privateFlags */,
-                0 /* inputFeatures */, TYPE_APPLICATION, null /* windowToken */,
-                inputTransferToken, "TestInputChannel");
+                params);
 
-        mWm.updateInputChannel(inputChannel.getToken(), null /* hostInputToken */,
-                DEFAULT_DISPLAY, surfaceControl,
-                FLAG_NOT_FOCUSABLE, PRIVATE_FLAG_TRUSTED_OVERLAY,
-                INPUT_FEATURE_SENSITIVE_FOR_PRIVACY,
-                null /* region */);
+        final WindowInputChannelParams updateParams = new WindowInputChannelParams();
+        updateParams.displayId = DEFAULT_DISPLAY;
+        updateParams.channelToken = inputChannel.getToken();
+        updateParams.surface = surfaceControl;
+        updateParams.flags = FLAG_NOT_FOCUSABLE;
+        updateParams.privateFlags = PRIVATE_FLAG_TRUSTED_OVERLAY;
+        updateParams.inputFeatures = INPUT_FEATURE_SENSITIVE_FOR_PRIVACY;
+        mWm.updateInputChannel(updateParams);
         verify(mTransaction).setInputWindowInfo(
                 eq(surfaceControl),
                 argThat(h -> (h.inputConfig & InputConfig.SENSITIVE_FOR_PRIVACY) != 0));
@@ -1504,7 +1757,7 @@ public class WindowManagerServiceTests extends WindowTestsBase {
     public void testRequestKeyboardShortcuts_noWindow() {
         doNothing().when(mWm.mContext).enforceCallingOrSelfPermission(anyString(), anyString());
         doReturn(null).when(mWm).getFocusedWindowLocked();
-        doReturn(null).when(mWm.mRoot).getCurrentInputMethodWindow();
+        doReturn(null).when(mWm.mRoot).getCurrentImeWindow();
 
         TestResultReceiver receiver = new TestResultReceiver();
         mWm.requestAppKeyboardShortcuts(receiver, 0);
@@ -1526,7 +1779,7 @@ public class WindowManagerServiceTests extends WindowTestsBase {
                 TYPE_BASE_APPLICATION).setDisplay(mDisplayContent).setClientWindow(window).build();
         doNothing().when(mWm.mContext).enforceCallingOrSelfPermission(anyString(), anyString());
         doReturn(windowState).when(mWm).getFocusedWindowLocked();
-        doReturn(windowState).when(mWm.mRoot).getCurrentInputMethodWindow();
+        doReturn(windowState).when(mWm.mRoot).getCurrentImeWindow();
 
         TestResultReceiver receiver = new TestResultReceiver();
         mWm.requestAppKeyboardShortcuts(receiver, 0);
@@ -1661,7 +1914,13 @@ public class WindowManagerServiceTests extends WindowTestsBase {
         DisplayContent dc = createNewDisplay();
         int displayId = dc.getDisplayId();
         int userId = UserHandle.getUserId(uid);
-        doReturn(false).when(mWm.mUmInternal).isUserVisible(eq(userId), eq(displayId));
+        // Clean up with the allow_current_user_access_unassigned_displays_in_mumd flag.
+        if (Flags.currentUserAccessUnassignedDisplays()) {
+            doReturn(UserHandle.USER_SYSTEM).when(mWm.mUmInternal)
+                .getUserAssignedToDisplay(displayId);
+        } else {
+            doReturn(false).when(mWm.mUmInternal).isUserVisible(eq(userId), eq(displayId));
+        }
         WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                 LayoutParams.TYPE_APPLICATION_OVERLAY);
 
@@ -1776,7 +2035,6 @@ public class WindowManagerServiceTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
     public void reparentWindowContextToDisplayArea_newDisplay_reparented() {
         final WindowToken windowToken = createTestClientWindowToken(TYPE_NOTIFICATION_SHADE,
                 mDisplayContent);
@@ -1793,22 +2051,6 @@ public class WindowManagerServiceTests extends WindowTestsBase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
-    public void reparentWindowContextToDisplayArea_newDisplayButFlagDisabled_notReparented() {
-        final WindowToken windowToken = createTestClientWindowToken(TYPE_NOTIFICATION_SHADE,
-                mDisplayContent);
-        final int newDisplayId = 1;
-        final DisplayContent dc = createNewDisplay();
-        setupReparentWindowContextToDisplayAreaTest(windowToken, dc, newDisplayId);
-
-        assertThat(mWm.reparentWindowContextToDisplayArea(mAppThread, windowToken.token,
-                newDisplayId)).isFalse();
-
-        assertThat(windowToken.getDisplayContent()).isEqualTo(mDisplayContent);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
     public void reparentWindowContext_afterReparent_DCNeedsLayout() {
         final WindowToken windowToken = createTestClientWindowToken(TYPE_NOTIFICATION_SHADE,
                 mDisplayContent);
@@ -1823,7 +2065,6 @@ public class WindowManagerServiceTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
     public void reparentWindowContext_afterReparent_traversalScheduled() {
         final WindowToken windowToken = createTestClientWindowToken(TYPE_NOTIFICATION_SHADE,
                 mDisplayContent);
@@ -1838,7 +2079,8 @@ public class WindowManagerServiceTests extends WindowTestsBase {
         assertThat(mWm.reparentWindowContextToDisplayArea(mAppThread, windowToken.token,
                 newDisplayId)).isTrue();
 
-        verify(mWm.mWindowPlacerLocked).requestTraversal();
+        // Reparenting the WindowToken also requests a traversal.
+        verify(mWm.mWindowPlacerLocked, times(2)).requestTraversal();
     }
 
     @Test
@@ -1882,7 +2124,6 @@ public class WindowManagerServiceTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PERSISTING_DISPLAY_SIZE_FOR_CONNECTED_DISPLAYS)
     public void setForcedDisplayDensityRatio_forExternalDisplay_setsRatio() {
         final DisplayInfo displayInfo = new DisplayInfo(mDisplayInfo);
         displayInfo.displayId = DEFAULT_DISPLAY + 1;
@@ -1900,7 +2141,6 @@ public class WindowManagerServiceTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PERSISTING_DISPLAY_SIZE_FOR_CONNECTED_DISPLAYS)
     public void setForcedDisplayDensityRatio_forInternalDisplay_setsRatio() {
         final DisplayInfo displayInfo = new DisplayInfo(mDisplayInfo);
         displayInfo.displayId = DEFAULT_DISPLAY + 1;
@@ -1918,7 +2158,6 @@ public class WindowManagerServiceTests extends WindowTestsBase {
 
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PERSISTING_DISPLAY_SIZE_FOR_CONNECTED_DISPLAYS)
     public void setForcedDisplayDensity_forExternalDisplay_resetsRatio() {
         final DisplayInfo displayInfo = new DisplayInfo(mDisplayInfo);
         displayInfo.displayId = DEFAULT_DISPLAY + 1;
@@ -1937,7 +2176,6 @@ public class WindowManagerServiceTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PERSISTING_DISPLAY_SIZE_FOR_CONNECTED_DISPLAYS)
     public void clearForcedDisplayDensityRatio_clearsRatioAndDensity() {
         final DisplayInfo displayInfo = new DisplayInfo(mDisplayInfo);
         displayInfo.displayId = DEFAULT_DISPLAY + 1;
@@ -1953,6 +2191,383 @@ public class WindowManagerServiceTests extends WindowTestsBase {
         assertEquals(mDisplayContent.mBaseDisplayDensity,
                 mDisplayContent.getInitialDisplayDensity());
         assertEquals(mDisplayContent.mForcedDisplayDensityRatio, 0.0f, 0.001);
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    public void testSetDisplayEngagementMode_flagDisabled() {
+        spyOn(mDefaultDisplay);
+
+        final int testMode = WindowManager.ENGAGEMENT_MODE_FLAG_VISUALS_ON;
+        mWm.setDisplayEngagementMode(mDefaultDisplay.getDisplayId(), testMode);
+
+        waitUntilHandlersIdle();
+        verify(mDefaultDisplay, never()).setEngagementMode(anyInt());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    public void testSetDisplayEngagementMode_success() {
+        spyOn(mDefaultDisplay);
+
+        final int testMode = WindowManager.ENGAGEMENT_MODE_FLAG_VISUALS_ON;
+        mWm.setDisplayEngagementMode(mDefaultDisplay.getDisplayId(), testMode);
+        when(mDefaultDisplay.getEngagementMode()).thenReturn(testMode);
+
+        waitUntilHandlersIdle();
+        verify(mDefaultDisplay).setEngagementMode(testMode);
+        final int result = mWm.getDisplayEngagementMode(mDefaultDisplay.getDisplayId());
+        assertEquals(testMode, result);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    public void testSetDisplayEngagementMode_dispatchesCallbackWhenModeChanges() {
+        spyOn(mWm);
+
+        final int initialMode = mWm.getDisplayEngagementMode(mDefaultDisplay.getDisplayId());
+        final int newMode = WindowManager.ENGAGEMENT_MODE_FLAG_AUDIO_ON;
+
+        assertThat(initialMode).isNotEqualTo(newMode);
+        mWm.setDisplayEngagementMode(mDefaultDisplay.getDisplayId(), newMode);
+
+        waitUntilHandlersIdle();
+        verify(mWm, times(1)).dispatchDisplayEngagementModeChanged(
+                mDefaultDisplay.getDisplayId(), newMode);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    public void testSetDisplayEngagementMode_invalidDisplay() {
+        spyOn(mDefaultDisplay);
+
+        final int testMode = WindowManager.ENGAGEMENT_MODE_FLAG_VISUALS_ON;
+        mWm.setDisplayEngagementMode(Display.INVALID_DISPLAY, testMode);
+
+        waitUntilHandlersIdle();
+        verify(mDefaultDisplay, never()).setEngagementMode(testMode);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    public void testDisplayEngagementModeCallback() throws RemoteException {
+        spyOn(mDefaultDisplay);
+
+        final int testMode = WindowManager.ENGAGEMENT_MODE_FLAG_VISUALS_ON;
+        IDisplayEngagementModeCallback callback = mock(IDisplayEngagementModeCallback.class);
+        when(callback.asBinder()).thenReturn(new Binder());
+        mWm.registerDisplayEngagementModeCallback(callback);
+
+        waitUntilHandlersIdle();
+        // The register callback should trigger a callback with the initial mode.
+        verify(callback).onEngagementModeChanged(mDefaultDisplay.getDisplayId(),
+                DisplayContent.DEFAULT_ENGAGEMENT_MODE);
+
+        mWm.setDisplayEngagementMode(mDefaultDisplay.getDisplayId(), testMode);
+
+        waitUntilHandlersIdle();
+        // Callback should be triggered with the new mode.
+        verify(callback).onEngagementModeChanged(mDefaultDisplay.getDisplayId(), testMode);
+
+        mWm.unregisterDisplayEngagementModeCallback(callback);
+        final int newMode = WindowManager.ENGAGEMENT_MODE_FLAG_AUDIO_ON;
+        mWm.setDisplayEngagementMode(mDefaultDisplay.getDisplayId(), newMode);
+
+        waitUntilHandlersIdle();
+        verify(callback, never()).onEngagementModeChanged(mDefaultDisplay.getDisplayId(), newMode);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    public void testGetDisplayEngagementMode_invalidDisplay_returnsDefault() {
+        final int result = mWm.getDisplayEngagementMode(Display.INVALID_DISPLAY);
+        assertEquals(DisplayContent.DEFAULT_ENGAGEMENT_MODE, result);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DEVICE_ENGAGEMENT_MODE)
+    public void testSetDisplayEngagementMode_multipleDisplays() {
+        final DisplayContent dc = createNewDisplay();
+        spyOn(mDefaultDisplay);
+        spyOn(dc);
+
+        final int defaultDisplayMode = WindowManager.ENGAGEMENT_MODE_FLAG_VISUALS_ON;
+        mWm.setDisplayEngagementMode(mDefaultDisplay.getDisplayId(), defaultDisplayMode);
+        when(mDefaultDisplay.getEngagementMode()).thenReturn(defaultDisplayMode);
+
+        final int secondaryDisplayMode = WindowManager.ENGAGEMENT_MODE_FLAG_AUDIO_ON;
+        mWm.setDisplayEngagementMode(dc.getDisplayId(), secondaryDisplayMode);
+        when(dc.getEngagementMode()).thenReturn(secondaryDisplayMode);
+
+        waitUntilHandlersIdle();
+        verify(mDefaultDisplay).setEngagementMode(defaultDisplayMode);
+        verify(dc).setEngagementMode(secondaryDisplayMode);
+
+        assertEquals(defaultDisplayMode,
+                mWm.getDisplayEngagementMode(mDefaultDisplay.getDisplayId()));
+        assertEquals(secondaryDisplayMode, mWm.getDisplayEngagementMode(dc.getDisplayId()));
+    }
+
+    @EnableFlags(com.android.window.flags.Flags.FLAG_ENGAGEMENT_CONTROL_API)
+    @Test
+    public void testEngagementControlRequestConsumer() throws RemoteException {
+        final WindowState win = newWindowBuilder("appWin", TYPE_BASE_APPLICATION)
+                .setOwnerId(Binder.getCallingUid())
+                .build();
+        final IBinder windowToken = win.mClient.asBinder();
+        mWm.mWindowMap.put(windowToken, win);
+
+        final int displayId = DEFAULT_DISPLAY;
+        final int flags = 1;
+        final int taskId = win.getTask().mTaskId;
+
+        android.window.IEngagementControlRequestConsumer consumer =
+                mock(android.window.IEngagementControlRequestConsumer.Stub.class);
+        when(consumer.asBinder()).thenReturn((IBinder) consumer);
+
+        mWm.registerEngagementControlRequestConsumer(consumer);
+        mWm.requestEngagementControlState(windowToken, flags);
+
+        verify(consumer).onEngagementControlRequest(displayId, taskId, flags);
+
+        mWm.unregisterEngagementControlRequestConsumer(consumer);
+        mWm.requestEngagementControlState(windowToken, 2);
+
+        verify(consumer, never()).onEngagementControlRequest(displayId, taskId, 2);
+    }
+
+    @Test
+    @DisableFlags({android.security.Flags.FLAG_APP_LOCK_APIS,
+            android.security.Flags.FLAG_APP_LOCK_CORE})
+    public void testConstructor_appLockFlagsAreOff_appLockControllerIsNull() {
+        assertNull(mWm.mAppLockController);
+    }
+
+    @Test
+    @EnableFlags({android.security.Flags.FLAG_APP_LOCK_APIS,
+            android.security.Flags.FLAG_APP_LOCK_CORE})
+    public void testConstructor_appLockControllerIsNotNull() {
+        assertNotNull(mWm.mAppLockController);
+    }
+
+    @Test
+    @EnableFlags({android.security.Flags.FLAG_APP_LOCK_APIS,
+            android.security.Flags.FLAG_APP_LOCK_CORE})
+    public void testSystemReady_callsAppLockControllerSystemReady() {
+        final AppLockController appLockController = mWm.mAppLockController;
+        spyOn(appLockController);
+        doNothing().when(appLockController).systemReady();
+
+        // Mock other methods in systemReady().
+        spyOn(mWm.mAnimatorScale);
+        doNothing().when(mWm.mAnimatorScale).onSystemReady();
+        spyOn(mWm.mPolicy);
+        doNothing().when(mWm.mPolicy).systemReady();
+        spyOn(mWm.mRoot);
+        doNothing().when(mWm.mRoot).forAllDisplayPolicies(DisplayPolicy::systemReady);
+        spyOn(mWm.mSnapshotController);
+        doNothing().when(mWm.mSnapshotController).systemReady();
+
+        mWm.systemReady();
+
+        verify(appLockController).systemReady();
+    }
+
+    @Test
+    @EnableFlags({android.security.Flags.FLAG_APP_LOCK_APIS,
+            android.security.Flags.FLAG_APP_LOCK_CORE})
+    public void testIsPackageLockedByAppLock() {
+        final AppLockController appLockController = mWm.mAppLockController;
+        spyOn(appLockController);
+        doReturn(true).when(appLockController).isPackageLockedByAppLockLocked(TEST_PACKAGE_1,
+                TEST_USER_ID_1);
+        doReturn(true).when(appLockController).isPackageLockedByAppLockLocked(TEST_PACKAGE_2,
+                TEST_USER_ID_2);
+        doReturn(false).when(appLockController).isPackageLockedByAppLockLocked(TEST_PACKAGE_3,
+                TEST_USER_ID_1);
+
+        assertThat(mWm.isPackageLockedByAppLockLocked(TEST_PACKAGE_1, TEST_USER_ID_1)).isTrue();
+        assertThat(mWm.isPackageLockedByAppLockLocked(TEST_PACKAGE_2, TEST_USER_ID_2)).isTrue();
+        assertThat(mWm.isPackageLockedByAppLockLocked(TEST_PACKAGE_3, TEST_USER_ID_1)).isFalse();
+    }
+
+    @EnableFlags({android.security.Flags.FLAG_APP_LOCK_APIS,
+            android.security.Flags.FLAG_APP_LOCK_CORE})
+    @Test
+    public void testAddOverlayWindowBySystem_packageIsLockedByAppLock_showOnWindowReturnsTrue() {
+        internalTestAddOverlayWindowForAppLock(true /* isPackageLockedByAppLock */,
+                true /* isWindowCreatedBySystem */);
+    }
+
+    @EnableFlags({android.security.Flags.FLAG_APP_LOCK_APIS,
+            android.security.Flags.FLAG_APP_LOCK_CORE})
+    @Test
+    public void testAddOverlayWindowBySystem_packageIsNotLockedByAppLock_showOnWindowReturnsTrue() {
+        internalTestAddOverlayWindowForAppLock(false /* isPackageLockedByAppLock */,
+                true /* isWindowCreatedBySystem */);
+    }
+
+    @EnableFlags({android.security.Flags.FLAG_APP_LOCK_APIS,
+            android.security.Flags.FLAG_APP_LOCK_CORE})
+    @Test
+    public void testAddOverlayWindowByApp_packageIsLockedByAppLock_showOnWindowReturnsFalse() {
+        internalTestAddOverlayWindowForAppLock(true /* isPackageLockedByAppLock */,
+                false /* isWindowCreatedBySystem */);
+    }
+
+    @EnableFlags({android.security.Flags.FLAG_APP_LOCK_APIS,
+            android.security.Flags.FLAG_APP_LOCK_CORE})
+    @Test
+    public void testAddOverlayWindowByApp_packageIsNotLockedByAppLock_showOnWindowReturnsTrue() {
+        internalTestAddOverlayWindowForAppLock(false /* isPackageLockedByAppLock */,
+                false /* isWindowCreatedBySystem */);
+    }
+
+    private void internalTestAddOverlayWindowForAppLock(boolean isPackageLockedByAppLock,
+            boolean isWindowCreatedBySystem) {
+        spyOn(mWm.mContext);
+        doReturn(isWindowCreatedBySystem ? PackageManager.PERMISSION_GRANTED
+                : PackageManager.PERMISSION_DENIED).when(mWm.mContext).checkCallingOrSelfPermission(
+                eq(android.Manifest.permission.INTERNAL_SYSTEM_WINDOW));
+
+        final Session session = createTestSession(mAtm, 1234 /* pid */, 10123 /* uid */);
+        final IWindow client = new TestIWindow();
+        final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                TYPE_APPLICATION_OVERLAY);
+        params.setTitle("overlayWindowLockedByAppLock: " + isPackageLockedByAppLock);
+        params.packageName = DEFAULT_COMPONENT_PACKAGE_NAME;
+        // Simulate package's locked by App Lock state.
+        final AppLockController appLockController = mWm.mAppLockController;
+        spyOn(appLockController);
+        doReturn(isPackageLockedByAppLock).when(appLockController).isPackageLockedByAppLockLocked(
+                DEFAULT_COMPONENT_PACKAGE_NAME, TEST_USER_ID_1);
+
+        final int addWindowRes = mWm.addWindow(session, client, params, View.VISIBLE,
+                DEFAULT_DISPLAY, TEST_USER_ID_1, WindowInsets.Type.defaultVisible(),
+                null /* outInputChannel */, new WindowRelayoutResult());
+
+        assertThat(addWindowRes).isAtLeast(WindowManagerGlobal.ADD_OKAY);
+        final WindowState win = mWm.mWindowMap.get(client.asBinder());
+        assertThat(win).isNotNull();
+        final boolean hideRes = win.hide(true /* doAnimation */, true /* requestAnim */);
+        final boolean showRes = win.show(true /* doAnimation */, true /* requestAnim */);
+        if (isWindowCreatedBySystem || !isPackageLockedByAppLock) {
+            assertThat(hideRes).isTrue();
+            assertThat(showRes).isTrue();
+        } else {
+            // Hiding and showing the window should not work if the package is locked by App Lock
+            // because the window is already hidden and can't be shown.
+            assertThat(hideRes).isFalse();
+            assertThat(showRes).isFalse();
+        }
+    }
+
+    @Test
+    public void testAddTrustedTaskOverlay_nullOverlay_throwsException() {
+        WindowManagerInternal wmInternal = LocalServices.getService(WindowManagerInternal.class);
+        final Task task = createTask(mDisplayContent);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> wmInternal.addTrustedTaskOverlay(task.mTaskId, null));
+    }
+
+    @Test
+    public void testAddTrustedTaskOverlay_invalidSurfaceControl_throwsException() {
+        WindowManagerInternal wmInternal = LocalServices.getService(WindowManagerInternal.class);
+        final Task task = createTask(mDisplayContent);
+        SurfaceControlViewHost.SurfacePackage overlay =
+                mock(SurfaceControlViewHost.SurfacePackage.class);
+        SurfaceControl sc = mock(SurfaceControl.class);
+        when(overlay.getSurfaceControl()).thenReturn(sc);
+        when(sc.isValid()).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> wmInternal.addTrustedTaskOverlay(task.mTaskId, overlay));
+    }
+
+    @Test
+    public void testAddTrustedTaskOverlay_invalidTaskId_throwsException() {
+        WindowManagerInternal wmInternal = LocalServices.getService(WindowManagerInternal.class);
+        SurfaceControlViewHost.SurfacePackage overlay =
+                mock(SurfaceControlViewHost.SurfacePackage.class);
+        SurfaceControl sc = mock(SurfaceControl.class);
+        when(overlay.getSurfaceControl()).thenReturn(sc);
+        when(sc.isValid()).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> wmInternal.addTrustedTaskOverlay(9999, overlay));
+    }
+
+    @Test
+    public void testAddTrustedTaskOverlay_leafTask() {
+        WindowManagerInternal wmInternal = LocalServices.getService(WindowManagerInternal.class);
+        final Task rootTask = createTask(mDisplayContent);
+        final Task childTask = createTaskInRootTask(rootTask, 0);
+        spyOn(childTask);
+
+        SurfaceControlViewHost.SurfacePackage overlay =
+                mock(SurfaceControlViewHost.SurfacePackage.class);
+        SurfaceControl sc = mock(SurfaceControl.class);
+        when(overlay.getSurfaceControl()).thenReturn(sc);
+        when(sc.isValid()).thenReturn(true);
+
+        wmInternal.addTrustedTaskOverlay(childTask.mTaskId, overlay);
+
+        verify(childTask).addTrustedOverlay(eq(overlay), any());
+    }
+
+    @Test
+    public void testRemoveTrustedTaskOverlay_nullOverlay_throwsException() {
+        WindowManagerInternal wmInternal = LocalServices.getService(WindowManagerInternal.class);
+        final Task task = createTask(mDisplayContent);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> wmInternal.removeTrustedTaskOverlay(task.mTaskId, null));
+    }
+
+    @Test
+    public void testRemoveTrustedTaskOverlay_invalidSurfaceControl_throwsException() {
+        WindowManagerInternal wmInternal = LocalServices.getService(WindowManagerInternal.class);
+        final Task task = createTask(mDisplayContent);
+        SurfaceControlViewHost.SurfacePackage overlay =
+                mock(SurfaceControlViewHost.SurfacePackage.class);
+        SurfaceControl sc = mock(SurfaceControl.class);
+        when(overlay.getSurfaceControl()).thenReturn(sc);
+        when(sc.isValid()).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> wmInternal.removeTrustedTaskOverlay(task.mTaskId, overlay));
+    }
+
+    @Test
+    public void testRemoveTrustedTaskOverlay_invalidTaskId_throwsException() {
+        WindowManagerInternal wmInternal = LocalServices.getService(WindowManagerInternal.class);
+        SurfaceControlViewHost.SurfacePackage overlay =
+                mock(SurfaceControlViewHost.SurfacePackage.class);
+        SurfaceControl sc = mock(SurfaceControl.class);
+        when(overlay.getSurfaceControl()).thenReturn(sc);
+        when(sc.isValid()).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> wmInternal.removeTrustedTaskOverlay(9999, overlay));
+    }
+
+    @Test
+    public void testRemoveTrustedTaskOverlay_leafTask() {
+        WindowManagerInternal wmInternal = LocalServices.getService(WindowManagerInternal.class);
+        final Task rootTask = createTask(mDisplayContent);
+        final Task childTask = createTaskInRootTask(rootTask, 0);
+        spyOn(childTask);
+
+        SurfaceControlViewHost.SurfacePackage overlay =
+                mock(SurfaceControlViewHost.SurfacePackage.class);
+        SurfaceControl sc = mock(SurfaceControl.class);
+        when(overlay.getSurfaceControl()).thenReturn(sc);
+        when(sc.isValid()).thenReturn(true);
+
+        wmInternal.removeTrustedTaskOverlay(childTask.mTaskId, overlay);
+
+        verify(childTask).removeTrustedOverlay(overlay);
     }
 
     /**
@@ -1999,9 +2614,117 @@ public class WindowManagerServiceTests extends WindowTestsBase {
         testActivity.getTask().mRemoteToken = remoteToken;
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_SYNC_BEFORE_ENABLING_SCREEN)
+    public void testSyncBeforeEnablingScreen() throws Exception {
+        final StorageManagerInternal smInternal = mock(StorageManagerInternal.class);
+        LocalServices.addService(StorageManagerInternal.class, smInternal);
+
+        final CountDownLatch syncStartedLatch = new CountDownLatch(1);
+        final AtomicReference<Runnable> callbackRef = new AtomicReference<>();
+
+        doAnswer(invocation -> {
+            callbackRef.set(invocation.getArgument(0));
+            syncStartedLatch.countDown();
+            return true;
+        }).doReturn(false).when(smInternal)
+                .waitForCheckpointReady(any(Runnable.class));
+
+        try {
+            mWm.mDisplayEnabled = false;
+            mWm.mSystemBooted = true;
+            mWm.mShowingBootMessages = true;
+            mWm.mForceDisplayEnabled = false;
+            mWm.mBootWaitForWindowsStartTime = -1;
+
+            mWm.enableScreenIfNeeded();
+            waitHandlerIdle(mWm.mH);
+
+            assertTrue("Sync should have started",
+                    syncStartedLatch.await(10, TimeUnit.SECONDS));
+
+            assertEquals("Screen enable should be deferred", -1,
+                    mWm.mBootWaitForWindowsStartTime);
+
+            callbackRef.get().run();
+
+            waitHandlerIdle(mWm.mH);
+
+            assertNotEquals("Screen enable should be proceeded", -1,
+                    mWm.mBootWaitForWindowsStartTime);
+            verify(smInternal, times(2)).waitForCheckpointReady(any(Runnable.class));
+        } finally {
+            LocalServices.removeServiceForTest(StorageManagerInternal.class);
+        }
+    }
+
     private boolean setupLetterboxConfigurationWithBackgroundType(
             @AppCompatConfiguration.LetterboxBackgroundType int letterboxBackgroundType) {
         mWm.mAppCompatConfiguration.setLetterboxBackgroundTypeOverride(letterboxBackgroundType);
         return mWm.isLetterboxBackgroundMultiColored();
+    }
+
+    @Test
+    public void testAddToastWindow_singleWindowPerToken() {
+        final IBinder token = new Binder();
+        mWm.addWindowToken(token, TYPE_TOAST, DEFAULT_DISPLAY, null /* options */);
+
+        final int uid1 = 1234;
+        final int pid1 = 1234;
+        final Session session1 = createTestSession(mAtm, pid1, uid1);
+        final WindowManager.LayoutParams params1 = new WindowManager.LayoutParams(TYPE_TOAST);
+        params1.token = token;
+        params1.packageName = "test1";
+
+        final ApplicationInfo appInfo1 = new ApplicationInfo();
+        appInfo1.targetSdkVersion = android.os.Build.VERSION_CODES.O;
+        doReturn(appInfo1)
+                .when(mWm.mPmInternal)
+                .getApplicationInfo(eq("test1"), anyLong(), anyInt(), anyInt());
+        doReturn(true).when(mWm.mPmInternal).isSameApp(eq("test1"), eq(uid1), anyInt());
+
+        final IWindow client1 = new TestIWindow();
+        final int res1 =
+                mWm.addWindow(
+                        session1,
+                        client1,
+                        params1,
+                        View.VISIBLE,
+                        DEFAULT_DISPLAY,
+                        0 /* requestUserId */,
+                        WindowInsets.Type.defaultVisible(),
+                        null,
+                        new WindowRelayoutResult());
+        assertThat(res1).isAtLeast(WindowManagerGlobal.ADD_OKAY);
+
+        // Add second window with same token but different UID to bypass the canAddToastWindowForUid
+        // check
+        final int uid2 = 1235;
+        final int pid2 = 1235;
+        final Session session2 = createTestSession(mAtm, pid2, uid2);
+        final WindowManager.LayoutParams params2 = new WindowManager.LayoutParams(TYPE_TOAST);
+        params2.token = token;
+        params2.packageName = "test2";
+
+        final ApplicationInfo appInfo2 = new ApplicationInfo();
+        appInfo2.targetSdkVersion = android.os.Build.VERSION_CODES.O;
+        doReturn(appInfo2)
+                .when(mWm.mPmInternal)
+                .getApplicationInfo(eq("test2"), anyLong(), anyInt(), anyInt());
+        doReturn(true).when(mWm.mPmInternal).isSameApp(eq("test2"), eq(uid2), anyInt());
+
+        final IWindow client2 = new TestIWindow();
+        final int res2 =
+                mWm.addWindow(
+                        session2,
+                        client2,
+                        params2,
+                        View.VISIBLE,
+                        DEFAULT_DISPLAY,
+                        0 /* requestUserId */,
+                        WindowInsets.Type.defaultVisible(),
+                        null,
+                        new WindowRelayoutResult());
+        assertThat(res2).isEqualTo(WindowManagerGlobal.ADD_BAD_APP_TOKEN);
     }
 }

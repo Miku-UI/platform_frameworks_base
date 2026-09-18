@@ -23,6 +23,8 @@ import android.os.VibrationAttributes;
 import android.os.VibratorInfo;
 import android.os.vibrator.IVibrationSession;
 import android.os.vibrator.IVibrationSessionCallback;
+import android.os.vibrator.HapticGeneratorSession;
+import android.os.vibrator.IHapticGeneratorSessionCallback;
 
 /** @hide */
 interface IVibratorManagerService {
@@ -59,4 +61,9 @@ interface IVibratorManagerService {
     ICancellationSignal startVendorVibrationSession(int uid, int deviceId, String opPkg,
             in int[] vibratorIds, in VibrationAttributes attributes, String reason,
             in IVibrationSessionCallback callback);
+
+    @EnforcePermission("USE_VIBRATOR_HAPTIC_GENERATOR")
+    void startHapticGeneratorSession(int vibratorId,
+                in @nullable HapticGeneratorSession.Config config,
+                in IHapticGeneratorSessionCallback callback);
 }

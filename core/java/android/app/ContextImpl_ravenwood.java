@@ -15,21 +15,42 @@
  */
 package android.app;
 
-import static android.content.pm.PackageManager.PERMISSION_GRANTED;
-import static android.platform.test.ravenwood.RavenwoodExperimentalApiChecker.onExperimentalApiCalled;
+import static android.content.pm.PackageManager.PERMISSION_DENIED;
 
-import android.content.pm.PackageManager;
+import android.content.Context;
+import android.content.IContentProvider;
 import android.os.FileUtils;
-import android.os.IBinder;
-import android.platform.test.ravenwood.RavenwoodPackageManager;
+import android.os.SystemProperties;
+import android.platform.test.ravenwood.RavenwoodExperimentalApiChecker;
+import android.view.Display;
 
 import java.io.File;
 
 public class ContextImpl_ravenwood {
     private static final String TAG = "ContextImpl_ravenwood";
 
-    static PackageManager getPackageManagerInner(ContextImpl contextImpl) {
-        return RavenwoodPackageManager.create(contextImpl);
+    private static final String IS_SYSTEM_OR_SYSUI_PROP =
+            "ravenwood.android.app.ContextImpl.isSystemOrSystemUI";
+
+    static boolean isSystemOrSystemUI(Context context) {
+        return SystemProperties.getBoolean(IS_SYSTEM_OR_SYSUI_PROP, false);
+    }
+
+    /**
+     * Implements {@link Context#getDisplayNoVerify()}.
+     *
+     * It's exposed as an exp-API, but unlike others, it returns null even if exp-APIs are
+     * disabled, just like @RavenwoodIgnore.
+     */
+    static Display getDisplayNoVerify(ContextImpl context) {
+        if (RavenwoodExperimentalApiChecker.isExperimentalApiEnabled()) {
+            return context.getDisplayNoVerifyInner();
+        }
+        return null;
+    }
+
+    static int checkPermission(ContextImpl ctx, String permission, int pid, int uid) {
+        return PERMISSION_DENIED;
     }
 
     static File ensurePrivateDirExists(File file, int mode, int gid, String xattr) {
@@ -45,16 +66,21 @@ public class ContextImpl_ravenwood {
         return file;
     }
 
-    /** Experimental implementation */
-    static int checkPermission(ContextImpl self, String permission, int pid, int uid) {
-        onExperimentalApiCalled(2);
-        return PERMISSION_GRANTED;
-    }
+    public static class ContentResolver {
 
-    /** Experimental implementation */
-    static int checkPermission(ContextImpl self, String permission, int pid, int uid,
-            IBinder callerToken) {
-        onExperimentalApiCalled(2);
-        return PERMISSION_GRANTED;
+        static IContentProvider acquireProvider(
+                ContextImpl.ApplicationContentResolver self, Context context, String auth) {
+            return RavenwoodAppDriver.getInstance().getProvider(context, auth);
+        }
+
+        static IContentProvider acquireExistingProvider(
+                ContextImpl.ApplicationContentResolver self, Context context, String auth) {
+            return acquireProvider(self, context, auth);
+        }
+
+        static IContentProvider acquireUnstableProvider(
+                ContextImpl.ApplicationContentResolver self, Context context, String auth) {
+            return acquireProvider(self, context, auth);
+        }
     }
 }

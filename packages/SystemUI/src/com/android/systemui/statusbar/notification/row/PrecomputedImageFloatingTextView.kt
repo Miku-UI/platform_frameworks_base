@@ -17,7 +17,9 @@
 package com.android.systemui.statusbar.notification.row
 
 import android.content.Context
+import android.graphics.Typeface
 import android.util.AttributeSet
+import android.view.RemotableViewMethod
 import android.widget.RemoteViews
 import com.android.internal.widget.ImageFloatingTextView
 
@@ -29,4 +31,17 @@ constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
     ImageFloatingTextView(context, attrs, defStyleAttr), TextPrecomputer {
 
     override fun setTextAsync(text: CharSequence?): Runnable = precompute(this, text)
+
+    @RemotableViewMethod(asyncImpl="showAsSummarizationAsync")
+    fun showAsSummarization(showAsSummarization: Boolean = false) = Unit
+
+    fun showAsSummarizationAsync(showAsSummarization: Boolean = false): Runnable {
+        return Runnable {
+            if (showAsSummarization) {
+                setSingleLine(false)
+                maxLines = 3
+                setTypeface(Typeface.create("variable-body-medium", Typeface.ITALIC))
+            }
+        }
+    }
 }

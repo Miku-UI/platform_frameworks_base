@@ -19,10 +19,13 @@ package com.android.systemui.dagger;
 import android.app.Activity;
 
 import com.android.systemui.ForegroundServicesDialog;
+import com.android.systemui.appfunctions.trampoline.AppFunctionExecutorProxy;
 import com.android.systemui.communal.widgets.EditWidgetsActivity;
+import com.android.systemui.dreams.ui.activity.DreamSetupActivity;
 import com.android.systemui.keyguard.WorkLockActivity;
 import com.android.systemui.people.PeopleSpaceActivity;
 import com.android.systemui.people.widget.LaunchConversationActivity;
+import com.android.systemui.personalcontext.attribution.AttributionActivity;
 import com.android.systemui.screenshot.appclips.AppClipsActivity;
 import com.android.systemui.screenshot.appclips.AppClipsTrampolineActivity;
 import com.android.systemui.screenshot.scroll.LongScreenshotActivity;
@@ -150,10 +153,32 @@ public abstract class DefaultActivityBinder {
     @ClassKey(EditWidgetsActivity.class)
     public abstract Activity bindEditWidgetsActivity(EditWidgetsActivity activity);
 
+    /** Inject into DreamSetupActivity. */
+    @Binds
+    @IntoMap
+    @ClassKey(DreamSetupActivity.class)
+    public abstract Activity bindDreamSetupActivity(DreamSetupActivity activity);
+
     /** Inject into SwitchToManagedProfileForCallActivity. */
     @Binds
     @IntoMap
     @ClassKey(SwitchToManagedProfileForCallActivity.class)
     public abstract Activity bindSwitchToManagedProfileForCallActivity(
             SwitchToManagedProfileForCallActivity activity);
+
+    /** Inject into AppFunctionExecutorProxy */
+    @Binds
+    @IntoMap
+    @ClassKey(AppFunctionExecutorProxy.class)
+    public abstract Activity bindAppFunctionExecutorProxy(
+            AppFunctionExecutorProxy activity
+    );
+
+    /** Inject into AttributionActivity */
+    @Binds
+    @IntoMap
+    @ClassKey(AttributionActivity.class)
+    public abstract Activity bindAttributionActivity(
+            AttributionActivity activity
+    );
 }

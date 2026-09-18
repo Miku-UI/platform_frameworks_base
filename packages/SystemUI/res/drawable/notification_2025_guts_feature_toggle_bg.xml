@@ -20,7 +20,7 @@
     android:shape="rectangle" >
 
     <solid
-        android:color="@androidprv:color/materialColorSecondaryContainer" />
+        android:color="@color/materialColorSecondaryContainer" />
 
     <corners android:radius="20dp" />
 </shape>

@@ -15,48 +15,57 @@
  */
 package android.app;
 
-import static android.platform.test.ravenwood.RavenwoodExperimentalApiChecker.isExperimentalApiEnabled;
-
 import android.annotation.NonNull;
 import android.app.SystemServiceRegistry.CachedServiceFetcher;
 import android.app.SystemServiceRegistry.ServiceFetcher;
+import android.app.admin.DevicePolicyManager;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.hardware.display.DisplayManager;
 import android.hardware.input.InputManager;
+import android.media.AudioManager;
 import android.os.IBinder;
 import android.os.IUserManager;
 import android.os.PermissionEnforcer;
+import android.os.PowerManager;
 import android.os.ServiceManager;
 import android.os.ServiceManager.ServiceNotFoundException;
 import android.os.UserManager;
 import android.platform.test.ravenwood.RavenwoodPermissionEnforcer;
+import android.platform.test.ravenwood.RavenwoodUnsupportedApiException;
 import android.ravenwood.example.BlueManager;
 import android.ravenwood.example.RedManager;
+import android.telephony.euicc.EuiccManager;
 import android.view.LayoutInflater;
 import android.view.WindowManager;
 import android.view.WindowManagerImpl;
+import android.view.accessibility.AccessibilityManager;
 import android.view.autofill.AutofillManager;
 import android.view.autofill.IAutoFillManager;
+import android.view.contentcapture.ContentCaptureManager;
 import android.view.inputmethod.InputMethodManager;
+import android.view.textclassifier.TextClassificationManager;
+import android.view.textservice.TextServicesManager;
 
 import com.android.internal.policy.PhoneLayoutInflater;
+
+import org.objenesis.Objenesis;
+import org.objenesis.ObjenesisStd;
 
 public class SystemServiceRegistry_ravenwood {
     private SystemServiceRegistry_ravenwood() {
     }
 
     /**
-     * Wrapper method for registerServiceForRavenwood(), just so we can use the name
-     * "registerService" in this class.
+     * RavenwoodEquivalent of {@link SystemServiceRegistry#onUnknownSystemServiceError}.
      */
-    static <T> void registerService(@NonNull String serviceName,
-            @NonNull Class<T> serviceClass, @NonNull ServiceFetcher<T> serviceFetcher) {
-        SystemServiceRegistry.registerServiceForRavenwood(
-                serviceName, serviceClass, serviceFetcher);
+    static void onUnknownSystemServiceError(String name) {
+        throw new RavenwoodUnsupportedApiException(String.format("The system service '%s'", name))
+                .setReason(String.format("Context#getSystemService(%s)", name));
     }
 
     /**
-     * RavenwoodEquivalent to {@link SystemServiceRegistry_ravenwood#registerServices}.
+     * RavenwoodEquivalent of {@link SystemServiceRegistry#registerServices}.
      *
      * TODO: Extract the common part between this and the other method to reuse the
      * same code on Ravenwood. (For now, we don't want to touch the production code
@@ -82,9 +91,20 @@ public class SystemServiceRegistry_ravenwood {
                         return new RavenwoodPermissionEnforcer();
                     }});
 
-        maybeRegisterExperimentalServices();
-
+        registerExperimentalServices();
+        registerStubServices();
+        registerNullServices();
         registerRavenwoodSpecificServices();
+    }
+
+    /**
+     * Wrapper method for registerServiceForRavenwood(), just so we can use the name
+     * "registerService" in this class.
+     */
+    private static <T> void registerService(@NonNull String serviceName,
+            @NonNull Class<T> serviceClass, @NonNull ServiceFetcher<T> serviceFetcher) {
+        SystemServiceRegistry.registerServiceForRavenwood(
+                serviceName, serviceClass, serviceFetcher);
     }
 
     private static void registerRavenwoodSpecificServices() {
@@ -109,12 +129,7 @@ public class SystemServiceRegistry_ravenwood {
      * Register "experimental" system services, which are _not_ supported. They're used only for
      * Ravenwood internal development.
      */
-    private static void maybeRegisterExperimentalServices() {
-
-        if (!isExperimentalApiEnabled()) {
-            return;
-        }
-
+    private static void registerExperimentalServices() {
         registerService(Context.INPUT_SERVICE, InputManager.class,
                 new CachedServiceFetcher<InputManager>() {
             @Override
@@ -152,14 +167,106 @@ public class SystemServiceRegistry_ravenwood {
                 return new UserManager(ctx, service);
             }});
 
-        registerService(Context.AUTOFILL_MANAGER_SERVICE, AutofillManager.class,
+        registerService(Context.AUTOFILL_SERVICE, AutofillManager.class,
                 new CachedServiceFetcher<AutofillManager>() {
             @Override
             public AutofillManager createService(ContextImpl ctx) throws ServiceNotFoundException {
                 // Get the services without throwing as this is an optional feature
-                IBinder b = ServiceManager.getService(Context.AUTOFILL_MANAGER_SERVICE);
+                IBinder b = ServiceManager.getService(Context.AUTOFILL_SERVICE);
                 IAutoFillManager service = IAutoFillManager.Stub.asInterface(b);
                 return new AutofillManager(ctx.getOuterContext(), service);
             }});
+
+        registerService(Context.DISPLAY_SERVICE, DisplayManager.class,
+                new CachedServiceFetcher<>() {
+            @Override
+            public DisplayManager createService(ContextImpl ctx) {
+                return new DisplayManager(ctx.getOuterContext());
+            }});
+    }
+
+    private static void registerStubServices() {
+        Objenesis objenesis = new ObjenesisStd();
+        registerService(Context.ACTIVITY_SERVICE, ActivityManager.class,
+                new CachedServiceFetcher<>() {
+                    @Override
+                    public ActivityManager createService(ContextImpl ctx) {
+                        return objenesis.newInstance(ActivityManager.class);
+                    }
+                });
+        registerService(Context.AUDIO_SERVICE, AudioManager.class,
+                new CachedServiceFetcher<>() {
+                    @Override
+                    public AudioManager createService(ContextImpl ctx) {
+                        return objenesis.newInstance(AudioManager.class);
+                    }
+                });
+        registerService(Context.DEVICE_POLICY_SERVICE, DevicePolicyManager.class,
+                new CachedServiceFetcher<>() {
+                    @Override
+                    public DevicePolicyManager createService(ContextImpl ctx) {
+                        return objenesis.newInstance(DevicePolicyManager.class);
+                    }
+                });
+        registerService(Context.POWER_SERVICE, PowerManager.class,
+                new CachedServiceFetcher<>() {
+                    @Override
+                    public PowerManager createService(ContextImpl ctx) {
+                        return objenesis.newInstance(PowerManager.class);
+                    }
+                });
+        registerService(Context.WALLPAPER_SERVICE, WallpaperManager.class,
+                new CachedServiceFetcher<>() {
+                    @Override
+                    public WallpaperManager createService(ContextImpl ctx) {
+                        return DisabledWallpaperManager.getInstance();
+                    }
+                });
+        registerService(Context.ACCESSIBILITY_SERVICE, AccessibilityManager.class,
+                new CachedServiceFetcher<>() {
+                    @Override
+                    public AccessibilityManager createService(ContextImpl ctx) {
+                        return objenesis.newInstance(AccessibilityManager.class);
+                    }
+                });
+    }
+
+    private static void registerNullServices() {
+        registerService(Context.CONTENT_CAPTURE_MANAGER_SERVICE, ContentCaptureManager.class,
+                new CachedServiceFetcher<>() {
+                    @Override
+                    public ContentCaptureManager createService(ContextImpl ctx) {
+                        return null;
+                    }
+                });
+        registerService(Context.EUICC_SERVICE, EuiccManager.class,
+                new CachedServiceFetcher<>() {
+                    @Override
+                    public EuiccManager createService(ContextImpl ctx) {
+                        return null;
+                    }
+                });
+        registerService(Context.UI_MODE_SERVICE, UiModeManager.class,
+                new CachedServiceFetcher<>() {
+                    @Override
+                    public UiModeManager createService(ContextImpl ctx) {
+                        return null;
+                    }
+                });
+        registerService(Context.TEXT_CLASSIFICATION_SERVICE, TextClassificationManager.class,
+                new CachedServiceFetcher<>() {
+                    @Override
+                    public TextClassificationManager createService(ContextImpl ctx) {
+                        return null;
+                    }
+                });
+        registerService(Context.TEXT_SERVICES_MANAGER_SERVICE, TextServicesManager.class,
+                new CachedServiceFetcher<>() {
+                    @Override
+                    public TextServicesManager createService(ContextImpl ctx) {
+                        // TextServicesManager is optional, see SystemServerRegistry
+                        return null;
+                    }
+                });
     }
 }

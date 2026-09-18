@@ -101,6 +101,10 @@ class TableLogBufferImpl(
         logChange(systemClock.currentTimeMillis(), prefix, columnName, value, isInitial)
     }
 
+    override fun logChange(prefix: String, columnName: String, value: Float, isInitial: Boolean) {
+        logChange(systemClock.currentTimeMillis(), prefix, columnName, value, isInitial)
+    }
+
     // Keep these individual [logChange] methods private (don't let clients give us their own
     // timestamps.)
 
@@ -140,6 +144,20 @@ class TableLogBufferImpl(
         isInitial: Boolean,
     ) {
         Trace.beginSection("TableLogBuffer#logChange(int)")
+        val change = obtain(timestamp, prefix, columnName, isInitial)
+        change.set(value)
+        echoToDesiredEndpoints(change)
+        Trace.endSection()
+    }
+
+    private fun logChange(
+        timestamp: Long,
+        prefix: String,
+        columnName: String,
+        value: Float,
+        isInitial: Boolean,
+    ) {
+        Trace.beginSection("TableLogBuffer#logChange(float)")
         val change = obtain(timestamp, prefix, columnName, isInitial)
         change.set(value)
         echoToDesiredEndpoints(change)
@@ -252,6 +270,11 @@ class TableLogBufferImpl(
 
         /** Logs a change to an int value. */
         override fun logChange(columnName: String, value: Int) {
+            tableLogBuffer.logChange(timestamp, columnPrefix, columnName, value, isInitial)
+        }
+
+        /** Logs a change to a float value. */
+        override fun logChange(columnName: String, value: Float) {
             tableLogBuffer.logChange(timestamp, columnPrefix, columnName, value, isInitial)
         }
     }

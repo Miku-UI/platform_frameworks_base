@@ -49,12 +49,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import com.android.settingslib.spa.R
+import com.android.settingslib.spa.framework.compose.contentDescription
 import com.android.settingslib.spa.framework.compose.thenIf
 import com.android.settingslib.spa.framework.theme.SettingsDimension
 import com.android.settingslib.spa.framework.theme.SettingsShape
@@ -116,6 +119,7 @@ fun Spinner(options: List<SpinnerOption>, selectedId: Int?, setId: (id: Int) -> 
                 offset = DpOffset(0.dp, SettingsSpace.extraSmall2),
                 shape = SettingsShape.CornerLarge1,
             ) {
+                val contentDesOfSelected = stringResource(R.string.spa_spinner_selected_item)
                 for (option in options) {
                     val selected = option.id == selectedId
                     val selectedColor = MaterialTheme.colorScheme.primaryContainer
@@ -133,7 +137,12 @@ fun Spinner(options: List<SpinnerOption>, selectedId: Int?, setId: (id: Int) -> 
                         modifier =
                             Modifier
                                 .clip(SettingsShape.CornerLarge2)
-                                .thenIf(selected) { Modifier.background(selectedColor) },
+                                .thenIf(selected) {
+                                    Modifier
+                                        .background(selectedColor)
+                                        .contentDescription(contentDesOfSelected)
+                                },
+
                         colors = MenuDefaults.itemColors(
                             textColor = if (selected) {
                                 MaterialTheme.colorScheme.onPrimaryContainer

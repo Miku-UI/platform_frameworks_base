@@ -43,7 +43,6 @@ import android.content.Context;
 import android.graphics.Region;
 import android.os.Handler;
 import android.util.DisplayMetrics;
-import android.util.Log;
 import android.util.Slog;
 import android.view.Display;
 import android.view.InputDevice;
@@ -53,6 +52,7 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.accessibility.AccessibilityLogUtil;
 import com.android.server.accessibility.AccessibilityManagerService;
 import com.android.server.accessibility.BaseEventStreamTransformation;
 import com.android.server.accessibility.EventStreamTransformation;
@@ -85,10 +85,9 @@ public class TouchExplorer extends BaseEventStreamTransformation
         implements GestureManifold.Listener {
 
     // Tag for logging received events.
-    private static final String LOG_TAG = "TouchExplorer";
+    private static final String LOG_TAG = TouchExplorer.class.getSimpleName();
 
-    // To enable these logs, run: 'adb shell setprop log.tag.TouchExplorer DEBUG' (requires restart)
-    static final boolean DEBUG = Log.isLoggable(LOG_TAG, Log.DEBUG);
+    static final boolean DEBUG = AccessibilityLogUtil.isDebugEnabled(LOG_TAG);
 
     // The maximum of the cosine between the vectors of two moving
     // pointers so they can be considered moving in the same direction.
@@ -400,8 +399,12 @@ public class TouchExplorer extends BaseEventStreamTransformation
         }
         mAms.onTouchInteractionEnd();
         // Remove pending event deliveries.
-        mSendHoverEnterAndMoveDelayed.cancel();
-        mSendHoverExitDelayed.cancel();
+        if (Flags.sendHoverExitOnGestureInterruption()) {
+            cancelPendingHoverEvents(policyFlags);
+        } else {
+            mSendHoverEnterAndMoveDelayed.cancel();
+            mSendHoverExitDelayed.cancel();
+        }
         if (isSendMotionEventsEnabled()) {
             AccessibilityGestureEvent gestureEvent =
                     new AccessibilityGestureEvent(
@@ -460,8 +463,12 @@ public class TouchExplorer extends BaseEventStreamTransformation
         }
         // We have to perform gesture detection, so
         // clear the current state and try to detect.
-        mSendHoverEnterAndMoveDelayed.cancel();
-        mSendHoverExitDelayed.cancel();
+        if (Flags.sendHoverExitOnGestureInterruption()) {
+            cancelPendingHoverEvents(mState.getLastReceivedPolicyFlags());
+        } else {
+            mSendHoverEnterAndMoveDelayed.cancel();
+            mSendHoverExitDelayed.cancel();
+        }
         mExitGestureDetectionModeDelayed.post();
         // Send accessibility event to announce the start
         // of gesture recognition.
@@ -547,11 +554,7 @@ public class TouchExplorer extends BaseEventStreamTransformation
         // If we still have not notified the user for the last
         // touch, we figure out what to do. If were waiting
         // we resent the delayed callback and wait again.
-        mSendHoverEnterAndMoveDelayed.cancel();
-        // clear any hover events that might have been queued and never sent.
-        mSendHoverEnterAndMoveDelayed.clear();
-        mSendHoverExitDelayed.cancel();
-        sendHoverExitAndTouchExplorationGestureEndIfNeeded(policyFlags);
+        cancelPendingHoverEvents(policyFlags);
         if (mState.isClear()) {
             if (!mSendHoverEnterAndMoveDelayed.isPending()) {
                 // Queue a delayed transition to STATE_TOUCH_EXPLORING.
@@ -1123,6 +1126,18 @@ public class TouchExplorer extends BaseEventStreamTransformation
                     pointerIdBits,
                     policyFlags);
         }
+    }
+
+    /**
+     * Cancels any pending hover events and sends hover exit if needed.
+     *
+     * @param policyFlags The policy flags associated with the event.
+     */
+    private void cancelPendingHoverEvents(int policyFlags) {
+        mSendHoverEnterAndMoveDelayed.cancel();
+        mSendHoverEnterAndMoveDelayed.clear();
+        mSendHoverExitDelayed.cancel();
+        sendHoverExitAndTouchExplorationGestureEndIfNeeded(policyFlags);
     }
 
     /**

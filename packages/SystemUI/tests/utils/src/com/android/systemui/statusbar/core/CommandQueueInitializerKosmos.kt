@@ -18,11 +18,11 @@ package com.android.systemui.statusbar.core
 
 import android.content.testableContext
 import android.internal.statusbar.fakeStatusBarService
+import com.android.systemui.display.data.repository.displaySubcomponentPerDisplayRepository
 import com.android.systemui.initController
 import com.android.systemui.keyguard.data.repository.fakeCommandQueue
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.navigationbar.mockNavigationBarController
-import com.android.systemui.statusbar.data.repository.fakeStatusBarModeRepository
 import com.android.systemui.statusbar.mockCommandQueueCallbacks
 
 var Kosmos.commandQueueInitializer by
@@ -31,7 +31,7 @@ var Kosmos.commandQueueInitializer by
             testableContext,
             fakeCommandQueue,
             { mockCommandQueueCallbacks },
-            fakeStatusBarModeRepository,
+            displaySubcomponentPerDisplayRepository,
             initController,
             fakeStatusBarService,
             mockNavigationBarController,

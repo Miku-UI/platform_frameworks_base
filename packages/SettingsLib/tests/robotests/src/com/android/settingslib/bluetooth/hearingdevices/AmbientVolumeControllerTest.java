@@ -16,6 +16,9 @@
 
 package com.android.settingslib.bluetooth.hearingdevices;
 
+import static android.bluetooth.AudioInputControl.MUTE_MUTED;
+import static android.bluetooth.AudioInputControl.MUTE_NOT_MUTED;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -39,6 +42,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.RobolectricTestRunner;
@@ -202,7 +206,7 @@ public class AmbientVolumeControllerTest {
         mVolumeController.setMuted(mDevice, false);
 
         for (AudioInputControl control : controls) {
-            verify(control).setMute(AudioInputControl.MUTE_NOT_MUTED);
+            verify(control).setMute(MUTE_NOT_MUTED);
         }
     }
 
@@ -210,17 +214,29 @@ public class AmbientVolumeControllerTest {
     public void ambientCallback_onGainSettingChanged_verifyCallbackIsCalledWhenStateChange() {
         AmbientVolumeController.AmbientCallback ambientCallback =
                 mVolumeController.new AmbientCallback(mDevice, mCallback);
-        final int testAmbient = 10;
         List<AudioInputControl> controls = prepareValidAmbientControls();
-        when(controls.getFirst().getGainSetting()).thenReturn(testAmbient);
+        when(controls.getFirst().getGainSetting()).thenReturn(10);
 
         mVolumeController.refreshAmbientState(mDevice);
-        ambientCallback.onGainSettingChanged(testAmbient);
-        verify(mCallback, never()).onAmbientChanged(mDevice, testAmbient);
+        // Same value as previous, should not call callback
+        ambientCallback.onGainSettingChanged(10);
+        verify(mCallback, never()).onAmbientChanged(mDevice, 10);
+        Mockito.reset(mCallback);
 
-        final int updatedTestAmbient = 20;
-        ambientCallback.onGainSettingChanged(updatedTestAmbient);
-        verify(mCallback).onAmbientChanged(mDevice, updatedTestAmbient);
+        // Different value from previous, should call callback
+        ambientCallback.onGainSettingChanged(20);
+        verify(mCallback).onAmbientChanged(mDevice, 20);
+        Mockito.reset(mCallback);
+
+        // Same value as previous, should not call callback
+        ambientCallback.onGainSettingChanged(20);
+        verify(mCallback, never()).onAmbientChanged(mDevice, 20);
+        Mockito.reset(mCallback);
+
+        // Different value from previous, should call callback
+        ambientCallback.onGainSettingChanged(10);
+        verify(mCallback).onAmbientChanged(mDevice, 10);
+        Mockito.reset(mCallback);
     }
 
 
@@ -238,17 +254,29 @@ public class AmbientVolumeControllerTest {
     public void ambientCallback_onMuteChanged_verifyCallbackIsCalledWhenStateChange() {
         AmbientVolumeController.AmbientCallback ambientCallback =
                 mVolumeController.new AmbientCallback(mDevice, mCallback);
-        final int testMute = 0;
         List<AudioInputControl> controls = prepareValidAmbientControls();
-        when(controls.getFirst().getMute()).thenReturn(testMute);
+        when(controls.getFirst().getMute()).thenReturn(MUTE_NOT_MUTED);
 
         mVolumeController.refreshAmbientState(mDevice);
-        ambientCallback.onMuteChanged(testMute);
-        verify(mCallback, never()).onMuteChanged(mDevice, testMute);
+        // Same value as previous, should not call callback
+        ambientCallback.onMuteChanged(MUTE_NOT_MUTED);
+        verify(mCallback, never()).onMuteChanged(mDevice, MUTE_NOT_MUTED);
+        Mockito.reset(mCallback);
 
-        final int updatedTestMute = 1;
-        ambientCallback.onMuteChanged(updatedTestMute);
-        verify(mCallback).onMuteChanged(mDevice, updatedTestMute);
+        // Different value from previous, should call callback
+        ambientCallback.onMuteChanged(MUTE_MUTED);
+        verify(mCallback).onMuteChanged(mDevice, MUTE_MUTED);
+        Mockito.reset(mCallback);
+
+        // Same value as previous, should not call callback
+        ambientCallback.onMuteChanged(MUTE_MUTED);
+        verify(mCallback, never()).onMuteChanged(mDevice, MUTE_MUTED);
+        Mockito.reset(mCallback);
+
+        // Different value from previous, should call callback
+        ambientCallback.onMuteChanged(MUTE_NOT_MUTED);
+        verify(mCallback).onMuteChanged(mDevice, MUTE_NOT_MUTED);
+        Mockito.reset(mCallback);
     }
 
     @Test

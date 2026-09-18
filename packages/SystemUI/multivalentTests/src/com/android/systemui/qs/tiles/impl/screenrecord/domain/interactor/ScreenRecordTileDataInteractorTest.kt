@@ -20,68 +20,82 @@ import android.os.UserHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.coroutines.collectLastValue
-import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.qs.tiles.base.domain.model.DataUpdateTrigger
+import com.android.systemui.qs.tiles.impl.screenrecord.domain.model.ScreenRecordTileModel
+import com.android.systemui.screencapture.data.repository.fakeScreenCaptureDeviceStateRepository
+import com.android.systemui.screencapture.record.domain.interactor.screenCaptureRecordFeaturesInteractor
 import com.android.systemui.screenrecord.data.model.ScreenRecordModel
-import com.android.systemui.screenrecord.data.repository.screenRecordRepository
-import com.android.systemui.testKosmos
+import com.android.systemui.screenrecord.data.repository.screenRecordingServiceRepository
+import com.android.systemui.screenrecord.shared.model.ScreenRecordingParametersFactory
+import com.android.systemui.screenrecord.shared.model.ScreenRecordingStatus
+import com.android.systemui.testKosmosNew
 import com.google.common.truth.Truth.assertThat
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class ScreenRecordTileDataInteractorTest : SysuiTestCase() {
-    private val kosmos = testKosmos()
-    private val testScope = kosmos.testScope
-    private val screenRecordRepo = kosmos.screenRecordRepository
+    private val kosmos = testKosmosNew()
+    private val screenRecordRepo = kosmos.screenRecordingServiceRepository
     private val underTest: ScreenRecordTileDataInteractor =
-        ScreenRecordTileDataInteractor(screenRecordRepo)
-
-    private val isRecording = ScreenRecordModel.Recording
-    private val isDoingNothing = ScreenRecordModel.DoingNothing
-    private val isStarting0 = ScreenRecordModel.Starting(0)
+        ScreenRecordTileDataInteractor(
+            screenRecordRepo,
+            kosmos.screenCaptureRecordFeaturesInteractor,
+        )
 
     @Test
-    fun isAvailable_returnsTrue() = runTest {
-        val availability by collectLastValue(underTest.availability(TEST_USER))
+    fun isAvailable_returnsTrue() =
+        kosmos.runTest {
+            val availability by collectLastValue(underTest.availability(TEST_USER))
 
-        assertThat(availability).isTrue()
-    }
+            assertThat(availability).isTrue()
+        }
 
     @Test
     fun dataMatchesRepo() =
-        testScope.runTest {
+        kosmos.runTest {
+            val isRecording = ScreenRecordTileModel(ScreenRecordModel.Recording)
+            val isDoingNothing = ScreenRecordTileModel(ScreenRecordModel.DoingNothing)
+            val isStartingIn1 = ScreenRecordTileModel(ScreenRecordModel.Starting(1))
             val lastModel by
                 collectLastValue(
                     underTest.tileData(TEST_USER, flowOf(DataUpdateTrigger.InitialRequest))
                 )
-            runCurrent()
 
             assertThat(lastModel).isEqualTo(isDoingNothing)
 
-            val expectedModelStartingIn1 = ScreenRecordModel.Starting(1)
-            screenRecordRepo.screenRecordState.value = expectedModelStartingIn1
-            assertThat(lastModel).isEqualTo(expectedModelStartingIn1)
+            screenRecordRepo.startRecordingDelayed(defaultParams, 1.milliseconds)
+            assertThat(lastModel).isEqualTo(isStartingIn1)
 
-            screenRecordRepo.screenRecordState.value = isStarting0
-            assertThat(lastModel).isEqualTo(isStarting0)
-
-            screenRecordRepo.screenRecordState.value = isDoingNothing
+            screenRecordRepo.stopRecording(ScreenRecordingStatus.Stopped.STOP_REASON_NOT_STARTED)
             assertThat(lastModel).isEqualTo(isDoingNothing)
 
-            screenRecordRepo.screenRecordState.value = isRecording
+            screenRecordRepo.startRecording(defaultParams)
             assertThat(lastModel).isEqualTo(isRecording)
 
-            screenRecordRepo.screenRecordState.value = isDoingNothing
+            screenRecordRepo.stopRecording(ScreenRecordingStatus.Stopped.STOP_REASON_NOT_STARTED)
             assertThat(lastModel).isEqualTo(isDoingNothing)
+        }
+
+    @Test
+    fun dataMatchesRepo_largeScreenRecordingEnabled() =
+        kosmos.runTest {
+            kosmos.fakeScreenCaptureDeviceStateRepository.setLargeScreen(true)
+            val lastModel by
+                collectLastValue(
+                    underTest.tileData(TEST_USER, flowOf(DataUpdateTrigger.InitialRequest))
+                )
+
+            assertThat(lastModel?.isLargeScreenRecordingEnabled).isTrue()
         }
 
     private companion object {
         val TEST_USER = UserHandle.of(1)!!
+        val defaultParams = ScreenRecordingParametersFactory.screenRecordingParameters()
     }
 }

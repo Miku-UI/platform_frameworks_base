@@ -17,7 +17,7 @@
 
 #define LOG_TAG "DisplayEventReceiver"
 
-//#define LOG_NDEBUG 0
+// #define LOG_NDEBUG 0
 
 #include <android_runtime/AndroidRuntime.h>
 #include <android_runtime/Log.h>
@@ -73,7 +73,7 @@ static struct {
 
 } gDisplayEventReceiverClassInfo;
 
-jobjectArray getFrameRateOverrides(std::vector<FrameRateOverride> overrides, JNIEnv* env) {
+jobjectArray getFrameRateOverrides(const std::vector<FrameRateOverride>& overrides, JNIEnv* env) {
     const auto frameRateOverrideClass =
             gDisplayEventReceiverClassInfo.frameRateOverrideClassInfo.clazz;
     const auto frameRateOverrideInit =
@@ -90,7 +90,7 @@ jobjectArray getFrameRateOverrides(std::vector<FrameRateOverride> overrides, JNI
     return frameRateOverrideArray;
 }
 
-jfloatArray getSupportedRefreshRates(std::vector<SupportedRefreshRate> supportedRefreshRates,
+jfloatArray getSupportedRefreshRates(const std::vector<SupportedRefreshRate>& supportedRefreshRates,
                                      JNIEnv* env) {
     jfloatArray floatArray = env->NewFloatArray(supportedRefreshRates.size());
     std::vector<jfloat> refreshRates(supportedRefreshRates.size());
@@ -105,8 +105,8 @@ jfloatArray getSupportedRefreshRates(std::vector<SupportedRefreshRate> supported
 class NativeDisplayEventReceiver : public DisplayEventDispatcher {
 public:
     NativeDisplayEventReceiver(JNIEnv* env, jobject receiverWeak, jobject vsyncEventDataWeak,
-                               const sp<MessageQueue>& messageQueue, jint vsyncSource,
-                               jint eventRegistration, jlong layerHandle);
+                               const sp<MessageQueue>& messageQueue, jint eventRegistration,
+                               jlong layerHandle);
 
     void dispose();
 
@@ -125,8 +125,8 @@ private:
     void dispatchModeChangedWithFrameRateOverrides(
             nsecs_t timestamp, PhysicalDisplayId displayId, int32_t modeId, nsecs_t renderPeriod,
             nsecs_t appVsyncOffset, nsecs_t presentationDeadline,
-            std::vector<FrameRateOverride> overrides,
-            std::vector<SupportedRefreshRate> supportedRefreshRates) override;
+            const std::vector<FrameRateOverride>& overrides,
+            const std::vector<SupportedRefreshRate>& supportedRefreshRates) override;
     void dispatchModeRejected(PhysicalDisplayId displayId, int32_t modeId) override;
     void dispatchNullEvent(nsecs_t timestamp, PhysicalDisplayId displayId) override {}
     void dispatchHdcpLevelsChanged(PhysicalDisplayId displayId, int connectedLevel,
@@ -136,10 +136,8 @@ private:
 NativeDisplayEventReceiver::NativeDisplayEventReceiver(JNIEnv* env, jobject receiverWeak,
                                                        jobject vsyncEventDataWeak,
                                                        const sp<MessageQueue>& messageQueue,
-                                                       jint vsyncSource, jint eventRegistration,
-                                                       jlong layerHandle)
+                                                       jint eventRegistration, jlong layerHandle)
       : DisplayEventDispatcher(messageQueue->getLooper(),
-                               static_cast<gui::ISurfaceComposer::VsyncSource>(vsyncSource),
                                static_cast<gui::ISurfaceComposer::EventRegistration>(
                                        eventRegistration),
                                layerHandle != 0 ? sp<IBinder>::fromExisting(
@@ -154,6 +152,7 @@ NativeDisplayEventReceiver::NativeDisplayEventReceiver(JNIEnv* env, jobject rece
 NativeDisplayEventReceiver::~NativeDisplayEventReceiver() {
     JNIEnv* env = AndroidRuntime::getJNIEnv();
     env->DeleteGlobalRef(mReceiverWeakGlobal);
+    env->DeleteGlobalRef(mVsyncEventDataWeakGlobal);
     ALOGV("receiver %p ~ dtor display event receiver.", this);
 }
 
@@ -290,7 +289,8 @@ void NativeDisplayEventReceiver::dispatchHotplugConnectionError(nsecs_t timestam
 void NativeDisplayEventReceiver::dispatchModeChangedWithFrameRateOverrides(
         nsecs_t timestamp, PhysicalDisplayId displayId, int32_t modeId, nsecs_t renderPeriod,
         nsecs_t appVsyncOffset, nsecs_t presentationDeadline,
-        std::vector<FrameRateOverride> overrides, std::vector<SupportedRefreshRate> refreshRates) {
+        const std::vector<FrameRateOverride>& overrides,
+        const std::vector<SupportedRefreshRate>& refreshRates) {
     JNIEnv* env = AndroidRuntime::getJNIEnv();
     ScopedLocalRef<jobject> receiverObj(env, GetReferent(env, mReceiverWeakGlobal));
     if (receiverObj.get()) {
@@ -340,8 +340,7 @@ void NativeDisplayEventReceiver::dispatchHdcpLevelsChanged(PhysicalDisplayId dis
 }
 
 static jlong nativeInit(JNIEnv* env, jclass clazz, jobject receiverWeak, jobject vsyncEventDataWeak,
-                        jobject messageQueueObj, jint vsyncSource, jint eventRegistration,
-                        jlong layerHandle) {
+                        jobject messageQueueObj, jint eventRegistration, jlong layerHandle) {
     sp<MessageQueue> messageQueue = android_os_MessageQueue_getMessageQueue(env, messageQueueObj);
     if (messageQueue == NULL) {
         jniThrowRuntimeException(env, "MessageQueue is not initialized.");
@@ -350,7 +349,7 @@ static jlong nativeInit(JNIEnv* env, jclass clazz, jobject receiverWeak, jobject
 
     sp<NativeDisplayEventReceiver> receiver =
             new NativeDisplayEventReceiver(env, receiverWeak, vsyncEventDataWeak, messageQueue,
-                                           vsyncSource, eventRegistration, layerHandle);
+                                           eventRegistration, layerHandle);
     status_t status = receiver->initialize();
     if (status) {
         String8 message;
@@ -399,7 +398,7 @@ static const JNINativeMethod gMethods[] = {
         /* name, signature, funcPtr */
         {"nativeInit",
          "(Ljava/lang/ref/WeakReference;Ljava/lang/ref/WeakReference;Landroid/os/"
-         "MessageQueue;IIJ)J",
+         "MessageQueue;IJ)J",
          (void*)nativeInit},
         {"nativeGetDisplayEventReceiverFinalizer", "()J",
          (void*)nativeGetDisplayEventReceiverFinalizer},

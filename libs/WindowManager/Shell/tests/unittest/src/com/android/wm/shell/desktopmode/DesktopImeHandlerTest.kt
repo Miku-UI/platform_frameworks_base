@@ -21,7 +21,6 @@ import android.app.WindowConfiguration
 import android.content.Context
 import android.graphics.Rect
 import android.os.IBinder
-import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.view.Display.DEFAULT_DISPLAY
 import android.view.WindowManager.TRANSIT_CHANGE
@@ -64,6 +63,7 @@ import org.mockito.kotlin.whenever
 class DesktopImeHandlerTest : ShellTestCase() {
 
     private val testExecutor = mock<ShellExecutor>()
+    private val animExecutor = mock<ShellExecutor>()
     private val transitions = mock<Transitions>()
     private val context = mock<Context>()
     private val shellTaskOrganizer = mock<ShellTaskOrganizer>()
@@ -86,6 +86,9 @@ class DesktopImeHandlerTest : ShellTestCase() {
 
         whenever(shellController.currentUserId).thenReturn(DEFAULT_USER_ID)
         whenever(displayController.getDisplayLayout(any())).thenReturn(displayLayout)
+        whenever(displayController.getDisplayContext(any())).thenReturn(context)
+        whenever(context.resources).thenReturn(mock())
+        whenever(context.resources.displayMetrics).thenReturn(mock())
 
         desktopUserRepositories =
             DesktopUserRepositories(
@@ -114,7 +117,7 @@ class DesktopImeHandlerTest : ShellTestCase() {
                 displayController,
                 transitions,
                 mainExecutor = mock(),
-                animExecutor = mock(),
+                animExecutor = animExecutor,
                 context,
                 shellInit,
             )
@@ -141,57 +144,6 @@ class DesktopImeHandlerTest : ShellTestCase() {
 
     @Test
     @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX)
-    @DisableFlags(Flags.FLAG_ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS)
-    fun onImeStartPositioning_movesLargeTaskToTopAndBack() {
-        setUpLandscapeDisplay()
-        val wct = ArgumentCaptor.forClass(WindowContainerTransaction::class.java)
-        val taskBounds = Rect(0, 400, 500, 1600)
-        val expectedBounds =
-            Rect(
-                taskBounds.left,
-                STATUS_BAR_HEIGHT,
-                taskBounds.right,
-                STATUS_BAR_HEIGHT + taskBounds.height(),
-            )
-        val freeformTask = setUpFreeformTask(DEFAULT_DISPLAY, taskBounds, focused = true)
-        whenever(shellTaskOrganizer.getRunningTasks(any())).thenReturn(arrayListOf(freeformTask))
-
-        imeHandler.onImeStartPositioning(
-            DEFAULT_DISPLAY,
-            hiddenTop = DISPLAY_DIMENSION_SHORT,
-            shownTop = IME_HEIGHT,
-            showing = true,
-            isFloating = false,
-            t = mock(),
-        )
-
-        // Moves the task up to the top of stable bounds
-        verify(transitions).startTransition(eq(TRANSIT_CHANGE), wct.capture(), anyOrNull())
-        assertThat(findBoundsChange(wct.value, freeformTask)).isEqualTo(expectedBounds)
-
-        // Update the freeform task bounds due to above transition
-        freeformTask.configuration.windowConfiguration.setBounds(expectedBounds)
-
-        imeHandler.onImeStartPositioning(
-            DEFAULT_DISPLAY,
-            hiddenTop = DISPLAY_DIMENSION_SHORT,
-            shownTop = IME_HEIGHT,
-            showing = false,
-            isFloating = false,
-            t = mock(),
-        )
-
-        // Moves the task back to original bounds
-        verify(transitions, times(2))
-            .startTransition(eq(TRANSIT_CHANGE), wct.capture(), anyOrNull())
-        assertThat(findBoundsChange(wct.value, freeformTask)).isEqualTo(taskBounds)
-    }
-
-    @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX,
-        Flags.FLAG_ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS,
-    )
     fun onImeStartPositioning_displayFocusEnabled_movesLargeTaskToTopAndBack() {
         setUpLandscapeDisplay()
         val wct = ArgumentCaptor.forClass(WindowContainerTransaction::class.java)
@@ -204,49 +156,6 @@ class DesktopImeHandlerTest : ShellTestCase() {
                 STATUS_BAR_HEIGHT + taskBounds.height(),
             )
         val freeformTask = setUpFreeformTask(DEFAULT_DISPLAY, taskBounds, focused = true)
-
-        imeHandler.onImeStartPositioning(
-            DEFAULT_DISPLAY,
-            hiddenTop = DISPLAY_DIMENSION_SHORT,
-            shownTop = IME_HEIGHT,
-            showing = true,
-            isFloating = false,
-            t = mock(),
-        )
-
-        // Moves the task up to the top of stable bounds
-        verify(transitions).startTransition(eq(TRANSIT_CHANGE), wct.capture(), anyOrNull())
-        assertThat(findBoundsChange(wct.value, freeformTask)).isEqualTo(expectedBounds)
-
-        // Update the freeform task bounds due to above transition
-        freeformTask.configuration.windowConfiguration.setBounds(expectedBounds)
-
-        imeHandler.onImeStartPositioning(
-            DEFAULT_DISPLAY,
-            hiddenTop = DISPLAY_DIMENSION_SHORT,
-            shownTop = IME_HEIGHT,
-            showing = false,
-            isFloating = false,
-            t = mock(),
-        )
-
-        // Moves the task back to original bounds
-        verify(transitions, times(2))
-            .startTransition(eq(TRANSIT_CHANGE), wct.capture(), anyOrNull())
-        assertThat(findBoundsChange(wct.value, freeformTask)).isEqualTo(taskBounds)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX)
-    @DisableFlags(Flags.FLAG_ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS)
-    fun onImeStartPositioning_movesSmallTaskToTopAndBack() {
-        setUpLandscapeDisplay()
-        val wct = ArgumentCaptor.forClass(WindowContainerTransaction::class.java)
-        val taskBounds = Rect(0, 1000, 500, 1600)
-        val expectedBounds =
-            Rect(taskBounds.left, IME_HEIGHT - taskBounds.height(), taskBounds.right, IME_HEIGHT)
-        val freeformTask = setUpFreeformTask(DEFAULT_DISPLAY, taskBounds, focused = true)
-        whenever(shellTaskOrganizer.getRunningTasks(any())).thenReturn(arrayListOf(freeformTask))
 
         imeHandler.onImeStartPositioning(
             DEFAULT_DISPLAY,
@@ -303,66 +212,6 @@ class DesktopImeHandlerTest : ShellTestCase() {
 
     @Test
     @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX)
-    @DisableFlags(Flags.FLAG_ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS)
-    fun onImeStartPositioning_captionPressed_noOp() {
-        setUpLandscapeDisplay()
-        val wct = ArgumentCaptor.forClass(WindowContainerTransaction::class.java)
-        val taskBounds = Rect(0, 400, 500, 1600)
-        val freeformTask = setUpFreeformTask(DEFAULT_DISPLAY, taskBounds, focused = true)
-        whenever(shellTaskOrganizer.getRunningTasks(any())).thenReturn(arrayListOf(freeformTask))
-
-        imeHandler.onCaptionPressed()
-        imeHandler.onImeStartPositioning(
-            DEFAULT_DISPLAY,
-            hiddenTop = DISPLAY_DIMENSION_SHORT,
-            shownTop = IME_HEIGHT,
-            showing = true,
-            isFloating = false,
-            t = mock(),
-        )
-
-        // No transition is started because the IME is floating
-        verify(transitions, never()).startTransition(eq(TRANSIT_CHANGE), wct.capture(), anyOrNull())
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX)
-    @DisableFlags(Flags.FLAG_ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS)
-    fun onImeStartPositioning_captionPressedAndReleased_movesTask() {
-        setUpLandscapeDisplay()
-        val wct = ArgumentCaptor.forClass(WindowContainerTransaction::class.java)
-        val taskBounds = Rect(0, 400, 500, 1600)
-        val expectedBounds =
-            Rect(
-                taskBounds.left,
-                STATUS_BAR_HEIGHT,
-                taskBounds.right,
-                STATUS_BAR_HEIGHT + taskBounds.height(),
-            )
-        val freeformTask = setUpFreeformTask(DEFAULT_DISPLAY, taskBounds, focused = true)
-        whenever(shellTaskOrganizer.getRunningTasks(any())).thenReturn(arrayListOf(freeformTask))
-
-        imeHandler.onCaptionPressed()
-        imeHandler.onCaptionReleased()
-        imeHandler.onImeStartPositioning(
-            DEFAULT_DISPLAY,
-            hiddenTop = DISPLAY_DIMENSION_SHORT,
-            shownTop = IME_HEIGHT,
-            showing = true,
-            isFloating = false,
-            t = mock(),
-        )
-
-        // Moves the task up to the top of stable bounds
-        verify(transitions).startTransition(eq(TRANSIT_CHANGE), wct.capture(), anyOrNull())
-        assertThat(findBoundsChange(wct.value, freeformTask)).isEqualTo(expectedBounds)
-    }
-
-    @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX,
-        Flags.FLAG_ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS,
-    )
     fun onImeStartPositioning_changeTaskPositionManually_doesNotRestorePreImeBounds() {
         setUpLandscapeDisplay()
         val wct = ArgumentCaptor.forClass(WindowContainerTransaction::class.java)
@@ -409,10 +258,7 @@ class DesktopImeHandlerTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX,
-        Flags.FLAG_ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS,
-    )
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX)
     fun onImeStartPositioning_newTransitionOnTask_doesNotRestorePreImeBounds() {
         setUpLandscapeDisplay()
         val wct = ArgumentCaptor.forClass(WindowContainerTransaction::class.java)
@@ -461,10 +307,7 @@ class DesktopImeHandlerTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX,
-        Flags.FLAG_ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS,
-    )
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX)
     fun onImeStartPositioning_taskAboveIme_noOp() {
         setUpLandscapeDisplay()
         val wct = ArgumentCaptor.forClass(WindowContainerTransaction::class.java)
@@ -482,6 +325,119 @@ class DesktopImeHandlerTest : ShellTestCase() {
 
         // Does not move the task
         verify(transitions, never()).startTransition(eq(TRANSIT_CHANGE), wct.capture(), anyOrNull())
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX)
+    fun onImeStartPositioning_whenCaptionIsPressed_doesNotMoveTask() {
+        setUpLandscapeDisplay()
+        val taskBounds = Rect(0, 400, 500, 1600)
+        setUpFreeformTask(DEFAULT_DISPLAY, taskBounds, focused = true)
+
+        // Simulate caption press, which should prevent task movement.
+        imeHandler.onCaptionPressed()
+
+        imeHandler.onImeStartPositioning(
+            DEFAULT_DISPLAY,
+            hiddenTop = DISPLAY_DIMENSION_SHORT,
+            shownTop = IME_HEIGHT,
+            showing = true,
+            isFloating = false,
+            t = mock(),
+        )
+
+        // Verify task is not moved because caption is pressed.
+        verify(transitions, never()).startTransition(any(), any(), anyOrNull())
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX)
+    fun onImeStartPositioning_whenCaptionIsReleased_movesTask() {
+        setUpLandscapeDisplay()
+        val taskBounds = Rect(0, 400, 500, 1600)
+        setUpFreeformTask(DEFAULT_DISPLAY, taskBounds, focused = true)
+
+        // Simulate caption press.
+        imeHandler.onCaptionPressed()
+        // Simulate caption release, which should allow task movement again.
+        imeHandler.onCaptionReleased()
+
+        imeHandler.onImeStartPositioning(
+            DEFAULT_DISPLAY,
+            hiddenTop = DISPLAY_DIMENSION_SHORT,
+            shownTop = IME_HEIGHT,
+            showing = true,
+            isFloating = false,
+            t = mock(),
+        )
+
+        // Verify task is moved now that caption is released.
+        verify(transitions).startTransition(eq(TRANSIT_CHANGE), any(), anyOrNull())
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX)
+    fun startAnimation_withValidTaskChange_executesAnimation() {
+        // Set up a valid task that is part of the active desktop.
+        val freeformTask = setUpFreeformTask(DEFAULT_DISPLAY, Rect(), focused = true)
+        val transitionInfo = createChangeTransition(freeformTask)
+
+        // Call startAnimation with a valid transition.
+        val result =
+            imeHandler.startAnimation(
+                transition = mock(),
+                info = transitionInfo,
+                startTransaction = mock(),
+                finishTransaction = mock(),
+                finishCallback = mock()
+            )
+
+        // Assert that the animation is executed and the method returns true.
+        assertThat(result).isTrue()
+        verify(animExecutor).execute(any())
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX)
+    fun startAnimation_withInvalidTransitionMode_doesNotExecuteAnimation() {
+        val freeformTask = setUpFreeformTask(DEFAULT_DISPLAY, Rect(), focused = true)
+
+        // Transition mode is not TRANSIT_CHANGE.
+        val toBackTransitionInfo = createToBackTransition(freeformTask)
+
+        val result =
+            imeHandler.startAnimation(
+                transition = mock(),
+                info = toBackTransitionInfo,
+                startTransaction = mock(),
+                finishTransaction = mock(),
+                finishCallback = mock()
+            )
+
+        // Assert that animation is not executed and method returns false.
+        assertThat(result).isFalse()
+        verify(animExecutor, never()).execute(any())
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_IME_BUGFIX)
+    fun startAnimation_withNonDesktopTask_doesNotExecuteAnimation() {
+        // Task is not an active desktop task.
+        val nonDesktopTask = createFreeformTask(DEFAULT_DISPLAY, Rect())
+        val changeTransitionInfo = createChangeTransition(nonDesktopTask)
+
+        val result =
+            imeHandler.startAnimation(
+                transition = mock(),
+                info = changeTransitionInfo,
+                startTransaction = mock(),
+                finishTransaction = mock(),
+                finishCallback = mock()
+            )
+
+        // Assert that animation is not executed and method returns false.
+        assertThat(result).isFalse()
+        verify(animExecutor, never()).execute(any())
     }
 
     private fun setUpFreeformTask(displayId: Int, bounds: Rect, focused: Boolean): RunningTaskInfo {
@@ -526,6 +482,18 @@ class DesktopImeHandlerTest : ShellTestCase() {
             (i.arguments.first() as Rect).set(stableBounds)
         }
     }
+
+    private fun createChangeTransition(task: RunningTaskInfo?) =
+        TransitionInfo(TRANSIT_CHANGE, /* flags= */ 0).apply {
+            addChange(
+                Change(mock(), mock()).apply {
+                    mode = TRANSIT_CHANGE
+                    parent = null
+                    taskInfo = task
+                    flags = flags
+                }
+            )
+        }
 
     private fun createToBackTransition(task: RunningTaskInfo?) =
         TransitionInfo(TRANSIT_TO_BACK, /* flags= */ 0).apply {

@@ -40,15 +40,16 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
-import static com.android.internal.hidden_from_bootclasspath.com.android.window.flags.Flags.FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 
@@ -191,11 +192,7 @@ public final class AppCompatCameraDisplayRotationPolicyTests extends WindowTests
             robot.configureActivity(SCREEN_ORIENTATION_PORTRAIT);
             robot.setTreatmentEnabledViaConfig(false);
 
-            robot.onCameraOpened(CAMERA_ID_1, TEST_PACKAGE_1);
-
-            robot.assertDisplayRotationFromPolicy(SCREEN_ORIENTATION_UNSPECIFIED);
-
-            robot.assertNoForceRotationOrRefresh();
+            robot.assertPolicyNotCreated();
         });
     }
 
@@ -265,10 +262,10 @@ public final class AppCompatCameraDisplayRotationPolicyTests extends WindowTests
     }
 
     @Test
-    @DisableFlags({Flags.FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES,
-            FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX})
+    @DisableFlags(Flags.FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES)
     public void testDisplayTypeExternal_noForceRotationOrRefresh() {
         runTestScenario((robot) -> {
+            robot.applyOnConf(c -> c.enableCameraCompatSimReqOrientationTreatment(false));
             robot.configureActivityAndDisplay(SCREEN_ORIENTATION_PORTRAIT,
                     WINDOWING_MODE_FULLSCREEN, ORIENTATION_PORTRAIT, TYPE_EXTERNAL);
 
@@ -280,7 +277,7 @@ public final class AppCompatCameraDisplayRotationPolicyTests extends WindowTests
 
     @Test
     @DisableFlags(Flags.FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES)
-    public void testDisplaTypeyWifi_noForceRotationOrRefresh() {
+    public void testDisplayTypeyWifi_noForceRotationOrRefresh() {
         runTestScenario((robot) -> {
             robot.configureActivityAndDisplay(SCREEN_ORIENTATION_PORTRAIT,
                     WINDOWING_MODE_FULLSCREEN, ORIENTATION_PORTRAIT, TYPE_WIFI);
@@ -454,7 +451,7 @@ public final class AppCompatCameraDisplayRotationPolicyTests extends WindowTests
     public void testOnActivityConfigurationChanging_splitScreenAspectRatioAllowed_refresh() {
         runTestScenario((robot) -> {
             robot.configureActivity(SCREEN_ORIENTATION_PORTRAIT);
-            robot.conf().enableCameraCompatSplitScreenAspectRatio(true);
+            robot.applyOnConf(c -> c.enableCameraCompatSplitScreenAspectRatio(true));
 
             robot.onCameraOpened(CAMERA_ID_1, TEST_PACKAGE_1);
             robot.callOnActivityConfigurationChanging(/*isDisplayRotationChanging=*/ true);
@@ -529,11 +526,16 @@ public final class AppCompatCameraDisplayRotationPolicyTests extends WindowTests
         }
 
         @Override
-        void onPostDisplayContentCreation(@NonNull DisplayContent displayContent) {
-            super.onPostDisplayContentCreation(displayContent);
-            spyOn(displayContent.mAppCompatCameraPolicy);
-            if (displayContent.mAppCompatCameraPolicy.mDisplayRotationPolicy != null) {
-                spyOn(displayContent.mAppCompatCameraPolicy.mDisplayRotationPolicy);
+        void applyOnConf(@NonNull Consumer<AppCompatConfigurationRobot> consumer) {
+            super.applyOnConf(consumer);
+            reInitCameraPolicy();
+            spyOnPolicy();
+        }
+
+        private void spyOnPolicy() {
+            spyOn(testBase().mWm.mAppCompatCameraPolicy);
+            if (testBase().mWm.mAppCompatCameraPolicy.mDisplayRotationPolicy != null) {
+                spyOn(testBase().mWm.mAppCompatCameraPolicy.mDisplayRotationPolicy);
             }
         }
 
@@ -555,7 +557,6 @@ public final class AppCompatCameraDisplayRotationPolicyTests extends WindowTests
         private void setupAppCompatConfiguration() {
             applyOnConf((c) -> {
                 c.enableCameraCompatForceRotateTreatment(true);
-                c.enableCameraCompatForceRotateTreatmentAtBuildTime(true);
                 c.enableCameraCompatRefresh(true);
                 c.enableCameraCompatRefreshCycleThroughStop(true);
                 c.enableCameraCompatSplitScreenAspectRatio(false);
@@ -585,10 +586,6 @@ public final class AppCompatCameraDisplayRotationPolicyTests extends WindowTests
         }
 
         private void setupFakeToasts() {
-            // Do not show the real toast.
-            doNothing().when(cameraCompatPolicy()).showToast(anyInt());
-            doNothing().when(cameraCompatPolicy()).showToast(anyInt(), anyString());
-
             final PackageManager mockPackageManager = mock(PackageManager.class);
             final ApplicationInfo mockApplicationInfo = mock(ApplicationInfo.class);
             when(mWindowTestsBase.mWm.mContext.getPackageManager()).thenReturn(mockPackageManager);
@@ -601,6 +598,15 @@ public final class AppCompatCameraDisplayRotationPolicyTests extends WindowTests
 
             doReturn(TEST_PACKAGE_1_LABEL).when(mockPackageManager)
                     .getApplicationLabel(mockApplicationInfo);
+
+            // Do not show the real toast.
+            final AppCompatCameraDisplayRotationPolicy cameraCompatPolicy = cameraCompatPolicy();
+            if (cameraCompatPolicy == null) {
+                return;
+            }
+            doNothing().when(cameraCompatPolicy).showToast(anyInt());
+            doNothing().when(cameraCompatPolicy).showToast(anyInt(), anyString());
+
         }
 
         private void configureActivity(@ScreenOrientation int activityOrientation) {
@@ -653,11 +659,11 @@ public final class AppCompatCameraDisplayRotationPolicyTests extends WindowTests
         }
 
         private void waitHandlerIdle() {
-            mWindowTestsBase.waitHandlerIdle(activity().displayContent().mWmService.mH);
+            mWindowTestsBase.waitHandlerIdle(testBase().mWm.mH);
         }
 
         private void callOnActivityConfigurationChanging(boolean isDisplayRotationChanging) {
-            activity().displayContent().mAppCompatCameraPolicy.mActivityRefresher
+            testBase().mWm.mAppCompatCameraPolicy.mActivityRefresher
                     .onActivityConfigurationChanging(activity().top(),
                     /* oldConfig */ createConfigurationWithDisplayRotation(ROTATION_0),
                     /* newConfig */ createConfigurationWithDisplayRotation(
@@ -677,15 +683,24 @@ public final class AppCompatCameraDisplayRotationPolicyTests extends WindowTests
         }
 
         void setTreatmentEnabledViaConfig(boolean enable) {
-            conf().enableCameraCompatForceRotateTreatment(enable);
+            applyOnConf(c -> c.enableCameraCompatForceRotateTreatment(enable));
         }
 
         void finishRotationAnimation() {
-            cameraCompatPolicy().onScreenRotationAnimationFinished();
+            final AppCompatCameraDisplayRotationPolicy cameraCompatPolicy = cameraCompatPolicy();
+            if (cameraCompatPolicy == null) {
+                return;
+            }
+            cameraCompatPolicy.onScreenRotationAnimationFinished(activity().displayContent());
+        }
+
+        private void assertPolicyNotCreated() {
+            assertNull(cameraCompatPolicy());
         }
 
         private void assertNoForceRotationOrRefresh() {
-            assertEquals(SCREEN_ORIENTATION_UNSPECIFIED, cameraCompatPolicy().getOrientation());
+            assertEquals(SCREEN_ORIENTATION_UNSPECIFIED,
+                    cameraCompatPolicy().getOrientation(activity().displayContent()));
             assertActivityRefreshed(/* refreshed */ false);
         }
 
@@ -707,27 +722,31 @@ public final class AppCompatCameraDisplayRotationPolicyTests extends WindowTests
         }
 
         void assertDisplayRotationFromPolicy(int expectedOrientation) {
-            assertEquals(expectedOrientation, cameraCompatPolicy().getOrientation());
+            assertEquals(expectedOrientation,
+                    cameraCompatPolicy().getOrientation(activity().displayContent()));
         }
 
         private void assertShouldCameraCompatControlOrientation(boolean shouldControl) {
-            assertEquals(shouldControl,
-                    cameraCompatPolicy().shouldCameraCompatControlOrientation(activity().top()));
+            assertEquals(shouldControl, cameraCompatPolicy()
+                    .isActivityEligibleForOrientationOverride(activity().top()));
         }
 
         private void assertMultiWindowToastShown(boolean shown) {
             verify(cameraCompatPolicy(), times(shown ? 1 : 0)).showToast(
-                    anyInt(), //eq(R.string.display_rotation_camera_compat_toast_in_multi_window),
+                    eq(R.string.display_rotation_camera_compat_toast_in_multi_window),
                     anyString());
         }
 
         private void assertPostRotationToastShown(boolean shown) {
+            if (cameraCompatPolicy() == null && !shown) {
+                return;
+            }
             verify(cameraCompatPolicy(), times(shown ? 1 : 0)).showToast(
                     R.string.display_rotation_camera_compat_toast_after_rotation);
         }
 
         AppCompatCameraDisplayRotationPolicy cameraCompatPolicy() {
-            return activity().displayContent().mAppCompatCameraPolicy.mDisplayRotationPolicy;
+            return testBase().mWm.mAppCompatCameraPolicy.mDisplayRotationPolicy;
         }
     }
 }

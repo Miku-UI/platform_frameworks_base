@@ -16,10 +16,9 @@
 
 package com.android.systemui.bouncer.ui.viewmodel
 
-import android.platform.test.annotations.EnableFlags
+import androidx.compose.ui.geometry.Offset
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.FakeAuthenticationRepository
 import com.android.systemui.authentication.data.repository.authenticationRepository
@@ -100,7 +99,7 @@ class PatternBouncerViewModelTest : SysuiTestCase() {
 
             verify(onIntentionalUserInputMock, never()).invoke()
 
-            underTest.onDragStart()
+            underTest.onDragStart(Offset(0f, 0f))
 
             verify(onIntentionalUserInputMock, times(1)).invoke()
             assertThat(selectedDots).isEmpty()
@@ -115,7 +114,7 @@ class PatternBouncerViewModelTest : SysuiTestCase() {
             val selectedDots by collectLastValue(underTest.selectedDots)
             val currentDot by collectLastValue(underTest.currentDot)
             lockDeviceAndOpenPatternBouncer()
-            underTest.onDragStart()
+            underTest.onDragStart(Offset(0f, 0f))
             assertThat(currentDot).isNull()
             CORRECT_PATTERN.forEachIndexed { index, coordinate ->
                 dragToCoordinate(coordinate)
@@ -148,7 +147,7 @@ class PatternBouncerViewModelTest : SysuiTestCase() {
             val selectedDots by collectLastValue(underTest.selectedDots)
             val currentDot by collectLastValue(underTest.currentDot)
             lockDeviceAndOpenPatternBouncer()
-            underTest.onDragStart()
+            underTest.onDragStart(Offset(0f, 0f))
             CORRECT_PATTERN.subList(0, 3).forEach { coordinate -> dragToCoordinate(coordinate) }
 
             underTest.onDragEnd()
@@ -304,7 +303,7 @@ class PatternBouncerViewModelTest : SysuiTestCase() {
             // lockout if the pattern were not too short and wrong:
             val attempts = FakeAuthenticationRepository.MAX_FAILED_AUTH_TRIES_BEFORE_LOCKOUT + 1
             repeat(attempts) { attempt ->
-                underTest.onDragStart()
+                underTest.onDragStart(Offset(0f, 0f))
                 CORRECT_PATTERN.subList(0, authenticationRepository.minPatternLength - 1).forEach {
                     coordinate ->
                     underTest.onDrag(
@@ -328,7 +327,7 @@ class PatternBouncerViewModelTest : SysuiTestCase() {
             val currentDot by collectLastValue(underTest.currentDot)
             lockDeviceAndOpenPatternBouncer()
 
-            underTest.onDragStart()
+            underTest.onDragStart(Offset(0f, 0f))
             CORRECT_PATTERN.subList(2, 7).forEach(::dragToCoordinate)
             underTest.onDragEnd()
             assertThat(selectedDots).isEmpty()
@@ -344,10 +343,26 @@ class PatternBouncerViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
+    fun readyToTryAuthenticate() =
+        kosmos.runTest {
+            val readyToTryAuthenticate by collectLastValue(underTest.readyToTryAuthenticate)
+            lockDeviceAndOpenPatternBouncer()
+            assertThat(readyToTryAuthenticate).isFalse()
+
+            underTest.onDragStart(Offset(0f, 0f))
+            dragToCoordinate(Point(0, 0))
+            assertThat(readyToTryAuthenticate).isFalse()
+            dragToCoordinate(Point(1, 1))
+            assertThat(readyToTryAuthenticate).isTrue()
+
+            underTest.onDragEnd()
+            assertThat(readyToTryAuthenticate).isFalse()
+        }
+
+    @Test
     fun performDotFeedback_deliversDragToken() =
         kosmos.runTest {
-            underTest.performDotFeedback(null)
+            underTest.performDotFeedback()
 
             assertThat(fakeMSDLPlayer.latestTokenPlayed)
                 .isEqualTo(MSDLToken.DRAG_INDICATOR_DISCRETE)
@@ -355,7 +370,7 @@ class PatternBouncerViewModelTest : SysuiTestCase() {
         }
 
     private fun dragOverCoordinates(vararg coordinatesDragged: Point) {
-        underTest.onDragStart()
+        underTest.onDragStart(Offset(0f, 0f))
         coordinatesDragged.forEach(::dragToCoordinate)
     }
 
@@ -380,6 +395,6 @@ class PatternBouncerViewModelTest : SysuiTestCase() {
     companion object {
         private const val ENTER_YOUR_PATTERN = "Enter your pattern"
         private const val WRONG_PATTERN = "Wrong pattern"
-        private val CORRECT_PATTERN = FakeAuthenticationRepository.PATTERN
+        private val CORRECT_PATTERN = FakeAuthenticationRepository.DEFAULT_PATTERN
     }
 }

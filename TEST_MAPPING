@@ -1,4 +1,9 @@
 {
+  "imports": [
+    {
+      "path": "frameworks/base/ravenwood-framework-test-mapping"
+    }
+  ],
   "desktop-presubmit": [
     {
       "name": "CfVkmsCursorTest"
@@ -61,22 +66,12 @@
     },
     {
       "name": "CtsStrictJavaPackagesTestCases"
-    }
-  ],
-  "ravenwood-presubmit": [
-    {
-      "name": "CtsUtilTestCasesRavenwood",
-      "host": true,
-      "file_patterns": [
-        "[Rr]avenwood"
-      ]
     },
     {
-      "name": "RavenwoodBivalentTest",
-      "host": true,
-      "file_patterns": [
-        "[Rr]avenwood"
-      ]
+      "name": "CameraServicesTests"
+    },
+    {
+      "name": "FrameworksCoreTests_jank"
     }
   ],
   "postsubmit-managedprofile-stress": [
@@ -84,35 +79,43 @@
       "name": "ManagedProfileLifecycleStressTest"
     }
   ],
- "auto-postsubmit": [
-   // Test tag for automotive targets. These are only running in postsubmit so as to harden the
-   // automotive targets to avoid introducing additional test flake and build time. The plan for
-   // presubmit testing for auto is to augment the existing tests to cover auto use cases as well.
-   // Additionally, this tag is used in targeted test suites to limit resource usage on the test
-   // infra during the hardening phase.
-   // TODO: this tag to be removed once the above is no longer an issue.
-   {
-     "name": "FrameworksUiServicesTests"
-   },
-   {
-     "name": "ExtServicesUnitTests-tplus"
-   },
-   {
-     "name": "ExtServicesUnitTests-sminus"
-   },
-   {
-     "name": "TestablesTests"
-   },
-   {
-     "name": "FrameworksCoreTests_Presubmit"
-   },
-   {
-     "name": "FrameworksServicesTests_presubmit"
-   },
-   {
-     "name": "PackageManagerServiceServerTests_Presubmit"
-   }
- ],
+  "auto-postsubmit": [
+    // Test tag for automotive targets. These are only running in postsubmit so as to harden the
+    // automotive targets to avoid introducing additional test flake and build time. The plan for
+    // presubmit testing for auto is to augment the existing tests to cover auto use cases as well.
+    // Additionally, this tag is used in targeted test suites to limit resource usage on the test
+    // infra during the hardening phase.
+    // TODO: this tag to be removed once the above is no longer an issue.
+    {
+      "name": "FrameworksUiServicesTests"
+    },
+    {
+      "name": "ExtServicesUnitTests-tplus"
+    },
+    {
+      "name": "ExtServicesUnitTests-sminus"
+    },
+    {
+      "name": "TestablesTests"
+    },
+    {
+      "name": "FrameworksCoreTests_Presubmit"
+    },
+    {
+      "name": "FrameworksServicesTests_presubmit"
+    },
+    {
+      "name": "PackageManagerServiceServerTests_Presubmit"
+    },
+    {
+      "name": "CameraServicesTests"
+    }
+  ],
+  "auto-postsubmit-all-ui-targets": [
+    {
+      "name": "FrameworksUiServicesTests"
+    }
+  ],
   "wear-cts-presubmit": [
     {
       "name": "CtsWidgetTestCases",

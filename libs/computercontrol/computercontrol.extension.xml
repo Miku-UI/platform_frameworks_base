@@ -18,4 +18,5 @@
     <library
         name="com.android.extensions.computercontrol"
         file="/system_ext/framework/com.android.extensions.computercontrol.jar"/>
+    <feature name="com.android.extensions.computercontrol" />
 </permissions>

@@ -30,6 +30,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
 
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -101,6 +102,14 @@ public final class GameServiceProviderSelectorImplTest {
 
     @Mock
     private PackageManager mMockPackageManager;
+
+    @Mock
+    private PackageManager mMockUserPackageManager;
+
+    @Mock
+    private Context mMockUserContext;
+
+    private Context mSpyContext;
     private Resources mSpyResources;
     private MockitoSession mMockingSession;
     private GameServiceProviderSelector mGameServiceProviderSelector;
@@ -112,14 +121,19 @@ public final class GameServiceProviderSelectorImplTest {
                 .strictness(Strictness.LENIENT)
                 .startMocking();
 
-        mSpyResources = spy(
-                InstrumentationRegistry.getInstrumentation().getContext().getResources());
+        mSpyContext = spy(InstrumentationRegistry.getInstrumentation().getContext());
+        mSpyResources = spy(mSpyContext.getResources());
 
-        when(mMockPackageManager.getResourcesForApplication(anyString()))
-                .thenReturn(mSpyResources);
-        mGameServiceProviderSelector = new GameServiceProviderSelectorImpl(
-                mSpyResources,
-                mMockPackageManager);
+        doReturn(mMockPackageManager).when(mSpyContext).getPackageManager();
+        doReturn(mSpyResources).when(mSpyContext).getResources();
+        doReturn(mMockUserContext)
+                .when(mSpyContext)
+                .createContextAsUser(eq(USER_HANDLE_10), anyInt());
+
+        when(mMockPackageManager.getResourcesForApplication(anyString())).thenReturn(mSpyResources);
+        when(mMockUserContext.getPackageManager()).thenReturn(mMockUserPackageManager);
+
+        mGameServiceProviderSelector = new GameServiceProviderSelectorImpl(mSpyContext);
     }
 
     @After
@@ -371,13 +385,13 @@ public final class GameServiceProviderSelectorImplTest {
     }
 
     private void seedServiceServiceInfo(ComponentName componentName) throws Exception {
-        when(mMockPackageManager.getServiceInfo(eq(componentName), anyInt()))
+        when(mMockUserPackageManager.getServiceInfo(eq(componentName), anyInt()))
                 .thenReturn(
                         serviceInfo(componentName.getPackageName(), componentName.getClassName()));
     }
 
     private void seedServiceServiceInfoNotFound(ComponentName componentName) throws Exception {
-        when(mMockPackageManager.getServiceInfo(eq(componentName), anyInt()))
+        when(mMockUserPackageManager.getServiceInfo(eq(componentName), anyInt()))
                 .thenThrow(new PackageManager.NameNotFoundException());
     }
 

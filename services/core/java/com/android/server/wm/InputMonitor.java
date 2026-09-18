@@ -41,6 +41,7 @@ import static android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR_ADDITIONAL
 import static android.view.WindowManager.LayoutParams.TYPE_VOICE_INTERACTION;
 import static android.view.WindowManager.LayoutParams.TYPE_WALLPAPER;
 
+import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_FOCUS;
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_FOCUS_LIGHT;
 import static com.android.server.wm.WindowManagerDebugConfig.DEBUG_INPUT;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WM;
@@ -68,7 +69,6 @@ import com.android.internal.inputmethod.SoftInputShowHideReason;
 import com.android.internal.protolog.ProtoLog;
 import com.android.server.LocalServices;
 import com.android.server.inputmethod.InputMethodManagerInternal;
-import com.android.window.flags.Flags;
 
 import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
@@ -219,7 +219,7 @@ final class InputMonitor {
         }
     }
 
-    void createInputConsumer(IBinder token, String name, InputChannel inputChannel, int clientPid,
+    InputChannel createInputConsumer(IBinder token, String name, int clientPid,
             UserHandle clientUser) {
         final InputConsumerImpl existingConsumer = getInputConsumer(name);
         if (existingConsumer != null && existingConsumer.mClientUser.equals(clientUser)) {
@@ -228,8 +228,9 @@ final class InputMonitor {
                     + ", display: " + mDisplayId + ", user: " + clientUser);
         }
 
+        final InputChannel inputChannel = mService.mInputManager.createInputChannel(name);
         final InputConsumerImpl consumer = new InputConsumerImpl(mService, token, name,
-                inputChannel, clientPid, clientUser, mDisplayId, mInputTransaction);
+                inputChannel.getToken(), clientPid, clientUser, mDisplayId, mInputTransaction);
         switch (name) {
             case INPUT_CONSUMER_WALLPAPER:
                 consumer.mWindowHandle.inputConfig |= InputConfig.DUPLICATE_TOUCH_TO_WALLPAPER;
@@ -245,6 +246,7 @@ final class InputMonitor {
                         + ", display: " + mDisplayId);
         }
         addInputConsumer(consumer);
+        return inputChannel;
     }
 
     @VisibleForTesting
@@ -269,14 +271,24 @@ final class InputMonitor {
             flags = flags | FLAG_NOT_TOUCH_MODAL;
         }
         inputWindowHandle.setLayoutParamsFlags(flags);
-        inputWindowHandle.setInputConfigMasked(
+        if (inputWindowHandle.setInputConfigMasked(
                 InputConfigAdapter.getInputConfigFromWindowParams(
                         w.mAttrs.type, flags, w.mAttrs.inputFeatures),
-                InputConfigAdapter.getMask());
+                InputConfigAdapter.getMask())) {
+            ProtoLog.d(WM_DEBUG_FOCUS, "Window %s input config masked changed. "
+                            + "type=%d flags=%s inputFeatures=%s",
+                    w.getName(), w.mAttrs.type, Integer.toHexString(flags),
+                    Integer.toHexString(w.mAttrs.inputFeatures));
+        }
 
         final boolean focusable = w.canReceiveKeys()
                 && (mDisplayContent.hasOwnFocus() || mDisplayContent.isOnTop());
-        inputWindowHandle.setFocusable(focusable);
+        if (inputWindowHandle.setFocusable(focusable) && !focusable) {
+            ProtoLog.d(WM_DEBUG_FOCUS, "Window %s became not focusable. Reason: %s "
+                            + "hasOwnFocus=%b isOnTop=%b", w.getName(),
+                    w.canReceiveKeysReason(false /* fromUserTouch */),
+                    mDisplayContent.hasOwnFocus(), mDisplayContent.isOnTop());
+        }
 
         final boolean hasWallpaper = mDisplayContent.mWallpaperController.isWallpaperTarget(w)
                 && !mService.mPolicy.isKeyguardShowing()
@@ -423,8 +435,8 @@ final class InputMonitor {
                     requestFocus(recentsAnimationInputConsumer.mWindowHandle.token,
                             recentsAnimationInputConsumer.mName);
                 }
-                if (mDisplayContent.mInputMethodWindow != null
-                        && mDisplayContent.mInputMethodWindow.isVisible()) {
+                final WindowState imeWindow = mDisplayContent.getImeWindow();
+                if (imeWindow != null && imeWindow.isVisible()) {
                     // Hiding IME/IME icon when recents input consumer gain focus.
                     final boolean isImeAttachedToApp = mDisplayContent.isImeAttachedToApp();
                     if (!isImeAttachedToApp) {
@@ -444,13 +456,8 @@ final class InputMonitor {
                         if (app != null) {
                             mDisplayContent.removeImeScreenshotImmediately();
                             if (app.getTask() != null) {
-                                if (Flags.reduceTaskSnapshotMemoryUsage()) {
-                                    mDisplayContent.mWmService.mTaskSnapshotController
-                                            .recordSnapshot(app.getTask());
-                                } else {
-                                    mDisplayContent.mAtmService.takeTaskSnapshot(
-                                            app.getTask().mTaskId, true /* updateCache */);
-                                }
+                                mDisplayContent.mWmService.mTaskSnapshotController
+                                        .recordSnapshot(app.getTask());
                             }
                         }
                     } else {

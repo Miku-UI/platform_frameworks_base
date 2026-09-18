@@ -191,6 +191,17 @@ constructor(
             unfilteredListeners.isNotEmpty()
     }
 
+    private fun attemptSessionCreation(): SmartspaceSession? {
+        return try {
+            userSmartspaceManager?.createSmartspaceSession(
+                SmartspaceConfig.Builder(userTracker.userContext, UI_SURFACE_DREAM).build()
+            )
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "Failed to create Smartspace session, underlying service may be missing", e)
+            null
+        }
+    }
+
     private fun connectSession() {
         if (userSmartspaceManager == null) {
             userSmartspaceManager =
@@ -210,12 +221,14 @@ constructor(
             return
         }
 
-        val newSession =
-            userSmartspaceManager?.createSmartspaceSession(
-                SmartspaceConfig.Builder(userTracker.userContext, UI_SURFACE_DREAM).build()
-            )
+        val newSession = attemptSessionCreation()
+        if (newSession == null) {
+            session = null
+            return
+        }
+
         Log.d(TAG, "Starting smartspace session for dream")
-        newSession?.addOnTargetsAvailableListener(uiExecutor, sessionListener)
+        newSession.addOnTargetsAvailableListener(uiExecutor, sessionListener)
         this.session = newSession
 
         weatherPlugin?.setEventDispatcher { e -> session?.notifySmartspaceEvent(e) }

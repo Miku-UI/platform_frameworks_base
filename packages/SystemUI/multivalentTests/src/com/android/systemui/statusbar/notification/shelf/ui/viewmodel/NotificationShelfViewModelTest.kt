@@ -17,12 +17,16 @@
 package com.android.systemui.statusbar.notification.shelf.ui.viewmodel
 
 import android.os.PowerManager
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFaceAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
+import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testCase
@@ -57,7 +61,8 @@ class NotificationShelfViewModelTest : SysuiTestCase() {
             whenever(screenOffAnimationController.allowWakeUpIfDozing()).thenReturn(true)
         }
 
-    private val underTest: NotificationShelfViewModel by lazy { kosmos.notificationShelfViewModel }
+    private val Kosmos.underTest: NotificationShelfViewModel by
+        Kosmos.Fixture { notificationShelfViewModel }
 
     @Test
     fun canModifyColorOfNotifications_whenKeyguardNotShowing() =
@@ -126,6 +131,7 @@ class NotificationShelfViewModelTest : SysuiTestCase() {
 
     @Test
     @EnableSceneContainer
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun isAlignedToEnd_splitShade_true() =
         kosmos.runTest {
             val isShelfAlignedToEnd by collectLastValue(underTest.isAlignedToEnd)
@@ -148,6 +154,7 @@ class NotificationShelfViewModelTest : SysuiTestCase() {
 
     @Test
     @EnableSceneContainer
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun isAlignedToEnd_dualShade_wideScreen_false() =
         kosmos.runTest {
             val isShelfAlignedToEnd by collectLastValue(underTest.isAlignedToEnd)
@@ -159,6 +166,7 @@ class NotificationShelfViewModelTest : SysuiTestCase() {
 
     @Test
     @EnableSceneContainer
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun isAlignedToEnd_dualShade_narrowScreen_false() =
         kosmos.runTest {
             val isShelfAlignedToEnd by collectLastValue(underTest.isAlignedToEnd)

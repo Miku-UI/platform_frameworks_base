@@ -24,6 +24,7 @@ import java.util.Objects;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class PwlePoint {
     private final float mAmplitude;
     private final float mFrequencyHz;

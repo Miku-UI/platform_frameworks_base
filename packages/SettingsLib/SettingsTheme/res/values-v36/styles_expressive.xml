@@ -395,8 +395,15 @@
     <style name="SettingsLibEntityHeaderIcon">
         <item name="android:layout_width">@dimen/settingslib_expressive_space_large3</item>
         <item name="android:layout_height">@dimen/settingslib_expressive_space_large3</item>
+        <item name="android:layout_gravity">center</item>
         <item name="android:scaleType">fitCenter</item>
         <item name="android:antialias">true</item>
+    </style>
+
+    <style name="SettingsLibEntityHeaderIconBackground">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_gravity">center</item>
     </style>
 
     <style name="SettingsLibEntityHeaderTitle">
@@ -418,6 +425,12 @@
     <style name="TextAppearance.SettingsLib.PreferenceSummary"
         parent="@style/TextAppearance.SettingsLib.BodyMedium">
         <item name="android:textColor">@color/settingslib_text_color_secondary</item>
+    </style>
+
+    <style name="TextAppearance.Footer.Title.SettingsLib"
+        parent="@android:style/TextAppearance.DeviceDefault.WindowTitle">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">?android:attr/colorAccent</item>
     </style>
 
     <style name="Widget.SettingsLib.DialogWindowTitle" parent="">

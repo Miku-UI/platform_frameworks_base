@@ -25,6 +25,7 @@ import android.graphics.RecordingCanvas;
 import android.graphics.RenderNode;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.TimeUtils;
 import android.view.Choreographer;
 
 import com.android.internal.util.VirtualRefBasePtr;
@@ -421,7 +422,7 @@ public class RenderNodeAnimator extends Animator {
     private static ThreadLocal<DelayedAnimationHelper> sAnimationHelper =
             new ThreadLocal<DelayedAnimationHelper>();
 
-    private static class DelayedAnimationHelper implements Runnable {
+    private static class DelayedAnimationHelper implements Choreographer.VsyncCallback {
 
         private ArrayList<RenderNodeAnimator> mDelayedAnims = new ArrayList<RenderNodeAnimator>();
         private final Choreographer mChoreographer;
@@ -443,13 +444,13 @@ public class RenderNodeAnimator extends Animator {
         private void scheduleCallback() {
             if (!mCallbackScheduled) {
                 mCallbackScheduled = true;
-                mChoreographer.postCallback(Choreographer.CALLBACK_ANIMATION, this, null);
+                mChoreographer.postVsyncCallback(this);
             }
         }
 
         @Override
-        public void run() {
-            long frameTimeMs = mChoreographer.getFrameTime();
+        public void onVsync(Choreographer.FrameData frameData) {
+            long frameTimeMs = frameData.getFrameTimeNanos() / TimeUtils.NANOS_PER_MS;
             mCallbackScheduled = false;
 
             int end = 0;

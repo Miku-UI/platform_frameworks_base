@@ -1,0 +1,80 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "frameworks_base_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["frameworks_base_license"],
+    default_team: "trendy_team_android_media_audio_framework",
+}
+
+shared_deps = [
+    "androidx.test.core",
+    "androidx.test.ext.junit",
+    "androidx.test.ext.truth",
+    "androidx.test.rules",
+    "androidx.test.runner",
+    "frameworks-base-testutils",
+    "platform-compat-test-rules",
+    "platform-test-annotations",
+    "ravenwood-junit",
+    "services.core",
+    "truth",
+    "mockito-kotlin2",
+]
+
+android_test {
+    name: "AudioServiceTests",
+
+    srcs: [
+        "src/**/*.java",
+        "src/**/*.kt",
+    ],
+
+    static_libs: shared_deps + [
+        "servicestests-core-utils",
+        "servicestests-utils",
+    ],
+
+    certificate: "platform",
+
+    test_suites: ["device-tests"],
+
+    optimize: {
+        enabled: false,
+    },
+}
+
+android_ravenwood_test {
+    name: "AudioServiceTestsRavenwood",
+
+    srcs: [
+        "src/com/android/server/audio/ActivityDebouncerTest.java",
+        "src/com/android/server/audio/AmScoHelperTest.kt",
+        "src/com/android/server/audio/AudioModeSessionTest.kt",
+        "src/com/android/server/audio/AudioServerPermissionProviderTest.java",
+        "src/com/android/server/audio/MediaFocusControlTest.java",
+        "src/com/android/server/audio/RouteSelectionStackTest.kt",
+        "src/com/android/server/audio/ServiceHolderTest.java",
+    ],
+
+    static_libs: shared_deps + [
+        "servicestests-utils-ravenwood",
+    ],
+
+    auto_gen_config: true,
+}

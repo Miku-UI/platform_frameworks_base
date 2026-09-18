@@ -30,6 +30,7 @@ import com.android.internal.widget.remotecompose.core.operations.layout.ClickHan
 import com.android.internal.widget.remotecompose.core.operations.layout.ClickModifierOperation;
 import com.android.internal.widget.remotecompose.core.operations.layout.Component;
 import com.android.internal.widget.remotecompose.core.operations.layout.DecoratorComponent;
+import com.android.internal.widget.remotecompose.core.operations.layout.MultiClickModifier;
 import com.android.internal.widget.remotecompose.core.operations.layout.TouchHandler;
 import com.android.internal.widget.remotecompose.core.operations.utilities.StringSerializer;
 import com.android.internal.widget.remotecompose.core.serialize.MapSerializer;
@@ -124,6 +125,10 @@ public class ComponentModifiers extends PaintOperation
                 context.translate(-tx, -ty);
                 ((ClickModifierOperation) op).paint(context);
                 context.translate(tx, ty);
+            } else if (op instanceof MultiClickModifier) {
+                context.translate(-tx, -ty);
+                ((MultiClickModifier) op).paint(context);
+                context.translate(tx, ty);
             } else if (op instanceof PaintOperation) {
                 ((PaintOperation) op).paint(context);
             }
@@ -149,6 +154,8 @@ public class ComponentModifiers extends PaintOperation
             }
             if (op instanceof ClickModifierOperation) {
                 ((DecoratorComponent) op).layout(context, component, width, height);
+            } else if (op instanceof MultiClickModifier) {
+                ((DecoratorComponent) op).layout(context, component, width, height);
             } else if (op instanceof DecoratorComponent) {
                 ((DecoratorComponent) op).layout(context, component, w, h);
             }
@@ -165,35 +172,83 @@ public class ComponentModifiers extends PaintOperation
     }
 
     @Override
-    public void onClick(
+    public boolean onClick(
             @NonNull RemoteContext context,
             @NonNull CoreDocument document,
             @NonNull Component component,
             float x,
             float y) {
-        for (ModifierOperation op : mList) {
+        boolean handled = false;
+        for (int i = mList.size() - 1; i >= 0; i--) {
+            ModifierOperation op = mList.get(i);
             if (op instanceof ClickHandler) {
-                ((ClickHandler) op).onClick(context, document, component, x, y);
+                if (((ClickHandler) op).onClick(context, document, component, x, y)) {
+                    handled = true;
+                }
             }
         }
+        return handled;
     }
 
     @Override
-    public void onTouchDown(
+    public boolean onLongPress(
             @NonNull RemoteContext context,
             @NonNull CoreDocument document,
             @NonNull Component component,
             float x,
             float y) {
-        for (ModifierOperation op : mList) {
-            if (op instanceof TouchHandler) {
-                ((TouchHandler) op).onTouchDown(context, document, component, x, y);
+        boolean handled = false;
+        for (int i = mList.size() - 1; i >= 0; i--) {
+            ModifierOperation op = mList.get(i);
+            if (op instanceof ClickHandler) {
+                if (((ClickHandler) op).onLongPress(context, document, component, x, y)) {
+                    handled = true;
+                }
             }
         }
+        return handled;
     }
 
     @Override
-    public void onTouchUp(
+    public boolean onDoubleClick(
+            @NonNull RemoteContext context,
+            @NonNull CoreDocument document,
+            @NonNull Component component,
+            float x,
+            float y) {
+        boolean handled = false;
+        for (int i = mList.size() - 1; i >= 0; i--) {
+            ModifierOperation op = mList.get(i);
+            if (op instanceof ClickHandler) {
+                if (((ClickHandler) op).onDoubleClick(context, document, component, x, y)) {
+                    handled = true;
+                }
+            }
+        }
+        return handled;
+    }
+
+    @Override
+    public boolean onTouchDown(
+            @NonNull RemoteContext context,
+            @NonNull CoreDocument document,
+            @NonNull Component component,
+            float x,
+            float y) {
+        boolean handled = false;
+        for (int i = mList.size() - 1; i >= 0; i--) {
+            ModifierOperation op = mList.get(i);
+            if (op instanceof TouchHandler) {
+                if (((TouchHandler) op).onTouchDown(context, document, component, x, y)) {
+                    handled = true;
+                }
+            }
+        }
+        return handled;
+    }
+
+    @Override
+    public boolean onTouchUp(
             @NonNull RemoteContext context,
             @NonNull CoreDocument document,
             @NonNull Component component,
@@ -201,39 +256,54 @@ public class ComponentModifiers extends PaintOperation
             float y,
             float dx,
             float dy) {
-        for (ModifierOperation op : mList) {
+        boolean handled = false;
+        for (int i = mList.size() - 1; i >= 0; i--) {
+            ModifierOperation op = mList.get(i);
             if (op instanceof TouchHandler) {
-                ((TouchHandler) op).onTouchUp(context, document, component, x, y, dx, dy);
+                if (((TouchHandler) op).onTouchUp(context, document, component, x, y, dx, dy)) {
+                    handled = true;
+                }
             }
         }
+        return handled;
     }
 
     @Override
-    public void onTouchCancel(
+    public boolean onTouchCancel(
             @NonNull RemoteContext context,
             @NonNull CoreDocument document,
             @NonNull Component component,
             float x,
             float y) {
-        for (ModifierOperation op : mList) {
+        boolean handled = false;
+        for (int i = mList.size() - 1; i >= 0; i--) {
+            ModifierOperation op = mList.get(i);
             if (op instanceof TouchHandler) {
-                ((TouchHandler) op).onTouchCancel(context, document, component, x, y);
+                if (((TouchHandler) op).onTouchCancel(context, document, component, x, y)) {
+                    handled = true;
+                }
             }
         }
+        return handled;
     }
 
     @Override
-    public void onTouchDrag(
+    public boolean onTouchDrag(
             @NonNull RemoteContext context,
             @NonNull CoreDocument document,
             @NonNull Component component,
             float x,
             float y) {
-        for (ModifierOperation op : mList) {
+        boolean handled = false;
+        for (int i = mList.size() - 1; i >= 0; i--) {
+            ModifierOperation op = mList.get(i);
             if (op instanceof TouchHandler) {
-                ((TouchHandler) op).onTouchDrag(context, document, component, x, y);
+                if (((TouchHandler) op).onTouchDrag(context, document, component, x, y)) {
+                    handled = true;
+                }
             }
         }
+        return handled;
     }
 
     /**

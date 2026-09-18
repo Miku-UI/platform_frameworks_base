@@ -19,7 +19,7 @@
     <eat-comment/>
 
     <style name="ListItemSecondary" parent="@android:style/TextAppearance.Material.Body1">
-        <item name="android:textColor">?android:attr/textColorSecondary</item>
+        <item name="android:textColor">@color/materialColorOnSurfaceVariant</item>
     </style>
 
     <style name="ListSeparator">

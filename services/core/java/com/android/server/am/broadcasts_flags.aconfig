@@ -2,12 +2,8 @@ package: "com.android.server.am"
 container: "system"
 
 flag {
-    name: "log_broadcast_processed_event"
+    name: "limit_pending_broadcasts_per_sender_uid"
     namespace: "backstage_power"
-    description: "Log the broadcast processed event to Statsd"
-    bug: "387576580"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    description: "Enables the mechanism to limit the number of pending enqueued broadcasts for each sender UID"
+    bug: "452063905"
 }

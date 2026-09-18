@@ -28,6 +28,7 @@ import android.view.Display;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.BackgroundThread;
+import com.android.server.display.feature.flags.Flags;
 import com.android.server.display.utils.DebugUtils;
 
 import java.io.PrintWriter;
@@ -367,6 +368,9 @@ final class DisplayPowerState {
     void resetScreenState() {
         mScreenState = Display.STATE_UNKNOWN;
         mScreenReady = false;
+        mHandler.removeCallbacks(mScreenUpdateRunnable);
+        mScreenUpdatePending = false;
+        mPhotonicModulator.resetScreenState();
     }
 
     private void scheduleScreenUpdate() {
@@ -482,7 +486,14 @@ final class DisplayPowerState {
                         mLock.notifyAll();
                     }
                 }
-                return !mStateChangeInProgress;
+                return !mStateChangeInProgress && state != Display.STATE_UNKNOWN;
+            }
+        }
+
+        void resetScreenState() {
+            synchronized (mLock) {
+                mPendingState = Display.STATE_UNKNOWN;
+                mActualState = Display.STATE_UNKNOWN;
             }
         }
 

@@ -87,7 +87,7 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Ühendamine ..."</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Ühendatud <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Sidumine ..."</string>
-    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Ei saa siduda"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Ei saa siduda."</string>
     <string name="bluetooth_connection_failure" msgid="384203214661155324">"Ei saa ühendada"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Ühendatud (telefoni pole)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Ühendatud (meediat pole)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -147,7 +147,7 @@
     <string name="bluetooth_profile_opp" msgid="6692618568149493430">"Failiedastus"</string>
     <string name="bluetooth_profile_hid" msgid="2969922922664315866">"Sisendseade"</string>
     <string name="bluetooth_profile_pan" msgid="1006235139308318188">"Juurdepääs internetile"</string>
-    <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"Luba juurdepääs kontaktidele ja kõneajale"</string>
+    <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"Luba juurdepääs kontaktidele ja kõneajaloole"</string>
     <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"Teavet kasutatakse kõne teadaannete ja muu jaoks."</string>
     <string name="bluetooth_profile_pan_nap" msgid="7871974753822470050">"Interneti-ühenduse jagamine"</string>
     <string name="bluetooth_profile_map" msgid="8907204701162107271">"Tekstsõnumid"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"WiFi: kolm pulka."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"WiFi-signaal on tugev."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Seadmega ühendatud."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Võrk on nähtav ja ühenduse loomiseks saadaval kõigile selle seadme kasutajatele."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Avatud võrk"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Turvaline võrk"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -268,14 +269,14 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Pääsupunkti nime seaded pole selle kasutaja jaoks saadaval"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB silumine"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Silumisrežiim, kui USB on ühendatud"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Tühista USB silumisvolitused"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"adb-silumise volituste tühistamine"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Juhtmevaba silumine"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Silumisrežiim, kui WiFi-ühendus on olemas"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Viga"</string>
     <string name="adb_wireless_settings" msgid="2295017847215680229">"Juhtmevaba silumine"</string>
     <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"Saadaolevate seadmete nägemiseks ja kasutamiseks lülitage sisse juhtmevaba silumine."</string>
     <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"Seadme sidumine QR-koodiga"</string>
-    <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"Uute seadmete sidumine QR-koodiskanneriga"</string>
+    <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"Uute seadmete sidumine QR-koodi skanneriga"</string>
     <string name="adb_pair_method_code_title" msgid="1122590300445142904">"Seadme sidumine sidumiskoodiga"</string>
     <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"Uute seadmete sidumine kuuekohalise koodiga"</string>
     <string name="adb_paired_devices_title" msgid="5268997341526217362">"Seotud seadmed"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Seadme sidumine …"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Seadme sidumine ebaõnnestus. QR-kood oli vale või seade ei ole ühendatud samasse võrku."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP-aadress ja port"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Pole saadaval (pole lubatud)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Pole saadaval (WiFi-ühendus katkestatud)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"QR-koodi skannimine"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Siduge seade WiFi kaudu, skannides QR-koodi."</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Looge ühendus WiFi-võrguga"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB-silumine on mõeldud ainult arendamiseks. Kasutage seda andmete kopeerimiseks oma arvuti ja seadme vahel, seadmesse rakenduste installimiseks ilma teatisteta ning logiandmete lugemiseks."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Kas lubada juhtmevaba silumine?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Juhtmevaba silumine on mõeldud ainult arendamiseks. Kasutage seda andmete kopeerimiseks oma arvuti ja seadme vahel, seadmesse rakenduste installimiseks ilma märguandeta ning logiandmete lugemiseks."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Kas tühistada juurdepääs USB silumisele kõikides arvutites, mille olete varem volitanud?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Kas tühistada juurdepääs adb-silumisele kõikides arvutites ja võrkudes, millele olete varem volituse andnud?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Kas lubada arendajaseaded?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Need seaded on mõeldud ainult arendajatele. Need võivad põhjustada seadme ja seadmes olevate rakenduste rikkeid või valesti toimimist."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Kinnita USB rakendused"</string>
@@ -538,7 +541,7 @@
     <string name="battery_info_status_charging_wireless" msgid="8924722966861282197">"Juhtmevaba laadimine"</string>
     <string name="battery_info_status_charging_dock" msgid="8573274094093364791">"Laadimine"</string>
     <string name="battery_info_status_discharging" msgid="6962689305413556485">"Ei lae"</string>
-    <string name="battery_info_status_not_charging" msgid="1103084691314264664">"Ühendatud, kuid ei laeta"</string>
+    <string name="battery_info_status_not_charging" msgid="1103084691314264664">"Ühendatud, kuid ei laeta."</string>
     <string name="battery_info_status_full" msgid="1339002294876531312">"Laetud"</string>
     <string name="battery_info_status_full_charged" msgid="3536054261505567948">"Täielikult laetud"</string>
     <string name="battery_info_status_charging_on_hold" msgid="6364355145521694438">"Laadimine on ootele pandud"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Etherneti-ühendus on katkestatud."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Helistamine pole võimalik."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Füüsiline klaviatuur"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Klaviatuuri paigutuse valimine"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Vaikimisi"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Ekraani sisselülitamise juhtimine"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Luba ekraani sisselülitamine"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Rakendusel lubatakse ekraan sisse lülitada. Kui annate loa, võib rakendus ekraani igal ajal sisse lülitada ilma teie sõnaselge kavatsuseta."</string>

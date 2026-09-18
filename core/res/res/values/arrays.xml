@@ -268,4 +268,21 @@
         <item>60%</item>
         <item>50%</item>
     </string-array>
+
+    <!-- List of activities (flattened component names) allowed to be launched when the current user is the Headless System User -->
+    <string-array name="hsu_allowlist_activities" translatable="false">
+       <!-- TODO(b/454898207): remove these activities once they "allowlist themselves" -->
+       <!-- Activities below are "HOME apps" - you can check by calling (without the reverse backslash between the dashes):
+            adb shell pm query-activities -\-brief -\-user 0 -a android.intent.action.MAIN -c android.intent.category.HOME
+       -->
+      <item>com.android.settings/.FallbackHome</item>
+    </string-array>
+
+    <!-- List of accessibility targets (flattened component names) blocked from showing up in the accessibility shortcut chooser dialog when the current user is the Headless System User. -->
+    <string-array name="hsu_accessibility_targets_blocklist" translatable="false">
+    </string-array>
+    <!-- List of accessibility targets (flattened component names) blocked from showing up in the accessibility shortcut chooser dialog when the current user is on the Lock screen. -->
+    <string-array name="keyguard_accessibility_targets_blocklist" translatable="false">
+      <item>com.android.server.accessibility/HearingAids</item>
+    </string-array>
 </resources>

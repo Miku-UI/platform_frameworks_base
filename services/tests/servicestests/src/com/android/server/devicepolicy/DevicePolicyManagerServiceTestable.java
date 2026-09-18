@@ -45,11 +45,13 @@ import android.telephony.TelephonyManager;
 import android.util.ArrayMap;
 import android.util.Pair;
 import android.view.IWindowManager;
+import android.view.accessibility.IAccessibilityManager;
 
 import androidx.annotation.NonNull;
 
 import com.android.internal.util.FunctionalUtils.ThrowingRunnable;
 import com.android.internal.widget.LockPatternUtils;
+import com.android.server.AccessibilityManagerInternal;
 import com.android.server.AlarmManagerInternal;
 import com.android.server.LocalServices;
 import com.android.server.locksettings.LockSettingsInternal;
@@ -123,6 +125,16 @@ public class DevicePolicyManagerServiceTestable extends DevicePolicyManagerServi
             super(context);
             this.services = services;
             this.context = context;
+        }
+
+        @Override
+        AccessibilityManagerInternal getAccessibilityManagerInternal() {
+            return services.accessibilityManagerInternal;
+        }
+
+        @Override
+        IAccessibilityManager getIAccessibilityManager() {
+            return services.accessibilityManager;
         }
 
         @Override

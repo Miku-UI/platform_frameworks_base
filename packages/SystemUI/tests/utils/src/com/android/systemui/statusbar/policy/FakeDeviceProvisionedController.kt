@@ -5,6 +5,9 @@ class FakeDeviceProvisionedController : DeviceProvisionedController {
     @JvmField var currentUser = 0
 
     private val callbacks = mutableSetOf<DeviceProvisionedController.DeviceProvisionedListener>()
+    val callbackCount: Int
+        get() = callbacks.size
+
     private val usersSetup = mutableSetOf<Int>()
 
     override fun addCallback(listener: DeviceProvisionedController.DeviceProvisionedListener) {

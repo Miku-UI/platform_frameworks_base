@@ -38,6 +38,7 @@ import android.util.Log;
 import com.android.internal.camera.flags.Flags;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executor;
 
@@ -503,8 +504,8 @@ public abstract class SessionProcessor {
         @Override
         public CameraSessionConfig initSession(IBinder token, String cameraId,
                 Map<String, CameraMetadataNative> charsMap, OutputSurface previewSurface,
-                OutputSurface imageCaptureSurface, OutputSurface postviewSurface)
-                throws RemoteException {
+                OutputSurface imageCaptureSurface, OutputSurface postviewSurface,
+                CaptureRequest sessionParameters) throws RemoteException {
             mPreviewSurface = previewSurface;
             mPostviewSurface = postviewSurface;
             mImageCaptureSurface = imageCaptureSurface;
@@ -526,6 +527,16 @@ public abstract class SessionProcessor {
                         new CameraOutputSurface(previewSurface),
                         new CameraOutputSurface(imageCaptureSurface),
                         new CameraOutputSurface(postviewSurface));
+                if (Flags.vendorDefinedCameraExtensions()) {
+                    HashMap<CaptureRequest.Key<?>, Object> paramMap = new HashMap<>();
+                    for (CaptureRequest.Key captureRequestKey : sessionParameters.getKeys()) {
+                        paramMap.put(captureRequestKey, sessionParameters.get(captureRequestKey));
+                    }
+                    if (!cameraConfig.getSessionWideParams().isEmpty()) {
+                        Log.d(TAG, "Overriding non-empty session parameters");
+                    }
+                    cameraConfig.setSessionWideParams(paramMap);
+                }
                 config = SessionProcessor.this.initSession(token, cameraId,
                         new CharacteristicsMap(charsMap), cameraConfig);
             } else {

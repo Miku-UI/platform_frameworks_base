@@ -37,7 +37,6 @@ import java.util.Objects;
  * @hide
  */
 @SystemApi
-@FlaggedApi(Flags.FLAG_CELLULAR_IDENTIFIER_DISCLOSURE_INDICATIONS)
 public final class CellularIdentifierDisclosure implements Parcelable {
     private static final String TAG = "CellularIdentifierDisclosure";
 
@@ -171,7 +170,7 @@ public final class CellularIdentifierDisclosure implements Parcelable {
      */
     @FlaggedApi(Flags.FLAG_VENDOR_SPECIFIC_CELLULAR_IDENTIFIER_DISCLOSURE_INDICATIONS)
     public boolean isBenign() {
-        return mNasProtocolMessage == NAS_PROTOCOL_MESSAGE_THREAT_IDENTIFIER_FALSE;
+        return mNasProtocolMessage != NAS_PROTOCOL_MESSAGE_THREAT_IDENTIFIER_TRUE;
     }
 
     @Override

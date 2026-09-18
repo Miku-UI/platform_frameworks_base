@@ -27,7 +27,7 @@ import org.junit.runners.model.Statement
 class LetterboxRule(
     private val withLetterboxEducationEnabled: Boolean = false,
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation(),
-    private val cmdHelper: CommandsHelper = CommandsHelper.getInstance(instrumentation)
+    private val cmdHelper: CommandsHelper = CommandsHelper.getInstance(instrumentation),
 ) : TestRule {
 
     private val execAdb: (String) -> String = { cmd -> cmdHelper.executeShellCommand(cmd) }

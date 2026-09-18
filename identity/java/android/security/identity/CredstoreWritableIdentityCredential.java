@@ -16,6 +16,7 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.content.Context;
 import android.security.GateKeeper;
@@ -27,8 +28,12 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 
+/**
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
+ */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 class CredstoreWritableIdentityCredential extends WritableIdentityCredential {
 
     private static final String TAG = "CredstoreWritableIdentityCredential";

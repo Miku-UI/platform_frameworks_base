@@ -17,6 +17,7 @@
 
 package com.android.systemui.keyguard.ui.view.layout.sections
 
+import android.content.Context
 import android.os.Handler
 import android.view.LayoutInflater
 import androidx.constraintlayout.widget.Barrier
@@ -31,10 +32,12 @@ import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardSection
 import com.android.systemui.keyguard.ui.binder.KeyguardSliceViewBinder
 import com.android.systemui.keyguard.ui.viewmodel.AodBurnInViewModel
+import com.android.systemui.keyguard.ui.viewmodel.KeyguardSmartspaceViewModel
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
 import com.android.systemui.res.R
 import com.android.systemui.settings.DisplayTracker
+import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.statusbar.lockscreen.LockscreenSmartspaceController
 import com.android.systemui.statusbar.policy.ConfigurationController
 import javax.inject.Inject
@@ -43,6 +46,7 @@ import kotlinx.coroutines.DisposableHandle
 class KeyguardSliceViewSection
 @Inject
 constructor(
+    @ShadeDisplayAware val context: Context,
     val smartspaceController: LockscreenSmartspaceController,
     val layoutInflater: LayoutInflater,
     @Main val handler: Handler,
@@ -53,6 +57,7 @@ constructor(
     val displayTracker: DisplayTracker,
     val keyguardInteractor: KeyguardInteractor,
     val aodBurnInViewModel: AodBurnInViewModel,
+    val keyguardSmartspaceViewModel: KeyguardSmartspaceViewModel,
 ) : KeyguardSection() {
     private lateinit var sliceView: KeyguardSliceView
     private var disposableHandle: DisposableHandle? = null
@@ -91,17 +96,23 @@ constructor(
 
     override fun applyConstraints(constraintSet: ConstraintSet) {
         if (smartspaceController.isEnabled) return
+        val dateWeatherPaddingStart = KeyguardSmartspaceViewModel.getDateWeatherStartMargin(context)
         constraintSet.apply {
             connect(
                 R.id.keyguard_slice_view,
                 ConstraintSet.START,
                 ConstraintSet.PARENT_ID,
                 ConstraintSet.START,
+                dateWeatherPaddingStart,
             )
             connect(
                 R.id.keyguard_slice_view,
                 ConstraintSet.END,
-                ConstraintSet.PARENT_ID,
+                if (keyguardSmartspaceViewModel.isFullWidthShade.value) {
+                    ConstraintSet.PARENT_ID
+                } else {
+                    R.id.split_shade_guideline
+                },
                 ConstraintSet.END,
             )
             constrainHeight(R.id.keyguard_slice_view, ConstraintSet.WRAP_CONTENT)

@@ -40,7 +40,7 @@ public class JobSchedulerFrameworkInitializer {
      * {@link JobScheduler} and other services to {@link Context}, so
      * {@link Context#getSystemService} can return them.
      *
-     * <p>If this is called from other places, it throws a {@link IllegalStateException).
+     * <p>If this is called from other places, it throws a {@link IllegalStateException}.
      */
     public static void registerServiceWrappers() {
         SystemServiceRegistry.registerContextAwareService(

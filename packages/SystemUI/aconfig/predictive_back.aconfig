@@ -1,9 +1,21 @@
 package: "com.android.systemui"
 container: "system"
 
+# go/keep-sorted start block=yes newline_separated=yes by_regex=name:\s*"([^"]+)"
+flag {
+    name: "fix_predictive_back_clipping"
+    namespace: "systemui"
+    description: "Fixes clipping of predictive back animations when 3-button nav is used on phones"
+    bug: "432080815"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
 flag {
     name: "predictive_back_animate_shade"
     namespace: "systemui"
     description: "Enable Shade Animations"
     bug: "327732946"
 }
+# go/keep-sorted end

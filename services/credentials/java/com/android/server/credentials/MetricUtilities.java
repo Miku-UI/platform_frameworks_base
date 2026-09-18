@@ -260,7 +260,7 @@ public class MetricUtilities {
     public static void logApiCalledCandidateGetMetric(Map<String, ProviderSession> providers,
             int emitSequenceId) {
         try {
-            // TODO(b/274954697) : To queue format in future optimizations (metrics POC support)
+            // A queue format could be used for future optimizations. See b/274954697 for context.
             if (!LOG_FLAG) {
                 return;
             }

@@ -25,12 +25,14 @@
 #include <minikin/SystemFonts.h>
 #include <nativehelper/ScopedPrimitiveArray.h>
 #include <nativehelper/ScopedUtfChars.h>
+#include <utils/TypefaceUtils.h>
 
 #include <mutex>
 #include <unordered_map>
 
 #include "FontUtils.h"
 #include "GraphicsJNI.h"
+#include "MinikinFontSkiaFactory.h"
 #include "SkData.h"
 #include "SkTypeface.h"
 #include "fonts/Font.h"
@@ -193,16 +195,13 @@ static sk_sp<SkData> makeSkDataCached(const std::string& path, bool hasVerity) {
     return entry;
 }
 
-class MinikinFontSkiaFactory : minikin::MinikinFontFactory {
-private:
-    MinikinFontSkiaFactory() : MinikinFontFactory() { MinikinFontFactory::setInstance(this); }
+MinikinFontSkiaFactory::MinikinFontSkiaFactory() : MinikinFontFactory() {
+    MinikinFontFactory::setInstance(this);
+}
 
-public:
-    static void init() { static MinikinFontSkiaFactory factory; }
-    void skip(minikin::BufferReader* reader) const override;
-    std::shared_ptr<minikin::MinikinFont> create(minikin::BufferReader reader) const override;
-    void write(minikin::BufferWriter* writer, const minikin::MinikinFont* typeface) const override;
-};
+void MinikinFontSkiaFactory::init() {
+    static MinikinFontSkiaFactory factory;
+}
 
 void MinikinFontSkiaFactory::skip(minikin::BufferReader* reader) const {
     // Advance reader's position.
@@ -387,6 +386,11 @@ static void Typeface_registerLocaleList(JNIEnv* env, jobject, jstring jLocales) 
     minikin::registerLocaleList(locales.c_str());
 }
 
+// Critical Native
+static jboolean Typeface_setFontRenderingBackend(CRITICAL_JNI_PARAMS_COMMA jint type) {
+    return setFontRenderingBackend(static_cast<uirenderer::SkTypefaceBackend>(type));
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 
 static const JNINativeMethod gTypefaceMethods[] = {
@@ -411,6 +415,7 @@ static const JNINativeMethod gTypefaceMethods[] = {
         {"nativeWarmUpCache", "(Ljava/lang/String;)V", (void*)Typeface_warmUpCache},
         {"nativeAddFontCollections", "(J)V", (void*)Typeface_addFontCollection},
         {"nativeRegisterLocaleList", "(Ljava/lang/String;)V", (void*)Typeface_registerLocaleList},
+        {"nativeSetFontRenderingBackend", "(I)Z", (void*)Typeface_setFontRenderingBackend},
 };
 
 int register_android_graphics_Typeface(JNIEnv* env)

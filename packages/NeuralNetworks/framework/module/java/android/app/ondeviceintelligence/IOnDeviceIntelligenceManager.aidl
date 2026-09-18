@@ -31,16 +31,18 @@
  import android.app.ondeviceintelligence.IFeatureCallback;
  import android.app.ondeviceintelligence.IFeatureDetailsCallback;
  import android.app.ondeviceintelligence.IResponseCallback;
- import android.app.ondeviceintelligence.IStreamingResponseCallback;
- import android.app.ondeviceintelligence.IProcessingSignal;
- import android.app.ondeviceintelligence.ITokenInfoCallback;
+import android.app.ondeviceintelligence.IStreamingResponseCallback;
+import android.app.ondeviceintelligence.IProcessingSignal;
+import android.app.ondeviceintelligence.ITokenInfoCallback;
+import android.app.ondeviceintelligence.ILifecycleListener;
 
 
- /**
+/**
   * Interface for a OnDeviceIntelligenceManager for managing OnDeviceIntelligenceService and OnDeviceSandboxedInferenceService.
   *
   * @hide
   */
+// Next available field id: 14
 interface IOnDeviceIntelligenceManager {
       @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.USE_ON_DEVICE_INTELLIGENCE)")
       void getVersion(in RemoteCallback remoteCallback) = 1;
@@ -50,6 +52,11 @@ interface IOnDeviceIntelligenceManager {
 
       @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.USE_ON_DEVICE_INTELLIGENCE)")
       void listFeatures(in IListFeaturesCallback listFeaturesCallback) = 3;
+
+      @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.USE_ON_DEVICE_INTELLIGENCE)")
+      @JavaPassthrough(annotation="@android.annotation.FlaggedApi(android.app.ondeviceintelligence.flags.Flags.FLAG_ON_DEVICE_INTELLIGENCE_25Q4)")
+      void listFeaturesWithFilter(in PersistableBundle featureParamsFilter,
+            in IListFeaturesCallback listFeaturesCallback) = 11;
 
       @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.USE_ON_DEVICE_INTELLIGENCE)")
       void getFeatureDetails(in Feature feature, in IFeatureDetailsCallback featureDetailsCallback) = 4;
@@ -76,4 +83,12 @@ interface IOnDeviceIntelligenceManager {
       String getRemoteServicePackageName() = 9;
 
       List<InferenceInfo> getLatestInferenceInfo(long startTimeEpochMillis) = 10;
+
+      @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.USE_ON_DEVICE_INTELLIGENCE)")
+      @JavaPassthrough(annotation="@android.annotation.FlaggedApi(android.app.ondeviceintelligence.flags.Flags.FLAG_ON_DEVICE_INTELLIGENCE_25Q4)")
+      void registerInferenceServiceLifecycleListener(in ILifecycleListener listener) = 12;
+
+      @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.USE_ON_DEVICE_INTELLIGENCE)")
+      @JavaPassthrough(annotation="@android.annotation.FlaggedApi(android.app.ondeviceintelligence.flags.Flags.FLAG_ON_DEVICE_INTELLIGENCE_25Q4)")
+      void unregisterInferenceServiceLifecycleListener(in ILifecycleListener listener) = 13;
  }

@@ -51,6 +51,15 @@ public class DreamShellCommand extends ShellCommand {
                 case "stop-dreaming":
                     enforceCallerIsRoot();
                     return stopDreaming();
+                case "dream-playlist":
+                    enforceCallerIsRoot();
+                    return playlist();
+                case "next-dream":
+                    enforceCallerIsRoot();
+                    return nextDream();
+                case "previous-dream":
+                    enforceCallerIsRoot();
+                    return previousDream();
                 default:
                     return super.handleDefaultCommands(cmd);
             }
@@ -70,6 +79,21 @@ public class DreamShellCommand extends ShellCommand {
         return 0;
     }
 
+    private int playlist() {
+        mService.requestGetDreamPlaylistFromShell(getOutPrintWriter());
+        return 0;
+    }
+
+    private int nextDream() {
+        mService.requestNextDreamFromShell(getOutPrintWriter());
+        return 0;
+    }
+
+    private int previousDream() {
+        mService.requestPreviousDreamFromShell(getOutPrintWriter());
+        return 0;
+    }
+
     private void enforceCallerIsRoot() {
         if (Binder.getCallingUid() != Process.ROOT_UID) {
             throw new SecurityException("Must be root to call Dream shell commands");
@@ -86,5 +110,11 @@ public class DreamShellCommand extends ShellCommand {
         pw.println("      Start the currently configured dream.");
         pw.println("  stop-dreaming");
         pw.println("      Stops any active dream");
+        pw.println("  playlist");
+        pw.println("      Prints the current dream playlist");
+        pw.println("  next-dream");
+        pw.println("      Activates the next dream in the playlist");
+        pw.println("  previous-dream");
+        pw.println("      Activates the previous dream in the playlist");
     }
 }

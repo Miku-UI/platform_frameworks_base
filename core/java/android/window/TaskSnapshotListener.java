@@ -27,7 +27,7 @@ public abstract class TaskSnapshotListener {
     protected void onTaskSnapshotChanged(int taskId, TaskSnapshot snapshot) {}
 
     /**
-     * Called when a task snapshot become invalidated.
+     * Called when a task snapshot is released.
      */
-    protected void onTaskSnapshotInvalidated(int taskId) {}
+    protected void onTaskSnapshotReleased(int taskId) {}
 }

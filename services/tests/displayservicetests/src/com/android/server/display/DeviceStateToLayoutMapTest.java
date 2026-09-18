@@ -27,7 +27,6 @@ import android.view.DisplayAddress;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.server.display.feature.DisplayManagerFlags;
 import com.android.server.display.layout.DisplayIdProducer;
 import com.android.server.display.layout.Layout;
 
@@ -48,7 +47,6 @@ public class DeviceStateToLayoutMapTest {
     private DeviceStateToLayoutMap mDeviceStateToLayoutMap;
 
     @Mock DisplayIdProducer mDisplayIdProducerMock;
-    @Mock DisplayManagerFlags mMockFlags;
 
     @Before
     public void setUp() throws IOException {
@@ -56,7 +54,7 @@ public class DeviceStateToLayoutMapTest {
 
         Mockito.when(mDisplayIdProducerMock.getId(false)).thenReturn(1);
 
-        setupDeviceStateToLayoutMap(getContent());
+        setupDeviceStateToLayoutMap(getContent(), /* stableEdidsFlag= */ false);
     }
 
     //////////////////
@@ -274,7 +272,8 @@ public class DeviceStateToLayoutMapTest {
 
     @Test
     public void testPortInLayout_readLayout() throws Exception {
-        setupDeviceStateToLayoutMap(getPortContent());
+        final boolean stableEdidsFlag = false;
+        setupDeviceStateToLayoutMap(getPortOnlyOrAddressOnlyContent(), stableEdidsFlag);
 
         Layout configLayout = mDeviceStateToLayoutMap.get(0);
 
@@ -297,6 +296,104 @@ public class DeviceStateToLayoutMapTest {
 
         assertEquals(testLayout, configLayout);
     }
+
+    @Test
+    public void testPortOrAddressOnlyInLayout_readLayout_stableEdids() throws Exception {
+        final boolean stableEdidsFlag = true;
+        setupDeviceStateToLayoutMap(getPortOnlyOrAddressOnlyContent(), stableEdidsFlag);
+
+        Layout configLayout = mDeviceStateToLayoutMap.get(0);
+
+        Layout testLayout = new Layout(null, stableEdidsFlag);
+        // this should be created from port only
+        testLayout.createDisplayLocked(DisplayAddress.fromPhysicalDisplayId(
+                123, 123, stableEdidsFlag),
+                /* isDefault= */ true, /* isEnabled= */ true, /* displayGroupName= */ null,
+                mDisplayIdProducerMock, Layout.Display.POSITION_UNKNOWN,
+                /* leadDisplayAddress= */ null, /* brightnessThrottlingMapId= */ null,
+                /* refreshRateZoneId= */ null,
+                /* refreshRateThermalThrottlingMapId= */ null,
+                /* powerThrottlingMapId= */ null);
+
+        // this should be created from address only
+        testLayout.createDisplayLocked(DisplayAddress.fromPhysicalDisplayId(
+                78910L, 78910 & 0xFF, stableEdidsFlag),
+                /* isDefault= */ false, /* isEnabled= */ false, /* displayGroupName= */ null,
+                mDisplayIdProducerMock, Layout.Display.POSITION_UNKNOWN,
+                /* leadDisplayAddress= */ null, /* brightnessThrottlingMapId= */ null,
+                /* refreshRateZoneId= */ null,
+                /* refreshRateThermalThrottlingMapId= */ null,
+                /* powerThrottlingMapId= */ null);
+
+        testLayout.postProcessLocked();
+
+        assertEquals(testLayout, configLayout);
+    }
+
+    @Test
+    public void testPortAndAddressInLayout_readLayout_stableEdids() throws Exception {
+        final boolean stableEdidsFlag = true;
+
+        setupDeviceStateToLayoutMap(getPortAndAddressContent(), stableEdidsFlag);
+        Layout configLayout = mDeviceStateToLayoutMap.get(0);
+
+        Layout testLayout = new Layout(null, stableEdidsFlag);
+        testLayout.createDisplayLocked(
+                DisplayAddress.fromPhysicalDisplayId(/* physicalDisplayId= */ 456, /* port= */ 123,
+                        stableEdidsFlag),
+                /* isDefault= */ true, /* isEnabled= */ true, /* displayGroupName= */ null,
+                mDisplayIdProducerMock, Layout.Display.POSITION_UNKNOWN,
+                /* leadDisplayAddress= */ null, /* brightnessThrottlingMapId= */ null,
+                /* refreshRateZoneId= */ null,
+                /* refreshRateThermalThrottlingMapId= */ null,
+                /* powerThrottlingMapId= */ null);
+        testLayout.createDisplayLocked(
+                DisplayAddress.fromPhysicalDisplayId(/* physicalDisplayId= */ 12, /* port= */ 789,
+                        stableEdidsFlag),
+                /* isDefault= */ false, /* isEnabled= */ false, /* displayGroupName= */ null,
+                mDisplayIdProducerMock, Layout.Display.POSITION_UNKNOWN,
+                /* leadDisplayAddress= */ null, /* brightnessThrottlingMapId= */ null,
+                /* refreshRateZoneId= */ null,
+                /* refreshRateThermalThrottlingMapId= */ null,
+                /* powerThrottlingMapId= */ null);
+        testLayout.postProcessLocked();
+
+        assertEquals(testLayout, configLayout);
+    }
+
+    @Test
+    public void testLeadDisplayAddress_portIsCorrect() throws IOException {
+        final boolean stableEdidsFlag = true;
+
+        setupDeviceStateToLayoutMap(getPortAndAddressAndLeadContent(), stableEdidsFlag);
+        Layout configLayout = mDeviceStateToLayoutMap.get(0);
+
+        DisplayAddress leadDisplayAddress =
+                DisplayAddress.fromPhysicalDisplayId(/* physicalDisplayId= */ 456, /* port= */ 123,
+                        stableEdidsFlag);
+
+        Layout testLayout = new Layout(null, stableEdidsFlag);
+        testLayout.createDisplayLocked(leadDisplayAddress,
+                /* isDefault= */ true, /* isEnabled= */ true, /* displayGroupName= */ null,
+                mDisplayIdProducerMock, Layout.Display.POSITION_UNKNOWN,
+                /* leadDisplayAddress= */ null, /* brightnessThrottlingMapId= */ null,
+                /* refreshRateZoneId= */ null,
+                /* refreshRateThermalThrottlingMapId= */ null,
+                /* powerThrottlingMapId= */ null);
+        testLayout.createDisplayLocked(
+                DisplayAddress.fromPhysicalDisplayId(/* physicalDisplayId= */ 12, /* port= */ 789,
+                        stableEdidsFlag),
+                /* isDefault= */ false, /* isEnabled= */ false, /* displayGroupName= */ null,
+                mDisplayIdProducerMock, Layout.Display.POSITION_UNKNOWN,
+                leadDisplayAddress, /* brightnessThrottlingMapId= */ null,
+                /* refreshRateZoneId= */ null,
+                /* refreshRateThermalThrottlingMapId= */ null,
+                /* powerThrottlingMapId= */ null);
+        testLayout.postProcessLocked();
+
+        assertEquals(testLayout, configLayout);
+    }
+
 
     @Test
     public void testPut() {
@@ -339,14 +436,15 @@ public class DeviceStateToLayoutMapTest {
                 /* powerThrottlingMapId= */ null);
     }
 
-    private void setupDeviceStateToLayoutMap(String content) throws IOException {
+    private void setupDeviceStateToLayoutMap(String content, boolean stableEdidsFlag)
+            throws IOException {
         Path tempFile = Files.createTempFile("device_state_layout_map", ".tmp");
         Files.write(tempFile, content.getBytes(StandardCharsets.UTF_8));
-        mDeviceStateToLayoutMap = new DeviceStateToLayoutMap(mDisplayIdProducerMock, mMockFlags,
-                tempFile.toFile());
+        mDeviceStateToLayoutMap = new DeviceStateToLayoutMap(mDisplayIdProducerMock,
+                tempFile.toFile(), stableEdidsFlag);
     }
 
-    private String getPortContent() {
+    private String getPortOnlyOrAddressOnlyContent() {
         return "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n"
                 +  "<layouts>\n"
                 +    "<layout>\n"
@@ -356,6 +454,41 @@ public class DeviceStateToLayoutMapTest {
                 +      "</display>\n"
                 +      "<display enabled=\"false\">\n"
                 +        "<address>78910</address>\n"
+                +      "</display>\n"
+                +    "</layout>\n"
+                +  "</layouts>\n";
+    }
+
+    private String getPortAndAddressContent() {
+        return "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n"
+                +  "<layouts>\n"
+                +    "<layout>\n"
+                +      "<state>0</state> \n"
+                +      "<display enabled=\"true\" defaultDisplay=\"true\">\n"
+                +        "<port>123</port>\n"
+                +        "<address>456</address>\n"
+                +      "</display>\n"
+                +      "<display enabled=\"false\">\n"
+                +        "<port>789</port>\n"
+                +        "<address>012</address>\n"
+                +      "</display>\n"
+                +    "</layout>\n"
+                +  "</layouts>\n";
+    }
+
+    private String getPortAndAddressAndLeadContent() {
+        return "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n"
+                +  "<layouts>\n"
+                +    "<layout>\n"
+                +      "<state>0</state> \n"
+                +      "<display enabled=\"true\" defaultDisplay=\"true\">\n"
+                +        "<port>123</port>\n"
+                +        "<address>456</address>\n"
+                +      "</display>\n"
+                +      "<display enabled=\"false\">\n"
+                +        "<port>789</port>\n"
+                +        "<address>012</address>\n"
+                +        "<leadDisplayAddress>456</leadDisplayAddress>\n"
                 +      "</display>\n"
                 +    "</layout>\n"
                 +  "</layouts>\n";

@@ -92,6 +92,7 @@ import com.android.internal.util.FrameworkStatsLog;
 import com.android.server.biometrics.log.BiometricContext;
 import com.android.server.biometrics.log.BiometricFrameworkStatsLogger;
 import com.android.server.biometrics.log.OperationContextExt;
+import com.android.server.companion.virtual.VirtualDeviceManagerInternal;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -135,6 +136,7 @@ public class AuthSessionTest {
     @Mock private BiometricManager mBiometricManager;
     @Mock private IAuthenticationPolicyService mAuthenticationPolicyService;
     @Mock private Handler mHandler;
+    @Mock private VirtualDeviceManagerInternal mVirtualDeviceManagerInternal;
 
     private Random mRandom;
     private IBinder mToken;
@@ -960,7 +962,6 @@ public class AuthSessionTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_BP_FALLBACK_OPTIONS)
     public void testPause_ignoresCancellationErrorAndDoesNotTerminate() throws Exception {
         setupFace(0 /* id */, false, mock(IBiometricAuthenticator.class));
         final AuthSession session = createAuthSession(mSensors,
@@ -1119,7 +1120,8 @@ public class AuthSessionTest {
                 checkDevicePolicyManager,
                 mContext,
                 mBiometricCameraManager,
-                mUserManager);
+                mUserManager,
+                mVirtualDeviceManagerInternal);
     }
 
     private AuthSession createAuthSession(List<BiometricSensor> sensors,
@@ -1131,7 +1133,7 @@ public class AuthSessionTest {
         final PreAuthInfo preAuthInfo = createPreAuthInfo(sensors, userId, promptInfo,
                 checkDevicePolicyManager);
         final WatchRangingHelper watchRangingHelper = new WatchRangingHelper(requestId,
-                mAuthenticationPolicyManager, mHandler, watchRangingState -> {
+                mAuthenticationPolicyManager, mHandler, (watchRangingState, errorCode) -> {
         });
         return new AuthSession(mContext, mBiometricContext, mStatusBarService, mSysuiReceiver,
                 mKeyStoreAuthorization, mRandom, mClientDeathReceiver, preAuthInfo, mToken,
@@ -1152,7 +1154,7 @@ public class AuthSessionTest {
         final PreAuthInfo preAuthInfo = createPreAuthInfo(sensors, userId, promptInfo,
                 checkDevicePolicyManager);
         final WatchRangingHelper watchRangingHelper = new WatchRangingHelper(requestId,
-                mAuthenticationPolicyManager, mHandler, watchRangingState -> {
+                mAuthenticationPolicyManager, mHandler, (watchRangingState, errorCode) -> {
         });
         return new AuthSession(mContext, mBiometricContext, mStatusBarService, mSysuiReceiver,
                 mKeyStoreAuthorization, mRandom, mClientDeathReceiver, preAuthInfo, mToken,

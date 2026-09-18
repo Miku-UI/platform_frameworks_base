@@ -107,6 +107,13 @@ public final class AccessibilityUtils {
             MAGNIFICATION_SHOW_BUTTON_DELAY_MS;
 
     /**
+     * Duration of time to ignore focus updates directly after a cursor event moves the viewport, to
+     * prevent the magnified region from jumping.
+     * @hide
+     */
+    public static final int MAGNIFICATION_IGNORE_FOCUS_UPDATES_AFTER_CURSOR_MOVE_TIMEOUT_MS = 250;
+
+    /**
      * {@link ComponentName} for the Accessibility Menu {@link AccessibilityService} as provided
      * inside the system build, used for automatic migration to this version of the service.
      * @hide
@@ -153,7 +160,7 @@ public final class AccessibilityUtils {
     }
 
     /**
-     * Changes an accessibility component's state for {@param userId}.
+     * Changes an accessibility component's state for {@code userId}.
      */
     public static void setAccessibilityServiceState(Context context, ComponentName componentName,
             boolean enabled, int userId) {

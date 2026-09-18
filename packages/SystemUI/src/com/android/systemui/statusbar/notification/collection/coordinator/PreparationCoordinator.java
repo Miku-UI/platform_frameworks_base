@@ -34,6 +34,7 @@ import androidx.annotation.Nullable;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.statusbar.IStatusBarService;
+import com.android.systemui.notifications.content.icon.AppIconProvider;
 import com.android.systemui.statusbar.notification.CustomViewMemorySizeExceededException;
 import com.android.systemui.statusbar.notification.collection.BundleEntry;
 import com.android.systemui.statusbar.notification.collection.GroupEntry;
@@ -53,10 +54,7 @@ import com.android.systemui.statusbar.notification.collection.render.NotifViewBa
 import com.android.systemui.statusbar.notification.collection.render.NotifViewController;
 import com.android.systemui.statusbar.notification.row.NotifInflationErrorManager;
 import com.android.systemui.statusbar.notification.row.NotifInflationErrorManager.NotifInflationErrorListener;
-import com.android.systemui.statusbar.notification.row.icon.AppIconProvider;
 import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyleProvider;
-import com.android.systemui.statusbar.notification.row.shared.AsyncGroupHeaderViewInflation;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -174,9 +172,7 @@ public class PreparationCoordinator implements Coordinator {
                 () -> mNotifInflatingFilter.invalidateList("adjustmentProviderChanged"));
 
         pipeline.addCollectionListener(mNotifCollectionListener);
-        if (android.app.Flags.notificationsRedesignAppIcons()) {
-            pipeline.addOnBeforeTransformGroupsListener(this::purgeCaches);
-        }
+        pipeline.addOnBeforeTransformGroupsListener(this::purgeCaches);
         // Inflate after grouping/sorting since that affects what views to inflate.
         pipeline.addOnBeforeFinalizeFilterListener(this::inflateAllRequiredViews);
         pipeline.addFinalizeFilter(mNotifInflationErrorFilter);
@@ -307,7 +303,7 @@ public class PreparationCoordinator implements Coordinator {
     }
 
     /**
-     * Get all app packages present in {@param entries}.
+     * Get all app packages present in {@code entries}.
      */
     private static @NonNull Set<String> getPackages(Collection<PipelineEntry> entries) {
         Set<String> packages = new HashSet<>();
@@ -345,7 +341,7 @@ public class PreparationCoordinator implements Coordinator {
     private void inflateAllRequiredViews(List<PipelineEntry> entries) {
         for (int i = 0, size = entries.size(); i < size; i++) {
             PipelineEntry entry = entries.get(i);
-            if (NotificationBundleUi.isEnabled() && entry instanceof BundleEntry bundleEntry) {
+            if (entry instanceof BundleEntry bundleEntry) {
                 for (ListEntry listEntry : bundleEntry.getChildren()) {
                     BundleCoordinator.debugBundleLog(TAG, () -> " inflate bundle with "
                             + bundleEntry.getChildren().size() + " children");
@@ -371,7 +367,7 @@ public class PreparationCoordinator implements Coordinator {
 
     private void inflateRequiredGroupViews(GroupEntry groupEntry) {
         NotificationEntry summary = groupEntry.getSummary();
-        if (summary != null && AsyncGroupHeaderViewInflation.isEnabled()) {
+        if (summary != null) {
             summary.markAsGroupSummary();
         }
         List<NotificationEntry> children = groupEntry.getChildren();

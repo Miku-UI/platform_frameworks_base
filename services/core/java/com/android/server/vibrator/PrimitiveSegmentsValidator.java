@@ -19,7 +19,6 @@ package com.android.server.vibrator;
 import android.annotation.SuppressLint;
 import android.hardware.vibrator.IVibrator;
 import android.os.VibratorInfo;
-import android.os.vibrator.Flags;
 import android.os.vibrator.PrimitiveSegment;
 import android.os.vibrator.VibrationEffectSegment;
 
@@ -41,16 +40,8 @@ final class PrimitiveSegmentsValidator implements VibrationSegmentsValidator {
             if (!(segments.get(i) instanceof PrimitiveSegment primitive)) {
                 continue;
             }
-            if (Flags.primitiveCompositionAbsoluteDelay()) {
-                // Primitive support checks introduced by this feature
-                if (!info.isPrimitiveSupported(primitive.getPrimitiveId())) {
-                    return false;
-                }
-            } else {
-                // Delay type support not available without this feature
-                if ((primitive.getDelayType() != PrimitiveSegment.DEFAULT_DELAY_TYPE)) {
-                    return false;
-                }
+            if (!info.isPrimitiveSupported(primitive.getPrimitiveId())) {
+                return false;
             }
         }
 

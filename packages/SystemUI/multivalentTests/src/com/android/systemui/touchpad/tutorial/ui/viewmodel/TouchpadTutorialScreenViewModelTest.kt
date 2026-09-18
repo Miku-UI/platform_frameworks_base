@@ -16,14 +16,17 @@
 
 package com.android.systemui.touchpad.tutorial.ui.viewmodel
 
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.Error
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.Finished
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.InProgress
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.InProgressAfterError
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.NotStarted
+import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.PartialSuccess
 import com.android.systemui.kosmos.collectValues
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
@@ -106,6 +109,82 @@ class TouchpadTutorialScreenViewModelTest : SysuiTestCase() {
             assertThat(resultingStates)
                 .containsExactly(
                     NotStarted,
+                    InProgress(0f, START_MARKER, END_MARKER),
+                    Error,
+                    InProgressAfterError(InProgress(0.5f, START_MARKER, END_MARKER)),
+                    InProgressAfterError(InProgress(1f, START_MARKER, END_MARKER)),
+                    Finished(SUCCESS_ANIMATION),
+                )
+                .inOrder()
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_TOUCHPAD_GESTURE_TUTORIAL_BUG_FIXES)
+    fun gestureStateProducesEquivalentTutorialActionStateInPartialSuccessPath() =
+        kosmos.runTest {
+            val partialThenFinishedPath: Flow<Pair<GestureState, TutorialAnimationProperties>> =
+                listOf(
+                        GestureState.NotStarted,
+                        GestureState.InProgress(0f),
+                        GestureState.InProgress(0.5f),
+                        GestureState.InProgress(1f),
+                        GestureState.PartialSuccess,
+                        GestureState.InProgress(0f),
+                        GestureState.InProgress(0.5f),
+                        GestureState.InProgress(1f),
+                        GestureState.Finished,
+                    )
+                    .map { it to animationProperties }
+                    .asFlow()
+
+            val resultingStates by collectValues(partialThenFinishedPath.mapToTutorialState())
+
+            assertThat(resultingStates)
+                .containsExactly(
+                    NotStarted,
+                    InProgress(0f, START_MARKER, END_MARKER),
+                    InProgress(0.5f, START_MARKER, END_MARKER),
+                    InProgress(1f, START_MARKER, END_MARKER),
+                    PartialSuccess,
+                    InProgress(0f, START_MARKER, END_MARKER),
+                    InProgress(0.5f, START_MARKER, END_MARKER),
+                    InProgress(1f, START_MARKER, END_MARKER),
+                    Finished(SUCCESS_ANIMATION),
+                )
+                .inOrder()
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_TOUCHPAD_GESTURE_TUTORIAL_BUG_FIXES)
+    fun gestureStateProducesEquivalentTutorialActionStateInPartialSuccessErrorPath() =
+        kosmos.runTest {
+            val partialThenFinishedPath: Flow<Pair<GestureState, TutorialAnimationProperties>> =
+                listOf(
+                        GestureState.NotStarted,
+                        GestureState.InProgress(0f),
+                        GestureState.Error,
+                        GestureState.InProgress(0.5f),
+                        GestureState.InProgress(1f),
+                        GestureState.PartialSuccess,
+                        GestureState.InProgress(0f),
+                        GestureState.Error,
+                        GestureState.InProgress(0.5f),
+                        GestureState.InProgress(1f),
+                        GestureState.Finished,
+                    )
+                    .map { it to animationProperties }
+                    .asFlow()
+
+            val resultingStates by collectValues(partialThenFinishedPath.mapToTutorialState())
+
+            assertThat(resultingStates)
+                .containsExactly(
+                    NotStarted,
+                    InProgress(0f, START_MARKER, END_MARKER),
+                    Error,
+                    InProgressAfterError(InProgress(0.5f, START_MARKER, END_MARKER)),
+                    InProgressAfterError(InProgress(1f, START_MARKER, END_MARKER)),
+                    PartialSuccess,
                     InProgress(0f, START_MARKER, END_MARKER),
                     Error,
                     InProgressAfterError(InProgress(0.5f, START_MARKER, END_MARKER)),

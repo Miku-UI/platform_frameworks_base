@@ -43,6 +43,8 @@ data class MediaDataModel(
     val colorScheme: MediaColorScheme?,
     /** List of generic action buttons for the media player, based on notification actions */
     val notificationActions: List<MediaNotificationAction>,
+    /** Indices of [notificationActions] to display in compressed layouts */
+    val notificationActionsCompressed: List<Int>,
     /**
      * Semantic actions buttons, based on the PlaybackState of the media session. If present, these
      * actions will be preferred in the UI over [notificationActions]
@@ -55,6 +57,7 @@ data class MediaDataModel(
     val state: MediaSessionState,
     val durationMs: Long,
     val positionMs: Long,
+    val canShowSeekbar: Boolean,
     val canBeScrubbed: Boolean,
     val canBeDismissed: Boolean,
     /**
@@ -73,4 +76,5 @@ data class MediaDataModel(
     /** Device suggestions data */
     val suggestionData: SuggestionData?,
     val token: MediaSession.Token?,
+    val needsImmediateRemoval: Boolean,
 )

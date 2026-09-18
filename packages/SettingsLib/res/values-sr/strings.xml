@@ -81,7 +81,7 @@
     <string name="speed_label_fast" msgid="2677719134596044051">"Брза"</string>
     <string name="speed_label_very_fast" msgid="8215718029533182439">"Веома брза"</string>
     <string name="wifi_passpoint_expired" msgid="6540867261754427561">"Истекло"</string>
-    <string name="preference_summary_default_combination" msgid="2644094566845577901">"<xliff:g id="STATE">%1$s</xliff:g>/<xliff:g id="DESCRIPTION">%2$s</xliff:g>"</string>
+    <string name="preference_summary_default_combination" msgid="2644094566845577901">"<xliff:g id="STATE">%1$s</xliff:g> / <xliff:g id="DESCRIPTION">%2$s</xliff:g>"</string>
     <string name="bluetooth_disconnected" msgid="7739366554710388701">"Веза је прекинута"</string>
     <string name="bluetooth_disconnecting" msgid="7638892134401574338">"Прекидање везе..."</string>
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Повезивање…"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"WiFi сигнал има три црте."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"WiFi сигнал је најјачи."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Повезано је са уређајем."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Сви корисници овог уређаја могу да виде дељену мрежу и повежу се на њу."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Отворена мрежа"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Безбедна мрежа"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android ОС"</string>
@@ -239,8 +240,8 @@
     <string name="tts_status_checking" msgid="8026559918948285013">"Проверава се..."</string>
     <string name="tts_engine_settings_title" msgid="7849477533103566291">"Подешавања за <xliff:g id="TTS_ENGINE_NAME">%s</xliff:g>"</string>
     <string name="tts_engine_settings_button" msgid="477155276199968948">"Покрени подешавања машине"</string>
-    <string name="tts_engine_preference_section_title" msgid="3861562305498624904">"Жељена машина"</string>
-    <string name="tts_general_section_title" msgid="8919671529502364567">"Општа"</string>
+    <string name="tts_engine_preference_section_title" msgid="3861562305498624904">"Жељена алатка"</string>
+    <string name="tts_general_section_title" msgid="8919671529502364567">"Опште"</string>
     <string name="tts_reset_speech_pitch_title" msgid="7149398585468413246">"Ресетујте висину тона говора"</string>
     <string name="tts_reset_speech_pitch_summary" msgid="6822904157021406449">"Ресетујте висину тона којом се текст изговара на подразумевану."</string>
   <string-array name="tts_rate_entries">
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Подешавања назива приступне тачке нису доступна за овог корисника"</string>
     <string name="enable_adb" msgid="8072776357237289039">"Отклањање USB грешака"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Режим отклањања грешака када је USB повезан"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Опозивање одобрења за уклањање USB грешака"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Опозови одобрења за adb отклањање грешака"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Бежично отклањање грешака"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Режим за отклањање грешака када је WiFi повезан"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Грешка"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Упарује се уређај…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Упаривање уређаја није успело. QR кôд је погрешан или уређај није повезан са истом мрежом."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP адреса и порт"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Недоступно (није дозвољена)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Недоступно (веза са WiFi мрежом је прекинута)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Скенирај QR кôд"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Упарите уређај помоћу Wi‑Fi мреже тако што ћете скенирати QR кôд"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Повежите се на WiFi мрежу"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"Отклањање USB грешака намењено је само за сврхе програмирања. Користите га за копирање података са рачунара на уређај и обратно, инсталирање апликација на уређају без обавештења и читање података из евиденције."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Желите да дозволите бежично отклањање грешака?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Бежично отклањање грешака намењено је само програмирању. Користите га за копирање података са рачунара на уређај и обратно, инсталирање апликација на уређају без обавештења и читање података из евиденције."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Желите ли да опозовете приступ отклањању USB грешака са свих рачунара које сте претходно одобрили?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Желите ли да опозовете приступ adb отклањању грешака са свих рачунара и мрежа које сте претходно одобрили?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Желите ли да омогућите програмерска подешавања?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Ова подешавања су намењена само за програмирање. Могу да изазову престанак функционисања или неочекивано понашање уређаја и апликација на њему."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Верификуј апликације преко USB-а"</string>
@@ -467,7 +470,7 @@
     <string name="loading_injected_setting_summary" msgid="8394446285689070348">"Учитава се…"</string>
   <string-array name="color_mode_names">
     <item msgid="3836559907767149216">"Живописан (подразумевано)"</item>
-    <item msgid="9112200311983078311">"Природан"</item>
+    <item msgid="9112200311983078311">"Природно"</item>
     <item msgid="6564241960833766170">"Стандардан"</item>
   </string-array>
   <string-array name="color_mode_descriptions">
@@ -663,8 +666,8 @@
     <string name="user_add_user_item_title" msgid="2394272381086965029">"Корисник"</string>
     <string name="user_add_profile_item_title" msgid="3111051717414643029">"Ограничени профил"</string>
     <string name="user_add_user_title" msgid="5457079143694924885">"Додајете новог корисника?"</string>
-    <string name="user_add_user_message_long" msgid="1527434966294733380">"Овај уређај можете да делите са другим људима ако направите још корисника. Сваки корисник има сопствени простор, који може да прилагођава помоћу апликација, позадине и слично. Корисници могу да прилагођавају и подешавања уређаја која утичу на свакога, попут WiFi-ја.\n\nКада додате новог корисника, та особа треба да подеси сопствени простор.\n\nСваки корисник може да ажурира апликације за све остале кориснике. Подешавања и услуге приступачности не могу да се преносе на новог корисника."</string>
-    <string name="user_add_user_message_short" msgid="3295959985795716166">"Када додате новог корисника, та особа треба да подеси сопствени простор.\n\nСваки корисник може да ажурира апликације за све остале кориснике."</string>
+    <string name="user_add_user_message_long" msgid="1527434966294733380">"Овај уређај можете да делите са другим људима ако направите још корисника. Сваки корисник има свој простор, који може да прилагођава помоћу апликација, позадине и слично. Корисници могу да прилагођавају и подешавања уређаја која утичу на свакога, попут WiFi-ја.\n\nКада додате новог корисника, та особа треба да подеси свој простор.\n\nСваки корисник може да ажурира апликације за све остале кориснике. Подешавања и услуге приступачности не могу да се преносе на новог корисника."</string>
+    <string name="user_add_user_message_short" msgid="3295959985795716166">"Када додате новог корисника, та особа треба да подеси свој простор.\n\nСваки корисник може да ажурира апликације за све остале кориснике."</string>
     <string name="user_grant_admin_title" msgid="5157031020083343984">"Желите да поставите овог корисника за администратора?"</string>
     <string name="user_grant_admin_message" msgid="1673791931033486709">"Администратори имају посебне привилегије које остали корисници немају. Администратор може да управља свим корисницима, ажурира или ресетује овај уређај, прилагођава подешавања, прегледа све инсталиране апликације и додељује или опозива привилегије администратора за друге."</string>
     <string name="user_grant_admin_button" msgid="5441486731331725756">"Постави за администратора"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Веза са етернетом је прекинута."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Етернет."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Без позивања."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Физичка тастатура"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Одаберите распоред тастатуре"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Подразумевано"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Контрола укључивања екрана"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Дозволи укључивање екрана"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Дозвољава апликацији да укључи екран. Ако се омогући, апликација може да укључи екран у било ком тренутку без ваше експлицитне намере."</string>

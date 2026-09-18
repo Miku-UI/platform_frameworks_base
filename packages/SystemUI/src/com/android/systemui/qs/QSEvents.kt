@@ -60,7 +60,10 @@ enum class QSEvent(private val _id: Int) : UiEventLogger.UiEventEnum {
             "Tile visible in Quick Quick Settings panel. " +
                 "It has an instance id and a spec (or packageName)"
     )
-    QQS_TILE_VISIBLE(395);
+    QQS_TILE_VISIBLE(395),
+    @UiEvent(doc = "QS tile details view opened.") QS_DETAILS_OPEN(2565),
+    @UiEvent(doc = "QS tile details view closed.") QS_DETAILS_CLOSE(2566),
+    @UiEvent(doc = "QS tile details view settings button clicked.") QS_DETAILS_SETTINGS_CLICK(2567);
 
     override fun getId() = _id
 }

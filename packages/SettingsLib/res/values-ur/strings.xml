@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"‏Wifi تین بارز۔"</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"‏Wifi سگنل پورا ہے۔"</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"آپ کے آلے سے منسلک ہے۔"</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"اس آلے پر موجود تمام صارفین دیکھ سکتے ہیں اور منسلک ہو سکتے ہیں۔"</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"اوپن نیٹ ورک"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"محفوظ نیٹ ورک"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"رسائی کی جگہ کے نام کی ترتیبات اس صارف کیلئے دستیاب نہیں ہیں"</string>
     <string name="enable_adb" msgid="8072776357237289039">"‏USB ڈیبگنگ"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"‏USB مربوط ہونے پر ڈيبگ کرنے کی وضع"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"‏USB ڈیبگنگ کی اجازت دہندگیوں کو منسوخ کریں"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"‏‫adb ڈیبگ کرنے کی منظوریوں کو کالعدم کریں"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"وائرلیس ڈیبگنگ"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"‏Wi-Fi سے منسلک ہونے پر ڈیبگ موڈ"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"خرابی"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"آلے سے جوڑا بنایا جا رہا ہے…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"‏آلہ کا جوڑا بنانے میں ناکام۔ یا تو QR کوڈ غلط تھا، یا آلہ اسی نیٹ ورک سے منسلک نہیں ہے۔"</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"‏IP پتہ اور پورٹ"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"دستیاب نہیں ہے (اجازت نہیں ہے)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"‏دستیاب نہیں ہے (Wi‑Fi غیر منسلک ہے)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"‏QR کوڈ اسکین کریں"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"‏QR کوڈ اسکین کر کے Wi-Fi پر آلے سے جوڑا بنائیں"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"‏براہ کرم ایک Wi-Fi نیٹ ورک سے منسلک ہوں"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"‏USB ڈیبگ کرنا صرف ڈیولپمنٹ کے مقاصد کیلئے ہے۔ اپنے کمپیوٹر اور اپنے آلہ کے درمیان ڈیٹا کاپی کرنے کیلئے اسے استعمال کریں، بغیر اطلاع کے اپنے آلہ پر ایپس انسٹال کریں اور لاگ ڈیٹا پڑھیں۔"</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"وائرلیس ڈیبگنگ کی اجازت دیں؟"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"وائرلیس ڈیبگنگ صرف ڈیولپمنٹ کے مقاصد کے لیے ہے۔ اپنے کمپیوٹر اور اپنے آلہ کے درمیان ڈیٹا کاپی کرنے کے لیے اسے استعمال کریں، بغیر اطلاع کے اپنے آلہ پر ایپس انسٹال کریں اور لاگ ڈیٹا پڑھیں۔"</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"‏اپنے ذریعہ پہلے سے اجازت یافتہ سبھی کمپیوٹرز سے USB ڈیبگ کرنے کی رسائی کو کالعدم کریں؟"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"‏ان تمام کمپیوٹرز اور نیٹ ورکس سے adb ڈیبگنگ تک رسائی کو کالعدم کریں جنہیں آپ نے پہلے منظوری دی ہے؟"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"ڈویلپمنٹ ترتیبات کی اجازت دیں؟"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"یہ ترتیبات صرف ڈویلپمنٹ استعمال کے ارادے سے ہیں۔ ان سے آپ کا آلہ اور اس پر موجود ایپلیکیشنز بریک ہو سکتی یا غلط برتاؤ کر سکتی ہیں۔"</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"‏USB پر ایپس کی توثیق کریں"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"ایتھرنیٹ منقطع ہے۔"</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"ایتھرنیٹ۔"</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"کوئی کالنگ نہیں ہے۔"</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"فزیکل کی بورڈ"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"کی بورڈ لے آؤٹ منتخب کریں"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"ڈیفالٹ"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"اسکرین آن کرنے کیلئے کنٹرول"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"اسکرین آن کرنے کی اجازت دیں"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"ایپ کو اسکرین آن کرنے کی اجازت دیں۔ اگر اجازت دی گئی تو ایپ آپ کے واضح مقصد کے بغیر کسی بھی وقت اسکرین کو آن کر سکتی ہے۔"</string>

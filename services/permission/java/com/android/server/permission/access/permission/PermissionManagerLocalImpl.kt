@@ -17,13 +17,13 @@
 package com.android.server.permission.access.permission
 
 import android.os.Build
+import com.android.server.permission.PermissionBpfMap
 import com.android.server.permission.PermissionManagerLocal
 import com.android.server.permission.access.AccessCheckingService
 import com.android.server.permission.access.PermissionUri
 import com.android.server.permission.access.UidUri
 
-class PermissionManagerLocalImpl(
-    private val service: AccessCheckingService
+class PermissionManagerLocalImpl(private val service: AccessCheckingService
 ) : PermissionManagerLocal {
     private val policy =
         service.getSchemePolicy(UidUri.SCHEME, PermissionUri.SCHEME) as AppIdPermissionPolicy
@@ -36,5 +36,13 @@ class PermissionManagerLocalImpl(
     override fun setSignaturePermissionAllowlistForceEnforced(forceEnforced: Boolean) {
         check(Build.isDebuggable())
         policy.isSignaturePermissionAllowlistForceEnforced = forceEnforced
+    }
+
+    override fun registerBpfMap(bpfMap: PermissionBpfMap, permissionNames: List<String>) {
+        service.permissionService.registerBpfMap(bpfMap, permissionNames)
+    }
+
+    override fun unregisterBpfMap(bpfMap: PermissionBpfMap) {
+        service.permissionService.unregisterBpfMap(bpfMap)
     }
 }

@@ -19,7 +19,6 @@
     style="@android:style/Widget.Material.Button"
     android:layout_width="wrap_content"
     android:layout_height="match_parent"
-    android:background="@drawable/animated_action_button_background"
     android:drawablePadding="@dimen/animated_action_button_drawable_padding"
     android:ellipsize="end"
     android:textAppearance="@style/TextAppearance.NotificationSmartReply"

@@ -17,16 +17,28 @@
 package com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel
 
 import android.content.testableContext
-import com.android.systemui.kairos.ActivatedKairosFixture
-import com.android.systemui.kairos.ExperimentalKairosApi
+import com.android.systemui.kairos.kairos
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.statusbar.connectivity.ui.mobileContextProvider
 
-@ExperimentalKairosApi
-val Kosmos.stackedMobileIconViewModelKairos by ActivatedKairosFixture {
-    StackedMobileIconViewModelKairos(
-        mobileIconsViewModelKairos,
-        testableContext,
-        mobileContextProvider,
-    )
-}
+val Kosmos.stackedMobileIconViewModelKairos by
+    Kosmos.Fixture {
+        StackedMobileIconViewModelKairos(
+            mobileIconsViewModelKairos,
+            testableContext,
+            mobileContextProvider,
+            kairos,
+        )
+    }
+
+val Kosmos.stackedMobileIconViewModelKairosFactory by
+    Kosmos.Fixture {
+        StackedMobileIconViewModel.Factory {
+            StackedMobileIconViewModelKairos(
+                mobileIconsViewModelKairos,
+                testableContext,
+                mobileContextProvider,
+                kairos,
+            )
+        }
+    }

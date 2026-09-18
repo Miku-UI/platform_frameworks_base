@@ -22,7 +22,13 @@ import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.hardware.display.DisplayTopologyGraph;
 import android.hardware.display.DisplayViewport;
-import android.hardware.input.IVirtualInputDevice;
+import android.hardware.input.IVirtualDpad;
+import android.hardware.input.IVirtualKeyboard;
+import android.hardware.input.IVirtualMouse;
+import android.hardware.input.IVirtualNavigationTouchpad;
+import android.hardware.input.IVirtualRotaryEncoder;
+import android.hardware.input.IVirtualStylus;
+import android.hardware.input.IVirtualTouchscreen;
 import android.hardware.input.KeyGestureEvent;
 import android.hardware.input.VirtualDpadConfig;
 import android.hardware.input.VirtualKeyboardConfig;
@@ -36,9 +42,9 @@ import android.os.RemoteException;
 import android.util.SparseBooleanArray;
 import android.view.InputChannel;
 import android.view.KeyEvent;
+import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodSubtype;
 
-import com.android.internal.inputmethod.InputMethodSubtypeHandle;
 import com.android.internal.policy.IShortcutService;
 
 import org.xmlpull.v1.XmlPullParserException;
@@ -57,9 +63,12 @@ public abstract class InputManagerInternal {
     // Backup and restore information for custom input gestures.
     public static final int BACKUP_CATEGORY_INPUT_GESTURES = 0;
 
+    // Backup and restore information for device key and axis remapping
+    public static final int BACKUP_CATEGORY_INPUT_DEVICE_REMAPPING = 1;
+
     // Backup and Restore categories for sending map of data back and forth to backup and restore
     // infrastructure.
-    @IntDef({BACKUP_CATEGORY_INPUT_GESTURES})
+    @IntDef({BACKUP_CATEGORY_INPUT_GESTURES, BACKUP_CATEGORY_INPUT_DEVICE_REMAPPING})
     public @interface BackupCategory {
     }
 
@@ -167,42 +176,29 @@ public abstract class InputManagerInternal {
      * Called when the current input method and/or {@link InputMethodSubtype} is updated.
      *
      * @param userId User ID to be notified about.
-     * @param subtypeHandle A {@link InputMethodSubtypeHandle} corresponds to {@code subtype}.
-     * @param subtype A {@link InputMethodSubtype} object, or {@code null} when the current
+     * @param imi An {@link InputMethodInfo} object, or {@code null} when the current
+     *            {@link InputMethodSubtype} is not suitable for the physical keyboard layout
+     *            mapping.
+     * @param subtype An {@link InputMethodSubtype} object, or {@code null} when the current
      *                {@link InputMethodSubtype} is not suitable for the physical keyboard layout
      *                mapping.
      * @see InputMethodSubtype#isSuitableForPhysicalKeyboardLayoutMapping()
      */
     public abstract void onInputMethodSubtypeChangedForKeyboardLayoutMapping(@UserIdInt int userId,
-            @Nullable InputMethodSubtypeHandle subtypeHandle,
+            @Nullable InputMethodInfo imi,
             @Nullable InputMethodSubtype subtype);
 
     /**
      * Increments keyboard backlight level if the device has an associated keyboard backlight
-     * {@see Light.LIGHT_TYPE_KEYBOARD_BACKLIGHT}
+     * @see Light.LIGHT_TYPE_KEYBOARD_BACKLIGHT
      */
     public abstract void incrementKeyboardBacklight(int deviceId);
 
     /**
      * Decrements keyboard backlight level if the device has an associated keyboard backlight
-     * {@see Light.LIGHT_TYPE_KEYBOARD_BACKLIGHT}
+     * @see Light.LIGHT_TYPE_KEYBOARD_BACKLIGHT
      */
     public abstract void decrementKeyboardBacklight(int deviceId);
-
-    /**
-     * Add a runtime association between the input port and device type. Input ports are expected to
-     * be unique.
-     * @param inputPort The port of the input device.
-     * @param type The type of the device. E.g. "touchNavigation".
-     */
-    public abstract void setTypeAssociation(@NonNull String inputPort, @NonNull String type);
-
-    /**
-     * Removes a runtime association between the input device and type.
-     *
-     * @param inputPort The port of the input device.
-     */
-    public abstract void unsetTypeAssociation(@NonNull String inputPort);
 
     /**
      * Add a mapping from the input port and a keyboard layout, by unique id. Input
@@ -305,7 +301,7 @@ public abstract class InputManagerInternal {
     public abstract boolean setKernelWakeEnabled(int deviceId, boolean enabled);
 
     /**
-     * Retrieves the input gestures backup payload data.
+     * Retrieves the input backup payload data.
      *
      * @param userId the user ID of the backup data.
      * @return byte array of UTF-8 encoded backup data.
@@ -380,7 +376,7 @@ public abstract class InputManagerInternal {
      * @return the new virtual input device, or {@code null} if the creation failed.
      */
     @NonNull
-    public abstract IVirtualInputDevice createVirtualKeyboard(@NonNull IBinder token,
+    public abstract IVirtualKeyboard createVirtualKeyboard(@NonNull IBinder token,
             @NonNull VirtualKeyboardConfig config);
 
     /**
@@ -391,7 +387,7 @@ public abstract class InputManagerInternal {
      * @return the new virtual input device, or {@code null} if the creation failed.
      */
     @NonNull
-    public abstract IVirtualInputDevice createVirtualMouse(@NonNull IBinder token,
+    public abstract IVirtualMouse createVirtualMouse(@NonNull IBinder token,
             @NonNull VirtualMouseConfig config);
 
     /**
@@ -402,7 +398,7 @@ public abstract class InputManagerInternal {
      * @return the new virtual input device, or {@code null} if the creation failed.
      */
     @NonNull
-    public abstract IVirtualInputDevice createVirtualTouchscreen(@NonNull IBinder token,
+    public abstract IVirtualTouchscreen createVirtualTouchscreen(@NonNull IBinder token,
             @NonNull VirtualTouchscreenConfig config);
 
     /**
@@ -413,8 +409,8 @@ public abstract class InputManagerInternal {
      * @return the new virtual input device, or {@code null} if the creation failed.
      */
     @NonNull
-    public abstract IVirtualInputDevice createVirtualNavigationTouchpad(@NonNull IBinder token,
-            @NonNull VirtualNavigationTouchpadConfig config);
+    public abstract IVirtualNavigationTouchpad createVirtualNavigationTouchpad(
+            @NonNull IBinder token, @NonNull VirtualNavigationTouchpadConfig config);
 
     /**
      * Creates a new virtual dpad.
@@ -424,7 +420,7 @@ public abstract class InputManagerInternal {
      * @return the new virtual input device, or {@code null} if the creation failed.
      */
     @NonNull
-    public abstract IVirtualInputDevice createVirtualDpad(@NonNull IBinder token,
+    public abstract IVirtualDpad createVirtualDpad(@NonNull IBinder token,
             @NonNull VirtualDpadConfig config);
 
     /**
@@ -435,7 +431,7 @@ public abstract class InputManagerInternal {
      * @return the new virtual input device, or {@code null} if the creation failed.
      */
     @NonNull
-    public abstract IVirtualInputDevice createVirtualStylus(@NonNull IBinder token,
+    public abstract IVirtualStylus createVirtualStylus(@NonNull IBinder token,
             @NonNull VirtualStylusConfig config);
 
     /**
@@ -446,7 +442,7 @@ public abstract class InputManagerInternal {
      * @return the new virtual input device, or {@code null} if the creation failed.
      */
     @NonNull
-    public abstract IVirtualInputDevice createVirtualRotaryEncoder(@NonNull IBinder token,
+    public abstract IVirtualRotaryEncoder createVirtualRotaryEncoder(@NonNull IBinder token,
             @NonNull VirtualRotaryEncoderConfig config);
 
     /**
@@ -455,4 +451,16 @@ public abstract class InputManagerInternal {
      * @param token token identifying the device to remove
      */
     public abstract void closeVirtualInputDevice(IBinder token);
+
+    /**
+     * Sets whether to show the positions of the touches on the given display, even if the
+     * global setting {@link android.provider.Settings.System#SHOW_TOUCHES} is turned off.
+     *
+     * <p>No-op if no display with the given id exists.</p>
+     *
+     * @param displayId The ID of the display on which touches should be shown or not.
+     * @param enabled Whether to show touches on the given display.
+     */
+    // TODO(b/447645639): Make this an InputManager API.
+    public abstract void setForceShowTouchesOnDisplay(int displayId, boolean enabled);
 }

@@ -718,6 +718,12 @@
         "services/core/.*Install.*",
         "services/core/java/com/android/server/pm/.*"
       ]
+    },
+    {
+      "name": "CtsMultiUserTestCases",
+      "file_patterns": [
+        "(/|^)User[^/]*\\.java"
+      ]
     }
   ],
   "imports": [

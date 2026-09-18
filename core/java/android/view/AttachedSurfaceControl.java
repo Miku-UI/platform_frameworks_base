@@ -47,7 +47,7 @@ import java.util.concurrent.Executor;
 @UiThread
 public interface AttachedSurfaceControl {
     /**
-     * Create a transaction which will reparent {@param child} to the View hierarchy
+     * Create a transaction which will reparent {@code child} to the View hierarchy
      * root SurfaceControl. See
      * {@link SurfaceControl.Transaction#reparent}. This transacton must be applied
      * or merged in to another transaction by the caller, otherwise it will have
@@ -207,15 +207,15 @@ public interface AttachedSurfaceControl {
     }
 
     /**
-     * Registers a {@link OnJankDataListener} to receive jank classification data about rendered
-     * frames.
+     * Registers a {@link SurfaceControl.OnJankDataListener} to receive jank classification data
+     * about rendered frames.
      * <p>
      * Use {@link SurfaceControl.OnJankDataListenerRegistration#removeAfter} to unregister the
      * listener.
      *
      * @param executor The executor on which the listener will be invoked.
      * @param listener The listener to add.
-     * @return The {@link OnJankDataListenerRegistration} for the listener.
+     * @return The {@link SurfaceControl.OnJankDataListenerRegistration} for the listener.
      */
     @NonNull
     @FlaggedApi(Flags.FLAG_JANK_API)
@@ -224,5 +224,40 @@ public interface AttachedSurfaceControl {
             @NonNull @CallbackExecutor Executor executor,
             @NonNull SurfaceControl.OnJankDataListener listener) {
         return SurfaceControl.OnJankDataListenerRegistration.NONE;
+    }
+
+    /**
+     * Creates a mirrored {@link SurfaceControl} of the root {@link SurfaceControl} hierarchy.
+     * <p>
+     * The returned {@link SurfaceControl} acts as a new root for the mirrored content, and its
+     * properties can be manipulated independently from the original surface. Transformations
+     * applied to this returned {@link SurfaceControl} will affect the mirrored content, but will
+     * not affect the original.
+     * <p>
+     * The returned {@link SurfaceControl} will be invalid if the mirror creation failed. Caller
+     * is responsible to call {@link SurfaceControl#release()} for the mirror after usage.
+     * <p>
+     * The relationship can be visualized as:
+     * <pre>
+     * Real Hierarchy    Mirror
+     *                     SC (value that's returned)
+     *                      |
+     *      A               A'
+     *      |               |
+     *      B               B'
+     * </pre>
+     * <p>
+     * In the diagram above, A is the root {@link SurfaceControl} of this
+     * {@link AttachedSurfaceControl}. A' is a mirror of A. B is a child of A and B' is a mirror
+     * of B. The returned value, SC, is a new {@link SurfaceControl} that is the parent of the
+     * mirrored hierarchy.
+     *
+     * @return a mirrored {@link SurfaceControl} of the root {@link SurfaceControl}.
+     */
+    @NonNull
+    @FlaggedApi(Flags.FLAG_MIRROR_SURFACE_API)
+    default SurfaceControl createMirror() {
+        throw new UnsupportedOperationException(
+                "The createMirror needs to be implemented before making this call.");
     }
 }

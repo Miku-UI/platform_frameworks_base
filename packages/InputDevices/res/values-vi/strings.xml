@@ -3,6 +3,7 @@
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_label" msgid="8016145283189546017">"Thiết bị đầu vào"</string>
     <string name="keyboard_layouts_label" msgid="6688773268302087545">"Bàn phím Android"</string>
+    <string name="keyboard_layout_english_ca_label" msgid="2415799429045326926">"Tiếng Anh (Canada)"</string>
     <string name="keyboard_layout_english_uk_label" msgid="6664258463319999632">"Tiếng Anh (Anh)"</string>
     <string name="keyboard_layout_english_us_label" msgid="8994890249649106291">"Tiếng Anh (Mỹ)"</string>
     <string name="keyboard_layout_english_us_intl" msgid="3705168594034233583">"Tiếng Anh (Mỹ), kiểu Quốc tế"</string>
@@ -34,6 +35,7 @@
     <string name="keyboard_layout_brazilian" msgid="5117896443147781939">"Tiếng Brazil"</string>
     <string name="keyboard_layout_portuguese" msgid="2888198587329660305">"Tiếng Bồ Đào Nha"</string>
     <string name="keyboard_layout_slovak" msgid="2469379934672837296">"Tiếng Slovak"</string>
+    <string name="keyboard_layout_slovak_qwerty" msgid="2786027565675359502">"Tiếng Slovak, kiểu QWERTY"</string>
     <string name="keyboard_layout_slovenian" msgid="1735933028924982368">"Tiếng Sloven"</string>
     <string name="keyboard_layout_turkish" msgid="7736163250907964898">"Tiếng Thổ Nhĩ Kỳ"</string>
     <string name="keyboard_layout_turkish_f" msgid="9130320856010776018">"Tiếng Thổ Nhĩ Kỳ F"</string>
@@ -58,4 +60,20 @@
     <string name="keyboard_layout_montenegrin_cyrillic" msgid="2391253952894077421">"Tiếng Montenegro (Chữ Kirin)"</string>
     <string name="keyboard_layout_romanian" msgid="8698989892731726903">"Tiếng Romania"</string>
     <string name="keyboard_layout_english_india" msgid="7962353311188603367">"Tiếng Anh (Ấn Độ)"</string>
+    <string name="playstation_controller_circle_button" msgid="3436949457993997215">"Nút vòng tròn"</string>
+    <string name="playstation_controller_triangle_button" msgid="7058016183388142515">"Nút tam giác"</string>
+    <string name="playstation_controller_square_button" msgid="1611460593522078301">"Nút vuông"</string>
+    <string name="playstation_controller_cross_button" msgid="5263132258994089833">"Nút gạch chéo"</string>
+    <string name="default_game_controller_down_button" msgid="5298575601656661456">"Nút mũi tên xuống"</string>
+    <string name="default_game_controller_left_button" msgid="8135197345326445929">"Nút mũi tên trái"</string>
+    <string name="default_game_controller_right_button" msgid="7213665536684737133">"Nút mũi tên phải"</string>
+    <string name="default_game_controller_up_button" msgid="5466016771871639338">"Nút mũi tên lên"</string>
+    <string name="nintendo_game_controller_l_button" msgid="4725333055757177703">"Nút L"</string>
+    <string name="nintendo_game_controller_r_button" msgid="1916817307166823755">"Nút R"</string>
+    <string name="nintendo_game_controller_zl_button" msgid="7980363034784417011">"Nút ZL"</string>
+    <string name="nintendo_game_controller_zr_button" msgid="301860128142672009">"Nút ZR"</string>
+    <string name="xbox_game_controller_lb_button" msgid="3531058576782769049">"Nút LB"</string>
+    <string name="xbox_game_controller_rb_button" msgid="7009478913470850721">"Nút RB"</string>
+    <string name="xbox_game_controller_lt_button" msgid="6613016668751667815">"Nút LT"</string>
+    <string name="xbox_game_controller_rt_button" msgid="1259415225164057316">"Nút RT"</string>
 </resources>

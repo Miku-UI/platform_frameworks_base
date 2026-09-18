@@ -100,14 +100,14 @@ public class PipDragToResizeHandler {
                 case MotionEvent.ACTION_MOVE:
                     final boolean thresholdCrossed = mPipResizeGestureHandler.getThresholdCrossed();
                     // Capture inputs
-                    if (!mPipResizeGestureHandler.getThresholdCrossed()
+                    if (!thresholdCrossed
                             && Math.hypot(x - downPoint.x, y - downPoint.y) > touchSlop) {
                         mPipResizeGestureHandler.setThresholdCrossed(true);
                         // Reset the down to begin resizing from this point
                         downPoint.set(x, y);
                         mPipResizeGestureHandler.pilferPointers();
                     }
-                    if (mPipResizeGestureHandler.getThresholdCrossed()) {
+                    if (thresholdCrossed) {
                         if (mPhonePipMenuController.isMenuVisible()) {
                             mPhonePipMenuController.hideMenu(ANIM_TYPE_NONE,
                                     false /* resize */);

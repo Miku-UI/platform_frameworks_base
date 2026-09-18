@@ -379,7 +379,7 @@ public class RcsUceAdapter {
 
     /**
      * An application can use {@link #addOnPublishStateChangedListener} to register a
-     * {@link OnPublishStateChangedListener ), which will notify the user when the publish state to
+     * {@link OnPublishStateChangedListener}, which will notify the user when the publish state to
      * the network changes.
      * @hide
      */
@@ -795,7 +795,7 @@ public class RcsUceAdapter {
 
     /**
      * Registers a {@link OnPublishStateChangedListener} with the system, which will provide publish
-     * state updates for the subscription specified in {@link ImsManager@getRcsManager(subid)}.
+     * state updates for the subscription specified in {@link ImsManager#getRcsManager(subid)}.
      * <p>
      * Use {@link android.telephony.SubscriptionManager.OnSubscriptionsChangedListener} to listen
      * to subscription

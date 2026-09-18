@@ -64,6 +64,7 @@ using KlobucharIonosphericModel =
 using TimeModel = android::hardware::gnss::gnss_assistance::TimeModel;
 using RealTimeIntegrityModel = android::hardware::gnss::gnss_assistance::RealTimeIntegrityModel;
 using AuxiliaryInformation = android::hardware::gnss::gnss_assistance::AuxiliaryInformation;
+using IonexAssistance = android::hardware::gnss::gnss_assistance::IonexAssistance;
 
 void GnssAssistance_class_init_once(JNIEnv* env, jclass clazz);
 
@@ -132,6 +133,8 @@ struct GnssAssistanceUtil {
             std::vector<GnssSatelliteCorrections>& satelliteCorrections);
     static void setAuxiliaryInformations(JNIEnv* env, jobject auxiliaryInformationListObj,
                                          std::vector<AuxiliaryInformation>& auxiliaryInformations);
+    static void setIonexAssistance(JNIEnv* env, jobject ionexAssistanceObj,
+                                   std::optional<IonexAssistance>& ionexAssistanceOpt);
 };
 
 } // namespace android::gnss

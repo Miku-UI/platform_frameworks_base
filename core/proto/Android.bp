@@ -13,6 +13,7 @@ python_library_host {
         include_dirs: [
             "external/protobuf/src",
             "frameworks/proto_logging/stats",
+            "frameworks/base/proto/src",
         ],
         canonical_path_from_root: true,
     },

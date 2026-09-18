@@ -17,18 +17,18 @@
 package com.android.wm.shell.flicker.pip
 
 import android.app.Activity
-import androidx.test.filters.FlakyTest
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.Presubmit
-import androidx.test.filters.RequiresDevice
 import android.platform.test.annotations.RequiresFlagsDisabled
 import android.tools.Rotation
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.helpers.WindowUtils
+import androidx.test.filters.FlakyTest
+import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.testapp.ActivityOptions
 import com.android.server.wm.flicker.testapp.ActivityOptions.PortraitOnlyActivity.EXTRA_FIXED_ORIENTATION
 import com.android.wm.shell.Flags
@@ -93,7 +93,7 @@ open class SetRequestedOrientationWhilePinned(flicker: FlickerTest) : PipTransit
             // Launch the PiP activity fixed as landscape.
             pipApp.launchViaIntent(
                 wmHelper,
-                stringExtras = mapOf(EXTRA_FIXED_ORIENTATION to ORIENTATION_LANDSCAPE.toString())
+                stringExtras = mapOf(EXTRA_FIXED_ORIENTATION to ORIENTATION_LANDSCAPE.toString()),
             )
             // Enter PiP.
             broadcastActionTrigger.doAction(ActivityOptions.Pip.ACTION_ENTER_PIP)

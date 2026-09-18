@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wi-Fi: Þrjú strik."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Fullur Wi-Fi sendistyrkur."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Tengt við tækið þitt."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Allir notendur þessa tækis geta skoðað og tengst."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Opið net"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Öruggt net"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android-stýrikerfið"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Stillingar fyrir heiti aðgangsstaðar eru ekki í boði fyrir þennan notanda"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB-villuleit"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Villuleitarstilling þegar USB er tengt."</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Afturkalla USB-villuleitarheimildir"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Afturkalla adb-villuleitarheimildir"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Þráðlaus villuleit"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Villuleitarstilling þegar Wi-Fi er tengt"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Villa"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Parar tæki…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Ekki tókst að para við tækið. Annað hvort var QR-kóðinn rangur eða tækið ekki tengt sama neti."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP-tala og gátt"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Ekki í boði (ekki leyft)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Ekki í boði (Wi‑Fi aftengt)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Skanna QR-kóða"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Para tæki gegnum Wi-Fi með því að skanna QR-kóða"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Tengstu Wi-Fi neti"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB-villuleit er aðeins ætluð til nota í þróunarskyni. Hana má nota til að afrita gögn á milli tölvu og tækis, setja forrit upp í tækinu án tilkynninga og lesa annálagögn."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Leyfa þráðlausa villuleit?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Þráðlaus villuleit er aðeins ætluð til nota í þróunarskyni. Hana má nota til að afrita gögn á milli tölvu og tækis, setja forrit upp í tækinu án tilkynninga og lesa annálagögn."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Afturkalla aðgang að USB-villuleit í öllum tölvum sem þú hefur áður veitt heimild?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Viltu afturkalla aðgang að adb-villuleit í öllum tölvum og á öllum netum sem þú hefur áður veitt heimild?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Leyfa þróunarstillingar?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Þessar stillingar eru einungis ætlaðar í þróunarskyni. Þær geta valdið því að tækið og forrit þess bili eða starfi á rangan hátt."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Staðfesta forrit gegnum USB"</string>
@@ -657,7 +660,7 @@
     <string name="accessor_no_description_text" msgid="7510967452505591456">"Forritið er ekki með neina lýsingu."</string>
     <string name="accessor_expires_text" msgid="4625619273236786252">"Leiga rennur út <xliff:g id="DATE">%s</xliff:g>"</string>
     <string name="delete_blob_text" msgid="2819192607255625697">"Eyða deildum gögnum"</string>
-    <string name="delete_blob_confirmation_text" msgid="7807446938920827280">"Ertu viss um að þú viljir eyða þessum deildu gögnum?"</string>
+    <string name="delete_blob_confirmation_text" msgid="7807446938920827280">"Ertu viss um að þú viljir eyða þessum samnýttu gögnum?"</string>
     <string name="user_add_user_item_summary" msgid="5748424612724703400">"Notendur hafa sín eigin forrit og efni"</string>
     <string name="user_add_profile_item_summary" msgid="5418602404308968028">"Hægt er að takmarka aðgang að forritum og efni á reikningnum þínum"</string>
     <string name="user_add_user_item_title" msgid="2394272381086965029">"Notandi"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet aftengt."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Engin símtöl."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Vélbúnaðarlyklaborð"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Veldu lyklaskipan"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Sjálfgefið"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Stýring til að kveikja á skjá"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Leyfa að kveikt sé á skjánum"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Leyfa forriti að kveikja á skjánum. Ef þetta er leyft getur forritið kveikt á skjánum hvenær sem er án þess að þú samþykkir það sérstaklega."</string>

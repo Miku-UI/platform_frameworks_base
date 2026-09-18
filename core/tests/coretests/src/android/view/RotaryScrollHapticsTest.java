@@ -35,7 +35,6 @@ import android.content.Context;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
-import android.view.flags.Flags;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -174,7 +173,6 @@ public final class RotaryScrollHapticsTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_DYNAMIC_VIEW_ROTARY_HAPTICS_CONFIGURATION)
     public void testChildViewImplementationUsesScrollFeedbackProvider_doesNoScrollFeedback() {
         mView.configureGenericMotion(/* result= */ false, /* scroll= */ true);
         mView.mUsesCustomScrollFeedbackProvider = true;

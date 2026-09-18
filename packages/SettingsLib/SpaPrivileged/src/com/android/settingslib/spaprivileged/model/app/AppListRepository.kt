@@ -19,12 +19,13 @@ package com.android.settingslib.spaprivileged.model.app
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
-import android.content.pm.FeatureFlags
-import android.content.pm.FeatureFlagsImpl
 import android.content.pm.Flags
 import android.content.pm.PackageManager
 import android.content.pm.PackageManager.ApplicationInfoFlags
 import android.content.pm.ResolveInfo
+import android.os.Build
+import android.os.UserHandle
+import android.os.UserManager
 import android.util.Log
 import com.android.internal.R
 import com.android.settingslib.spaprivileged.framework.common.userManager
@@ -73,14 +74,9 @@ object AppListRepositoryUtil {
         AppListRepositoryImpl(context).getSystemPackageNamesBlocking(userId)
 }
 
-internal class AppListRepositoryImplHelper(
-    private val context: Context,
-    private val featureFlags: FeatureFlags,
-) {
+internal class AppListRepositoryImplHelper(private val context: Context) {
     private val packageManager = context.packageManager
     private val userManager = context.userManager
-
-    constructor(context: Context) : this(context, FeatureFlagsImpl())
 
     suspend fun loadApps(
         userId: Int,
@@ -118,7 +114,7 @@ internal class AppListRepositoryImplHelper(
                     PackageManager.MATCH_DISABLED_UNTIL_USED_COMPONENTS)
                 .toLong()
         val archivedPackagesFlag: Long =
-            if (isArchivingEnabled(featureFlags)) PackageManager.MATCH_ARCHIVED_PACKAGES else 0L
+            if (isArchivingEnabled()) PackageManager.MATCH_ARCHIVED_PACKAGES else 0L
         val regularFlags = ApplicationInfoFlags.of(disabledComponentsFlag or archivedPackagesFlag)
         return if (!matchAnyUserForAdmin || !userManager.getUserInfo(userId).isAdmin) {
             packageManager.getInstalledApplicationsAsUser(regularFlags, userId)
@@ -153,7 +149,8 @@ internal class AppListRepositoryImplHelper(
         }
     }
 
-    private fun isArchivingEnabled(featureFlags: FeatureFlags) = featureFlags.archiving()
+    private fun isArchivingEnabled() =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
 
     fun getSystemPackageNamesBlocking(userId: Int) = runBlocking {
         loadAndFilterApps(userId = userId, isSystemApp = true).map { it.packageName }.toSet()
@@ -235,12 +232,8 @@ internal class AppListRepositoryImplHelper(
     }
 }
 
-/** This constructor is visible for tests only in order to override `featureFlags`. */
-class AppListRepositoryImpl(context: Context, private val featureFlags: FeatureFlags) :
-    AppListRepository {
-    private val helper = AppListRepositoryImplHelper(context, featureFlags)
-
-    constructor(context: Context) : this(context, FeatureFlagsImpl())
+class AppListRepositoryImpl(context: Context) : AppListRepository {
+    private val helper = AppListRepositoryImplHelper(context)
 
     companion object {
         @JvmStatic
@@ -342,6 +335,10 @@ class AppListRepositoryImpl(context: Context, private val featureFlags: FeatureF
         showSystem: Boolean,
     ): (app: ApplicationInfo) -> Boolean {
         if (showSystem) return { true }
+        // In HSUM, hide system user apps by default unless "Show System" is enabled.
+        if (android.multiuser.Flags.hsuAppManagement() && UserManager.isHeadlessSystemUserMode() && userId == UserHandle.USER_SYSTEM) {
+            return { false }
+        }
         val homeOrLauncherPackages = loadHomeOrLauncherPackages(userId)
         return { app -> !isSystemApp(app, homeOrLauncherPackages) }
     }

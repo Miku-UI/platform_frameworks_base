@@ -1,7 +1,6 @@
 package com.android.systemui.statusbar.phone
 
 import android.app.StatusBarManager
-import android.view.Display
 import com.android.app.displaylib.PerDisplayRepository
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.Dumpable
@@ -12,7 +11,6 @@ import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.statusbar.CommandQueue
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
 import com.android.systemui.statusbar.window.StatusBarWindowStateController
 import com.android.systemui.statusbar.window.StatusBarWindowStateListener
 import com.android.systemui.util.concurrency.DelayableExecutor
@@ -58,13 +56,6 @@ constructor(
 
     init {
         dumpManager.registerDumpable(this)
-        if (!StatusBarConnectedDisplays.isEnabled) {
-            val defaultDisplaySubComponent =
-                perDisplaySubcomponentRepository[Display.DEFAULT_DISPLAY]!!
-            defaultDisplaySubComponent.statusBarWindowStateController.addListener { state ->
-                setStatusBarStateAndTriggerUpdate(state)
-            }
-        }
         scope.launch { shadeInteractor.isAnyExpanded.collect { updateHideIconsForBouncer(false) } }
     }
 
@@ -83,12 +74,10 @@ constructor(
     }
 
     fun setDisplayId(displayId: Int) {
-        if (StatusBarConnectedDisplays.isEnabled) {
-            statusBarWindowStateController?.removeListener(statusBarWindowStateListener)
-            statusBarWindowStateController =
-                perDisplaySubcomponentRepository[displayId]?.statusBarWindowStateController
-            statusBarWindowStateController?.addListener(statusBarWindowStateListener)
-        }
+        statusBarWindowStateController?.removeListener(statusBarWindowStateListener)
+        statusBarWindowStateController =
+            perDisplaySubcomponentRepository[displayId]?.statusBarWindowStateController
+        statusBarWindowStateController?.addListener(statusBarWindowStateListener)
         this.displayId = displayId
     }
 

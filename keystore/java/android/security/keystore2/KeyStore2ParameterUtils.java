@@ -61,6 +61,7 @@ public final class KeyStore2ParameterUtils {
 
     /**
      * This function constructs a {@link KeyParameter} expressing an enum value.
+     *
      * @param tag Must be KeyMint tag with the associated type ENUM or ENUM_REP.
      * @param v A 32bit integer.
      * @return An instance of {@link KeyParameter}.
@@ -69,38 +70,22 @@ public final class KeyStore2ParameterUtils {
     static @NonNull KeyParameter makeEnum(int tag, int v) {
         KeyParameter kp = new KeyParameter();
         kp.tag = tag;
-        switch (tag) {
-            case Tag.PURPOSE:
-                kp.value = KeyParameterValue.keyPurpose(v);
-                break;
-            case Tag.ALGORITHM:
-                kp.value = KeyParameterValue.algorithm(v);
-                break;
-            case Tag.BLOCK_MODE:
-                kp.value = KeyParameterValue.blockMode(v);
-                break;
-            case Tag.DIGEST:
-            case Tag.RSA_OAEP_MGF_DIGEST:
-                kp.value = KeyParameterValue.digest(v);
-                break;
-            case Tag.EC_CURVE:
-                kp.value = KeyParameterValue.ecCurve(v);
-                break;
-            case Tag.ORIGIN:
-                kp.value = KeyParameterValue.origin(v);
-                break;
-            case Tag.PADDING:
-                kp.value = KeyParameterValue.paddingMode(v);
-                break;
-            case Tag.USER_AUTH_TYPE:
-                kp.value = KeyParameterValue.hardwareAuthenticatorType(v);
-                break;
-            case Tag.HARDWARE_TYPE:
-                kp.value = KeyParameterValue.securityLevel(v);
-                break;
-            default:
-                throw new IllegalArgumentException("Not an enum or repeatable enum tag: " + tag);
-        }
+        kp.value =
+                switch (tag) {
+                    case Tag.PURPOSE -> KeyParameterValue.keyPurpose(v);
+                    case Tag.ALGORITHM -> KeyParameterValue.algorithm(v);
+                    case Tag.BLOCK_MODE -> KeyParameterValue.blockMode(v);
+                    case Tag.DIGEST, Tag.RSA_OAEP_MGF_DIGEST -> KeyParameterValue.digest(v);
+                    case Tag.EC_CURVE -> KeyParameterValue.ecCurve(v);
+                    case Tag.ORIGIN -> KeyParameterValue.origin(v);
+                    case Tag.PADDING -> KeyParameterValue.paddingMode(v);
+                    case Tag.USER_AUTH_TYPE -> KeyParameterValue.hardwareAuthenticatorType(v);
+                    case Tag.HARDWARE_TYPE -> KeyParameterValue.securityLevel(v);
+                    case Tag.ML_DSA_VARIANT -> KeyParameterValue.mlDsaVariant(v);
+                    default ->
+                            throw new IllegalArgumentException(
+                                    "Not an enum or repeatable enum tag: " + tag);
+                };
         return kp;
     }
 

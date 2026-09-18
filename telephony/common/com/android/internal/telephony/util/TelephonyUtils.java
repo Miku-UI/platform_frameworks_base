@@ -18,10 +18,12 @@ package com.android.internal.telephony.util;
 import static android.telephony.Annotation.DataState;
 import static android.telephony.NetworkRegistrationInfo.FIRST_SERVICE_TYPE;
 import static android.telephony.NetworkRegistrationInfo.LAST_SERVICE_TYPE;
+import static android.telephony.TelephonyManager.ENABLE_FEATURE_MAPPING;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
+import android.app.compat.CompatChanges;
 import android.app.role.RoleManager;
 import android.content.Context;
 import android.content.pm.ComponentInfo;
@@ -41,6 +43,8 @@ import android.telephony.TelephonyFrameworkInitializer;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
+
+import androidx.annotation.RequiresPermission;
 
 import com.android.internal.telephony.ITelephony;
 
@@ -65,6 +69,17 @@ public final class TelephonyUtils {
     public static boolean IS_DEBUGGABLE = SystemProperties.getInt("ro.debuggable", 0) == 1;
 
     public static final Executor DIRECT_EXECUTOR = Runnable::run;
+
+    /**
+     * Since Android 14-QPR3, the vendor API level is formatted as YYYYMM. E.g., assuming
+     * the SDK api level bumps once a year:
+     *   - Android 15 (SDK level 35): 202404
+     *   - ...
+     *   - Android 18 (SDK level 38): 202704
+     *
+     * The feature enforcement is kept, but delayed until Android 18.
+     */
+    public static final int TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL = 202704;
 
     /**
      * Verify that caller holds {@link android.Manifest.permission#DUMP}.
@@ -391,5 +406,97 @@ public final class TelephonyUtils {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Decide whether the Telephony Feature enforcement should be applied or not.
+     *
+     * @param pm the package manager
+     * @param vendorApiLevel the API level to check against
+     * @param callingPackage calling package
+     * @return {@code true} if the enforcement should be ignored.
+     */
+    private static boolean skipEnforceTelephonyFeatureWithException(
+            @Nullable String callingPackage, PackageManager pm, int vendorApiLevel) {
+        // Skip enforcement if no calling package info or no PackageManager.
+        if (callingPackage == null || pm == null) {
+            return true;
+        }
+
+        // Skip enforcement if compatibility change is not enabled for the current process.
+        if (!CompatChanges.isChangeEnabled(ENABLE_FEATURE_MAPPING, callingPackage,
+                Binder.getCallingUserHandle())) {
+            return true;
+        }
+
+        // Skip enforcement if the API level of the vendor partition when the device was
+        // originally released (ro.vendor.api_level) is less than the one expected.
+        if (vendorApiLevel < TELEPHONY_FEATURE_ENFORCEMENT_VENDOR_API_LEVEL) {
+            return true;
+        }
+
+        // Enforcement applies.
+        return false;
+    }
+
+    /**
+     * Make sure the device has required telephony feature
+     *
+     * @param callingPackage calling package
+     * @param pm the package manager
+     * @param vendorApiLevel the API level to check against
+     * @param telephonyFeature feature flag being enforced
+     * @param methodName name of the method enforced
+     * @throws UnsupportedOperationException if the device does not have required telephony feature
+     */
+    @RequiresPermission(allOf = {android.Manifest.permission.READ_COMPAT_CHANGE_CONFIG,
+            android.Manifest.permission.LOG_COMPAT_CHANGE})
+    public static void enforceTelephonyFeatureWithException(@Nullable String callingPackage,
+            PackageManager pm, int vendorApiLevel, @NonNull String telephonyFeature,
+            @NonNull String methodName) {
+        // Do nothing if enforcement should be skipped.
+        if (skipEnforceTelephonyFeatureWithException(callingPackage, pm, vendorApiLevel)) {
+            return;
+        }
+
+        // If the requested feature is present, the requirement is satisfied.
+        if (pm.hasSystemFeature(telephonyFeature)) {
+            return;
+        }
+
+        throw new UnsupportedOperationException(
+                methodName + " is unsupported without " + telephonyFeature);
+    }
+
+    /**
+     * Make sure the device has at least one of the required telephony features.
+     *
+     * @param callingPackage calling package
+     * @param pm the package manager
+     * @param vendorApiLevel the vendor API level to check against
+     * @param anyOfTelephonyFeatures list of feature flags being enforced
+     * @param methodName name of the method enforced
+     * @throws UnsupportedOperationException if the device does not have any of the required
+     *     telephony features.
+     */
+    @RequiresPermission(allOf = {android.Manifest.permission.READ_COMPAT_CHANGE_CONFIG,
+            android.Manifest.permission.LOG_COMPAT_CHANGE})
+    public static void enforceTelephonyFeatureWithException(@Nullable String callingPackage,
+            PackageManager pm, int vendorApiLevel, @NonNull List<String> anyOfTelephonyFeatures,
+            @NonNull String methodName) {
+        // Do nothing if enforcement should be skipped.
+        if (skipEnforceTelephonyFeatureWithException(callingPackage, pm, vendorApiLevel)) {
+            return;
+        }
+
+        // If at least one feature is present, the requirement is satisfied.
+        for (String feature : anyOfTelephonyFeatures) {
+            if (pm.hasSystemFeature(feature)) {
+                return;
+            }
+        }
+
+        throw new UnsupportedOperationException(
+                methodName + " is unsupported without any of " + anyOfTelephonyFeatures);
     }
 }

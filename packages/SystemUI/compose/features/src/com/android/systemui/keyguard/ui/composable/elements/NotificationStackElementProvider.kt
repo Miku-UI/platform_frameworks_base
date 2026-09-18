@@ -20,18 +20,19 @@ import android.content.Context
 import android.view.ViewGroup
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.android.compose.animation.scene.ContentScope
 import com.android.compose.animation.scene.ElementContentScope
+import com.android.compose.animation.scene.SceneTransitionLayoutState
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.notifications.ui.composable.ConstrainedNotificationStack
+import com.android.systemui.plugins.keyguard.ui.composable.elements.BaseLockscreenElement.ElementSource
 import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElement
 import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementKeys
 import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementProvider
 import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenScope
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout
 import com.android.systemui.statusbar.notification.stack.ui.view.NotificationScrollView
@@ -60,10 +61,11 @@ constructor(
     private inner class NotificationElement : LockscreenElement {
         override val key = LockscreenElementKeys.Notifications.Stack
         override val context = this@NotificationStackElementProvider.context
+        override val source = ElementSource.STANDARD
 
         @Composable
         override fun LockscreenScope<ElementContentScope>.LockscreenElement() {
-            contentScope.NotificationStack()
+            contentScope.NotificationStack(sceneContainerLayoutState)
         }
     }
 
@@ -86,10 +88,19 @@ constructor(
     }
 
     @Composable
-    private fun ContentScope.NotificationStack(modifier: Modifier = Modifier) {
+    private fun ContentScope.NotificationStack(
+        sceneContainerLayoutState: SceneTransitionLayoutState,
+        modifier: Modifier = Modifier,
+    ) {
         ConstrainedNotificationStack(
             stackScrollView = stackScrollView.get(),
-            viewModel = rememberViewModel("Notifications") { viewModelFactory.create() },
+            // Notifications need the layout state of the parent STL, and not the Nested STL to
+            // query Scene and Overlay transition states, to figure out which instance of the
+            // placeholders should be used during a Shared Element transition. This approach works,
+            // because the Nested STL doesn't do Shared element transitions on this element.
+            sceneContainerLayoutState = sceneContainerLayoutState,
+            viewModel =
+                rememberViewModel("Notifications") { viewModelFactory.create(Scenes.Lockscreen) },
             modifier = modifier.fillMaxSize(),
         )
     }

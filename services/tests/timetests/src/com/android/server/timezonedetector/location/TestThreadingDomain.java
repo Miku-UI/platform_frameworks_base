@@ -44,8 +44,8 @@ class TestThreadingDomain extends ThreadingDomain {
         @Nullable public final Object token;
         public final long executionTimeMillis;
 
-        QueuedRunnable(@NonNull Runnable runnable, @Nullable Object token,
-                long executionTimeMillis) {
+        QueuedRunnable(
+                @NonNull Runnable runnable, @Nullable Object token, long executionTimeMillis) {
             this.runnable = Objects.requireNonNull(runnable);
             this.token = token;
             this.executionTimeMillis = executionTimeMillis;
@@ -54,9 +54,12 @@ class TestThreadingDomain extends ThreadingDomain {
         @Override
         public String toString() {
             return "QueuedRunnable{"
-                    + "runnable=" + runnable
-                    + ", token=" + token
-                    + ", executionTimeMillis=" + executionTimeMillis
+                    + "runnable="
+                    + runnable
+                    + ", token="
+                    + token
+                    + ", executionTimeMillis="
+                    + executionTimeMillis
                     + '}';
         }
     }

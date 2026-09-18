@@ -76,7 +76,7 @@ public:
     virtual void onBufferReleased();
     virtual bool needsReleaseNotify() override { return true; };
     virtual void onBuffersDiscarded(const std::vector<sp<GraphicBuffer>>& /*buffers*/) override {};
-    virtual void onBufferDetached(int /*slot*/) override {};
+    virtual void onBufferDetached(uint64_t /*bufferId*/) override {};
 
     void setProducer(const sp<Surface>& producer) { mProducer = producer; }
     Surface* getProducer() { return mProducer.get(); }

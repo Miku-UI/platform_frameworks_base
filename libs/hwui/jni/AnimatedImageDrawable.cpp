@@ -40,6 +40,7 @@ using namespace android;
 
 static jclass gAnimatedImageDrawableClass;
 static jmethodID gAnimatedImageDrawable_callOnAnimationEndMethodID;
+static jmethodID gAnimatedImageDrawable_callOnFrameRateHintMethodID;
 
 // Note: jpostProcess holds a handle to the ImageDecoder.
 static jlong AnimatedImageDrawable_nCreate(JNIEnv* env, jobject /*clazz*/,
@@ -233,6 +234,69 @@ private:
 #endif
 };
 
+class InvokeFrameRateHintListener : public MessageHandler {
+public:
+    InvokeFrameRateHintListener(JNIEnv* env, jobject javaObject) {
+        LOG_ALWAYS_FATAL_IF(env->GetJavaVM(&mJvm) != JNI_OK);
+        mCallbackRef = env->NewGlobalRef(javaObject);
+    }
+
+    ~InvokeFrameRateHintListener() override {
+        auto* env = requireEnv(mJvm);
+        env->DeleteGlobalRef(mCallbackRef);
+    }
+
+    virtual void handleMessage(const Message& msg) override {
+        auto* env = get_env_or_die(mJvm);
+        float fps;
+        static_assert(sizeof(fps) == sizeof(msg.what));
+        memcpy(&fps, &msg.what, sizeof(fps));
+        env->CallStaticVoidMethod(gAnimatedImageDrawableClass,
+                                  gAnimatedImageDrawable_callOnFrameRateHintMethodID, mCallbackRef,
+                                  fps);
+    }
+
+private:
+    JavaVM* mJvm;
+    jobject mCallbackRef;
+};
+
+class JniFrameRateHintListener : public OnFrameRateHintListener {
+#ifdef __ANDROID__
+public:
+    JniFrameRateHintListener(sp<Looper>&& looper, JNIEnv* env, jobject javaObject) {
+        mListener = new InvokeFrameRateHintListener(env, javaObject);
+        mLooper = std::move(looper);
+    }
+
+    void onFrameRateHint(float fps) override {
+        Message msg;
+        static_assert(sizeof(fps) == sizeof(msg.what));
+        memcpy(&msg.what, &fps, sizeof(fps));
+        mLooper->sendMessage(mListener, msg);
+    }
+
+private:
+    sp<InvokeFrameRateHintListener> mListener;
+    sp<Looper> mLooper;
+#else
+public:
+    JniFrameRateHintListener(JNIEnv* env, jobject javaObject) {
+        mListener = new InvokeFrameRateHintListener(env, javaObject);
+    }
+
+    void onFrameRateHint(float fps) override {
+        Message msg;
+        static_assert(sizeof(fps) == sizeof(msg.what));
+        memcpy(&msg.what, &fps, sizeof(fps));
+        mListener->handleMessage(msg);
+    }
+
+private:
+    sp<InvokeFrameRateHintListener> mListener;
+#endif
+};
+
 static void AnimatedImageDrawable_nSetOnAnimationEndListener(JNIEnv* env, jobject /*clazz*/,
                                                              jlong nativePtr, jobject jdrawable) {
     auto* drawable = reinterpret_cast<AnimatedImageDrawable*>(nativePtr);
@@ -253,6 +317,31 @@ static void AnimatedImageDrawable_nSetOnAnimationEndListener(JNIEnv* env, jobjec
 #else
         drawable->setOnAnimationEndListener(
                 std::make_unique<JniAnimationEndListener>(env, jdrawable));
+#endif
+    }
+}
+
+static void AnimatedImageDrawable_nSetOnFrameRateHintListener(JNIEnv* env, jobject /*clazz*/,
+                                                              jlong nativePtr, jobject jdrawable) {
+    auto* drawable = reinterpret_cast<AnimatedImageDrawable*>(nativePtr);
+    if (!jdrawable) {
+        drawable->setOnFrameRateHintListener(nullptr);
+    } else {
+#ifdef __ANDROID__
+        sp<Looper> looper = Looper::getForThread();
+        if (!looper.get()) {
+            doThrowISE(
+                    env,
+                    "Must set AnimatedImageDrawable's OnFrameRateHintListener on a thread with a "
+                    "looper!");
+            return;
+        }
+
+        drawable->setOnFrameRateHintListener(
+                std::make_unique<JniFrameRateHintListener>(std::move(looper), env, jdrawable));
+#else
+        drawable->setOnFrameRateHintListener(
+                std::make_unique<JniFrameRateHintListener>(env, jdrawable));
 #endif
     }
 }
@@ -303,6 +392,8 @@ static const JNINativeMethod gAnimatedImageDrawableMethods[] = {
         {"nSetRepeatCount", "(JI)V", (void*)AnimatedImageDrawable_nSetRepeatCount},
         {"nSetOnAnimationEndListener", "(JLjava/lang/ref/WeakReference;)V",
          (void*)AnimatedImageDrawable_nSetOnAnimationEndListener},
+        {"nSetOnFrameRateHintListener", "(JLjava/lang/ref/WeakReference;)V",
+         (void*)AnimatedImageDrawable_nSetOnFrameRateHintListener},
         {"nNativeByteSize", "(J)J", (void*)AnimatedImageDrawable_nNativeByteSize},
         {"nSetMirrored", "(JZ)V", (void*)AnimatedImageDrawable_nSetMirrored},
         {"nSetBounds", "(JLandroid/graphics/Rect;)V", (void*)AnimatedImageDrawable_nSetBounds},
@@ -316,6 +407,9 @@ int register_android_graphics_drawable_AnimatedImageDrawable(JNIEnv* env) {
     gAnimatedImageDrawable_callOnAnimationEndMethodID =
             GetStaticMethodIDOrDie(env, gAnimatedImageDrawableClass, "callOnAnimationEnd",
                                    "(Ljava/lang/ref/WeakReference;)V");
+    gAnimatedImageDrawable_callOnFrameRateHintMethodID =
+            GetStaticMethodIDOrDie(env, gAnimatedImageDrawableClass, "callOnFrameRateHint",
+                                   "(Ljava/lang/ref/WeakReference;F)V");
 
     return android::RegisterMethodsOrDie(env, "android/graphics/drawable/AnimatedImageDrawable",
             gAnimatedImageDrawableMethods, NELEM(gAnimatedImageDrawableMethods));

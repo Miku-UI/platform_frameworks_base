@@ -62,6 +62,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executor;
@@ -117,12 +118,20 @@ public abstract class InfoMediaManager {
         default void onDeviceSuggestionsUpdated(
                 @NonNull List<SuggestedDeviceInfo> deviceSuggestions) {
         }
+
+        /**
+         * Callback for changes to the missing permissions info.
+         *
+         * @param info the new info.
+         */
+        default void onMissingPermissionsUpdated(@Nullable MissingPermissionsInfo info) {
+        }
     }
 
     /** Checked exception that signals the specified package is not present in the system. */
     public static class PackageNotAvailableException extends Exception {
-        public PackageNotAvailableException(String message) {
-            super(message);
+        public PackageNotAvailableException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 
@@ -139,7 +148,7 @@ public abstract class InfoMediaManager {
     private MediaDevice mCurrentConnectedDevice;
     private MediaController mMediaController;
     private PlaybackInfo mLastKnownPlaybackInfo;
-    private final LocalBluetoothManager mBluetoothManager;
+    @Nullable private final LocalBluetoothManager mBluetoothManager;
     @GuardedBy("mLock")
     private final Map<String, List<SuggestedDeviceInfo>> mSuggestedDeviceMap = new HashMap<>();
 
@@ -148,11 +157,14 @@ public abstract class InfoMediaManager {
     @GuardedBy("mLock")
     @Nullable private HandlerThread mCallbackHandlerThread;
 
+    @GuardedBy("mLock")
+    @Nullable private MissingPermissionsInfo mLastNotifiedMissingPermissionsInfo;
+
     /* package */ InfoMediaManager(
             @NonNull Context context,
             @NonNull String packageName,
             @NonNull UserHandle userHandle,
-            @NonNull LocalBluetoothManager localBluetoothManager,
+            @Nullable LocalBluetoothManager localBluetoothManager,
             @Nullable MediaController mediaController) {
         mContext = context;
         mBluetoothManager = localBluetoothManager;
@@ -172,14 +184,16 @@ public abstract class InfoMediaManager {
      *     caller is interested in system-level routing only (for example, headsets, built-in
      *     speakers, as opposed to app-specific routing (for example, casting to another device).
      * @param userHandle The {@link UserHandle} of the user on which the app to control is running,
-     *     or null if the caller does not need app-specific routing (see {@code packageName}).
+     *     or null to use the user handle of the caller of this method. Passing null is not
+     *     recommended, and clients should explicitly pass the user handle for the app they want to
+     *     control.
      * @param token The token of the associated {@link MediaSession} for which to do media routing.
      */
     public static InfoMediaManager createInstance(
             Context context,
             @Nullable String packageName,
             @Nullable UserHandle userHandle,
-            LocalBluetoothManager localBluetoothManager,
+            @Nullable LocalBluetoothManager localBluetoothManager,
             @Nullable MediaSession.Token token) {
         MediaController mediaController = null;
 
@@ -203,7 +217,7 @@ public abstract class InfoMediaManager {
                     context, packageName, userHandle, localBluetoothManager, mediaController);
         } catch (PackageNotAvailableException ex) {
             // TODO: b/293578081 - Propagate this exception to callers for proper handling.
-            Log.w(TAG, "Returning a no-op InfoMediaManager for package " + packageName);
+            Log.w(TAG, "Returning a no-op InfoMediaManager for package " + packageName, ex);
             return new NoOpInfoMediaManager(
                     context, packageName, userHandle, localBluetoothManager, mediaController);
         }
@@ -285,6 +299,44 @@ public abstract class InfoMediaManager {
     protected abstract List<MediaRoute2Info> getAvailableRoutesFromRouter();
 
     @NonNull
+    protected abstract Set<String> getMissingPermissions();
+
+    @Nullable
+    protected MissingPermissionsInfo getMissingPermissionsInfo() {
+        synchronized (mLock) {
+            return mLastNotifiedMissingPermissionsInfo;
+        }
+    }
+
+    /**
+     * Get the {@link UserHandle} associated with the MediaRouter2 instance.
+     */
+    @NonNull
+    protected UserHandle getUserHandle() {
+        return mUserHandle;
+    }
+
+    private void refreshMissingPermissionsInfo() {
+        MissingPermissionsInfo newInfo;
+        RouteListingPreference preference = getRouteListingPreference();
+        if (preference == null || preference.getMissingPermissionsComponentName() == null) {
+            newInfo = null;
+        } else {
+            Set<String> permissions = getMissingPermissions();
+            newInfo = new MissingPermissionsInfo(
+                    preference.getMissingPermissionsComponentName(), permissions);
+        }
+
+        synchronized (mLock) {
+            if (Objects.equals(newInfo, mLastNotifiedMissingPermissionsInfo)) {
+                return;
+            }
+            mLastNotifiedMissingPermissionsInfo = newInfo;
+        }
+        dispatchMissingPermissionsUpdated(newInfo);
+    }
+
+    @NonNull
     protected abstract List<MediaRoute2Info> getTransferableRoutes(@NonNull String packageName);
 
     protected final void rebuildDeviceList() {
@@ -312,7 +364,12 @@ public abstract class InfoMediaManager {
                 }
             }
         }
-        // TODO: b/435500030 - update the device list whenever RLP changes.
+        refreshDevices();
+        refreshMissingPermissionsInfo();
+    }
+
+    protected final void notifyMissingPermissionsUpdated(@NonNull Set<String> missingPermissions) {
+        refreshMissingPermissionsInfo();
     }
 
     @VisibleForTesting
@@ -361,6 +418,7 @@ public abstract class InfoMediaManager {
                 mMediaController.registerCallback(mMediaControllerCallback, callbackHandler);
             }
             refreshDevices();
+            refreshMissingPermissionsInfo();
         }
     }
 
@@ -416,6 +474,13 @@ public abstract class InfoMediaManager {
         Log.i(TAG, "dispatchOnRequestFailed(), reason = " + reason);
         for (MediaDeviceCallback callback : mCallbacks) {
             callback.onRequestFailed(reason);
+        }
+    }
+
+    private void dispatchMissingPermissionsUpdated(@Nullable MissingPermissionsInfo info) {
+        Log.i(TAG, "dispatchMissingPermissionsUpdated()");
+        for (MediaDeviceCallback callback : mCallbacks) {
+            callback.onMissingPermissionsUpdated(info);
         }
     }
 
@@ -800,6 +865,8 @@ public abstract class InfoMediaManager {
         } else if (isBluetoothMediaDevice(deviceType)) {
             if (route.getAddress() == null) {
                 Log.e(TAG, "Ignoring bluetooth route with no set address: " + route);
+            } else if (mBluetoothManager == null) {
+                Log.e(TAG, "BluetoothManager is null");
             } else {
                 final BluetoothDevice device =
                         BluetoothAdapter.getDefaultAdapter().getRemoteDevice(route.getAddress());

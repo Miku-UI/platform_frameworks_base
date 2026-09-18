@@ -19,7 +19,7 @@ package com.android.systemui.statusbar.phone;
 import static android.app.StatusBarManager.DISABLE2_SYSTEM_ICONS;
 import static android.app.StatusBarManager.DISABLE_SYSTEM_INFO;
 
-import static com.android.systemui.Flags.updateUserSwitcherBackground;
+
 import static com.android.systemui.statusbar.StatusBarState.KEYGUARD;
 import static com.android.systemui.util.kotlin.JavaAdapterKt.collectFlow;
 
@@ -45,16 +45,17 @@ import androidx.core.animation.AnimatorListenerAdapter;
 import androidx.core.animation.ValueAnimator;
 
 import com.android.app.animation.InterpolatorsAndroidX;
+import com.android.app.displaylib.PerDisplayRepository;
 import com.android.keyguard.AlphaOptimizedLinearLayout;
 import com.android.keyguard.CarrierTextController;
 import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.keyguard.KeyguardUpdateMonitorCallback;
 import com.android.keyguard.logging.KeyguardLogger;
 import com.android.systemui.Flags;
-import com.android.systemui.battery.BatteryMeterViewController;
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor;
 import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent;
 import com.android.systemui.dreams.ui.viewmodel.DreamViewModel;
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor;
 import com.android.systemui.keyguard.ui.viewmodel.GlanceableHubToLockscreenTransitionViewModel;
@@ -71,14 +72,11 @@ import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.statusbar.StatusBarState;
 import com.android.systemui.statusbar.SysuiStatusBarStateController;
 import com.android.systemui.statusbar.core.NewStatusBarIcons;
-import com.android.systemui.statusbar.core.RudimentaryBattery;
-import com.android.systemui.statusbar.data.repository.StatusBarContentInsetsProviderStore;
 import com.android.systemui.statusbar.disableflags.DisableStateTracker;
 import com.android.systemui.statusbar.events.SystemStatusAnimationCallback;
 import com.android.systemui.statusbar.events.SystemStatusAnimationScheduler;
 import com.android.systemui.statusbar.layout.StatusBarContentInsetsProvider;
 import com.android.systemui.statusbar.notification.AnimatableProperty;
-import com.android.systemui.statusbar.notification.PropertyAnimator;
 import com.android.systemui.statusbar.notification.stack.AnimationProperties;
 import com.android.systemui.statusbar.notification.stack.StackStateAnimator;
 import com.android.systemui.statusbar.phone.domain.interactor.DarkIconInteractor;
@@ -86,21 +84,18 @@ import com.android.systemui.statusbar.phone.fragment.StatusBarIconBlocklistKt;
 import com.android.systemui.statusbar.phone.fragment.StatusBarSystemEventDefaultAnimator;
 import com.android.systemui.statusbar.phone.ui.StatusBarIconController;
 import com.android.systemui.statusbar.phone.ui.TintedIconManager;
-import com.android.systemui.statusbar.pipeline.battery.ui.binder.BatteryWithPercentViewBinder;
 import com.android.systemui.statusbar.pipeline.battery.ui.binder.UnifiedBatteryViewBinder;
-import com.android.systemui.statusbar.pipeline.battery.ui.composable.ShowPercentMode;
-import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryNextToPercentViewModel;
 import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryViewModel;
 import com.android.systemui.statusbar.pipeline.shared.ui.view.SystemStatusIconsLayoutHelper;
-import com.android.systemui.statusbar.policy.BatteryController;
 import com.android.systemui.statusbar.policy.ConfigurationController;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.statusbar.policy.UserInfoController;
-import com.android.systemui.statusbar.ui.binder.KeyguardStatusBarViewBinder;
-import com.android.systemui.statusbar.ui.viewmodel.KeyguardStatusBarViewModel;
+import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose;
 import com.android.systemui.user.ui.viewmodel.StatusBarUserChipViewModel;
 import com.android.systemui.util.ViewController;
 import com.android.systemui.util.settings.SecureSettings;
+
+import dagger.Lazy;
 
 import kotlin.Unit;
 
@@ -136,22 +131,18 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
     private final Context mContext;
     private final CarrierTextController mCarrierTextController;
     private final ConfigurationController mConfigurationController;
-    private final SystemStatusAnimationScheduler mAnimationScheduler;
-    private final BatteryController mBatteryController;
+    @Nullable private SystemStatusAnimationScheduler mAnimationScheduler;
     private final UserInfoController mUserInfoController;
     private final StatusBarIconController mStatusBarIconController;
     private final TintedIconManager.Factory mTintedIconManagerFactory;
-    private final BatteryMeterViewController mBatteryMeterViewController;
-    private final BatteryNextToPercentViewModel.Factory mTandemBatteryViewModelFactory;
     private final BatteryViewModel.ShowPercentWhenChargingOrSetting.Factory mBatteryViewModel;
     private final ShadeViewStateProvider mShadeViewStateProvider;
     private final KeyguardStateController mKeyguardStateController;
     private final KeyguardBypassController mKeyguardBypassController;
     private final KeyguardUpdateMonitor mKeyguardUpdateMonitor;
-    private final KeyguardStatusBarViewModel mKeyguardStatusBarViewModel;
     private final BiometricUnlockController mBiometricUnlockController;
     private final SysuiStatusBarStateController mStatusBarStateController;
-    private final StatusBarContentInsetsProviderStore mInsetsProviderStore;
+    private final PerDisplayRepository<SystemUIDisplaySubcomponent> mPerDisplaySubcomponentRepo;
     private final UserManager mUserManager;
     private final StatusBarUserChipViewModel mStatusBarUserChipViewModel;
     private final SecureSettings mSecureSettings;
@@ -192,6 +183,15 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
                 public void onConfigChanged(Configuration newConfig) {
                     updateUserSwitcher();
                 }
+
+                @Override
+                public void onMovedToDisplay(int newDisplayId, Configuration newConfiguration) {
+                    if (mAnimationScheduler != null) {
+                        mAnimationScheduler.removeCallback(mAnimationCallback);
+                    }
+                    mAnimationScheduler = getAnimationSchedulerForDisplay(newDisplayId);
+                    mAnimationScheduler.addCallback(mAnimationCallback);
+                }
             };
 
     private final SystemStatusAnimationCallback mAnimationCallback =
@@ -206,14 +206,6 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
                 @Override
                 public Animator onSystemEventAnimationBegin() {
                     return mSystemEventAnimator.onSystemEventAnimationBegin();
-                }
-            };
-
-    private final BatteryController.BatteryStateChangeCallback mBatteryStateChangeCallback =
-            new BatteryController.BatteryStateChangeCallback() {
-                @Override
-                public void onBatteryLevelChanged(int level, boolean pluggedIn, boolean charging) {
-                    mView.onBatteryChargingChanged(charging);
                 }
             };
 
@@ -312,7 +304,6 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
     private final List<String> mBlockedIcons = new ArrayList<>();
     private final int mNotificationsHeaderCollideDistance;
 
-    private boolean mBatteryListening;
     private TintedIconManager mTintedIconManager;
 
     private float mKeyguardStatusBarAnimateAlpha = 1f;
@@ -328,7 +319,6 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
     private boolean mDelayShowingKeyguardStatusBar;
     private int mStatusBarState;
     private boolean mDozing;
-    private boolean mShowingKeyguardHeadsUp;
     private StatusBarSystemEventDefaultAnimator mSystemEventAnimator;
     private float mSystemEventAnimatorAlpha = 1;
     private final Consumer<Float> mToGlanceableHubStatusBarAlphaConsumer =
@@ -358,23 +348,19 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
             @ShadeDisplayAware Context context,
             KeyguardStatusBarView view,
             CarrierTextController carrierTextController,
-            ConfigurationController configurationController,
-            SystemStatusAnimationScheduler animationScheduler,
-            BatteryController batteryController,
+            @ShadeDisplayAware
+                    Lazy<ConfigurationController> displayAwareConfigurationControllerLazy,
             UserInfoController userInfoController,
             StatusBarIconController statusBarIconController,
             TintedIconManager.Factory tintedIconManagerFactory,
-            BatteryMeterViewController batteryMeterViewController,
-            BatteryNextToPercentViewModel.Factory tandemBatteryViewModelFactory,
             BatteryViewModel.ShowPercentWhenChargingOrSetting.Factory batteryViewModel,
             ShadeViewStateProvider shadeViewStateProvider,
             KeyguardStateController keyguardStateController,
             KeyguardBypassController bypassController,
             KeyguardUpdateMonitor keyguardUpdateMonitor,
-            KeyguardStatusBarViewModel keyguardStatusBarViewModel,
             BiometricUnlockController biometricUnlockController,
             SysuiStatusBarStateController statusBarStateController,
-            StatusBarContentInsetsProviderStore statusBarContentInsetsProviderStore,
+            PerDisplayRepository<SystemUIDisplaySubcomponent> perDisplaySubcomponentRepo,
             UserManager userManager,
             StatusBarUserChipViewModel userChipViewModel,
             SecureSettings secureSettings,
@@ -391,29 +377,23 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
             GoneToGlanceableHubTransitionViewModel goneToGlanceableHubTransitionViewModel,
             OccludedToLockscreenTransitionViewModel occludedToLockscreenTransitionViewModel,
             DreamViewModel dreamViewModel,
-            KeyguardInteractor keyguardInteractor
-    ) {
+            KeyguardInteractor keyguardInteractor) {
         super(view);
         mCoroutineDispatcher = dispatcher;
         mContext = context;
         mCarrierTextController = carrierTextController;
-        mConfigurationController = configurationController;
-        mAnimationScheduler = animationScheduler;
-        mBatteryController = batteryController;
+        mConfigurationController = displayAwareConfigurationControllerLazy.get();
         mUserInfoController = userInfoController;
         mStatusBarIconController = statusBarIconController;
         mTintedIconManagerFactory = tintedIconManagerFactory;
-        mBatteryMeterViewController = batteryMeterViewController;
-        mTandemBatteryViewModelFactory = tandemBatteryViewModelFactory;
         mBatteryViewModel = batteryViewModel;
         mShadeViewStateProvider = shadeViewStateProvider;
         mKeyguardStateController = keyguardStateController;
         mKeyguardBypassController = bypassController;
         mKeyguardUpdateMonitor = keyguardUpdateMonitor;
-        mKeyguardStatusBarViewModel = keyguardStatusBarViewModel;
         mBiometricUnlockController = biometricUnlockController;
         mStatusBarStateController = statusBarStateController;
-        mInsetsProviderStore = statusBarContentInsetsProviderStore;
+        mPerDisplaySubcomponentRepo = perDisplaySubcomponentRepo;
         mUserManager = userManager;
         mStatusBarUserChipViewModel = userChipViewModel;
         mSecureSettings = secureSettings;
@@ -449,25 +429,28 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
                 this::updateViewState
         );
         mStatusOverlayHoverListenerFactory = statusOverlayHoverListenerFactory;
-        if (NewStatusBarIcons.isEnabled() && SceneContainerFlag.isEnabled()) {
+        if (NewStatusBarIcons.isEnabled() && SceneContainerFlag.isEnabled()
+                && !SystemStatusIconsInCompose.isEnabled()) {
             mBatteryComposeView = createAndBindComposeBattery();
         }
     }
 
+    @NonNull
+    private SystemStatusAnimationScheduler getAnimationSchedulerForDisplay(int displayId) {
+        return mPerDisplaySubcomponentRepo
+                .getOrDefault(displayId)
+                .getSystemStatusAnimationScheduler();
+    }
+
     private StatusBarContentInsetsProvider insetsProvider() {
-        return mInsetsProviderStore.forDisplay(mContext.getDisplayId());
+        return mPerDisplaySubcomponentRepo.getOrDefault(
+                mContext.getDisplayId()).getStatusBarContentInsetsProvider();
     }
 
     @Override
     protected void onInit() {
         super.onInit();
         mCarrierTextController.init();
-        if (!NewStatusBarIcons.isEnabled()) {
-            mBatteryMeterViewController.init();
-        }
-        if (isMigrationEnabled()) {
-            KeyguardStatusBarViewBinder.bind(mView, mKeyguardStatusBarViewModel);
-        }
     }
 
     @Override
@@ -478,6 +461,9 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
         }
         mView.init(mStatusBarUserChipViewModel);
         mConfigurationController.addCallback(mConfigurationListener);
+        if (mAnimationScheduler == null) {
+            mAnimationScheduler = getAnimationSchedulerForDisplay(mContext.getDisplayId());
+        }
         mAnimationScheduler.addCallback(mAnimationCallback);
         mUserInfoController.addCallback(mOnUserInfoChangedListener);
         mStatusBarStateController.addCallback(mStatusBarStateListener);
@@ -508,7 +494,7 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
         mSystemIconsContainer.setOnHoverListener(hoverListener);
         mView.setOnApplyWindowInsetsListener(
                 (view, windowInsets) -> mView.updateWindowInsets(windowInsets, insetsProvider()));
-        mSecureSettings.registerContentObserverForUserSync(
+        mSecureSettings.registerContentObserverForUserAsync(
                 Settings.Secure.STATUS_BAR_SHOW_VIBRATE_ICON,
                 false,
                 mVolumeSettingObserver,
@@ -532,7 +518,7 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
         if (Flags.bouncerUiRevamp()) {
             collectFlow(mView, mKeyguardInteractor.primaryBouncerShowing, x -> updateViewState());
         }
-        if (NewStatusBarIcons.isEnabled()) {
+        if (NewStatusBarIcons.isEnabled() && !SystemStatusIconsInCompose.isEnabled()) {
             if (!SceneContainerFlag.isEnabled()) {
                 mBatteryComposeView = createAndBindComposeBattery();
             }
@@ -546,19 +532,10 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
 
     private ComposeView createAndBindComposeBattery() {
         ComposeView batteryComposeView = new ComposeView(mContext);
-        if (RudimentaryBattery.isEnabled()) {
-            BatteryWithPercentViewBinder.bind(
-                    batteryComposeView,
-                    mTandemBatteryViewModelFactory,
-                    ShowPercentMode.WhenCharging,
-                    DarkIconInteractor.toIsAreaDark(mView.darkChangeFlow()));
-
-        } else {
-            UnifiedBatteryViewBinder.bind(
-                    batteryComposeView,
-                    mBatteryViewModel,
-                    DarkIconInteractor.toIsAreaDark(mView.darkChangeFlow()));
-        }
+        UnifiedBatteryViewBinder.bind(
+                batteryComposeView,
+                mBatteryViewModel,
+                DarkIconInteractor.toIsAreaDark(mView.darkChangeFlow()));
 
         return batteryComposeView;
     }
@@ -567,12 +544,14 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
     protected void onViewDetached() {
         mSystemIconsContainer.setOnHoverListener(null);
         mConfigurationController.removeCallback(mConfigurationListener);
-        mAnimationScheduler.removeCallback(mAnimationCallback);
+        if (mAnimationScheduler != null) {
+            mAnimationScheduler.removeCallback(mAnimationCallback);
+        }
         mUserInfoController.removeCallback(mOnUserInfoChangedListener);
         mStatusBarStateController.removeCallback(mStatusBarStateListener);
         mKeyguardUpdateMonitor.removeCallback(mKeyguardUpdateMonitorCallback);
         mDisableStateTracker.stopTracking(mCommandQueue);
-        mSecureSettings.unregisterContentObserverSync(mVolumeSettingObserver);
+        mSecureSettings.unregisterContentObserverAsync(mVolumeSettingObserver);
         if (mTintedIconManager != null) {
             mStatusBarIconController.removeIconGroup(mTintedIconManager);
         }
@@ -595,23 +574,6 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
             return;
         }
         mView.setKeyguardUserSwitcherEnabled(enabled);
-    }
-
-    /** Sets whether this controller should listen to battery updates. */
-    public void setBatteryListening(boolean listening) {
-        if (isMigrationEnabled()) {
-            return;
-        }
-
-        if (listening == mBatteryListening) {
-            return;
-        }
-        mBatteryListening = listening;
-        if (mBatteryListening) {
-            mBatteryController.addCallback(mBatteryStateChangeCallback);
-        } else {
-            mBatteryController.removeCallback(mBatteryStateChangeCallback);
-        }
     }
 
     /** Set the view to have no top clipping. */
@@ -785,18 +747,13 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
      * Updates visibility of the user switcher button based on {@link android.os.UserManager} state.
      */
     private void updateUserSwitcher() {
-        if (updateUserSwitcherBackground()) {
-            mBackgroundExecutor.execute(() -> {
-                final boolean isUserSwitcherEnabled = mUserManager.isUserSwitcherEnabled(
-                        getResources().getBoolean(R.bool.qs_show_user_switcher_for_single_user));
-                mMainExecutor.execute(() -> {
-                    mView.setUserSwitcherEnabled(isUserSwitcherEnabled);
-                });
+        mBackgroundExecutor.execute(() -> {
+            final boolean isUserSwitcherEnabled = mUserManager.isUserSwitcherEnabled(
+                    getResources().getBoolean(R.bool.qs_show_user_switcher_for_single_user));
+            mMainExecutor.execute(() -> {
+                mView.setUserSwitcherEnabled(isUserSwitcherEnabled);
             });
-        } else {
-            mView.setUserSwitcherEnabled(mUserManager.isUserSwitcherEnabled(
-                    getResources().getBoolean(R.bool.qs_show_user_switcher_for_single_user)));
-        }
+        });
     }
 
     @VisibleForTesting
@@ -823,35 +780,6 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
         }
     }
 
-    /**
-      Update {@link KeyguardStatusBarView}'s visibility based on whether keyguard is showing and
-     * whether heads up is visible.
-     */
-    public void updateForHeadsUp() {
-        // [KeyguardStatusBarViewBinder] handles visibility when SceneContainerFlag is on.
-        SceneContainerFlag.assertInLegacyMode();
-        updateForHeadsUp(true);
-    }
-
-    @VisibleForTesting
-    void updateForHeadsUp(boolean animate) {
-        boolean showingKeyguardHeadsUp =
-                isKeyguardShowing() && mShadeViewStateProvider.shouldHeadsUpBeVisible();
-        if (mShowingKeyguardHeadsUp != showingKeyguardHeadsUp) {
-            mShowingKeyguardHeadsUp = showingKeyguardHeadsUp;
-            if (isKeyguardShowing()) {
-                PropertyAnimator.setProperty(
-                        mView,
-                        mHeadsUpShowingAmountAnimation,
-                        showingKeyguardHeadsUp ? 1.0f : 0.0f,
-                        KEYGUARD_HUN_PROPERTIES,
-                        animate);
-            } else {
-                PropertyAnimator.applyImmediately(mView, mHeadsUpShowingAmountAnimation, 0.0f);
-            }
-        }
-    }
-
     private boolean isKeyguardShowing() {
         return mStatusBarState == KEYGUARD;
     }
@@ -859,7 +787,6 @@ public class KeyguardStatusBarViewController extends ViewController<KeyguardStat
     /** */
     public void dump(PrintWriter pw, String[] args) {
         pw.println("KeyguardStatusBarView:");
-        pw.println("  mBatteryListening: " + mBatteryListening);
         pw.println("  mExplicitAlpha: " + mExplicitAlpha);
         pw.println("  alpha: " + mView.getAlpha());
         pw.println("  visibility: " + mView.getVisibility());

@@ -28,7 +28,6 @@ import android.view.WindowManager
 import android.view.WindowManager.LayoutParams.PRIVATE_FLAG_NO_MOVE_ANIMATION
 import android.view.WindowManager.LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY
 import com.airbnb.lottie.model.KeyPath
-import com.android.systemui.Flags.bpColors
 import com.android.systemui.biometrics.Utils
 import com.android.systemui.biometrics.domain.interactor.SideFpsSensorInteractor
 import com.android.systemui.biometrics.domain.model.SideFpsSensorLocation
@@ -156,47 +155,15 @@ constructor(
             _,
             showIndicatorForDeviceEntry: Boolean ->
             val callbacks = mutableListOf<LottieCallback>()
-            if (bpColors()) {
-                val indicatorColor =
-                    applicationContext.getColor(com.android.internal.R.color.materialColorPrimary)
-                val outerRimColor =
-                    applicationContext.getColor(com.android.internal.R.color.materialColorPrimary)
-                val chevronFill =
-                    applicationContext.getColor(com.android.internal.R.color.materialColorOnPrimary)
-                callbacks.add(LottieCallback(KeyPath(".blue600", "**"), indicatorColor))
-                callbacks.add(LottieCallback(KeyPath(".blue400", "**"), outerRimColor))
-                callbacks.add(LottieCallback(KeyPath(".black", "**"), chevronFill))
-            } else if (showIndicatorForDeviceEntry) {
-                val indicatorColor =
-                    applicationContext.getColor(
-                        com.android.internal.R.color.materialColorPrimaryFixed
-                    )
-                val outerRimColor =
-                    applicationContext.getColor(
-                        com.android.internal.R.color.materialColorPrimaryFixedDim
-                    )
-                val chevronFill =
-                    applicationContext.getColor(
-                        com.android.internal.R.color.materialColorOnPrimaryFixed
-                    )
-                callbacks.add(LottieCallback(KeyPath(".blue600", "**"), indicatorColor))
-                callbacks.add(LottieCallback(KeyPath(".blue400", "**"), outerRimColor))
-                callbacks.add(LottieCallback(KeyPath(".black", "**"), chevronFill))
-            } else {
-                if (!isDarkMode(applicationContext)) {
-                    callbacks.add(LottieCallback(KeyPath(".black", "**"), Color.WHITE))
-                }
-                for (key in listOf(".blue600", ".blue400")) {
-                    callbacks.add(
-                        LottieCallback(
-                            KeyPath(key, "**"),
-                            applicationContext.getColor(
-                                com.android.settingslib.color.R.color.settingslib_color_blue400
-                            ),
-                        )
-                    )
-                }
-            }
+            val indicatorColor =
+                applicationContext.getColor(com.android.internal.R.color.materialColorPrimary)
+            val outerRimColor =
+                applicationContext.getColor(com.android.internal.R.color.materialColorPrimary)
+            val chevronFill =
+                applicationContext.getColor(com.android.internal.R.color.materialColorOnPrimary)
+            callbacks.add(LottieCallback(KeyPath(".blue600", "**"), indicatorColor))
+            callbacks.add(LottieCallback(KeyPath(".blue400", "**"), outerRimColor))
+            callbacks.add(LottieCallback(KeyPath(".black", "**"), chevronFill))
             callbacks
         }
 

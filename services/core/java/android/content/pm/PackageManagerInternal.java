@@ -41,12 +41,14 @@ import android.os.Looper;
 import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.storage.StorageManager;
+import android.service.personalcontext.PersonalContextManager;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.SparseArray;
 
 import com.android.internal.pm.pkg.component.ParsedMainComponent;
 import com.android.internal.util.function.pooled.PooledLambda;
+import com.android.server.pm.Installer;
 import com.android.server.pm.KnownPackages;
 import com.android.server.pm.PackageArchiver;
 import com.android.server.pm.PackageList;
@@ -57,6 +59,7 @@ import com.android.server.pm.pkg.AndroidPackage;
 import com.android.server.pm.pkg.PackageStateInternal;
 import com.android.server.pm.pkg.SharedUserApi;
 import com.android.server.pm.pkg.mutate.PackageStateMutator;
+import com.android.server.pm.pkg.mutate.PackageStateWrite;
 import com.android.server.pm.snapshot.PackageDataSnapshot;
 
 import java.io.IOException;
@@ -416,11 +419,17 @@ public abstract class PackageManagerInternal {
     public abstract ComponentName getSystemUiServiceComponent();
 
     /**
-     * Called by DeviceOwnerManagerService to set the package names of device owner and profile
+     * Called by DevicePolicyManagerService to set the package names of device owner and profile
      * owners.
      */
     public abstract void setDeviceAndProfileOwnerPackages(
             int deviceOwnerUserId, String deviceOwner, SparseArray<String> profileOwners);
+
+    /**
+     * Called by DevicePolicyManagerService to set the package names of DPC apps.
+     */
+    public abstract void setDevicePolicyControllerPackages(
+            @Nullable SparseArray<String> devicePolicyControllerPackages);
 
     /**
      * Marks packages as protected for a given user or all users in case of USER_ALL. Setting
@@ -432,6 +441,22 @@ public abstract class PackageManagerInternal {
      */
     public abstract void setOwnerProtectedPackages(
             @UserIdInt int userId, @Nullable List<String> packageNames);
+
+    /**
+     * Returns {@code true} if a given package has App Lock enabled. Otherwise, returns {@code
+     * false}.
+     */
+    public abstract boolean isPackageAppLockEnabled(String packageName, int userId);
+
+    /**
+     * Returns a list of package names that have App Lock enabled for the given user.
+     */
+    public abstract @NonNull List<String> getAppLockEnabledPackagesForUser(int userId);
+
+    /**
+     * Called when the lock credential is changed or removed for a user.
+     */
+    public abstract void reportLockCredentialChanged(@UserIdInt int userId);
 
     /**
      * Returns {@code true} if a given package can't be wiped. Otherwise, returns {@code false}.
@@ -1364,10 +1389,19 @@ public abstract class PackageManagerInternal {
      * @return result if anything changed since initial state, or null if nothing changed and
      * commit was successful
      */
-    @Nullable
+    @NonNull
     public abstract PackageStateMutator.Result commitPackageStateMutation(
             @Nullable PackageStateMutator.InitialState state,
             @NonNull Consumer<PackageStateMutator> consumer);
+
+    /**
+     * @see #commitPackageStateMutation(PackageStateMutator.InitialState, Consumer)
+     */
+    @NonNull
+    public abstract PackageStateMutator.Result commitPackageStateMutation(
+            @Nullable PackageStateMutator.InitialState state,
+            @NonNull String packageName,
+            @NonNull Consumer<PackageStateWrite> consumer);
 
     /**
      * @return package data snapshot for use with other PackageManager infrastructure. This should
@@ -1376,6 +1410,13 @@ public abstract class PackageManagerInternal {
      */
     @NonNull
     public abstract PackageDataSnapshot snapshot();
+
+    /**
+     * Returns the host app UID for the given Private Compute Core UID.
+     * @param pccUid The Private Compute Core UID.
+     * @return The host app UID, or {@link Process#INVALID_UID} if not found.
+     */
+    public abstract int getAppUidForPrivateComputeCoreUid(int pccUid);
 
     public abstract void shutdown();
 
@@ -1467,4 +1508,122 @@ public abstract class PackageManagerInternal {
      */
     public abstract boolean isUpgradingFromLowerThanBySdkVersionFull(
             @Build.SdkIntFull int sdkVersionFull);
+
+    /**
+     * Returns the component access policy for a given package, which declares the set of
+     * other components the app is allowed to associate with.
+     *
+     * @param packageName The package for which to retrieve the policy.
+     * @param userId The user ID for which to check the package's installation state.
+     * @return The final {@link AllowComponentAccessPolicyInfo} object, or null if the
+     * package has not declared such a policy in its manifest.
+     * @hide
+     */
+    @Nullable
+    public abstract AllowComponentAccessPolicyInfo getAllowComponentAccessPolicyInfo(
+            @NonNull String packageName, @UserIdInt int userId);
+
+    /**
+     * Sets the personal context data collection setting for a given package.
+     *
+     * @param packageName The package for which to modify the setting.
+     * @param userId The user ID for which to write the package setting.
+     * @param mode The new setting value.
+     * @return true if the value was changed, else false.
+     * @throws PackageManager.NameNotFoundException if the package is not found
+     * @see PersonalContextManager#setPersonalContextModeEnabled(String, boolean)
+     */
+    public abstract boolean setPersonalContextMode(
+            String packageName,
+            int callingUid,
+            int userId,
+            @PackageManager.PersonalContextMode int mode);
+
+    /**
+     * Gets the personal context data collection setting value for a given package.
+     *
+     * @param packageName The package for which to fetch the setting value.
+     * @param userId The user ID for which to read the package setting.
+     * @return The setting value for the given package.
+     * @throws PackageManager.NameNotFoundException if the package is not found
+     * @see PersonalContextManager#isPersonalContextModeEnabled(String)
+     */
+    public abstract @PackageManager.PersonalContextMode int getPersonalContextMode(
+            String packageName, int callingUid, int userId);
+
+    /**
+     * Creates a snapshot of the app's data for potential rollback. This operation is internally
+     * synchronized with other package management operations to prevent race conditions and
+     * deadlocks, for example, by serializing access to the underlying {@link
+     * com.android.server.pm.Installer} calls.
+     *
+     * @param packageName The package for which to snapshot data.
+     * @param userId The user ID.
+     * @param rollbackId The ID of the rollback session.
+     * @param storageFlags Flags indicating which storage types (CE/DE) to snapshot, e.g., {@link
+     *     com.android.server.pm.Installer#FLAG_STORAGE_CE}.
+     * @return {@code true} if the snapshot was successfully initiated, {@code false} otherwise.
+     */
+    public abstract boolean snapshotAppData(
+            String packageName, int userId, int rollbackId, int storageFlags)
+            throws Installer.InstallerException;
+
+    /**
+     * Clears the app's data. This can be used to clear all data, or just caches, based on the
+     * flags. This operation is internally synchronized with other package management operations.
+     *
+     * @param volumeUuid The volume UUID, or {@code null} for internal storage.
+     * @param packageName The package for which to clear data.
+     * @param userId The user ID.
+     * @param flags Flags indicating storage types and clear options (e.g., {@link
+     *     com.android.server.pm.Installer#FLAG_CLEAR_CACHE_ONLY}).
+     * @param ceDataInode The inode of the CE data directory, if known, to optimize certain
+     *     operations. Pass 0 if not known or not applicable.
+     * @param pccCeDataInode The inode of the private compute core CE data directory, if known.
+     *     Pass 0 if not known or not applicable.
+     */
+    public abstract void clearAppData(
+            String volumeUuid,
+            String packageName,
+            int userId,
+            int flags,
+            long ceDataInode,
+            long pccCeDataInode)
+            throws Installer.InstallerException;
+
+    /**
+     * Restores a snapshot of the app's data as part of a rollback. This operation is internally
+     * synchronized with other package management operations.
+     *
+     * @param packageName The package for which to restore data.
+     * @param appId The application ID.
+     * @param pccId The private compute core ID for the app.
+     * @param seInfo The SEInfo label for the app.
+     * @param userId The user ID.
+     * @param rollbackId The ID of the rollback session.
+     * @param storageFlags Flags indicating which storage types (CE/DE) to restore.
+     * @return {@code true} if the restore was successfully initiated, {@code false} otherwise.
+     */
+    public abstract boolean restoreAppDataSnapshot(
+            String packageName,
+            int appId,
+            int pccId,
+            String seInfo,
+            int userId,
+            int rollbackId,
+            int storageFlags)
+            throws Installer.InstallerException;
+
+    /**
+     * Destroys a previously created app data snapshot. This operation is internally synchronized
+     * with other package management operations.
+     *
+     * @param packageName The package whose snapshot is to be destroyed.
+     * @param userId The user ID.
+     * @param rollbackId The ID of the rollback session.
+     * @param storageFlags Flags indicating which storage types (CE/DE) the snapshot includes.
+     */
+    public abstract void destroyAppDataSnapshot(
+            String packageName, int userId, int rollbackId, int storageFlags)
+            throws Installer.InstallerException;
 }

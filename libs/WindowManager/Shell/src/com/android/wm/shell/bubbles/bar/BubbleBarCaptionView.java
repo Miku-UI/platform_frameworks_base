@@ -66,8 +66,10 @@ public class BubbleBarCaptionView extends FrameLayout {
         mHandleView.setId(R.id.bubble_bar_handle_view);
         final int handleWidth = getResources().getDimensionPixelSize(
                 R.dimen.bubble_bar_expanded_view_handle_width);
-        final LayoutParams handleLp = new LayoutParams(handleWidth, LayoutParams.MATCH_PARENT);
-        handleLp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL;
+        int handleTouchHeight = getResources().getDimensionPixelSize(
+                R.dimen.bubble_bar_expanded_view_handle_touch_height);
+        final LayoutParams handleLp = new LayoutParams(handleWidth, handleTouchHeight);
+        handleLp.gravity = Gravity.CENTER_VERTICAL | Gravity.CENTER_HORIZONTAL;
         addView(mHandleView, handleLp);
 
         // Set background color with an initial color based on the system theme after both views
@@ -90,6 +92,8 @@ public class BubbleBarCaptionView extends FrameLayout {
 
     /** Sets the background color of the caption bar. */
     public void setBackgroundColor(int color) {
+        // Always enforce alpha channel to have 100% opacity.
+        color |= 0xFF000000;
         if (mBackgroundView != null && color != mBackgroundColor) {
             mBackgroundView.setBackgroundColor(color);
             mBackgroundColor = color;

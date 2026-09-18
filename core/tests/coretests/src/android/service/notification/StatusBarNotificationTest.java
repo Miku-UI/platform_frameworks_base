@@ -45,7 +45,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
-import com.android.window.flags.Flags;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -236,7 +235,6 @@ public class StatusBarNotificationTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PER_DISPLAY_PACKAGE_CONTEXT_CACHE_IN_STATUSBAR_NOTIF)
     public void testGetPackageContext_multipleDisplaysCase() {
         String pkg = "com.android.systemui";
         int uid = 1000;

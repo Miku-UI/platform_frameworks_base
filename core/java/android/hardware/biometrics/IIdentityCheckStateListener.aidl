@@ -15,6 +15,8 @@
  */
 package android.hardware.biometrics;
 
+import android.proximity.ProximityResultCode;
+
 /**
  * Interface for handling state changes related to Identity Check.
  * @hide
@@ -33,6 +35,10 @@ oneway interface IIdentityCheckStateListener {
         WATCH_RANGING_STOPPED = 3,
     }
 
-    /** Defines behavior for when the watch ranging state has changed */
-    void onWatchRangingStateChanged(WatchRangingState state);
+    /**
+     * Defines behavior for when the watch ranging state has changed.
+     * @param state The current state of watch ranging.
+     * @param errorCode The error code, which is one of {@link ProximityResultCode}.
+     */
+    void onWatchRangingStateChanged(WatchRangingState state, int errorCode);
 }

@@ -16,13 +16,10 @@
 
 package com.android.wm.shell.compatui.letterbox.state
 
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.view.SurfaceControl
 import android.window.WindowContainerToken
 import androidx.test.filters.SmallTest
-import com.android.window.flags.Flags
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.ShellExecutor
@@ -51,7 +48,6 @@ import org.mockito.kotlin.verify
 class LetterboxTaskListenerAdapterTest : ShellTestCase() {
 
     @Test
-    @EnableFlags(Flags.FLAG_APP_COMPAT_REFACTORING)
     fun `When the flag is ENABLED the appear and vanish listeners are registered`() {
         runTestScenario { r ->
             r.invokeShellInit()
@@ -61,10 +57,6 @@ class LetterboxTaskListenerAdapterTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_APP_COMPAT_REFACTORING,
-        Flags.FLAG_APP_COMPAT_REFACTORING_FIX_MULTIWINDOW_TASK_HIERARCHY,
-    )
     fun `When task hierarchy flag is ENABLED the update listener is registered`() {
         runTestScenario { r ->
             r.invokeShellInit()
@@ -75,70 +67,6 @@ class LetterboxTaskListenerAdapterTest : ShellTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_APP_COMPAT_REFACTORING)
-    fun `When the refactoring flag is DISABLED the listeners are NOT registered`() {
-        runTestScenario { r ->
-            r.invokeShellInit()
-            r.checkTaskAppearedListenerIsRegistered(expected = false)
-            r.checkTaskVanishedListenerIsRegistered(expected = false)
-            r.checkTaskInfoChangedListenerIsRegistered(expected = false)
-        }
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_APP_COMPAT_REFACTORING)
-    @DisableFlags(Flags.FLAG_APP_COMPAT_REFACTORING_FIX_MULTIWINDOW_TASK_HIERARCHY)
-    fun `When a Task appears the TaskInfo data are persisted`() {
-        runTestScenario { r ->
-            testTaskAppearedListener(r.getLetterboxTaskListenerAdapterFactory()) {
-                val leashTest = SurfaceControl()
-                val tokenTest = mock<WindowContainerToken>()
-                runningTaskInfo { ti ->
-                    ti.taskId = 10
-                    ti.token = tokenTest
-                    ti.appCompatTaskInfo.setIsLeafTask(true)
-                }
-                leash { leashTest }
-                validateOnTaskAppeared {
-                    r.validateItem(10) { item ->
-                        assertEquals(leashTest, item?.containerLeash)
-                        assertEquals(tokenTest, item?.containerToken)
-                    }
-                }
-            }
-        }
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_APP_COMPAT_REFACTORING)
-    @DisableFlags(Flags.FLAG_APP_COMPAT_REFACTORING_FIX_MULTIWINDOW_TASK_HIERARCHY)
-    fun `When a Task vanishes the TaskInfo data are removed`() {
-        runTestScenario { r ->
-            val leashTest = SurfaceControl()
-            val tokenTest = mock<WindowContainerToken>()
-            testTaskAppearedListener(r.getLetterboxTaskListenerAdapterFactory()) {
-                runningTaskInfo { ti ->
-                    ti.taskId = 10
-                    ti.token = tokenTest
-                }
-                leash { leashTest }
-                validateOnTaskAppeared { r.validateItem(10) { item -> assertNotNull(item) } }
-            }
-            testTaskVanishedListener(r.getLetterboxTaskListenerAdapterFactory()) {
-                runningTaskInfo { ti ->
-                    ti.taskId = 10
-                    ti.token = tokenTest
-                }
-                validateOnTaskVanished { r.validateItem(10) { item -> assertNull(item) } }
-            }
-        }
-    }
-
-    @Test
-    @EnableFlags(
-        Flags.FLAG_APP_COMPAT_REFACTORING,
-        Flags.FLAG_APP_COMPAT_REFACTORING_FIX_MULTIWINDOW_TASK_HIERARCHY,
-    )
     fun `When a leaf Task appears the TaskInfo data are persisted with parentTaskId`() {
         runTestScenario { r ->
             testTaskAppearedListener(r.getLetterboxTaskListenerAdapterFactory()) {
@@ -164,10 +92,6 @@ class LetterboxTaskListenerAdapterTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_APP_COMPAT_REFACTORING,
-        Flags.FLAG_APP_COMPAT_REFACTORING_FIX_MULTIWINDOW_TASK_HIERARCHY,
-    )
     fun `When flag enabled and Task is NOT leaf the TaskInfo data are NOT persisted`() {
         runTestScenario { r ->
             testTaskAppearedListener(r.getLetterboxTaskListenerAdapterFactory()) {
@@ -186,10 +110,6 @@ class LetterboxTaskListenerAdapterTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_APP_COMPAT_REFACTORING,
-        Flags.FLAG_APP_COMPAT_REFACTORING_FIX_MULTIWINDOW_TASK_HIERARCHY,
-    )
     fun `When a Task vanishes the TaskInfo data are removed with task hierarchy flag enabled`() {
         runTestScenario { r ->
             val leashTest = SurfaceControl()
@@ -214,11 +134,7 @@ class LetterboxTaskListenerAdapterTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_APP_COMPAT_REFACTORING,
-        Flags.FLAG_APP_COMPAT_REFACTORING_FIX_MULTIWINDOW_TASK_HIERARCHY,
-    )
-    fun `Remove a task from tepository during update when not leaf anymore`() {
+    fun `Remove a task from repository during update when not leaf anymore`() {
         runTestScenario { r ->
             val leashTest = SurfaceControl()
             val tokenTest = mock<WindowContainerToken>()

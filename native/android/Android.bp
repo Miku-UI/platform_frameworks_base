@@ -44,8 +44,8 @@ cc_defaults {
     },
 }
 
-cc_library_shared {
-    name: "libandroid",
+cc_defaults {
+    name: "libandroid_common",
     defaults: [
         "libandroid_defaults",
         "android.hardware.power-ndk_shared",
@@ -64,8 +64,8 @@ cc_library_shared {
         "input_transfer_token.cpp",
         "looper.cpp",
         "native_activity.cpp",
+        "native_service.cpp",
         "native_window_jni.cpp",
-        "net.c",
         "obb.cpp",
         "permission_manager.cpp",
         "performance_hint.cpp",
@@ -96,14 +96,11 @@ cc_library_shared {
         "libactivitymanager_aidl",
         "libandroid_runtime",
         "libminikin",
-        "libnetd_client",
         "libhwui",
         "libxml2",
         "libEGL",
         "libGLESv2",
         "libpowermanager",
-        "android.hardware.configstore@1.0",
-        "android.hardware.configstore-utils",
         "android.os.flags-aconfig-cc",
         "dynamic_instrumentation_manager_aidl-cpp",
         "libnativedisplay",
@@ -120,15 +117,38 @@ cc_library_shared {
         "libandroid_headers_private",
     ],
 
-    whole_static_libs: ["libnativewindow"],
+    whole_static_libs: [
+        "libandroid_com.android.npumanager",
+        "libnativewindow",
+    ],
 
-    export_static_lib_headers: ["libarect"],
-
-    include_dirs: ["bionic/libc/dns/include"],
+    export_static_lib_headers: [
+        "libarect",
+        "libandroid_com.android.npumanager",
+    ],
 
     local_include_dirs: ["include_platform"],
 
     export_include_dirs: ["include_platform"],
+}
+
+cc_library_shared {
+    name: "libandroid_preapex",
+    defaults: ["libandroid_common"],
+}
+
+cc_library_shared {
+    name: "libandroid",
+    defaults: ["libandroid_common"],
+
+    srcs: ["net.c"],
+
+    shared_libs: [
+        "libnetd_client",
+        "libcom.android.tethering.connectivity_native",
+    ],
+
+    include_dirs: ["bionic/libc/dns/include"],
 
     version_script: "libandroid.map.txt",
     stubs: {
@@ -151,7 +171,10 @@ cc_library_shared {
     },
     srcs: ["net.c"],
 
-    shared_libs: ["libnetd_client"],
+    shared_libs: [
+        "libnetd_client",
+        "libcom.android.tethering.connectivity_native",
+    ],
 
     include_dirs: ["bionic/libc/dns/include"],
 }
@@ -217,4 +240,33 @@ filegroup {
         "aidl/android/content/res/CameraCompatibilityInfo.aidl",
     ],
     path: "aidl",
+}
+
+aidl_interface {
+    name: "packagemanager_aidl",
+    unstable: true,
+    local_include_dir: "aidl",
+    host_supported: true,
+    srcs: [
+        "aidl/android/content/pm/ApexStagedEvent.aidl",
+        "aidl/android/content/pm/IPackageManagerNative.aidl",
+        "aidl/android/content/pm/IStagedApexObserver.aidl",
+        "aidl/android/content/pm/PackageInfoNative.aidl",
+        "aidl/android/content/pm/SignatureNative.aidl",
+        "aidl/android/content/pm/SigningInfoNative.aidl",
+        "aidl/android/content/pm/StagedApexInfo.aidl",
+    ],
+    backend: {
+        rust: {
+            apex_available: [
+                "//apex_available:platform",
+                "com.android.virt",
+            ],
+            enabled: true,
+            gen_mockall: true,
+            additional_rustlibs: [
+                "libmockall",
+            ],
+        },
+    },
 }

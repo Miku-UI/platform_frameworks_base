@@ -16,17 +16,26 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 
 /**
  * Thrown if trying to create a credential with an unsupported document type.
+ *
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public class DocTypeNotSupportedException extends IdentityCredentialException {
     /**
      * Constructs a new {@link DocTypeNotSupportedException} exception.
      *
      * @param message the detail message.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public DocTypeNotSupportedException(@NonNull String message) {
         super(message);
     }
@@ -36,7 +45,11 @@ public class DocTypeNotSupportedException extends IdentityCredentialException {
      *
      * @param message the detail message.
      * @param cause   the cause.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public DocTypeNotSupportedException(@NonNull String message, @NonNull Throwable cause) {
         super(message, cause);
     }

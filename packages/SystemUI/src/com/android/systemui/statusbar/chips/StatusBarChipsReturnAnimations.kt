@@ -17,7 +17,6 @@
 package com.android.systemui.statusbar.chips
 
 import com.android.systemui.Flags
-import com.android.systemui.statusbar.phone.ongoingcall.StatusBarChipsModernization
 
 /** Helper for reading or using the status_bar_chips_return_animations flag state. */
 object StatusBarChipsReturnAnimations {
@@ -27,5 +26,5 @@ object StatusBarChipsReturnAnimations {
     /** Is the feature enabled. */
     @JvmStatic
     inline val isEnabled
-        get() = StatusBarChipsModernization.isEnabled && Flags.statusBarChipsReturnAnimations()
+        get() = Flags.statusBarChipsReturnAnimations()
 }

@@ -31,6 +31,7 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.anyString;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doAnswer;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doNothing;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.doThrow;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.eq;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mock;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
@@ -38,7 +39,6 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.nullable;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spy;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
@@ -46,6 +46,7 @@ import static org.mockito.Mockito.withSettings;
 import android.annotation.Nullable;
 import android.app.ActivityManagerInternal;
 import android.app.ActivityThread;
+import android.app.AppLockInternal;
 import android.app.AppOpsManager;
 import android.app.IApplicationThread;
 import android.app.usage.UsageStatsManagerInternal;
@@ -56,11 +57,11 @@ import android.content.Context;
 import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.IPackageManager;
+import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
 import android.content.res.Configuration;
 import android.database.ContentObserver;
 import android.hardware.devicestate.DeviceStateManager;
-import android.hardware.display.DisplayManagerGlobal;
 import android.hardware.display.DisplayManagerInternal;
 import android.net.Uri;
 import android.os.Handler;
@@ -72,13 +73,11 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.DeviceConfig;
 import android.util.Log;
-import android.view.DisplayInfo;
 import android.view.InputChannel;
 import android.view.SurfaceControl;
 
 import com.android.dx.mockito.inline.extended.StaticMockitoSession;
 import com.android.internal.os.BackgroundThread;
-import com.android.internal.protolog.PerfettoProtoLogImpl;
 import com.android.internal.protolog.ProtoLog;
 import com.android.internal.protolog.WmProtoLogGroups;
 import com.android.server.AnimationThread;
@@ -89,8 +88,9 @@ import com.android.server.UiModeManagerInternal;
 import com.android.server.UiThread;
 import com.android.server.Watchdog;
 import com.android.server.am.ActivityManagerService;
-import com.android.server.am.ProcessStateController;
 import com.android.server.am.psc.AsyncBatchSession;
+import com.android.server.am.psc.ProcessRecordInternal;
+import com.android.server.am.psc.ProcessStateController;
 import com.android.server.display.DisplayControl;
 import com.android.server.display.color.ColorDisplayService;
 import com.android.server.firewall.IntentFirewall;
@@ -100,8 +100,8 @@ import com.android.server.pm.UserManagerInternal;
 import com.android.server.pm.UserManagerService;
 import com.android.server.policy.PermissionPolicyInternal;
 import com.android.server.statusbar.StatusBarManagerInternal;
-import com.android.server.testutils.StubTransaction;
 import com.android.server.uri.UriGrantsManagerInternal;
+import com.android.testing.wm.util.StubTransaction;
 
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -112,7 +112,8 @@ import org.mockito.quality.Strictness;
 import org.mockito.stubbing.Answer;
 
 import java.util.ArrayList;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -145,6 +146,7 @@ public class SystemServicesTestRule implements TestRule {
     private ActivityTaskManagerService mAtmService;
     private WindowManagerService mWmService;
     private InputManagerService mImService;
+    private TestDisplayManager mTestDisplayManager;
     @Nullable
     private final Runnable mOnBeforeServicesCreated;
 
@@ -192,7 +194,7 @@ public class SystemServicesTestRule implements TestRule {
     private void setUp() {
         if (ProtoLog.getSingleInstance() == null) {
             ProtoLog.init(WmProtoLogGroups.values());
-            PerfettoProtoLogImpl.waitForInitialization();
+            ProtoLog.waitForInitialization();
         }
 
         if (mOnBeforeServicesCreated != null) {
@@ -250,6 +252,14 @@ public class SystemServicesTestRule implements TestRule {
         mContext = getInstrumentation().getTargetContext();
         spyOn(mContext);
 
+        final PackageManager pm = spy(mContext.getPackageManager());
+        try {
+            doThrow(new PackageManager.NameNotFoundException()).when(pm).getPropertyAsUser(
+                    anyString(), nullable(String.class), nullable(String.class), anyInt());
+        } catch (PackageManager.NameNotFoundException e) {
+        }
+        doReturn(pm).when(mContext).getPackageManager();
+
         doReturn(null).when(mContext)
                 .registerReceiver(nullable(BroadcastReceiver.class), any(IntentFilter.class),
                         nullable(String.class), nullable(Handler.class));
@@ -265,13 +275,6 @@ public class SystemServicesTestRule implements TestRule {
         doNothing().when(contentResolver)
                 .registerContentObserver(any(Uri.class), anyBoolean(), any(ContentObserver.class),
                         anyInt());
-
-        // Unit test should not register listener to the real service.
-        final DisplayManagerGlobal dmg = DisplayManagerGlobal.getInstance();
-        spyOn(dmg);
-        doNothing().when(dmg).registerDisplayListener(
-                any(), any(Executor.class), anyLong(), anyString(), anyBoolean());
-        doNothing().when(dmg).registerTopologyListener(any(Executor.class), any(), anyString());
     }
 
     private void setUpLocalServices() {
@@ -300,12 +303,7 @@ public class SystemServicesTestRule implements TestRule {
         // DisplayManagerInternal
         final DisplayManagerInternal dmi = mock(DisplayManagerInternal.class);
         doReturn(dmi).when(() -> LocalServices.getService(eq(DisplayManagerInternal.class)));
-        doAnswer(invocation -> {
-            int displayId = invocation.getArgument(0);
-            DisplayInfo displayInfo = invocation.getArgument(1);
-            mWmService.mRoot.getDisplayContent(displayId).getDisplay().getDisplayInfo(displayInfo);
-            return null;
-        }).when(dmi).getNonOverrideDisplayInfo(anyInt(), any());
+        mTestDisplayManager = new TestDisplayManager(dmi, () -> mWmService);
 
         // ColorDisplayServiceInternal
         final ColorDisplayService.ColorDisplayServiceInternal cds =
@@ -319,12 +317,16 @@ public class SystemServicesTestRule implements TestRule {
         // PackageManagerInternal
         final PackageManagerInternal packageManagerInternal = mock(PackageManagerInternal.class);
         LocalServices.addService(PackageManagerInternal.class, packageManagerInternal);
+        doReturn(true).when(packageManagerInternal).isSameApp(anyString(), anyInt(), anyInt());
         doReturn(false).when(packageManagerInternal).isPermissionsReviewRequired(
                 anyString(), anyInt());
         doReturn(null).when(packageManagerInternal).getDefaultHomeActivity(anyInt());
 
         ComponentName systemServiceComponent = new ComponentName("android.test.system.service", "");
         doReturn(systemServiceComponent).when(packageManagerInternal).getSystemUiServiceComponent();
+
+        // AppLockInternal
+        LocalServices.addService(AppLockInternal.class, mock(AppLockInternal.class));
 
         // PowerManagerInternal
         final PowerManagerInternal pmi = mock(PowerManagerInternal.class);
@@ -435,6 +437,8 @@ public class SystemServicesTestRule implements TestRule {
                 null, null, mTransaction, mWmService.mPowerManagerInternal);
 
         mWmService.onInitReady();
+        mAtmService.mTaskSupervisor.mGoingToSleepWakeLock =
+                createStubbedWakeLock(false /* needVerification */);
         mAtmService.setWindowManager(mWmService);
         mWmService.mDisplayEnabled = true;
         mWmService.mDisplayReady = true;
@@ -460,6 +464,10 @@ public class SystemServicesTestRule implements TestRule {
     }
 
     private void tearDown() {
+        if (mTestDisplayManager != null) {
+            mTestDisplayManager.dispose();
+        }
+
         if (mWmService != null) {
             for (int i = mWmService.mRoot.getChildCount() - 1; i >= 0; i--) {
                 final DisplayContent dc = mWmService.mRoot.getChildAt(i);
@@ -467,8 +475,8 @@ public class SystemServicesTestRule implements TestRule {
                 dc.getDisplayPolicy().release();
                 // Unregister SensorEventListener (foldable device may register for hinge angle).
                 dc.getDisplayRotation().onDisplayRemoved();
-                dc.mAppCompatCameraPolicy.dispose();
             }
+            mWmService.mAppCompatCameraPolicy.dispose();
         }
 
         for (int i = mDeviceConfigListeners.size() - 1; i >= 0; i--) {
@@ -512,6 +520,7 @@ public class SystemServicesTestRule implements TestRule {
         LocalServices.removeServiceForTest(UiModeManagerInternal.class);
         LocalServices.removeServiceForTest(UserManagerInternal.class);
         LocalServices.removeServiceForTest(GrammaticalInflectionManagerInternal.class);
+        LocalServices.removeServiceForTest(AppLockInternal.class);
     }
 
     Description getDescription() {
@@ -524,6 +533,10 @@ public class SystemServicesTestRule implements TestRule {
 
     ActivityTaskManagerService getActivityTaskManagerService() {
         return mAtmService;
+    }
+
+    public TestDisplayManager getTestDisplayManager() {
+        return mTestDisplayManager;
     }
 
     /** Creates a no-op wakelock object. */
@@ -550,11 +563,12 @@ public class SystemServicesTestRule implements TestRule {
 
     static WindowProcessController addProcess(ActivityTaskManagerService atmService,
             ApplicationInfo info, String procName, int pid) {
+        final ProcessRecordInternal mockOwner = mock(ProcessRecordInternal.class);
         final WindowProcessListener mockListener = mock(WindowProcessListener.class,
                 withSettings().stubOnly());
         final int uid = info.uid;
         final WindowProcessController proc = new WindowProcessController(atmService,
-                info, procName, uid, UserHandle.getUserId(uid), mockListener, mockListener);
+                info, procName, uid, UserHandle.getUserId(uid), mockOwner, mockListener);
         proc.setThread(mock(IApplicationThread.class, withSettings().stubOnly()));
         atmService.mProcessNames.put(procName, uid, proc);
         if (pid > 0) {
@@ -569,14 +583,62 @@ public class SystemServicesTestRule implements TestRule {
         if (wm == null) {
             return;
         }
-        waitHandlerIdle(wm.mH);
-        waitHandlerIdle(wm.mAnimationHandler);
-        // This is a different handler object than the wm.mAnimationHandler above.
-        waitHandlerIdle(AnimationThread.getHandler());
-        waitHandlerIdle(SurfaceAnimationThread.getHandler());
-        // Some binder calls are posted to BackgroundThread.getHandler(), we should wait for them
-        // to finish to run next test.
-        waitHandlerIdle(BackgroundThread.getHandler());
+        final Runnable waitAction = () -> {
+            waitHandlerIdle(wm.mH);
+            waitHandlerIdle(wm.mAnimationHandler);
+            // This is a different handler object than the wm.mAnimationHandler above.
+            waitHandlerIdle(AnimationThread.getHandler());
+            waitHandlerIdle(SurfaceAnimationThread.getHandler());
+            // Some binder calls are posted to BackgroundThread.getHandler(), we should
+            // wait for them to finish to run next test.
+            waitHandlerIdle(BackgroundThread.getHandler());
+            waitHandlerIdle(UiThread.getHandler());
+        };
+
+        // If the test holds the global lock (e.g. because of WindowManagerGlobalLockRule),
+        // we need to yield it, as some handlers might be waiting for it.
+        offloadIfLocked(wm.mGlobalLock, waitAction);
+    }
+
+    /**
+     * Runs the given {@code action} on a separate thread and yields the {@code lock} if it is
+     * held by the current thread. This is useful to avoid deadlocks when the current thread is
+     * waiting for some work to be completed, and that work might need to acquire the lock.
+     */
+    private static void offloadIfLocked(Object lock, Runnable action) {
+        if (Thread.holdsLock(lock)) {
+            final FutureTask<Void> task = new FutureTask<>(action, null);
+
+            new Thread(() -> {
+                try {
+                    task.run();
+                } finally {
+                    synchronized (lock) {
+                        lock.notifyAll();
+                    }
+                }
+            }).start();
+
+            synchronized (lock) {
+                while (!task.isDone()) {
+                    try {
+                        // Release the lock in the current thread and give a chance for the offload
+                        // thread to finish the clean-up
+                        lock.wait();
+                    } catch (InterruptedException ignored) {
+                    }
+                }
+            }
+
+            try {
+                task.get();
+            } catch (ExecutionException e) {
+                throw new RuntimeException("Exception in offloaded thread", e.getCause());
+            } catch (InterruptedException ignored) {
+            }
+        } else {
+            action.run();
+        }
     }
 
     static void waitHandlerIdle(Handler handler) {
@@ -683,6 +745,15 @@ public class SystemServicesTestRule implements TestRule {
             spyOn(uiContext);
             doNothing().when(uiContext).registerComponentCallbacks(any());
             doNothing().when(uiContext).unregisterComponentCallbacks(any());
+
+            spyOn(mSystemThread);
+            doAnswer(invocation -> {
+                Context ctx = (Context) invocation.callRealMethod();
+                spyOn(ctx);
+                doNothing().when(ctx).registerComponentCallbacks(any());
+                doNothing().when(ctx).unregisterComponentCallbacks(any());
+                return ctx;
+            }).when(mSystemThread).getSystemUiContext(anyInt());
         }
 
         @Override

@@ -52,11 +52,18 @@ public:
                 (const ::android::sp<::android::os::IThermalStatusListener>& listener,
                  bool* _aidl_return),
                 (override));
+    MOCK_METHOD(Status, registerThermalStatusListenerForDevice,
+                (int32_t deviceId,
+                 const ::android::sp<::android::os::IThermalStatusListener>& listener,
+                 bool* _aidl_return),
+                (override));
     MOCK_METHOD(Status, unregisterThermalStatusListener,
                 (const ::android::sp<::android::os::IThermalStatusListener>& listener,
                  bool* _aidl_return),
                 (override));
     MOCK_METHOD(Status, getCurrentThermalStatus, (int32_t * _aidl_return), (override));
+    MOCK_METHOD(Status, getCurrentThermalStatusForDevice, (int32_t deviceId, int32_t* _aidl_return),
+                (override));
     MOCK_METHOD(Status, getCurrentCoolingDevices,
                 (::std::vector<::android::os::CoolingDevice> * _aidl_return), (override));
     MOCK_METHOD(Status, getCurrentCoolingDevicesWithType,

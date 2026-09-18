@@ -43,16 +43,12 @@ sealed class Edge {
 
         if (SceneContainerFlag.isEnabled) {
             if (fromChanged && toChanged) {
-                // TODO:(b/330311871) As we come close to having all current edges converted these
-                //  error messages can be converted to throw such that future developers fail early
-                //  when they introduce invalid edges.
-                Log.e(
-                    TAG,
+                throw IllegalStateException(
                     """
                     The edge ${from?.name} => ${to?.name} was automatically converted to
                     ${mappedFrom?.name} => ${mappedTo?.name} but does not exist anymore in KTF.
                     Please remove or port this edge to scene container."""
-                        .trimIndent(),
+                        .trimIndent()
                 )
             } else if (fromChanged || toChanged) {
                 Log.w(

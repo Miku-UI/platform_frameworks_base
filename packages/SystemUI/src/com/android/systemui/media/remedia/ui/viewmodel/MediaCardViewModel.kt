@@ -41,6 +41,8 @@ interface MediaCardViewModel {
 
     val subtitle: String
 
+    val isExplicit: Boolean
+
     val actionButtonLayout: MediaCardActionButtonLayout
 
     val playPauseAction: MediaPlayPauseActionViewModel?
@@ -60,8 +62,7 @@ interface MediaCardViewModel {
 
     val onClick: (Expandable) -> Unit
 
-    /** Accessibility string for the click action of the card. */
-    val onClickLabel: String?
+    val contentDescription: String
 
     val onLongClick: () -> Unit
 }

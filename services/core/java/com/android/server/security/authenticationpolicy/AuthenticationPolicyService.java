@@ -22,7 +22,6 @@ import static android.Manifest.permission.TEST_BIOMETRIC;
 import static android.Manifest.permission.USE_BIOMETRIC_INTERNAL;
 import static android.hardware.biometrics.BiometricConstants.BIOMETRIC_ERROR_LOCKOUT;
 import static android.hardware.biometrics.BiometricConstants.BIOMETRIC_ERROR_LOCKOUT_PERMANENT;
-import static android.security.Flags.disableAdaptiveAuthCounterLock;
 import static android.security.Flags.failedAuthLockToggle;
 import static android.security.Flags.secureLockDevice;
 import static android.security.Flags.secureLockdown;
@@ -34,6 +33,7 @@ import android.annotation.EnforcePermission;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.KeyguardManager;
+import android.companion.DeviceId;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.hardware.biometrics.AuthenticationStateListener;
@@ -80,6 +80,7 @@ import com.android.server.SystemService;
 import com.android.server.locksettings.LockSettingsInternal;
 import com.android.server.locksettings.LockSettingsStateListener;
 import com.android.server.pm.UserManagerInternal;
+import com.android.server.security.authenticationpolicy.agent.AgentAuthServiceInternal;
 import com.android.server.wm.WindowManagerInternal;
 
 import java.io.FileDescriptor;
@@ -112,6 +113,7 @@ public class AuthenticationPolicyService extends SystemService {
     private final boolean mEnableFailedAuthLockToggle;
     private SecureLockDeviceServiceInternal mSecureLockDeviceService;
     private WatchRangingServiceInternal mWatchRangingService;
+    private final AgentAuthServiceInternal mAgentAuthService;
     @VisibleForTesting
     final SparseIntArray mFailedAttemptsForUser = new SparseIntArray();
     private final SparseLongArray mLastLockedTimestamp = new SparseLongArray();
@@ -123,6 +125,8 @@ public class AuthenticationPolicyService extends SystemService {
     @VisibleForTesting
     public AuthenticationPolicyService(Context context, LockPatternUtils lockPatternUtils) {
         super(context);
+
+        // fetch dependencies
         mLockPatternUtils = lockPatternUtils;
         mLockSettings = Objects.requireNonNull(
                 LocalServices.getService(LockSettingsInternal.class));
@@ -132,6 +136,8 @@ public class AuthenticationPolicyService extends SystemService {
         mWindowManager = Objects.requireNonNull(
                 LocalServices.getService(WindowManagerInternal.class));
         mUserManager = Objects.requireNonNull(LocalServices.getService(UserManagerInternal.class));
+
+        // sub-services
         if (secureLockdown()) {
             mSecureLockDeviceService = Objects.requireNonNull(
                     LocalServices.getService(SecureLockDeviceServiceInternal.class));
@@ -140,6 +146,10 @@ public class AuthenticationPolicyService extends SystemService {
             mWatchRangingService = Objects.requireNonNull(LocalServices.getService(
                     WatchRangingServiceInternal.class));
         }
+        mAgentAuthService = android.companion.Flags.supportAiAgent() ? Objects.requireNonNull(
+                LocalServices.getService(AgentAuthServiceInternal.class)) : null;
+
+        // settings / config for policy services
         mEnableFailedAuthLock = context.getResources().getBoolean(
                 com.android.internal.R.bool.config_enableFailedAuthLock);
         mMaxAllowedFailedAuthAttempts = context.getResources().getInteger(
@@ -394,8 +404,7 @@ public class AuthenticationPolicyService extends SystemService {
         // If a user toggle is enabled by the device manufacturer on 25Q4+ builds, or if it's
         // debuggable 25Q3+ builds, then failed auth lock can be enabled or disabled by
         // users in settings
-        if ((failedAuthLockToggle() && mEnableFailedAuthLockToggle)
-                || (disableAdaptiveAuthCounterLock() && Build.IS_DEBUGGABLE)) {
+        if ((failedAuthLockToggle() && mEnableFailedAuthLockToggle) || Build.IS_DEBUGGABLE) {
             // If userId is a profile, use its parent's settings to determine whether failed auth
             // lock is enabled or disabled for the profile, irrespective of the profile's own
             // settings. If userId is a main user (i.e. parentUserId equals to userId), use its own
@@ -555,12 +564,8 @@ public class AuthenticationPolicyService extends SystemService {
             // Required for internal service to acquire necessary system permissions
             final long identity = Binder.clearCallingIdentity();
             try {
-                boolean authenticationComplete =
-                        mSecureLockDeviceService.hasUserCompletedTwoFactorAuthentication(user);
-                Slog.d(TAG, "Disabling secure lock device: "
-                        + "user " + user + ", authenticationComplete " + authenticationComplete);
-                return mSecureLockDeviceService.disableSecureLockDevice(user, params,
-                        /* authenticationComplete = */ authenticationComplete);
+                Slog.d(TAG, "Disabling secure lock device for user " + user + ".");
+                return mSecureLockDeviceService.disableSecureLockDevice(user, params);
             } finally {
                 Binder.restoreCallingIdentity(identity);
             }
@@ -667,19 +672,95 @@ public class AuthenticationPolicyService extends SystemService {
         }
 
         @Override
+        @EnforcePermission(USE_BIOMETRIC_INTERNAL)
+        public boolean isAgentAuthorized(@NonNull UserHandle user, int deviceId,
+                @Nullable DeviceId companionDeviceId) {
+            isAgentAuthorized_enforcePermission();
+
+            if (android.companion.Flags.supportAiAgent()) {
+                return mAgentAuthService.isAgentAuthorized(
+                        user.getIdentifier(), deviceId, companionDeviceId);
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        @EnforcePermission(USE_BIOMETRIC_INTERNAL)
+        public boolean isAgentAuthorizedByDeviceId(UserHandle user, int deviceId) {
+            isAgentAuthorizedByDeviceId_enforcePermission();
+
+            if (android.companion.Flags.supportAiAgent()) {
+                return mAgentAuthService.isAgentAuthorizedByDeviceId(
+                        user.getIdentifier(), deviceId);
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        @EnforcePermission(USE_BIOMETRIC_INTERNAL)
+        public boolean isAgentAuthorizedByAssociationId(UserHandle user, int associationId) {
+            isAgentAuthorizedByAssociationId_enforcePermission();
+
+            if (android.companion.Flags.supportAiAgent()) {
+                return mAgentAuthService.isAgentAuthorizedByAssociationId(
+                        user.getIdentifier(), associationId);
+            } else {
+                return false;
+            }
+        }
+
+        @Override
+        @EnforcePermission(USE_BIOMETRIC_INTERNAL)
+        public boolean setAgentAuthorizedByDeviceId(UserHandle user, int deviceId, boolean authorized) {
+            setAgentAuthorizedByDeviceId_enforcePermission();
+
+            if (Build.IS_DEBUGGABLE) {
+                if (android.companion.Flags.supportAiAgent()) {
+                    return mAgentAuthService.setOverrideForDeviceId(
+                            user.getIdentifier(), deviceId, authorized);
+                }
+            }
+
+            return false;
+        }
+
+        @Override
+        @EnforcePermission(USE_BIOMETRIC_INTERNAL)
+        public boolean setAgentAuthorizedByAssociationId(UserHandle user, int associationId, boolean authorized) {
+            setAgentAuthorizedByAssociationId_enforcePermission();
+
+            if (Build.IS_DEBUGGABLE) {
+                if (android.companion.Flags.supportAiAgent()) {
+                    return mAgentAuthService.setOverrideForAssociationId(
+                            user.getIdentifier(), associationId, authorized);
+                }
+            }
+
+            return false;
+        }
+
+        @Override
         public void onShellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
                 @NonNull String[] args, ShellCallback callback,
                 @NonNull ResultReceiver resultReceiver) {
             if (Build.IS_DEBUGGABLE) {
-                if (Binder.getCallingUid() != Process.SHELL_UID) {
-                    Slog.e(TAG, "Shell command called from non-shell UID: "
-                            + Binder.getCallingUid());
+                final int caller = Binder.getCallingUid();
+                if (caller != Process.SHELL_UID && caller != Process.ROOT_UID) {
+                    Slog.e(TAG, "Shell command called from non-shell / non-root UID: "
+                            + caller);
                     resultReceiver.send(-1, null);
-                    return;
+                } else {
+                    (new AuthenticationPolicyServiceShellCommand(this, getContext()))
+                            .exec(this, in, out, err, args, callback, resultReceiver);
                 }
-                (new AuthenticationPolicyServiceShellCommand(this, getContext()))
-                        .exec(this, in, out, err, args, callback, resultReceiver);
             }
         }
     };
+
+    @VisibleForTesting
+    IAuthenticationPolicyService getBinderService() {
+        return (IAuthenticationPolicyService) mService;
+    }
 }

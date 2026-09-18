@@ -21,16 +21,32 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.os.Binder;
 import android.os.Bundle;
+import android.platform.test.ravenwood.RavenwoodDriver;
+import android.platform.test.ravenwood.RavenwoodEnvironment;
 import android.platform.test.ravenwood.RavenwoodExperimentalApiChecker;
+import android.platform.test.ravenwood.RavenwoodImplUtils;
 import android.platform.test.ravenwood.RavenwoodUtils;
+import android.util.Log;
 import android.view.Display;
 import android.view.WindowManager;
+import android.view.WindowManager.LayoutParams;
+
+import com.android.ravenwood.common.RavenwoodInternalUtils;
+
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.util.Comparator;
+import java.util.Map.Entry;
+import java.util.WeakHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Experimental implementation of launching activities.
  */
 @SuppressWarnings("unchecked")
 public class RavenwoodActivityDriver {
+    private static final String TAG = RavenwoodDriver.TAG;
+
     private static final RavenwoodActivityDriver sInstance = new RavenwoodActivityDriver();
 
     private RavenwoodActivityDriver() {
@@ -73,6 +89,11 @@ public class RavenwoodActivityDriver {
         return acti;
     }
 
+    private final AtomicLong mNextActivityId = RavenwoodInternalUtils.getNextIdGenerator();
+
+    /** Activity -> Activity ID. */
+    private final WeakHashMap<Activity, Long> mLiveActivities = new WeakHashMap<>();
+
     /**
      * Instantiate an activity and driver it to the "RESUMED" state.
      */
@@ -98,7 +119,11 @@ public class RavenwoodActivityDriver {
                 null // overrideConfiguration
         );
 
-        T activity = (T) resolveActivityClass(intent).getConstructor().newInstance();
+        var id = mNextActivityId.getAndIncrement();
+        var clazz = resolveActivityClass(intent);
+        Log.i(TAG, "Activity: instantiating: id=#" + id + " class=" + clazz);
+        T activity = (T) clazz.getConstructor().newInstance();
+        mLiveActivities.put(activity, id);
         activity.attach(
                 activityContextImpl,
                 appImpl.mMainThread,
@@ -137,6 +162,10 @@ public class RavenwoodActivityDriver {
         // Make visible -- this requires some setup, which is copied from ActivityController.
         activity.getWindow().getAttributes().type =
                 WindowManager.LayoutParams.TYPE_BASE_APPLICATION;
+
+        // b/447182552: Ravenwood can't initialize InputChannel yet.
+        activity.getWindow().getAttributes().inputFeatures
+                |= LayoutParams.INPUT_FEATURE_NO_INPUT_CHANNEL;
         activity.mDecor = activity.getWindow().getDecorView();
         activity.makeVisible();
 
@@ -147,6 +176,40 @@ public class RavenwoodActivityDriver {
         RavenwoodUtils.getMainHandler().post(() ->
                 activity.getWindow().getDecorView().getViewRootImpl().windowFocusChanged(true));
 
+        Log.i(TAG, "Activity: resumed: id=#" + id + " class=" + clazz);
+
+        if (RavenwoodEnvironment.getInstance().getBoolEnvVar("RAVENWOOD_DUMP_ACTIVITY_ON_RESUME")) {
+            Log.v(TAG, dumpActivityOnMainThread("  ", activity));
+        }
+
         return activity;
+    }
+
+    /**
+     * Dump all live activities.
+     */
+    public void dumpAllActivities(String prefix, PrintStream out) {
+        var set = mLiveActivities.entrySet();
+        if (set.isEmpty()) {
+            out.println("No activities to dump.");
+            return;
+        }
+        for (var e : set.stream()
+                .sorted(Comparator.comparingLong(Entry::getValue))
+                .toList()) {
+            var activity = e.getKey();
+            var id = e.getValue();
+
+            out.println("Dumping activity: id=#" + id + " class=" + activity.getClass());
+            out.println(dumpActivityOnMainThread(prefix, activity));
+            out.println("Dumped activity: id=#" + (long) id);
+        }
+    }
+
+    private static String dumpActivityOnMainThread(String prefix, Activity activity) {
+        return RavenwoodImplUtils.callDumpOnMainThreadWithTimeout((pst) -> {
+            var pwt = new PrintWriter(pst, true);
+            activity.dump(prefix, null, pwt, null);
+        }, RavenwoodEnvironment.getInstance().getDumpTimeout());
     }
 }

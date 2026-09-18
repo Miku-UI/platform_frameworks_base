@@ -756,6 +756,15 @@ public class Annotation {
     })
     public @interface ImsCallType {}
 
+    @IntDef(prefix = { "TTY_MODE_" }, value = {
+            TelephonyManager.TTY_MODE_OFF,
+            TelephonyManager.TTY_MODE_FULL,
+            TelephonyManager.TTY_MODE_HCO,
+            TelephonyManager.TTY_MODE_VCO
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface TtyMode {}
+
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(prefix = { "NET_CAPABILITY_ENTERPRISE_SUB_LEVEL" }, value = {

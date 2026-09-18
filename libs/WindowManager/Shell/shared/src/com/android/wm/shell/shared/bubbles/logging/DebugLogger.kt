@@ -37,7 +37,7 @@ interface DebugLogger {
      * The [message] is a format string, with [parameters] substituted into it. An optional
      * [eventData] string may also be provided, which implementations can include in the log output.
      */
-    fun d(message: String, vararg parameters: Any, eventData: String? = null) {}
+    fun d(message: String, vararg parameters: Any?, eventData: String? = null) {}
 
     /**
      * Logs a VERBOSE level message.
@@ -45,7 +45,7 @@ interface DebugLogger {
      * The [message] is a format string, with [parameters] substituted into it. An optional
      * [eventData] string may also be provided, which implementations can include in the log output.
      */
-    fun v(message: String, vararg parameters: Any, eventData: String? = null) {}
+    fun v(message: String, vararg parameters: Any?, eventData: String? = null) {}
 
     /**
      * Logs an INFO level message.
@@ -53,7 +53,7 @@ interface DebugLogger {
      * The [message] is a format string, with [parameters] substituted into it. An optional
      * [eventData] string may also be provided, which implementations can include in the log output.
      */
-    fun i(message: String, vararg parameters: Any, eventData: String? = null) {}
+    fun i(message: String, vararg parameters: Any?, eventData: String? = null) {}
 
     /**
      * Logs a WARNING level message.
@@ -61,7 +61,7 @@ interface DebugLogger {
      * The [message] is a format string, with [parameters] substituted into it. An optional
      * [eventData] string may also be provided, which implementations can include in the log output.
      */
-    fun w(message: String, vararg parameters: Any, eventData: String? = null) {}
+    fun w(message: String, vararg parameters: Any?, eventData: String? = null) {}
 
     /**
      * Logs an ERROR level message.
@@ -69,5 +69,5 @@ interface DebugLogger {
      * The [message] is a format string, with [parameters] substituted into it. An optional
      * [eventData] string may also be provided, which implementations can include in the log output.
      */
-    fun e(message: String, vararg parameters: Any, eventData: String? = null) {}
+    fun e(message: String, vararg parameters: Any?, eventData: String? = null) {}
 }

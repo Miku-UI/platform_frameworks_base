@@ -331,6 +331,13 @@ constructor(
                 if (capture == true) {
                     communalViewModel.onResetTouchState()
                 }
+
+                if (SceneContainerFlag.isEnabled) {
+                    // When the scene container is enabled, we want to ensure the final touch
+                    // event is passed to the window so it can reset its own state.
+                    windowRootView.dispatchTouchEvent(motionEvent)
+                }
+
                 touchSession?.apply { pop() }
                 // If we are not capturing any input, there is no need to consider animating to
                 // finish transition.

@@ -24,7 +24,7 @@
     <LinearLayout
         android:orientation="horizontal"
         android:id="@+id/autofill_save"
-        android:background="?android:attr/colorBackground"
+        android:background="@color/materialColorSurfaceContainer"
         android:layout_marginTop="32dp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

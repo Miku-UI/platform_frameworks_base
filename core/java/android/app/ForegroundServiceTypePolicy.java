@@ -518,6 +518,13 @@ public abstract class ForegroundServiceTypePolicy {
         permissions.add(new RegularPermission(HealthPermissions.READ_SKIN_TEMPERATURE));
         permissions.add(new RegularPermission(HealthPermissions.READ_OXYGEN_SATURATION));
 
+        if (android.permission.flags.Flags.granularHealthPermissionsPhaseTwoEnabled()) {
+            permissions.add(new RegularPermission(HealthPermissions.READ_BLOOD_PRESSURE));
+            permissions.add(new RegularPermission(HealthPermissions.READ_HEART_RATE_VARIABILITY));
+            permissions.add(new RegularPermission(HealthPermissions.READ_RESPIRATORY_RATE));
+            permissions.add(new RegularPermission(HealthPermissions.READ_VO2_MAX));
+        }
+
         return permissions.toArray(new ForegroundServiceTypePermission[permissions.size()]);
     }
 
@@ -917,10 +924,21 @@ public abstract class ForegroundServiceTypePolicy {
                 sb.append("all of the permissions ");
                 sb.append(mAllOfPermissions.toString());
                 sb.append(' ');
+                if (mAnyOfPermissions != null
+                      || mCustomPermission != null) {
+                    sb.append("and ");
+                }
             }
             if (mAnyOfPermissions != null) {
                 sb.append("any of the permissions ");
                 sb.append(mAnyOfPermissions.toString());
+                sb.append(' ');
+            }
+            if (mCustomPermission != null) {
+                if (mAnyOfPermissions != null) {
+                    sb.append("or ");
+                }
+                sb.append(mCustomPermission.toString());
                 sb.append(' ');
             }
             return sb;
@@ -1109,9 +1127,6 @@ public abstract class ForegroundServiceTypePolicy {
         @Override
         public String toString() {
             final StringBuilder sb = new StringBuilder();
-            sb.append("allOf=");
-            sb.append(mAllOf);
-            sb.append(' ');
             sb.append('[');
             for (int i = 0; i < mPermissions.length; i++) {
                 if (i > 0) {
@@ -1325,10 +1340,6 @@ public abstract class ForegroundServiceTypePolicy {
         @PackageManager.PermissionResult
         public int checkPermission(@NonNull Context context, int callerUid, int callerPid,
                 @NonNull String packageName, boolean allowWhileInUse) {
-            if (!android.app.Flags.systemDialerPhoneCallFgsGrant()) {
-                return PERMISSION_DENIED;
-            }
-
             final RoleManager roleManager = context.getSystemService(RoleManager.class);
             if (!roleManager.isRoleAvailable(RoleManager.ROLE_DIALER)) {
                 // If the Dialer role does not exist on the device, then there will not be a system
@@ -1356,6 +1367,9 @@ public abstract class ForegroundServiceTypePolicy {
         public int checkPermission(@NonNull Context context, int callerUid, int callerPid,
                 String packageName, boolean allowWhileInUse) {
             final UsbManager usbManager = context.getSystemService(UsbManager.class);
+            if (usbManager == null) {
+                return PERMISSION_DENIED;
+            }
             final HashMap<String, UsbDevice> devices = usbManager.getDeviceList();
             if (!ArrayUtils.isEmpty(devices)) {
                 for (UsbDevice device : devices.values()) {
@@ -1382,10 +1396,13 @@ public abstract class ForegroundServiceTypePolicy {
         public int checkPermission(@NonNull Context context, int callerUid, int callerPid,
                 String packageName, boolean allowWhileInUse) {
             final UsbManager usbManager = context.getSystemService(UsbManager.class);
+            if (usbManager == null) {
+                return PERMISSION_DENIED;
+            }
             final UsbAccessory[] accessories = usbManager.getAccessoryList();
             if (!ArrayUtils.isEmpty(accessories)) {
                 for (UsbAccessory accessory: accessories) {
-                    if (usbManager.hasPermission(accessory, callerPid, callerUid)) {
+                    if (usbManager.hasPermission(accessory, packageName, callerPid, callerUid)) {
                         return PERMISSION_GRANTED;
                     }
                 }

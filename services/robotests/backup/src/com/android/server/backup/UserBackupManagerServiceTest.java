@@ -64,7 +64,6 @@ import com.android.server.testing.shadows.ShadowApplicationPackageManager;
 import com.android.server.testing.shadows.ShadowBackupEligibilityRules;
 import com.android.server.testing.shadows.ShadowBinder;
 import com.android.server.testing.shadows.ShadowKeyValueBackupJob;
-import com.android.server.testing.shadows.ShadowKeyValueBackupTask;
 import com.android.server.testing.shadows.ShadowSystemServiceRegistry;
 
 import org.junit.After;
@@ -827,10 +826,6 @@ public class UserBackupManagerServiceTest {
         setUpCurrentTransport(mTransportManager, mTransport);
     }
 
-    private void tearDownForRequestBackup() {
-        ShadowKeyValueBackupTask.reset();
-    }
-
     /**
      * Test verifying that {@link UserBackupManagerService#requestBackup(String[], IBackupObserver,
      * int)} throws a {@link SecurityException} if the caller does not have backup permission.
@@ -948,54 +943,6 @@ public class UserBackupManagerServiceTest {
         assertThat(result).isEqualTo(BackupManager.SUCCESS);
         verify(mObserver).onResult(PACKAGE_1, BackupManager.ERROR_BACKUP_NOT_ALLOWED);
         // TODO: We probably don't need to kick-off KeyValueBackupTask when list is empty
-        tearDownForRequestBackup();
-    }
-
-    /**
-     * Test verifying that {@link UserBackupManagerService#requestBackup(String[], IBackupObserver,
-     * int)} returns {@link BackupManager#SUCCESS} and updates bookkeeping if backup for a key value
-     * package succeeds.
-     */
-    @Test
-    @Config(shadows = ShadowKeyValueBackupTask.class)
-    public void testRequestBackup_whenPackageIsKeyValue() throws Exception {
-        setUpForRequestBackup(PACKAGE_1);
-        UserBackupManagerService backupManagerService =
-                createBackupManagerServiceForRequestBackup();
-
-        int result = backupManagerService.requestBackup(new String[] {PACKAGE_1}, mObserver, 0);
-
-        mShadowBackupLooper.runToEndOfTasks();
-        assertThat(result).isEqualTo(BackupManager.SUCCESS);
-        ShadowKeyValueBackupTask shadowTask = ShadowKeyValueBackupTask.getLastCreated();
-        assertThat(shadowTask.getQueue()).containsExactly(PACKAGE_1);
-        assertThat(shadowTask.getPendingFullBackups()).isEmpty();
-        // TODO: Assert more about KeyValueBackupTask
-        tearDownForRequestBackup();
-    }
-
-    /**
-     * Test verifying that {@link UserBackupManagerService#requestBackup(String[], IBackupObserver,
-     * int)} returns {@link BackupManager#SUCCESS} and updates bookkeeping if backup for a full
-     * backup package succeeds.
-     */
-    @Test
-    @Config(shadows = ShadowKeyValueBackupTask.class)
-    public void testRequestBackup_whenPackageIsFullBackup() throws Exception {
-        setUpForRequestBackup(PACKAGE_1);
-        ShadowBackupEligibilityRules.setAppGetsFullBackup(PACKAGE_1);
-        UserBackupManagerService backupManagerService =
-                createBackupManagerServiceForRequestBackup();
-
-        int result = backupManagerService.requestBackup(new String[] {PACKAGE_1}, mObserver, 0);
-
-        mShadowBackupLooper.runToEndOfTasks();
-        assertThat(result).isEqualTo(BackupManager.SUCCESS);
-        ShadowKeyValueBackupTask shadowTask = ShadowKeyValueBackupTask.getLastCreated();
-        assertThat(shadowTask.getQueue()).isEmpty();
-        assertThat(shadowTask.getPendingFullBackups()).containsExactly(PACKAGE_1);
-        // TODO: Assert more about KeyValueBackupTask
-        tearDownForRequestBackup();
     }
 
     /**

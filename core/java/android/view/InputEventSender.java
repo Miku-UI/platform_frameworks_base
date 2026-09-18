@@ -19,12 +19,15 @@ package android.view;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Build;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Looper;
 import android.os.MessageQueue;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Log;
 
 import dalvik.system.CloseGuard;
 
+import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -35,6 +38,7 @@ import java.util.concurrent.RunnableFuture;
  * Provides a low-level mechanism for an application to send input events.
  * @hide
  */
+@RavenwoodKeepWholeClass
 public abstract class InputEventSender {
     private static final String TAG = "InputEventSender";
 
@@ -42,9 +46,8 @@ public abstract class InputEventSender {
 
     private long mSenderPtr;
 
-    // We keep references to the input channel and message queue objects (indirectly through
-    // Handler) here so that they are not GC'd while the native peer of the receiver is using them.
-    private InputChannel mInputChannel;
+    // We keep a reference to the message queue object (indirectly through Handler) here so that
+    // it is not GC'd while the native peer of the receiver is using it.
     private Handler mHandler;
 
     private static native long nativeInit(WeakReference<InputEventSender> sender,
@@ -52,11 +55,13 @@ public abstract class InputEventSender {
     private static native void nativeDispose(long senderPtr);
     private static native boolean nativeSendKeyEvent(long senderPtr, int seq, KeyEvent event);
     private static native boolean nativeSendMotionEvent(long senderPtr, int seq, MotionEvent event);
+    private static native IBinder nativeGetToken(long receiverPtr);
 
     /**
      * Creates an input event sender bound to the specified input channel.
      *
-     * @param inputChannel The input channel.
+     * @param inputChannel The input channel. This channel will be consumed, so if you want to reuse
+     *                     it, make a copy before passing it to this constructor.
      * @param looper The looper to use when invoking callbacks.
      */
     public InputEventSender(InputChannel inputChannel, Looper looper) {
@@ -67,10 +72,9 @@ public abstract class InputEventSender {
             throw new IllegalArgumentException("looper must not be null");
         }
 
-        mInputChannel = inputChannel;
         mHandler = new Handler(looper);
         mSenderPtr = nativeInit(new WeakReference<InputEventSender>(this),
-                mInputChannel, looper.getQueue());
+                inputChannel, looper.getQueue());
 
         mCloseGuard.open("InputEventSender.dispose");
     }
@@ -104,7 +108,6 @@ public abstract class InputEventSender {
             mSenderPtr = 0;
         }
         mHandler = null;
-        mInputChannel = null;
     }
 
     /**
@@ -167,10 +170,28 @@ public abstract class InputEventSender {
     }
 
     private boolean sendInputEventInternal(int seq, InputEvent event) {
-        if (event instanceof KeyEvent) {
-            return nativeSendKeyEvent(mSenderPtr, seq, (KeyEvent)event);
-        } else {
-            return nativeSendMotionEvent(mSenderPtr, seq, (MotionEvent)event);
+        try {
+            if (event instanceof KeyEvent) {
+                return nativeSendKeyEvent(mSenderPtr, seq, (KeyEvent) event);
+            } else {
+                return nativeSendMotionEvent(mSenderPtr, seq, (MotionEvent) event);
+            }
+        } finally {
+            Reference.reachabilityFence(this);
+        }
+    }
+
+    /**
+     * @return Returns a token to identify the input channel.
+     */
+    public IBinder getToken() {
+        if (mSenderPtr == 0) {
+            return null;
+        }
+        try {
+            return nativeGetToken(mSenderPtr);
+        } finally {
+            Reference.reachabilityFence(this);
         }
     }
 

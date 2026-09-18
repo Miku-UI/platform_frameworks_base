@@ -15,9 +15,14 @@
  */
 package com.android.server.notification;
 
+import static android.app.NotificationLoggingConstants.DATA_TYPE_SNOOZED;
+import static android.app.NotificationLoggingConstants.ERROR_XML_PARSING;
+
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
+import android.app.backup.BackupRestoreEventLogger;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -50,6 +55,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * NotificationManagerService helper for handling snoozed notifications.
@@ -241,7 +247,7 @@ public final class SnoozeHelper {
         return key;
     }
 
-    protected boolean cancel(int userId, String pkg, String tag, int id) {
+    protected NotificationRecord cancel(int userId, String pkg, String tag, int id) {
         synchronized (mLock) {
             final Set<Map.Entry<String, NotificationRecord>> records =
                     mSnoozedNotifications.entrySet();
@@ -249,18 +255,20 @@ public final class SnoozeHelper {
                 final StatusBarNotification sbn = record.getValue().getSbn();
                 if (sbn.getPackageName().equals(pkg) && sbn.getUserId() == userId
                         && Objects.equals(sbn.getTag(), tag) && sbn.getId() == id) {
-                    record.getValue().isCanceled = true;
-                    return true;
+                    NotificationRecord r = record.getValue();
+                    r.isCanceled = true;
+                    return r;
                 }
             }
         }
-        return false;
+        return null;
     }
 
-    protected void cancel(int userId, boolean includeCurrentProfiles) {
+    protected List<NotificationRecord> cancel(int userId, boolean includeCurrentProfiles) {
+        List<NotificationRecord> records = new ArrayList<>();
         synchronized (mLock) {
             if (mSnoozedNotifications.size() == 0) {
-                return;
+                return records;
             }
             IntArray userIds = new IntArray();
             userIds.add(userId);
@@ -270,22 +278,26 @@ public final class SnoozeHelper {
             for (NotificationRecord r : mSnoozedNotifications.values()) {
                 if (userIds.binarySearch(r.getUserId()) >= 0) {
                     r.isCanceled = true;
+                    records.add(r);
                 }
             }
         }
+        return records;
     }
 
-    protected boolean cancel(int userId, String pkg) {
+    protected List<NotificationRecord> cancel(int userId, String pkg) {
+        List<NotificationRecord> records = new ArrayList<>();
         synchronized (mLock) {
             int n = mSnoozedNotifications.size();
             for (int i = 0; i < n; i++) {
                 final NotificationRecord r = mSnoozedNotifications.valueAt(i);
                 if (r.getSbn().getPackageName().equals(pkg) && r.getUserId() == userId) {
                     r.isCanceled = true;
+                    records.add(r);
                 }
             }
-            return true;
         }
+        return records;
     }
 
     /**
@@ -377,12 +389,14 @@ public final class SnoozeHelper {
         }
     }
 
-    protected void clearData(int userId, String pkg) {
+    protected List<NotificationRecord> clearData(int userId, String pkg) {
+        List<NotificationRecord> records = new ArrayList<>();
         synchronized (mLock) {
             int n = mSnoozedNotifications.size();
             for (int i = n - 1; i >= 0; i--) {
                 final NotificationRecord record = mSnoozedNotifications.valueAt(i);
                 if (record.getUserId() == userId && record.getSbn().getPackageName().equals(pkg)) {
+                    records.add(record);
                     mSnoozedNotifications.removeAt(i);
                     String trimmedKey = getTrimmedString(record.getKey());
                     mPersistedSnoozedNotificationsWithContext.remove(trimmedKey);
@@ -398,14 +412,17 @@ public final class SnoozeHelper {
                 }
             }
         }
+        return records;
     }
 
-    protected void clearData(int userId) {
+    protected List<NotificationRecord> clearData(int userId) {
+        List<NotificationRecord> records = new ArrayList<>();
         synchronized (mLock) {
             int n = mSnoozedNotifications.size();
             for (int i = n - 1; i >= 0; i--) {
                 final NotificationRecord record = mSnoozedNotifications.valueAt(i);
                 if (record.getUserId() == userId) {
+                    records.add(record);
                     mSnoozedNotifications.removeAt(i);
                     String trimmedKey = getTrimmedString(record.getKey());
                     mPersistedSnoozedNotificationsWithContext.remove(trimmedKey);
@@ -420,6 +437,15 @@ public final class SnoozeHelper {
                     };
                     runnable.run();
                 }
+            }
+        }
+        return records;
+    }
+
+    protected void visitUris(Consumer<Uri> visitor) {
+        synchronized (mLock) {
+            for (NotificationRecord r : mSnoozedNotifications.values()) {
+                r.getNotification().visitUris(visitor);
             }
         }
     }
@@ -481,11 +507,13 @@ public final class SnoozeHelper {
         }
     }
 
-    protected void writeXml(TypedXmlSerializer out) throws IOException {
+    protected void writeXml(TypedXmlSerializer out, @Nullable BackupRestoreEventLogger logger)
+            throws IOException {
+        int count = 0;
         synchronized (mLock) {
             final long currentTime = System.currentTimeMillis();
             out.startTag(null, XML_TAG_NAME);
-            writeXml(out, mPersistedSnoozedNotifications, XML_SNOOZED_NOTIFICATION,
+            count += writeXml(out, mPersistedSnoozedNotifications, XML_SNOOZED_NOTIFICATION,
                     value -> {
                         if (value < currentTime) {
                             return;
@@ -493,7 +521,7 @@ public final class SnoozeHelper {
                         out.attributeLong(null, XML_SNOOZED_NOTIFICATION_TIME,
                                 value);
                     });
-            writeXml(out, mPersistedSnoozedNotificationsWithContext,
+            count += writeXml(out, mPersistedSnoozedNotificationsWithContext,
                     XML_SNOOZED_NOTIFICATION_CONTEXT,
                     value -> {
                         out.attribute(null, XML_SNOOZED_NOTIFICATION_CONTEXT_ID,
@@ -501,14 +529,18 @@ public final class SnoozeHelper {
                     });
             out.endTag(null, XML_TAG_NAME);
         }
+        if (logger != null) {
+            logger.logItemsBackedUp(DATA_TYPE_SNOOZED, count);
+        }
     }
 
     private interface Inserter<T> {
         void insert(T t) throws IOException;
     }
 
-    private <T> void writeXml(TypedXmlSerializer out, ArrayMap<String, T> targets, String tag,
+    private <T> int writeXml(TypedXmlSerializer out, ArrayMap<String, T> targets, String tag,
             Inserter<T> attributeInserter) throws IOException {
+        int successCount = 0;
         for (int j = 0; j < targets.size(); j++) {
             String key = targets.keyAt(j);
             // T is a String (snoozed until context) or Long (snoozed until time)
@@ -523,11 +555,16 @@ public final class SnoozeHelper {
             out.attribute(null, XML_SNOOZED_NOTIFICATION_KEY, key);
 
             out.endTag(null, tag);
+            successCount++;
         }
+        return successCount;
     }
 
-    protected void readXml(TypedXmlPullParser parser, long currentTime)
+    protected void readXml(TypedXmlPullParser parser, long currentTime,
+            @Nullable BackupRestoreEventLogger logger)
             throws XmlPullParserException, IOException {
+        int count = 0;
+        int errorCount = 0;
         int type;
         while ((type = parser.next()) != XmlPullParser.END_DOCUMENT) {
             String tag = parser.getName();
@@ -548,6 +585,7 @@ public final class SnoozeHelper {
                         if (time > currentTime) { //only read new stuff
                             synchronized (mLock) {
                                 mPersistedSnoozedNotifications.put(key, time);
+                                count++;
                             }
                         }
                     }
@@ -556,12 +594,18 @@ public final class SnoozeHelper {
                                 null, XML_SNOOZED_NOTIFICATION_CONTEXT_ID);
                         synchronized (mLock) {
                             mPersistedSnoozedNotificationsWithContext.put(key, creationId);
+                            count++;
                         }
                     }
                 } catch (Exception e) {
                     Slog.e(TAG,  "Exception in reading snooze data from policy xml", e);
+                    errorCount++;
                 }
             }
+        }
+        if (logger != null) {
+            logger.logItemsRestored(DATA_TYPE_SNOOZED, count);
+            logger.logItemsRestoreFailed(DATA_TYPE_SNOOZED, errorCount, ERROR_XML_PARSING);
         }
     }
 

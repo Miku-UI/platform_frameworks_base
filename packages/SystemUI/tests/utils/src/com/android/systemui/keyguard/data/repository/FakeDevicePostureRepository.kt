@@ -25,6 +25,8 @@ class FakeDevicePostureRepository : DevicePostureRepository {
     override val currentDevicePosture: Flow<DevicePosture>
         get() = _currentDevicePosture
 
+    override fun getCurrentDevicePosture(): DevicePosture = _currentDevicePosture.value
+
     fun setCurrentPosture(posture: DevicePosture) {
         _currentDevicePosture.value = posture
     }

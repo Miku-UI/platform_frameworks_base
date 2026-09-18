@@ -77,6 +77,9 @@ class FakeCustomizationProviderClient(
     private val selections: MutableStateFlow<Map<String, List<String>>> =
         MutableStateFlow(initialSelections)
 
+    var refreshVersion = 0
+        private set
+
     override suspend fun insertSelection(slotId: String, affordanceId: String) {
         val slotCapacity =
             querySlots().find { it.id == slotId }?.capacity
@@ -116,6 +119,10 @@ class FakeCustomizationProviderClient(
 
     override fun observeAffordances(): Flow<List<CustomizationProviderClient.Affordance>> {
         return affordances.asStateFlow()
+    }
+
+    override fun refreshAffordances() {
+        refreshVersion++
     }
 
     override suspend fun querySelections(): List<CustomizationProviderClient.Selection> {

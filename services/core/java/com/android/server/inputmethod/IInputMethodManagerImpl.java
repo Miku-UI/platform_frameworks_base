@@ -24,6 +24,8 @@ import android.annotation.BinderThread;
 import android.annotation.EnforcePermission;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SpecialUsers.CanBeALL;
+import android.annotation.SpecialUsers.CanBeCURRENT;
 import android.annotation.UserIdInt;
 import android.os.Binder;
 import android.os.IBinder;
@@ -34,17 +36,20 @@ import android.view.inputmethod.CursorAnchorInfo;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.view.inputmethod.InputMethodManager.IMPickerEntryPoint;
 import android.view.inputmethod.InputMethodSubtype;
 
 import com.android.internal.inputmethod.DirectBootAwareness;
 import com.android.internal.inputmethod.IBooleanListener;
 import com.android.internal.inputmethod.IConnectionlessHandwritingCallback;
+import com.android.internal.inputmethod.IImeSwitcherMenu;
 import com.android.internal.inputmethod.IImeTracker;
 import com.android.internal.inputmethod.IInputMethodClient;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
 import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
 import com.android.internal.inputmethod.IRemoteInputConnection;
 import com.android.internal.inputmethod.InputMethodInfoSafeList;
+import com.android.internal.inputmethod.InputMethodSubtypeSafeList;
 import com.android.internal.inputmethod.StartInputFlags;
 import com.android.internal.inputmethod.StartInputReason;
 import com.android.internal.view.IInputMethodManager;
@@ -98,16 +103,33 @@ final class IInputMethodManagerImpl extends IInputMethodManager.Stub {
         InputMethodInfoSafeList getEnabledInputMethodList(@UserIdInt int userId);
 
         @NonNull
-        List<InputMethodInfo> getInputMethodListLegacy(@UserIdInt int userId,
-                @DirectBootAwareness int directBootAwareness);
-
-        @NonNull
-        List<InputMethodInfo> getEnabledInputMethodListLegacy(@UserIdInt int userId);
-
-        List<InputMethodSubtype> getEnabledInputMethodSubtypeList(String imiId,
+        InputMethodSubtypeSafeList getEnabledInputMethodSubtypeList(String imiId,
                 boolean allowsImplicitlyEnabledSubtypes, @UserIdInt int userId);
 
         InputMethodSubtype getLastInputMethodSubtype(@UserIdInt int userId);
+
+        @PermissionVerified(allOf = {Manifest.permission.WRITE_SECURE_SETTINGS,
+                Manifest.permission.TEST_INPUT_METHOD,
+                Manifest.permission.INTERACT_ACROSS_USERS_FULL})
+        boolean enableInputMethodForTesting(@NonNull String imeId,
+                @CanBeALL @CanBeCURRENT @UserIdInt int userId);
+
+        @PermissionVerified(allOf = {Manifest.permission.WRITE_SECURE_SETTINGS,
+                Manifest.permission.TEST_INPUT_METHOD,
+                Manifest.permission.INTERACT_ACROSS_USERS_FULL})
+        boolean disableInputMethodForTesting(@NonNull String imeId,
+                @CanBeALL @CanBeCURRENT @UserIdInt int userId);
+
+        @PermissionVerified(allOf = {Manifest.permission.WRITE_SECURE_SETTINGS,
+                Manifest.permission.TEST_INPUT_METHOD,
+                Manifest.permission.INTERACT_ACROSS_USERS_FULL})
+        boolean setInputMethodForTesting(@NonNull String imeId,
+                @CanBeALL @CanBeCURRENT @UserIdInt int userId);
+
+        @PermissionVerified(allOf = {Manifest.permission.WRITE_SECURE_SETTINGS,
+                Manifest.permission.TEST_INPUT_METHOD,
+                Manifest.permission.INTERACT_ACROSS_USERS_FULL})
+        void resetInputMethodsForTesting(@CanBeALL @CanBeCURRENT @UserIdInt int userId);
 
         @PermissionVerified(Manifest.permission.TEST_INPUT_METHOD)
         void hideSoftInputFromServerForTest();
@@ -129,10 +151,22 @@ final class IInputMethodManagerImpl extends IInputMethodManager.Stub {
         @PermissionVerified(allOf = {
                 Manifest.permission.INTERACT_ACROSS_USERS_FULL,
                 Manifest.permission.WRITE_SECURE_SETTINGS})
-        void showInputMethodPickerFromSystem(int auxiliarySubtypeMode, int displayId);
+        void showInputMethodPickerFromSystem(
+                int auxiliarySubtypeMode, @IMPickerEntryPoint int entryPoint, int displayId);
+
+        @PermissionVerified(allOf = {
+                Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+                Manifest.permission.WRITE_SECURE_SETTINGS})
+        void toggleInputMethodPickerFromSystem(
+                int auxiliarySubtypeMode, @IMPickerEntryPoint int entryPoint, int displayId);
+
+        @PermissionVerified(allOf = {
+                Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+                Manifest.permission.WRITE_SECURE_SETTINGS})
+        void hideInputMethodPickerFromSystem(int displayId);
 
         @PermissionVerified(Manifest.permission.TEST_INPUT_METHOD)
-        boolean isInputMethodPickerShownForTest();
+        boolean isInputMethodPickerShownForTest(@UserIdInt int userId);
 
         @PermissionVerified(allOf = {
                 Manifest.permission.INTERACT_ACROSS_USERS_FULL,
@@ -141,6 +175,13 @@ final class IInputMethodManagerImpl extends IInputMethodManager.Stub {
 
         @PermissionVerified(Manifest.permission.TEST_INPUT_METHOD)
         boolean shouldShowImeSwitcherButtonForTest();
+
+        @PermissionVerified(allOf = {
+                Manifest.permission.WRITE_SECURE_SETTINGS,
+                Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+                Manifest.permission.STATUS_BAR_SERVICE,
+        })
+        void registerImeSwitcherMenu(@NonNull IImeSwitcherMenu imeSwitcherMenu);
 
         InputMethodSubtype getCurrentInputMethodSubtype(@UserIdInt int userId);
 
@@ -197,6 +238,9 @@ final class IInputMethodManagerImpl extends IInputMethodManager.Stub {
         void setAllowedImesByPolicyForTest(
                 @NonNull IInputMethodClient client, @NonNull List<String> allowedPackages);
 
+        @PermissionVerified(Manifest.permission.TEST_INPUT_METHOD)
+        void setPreventImeStartupBypassedAppsForTest(@Nullable List<String> allowedPackages);
+
         IImeTracker getImeTrackerService();
 
         void onShellCommand(@Nullable FileDescriptor in, @Nullable FileDescriptor out,
@@ -244,19 +288,7 @@ final class IInputMethodManagerImpl extends IInputMethodManager.Stub {
 
     @NonNull
     @Override
-    public List<InputMethodInfo> getInputMethodListLegacy(@UserIdInt int userId,
-            int directBootAwareness) {
-        return mCallback.getInputMethodListLegacy(userId, directBootAwareness);
-    }
-
-    @NonNull
-    @Override
-    public List<InputMethodInfo> getEnabledInputMethodListLegacy(@UserIdInt int userId) {
-        return mCallback.getEnabledInputMethodListLegacy(userId);
-    }
-
-    @Override
-    public List<InputMethodSubtype> getEnabledInputMethodSubtypeList(String imiId,
+    public InputMethodSubtypeSafeList getEnabledInputMethodSubtypeList(String imiId,
             boolean allowsImplicitlyEnabledSubtypes, @UserIdInt int userId) {
         return mCallback.getEnabledInputMethodSubtypeList(imiId, allowsImplicitlyEnabledSubtypes,
                 userId);
@@ -265,6 +297,49 @@ final class IInputMethodManagerImpl extends IInputMethodManager.Stub {
     @Override
     public InputMethodSubtype getLastInputMethodSubtype(@UserIdInt int userId) {
         return mCallback.getLastInputMethodSubtype(userId);
+    }
+
+    @EnforcePermission(allOf = {Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.WRITE_SECURE_SETTINGS})
+    @Override
+    public boolean enableInputMethodForTesting(@NonNull String imeId,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        super.enableInputMethodForTesting_enforcePermission();
+
+        return mCallback.enableInputMethodForTesting(imeId, userId);
+    }
+
+    @EnforcePermission(allOf = {Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.WRITE_SECURE_SETTINGS})
+    @Override
+    public boolean disableInputMethodForTesting(@NonNull String imeId,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        super.disableInputMethodForTesting_enforcePermission();
+
+        return mCallback.disableInputMethodForTesting(imeId, userId);
+    }
+
+    @EnforcePermission(allOf = {Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.WRITE_SECURE_SETTINGS})
+    @Override
+    public boolean setInputMethodForTesting(@NonNull String imeId,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        super.setInputMethodForTesting_enforcePermission();
+
+        return mCallback.setInputMethodForTesting(imeId, userId);
+    }
+
+    @EnforcePermission(allOf = {Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.WRITE_SECURE_SETTINGS})
+    @Override
+    public void resetInputMethodsForTesting(@CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        super.resetInputMethodsForTesting_enforcePermission();
+
+        mCallback.resetInputMethodsForTesting(userId);
     }
 
     @EnforcePermission(Manifest.permission.TEST_INPUT_METHOD)
@@ -304,18 +379,40 @@ final class IInputMethodManagerImpl extends IInputMethodManager.Stub {
             Manifest.permission.WRITE_SECURE_SETTINGS,
             Manifest.permission.INTERACT_ACROSS_USERS_FULL})
     @Override
-    public void showInputMethodPickerFromSystem(int auxiliarySubtypeMode, int displayId) {
+    public void showInputMethodPickerFromSystem(
+            int auxiliarySubtypeMode, @IMPickerEntryPoint int entryPoint, int displayId) {
         super.showInputMethodPickerFromSystem_enforcePermission();
 
-        mCallback.showInputMethodPickerFromSystem(auxiliarySubtypeMode, displayId);
+        mCallback.showInputMethodPickerFromSystem(auxiliarySubtypeMode, entryPoint, displayId);
+    }
+
+    @EnforcePermission(allOf = {
+            Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL})
+    @Override
+    public void toggleInputMethodPickerFromSystem(
+            int auxiliarySubtypeMode, @IMPickerEntryPoint int entryPoint, int displayId) {
+        super.toggleInputMethodPickerFromSystem_enforcePermission();
+
+        mCallback.toggleInputMethodPickerFromSystem(auxiliarySubtypeMode, entryPoint, displayId);
+    }
+
+    @EnforcePermission(allOf = {
+            Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL})
+    @Override
+    public void hideInputMethodPickerFromSystem(int displayId) {
+        super.hideInputMethodPickerFromSystem_enforcePermission();
+
+        mCallback.hideInputMethodPickerFromSystem(displayId);
     }
 
     @EnforcePermission(Manifest.permission.TEST_INPUT_METHOD)
     @Override
-    public boolean isInputMethodPickerShownForTest() {
+    public boolean isInputMethodPickerShownForTest(@UserIdInt int userId) {
         super.isInputMethodPickerShownForTest_enforcePermission();
 
-        return mCallback.isInputMethodPickerShownForTest();
+        return mCallback.isInputMethodPickerShownForTest(userId);
     }
 
     @EnforcePermission(allOf = {
@@ -334,6 +431,18 @@ final class IInputMethodManagerImpl extends IInputMethodManager.Stub {
         super.shouldShowImeSwitcherButtonForTest_enforcePermission();
 
         return mCallback.shouldShowImeSwitcherButtonForTest();
+    }
+
+    @EnforcePermission(allOf = {
+            Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.STATUS_BAR_SERVICE,
+    })
+    @Override
+    public void registerImeSwitcherMenu(@NonNull IImeSwitcherMenu imeSwitcherMenu) {
+        super.registerImeSwitcherMenu_enforcePermission();
+
+        mCallback.registerImeSwitcherMenu(imeSwitcherMenu);
     }
 
     @Override
@@ -456,6 +565,14 @@ final class IInputMethodManagerImpl extends IInputMethodManager.Stub {
         super.setAllowedImesByPolicyForTest_enforcePermission();
 
         mCallback.setAllowedImesByPolicyForTest(client, allowedPackages);
+    }
+
+    @EnforcePermission(Manifest.permission.TEST_INPUT_METHOD)
+    @Override
+    public void setPreventImeStartupBypassedAppsForTest(@Nullable List<String> allowedPackages) {
+        super.setPreventImeStartupBypassedAppsForTest_enforcePermission();
+
+        mCallback.setPreventImeStartupBypassedAppsForTest(allowedPackages);
     }
 
     @Override

@@ -59,20 +59,20 @@ class WindowAnimatorTest {
         whenever(transaction.setScale(any(), anyFloat(), anyFloat())).thenReturn(transaction)
         whenever(transaction.setFrameTimeline(anyLong())).thenReturn(transaction)
         whenever(
-            transaction.setPosition(
-                any(),
-                positionXArgumentCaptor.capture(),
-                positionYArgumentCaptor.capture(),
+                transaction.setPosition(
+                    any(),
+                    positionXArgumentCaptor.capture(),
+                    positionYArgumentCaptor.capture(),
+                )
             )
-        )
             .thenReturn(transaction)
         whenever(
-            transaction.setScale(
-                any(),
-                scaleXArgumentCaptor.capture(),
-                scaleYArgumentCaptor.capture(),
+                transaction.setScale(
+                    any(),
+                    scaleXArgumentCaptor.capture(),
+                    scaleYArgumentCaptor.capture(),
+                )
             )
-        )
             .thenReturn(transaction)
     }
 
@@ -89,7 +89,7 @@ class WindowAnimatorTest {
                 displayMetrics,
                 boundsAnimParams,
                 change,
-                transaction
+                transaction,
             )
         valueAnimator.start()
 
@@ -116,7 +116,7 @@ class WindowAnimatorTest {
                 displayMetrics,
                 boundsAnimParams,
                 change,
-                transaction
+                transaction,
             )
         valueAnimator.start()
 
@@ -143,7 +143,7 @@ class WindowAnimatorTest {
                 displayMetrics,
                 boundsAnimParams,
                 change,
-                transaction
+                transaction,
             )
         valueAnimator.start()
         valueAnimator.end()
@@ -172,7 +172,7 @@ class WindowAnimatorTest {
                 displayMetrics,
                 boundsAnimParams,
                 change,
-                transaction
+                transaction,
             )
         valueAnimator.currentPlayTime = 50
 

@@ -2,12 +2,12 @@ package com.android.server.wm;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.window.TransitionInfo;
 
 import java.io.PrintWriter;
-import java.util.ArrayList;
 
 interface TransitionTracer {
-    void logSentTransition(Transition transition, ArrayList<Transition.ChangeInfo> targets);
+    void logSentTransition(Transition transition, TransitionInfo info);
     void logFinishedTransition(Transition transition);
     void logAbortedTransition(Transition transition);
     void logRemovingStartingWindow(@NonNull StartingData startingData);

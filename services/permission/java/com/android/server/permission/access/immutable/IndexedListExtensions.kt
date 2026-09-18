@@ -34,6 +34,9 @@ inline fun <T> IndexedList<T>.anyIndexed(predicate: (Int, T) -> Boolean): Boolea
     return false
 }
 
+@Suppress("NOTHING_TO_INLINE")
+inline fun <T> IndexedList<T>.first(): T = this[0]
+
 inline fun <T> IndexedList<T>.forEachIndexed(action: (Int, T) -> Unit) {
     for (index in 0 until size) {
         action(index, this[index])
@@ -45,6 +48,9 @@ inline fun <T> IndexedList<T>.forEachReversedIndexed(action: (Int, T) -> Unit) {
         action(index, this[index])
     }
 }
+
+@Suppress("NOTHING_TO_INLINE")
+inline fun <T> IndexedList<T>.isNotEmpty(): Boolean = !isEmpty()
 
 inline val <T> IndexedList<T>.lastIndex: Int
     get() = size - 1

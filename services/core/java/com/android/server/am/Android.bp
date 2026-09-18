@@ -5,6 +5,12 @@ aconfig_declarations {
     srcs: ["*.aconfig"],
 }
 
+rust_aconfig_library {
+    name: "libam_flags_rust",
+    crate_name: "am_flags",
+    aconfig_declarations: "am_flags",
+}
+
 java_aconfig_library {
     name: "am_flags_lib",
     aconfig_declarations: "am_flags",

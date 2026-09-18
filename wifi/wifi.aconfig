@@ -64,3 +64,13 @@ flag {
     description: "Add an API to remove all certificates stored in WifiKeystore"
     bug: "365543479"
 }
+
+flag {
+    name: "deprecate_wificond"
+    is_exported: true
+    namespace: "wifi"
+    description: "Deprecate wificond APIs since functionality is moving to the Wi-Fi mainline module."
+    bug: "447652144"
+}
+
+

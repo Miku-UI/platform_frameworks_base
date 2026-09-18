@@ -20,6 +20,7 @@ import android.app.ActivityManager;
 import android.content.pm.ParceledListSlice;
 import android.window.ITaskOrganizer;
 import android.window.TaskAppearedInfo;
+import android.window.TaskCreationParams;
 import android.window.WindowContainerToken;
 import android.window.WindowContainerTransaction;
 import android.view.SurfaceControl;
@@ -41,17 +42,17 @@ interface ITaskOrganizerController {
     void unregisterTaskOrganizer(ITaskOrganizer organizer);
 
     /**
-    * Creates a persistent root task in WM for a particular windowing-mode.
+    * Creates a persistent Task.
     *
-    * It may be removed using {@link #deleteRootTask} or through
+    * It may be removed using {@link #deleteTask} or through
     * {@link WindowContainerTransaction#removeRootTask}.
+    *
+    * @return the TaskAppearedInfo of the newly created Task.
     */
-    void createRootTask(int displayId, int windowingMode, IBinder launchCookie,
-            boolean removeWithTaskOrganizer, boolean reparentOnDisplayRemoval,
-            in @nullable String name);
+    @nullable TaskAppearedInfo createTask(in TaskCreationParams params);
 
-    /** Deletes a persistent root task in WM */
-    boolean deleteRootTask(in WindowContainerToken task);
+    /** Deletes a persistent Task. */
+    boolean deleteTask(in WindowContainerToken task);
 
     /** Gets direct child tasks (ordered from top-to-bottom) */
     List<ActivityManager.RunningTaskInfo> getChildTasks(in WindowContainerToken parent,
@@ -70,6 +71,13 @@ interface ITaskOrganizerController {
      * Restarts the top activity in the given task by killing its process if it is visible.
      */
     void restartTaskTopActivityProcessIfVisible(in WindowContainerToken task);
+
+    /**
+     * Restarts all the activities in the given task by killing its process if it is visible.
+     */
+     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
+            + "android.Manifest.permission.MANAGE_ACTIVITY_TASKS)")
+    void restartTaskProcessIfVisible(in WindowContainerToken task);
 
     /**
      * Set layers to be excluded when taking a task snapshot.

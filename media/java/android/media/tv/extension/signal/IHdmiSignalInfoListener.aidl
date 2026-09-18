@@ -20,6 +20,17 @@ package android.media.tv.extension.signal;
  * @hide
  */
 oneway interface IHdmiSignalInfoListener {
+    /**
+     * Called when the HDMI signal information changes.
+     *
+     * @param sessionToken The token that identifies the session for which the signal has changed.
+     */
     void onSignalInfoChanged(String sessionToken);
+    /**
+     * Called when the low latency mode status changes.
+     *
+     * @param enable The new status of the mode. 1 indicates that low latency mode is enabled, and
+     *               0 indicates it is disabled.
+     */
     void onLowLatencyModeChanged(int enable);
 }

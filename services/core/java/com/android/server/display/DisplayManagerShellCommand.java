@@ -24,6 +24,7 @@ import static android.view.Display.TYPE_UNKNOWN;
 import static android.view.Display.TYPE_VIRTUAL;
 import static android.view.Display.TYPE_WIFI;
 
+import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
@@ -33,6 +34,7 @@ import android.os.ShellCommand;
 import android.util.Slog;
 import android.view.Display;
 
+import com.android.internal.hidden_from_bootclasspath.com.android.graphics.surfaceflinger.flags.Flags;
 import com.android.server.display.feature.DisplayManagerFlags;
 
 import java.io.PrintWriter;
@@ -546,58 +548,28 @@ class DisplayManagerShellCommand extends ShellCommand {
     }
 
     private int setUserPreferredDisplayMode() {
-        final String widthText = getNextArg();
-        if (widthText == null) {
-            getErrPrintWriter().println("Error: no width specified");
-            return 1;
-        }
-
-        final String heightText = getNextArg();
-        if (heightText == null) {
-            getErrPrintWriter().println("Error: no height specified");
-            return 1;
-        }
-
-        final String refreshRateText = getNextArg();
-        if (refreshRateText == null) {
-            getErrPrintWriter().println("Error: no refresh-rate specified");
-            return 1;
-        }
-
-        final int width, height;
-        final float refreshRate;
-        try {
-            width = Integer.parseInt(widthText);
-            height = Integer.parseInt(heightText);
-            refreshRate = Float.parseFloat(refreshRateText);
-        } catch (NumberFormatException e) {
-            getErrPrintWriter().println("Error: invalid format of width, height or refresh rate");
-            return 1;
-        }
-        if ((width < 0 || height < 0) && refreshRate <= 0.0f) {
-            getErrPrintWriter().println("Error: invalid value of resolution (width, height)"
-                    + " and refresh rate");
-            return 1;
-        }
-
-        final String displayIdText = getNextArg();
-        int displayId = Display.INVALID_DISPLAY;
-        if (displayIdText != null) {
-            try {
-                displayId = Integer.parseInt(displayIdText);
-            } catch (NumberFormatException e) {
-                getErrPrintWriter().println("Error: invalid format of display ID");
+        final List<ModeRequestManager.UserPreferredModeRequest> requests = new ArrayList<>();
+        while (peekNextArg() != null) {
+            final ModeRequestManager.UserPreferredModeRequest request =
+                    readUserPreferredModeRequest();
+            if (request != null) {
+                requests.add(request);
+            } else {
                 return 1;
             }
         }
-        final String storeModeText = getNextArg();
-        boolean storeMode = true;
-        if (storeModeText != null) {
-            storeMode = Boolean.parseBoolean(storeModeText);
+        int size = requests.size();
+        if (size == 1) {
+            final ModeRequestManager.UserPreferredModeRequest request = requests.getFirst();
+            mService.setUserPreferredDisplayModeInternal(
+                    request.mDisplayId, request.mMode, request.mStoreMode);
+        } else if (size > 1) {
+            if (!Flags.modesetMultiDisplay()) {
+                return 1;
+            }
+            mService.setUserPreferredDisplayModesInternal(requests.toArray(
+                    new ModeRequestManager.UserPreferredModeRequest[size]));
         }
-
-        mService.setUserPreferredDisplayModeInternal(
-                displayId, new Display.Mode(width, height, refreshRate), storeMode);
         return 0;
     }
 
@@ -651,6 +623,61 @@ class DisplayManagerShellCommand extends ShellCommand {
         getOutPrintWriter().println("User preferred display mode: " + mode.getPhysicalWidth() + " "
                 + mode.getPhysicalHeight() + " " + mode.getRefreshRate());
         return 0;
+    }
+    @Nullable
+    private ModeRequestManager.UserPreferredModeRequest readUserPreferredModeRequest() {
+        final String widthText = getNextArg();
+        if (widthText == null) {
+            getErrPrintWriter().println("Error: no width specified");
+            return null;
+        }
+
+        final String heightText = getNextArg();
+        if (heightText == null) {
+            getErrPrintWriter().println("Error: no height specified");
+            return null;
+        }
+
+        final String refreshRateText = getNextArg();
+        if (refreshRateText == null) {
+            getErrPrintWriter().println("Error: no refresh-rate specified");
+            return null;
+        }
+
+        final int width, height;
+        final float refreshRate;
+        try {
+            width = Integer.parseInt(widthText);
+            height = Integer.parseInt(heightText);
+            refreshRate = Float.parseFloat(refreshRateText);
+        } catch (NumberFormatException e) {
+            getErrPrintWriter().println("Error: invalid format of width, height or refresh rate");
+            return null;
+        }
+        if ((width < 0 || height < 0) && refreshRate <= 0.0f) {
+            getErrPrintWriter().println("Error: invalid value of resolution (width, height)"
+                    + " and refresh rate");
+            return null;
+        }
+
+        final String displayIdText = getNextArg();
+        int displayId = Display.INVALID_DISPLAY;
+        if (displayIdText != null) {
+            try {
+                displayId = Integer.parseInt(displayIdText);
+            } catch (NumberFormatException e) {
+                getErrPrintWriter().println("Error: invalid format of display ID");
+                return null;
+            }
+        }
+        final String storeModeText = getNextArg();
+        boolean storeMode = true;
+        if (storeModeText != null) {
+            storeMode = Boolean.parseBoolean(storeModeText);
+        }
+
+        return new ModeRequestManager.UserPreferredModeRequest(
+                displayId, new Display.Mode(width, height, refreshRate), storeMode);
     }
 
     private int getActiveDisplayModeAtStart() {

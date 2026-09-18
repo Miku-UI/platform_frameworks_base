@@ -27,7 +27,9 @@ import com.android.keyguard.KeyguardSecurityModel.SecurityMode.PIN
 import com.android.systemui.Flags
 import com.android.systemui.Flags.FLAG_COMMUNAL_HUB
 import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_V2
+import com.android.systemui.Flags.FLAG_WAKEFULNESS_FOR_ANIMATIONS
 import com.android.systemui.Flags.glanceableHubV2
+import com.android.systemui.Flags.wakefulnessForAnimations
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.bouncer.data.repository.fakeKeyguardBouncerRepository
 import com.android.systemui.communal.data.repository.communalSceneRepository
@@ -79,6 +81,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mock
+import org.mockito.Mockito.atLeastOnce
 import org.mockito.Mockito.clearInvocations
 import org.mockito.Mockito.reset
 import org.mockito.Mockito.verify
@@ -140,7 +143,10 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
         @JvmStatic
         @Parameters(name = "{0}")
         fun getParams(): List<FlagsParameterization> {
-            return FlagsParameterization.allCombinationsOf(FLAG_GLANCEABLE_HUB_V2)
+            return FlagsParameterization.allCombinationsOf(
+                    FLAG_GLANCEABLE_HUB_V2,
+                    FLAG_WAKEFULNESS_FOR_ANIMATIONS,
+                )
                 .andSceneContainer()
         }
     }
@@ -186,7 +192,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
 
             // WHEN the primary bouncer is set to show
             bouncerRepository.setPrimaryShow(true)
-            runCurrent()
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
 
             assertThat(transitionRepository)
                 .startedTransition(
@@ -202,6 +208,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
         }
 
     @Test
+    @BrokenWithSceneContainer(339465026)
     fun occludedToDozing() =
         testScope.runTest {
             // GIVEN a device with AOD not available
@@ -227,6 +234,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
         }
 
     @Test
+    @BrokenWithSceneContainer(339465026)
     fun occludedToAod() =
         testScope.runTest {
             // GIVEN a device with AOD available
@@ -403,7 +411,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
 
             // WHEN biometrics succeeds with wake and unlock mode
             powerInteractor.setAwakeForTest()
-            keyguardRepository.setBiometricUnlockState(BiometricUnlockMode.WAKE_AND_UNLOCK)
+            keyguardRepository.setBiometricUnlockState(BiometricUnlockMode.WAKE_AND_DISMISS)
             runCurrent()
 
             assertThat(transitionRepository)
@@ -428,15 +436,41 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
             // WHEN awaked by a request to show the primary bouncer, as can happen if SPFS is
             // touched after boot
             powerInteractor.setAwakeForTest()
-            bouncerRepository.setPrimaryShow(true)
-            advanceTimeBy(60L)
 
-            assertThat(transitionRepository)
-                .startedTransition(
-                    from = KeyguardState.DOZING,
-                    to = KeyguardState.PRIMARY_BOUNCER,
-                    animatorAssertion = { it.isNotNull() },
-                )
+            if (wakefulnessForAnimations()) {
+                runCurrent()
+
+                // Given startedTransition is running twice and we don't have a debounce to club
+                // them together, make sure the right transitions run, and they run atLeastOnce()
+                assertThat(transitionRepository)
+                    .startedTransition(
+                        from = KeyguardState.DOZING,
+                        to = KeyguardState.LOCKSCREEN,
+                        animatorAssertion = { it.isNotNull() },
+                        verificationMode = atLeastOnce(),
+                    )
+
+                bouncerRepository.setPrimaryShow(true)
+                advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
+
+                assertThat(transitionRepository)
+                    .startedTransition(
+                        from = KeyguardState.LOCKSCREEN,
+                        to = KeyguardState.PRIMARY_BOUNCER,
+                        animatorAssertion = { it.isNotNull() },
+                        verificationMode = atLeastOnce(),
+                    )
+            } else {
+                bouncerRepository.setPrimaryShow(true)
+                advanceTimeBy(60L)
+
+                assertThat(transitionRepository)
+                    .startedTransition(
+                        from = KeyguardState.DOZING,
+                        to = KeyguardState.PRIMARY_BOUNCER,
+                        animatorAssertion = { it.isNotNull() },
+                    )
+            }
 
             coroutineContext.cancelChildren()
         }
@@ -446,7 +480,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
     @DisableSceneContainer
     fun dreamingToGoneWithKeyguardNotShowing() =
         testScope.runTest {
-            // Setup - Move past initial delay with [KeyguardInteractor#isAbleToDream]
+            // Setup - Move past initial delay with [KeyguardInteractor#isDreamingNotDozing]
             advanceTimeBy(600L)
 
             // GIVEN a prior transition has run to DREAMING
@@ -629,7 +663,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
 
             // WHEN the alternateBouncer stops showing and then the primary bouncer shows
             bouncerRepository.setPrimaryShow(true)
-            runCurrent()
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
 
             assertThat(transitionRepository)
                 .startedTransition(
@@ -802,13 +836,13 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
 
             // GIVEN a prior transition has run to PRIMARY_BOUNCER
             bouncerRepository.setPrimaryShow(true)
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
             runTransitionAndSetWakefulness(KeyguardState.LOCKSCREEN, KeyguardState.PRIMARY_BOUNCER)
-
             powerInteractor.setAsleepForTest()
 
             // WHEN the primaryBouncer stops showing
             bouncerRepository.setPrimaryShow(false)
-            runCurrent()
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
 
             // THEN a transition to AOD should occur
             assertThat(transitionRepository)
@@ -829,6 +863,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
         testScope.runTest {
             // GIVEN a prior transition has run to PRIMARY_BOUNCER
             bouncerRepository.setPrimaryShow(true)
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
             runTransitionAndSetWakefulness(KeyguardState.LOCKSCREEN, KeyguardState.PRIMARY_BOUNCER)
 
             // GIVEN aod not available and starting to sleep to sleep
@@ -837,7 +872,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
 
             // WHEN the primaryBouncer stops showing
             bouncerRepository.setPrimaryShow(false)
-            runCurrent()
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
 
             // THEN a transition to DOZING should occur
             assertThat(transitionRepository)
@@ -858,10 +893,13 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
         testScope.runTest {
             // GIVEN a prior transition has run to PRIMARY_BOUNCER
             bouncerRepository.setPrimaryShow(true)
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
+
             runTransitionAndSetWakefulness(KeyguardState.LOCKSCREEN, KeyguardState.PRIMARY_BOUNCER)
 
             // WHEN the primaryBouncer stops showing
             bouncerRepository.setPrimaryShow(false)
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
             runCurrent()
 
             // THEN a transition to LOCKSCREEN should occur
@@ -886,6 +924,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
 
             // GIVEN a prior transition has run to PRIMARY_BOUNCER
             bouncerRepository.setPrimaryShow(true)
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
             runTransitionAndSetWakefulness(
                 KeyguardState.GLANCEABLE_HUB,
                 KeyguardState.PRIMARY_BOUNCER,
@@ -893,6 +932,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
 
             // WHEN the primaryBouncer stops showing
             bouncerRepository.setPrimaryShow(false)
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
             runCurrent()
 
             // THEN a transition to LOCKSCREEN should occur
@@ -912,7 +952,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
     @DisableFlags(FLAG_GLANCEABLE_HUB_V2)
     fun primaryBouncerToGlanceableHubWhileDreaming() =
         testScope.runTest {
-            // Setup - Move past initial delay with [KeyguardInteractor#isAbleToDream]
+            // Setup - Move past initial delay with [KeyguardInteractor#isDreamingNotDozing]
             advanceTimeBy(600L)
 
             // GIVEN the device is idle on the glanceable hub
@@ -921,6 +961,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
 
             // GIVEN a prior transition has run to PRIMARY_BOUNCER
             bouncerRepository.setPrimaryShow(true)
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
             runTransitionAndSetWakefulness(
                 KeyguardState.GLANCEABLE_HUB,
                 KeyguardState.PRIMARY_BOUNCER,
@@ -930,9 +971,11 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
             keyguardRepository.setDreaming(true)
             keyguardRepository.setKeyguardOccluded(true)
             advanceTimeBy(60L)
+            runCurrent()
 
             // WHEN the primaryBouncer stops showing
             bouncerRepository.setPrimaryShow(false)
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
             runCurrent()
 
             // THEN a transition to GLANCEABLE_HUB should occur
@@ -1037,6 +1080,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
         }
 
     @Test
+    @BrokenWithSceneContainer(339465026)
     fun occludedToAlternateBouncer() =
         testScope.runTest {
             // GIVEN a prior transition has run to OCCLUDED
@@ -1071,7 +1115,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
 
             // WHEN primary bouncer shows
             bouncerRepository.setPrimaryShow(true)
-            runCurrent()
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
 
             // THEN a transition to AlternateBouncer should occur
             assertThat(transitionRepository)
@@ -1092,11 +1136,12 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
             // GIVEN a prior transition has run to PRIMARY_BOUNCER
             runTransitionAndSetWakefulness(KeyguardState.LOCKSCREEN, KeyguardState.PRIMARY_BOUNCER)
             bouncerRepository.setPrimaryShow(true)
-            runCurrent()
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
 
             // WHEN the keyguard is occluded and primary bouncer stops showing
             keyguardRepository.setKeyguardOccluded(true)
             bouncerRepository.setPrimaryShow(false)
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
             runCurrent()
 
             // THEN a transition to OCCLUDED should occur
@@ -1208,7 +1253,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
 
             // WHEN the primary bouncer is set to show
             bouncerRepository.setPrimaryShow(true)
-            runCurrent()
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
 
             // THEN a transition to PRIMARY_BOUNCER should occur
             assertThat(transitionRepository)
@@ -1223,6 +1268,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
         }
 
     @Test
+    @BrokenWithSceneContainer(339465026)
     fun dreamingToAod() =
         testScope.runTest {
             // GIVEN a prior transition has run to DREAMING
@@ -1322,7 +1368,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
 
             // WHEN the primary bouncer is set to show
             bouncerRepository.setPrimaryShow(true)
-            runCurrent()
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
 
             // THEN a transition to OCCLUDED should occur
             assertThat(transitionRepository)
@@ -1475,12 +1521,8 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
                     to = KeyguardState.DOZING,
                     animatorAssertion = { it.isNull() },
                 )
-            if (Flags.communalPowerTransitionFix()) {
-                verify(communalSceneRepository)
-                    .instantlyTransitionTo(eq(CommunalScenes.Blank), anyOrNull())
-            } else {
-                verify(communalSceneRepository).changeScene(eq(CommunalScenes.Blank), anyOrNull())
-            }
+            verify(communalSceneRepository)
+                .instantlyTransitionTo(eq(CommunalScenes.Blank), anyOrNull())
 
             testScope.coroutineContext.cancelChildren()
         }
@@ -1494,7 +1536,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
 
             // WHEN the primary bouncer shows
             bouncerRepository.setPrimaryShow(true)
-            runCurrent()
+            advanceTimeBy(FromPrimaryBouncerTransitionInteractor.BOUNCER_SHOWING_DEBOUNCE)
 
             assertThat(transitionRepository)
                 .startedTransition(
@@ -1695,7 +1737,7 @@ class KeyguardTransitionScenariosTest(flags: FlagsParameterization?) : SysuiTest
         runCurrent()
         reset(transitionRepository)
 
-        if (KeyguardState.deviceIsAwakeInState(to)) {
+        if (KeyguardState.deviceIsAwakeInState(to, to.mapToSceneContainerContent())) {
             powerInteractor.setAwakeForTest()
         } else {
             powerInteractor.setAsleepForTest()

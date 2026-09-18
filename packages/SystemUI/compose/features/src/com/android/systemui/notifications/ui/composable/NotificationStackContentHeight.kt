@@ -87,6 +87,17 @@ private class StackLayoutNode(
         if (constrainToMaxHeight) {
             contentHeight = contentHeight.coerceAtMost(constraints.maxHeight)
         }
+        if (contentHeight < 0) {
+            android.util.Log.wtf(
+                "StackLayoutNode",
+                "Attempted to lay out notification with negative height: " +
+                    "intrinsicStackHeight = ${view.intrinsicStackHeight} ; " +
+                    "constraints.maxHeight = ${constraints.maxHeight} ; " +
+                    "StackLayoutNode = ${this@StackLayoutNode}",
+            )
+            // This will undoubtedly be janky in some way, but it beats crashing compose.
+            contentHeight = 0
+        }
         val placeable =
             measurable.measure(
                 constraints.copy(minHeight = contentHeight, maxHeight = contentHeight)

@@ -16,11 +16,12 @@
 
 package android.companion.virtual.computercontrol;
 
-import android.companion.virtual.computercontrol.IComputerControlStabilityListener;
-import android.companion.virtual.computercontrol.IInteractiveMirrorDisplay;
-import android.hardware.input.VirtualKeyEvent;
-import android.hardware.input.VirtualTouchEvent;
+import android.app.PendingIntent;
+import android.companion.virtual.computercontrol.IComputerControlLifecycleCallback;
+import android.companion.virtual.computercontrol.IInteractiveMirror;
 import android.view.Surface;
+import android.view.SurfaceControl;
+import com.android.internal.os.IResultReceiver;
 
 /**
  * Interface for computer control session management.
@@ -29,8 +30,14 @@ import android.view.Surface;
  */
 interface IComputerControlSession {
 
+    /**
+     * Initializes the computer control session by setting the callback to be notified about
+     * computer control lifecycle changes, and configuring the Surface for the session.
+     */
+    void initialize(in IComputerControlLifecycleCallback listener, in Surface surface);
+
     /** Launches an application on the trusted virtual display. */
-    void launchApplication(in String packageName);
+    void launchApplication(in String packageName, in String className);
 
     /** Hand over full control of the automation session to the user. */
     void handOverApplications();
@@ -44,18 +51,9 @@ interface IComputerControlSession {
     /** Injects a long press event into the trusted virtual display. */
     void longPress(int x, int y);
 
-    /** Returns the ID of the single trusted virtual display for this session. */
-    int getVirtualDisplayId();
-
-    /** Injects a key event into the trusted virtual display. */
-    void sendKeyEvent(in VirtualKeyEvent event);
-
-    /** Injects a touch event into the trusted virtual display. */
-    void sendTouchEvent(in VirtualTouchEvent event);
-
-    /** Creates an interactive virtual display, mirroring the trusted one. */
-    IInteractiveMirrorDisplay createInteractiveMirrorDisplay(
-            int width, int height, in Surface surface);
+    /** Creates an interactive mirror of the session's virtual display. */
+    IInteractiveMirror createInteractiveMirror(in IResultReceiver a11yEmbeddedConnectionReceiver,
+            out SurfaceControl mirrorSurface);
 
     /**
      * Inserts text into the current active input connection. If there is no active input
@@ -71,8 +69,46 @@ interface IComputerControlSession {
     /** Performs computer control action on the computer control display. */
     void performAction(int actionCode);
 
-    /** Sets a listener to be notified when the computer control session is potentially stable. */
-    void setStabilityListener(in IComputerControlStabilityListener listener);
+    /** Attaches a notification to the session, to make it non-dismissable. */
+    // TODO(b/483645569): Remove when agents start passing a notification as part of the
+    // ComputerControlSessionParams.
+    void attachNotificationInfo(int notificationId, in String notificationTag);
+
+    /**
+     * Sets the intent launched when the user wants to preview the automation, or null if none.
+     *
+     * <p>This overrides the intent set in {@link
+     * ComputerControlSessionParams.Builder#setPreviewIntent}.
+     */
+    void setPreviewIntent(in @nullable PendingIntent previewIntent);
+
+    /**
+     * Request a screenshot to be taken of the virtual display, which forces a new frame to be
+     * drawn during a backgrounded session. Screenshot requests should be serialized, and the client
+     * should wait for the frame to be produced in the ImageReader following a successful request
+     * before requesting another one.
+     *
+     * @return {@code true} if a screenshot request was successfully processed,
+     *     {@code false} otherwise.
+     */
+    boolean requestScreenshot();
+
+    /**
+     * Notifies the system that a previous screenshot result has been resolved.
+     */
+    void notifyScreenshotResult();
+
+    /**
+     * Notifies the system that the caller is blocked and unable to perform any further
+     * interactions in the session.
+     */
+    void notifyBlocked();
+
+    /**
+     * Attempts to exit the blocked state when the session is blocked for any reason. This should
+     * be called when the user explicitly chooses to end their control of the session.
+     */
+    void requestUnblock();
 
     /** Closes this session. */
     void close();

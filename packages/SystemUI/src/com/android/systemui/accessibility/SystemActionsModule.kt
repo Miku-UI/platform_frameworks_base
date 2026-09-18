@@ -17,6 +17,7 @@
 package com.android.systemui.accessibility
 
 import com.android.systemui.CoreStartable
+import com.android.systemui.accessibility.domain.interactor.SystemActionsInteractor
 import com.android.systemui.statusbar.policy.ConfigurationController.ConfigurationListener
 import dagger.Binds
 import dagger.Module
@@ -31,6 +32,11 @@ interface SystemActionsModule {
     @IntoMap
     @ClassKey(SystemActions::class)
     fun bindSystemActionsStartable(sysui: SystemActions): CoreStartable
+
+    @Binds
+    @IntoMap
+    @ClassKey(SystemActionsInteractor::class)
+    fun bindSystemActionsInteractorStartable(sysui: SystemActionsInteractor): CoreStartable
 
     /** Listen to config changes for SystemActions. */
     @Binds @IntoSet fun bindSystemActionsConfigChanges(sysui: SystemActions): ConfigurationListener

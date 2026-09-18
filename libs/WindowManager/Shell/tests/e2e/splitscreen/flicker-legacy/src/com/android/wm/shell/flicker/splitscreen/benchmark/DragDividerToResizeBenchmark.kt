@@ -16,10 +16,10 @@
 
 package com.android.wm.shell.flicker.splitscreen.benchmark
 
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import androidx.test.filters.RequiresDevice
 import com.android.wm.shell.flicker.utils.SplitScreenUtils
 import org.junit.Assume
@@ -44,7 +44,7 @@ abstract class DragDividerToResizeBenchmark(override val flicker: FlickerTest) :
                     device,
                     primaryApp,
                     secondaryApp,
-                    flicker.scenario.startRotation
+                    flicker.scenario.startRotation,
                 )
             }
             transitions { SplitScreenUtils.dragDividerToResizeAndWait(device, wmHelper) }

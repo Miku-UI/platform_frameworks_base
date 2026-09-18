@@ -15,14 +15,12 @@
  */
 package com.android.systemui.shade.domain.interactor
 
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import com.android.systemui.statusbar.phone.SystemUIDialogManager
 import com.android.systemui.statusbar.phone.mockSystemUIDialogManager
 import com.android.systemui.testKosmos
@@ -35,7 +33,6 @@ import org.mockito.kotlin.verify
 
 @RunWith(AndroidJUnit4::class)
 @SmallTest
-@EnableFlags(ShadeWindowGoesAround.FLAG_NAME)
 class ShadeDisplayDialogInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private val dialogManager: SystemUIDialogManager = kosmos.mockSystemUIDialogManager

@@ -269,7 +269,7 @@ class InstallingSession {
                     pkgLite, mRequiredInstalledVersionCode, mInstallFlags);
             mRet = ret.first;
             if (mRet != INSTALL_SUCCEEDED) {
-                request.setError(mRet, "Failed to verify version code");
+                request.setError(mRet, "Failed to verify version code: " + ret.second);
                 return;
             }
         }
@@ -393,7 +393,7 @@ class InstallingSession {
         try (PackageManagerTracedLock installLock = mPm.mInstallLock.acquireLock()) {
             mPm.mInstaller.moveCompleteApp(mMoveInfo.mFromUuid, mMoveInfo.mToUuid,
                     mMoveInfo.mPackageName, mMoveInfo.mAppId, mMoveInfo.mSeInfo,
-                    mMoveInfo.mTargetSdkVersion, mMoveInfo.mFromCodePath);
+                    mMoveInfo.mTargetSdkVersion, mMoveInfo.mFromCodePath, mMoveInfo.mPccId);
         } catch (Installer.InstallerException e) {
             final String errorMessage = "Failed to move app";
             request.setError(PackageManagerException.ofInternalError(errorMessage,
@@ -438,9 +438,15 @@ class InstallingSession {
             // install reason correctly.
             return installReason;
         }
-        final String ownerPackage = mPm.mProtectedPackages.getDeviceOwnerOrProfileOwnerPackage(
-                UserHandle.getUserId(installerUid));
-        if (ownerPackage != null && ownerPackage.equals(installerPackageName)) {
+        String dpcPackage;
+        if (android.app.admin.flags.Flags.pushDpcPackagesToSystemServices()) {
+            dpcPackage = mPm.mProtectedPackages.getDevicePolicyControllerPackage(
+                    UserHandle.getUserId(installerUid));
+        } else {
+            dpcPackage = mPm.mProtectedPackages.getDeviceOwnerOrProfileOwnerPackage(
+                    UserHandle.getUserId(installerUid));
+        }
+        if (dpcPackage != null && dpcPackage.equals(installerPackageName)) {
             // If the install is being performed by a device or profile owner, the install
             // reason should be enterprise policy.
             return PackageManager.INSTALL_REASON_POLICY;

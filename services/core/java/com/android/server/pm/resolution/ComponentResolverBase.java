@@ -207,9 +207,14 @@ public abstract class ComponentResolverBase extends WatchableImpl implements Com
                 continue;
             }
 
-            if (processName != null && (!p.getProcessName().equals(processName)
-                    || !UserHandle.isSameApp(pkg.getUid(), uid))) {
-                continue;
+            if (processName != null) {
+                if (!p.getProcessName().equals(processName)) {
+                    continue;
+                }
+                final boolean isPcc = (p.getFlags() & ProviderInfo.FLAG_RUN_IN_PCC_SANDBOX) != 0;
+                if (UserHandle.getAppId(uid) != (isPcc ? ps.getPccId() : ps.getAppId())) {
+                    continue;
+                }
             }
             // See PM.queryContentProviders()'s javadoc for why we have the metaData parameter.
             if (metaDataKey != null && !p.getMetaData().containsKey(metaDataKey)) {

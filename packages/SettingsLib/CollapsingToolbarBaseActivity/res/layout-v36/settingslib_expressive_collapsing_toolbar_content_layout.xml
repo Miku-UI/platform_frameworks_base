@@ -44,6 +44,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
                 android:layout_marginStart="@dimen/settingslib_expressive_space_extrasmall4"
+                android:paddingStart="@dimen/settingslib_expressive_space_extrasmall4"
                 android:theme="?android:attr/actionBarTheme"
                 android:transitionName="shared_element_view"
                 android:nextFocusForward="@+id/content_frame"

@@ -16,12 +16,14 @@
 package com.android.app.concurrent.benchmark
 
 import androidx.benchmark.BlackHole
-import androidx.benchmark.ExperimentalBlackHoleApi
 import com.android.app.concurrent.benchmark.base.BaseSchedulerBenchmark
-import com.android.app.concurrent.benchmark.util.ExecutorServiceCoroutineScopeBuilder
-import com.android.app.concurrent.benchmark.util.HandlerThreadImmediateScopeBuilder
-import com.android.app.concurrent.benchmark.util.HandlerThreadScopeBuilder
-import com.android.app.concurrent.benchmark.util.ThreadFactory
+import com.android.app.concurrent.benchmark.util.CONSUME_CPU_NONE
+import com.android.app.concurrent.benchmark.util.CONSUME_CPU_SMALL
+import com.android.app.concurrent.benchmark.util.ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder
+import com.android.app.concurrent.benchmark.util.LooperThreadWithHandlerDispatcherBuilder
+import com.android.app.concurrent.benchmark.util.LooperThreadWithImmediateHandlerDispatcherBuilder
+import com.android.app.concurrent.benchmark.util.ThreadBuilder
+import com.android.app.concurrent.benchmark.util.stressCpu
 import com.android.app.concurrent.benchmark.util.times
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -34,6 +36,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.junit.FixMethodOrder
@@ -45,11 +49,11 @@ import org.junit.runners.Parameterized.Parameters
 
 private fun <T1, T2> flowOpParam(
     name: String,
-    block: (Flow<T1>, Int, CoroutineScope) -> Flow<T2>,
-): (Flow<T1>, Int, CoroutineScope) -> Flow<T2> {
-    return object : (Flow<T1>, Int, CoroutineScope) -> Flow<T2> {
-        override fun invoke(upstream: Flow<T1>, index: Int, scope: CoroutineScope): Flow<T2> {
-            return block(upstream, index, scope)
+    block: Flow<T1>.(CoroutineScope, T2) -> Flow<T2>,
+): Flow<T1>.(CoroutineScope, T2) -> Flow<T2> {
+    return object : (Flow<T1>, CoroutineScope, T2) -> Flow<T2> {
+        override fun invoke(upstream: Flow<T1>, scope: CoroutineScope, initialValue: T2): Flow<T2> {
+            return upstream.block(scope, initialValue)
         }
 
         override fun toString(): String {
@@ -61,44 +65,48 @@ private fun <T1, T2> flowOpParam(
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class FlowOperatorBenchmark(
-    threadParam: ThreadFactory<Any, CoroutineScope>,
+    threadParam: ThreadBuilder<CoroutineScope>,
     val chainLength: Int,
-    val intermediateOperator: (Flow<Int>, Int, CoroutineScope) -> Flow<Int>,
+    val intermediateOperator: Flow<Int>.(CoroutineScope, Int) -> Flow<Int>,
+    val mainWorkload: Int,
+    val bgWorkload: Int,
 ) : BaseSchedulerBenchmark<CoroutineScope>(threadParam) {
 
     companion object {
         @OptIn(ExperimentalCoroutinesApi::class)
-        @Parameters(name = "{0},{1},{2}")
+        @Parameters(
+            name = "{0}:chainLength={1}:intermediateOperator={2}:mainWorkload={3}:bgWorkload={4}"
+        )
         @JvmStatic
-        fun getDispatchers() =
+        fun getParameters() =
             listOf(
-                ExecutorServiceCoroutineScopeBuilder,
-                HandlerThreadScopeBuilder,
-                HandlerThreadImmediateScopeBuilder,
+                ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder,
+                LooperThreadWithHandlerDispatcherBuilder,
+                LooperThreadWithImmediateHandlerDispatcherBuilder,
             ) *
                 listOf(5, 10, 25) *
                 listOf(
-                    flowOpParam("cold") { upstream, _, _ -> upstream },
-                    flowOpParam("stateIn") { upstream, index, scope ->
-                        upstream.stateIn(
-                            scope,
+                    flowOpParam("cold") { _, _ -> this },
+                    flowOpParam("stateIn") { scope, initialValue ->
+                        stateIn(
+                            scope = scope,
                             started = SharingStarted.Eagerly,
-                            initialValue = index,
+                            initialValue = initialValue,
                         )
                     },
-                    flowOpParam("conflate") { upstream, _, _ -> upstream.conflate() },
-                    flowOpParam("buffer-2") { upstream, _, _ -> upstream.buffer(2) },
-                    flowOpParam("buffer-4") { upstream, _, _ -> upstream.buffer(4) },
-                    flowOpParam("distinctUntilChanged") { upstream, _, _ ->
-                        upstream.distinctUntilChanged()
+                    flowOpParam("conflate") { _, _ -> conflate() },
+                    flowOpParam("buffer-2") { _, _ -> buffer(2) },
+                    flowOpParam("buffer-4") { _, _ -> buffer(4) },
+                    flowOpParam("distinctUntilChanged") { _, _ -> distinctUntilChanged() },
+                    flowOpParam("map") { _, _ -> map { value -> value } },
+                    flowOpParam("mapLatest") { _, _ -> mapLatest { value -> value } },
+                    flowOpParam("flatMapLatest-newColdFlow") { _, _ ->
+                        flatMapLatest { value -> flow { emit(value) } }
                     },
-                    flowOpParam("flatMapLatest-cold") { upstream, _, _ ->
-                        upstream.flatMapLatest { value -> flow { emit(value) } }
-                    },
-                    flowOpParam<Int, Int>("flatMapLatest-state") { upstream, _, _ ->
+                    flowOpParam("flatMapLatest-toggleStateFlow") { _, _ ->
                         val odds = MutableStateFlow(0)
                         val evens = MutableStateFlow(0)
-                        upstream.flatMapLatest { value ->
+                        flatMapLatest { value: Int ->
                             if (value % 2 == 0) {
                                 evens.value = value
                                 evens
@@ -108,38 +116,47 @@ class FlowOperatorBenchmark(
                             }
                         }
                     },
-                )
+                ) *
+                listOf(CONSUME_CPU_NONE, CONSUME_CPU_SMALL) *
+                listOf(CONSUME_CPU_NONE, CONSUME_CPU_SMALL)
     }
 
-    @OptIn(ExperimentalBlackHoleApi::class)
     @Test
     fun benchmark() {
         val sourceState = MutableStateFlow(0)
-        var receivedVal = 0
-        val flowChain = mutableListOf<Flow<Int>>()
-        repeat(chainLength) { i ->
-            val upstream = if (i == 0) sourceState else flowChain.last()
-            flowChain.add(intermediateOperator(upstream.map { it + 1 }, i, scheduler))
+        var lastFlow: Flow<Int> = sourceState
+        var result = 0.0
+        repeat(chainLength) {
+            lastFlow =
+                lastFlow
+                    .onEach { result += stressCpu(bgWorkload) }
+                    .intermediateOperator(scheduler, 0)
         }
+        var receivedVal = 0
         benchmarkRule.runBenchmark {
             withBarrier(count = 1) {
                 beforeFirstIteration { barrier ->
                     scheduler.launch {
-                        flowChain.last().collect {
+                        lastFlow.collect {
                             receivedVal = it
                             barrier.countDown()
                         }
                     }
                 }
             }
-            onEachIteration { n -> sourceState.value = n }
+            onEachIteration { n ->
+                sourceState.value = n
+                result += stressCpu(mainWorkload)
+            }
             stateChecker(
-                isInExpectedState = { n -> receivedVal == n + chainLength },
-                expectedStr = "receivedVal == n + chainLength",
+                isInExpectedState = { n -> receivedVal == n },
+                expectedStr = "receivedVal == n",
                 expectedCalc = { n -> "$receivedVal == $n + $chainLength" },
             )
-            @OptIn(ExperimentalBlackHoleApi::class)
-            afterLastIteration { BlackHole.consume(receivedVal) }
+            afterLastIteration {
+                BlackHole.consume(receivedVal)
+                BlackHole.consume(result)
+            }
         }
     }
 }

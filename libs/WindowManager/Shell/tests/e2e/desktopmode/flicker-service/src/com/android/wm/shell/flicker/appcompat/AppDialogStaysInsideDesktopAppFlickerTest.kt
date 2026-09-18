@@ -41,6 +41,9 @@ import org.junit.runners.Parameterized
 /**
  * Test for the app dialog stays inside an app when the desktop app is moved in desktop mode.
  *
+ * Test with 3 button navigation because the expected bottom inset of the stable bounds is higher
+ * than actual.
+ *
  * Assert that app dialog activity window appear on top and cover the app window at end.
  */
 @RequiresDesktopDevice
@@ -54,7 +57,7 @@ class AppDialogStaysInsideDesktopAppFlickerTest(flicker: FlickerTest) :
 
     @Rule
     @JvmField
-    val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, flicker.scenario.startRotation)
+    val testSetupRule = Utils.testSetupRule(NavBar.MODE_3BUTTON, flicker.scenario.startRotation)
     val scenario = AppDialogStaysInsideDesktopAppScenario()
     private val browserApp = scenario.browserDesktopAppHelper
     private val appDialogMatcher: IComponentNameMatcher =
@@ -84,7 +87,7 @@ class AppDialogStaysInsideDesktopAppFlickerTest(flicker: FlickerTest) :
         @JvmStatic
         fun getParams(): Collection<FlickerChecker> {
             return FlickerTestFactory.nonRotationTests(
-                supportedNavigationModes = listOf(NavBar.MODE_GESTURAL)
+                supportedNavigationModes = listOf(NavBar.MODE_3BUTTON)
             )
         }
     }

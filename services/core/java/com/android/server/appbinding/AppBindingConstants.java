@@ -28,6 +28,12 @@ import java.util.concurrent.TimeUnit;
 public class AppBindingConstants {
     private static final String TAG = AppBindingService.TAG;
 
+    private static final String CONTENT_RESTRICTION_APP_SERVICE_ENABLED_KEY =
+            "content_restriction_app_service_enabled";
+
+    private static final String CONTENT_RESTRICTION_APP_SERVICE_BIND_FLAGS_KEY =
+            "content_restriction_app_service_bind_flags";
+
     private static final String SERVICE_RECONNECT_BACKOFF_SEC_KEY =
             "service_reconnect_backoff_sec";
 
@@ -76,6 +82,16 @@ public class AppBindingConstants {
     public final long SERVICE_STABLE_CONNECTION_THRESHOLD_SEC;
 
     /**
+     * Whether to actually bind to the content restriction app service. (Feature flag)
+     */
+    public final boolean CONTENT_RESTRICTION_APP_SERVICE_ENABLED;
+
+    /**
+     * Extra binding flags for content restriction app service.
+     */
+    public final int CONTENT_RESTRICTION_APP_SERVICE_BIND_FLAGS;
+
+    /**
      * Whether to actually bind to the default SMS app service. (Feature flag)
      */
     public final boolean SMS_SERVICE_ENABLED;
@@ -114,16 +130,9 @@ public class AppBindingConstants {
 
         boolean smsServiceEnabled = parser.getBoolean(SMS_SERVICE_ENABLED_KEY, true);
 
-        int smsAppBindFlags;
-        if (com.android.server.am.Flags.lowerSmsOomImportance()) {
-            smsAppBindFlags = parser.getInt(
-                    SMS_APP_BIND_FLAGS_KEY,
-                    Context.BIND_ALMOST_PERCEPTIBLE | Context.BIND_FOREGROUND_SERVICE);
-        } else {
-            smsAppBindFlags = parser.getInt(
-                    SMS_APP_BIND_FLAGS_KEY,
-                    Context.BIND_NOT_VISIBLE | Context.BIND_FOREGROUND_SERVICE);
-        }
+        int smsAppBindFlags = parser.getInt(
+                SMS_APP_BIND_FLAGS_KEY,
+                Context.BIND_ALMOST_PERCEPTIBLE | Context.BIND_FOREGROUND_SERVICE);
 
         boolean supervisionAppServiceEnabled =
                 parser.getBoolean(SUPERVISION_APP_SERVICE_ENABLED_KEY, true);
@@ -131,6 +140,14 @@ public class AppBindingConstants {
         int supervisionAppServiceBindFlags =
                 parser.getInt(
                         SUPERVISION_APP_SERVICE_BIND_FLAGS_KEY,
+                        Context.BIND_NOT_VISIBLE | Context.BIND_FOREGROUND_SERVICE);
+
+        boolean contentRestrictionAppServiceEnabled =
+                parser.getBoolean(CONTENT_RESTRICTION_APP_SERVICE_ENABLED_KEY, true);
+
+        int contentRestrictionAppServiceBindFlags =
+                parser.getInt(
+                        CONTENT_RESTRICTION_APP_SERVICE_BIND_FLAGS_KEY,
                         Context.BIND_NOT_VISIBLE | Context.BIND_FOREGROUND_SERVICE);
 
         long serviceStableConnectionThresholdSec = parser.getLong(
@@ -155,6 +172,8 @@ public class AppBindingConstants {
         SMS_APP_BIND_FLAGS = smsAppBindFlags;
         SUPERVISION_APP_SERVICE_ENABLED = supervisionAppServiceEnabled;
         SUPERVISION_APP_SERVICE_BIND_FLAGS = supervisionAppServiceBindFlags;
+        CONTENT_RESTRICTION_APP_SERVICE_ENABLED = contentRestrictionAppServiceEnabled;
+        CONTENT_RESTRICTION_APP_SERVICE_BIND_FLAGS = contentRestrictionAppServiceBindFlags;
     }
 
     /**
@@ -203,5 +222,13 @@ public class AppBindingConstants {
         pw.print(prefix);
         pw.print("  SUPERVISION_APP_SERVICE_BIND_FLAGS: 0x");
         pw.println(Integer.toHexString(SUPERVISION_APP_SERVICE_BIND_FLAGS));
+
+        pw.print(prefix);
+        pw.print("  CONTENT_RESTRICTION_APP_SERVICE_ENABLED: ");
+        pw.println(CONTENT_RESTRICTION_APP_SERVICE_ENABLED);
+
+        pw.print(prefix);
+        pw.print("  CONTENT_RESTRICTION_APP_SERVICE_BIND_FLAGS: 0x");
+        pw.println(Integer.toHexString(CONTENT_RESTRICTION_APP_SERVICE_BIND_FLAGS));
     }
 }

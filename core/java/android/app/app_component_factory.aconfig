@@ -1,0 +1,10 @@
+package: "android.app"
+container: "system"
+
+flag {
+    name: "custom_backupagent_creation"
+    is_exported: true
+    namespace: "system_performance"
+    description: "Custom BackupAgent instantiation for dagger injection"
+    bug: "442308952"
+}

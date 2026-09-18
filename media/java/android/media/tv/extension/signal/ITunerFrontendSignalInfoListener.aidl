@@ -20,5 +20,12 @@ package android.media.tv.extension.signal;
 * @hide
 */
 oneway interface ITunerFrontendSignalInfoListener {
+    /**
+     * Called when the tuner's frontend signal status changes.
+     *
+     * @param frontendStatus An int value {@link SignalConstant.FrontendStatus}
+     *        containing the updated frontend status, indicating whether the
+     *        signal is locked, tuning, untuned, or unlocked.
+     */
     void onFrontendStatusChanged(int frontendStatus);
 }

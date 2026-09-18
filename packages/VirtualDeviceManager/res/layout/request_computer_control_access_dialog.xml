@@ -32,16 +32,16 @@
             android:text="@string/request_computer_control_access_dialog_description"
             style="@style/RequestComputerControlAccessDialogDescription" />
         <Button
+            android:id="@+id/always_allow_button"
+            android:text="@string/request_computer_control_access_dialog_button_always_allow"
+            style="@style/RequestComputerControlAccessDialogButton" />
+        <Button
             android:id="@+id/allow_button"
             android:text="@string/request_computer_control_access_dialog_button_allow"
-            style="@style/RequestComputerControlAccessDialogAllowButton" />
+            style="@style/RequestComputerControlAccessDialogButton" />
         <Button
             android:id="@+id/dont_allow_button"
             android:text="@string/request_computer_control_access_dialog_button_dont_allow"
-            style="@style/RequestComputerControlAccessDialogDontAllowButton" />
-        <Button
-            android:id="@+id/always_allow_button"
-            android:text="@string/request_computer_control_access_dialog_button_always_allow"
-            style="@style/RequestComputerControlAccessDialogAlwaysAllowButton" />
+            style="@style/RequestComputerControlAccessDialogButton" />
     </LinearLayout>
 </ScrollView>

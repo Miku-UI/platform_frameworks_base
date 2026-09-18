@@ -16,7 +16,9 @@
 
 package com.android.wm.shell.windowdecor;
 
-import static android.window.DesktopModeFlags.ENABLE_WINDOWING_SCALED_RESIZING;
+import static android.view.MotionEvent.ACTION_CANCEL;
+import static android.view.MotionEvent.ACTION_DOWN;
+import static android.view.MotionEvent.ACTION_UP;
 
 import static com.android.wm.shell.windowdecor.DragResizeWindowGeometry.getFineResizeCornerSize;
 import static com.android.wm.shell.windowdecor.DragResizeWindowGeometry.getLargeResizeCornerSize;
@@ -50,8 +52,6 @@ import android.view.ViewConfiguration;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.view.WindowManagerGlobal;
-import android.window.DesktopExperienceFlags;
-import android.window.DesktopModeFlags;
 import android.window.WindowContainerTransaction;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -89,6 +89,12 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
     private View.OnTouchListener mOnCaptionTouchListener;
     private DragPositioningCallback mDragPositioningCallback;
     private DragResizeInputListener mDragResizeListener;
+
+    /**
+     * Whether we're receiving a gesture received from {@link DragResizeInputListener} started in
+     * the root view.
+     */
+    private boolean mInjectingGestureOfInterest = false;
 
     private RelayoutParams mRelayoutParams = new RelayoutParams();
     private final RelayoutResult<WindowDecorLinearLayout> mResult =
@@ -229,17 +235,9 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
         relayoutParams.mRunningTaskInfo = taskInfo;
         relayoutParams.mLayoutResId = R.layout.caption_window_decor;
         relayoutParams.mCaptionHeightCalculator = getCaptionHeightCalculator();
-        if (DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue()) {
-            relayoutParams.mShadowRadiusId = hasGlobalFocus
-                    ? R.dimen.freeform_decor_shadow_focused_thickness
-                    : R.dimen.freeform_decor_shadow_unfocused_thickness;
-        } else {
-            relayoutParams.mShadowRadius = hasGlobalFocus
-                    ? context.getResources().getDimensionPixelSize(
-                    R.dimen.freeform_decor_shadow_focused_thickness)
-                    : context.getResources().getDimensionPixelSize(
-                            R.dimen.freeform_decor_shadow_unfocused_thickness);
-        }
+        relayoutParams.mShadowRadiusId = hasGlobalFocus
+                ? R.dimen.freeform_decor_shadow_focused_thickness
+                : R.dimen.freeform_decor_shadow_unfocused_thickness;
         relayoutParams.mApplyStartTransactionOnDraw = applyStartTransactionOnDraw;
         relayoutParams.mSetTaskVisibilityPositionAndCrop = shouldSetTaskVisibilityPositionAndCrop;
         relayoutParams.mIsCaptionVisible = taskInfo.isFreeform()
@@ -278,10 +276,6 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
             boolean applyStartTransactionOnDraw, boolean shouldSetTaskVisibilityPositionAndCrop,
             boolean hasGlobalFocus,
             @NonNull Region globalExclusionRegion, boolean inSyncWithTransition) {
-        final boolean isFreeform =
-                taskInfo.getWindowingMode() == WindowConfiguration.WINDOWING_MODE_FREEFORM;
-        final boolean isDragResizeable = ENABLE_WINDOWING_SCALED_RESIZING.isTrue()
-                ? isFreeform : isFreeform && taskInfo.isResizeable;
 
         final WindowDecorLinearLayout oldRootView = mResult.mRootView;
         final SurfaceControl oldDecorationSurface = mDecorationContainerSurface;
@@ -310,21 +304,20 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
 
         bindData(mResult.mRootView, taskInfo);
 
-        if (!isDragResizeable) {
+        if (!taskInfo.isFreeform()) {
+            // Non-freeform tasks are not drag resizeable and thus the drag resize listener can be
+            // closed.
             closeDragResizeListener();
             return;
         }
 
         if (oldDecorationSurface != mDecorationContainerSurface || mDragResizeListener == null) {
             closeDragResizeListener();
-            final ShellExecutor bgExecutor =
-                    DesktopModeFlags.ENABLE_DRAG_RESIZE_SET_UP_IN_BG_THREAD.isTrue()
-                            ? mBgExecutor : mMainExecutor;
             mDragResizeListener = new DragResizeInputListener(
                     mContext,
                     WindowManagerGlobal.getWindowSession(),
                     mMainExecutor,
-                    bgExecutor,
+                    mBgExecutor,
                     mTaskInfo,
                     mHandler,
                     mChoreographer,
@@ -333,7 +326,30 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
                     mDragPositioningCallback,
                     mSurfaceControlBuilderSupplier,
                     mSurfaceControlTransactionSupplier,
-                    mDisplayController);
+                    mDisplayController,
+                    event -> {
+                        final boolean isDown = event.getAction() == ACTION_DOWN;
+                        final boolean isUpOrCancel =
+                                event.getAction() == ACTION_UP
+                                        || event.getAction() == ACTION_CANCEL;
+                        final float x = event.getX();
+                        final float y = event.getY();
+                        final View rootView = mResult.mRootView;
+                        final float left = rootView.getLeft();
+                        final float top = rootView.getTop();
+                        event.offsetLocation(left, top);
+                        if (isDown) {
+                            mInjectingGestureOfInterest = x >= 0 && y >= 0
+                                    && x < rootView.getWidth() && y < rootView.getHeight();
+                        }
+                        if (mInjectingGestureOfInterest) {
+                            rootView.dispatchTouchEvent(event);
+                        }
+                        if (isUpOrCancel) {
+                            mInjectingGestureOfInterest = false;
+                        }
+                        event.offsetLocation(-left, -top);
+                    });
         }
         final DragResizeInputListener newListener = mDragResizeListener;
         final int touchSlop = ViewConfiguration.get(mResult.mRootView.getContext())

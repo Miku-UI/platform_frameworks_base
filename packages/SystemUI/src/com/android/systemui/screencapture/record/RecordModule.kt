@@ -17,6 +17,8 @@
 package com.android.systemui.screencapture.record
 
 import com.android.systemui.screencapture.common.ui.compose.ScreenCaptureContent
+import com.android.systemui.screencapture.record.camera.data.repository.ScreenRecordCameraRepository
+import com.android.systemui.screencapture.record.camera.data.repository.ScreenRecordCameraRepositoryImpl
 import com.android.systemui.screencapture.record.ui.compose.ScreenCaptureRecordContent
 import dagger.Binds
 import dagger.Module
@@ -25,4 +27,9 @@ import dagger.Module
 @Module
 interface RecordModule {
     @Binds fun bindScreenCaptureContent(impl: ScreenCaptureRecordContent): ScreenCaptureContent
+
+    @Binds
+    fun bindScreenRecordCameraRepository(
+        impl: ScreenRecordCameraRepositoryImpl
+    ): ScreenRecordCameraRepository
 }

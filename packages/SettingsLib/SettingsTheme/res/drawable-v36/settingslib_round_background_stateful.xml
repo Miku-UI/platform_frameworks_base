@@ -25,7 +25,7 @@
          ?android:attr/selectableItemBackground as the default (no state) background. Hence, just
          directly inline it as a drawable here. -->
     <item>
-        <ripple android:color="?attr/colorControlHighlight">
+        <ripple android:color="?android:colorControlHighlight">
             <item android:id="@android:id/mask">
                 <color android:color="@android:color/white" />
             </item>

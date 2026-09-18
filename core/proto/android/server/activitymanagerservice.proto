@@ -222,6 +222,11 @@ message MemInfoDumpProto {
             optional int32 stack_rss_kb = 13;
             optional int32 graphics_rss_kb = 14;
             optional int32 unknown_rss_kb = 15;
+
+            optional int64 total_bitmap_count = 16;
+            optional int64 total_bitmap_size_kb = 17;
+            optional int64 unique_bitmap_count = 18;
+            optional int64 unique_bitmap_size_kb = 19;
         }
         optional AppSummary app_summary = 9;
     }

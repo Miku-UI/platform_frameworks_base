@@ -30,8 +30,10 @@ import com.android.internal.R
 import com.android.internal.policy.TransitionAnimation
 import com.android.internal.protolog.ProtoLog
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer
+import com.android.wm.shell.bubbles.BubbleController
 import com.android.wm.shell.protolog.ShellProtoLogGroup
 import com.android.wm.shell.shared.annotations.ShellMainThread
+import java.util.Optional
 import javax.inject.Inject
 import kotlin.math.max
 import kotlin.math.min
@@ -44,13 +46,15 @@ class CustomCrossActivityBackAnimation(
     transaction: SurfaceControl.Transaction,
     private val customAnimationLoader: CustomAnimationLoader,
     @ShellMainThread handler: Handler,
+    bubbleController: Optional<BubbleController>,
 ) :
     CrossActivityBackAnimation(
         context,
         background,
         rootTaskDisplayAreaOrganizer,
         transaction,
-        handler
+        handler,
+        bubbleController,
     ) {
 
     private var enterAnimation: Animation? = null
@@ -65,6 +69,7 @@ class CustomCrossActivityBackAnimation(
         background: BackAnimationBackground,
         rootTaskDisplayAreaOrganizer: RootTaskDisplayAreaOrganizer,
         @ShellMainThread handler: Handler,
+        bubbleController: Optional<BubbleController>,
     ) : this(
         context,
         background,
@@ -74,6 +79,7 @@ class CustomCrossActivityBackAnimation(
             TransitionAnimation(context, false /* debug */, "CustomCrossActivityBackAnimation")
         ),
         handler,
+        bubbleController,
     )
 
     override fun preparePreCommitClosingRectMovement(swipeEdge: Int) {
@@ -83,11 +89,12 @@ class CustomCrossActivityBackAnimation(
         // left-hand-swipe
         targetClosingRect.set(startClosingRect)
         targetClosingRect.scaleCentered(MAX_SCALE)
-        val offset = if (swipeEdge != BackEvent.EDGE_RIGHT) {
-            startClosingRect.right - targetClosingRect.right - displayBoundsMargin
-        } else {
-            -targetClosingRect.left + displayBoundsMargin
-        }
+        val offset =
+            if (swipeEdge != BackEvent.EDGE_RIGHT) {
+                startClosingRect.right - targetClosingRect.right - displayBoundsMargin
+            } else {
+                -targetClosingRect.left + displayBoundsMargin
+            }
         targetClosingRect.offset(offset, 0f)
     }
 
@@ -99,7 +106,8 @@ class CustomCrossActivityBackAnimation(
 
     override fun getPostCommitAnimationDuration(): Long {
         return min(
-            MAX_POST_COMMIT_ANIM_DURATION, max(closeAnimation!!.duration, enterAnimation!!.duration)
+            MAX_POST_COMMIT_ANIM_DURATION,
+            max(closeAnimation!!.duration, enterAnimation!!.duration),
         )
     }
 
@@ -113,13 +121,13 @@ class CustomCrossActivityBackAnimation(
         super.startBackAnimation(backMotionEvent)
         if (
             closeAnimation == null ||
-            enterAnimation == null ||
-            closingTarget == null ||
-            enteringTarget == null
+                enterAnimation == null ||
+                closingTarget == null ||
+                enteringTarget == null
         ) {
             ProtoLog.d(
                 ShellProtoLogGroup.WM_SHELL_BACK_PREVIEW,
-                "Enter animation or close animation is null."
+                "Enter animation or close animation is null.",
             )
             return
         }
@@ -137,19 +145,20 @@ class CustomCrossActivityBackAnimation(
             currentClosingRect,
             closingProgress,
             closeAnimation!!,
-            FlingMode.FLING_SHRINK
+            FlingMode.FLING_SHRINK,
         )
-        val enteringProgress = MathUtils.lerp(
-            gestureProgress * PRE_COMMIT_MAX_PROGRESS,
-            1f,
-            enterAnimation!!.getPostCommitProgress(linearProgress)
-        )
+        val enteringProgress =
+            MathUtils.lerp(
+                gestureProgress * PRE_COMMIT_MAX_PROGRESS,
+                1f,
+                enterAnimation!!.getPostCommitProgress(linearProgress),
+            )
         applyTransform(
             enteringTarget!!.leash,
             currentEnteringRect,
             enteringProgress,
             enterAnimation!!,
-            FlingMode.NO_FLING
+            FlingMode.NO_FLING,
         )
         applyTransaction()
     }
@@ -159,7 +168,7 @@ class CustomCrossActivityBackAnimation(
         rect: RectF,
         progress: Float,
         animation: Animation,
-        flingMode: FlingMode
+        flingMode: FlingMode,
     ) {
         transformation.clear()
         animation.getTransformationAt(progress, transformation)
@@ -178,7 +187,7 @@ class CustomCrossActivityBackAnimation(
     /** Load customize animation before animation start. */
     override fun prepareNextAnimation(
         animationInfo: BackNavigationInfo.CustomAnimationInfo?,
-        letterboxColor: Int
+        letterboxColor: Int,
     ): Boolean {
         super.prepareNextAnimation(animationInfo, letterboxColor)
         if (animationInfo == null) return false
@@ -194,13 +203,12 @@ class CustomCrossActivityBackAnimation(
     private fun Animation.getPostCommitProgress(linearProgress: Float): Float {
         return when (duration) {
             0L -> 1f
-            else -> min(
-                1f,
-                getPostCommitAnimationDuration() / min(
-                    MAX_POST_COMMIT_ANIM_DURATION,
-                    duration
-                ).toFloat() * linearProgress
-            )
+            else ->
+                min(
+                    1f,
+                    getPostCommitAnimationDuration() /
+                        min(MAX_POST_COMMIT_ANIM_DURATION, duration).toFloat() * linearProgress,
+                )
         }
     }
 
@@ -249,20 +257,20 @@ class CustomAnimationLoader(private val transitionAnimation: TransitionAnimation
      */
     fun loadAnimation(
         animationInfo: BackNavigationInfo.CustomAnimationInfo,
-        enterAnimation: Boolean
+        enterAnimation: Boolean,
     ): Animation? {
         var a: Animation? = null
         // Activity#overrideActivityTransition has higher priority than windowAnimations
         // Try to get animation from Activity#overrideActivityTransition
         if (
             enterAnimation && animationInfo.customEnterAnim != 0 ||
-            !enterAnimation && animationInfo.customExitAnim != 0
+                !enterAnimation && animationInfo.customExitAnim != 0
         ) {
             a =
                 transitionAnimation.loadAppTransitionAnimation(
                     animationInfo.packageName,
                     if (enterAnimation) animationInfo.customEnterAnim
-                    else animationInfo.customExitAnim
+                    else animationInfo.customExitAnim,
                 )
         } else if (animationInfo.windowAnimations != 0) {
             // try to get animation from LayoutParams#windowAnimations
@@ -272,7 +280,7 @@ class CustomAnimationLoader(private val transitionAnimation: TransitionAnimation
                     animationInfo.windowAnimations,
                     if (enterAnimation) R.styleable.WindowAnimation_activityCloseEnterAnimation
                     else R.styleable.WindowAnimation_activityCloseExitAnimation,
-                    false /* translucent */
+                    false, /* translucent */
                 )
         }
         // Only allow to load default animation for opening target.
@@ -290,7 +298,7 @@ class CustomAnimationLoader(private val transitionAnimation: TransitionAnimation
     private fun loadDefaultOpenAnimation(): Animation? {
         return transitionAnimation.loadDefaultAnimationAttr(
             R.styleable.WindowAnimation_activityCloseEnterAnimation,
-            false /* translucent */
+            false, /* translucent */
         )
     }
 }

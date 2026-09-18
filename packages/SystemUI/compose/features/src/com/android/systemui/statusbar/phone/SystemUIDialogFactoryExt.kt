@@ -46,10 +46,16 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ComposeView
@@ -65,9 +71,14 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.android.compose.theme.LocalAndroidColorScheme
 import com.android.compose.theme.PlatformTheme
+import com.android.internal.graphics.ColorUtils
+import com.android.internal.graphics.drawable.BackgroundBlurDrawable
 import com.android.systemui.keyboard.shortcut.ui.composable.hasCompactWindowSize
 import com.android.systemui.res.R
+import com.android.systemui.shared.system.BlurUtils.isVolumeAndPowerBlurEnabled
 import kotlin.math.roundToInt
 
 /**
@@ -91,12 +102,17 @@ import kotlin.math.roundToInt
  * @param context the [Context] in which the dialog will be constructed.
  * @param dismissOnDeviceLock whether the dialog should be automatically dismissed when the device
  *   is locked (true by default).
+ * @param refreshBackgroundOnThemeChange whether the dialog background should be refreshed when the
+ *   theme changes between light and dark mode. Note, when set to `true` the content of the dialog
+ *   should also handle the configuration change. Composables usually handle this by default, but
+ *   Views may need a manual update.
  * @param dialogGravity is one of the [android.view.Gravity] and determines dialog position on the
  *   screen.
  */
 fun SystemUIDialogFactory.create(
     context: Context = this.applicationContext,
     theme: Int = SystemUIDialog.DEFAULT_THEME,
+    refreshBackgroundOnThemeChange: Boolean = true,
     dismissOnDeviceLock: Boolean = SystemUIDialog.DEFAULT_DISMISS_ON_DEVICE_LOCK,
     @GravityInt dialogGravity: Int? = null,
     dialogDelegate: DialogDelegate<SystemUIDialog> =
@@ -106,14 +122,17 @@ fun SystemUIDialogFactory.create(
                 dialogGravity?.let { dialog.window?.setGravity(it) }
             }
         },
+    isTransient: Boolean = false,
     content: @Composable (SystemUIDialog) -> Unit,
 ): ComponentSystemUIDialog {
     return create(
         context = context,
         theme = theme,
         dismissOnDeviceLock = dismissOnDeviceLock,
+        refreshBackgroundOnThemeChange = refreshBackgroundOnThemeChange,
         delegate = dialogDelegate,
         content = content,
+        isTransient = isTransient,
     )
 }
 
@@ -126,11 +145,15 @@ fun SystemUIDialogFactory.createBottomSheet(
     isDraggable: Boolean = true,
     // TODO(b/337205027): remove maxWidth parameter when aligned to M3 spec
     maxWidth: Dp = Dp.Unspecified,
+    containerColorProvider: @Composable () -> Color = { MaterialTheme.colorScheme.surfaceContainer },
 ): ComponentSystemUIDialog {
     return create(
         context = context,
         theme = theme,
         dismissOnDeviceLock = dismissOnDeviceLock,
+        // TODO(b/475196806): Expose refreshBackgroundOnThemeChange as an argument (default true)
+        //  after fixing duplicate BottomSheet background drawing.
+        refreshBackgroundOnThemeChange = false,
         delegate = EdgeToEdgeDialogDelegate(),
         content = { dialog ->
             val dragState =
@@ -178,6 +201,45 @@ fun SystemUIDialogFactory.createBottomSheet(
                 contentAlignment = Alignment.BottomCenter,
             ) {
                 val radius = dimensionResource(R.dimen.bottom_sheet_corner_radius)
+                val isBlurSupported by
+                    dialog.blurInteractor!!.isBlurCurrentlySupported.collectAsStateWithLifecycle()
+                val isBlurEnabled = isVolumeAndPowerBlurEnabled()
+                val backgroundBlurModifier =
+                    if (isBlurEnabled) {
+                        val bottomsheetBlurRadius =
+                            dimensionResource(R.dimen.bottomsheet_blur_radius)
+                        val cornerRadius = dimensionResource(R.dimen.bottom_sheet_corner_radius)
+                        val drawable = remember { createBackgroundBlurDrawable(dialog) }
+
+                        if (isBlurSupported) {
+                            Modifier.drawBehind {
+                                drawable.apply {
+                                    setBlurRadius(bottomsheetBlurRadius.roundToPx())
+                                    setCornerRadius(cornerRadius.toPx())
+                                }
+                                drawIntoCanvas { canvas ->
+                                    drawable.setBounds(
+                                        0,
+                                        0,
+                                        size.width.toInt(),
+                                        size.height.toInt(),
+                                    )
+                                    drawable.draw(canvas.nativeCanvas)
+                                }
+                            }
+                        } else {
+                            SideEffect {
+                                drawable.apply {
+                                    // Stop BackgroundBlurDrawable from dispatching blur regions
+                                    // to SF since now blur radius is set to 0.
+                                    setBlurRadius(0)
+                                }
+                            }
+                            null
+                        }
+                    } else {
+                        null
+                    }
                 Surface(
                     modifier =
                         Modifier.bottomSheetPaddings()
@@ -187,9 +249,24 @@ fun SystemUIDialogFactory.createBottomSheet(
                                 max =
                                     if (maxWidth.isSpecified) maxWidth
                                     else DraggableBottomSheet.MaxWidth
-                            ),
+                            )
+                            .then(backgroundBlurModifier ?: Modifier),
                     shape = RoundedCornerShape(topStart = radius, topEnd = radius),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    color =
+                        if (isBlurEnabled) {
+                            if (isBlurSupported) {
+                                Color(
+                                    ColorUtils.compositeColors(
+                                        LocalAndroidColorScheme.current.surfaceEffect0.toArgb(),
+                                        LocalAndroidColorScheme.current.surfaceEffect2.toArgb(),
+                                    )
+                                )
+                            } else {
+                                LocalAndroidColorScheme.current.surfaceEffect0Fallback
+                            }
+                        } else {
+                            containerColorProvider()
+                        },
                 ) {
                     Box(
                         Modifier.padding(
@@ -217,6 +294,12 @@ fun SystemUIDialogFactory.createBottomSheet(
     )
 }
 
+private fun createBackgroundBlurDrawable(dialog: Dialog): BackgroundBlurDrawable {
+    val blurDrawable = dialog.window!!.decorView.getViewRootImpl().createBackgroundBlurDrawable()
+    blurDrawable.setBlurRadius(0)
+    return blurDrawable
+}
+
 private enum class DragAnchors(val fraction: Float) {
     Start(0f),
     End(1f),
@@ -226,10 +309,20 @@ private fun SystemUIDialogFactory.create(
     context: Context,
     theme: Int,
     dismissOnDeviceLock: Boolean,
+    refreshBackgroundOnThemeChange: Boolean,
     delegate: DialogDelegate<SystemUIDialog>,
+    isTransient: Boolean = false,
     content: @Composable (SystemUIDialog) -> Unit,
 ): ComponentSystemUIDialog {
-    val dialog = create(context, theme, dismissOnDeviceLock, delegate)
+    val dialog =
+        create(
+            context = context,
+            theme = theme,
+            dismissOnDeviceLock = dismissOnDeviceLock,
+            refreshBackgroundOnThemeChange = refreshBackgroundOnThemeChange,
+            dialogDelegate = delegate,
+            isTransient = isTransient,
+        )
 
     // Create the dialog so that it is properly constructed before we set the Compose content.
     // Otherwise, the ComposeView won't render properly.

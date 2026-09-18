@@ -103,6 +103,14 @@ class SimBouncerInteractorTest : SysuiTestCase() {
 
         assertThat(underTest.getDefaultMessage())
             .isEqualTo(resources.getString(R.string.kg_puk_enter_puk_hint))
+
+        bouncerSimRepository.setSimPukUserInput("puk entered", "")
+        assertThat(underTest.getDefaultMessage())
+            .isEqualTo(resources.getString(R.string.kg_puk_enter_pin_hint))
+
+        bouncerSimRepository.setSimPukUserInput("puk entered", "pin entered")
+        assertThat(underTest.getDefaultMessage())
+            .isEqualTo(resources.getString(R.string.kg_enter_confirm_pin_hint))
     }
 
     @Test
@@ -193,7 +201,7 @@ class SimBouncerInteractorTest : SysuiTestCase() {
                 .switchToSubscription(
                     eq(INVALID_SUBSCRIPTION_ID),
                     eq(portIndex),
-                    ArgumentMatchers.any()
+                    ArgumentMatchers.any(),
                 )
         }
 
@@ -223,12 +231,7 @@ class SimBouncerInteractorTest : SysuiTestCase() {
             whenever(telephonyManager.createForSubscriptionId(anyInt()))
                 .thenReturn(telephonyManager)
             whenever(telephonyManager.supplyIccLockPin(anyString()))
-                .thenReturn(
-                    PinResult(
-                        PinResult.PIN_RESULT_TYPE_INCORRECT,
-                        1,
-                    )
-                )
+                .thenReturn(PinResult(PinResult.PIN_RESULT_TYPE_INCORRECT, 1))
             verifySim(listOf(0, 0, 0, 0))
 
             assertThat(msg).isNull()
@@ -249,12 +252,7 @@ class SimBouncerInteractorTest : SysuiTestCase() {
             whenever(telephonyManager.createForSubscriptionId(anyInt()))
                 .thenReturn(telephonyManager)
             whenever(telephonyManager.supplyIccLockPin(anyString()))
-                .thenReturn(
-                    PinResult(
-                        PinResult.PIN_RESULT_TYPE_INCORRECT,
-                        3,
-                    )
-                )
+                .thenReturn(PinResult(PinResult.PIN_RESULT_TYPE_INCORRECT, 3))
 
             verifySim(listOf(0, 0, 0, 0))
 

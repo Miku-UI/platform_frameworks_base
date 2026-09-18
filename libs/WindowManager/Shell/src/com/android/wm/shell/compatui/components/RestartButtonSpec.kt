@@ -18,6 +18,7 @@ package com.android.wm.shell.compatui.components
 
 import android.annotation.SuppressLint
 import android.graphics.Point
+import android.graphics.Rect
 import android.view.LayoutInflater
 import android.view.View
 import android.window.TaskConstants
@@ -25,8 +26,24 @@ import com.android.wm.shell.R
 import com.android.wm.shell.compatui.api.CompatUILayout
 import com.android.wm.shell.compatui.api.CompatUILifecyclePredicates
 import com.android.wm.shell.compatui.api.CompatUISpec
+import com.android.wm.shell.compatui.api.ComponentUiPositionFactory
+
+private val restartButtonPositionFn: ComponentUiPositionFactory = { layout, _, sharedState, _ ->
+    val taskBounds = sharedState.taskBoundsFn()
+    val taskStableBounds = sharedState.stableBounds ?: Rect()
+    val layoutWidth = layout.measuredWidth
+    val layoutHeight = layout.measuredHeight
+    val positionX =
+        if (sharedState.layoutDirectionFn() == View.LAYOUT_DIRECTION_RTL)
+            taskStableBounds.left - taskBounds.left
+        else taskStableBounds.right - taskBounds.left - layoutWidth
+    val positionY = taskStableBounds.bottom - taskBounds.top - layoutHeight
+    Point(positionX, positionY)
+}
 
 /** CompatUISpec for the Restart Button */
+// TODO(b/478792808): Remove suppression
+@SuppressWarnings("ProtoLogNonConstantFormat")
 @SuppressLint("InflateParams")
 val RestartButtonSpec =
     CompatUISpec(
@@ -51,7 +68,6 @@ val RestartButtonSpec =
                     view.findViewById<View>(R.id.size_compat_restart_button)?.visibility =
                         View.VISIBLE
                 },
-                // TODO(b/360288344): Calculate right position from stable bounds
-                positionFactory = { _, _, _, _ -> Point(500, 500) },
+                positionFactory = restartButtonPositionFn,
             ),
     )

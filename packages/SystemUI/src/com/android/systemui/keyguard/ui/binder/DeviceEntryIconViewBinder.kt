@@ -25,11 +25,14 @@ import android.view.HapticFeedbackConstants
 import android.view.View
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.core.view.doOnDetach
 import androidx.core.view.isInvisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.internal.graphics.drawable.BackgroundBlurDrawable
 import com.android.systemui.Flags
+import com.android.systemui.Flags.enableLockscreenBlur
 import com.android.systemui.common.ui.view.TouchHandlingView
 import com.android.systemui.keyguard.ui.view.DeviceEntryIconView
 import com.android.systemui.keyguard.ui.viewmodel.DeviceEntryBackgroundViewModel
@@ -40,8 +43,10 @@ import com.android.systemui.plugins.FalsingManager
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.VibratorHelper
 import com.android.systemui.util.kotlin.DisposableHandles
+import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor
 import com.google.android.msdl.data.model.MSDLToken
 import com.google.android.msdl.domain.MSDLPlayer
+import kotlin.math.min
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DisposableHandle
@@ -61,6 +66,7 @@ object DeviceEntryIconViewBinder {
     fun bind(
         applicationScope: CoroutineScope,
         mainImmediateDispatcher: CoroutineDispatcher,
+        windowRootViewBlurInteractor: WindowRootViewBlurInteractor,
         view: DeviceEntryIconView,
         viewModel: DeviceEntryIconViewModel,
         fgViewModel: DeviceEntryForegroundViewModel,
@@ -76,15 +82,8 @@ object DeviceEntryIconViewBinder {
         val bgView = view.bgView
         touchHandlingView.listener =
             object : TouchHandlingView.Listener {
-                override fun onLongPressDetected(
-                    view: View,
-                    x: Int,
-                    y: Int,
-                    isA11yAction: Boolean,
-                ) {
-                    if (
-                        !isA11yAction && falsingManager.isFalseLongTap(FalsingManager.LOW_PENALTY)
-                    ) {
+                override fun onLongPressDetected(view: View, x: Int, y: Int) {
+                    if (falsingManager.isFalseLongTap(FalsingManager.LOW_PENALTY)) {
                         Log.d(
                             TAG,
                             "Long press rejected because it is not a11yAction " +
@@ -99,6 +98,31 @@ object DeviceEntryIconViewBinder {
                         view.clearFocus()
                         view.clearAccessibilityFocus()
                         viewModel.onUserInteraction()
+                    }
+                }
+            }
+        val layoutChangeListener =
+            View.OnLayoutChangeListener {
+                v,
+                left,
+                top,
+                right,
+                bottom,
+                oldLeft,
+                oldTop,
+                oldRight,
+                oldBottom ->
+                val width = right - left
+                val height = bottom - top
+                if (height <= 0 || width <= 0) {
+                    return@OnLayoutChangeListener
+                }
+                if (height == oldBottom - oldTop && width == oldLeft - oldRight) {
+                    return@OnLayoutChangeListener
+                }
+                v?.background?.let {
+                    if (it is BackgroundBlurDrawable) {
+                        it.setCornerRadius(min(height, width).toFloat() / 2f)
                     }
                 }
             }
@@ -196,6 +220,8 @@ object DeviceEntryIconViewBinder {
                                 }
                             } else {
                                 view.setOnClickListener(null)
+                                view.isClickable = false
+                                view.focusable = View.NOT_FOCUSABLE
                             }
                         }
                     }
@@ -251,8 +277,36 @@ object DeviceEntryIconViewBinder {
         disposables +=
             bgView.repeatWhenAttached(mainImmediateDispatcher) {
                 repeatOnLifecycle(Lifecycle.State.CREATED) {
+                    if (enableLockscreenBlur()) {
+                        bgView.background =
+                            bgView.viewRootImpl.createBackgroundBlurDrawable().apply {
+                                setBlurRadius(
+                                    bgView.context.resources.getDimensionPixelOffset(
+                                        R.dimen.fingerprint_icon_blur_radius
+                                    )
+                                )
+                                setVisible(false, false)
+                            }
+                        bgView.addOnLayoutChangeListener(layoutChangeListener)
+                        bgView.doOnDetach {
+                            bgView.removeOnLayoutChangeListener(layoutChangeListener)
+                        }
+
+                        launch("$TAG#windowRootViewBlurInteractor.isBlurCurrentlySupported") {
+                            windowRootViewBlurInteractor.isBlurCurrentlySupported.collect {
+                                isSupported ->
+                                bgView.background?.setVisible(isSupported, false)
+                            }
+                        }
+                    }
+
                     launch("$TAG#bgViewModel.alpha") {
-                        bgViewModel.alpha.collect { alpha -> bgView.alpha = alpha }
+                        bgViewModel.alpha.collect { alpha ->
+                            bgView.alpha = alpha
+                            if (enableLockscreenBlur()) {
+                                bgView.background?.alpha = (255 * alpha).toInt()
+                            }
+                        }
                     }
                     launch("$TAG#bgViewModel.color") {
                         bgViewModel.color.collect { color ->

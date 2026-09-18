@@ -69,11 +69,13 @@ public class JankTrackerTest {
             sActivityName = activity.toString();
             sContext = activity.getApplicationContext();
         });
+        JankUtils.forceEnableJankTrackingConfig();
     }
 
     @AfterClass
     public static void classTearDown() {
         sEmptyActivityRule.close();
+        JankUtils.resetJankTrackingConfigDefaults();
     }
 
     @Before

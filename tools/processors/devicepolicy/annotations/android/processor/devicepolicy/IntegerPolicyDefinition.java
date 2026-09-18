@@ -31,4 +31,20 @@ public @interface IntegerPolicyDefinition {
      * Base data for all policies.
      */
     PolicyDefinition base();
+
+    /**
+     * The minimum value this integer policy can take, inclusive.
+     */
+    int minValue() default Integer.MIN_VALUE;
+
+    /**
+     * The maximum value this integer policy can take, inclusive.
+     */
+    int maxValue() default Integer.MAX_VALUE;
+
+    /**
+     * Indicates the conflict resolution mechanism used by this policy.
+     */
+    IntegerResolutionMechanism resolutionMechanism();
+
 }

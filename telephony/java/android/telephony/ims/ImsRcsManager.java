@@ -379,11 +379,7 @@ public class ImsRcsManager {
      * (see {@link android.telephony.TelephonyManager#hasCarrierPrivileges}).
      *
      * @param executor The {@link Executor} that will be used to call the transportTypeCallback.
-     * @param transportTypeCallback The transport type associated with the current IMS registration,
-     * which will be one of following:
-     * {@see AccessNetworkConstants#TRANSPORT_TYPE_WWAN},
-     * {@see AccessNetworkConstants#TRANSPORT_TYPE_WLAN}, or
-     * {@see AccessNetworkConstants#TRANSPORT_TYPE_INVALID}.
+     * @param transportTypeCallback The transport type associated with the current IMS registration.
      * @throws UnsupportedOperationException If the device does not have
      *          {@link PackageManager#FEATURE_TELEPHONY_IMS}.
      */

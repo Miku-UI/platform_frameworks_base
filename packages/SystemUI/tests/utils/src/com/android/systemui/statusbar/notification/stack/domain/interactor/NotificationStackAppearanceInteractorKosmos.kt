@@ -16,10 +16,8 @@
 
 package com.android.systemui.statusbar.notification.stack.domain.interactor
 
-import com.android.systemui.desktop.domain.interactor.desktopInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
-import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.statusbar.notification.stack.data.repository.notificationPlaceholderRepository
@@ -27,11 +25,9 @@ import com.android.systemui.statusbar.notification.stack.data.repository.notific
 
 val Kosmos.notificationStackAppearanceInteractor by Fixture {
     NotificationStackAppearanceInteractor(
-        applicationScope = applicationCoroutineScope,
         viewHeightRepository = notificationViewHeightRepository,
         placeholderRepository = notificationPlaceholderRepository,
         sceneInteractor = sceneInteractor,
         shadeModeInteractor = shadeModeInteractor,
-        desktopInteractor = desktopInteractor,
     )
 }

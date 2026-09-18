@@ -62,7 +62,7 @@
                 android:paddingTop="2dp"
                 android:text="@string/empty_user_name"
                 android:textAppearance="@*android:style/TextAppearance.DeviceDefault.Notification.Title"
-                android:textColor="?android:attr/textColorPrimary"
+                android:textColor="@color/materialColorOnSurface"
                 android:textSize="12sp"
                 android:maxLines="1"
                 android:ellipsize="end"
@@ -82,7 +82,7 @@
             android:maxLines="2"
             android:text="@string/empty_status"
             android:textAppearance="@*android:style/TextAppearance.DeviceDefault.Notification.Title"
-            android:textColor="?android:attr/textColorPrimary"
+            android:textColor="@color/materialColorOnSurface"
             android:textSize="12sp" />
         <TextView
             android:layout_weight="6"

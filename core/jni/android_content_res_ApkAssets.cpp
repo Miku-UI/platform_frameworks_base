@@ -146,68 +146,68 @@ class LoaderAssetsProvider : public AssetsProvider {
   }
 
  protected:
-  std::unique_ptr<Asset> OpenInternal(const std::string& path,
-                                      Asset::AccessMode mode,
-                                      bool* file_exists) const override {
-    const auto env = AndroidRuntime::getJNIEnv();
-    CHECK(env != nullptr) << "Current thread not attached to a Java VM."
-                          << " ResourcesProvider assets cannot be retrieved on current thread.";
+     std::unique_ptr<Asset> OpenInternal(const std::string& path, Asset::AccessMode mode,
+                                         bool* file_exists, off64_t max_size) const override {
+         const auto env = AndroidRuntime::getJNIEnv();
+         CHECK(env != nullptr)
+                 << "Current thread not attached to a Java VM."
+                 << " ResourcesProvider assets cannot be retrieved on current thread.";
 
-    jstring java_string = env->NewStringUTF(path.c_str());
-    if (env->ExceptionCheck()) {
-      env->ExceptionDescribe();
-      env->ExceptionClear();
-      return nullptr;
-    }
+         jstring java_string = env->NewStringUTF(path.c_str());
+         if (env->ExceptionCheck()) {
+             env->ExceptionDescribe();
+             env->ExceptionClear();
+             return nullptr;
+         }
 
-    // Check if the AssetsProvider provides a value for the path.
-    jobject asset_fd = env->CallObjectMethod(assets_provider_,
-                                             gAssetsProviderOffsets.loadAssetFd,
-                                             java_string, static_cast<jint>(mode));
-    env->DeleteLocalRef(java_string);
-    if (env->ExceptionCheck()) {
-      env->ExceptionDescribe();
-      env->ExceptionClear();
-      return nullptr;
-    }
+         // Check if the AssetsProvider provides a value for the path.
+         jobject asset_fd =
+                 env->CallObjectMethod(assets_provider_, gAssetsProviderOffsets.loadAssetFd,
+                                       java_string, static_cast<jint>(mode));
+         env->DeleteLocalRef(java_string);
+         if (env->ExceptionCheck()) {
+             env->ExceptionDescribe();
+             env->ExceptionClear();
+             return nullptr;
+         }
 
-    if (!asset_fd) {
-      if (file_exists) {
-        *file_exists = false;
-      }
-      return nullptr;
-    }
+         if (!asset_fd) {
+             if (file_exists) {
+                 *file_exists = false;
+             }
+             return nullptr;
+         }
 
-    const jlong mOffset = env->GetLongField(asset_fd, gAssetFileDescriptorOffsets.mStartOffset);
-    const jlong mLength = env->GetLongField(asset_fd, gAssetFileDescriptorOffsets.mLength);
-    jobject mFd = env->GetObjectField(asset_fd, gAssetFileDescriptorOffsets.mFd);
-    env->DeleteLocalRef(asset_fd);
+         const jlong mOffset =
+                 env->GetLongField(asset_fd, gAssetFileDescriptorOffsets.mStartOffset);
+         const jlong mLength = env->GetLongField(asset_fd, gAssetFileDescriptorOffsets.mLength);
+         jobject mFd = env->GetObjectField(asset_fd, gAssetFileDescriptorOffsets.mFd);
+         env->DeleteLocalRef(asset_fd);
 
-    if (!mFd) {
-      jniThrowException(env, "java/lang/NullPointerException", nullptr);
-      env->ExceptionDescribe();
-      env->ExceptionClear();
-      return nullptr;
-    }
+         if (!mFd) {
+             jniThrowException(env, "java/lang/NullPointerException", nullptr);
+             env->ExceptionDescribe();
+             env->ExceptionClear();
+             return nullptr;
+         }
 
-    // Gain ownership of the file descriptor.
-    const jint fd = env->CallIntMethod(mFd, gParcelFileDescriptorOffsets.detachFd);
-    env->DeleteLocalRef(mFd);
-    if (env->ExceptionCheck()) {
-      env->ExceptionDescribe();
-      env->ExceptionClear();
-      return nullptr;
-    }
+         // Gain ownership of the file descriptor.
+         const jint fd = env->CallIntMethod(mFd, gParcelFileDescriptorOffsets.detachFd);
+         env->DeleteLocalRef(mFd);
+         if (env->ExceptionCheck()) {
+             env->ExceptionDescribe();
+             env->ExceptionClear();
+             return nullptr;
+         }
 
-    if (file_exists) {
-      *file_exists = true;
-    }
+         if (file_exists) {
+             *file_exists = true;
+         }
 
-    return AssetsProvider::CreateAssetFromFd(base::unique_fd(fd),
-                                             nullptr /* path */,
-                                             static_cast<off64_t>(mOffset),
-                                             static_cast<off64_t>(mLength));
-  }
+         return AssetsProvider::CreateAssetFromFd(base::unique_fd(fd), nullptr /* path */,
+                                                  static_cast<off64_t>(mOffset),
+                                                  static_cast<off64_t>(mLength), max_size);
+     }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(LoaderAssetsProvider);
@@ -236,8 +236,8 @@ static void GetFlagValues(JNIEnv* env, FlagMap& flag_map) {
               "array");
     }
     size_t i = 0;
-    for (const auto& [flag_name, _] : flag_map) {
-        jstring jstr = env->NewStringUTF(flag_name.c_str());
+    for (const auto& [_, flag_info] : flag_map) {
+        jstring jstr = env->NewStringUTF(flag_info.name.c_str());
         env->SetObjectArrayElement(flag_names, i++, jstr);
         env->DeleteLocalRef(jstr);
     }
@@ -249,9 +249,10 @@ static void GetFlagValues(JNIEnv* env, FlagMap& flag_map) {
         ALOGE("ApkAssets: Getting flag values failed due to jni error");
     } else {
         i = 0;
-        for (auto& [_, flag_value] : flag_map) {
-            flag_value = flag_values[i++] != JNI_FALSE ? LoadedArscFlagStatus::Enabled
-                                                       : LoadedArscFlagStatus::Disabled;
+        for (auto& [_, flag_info] : flag_map) {
+            flag_info.status = flag_values[i++] != JNI_FALSE
+                    ? LoadedArscFeatureFlagStatus::Enabled
+                    : LoadedArscFeatureFlagStatus::Disabled;
         }
     }
 
@@ -278,12 +279,12 @@ static jlong NativeLoad(JNIEnv* env, jclass /*clazz*/, const format_type_t forma
         auto assets = AssetsProvider::CreateWithOverride(ZipAssetsProvider::Create(path.c_str(),
                                                                                    property_flags),
                                                          std::move(loader_assets));
-        apk_assets = ApkAssets::Load(std::move(assets), flag_func, property_flags);
+        apk_assets = ApkAssets::Load(std::move(assets), std::move(flag_func), property_flags);
         break;
     }
     case FORMAT_IDMAP:
-      apk_assets = ApkAssets::LoadOverlay(path.c_str(), property_flags);
-      break;
+        apk_assets = ApkAssets::LoadOverlay(path.c_str(), std::move(flag_func), property_flags);
+        break;
     case FORMAT_ARSC:
         apk_assets =
                 ApkAssets::LoadTable(AssetsProvider::CreateAssetFromFile(path.c_str()),
@@ -516,8 +517,9 @@ static jlong NativeOpenXml(JNIEnv* env, jclass /*clazz*/, jlong ptr, jstring fil
 
   auto scoped_apk_assets = ScopedLock(ApkAssetsFromLong(ptr));
   auto apk_assets = scoped_apk_assets->get();
-  std::unique_ptr<Asset> asset = apk_assets->GetAssetsProvider()->Open(
-      path_utf8.c_str(),Asset::AccessMode::ACCESS_RANDOM);
+  std::unique_ptr<Asset> asset =
+          apk_assets->GetAssetsProvider()->Open(path_utf8.c_str(), Asset::AccessMode::ACCESS_RANDOM,
+                                                nullptr, kMaxXmlAssetSize);
   if (asset == nullptr) {
     jniThrowException(env, "java/io/FileNotFoundException", path_utf8.c_str());
     return 0;
@@ -533,11 +535,10 @@ static jlong NativeOpenXml(JNIEnv* env, jclass /*clazz*/, jlong ptr, jstring fil
 
   // DynamicRefTable is only needed when looking up resource references. Opening an XML file
   // directly from an ApkAssets has no notion of proper resource references.
-  auto xml_tree = util::make_unique<ResXMLTree>(nullptr /*dynamicRefTable*/);
-  status_t err = xml_tree->setTo(buffer.unsafe_ptr(), length, true);
-  if (err != NO_ERROR) {
-    jniThrowException(env, "java/io/FileNotFoundException", "Corrupt XML binary file");
-    return 0;
+  auto xml_tree = ResXMLTree::fromAsset(std::move(asset));
+  if (!xml_tree) {
+      jniThrowException(env, "java/io/FileNotFoundException", "Corrupt XML binary file");
+      return 0;
   }
   return reinterpret_cast<jlong>(xml_tree.release());
 }
@@ -647,7 +648,8 @@ int register_android_content_res_ApkAssets(JNIEnv* env) {
   jclass parcelFd = FindClassOrDie(env, "android/os/ParcelFileDescriptor");
   gParcelFileDescriptorOffsets.detachFd = GetMethodIDOrDie(env, parcelFd, "detachFd", "()I");
 
-  gApkAssetsOffsets.classObject = FindClassOrDie(env, "android/content/res/ApkAssets");
+  jclass apkAssets = FindClassOrDie(env, "android/content/res/ApkAssets");
+  gApkAssetsOffsets.classObject = MakeGlobalRefOrDie(env, apkAssets);
   gApkAssetsOffsets.getFlagValues =
           GetStaticMethodIDOrDie(env, gApkAssetsOffsets.classObject, "getFlagValuesForNative",
                                  "([Ljava/lang/String;)[Z");

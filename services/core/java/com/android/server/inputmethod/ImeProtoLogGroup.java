@@ -22,19 +22,16 @@ import java.util.UUID;
 
 public enum ImeProtoLogGroup implements IProtoLogGroup {
     // TODO(b/393561240): add info/warn/error log level and replace in IMMS
-    IMMS_DEBUG(Consts.ENABLE_DEBUG, false, false,
-            InputMethodManagerService.TAG),
-    IME_VIS_STATE_COMPUTER_DEBUG(Consts.ENABLE_DEBUG, false, false,
-            ImeVisibilityStateComputer.TAG);
+    IMMS_DEBUG(Consts.ENABLE_DEBUG, false, InputMethodManagerService.TAG),
+    IME_VIS_STATE_COMPUTER_DEBUG(Consts.ENABLE_DEBUG, false, ImeVisibilityStateComputer.TAG),
+    IMMS_WITH_LOGCAT(Consts.ENABLE_DEBUG, true, InputMethodManagerService.TAG);
 
     private final boolean mEnabled;
-    private volatile boolean mLogToProto;
     private volatile boolean mLogToLogcat;
     private final String mTag;
 
-    ImeProtoLogGroup(boolean enabled, boolean logToProto, boolean logToLogcat, String tag) {
+    ImeProtoLogGroup(boolean enabled, boolean logToLogcat, String tag) {
         this.mEnabled = enabled;
-        this.mLogToProto = logToProto;
         this.mLogToLogcat = logToLogcat;
         this.mTag = tag;
     }

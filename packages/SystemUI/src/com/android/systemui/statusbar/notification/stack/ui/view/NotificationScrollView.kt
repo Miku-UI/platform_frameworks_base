@@ -16,11 +16,13 @@
 
 package com.android.systemui.statusbar.notification.stack.ui.view
 
-import android.graphics.RectF
 import android.view.View
+import com.android.systemui.notifications.ui.YSpace
+import com.android.systemui.notifications.ui.composable.SwipeToExpandCallback
 import com.android.systemui.statusbar.notification.stack.shared.model.AccessibilityScrollEvent
 import com.android.systemui.statusbar.notification.stack.shared.model.ShadeScrimShape
 import com.android.systemui.statusbar.notification.stack.shared.model.ShadeScrollState
+import com.android.systemui.statusbar.notification.stack.ui.viewmodel.NotificationScrollViewModel.HeightSuppressionState
 import com.android.systemui.util.state.ObservableState
 import java.util.function.Consumer
 
@@ -54,6 +56,12 @@ interface NotificationScrollView {
     /** Max alpha for this view */
     fun setMaxAlpha(alpha: Float)
 
+    /** Sets whether the Split Shade layout is enabled. */
+    fun setSplitShade(enabled: Boolean)
+
+    /** Alpha set on the placeholder composable. */
+    fun setPlaceholderAlpha(alpha: Float)
+
     /** Set whether this view is occluded by something else. */
     fun setOccluded(isOccluded: Boolean)
 
@@ -79,10 +87,10 @@ interface NotificationScrollView {
     fun setEnabled(enabled: Boolean)
 
     /** set the y position in px of the top of the stack in this view's coordinates */
-    fun setStackTop(stackTop: Float)
+    fun setStackScrollTop(stackTop: Float)
 
-    /** set the area where this can place its content */
-    fun updateDrawBounds(boundsInWindow: RectF)
+    /** sets the vertical bounds for the user visible area of the notification stack */
+    fun updateStackBounds(boundsInWindow: YSpace)
 
     /** set the y position in px of the top of the HUN in this view's coordinates */
     fun setHeadsUpTop(headsUpTop: Float)
@@ -117,6 +125,9 @@ interface NotificationScrollView {
     /** sets the current QS expand fraction */
     fun setQsExpandFraction(expandFraction: Float)
 
+    /** sets the current expand fraction when expanding from lockscreen */
+    fun setLStoShadeProgress(shadeProgress: Float)
+
     /**
      * Returns the number of max Notifications that can be fitted in the given space without
      * clipping their height.
@@ -134,6 +145,9 @@ interface NotificationScrollView {
 
     /** set the alpha from 0-1f of stack fade-in on lockscreen */
     fun setAlphaForLockscreenFadeIn(alphaForLockscreenFadeIn: Float)
+
+    /** Sets whether the current scene is lockscreen */
+    fun setCurrentSceneLockscreen(isCurrentLockscreen: Boolean)
 
     /** Sets whether the view is displayed in doze mode. */
     fun setDozing(dozing: Boolean)
@@ -162,6 +176,18 @@ interface NotificationScrollView {
     /** @see addHeadsUpHeightChangedListener */
     fun removeHeadsUpHeightChangedListener(runnable: Runnable)
 
-    /** Sets whether updates to the stack are are suppressed. */
-    fun suppressHeightUpdates(suppress: Boolean)
+    /** Sets whether height updates to the stack are suppressed. */
+    fun suppressHeightUpdates(suppress: HeightSuppressionState)
+
+    /** Sets whether touch and animations on the stack are enabled. */
+    fun setAnimationsEnabled(enabled: Boolean)
+
+    /** @return a callback to access the ExpandableNotificationRows to be manipulated. */
+    fun getExpandHelperCallback(): SwipeToExpandCallback
+
+    /**
+     * Sets the side padding configuration, including the base padding and whether to align to the
+     * QQS tiles.
+     */
+    fun setSidePaddingConfig(basePadding: Int, alignToInnerQqsTiles: Boolean)
 }

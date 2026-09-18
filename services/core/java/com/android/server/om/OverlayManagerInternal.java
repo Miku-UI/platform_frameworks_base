@@ -18,6 +18,7 @@ package com.android.server.om;
 
 import android.annotation.NonNull;
 import android.content.om.IOverlayManager;
+import android.content.om.OverlayConstraint;
 import android.content.om.OverlayIdentifier;
 import android.content.om.OverlayInfo;
 import android.content.om.OverlayManagerTransaction;
@@ -25,6 +26,9 @@ import android.os.UserHandle;
 
 import java.util.List;
 
+/**
+ * Overlay manager local service interface. Only for use within system server.
+ */
 public interface OverlayManagerInternal {
 
     /**
@@ -64,6 +68,18 @@ public interface OverlayManagerInternal {
      * @hide
      */
     OverlayInfo getOverlayInfo(@NonNull OverlayIdentifier overlay, @NonNull UserHandle userHandle);
+
+    /**
+     * Returns the list of {@link OverlayConstraint} for the overlay represented by the given
+     * baseCodePath for the specified user.
+     *
+     * @param overlayBaseCodePath the baseCodePath of the overlay
+     * @param userId the user id for which to get overlay constraints
+     * @return the list of constraints for the overlay, or empty list if no overlay is found
+     * @hide
+     */
+    @NonNull
+    List<OverlayConstraint> getOverlayConstraints(@NonNull String overlayBaseCodePath, int userId);
 
     /**
      * Commit the overlay manager transaction.

@@ -28,13 +28,12 @@ import dagger.multibindings.IntoMap
  * Top level Dagger Module for Screen Capture.
  *
  * Injects Screen Capture Subcomponents into the System UI dagger graph via
- * [SystemUIModule][com.android.systemui.dagger.SystemUIModule].
+ * [SystemUIModule][com.android.systemui.dagger.ReferenceSystemUIModule].
  */
 @Module(
     subcomponents =
         [
             ScreenCaptureCastUiComponent::class,
-            ScreenCaptureUiComponent::class,
             ScreenCaptureRecordUiComponent::class,
             ScreenCaptureShareScreenUiComponent::class,
         ]

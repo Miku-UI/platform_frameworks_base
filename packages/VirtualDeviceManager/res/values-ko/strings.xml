@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_label" msgid="1092971641119916701">"가상 기기 관리도구"</string>
+    <string name="request_computer_control_access_dialog_title" msgid="1970509993635617382">"&lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt;에서 스마트 화면 비서를 사용하도록 허용하시겠습니까?"</string>
+    <string name="request_computer_control_access_per_app_consent_dialog_title" msgid="8118885324223570680">"&lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt;에서 &lt;strong&gt;<xliff:g id="AUTOMATABLE_APP_NAME">%2$s</xliff:g>&lt;/strong&gt; 앱을 통해 스마트 화면 비서를 사용하도록 허용하시겠습니까?"</string>
+    <string name="request_computer_control_access_dialog_description" msgid="3423347516805473691">"이 앱은 사용자가 작업을 완료할 수 있도록 돕기 위해 앱이 백그라운드에 있는 경우에도 다른 앱의 화면 콘텐츠를 보고 상호작용할 수 있습니다."</string>
+    <string name="request_computer_control_access_dialog_button_allow" msgid="6210271960695301518">"이번만 허용"</string>
+    <string name="request_computer_control_access_dialog_button_dont_allow" msgid="4793579155406896411">"허용 안함"</string>
+    <string name="request_computer_control_access_dialog_button_always_allow" msgid="1551784758130170359">"항상 허용"</string>
+    <string name="automated_app_launch_warning_dialog_title" msgid="5210938311581044737">"<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>에서 <xliff:g id="TARGET_APP_NAME">%2$s</xliff:g> 앱 사용 중"</string>
+    <string name="automated_app_launch_warning_dialog_description" msgid="5372128583106771831">"작업 진행 상황을 보려면 <xliff:g id="AGENT_APP_NAME_0">%1$s</xliff:g> 앱을 여세요.<xliff:g id="EMPTY_LINE">
+
+</xliff:g>지금 작업을 중지하면 진행 상황이 손실될 수 있습니다. 다시 시작하려면 <xliff:g id="AGENT_APP_NAME_1">%1$s</xliff:g> 앱을 여세요."</string>
+    <string name="automated_app_launch_warning_dialog_stop" msgid="5255022618671675595">"작업 중지 및 앱 열기"</string>
+    <string name="automated_app_launch_warning_dialog_wait" msgid="3472782366270857170">"닫기"</string>
+</resources>

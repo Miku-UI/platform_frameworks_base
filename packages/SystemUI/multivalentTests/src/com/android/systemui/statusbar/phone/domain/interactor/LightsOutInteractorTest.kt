@@ -20,9 +20,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.display.data.repository.createFakeDisplaySubcomponent
+import com.android.systemui.display.data.repository.displaySubcomponentPerDisplayRepository
 import com.android.systemui.statusbar.data.model.StatusBarMode
-import com.android.systemui.statusbar.data.repository.FakeStatusBarModeRepository
-import com.android.systemui.statusbar.data.repository.FakeStatusBarModeRepository.Companion.DISPLAY_ID
+import com.android.systemui.statusbar.data.repository.fakeStatusBarModePerDisplayRepository
+import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -32,12 +34,23 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class LightsOutInteractorTest : SysuiTestCase() {
 
-    private val statusBarModeRepository = FakeStatusBarModeRepository()
-    private val interactor: LightsOutInteractor = LightsOutInteractor(statusBarModeRepository)
+    private val kosmos =
+        testKosmos().apply {
+            displaySubcomponentPerDisplayRepository.add(
+                DISPLAY_ID,
+                createFakeDisplaySubcomponent(
+                    statusBarModeRepo = { fakeStatusBarModePerDisplayRepository }
+                ),
+            )
+        }
+    private val statusBarModeRepository = kosmos.fakeStatusBarModePerDisplayRepository
+
+    private val interactor: LightsOutInteractor =
+        LightsOutInteractor(kosmos.displaySubcomponentPerDisplayRepository)
 
     @Test
     fun isLowProfile_lightsOutStatusBarMode_false() = runTest {
-        statusBarModeRepository.defaultDisplay.statusBarMode.value = StatusBarMode.LIGHTS_OUT
+        statusBarModeRepository.statusBarMode.value = StatusBarMode.LIGHTS_OUT
 
         val actual by collectLastValue(interactor.isLowProfile(DISPLAY_ID)!!)
 
@@ -46,8 +59,7 @@ class LightsOutInteractorTest : SysuiTestCase() {
 
     @Test
     fun isLowProfile_lightsOutTransparentStatusBarMode_true() = runTest {
-        statusBarModeRepository.defaultDisplay.statusBarMode.value =
-            StatusBarMode.LIGHTS_OUT_TRANSPARENT
+        statusBarModeRepository.statusBarMode.value = StatusBarMode.LIGHTS_OUT_TRANSPARENT
 
         val actual by collectLastValue(interactor.isLowProfile(DISPLAY_ID)!!)
 
@@ -56,10 +68,14 @@ class LightsOutInteractorTest : SysuiTestCase() {
 
     @Test
     fun isLowProfile_transparentStatusBarMode_false() = runTest {
-        statusBarModeRepository.defaultDisplay.statusBarMode.value = StatusBarMode.TRANSPARENT
+        statusBarModeRepository.statusBarMode.value = StatusBarMode.TRANSPARENT
 
         val actual by collectLastValue(interactor.isLowProfile(DISPLAY_ID)!!)
 
         assertThat(actual).isFalse()
+    }
+
+    private companion object {
+        private const val DISPLAY_ID = 123
     }
 }

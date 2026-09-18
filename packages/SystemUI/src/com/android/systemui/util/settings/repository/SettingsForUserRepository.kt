@@ -16,6 +16,7 @@
 
 package com.android.systemui.util.settings.repository
 
+import androidx.lifecycle.distinctUntilChanged
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.util.settings.SettingsProxyExt.observerFlow
 import com.android.systemui.util.settings.UserSettingsProxy
@@ -52,6 +53,15 @@ abstract class SettingsForUserRepository(
             .distinctUntilChanged()
             .flowOn(backgroundDispatcher)
 
+    fun stringSettingForUser(
+        userId: Int,
+        name: String,
+        defaultValue: String? = null,
+    ): Flow<String?> =
+        settingObserver(name, userId) { userSettings.getStringForUser(name, defaultValue, userId) }
+            .distinctUntilChanged()
+            .flowOn(backgroundDispatcher)
+
     fun <T> settingObserver(name: String, userId: Int, settingsReader: () -> T): Flow<T> {
         return userSettings
             .observerFlow(userId, name)
@@ -77,5 +87,13 @@ abstract class SettingsForUserRepository(
         return withContext(backgroundContext) {
             userSettings.getIntForUser(name, defaultValue, userId)
         }
+    }
+
+    suspend fun setStringForUser(userId: Int, name: String, value: String?) {
+        withContext(backgroundContext) { userSettings.putStringForUser(name, value, userId) }
+    }
+
+    suspend fun getStringForUser(userId: Int, name: String): String? {
+        return withContext(backgroundContext) { userSettings.getStringForUser(name, userId) }
     }
 }

@@ -17,14 +17,12 @@
 package com.android.systemui.shade
 
 import android.os.Looper
-import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper.RunWithLooper
 import android.view.Display
 import android.view.View
 import android.view.ViewGroup
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
@@ -86,7 +84,9 @@ class NotificationPanelUnfoldAnimationControllerTest : SysuiTestCase() {
         MockitoAnnotations.initMocks(this)
         if (Looper.myLooper() == null) Looper.prepare()
         xTranslationMax =
-            context.resources.getDimensionPixelSize(R.dimen.notification_side_paddings).toFloat()
+            context.resources
+                .getDimensionPixelSize(R.dimen.notification_side_paddings_single)
+                .toFloat()
 
         underTest =
             NotificationPanelUnfoldAnimationController(
@@ -224,7 +224,6 @@ class NotificationPanelUnfoldAnimationControllerTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun whenShadeOnExternalDisplay_nothingMoves() =
         testScope.runTest {
             whenever(statusBarStateController.getState()).thenReturn(SHADE)

@@ -44,11 +44,11 @@ final class ChangeIdStateQuery {
     @Retention(RetentionPolicy.SOURCE)
     @interface QueryType {}
 
-    public @QueryType int type;
-    public long changeId;
-    public String packageName;
-    public int uid;
-    public int userId;
+    public final @QueryType int type;
+    public final long changeId;
+    public final String packageName;
+    public final int uid;
+    public final int userId;
 
     private ChangeIdStateQuery(@QueryType int type, long changeId, String packageName,
                                int uid, int userId) {

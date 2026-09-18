@@ -25,20 +25,19 @@ import com.android.wm.shell.sysui.ShellInit
 import java.io.PrintWriter
 import java.util.concurrent.TimeUnit
 
-/**
- * Manages the performance hints to the system.
- */
-class PerfHintController(private val mContext: Context,
-                         shellInit: ShellInit,
-                         private val mShellCommandHandler: ShellCommandHandler,
-                         rootTdaOrganizer: RootTaskDisplayAreaOrganizer) {
+/** Manages the performance hints to the system. */
+class PerfHintController(
+    private val mContext: Context,
+    shellInit: ShellInit,
+    private val mShellCommandHandler: ShellCommandHandler,
+    rootTdaOrganizer: RootTaskDisplayAreaOrganizer,
+) {
 
     // The system perf hinter
     val hinter: SystemPerformanceHinter
 
     init {
-        hinter = SystemPerformanceHinter(mContext,
-                rootTdaOrganizer.performanceRootProvider)
+        hinter = SystemPerformanceHinter(mContext, rootTdaOrganizer.performanceRootProvider)
         shellInit.addInitCallback(this::onInit, this)
     }
 
@@ -46,10 +45,11 @@ class PerfHintController(private val mContext: Context,
         mShellCommandHandler.addDumpCallback(this::dump, this)
         val perfHintMgr = mContext.getSystemService(PerformanceHintManager::class.java)
         if (perfHintMgr != null) {
-            val adpfSession = perfHintMgr.createHintSession(
-                intArrayOf(Process.myTid()),
-                TimeUnit.SECONDS.toNanos(1)
-            )
+            val adpfSession =
+                perfHintMgr.createHintSession(
+                    intArrayOf(Process.myTid()),
+                    TimeUnit.SECONDS.toNanos(1),
+                )
             if (adpfSession != null) {
                 hinter.setAdpfSession(adpfSession)
             }

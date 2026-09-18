@@ -16,7 +16,9 @@
 
 package android.os;
 
+/** Test-only barebones version of UserHandle.java. */
 public class UserHandle {
+
     public static int getUserId(int uid) {
         throw new UnsupportedOperationException();
     }
@@ -31,5 +33,25 @@ public class UserHandle {
 
     public static int myUserId() {
         throw new UnsupportedOperationException();
+    }
+
+    public static final int USER_ALL = -1;
+
+    public static final UserHandle ALL = null;
+
+    public static final int USER_CURRENT = -2;
+
+    public static final UserHandle CURRENT = null;
+
+    public static final int USER_CURRENT_OR_SELF = -3;
+
+    public static final UserHandle CURRENT_OR_SELF = null;
+
+    public static final int USER_NULL = -10000;
+
+    public static final UserHandle NULL = null;
+
+    public static UserHandle of(int id) {
+        return new UserHandle();
     }
 }

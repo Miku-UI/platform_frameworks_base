@@ -37,6 +37,7 @@ import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_I
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_NAV_BAR_HIDDEN;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_OVERVIEW_DISABLED;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_SCREEN_PINNING;
+import static com.android.window.flags.Flags.enableSysDecorsCallbacksViaWm;
 
 import android.app.StatusBarManager;
 import android.app.StatusBarManager.NavbarFlags;
@@ -60,12 +61,15 @@ import android.view.WindowInsetsController.Behavior;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
+import com.android.app.displaylib.DisplayDecorationListener;
+import com.android.app.displaylib.DisplaysWithDecorationsRepositoryCompat;
 import com.android.internal.statusbar.LetterboxDetails;
 import com.android.internal.view.AppearanceRegion;
 import com.android.systemui.Dumpable;
 import com.android.systemui.LauncherProxyService;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Background;
+import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.model.SysUiState;
 import com.android.systemui.navigationbar.gestural.EdgeBackGestureHandler;
@@ -85,6 +89,8 @@ import com.android.systemui.statusbar.phone.LightBarTransitionsController;
 import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager;
 import com.android.wm.shell.back.BackAnimation;
 import com.android.wm.shell.pip.Pip;
+
+import kotlinx.coroutines.CoroutineDispatcher;
 
 import java.io.PrintWriter;
 import java.util.Optional;
@@ -188,6 +194,51 @@ public class TaskbarDelegate implements CommandQueue.Callbacks,
     private DisplayTracker mDisplayTracker;
     private final Handler mBgHandler;
 
+    private final DisplayDecorationListener mDisplayDecorationListener =
+            new DisplayDecorationListener() {
+                @Override
+                public void onDisplayRemoved(int displayId) {
+                    mEdgeBackGestureHandler.onDisplayRemoveSystemDecorations(displayId);
+                    if (mLauncherProxyService.getProxy() == null) {
+                        return;
+                    }
+
+                    try {
+                        mLauncherProxyService.getProxy().onDisplayRemoved(displayId);
+                    } catch (RemoteException e) {
+                        Log.e(TAG, "onDisplayRemoved() failed", e);
+                    }
+                }
+
+                @Override
+                public void onDisplayRemoveSystemDecorations(int displayId) {
+                    mEdgeBackGestureHandler.onDisplayRemoveSystemDecorations(displayId);
+                    if (mLauncherProxyService.getProxy() == null) {
+                        return;
+                    }
+
+                    try {
+                        mLauncherProxyService.getProxy()
+                                .onDisplayRemoveSystemDecorations(displayId);
+                    } catch (RemoteException e) {
+                        Log.e(TAG, "onDisplaySystemDecorationsRemoved() failed", e);
+                    }
+                }
+
+                @Override
+                public void onDisplayAddSystemDecorations(int displayId) {
+                    mEdgeBackGestureHandler.onDisplayAddSystemDecorations(displayId);
+                    if (mLauncherProxyService.getProxy() == null) {
+                        return;
+                    }
+
+                    try {
+                        mLauncherProxyService.getProxy().onDisplayAddSystemDecorations(displayId);
+                    } catch (RemoteException e) {
+                        Log.e(TAG, "onDisplayAddSystemDecorations() failed", e);
+                    }
+                }};
+
     @Inject
     public TaskbarDelegate(Context context,
             LightBarTransitionsController.Factory lightBarTransitionsControllerFactory,
@@ -217,7 +268,9 @@ public class TaskbarDelegate implements CommandQueue.Callbacks,
             Optional<Pip> pipOptional,
             BackAnimation backAnimation,
             TaskStackChangeListeners taskStackChangeListeners,
-            DisplayTracker displayTracker) {
+            DisplayTracker displayTracker,
+            DisplaysWithDecorationsRepositoryCompat displaysWithDecorationsRepositoryCompat,
+            @Main CoroutineDispatcher mainCoroutineDispatcher) {
         // TODO: adding this in the ctor results in a dagger dependency cycle :(
         mCommandQueue = commandQueue;
         mLauncherProxyService = launcherProxyService;
@@ -233,51 +286,25 @@ public class TaskbarDelegate implements CommandQueue.Callbacks,
         mTaskStackChangeListeners = taskStackChangeListeners;
         mEdgeBackGestureHandler = navBarHelper.getEdgeBackGestureHandler();
         mDisplayTracker = displayTracker;
+        if (enableSysDecorsCallbacksViaWm()) {
+            displaysWithDecorationsRepositoryCompat.registerDisplayDecorationListener(
+                    mDisplayDecorationListener, mainCoroutineDispatcher);
+        }
     }
 
     @Override
     public void onDisplayAddSystemDecorations(int displayId) {
-        CommandQueue.Callbacks.super.onDisplayAddSystemDecorations(displayId);
-        mEdgeBackGestureHandler.onDisplayAddSystemDecorations(displayId);
-        if (mLauncherProxyService.getProxy() == null) {
-            return;
-        }
-
-        try {
-            mLauncherProxyService.getProxy().onDisplayAddSystemDecorations(displayId);
-        } catch (RemoteException e) {
-            Log.e(TAG, "onDisplayAddSystemDecorations() failed", e);
-        }
+        mDisplayDecorationListener.onDisplayAddSystemDecorations(displayId);
     }
 
     @Override
     public void onDisplayRemoved(int displayId) {
-        CommandQueue.Callbacks.super.onDisplayRemoved(displayId);
-        mEdgeBackGestureHandler.onDisplayRemoveSystemDecorations(displayId);
-        if (mLauncherProxyService.getProxy() == null) {
-            return;
-        }
-
-        try {
-            mLauncherProxyService.getProxy().onDisplayRemoved(displayId);
-        } catch (RemoteException e) {
-            Log.e(TAG, "onDisplayRemoved() failed", e);
-        }
+        mDisplayDecorationListener.onDisplayRemoved(displayId);
     }
 
     @Override
     public void onDisplayRemoveSystemDecorations(int displayId) {
-        CommandQueue.Callbacks.super.onDisplayRemoveSystemDecorations(displayId);
-        mEdgeBackGestureHandler.onDisplayRemoveSystemDecorations(displayId);
-        if (mLauncherProxyService.getProxy() == null) {
-            return;
-        }
-
-        try {
-            mLauncherProxyService.getProxy().onDisplayRemoveSystemDecorations(displayId);
-        } catch (RemoteException e) {
-            Log.e(TAG, "onDisplaySystemDecorationsRemoved() failed", e);
-        }
+        mDisplayDecorationListener.onDisplayRemoveSystemDecorations(displayId);
     }
 
     // Separated into a method to keep setDependencies() clean/readable.
@@ -349,7 +376,7 @@ public class TaskbarDelegate implements CommandQueue.Callbacks,
     }
 
     void addPipExclusionBoundsChangeListener(Pip pip) {
-        pip.addPipExclusionBoundsChangeListener(mPipListener);
+        pip.addPipExclusionBoundsChangeListener(mContext.getMainExecutor(), mPipListener);
     }
 
     void removePipExclusionBoundsChangeListener(Pip pip) {
@@ -503,14 +530,14 @@ public class TaskbarDelegate implements CommandQueue.Callbacks,
 
     @Override
     public void setImeWindowStatus(int displayId, @ImeWindowVisibility int vis,
-            @BackDispositionMode int backDisposition, boolean showImeSwitcher) {
+            @BackDispositionMode int backDisposition, boolean showImeSwitcherButton) {
         if (displayId != mDefaultDisplayId) {
             return;
         }
 
         final boolean isImeVisible = mNavBarHelper.isImeVisible(vis);
         final int flags = Utilities.updateNavbarFlagsFromIme(mNavbarFlags, backDisposition,
-                isImeVisible, showImeSwitcher);
+                isImeVisible, showImeSwitcherButton);
         if (flags == mNavbarFlags) {
             return;
         }

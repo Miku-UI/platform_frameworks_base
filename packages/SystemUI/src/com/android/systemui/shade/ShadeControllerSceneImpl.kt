@@ -24,7 +24,7 @@ import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.shared.model.TransitionKeys.Instant
-import com.android.systemui.scene.shared.model.TransitionKeys.SlightlyFasterShadeCollapse
+import com.android.systemui.scene.shared.model.TransitionKeys.SlightlyFasterShadeTransition
 import com.android.systemui.shade.ShadeController.ShadeVisibilityListener
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.statusbar.CommandQueue
@@ -142,7 +142,7 @@ constructor(
     private fun animateCollapseShadeInternal() {
         shadeInteractor.collapseEitherShade(
             loggingReason = "ShadeController.animateCollapseShade",
-            transitionKey = SlightlyFasterShadeCollapse,
+            transitionKey = SlightlyFasterShadeTransition,
         )
     }
 
@@ -192,7 +192,7 @@ constructor(
 
     override fun setVisibilityListener(listener: ShadeVisibilityListener) {
         scope.launch {
-            sceneInteractor.isVisible.collect { isVisible ->
+            sceneInteractor.isVisibleFlow.collect { isVisible ->
                 withContext(mainDispatcher) { listener.expandedVisibleChanged(isVisible) }
             }
         }

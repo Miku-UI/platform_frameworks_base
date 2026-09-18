@@ -25,12 +25,56 @@
     -->
     <dimen name="shade_panel_margin_horizontal">0dp</dimen>
 
-    <dimen name="overlay_shade_panel_shape_radius">
-        @dimen/aux_spacing_overlay_panel_shape_radius
-    </dimen>
+    <dimen name="overlay_shade_panel_shape_radius">46dp</dimen>
 
-    <dimen name="aux_spacing_overlay_panel_shape_radius">46dp</dimen>
+    <!-- QS shade overlay common tiles -->
+    <dimen name="common_tile_default_active_icon_corner_radius">16dp</dimen>
+    <dimen name="common_tile_default_active_tile_corner_radius">24dp</dimen>
+    <dimen name="common_tile_default_dual_target_end_padding">8dp</dimen>
+    <dimen name="common_tile_default_icon_size">32dp</dimen>
+    <dimen name="common_tile_default_inactive_icon_corner_radius">50dp</dimen>
+    <dimen name="common_tile_default_inactive_tile_corner_radius">@dimen/common_tile_default_inactive_icon_corner_radius</dimen>
+    <dimen name="common_tile_default_large_tile_icon_size">28dp</dimen>
+    <dimen name="common_tile_default_start_padding">8dp</dimen>
+    <dimen name="common_tile_default_tile_height">72dp</dimen>
+    <dimen name="common_tile_default_toggle_target_size">56dp</dimen>
+
+    <!-- QS shade overlay brightness bar -->
+    <dimen name="overlay_qs_layout_brightness_icon_size">28dp</dimen>
     <dimen name="overlay_qs_layout_brightness_thumb_height">52dp</dimen>
     <dimen name="overlay_qs_layout_brightness_thumb_width">4dp</dimen>
     <dimen name="overlay_qs_layout_brightness_track_height">40dp</dimen>
+    <dimen name="overlay_qs_layout_brightness_vertical_padding">6dp</dimen>
+    <dimen name="overlay_qs_layout_brightness_rounded_corner">24dp</dimen>
+    <dimen name="overlay_qs_layout_brightness_frame_width">10dp</dimen>
+    <dimen name="overlay_qs_layout_brightness_frame_height">6dp</dimen>
+    <dimen name="overlay_qs_layout_toolbar_height">48dp</dimen>
+
+    <!-- QS shade layout -->
+    <!-- The horizontal padding and the vertical padding can be different in alternative resources -->
+    <dimen name="overlay_qs_layout_horizontal_padding">16dp</dimen>
+    <dimen name="overlay_qs_layout_vertical_padding">16dp</dimen>
+
+    <!-- QS shade overlay volume bar -->
+    <dimen name="overlay_qs_layout_volume_extra_padding">16dp</dimen>
+    <dimen name="overlay_qs_layout_volume_vertical_padding">4dp</dimen>
+    <dimen name="overlay_qs_layout_volume_thumb_height">
+        @dimen/overlay_qs_layout_brightness_thumb_height
+    </dimen>
+    <dimen name="overlay_qs_layout_volume_thumb_width">
+        @dimen/overlay_qs_layout_brightness_thumb_width
+    </dimen>
+    <dimen name="overlay_qs_layout_volume_track_height">
+        @dimen/overlay_qs_layout_brightness_track_height
+    </dimen>
+
+    <!-- QS shade overlay toolbar -->
+    <dimen name="toolbar_bottom_padding">8dp</dimen>
+    <dimen name="toolbar_button_colored_background_size">36dp</dimen>
+    <dimen name="toolbar_button_icon_size">24dp</dimen>
+    <dimen name="toolbar_button_size">48dp</dimen>
+
+    <!-- QS shade focus rings -->
+    <dimen name="focus_ring_wide_corner_radius">50dp</dimen>
+    <dimen name="focus_ring_tight_corner_radius">12dp</dimen>
 </resources>

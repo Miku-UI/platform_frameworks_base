@@ -266,8 +266,8 @@ class TvPipKeepClearAlgorithmTest : ShellTestCase() {
         val bottomBar = makeBottomBar(96)
         restrictedAreas.add(bottomBar)
 
-        val expectedBounds = anchorBoundsOffsetBy(0,
-                SCREEN_EDGE_INSET - bottomBar.height() - PADDING)
+        val expectedBounds =
+            anchorBoundsOffsetBy(0, SCREEN_EDGE_INSET - bottomBar.height() - PADDING)
 
         val placement = getActualPlacement()
         assertEquals(expectedBounds, placement.bounds)
@@ -300,8 +300,8 @@ class TvPipKeepClearAlgorithmTest : ShellTestCase() {
         val bottomBar = makeBottomBar(BOTTOM_SHEET_HEIGHT)
         unrestrictedAreas.add(bottomBar)
 
-        val expectedBounds = anchorBoundsOffsetBy(0,
-                SCREEN_EDGE_INSET - bottomBar.height() - PADDING)
+        val expectedBounds =
+            anchorBoundsOffsetBy(0, SCREEN_EDGE_INSET - bottomBar.height() - PADDING)
 
         val placement = getActualPlacement()
         assertEquals(expectedBounds, placement.bounds)
@@ -317,12 +317,12 @@ class TvPipKeepClearAlgorithmTest : ShellTestCase() {
         unrestrictedAreas.add(bottomBar)
 
         val maxRestrictedHorizontalPush =
-                (algorithm.maxRestrictedDistanceFraction * SCREEN_SIZE.width).toInt()
+            (algorithm.maxRestrictedDistanceFraction * SCREEN_SIZE.width).toInt()
         val sideBar = makeSideBar(maxRestrictedHorizontalPush + 100, Gravity.RIGHT)
         restrictedAreas.add(sideBar)
 
         val expectedUnstashBounds =
-                anchorBoundsOffsetBy(0, SCREEN_EDGE_INSET - bottomBar.height() - PADDING)
+            anchorBoundsOffsetBy(0, SCREEN_EDGE_INSET - bottomBar.height() - PADDING)
 
         val expectedBounds = Rect(expectedUnstashBounds)
         expectedBounds.offsetTo(SCREEN_SIZE.width - STASH_OFFSET, expectedBounds.top)
@@ -343,14 +343,15 @@ class TvPipKeepClearAlgorithmTest : ShellTestCase() {
         unrestrictedAreas.add(bottomBar)
 
         val maxRestrictedHorizontalPush =
-                (algorithm.maxRestrictedDistanceFraction * SCREEN_SIZE.width).toInt()
+            (algorithm.maxRestrictedDistanceFraction * SCREEN_SIZE.width).toInt()
         val sideBar = makeSideBar(maxRestrictedHorizontalPush + 100, Gravity.RIGHT)
         unrestrictedAreas.add(sideBar)
 
-        val expectedBounds = anchorBoundsOffsetBy(
+        val expectedBounds =
+            anchorBoundsOffsetBy(
                 SCREEN_EDGE_INSET - sideBar.width() - PADDING,
-                SCREEN_EDGE_INSET - bottomBar.height() - PADDING
-        )
+                SCREEN_EDGE_INSET - bottomBar.height() - PADDING,
+            )
 
         val placement = getActualPlacement()
         assertEquals(expectedBounds, placement.bounds)
@@ -366,12 +367,12 @@ class TvPipKeepClearAlgorithmTest : ShellTestCase() {
         unrestrictedAreas.add(bottomBar)
 
         val maxRestrictedHorizontalPush =
-                (algorithm.maxRestrictedDistanceFraction * SCREEN_SIZE.width).toInt()
+            (algorithm.maxRestrictedDistanceFraction * SCREEN_SIZE.width).toInt()
         val sideBar = makeSideBar(maxRestrictedHorizontalPush + 100, Gravity.RIGHT)
         restrictedAreas.add(sideBar)
 
         val expectedUnstashBounds =
-                anchorBoundsOffsetBy(0, SCREEN_EDGE_INSET - bottomBar.height() - PADDING)
+            anchorBoundsOffsetBy(0, SCREEN_EDGE_INSET - bottomBar.height() - PADDING)
 
         val expectedBounds = Rect(expectedUnstashBounds)
         expectedBounds.offsetTo(SCREEN_SIZE.width - STASH_OFFSET, expectedBounds.top)
@@ -397,12 +398,12 @@ class TvPipKeepClearAlgorithmTest : ShellTestCase() {
         unrestrictedAreas.add(bottomBar)
 
         val maxRestrictedHorizontalPush =
-                (algorithm.maxRestrictedDistanceFraction * SCREEN_SIZE.width).toInt()
+            (algorithm.maxRestrictedDistanceFraction * SCREEN_SIZE.width).toInt()
         val sideBar = makeSideBar(maxRestrictedHorizontalPush + 100, Gravity.RIGHT)
         restrictedAreas.add(sideBar)
 
         val expectedUnstashBounds =
-                anchorBoundsOffsetBy(0, SCREEN_EDGE_INSET - bottomBar.height() - PADDING)
+            anchorBoundsOffsetBy(0, SCREEN_EDGE_INSET - bottomBar.height() - PADDING)
 
         val expectedBounds = Rect(expectedUnstashBounds)
         expectedBounds.offsetTo(SCREEN_SIZE.width - STASH_OFFSET, expectedBounds.top)
@@ -429,12 +430,12 @@ class TvPipKeepClearAlgorithmTest : ShellTestCase() {
         unrestrictedAreas.add(bottomBar)
 
         val maxRestrictedHorizontalPush =
-                (algorithm.maxRestrictedDistanceFraction * SCREEN_SIZE.width).toInt()
+            (algorithm.maxRestrictedDistanceFraction * SCREEN_SIZE.width).toInt()
         val sideBar = makeSideBar(maxRestrictedHorizontalPush + 100, Gravity.RIGHT)
         restrictedAreas.add(sideBar)
 
         val expectedUnstashBounds =
-                anchorBoundsOffsetBy(0, SCREEN_EDGE_INSET - bottomBar.height() - PADDING)
+            anchorBoundsOffsetBy(0, SCREEN_EDGE_INSET - bottomBar.height() - PADDING)
 
         val expectedBounds = Rect(expectedUnstashBounds)
         expectedBounds.offsetTo(SCREEN_SIZE.width - STASH_OFFSET, expectedBounds.top)
@@ -445,12 +446,13 @@ class TvPipKeepClearAlgorithmTest : ShellTestCase() {
         assertEquals(expectedUnstashBounds, placement.unstashDestinationBounds)
         assertTrue(placement.triggerStash)
 
-        val newObstruction = Rect(
+        val newObstruction =
+            Rect(
                 0,
                 expectedUnstashBounds.top,
                 expectedUnstashBounds.right,
-                expectedUnstashBounds.bottom
-        )
+                expectedUnstashBounds.bottom,
+            )
         restrictedAreas.add(newObstruction)
 
         placement = getActualPlacement()

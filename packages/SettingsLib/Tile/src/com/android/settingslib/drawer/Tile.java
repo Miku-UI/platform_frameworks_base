@@ -22,6 +22,7 @@ import static com.android.settingslib.drawer.TileUtils.META_DATA_NEW_TASK;
 import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_GROUP_KEY;
 import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_ICON;
 import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_KEYHINT;
+import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_KEYWORDS;
 import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_SEARCHABLE;
 import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_SUMMARY;
 import static com.android.settingslib.drawer.TileUtils.META_DATA_PREFERENCE_SUMMARY_URI;
@@ -255,6 +256,30 @@ public abstract class Tile implements Parcelable {
             }
         }
         return summary;
+    }
+
+    /** Optional keywords describing what this tile controls. */
+    public String[] getKeywords(Context context) {
+        ensureMetadataNotStale(context);
+        String[] keywordsArray = null;
+        final PackageManager packageManager = context.getPackageManager();
+        if (mMetaData != null) {
+            if (mMetaData.containsKey(META_DATA_PREFERENCE_KEYWORDS)) {
+                if (mMetaData.get(META_DATA_PREFERENCE_KEYWORDS) instanceof Integer) {
+                    try {
+                        final Resources res =
+                                packageManager.getResourcesForApplication(mComponentPackage);
+                        keywordsArray = res.getStringArray(
+                                mMetaData.getInt(META_DATA_PREFERENCE_KEYWORDS));
+                    } catch (PackageManager.NameNotFoundException | Resources.NotFoundException e) {
+                        Log.d(TAG, "Couldn't find info", e);
+                    }
+                } else {
+                    keywordsArray = mMetaData.getStringArray(META_DATA_PREFERENCE_KEYWORDS);
+                }
+            }
+        }
+        return keywordsArray;
     }
 
     public void setMetaData(Bundle metaData) {

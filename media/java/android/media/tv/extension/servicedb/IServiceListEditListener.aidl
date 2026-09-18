@@ -17,8 +17,15 @@
 package android.media.tv.extension.servicedb;
 
 /**
+ * Listener to receive callbacks from the Service List Edit session.
  * @hide
  */
 oneway interface IServiceListEditListener {
+    /**
+     * Notifies the client that the commit process has completed.
+     *
+     * @param requestId The ID of the commit request.
+     * @param result The result of the commit operation, @ServicedbConstants.ResultCode.
+     */
     void onCompleted(int requestId, int result);
 }

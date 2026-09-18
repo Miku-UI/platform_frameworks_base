@@ -17,8 +17,10 @@
 package com.android.systemui.authentication.data.repository
 
 import android.app.admin.DevicePolicyManager
+import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.UserInfo
+import android.os.UserHandle
 import android.platform.test.annotations.EnableFlags
 import android.security.Flags.FLAG_SECURE_LOCK_DEVICE
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -28,20 +30,25 @@ import com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_BIO
 import com.android.keyguard.KeyguardSecurityModel
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
+import com.android.systemui.authentication.shared.model.AuthenticationResult
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.fake
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.mobileConnectionsRepository
 import com.android.systemui.testKosmos
-import com.android.systemui.user.data.repository.FakeUserRepository
+import com.android.systemui.user.data.repository.fakeUserRepository
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat
 import java.util.function.Function
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -65,7 +72,7 @@ class AuthenticationRepositoryTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
     private val clock = FakeSystemClock()
-    private val userRepository = FakeUserRepository()
+    private val userRepository = kosmos.fakeUserRepository
     private val mobileConnectionsRepository = kosmos.mobileConnectionsRepository
 
     private lateinit var underTest: AuthenticationRepository
@@ -80,6 +87,18 @@ class AuthenticationRepositoryTest : SysuiTestCase() {
         runBlocking { userRepository.setSelectedUserInfo(USER_INFOS[0]) }
         whenever(getSecurityMode.apply(anyInt())).thenAnswer { currentSecurityMode }
 
+        USER_INFOS.forEach { userInfo ->
+            val userHandle = UserHandle.of(userInfo.id)
+            context.prepareCreateContextAsUser(
+                userHandle,
+                object : ContextWrapper(context) {
+                    override fun getUserId(): Int = userInfo.id
+
+                    override fun getUser(): UserHandle = userHandle
+                },
+            )
+        }
+
         underTest =
             AuthenticationRepositoryImpl(
                 applicationScope = testScope.backgroundScope,
@@ -91,6 +110,8 @@ class AuthenticationRepositoryTest : SysuiTestCase() {
                 devicePolicyManager = devicePolicyManager,
                 broadcastDispatcher = fakeBroadcastDispatcher,
                 mobileConnectionsRepository = mobileConnectionsRepository,
+                tableLogBuffer = logcatTableLogBuffer(kosmos, "sceneFrameworkTableLogBuffer"),
+                context = context,
             )
     }
 
@@ -101,29 +122,21 @@ class AuthenticationRepositoryTest : SysuiTestCase() {
             runCurrent()
             dispatchBroadcast()
             assertThat(authMethod).isEqualTo(AuthenticationMethodModel.Pin)
-            assertThat(underTest.getAuthenticationMethod()).isEqualTo(AuthenticationMethodModel.Pin)
 
             setSecurityModeAndDispatchBroadcast(KeyguardSecurityModel.SecurityMode.Pattern)
             assertThat(authMethod).isEqualTo(AuthenticationMethodModel.Pattern)
-            assertThat(underTest.getAuthenticationMethod())
-                .isEqualTo(AuthenticationMethodModel.Pattern)
 
             setSecurityModeAndDispatchBroadcast(KeyguardSecurityModel.SecurityMode.None)
             assertThat(authMethod).isEqualTo(AuthenticationMethodModel.None)
-            assertThat(underTest.getAuthenticationMethod())
-                .isEqualTo(AuthenticationMethodModel.None)
 
             currentSecurityMode = KeyguardSecurityModel.SecurityMode.SimPin
             mobileConnectionsRepository.fake.isAnySimSecure.value = true
             assertThat(authMethod).isEqualTo(AuthenticationMethodModel.Sim)
-            assertThat(underTest.getAuthenticationMethod()).isEqualTo(AuthenticationMethodModel.Sim)
 
             setSecurityModeAndDispatchBroadcast(
                 KeyguardSecurityModel.SecurityMode.SecureLockDeviceBiometricAuth
             )
             assertThat(authMethod).isEqualTo(AuthenticationMethodModel.Biometric)
-            assertThat(underTest.getAuthenticationMethod())
-                .isEqualTo(AuthenticationMethodModel.Biometric)
         }
 
     @Test
@@ -171,25 +184,30 @@ class AuthenticationRepositoryTest : SysuiTestCase() {
         }
 
     @Test
-    fun lockoutEndTimestamp() =
+    fun lockoutEndTime() =
         testScope.runTest {
-            val lockoutEndMs = clock.elapsedRealtime() + 30.seconds.inWholeMilliseconds
-            whenever(lockPatternUtils.getLockoutAttemptDeadline(USER_INFOS[0].id))
-                .thenReturn(lockoutEndMs)
-            whenever(lockPatternUtils.getLockoutAttemptDeadline(USER_INFOS[1].id)).thenReturn(0)
+            val lockoutEnd = clock.elapsedRealtime().milliseconds + 30.seconds
+            whenever(lockPatternUtils.getLockoutEndTime(USER_INFOS[0].id))
+                .thenReturn(lockoutEnd.toJavaDuration())
+            whenever(lockPatternUtils.getLockoutEndTime(USER_INFOS[1].id))
+                .thenReturn(0.seconds.toJavaDuration())
 
             // Switch to a user who is not locked-out.
             userRepository.setSelectedUserInfo(USER_INFOS[1])
-            assertThat(underTest.lockoutEndTimestamp).isNull()
+            assertThat(underTest.lockoutEndTime).isNull()
 
-            // Switch back to the locked-out user, verify the timestamp is up-to-date.
+            // Switch back to the locked-out user, verify the time is up-to-date.
             userRepository.setSelectedUserInfo(USER_INFOS[0])
-            assertThat(underTest.lockoutEndTimestamp).isEqualTo(lockoutEndMs)
+            assertThat(underTest.lockoutEndTime).isEqualTo(lockoutEnd)
 
             // After the lockout expires, null is returned.
-            clock.setElapsedRealtime(lockoutEndMs)
-            assertThat(underTest.lockoutEndTimestamp).isNull()
+            clock.setElapsedRealtime(lockoutEnd)
+            assertThat(underTest.lockoutEndTime).isNull()
         }
+
+    private fun FakeSystemClock.setElapsedRealtime(duration: Duration) {
+        setElapsedRealtime(duration.inWholeMilliseconds)
+    }
 
     @Test
     fun hasLockoutOccurred() =
@@ -197,15 +215,15 @@ class AuthenticationRepositoryTest : SysuiTestCase() {
             val hasLockoutOccurred by collectLastValue(underTest.hasLockoutOccurred)
             assertThat(hasLockoutOccurred).isFalse()
 
-            underTest.reportLockoutStarted(1000)
+            underTest.reportLockoutStarted(1.seconds)
             assertThat(hasLockoutOccurred).isTrue()
 
             clock.setElapsedRealtime(clock.elapsedRealtime() + 60.seconds.inWholeMilliseconds)
 
-            underTest.reportAuthenticationAttempt(isSuccessful = false)
+            underTest.reportAuthenticationAttempt(AuthenticationResult.FAILED)
             assertThat(hasLockoutOccurred).isTrue()
 
-            underTest.reportAuthenticationAttempt(isSuccessful = true)
+            underTest.reportAuthenticationAttempt(AuthenticationResult.SUCCEEDED)
             assertThat(hasLockoutOccurred).isFalse()
         }
 
@@ -217,9 +235,23 @@ class AuthenticationRepositoryTest : SysuiTestCase() {
             whenever(lockPatternUtils.getStrongAuthForUser(anyInt()))
                 .thenReturn(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE)
 
-            underTest.reportAuthenticationAttempt(true)
+            underTest.reportAuthenticationAttempt(AuthenticationResult.SUCCEEDED)
             verify(lockPatternUtils, never()).userPresent(anyInt())
             verify(lockPatternUtils, never()).reportSuccessfulPasswordAttempt(anyInt())
+        }
+
+    @Test
+    fun isShowPasswordsTouchEnabled_emitsSafeDefaultFirst() =
+        testScope.runTest {
+            val values by collectValues(underTest.isShowPasswordsTouchEnabled)
+            assertThat(values.first()).isFalse()
+        }
+
+    @Test
+    fun isShowPasswordsPhysicalEnabled_emitsSafeDefaultFirst() =
+        testScope.runTest {
+            val values by collectValues(underTest.isShowPasswordsPhysicalEnabled)
+            assertThat(values.first()).isFalse()
         }
 
     private fun setSecurityModeAndDispatchBroadcast(

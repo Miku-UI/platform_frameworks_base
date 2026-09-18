@@ -49,6 +49,7 @@ import static com.android.server.am.ActivityManagerService.UPDATE_TIME_ZONE;
 import static com.android.server.am.ActivityManagerService.checkComponentPermission;
 import static com.android.server.am.BroadcastRecord.debugLog;
 import static com.android.server.am.BroadcastRecord.intentToString;
+import static com.android.server.am.psc.Constants.INVALID_ADJ;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -129,6 +130,7 @@ import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -159,6 +161,12 @@ class BroadcastController {
 
     // Maximum number of receivers an app can register.
     private static final int MAX_RECEIVERS_ALLOWED_PER_APP = 1000;
+
+    /**
+     * The number of top receivers/actions to dump when the number of receivers per app
+     * exceeds {@link #MAX_RECEIVERS_ALLOWED_PER_APP}.
+     */
+    private static final int TOP_N_RECEIVERS_TO_DUMP = 10;
 
     @NonNull
     private final Context mContext;
@@ -337,12 +345,12 @@ class BroadcastController {
                 Slog.w(TAG, "registerReceiverWithFeature: no app for " + caller);
                 return null;
             }
-            if (!UserHandle.isCore(callerApp.info.uid)
+            if (!UserHandle.isCore(callerApp.uid)
                     && !callerApp.getPkgList().containsKey(callerPackage)) {
                 throw new SecurityException("Given caller package " + callerPackage
                         + " is not running in process " + callerApp);
             }
-            callingUid = callerApp.info.uid;
+            callingUid = callerApp.uid;
             callingPid = callerApp.getPid();
 
             instantApp = isInstantApp(callerApp, callerPackage, callingUid);
@@ -550,9 +558,8 @@ class BroadcastController {
                 if (rl.app != null) {
                     final int totalReceiversForApp = rl.app.mReceivers.numberOfReceivers();
                     if (totalReceiversForApp >= MAX_RECEIVERS_ALLOWED_PER_APP) {
-                        throw new IllegalStateException("Too many receivers, total of "
-                                + totalReceiversForApp + ", registered for pid: "
-                                + rl.pid + ", callerPackage: " + callerPackage);
+                        throw new IllegalStateException(
+                                buildTooManyReceiversExceptionMessage(rl, callerPackage));
                     }
                     rl.app.mReceivers.addReceiver(rl);
                 } else {
@@ -631,6 +638,65 @@ class BroadcastController {
             return sticky;
         }
     }
+
+    @VisibleForTesting
+    String buildTooManyReceiversExceptionMessage(ReceiverList rl, String callerPackage) {
+        final HashMap<String, Integer> actionCounts = new HashMap<>();
+        final HashMap<String, Integer> receiverIdCounts = new HashMap<>();
+        for (ReceiverList receiverList : rl.app.getReceivers().getReceiverLists()) {
+            for (BroadcastFilter filter : receiverList) {
+                if (filter.receiverId != null) {
+                    receiverIdCounts.put(filter.receiverId,
+                            receiverIdCounts.getOrDefault(filter.receiverId, 0) + 1);
+                }
+                final Iterator<String> actions = filter.actionsIterator();
+                if (actions != null) {
+                    while (actions.hasNext()) {
+                        final String action = actions.next();
+                        actionCounts.put(action,
+                                actionCounts.getOrDefault(action, 0) + 1);
+                    }
+                }
+            }
+        }
+
+        final List<Map.Entry<String, Integer>> sortedActions =
+                new ArrayList<>(actionCounts.entrySet());
+        sortedActions.sort(Map.Entry.comparingByValue(Comparator.reverseOrder()));
+
+        final List<Map.Entry<String, Integer>> sortedReceivers =
+                new ArrayList<>(receiverIdCounts.entrySet());
+        sortedReceivers.sort(
+                Map.Entry.comparingByValue(Comparator.reverseOrder()));
+
+        final StringBuilder summary = new StringBuilder();
+        summary.append("Top ").append(TOP_N_RECEIVERS_TO_DUMP).append(" actions:\n");
+        final int actionsSize = Math.min(TOP_N_RECEIVERS_TO_DUMP, sortedActions.size());
+        for (int i = 0; i < actionsSize; i++) {
+            final Map.Entry<String, Integer> entry = sortedActions.get(i);
+            summary.append("  ")
+                    .append(entry.getKey())
+                    .append(": ")
+                    .append(entry.getValue())
+                    .append(" receivers\n");
+        }
+
+        summary.append("Top " + TOP_N_RECEIVERS_TO_DUMP + " receiver classes:\n");
+        final int receiversSize = Math.min(TOP_N_RECEIVERS_TO_DUMP, sortedReceivers.size());
+        for (int i = 0; i < receiversSize; i++) {
+            final Map.Entry<String, Integer> entry = sortedReceivers.get(i);
+            summary.append("  ")
+                    .append(entry.getKey())
+                    .append(": ")
+                    .append(entry.getValue())
+                    .append(" receivers\n");
+        }
+
+        return "Too many receivers, total of "
+                + rl.app.getReceivers().numberOfReceivers() + ", registered for pid: "
+                + rl.pid + ", callerPackage: " + callerPackage + "\n" + summary;
+    }
+
 
     void unregisterReceiver(IIntentReceiver receiver) {
         traceUnregistrationBegin(receiver);
@@ -1124,7 +1190,7 @@ class BroadcastController {
                             WEAR_REMOTE_INTENT_BLOCKED_IN_BACKGROUND, callingUid)) {
                 final int callerProcState =
                         callerApp != null
-                                ? callerApp.getCurProcState()
+                                ? callerApp.getProcState()
                                 : ActivityManager.PROCESS_STATE_NONEXISTENT;
                 if (ActivityManager.RunningAppProcessInfo.procStateToImportance(callerProcState)
                         > ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
@@ -1259,7 +1325,7 @@ class BroadcastController {
                                         synchronized (mService.mProcLock) {
                                             mService.mProcessList.killPackageProcessesLSP(ssp,
                                                     UserHandle.getAppId(extraUid),
-                                                    userId, ProcessList.INVALID_ADJ,
+                                                    userId, INVALID_ADJ,
                                                     reason,
                                                     subReason,
                                                     "change " + ssp);
@@ -1737,7 +1803,7 @@ class BroadcastController {
             }
         }
         if (app != null && app.getThread() != null && !app.isKilled()) {
-            return app.getCurProcState();
+            return app.getProcState();
         }
         return PROCESS_STATE_NONEXISTENT;
     }
@@ -2076,7 +2142,7 @@ class BroadcastController {
         if (receivers != null && broadcastAllowList != null) {
             for (int i = receivers.size() - 1; i >= 0; i--) {
                 final int receiverAppId = UserHandle.getAppId(
-                        receivers.get(i).activityInfo.applicationInfo.uid);
+                        receivers.get(i).activityInfo.getUid());
                 if (receiverAppId >= Process.FIRST_APPLICATION_UID
                         && Arrays.binarySearch(broadcastAllowList, receiverAppId) < 0) {
                     receivers.remove(i);

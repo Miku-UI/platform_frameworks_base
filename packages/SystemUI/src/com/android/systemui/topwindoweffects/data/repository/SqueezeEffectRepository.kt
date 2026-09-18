@@ -21,7 +21,13 @@ import kotlinx.coroutines.flow.Flow
 
 interface SqueezeEffectRepository {
 
-    val isSqueezeEffectHapticEnabled: Boolean
+    enum class GestureStatus {
+        PARTIAL,
+        COMPLETED,
+        HIDDEN,
+    }
+
+    data class GestureProgress(val progress: Float, val status: GestureStatus)
 
     val isEffectEnabled: Flow<Boolean>
 
@@ -29,13 +35,15 @@ interface SqueezeEffectRepository {
 
     val isPowerButtonLongPressed: Flow<Boolean>
 
-    fun getInvocationEffectInitialDelayMillis(): Long
+    val gestureProgress: Flow<GestureProgress>
 
-    fun getInvocationEffectInAnimationDurationMillis(): Long
+    fun getLppInvocationEffectInitialDelayMillis(): Long
+
+    fun getLppInvocationEffectInAnimationDurationMillis(): Long
 
     fun getInvocationEffectOutAnimationDurationMillis(): Long
 
-    fun useHapticRumble(): Boolean
+    fun getGestureInvocationEffectInAnimationDurationMillis(): Long
 
     fun dump(pw: PrintWriter, args: Array<out String>)
 }

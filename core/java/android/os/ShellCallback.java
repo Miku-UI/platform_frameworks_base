@@ -25,6 +25,7 @@ import com.android.internal.os.IShellCallback;
  * performing operations back on the invoking shell.
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class ShellCallback implements Parcelable {
     final static String TAG = "ShellCallback";
 

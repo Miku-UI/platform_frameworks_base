@@ -19,7 +19,8 @@ package com.android.systemui.statusbar.data.model
 import com.android.systemui.shared.statusbar.phone.BarTransitions
 import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_LIGHTS_OUT
 import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_LIGHTS_OUT_TRANSPARENT
-import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_OPAQUE
+import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_OPAQUE_DARK
+import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_OPAQUE_LIGHT
 import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_SEMI_TRANSPARENT
 import com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_TRANSPARENT
 import com.android.systemui.shared.statusbar.phone.BarTransitions.TransitionMode
@@ -42,8 +43,10 @@ enum class StatusBarMode {
     LIGHTS_OUT,
     /** Similar to [LIGHTS_OUT], but also with a transparent background for the status bar. */
     LIGHTS_OUT_TRANSPARENT,
-    /** Use an opaque background for the status bar. */
-    OPAQUE,
+    /** Use an opaque, always dark background for the status bar. */
+    OPAQUE_DARK,
+    /** Use an opaque, always light background for the status bar. */
+    OPAQUE_LIGHT,
     /** Use a transparent background for the status bar. */
     TRANSPARENT;
 
@@ -54,7 +57,8 @@ enum class StatusBarMode {
             SEMI_TRANSPARENT -> MODE_SEMI_TRANSPARENT
             LIGHTS_OUT -> MODE_LIGHTS_OUT
             LIGHTS_OUT_TRANSPARENT -> MODE_LIGHTS_OUT_TRANSPARENT
-            OPAQUE -> MODE_OPAQUE
+            OPAQUE_DARK -> MODE_OPAQUE_DARK
+            OPAQUE_LIGHT -> MODE_OPAQUE_LIGHT
             TRANSPARENT -> MODE_TRANSPARENT
         }
     }

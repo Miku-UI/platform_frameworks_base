@@ -25,6 +25,7 @@
 #include <string>
 
 #include "PipelineCache.h"
+#include "PipelineCacheStats.h"
 
 namespace android {
 namespace uirenderer {
@@ -44,6 +45,8 @@ public:
 
     sk_sp<SkData> load(const SkData& key) override;
     void store(const SkData& key, const SkData& data, const SkString& description) override;
+
+    PipelineCacheStats getPipelineCacheStats() const;
 
 private:
     std::unique_ptr<PipelineCache> mPipelineCache;

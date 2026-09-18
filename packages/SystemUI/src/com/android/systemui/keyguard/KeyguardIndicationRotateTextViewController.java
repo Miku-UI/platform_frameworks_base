@@ -46,24 +46,24 @@ import java.util.Map;
  * Animates through messages to show on the keyguard bottom area on the lock screen.
  * Utilizes a {@link KeyguardIndicationTextView} for animations. This class handles the rotating
  * nature of the messages including:
- *  - ensuring a message is shown for its minimum amount of time. Minimum time is determined by
- *  {@link KeyguardIndication#getMinVisibilityMillis()}
- *  - showing the next message after a default of 3.5 seconds before animating to the next
- *  - statically showing a single message if there is only one message to show
- *  - showing certain messages immediately, assuming te current message has been shown for
- *  at least {@link KeyguardIndication#getMinVisibilityMillis()}. For example, transient and
- *  biometric messages are meant to be shown immediately.
- *  - ending animations when dozing begins, and resuming when dozing ends. Rotating messages on
- *  AoD is undesirable since it wakes up the AP too often.
+ * - ensuring a message is shown for its minimum amount of time. Minimum time is determined by
+ * {@link KeyguardIndication#getMinVisibilityMillis()}
+ * - showing the next message after a default of 3.5 seconds before animating to the next
+ * - statically showing a single message if there is only one message to show
+ * - showing certain messages immediately, assuming the current message has been shown for
+ * at least {@link KeyguardIndication#getMinVisibilityMillis()}. For example, transient and
+ * biometric messages are meant to be shown immediately.
+ * - ending animations when dozing begins, and resuming when dozing ends. Rotating messages on
+ * AoD is undesirable since it wakes up the AP too often.
  */
 public class KeyguardIndicationRotateTextViewController extends
         ViewController<KeyguardIndicationTextView> implements Dumpable {
     public static String TAG = "KgIndicationRotatingCtrl";
     private static final long DEFAULT_INDICATION_SHOW_LENGTH =
             KeyguardIndicationController.DEFAULT_HIDE_DELAY_MS
-                    - KeyguardIndicationTextView.Y_IN_DURATION;
+                    - KeyguardIndicationTextView.Y_TRANSLATE_DURATION;
     public static final long IMPORTANT_MSG_MIN_DURATION =
-            2000L + KeyguardIndicationTextView.Y_IN_DURATION;
+            2000L + KeyguardIndicationTextView.Y_TRANSLATE_DURATION;
 
     private final StatusBarStateController mStatusBarStateController;
     private final KeyguardLogger mLogger;
@@ -77,7 +77,8 @@ public class KeyguardIndicationRotateTextViewController extends
     private final DelayableExecutor mExecutor;
 
     @VisibleForTesting
-    @Nullable ShowNextIndication mShowNextIndicationRunnable;
+    @Nullable
+    ShowNextIndication mShowNextIndicationRunnable;
 
     // List of indication types to show. The next indication to show is always at index 0
     private final List<Integer> mIndicationQueue = new ArrayList<>();
@@ -122,11 +123,12 @@ public class KeyguardIndicationRotateTextViewController extends
 
     /**
      * Update the indication type with the given String.
-     * @param type of indication
+     *
+     * @param type          of indication
      * @param newIndication message to associate with this indication type
-     * @param showAsap if true: shows this indication message as soon as possible. If false,
-     *                   the text associated with this type is updated and will show when its turn
-     *                   in the IndicationQueue comes around.
+     * @param showAsap      if true: shows this indication message as soon as possible. If false,
+     *                      the text associated with this type is updated and will show when its
+     *                      turn in the IndicationQueue comes around.
      */
     public void updateIndication(@IndicationType int type, KeyguardIndication newIndication,
             boolean showAsap) {
@@ -195,7 +197,7 @@ public class KeyguardIndicationRotateTextViewController extends
 
     /**
      * Stop showing the following indication type.
-     *
+     * <p>
      * If the current indication is of this type, immediately stops showing the message.
      */
     public void hideIndication(@IndicationType int type) {
@@ -393,10 +395,13 @@ public class KeyguardIndicationRotateTextViewController extends
     public static final int INDICATION_TYPE_REVERSE_CHARGING = 10;
     public static final int INDICATION_TYPE_BIOMETRIC_MESSAGE = 11;
     public static final int INDICATION_TYPE_BIOMETRIC_MESSAGE_FOLLOW_UP = 12;
-    public static final int INDICATION_IS_DISMISSIBLE = 13;
+    public static final int INDICATION_TYPE_IS_DISMISSIBLE = 13;
     public static final int INDICATION_TYPE_ADAPTIVE_AUTH = 14;
     public static final int INDICATION_TYPE_WATCH_DISCONNECTED = 15;
     public static final int INDICATION_TYPE_SECURE_LOCK_DEVICE = 16;
+    public static final int INDICATION_TYPE_CLICK_TO_UNLOCK_HINT = 17;
+    public static final int INDICATION_TYPE_KEY_TO_UNLOCK_HINT = 18;
+    public static final int INDICATION_TYPE_ENTER_TO_UNLOCK_HINT = 19;
 
     @IntDef({
             INDICATION_TYPE_NONE,
@@ -412,13 +417,17 @@ public class KeyguardIndicationRotateTextViewController extends
             INDICATION_TYPE_REVERSE_CHARGING,
             INDICATION_TYPE_BIOMETRIC_MESSAGE,
             INDICATION_TYPE_BIOMETRIC_MESSAGE_FOLLOW_UP,
-            INDICATION_IS_DISMISSIBLE,
+            INDICATION_TYPE_IS_DISMISSIBLE,
             INDICATION_TYPE_ADAPTIVE_AUTH,
             INDICATION_TYPE_WATCH_DISCONNECTED,
-            INDICATION_TYPE_SECURE_LOCK_DEVICE
+            INDICATION_TYPE_SECURE_LOCK_DEVICE,
+            INDICATION_TYPE_CLICK_TO_UNLOCK_HINT,
+            INDICATION_TYPE_KEY_TO_UNLOCK_HINT,
+            INDICATION_TYPE_ENTER_TO_UNLOCK_HINT,
     })
     @Retention(RetentionPolicy.SOURCE)
-    public @interface IndicationType{}
+    public @interface IndicationType {
+    }
 
     /**
      * Get human-readable string representation of the indication type.
@@ -451,12 +460,20 @@ public class KeyguardIndicationRotateTextViewController extends
                 return "biometric_message";
             case INDICATION_TYPE_BIOMETRIC_MESSAGE_FOLLOW_UP:
                 return "biometric_message_followup";
+            case INDICATION_TYPE_IS_DISMISSIBLE:
+                return "is_dismissible";
             case INDICATION_TYPE_ADAPTIVE_AUTH:
                 return "adaptive_auth";
             case INDICATION_TYPE_WATCH_DISCONNECTED:
                 return "watch_disconnected";
             case INDICATION_TYPE_SECURE_LOCK_DEVICE:
                 return "secure_lock_device";
+            case INDICATION_TYPE_CLICK_TO_UNLOCK_HINT:
+                return "click_to_unlock_hint";
+            case INDICATION_TYPE_KEY_TO_UNLOCK_HINT:
+                return "key_to_unlock_hint";
+            case INDICATION_TYPE_ENTER_TO_UNLOCK_HINT:
+                return "enter_to_unlock_hint";
             default:
                 return "unknown[" + type + "]";
         }

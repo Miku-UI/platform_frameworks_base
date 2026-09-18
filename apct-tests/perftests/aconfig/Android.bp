@@ -27,13 +27,14 @@ android_test {
     srcs: ["src/**/*.java"],
     static_libs: [
         "aconfig_device_paths_java_util",
+        "aconfig_new_storage_flags_lib",
         "androidx.test.rules",
         "apct-perftests-utils",
         "collector-device-lib",
+        "device_config_reboot_flags_java_lib",
         "truth",
     ],
     platform_apis: true,
     certificate: "platform",
-    test_suites: ["device-tests"],
     data: [":perfetto_artifacts"],
 }

@@ -23,6 +23,9 @@ import static android.media.codec.Flags.FLAG_IN_PROCESS_SW_AUDIO_CODEC;
 import static android.media.codec.Flags.FLAG_NULL_OUTPUT_SURFACE;
 import static android.media.codec.Flags.FLAG_REGION_OF_INTEREST;
 import static android.media.codec.Flags.FLAG_APV_SUPPORT;
+import static android.media.codec.Flags.FLAG_VVC_SUPPORT;
+import static android.media.codec.Flags.FLAG_TEMPORAL_LAYER_ENCODING;
+import static android.media.codec.Flags.FLAG_FORMAT_400_444_SUPPORT;
 import static android.media.Utils.intersectSortedDistinctRanges;
 import static android.media.Utils.sortDistinctRanges;
 import static android.media.MediaCodec.GetFlag;
@@ -55,6 +58,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.Vector;
 
 /**
@@ -93,14 +98,22 @@ public final class MediaCodecInfo {
     private int mFlags;
     private String mName;
     private String mCanonicalName;
+    private int mSecurityModel;
     private Map<String, CodecCapabilities> mCaps;
 
     /* package private */ MediaCodecInfo(
             String name, String canonicalName, int flags, CodecCapabilities[] caps) {
+        this(name, canonicalName, flags, caps, SECURITY_MODEL_SANDBOXED);
+    }
+
+    /* package private */ MediaCodecInfo(
+            String name, String canonicalName, int flags, CodecCapabilities[] caps,
+            int securityModel) {
         mName = name;
         mCanonicalName = canonicalName;
         mFlags = flags;
         mCaps = new HashMap<String, CodecCapabilities>();
+        mSecurityModel = securityModel;
 
         for (CodecCapabilities c: caps) {
             mCaps.put(c.getMimeType(), c);
@@ -1842,10 +1855,77 @@ public final class MediaCodecInfo {
                 createDiscreteSampleRates();
             }
 
+            private static int[] MergeSortedArraysAndRemoveDuplicates(int[] a1, int[] a2) {
+                if (a1 == null) {
+                    return a2;
+                } else if (a2 == null) {
+                    return a1;
+                }
+                Integer[] v1 = Arrays.stream(a1).boxed().toArray(Integer[]::new);
+                Integer[] v2 = Arrays.stream(a2).boxed().toArray(Integer[]::new);
+                SortedSet<Integer> set = new TreeSet<>();
+                set.addAll(Arrays.asList(v1));
+                set.addAll(Arrays.asList(v2));
+                return Arrays.stream(set.toArray(new Integer[set.size()]))
+                                  .mapToInt(Integer::intValue).toArray();
+            }
+
+            private static Range<Integer>[] ConvertDiscreteSampleRatesToRanges(int[] rates) {
+                if (rates == null) {
+                    return null;
+                }
+                ArrayList<Range<Integer>> ranges = new ArrayList<Range<Integer>>();
+                for (int rate: rates) {
+                    ranges.add(Range.create(rate, rate));
+                }
+                return ranges.toArray(new Range[ranges.size()]);
+            }
+
+            private static <T extends Comparable<? super T>> Range<T>[] UnionSortedDistinctRanges(
+                    Range<T>[] a, Range<T>[] b) {
+                if (a == null) {
+                    return b;
+                } else if (b == null) {
+                    return a;
+                }
+                ArrayList<Range<T>> res = new ArrayList<>();
+                Range<T> last = null;
+                int ixA = 0;
+                int ixB = 0;
+                while (ixA < a.length || ixB < b.length) {
+                    Range<T> temp = null;
+                    // In each iteration, we pick the range with smaller lower value.
+                    if (ixB == b.length || (ixA < a.length
+                            && a[ixA].getLower().compareTo(b[ixB].getLower()) <= 0)) {
+                        temp = a[ixA];
+                        ixA++;
+                    } else {
+                        temp = b[ixB];
+                        ixB++;
+                    }
+                    if (last == null) {  // first element
+                        last = temp;
+                        continue;
+                    }
+                    // Compare the last range with current temp range
+                    if (last.getUpper().compareTo(temp.getLower()) < 0) { // no overlap
+                        res.add(last);
+                        last = temp;
+                    } else { // last and temp overlap. Merge them
+                        last = last.extend(temp);
+                    }
+                }
+                if (last != null) {
+                    res.add(last);
+                }
+                return res.toArray(new Range[res.size()]);
+            }
+
             private void applyLevelLimits() {
                 int[] sampleRates = null;
-                Range<Integer> sampleRateRange = null, bitRates = null;
-                int maxChannels = MAX_INPUT_CHANNEL_COUNT;
+                Range<Integer>[] sampleRateRanges = null;
+                Range<Integer> bitRates = null;
+                int maxChannels = 1;
                 CodecProfileLevel[] profileLevels = mParent.getProfileLevels();
                 String mime = mParent.getMimeType();
 
@@ -1875,18 +1955,18 @@ public final class MediaCodecInfo {
                     maxChannels = 48;
                 } else if (mime.equalsIgnoreCase(MediaFormat.MIMETYPE_AUDIO_VORBIS)) {
                     bitRates = Range.create(32000, 500000);
-                    sampleRateRange = Range.create(8000, 192000);
+                    sampleRateRanges = new Range[] { Range.create(8000, 192000) };
                     maxChannels = 255;
                 } else if (mime.equalsIgnoreCase(MediaFormat.MIMETYPE_AUDIO_OPUS)) {
                     bitRates = Range.create(6000, 510000);
                     sampleRates = new int[] { 8000, 12000, 16000, 24000, 48000 };
                     maxChannels = 255;
                 } else if (mime.equalsIgnoreCase(MediaFormat.MIMETYPE_AUDIO_RAW)) {
-                    sampleRateRange = Range.create(1, 192000);
+                    sampleRateRanges = new Range[] { Range.create(1, 192000) };
                     bitRates = Range.create(1, 10000000);
                     maxChannels = AudioSystem.OUT_CHANNEL_COUNT_MAX;
                 } else if (mime.equalsIgnoreCase(MediaFormat.MIMETYPE_AUDIO_FLAC)) {
-                    sampleRateRange = Range.create(1, 655350);
+                    sampleRateRanges = new Range[] { Range.create(1, 655350) };
                     // lossless codec, so bitrate is ignored
                     maxChannels = 255;
                 } else if (mime.equalsIgnoreCase(MediaFormat.MIMETYPE_AUDIO_G711_ALAW)
@@ -1894,6 +1974,7 @@ public final class MediaCodecInfo {
                     sampleRates = new int[] { 8000 };
                     bitRates = Range.create(64000, 64000);
                     // platform allows multiple channels for this format
+                    maxChannels = MAX_INPUT_CHANNEL_COUNT;
                 } else if (mime.equalsIgnoreCase(MediaFormat.MIMETYPE_AUDIO_MSGSM)) {
                     sampleRates = new int[] { 8000 };
                     bitRates = Range.create(13000, 13000);
@@ -1916,54 +1997,64 @@ public final class MediaCodecInfo {
                     maxChannels = 6;
                 } else if (mime.equalsIgnoreCase(MediaFormat.MIMETYPE_AUDIO_DTS_HD)) {
                     for (CodecProfileLevel profileLevel: profileLevels) {
+                        int[] SR = null;
+                        Range<Integer> BR = null;
                         switch (profileLevel.profile) {
                             case CodecProfileLevel.DTS_HDProfileLBR:
-                                sampleRates = new int[]{ 22050, 24000, 44100, 48000 };
-                                bitRates = Range.create(32000, 768000);
+                                SR = new int[]{ 22050, 24000, 44100, 48000 };
+                                BR = Range.create(32000, 768000);
                                 break;
                             case CodecProfileLevel.DTS_HDProfileHRA:
                             case CodecProfileLevel.DTS_HDProfileMA:
-                                sampleRates =
-                                        new int[]{ 44100, 48000, 88200, 96000, 176400, 192000 };
-                                bitRates = Range.create(96000, 24500000);
+                                SR = new int[]{ 44100, 48000, 88200, 96000, 176400, 192000 };
+                                BR = Range.create(96000, 24500000);
                                 break;
                             default:
                                 Log.w(TAG, "Unrecognized profile "
                                         + profileLevel.profile + " for " + mime);
                                 mParent.mError |= ERROR_UNRECOGNIZED;
-                                sampleRates =
-                                        new int[]{ 44100, 48000, 88200, 96000, 176400, 192000 };
-                                bitRates = Range.create(96000, 24500000);
+                                SR = new int[]{ 44100, 48000, 88200, 96000, 176400, 192000 };
+                                BR = Range.create(96000, 24500000);
                         }
+                        sampleRates = MergeSortedArraysAndRemoveDuplicates(sampleRates, SR);
+                        bitRates = bitRates == null ? BR : bitRates.extend(BR);
                     }
                     maxChannels = 8;
                 } else if (mime.equalsIgnoreCase(MediaFormat.MIMETYPE_AUDIO_DTS_UHD)) {
                     for (CodecProfileLevel profileLevel: profileLevels) {
+                        int[] SR = null;
+                        Range<Integer> BR = null;
+                        int MC = 0;
                         switch (profileLevel.profile) {
                             case CodecProfileLevel.DTS_UHDProfileP2:
-                                sampleRates = new int[]{ 48000 };
-                                bitRates = Range.create(96000, 768000);
-                                maxChannels = 10;
+                                SR = new int[]{ 48000 };
+                                BR = Range.create(96000, 768000);
+                                MC = 10;
                                 break;
                             case CodecProfileLevel.DTS_UHDProfileP1:
-                                sampleRates =
-                                        new int[]{ 44100, 48000, 88200, 96000, 176400, 192000 };
-                                bitRates = Range.create(96000, 24500000);
-                                maxChannels = 32;
+                                SR = new int[]{ 44100, 48000, 88200, 96000, 176400, 192000 };
+                                BR = Range.create(96000, 24500000);
+                                MC = 32;
                                 break;
                             default:
                                 Log.w(TAG, "Unrecognized profile "
                                         + profileLevel.profile + " for " + mime);
                                 mParent.mError |= ERROR_UNRECOGNIZED;
-                                sampleRates =
-                                        new int[]{ 44100, 48000, 88200, 96000, 176400, 192000 };
-                                bitRates = Range.create(96000, 24500000);
-                                maxChannels = 32;
+                                SR = new int[]{ 44100, 48000, 88200, 96000, 176400, 192000 };
+                                BR = Range.create(96000, 24500000);
+                                MC = 32;
                         }
+                        sampleRates = MergeSortedArraysAndRemoveDuplicates(sampleRates, SR);
+                        bitRates = bitRates == null ? BR : bitRates.extend(BR);
+                        maxChannels = Math.max(MC, maxChannels);
                     }
                 } else if (GetFlag(() -> android.media.audio.Flags.iamfDefinitionsApi())
                         && mime.equalsIgnoreCase(MediaFormat.MIMETYPE_AUDIO_IAMF)) {
                     for (CodecProfileLevel profileLevel : profileLevels) {
+                        int[] SR = null;
+                        Range<Integer>[] SRR = null;
+                        Range<Integer> BR = null;
+                        int MC = 0;
                         int iamfEncoding = profileLevel.profile & 0xff;
                         int iamfProfile = profileLevel.profile & (0xff << 16);
                         switch (iamfProfile) {
@@ -1971,19 +2062,19 @@ public final class MediaCodecInfo {
                                 // Per the IAMF spec, the Simple profile can have only one Audio
                                 // Element and 16
                                 // input channels.
-                                maxChannels = 16;
+                                MC = 16;
                                 break;
                             case CodecProfileLevel.IAMF_PROFILE_BASE:
                                 // The Base profile can have up to 18 input channels.
-                                maxChannels = 18;
+                                MC = 18;
                                 break;
                             case CodecProfileLevel.IAMF_PROFILE_BASE_ENHANCED:
                                 // The Base Enhanced profile can have up to 28 input channels.
-                                maxChannels = 28;
+                                MC = 28;
                                 break;
                             default:
                                 // Set maxChannels to the max known for unknown profiles.
-                                maxChannels = 28;
+                                MC = 28;
                                 Log.w(TAG, "Unrecognized IAMF profile "
                                         + iamfProfile + " for "+ mime);
                                 mParent.mError |= ERROR_UNRECOGNIZED;
@@ -1993,43 +2084,53 @@ public final class MediaCodecInfo {
                         // FLAC, and Opus these numbers match their numbers above.
                         switch (iamfEncoding) {
                             case CodecProfileLevel.IAMF_CODEC_OPUS:
-                                sampleRates = new int[] {48000};
-                                bitRates = Range.create(6000, 128000 * maxChannels);
+                                SR = new int[] {48000};
+                                SRR = ConvertDiscreteSampleRatesToRanges(SR);
+                                BR = Range.create(6000, 128000 * MC);
                                 break;
                             case CodecProfileLevel.IAMF_CODEC_AAC:
-                                sampleRates =
-                                        new int[] {
+                                SR = new int[] {
                                             7350, 8000, 11025, 12000, 16000, 22050, 24000, 32000,
                                             44100, 48000, 64000, 88200, 96000
                                         };
-                                bitRates = Range.create(6000, 128000 * maxChannels);
+                                SRR = ConvertDiscreteSampleRatesToRanges(SR);
+                                BR = Range.create(6000, 128000 * MC);
                                 break;
                             case CodecProfileLevel.IAMF_CODEC_FLAC:
-                                sampleRateRange = Range.create(1, 655350);
+                                SRR = new Range[] { Range.create(1, 655350) };
                                 // Lossless, bitrate range ignored.  It's possible to be as wide as
                                 // Range.create(1, 21000000).
+                                BR = Range.create(1, 21000000);
                                 break;
                             case CodecProfileLevel.IAMF_CODEC_PCM:
                                 // PCM is limited by the IAMF spec to the following.
-                                sampleRates = new int[] {16000, 32000, 44100, 48000, 96000};
+                                SR = new int[] {16000, 32000, 44100, 48000, 96000};
+                                SRR = ConvertDiscreteSampleRatesToRanges(SR);
                                 // Lossless, no bitrate range.
+                                BR = Range.create(1, 21000000);
                                 break;
                             default:
                                 Log.w(TAG, "Unrecognized encoding "
                                         + iamfEncoding + " for " + mime);
                                 mParent.mError |= ERROR_UNRECOGNIZED;
                         }
+                        sampleRateRanges = UnionSortedDistinctRanges(sampleRateRanges, SRR);
+                        bitRates = BR == null ? bitRates
+                                              : bitRates == null ? BR
+                                                                 : bitRates.extend(BR);
+                        maxChannels = Math.max(MC, maxChannels);
                     }
                 } else {
                     Log.w(TAG, "Unsupported mime " + mime);
+                    maxChannels = MAX_INPUT_CHANNEL_COUNT;
                     mParent.mError |= ERROR_UNSUPPORTED;
                 }
 
                 // restrict ranges
                 if (sampleRates != null) {
                     limitSampleRates(sampleRates);
-                } else if (sampleRateRange != null) {
-                    limitSampleRates(new Range[] { sampleRateRange });
+                } else if (sampleRateRanges != null) {
+                    limitSampleRates(sampleRateRanges);
                 }
 
                 Range<Integer> channelRange = Range.create(1, maxChannels);
@@ -2381,8 +2482,7 @@ public final class MediaCodecInfo {
     @FlaggedApi(FLAG_IN_PROCESS_SW_AUDIO_CODEC)
     @SecurityModel
     public int getSecurityModel() {
-        // TODO b/297922713 --- detect security model of out-of-sandbox codecs
-        return SECURITY_MODEL_SANDBOXED;
+        return mSecurityModel;
     }
 
     /**
@@ -3561,8 +3661,8 @@ public final class MediaCodecInfo {
                         mBlockCountRange.getLower() * (long)mFrameRateRange.getLower(),
                         mBlockCountRange.getUpper() * (long)mFrameRateRange.getUpper());
                 mFrameRateRange = mFrameRateRange.intersect(
-                        (int)(mBlocksPerSecondRange.getLower()
-                                / mBlockCountRange.getUpper()),
+                        (int)Math.ceil(mBlocksPerSecondRange.getLower()
+                                / (double)mBlockCountRange.getUpper()),
                         (int)(mBlocksPerSecondRange.getUpper()
                                 / (double)mBlockCountRange.getLower()));
             }
@@ -4170,6 +4270,14 @@ public final class MediaCodecInfo {
                             case CodecProfileLevel.HEVCProfileMain10HDR10:
                             case CodecProfileLevel.HEVCProfileMain10HDR10Plus:
                                 break;
+                            case CodecProfileLevel.HEVCProfileMain400:
+                            case CodecProfileLevel.HEVCProfileMain444:
+                                if (GetFlag(() ->
+                                        android.media.codec.Flags.format400444Support())) {
+                                    break;
+                                }
+                            // fall-through
+
                             default:
                                 Log.w(TAG, "Unrecognized profile "
                                         + profileLevel.profile + " for " + mime);
@@ -4427,6 +4535,101 @@ public final class MediaCodecInfo {
                             maxBlocks, maxBlocksPerSecond,
                             blockSize, blockSize,
                             2 /* widthAlignment */, 1 /* heightAlignment */);
+                } else if (GetFlag(() -> android.media.codec.Flags.vvcSupport())
+                        && mime.equalsIgnoreCase(MediaFormat.MIMETYPE_VIDEO_VVC)) {
+                    // CTBs are at least 4x4 so use 4x4 block size
+                    maxBlocks = 36864 >> 4; // 192x192 pixels == 2304 4x4 blocks
+                    maxBlocksPerSecond = maxBlocks * 15L;
+                    maxBps = 128000;
+                    for (CodecProfileLevel profileLevel: profileLevels) {
+                        double FR = 0;
+                        int FS = 0;
+                        int BR = 0;
+                        switch (profileLevel.level) {
+                            case CodecProfileLevel.VVCMainTierLevel10:
+                                FR =    15; FS =    36864; BR =    128; break;
+                            case CodecProfileLevel.VVCMainTierLevel20:
+                                FR =    30; FS =   122880; BR =   1500; break;
+                            case CodecProfileLevel.VVCMainTierLevel21:
+                                FR =    30; FS =   245760; BR =   3000; break;
+                            case CodecProfileLevel.VVCMainTierLevel30:
+                                FR =    30; FS =   552960; BR =   6000; break;
+                            case CodecProfileLevel.VVCMainTierLevel31:
+                                FR = 33.75; FS =   983040; BR =  10000; break;
+                            case CodecProfileLevel.VVCMainTierLevel40:
+                                FR =    30; FS =  2228224; BR =  12000; break;
+                            case CodecProfileLevel.VVCHighTierLevel40:
+                                FR =    30; FS =  2228224; BR =  30000; break;
+                            case CodecProfileLevel.VVCMainTierLevel41:
+                                FR =    60; FS =  2228224; BR =  20000; break;
+                            case CodecProfileLevel.VVCHighTierLevel41:
+                                FR =    60; FS =  2228224; BR =  50000; break;
+                            case CodecProfileLevel.VVCMainTierLevel50:
+                                FR =    30; FS =  8912896; BR =  25000; break;
+                            case CodecProfileLevel.VVCHighTierLevel50:
+                                FR =    30; FS =  8912896; BR = 100000; break;
+                            case CodecProfileLevel.VVCMainTierLevel51:
+                                FR =    60; FS =  8912896; BR =  40000; break;
+                            case CodecProfileLevel.VVCHighTierLevel51:
+                                FR =    60; FS =  8912896; BR = 160000; break;
+                            case CodecProfileLevel.VVCMainTierLevel52:
+                                FR =   120; FS =  8912896; BR =  60000; break;
+                            case CodecProfileLevel.VVCHighTierLevel52:
+                                FR =   120; FS =  8912896; BR = 240000; break;
+                            case CodecProfileLevel.VVCMainTierLevel60:
+                                FR =    30; FS = 35651584; BR =  60000; break;
+                            case CodecProfileLevel.VVCHighTierLevel60:
+                                FR =    30; FS = 35651584; BR = 240000; break;
+                            case CodecProfileLevel.VVCMainTierLevel61:
+                                FR =    60; FS = 35651584; BR = 120000; break;
+                            case CodecProfileLevel.VVCHighTierLevel61:
+                                FR =    60; FS = 35651584; BR = 480000; break;
+                            case CodecProfileLevel.VVCMainTierLevel62:
+                                FR =   120; FS = 35651584; BR = 240000; break;
+                            case CodecProfileLevel.VVCHighTierLevel62:
+                                FR =   120; FS = 35651584; BR = 800000; break;
+                            case CodecProfileLevel.VVCMainTierLevel63:
+                                FR =   60; FS = 80216064; BR =  320000; break;
+                            case CodecProfileLevel.VVCHighTierLevel63:
+                                FR =   60; FS = 80216064; BR = 1600000; break;
+                            default:
+                                Log.w(TAG, "Unrecognized level "
+                                        + profileLevel.level + " for " + mime);
+                                errors |= ERROR_UNRECOGNIZED;
+                        }
+                        switch (profileLevel.profile) {
+                            case CodecProfileLevel.VVCProfileMain8:
+                            case CodecProfileLevel.VVCProfileMain10:
+                            case CodecProfileLevel.VVCProfileMain10Still:
+                            case CodecProfileLevel.VVCProfileMain10HDR10:
+                            case CodecProfileLevel.VVCProfileMain10HDR10Plus:
+                                break;
+                            default:
+                                Log.w(TAG, "Unrecognized profile "
+                                        + profileLevel.profile + " for " + mime);
+                                errors |= ERROR_UNRECOGNIZED;
+                        }
+
+                        /* DPB logic:
+                        if      (width * height <= FS / 4)    DPB = 16;
+                        else if (width * height <= FS / 2)    DPB = 12;
+                        else if (width * height <= FS * 0.75) DPB = 8;
+                        else                                  DPB = 6;
+                        */
+
+                        FS >>= 4; // convert pixels to blocks
+                        errors &= ~ERROR_NONE_SUPPORTED;
+                        maxBlocksPerSecond = Math.max((int) (FR * FS), maxBlocksPerSecond);
+                        maxBlocks = Math.max(FS, maxBlocks);
+                        maxBps = Math.max(BR * 1000, maxBps);
+                    }
+
+                    int maxLengthInBlocks = (int) (Math.sqrt(maxBlocks * 8));
+                    applyMacroBlockLimits(
+                            maxLengthInBlocks, maxLengthInBlocks,
+                            maxBlocks, maxBlocksPerSecond,
+                            4 /* blockWidth */, 4 /* blockHeight */,
+                            1 /* widthAlignment */, 1 /* heightAlignment */);
                 } else {
                     Log.w(TAG, "Unsupported mime " + mime);
                     // using minimal bitrate here.  should be overridden by
@@ -4803,6 +5006,8 @@ public final class MediaCodecInfo {
 
             public boolean isBitrateModeSupported(int mode);
 
+            @FlaggedApi(FLAG_TEMPORAL_LAYER_ENCODING) public String[] getSupportedLayeringSchemas();
+
             public void getDefaultFormat(MediaFormat format);
 
             public boolean supportsFormat(MediaFormat format);
@@ -4813,6 +5018,7 @@ public final class MediaCodecInfo {
 
             private Range<Integer> mQualityRange;
             private Range<Integer> mComplexityRange;
+            private String[] mSupportedLayeringSchemas;
 
             public Range<Integer> getQualityRange() {
                 return mQualityRange;
@@ -4847,6 +5053,10 @@ public final class MediaCodecInfo {
                 return false;
             }
 
+            public String[] getSupportedLayeringSchemas() {
+                return mSupportedLayeringSchemas;
+            }
+
             /* no public constructor */
             private EncoderCapsLegacyImpl() { }
 
@@ -4868,6 +5078,7 @@ public final class MediaCodecInfo {
                 mComplexityRange = Range.create(0, 0);
                 mQualityRange = Range.create(0, 0);
                 mBitControl = (1 << BITRATE_MODE_VBR);
+                mSupportedLayeringSchemas = new String[0];
 
                 applyLevelLimits();
                 parseFromInfo(info);
@@ -4910,6 +5121,14 @@ public final class MediaCodecInfo {
                         mBitControl |= (1 << parseBitrateMode(mode));
                     }
                 }
+                if (info.containsKey("ts-schemas")) {
+                    List<String> schemas = new ArrayList<String>();
+                    for (String schema : info.getString("ts-schemas").split(";")) {
+                        schemas.add(schema);
+                    }
+                    mSupportedLayeringSchemas = new String[schemas.size()];
+                    schemas.toArray(mSupportedLayeringSchemas);
+                }
 
                 try {
                     mDefaultComplexity = Integer.parseInt((String)map.get("complexity-default"));
@@ -4922,8 +5141,7 @@ public final class MediaCodecInfo {
                 mQualityScale = (String)map.get("quality-scale");
             }
 
-            private boolean supports(
-                    Integer complexity, Integer quality, Integer profile) {
+            private boolean supports(Integer complexity, Integer quality, Integer profile) {
                 boolean ok = true;
                 if (ok && complexity != null) {
                     ok = mComplexityRange.contains(complexity);
@@ -5032,6 +5250,10 @@ public final class MediaCodecInfo {
                 return native_isBitrateModeSupported(mode);
             }
 
+            public String[] getSupportedLayeringSchemas() {
+                return native_getSupportedLayeringSchemas();
+            }
+
             // This API is for internal Java implementation only. Should not be called.
             public void getDefaultFormat(MediaFormat format) {
                 throw new UnsupportedOperationException(
@@ -5045,6 +5267,7 @@ public final class MediaCodecInfo {
             }
 
             private native boolean native_isBitrateModeSupported(int mode);
+            private native String[] native_getSupportedLayeringSchemas();
             private static native void native_init();
 
             static {
@@ -5094,6 +5317,18 @@ public final class MediaCodecInfo {
          */
         public boolean isBitrateModeSupported(int mode) {
             return mImpl.isBitrateModeSupported(mode);
+        }
+
+        /**
+         * Returns the array of layering schemas supported by the encoder.
+         * Return empty array if the encoder's layers encoding capability is unknown or not
+         * supported.
+         * @see MediaFormat#KEY_TEMPORAL_LAYERING for the meaning of the schema.
+         */
+        @FlaggedApi(FLAG_TEMPORAL_LAYER_ENCODING)
+        @NonNull
+        public String[] getSupportedLayeringSchemas() {
+            return mImpl.getSupportedLayeringSchemas();
         }
 
         /** @hide */
@@ -5343,6 +5578,17 @@ public final class MediaCodecInfo {
         public static final int HEVCProfileMainStill   = 0x04;
         public static final int HEVCProfileMain10HDR10 = 0x1000;
         public static final int HEVCProfileMain10HDR10Plus = 0x2000;
+
+        /** HEVC Monochrome (Main 4:0:0 8-bit) Profile */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_FORMAT_400_444_SUPPORT)
+        public static final int HEVCProfileMain400 = 0x08;
+
+        /** HEVC Main 4:4:4 (8-bit) Profile */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_FORMAT_400_444_SUPPORT)
+        public static final int HEVCProfileMain444 = 0x10;
+
 
         public static final int HEVCMainTierLevel1  = 0x1;
         public static final int HEVCHighTierLevel1  = 0x2;
@@ -5807,6 +6053,149 @@ public final class MediaCodecInfo {
         @FlaggedApi(FLAG_APV_SUPPORT)
         public static final int APVLevel71Band3 = 0x200008;
 
+
+        // Profiles and levels/tiers for VVC Codec, corresponding to the definitions in
+        // "ITU-T Rec. H.266 v.3 Versatile Video Coding", A.3 Profiles, A.4 Tiers and levels
+        // found at https://www.itu.int/rec/T-REC-H.266-202309-I/en
+
+        /**
+         *  VVC codec Main 10 profile as per ITU-T H.266, A.3.1
+         *  with 8 bit content
+         */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCProfileMain8      = 0x01;
+
+        /**
+         *  VVC codec Main 10 profile as per ITU-T H.266, A.3.1
+         *  with 10 bit content
+         */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCProfileMain10      = 0x02;
+
+        /**
+         *  VVC codec Main 10 Still Picture profile as per ITU-T H.266, A.3.1
+         */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCProfileMain10Still   = 0x04;
+
+        /**
+         *  VVC codec Main 10 profile as per ITU-T H.266, A.3.1
+         *  with HDR10
+         */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCProfileMain10HDR10 = 0x1000;
+
+        /**
+         *  VVC codec Main 10 profile as per ITU-T H.266, A.3.1
+         *  with HDR10 Plus
+         */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCProfileMain10HDR10Plus = 0x2000;
+
+        /** VVC Codec Main Tier, Level 1.0 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel10 = 0x1;
+        /** VVC Codec Main Tier, Level 2.0 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel20 = 0x2;
+        /** VVC Codec Main Tier, Level 2.1 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel21 = 0x4;
+        /** VVC Codec Main Tier, Level 3.0 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel30 = 0x8;
+        /** VVC Codec Main Tier, Level 3.1 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel31 = 0x10;
+        /** VVC Codec Main Tier, Level 4.0 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel40 = 0x20;
+        /** VVC Codec High Tier, Level 4.0 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCHighTierLevel40 = 0x40;
+        /** VVC Codec Main Tier, Level 4.1 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel41 = 0x80;
+        /** VVC Codec High Tier, Level 4.1 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCHighTierLevel41 = 0x100;
+        /** VVC Codec Main Tier, Level 5.0 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel50 = 0x200;
+        /** VVC Codec High Tier, Level 5.0 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCHighTierLevel50 = 0x400;
+        /** VVC Codec Main Tier, Level 5.1 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel51 = 0x800;
+        /** VVC Codec High Tier, Level 5.1 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCHighTierLevel51 = 0x1000;
+        /** VVC Codec Main Tier, Level 5.2 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel52 = 0x2000;
+        /** VVC Codec High Tier, Level 5.2 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCHighTierLevel52 = 0x4000;
+        /** VVC Codec Main Tier, Level 6.0 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel60 = 0x8000;
+        /** VVC Codec High Tier, Level 6.0 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCHighTierLevel60 = 0x10000;
+        /** VVC Codec Main Tier, Level 6.1 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel61 = 0x20000;
+        /** VVC Codec High Tier, Level 6.1 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCHighTierLevel61 = 0x40000;
+        /** VVC Codec Main Tier, Level 6.2 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel62 = 0x80000;
+        /** VVC Codec High Tier, Level 6.2 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCHighTierLevel62 = 0x100000;
+        /** VVC Codec Main Tier, Level 6.3 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCMainTierLevel63 = 0x200000;
+        /** VVC Codec High Tier, Level 6.3 as per ITU-T H.266, A.4.1 */
+        @SuppressLint("AllUpper")
+        @FlaggedApi(FLAG_VVC_SUPPORT)
+        public static final int VVCHighTierLevel63 = 0x400000;
+
+        private static final int VVCHighTierLevels =
+                VVCHighTierLevel40 | VVCHighTierLevel41 | VVCHighTierLevel50 | VVCHighTierLevel51
+                | VVCHighTierLevel52 | VVCHighTierLevel60 | VVCHighTierLevel61 | VVCHighTierLevel62
+                | VVCHighTierLevel63;
+
+
         // IAMF profiles are defined as the combination of the (listed from LSB to MSB):
         //  - audio codec (2 bytes)
         //  - profile (1 byte, offset 16)
@@ -6004,9 +6393,15 @@ public final class MediaCodecInfo {
             return this;
         }
 
-        return new MediaCodecInfo(
-                mName, mCanonicalName, mFlags,
-                caps.toArray(new CodecCapabilities[caps.size()]));
+        if (GetFlag(() -> android.media.codec.Flags.inProcessSwCodecLfi())) {
+            return new MediaCodecInfo(
+                    mName, mCanonicalName, mFlags,
+                    caps.toArray(new CodecCapabilities[caps.size()]), mSecurityModel);
+        } else {
+            return new MediaCodecInfo(
+                    mName, mCanonicalName, mFlags,
+                    caps.toArray(new CodecCapabilities[caps.size()]));
+        }
     }
 
     /* package private */ class GenericHelper {

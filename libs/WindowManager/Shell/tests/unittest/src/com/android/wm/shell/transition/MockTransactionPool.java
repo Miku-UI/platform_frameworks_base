@@ -21,8 +21,8 @@ import static org.mockito.Mockito.mock;
 
 import android.view.SurfaceControl;
 
+import com.android.testing.wm.util.StubTransaction;
 import com.android.wm.shell.shared.TransactionPool;
-import com.android.wm.shell.util.StubTransaction;
 
 public class MockTransactionPool extends TransactionPool {
 

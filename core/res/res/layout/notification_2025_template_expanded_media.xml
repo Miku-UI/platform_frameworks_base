@@ -46,7 +46,7 @@
             android:orientation="vertical"
             >
             <include layout="@layout/notification_2025_title"/>
-            <include layout="@layout/notification_template_text"/>
+            <include layout="@layout/notification_2025_text"/>
         </LinearLayout>
 
         <!-- this FrameLayout's minHeight serves as a padding for the content above -->

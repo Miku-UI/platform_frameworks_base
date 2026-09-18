@@ -17,6 +17,7 @@
 package android.hardware.input;
 
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import com.android.internal.util.DataClass;
 
@@ -32,6 +33,7 @@ import com.android.internal.util.DataClass;
  */
 @DataClass(genParcelable = true, genHiddenConstructor = true, genToString = true,
         genEqualsHashCode = true)
+@RavenwoodKeepWholeClass
 public final class HostUsiVersion implements Parcelable {
     /**
      * The major USI version supported by the input device.

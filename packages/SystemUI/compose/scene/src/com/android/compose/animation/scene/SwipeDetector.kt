@@ -18,6 +18,8 @@ package com.android.compose.animation.scene
 
 import androidx.compose.runtime.Stable
 import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 
 /** {@link SwipeDetector} helps determine whether a swipe gestured has occurred. */
 @Stable
@@ -27,12 +29,25 @@ interface SwipeDetector {
      * {@code false} otherwise.
      */
     fun detectSwipe(change: PointerInputChange): Boolean
+
+    /**
+     * The velocity threshold (in dp/sec) to determine if a swipe gesture should commit to the new
+     * state or snap back to its original state.
+     */
+    val velocityThreshold: Dp
+        get() = SwipeDetectorDefaults.VelocityThreshold
 }
 
 val DefaultSwipeDetector = PassthroughSwipeDetector()
 
+object SwipeDetectorDefaults {
+    val VelocityThreshold = 125.dp
+}
+
 /** An {@link SwipeDetector} implementation that recognizes a swipe on any input. */
-class PassthroughSwipeDetector : SwipeDetector {
+class PassthroughSwipeDetector(
+    override val velocityThreshold: Dp = SwipeDetectorDefaults.VelocityThreshold
+) : SwipeDetector {
     override fun detectSwipe(change: PointerInputChange): Boolean {
         // Simply accept all changes as a swipe
         return true

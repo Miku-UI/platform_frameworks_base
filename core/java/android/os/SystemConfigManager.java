@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-
 /**
  * Allows apps outside the system process to access various bits of configuration defined in
  * /etc/sysconfig and its counterparts on OEM and vendor partitions.
@@ -205,8 +204,14 @@ public class SystemConfigManager {
     @NonNull
     public Set<SignedPackage> getEnhancedConfirmationTrustedPackages() {
         try {
-            List<SignedPackageParcel> parcels = mInterface.getEnhancedConfirmationTrustedPackages();
-            return parcels.stream().map(SignedPackage::new).collect(Collectors.toSet());
+            if (android.app.appfunctions.flags.Flags.enableAppFunctionPermissionV2()) {
+                List<SignedPackage> parcels = mInterface.getEnhancedConfirmationTrustedPackages();
+                return new ArraySet<>(parcels);
+            } else {
+                List<SignedPackageParcel> parcels =
+                        mInterface.getEnhancedConfirmationTrustedPackagesLegacy();
+                return parcels.stream().map(SignedPackage::new).collect(Collectors.toSet());
+            }
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -237,9 +242,14 @@ public class SystemConfigManager {
     @NonNull
     public Set<SignedPackage> getEnhancedConfirmationTrustedInstallers() {
         try {
-            List<SignedPackageParcel> parcels =
-                    mInterface.getEnhancedConfirmationTrustedInstallers();
-            return parcels.stream().map(SignedPackage::new).collect(Collectors.toSet());
+            if (android.app.appfunctions.flags.Flags.enableAppFunctionPermissionV2()) {
+                List<SignedPackage> parcels = mInterface.getEnhancedConfirmationTrustedInstallers();
+                return new ArraySet<>(parcels);
+            } else {
+                List<SignedPackageParcel> parcels =
+                        mInterface.getEnhancedConfirmationTrustedInstallersLegacy();
+                return parcels.stream().map(SignedPackage::new).collect(Collectors.toSet());
+            }
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

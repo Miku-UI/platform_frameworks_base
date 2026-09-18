@@ -24,6 +24,7 @@ import com.android.internal.logging.MetricsLogger
 import com.android.internal.logging.nano.MetricsProto
 import com.android.systemui.common.ui.ConfigurationState
 import com.android.systemui.common.ui.view.setImportantForAccessibilityYesNo
+import com.android.systemui.dagger.qualifiers.AndroidUi
 import com.android.systemui.dagger.qualifiers.NotifInflation
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.lifecycle.repeatWhenAttachedToWindow
@@ -43,15 +44,11 @@ import com.android.systemui.statusbar.notification.emptyshade.ui.view.EmptyShade
 import com.android.systemui.statusbar.notification.emptyshade.ui.view.EmptyShadeView
 import com.android.systemui.statusbar.notification.emptyshade.ui.viewbinder.EmptyShadeViewBinder
 import com.android.systemui.statusbar.notification.emptyshade.ui.viewmodel.EmptyShadeViewModel
-import com.android.systemui.statusbar.notification.footer.shared.NotifRedesignFooter
 import com.android.systemui.statusbar.notification.footer.ui.view.FooterView
 import com.android.systemui.statusbar.notification.footer.ui.viewbinder.FooterViewBinder
 import com.android.systemui.statusbar.notification.footer.ui.viewmodel.FooterViewModel
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.NotificationIconContainerShelfViewBinder
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.row.StackScrollerDecorView
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
-import com.android.systemui.statusbar.notification.shared.NotificationSummarizationOnboardingUi
 import com.android.systemui.statusbar.notification.shelf.ui.viewbinder.NotificationShelfViewBinder
 import com.android.systemui.statusbar.notification.stack.DisplaySwitchNotificationsHiderTracker
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout
@@ -71,6 +68,8 @@ import com.android.systemui.util.ui.value
 import com.android.systemui.utils.coroutines.flow.flatMapLatestConflated
 import javax.inject.Inject
 import javax.inject.Provider
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.awaitCancellation
@@ -91,6 +90,7 @@ constructor(
     private val falsingManager: FalsingManager,
     private val hunBinder: HeadsUpNotificationViewBinder,
     private val logger: NotificationStatsLogger,
+    @AndroidUi private val androidUiDispatcher: CoroutineContext,
     private val metricsLogger: MetricsLogger,
     private val nicBinder: NotificationIconContainerShelfViewBinder,
     // Using a provider to avoid a circular dependency.
@@ -116,7 +116,9 @@ constructor(
         // Create viewModels once, and only when needed.
         val footerViewModel by lazy { viewModel.footerViewModelFactory.create() }
         val emptyShadeViewModel by lazy { viewModel.emptyShadeViewModelFactory.create() }
-        view.repeatWhenAttached {
+        view.repeatWhenAttached(
+            if (SceneContainerFlag.isEnabled) androidUiDispatcher else EmptyCoroutineContext
+        ) {
             lifecycleScope.launch {
                 if (SceneContainerFlag.isEnabled) {
                     launch { hunBinder.bindHeadsUpNotifications(view) }
@@ -149,21 +151,15 @@ constructor(
                     }
                 }
 
-                if (PromotedNotificationUi.isEnabled) {
-                    launch {
-                        viewModel.visibleStatusBarChips.collect { chips ->
-                            viewController.updateVisibleStatusBarChips(chips)
-                        }
+                launch {
+                    viewModel.visibleStatusBarNotificationChips.collect { chips ->
+                        viewController.updateVisibleStatusBarNotificationChips(chips)
                     }
                 }
 
-                if (NotificationBundleUi.isEnabled) {
-                    launch { bindBundleOnboarding(view) }
-                }
+                launch { bindBundleOnboarding(view) }
 
-                if (NotificationSummarizationOnboardingUi.isEnabled) {
-                    launch { bindSummarizationOnboarding(view) }
-                }
+                launch { bindSummarizationOnboarding(view) }
 
                 launch { bindLogger(view) }
             }
@@ -182,8 +178,7 @@ constructor(
         // The footer needs to be re-inflated every time the theme or the font size changes.
         configuration
             .inflateLayout<FooterView>(
-                if (NotifRedesignFooter.isEnabled) R.layout.notification_2025_footer
-                else R.layout.status_bar_notification_footer,
+                R.layout.notification_2025_footer,
                 parentView,
                 attachToRoot = false,
             )
@@ -210,21 +205,24 @@ constructor(
         parentView: NotificationStackScrollLayout,
         hasNonClearableSilentNotifications: StateFlow<Boolean>,
     ): Unit = coroutineScope {
-        val disposableHandle =
-            FooterViewBinder.bindWhileAttached(
-                footerView,
-                footerViewModel,
-                {
-                    clearAllNotifications(
-                        parentView,
-                        // Hide the silent section header (if present) if there will be
-                        // no remaining silent notifications upon clearing.
-                        hideSilentSection = !hasNonClearableSilentNotifications.value,
-                    )
-                },
-                notificationActivityStarter.get(),
-            )
         if (SceneContainerFlag.isEnabled) {
+            launch {
+                footerView.repeatWhenAttachedToWindow {
+                    FooterViewBinder.bind(
+                        footerView,
+                        footerViewModel,
+                        clearAllNotifications = {
+                            clearAllNotifications(
+                                parentView,
+                                // Hide the silent section header (if present) if there will be
+                                // no remaining silent notifications upon clearing.
+                                hideSilentSection = !hasNonClearableSilentNotifications.value,
+                            )
+                        },
+                        notificationActivityStarter.get(),
+                    )
+                }
+            }
             launch {
                 viewModel.shouldShowFooterView.collect { animatedVisibility ->
                     footerView.setVisible(
@@ -236,6 +234,20 @@ constructor(
                 }
             }
         } else {
+            val disposableHandle =
+                FooterViewBinder.bindWhileAttached(
+                    footerView,
+                    footerViewModel,
+                    {
+                        clearAllNotifications(
+                            parentView,
+                            // Hide the silent section header (if present) if there will be
+                            // no remaining silent notifications upon clearing.
+                            hideSilentSection = !hasNonClearableSilentNotifications.value,
+                        )
+                    },
+                    notificationActivityStarter.get(),
+                )
             launch {
                 viewModel.shouldIncludeFooterView.collect { animatedVisibility ->
                     footerView.setVisible(
@@ -245,8 +257,8 @@ constructor(
                 }
             }
             launch { viewModel.shouldHideFooterView.collect { footerView.setShouldBeHidden(it) } }
+            disposableHandle.awaitCancellationThenDispose()
         }
-        disposableHandle.awaitCancellationThenDispose()
     }
 
     private suspend fun reinflateAndBindEmptyShade(
@@ -352,7 +364,6 @@ constructor(
     }
 
     private suspend fun bindBundleOnboarding(parentView: NotificationStackScrollLayout) {
-        if (NotificationBundleUi.isUnexpectedlyInLegacyMode()) return
         val onboardingViewModel: BundleOnboardingViewModel = viewModel.bundleOnboarding
         onboardingViewModel.showAffordance
             .flatMapLatestConflated { show ->
@@ -377,7 +388,6 @@ constructor(
     }
 
     private suspend fun bindSummarizationOnboarding(parentView: NotificationStackScrollLayout) {
-        if (NotificationSummarizationOnboardingUi.isUnexpectedlyInLegacyMode()) return
         val summarizationViewModel: SummarizationOnboardingViewModel =
             viewModel.summarizationOnboarding
         summarizationViewModel.showAffordance

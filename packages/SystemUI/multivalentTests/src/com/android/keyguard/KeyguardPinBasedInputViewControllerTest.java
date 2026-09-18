@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import android.hardware.input.InputManager;
 import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper.RunWithLooper;
+import android.uilatencystats.UiLatencyStatsManager;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -55,6 +56,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+
+import java.util.Optional;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
@@ -101,6 +104,8 @@ public class KeyguardPinBasedInputViewControllerTest extends SysuiTestCase {
     private InputManager mInputManager;
     @Mock
     private LockPatternCheckerWrapper mLockPatternCheckerWrapper;
+    @Mock
+    private UiLatencyStatsManager mUiLatencyStatsManager;
 
     private KeyguardPinBasedInputViewController mKeyguardPinViewController;
 
@@ -135,7 +140,8 @@ public class KeyguardPinBasedInputViewControllerTest extends SysuiTestCase {
                 mKeyguardMessageAreaControllerFactory, mLatencyTracker,
                 mEmergencyButtonController, mFalsingCollector, featureFlags,
                 mSelectedUserInteractor, keyguardKeyboardInteractor, mBouncerHapticPlayer,
-                mUserActivityNotifier, mInputManager, mLockPatternCheckerWrapper) {
+                mUserActivityNotifier, mInputManager, mLockPatternCheckerWrapper,
+                Optional.of(mUiLatencyStatsManager)) {
             @Override
             public void onResume(int reason) {
                 super.onResume(reason);

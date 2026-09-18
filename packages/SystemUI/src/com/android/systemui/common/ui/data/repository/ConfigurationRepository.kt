@@ -25,6 +25,7 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.statusbar.policy.ConfigurationController
+import com.android.systemui.util.kotlin.mapDirect
 import com.android.systemui.util.wrapper.DisplayUtilsWrapper
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import dagger.Binds
@@ -40,7 +41,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 
 interface ConfigurationRepository {
@@ -137,7 +137,7 @@ constructor(
 
     override val scaleForResolution: StateFlow<Float> =
         onConfigurationChange
-            .mapLatest { getResolutionScale() }
+            .mapDirect { getResolutionScale() }
             .distinctUntilChanged()
             .stateIn(scope, SharingStarted.WhileSubscribed(), getResolutionScale())
 

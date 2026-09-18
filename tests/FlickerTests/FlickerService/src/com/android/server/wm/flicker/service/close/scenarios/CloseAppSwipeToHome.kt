@@ -21,6 +21,7 @@ import android.tools.NavBar
 import android.tools.Rotation
 import android.tools.traces.parsers.WindowManagerStateHelper
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.UiDevice
 import com.android.launcher3.tapl.LauncherInstrumentation
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
 import com.android.server.wm.flicker.service.Utils
@@ -43,12 +44,12 @@ abstract class CloseAppSwipeToHome(val rotation: Rotation = Rotation.ROTATION_0)
     fun setup() {
         tapl.setExpectedRotation(rotation.value)
         testApp.launchViaIntent(wmHelper)
-        tapl.setExpectedRotationCheckEnabled(false)
+        tapl.expectedRotationCheckEnabled = false
     }
 
     @Test
     open fun closeAppSwipeToHome() {
-        tapl.goHome()
+        UiDevice.getInstance(instrumentation).pressHome()
         wmHelper.StateSyncBuilder().withHomeActivityVisible().waitForAndVerify()
     }
 

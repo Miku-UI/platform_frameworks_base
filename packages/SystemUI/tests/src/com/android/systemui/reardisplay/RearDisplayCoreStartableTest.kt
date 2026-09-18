@@ -21,7 +21,6 @@ import android.hardware.display.rearDisplay
 import android.os.fakeExecutorHandler
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
-import android.view.Display
 import android.view.accessibility.accessibilityManager
 import androidx.test.filters.SmallTest
 import com.android.keyguard.keyguardUpdateMonitor
@@ -72,7 +71,6 @@ class RearDisplayCoreStartableTest : SysuiTestCase() {
 
     @Before
     fun setup() {
-        whenever(kosmos.rearDisplay.flags).thenReturn(Display.FLAG_REAR)
         whenever(kosmos.rearDisplay.displayAdjustments)
             .thenReturn(mContext.display.displayAdjustments)
         whenever(kosmos.rearDisplayInnerDialogDelegateFactory.create(any(), any(), any()))

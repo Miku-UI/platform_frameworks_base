@@ -30,6 +30,7 @@ using hardware::hidl_vec;
 using hardware::Return;
 using hardware::Void;
 
+using ElapsedRealtime = android::hardware::gnss::ElapsedRealtime;
 using GnssLocationAidl = android::hardware::gnss::GnssLocation;
 using GnssSignalType = android::hardware::gnss::GnssSignalType;
 using GnssLocation_V1_0 = android::hardware::gnss::V1_0::GnssLocation;
@@ -45,6 +46,7 @@ namespace {
 
 jclass class_arrayList;
 jclass class_gnssSignalType;
+jclass class_string;
 
 jmethodID method_arrayListAdd;
 jmethodID method_arrayListCtor;
@@ -80,8 +82,25 @@ inline jboolean boolToJbool(bool value) {
     return value ? JNI_TRUE : JNI_FALSE;
 }
 
-// Must match the value from GnssMeasurement.java
-const uint32_t SVID_FLAGS_HAS_BASEBAND_CN0 = (1 << 4);
+// SFINAE helpers to detect if a type has specific members
+template <typename, typename = void>
+struct has_signalType : std::false_type {};
+template <typename T>
+struct has_signalType<T, std::void_t<decltype(T::signalType)>> : std::true_type {};
+
+template <typename, typename = void>
+struct has_elapsedRealtime : std::false_type {};
+template <typename T>
+struct has_elapsedRealtime<T, std::void_t<decltype(T::elapsedRealtime)>> : std::true_type {};
+
+// These flags must be kept in sync with their counterparts in
+// frameworks/base/location/java/android/location/GnssStatus.java
+namespace SvidFlags {
+constexpr uint32_t HAS_BASEBAND_CN0 = (1 << 4);
+constexpr uint32_t HAS_CODE_TYPE = (1 << 5);
+constexpr uint32_t HAS_ELAPSED_REALTIME_NANOS = (1 << 6);
+constexpr uint32_t HAS_ELAPSED_REALTIME_UNCERTAINTY_NANOS = (1 << 7);
+} // namespace SvidFlags
 
 } // anonymous namespace
 
@@ -92,7 +111,8 @@ void Gnss_class_init_once(JNIEnv* env, jclass& clazz) {
     method_reportLocation =
             env->GetMethodID(clazz, "reportLocation", "(ZLandroid/location/Location;)V");
     method_reportStatus = env->GetMethodID(clazz, "reportStatus", "(I)V");
-    method_reportSvStatus = env->GetMethodID(clazz, "reportSvStatus", "(I[I[F[F[F[F[F)V");
+    method_reportSvStatus = env->GetMethodID(clazz, "reportSvStatus",
+                                             "(I[I[I[I[F[F[F[F[F[Ljava/lang/String;[J[D)V");
     method_reportNmea = env->GetMethodID(clazz, "reportNmea", "(J)V");
 
     method_setTopHalCapabilities = env->GetMethodID(clazz, "setTopHalCapabilities", "(IZ)V");
@@ -116,6 +136,9 @@ void Gnss_class_init_once(JNIEnv* env, jclass& clazz) {
     method_gnssSignalTypeCreate =
             env->GetStaticMethodID(class_gnssSignalType, "create",
                                    "(IDLjava/lang/String;)Landroid/location/GnssSignalType;");
+
+    jclass stringClass = env->FindClass("java/lang/String");
+    class_string = (jclass)env->NewGlobalRef(stringClass);
 }
 
 Status GnssCallbackAidl::gnssSetCapabilitiesCb(const int capabilities) {
@@ -167,7 +190,8 @@ Status GnssCallbackAidl::gnssStatusCb(const GnssStatusValue status) {
 }
 
 Status GnssCallbackAidl::gnssSvStatusCb(const std::vector<GnssSvInfo>& svInfoList) {
-    GnssCallbackHidl::gnssSvStatusCbImpl<std::vector<GnssSvInfo>, GnssSvInfo>(svInfoList);
+    GnssCallbackHidl::gnssSvStatusCbImpl<std::vector<GnssSvInfo>,
+                                         GnssSvInfo>(svInfoList, this->interfaceVersion);
     return Status::ok();
 }
 
@@ -285,13 +309,13 @@ Return<void> GnssCallbackHidl::gnssStatusCb(const IGnssCallback_V2_0::GnssStatus
 template <>
 uint32_t GnssCallbackHidl::getHasBasebandCn0DbHzFlag(
         const hidl_vec<IGnssCallback_V2_1::GnssSvInfo>& svStatus) {
-    return SVID_FLAGS_HAS_BASEBAND_CN0;
+    return SvidFlags::HAS_BASEBAND_CN0;
 }
 
 template <>
 uint32_t GnssCallbackHidl::getHasBasebandCn0DbHzFlag(
         const std::vector<IGnssCallbackAidl::GnssSvInfo>& svStatus) {
-    return SVID_FLAGS_HAS_BASEBAND_CN0;
+    return SvidFlags::HAS_BASEBAND_CN0;
 }
 
 template <>
@@ -324,8 +348,8 @@ uint32_t GnssCallbackHidl::getConstellationType(
 }
 
 template <class T_list, class T_sv_info>
-Return<void> GnssCallbackHidl::gnssSvStatusCbImpl(const T_list& svStatus) {
-    // In HIDL or AIDL v1, if no listener is registered, do not report svInfoList to the framework.
+Return<void> GnssCallbackHidl::gnssSvStatusCbImpl(const T_list& svStatus, int interfaceVersion) {
+    // In HIDL or AIDL, if no listener is registered, do not report svInfoList to the framework.
     if (!isSvStatusRegistered) {
         return Void();
     }
@@ -333,56 +357,102 @@ Return<void> GnssCallbackHidl::gnssSvStatusCbImpl(const T_list& svStatus) {
     JNIEnv* env = getJniEnv();
 
     uint32_t listSize = getGnssSvInfoListSize(svStatus);
-
-    jintArray svidWithFlagArray = env->NewIntArray(listSize);
+    jintArray svidArray = env->NewIntArray(listSize);
+    jintArray constellationTypeArray = env->NewIntArray(listSize);
+    jintArray svFlagArray = env->NewIntArray(listSize);
     jfloatArray cn0Array = env->NewFloatArray(listSize);
     jfloatArray elevArray = env->NewFloatArray(listSize);
     jfloatArray azimArray = env->NewFloatArray(listSize);
     jfloatArray carrierFreqArray = env->NewFloatArray(listSize);
     jfloatArray basebandCn0Array = env->NewFloatArray(listSize);
+    jobjectArray codeTypeArray = env->NewObjectArray(listSize, class_string, nullptr);
+    jlongArray elapsedRealtimeArray = env->NewLongArray(listSize);
+    jdoubleArray elapsedRealtimeUncertaintyArray = env->NewDoubleArray(listSize);
 
-    jint* svidWithFlags = env->GetIntArrayElements(svidWithFlagArray, 0);
+    jint* svids = env->GetIntArrayElements(svidArray, 0);
+    jint* constellationTypes = env->GetIntArrayElements(constellationTypeArray, 0);
+    jint* svFlags = env->GetIntArrayElements(svFlagArray, 0);
     jfloat* cn0s = env->GetFloatArrayElements(cn0Array, 0);
     jfloat* elev = env->GetFloatArrayElements(elevArray, 0);
     jfloat* azim = env->GetFloatArrayElements(azimArray, 0);
     jfloat* carrierFreq = env->GetFloatArrayElements(carrierFreqArray, 0);
     jfloat* basebandCn0s = env->GetFloatArrayElements(basebandCn0Array, 0);
+    jlong* elapsedRealtimes = env->GetLongArrayElements(elapsedRealtimeArray, 0);
+    jdouble* elapsedRealtimeUncertainties =
+            env->GetDoubleArrayElements(elapsedRealtimeUncertaintyArray, 0);
 
     /*
      * Read GNSS SV info.
      */
     for (size_t i = 0; i < listSize; ++i) {
-        enum ShiftWidth : uint8_t { SVID_SHIFT_WIDTH = 12, CONSTELLATION_TYPE_SHIFT_WIDTH = 8 };
-
         const T_sv_info& info = getGnssSvInfoOfIndex(svStatus, i);
-        svidWithFlags[i] = (info.svid << SVID_SHIFT_WIDTH) |
-                (getConstellationType(svStatus, i) << CONSTELLATION_TYPE_SHIFT_WIDTH) |
-                static_cast<uint32_t>(info.svFlag);
+        svids[i] = info.svid;
+        constellationTypes[i] = getConstellationType(svStatus, i);
+        svFlags[i] = info.svFlag;
         cn0s[i] = info.cN0Dbhz;
         elev[i] = info.elevationDegrees;
         azim[i] = info.azimuthDegrees;
         carrierFreq[i] = info.carrierFrequencyHz;
-        svidWithFlags[i] |= getHasBasebandCn0DbHzFlag(svStatus);
+        svFlags[i] |= getHasBasebandCn0DbHzFlag(svStatus);
         basebandCn0s[i] = getBasebandCn0DbHz(svStatus, i);
+
+        // codeType and elapsedRealtime fields are added in 26Q2 (interfaceVersion=7).
+        if (interfaceVersion >= 7) {
+            if constexpr (has_signalType<T_sv_info>::value) {
+                if (info.signalType) {
+                    const GnssSignalType& signalType = info.signalType.value();
+                    constellationTypes[i] = static_cast<uint32_t>(signalType.constellation);
+                    carrierFreq[i] = static_cast<jfloat>(signalType.carrierFrequencyHz);
+                    svFlags[i] |= SvidFlags::HAS_CODE_TYPE;
+                    jstring codeType = env->NewStringUTF(signalType.codeType.c_str());
+                    env->SetObjectArrayElement(codeTypeArray, i, codeType);
+                    env->DeleteLocalRef(codeType);
+                }
+            }
+            if constexpr (has_elapsedRealtime<T_sv_info>::value) {
+                if (info.elapsedRealtime) {
+                    const auto& elapsedRealtime = info.elapsedRealtime.value();
+                    if (elapsedRealtime.flags & ElapsedRealtime::HAS_TIMESTAMP_NS) {
+                        svFlags[i] |= SvidFlags::HAS_ELAPSED_REALTIME_NANOS;
+                        elapsedRealtimes[i] = elapsedRealtime.timestampNs;
+                    }
+                    if (elapsedRealtime.flags & ElapsedRealtime::HAS_TIME_UNCERTAINTY_NS) {
+                        svFlags[i] |= SvidFlags::HAS_ELAPSED_REALTIME_UNCERTAINTY_NANOS;
+                        elapsedRealtimeUncertainties[i] = elapsedRealtime.timeUncertaintyNs;
+                    }
+                }
+            }
+        }
     }
 
-    env->ReleaseIntArrayElements(svidWithFlagArray, svidWithFlags, 0);
+    env->ReleaseIntArrayElements(svidArray, svids, 0);
+    env->ReleaseIntArrayElements(constellationTypeArray, constellationTypes, 0);
+    env->ReleaseIntArrayElements(svFlagArray, svFlags, 0);
     env->ReleaseFloatArrayElements(cn0Array, cn0s, 0);
     env->ReleaseFloatArrayElements(elevArray, elev, 0);
     env->ReleaseFloatArrayElements(azimArray, azim, 0);
     env->ReleaseFloatArrayElements(carrierFreqArray, carrierFreq, 0);
     env->ReleaseFloatArrayElements(basebandCn0Array, basebandCn0s, 0);
+    env->ReleaseLongArrayElements(elapsedRealtimeArray, elapsedRealtimes, 0);
+    env->ReleaseDoubleArrayElements(elapsedRealtimeUncertaintyArray, elapsedRealtimeUncertainties,
+                                    0);
 
     env->CallVoidMethod(mCallbacksObj, method_reportSvStatus, static_cast<jint>(listSize),
-                        svidWithFlagArray, cn0Array, elevArray, azimArray, carrierFreqArray,
-                        basebandCn0Array);
+                        svFlagArray, svidArray, constellationTypeArray, cn0Array, elevArray,
+                        azimArray, carrierFreqArray, basebandCn0Array, codeTypeArray,
+                        elapsedRealtimeArray, elapsedRealtimeUncertaintyArray);
 
-    env->DeleteLocalRef(svidWithFlagArray);
+    env->DeleteLocalRef(svidArray);
+    env->DeleteLocalRef(constellationTypeArray);
+    env->DeleteLocalRef(svFlagArray);
     env->DeleteLocalRef(cn0Array);
     env->DeleteLocalRef(elevArray);
     env->DeleteLocalRef(azimArray);
     env->DeleteLocalRef(carrierFreqArray);
     env->DeleteLocalRef(basebandCn0Array);
+    env->DeleteLocalRef(codeTypeArray);
+    env->DeleteLocalRef(elapsedRealtimeArray);
+    env->DeleteLocalRef(elapsedRealtimeUncertaintyArray);
 
     checkAndClearExceptionFromCallback(env, __FUNCTION__);
     return Void();

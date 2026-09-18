@@ -53,7 +53,6 @@ sealed class Incremental<K, out V> : State<Map<K, V>>() {
  * Returns a constant [Incremental] that never changes. [changes] and [updates] are both equivalent
  * to [emptyEvents], and [TransactionScope.sample] will always produce [value].
  */
-@ExperimentalKairosApi
 fun <K, V> incrementalOf(value: Map<K, V>): Incremental<K, V> {
     val nameTag = nameTag { "incrementalOf($value)" }.toNameData("incrementalOf")
     return IncrementalInit(constInit(nameTag, constIncremental(nameTag, value)))
@@ -72,7 +71,6 @@ fun <K, V> incrementalOf(value: Map<K, V>): Incremental<K, V> {
  *   fun <A> Lazy<Incremental<K, V>>.defer() = deferredIncremental { value }
  * ```
  */
-@ExperimentalKairosApi
 fun <K, V> Lazy<Incremental<K, V>>.defer(): Incremental<K, V> = deferInline { value }
 
 /**
@@ -88,7 +86,6 @@ fun <K, V> Lazy<Incremental<K, V>>.defer(): Incremental<K, V> = deferInline { va
  *   fun <A> DeferredValue<Incremental<K, V>>.defer() = deferredIncremental { get() }
  * ```
  */
-@ExperimentalKairosApi
 fun <K, V> DeferredValue<Incremental<K, V>>.defer(): Incremental<K, V> = deferInline {
     unwrapped.value
 }
@@ -102,7 +99,6 @@ fun <K, V> DeferredValue<Incremental<K, V>>.defer(): Incremental<K, V> = deferIn
  *
  * Useful for recursive definitions.
  */
-@ExperimentalKairosApi
 fun <K, V> deferredIncremental(block: KairosScope.() -> Incremental<K, V>): Incremental<K, V> =
     deferInline {
         NoScope.block()
@@ -149,7 +145,6 @@ internal fun <K, V, U> Incremental<K, V>.mapValues(
  * [TransactionScope.sampleDeferred] before [loopback] is set, provided the [DeferredValue] is not
  * [queried][DeferredValue.value].
  */
-@ExperimentalKairosApi
 class IncrementalLoop<K, V>(name: String? = null) : Incremental<K, V>() {
 
     internal val nameData: NameData =
@@ -162,7 +157,7 @@ class IncrementalLoop<K, V>(name: String? = null) : Incremental<K, V>() {
     private val deferred = CompletableLazy<Incremental<K, V>>(name = name)
 
     override val init: Init<IncrementalImpl<K, V>> =
-        init(nameData) { deferred.value.init.connect(evalScope = this) }
+        init(nameData) { deferred.value.init.connect(initScope = this) }
 
     /**
      * The [Incremental] this reference is referring to. Must be set before this [IncrementalLoop]
@@ -218,4 +213,4 @@ internal fun <K, V> State<Map<K, V>>.asIncremental(nameData: NameData): Incremen
 private inline fun <K, V> deferInline(
     crossinline block: InitScope.() -> Incremental<K, V>
 ): Incremental<K, V> =
-    IncrementalInit(init(NameTaggingDisabled) { block().init.connect(evalScope = this) })
+    IncrementalInit(init(NameTaggingDisabled) { block().init.connect(initScope = this) })

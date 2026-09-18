@@ -16,9 +16,7 @@
 
 package com.android.systemui.statusbar.notification.row;
 
-import static android.app.Flags.notificationClassificationUi;
 import static android.app.Notification.EXTRA_BUILDER_APPLICATION_INFO;
-import static android.app.NotificationChannel.SYSTEM_RESERVED_IDS;
 import static android.app.NotificationManager.BUBBLE_PREFERENCE_ALL;
 import static android.app.NotificationManager.BUBBLE_PREFERENCE_NONE;
 import static android.app.NotificationManager.BUBBLE_PREFERENCE_SELECTED;
@@ -46,6 +44,7 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
+import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
@@ -76,11 +75,8 @@ import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.people.widget.PeopleSpaceWidgetManager;
 import com.android.systemui.res.R;
 import com.android.systemui.shade.ShadeController;
-import com.android.systemui.statusbar.notification.NmSummarizationUiFlag;
 import com.android.systemui.statusbar.notification.NotificationChannelHelper;
 import com.android.systemui.statusbar.notification.collection.EntryAdapter;
-import com.android.systemui.statusbar.notification.collection.NotificationEntry;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.statusbar.notification.stack.StackStateAnimator;
 import com.android.systemui.wmshell.BubblesManager;
 
@@ -112,12 +108,10 @@ public class NotificationConversationInfo extends LinearLayout implements
     private String mDelegatePkg;
     private NotificationChannel mNotificationChannel;
     private ShortcutInfo mShortcutInfo;
-    private NotificationEntry mEntry;
     private StatusBarNotification mSbn;
     private EntryAdapter mEntryAdapter;
     private NotificationListenerService.Ranking mRanking;
     @Nullable private Notification.BubbleMetadata mBubbleMetadata;
-    private Context mUserContext;
     private boolean mIsDeviceProvisioned;
     private int mAppBubble;
 
@@ -212,7 +206,6 @@ public class NotificationConversationInfo extends LinearLayout implements
             INotificationManager iNotificationManager,
             OnUserInteractionCallback onUserInteractionCallback,
             String pkg,
-            NotificationEntry entry,
             EntryAdapter entryAdapter,
             NotificationListenerService.Ranking ranking,
             StatusBarNotification sbn,
@@ -230,7 +223,6 @@ public class NotificationConversationInfo extends LinearLayout implements
         mPeopleSpaceWidgetManager = peopleSpaceWidgetManager;
         mOnUserInteractionCallback = onUserInteractionCallback;
         mPackageName = pkg;
-        mEntry = entry;
         mSbn = sbn;
         mRanking = ranking;
         mEntryAdapter = entryAdapter;
@@ -244,7 +236,6 @@ public class NotificationConversationInfo extends LinearLayout implements
         mIsDeviceProvisioned = isDeviceProvisioned;
         mOnConversationSettingsClickListener = onConversationSettingsClickListener;
         mIconFactory = conversationIconFactory;
-        mUserContext = userContext;
         mBubbleMetadata = sbn.getNotification().getBubbleMetadata();
         mBubblesManagerOptional = bubblesManagerOptional;
         mShadeController = shadeController;
@@ -309,35 +300,34 @@ public class NotificationConversationInfo extends LinearLayout implements
 
         // Delegate
         bindDelegate();
-    }
-    private boolean showSummarizationFeedback() {
-        return NmSummarizationUiFlag.isEnabled();
+        bindSummarizer();
     }
 
-    private boolean showAnimatedFeedback() {
-        return com.android.systemui.Flags.notificationAnimatedActionsTreatment();
-    }
-
-    private boolean showClassificationFeedback() {
-        return Flags.notificationClassificationUi();
+    private void bindSummarizer() {
+        if (android.app.Flags.nmSummarizationAll()) {
+            TextView summarized = findViewById(R.id.summarized_by);
+            if (!TextUtils.isEmpty(mSbn.getNotification().getSummarizedContent())) {
+                summarized.setVisibility(VISIBLE);
+                summarized.setText(
+                        mContext.getString(R.string.notification_summarization_header, mAppName));
+                summarized.setTypeface(Typeface.create("variable-body-medium", Typeface.ITALIC));
+            } else {
+                summarized.setVisibility(GONE);
+            }
+        }
     }
 
     private void bindFeedback() {
         View feedbackButton = findViewById(R.id.feedback);
-        if (!showSummarizationFeedback() && !showAnimatedFeedback()
-                && !showClassificationFeedback()) {
+        Intent intent = NotificationInfo.getAssistantFeedbackIntent(
+                    mINotificationManager, mPm, mSbn.getKey(), mRanking);
+        if (intent == null) {
             feedbackButton.setVisibility(GONE);
         } else {
-            Intent intent = NotificationInfo.getAssistantFeedbackIntent(
-                    mINotificationManager, mPm, mSbn.getKey(), mRanking);
-            if (intent == null) {
-                feedbackButton.setVisibility(GONE);
-            } else {
-                feedbackButton.setVisibility(VISIBLE);
-                feedbackButton.setOnClickListener((View v) -> {
-                    mFeedbackClickListener.onClick(v, intent);
-                });
-            }
+            feedbackButton.setVisibility(VISIBLE);
+            feedbackButton.setOnClickListener((View v) -> {
+                mFeedbackClickListener.onClick(v, intent);
+            });
         }
     }
 
@@ -566,17 +556,10 @@ public class NotificationConversationInfo extends LinearLayout implements
         mBgHandler.post(
                 new UpdateChannelRunnable(mINotificationManager, mPackageName,
                         mAppUid, mSelectedAction, mNotificationChannel));
-        if (NotificationBundleUi.isEnabled()) {
-            mEntryAdapter.markForUserTriggeredMovement(true);
-            mMainHandler.postDelayed(
-                    () -> mEntryAdapter.onImportanceChanged(),
-                    StackStateAnimator.ANIMATION_DURATION_STANDARD);
-        } else {
-            mEntry.markForUserTriggeredMovement(true);
-            mMainHandler.postDelayed(
-                    () -> mOnUserInteractionCallback.onImportanceChanged(mEntry),
-                    StackStateAnimator.ANIMATION_DURATION_STANDARD);
-        }
+        mEntryAdapter.markForUserTriggeredMovement(true);
+        mMainHandler.postDelayed(
+                () -> mEntryAdapter.onImportanceChanged(),
+                StackStateAnimator.ANIMATION_DURATION_STANDARD);
     }
 
     private boolean willBypassDnd() {
@@ -688,13 +671,8 @@ public class NotificationConversationInfo extends LinearLayout implements
                                         BUBBLE_PREFERENCE_SELECTED);
                             }
                             if (mBubblesManagerOptional.isPresent()) {
-                                if (NotificationBundleUi.isEnabled()) {
-                                    post(() -> mBubblesManagerOptional.get()
-                                            .onUserSetImportantConversation(mEntryAdapter));
-                                } else {
-                                    post(() -> mBubblesManagerOptional.get()
-                                            .onUserSetImportantConversation(mEntry));
-                                }
+                                post(() -> mBubblesManagerOptional.get()
+                                        .onUserSetImportantConversation(mEntryAdapter));
                             }
                         }
                         mChannelToUpdate.setImportance(Math.max(

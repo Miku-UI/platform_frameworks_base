@@ -18,7 +18,7 @@ package com.android.wm.shell.shared.desktopmode;
 
 import static android.hardware.display.DisplayManager.DISPLAY_CATEGORY_ALL_INCLUDING_DISABLED;
 
-import static com.android.wm.shell.shared.bubbles.BubbleAnythingFlagHelper.enableBubbleToFullscreen;
+import static com.android.wm.shell.shared.bubbles.BubbleFlagHelper.enableBubbleToFullscreen;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -56,7 +56,8 @@ public class DesktopModeStatus {
     /**
      * Flag to indicate whether to restrict desktop mode to supported devices.
      */
-    private static final boolean ENFORCE_DEVICE_RESTRICTIONS = SystemProperties.getBoolean(
+    // Non-final: field is overwritten in DesktopModeStatusTest.
+    private static boolean ENFORCE_DEVICE_RESTRICTIONS = SystemProperties.getBoolean(
             "persist.wm.debug.desktop_mode_enforce_device_restrictions", true);
 
     /**
@@ -172,26 +173,6 @@ public class DesktopModeStatus {
     }
 
     /**
-     * Returns true if the multi-desks frontend should be enabled on the display.
-     */
-    public static boolean isMultipleDesktopFrontendEnabledOnDisplay(@NonNull Context context,
-            Display display) {
-        return DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_FRONTEND.isTrue()
-                && DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue()
-                && isDesktopModeSupportedOnDisplay(context, display);
-    }
-
-    /**
-     * Returns whether the multiple desktops feature is enabled for this device (both backend and
-     * frontend implementations).
-     */
-    public static boolean enableMultipleDesktops(@NonNull Context context) {
-        return DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue()
-                && DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_FRONTEND.isTrue()
-                && canEnterDesktopMode(context);
-    }
-
-    /**
      * @return {@code true} if this device is requesting to show the app handle despite non
      * necessarily enabling desktop mode
      */
@@ -270,9 +251,6 @@ public class DesktopModeStatus {
     public static boolean enterDesktopByDefaultOnFreeformDisplay(@NonNull Context context) {
         if (DesktopExperienceFlags.ENABLE_DESKTOP_FIRST_BASED_DEFAULT_TO_DESKTOP_BUGFIX.isTrue()) {
             return true;
-        }
-        if (!DesktopExperienceFlags.ENTER_DESKTOP_BY_DEFAULT_ON_FREEFORM_DISPLAYS.isTrue()) {
-            return false;
         }
         return SystemProperties.getBoolean(ENTER_DESKTOP_BY_DEFAULT_ON_FREEFORM_DISPLAY_SYS_PROP,
                 context.getResources().getBoolean(

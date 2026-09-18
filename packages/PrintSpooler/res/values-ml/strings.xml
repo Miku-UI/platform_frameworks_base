@@ -44,6 +44,7 @@
     <string name="expand_handle" msgid="7282974448109280522">"വിപുലീകരണം കൈകാര്യം ചെയ്യുക"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"ചുരുക്കുന്നത് കൈകാര്യം ചെയ്യുക"</string>
     <string name="print_button" msgid="645164566271246268">"പ്രിന്റുചെയ്യുക"</string>
+    <string name="setup_button" msgid="323390526074568450">"സജ്ജീകരിക്കുക"</string>
     <string name="savetopdf_button" msgid="2976186791686924743">"PDF-ൽ സംരക്ഷിക്കുക"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"പ്രിന്റ് ചെയ്യാനുള്ള ഓപ്‌ഷനുകൾ വിപുലീകരിച്ചു"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"പ്രിന്റ് ചെയ്യാനുള്ള ഓപ്‌ഷനുകൾ ചുരുക്കി"</string>

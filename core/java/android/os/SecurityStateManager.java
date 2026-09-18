@@ -49,6 +49,28 @@ public class SecurityStateManager {
      */
     public static final String KEY_KERNEL_VERSION = "kernel_version";
 
+    /**
+     * The system supplemental patches key returned as part of the {@code Bundle} from {@code
+     * getGlobalSecurityState}.
+     *
+     * <p>The value is a {@code String[]} of CVE IDs (e.g., "CVE-2026-12345") that are affirmed to
+     * be fully mitigated in the system image, supplemental to the declared {@link #KEY_SYSTEM_SPL}.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPLEMENTAL_SECURITY_PATCHES)
+    public static final String KEY_SYSTEM_SUPPLEMENTAL_PATCHES =
+            "system_supplemental_security_patches";
+
+    /**
+     * The vendor supplemental patches key returned as part of the {@code Bundle} from {@code
+     * getGlobalSecurityState}.
+     *
+     * <p>The value is a {@code String[]} listing CVEs (e.g., "CVE-2026-12345") that are affirmed to
+     * be fully mitigated in the vendor image, supplemental to the declared {@link #KEY_VENDOR_SPL}.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPLEMENTAL_SECURITY_PATCHES)
+    public static final String KEY_VENDOR_SUPPLEMENTAL_PATCHES =
+            "vendor_supplemental_security_patches";
+
     private final ISecurityStateManager mService;
 
     /**
@@ -65,6 +87,19 @@ public class SecurityStateManager {
      * {@link android.os.Build.VERSION}. The bundle will also include mappings from WebView packages
      * and packages listed under config {@code config_securityStatePackages} to their respective
      * versions as defined in {@link android.content.pm.PackageInfo#versionName}.
+     *
+     * <p>The bundle will also include lists of CVEs that are affirmed to be patched in the source
+     * code, supplemental to the declared Security Patch Level (SPL). These lists are associated
+     * with {@link #KEY_SYSTEM_SUPPLEMENTAL_PATCHES} and {@link #KEY_VENDOR_SUPPLEMENTAL_PATCHES}.
+     *
+     * <p>The presence of a CVE in these lists indicates that the device implementation has fully
+     * mitigated the vulnerability. The accuracy of this information is critical, as it is used to
+     * determine the device's security posture.
+     *
+     * <p>The CVE data is aggregated from {@code supplemental_security_patches.xml} files located
+     * across multiple device partitions (e.g., {@code /system}, {@code /vendor}, {@code
+     * /product}), ensuring that patches from both the framework and hardware-specific components
+     * are accounted for.
      *
      * @return A {@code Bundle} that contains the global security state information as
      * string-to-string key-value pairs.

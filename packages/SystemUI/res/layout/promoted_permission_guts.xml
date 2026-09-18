@@ -23,7 +23,7 @@
     android:orientation="vertical"
     android:paddingTop="2dp"
     android:paddingBottom="2dp"
-    android:background="@androidprv:color/materialColorSurfaceContainerHigh"
+    android:background="@color/materialColorSurfaceContainerHigh"
     android:theme="@style/Theme.SystemUI"
     >
 
@@ -50,7 +50,7 @@
             android:layout_alignParentLeft="true"
             android:layout_centerHorizontal="true"
             android:layout_below="@id/unpin_icon"
-            android:textColor="@androidprv:color/materialColorOnSurface"
+            android:textColor="@color/materialColorOnSurface"
             android:minWidth="@dimen/min_clickable_item_size"
             android:minHeight="@dimen/min_clickable_item_size"
             style="@style/TextAppearance.NotificationMenuButtonText" />
@@ -61,8 +61,8 @@
             android:layout_height="wrap_content"
             android:layout_below="@id/demote_explain"
             android:layout_centerHorizontal="true"
-            android:padding="@*android:dimen/notification_content_margin_end"
-            android:textColor="@androidprv:color/materialColorOnSurface"
+            android:padding="@*android:dimen/notification_2025_margin"
+            android:textColor="@color/materialColorOnSurface"
             android:minWidth="@dimen/min_clickable_item_size"
             android:minHeight="@dimen/min_clickable_item_size"
             android:text="@string/snooze_undo"

@@ -1244,14 +1244,6 @@ public final class AnimatorSet extends Animator implements AnimationHandler.Anim
         return false;
     }
 
-    /**
-     * @hide
-     */
-    @Override
-    public void commitAnimationFrame(long frameTime) {
-        // No op.
-    }
-
     @Override
     boolean pulseAnimationFrame(long frameTime) {
         return doAnimationFrame(frameTime);

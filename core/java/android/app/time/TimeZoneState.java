@@ -29,8 +29,8 @@ import java.util.Objects;
 /**
  * A snapshot of the system's time zone state.
  *
- * <p>{@code id} contains the system's time zone ID setting, e.g. "America/Los_Angeles". This
- * will usually agree with {@code TimeZone.getDefault().getID()} but it can be empty in rare cases.
+ * <p>{@code id} contains the system's time zone ID setting, e.g. "America/Los_Angeles". This will
+ * usually agree with {@code TimeZone.getDefault().getID()} but it can be empty in rare cases.
  *
  * <p>{@code userShouldConfirmId} is {@code true} if the system automatic time zone detection logic
  * suggests that the user be asked to confirm the {@code id} value is correct via {@link
@@ -42,15 +42,16 @@ import java.util.Objects;
 @SystemApi
 public final class TimeZoneState implements Parcelable {
 
-    public static final @NonNull Creator<TimeZoneState> CREATOR = new Creator<>() {
-        public TimeZoneState createFromParcel(Parcel in) {
-            return TimeZoneState.createFromParcel(in);
-        }
+    public static final @NonNull Creator<TimeZoneState> CREATOR =
+            new Creator<>() {
+                public TimeZoneState createFromParcel(Parcel in) {
+                    return TimeZoneState.createFromParcel(in);
+                }
 
-        public TimeZoneState[] newArray(int size) {
-            return new TimeZoneState[size];
-        }
-    };
+                public TimeZoneState[] newArray(int size) {
+                    return new TimeZoneState[size];
+                }
+            };
 
     @NonNull private final String mId;
     private final boolean mUserShouldConfirmId;
@@ -81,17 +82,10 @@ public final class TimeZoneState implements Parcelable {
         String opt;
         while ((opt = cmd.getNextArg()) != null) {
             switch (opt) {
-                case "--zone_id": {
-                    zoneIdString  = cmd.getNextArgRequired();
-                    break;
-                }
-                case "--user_should_confirm_id": {
-                    userShouldConfirmId  = Boolean.parseBoolean(cmd.getNextArgRequired());
-                    break;
-                }
-                default: {
-                    throw new IllegalArgumentException("Unknown option: " + opt);
-                }
+                case "--zone_id" -> zoneIdString = cmd.getNextArgRequired();
+                case "--user_should_confirm_id" ->
+                        userShouldConfirmId = Boolean.parseBoolean(cmd.getNextArgRequired());
+                default -> throw new IllegalArgumentException("Unknown option: " + opt);
             }
         }
         if (zoneIdString == null) {
@@ -135,8 +129,7 @@ public final class TimeZoneState implements Parcelable {
             return false;
         }
         TimeZoneState that = (TimeZoneState) o;
-        return Objects.equals(mId, that.mId)
-                && mUserShouldConfirmId == that.mUserShouldConfirmId;
+        return Objects.equals(mId, that.mId) && mUserShouldConfirmId == that.mUserShouldConfirmId;
     }
 
     @Override
@@ -147,8 +140,10 @@ public final class TimeZoneState implements Parcelable {
     @Override
     public String toString() {
         return "TimeZoneState{"
-                + "mZoneId=" + mId
-                + ", mUserShouldConfirmId=" + mUserShouldConfirmId
+                + "mZoneId="
+                + mId
+                + ", mUserShouldConfirmId="
+                + mUserShouldConfirmId
                 + '}';
     }
 }

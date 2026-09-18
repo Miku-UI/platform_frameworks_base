@@ -302,7 +302,7 @@ public class AttentionDetector {
     }
 
     /**
-     * {@see AttentionManagerInternal#isAttentionServiceSupported}
+     * @see AttentionManagerInternal#isAttentionServiceSupported
      */
     @VisibleForTesting
     boolean isAttentionServiceSupported() {

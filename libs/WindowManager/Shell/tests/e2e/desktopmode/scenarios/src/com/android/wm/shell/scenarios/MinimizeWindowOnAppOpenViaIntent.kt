@@ -67,7 +67,7 @@ abstract class MinimizeWindowOnAppOpenViaIntent : TestScenarioBase() {
                 wmHelper,
                 mailAppHelper.openAppIntent.apply {
                     addFlags(FLAG_ACTIVITY_MULTIPLE_TASK or FLAG_ACTIVITY_NEW_TASK)
-                }
+                },
             )
         }
     }

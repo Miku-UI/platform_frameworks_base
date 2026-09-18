@@ -25,10 +25,11 @@ final class MoveInfo {
     final String mSeInfo;
     final int mTargetSdkVersion;
     final String mFromCodePath;
+    final int mPccId;
 
     MoveInfo(int moveId, String fromUuid, String toUuid, String packageName,
             int appId, String seInfo, int targetSdkVersion,
-            String fromCodePath) {
+            String fromCodePath, int pccId) {
         mMoveId = moveId;
         mFromUuid = fromUuid;
         mToUuid = toUuid;
@@ -37,5 +38,6 @@ final class MoveInfo {
         mSeInfo = seInfo;
         mTargetSdkVersion = targetSdkVersion;
         mFromCodePath = fromCodePath;
+        mPccId = pccId;
     }
 }

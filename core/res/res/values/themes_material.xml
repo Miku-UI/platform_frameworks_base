@@ -1348,14 +1348,6 @@ please see themes_device_defaults.xml.
         <item name="windowNoTitle">true</item>
     </style>
 
-    <!-- Theme for inflating notifications -->
-    <style name="Theme.Material.Notification" parent="">
-        <item name="notificationHeaderStyle">@style/Notification.Header</item>
-        <item name="notificationHeaderTextAppearance">@style/TextAppearance.Material.Notification.Info</item>
-        <item name="notificationHeaderAppNameVisibility">visible</item>
-        <item name="notificationHeaderIconSize">@dimen/notification_header_icon_size</item>
-    </style>
-
     <!-- Default theme for Settings and activities launched from Settings. -->
     <style name="Theme.Material.Settings" parent="Theme.Material.Light.LightStatusBar">
         <item name="homeAsUpIndicator">@drawable/ic_ab_back_material_settings</item>

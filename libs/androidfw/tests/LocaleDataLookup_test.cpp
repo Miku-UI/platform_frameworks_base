@@ -68,8 +68,8 @@ TEST(LocaleDataLookupTest, lookupLikelyScript) {
   EXPECT_EQ(nullptr, lookupLikelyScript(encodeLocale("zh", "CN")));
   EXPECT_SCEIPT_EQ("Hant", lookupLikelyScript(encodeLocale("zh", "HK")));
 
-  EXPECT_SCEIPT_EQ("Nshu", lookupLikelyScript(encodeLocale("zhx", "")));
-  EXPECT_SCEIPT_EQ("Nshu", lookupLikelyScript(0xDCF90000u)); // encoded "zhx"
+  EXPECT_SCEIPT_EQ("Hani", lookupLikelyScript(encodeLocale("zqe", "")));
+  EXPECT_SCEIPT_EQ("Hani", lookupLikelyScript(0x92190000u)); // encoded "zqe"
 }
 
 TEST(LocaleDataLookupTest, isLocaleRepresentative) {
@@ -85,9 +85,9 @@ TEST(LocaleDataLookupTest, isLocaleRepresentative) {
   EXPECT_TRUE(isLocaleRepresentative(encodeLocale("zh", "CN"), "Hans"));
   EXPECT_FALSE(isLocaleRepresentative(encodeLocale("zh", "TW"), "Hans"));
   EXPECT_FALSE(isLocaleRepresentative(encodeLocale("zhx", "CN"), "Hans"));
-  EXPECT_FALSE(isLocaleRepresentative(0xDCF9434E, "Hans"));
-  EXPECT_TRUE(isLocaleRepresentative(encodeLocale("zhx", "CN"), "Nshu"));
-  EXPECT_TRUE(isLocaleRepresentative(0xDCF9434E, "Nshu"));
+  EXPECT_FALSE(isLocaleRepresentative(0x9219434E, "Hans"));
+  EXPECT_TRUE(isLocaleRepresentative(encodeLocale("zqe", "CN"), "Hani"));
+  EXPECT_TRUE(isLocaleRepresentative(0x9219434E, "Hani"));
 }
 
 TEST(LocaleDataLookupTest, findParentLocalePackedKey) {

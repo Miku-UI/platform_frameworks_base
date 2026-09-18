@@ -18,9 +18,6 @@ package com.android.server.pm
 
 import android.app.role.RoleManager
 import android.app.supervision.SupervisionManager
-import android.content.pm.Flags
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.SetFlagsRule
 import com.android.server.testutils.any
 import com.android.server.testutils.eq
@@ -72,8 +69,7 @@ open class ProtectedPackagesMockedTest {
 
     @Test
     @Throws(Exception::class)
-    @EnableFlags(Flags.FLAG_PROTECT_SUPERVISION_PACKAGES)
-    fun testIsPackageProtected_systemSupevisionPackage_flagEnabled_returnsTrue() {
+    fun testIsPackageProtected_systemSupervisionPackage_returnsTrue() {
         val stateProtected =
             protectedPackages.isPackageStateProtected(TEST_USER_ID, SYSTEM_SUPERVISION_PKG)
         val dataProtected =
@@ -85,8 +81,7 @@ open class ProtectedPackagesMockedTest {
 
     @Test
     @Throws(Exception::class)
-    @EnableFlags(Flags.FLAG_PROTECT_SUPERVISION_PACKAGES)
-    fun testIsPackageProtected_supevisionPackage_flagEnabled_returnsTrue() {
+    fun testIsPackageProtected_supervisionPackage_returnsTrue() {
         val stateProtected =
             protectedPackages.isPackageStateProtected(TEST_USER_ID, SUPERVISION_PKG)
         val dataProtected = protectedPackages.isPackageDataProtected(TEST_USER_ID, SUPERVISION_PKG)
@@ -97,8 +92,7 @@ open class ProtectedPackagesMockedTest {
 
     @Test
     @Throws(Exception::class)
-    @EnableFlags(Flags.FLAG_PROTECT_SUPERVISION_PACKAGES)
-    fun testIsPackageProtected_regularPackage_flagEnabled_returnsFalse() {
+    fun testIsPackageProtected_regularPackage_returnsFalse() {
         val stateProtected = protectedPackages.isPackageStateProtected(TEST_USER_ID, TEST_PKG)
         val dataProtected = protectedPackages.isPackageDataProtected(TEST_USER_ID, TEST_PKG)
 
@@ -108,8 +102,7 @@ open class ProtectedPackagesMockedTest {
 
     @Test
     @Throws(Exception::class)
-    @EnableFlags(Flags.FLAG_PROTECT_SUPERVISION_PACKAGES)
-    fun testIsPackageProtected_supervisionDisabled_flagEnabled_returnsFalse() {
+    fun testIsPackageProtected_supervisionDisabled_returnsFalse() {
         whenever(supervisionManager.isSupervisionEnabledForUser(any())).thenReturn(false)
 
         val stateProtected =
@@ -122,9 +115,8 @@ open class ProtectedPackagesMockedTest {
 
     @Test
     @Throws(Exception::class)
-    @EnableFlags(Flags.FLAG_PROTECT_SUPERVISION_PACKAGES)
     /* This case should not happen. Is is covered here for completeness. */
-    fun testIsPackageProtected_missingRoleManager_flagEnabled_returnsFalse() {
+    fun testIsPackageProtected_missingRoleManager_returnsFalse() {
         whenever(rule.mocks().context.getSystemService(RoleManager::class.java)).thenReturn(null)
 
         val stateProtected =
@@ -137,24 +129,11 @@ open class ProtectedPackagesMockedTest {
 
     @Test
     @Throws(Exception::class)
-    @EnableFlags(Flags.FLAG_PROTECT_SUPERVISION_PACKAGES)
     /* This case should not happen. Is is covered here for completeness. */
-    fun testIsPackageProtected_missingSupervisionManager_flagEnabled_returnsFalse() {
+    fun testIsPackageProtected_missingSupervisionManager_returnsFalse() {
         whenever(rule.mocks().context.getSystemService(SupervisionManager::class.java))
             .thenReturn(null)
 
-        val stateProtected =
-            protectedPackages.isPackageStateProtected(TEST_USER_ID, SUPERVISION_PKG)
-        val dataProtected = protectedPackages.isPackageDataProtected(TEST_USER_ID, SUPERVISION_PKG)
-
-        assertThat(stateProtected).isFalse()
-        assertThat(dataProtected).isFalse()
-    }
-
-    @Test
-    @Throws(Exception::class)
-    @DisableFlags(Flags.FLAG_PROTECT_SUPERVISION_PACKAGES)
-    fun testIsPackageProtected_supevisionPackage_flagDisabled_returnsFalse() {
         val stateProtected =
             protectedPackages.isPackageStateProtected(TEST_USER_ID, SUPERVISION_PKG)
         val dataProtected = protectedPackages.isPackageDataProtected(TEST_USER_ID, SUPERVISION_PKG)

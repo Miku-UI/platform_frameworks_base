@@ -75,6 +75,7 @@ combined_apis {
         "framework-connectivity",
         "framework-connectivity-b",
         "framework-connectivity-t",
+        "framework-crashrecovery",
         "framework-devicelock",
         "framework-graphics",
         "framework-healthfitness",
@@ -93,19 +94,13 @@ combined_apis {
         "framework-sdkextensions",
         "framework-sdksandbox",
         "framework-statsd",
+        "framework-telecom",
         "framework-tethering",
         "framework-uwb",
         "framework-virtualization",
         "framework-wifi",
         "i18n.module.public.api",
-    ] + select(soong_config_variable("ANDROID", "release_crashrecovery_module"), {
-        "true": [
-            "framework-crashrecovery",
-        ],
-        default: [
-            "framework-platformcrashrecovery",
-        ],
-    }) + select(release_flag("RELEASE_ONDEVICE_INTELLIGENCE_MODULE"), {
+    ] + select(release_flag("RELEASE_ONDEVICE_INTELLIGENCE_MODULE"), {
         true: [
             "framework-ondeviceintelligence",
         ],
@@ -116,7 +111,9 @@ combined_apis {
         true: [
             "framework-conscrypt-nsc",
         ],
-        default: [],
+        default: [
+            "framework-network-security-config",
+        ],
     }) + select(release_flag("RELEASE_RANGING_STACK"), {
         true: [
             "framework-ranging",
@@ -134,10 +131,26 @@ combined_apis {
             "framework-anomaly-detector",
         ],
         default: [],
+    }) + select(release_flag("RELEASE_NPUMANAGER_MODULE"), {
+        true: [
+            "framework-npumanager",
+        ],
+        default: [],
+    }) + select(release_flag("RELEASE_UPROBESTATS_BRIDGE_SERVICE"), {
+        true: [
+            "framework-uprobestats",
+        ],
+        default: [],
+    }) + select(release_flag("RELEASE_WEBAPP_MODULE"), {
+        true: [
+            "framework-webapp",
+        ],
+        default: [],
     }),
     system_server_classpath: [
         "service-art",
         "service-configinfrastructure",
+        "service-crashrecovery",
         "service-healthfitness",
         "service-media-s",
         "service-permission",
@@ -148,14 +161,14 @@ combined_apis {
             "service-ondeviceintelligence",
         ],
         default: [],
-    }) + select(soong_config_variable("ANDROID", "release_crashrecovery_module"), {
-        "true": [
-            "service-crashrecovery",
-        ],
-        default: [],
     }) + select(release_flag("RELEASE_ANOMALY_DETECTOR"), {
         true: [
             "service-anomaly-detector",
+        ],
+        default: [],
+    }) + select(release_flag("RELEASE_TELECOM_MAINLINE_MODULE"), {
+        true: [
+            "service-telecom",
         ],
         default: [],
     }),
@@ -266,7 +279,7 @@ java_genrule {
         ":all-modules-public-stubs-source-exportable",
         ":api-stubs-docs-non-updatable{.exportable}",
     ],
-    visibility: ["//visibility:private"], // Used by make module in //development, mind
+    visibility: ["//development/build"],
 }
 
 // This produces the same annotations.zip as framework-doc-stubs, but by using
@@ -289,6 +302,7 @@ java_genrule {
         ":all-modules-public-annotations",
         ":android-non-updatable-doc-stubs{.exportable.annotations.zip}",
     ],
+    visibility: ["//development/build"],
 }
 
 java_genrule {
@@ -298,6 +312,7 @@ java_genrule {
         ":all-modules-system-annotations",
         ":android-non-updatable-doc-stubs-system{.exportable.annotations.zip}",
     ],
+    visibility: ["//development/build"],
 }
 
 java_genrule {
@@ -307,6 +322,7 @@ java_genrule {
         ":all-modules-module-lib-annotations",
         ":android-non-updatable-doc-stubs-module-lib{.exportable.annotations.zip}",
     ],
+    visibility: ["//development/build"],
 }
 
 java_genrule {
@@ -316,6 +332,7 @@ java_genrule {
         ":all-modules-system-server-annotations",
         ":android-non-updatable-doc-stubs-system-server{.exportable.annotations.zip}",
     ],
+    visibility: ["//development/build"],
 }
 
 java_genrule {
@@ -374,6 +391,7 @@ android_non_updatable_stubs_libs = [
     "android.hardware.usb-V1.1-java-constants",
     "android.hardware.usb.gadget-V1.0-java",
     "framework-protos",
+    "DevicePolicyAnnotation",
 ]
 
 java_defaults {
@@ -390,18 +408,20 @@ stubs_defaults {
     srcs: [":android-non-updatable-stub-sources"],
     sdk_version: "none",
     system_modules: "none",
-    java_version: "1.8",
+    java_version: "17",
     arg_files: [":frameworks-base-core-AndroidManifest.xml"],
     aidl: {
         include_dirs: [
             "frameworks/av/media/aidl",
             "frameworks/base/media/aidl",
+            "frameworks/base/telecomm/framework/aidl-export",
             "frameworks/base/telephony/java",
             "frameworks/native/libs/permission/aidl",
             "hardware/interfaces/biometrics/common/aidl",
             "hardware/interfaces/biometrics/fingerprint/aidl",
             "hardware/interfaces/common/aidl",
             "hardware/interfaces/common/fmq/aidl",
+            "hardware/interfaces/contexthub/aidl",
             "hardware/interfaces/graphics/common/aidl",
             "hardware/interfaces/keymaster/aidl",
             "hardware/interfaces/power/aidl",
@@ -511,9 +531,10 @@ java_defaults {
         "//frameworks/base/location",
         "//frameworks/base/nfc",
         "//frameworks/base/packages/CrashRecovery/framework",
+        "//frameworks/base/packages/NetworkSecurityConfig",
         "//packages/modules/NeuralNetworks:__subpackages__",
         // TODO(b/429127828): Clean this up along with RELEASE_TELEPHONY_MODULE
-        "//packages/modules/Telephony/framework:__subpackages__",
+        "//packages/modules/Telephony:__subpackages__",
         "//packages/modules/Virtualization:__subpackages__",
     ],
     plugins: ["error_prone_android_framework"],

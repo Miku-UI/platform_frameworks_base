@@ -1,0 +1,56 @@
+// Copyright (C) 2026 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+package {
+    default_applicable_licenses: ["frameworks_base_packages_SystemUI_license"],
+    default_visibility: [":__subpackages__"],
+}
+
+android_library {
+    name: "com.android.systemui.statusbar.chips.ui_api",
+    defaults: ["sysui_api"],
+    manifest: "AndroidManifest.xml",
+    static_libs: ["androidx.compose.runtime_runtime"],
+    libs: [
+        // go/keep-sorted start
+        "PlatformComposeCore",
+        "SystemUI-res",
+        "androidx.compose.ui_ui",
+        "com.android.systemui.common.shared.model_api",
+        "com.android.systemui.flags_api",
+        "com.android.systemui.util.time_api",
+        // go/keep-sorted end
+    ],
+}
+
+android_library {
+    name: "com.android.systemui.statusbar.chips.ui_testlib",
+    defaults: ["sysui_testlib"],
+    static_libs: [
+        // go/keep-sorted start
+        "SystemUI-res",
+        "androidx.compose.material3_material3",
+        "androidx.compose.runtime_runtime",
+        "com.android.systemui.common.shared.model_api",
+        "com.android.systemui.flags_api",
+        "com.android.systemui.statusbar.chips.ui_api",
+        "com.android.systemui.util.time_api",
+        "flag-junit",
+        "platform-parametric-runner-lib",
+        "platform-test-annotations",
+        "testables",
+        // go/keep-sorted end
+    ],
+}

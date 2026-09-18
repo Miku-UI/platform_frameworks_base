@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -41,6 +41,8 @@ fun Toolbar(
     modifier: Modifier = Modifier,
     colors: FloatingToolbarColors = defaultColors(),
     elevation: Dp = 2.dp,
+    closeButtonDescription: String =
+        stringResource(id = R.string.underlay_close_button_content_description),
     content: @Composable RowScope.() -> Unit,
 ) {
     HorizontalFloatingToolbar(
@@ -50,14 +52,15 @@ fun Toolbar(
         shape = FloatingToolbarDefaults.ContainerShape,
         expandedShadowElevation = elevation,
         leadingContent = {
-            PlatformIconButton(
-                iconResource = R.drawable.ic_close,
-                colors = IconButtonDefaults.iconButtonColors(),
-                shape = IconButtonDefaults.smallSquareShape,
-                contentDescription =
-                    stringResource(id = R.string.underlay_close_button_content_description),
-                onClick = onCloseClick,
-            )
+            StyledTooltip(tooltipText = closeButtonDescription) {
+                PlatformIconButton(
+                    iconResource = R.drawable.ic_close,
+                    colors = IconButtonDefaults.iconButtonColors(),
+                    shape = IconButtonDefaults.smallSquareShape,
+                    contentDescription = closeButtonDescription,
+                    onClick = onCloseClick,
+                )
+            }
         },
         content = content,
     )

@@ -455,7 +455,7 @@ message GlobalSettingsProto {
         optional SettingProto updatable_driver_production_denylist = 11;
         // Updatable Driver - List of Apps that are allowed to use updatable production driver
         optional SettingProto updatable_driver_production_allowlist = 12;
-        // ANGLE - List of Apps that can check ANGLE rules
+        // ANGLE - List of Apps that will run ANGLE as default if no explicit user selection
         optional SettingProto angle_allowlist = 13;
         // Updatable Driver - List of denylists, each denylist is a denylist for
         // a specific updatable production driver version
@@ -471,6 +471,8 @@ message GlobalSettingsProto {
         optional SettingProto updatable_driver_prerelease_opt_in_apps = 18;
 
         optional SettingProto angle_egl_features = 19;
+        // ANGLE - List of Apps that will run native driver as default if no explicit user selection
+        optional SettingProto angle_dynamic_denylist = 20;
     }
     optional Gpu gpu = 59;
 
@@ -718,7 +720,6 @@ message GlobalSettingsProto {
         // The list of snooze options for notifications. This is encoded as a key=value list,
         // separated by commas.
         optional SettingProto snooze_options = 3 [ (android.privacy).dest = DEST_AUTOMATIC ];
-        optional SettingProto smart_replies_in_notifications_flags = 4 [ (android.privacy).dest = DEST_AUTOMATIC ];
         optional SettingProto bubbles = 6 [ (android.privacy).dest = DEST_AUTOMATIC ];
         optional SettingProto disable_screen_share_protections_for_apps_and_notifications = 7 [ (android.privacy).dest = DEST_AUTOMATIC ];
     }

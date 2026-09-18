@@ -55,20 +55,16 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.os.UserHandle;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.testing.AndroidTestingRunner;
 import android.view.Display;
 import android.view.View;
 import android.widget.CheckBox;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.test.rule.ActivityTestRule;
 import androidx.test.runner.intercepting.SingleActivityFactory;
 
 import com.android.internal.logging.UiEventLogger;
-import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.res.R;
 import com.android.systemui.screenshot.AssistContentRequester;
@@ -182,17 +178,6 @@ public final class AppClipsActivityTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_APP_CLIPS_BACKLINKS)
-    public void appClipsLaunched_screenshotDisplayed() {
-        launchActivity();
-
-        assertThat(((ImageView) mActivity.findViewById(R.id.preview)).getDrawable()).isNotNull();
-        assertThat(mBacklinksDataTextView.getVisibility()).isEqualTo(View.GONE);
-        assertThat(mBacklinksIncludeDataCheckBox.getVisibility()).isEqualTo(View.GONE);
-        assertThat(mBacklinksCrossProfileErrorTextView.getVisibility()).isEqualTo(View.GONE);
-    }
-
-    @Test
     @Ignore("b/315848285")
     public void screenshotDisplayed_userConsented_screenshotExportedSuccessfully() {
         ResultReceiver resultReceiver = createResultReceiver((resultCode, data) -> {
@@ -231,7 +216,6 @@ public final class AppClipsActivityTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_APP_CLIPS_BACKLINKS)
     public void appClipsLaunched_backlinks_displayed() throws RemoteException {
         setUpMocksForBacklinks();
 
@@ -259,7 +243,6 @@ public final class AppClipsActivityTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_APP_CLIPS_BACKLINKS)
     public void appClipsLaunched_backlinks_doNotIncludeLink() throws RemoteException {
         setUpMocksForBacklinks();
 
@@ -276,7 +259,6 @@ public final class AppClipsActivityTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_APP_CLIPS_BACKLINKS)
     public void appClipsLaunched_backlinks_multipleBacklinksAvailable_defaultShown()
             throws RemoteException {
         // Set up mocking for multiple backlinks.
@@ -321,7 +303,6 @@ public final class AppClipsActivityTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_APP_CLIPS_BACKLINKS)
     @Ignore("b/410279668")
     public void appClipsLaunched_backlinks_multipleBacklinksAvailable_duplicateName()
             throws RemoteException {
@@ -355,7 +336,6 @@ public final class AppClipsActivityTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_APP_CLIPS_BACKLINKS)
     public void appClipsLaunched_backlinks_singleBacklink_crossProfileError()
             throws RemoteException {
         // Set up mocking for cross profile backlink.

@@ -15,8 +15,8 @@
 -->
 
 <!--
-     ICU Version: 75.1
-     CLDR Data Version: 45
+     ICU Version: 78.1
+     CLDR Data Version: 48.0
 -->
 
 <resources>
@@ -185,6 +185,7 @@
         <item>en-GH</item> <!-- English (Ghana) -->
         <item>en-GI</item> <!-- English (Gibraltar) -->
         <item>en-GM</item> <!-- English (Gambia) -->
+        <item>en-GS</item> <!-- English (South Georgia & South Sandwich Islands) -->
         <item>en-GU</item> <!-- English (Guam) -->
         <item>en-GY</item> <!-- English (Guyana) -->
         <item>en-HK</item> <!-- English (Hong Kong) -->
@@ -205,10 +206,10 @@
         <item>en-KY</item> <!-- English (Cayman Islands) -->
         <item>en-LC</item> <!-- English (St. Lucia) -->
         <item>en-LK</item> <!-- English (Sri Lanka) -->
-        <item>en-LT</item> <!-- English (Lithuania) -->
-        <item>en-LV</item> <!-- English (Latvia) -->
         <item>en-LR</item> <!-- English (Liberia) -->
         <item>en-LS</item> <!-- English (Lesotho) -->
+        <item>en-LT</item> <!-- English (Lithuania) -->
+        <item>en-LV</item> <!-- English (Latvia) -->
         <item>en-MA</item> <!-- English (Morocco) -->
         <item>en-MG</item> <!-- English (Madagascar) -->
         <item>en-MH</item> <!-- English (Marshall Islands) -->
@@ -397,6 +398,7 @@
         <item>fy-NL</item> <!-- Western Frisian (Netherlands) -->
         <item>ga-GB</item> <!-- Irish (United Kingdom) -->
         <item>ga-IE</item> <!-- Irish (Ireland) -->
+        <item>gaa-GH</item> <!-- Ga (Ghana) -->
         <item>gd-GB</item> <!-- Scottish Gaelic (United Kingdom) -->
         <item>gl-ES</item> <!-- Galician (Spain) -->
         <item>gsw-CH</item> <!-- Swiss German (Switzerland) -->
@@ -445,15 +447,20 @@
         <item>kln-KE</item> <!-- Kalenjin (Kenya) -->
         <item>km-KH</item> <!-- Khmer (Cambodia) -->
         <item>kn-IN</item> <!-- Kannada (India) -->
+        <item>ko-CN</item> <!-- Korean (China) -->
+        <item>ko-KP</item> <!-- Korean (North Korea) -->
         <item>ko-KR</item> <!-- Korean (South Korea) -->
-        <item>kok-IN</item> <!-- Konkani (India) -->
+        <item>kok-Deva-IN</item> <!-- Konkani (Devanagari, India) -->
+        <item>kok-Latn-IN</item> <!-- Konkani (Latin, India) -->
         <item>ks-Arab-IN</item> <!-- Kashmiri (Arabic, India) -->
         <item>ks-Arab-IN-u-nu-latn</item> <!-- Kashmiri (Arabic, India, Western Digits) -->
         <item>ks-Deva-IN</item> <!-- Kashmiri (Devanagari, India) -->
         <item>ksb-TZ</item> <!-- Shambala (Tanzania) -->
         <item>ksf-CM</item> <!-- Bafia (Cameroon) -->
         <item>ksh-DE</item> <!-- Colognian (Germany) -->
-        <item>ku-TR</item> <!-- Kurdish (Türkiye) -->
+        <item>ku-Latn-IQ</item> <!-- Kurdish (Latin, Iraq) -->
+        <item>ku-Latn-SY</item> <!-- Kurdish (Latin, Syria) -->
+        <item>ku-Latn-TR</item> <!-- Kurdish (Latin, Türkiye) -->
         <item>kw-GB</item> <!-- Cornish (United Kingdom) -->
         <item>kxv-Deva-IN</item> <!-- Kuvi (Devanagari, India) -->
         <item>kxv-Latn-IN</item> <!-- Kuvi (Latin, India) -->
@@ -522,6 +529,7 @@
         <item>nnh-CM</item> <!-- Ngiemboon (Cameroon) -->
         <item>nqo-GN</item> <!-- N’Ko (Guinea) -->
         <item>nqo-GN-u-nu-latn</item> <!-- N’Ko (Guinea, Western Digits) -->
+        <item>nso-ZA</item> <!-- Northern Sotho (South Africa) -->
         <item>nus-SS</item> <!-- Nuer (South Sudan) -->
         <item>nyn-UG</item> <!-- Nyankole (Uganda) -->
         <item>oc-ES</item> <!-- Occitan (Spain) -->
@@ -612,6 +620,8 @@
         <item>sr-Latn-ME</item> <!-- Serbian (Latin, Montenegro) -->
         <item>sr-Latn-RS</item> <!-- Serbian (Latin, Serbia) -->
         <item>sr-Latn-XK</item> <!-- Serbian (Latin, Kosovo) -->
+        <item>st-LS</item> <!-- Southern Sotho (Lesotho) -->
+        <item>st-ZA</item> <!-- Southern Sotho (South Africa) -->
         <item>su-ID</item> <!-- Sundanese (Indonesia) -->
         <item>sv-AX</item> <!-- Swedish (Åland Islands) -->
         <item>sv-FI</item> <!-- Swedish (Finland) -->
@@ -635,6 +645,8 @@
         <item>ti-ER</item> <!-- Tigrinya (Eritrea) -->
         <item>ti-ET</item> <!-- Tigrinya (Ethiopia) -->
         <item>tk-TM</item> <!-- Turkmen (Turkmenistan) -->
+        <item>tn-BW</item> <!-- Tswana (Botswana) -->
+        <item>tn-ZA</item> <!-- Tswana (South Africa) -->
         <item>to-TO</item> <!-- Tongan (Tonga) -->
         <item>tr-CY</item> <!-- Turkish (Cyprus) -->
         <item>tr-TR</item> <!-- Turkish (Türkiye) -->
@@ -667,15 +679,19 @@
         <item>yrl-CO</item> <!-- Nheengatu (Colombia) -->
         <item>yrl-VE</item> <!-- Nheengatu (Venezuela) -->
         <item>yue-Hans-CN</item> <!-- Cantonese (Simplified, China) -->
+        <item>yue-Hant-CN</item> <!-- Cantonese (Traditional, China) -->
         <item>yue-Hant-HK</item> <!-- Cantonese (Traditional, Hong Kong) -->
+        <item>yue-Hant-MO</item> <!-- Cantonese (Traditional, Macao) -->
         <item>za-CN</item> <!-- Zhuang (China) -->
         <item>zgh-MA</item> <!-- Standard Moroccan Tamazight (Morocco) -->
         <item>zh-Hans-CN</item> <!-- Chinese (Simplified, China) -->
         <item>zh-Hans-HK</item> <!-- Chinese (Simplified, Hong Kong) -->
         <item>zh-Hans-MO</item> <!-- Chinese (Simplified, Macao) -->
+        <item>zh-Hans-MY</item> <!-- Chinese (Simplified, Malaysia) -->
         <item>zh-Hans-SG</item> <!-- Chinese (Simplified, Singapore) -->
         <item>zh-Hant-HK</item> <!-- Chinese (Traditional, Hong Kong) -->
         <item>zh-Hant-MO</item> <!-- Chinese (Traditional, Macao) -->
+        <item>zh-Hant-MY</item> <!-- Chinese (Traditional, Malaysia) -->
         <item>zh-Hant-TW</item> <!-- Chinese (Traditional, Taiwan) -->
         <item>zu-ZA</item> <!-- Zulu (South Africa) -->
     </string-array>

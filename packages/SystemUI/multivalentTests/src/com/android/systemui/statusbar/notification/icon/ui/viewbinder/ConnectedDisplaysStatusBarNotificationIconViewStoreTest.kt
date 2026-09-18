@@ -19,7 +19,6 @@ package com.android.systemui.statusbar.notification.icon.ui.viewbinder
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -28,7 +27,6 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.statusbar.RankingBuilder
 import com.android.systemui.statusbar.SbnBuilder
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.notifCollection
 import com.android.systemui.statusbar.notification.collection.notifPipeline
@@ -45,7 +43,6 @@ import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(StatusBarConnectedDisplays.FLAG_NAME)
 class ConnectedDisplaysStatusBarNotificationIconViewStoreTest : SysuiTestCase() {
 
     private val kosmos = testKosmos()

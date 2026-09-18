@@ -29,7 +29,7 @@ import org.xmlpull.v1.XmlPullParserException;
 import java.io.IOException;
 import java.util.Objects;
 
-final class BooleanPolicySerializer extends PolicySerializer<Boolean> {
+public final class BooleanPolicySerializer extends PolicySerializer<Boolean> {
 
     private static final String ATTR_VALUE = "value";
 

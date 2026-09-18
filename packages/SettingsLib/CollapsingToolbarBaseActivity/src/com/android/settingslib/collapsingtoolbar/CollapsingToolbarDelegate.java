@@ -91,11 +91,15 @@ public class CollapsingToolbarDelegate {
     @NonNull
     private Toolbar mToolbar;
     @Nullable
+    private View mToolbarButtonsContainer;
+    @Nullable
     private MaterialButton mPrimaryButton;
     @Nullable
     private MaterialButton mSecondaryButton;
     @Nullable
     private MaterialButton mActionButton;
+    @Nullable
+    private MaterialButton mActionIconOnlyButton;
     @NonNull
     private FrameLayout mContentFrameLayout;
     @NonNull
@@ -182,16 +186,18 @@ public class CollapsingToolbarDelegate {
             if (actionBar != null) {
                 actionBar.setDisplayHomeAsUpEnabled(true);
                 actionBar.setHomeButtonEnabled(true);
-                if (mIsExpressiveTheme) {
+                if (useCollapsingToolbar && mIsExpressiveTheme) {
                     actionBar.setHomeAsUpIndicator(R.drawable.settingslib_expressive_icon_back);
                 }
                 actionBar.setDisplayShowTitleEnabled(true);
             }
         }
 
+        initToolbarButtonsContainer(view.findViewById(R.id.toolbar_buttons_container));
         initToolbarPrimaryButton(view.findViewById(R.id.primary_button));
         initToolbarSecondaryButton(view.findViewById(R.id.secondary_button));
         initToolbarActionButton(view.findViewById(R.id.action_button));
+        initToolbarActionIconOnlyButton(view.findViewById(R.id.action_icon_only_button));
 
         initFloatingToolbar(context, view.findViewById(R.id.floating_toolbar));
         return view;
@@ -219,6 +225,11 @@ public class CollapsingToolbarDelegate {
         autoSetCollapsingToolbarLayoutScrolling(appBarLayout);
     }
 
+    /** Initialize toolbar buttons container. */
+    public void initToolbarButtonsContainer(View toolbarButtonsContainer) {
+        mToolbarButtonsContainer = toolbarButtonsContainer;
+    }
+
     /** Initialize toolbar's primary button. */
     public void initToolbarPrimaryButton(MaterialButton primaryButton) {
         mPrimaryButton = primaryButton;
@@ -232,6 +243,11 @@ public class CollapsingToolbarDelegate {
     /** Initialize toolbar's action button. */
     public void initToolbarActionButton(MaterialButton actionButton) {
         mActionButton = actionButton;
+    }
+
+    /** Initialize toolbar's action icon only button. */
+    public void initToolbarActionIconOnlyButton(MaterialButton actionButtonIconOnly) {
+        mActionIconOnlyButton = actionButtonIconOnly;
     }
 
     /**
@@ -398,6 +414,7 @@ public class CollapsingToolbarDelegate {
         }
         int visibility = enabled ? View.VISIBLE : View.GONE;
         mPrimaryButton.setVisibility(visibility);
+        showOrHideToolbarButtonsContainer();
     }
 
     /** Set the icon to the primary button */
@@ -435,6 +452,7 @@ public class CollapsingToolbarDelegate {
         }
         int visibility = enabled ? View.VISIBLE : View.GONE;
         mSecondaryButton.setVisibility(visibility);
+        showOrHideToolbarButtonsContainer();
     }
 
     /** Set the icon to the secondary button */
@@ -467,11 +485,13 @@ public class CollapsingToolbarDelegate {
      * @param enabled true to show the button, otherwise it's hidden.
      */
     public void setActionButtonEnabled(boolean enabled) {
-        if (mActionButton == null) {
+        if (mActionButton == null || mActionIconOnlyButton == null) {
             return;
         }
         int visibility = enabled ? View.VISIBLE : View.GONE;
-        mActionButton.setVisibility(visibility);
+
+        updateActionButton(visibility);
+        showOrHideToolbarButtonsContainer();
     }
 
     /**
@@ -479,42 +499,62 @@ public class CollapsingToolbarDelegate {
      * @param clickable true to enable the button, otherwise it's disabled.
      */
     public void setActionButtonClickable(boolean clickable) {
-        if (mActionButton == null) {
+        if (mActionButton == null || mActionIconOnlyButton == null) {
             return;
         }
         mActionButton.setEnabled(clickable);
+        mActionIconOnlyButton.setEnabled(clickable);
     }
 
     /** Set the icon to the action button */
     public void setActionButtonIcon(@NonNull Context context, @DrawableRes int drawableRes) {
-        if (mActionButton == null) {
+        if (mActionButton == null || mActionIconOnlyButton == null) {
             return;
         }
         mActionButton.setIcon(context.getResources().getDrawable(drawableRes, context.getTheme()));
+        mActionIconOnlyButton.setIcon(
+                context.getResources().getDrawable(drawableRes, context.getTheme()));
     }
 
     /** Set the text to the action button */
     public void setActionButtonText(@Nullable CharSequence text) {
-        if (mActionButton == null) {
+        if (mActionButton == null || mActionIconOnlyButton == null) {
             return;
         }
-        mActionButton.setText(text);
+
+        boolean isTextNull = text == null;
+
+        if (!isTextNull) {
+            mActionButton.setText(text);
+        }
+
+        int visibility;
+        if (mActionButton.getVisibility() == View.VISIBLE
+                || mActionIconOnlyButton.getVisibility() == View.VISIBLE) {
+            visibility = View.VISIBLE;
+        } else {
+            visibility = View.GONE;
+        }
+
+        updateActionButton(visibility);
     }
 
     /** Set the OnClick listener to the action button */
     public void setActionButtonOnClickListener(@Nullable View.OnClickListener listener) {
-        if (mActionButton == null) {
+        if (mActionButton == null || mActionIconOnlyButton == null) {
             return;
         }
         mActionButton.setOnClickListener(listener);
+        mActionIconOnlyButton.setOnClickListener(listener);
     }
 
     /** Set the content description to the action button */
     public void setActionButtonContentDescription(@Nullable CharSequence contentDescription) {
-        if (mActionButton == null) {
+        if (mActionButton == null || mActionIconOnlyButton == null) {
             return;
         }
         mActionButton.setContentDescription(contentDescription);
+        mActionIconOnlyButton.setContentDescription(contentDescription);
     }
 
     /**
@@ -554,7 +594,7 @@ public class CollapsingToolbarDelegate {
         }
         final CoordinatorLayout.LayoutParams params =
                 (CoordinatorLayout.LayoutParams) appBarLayout.getLayoutParams();
-        final AppBarLayout.Behavior behavior = new AppBarLayout.Behavior();
+        final AppBarLayout.Behavior behavior = new IgnoreNonTouchScrollBehavior();
         behavior.setDragCallback(
                 new AppBarLayout.Behavior.DragCallback() {
                     @Override
@@ -571,5 +611,48 @@ public class CollapsingToolbarDelegate {
                     }
                 });
         params.setBehavior(behavior);
+    }
+
+    private void updateActionButton(int visibility) {
+        if (mActionButton == null || mActionIconOnlyButton == null) {
+            return;
+        }
+
+        if (mActionButton.getText().length() == 0) {
+            mActionButton.setVisibility(View.GONE);
+            mActionIconOnlyButton.setVisibility(visibility);
+        } else {
+            mActionIconOnlyButton.setVisibility(View.GONE);
+            mActionButton.setVisibility(visibility);
+        }
+    }
+
+    private void showOrHideToolbarButtonsContainer() {
+        if (mToolbarButtonsContainer == null) {
+            return;
+        }
+
+        boolean enabled = false;
+
+        // If at least one button inside toolbar buttons container is visible, make the container
+        // visible, otherwise it should be invisible to remove the custom padding it requires
+        if (mPrimaryButton != null) {
+            enabled |= mPrimaryButton.getVisibility() == View.VISIBLE;
+        }
+
+        if (mSecondaryButton != null) {
+            enabled |= mSecondaryButton.getVisibility() == View.VISIBLE;
+        }
+
+        if (mActionButton != null) {
+            enabled |= mActionButton.getVisibility() == View.VISIBLE;
+        }
+
+        if (mActionIconOnlyButton != null) {
+            enabled |= mActionIconOnlyButton.getVisibility() == View.VISIBLE;
+        }
+
+        int visibility = enabled ? View.VISIBLE : View.GONE;
+        mToolbarButtonsContainer.setVisibility(visibility);
     }
 }

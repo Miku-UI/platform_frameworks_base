@@ -22,7 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 /** Interface for initializing the [DesktopUserRepositories]. */
 interface DesktopRepositoryInitializer {
     /** A factory used to re-create a desk from persistence. */
-    var deskRecreationFactory: DeskRecreationFactory
+    var deskRootHelper: DeskRootHelper
 
     /** A flow that emits true when the repository has been initialized. */
     val isInitialized: StateFlow<Boolean>
@@ -30,11 +30,17 @@ interface DesktopRepositoryInitializer {
     /** Initialize the user repositories from a persistent data store. */
     fun initialize(userRepositories: DesktopUserRepositories)
 
-    /** A factory for re-creating desks. */
-    fun interface DeskRecreationFactory {
+    /** A helper for creating and removing desk roots. */
+    interface DeskRootHelper {
         /**
          * Re-creates a restored desk and returns the new desk id, or null if re-creation failed.
          */
-        suspend fun recreateDesk(userId: Int, destinationDisplayId: Int, deskId: Int): Int?
+        suspend fun recreateDeskRoot(userId: Int, destinationDisplayId: Int, deskId: Int): Int?
+
+        /** Removes the desk roots for the given requests. */
+        suspend fun removeDeskRoots(requests: List<DeskRootRemovalRequest>)
+
+        /** A request to remove a desk root. */
+        data class DeskRootRemovalRequest(val deskId: Int, val userId: Int)
     }
 }

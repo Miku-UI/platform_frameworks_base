@@ -16,11 +16,13 @@
 
 package android.tracing.transition;
 
+import android.annotation.CallSuper;
 import android.tracing.perfetto.DataSource;
 import android.tracing.perfetto.DataSourceInstance;
 import android.tracing.perfetto.FlushCallbackArguments;
 import android.tracing.perfetto.StartCallbackArguments;
 import android.tracing.perfetto.StopCallbackArguments;
+import android.util.Log;
 import android.util.proto.ProtoInputStream;
 
 /**
@@ -28,35 +30,37 @@ import android.util.proto.ProtoInputStream;
  */
 public class TransitionDataSource
         extends DataSource<DataSourceInstance, Void, Void> {
+    public static final String TAG = "TransitionDataSource";
     public static String DATA_SOURCE_NAME = "com.android.wm.shell.transition";
-
-    private final Runnable mOnStartStaticCallback;
-    private final Runnable mOnFlushStaticCallback;
-    private final Runnable mOnStopStaticCallback;
-
     public TransitionDataSource(Runnable onStart, Runnable onFlush, Runnable onStop) {
         super(DATA_SOURCE_NAME);
-        this.mOnStartStaticCallback = onStart;
-        this.mOnFlushStaticCallback = onFlush;
-        this.mOnStopStaticCallback = onStop;
+        this.registerOnStartCallback((idx) -> onStart.run());
+        this.registerOnFlushCallback(onFlush::run);
+        this.registerOnStopCallback((idx) -> onStop.run());
     }
 
     @Override
     public DataSourceInstance createInstance(ProtoInputStream configStream, int instanceIndex) {
         return new DataSourceInstance(this, instanceIndex) {
+            @CallSuper
             @Override
             protected void onStart(StartCallbackArguments args) {
-                mOnStartStaticCallback.run();
+                Log.d(TAG, "Starting transition tracing instance");
+                super.onStart(args);
             }
 
+            @CallSuper
             @Override
             protected void onFlush(FlushCallbackArguments args) {
-                mOnFlushStaticCallback.run();
+                Log.d(TAG, "Flushing transition tracing instance");
+                super.onFlush(args);
             }
 
+            @CallSuper
             @Override
             protected void onStop(StopCallbackArguments args) {
-                mOnStopStaticCallback.run();
+                Log.d(TAG, "Stopping transition tracing instance");
+                super.onStop(args);
             }
         };
     }

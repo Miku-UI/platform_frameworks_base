@@ -116,4 +116,6 @@ interface IActivityManagerStructured {
     void attachNativeApplication(in IBinder nativeThread, long startSeq);
 
     void finishAttachApplication(long startSeq, long timestampApplicationOnCreateNs);
+
+    int getCurrentUserId();
 }

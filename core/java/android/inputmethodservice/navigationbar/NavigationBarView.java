@@ -43,6 +43,7 @@ import android.view.Surface;
 import android.view.View;
 import android.view.animation.Interpolator;
 import android.view.animation.PathInterpolator;
+import android.view.inputmethod.Flags;
 import android.widget.FrameLayout;
 
 import java.util.function.Consumer;
@@ -74,7 +75,7 @@ public final class NavigationBarView extends FrameLayout {
     private final int mLightIconColor;
     private final int mDarkIconColor;
 
-    private final android.inputmethodservice.navigationbar.DeadZone mDeadZone;
+    private android.inputmethodservice.navigationbar.DeadZone mDeadZone = null;
     private boolean mDeadZoneConsuming = false;
 
     private final SparseArray<ButtonDispatcher> mButtonDispatchers = new SparseArray<>();
@@ -123,7 +124,9 @@ public final class NavigationBarView extends FrameLayout {
         mButtonDispatchers.put(com.android.internal.R.id.input_method_nav_home_handle,
                 new ButtonDispatcher(com.android.internal.R.id.input_method_nav_home_handle));
 
-        mDeadZone = new android.inputmethodservice.navigationbar.DeadZone(this);
+        if (!Flags.removeNavbarDeadZone()) {
+            mDeadZone = new android.inputmethodservice.navigationbar.DeadZone(this);
+        }
     }
 
     /**
@@ -152,6 +155,9 @@ public final class NavigationBarView extends FrameLayout {
     }
 
     private boolean shouldDeadZoneConsumeTouchEvents(MotionEvent event) {
+        if (Flags.removeNavbarDeadZone()) {
+            return false;
+        }
         int action = event.getActionMasked();
         if (action == MotionEvent.ACTION_DOWN) {
             mDeadZoneConsuming = false;
@@ -333,7 +339,9 @@ public final class NavigationBarView extends FrameLayout {
 
     @Override
     protected void onDraw(Canvas canvas) {
-        mDeadZone.onDraw(canvas);
+        if (!Flags.removeNavbarDeadZone()) {
+            mDeadZone.onDraw(canvas);
+        }
         super.onDraw(canvas);
     }
 
@@ -361,8 +369,10 @@ public final class NavigationBarView extends FrameLayout {
 
         final android.inputmethodservice.navigationbar.NavigationBarFrame frame =
                 getRootView().findViewByPredicate(view -> view instanceof NavigationBarFrame);
-        frame.setDeadZone(mDeadZone);
-        mDeadZone.onConfigurationChanged(mCurrentRotation);
+        if (!Flags.removeNavbarDeadZone()) {
+            frame.setDeadZone(mDeadZone);
+            mDeadZone.onConfigurationChanged(mCurrentRotation);
+        }
 
         if (DEBUG) {
             Log.d(TAG, "reorient(): rot=" + mCurrentRotation);

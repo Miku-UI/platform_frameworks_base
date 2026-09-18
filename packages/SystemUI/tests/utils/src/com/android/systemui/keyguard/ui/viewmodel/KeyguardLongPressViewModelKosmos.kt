@@ -16,11 +16,15 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import com.android.systemui.accessibility.domain.interactor.accessibilityInteractor
 import com.android.systemui.classifier.falsingManager
+import com.android.systemui.common.ui.domain.interactor.configurationInteractor
+import com.android.systemui.communal.domain.interactor.communalInteractor
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryUdfpsInteractor
 import com.android.systemui.haptics.msdl.msdlPlayer
 import com.android.systemui.keyguard.domain.interactor.keyguardTouchHandlingInteractor
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.scene.domain.interactor.sceneInteractor
 
 val Kosmos.keyguardTouchHandlingViewModel by
     Kosmos.Fixture {
@@ -28,6 +32,14 @@ val Kosmos.keyguardTouchHandlingViewModel by
             interactor = keyguardTouchHandlingInteractor,
             msdlPlayer = msdlPlayer,
             falsingManager = falsingManager,
+            keyguardSettingsMenuViewModel =
+                KeyguardSettingsMenuViewModel(
+                    interactor = keyguardTouchHandlingInteractor,
+                    configurationInteractor = configurationInteractor,
+                    accessibilityInteractor = accessibilityInteractor,
+                ),
+            sceneInteractor = sceneInteractor,
+            communalInteractor = communalInteractor,
             deviceEntryUdfpsInteractor = deviceEntryUdfpsInteractor,
         )
     }

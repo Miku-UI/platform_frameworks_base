@@ -16,13 +16,13 @@
 package com.android.internal.widget.remotecompose.core.operations;
 
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.FLOAT;
-import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.FLOAT_ARRAY;
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.INT;
-import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.SHORT;
+import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.REPEATED_FLOAT;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
+import com.android.internal.widget.remotecompose.core.Limits;
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
 import com.android.internal.widget.remotecompose.core.RemoteContext;
@@ -32,6 +32,7 @@ import com.android.internal.widget.remotecompose.core.WireBuffer;
 import com.android.internal.widget.remotecompose.core.documentation.DocumentationBuilder;
 import com.android.internal.widget.remotecompose.core.operations.layout.Component;
 import com.android.internal.widget.remotecompose.core.operations.layout.RootLayoutComponent;
+import com.android.internal.widget.remotecompose.core.operations.layout.managers.LayoutManager;
 import com.android.internal.widget.remotecompose.core.operations.utilities.AnimatedFloatExpression;
 import com.android.internal.widget.remotecompose.core.operations.utilities.NanMap;
 import com.android.internal.widget.remotecompose.core.operations.utilities.touch.VelocityEasing;
@@ -60,14 +61,13 @@ public class TouchExpression extends Operation
     float mOutMax = 1;
     float mOutMin = 1;
     float mValue = 0;
+    float mMaxAtDown = Float.NaN;
+    float mMinAtDown = Float.NaN;
     boolean mUnmodified = true;
     private float[] mPreCalcValue;
     private float mLastChange = Float.NaN;
     private float mLastCalculatedValue = Float.NaN;
     AnimatedFloatExpression mExp = new AnimatedFloatExpression();
-
-    /** The maximum number of floats in the expression */
-    public static final int MAX_EXPRESSION_SIZE = 32;
 
     private VelocityEasing mEasyTouch = new VelocityEasing();
     private boolean mEasingToStop = false;
@@ -103,22 +103,25 @@ public class TouchExpression extends Operation
     /** Stop at a collection of point described in absolute cordnates */
     public static final int STOP_NOTCHES_ABSOLUTE = 5;
 
-    /** Jump to the absolute poition of the point */
+    /** Jump to the absolute position of the point */
     public static final int STOP_ABSOLUTE_POS = 6;
+
+    /** Stop at evenly spaced single step notches */
+    public static final int STOP_NOTCHES_SINGLE_EVEN = 7;
 
     /**
      * create a touch expression
      *
-     * @param id The float id the value is output to
-     * @param exp the expression (containing TOUCH_* )
-     * @param defValue the default value
-     * @param min the minimum value
-     * @param max the maximum value
+     * @param id           The float id the value is output to
+     * @param exp          the expression (containing TOUCH_* )
+     * @param defValue     the default value
+     * @param min          the minimum value
+     * @param max          the maximum value
      * @param touchEffects the type of touch mode
-     * @param velocityId the velocity (not used)
-     * @param stopMode the behaviour on touch oup
-     * @param stopSpec the parameters that affect the touch up behaviour
-     * @param easingSpec the easing parameters for coming to a stop
+     * @param velocityId   the velocity (not used)
+     * @param stopMode     the behaviour on touch oup
+     * @param stopSpec     the parameters that affect the touch up behaviour
+     * @param easingSpec   the easing parameters for coming to a stop
      */
     public TouchExpression(
             int id,
@@ -268,10 +271,15 @@ public class TouchExpression extends Operation
             case STOP_INSTANTLY:
                 return pos;
             case STOP_NOTCHES_EVEN:
+            case STOP_NOTCHES_SINGLE_EVEN:
                 int evenSpacing = (int) mOutStopSpec[0];
                 float notchMax = (mOutStopSpec.length > 1) ? mOutStopSpec[1] : mOutMax;
                 float step = (notchMax - min) / evenSpacing;
                 float notch = min + step * (int) (0.5f + (target - mOutMin) / step);
+                if (mStopMode == STOP_NOTCHES_SINGLE_EVEN) {
+                    notch = Math.min(mMaxAtDown, notch);
+                    notch = Math.max(mMinAtDown, notch);
+                }
                 if (!mWrapMode) {
                     notch = Math.max(Math.min(notch, mOutMax), min);
                 }
@@ -336,6 +344,7 @@ public class TouchExpression extends Operation
                 haptic(context);
                 break;
             case STOP_NOTCHES_EVEN:
+            case STOP_NOTCHES_SINGLE_EVEN:
                 int evenSpacing = (int) mStopSpec[0];
                 float step = (max - min) / evenSpacing;
                 if ((int) ((prev - min) / step) != (int) ((next - min) / step)) {
@@ -383,29 +392,36 @@ public class TouchExpression extends Operation
         }
     }
 
-    private void updateBounds() {
+    private void updateBounds(@NonNull RemoteContext context) {
         Component comp = mComponent;
         if (comp != null) {
-            float x = comp.getX();
-            float y = comp.getY();
-            float w = comp.getWidth();
-            float h = comp.getHeight();
-            comp = comp.getParent();
-            while (comp != null) {
-                x += comp.getX();
-                y += comp.getY();
+            if (context.getTouchVersion() == LayoutManager.FIX_TOUCH_EVENT) {
+                mScrLeft = 0;
+                mScrTop = 0;
+                mScrRight = comp.getWidth();
+                mScrBottom = comp.getHeight();
+            } else {
+                float x = comp.getX();
+                float y = comp.getY();
+                float w = comp.getWidth();
+                float h = comp.getHeight();
                 comp = comp.getParent();
+                while (comp != null) {
+                    x += comp.getX();
+                    y += comp.getY();
+                    comp = comp.getParent();
+                }
+                mScrLeft = x;
+                mScrTop = y;
+                mScrRight = w + x;
+                mScrBottom = h + y;
             }
-            mScrLeft = x;
-            mScrTop = y;
-            mScrRight = w + x;
-            mScrBottom = h + y;
         }
     }
 
     @Override
     public void apply(@NonNull RemoteContext context) {
-        updateBounds();
+        updateBounds(context);
         if (mUnmodified) {
             mCurrentValue = mOutDefValue;
             context.loadFloat(mId, wrap(mCurrentValue));
@@ -431,6 +447,7 @@ public class TouchExpression extends Operation
         if (mTouchDown) {
             float value =
                     mExp.eval(context.getCollectionsAccess(), mPreCalcValue, mPreCalcValue.length);
+
             if (mMode == 0) {
                 value = mValueAtDown + (value - mDownTouchValue);
             }
@@ -442,6 +459,14 @@ public class TouchExpression extends Operation
             mCurrentValue = value;
         }
         crossNotchCheck(context);
+        if (mStopMode == STOP_NOTCHES_SINGLE_EVEN) {
+            mCurrentValue = Math.min(mMaxAtDown, mCurrentValue);
+            mCurrentValue = Math.max(mMinAtDown, mCurrentValue);
+        }
+        if (!mWrapMode) {
+            if (!Float.isNaN(mOutMin)) mCurrentValue = Math.max(mCurrentValue, mOutMin);
+            if (!Float.isNaN(mOutMax)) mCurrentValue = Math.min(mCurrentValue, mOutMax);
+        }
         context.loadFloat(mId, wrap(mCurrentValue));
     }
 
@@ -451,7 +476,7 @@ public class TouchExpression extends Operation
     @Override
     public void touchDown(@NonNull RemoteContext context, float x, float y) {
         if (!(x >= mScrLeft && x <= mScrRight && y >= mScrTop && y <= mScrBottom)) {
-            Utils.log("NOT IN WINDOW " + x + ", " + y + " " + mScrLeft + ", " + mScrTop);
+            // "NOT IN WINDOW " + x + ", " + y + " " + mScrLeft + ", " + mScrTop);
             return;
         }
         mEasingToStop = false;
@@ -459,6 +484,16 @@ public class TouchExpression extends Operation
         mUnmodified = false;
         if (mMode == 0) {
             mValueAtDown = context.getFloat(mId);
+            if (STOP_NOTCHES_SINGLE_EVEN == mStopMode) {
+                float min = mWrapMode ? 0 : mOutMin;
+                int evenSpacing = (int) mOutStopSpec[0];
+                float notchMax = (mOutStopSpec.length > 1) ? mOutStopSpec[1] : mOutMax;
+                float step = (notchMax - min) / evenSpacing;
+                float notch = mValueAtDown;
+                mMaxAtDown = notch + step;
+                mMinAtDown = notch - step;
+            }
+
             mDownTouchValue =
                     mExp.eval(context.getCollectionsAccess(), mPreCalcValue, mPreCalcValue.length);
         }
@@ -477,13 +512,26 @@ public class TouchExpression extends Operation
             return;
         }
         float v = mExp.eval(context.getCollectionsAccess(), mPreCalcValue, mPreCalcValue.length);
-        for (int i = 0; i < mSrcExp.length; i++) {
-            if (Float.isNaN(mSrcExp[i])) {
-                int id = Utils.idFromNan(mSrcExp[i]);
-                if (id == RemoteContext.ID_TOUCH_POS_X) {
-                    mPreCalcValue[i] = x + dx * dt;
-                } else if (id == RemoteContext.ID_TOUCH_POS_Y) {
-                    mPreCalcValue[i] = y + dy * dt;
+        if (context.getTouchVersion() == LayoutManager.FIX_TOUCH_EVENT) {
+            for (int i = 0; i < mSrcExp.length; i++) {
+                if (Float.isNaN(mSrcExp[i])) {
+                    int id = Utils.idFromNan(mSrcExp[i]);
+                    if (id == RemoteContext.ID_TOUCH_POS_X) {
+                        mPreCalcValue[i] += dx * dt;
+                    } else if (id == RemoteContext.ID_TOUCH_POS_Y) {
+                        mPreCalcValue[i] += dy * dt;
+                    }
+                }
+            }
+        } else {
+            for (int i = 0; i < mSrcExp.length; i++) {
+                if (Float.isNaN(mSrcExp[i])) {
+                    int id = Utils.idFromNan(mSrcExp[i]);
+                    if (id == RemoteContext.ID_TOUCH_POS_X) {
+                        mPreCalcValue[i] = x + dx * dt;
+                    } else if (id == RemoteContext.ID_TOUCH_POS_Y) {
+                        mPreCalcValue[i] = y + dy * dt;
+                    }
                 }
             }
         }
@@ -575,17 +623,17 @@ public class TouchExpression extends Operation
     /**
      * Writes out the operation to the buffer
      *
-     * @param buffer The buffer to write to
-     * @param id the id of the resulting float
-     * @param value the float expression array
-     * @param min the minimum allowed value
-     * @param max the maximum allowed value
-     * @param velocityId the velocity id
+     * @param buffer       The buffer to write to
+     * @param id           the id of the resulting float
+     * @param value        the float expression array
+     * @param min          the minimum allowed value
+     * @param max          the maximum allowed value
+     * @param velocityId   the velocity id
      * @param touchEffects the type touch effect
-     * @param exp the expression the maps touch drags to movement
-     * @param touchMode the touch mode e.g. notch modes
-     * @param touchSpec the spec of the touch modes
-     * @param easingSpec the spec of when the object comes to an easing
+     * @param exp          the expression the maps touch drags to movement
+     * @param touchMode    the touch mode e.g. notch modes
+     * @param touchSpec    the spec of the touch modes
+     * @param easingSpec   the spec of when the object comes to an easing
      */
     public static void apply(
             @NonNull WireBuffer buffer,
@@ -633,7 +681,7 @@ public class TouchExpression extends Operation
     /**
      * Read this operation and add it to the list of operations
      *
-     * @param buffer the buffer to read
+     * @param buffer     the buffer to read
      * @param operations the list of operations that will be added to
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
@@ -645,7 +693,7 @@ public class TouchExpression extends Operation
         int touchEffects = buffer.readInt();
         int len = buffer.readInt();
         int valueLen = len & 0xFFFF;
-        if (valueLen > MAX_EXPRESSION_SIZE) {
+        if (valueLen > Limits.MAX_EXPRESSION_SIZE) {
             throw new RuntimeException("Float expression to long");
         }
         float[] exp = new float[valueLen];
@@ -687,26 +735,21 @@ public class TouchExpression extends Operation
      * @param doc to append the description to.
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
-        doc.operation("Expressions Operations", OP_CODE, CLASS_NAME)
-                .description("A Float expression")
-                .field(INT, "id", "The id of the Color")
-                .field(SHORT, "expression_length", "expression length")
-                .field(SHORT, "animation_length", "animation description length")
-                .field(
-                        FLOAT_ARRAY,
-                        "expression",
-                        "expression_length",
-                        "Sequence of Floats representing and expression")
-                .field(
-                        FLOAT_ARRAY,
-                        "AnimationSpec",
-                        "animation_length",
-                        "Sequence of Floats representing animation curve")
-                .field(FLOAT, "duration", "> time in sec")
-                .field(INT, "bits", "> WRAP|INITALVALUE | TYPE ")
-                .field(FLOAT_ARRAY, "spec", "> [SPEC PARAMETERS] ")
-                .field(FLOAT, "initialValue", "> [Initial value] ")
-                .field(FLOAT, "wrapValue", "> [Wrap value] ");
+        doc.operation("Logic & Expressions Operations", OP_CODE, CLASS_NAME)
+                .description("Define a float value derived from touch interactions")
+                .field(INT, "id", "The ID of the resulting float variable")
+                .field(FLOAT, "value", "The initial value")
+                .field(FLOAT, "min", "The minimum allowed value")
+                .field(FLOAT, "max", "The maximum allowed value")
+                .field(FLOAT, "velocityId", "Reserved for velocity ID")
+                .field(INT, "touchEffects", "Haptic feedback and touch behavior flags")
+                .field(INT, "expression_length", "The length of the touch mapping expression")
+                .field(REPEATED_FLOAT, "expression",
+                        "Sequence of floats representing touch mapping (RPN)")
+                .field(INT, "stopModeAndLen", "Encoded stop mode and length of stop spec")
+                .field(REPEATED_FLOAT, "stopSpec", "Parameters for stop behavior (e.g., notches)")
+                .field(INT, "easingLen", "The length of the easing spec")
+                .field(REPEATED_FLOAT, "easingSpec", "Parameters for deceleration easing");
     }
 
     @NonNull

@@ -24,13 +24,33 @@ import android.media.tv.extension.pvr.IGetInfoRecordedContentsCallback;
  * @hide
  */
 interface IRecordedContents {
-    // Delete recorded contents by URIs
-    // using callback to notify the result or any errors during the deletion process.
+    /**
+     * Asynchronously deletes one or more recorded contents identified by their URIs.
+     * Using callback to notify the result or any errors during the deletion process.
+     *
+     * @param contentUris An array of URIs from the recorded_programs table in tv.db.
+     * @param callback    An  IDeleteRecordedContentsCallback that will be invoked
+     *                    to notify the caller of the deletion results.
+     */
     void deleteRecordedContents(in String[] contentUri,
         in IDeleteRecordedContentsCallback callback);
-    // Get the channel lock status for recorded content identified by the URI provided in sync way.
+    /**
+     * Synchronously gets the channel lock status for a specific piece of recorded content.
+     *
+     * This method blocks until the lock status is retrieved. For a non-blocking version, use
+     * {@link #getRecordedContentLockStatus(Uri, IGetInfoRecordedContentsCallback)}.
+     *
+     * @param contentUri The URI from the recorded_programs table in tv.db.
+     * @return {@code RecordConstants.LockStatus} 0 for unlocked, 1 for locked.
+     */
     int getRecordedContentsLockInfoSync(String contentUri);
-    // Get the channel lock status for recorded content identified by the URI provided in async way.
+    /**
+     * Asynchronously gets the channel lock status for a specific piece of recorded content.
+     *
+     * @param contentUri The URI from the from the recorded_programs table in tv.db.
+     * @param callback   An IGetInfoRecordedContentsCallback that will be invoked
+     *                   with the lock status result.
+     */
     void getRecordedContentsLockInfoAsync(String contentUri,
         in IGetInfoRecordedContentsCallback callback);
 }

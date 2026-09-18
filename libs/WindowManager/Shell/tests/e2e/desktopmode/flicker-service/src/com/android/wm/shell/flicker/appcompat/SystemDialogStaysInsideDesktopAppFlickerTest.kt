@@ -41,6 +41,9 @@ import org.junit.runners.Parameterized
 /**
  * Test for the system dialog stays inside an app when the desktop app is moved in desktop mode.
  *
+ * Test with 3 button navigation because the expected bottom inset of the stable bounds is higher
+ * than actual.
+ *
  * Assert that system dialog activity window appear on top and inside the app window at end.
  */
 @RequiresDesktopDevice
@@ -54,7 +57,7 @@ class SystemDialogStaysInsideDesktopAppFlickerTest(flicker: FlickerTest) :
 
     @Rule
     @JvmField
-    val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, flicker.scenario.startRotation)
+    val testSetupRule = Utils.testSetupRule(NavBar.MODE_3BUTTON, flicker.scenario.startRotation)
     val scenario = SystemDialogStaysInsideDesktopAppScenario()
     private val browserApp = scenario.browserDesktopAppHelper
     private val systemDialogMatcher: IComponentNameMatcher =
@@ -84,7 +87,7 @@ class SystemDialogStaysInsideDesktopAppFlickerTest(flicker: FlickerTest) :
         @JvmStatic
         fun getParams(): Collection<FlickerChecker> {
             return FlickerTestFactory.nonRotationTests(
-                supportedNavigationModes = listOf(NavBar.MODE_GESTURAL)
+                supportedNavigationModes = listOf(NavBar.MODE_3BUTTON)
             )
         }
     }

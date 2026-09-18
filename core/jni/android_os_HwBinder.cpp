@@ -60,10 +60,12 @@ namespace android {
 
 static jclass gErrorClass;
 
-static struct fields_t {
+namespace {
+struct fields_t {
     jfieldID contextID;
     jmethodID onTransactID;
 } gFields;
+} // namespace
 
 struct JHwBinderHolder : public RefBase {
     JHwBinderHolder() {}

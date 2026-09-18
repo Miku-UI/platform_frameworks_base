@@ -19,6 +19,7 @@ package android.hardware;
 import android.annotation.NonNull;
 import android.annotation.SuppressLint;
 import android.compat.annotation.UnsupportedAppUsage;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 /**
  * This class represents a {@link android.hardware.Sensor Sensor} event and
@@ -56,7 +57,7 @@ import android.compat.annotation.UnsupportedAppUsage;
  * @see Sensor
  *
  */
-
+@RavenwoodKeepWholeClass
 public class SensorEvent {
     /**
      * <p>

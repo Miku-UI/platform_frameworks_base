@@ -191,7 +191,7 @@ public abstract class Connection extends Conferenceable {
      * being intercepted by an app on the local device. Telecom does not hold audio focus in this
      * state, and the call will be invisible to the user except for a persistent notification.
      */
-    @FlaggedApi(Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
     public static final int STATE_AUDIO_PROCESSING = 8;
 
     /**
@@ -199,7 +199,7 @@ public abstract class Connection extends Conferenceable {
      * {@link #STATE_AUDIO_PROCESSING}. The call is still active with the network in this case, and
      * Telecom will hold audio focus and play a ringtone if appropriate.
      */
-    @FlaggedApi(Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
     public static final int STATE_SIMULATED_RINGING = 9;
 
     /**
@@ -436,16 +436,20 @@ public abstract class Connection extends Conferenceable {
      * Indicates that this {@code Connection} can be transferred to another
      * number.
      * Connection supports the confirmed and unconfirmed call transfer feature.
-     * @hide
      */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_EXPLICIT_CALL_TRANSFER)
     public static final int CAPABILITY_TRANSFER = 0x08000000;
 
     /**
-     * Indicates that this {@code Connection} can be transferred to another
-     * ongoing {@code Connection}.
-     * Connection supports the consultative call transfer feature.
-     * @hide
+     * Indicates that this {@code Connection} can perform a consultative transfer to another
+     * ongoing {@code Connection} that also has this capability.
+     *
+     * A consultative transfer request is initialted when {@link #onTransfer(Connection)} is called
+     * on a {@code Connection} with this capability.
+     *
+     * See 3GPP TS 24.629 for more details.
      */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_EXPLICIT_CALL_TRANSFER)
     public static final int CAPABILITY_TRANSFER_CONSULTATIVE = 0x10000000;
 
     /**
@@ -874,14 +878,6 @@ public abstract class Connection extends Conferenceable {
             "android.telecom.extra.LAST_KNOWN_CELL_IDENTITY";
 
     /**
-     * Boolean connection extra key used to indicate whether device to device communication is
-     * available for the current call.
-     * @hide
-     */
-    public static final String EXTRA_IS_DEVICE_TO_DEVICE_COMMUNICATION_AVAILABLE =
-            "android.telecom.extra.IS_DEVICE_TO_DEVICE_COMMUNICATION_AVAILABLE";
-
-    /**
      * Connection event used to inform Telecom that it should play the on hold tone.  This is used
      * to play a tone when the peer puts the current call on hold.  Sent to Telecom via
      * {@link #sendConnectionEvent(String, Bundle)}.
@@ -1152,6 +1148,14 @@ public abstract class Connection extends Conferenceable {
                 == CAPABILITY_SUPPORTS_VT_REMOTE_BIDIRECTIONAL) {
             builder.append(isLong ? " CAPABILITY_SUPPORTS_VT_REMOTE_BIDIRECTIONAL" : " VTrbi");
         }
+        if ((capabilities & CAPABILITY_SEPARATE_FROM_CONFERENCE)
+                == CAPABILITY_SEPARATE_FROM_CONFERENCE) {
+            builder.append(isLong ? " CAPABILITY_SEPARATE_FROM_CONFERENCE" : "sep_cnf");
+        }
+        if ((capabilities & CAPABILITY_DISCONNECT_FROM_CONFERENCE)
+                == CAPABILITY_DISCONNECT_FROM_CONFERENCE) {
+            builder.append(isLong ? " CAPABILITY_DISCONNECT_FROM_CONFERENCE" : "dis_cnf");
+        }
         if ((capabilities & CAPABILITY_CANNOT_DOWNGRADE_VIDEO_TO_AUDIO)
                 == CAPABILITY_CANNOT_DOWNGRADE_VIDEO_TO_AUDIO) {
             builder.append(isLong ? " CAPABILITY_CANNOT_DOWNGRADE_VIDEO_TO_AUDIO" : " !v2a");
@@ -1352,7 +1356,7 @@ public abstract class Connection extends Conferenceable {
         }
 
         /**
-         * Writes the string {@param input} into the text stream to the UI for this RTT call. Since
+         * Writes the string {@code input} into the text stream to the UI for this RTT call. Since
          * RTT transmits text in real-time, this method should be called as often as text snippets
          * are received from the remote user, even if it is only one character.
          * <p>
@@ -2203,7 +2207,7 @@ public abstract class Connection extends Conferenceable {
     private PhoneAccountHandle mPhoneAccountHandle;
     private int mState = STATE_NEW;
     private int mAudioProcessingUseCase =
-        Flags.enableAudioProcessingUseCase() ? Call.AUDIO_PROCESSING_USE_CASE_UNKNOWN : 0;
+        android.telecom.flags.Flags.enableAudioProcessingUseCase() ? Call.AUDIO_PROCESSING_USE_CASE_UNKNOWN : 0;
     private CallAudioState mCallAudioState;
     private CallEndpoint mCallEndpoint;
     private Uri mAddress;
@@ -2241,7 +2245,7 @@ public abstract class Connection extends Conferenceable {
     /**
      * The verification status for an incoming call's phone number.
      */
-    private @VerificationStatus int mCallerNumberVerificationStatus;
+    private @Annotation.VerificationStatus int mCallerNumberVerificationStatus;
 
 
     /**
@@ -2762,7 +2766,7 @@ public abstract class Connection extends Conferenceable {
      *     {@link #STATE_AUDIO_PROCESSING}
      * @throws IllegalStateException if called on a non-external call.
      */
-    @FlaggedApi(Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
     public final void setAudioProcessing(@Call.AudioProcessingUseCase int useCase) {
         checkImmutable();
         if ((mConnectionProperties & PROPERTY_IS_EXTERNAL_CALL) != PROPERTY_IS_EXTERNAL_CALL) {
@@ -2776,7 +2780,7 @@ public abstract class Connection extends Conferenceable {
      * @return The audio processing use case of the call when the state is in
      *     {@link #STATE_AUDIO_PROCESSING}
      */
-    @FlaggedApi(Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
     public final @Call.AudioProcessingUseCase int getAudioProcessingUseCase() {
         return mAudioProcessingUseCase;
     }
@@ -2788,7 +2792,7 @@ public abstract class Connection extends Conferenceable {
      *
      * @throws IllegalStateException if the call is non-external.
      */
-    @FlaggedApi(Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_ENABLE_AUDIO_PROCESSING_USE_CASE)
     public final void setSimulatedRinging() {
         checkImmutable();
         if ((mConnectionProperties & PROPERTY_IS_EXTERNAL_CALL) != PROPERTY_IS_EXTERNAL_CALL) {
@@ -2875,13 +2879,17 @@ public abstract class Connection extends Conferenceable {
     }
 
     /**
-     * Sets the supported audio routes.
+     * Sets the supported audio routes during initialization of a connection based on the supported
+     * audio route.
      *
      * @param supportedAudioRoutes the supported audio routes as a bitmask.
      *                             See {@link CallAudioState}
      * @hide
      */
-    public final void setSupportedAudioRoutes(int supportedAudioRoutes) {
+    @SystemApi
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_TELECOM_MAINLINE_API)
+    public final void setSupportedAudioRoutes(
+            @CallAudioState.CallAudioRoute int supportedAudioRoutes) {
         if ((supportedAudioRoutes
                 & (CallAudioState.ROUTE_EARPIECE | CallAudioState.ROUTE_SPEAKER)) == 0) {
             throw new IllegalArgumentException(
@@ -3559,24 +3567,27 @@ public abstract class Connection extends Conferenceable {
     public void onReject(String replyMessage) {}
 
     /**
-     * Notifies this Connection, a request to transfer to a target number.
-     * @param number the number to transfer this {@link Connection} to.
+     * Notifies this Connection of a request to transfer to a target number.
+     * @param address the address to transfer this {@link Connection} to.
      * @param isConfirmationRequired when {@code true}, the {@link ConnectionService}
      * should wait until the transfer has successfully completed before disconnecting
-     * the current {@link Connection}.
+     * the current {@link Connection}, also known as an assured transfer.
      * When {@code false}, the {@link ConnectionService} should signal the network to
      * perform the transfer, but should immediately disconnect the call regardless of
-     * the outcome of the transfer.
-     * @hide
+     * the outcome of the transfer, also known as a blind transfer.
      */
-    public void onTransfer(@NonNull Uri number, boolean isConfirmationRequired) {}
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_EXPLICIT_CALL_TRANSFER)
+    public void onTransfer(@NonNull Uri address, boolean isConfirmationRequired) {}
 
     /**
-     * Notifies this Connection, a request to transfer to another Connection.
-     * @param otherConnection the {@link Connection} to transfer this call to.
-     * @hide
+     * Notifies this Connection of a request to start a CONSULTATIVE transfer to another Connection.
+     *
+     * See 3GPP TS 24.629 for more details.
+     *
+     * @param toConnection the {@link Connection} to transfer this call to.
      */
-    public void onTransfer(@NonNull Connection otherConnection) {}
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_EXPLICIT_CALL_TRANSFER)
+    public void onTransfer(@NonNull Connection toConnection) {}
 
     /**
      * Notifies this Connection of a request to silence the ringer.
@@ -3794,8 +3805,9 @@ public abstract class Connection extends Conferenceable {
         protected CallFilteringCompletionInfo(Parcel in) {
             mIsBlocked = in.readByte() != 0;
             mIsInContacts = in.readByte() != 0;
-            CallScreeningService.ParcelableCallResponse response
-                    = in.readParcelable(CallScreeningService.class.getClassLoader(), android.telecom.CallScreeningService.ParcelableCallResponse.class);
+            ParcelableCallResponse response = in.readParcelable(
+                    CallScreeningService.class.getClassLoader(),
+                    android.telecom.ParcelableCallResponse.class);
             mCallResponse = response == null ? null : response.toCallResponse();
             mCallScreeningComponent = in.readParcelable(ComponentName.class.getClassLoader(), android.content.ComponentName.class);
         }
@@ -3950,7 +3962,7 @@ public abstract class Connection extends Conferenceable {
      * The returned {@code Connection} can be assumed to {@link #destroy()} itself when appropriate,
      * so users of this method need not maintain a reference to its return value to destroy it.
      *
-     * @param disconnectCause The disconnect cause, ({@see android.telecomm.DisconnectCause}).
+     * @param disconnectCause The disconnect cause, (see {@link android.telecomm.DisconnectCause}).
      * @return A {@code Connection} which indicates failure.
      */
     public static Connection createFailedConnection(DisconnectCause disconnectCause) {
@@ -4150,7 +4162,7 @@ public abstract class Connection extends Conferenceable {
      * ATIS-1000082.
      * @return the verification status.
      */
-    public final @VerificationStatus int getCallerNumberVerificationStatus() {
+    public final @Annotation.VerificationStatus int getCallerNumberVerificationStatus() {
         return mCallerNumberVerificationStatus;
     }
 
@@ -4163,7 +4175,10 @@ public abstract class Connection extends Conferenceable {
      * {@link ConnectionService#onCreateIncomingConnection(PhoneAccountHandle, ConnectionRequest)}.
      */
     public final void setCallerNumberVerificationStatus(
-            @VerificationStatus int callerNumberVerificationStatus) {
+            @Annotation.VerificationStatus int callerNumberVerificationStatus) {
         mCallerNumberVerificationStatus = callerNumberVerificationStatus;
+        Bundle b = new Bundle();
+        b.putInt(EXTRA_CALLER_NUMBER_VERIFICATION_STATUS, callerNumberVerificationStatus);
+        putExtras(b);
     }
 }

@@ -24,23 +24,29 @@ import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.perftests.utils.BenchmarkState;
 import android.perftests.utils.PerfStatusReporter;
-import android.util.Log;
+
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.LargeTest;
 import androidx.test.runner.AndroidJUnit4;
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Random;
+
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Random;
+
 /**
- * Performance tests for typical CRUD operations and loading rows into the Cursor
+ * Performance tests for typical CRUD operations and loading rows into the Cursor.
  *
- * <p>To run: bit CorePerfTests:android.database.SQLiteDatabasePerfTest
+ * TODO(b/447150964): these are micro-benchmarks that are very sensitive to AFDO profiles.  They
+ * are disabled (with the @Ignore annotation) until the bug is addressed.
+ *
+ * <p>To run: atest CorePerfTests:android.database.SQLiteDatabasePerfTest
  */
 @RunWith(AndroidJUnit4.class)
 @LargeTest
@@ -88,6 +94,7 @@ public class SQLiteDatabasePerfTest {
                 + "FOREIGN KEY(T1_ID) REFERENCES T1 (_ID))");
     }
 
+    @Ignore
     @Test
     public void testSelect() {
         insertT1TestDataSet();
@@ -108,6 +115,7 @@ public class SQLiteDatabasePerfTest {
         }
     }
 
+    @Ignore
     @Test
     public void testSelectCacheMissRate() {
         BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
@@ -148,6 +156,7 @@ public class SQLiteDatabasePerfTest {
         mContext.deleteDatabase(DB_NAME);
     }
 
+    @Ignore
     @Test
     public void testSelectMultipleRows() {
         insertT1TestDataSet();
@@ -174,6 +183,7 @@ public class SQLiteDatabasePerfTest {
         }
     }
 
+    @Ignore
     @Test
     public void testCursorIterateForward() {
         // A larger dataset is needed to exceed default CursorWindow size
@@ -197,6 +207,7 @@ public class SQLiteDatabasePerfTest {
         }
     }
 
+    @Ignore
     @Test
     public void testCursorIterateBackwards() {
         // A larger dataset is needed to exceed default CursorWindow size
@@ -220,6 +231,7 @@ public class SQLiteDatabasePerfTest {
         }
     }
 
+    @Ignore
     @Test
     public void testInnerJoin() {
         mDatabase.setForeignKeyConstraintsEnabled(true);
@@ -252,6 +264,7 @@ public class SQLiteDatabasePerfTest {
      * This test measures the insertion of a single row into a database using DELETE journal and
      * synchronous modes.
      */
+    @Ignore
     @Test
     public void testInsert() {
         insertT1TestDataSet();
@@ -259,6 +272,7 @@ public class SQLiteDatabasePerfTest {
         testInsertInternal("testInsert");
     }
 
+    @Ignore
     @Test
     public void testInsertWithPersistFull() {
         recreateTestDatabase(SQLiteDatabase.JOURNAL_MODE_PERSIST, SQLiteDatabase.SYNC_MODE_FULL);
@@ -289,6 +303,7 @@ public class SQLiteDatabasePerfTest {
      * This test measures the insertion of a single row into a database using WAL journal mode and
      * NORMAL synchronous mode.
      */
+    @Ignore
     @Test
     public void testInsertWithWalNormalMode() {
         recreateTestDatabase(SQLiteDatabase.JOURNAL_MODE_WAL, SQLiteDatabase.SYNC_MODE_NORMAL);
@@ -301,6 +316,7 @@ public class SQLiteDatabasePerfTest {
      * This test measures the insertion of a single row into a database using WAL journal mode and
      * FULL synchronous mode. The goal is to see the difference between NORMAL vs FULL sync modes.
      */
+    @Ignore
     @Test
     public void testInsertWithWalFullMode() {
         recreateTestDatabase(SQLiteDatabase.JOURNAL_MODE_WAL, SQLiteDatabase.SYNC_MODE_FULL);
@@ -314,12 +330,14 @@ public class SQLiteDatabasePerfTest {
      * This test measures the insertion of a multiple rows in a single transaction using WAL journal
      * mode and NORMAL synchronous mode.
      */
+    @Ignore
     @Test
     public void testBulkInsertWithWalNormalMode() {
         recreateTestDatabase(SQLiteDatabase.JOURNAL_MODE_WAL, SQLiteDatabase.SYNC_MODE_NORMAL);
         testBulkInsertInternal("testBulkInsertWithWalNormalMode");
     }
 
+    @Ignore
     @Test
     public void testBulkInsertWithPersistFull() {
         recreateTestDatabase(SQLiteDatabase.JOURNAL_MODE_PERSIST, SQLiteDatabase.SYNC_MODE_FULL);
@@ -330,6 +348,7 @@ public class SQLiteDatabasePerfTest {
      * This test measures the insertion of a multiple rows in a single transaction using TRUNCATE
      * journal mode and FULL synchronous mode.
      */
+    @Ignore
     @Test
     public void testBulkInsert() {
         testBulkInsertInternal("testBulkInsert");
@@ -359,6 +378,7 @@ public class SQLiteDatabasePerfTest {
         }
     }
 
+    @Ignore
     @Test
     public void testDelete() {
         insertT1TestDataSet();
@@ -378,6 +398,7 @@ public class SQLiteDatabasePerfTest {
     /**
      * This test measures the update of a random row in a database.
      */
+    @Ignore
     @Test
     public void testUpdateWithWalNormalMode() {
         recreateTestDatabase(SQLiteDatabase.JOURNAL_MODE_WAL, SQLiteDatabase.SYNC_MODE_NORMAL);
@@ -385,6 +406,7 @@ public class SQLiteDatabasePerfTest {
         testUpdateInternal("testUpdateWithWalNormalMode");
     }
 
+    @Ignore
     @Test
     public void testUpdateWithPersistFull() {
         recreateTestDatabase(SQLiteDatabase.JOURNAL_MODE_PERSIST, SQLiteDatabase.SYNC_MODE_FULL);
@@ -392,6 +414,7 @@ public class SQLiteDatabasePerfTest {
         testUpdateInternal("testUpdateWithPersistFull");
     }
 
+    @Ignore
     @Test
     public void testUpdate() {
         insertT1TestDataSet();
@@ -422,6 +445,7 @@ public class SQLiteDatabasePerfTest {
      * This test measures a multi-threaded read-write environment where there are 2 readers and
      * 1 writer in the database using TRUNCATE journal mode and FULL syncMode.
      */
+    @Ignore
     @Test
     public void testMultithreadedReadWrite() {
         insertT1TestDataSet();
@@ -432,6 +456,7 @@ public class SQLiteDatabasePerfTest {
      * This test measures a multi-threaded read-write environment where there are 2 readers and
      * 1 writer in the database using WAL journal mode and NORMAL syncMode.
      */
+    @Ignore
     @Test
     public void testMultithreadedReadWriteWithWalNormal() {
         recreateTestDatabase(SQLiteDatabase.JOURNAL_MODE_WAL, SQLiteDatabase.SYNC_MODE_NORMAL);

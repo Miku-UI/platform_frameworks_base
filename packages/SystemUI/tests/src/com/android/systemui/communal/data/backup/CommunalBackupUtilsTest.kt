@@ -22,6 +22,7 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.communal.data.db.CommunalDatabase
 import com.android.systemui.communal.data.db.CommunalWidgetDao
+import com.android.systemui.communal.data.model.CommunalWidgetId
 import com.android.systemui.communal.nano.CommunalHubState
 import com.android.systemui.communal.shared.model.SpanValue
 import com.android.systemui.communal.shared.model.toFixed
@@ -93,7 +94,13 @@ class CommunalBackupUtilsTest : SysuiTestCase() {
                 ),
             )
         expectedWidgets.forEach {
-            dao.addWidget(it.widgetId, it.componentName, it.rank, it.userSerialNumber, it.spanY)
+            dao.addWidget(
+                CommunalWidgetId(it.widgetId),
+                it.componentName,
+                it.rank,
+                it.userSerialNumber,
+                it.spanY,
+            )
         }
 
         // Get communal hub state

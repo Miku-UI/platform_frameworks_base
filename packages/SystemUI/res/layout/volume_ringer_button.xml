@@ -21,4 +21,4 @@
     android:contentDescription="@string/volume_ringer_mode"
     android:gravity="center"
     android:src="@drawable/volume_ringer_item_bg"
-    android:tint="@androidprv:color/materialColorOnSurface" />
+    android:tint="@color/materialColorOnSurface" />

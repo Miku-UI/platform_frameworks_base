@@ -522,10 +522,13 @@ public class HintManagerServiceTest {
                 makeSessionCreationConfig(SESSION_TIDS_A, DEFAULT_TARGET_DURATION);
 
         SessionConfig config = new SessionConfig();
-        IHintSession a = service.getBinderServiceInstance().createHintSessionWithConfig(token,
-                SessionTag.OTHER, creationConfig, config).session;
+        IHintManager.SessionCreationReturn return1 =
+                service.getBinderServiceInstance().createHintSessionWithConfig(token,
+                SessionTag.OTHER, creationConfig, config);
+        IHintSession a = return1.session;
         assertNotNull(a);
         assertEquals(SESSION_IDS[0], config.id);
+        assertEquals(return1.tag, SessionTag.OTHER);
 
         SessionConfig config2 = new SessionConfig();
         creationConfig.tids = SESSION_TIDS_B;
@@ -538,12 +541,16 @@ public class HintManagerServiceTest {
         SessionConfig config3 = new SessionConfig();
         creationConfig.tids = SESSION_TIDS_C;
         creationConfig.targetWorkDurationNanos = 0L;
-        IHintSession c = service.getBinderServiceInstance().createHintSessionWithConfig(token,
-                SessionTag.GAME, creationConfig, config3).session;
+        IHintManager.SessionCreationReturn return3 =
+                service.getBinderServiceInstance().createHintSessionWithConfig(token,
+                SessionTag.GAME, creationConfig, config3);
+        IHintSession c = return3.session;
         assertNotNull(c);
         assertEquals(SESSION_IDS[2], config3.id);
+        assertEquals(return3.tag, SessionTag.GAME);
         verify(mNativeWrapperMock, times(3)).halCreateHintSessionWithConfig(anyInt(), anyInt(),
                 any(int[].class), anyLong(), anyInt(), any(SessionConfig.class));
+
     }
 
     @Test

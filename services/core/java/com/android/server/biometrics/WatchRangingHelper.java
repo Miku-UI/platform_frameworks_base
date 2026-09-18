@@ -44,7 +44,8 @@ public class WatchRangingHelper {
     /** Listener for receiving watch ranging state changes */
     public interface WatchRangingListener {
         /** When the watch ranging state has changed */
-        void onStateChanged(@WatchRangingState int watchRangingState);
+        void onStateChanged(@WatchRangingState int watchRangingState,
+                @ProximityResultCode int errorCode);
     }
 
     WatchRangingHelper(long authenticationRequestId,
@@ -66,7 +67,7 @@ public class WatchRangingHelper {
             return;
         }
 
-        setWatchRangingState(WatchRangingState.WATCH_RANGING_STARTED);
+        setWatchRangingState(WatchRangingState.WATCH_RANGING_STARTED, ProximityResultCode.UNKNOWN);
 
         mAuthenticationPolicyManager.startWatchRangingForIdentityCheck(mAuthenticationRequestId,
                 new IProximityResultCallback.Stub() {
@@ -76,7 +77,7 @@ public class WatchRangingHelper {
                                 "Error received for watch ranging, error code: " + error);
                         mAuthenticationPolicyManager.cancelWatchRangingForRequestId(
                                 mAuthenticationRequestId);
-                        setWatchRangingState(WatchRangingState.WATCH_RANGING_STOPPED);
+                        setWatchRangingState(WatchRangingState.WATCH_RANGING_STOPPED, error);
                     }
 
                     @Override
@@ -86,7 +87,7 @@ public class WatchRangingHelper {
                                 mAuthenticationRequestId);
                         setWatchRangingState(result == ProximityResultCode.SUCCESS
                                 ? WatchRangingState.WATCH_RANGING_SUCCESSFUL
-                                : WatchRangingState.WATCH_RANGING_STOPPED);
+                                : WatchRangingState.WATCH_RANGING_STOPPED, result);
                     }
                 }, mHandler);
     }
@@ -107,9 +108,10 @@ public class WatchRangingHelper {
     /**
      * Sets the current state of watch ranging.
      */
-    public void setWatchRangingState(@WatchRangingState int watchRangingState) {
+    public void setWatchRangingState(@WatchRangingState int watchRangingState,
+            @ProximityResultCode int errorCode) {
         mWatchRangingState = watchRangingState;
-        mWatchRangingListener.onStateChanged(watchRangingState);
+        mWatchRangingListener.onStateChanged(watchRangingState, errorCode);
     }
 
     /**

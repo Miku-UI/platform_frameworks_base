@@ -2,9 +2,10 @@ package com.android.systemui.shade
 
 import android.content.Context
 import android.view.DisplayCutout
+import com.android.app.displaylib.PerDisplayRepository
 import com.android.systemui.battery.BatteryMeterView
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.res.R
-import com.android.systemui.statusbar.data.repository.StatusBarContentInsetsProviderStore
 import com.android.systemui.statusbar.layout.StatusBarContentInsetsProvider
 import javax.inject.Inject
 
@@ -16,7 +17,7 @@ class QsBatteryModeController
 @Inject
 constructor(
     @ShadeDisplayAware private val context: Context,
-    private val insetsProviderStore: StatusBarContentInsetsProviderStore,
+    private val perDisplaySubcomponentRepo: PerDisplayRepository<SystemUIDisplaySubcomponent>,
 ) {
 
     private companion object {
@@ -43,7 +44,8 @@ constructor(
      */
     @BatteryMeterView.BatteryPercentMode
     fun getBatteryMode(cutout: DisplayCutout?, qsExpandedFraction: Float): Int? {
-        val insetsProvider = insetsProviderStore.forDisplay(context.displayId)
+        val insetsProvider =
+            perDisplaySubcomponentRepo[context.displayId]?.statusBarContentInsetsProvider
         return when {
             qsExpandedFraction > fadeInStartFraction -> BatteryMeterView.MODE_ESTIMATE
             insetsProvider != null && qsExpandedFraction < fadeOutCompleteFraction ->

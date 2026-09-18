@@ -20,11 +20,11 @@ import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.settingslib.R.drawable.ic_sat_mobiledata
 import com.android.settingslib.mobile.MobileMappings
 import com.android.settingslib.mobile.TelephonyIcons.G
 import com.android.settingslib.mobile.TelephonyIcons.THREE_G
 import com.android.settingslib.mobile.TelephonyIcons.UNKNOWN
-import com.android.systemui.Flags.FLAG_STATUS_BAR_STATIC_INOUT_INDICATORS
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
@@ -32,7 +32,6 @@ import com.android.systemui.flags.Flags
 import com.android.systemui.flags.fake
 import com.android.systemui.flags.featureFlagsClassic
 import com.android.systemui.kairos.ActivatedKairosFixture
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosTestScope
 import com.android.systemui.kairos.kairos
 import com.android.systemui.kairos.map
@@ -43,10 +42,10 @@ import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.connectivity.MobileIconCarrierIdOverridesFake
 import com.android.systemui.statusbar.core.NewStatusBarIcons
-import com.android.systemui.statusbar.core.StatusBarRootModernization
 import com.android.systemui.statusbar.pipeline.airplane.data.repository.airplaneModeRepository
 import com.android.systemui.statusbar.pipeline.airplane.data.repository.fake
 import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.airplaneModeInteractor
+import com.android.systemui.statusbar.pipeline.mobile.NewSatelliteIcon
 import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionState
 import com.android.systemui.statusbar.pipeline.mobile.data.model.NetworkNameModel
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
@@ -65,17 +64,19 @@ import com.android.systemui.statusbar.pipeline.shared.data.model.ConnectivitySlo
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
 import com.android.systemui.statusbar.pipeline.shared.data.repository.connectivityRepository
 import com.android.systemui.statusbar.pipeline.shared.data.repository.fake
+import com.android.systemui.statusbar.systemstatusicons.flags.DisableSystemStatusIconsInCompose
+import com.android.systemui.statusbar.systemstatusicons.flags.EnableSystemStatusIconsInCompose
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlinx.coroutines.yield
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.stub
 
-@OptIn(ExperimentalKairosApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class MobileIconViewModelKairosTest : SysuiTestCase() {
@@ -101,7 +102,7 @@ class MobileIconViewModelKairosTest : SysuiTestCase() {
     }
     private val Kosmos.repository: FakeMobileConnectionRepositoryKairos by
         Kosmos.Fixture {
-            FakeMobileConnectionRepositoryKairos(SUB_1_ID, kairos, tableLogBuffer)
+            FakeMobileConnectionRepositoryKairos(SUB_1_ID, tableLogBuffer)
                 .also {
                     mobileConnectionsRepositoryKairos.fake.setActiveMobileDataSubscriptionId(
                         SUB_1_ID
@@ -131,12 +132,16 @@ class MobileIconViewModelKairosTest : SysuiTestCase() {
     private val kosmos =
         testKosmos().apply {
             useUnconfinedTestDispatcher()
-            mobileConnectionsRepositoryKairos =
-                fakeMobileConnectionsRepositoryKairos.apply { mobileIsDefault.setValue(true) }
             featureFlagsClassic.fake.apply {
                 set(Flags.FILTER_PROVISIONING_NETWORK_SUBSCRIPTIONS, true)
             }
         }
+
+    @Before
+    fun setUp() {
+        kosmos.mobileConnectionsRepositoryKairos =
+            kosmos.fakeMobileConnectionsRepositoryKairos.apply { mobileIsDefault.setValue(true) }
+    }
 
     private fun runTest(block: suspend KairosTestScope.() -> Unit) =
         kosmos.run { runKairosTest { block() } }
@@ -635,8 +640,8 @@ class MobileIconViewModelKairosTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(FLAG_STATUS_BAR_STATIC_INOUT_INDICATORS)
-    fun dataActivity_configOn_testIndicators_staticFlagOff() = runTest {
+    @DisableSystemStatusIconsInCompose
+    fun dataActivity_configOn_testIndicators_iconsInComposeFlagOff() = runTest {
         constants.stub { on { shouldShowActivityConfig } doReturn true }
 
         val inVisible by underTest.activityInVisible.collectLastValue()
@@ -673,8 +678,8 @@ class MobileIconViewModelKairosTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_STATIC_INOUT_INDICATORS)
-    fun dataActivity_configOn_testIndicators_staticFlagOn() = runTest {
+    @EnableSystemStatusIconsInCompose
+    fun dataActivity_configOn_testIndicators_iconsInComposeFlagOn() = runTest {
         constants.stub { on { shouldShowActivityConfig } doReturn true }
 
         val inVisible by underTest.activityInVisible.collectLastValue()
@@ -720,7 +725,7 @@ class MobileIconViewModelKairosTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun netTypeBackground_sliceUiEnabled_notNullWhenPrioritizedCapabilities_newIcons() = runTest {
         val latest by underTest.networkTypeBackground.collectLastValue()
 
@@ -731,7 +736,7 @@ class MobileIconViewModelKairosTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @DisableFlags(NewStatusBarIcons.FLAG_NAME)
     fun netTypeBackground_sliceUiDisabled_notNullWhenPrioritizedCapabilities_oldIcons() = runTest {
         val latest by underTest.networkTypeBackground.collectLastValue()
 
@@ -742,6 +747,7 @@ class MobileIconViewModelKairosTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(NewSatelliteIcon.FLAG_NAME)
     fun nonTerrestrial_defaultProperties() = runTest {
         repository.isNonTerrestrial.setValue(true)
 
@@ -761,6 +767,33 @@ class MobileIconViewModelKairosTest : SysuiTestCase() {
     }
 
     @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun nonTerrestrial_defaultProperties_newSatelliteIconEnabled() = runTest {
+        repository.isNonTerrestrial.setValue(true)
+
+        val roaming by underTest.roaming.collectLastValue()
+        val networkTypeIcon by underTest.networkTypeIcon.collectLastValue()
+        val networkTypeBackground by underTest.networkTypeBackground.collectLastValue()
+        val activityInVisible by underTest.activityInVisible.collectLastValue()
+        val activityOutVisible by underTest.activityOutVisible.collectLastValue()
+        val activityContainerVisible by underTest.activityContainerVisible.collectLastValue()
+
+        assertThat(roaming).isFalse()
+        assertThat(networkTypeIcon)
+            .isEqualTo(
+                Icon.Resource(
+                    ic_sat_mobiledata,
+                    ContentDescription.Resource(R.string.accessibility_status_bar_satellite_symbol),
+                )
+            )
+        assertThat(networkTypeBackground).isNull()
+        assertThat(activityInVisible).isFalse()
+        assertThat(activityOutVisible).isFalse()
+        assertThat(activityContainerVisible).isFalse()
+    }
+
+    @Test
+    @DisableFlags(NewSatelliteIcon.FLAG_NAME)
     fun nonTerrestrial_ignoresDefaultProperties() = runTest {
         repository.isNonTerrestrial.setValue(true)
 
@@ -788,6 +821,41 @@ class MobileIconViewModelKairosTest : SysuiTestCase() {
     }
 
     @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun nonTerrestrial_ignoresDefaultProperties_newSatelliteIconEnabled() = runTest {
+        repository.isNonTerrestrial.setValue(true)
+
+        val roaming by underTest.roaming.collectLastValue()
+        val networkTypeIcon by underTest.networkTypeIcon.collectLastValue()
+        val networkTypeBackground by underTest.networkTypeBackground.collectLastValue()
+        val activityInVisible by underTest.activityInVisible.collectLastValue()
+        val activityOutVisible by underTest.activityOutVisible.collectLastValue()
+        val activityContainerVisible by underTest.activityContainerVisible.collectLastValue()
+
+        repository.setAllRoaming(true)
+        repository.setNetworkTypeKey(mobileConnectionsRepositoryKairos.fake.LTE_KEY)
+        // sets the background on cellular
+        repository.hasPrioritizedNetworkCapabilities.setValue(true)
+        repository.dataActivityDirection.setValue(
+            DataActivityModel(hasActivityIn = true, hasActivityOut = true)
+        )
+
+        assertThat(roaming).isFalse()
+        assertThat(networkTypeIcon)
+            .isEqualTo(
+                Icon.Resource(
+                    ic_sat_mobiledata,
+                    ContentDescription.Resource(R.string.accessibility_status_bar_satellite_symbol),
+                )
+            )
+        assertThat(networkTypeBackground).isNull()
+        assertThat(activityInVisible).isFalse()
+        assertThat(activityOutVisible).isFalse()
+        assertThat(activityContainerVisible).isFalse()
+    }
+
+    @Test
+    @DisableFlags(NewSatelliteIcon.FLAG_NAME)
     fun nonTerrestrial_usesSatelliteIcon_flagOn() = runTest {
         repository.isNonTerrestrial.setValue(true)
         repository.satelliteLevel.setValue(0)
@@ -814,6 +882,7 @@ class MobileIconViewModelKairosTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(NewSatelliteIcon.FLAG_NAME)
     fun satelliteIcon_ignoresInflateSignalStrength_flagOn() = runTest {
         // Note that this is the exact same test as above, but with inflateSignalStrength set to
         // true we note that the level is unaffected by inflation
@@ -840,6 +909,130 @@ class MobileIconViewModelKairosTest : SysuiTestCase() {
 
         repository.satelliteLevel.setValue(4)
         assertThat(latest!!.icon.resId).isEqualTo(R.drawable.ic_satellite_connected_2)
+    }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun nonTerrestrial_usesNewSatelliteIcon() = runTest {
+        val icon by interactor.signalLevelIcon.collectLastValue()
+        repository.isNonTerrestrial.setValue(true)
+
+        assertThat(icon).isInstanceOf(SignalIconModel.CellularTypeIconModel.SatelliteV2::class.java)
+    }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun nonTerrestrial_newIcon_levelChanges() = runTest {
+        val icon by interactor.signalLevelIcon.collectLastValue()
+        repository.isNonTerrestrial.setValue(true)
+        repository.isInService.setValue(true)
+
+        repository.satelliteLevel.setValue(1)
+
+        assertThat(icon?.level).isEqualTo(1)
+
+        repository.satelliteLevel.setValue(3)
+
+        assertThat(icon?.level).isEqualTo(3)
+    }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun nonTerrestrial_newIcon_inService_noCutout() = runTest {
+        val icon by interactor.signalLevelIcon.collectLastValue()
+        repository.isNonTerrestrial.setValue(true)
+
+        repository.isInService.setValue(true)
+
+        assertThat((icon as SignalIconModel.CellularTypeIconModel.SatelliteV2).showExclamationMark)
+            .isFalse()
+    }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun nonTerrestrial_newIcon_notInService_cutout() = runTest {
+        val icon by interactor.signalLevelIcon.collectLastValue()
+        repository.isNonTerrestrial.setValue(true)
+
+        repository.isInService.setValue(false)
+
+        assertThat((icon as SignalIconModel.CellularTypeIconModel.SatelliteV2).showExclamationMark)
+            .isTrue()
+    }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun contentDescription_satellite_usesLevel() = runTest {
+        val latest by underTest.contentDescription.collectLastValue()
+        repository.isNonTerrestrial.setValue(true)
+
+        repository.satelliteLevel.setValue(0)
+        assertThat((latest as MobileContentDescription.SatelliteContentDescription).resId)
+            .isEqualTo(R.string.accessibility_status_bar_satellite_no_connection)
+
+        repository.satelliteLevel.setValue(1)
+        assertThat((latest as MobileContentDescription.SatelliteContentDescription).resId)
+            .isEqualTo(R.string.accessibility_status_bar_satellite_poor_connection)
+
+        repository.satelliteLevel.setValue(2)
+        assertThat((latest as MobileContentDescription.SatelliteContentDescription).resId)
+            .isEqualTo(R.string.accessibility_status_bar_satellite_poor_connection)
+
+        repository.satelliteLevel.setValue(3)
+        assertThat((latest as MobileContentDescription.SatelliteContentDescription).resId)
+            .isEqualTo(R.string.accessibility_status_bar_satellite_good_connection)
+
+        repository.satelliteLevel.setValue(4)
+        assertThat((latest as MobileContentDescription.SatelliteContentDescription).resId)
+            .isEqualTo(R.string.accessibility_status_bar_satellite_good_connection)
+    }
+
+    @Test
+    @EnableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun contentDescription_satellite_usesLevel_inflated() = runTest {
+        val latest by underTest.contentDescription.collectLastValue()
+        repository.isNonTerrestrial.setValue(true)
+        repository.inflateSignalStrength.setValue(true)
+        repository.numberOfLevels.setValue(6)
+
+        // Inflated level 0 -> shown level 1 -> reported level 0 (No connection)
+        repository.satelliteLevel.setValue(0)
+        assertThat((latest as MobileContentDescription.SatelliteContentDescription).resId)
+            .isEqualTo(R.string.accessibility_status_bar_satellite_no_connection)
+
+        // Inflated level 1 -> shown level 2 -> reported level 1 (Poor connection)
+        repository.satelliteLevel.setValue(1)
+        assertThat((latest as MobileContentDescription.SatelliteContentDescription).resId)
+            .isEqualTo(R.string.accessibility_status_bar_satellite_poor_connection)
+
+        // Inflated level 2 -> shown level 3 -> reported level 2 (Poor connection)
+        repository.satelliteLevel.setValue(2)
+        assertThat((latest as MobileContentDescription.SatelliteContentDescription).resId)
+            .isEqualTo(R.string.accessibility_status_bar_satellite_poor_connection)
+
+        // Inflated level 3 -> shown level 4 -> reported level 3 (Good connection)
+        repository.satelliteLevel.setValue(3)
+        assertThat((latest as MobileContentDescription.SatelliteContentDescription).resId)
+            .isEqualTo(R.string.accessibility_status_bar_satellite_good_connection)
+
+        // Inflated level 4 -> shown level 5 -> reported level 4 (Good connection)
+        repository.satelliteLevel.setValue(4)
+        assertThat((latest as MobileContentDescription.SatelliteContentDescription).resId)
+            .isEqualTo(R.string.accessibility_status_bar_satellite_good_connection)
+
+        // Inflated level 5 -> shown level 6 -> reported level 5 (No connection - fallback)
+        repository.satelliteLevel.setValue(5)
+        assertThat((latest as MobileContentDescription.SatelliteContentDescription).resId)
+            .isEqualTo(R.string.accessibility_status_bar_satellite_no_connection)
+    }
+
+    @Test
+    @DisableFlags(NewSatelliteIcon.FLAG_NAME)
+    fun contentDescription_satellite_flagOff_isNull() = runTest {
+        val latest by underTest.contentDescription.collectLastValue()
+        repository.isNonTerrestrial.setValue(true)
+
+        assertThat(latest).isNull()
     }
 
     companion object {

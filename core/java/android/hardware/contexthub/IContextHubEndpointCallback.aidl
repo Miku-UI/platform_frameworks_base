@@ -16,12 +16,14 @@
 
 package android.hardware.contexthub;
 
+import android.hardware.contexthub.DataFlowId;
+import android.hardware.contexthub.DataFlowSinkContext;
 import android.hardware.contexthub.HubEndpointInfo;
 import android.hardware.contexthub.HubMessage;
 import android.hardware.contexthub.HubServiceInfo;
 
 /**
-  * @hide
+ * @hide
  */
 oneway interface IContextHubEndpointCallback {
     /**
@@ -29,9 +31,11 @@ oneway interface IContextHubEndpointCallback {
      *
      * @param sessionId An integer identifying the session, assigned by the initiator
      * @param initiator HubEndpointInfo representing the requester
-     * @param serviceDescriptor Nullable string representing the service associated with this session
+     * @param serviceDescriptor Nullable string representing the service associated with this
+     *         session
      */
-    void onSessionOpenRequest(int sessionId, in HubEndpointInfo initiator, in @nullable String serviceDescriptor);
+    void onSessionOpenRequest(int sessionId, in HubEndpointInfo initiator,
+            in @nullable String serviceDescriptor);
 
     /**
      * Request from system service to close a specific session
@@ -52,10 +56,48 @@ oneway interface IContextHubEndpointCallback {
 
     /**
      * Message notification from system service for a specific session
-
+     *
      * @param sessionId The integer representing the communication session, previously set in
      *         IContextHubEndpoint.openSession(). This id is assigned by the HAL.
      * @param message The HubMessage parcelable that represents the message.
      */
     void onMessageReceived(int sessionId, in HubMessage message);
+
+    /**
+     * Callback delivering a sink context for a data flow whose source is an offload endpoint.
+     *
+     * @param context The context used to give the new sink access to the data flow.
+     * @param source The offload endpoint which is the source of this data flow.
+     * @param msg [optional] An optional message sent by the offload endpoint.
+     * @param sessionId [optional] An optional open session id between the data flow source and
+     *         the destination endpoint to associate this call with. If msg is provided, this
+     *         session can be used to send a MessageDeliveryStatus in response. Ignored if set to
+     *         SESSION_ID_INVALID.
+     */
+    void onDataFlowHostSinkRegistered(in DataFlowSinkContext context, in HubEndpointInfo source,
+            in @nullable HubMessage msg, int sessionId);
+
+    /**
+     * Callback notifying this endpoint that an endpoint on the other side of a data flow has
+     * stopped using it. This callback will only be invoked for a data flow that this endpoint is
+     * currently producing to or consuming from. It will be called both in the case that the offload
+     * endpoint crashed and when the endpoint intentionally stops accessing the data flow.
+     *
+     * If this endpoint is a sink on the data flow, it must stop accessing it and release
+     * resources associated with the data flow. If it is the source, it must release resources
+     * associated with the other endpoint.
+     *
+     * @param dataFlowId The id of the active data flow.
+     * @param endpoint The endpoint that is no longer attached to the data flow.
+     */
+    void onDataFlowOffloadEndpointUnregistered(
+            in DataFlowId dataFlowId, in @nullable HubEndpointInfo endpoint);
+
+    /**
+     * Callback notifying this endpoint that the provided data flows are no longer accessible, e.g.
+     * due to runtime permission changes.
+     *
+     * @param dataFlowIds The ids of the data flows that are no longer accessible.
+     */
+    void onDataFlowsInaccessible(in DataFlowId[] dataFlowIds);
 }

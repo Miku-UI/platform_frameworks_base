@@ -17,24 +17,33 @@
 package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
+import android.graphics.Rect
 import android.tools.device.apphelpers.StandardAppHelper
 import android.tools.traces.parsers.WindowManagerStateHelper
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import com.android.launcher3.tapl.LauncherInstrumentation
+import com.google.common.truth.Truth.assertThat
 import org.junit.Ignore
 import org.junit.Test
 
 /** Base test class for window drag CUJ. */
 @Ignore("Base Test Class")
 abstract class DragAppWindowScenarioTestBase : TestScenarioBase() {
-
     val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     val tapl = LauncherInstrumentation()
     val wmHelper = WindowManagerStateHelper(instrumentation)
     val device = UiDevice.getInstance(instrumentation)
 
     @Test abstract fun dragAppWindow()
+
+    /** Assert that the app window has moved to the right and down while maintaining its size. */
+    fun assertWindowMovedRightAndDown(initialBounds: Rect, finalBounds: Rect) {
+        assertThat(finalBounds.width()).isEqualTo(initialBounds.width())
+        assertThat(finalBounds.height()).isEqualTo(initialBounds.height())
+        assertThat(finalBounds.left).isGreaterThan(initialBounds.left)
+        assertThat(finalBounds.top).isGreaterThan(initialBounds.top)
+    }
 
     /** Return the top-center coordinate of the app header as the start coordinate. */
     fun getWindowDragStartCoordinate(appHelper: StandardAppHelper): Pair<Int, Int> {

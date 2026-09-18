@@ -34,8 +34,10 @@ import com.android.systemui.statusbar.StatusBarIconView.STATE_HIDDEN
 import com.android.systemui.statusbar.pipeline.shared.ui.binder.ModernStatusBarViewBinding
 import com.android.systemui.statusbar.pipeline.shared.ui.binder.ModernStatusBarViewVisibilityHelper
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 /** Compose view that is bound to bindable_status_bar_compose_icon.xml */
 class SingleBindableStatusBarComposeIconView(context: Context, attrs: AttributeSet?) :
@@ -78,20 +80,26 @@ class SingleBindableStatusBarComposeIconView(context: Context, attrs: AttributeS
          */
         fun withDefaultBinding(
             view: SingleBindableStatusBarComposeIconView,
-            shouldBeVisible: () -> Boolean,
+            shouldBeVisible: Flow<Boolean>,
             block: suspend LifecycleOwner.(View, StateFlow<Int>) -> Unit,
         ): ModernStatusBarViewBinding {
             @StatusBarIconView.VisibleState
             val visibilityState: MutableStateFlow<Int> = MutableStateFlow(STATE_HIDDEN)
-
             val iconTint: MutableStateFlow<Int> = MutableStateFlow(Color.WHITE)
             val decorTint: MutableStateFlow<Int> = MutableStateFlow(Color.WHITE)
+            var shouldBeVisibleLatestVal = false
 
             var isCollecting: Boolean = false
 
             view.repeatWhenAttached {
                 // Child binding
                 block(view, iconTint)
+
+                lifecycleScope.launch {
+                    repeatOnLifecycle(Lifecycle.State.CREATED) {
+                        shouldBeVisible.collect { shouldBeVisibleLatestVal = it }
+                    }
+                }
 
                 lifecycleScope.launch {
                     repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -132,7 +140,7 @@ class SingleBindableStatusBarComposeIconView(context: Context, attrs: AttributeS
 
             return object : ModernStatusBarViewBinding {
                 override fun getShouldIconBeVisible(): Boolean {
-                    return shouldBeVisible()
+                    return shouldBeVisibleLatestVal
                 }
 
                 override fun onVisibilityStateChanged(state: Int) {

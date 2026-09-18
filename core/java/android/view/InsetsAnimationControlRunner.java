@@ -88,6 +88,12 @@ public interface InsetsAnimationControlRunner {
     int getAnimationType();
 
     /**
+     * @return {@code true} if the view hierarchy has any {@link WindowInsetsAnimation.Callback}
+     * when starting this runner.
+     */
+    boolean hasAnimationCallback();
+
+    /**
      * @return The {@link SurfaceParamsApplier} this runner is using.
      */
     @NonNull

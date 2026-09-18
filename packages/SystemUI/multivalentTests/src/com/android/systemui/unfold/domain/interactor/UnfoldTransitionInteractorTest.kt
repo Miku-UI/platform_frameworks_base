@@ -90,10 +90,7 @@ class UnfoldTransitionInteractorTest : SysuiTestCase() {
                         underTest.unfoldTranslationX(isOnStartSide = true),
                         underTest.unfoldTranslationX(isOnStartSide = false),
                     ) { start, end ->
-                        Translations(
-                            start = start,
-                            end = end,
-                        )
+                        Translations(start = start, end = end)
                     }
                 )
             runCurrent()
@@ -128,10 +125,7 @@ class UnfoldTransitionInteractorTest : SysuiTestCase() {
                         underTest.unfoldTranslationX(isOnStartSide = true),
                         underTest.unfoldTranslationX(isOnStartSide = false),
                     ) { start, end ->
-                        Translations(
-                            start = start,
-                            end = end,
-                        )
+                        Translations(start = start, end = end)
                     }
                 )
             runCurrent()
@@ -157,9 +151,7 @@ class UnfoldTransitionInteractorTest : SysuiTestCase() {
             assertThat(translations?.end).isEqualTo(0f)
         }
 
-    private fun prepareConfiguration(
-        isLeftToRight: Boolean,
-    ): Int {
+    private fun prepareConfiguration(isLeftToRight: Boolean): Int {
         val configuration = context.resources.configuration
         if (isLeftToRight) {
             configuration.setLayoutDirection(Locale.US)
@@ -169,14 +161,11 @@ class UnfoldTransitionInteractorTest : SysuiTestCase() {
         kosmos.fakeConfigurationRepository.onConfigurationChange(configuration)
         val maxTranslation = 10
         kosmos.fakeConfigurationRepository.setDimensionPixelSize(
-            R.dimen.notification_side_paddings,
-            maxTranslation
+            R.dimen.notification_side_paddings_single,
+            maxTranslation,
         )
         return maxTranslation
     }
 
-    private data class Translations(
-        val start: Float,
-        val end: Float,
-    )
+    private data class Translations(val start: Float, val end: Float)
 }

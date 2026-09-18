@@ -19,12 +19,12 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
 import android.app.PendingIntent;
-import android.compat.annotation.UnsupportedAppUsage;
-import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.service.carrier.CarrierIdentifier;
 import android.telephony.UiccAccessRule;
 
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.util.Preconditions;
 
 import java.util.ArrayList;
@@ -33,7 +33,7 @@ import java.util.List;
 
 /**
  * Information about a subscription which is downloadable to an eUICC using
- * {@link EuiccManager#downloadSubscription(DownloadableSubscription, boolean, PendingIntent).
+ * {@link EuiccManager#downloadSubscription(DownloadableSubscription, boolean, PendingIntent)}.
  *
  * <p>For example, a DownloadableSubscription can be created through an activation code parsed from
  * a QR code. A server address can be parsed from the activation code to download more information
@@ -63,7 +63,6 @@ public final class DownloadableSubscription implements Parcelable {
      */
     @Nullable
     @Deprecated
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public final String encodedActivationCode;
 
     @Nullable private String confirmationCode;
@@ -75,6 +74,9 @@ public final class DownloadableSubscription implements Parcelable {
     // see getAccessRules and setAccessRules
     @Nullable
     private List<UiccAccessRule> accessRules;
+
+    @Nullable
+    private CarrierIdentifier carrierIdentifier;
 
     /** Gets the activation code. */
     @Nullable
@@ -93,14 +95,24 @@ public final class DownloadableSubscription implements Parcelable {
         carrierName = in.readString();
         accessRules = new ArrayList<UiccAccessRule>();
         in.readTypedList(accessRules, UiccAccessRule.CREATOR);
+        if (Flags.downloadableSubscriptionIncludeCarrierIdentifierInternal()) {
+            carrierIdentifier = in.readParcelable(null, CarrierIdentifier.class);
+        }
     }
 
     private DownloadableSubscription(String encodedActivationCode, String confirmationCode,
             String carrierName, List<UiccAccessRule> accessRules) {
+        this(encodedActivationCode, confirmationCode, carrierName, accessRules, null);
+    }
+
+    private DownloadableSubscription(String encodedActivationCode, String confirmationCode,
+            String carrierName, List<UiccAccessRule> accessRules,
+            CarrierIdentifier carrierIdentifier) {
         this.encodedActivationCode = encodedActivationCode;
         this.confirmationCode = confirmationCode;
         this.carrierName = carrierName;
         this.accessRules = accessRules;
+        this.carrierIdentifier = carrierIdentifier;
     }
 
     public static final class Builder {
@@ -108,6 +120,7 @@ public final class DownloadableSubscription implements Parcelable {
         @Nullable private String confirmationCode;
         @Nullable private String carrierName;
         List<UiccAccessRule> accessRules;
+        @Nullable private CarrierIdentifier carrierIdentifier;
 
         /** @hide */
         @SystemApi
@@ -130,8 +143,13 @@ public final class DownloadableSubscription implements Parcelable {
          */
         @NonNull
         public DownloadableSubscription build() {
-            return new DownloadableSubscription(encodedActivationCode, confirmationCode,
-                    carrierName, accessRules);
+            if (Flags.downloadableSubscriptionIncludeCarrierIdentifierInternal()) {
+                return new DownloadableSubscription(encodedActivationCode, confirmationCode,
+                        carrierName, accessRules, carrierIdentifier);
+            } else {
+                return new DownloadableSubscription(encodedActivationCode, confirmationCode,
+                        carrierName, accessRules);
+            }
         }
 
         /**
@@ -179,6 +197,21 @@ public final class DownloadableSubscription implements Parcelable {
         @SystemApi
         public Builder setAccessRules(@NonNull List<UiccAccessRule> value) {
             accessRules = value;
+            return this;
+        }
+
+        /**
+         * Sets the {@link CarrierIdentifier} for this subscription.
+         * @param value {@link CarrierIdentifier}.
+         * @hide
+         */
+        @NonNull
+        public Builder setCarrierIdentifier(@NonNull CarrierIdentifier value) {
+            if (!Flags.downloadableSubscriptionIncludeCarrierIdentifierInternal()) {
+                throw new UnsupportedOperationException(
+                        "Naughty attempt to access setCarrierIdentifier");
+            }
+            carrierIdentifier = value;
             return this;
         }
     }
@@ -230,7 +263,6 @@ public final class DownloadableSubscription implements Parcelable {
      * @deprecated - Do not use.
      */
     @Deprecated
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public void setCarrierName(String carrierName) {
         this.carrierName = carrierName;
     }
@@ -263,6 +295,24 @@ public final class DownloadableSubscription implements Parcelable {
     }
 
     /**
+     * Returns the {@link CarrierIdentifier} for this subscription.
+     *
+     * <p>Only present for downloadable subscriptions that were queried from a server (as opposed to
+     * those created with {@link #forActivationCode}). May be populated with
+     * {@link EuiccManager#getDownloadableSubscriptionMetadata}.
+     * @hide
+     */
+    @Nullable
+    public CarrierIdentifier getCarrierIdentifier() {
+        if (!Flags.downloadableSubscriptionIncludeCarrierIdentifierInternal()) {
+            throw new UnsupportedOperationException(
+                    "Naughty attempt to access getCarrierIdentifier");
+        }
+        return carrierIdentifier;
+    }
+
+
+    /**
      * Set the {@link UiccAccessRule}s dictating access to this subscription.
      * @hide
      * @deprecated - Do not use.
@@ -277,7 +327,6 @@ public final class DownloadableSubscription implements Parcelable {
      * @deprecated - Do not use.
      */
     @Deprecated
-    @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public void setAccessRules(UiccAccessRule[] accessRules) {
         this.accessRules = Arrays.asList(accessRules);
     }
@@ -288,6 +337,9 @@ public final class DownloadableSubscription implements Parcelable {
         dest.writeString(confirmationCode);
         dest.writeString(carrierName);
         dest.writeTypedList(accessRules);
+        if (Flags.downloadableSubscriptionIncludeCarrierIdentifierInternal()) {
+            dest.writeParcelable(carrierIdentifier, flags);
+        }
     }
 
     @Override

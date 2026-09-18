@@ -31,14 +31,10 @@ import java.util.Objects;
 /** Implements the shell command interface for {@link NetworkTimeUpdateService}. */
 class NetworkTimeUpdateServiceShellCommand extends ShellCommand {
 
-    /**
-     * The name of the service.
-     */
+    /** The name of the service. */
     private static final String SHELL_COMMAND_SERVICE_NAME = "network_time_update_service";
 
-    /**
-     * A shell command that forces the time signal to be refreshed from the network.
-     */
+    /** A shell command that forces the time signal to be refreshed from the network. */
     private static final String SHELL_COMMAND_FORCE_REFRESH = "force_refresh";
 
     /**
@@ -46,16 +42,14 @@ class NetworkTimeUpdateServiceShellCommand extends ShellCommand {
      * using {@link #SHELL_COMMAND_RESET_SERVER_CONFIG}.
      */
     private static final String SHELL_COMMAND_SET_SERVER_CONFIG = "set_server_config_for_tests";
+
     private static final String SET_SERVER_CONFIG_SERVER_ARG = "--server";
     private static final String SET_SERVER_CONFIG_TIMEOUT_ARG = "--timeout_millis";
 
-    /**
-     * A shell command that resets the NTP server config for tests.
-     */
+    /** A shell command that resets the NTP server config for tests. */
     private static final String SHELL_COMMAND_RESET_SERVER_CONFIG = "reset_server_config_for_tests";
 
-    @NonNull
-    private final NetworkTimeUpdateService mNetworkTimeUpdateService;
+    @NonNull private final NetworkTimeUpdateService mNetworkTimeUpdateService;
 
     NetworkTimeUpdateServiceShellCommand(NetworkTimeUpdateService networkTimeUpdateService) {
         mNetworkTimeUpdateService = Objects.requireNonNull(networkTimeUpdateService);
@@ -67,17 +61,12 @@ class NetworkTimeUpdateServiceShellCommand extends ShellCommand {
             return handleDefaultCommands(cmd);
         }
 
-        switch (cmd) {
-            case SHELL_COMMAND_FORCE_REFRESH:
-                return runForceRefresh();
-            case SHELL_COMMAND_SET_SERVER_CONFIG:
-                return runSetServerConfig();
-            case SHELL_COMMAND_RESET_SERVER_CONFIG:
-                return runResetServerConfig();
-            default: {
-                return handleDefaultCommands(cmd);
-            }
-        }
+        return switch (cmd) {
+            case SHELL_COMMAND_FORCE_REFRESH -> runForceRefresh();
+            case SHELL_COMMAND_SET_SERVER_CONFIG -> runSetServerConfig();
+            case SHELL_COMMAND_RESET_SERVER_CONFIG -> runResetServerConfig();
+            default -> handleDefaultCommands(cmd);
+        };
     }
 
     private int runForceRefresh() {
@@ -92,21 +81,16 @@ class NetworkTimeUpdateServiceShellCommand extends ShellCommand {
         String opt;
         while ((opt = getNextArg()) != null) {
             switch (opt) {
-                case SET_SERVER_CONFIG_SERVER_ARG: {
+                case SET_SERVER_CONFIG_SERVER_ARG -> {
                     try {
                         serverUris.add(NtpTrustedTime.parseNtpUriStrict(getNextArgRequired()));
                     } catch (URISyntaxException e) {
                         throw new IllegalArgumentException("Bad NTP server value", e);
                     }
-                    break;
                 }
-                case SET_SERVER_CONFIG_TIMEOUT_ARG: {
-                    timeout = Duration.ofMillis(Integer.parseInt(getNextArgRequired()));
-                    break;
-                }
-                default: {
-                    throw new IllegalArgumentException("Unknown option: " + opt);
-                }
+                case SET_SERVER_CONFIG_TIMEOUT_ARG ->
+                        timeout = Duration.ofMillis(Integer.parseInt(getNextArgRequired()));
+                default -> throw new IllegalArgumentException("Unknown option: " + opt);
             }
         }
 
@@ -139,13 +123,17 @@ class NetworkTimeUpdateServiceShellCommand extends ShellCommand {
         pw.printf("    Refreshes the latest time. Prints whether it was successful.\n");
         pw.printf("  %s\n", SHELL_COMMAND_SET_SERVER_CONFIG);
         pw.printf("    Sets the NTP server config for tests. The config is not persisted.\n");
-        pw.printf("      Options: %s <uri> [%s <additional uris>]+ %s <millis>\n",
-                SET_SERVER_CONFIG_SERVER_ARG, SET_SERVER_CONFIG_SERVER_ARG,
+        pw.printf(
+                "      Options: %s <uri> [%s <additional uris>]+ %s <millis>\n",
+                SET_SERVER_CONFIG_SERVER_ARG,
+                SET_SERVER_CONFIG_SERVER_ARG,
                 SET_SERVER_CONFIG_TIMEOUT_ARG);
-        pw.printf("      NTP server URIs must be in the form \"ntp://hostname\" or"
-                + " \"ntp://hostname:port\"\n");
+        pw.printf(
+                "      NTP server URIs must be in the form \"ntp://hostname\" or"
+                        + " \"ntp://hostname:port\"\n");
         pw.printf("  %s\n", SHELL_COMMAND_RESET_SERVER_CONFIG);
-        pw.printf("    Resets/clears the NTP server config set via %s.\n",
+        pw.printf(
+                "    Resets/clears the NTP server config set via %s.\n",
                 SHELL_COMMAND_SET_SERVER_CONFIG);
         pw.println();
     }

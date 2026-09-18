@@ -27,7 +27,6 @@ import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
 
 import android.content.Context;
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -35,7 +34,6 @@ import libcore.io.Streams;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -54,8 +52,6 @@ import java.util.zip.ZipFile;
 @RunWith(JUnit4.class)
 @DisabledOnRavenwood(blockedBy = SourceStampVerifier.class)
 public class SourceStampVerifierTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private Context mContext;
 

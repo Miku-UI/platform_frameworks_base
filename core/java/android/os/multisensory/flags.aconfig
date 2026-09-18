@@ -1,0 +1,10 @@
+package: "android.os.multisensory"
+container: "system"
+
+flag {
+    namespace: "feedback"
+    name: "enable_multisensory_feedback"
+    description: "Enable multisensory playback via the MultisensoryService"
+    bug: "449229683"
+    is_exported: true
+}

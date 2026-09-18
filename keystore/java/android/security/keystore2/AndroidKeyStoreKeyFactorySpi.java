@@ -18,6 +18,7 @@ package android.security.keystore2;
 
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyInfo;
+import android.security.keystore.KeyProperties;
 
 import java.security.InvalidKeyException;
 import java.security.Key;
@@ -32,11 +33,72 @@ import java.security.spec.RSAPublicKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
 /**
- * {@link KeyFactorySpi} backed by Android KeyStore.
+ * {@link KeyFactorySpi} backed by Android Keystore.
+ *
+ * <p>The {@link #engineGetKeySpec(Key, Class)} method does not encode private keys in PKCS#8 format
+ * (when the provided class is {@link PKCS8EncodedKeySpec}. This is because the AndroidKeyStore
+ * provider does not export private key material in order to uphold its security guarantees.
+ *
+ * <p>Concrete subclasses specific to ML-DSA are partially compliant with the {@link
+ * java.security.KeyFactory} specification given in <a href="https://openjdk.org/jeps/497">JEP
+ * 497</a> <b>for the {@link java.security.KeyFactory} methods supported by Android Keystore</b>.
+ * There is one deviation, which is the lack of support for {@link PKCS8EncodedKeySpec} in {@link
+ * #engineGetKeySpec(Key, Class)} as described above.
  *
  * @hide
  */
-public class AndroidKeyStoreKeyFactorySpi extends KeyFactorySpi {
+public abstract class AndroidKeyStoreKeyFactorySpi extends KeyFactorySpi {
+    /**
+     * Whether the given Java Security Standard Algorithm Name is supported.
+     *
+     * <p>ML-DSA subclasses must override this method since <a
+     * href="https://openjdk.org/jeps/497">JEP 497</a> prescribes that {@link
+     * java.security.KeyFactory} instances should selectively accept keys depending on how they were
+     * initialized:
+     *
+     * <ul>
+     *   <li>If initialized with the family name ("ML-DSA"), accept keys with any parameter set (in
+     *       our case ML-DSA-65 and ML-DSA-87 since they are the only two supported by Keystore and
+     *       KeyMint).
+     *   <li>If initialized with a parameter set name ("ML-DSA-65" or "ML-DSA-87"), only accept keys
+     *       with that parameter set.
+     * </ul>
+     *
+     * @param algorithm Java Security Standard Algorithm Name.
+     * @return {@code true} if the given algorithm is supported, {@code false} otherwise.
+     */
+    boolean supportsAlgorithm(String algorithm) {
+        return true;
+    }
+
+    public static class RSA extends AndroidKeyStoreKeyFactorySpi {}
+    public static class EC extends AndroidKeyStoreKeyFactorySpi {}
+    public static class XDH extends AndroidKeyStoreKeyFactorySpi {}
+    public static class ED25519 extends AndroidKeyStoreKeyFactorySpi {}
+
+    public static class MLDSA extends AndroidKeyStoreKeyFactorySpi {
+        @Override
+        public boolean supportsAlgorithm(String algorithm) {
+            // The family name "ML-DSA" is not included since all KeyFactory methods take a key or
+            // key spec as a parameter, which are associated with a specific parameter set.
+            return algorithm.equalsIgnoreCase(KeyProperties.KEY_ALGORITHM_ML_DSA_65)
+                    || algorithm.equalsIgnoreCase(KeyProperties.KEY_ALGORITHM_ML_DSA_87);
+        }
+    }
+
+    public static class MLDSA65 extends AndroidKeyStoreKeyFactorySpi {
+        @Override
+        public boolean supportsAlgorithm(String algorithm) {
+            return algorithm.equalsIgnoreCase(KeyProperties.KEY_ALGORITHM_ML_DSA_65);
+        }
+    }
+
+    public static class MLDSA87 extends AndroidKeyStoreKeyFactorySpi {
+        @Override
+        public boolean supportsAlgorithm(String algorithm) {
+            return algorithm.equalsIgnoreCase(KeyProperties.KEY_ALGORITHM_ML_DSA_87);
+        }
+    }
 
     @Override
     protected <T extends KeySpec> T engineGetKeySpec(Key key, Class<T> keySpecClass)
@@ -60,6 +122,7 @@ public class AndroidKeyStoreKeyFactorySpi extends KeyFactorySpi {
                         "Unsupported key type: " + key.getClass().getName()
                         + ". KeyInfo can be obtained only for Android Keystore private keys");
             }
+            checkKeyAlgorithm(key);
             AndroidKeyStorePrivateKey keystorePrivateKey = (AndroidKeyStorePrivateKey) key;
             @SuppressWarnings("unchecked")
             T result = (T) AndroidKeyStoreSecretKeyFactorySpi.getKeyInfo(keystorePrivateKey);
@@ -71,6 +134,7 @@ public class AndroidKeyStoreKeyFactorySpi extends KeyFactorySpi {
                         + ". X509EncodedKeySpec can be obtained only for Android Keystore public"
                         + " keys");
             }
+            checkKeyAlgorithm(key);
             @SuppressWarnings("unchecked")
             T result = (T) new X509EncodedKeySpec(((AndroidKeyStorePublicKey) key).getEncoded());
             return result;
@@ -85,6 +149,7 @@ public class AndroidKeyStoreKeyFactorySpi extends KeyFactorySpi {
             }
         } else if (RSAPublicKeySpec.class.equals(keySpecClass)) {
             if (key instanceof AndroidKeyStoreRSAPublicKey) {
+                checkKeyAlgorithm(key);
                 AndroidKeyStoreRSAPublicKey rsaKey = (AndroidKeyStoreRSAPublicKey) key;
                 @SuppressWarnings("unchecked")
                 T result =
@@ -98,6 +163,7 @@ public class AndroidKeyStoreKeyFactorySpi extends KeyFactorySpi {
             }
         } else if (ECPublicKeySpec.class.equals(keySpecClass)) {
             if (key instanceof AndroidKeyStoreECPublicKey) {
+                checkKeyAlgorithm(key);
                 AndroidKeyStoreECPublicKey ecKey = (AndroidKeyStoreECPublicKey) key;
                 @SuppressWarnings("unchecked")
                 T result = (T) new ECPublicKeySpec(ecKey.getW(), ecKey.getParams());
@@ -136,6 +202,29 @@ public class AndroidKeyStoreKeyFactorySpi extends KeyFactorySpi {
             throw new InvalidKeyException(
                     "To import a key into Android Keystore, use KeyStore.setEntry");
         }
+        try {
+            checkKeyAlgorithm(key);
+        } catch (InvalidKeySpecException e) {
+            throw new InvalidKeyException(e);
+        }
         return key;
+    }
+
+    private void checkKeyAlgorithm(Key key) throws InvalidKeySpecException {
+        String algorithm = key.getAlgorithm();
+
+        // ML-DSA keys need special handling to get their parameter set name since JEP 497
+        // requires their "getAlgorithm()" method to always return the family name "ML-DSA".
+        if (algorithm.equalsIgnoreCase(KeyProperties.KEY_ALGORITHM_ML_DSA)) {
+            if (key instanceof AndroidKeyStoreMlDsaKey) {
+                algorithm = ((AndroidKeyStoreMlDsaKey) key).getMlDsaAlgorithm();
+            } else {
+                throw new InvalidKeySpecException(
+                        "ML-DSA key must be an instance of AndroidKeyStoreMlDsaKey");
+            }
+        }
+        if (!supportsAlgorithm(algorithm)) {
+            throw new InvalidKeySpecException("Unsupported key algorithm: " + algorithm);
+        }
     }
 }

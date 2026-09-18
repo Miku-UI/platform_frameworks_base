@@ -22,6 +22,7 @@ import android.util.Log
 import com.android.internal.annotations.KeepForWeakReference
 import com.android.internal.annotations.VisibleForTesting
 import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.media.controls.shared.MediaLogger
 import com.android.systemui.media.controls.shared.model.MediaData
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.statusbar.NotificationLockscreenUserManager
@@ -45,6 +46,7 @@ constructor(
     private val userTracker: UserTracker,
     private val lockscreenUserManager: NotificationLockscreenUserManager,
     @Main private val executor: Executor,
+    private val mediaLogger: MediaLogger,
 ) : MediaDataManager.Listener {
     private val _listeners: MutableSet<MediaDataManager.Listener> = mutableSetOf()
     val listeners: Set<MediaDataManager.Listener>
@@ -97,6 +99,7 @@ constructor(
         userEntries.put(key, data)
 
         // Notify listeners
+        mediaLogger.logMediaNotificationExitedPipeline(data.packageName, data.song)
         listeners.forEach { it.onMediaDataLoaded(key, oldKey, data) }
     }
 

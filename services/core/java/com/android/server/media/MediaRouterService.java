@@ -52,6 +52,7 @@ import android.media.RouteListingPreference;
 import android.media.RoutingChangeInfo;
 import android.media.RoutingSessionInfo;
 import android.media.SuggestedDeviceInfo;
+import android.media.session.MediaController;
 import android.media.session.MediaSession;
 import android.os.Binder;
 import android.os.Bundle;
@@ -130,6 +131,8 @@ public final class MediaRouterService extends IMediaRouterService.Stub
     @GuardedBy("mLock")
     private int mCurrentActiveUserId = -1;
 
+    private final MediaRouterMetricLogger mMetricLogger = new MediaRouterMetricLogger();
+
     private final IAudioService mAudioService;
     private final AudioPlayerStateMonitor mAudioPlayerStateMonitor;
     private final Handler mHandler;
@@ -148,15 +151,11 @@ public final class MediaRouterService extends IMediaRouterService.Stub
 
     @RequiresPermission(Manifest.permission.OBSERVE_GRANT_REVOKE_PERMISSIONS)
     public MediaRouterService(Context context) {
-        if (Flags.enableMr2ServiceNonMainBgThread()) {
-            HandlerThread handlerThread = new HandlerThread(WORKER_THREAD_NAME);
-            handlerThread.start();
-            mLooper = handlerThread.getLooper();
-        } else {
-            mLooper = Looper.myLooper();
-        }
+        HandlerThread handlerThread = new HandlerThread(WORKER_THREAD_NAME);
+        handlerThread.start();
+        mLooper = handlerThread.getLooper();
         mHandler = new Handler(mLooper);
-        mService2 = new MediaRouter2ServiceImpl(context, mLooper);
+        mService2 = new MediaRouter2ServiceImpl(context, mLooper, mMetricLogger);
         mContext = context;
         Watchdog.getInstance().addMonitor(this);
         Resources res = context.getResources();
@@ -306,6 +305,9 @@ public final class MediaRouterService extends IMediaRouterService.Stub
             throw new IllegalArgumentException("client must not be null");
         }
 
+        final int uid = Binder.getCallingUid();
+        mMetricLogger.logSetBluetoothA2dpOnReported(uid, on);
+
         final long token = Binder.clearCallingIdentity();
         try {
             if (!Flags.disableSetBluetoothAd2pOnCalls()) {
@@ -425,22 +427,41 @@ public final class MediaRouterService extends IMediaRouterService.Stub
     // Binder call
     @RequiresPermission(Manifest.permission.PACKAGE_USAGE_STATS)
     @Override
-    public boolean showMediaOutputSwitcherWithRouter2(@NonNull String packageName,
-            @Nullable MediaSession.Token sessionToken) {
-        int uid = Binder.getCallingUid();
-        if (!validatePackageName(uid, packageName)) {
+    public boolean showMediaOutputSwitcherWithRouter2(
+            @NonNull String callerPackageName, @Nullable MediaSession.Token sessionToken) {
+        int callerUid = Binder.getCallingUid();
+        if (!validatePackageName(callerUid, callerPackageName)) {
             throw new SecurityException("packageName must match the calling identity");
         }
         if (sessionToken != null) {
             if (Flags.enableRouteVisibilityControlApi()) {
-                if (uid != sessionToken.getUid()) {
-                    throw new SecurityException("sessionToken uid must match the calling uid");
+                String sessionOwnerPackageName =
+                        new MediaController(mContext, sessionToken).getPackageName();
+                int sessionUid = sessionToken.getUid();
+                if (callerUid != sessionUid
+                        && !TextUtils.equals(sessionOwnerPackageName, callerPackageName)) {
+                    // We need either the uids or the package names to match because:
+                    // 1. A single uid may map to multiple package names in some rare occasions.
+                    // This means even if the package name doesn't match, the uid can match.
+                    // 2. A session's package name can be overridden by privileged apps, but the uid
+                    // will remain unmodified. Which means the uid might not match, but the package
+                    // name can.
+                    String errorMessage =
+                            TextUtils.formatSimple(
+                                    "showMediaOutputSwitcherWithRouter2: The caller (uid=%d,"
+                                        + " pkg=%s) must own the provided session token (owned by"
+                                        + " uid=%d,pkg=%s)",
+                                    callerUid,
+                                    callerPackageName,
+                                    sessionUid,
+                                    sessionOwnerPackageName);
+                    throw new SecurityException(errorMessage);
                 }
             } else {
                 sessionToken = null;
             }
         }
-        return mService2.showMediaOutputSwitcherWithRouter2(packageName, sessionToken);
+        return mService2.showMediaOutputSwitcherWithRouter2(callerPackageName, sessionToken);
     }
 
     // Binder call

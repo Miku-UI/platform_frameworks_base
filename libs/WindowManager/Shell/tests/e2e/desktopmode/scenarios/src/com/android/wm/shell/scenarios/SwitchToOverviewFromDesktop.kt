@@ -25,32 +25,29 @@ import androidx.test.uiautomator.UiDevice
 import com.android.launcher3.tapl.LauncherInstrumentation
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
-import com.android.wm.shell.Utils
 import org.junit.After
 import org.junit.Before
 import org.junit.Ignore
-import org.junit.Rule
 import org.junit.Test
 
 /**
-* Base test for opening recent apps overview from desktop mode.
-*
-* Navigation mode can be passed as a constructor parameter, by default it is set to gesture navigation.
-*/
+ * Base test for opening recent apps overview from desktop mode.
+ *
+ * Navigation mode can be passed as a constructor parameter, by default it is set to gesture
+ * navigation.
+ */
 @Ignore("Base Test Class")
 abstract class SwitchToOverviewFromDesktop
 constructor(
     val navigationMode: NavBar = NavBar.MODE_GESTURAL,
-    val rotation: Rotation = Rotation.ROTATION_0
-) : TestScenarioBase(rotation) {
+    val rotation: Rotation = Rotation.ROTATION_0,
+) : TestScenarioBase(rotation, navigationMode) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val tapl = LauncherInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
     val testApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
-
-    @Rule @JvmField val testSetup = Utils.testSetupRule(navigationMode, Rotation.ROTATION_0)
 
     @Before
     fun setup() {

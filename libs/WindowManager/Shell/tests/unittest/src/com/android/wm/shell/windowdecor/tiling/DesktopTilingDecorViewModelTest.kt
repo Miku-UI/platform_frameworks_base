@@ -335,6 +335,21 @@ class DesktopTilingDecorViewModelTest : ShellTestCase() {
     }
 
     @Test
+    fun onTaskLaunchStarted_notifiesAllActiveHandlers() {
+        val decorationByDeskId = SparseArray<DesktopTilingWindowDecoration>()
+        val desktopTilingDecoration2: DesktopTilingWindowDecoration = mock()
+        decorationByDeskId.put(1, desktopTilingDecoration)
+        decorationByDeskId.put(2, desktopTilingDecoration2)
+        desktopTilingDecorViewModel.currentUserId = 1
+        desktopTilingDecorViewModel.tilingHandlerByUserAndDeskId.put(1, decorationByDeskId)
+
+        desktopTilingDecorViewModel.onTaskLaunchStarted()
+
+        verify(desktopTilingDecoration).onTaskLaunchStarted()
+        verify(desktopTilingDecoration2).onTaskLaunchStarted()
+    }
+
+    @Test
     fun userChange_tilingDividerHidden() {
         val decorationByDisplayId = SparseArray<DesktopTilingWindowDecoration>()
         decorationByDisplayId.put(1, desktopTilingDecoration)
@@ -409,6 +424,39 @@ class DesktopTilingDecorViewModelTest : ShellTestCase() {
             .isEqualTo(Rect(6, 7, 2, 9))
         assertThat(desktopTilingDecorViewModel.getRightSnapBoundsIfTiled(2))
             .isEqualTo(Rect(12, 7, 8, 9))
+    }
+
+    @Test
+    fun onDeskSwitchAnimationStarting_hidesDividers() {
+        val decorationByDeskId = SparseArray<DesktopTilingWindowDecoration>()
+        val decoration1: DesktopTilingWindowDecoration = mock()
+        val decoration2: DesktopTilingWindowDecoration = mock()
+        decorationByDeskId.put(1, decoration1)
+        decorationByDeskId.put(2, decoration2)
+        desktopTilingDecorViewModel.currentUserId = 1
+        desktopTilingDecorViewModel.tilingHandlerByUserAndDeskId.put(1, decorationByDeskId)
+
+        desktopTilingDecorViewModel.onDeskSwitchAnimationStarting(
+            displayId = 1,
+            fromDeskId = 1,
+            toDeskId = 2,
+        )
+
+        verify(decoration1).hideDividerBar()
+        verify(decoration2).hideDividerBar()
+    }
+
+    @Test
+    fun onDeskSwitchAnimationEnded_showsDivider() {
+        val decorationByDeskId = SparseArray<DesktopTilingWindowDecoration>()
+        val decoration2: DesktopTilingWindowDecoration = mock()
+        decorationByDeskId.put(2, decoration2)
+        desktopTilingDecorViewModel.currentUserId = 1
+        desktopTilingDecorViewModel.tilingHandlerByUserAndDeskId.put(1, decorationByDeskId)
+
+        desktopTilingDecorViewModel.onDeskSwitchAnimationEnded(displayId = 1, deskId = 2)
+
+        verify(decoration2).showDividerBar(isTilingVisibleAfterRecents = false)
     }
 
     companion object {

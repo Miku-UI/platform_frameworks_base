@@ -4,3 +4,59 @@
 
 package: "android.companion.virtualdevice.flags"
 container: "system"
+
+flag {
+    namespace: "virtual_devices"
+    name: "virtual_display_insets"
+    description: "APIs for specifying virtual display insets (via cutout)"
+    bug: "350007135"
+    is_exported: true
+}
+
+flag {
+     namespace: "virtual_devices"
+     name: "activity_control_api"
+     description: "Enable APIs for fine grained activity policy, fallback and callbacks"
+     bug: "333443509"
+     is_exported: true
+}
+
+flag {
+    name: "virtual_rotary"
+    is_exported: true
+    namespace: "virtual_devices"
+    description: "Enable virtual rotary input"
+    bug: "320328752"
+}
+
+flag {
+    name: "virtual_camera_metadata"
+    namespace: "virtual_devices"
+    description: "API for enabling metadata support for virtual cameras"
+    bug: "371167033"
+    is_exported: true
+}
+
+flag {
+    namespace: "virtual_devices"
+    name: "virtual_display_rotation_api"
+    description: "API for on-demand rotation of virtual displays"
+    bug: "291748430"
+    is_exported: true
+}
+
+flag {
+    namespace: "virtual_devices"
+    name: "device_aware_display_power"
+    description: "Device awareness in power and display APIs"
+    bug: "285020111"
+    is_exported: true
+}
+
+flag {
+    name: "status_bar_and_insets"
+    namespace: "virtual_devices"
+    description: "Allow for status bar and insets on virtual devices"
+    bug: "350007866"
+    is_exported: true
+}

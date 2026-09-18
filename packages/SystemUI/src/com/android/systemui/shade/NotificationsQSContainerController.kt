@@ -30,15 +30,18 @@ import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.LauncherProxyService
 import com.android.systemui.LauncherProxyService.LauncherProxyListener
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.fragments.FragmentService
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.navigationbar.NavigationModeController
 import com.android.systemui.plugins.qs.QS
 import com.android.systemui.plugins.qs.QSContainerController
-import com.android.systemui.qs.flags.QSComposeFragment
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
+import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
+import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.shared.system.QuickStepContract
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayoutController
 import com.android.systemui.statusbar.policy.SplitShadeStateController
@@ -49,6 +52,8 @@ import dagger.Lazy
 import java.util.function.Consumer
 import javax.inject.Inject
 import kotlin.reflect.KMutableProperty0
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 @VisibleForTesting internal const val INSET_DEBOUNCE_MILLIS = 500L
 
@@ -65,13 +70,14 @@ constructor(
     @Main private val delayableExecutor: DelayableExecutor,
     private val notificationStackScrollLayoutController: NotificationStackScrollLayoutController,
     private val splitShadeStateController: SplitShadeStateController,
+    private val shadeModeInteractor: ShadeModeInteractor,
     private val largeScreenHeaderHelperLazy: Lazy<LargeScreenHeaderHelper>,
+    @Background private val backgroundScope: CoroutineScope,
 ) : ViewController<NotificationsQuickSettingsContainer>(view), QSContainerController {
 
     private var splitShadeEnabled = false
     private var isQSDetailShowing = false
     private var isQSCustomizing = false
-    private var isQSCustomizerAnimating = false
 
     private var shadeHeaderHeight = 0
     private var largeScreenShadeHeaderHeight = 0
@@ -131,6 +137,22 @@ constructor(
         isGestureNavigation = QuickStepContract.isGesturalMode(currentMode)
 
         mView.setStackScroller(notificationStackScrollLayoutController.getView())
+
+        if (SceneContainerFlag.isEnabled) {
+            observeSplitShadeState()
+        }
+    }
+
+    @VisibleForTesting
+    internal fun observeSplitShadeState() {
+        backgroundScope.launch {
+            shadeModeInteractor.shadeMode.collect { shadeMode ->
+                splitShadeEnabled = shadeMode is ShadeMode.Split
+                updateHeaderMarginsAndConstraints()
+                dimensionsChanged()
+                updateBottomSpacing()
+            }
+        }
     }
 
     public override fun onViewAttached() {
@@ -150,11 +172,7 @@ constructor(
         fragmentService.getFragmentHostManager(mView).removeTagListener(QS.TAG, mView)
     }
 
-    fun updateResources() {
-        val newSplitShadeEnabled =
-            splitShadeStateController.shouldUseSplitNotificationShade(resources)
-        val splitShadeEnabledChanged = newSplitShadeEnabled != splitShadeEnabled
-        splitShadeEnabled = newSplitShadeEnabled
+    private fun updateHeaderMarginsAndConstraints() {
         largeScreenShadeHeaderActive = LargeScreenUtils.shouldUseLargeScreenShadeHeader(resources)
         notificationsBottomMargin =
             resources.getDimensionPixelSize(R.dimen.notification_panel_margin_bottom)
@@ -169,7 +187,9 @@ constructor(
                 resources.getDimensionPixelSize(R.dimen.notification_panel_margin_top)
             }
         updateConstraints()
+    }
 
+    private fun dimensionsChanged(): Boolean {
         val scrimMarginChanged =
             ::scrimShadeBottomMargin.setAndReportChange(
                 resources.getDimensionPixelSize(
@@ -181,9 +201,18 @@ constructor(
                 resources.getDimensionPixelSize(R.dimen.qs_footer_action_inset) +
                     resources.getDimensionPixelSize(R.dimen.qs_footer_actions_bottom_padding)
             )
-        val dimensChanged = scrimMarginChanged || footerOffsetChanged
+        return scrimMarginChanged || footerOffsetChanged
+    }
 
-        if (splitShadeEnabledChanged || dimensChanged) {
+    fun updateResources() {
+        val newSplitShadeEnabled =
+            splitShadeStateController.shouldUseSplitNotificationShade(resources)
+        val splitShadeEnabledChanged = newSplitShadeEnabled != splitShadeEnabled
+        if (!SceneContainerFlag.isEnabled) {
+            splitShadeEnabled = newSplitShadeEnabled
+        }
+        updateHeaderMarginsAndConstraints()
+        if (dimensionsChanged() || (!SceneContainerFlag.isEnabled && splitShadeEnabledChanged)) {
             updateBottomSpacing()
         }
     }
@@ -205,13 +234,6 @@ constructor(
         return estimatedHeight.coerceAtLeast(minHeight)
     }
 
-    override fun setCustomizerAnimating(animating: Boolean) {
-        if (isQSCustomizerAnimating != animating) {
-            isQSCustomizerAnimating = animating
-            mView.invalidate()
-        }
-    }
-
     override fun setCustomizerShowing(showing: Boolean, animationDuration: Long) {
         if (showing != isQSCustomizing) {
             isQSCustomizing = showing
@@ -230,8 +252,8 @@ constructor(
         mView.setPadding(0, 0, 0, containerPadding)
         mView.setNotificationsMarginBottom(notificationsMargin)
         mView.setQSContainerPaddingBottom(qsContainerPadding)
-        if (QSComposeFragment.isEnabled && !isQSCustomizing) {
-            // To have complete control when QS is in compose, we add negative margin to negate
+        if (!isQSCustomizing) {
+            // To have complete control, we add negative margin to negate
             // the padding of the container. That way we can adjust the padding inside compose.
             mView.setQSNegativeMarginBottom(containerPadding)
         }

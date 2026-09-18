@@ -21,6 +21,8 @@ import static android.appwidget.flags.Flags.FLAG_REMOTE_VIEWS_PROTO;
 import static android.appwidget.flags.Flags.drawDataParcel;
 import static android.appwidget.flags.Flags.remoteAdapterConversion;
 import static android.content.res.Flags.FLAG_SELF_TARGETING_ANDROID_RESOURCE_FRRO;
+import static android.server.Flags.FLAG_ENABLE_THEME_SERVICE;
+import static android.util.TypedValue.COMPLEX_UNIT_PX;
 import static android.util.TypedValue.TYPE_INT_COLOR_ARGB8;
 import static android.util.proto.ProtoInputStream.NO_MORE_FIELDS;
 import static android.view.inputmethod.Flags.FLAG_HOME_SCREEN_HANDWRITING_DELEGATOR;
@@ -46,6 +48,7 @@ import android.app.ActivityThread;
 import android.app.Application;
 import android.app.PendingIntent;
 import android.app.RemoteInput;
+import android.app.ThemeManager;
 import android.appwidget.AppWidgetHostView;
 import android.appwidget.AppWidgetManager.ServiceCollectionCache;
 import android.appwidget.flags.Flags;
@@ -56,6 +59,7 @@ import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.om.FabricatedOverlay;
+import android.content.om.OverlayIdentifier;
 import android.content.om.OverlayInfo;
 import android.content.om.OverlayManager;
 import android.content.om.OverlayManagerTransaction;
@@ -67,9 +71,12 @@ import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.content.res.loader.ResourcesLoader;
 import android.content.res.loader.ResourcesProvider;
+import android.content.theming.ThemeInfo;
+import android.content.theming.ThemeStyle;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.BlendMode;
+import android.graphics.Color;
 import android.graphics.Outline;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
@@ -129,9 +136,9 @@ import com.android.internal.util.Preconditions;
 import com.android.internal.widget.IRemoteViewsFactory;
 import com.android.internal.widget.remotecompose.core.CoreDocument;
 import com.android.internal.widget.remotecompose.core.operations.Theme;
-import com.android.internal.widget.remotecompose.player.RemoteComposeDocument;
 import com.android.internal.widget.remotecompose.player.RemoteComposePlayer;
 import com.android.internal.widget.remotecompose.player.RemoteComposePlayer.PreparedDocument;
+import com.android.internal.widget.remotecompose.player.RemoteDocument;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -148,6 +155,8 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -472,6 +481,12 @@ public class RemoteViews implements Parcelable, Filter {
      */
     private boolean mHasDrawInstructions;
 
+    /**
+     * Captures the context's display density when this RemoteViews is sent to the app widget
+     * service.
+     */
+    private float mOriginalDensity = 0F;
+
     @Nullable
     private SparseArray<PendingIntent> mPendingIntentTemplate;
 
@@ -595,11 +610,27 @@ public class RemoteViews implements Parcelable, Filter {
     }
 
     /**
+     * @hide
+     */
+    public void setOriginalDensity(float originalDensity) {
+        mOriginalDensity = originalDensity;
+        if (hasSizedRemoteViews()) {
+            for (RemoteViews remoteView : mSizedRemoteViews) {
+                remoteView.setOriginalDensity(originalDensity);
+            }
+        } else if (hasLandscapeAndPortraitLayouts()) {
+            mLandscape.setOriginalDensity(originalDensity);
+            mPortrait.setOriginalDensity(originalDensity);
+        }
+    }
+
+    /**
      * Stores information related to reflection method lookup.
      */
     static class MethodKey {
-        public Class targetClass;
-        public Class paramClass;
+        public Class<?> targetClass;
+        public @Nullable Class<?> paramClass;
+        public @Nullable Class<?> paramTypeArgumentClass;
         public String methodName;
 
         @Override
@@ -610,22 +641,24 @@ public class RemoteViews implements Parcelable, Filter {
             MethodKey p = (MethodKey) o;
             return Objects.equals(p.targetClass, targetClass)
                     && Objects.equals(p.paramClass, paramClass)
+                    && Objects.equals(p.paramTypeArgumentClass, paramTypeArgumentClass)
                     && Objects.equals(p.methodName, methodName);
         }
 
         @Override
         public int hashCode() {
             return Objects.hashCode(targetClass) ^ Objects.hashCode(paramClass)
-                    ^ Objects.hashCode(methodName);
+                    ^ Objects.hashCode(paramTypeArgumentClass) ^ Objects.hashCode(methodName);
         }
 
-        public void set(Class targetClass, Class paramClass, String methodName) {
+        public void set(Class<?> targetClass, @Nullable Class<?> paramClass,
+                @Nullable Class<?> paramTypeArgumentClass, String methodName) {
             this.targetClass = targetClass;
             this.paramClass = paramClass;
+            this.paramTypeArgumentClass = paramTypeArgumentClass;
             this.methodName = methodName;
         }
     }
-
 
     /**
      * Stores information related to reflection method lookup result.
@@ -656,6 +689,12 @@ public class RemoteViews implements Parcelable, Filter {
         public ActionException(String message) {
             super(message);
         }
+
+        /** @hide */
+        public ActionException(String message, Throwable cause) {
+            super(message, cause);
+        }
+
         /**
          * @hide
          */
@@ -1369,7 +1408,8 @@ public class RemoteViews implements Parcelable, Filter {
                                     items,
                                     params.handler,
                                     params.colorResources,
-                                    onLightBackground);
+                                    onLightBackground,
+                                    params.originalDensity);
                 } catch (Throwable throwable) {
                     // setData should never failed with the validation in the items builder, but if
                     // it does, catch and rethrow.
@@ -1381,7 +1421,8 @@ public class RemoteViews implements Parcelable, Filter {
             try {
                 adapterView.setAdapter(
                         new RemoteCollectionItemsAdapter(
-                                items, params.handler, params.colorResources, onLightBackground));
+                                items, params.handler, params.colorResources, onLightBackground,
+                                params.originalDensity));
             } catch (Throwable throwable) {
                 // This could throw if the AdapterView somehow doesn't accept BaseAdapter due to
                 // a type error.
@@ -2177,34 +2218,62 @@ public class RemoteViews implements Parcelable, Filter {
                 return Instant.class;
             case BaseReflectionAction.DURATION:
                 return Duration.class;
+            case BaseReflectionAction.LIST_CHAR_SEQUENCE:
+                return List.class;
             default:
                 return null;
         }
     }
 
     @Nullable
-    private static MethodHandle getMethod(View view, String methodName, Class<?> paramType,
-            boolean async) {
+    private static Class<?> getParameterTypeArgument(int type) {
+        switch (type) {
+            case BaseReflectionAction.LIST_CHAR_SEQUENCE:
+                return CharSequence.class;
+            default:
+                return null;
+        }
+    }
+
+    @Nullable
+    private static MethodHandle getMethod(View view, String methodName,
+            @Nullable Class<?> paramType, @Nullable Class<?> paramTypeArgument, boolean async) {
         MethodArgs result;
         Class<? extends View> klass = view.getClass();
 
         synchronized (sMethods) {
             // The key is defined by the view class, param class and method name.
-            sLookupKey.set(klass, paramType, methodName);
+            sLookupKey.set(klass, paramType, paramTypeArgument, methodName);
             result = sMethods.get(sLookupKey);
 
             if (result == null) {
                 Method method;
                 try {
-                    if (paramType == null) {
-                        method = klass.getMethod(methodName);
-                    } else {
+                    if (paramType != null && paramTypeArgument != null) {
                         method = klass.getMethod(methodName, paramType);
+                        Type actualParam = method.getGenericParameterTypes()[0];
+                        if (!(actualParam instanceof ParameterizedType)) {
+                            throw new NoSuchMethodException(
+                                    String.format("Found %s but its parameter is %s, not generic",
+                                            method, actualParam));
+                        }
+                        Type actualParamTypeArg =
+                                ((ParameterizedType) actualParam).getActualTypeArguments()[0];
+                        if (!paramTypeArgument.equals(actualParamTypeArg)) {
+                            throw new NoSuchMethodException(
+                                    String.format(
+                                            "Found %s but it accepts %s and I wanted %s<%s>",
+                                            method, actualParam, paramType, paramTypeArgument));
+                        }
+                    } else if (paramType != null) {
+                        method = klass.getMethod(methodName, paramType);
+                    } else {
+                        method = klass.getMethod(methodName);
                     }
                     if (!method.isAnnotationPresent(RemotableViewMethod.class)) {
                         throw new ActionException("view: " + klass.getName()
                                 + " can't use method with RemoteViews: "
-                                + methodName + getParameters(paramType));
+                                + methodName + parametersToString(paramType, paramTypeArgument));
                     }
 
                     result = new MethodArgs();
@@ -2213,11 +2282,11 @@ public class RemoteViews implements Parcelable, Filter {
                             method.getAnnotation(RemotableViewMethod.class).asyncImpl();
                 } catch (NoSuchMethodException | IllegalAccessException ex) {
                     throw new ActionException("view: " + klass.getName() + " doesn't have method: "
-                            + methodName + getParameters(paramType));
+                            + methodName + parametersToString(paramType, paramTypeArgument), ex);
                 }
 
                 MethodKey key = new MethodKey();
-                key.set(klass, paramType, methodName);
+                key.set(klass, paramType, paramTypeArgument, methodName);
                 sMethods.put(key, result);
             }
 
@@ -2246,9 +2315,15 @@ public class RemoteViews implements Parcelable, Filter {
         }
     }
 
-    private static String getParameters(Class<?> paramType) {
-        if (paramType == null) return "()";
-        return "(" + paramType + ")";
+    private static String parametersToString(@Nullable Class<?> paramType,
+            @Nullable Class<?> paramTypeArgument) {
+        if (paramType != null && paramTypeArgument != null) {
+            return "(" + paramType + "<" + paramTypeArgument + ">)";
+        } else if (paramType != null) {
+            return "(" + paramType + ")";
+        } else {
+            return "()";
+        }
     }
 
     /**
@@ -2504,8 +2579,9 @@ public class RemoteViews implements Parcelable, Filter {
             if (view == null) return;
 
             try {
-                getMethod(view,
-                        mNext ? "showNext" : "showPrevious", null, false /* async */).invoke(view);
+                getMethod(view,  mNext
+                        ? "showNext"
+                        : "showPrevious", null, null, /* async= */ false).invoke(view);
             } catch (Throwable ex) {
                 throw new ActionException(ex);
             }
@@ -2743,6 +2819,7 @@ public class RemoteViews implements Parcelable, Filter {
         static final int BLEND_MODE = 17;
         static final int INSTANT = 18;
         static final int DURATION = 19;
+        static final int LIST_CHAR_SEQUENCE = 20;
 
         @UnsupportedAppUsage
         String mMethodName;
@@ -2787,12 +2864,14 @@ public class RemoteViews implements Parcelable, Filter {
             if (view == null) return;
 
             Class<?> param = getParameterType(this.mType);
+            Class<?> paramTypeArgument = getParameterTypeArgument(this.mType);
             if (param == null) {
                 throw new ActionException("bad type: " + this.mType);
             }
             Object value = getParameterValue(view);
             try {
-                getMethod(view, this.mMethodName, param, false /* async */).invoke(view, value);
+                getMethod(view, this.mMethodName, param, paramTypeArgument, /* async= */ false)
+                        .invoke(view, value);
             } catch (Throwable ex) {
                 throw new ActionException(ex);
             }
@@ -2805,13 +2884,15 @@ public class RemoteViews implements Parcelable, Filter {
             if (view == null) return ACTION_NOOP;
 
             Class<?> param = getParameterType(this.mType);
+            Class<?> paramTypeArgument = getParameterTypeArgument(this.mType);
             if (param == null) {
                 throw new ActionException("bad type: " + this.mType);
             }
 
             Object value = getParameterValue(view);
             try {
-                MethodHandle method = getMethod(view, this.mMethodName, param, true /* async */);
+                MethodHandle method = getMethod(view, this.mMethodName, param, paramTypeArgument,
+                        /* async= */ true);
                 // Upload the bitmap to GPU if the parameter is of type Bitmap or Icon.
                 // Since bitmaps in framework are seldomly modified, this is supposed to accelerate
                 // the operations.
@@ -2984,6 +3065,13 @@ public class RemoteViews implements Parcelable, Filter {
                         mValue = null;
                     }
                     break;
+                case LIST_CHAR_SEQUENCE:
+                    if (in.readInt() == 1) {
+                        mValue = in.readCharSequenceList();
+                    } else {
+                        mValue = null;
+                    }
+                    break;
                 default:
                     break;
             }
@@ -3051,6 +3139,16 @@ public class RemoteViews implements Parcelable, Filter {
                         out.writeInt(1);
                         out.writeLong(((Duration) this.mValue).getSeconds());
                         out.writeInt(((Duration) this.mValue).getNano());
+                    } else {
+                        out.writeInt(0);
+                    }
+                    break;
+                case LIST_CHAR_SEQUENCE:
+                    if (mValue != null) {
+                        out.writeInt(1);
+                        @SuppressWarnings("unchecked") List<CharSequence> list =
+                                (List<CharSequence>) mValue;
+                        out.writeCharSequenceList(new ArrayList<>(list));
                     } else {
                         out.writeInt(0);
                     }
@@ -3158,6 +3256,11 @@ public class RemoteViews implements Parcelable, Filter {
                         writeDurationToProto(out, (Duration) this.mValue,
                                 RemoteViewsProto.ReflectionAction.DURATION_VALUE);
                         break;
+                    case LIST_CHAR_SEQUENCE:
+                        // noinspection unchecked
+                        writeCharSequenceListToProto(out, (List<CharSequence>) this.mValue,
+                                RemoteViewsProto.ReflectionAction.CHAR_SEQUENCE_LIST_VALUE);
+                        break;
                     case BUNDLE:
                     case INTENT:
                     default:
@@ -3262,6 +3365,12 @@ public class RemoteViews implements Parcelable, Filter {
                                 createDurationFromProto(in,
                                         RemoteViewsProto.ReflectionAction.DURATION_VALUE));
                         break;
+                    case (int) RemoteViewsProto.ReflectionAction.CHAR_SEQUENCE_LIST_VALUE:
+                        values.put(RemoteViewsProto.ReflectionAction.CHAR_SEQUENCE_LIST_VALUE,
+                                createCharSequenceListFromProto(in,
+                                        RemoteViewsProto.ReflectionAction
+                                                .CHAR_SEQUENCE_LIST_VALUE));
+                        break;
                     default:
                         Log.w(LOG_TAG, "Unhandled field while reading RemoteViews proto!\n"
                                 + ProtoUtils.currentFieldToString(in));
@@ -3293,24 +3402,25 @@ public class RemoteViews implements Parcelable, Filter {
                         break;
                     case SHORT:
                         value = (short) values.get(RemoteViewsProto.ReflectionAction.SHORT_VALUE,
-                                0);
+                                (short) 0);
                         break;
                     case INT:
                         value = (int) values.get(RemoteViewsProto.ReflectionAction.INT_VALUE, 0);
                         break;
                     case LONG:
-                        value = (long) values.get(RemoteViewsProto.ReflectionAction.LONG_VALUE, 0);
+                        value = (long) values.get(RemoteViewsProto.ReflectionAction.LONG_VALUE, 0L);
                         break;
                     case FLOAT:
                         value = (float) values.get(RemoteViewsProto.ReflectionAction.FLOAT_VALUE,
-                                0);
+                                0F);
                         break;
                     case DOUBLE:
                         value = (double) values.get(RemoteViewsProto.ReflectionAction.DOUBLE_VALUE,
-                                0);
+                                0D);
                         break;
                     case CHAR:
-                        value = (char) values.get(RemoteViewsProto.ReflectionAction.CHAR_VALUE, 0);
+                        value = (char) values.get(RemoteViewsProto.ReflectionAction.CHAR_VALUE,
+                                (char) 0);
                         break;
                     case STRING:
                         value = (String) values.get(RemoteViewsProto.ReflectionAction.STRING_VALUE);
@@ -3346,6 +3456,10 @@ public class RemoteViews implements Parcelable, Filter {
                     case DURATION:
                         value = (Duration) values.get(
                                 RemoteViewsProto.ReflectionAction.DURATION_VALUE);
+                        break;
+                    case LIST_CHAR_SEQUENCE:
+                        value = values.get(
+                                RemoteViewsProto.ReflectionAction.CHAR_SEQUENCE_LIST_VALUE);
                         break;
                     case BUNDLE:
                     case INTENT:
@@ -3838,7 +3952,7 @@ public class RemoteViews implements Parcelable, Filter {
                         (float) values.get(
                                 RemoteViewsProto
                                         .ComplexUnitDimensionReflectionAction.DIMENSION_VALUE,
-                                0),
+                                0F),
                         (int) values.get(RemoteViewsProto.ComplexUnitDimensionReflectionAction.UNIT,
                                 0));
             };
@@ -5085,7 +5199,9 @@ public class RemoteViews implements Parcelable, Filter {
         public void apply(View root, ViewGroup rootParent, ActionApplyParams params) {
             final TextView target = root.findViewById(mViewId);
             if (target == null) return;
-            target.setTextSize(mUnits, mSize);
+            final float resolvedPixels = getScaledFloatingPixelsFromValueWithUnit(params,
+                    target.getResources().getDisplayMetrics(), mSize, mUnits);
+            target.setTextSize(COMPLEX_UNIT_PX, resolvedPixels);
         }
 
         @Override
@@ -5141,7 +5257,7 @@ public class RemoteViews implements Parcelable, Filter {
                         RemoteViewsProto.TextViewSizeAction.VIEW_ID);
                 return new TextViewSizeAction(viewId,
                         (int) values.get(RemoteViewsProto.TextViewSizeAction.UNITS, 0),
-                        (float) values.get(RemoteViewsProto.TextViewSizeAction.SIZE, 0));
+                        (float) values.get(RemoteViewsProto.TextViewSizeAction.SIZE, 0F));
             };
         }
     }
@@ -5150,38 +5266,52 @@ public class RemoteViews implements Parcelable, Filter {
      * Helper action to set padding on a View.
      */
     private static class ViewPaddingAction extends Action {
-        @Px int mLeft, mTop, mRight, mBottom;
+        float mLeft, mTop, mRight, mBottom;
+        int mUnits;
 
-        public ViewPaddingAction(@IdRes int viewId, @Px int left, @Px int top,
-                @Px int right, @Px int bottom) {
-            this.mViewId = viewId;
-            this.mLeft = left;
-            this.mTop = top;
-            this.mRight = right;
-            this.mBottom = bottom;
+        ViewPaddingAction(@IdRes int viewId, float left, float top, float right,
+                float bottom, @ComplexDimensionUnit int units) {
+            mViewId = viewId;
+            mLeft = left;
+            mTop = top;
+            mRight = right;
+            mBottom = bottom;
+            mUnits = units;
         }
 
         public ViewPaddingAction(Parcel parcel) {
             mViewId = parcel.readInt();
-            mLeft = parcel.readInt();
-            mTop = parcel.readInt();
-            mRight = parcel.readInt();
-            mBottom = parcel.readInt();
+            mLeft = parcel.readFloat();
+            mTop = parcel.readFloat();
+            mRight = parcel.readFloat();
+            mBottom = parcel.readFloat();
+            mUnits = parcel.readInt();
         }
 
         public void writeToParcel(Parcel dest, int flags) {
             dest.writeInt(mViewId);
-            dest.writeInt(mLeft);
-            dest.writeInt(mTop);
-            dest.writeInt(mRight);
-            dest.writeInt(mBottom);
+            dest.writeFloat(mLeft);
+            dest.writeFloat(mTop);
+            dest.writeFloat(mRight);
+            dest.writeFloat(mBottom);
+            dest.writeInt(mUnits);
         }
 
         @Override
         public void apply(View root, ViewGroup rootParent, ActionApplyParams params) {
             final View target = root.findViewById(mViewId);
             if (target == null) return;
-            target.setPadding(mLeft, mTop, mRight, mBottom);
+            final int leftPx = getScaledPixelsFromValueWithUnit(params,
+                    target.getResources().getDisplayMetrics(), mLeft, mUnits, /* isOffset= */ true);
+            final int topPx = getScaledPixelsFromValueWithUnit(params,
+                    target.getResources().getDisplayMetrics(), mTop, mUnits, /* isOffset= */ true);
+            final int rightPx = getScaledPixelsFromValueWithUnit(params,
+                    target.getResources().getDisplayMetrics(), mRight, mUnits,
+                    /* isOffset= */ true);
+            final int bottomPx = getScaledPixelsFromValueWithUnit(params,
+                    target.getResources().getDisplayMetrics(), mBottom, mUnits,
+                    /* isOffset= */ true);
+            target.setPadding(leftPx, topPx, rightPx, bottomPx);
         }
 
         @Override
@@ -5203,6 +5333,7 @@ public class RemoteViews implements Parcelable, Filter {
             out.write(RemoteViewsProto.ViewPaddingAction.RIGHT, mRight);
             out.write(RemoteViewsProto.ViewPaddingAction.TOP, mTop);
             out.write(RemoteViewsProto.ViewPaddingAction.BOTTOM, mBottom);
+            out.write(RemoteViewsProto.ViewPaddingAction.UNITS, mUnits);
             out.end(token);
         }
 
@@ -5217,21 +5348,41 @@ public class RemoteViews implements Parcelable, Filter {
                         values.put(RemoteViewsProto.ViewPaddingAction.VIEW_ID,
                                 in.readString(RemoteViewsProto.ViewPaddingAction.VIEW_ID));
                         break;
+                    case (int) RemoteViewsProto.ViewPaddingAction.LEFT_PX:
+                        values.put(RemoteViewsProto.ViewPaddingAction.LEFT,
+                                (float) in.readInt(RemoteViewsProto.ViewPaddingAction.LEFT));
+                        break;
+                    case (int) RemoteViewsProto.ViewPaddingAction.RIGHT_PX:
+                        values.put(RemoteViewsProto.ViewPaddingAction.RIGHT,
+                                (float) in.readInt(RemoteViewsProto.ViewPaddingAction.RIGHT));
+                        break;
+                    case (int) RemoteViewsProto.ViewPaddingAction.TOP_PX:
+                        values.put(RemoteViewsProto.ViewPaddingAction.TOP,
+                                (float) in.readInt(RemoteViewsProto.ViewPaddingAction.TOP));
+                        break;
+                    case (int) RemoteViewsProto.ViewPaddingAction.BOTTOM_PX:
+                        values.put(RemoteViewsProto.ViewPaddingAction.BOTTOM,
+                                (float) in.readInt(RemoteViewsProto.ViewPaddingAction.BOTTOM));
+                        break;
                     case (int) RemoteViewsProto.ViewPaddingAction.LEFT:
                         values.put(RemoteViewsProto.ViewPaddingAction.LEFT,
-                                in.readInt(RemoteViewsProto.ViewPaddingAction.LEFT));
+                                in.readFloat(RemoteViewsProto.ViewPaddingAction.LEFT));
                         break;
                     case (int) RemoteViewsProto.ViewPaddingAction.RIGHT:
                         values.put(RemoteViewsProto.ViewPaddingAction.RIGHT,
-                                in.readInt(RemoteViewsProto.ViewPaddingAction.RIGHT));
+                                in.readFloat(RemoteViewsProto.ViewPaddingAction.RIGHT));
                         break;
                     case (int) RemoteViewsProto.ViewPaddingAction.TOP:
                         values.put(RemoteViewsProto.ViewPaddingAction.TOP,
-                                in.readInt(RemoteViewsProto.ViewPaddingAction.TOP));
+                                in.readFloat(RemoteViewsProto.ViewPaddingAction.TOP));
                         break;
                     case (int) RemoteViewsProto.ViewPaddingAction.BOTTOM:
                         values.put(RemoteViewsProto.ViewPaddingAction.BOTTOM,
-                                in.readInt(RemoteViewsProto.ViewPaddingAction.BOTTOM));
+                                in.readFloat(RemoteViewsProto.ViewPaddingAction.BOTTOM));
+                        break;
+                    case (int) RemoteViewsProto.ViewPaddingAction.UNITS:
+                        values.put(RemoteViewsProto.ViewPaddingAction.UNITS,
+                                in.readInt(RemoteViewsProto.ViewPaddingAction.UNITS));
                         break;
                     default:
                         Log.w(LOG_TAG, "Unhandled field while reading RemoteViews proto!\n"
@@ -5246,10 +5397,12 @@ public class RemoteViews implements Parcelable, Filter {
                 int viewId = getAsIdentifier(resources, values,
                         RemoteViewsProto.ViewPaddingAction.VIEW_ID);
                 return new ViewPaddingAction(viewId,
-                        (int) values.get(RemoteViewsProto.ViewPaddingAction.LEFT, 0),
-                        (int) values.get(RemoteViewsProto.ViewPaddingAction.TOP, 0),
-                        (int) values.get(RemoteViewsProto.ViewPaddingAction.RIGHT, 0),
-                        (int) values.get(RemoteViewsProto.ViewPaddingAction.BOTTOM, 0));
+                        (float) values.get(RemoteViewsProto.ViewPaddingAction.LEFT, 0F),
+                        (float) values.get(RemoteViewsProto.ViewPaddingAction.TOP, 0F),
+                        (float) values.get(RemoteViewsProto.ViewPaddingAction.RIGHT, 0F),
+                        (float) values.get(RemoteViewsProto.ViewPaddingAction.BOTTOM, 0F),
+                        (int) values.get(RemoteViewsProto.ViewPaddingAction.UNITS,
+                                COMPLEX_UNIT_PX));
             };
         }
     }
@@ -5327,46 +5480,52 @@ public class RemoteViews implements Parcelable, Filter {
             switch (mProperty) {
                 case LAYOUT_MARGIN_LEFT:
                     if (layoutParams instanceof MarginLayoutParams) {
-                        ((MarginLayoutParams) layoutParams).leftMargin = getPixelOffset(target);
+                        ((MarginLayoutParams) layoutParams).leftMargin = getPixelOffset(target,
+                                params);
                         target.setLayoutParams(layoutParams);
                     }
                     break;
                 case LAYOUT_MARGIN_TOP:
                     if (layoutParams instanceof MarginLayoutParams) {
-                        ((MarginLayoutParams) layoutParams).topMargin = getPixelOffset(target);
+                        ((MarginLayoutParams) layoutParams).topMargin = getPixelOffset(target,
+                                params);
                         target.setLayoutParams(layoutParams);
                     }
                     break;
                 case LAYOUT_MARGIN_RIGHT:
                     if (layoutParams instanceof MarginLayoutParams) {
-                        ((MarginLayoutParams) layoutParams).rightMargin = getPixelOffset(target);
+                        ((MarginLayoutParams) layoutParams).rightMargin = getPixelOffset(target,
+                                params);
                         target.setLayoutParams(layoutParams);
                     }
                     break;
                 case LAYOUT_MARGIN_BOTTOM:
                     if (layoutParams instanceof MarginLayoutParams) {
-                        ((MarginLayoutParams) layoutParams).bottomMargin = getPixelOffset(target);
+                        ((MarginLayoutParams) layoutParams).bottomMargin = getPixelOffset(target,
+                                params);
                         target.setLayoutParams(layoutParams);
                     }
                     break;
                 case LAYOUT_MARGIN_START:
                     if (layoutParams instanceof MarginLayoutParams) {
-                        ((MarginLayoutParams) layoutParams).setMarginStart(getPixelOffset(target));
+                        ((MarginLayoutParams) layoutParams).setMarginStart(getPixelOffset(target,
+                                params));
                         target.setLayoutParams(layoutParams);
                     }
                     break;
                 case LAYOUT_MARGIN_END:
                     if (layoutParams instanceof MarginLayoutParams) {
-                        ((MarginLayoutParams) layoutParams).setMarginEnd(getPixelOffset(target));
+                        ((MarginLayoutParams) layoutParams).setMarginEnd(getPixelOffset(target,
+                                params));
                         target.setLayoutParams(layoutParams);
                     }
                     break;
                 case LAYOUT_WIDTH:
-                    layoutParams.width = getPixelSize(target);
+                    layoutParams.width = getPixelSize(target, params);
                     target.setLayoutParams(layoutParams);
                     break;
                 case LAYOUT_HEIGHT:
-                    layoutParams.height = getPixelSize(target);
+                    layoutParams.height = getPixelSize(target, params);
                     target.setLayoutParams(layoutParams);
                     break;
                 default:
@@ -5374,7 +5533,7 @@ public class RemoteViews implements Parcelable, Filter {
             }
         }
 
-        private int getPixelOffset(View target) {
+        private int getPixelOffset(View target, ActionApplyParams params) {
             try {
                 switch (mValueType) {
                     case VALUE_TYPE_ATTRIBUTE:
@@ -5391,8 +5550,9 @@ public class RemoteViews implements Parcelable, Filter {
                         }
                         return target.getResources().getDimensionPixelOffset(mValue);
                     case VALUE_TYPE_COMPLEX_UNIT:
-                        return TypedValue.complexToDimensionPixelOffset(mValue,
-                                target.getResources().getDisplayMetrics());
+                        return getScaledPixelsFromComplexValue(params,
+                                target.getResources().getDisplayMetrics(), mValue,
+                                /* isOffset= */ true);
                     default:
                         return mValue;
                 }
@@ -5401,7 +5561,7 @@ public class RemoteViews implements Parcelable, Filter {
             }
         }
 
-        private int getPixelSize(View target) {
+        private int getPixelSize(View target, ActionApplyParams params) {
             try {
                 switch (mValueType) {
                     case VALUE_TYPE_ATTRIBUTE:
@@ -5418,8 +5578,9 @@ public class RemoteViews implements Parcelable, Filter {
                         }
                         return target.getResources().getDimensionPixelSize(mValue);
                     case VALUE_TYPE_COMPLEX_UNIT:
-                        return TypedValue.complexToDimensionPixelSize(mValue,
-                                target.getResources().getDisplayMetrics());
+                        return getScaledPixelsFromComplexValue(params,
+                                target.getResources().getDisplayMetrics(), mValue,
+                                /* isOffset= */ false);
                     default:
                         return mValue;
                 }
@@ -5898,8 +6059,8 @@ public class RemoteViews implements Parcelable, Filter {
                         radius = mValue == 0 ? 0 : target.getResources().getDimension(mValue);
                         break;
                     case VALUE_TYPE_COMPLEX_UNIT:
-                        radius = TypedValue.complexToDimension(mValue,
-                                target.getResources().getDisplayMetrics());
+                        radius = getScaledFloatingPixelsFromComplexValue(params,
+                                target.getResources().getDisplayMetrics(), mValue);
                         break;
                     default:
                         radius = mValue;
@@ -6048,7 +6209,7 @@ public class RemoteViews implements Parcelable, Filter {
         }
 
         private Action applyAction(
-                View root, BiFunction<RemoteComposePlayer, RemoteComposeDocument, Action> block) {
+                View root, BiFunction<RemoteComposePlayer, RemoteDocument, Action> block) {
             if (drawDataParcel() && mInstructions != null
                     && root instanceof RemoteComposePlayer player) {
                 final List<byte[]> bytes = mInstructions.mInstructions;
@@ -6056,7 +6217,7 @@ public class RemoteViews implements Parcelable, Filter {
                     return ACTION_NOOP;
                 }
                 try (ByteArrayInputStream is = new ByteArrayInputStream(bytes.get(0))) {
-                    return block.apply(player, new RemoteComposeDocument(is));
+                    return block.apply(player, new RemoteDocument(is));
                 } catch (IOException e) {
                     Log.e(LOG_TAG, "Failed to parse draw instructions", e);
                 }
@@ -6368,6 +6529,7 @@ public class RemoteViews implements Parcelable, Filter {
         mIdealSize = src.mIdealSize;
         mProviderInstanceId = src.mProviderInstanceId;
         mHasDrawInstructions = src.mHasDrawInstructions;
+        mOriginalDensity = src.mOriginalDensity;
 
         if (src.hasLandscapeAndPortraitLayouts()) {
             mLandscape = createInitializedFrom(src.mLandscape, hierarchyRoot);
@@ -6481,6 +6643,7 @@ public class RemoteViews implements Parcelable, Filter {
         mApplyFlags = parcel.readInt();
         mProviderInstanceId = parcel.readLong();
         mHasDrawInstructions = parcel.readBoolean();
+        mOriginalDensity = parcel.readFloat();
 
         // Ensure that all descendants have their caches set up recursively.
         if (mIsRoot) {
@@ -7425,6 +7588,11 @@ public class RemoteViews implements Parcelable, Filter {
     /**
      * Equivalent to calling {@link android.view.View#setPadding(int, int, int, int)}.
      *
+     * <p>Prefer using the {@link #setViewPadding(int, float, float, float, float, int)}
+     * overload that accepts scalable units like {@link TypedValue#COMPLEX_UNIT_DIP}. As of Android
+     * 17, the pixel values set by this function will be automatically scaled when the RemoteViews
+     * is used on a display with a different density.</p>
+     *
      * @param viewId The id of the view to change
      * @param left the left padding in pixels
      * @param top the top padding in pixels
@@ -7433,7 +7601,29 @@ public class RemoteViews implements Parcelable, Filter {
      */
     public void setViewPadding(@IdRes int viewId,
             @Px int left, @Px int top, @Px int right, @Px int bottom) {
-        addAction(new ViewPaddingAction(viewId, left, top, right, bottom));
+        addAction(new ViewPaddingAction(viewId, left, top, right, bottom, COMPLEX_UNIT_PX));
+    }
+
+    /**
+     * Equivalent to calling {@link android.view.View#setPadding(int, int, int, int)}. This overload
+     * supports using values with complex units that are resolved when this RemoteViews is
+     * displayed.
+     *
+     * <p>Prefer using scalable units like {@link TypedValue#COMPLEX_UNIT_DIP}. As of Android 17,
+     * the {@link TypedValue#COMPLEX_UNIT_PX} values set by this function will be automatically
+     * scaled when the RemoteViews is used on a display with a different density.</p>.
+     *
+     * @param viewId The id of the view to change
+     * @param left the left padding value in the given units
+     * @param top the top padding value in the given units
+     * @param right the right padding value in the given units
+     * @param bottom the bottom padding value in the given units
+     * @param units The unit type of the value, e.g. {@link TypedValue#COMPLEX_UNIT_DIP}
+     */
+    @FlaggedApi(Flags.FLAG_WIDGET_DISPLAY_CHANGES)
+    public void setViewPadding(@IdRes int viewId, float left, float top, float right, float bottom,
+            @ComplexDimensionUnit int units) {
+        addAction(new ViewPaddingAction(viewId, left, top, right, bottom, units));
     }
 
     /**
@@ -7467,8 +7657,9 @@ public class RemoteViews implements Parcelable, Filter {
      * Only works if the {@link View#getLayoutParams()} supports margins.
      *
      * <p>NOTE: It is recommended to use {@link TypedValue#COMPLEX_UNIT_PX} only for 0.
-     * Setting margins in pixels will behave poorly when the RemoteViews object is used on a
-     * display with a different density.
+     * Otherwise, prefer using scalable units like {@link TypedValue#COMPLEX_UNIT_DIP}.
+     * As of Android 17, the {@link TypedValue#COMPLEX_UNIT_PX} values set by this function will be
+     * automatically scaled when the RemoteViews is used on a display with a different density.</p>.
      *
      * @param viewId The id of the view to change
      * @param type The margin being set e.g. {@link #MARGIN_END}
@@ -7486,8 +7677,9 @@ public class RemoteViews implements Parcelable, Filter {
      *
      * <p>NOTE: It is recommended to use {@link TypedValue#COMPLEX_UNIT_PX} only for 0,
      * {@link ViewGroup.LayoutParams#WRAP_CONTENT}, or {@link ViewGroup.LayoutParams#MATCH_PARENT}.
-     * Setting actual sizes in pixels will behave poorly when the RemoteViews object is used on a
-     * display with a different density.
+     * Otherwise, prefer using scalable units like {@link TypedValue#COMPLEX_UNIT_DIP}.
+     * As of Android 17, the {@link TypedValue#COMPLEX_UNIT_PX} values set by this function will be
+     * automatically scaled when the RemoteViews is used on a display with a different density.</p>.
      *
      * @param width Width of the view in the given units
      * @param units The unit type of the value e.g. {@link TypedValue#COMPLEX_UNIT_DIP}
@@ -7525,8 +7717,9 @@ public class RemoteViews implements Parcelable, Filter {
      *
      * <p>NOTE: It is recommended to use {@link TypedValue#COMPLEX_UNIT_PX} only for 0,
      * {@link ViewGroup.LayoutParams#WRAP_CONTENT}, or {@link ViewGroup.LayoutParams#MATCH_PARENT}.
-     * Setting actual sizes in pixels will behave poorly when the RemoteViews object is used on a
-     * display with a different density.
+     * Otherwise, prefer using scalable units like {@link TypedValue#COMPLEX_UNIT_DIP}.
+     * As of Android 17, the {@link TypedValue#COMPLEX_UNIT_PX} values set by this function will be
+     * automatically scaled when the RemoteViews is used on a display with a different density.</p>.
      *
      * @param height height of the view in the given units
      * @param units The unit type of the value e.g. {@link TypedValue#COMPLEX_UNIT_DIP}
@@ -7563,8 +7756,9 @@ public class RemoteViews implements Parcelable, Filter {
      * {@link TypedValue#applyDimension(int, float, DisplayMetrics)}.
      *
      * <p>NOTE: It is recommended to use {@link TypedValue#COMPLEX_UNIT_PX} only for 0.
-     * Setting margins in pixels will behave poorly when the RemoteViews object is used on a
-     * display with a different density.
+     * Otherwise, prefer using scalable units like {@link TypedValue#COMPLEX_UNIT_DIP}.
+     * As of Android 17, the {@link TypedValue#COMPLEX_UNIT_PX} values set by this function will be
+     * automatically scaled when the RemoteViews is used on a display with a different density.</p>.
      */
     public void setViewOutlinePreferredRadius(
             @IdRes int viewId, float radius, @ComplexDimensionUnit int units) {
@@ -8056,6 +8250,22 @@ public class RemoteViews implements Parcelable, Filter {
     }
 
     /**
+     * Call a method taking one {@code List<CharSequence>} on a view in the layout for this
+     * RemoteViews.
+     *
+     * @param viewId The id of the view on which to call the method.
+     * @param methodName The name of the method to call.
+     * @param value The value to pass to the method.
+     *
+     * @hide
+     */
+    public void setCharSequenceList(@IdRes int viewId, String methodName,
+            @Nullable List<CharSequence> value) {
+        addAction(new ReflectionAction(viewId, methodName, BaseReflectionAction.LIST_CHAR_SEQUENCE,
+                value));
+    }
+
+    /**
      * Call a method taking one Bundle on a view in the layout for this RemoteViews.
      *
      * @param viewId The id of the view on which to call the method.
@@ -8526,6 +8736,7 @@ public class RemoteViews implements Parcelable, Filter {
         private AsyncApplyTask(
                 RemoteViews rv, ViewGroup parent, Context context, OnViewAppliedListener listener,
                 ActionApplyParams applyParams, View result, boolean topLevel) {
+            super(context.getMainLooper());
             mRV = rv;
             mParent = parent;
             mContext = context;
@@ -8583,6 +8794,11 @@ public class RemoteViews implements Parcelable, Filter {
                         ActionApplyParams applyParams = mApplyParams.clone();
                         if (applyParams.handler == null) {
                             applyParams.handler = DEFAULT_INTERACTION_HANDLER;
+                        }
+                        if (!applyParams.hasOriginalDensity()) {
+                            // Use this RemoteViews' originalDensity if one was not passed from a
+                            // parent.
+                            applyParams.originalDensity = mOriginalDensity;
                         }
                         try {
                             Trace.beginSection(hasDrawInstructions()
@@ -8773,6 +8989,10 @@ public class RemoteViews implements Parcelable, Filter {
         if (params.handler == null) {
             params.handler = DEFAULT_INTERACTION_HANDLER;
         }
+        if (!params.hasOriginalDensity()) {
+            // Use this RemoteViews' originalDensity if one was not passed from a parent.
+            params.originalDensity = mOriginalDensity;
+        }
         if (v instanceof RemoteComposePlayer player) {
             player.setTheme(v.getResources().getConfiguration().isNightModeActive()
                     ? Theme.DARK : Theme.LIGHT);
@@ -8892,6 +9112,7 @@ public class RemoteViews implements Parcelable, Filter {
         public ColorResources colorResources;
         public Executor executor;
         @StyleRes public int applyThemeResId;
+        public float originalDensity = 0F;
 
         @Override
         public ActionApplyParams clone() {
@@ -8899,7 +9120,8 @@ public class RemoteViews implements Parcelable, Filter {
                     .withInteractionHandler(handler)
                     .withColorResources(colorResources)
                     .withExecutor(executor)
-                    .withThemeResId(applyThemeResId);
+                    .withThemeResId(applyThemeResId)
+                    .withOriginalDensity(originalDensity);
         }
 
         public ActionApplyParams withInteractionHandler(InteractionHandler handler) {
@@ -8920,6 +9142,15 @@ public class RemoteViews implements Parcelable, Filter {
         public ActionApplyParams withExecutor(Executor executor) {
             this.executor = executor;
             return this;
+        }
+
+        public ActionApplyParams withOriginalDensity(float originalDensity) {
+            this.originalDensity = originalDensity;
+            return this;
+        }
+
+        public boolean hasOriginalDensity() {
+            return !Float.isNaN(originalDensity) && Float.compare(originalDensity, 0F) > 0;
         }
     }
 
@@ -9067,16 +9298,77 @@ public class RemoteViews implements Parcelable, Filter {
         @Nullable
         public static ColorResources createWithOverlay(Context context,
                 SparseIntArray colorMapping) {
-            try {
-                String owningPackage = context.getPackageName();
-                FabricatedOverlay overlay = new FabricatedOverlay.Builder(owningPackage,
-                        OVERLAY_NAME, OVERLAY_TARGET_PACKAGE_NAME).build();
+            String owningPackage = context.getPackageName();
+            FabricatedOverlay overlay = new FabricatedOverlay.Builder(owningPackage,
+                    OVERLAY_NAME, OVERLAY_TARGET_PACKAGE_NAME).build();
+            for (int i = 0; i < colorMapping.size(); i++) {
+                overlay.setResourceValue(
+                        context.getResources().getResourceName(colorMapping.keyAt(i)),
+                        TYPE_INT_COLOR_ARGB8, colorMapping.valueAt(i), null);
+            }
+            ResourcesLoader colorsLoader = createLoaderWithOverlay(context, overlay);
+            if (colorsLoader == null) return null;
+            return new ColorResources(colorsLoader, colorMapping.clone());
+        }
 
-                for (int i = 0; i < colorMapping.size(); i++) {
-                    overlay.setResourceValue(
-                            context.getResources().getResourceName(colorMapping.keyAt(i)),
-                            TYPE_INT_COLOR_ARGB8, colorMapping.valueAt(i), null);
-                }
+        /**
+         *  Creates a fabricate overlay (FRRO) using a list of seed colors and style, then adds the
+         *  theme colors to the given context using a resource loader.
+         *
+         *  <p>The created class can overlay any color resources, private or public, at runtime.</p>
+         *
+         * @param context Context of the view hosting the widget.
+         * @param seedColors List of seed colors for generating the overlay.
+         * @param style The ThemeStyle for generating the overlay.
+         *
+         * @hide
+         */
+        @FlaggedApi(FLAG_ENABLE_THEME_SERVICE)
+        @Nullable
+        public static ColorResources createWithOverlay(@NonNull Context context,
+                @NonNull int[] seedColors, @ThemeStyle.Type int style) {
+            if (seedColors.length < 1) {
+                return null;
+            }
+            ThemeManager themeManager = context.getSystemService(ThemeManager.class);
+            if (themeManager == null) {
+                return null;
+            }
+            Color[] colors = Arrays.stream(seedColors).mapToObj(Color::valueOf).toArray(
+                    Color[]::new);
+            ThemeInfo.Builder themeInfo = new ThemeInfo.Builder().setSeedColors(colors);
+            if (style != -1) {
+                themeInfo.setStyle(style);
+            }
+            FabricatedOverlay overlay = themeManager.generateDynamicColorOverlay(
+                    themeInfo.build());
+
+            try {
+                ResourcesLoader colorsLoader = createLoaderWithOverlay(context, overlay);
+
+                Map<String, Color> resNameToColor = ThemeManager.extractColorPairs(overlay);
+                SparseIntArray resIdToColorInt = new SparseIntArray();
+                resNameToColor.forEach((resName, color) -> {
+                    resIdToColorInt.put(
+                            context.getResources().getIdentifier(resName, null, null),
+                            color.toArgb()
+                    );
+                });
+                return new ColorResources(colorsLoader, resIdToColorInt);
+            } catch (Exception e) {
+                Log.e(LOG_TAG, "Failed to add theme color overlay into loader", e);
+                return null;
+            }
+        }
+
+        @Nullable
+        private static ResourcesLoader createLoaderWithOverlay(@NonNull Context context,
+                @NonNull FabricatedOverlay overlay) {
+            try {
+                overlay.setOwningPackage(context.getPackageName());
+                overlay.setTargetOverlayable(OVERLAY_TARGET_PACKAGE_NAME);
+
+                OverlayIdentifier overlayId = overlay.getIdentifier();
                 OverlayManager overlayManager = context.getSystemService(OverlayManager.class);
                 OverlayManagerTransaction.Builder transaction =
                         new OverlayManagerTransaction.Builder()
@@ -9087,8 +9379,7 @@ public class RemoteViews implements Parcelable, Filter {
                 OverlayInfo overlayInfo =
                         overlayManager.getOverlayInfosForTarget(OVERLAY_TARGET_PACKAGE_NAME)
                                 .stream()
-                                .filter(info -> TextUtils.equals(info.overlayName, OVERLAY_NAME)
-                                        && TextUtils.equals(info.packageName, owningPackage))
+                                .filter(info -> info.getOverlayIdentifier().equals(overlayId))
                                 .findFirst()
                                 .orElse(null);
                 if (overlayInfo == null) {
@@ -9097,11 +9388,11 @@ public class RemoteViews implements Parcelable, Filter {
                 }
                 ResourcesLoader colorsLoader = new ResourcesLoader();
                 colorsLoader.addProvider(ResourcesProvider.loadOverlay(overlayInfo));
-                return new ColorResources(colorsLoader, colorMapping.clone());
+                return colorsLoader;
             } catch (Exception e) {
                 Log.e(LOG_TAG, "Failed to add theme color overlay into loader", e);
+                return null;
             }
-            return null;
         }
     }
 
@@ -9184,6 +9475,7 @@ public class RemoteViews implements Parcelable, Filter {
         dest.writeInt(mApplyFlags);
         dest.writeLong(mProviderInstanceId);
         dest.writeBoolean(mHasDrawInstructions);
+        dest.writeFloat(mOriginalDensity);
 
         dest.restoreAllowSquashing(prevSquashingAllowed);
     }
@@ -10411,6 +10703,7 @@ public class RemoteViews implements Parcelable, Filter {
         out.write(RemoteViewsProto.IS_ROOT, mIsRoot);
         out.write(RemoteViewsProto.APPLY_FLAGS, mApplyFlags);
         out.write(RemoteViewsProto.HAS_DRAW_INSTRUCTIONS, mHasDrawInstructions);
+        out.write(RemoteViewsProto.ORIGINAL_DENSITY, mOriginalDensity);
         if (mProviderInstanceId != -1) {
             out.write(RemoteViewsProto.PROVIDER_INSTANCE_ID, mProviderInstanceId);
         }
@@ -10484,6 +10777,7 @@ public class RemoteViews implements Parcelable, Filter {
             PendingResources<RemoteCollectionCache> mPopulateRemoteCollectionCache = null;
             boolean mIsRoot = false;
             boolean mHasDrawInstructions = false;
+            float mOriginalDensity = 0F;
         };
 
         try {
@@ -10562,6 +10856,9 @@ public class RemoteViews implements Parcelable, Filter {
                         ref.mHasDrawInstructions = in.readBoolean(
                                 RemoteViewsProto.HAS_DRAW_INSTRUCTIONS);
                         break;
+                    case (int) RemoteViewsProto.ORIGINAL_DENSITY:
+                        ref.mOriginalDensity = in.readFloat(RemoteViewsProto.ORIGINAL_DENSITY);
+                        break;
                     default:
                         Log.w(LOG_TAG, "Unhandled field while reading RemoteViews proto!\n"
                                 + ProtoUtils.currentFieldToString(in));
@@ -10582,6 +10879,7 @@ public class RemoteViews implements Parcelable, Filter {
             rv.mApplyFlags = ref.mApplyFlags;
             rv.mIsRoot = ref.mIsRoot;
             rv.mHasDrawInstructions = ref.mHasDrawInstructions;
+            rv.mOriginalDensity = ref.mOriginalDensity;
 
             // The root view will read its HierarchyRootData (bitmap cache, collection cache) from
             // proto; all nested views will instead get it through the rootData parameter.
@@ -10871,4 +11169,68 @@ public class RemoteViews implements Parcelable, Filter {
         return duration;
     }
 
+    private static void writeCharSequenceListToProto(ProtoOutputStream out, List<CharSequence> list,
+            long fieldId) {
+        long token = out.start(fieldId);
+        RemoteViewsSerializers.writeCharSequenceListToProto(out, list);
+        out.end(token);
+    }
+
+    private static List<CharSequence> createCharSequenceListFromProto(ProtoInputStream in,
+            long fieldId) throws Exception {
+        long token = in.start(fieldId);
+        List<CharSequence> list = RemoteViewsSerializers.createCharSequenceListFromProto(in);
+        in.end(token);
+        return list;
+    }
+
+    /**
+     * For complex values that represent pixels, scales the pixel value to match the current density
+     * (using the original density defined in the ActionApplyParams). For other units, this function
+     * only resolves the complex value and returns pixels. isOffset determines whether the value
+     * will be resolved as an offset (truncates float to int) or a size (rounds to int and is always
+     * non-zero if the base value is non-zero).
+     */
+    private static int getScaledPixelsFromComplexValue(ActionApplyParams params,
+            DisplayMetrics displayMetrics, int complexValue, boolean isOffset) {
+        if (Flags.widgetDisplayChanges() && params.hasOriginalDensity()
+                && TypedValue.getUnitFromComplexDimension(complexValue) == COMPLEX_UNIT_PX) {
+            final float scaleFactor = displayMetrics.density / params.originalDensity;
+            final float value = TypedValue.complexToFloat(complexValue);
+            if (!isOffset && value <= 0) {
+                // Special handling for 0, ViewGroup.LayoutParams.{MATCH_PARENT, WRAP_CONTENT}. We
+                // do not want to scale these values when handling sizes (height/width). However,
+                // a negative value is valid for an offset and can be scaled.
+                return (int) value;
+            }
+            complexValue = TypedValue.createComplexDimension(scaleFactor * value,
+                    COMPLEX_UNIT_PX);
+        }
+        return isOffset ? TypedValue.complexToDimensionPixelOffset(complexValue, displayMetrics)
+                : TypedValue.complexToDimensionPixelSize(complexValue, displayMetrics);
+    }
+
+    private static int getScaledPixelsFromValueWithUnit(ActionApplyParams params,
+            DisplayMetrics displayMetrics, float value, int unit, boolean isOffset) {
+        return getScaledPixelsFromComplexValue(params, displayMetrics,
+                TypedValue.createComplexDimension(value, unit), isOffset);
+    }
+
+    private static float getScaledFloatingPixelsFromComplexValue(ActionApplyParams params,
+            DisplayMetrics displayMetrics, int complexValue) {
+        if (Flags.widgetDisplayChanges() && params.hasOriginalDensity()
+                && TypedValue.getUnitFromComplexDimension(complexValue) == COMPLEX_UNIT_PX) {
+            final float scaleFactor = displayMetrics.density / params.originalDensity;
+            final float value = TypedValue.complexToFloat(complexValue);
+            complexValue = TypedValue.createComplexDimension(scaleFactor * value,
+                    COMPLEX_UNIT_PX);
+        }
+        return TypedValue.complexToDimension(complexValue, displayMetrics);
+    }
+
+    private static float getScaledFloatingPixelsFromValueWithUnit(ActionApplyParams params,
+            DisplayMetrics displayMetrics, float value, int unit) {
+        return getScaledFloatingPixelsFromComplexValue(params, displayMetrics,
+                TypedValue.createComplexDimension(value, unit));
+    }
 }

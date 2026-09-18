@@ -28,6 +28,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.os.UserHandle;
+import android.service.notification.NotificationListenerService;
 import android.service.notification.NotificationListenerService.Ranking;
 import android.service.notification.NotificationListenerService.RankingMap;
 import android.service.notification.StatusBarNotification;
@@ -36,6 +37,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.dump.DumpManager;
 import com.android.systemui.plugins.PluginManager;
 import com.android.systemui.statusbar.NotificationListener.NotificationHandler;
 import com.android.systemui.statusbar.data.repository.NotificationListenerSettingsRepository;
@@ -72,7 +74,7 @@ public class NotificationListenerTest extends SysuiTestCase {
                 mContext,
                 mNotificationManager,
                 new SilentNotificationStatusIconsVisibilityInteractor(
-                        new NotificationListenerSettingsRepository()),
+                        new NotificationListenerSettingsRepository(mock(DumpManager.class))),
                 mFakeSystemClock,
                 mFakeExecutor,
                 mPluginManager);
@@ -84,6 +86,7 @@ public class NotificationListenerTest extends SysuiTestCase {
 
     @Test
     public void testNotificationAddCallsAddNotification() {
+        mRanking = new RankingMap(new Ranking[]{new RankingBuilder(mSbn).build()});
         mListener.onNotificationPosted(mSbn, mRanking);
         mFakeExecutor.runAllReady();
         verify(mNotificationHandler).onNotificationPosted(mSbn, mRanking);
@@ -91,7 +94,8 @@ public class NotificationListenerTest extends SysuiTestCase {
 
     @Test
     public void testNotificationRemovalCallsRemoveNotification() {
-        mListener.onNotificationRemoved(mSbn, mRanking);
+        mListener.onNotificationRemoved(
+                mSbn, mRanking, NotificationListenerService.REASON_APP_CANCEL);
         mFakeExecutor.runAllReady();
         verify(mNotificationHandler).onNotificationRemoved(eq(mSbn), eq(mRanking), anyInt());
     }

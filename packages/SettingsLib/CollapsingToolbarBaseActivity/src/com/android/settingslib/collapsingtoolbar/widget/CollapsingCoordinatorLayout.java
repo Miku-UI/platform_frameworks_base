@@ -198,7 +198,13 @@ public class CollapsingCoordinatorLayout extends CoordinatorLayout {
         }
 
         mCollapsingToolbarLayout.removeAllViews();
-        inflate(getContext(), R.layout.support_toolbar, mCollapsingToolbarLayout);
+        if (!SettingsThemeHelper.isExpressiveTheme(getContext())) {
+            inflate(getContext(), R.layout.support_toolbar, mCollapsingToolbarLayout);
+        } else {
+            inflate(getContext(), R.layout.settingslib_expressive_support_toolbar,
+                    mCollapsingToolbarLayout);
+        }
+
         final androidx.appcompat.widget.Toolbar supportToolbar =
                 mCollapsingToolbarLayout.findViewById(R.id.support_action_bar);
 

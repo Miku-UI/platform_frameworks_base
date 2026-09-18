@@ -599,6 +599,24 @@ public class CallLog {
          */
         public static final int FEATURES_VOLTE = 1 << 6;
         /**
+         * Call was HD+
+         */
+        @FlaggedApi(Flags.FLAG_HD_PLUS_CALL)
+        public static final int FEATURES_HD_PLUS_CALL = 1 << 7;
+
+        /**
+         * Call used VoNR (Voice Over New Radio; aka 5G)
+         * (ie {@link android.telephony.TelephonyManager#NETWORK_TYPE_NR}).
+         */
+        @FlaggedApi(Flags.FLAG_HD_PLUS_CALL)
+        public static final int FEATURES_VONR = 1 << 8;
+
+        /**
+         * Indicates that this was a group call.
+         */
+        @FlaggedApi(android.telecom.flags.Flags.FLAG_INTEGRATED_CALL_LOGS_STAGE2)
+        public static final int FEATURES_GROUP_CALL = 1 << 9;
+        /**
          * The phone number as the user entered it.
          * <P>Type: TEXT</P>
          */
@@ -825,6 +843,7 @@ public class CallLog {
          *
          * @hide
          */
+        // TODO(b/469123257) - make this a system API.
         public static final String PHONE_ACCOUNT_ADDRESS = "phone_account_address";
         /**
          * Indicates that the entry will be hidden from all queries until the associated
@@ -863,6 +882,7 @@ public class CallLog {
          *
          * @hide
          */
+        // TODO(b/469123257) - make this a system API.
         public static final String ADD_FOR_ALL_USERS = "add_for_all_users";
         /**
          * The date the row is last inserted, updated, or marked as deleted, in milliseconds since
@@ -986,14 +1006,7 @@ public class CallLog {
          * this call rang for a short period of time.
          */
         public static final long USER_MISSED_SHORT_RING = 1 << 17;
-        /**
-         * When {@link CallLog.Calls#TYPE} is {@link CallLog.Calls#MISSED_TYPE}, when this call
-         * rings less than this defined time in millisecond, set
-         * {@link CallLog.Calls#USER_MISSED_SHORT_RING} bit.
-         *
-         * @hide
-         */
-        public static final long SHORT_RING_THRESHOLD = 5000L;
+
         /**
          * When {@link CallLog.Calls#TYPE} is {@link CallLog.Calls#MISSED_TYPE}, set this bit when
          * this call is silenced because the phone is in 'do not disturb mode'.
@@ -1004,14 +1017,7 @@ public class CallLog {
          * this call rings with a low ring volume.
          */
         public static final long USER_MISSED_LOW_RING_VOLUME = 1 << 19;
-        /**
-         * When {@link CallLog.Calls#TYPE} is {@link CallLog.Calls#MISSED_TYPE}, when this call
-         * rings in volume less than this defined volume threshold, set
-         * {@link CallLog.Calls#USER_MISSED_LOW_RING_VOLUME} bit.
-         *
-         * @hide
-         */
-        public static final int LOW_RING_VOLUME = 0;
+
         /**
          * When {@link CallLog.Calls#TYPE} is {@link CallLog.Calls#MISSED_TYPE} set this bit when
          * this call rings without vibration.
@@ -1033,14 +1039,9 @@ public class CallLog {
          *
          * @hide
          */
+        // TODO(b/469123257) - expose as a public API.
         public static final long USER_MISSED_NEVER_RANG = 1 << 23;
-        /**
-         * When {@link CallLog.Calls#TYPE} is {@link CallLog.Calls#MISSED_TYPE}, set this bit when
-         * the user receiving the call is not running (i.e. work profile paused).
-         *
-         * @hide
-         */
-        public static final long USER_MISSED_NOT_RUNNING = 1 << 24;
+
         /**
          * Where the {@link CallLog.Calls#TYPE} is {@link CallLog.Calls#MISSED_TYPE}, indicates
          * factors which may have lead the user to miss the call.
@@ -1160,6 +1161,7 @@ public class CallLog {
          *
          * @hide
          */
+        // TODO(b/469123257) - expose as a system API.
         public static final String IS_PHONE_ACCOUNT_MIGRATION_PENDING =
                 "is_call_log_phone_account_migration_pending";
         /**
@@ -1249,7 +1251,6 @@ public class CallLog {
             USER_MISSED_CALL_SCREENING_SERVICE_SILENCED,
             USER_MISSED_CALL_FILTERS_TIMEOUT,
             USER_MISSED_NEVER_RANG,
-            USER_MISSED_NOT_RUNNING
         })
         @Retention(RetentionPolicy.SOURCE)
         public @interface MissedReason {

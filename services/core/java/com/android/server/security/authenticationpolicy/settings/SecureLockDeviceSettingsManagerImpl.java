@@ -40,6 +40,7 @@ import com.android.internal.statusbar.IStatusBarService;
 import com.android.server.security.authenticationpolicy.settings.SettingState.SettingType;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -118,7 +119,7 @@ public class SecureLockDeviceSettingsManagerImpl implements SecureLockDeviceSett
     private final Object mManagedSettingsLock = new Object();
     @NonNull
     @GuardedBy("mManagedSettingsLock")
-    private final Map<String, ManagedSetting<?>> mManagedSettings = new HashMap<>();
+    private final Map<String, ManagedSetting<?>> mManagedSettings = new LinkedHashMap<>();
     private final DevicePolicyRestrictionsController mDevicePolicyRestrictionsController =
             new DevicePolicyRestrictionsController();
     private final NfcSettingController mNfcSettingController;
@@ -168,6 +169,15 @@ public class SecureLockDeviceSettingsManagerImpl implements SecureLockDeviceSett
 
         synchronized (mManagedSettingsLock) {
             mManagedSettings.clear();
+
+            //Device policy should be restored first, since other settings might depend on the
+            //restrictions
+            mManagedSettings.put(DEVICE_POLICY_RESTRICTIONS_KEY, new ManagedSetting<>(
+                    new SettingState<>(DEVICE_POLICY_RESTRICTIONS_KEY, SettingType.STRING_SET,
+                            DEVICE_POLICY_RESTRICTIONS),
+                    mDevicePolicyRestrictionsController
+            ));
+
             mManagedSettings.put(NFC_ENABLED_KEY, new ManagedSetting<>(
                     new SettingState<>(NFC_ENABLED_KEY, SettingType.BOOLEAN, false),
                     mNfcSettingController
@@ -184,12 +194,6 @@ public class SecureLockDeviceSettingsManagerImpl implements SecureLockDeviceSett
                         mGlobalSettingController
                 ));
             }
-
-            mManagedSettings.put(DEVICE_POLICY_RESTRICTIONS_KEY, new ManagedSetting<>(
-                    new SettingState<>(DEVICE_POLICY_RESTRICTIONS_KEY, SettingType.STRING_SET,
-                            DEVICE_POLICY_RESTRICTIONS),
-                    mDevicePolicyRestrictionsController
-            ));
 
             for (Map.Entry<String, Integer> entry :
                     SECURE_SETTINGS_SECURE_LOCK_DEVICE_VALUES.entrySet()) {

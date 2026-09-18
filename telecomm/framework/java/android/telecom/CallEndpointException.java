@@ -65,7 +65,7 @@ public final class CallEndpointException extends RuntimeException implements Par
 
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
-        dest.writeString8(mMessage);
+        dest.writeString(mMessage);
         dest.writeInt(mCode);
     }
 
@@ -76,7 +76,7 @@ public final class CallEndpointException extends RuntimeException implements Par
             CREATOR = new Parcelable.Creator<>() {
                 @Override
                 public CallEndpointException createFromParcel(Parcel source) {
-                    return new CallEndpointException(source.readString8(), source.readInt());
+                    return new CallEndpointException(source.readString(), source.readInt());
                 }
 
                 @Override

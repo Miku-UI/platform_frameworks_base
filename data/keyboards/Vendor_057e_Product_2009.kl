@@ -12,68 +12,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#
-# Nintendo Switch Pro Controller - HAC-013 - Bluetooth
-#
+# Nintendo Switch Pro Controller - HAC-013 - Bluetooth/USB
 
+# Standard face buttons
+key 0x130   BUTTON_A    # BTN_SOUTH (Nintendo 'B')
+key 0x131   BUTTON_B    # BTN_EAST  (Nintendo 'A')
+key 0x133   BUTTON_Y    # BTN_NORTH (Nintendo 'X')
+key 0x134   BUTTON_X    # BTN_WEST (Nintendo 'Y')
 
-# Mapping according to https://developer.android.com/training/game-controllers/controller-input.html
-
-# Button labeled as "B" but should really produce keycode "A"
-key 0x130    BUTTON_A
-# Button labeled as "A" but should really produce keycode "B"
-key 0x131    BUTTON_B
-# Button labeled as "X" but should really product keycode "Y"
-key 0x133    BUTTON_Y
-# Button labeled as "Y" but should really produce keycode "X"
-key 0x134    BUTTON_X
-
-# Button labeled as "L"
-key 0x136    BUTTON_L1
-# Button labeled as "R"
-key 0x137    BUTTON_R1
+# Shoulder buttons
+# Button labelled as L and R
+key 0x136   BUTTON_L1
+key 0x137   BUTTON_R1
 
 # No LT / RT axes on this controller. Instead, there are keys.
-# Trigger labeled as "ZL"
-key 0x138    BUTTON_L2
-# Trigger labeled as "ZR"
-key 0x139    BUTTON_R2
+# Trigger buttons
+# Button labelled as ZL/L2 and ZR/R2
+key 0x138   BUTTON_L2    # BTN_TL2
+key 0x139   BUTTON_R2    # BTN_TR2
 
-# Left Analog Stick
-axis 0x00    X
-axis 0x01    Y
-# Right Analog Stick
-axis 0x03    Z
-axis 0x04    RZ
+# Special buttons
+# Button labelled as Minus
+key 0x13a   BUTTON_SELECT
+# Button labelled as Plus
+key 0x13b   BUTTON_START
+# Button labelled as Home but linux keycode is BTN_MODE
+key 0x13c   BUTTON_MODE
 
-# Left stick click (generates linux BTN_SELECT)
-key 0x13d    BUTTON_THUMBL
-# Right stick click (generates linux BTN_START)
-key 0x13e    BUTTON_THUMBR
+# Capture button
+# Button labelled as Circle
+key 0x135   BUTTON_C    # BTN_Z
 
-# Currently, the dpad produces key events
-key 0x220 DPAD_UP
-key 0x221 DPAD_DOWN
-key 0x222 DPAD_LEFT
-key 0x223 DPAD_RIGHT
+# Thumbstick buttons
+key 0x13d   BUTTON_THUMBL
+key 0x13e   BUTTON_THUMBR
 
-# Hat - currently not being produced by hid-nintendo, but an upcoming patch set will change the behaviour.
-# Keep these mappings in anticipation of that change
-axis 0x10    HAT_X
-axis 0x11    HAT_Y
+# The reported value for flat is 500 out of a range from -32767 to 32768, which is absurd.
+# This confuses applications that rely on the flat value because the joystick actually
+# settles in a flat range of +/- 4096 or so.
+# Left and Right Sticks
+axis 0x00   X flat 4096  # ABS_X
+axis 0x01   Y flat 4096  # ABS_Y
+axis 0x03   Z flat 4096  # ABS_RX
+axis 0x04   RZ flat 4096 # ABS_RY
 
-# Mapping according to https://www.kernel.org/doc/Documentation/input/gamepad.txt
-# Minus
-key 0x13a    BUTTON_SELECT
-
-# Plus
-key 0x13b    BUTTON_START
-
-# Circle
-key 0x135    BUTTON_MODE
-
-# Home key
-key 0x13c    HOME
+# D-Pad
+axis 0x10   HAT_X
+axis 0x11   HAT_Y
 
 # SENSORs
 sensor 0x00 ACCELEROMETER X

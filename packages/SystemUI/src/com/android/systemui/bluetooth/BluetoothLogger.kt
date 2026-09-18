@@ -16,6 +16,7 @@
 
 package com.android.systemui.bluetooth
 
+import com.android.settingslib.bluetooth.CachedBluetoothDevice
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel
@@ -33,7 +34,7 @@ class BluetoothLogger @Inject constructor(@BluetoothLog private val logBuffer: L
                 str1 = address
                 int1 = profileId
             },
-            { "ActiveDeviceChanged. address=$str1 profileId=$int1" }
+            { "ActiveDeviceChanged. address=$str1 profileId=$int1" },
         )
 
     fun logDeviceConnectionStateChanged(address: String?, state: String) =
@@ -44,7 +45,7 @@ class BluetoothLogger @Inject constructor(@BluetoothLog private val logBuffer: L
                 str1 = address
                 str2 = state
             },
-            { "DeviceConnectionStateChanged. address=$str1 state=$str2" }
+            { "DeviceConnectionStateChanged. address=$str1 state=$str2" },
         )
 
     fun logAclConnectionStateChanged(address: String, state: String) =
@@ -55,7 +56,7 @@ class BluetoothLogger @Inject constructor(@BluetoothLog private val logBuffer: L
                 str1 = address
                 str2 = state
             },
-            { "AclConnectionStateChanged. address=$str1 state=$str2" }
+            { "AclConnectionStateChanged. address=$str1 state=$str2" },
         )
 
     fun logProfileConnectionStateChanged(address: String?, state: String, profileId: Int) =
@@ -67,7 +68,7 @@ class BluetoothLogger @Inject constructor(@BluetoothLog private val logBuffer: L
                 str2 = state
                 int1 = profileId
             },
-            { "ProfileConnectionStateChanged. address=$str1 state=$str2 profileId=$int1" }
+            { "ProfileConnectionStateChanged. address=$str1 state=$str2 profileId=$int1" },
         )
 
     fun logStateChange(state: String) =
@@ -75,7 +76,7 @@ class BluetoothLogger @Inject constructor(@BluetoothLog private val logBuffer: L
             TAG,
             LogLevel.DEBUG,
             { str1 = state },
-            { "BluetoothStateChanged. state=$str1" }
+            { "BluetoothStateChanged. state=$str1" },
         )
 
     fun logBondStateChange(address: String, state: Int) =
@@ -86,8 +87,26 @@ class BluetoothLogger @Inject constructor(@BluetoothLog private val logBuffer: L
                 str1 = address
                 int1 = state
             },
-            { "DeviceBondStateChanged. address=$str1 state=$int1" }
+            { "DeviceBondStateChanged. address=$str1 state=$int1" },
         )
+
+    fun logConnectionStatus(
+        connectedDevices: List<CachedBluetoothDevice>,
+        maxConnectionState: Int,
+    ) =
+        logBuffer.log(
+            TAG,
+            LogLevel.DEBUG,
+            {
+                str1 = connectedDevices.map { it.address }.toString()
+                int1 = maxConnectionState
+            },
+            { "Connection status: maxConnectionState=$int1, connectedDevices=$str1" },
+        )
+
+    fun logUpdatingConnected() = logBuffer.log(TAG, LogLevel.DEBUG, "Updating connected")
+
+    fun logUpdatingActive() = logBuffer.log(TAG, LogLevel.DEBUG, "Updating connected")
 
     fun logDeviceAdded(address: String) =
         logBuffer.log(TAG, LogLevel.DEBUG, { str1 = address }, { "DeviceAdded. address=$str1" })

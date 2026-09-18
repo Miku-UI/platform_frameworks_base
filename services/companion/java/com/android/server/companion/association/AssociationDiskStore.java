@@ -48,6 +48,7 @@ import android.util.AtomicFile;
 import android.util.Slog;
 import android.util.Xml;
 
+import com.android.internal.util.CollectionUtils;
 import com.android.internal.util.XmlUtils;
 import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
@@ -65,8 +66,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -190,7 +193,6 @@ public final class AssociationDiskStore {
     private static final String XML_TAG_PACKAGES_TO_NOTIFY = "packages_to_notify";
     private static final String XML_TAG_METADATA = "metadata";
 
-
     private static final String XML_ATTR_PERSISTENCE_VERSION = "persistence-version";
     private static final String XML_ATTR_MAX_ID = "max-id";
     private static final String XML_ATTR_ID = "id";
@@ -202,6 +204,7 @@ public final class AssociationDiskStore {
     private static final String XML_ATTR_NOTIFY_DEVICE_NEARBY = "notify_device_nearby";
     private static final String XML_ATTR_REVOKED = "revoked";
     private static final String XML_ATTR_PENDING = "pending";
+    private static final String XML_ATTR_TRUSTED = "trusted";
     private static final String XML_ATTR_TIME_APPROVED = "time_approved";
     private static final String XML_ATTR_LAST_TIME_CONNECTED = "last_time_connected";
     private static final String XML_ATTR_SYSTEM_DATA_SYNC_FLAGS = "system_data_sync_flags";
@@ -212,6 +215,9 @@ public final class AssociationDiskStore {
     private static final String XML_ATTR_KEY_DEVICE_ID = "key_device_id";
     private static final String XML_ATTR_PACKAGE_TO_NOTIFY = "package_to_notify";
     private static final String XML_ATTR_METADATA = "metadata";
+    private static final String XML_ATTR_TIME_METADATA_SENT = "time_metadata_sent";
+    private static final String XML_ATTR_EXTRA_PERMISSIONS = "extra_permissions";
+    private static final String XML_ATTR_AI_AGENT_SUPPORTED = "support_ai_agent";
 
     private static final String LEGACY_XML_ATTR_DEVICE = "device";
 
@@ -298,7 +304,7 @@ public final class AssociationDiskStore {
      */
     public String readLastRemovedAssociation(@UserIdInt int userId) {
         final AtomicFile file = createStorageFileForUser(
-                userId, FILE_NAME_LAST_REMOVED_ASSOCIATION);
+                userId, FILE_NAME_LAST_REMOVED_ASSOCIATION, true);
         StringBuilder sb = new StringBuilder();
         int c;
         try (FileInputStream fis = file.openRead()) {
@@ -333,7 +339,7 @@ public final class AssociationDiskStore {
         AssociationInfo redactedAssociation = builder.build();
 
         final AtomicFile file = createStorageFileForUser(
-                redactedAssociation.getUserId(), FILE_NAME_LAST_REMOVED_ASSOCIATION);
+                redactedAssociation.getUserId(), FILE_NAME_LAST_REMOVED_ASSOCIATION, true);
         writeToFileSafely(file, out -> {
             out.write(String.valueOf(System.currentTimeMillis()).getBytes());
             out.write(' ');
@@ -414,7 +420,7 @@ public final class AssociationDiskStore {
     @NonNull
     private AtomicFile getStorageFileForUser(@UserIdInt int userId) {
         return mUserIdToStorageFile.computeIfAbsent(userId,
-                u -> createStorageFileForUser(userId, FILE_NAME));
+                u -> createStorageFileForUser(userId, FILE_NAME, true));
     }
 
     /**
@@ -540,6 +546,7 @@ public final class AssociationDiskStore {
         final boolean notify = readBooleanAttribute(parser, XML_ATTR_NOTIFY_DEVICE_NEARBY);
         final boolean revoked = readBooleanAttribute(parser, XML_ATTR_REVOKED, false);
         final boolean pending = readBooleanAttribute(parser, XML_ATTR_PENDING, false);
+        final boolean trusted = readBooleanAttribute(parser, XML_ATTR_TRUSTED, false);
         final long timeApproved = readLongAttribute(parser, XML_ATTR_TIME_APPROVED, 0L);
         final long lastTimeConnected = readLongAttribute(
                 parser, XML_ATTR_LAST_TIME_CONNECTED, Long.MAX_VALUE);
@@ -549,6 +556,11 @@ public final class AssociationDiskStore {
                 XML_ATTR_TRANSPORT_FLAGS, 0);
         final Icon deviceIcon = byteArrayToIcon(
                 readByteArrayAttribute(parser, XML_ATTR_DEVICE_ICON));
+        final String permissionsString = readStringAttribute(parser, XML_ATTR_EXTRA_PERMISSIONS);
+        final Set<String> extraPermissions = deserializeExtraPermissions(permissionsString);
+        final long timeMetadataSent = readLongAttribute(parser, XML_ATTR_TIME_METADATA_SENT, 0L);
+        final boolean isRemoteAiAgentSupported = readBooleanAttribute(parser,
+                XML_ATTR_AI_AGENT_SUPPORTED, false);
 
         // Read nested tags
         DeviceId deviceId = null;
@@ -580,13 +592,18 @@ public final class AssociationDiskStore {
                 .setNotifyOnDeviceNearby(notify)
                 .setRevoked(revoked)
                 .setPending(pending)
+                .setTrusted(trusted)
                 .setTimeApproved(timeApproved)
                 .setLastTimeConnected(lastTimeConnected)
                 .setSystemDataSyncFlags(systemDataSyncFlags)
+                .setTransportFlags(transportFlags)
                 .setDeviceIcon(deviceIcon)
                 .setDeviceId(deviceId)
                 .setPackagesToNotify(packagesToNotify)
                 .setMetadata(metadata)
+                .setTimeMetadataSent(timeMetadataSent)
+                .setExtraPermissions(extraPermissions)
+                .setRemoteAiAgentSupported(isRemoteAiAgentSupported)
                 .build();
     }
 
@@ -606,15 +623,19 @@ public final class AssociationDiskStore {
                 parser, XML_ATTR_CUSTOM_DEVICE_ID);
         final MacAddress macAddress = stringToMacAddress(
                 readStringAttribute(parser, XML_ATTR_MAC_ADDRESS_DEVICE_ID));
-        byte[] id = readByteArrayAttribute(parser, XML_ATTR_KEY_DEVICE_ID);
-        if (id == null) {
-            id = generateRandom128BitKey();
+        if (customDeviceId == null && macAddress == null) {
+            return null;
+        }
+        byte[] key = readByteArrayAttribute(parser, XML_ATTR_KEY_DEVICE_ID);
+        if (key == null) {
+            key = generateRandom128BitKey();
         }
 
         // Manually move to the END tag of XML_TAG_DEVICE_ID.
         parser.nextTag();
 
-        return new DeviceId(customDeviceId, macAddress, id);
+        return new DeviceId.Builder().setCustomId(customDeviceId).setMacAddress(macAddress).setKey(
+                key).build();
     }
 
     private static PersistableBundle readMetadata(@NonNull TypedXmlPullParser parser)
@@ -652,6 +673,7 @@ public final class AssociationDiskStore {
                 serializer, XML_ATTR_NOTIFY_DEVICE_NEARBY, a.isNotifyOnDeviceNearby());
         writeBooleanAttribute(serializer, XML_ATTR_REVOKED, a.isRevoked());
         writeBooleanAttribute(serializer, XML_ATTR_PENDING, a.isPending());
+        writeBooleanAttribute(serializer, XML_ATTR_TRUSTED, a.isTrusted());
         writeLongAttribute(serializer, XML_ATTR_TIME_APPROVED, a.getTimeApprovedMs());
         writeLongAttribute(
                 serializer, XML_ATTR_LAST_TIME_CONNECTED, a.getLastTimeConnectedMs());
@@ -659,6 +681,14 @@ public final class AssociationDiskStore {
         writeIntAttribute(serializer, XML_ATTR_TRANSPORT_FLAGS, a.getTransportFlags());
         writeByteArrayAttribute(
                 serializer, XML_ATTR_DEVICE_ICON, iconToByteArray(a.getDeviceIcon()));
+        writeLongAttribute(serializer, XML_ATTR_TIME_METADATA_SENT, a.getMetadataSentTimestamp());
+        Set<String> extraPermissions = a.getExtraPermissions();
+        if (!CollectionUtils.isEmpty(extraPermissions)) {
+            writeStringAttribute(serializer, XML_ATTR_EXTRA_PERMISSIONS,
+                    String.join(DELIMITER, extraPermissions));
+        }
+        writeBooleanAttribute(serializer, XML_ATTR_AI_AGENT_SUPPORTED,
+                a.isRemoteAiAgentSupported());
 
         if (a.getDeviceId() != null) {
             writeDeviceId(serializer, a);
@@ -756,5 +786,14 @@ public final class AssociationDiskStore {
         }
         String[] stringArray = serializedString.split(REGEX);
         return Arrays.asList(stringArray);
+    }
+
+    private static Set<String> deserializeExtraPermissions(String serializedString) {
+        if (serializedString == null || serializedString.isEmpty()) {
+            return new HashSet<>();
+        }
+
+        String[] stringArray = serializedString.split(REGEX);
+        return new HashSet<>(Arrays.asList(stringArray));
     }
 }

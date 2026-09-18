@@ -22,10 +22,25 @@ import android.media.tv.extension.rating.IVbiRatingListener;
  * @hide
  */
 interface IVbiRatingInterface {
-    // Get Vbi rating.
+    /**
+     * Gets the VBI rating for a given session.
+     *
+     * @param sessionToken A token used to identify the related session to retrieve the VBI rating.
+     * @return A flattened string representation of the TV content rating via
+     *        {@link android.media.tv.TvContentRating#flattenToString()}.
+     */
     String getVbiRating(String sessionToken);
-    // Register a listener for Vbi rating updates.
+    /**
+     * Registers a listener to receive updates for VBI rating changes.
+     *
+     * @param clientToken A token to uniquely identify the client registering the listener.
+     * @param listener    The VbiRatingListener to be called when the VBI rating is updated.
+     */
     void addVbiRatingListener(String clientToken, in IVbiRatingListener listener);
-    // Remove the previously added VbiRatingListener.
+    /**
+     * Removes a previously registered listener for VBI rating change events.
+     *
+     * @param listener The VbiRatingListener that was previously added and should now be removed.
+     */
     void removeVbiRatingListener(in IVbiRatingListener listener);
 }

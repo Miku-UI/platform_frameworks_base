@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues
+    type="baseline"
+    client=""
+    dependencies="true"
+    name=""
+    variant=""
+    version="">
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 23): `android.content.ContentProvider#requireContext`"
+        errorLine1="        val context = requireContext()"
+        errorLine2="                      ~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Metadata/src/com/android/settingslib/metadata/PreferenceSearchIndexablesProvider.kt"
+            line="67"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="NewApi"
+        message="Call requires API level 30 (current min is 23): `android.content.ContentProvider#requireContext`"
+        errorLine1="        val context = requireContext()"
+        errorLine2="                      ~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/Metadata/src/com/android/settingslib/metadata/PreferenceSearchIndexablesProvider.kt"
+            line="101"
+            column="23"/>
+    </issue>
+
+</issues>

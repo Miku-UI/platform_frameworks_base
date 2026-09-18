@@ -44,8 +44,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.UserHandle;
 import android.os.Vibrator;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.notification.StatusBarNotification;
 import android.testing.TestableContentResolver;
@@ -91,6 +89,7 @@ public class RankingHelperTest extends UiServiceTestCase {
     @Mock RankingConfig mConfig;
     @Mock Vibrator mVibrator;
     @Mock GroupHelper mGroupHelper;
+    @Mock NotificationRuleManager mRuleManager;
 
     private NotificationManager.Policy mTestNotificationPolicy;
     private Notification mNotiGroupGSortA;
@@ -155,7 +154,7 @@ public class RankingHelperTest extends UiServiceTestCase {
         when(mMockZenModeHelper.getNotificationPolicy(any())).thenReturn(mTestNotificationPolicy);
         mHelper = new RankingHelper(getContext(), mHandler, mConfig, mMockZenModeHelper,
                 mUsageStats, new String[] {ImportanceExtractor.class.getName()},
-                mock(IPlatformCompat.class), mGroupHelper);
+                mock(IPlatformCompat.class), mGroupHelper, mRuleManager);
 
         mNotiGroupGSortA = new Notification.Builder(mContext, TEST_CHANNEL_ID)
                 .setContentTitle("A")

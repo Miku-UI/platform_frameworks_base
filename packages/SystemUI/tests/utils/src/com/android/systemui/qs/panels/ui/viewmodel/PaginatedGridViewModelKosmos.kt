@@ -37,6 +37,14 @@ val Kosmos.paginatedGridViewModel by
 val Kosmos.paginatedGridViewModelFactory by
     Kosmos.Fixture {
         object : PaginatedGridViewModel.Factory {
-            override fun create() = paginatedGridViewModel
+            override fun create() =
+                PaginatedGridViewModel(
+                    iconTilesViewModel,
+                    inFirstPageViewModel,
+                    buildNumberViewModelFactory,
+                    editModeButtonViewModelFactory,
+                    falsingInteractor,
+                    pointerDeviceInteractor,
+                )
         }
     }

@@ -55,4 +55,14 @@ public interface BrightnessStateModifier {
      * @param lux - ambient lux
      */
     void setAmbientLux(float lux);
+
+    /**
+     * Set the current state of auto-brightness.
+     */
+    default void setAutoBrightnessState(int state) {}
+
+    /**
+     * Set whether High Brightness Mode is currently allowed.
+     */
+    default void setIsHbmAllowed(boolean isHbmAllowed) {}
 }

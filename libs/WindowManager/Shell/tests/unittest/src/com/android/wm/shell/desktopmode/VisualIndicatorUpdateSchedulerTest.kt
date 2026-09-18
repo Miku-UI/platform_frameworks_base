@@ -188,7 +188,7 @@ class VisualIndicatorUpdateSchedulerTest : ShellTestCase() {
 
             runCurrent()
 
-            verify(mockIndicator).updateIndicatorWithType(type)
+            verify(mockIndicator).updateIndicatorWithType(displayId0, type)
             assert(testScope.coroutineContext[Job]?.children?.count() == 0)
         }
 
@@ -209,7 +209,7 @@ class VisualIndicatorUpdateSchedulerTest : ShellTestCase() {
 
             runCurrent()
 
-            verify(mockIndicator).updateIndicatorWithType(type)
+            verify(mockIndicator).updateIndicatorWithType(displayId0, type)
             assert(testScope.coroutineContext[Job]?.children?.count() == 0)
         }
 
@@ -231,7 +231,7 @@ class VisualIndicatorUpdateSchedulerTest : ShellTestCase() {
 
             runCurrent()
 
-            verify(mockIndicator).updateIndicatorWithType(type)
+            verify(mockIndicator).updateIndicatorWithType(displayId3, type)
             assert(testScope.coroutineContext[Job]?.children?.count() == 0)
         }
 
@@ -273,8 +273,8 @@ class VisualIndicatorUpdateSchedulerTest : ShellTestCase() {
             advanceTimeBy(delayMillis * 2)
             runCurrent()
 
-            verify(mockIndicator1, times(1)).updateIndicatorWithType(type)
-            verify(mockIndicator2, never()).updateIndicatorWithType(type)
+            verify(mockIndicator1, times(1)).updateIndicatorWithType(displayId0, type)
+            verify(mockIndicator2, never()).updateIndicatorWithType(displayId0, type)
             assert(testScope.coroutineContext[Job]?.children?.count() == 0)
         }
 
@@ -320,13 +320,13 @@ class VisualIndicatorUpdateSchedulerTest : ShellTestCase() {
             advanceTimeBy(delayMillis)
             runCurrent()
 
-            verify(mockIndicator1, never()).updateIndicatorWithType(type)
-            verify(mockIndicator2, times(1)).updateIndicatorWithType(type)
+            verify(mockIndicator1, never()).updateIndicatorWithType(displayId0, type)
+            verify(mockIndicator2, times(1)).updateIndicatorWithType(displayId0, type)
             assert(testScope.coroutineContext[Job]?.children?.count() == 0)
         }
 
     @Test
-    fun scheduleUpdateVisualIndicator_potentialCrossDisplayDrag_indicatorTypeChange_cancelsPreviousJob() =
+    fun scheduleUpdateVisualIndicator_potentialCrossDisplayDrag_indicatorType_cancelsPreviousJob() =
         runTest(testDispatcher) {
             val mockIndicator1 = mock<DesktopModeVisualIndicator>()
             val mockIndicator2 = mock<DesktopModeVisualIndicator>()
@@ -362,8 +362,8 @@ class VisualIndicatorUpdateSchedulerTest : ShellTestCase() {
             advanceTimeBy(delayMillis)
             runCurrent()
 
-            verify(mockIndicator1, never()).updateIndicatorWithType(type1)
-            verify(mockIndicator2, times(1)).updateIndicatorWithType(type2)
+            verify(mockIndicator1, never()).updateIndicatorWithType(displayId0, type1)
+            verify(mockIndicator2, times(1)).updateIndicatorWithType(displayId3, type2)
             assert(testScope.coroutineContext[Job]?.children?.count() == 0)
         }
 }

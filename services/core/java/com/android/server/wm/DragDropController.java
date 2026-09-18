@@ -48,7 +48,6 @@ import android.view.PointerIcon;
 import android.view.SurfaceControl;
 import android.view.View;
 import android.view.accessibility.AccessibilityManager;
-import android.window.DesktopExperienceFlags;
 import android.window.IGlobalDragListener;
 import android.window.IUnhandledDragCallback;
 
@@ -115,10 +114,8 @@ class DragDropController {
     DragDropController(WindowManagerService service, Looper looper) {
         mService = service;
         mHandler = new DragHandler(service, looper);
-        if (DesktopExperienceFlags.ENABLE_CONNECTED_DISPLAYS_DND.isTrue()) {
-            mService.mDisplayManager.registerTopologyListener(
-                    new HandlerExecutor(mService.mH), mDisplayTopologyListener);
-        }
+        mService.mDisplayManager.registerTopologyListener(
+                new HandlerExecutor(mService.mH), mDisplayTopologyListener);
     }
 
     @VisibleForTesting
@@ -281,12 +278,14 @@ class DragDropController {
 
                 final SurfaceControl surfaceControl = mDragState.mSurfaceControl;
                 mDragState.broadcastDragStartedLocked(touchX, touchY);
-                if ((touchSource & InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE) {
-                    InputManagerGlobal.getInstance().setPointerIcon(
-                            PointerIcon.getSystemIcon(
-                                    mService.mContext, PointerIcon.TYPE_GRABBING),
-                            mDragState.mCurrentDisplayContent.getDisplayId(), touchDeviceId,
-                            touchPointerId, mDragState.getInputToken());
+                if ((mDragState.mFlags & View.DRAG_FLAG_DISABLE_DEFAULT_POINTER_ICON) == 0) {
+                    if ((touchSource & InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE) {
+                        InputManagerGlobal.getInstance().setPointerIcon(
+                                PointerIcon.getSystemIcon(
+                                        mService.mContext, PointerIcon.TYPE_GRABBING),
+                                mDragState.mCurrentDisplayContent.getDisplayId(), touchDeviceId,
+                                touchPointerId, mDragState.getInputToken());
+                    }
                 }
                 // remember the thumb offsets for later
                 mDragState.mThumbOffsetX = thumbCenterX;
@@ -566,18 +565,18 @@ class DragDropController {
         mDragState = null;
     }
 
-    void reportDropWindow(IBinder token, float x, float y) {
+    void reportDropWindow(IBinder token, float windowX, float windowY, float rawX, float rawY) {
         if (mDragState == null) {
             Slog.w(TAG_WM, "Drag state is closed.");
             return;
         }
 
         synchronized (mService.mGlobalLock) {
-            mDragState.reportDropWindowLock(token, x, y);
+            mDragState.reportDropWindowLock(token, windowX, windowY, rawX, rawY);
         }
     }
 
-    boolean dropForAccessibility(IWindow window, float x, float y) {
+    boolean dropForAccessibility(IWindow window, float windowX, float windowY) {
         synchronized (mService.mGlobalLock) {
             final boolean isA11yEnabled = getAccessibilityManager().isEnabled();
             if (!dragDropActiveLocked()) {
@@ -590,7 +589,9 @@ class DragDropController {
                     return false;
                 }
                 IBinder token = winState.mInputChannelToken;
-                return mDragState.reportDropWindowLock(token, x, y);
+                final float rawX = winState.getBounds().left + windowX;
+                final float rawY = winState.getBounds().top + windowY;
+                return mDragState.reportDropWindowLock(token, windowX, windowY, rawX, rawY);
             }
             return false;
         }

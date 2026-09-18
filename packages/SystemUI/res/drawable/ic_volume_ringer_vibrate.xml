@@ -13,16 +13,19 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="20dp"
-    android:height="20dp"
-    android:viewportWidth="20"
-    android:viewportHeight="20">
-  <group>
-    <clip-path
-        android:pathData="M0,0h20v20h-20z"/>
-    <path
-        android:pathData="M0,12.5V7.5H1.5V12.5H0ZM2.5,14V6H4V14H2.5ZM18.5,12.5V7.5H20V12.5H18.5ZM16,14V6H17.5V14H16ZM6.5,17C6.083,17 5.729,16.854 5.438,16.563C5.146,16.271 5,15.917 5,15.5V4.5C5,4.083 5.146,3.729 5.438,3.438C5.729,3.146 6.083,3 6.5,3H13.5C13.917,3 14.271,3.146 14.563,3.438C14.854,3.729 15,4.083 15,4.5V15.5C15,15.917 14.854,16.271 14.563,16.563C14.271,16.854 13.917,17 13.5,17H6.5Z"
-        android:fillColor="#ECDFE5"/>
-  </group>
+
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:height="22dp" android:viewportHeight="17" android:viewportWidth="17" android:width="22dp">
+      
+    <group>
+            
+        <clip-path android:pathData="M0.31,0.917h16v16h-16z"/>
+            
+        <path android:fillColor="#000000" android:pathData="M11.31,2.917H5.31C4.757,2.917 4.31,3.365 4.31,3.917V13.917C4.31,14.469 4.757,14.917 5.31,14.917H11.31C11.862,14.917 12.31,14.469 12.31,13.917V3.917C12.31,3.365 11.862,2.917 11.31,2.917Z"/>
+            
+        <path android:fillColor="#000000" android:pathData="M14.56,5.917C14.15,5.917 13.81,6.257 13.81,6.667V11.167C13.81,11.577 14.15,11.917 14.56,11.917C14.97,11.917 15.31,11.577 15.31,11.167V6.667C15.31,6.257 14.97,5.917 14.56,5.917Z"/>
+            
+        <path android:fillColor="#000000" android:pathData="M2.06,5.917C1.65,5.917 1.31,6.257 1.31,6.667V11.167C1.31,11.577 1.65,11.917 2.06,11.917C2.47,11.917 2.81,11.577 2.81,11.167V6.667C2.81,6.257 2.47,5.917 2.06,5.917Z"/>
+          
+    </group>
+    
 </vector>

@@ -22,17 +22,21 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Handler
 import android.os.UserHandle
+import android.os.fakeExecutorHandler
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectValues
 import com.android.systemui.qs.pipeline.shared.TileSpec
+import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.capture
 import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.mockito.nullable
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -50,6 +54,7 @@ import org.mockito.MockitoAnnotations
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @SuppressLint("UnspecifiedRegisterReceiverFlag") // Not needed in the test
+@OptIn(ExperimentalCoroutinesApi::class)
 class CustomTilePackageUpdatesRepositoryTest : SysuiTestCase() {
 
     @Mock private lateinit var mockedContext: Context
@@ -59,6 +64,8 @@ class CustomTilePackageUpdatesRepositoryTest : SysuiTestCase() {
     private val testScope = TestScope(testDispatcher)
 
     private lateinit var underTest: CustomTilePackageUpdatesRepository
+    private val kosmos = testKosmos()
+    private val handler: Handler = kosmos.fakeExecutorHandler
 
     @Before
     fun setup() {
@@ -70,8 +77,18 @@ class CustomTilePackageUpdatesRepositoryTest : SysuiTestCase() {
                 mockedContext,
                 testScope.backgroundScope,
                 testDispatcher,
+                handler,
             )
     }
+
+    @Test
+    fun noPackageChangesEmittedForTile() =
+        testScope.runTest {
+            val events by collectValues(underTest.getPackageChangesForUser(USER_1))
+            runCurrent()
+
+            assertThat(events).isEmpty()
+        }
 
     @Test
     fun packageChangesEmittedForTilePassing() =

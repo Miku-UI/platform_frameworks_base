@@ -20,6 +20,7 @@ import static org.mockito.Mockito.mock;
 
 import android.app.IActivityManager;
 import android.app.admin.DeviceStateCache;
+import android.app.supervision.SupervisionManagerInternal;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.UserInfo;
@@ -54,6 +55,7 @@ public class LockSettingsServiceTestable extends LockSettingsService {
         private IStorageManager mStorageManager;
         private StorageManagerInternal mStorageManagerInternal;
         private SyntheticPasswordManager mSpManager;
+        private SupervisionManagerInternal mSupervisionManagerInternal;
         private FakeGsiService mGsiService;
         private RecoverableKeyStoreManager mRecoverableKeyStoreManager;
         private SecureLockDeviceServiceInternal mSecureLockDeviceServiceInternal;
@@ -74,6 +76,7 @@ public class LockSettingsServiceTestable extends LockSettingsService {
                 IStorageManager storageManager,
                 StorageManagerInternal storageManagerInternal,
                 SyntheticPasswordManager spManager,
+                SupervisionManagerInternal supervisionManagerInternal,
                 FakeGsiService gsiService,
                 RecoverableKeyStoreManager recoverableKeyStoreManager,
                 UserManagerInternal userManagerInternal,
@@ -89,6 +92,7 @@ public class LockSettingsServiceTestable extends LockSettingsService {
             mStorageManager = storageManager;
             mStorageManagerInternal = storageManagerInternal;
             mSpManager = spManager;
+            mSupervisionManagerInternal = supervisionManagerInternal;
             mGsiService = gsiService;
             mRecoverableKeyStoreManager = recoverableKeyStoreManager;
             mUserManagerInternal = userManagerInternal;
@@ -139,7 +143,8 @@ public class LockSettingsServiceTestable extends LockSettingsService {
         }
 
         @Override
-        public SyntheticPasswordManager getSyntheticPasswordManager(LockSettingsStorage storage) {
+        public SyntheticPasswordManager getSyntheticPasswordManager(
+                LockSettingsStorage storage, KeyStore keyStore) {
             return mSpManager;
         }
 
@@ -198,6 +203,11 @@ public class LockSettingsServiceTestable extends LockSettingsService {
         @Override
         public void invalidateLockoutEndTimeCache() {
             mInvalidateLockoutEndTimeCacheMock.run();
+        }
+
+        @Override
+        public SupervisionManagerInternal getSupervisionManagerInternal() {
+            return mSupervisionManagerInternal;
         }
     }
 

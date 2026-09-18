@@ -16,45 +16,73 @@
 
 package com.android.systemui.screencapture.common.ui.viewmodel
 
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.screencapture.common.domain.interactor.ScreenCaptureRecentTaskInteractor
 import com.android.systemui.screencapture.common.domain.model.ScreenCaptureRecentTask
+import com.android.systemui.screencapture.common.domain.model.TargetModel
 import javax.inject.Inject
-import kotlinx.coroutines.flow.Flow
 
 /**
  * Interface for view models concerned with recent tasks.
  *
- * Example Usage:
+ * Example usage in a [HydratedActivatable]:
  * ```
- * class FooViewModel(vm: RecentTasksViewModelImpl) : RecentTasksViewModel by vm
- * ```
+ * class FooViewModel(
+ *     viewModelProvider: Provider<RecentTasksViewModel>,
+ * ) : HydratedActivatable() {
  *
- * And then in compose:
- * ```
- * @Composable
- * fun Foo(viewModel: FooViewModel, modelFactory: RecentTaskViewModel.Factory) {
- *     val recentTasks by viewModel.recentTasks.collectAsState()
- *     LazyRow {
- *         recentTasks?.let {
- *             items(it) { task ->
- *                 val model by rememberViewModel("FooTraceName", task) {
- *                     modelFactory.create(task)
- *                 }
- *                 // ...
- *             }
+ *     private val viewModel = viewModelProvider.get()
+ *
+ *     override suspend fun onActivated() {
+ *         coroutineScope {
+ *             launchTraced("FooTraceName") { viewModel.activate() }
  *         }
  *     }
  * }
  * ```
+ *
+ * Example usage in a [Composable][androidx.compose.runtime.Composable]
+ *
+ * ```
+ * @Composable
+ * fun Foo(viewModelProvider: Provider<RecentTasksViewModel>) {
+ *     val viewModel = rememberViewModel("FooTraceName") { viewModelProvider.get() }
+ * }
+ * ```
  */
-interface RecentTasksViewModel {
-    /** The current list of recent tasks. */
-    val recentTasks: Flow<List<ScreenCaptureRecentTask>?>
+interface RecentTasksViewModel : TargetsViewModel {
+    override val targets: State<List<ScreenCaptureRecentTask>?>
+    override val selectedTarget: State<RecentTaskViewModel?>
+
+    override fun createViewModelFor(target: TargetModel): RecentTaskViewModel
 }
 
 /** The default implementation of [RecentTasksViewModel]. */
-class RecentTasksViewModelImpl @Inject constructor(interactor: ScreenCaptureRecentTaskInteractor) :
-    RecentTasksViewModel {
+class RecentTasksViewModelImpl
+@Inject
+constructor(
+    interactor: ScreenCaptureRecentTaskInteractor,
+    private val recentTaskViewModelFactory: RecentTaskViewModel.Factory,
+    drawableLoaderViewModel: DrawableLoaderViewModel,
+    audioSwitchViewModel: AudioSwitchViewModel,
+) :
+    RecentTasksViewModel,
+    DrawableLoaderViewModel by drawableLoaderViewModel,
+    AudioSwitchViewModel by audioSwitchViewModel,
+    HydratedActivatable() {
 
-    override val recentTasks: Flow<List<ScreenCaptureRecentTask>?> = interactor.recentTasks
+    override val targets: State<List<ScreenCaptureRecentTask>?> =
+        interactor.recentTasks.hydratedStateOf("RecentTasksViewModel#recentTasks", null)
+
+    private val _selectedTarget = mutableStateOf<RecentTaskViewModel?>(null)
+    override val selectedTarget: State<RecentTaskViewModel?> = _selectedTarget
+
+    override fun setSelectedTarget(target: TargetViewModel?) {
+        _selectedTarget.value = target as RecentTaskViewModel?
+    }
+
+    override fun createViewModelFor(target: TargetModel): RecentTaskViewModel =
+        recentTaskViewModelFactory.create(target as ScreenCaptureRecentTask)
 }

@@ -335,7 +335,7 @@ public class SimpleIconFactory {
 
     /**
      * @param icon drawable that should be flattened to a bitmap
-     * @param scale the scale to apply before drawing {@param icon} on the canvas
+     * @param scale the scale to apply before drawing {@code icon} on the canvas
      * @param insetAdiForShadow when rendering AdaptiveIconDrawables inset to make room for a shadow
      * @param ignoreAdiMask when rendering AdaptiveIconDrawables ignore the current system mask
      */
@@ -472,7 +472,7 @@ public class SimpleIconFactory {
     private final Canvas mScaleCheckCanvas;
 
     /**
-     * Returns the amount by which the {@param d} should be scaled (in both dimensions) so that it
+     * Returns the amount by which the {@code d} should be scaled (in both dimensions) so that it
      * matches the design guidelines for a launcher icon.
      *
      * We first calculate the convex hull of the visible portion of the icon.
@@ -607,7 +607,7 @@ public class SimpleIconFactory {
     }
 
     /**
-     * Modifies {@param xCoordinates} to represent a convex border. Fills in all missing values
+     * Modifies {@code xCoordinates} to represent a convex border. Fills in all missing values
      * (except on either ends) with appropriate values.
      * @param xCoordinates map of x coordinate per y.
      * @param direction 1 for left border and -1 for right border.
@@ -690,7 +690,7 @@ public class SimpleIconFactory {
                 mDrawPaint);
 
         // Draw the icon
-        mDrawPaint.setAlpha(255); // TODO if b/128609682 not fixed by launch use .setAlpha(254)
+        mDrawPaint.setAlpha(255);
         out.drawBitmap(icon, 0, 0, mDrawPaint);
     }
 

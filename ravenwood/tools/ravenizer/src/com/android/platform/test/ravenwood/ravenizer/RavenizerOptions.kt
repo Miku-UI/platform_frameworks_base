@@ -21,20 +21,10 @@ import com.android.hoststubgen.utils.ArgIterator
 import com.android.hoststubgen.utils.DEFAULT_SHARD_COUNT
 import com.android.hoststubgen.utils.IntSetOnce
 import com.android.hoststubgen.utils.SetOnce
-import com.android.hoststubgen.utils.ensureFileExists
 
 class RavenizerOptions(
-    /** Input jar file*/
-    val inJar: SetOnce<String> = SetOnce(""),
-
     /** Output jar file */
     val outJar: SetOnce<String> = SetOnce(""),
-
-    /** Whether to enable test validation. */
-    val enableValidation: SetOnce<Boolean> = SetOnce(true),
-
-    /** Whether the validation failure is fatal or not. */
-    val fatalValidation: SetOnce<Boolean> = SetOnce(true),
 
     /** Whether to remove mockito and dexmaker classes. */
     val stripMockito: SetOnce<Boolean> = SetOnce(false),
@@ -49,14 +39,7 @@ class RavenizerOptions(
             // TODO: Write help
             "-h", "--help" -> TODO("Help is not implemented yet")
 
-            "--in-jar" -> inJar.set(nextArg()).ensureFileExists()
             "--out-jar" -> outJar.set(nextArg())
-
-            "--enable-validation" -> enableValidation.set(true)
-            "--disable-validation" -> enableValidation.set(false)
-
-            "--fatal-validation" -> fatalValidation.set(true)
-            "--no-fatal-validation" -> fatalValidation.set(false)
 
             "--strip-mockito" -> stripMockito.set(true)
             "--no-strip-mockito" -> stripMockito.set(false)
@@ -74,9 +57,7 @@ class RavenizerOptions(
     }
 
     override fun checkArgs() {
-        if (!inJar.isSet) {
-            throw ArgumentsException("Required option missing: --in-jar")
-        }
+        super.checkArgs()
         if (!outJar.isSet) {
             throw ArgumentsException("Required option missing: --out-jar")
         }
@@ -84,10 +65,7 @@ class RavenizerOptions(
 
     override fun dumpFields(): String {
         return """
-            inJar=$inJar,
             outJar=$outJar,
-            enableValidation=$enableValidation,
-            fatalValidation=$fatalValidation,
             stripMockito=$stripMockito,
             numShards=$numShards,
         """.trimIndent() + '\n' + super.dumpFields()

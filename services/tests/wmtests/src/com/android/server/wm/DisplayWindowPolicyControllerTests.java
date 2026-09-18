@@ -186,7 +186,7 @@ public class DisplayWindowPolicyControllerTests extends WindowTestsBase {
     @Test
     public void testCanActivityBeLaunched() {
         ActivityStarter starter = new ActivityStarter(mock(ActivityStartController.class), mAtm,
-                mSupervisor, mock(ActivityStartInterceptor.class));
+                mSupervisor, mock(ActivityStartInterceptor.class), mock(UserHelper.class));
         final Task task = new TaskBuilder(mSupervisor).setDisplay(mSecondaryDisplay).build();
         final ActivityRecord sourceRecord = new ActivityBuilder(mAtm).setTask(task).build();
         final ActivityRecord disallowedRecord =
@@ -216,7 +216,7 @@ public class DisplayWindowPolicyControllerTests extends WindowTestsBase {
         assertFalse(mSecondaryDisplay.mDwpcHelper.hasController());
 
         ActivityStarter starter = new ActivityStarter(mock(ActivityStartController.class), mAtm,
-                mSupervisor, mock(ActivityStartInterceptor.class));
+                mSupervisor, mock(ActivityStartInterceptor.class), mock(UserHelper.class));
         final Task task = new TaskBuilder(mSupervisor).setDisplay(mSecondaryDisplay).build();
         final ActivityRecord sourceRecord = new ActivityBuilder(mAtm).setTask(task).build();
         final ActivityRecord disallowedRecord =

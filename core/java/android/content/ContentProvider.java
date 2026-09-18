@@ -60,6 +60,8 @@ import android.os.UserManager;
 import android.os.storage.StorageManager;
 import android.permission.PermissionCheckerManager;
 import android.provider.MediaStore;
+import android.ravenwood.annotation.RavenwoodKeep;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
 import android.text.TextUtils;
 import android.util.ArraySet;
 import android.util.Log;
@@ -119,7 +121,8 @@ import java.util.Objects;
  * developer guide.</p>
  * </div>
  */
-@android.ravenwood.annotation.RavenwoodKeepPartialClass
+@RavenwoodKeepPartialClass(comment = "kept just enough to support TestableSettingProvider",
+        bug = 457840588)
 public abstract class ContentProvider implements ContentInterface, ComponentCallbacks2 {
 
     private static final String TAG = "ContentProvider";
@@ -195,6 +198,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
      * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
+    @RavenwoodKeep
     public ContentProvider(
             Context context,
             String readPermission,
@@ -233,11 +237,15 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
      *
      * @hide
      */
+    @RavenwoodKeepPartialClass
     class Transport extends ContentProviderNative {
         volatile AppOpsManager mAppOpsManager = null;
         volatile int mReadOp = AppOpsManager.OP_NONE;
         volatile int mWriteOp = AppOpsManager.OP_NONE;
         volatile ContentInterface mInterface = ContentProvider.this;
+
+        @RavenwoodKeep
+        Transport() {}
 
         ContentProvider getContentProvider() {
             return ContentProvider.this;
@@ -2630,6 +2638,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
      * @hide
      */
     @UnsupportedAppUsage
+    @RavenwoodKeep
     public IContentProvider getIContentProvider() {
         return mTransport;
     }
@@ -2741,11 +2750,13 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
      *   the default for providers which don't implement any call methods.
      */
     @Override
+    @RavenwoodKeep
     public @Nullable Bundle call(@NonNull String authority, @NonNull String method,
             @Nullable String arg, @Nullable Bundle extras) {
         return call(method, arg, extras);
     }
 
+    @RavenwoodKeep
     public @Nullable Bundle call(@NonNull String method, @Nullable String arg,
             @Nullable Bundle extras) {
         return null;
@@ -2773,6 +2784,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
      * fixture before moving on to the next test.
      * </p>
      */
+    @RavenwoodKeep
     public void shutdown() {
         Log.w(TAG, "implement ContentProvider shutdown() to make sure all database " +
                 "connections are gracefully shutdown");
@@ -2787,6 +2799,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
      * closed for you after you return.
      * @param args additional arguments to the dump request.
      */
+    @RavenwoodKeep
     public void dump(FileDescriptor fd, PrintWriter writer, String[] args) {
         writer.println("nothing to dump");
     }
@@ -2844,7 +2857,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
     }
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     private Uri maybeGetUriWithoutUserId(Uri uri) {
         if (mSingleUser) {
             return uri;
@@ -2853,7 +2866,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
     }
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static int getUserIdFromAuthority(String auth, int defaultUserId) {
         if (auth == null) return defaultUserId;
         int end = auth.lastIndexOf('@');
@@ -2868,20 +2881,20 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
     }
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static int getUserIdFromAuthority(String auth) {
         return getUserIdFromAuthority(auth, UserHandle.USER_CURRENT);
     }
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static int getUserIdFromUri(Uri uri, int defaultUserId) {
         if (uri == null) return defaultUserId;
         return getUserIdFromAuthority(uri.getAuthority(), defaultUserId);
     }
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static int getUserIdFromUri(Uri uri) {
         return getUserIdFromUri(uri, UserHandle.USER_CURRENT);
     }
@@ -2892,7 +2905,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
      * @hide
      */
     @TestApi
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public @NonNull static UserHandle getUserHandleFromUri(@NonNull Uri uri) {
         return UserHandle.of(getUserIdFromUri(uri, Process.myUserHandle().getIdentifier()));
     }
@@ -2903,7 +2916,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
      * If there is no userId in the authority, it symply returns the argument
      * @hide
      */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static String getAuthorityWithoutUserId(String auth) {
         if (auth == null) return null;
         int end = auth.lastIndexOf('@');
@@ -2911,7 +2924,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
     }
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static Uri getUriWithoutUserId(Uri uri) {
         if (uri == null) return null;
         Uri.Builder builder = uri.buildUpon();
@@ -2920,7 +2933,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
     }
 
     /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static boolean uriHasUserId(Uri uri) {
         if (uri == null) return false;
         return !TextUtils.isEmpty(uri.getUserInfo());
@@ -2935,7 +2948,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
      * @throws IllegalArgumentException if
      * <ul>
      *  <li>the given URI is not content URI (a content URI has {@link Uri#getScheme} equal to
-     *  {@link ContentResolver.SCHEME_CONTENT}) or</li>
+     *  {@link ContentResolver#SCHEME_CONTENT}) or</li>
      *  <li>the given URI is already explicitly associated with a {@link UserHandle}, which is
      *  different than the given one.</li>
      *  </ul>
@@ -2944,7 +2957,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
      */
     @NonNull
     @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static Uri createContentUriForUser(
             @NonNull Uri contentUri, @NonNull UserHandle userHandle) {
         if (!ContentResolver.SCHEME_CONTENT.equals(contentUri.getScheme())) {
@@ -2971,7 +2984,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
 
     /** @hide */
     @UnsupportedAppUsage
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public static Uri maybeAddUserId(Uri uri, int userId) {
         if (uri == null) return null;
         if (userId != UserHandle.USER_CURRENT

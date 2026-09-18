@@ -47,13 +47,13 @@ uirenderer::SkTypefaceBackend GetSkTypefaceBackendProp() {
             PROPERTY_SKTYPEFACE_BACKEND, static_cast<T>(uirenderer::SkTypefaceBackend::kAuto)));
 }
 
-bool useFontationSkTypeface() {
+bool useFontationSkTypeface(std::optional<uirenderer::SkTypefaceBackend> local_override) {
     static bool useFontation;
     static std::once_flag once;
     // We don't support runtime switch between FreeType and Fontation. Once we decided, use the same
     // backend forever.
     std::call_once(once, [&]() {
-        auto textBackendProp = GetSkTypefaceBackendProp();
+        auto textBackendProp = local_override ? local_override.value() : GetSkTypefaceBackendProp();
         switch (textBackendProp) {
             case uirenderer::SkTypefaceBackend::kFreeType:
                 useFontation = false;
@@ -66,8 +66,8 @@ bool useFontationSkTypeface() {
                 useFontation = text_feature::use_fontation_by_default();
                 break;
         }
-        ALOGI("Using %s backend (prop=%s)", useFontation ? "Fontation" : "FreeType",
-              GetPropName(textBackendProp));
+        const char* prop = local_override ? "Override" : GetPropName(textBackendProp);
+        ALOGI("Using %s backend (prop=%s)", useFontation ? "Fontation" : "FreeType", prop);
     });
     return useFontation;
 }
@@ -83,12 +83,16 @@ sk_sp<SkFontMgr> FreeTypeFontMgr() {
 
 sk_sp<SkTypeface> makeSkTypeface(std::unique_ptr<SkStreamAsset> fontData,
                                  const SkFontArguments& args) {
-    if (useFontationSkTypeface()) {
+    if (useFontationSkTypeface(std::nullopt)) {
         return SkTypeface_Make_Fontations(std::move(fontData), args);
     } else {
         sk_sp<SkFontMgr> fm = android::FreeTypeFontMgr();
         return fm->makeFromStream(std::move(fontData), args);
     }
+}
+
+bool setFontRenderingBackend(uirenderer::SkTypefaceBackend backend) {
+    return useFontationSkTypeface(backend);
 }
 
 }  // namespace android

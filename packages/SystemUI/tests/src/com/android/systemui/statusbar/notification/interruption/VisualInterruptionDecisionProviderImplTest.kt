@@ -25,7 +25,6 @@ import android.app.Notification.CATEGORY_REMINDER
 import android.app.NotificationManager
 import android.content.pm.PackageManager.PERMISSION_DENIED
 import android.content.pm.PackageManager.PERMISSION_GRANTED
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
@@ -50,7 +49,6 @@ import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(VisualInterruptionRefactor.FLAG_NAME)
 class VisualInterruptionDecisionProviderImplTest : VisualInterruptionDecisionProviderTestBase() {
     override val provider by lazy {
         VisualInterruptionDecisionProviderImpl(
@@ -62,7 +60,7 @@ class VisualInterruptionDecisionProviderImplTest : VisualInterruptionDecisionPro
             headsUpManager,
             keyguardNotificationVisibilityProvider,
             keyguardStateController,
-            newLogger,
+            logger,
             mainHandler,
             powerManager,
             statusBarStateController,

@@ -76,8 +76,6 @@
     <string name="bubble_accessibility_action_collapse_menu" msgid="2975310870146231463">"menüyü daralt"</string>
     <string name="bubble_accessibility_action_move_bar_left" msgid="4803535120353716759">"Sola taşı"</string>
     <string name="bubble_accessibility_action_move_bar_right" msgid="7686542531917510421">"Sağa taşı"</string>
-    <string name="bubble_accessibility_announce_expand" msgid="5388792092888203776">"genişlet: <xliff:g id="BUBBLE_TITLE">%1$s</xliff:g>"</string>
-    <string name="bubble_accessibility_announce_collapse" msgid="3178806224494537097">"daralt: <xliff:g id="BUBBLE_TITLE">%1$s</xliff:g>"</string>
     <string name="bubbles_app_settings" msgid="3617224938701566416">"<xliff:g id="NOTIFICATION_TITLE">%1$s</xliff:g> ayarları"</string>
     <string name="bubble_dismiss_text" msgid="8816558050659478158">"Baloncuğu kapat"</string>
     <string name="bubble_fullscreen_text" msgid="1006758103218086231">"Tam ekrana taşı"</string>
@@ -95,9 +93,6 @@
     <string name="bubble_bar_education_manage_text" msgid="3199732148641842038">"Buraya dokunarak baloncuk olarak gösterilecek uygulama ve görüşmeleri yönetin"</string>
     <string name="notification_bubble_title" msgid="6082910224488253378">"Baloncuk"</string>
     <string name="manage_bubbles_text" msgid="7730624269650594419">"Yönet"</string>
-    <string name="accessibility_bubble_dismissed" msgid="8367471990421247357">"Balon kapatıldı."</string>
-    <string name="bubble_shortcut_label" msgid="666269077944378311">"Baloncuklar"</string>
-    <string name="bubble_shortcut_long_label" msgid="6088437544312894043">"Baloncukları göster"</string>
     <string name="restart_button_description" msgid="4564728020654658478">"Bu uygulamayı yeniden başlatarak daha iyi bir görünüm elde etmek için dokunun"</string>
     <string name="user_aspect_ratio_settings_button_hint" msgid="734835849600713016">"Bu uygulamanın en boy oranını Ayarlar\'dan değiştirin"</string>
     <string name="user_aspect_ratio_settings_button_description" msgid="4315566801697411684">"En boy oranını değiştir"</string>
@@ -121,6 +116,7 @@
     <string name="maximize_button_text" msgid="8106849394538234709">"<xliff:g id="APP_NAME">%1$s</xliff:g> uygulamasını büyüt"</string>
     <string name="restore_button_text" msgid="5377571986086775288">"<xliff:g id="APP_NAME">%1$s</xliff:g> uygulamasını geri yükle"</string>
     <string name="minimize_button_text" msgid="5213953162664451152">"<xliff:g id="APP_NAME">%1$s</xliff:g> uygulamasını küçült"</string>
+    <string name="exit_fullscreen_button_text" msgid="7970660979589417830">"<xliff:g id="APP_NAME">%1$s</xliff:g> için tam ekran modundan çık"</string>
     <string name="close_button_text" msgid="4544839489310949894">"<xliff:g id="APP_NAME">%1$s</xliff:g> uygulamasını kapat"</string>
     <string name="back_button_text" msgid="1469718707134137085">"Geri"</string>
     <string name="handle_text" msgid="4419667835599523257">"Uygulama tanıtıcısı"</string>
@@ -137,41 +133,52 @@
     <string name="new_window_text" msgid="6318648868380652280">"Yeni Pencere"</string>
     <string name="manage_windows_text" msgid="5567366688493093920">"Pencereleri yönet"</string>
     <string name="change_aspect_ratio_text" msgid="9104456064548212806">"En boy oranını değiştir"</string>
+    <string name="handle_menu_game_controls_text" msgid="8049059289860078063">"Oyun Kontrolleri"</string>
     <string name="handle_menu_restart_text" msgid="3907767216238298098">"Görünümü Optimize Et"</string>
     <string name="handle_menu_error_icon_text" msgid="7200375184879808684">"Hata Simgesi"</string>
     <string name="close_text" msgid="4986518933445178928">"Kapat"</string>
     <string name="collapse_menu_text" msgid="7515008122450342029">"Menüyü kapat"</string>
-    <string name="desktop_mode_app_header_chip_text" msgid="7617377295944971651">"<xliff:g id="APP_NAME">%1$s</xliff:g> (masaüstü pencereleme)"</string>
-    <string name="desktop_mode_maximize_menu_maximize_text" msgid="3275717276171114411">"Ekranı Büyüt"</string>
-    <string name="desktop_mode_maximize_menu_snap_text" msgid="5673738963174074006">"Yeniden boyutlandır"</string>
+    <string name="desktop_mode_header_chip_text" msgid="7171700244998923330">"<xliff:g id="APP_NAME">%1$s</xliff:g> (Pencereli görüntüleme)"</string>
+    <string name="desktop_mode_layout_menu_maximize_text" msgid="7086608727256054454">"Ekranı Büyüt"</string>
+    <string name="desktop_mode_layout_menu_snap_text" msgid="7558194147987254333">"Yeniden boyutlandır"</string>
     <string name="desktop_mode_non_resizable_snap_text" msgid="3771776422751387878">"Uygulama buraya taşınamıyor"</string>
-    <string name="desktop_mode_talkback_state_opening" msgid="8505494249513712682">"Yeni uygulama penceresi açılıyor"</string>
     <string name="desktop_mode_talkback_state_closing" msgid="6791583518636526904">"Uygulama penceresi kapatılıyor"</string>
     <string name="desktop_mode_talkback_state_minimizing" msgid="7406911785134757827">"Uygulama penceresi simge durumuna küçültülüyor"</string>
     <string name="desktop_mode_talkback_state_focused" msgid="6287982923335568236">"<xliff:g id="APP_NAME">%1$s</xliff:g> (Odaklanmış)"</string>
     <string name="desktop_mode_talkback_state_not_focused" msgid="4640618691603218929">"<xliff:g id="APP_NAME">%1$s</xliff:g> (Odaklanmamış)"</string>
-    <string name="desktop_mode_maximize_menu_immersive_button_text" msgid="559492223133829481">"Tam ekran"</string>
-    <string name="desktop_mode_maximize_menu_immersive_restore_button_text" msgid="4900114367354709257">"Geri yükle"</string>
-    <string name="desktop_mode_maximize_menu_maximize_button_text" msgid="3090199175564175845">"Ekranı kapla"</string>
-    <string name="desktop_mode_maximize_menu_restore_button_text" msgid="4234449220944704387">"Geri yükle"</string>
-    <string name="desktop_mode_maximize_menu_snap_left_button_text" msgid="8077452201179893424">"Sola tuttur"</string>
-    <string name="desktop_mode_maximize_menu_snap_right_button_text" msgid="7117751068945657304">"Sağa tuttur"</string>
+    <string name="desktop_mode_layout_menu_immersive_button_text" msgid="9009888844507160172">"Tam ekran"</string>
+    <string name="desktop_mode_layout_menu_immersive_restore_button_text" msgid="3110073879417912032">"Geri yükle"</string>
+    <string name="desktop_mode_layout_menu_maximize_button_text" msgid="5586863071181530250">"Ekranı kapla"</string>
+    <string name="desktop_mode_layout_menu_restore_button_text" msgid="5422006898402949300">"Geri yükle"</string>
+    <string name="desktop_mode_layout_menu_snap_left_button_text" msgid="6464364897343872665">"Sola tuttur"</string>
+    <string name="desktop_mode_layout_menu_snap_right_button_text" msgid="565024687319285843">"Sağa tuttur"</string>
     <string name="desktop_mode_a11y_action_snap_left" msgid="2932955411661734668">"Uygulama penceresini sola yeniden boyutlandır"</string>
     <string name="desktop_mode_a11y_action_snap_right" msgid="4577032451624261787">"Uygulama penceresini sağa yeniden boyutlandır"</string>
     <string name="desktop_mode_a11y_action_maximize_restore" msgid="8026037983417986686">"Pencereyi ekranı kaplayacak şekilde büyüt veya önceki boyutuna döndür"</string>
+    <string name="desktop_mode_a11y_action_exit_fullscreen" msgid="1854054435132984004">"Tam Ekrandan Çık"</string>
     <string name="app_handle_chip_accessibility_announce" msgid="499881698947450536">"Menüyü aç"</string>
     <string name="app_handle_menu_accessibility_announce" msgid="7928858564852785398">"<xliff:g id="WINDOWING_MODE">%1$s</xliff:g> moduna geç"</string>
-    <string name="maximize_menu_talkback_action_snap_left_text" msgid="500309467459084564">"Pencereyi sola yeniden boyutlandır"</string>
-    <string name="maximize_menu_talkback_action_snap_right_text" msgid="7010831426654467163">"Pencereyi sağa yeniden boyutlandır"</string>
-    <string name="maximize_menu_talkback_action_maximize_restore_text" msgid="4942610897847934859">"Pencereyi ekranı kaplayacak şekilde büyüt veya önceki boyutuna döndür"</string>
+    <string name="layout_menu_talkback_action_snap_left_text" msgid="8141501620544883986">"Pencereyi sola yeniden boyutlandır"</string>
+    <string name="layout_menu_talkback_action_snap_right_text" msgid="7819760135716721943">"Pencereyi sağa yeniden boyutlandır"</string>
+    <string name="layout_menu_talkback_action_maximize_restore_text" msgid="132471919764977708">"Uygulama penceresini ekranı kaplayacak şekilde büyüt"</string>
+    <string name="layout_menu_talkback_action_restore_text" msgid="1791365751744400881">"Pencere boyutunu geri yükle"</string>
+    <string name="layout_menu_talkback_action_immersive_enter_text" msgid="1753945477839147586">"Yoğun içerik moduna gir"</string>
+    <string name="layout_menu_talkback_action_immersive_restore_text" msgid="6913341567930893074">"Pencere boyutunu geri yükle"</string>
     <string name="app_header_talkback_action_maximize_button_text" msgid="8776156791095878638">"Uygulama penceresini ekranı kaplayacak şekilde büyüt"</string>
     <string name="app_header_talkback_action_restore_button_text" msgid="2153022340772980863">"Pencere boyutunu geri yükle"</string>
     <string name="app_header_talkback_action_minimize_button_text" msgid="7491054416186901764">"Uygulama penceresini küçült"</string>
     <string name="app_header_talkback_action_close_button_text" msgid="5159612596378268926">"Uygulama penceresini kapat"</string>
+    <string name="fullscreen_header_talkback_action_exit_fullscreen_button_text" msgid="5271884324741706388">"Tam Ekrandan Çık"</string>
     <string name="open_by_default_settings_text" msgid="2526548548598185500">"Varsayılan olarak açma ayarları"</string>
     <string name="open_by_default_dialog_subheader_text" msgid="1729599730664063881">"Bu uygulama için web bağlantılarının nasıl açılacağını seçin"</string>
     <string name="open_by_default_dialog_in_app_text" msgid="6978022419634199806">"Uygulamada"</string>
     <string name="open_by_default_dialog_in_browser_text" msgid="8042769465958497081">"Tarayıcınızda"</string>
     <string name="open_by_default_dialog_dismiss_button_text" msgid="3487238795534582291">"Tamam"</string>
     <string name="desktop_windowing_app_to_web_education_text" msgid="1599668769538703570">"Buradan tarayıcınızda uygulamaları hızlıca açın"</string>
+    <string name="open_by_default_splash_dialog_title_text" msgid="2645214455870859991">"&lt;b&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/b&gt; bağlantılarını nasıl açmak istiyorsunuz?"</string>
+    <string name="open_by_default_splash_dialog_checkbox_text" msgid="7367791478473586694">"Seçimimi hatırla"</string>
+    <string name="open_by_default_splash_dialog_browser_text" msgid="4439951040200685938">"Tarayıcıda aç"</string>
+    <string name="open_by_default_splash_dialog_app_text" msgid="2680408983754147907">"Uygulamada kal"</string>
+    <string name="open_by_default_splash_dialog_ask_me_later_text" msgid="2706872945449736432">"Daha sonra yeniden sor"</string>
+    <string name="package_update_text" msgid="196015273357188152">"Güncelleniyor..."</string>
 </resources>

@@ -19,8 +19,14 @@ package com.android.server.location.contexthub;
 import static com.android.server.location.contexthub.ContextHubTransactionManager.RELIABLE_MESSAGE_DUPLICATE_DETECTION_TIMEOUT;
 
 import android.annotation.NonNull;
+import android.annotation.RequiresNoPermission;
 import android.app.AppOpsManager;
+import android.chre.flags.Flags;
 import android.content.Context;
+import android.hardware.contexthub.DataFlowId;
+import android.hardware.contexthub.DataFlowInfo;
+import android.hardware.contexthub.DataFlowSinkContext;
+import android.hardware.contexthub.DataFlowSinkRegistrationParams;
 import android.hardware.contexthub.EndpointInfo;
 import android.hardware.contexthub.ErrorCode;
 import android.hardware.contexthub.HubEndpointInfo;
@@ -31,6 +37,8 @@ import android.hardware.contexthub.IEndpointCommunication;
 import android.hardware.contexthub.Message;
 import android.hardware.contexthub.MessageDeliveryStatus;
 import android.hardware.contexthub.Reason;
+import android.hardware.contexthub.SharedDataRegion;
+import android.hardware.contexthub.SharedDataRegionRequirements;
 import android.hardware.location.ContextHubTransaction;
 import android.hardware.location.IContextHubTransactionCallback;
 import android.hardware.location.NanoAppState;
@@ -40,6 +48,7 @@ import android.os.IBinder;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.os.RemoteException;
+import android.os.ServiceSpecificException;
 import android.os.WorkSource;
 import android.util.Log;
 import android.util.SparseArray;
@@ -47,19 +56,19 @@ import android.util.SparseArray;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
@@ -242,6 +251,42 @@ public class ContextHubEndpointBroker extends IContextHubEndpoint.Stub
     @GuardedBy("mOpenSessionLock")
     private final SparseArray<Session> mSessionMap = new SparseArray<>();
 
+    private final Object mDataFlowLock = new Object();
+
+    /** Wrapper around DataFlowId that is mappable. */
+    private static final class DataFlowIdWrapper {
+        private final DataFlowId mId;
+
+        DataFlowIdWrapper(DataFlowId id) {
+            mId = id;
+        }
+
+        public DataFlowId getId() {
+            return mId;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof DataFlowIdWrapper)) {
+                return false;
+            }
+            DataFlowIdWrapper that = (DataFlowIdWrapper) o;
+            return mId.hubId == that.mId.hubId && mId.id == that.mId.id;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(mId.hubId, mId.id);
+        }
+    }
+
+    @GuardedBy("mDataFlowLock")
+    private final Map<DataFlowIdWrapper, HubEndpointInfo> mDataFlowAsSinkMap =
+            new LinkedHashMap<>();
+
     /** The package name of the app that created the endpoint */
     private final String mPackageName;
 
@@ -381,6 +426,7 @@ public class ContextHubEndpointBroker extends IContextHubEndpoint.Stub
             }
             mEndpointManager.unregisterEndpoint(mEndpointInfo.getIdentifier().getEndpoint());
         }
+        mAppOpsManager.stopWatchingMode(this);
         releaseWakeLockOnExit();
     }
 
@@ -410,16 +456,18 @@ public class ContextHubEndpointBroker extends IContextHubEndpoint.Stub
             int sessionId, HubMessage message, IContextHubTransactionCallback callback) {
         super.sendMessage_enforcePermission();
         synchronized (mOpenSessionLock) {
-            Session info = mSessionMap.get(sessionId);
-            if (info == null) {
+            Session session = mSessionMap.get(sessionId);
+            if (session == null) {
                 throw new IllegalArgumentException(
                         "sendMessage for invalid session id=" + sessionId);
             }
-            if (!info.isActive()) {
+            if (!session.isActive()) {
                 throw new SecurityException(
                         "sendMessage called on inactive session (id= " + sessionId + ")");
             }
 
+            PccAccessList.getInstance()
+                    .maybeNotePccAccessForEndpoint(mUid, session.getRemoteEndpointInfo());
             Message halMessage = ContextHubServiceUtil.createHalMessage(message);
             if (callback == null) {
                 try {
@@ -438,48 +486,13 @@ public class ContextHubEndpointBroker extends IContextHubEndpoint.Stub
                     notifySessionClosedToBoth(sessionId, reason);
                 }
             } else {
-                IContextHubTransactionCallback wrappedCallback =
-                        new IContextHubTransactionCallback.Stub() {
-                            @Override
-                            public void onQueryResponse(int result, List<NanoAppState> appStates)
-                                    throws RemoteException {
-                                Log.w(TAG, "Unexpected onQueryResponse callback");
-                            }
-
-                            @Override
-                            public void onTransactionComplete(int result) throws RemoteException {
-                                callback.onTransactionComplete(result);
-                                if (result != ContextHubTransaction.RESULT_SUCCESS) {
-                                    Log.e(
-                                            TAG,
-                                            "Failed to send reliable message "
-                                                    + message
-                                                    + ", closing session");
-                                    notifySessionClosedToBoth(sessionId, Reason.UNSPECIFIED);
-                                }
-                            }
-                        };
-                ContextHubServiceTransaction transaction =
-                        mTransactionManager.createSessionMessageTransaction(
-                                getHubInterface(),
-                                sessionId,
-                                halMessage,
-                                mPackageName,
-                                wrappedCallback);
-                try {
-                    mTransactionManager.addTransaction(transaction);
-                    info.setReliableMessagePending(transaction.getMessageSequenceNumber());
-                } catch (IllegalStateException e) {
-                    Log.e(
-                            TAG,
-                            "Unable to add a transaction in sendMessageToEndpoint "
-                                    + "(session ID = "
-                                    + sessionId
-                                    + ")",
-                            e);
-                    transaction.onTransactionComplete(
-                            ContextHubTransaction.RESULT_FAILED_SERVICE_INTERNAL_FAILURE);
-                }
+                sendReliableSessionMessageLocked(
+                        halMessage,
+                        callback,
+                        session,
+                        sessionId,
+                        "sendMessage",
+                        getHubInterface()::sendMessageToEndpoint);
             }
         }
     }
@@ -506,6 +519,228 @@ public class ContextHubEndpointBroker extends IContextHubEndpoint.Stub
     public void onCallbackFinished() {
         super.onCallbackFinished_enforcePermission();
         releaseWakeLock();
+    }
+
+    @Override
+    @android.annotation.EnforcePermission(android.Manifest.permission.ACCESS_CONTEXT_HUB)
+    public SharedDataRegion allocateSharedDataRegion(SharedDataRegionRequirements requirements) {
+        super.allocateSharedDataRegion_enforcePermission();
+        if (requirements == null) {
+            throw new IllegalArgumentException(
+                    "requirements must be provided when allocating a shared data region");
+        }
+
+        try {
+            return getHubInterface().allocateSharedDataRegion(requirements);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        } catch (IllegalArgumentException
+                | UnsupportedOperationException
+                | ServiceSpecificException e) {
+            Log.e(TAG, "HAL exception in allocateSharedDataRegion", e);
+            throw e;
+        }
+    }
+
+    @Override
+    @android.annotation.EnforcePermission(android.Manifest.permission.ACCESS_CONTEXT_HUB)
+    public void freeSharedDataRegion(int id) {
+        super.freeSharedDataRegion_enforcePermission();
+
+        try {
+            getHubInterface().freeSharedDataRegion(id);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        } catch (IllegalArgumentException
+                | IllegalStateException
+                | UnsupportedOperationException e) {
+            Log.e(TAG, "HAL exception in freeSharedDataRegion", e);
+            throw e;
+        }
+    }
+
+    @Override
+    @android.annotation.EnforcePermission(android.Manifest.permission.ACCESS_CONTEXT_HUB)
+    public int registerDataFlowHostSource(DataFlowInfo info) {
+        super.registerDataFlowHostSource_enforcePermission();
+        if (info == null) {
+            throw new IllegalArgumentException(
+                    "info must be provided when registering a data flow host source");
+        }
+        if (!isRegistered()) {
+            throw new IllegalStateException(
+                    "Endpoint is not registered, cannot register data flow host source");
+        }
+
+        try {
+            return getHubInterface().registerDataFlowHostSource(mHalEndpointInfo.id, info);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        } catch (IllegalArgumentException | UnsupportedOperationException e) {
+            Log.e(TAG, "HAL exception in registerDataFlowHostSource", e);
+            throw e;
+        }
+    }
+
+    @Override
+    @android.annotation.EnforcePermission(android.Manifest.permission.ACCESS_CONTEXT_HUB)
+    public void unregisterDataFlowHostSource(int id) {
+        super.unregisterDataFlowHostSource_enforcePermission();
+
+        try {
+            getHubInterface().unregisterDataFlowHostSource(id);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        } catch (IllegalArgumentException | UnsupportedOperationException e) {
+            Log.e(TAG, "HAL exception in unregisterDataFlowHostSource", e);
+            throw e;
+        }
+    }
+
+    @Override
+    @android.annotation.EnforcePermission(android.Manifest.permission.ACCESS_CONTEXT_HUB)
+    public void registerDataFlowOffloadSink(
+            DataFlowSinkContext context,
+            HubEndpointInfo sink,
+            IContextHubEndpoint.IRegisterOffloadSinkCallback callback,
+            HubMessage msg,
+            int sessionId,
+            IContextHubTransactionCallback transactionCallback) {
+        super.registerDataFlowOffloadSink_enforcePermission();
+
+        if (context == null) {
+            throw new IllegalArgumentException(
+                    "context must be provided when registering a data flow offload sink");
+        }
+        if (sink == null) {
+            throw new IllegalArgumentException(
+                    "sink must be provided when registering a data flow offload sink");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException(
+                    "callback must be provided when registering a data flow offload sink");
+        }
+        if (!hasEndpointPermissions(sink)) {
+            throw new SecurityException(
+                    "Insufficient permission to register a data flow offload sink: " + sink);
+        }
+        PccAccessList.getInstance().maybeNotePccAccessForEndpoint(mUid, sink);
+
+        if (Flags.fmcqShareDataFlowMessageFix() && msg != null) {
+            // The incoming message is forced to be reliable since we utilize the transaction
+            // callback to notify the client when the message has been delivered and the sink
+            // has been registered.
+            msg.setIsResponseRequired(true);
+        }
+        Message halMessage = (msg != null) ? ContextHubServiceUtil.createHalMessage(msg) : null;
+
+        DataFlowSinkRegistrationParams params = new DataFlowSinkRegistrationParams();
+        params.context = context;
+        params.sinkId = ContextHubServiceUtil.convertHalEndpointInfo(sink).id;
+        params.sourceId = mHalEndpointInfo.id;
+        params.msg = halMessage;
+        params.sessionId = sessionId;
+        Binder.allowBlocking(callback.asBinder());
+        IEndpointCommunication.IRegisterOffloadSinkCallback halCallback =
+                new IEndpointCommunication.IRegisterOffloadSinkCallback.Stub() {
+                    @Override
+                    @RequiresNoPermission
+                    public long addSinkInRegion(SharedDataRegion region) throws RemoteException {
+                        return callback.addSinkInRegion(region);
+                    }
+
+                    @Override
+                    @RequiresNoPermission
+                    public int getInterfaceVersion() throws RemoteException {
+                        return IEndpointCommunication.IRegisterOffloadSinkCallback.VERSION;
+                    }
+
+                    @Override
+                    @RequiresNoPermission
+                    public String getInterfaceHash() throws RemoteException {
+                        return IEndpointCommunication.IRegisterOffloadSinkCallback.HASH;
+                    }
+                };
+
+        if (Flags.fmcqShareDataFlowMessageFix()) {
+            ContextHubTransactionManager.SessionMessageSender registerDataFlowOffloadSinkCb =
+                    (int sessionIdCopy, Message message) -> {
+                        params.sessionId = sessionIdCopy;
+                        params.msg = message;
+                        getHubInterface().registerDataFlowOffloadSink(params, halCallback);
+                    };
+            if (transactionCallback == null) {
+                try {
+                    registerDataFlowOffloadSinkCb.sendMessage(sessionId, halMessage);
+                } catch (RemoteException e) {
+                    throw e.rethrowFromSystemServer();
+                } catch (IllegalArgumentException
+                        | SecurityException
+                        | UnsupportedOperationException e) {
+                    Log.e(TAG, "HAL exception in registerDataFlowOffloadSink", e);
+                    throw e;
+                }
+            } else {
+                synchronized (mOpenSessionLock) {
+                    Session session = mSessionMap.get(sessionId);
+                    if (session == null) {
+                        throw new IllegalArgumentException(
+                                "registerDataFlowOffloadSink for invalid session id=" + sessionId);
+                    }
+                    if (!session.isActive()) {
+                        throw new SecurityException(
+                                "registerDataFlowOffloadSink called on inactive session (id= "
+                                        + sessionId
+                                        + ")");
+                    }
+
+                    sendReliableSessionMessageLocked(
+                            halMessage,
+                            transactionCallback,
+                            session,
+                            sessionId,
+                            "registerDataFlowOffloadSink",
+                            registerDataFlowOffloadSinkCb);
+                }
+            }
+        } else {
+            try {
+                getHubInterface().registerDataFlowOffloadSink(params, halCallback);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            } catch (IllegalArgumentException
+                    | SecurityException
+                    | UnsupportedOperationException e) {
+                Log.e(TAG, "HAL exception in registerDataFlowOffloadSink", e);
+                throw e;
+            }
+        }
+    }
+
+    @Override
+    @android.annotation.EnforcePermission(android.Manifest.permission.ACCESS_CONTEXT_HUB)
+    public void unregisterDataFlowHostSink(DataFlowId dataFlowId) {
+        super.unregisterDataFlowHostSink_enforcePermission();
+        if (dataFlowId == null) {
+            throw new IllegalArgumentException("dataFlowId cannot be null");
+        }
+        if (!isRegistered()) {
+            throw new IllegalStateException(
+                    "Endpoint is not registered, cannot unregister data flow host sink");
+        }
+
+        try {
+            getHubInterface().unregisterDataFlowHostSink(mHalEndpointInfo.id, dataFlowId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        } catch (IllegalArgumentException | UnsupportedOperationException e) {
+            Log.e(TAG, "HAL exception in unregisterDataFlowHostSink", e);
+            throw e;
+        }
+
+        synchronized (mDataFlowLock) {
+            mDataFlowAsSinkMap.remove(new DataFlowIdWrapper(dataFlowId));
+        }
     }
 
     /** Invoked when the underlying binder of this broker has died at the client process. */
@@ -535,6 +770,70 @@ public class ContextHubEndpointBroker extends IContextHubEndpoint.Stub
                         notifySessionClosedToBoth(id, Reason.PERMISSION_DENIED);
                     }
                 }
+            }
+            handleDataFlowPermissionChanges();
+        }
+    }
+
+    /**
+     * Handles a change in the PCC access list.
+     *
+     * @param pccEndpointId The endpoint ID that was added to the PCC access list.
+     */
+    /* package */ void onPccAccessChanged(HubEndpointInfo.HubEndpointIdentifier pccEndpointId) {
+        List<DataFlowId> inaccessibleFlows = new ArrayList<>();
+        synchronized (mDataFlowLock) {
+            Iterator<Map.Entry<DataFlowIdWrapper, HubEndpointInfo>> iterator =
+                    mDataFlowAsSinkMap.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Map.Entry<DataFlowIdWrapper, HubEndpointInfo> entry = iterator.next();
+                if (entry.getValue().getIdentifier().equals(pccEndpointId)
+                        && !PccAccessList.getInstance()
+                                .checkPccAccessForEndpoint(mUid, entry.getValue())) {
+                    Log.i(TAG, "Closing data flow from PCC-restricted endpoint " + pccEndpointId);
+                    inaccessibleFlows.add(entry.getKey().getId());
+                }
+            }
+        }
+
+        if (!inaccessibleFlows.isEmpty()) {
+            invokeCallback(
+                    (consumer) ->
+                            consumer.onDataFlowsInaccessible(
+                                    inaccessibleFlows.toArray(new DataFlowId[0])));
+            for (DataFlowId id : inaccessibleFlows) {
+                unregisterDataFlowHostSink(id);
+            }
+        }
+    }
+
+    private void handleDataFlowPermissionChanges() {
+        List<DataFlowId> inaccessibleFlows = new ArrayList<>();
+        synchronized (mDataFlowLock) {
+            for (Map.Entry<DataFlowIdWrapper, HubEndpointInfo> entry :
+                    mDataFlowAsSinkMap.entrySet()) {
+                if (!hasEndpointPermissions(entry.getValue())) {
+                    Log.w(
+                            TAG,
+                            "Permissions revoked for data flow "
+                                    + entry.getKey().getId()
+                                    + " for "
+                                    + mPackageName
+                                    + ". Source endpoint "
+                                    + entry.getValue()
+                                    + " is no longer accessible.");
+                    inaccessibleFlows.add(entry.getKey().getId());
+                }
+            }
+        }
+
+        if (!inaccessibleFlows.isEmpty()) {
+            invokeCallback(
+                    (consumer) ->
+                            consumer.onDataFlowsInaccessible(
+                                    inaccessibleFlows.toArray(new DataFlowId[0])));
+            for (DataFlowId id : inaccessibleFlows) {
+                unregisterDataFlowHostSink(id);
             }
         }
     }
@@ -652,9 +951,89 @@ public class ContextHubEndpointBroker extends IContextHubEndpoint.Stub
         mTransactionManager.onMessageDeliveryResponse(sequenceNumber, errorCode == ErrorCode.OK);
     }
 
+    /* package */ void onDataFlowHostSinkRegistered(
+            DataFlowSinkContext context, HubEndpointInfo source, HubMessage msg, int sessionId) {
+        if (Flags.fmcqShareDataFlowMessageFix()
+                && sessionId != SESSION_ID_INVALID
+                && !hasSessionId(sessionId)) {
+            Log.w(
+                    TAG,
+                    "Received data flow host sink registration for unknown session: id="
+                            + sessionId);
+            return;
+        }
+
+        if (!hasEndpointPermissions(source)) {
+            Log.w(
+                    TAG,
+                    "onDataFlowHostSinkRegistered: "
+                            + mEndpointInfo
+                            + " doesn't have permission for "
+                            + source);
+            unregisterDataFlowHostSink(context.id);
+            return;
+        }
+
+        try {
+            Binder.withCleanCallingIdentity(
+                    () -> {
+                        if (!notePermissions(source)) {
+                            throw new RuntimeException(
+                                    "onDataFlowHostSinkRegistered: "
+                                            + mEndpointInfo
+                                            + " doesn't have AppOps permission for "
+                                            + source);
+                        }
+                    });
+        } catch (RuntimeException e) {
+            Log.e(TAG, e.getMessage());
+            unregisterDataFlowHostSink(context.id);
+            return;
+        }
+        if (!PccAccessList.getInstance().checkPccAccessForEndpoint(mUid, source)) {
+            Log.w(
+                    TAG,
+                    "Dropping data flow host sink registration from "
+                            + source
+                            + ". Target client "
+                            + mPackageName
+                            + " is not PCC");
+            unregisterDataFlowHostSink(context.id);
+            return;
+        }
+
+        synchronized (mDataFlowLock) {
+            mDataFlowAsSinkMap.put(new DataFlowIdWrapper(context.id), source);
+        }
+
+        invokeCallback(
+                (consumer) ->
+                        consumer.onDataFlowHostSinkRegistered(context, source, msg, sessionId));
+    }
+
+    /* package */ void onDataFlowOffloadEndpointUnregistered(
+            DataFlowId dataFlowId, HubEndpointInfo endpoint) {
+        invokeCallback(
+                (consumer) -> consumer.onDataFlowOffloadEndpointUnregistered(dataFlowId, endpoint));
+    }
+
     /* package */ boolean hasSessionId(int sessionId) {
         synchronized (mOpenSessionLock) {
             return mSessionMap.contains(sessionId);
+        }
+    }
+
+    /**
+     * Handle the case where the underlying Context Hub HAL has died.
+     *
+     * <p>This will close all open sessions with the HUB_RESET reason.
+     */
+    /* package */ void onHalDeath() {
+        synchronized (mOpenSessionLock) {
+            for (int i = mSessionMap.size() - 1; i >= 0; i--) {
+                int id = mSessionMap.keyAt(i);
+                onCloseEndpointSession(id, Reason.HUB_RESET);
+            }
         }
     }
 
@@ -673,12 +1052,6 @@ public class ContextHubEndpointBroker extends IContextHubEndpoint.Stub
                 } catch (RemoteException e) {
                     Log.e(TAG, "RemoteException while calling HAL registerEndpoint", e);
                 }
-            }
-        }
-        synchronized (mOpenSessionLock) {
-            for (int i = mSessionMap.size() - 1; i >= 0; i--) {
-                int id = mSessionMap.keyAt(i);
-                onCloseEndpointSession(id, Reason.HUB_RESET);
             }
         }
     }
@@ -775,6 +1148,17 @@ public class ContextHubEndpointBroker extends IContextHubEndpoint.Stub
             if (mSessionMap.get(sessionId).isInReliableMessageHistory(message)) {
                 Log.e(TAG, "Dropping duplicate message: " + message);
                 return ErrorCode.TRANSIENT_ERROR;
+            }
+
+            if (!PccAccessList.getInstance().checkPccAccessForEndpoint(mUid, remote)) {
+                Log.w(
+                        TAG,
+                        "Dropping message from "
+                                + remote.getIdentifier()
+                                + ". Target client "
+                                + mPackageName
+                                + " is not PCC");
+                return ErrorCode.PERMISSION_DENIED;
             }
 
             try {
@@ -936,6 +1320,70 @@ public class ContextHubEndpointBroker extends IContextHubEndpoint.Stub
         Log.d(TAG, "notifySessionClosedToBoth: sessionId=" + sessionId + ", reason=" + halReason);
         mEndpointManager.halCloseEndpointSessionNoThrow(sessionId, halReason);
         onCloseEndpointSession(sessionId, halReason);
+    }
+
+    /**
+     * Sends a message on a session in a reliable manner. This will close the session if the message
+     * fails to send. The caller must hold mOpenSessionLock when calling this method.
+     *
+     * @param message The message to send
+     * @param callback The callback to invoke when the transaction completes
+     * @param session The session to send the message on
+     * @param sessionId The ID of the session to send the message on
+     * @param transactionSource The source of the transaction
+     * @param sendFunc The function to send the message on the session
+     */
+    @GuardedBy("mOpenSessionLock")
+    private void sendReliableSessionMessageLocked(
+            Message message,
+            IContextHubTransactionCallback callback,
+            Session session,
+            int sessionId,
+            String transactionSource,
+            ContextHubTransactionManager.SessionMessageSender sendFunc) {
+        IContextHubTransactionCallback wrappedCallback =
+                new IContextHubTransactionCallback.Stub() {
+                    @Override
+                    public void onQueryResponse(int result, List<NanoAppState> appStates)
+                            throws RemoteException {
+                        Log.w(TAG, "Unexpected onQueryResponse callback");
+                    }
+
+                    @Override
+                    public void onTransactionComplete(int result) throws RemoteException {
+                        callback.onTransactionComplete(result);
+                        if (result != ContextHubTransaction.RESULT_SUCCESS) {
+                            Log.e(
+                                    TAG,
+                                    "Failed to send reliable message from "
+                                            + transactionSource
+                                            + " "
+                                            + message
+                                            + ", closing session");
+                            notifySessionClosedToBoth(sessionId, Reason.UNSPECIFIED);
+                        }
+                    }
+                };
+        ContextHubServiceTransaction transaction =
+                mTransactionManager.createSessionMessageTransaction(
+                        sendFunc, sessionId, message, mPackageName, wrappedCallback);
+
+        try {
+            mTransactionManager.addTransaction(transaction);
+            session.setReliableMessagePending(transaction.getMessageSequenceNumber());
+        } catch (IllegalStateException e) {
+            Log.e(
+                    TAG,
+                    "Unable to add a transaction in "
+                            + transactionSource
+                            + "(session ID = "
+                            + sessionId
+                            + ")",
+                    e);
+            transaction.onTransactionComplete(
+                    ContextHubTransaction.RESULT_FAILED_SERVICE_INTERNAL_FAILURE);
+            notifySessionClosedToBoth(sessionId, Reason.UNSPECIFIED);
+        }
     }
 
     private IEndpointCommunication getHubInterface() {

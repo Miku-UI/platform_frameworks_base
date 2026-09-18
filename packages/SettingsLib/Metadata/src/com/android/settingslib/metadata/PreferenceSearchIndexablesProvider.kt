@@ -233,5 +233,11 @@ abstract class PreferenceSearchIndexablesProvider : SearchIndexablesProvider() {
             val lastSlash = key.lastIndexOf('/')
             return key.substring(lastSlash + 1)
         }
+
+        fun getScreenKey(key: String?): String? {
+            if (key?.startsWith(PREFIX) != true) return key
+            val lastSlash = key.lastIndexOf('/')
+            return key.substring(PREFIX.length, lastSlash)
+        }
     }
 }

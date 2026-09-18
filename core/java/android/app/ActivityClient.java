@@ -22,6 +22,7 @@ import static android.os.UserHandle.getCallingUserId;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.app.HandoffActivityData;
+import android.app.HandoffActivityParams;
 import android.content.ComponentName;
 import android.content.ContentProvider;
 import android.content.Intent;
@@ -36,6 +37,7 @@ import android.util.Singleton;
 import android.view.RemoteAnimationDefinition;
 import android.window.SizeConfigurationBuckets;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.policy.IKeyguardDismissCallback;
 
 /**
@@ -375,17 +377,10 @@ public class ActivityClient {
         }
     }
 
-    boolean isHandoffEnabled(IBinder token) {
+    @Nullable
+    HandoffActivityParams getHandoffActivityParams(IBinder token) {
         try {
-            return getActivityClientController().isHandoffEnabled(token);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
-    }
-
-    boolean isHandoffFullTaskRecreationAllowed(IBinder token) {
-        try {
-            return getActivityClientController().isHandoffFullTaskRecreationAllowed(token);
+            return getActivityClientController().getHandoffActivityParams(token);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -394,12 +389,12 @@ public class ActivityClient {
     void setHandoffEnabled(
             IBinder token,
             boolean handoffEnabled,
-            boolean allowFullTaskRecreation) {
+            @Nullable HandoffActivityParams handoffActivityParams) {
         try {
             getActivityClientController().setHandoffEnabled(
                     token,
                     handoffEnabled,
-                    allowFullTaskRecreation);
+                    handoffActivityParams);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -453,7 +448,9 @@ public class ActivityClient {
         }
     }
 
-    void requestMultiwindowFullscreen(IBinder token, int request, IRemoteCallback callback) {
+    /** Handles the fullscreen mode request. */
+    @VisibleForTesting
+    public void requestMultiwindowFullscreen(IBinder token, int request, IRemoteCallback callback) {
         try {
             getActivityClientController().requestMultiwindowFullscreen(token, request, callback);
         } catch (RemoteException e) {
@@ -487,7 +484,11 @@ public class ActivityClient {
 
     void setTaskDescription(IBinder token, ActivityManager.TaskDescription td) {
         try {
-            getActivityClientController().setTaskDescription(token, td);
+            if (com.android.window.flags.Flags.oneWaySetTaskDescription()) {
+                getActivityClientController().setTaskDescriptionOneWay(token, td);
+            } else {
+                getActivityClientController().setTaskDescription(token, td);
+            }
         } catch (RemoteException e) {
             e.rethrowFromSystemServer();
         }

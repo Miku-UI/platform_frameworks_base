@@ -118,6 +118,9 @@ public class AndroidKeyStoreSpi extends KeyStoreSpi {
     private KeyStore2 mKeyStore;
     private @KeyProperties.Namespace int mNamespace = KeyProperties.NAMESPACE_APPLICATION;
 
+    // Defined in RFC 8410.
+    private static final String ED25519_OID = "1.3.101.112";
+
     @Override
     public Key engineGetKey(String alias, char[] password) throws NoSuchAlgorithmException,
             UnrecoverableKeyException {
@@ -344,6 +347,22 @@ public class AndroidKeyStoreSpi extends KeyStoreSpi {
             // Disable randomized encryption requirement to support encryption
             // padding NONE above.
             specBuilder.setRandomizedEncryptionRequired(false);
+        } else if (KeyProperties.KEY_ALGORITHM_XDH.equalsIgnoreCase(keyAlgorithm)) {
+            specBuilder = new KeyProtection.Builder(KeyProperties.PURPOSE_AGREE_KEY);
+        } else if (ED25519_OID.equalsIgnoreCase(keyAlgorithm)) {
+            // Why compare with the Ed25519 OID? Conscrypt's EdDSA public keys return the OID from
+            // their `getAlgorithm()` method in order to be backwards-compatible with
+            // AndroidKeyStore provider implementations in the wild that use the OID and shipped
+            // prior to full Ed25519 support existing in Conscrypt (which was pushed to devices via
+            // mainline).
+            specBuilder =
+                    new KeyProtection.Builder(
+                            KeyProperties.PURPOSE_SIGN | KeyProperties.PURPOSE_VERIFY);
+            specBuilder.setDigests(KeyProperties.DIGEST_NONE);
+        } else if (KeyProperties.KEY_ALGORITHM_ML_DSA.equalsIgnoreCase(keyAlgorithm)) {
+            specBuilder =
+                    new KeyProtection.Builder(
+                            KeyProperties.PURPOSE_SIGN | KeyProperties.PURPOSE_VERIFY);
         } else {
             throw new KeyStoreException("Unsupported key algorithm: " + keyAlgorithm);
         }
@@ -663,6 +682,13 @@ public class AndroidKeyStoreSpi extends KeyStoreSpi {
             if (param.equals(NamedParameterSpec.ED25519)) {
                 return EcCurve.CURVE_25519;
             }
+        } else if (key.getAlgorithm().equals(ED25519_OID)) {
+            // Why compare with the Ed25519 OID? Conscrypt's EdDSA private keys return the OID from
+            // their `getAlgorithm()` method in order to be backwards-compatible with
+            // AndroidKeyStore provider implementations in the wild that use the OID and shipped
+            // prior to full Ed25519 support existing in Conscrypt (which was pushed to devices via
+            // mainline).
+            return EcCurve.CURVE_25519;
         }
         throw new IllegalArgumentException("Unexpected Key " + key.getClass().getName());
     }

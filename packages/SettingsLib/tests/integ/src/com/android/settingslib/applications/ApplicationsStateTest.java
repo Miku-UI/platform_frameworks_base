@@ -22,14 +22,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import android.content.pm.ApplicationInfo;
-import android.os.Flags;
 import android.os.UserManager;
-import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.core.app.ApplicationProvider;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -38,7 +35,6 @@ import org.junit.runners.JUnit4;
 public class ApplicationsStateTest {
     private static final int APP_ENTRY_ID = 1;
     private ApplicationsState.AppEntry mEntry;
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Before
     public void setUp() {
@@ -377,9 +373,6 @@ public class ApplicationsStateTest {
 
     @Test
     public void testPrivateProfileFilterDisplaysCorrectApps() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_ALLOW_PRIVATE_PROFILE,
-                android.multiuser.Flags.FLAG_ENABLE_PRIVATE_SPACE_FEATURES);
-
         mEntry.showInPersonalTab = true;
         mEntry.mProfileType = UserManager.USER_TYPE_FULL_SYSTEM;
         assertThat(ApplicationsState.FILTER_PERSONAL.filterApp(mEntry)).isTrue();
@@ -389,16 +382,5 @@ public class ApplicationsStateTest {
         mEntry.mProfileType = UserManager.USER_TYPE_PROFILE_PRIVATE;
         assertThat(ApplicationsState.FILTER_PERSONAL.filterApp(mEntry)).isFalse();
         assertThat(ApplicationsState.FILTER_PRIVATE_PROFILE.filterApp(mEntry)).isTrue();
-    }
-
-    @Test
-    public void testPrivateProfileFilterDisplaysCorrectAppsWhenFlagDisabled() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_ALLOW_PRIVATE_PROFILE,
-                android.multiuser.Flags.FLAG_ENABLE_PRIVATE_SPACE_FEATURES);
-
-        mEntry.showInPersonalTab = false;
-        mEntry.mProfileType = UserManager.USER_TYPE_PROFILE_PRIVATE;
-        assertThat(ApplicationsState.FILTER_PERSONAL.filterApp(mEntry)).isFalse();
-        assertThat(ApplicationsState.FILTER_PRIVATE_PROFILE.filterApp(mEntry)).isFalse();
     }
 }

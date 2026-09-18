@@ -109,7 +109,25 @@ final class AppIdSettingMap {
         setFirstAvailableAppId(appId + 1);
     }
 
-    // This should be called (at least) whenever an application is removed
+    /**
+     * Updates the starting point for new app ID searches to prevent app ID reuse.
+     * <p>
+     * This method is called when an application is removed. It maintains a "high-water mark"
+     * to ensure that the app ID of a recently uninstalled app is not immediately reassigned
+     * to a new installation.
+     * <p>
+     * This prevents app ID reuse until the next device reboot, after which
+     * {@code mFirstAvailableAppId} is reset and the freed app IDs can be used again.
+     * <p>
+     * Note that it's possible that when mFirstAvailableAppId is updated to a non-zero value after
+     * an app is removed, there are still unused app IDs that were freed from the previous boot
+     * session and are smaller than mFirstAvailableAppId, which may lead to unused freed app IDs.
+     * This is because currently there is no way to distinguish between a freed app ID from the
+     * previous boot session and a removed app ID from the current boot session.
+     *
+     * @param uid The app ID (plus one) of the application that was just removed. It is a
+     *            candidate for the next available app ID.
+     */
     private void setFirstAvailableAppId(int uid) {
         if (uid > mFirstAvailableAppId) {
             mFirstAvailableAppId = uid;

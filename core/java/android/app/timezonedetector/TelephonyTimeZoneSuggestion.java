@@ -51,8 +51,8 @@ import java.util.Objects;
  * <p>{@code matchType} must be set to {@link #MATCH_TYPE_NA} when {@code zoneId} is {@code null},
  * and one of the other {@code MATCH_TYPE_} values when it is not {@code null}.
  *
- * <p>{@code quality} must be set to {@link #QUALITY_NA} when {@code zoneId} is {@code null},
- * and one of the other {@code QUALITY_} values when it is not {@code null}.
+ * <p>{@code quality} must be set to {@link #QUALITY_NA} when {@code zoneId} is {@code null}, and
+ * one of the other {@code QUALITY_} values when it is not {@code null}.
  *
  * <p>{@code debugInfo} contains debugging metadata associated with the suggestion. This is used to
  * record why the suggestion exists, e.g. what triggered it to be made and what heuristic was used
@@ -88,41 +88,45 @@ public final class TelephonyTimeZoneSuggestion implements Parcelable {
     }
 
     /** @hide */
-    @IntDef({ MATCH_TYPE_NA, MATCH_TYPE_NETWORK_COUNTRY_ONLY, MATCH_TYPE_NETWORK_COUNTRY_AND_OFFSET,
-            MATCH_TYPE_EMULATOR_ZONE_ID, MATCH_TYPE_TEST_NETWORK_OFFSET_ONLY })
+    @IntDef({
+        MATCH_TYPE_NA,
+        MATCH_TYPE_NETWORK_COUNTRY_ONLY,
+        MATCH_TYPE_NETWORK_COUNTRY_AND_OFFSET,
+        MATCH_TYPE_EMULATOR_ZONE_ID,
+        MATCH_TYPE_TEST_NETWORK_OFFSET_ONLY
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface MatchType {}
 
     /** Used when match type is not applicable. */
     public static final int MATCH_TYPE_NA = 0;
 
-    /**
-     * Only the network country is known.
-     */
+    /** Only the network country is known. */
     public static final int MATCH_TYPE_NETWORK_COUNTRY_ONLY = 2;
 
-    /**
-     * Both the network county and offset were known.
-     */
+    /** Both the network county and offset were known. */
     public static final int MATCH_TYPE_NETWORK_COUNTRY_AND_OFFSET = 3;
 
     /**
-     * The device is running in an emulator and an NITZ signal was simulated containing an
-     * Android extension with an explicit Olson ID.
+     * The device is running in an emulator and an NITZ signal was simulated containing an Android
+     * extension with an explicit Olson ID.
      */
     public static final int MATCH_TYPE_EMULATOR_ZONE_ID = 4;
 
     /**
      * The phone is most likely running in a test network not associated with a country (this is
-     * distinct from the country just not being known yet).
-     * Historically, Android has just picked an arbitrary time zone with the correct offset when
-     * on a test network.
+     * distinct from the country just not being known yet). Historically, Android has just picked an
+     * arbitrary time zone with the correct offset when on a test network.
      */
     public static final int MATCH_TYPE_TEST_NETWORK_OFFSET_ONLY = 5;
 
     /** @hide */
-    @IntDef({ QUALITY_NA, QUALITY_SINGLE_ZONE, QUALITY_MULTIPLE_ZONES_WITH_SAME_OFFSET,
-            QUALITY_MULTIPLE_ZONES_WITH_DIFFERENT_OFFSETS })
+    @IntDef({
+        QUALITY_NA,
+        QUALITY_SINGLE_ZONE,
+        QUALITY_MULTIPLE_ZONES_WITH_SAME_OFFSET,
+        QUALITY_MULTIPLE_ZONES_WITH_DIFFERENT_OFFSETS
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface Quality {}
 
@@ -133,15 +137,13 @@ public final class TelephonyTimeZoneSuggestion implements Parcelable {
     public static final int QUALITY_SINGLE_ZONE = 1;
 
     /**
-     * There are multiple answers, but they all shared the same offset / DST state at the time
-     * the suggestion was created. i.e. it might be the wrong zone but the user won't notice
-     * immediately if it is wrong.
+     * There are multiple answers, but they all shared the same offset / DST state at the time the
+     * suggestion was created. i.e. it might be the wrong zone but the user won't notice immediately
+     * if it is wrong.
      */
     public static final int QUALITY_MULTIPLE_ZONES_WITH_SAME_OFFSET = 2;
 
-    /**
-     * There are multiple answers with different offsets. The one given is just one possible.
-     */
+    /** There are multiple answers with different offsets. The one given is just one possible. */
     public static final int QUALITY_MULTIPLE_ZONES_WITH_DIFFERENT_OFFSETS = 3;
 
     private final int mSlotIndex;
@@ -178,7 +180,8 @@ public final class TelephonyTimeZoneSuggestion implements Parcelable {
                                         TelephonySignal.class))
                         .build();
         List<String> debugInfo =
-                in.readArrayList(TelephonyTimeZoneSuggestion.class.getClassLoader(), java.lang.String.class);
+                in.readArrayList(
+                        TelephonyTimeZoneSuggestion.class.getClassLoader(), java.lang.String.class);
         if (debugInfo != null) {
             suggestion.addDebugInfo(debugInfo);
         }
@@ -261,7 +264,8 @@ public final class TelephonyTimeZoneSuggestion implements Parcelable {
     @NonNull
     public List<String> getDebugInfo() {
         return mDebugInfo == null
-                ? Collections.emptyList() : Collections.unmodifiableList(mDebugInfo);
+                ? Collections.emptyList()
+                : Collections.unmodifiableList(mDebugInfo);
     }
 
     /** Returns the {@link TelephonySignal} associated with this suggestion, or {@code null}. */
@@ -440,20 +444,30 @@ public final class TelephonyTimeZoneSuggestion implements Parcelable {
             int matchType = mMatchType;
             if (mZoneId == null) {
                 if (quality != QUALITY_NA || matchType != MATCH_TYPE_NA) {
-                    throw new RuntimeException("Invalid quality or match type for null zone ID."
-                            + " quality=" + quality + ", matchType=" + matchType);
+                    throw new RuntimeException(
+                            "Invalid quality or match type for null zone ID."
+                                    + " quality="
+                                    + quality
+                                    + ", matchType="
+                                    + matchType);
                 }
             } else {
-                boolean qualityValid = (quality == QUALITY_SINGLE_ZONE
-                        || quality == QUALITY_MULTIPLE_ZONES_WITH_SAME_OFFSET
-                        || quality == QUALITY_MULTIPLE_ZONES_WITH_DIFFERENT_OFFSETS);
-                boolean matchTypeValid = (matchType == MATCH_TYPE_NETWORK_COUNTRY_ONLY
-                        || matchType == MATCH_TYPE_NETWORK_COUNTRY_AND_OFFSET
-                        || matchType == MATCH_TYPE_EMULATOR_ZONE_ID
-                        || matchType == MATCH_TYPE_TEST_NETWORK_OFFSET_ONLY);
+                boolean qualityValid =
+                        (quality == QUALITY_SINGLE_ZONE
+                                || quality == QUALITY_MULTIPLE_ZONES_WITH_SAME_OFFSET
+                                || quality == QUALITY_MULTIPLE_ZONES_WITH_DIFFERENT_OFFSETS);
+                boolean matchTypeValid =
+                        (matchType == MATCH_TYPE_NETWORK_COUNTRY_ONLY
+                                || matchType == MATCH_TYPE_NETWORK_COUNTRY_AND_OFFSET
+                                || matchType == MATCH_TYPE_EMULATOR_ZONE_ID
+                                || matchType == MATCH_TYPE_TEST_NETWORK_OFFSET_ONLY);
                 if (!qualityValid || !matchTypeValid) {
-                    throw new RuntimeException("Invalid quality or match type with zone ID."
-                            + " quality=" + quality + ", matchType=" + matchType);
+                    throw new RuntimeException(
+                            "Invalid quality or match type with zone ID."
+                                    + " quality="
+                                    + quality
+                                    + ", matchType="
+                                    + matchType);
                 }
             }
         }
@@ -477,30 +491,14 @@ public final class TelephonyTimeZoneSuggestion implements Parcelable {
         String opt;
         while ((opt = cmd.getNextArg()) != null) {
             switch (opt) {
-                case "--slot_index": {
-                    slotIndex = Integer.parseInt(cmd.getNextArgRequired());
-                    break;
-                }
-                case "--zone_id": {
-                    zoneId = cmd.getNextArgRequired();
-                    break;
-                }
-                case "--country-iso-code": {
-                    countryIsoCode = cmd.getNextArgRequired();
-                    break;
-                }
-                case "--quality": {
-                    quality = parseQualityCommandLineArg(cmd.getNextArgRequired());
-                    break;
-                }
-                case "--match_type": {
-                    matchType = parseMatchTypeCommandLineArg(cmd.getNextArgRequired());
-                    break;
-                }
+                case "--slot_index" -> slotIndex = Integer.parseInt(cmd.getNextArgRequired());
+                case "--zone_id" -> zoneId = cmd.getNextArgRequired();
+                case "--country-iso-code" -> countryIsoCode = cmd.getNextArgRequired();
+                case "--quality" -> quality = parseQualityCommandLineArg(cmd.getNextArgRequired());
+                case "--match_type" ->
+                        matchType = parseMatchTypeCommandLineArg(cmd.getNextArgRequired());
                 // TelephonySignal ignored
-                default: {
-                    throw new IllegalArgumentException("Unknown option: " + opt);
-                }
+                default -> throw new IllegalArgumentException("Unknown option: " + opt);
             }
         }
 
@@ -526,31 +524,22 @@ public final class TelephonyTimeZoneSuggestion implements Parcelable {
     }
 
     private static int parseQualityCommandLineArg(@NonNull String arg) {
-        switch (arg) {
-            case "single":
-                return QUALITY_SINGLE_ZONE;
-            case "multiple_same":
-                return QUALITY_MULTIPLE_ZONES_WITH_SAME_OFFSET;
-            case "multiple_different":
-                return QUALITY_MULTIPLE_ZONES_WITH_DIFFERENT_OFFSETS;
-            default:
-                throw new IllegalArgumentException("Unrecognized quality: " + arg);
-        }
+        return switch (arg) {
+            case "single" -> QUALITY_SINGLE_ZONE;
+            case "multiple_same" -> QUALITY_MULTIPLE_ZONES_WITH_SAME_OFFSET;
+            case "multiple_different" -> QUALITY_MULTIPLE_ZONES_WITH_DIFFERENT_OFFSETS;
+            default -> throw new IllegalArgumentException("Unrecognized quality: " + arg);
+        };
     }
 
     private static int parseMatchTypeCommandLineArg(@NonNull String arg) {
-        switch (arg) {
-            case "emulator":
-                return MATCH_TYPE_EMULATOR_ZONE_ID;
-            case "country_with_offset":
-                return MATCH_TYPE_NETWORK_COUNTRY_AND_OFFSET;
-            case "country":
-                return MATCH_TYPE_NETWORK_COUNTRY_ONLY;
-            case "test_network":
-                return MATCH_TYPE_TEST_NETWORK_OFFSET_ONLY;
-            default:
-                throw new IllegalArgumentException("Unrecognized match_type: " + arg);
-        }
+        return switch (arg) {
+            case "emulator" -> MATCH_TYPE_EMULATOR_ZONE_ID;
+            case "country_with_offset" -> MATCH_TYPE_NETWORK_COUNTRY_AND_OFFSET;
+            case "country" -> MATCH_TYPE_NETWORK_COUNTRY_ONLY;
+            case "test_network" -> MATCH_TYPE_TEST_NETWORK_OFFSET_ONLY;
+            default -> throw new IllegalArgumentException("Unrecognized match_type: " + arg);
+        };
     }
 
     /** @hide */

@@ -18,6 +18,7 @@ package com.android.systemui.qs.panels.ui.viewmodel
 
 import android.content.res.Configuration
 import android.content.res.mainResources
+import android.content.testableContext
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
 import com.android.systemui.common.ui.domain.interactor.configurationInteractor
 import com.android.systemui.kosmos.Kosmos
@@ -26,7 +27,7 @@ import com.android.systemui.media.controls.domain.pipeline.interactor.mediaCarou
 import com.android.systemui.media.controls.ui.controller.mediaHostStatesManager
 import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
 import com.android.systemui.qs.composefragment.dagger.usingMediaInComposeFragment
-import com.android.systemui.shade.data.repository.shadeRepository
+import com.android.systemui.res.R
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 
 val Kosmos.mediaInRowInLandscapeViewModelFactory by
@@ -51,7 +52,11 @@ val Kosmos.mediaInRowInLandscapeViewModelFactory by
     }
 
 fun Kosmos.setConfigurationForMediaInRow(mediaInRow: Boolean) {
-    shadeRepository.legacyUseSplitShade.value = !mediaInRow // media in row only in non wide
+    // Media in row only in non wide
+    testableContext.orCreateTestableResources.addOverride(
+        R.bool.config_use_split_notification_shade,
+        !mediaInRow,
+    )
     val config =
         Configuration(mainResources.configuration).apply {
             orientation =

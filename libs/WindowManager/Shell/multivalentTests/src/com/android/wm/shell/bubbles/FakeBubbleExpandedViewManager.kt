@@ -16,14 +16,15 @@
 
 package com.android.wm.shell.bubbles
 
-import android.app.ActivityManager
-import android.window.WindowContainerToken
 import com.android.wm.shell.shared.bubbles.BubbleBarLocation
 import java.util.Collections
 
 /** Fake implementation of [BubbleExpandedViewManager] for testing. */
-class FakeBubbleExpandedViewManager(var bubbleBar: Boolean = false, var expanded: Boolean = false) :
-    BubbleExpandedViewManager {
+class FakeBubbleExpandedViewManager(
+    private val bubbleHelper: BubbleHelper = FakeBubbleHelper(),
+    var bubbleBar: Boolean = false,
+    var expanded: Boolean = false,
+) : BubbleExpandedViewManager {
 
     override val overflowBubbles: List<Bubble>
         get() = Collections.emptyList()
@@ -37,6 +38,8 @@ class FakeBubbleExpandedViewManager(var bubbleBar: Boolean = false, var expanded
     override fun promoteBubbleFromOverflow(bubble: Bubble) {}
 
     override fun removeBubble(key: String, reason: Int) {}
+
+    override fun removeBubble(key: String, taskId: Int, reason: Int) {}
 
     override fun dismissBubble(bubble: Bubble, reason: Int) {}
 
@@ -54,11 +57,5 @@ class FakeBubbleExpandedViewManager(var bubbleBar: Boolean = false, var expanded
 
     override fun updateBubbleBarLocation(location: BubbleBarLocation, source: Int) {}
 
-    override fun getAppBubbleRootTaskToken(): WindowContainerToken? {
-        return null
-    }
-
-    override fun shouldBeAppBubble(taskInfo: ActivityManager.RunningTaskInfo): Boolean {
-        return false
-    }
+    override fun getBubbleHelper(): BubbleHelper = bubbleHelper
 }

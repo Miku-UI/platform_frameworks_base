@@ -176,22 +176,28 @@ public abstract class CameraDevice implements AutoCloseable {
       *
       * @see #setCameraAudioRestriction
       */
-     public static final int AUDIO_RESTRICTION_NONE = 0;
+     public static final int AUDIO_RESTRICTION_NONE =
+         ICameraDeviceUser.AudioRestriction.NONE;
 
      /**
       * Mute vibration from ringtones, alarms or notifications while this camera device is in use.
       *
       * @see #setCameraAudioRestriction
       */
-     public static final int AUDIO_RESTRICTION_VIBRATION = 1;
+     public static final int AUDIO_RESTRICTION_VIBRATION =
+         ICameraDeviceUser.AudioRestriction.VIBRATION;
 
      /**
       * Mute vibration and sound from ringtones, alarms or notifications while this camera device is
       * in use.
       *
+      * <p>As of API level 37, this option will also turn off any lights on the device if they are
+      * bright enough to interfere with camera photos or recordings.</p>
+      *
       * @see #setCameraAudioRestriction
       */
-     public static final int AUDIO_RESTRICTION_VIBRATION_SOUND = 3;
+     public static final int AUDIO_RESTRICTION_VIBRATION_SOUND =
+         ICameraDeviceUser.AudioRestriction.VIBRATION_SOUND;
 
      /** @hide */
      @Retention(RetentionPolicy.SOURCE)
@@ -454,7 +460,6 @@ public abstract class CameraDevice implements AutoCloseable {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
     public static final int SESSION_OPERATION_MODE_SHARED =
             2; // ICameraDeviceUser.SHARED_MODE;
 
@@ -1590,7 +1595,6 @@ public abstract class CameraDevice implements AutoCloseable {
          * @hide
          */
         @SystemApi
-        @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
         public void onOpenedInSharedMode(@NonNull CameraDevice camera, boolean isPrimaryClient) {
           // Default empty implementation
         }
@@ -1612,7 +1616,6 @@ public abstract class CameraDevice implements AutoCloseable {
          * @hide
          */
         @SystemApi
-        @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
         public void onClientSharedAccessPriorityChanged(@NonNull CameraDevice camera,
                 boolean isPrimaryClient) {
           // Default empty implementation

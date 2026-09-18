@@ -66,8 +66,8 @@ public class TvPipBoundsAlgorithm extends PipBoundsAlgorithm {
             @NonNull PipSnapAlgorithm pipSnapAlgorithm,
             @NonNull PipDisplayLayoutState pipDisplayLayoutState,
             @NonNull SizeSpecSource sizeSpecSource) {
-        super(context, tvPipBoundsState, pipSnapAlgorithm,
-                new PipKeepClearAlgorithmInterface() {}, pipDisplayLayoutState, sizeSpecSource);
+        super(context, tvPipBoundsState, pipSnapAlgorithm, new PipKeepClearAlgorithmInterface() {},
+                pipDisplayLayoutState, null, sizeSpecSource);
         this.mTvPipBoundsState = tvPipBoundsState;
         this.mKeepClearAlgorithm = new TvPipKeepClearAlgorithm();
         reloadResources(context);
@@ -202,7 +202,17 @@ public class TvPipBoundsAlgorithm extends PipBoundsAlgorithm {
         return placement;
     }
 
-    void updateGravityOnExpansionToggled(boolean expanding) {
+    /**
+     * Updates the PiP window's gravity when its expansion state is toggled.
+     *
+     * <p>This method adjusts the PiP window's gravity in response to it being expanded or
+     * collapsed. When expanding, the window is moved to the center of the specified orientation.
+     * When collapsing, the window is moved back into the corner position.
+     *
+     * @param expanding {@code true} if the PiP window is being expanded, {@code false} if it is
+     *                  being collapsed.
+     */
+    public void updateGravityOnExpansionToggled(boolean expanding) {
         ProtoLog.d(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                 "%s: updateGravity, expanding: %b, fixedExpandedOrientation: %d",
                 TAG, expanding, mTvPipBoundsState.getTvFixedPipOrientation());
@@ -243,7 +253,7 @@ public class TvPipBoundsAlgorithm extends PipBoundsAlgorithm {
     /**
      * @return true if the gravity changed
      */
-    boolean updateGravity(int keycode) {
+    public boolean updateGravity(int keycode) {
         ProtoLog.d(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                 "%s: updateGravity, keycode: %d", TAG, keycode);
 
@@ -305,7 +315,7 @@ public class TvPipBoundsAlgorithm extends PipBoundsAlgorithm {
      * Updates {@link TvPipBoundsState#getTvExpandedSize()} based on
      * {@link TvPipBoundsState#getDesiredTvExpandedAspectRatio()}, the screen size.
      */
-    void updateExpandedPipSize() {
+    public void updateExpandedPipSize() {
         final DisplayLayout displayLayout = mTvPipBoundsState.getDisplayLayout();
         final float expandedRatio =
                 mTvPipBoundsState.getDesiredTvExpandedAspectRatio(); // width / height

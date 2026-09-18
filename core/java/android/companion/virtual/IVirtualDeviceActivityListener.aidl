@@ -70,4 +70,21 @@ oneway interface IVirtualDeviceActivityListener {
      * @param displayId The display ID on which the secure surface was shown.
      */
     void onSecureWindowHidden(int displayId);
+
+    /**
+     * Called when an activity launch is requested on the given display for the given user.
+     *
+     * @param displayId The display ID on which the activity launch is requested.
+     * @param componentName The component name of the activity whose launch is requested.
+     * @param userId The user ID associated with the activity whose launch is requested.
+     */
+    void onActivityLaunchRequested(int displayId, in ComponentName componentName, int userId);
+
+    /**
+     * Called when an activity requests biometric authentication.
+     *
+     * @param displayId The display ID on which the biometric authentication is requested.
+     * @param packageName Package of the calling application.
+     */
+    void onAuthenticationPrompt(int displayId, String packageName);
 }

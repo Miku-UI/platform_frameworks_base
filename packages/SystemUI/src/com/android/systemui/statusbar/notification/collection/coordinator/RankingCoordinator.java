@@ -35,7 +35,7 @@ import com.android.systemui.statusbar.notification.collection.render.NodeControl
 import com.android.systemui.statusbar.notification.collection.render.SectionHeaderController;
 import com.android.systemui.statusbar.notification.dagger.AlertingHeader;
 import com.android.systemui.statusbar.notification.dagger.SilentHeader;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
+import com.android.systemui.statusbar.notification.shared.NmContextualDisplay;
 import com.android.systemui.statusbar.notification.stack.NotificationPriorityBucketKt;
 
 import java.util.HashMap;
@@ -141,7 +141,7 @@ public class RankingCoordinator implements Coordinator {
                 return entry instanceof BundleEntry;
             }
             if (BundleUtil.Companion.isClassified(listEntry)) {
-                return false;
+                return NmContextualDisplay.isEnabled() ? true : false;
             }
             return !mHighPriorityProvider.isHighPriority(listEntry)
                     && listEntry.getRepresentativeEntry() != null
@@ -211,10 +211,7 @@ public class RankingCoordinator implements Coordinator {
         @Nullable
         @Override
         public NotifComparator getComparator() {
-            if (NotificationBundleUi.isEnabled()) {
-                return mSilentSectionComparator;
-            }
-            return null;
+            return mSilentSectionComparator;
         }
     };
 

@@ -378,7 +378,12 @@ public class CompanionDeviceDiscoveryService extends Service {
         final ScanSettings scanSettings = new ScanSettings.Builder()
                 .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                 .build();
-        mBleScanner.startScan(scanFilters, scanSettings, callback);
+
+        try {
+            mBleScanner.startScan(scanFilters, scanSettings, callback);
+        } catch (SecurityException e) {
+            Slog.e(TAG, "Bluetooth turned off during scan start. ", e);
+        }
 
         return callback;
     }

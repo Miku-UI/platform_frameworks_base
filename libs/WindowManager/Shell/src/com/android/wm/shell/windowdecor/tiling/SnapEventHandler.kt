@@ -86,4 +86,13 @@ interface SnapEventHandler {
         oldStableBounds: Rect,
         newToOldDpiRatio: Double,
     )
+
+    /** Notifies tiling handler that a task launch animation has started. */
+    fun onTaskLaunchStarted()
+
+    /** Notifies tiling handler that a desk switch animation has started. */
+    fun onDeskSwitchAnimationStarting(displayId: Int, fromDeskId: Int, toDeskId: Int)
+
+    /** Notifies tiling handler that a desk switch animation has ended. */
+    fun onDeskSwitchAnimationEnded(displayId: Int, deskId: Int)
 }

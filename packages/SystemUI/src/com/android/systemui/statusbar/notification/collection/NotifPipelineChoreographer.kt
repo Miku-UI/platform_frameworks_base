@@ -21,8 +21,6 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.util.ListenerSet
 import com.android.systemui.util.concurrency.DelayableExecutor
-import dagger.Binds
-import dagger.Module
 import javax.inject.Inject
 
 /**
@@ -47,34 +45,28 @@ interface NotifPipelineChoreographer {
     fun removeOnEvalListener(onEvalListener: Runnable)
 }
 
-@Module(includes = [PrivateModule::class])
-object NotifPipelineChoreographerModule
-
-@Module
-interface PrivateModule {
-    @Binds
-    fun bindChoreographer(impl: NotifPipelineChoreographerImpl): NotifPipelineChoreographer
-}
-
 private const val TIMEOUT_MS: Long = 100
 
 @SysUISingleton
-class NotifPipelineChoreographerImpl @Inject constructor(
+class NotifPipelineChoreographerImpl
+@Inject
+constructor(
     private val viewChoreographer: Choreographer,
-    @Main private val executor: DelayableExecutor
+    @Main private val executor: DelayableExecutor,
 ) : NotifPipelineChoreographer {
 
     private val listeners = ListenerSet<Runnable>()
     private var timeoutSubscription: Runnable? = null
     private var isScheduled = false
 
-    private val frameCallback = Choreographer.FrameCallback {
-        if (isScheduled) {
-            isScheduled = false
-            timeoutSubscription?.run()
-            listeners.forEach { it.run() }
+    private val frameCallback =
+        Choreographer.FrameCallback {
+            if (isScheduled) {
+                isScheduled = false
+                timeoutSubscription?.run()
+                listeners.forEach { it.run() }
+            }
         }
-    }
 
     override fun schedule() {
         if (isScheduled) return

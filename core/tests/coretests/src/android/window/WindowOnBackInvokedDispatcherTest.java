@@ -20,8 +20,6 @@ import static android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT;
 import static android.window.OnBackInvokedDispatcher.PRIORITY_OVERLAY;
 import static android.window.OnBackInvokedDispatcher.PRIORITY_SYSTEM_NAVIGATION_OBSERVER;
 
-import static com.android.window.flags.Flags.FLAG_MULTIPLE_SYSTEM_NAVIGATION_OBSERVER_CALLBACKS;
-import static com.android.window.flags.Flags.FLAG_PREDICTIVE_BACK_CALLBACK_CANCELLATION_FIX;
 import static com.android.window.flags.Flags.FLAG_PREDICTIVE_BACK_PRIORITY_SYSTEM_NAVIGATION_OBSERVER;
 import static com.android.window.flags.Flags.FLAG_PREDICTIVE_BACK_TIMESTAMP_API;
 
@@ -102,6 +100,9 @@ public class WindowOnBackInvokedDispatcherTest {
     private OnBackAnimationCallback mCallback1;
     @Mock
     private OnBackAnimationCallback mCallback2;
+    // This callback type can only be created by the system as it is a hidden interface.
+    @Mock
+    private ObserverOnBackAnimationCallback mSystemObserverCallback;
     @Mock
     private ImeBackCallbackProxy.ImeOnBackInvokedCallback mImeCallback;
     @Mock
@@ -169,8 +170,7 @@ public class WindowOnBackInvokedDispatcherTest {
         int actualSizeOverlay = callbacksOverlay != null ? callbacksOverlay.size() : 0;
         assertEquals("mOnBackInvokedCallbacks OVERLAY size", expectedOverlay, actualSizeOverlay);
 
-        int actualSizeObserver = mDispatcher.mSystemNavigationObserverCallback == null
-                ? mDispatcher.mSystemNavigationObserverCallbacks.size() : 1;
+        int actualSizeObserver = mDispatcher.mSystemNavigationObserverCallbacks.size();
         assertEquals("mOnBackInvokedCallbacks SYSTEM_NAVIGATION_OBSERVER size", expectedObserver,
                 actualSizeObserver);
     }
@@ -444,7 +444,6 @@ public class WindowOnBackInvokedDispatcherTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_PREDICTIVE_BACK_CALLBACK_CANCELLATION_FIX)
     public void onDetachFromWindow_cancelsInProgressNonTopCallback() throws RemoteException {
         mDispatcher.registerOnBackInvokedCallback(PRIORITY_DEFAULT, mCallback1);
 
@@ -472,7 +471,6 @@ public class WindowOnBackInvokedDispatcherTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_PREDICTIVE_BACK_CALLBACK_CANCELLATION_FIX)
     public void callbackEvents_continueAfterNewRegistration_andUnregistration()
             throws RemoteException {
         mDispatcher.registerOnBackInvokedCallback(PRIORITY_DEFAULT, mCallback1);
@@ -727,32 +725,43 @@ public class WindowOnBackInvokedDispatcherTest {
 
     @Test
     @RequiresFlagsEnabled(FLAG_PREDICTIVE_BACK_PRIORITY_SYSTEM_NAVIGATION_OBSERVER)
-    @RequiresFlagsDisabled(FLAG_MULTIPLE_SYSTEM_NAVIGATION_OBSERVER_CALLBACKS)
-    public void testObserverCallback_reregistrations() {
-        mDispatcher.registerOnBackInvokedCallback(PRIORITY_SYSTEM_NAVIGATION_OBSERVER, mCallback1);
-        assertCallbacksSize(/* default */ 0, /* overlay */ 0, /* observer */ 1);
-        assertEquals(mCallback1, mDispatcher.mSystemNavigationObserverCallback);
+    public void testObserverOnBackAnimationCallback_invokedWithNonSystemCallback()
+            throws RemoteException {
+        mDispatcher.registerOnBackInvokedCallback(PRIORITY_DEFAULT, mCallback1);
+        mDispatcher.registerOnBackInvokedCallback(
+                PRIORITY_SYSTEM_NAVIGATION_OBSERVER, mSystemObserverCallback);
 
-        // test reregistration of observer-callback as observer-callback
-        mDispatcher.registerOnBackInvokedCallback(PRIORITY_SYSTEM_NAVIGATION_OBSERVER, mCallback2);
-        assertCallbacksSize(/* default */ 0, /* overlay */ 0, /* observer */ 1);
-        assertEquals(mCallback2, mDispatcher.mSystemNavigationObserverCallback);
+        OnBackInvokedCallbackInfo callbackInfo = assertSetCallbackInfo();
 
-        // test reregistration of observer-callback as regular callback
-        mDispatcher.registerOnBackInvokedCallback(PRIORITY_DEFAULT, mCallback2);
-        assertCallbacksSize(/* default */ 1, /* overlay */ 0, /* observer */ 0);
+        // Test onBackStarted
+        callbackInfo.getCallback().onBackStarted(mBackEvent);
+        waitForIdle();
+        verify(mCallback1).onBackStarted(any());
+        verify(mSystemObserverCallback).onBackStarted(any());
 
-        // test reregistration of regular callback as observer-callback
-        mDispatcher.registerOnBackInvokedCallback(PRIORITY_SYSTEM_NAVIGATION_OBSERVER, mCallback2);
-        assertCallbacksSize(/* default */ 0, /* overlay */ 0, /* observer */ 1);
+        // Test onBackProgressed
+        callbackInfo.getCallback().onBackProgressed(mBackEvent);
+        waitForIdle();
+        verify(mCallback1, atLeast(1)).onBackProgressed(any());
+        verify(mSystemObserverCallback, never()).onBackProgressed(any());
 
-        mDispatcher.unregisterOnBackInvokedCallback(mCallback2);
-        assertCallbacksSize(/* default */ 0, /* overlay */ 0, /* observer */ 0);
+        // Test onBackCancelled
+        callbackInfo.getCallback().onBackCancelled();
+        waitForIdle();
+        verify(mCallback1, timeout(1000)).onBackCancelled();
+        verify(mSystemObserverCallback, timeout(1000)).onBackCancelled();
+
+        // Test onBackInvoked
+        // start new gesture to test onBackInvoked case
+        callbackInfo.getCallback().onBackStarted(mBackEvent);
+        callbackInfo.getCallback().onBackInvoked();
+        waitForIdle();
+        verify(mCallback1, timeout(1000)).onBackInvoked();
+        verify(mSystemObserverCallback).onBackInvoked();
     }
 
     @Test
-    @RequiresFlagsEnabled({FLAG_PREDICTIVE_BACK_PRIORITY_SYSTEM_NAVIGATION_OBSERVER,
-            FLAG_MULTIPLE_SYSTEM_NAVIGATION_OBSERVER_CALLBACKS})
+    @RequiresFlagsEnabled(FLAG_PREDICTIVE_BACK_PRIORITY_SYSTEM_NAVIGATION_OBSERVER)
     public void testObserverCallback_multiple_registrations() {
         mDispatcher.registerOnBackInvokedCallback(PRIORITY_SYSTEM_NAVIGATION_OBSERVER, mCallback1);
         assertCallbacksSize(/* default */ 0, /* overlay */ 0, /* observer */ 1);

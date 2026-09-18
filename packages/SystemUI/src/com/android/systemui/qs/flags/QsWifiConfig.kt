@@ -25,15 +25,21 @@ import com.android.systemui.flags.RefactorFlagUtils
 object QsWifiConfig {
     /** The aconfig flag name */
     const val FLAG_NAME = Flags.FLAG_QS_WIFI_CONFIG
+    /** The aconfig flag name for the new flag in the systemui namespace */
+    const val MIGRATED_FLAG_NAME = Flags.FLAG_QS_WIFI_MULTIUSER
 
     /** A token used for dependency declaration */
     val token: FlagToken
-        get() = FlagToken(FLAG_NAME, isEnabled)
+        get() = if (Flags.qsWifiMultiuser()) {
+            FlagToken(MIGRATED_FLAG_NAME, isEnabled)
+        } else {
+            FlagToken(FLAG_NAME, isEnabled)
+        }
 
     /** Is the flag and its dependency enabled */
     @JvmStatic
     inline val isEnabled
-        get() = Flags.qsWifiConfig() && Flags.qsTileDetailedView()
+        get() = (Flags.qsWifiConfig() || Flags.qsWifiMultiuser()) && Flags.qsTileDetailedView()
 
     /**
      * Called to ensure code is only run when the flag is enabled. This protects users from the
@@ -42,12 +48,12 @@ object QsWifiConfig {
      */
     @JvmStatic
     inline fun isUnexpectedlyInLegacyMode() =
-        RefactorFlagUtils.isUnexpectedlyInLegacyMode(isEnabled, FLAG_NAME)
+        RefactorFlagUtils.isUnexpectedlyInLegacyMode(isEnabled, "$FLAG_NAME or $MIGRATED_FLAG_NAME")
 
     /**
      * Called to ensure code is only run when the flag is disabled. This will throw an exception if
      * the flag is enabled to ensure that the refactor author catches issues in testing.
      */
     @JvmStatic
-    inline fun assertInLegacyMode() = RefactorFlagUtils.assertInLegacyMode(isEnabled, FLAG_NAME)
+    inline fun assertInLegacyMode() = RefactorFlagUtils.assertInLegacyMode(isEnabled, "$FLAG_NAME or $MIGRATED_FLAG_NAME")
 }

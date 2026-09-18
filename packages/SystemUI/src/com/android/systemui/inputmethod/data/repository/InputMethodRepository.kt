@@ -18,17 +18,26 @@ package com.android.systemui.inputmethod.data.repository
 
 import android.annotation.SuppressLint
 import android.os.UserHandle
+import android.provider.Settings
+import android.view.inputmethod.Flags
+import android.view.inputmethod.InputMethodInfo
 import android.view.inputmethod.InputMethodManager
+import android.view.inputmethod.InputMethodManager.IMPickerEntryPoint
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.inputmethod.data.model.InputMethodModel
+import com.android.systemui.util.settings.SecureSettings
+import com.android.systemui.util.settings.SettingsProxyExt.observerFlow
 import dagger.Binds
 import dagger.Module
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 
 /** Provides access to input-method related application state in the bouncer. */
@@ -56,14 +65,53 @@ interface InputMethodRepository {
     suspend fun selectedInputMethodSubtypes(user: UserHandle): List<InputMethodModel.Subtype>
 
     /**
+     * The currently selected input method subtype for the given user, or null if there is no
+     * selected subtype.
+     */
+    fun selectedInputMethodSubtype(user: UserHandle): Flow<InputMethodModel.Subtype?>
+
+    /**
      * Shows the system's input method picker dialog.
      *
-     * @param displayId The display ID on which to show the dialog.
      * @param showAuxiliarySubtypes Whether to show auxiliary input method subtypes in the list of
      *   enabled IMEs.
+     * @param entryPoint The entry point where the dialog was requested from.
+     * @param displayId The display ID on which to show the dialog.
      * @see InputMethodManager.showInputMethodPickerFromSystem
      */
-    suspend fun showInputMethodPicker(displayId: Int, showAuxiliarySubtypes: Boolean)
+    suspend fun showInputMethodPicker(
+        showAuxiliarySubtypes: Boolean,
+        @IMPickerEntryPoint entryPoint: Int,
+        displayId: Int,
+    )
+
+    /**
+     * Toggles the system's input method picker dialog.
+     *
+     * There's no guarantee that this toggle is an atomic operation. There's potential risk of a
+     * race condition when concurrency is involved, or when this is invoked in quick succession.
+     *
+     * @param showAuxiliarySubtypes Whether to show auxiliary input method subtypes in the list of
+     *   enabled IMEs.
+     * @param entryPoint The entry point where the dialog was requested from.
+     * @param displayId The display ID on which to show the dialog, if it is currently hidden. The
+     * param is unused if the dialog is currently shown and should now be hidden.
+     * @see InputMethodManager.showInputMethodPickerFromSystem
+     */
+    suspend fun toggleInputMethodPicker(
+        showAuxiliarySubtypes: Boolean,
+        @IMPickerEntryPoint entryPoint: Int,
+        displayId: Int,
+    )
+
+    /**
+     * Hides the system's input method picker dialog.
+     *
+     * @param displayId (legacy unused param)
+     * @see InputMethodManager.hideInputMethodPickerFromSystem
+     */
+    // TODO: b/496501764 - Remove unused "displayId" param.
+    suspend fun hideInputMethodPicker(displayId: Int)
 }
 
 @SysUISingleton
@@ -72,6 +120,7 @@ class InputMethodRepositoryImpl
 constructor(
     @Background private val backgroundDispatcher: CoroutineDispatcher,
     private val inputMethodManager: InputMethodManager,
+    private val secureSettings: SecureSettings,
 ) : InputMethodRepository {
 
     override suspend fun enabledInputMethods(
@@ -90,8 +139,8 @@ constructor(
                         if (fetchSubtypes) {
                             enabledInputMethodSubtypes(
                                 user = user,
-                                imeId = inputMethodInfo.id,
-                                allowsImplicitlyEnabledSubtypes = true
+                                imeInfo = inputMethodInfo,
+                                allowsImplicitlyEnabledSubtypes = true,
                             )
                         } else {
                             listOf()
@@ -109,16 +158,72 @@ constructor(
         } else {
             enabledInputMethodSubtypes(
                 user = user,
-                imeId = selectedIme.id,
-                allowsImplicitlyEnabledSubtypes = false
+                imeInfo = selectedIme,
+                allowsImplicitlyEnabledSubtypes = false,
+            )
+        }
+    }
+
+    override fun selectedInputMethodSubtype(user: UserHandle): Flow<InputMethodModel.Subtype?> {
+        return secureSettings
+            .observerFlow(
+                user.identifier,
+                Settings.Secure.DEFAULT_INPUT_METHOD,
+                Settings.Secure.SELECTED_INPUT_METHOD_SUBTYPE,
+            )
+            .onStart { emit(Unit) }
+            .mapLatest {
+                val selectedSubtypeId =
+                    try {
+                        secureSettings.getIntForUser(
+                            Settings.Secure.SELECTED_INPUT_METHOD_SUBTYPE,
+                            user.identifier,
+                        )
+                    } catch (e: Settings.SettingNotFoundException) {
+                        null
+                    }
+
+                selectedSubtypeId?.let { subtypeId ->
+                    selectedInputMethodSubtypes(user).find { it.subtypeId == subtypeId }
+                }
+            }
+            .flowOn(backgroundDispatcher)
+    }
+
+    @SuppressLint("MissingPermission")
+    override suspend fun showInputMethodPicker(
+        showAuxiliarySubtypes: Boolean,
+        @IMPickerEntryPoint entryPoint: Int,
+        displayId: Int,
+    ) {
+        withContext(backgroundDispatcher) {
+            inputMethodManager.showInputMethodPickerFromSystem(
+                showAuxiliarySubtypes,
+                entryPoint,
+                displayId,
             )
         }
     }
 
     @SuppressLint("MissingPermission")
-    override suspend fun showInputMethodPicker(displayId: Int, showAuxiliarySubtypes: Boolean) {
+    override suspend fun toggleInputMethodPicker(
+        showAuxiliarySubtypes: Boolean,
+        @IMPickerEntryPoint entryPoint: Int,
+        displayId: Int,
+    ) {
         withContext(backgroundDispatcher) {
-            inputMethodManager.showInputMethodPickerFromSystem(showAuxiliarySubtypes, displayId)
+            inputMethodManager.toggleInputMethodPickerFromSystem(
+                showAuxiliarySubtypes,
+                entryPoint,
+                displayId,
+            )
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    override suspend fun hideInputMethodPicker(displayId: Int) {
+        withContext(backgroundDispatcher) {
+            inputMethodManager.hideInputMethodPickerFromSystem(displayId)
         }
     }
 
@@ -134,20 +239,36 @@ constructor(
      */
     private suspend fun enabledInputMethodSubtypes(
         user: UserHandle,
-        imeId: String,
-        allowsImplicitlyEnabledSubtypes: Boolean
+        imeInfo: InputMethodInfo,
+        allowsImplicitlyEnabledSubtypes: Boolean,
     ): List<InputMethodModel.Subtype> {
         return withContext(backgroundDispatcher) {
                 inputMethodManager.getEnabledInputMethodSubtypeListAsUser(
-                    imeId,
+                    imeInfo.id,
                     allowsImplicitlyEnabledSubtypes,
                     user
                 )
             }
             .map {
+                val icon =
+                    it.iconResId
+                        .takeIf { it != 0 }
+                        ?.let { resId ->
+                            InputMethodModel.SubtypeIcon(
+                                resId = resId,
+                                packageName = imeInfo.packageName,
+                            )
+                        }
                 InputMethodModel.Subtype(
                     subtypeId = it.subtypeId,
                     isAuxiliary = it.isAuxiliary,
+                    icon = icon,
+                    shortLabel =
+                        if (Flags.imeSubtypeShortLabel()) {
+                            it.subtypeShortLabel.toString()?.ifEmpty { null }
+                        } else {
+                            null
+                        },
                 )
             }
     }

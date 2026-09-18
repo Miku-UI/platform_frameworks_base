@@ -15,4 +15,3 @@ rule com.android.internal.util.ParseUtils* com.android.internal.util.jobs.ParseU
 rule com.android.internal.util.Preconditions* com.android.internal.util.jobs.Preconditions@1
 rule com.android.internal.util.RingBufferIndices* com.android.internal.util.jobs.RingBufferIndices@1
 rule com.android.internal.util.StatLogger* com.android.internal.util.jobs.StatLogger@1
-rule com.android.internal.util.XmlUtils* com.android.internal.util.jobs.XmlUtils@1

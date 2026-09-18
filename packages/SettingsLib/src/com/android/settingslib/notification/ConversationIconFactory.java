@@ -48,7 +48,7 @@ public class ConversationIconFactory extends BaseIconFactory {
     // .HHHrrrr
     // .HHHrBBr
     // ....rrrr
-    // This is trying to recreate the view layout in notification_template_material_conversation.xml
+    // This is trying to recreate the view layout in conversation notifications.
 
     private static final float HEAD_SIZE = 52f;
     private static final float BADGE_SIZE = 12f;

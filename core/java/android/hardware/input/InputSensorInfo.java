@@ -19,6 +19,7 @@ package android.hardware.input;
 import android.annotation.NonNull;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import com.android.internal.util.DataClass;
 /**
@@ -30,6 +31,7 @@ import com.android.internal.util.DataClass;
         genToString = true,
         genHiddenConstructor = true,
         genHiddenConstDefs = true)
+@RavenwoodKeepWholeClass
 public class InputSensorInfo implements Parcelable {
 
     private @NonNull String  mName;

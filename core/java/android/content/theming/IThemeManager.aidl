@@ -16,15 +16,30 @@
 
 package android.content.theming;
 
+import android.os.FabricatedOverlayInternal;
+import android.content.theming.IThemeChangedCallback;
+import android.content.theming.ThemeInfo;
 import android.content.theming.ThemeSettings;
 import android.content.theming.IThemeSettingsCallback;
-
 /** @hide */
 interface IThemeManager {
     /** @hide */
+    FabricatedOverlayInternal generateDynamicColorOverlay(in ThemeInfo options);
+    /** @hide */
+    @nullable
+    ThemeInfo getUserThemeInfo();
+
+    /** @hide */
     boolean registerThemeSettingsCallback(in IThemeSettingsCallback callback);
+
     /** @hide */
     boolean unregisterThemeSettingsCallback(in IThemeSettingsCallback callback);
+
+    /** @hide */
+    boolean registerThemeChangedCallback(in IThemeChangedCallback callback);
+
+    /** @hide */
+    boolean unregisterThemeChangedCallback(in IThemeChangedCallback callback);
 
     /** @hide */
     @EnforcePermission("UPDATE_THEME_SETTINGS")
@@ -32,8 +47,10 @@ interface IThemeManager {
     boolean updateThemeSettings(in ThemeSettings newSettings);
 
     /** @hide */
+    @nullable
     ThemeSettings getThemeSettings();
 
     /** @hide */
+    @nullable
     ThemeSettings getThemeSettingsOrDefault();
 }

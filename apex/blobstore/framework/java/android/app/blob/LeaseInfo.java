@@ -28,7 +28,7 @@ import java.util.List;
 
 /**
  * Class to provide information about a lease (acquired using
- * {@link BlobStoreManager#acquireLease(BlobHandle, int)} or one of it's variants)
+ * {@link BlobStoreManager#acquireLease(BlobHandle, int)} or one of its variants)
  * for a shared blob.
  *
  * @hide

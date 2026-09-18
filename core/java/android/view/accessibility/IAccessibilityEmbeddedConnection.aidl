@@ -24,7 +24,7 @@ package android.view.accessibility;
  */
 interface IAccessibilityEmbeddedConnection {
 
-    IBinder associateEmbeddedHierarchy(IBinder hostToken, int sourceId);
+    IBinder associateEmbeddedHierarchy(IBinder hostToken, int sourceId, int hostWindowId);
 
     void disassociateEmbeddedHierarchy();
 

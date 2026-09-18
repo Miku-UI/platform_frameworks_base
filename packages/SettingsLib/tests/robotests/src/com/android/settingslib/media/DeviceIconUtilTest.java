@@ -21,13 +21,10 @@ import static com.google.common.truth.Truth.assertThat;
 import android.content.Context;
 import android.media.AudioDeviceInfo;
 import android.media.MediaRoute2Info;
-import android.platform.test.flag.junit.SetFlagsRule;
 
 import com.android.settingslib.R;
-import com.android.settingslib.media.flags.Flags;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -37,14 +34,10 @@ import org.robolectric.shadows.ShadowSystemProperties;
 @RunWith(RobolectricTestRunner.class)
 public class DeviceIconUtilTest {
 
-    @Rule
-    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-
     private Context mContext;
 
     @Before
     public void setup() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_ENABLE_TV_MEDIA_OUTPUT_DIALOG);
         mContext = RuntimeEnvironment.getApplication();
     }
 

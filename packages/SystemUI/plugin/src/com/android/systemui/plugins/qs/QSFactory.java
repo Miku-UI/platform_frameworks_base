@@ -24,7 +24,6 @@ import com.android.systemui.plugins.annotations.ProvidesInterface;
  */
 @ProvidesInterface(action = QSFactory.ACTION, version = QSFactory.VERSION)
 @DependsOn(target = QSTile.class)
-@DependsOn(target = QSTileView.class)
 public interface QSFactory extends Plugin {
 
     String ACTION = "com.android.systemui.action.PLUGIN_QS_FACTORY";

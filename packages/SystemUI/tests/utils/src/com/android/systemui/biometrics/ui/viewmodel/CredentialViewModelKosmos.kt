@@ -19,17 +19,24 @@ package com.android.systemui.biometrics.ui.viewmodel
 import android.content.applicationContext
 import com.android.systemui.biometrics.domain.interactor.promptCredentialInteractor
 import com.android.systemui.biometrics.domain.interactor.promptSelectorInteractor
+import com.android.systemui.biometrics.ui.biometricPromptLogoProvider
+import com.android.systemui.display.domain.interactor.displayStateInteractor
 import com.android.systemui.haptics.msdl.msdlPlayer
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.shade.domain.interactor.shadeInteractor
 
-val Kosmos.credentialViewModel by Fixture {
-    CredentialViewModel(
-        applicationContext,
-        promptCredentialInteractor,
-        shadeInteractor,
-        promptSelectorInteractor,
-        msdlPlayer,
-    )
+val Kosmos.credentialViewModelFactory by Fixture {
+    object : CredentialViewModel.Factory {
+        override fun create(): CredentialViewModel =
+            CredentialViewModel(
+                applicationContext,
+                promptCredentialInteractor,
+                shadeInteractor,
+                promptSelectorInteractor,
+                msdlPlayer,
+                displayStateInteractor,
+                biometricPromptLogoProvider,
+            )
+    }
 }

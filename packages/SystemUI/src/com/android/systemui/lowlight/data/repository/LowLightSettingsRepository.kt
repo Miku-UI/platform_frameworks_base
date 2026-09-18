@@ -121,22 +121,22 @@ constructor(
     private fun Int.toLowLightDisplayBehavior(): LowLightDisplayBehavior {
         return when (this) {
             Settings.Secure.LOW_LIGHT_DISPLAY_BEHAVIOR_NO_DREAM -> LowLightDisplayBehavior.NO_DREAM
-            Settings.Secure.LOW_LIGHT_DISPLAY_BEHAVIOR_SCREEN_OFF ->
-                LowLightDisplayBehavior.SCREEN_OFF
             Settings.Secure.LOW_LIGHT_DISPLAY_BEHAVIOR_LOW_LIGHT_CLOCK_DREAM ->
                 LowLightDisplayBehavior.LOW_LIGHT_DREAM
-            else -> LowLightDisplayBehavior.UNKNOWN
+            else -> DEFAULT_LOW_LIGHT_BEHAVIOR
         }
     }
 
     private fun LowLightDisplayBehavior.toSettingsInt(): Int {
         return when (this) {
             LowLightDisplayBehavior.NO_DREAM -> Settings.Secure.LOW_LIGHT_DISPLAY_BEHAVIOR_NO_DREAM
-            LowLightDisplayBehavior.SCREEN_OFF ->
-                Settings.Secure.LOW_LIGHT_DISPLAY_BEHAVIOR_SCREEN_OFF
             LowLightDisplayBehavior.LOW_LIGHT_DREAM ->
                 Settings.Secure.LOW_LIGHT_DISPLAY_BEHAVIOR_LOW_LIGHT_CLOCK_DREAM
             else -> lowLightDisplayBehaviorDefault
         }
+    }
+
+    companion object {
+        private val DEFAULT_LOW_LIGHT_BEHAVIOR = LowLightDisplayBehavior.LOW_LIGHT_DREAM
     }
 }

@@ -77,6 +77,18 @@ interface BaseShadeInteractor {
      */
     val isAnyExpanded: StateFlow<Boolean>
 
+    /**
+     * Whether either the shade or QS is partially or fully expanded, i.e. not fully collapsed. This
+     * should be called in places where the edge cases in the legacy implementation of this
+     * interface are not necessary. With the scene container enabled, this should be equivalent to
+     * isAnyExpanded. When the scene container is disabled, this is simply a check if any expansion
+     * values are positive.
+     *
+     * TODO(b/300258424) replace all calls to this with isAnyExpanded
+     */
+    @Deprecated("consider using isAnyExpanded instead")
+    val isAnyExpansionGreaterThanZero: StateFlow<Boolean>
+
     /** The amount [0-1] that the Notifications Shade has been opened. */
     val shadeExpansion: StateFlow<Float>
 

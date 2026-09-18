@@ -9,6 +9,9 @@ import static android.telephony.SubscriptionManager.PROFILE_CLASS_PROVISIONING;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
 import static com.android.settingslib.wifi.WifiUtils.getHotspotIconResource;
+import static com.android.systemui.Flags.FLAG_QS_TILE_DETAILED_VIEW;
+import static com.android.systemui.Flags.FLAG_QS_WIFI_CONFIG;
+import static com.android.systemui.Flags.FLAG_QS_WIFI_MULTIUSER;
 import static com.android.systemui.qs.tiles.dialog.InternetDetailsContentController.TOAST_PARAMS_HORIZONTAL_WEIGHT;
 import static com.android.systemui.qs.tiles.dialog.InternetDetailsContentController.TOAST_PARAMS_VERTICAL_WEIGHT;
 import static com.android.wifitrackerlib.WifiEntry.WIFI_LEVEL_MAX;
@@ -35,6 +38,7 @@ import static org.mockito.Mockito.when;
 
 import android.animation.Animator;
 import android.content.Intent;
+import android.content.pm.UserInfo;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.PixelFormat;
@@ -45,6 +49,10 @@ import android.net.NetworkCapabilities;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
+import android.os.UserHandle;
+import android.os.UserManager;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
 import android.telephony.SubscriptionInfo;
@@ -81,6 +89,7 @@ import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.statusbar.policy.LocationController;
 import com.android.systemui.toast.SystemUIToast;
 import com.android.systemui.toast.ToastFactory;
+import com.android.systemui.user.data.repository.FakeUserRepository;
 import com.android.systemui.util.CarrierConfigTracker;
 import com.android.systemui.util.concurrency.FakeExecutor;
 import com.android.systemui.util.settings.GlobalSettings;
@@ -119,6 +128,12 @@ public class InternetDetailsContentControllerTest extends SysuiTestCase {
     private static final int GRAVITY_FLAGS = Gravity.FILL_HORIZONTAL | Gravity.FILL_VERTICAL;
     private static final int TOAST_MESSAGE_STRING_ID = 1;
     private static final String TOAST_MESSAGE_STRING = "toast message";
+
+    private static final UserInfo FIRST_USER = new UserInfo(10, "user 1", UserInfo.FLAG_FULL);
+    private static final UserInfo SECOND_USER = new UserInfo(11, "user 2", UserInfo.FLAG_FULL);
+    private static final UserInfo GUEST_USER = new UserInfo(20, "guest user", UserInfo.FLAG_GUEST);
+    private static final UserInfo HEADLESS_SYSTEM_USER =
+            new UserInfo(UserHandle.USER_SYSTEM, "headless system user", UserInfo.FLAG_FULL);
 
     private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
 
@@ -204,6 +219,7 @@ public class InternetDetailsContentControllerTest extends SysuiTestCase {
     private FakeExecutor mExecutor = new FakeExecutor(new FakeSystemClock());
     private List<WifiEntry> mAccessPoints = new ArrayList<>();
     private List<WifiEntry> mWifiEntries = new ArrayList<>();
+    private FakeUserRepository mUserRepository = mKosmos.getFakeUserRepository();
 
     private Configuration mConfig;
 
@@ -250,10 +266,11 @@ public class InternetDetailsContentControllerTest extends SysuiTestCase {
                 mock(KeyguardUpdateMonitor.class), mGlobalSettings, mKeyguardStateController,
                 mWindowManager, mToastFactory, mWorkerHandler, mCarrierConfigTracker,
             mLocationController, mDialogTransitionAnimator, mWifiStateWorker, mFlags,
-            mKosmos.getShadeDialogContextInteractor());
+            mKosmos.getShadeDialogContextInteractor(), mUserRepository);
         mSubscriptionManager.addOnSubscriptionsChangedListener(mExecutor,
                 mInternetDetailsContentController.mOnSubscriptionsChangedListener);
-        mInternetDetailsContentController.onStart(mInternetDialogCallback, true);
+        mInternetDetailsContentController.onStart(
+                mInternetDialogCallback, true, mKosmos.getTestScope());
         mInternetDetailsContentController.onAccessPointsChanged(mAccessPoints);
         mInternetDetailsContentController.mActivityStarter = mActivityStarter;
         mInternetDetailsContentController.mWifiIconInjector = mWifiIconInjector;
@@ -689,7 +706,8 @@ public class InternetDetailsContentControllerTest extends SysuiTestCase {
     }
 
     @Test
-    public void onAccessPointsChanged_oneConnectedEntryAndThreeOthers_callbackCutMore() {
+    @DisableFlags({FLAG_QS_WIFI_CONFIG, FLAG_QS_WIFI_MULTIUSER})
+    public void onAccessPointsChanged_oneConnectedEntryAndThreeOthers_flagOff_callbackCutMore() {
         reset(mInternetDialogCallback);
         mAccessPoints.clear();
         mAccessPoints.add(mConnectedEntry);
@@ -707,7 +725,28 @@ public class InternetDetailsContentControllerTest extends SysuiTestCase {
     }
 
     @Test
-    public void onAccessPointsChanged_fourWifiEntries_callbackCutMore() {
+    @EnableFlags({FLAG_QS_WIFI_MULTIUSER, FLAG_QS_TILE_DETAILED_VIEW})
+    public void onAccessPointsChanged_oneConnectedEntryAndThreeOthers_flagOn_callbackNoCutMore() {
+        reset(mInternetDialogCallback);
+        mAccessPoints.clear();
+        mAccessPoints.add(mConnectedEntry);
+        mAccessPoints.add(mWifiEntry1);
+        mAccessPoints.add(mWifiEntry2);
+        mAccessPoints.add(mWifiEntry3);
+
+        mInternetDetailsContentController.onAccessPointsChanged(mAccessPoints);
+
+        mWifiEntries.clear();
+        mWifiEntries.add(mWifiEntry1);
+        mWifiEntries.add(mWifiEntry2);
+        mWifiEntries.add(mWifiEntry3);
+        verify(mInternetDialogCallback).onAccessPointsChanged(mWifiEntries, mConnectedEntry,
+                true /* hasMoreEntry */);
+    }
+
+    @Test
+    @DisableFlags({FLAG_QS_WIFI_CONFIG, FLAG_QS_WIFI_MULTIUSER})
+    public void onAccessPointsChanged_fourWifiEntries_flagOff_callbackCutMore() {
         reset(mInternetDialogCallback);
         mAccessPoints.clear();
         mAccessPoints.add(mWifiEntry1);
@@ -721,6 +760,27 @@ public class InternetDetailsContentControllerTest extends SysuiTestCase {
         mWifiEntries.add(mWifiEntry1);
         mWifiEntries.add(mWifiEntry2);
         mWifiEntries.add(mWifiEntry3);
+        verify(mInternetDialogCallback).onAccessPointsChanged(mWifiEntries,
+                null /* connectedEntry */, true /* hasMoreEntry */);
+    }
+
+    @Test
+    @EnableFlags({FLAG_QS_WIFI_MULTIUSER, FLAG_QS_TILE_DETAILED_VIEW})
+    public void onAccessPointsChanged_fourWifiEntries_flagOn_callbackNoCutMore() {
+        reset(mInternetDialogCallback);
+        mAccessPoints.clear();
+        mAccessPoints.add(mWifiEntry1);
+        mAccessPoints.add(mWifiEntry2);
+        mAccessPoints.add(mWifiEntry3);
+        mAccessPoints.add(mWifiEntry4);
+
+        mInternetDetailsContentController.onAccessPointsChanged(mAccessPoints);
+
+        mWifiEntries.clear();
+        mWifiEntries.add(mWifiEntry1);
+        mWifiEntries.add(mWifiEntry2);
+        mWifiEntries.add(mWifiEntry3);
+        mWifiEntries.add(mWifiEntry4);
         verify(mInternetDialogCallback).onAccessPointsChanged(mWifiEntries,
                 null /* connectedEntry */, true /* hasMoreEntry */);
     }
@@ -967,7 +1027,7 @@ public class InternetDetailsContentControllerTest extends SysuiTestCase {
         mSubIdTelephonyDisplayInfoMap.put(SUB_ID, info1);
         mSubIdTelephonyDisplayInfoMap.put(SUB_ID2, info2);
 
-        doReturn(SUB_ID).when(spyController).getActiveDataSubId();
+        doReturn(SUB_ID2).when(spyController).getActiveDataSubId();
         doReturn(SUB_ID2).when(spyController).getActiveAutoSwitchNonDdsSubId();
         doReturn(true).when(spyController).isMobileDataEnabled();
         doReturn(true).when(spyController).activeNetworkIsCellular();
@@ -978,6 +1038,41 @@ public class InternetDetailsContentControllerTest extends SysuiTestCase {
         String nonDdsNetworkType = nonDds.split("/")[1];
         assertThat(dds).contains(mContext.getString(R.string.mobile_data_poor_connection));
         assertThat(ddsNetworkType).isNotEqualTo(nonDdsNetworkType);
+    }
+
+    @Test
+    public void getMobileNetworkSummary_activeDataOnSim_getLTE() {
+        mFlags.set(Flags.QS_SECONDARY_DATA_SUB_INFO, true);
+        Resources res1 = mock(Resources.class);
+        doReturn("LTE").when(res1).getString(anyInt());
+        Resources res2 = mock(Resources.class);
+        doReturn("5G").when(res2).getString(anyInt());
+        when(SubscriptionManager.getResourcesForSubId(any(), eq(SUB_ID))).thenReturn(res1);
+        when(SubscriptionManager.getResourcesForSubId(any(), eq(SUB_ID2))).thenReturn(res2);
+        when(SubscriptionManager.getDefaultDataSubscriptionId())
+                .thenReturn(SUB_ID);
+
+        InternetDetailsContentController spyController = spy(mInternetDetailsContentController);
+        Map<Integer, TelephonyDisplayInfo> mSubIdTelephonyDisplayInfoMap =
+                spyController.mSubIdTelephonyDisplayInfoMap;
+        TelephonyDisplayInfo info1 = new TelephonyDisplayInfo(TelephonyManager.NETWORK_TYPE_NR,
+                TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NONE);
+        TelephonyDisplayInfo info2 = new TelephonyDisplayInfo(TelephonyManager.NETWORK_TYPE_LTE,
+                TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NONE);
+
+        mSubIdTelephonyDisplayInfoMap.put(SUB_ID, info1);
+        mSubIdTelephonyDisplayInfoMap.put(SUB_ID2, info2);
+
+        doReturn(SUB_ID).when(spyController).getActiveDataSubId();
+        doReturn(SubscriptionManager.INVALID_SUBSCRIPTION_ID).when(
+                spyController).getActiveAutoSwitchNonDdsSubId();
+        doReturn(true).when(spyController).isMobileDataEnabled();
+        doReturn(true).when(spyController).activeNetworkIsCellular();
+        String ddsSummary = spyController.getMobileNetworkSummary(SUB_ID);
+
+        String ddsNetworkType = ddsSummary.split("/")[1];
+        assertThat(ddsSummary).contains(mContext.getString(R.string.mobile_data_connection_active));
+        assertThat(ddsNetworkType).contains("LTE");
     }
 
     @Test
@@ -1156,12 +1251,80 @@ public class InternetDetailsContentControllerTest extends SysuiTestCase {
     }
 
     @Test
-    public void getConfiguratorQrCodeGeneratorIntentOrNull_wifiShareable() {
+    public void getConfiguratorQrCodeGeneratorIntentOrNull_guestUser_returnNull() {
+        List<UserInfo> userInfos = List.of(GUEST_USER);
+        mUserRepository.setUserInfos(userInfos);
+        mUserRepository.setSelectedUserInfoBlocking(GUEST_USER);
+        mKosmos.getTestScope().getTestScheduler().runCurrent();
+
         mFlags.set(Flags.SHARE_WIFI_QS_BUTTON, true);
         when(mConnectedEntry.canShare()).thenReturn(true);
         when(mConnectedEntry.getWifiConfiguration()).thenReturn(mWifiConfiguration);
         assertThat(mInternetDetailsContentController.getConfiguratorQrCodeGeneratorIntentOrNull(
+                mConnectedEntry)).isNull();
+    }
+
+    @Test
+    public void getConfiguratorQrCodeGeneratorIntentOrNull_hsu_returnNull() {
+        List<UserInfo> userInfos = List.of(HEADLESS_SYSTEM_USER);
+        mUserRepository.setUserInfos(userInfos);
+        mUserRepository.setSelectedUserInfoBlocking(HEADLESS_SYSTEM_USER);
+        mKosmos.getTestScope().getTestScheduler().runCurrent();
+
+        mFlags.set(Flags.SHARE_WIFI_QS_BUTTON, true);
+        when(mConnectedEntry.canShare()).thenReturn(true);
+        when(mConnectedEntry.getWifiConfiguration()).thenReturn(mWifiConfiguration);
+        if (UserManager.isHeadlessSystemUserMode()) {
+            assertThat(mInternetDetailsContentController.getConfiguratorQrCodeGeneratorIntentOrNull(
+                    mConnectedEntry)).isNull();
+        }
+    }
+
+    @Test
+    public void getConfiguratorQrCodeGeneratorIntentOrNull_singleUser_wifiShareable() {
+        List<UserInfo> userInfos = List.of(FIRST_USER);
+        mUserRepository.setUserInfos(userInfos);
+        mUserRepository.setSelectedUserInfoBlocking(FIRST_USER);
+        mKosmos.getTestScope().getTestScheduler().runCurrent();
+
+        mFlags.set(Flags.SHARE_WIFI_QS_BUTTON, true);
+        when(mConnectedEntry.canShare()).thenReturn(true);
+        when(mConnectedEntry.getWifiConfiguration()).thenReturn(mWifiConfiguration);
+
+        assertThat(mInternetDetailsContentController.getConfiguratorQrCodeGeneratorIntentOrNull(
                 mConnectedEntry)).isNotNull();
+    }
+
+    @Test
+    public void getConfiguratorQrCodeGeneratorIntentOrNull_ownedNetwork_wifiShareable() {
+        List<UserInfo> userInfos = List.of(FIRST_USER, SECOND_USER);
+        mUserRepository.setUserInfos(userInfos);
+        mUserRepository.setSelectedUserInfoBlocking(FIRST_USER);
+        when(mWifiConfiguration.getCreatorUserId()).thenReturn(FIRST_USER.id);
+        mKosmos.getTestScope().getTestScheduler().runCurrent();
+
+        mFlags.set(Flags.SHARE_WIFI_QS_BUTTON, true);
+        when(mConnectedEntry.canShare()).thenReturn(true);
+        when(mConnectedEntry.getWifiConfiguration()).thenReturn(mWifiConfiguration);
+
+        assertThat(mInternetDetailsContentController.getConfiguratorQrCodeGeneratorIntentOrNull(
+                mConnectedEntry)).isNotNull();
+    }
+
+    @Test
+    public void getConfiguratorQrCodeGeneratorIntentOrNull_notOwnedNetwork_returnNull() {
+        List<UserInfo> userInfos = List.of(FIRST_USER, SECOND_USER);
+        mUserRepository.setUserInfos(userInfos);
+        mUserRepository.setSelectedUserInfoBlocking(FIRST_USER);
+        when(mWifiConfiguration.getCreatorUserId()).thenReturn(SECOND_USER.id);
+        mKosmos.getTestScope().getTestScheduler().runCurrent();
+
+        mFlags.set(Flags.SHARE_WIFI_QS_BUTTON, true);
+        when(mConnectedEntry.canShare()).thenReturn(true);
+        when(mConnectedEntry.getWifiConfiguration()).thenReturn(mWifiConfiguration);
+
+        assertThat(mInternetDetailsContentController.getConfiguratorQrCodeGeneratorIntentOrNull(
+                mConnectedEntry)).isNull();
     }
 
     @Test

@@ -54,8 +54,8 @@
     <string name="wifi_disabled_generic" msgid="2651916945380294607">"अफ गरिएको छ"</string>
     <string name="wifi_disabled_network_failure" msgid="2660396183242399585">"IP विन्यास असफल"</string>
     <string name="wifi_disabled_password_failure" msgid="6892387079613226738">"प्रमाणीकरण समस्या"</string>
-    <string name="wifi_cant_connect" msgid="5718417542623056783">"जडान गर्न सकिँदैन"</string>
-    <string name="wifi_cant_connect_to_ap" msgid="3099667989279700135">"\'<xliff:g id="AP_NAME">%1$s</xliff:g>\' मा जडान गर्न सकिँदैन"</string>
+    <string name="wifi_cant_connect" msgid="5718417542623056783">"कनेक्ट गर्न सकिँदैन"</string>
+    <string name="wifi_cant_connect_to_ap" msgid="3099667989279700135">"\'<xliff:g id="AP_NAME">%1$s</xliff:g>\' मा कनेक्ट गर्न सकिँदैन"</string>
     <string name="wifi_check_password_try_again" msgid="8817789642851605628">"पासवर्ड जाँच गरेर फेरि प्रयास गर्नुहोस्"</string>
     <string name="wifi_not_in_range" msgid="1541760821805777772">"दायराभित्र छैन"</string>
     <string name="wifi_no_internet_no_reconnect" msgid="821591791066497347">"अटो कनेक्ट हुने छैन"</string>
@@ -148,7 +148,7 @@
     <string name="bluetooth_profile_hid" msgid="2969922922664315866">"इनपुट डिभाइस"</string>
     <string name="bluetooth_profile_pan" msgid="1006235139308318188">"इन्टरनेट एक्सेस"</string>
     <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"कन्ट्याक्ट र कल हिस्ट्री एक्सेस गर्ने अनुमति दिनुहोस्"</string>
-    <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"यो जानकारीको प्रयोग कल आएको जानकारी दिने लगायतका कुराका लागि प्रयोग गरिने छ"</string>
+    <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"यो जानकारी कल आएको जानकारी दिने लगायतका कुराका लागि प्रयोग गरिने छ"</string>
     <string name="bluetooth_profile_pan_nap" msgid="7871974753822470050">"इन्टरनेट जडान साझेदारी गर्दै"</string>
     <string name="bluetooth_profile_map" msgid="8907204701162107271">"टेक्स्ट म्यासेजहरू"</string>
     <string name="bluetooth_profile_sap" msgid="8304170950447934386">"SIM एक्सेस"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wi-Fi तीन बारहरू।"</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"पूर्ण Wi-Fi सिंग्नल।"</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"तपाईंको डिभाइसमा कनेक्ट गरिएको छ।"</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"यो डिभाइसका सबै प्रयोगकर्ताहरू हेर्न र कनेक्ट गर्न सक्छन्।"</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"खुला नेटवर्क"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"सुरक्षित नेटवर्क"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"पहुँच बिन्दु नामको सेटिङहरू यो प्रयोगकर्ताको लागि उपलब्ध छैन"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB डिबगिङ"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"USB कनेक्ट गरिएको बेलामा डिबग मोड"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"USB डिबग गर्ने अधिकार फिर्ता लिनुहोस्"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"adb डिबगिङको एक्सेस रद्द गर्नुहोस्"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"वायरलेस डिबगिङ"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Wi‑Fi मा कनेक्ट हुँदा डिबग मोड अन गर्नुहोस्"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"त्रुटि"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"डिभाइस कनेक्ट गरिँदै छ…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"डिभाइस कनेक्ट गर्न सकिएन। कि त QR कोड गलत छ कि डिभाइस एउटै नेटवर्कमा कनेक्ट गरिएको छैन।"</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP एड्रेस र पोर्ट"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"उपलब्ध छैन (अनुमति दिइएको छैन)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"उपलब्ध छैन (Wi‑Fi डिस्कनेक्ट गरिएको छ)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"QR कोड स्क्यान गर्नुहोस्"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"QR कोड स्क्यान गरी Wi‑Fi मार्फत डिभाइस कनेक्ट गर्नुहोस्"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"कृपया कुनै Wi-Fi मा कनेक्ट गर्नुहोस्"</string>
@@ -346,7 +349,7 @@
     <string name="wifi_display_certification_summary" msgid="8111151348106907513">"वायरलेस डिस्प्लेसम्बन्धी विकल्प देखाउनुहोस्"</string>
     <string name="wifi_verbose_logging_summary" msgid="4993823188807767892">"Wi-Fi लगिङ लेभल बढाउनुहोस्, Wi-Fi पि‍करमा प्रति SSID RSSI देखाउनुहोस्"</string>
     <string name="wifi_scan_throttling_summary" msgid="2577105472017362814">"यसले ब्याट्रीको खपत कम गर्छ र नेटवर्कको कार्यसम्पादनमा सुधार गर्दछ"</string>
-    <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"यो मोड अन गरिएका बेला यो डिभाइस म्याक एड्रेस बदल्ने सुविधा अन गरिएको नेटवर्कमा जति पटक कनेक्ट हुन्छ त्यति नै पटक यस डिभाइसको म्याक एड्रेस पनि परिवर्तन हुन सक्छ।"</string>
+    <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"यो मोड अन गरिएका बेला यो डिभाइस MAC र्‍यान्डमाइजेसन अन गरिएको नेटवर्कमा जति पटक कनेक्ट हुन्छ त्यति नै पटक यस डिभाइसको MAC एड्रेस पनि परिवर्तन हुन सक्छ।"</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"सशुल्क वाइफाइ"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"मिटर नगरिएको"</string>
     <string name="select_logd_size_title" msgid="4393502933789367691">"लगर बफरको आकार"</string>
@@ -366,12 +369,12 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"युएसबी डिबगिङ विकास प्रयोजनका लागि मात्र निर्मित हुन्छ। यसलाई तपाईँको कम्प्युटर र तपाईँको उपकरणका बीच डेटा कपी गर्न, बिना सूचना तपाईँको उपकरणमा एपहरू इन्स्टल गर्न र लग डेटा पढ्नका लागि प्रयोग गर्नुहोस्।"</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"वायरलेस डिबगिङ सेवा सक्षम पार्ने हो?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"वायरलेस डिबगिङ डिभलपमेन्ट प्रयोजनका लागि मात्रै हो। यसलाई आफ्ना कम्प्युटर र उपकरणका बिच डेटा कपी गर्न, सूचना नदिई आफ्नो उपकरणमा एपहरू इन्स्टल गर्न र लग डेटा पढ्न प्रयोग गर्नुहोस्।"</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"तपाईं पहिले नै अधिकृत गर्नुभएका सबै कम्प्यूटरबाट USB डिबग गर्नको लागि पहुँच रद्द गर्ने हो?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"तपाईंले यसअघि सबै कम्प्युटर तथा नेटवर्कहरूलाई दिएको adb डिबगिङको एक्सेस रद्द गर्ने हो?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"विकास सेटिङहरू अनुमति दिने हो?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"यी सेटिङहरू केवल विकास प्रयोगको लागि विचार गरिएको हो। तिनीहरूले तपाईंको उपकरण र एपहरूलाई विच्छेदन गर्न वा दुर्व्यवहार गर्न सक्दछ।"</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"USB मा एपको पुष्टि गर्नुहोस्"</string>
     <string name="verify_apps_over_usb_summary" msgid="1317933737581167839">"हानिकारक व्यवहार पत्ता लगाउन ADB/ADT बाट इन्स्टल गरिएका एपको जाँच गर्नुहोस्"</string>
-    <string name="bluetooth_show_devices_without_names_summary" msgid="780964354377854507">"नामकरण नगरिएका ब्लुटुथ डिभाइस (म्याक एड्रेस भएका मात्र) देखाइने छ"</string>
+    <string name="bluetooth_show_devices_without_names_summary" msgid="780964354377854507">"नाम नराखिएका ब्लुटुथ डिभाइस (MAC एड्रेस मात्र) देखाइने छन्"</string>
     <string name="bluetooth_disable_absolute_volume_summary" msgid="2006309932135547681">"यसले रिमोट डिभाइसमा अत्यधिक ठूलो वा अनियन्त्रित भोल्युम बजेको जस्ता अवस्थामा ब्लुटुथको निरपेक्ष भोल्युम अफ गर्छ।"</string>
     <string name="bluetooth_enable_gabeldorsche_summary" msgid="2054730331770712629">"ब्लुटुथ Gabeldorsche सुविधाको स्ट्याक अन गर्नुहोस्।"</string>
     <string name="enhanced_connectivity_summary" msgid="1576414159820676330">"यसले परिष्कृत जडानको सुविधा सक्षम पार्छ।"</string>
@@ -544,7 +547,7 @@
     <string name="battery_info_status_charging_on_hold" msgid="6364355145521694438">"चार्जिङ होल्ड गरिएको छ"</string>
     <string name="battery_info_status_charging_v2" msgid="6118522107222245505">"चार्ज गरिँदै छ"</string>
     <string name="battery_info_status_charging_fast_v2" msgid="1825439848151256589">"फास्ट चार्जिङ"</string>
-    <string name="disabled_by_admin_summary_text" msgid="5343911767402923057">"प्रशासकद्वारा नियन्त्रित"</string>
+    <string name="disabled_by_admin_summary_text" msgid="5343911767402923057">"एडमिनद्वारा नियन्त्रित"</string>
     <string name="disabled_by_app_ops_text" msgid="8373595926549098012">"प्रतिबन्धित सेटिङले नियन्त्रण गरेको"</string>
     <string name="disabled_in_phone_call_text" msgid="6568931334337318320">"कल चलिरहेका बेला उपलब्ध छैन"</string>
     <string name="disabled" msgid="8017887509554714950">"अफ गरिएको छ"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"इथरनेट विच्छेद भयो।"</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"इथरनेट।"</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"कल गर्ने सुविधा उपलब्ध छैन।"</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"भौतिक किबोर्ड"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"किबोर्ड लेआउट छान्नुहोस्"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"डिफल्ट"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"स्क्रिन अन गर्नेसम्बन्धी कन्ट्रोल"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"स्क्रिन अन गर्ने अनुमति दिनुहोस्"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"कुनै एपलाई स्क्रिन अन गर्ने अनुमति दिनुहोस्। यो अनुमति दिइएका खण्डमा तपाईंले अन गर्न नखोजेका बेलामा पनि एपले जुनसुकै बेला स्क्रिन अन गर्न सक्छ।"</string>

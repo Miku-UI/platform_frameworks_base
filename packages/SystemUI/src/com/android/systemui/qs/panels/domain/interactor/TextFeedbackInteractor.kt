@@ -112,7 +112,7 @@ constructor(
         }
     }
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         repository.activate()
     }
 

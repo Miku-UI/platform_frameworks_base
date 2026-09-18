@@ -17,9 +17,6 @@
 
 package android.hardware;
 
-import com.android.tradeinmode.flags.Flags;
-
-
 import android.annotation.FlaggedApi;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
@@ -27,6 +24,9 @@ import android.annotation.TestApi;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.hardware.input.InputSensorInfo;
 import android.os.Build;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+
+import com.android.tradeinmode.flags.Flags;
 
 import java.util.UUID;
 
@@ -41,6 +41,7 @@ import java.util.UUID;
  * @see SensorEvent
  *
  */
+@RavenwoodKeepWholeClass
 public final class Sensor {
 
     /**

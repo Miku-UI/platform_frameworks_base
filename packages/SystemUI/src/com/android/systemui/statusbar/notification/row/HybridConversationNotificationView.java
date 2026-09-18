@@ -18,10 +18,8 @@ package com.android.systemui.statusbar.notification.row;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.app.Flags;
 import android.content.Context;
 import android.content.res.ColorStateList;
-import android.graphics.Typeface;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.View;
@@ -42,7 +40,6 @@ import com.android.systemui.statusbar.notification.row.ui.viewmodel.SingleIcon;
  */
 public class HybridConversationNotificationView extends HybridNotificationView {
 
-    private static final int MAX_SUMMARIZATION_LINES = 1;
     private ImageView mConversationIconView;
     private TextView mConversationSenderName;
     private ViewStub mConversationFacePileStub;
@@ -77,23 +74,14 @@ public class HybridConversationNotificationView extends HybridNotificationView {
         mConversationFacePileStub =
                 requireViewById(com.android.internal.R.id.conversation_face_pile);
         mConversationSenderName = requireViewById(R.id.conversation_notification_sender);
-        applyTextColor(mConversationSenderName, mSecondaryTextColor);
-        if (Flags.notificationsRedesignTemplates()) {
-            mFacePileSize = getResources()
-                    .getDimensionPixelSize(R.dimen.notification_2025_single_line_face_pile_size);
-            mFacePileAvatarSize = getResources()
-                    .getDimensionPixelSize(
-                            R.dimen.notification_2025_single_line_face_pile_avatar_size);
-            mSingleAvatarSize = getResources()
-                    .getDimensionPixelSize(R.dimen.notification_2025_single_line_avatar_size);
-        } else {
-            mFacePileSize = getResources()
-                    .getDimensionPixelSize(R.dimen.conversation_single_line_face_pile_size);
-            mFacePileAvatarSize = getResources()
-                    .getDimensionPixelSize(R.dimen.conversation_single_line_face_pile_avatar_size);
-            mSingleAvatarSize = getResources()
-                    .getDimensionPixelSize(R.dimen.conversation_single_line_avatar_size);
-        }
+        applyTextColor(mConversationSenderName, mTextColor);
+        mFacePileSize = getResources()
+                .getDimensionPixelSize(R.dimen.notification_2025_single_line_face_pile_size);
+        mFacePileAvatarSize = getResources()
+                .getDimensionPixelSize(
+                        R.dimen.notification_2025_single_line_face_pile_avatar_size);
+        mSingleAvatarSize = getResources()
+                .getDimensionPixelSize(R.dimen.notification_2025_single_line_avatar_size);
         mFacePileProtectionWidth = getResources().getDimensionPixelSize(
                 R.dimen.conversation_single_line_face_pile_protection_width);
         mTransformationHelper.setCustomTransformation(
@@ -165,9 +153,6 @@ public class HybridConversationNotificationView extends HybridNotificationView {
         if (!TextUtils.isEmpty(summarization)) {
             mConversationSenderName.setVisibility(GONE);
             contentText = summarization;
-            mTextView.setSingleLine(false);
-            mTextView.setMaxLines(MAX_SUMMARIZATION_LINES);
-            mTextView.setTypeface(Typeface.create("variable-body-medium", Typeface.ITALIC));
         } else {
             mTextView.setSingleLine(true);
             if (conversationSenderName == null) {
@@ -177,8 +162,7 @@ public class HybridConversationNotificationView extends HybridNotificationView {
                 mConversationSenderName.setText(conversationSenderName);
             }
         }
-        super.bind(/* title = */ titleText, /* text = */ contentText,
-                /* stripSpans = */ TextUtils.isEmpty(summarization));
+        super.bind(/* title = */ titleText, /* text = */ contentText, summarization);
     }
 
     private static void setSize(View view, int size) {

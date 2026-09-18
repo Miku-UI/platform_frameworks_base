@@ -16,6 +16,9 @@
 
 package android.net.wifi.nl80211;
 
+import static android.net.wifi.flags.Flags.FLAG_DEPRECATE_WIFICOND;
+
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -37,7 +40,11 @@ import java.util.List;
  * Raw scan result data from the wificond daemon.
  *
  * @hide
+ * @deprecated Wificond functionality has moved to the Wi-Fi mainline module.
+ *             See {@link com.android.server.wifi.nl80211.Nl80211Native}.
  */
+@FlaggedApi(FLAG_DEPRECATE_WIFICOND)
+@Deprecated
 @SystemApi
 public final class NativeScanResult implements Parcelable {
     private static final String TAG = "NativeScanResult";

@@ -39,6 +39,7 @@ import android.hardware.lights.LightState;
 import android.hardware.lights.LightsManager;
 import android.hardware.lights.LightsRequest;
 import android.os.IBinder;
+import android.platform.test.annotations.DisabledOnRavenwood;
 import android.platform.test.annotations.Presubmit;
 import android.util.ArrayMap;
 import android.view.InputDevice;
@@ -66,6 +67,7 @@ import java.util.List;
  */
 @Presubmit
 @RunWith(MockitoJUnitRunner.class)
+@DisabledOnRavenwood(blockedBy = InputDeviceLightsManager.class)
 public class InputDeviceLightsManagerTest {
     private static final String TAG = "InputDeviceLightsManagerTest";
 
@@ -138,12 +140,17 @@ public class InputDeviceLightsManagerTest {
         assertNotNull(device);
 
         Light[] mockedLights = {
-            new Light(1 /* id */, "Light1", 0 /* ordinal */, Light.LIGHT_TYPE_INPUT,
-                        Light.LIGHT_CAPABILITY_BRIGHTNESS),
-            new Light(2 /* id */, "Light2", 0 /* ordinal */, Light.LIGHT_TYPE_INPUT,
-                        Light.LIGHT_CAPABILITY_COLOR_RGB),
-            new Light(3 /* id */, "Light3", 0 /* ordinal */, Light.LIGHT_TYPE_INPUT,
-                        0 /* capabilities */)
+            new Light.Builder(/* id= */1, /* ordinal= */0, Light.LIGHT_TYPE_INPUT)
+                    .setName("Light1")
+                    .setCapabilities(Light.LIGHT_CAPABILITY_BRIGHTNESS)
+                    .build(),
+            new Light.Builder(/* id= */2, /* ordinal= */0, Light.LIGHT_TYPE_INPUT)
+                    .setName("Light2")
+                    .setCapabilities(Light.LIGHT_CAPABILITY_COLOR_RGB)
+                    .build(),
+            new Light.Builder(/* id= */3, /* ordinal= */0, Light.LIGHT_TYPE_INPUT)
+                    .setName("Light3")
+                    .build(),
         };
         mockLights(mockedLights);
 
@@ -159,14 +166,22 @@ public class InputDeviceLightsManagerTest {
         assertNotNull(device);
 
         Light[] mockedLights = {
-            new Light(1 /* id */, "Light1", 0 /* ordinal */, Light.LIGHT_TYPE_INPUT,
-                        Light.LIGHT_CAPABILITY_COLOR_RGB),
-            new Light(2 /* id */, "Light2", 0 /* ordinal */, Light.LIGHT_TYPE_INPUT,
-                        Light.LIGHT_CAPABILITY_COLOR_RGB),
-            new Light(3 /* id */, "Light3", 0 /* ordinal */, Light.LIGHT_TYPE_INPUT,
-                        Light.LIGHT_CAPABILITY_COLOR_RGB),
-            new Light(4 /* id */, "Light4", 0 /* ordinal */, Light.LIGHT_TYPE_INPUT,
-                        Light.LIGHT_CAPABILITY_COLOR_RGB)
+            new Light.Builder(/* id= */1, /* ordinal= */0, Light.LIGHT_TYPE_INPUT)
+                    .setName("Light1")
+                    .setCapabilities(Light.LIGHT_CAPABILITY_COLOR_RGB)
+                    .build(),
+            new Light.Builder(/* id= */2, /* ordinal= */0, Light.LIGHT_TYPE_INPUT)
+                    .setName("Light2")
+                    .setCapabilities(Light.LIGHT_CAPABILITY_COLOR_RGB)
+                    .build(),
+            new Light.Builder(/* id= */3, /* ordinal= */0, Light.LIGHT_TYPE_INPUT)
+                    .setName("Light3")
+                    .setCapabilities(Light.LIGHT_CAPABILITY_COLOR_RGB)
+                    .build(),
+            new Light.Builder(/* id= */4, /* ordinal= */0, Light.LIGHT_TYPE_INPUT)
+                    .setName("Light4")
+                    .setCapabilities(Light.LIGHT_CAPABILITY_COLOR_RGB)
+                    .build()
         };
         mockLights(mockedLights);
 
@@ -211,12 +226,19 @@ public class InputDeviceLightsManagerTest {
         assertNotNull(device);
 
         Light[] mockedLights = {
-                new Light(1 /* id */, "Light1", 0 /* ordinal */, Light.LIGHT_TYPE_PLAYER_ID,
-                            0 /* capabilities */),
-                new Light(2 /* id */, "Light2", 0 /* ordinal */, Light.LIGHT_TYPE_INPUT,
-                            Light.LIGHT_CAPABILITY_COLOR_RGB | Light.LIGHT_CAPABILITY_BRIGHTNESS),
-                new Light(3 /* id */, "Light3", 0 /* ordinal */, Light.LIGHT_TYPE_INPUT,
-                            Light.LIGHT_CAPABILITY_BRIGHTNESS)
+                new Light.Builder(/* id= */1, /* ordinal= */0, Light.LIGHT_TYPE_PLAYER_ID)
+                        .setName("Light1")
+                        .build(),
+                new Light.Builder(/* id= */2, /* ordinal= */0, Light.LIGHT_TYPE_INPUT)
+                        .setName("Light2")
+                        .setCapabilities(
+                                Light.LIGHT_CAPABILITY_COLOR_RGB
+                                        | Light.LIGHT_CAPABILITY_BRIGHTNESS)
+                        .build(),
+                new Light.Builder(/* id= */3, /* ordinal= */0, Light.LIGHT_TYPE_INPUT)
+                        .setName("Light3")
+                        .setCapabilities(Light.LIGHT_CAPABILITY_BRIGHTNESS)
+                        .build()
         };
         mockLights(mockedLights);
 
@@ -248,8 +270,12 @@ public class InputDeviceLightsManagerTest {
 
     @Test
     public void testLightCapabilities() throws Exception {
-        Light light = new Light(1 /* id */, "Light1", 0 /* ordinal */, Light.LIGHT_TYPE_INPUT,
-                Light.LIGHT_CAPABILITY_COLOR_RGB | Light.LIGHT_CAPABILITY_BRIGHTNESS);
+        Light light = new Light.Builder(/* id= */1, /* ordinal= */0, Light.LIGHT_TYPE_INPUT)
+                .setName("Light1")
+                .setCapabilities(
+                        Light.LIGHT_CAPABILITY_COLOR_RGB
+                                | Light.LIGHT_CAPABILITY_BRIGHTNESS)
+                .build();
         assertThat(light.getType()).isEqualTo(Light.LIGHT_TYPE_INPUT);
         assertThat(light.getCapabilities()).isEqualTo(Light.LIGHT_CAPABILITY_COLOR_RGB
                 | Light.LIGHT_CAPABILITY_BRIGHTNESS);
@@ -259,10 +285,12 @@ public class InputDeviceLightsManagerTest {
 
     @Test
     public void testLightsRequest() throws Exception {
-        Light light1 = new Light(1 /* id */, "Light1", 0 /* ordinal */, Light.LIGHT_TYPE_INPUT,
-                0 /* capabilities */);
-        Light light2 = new Light(2 /* id */, "Light2", 0 /* ordinal */, Light.LIGHT_TYPE_PLAYER_ID,
-                0 /* capabilities */);
+        Light light1 = new Light.Builder(/* id= */1, /* ordinal= */0, Light.LIGHT_TYPE_INPUT)
+                .setName("Light1")
+                .build();
+        Light light2 = new Light.Builder(/* id= */2, /* ordinal= */0, Light.LIGHT_TYPE_PLAYER_ID)
+                .setName("Light2")
+                .build();
         LightState state1 = new LightState(0xf1);
         LightState state2 = new LightState(0xf2, PLAYER_ID);
         LightsRequest request = new Builder().addLight(light1, state1)

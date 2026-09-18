@@ -45,6 +45,7 @@
     <string name="keyguard_accessibility_password" msgid="3524161948484801450">"Cihaz şifresi"</string>
     <string name="keyguard_accessibility_sim_pin_area" msgid="6272116591533888062">"SIM PIN alanı"</string>
     <string name="keyguard_accessibility_sim_puk_area" msgid="5537294043180237374">"SIM PUK alanı"</string>
+    <string name="keyguard_accessibility_pin_delete_long_click" msgid="1530074796041838525">"tümünü silmek için uzun basın"</string>
     <string name="keyboardview_keycode_delete" msgid="8489719929424895174">"Delete"</string>
     <string name="disable_carrier_button_text" msgid="7153361131709275746">"eSIM\'i devre dışı bırak"</string>
     <string name="error_disable_esim_title" msgid="3802652622784813119">"eSIM devre dışı bırakılamıyor"</string>
@@ -62,8 +63,8 @@
     <string name="kg_bio_try_again_or_pin" msgid="4752168242723808390">"Tekrar deneyin veya PIN girin"</string>
     <string name="kg_bio_try_again_or_password" msgid="1473132729225398039">"Tekrar deneyin veya şifre girin"</string>
     <string name="kg_bio_try_again_or_pattern" msgid="4867893307468801501">"Tekrar deneyin veya desen çizin"</string>
-    <string name="kg_bio_too_many_attempts_pin" msgid="5850845723433047605">"Çok fazla deneme yaptığınızdan PIN girmeniz gerek"</string>
-    <string name="kg_bio_too_many_attempts_password" msgid="5551690347827728042">"Çok fazla deneme yaptığınızdan şifre girmeniz gerek"</string>
+    <string name="kg_bio_too_many_attempts_pin" msgid="5850845723433047605">"Çok fazla deneme yaptığınızdan PIN girmeniz gerekiyor"</string>
+    <string name="kg_bio_too_many_attempts_password" msgid="5551690347827728042">"Çok fazla deneme yaptığınızdan şifre girmeniz gerekiyor"</string>
     <string name="kg_bio_too_many_attempts_pattern" msgid="736884689355181602">"Çok fazla deneme yaptığınızdan desen çizmeniz gerekiyor"</string>
     <string name="kg_unlock_with_pin_or_fp" msgid="5635161174698729890">"PIN veya parmak iziyle kilidi açın"</string>
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Şifre veya parmak iziyle kilidi açın"</string>
@@ -85,9 +86,20 @@
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"Parmak iziyle kilit açılamıyor. Çok deneme yapıldı."</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"Güven aracısı kullanılamıyor"</string>
     <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"Yanlış PIN\'le çok fazla deneme yapıldı"</string>
+    <string name="kg_primary_auth_duplicate_guess_pin" msgid="5834891656916692329">"Bu PIN daha önce denendi. Başka bir tane deneyin."</string>
+    <string name="kg_primary_auth_duplicate_guess_pattern" msgid="3827593245962385968">"Bu desen daha önce denendi. Başka bir tane deneyin."</string>
+    <string name="kg_primary_auth_duplicate_guess_password" msgid="3153406042812407458">"Bu şifre daha önce denendi. Başka bir tane deneyin."</string>
     <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"Yanlış desenle çok fazla deneme yapıldı"</string>
     <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"Yanlış şifreyle çok fazla deneme yapıldı"</string>
+    <string name="kg_primary_auth_locked_out_pin_shortlink" msgid="1294871994741389848">"Yanlış PIN\'le çok fazla deneme yapıldı.\nDaha fazla bilgi edinin: <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
+    <string name="kg_primary_auth_locked_out_pattern_shortlink" msgid="5998598232858156495">"Yanlış desenle çok fazla deneme yapıldı.\nDaha fazla bilgi edinin: <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
+    <string name="kg_primary_auth_locked_out_password_shortlink" msgid="7035847891707609104">"Yanlış şifreyle çok fazla deneme yapıldı.\nDaha fazla bilgi edinin: <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{# saniye içinde tekrar deneyin.}other{# saniye içinde tekrar deneyin.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_seconds" msgid="5869847493314053274">"{count,plural, =1{# saniye sonra tekrar deneyin}other{# saniye sonra tekrar deneyin}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_minutes" msgid="6688071439818994316">"{count,plural, =1{1 dakika sonra tekrar deneyin}other{# dakika sonra tekrar deneyin}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_hours" msgid="4895375498917738857">"{count,plural, =1{1 saat sonra tekrar deneyin}other{# saat sonra tekrar deneyin}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_days" msgid="5427787465019979593">"{count,plural, =1{# gün sonra tekrar deneyin}other{# gün sonra tekrar deneyin}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_years" msgid="7115333753941425268">"{count,plural, =1{# yıl sonra tekrar deneyin}other{# yıl sonra tekrar deneyin}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"SIM PIN kodunu girin."</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"\"<xliff:g id="CARRIER">%1$s</xliff:g>\" için SIM PIN kodunu girin."</string>
     <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g> Cihazı mobil hizmet olmadan kullanmak için eSIM\'i devre dışı bırakın."</string>
@@ -112,6 +124,9 @@
     <string name="kg_prompt_reason_restart_pattern" msgid="3321211830602827742">"Cihaz yeniden başlatıldıktan sonra desen gerekir"</string>
     <string name="kg_prompt_reason_restart_pin" msgid="2672166323886110512">"Cihaz yeniden başlatıldıktan sonra PIN gerekir"</string>
     <string name="kg_prompt_reason_restart_password" msgid="3967993994418885887">"Cihaz yeniden başlatıldıktan sonra şifre gerekir"</string>
+    <string name="kg_prompt_reason_signin_pattern" msgid="1650886553162854395">"Oturum açmak için desen gerekiyor"</string>
+    <string name="kg_prompt_reason_signin_pin" msgid="636031498838532631">"Oturum açmak için PIN gerekiyor"</string>
+    <string name="kg_prompt_reason_signin_password" msgid="1020939174735616114">"Oturum açmak için şifre gerekiyor"</string>
     <string name="kg_prompt_reason_timeout_pattern" msgid="5514969660010197363">"Ek güvenlik için bunun yerine desen kullanın"</string>
     <string name="kg_prompt_reason_timeout_pin" msgid="4227962059353859376">"Ek güvenlik için bunun yerine PIN kullanın"</string>
     <string name="kg_prompt_reason_timeout_password" msgid="8810879144143933690">"Ek güvenlik için bunun yerine şifre kullanın"</string>

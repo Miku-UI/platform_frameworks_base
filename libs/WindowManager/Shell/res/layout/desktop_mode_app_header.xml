@@ -16,7 +16,6 @@
   -->
 <com.android.wm.shell.windowdecor.WindowDecorLinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/desktop_mode_caption"
     android:layout_width="match_parent"
@@ -31,7 +30,7 @@
         android:orientation="horizontal"
         android:clickable="true"
         android:focusable="true"
-        android:contentDescription="@string/desktop_mode_app_header_chip_text"
+        android:contentDescription="@string/desktop_mode_header_chip_text"
         android:layout_marginStart="12dp">
         <ImageView
             android:id="@+id/application_icon"
@@ -49,7 +48,7 @@
             android:layout_height="wrap_content"
             android:maxWidth="130dp"
             android:textSize="14sp"
-            android:textFontWeight="500"
+            android:fontFamily="@*android:string/config_headlineFontFamilyMedium"
             android:lineHeight="20sp"
             android:layout_gravity="center_vertical"
             android:layout_weight="1"
@@ -88,7 +87,6 @@
             android:contentDescription="@null"
             android:layout_marginHorizontal="8dp"
             android:layout_gravity="center_vertical"/>
-
     </LinearLayout>
 
     <View

@@ -16,8 +16,8 @@
 
 package com.android.protolog.tool
 
-import com.android.protolog.tool.Constants.ENUM_VALUES_METHOD
 import com.android.internal.protolog.common.IProtoLogGroup
+import com.android.protolog.tool.Constants.ENUM_VALUES_METHOD
 import java.io.File
 import java.net.URLClassLoader
 
@@ -54,14 +54,17 @@ class ProtoLogGroupReader {
     }
 
     fun loadFromIProtoLogGroups(values: List<IProtoLogGroup>): Map<String, LogGroup> {
-        return values.map { group ->
-            group.name() to LogGroup(
-                group.name(),
-                group.isEnabled,
-                group.isLogToLogcat,
-                group.tag,
-                group.id
-            )
-        }.toMap()
+        return values
+            .map { group ->
+                group.name() to
+                    LogGroup(
+                        group.name(),
+                        group.isEnabled,
+                        group.isLogToLogcat,
+                        group.tag,
+                        group.id,
+                    )
+            }
+            .toMap()
     }
 }

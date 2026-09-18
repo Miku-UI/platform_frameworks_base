@@ -20,6 +20,7 @@ import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.os.LocaleList;
 import android.os.Parcel;
 import android.os.ParcelFileDescriptor;
 import android.os.Parcelable;
@@ -209,14 +210,31 @@ public final class FontUpdateRequest implements Parcelable {
     public static final class Family implements Parcelable {
         private static final String TAG_FAMILY = "family";
         private static final String ATTR_NAME = "name";
+        private static final String ATTR_LANG = "lang";
+        private static final String ATTR_PRIORITY = "priority";
         private static final String TAG_FONT = "font";
 
-        private final @NonNull String mName;
+        private final @Nullable String mName;
+        private final @Nullable LocaleList mLang;
         private final @NonNull List<Font> mFonts;
+        private final int mPriority;
 
-        public Family(String name, List<Font> fonts) {
+        public Family(@NonNull String name, @NonNull List<Font> fonts) {
+            this(name, fonts, -1);
+        }
+
+        public Family(@NonNull String name, @NonNull List<Font> fonts, int priority) {
             mName = name;
+            mLang = null;
             mFonts = fonts;
+            mPriority = priority;
+        }
+
+        public Family(@NonNull LocaleList lang, @NonNull List<Font> fonts, int priority) {
+            mName = null;
+            mLang = lang;
+            mFonts = fonts;
+            mPriority = priority;
         }
 
         @Override
@@ -227,7 +245,9 @@ public final class FontUpdateRequest implements Parcelable {
         @Override
         public void writeToParcel(Parcel dest, int flags) {
             dest.writeString8(mName);
+            dest.writeTypedObject(mLang, flags);
             dest.writeParcelableList(mFonts, flags);
+            dest.writeInt(mPriority);
         }
 
         public static final @NonNull Creator<Family> CREATOR = new Creator<Family>() {
@@ -235,9 +255,16 @@ public final class FontUpdateRequest implements Parcelable {
             @Override
             public Family createFromParcel(Parcel source) {
                 String familyName = source.readString8();
+                LocaleList lang = source.readTypedObject(android.os.LocaleList.CREATOR);
                 List<Font> fonts = source.readParcelableList(
-                        new ArrayList<>(), Font.class.getClassLoader(), android.graphics.fonts.FontUpdateRequest.Font.class);
-                return new Family(familyName, fonts);
+                        new ArrayList<>(), Font.class.getClassLoader(),
+                        android.graphics.fonts.FontUpdateRequest.Font.class);
+                int priority = source.readInt();
+                if (familyName != null) {
+                    return new Family(familyName, fonts, priority);
+                } else {
+                    return new Family(lang, fonts, priority);
+                }
             }
 
             @Override
@@ -256,7 +283,14 @@ public final class FontUpdateRequest implements Parcelable {
          */
         public static void writeFamilyToXml(@NonNull TypedXmlSerializer out, @NonNull Family family)
                 throws IOException {
-            out.attribute(null, ATTR_NAME, family.getName());
+            if (family.getName() != null) {
+                out.attribute(null, ATTR_NAME, family.getName());
+            } else if (family.getLang() != null) {
+                out.attribute(null, ATTR_LANG, family.getLang().toLanguageTags());
+                out.attributeInt(null, ATTR_PRIORITY, family.getPriority());
+            } else {
+                throw new IOException("Family must have either a name or a lang attribute.");
+            }
             List<Font> fonts = family.getFonts();
             for (int i = 0; i < fonts.size(); ++i) {
                 Font font = fonts.get(i);
@@ -282,9 +316,17 @@ public final class FontUpdateRequest implements Parcelable {
                 throw new IOException("Unexpected parser state: must be START_TAG with family");
             }
             String name = parser.getAttributeValue(null, ATTR_NAME);
-            if (name == null) {
-                throw new IOException("name attribute is missing in family tag.");
+            String langStr = parser.getAttributeValue(null, ATTR_LANG);
+            LocaleList lang = langStr == null ? null : LocaleList.forLanguageTags(langStr);
+            int priority = getAttributeValueInt(parser, ATTR_PRIORITY, -1);
+
+            if (name == null && lang == null) {
+                throw new IOException("Family must have either a name or a lang attribute.");
             }
+            if (name != null && lang != null) {
+                throw new IOException("Family cannot have both name and lang attributes.");
+            }
+
             int type = 0;
             while ((type = parser.next()) != XmlPullParser.END_DOCUMENT) {
                 if (type == XmlPullParser.START_TAG && parser.getName().equals(TAG_FONT)) {
@@ -293,15 +335,27 @@ public final class FontUpdateRequest implements Parcelable {
                     break;
                 }
             }
-            return new Family(name, fonts);
+            if (name != null) {
+                return new Family(name, fonts);
+            } else {
+                return new Family(lang, fonts, priority);
+            }
         }
 
-        public @NonNull String getName() {
+        public @Nullable String getName() {
             return mName;
+        }
+
+        public @Nullable LocaleList getLang() {
+            return mLang;
         }
 
         public @NonNull List<Font> getFonts() {
             return mFonts;
+        }
+
+        public int getPriority() {
+            return mPriority;
         }
 
         @Override
@@ -309,17 +363,24 @@ public final class FontUpdateRequest implements Parcelable {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             Family family = (Family) o;
-            return mName.equals(family.mName) && mFonts.equals(family.mFonts);
+            return mPriority == family.mPriority && Objects.equals(mName, family.mName)
+                    && Objects.equals(mLang, family.mLang)
+                    && mFonts.equals(family.mFonts);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(mName, mFonts);
+            return Objects.hash(mName, mLang, mFonts);
         }
 
         @Override
         public String toString() {
-            return "Family{mName='" + mName + '\'' + ", mFonts=" + mFonts + '}';
+            return "Family{"
+                    + "mName='" + mName + '\''
+                    + ", mLang=" + mLang
+                    + ", mFonts=" + mFonts
+                    + ", mPriority=" + mPriority
+                    + '}';
         }
     }
 
@@ -365,6 +426,11 @@ public final class FontUpdateRequest implements Parcelable {
         this(createFontFamily(familyName, variations));
     }
 
+    public FontUpdateRequest(@NonNull LocaleList lang,
+            @NonNull List<FontFamilyUpdateRequest.Font> fonts, int priority) {
+        this(createFontFamilyByLang(lang, fonts, priority));
+    }
+
     private static Family createFontFamily(@NonNull String familyName,
             @NonNull List<FontFamilyUpdateRequest.Font> fonts) {
         List<Font> updateFonts = new ArrayList<>(fonts.size());
@@ -376,6 +442,19 @@ public final class FontUpdateRequest implements Parcelable {
                     FontVariationAxis.toFontVariationSettings(font.getAxes())));
         }
         return new Family(familyName, updateFonts);
+    }
+
+    private static Family createFontFamilyByLang(@NonNull LocaleList lang,
+            @NonNull List<FontFamilyUpdateRequest.Font> fonts, int priority) {
+        List<Font> updateFonts = new ArrayList<>(fonts.size());
+        for (FontFamilyUpdateRequest.Font font : fonts) {
+            updateFonts.add(new Font(
+                    font.getPostScriptName(),
+                    font.getStyle(),
+                    font.getIndex(),
+                    FontVariationAxis.toFontVariationSettings(font.getAxes())));
+        }
+        return new Family(lang, updateFonts, priority);
     }
 
     protected FontUpdateRequest(Parcel in) {

@@ -74,7 +74,8 @@ final class ComposePwleV2VibratorStep extends AbstractComposedVibratorStep {
             long vibratorOnResult = vibrator.on(getVibration().id, stepId, pwlesArray);
             handleVibratorOnResult(vibratorOnResult);
             getVibration().stats.reportComposePwle(vibratorOnResult, pwlesArray);
-            return vibratorOnNextSteps(/* segmentsPlayed= */ pwles.size());
+            return vibratorOnNextSteps(/* segmentsPlayed= */
+                    (pwles.isEmpty() ? 0 : pwles.size() - 1));
         } finally {
             Trace.traceEnd(Trace.TRACE_TAG_VIBRATOR);
         }

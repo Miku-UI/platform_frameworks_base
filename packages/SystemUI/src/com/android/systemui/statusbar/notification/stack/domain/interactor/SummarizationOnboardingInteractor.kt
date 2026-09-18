@@ -17,9 +17,16 @@
 package com.android.systemui.statusbar.notification.stack.domain.interactor
 
 import android.app.INotificationManager
+import android.app.NotificationManager.ALLOWED_NAS_ADJUSTMENT_KEYS_CHANGED
+import android.app.NotificationManager.SUPPORTED_NAS_ADJUSTMENT_KEYS_CHANGED
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.UserHandle
 import android.service.notification.Adjustment.KEY_SUMMARIZATION
 import android.util.Log
 import androidx.core.content.edit
+import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.statusbar.notification.data.repository.ActiveNotificationListRepository
 import com.android.systemui.statusbar.notification.shared.NotifStyle
@@ -32,9 +39,11 @@ import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 
 class SummarizationOnboardingInteractor
@@ -44,6 +53,7 @@ constructor(
     private val sharedPreferencesInteractor: NotificationsSharedPreferencesInteractor,
     private val notificationManager: INotificationManager,
     userInteractor: SelectedUserInteractor,
+    broadcastDispatcher: BroadcastDispatcher,
     @Background private val bgDispatcher: CoroutineDispatcher,
 ) {
     private val notifsPresent: Flow<Boolean> =
@@ -61,11 +71,35 @@ constructor(
             }
             .distinctUntilChanged()
 
-    private val summarizationAvailableAndDisabled: Flow<Boolean> =
-        userInteractor.selectedUser.mapLatestConflated { userId -> isAvailableAndDisabled(userId) }
+    private val summarizationAvailable: Flow<Boolean> =
+        broadcastDispatcher
+            .broadcastFlow(
+                filter = IntentFilter().apply { addAction(SUPPORTED_NAS_ADJUSTMENT_KEYS_CHANGED) },
+                user = UserHandle.SYSTEM,
+                flags = Context.RECEIVER_NOT_EXPORTED,
+            )
+            .onStart { emit(Unit) }
+            .mapLatestConflated { isAvailable() }
+
+    private val summarizationDisabled: Flow<Boolean> =
+        userInteractor.selectedUser.flatMapLatestConflated { userId ->
+            broadcastDispatcher
+                .broadcastFlow(
+                    filter =
+                        IntentFilter().apply { addAction(ALLOWED_NAS_ADJUSTMENT_KEYS_CHANGED) },
+                    user = UserHandle.SYSTEM,
+                    flags = Context.RECEIVER_NOT_EXPORTED,
+                    map = { intent, _ ->
+                        intent.getIntExtra(Intent.EXTRA_USER_ID, UserHandle.USER_SYSTEM)
+                    },
+                ).distinctUntilChanged()
+                .filter { it == userId }
+                .onStart { emit(userInteractor.getSelectedUserId()) }
+                .mapLatestConflated { isDisabled(it) }
+        }
 
     val onboardingNeeded: Flow<Boolean> =
-        allOf(onboardingUnseen, summarizationAvailableAndDisabled)
+        allOf(onboardingUnseen, summarizationAvailable, summarizationDisabled)
             .distinctUntilChanged()
             .flatMapLatestConflated { if (it) notifsPresent else flowOf(false) }
             .distinctUntilChanged()
@@ -85,13 +119,16 @@ constructor(
         } ?: Log.e(TAG, "Could not write to shared preferences")
     }
 
-    private suspend fun isAvailableAndDisabled(userId: Int): Boolean =
+    private suspend fun isAvailable(): Boolean =
         withContext(bgDispatcher) {
-            KEY_SUMMARIZATION !in notificationManager.unsupportedAdjustmentTypes &&
-                KEY_SUMMARIZATION !in
-                    notificationManager.getAllowedAssistantAdjustmentsForUser(userId)
+            KEY_SUMMARIZATION !in notificationManager.unsupportedAdjustmentTypes
+        }
+
+    private suspend fun isDisabled(userId: Int): Boolean =
+        withContext(bgDispatcher) {
+            KEY_SUMMARIZATION !in notificationManager.getAllowedAssistantAdjustmentsForUser(userId)
         }
 }
 
 private const val TAG = "NotifSummaries"
-private const val KEY_SHOW_SUMMARIZATION_ONBOARDING = "show_summarization_onboarding"
+const val KEY_SHOW_SUMMARIZATION_ONBOARDING = "show_summarization_onboarding"

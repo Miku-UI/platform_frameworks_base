@@ -28,6 +28,7 @@ import android.os.MemoryFile;
 import android.util.Log;
 import android.util.SparseArray;
 
+import java.io.UncheckedIOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;

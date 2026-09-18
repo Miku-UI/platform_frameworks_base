@@ -162,8 +162,40 @@ public class Build {
     @NonNull
     public static final String SOC_MODEL = SocProperties.soc_model().orElse(UNKNOWN);
 
+    /**
+     * The manufacturer of the device's StrongBox chip. If the device does not use StrongBox, this
+     * should be set to "unsupported".
+     */
+    @NonNull
+    @FlaggedApi(android.os.Flags.FLAG_STRONGBOX_PROPERTIES_API)
+    public static final String STRONGBOX_MANUFACTURER =
+            SystemProperties.get("ro.strongbox.manufacturer", "unsupported");
+
+    /**
+     * The model of the device's StrongBox chip. If the device does not use StrongBox, this
+     * should be set to "unsupported".
+     */
+    @NonNull
+    @FlaggedApi(android.os.Flags.FLAG_STRONGBOX_PROPERTIES_API)
+    public static final String STRONGBOX_MODEL =
+            SystemProperties.get("ro.strongbox.model", "unsupported");
+
     /** The system bootloader version number. */
     public static final String BOOTLOADER = getString("ro.bootloader");
+
+    /**
+     * SHA-256 digest (as a hex string) of the public key for the root of trust used for
+     * <a href="https://source.android.com/docs/security/features/verifiedboot">Verified Boot
+     * verification</a>. This field must match the value of the `rootOfTrust.verifiedBootKey` in the
+     * <a href="https://source.android.com/docs/security/features/keystore/attestation#rootoftrust-fields">key
+     * attestation certificate</a>.
+     * @hide
+     */
+    @NonNull
+    @SuppressLint("UnflaggedApi")  // @TestApi without associated feature.
+    @TestApi
+    public static final String VBMETA_PUBLIC_KEY_DIGEST =
+            getString("ro.boot.vbmeta.public_key_digest");
 
     /**
      * The radio firmware version number.
@@ -1278,6 +1310,12 @@ public class Build {
          * Baklava.
          */
         public static final int BAKLAVA = 36;
+
+        /**
+         * Cinnamon Bun.
+         */
+        @SuppressLint("UnflaggedApi")
+        public static final int CINNAMON_BUN = 37;
     }
 
     /** @hide */
@@ -1300,6 +1338,14 @@ public class Build {
         // Use the last 5 digits for the minor version. This allows the
         // minor version to be set to CUR_DEVELOPMENT.
         private static final int SDK_INT_MULTIPLIER = 100000;
+
+        /**
+         * Magic version number for a current development build, which has
+         * not yet turned into an official release.
+         */
+        private static final int CUR_DEVELOPMENT =
+                VERSION_CODES.CUR_DEVELOPMENT * SDK_INT_MULTIPLIER;
+
 
         /**
          * Android 1.0.
@@ -1491,6 +1537,12 @@ public class Build {
          */
         @SuppressLint("UnflaggedApi")
         public static final int BAKLAVA_1 = VERSION_CODES.BAKLAVA * SDK_INT_MULTIPLIER + 1;
+
+        /**
+         * Android 17.
+         */
+        @SuppressLint("UnflaggedApi")
+        public static final int CINNAMON_BUN = VERSION_CODES.CINNAMON_BUN * SDK_INT_MULTIPLIER;
     }
 
     /**

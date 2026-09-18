@@ -25,8 +25,7 @@ import org.junit.runner.RunWith
 /**
  * Tests for [TransactionSupplier].
  *
- * Build/Install/Run:
- *  atest WMShellUnitTests:TransactionSupplierTest
+ * Build/Install/Run: atest WMShellUnitTests:TransactionSupplierTest
  */
 @RunWith(AndroidTestingRunner::class)
 @SmallTest

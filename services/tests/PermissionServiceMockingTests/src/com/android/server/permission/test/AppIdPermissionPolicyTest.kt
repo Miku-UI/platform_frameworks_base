@@ -19,9 +19,9 @@ package com.android.server.permission.test
 import android.content.pm.PermissionGroupInfo
 import android.content.pm.PermissionInfo
 import android.os.Build
+import android.permission.flags.Flags
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
-import android.permission.flags.Flags
 import com.android.internal.pm.pkg.component.ParsedPermission
 import com.android.internal.pm.pkg.component.ParsedValidPurpose
 import com.android.server.permission.access.GetStateScope
@@ -72,7 +72,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @EnableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageAdded_requestsPermissionWithNoPurpose_permissionRevoked() {
         testOnPackageAddedForPurposeDeclaration(purposes = emptySet())
 
@@ -91,7 +91,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @DisableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageAdded_requestsPermissionWithNoPurposeAndFlagDisabled_permissionGranted() {
         testOnPackageAddedForPurposeDeclaration(purposes = emptySet())
 
@@ -110,7 +110,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @EnableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageAdded_requestsPermissionWithInvalidPurpose_permissionRevoked() {
         testOnPackageAddedForPurposeDeclaration(purposes = setOf(INVALID_PURPOSE))
 
@@ -129,7 +129,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @EnableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageAdded_requestsPermissionWithValidAndInvalidPurpose_permissionGranted() {
         testOnPackageAddedForPurposeDeclaration(
             // At least one valid purpose is sufficient for the permission to be granted.
@@ -152,7 +152,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @EnableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageAdded_requestsPermissionWithValidPurpose_permissionGranted() {
         testOnPackageAddedForPurposeDeclaration(
             purposes = setOf(VALID_PURPOSE_0),
@@ -174,7 +174,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @EnableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageAdded_requestsPermissionWithNoPurposeTargetingOldSdk_permissionGranted() {
         testOnPackageAddedForPurposeDeclaration(
             purposes = emptySet(),
@@ -196,7 +196,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @EnableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageAdded_requestsPermissionWithValidPurposeInAnotherPackage_permissionGranted() {
         // Set package1 with valid purpose, so it should be sufficient for any other package
         // sharing the same UID to pass the purpose validation check.
@@ -222,7 +222,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @EnableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageAdded_requestsPermissionWithNoPurposeAndAnotherPackageTargetingOldSdk_permissionGranted() {
         // Set package1 targeting old SDK, so it should be sufficient for any other package
         // sharing the same UID to pass the purpose validation check.
@@ -251,7 +251,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @EnableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageAdded_requestsPermissionWithDeprecatedPurposeOnLastValidSdk_permissionGranted() {
         testOnPackageAddedForPurposeDeclaration(purposes = setOf(VALID_PURPOSE_1))
 
@@ -271,7 +271,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @EnableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageAdded_requestsPermissionWithNoPurposeTargetSdkLowerThanRequiresPurposeSdk_permissionGranted() {
         testOnPackageAddedForPurposeDeclaration(
             purposes = emptySet(),
@@ -294,7 +294,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @EnableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageAdded_requestsPermissionWithDeprecatedPurpose_permissionRevoked() {
         testOnPackageAddedForPurposeDeclaration(
             purposes = setOf(VALID_PURPOSE_1), // This purpose is deprecated as of Android C.
@@ -316,7 +316,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @EnableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageAdded_requestsPermissionWithDeprecatedAndValidPurpose_permissionGranted() {
         testOnPackageAddedForPurposeDeclaration(
             purposes = setOf(VALID_PURPOSE_1, VALID_PURPOSE_0),
@@ -338,7 +338,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @EnableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageRemoved_removeLastSharedUidPackageWithValidPurpose_permissionRevoked() {
         testSharedUidOnPackageRemovedForPurposeDeclaration(
             purposesForRemovedPackage = setOf(VALID_PURPOSE_0),
@@ -362,7 +362,7 @@ class AppIdPermissionPolicyTest : BasePermissionPolicyTest() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    @EnableFlags(Flags.FLAG_PPD_INSTALL_TIME_ENABLED)
     fun testOnPackageRemoved_removeSharedUidPackageWithValidPurpose_permissionStillGranted() {
         testSharedUidOnPackageRemovedForPurposeDeclaration(
             purposesForRemovedPackage = setOf(VALID_PURPOSE_0),

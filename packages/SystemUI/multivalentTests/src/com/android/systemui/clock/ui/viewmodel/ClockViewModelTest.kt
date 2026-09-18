@@ -17,10 +17,12 @@
 package com.android.systemui.clock.ui.viewmodel
 
 import android.content.Intent
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.broadcast.broadcastDispatcher
+import com.android.systemui.clock.ClockModernization
 import com.android.systemui.clock.domain.interactor.ClockInteractor
 import com.android.systemui.clock.domain.interactor.clockInteractor
 import com.android.systemui.kosmos.Kosmos
@@ -232,6 +234,26 @@ class ClockViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    fun clockText_updatesWhenConfigurationChanged_12To24() =
+        kosmos.runTest {
+            fakeSystemClock.setCurrentTimeMillis(CURRENT_TIME_MILLIS)
+            whenever(dateFormatUtil.is24HourFormat).thenReturn(false)
+            underTest.activateIn(testScope)
+
+            assertThat(underTest.clockText).isEqualTo("11:12\u202FPM")
+
+            whenever(dateFormatUtil.is24HourFormat).thenReturn(true)
+            broadcastDispatcher.sendIntentToMatchingReceiversOnly(
+                context,
+                Intent(Intent.ACTION_CONFIGURATION_CHANGED),
+            )
+            runCurrent()
+
+            assertThat(underTest.clockText).isEqualTo("23:12")
+        }
+
+    @Test
+    @EnableFlags(ClockModernization.FLAG_NAME)
     fun showSeconds_is24HourFormatTrue_clockTextUpdates() =
         kosmos.runTest {
             fakeSystemClock.setCurrentTimeMillis(CURRENT_TIME_MILLIS)
@@ -252,6 +274,7 @@ class ClockViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(ClockModernization.FLAG_NAME)
     fun showSeconds_is24HourFormatFalse_clockTextUpdates() =
         kosmos.runTest {
             fakeSystemClock.setCurrentTimeMillis(CURRENT_TIME_MILLIS)

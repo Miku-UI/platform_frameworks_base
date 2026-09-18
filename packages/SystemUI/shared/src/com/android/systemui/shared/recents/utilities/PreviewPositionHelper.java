@@ -22,6 +22,8 @@ import androidx.annotation.Nullable;
 import com.android.systemui.shared.recents.model.ThumbnailData;
 import com.android.wm.shell.shared.split.SplitBounds;
 
+import javax.inject.Inject;
+
 /**
  * Utility class to position the thumbnail in the TaskView
  */
@@ -43,6 +45,9 @@ public class PreviewPositionHelper {
      */
     @Nullable
     private SplitBounds mSplitBounds;
+
+    @Inject
+    public PreviewPositionHelper() { }
 
     public Matrix getMatrix() {
         return mMatrix;
@@ -301,20 +306,5 @@ public class PreviewPositionHelper {
     public void setSplitBounds(SplitBounds splitBounds, int stagePosition) {
         mSplitBounds = splitBounds;
         mSplitPosition = stagePosition;
-    }
-
-    /**
-     * A factory that returns a new instance of the {@link PreviewPositionHelper}.
-     * <p>{@link PreviewPositionHelper} is a stateful helper, and hence when using it in distinct
-     * scenarios, prefer fetching an object using this factory</p>
-     * <p>Additionally, helpful for injecting mocks in tests</p>
-     */
-    public static class PreviewPositionHelperFactory {
-        /**
-         * Returns a new {@link PreviewPositionHelper} for use in a distinct scenario.
-         */
-        public PreviewPositionHelper create() {
-            return new PreviewPositionHelper();
-        }
     }
 }

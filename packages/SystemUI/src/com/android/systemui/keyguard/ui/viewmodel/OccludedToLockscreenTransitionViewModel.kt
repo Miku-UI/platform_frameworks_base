@@ -29,12 +29,14 @@ import com.android.systemui.keyguard.shared.model.KeyguardState.OCCLUDED
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.util.kotlin.pairwise
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -65,16 +67,22 @@ constructor(
 
     /** Lockscreen views y-translation */
     val lockscreenTranslationY: Flow<Float> =
-        configurationInteractor
-            .dimensionPixelSize(R.dimen.occluded_to_lockscreen_transition_lockscreen_translation_y)
-            .flatMapLatest { translatePx ->
-                transitionAnimation.sharedFlow(
-                    duration = TO_LOCKSCREEN_DURATION,
-                    onStep = { value -> -translatePx + value * translatePx },
-                    interpolator = EMPHASIZED_DECELERATE,
-                    onCancel = { 0f },
+        if (SceneContainerFlag.isEnabled) {
+            emptyFlow()
+        } else {
+            configurationInteractor
+                .dimensionPixelSize(
+                    R.dimen.occluded_to_lockscreen_transition_lockscreen_translation_y
                 )
-            }
+                .flatMapLatest { translatePx ->
+                    transitionAnimation.sharedFlow(
+                        duration = TO_LOCKSCREEN_DURATION,
+                        onStep = { value -> -translatePx + value * translatePx },
+                        interpolator = EMPHASIZED_DECELERATE,
+                        onCancel = { 0f },
+                    )
+                }
+        }
 
     val shortcutsAlpha: Flow<Float> =
         transitionAnimation.sharedFlow(
@@ -98,14 +106,18 @@ constructor(
             // emit alpha = 0f for OCCLUDED -> LOCKSCREEN whenever isOccluded flips from true to
             // false while currentState == OCCLUDED, so that alpha = 0f when that expansion occurs.
             // TODO(b/332946323): Remove this once it's no longer needed.
-            keyguardInteractor.isKeyguardOccluded
-                .pairwise()
-                .filter { (wasOccluded, isOccluded) ->
-                    wasOccluded &&
-                        !isOccluded &&
-                        keyguardTransitionInteractor.getCurrentState() == OCCLUDED
-                }
-                .map { 0f },
+            if (SceneContainerFlag.isEnabled) {
+                emptyFlow()
+            } else {
+                keyguardInteractor.isKeyguardOccluded
+                    .pairwise()
+                    .filter { (wasOccluded, isOccluded) ->
+                        wasOccluded &&
+                            !isOccluded &&
+                            keyguardTransitionInteractor.getCurrentState() == OCCLUDED
+                    }
+                    .map { 0f }
+            },
         )
 
     /**

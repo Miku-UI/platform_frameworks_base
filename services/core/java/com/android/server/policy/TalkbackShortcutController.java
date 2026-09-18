@@ -30,15 +30,16 @@ import com.android.internal.annotations.VisibleForTesting;
 import java.util.Set;
 
 /**
- * This class controls talkback shortcut related operations such as toggling, quering and
+ * This class controls talkback shortcut related operations such as toggling, querying and
  * logging.
  */
+// TODO(b/467430205): migrate this to wear repo.
 @VisibleForTesting
-class TalkbackShortcutController {
+public class TalkbackShortcutController {
     private static final String TALKBACK_LABEL = "TalkBack";
     private final Context mContext;
 
-    TalkbackShortcutController(Context context) {
+    public TalkbackShortcutController(Context context) {
         mContext = context;
     }
 
@@ -48,13 +49,12 @@ class TalkbackShortcutController {
      * @return talkback state after toggle. {@code true} if talkback is enabled, {@code false} if
      * talkback is disabled
      */
-    boolean toggleTalkback(int userId) {
+    public boolean toggleTalkback(int userId) {
         final Set<ComponentName> enabledServices =
                 AccessibilityUtils.getEnabledServicesFromSettings(mContext, userId);
         ComponentName componentName =
                 AccessibilityUtils.getInstalledAccessibilityServiceComponentNameByLabel(
                         mContext, TALKBACK_LABEL);
-        ;
         if (componentName == null) {
             return false;
         }
@@ -74,7 +74,7 @@ class TalkbackShortcutController {
         return isTalkbackAlreadyEnabled;
     }
 
-    boolean isTalkBackShortcutGestureEnabled() {
+    public boolean isTalkBackShortcutGestureEnabled() {
         return Settings.System.getIntForUser(mContext.getContentResolver(),
                 Settings.System.WEAR_ACCESSIBILITY_GESTURE_ENABLED,
                 /* def= */ 0, UserHandle.USER_CURRENT) == 1;

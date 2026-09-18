@@ -17,11 +17,18 @@
 package com.android.server.display.mode
 
 import android.content.Context
+import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.SetFlagsRule
+import android.testing.TestableContext
 import android.util.SparseArray
 import android.view.Display
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.filters.SmallTest
+import androidx.test.platform.app.InstrumentationRegistry
+import com.android.internal.R
+import com.android.server.display.ModeRequestManager
 import com.android.server.display.feature.DisplayManagerFlags
+import com.android.server.display.feature.flags.Flags
 import com.android.server.display.mode.DisplayModeDirector.DisplayDeviceConfigProvider
 import com.android.server.display.mode.RefreshRateVote.RenderVote
 import com.android.server.testutils.TestHandler
@@ -29,19 +36,27 @@ import com.google.common.truth.Truth.assertThat
 import com.google.testing.junit.testparameterinjector.TestParameter
 import com.google.testing.junit.testparameterinjector.TestParameterInjector
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(TestParameterInjector::class)
 class AppRequestObserverTest {
+    @get:Rule
+    val setFlagRule = SetFlagsRule()
 
     private lateinit var context: Context
     private val mockInjector = mock<DisplayModeDirector.Injector>()
     private val mockFlags = mock<DisplayManagerFlags>()
     private val mockDisplayDeviceConfigProvider = mock<DisplayDeviceConfigProvider>()
+    private val mockModeRequestManager = mock<ModeRequestManager>()
+
+    @get:Rule
+    val mContext: TestableContext = TestableContext(
+        InstrumentationRegistry.getInstrumentation().getContext()
+    )
     private val testHandler = TestHandler(null)
 
     @Before
@@ -50,20 +65,25 @@ class AppRequestObserverTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_CONFIGURE_APP_RESOLUTION_CHANGE)
     fun testAppRequestVotes(@TestParameter testCase: AppRequestTestCase) {
-        whenever(mockFlags.ignoreAppPreferredRefreshRateRequest())
-                .thenReturn(testCase.ignoreRefreshRateRequest)
+        mContext.getOrCreateTestableResources().addOverride(
+            R.bool.config_appResolutionSwitchVoteDisabled,
+            false
+        )
         val displayModeDirector = DisplayModeDirector(
-            context, testHandler, mockInjector, mockFlags, mockDisplayDeviceConfigProvider)
+            mContext, testHandler, mockInjector, mockFlags,
+            mockDisplayDeviceConfigProvider, mockModeRequestManager)
         val modes = arrayOf(
             Display.Mode(1, 1000, 1000, 60f),
             Display.Mode(2, 1000, 1000, 90f),
             Display.Mode(3, 1000, 1000, 120f),
-            Display.Mode(99, Display.Mode.INVALID_MODE_ID, Display.Mode.FLAG_ARR_RENDER_RATE,
-                1000, 1000, 45f, 45f, floatArrayOf(), intArrayOf())
+            Display.Mode(99, Display.Mode.INVALID_MODE_ID, Display.Mode.INVALID_MODE_ID,
+                Display.Mode.FLAG_ARR_RENDER_RATE, 1000, 1000, 45f, 45f, floatArrayOf(),
+                intArrayOf())
         )
 
-        displayModeDirector.injectAppSupportedModesByDisplay(
+        displayModeDirector.injectSupportedModesByDisplay(
             SparseArray<Array<Display.Mode>>().apply {
                 append(Display.DEFAULT_DISPLAY, modes)
             })
@@ -93,13 +113,14 @@ class AppRequestObserverTest {
     @Test
     fun testAppRequestVote_externalDisplay() {
         val displayModeDirector = DisplayModeDirector(
-            context, testHandler, mockInjector, mockFlags, mockDisplayDeviceConfigProvider)
+            context, testHandler, mockInjector, mockFlags,
+            mockDisplayDeviceConfigProvider, mockModeRequestManager)
         val modes = arrayOf(
             Display.Mode(1, 1000, 1000, 60f),
             Display.Mode(2, 1000, 1000, 90f),
         )
 
-        displayModeDirector.injectAppSupportedModesByDisplay(
+        displayModeDirector.injectSupportedModesByDisplay(
             SparseArray<Array<Display.Mode>>().apply {
                 append(Display.DEFAULT_DISPLAY, modes)
             })
@@ -123,8 +144,64 @@ class AppRequestObserverTest {
         assertThat(renderRateVote).isNull()
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_CONFIGURE_APP_RESOLUTION_CHANGE)
+    fun testAppResolutionSwitch_voteSizeAcknowledged_picksCorrectResolution() {
+        mContext.getOrCreateTestableResources().addOverride(
+            R.bool.config_appResolutionSwitchVoteDisabled,
+            false)
+        val displayModeDirector = DisplayModeDirector(
+            mContext, testHandler, mockInjector, mockFlags,
+            mockDisplayDeviceConfigProvider, mockModeRequestManager)
+        val modes = arrayOf(
+            Display.Mode(1, 1000, 1000, 60f),
+            Display.Mode(2, 2000, 2000, 90f),
+        )
+
+        displayModeDirector.injectSupportedModesByDisplay(
+            SparseArray<Array<Display.Mode>>().apply {
+                append(Display.DEFAULT_DISPLAY, modes)
+            })
+        displayModeDirector.injectDefaultModeByDisplay(SparseArray<Display.Mode>().apply {
+            append(Display.DEFAULT_DISPLAY, modes[0])
+        })
+
+        displayModeDirector.appRequestObserver.setAppRequest(Display.DEFAULT_DISPLAY, 2, 0f, 0f, 0f)
+        val sizeVote = displayModeDirector.getVote(Display.DEFAULT_DISPLAY,
+            Vote.PRIORITY_APP_REQUEST_SIZE)
+        assertThat(sizeVote).isNotNull()
+        assertThat(sizeVote).isEqualTo(SizeVote(2000, 2000, 2000, 2000))
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_CONFIGURE_APP_RESOLUTION_CHANGE)
+    fun testAppResolutionSwitch_voteSizeNotAcknowledged_appRequestIgnored() {
+        mContext.getOrCreateTestableResources().addOverride(
+            R.bool.config_appResolutionSwitchVoteDisabled,
+            true)
+        val displayModeDirector = DisplayModeDirector(
+            mContext, testHandler, mockInjector, mockFlags,
+            mockDisplayDeviceConfigProvider, mockModeRequestManager)
+        val modes = arrayOf(
+            Display.Mode(1, 1000, 1000, 60f),
+            Display.Mode(2, 2000, 2000, 90f),
+        )
+
+        displayModeDirector.injectSupportedModesByDisplay(
+            SparseArray<Array<Display.Mode>>().apply {
+                append(Display.DEFAULT_DISPLAY, modes)
+            })
+        displayModeDirector.injectDefaultModeByDisplay(SparseArray<Display.Mode>().apply {
+            append(Display.DEFAULT_DISPLAY, modes[0])
+        })
+
+        displayModeDirector.appRequestObserver.setAppRequest(Display.DEFAULT_DISPLAY, 2, 0f, 0f, 0f)
+        val sizeVote = displayModeDirector.getVote(Display.DEFAULT_DISPLAY,
+            Vote.PRIORITY_APP_REQUEST_SIZE)
+        assertThat(sizeVote).isNull()
+    }
+
     enum class AppRequestTestCase(
-        val ignoreRefreshRateRequest: Boolean,
         val modeId: Int,
         val requestedRefreshRates: Float,
         val requestedMinRefreshRates: Float,
@@ -133,29 +210,41 @@ class AppRequestObserverTest {
         internal val expectedSizeVote: Vote?,
         internal val expectedRenderRateVote: Vote?,
     ) {
-        BASE_MODE_60(true, 1, 0f, 0f, 0f,
-            BaseModeRefreshRateVote(60f), SizeVote(1000, 1000, 1000, 1000), null),
-        BASE_MODE_90(true, 2, 0f, 0f, 0f,
-            BaseModeRefreshRateVote(90f), SizeVote(1000, 1000, 1000, 1000), null),
-        MIN_REFRESH_RATE_60(true, 0, 0f, 60f, 0f,
-            null, null, RenderVote(60f, Float.POSITIVE_INFINITY)),
-        MIN_REFRESH_RATE_120(true, 0, 0f, 120f, 0f,
-        null, null, RenderVote(120f, Float.POSITIVE_INFINITY)),
-        MAX_REFRESH_RATE_60(true, 0, 0f, 0f, 60f,
-            null, null, RenderVote(0f, 60f)),
-        MAX_REFRESH_RATE_120(true, 0, 0f, 0f, 120f,
-            null, null, RenderVote(0f, 120f)),
-        INVALID_MIN_MAX_REFRESH_RATE(true, 0, 0f, 90f, 60f,
-        null, null, null),
-        BASE_MODE_MIN_MAX(true, 1, 0f, 60f, 90f,
-            BaseModeRefreshRateVote(60f), SizeVote(1000, 1000, 1000, 1000), RenderVote(60f, 90f)),
-        PREFERRED_REFRESH_RATE(false, 0, 60f, 0f, 0f,
-            BaseModeRefreshRateVote(60f), SizeVote(1000, 1000, 1000, 1000), null),
-        PREFERRED_REFRESH_RATE_IGNORE_BASE_MODE_CONVERSION(true, 0, 60f, 0f, 0f,
-            RequestedRefreshRateVote(60f), null, null),
-        PREFERRED_REFRESH_RATE_INVALID(false, 0, 25f, 0f, 0f,
-            null, null, null),
-        SYNTHETIC_MODE(false, 99, 0f, 0f, 0f,
-            RequestedRefreshRateVote(45f), SizeVote(1000, 1000, 1000, 1000), null),
+        BASE_MODE_60(
+            1, 0f, 0f, 0f,
+            BaseModeRefreshRateVote(60f), SizeVote(1000, 1000, 1000, 1000), null
+        ),
+        BASE_MODE_90(
+            2, 0f, 0f, 0f,
+            BaseModeRefreshRateVote(90f), SizeVote(1000, 1000, 1000, 1000), null
+        ),
+        MIN_REFRESH_RATE_60(
+            0, 0f, 60f, 0f,
+            null, null, RenderVote(60f, Float.POSITIVE_INFINITY)
+        ),
+        MIN_REFRESH_RATE_120(
+            0, 0f, 120f, 0f,
+            null, null, RenderVote(120f, Float.POSITIVE_INFINITY)
+        ),
+        MAX_REFRESH_RATE_60(
+            0, 0f, 0f, 60f,
+            null, null, RenderVote(0f, 60f)
+        ),
+        MAX_REFRESH_RATE_120(
+            0, 0f, 0f, 120f,
+            null, null, RenderVote(0f, 120f)
+        ),
+        INVALID_MIN_MAX_REFRESH_RATE(
+            0, 0f, 90f, 60f,
+            null, null, null
+        ),
+        BASE_MODE_MIN_MAX(
+            1, 0f, 60f, 90f,
+            BaseModeRefreshRateVote(60f), SizeVote(1000, 1000, 1000, 1000), RenderVote(60f, 90f)
+        ),
+        PREFERRED_REFRESH_RATE(
+            0, 60f, 0f, 0f,
+            RequestedRefreshRateVote(60f), null, null
+        )
     }
 }

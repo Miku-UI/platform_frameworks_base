@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Copyright (C) 2025 The Android Open Source Project
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+
+<!-- In (hopefully very rare) case dialog is too high: allow scrolling -->
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:scrollbars="none"
+    android:fillViewport="true"
+    android:clipChildren="false">
+
+    <!-- The dialog -->
+    <LinearLayout
+        android:id="@+id/usb_device_dialog"
+        android:theme="@style/Theme.SystemUI.Dialog"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingVertical="@dimen/usb_device_dialog_space_small4"
+        android:orientation="vertical"
+        android:gravity="center">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/usb_device_dialog_space_small4"
+            android:paddingHorizontal="@dimen/usb_device_dialog_space_small4"
+            android:orientation="vertical">
+
+            <ImageView
+                android:id="@+id/usb_device_dialog_icon"
+                android:src="@drawable/ic_usb"
+                android:layout_width="@dimen/usb_device_dialog_icon_size"
+                android:layout_height="@dimen/usb_device_dialog_icon_size"
+                android:layout_marginBottom="@dimen/usb_device_dialog_space_small1"
+                android:layout_gravity="center_horizontal"
+                android:tint="@color/materialColorPrimary"
+                android:scaleType="fitCenter"/>
+
+            <TextView
+                android:id="@+id/usb_device_dialog_title"
+                style="@style/TextAppearance.Dialog.Title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:accessibilityHeading="true"/>
+
+            <TextView
+                android:id="@+id/usb_device_dialog_message"
+                style="@style/TextAppearance.Dialog.Body"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/usb_device_dialog_space_small1"
+                android:visibility="gone"/>
+
+        </LinearLayout>
+
+        <!-- Place for AlwaysUseCheckbox from
+             frameworks/base/core/res/res/layout/always_use_checkbox.xml. -->
+        <FrameLayout
+            android:id="@+id/usb_device_dialog_always_use_content"
+            android:visibility="gone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/usb_device_dialog_space_small4"
+            android:layout_marginHorizontal="@dimen/usb_device_dialog_space_small4"
+            android:paddingVertical="@dimen/usb_device_dialog_always_use_checkbox_padding_vertical"
+            android:background="@drawable/usb_device_dialog_round_background">
+        </FrameLayout>
+
+        <!-- Buttons on the bottom of the dialog -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="@dimen/usb_device_dialog_space_small4">
+
+            <Button
+                android:id="@+id/usb_device_dialog_always_allow_button"
+                style="@android:style/Widget.DeviceDefault.Button.Borderless.Colored"
+                android:visibility="gone"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/usb_device_dialog_button_height"
+                android:layout_marginTop="@dimen/usb_device_dialog_button_margin_vertical"
+                android:layout_marginBottom="@dimen/usb_device_dialog_button_margin_vertical_large"
+                android:paddingHorizontal="@dimen/usb_device_dialog_space_small1"
+                android:paddingVertical="@dimen/usb_device_dialog_button_padding_vertical"
+                android:background="@drawable/usb_device_dialog_button_background_filled"
+                android:textColor="@color/materialColorOnPrimary"
+                android:text="@string/usb_device_dialog_always_allow_button"/>
+
+            <Button
+                android:id="@+id/usb_device_dialog_allow_only_this_time_button"
+                style="@android:style/Widget.DeviceDefault.Button.Borderless.Colored"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/usb_device_dialog_button_height"
+                android:layout_marginTop="@dimen/usb_device_dialog_button_margin_vertical"
+                android:layout_marginBottom="@dimen/usb_device_dialog_button_margin_vertical_large"
+                android:paddingHorizontal="@dimen/usb_device_dialog_space_small1"
+                android:paddingVertical="@dimen/usb_device_dialog_button_padding_vertical"
+                android:background="@drawable/usb_device_dialog_button_background_outline"
+                android:textColor="@color/materialColorPrimary"
+                android:text="@string/usb_device_dialog_allow_only_this_time_button"/>
+
+            <Button
+                android:id="@+id/usb_device_dialog_cancel_button"
+                style="@android:style/Widget.DeviceDefault.Button.Borderless.Colored"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/usb_device_dialog_button_height"
+                android:layout_marginVertical="@dimen/usb_device_dialog_button_margin_vertical"
+                android:paddingHorizontal="@dimen/usb_device_dialog_space_small1"
+                android:paddingVertical="@dimen/usb_device_dialog_button_padding_vertical"
+                android:background="@android:color/transparent"
+                android:textColor="@color/materialColorPrimary"
+                android:text="@string/usb_device_dialog_cancel_button"/>
+
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

@@ -25,7 +25,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.Log;
 
 import androidx.test.InstrumentationRegistry;
@@ -35,7 +34,6 @@ import com.android.internal.os.SkipPresubmit;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -50,8 +48,6 @@ import java.io.IOException;
 public class BinderThreadPriorityTest {
     private static final String TAG = "BinderThreadPriorityTest";
 
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private Context mContext;
     private IBinderThreadPriorityService mService;

@@ -16,8 +16,10 @@
 
 package com.android.server.am.psc;
 
+import static com.android.server.am.psc.Constants.SCHED_GROUP_UNDEFINED;
+
 import com.android.internal.annotations.GuardedBy;
-import com.android.server.am.ProcessList;
+import com.android.server.am.psc.Constants.SchedGroup;
 
 /** Internal base class for managing broadcast receiver state within a process. */
 public abstract class ProcessReceiverRecordInternal {
@@ -30,7 +32,7 @@ public abstract class ProcessReceiverRecordInternal {
 
     /** The scheduling group assigned to the process when it is receiving a broadcast. */
     @GuardedBy("mServiceLock")
-    private int mBroadcastReceiverSchedGroup = ProcessList.SCHED_GROUP_UNDEFINED;
+    private @SchedGroup int mBroadcastReceiverSchedGroup = SCHED_GROUP_UNDEFINED;
 
     public ProcessReceiverRecordInternal(Object serviceLock) {
         mServiceLock = serviceLock;
@@ -42,17 +44,17 @@ public abstract class ProcessReceiverRecordInternal {
     }
 
     @GuardedBy("mServiceLock")
-    public void setIsReceivingBroadcast(boolean receivingBroadcast) {
+    void setIsReceivingBroadcast(boolean receivingBroadcast) {
         mIsReceivingBroadcast = receivingBroadcast;
     }
 
     @GuardedBy("mServiceLock")
-    public void setBroadcastReceiverSchedGroup(int priority) {
+    void setBroadcastReceiverSchedGroup(@SchedGroup int priority) {
         mBroadcastReceiverSchedGroup = priority;
     }
 
     @GuardedBy("mServiceLock")
-    public int getBroadcastReceiverSchedGroup() {
+    public @SchedGroup int getBroadcastReceiverSchedGroup() {
         return mBroadcastReceiverSchedGroup;
     }
 }

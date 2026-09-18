@@ -17,6 +17,7 @@
 package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
+import android.platform.test.annotations.WithDesktopTest
 import android.tools.Rotation
 import android.tools.traces.parsers.WindowManagerStateHelper
 import androidx.test.platform.app.InstrumentationRegistry
@@ -31,9 +32,11 @@ import org.junit.Test
 
 @Ignore("Test Base Class")
 abstract class ResizeAppCornerMultiWindow
-constructor(val rotation: Rotation = Rotation.ROTATION_0,
+constructor(
+    rotation: Rotation = Rotation.ROTATION_0,
     val horizontalChange: Int = 50,
-    val verticalChange: Int = -50) : TestScenarioBase(rotation) {
+    val verticalChange: Int = -50,
+) : ResizeAppScenarioTestBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
@@ -43,23 +46,28 @@ constructor(val rotation: Rotation = Rotation.ROTATION_0,
     private val mailAppHelper = MailAppHelper(instrumentation)
     private val mailAppDesktopHelper = DesktopModeAppHelper(mailAppHelper)
 
-    private val maxNum = desktopConfig.maxTaskLimit
+    private val hasTaskLimit = desktopConfig.maxTaskLimit > 0
+    private val numWindows = if (hasTaskLimit) desktopConfig.maxTaskLimit - 1 else 15
 
     @Before
     fun setup() {
         mailAppDesktopHelper.enterDesktopMode(wmHelper, device)
-        mailAppDesktopHelper.openTasks(wmHelper, numTasks = maxNum - 1)
+        mailAppDesktopHelper.openTasks(wmHelper, numTasks = numWindows)
     }
 
+    @WithDesktopTest
     @Test
     open fun resizeAppWithCornerResize() {
+        val initialBounds = wmHelper.getWindowRegion(mailAppHelper).bounds
         mailAppDesktopHelper.cornerResize(
             wmHelper,
             device,
             DesktopModeAppHelper.Corners.RIGHT_TOP,
             horizontalChange,
-            verticalChange
+            verticalChange,
         )
+        val finalBounds = wmHelper.getWindowRegion(mailAppHelper).bounds
+        assertWindowExpandedFromTopRight(initialBounds, finalBounds)
     }
 
     @After

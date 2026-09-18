@@ -22,6 +22,7 @@ import static android.view.WindowInsets.Type.statusBars;
 import static android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
 import static android.view.WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION;
+import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_CAPTION_BAR;
 import static android.view.WindowManager.TRANSIT_CHANGE;
 
 import android.annotation.NonNull;
@@ -50,7 +51,6 @@ import android.view.SurfaceControlViewHost;
 import android.view.View;
 import android.view.WindowManager;
 import android.view.WindowlessWindowManager;
-import android.window.DesktopExperienceFlags;
 import android.window.DesktopModeFlags;
 import android.window.SurfaceSyncGroup;
 import android.window.TaskConstants;
@@ -92,7 +92,10 @@ import java.util.function.Supplier;
  * the window captions.
  *
  * @param <T> The type of the root view
+ * @deprecated This class's logic is now split between {@link WindowDecoration2} and
+ * {@link CaptionController}.
  */
+@Deprecated
 public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
         implements AutoCloseable {
 
@@ -330,14 +333,12 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
                     params.mBoxShadowSettingsIds);
         }
 
-        if (DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue()) {
-            outResult.mCornerRadius = params.mCornerRadiusId == Resources.ID_NULL
-                    ? INVALID_CORNER_RADIUS : loadDimensionPixelSize(resources,
-                    params.mCornerRadiusId);
-            outResult.mShadowRadius = params.mShadowRadiusId == Resources.ID_NULL
-                    ? INVALID_SHADOW_RADIUS : loadDimensionPixelSize(resources,
-                    params.mShadowRadiusId);
-        }
+        outResult.mCornerRadius = params.mCornerRadiusId == Resources.ID_NULL
+                ? INVALID_CORNER_RADIUS : loadDimensionPixelSize(resources,
+                params.mCornerRadiusId);
+        outResult.mShadowRadius = params.mShadowRadiusId == Resources.ID_NULL
+                ? INVALID_SHADOW_RADIUS : loadDimensionPixelSize(resources,
+                params.mShadowRadiusId);
 
         Trace.beginSection("relayout-createViewHostIfNeeded");
         createViewHostIfNeeded(mDecorWindowContext, mDisplay);
@@ -381,7 +382,7 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
                 new WindowManager.LayoutParams(
                         outResult.mCaptionWidth,
                         outResult.mCaptionHeight,
-                        TYPE_APPLICATION,
+                        TYPE_APPLICATION_CAPTION_BAR,
                         FLAG_NOT_FOCUSABLE,
                         PixelFormat.TRANSPARENT);
         lp.setTitle("Caption of Task=" + mTaskInfo.taskId);
@@ -509,15 +510,34 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
         final Rect captionInsetsRect = new Rect(taskBounds);
         captionInsetsRect.bottom = captionInsetsRect.top + outResult.mCaptionHeight;
 
-        // Caption bounding rectangles: these are optional, and are used to present finer
-        // insets than traditional |Insets| to apps about where their content is occluded.
-        // These are in coordinates relative to the caption frame.
-        final List<Rect> boundingRects = CaptionRegionHelper.calculateBoundingRectsInsets(
-                decorWindowContext, localCaptionBounds, params.mOccludingElementsCalculator.get());
-
-        final WindowDecorationInsets newInsets = new WindowDecorationInsets(
-                mTaskInfo.token, mOwner, captionInsetsRect, taskBounds, boundingRects,
-                params.mInsetSourceFlags, params.mIsInsetSource, params.mShouldSetAppBounds);
+        final WindowDecorationInsets newInsets =
+                com.android.window.flags.Flags.improveFluidResizingPerformance()
+                        ? new WindowDecorationInsets(
+                                mTaskInfo.token, mOwner, captionInsetsRect, taskBounds,
+                                Collections.emptyList(),
+                                // Caption bounding rectangles: these are optional, and are used to
+                                // present finer insets than traditional |Insets| to apps about
+                                // where their content is occluded.
+                                // These are in coordinates relative to the caption frame.
+                                CaptionRegionHelper.calculateInsetsBoundingRectsInsets(
+                                        decorWindowContext,
+                                        localCaptionBounds,
+                                        params.mOccludingElementsCalculator.get()),
+                                params.mInsetSourceFlags, params.mIsInsetSource,
+                                params.mShouldSetAppBounds)
+                        : new WindowDecorationInsets(
+                                mTaskInfo.token, mOwner, captionInsetsRect, taskBounds,
+                                // Caption bounding rectangles: these are optional, and are used to
+                                // present finer insets than traditional |Insets| to apps about
+                                // where their content is occluded.
+                                // These are in coordinates relative to the caption frame.
+                                CaptionRegionHelper.calculateBoundingRectsInsets(
+                                        decorWindowContext,
+                                        localCaptionBounds,
+                                        params.mOccludingElementsCalculator.get()),
+                                Collections.emptyList(),
+                                params.mInsetSourceFlags, params.mIsInsetSource,
+                                params.mShouldSetAppBounds);
         if (!newInsets.equals(mWindowDecorationInsets)) {
             // Add or update this caption as an insets source.
             mWindowDecorationInsets = newInsets;
@@ -554,9 +574,7 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
     private void updateTaskSurfaceOutline(
             RelayoutParams params, SurfaceControl.Transaction startT,
             SurfaceControl.Transaction finishT, RelayoutResult<T> outResult) {
-        if ((DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue()
-                || DesktopExperienceFlags.ENABLE_FREEFORM_BOX_SHADOWS.isTrue())
-                && !params.mInSyncWithTransition) {
+        if (!params.mInSyncWithTransition) {
             // Update these outline properties only when the relayout is driven by Transition
             // callbacks because they must be updated together with some of other properties (e.g.,
             // position) which is set by transition handler although the outline properties are
@@ -576,24 +594,13 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
             finishT.setBoxShadowSettings(mTaskSurface, outResult.mBoxShadowSettings);
         }
 
-        if (DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue()) {
-            if (outResult.mShadowRadius != INVALID_SHADOW_RADIUS) {
-                startT.setShadowRadius(mTaskSurface, outResult.mShadowRadius);
-                finishT.setShadowRadius(mTaskSurface, outResult.mShadowRadius);
-            }
-            if (outResult.mCornerRadius != INVALID_CORNER_RADIUS) {
-                startT.setCornerRadius(mTaskSurface, outResult.mCornerRadius);
-                finishT.setCornerRadius(mTaskSurface, outResult.mCornerRadius);
-            }
-        } else {
-            if (params.mShadowRadius != INVALID_SHADOW_RADIUS) {
-                startT.setShadowRadius(mTaskSurface, params.mShadowRadius);
-                finishT.setShadowRadius(mTaskSurface, params.mShadowRadius);
-            }
-            if (params.mCornerRadius != INVALID_CORNER_RADIUS) {
-                startT.setCornerRadius(mTaskSurface, params.mCornerRadius);
-                finishT.setCornerRadius(mTaskSurface, params.mCornerRadius);
-            }
+        if (outResult.mShadowRadius != INVALID_SHADOW_RADIUS) {
+            startT.setShadowRadius(mTaskSurface, outResult.mShadowRadius);
+            finishT.setShadowRadius(mTaskSurface, outResult.mShadowRadius);
+        }
+        if (outResult.mCornerRadius != INVALID_CORNER_RADIUS) {
+            startT.setCornerRadius(mTaskSurface, outResult.mCornerRadius);
+            finishT.setCornerRadius(mTaskSurface, outResult.mCornerRadius);
         }
     }
 
@@ -710,7 +717,7 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
         }
         final WindowContainerTransaction wct = mWindowContainerTransactionSupplier.get();
         releaseViews(wct);
-        if (DesktopExperienceFlags.ENABLE_DESKTOP_WINDOWING_PIP.isTrue() && !wct.isEmpty()) {
+        if (!wct.isEmpty()) {
             mHandler.post(() -> mTransitions.startTransition(TRANSIT_CHANGE, wct,
                     /* handler= */ null));
         } else {
@@ -808,7 +815,8 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
         final Rect captionInsets = new Rect(0, 0, 0, captionHeight);
         final WindowDecorationInsets newInsets = new WindowDecorationInsets(mTaskInfo.token,
                 mOwner, captionInsets, null  /* taskFrame */,
-                Collections.emptyList() /* boundingRects */, 0 /* flags */,
+                Collections.emptyList() /* boundingRects */,
+                Collections.emptyList() /* insetsBoundingRects */, 0 /* flags */,
                 true /* shouldAddCaptionInset */, false /* excludedFromAppBounds */);
         if (!newInsets.equals(mWindowDecorationInsets)) {
             mWindowDecorationInsets = newInsets;
@@ -865,13 +873,8 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
             mBorderSettingsId = Resources.ID_NULL;
             mBoxShadowSettingsIds = null;
 
-            if (DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue()) {
-                mShadowRadiusId = Resources.ID_NULL;
-                mCornerRadiusId = Resources.ID_NULL;
-            } else {
-                mShadowRadius = INVALID_SHADOW_RADIUS;
-                mCornerRadius = INVALID_SHADOW_RADIUS;
-            }
+            mShadowRadiusId = Resources.ID_NULL;
+            mCornerRadiusId = Resources.ID_NULL;
 
             mCaptionTopPadding = 0;
             mIsCaptionVisible = false;
@@ -918,10 +921,8 @@ public abstract class WindowDecoration<T extends View & TaskFocusStateConsumer>
             mRootView = null;
             mBorderSettings = null;
             mBoxShadowSettings = null;
-            if (DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue()) {
-                mCornerRadius = INVALID_CORNER_RADIUS;
-                mShadowRadius = INVALID_SHADOW_RADIUS;
-            }
+            mCornerRadius = INVALID_CORNER_RADIUS;
+            mShadowRadius = INVALID_SHADOW_RADIUS;
         }
     }
 

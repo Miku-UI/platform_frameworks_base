@@ -15,14 +15,17 @@
  */
 package android.os;
 
-import android.platform.test.ravenwood.RavenwoodErrorHandler;
+import android.platform.test.ravenwood.RavenwoodEnvironment;
 
-public class Looper_ravenwood {
+class Looper_ravenwood {
+    static boolean isLooperClearsThreadInterruptedEnabled() {
+        // On Ravenwood, @ChangeIds may not yet be ready when this method is called,
+        // so manually check the test's target SDK version.
+        return RavenwoodEnvironment.getInstance().getTargetSdkLevel()
+                >= android.os.Build.VERSION_CODES.CINNAMON_BUN;
+    }
 
-    /**
-     * Called by {@link Looper#dispatchMessage(Message)}
-     */
-    public static void dispatchMessage(Message msg) {
-        RavenwoodErrorHandler.dispatchMessage(msg);
+    static int getThresholdOverride() {
+        return -1;
     }
 }

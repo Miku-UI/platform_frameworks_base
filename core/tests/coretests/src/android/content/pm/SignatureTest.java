@@ -99,7 +99,83 @@ public class SignatureTest extends TestCase {
         assertEquals(signatureAWithAllCaps, signatureAWithNoCaps);
     }
 
+    public void testExactMatch_v32Hybrid() throws Exception {
+        // The V3.2 hybrid signature scheme is intended to support the transition to PQC signing by
+        // pairing the established security of a classical signature scheme with a new PQC signature
+        // algorithm. When verifying that signatures match exactly, both signatures from the hybrid
+        // block must be compared. This test verifies that SigningDetails are only considered exact
+        // if both of the hybrid signatures are a match.
+        SigningDetails hybridAB = createHybridDetails(A, B);
+        SigningDetails hybridAB2 = createHybridDetails(A, B);
+        SigningDetails hybridAM = createHybridDetails(A, M);
+        SigningDetails hybridMB = createHybridDetails(M, B);
+        SigningDetails singleA = new SigningDetails(new Signature[] {A},
+                SigningDetails.SignatureSchemeVersion.SIGNING_BLOCK_V3);
+        SigningDetails singleB = new SigningDetails(new Signature[] {B},
+                SigningDetails.SignatureSchemeVersion.SIGNING_BLOCK_V3);
+        SigningDetails singleM = new SigningDetails(new Signature[] {M},
+                SigningDetails.SignatureSchemeVersion.SIGNING_BLOCK_V3);
+
+        // A hybrid compared against a single signer should always fail, even if the signer is one
+        // of the hybrid signers.
+        assertFalse(Signature.areExactMatch(hybridAB, singleA));
+        assertFalse(Signature.areExactMatch(hybridAB, singleB));
+        assertFalse(Signature.areExactMatch(hybridAB, singleM));
+        // Two hybrid signers with a mismatch should fail, even if one of the signers is an exact
+        // match.
+        assertFalse(Signature.areExactMatch(hybridAB, hybridMB));
+        assertFalse(Signature.areExactMatch(hybridAB, hybridAM));
+        // Two hybrid signers with the same classical and PQC keys should return true.
+        assertTrue(Signature.areExactMatch(hybridAB, hybridAB));
+        assertTrue(Signature.areExactMatch(hybridAB, hybridAB2));
+    }
+
+    public void testEffectiveMatch_v32Hybrid() throws Exception {
+        // Similar to the areExactMatch tests above, this test verifies the recover scenario where
+        // one of the hybrid keys may be an effective match.
+        SigningDetails hybridAB = createHybridDetails(A, B);
+        SigningDetails hybridMB = createHybridDetails(M, B);
+        SigningDetails hybridBA = createHybridDetails(B, A);
+        SigningDetails hybridBM = createHybridDetails(B, M);
+        SigningDetails hybridBB = createHybridDetails(B, B);
+        SigningDetails hybridMM = createHybridDetails(M, M);
+        SigningDetails singleA = new SigningDetails(new Signature[] {A},
+                SigningDetails.SignatureSchemeVersion.SIGNING_BLOCK_V3);
+        SigningDetails singleB = new SigningDetails(new Signature[] {B},
+                SigningDetails.SignatureSchemeVersion.SIGNING_BLOCK_V3);
+        SigningDetails singleM = new SigningDetails(new Signature[] {M},
+                SigningDetails.SignatureSchemeVersion.SIGNING_BLOCK_V3);
+
+        // A hybrid compared against a single signer should always fail, even if the signer is one
+        // of the hybrid signers or an effective match for one of them.
+        assertFalse(Signature.areEffectiveMatch(hybridAB, singleA));
+        assertFalse(Signature.areEffectiveMatch(hybridAB, singleB));
+        assertFalse(Signature.areEffectiveMatch(hybridAB, singleM));
+        assertFalse(Signature.areEffectiveMatch(hybridBA, singleM));
+        // Two hybrid signers with a mismatch should fail, even if one of the signers is an exact
+        // or effective match.
+        assertFalse(Signature.areEffectiveMatch(hybridBA, hybridBB));
+        assertFalse(Signature.areEffectiveMatch(hybridAB, hybridBB));
+        assertFalse(Signature.areEffectiveMatch(hybridAB, hybridMM));
+        assertFalse(Signature.areEffectiveMatch(hybridBA, hybridMM));
+        // Two hybrid signers with an exact match for one of the keys and an effective match for the
+        // other should return true;
+        assertTrue(Signature.areEffectiveMatch(hybridAB, hybridMB));
+        assertTrue(Signature.areEffectiveMatch(hybridBA, hybridBM));
+    }
+
     private static Signature[] asArray(Signature... s) {
         return s;
+    }
+
+    private SigningDetails createHybridDetails(Signature pqcSignature, Signature classicalSignature)
+            throws Exception {
+        // In a V3.2 hybrid block, the PQC signer is the primary signature, and the classical signer
+        // is the next to last entry in the lineage.
+        return new SigningDetails(new Signature[] {pqcSignature},
+                SigningDetails.SignatureSchemeVersion.SIGNING_BLOCK_V3,
+                SigningDetails.SignatureSchemeMinorVersion.MINOR_VERSION_32_HYBRID,
+                new Signature[] {classicalSignature, pqcSignature}
+        );
     }
 }

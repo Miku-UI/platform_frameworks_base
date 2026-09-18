@@ -17,17 +17,14 @@
 package com.android.systemui.shade.ui.viewmodel
 
 import androidx.annotation.FloatRange
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.lifecycle.LifecycleOwner
 import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.compose.animation.scene.content.state.TransitionState
 import com.android.systemui.Flags
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
-import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.ui.transitions.BlurConfig
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.media.controls.domain.pipeline.interactor.MediaCarouselInteractor
 import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager.Companion.LOCATION_QQS
 import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
@@ -44,18 +41,16 @@ import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.SceneFamilies
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
+import com.android.systemui.shade.domain.interactor.ShadeStatusBarComponentsInteractor
 import com.android.systemui.shade.shared.model.ShadeMode
-import com.android.systemui.statusbar.disableflags.domain.interactor.DisableFlagsInteractor
 import com.android.systemui.unfold.domain.interactor.UnfoldTransitionInteractor
 import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
@@ -75,82 +70,63 @@ constructor(
     val mediaCarouselInteractor: MediaCarouselInteractor,
     private val shadeModeInteractor: ShadeModeInteractor,
     val mediaViewModelFactory: MediaViewModel.Factory,
-    disableFlagsInteractor: DisableFlagsInteractor,
     private val footerActionsViewModelFactory: FooterActionsViewModel.Factory,
     private val footerActionsController: FooterActionsController,
-    keyguardInteractor: KeyguardInteractor,
-    blurConfig: BlurConfig,
+    private val blurConfig: BlurConfig,
     unfoldTransitionInteractor: UnfoldTransitionInteractor,
     deviceEntryInteractor: DeviceEntryInteractor,
     private val sceneInteractor: SceneInteractor,
     private val tileSquishinessInteractor: TileSquishinessInteractor,
     windowRootViewBlurInteractor: WindowRootViewBlurInteractor,
     mediaInRowInLandscapeViewModelFactory: MediaInRowInLandscapeViewModel.Factory,
-) : ExclusiveActivatable() {
-
-    private val hydrator = Hydrator("ShadeSceneContentViewModel.hydrator")
+    shadeStatusBarComponentsInteractor: ShadeStatusBarComponentsInteractor,
+) : HydratedActivatable() {
 
     /**
      * Whether the shade container transparency effect should be enabled (`true`), or whether to
      * render a fully-opaque shade container (`false`).
      */
     val isTransparencyEnabled: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "isTransparencyEnabled",
-            source =
-                if (Flags.notificationShadeBlur()) {
-                    windowRootViewBlurInteractor.isBlurCurrentlySupported
-                } else {
-                    MutableStateFlow(false)
-                },
-        )
+        if (Flags.notificationShadeBlur()) {
+                windowRootViewBlurInteractor.isBlurCurrentlySupported
+            } else {
+                MutableStateFlow(false)
+            }
+            .hydratedStateOf()
 
-    val shadeMode: ShadeMode by
-        hydrator.hydratedStateOf(traceName = "shadeMode", source = shadeModeInteractor.shadeMode)
+    val shadeMode: ShadeMode by shadeModeInteractor.shadeMode.hydratedStateOf()
 
-    val isShadeBlurred: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "isShadeBlurred",
-            source = keyguardInteractor.primaryBouncerShowing,
-        )
+    val isDeviceEntered: Boolean by deviceEntryInteractor.isDeviceEntered.hydratedStateOf()
 
-    val shadeBlurRadius: Float by mutableFloatStateOf(blurConfig.maxBlurRadiusPx)
-
-    /** Whether clicking on the empty area of the shade should do something. */
-    val isEmptySpaceClickable: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "isEmptySpaceClickable",
-            initialValue = !deviceEntryInteractor.isDeviceEntered.value,
-            source = deviceEntryInteractor.isDeviceEntered.map { !it },
-        )
+    fun isEmptySpaceClickable(transitionState: TransitionState): Boolean {
+        val isTransitioningToQs =
+            transitionState.isTransitioningBetween(Scenes.Shade, Scenes.QuickSettings)
+        return !isDeviceEntered && !isTransitioningToQs
+    }
 
     val showMediaInRow: Boolean
         get() = qqsMediaInRowViewModel.shouldMediaShowInRow
 
     val showMedia: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "isMediaVisible",
-            // mediaCarouselInteractor.hasAnyMedia if in SplitShade.
-            source = mediaCarouselInteractor.hasActiveMedia,
-        )
+        // mediaCarouselInteractor.hasAnyMedia if in SplitShade.
+        mediaCarouselInteractor.hasActiveMedia.hydratedStateOf()
 
     val isQsEnabled: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "isQsEnabled",
-            initialValue = disableFlagsInteractor.disableFlags.value.isQuickSettingsEnabled(),
-            source = disableFlagsInteractor.disableFlags.map { it.isQuickSettingsEnabled() },
-        )
+        shadeStatusBarComponentsInteractor.disableFlags
+            .map { it.isQuickSettingsEnabled() }
+            .hydratedStateOf(
+                initialValue =
+                    shadeStatusBarComponentsInteractor.disableFlags.value.isQuickSettingsEnabled()
+            )
 
     /**
      * Amount of X-axis translation to apply to various elements as the unfolded foldable is folded
      * slightly, in pixels.
      */
     val unfoldTranslationXForStartSide: Float by
-        hydrator.hydratedStateOf(
-            traceName = "unfoldTranslationXForStartSide",
-            initialValue = 0f,
-            source = unfoldTransitionInteractor.unfoldTranslationX(isOnStartSide = true),
-        )
+        unfoldTransitionInteractor
+            .unfoldTranslationX(isOnStartSide = true)
+            .hydratedStateOf(initialValue = 0f)
 
     fun onMediaSwipeToDismiss() = mediaCarouselInteractor.onSwipeToDismiss()
 
@@ -159,27 +135,47 @@ constructor(
     private val qqsMediaInRowViewModel =
         mediaInRowInLandscapeViewModelFactory.create(LOCATION_QQS, qqsMediaUiBehavior)
 
-    override suspend fun onActivated(): Nothing {
-        coroutineScope {
-            launch { hydrator.activate() }
-            launch { qqsMediaInRowViewModel.activate() }
+    override suspend fun onActivated() {
+        coroutineScope { launch { qqsMediaInRowViewModel.activate() } }
+    }
 
-            launch {
-                shadeModeInteractor.shadeMode
-                    .filter { it is ShadeMode.Dual }
-                    .collect {
-                        withContext(mainDispatcher) {
-                            val loggingReason = "Unfold while on notifications shade"
-                            sceneInteractor.snapToScene(SceneFamilies.Home, loggingReason)
-                            sceneInteractor.instantlyShowOverlay(
-                                Overlays.NotificationsShade,
-                                loggingReason,
-                            )
-                        }
+    /**
+     * Monitors changes to the shade mode that would make this scene stale, and snaps to the
+     * appropriate scene/overlay instead.
+     *
+     * This function must only run while the scene is shown. Therefore, it shouldn't be part of
+     * [onActivated()] while this scene uses `alwaysCompose`.
+     */
+    suspend fun detectShadeModeChanges(): Nothing {
+        shadeModeInteractor.shadeMode.collect { shadeMode ->
+            withContext(mainDispatcher) {
+                val loggingReason = "Unfold while on notifications shade"
+                when (shadeMode) {
+                    is ShadeMode.Dual -> {
+                        sceneInteractor.snapToScene(SceneFamilies.Home, loggingReason)
+                        sceneInteractor.instantlyShowOverlay(
+                            Overlays.NotificationsShade,
+                            loggingReason,
+                        )
                     }
+                    else -> Unit
+                }
             }
+        }
+    }
 
-            awaitCancellation()
+    /**
+     * Calculates the blur radius to apply to the scene UI.
+     *
+     * @param transitionState The current transition state of the scene (from its `ContentScope`)
+     * @return The blur radius to apply to the scene UI, in pixels.
+     */
+    fun calculateBlur(transitionState: TransitionState): Float {
+        return when {
+            !isTransparencyEnabled -> 0f
+            Scenes.Shade != transitionState.currentScene -> 0f
+            Overlays.Bouncer in transitionState.currentOverlays -> blurConfig.maxBlurRadiusPx
+            else -> 0f
         }
     }
 
@@ -191,12 +187,12 @@ constructor(
     }
 
     /** Notifies that the empty space in the shade has been clicked. */
-    fun onEmptySpaceClicked() {
-        if (!isEmptySpaceClickable) {
+    fun onEmptySpaceClicked(transitionState: TransitionState) {
+        if (!isEmptySpaceClickable(transitionState)) {
             return
         }
 
-        sceneInteractor.changeScene(Scenes.Lockscreen, "Shade empty space clicked.")
+        sceneInteractor.changeScene(SceneFamilies.Home, "Shade empty space clicked.")
     }
 
     /**

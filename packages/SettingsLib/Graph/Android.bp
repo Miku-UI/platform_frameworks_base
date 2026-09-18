@@ -13,6 +13,7 @@ android_library {
         "SettingsLibIpc",
         "SettingsLibMetadata",
         "SettingsLibPreference",
+        "SettingsLibUtils",
         "androidx.annotation_annotation",
         "androidx.fragment_fragment",
         "androidx.preference_preference",

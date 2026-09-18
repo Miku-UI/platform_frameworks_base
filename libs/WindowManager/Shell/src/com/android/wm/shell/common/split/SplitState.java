@@ -35,20 +35,34 @@ import java.util.Set;
  * A class that manages the "state" of split screen. See {@link SplitScreenState} for definitions.
  */
 public class SplitState {
+    /**
+     * The current state of split screen. It's possible we are leaving this state and animating to
+     * (cue DJ Khaled:) another one.
+     */
     private @SplitScreenState int mState = NOT_IN_SPLIT;
+    /** The state we are animating to. */
+    public @SplitScreenState int mAnimatingToState = NOT_IN_SPLIT;
     private SplitSpec mSplitSpec;
     private final Set<SplitStateChangeListener> mListeners = new HashSet<>();
 
 
-    /** Updates the current state of split screen on this device. */
+    /**
+     * Updates the current state of split screen on this device. Also clears out
+     * {@link #mAnimatingToState}
+     */
     public void set(@SplitScreenState int newState) {
         mState = newState;
+        mAnimatingToState = NOT_IN_SPLIT;
         notifyListeners();
     }
 
     /** Reports the current state of split screen on this device. */
     public @SplitScreenState int get() {
         return mState;
+    }
+
+    public void setAnimatingToState(@SplitScreenState int newState) {
+        mAnimatingToState = newState;
     }
 
     /** Sets NOT_IN_SPLIT when user exits split. */
@@ -84,6 +98,18 @@ public class SplitState {
                 || mState == SNAP_TO_2_90_10
                 || mState == SNAP_TO_3_10_45_45
                 || mState == SNAP_TO_3_45_45_10;
+    }
+
+    /**
+     * @return {@code true} if at least one app is partially offscreen in the current layout or
+     * the layout being animated to.
+     */
+    public boolean currentOrAnimatingToStateWithOffscreenApps() {
+        return currentStateHasOffscreenApps() ||
+                mAnimatingToState == SNAP_TO_2_10_90
+                || mAnimatingToState == SNAP_TO_2_90_10
+                || mAnimatingToState == SNAP_TO_3_10_45_45
+                || mAnimatingToState == SNAP_TO_3_45_45_10;
     }
 
     /**

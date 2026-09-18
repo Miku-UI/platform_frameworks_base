@@ -17,15 +17,14 @@ package com.android.systemui.statusbar.notification.domain.interactor
 import android.app.StatusBarManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.SysUITestComponent
-import com.android.systemui.SysUITestModule
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.statusbar.disableflags.data.repository.FakeDisableFlagsRepository
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.runTest
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.statusbar.disableflags.data.repository.fakeDisableFlagsRepository
 import com.android.systemui.statusbar.disableflags.shared.model.DisableFlagsModel
+import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import dagger.BindsInstance
-import dagger.Component
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -33,32 +32,21 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class NotificationAlertsInteractorTest : SysuiTestCase() {
 
-    @Component(modules = [SysUITestModule::class])
-    @SysUISingleton
-    interface TestComponent : SysUITestComponent<NotificationAlertsInteractor> {
-        val disableFlags: FakeDisableFlagsRepository
-
-        @Component.Factory
-        interface Factory {
-            fun create(@BindsInstance test: SysuiTestCase): TestComponent
-        }
-    }
-
-    private val testComponent: TestComponent =
-        DaggerNotificationAlertsInteractorTest_TestComponent.factory().create(test = this)
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
+    private val Kosmos.underTest by Kosmos.Fixture { notificationAlertsInteractorImpl }
 
     @Test
     fun disableFlags_notifAlertsNotDisabled_notifAlertsEnabledTrue() =
-        with(testComponent) {
-            disableFlags.disableFlags.value =
+        kosmos.runTest {
+            fakeDisableFlagsRepository.disableFlags.value =
                 DisableFlagsModel(StatusBarManager.DISABLE_NONE, StatusBarManager.DISABLE2_NONE)
             assertThat(underTest.areNotificationAlertsEnabled()).isTrue()
         }
 
     @Test
     fun disableFlags_notifAlertsDisabled_notifAlertsEnabledFalse() =
-        with(testComponent) {
-            disableFlags.disableFlags.value =
+        kosmos.runTest {
+            fakeDisableFlagsRepository.disableFlags.value =
                 DisableFlagsModel(
                     StatusBarManager.DISABLE_NOTIFICATION_ALERTS,
                     StatusBarManager.DISABLE2_NONE,

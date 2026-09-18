@@ -16,10 +16,12 @@
 
 #include "VectorDrawableUtils.h"
 
-#include "PathParser.h"
-
+#include <SkPath.h>
+#include <SkPathBuilder.h>
 #include <math.h>
 #include <utils/Log.h>
+
+#include "PathParser.h"
 
 namespace android {
 namespace uirenderer {
@@ -32,8 +34,8 @@ public:
     float ctrlPointY = 0;
     float currentSegmentStartX = 0;
     float currentSegmentStartY = 0;
-    void addCommand(SkPath* outPath, char previousCmd, char cmd, const std::vector<float>* points,
-                    size_t start, size_t end);
+    void addCommand(SkPathBuilder* outPath, char previousCmd, char cmd,
+                    const std::vector<float>* points, size_t start, size_t end);
 };
 
 bool VectorDrawableUtils::canMorph(const PathData& morphFrom, const PathData& morphTo) {
@@ -64,16 +66,17 @@ bool VectorDrawableUtils::interpolatePathData(PathData* outData, const PathData&
 */
 void VectorDrawableUtils::verbsToPath(SkPath* outPath, const PathData& data) {
     PathResolver resolver;
+    SkPathBuilder builder;
     char previousCommand = 'm';
     size_t start = 0;
-    outPath->reset();
     for (unsigned int i = 0; i < data.verbs.size(); i++) {
         size_t verbSize = data.verbSizes[i];
-        resolver.addCommand(outPath, previousCommand, data.verbs[i], &data.points, start,
+        resolver.addCommand(&builder, previousCommand, data.verbs[i], &data.points, start,
                             start + verbSize);
         previousCommand = data.verbs[i];
         start += verbSize;
     }
+    *outPath = builder.detach();
 }
 
 /**
@@ -97,7 +100,7 @@ void VectorDrawableUtils::interpolatePaths(PathData* outData, const PathData& fr
 }
 
 // Use the given verb, and points in the range [start, end) to insert a command into the SkPath.
-void PathResolver::addCommand(SkPath* outPath, char previousCmd, char cmd,
+void PathResolver::addCommand(SkPathBuilder* outPath, char previousCmd, char cmd,
                               const std::vector<float>* points, size_t start, size_t end) {
     int incr = 2;
     float reflectiveCtrlPointX;
@@ -298,20 +301,20 @@ void PathResolver::addCommand(SkPath* outPath, char previousCmd, char cmd,
                 break;
             case 'a':  // Draws an elliptical arc
                 // (rx ry x-axis-rotation large-arc-flag sweep-flag x y)
-                outPath->arcTo(points->at(k + 0), points->at(k + 1), points->at(k + 2),
-                               (SkPath::ArcSize) (points->at(k + 3) != 0),
-                               (SkPathDirection) (points->at(k + 4) == 0),
-                               points->at(k + 5) + currentX, points->at(k + 6) + currentY);
+                outPath->arcTo({points->at(k + 0), points->at(k + 1)}, points->at(k + 2),
+                               (SkPathBuilder::ArcSize)(points->at(k + 3) != 0),
+                               (SkPathDirection)(points->at(k + 4) == 0),
+                               {points->at(k + 5) + currentX, points->at(k + 6) + currentY});
                 currentX += points->at(k + 5);
                 currentY += points->at(k + 6);
                 ctrlPointX = currentX;
                 ctrlPointY = currentY;
                 break;
             case 'A':  // Draws an elliptical arc
-                outPath->arcTo(points->at(k + 0), points->at(k + 1), points->at(k + 2),
-                               (SkPath::ArcSize) (points->at(k + 3) != 0),
-                               (SkPathDirection) (points->at(k + 4) == 0),
-                               points->at(k + 5), points->at(k + 6));
+                outPath->arcTo({points->at(k + 0), points->at(k + 1)}, points->at(k + 2),
+                               (SkPathBuilder::ArcSize)(points->at(k + 3) != 0),
+                               (SkPathDirection)(points->at(k + 4) == 0),
+                               {points->at(k + 5), points->at(k + 6)});
                 currentX = points->at(k + 5);
                 currentY = points->at(k + 6);
                 ctrlPointX = currentX;

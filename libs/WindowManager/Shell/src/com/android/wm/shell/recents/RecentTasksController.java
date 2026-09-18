@@ -23,7 +23,7 @@ import static android.view.Display.INVALID_DISPLAY;
 
 import static com.android.wm.shell.Flags.enableShellTopTaskTracking;
 import static com.android.wm.shell.desktopmode.DesktopWallpaperActivity.isWallpaperTask;
-import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_TASK_OBSERVER;
+import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_RECENT_TASKS;
 
 import android.Manifest;
 import android.annotation.RequiresPermission;
@@ -53,6 +53,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import com.android.internal.policy.DesktopModeCompatPolicy;
 import com.android.internal.protolog.ProtoLog;
 import com.android.wm.shell.common.ExternalInterfaceBinder;
 import com.android.wm.shell.common.RemoteCallable;
@@ -98,6 +99,7 @@ public class RecentTasksController implements TaskStackListenerCallback,
     // a single `GroupedTaskInfo` whose type is `TYPE_DESK`, and its `mDeskId` doesn't matter, so
     // we pick the below arbitrary value.
     private static final int INVALID_DESK_ID = -1;
+    private static final int INVALID_USER_ID = -1;
 
     private final Context mContext;
     private final ShellController mShellController;
@@ -111,6 +113,7 @@ public class RecentTasksController implements TaskStackListenerCallback,
     private final TaskStackTransitionObserver mTaskStackTransitionObserver;
     private final RecentsShellCommandHandler mRecentsShellCommandHandler;
     private final DesktopState mDesktopState;
+    private final DesktopModeCompatPolicy mDesktopModeCompatPolicy;
     private RecentsTransitionHandler mTransitionHandler = null;
     private IRecentTasksListener mListener;
     private final boolean mPcFeatureEnabled;
@@ -153,14 +156,15 @@ public class RecentTasksController implements TaskStackListenerCallback,
             Optional<DesktopUserRepositories> desktopUserRepositories,
             TaskStackTransitionObserver taskStackTransitionObserver,
             @ShellMainThread ShellExecutor mainExecutor,
-            DesktopState desktopState
+            DesktopState desktopState,
+            DesktopModeCompatPolicy desktopModeCompatPolicy
     ) {
         if (!context.getResources().getBoolean(com.android.internal.R.bool.config_hasRecents)) {
             return null;
         }
         return new RecentTasksController(context, shellInit, shellController, shellCommandHandler,
                 taskStackListener, activityTaskManager, desktopUserRepositories,
-                taskStackTransitionObserver, mainExecutor, desktopState);
+                taskStackTransitionObserver, mainExecutor, desktopState, desktopModeCompatPolicy);
     }
 
     RecentTasksController(Context context,
@@ -172,7 +176,8 @@ public class RecentTasksController implements TaskStackListenerCallback,
             Optional<DesktopUserRepositories> desktopUserRepositories,
             TaskStackTransitionObserver taskStackTransitionObserver,
             ShellExecutor mainExecutor,
-            DesktopState desktopState) {
+            DesktopState desktopState,
+            DesktopModeCompatPolicy desktopModeCompatPolicy) {
         mContext = context;
         mShellController = shellController;
         mShellCommandHandler = shellCommandHandler;
@@ -184,6 +189,7 @@ public class RecentTasksController implements TaskStackListenerCallback,
         mMainExecutor = mainExecutor;
         mRecentsShellCommandHandler = new RecentsShellCommandHandler(this);
         mDesktopState = desktopState;
+        mDesktopModeCompatPolicy = desktopModeCompatPolicy;
         shellInit.addInitCallback(this::onInit, this);
     }
 
@@ -199,17 +205,12 @@ public class RecentTasksController implements TaskStackListenerCallback,
     void onInit() {
         mShellController.addExternalInterface(IRecentTasks.DESCRIPTOR,
                 this::createExternalInterface, this);
+        mUserId = mShellController.getCurrentUserId();
+        updateDeskRepositoryListeners(/* previousUserId= */ INVALID_USER_ID,
+                /* newUserId= */ mUserId);
+        mShellController.addUserChangeListener(this);
         mShellCommandHandler.addDumpCallback(this::dump, this);
         mShellCommandHandler.addCommandCallback("recents", mRecentsShellCommandHandler, this);
-        mUserId = ActivityManager.getCurrentUser();
-        mDesktopUserRepositories.ifPresent(
-                desktopUserRepositories -> {
-                    desktopUserRepositories.getCurrent().addActiveTaskListener(this);
-                    if (mDesktopState.enableMultipleDesktops()) {
-                        desktopUserRepositories.getCurrent().addDeskChangeListener(this,
-                                mMainExecutor);
-                    }
-                });
         mTaskStackListener.addListener(this);
         mTaskStackTransitionObserver.addTaskStackTransitionObserverListener(this,
                 mMainExecutor);
@@ -380,7 +381,7 @@ public class RecentTasksController implements TaskStackListenerCallback,
 
     @VisibleForTesting
     void notifyRecentTasksChanged() {
-        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_RECENT_TASKS, "Notify recent tasks changed");
+        ProtoLog.v(WM_SHELL_RECENT_TASKS, "Notify recent tasks changed");
         if (mListener == null) {
             return;
         }
@@ -497,16 +498,14 @@ public class RecentTasksController implements TaskStackListenerCallback,
     }
 
     private boolean shouldEnableRunningTasksForDesktopMode() {
-        return mPcFeatureEnabled
-                || (mDesktopState.canEnterDesktopMode()
-                && DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_TASKBAR_RUNNING_APPS.isTrue());
+        return mPcFeatureEnabled|| mDesktopState.canEnterDesktopMode();
     }
 
     @VisibleForTesting
     void registerRecentTasksListener(IRecentTasksListener listener) {
         mListener = listener;
         if (enableShellTopTaskTracking()) {
-            ProtoLog.v(WM_SHELL_TASK_OBSERVER, "registerRecentTasksListener");
+            ProtoLog.v(WM_SHELL_RECENT_TASKS, "registerRecentTasksListener");
             // Post a notification for the current set of visible tasks
             mMainExecutor.executeDelayed(() -> notifyVisibleTasksChanged(mVisibleTasks), 0);
         }
@@ -586,24 +585,25 @@ public class RecentTasksController implements TaskStackListenerCallback,
      *
      * This is needed since with the multiple-desktops flags, we want to include desk even if
      * they're empty (i.e. have no tasks).
-     *
-     * @param multipleDesktopsEnabled whether the multiple desktops feature is enabled.
      */
-    private void initializeDesksMap(boolean multipleDesktopsEnabled) {
+    private void initializeDesksMap() {
         mTmpDesks.clear();
 
-        if (mDesktopState.canEnterDesktopMode()
-                && mDesktopUserRepositories.isPresent()) {
-            if (multipleDesktopsEnabled) {
-                for (var deskId : mDesktopUserRepositories.get().getCurrent().getAllDeskIds()) {
-                    getOrCreateDesk(deskId);
-                }
-            } else {
-                // When the multiple desks feature is disabled, we lump all freeform windows in a
-                // single `GroupedTaskInfo` regardless of their display. The `deskId` in this case
-                // doesn't matter and can be any arbitrary value.
-                getOrCreateDesk(/* deskId = */ INVALID_DESK_ID);
-            }
+        if (!mDesktopState.canEnterDesktopMode()) {
+            ProtoLog.v(WM_SHELL_RECENT_TASKS,
+                    "initializeDesksMap - desktop windowing not available");
+            return;
+        }
+        if (!mDesktopUserRepositories.isPresent()) {
+            ProtoLog.v(WM_SHELL_RECENT_TASKS,
+                    "initializeDesksMap - DesktopUserRepositories not present");
+            return;
+        }
+
+        Set<Integer> allDeskIds = mDesktopUserRepositories.get().getCurrent().getAllDeskIds();
+        ProtoLog.v(WM_SHELL_RECENT_TASKS, "initializeDesksMap - allDeskIds: %s", allDeskIds);
+        for (var deskId : allDeskIds) {
+            getOrCreateDesk(deskId);
         }
     }
 
@@ -645,19 +645,13 @@ public class RecentTasksController implements TaskStackListenerCallback,
     @VisibleForTesting
     <T extends TaskInfo> ArrayList<GroupedTaskInfo> generateList(@NonNull List<T> tasks,
             String reason) {
-        final boolean multipleDesktopsEnabled = mDesktopState.enableMultipleDesktops();
-        // When the multiple desktops feature is enabled, we include all desks even if they're
-        // empty.
-        final boolean shouldIncludeEmptyDesktops = multipleDesktopsEnabled;
+        ProtoLog.v(WM_SHELL_RECENT_TASKS, "generateList(%s)", reason);
 
-        initializeDesksMap(multipleDesktopsEnabled);
+        initializeDesksMap();
 
-        if (tasks.isEmpty() && (!shouldIncludeEmptyDesktops || mTmpDesks.isEmpty())) {
+        if (tasks.isEmpty() && mTmpDesks.isEmpty()) {
+            ProtoLog.v(WM_SHELL_RECENT_TASKS, "generateList - no desks or tasks present");
             return new ArrayList<>();
-        }
-
-        if (enableShellTopTaskTracking()) {
-            ProtoLog.v(WM_SHELL_TASK_OBSERVER, "RecentTasksController.generateList(%s)", reason);
         }
 
         // Make a mapping of task id -> task info for the remaining tasks to be processed, this
@@ -678,11 +672,13 @@ public class RecentTasksController implements TaskStackListenerCallback,
 
             if (!mTmpRemaining.containsKey(taskInfo.taskId)) {
                 // Skip if we've already processed it
+                ProtoLog.v(WM_SHELL_RECENT_TASKS, "Skipping already processed task: %d", taskId);
                 continue;
             }
 
             if (excludeTaskFromGeneratedList(taskInfo)) {
                 // Skip and update the list if we are excluding this task
+                ProtoLog.v(WM_SHELL_RECENT_TASKS, "Excluding task: %d", taskId);
                 mTmpRemaining.remove(taskId);
                 continue;
             }
@@ -690,21 +686,27 @@ public class RecentTasksController implements TaskStackListenerCallback,
             // Desktop tasks
             if (mDesktopState.canEnterDesktopMode()
                     && mDesktopUserRepositories.isPresent()) {
-
-                Integer deskId;
-                if (taskInfo.isTopActivityTransparent && mDesktopUserRepositories.get().getProfile(
-                                taskInfo.userId).getActiveDeskId(taskInfo.displayId) != null) {
-                    deskId = mDesktopUserRepositories.get().getCurrent().getActiveDeskId(
-                            taskInfo.displayId);
-                } else if (mDesktopUserRepositories.get().getCurrent().isActiveTask(taskId)) {
-                    deskId = multipleDesktopsEnabled
-                            ? mDesktopUserRepositories.get().getCurrent().getDeskIdForTask(taskId)
-                            : INVALID_DESK_ID;
+                final Integer deskId;
+                if (mDesktopUserRepositories.get().getCurrent().isActiveTask(taskId)) {
+                    deskId = mDesktopUserRepositories.get().getCurrent().getDeskIdForTask(
+                            taskId);
+                    ProtoLog.v(WM_SHELL_RECENT_TASKS,
+                            "Task %d is an active desktop task on desk %d", taskId, deskId);
                 } else {
-                    deskId = null;
+                    if (mDesktopModeCompatPolicy.isTransparentOverlay(taskInfo)) {
+                        deskId = mDesktopUserRepositories.get().getCurrent().getActiveDeskId(
+                                taskInfo.displayId);
+                        ProtoLog.v(WM_SHELL_RECENT_TASKS,
+                                "Task %d is a transparent overlay on active desk", taskId);
+                    } else {
+                        deskId = null;
+                        ProtoLog.v(WM_SHELL_RECENT_TASKS,
+                                "Task %d is not an active desktop task", taskId);
+                    }
                 }
-
                 if (deskId != null) {
+                    ProtoLog.v(WM_SHELL_RECENT_TASKS, "Adding task %d to desk %d", taskId,
+                            deskId);
                     // If task has their app bounds set to null which happens after reboot, set the
                     // app bounds to persisted lastFullscreenBounds. Also set the position in parent
                     // to the top left of the bounds.
@@ -747,6 +749,7 @@ public class RecentTasksController implements TaskStackListenerCallback,
                 }
 
                 // Fullscreen tasks
+                ProtoLog.v(WM_SHELL_RECENT_TASKS, "Added fullscreen task: %d", taskId);
                 groupedTasks.add(GroupedTaskInfo.forFullscreenTasks(taskInfo));
             }
         }
@@ -794,7 +797,7 @@ public class RecentTasksController implements TaskStackListenerCallback,
             //          above), add them to the end of the final list (the actual order doesn't
             //          matter for Overview)
             for (var desk : mTmpDesks.values()) {
-                if (!desk.mHasVisibleTasks && (desk.hasTasks() || shouldIncludeEmptyDesktops)) {
+                if (!desk.mHasVisibleTasks) {
                     groupedTasks.add(desk.createDeskTaskInfo());
                 }
             }
@@ -802,18 +805,24 @@ public class RecentTasksController implements TaskStackListenerCallback,
         } else {
             // Add the desktop tasks at the end of the list
             for (var desk : mTmpDesks.values()) {
-                if (desk.hasTasks() || shouldIncludeEmptyDesktops) {
-                    groupedTasks.add(desk.createDeskTaskInfo());
+                if (desk.hasTasks()) {
+                    ProtoLog.v(WM_SHELL_RECENT_TASKS, "Adding desk %d with tasks to grouped tasks",
+                            desk.mDeskId);
+                } else {
+                    ProtoLog.v(WM_SHELL_RECENT_TASKS, "Adding empty desk %d to grouped tasks",
+                            desk.mDeskId);
                 }
+                groupedTasks.add(desk.createDeskTaskInfo());
             }
         }
 
+        ProtoLog.v(WM_SHELL_RECENT_TASKS, "generateList - complete");
         return groupedTasks;
     }
 
     /**
-     * Only to be called from `generateList()`. If the given {@param taskInfo} has a paired task,
-     * then a split grouped task with the pair is added to {@param tasksOut}.
+     * Only to be called from `generateList()`. If the given {@code taskInfo} has a paired task,
+     * then a split grouped task with the pair is added to {@code tasksOut}.
      *
      * @return whether a split task was extracted and added to the given list
      */
@@ -832,22 +841,24 @@ public class RecentTasksController implements TaskStackListenerCallback,
         remainingTasks.remove(pairedTaskId);
         tasksOut.add(GroupedTaskInfo.forSplitTasks(taskInfo, pairedTaskInfo,
                 mTaskSplitBoundsMap.get(pairedTaskId)));
+        ProtoLog.v(
+                WM_SHELL_RECENT_TASKS, "Added split tasks: %d, %d", taskInfo.taskId, pairedTaskId);
         return true;
     }
 
     /** Dumps the set of tasks to protolog */
     private void dumpGroupedTasks(List<GroupedTaskInfo> groupedTasks, String reason) {
-        if (!WM_SHELL_TASK_OBSERVER.isEnabled()) {
+        if (!WM_SHELL_RECENT_TASKS.isEnabled()) {
             return;
         }
-        ProtoLog.v(WM_SHELL_TASK_OBSERVER, "    Tasks (%s):", reason);
+        ProtoLog.v(WM_SHELL_RECENT_TASKS, "    Tasks (%s):", reason);
         for (GroupedTaskInfo task : groupedTasks) {
-            ProtoLog.v(WM_SHELL_TASK_OBSERVER, "        %s", task);
+            ProtoLog.v(WM_SHELL_RECENT_TASKS, "        %s", task);
         }
     }
 
     /**
-     * Returns the top running leaf task ignoring {@param ignoreTaskToken} if it is specified.
+     * Returns the top running leaf task ignoring {@code ignoreTaskToken} if it is specified.
      * NOTE: This path currently makes assumptions that ignoreTaskToken is for the top task.
      */
     @Nullable
@@ -868,7 +879,7 @@ public class RecentTasksController implements TaskStackListenerCallback,
 
     /**
      * Find the background task that match the given component.  Ignores tasks match
-     * {@param ignoreTaskToken} if it is non-null.
+     * {@code ignoreTaskToken} if it is non-null.
      */
     @Nullable
     public RecentTaskInfo findTaskInBackground(ComponentName componentName,
@@ -962,7 +973,8 @@ public class RecentTasksController implements TaskStackListenerCallback,
                 }
                 mTransitionHandler.addTransitionStateListener(new RecentsTransitionStateListener() {
                     @Override
-                    public void onTransitionStateChanged(@RecentsTransitionState int state) {
+                    public void onTransitionStateChanged(@RecentsTransitionState int state,
+                            int displayId) {
                         executor.execute(() -> {
                             listener.accept(RecentsTransitionStateListener.isAnimating(state));
                         });
@@ -984,18 +996,30 @@ public class RecentTasksController implements TaskStackListenerCallback,
 
     @Override
     public void onUserChanged(int newUserId, @NonNull Context userContext) {
-        if (mDesktopUserRepositories.isEmpty()) return;
-
-        DesktopRepository previousUserRepository =
-                mDesktopUserRepositories.get().getProfile(mUserId);
+        final int previousUserId = mUserId;
         mUserId = newUserId;
-        DesktopRepository currentUserRepository =
-                mDesktopUserRepositories.get().getProfile(newUserId);
+        updateDeskRepositoryListeners(previousUserId, newUserId);
+    }
 
-        // No-op if both profile ids map to the same user.
-        if (previousUserRepository.getUserId() == currentUserRepository.getUserId()) return;
-        previousUserRepository.removeActiveTasksListener(this);
+    /**
+     * Updates the listeners for the previous and current user repositories.
+     *
+     * @param previousUserId The user id of the previous user, or -1 if this is the start-up user.
+     * @param newUserId The user id of the current user.
+     */
+    private void updateDeskRepositoryListeners(int previousUserId, int newUserId) {
+        if (previousUserId == newUserId) return;
+        if (mDesktopUserRepositories.isEmpty()) return;
+        final DesktopRepository currentUserRepository =
+                mDesktopUserRepositories.get().getProfile(newUserId);
+        if (previousUserId != INVALID_USER_ID) {
+            final DesktopRepository previousUserRepository =
+                    mDesktopUserRepositories.get().getProfile(previousUserId);
+            previousUserRepository.removeActiveTasksListener(this);
+            previousUserRepository.removeDeskChangeListener(this);
+        }
         currentUserRepository.addActiveTaskListener(this);
+        currentUserRepository.addDeskChangeListener(this, mMainExecutor);
     }
 
     @Override
@@ -1015,6 +1039,11 @@ public class RecentTasksController implements TaskStackListenerCallback,
 
     @Override
     public void onCanCreateDesksChanged(boolean canCreateDesks) {
+        // No-op for now.
+    }
+
+    @Override
+    public void onTaskAppearingInDesk(int displayId, int deskId, int taskId) {
         // No-op for now.
     }
 

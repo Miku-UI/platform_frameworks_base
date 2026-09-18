@@ -17,7 +17,6 @@
 package com.android.internal.telecom;
 
 import com.android.internal.telecom.ITelecomService;
-import com.android.internal.telecom.IInternalServiceRetriever;
 
 /*
  * Internal interface for getting an instance of the ITelecomService for external publication.
@@ -25,5 +24,5 @@ import com.android.internal.telecom.IInternalServiceRetriever;
  * @hide
  */
 interface ITelecomLoader {
-    ITelecomService createTelecomService(IInternalServiceRetriever retriever, String sysUiName);
+    ITelecomService createTelecomService(String sysUiName);
 }

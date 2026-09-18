@@ -19,20 +19,20 @@ package com.android.wm.shell.flicker.resizing
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
+import com.android.wm.shell.flicker.utils.appWindowCoversHalfScreenAtEnd
+import com.android.wm.shell.flicker.utils.appWindowKeepVisible
+import com.android.wm.shell.scenarios.SnapResizeAppWindowWithKeyboardShortcuts
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import com.android.wm.shell.flicker.utils.appWindowCoversHalfScreenAtEnd
-import com.android.wm.shell.flicker.utils.appWindowKeepVisible
-import com.android.wm.shell.scenarios.SnapResizeAppWindowWithKeyboardShortcuts
 
 /**
  * Snap resize app window using keyboard shortcut META + ].
@@ -43,14 +43,14 @@ import com.android.wm.shell.scenarios.SnapResizeAppWindowWithKeyboardShortcuts
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
-class SnapResizeAppWindowRightWithKeyboardFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(
-    flicker
-) {
+class SnapResizeAppWindowRightWithKeyboardFlickerTest(flicker: FlickerTest) :
+    DesktopModeBaseTest(flicker) {
 
-    inner class SnapResizeAppWindowRightWithKeyboardScenario : SnapResizeAppWindowWithKeyboardShortcuts(
-        toLeft = false,
-        rotation = flicker.scenario.startRotation
-    )
+    inner class SnapResizeAppWindowRightWithKeyboardScenario :
+        SnapResizeAppWindowWithKeyboardShortcuts(
+            toLeft = false,
+            rotation = flicker.scenario.startRotation,
+        )
 
     @Rule
     @JvmField
@@ -60,23 +60,16 @@ class SnapResizeAppWindowRightWithKeyboardFlickerTest(flicker: FlickerTest) : De
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.snapResizeAppWindowWithKeyboardShortcuts()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.snapResizeAppWindowWithKeyboardShortcuts() }
+            teardown { scenario.teardown() }
         }
 
     @Test
     fun appWindowCoversRightHalfScreenAtEnd() =
         flicker.appWindowCoversHalfScreenAtEnd(testApp, isLeftHalf = false)
 
-    @Test
-    fun appWindowIsAlwaysVisible() = flicker.appWindowKeepVisible(testApp)
+    @Test fun appWindowIsAlwaysVisible() = flicker.appWindowKeepVisible(testApp)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

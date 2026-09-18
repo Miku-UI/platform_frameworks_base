@@ -362,12 +362,17 @@ public final class PageContentRepository {
         final int bitmapHeight;
         final PrintAttributes printAttributes = new PrintAttributes.Builder().build();
 
-        public RenderSpec(int bitmapWidth, int bitmapHeight,
-                MediaSize mediaSize, Margins minMargins) {
+        public RenderSpec(
+                int bitmapWidth,
+                int bitmapHeight,
+                MediaSize mediaSize,
+                Margins minMargins,
+                int colorMode) {
             this.bitmapWidth = bitmapWidth;
             this.bitmapHeight = bitmapHeight;
             printAttributes.setMediaSize(mediaSize);
             printAttributes.setMinMargins(minMargins);
+            printAttributes.setColorMode(colorMode);
         }
 
         @Override

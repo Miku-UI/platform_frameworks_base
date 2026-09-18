@@ -35,7 +35,6 @@ import static org.junit.Assert.assertTrue;
 import android.content.Context;
 import android.os.LocaleList;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.AtomicFile;
 import android.util.proto.ProtoInputStream;
 import android.util.proto.ProtoOutputStream;
@@ -46,7 +45,6 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.server.usage.IntervalStatsProto;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -62,9 +60,6 @@ import java.util.Locale;
 @SmallTest
 @Presubmit
 public class ConfigurationTest {
-
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule.Builder().build();
 
     @Test
     public void testUpdateFromPreservesRoundBit() {

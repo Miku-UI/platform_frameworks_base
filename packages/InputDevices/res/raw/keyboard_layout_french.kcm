@@ -380,3 +380,15 @@ key SLASH {
     shift, capslock:                    '\u00a7'
     shift+capslock:                     '!'
 }
+
+### NUMPAD
+key NUMPAD_DOT {
+    label:                              ','
+    base:                               fallback FORWARD_DEL
+    numlock:                            ','
+}
+
+key NUMPAD_COMMA {
+    label:                              ' '
+    base:                               '\u202f'
+}

@@ -31,7 +31,6 @@ import kotlinx.coroutines.Job
  * kept alive for the duration of the containing [BuildScope] that this side-effect scope is running
  * in.
  */
-@ExperimentalKairosApi
 interface EffectScope : HasNetwork {
     /**
      * Creates a coroutine that is a child of this [EffectScope], and returns its future result as a
@@ -70,11 +69,11 @@ interface EffectScope : HasNetwork {
  * work. These coroutines are kept alive for the duration of the containing [BuildScope] that this
  * side-effect scope is running in.
  */
-@ExperimentalKairosApi interface TransactionEffectScope : EffectScope, TransactionScope
+interface TransactionEffectScope : EffectScope, TransactionScope
 
 /**
  * A [CoroutineScope] that also has access to a [KairosNetwork] that is bound to the former. All
  * usages of [KairosNetwork.activateSpec] with the [kairosNetwork] will be canceled when this
  * coroutine scope is canceled.
  */
-@ExperimentalKairosApi interface KairosCoroutineScope : HasNetwork, CoroutineScope
+interface KairosCoroutineScope : HasNetwork, CoroutineScope

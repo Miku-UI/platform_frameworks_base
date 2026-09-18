@@ -29,6 +29,8 @@ import android.os.Bundle;
 import android.platform.test.annotations.EnableFlags;
 import android.testing.AndroidTestingRunner;
 
+import com.android.wm.shell.common.pip.PipDisplayLayoutState;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -46,6 +48,8 @@ public class PipUiStateChangeControllerTests {
 
     @Mock
     private PipTransitionState mPipTransitionState;
+    @Mock
+    private PipDisplayLayoutState mPipDisplayLayoutState;
 
     private Consumer<PictureInPictureUiState> mPictureInPictureUiStateConsumer;
     private ArgumentCaptor<PictureInPictureUiState> mArgumentCaptor;
@@ -55,7 +59,8 @@ public class PipUiStateChangeControllerTests {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-        mPipUiStateChangeController = new PipUiStateChangeController(mPipTransitionState);
+        mPipUiStateChangeController = new PipUiStateChangeController(mPipTransitionState,
+                mPipDisplayLayoutState);
         mPictureInPictureUiStateConsumer = spy(pictureInPictureUiState -> {});
         mPipUiStateChangeController.setPictureInPictureUiStateConsumer(
                 mPictureInPictureUiStateConsumer);

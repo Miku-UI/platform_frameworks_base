@@ -16,6 +16,9 @@
 
 package com.android.wm.shell.common.split;
 
+import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
+import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 import static android.view.Display.DEFAULT_DISPLAY;
 
 import static com.android.wm.shell.shared.split.SplitScreenConstants.CONTROLLED_ACTIVITY_TYPES;
@@ -31,6 +34,7 @@ import static com.android.wm.shell.shared.split.SplitScreenConstants.SPLIT_POSIT
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
+import android.app.TaskInfo;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.graphics.Rect;
@@ -42,12 +46,60 @@ import com.android.internal.util.ArrayUtils;
 import com.android.wm.shell.Flags;
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer;
 import com.android.wm.shell.ShellTaskOrganizer;
+import com.android.wm.shell.recents.RecentTasksController;
 import com.android.wm.shell.shared.split.SplitScreenConstants;
+import com.android.wm.shell.splitscreen.BranchNode;
+import com.android.wm.shell.splitscreen.LayoutNode;
+import com.android.wm.shell.splitscreen.LeafNode;
 import com.android.wm.shell.splitscreen.StageTaskListener;
+
+import java.util.Objects;
 
 /** Helper utility class for split screen components to use. */
 public class SplitScreenUtils {
     private static final int LARGE_SCREEN_MIN_EDGE_DP = 600;
+
+    /**
+     * Creates a pretty-printed string representation of a LayoutNode tree for debugging.
+     * @param node The root of the tree to dump.
+     * @return A string representing the tree structure.
+     */
+    public static String dumpLayoutNodeTree(LayoutNode node) {
+        StringBuilder sb = new StringBuilder("Split Screen Layout:\n");
+        dumpLayoutNodeTreeRecursive(node, "", true, sb);
+        return sb.toString();
+    }
+
+    private static void dumpLayoutNodeTreeRecursive(LayoutNode node, String prefix, boolean isLast,
+            StringBuilder sb) {
+        sb.append(prefix);
+        if (!prefix.isEmpty()) {
+            sb.append(isLast ? "└─ " : "├─ ");
+        }
+
+        if (node instanceof BranchNode bn) {
+            String orientation = bn.getOrientation() == BranchNode.ORIENTATION_VERTICAL ? "V" : "H";
+            sb.append("Branch (")
+                    .append(orientation)
+                    .append(", w=").append(String.format("%.2f", bn.getWeight()))
+                    .append(", off=").append(bn.isOffscreen())
+                    .append(", main=").append(bn.getMainChildIndex())
+                    .append(")\n");
+
+            String childPrefix = prefix + (isLast ? "    " : "│   ");
+            for (int i = 0; i < bn.getChildren().size(); i++) {
+                LayoutNode child = bn.getChildren().get(i);
+                dumpLayoutNodeTreeRecursive(child, childPrefix, i == bn.getChildren().size() - 1,
+                        sb);
+            }
+        } else if (node instanceof LeafNode ln) {
+            ln.getTaskInfo();
+            sb.append("Leaf (task=")
+                    .append(ln.getTaskInfo().taskId)
+                    .append(", w=").append(String.format("%.2f", ln.getWeight()))
+                    .append(")\n");
+        }
+    }
 
     /** Reverse the split position. */
     @SplitScreenConstants.SplitPosition
@@ -65,14 +117,28 @@ public class SplitScreenUtils {
 
     /** Returns true if the task is valid for split screen. */
     public static boolean isValidToSplit(ActivityManager.RunningTaskInfo taskInfo) {
-        return taskInfo != null && taskInfo.supportsMultiWindow
+        return taskInfo != null && taskInfo.supportsMultiWindowWithoutConstraints
                 && ArrayUtils.contains(CONTROLLED_ACTIVITY_TYPES, taskInfo.getActivityType())
                 && ArrayUtils.contains(CONTROLLED_WINDOWING_MODES, taskInfo.getWindowingMode());
     }
 
-    /** Retrieve user id from a taskId */
+    /** Retrieve user id from a taskId using {@link ShellTaskOrganizer}. */
     public static int getUserId(int taskId, ShellTaskOrganizer taskOrganizer) {
-        final ActivityManager.RunningTaskInfo taskInfo = taskOrganizer.getRunningTaskInfo(taskId);
+        final TaskInfo taskInfo = taskOrganizer.getRunningTaskInfo(taskId);
+        return getUserIdFromTaskInfo(taskInfo);
+    }
+
+    /** Retrieve user id from a taskId using {@link RecentTasksController}. */
+    public static int getUserId(int taskId,
+            @Nullable RecentTasksController recentTasksController) {
+        if (recentTasksController == null) {
+            return -1;
+        }
+        final TaskInfo taskInfo = recentTasksController.findTaskInBackground(taskId);
+        return getUserIdFromTaskInfo(taskInfo);
+    }
+
+    private static int getUserIdFromTaskInfo(TaskInfo taskInfo) {
         return taskInfo != null ? taskInfo.userId : -1;
     }
 
@@ -109,7 +175,7 @@ public class SplitScreenUtils {
             boolean isLargeScreen, boolean isLandscape, int displayId) {
         if (allowLeftRightSplitInPortrait && isLargeScreen) {
             if (displayId == DEFAULT_DISPLAY
-                    || !DesktopExperienceFlags.ENABLE_NON_DEFAULT_DISPLAY_SPLIT.isTrue()) {
+                    || !DesktopExperienceFlags.ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX.isTrue()) {
                 return !isLandscape;
             } else {
                 // If split is started in external display and the non_default_display_split_bugfix
@@ -179,14 +245,14 @@ public class SplitScreenUtils {
      * @param stage The StageTaskListener representing the current stage.
      * @param rootTDAOrganizer The RootTaskDisplayAreaOrganizer to query for DisplayAreaInfo.
      * @return The WindowContainerToken of the parent display area if
-     *         DesktopExperienceFlags.ENABLE_NON_DEFAULT_DISPLAY_SPLIT is true and a valid
+     *         DesktopExperienceFlags.ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX is true and a valid
      *         DisplayAreaInfo is found for the main stage's display; otherwise, returns null.
      */
     @Nullable
     public static WindowContainerToken getNewParentTokenForStage(
             @Nullable StageTaskListener stage,
             @NonNull RootTaskDisplayAreaOrganizer rootTDAOrganizer) {
-        if (!DesktopExperienceFlags.ENABLE_NON_DEFAULT_DISPLAY_SPLIT.isTrue()
+        if (!DesktopExperienceFlags.ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX.isTrue()
                 || stage == null || stage.getRunningTaskInfo() == null) {
             return null;
         }
@@ -207,7 +273,7 @@ public class SplitScreenUtils {
             @NonNull RootTaskDisplayAreaOrganizer rootTDAOrganizer,
             int displayId,
             @Nullable SplitLayout splitLayout) {
-        if (!DesktopExperienceFlags.ENABLE_NON_DEFAULT_DISPLAY_SPLIT.isTrue()) {
+        if (!DesktopExperienceFlags.ENABLE_NON_DEFAULT_DISPLAY_SPLIT_BUGFIX.isTrue()) {
             return;
         }
 
@@ -222,5 +288,29 @@ public class SplitScreenUtils {
                 splitLayout.update(null /* t */, false /* resetImePosition */);
             }
         }
+    }
+
+    /**
+     * Returns the target windowing mode for a task when leaving split-screen.
+     *
+     * In a freeform-first environment (like desktop), explicitly set the windowing mode to
+     * fullscreen when leaving split-screen. On a standard display, setting it to UNDEFINED allows
+     * the task to inherit the display's default windowing mode (usually fullscreen).
+     *
+     * @param rootTDAOrganizer The {@link RootTaskDisplayAreaOrganizer} used to retrieve display
+     *                         area information.
+     * @param displayId        The ID of the display the task is moving to.
+     * @return {@link android.app.WindowConfiguration#WINDOWING_MODE_FULLSCREEN} if the target
+     *         display is in freeform mode; otherwise
+     *         {@link android.app.WindowConfiguration#WINDOWING_MODE_UNDEFINED}.
+     */
+    public static int getTargetWindowingModeWhenExitSplit(
+            @NonNull RootTaskDisplayAreaOrganizer rootTDAOrganizer, int displayId) {
+        final DisplayAreaInfo tdaInfo = rootTDAOrganizer.getDisplayAreaInfo(displayId);
+        Objects.requireNonNull(tdaInfo);
+        final int displayWindowingMode =
+                tdaInfo.configuration.windowConfiguration.getWindowingMode();
+        return displayWindowingMode == WINDOWING_MODE_FREEFORM
+                ? WINDOWING_MODE_FULLSCREEN : WINDOWING_MODE_UNDEFINED;
     }
 }

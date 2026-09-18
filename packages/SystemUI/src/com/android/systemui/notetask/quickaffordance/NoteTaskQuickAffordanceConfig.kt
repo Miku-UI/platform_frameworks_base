@@ -38,10 +38,12 @@ import com.android.systemui.keyguard.data.quickaffordance.KeyguardQuickAffordanc
 import com.android.systemui.keyguard.data.quickaffordance.KeyguardQuickAffordanceConfig.PickerScreenState
 import com.android.systemui.keyguard.data.repository.KeyguardQuickAffordanceRepository
 import com.android.systemui.notetask.LaunchNotesRoleSettingsTrampolineActivity.Companion.ACTION_MANAGE_NOTES_ROLE_FROM_QUICK_AFFORDANCE
+import com.android.systemui.notetask.LockscreenNoteTakingAvailability
 import com.android.systemui.notetask.NoteTaskController
 import com.android.systemui.notetask.NoteTaskEnabledKey
 import com.android.systemui.notetask.NoteTaskEntryPoint.QUICK_AFFORDANCE
 import com.android.systemui.notetask.NoteTaskInfoResolver
+import com.android.systemui.notetask.NoteTaskUserResolver
 import com.android.systemui.res.R
 import com.android.systemui.stylus.StylusManager
 import dagger.Lazy
@@ -52,6 +54,7 @@ import kotlinx.coroutines.channels.trySendBlocking
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
 
 class NoteTaskQuickAffordanceConfig
@@ -60,11 +63,13 @@ constructor(
     private val context: Context,
     private val controller: NoteTaskController,
     private val noteTaskInfoResolver: NoteTaskInfoResolver,
-    private val stylusManager: StylusManager,
+    private val stylusManager: Lazy<StylusManager>,
     private val roleManager: RoleManager,
     private val keyguardMonitor: KeyguardUpdateMonitor,
     private val userManager: UserManager,
     private val lazyRepository: Lazy<KeyguardQuickAffordanceRepository>,
+    private val lockscreenNoteTakingAvailability: LockscreenNoteTakingAvailability,
+    private val userResolver: NoteTaskUserResolver,
     @NoteTaskEnabledKey private val isEnabled: Boolean,
     @Background private val backgroundExecutor: Executor,
 ) : KeyguardQuickAffordanceConfig {
@@ -82,10 +87,10 @@ constructor(
     override val lockScreenState by lazy {
         val repository = lazyRepository.get()
         val configSelectedFlow = repository.createConfigSelectedFlow(key)
-        val stylusEverUsedFlow = stylusManager.createStylusEverUsedFlow(context)
+        val stylusEverUsedFlow = stylusManager.get().createStylusEverUsedFlow(context)
         val userUnlockedFlow = userManager.createUserUnlockedFlow(keyguardMonitor)
         val defaultNotesAppFlow =
-            roleManager.createNotesRoleFlow(backgroundExecutor, controller, noteTaskInfoResolver)
+            roleManager.createNotesRoleFlow(backgroundExecutor, userResolver, noteTaskInfoResolver)
         combine(userUnlockedFlow, stylusEverUsedFlow, configSelectedFlow, defaultNotesAppFlow) {
                 isUserUnlocked,
                 isStylusEverUsed,
@@ -116,7 +121,8 @@ constructor(
                     isEnabled &&
                         isUserUnlocked &&
                         isDefaultNotesAppSet &&
-                        isShortcutSelectedOrDefaultEnabled
+                        isShortcutSelectedOrDefaultEnabled &&
+                        lockscreenNoteTakingAvailability.isLockscreenNoteTakingEnabled()
                 ) {
                     val contentDescription = ContentDescription.Resource(pickerNameResourceId)
                     val icon = Icon.Resource(pickerIconResourceId, contentDescription)
@@ -129,10 +135,13 @@ constructor(
     }
 
     override suspend fun getPickerScreenState(): PickerScreenState {
+        if (!lockscreenNoteTakingAvailability.shouldShowNotesInLockscreenShortcutPicker()) {
+            return PickerScreenState.UnavailableOnDevice
+        }
         val isDefaultNotesAppSet =
             noteTaskInfoResolver.resolveInfo(
                 QUICK_AFFORDANCE,
-                user = controller.getUserForHandlingNotesTaking(QUICK_AFFORDANCE),
+                user = userResolver.getUserForHandlingNoteTaking(QUICK_AFFORDANCE),
             ) != null
         return when {
             isEnabled && isDefaultNotesAppSet -> PickerScreenState.Default()
@@ -188,24 +197,25 @@ private fun StylusManager.createStylusEverUsedFlow(context: Context) = callbackF
 
 private fun RoleManager.createNotesRoleFlow(
     executor: Executor,
-    noteTaskController: NoteTaskController,
+    userResolver: NoteTaskUserResolver,
     noteTaskInfoResolver: NoteTaskInfoResolver,
-) = callbackFlow {
-    fun isDefaultNotesAppSetForUser() =
-        noteTaskInfoResolver.resolveInfo(
-            QUICK_AFFORDANCE,
-            user = noteTaskController.getUserForHandlingNotesTaking(QUICK_AFFORDANCE),
-        ) != null
-
-    trySendBlocking(isDefaultNotesAppSetForUser())
-    val callback = OnRoleHoldersChangedListener { roleName, _ ->
-        if (roleName == RoleManager.ROLE_NOTES) {
-            trySendBlocking(isDefaultNotesAppSetForUser())
+) =
+    callbackFlow {
+            val callback = OnRoleHoldersChangedListener { roleName, _ ->
+                if (roleName == RoleManager.ROLE_NOTES) {
+                    trySendBlocking(Unit)
+                }
+            }
+            trySendBlocking(Unit)
+            addOnRoleHoldersChangedListenerAsUser(executor, callback, UserHandle.ALL)
+            awaitClose { removeOnRoleHoldersChangedListenerAsUser(callback, UserHandle.ALL) }
         }
-    }
-    addOnRoleHoldersChangedListenerAsUser(executor, callback, UserHandle.ALL)
-    awaitClose { removeOnRoleHoldersChangedListenerAsUser(callback, UserHandle.ALL) }
-}
+        .mapLatest {
+            noteTaskInfoResolver.resolveInfo(
+                QUICK_AFFORDANCE,
+                user = userResolver.getUserForHandlingNoteTaking(QUICK_AFFORDANCE),
+            ) != null
+        }
 
 private fun KeyguardQuickAffordanceRepository.createConfigSelectedFlow(key: String) =
     selections.map { selected ->

@@ -1,0 +1,10 @@
+package: "android.security"
+container: "system"
+
+flag {
+    name: "encrypted_client_hello_configuration"
+    is_exported: true
+    namespace: "network_security"
+    description: "Enable ECH settings in the Network Security Config"
+    bug: "419020719"
+}

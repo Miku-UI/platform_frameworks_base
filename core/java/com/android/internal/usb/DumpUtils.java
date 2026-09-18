@@ -183,6 +183,9 @@ public class DumpUtils {
             dump.write("supported_alt_modes", UsbPortProto.SUPPORTED_ALT_MODES,
                     FLAG_ALT_MODE_TYPE_DISPLAYPORT);
         }
+        dump.write("supports_power_profiles",
+                UsbPortProto.SUPPORTS_POWER_PROFILES,
+                port.supportsPowerProfiles());
 
         dump.end(token);
     }
@@ -267,6 +270,8 @@ public class DumpUtils {
                     UsbPortStatusProto.DISPLAYPORT_ALT_MODE_STATUS,
                     status.getDisplayPortAltModeInfo().toString());
         }
+        dump.write("power_profile_status", UsbPortStatusProto.POWER_PROFILES_STRING,
+                status.getPowerProfileInfoString());
         dump.end(token);
     }
 }

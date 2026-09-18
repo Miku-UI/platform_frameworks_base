@@ -243,6 +243,7 @@ public class InsetsSourceControl implements Parcelable {
                 + (mInitiallyVisible ? " initiallyVisible" : "")
                 + " mSurfacePosition=" + mSurfacePosition
                 + " mInsetsHint=" + mInsetsHint
+                + " mLeash=" + mLeash
                 + (mSkipAnimationOnce ? " skipAnimationOnce" : "")
                 + "}";
     }
@@ -420,6 +421,11 @@ public class InsetsSourceControl implements Parcelable {
         @Override
         public int hashCode() {
             return Arrays.hashCode(mControls);
+        }
+
+        @Override
+        public String toString() {
+            return Arrays.toString(mControls);
         }
     }
 }

@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.view.InsetsState;
+import android.view.SurfaceControl;
 
 import androidx.test.annotation.UiThreadTest;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -66,6 +67,43 @@ public class SplitWindowManagerTests extends ShellTestCase {
                 mDesktopState);
         assertThat(mSplitWindowManager.getSurfaceControl()).isNotNull();
         mSplitWindowManager.release(null /* t */);
+        assertThat(mSplitWindowManager.getSurfaceControl()).isNull();
+    }
+
+    @Test
+    @UiThreadTest
+    public void testRelease_invalidLeash_doesNotCrash() {
+        // Initialize the divider, which creates a leash.
+        mSplitWindowManager.init(mSplitLayout, new InsetsState(), false /* isRestoring */,
+                mDesktopState);
+        SurfaceControl leash = mSplitWindowManager.getSurfaceControl();
+        assertThat(leash).isNotNull();
+
+        // Manually release the leash to make it invalid before the window manager does.
+        new SurfaceControl.Transaction().remove(leash).apply();
+
+        // Act: Call release on the window manager. The change prevents this from crashing
+        // by checking leash.isValid().
+        mSplitWindowManager.release(null /* t */);
+
+        // Assert: The internal leash reference should be cleared.
+        assertThat(mSplitWindowManager.getSurfaceControl()).isNull();
+    }
+
+    @Test
+    @UiThreadTest
+    public void testRelease_calledTwice_doesNotCrash() {
+        // Initialize and then release the divider.
+        mSplitWindowManager.init(mSplitLayout, new InsetsState(), false /* isRestoring */,
+                mDesktopState);
+        mSplitWindowManager.release(null /* t */);
+        assertThat(mSplitWindowManager.getSurfaceControl()).isNull();
+
+        // Act: Call release again. This should be a no-op and not crash, as the leash
+        // is now null.
+        mSplitWindowManager.release(null /* t */);
+
+        // Assert: The leash is still null.
         assertThat(mSplitWindowManager.getSurfaceControl()).isNull();
     }
 }

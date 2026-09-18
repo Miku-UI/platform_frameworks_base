@@ -22,9 +22,38 @@ data class BubbleEvent(
     /** What happened to the bubbles. */
     val title: String,
 
+    /** What happened to the bubbles arguments. */
+    val titleParams: Array<Any?>? = null,
+
     /** Additional optional event data. */
     val eventData: String? = null,
 
     /** Event occurrence time in milliseconds since epoch */
     val timestamp: Long,
-)
+) {
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as BubbleEvent
+
+        if (timestamp != other.timestamp) return false
+        if (title != other.title) return false
+        // When comparing arrays in Kotlin, - arrays are objects inherited from Java's Object.
+        // The default equals() method inherited from Object only checks if the two variables refer
+        // to the exact same array object in memory (arrayOf(1, 2) == arrayOf(1, 2) is false)
+        if (!titleParams.contentEquals(other.titleParams)) return false
+        if (eventData != other.eventData) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = timestamp.hashCode()
+        result = 31 * result + title.hashCode()
+        result = 31 * result + titleParams.contentHashCode()
+        result = 31 * result + (eventData?.hashCode() ?: 0)
+        return result
+    }
+}

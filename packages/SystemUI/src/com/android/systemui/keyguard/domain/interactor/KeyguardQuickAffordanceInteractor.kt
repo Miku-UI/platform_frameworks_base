@@ -26,10 +26,10 @@ import com.android.app.tracing.coroutines.withContextTraced as withContext
 import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.internal.widget.LockPatternUtils
 import com.android.keyguard.logging.KeyguardQuickAffordancesLogger
-import com.android.systemui.Flags.msdlFeedback
 import com.android.systemui.accessibility.domain.interactor.AccessibilityInteractor
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
+import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.devicepolicy.areKeyguardShortcutsDisabled
@@ -37,6 +37,7 @@ import com.android.systemui.dock.DockManager
 import com.android.systemui.dock.retrieveIsDocked
 import com.android.systemui.flags.FeatureFlags
 import com.android.systemui.flags.Flags
+import com.android.systemui.inputdevice.domain.interactor.PointerDeviceInteractor
 import com.android.systemui.keyguard.data.quickaffordance.KeyguardQuickAffordanceConfig
 import com.android.systemui.keyguard.data.repository.BiometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.KeyguardQuickAffordanceRepository
@@ -93,18 +94,21 @@ constructor(
     private val devicePolicyManager: DevicePolicyManager,
     private val secureLockDeviceInteractor: Lazy<SecureLockDeviceInteractor>,
     private val dockManager: DockManager,
+    private val pointerDeviceInteractor: PointerDeviceInteractor,
     private val biometricSettingsRepository: BiometricSettingsRepository,
     private val accessibilityInteractor: AccessibilityInteractor,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
     @ShadeDisplayAware private val appContext: Context,
     private val sceneInteractor: Lazy<SceneInteractor>,
-    private val msdlPlayer: MSDLPlayer,
+    private val msdlPlayer: Lazy<MSDLPlayer>,
 ) {
     /**
      * Whether a quick affordance is being launched. Quick Affordances are interactive lockscreen UI
      * elements that allow the user to perform quick actions without unlocking their device.
      */
-    val launchingAffordance: StateFlow<Boolean> = repository.get().launchingAffordance.asStateFlow()
+    val launchingAffordance: StateFlow<Boolean> by lazy {
+        repository.get().launchingAffordance.asStateFlow()
+    }
 
     /**
      * Whether the UI should use the long press gesture to activate quick affordances.
@@ -112,10 +116,20 @@ constructor(
      * If `false`, the UI goes back to using single taps.
      */
     fun useLongPress(): Flow<Boolean> =
-        combine(dockManager.retrieveIsDocked(), accessibilityInteractor.isEnabledFiltered) {
-            isDocked,
-            isAccessibilityEnabled ->
-            !isDocked && !isAccessibilityEnabled
+        combine(
+            dockManager.retrieveIsDocked(),
+            accessibilityInteractor.isEnabledFiltered,
+            pointerDeviceInteractor.isAnyPointerDeviceConnected,
+        ) { isDocked, isAccessibilityEnabled, isPointerDeviceConnected ->
+            !isDocked &&
+                !isPointerDeviceConnected &&
+                if (SceneContainerFlag.isEnabled) {
+                    // Quick Affordance activation for a11y when SceneContainer is enabled is
+                    // handled directly in the KeyguardShortcut Composable.
+                    true
+                } else {
+                    !isAccessibilityEnabled
+                }
         }
 
     /** Returns an observable for the quick affordance at the given position. */
@@ -132,7 +146,7 @@ constructor(
             if (SceneContainerFlag.isEnabled) {
                 sceneInteractor
                     .get()
-                    .transitionState
+                    .transitionStateFlow
                     .map {
                         when (it) {
                             is ObservableTransitionState.Idle ->
@@ -217,19 +231,15 @@ constructor(
                     canShowWhileLocked = result.canShowWhileLocked,
                     expandable = expandable,
                 )
-                if (msdlFeedback()) {
-                    msdlPlayer.playToken(MSDLToken.LONG_PRESS)
-                }
+                msdlPlayer.get().playToken(MSDLToken.LONG_PRESS)
             }
             is KeyguardQuickAffordanceConfig.OnTriggeredResult.Handled -> {
-                if (result.actionLaunched && msdlFeedback()) {
-                    msdlPlayer.playToken(MSDLToken.LONG_PRESS)
+                if (result.actionLaunched) {
+                    msdlPlayer.get().playToken(MSDLToken.LONG_PRESS)
                 }
             }
             is KeyguardQuickAffordanceConfig.OnTriggeredResult.ShowDialog -> {
-                if (msdlFeedback()) {
-                    msdlPlayer.playToken(MSDLToken.LONG_PRESS)
-                }
+                msdlPlayer.get().playToken(MSDLToken.LONG_PRESS)
                 showDialog(result.dialog, result.expandable)
             }
         }
@@ -396,7 +406,11 @@ constructor(
             SystemUIDialog.setShowForAllUsers(dialog, true)
             SystemUIDialog.registerDismissListener(dialog)
             SystemUIDialog.setDialogSize(dialog)
-            launchAnimator.show(dialog, controller)
+            if (TransitionAnimator.dynamicTargetResolutionEnabled()) {
+                launchAnimator.show(dialog, expandable::dialogTransitionController, controller.cuj)
+            } else {
+                launchAnimator.show(dialog, controller)
+            }
         }
     }
 
@@ -464,12 +478,6 @@ constructor(
                 value =
                     !isFeatureDisabledByDevicePolicy() &&
                         appContext.resources.getBoolean(R.bool.custom_lockscreen_shortcuts_enabled),
-            ),
-            KeyguardPickerFlag(
-                name = Contract.FlagsTable.FLAG_NAME_CUSTOM_CLOCKS_ENABLED,
-                value =
-                    com.android.systemui.shared.Flags.lockscreenCustomClocks() ||
-                        featureFlags.isEnabled(Flags.LOCKSCREEN_CUSTOM_CLOCKS),
             ),
             KeyguardPickerFlag(
                 name = Contract.FlagsTable.FLAG_NAME_WALLPAPER_FULLSCREEN_PREVIEW,

@@ -17,7 +17,6 @@
 package com.android.systemui.display.data.repository
 
 import android.content.Context
-import android.platform.test.annotations.EnableFlags
 import android.view.Display
 import android.view.layoutInflater
 import android.view.mockWindowManager
@@ -29,7 +28,6 @@ import com.android.systemui.display.shared.model.DisplayWindowProperties
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.runBlocking
@@ -44,7 +42,6 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.spy
 import org.mockito.kotlin.whenever
 
-@EnableFlags(StatusBarConnectedDisplays.FLAG_NAME)
 @RunWith(AndroidJUnit4::class)
 @SmallTest
 class DisplayWindowPropertiesRepositoryImplTest : SysuiTestCase() {

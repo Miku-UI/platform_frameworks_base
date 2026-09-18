@@ -40,7 +40,6 @@ import android.util.SparseIntArray;
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.view.RotationPolicy;
-import com.android.window.flags.Flags;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -51,10 +50,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
- * Implementation of {@link DeviceStateAutoRotateSettingManager}. This implementation is a part of
- * refactoring, it should be used when
- * {@link Flags#FLAG_ENABLE_DEVICE_STATE_AUTO_ROTATE_SETTING_REFACTOR}
- * is enabled.
+ * Implementation of {@link DeviceStateAutoRotateSettingManager}. This implementation is new as a
+ * part of device state based auto-rotate setting refactoring.
  */
 public class DeviceStateAutoRotateSettingManagerImpl implements
         DeviceStateAutoRotateSettingManager {

@@ -24,6 +24,12 @@ package {
 }
 
 prebuilt_etc {
+    name: "app-lock-exempt.xml",
+    sub_dir: "sysconfig",
+    src: "app-lock-exempt.xml",
+}
+
+prebuilt_etc {
     name: "framework-sysconfig.xml",
     sub_dir: "sysconfig",
     src: "framework-sysconfig.xml",
@@ -82,6 +88,12 @@ prebuilt_etc {
     name: "oem-defined-uids.xml",
     sub_dir: "sysconfig",
     src: "oem-defined-uids.xml",
+}
+
+prebuilt_etc {
+    name: "system-required-packages.xml",
+    sub_dir: "sysconfig",
+    src: "system-required-packages.xml",
 }
 
 // Privapp permission whitelist files
@@ -161,13 +173,6 @@ prebuilt_etc {
 }
 
 prebuilt_etc {
-    name: "privapp_whitelist_com.android.networkstack",
-    sub_dir: "permissions",
-    src: "com.android.networkstack.xml",
-    filename_from_src: true,
-}
-
-prebuilt_etc {
     name: "privapp_whitelist_com.android.provision",
     system_ext_specific: true,
     sub_dir: "permissions",
@@ -213,4 +218,12 @@ prebuilt_etc {
     sub_dir: "permissions",
     src: "com.android.systemui.xml",
     filename_from_src: true,
+}
+
+// Advanced Protection config loaded by AdvancedProtectionService
+
+prebuilt_etc {
+    name: "advanced-protection-config.xml",
+    sub_dir: "advanced-protection-config",
+    src: "advanced-protection-config.xml",
 }

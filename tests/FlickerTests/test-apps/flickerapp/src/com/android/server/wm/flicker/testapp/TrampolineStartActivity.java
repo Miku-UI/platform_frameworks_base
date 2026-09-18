@@ -16,6 +16,8 @@
 
 package com.android.server.wm.flicker.testapp;
 
+import static android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK;
+
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
@@ -37,7 +39,9 @@ public class TrampolineStartActivity extends Activity {
         setContentView(R.layout.activity_simple);
 
         Intent intent = new Intent(this, TrampolineFinishActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        // Require both flags to launch in a new Task, since there is an existing Task already for
+        // the current app.
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_MULTIPLE_TASK);
         startActivity(intent);
 
         finish();

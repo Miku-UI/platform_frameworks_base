@@ -138,6 +138,13 @@ class PresetControllerTest {
         verify(hapClientProfile).supportsSynchronizedPresets(device)
     }
 
+    @Test
+    fun isConnectedToHap_verifyGetThroughProfile() {
+        presetController.isConnectedToHap(device)
+
+        verify(hapClientProfile).getConnectionStatus(device)
+    }
+
     private fun getTestPresetInfo(available: Boolean): BluetoothHapPresetInfo {
         return mock<BluetoothHapPresetInfo>() {
             on { name } doReturn TEST_PRESET_NAME

@@ -24,8 +24,8 @@ import com.android.systemui.authentication.data.repository.fakeAuthenticationRep
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
 import com.android.systemui.deviceentry.domain.interactor.deviceUnlockedInteractor
 import com.android.systemui.jank.interactionJankMonitor
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
-import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
+import com.android.systemui.keyguard.domain.interactor.biometricUnlockInteractor
+import com.android.systemui.keyguard.shared.model.BiometricUnlockSource
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.runTest
@@ -33,6 +33,7 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.statusbar.phone.BiometricUnlockController
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
@@ -69,6 +70,22 @@ class SceneJankMonitorTest : SysuiTestCase() {
                 cuj = cuj,
             )
             verify(interactionJankMonitor).begin(any(), eq(cuj))
+            verify(interactionJankMonitor, never()).end(anyInt())
+        }
+
+    @Test
+    fun onTransitionStart_withProvidedCujTag_beginsThatCuj() =
+        kosmos.runTest {
+            val cuj = 1337
+            val cujTag = "Expand"
+            underTest.onTransitionStart(
+                view = mock(),
+                from = Scenes.Communal,
+                to = Scenes.Dream,
+                cuj = cuj,
+                cujTag = cujTag,
+            )
+            verify(interactionJankMonitor).begin(any(), eq(cuj), eq(cujTag))
             verify(interactionJankMonitor, never()).end(anyInt())
         }
 
@@ -182,8 +199,9 @@ class SceneJankMonitorTest : SysuiTestCase() {
         }
 
         // Unlock the device and transition away from the bouncer.
-        fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-            SuccessFingerprintAuthenticationStatus(0, true)
+        kosmos.biometricUnlockInteractor.setBiometricUnlockState(
+            unlockStateInt = BiometricUnlockController.MODE_DISMISS_BOUNCER,
+            biometricUnlockSource = BiometricUnlockSource.FINGERPRINT_SENSOR,
         )
         runCurrent()
         assertThat(deviceUnlockedInteractor.deviceUnlockStatus.value.isUnlocked).isTrue()

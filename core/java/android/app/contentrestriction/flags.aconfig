@@ -1,0 +1,10 @@
+package: "android.app.contentrestriction.flags"
+container: "system"
+
+flag {
+  name: "content_restriction_api"
+  is_exported: true
+  namespace: "content_restriction"
+  description: "Flag to enable the ContentRestrictionService and ContentRestrictionAppService"
+  bug: "441599653"
+}

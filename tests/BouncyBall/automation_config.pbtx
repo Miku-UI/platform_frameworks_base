@@ -1,0 +1,88 @@
+# Do not use this config for debugging why frames get dropped or other problems.
+# Use the tracing instructions at
+# https://developer.android.com/topic/performance/tracing/on-device
+
+
+
+# This is the trace file used by automated testing.  We provide this
+# configuration here for transparency of how the automated tests are run.
+
+# This config is designed to minimize the size of the trace file and the amount
+# of data gathered, to make the automated testing as lightweight as possible.
+# As a result, this does a poor job of helping debug why frames were dropped;
+# it only detects that they have.
+
+# At a high level, the only info we care about collecting is:
+# - Enough process stats into to map the BouncyBall app's PID to its name
+# - Enough frametimeline data to detect frame drops and know frame durations
+# - The "relevant_frames" counter from the BouncyBall app
+
+
+# Buffer 0: For everything
+# Since our goal is to capture all data, we use a single large buffer.
+buffers: {
+    size_kb: 262144
+    fill_policy: RING_BUFFER
+}
+data_sources: {
+    config {
+        name: "linux.process_stats"
+        target_buffer: 0
+    }
+}
+data_sources: {
+    config {
+        # Unfortunately, it's not possible to only collect this info for the
+        # BouncyBall, so we need to collect it generally.
+        name: "android.surfaceflinger.frametimeline"
+        target_buffer: 0
+    }
+}
+data_sources: {
+    config {
+        name: "linux.ftrace"
+        target_buffer: 0
+        ftrace_config {
+            atrace_apps: "com.android.test.bouncyball"
+            buffer_size_kb: 8196
+            buffer_size_lower_bound: true
+            disable_generic_events: true
+
+            # We only care about BouncyBall's custom "relevant_frame" counter.
+            print_filter {
+                rules {
+                    atrace_msg {
+                        type: "C"
+                        prefix: "relevant_frame"
+                    }
+                    allow: true
+                }
+                rules {
+                    prefix: ""
+                    allow: false
+                }
+            }
+        }
+    }
+}
+# The test ignores up to the first 0.5 seconds, then tests for 2 minutes.  (See
+# APK code for INITIAL_MAX_TIME_TO_IGNORE_IN_SECONDS and
+# AUTOMATED_TEST_DURATION_IN_SECONDS).
+# We want to give additional buffer for:
+# - Time between perfetto being launched and the app starting
+# - Extra time taken by dropped frames (although this isn't critical, since
+#   the test will be a failure, but it helps to have a consistent number of
+#   frames analyzed if we're dropping a small number of frames).
+# So we run for 2min10sec.
+
+# LINT.IfChange
+duration_ms: 130000
+# LINT.ThenChange(/tests/BouncyBall/app/src/main/java/com/android/test/bouncyball/BouncyBallActivity.java)
+
+write_into_file: true
+# We want this to be frequent enough to make sure we don't miss any data, but
+# not too frequent to overwhelm I/O on lower end devices.
+file_write_period_ms: 5000
+# We make this a 2x multiple of file_write_period_ms
+flush_period_ms: 10000
+

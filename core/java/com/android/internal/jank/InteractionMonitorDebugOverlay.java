@@ -155,25 +155,18 @@ public class InteractionMonitorDebugOverlay {
     @AnyThread
     public void onTrackerRemoved(boolean cancelled, int cookie) {
         mUiThread.post(() -> {
-            TrackerState foundTracker = null;
             boolean allTrackersEnded = true;
             for (int i = 0; i < mRunningCujs.size(); i++) {
                 TrackerState tracker = mRunningCujs.get(i);
                 if (tracker.mCookie == cookie) {
-                    foundTracker = tracker;
+                    tracker.mState = cancelled ? STATUS_CANCELLED : STATUS_ENDED;
+                    Log.i(TAG, tracker.mName + (cancelled ? " cancelled" : " ended")
+                            + " (cookie=" + cookie + ")");
                 } else {
                     // If none of the trackers are STATUS_RUNNING, then all CUJs have ended
                     allTrackersEnded = allTrackersEnded && tracker.mState != STATUS_RUNNING;
                 }
             }
-
-            if (foundTracker != null) {
-                foundTracker.mState = cancelled ? STATUS_CANCELLED : STATUS_ENDED;
-            }
-
-            Log.i(TAG, foundTracker.mName + (cancelled ? " cancelled" : " ended")
-                    + " (cookie=" + cookie + ")");
-
             if (allTrackersEnded) {
                 Log.i(TAG, "All CUJs ended");
                 mUiThread.postDelayed(mHideOverlayRunnable, HIDE_OVERLAY_DELAY);

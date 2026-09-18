@@ -34,7 +34,7 @@ import static android.content.pm.ActivityInfo.LOCK_TASK_LAUNCH_MODE_ALWAYS;
 import static android.content.pm.ActivityInfo.LOCK_TASK_LAUNCH_MODE_DEFAULT;
 import static android.content.pm.ActivityInfo.LOCK_TASK_LAUNCH_MODE_NEVER;
 import static android.os.Process.SYSTEM_UID;
-import static android.telecom.TelecomManager.EMERGENCY_DIALER_COMPONENT;
+import static android.telephony.TelephonyManager.EMERGENCY_DIALER_COMPONENT;
 
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
@@ -49,6 +49,7 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.never;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.reset;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.times;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.verifyNoInteractions;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
 import static com.android.server.wm.LockTaskController.LOCK_TASK_AUTH_ALLOWLISTED;
 import static com.android.server.wm.LockTaskController.LOCK_TASK_AUTH_DONT_LOCK;
@@ -316,6 +317,67 @@ public class LockTaskControllerTest {
 
         // THEN the cellbroadcast task should all be allowed
         assertFalse(mLockTaskController.isLockTaskModeViolation(cellbroadcastreceiver));
+    }
+
+    @Test
+    public void testRebuildSystemLockTaskPinnedMode_lockTaskModeTasksEmpty_noop() {
+        // GIVEN no tasks in lockTaskMode
+
+        // WHEN calling rebuildSystemLockTaskPinnedMode
+        mLockTaskController.rebuildSystemLockTaskPinnedMode();
+
+        // THEN mSupervisor should not be interacted with
+        verifyNoInteractions(mSupervisor);
+    }
+
+    @Test
+    public void testRebuildSystemLockTaskPinnedMode_taskDontLock_noop() {
+        // GIVEN in started lock task mode (DONT_LOCK)
+        Task tr = getTask(LOCK_TASK_AUTH_DONT_LOCK);
+        mLockTaskController.startLockTaskMode(tr, true, TEST_UID);
+
+        // WHEN calling rebuildSystemLockTaskPinnedMode
+        mLockTaskController.rebuildSystemLockTaskPinnedMode();
+
+        // THEN mSupervisor should not be interacted with
+        verifyNoInteractions(mSupervisor);
+    }
+
+    @Test
+    public void testRebuildSystemLockTaskPinnedMode_notInPinnedMode_noop() {
+        // GIVEN in lock task mode (not PINNED)
+        Task tr = getTask(LOCK_TASK_AUTH_LAUNCHABLE_PRIV);
+        mLockTaskController.startLockTaskMode(tr, false, TEST_UID);
+
+        // WHEN calling rebuildSystemLockTaskPinnedMode
+        mLockTaskController.rebuildSystemLockTaskPinnedMode();
+
+        // THEN notifyLockTaskModeChanged called only once, for the startLockTaskMode call
+        verify(mTaskChangeNotificationController).notifyLockTaskModeChanged(anyInt());
+    }
+
+    @Test
+    public void testRebuildSystemLockTaskPinnedMode_pinnedMode_rebuild() throws Exception {
+        // GIVEN in lock task mode (PINNED)
+        Task tr = getTask(LOCK_TASK_AUTH_PINNABLE);
+        mLockTaskController.startLockTaskMode(tr, true, TEST_UID);
+
+        // WHEN calling rebuildSystemLockTaskPinnedMode
+        mLockTaskController.rebuildSystemLockTaskPinnedMode();
+
+        // THEN these below items are called TWICE, once for startLocktaskMode, once for rebuild
+        // THEN notifyLockTaskModeChanged
+        verify(mTaskChangeNotificationController, times(2)).notifyLockTaskModeChanged(anyInt());
+        // THEN the keyguard should have been disabled
+        verify(mWindowManager, times(2)).disableKeyguard(any(IBinder.class), anyString(),
+                eq(TEST_USER_ID));
+        // THEN the status bar should have been disabled
+        verify(mStatusBarService, times(2)).disableForUser(eq(STATUS_BAR_MASK_PINNED),
+                any(IBinder.class), eq(mPackageName), eq(TEST_USER_ID));
+        verify(mStatusBarService, times(2)).disable2ForUser(eq(DISABLE2_NONE), any(IBinder.class),
+                eq(mPackageName), eq(TEST_USER_ID));
+        // THEN recents should have been notified
+        verify(mRecentTasks, times(2)).onLockTaskModeStateChanged(anyInt(), eq(TEST_USER_ID));
     }
 
     @Test

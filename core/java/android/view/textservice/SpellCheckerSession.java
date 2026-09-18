@@ -39,6 +39,7 @@ import com.android.internal.textservice.ITextServicesSessionListener;
 
 import dalvik.system.CloseGuard;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayDeque;
 import java.util.Locale;
 import java.util.Queue;
@@ -100,9 +101,6 @@ public class SpellCheckerSession {
      * This meta-data must reference an XML resource.
      **/
     public static final String SERVICE_META_DATA = "android.view.textservice.scs";
-
-    private static final int MSG_ON_GET_SUGGESTION_MULTIPLE = 1;
-    private static final int MSG_ON_GET_SUGGESTION_MULTIPLE_FOR_SENTENCE = 2;
 
     private final InternalListener mInternalListener;
     private final TextServicesManager mTextServicesManager;
@@ -247,7 +245,7 @@ public class SpellCheckerSession {
 
         private final Queue<SpellCheckerParams> mPendingTasks = new ArrayDeque<>();
         @GuardedBy("SpellCheckerSessionListenerImpl.this")
-        private SpellCheckerSession mSpellCheckerSession;
+        private final WeakReference<SpellCheckerSession> mSpellCheckerSession;
 
         private static final int STATE_WAIT_CONNECTION = 0;
         private static final int STATE_CONNECTED = 1;
@@ -269,7 +267,7 @@ public class SpellCheckerSession {
         private Handler mAsyncHandler;
 
         SpellCheckerSessionListenerImpl(SpellCheckerSession spellCheckerSession) {
-            mSpellCheckerSession = spellCheckerSession;
+            mSpellCheckerSession = new WeakReference<>(spellCheckerSession);
         }
 
         private static class SpellCheckerParams {
@@ -357,7 +355,7 @@ public class SpellCheckerSession {
             if (mThread != null) {
                 mThread.quit();
             }
-            mSpellCheckerSession = null;
+            mSpellCheckerSession.clear();
             mPendingTasks.clear();
             mThread = null;
             mAsyncHandler = null;
@@ -524,7 +522,7 @@ public class SpellCheckerSession {
         @Nullable
         private SpellCheckerSession getSpellCheckerSession() {
             synchronized (SpellCheckerSessionListenerImpl.this) {
-                return mSpellCheckerSession;
+                return mSpellCheckerSession.get();
             }
         }
     }

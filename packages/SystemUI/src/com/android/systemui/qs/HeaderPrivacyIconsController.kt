@@ -20,7 +20,7 @@ import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.flags.FeatureFlags
 import com.android.systemui.flags.Flags
 import com.android.systemui.plugins.ActivityStarter
-import com.android.systemui.privacy.OngoingPrivacyChip
+import com.android.systemui.privacy.AbstractOngoingPrivacyChip
 import com.android.systemui.privacy.PrivacyChipEvent
 import com.android.systemui.privacy.PrivacyDialogController
 import com.android.systemui.privacy.PrivacyDialogControllerV2
@@ -55,7 +55,7 @@ class HeaderPrivacyIconsController
 constructor(
     private val privacyItemController: PrivacyItemController,
     private val uiEventLogger: UiEventLogger,
-    @Named(SHADE_HEADER) private val privacyChip: OngoingPrivacyChip,
+    @Named(SHADE_HEADER) private val privacyChip: AbstractOngoingPrivacyChip,
     private val privacyDialogController: PrivacyDialogController,
     private val privacyDialogControllerV2: PrivacyDialogControllerV2,
     private val privacyLogger: PrivacyLogger,

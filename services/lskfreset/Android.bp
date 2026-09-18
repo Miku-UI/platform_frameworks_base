@@ -1,0 +1,25 @@
+package {
+    // See: http://go/android-license-faq
+    default_applicable_licenses: ["frameworks_base_license"],
+}
+
+filegroup {
+    name: "services.lskfreset-sources",
+    srcs: ["java/**/*.java"],
+    path: "java",
+    visibility: ["//frameworks/base/services"],
+}
+
+java_library_static {
+    name: "services.lskfreset",
+    defaults: ["platform_service_defaults"],
+    srcs: [
+        ":services.lskfreset-sources",
+        "java/**/*.logtags",
+    ],
+    libs: [
+        "bouncycastle-webapp",
+        "services.core",
+        "tink-java",
+    ],
+}

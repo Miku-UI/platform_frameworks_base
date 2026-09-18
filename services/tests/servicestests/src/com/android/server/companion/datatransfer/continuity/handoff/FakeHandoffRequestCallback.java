@@ -31,10 +31,8 @@ public final class FakeHandoffRequestCallback extends IHandoffRequestCallback.St
     final List<Integer> receivedResultCodes = new ArrayList<>();
 
     @Override
-    public void onHandoffRequestFinished(
-        int associationId,
-        int remoteTaskId,
-        int resultCode) throws RemoteException {
+    public void onHandoffRequestFinished(int associationId, int remoteTaskId, int resultCode)
+            throws RemoteException {
 
         receivedAssociationIds.add(associationId);
         receivedTaskIds.add(remoteTaskId);

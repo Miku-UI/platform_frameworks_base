@@ -16,11 +16,14 @@
 
 package com.android.systemui.qs.tiles.dialog
 
+import android.content.Context
 import com.android.systemui.plugins.qs.TileDetailsViewModel
+import com.android.systemui.res.R
 import com.android.systemui.statusbar.policy.ui.dialog.viewmodel.ModesDialogViewModel
 
 /** The view model used for the modes details view in the Quick Settings */
 class ModesDetailsViewModel(
+    context: Context,
     private val onSettingsClick: () -> Unit,
     val viewModel: ModesDialogViewModel,
 ) : TileDetailsViewModel {
@@ -28,9 +31,7 @@ class ModesDetailsViewModel(
         onSettingsClick()
     }
 
-    // TODO(b/388321032): Replace this string with a string in a translatable xml file.
-    override val title = "Modes"
+    override val title = context.getString(R.string.quick_settings_modes_label)
 
-    // TODO(b/388321032): Replace this string with a string in a translatable xml file.
-    override val subTitle = "Silences interruptions from people and apps in different circumstances"
+    override val subTitle = ""
 }

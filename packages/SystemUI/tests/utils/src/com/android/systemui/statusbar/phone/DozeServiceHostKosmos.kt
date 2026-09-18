@@ -36,6 +36,7 @@ import com.android.systemui.statusbar.notificationShadeWindowController
 import com.android.systemui.statusbar.policy.batteryController
 import com.android.systemui.statusbar.policy.deviceProvisionedController
 import com.android.systemui.statusbar.pulseExpansionHandler
+import com.android.systemui.user.domain.interactor.selectedUserInteractor
 
 val Kosmos.dozeServiceHost: DozeServiceHost by
     Kosmos.Fixture {
@@ -63,5 +64,6 @@ val Kosmos.dozeServiceHost: DozeServiceHost by
             applicationContext,
             ambientDisplayConfiguration,
             aodDimInteractor,
+            selectedUserInteractor,
         )
     }

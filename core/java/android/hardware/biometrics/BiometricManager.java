@@ -16,6 +16,7 @@
 
 package android.hardware.biometrics;
 
+import static android.Manifest.permission.ACCESS_BIOMETRIC_SENSOR_STRENGTHS;
 import static android.Manifest.permission.SET_BIOMETRIC_DIALOG_ADVANCED;
 import static android.Manifest.permission.TEST_BIOMETRIC;
 import static android.Manifest.permission.USE_BIOMETRIC;
@@ -23,6 +24,7 @@ import static android.Manifest.permission.USE_BIOMETRIC_INTERNAL;
 import static android.Manifest.permission.WRITE_DEVICE_CONFIG;
 import static android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
 import static android.hardware.biometrics.Flags.FLAG_ADD_FALLBACK;
+import static android.hardware.biometrics.Flags.FLAG_ADD_FALLBACK_ICONS;
 
 import static com.android.internal.util.FrameworkStatsLog.AUTH_DEPRECATED_APIUSED__DEPRECATED_API__API_BIOMETRIC_MANAGER_CAN_AUTHENTICATE;
 
@@ -36,6 +38,7 @@ import android.annotation.RestrictedForEnvironment;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
+import android.annotation.UserIdInt;
 import android.app.KeyguardManager;
 import android.content.Context;
 import android.os.Build;
@@ -187,12 +190,15 @@ public class BiometricManager {
      * prompt fallback options
      * @hide
      */
-    @IntDef(prefix = { "ICON_TYPE_" }, value = {
+    @IntDef(prefix = {"ICON_TYPE_"}, value = {
             ICON_TYPE_PASSWORD,
             ICON_TYPE_QR_CODE,
             ICON_TYPE_ACCOUNT,
             ICON_TYPE_GENERIC,
-            ICON_TYPE_SETTING
+            ICON_TYPE_SETTING,
+            ICON_TYPE_RESET,
+            ICON_TYPE_MESSAGE,
+            ICON_TYPE_SUPERVISED,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface IconType {}
@@ -228,6 +234,27 @@ public class BiometricManager {
     public static final int ICON_TYPE_SETTING = 4;
 
     /**
+     * An icon representing a password reset.
+     */
+    @FlaggedApi(FLAG_ADD_FALLBACK_ICONS)
+    public static final int ICON_TYPE_RESET = 5;
+
+    /**
+     * An icon representing a message or chat option, such as to contact support or an
+     * administrator.
+     */
+    @FlaggedApi(FLAG_ADD_FALLBACK_ICONS)
+    public static final int ICON_TYPE_MESSAGE = 6;
+
+    /**
+     * An icon representing a supervised account.
+     */
+    @FlaggedApi(FLAG_ADD_FALLBACK_ICONS)
+    public static final int ICON_TYPE_SUPERVISED = 7;
+
+    // LINT.IfChange
+
+    /**
      * Types of authenticators, defined at a level of granularity supported by
      * {@link BiometricManager} and {@link BiometricPrompt}.
      *
@@ -238,6 +265,23 @@ public class BiometricManager {
      * @see BiometricPrompt.Builder#setAllowedAuthenticators(int)
      */
     public interface Authenticators {
+
+        /**
+         * An {@link IntDef} representing sensor strength types of {@link #BIOMETRIC_STRONG} or
+         * greater that can be queried by select apps through methods like
+         * {@link BiometricManager#getBiometricSensorStrengths}.
+         *
+         * @hide
+         */
+        @FlaggedApi(Flags.FLAG_GET_BIOMETRIC_SENSOR_STRENGTHS)
+        @IntDef(value = {
+                BIOMETRIC_STRONG,
+                LESS_THAN_STRONG
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        @Target(ElementType.TYPE_USE)
+        @interface StrongTypes {}
+
         /**
          * An {@link IntDef} representing valid combinations of authenticator types.
          * @hide
@@ -248,6 +292,7 @@ public class BiometricManager {
                 BIOMETRIC_CONVENIENCE,
                 DEVICE_CREDENTIAL,
                 IDENTITY_CHECK,
+                DEVICE_CREDENTIAL_AND_IDENTITY_CHECK,
         })
         @Retention(RetentionPolicy.SOURCE)
         @interface Types {}
@@ -281,6 +326,20 @@ public class BiometricManager {
          * @see android.security.keystore.KeyGenParameterSpec.Builder
          */
         int BIOMETRIC_STRONG = 0x000F;
+
+        /**
+         * Any biometric (e.g. fingerprint, iris, or face) on the device that falls short of the
+         * requirements for <strong>Class 3</strong> (formerly <strong>Strong</strong>), as defined
+         * by the Android CDD.
+         *
+         * <p>For example, this includes a biometric that satisfies {@link #BIOMETRIC_WEAK} but
+         * does not reach {@link #BIOMETRIC_STRONG}.
+         *
+         * <p>This constant is intended to be used by public methods like
+         * {@link BiometricManager#getBiometricSensorStrengths} for obscuration.
+         */
+        @FlaggedApi(Flags.FLAG_GET_BIOMETRIC_SENSOR_STRENGTHS)
+        int LESS_THAN_STRONG = 0x0000;
 
         /**
          * Any biometric (e.g. fingerprint, iris, or face) on the device that meets or exceeds the
@@ -344,14 +403,33 @@ public class BiometricManager {
          */
         @FlaggedApi(Flags.FLAG_IDENTITY_CHECK_API)
         int IDENTITY_CHECK = 1 << 16;
+
+        /**
+         * A bit field that requests both device credential and biometric authentication,
+         * specifically for Identity Check.
+         *
+         * This will require the user to always authenticate with device credential. If Identity
+         * Check is active, the user will be required to also authenticate with a class 3
+         * biometric. This bit should not be combined with any other authenticator.
+         *
+         * @see Authenticators#IDENTITY_CHECK
+         * @hide
+         */
+        @FlaggedApi(Flags.FLAG_DOUBLE_AUTH)
+        int DEVICE_CREDENTIAL_AND_IDENTITY_CHECK = 1 << 17;
     }
 
+    // LINT.ThenChange(
+    // /services/core/java/com/android/server/biometrics/AuthService.java:sensor_strength_switch
+    // )
+
     /**
+     * Returns a string representation of an authenticator type.
+     *
      * @hide
-     * returns a string representation of an authenticator type.
      */
     @NonNull public static String authenticatorToStr(@Authenticators.Types int authenticatorType) {
-        switch(authenticatorType) {
+        switch (authenticatorType) {
             case Authenticators.BIOMETRIC_STRONG:
                 return "BIOMETRIC_STRONG";
             case Authenticators.BIOMETRIC_WEAK:
@@ -409,7 +487,8 @@ public class BiometricManager {
             final int userId = mContext.getUserId();
             final String opPackageName = mContext.getOpPackageName();
             try {
-                return mService.getButtonLabel(userId, opPackageName, mAuthenticators);
+                return mService.getButtonLabel(userId, opPackageName, mAuthenticators,
+                        mContext.getDisplayId());
             } catch (RemoteException e) {
                 throw e.rethrowFromSystemServer();
             }
@@ -443,7 +522,8 @@ public class BiometricManager {
             final int userId = mContext.getUserId();
             final String opPackageName = mContext.getOpPackageName();
             try {
-                return mService.getPromptMessage(userId, opPackageName, mAuthenticators);
+                return mService.getPromptMessage(userId, opPackageName, mAuthenticators,
+                        mContext.getDisplayId());
             } catch (RemoteException e) {
                 throw e.rethrowFromSystemServer();
             }
@@ -645,7 +725,8 @@ public class BiometricManager {
         if (mService != null) {
             try {
                 final String opPackageName = mContext.getOpPackageName();
-                return mService.canAuthenticate(opPackageName, userId, authenticators);
+                final int displayId = mContext.getDisplayId();
+                return mService.canAuthenticate(opPackageName, userId, authenticators, displayId);
             } catch (RemoteException e) {
                 throw e.rethrowFromSystemServer();
             }
@@ -693,6 +774,36 @@ public class BiometricManager {
                     mService.getEnrollmentStatusList(mContext.getUserId(),
                             mContext.getOpPackageName());
             return convertBiometricEnrollmentStatusInternalToMap(statusInternalList);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Returns a map of biometric modalities to their sensor security strengths.
+     *
+     * <p>Note that this API is intended exclusively for use by applications that hold a
+     * qualifying Android role (currently only {@link android.app.role.RoleManager#ROLE_WALLET} or
+     * {@link android.app.role.RoleManager#ROLE_DEVICE_POLICY_MANAGEMENT}) and are currently
+     * running in the foreground.
+     *
+     * <p>The returned map links each biometric modality available on the device (e.g.,
+     * {@link #TYPE_FINGERPRINT} for fingerprint or {@link #TYPE_FACE} for face) to its
+     * corresponding sensor strength (e.g., {@link Authenticators#BIOMETRIC_STRONG} for Class-3
+     * or {@link Authenticators#LESS_THAN_STRONG} for unknown/unexposed cases).
+     */
+    @FlaggedApi(Flags.FLAG_GET_BIOMETRIC_SENSOR_STRENGTHS)
+    @RequiresPermission(allOf = {
+            USE_BIOMETRIC,
+            ACCESS_BIOMETRIC_SENSOR_STRENGTHS,
+    })
+    @NonNull
+    public Map<@BiometricManager.BiometricModality Integer, @Authenticators.StrongTypes Integer>
+            getBiometricSensorStrengths() {
+        try {
+            final List<StrongSensorStrengthInternal> strengthList =
+                    mService.getBiometricSensorStrengths(mContext.getOpPackageName());
+            return convertStrongSensorStrengthInternalToMap(strengthList);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -946,6 +1057,19 @@ public class BiometricManager {
     @ElapsedRealtimeLong
     public long getLastAuthenticationTime(
             @BiometricManager.Authenticators.Types int authenticators) {
+        return getLastAuthenticationTime(UserHandle.myUserId(), authenticators);
+    }
+
+    /**
+     * Per-user variant of {@link BiometricManager#getLastAuthenticationTime(int)} for
+     * internal system use.
+     *
+     * @hide
+     */
+    @RequiresPermission(USE_BIOMETRIC_INTERNAL)
+    @ElapsedRealtimeLong
+    public long getLastAuthenticationTime(@UserIdInt int userId,
+            @BiometricManager.Authenticators.Types int authenticators) {
         if (authenticators == 0
                 || (GET_LAST_AUTH_TIME_ALLOWED_AUTHENTICATORS & authenticators) != authenticators) {
             throw new IllegalArgumentException(
@@ -954,7 +1078,7 @@ public class BiometricManager {
 
         if (mService != null) {
             try {
-                return mService.getLastAuthenticationTime(UserHandle.myUserId(), authenticators);
+                return mService.getLastAuthenticationTime(userId, authenticators);
             } catch (RemoteException e) {
                 throw e.rethrowFromSystemServer();
             }
@@ -973,5 +1097,14 @@ public class BiometricManager {
         }
         return map;
     }
-}
 
+    private static Map<@BiometricManager.BiometricModality Integer,
+            @Authenticators.StrongTypes Integer> convertStrongSensorStrengthInternalToMap(
+            List<StrongSensorStrengthInternal> list) {
+        Map<Integer, Integer> map = new HashMap<>();
+        for (StrongSensorStrengthInternal item : list) {
+            map.put(item.getModality(), item.getStrength());
+        }
+        return map;
+    }
+}

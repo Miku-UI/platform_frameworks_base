@@ -22,7 +22,6 @@ package {
     default_applicable_licenses: ["frameworks_base_packages_SystemUI_license"],
 }
 
-// TODO(b/230606318): Make those host tests instead of device tests.
 android_test {
     name: "PlatformComposeCoreTests",
     manifest: "AndroidManifest.xml",
@@ -37,9 +36,10 @@ android_test {
         "PlatformComposeCore",
         "PlatformMotionTestingCompose",
         "platform-test-annotations",
+        "flag-junit-base",
 
-        "androidx.test.runner",
         "androidx.test.ext.junit",
+        "androidx.test.runner",
 
         "androidx.compose.runtime_runtime",
         "androidx.compose.ui_ui-test-junit4",
@@ -48,6 +48,10 @@ android_test {
         "truth",
     ],
     asset_dirs: ["goldens"],
+
+    associates: [
+        "PlatformComposeCore",
+    ],
 
     kotlincflags: ["-Xjvm-default=all"],
     use_resource_processor: true,

@@ -19,13 +19,14 @@ package com.android.wm.shell.bubbles.animation;
 import static com.android.wm.shell.bubbles.BubblePositioner.NUM_VISIBLE_WHEN_RESTING;
 import static com.android.wm.shell.bubbles.animation.FlingToDismissUtils.getFlingToDismissTargetWidth;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
 import android.content.ContentResolver;
 import android.content.res.Resources;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.provider.Settings;
-import android.util.Log;
 import android.view.View;
 import android.view.ViewPropertyAnimator;
 
@@ -43,6 +44,7 @@ import com.android.wm.shell.bubbles.BubblePositioner;
 import com.android.wm.shell.bubbles.BubbleStackView;
 import com.android.wm.shell.common.FloatingContentCoordinator;
 import com.android.wm.shell.shared.animation.PhysicsAnimator;
+import com.android.wm.shell.shared.bubbles.logging.BubbleLog;
 import com.android.wm.shell.shared.magnetictarget.MagnetizedObject;
 
 import com.google.android.collect.Sets;
@@ -61,8 +63,6 @@ import java.util.function.IntSupplier;
  */
 public class StackAnimationController extends
         PhysicsAnimationLayout.PhysicsAnimationController {
-
-    private static final String TAG = "Bubbs.StackCtrl";
 
     /** Value to use for animating bubbles in and springing stack after fling. */
     private static final float STACK_SPRING_STIFFNESS = 700f;
@@ -460,8 +460,8 @@ public class StackAnimationController extends
             return;
         }
 
-        Log.d(TAG, String.format("Flinging %s.",
-                PhysicsAnimationLayout.getReadablePropertyName(property)));
+        BubbleLog.d("Flinging %s.",
+                PhysicsAnimationLayout.getReadablePropertyName(property));
 
         StackPositionProperty firstBubbleProperty = new StackPositionProperty(property);
         final float currentValue = firstBubbleProperty.getValue(this);
@@ -631,9 +631,9 @@ public class StackAnimationController extends
             return;
         }
 
-        Log.d(TAG, String.format("Springing %s to final position %f.",
+        BubbleLog.d("Springing %s to final position %f.",
                 PhysicsAnimationLayout.getReadablePropertyName(property),
-                finalPosition));
+                finalPosition);
 
         // Whether we're springing towards the touch location, rather than to a position on the
         // sides of the screen.
@@ -778,7 +778,7 @@ public class StackAnimationController extends
                 final int oldIndex = mLayout.indexOfChild(view);
                 swapped |= animateSwap(view, oldIndex, newIndex, updateAllIcons, after);
             } else {
-                Log.w(TAG, "bubbleViews[" + newIndex + "] is null");
+                BubbleLog.w("bubbleViews[%d] is null", newIndex);
             }
         }
         if (!swapped) {
@@ -929,7 +929,7 @@ public class StackAnimationController extends
 
     /** Moves the stack to a position instantly, with no animation. */
     public void setStackPosition(PointF pos) {
-        Log.d(TAG, String.format("Setting position to (%f, %f).", pos.x, pos.y));
+        BubbleLog.d("Setting position to (%f, %f).", pos.x, pos.y);
         mStackPosition.set(pos.x, pos.y);
 
         mPositioner.setRestingPosition(mStackPosition);
@@ -995,6 +995,15 @@ public class StackAnimationController extends
                 .withEndAction(() -> {
                     v.setTag(R.id.reorder_animator_tag, null);
                 });
+        animator.setListener(new AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationCancel(Animator animation) {
+                // Set scale and alpha to end-values to clean up animation state
+                v.setScaleX(1f);
+                v.setScaleY(1f);
+                v.setAlpha(1f);
+            }
+        });
         v.setTag(R.id.reorder_animator_tag, animator);
         if (mPositioner.showBubblesVertically()) {
             animator.translationX(endX);

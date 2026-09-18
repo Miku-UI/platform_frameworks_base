@@ -15,9 +15,6 @@
  */
 
 package com.android.server.rollback;
-
-import static android.crashrecovery.flags.Flags.extendRollbackLifetime;
-
 import android.Manifest;
 import android.annotation.AnyThread;
 import android.annotation.NonNull;
@@ -96,6 +93,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -134,9 +133,9 @@ class RollbackManagerServiceImpl extends IRollbackManager.Stub implements Rollba
     private static final String TAG = "RollbackManager";
     private static final boolean LOCAL_LOGV = Log.isLoggable(TAG, Log.VERBOSE);
 
-    // Rollbacks expire after 14 days.
+    // Rollbacks expire after 60 days.
     private static final long DEFAULT_ROLLBACK_LIFETIME_DURATION_MILLIS =
-            extendRollbackLifetime() ? TimeUnit.DAYS.toMillis(60) : TimeUnit.DAYS.toMillis(14);
+            TimeUnit.DAYS.toMillis(60);
 
     // Accessed on the handler thread only.
     private long mRollbackLifetimeDurationInMillis = DEFAULT_ROLLBACK_LIFETIME_DURATION_MILLIS;
@@ -994,15 +993,15 @@ class RollbackManagerServiceImpl extends IRollbackManager.Stub implements Rollba
     @ExtThread
     @Override
     public void snapshotAndRestoreUserData(String packageName, List<UserHandle> users, int appId,
-            long ceDataInode, String seInfo, int token) {
+            int pccId, long ceDataInode, String seInfo, int token) {
         assertNotInWorkerThread();
-        snapshotAndRestoreUserData(packageName, UserHandle.fromUserHandles(users), appId,
+        snapshotAndRestoreUserData(packageName, UserHandle.fromUserHandles(users), appId, pccId,
                 ceDataInode, seInfo, token);
     }
 
     @ExtThread
     @Override
-    public void snapshotAndRestoreUserData(String packageName, int[] userIds, int appId,
+    public void snapshotAndRestoreUserData(String packageName, int[] userIds, int appId, int pccId,
             long ceDataInode, String seInfo, int token) {
         assertNotInWorkerThread();
         if (Binder.getCallingUid() != Process.SYSTEM_UID) {
@@ -1013,7 +1012,7 @@ class RollbackManagerServiceImpl extends IRollbackManager.Stub implements Rollba
         getHandler().post(() -> {
             assertInWorkerThread();
             snapshotUserDataInternal(packageName, userIds);
-            restoreUserDataInternal(packageName, userIds, appId, seInfo);
+            restoreUserDataInternal(packageName, userIds, appId, pccId, seInfo);
             // When this method is called as part of the install flow, a positive token number is
             // passed to it. Need to notify the PackageManager when we are done.
             if (token > 0) {
@@ -1039,7 +1038,7 @@ class RollbackManagerServiceImpl extends IRollbackManager.Stub implements Rollba
 
     @WorkerThread
     private void restoreUserDataInternal(
-            String packageName, int[] userIds, int appId, String seInfo) {
+            String packageName, int[] userIds, int appId, int pccId, String seInfo) {
         assertInWorkerThread();
         if (LOCAL_LOGV) {
             Slog.v(TAG, "restoreUserData pkg=" + packageName
@@ -1048,7 +1047,7 @@ class RollbackManagerServiceImpl extends IRollbackManager.Stub implements Rollba
         for (int i = 0; i < mRollbacks.size(); ++i) {
             Rollback rollback = mRollbacks.get(i);
             if (rollback.restoreUserDataForPackageIfInProgress(
-                    packageName, userIds, appId, seInfo, mAppDataRollbackHelper)) {
+                    packageName, userIds, appId, pccId, seInfo, mAppDataRollbackHelper)) {
                 return;
             }
         }
@@ -1252,8 +1251,24 @@ class RollbackManagerServiceImpl extends IRollbackManager.Stub implements Rollba
             // should document in PackageInstaller.SessionParams#setEnableRollback
             // After enabling and committing any rollback, observe packages and
             // prepare to rollback if packages crashes too frequently.
-            mPackageWatchdog.startExplicitHealthCheck(rollback.getPackageNames(),
-                    mRollbackLifetimeDurationInMillis, mPackageHealthObserver);
+            // call it asynchronously to avoid holding the lock
+            final List<String> rollbackPackages = rollback.getPackageNames();
+            final int rollbackId = rollback.info.getRollbackId();
+            // Create a new single thread executor for each health check to avoid deadlocks.
+            // mExecutor shares the same handler thread as RollbackManagerService,
+            // which can lead to deadlocks if any crash happens while starting the health check.
+            ExecutorService healthCheckExecutor = Executors.newSingleThreadExecutor(
+                    r -> new Thread(r, "RollbackHealthCheck-" + rollbackId));
+            healthCheckExecutor.execute(() -> {
+                try {
+                    Slog.i(TAG, "Starting explicit health check for rollback " + rollbackId);
+                    mPackageWatchdog.startExplicitHealthCheck(
+                            rollbackPackages, mRollbackLifetimeDurationInMillis,
+                            mPackageHealthObserver);
+                } finally {
+                    healthCheckExecutor.shutdown();
+                }
+            });
         }
         runExpiration();
     }

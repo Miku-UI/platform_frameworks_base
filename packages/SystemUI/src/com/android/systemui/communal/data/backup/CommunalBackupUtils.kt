@@ -45,7 +45,7 @@ class CommunalBackupUtils(private val context: Context) {
             widgetsState.add(
                 CommunalHubState.CommunalWidgetItem().apply {
                     rank = rankItem.rank
-                    widgetId = widget.widgetId
+                    widgetId = widget.widgetId.value
                     componentName = widget.componentName
                     userSerialNumber = widget.userSerialNumber
                     spanY = widget.spanY

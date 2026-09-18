@@ -38,6 +38,9 @@ public final class RemoteTransition implements Parcelable {
     /** A name for this that can be used for debugging. */
     private @Nullable String mDebugName;
 
+    /** The filter for this remote transition. If null, this transition is not filtered. */
+    private @Nullable TransitionFilter mFilter;
+
     /**
      * Constructs with no app thread (animation runs in shell).
      * @hide
@@ -75,13 +78,33 @@ public final class RemoteTransition implements Parcelable {
             @NonNull IRemoteTransition remoteTransition,
             @Nullable IApplicationThread appThread,
             @Nullable String debugName) {
+        this(remoteTransition, appThread, debugName, null /* filter */);
+    }
+
+    /**
+     * Creates a new RemoteTransition.
+     *
+     * @param remoteTransition
+     *   The actual remote-transition interface used to run the transition animation.
+     * @param appThread
+     *   The application thread that will be running the remote transition.
+     * @param debugName
+     *   A name for this that can be used for debugging.
+     * @param filter
+     *   The filter for this remote transition.
+     * @hide
+     */
+    public RemoteTransition(
+            @NonNull IRemoteTransition remoteTransition,
+            @Nullable IApplicationThread appThread,
+            @Nullable String debugName,
+            @Nullable TransitionFilter filter) {
         this.mRemoteTransition = remoteTransition;
         com.android.internal.util.AnnotationValidations.validate(
                 NonNull.class, null, mRemoteTransition);
         this.mAppThread = appThread;
         this.mDebugName = debugName;
-
-        // onConstructed(); // You can define this method to get a callback
+        this.mFilter = filter;
     }
 
     /**
@@ -105,6 +128,14 @@ public final class RemoteTransition implements Parcelable {
      */
     public @Nullable String getDebugName() {
         return mDebugName;
+    }
+
+    /**
+     * The filter for this remote transition.
+     * @hide
+     */
+    public @Nullable TransitionFilter getFilter() {
+        return mFilter;
     }
 
     /**
@@ -135,6 +166,15 @@ public final class RemoteTransition implements Parcelable {
         return this;
     }
 
+    /**
+     * The filter for this remote transition.
+     * @hide
+     */
+    public @NonNull RemoteTransition setFilter(@Nullable TransitionFilter value) {
+        mFilter = value;
+        return this;
+    }
+
     @Override
     public String toString() {
         // You can override field toString logic by defining methods like:
@@ -143,7 +183,8 @@ public final class RemoteTransition implements Parcelable {
         return "RemoteTransition { " +
                 "remoteTransition = " + mRemoteTransition + ", " +
                 "appThread = " + mAppThread + ", " +
-                "debugName = " + mDebugName +
+                "debugName = " + mDebugName + ", " +
+                "filter = " + mFilter +
         " }";
     }
 
@@ -155,10 +196,12 @@ public final class RemoteTransition implements Parcelable {
         byte flg = 0;
         if (mAppThread != null) flg |= 0x2;
         if (mDebugName != null) flg |= 0x4;
+        if (mFilter != null) flg |= 0x8;
         dest.writeByte(flg);
         dest.writeStrongInterface(mRemoteTransition);
         if (mAppThread != null) dest.writeStrongInterface(mAppThread);
         if (mDebugName != null) dest.writeString(mDebugName);
+        if (mFilter != null) mFilter.writeToParcel(dest, 0);
     }
 
     @Override
@@ -174,12 +217,14 @@ public final class RemoteTransition implements Parcelable {
         IRemoteTransition remoteTransition = IRemoteTransition.Stub.asInterface(in.readStrongBinder());
         IApplicationThread appThread = (flg & 0x2) == 0 ? null : IApplicationThread.Stub.asInterface(in.readStrongBinder());
         String debugName = (flg & 0x4) == 0 ? null : in.readString();
+        TransitionFilter filter = (flg & 0x8) == 0 ? null : TransitionFilter.CREATOR.createFromParcel(in);
 
         this.mRemoteTransition = remoteTransition;
         com.android.internal.util.AnnotationValidations.validate(
                 NonNull.class, null, mRemoteTransition);
         this.mAppThread = appThread;
         this.mDebugName = debugName;
+        this.mFilter = filter;
     }
 
     public static final @NonNull Parcelable.Creator<RemoteTransition> CREATOR

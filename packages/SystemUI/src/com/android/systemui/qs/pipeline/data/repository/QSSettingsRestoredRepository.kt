@@ -6,17 +6,17 @@ import android.os.UserHandle
 import android.provider.Settings
 import android.util.Log
 import com.android.systemui.broadcast.BroadcastDispatcher
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
-import com.android.systemui.common.shared.model.PackageChangeModel.Empty.user
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.qs.pipeline.data.model.RestoreData
 import com.android.systemui.qs.pipeline.data.repository.QSSettingsRestoredRepository.Companion.BUFFER_CAPACITY
 import com.android.systemui.qs.pipeline.data.repository.TilesSettingConverter.toTilesList
+import com.android.systemui.qs.pipeline.shared.InternetTileMigration.migrateInternetTile
 import com.android.systemui.qs.pipeline.shared.logging.QSPipelineLogger
 import com.android.systemui.statusbar.policy.DeviceProvisionedController
 import com.android.systemui.util.kotlin.emitOnStart
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -56,7 +56,7 @@ class QSSettingsRestoredBroadcastRepository
 constructor(
     broadcastDispatcher: BroadcastDispatcher,
     private val deviceProvisionedController: DeviceProvisionedController,
-    logger: QSPipelineLogger,
+    private val logger: QSPipelineLogger,
     @Application private val scope: CoroutineScope,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
 ) : QSSettingsRestoredRepository {
@@ -150,7 +150,11 @@ constructor(
             }
 
         return RestoreData(
-            (tiles.getStringExtra(Intent.EXTRA_SETTING_NEW_VALUE) ?: "").toTilesList(),
+            (tiles.getStringExtra(Intent.EXTRA_SETTING_NEW_VALUE) ?: "").toTilesList().run {
+                migrateInternetTile().also { migrated ->
+                    if (migrated != this) logger.logInternetTileMigrationOnRestore(user)
+                }
+            },
             (autoAdd.getStringExtra(Intent.EXTRA_SETTING_NEW_VALUE) ?: "").toTilesSet(),
             user,
         )

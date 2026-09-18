@@ -53,11 +53,11 @@ class RunBlockingDetectorTest : SystemUILintDetectorTest() {
             .run()
             .expect(
                 """
-src/com/example/MyClass.kt:4: Error: Importing kotlinx.coroutines.runBlocking is not allowed. [RunBlockingUsage]
-                    import kotlinx.coroutines.runBlocking
-                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-1 errors, 0 warnings
-"""
+                src/com/example/MyClass.kt:4: Error: Importing kotlinx.coroutines.runBlocking is not allowed. [RunBlockingUsage]
+                                    import kotlinx.coroutines.runBlocking
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                1 errors, 0 warnings
+                """
                     .trimIndent()
             )
     }
@@ -94,14 +94,14 @@ src/com/example/MyClass.kt:4: Error: Importing kotlinx.coroutines.runBlocking is
             .run()
             .expect(
                 """
-src/com/example/MyClass.kt:4: Error: Importing com.android.app.tracing.coroutines.runBlockingTraced is not allowed. [RunBlockingUsage]
-                    import com.android.app.tracing.coroutines.runBlockingTraced
-                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-src/com/example/MyClass.kt:5: Error: Importing com.android.app.tracing.coroutines.runBlockingTraced is not allowed. [RunBlockingUsage]
-                    import com.android.app.tracing.coroutines.runBlockingTraced as runBlocking
-                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-2 errors, 0 warnings
-"""
+                src/com/example/MyClass.kt:4: Error: Importing com.android.app.tracing.coroutines.runBlockingTraced is not allowed. [RunBlockingUsage]
+                                    import com.android.app.tracing.coroutines.runBlockingTraced
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                src/com/example/MyClass.kt:5: Error: Importing com.android.app.tracing.coroutines.runBlockingTraced is not allowed. [RunBlockingUsage]
+                                    import com.android.app.tracing.coroutines.runBlockingTraced as runBlocking
+                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                2 errors, 0 warnings
+                """
                     .trimIndent()
             )
     }
@@ -130,6 +130,32 @@ src/com/example/MyClass.kt:5: Error: Importing com.android.app.tracing.coroutine
                     """
                 )
             )
+            .run()
+            .expectClean()
+    }
+
+    @Test
+    fun testNoViolationInTest() {
+        lint()
+            .files(
+                kotlin(
+                    """
+                    package com.example
+
+                    import kotlinx.coroutines.runBlocking
+
+                    class MyClassTest {
+                        fun testSomething() {
+                            runBlocking {
+                                // Some code here
+                            }
+                        }
+                    }
+                    """
+                ),
+                RUN_BLOCKING_DEFINITION,
+            )
+            .issues(RunBlockingDetector.ISSUE)
             .run()
             .expectClean()
     }

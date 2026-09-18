@@ -16,9 +16,11 @@
 
 package com.android.compose.animation.scene
 
+import android.view.ViewRootImpl
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MotionScheme
 import com.android.compose.animation.scene.content.state.TransitionState
+import kotlinx.coroutines.CoroutineScope
 
 internal fun MutableSceneTransitionLayoutStateForTests(
     initialScene: SceneKey,
@@ -30,12 +32,25 @@ internal fun MutableSceneTransitionLayoutStateForTests(
     canReplaceOverlay: (from: OverlayKey, to: OverlayKey) -> Boolean = { _, _ -> true },
     onTransitionStart: (TransitionState.Transition) -> Unit = {},
     onTransitionEnd: (TransitionState.Transition) -> Unit = {},
+    onSnap: (TransitionState.Idle) -> Unit = {},
 ): MutableSceneTransitionLayoutStateImpl {
     @OptIn(ExperimentalMaterial3ExpressiveApi::class)
+    val uiDelegate =
+        object : MutableSceneTransitionLayoutStateImpl.UiDelegate {
+            override var transitions = transitions
+            override val motionScheme = MotionScheme.standard()
+            override val viewRootImpl: ViewRootImpl? = null
+
+            // TODO(b/493511007): Remove this MutableSceneTransitionLayoutStateForTests entirely.
+            override val coroutineScope: CoroutineScope
+                get() =
+                    error(
+                        "animationScope must be provided when using MutableSceneTransitionLayoutStateForTests"
+                    )
+        }
+
     return MutableSceneTransitionLayoutStateImpl(
         initialScene,
-        motionScheme = MotionScheme.standard(),
-        transitions,
         initialOverlays,
         canChangeScene,
         canShowOverlay,
@@ -43,5 +58,8 @@ internal fun MutableSceneTransitionLayoutStateForTests(
         canReplaceOverlay,
         onTransitionStart,
         onTransitionEnd,
+        onSnap,
+        deferTransitionProgress = false,
+        uiDelegate = { uiDelegate },
     )
 }

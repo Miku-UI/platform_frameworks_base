@@ -16,18 +16,13 @@
 
 package com.android.server.inputmethod;
 
-import static com.android.internal.inputmethod.SoftInputShowHideReason.HIDE_SOFT_INPUT;
-import static com.android.internal.inputmethod.SoftInputShowHideReason.SHOW_SOFT_INPUT;
-
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 
 import static java.util.Objects.requireNonNull;
 
-import android.os.Binder;
 import android.os.RemoteException;
 import android.view.Display;
-import android.view.inputmethod.ImeTracker;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
@@ -48,24 +43,6 @@ public class InputMethodManagerServiceScreenshotTest extends InputMethodManagerS
             mUserData.mCurClient = requireNonNull(
                     mInputMethodManagerService.getClientStateLocked(mMockInputMethodClient));
         }
-    }
-
-    @Test
-    public void testPerformShowIme() throws Exception {
-        synchronized (ImfLock.class) {
-            mInputMethodManagerService.performShowIme(new Binder() /* showInputToken */,
-                    ImeTracker.Token.empty(), SHOW_SOFT_INPUT, mUserData);
-        }
-        verifyShowSoftInput(true /* showSoftInput */);
-    }
-
-    @Test
-    public void testPerformHideIme() throws Exception {
-        synchronized (ImfLock.class) {
-            mInputMethodManagerService.performHideIme(new Binder() /* hideInputToken */,
-                    ImeTracker.Token.empty(), HIDE_SOFT_INPUT, mUserData);
-        }
-        verifyHideSoftInput(true /* hideSoftInput */);
     }
 
     @Test

@@ -19,10 +19,15 @@ import static android.app.NotificationChannel.USER_LOCKED_IMPORTANCE;
 import static android.app.NotificationManager.IMPORTANCE_DEFAULT;
 import static android.app.NotificationManager.IMPORTANCE_HIGH;
 import static android.app.NotificationManager.IMPORTANCE_LOW;
+import static android.app.NotificationManager.IMPORTANCE_MAX;
+import static android.app.NotificationManager.IMPORTANCE_MIN;
 import static android.app.NotificationManager.IMPORTANCE_UNSPECIFIED;
 import static android.media.AudioAttributes.USAGE_ALARM;
+import static android.service.notification.Adjustment.KEY_HIGHLIGHT;
 import static android.service.notification.Adjustment.KEY_IMPORTANCE;
+import static android.service.notification.Adjustment.KEY_LIGHT;
 import static android.service.notification.Adjustment.KEY_NOT_CONVERSATION;
+import static android.service.notification.Adjustment.KEY_SOUND;
 import static android.service.notification.Adjustment.KEY_SUMMARIZATION;
 import static android.service.notification.NotificationListenerService.FLAG_FILTER_TYPE_ALERTING;
 import static android.service.notification.NotificationListenerService.FLAG_FILTER_TYPE_CONVERSATIONS;
@@ -499,7 +504,7 @@ public class NotificationRecordTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(com.android.server.notification.Flags.FLAG_NOTIFICATION_VIBRATION_IN_SOUND_URI)
+    @EnableFlags(Flags.FLAG_NOTIFICATION_VIBRATION_IN_SOUND_URI)
     public void testVibration_customVibrationForSound_withoutVibrationUri() {
         // prepare testing data
         Uri backupDefaultUri = RingtoneManager.getActualDefaultRingtoneUri(mMockContext,
@@ -527,8 +532,7 @@ public class NotificationRecordTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(com.android.server.notification.Flags
-            .FLAG_NOTIFICATION_VIBRATION_IN_SOUND_URI_FOR_CHANNEL)
+    @EnableFlags(Flags.FLAG_NOTIFICATION_VIBRATION_IN_SOUND_URI_FOR_CHANNEL)
     public void testVibration_customVibrationForSound_withVibrationUri() throws IOException {
         defaultChannel.enableVibration(true);
         VibrationInfo vibration = getTestingVibration(mVibrator);
@@ -542,6 +546,25 @@ public class NotificationRecordTest extends UiServiceTestCase {
         NotificationRecord record = new NotificationRecord(mMockContext, sbn, defaultChannel);
 
         assertEquals(vibration.mVibrationEffect, record.getVibration());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_CHANNEL_VIBRATION_IGNORE_INVALID_PATTERN)
+    public void testVibration_invalidVibration_usesDefaultVibration() {
+        channel.setVibrationPattern(new long[0]);
+        channel.enableVibration(true);
+        Notification n = new Builder(mMockContext, channel.getId())
+                .setContentTitle("foo")
+                .setSmallIcon(android.R.drawable.sym_def_app_icon)
+                .setPriority(Notification.PRIORITY_HIGH)
+                .build();
+
+        NotificationRecord record = new NotificationRecord(mMockContext,
+                new StatusBarNotification(mPkg, mPkg, id1, tag1, uid, uid, n, mUser, null, uid),
+                channel);
+
+        assertThat(record.getVibration()).isEqualTo(
+                new VibratorHelper(mMockContext).createDefaultVibration(false));
     }
 
     @Test
@@ -888,6 +911,23 @@ public class NotificationRecordTest extends UiServiceTestCase {
     }
 
     @Test
+    public void testKeyNotConversation() {
+        StatusBarNotification sbn = getMessagingStyleNotification();
+        NotificationRecord record = new NotificationRecord(mMockContext, sbn, channel);
+        record.setShortcutInfo(mock(ShortcutInfo.class));
+
+        assertTrue(record.isConversation());
+
+        Bundle signals = new Bundle();
+        signals.putBoolean(Adjustment.KEY_NOT_CONVERSATION, true);
+        record.addAdjustment(new Adjustment(mPkg, record.getKey(), signals, null, sbn.getUserId()));
+
+        record.applyAdjustments();
+
+        assertFalse(record.isConversation());
+    }
+
+    @Test
     public void testUserSentiment() {
         StatusBarNotification sbn = getNotification(PKG_O, true /* noisy */,
                 true /* defaultSound */, false /* buzzy */, false /* defaultBuzz */,
@@ -985,7 +1025,6 @@ public class NotificationRecordTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(android.app.Flags.FLAG_NM_SUMMARIZATION)
     public void testSummarization_null() {
         StatusBarNotification sbn = getNotification(PKG_O, true /* noisy */,
                 true /* defaultSound */, false /* buzzy */, false /* defaultBuzz */,
@@ -1004,7 +1043,6 @@ public class NotificationRecordTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(android.app.Flags.FLAG_NM_SUMMARIZATION)
     public void testSummarization_charSequence() {
         CharSequence summary = "hello";
         StatusBarNotification sbn = getNotification(PKG_O, true /* noisy */,
@@ -1024,7 +1062,6 @@ public class NotificationRecordTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(android.app.Flags.FLAG_NM_SUMMARIZATION)
     public void testSummarization_string() {
         String summary = "hello";
         StatusBarNotification sbn = getNotification(PKG_O, true /* noisy */,
@@ -1203,7 +1240,7 @@ public class NotificationRecordTest extends UiServiceTestCase {
 
         assertEquals(channel.getImportance(), record.getImportance());
 
-        record.updateNotificationChannel(
+        record.updateSystemNotificationChannel(
                 new NotificationChannel(channelId, "", channel.getImportance() - 1));
 
         assertEquals(channel.getImportance() - 1, record.getImportance());
@@ -1261,7 +1298,7 @@ public class NotificationRecordTest extends UiServiceTestCase {
         assertEquals(IMPORTANCE_LOW, record.getImportance());
         assertEquals(FLAG_FILTER_TYPE_SILENT, record.getNotificationType());
 
-        record.updateNotificationChannel(
+        record.updateSystemNotificationChannel(
                 new NotificationChannel(channelId, "", IMPORTANCE_DEFAULT));
 
         assertEquals(IMPORTANCE_LOW, record.getImportance());
@@ -1373,6 +1410,121 @@ public class NotificationRecordTest extends UiServiceTestCase {
 
         assertEquals(IMPORTANCE_LOW, record.getImportance());
     }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public void testCalculateImportance_everythingSet_highlightRule() {
+        NotificationChannel channel = new NotificationChannel("a", "a", IMPORTANCE_DEFAULT);
+
+        StatusBarNotification sbn = getNotification(PKG_O, true /* noisy */,
+                true /* defaultSound */, false /* buzzy */, false /* defaultBuzz */,
+                false /* lights */, false /* defaultLights */, groupId /* group */);
+        NotificationRecord record = new NotificationRecord(mMockContext, sbn, channel);
+
+        assertThat(record.getImportance()).isEqualTo(IMPORTANCE_DEFAULT);
+
+        record.setSystemImportance(IMPORTANCE_MIN);
+
+        Bundle bundle = new Bundle();
+        bundle.putInt(KEY_IMPORTANCE, IMPORTANCE_LOW);
+        Adjustment adjustment = new Adjustment(
+                PKG_O, record.getKey(), bundle, "", record.getUserId());
+        record.addAdjustment(adjustment);
+
+        bundle = new Bundle();
+        bundle.putBoolean(KEY_HIGHLIGHT, true);
+        adjustment = new Adjustment(
+                PKG_O, record.getKey(), bundle, "", record.getUserId());
+        adjustment.setOriginatingRuleId(101);
+        record.addAdjustment(adjustment);
+
+        record.applyAdjustments();
+
+        record.calculateImportance();
+
+        assertThat(record.getImportance()).isEqualTo(IMPORTANCE_MAX);
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public void testCalculateImportance_everythingSet_lowRule() {
+        NotificationChannel channel = new NotificationChannel("a", "a", IMPORTANCE_DEFAULT);
+
+        StatusBarNotification sbn = getNotification(PKG_O, true /* noisy */,
+                true /* defaultSound */, false /* buzzy */, false /* defaultBuzz */,
+                false /* lights */, false /* defaultLights */, groupId /* group */);
+        NotificationRecord record = new NotificationRecord(mMockContext, sbn, channel);
+
+        assertThat(record.getImportance()).isEqualTo(IMPORTANCE_DEFAULT);
+
+        record.setSystemImportance(IMPORTANCE_MIN);
+
+        Bundle bundle = new Bundle();
+        bundle.putInt(KEY_IMPORTANCE, IMPORTANCE_HIGH);
+        Adjustment adjustment = new Adjustment(
+                PKG_O, record.getKey(), bundle, "", record.getUserId());
+        record.addAdjustment(adjustment);
+
+        bundle = new Bundle();
+        bundle.putInt(KEY_IMPORTANCE, IMPORTANCE_LOW);
+        adjustment = new Adjustment(
+                PKG_O, record.getKey(), bundle, "", record.getUserId());
+        adjustment.setOriginatingRuleId(101);
+        record.addAdjustment(adjustment);
+
+        record.applyAdjustments();
+
+        record.calculateImportance();
+
+        assertThat(record.getImportance()).isEqualTo(IMPORTANCE_LOW);
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public void testCalculateSound_ruleSound() {
+        StatusBarNotification sbn = getNotification(PKG_O, true /* noisy */,
+                true /* defaultSound */, false /* buzzy */, false /* defaultBuzz */,
+                false /* lights */, false /* defaultLights */, groupId /* group */);
+        NotificationRecord record = new NotificationRecord(mMockContext, sbn, channel);
+
+        assertThat(record.getSound()).isEqualTo(Settings.System.DEFAULT_NOTIFICATION_URI);
+
+        Bundle bundle = new Bundle();
+        bundle.putParcelable(KEY_SOUND, Settings.System.DEFAULT_ALARM_ALERT_URI);
+        Adjustment adjustment = new Adjustment(
+                PKG_O, record.getKey(), bundle, "", record.getUserId());
+        adjustment.setOriginatingRuleId(101);
+        record.addAdjustment(adjustment);
+
+        record.applyAdjustments();
+
+        assertThat(record.getSound()).isEqualTo(Settings.System.DEFAULT_ALARM_ALERT_URI);
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_NM_CONTEXTUAL_DISPLAY_LAUNCH)
+    public void testCalculateLights_ruleLights() {
+        StatusBarNotification sbn = getNotification(PKG_O, true /* noisy */,
+                true /* defaultSound */, false /* buzzy */, false /* defaultBuzz */,
+                true /* lights */, false /* defaultLights */, null /* group */);
+        NotificationRecord record = new NotificationRecord(mMockContext, sbn, channel);
+
+        assertThat(record.getLight().color).isEqualTo(Color.BLUE);
+
+        assertEquals(Settings.System.DEFAULT_NOTIFICATION_URI, record.getSound());
+
+        Bundle bundle = new Bundle();
+        bundle.putInt(KEY_LIGHT, Color.GREEN);
+        Adjustment adjustment = new Adjustment(
+                PKG_O, record.getKey(), bundle, "", record.getUserId());
+        adjustment.setOriginatingRuleId(101);
+        record.addAdjustment(adjustment);
+
+        record.applyAdjustments();
+
+        assertThat(record.getLight().color).isEqualTo(Color.GREEN);
+    }
+
 
     @Test
     public void testHasUndecoratedRemoteViews_NoRemoteViews() {
@@ -1662,7 +1814,7 @@ public class NotificationRecordTest extends UiServiceTestCase {
                 new Notification.DecoratedCustomViewStyle());
         NotificationRecord record = new NotificationRecord(mMockContext, sbn, channel);
 
-        record.updateNotificationChannel(new NotificationChannel("new", "new", 3));
+        record.updateSystemNotificationChannel(new NotificationChannel("new", "new", 3));
 
         assertThat(record.getAudioAttributes()).isNotNull();
     }
@@ -1676,13 +1828,12 @@ public class NotificationRecordTest extends UiServiceTestCase {
         NotificationChannel update = new NotificationChannel("new", "new", 3);
         update.setSound(Uri.EMPTY,
                 new AudioAttributes.Builder().setUsage(USAGE_ALARM).build());
-        record.updateNotificationChannel(update);
+        record.updateSystemNotificationChannel(update);
 
         assertThat(record.getAudioAttributes().getUsage()).isEqualTo(USAGE_ALARM);
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHOW_NOISY_BUNDLED_NOTIFICATIONS)
     public void testClearsAdjustmentsWhenApplied() {
         StatusBarNotification sbn = getNotification(PKG_O, true /* noisy */,
                 true /* defaultSound */, false /* buzzy */, false /* defaultBuzz */,
@@ -1710,7 +1861,6 @@ public class NotificationRecordTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHOW_NOISY_BUNDLED_NOTIFICATIONS)
     public void testSkipsExcludedAdjustmentKeys() {
         String summarization = "summarized!";
         StatusBarNotification sbn = getNotification(PKG_O, true /* noisy */,

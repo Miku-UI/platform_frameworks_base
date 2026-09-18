@@ -24,6 +24,7 @@ import androidx.compose.foundation.OverscrollFactory
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.layout.LookaheadScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -41,7 +43,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import com.android.compose.animation.scene.debug.StlDebugConfig
+import com.android.compose.animation.scene.debug.StlDebugConfig.DEBUG_STL
+import com.android.compose.animation.scene.debug.generateDefaultStlDebugName
 import com.android.compose.gesture.NestedScrollableBound
+import com.android.compose.modifiers.skipToLookaheadSize
 
 /**
  * [SceneTransitionLayout] is a container that automatically animates its content whenever its state
@@ -63,21 +69,25 @@ import com.android.compose.gesture.NestedScrollableBound
 fun SceneTransitionLayout(
     state: SceneTransitionLayoutState,
     modifier: Modifier = Modifier,
+    transitions: SceneTransitions? = null,
     swipeSourceDetector: SwipeSourceDetector = DefaultEdgeDetector,
     swipeDetector: SwipeDetector = DefaultSwipeDetector,
     @FloatRange(from = 0.0, to = 0.5) transitionInterceptionThreshold: Float = 0.05f,
     // TODO(b/240432457) Remove this once test utils can access the internal STLForTesting().
     implicitTestTags: Boolean = false,
+    debugName: String = generateDefaultStlDebugName(),
     builder: SceneTransitionLayoutScope<ContentScope>.() -> Unit,
 ) {
     SceneTransitionLayoutForTesting(
         state,
         modifier,
+        transitions,
         swipeSourceDetector,
         swipeDetector,
         transitionInterceptionThreshold,
         implicitTestTags = implicitTestTags,
         onLayoutImpl = null,
+        debugName = debugName,
         builder = builder,
     )
 }
@@ -216,8 +226,6 @@ interface BaseContentScope : ElementStateScope {
      * @see ElementWithValues
      * @see MovableElement
      */
-    // TODO(b/389985793): Does replacing this by Element have a noticeable impact on performance and
-    // should we deprecate it?
     @Stable fun Modifier.element(key: ElementKey): Modifier
 
     /**
@@ -291,14 +299,22 @@ interface BaseContentScope : ElementStateScope {
      * Don't resize during transitions. This can for instance be used to make sure that scrollable
      * lists keep a constant size during transitions even if its elements are growing/shrinking.
      */
-    fun Modifier.noResizeDuringTransitions(): Modifier
+    @Deprecated(
+        "Use skipToLookaheadSize() instead",
+        ReplaceWith("skipToLookaheadSize()", "com.android.compose.modifiers.skipToLookaheadSize"),
+    )
+    fun Modifier.noResizeDuringTransitions(): Modifier = skipToLookaheadSize()
 
     /**
-     * Temporarily disable this content swipe actions when any scrollable below this modifier has
-     * consumed any amount of scroll delta, until the scroll gesture is finished.
+     * Temporarily disables swipe gestures for this content and all ancestor
+     * [SceneTransitionLayout]s when any scrollable below this modifier has consumed any amount of
+     * scroll delta.
+     *
+     * This ensures that a scroll gesture is fully consumed by the scrollable element, preventing
+     * accidental scene transitions in this layout or any ancestor [SceneTransitionLayout].
      *
      * This can for instance be used to ensure that a scrollable list is overscrolled once it
-     * reached its bounds instead of directly starting a scene transition from the same scroll
+     * reaches its bounds instead of directly starting a scene transition from the same scroll
      * gesture.
      */
     fun Modifier.disableSwipesWhenScrolling(
@@ -313,6 +329,15 @@ interface BaseContentScope : ElementStateScope {
      * layout, drawing or in a LaunchedEffect.
      */
     fun ElementKey.currentAlpha(): Float?
+
+    /**
+     * Return the drawing scale of [this] element in this content, given the current transition
+     * state and transition transformations (e.g. drawScale).
+     *
+     * Important: This should *not* be read during composition and should instead be read during
+     * layout, drawing or in a LaunchedEffect.
+     */
+    fun ElementKey.currentScale(): Scale?
 }
 
 @Stable
@@ -373,11 +398,13 @@ interface ContentScope : BaseContentScope {
      * A [NestedSceneTransitionLayout] will share its elements with its ancestor STLs therefore
      * enabling sharedElement transitions between them.
      */
-    // TODO(b/380070506): Add more parameters when default params are supported in Kotlin 2.0.21
     @Composable
     fun NestedSceneTransitionLayout(
         state: SceneTransitionLayoutState,
-        modifier: Modifier,
+        debugName: String,
+        modifier: Modifier = Modifier,
+        swipeSourceDetector: SwipeSourceDetector = DefaultEdgeDetector,
+        swipeDetector: SwipeDetector = DefaultSwipeDetector,
         builder: SceneTransitionLayoutScope<ContentScope>.() -> Unit,
     )
 
@@ -406,8 +433,11 @@ internal interface InternalContentScope : ContentScope {
     @Composable
     fun NestedSceneTransitionLayoutForTesting(
         state: SceneTransitionLayoutState,
-        modifier: Modifier,
+        modifier: Modifier = Modifier,
         onLayoutImpl: ((SceneTransitionLayoutImpl) -> Unit)?,
+        debugName: String,
+        swipeSourceDetector: SwipeSourceDetector = DefaultEdgeDetector,
+        swipeDetector: SwipeDetector = DefaultSwipeDetector,
         builder: SceneTransitionLayoutScope<InternalContentScope>.() -> Unit,
     )
 }
@@ -612,6 +642,17 @@ enum class SwipeDirection(internal val resolve: (LayoutDirection) -> Resolved) {
         Left(Orientation.Horizontal),
         Right(Orientation.Horizontal),
     }
+
+    fun reversed(): SwipeDirection {
+        return when (this) {
+            Up -> Down
+            Down -> Up
+            Left -> Right
+            Right -> Left
+            Start -> End
+            End -> Start
+        }
+    }
 }
 
 /**
@@ -770,6 +811,28 @@ class FixedDistance(private val distance: Dp) : UserActionDistance {
     ): Float = distance.toPx()
 }
 
+internal object DefaultSwipeDistance : UserActionDistance {
+    override fun UserActionDistanceScope.absoluteDistance(
+        fromContent: ContentKey,
+        toContent: ContentKey,
+        orientation: Orientation,
+    ): Float {
+        val fromContentSize =
+            checkNotNull(fromContent.targetSize()) {
+                buildString {
+                    appendLine("fromContent does not have a targetSize")
+                    appendLine("  fromContent: $fromContent")
+                    appendLine("  toContent: $toContent")
+                    appendLine("  toContentSize: ${toContent.targetSize()}")
+                }
+            }
+        return when (orientation) {
+            Orientation.Horizontal -> fromContentSize.width
+            Orientation.Vertical -> fromContentSize.height
+        }.toFloat()
+    }
+}
+
 /**
  * An internal version of [SceneTransitionLayout] to be used for tests, that provides access to the
  * internal [SceneTransitionLayoutImpl] and implicitly tags all scenes and elements.
@@ -778,6 +841,7 @@ class FixedDistance(private val distance: Dp) : UserActionDistance {
 internal fun SceneTransitionLayoutForTesting(
     state: SceneTransitionLayoutState,
     modifier: Modifier = Modifier,
+    transitions: SceneTransitions? = null,
     swipeSourceDetector: SwipeSourceDetector = DefaultEdgeDetector,
     swipeDetector: SwipeDetector = DefaultSwipeDetector,
     transitionInterceptionThreshold: Float = 0f,
@@ -786,6 +850,7 @@ internal fun SceneTransitionLayoutForTesting(
     ancestors: List<Ancestor> = remember { emptyList() },
     lookaheadScope: LookaheadScope? = null,
     implicitTestTags: Boolean = true,
+    debugName: String = generateDefaultStlDebugName(),
     builder: SceneTransitionLayoutScope<InternalContentScope>.() -> Unit,
 ) {
     val density = LocalDensity.current
@@ -794,9 +859,29 @@ internal fun SceneTransitionLayoutForTesting(
     val defaultEffectFactory = checkNotNull(LocalOverscrollFactory.current)
     val animationScope = rememberCoroutineScope()
     val decayAnimationSpec = rememberSplineBasedDecay<Float>()
+    val mutableState =
+        when (state) {
+            is HoistedSceneTransitionLayoutStateImpl -> {
+                state.rememberUiBoundState(transitions ?: SceneTransitions.Empty)
+            }
+            is MutableSceneTransitionLayoutStateImpl -> {
+                check(transitions == null) {
+                    "transitions should be passed to rememberMutableSceneTransitionLayoutState() " +
+                        "when the state is created during composition"
+                }
+
+                state
+            }
+            is NestedSceneTransitionLayoutState ->
+                error(
+                    "SceneTransitionLayout shouldn't be able to receive a " +
+                        "NestedSceneTransitionLayoutState"
+                )
+        }
+
     val layoutImpl = remember {
         SceneTransitionLayoutImpl(
-                state = state as MutableSceneTransitionLayoutStateImpl,
+                state = mutableState,
                 density = density,
                 layoutDirection = layoutDirection,
                 swipeSourceDetector = swipeSourceDetector,
@@ -811,6 +896,7 @@ internal fun SceneTransitionLayoutForTesting(
                 implicitTestTags = implicitTestTags,
                 lookaheadScope = lookaheadScope,
                 defaultEffectFactory = defaultEffectFactory,
+                debugName = debugName,
             )
             .also { onLayoutImpl?.invoke(it) }
     }
@@ -820,7 +906,7 @@ internal fun SceneTransitionLayoutForTesting(
     layoutImpl.updateContents(builder, layoutDirection, defaultEffectFactory)
 
     SideEffect {
-        if (state != layoutImpl.state) {
+        if (mutableState != layoutImpl.state) {
             error(
                 "This SceneTransitionLayout was bound to a different SceneTransitionLayoutState" +
                     " that was used when creating it, which is not supported"
@@ -854,4 +940,12 @@ internal fun SceneTransitionLayoutForTesting(
     }
 
     layoutImpl.Content(modifier)
+
+    if (DEBUG_STL) {
+        val context = LocalContext.current.applicationContext
+        DisposableEffect(context) {
+            StlDebugConfig.initDebug(context)
+            onDispose {}
+        }
+    }
 }

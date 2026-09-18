@@ -17,6 +17,7 @@ package com.android.wm.shell.desktopmode.multidesks.animation
 
 import android.graphics.Rect
 import android.os.SystemProperties
+import android.view.Choreographer
 import android.view.SurfaceControl
 import androidx.dynamicanimation.animation.FloatPropertyCompat
 import androidx.dynamicanimation.animation.SpringForce
@@ -147,6 +148,7 @@ object DeskSwitchAnimationUtils {
         override fun setValue(aw: DeskOpacityChange, value: Float) {
             aw.alpha = value
             aw.leashes.forEach { l -> tx.setAlpha(l, value) }
+            tx.setFrameTimeline(Choreographer.getInstance().vsyncId)
             tx.apply()
         }
     }

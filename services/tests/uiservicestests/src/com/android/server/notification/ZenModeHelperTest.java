@@ -23,7 +23,8 @@ import static android.app.AutomaticZenRule.TYPE_SCHEDULE_TIME;
 import static android.app.AutomaticZenRule.TYPE_THEATER;
 import static android.app.AutomaticZenRule.TYPE_UNKNOWN;
 import static android.app.Flags.FLAG_BACKUP_RESTORE_LOGGING;
-import static android.app.Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST;
+import static android.app.NotificationLoggingConstants.DATA_TYPE_ZEN_CONFIG;
+import static android.app.NotificationLoggingConstants.DATA_TYPE_ZEN_RULES;
 import static android.app.NotificationManager.AUTOMATIC_RULE_STATUS_ACTIVATED;
 import static android.app.NotificationManager.AUTOMATIC_RULE_STATUS_DEACTIVATED;
 import static android.app.NotificationManager.AUTOMATIC_RULE_STATUS_DISABLED;
@@ -49,8 +50,6 @@ import static android.app.NotificationManager.Policy.PRIORITY_SENDERS_CONTACTS;
 import static android.app.NotificationManager.Policy.PRIORITY_SENDERS_STARRED;
 import static android.app.NotificationManager.Policy.STATE_PRIORITY_CHANNELS_BLOCKED;
 import static android.app.NotificationManager.Policy.SUPPRESSED_EFFECT_BADGE;
-import static android.app.backup.NotificationLoggingConstants.DATA_TYPE_ZEN_CONFIG;
-import static android.app.backup.NotificationLoggingConstants.DATA_TYPE_ZEN_RULES;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.os.Process.SYSTEM_UID;
 import static android.provider.Settings.Global.ZEN_MODE_ALARMS;
@@ -62,6 +61,7 @@ import static android.service.notification.Condition.SOURCE_SCHEDULE;
 import static android.service.notification.Condition.SOURCE_USER_ACTION;
 import static android.service.notification.Condition.STATE_FALSE;
 import static android.service.notification.Condition.STATE_TRUE;
+import static android.service.notification.Flags.splitSoundVibrationForNotificationBreakthrough;
 import static android.service.notification.ZenModeConfig.ORIGIN_APP;
 import static android.service.notification.ZenModeConfig.ORIGIN_INIT;
 import static android.service.notification.ZenModeConfig.ORIGIN_INIT_USER;
@@ -83,6 +83,7 @@ import static android.service.notification.ZenPolicy.VISUAL_EFFECT_LIGHTS;
 import static android.service.notification.ZenPolicy.VISUAL_EFFECT_PEEK;
 
 import static com.android.internal.config.sysui.SystemUiSystemPropertiesFlags.NotificationFlags.LOG_DND_STATE_EVENTS;
+import static com.android.media.audio.Flags.FLAG_FILTER_CALL_ON_LISTENER_HINT;
 import static com.android.os.dnd.DNDProtoEnums.CONV_IMPORTANT;
 import static com.android.os.dnd.DNDProtoEnums.PEOPLE_STARRED;
 import static com.android.os.dnd.DNDProtoEnums.ROOT_CONFIG;
@@ -91,6 +92,9 @@ import static com.android.os.dnd.DNDProtoEnums.STATE_DISALLOW;
 import static com.android.server.notification.Flags.FLAG_PREVENT_ZEN_DEVICE_EFFECTS_WHILE_DRIVING;
 import static com.android.server.notification.ZenModeEventLogger.ACTIVE_RULE_TYPE_MANUAL;
 import static com.android.server.notification.ZenModeHelper.RULE_LIMIT_PER_PACKAGE;
+import static com.android.server.notification.ZenModeHelper.SUPPRESSED_EFFECT_ALL;
+import static com.android.server.notification.ZenModeHelper.SUPPRESSED_EFFECT_CALLS;
+import static com.android.server.notification.ZenModeHelper.SUPPRESSED_EFFECT_NOTIFICATIONS;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.Iterables.getOnlyElement;
@@ -102,6 +106,8 @@ import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertNotNull;
 import static junit.framework.TestCase.assertTrue;
 import static junit.framework.TestCase.fail;
+import static org.junit.Assume.assumeFalse;
+import static org.junit.Assume.assumeTrue;
 
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
@@ -179,9 +185,7 @@ import android.service.notification.ZenPolicy;
 import android.testing.TestWithLooperRule;
 import android.testing.TestableLooper;
 import android.util.ArrayMap;
-import android.util.Log;
 import android.util.IntArray;
-import android.util.Log;
 import android.util.StatsEvent;
 import android.util.StatsEventTestUtils;
 import android.util.Xml;
@@ -210,12 +214,10 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.xmlpull.v1.XmlPullParserException;
-
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
-import platform.test.runner.parameterized.Parameters;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -237,6 +239,9 @@ import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
+import platform.test.runner.parameterized.Parameters;
 
 @SmallTest
 @SuppressLint("GuardedBy") // It's ok for this test to access guarded methods from the service.
@@ -308,7 +313,8 @@ public class ZenModeHelperTest extends UiServiceTestCase {
     public static List<FlagsParameterization> getParams() {
         return FlagsParameterization.allCombinationsOf(
                 FLAG_BACKUP_RESTORE_LOGGING,
-                FLAG_MODES_UI_TILE_REACTIVATES_LAST);
+                android.service.notification.Flags
+                        .FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH);
     }
 
     public ZenModeHelperTest(FlagsParameterization flags) {
@@ -362,6 +368,12 @@ public class ZenModeHelperTest extends UiServiceTestCase {
         when(mPackageManager.getApplicationInfo(eq(mPkg), anyInt()))
                 .thenReturn(appInfoSpy);
         mZenModeHelper.mPm = mPackageManager;
+
+        if (android.service.notification.Flags.listenerHintExemptPackages()) {
+            mZenModeHelper.setExemptPackages(new String[]{}, new String[]{});
+        } else {
+            mZenModeHelper.setPriorityOnlyDndExemptPackages(new String[]{});
+        }
 
         mZenModeEventLogger.reset();
     }
@@ -440,11 +452,34 @@ public class ZenModeHelperTest extends UiServiceTestCase {
     // reasonable implementation will generate these arrays by iterating over SDK_USAGES.
     private void verifyApplyRestrictions(boolean zenPriorityOnly, boolean mute, int[] usages) {
         int expectedMode = mute ? AppOpsManager.MODE_IGNORED : AppOpsManager.MODE_ALLOWED;
-        verify(mAppOps, atLeastOnce())
-                .setAudioRestriction(eq(AppOpsManager.OP_VIBRATE), aryEq(usages), eq(expectedMode),
-                        zenPriorityOnly ? notNull() : eq(null));
-        verify(mAppOps, atLeastOnce()).setAudioRestriction(eq(AppOpsManager.OP_PLAY_AUDIO),
-                aryEq(usages), eq(expectedMode), zenPriorityOnly ? notNull() : eq(null));
+
+        if (android.service.notification.Flags.listenerHintExemptPackages()) {
+            if (expectedMode == AppOpsManager.MODE_ALLOWED) {
+                // MODE_ALLOWED has null as exempted pkg list
+                verify(mAppOps, atLeastOnce())
+                        .setAudioRestriction(eq(AppOpsManager.OP_VIBRATE), aryEq(usages),
+                                eq(expectedMode), eq(null));
+                verify(mAppOps, atLeastOnce()).setAudioRestriction(eq(AppOpsManager.OP_PLAY_AUDIO),
+                        aryEq(usages), eq(expectedMode), eq(null));
+            } else {
+                for (int usage: usages) {
+                    verify(mAppOps, times(1))
+                            .setAudioRestriction(eq(AppOpsManager.OP_VIBRATE),
+                                    aryEq(new int[]{usage}),
+                                    eq(expectedMode), zenPriorityOnly ? notNull() : eq(null));
+                    verify(mAppOps, times(1))
+                            .setAudioRestriction(eq(AppOpsManager.OP_PLAY_AUDIO),
+                                    aryEq(new int[]{usage}),
+                                    eq(expectedMode), zenPriorityOnly ? notNull() : eq(null));
+                }
+            }
+        } else {
+            verify(mAppOps, atLeastOnce())
+                    .setAudioRestriction(eq(AppOpsManager.OP_VIBRATE), aryEq(usages),
+                        eq(expectedMode), zenPriorityOnly ? notNull() : eq(null));
+            verify(mAppOps, atLeastOnce()).setAudioRestriction(eq(AppOpsManager.OP_PLAY_AUDIO),
+                    aryEq(usages), eq(expectedMode), zenPriorityOnly ? notNull() : eq(null));
+        }
     }
 
     // Given a sorted list of usages, return all SDK usages which are NOT in this list (in sorted
@@ -573,11 +608,95 @@ public class ZenModeHelperTest extends UiServiceTestCase {
     }
 
     @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
     public void testZenOn_AllowAlarmsMedia_NoAlarmMediaMuteApplied() {
         mZenModeHelper.mZenMode = ZEN_MODE_IMPORTANT_INTERRUPTIONS;
         mZenModeHelper.setPriorityOnlyDndExemptPackages(new String[]{PKG_O});
         mZenModeHelper.mConsolidatedPolicy = new Policy(Policy.PRIORITY_CATEGORY_ALARMS
                 | PRIORITY_CATEGORY_MEDIA, 0, 0, 0, 0, 0);
+
+        mZenModeHelper.applyRestrictions();
+
+        // All usages but alarm and media-like
+        final IntArray mutedUsages = IntArray.wrap(new int[] {
+                AudioAttributes.USAGE_NOTIFICATION,
+                AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_REQUEST,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_DELAYED,
+                AudioAttributes.USAGE_NOTIFICATION_EVENT,
+        });
+        for (int usage: mutedUsages.toArray()) {
+            verify(mAppOps, times(1)).setAudioRestriction(AppOpsManager.OP_VIBRATE,
+                    new int[]{usage}, AppOpsManager.MODE_IGNORED, new String[]{PKG_O});
+        }
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_VIBRATE,
+                audioUsagesComplement(mutedUsages.toArray()), AppOpsManager.MODE_ALLOWED,
+                null);
+
+        mutedUsages.add(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION);
+
+        for (int usage: mutedUsages.toArray()) {
+            verify(mAppOps, times(1)).setAudioRestriction(AppOpsManager.OP_PLAY_AUDIO,
+                    new int[]{usage}, AppOpsManager.MODE_IGNORED, new String[]{PKG_O});
+        }
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_PLAY_AUDIO,
+                audioUsagesComplement(mutedUsages.toArray()), AppOpsManager.MODE_ALLOWED,
+                null);
+    }
+
+    @Test
+    @EnableFlags({android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES,
+            android.service.notification.Flags
+                    .FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH})
+    public void testZenOn_AllowAlarmsMedia_AllowVibrationForAlarms() {
+        mZenModeHelper.mZenMode = ZEN_MODE_IMPORTANT_INTERRUPTIONS;
+        mZenModeHelper.setPriorityOnlyDndExemptPackages(new String[]{PKG_O});
+
+        mZenModeHelper.mConsolidatedPolicy = new Policy(
+                Policy.PRIORITY_CATEGORY_ALARMS | PRIORITY_CATEGORY_MEDIA,
+                0, 0, 0, 0, 0,
+                PRIORITY_CATEGORY_MEDIA,
+                Policy.PRIORITY_CATEGORY_ALARMS | PRIORITY_CATEGORY_MEDIA);
+
+        mZenModeHelper.applyRestrictions();
+
+        final IntArray mutedUsages = IntArray.wrap(new int[] {
+                AudioAttributes.USAGE_NOTIFICATION,
+                AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_REQUEST,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_DELAYED,
+                AudioAttributes.USAGE_NOTIFICATION_EVENT,
+        });
+
+        for (int usage: mutedUsages.toArray()) {
+            verify(mAppOps, times(1)).setAudioRestriction(AppOpsManager.OP_VIBRATE,
+                    new int[]{usage}, AppOpsManager.MODE_IGNORED, new String[]{PKG_O});
+        }
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_VIBRATE,
+                audioUsagesComplement(mutedUsages.toArray()), AppOpsManager.MODE_ALLOWED,
+                null);
+
+        mutedUsages.add(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION);
+        mutedUsages.add(0, AudioAttributes.USAGE_ALARM);
+
+        for (int usage: mutedUsages.toArray()) {
+            verify(mAppOps, times(1)).setAudioRestriction(AppOpsManager.OP_PLAY_AUDIO,
+                    new int[]{usage}, AppOpsManager.MODE_IGNORED, new String[]{PKG_O});
+        }
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_PLAY_AUDIO,
+                audioUsagesComplement(mutedUsages.toArray()), AppOpsManager.MODE_ALLOWED,
+                null);
+    }
+
+    @Test
+    @DisableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
+    public void testZenOn_AllowAlarmsMedia_NoAlarmMediaMuteApplied_legacy() {
+        mZenModeHelper.mZenMode = ZEN_MODE_IMPORTANT_INTERRUPTIONS;
+        mZenModeHelper.setPriorityOnlyDndExemptPackages(new String[]{PKG_O});
+        mZenModeHelper.mConsolidatedPolicy = new Policy(Policy.PRIORITY_CATEGORY_ALARMS
+            | PRIORITY_CATEGORY_MEDIA, 0, 0, 0, 0, 0);
 
         mZenModeHelper.applyRestrictions();
 
@@ -606,6 +725,7 @@ public class ZenModeHelperTest extends UiServiceTestCase {
     }
 
     @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
     public void testZenOn_DisallowAlarmsMedia_AlarmMediaMuteApplied() {
         mZenModeHelper.mZenMode = ZEN_MODE_IMPORTANT_INTERRUPTIONS;
         mZenModeHelper.setPriorityOnlyDndExemptPackages(new String[]{PKG_O});
@@ -626,6 +746,47 @@ public class ZenModeHelperTest extends UiServiceTestCase {
             AudioAttributes.USAGE_GAME,
             AudioAttributes.USAGE_ASSISTANT,
         });
+        for (int usage: mutedUsages.toArray()) {
+            verify(mAppOps, times(1)).setAudioRestriction(AppOpsManager.OP_VIBRATE,
+                    new int[]{usage}, AppOpsManager.MODE_IGNORED, new String[]{PKG_O});
+        }
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_VIBRATE,
+                audioUsagesComplement(mutedUsages.toArray()), AppOpsManager.MODE_ALLOWED,
+                null);
+
+        mutedUsages.add(10, AudioAttributes.USAGE_ASSISTANCE_SONIFICATION);
+
+        for (int usage: mutedUsages.toArray()) {
+            verify(mAppOps, times(1)).setAudioRestriction(AppOpsManager.OP_PLAY_AUDIO,
+                new int[]{usage}, AppOpsManager.MODE_IGNORED, new String[]{PKG_O});
+        }
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_PLAY_AUDIO,
+                audioUsagesComplement(mutedUsages.toArray()), AppOpsManager.MODE_ALLOWED,
+                null);
+    }
+
+    @Test
+    @DisableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
+    public void testZenOn_DisallowAlarmsMedia_AlarmMediaMuteApplied_legacy() {
+        mZenModeHelper.mZenMode = ZEN_MODE_IMPORTANT_INTERRUPTIONS;
+        mZenModeHelper.setPriorityOnlyDndExemptPackages(new String[]{PKG_O});
+        mZenModeHelper.mConsolidatedPolicy = new Policy(0, 0, 0, 0, 0, 0);
+        mZenModeHelper.applyRestrictions();
+
+        final IntArray mutedUsages = IntArray.wrap(new int[] {
+                AudioAttributes.USAGE_UNKNOWN,
+                AudioAttributes.USAGE_MEDIA,
+                AudioAttributes.USAGE_ALARM,
+                AudioAttributes.USAGE_NOTIFICATION,
+                AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_REQUEST,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_DELAYED,
+                AudioAttributes.USAGE_NOTIFICATION_EVENT,
+                AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE,
+                AudioAttributes.USAGE_GAME,
+                AudioAttributes.USAGE_ASSISTANT,
+        });
 
         verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_VIBRATE,
                 mutedUsages.toArray(), AppOpsManager.MODE_IGNORED, new String[]{PKG_O});
@@ -643,6 +804,7 @@ public class ZenModeHelperTest extends UiServiceTestCase {
     }
 
     @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
     public void testTotalSilence() {
         mZenModeHelper.mZenMode = Settings.Global.ZEN_MODE_NO_INTERRUPTIONS;
         // The following policy settings should not affect the restriction state
@@ -667,6 +829,48 @@ public class ZenModeHelperTest extends UiServiceTestCase {
         });
 
         // Total silence will silence alarms, media and system noises (but not vibrations)
+        for (int usage: mutedUsages.toArray()) {
+            verify(mAppOps, times(1)).setAudioRestriction(AppOpsManager.OP_VIBRATE,
+                    new int[]{usage}, AppOpsManager.MODE_IGNORED, null);
+        }
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_VIBRATE,
+                audioUsagesComplement(mutedUsages.toArray()), AppOpsManager.MODE_ALLOWED, null);
+
+        mutedUsages.add(10, AudioAttributes.USAGE_ASSISTANCE_SONIFICATION);
+        for (int usage: mutedUsages.toArray()) {
+            verify(mAppOps, times(1)).setAudioRestriction(AppOpsManager.OP_PLAY_AUDIO,
+                    new int[]{usage}, AppOpsManager.MODE_IGNORED, null);
+        }
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_PLAY_AUDIO,
+                audioUsagesComplement(mutedUsages.toArray()), AppOpsManager.MODE_ALLOWED, null);
+    }
+
+    @Test
+    @DisableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
+    public void testTotalSilence_legacy() {
+        mZenModeHelper.mZenMode = Settings.Global.ZEN_MODE_NO_INTERRUPTIONS;
+        // The following policy settings should not affect the restriction state
+        mZenModeHelper.setPriorityOnlyDndExemptPackages(new String[]{PKG_O});
+        mZenModeHelper.mConsolidatedPolicy = new Policy(Policy.PRIORITY_CATEGORY_ALARMS
+                | PRIORITY_CATEGORY_MEDIA, 0, 0, 0, 0, 0);
+        mZenModeHelper.applyRestrictions();
+
+        final var mutedUsages = IntArray.wrap(new int[] {
+                AudioAttributes.USAGE_UNKNOWN,
+                AudioAttributes.USAGE_MEDIA,
+                AudioAttributes.USAGE_ALARM,
+                AudioAttributes.USAGE_NOTIFICATION,
+                AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_REQUEST,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_DELAYED,
+                AudioAttributes.USAGE_NOTIFICATION_EVENT,
+                AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE,
+                AudioAttributes.USAGE_GAME,
+                AudioAttributes.USAGE_ASSISTANT,
+        });
+
+        // Total silence will silence alarms, media and system noises (but not vibrations)
         verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_VIBRATE,
                 mutedUsages.toArray(), AppOpsManager.MODE_IGNORED, null);
 
@@ -682,7 +886,44 @@ public class ZenModeHelperTest extends UiServiceTestCase {
     }
 
     @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
     public void testAlarmsOnly_alarmMediaMuteNotApplied() {
+        mZenModeHelper.mZenMode = Settings.Global.ZEN_MODE_ALARMS;
+        mZenModeHelper.setPriorityOnlyDndExemptPackages(new String[]{PKG_O});
+        mZenModeHelper.mConsolidatedPolicy = new Policy(0, 0, 0, 0, 0, 0);
+        mZenModeHelper.applyRestrictions();
+
+        // Alarms only mode will not silence alarms, media
+        // Will silence calls despite priority-mode config
+        final var mutedUsages = IntArray.wrap(new int[] {
+                AudioAttributes.USAGE_NOTIFICATION,
+                AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_REQUEST,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_DELAYED,
+                AudioAttributes.USAGE_NOTIFICATION_EVENT,
+        });
+
+        for (int usage: mutedUsages.toArray()) {
+            verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_VIBRATE,
+                    new int[]{usage}, AppOpsManager.MODE_IGNORED, null);
+        }
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_VIBRATE,
+                audioUsagesComplement(mutedUsages.toArray()), AppOpsManager.MODE_ALLOWED, null);
+
+        // Alarms only will silence system noises (but not vibrations)
+        mutedUsages.add(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION);
+        for (int usage: mutedUsages.toArray()) {
+            verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_PLAY_AUDIO,
+                    new int[]{usage}, AppOpsManager.MODE_IGNORED, null);
+        }
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_PLAY_AUDIO,
+                audioUsagesComplement(mutedUsages.toArray()), AppOpsManager.MODE_ALLOWED, null);
+    }
+
+    @Test
+    @DisableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
+    public void testAlarmsOnly_alarmMediaMuteNotApplied_legacy() {
         mZenModeHelper.mZenMode = Settings.Global.ZEN_MODE_ALARMS;
         mZenModeHelper.setPriorityOnlyDndExemptPackages(new String[]{PKG_O});
         mZenModeHelper.mConsolidatedPolicy = new Policy(0, 0, 0, 0, 0, 0);
@@ -713,6 +954,7 @@ public class ZenModeHelperTest extends UiServiceTestCase {
     }
 
     @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
     public void testZenAllCannotBypass() {
         // Only audio attributes with SUPPRESIBLE_NEVER can bypass
         // with special case USAGE_ASSISTANCE_SONIFICATION
@@ -737,12 +979,55 @@ public class ZenModeHelperTest extends UiServiceTestCase {
         });
 
         // Total silence will silence alarms, media, and system noises (but not vibrations)
+        for (int usage: mutedUsages.toArray()) {
+            verify(mAppOps, times(1)).setAudioRestriction(AppOpsManager.OP_VIBRATE,
+                    new int[]{usage}, AppOpsManager.MODE_IGNORED, new String[]{PKG_O});
+        }
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_VIBRATE,
+                audioUsagesComplement(mutedUsages.toArray()), AppOpsManager.MODE_ALLOWED,
+                null);
+
+        mutedUsages.add(10, AudioAttributes.USAGE_ASSISTANCE_SONIFICATION);
+        for (int usage: mutedUsages.toArray()) {
+            verify(mAppOps, times(1)).setAudioRestriction(AppOpsManager.OP_PLAY_AUDIO,
+                    new int[]{usage}, AppOpsManager.MODE_IGNORED, new String[]{PKG_O});
+        }
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_PLAY_AUDIO,
+                audioUsagesComplement(mutedUsages.toArray()), AppOpsManager.MODE_ALLOWED,
+                null);
+    }
+
+    @Test
+    @DisableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
+    public void testZenAllCannotBypass_legacy() {
+        // Only audio attributes with SUPPRESIBLE_NEVER can bypass
+        // with special case USAGE_ASSISTANCE_SONIFICATION
+        mZenModeHelper.mZenMode = ZEN_MODE_IMPORTANT_INTERRUPTIONS;
+        mZenModeHelper.setPriorityOnlyDndExemptPackages(new String[]{PKG_O});
+        mZenModeHelper.mConsolidatedPolicy = new Policy(0, 0, 0, 0, 0, 0);
+        mZenModeHelper.applyRestrictions();
+
+        final var mutedUsages = IntArray.wrap(new int[] {
+                AudioAttributes.USAGE_UNKNOWN,
+                AudioAttributes.USAGE_MEDIA,
+                AudioAttributes.USAGE_ALARM,
+                AudioAttributes.USAGE_NOTIFICATION,
+                AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_REQUEST,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_DELAYED,
+                AudioAttributes.USAGE_NOTIFICATION_EVENT,
+                AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE,
+                AudioAttributes.USAGE_GAME,
+                AudioAttributes.USAGE_ASSISTANT,
+        });
+
+        // Total silence will silence alarms, media, and system noises (but not vibrations)
         verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_VIBRATE,
                 mutedUsages.toArray(), AppOpsManager.MODE_IGNORED, new String[]{PKG_O});
         verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_VIBRATE,
                 audioUsagesComplement(mutedUsages.toArray()), AppOpsManager.MODE_ALLOWED,
                 new String[]{PKG_O});
-
 
         mutedUsages.add(10, AudioAttributes.USAGE_ASSISTANCE_SONIFICATION);
         verify(mAppOps, atLeastOnce()).setAudioRestriction(AppOpsManager.OP_PLAY_AUDIO,
@@ -782,6 +1067,74 @@ public class ZenModeHelperTest extends UiServiceTestCase {
         assertThat(policy.allowReminders()).isFalse();
         assertThat(policy.allowRepeatCallers()).isFalse();
         assertThat(policy.allowPriorityChannels()).isFalse();
+    }
+
+    @Test
+    @EnableFlags(FLAG_FILTER_CALL_ON_LISTENER_HINT)
+    public void testSuppressedCallEffects_matchesCallFilter() {
+        var pm = mContext.getPackageManager();
+        assumeFalse(pm.hasSystemFeature(PackageManager.FEATURE_WATCH));
+        // With suppressed effects, regardless of Zen state, all calls should be filtered out
+        mZenModeHelper.setSuppressedEffects(ZenModeHelper.SUPPRESSED_EFFECT_CALLS);
+
+        mZenModeHelper.mZenMode = ZEN_MODE_OFF;
+        assertFalse(mZenModeHelper.matchesCallFilter(UserHandle.CURRENT, null, null, 0, 0, 0));
+
+        mZenModeHelper.mZenMode = ZEN_MODE_IMPORTANT_INTERRUPTIONS;
+        mZenModeHelper.mConsolidatedPolicy = new Policy(PRIORITY_CATEGORY_CALLS,
+                PRIORITY_SENDERS_ANY, PRIORITY_SENDERS_ANY, 0, CONVERSATION_SENDERS_ANYONE);
+
+        assertFalse(mZenModeHelper.matchesCallFilter(UserHandle.CURRENT, null, null, 0, 0, 0));
+
+        mZenModeHelper.mConsolidatedPolicy = new Policy(0,
+                PRIORITY_SENDERS_ANY, PRIORITY_SENDERS_ANY, 0, CONVERSATION_SENDERS_ANYONE);
+        assertFalse(mZenModeHelper.matchesCallFilter(UserHandle.CURRENT, null, null, 0, 0, 0));
+    }
+
+    @Test
+    @EnableFlags(FLAG_FILTER_CALL_ON_LISTENER_HINT)
+    public void testSuppressedCallEffects_matchesCallFilter_LegacyOnWatch() {
+        // Verify retainining legacy behavior on Watch
+        var pm = mContext.getPackageManager();
+        assumeTrue(pm.hasSystemFeature(PackageManager.FEATURE_WATCH));
+
+        mZenModeHelper.setSuppressedEffects(ZenModeHelper.SUPPRESSED_EFFECT_CALLS);
+
+        mZenModeHelper.mZenMode = ZEN_MODE_OFF;
+        // Should be allowed because suppression check is skipped
+        assertTrue(mZenModeHelper.matchesCallFilter(UserHandle.CURRENT, null, null, 0, 0, 0));
+    }
+
+    @Test
+    @DisableFlags(FLAG_FILTER_CALL_ON_LISTENER_HINT)
+    public void testSuppressedCallEffects_matchesCallFilter_flagDisabled() {
+        // With suppressed effects, but flag disabled, calls should NOT be filtered out by
+        // suppression
+        mZenModeHelper.setSuppressedEffects(ZenModeHelper.SUPPRESSED_EFFECT_CALLS);
+
+        mZenModeHelper.mZenMode = ZEN_MODE_OFF;
+        // Should be allowed because suppression check is skipped
+        assertTrue(mZenModeHelper.matchesCallFilter(UserHandle.CURRENT, null, null, 0, 0, 0));
+    }
+
+    @Test
+    public void testNoSuppressedCallEffects_matchesCallFilter() {
+        // Without suppressed effects, zen-based call filtering should apply correctly
+        mZenModeHelper.setSuppressedEffects(0);
+
+        mZenModeHelper.mZenMode = ZEN_MODE_OFF;
+        assertTrue(mZenModeHelper.matchesCallFilter(UserHandle.CURRENT, null, null, 0, 0, 0));
+
+        // Without suppressed effects, calls should be allowed by a permissive policy.
+        mZenModeHelper.mZenMode = ZEN_MODE_IMPORTANT_INTERRUPTIONS;
+        mZenModeHelper.mConsolidatedPolicy = new Policy(PRIORITY_CATEGORY_CALLS,
+                PRIORITY_SENDERS_ANY, PRIORITY_SENDERS_ANY, 0, CONVERSATION_SENDERS_ANYONE);
+        assertTrue(mZenModeHelper.matchesCallFilter(UserHandle.CURRENT, null, null, 0, 0, 0));
+
+        // Without suppressed effects, calls should be blocked by a non-permissive policy.
+        mZenModeHelper.mConsolidatedPolicy = new Policy(0,
+                PRIORITY_SENDERS_ANY, PRIORITY_SENDERS_ANY, 0, CONVERSATION_SENDERS_ANYONE);
+        assertFalse(mZenModeHelper.matchesCallFilter(UserHandle.CURRENT, null, null, 0, 0, 0));
     }
 
     @Test
@@ -4734,7 +5087,8 @@ public class ZenModeHelperTest extends UiServiceTestCase {
         final int[] actualStatus = new int[1];
         ZenModeHelper.Callback callback = new ZenModeHelper.Callback() {
             @Override
-            void onAutomaticRuleStatusChanged(int userId, String pkg, String id, int status) {
+            public void onAutomaticRuleStatusChanged(
+                    int userId, String pkg, String id, int status) {
                 if (Objects.equals(createdId, id)) {
                     actualStatus[0] = status;
                     latch.countDown();
@@ -4769,7 +5123,8 @@ public class ZenModeHelperTest extends UiServiceTestCase {
         final int[] actualStatus = new int[1];
         ZenModeHelper.Callback callback = new ZenModeHelper.Callback() {
             @Override
-            void onAutomaticRuleStatusChanged(int userId, String pkg, String id, int status) {
+            public void onAutomaticRuleStatusChanged(
+                    int userId, String pkg, String id, int status) {
                 if (Objects.equals(createdId, id)) {
                     actualStatus[0] = status;
                     latch.countDown();
@@ -4804,7 +5159,8 @@ public class ZenModeHelperTest extends UiServiceTestCase {
         final int[] actualStatus = new int[1];
         ZenModeHelper.Callback callback = new ZenModeHelper.Callback() {
             @Override
-            void onAutomaticRuleStatusChanged(int userId, String pkg, String id, int status) {
+            public void onAutomaticRuleStatusChanged(
+                    int userId, String pkg, String id, int status) {
                 if (Objects.equals(createdId, id)) {
                     actualStatus[0] = status;
                     latch.countDown();
@@ -4845,7 +5201,8 @@ public class ZenModeHelperTest extends UiServiceTestCase {
             int i = 0;
 
             @Override
-            void onAutomaticRuleStatusChanged(int userId, String pkg, String id, int status) {
+            public void onAutomaticRuleStatusChanged(
+                    int userId, String pkg, String id, int status) {
                 if (Objects.equals(createdId, id)) {
                     actualStatus[i++] = status;
                     latch.countDown();
@@ -4888,7 +5245,8 @@ public class ZenModeHelperTest extends UiServiceTestCase {
             int i = 0;
 
             @Override
-            void onAutomaticRuleStatusChanged(int userId, String pkg, String id, int status) {
+            public void onAutomaticRuleStatusChanged(
+                    int userId, String pkg, String id, int status) {
                 if (Objects.equals(createdId, id)) {
                     actualStatus[i++] = status;
                     latch.countDown();
@@ -5102,6 +5460,107 @@ public class ZenModeHelperTest extends UiServiceTestCase {
                 CUSTOM_PKG_UID);
         assertThat(result).isNotNull();
         assertThat(result.getOwner().getClassName()).isEqualTo("old.third.party.cps");
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_ENABLE_DND_SYNC)
+    public void addAutomaticZenRule_backgroundUser_receivedChangeCallback() {
+        mZenModeHelper.onUserSwitched(UserHandle.USER_SYSTEM);
+        mZenModeHelper.onUserSwitched(10);
+        AutomaticZenRule rule =
+                new AutomaticZenRule.Builder("rule", CONDITION_ID)
+                        .setConfigurationActivity(new ComponentName(mPkg, "cls"))
+                        .setInterruptionFilter(INTERRUPTION_FILTER_PRIORITY)
+                        .build();
+        ZenModeHelper.Callback callback = mock(ZenModeHelper.Callback.class);
+        mZenModeHelper.addCallback(callback);
+
+        // Add zen rule for background user (USER_SYSTEM)
+        mZenModeHelper.addAutomaticZenRule(UserHandle.SYSTEM, mPkg, rule,
+                ORIGIN_APP, "reason", CUSTOM_PKG_UID);
+
+        verify(callback).onConfigChanged(UserHandle.SYSTEM);
+        verify(callback, never()).onConfigApplied();
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_ENABLE_DND_SYNC)
+    public void updateAutomaticZenRule_backgroundUser_receivedChangeCallback() {
+        mZenModeHelper.onUserSwitched(UserHandle.USER_SYSTEM);
+        mZenModeHelper.onUserSwitched(10);
+        AutomaticZenRule rule =
+                new AutomaticZenRule.Builder("rule", CONDITION_ID)
+                        .setConfigurationActivity(new ComponentName(mPkg, "cls"))
+                        .setInterruptionFilter(INTERRUPTION_FILTER_PRIORITY)
+                        .build();
+        // Add zen rule for background user (USER_SYSTEM)
+        String id = mZenModeHelper.addAutomaticZenRule(UserHandle.SYSTEM, mPkg, rule,
+                ORIGIN_APP, "reason", CUSTOM_PKG_UID);
+        // Add callback
+        ZenModeHelper.Callback callback = mock(ZenModeHelper.Callback.class);
+        mZenModeHelper.addCallback(callback);
+        // Update that rule.
+        rule.setEnabled(false);
+        mZenModeHelper.updateAutomaticZenRule(UserHandle.SYSTEM, id, rule, ORIGIN_APP, "reason",
+                CUSTOM_PKG_UID);
+
+        verify(callback).onConfigChanged(UserHandle.SYSTEM);
+        verify(callback, never()).onConfigApplied();
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_ENABLE_DND_SYNC)
+    public void removeAutomaticZenRule_backgroundUser_receivedChangeCallback() {
+        mZenModeHelper.onUserSwitched(UserHandle.USER_SYSTEM);
+        mZenModeHelper.onUserSwitched(10);
+        AutomaticZenRule rule =
+                new AutomaticZenRule.Builder("rule", CONDITION_ID)
+                        .setConfigurationActivity(new ComponentName(mPkg, "cls"))
+                        .setInterruptionFilter(INTERRUPTION_FILTER_PRIORITY)
+                        .build();
+        // Add zen rule for background user (USER_SYSTEM)
+        String id = mZenModeHelper.addAutomaticZenRule(UserHandle.SYSTEM, mPkg, rule,
+                ORIGIN_APP, "reason", CUSTOM_PKG_UID);
+        // Add callback
+        ZenModeHelper.Callback callback = mock(ZenModeHelper.Callback.class);
+        mZenModeHelper.addCallback(callback);
+        // Delete the rule.
+        mZenModeHelper.removeAutomaticZenRule(UserHandle.SYSTEM, id, ORIGIN_APP, "reason",
+                CUSTOM_PKG_UID);
+
+        verify(callback).onConfigChanged(UserHandle.SYSTEM);
+        verify(callback, never()).onConfigApplied();
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_ENABLE_DND_SYNC)
+    public void setManualZenMode_backgroundUser_receivedChangeCallback() {
+        mZenModeHelper.onUserSwitched(UserHandle.USER_SYSTEM);
+        mZenModeHelper.onUserSwitched(10);
+        ZenModeHelper.Callback callback = mock(ZenModeHelper.Callback.class);
+        mZenModeHelper.addCallback(callback);
+
+        // Change manual zen rule
+        mZenModeHelper.setManualZenMode(UserHandle.SYSTEM, ZEN_MODE_IMPORTANT_INTERRUPTIONS,
+                Uri.EMPTY, ORIGIN_APP, "reason", "caller", CUSTOM_PKG_UID);
+
+        verify(callback).onConfigChanged(UserHandle.SYSTEM);
+        verify(callback, never()).onConfigApplied();
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_ENABLE_DND_SYNC)
+    public void removeBackgroundUser_receivedChangeCallback() {
+        mZenModeHelper.onUserSwitched(10);
+        mZenModeHelper.onUserSwitched(UserHandle.USER_SYSTEM);
+        ZenModeHelper.Callback callback = mock(ZenModeHelper.Callback.class);
+        mZenModeHelper.addCallback(callback);
+
+        // Remove user 10.
+        mZenModeHelper.onUserRemoved(10);
+
+        verify(callback).onConfigChanged(UserHandle.of(10));
+        verify(callback, never()).onConfigApplied();
     }
 
     @Test
@@ -6028,7 +6487,7 @@ public class ZenModeHelperTest extends UiServiceTestCase {
         SettableFuture<Policy> futurePolicy = SettableFuture.create();
         mZenModeHelper.addCallback(new ZenModeHelper.Callback() {
             @Override
-            void onPolicyChanged(Policy newPolicy) {
+            public void onPolicyChanged(Policy newPolicy) {
                 futurePolicy.set(newPolicy);
             }
         });
@@ -6047,7 +6506,7 @@ public class ZenModeHelperTest extends UiServiceTestCase {
         SettableFuture<Policy> futureConsolidatedPolicy = SettableFuture.create();
         mZenModeHelper.addCallback(new ZenModeHelper.Callback() {
             @Override
-            void onConsolidatedPolicyChanged(Policy newConsolidatedPolicy) {
+            public void onConsolidatedPolicyChanged(Policy newConsolidatedPolicy) {
                 futureConsolidatedPolicy.set(newConsolidatedPolicy);
             }
         });
@@ -6325,8 +6784,8 @@ public class ZenModeHelperTest extends UiServiceTestCase {
         String ruleId = getOnlyElement(mZenModeHelper.mConfig.automaticRules.keySet());
 
         // Store this for checking later.
-        ZenPolicy originalEffectiveZenPolicy = new ZenPolicy.Builder(
-                mZenModeHelper.mConfig.getZenPolicy()).allowMedia(true).build();
+        ZenPolicy originalEffectiveZenPolicy = mZenModeHelper.mConfig.automaticRules.get(ruleId)
+                .zenPolicy.copy();
 
         // From user, update that rule's policy.
         AutomaticZenRule rule = mZenModeHelper.getAutomaticZenRule(UserHandle.CURRENT, ruleId,
@@ -6367,8 +6826,8 @@ public class ZenModeHelperTest extends UiServiceTestCase {
         String ruleId = getOnlyElement(mZenModeHelper.mConfig.automaticRules.keySet());
 
         // Store this for checking later.
-        ZenPolicy originalEffectiveZenPolicy = new ZenPolicy.Builder(
-                mZenModeHelper.mConfig.getZenPolicy()).allowMedia(true).build();
+        ZenPolicy originalEffectiveZenPolicy = mZenModeHelper.mConfig.automaticRules.get(ruleId)
+                .zenPolicy.copy();
 
         // From user, update something in that rule, but not the ZenPolicy.
         AutomaticZenRule rule = mZenModeHelper.getAutomaticZenRule(UserHandle.CURRENT, ruleId,
@@ -6439,7 +6898,32 @@ public class ZenModeHelperTest extends UiServiceTestCase {
 
     @Test
     public void getNotificationPolicyFromImplicitZenRule_returnsSetPolicy() {
-        Policy writtenPolicy = new Policy(PRIORITY_CATEGORY_CALLS | PRIORITY_CATEGORY_CONVERSATIONS,
+        int priorityCategories = PRIORITY_CATEGORY_CALLS | PRIORITY_CATEGORY_CONVERSATIONS;
+        Policy writtenPolicy = (splitSoundVibrationForNotificationBreakthrough())
+                ? new Policy(priorityCategories,
+                        PRIORITY_SENDERS_CONTACTS, PRIORITY_SENDERS_STARRED,
+                        Policy.getAllSuppressedVisualEffects(), STATE_FALSE,
+                        CONVERSATION_SENDERS_IMPORTANT, priorityCategories,
+                        priorityCategories)
+                : new Policy(priorityCategories, PRIORITY_SENDERS_CONTACTS,
+                        PRIORITY_SENDERS_STARRED, Policy.getAllSuppressedVisualEffects(),
+                        STATE_FALSE, CONVERSATION_SENDERS_IMPORTANT);
+        mZenModeHelper.applyGlobalPolicyAsImplicitZenRule(UserHandle.CURRENT, CUSTOM_PKG_NAME,
+                CUSTOM_PKG_UID, writtenPolicy);
+
+        Policy readPolicy = mZenModeHelper.getNotificationPolicyFromImplicitZenRule(
+                UserHandle.CURRENT, CUSTOM_PKG_NAME);
+
+        assertThat(readPolicy).isEqualTo(writtenPolicy);
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags
+            .FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public void
+    getNotificationPolicyFromImplicitZenRule_returnsSetPolicy_splitSoundVibration_defaultCtor() {
+        int priorityCategories = PRIORITY_CATEGORY_CALLS | PRIORITY_CATEGORY_CONVERSATIONS;
+        Policy writtenPolicy = new Policy(priorityCategories,
                 PRIORITY_SENDERS_CONTACTS, PRIORITY_SENDERS_STARRED,
                 Policy.getAllSuppressedVisualEffects(), STATE_FALSE,
                 CONVERSATION_SENDERS_IMPORTANT);
@@ -6449,7 +6933,13 @@ public class ZenModeHelperTest extends UiServiceTestCase {
         Policy readPolicy = mZenModeHelper.getNotificationPolicyFromImplicitZenRule(
                 UserHandle.CURRENT, CUSTOM_PKG_NAME);
 
-        assertThat(readPolicy).isEqualTo(writtenPolicy);
+        Policy expectedPolicy = new Policy(priorityCategories,
+                PRIORITY_SENDERS_CONTACTS, PRIORITY_SENDERS_STARRED,
+                Policy.getAllSuppressedVisualEffects(), STATE_FALSE,
+                CONVERSATION_SENDERS_IMPORTANT, priorityCategories,
+                priorityCategories);
+
+        assertThat(readPolicy).isEqualTo(expectedPolicy);
     }
 
     @Test
@@ -7112,6 +7602,7 @@ public class ZenModeHelperTest extends UiServiceTestCase {
 
         assertThat(mZenModeHelper.mConfig.isManualActive()).isTrue();
         assertThat(mZenModeHelper.mConfigs.get(1).isManualActive()).isFalse();
+        assertThat(mZenModeHelper.getManualZenMode(currentUser)).isEqualTo(ZEN_MODE_ALARMS);
 
         // And we sent the broadcast announcing the change.
         mTestableLooper.processAllMessages();
@@ -7133,6 +7624,7 @@ public class ZenModeHelperTest extends UiServiceTestCase {
 
         assertThat(mZenModeHelper.mConfig.isManualActive()).isFalse();
         assertThat(mZenModeHelper.mConfigs.get(1).isManualActive()).isTrue();
+        assertThat(mZenModeHelper.getManualZenMode(backgroundUser)).isEqualTo(ZEN_MODE_ALARMS);
 
         // And no broadcasts is sent for "background" changes (they were not evaluated).
         mTestableLooper.processAllMessages();
@@ -7190,7 +7682,6 @@ public class ZenModeHelperTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_MODES_UI_TILE_REACTIVATES_LAST)
     public void setAutomaticZenRuleState_updatesLastActivation() {
         String ruleOne = mZenModeHelper.addAutomaticZenRule(UserHandle.CURRENT, mPkg,
                 new AutomaticZenRule.Builder("rule", CONDITION_ID)
@@ -7281,7 +7772,6 @@ public class ZenModeHelperTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_MODES_UI_TILE_REACTIVATES_LAST)
     public void setManualZenMode_updatesLastActivation() {
         assertThat(mZenModeHelper.mConfig.manualRule.lastActivation).isNull();
         assertThat(mZenModeHelper.mConfig.manualRule.lastDeactivation).isNull();
@@ -7320,7 +7810,6 @@ public class ZenModeHelperTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_MODES_UI_TILE_REACTIVATES_LAST)
     public void setAutomaticZenRuleState_notChangingActiveState_doesNotUpdateLastActivation() {
         String ruleId = mZenModeHelper.addAutomaticZenRule(UserHandle.CURRENT, mPkg,
                 new AutomaticZenRule.Builder("rule", CONDITION_ID)
@@ -7352,7 +7841,6 @@ public class ZenModeHelperTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_MODES_UI_TILE_REACTIVATES_LAST)
     public void addOrUpdateRule_doesNotUpdateLastActivation() {
         AutomaticZenRule azr = new AutomaticZenRule.Builder("rule", CONDITION_ID)
                 .setConfigurationActivity(new ComponentName(mPkg, "cls"))
@@ -7375,6 +7863,191 @@ public class ZenModeHelperTest extends UiServiceTestCase {
         assertThat(getZenRule(ruleId).lastManualActivation).isNull();
         assertThat(getZenRule(ruleId).lastDeactivation).isNull();
         assertThat(getZenRule(ruleId).lastManualDeactivation).isNull();
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
+    public void testExemptPackages_hintsAllOn_zenOff_onlyHintsPkgExempted() {
+        // Zen mode is OFF and listener hints are set
+        mZenModeHelper.mZenMode = ZEN_MODE_OFF;
+        //Exempt PKG_P from listener hints and PKG_O from DnD
+        final String[] priorityOnlyExempted = new String[]{PKG_O};
+        final String[] listenerHintsExempted = new String[]{PKG_P};
+        mZenModeHelper.setExemptPackages(priorityOnlyExempted, listenerHintsExempted);
+        mZenModeHelper.setSuppressedEffects(SUPPRESSED_EFFECT_ALL);
+
+        // Check that only PKG_P is exempt
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(eq(AppOpsManager.OP_PLAY_AUDIO),
+                any(), eq(AppOpsManager.MODE_IGNORED), eq(listenerHintsExempted));
+        verify(mAppOps, atLeastOnce()).setAudioRestriction(eq(AppOpsManager.OP_VIBRATE),
+                any(), eq(AppOpsManager.MODE_IGNORED), eq(listenerHintsExempted));
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
+    public void testExemptPackages_hintsCallsOn_zenOff_onlyCallsUsageExempt() {
+        // Zen mode is OFF and listener hints are set
+        mZenModeHelper.mZenMode = ZEN_MODE_OFF;
+        //Exempt PKG_P from listener hints and PKG_O from DnD
+        final String[] priorityOnlyExempted = new String[]{PKG_O};
+        final String[] listenerHintsExempted = new String[]{PKG_P};
+        mZenModeHelper.setExemptPackages(priorityOnlyExempted, listenerHintsExempted);
+        mZenModeHelper.setSuppressedEffects(SUPPRESSED_EFFECT_CALLS);
+
+        // Muted usages that will have listener hints pkg exemptions
+        final int[] mutedUsages = new int[] {
+                AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_REQUEST,
+        };
+
+        // Check that only PKG_P is exempt
+        for (int usage: mutedUsages) {
+            verify(mAppOps, times(1)).setAudioRestriction(eq(AppOpsManager.OP_PLAY_AUDIO),
+                    eq(new int[]{usage}), eq(AppOpsManager.MODE_IGNORED),
+                    eq(listenerHintsExempted));
+            verify(mAppOps, times(1)).setAudioRestriction(eq(AppOpsManager.OP_VIBRATE),
+                    eq(new int[]{usage}), eq(AppOpsManager.MODE_IGNORED),
+                    eq(listenerHintsExempted));
+        }
+
+        verifyExemptedPackages(mutedUsages, listenerHintsExempted);
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
+    public void testExemptPackages_hintsNotificationsOn_zenOff_onlyNotifUsageExempt() {
+        // Zen mode is OFF and listener hints are set
+        mZenModeHelper.mZenMode = ZEN_MODE_OFF;
+        //Exempt PKG_P from listener hints and PKG_O from DnD
+        final String[] priorityOnlyExempted = new String[]{PKG_O};
+        final String[] listenerHintsExempted = new String[]{PKG_P};
+        mZenModeHelper.setExemptPackages(priorityOnlyExempted, listenerHintsExempted);
+        mZenModeHelper.setSuppressedEffects(SUPPRESSED_EFFECT_NOTIFICATIONS);
+
+        // Muted usages that will have listener hints pkg exemptions
+        final int[] mutedUsages = new int[] {
+                AudioAttributes.USAGE_NOTIFICATION,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_DELAYED,
+                AudioAttributes.USAGE_NOTIFICATION_EVENT,
+        };
+
+        verifyExemptedPackages(mutedUsages, listenerHintsExempted);
+    }
+
+    private void verifyExemptedPackages(int[] mutedUsages, String[] exemptedPackages) {
+        for (int usage : mutedUsages) {
+            assertThat(mZenModeHelper.getExemptPackages(usage)).isEqualTo(exemptedPackages);
+        }
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
+    public void testExemptPackages_hintsOn_zenPriorityOnly_exemptBasedOnUsage() {
+        // Zen mode is priority only and listener hints are set
+        mZenModeHelper.mZenMode = ZEN_MODE_IMPORTANT_INTERRUPTIONS;
+        //Exempt PKG_P, PKG_R from listener hints and PKG_O, PKG_R from DnD
+        final String[] priorityOnlyExempted = new String[]{PKG_O, PKG_R};
+        final String[] listenerHintsExempted = new String[]{PKG_P, PKG_R};
+        final String[] onlyCommonExempted = new String[]{PKG_R};
+        mZenModeHelper.setExemptPackages(priorityOnlyExempted, listenerHintsExempted);
+        mZenModeHelper.setSuppressedEffects(SUPPRESSED_EFFECT_ALL);
+
+        // Muted usages that will have both listener hints and zen pkg exemptions
+        final int[] mutedBothExemptedUsages = new int[] {
+                AudioAttributes.USAGE_NOTIFICATION,
+                AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_REQUEST,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_DELAYED,
+                AudioAttributes.USAGE_NOTIFICATION_EVENT,
+        };
+
+        // zen-only exempted muted usages
+        final int[]  mutedZenExemptedUsages = new int[] {
+                AudioAttributes.USAGE_ASSISTANCE_SONIFICATION,
+        };
+
+        verifyExemptedPackages(mutedZenExemptedUsages, priorityOnlyExempted);
+        // Check that only packages that are common to both lists are exempted
+        verifyExemptedPackages(mutedBothExemptedUsages, onlyCommonExempted);
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_LISTENER_HINT_EXEMPT_PACKAGES)
+    public void testExemptPackages_hintsOn_zenSilence_onlyHintsPkgExempted() {
+        // Zen mode is no interruptions and listener hints are set
+        mZenModeHelper.mZenMode = ZEN_MODE_NO_INTERRUPTIONS;
+        //Exempt PKG_P, PKG_R from listener hints and PKG_O, PKG_R from DnD
+        final String[] priorityOnlyExempted = new String[]{PKG_O, PKG_R};
+        final String[] listenerHintsExempted = new String[]{PKG_P, PKG_R};
+        mZenModeHelper.setExemptPackages(priorityOnlyExempted, listenerHintsExempted);
+        mZenModeHelper.setSuppressedEffects(SUPPRESSED_EFFECT_ALL);
+
+        // Muted usages that will have listener hints pkg exemptions
+        final int[] mutedHintsExemptedUsages = new int[] {
+                AudioAttributes.USAGE_NOTIFICATION,
+                AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_REQUEST,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT,
+                AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_DELAYED,
+                AudioAttributes.USAGE_NOTIFICATION_EVENT,
+        };
+
+        // All other muted usages
+        final IntArray mutedOtherUsages = IntArray.wrap(new int[] {
+                AudioAttributes.USAGE_UNKNOWN,
+                AudioAttributes.USAGE_MEDIA,
+                AudioAttributes.USAGE_ALARM,
+                AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE,
+                AudioAttributes.USAGE_GAME,
+                AudioAttributes.USAGE_ASSISTANT,
+        });
+
+        // Check that only listenerHintsExempted are exempted
+        for (int usage: mutedHintsExemptedUsages) {
+            verify(mAppOps, times(1)).setAudioRestriction(eq(AppOpsManager.OP_VIBRATE),
+                    eq(new int[]{usage}), eq(AppOpsManager.MODE_IGNORED),
+                    eq(listenerHintsExempted));
+        }
+        for (int usage: mutedOtherUsages.toArray()) {
+            verify(mAppOps, times(1)).setAudioRestriction(eq(AppOpsManager.OP_VIBRATE),
+                    eq(new int[]{usage}), eq(AppOpsManager.MODE_IGNORED), eq(null));
+        }
+
+        // Alarms only will silence system noises (but not vibrations)
+        mutedOtherUsages.add(4, AudioAttributes.USAGE_ASSISTANCE_SONIFICATION);
+        for (int usage: mutedHintsExemptedUsages) {
+            verify(mAppOps, times(1)).setAudioRestriction(eq(AppOpsManager.OP_PLAY_AUDIO),
+                    eq(new int[]{usage}), eq(AppOpsManager.MODE_IGNORED),
+                    eq(listenerHintsExempted));
+        }
+        for (int usage: mutedOtherUsages.toArray()) {
+            verify(mAppOps, times(1)).setAudioRestriction(eq(AppOpsManager.OP_PLAY_AUDIO),
+                    eq(new int[]{usage}), eq(AppOpsManager.MODE_IGNORED), eq(null));
+        }
+
+        verifyExemptedPackages(mutedHintsExemptedUsages, listenerHintsExempted);
+        verifyExemptedPackages(mutedOtherUsages.toArray(), null);
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_ENABLE_DND_SYNC)
+    public void testHasZenModeConfig() {
+        mZenModeHelper.onUserSwitched(UserHandle.USER_SYSTEM);
+        mZenModeHelper.onUserSwitched(10);
+
+        assertThat(mZenModeHelper.hasZenModeConfig(UserHandle.SYSTEM)).isTrue();
+        assertThat(mZenModeHelper.hasZenModeConfig(UserHandle.of(10))).isTrue();
+        assertThat(mZenModeHelper.hasZenModeConfig(UserHandle.CURRENT)).isTrue();
+        assertThat(mZenModeHelper.hasZenModeConfig(UserHandle.of(14))).isFalse();
+    }
+
+    private void verifyExemptedPackages(ArgumentCaptor<String[]> exemptPkgCaptor,
+            String[] expectedExemptedPkgs) {
+        for (String[] capturedArg: exemptPkgCaptor.getAllValues()) {
+            assertThat(capturedArg).isEqualTo(expectedExemptedPkgs);
+        }
     }
 
     private static void addZenRule(ZenModeConfig config, String id, String ownerPkg, int zenMode,

@@ -34,6 +34,7 @@ import android.util.Slog;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.compat.AndroidBuildClassifier;
+import com.android.internal.compat.CompatibilityRules;
 import com.android.internal.compat.CompatibilityChangeConfig;
 import com.android.internal.compat.CompatibilityChangeInfo;
 import com.android.internal.compat.CompatibilityOverrideConfig;
@@ -59,8 +60,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -112,10 +115,24 @@ final class CompatConfig {
 
     @android.ravenwood.annotation.RavenwoodReplace
     private void loadConfigFiles() {
-        initConfigFromLib(Environment.buildPath(
-                Environment.getRootDirectory(), "etc", "compatconfig"));
-        initConfigFromLib(Environment.buildPath(
-                Environment.getRootDirectory(), "system_ext", "etc", "compatconfig"));
+        if (CompatibilityRules.getRules().size() == 0) {
+            // This is for the case where the preloading is disabled, so it shouldn't be normally
+            // needed. We can remove this code later.
+            initConfigFromLib(Environment.buildPath(
+                    Environment.getRootDirectory(), "etc", "compatconfig"));
+            initConfigFromLib(Environment.buildPath(
+                    Environment.getRootDirectory(), "system_ext", "etc", "compatconfig"));
+        } else {
+            for (int i = 0; i < CompatibilityRules.getRules().size(); i++) {
+                CompatibilityChangeInfo info = CompatibilityRules.getRules().valueAt(i);
+                // Preloaded rules from Zygote already have enableSinceTargetSdk computed.
+                // We set enableAfterTargetSdk to -1 as it's no longer needed for these changes.
+                mChanges.put(info.getId(), new CompatChange(info.getId(), info.getName(),
+                        -1, info.getEnableSinceTargetSdk(), info.getDisabled(),
+                        info.getLoggingOnly(), info.getNoLogging(), info.getDescription(),
+                        info.getOverridable()));
+            }
+        }
 
         List<ApexManager.ActiveApexInfo> apexes = ApexManager.getInstance().getActiveApexInfos();
         for (ApexManager.ActiveApexInfo apex : apexes) {
@@ -152,6 +169,10 @@ final class CompatConfig {
      * <p>We use a primitive array to minimize memory footprint: every app process will store this
      * array statically so we aim to reduce overhead as much as possible.
      *
+     * <p>Note: These diffs are not cached here because they are only computed during app startup
+     * (Zygote fork) and caching them per-app would significantly increase memory pressure on the
+     * system server.
+     *
      * @param app the app in question
      * @return a sorted long array of change IDs
      */
@@ -159,10 +180,41 @@ final class CompatConfig {
         LongArray disabled = new LongArray();
         for (CompatChange c : mChanges.values()) {
             if (!c.isEnabled(app, mAndroidBuildClassifier)) {
+                // Change is disabled.
+                // Diffing logic: if the change is already disabled by preloaded rules in Zygote,
+                // we don't need to send it again in the app's arguments to save IPC bandwidth.
+                if (CompatibilityRules.getRules().indexOfKey(c.getId()) >= 0
+                        && !CompatibilityRules.isChangeEnabled(c.getId(), app.targetSdkVersion)) {
+                    continue;
+                }
                 disabled.add(c.getId());
             }
         }
         final long[] sortedChanges = disabled.toArray();
+        Arrays.sort(sortedChanges);
+        return sortedChanges;
+    }
+
+    /**
+     * Retrieves the set of enabled changes for a given app (overrides).
+     *
+     * @param app the app in question
+     * @return a sorted long array of change IDs
+     */
+    long[] getEnabledChanges(ApplicationInfo app) {
+        LongArray enabled = new LongArray();
+        for (CompatChange c : mChanges.values()) {
+            if (c.isEnabled(app, mAndroidBuildClassifier)) {
+                // Change is enabled.
+                // Diffing logic: if the change was supposed to be disabled by preloaded rules,
+                // but is now enabled (e.g. via an override), we must send it as a diff.
+                if (CompatibilityRules.getRules().indexOfKey(c.getId()) >= 0
+                        && !CompatibilityRules.isChangeEnabled(c.getId(), app.targetSdkVersion)) {
+                    enabled.add(c.getId());
+                }
+            }
+        }
+        final long[] sortedChanges = enabled.toArray();
         Arrays.sort(sortedChanges);
         return sortedChanges;
     }
@@ -184,6 +236,21 @@ final class CompatConfig {
             }
         }
         final long[] sortedChanges = loggable.toArray();
+        Arrays.sort(sortedChanges);
+        return sortedChanges;
+    }
+
+    /**
+     * Returns all the known compat-IDs. The result is sorted.
+     */
+    long[] getAllChangeIds() {
+        // mChanges is a ConcurrentHashMap, so it can change any time. So we go through
+        // LongArray to absorb possible concurrent changes.
+        LongArray list = new LongArray(mChanges.size());
+        for (CompatChange c : mChanges.values()) {
+            list.add(c.getId());
+        }
+        final long[] sortedChanges = list.toArray();
         Arrays.sort(sortedChanges);
         return sortedChanges;
     }
@@ -582,12 +649,12 @@ final class CompatConfig {
     }
 
     /**
-     * Enables all changes with enabledSinceTargetSdk == {@param targetSdkVersion} for
-     * {@param packageName}.
+     * Enables all changes with enabledSinceTargetSdk == {@code targetSdkVersion} for
+     * {@code packageName}.
      *
      * @return the number of changes that were toggled
      */
-    int enableTargetSdkChangesForPackage(String packageName, int targetSdkVersion) {
+    synchronized int enableTargetSdkChangesForPackage(String packageName, int targetSdkVersion) {
         long[] changes = getAllowedChangesSinceTargetSdkForPackage(packageName, targetSdkVersion);
         boolean shouldInvalidateCache = false;
         for (long changeId : changes) {
@@ -602,12 +669,12 @@ final class CompatConfig {
     }
 
     /**
-     * Disables all changes with enabledSinceTargetSdk == {@param targetSdkVersion} for
-     * {@param packageName}.
+     * Disables all changes with enabledSinceTargetSdk == {@code targetSdkVersion} for
+     * {@code packageName}.
      *
      * @return the number of changes that were toggled
      */
-    int disableTargetSdkChangesForPackage(String packageName, int targetSdkVersion) {
+    synchronized int disableTargetSdkChangesForPackage(String packageName, int targetSdkVersion) {
         long[] changes = getAllowedChangesSinceTargetSdkForPackage(packageName, targetSdkVersion);
         boolean shouldInvalidateCache = false;
         for (long changeId : changes) {
@@ -860,7 +927,7 @@ final class CompatConfig {
     /**
      * Rechecks all the existing overrides for a package.
      */
-    void recheckOverrides(String packageName) {
+    synchronized void recheckOverrides(String packageName) {
         Long versionCode = getVersionCodeOrNull(packageName);
         boolean shouldInvalidateCache = false;
         for (CompatChange c : mChanges.values()) {
@@ -897,8 +964,15 @@ final class CompatConfig {
 
     @Nullable
     private Long getVersionCodeOrNullImpl(String packageName) {
+        if (packageName == null) {
+            return null;
+        }
+        final PackageManager pm = mContext.getPackageManager();
+        if (pm == null) {
+            return null;
+        }
         try {
-            ApplicationInfo applicationInfo = mContext.getPackageManager().getApplicationInfo(
+            ApplicationInfo applicationInfo = pm.getApplicationInfo(
                     packageName, MATCH_ANY_USER);
             return applicationInfo.longVersionCode;
         } catch (PackageManager.NameNotFoundException e) {

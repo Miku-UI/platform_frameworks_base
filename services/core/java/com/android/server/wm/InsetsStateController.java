@@ -16,8 +16,8 @@
 
 package com.android.server.wm;
 
-import static android.internal.perfetto.protos.Windowmanagerservice.DisplayContentProto.IME_INSETS_SOURCE_PROVIDER;
-import static android.internal.perfetto.protos.Windowmanagerservice.DisplayContentProto.INSETS_SOURCE_PROVIDERS;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsStateControllerProto.INSETS_SOURCE_PROVIDERS;
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsStateControllerProto.INSETS_STATE;
 import static android.os.Trace.TRACE_TAG_WINDOW_MANAGER;
 import static android.view.InsetsSource.FLAG_FORCE_CONSUMING;
 import static android.view.InsetsSource.ID_IME;
@@ -229,14 +229,13 @@ class InsetsStateController {
         final var aboveInsetsState = new InsetsState();
         aboveInsetsState.set(mState,
                 displayCutout() | systemGestures() | mandatorySystemGestures());
-        final var localInsetsSourcesFromParent = new SparseArray<InsetsSource>();
         final var insetsChangedWindows = new ArraySet<WindowState>();
 
         // This method will iterate on the entire hierarchy in top to bottom z-order manner. The
         // aboveInsetsState will be modified as per the insets provided by the WindowState being
         // visited.
-        mDisplayContent.updateAboveInsetsState(aboveInsetsState, localInsetsSourcesFromParent,
-                insetsChangedWindows);
+        mDisplayContent.updateAboveInsetsState(aboveInsetsState,
+                null /* localInsetsSourcesFromParent */, insetsChangedWindows);
 
         if (notifyInsetsChange) {
             for (int i = insetsChangedWindows.size() - 1; i >= 0; i--) {
@@ -261,10 +260,12 @@ class InsetsStateController {
     void onRequestedVisibleTypesChanged(@NonNull InsetsTarget caller, @InsetsType int changedTypes,
             @Nullable ImeTracker.Token statsToken) {
         boolean changed = false;
+        boolean hasImeProvider = false;
         for (int i = mProviders.size() - 1; i >= 0; i--) {
             final InsetsSourceProvider provider = mProviders.valueAt(i);
             final @InsetsType int type = provider.getSource().getType();
             final boolean isImeProvider = type == WindowInsets.Type.ime();
+            hasImeProvider |= isImeProvider;
             if ((type & changedTypes) != 0) {
                 changed |= provider.updateClientVisibility(caller,
                         isImeProvider ? statsToken : null)
@@ -273,8 +274,13 @@ class InsetsStateController {
                         || (caller == provider.getFakeControlTarget());
             } else if (isImeProvider) {
                 ImeTracker.forLogging().onCancelled(statsToken,
-                        ImeTracker.PHASE_WM_SET_REMOTE_TARGET_IME_VISIBILITY);
+                        ImeTracker.PHASE_SERVER_SET_REMOTE_TARGET_IME_VISIBILITY);
             }
+        }
+        if ((WindowInsets.Type.ime() & changedTypes) != 0 && !hasImeProvider) {
+            // The ImeInsetsSourceProvider was not created yet (e.g. no IME window was set).
+            ImeTracker.forLogging().onFailed(statsToken,
+                    ImeTracker.PHASE_SERVER_SET_REMOTE_TARGET_IME_VISIBILITY);
         }
         if (changed) {
             notifyInsetsChanged();
@@ -558,15 +564,13 @@ class InsetsStateController {
                     + WindowInsets.Type.toString(mForcedConsumingTypes));
         }
     }
-
-    void dumpDebug(@NonNull ProtoOutputStream proto, @WindowTracingLogLevel int logLevel) {
+    void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId) {
+        final long token = proto.start(fieldId);
+        mState.dumpDebug(proto, INSETS_STATE);
         for (int i = mProviders.size() - 1; i >= 0; i--) {
             final InsetsSourceProvider provider = mProviders.valueAt(i);
-            provider.dumpDebug(proto,
-                    provider.getSource().getType() == ime()
-                            ? IME_INSETS_SOURCE_PROVIDER
-                            : INSETS_SOURCE_PROVIDERS,
-                    logLevel);
+            provider.dumpDebug(proto, INSETS_SOURCE_PROVIDERS);
         }
+        proto.end(token);
     }
 }

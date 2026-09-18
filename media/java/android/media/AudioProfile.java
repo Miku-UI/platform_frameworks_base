@@ -21,12 +21,12 @@ import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 /**
  * An AudioProfile is specific to an audio format and lists supported sampling rates and
@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
  * be reported in different audio profiles. The application can choose any of the encapsulation
  * types.
  */
+@RavenwoodKeepWholeClass
 public class AudioProfile implements Parcelable {
     /**
      * No encapsulation type is specified.
@@ -63,8 +64,7 @@ public class AudioProfile implements Parcelable {
 
     private final int mFormat;
     private final int[] mSamplingRates;
-    private final int[] mChannelMasks;
-    private final int[] mChannelIndexMasks;
+    private final AudioFormat.ChannelMasksArray mChannelMasks;
     private final int mEncapsulationType;
 
     /**
@@ -80,11 +80,24 @@ public class AudioProfile implements Parcelable {
     @SystemApi
     public AudioProfile(int format, @NonNull int[] samplingRates, @NonNull int[] channelMasks,
                  @NonNull int[] channelIndexMasks, int encapsulationType) {
+        this(format, samplingRates,
+                new AudioFormat.ChannelMasksArray(channelMasks, channelIndexMasks),
+                encapsulationType);
+    }
+
+    /**
+     * @hide
+     */
+    public AudioProfile(int format, @NonNull int[] samplingRates,
+                 @NonNull AudioFormat.ChannelMasksArray channelMasks, int encapsulationType) {
         mFormat = format;
         mSamplingRates = samplingRates;
         mChannelMasks = channelMasks;
-        mChannelIndexMasks = channelIndexMasks;
         mEncapsulationType = encapsulationType;
+    }
+
+    AudioFormat.ChannelMasksArray getChannelMasksArray() {
+        return mChannelMasks;
     }
 
     /**
@@ -98,14 +111,14 @@ public class AudioProfile implements Parcelable {
      * @return an array of channel position masks that are associated with the encoding format.
      */
     public @NonNull int[] getChannelMasks() {
-        return mChannelMasks;
+        return mChannelMasks.getPositionMasks();
     }
 
     /**
      * @return an array of channel index masks that are associated with the encoding format.
      */
     public @NonNull int[] getChannelIndexMasks() {
-        return mChannelIndexMasks;
+        return mChannelMasks.getIndexMasks();
     }
 
     /**
@@ -137,7 +150,7 @@ public class AudioProfile implements Parcelable {
     @Override
     public int hashCode() {
         return Objects.hash(mFormat, Arrays.hashCode(mSamplingRates),
-                Arrays.hashCode(mChannelMasks), Arrays.hashCode(mChannelIndexMasks),
+                mChannelMasks,
                 mEncapsulationType);
     }
 
@@ -149,8 +162,7 @@ public class AudioProfile implements Parcelable {
         AudioProfile that = (AudioProfile) o;
         return ((mFormat == that.mFormat)
                 && (hasIdenticalElements(mSamplingRates, that.mSamplingRates))
-                && (hasIdenticalElements(mChannelMasks, that.mChannelMasks))
-                && (hasIdenticalElements(mChannelIndexMasks, that.mChannelIndexMasks))
+                && (Objects.equals(mChannelMasks, that.mChannelMasks))
                 && (mEncapsulationType == that.mEncapsulationType));
     }
 
@@ -161,23 +173,10 @@ public class AudioProfile implements Parcelable {
         if (mSamplingRates != null && mSamplingRates.length > 0) {
             sb.append(", sampling rates=").append(Arrays.toString(mSamplingRates));
         }
-        if (mChannelMasks != null && mChannelMasks.length > 0) {
-            sb.append(", channel masks=").append(toHexString(mChannelMasks));
-        }
-        if (mChannelIndexMasks != null && mChannelIndexMasks.length > 0) {
-            sb.append(", channel index masks=").append(Arrays.toString(mChannelIndexMasks));
-        }
+        sb.append(mChannelMasks.toString());
         sb.append(", encapsulation type=" + mEncapsulationType);
         sb.append("}");
         return sb.toString();
-    }
-
-    private static String toHexString(int[] ints) {
-        if (ints == null || ints.length == 0) {
-            return "";
-        }
-        return Arrays.stream(ints).mapToObj(anInt -> String.format("0x%02X", anInt))
-                .collect(Collectors.joining(", "));
     }
 
     private static boolean hasIdenticalElements(int[] array1, int[] array2) {
@@ -197,16 +196,17 @@ public class AudioProfile implements Parcelable {
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeInt(mFormat);
         dest.writeIntArray(mSamplingRates);
-        dest.writeIntArray(mChannelMasks);
-        dest.writeIntArray(mChannelIndexMasks);
+        dest.writeIntArray(mChannelMasks.getPositionMasks());
+        dest.writeIntArray(mChannelMasks.getIndexMasks());
         dest.writeInt(mEncapsulationType);
     }
 
     private AudioProfile(@NonNull Parcel in) {
         mFormat = in.readInt();
         mSamplingRates = in.createIntArray();
-        mChannelMasks = in.createIntArray();
-        mChannelIndexMasks = in.createIntArray();
+        mChannelMasks = new AudioFormat.ChannelMasksArray(
+                in.createIntArray(),
+                in.createIntArray());
         mEncapsulationType = in.readInt();
     }
 

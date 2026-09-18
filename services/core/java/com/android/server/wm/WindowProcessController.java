@@ -21,6 +21,7 @@ import static android.app.ActivityManager.PROCESS_STATE_NONEXISTENT;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
+import static android.content.pm.ActivityInfo.PERSIST_ACROSS_REBOOTS;
 import static android.content.res.Configuration.ASSETS_SEQ_UNDEFINED;
 import static android.os.Build.VERSION_CODES.Q;
 import static android.os.InputConstants.DEFAULT_DISPATCHING_TIMEOUT_MILLIS;
@@ -28,9 +29,10 @@ import static android.view.WindowManager.TRANSIT_CLOSE;
 import static android.view.WindowManager.TRANSIT_FLAG_APP_CRASHED;
 
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_CONFIGURATION;
+import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_PACKAGE_UPDATE;
 import static com.android.internal.util.Preconditions.checkArgument;
-import static com.android.server.am.ProcessList.INVALID_ADJ;
-import static com.android.server.am.ProcessList.PERCEPTIBLE_APP_ADJ;
+import static com.android.server.am.psc.Constants.INVALID_ADJ;
+import static com.android.server.am.psc.Constants.PERCEPTIBLE_APP_ADJ;
 import static com.android.server.wm.ActivityRecord.State.DESTROYED;
 import static com.android.server.wm.ActivityRecord.State.DESTROYING;
 import static com.android.server.wm.ActivityRecord.State.PAUSED;
@@ -57,7 +59,9 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
+import android.app.ActivityManager.ProcessState;
 import android.app.ActivityThread;
+import android.app.ApplicationExitInfo;
 import android.app.BackgroundStartPrivileges;
 import android.app.IApplicationThread;
 import android.app.ProfilerInfo;
@@ -81,6 +85,7 @@ import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.Log;
 import android.util.Slog;
 import android.util.proto.ProtoOutputStream;
@@ -92,8 +97,9 @@ import com.android.internal.app.HeavyWeightSwitcherActivity;
 import com.android.internal.protolog.ProtoLog;
 import com.android.internal.util.function.pooled.PooledLambda;
 import com.android.server.Watchdog;
-import com.android.server.am.Flags;
 import com.android.server.am.psc.AsyncBatchSession;
+import com.android.server.am.psc.Constants.OomAdjust;
+import com.android.server.am.psc.Constants.SchedGroup;
 import com.android.server.am.psc.ProcessRecordInternal;
 import com.android.server.art.ReasonMapping;
 import com.android.server.grammaticalinflection.GrammaticalInflectionManagerInternal;
@@ -157,7 +163,8 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
     final int mUserId;
     // The owner of this window process controller object. Mainly for identification when we
     // communicate back to the activity manager side.
-    public final Object mOwner;
+    @NonNull
+    public final ProcessRecordInternal mOwner;
     // List of packages running in the process
     @GuardedBy("itself")
     private final ArrayList<String> mPkgList = new ArrayList<>(1);
@@ -168,13 +175,17 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
     // process of launching the app)
     private IApplicationThread mThread;
     // Currently desired scheduling class
-    private volatile int mCurSchedGroup;
-    // Currently computed process state
-    private volatile int mCurProcState = PROCESS_STATE_NONEXISTENT;
+    private volatile @SchedGroup int mCurSchedGroup;
+    /**
+     * Currently computed process state.
+     * When {@link com.android.server.am.Flags#encapsulateCurProcState()} is enabled, the value is
+     * updated after the computation is done.
+     */
+    private volatile @ProcessState int mCurProcState = PROCESS_STATE_NONEXISTENT;
     // Last reported process state;
-    private volatile int mRepProcState = PROCESS_STATE_NONEXISTENT;
+    private volatile @ProcessState int mRepProcState = PROCESS_STATE_NONEXISTENT;
     // Currently computed oom adj score
-    private volatile int mCurAdj = INVALID_ADJ;
+    private volatile @OomAdjust int mCurAdj = INVALID_ADJ;
     // are we in the process of crashing?
     private volatile boolean mCrashing;
     // does the app have a not responding dialog?
@@ -189,13 +200,14 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
     private volatile boolean mHasClientActivities;
     // Is this process currently showing a non-activity UI that the user is interacting with?
     // E.g. The status bar when it is expanded, but not when it is minimized. When true the process
-    // will be set to use the ProcessList#SCHED_GROUP_TOP_APP scheduling group to boost performance.
+    // will be set to use the {@link com.android.server.am.psc.Constants#SCHED_GROUP_TOP_APP}
+    // scheduling group to boost performance.
     private volatile boolean mHasTopUi;
     // Is the process currently showing a non-activity UI that overlays on-top of activity UIs on
     // screen. E.g. display a window of type
     // android.view.WindowManager.LayoutParams#TYPE_APPLICATION_OVERLAY When true the process will
-    // oom adj score will be set to ProcessList#PERCEPTIBLE_APP_ADJ at minimum to reduce the chance
-    // of the process getting killed.
+    // oom adj score will be set to {@link com.android.server.am.psc.Constants#PERCEPTIBLE_APP_ADJ}
+    // at minimum to reduce the chance of the process getting killed.
     private volatile boolean mHasOverlayUi;
     // Want to clean up resources from showing UI?
     private volatile boolean mPendingUiClean;
@@ -241,6 +253,12 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
     private volatile boolean mHasActivities;
     /** All activities running in the process (exclude destroying). */
     private final ArrayList<ActivityRecord> mActivities = new ArrayList<>();
+
+    /** All activities that are waiting to be stopped due to package update. */
+    private final ArrayList<ActivityRecord> mActivitiesToBeStopped = new ArrayList<>();
+    /** All tasks that are waiting to be handled as part of package update. */
+    private final ArraySet<Task> mUpdatingTasks = new ArraySet<>();
+
     /** The activities will be removed but still belong to this process. */
     private ArrayList<ActivityRecord> mInactiveActivities;
     /** Whether {@link #mRecentTasks} is not empty. */
@@ -364,9 +382,20 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
 
     private volatile PackageOptimizationInfo mOptimizationInfo = null;
 
+    /**
+     * Last exit info for the process, set once shortly after construction.
+     */
+    @Nullable
+    private volatile ApplicationExitInfo mLastExitInfo;
+
+    /**
+     * Whether we logged AppRestartOccurred event for the process.
+     */
+    private boolean mAppRestartLogged;
+
     public WindowProcessController(@NonNull ActivityTaskManagerService atm,
-            @NonNull ApplicationInfo info, String name, int uid, int userId, Object owner,
-            @NonNull WindowProcessListener listener) {
+            @NonNull ApplicationInfo info, String name, int uid, int userId,
+            @NonNull ProcessRecordInternal owner, @NonNull WindowProcessListener listener) {
         mInfo = info;
         mName = name;
         mUid = uid;
@@ -375,7 +404,8 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
         mListener = listener;
         mAtm = atm;
         mBgLaunchController = new BackgroundLaunchProcessController(
-                atm::hasActiveVisibleWindow, atm.getBackgroundActivityStartCallback());
+                atm::hasActiveVisibleWindow, atm::hasActiveVisibleNotPinnedWindow,
+                atm.getBackgroundActivityStartCallback());
 
         boolean isSysUiPackage = info.packageName.equals(
                 mAtm.getSysUiServiceComponentLocked().getPackageName());
@@ -409,6 +439,7 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
             } else {
                 // The process is inactive.
                 mAtm.mVisibleActivityProcessTracker.removeProcess(this);
+                mAtm.removeProcessFromStoppingMap(getPackageList(), mPid);
             }
         }
     }
@@ -421,18 +452,25 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
         return mThread != null;
     }
 
-    int getCurrentSchedulingGroup() {
+    @SchedGroup int getCurrentSchedulingGroup() {
         return mCurSchedGroup;
     }
 
-    void setCurrentProcState(int curProcState) {
-        mCurProcState = curProcState;
+    /**
+     * Sets the current process state.
+     *
+     * @param procState The new process state.
+     */
+    public void setCurrentProcState(@ProcessState int procState) {
+        mCurProcState = procState;
     }
 
+    @ProcessState
     int getCurrentProcState() {
         return mCurProcState;
     }
 
+    @OomAdjust
     int getCurrentAdj() {
         return mCurAdj;
     }
@@ -442,8 +480,8 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
      * called in activity manager's lock, so don't use window manager lock here.
      */
     @HotPath(caller = HotPath.OOM_ADJUSTMENT)
-    public void setReportedProcState(int repProcState) {
-        final int prevProcState = mRepProcState;
+    public void setReportedProcState(@ProcessState int repProcState) {
+        final @ProcessState int prevProcState = mRepProcState;
         mRepProcState = repProcState;
 
         // Deliver the cached config if the app changes from cached state to non-cached state.
@@ -463,7 +501,7 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
         }
     }
 
-    int getReportedProcState() {
+    @ProcessState int getReportedProcState() {
         return mRepProcState;
     }
 
@@ -813,7 +851,7 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
         }
         mActivities.add(r);
         if (!mHasActivities) {
-            mAtm.mActivityStateUpdater.setHasActivityAsync(this, true);
+            mAtm.mActivityStateUpdater.setHasActivityAsync(mOwner, true);
         }
         mHasActivities = true;
         if (mInactiveActivities != null) {
@@ -846,7 +884,7 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
         mActivities.remove(r);
         mHasActivities = !mActivities.isEmpty();
         if (!mHasActivities) {
-            mAtm.mActivityStateUpdater.setHasActivityAsync(this, false);
+            mAtm.mActivityStateUpdater.setHasActivityAsync(mOwner, false);
         }
         updateActivityConfigurationListener();
     }
@@ -855,7 +893,7 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
         mInactiveActivities = null;
         mActivities.clear();
         mHasActivities = false;
-        mAtm.mActivityStateUpdater.setHasActivityAsync(this, false);
+        mAtm.mActivityStateUpdater.setHasActivityAsync(mOwner, false);
         updateActivityConfigurationListener();
     }
 
@@ -876,6 +914,21 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
     @HotPath(caller = HotPath.LRU_UPDATE)
     public boolean hasActivitiesOrRecentTasks() {
         return mHasActivities || mHasRecentTasks;
+    }
+
+    /**
+     * Check if any Activity is visible (or visibility requested) and not pinned.
+     */
+    boolean hasVisibleNotPinnedActivity() {
+        if (!hasVisibleActivities()) return false;
+        for (int i = mActivities.size() - 1; i >= 0; --i) {
+            final ActivityRecord activityRecord = mActivities.get(i);
+            if ((activityRecord.isVisible() || activityRecord.isVisibleRequested())
+                    && !activityRecord.inPinnedWindowingMode()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Nullable
@@ -1345,7 +1398,7 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
         }
         mActivityStateFlags = stateFlags;
         mPerceptibleTaskStoppedTimeMillis = perceptibleTaskStoppedTimeMillis;
-        mAtm.mActivityStateUpdater.setActivityStateAsync(this, stateFlags,
+        mAtm.mActivityStateUpdater.setActivityStateAsync(mOwner, stateFlags,
                 perceptibleTaskStoppedTimeMillis);
 
         final boolean anyVisible = (stateFlags & ACTIVITY_STATE_FLAG_IS_VISIBLE) != 0;
@@ -1388,9 +1441,7 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
         int freeformTasks = 0;
         boolean anyTaskOnExternalDisplay = false;
         int relaunchReason;
-        final boolean logCrashDesktopInfo =
-                com.android.window.flags.Flags.enableCrashLoggingForDesktop()
-                        && canEnterDesktopMode(mAtm.mContext);
+        final boolean logCrashDesktopInfo = canEnterDesktopMode(mAtm.mContext);
 
         synchronized (mAtm.mGlobalLock) {
             relaunchReason = computeRelaunchReasonInner();
@@ -1461,18 +1512,11 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
             }
 
             // Posting on handler so WM lock isn't held when we call into AM.
-            if (Flags.pushActivityStateToOomadjuster()) {
-                // updateProcessInfo can trigger an OomAdjuster update, let the
-                // ProcessStateController batch session handle it.
-                batchSession.enqueue(
-                        () -> mListener.updateProcessInfo(updateServiceConnectionActivities,
-                                activityChange, updateOomAdj));
-            } else {
-                final Message m = PooledLambda.obtainMessage(
-                        WindowProcessListener::updateProcessInfo,
-                        mListener, updateServiceConnectionActivities, activityChange, updateOomAdj);
-                mAtm.mH.sendMessage(m);
-            }
+            // updateProcessInfo can trigger an OomAdjuster update, let the
+            // ProcessStateController batch session handle it.
+            batchSession.enqueue(
+                    () -> mListener.updateProcessInfo(updateServiceConnectionActivities,
+                            activityChange, updateOomAdj));
         }
     }
 
@@ -1538,6 +1582,13 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
         } else {
             packageName = null;
         }
+        if (mAtm.getActivityStartController().isInExecution()) {
+            // This is primarily for scenarios like freeform or translucent activities, where the
+            // launch request is executed directly without a prior pause of the previous activity,
+            // causing an immediate and asynchronous process state change before logging.
+            mAtm.mTaskSupervisor.getActivityMetricsLogger().setLastLaunchingProcessState(mPid,
+                    mCurProcState, mCurAdj);
+        }
         // update ActivityManagerService.PendingStartActivityUids list.
         if (topProcessState == ActivityManager.PROCESS_STATE_TOP) {
             mAtm.mAmInternal.addPendingTopUid(mUid, mPid, mThread);
@@ -1550,17 +1601,107 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
             // Posting the message at the front of queue so WM lock isn't held when we call into AM,
             // and the process state of starting activity can be updated quicker which will give it
             // a higher scheduling group.
-            if (Flags.pushActivityStateToOomadjuster()) {
-                batchSession.postToHead();
-                batchSession.enqueue(
-                        () -> mListener.onStartActivity(topProcessState, shouldSetProfileProc(),
-                                packageName, info.applicationInfo.longVersionCode));
-            } else {
-                final Message m = PooledLambda.obtainMessage(WindowProcessListener::onStartActivity,
-                        mListener, topProcessState, shouldSetProfileProc(), packageName,
-                        info.applicationInfo.longVersionCode);
-                mAtm.mH.sendMessageAtFrontOfQueue(m);
+            batchSession.postToHead();
+            batchSession.enqueue(
+                    () -> mListener.onStartActivity(topProcessState, shouldSetProfileProc(),
+                            packageName, info.applicationInfo.longVersionCode));
+        }
+    }
+
+    /**
+     * This method has a few steps:
+     *
+     * 1) Go over all the activities in the process and find the ones that needs to be stopped.
+     * 2) During the above loop also find tasks that are handled outside of system.
+     * 3.a) If the tasks are handled outside the system
+     *      1) Send a signal about the tasks to external handler
+     *      2) Stop the activities that need to be stopped or kill the application.
+     *
+     * 3.b) If there are no tasks handled outside the system, stop the activities that need to be
+     * stopped or kill the application.
+     *
+     */
+    void stopAndKillProcessForUpdate(String pkg) {
+        final ArrayList<ActivityRecord> activities = new ArrayList<>(mActivities);
+
+        for (int i = 0; i < activities.size(); i++) {
+            final ActivityRecord r = activities.get(i);
+            final Task task = r.getTask();
+            ProtoLog.w(WM_DEBUG_PACKAGE_UPDATE, "Found activity %s for the process", r);
+            if (pkg.equals(r.packageName) && r.isRootOfTask()) {
+                if (task.getRootTask().mHandlePackageUpdate) {
+                    mUpdatingTasks.add(task);
+                }
+                // Only stop activities that are resumed and the package name of the root
+                // activity is also the same as desired package.
+                if (r.isState(RESUMED) && r.info.persistableMode == PERSIST_ACROSS_REBOOTS) {
+                    mActivitiesToBeStopped.add(r);
+                }
             }
+        }
+
+        if (!mUpdatingTasks.isEmpty()) {
+            // TODO: b/455568724 - Wait for shells response to go ahead with killing
+            mAtm.mTaskOrganizerController.onPackageUpdateRequest(mUpdatingTasks);
+            mAtm.mPackageUpdateManager.addUpdatingTasksForPackage(pkg, mUpdatingTasks);
+            // Only stop the activities that are not meant to be handled by Shell.
+            for (int i = 0; i < mActivitiesToBeStopped.size(); i++) {
+                final ActivityRecord ar = mActivitiesToBeStopped.get(i);
+                if (!mUpdatingTasks.contains(ar.getTask())) {
+                    final Task task = ar.getTask();
+                    task.moveTaskToBack(task);
+                    ar.stopIfPossible();
+                    ProtoLog.w(WM_DEBUG_PACKAGE_UPDATE,
+                            "Process has tasks that are partially handled, so stopping and "
+                                    + "hiding %d instead",
+                            task.mTaskId);
+                }
+            }
+        } else {
+            // Shell is not handling, should core just hide the tasks here?
+            if (mActivitiesToBeStopped.isEmpty()) {
+                // There are no activities to be stopped, we can now kill the process
+                // appropriate presentation.
+                mAtm.onProcessReadyToBeKilled(pkg, this);
+            } else {
+                // Stop the activities, kill will be handled in onActivityStoppedForUpdate(). Only
+                // the persistent ones.
+                for (int i = 0; i < mActivitiesToBeStopped.size(); i++) {
+                    final ActivityRecord ar = mActivitiesToBeStopped.get(i);
+                    final Task task = ar.getTask();
+                    task.moveTaskToBack(task);
+                    ar.stopIfPossible();
+                }
+            }
+
+        }
+    }
+
+    void onActivityStopped(ActivityRecord r) {
+        // Only check for completion if the removal was successful
+        if (mActivitiesToBeStopped.remove(r)) {
+            checkAndNotifyProcessKill(r.packageName);
+        }
+    }
+
+    /**
+     * Called when a task that was marked with {@link Task#mHandlePackageUpdate} has finished
+     * its external handling process during a package update.
+     * @param task The task that has completed its package update handling.
+     */
+    void onTaskPackageUpdateHandled(Task task) {
+        if (mUpdatingTasks.remove(task)) {
+            checkAndNotifyProcessKill(task.getBasePackageName());
+        }
+    }
+
+    /**
+     * Checks if all pending activities and tasks are finished.
+     * If so, notifies the ATM that the process is ready to be killed.
+     */
+    private void checkAndNotifyProcessKill(String packageName) {
+        if (mActivitiesToBeStopped.isEmpty() && mUpdatingTasks.isEmpty()) {
+            mAtm.onProcessReadyToBeKilled(packageName, this);
         }
     }
 
@@ -1775,10 +1916,10 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
                 && newParentConfig.assetsSeq > requestedOverrideConfig.assetsSeq) {
             requestedOverrideConfig.assetsSeq = ASSETS_SEQ_UNDEFINED;
         }
+        // Make sure that we don't accidentally override the activity type.
+        requestedOverrideConfig.windowConfiguration.setActivityType(ACTIVITY_TYPE_UNDEFINED);
         super.resolveOverrideConfiguration(newParentConfig);
         final Configuration resolvedConfig = getResolvedOverrideConfiguration();
-        // Make sure that we don't accidentally override the activity type.
-        resolvedConfig.windowConfiguration.setActivityType(ACTIVITY_TYPE_UNDEFINED);
         // Activity has an independent ActivityRecord#mConfigurationSeq. If this process registers
         // activity configuration, its config seq shouldn't go backwards by activity configuration.
         // Otherwise if other places send wpc.getConfiguration() to client, the configuration may
@@ -1942,7 +2083,7 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
     void addRecentTask(Task task) {
         mRecentTasks.add(task);
         mHasRecentTasks = true;
-        mAtm.mActivityStateUpdater.setHasRecentTasksAsync(this, true);
+        mAtm.mActivityStateUpdater.setHasRecentTasksAsync(mOwner, true);
     }
 
     void removeRecentTask(Task task) {
@@ -1950,7 +2091,7 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
         final boolean hasRecentTask = !mRecentTasks.isEmpty();
         mHasRecentTasks = hasRecentTask;
         if (!hasRecentTask) {
-            mAtm.mActivityStateUpdater.setHasRecentTasksAsync(this, false);
+            mAtm.mActivityStateUpdater.setHasRecentTasksAsync(mOwner, false);
         }
     }
 
@@ -1965,7 +2106,7 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
         }
         mRecentTasks.clear();
         mHasRecentTasks = false;
-        mAtm.mActivityStateUpdater.setHasRecentTasksAsync(this, false);
+        mAtm.mActivityStateUpdater.setHasRecentTasksAsync(mOwner, false);
     }
 
     public void appEarlyNotResponding(String annotation, Runnable killAppCallback) {
@@ -2060,27 +2201,27 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
     }
 
     @Override
-    public void onCurRawAdjChanged(int curRawAdj) {
+    public void onCurRawAdjChanged(@OomAdjust int curRawAdj) {
         mPerceptible = (curRawAdj <= PERCEPTIBLE_APP_ADJ);
     }
 
     @Override
-    public void onCurAdjChanged(int curAdj) {
+    public void onCurAdjChanged(@OomAdjust int curAdj) {
         mCurAdj = curAdj;
     }
 
     @Override
-    public void onCurrentSchedulingGroupChanged(int curSchedGroup) {
+    public void onCurrentSchedulingGroupChanged(@SchedGroup int curSchedGroup) {
         mCurSchedGroup = curSchedGroup;
     }
 
     @Override
-    public void onCurProcStateChanged(int curProcState) {
+    public void onCurProcStateChanged(@ProcessState int curProcState) {
         mCurProcState = curProcState;
     }
 
     @Override
-    public void onReportedProcStateChanged(int repProcState) {
+    public void onReportedProcStateChanged(@ProcessState int repProcState) {
         setReportedProcState(repProcState);
     }
 
@@ -2094,18 +2235,15 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
         mHasOverlayUi = hasOverlayUi;
     }
 
-    @Override
-    public void onInteractionEventTimeChanged(long interactionEventTime) {
+    public void setInteractionEventTime(long interactionEventTime) {
         mInteractionEventTime = interactionEventTime;
     }
 
-    @Override
-    public void onFgInteractionTimeChanged(long fgInteractionTime) {
+    public void setFgInteractionTime(long fgInteractionTime) {
         mFgInteractionTime = fgInteractionTime;
     }
 
-    @Override
-    public void onWhenUnimportantChanged(long whenUnimportant) {
+    public void setWhenUnimportant(long whenUnimportant) {
         mWhenUnimportant = whenUnimportant;
     }
 
@@ -2164,6 +2302,29 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
     /** Sets the current stopped state of the app, which is reset as soon as metrics are logged */
     public void setStoppedState(@StoppedState int stoppedState) {
         mStoppedState = stoppedState;
+    }
+
+    /** Returns LastExitInfo value (which is effectively a constructor param). */
+    @Nullable
+    ApplicationExitInfo getLastExitInfo() {
+        return mLastExitInfo;
+    }
+
+    /**
+     * Sets LastExitInfo. The function is called only once, right after construction.
+     * This effectively makes LastExitInfo a constructor param.
+     */
+    public void initLastExitInfo(@Nullable ApplicationExitInfo exitInfo) {
+        mLastExitInfo = exitInfo;
+    }
+
+    boolean isAppRestartLogged() {
+        return mAppRestartLogged;
+    }
+
+    /** Sets AppRestartLogged flag. */
+    void setAppRestartLogged() {
+        mAppRestartLogged = true;
     }
 
     boolean getWasStoppedLogged() {
@@ -2225,7 +2386,7 @@ public class WindowProcessController extends ConfigurationContainer<Configuratio
 
     @Override
     public String toString() {
-        return mOwner != null ? mOwner.toString() : null;
+        return mOwner.toString();
     }
 
     public void dump(PrintWriter pw, String prefix) {

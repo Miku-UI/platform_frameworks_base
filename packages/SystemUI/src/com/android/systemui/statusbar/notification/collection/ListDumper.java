@@ -76,11 +76,11 @@ public class ListDumper {
                             includeRecordKeeping,
                             interactionTracker.hasUserInteractedWith(logKey(summary)));
                 }
-                dumpTree(ge.getChildren(), interactionTracker, includeRecordKeeping,
-                        childEntryIndent, childIndexPrefix + ".");
+                sb.append(dumpTree(ge.getChildren(), interactionTracker, includeRecordKeeping,
+                        childEntryIndent, childIndexPrefix + "."));
             } else if (entry instanceof BundleEntry be) {
-                dumpTree(be.getChildren(), interactionTracker, includeRecordKeeping,
-                        childEntryIndent, childIndexPrefix + ".");
+                sb.append(dumpTree(be.getChildren(), interactionTracker, includeRecordKeeping,
+                        childEntryIndent, childIndexPrefix + "."));
             }
         }
         return sb.toString();

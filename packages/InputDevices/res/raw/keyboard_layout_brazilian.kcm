@@ -132,7 +132,7 @@ key E {
     base:                               'e'
     shift, capslock:                    'E'
     shift+capslock:                     'e'
-    ralt:                               '\u20ac'
+    ralt:                               '\u00b0'
 }
 
 key R {
@@ -363,4 +363,17 @@ key RO {
     base:                               '/'
     shift:                              '?'
     ralt:                               '\u00b0'
+}
+
+### NUMPAD
+
+key NUMPAD_DOT {
+    label:                              ','
+    base:                               fallback FORWARD_DEL
+    numlock:                            ','
+}
+
+key NUMPAD_COMMA {
+    label:                              '.'
+    base:                               '.'
 }

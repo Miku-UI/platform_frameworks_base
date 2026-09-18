@@ -27,13 +27,13 @@ import android.content.Intent
 import android.graphics.PointF
 import android.hardware.display.DisplayManager
 import android.hardware.display.DisplayTopology
-import android.hardware.input.InputManager
 import android.os.Bundle
 import android.platform.helpers.SysuiRestarter
-import android.platform.test.annotations.Postsubmit
+import android.platform.test.annotations.Presubmit
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.platform.test.rule.ScreenRecordRule
+import android.platform.test.rule.SettingOverrideRule
 import android.platform.uiautomatorhelpers.BetterSwipe
 import android.platform.uiautomatorhelpers.DeviceHelpers
 import android.platform.uiautomatorhelpers.DeviceHelpers.assertInvisible
@@ -53,6 +53,7 @@ import android.tools.traces.component.IComponentNameMatcher
 import android.tools.traces.parsers.WindowManagerStateHelper
 import android.view.Display.DEFAULT_DISPLAY
 import android.view.DisplayInfo
+import android.view.KeyEvent
 import androidx.test.filters.RequiresDevice
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
@@ -61,8 +62,12 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import com.android.launcher3.tapl.LauncherInstrumentation
 import com.android.launcher3.tapl.TestHelpers
+import com.android.server.wm.flicker.helpers.KeyEventHelper
+import com.android.settings.flags.Flags as SettingsFlags
 import com.android.window.flags.Flags
+import com.android.wm.shell.flicker.utils.SplitScreenUtils.withSplitScreenComplete
 import com.android.wm.shell.shared.desktopmode.DesktopState
+import java.time.Duration
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Assume
@@ -73,21 +78,18 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.BlockJUnit4ClassRunner
 import platform.test.desktop.DesktopMouseTestRule
-import platform.test.desktop.ShadeDisplayGoesAroundTestRule
+import platform.test.desktop.LogicalDisplayPointPx
 import platform.test.desktop.SimulatedConnectedDisplayTestRule
-import java.time.Duration
 
 // TODO(b/416608975) - Move the utility methods to shared library or/and utilize existing library (
 // e.g., sysui-tapl).
 // TODO(b/416610249) - Support all form-factors
 // TODO(b/418620154) - Use test apps instead of real apps.
 // TODO(b/439962697) - Remove @RequiresDevice once cf phone supports desktop mode.
-/**
- * Tests to verify the smoke test scenario defined in go/cd-smoke.
- */
+/** Tests to verify the smoke test scenario defined in go/cd-smoke. */
 @RequiresFlagsEnabled(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE)
 @RunWith(BlockJUnit4ClassRunner::class)
-@Postsubmit
+@Presubmit
 class ConnectedDisplayCujSmokeTests {
 
     private val context = instrumentation.targetContext
@@ -99,36 +101,32 @@ class ConnectedDisplayCujSmokeTests {
     private val displayManager = context.getSystemService(DisplayManager::class.java)
     private val activityManager = context.getSystemService(ActivityManager::class.java)
 
-    // TODO(b/419392000) - Remove once [DesktopMouseTestRule] supports dynamic display changes.
-    private val inputManager = context.getSystemService(InputManager::class.java)
-    private val displayIdsWithMouseScalingDisabled = mutableListOf<Int>()
-
-    @get:Rule(order = 0)
-    val checkFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
+    @get:Rule(order = 0) val checkFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
     // This rule must have higher priority than other setup-related rules to skip certain tests on
     // the unsupported device as soon as possible.
-    @get:Rule(order = 1)
-    val desktopDeviceTypeRule = DesktopDeviceTypeRule()
+    @get:Rule(order = 1) val desktopDeviceTypeRule = DesktopDeviceTypeRule()
 
     @get:Rule(order = 2)
     val screenRecordRule = ScreenRecordRule(/* keepTestLevelRecordingOnSuccess= */ false)
 
     @get:Rule(order = 3)
-    val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, Rotation.ROTATION_0)
+    val testSetupRule = Utils.testSetupRuleFunctional(NavBar.MODE_GESTURAL, Rotation.ROTATION_0)
 
     @get:Rule(order = 4)
-    val connectedDisplayRule = SimulatedConnectedDisplayTestRule()
+    val includeDefaultDisplayInTopologyRule =
+        SettingOverrideRule(Settings.Secure.INCLUDE_DEFAULT_DISPLAY_IN_TOPOLOGY, "1")
 
-    @get:Rule(order = 5)
-    val shadeDisplayGoesAroundTestRule = ShadeDisplayGoesAroundTestRule()
+    @get:Rule(order = 5) val connectedDisplayRule = SimulatedConnectedDisplayTestRule()
 
-    @get:Rule(order = 6)
-    val desktopMouseRule = DesktopMouseTestRule()
+    @get:Rule(order = 6) val desktopMouseRule = DesktopMouseTestRule(/* deferSetup= */ true)
 
     @Before
     fun setup() {
         Assume.assumeTrue(desktopState.canEnterDesktopMode)
+
+        Utils.clearAllRememberedDesktopBounds()
+        browserApp.clearStorage()
 
         // Ensure rotation in launcher.
         tapl.setEnableRotation(true)
@@ -148,45 +146,75 @@ class ConnectedDisplayCujSmokeTests {
 
     fun cuj1() {
         val externalDisplayId = setupTestDisplayAndWaitForTransitions()
-        disableMouseScaling(externalDisplayId)
+        desktopMouseRule.setupMouse()
 
         // Open settings.
         context.startActivity(
             Intent(Settings.ACTION_SETTINGS)
                 .addCategory(Intent.CATEGORY_DEFAULT)
                 .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-            createActivityOptions(DEFAULT_DISPLAY)
+            createActivityOptions(DEFAULT_DISPLAY),
         )
 
         // Reset topology.
         resetTopology(externalDisplayId)
 
         // Navigate to display topology settings in Settings app
-        DeviceHelpers.waitForObj(By.text(CONNECTED_DEVICES_TEXT), timeout = UIAUTOMATOR_TIMEOUT) {
-            "Can't find a connected device on setting"
-        }.click()
-        DeviceHelpers.waitForObj(By.text(EXTERNAL_DISPLAY_TEXT), timeout = UIAUTOMATOR_TIMEOUT) {
-            "Can't find a external display on setting"
-        }.click()
+        if (shouldShowTopLevelDeviceCategory()) {
+            DeviceHelpers.waitForObj(By.text(DEVICE_TEXT), timeout = UIAUTOMATOR_TIMEOUT) {
+                    "Can't find a device on setting"
+                }
+                .click()
+            DeviceHelpers.waitForObj(By.text(DISPLAY_TEXT), timeout = UIAUTOMATOR_TIMEOUT) {
+                    "Can't find a display on setting"
+                }
+                .click()
+
+            // The new external display section is a list of available external displays.
+            val externalDisplay = displayManager.getDisplay(externalDisplayId)
+            DeviceHelpers.waitForObj(By.text(externalDisplay.name), timeout = UIAUTOMATOR_TIMEOUT) {
+                    "Can't find an external display on setting"
+                }
+                .click()
+        } else {
+            DeviceHelpers.waitForObj(
+                    By.text(CONNECTED_DEVICES_TEXT),
+                    timeout = UIAUTOMATOR_TIMEOUT,
+                ) {
+                    "Can't find a connected device on setting"
+                }
+                .click()
+            DeviceHelpers.waitForObj(
+                    By.text(EXTERNAL_DISPLAY_TEXT),
+                    timeout = UIAUTOMATOR_TIMEOUT,
+                ) {
+                    "Can't find an external display on setting"
+                }
+                .click()
+        }
 
         // Modify the topology.
         val paneObject =
             DeviceHelpers.waitForObj(
                 By.res(SETTINGS_PACKAGE, DISPLAY_TOPOLOGY_PANE_CONTENT_RES_ID),
-                timeout = UIAUTOMATOR_TIMEOUT
-            ) { "Can't find a display panel on setting" }
+                timeout = UIAUTOMATOR_TIMEOUT,
+            ) {
+                "Can't find a display panel on setting"
+            }
 
         val defaultDisplayObject = findDefaultDisplayObject(paneObject)
         val originalTopology = displayManager.displayTopology
         BetterSwipe.swipe(
-            start = PointF(
-                defaultDisplayObject.visibleBounds.exactCenterX(),
-                defaultDisplayObject.visibleBounds.exactCenterY()
-            ),
-            end = PointF(
-                defaultDisplayObject.visibleBounds.exactCenterX(),
-                paneObject.visibleBounds.bottom.toFloat() - 1f
-            )
+            start =
+                PointF(
+                    defaultDisplayObject.visibleBounds.exactCenterX(),
+                    defaultDisplayObject.visibleBounds.exactCenterY(),
+                ),
+            end =
+                PointF(
+                    defaultDisplayObject.visibleBounds.exactCenterX(),
+                    paneObject.visibleBounds.bottom.toFloat() - 1f,
+                ),
         )
         WaitUtils.ensureThat("Display topology changed", timeout = UIAUTOMATOR_TIMEOUT) {
             originalTopology != displayManager.displayTopology
@@ -194,14 +222,18 @@ class ConnectedDisplayCujSmokeTests {
 
         // Ensure a cursor moves between displays.
         desktopMouseRule.move(
-            externalDisplayId,
-            device.getDisplayWidth(externalDisplayId) / 2,
-            device.getDisplayHeight(externalDisplayId) / 2,
+            LogicalDisplayPointPx(
+                externalDisplayId,
+                device.getDisplayWidth(externalDisplayId) / 2,
+                device.getDisplayHeight(externalDisplayId) / 2,
+            )
         )
         desktopMouseRule.move(
-            DEFAULT_DISPLAY,
-            device.getDisplayWidth(DEFAULT_DISPLAY) / 2,
-            device.getDisplayHeight(DEFAULT_DISPLAY) / 2,
+            LogicalDisplayPointPx(
+                DEFAULT_DISPLAY,
+                device.getDisplayWidth(DEFAULT_DISPLAY) / 2,
+                device.getDisplayHeight(DEFAULT_DISPLAY) / 2,
+            )
         )
     }
 
@@ -241,6 +273,7 @@ class ConnectedDisplayCujSmokeTests {
 
         launchAppFromTaskbar(externalDisplayId, browserApp)
         verifyActivityState(browserApp, WINDOWING_MODE_FREEFORM, externalDisplayId, visible = true)
+        browserApp.closePopupsIfNeeded(device)
 
         launchAppFromAllApps(externalDisplayId, clockApp)
         verifyActivityState(clockApp, WINDOWING_MODE_FREEFORM, externalDisplayId, visible = true)
@@ -256,6 +289,7 @@ class ConnectedDisplayCujSmokeTests {
 
         launchAppFromTaskbar(externalDisplayId, browserApp)
         verifyActivityState(browserApp, WINDOWING_MODE_FREEFORM, externalDisplayId, visible = true)
+        browserApp.closePopupsIfNeeded(device)
 
         launchAppFromAllApps(externalDisplayId, clockApp)
         verifyActivityState(clockApp, WINDOWING_MODE_FREEFORM, externalDisplayId, visible = true)
@@ -276,7 +310,7 @@ class ConnectedDisplayCujSmokeTests {
             ComponentNameMatcher(device.launcherPackageName, className = ""),
             WINDOWING_MODE_FULLSCREEN,
             externalDisplayId,
-            visible = true
+            visible = true,
         )
     }
 
@@ -288,9 +322,10 @@ class ConnectedDisplayCujSmokeTests {
         // Specify launch windowing mode as desktop-first state is undefined here.
         context.startActivity(
             browserApp.openAppIntent,
-            createActivityOptions(DEFAULT_DISPLAY, WINDOWING_MODE_FULLSCREEN)
+            createActivityOptions(DEFAULT_DISPLAY, WINDOWING_MODE_FULLSCREEN),
         )
         verifyActivityState(browserApp, WINDOWING_MODE_FULLSCREEN, DEFAULT_DISPLAY, visible = true)
+        browserApp.closePopupsIfNeeded(device)
         verifyTaskCount(browserApp, expectedCount = 1)
 
         val externalDisplayId = setupTestDisplayAndWaitForTransitions()
@@ -298,6 +333,7 @@ class ConnectedDisplayCujSmokeTests {
         launchAppFromTaskbar(externalDisplayId, browserApp)
         // TODO(b/418620963) - Check the display id of the app window here.
         verifyTaskCount(browserApp, expectedCount = 1)
+        browserApp.closePopupsIfNeeded(device)
     }
 
     // Projected: All apps can be invoked on either display at any time, but will only ever be shown
@@ -308,39 +344,51 @@ class ConnectedDisplayCujSmokeTests {
     fun cuj5p() {
         launchAppFromAllApps(DEFAULT_DISPLAY, browserApp)
         verifyActivityState(browserApp, WINDOWING_MODE_FULLSCREEN, DEFAULT_DISPLAY, visible = true)
+        browserApp.closePopupsIfNeeded(device)
         verifyTaskCount(browserApp, expectedCount = 1)
 
         val externalDisplayId = setupTestDisplayAndWaitForTransitions()
 
         launchAppFromTaskbar(externalDisplayId, browserApp)
         verifyActivityState(browserApp, WINDOWING_MODE_FREEFORM, externalDisplayId, visible = true)
+        browserApp.closePopupsIfNeeded(device)
         verifyTaskCount(browserApp, expectedCount = 1)
     }
 
     fun cuj6() {
         val externalDisplayId = setupTestDisplayAndWaitForTransitions()
-        context.startActivity(
-            clockApp.openAppIntent,
-            createActivityOptions(externalDisplayId)
-        )
+        context.startActivity(clockApp.openAppIntent, createActivityOptions(externalDisplayId))
         verifyActivityState(clockApp, WINDOWING_MODE_FREEFORM, externalDisplayId, visible = true)
 
-        // Fullscreen via app header.
-        openAppHeaderMenuForTheApp(clockApp)
+        // Fullscreen via layout menu.
+        if (Flags.enableConsolidatedWindowOptions()) {
+            openMaximizeMenu(clockApp)
+        } else {
+            openAppHeaderMenuForTheApp(clockApp)
+        }
         waitForSysUiObjectForTheApp(clockApp, FULLSCREEN_BUTTON_RES_ID).click()
-        verifyActivityState(
-            clockApp,
-            WINDOWING_MODE_FULLSCREEN,
-            externalDisplayId,
-            visible = true
-        )
+        verifyActivityState(clockApp, WINDOWING_MODE_FULLSCREEN, externalDisplayId, visible = true)
 
-        // Enter desktop via app handle.
-        openAppHandleMenuForFullscreenApp(externalDisplayId)
-        waitForSysUiObjectForTheApp(clockApp, DESKTOP_BUTTON_RES_ID).click()
+        // Enter desktop via keyboard shortcut.
+        val keyEventHelper = KeyEventHelper(instrumentation)
+        keyEventHelper.press(
+            KeyEvent.KEYCODE_DPAD_DOWN,
+            KeyEvent.META_META_ON or KeyEvent.META_CTRL_ON,
+        )
         verifyActivityState(clockApp, WINDOWING_MODE_FREEFORM, externalDisplayId, visible = true)
 
-        // TODO(b/418620952) - Add splitscreen test once it's ready.
+        // Enter split screen via layout menu.
+        if (Flags.enableConsolidatedWindowOptions()) {
+            openMaximizeMenu(clockApp)
+        } else {
+            openAppHeaderMenuForTheApp(clockApp)
+        }
+        waitForSysUiObjectForTheApp(clockApp, SPLIT_SCREEN_BUTTON_RES_ID).click()
+        launchAppFromTaskbar(externalDisplayId, browserApp)
+        wmHelper
+            .StateSyncBuilder()
+            .withSplitScreenComplete(clockApp, browserApp, externalDisplayId)
+            .waitForAndVerify()
     }
 
     // Extended: All window modes are supported on the connected display, including split screen
@@ -367,7 +415,7 @@ class ConnectedDisplayCujSmokeTests {
         // Specify launch windowing mode as desktop-first state is undefined here.
         context.startActivity(
             clockApp.openAppIntent,
-            createActivityOptions(DEFAULT_DISPLAY, WINDOWING_MODE_FULLSCREEN)
+            createActivityOptions(DEFAULT_DISPLAY, WINDOWING_MODE_FULLSCREEN),
         )
         verifyActivityState(clockApp, WINDOWING_MODE_FULLSCREEN, DEFAULT_DISPLAY, visible = true)
 
@@ -376,15 +424,17 @@ class ConnectedDisplayCujSmokeTests {
         // Start a freeform app.
         launchAppFromTaskbar(DEFAULT_DISPLAY, browserApp)
         verifyActivityState(browserApp, WINDOWING_MODE_FREEFORM, DEFAULT_DISPLAY, visible = true)
+        browserApp.closePopupsIfNeeded(device)
         verifyActivityState(clockApp, WINDOWING_MODE_FULLSCREEN, DEFAULT_DISPLAY, visible = false)
 
         // Open overview. If the device is not expected to have DesktopWallpaperActivity (i.e.,
         // `shouldShowHomeBehindDesktop` is true), we here use `tapl.workspace` because
         // `tapl.launchedAppState` expects any fullscreen app is visible and `tapl.workspace`
         // expects no fullscreen app is visible.
-        val overview = if (desktopState.shouldShowHomeBehindDesktop) {
-            tapl.workspace.openOverviewFromActionPlusTabKeyboardShortcut()
-        } else tapl.launchedAppState.switchToOverview()
+        val overview =
+            if (desktopState.shouldShowHomeBehindDesktop) {
+                tapl.workspace.openOverviewFromActionPlusTabKeyboardShortcut()
+            } else tapl.launchedAppState.switchToOverview()
 
         // Verify the overview has both the fullscreen app and the desktop.
         overview.flingBackward()
@@ -408,27 +458,28 @@ class ConnectedDisplayCujSmokeTests {
         // Start an app and make it fullscreen.
         context.startActivity(
             browserApp.openAppIntent,
-            createActivityOptions(externalDisplayId, WINDOWING_MODE_FULLSCREEN)
+            createActivityOptions(externalDisplayId, WINDOWING_MODE_FULLSCREEN),
         )
         verifyActivityState(
             browserApp,
             WINDOWING_MODE_FULLSCREEN,
             externalDisplayId,
-            visible = true
+            visible = true,
         )
+        browserApp.closePopupsIfNeeded(device)
 
         // Start a freeform app. Specify launch windowing mode as by default an app opens in
         // fullscreen when another fullscreen app is on top even when desktop-first mode.
         context.startActivity(
             clockApp.openAppIntent,
-            createActivityOptions(externalDisplayId, WINDOWING_MODE_FREEFORM)
+            createActivityOptions(externalDisplayId, WINDOWING_MODE_FREEFORM),
         )
         verifyActivityState(clockApp, WINDOWING_MODE_FREEFORM, externalDisplayId, visible = true)
         verifyActivityState(
             browserApp,
             WINDOWING_MODE_FULLSCREEN,
             externalDisplayId,
-            visible = false
+            visible = false,
         )
 
         // Verify the overview has both the fullscreen app and the desktop.
@@ -446,7 +497,7 @@ class ConnectedDisplayCujSmokeTests {
     @ExtendedOnly
     fun cuj8e() {
         val externalDisplayId = setupTestDisplayAndWaitForTransitions()
-        disableMouseScaling(externalDisplayId)
+        desktopMouseRule.setupMouse()
         assertTaskbarVisible(DEFAULT_DISPLAY)
 
         launchAppFromAllApps(DEFAULT_DISPLAY, clockApp)
@@ -455,19 +506,20 @@ class ConnectedDisplayCujSmokeTests {
         // Move the cursor to the caption.
         val captionBounds =
             checkNotNull(
-                waitForSysUiObjectForTheApp(
-                    clockApp,
-                    OPEN_MENU_BUTTON_RES_ID
-                ).visibleBounds
+                waitForSysUiObjectForTheApp(clockApp, OPEN_MENU_BUTTON_RES_ID).visibleBounds
             )
-        desktopMouseRule.move(DEFAULT_DISPLAY, captionBounds.centerX(), captionBounds.centerY())
+        desktopMouseRule.move(
+            LogicalDisplayPointPx(DEFAULT_DISPLAY, captionBounds.centerX(), captionBounds.centerY())
+        )
 
         // Drag the window to the external display.
         desktopMouseRule.startDrag()
         desktopMouseRule.move(
-            externalDisplayId,
-            device.getDisplayWidth(externalDisplayId) / 2,
-            device.getDisplayHeight(externalDisplayId) / 2,
+            LogicalDisplayPointPx(
+                externalDisplayId,
+                device.getDisplayWidth(externalDisplayId) / 2,
+                device.getDisplayHeight(externalDisplayId) / 2,
+            )
         )
         desktopMouseRule.stopDrag()
         wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
@@ -483,27 +535,31 @@ class ConnectedDisplayCujSmokeTests {
     fun cuj9p() {
         browserApp.launchViaIntent()
         verifyActivityState(browserApp, WINDOWING_MODE_FULLSCREEN, DEFAULT_DISPLAY, visible = true)
+        browserApp.closePopupsIfNeeded(device)
 
         val externalDisplayId = setupTestDisplayAndWaitForTransitions()
 
         launchAppFromTaskbar(externalDisplayId, browserApp)
         verifyActivityState(browserApp, WINDOWING_MODE_FREEFORM, externalDisplayId, visible = true)
+        browserApp.closePopupsIfNeeded(device)
 
         launchAppFromAllApps(DEFAULT_DISPLAY, browserApp)
         verifyActivityState(browserApp, WINDOWING_MODE_FULLSCREEN, DEFAULT_DISPLAY, visible = true)
+        browserApp.closePopupsIfNeeded(device)
     }
 
     fun cuj10() {
         // Specify launch windowing mode as desktop-first state is undefined here.
         context.startActivity(
             clockApp.openAppIntent,
-            createActivityOptions(DEFAULT_DISPLAY, WINDOWING_MODE_FULLSCREEN)
+            createActivityOptions(DEFAULT_DISPLAY, WINDOWING_MODE_FULLSCREEN),
         )
         verifyActivityState(clockApp, WINDOWING_MODE_FULLSCREEN, DEFAULT_DISPLAY, visible = true)
 
         val externalDisplayId = setupTestDisplayAndWaitForTransitions()
         launchAppFromTaskbar(externalDisplayId, browserApp)
         verifyActivityState(browserApp, WINDOWING_MODE_FREEFORM, externalDisplayId, visible = true)
+        browserApp.closePopupsIfNeeded(device)
 
         // Verify disconnecting a display doesn't crash.
         connectedDisplayRule.setupTestDisplays(0)
@@ -535,12 +591,6 @@ class ConnectedDisplayCujSmokeTests {
 
     @After
     fun teardown() {
-        // TODO(b/419392000) - Remove once [DesktopMouseTestRule] supports dynamic display changes.
-        for (displayId in displayIdsWithMouseScalingDisabled) {
-            inputManager.setMouseScalingEnabled(true, displayId)
-        }
-        displayIdsWithMouseScalingDisabled.clear()
-
         activityManager.forceStopPackage(SETTINGS_PACKAGE)
         browserApp.exit(wmHelper)
         clockApp.exit(wmHelper)
@@ -554,8 +604,9 @@ class ConnectedDisplayCujSmokeTests {
         val selector = By.text(appHelper.appName).hasAncestor(taskbarSelector(displayId))
         val appName = appHelper.appName
         DeviceHelpers.waitForObj(selector, timeout = UIAUTOMATOR_TIMEOUT) {
-            "Can't find an app icon of $appName on taskbar on display#$displayId"
-        }.click()
+                "Can't find an app icon of $appName on taskbar on display#$displayId"
+            }
+            .click()
     }
 
     fun openAllApps(displayId: Int) {
@@ -565,14 +616,14 @@ class ConnectedDisplayCujSmokeTests {
             BetterSwipe.swipe(
                 start = PointF(swipeX, swipeY),
                 end = PointF(swipeX, 0f),
-                displayId = displayId
+                displayId = displayId,
             )
             instrumentation.uiAutomation.syncInputTransactions()
         } else {
             val taskbar =
                 DeviceHelpers.waitForObj(
                     taskbarSelector(displayId),
-                    timeout = UIAUTOMATOR_TIMEOUT
+                    timeout = UIAUTOMATOR_TIMEOUT,
                 ) {
                     "Can't find a taskbar on display#$displayId"
                 }
@@ -591,23 +642,31 @@ class ConnectedDisplayCujSmokeTests {
         val appIconSelector = By.text(appName).hasParent(appsListSelector)
 
         // Scroll down All Apps until the app icon is visible.
-        val appIcon = checkNotNull((1..SCROLL_RETRY_MAX).firstNotNullOfOrNull {
-            DeviceHelpers.waitForNullableObj(appIconSelector) ?: run {
-                BetterSwipe.swipe(
-                    start = PointF(
-                        appsList.visibleBounds.exactCenterX(),
-                        appsList.visibleBounds.exactCenterY()
-                    ),
-                    end = PointF(
-                        appsList.visibleBounds.exactCenterX(),
-                        appsList.visibleBounds.top.toFloat() + 1f
-                    ),
-                    displayId = displayId
-                )
-                instrumentation.uiAutomation.syncInputTransactions()
-                null
+        val appIcon =
+            checkNotNull(
+                (1..SCROLL_RETRY_MAX).firstNotNullOfOrNull {
+                    DeviceHelpers.waitForNullableObj(appIconSelector)
+                        ?: run {
+                            BetterSwipe.swipe(
+                                start =
+                                    PointF(
+                                        appsList.visibleBounds.exactCenterX(),
+                                        appsList.visibleBounds.exactCenterY(),
+                                    ),
+                                end =
+                                    PointF(
+                                        appsList.visibleBounds.exactCenterX(),
+                                        appsList.visibleBounds.top.toFloat() + 1f,
+                                    ),
+                                displayId = displayId,
+                            )
+                            instrumentation.uiAutomation.syncInputTransactions()
+                            null
+                        }
+                }
+            ) {
+                "Can't find an app icon of $appName on all apps on display#$displayId"
             }
-        }) { "Can't find an app icon of $appName on all apps on display#$displayId" }
         appIcon.click()
     }
 
@@ -623,12 +682,12 @@ class ConnectedDisplayCujSmokeTests {
 
     fun waitForSysUiObjectForTheApp(
         componentMatcher: IComponentNameMatcher,
-        resId: String
+        resId: String,
     ): UiObject2 {
         val objects =
             DeviceHelpers.waitForPossibleEmpty(
                 By.res(SYSTEMUI_PACKAGE, resId),
-                timeout = UIAUTOMATOR_TIMEOUT
+                timeout = UIAUTOMATOR_TIMEOUT,
             )
         assertTrue("Unable to find view for $resId", objects.isNotEmpty())
         // TODO(b/416608975) - Check the app window bounds to filter out the uninteresting objects.
@@ -638,42 +697,39 @@ class ConnectedDisplayCujSmokeTests {
     fun openAppHeaderMenuForTheApp(componentMatcher: IComponentNameMatcher) =
         waitForSysUiObjectForTheApp(componentMatcher, OPEN_MENU_BUTTON_RES_ID).click()
 
-    fun openAppHandleMenuForFullscreenApp(displayId: Int) {
-        val selector = By.res(SYSTEMUI_PACKAGE, STATUS_BAR_CONTAINER_RES_ID).displayId(displayId)
-        DeviceHelpers.waitForObj(selector, timeout = UIAUTOMATOR_TIMEOUT).click()
-    }
+    fun openMaximizeMenu(componentMatcher: IComponentNameMatcher) =
+        waitForSysUiObjectForTheApp(componentMatcher, MAXIMIZE_WINDOW_RES_ID).longClick()
 
     fun assertOverviewDesktopItemVisible(displayId: Int) =
-        By.res(
-            TestHelpers.getOverviewPackageName(),
-            TASK_VIEW_DESKTOP_RES_ID
-        ).displayId(displayId).assertVisible(timeout = UIAUTOMATOR_TIMEOUT) {
-            "Unable to find overview desktop item"
-        }
+        By.res(TestHelpers.getOverviewPackageName(), TASK_VIEW_DESKTOP_RES_ID)
+            .displayId(displayId)
+            .assertVisible(timeout = UIAUTOMATOR_TIMEOUT) { "Unable to find overview desktop item" }
 
     fun assertOverviewItemVisible(appHelper: StandardAppHelper, displayId: Int) =
-        By.descEndsWith(appHelper.appName).hasAncestor(
-            By.res(
-                TestHelpers.getOverviewPackageName(),
-                TASK_VIEW_SINGLE_RES_ID
-            ).displayId(displayId)
-        ).assertVisible(timeout = UIAUTOMATOR_TIMEOUT) {
-            "Can't find overview item for ${appHelper.appName}"
-        }
+        By.descEndsWith(appHelper.appName)
+            .hasAncestor(
+                By.res(TestHelpers.getOverviewPackageName(), TASK_VIEW_SINGLE_RES_ID)
+                    .displayId(displayId)
+            )
+            .assertVisible(timeout = UIAUTOMATOR_TIMEOUT) {
+                "Can't find overview item for ${appHelper.appName}"
+            }
 
     fun verifyActivityState(
         componentMatcher: IComponentNameMatcher,
         windowingMode: Int,
         displayId: Int,
-        visible: Boolean
+        visible: Boolean,
     ) {
         val packageName = componentMatcher.packageName
-        wmHelper.StateSyncBuilder()
+        wmHelper
+            .StateSyncBuilder()
             .withAppTransitionIdle(displayId)
             .add("$packageName is on display#$displayId") { dump ->
-                val display = requireNotNull(dump.wmState.getDisplay(displayId)) {
-                    "Display#$displayId not found"
-                }
+                val display =
+                    requireNotNull(dump.wmState.getDisplay(displayId)) {
+                        "Display#$displayId not found"
+                    }
                 display.containsActivity(componentMatcher)
             }
             .add("$packageName is " + (if (visible) "visible" else "invisible")) { dump ->
@@ -686,26 +742,33 @@ class ConnectedDisplayCujSmokeTests {
     }
 
     fun verifyTaskCount(componentMatcher: IComponentNameMatcher, expectedCount: Int) {
-        wmHelper.StateSyncBuilder()
+        wmHelper
+            .StateSyncBuilder()
             .withAppTransitionIdle()
             .add("${componentMatcher.packageName} has $expectedCount tasks") { dump ->
-                dump.wmState.rootTasks.count {
-                    it.containsActivity(componentMatcher)
-                } == expectedCount
+                dump.wmState.rootTasks.count { it.containsActivity(componentMatcher) } ==
+                    expectedCount
             }
             .waitForAndVerify()
     }
 
     fun resetTopology(externalDisplayId: Int) {
-        val displayInfos = arrayListOf<DisplayInfo>(DisplayInfo().also {
-            displayManager.getDisplay(DEFAULT_DISPLAY).getDisplayInfo(it)
-        }, DisplayInfo().also {
-            displayManager.getDisplay(externalDisplayId).getDisplayInfo(it)
-        })
+        val displayInfos =
+            arrayListOf<DisplayInfo>(
+                DisplayInfo().also {
+                    displayManager.getDisplay(DEFAULT_DISPLAY).getDisplayInfo(it)
+                },
+                DisplayInfo().also {
+                    displayManager.getDisplay(externalDisplayId).getDisplayInfo(it)
+                },
+            )
         val topology = DisplayTopology()
         for (info in displayInfos) {
             topology.addDisplay(
-                info.displayId, info.logicalWidth, info.logicalHeight, info.logicalDensityDpi
+                info.displayId,
+                info.logicalWidth,
+                info.logicalHeight,
+                info.logicalDensityDpi,
             )
         }
         displayManager.displayTopology = topology
@@ -715,8 +778,8 @@ class ConnectedDisplayCujSmokeTests {
     }
 
     fun clickRecentsButton(displayId: Int) {
-        val selector = By.res(device.launcherPackageName, RECENTS_BUTTON_RES_ID)
-            .displayId(displayId)
+        val selector =
+            By.res(device.launcherPackageName, RECENTS_BUTTON_RES_ID).displayId(displayId)
         DeviceHelpers.waitForObj(selector, timeout = UIAUTOMATOR_TIMEOUT).click()
     }
 
@@ -726,15 +789,9 @@ class ConnectedDisplayCujSmokeTests {
     fun appsListSelector(displayId: Int): BySelector =
         By.res(device.launcherPackageName, APPS_LIST_VIEW_RES_ID).displayId(displayId)
 
-    // TODO(b/419392000) - Remove once [DesktopMouseTestRule] supports dynamic display changes.
-    fun disableMouseScaling(displayId: Int) {
-        displayIdsWithMouseScalingDisabled += displayId
-        inputManager.setMouseScalingEnabled(false, displayId)
-    }
-
     fun createActivityOptions(
         launchDisplayId: Int,
-        launchWindowingMode: Int = WINDOWING_MODE_UNDEFINED
+        launchWindowingMode: Int = WINDOWING_MODE_UNDEFINED,
     ): Bundle {
         val options = ActivityOptions.makeBasic()
         options.setLaunchDisplayId(launchDisplayId)
@@ -757,11 +814,17 @@ class ConnectedDisplayCujSmokeTests {
         return externalDisplayId
     }
 
+    private fun shouldShowTopLevelDeviceCategory(): Boolean {
+        val flagValue = SettingsFlags.showTopLevelDeviceCategory()
+        val showCategory = Utils.getSettingsBoolean(CONFIG_SHOW_TOP_LEVEL_DEVICE) ?: false
+        return flagValue && showCategory
+    }
+
     private companion object {
         const val TASKBAR_RES_ID = "taskbar_view"
-        const val STATUS_BAR_CONTAINER_RES_ID = "status_bar_container"
         const val OPEN_MENU_BUTTON_RES_ID = "open_menu_button"
         const val FULLSCREEN_BUTTON_RES_ID = "fullscreen_button"
+        const val SPLIT_SCREEN_BUTTON_RES_ID = "split_screen_button"
         const val DESKTOP_BUTTON_RES_ID = "desktop_button"
         const val TASK_VIEW_SINGLE_RES_ID = "task_view_single"
         const val TASK_VIEW_DESKTOP_RES_ID = "task_view_desktop"
@@ -770,8 +833,12 @@ class ConnectedDisplayCujSmokeTests {
         const val DISPLAY_TOPOLOGY_PANE_CONTENT_RES_ID = "display_topology_pane_content"
         const val EXTERNAL_DISPLAY_TEXT = "External displays"
         const val CONNECTED_DEVICES_TEXT = "Connected devices"
+        const val CONFIG_SHOW_TOP_LEVEL_DEVICE = "config_show_top_level_device_category"
+        const val DEVICE_TEXT = "Device"
+        const val DISPLAY_TEXT = "Display"
         const val SETTINGS_PACKAGE = "com.android.settings"
         const val SCROLL_RETRY_MAX = 5
+        const val MAXIMIZE_WINDOW_RES_ID = "maximize_window"
 
         // Following timeouts are adjusted for each platform by [platformAdjust()].
         val FLICKER_LIB_RETRY_INTERVAL_MS = Duration.ofMillis(500).platformAdjust().toMillis()
@@ -781,7 +848,8 @@ class ConnectedDisplayCujSmokeTests {
         val wmHelper =
             WindowManagerStateHelper(
                 instrumentation,
-                retryIntervalMs = FLICKER_LIB_RETRY_INTERVAL_MS
+                retryIntervalMs = FLICKER_LIB_RETRY_INTERVAL_MS,
+                ignoreLayersInVirtualDisplay = false,
             )
         val device = UiDevice.getInstance(instrumentation)
 

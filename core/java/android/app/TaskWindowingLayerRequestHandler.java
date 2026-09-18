@@ -18,12 +18,14 @@ package android.app;
 import static com.android.internal.annotations.VisibleForTesting.Visibility.PACKAGE;
 
 import android.annotation.CallbackExecutor;
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.os.Bundle;
 import android.os.IRemoteCallback;
 import android.os.OutcomeReceiver;
 import android.os.RemoteException;
 
+import android.util.Slog;
 import com.android.internal.annotations.VisibleForTesting;
 
 import java.util.concurrent.Executor;
@@ -35,6 +37,20 @@ import java.util.concurrent.Executor;
  */
 public class TaskWindowingLayerRequestHandler {
 
+    private static final String TAG = "WindowingLayerRequest";
+
+
+    /**
+     * Internal result code for a windowing layer request.
+     *
+     * <p>This is translated into the final API result for the caller.
+     */
+    @IntDef(prefix = { "RESULT_" }, value = {
+            RESULT_APPROVED,
+            RESULT_FAILED_BAD_STATE,
+            RESULT_FAILED_INSUFFICIENT_PERMISSIONS
+    })
+    public @interface Result {}
 
     /**
      * The key used for specifying the final result of a windowing layer request in the
@@ -43,7 +59,7 @@ public class TaskWindowingLayerRequestHandler {
     public static final String REMOTE_CALLBACK_RESULT_KEY = "result";
 
     /**
-     * The request had been approved.
+     * The request has been approved.
      *
      * <p>
      * The task layer has been changed accordingly to the request.
@@ -57,13 +73,18 @@ public class TaskWindowingLayerRequestHandler {
     public static final int RESULT_FAILED_BAD_STATE = 1;
 
     /**
+     * The request has been rejected due to insufficient permissions.
+     */
+    public static final int RESULT_FAILED_INSUFFICIENT_PERMISSIONS = 2;
+
+    /**
      * Requests the windowing layer via {@link IAppTask}.
      */
     @VisibleForTesting(visibility = PACKAGE)
     public static void requestWindowingLayer(
             @ActivityManager.AppTask.WindowingLayer int layer,
             @NonNull @CallbackExecutor Executor executor,
-            @NonNull OutcomeReceiver<Void, Exception> callback,
+            @NonNull OutcomeReceiver<Integer, Exception> callback,
             @NonNull IAppTask appTaskImpl) {
         try {
             appTaskImpl.requestWindowingLayer(layer, createRemoteCallback(executor, callback));
@@ -74,7 +95,7 @@ public class TaskWindowingLayerRequestHandler {
 
     private static IRemoteCallback createRemoteCallback(
             @NonNull @CallbackExecutor Executor executor,
-            @NonNull OutcomeReceiver<Void, Exception> callback
+            @NonNull OutcomeReceiver<Integer, Exception> callback
     ) {
         return new IRemoteCallback.Stub() {
             @Override
@@ -82,12 +103,19 @@ public class TaskWindowingLayerRequestHandler {
                 final int result = data.getInt(REMOTE_CALLBACK_RESULT_KEY);
                 switch (result) {
                     case RESULT_APPROVED:
-                        executor.execute(() -> callback.onResult(null));
+                        executor.execute(() -> callback.onResult(
+                                ActivityManager.AppTask.WINDOWING_LAYER_REQUEST_GRANTED));
                         break;
                     case RESULT_FAILED_BAD_STATE:
-                        executor.execute(() -> callback.onError(new IllegalStateException(
-                                "The current system windowing state is not appropriate to fulfill"
-                                        + " the request.")));
+                        Slog.w(TAG, "The current system windowing state is not appropriate to "
+                                + "fulfill the request.");
+                        executor.execute(() -> callback.onResult(
+                                ActivityManager.AppTask.WINDOWING_LAYER_REQUEST_REJECTED));
+                        break;
+                    case RESULT_FAILED_INSUFFICIENT_PERMISSIONS:
+                        executor.execute(() -> callback.onError(new SecurityException(
+                                "The caller does not hold sufficient permissions to request"
+                                        + " provided windowing layer.")));
                         break;
                     default:
                         executor.execute(() -> callback.onError(new IllegalStateException(

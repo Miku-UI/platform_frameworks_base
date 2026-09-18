@@ -18,6 +18,10 @@ package com.android.server.pm;
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.assertExpectException;
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.list;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -31,6 +35,10 @@ import android.content.pm.ShortcutManager;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
+
+import org.junit.runner.RunWith;
+import org.junit.Test;
 
 /**
  * Tests for {@link ShortcutManager#createShortcutResultIntent(ShortcutInfo)} and relevant APIs.
@@ -43,6 +51,7 @@ import androidx.test.filters.SmallTest;
  */
 @Presubmit
 @SmallTest
+@RunWith(AndroidJUnit4.class)
 public class ShortcutManagerTest10 extends BaseShortcutManagerTest {
 
     private PinItemRequest mRequest;
@@ -54,6 +63,7 @@ public class ShortcutManagerTest10 extends BaseShortcutManagerTest {
         return request;
     }
 
+    @Test
     public void testCreateShortcutResult_validResult() {
         setDefaultLauncher(USER_10, LAUNCHER_1);
 
@@ -69,6 +79,7 @@ public class ShortcutManagerTest10 extends BaseShortcutManagerTest {
         });
     }
 
+    @Test
     public void testCreateShortcutResult_alreadyPinned() {
         setDefaultLauncher(USER_10, LAUNCHER_1);
 
@@ -93,6 +104,7 @@ public class ShortcutManagerTest10 extends BaseShortcutManagerTest {
         });
     }
 
+    @Test
     public void testCreateShortcutResult_alreadyPinnedByAnother() {
         runWithCaller(CALLING_PACKAGE_1, USER_P0, () -> {
             assertTrue(mManager.setDynamicShortcuts(list(makeShortcut("s1"))));
@@ -117,6 +129,7 @@ public class ShortcutManagerTest10 extends BaseShortcutManagerTest {
         });
     }
 
+    @Test
     public void testCreateShortcutResult_defaultLauncherChanges() {
         setDefaultLauncher(USER_10, LAUNCHER_1);
 
@@ -160,6 +173,7 @@ public class ShortcutManagerTest10 extends BaseShortcutManagerTest {
         return info;
     }
 
+    @Test
     public void testStartConfigActivity_defaultLauncher() {
         LauncherActivityInfo info = setupMockActivityInfo();
         prepareIntentActivities(info.getComponentName());
@@ -169,6 +183,7 @@ public class ShortcutManagerTest10 extends BaseShortcutManagerTest {
         );
     }
 
+    @Test
     public void testStartConfigActivity_nonDefaultLauncher() {
         LauncherActivityInfo info = setupMockActivityInfo();
         setDefaultLauncher(USER_10, LAUNCHER_1);

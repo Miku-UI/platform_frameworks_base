@@ -37,9 +37,9 @@ import com.android.systemui.qs.panels.ui.viewmodel.inFirstPageViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.mediaInRowInLandscapeViewModelFactory
 import com.android.systemui.qs.panels.ui.viewmodel.quickQuickSettingsViewModelFactory
 import com.android.systemui.qs.ui.viewmodel.quickSettingsContainerViewModelFactory
+import com.android.systemui.shade.domain.interactor.shadeStatusBarComponentsInteractor
 import com.android.systemui.shade.largeScreenHeaderHelper
 import com.android.systemui.shade.transition.largeScreenShadeInterpolator
-import com.android.systemui.statusbar.disableflags.domain.interactor.disableFlagsInteractor
 import com.android.systemui.statusbar.sysuiStatusBarStateController
 
 val Kosmos.qsFragmentComposeViewModelFactory by
@@ -56,7 +56,6 @@ val Kosmos.qsFragmentComposeViewModelFactory by
                     footerActionsController,
                     sysuiStatusBarStateController,
                     deviceEntryBypassInteractor,
-                    disableFlagsInteractor,
                     keyguardTransitionInteractor,
                     largeScreenShadeInterpolator,
                     configurationInteractor,
@@ -73,6 +72,7 @@ val Kosmos.qsFragmentComposeViewModelFactory by
                     lifecycleScope,
                     mediaCarouselInteractor,
                     mediaViewModelFactory,
+                    shadeStatusBarComponentsInteractor,
                 )
             }
         }

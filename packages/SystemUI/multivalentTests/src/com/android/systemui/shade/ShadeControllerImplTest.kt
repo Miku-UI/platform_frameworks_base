@@ -2,7 +2,7 @@
  * Copyright (C) 2023 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ * You may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
  *      http://www.apache.org/licenses/LICENSE-2.0
@@ -27,12 +27,16 @@ import com.android.systemui.assist.AssistManager
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.FakeKeyguardRepository
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.power.domain.interactor.PowerInteractorFactory
 import com.android.systemui.scene.data.repository.WindowRootViewVisibilityRepository
 import com.android.systemui.scene.domain.interactor.WindowRootViewVisibilityInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
+import com.android.systemui.shade.data.repository.shadeDisplaysRepository
+import com.android.systemui.shade.domain.interactor.shadeDisplaysInteractor
 import com.android.systemui.statusbar.CommandQueue
 import com.android.systemui.statusbar.NotificationPresenter
 import com.android.systemui.statusbar.NotificationShadeWindowController
@@ -55,10 +59,15 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers
+import org.mockito.ArgumentMatchers.anyBoolean
+import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mock
+import org.mockito.Mockito
 import org.mockito.Mockito.never
+import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.any
 
 @RunWith(AndroidJUnit4::class)
 @RunWithLooper(setAsMainLooper = true)
@@ -66,15 +75,16 @@ import org.mockito.MockitoAnnotations
 @DisableSceneContainer
 class ShadeControllerImplTest : SysuiTestCase() {
     private val executor = FakeExecutor(FakeSystemClock())
-    private val kosmos = testKosmos()
+    private val kosmos =
+        testKosmos().useUnconfinedTestDispatcher().also {
+            it.shadeDisplaysRepository = it.fakeShadeDisplaysRepository
+        }
     private val testScope = kosmos.testScope
 
     @Mock private lateinit var commandQueue: CommandQueue
     @Mock private lateinit var keyguardStateController: KeyguardStateController
     @Mock private lateinit var statusBarStateController: StatusBarStateController
     @Mock private lateinit var statusBarKeyguardViewManager: StatusBarKeyguardViewManager
-    @Mock private lateinit var statusBarWindowController: StatusBarWindowController
-    @Mock private lateinit var statusBarWindowControllerStore: StatusBarWindowControllerStore
     @Mock private lateinit var deviceProvisionedController: DeviceProvisionedController
     @Mock private lateinit var notificationShadeWindowController: NotificationShadeWindowController
     @Mock private lateinit var windowManager: WindowManager
@@ -87,6 +97,10 @@ class ShadeControllerImplTest : SysuiTestCase() {
     @Mock private lateinit var iStatusBarService: IStatusBarService
     @Mock private lateinit var headsUpManager: HeadsUpManager
     @Mock private lateinit var notifPresenter: NotificationPresenter
+    @Mock private lateinit var statusBarWindowControllerStore: StatusBarWindowControllerStore
+    @Mock private lateinit var statusBarWindowControllerDisplay0: StatusBarWindowController
+    @Mock private lateinit var statusBarWindowControllerDisplay2: StatusBarWindowController
+    @Mock private lateinit var notificationShadeWindowView: NotificationShadeWindowView
 
     private val windowRootViewVisibilityInteractor: WindowRootViewVisibilityInteractor by lazy {
         WindowRootViewVisibilityInteractor(
@@ -100,16 +114,19 @@ class ShadeControllerImplTest : SysuiTestCase() {
         )
     }
 
-    private lateinit var shadeController: ShadeControllerImpl
+    private lateinit var underTest: ShadeControllerImpl
 
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
         whenever(windowManager.defaultDisplay).thenReturn(display)
         whenever(deviceProvisionedController.isCurrentUserSetup).thenReturn(true)
-        whenever(statusBarWindowControllerStore.defaultDisplay)
-            .thenReturn(statusBarWindowController)
-        shadeController =
+        whenever(statusBarWindowControllerStore.forDisplay(0))
+            .thenReturn(statusBarWindowControllerDisplay0)
+        whenever(statusBarWindowControllerStore.forDisplay(2))
+            .thenReturn(statusBarWindowControllerDisplay2)
+        whenever(nswvc.getView()).thenReturn(notificationShadeWindowView)
+        underTest =
             ShadeControllerImpl(
                 commandQueue,
                 FakeExecutor(FakeSystemClock()),
@@ -120,13 +137,13 @@ class ShadeControllerImplTest : SysuiTestCase() {
                 statusBarWindowControllerStore,
                 deviceProvisionedController,
                 notificationShadeWindowController,
-                0,
                 Lazy { nswvc },
                 Lazy { npvc },
                 Lazy { assistManager },
                 Lazy { gutsManager },
+                Lazy { kosmos.shadeDisplaysInteractor },
             )
-        shadeController.setVisibilityListener(mock())
+        underTest.setVisibilityListener(mock())
     }
 
     @Test
@@ -134,9 +151,9 @@ class ShadeControllerImplTest : SysuiTestCase() {
         whenever(commandQueue.panelsEnabled()).thenReturn(false)
 
         // Trying to open it does nothing.
-        shadeController.animateExpandShade()
+        underTest.animateExpandShade()
         verify(npvc, never()).expandToNotifications()
-        shadeController.animateExpandQs()
+        underTest.animateExpandQs()
         verify(npvc, never()).expand(ArgumentMatchers.anyBoolean())
     }
 
@@ -145,9 +162,9 @@ class ShadeControllerImplTest : SysuiTestCase() {
         whenever(commandQueue.panelsEnabled()).thenReturn(true)
 
         // Can now be opened.
-        shadeController.animateExpandShade()
+        underTest.animateExpandShade()
         verify(npvc).expandToNotifications()
-        shadeController.animateExpandQs()
+        underTest.animateExpandQs()
         verify(npvc).expandToQs()
     }
 
@@ -157,7 +174,7 @@ class ShadeControllerImplTest : SysuiTestCase() {
         whenever(npvc.isTracking).thenReturn(true)
 
         // WHEN cancelExpansionAndCollapseShade is called
-        shadeController.cancelExpansionAndCollapseShade()
+        underTest.cancelExpansionAndCollapseShade()
 
         // VERIFY that cancelCurrentTouch is called
         verify(nswvc).cancelCurrentTouch()
@@ -169,7 +186,7 @@ class ShadeControllerImplTest : SysuiTestCase() {
         whenever(npvc.isTracking).thenReturn(false)
 
         // WHEN cancelExpansionAndCollapseShade is called
-        shadeController.cancelExpansionAndCollapseShade()
+        underTest.cancelExpansionAndCollapseShade()
 
         // VERIFY that cancelCurrentTouch is NOT called
         verify(nswvc, never()).cancelCurrentTouch()
@@ -177,7 +194,7 @@ class ShadeControllerImplTest : SysuiTestCase() {
 
     @Test
     fun visible_changesToTrue_windowInteractorUpdated() {
-        shadeController.makeExpandedVisible(true)
+        underTest.makeExpandedVisible(true)
 
         assertThat(windowRootViewVisibilityInteractor.isLockscreenOrShadeVisible.value).isTrue()
     }
@@ -185,11 +202,11 @@ class ShadeControllerImplTest : SysuiTestCase() {
     @Test
     fun visible_changesToFalse_windowInteractorUpdated() {
         // GIVEN the shade is currently expanded
-        shadeController.makeExpandedVisible(true)
+        underTest.makeExpandedVisible(true)
         assertThat(windowRootViewVisibilityInteractor.isLockscreenOrShadeVisible.value).isTrue()
 
         // WHEN the shade is collapsed
-        shadeController.collapseShade()
+        underTest.collapseShade()
 
         // THEN the interactor is notified
         assertThat(windowRootViewVisibilityInteractor.isLockscreenOrShadeVisible.value).isFalse()
@@ -198,15 +215,56 @@ class ShadeControllerImplTest : SysuiTestCase() {
     @Test
     fun visible_launchAnimationEnds_windowControllerInstantlyHidden() {
         // GIVEN the shade is currently expanded
-        shadeController.setNotificationPresenter(notifPresenter)
-        shadeController.makeExpandedVisible(true)
+        underTest.setNotificationPresenter(notifPresenter)
+        underTest.makeExpandedVisible(true)
         assertThat(windowRootViewVisibilityInteractor.isLockscreenOrShadeVisible.value).isTrue()
 
         // WHEN a fullscreen launch animation ends
-        shadeController.onLaunchAnimationEnd(launchIsFullScreen = true)
+        underTest.onLaunchAnimationEnd(launchIsFullScreen = true)
 
         // THEN the window controller is forced to hide the shade synchronously
         verify(notificationShadeWindowController).setPanelVisible(false)
         verify(notificationShadeWindowController).setForceHideAfterActivityLaunch(true)
+    }
+
+    @Test
+    fun makeExpandedVisible_recomputesDisableFlags_onCorrectDisplay() {
+        whenever(commandQueue.panelsEnabled()).thenReturn(true)
+        // GIVEN a non-default displayId
+        val displayId = 123
+        kosmos.fakeShadeDisplaysRepository.setDisplayId(displayId)
+
+        // WHEN makeExpandedVisible is called
+        underTest.makeExpandedVisible(false)
+
+        // THEN recomputeDisableFlags is called with the correct displayId
+        verify(commandQueue).recomputeDisableFlags(eq(displayId), anyBoolean())
+    }
+
+    @Test
+    fun makeExpandedInvisible_recomputesDisableFlags_onCorrectDisplay() {
+        Mockito.reset(commandQueue)
+        // GIVEN a non-default displayId
+        val displayId = 123
+        kosmos.fakeShadeDisplaysRepository.setDisplayId(displayId)
+        // GIVEN the shade is expanded
+        underTest.makeExpandedVisible(true)
+
+        // WHEN makeExpandedInvisible is called
+        underTest.makeExpandedInvisible()
+
+        // THEN recomputeDisableFlags is called with the correct displayId
+        verify(commandQueue, times(2)).recomputeDisableFlags(eq(displayId), anyBoolean())
+    }
+
+    @Test
+    fun makeExpandedInvisible_clearsStatusBarForcedVisibleState_onCurrentDisplayId() {
+        val externalDisplayId = 2
+        kosmos.fakeShadeDisplaysRepository.setDisplayId(externalDisplayId)
+        underTest.makeExpandedVisible(true)
+
+        underTest.makeExpandedInvisible()
+
+        verify(statusBarWindowControllerDisplay2).setForceStatusBarVisible(eq(false), any())
     }
 }

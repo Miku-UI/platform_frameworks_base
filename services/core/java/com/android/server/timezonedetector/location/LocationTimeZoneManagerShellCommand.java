@@ -95,26 +95,14 @@ class LocationTimeZoneManagerShellCommand extends ShellCommand {
             return handleDefaultCommands(cmd);
         }
 
-        switch (cmd) {
-            case SHELL_COMMAND_START: {
-                return runStart();
-            }
-            case SHELL_COMMAND_START_WITH_TEST_PROVIDERS: {
-                return runStartWithTestProviders();
-            }
-            case SHELL_COMMAND_STOP: {
-                return runStop();
-            }
-            case SHELL_COMMAND_CLEAR_RECORDED_PROVIDER_STATES: {
-                return runClearRecordedProviderStates();
-            }
-            case SHELL_COMMAND_DUMP_STATE: {
-                return runDumpControllerState();
-            }
-            default: {
-                return handleDefaultCommands(cmd);
-            }
-        }
+        return switch (cmd) {
+            case SHELL_COMMAND_START -> runStart();
+            case SHELL_COMMAND_START_WITH_TEST_PROVIDERS -> runStartWithTestProviders();
+            case SHELL_COMMAND_STOP -> runStop();
+            case SHELL_COMMAND_CLEAR_RECORDED_PROVIDER_STATES -> runClearRecordedProviderStates();
+            case SHELL_COMMAND_DUMP_STATE -> runDumpControllerState();
+            default -> handleDefaultCommands(cmd);
+        };
     }
 
     @Override
@@ -125,53 +113,68 @@ class LocationTimeZoneManagerShellCommand extends ShellCommand {
         pw.printf("    Print this help text.\n");
         pw.printf("  %s\n", SHELL_COMMAND_START);
         pw.printf("    Starts the service, creating location time zone providers.\n");
-        pw.printf("  %s <primary package name|%2$s> <secondary package name|%2$s>"
+        pw.printf(
+                "  %s <primary package name|%2$s> <secondary package name|%2$s>"
                         + " <record states>\n",
                 SHELL_COMMAND_START_WITH_TEST_PROVIDERS, NULL_PACKAGE_NAME_TOKEN);
-        pw.printf("    Starts the service with test provider packages configured / provider"
-                + " permission checks disabled.\n");
-        pw.printf("    <record states> - true|false, determines whether state recording is enabled."
-                + "\n");
-        pw.printf("    See %s and %s.\n", SHELL_COMMAND_DUMP_STATE,
-                SHELL_COMMAND_CLEAR_RECORDED_PROVIDER_STATES);
+        pw.printf(
+                "    Starts the service with test provider packages configured / provider"
+                        + " permission checks disabled.\n");
+        pw.printf(
+                "    <record states> - true|false, determines whether state recording is enabled."
+                        + "\n");
+        pw.printf(
+                "    See %s and %s.\n",
+                SHELL_COMMAND_DUMP_STATE, SHELL_COMMAND_CLEAR_RECORDED_PROVIDER_STATES);
         pw.printf("  %s\n", SHELL_COMMAND_STOP);
         pw.printf("    Stops the service, destroying location time zone providers.\n");
         pw.printf("  %s\n", SHELL_COMMAND_CLEAR_RECORDED_PROVIDER_STATES);
-        pw.printf("    Clears recorded provider state. See also %s and %s.\n",
+        pw.printf(
+                "    Clears recorded provider state. See also %s and %s.\n",
                 SHELL_COMMAND_START_WITH_TEST_PROVIDERS, SHELL_COMMAND_DUMP_STATE);
         pw.printf("    Note: This is only intended for use during testing.\n");
         pw.printf("  %s [%s]\n", SHELL_COMMAND_DUMP_STATE, DUMP_STATE_OPTION_PROTO);
         pw.printf("    Dumps service state for tests as text or binary proto form.\n");
         pw.printf("    See the LocationTimeZoneManagerServiceStateProto definition for details.\n");
         pw.println();
-        pw.printf("This service is also affected by the following device_config flags in the"
-                + " %s namespace:\n", NAMESPACE_SYSTEM_TIME);
+        pw.printf(
+                "This service is also affected by the following device_config flags in the"
+                        + " %s namespace:\n",
+                NAMESPACE_SYSTEM_TIME);
         pw.printf("  %s\n", KEY_PRIMARY_LTZP_MODE_OVERRIDE);
-        pw.printf("    Overrides the mode of the primary provider. Values=%s|%s\n",
+        pw.printf(
+                "    Overrides the mode of the primary provider. Values=%s|%s\n",
                 PROVIDER_MODE_DISABLED, PROVIDER_MODE_ENABLED);
         pw.printf("  %s\n", KEY_SECONDARY_LTZP_MODE_OVERRIDE);
-        pw.printf("    Overrides the mode of the secondary provider. Values=%s|%s\n",
+        pw.printf(
+                "    Overrides the mode of the secondary provider. Values=%s|%s\n",
                 PROVIDER_MODE_DISABLED, PROVIDER_MODE_ENABLED);
         pw.printf("  %s\n", KEY_LOCATION_TIME_ZONE_DETECTION_UNCERTAINTY_DELAY_MILLIS);
-        pw.printf("    Sets the amount of time the service waits when uncertain before making an"
-                + " 'uncertain' suggestion to the time zone detector.\n");
+        pw.printf(
+                "    Sets the amount of time the service waits when uncertain before making an"
+                        + " 'uncertain' suggestion to the time zone detector.\n");
         pw.printf("  %s\n", KEY_LTZP_INITIALIZATION_TIMEOUT_MILLIS);
         pw.printf("    Sets the initialization time passed to the providers.\n");
         pw.printf("  %s\n", KEY_LTZP_INITIALIZATION_TIMEOUT_FUZZ_MILLIS);
-        pw.printf("    Sets the amount of extra time added to the providers' initialization time."
-                + "\n");
+        pw.printf(
+                "    Sets the amount of extra time added to the providers' initialization time."
+                        + "\n");
         pw.printf("  %s\n", KEY_LTZP_EVENT_FILTERING_AGE_THRESHOLD_MILLIS);
-        pw.printf("    Sets the amount of time that must pass between equivalent LTZP events before"
-                + " they will be reported to the system server.\n");
+        pw.printf(
+                "    Sets the amount of time that must pass between equivalent LTZP events before"
+                        + " they will be reported to the system server.\n");
         pw.println();
-        pw.printf("Typically, use '%s' to stop the service before setting individual"
-                + " flags and '%s' after to restart it.\n",
+        pw.printf(
+                "Typically, use '%s' to stop the service before setting individual"
+                        + " flags and '%s' after to restart it.\n",
                 SHELL_COMMAND_STOP, SHELL_COMMAND_START);
         pw.println();
         pw.printf("See \"adb shell cmd device_config\" for more information on setting flags.\n");
         pw.println();
-        pw.printf("Also see \"adb shell cmd %s help\" for higher-level location time zone"
-                + " commands / settings.\n", TimeZoneDetector.SHELL_COMMAND_SERVICE_NAME);
+        pw.printf(
+                "Also see \"adb shell cmd %s help\" for higher-level location time zone"
+                        + " commands / settings.\n",
+                TimeZoneDetector.SHELL_COMMAND_SERVICE_NAME);
         pw.println();
     }
 
@@ -193,8 +196,10 @@ class LocationTimeZoneManagerShellCommand extends ShellCommand {
         boolean recordProviderStateChanges = Boolean.parseBoolean(getNextArgRequired());
 
         try {
-            mService.startWithTestProviders(testPrimaryProviderPackageName,
-                    testSecondaryProviderPackageName, recordProviderStateChanges);
+            mService.startWithTestProviders(
+                    testPrimaryProviderPackageName,
+                    testSecondaryProviderPackageName,
+                    recordProviderStateChanges);
         } catch (RuntimeException e) {
             reportError(e);
             return 1;
@@ -246,27 +251,33 @@ class LocationTimeZoneManagerShellCommand extends ShellCommand {
             FileDescriptor outFd = getOutFileDescriptor();
             outputStream = new DualDumpOutputStream(new ProtoOutputStream(outFd));
         } else {
-            outputStream = new DualDumpOutputStream(
-                    new IndentingPrintWriter(getOutPrintWriter(), "  "));
+            outputStream =
+                    new DualDumpOutputStream(new IndentingPrintWriter(getOutPrintWriter(), "  "));
         }
 
         if (state.getLastEvent() != null) {
             LocationAlgorithmEvent lastEvent = state.getLastEvent();
-            long lastEventToken = outputStream.start(
-                    "last_event", LocationTimeZoneManagerServiceStateProto.LAST_EVENT);
+            long lastEventToken =
+                    outputStream.start(
+                            "last_event", LocationTimeZoneManagerServiceStateProto.LAST_EVENT);
 
             // lastEvent.algorithmStatus
             LocationTimeZoneAlgorithmStatus algorithmStatus = lastEvent.getAlgorithmStatus();
-            long algorithmStatusToken = outputStream.start(
-                    "algorithm_status", LocationTimeZoneProviderEventProto.ALGORITHM_STATUS);
-            outputStream.write("status", LocationTimeZoneAlgorithmStatusProto.STATUS,
+            long algorithmStatusToken =
+                    outputStream.start(
+                            "algorithm_status",
+                            LocationTimeZoneProviderEventProto.ALGORITHM_STATUS);
+            outputStream.write(
+                    "status",
+                    LocationTimeZoneAlgorithmStatusProto.STATUS,
                     convertDetectionAlgorithmStatusToEnumToProtoEnum(algorithmStatus.getStatus()));
             outputStream.end(algorithmStatusToken);
 
             // lastEvent.suggestion
             if (lastEvent.getSuggestion() != null) {
-                long suggestionToken = outputStream.start(
-                        "suggestion", LocationTimeZoneProviderEventProto.SUGGESTION);
+                long suggestionToken =
+                        outputStream.start(
+                                "suggestion", LocationTimeZoneProviderEventProto.SUGGESTION);
                 GeolocationTimeZoneSuggestion lastSuggestion = lastEvent.getSuggestion();
                 for (String zoneId : lastSuggestion.getZoneIds()) {
                     outputStream.write(
@@ -285,10 +296,14 @@ class LocationTimeZoneManagerShellCommand extends ShellCommand {
         }
 
         writeControllerStates(outputStream, state.getControllerStates());
-        writeProviderStates(outputStream, state.getPrimaryProviderStates(),
+        writeProviderStates(
+                outputStream,
+                state.getPrimaryProviderStates(),
                 "primary_provider_states",
                 LocationTimeZoneManagerServiceStateProto.PRIMARY_PROVIDER_STATES);
-        writeProviderStates(outputStream, state.getSecondaryProviderStates(),
+        writeProviderStates(
+                outputStream,
+                state.getSecondaryProviderStates(),
                 "secondary_provider_states",
                 LocationTimeZoneManagerServiceStateProto.SECONDARY_PROVIDER_STATES);
         outputStream.flush();
@@ -296,84 +311,79 @@ class LocationTimeZoneManagerShellCommand extends ShellCommand {
         return 0;
     }
 
-    private static void writeControllerStates(DualDumpOutputStream outputStream,
-            List<@State String> states) {
+    private static void writeControllerStates(
+            DualDumpOutputStream outputStream, List<@State String> states) {
         for (@State String state : states) {
-            outputStream.write("controller_states",
+            outputStream.write(
+                    "controller_states",
                     LocationTimeZoneManagerServiceStateProto.CONTROLLER_STATES,
                     convertControllerStateToProtoEnum(state));
         }
     }
 
     private static int convertControllerStateToProtoEnum(@State String state) {
-        switch (state) {
-            case STATE_PROVIDERS_INITIALIZING:
-                return LocationTimeZoneManagerProto.CONTROLLER_STATE_PROVIDERS_INITIALIZING;
-            case STATE_STOPPED:
-                return LocationTimeZoneManagerProto.CONTROLLER_STATE_STOPPED;
-            case STATE_INITIALIZING:
-                return LocationTimeZoneManagerProto.CONTROLLER_STATE_INITIALIZING;
-            case STATE_UNCERTAIN:
-                return LocationTimeZoneManagerProto.CONTROLLER_STATE_UNCERTAIN;
-            case STATE_CERTAIN:
-                return LocationTimeZoneManagerProto.CONTROLLER_STATE_CERTAIN;
-            case STATE_FAILED:
-                return LocationTimeZoneManagerProto.CONTROLLER_STATE_FAILED;
-            case STATE_DESTROYED:
-                return LocationTimeZoneManagerProto.CONTROLLER_STATE_DESTROYED;
-            case STATE_UNKNOWN:
-            default:
-                return LocationTimeZoneManagerProto.CONTROLLER_STATE_UNKNOWN;
-        }
+        return switch (state) {
+            case STATE_PROVIDERS_INITIALIZING ->
+                    LocationTimeZoneManagerProto.CONTROLLER_STATE_PROVIDERS_INITIALIZING;
+            case STATE_STOPPED -> LocationTimeZoneManagerProto.CONTROLLER_STATE_STOPPED;
+            case STATE_INITIALIZING -> LocationTimeZoneManagerProto.CONTROLLER_STATE_INITIALIZING;
+            case STATE_UNCERTAIN -> LocationTimeZoneManagerProto.CONTROLLER_STATE_UNCERTAIN;
+            case STATE_CERTAIN -> LocationTimeZoneManagerProto.CONTROLLER_STATE_CERTAIN;
+            case STATE_FAILED -> LocationTimeZoneManagerProto.CONTROLLER_STATE_FAILED;
+            case STATE_DESTROYED -> LocationTimeZoneManagerProto.CONTROLLER_STATE_DESTROYED;
+            case STATE_UNKNOWN -> LocationTimeZoneManagerProto.CONTROLLER_STATE_UNKNOWN;
+            default -> LocationTimeZoneManagerProto.CONTROLLER_STATE_UNKNOWN;
+        };
     }
 
-    private static void writeProviderStates(DualDumpOutputStream outputStream,
-            List<LocationTimeZoneProvider.ProviderState> providerStates, String fieldName,
+    private static void writeProviderStates(
+            DualDumpOutputStream outputStream,
+            List<LocationTimeZoneProvider.ProviderState> providerStates,
+            String fieldName,
             long fieldId) {
         for (LocationTimeZoneProvider.ProviderState providerState : providerStates) {
             long providerStateToken = outputStream.start(fieldName, fieldId);
-            outputStream.write("state", TimeZoneProviderStateProto.STATE,
+            outputStream.write(
+                    "state",
+                    TimeZoneProviderStateProto.STATE,
                     convertProviderStateEnumToProtoEnum(providerState.stateEnum));
             outputStream.end(providerStateToken);
         }
     }
 
     private static int convertProviderStateEnumToProtoEnum(@ProviderStateEnum int stateEnum) {
-        switch (stateEnum) {
-            case PROVIDER_STATE_UNKNOWN:
-                return LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_UNKNOWN;
-            case PROVIDER_STATE_STARTED_INITIALIZING:
-                return LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_INITIALIZING;
-            case PROVIDER_STATE_STARTED_CERTAIN:
-                return LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_CERTAIN;
-            case PROVIDER_STATE_STARTED_UNCERTAIN:
-                return LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_UNCERTAIN;
-            case PROVIDER_STATE_STOPPED:
-                return LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_DISABLED;
-            case PROVIDER_STATE_PERM_FAILED:
-                return LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_PERM_FAILED;
-            case PROVIDER_STATE_DESTROYED:
-                return LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_DESTROYED;
-            default: {
-                throw new IllegalArgumentException("Unknown stateEnum=" + stateEnum);
-            }
-        }
+        return switch (stateEnum) {
+            case PROVIDER_STATE_UNKNOWN ->
+                    LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_UNKNOWN;
+            case PROVIDER_STATE_STARTED_INITIALIZING ->
+                    LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_INITIALIZING;
+            case PROVIDER_STATE_STARTED_CERTAIN ->
+                    LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_CERTAIN;
+            case PROVIDER_STATE_STARTED_UNCERTAIN ->
+                    LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_UNCERTAIN;
+            case PROVIDER_STATE_STOPPED ->
+                    LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_DISABLED;
+            case PROVIDER_STATE_PERM_FAILED ->
+                    LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_PERM_FAILED;
+            case PROVIDER_STATE_DESTROYED ->
+                    LocationTimeZoneManagerProto.TIME_ZONE_PROVIDER_STATE_DESTROYED;
+            default -> throw new IllegalArgumentException("Unknown stateEnum=" + stateEnum);
+        };
     }
 
     private static int convertDetectionAlgorithmStatusToEnumToProtoEnum(
             @DetectionAlgorithmStatus int statusEnum) {
-        switch (statusEnum) {
-            case DETECTION_ALGORITHM_STATUS_UNKNOWN:
-                return TimeZoneDetectorProto.DETECTION_ALGORITHM_STATUS_UNKNOWN;
-            case DETECTION_ALGORITHM_STATUS_NOT_SUPPORTED:
-                return TimeZoneDetectorProto.DETECTION_ALGORITHM_STATUS_NOT_SUPPORTED;
-            case DETECTION_ALGORITHM_STATUS_NOT_RUNNING:
-                return TimeZoneDetectorProto.DETECTION_ALGORITHM_STATUS_NOT_RUNNING;
-            case DETECTION_ALGORITHM_STATUS_RUNNING:
-                return TimeZoneDetectorProto.DETECTION_ALGORITHM_STATUS_RUNNING;
-            default:
-                throw new IllegalArgumentException("Unknown statusEnum=" + statusEnum);
-        }
+        return switch (statusEnum) {
+            case DETECTION_ALGORITHM_STATUS_UNKNOWN ->
+                    TimeZoneDetectorProto.DETECTION_ALGORITHM_STATUS_UNKNOWN;
+            case DETECTION_ALGORITHM_STATUS_NOT_SUPPORTED ->
+                    TimeZoneDetectorProto.DETECTION_ALGORITHM_STATUS_NOT_SUPPORTED;
+            case DETECTION_ALGORITHM_STATUS_NOT_RUNNING ->
+                    TimeZoneDetectorProto.DETECTION_ALGORITHM_STATUS_NOT_RUNNING;
+            case DETECTION_ALGORITHM_STATUS_RUNNING ->
+                    TimeZoneDetectorProto.DETECTION_ALGORITHM_STATUS_RUNNING;
+            default -> throw new IllegalArgumentException("Unknown statusEnum=" + statusEnum);
+        };
     }
 
     private void reportError(@NonNull Throwable e) {

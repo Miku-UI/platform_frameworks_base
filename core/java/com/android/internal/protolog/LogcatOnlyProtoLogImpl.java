@@ -45,7 +45,7 @@ public class LogcatOnlyProtoLogImpl implements IProtoLog {
 
     @Override
     public void log(@NonNull LogLevel logLevel, @NonNull IProtoLogGroup group, long messageHash,
-            int paramsMask, @Nullable Object[] args) {
+            long paramsMask, @Nullable Object[] args) {
         throw new UnsupportedOperationException("Not supported when using LogcatOnlyProtoLogImpl");
     }
 

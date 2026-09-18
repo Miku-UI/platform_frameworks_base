@@ -32,8 +32,15 @@ import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.flags.andSceneContainer
 import com.android.systemui.keyguard.shared.model.KeyguardState
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
-import com.android.systemui.scene.initialSceneKey
+import com.android.systemui.scene.data.repository.HideOverlay
+import com.android.systemui.scene.data.repository.Idle
+import com.android.systemui.scene.data.repository.ShowOverlay
+import com.android.systemui.scene.data.repository.Transition
+import com.android.systemui.scene.data.repository.setSceneTransition
+import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.statusbar.policy.KeyguardStateController
 import com.android.systemui.statusbar.policy.keyguardStateController
@@ -432,135 +439,84 @@ class CommunalSceneInteractorTest(flags: FlagsParameterization) : SysuiTestCase(
 
     @EnableSceneContainer
     @Test
-    fun changeScene_legacyCommunalScene_mapToStfScene() =
-        testScope.runTest {
-            val currentScene by collectLastValue(underTest.currentScene)
-
-            // Verify that the current scene is the initial scene
-            assertThat(currentScene).isEqualTo(kosmos.initialSceneKey)
-
-            // Change to legacy communal scene
-            underTest.changeScene(CommunalScenes.Communal, loggingReason = "test")
-
-            // Verify that scene changed to communal scene in STF
-            assertThat(currentScene).isEqualTo(Scenes.Communal)
-
-            // Now change to legacy blank scene
-            underTest.changeScene(CommunalScenes.Blank, loggingReason = "test")
-
-            // Verify that scene changed to lock screen scene in STF
-            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
-        }
-
-    @EnableSceneContainer
-    @Test
-    fun changeScene_stfScenes() =
-        testScope.runTest {
-            val currentScene by collectLastValue(underTest.currentScene)
-
-            // Verify that the current scene is the initial scene
-            assertThat(currentScene).isEqualTo(kosmos.initialSceneKey)
-
-            // Change to communal scene
-            underTest.changeScene(Scenes.Communal, loggingReason = "test")
-
-            // Verify changed to communal scene
-            assertThat(currentScene).isEqualTo(Scenes.Communal)
-
-            // Now change to lockscreen scene
-            underTest.changeScene(Scenes.Lockscreen, loggingReason = "test")
-
-            // Verify changed to lockscreen scene
-            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
-        }
-
-    @EnableSceneContainer
-    @Test
-    fun snapToScene_legacyCommunalScene_mapToStfScene() =
-        testScope.runTest {
-            val currentScene by collectLastValue(underTest.currentScene)
-
-            // Verify that the current scene is the initial scene
-            assertThat(currentScene).isEqualTo(kosmos.initialSceneKey)
-
-            // Snap to legacy communal scene
-            underTest.snapToScene(CommunalScenes.Communal, loggingReason = "test")
-
-            // Verify that scene changed to communal scene in STF
-            assertThat(currentScene).isEqualTo(Scenes.Communal)
-
-            // Now snap to legacy blank scene
-            underTest.snapToScene(CommunalScenes.Blank, loggingReason = "test")
-
-            // Verify that scene changed to lock screen scene in STF
-            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
-        }
-
-    @EnableSceneContainer
-    @Test
-    fun snapToScene_stfScenes() =
-        testScope.runTest {
-            val currentScene by collectLastValue(underTest.currentScene)
-
-            // Verify that the current scene is the initial scene
-            assertThat(currentScene).isEqualTo(kosmos.initialSceneKey)
-
-            // Snap to communal scene
-            underTest.snapToScene(Scenes.Communal, loggingReason = "test")
-
-            // Verify changed to communal scene
-            assertThat(currentScene).isEqualTo(Scenes.Communal)
-
-            // Now snap to lockscreen scene
-            underTest.snapToScene(Scenes.Lockscreen, loggingReason = "test")
-
-            // Verify changed to lockscreen scene
-            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
-        }
-
-    @EnableSceneContainer
-    @Test
     fun isIdleOnCommunal_sceneContainerEnabled() =
-        testScope.runTest {
-            val transitionState: MutableStateFlow<ObservableTransitionState> =
-                MutableStateFlow(ObservableTransitionState.Idle(Scenes.Lockscreen))
-            underTest.setTransitionState(transitionState)
-
-            // isIdleOnCommunal is initially false
+        kosmos.runTest {
             val isIdleOnCommunal by collectLastValue(underTest.isIdleOnCommunal)
+
+            setSceneTransition(Idle(Scenes.Lockscreen))
             assertThat(isIdleOnCommunal).isEqualTo(false)
 
-            // Start transition to communal.
-            transitionState.value =
-                ObservableTransitionState.Transition(
-                    fromScene = Scenes.Lockscreen,
-                    toScene = Scenes.Communal,
-                    currentScene = flowOf(Scenes.Lockscreen),
-                    progress = flowOf(0.1f),
-                    isInitiatedByUserInput = false,
-                    isUserInputOngoing = flowOf(false),
-                )
+            setSceneTransition(
+                Transition(from = Scenes.Lockscreen, to = Scenes.Communal, progress = flowOf(0.1f))
+            )
             assertThat(isIdleOnCommunal).isEqualTo(false)
 
-            // Finish transition to communal
-            transitionState.value = ObservableTransitionState.Idle(Scenes.Communal)
+            setSceneTransition(Idle(Scenes.Communal))
             assertThat(isIdleOnCommunal).isEqualTo(true)
 
-            // Start transition away from communal
-            transitionState.value =
-                ObservableTransitionState.Transition(
-                    fromScene = Scenes.Communal,
-                    toScene = Scenes.Lockscreen,
-                    currentScene = flowOf(Scenes.Communal),
-                    progress = flowOf(0.1f),
-                    isInitiatedByUserInput = false,
-                    isUserInputOngoing = flowOf(false),
-                )
+            setSceneTransition(
+                Transition(from = Scenes.Communal, to = Scenes.Lockscreen, progress = flowOf(0.1f))
+            )
             assertThat(isIdleOnCommunal).isEqualTo(false)
 
-            // Finish transition to lock screen
-            transitionState.value = ObservableTransitionState.Idle(Scenes.Lockscreen)
+            setSceneTransition(Idle(Scenes.Lockscreen))
             assertThat(isIdleOnCommunal).isEqualTo(false)
+        }
+
+    @EnableSceneContainer
+    @Test
+    fun isCommunalCurrentScene_whenTransitionToOverlay_emitsTrue() =
+        kosmos.runTest {
+            val isCommunalCurrentScene by collectLastValue(underTest.isCommunalCurrentScene)
+
+            setSceneTransition(Idle(Scenes.Communal))
+            assertThat(isCommunalCurrentScene).isEqualTo(true)
+
+            setSceneTransition(
+                ShowOverlay(
+                    overlay = Overlays.Bouncer,
+                    fromScene = Scenes.Communal,
+                    progress = flowOf(0.1f),
+                )
+            )
+            assertThat(isCommunalCurrentScene).isEqualTo(true)
+
+            setSceneTransition(Idle(Scenes.Communal, setOf(Overlays.Bouncer)))
+            assertThat(isCommunalCurrentScene).isEqualTo(true)
+
+            setSceneTransition(
+                HideOverlay(
+                    overlay = Overlays.Bouncer,
+                    toScene = Scenes.Communal,
+                    progress = flowOf(0.1f),
+                )
+            )
+            assertThat(isCommunalCurrentScene).isEqualTo(true)
+
+            setSceneTransition(Idle(Scenes.Communal))
+            assertThat(isCommunalCurrentScene).isEqualTo(true)
+        }
+
+    @EnableSceneContainer
+    @Test
+    fun isCommunalCurrentScene_whenTransitionToAndAwayFromCommunal() =
+        kosmos.runTest {
+            val isCommunalCurrentScene by collectLastValue(underTest.isCommunalCurrentScene)
+
+            setSceneTransition(Idle(Scenes.Lockscreen))
+            assertThat(isCommunalCurrentScene).isEqualTo(false)
+
+            setSceneTransition(Transition(from = Scenes.Lockscreen, to = Scenes.Communal))
+            assertThat(isCommunalCurrentScene).isEqualTo(true)
+
+            setSceneTransition(Idle(Scenes.Communal))
+            assertThat(isCommunalCurrentScene).isEqualTo(true)
+
+            setSceneTransition(Transition(from = Scenes.Communal, to = Scenes.Lockscreen))
+            assertThat(isCommunalCurrentScene).isEqualTo(false)
+
+            setSceneTransition(Idle(Scenes.Lockscreen))
+            assertThat(isCommunalCurrentScene).isEqualTo(false)
         }
 
     @EnableSceneContainer

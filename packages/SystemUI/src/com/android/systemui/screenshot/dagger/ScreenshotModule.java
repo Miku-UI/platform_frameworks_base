@@ -21,6 +21,8 @@ import android.content.Context;
 
 import com.android.internal.util.ScreenshotHelper;
 import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.screencapture.record.largescreen.data.repository.ParentUriRepository;
+import com.android.systemui.screencapture.record.largescreen.data.repository.ParentUriRepositoryImpl;
 import com.android.systemui.screenshot.ImageCapture;
 import com.android.systemui.screenshot.ImageCaptureImpl;
 import com.android.systemui.screenshot.InteractiveScreenshotHandler;
@@ -49,6 +51,9 @@ import dagger.multibindings.IntoMap;
  */
 @Module(includes = {ScreenshotPolicyModule.class, ScreenshotProxyModule.class, MessageModule.class})
 public abstract class ScreenshotModule {
+
+    @Binds
+    abstract ParentUriRepository bindParentUriRepository(ParentUriRepositoryImpl impl);
 
     @Binds
     @IntoMap

@@ -25,6 +25,8 @@ import static com.android.server.pm.PackageManagerService.DEBUG_ABI_SELECTION;
 import static com.android.server.pm.PackageManagerService.DEBUG_PACKAGE_SCANNING;
 import static com.android.server.pm.PackageManagerService.PLATFORM_PACKAGE_NAME;
 import static com.android.server.pm.PackageManagerService.SCAN_AS_APEX;
+import static com.android.server.pm.PackageManagerService.SCAN_AS_APK_IN_APEX;
+import static com.android.server.pm.PackageManagerService.SCAN_AS_FACTORY;
 import static com.android.server.pm.PackageManagerService.SCAN_AS_FULL_APP;
 import static com.android.server.pm.PackageManagerService.SCAN_AS_INSTANT_APP;
 import static com.android.server.pm.PackageManagerService.SCAN_AS_ODM;
@@ -1097,11 +1099,6 @@ final class ScanPackageUtils {
     static boolean enableAlignmentChecks(@NonNull ParsedPackage parsedPackage,
             Context context, String initiatingPackage, boolean isSystemApp,
             boolean isPlatformPackage, int scanFlags) {
-        // Run alignment checks when feature flag is enabled
-        if (!Flags.appCompatWarnings16kb()) {
-            return false;
-        }
-
         final boolean isApex = (scanFlags & SCAN_AS_APEX) != 0;
         final boolean isNewInstall = (scanFlags & SCAN_NEW_INSTALL) != 0;
         if ((Build.SUPPORTED_64_BIT_ABIS.length == 0)
@@ -1139,5 +1136,12 @@ final class ScanPackageUtils {
     /** Directory where installed application's 32-bit native libraries are copied. */
     public static File getAppLib32InstallDir() {
         return new File(Environment.getDataDirectory(), "app-lib");
+    }
+
+    /** Returns true if the package is being scanned as an APK-in-APEX in an updated APEX. */
+    public static boolean isApkInUpdatedApex(@PackageManagerService.ScanFlags int scanFlags) {
+        // LINT.IfChange(isApkInUpdatedApex)
+        return (scanFlags & (SCAN_AS_APK_IN_APEX | SCAN_AS_FACTORY)) == SCAN_AS_APK_IN_APEX;
+        // LINT.ThenChange()
     }
 }

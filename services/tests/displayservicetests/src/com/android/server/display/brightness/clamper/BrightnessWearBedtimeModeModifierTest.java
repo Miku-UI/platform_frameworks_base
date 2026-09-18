@@ -31,7 +31,11 @@ import android.hardware.display.BrightnessInfo;
 import android.hardware.display.DisplayManagerInternal;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.provider.Settings;
+import android.service.notification.Flags;
 import android.testing.TestableContext;
 
 import androidx.annotation.NonNull;
@@ -50,6 +54,7 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+@RequiresFlagsDisabled(Flags.FLAG_ENABLE_BRIGHTNESS_CLAMPING_FOR_BEDTIME)
 public class BrightnessWearBedtimeModeModifierTest {
     private static final int NO_MODIFIER = 0;
     private static final float BRIGHTNESS_CAP = 0.3f;
@@ -67,6 +72,10 @@ public class BrightnessWearBedtimeModeModifierTest {
     @Rule
     public final TestableContext mContext = new TestableContext(
             InstrumentationRegistry.getInstrumentation().getContext());
+
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule =
+            DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private final TestHandler mTestHandler = new TestHandler(null);
     private final TestInjector mInjector = new TestInjector();

@@ -20,6 +20,7 @@ import android.bluetooth.BluetoothCsipSetCoordinator
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHapClient
 import android.bluetooth.BluetoothHapPresetInfo
+import android.bluetooth.BluetoothProfile
 import android.util.Log
 import com.android.settingslib.bluetooth.HapClientProfile
 import com.android.settingslib.bluetooth.LocalBluetoothProfileManager
@@ -166,6 +167,17 @@ class PresetController(
      */
     fun supportsSynchronizedPresets(device: BluetoothDevice): Boolean {
         return hapClientProfile?.supportsSynchronizedPresets(device) ?: false
+    }
+
+    /**
+     * Checks if the given [BluetoothDevice] is currently connected to [HapClientProfile].
+     *
+     * @param device The Bluetooth device.
+     * @return `true` if the device's [HapClientProfile] connection status is
+     * [BluetoothProfile.STATE_CONNECTED], `false` otherwise.
+     */
+    fun isConnectedToHap(device: BluetoothDevice): Boolean {
+        return hapClientProfile?.getConnectionStatus(device) == BluetoothProfile.STATE_CONNECTED
     }
 
     /**

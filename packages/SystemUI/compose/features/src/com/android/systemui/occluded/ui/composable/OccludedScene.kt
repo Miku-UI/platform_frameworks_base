@@ -19,7 +19,6 @@ package com.android.systemui.occluded.ui.composable
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.android.compose.animation.scene.ContentScope
 import com.android.compose.animation.scene.UserAction
@@ -28,9 +27,8 @@ import com.android.compose.animation.scene.animateContentFloatAsState
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.lifecycle.rememberViewModel
-import com.android.systemui.notifications.ui.composable.SnoozeableHeadsUpNotificationSpace
+import com.android.systemui.notifications.ui.composable.SnoozableHeadsUpNotificationPlaceholder
 import com.android.systemui.qs.shared.ui.QuickSettings
-import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.ui.composable.Scene
 import com.android.systemui.scene.ui.viewmodel.OccludedUserActionsViewModel
@@ -57,7 +55,7 @@ constructor(
 
     override val alwaysCompose: Boolean = false
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         actionsViewModel.activate()
     }
 
@@ -68,18 +66,12 @@ constructor(
             key = QuickSettings.SharedValues.TilesSquishiness,
         )
         Spacer(modifier.fillMaxSize())
-        SnoozeableHeadsUpNotificationSpace(
-            useDrawBounds = {
-                with(layoutState.transitionState) {
-                    isIdle(key) &&
-                        !isIdle(Overlays.NotificationsShade) &&
-                        !isIdle(Overlays.QuickSettingsShade)
-                }
-            },
+        SnoozableHeadsUpNotificationPlaceholder(
+            tag = "OccludedScene",
             stackScrollView = notificationStackScrollView.get(),
             viewModel =
                 rememberViewModel("OccludedScene") {
-                    notificationsPlaceholderViewModelFactory.create()
+                    notificationsPlaceholderViewModelFactory.create(Scenes.Occluded)
                 },
         )
     }

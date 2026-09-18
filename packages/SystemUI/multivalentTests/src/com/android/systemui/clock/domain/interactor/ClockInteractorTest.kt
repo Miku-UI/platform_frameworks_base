@@ -18,11 +18,13 @@ package com.android.systemui.clock.domain.interactor
 
 import android.app.AlarmManager
 import android.content.Intent
+import android.platform.test.annotations.EnableFlags
 import android.provider.AlarmClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.broadcast.broadcastDispatcher
+import com.android.systemui.clock.ClockModernization
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.advanceTimeBy
 import com.android.systemui.kosmos.collectLastValue
@@ -32,7 +34,7 @@ import com.android.systemui.kosmos.runTest
 import com.android.systemui.plugins.activityStarter
 import com.android.systemui.statusbar.policy.NextAlarmController.NextAlarmChangeCallback
 import com.android.systemui.statusbar.policy.nextAlarmController
-import com.android.systemui.testKosmos
+import com.android.systemui.testKosmosNew
 import com.android.systemui.tuner.TunerService.Tunable
 import com.android.systemui.tuner.tunerService
 import com.android.systemui.util.time.fakeSystemClock
@@ -41,7 +43,6 @@ import java.util.Date
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
@@ -50,12 +51,11 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 
-@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class ClockInteractorTest : SysuiTestCase() {
-    private val kosmos = testKosmos()
-    private val underTest = kosmos.clockInteractor
+    private val kosmos = testKosmosNew()
+    private val Kosmos.underTest by Kosmos.Fixture { clockInteractor }
 
     @Test
     fun launchClockActivity_default() =
@@ -71,6 +71,9 @@ class ClockInteractorTest : SysuiTestCase() {
     @Test
     fun launchClockActivity_nextAlarmIntent() =
         kosmos.runTest {
+            // Need to initialize underTest to register the callback.
+            val underTest = kosmos.clockInteractor
+
             val captor =
                 argumentCaptor<NextAlarmChangeCallback> {
                     verify(nextAlarmController).addCallback(capture())
@@ -82,29 +85,19 @@ class ClockInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    fun onTimezoneOrLocaleChanged_localeAndTimezoneChanged_emitsForEach() =
+    fun onTimeFormatChange_formattingIntents_emits() =
         kosmos.runTest {
-            val timeZoneOrLocaleChanges by collectValues(underTest.onTimezoneOrLocaleChanged)
+            val formatChanges by collectValues(underTest.onTimeFormatChange)
+
+            assertThat(formatChanges).hasSize(1)
 
             sendIntentActionBroadcast(Intent.ACTION_TIMEZONE_CHANGED)
             sendIntentActionBroadcast(Intent.ACTION_LOCALE_CHANGED)
-            sendIntentActionBroadcast(Intent.ACTION_LOCALE_CHANGED)
-            sendIntentActionBroadcast(Intent.ACTION_TIMEZONE_CHANGED)
+            sendIntentActionBroadcast(Intent.ACTION_CONFIGURATION_CHANGED)
+            sendIntentActionBroadcast(Intent.ACTION_USER_SWITCHED)
 
-            assertThat(timeZoneOrLocaleChanges).hasSize(4)
-        }
-
-    @Test
-    fun onTimezoneOrLocaleChanged_timeChanged_doesNotEmit() =
-        kosmos.runTest {
-            val timeZoneOrLocaleChanges by collectValues(underTest.onTimezoneOrLocaleChanged)
-            assertThat(timeZoneOrLocaleChanges).hasSize(1)
-
-            sendIntentActionBroadcast(Intent.ACTION_TIME_CHANGED)
-            sendIntentActionBroadcast(Intent.ACTION_TIME_TICK)
-
-            // Expect only 1 event to have been emitted onStart, but no more.
-            assertThat(timeZoneOrLocaleChanges).hasSize(1)
+            // 1 (initial) + 4 (broadcasts) = 5
+            assertThat(formatChanges).hasSize(5)
         }
 
     @Test
@@ -149,6 +142,7 @@ class ClockInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(ClockModernization.FLAG_NAME)
     fun showSeconds_tunerChanges_flowEmits() =
         kosmos.runTest {
             val showSeconds by collectLastValue(underTest.showSeconds)
@@ -180,6 +174,7 @@ class ClockInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(ClockModernization.FLAG_NAME)
     fun currentTime_showSecondsTrue_changesEverySecond() =
         kosmos.runTest {
             val currentTime by collectLastValue(underTest.currentTime)
@@ -203,6 +198,7 @@ class ClockInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(ClockModernization.FLAG_NAME)
     fun currentTime_showSecondsTrueToFalse_notChangesEverySecond() =
         kosmos.runTest {
             val currentTime by collectLastValue(underTest.currentTime)
@@ -232,6 +228,7 @@ class ClockInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(ClockModernization.FLAG_NAME)
     fun currentTime_showSecondsFalseToTrue_changesEverySecond() =
         kosmos.runTest {
             val currentTime by collectLastValue(underTest.currentTime)

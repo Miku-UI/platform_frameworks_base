@@ -37,7 +37,6 @@ android_library {
         "androidx.test.ext.junit",
         "flickertestapplib",
         "flickerlib-helpers",
-        "flickerlib-trace_processor_shell",
         "platform-test-annotations",
         "wm-flicker-common-app-helpers",
         "launcher-helper-lib",

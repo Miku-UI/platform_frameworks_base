@@ -84,4 +84,10 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <include layout="@layout/notification_dismiss_button"
+        android:id="@+id/dismiss_button"
+        android:layout_width="@dimen/notification_dismiss_button_size"
+        android:layout_height="@dimen/notification_dismiss_button_size"
+        android:layout_gravity="top|end" />
+
 </com.android.systemui.statusbar.notification.row.ExpandableNotificationRow>

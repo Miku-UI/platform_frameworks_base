@@ -37,7 +37,6 @@ import com.android.systemui.kairos.util.toNameData
  *
  * @sample com.android.systemui.kairos.KairosSamples.switchEvents
  */
-@ExperimentalKairosApi
 fun <A> State<Events<A>>.switchEvents(): Events<A> =
     switchEvents(nameTag("State.switchEvents").toNameData("State.switchEvents"))
 
@@ -75,7 +74,6 @@ internal fun <A> State<Events<A>>.switchEvents(nameData: NameData): Events<A> {
  * @sample com.android.systemui.kairos.KairosSamples.switchEventsPromptly
  */
 // TODO: parameter to handle coincidental emission from both old and new
-@ExperimentalKairosApi
 fun <A> State<Events<A>>.switchEventsPromptly(): Events<A> =
     switchEventsPromptly(
         nameTag("State.switchEventsPromptly").toNameData("State.switchEventsPromptly")
@@ -114,9 +112,8 @@ internal fun <K, V> State<Incremental<K, V>>.switchIncremental(
         }
     val innerChanges =
         map(nameData + "innerChangesPatch") { inner ->
-                merge(
+                stateChangePatches.mergeWith(
                     nameData + "mergeCoincidentalPatches",
-                    stateChangePatches,
                     inner.updates(nameData + "innerUpdates"),
                 ) { switchPatch, upcomingPatch ->
                     switchPatch + upcomingPatch

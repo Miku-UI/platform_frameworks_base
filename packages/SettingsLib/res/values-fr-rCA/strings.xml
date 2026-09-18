@@ -56,7 +56,7 @@
     <string name="wifi_disabled_password_failure" msgid="6892387079613226738">"Problème d\'authentification"</string>
     <string name="wifi_cant_connect" msgid="5718417542623056783">"Connexion impossible"</string>
     <string name="wifi_cant_connect_to_ap" msgid="3099667989279700135">"Impossible de se connecter à « <xliff:g id="AP_NAME">%1$s</xliff:g> »"</string>
-    <string name="wifi_check_password_try_again" msgid="8817789642851605628">"Vérifiez le mot de passe et réessayez"</string>
+    <string name="wifi_check_password_try_again" msgid="8817789642851605628">"vérifiez le mot de passe et réessayez"</string>
     <string name="wifi_not_in_range" msgid="1541760821805777772">"Hors de portée"</string>
     <string name="wifi_no_internet_no_reconnect" msgid="821591791066497347">"Reconnexion automatique impossible"</string>
     <string name="wifi_no_internet" msgid="1774198889176926299">"Aucun accès à Internet"</string>
@@ -130,7 +130,7 @@
     <string name="bluetooth_battery_level_untethered_lea_support" msgid="803110681688633362">"Connecté (prise en charge du partage audio). G. : pile à <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, D. : pile à <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_battery_level_untethered_left_lea_support" msgid="7707464334346454950">"Connecté (prise en charge du partage audio). Gauche : pile à <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_battery_level_untethered_right_lea_support" msgid="8941549024377771038">"Connecté (prise en charge du partage audio). Droite : pile à <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
-    <string name="bluetooth_no_battery_level_lea_support" msgid="5721725041048434075">"Connecté (prise en charge du partage audio)"</string>
+    <string name="bluetooth_no_battery_level_lea_support" msgid="5721725041048434075">"Connexion établie (prise en charge du partage audio)"</string>
     <string name="bluetooth_guest_battery_level_lea_support" msgid="8098327939585013928">"Appareil invité (prend en charge le partage audio). Pile à <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_guest_battery_level_untethered_lea_support" msgid="3701035025565668360">"Appareil invité (prend en charge le partage audio). G. : pile à <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, D. : pile à <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_guest_no_battery_level_lea_support" msgid="2977038548753103470">"Appareil invité (prend en charge le partage audio)"</string>
@@ -147,7 +147,7 @@
     <string name="bluetooth_profile_opp" msgid="6692618568149493430">"Transfert de fichier"</string>
     <string name="bluetooth_profile_hid" msgid="2969922922664315866">"Périphérique d\'entrée"</string>
     <string name="bluetooth_profile_pan" msgid="1006235139308318188">"Accès Internet"</string>
-    <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"Autoriser accès : contacts et hist. d\'appels"</string>
+    <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"Autoriser l\'accès : contacts et historique d\'appels"</string>
     <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"Ces infos seront utilisées pour les annonces d\'appels et plus"</string>
     <string name="bluetooth_profile_pan_nap" msgid="7871974753822470050">"Partage de connexion Internet"</string>
     <string name="bluetooth_profile_map" msgid="8907204701162107271">"Messages texte"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wi-Fi : trois barres."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Wi-Fi : signal complet."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Connecté à votre appareil."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Tous les utilisateurs de cet appareil peuvent afficher le réseau et s\'y connecter."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Réseau ouvert"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Réseau sécurisé"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Système d\'exploitation Android"</string>
@@ -268,20 +269,20 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Les paramètres de point d\'accès ne sont pas disponibles pour cet utilisateur"</string>
     <string name="enable_adb" msgid="8072776357237289039">"Débogage USB"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Mode Débogage lorsqu\'un câble USB est connecté"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Annuler les autorisations relatives au débogage USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Révoquer les autorisations de débogage PDA"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Débogage sans fil"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Mode Débogage lorsque le Wi-Fi est connecté"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Erreur"</string>
     <string name="adb_wireless_settings" msgid="2295017847215680229">"Débogage sans fil"</string>
-    <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"Pour afficher et utiliser les appareils à proximité, activez le débogage sans fil"</string>
+    <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"Pour afficher et utiliser les appareils disponibles, activez le débogage sans fil"</string>
     <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"Associer l\'appareil à l\'aide d\'un code QR"</string>
-    <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"Associer les nouveaux appareils à l\'aide d\'un lecteur de code QR"</string>
+    <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"Associez les nouveaux appareils à l\'aide d\'un lecteur de code QR"</string>
     <string name="adb_pair_method_code_title" msgid="1122590300445142904">"Associer l\'appareil avec un code d\'association"</string>
     <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"Associez les nouveaux appareils à l\'aide d\'un code à six chiffres"</string>
     <string name="adb_paired_devices_title" msgid="5268997341526217362">"Appareils associés"</string>
     <string name="adb_wireless_device_connected_summary" msgid="3039660790249148713">"Actuellement connecté"</string>
     <string name="adb_wireless_device_details_title" msgid="7129369670526565786">"Renseignements sur l\'appareil"</string>
-    <string name="adb_device_forget" msgid="193072400783068417">"Supprimer"</string>
+    <string name="adb_device_forget" msgid="193072400783068417">"Retirer"</string>
     <string name="adb_device_fingerprint_title_format" msgid="291504822917843701">"Empreinte digitale d\'appareil : <xliff:g id="FINGERPRINT_PARAM">%1$s</xliff:g>"</string>
     <string name="adb_wireless_connection_failed_title" msgid="664211177427438438">"Échec de la connexion"</string>
     <string name="adb_wireless_connection_failed_message" msgid="9213896700171602073">"Vérifiez que <xliff:g id="DEVICE_NAME">%1$s</xliff:g> est connecté au bon réseau"</string>
@@ -289,12 +290,14 @@
     <string name="adb_pairing_device_dialog_pairing_code_label" msgid="3639239786669722731">"Code d\'association Wi-Fi"</string>
     <string name="adb_pairing_device_dialog_failed_title" msgid="3426758947882091735">"Échec de l\'association"</string>
     <string name="adb_pairing_device_dialog_failed_msg" msgid="6611097519661997148">"Vérifiez que l\'appareil est connecté au même réseau."</string>
-    <string name="adb_wireless_qrcode_summary" msgid="8051414549011801917">"Associez l\'appareil par Wi-Fi en numérisant un code QR"</string>
+    <string name="adb_wireless_qrcode_summary" msgid="8051414549011801917">"Associez l\'appareil par Wi-Fi en balayant un code QR"</string>
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Association de l\'appareil en cours…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Échec de l\'association de l\'appareil Soit le code QR est incorrect, soit l\'appareil n\'est pas connecté au même réseau."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"Adresse IP et port"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Non disponible (non autorisé)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Non disponible (Wi-Fi déconnecté)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Balayer le code QR"</string>
-    <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Associer l\'appareil par Wi-Fi en numérisant un code QR"</string>
+    <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Associez l\'appareil par Wi-Fi en balayant un code QR"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Veuillez vous connecter à un réseau Wi-Fi"</string>
     <string name="keywords_adb_wireless" msgid="6507505581882171240">"adb, débogage, développeur"</string>
     <string name="bugreport_in_power" msgid="8664089072534638709">"Raccourci de rapport de bogue"</string>
@@ -340,8 +343,8 @@
     <string name="select_private_dns_configuration_dialog_title" msgid="3731422918335951912">"Sélectionner le mode DNS privé"</string>
     <string name="private_dns_mode_off" msgid="7065962499349997041">"Désactivé"</string>
     <string name="private_dns_mode_opportunistic" msgid="1947864819060442354">"Automatique"</string>
-    <string name="private_dns_mode_provider" msgid="3619040641762557028">"Nom d\'hôte du fournisseur DNS privé"</string>
-    <string name="private_dns_mode_provider_hostname_hint" msgid="6564868953748514595">"Entrez le nom d\'hôte du fournisseur DNS"</string>
+    <string name="private_dns_mode_provider" msgid="3619040641762557028">"Nom d\'hôte du fournisseur de DNS privé"</string>
+    <string name="private_dns_mode_provider_hostname_hint" msgid="6564868953748514595">"Entrez le nom d\'hôte du fournisseur de DNS"</string>
     <string name="private_dns_mode_provider_failure" msgid="8356259467861515108">"Impossible de se connecter"</string>
     <string name="wifi_display_certification_summary" msgid="8111151348106907513">"Affichez les options pour la certification d\'affichage sans fil"</string>
     <string name="wifi_verbose_logging_summary" msgid="4993823188807767892">"Augmentez le niveau de journalisation Wi-Fi, affichez le RSSI par SSID dans le sélecteur Wi-Fi"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"Le débogage USB est conçu uniquement pour le développement. Utilisez-le pour copier des données entre votre ordinateur et votre appareil, installer des applis sur votre appareil sans notification et lire les données de journal."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Autoriser le débogage sans fil?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Le débogage sans fil est conçu uniquement aux fin de conception. Utilisez-le pour copier des données entre votre ordinateur et votre appareil, installer des applis sur votre appareil sans notification et lire les données de journal."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Voulez-vous vraiment désactiver l\'accès au débogage USB de tous les ordinateurs précédemment autorisés?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Voulez-vous vraiment désactiver l\'accès au débogage PDA de tous les ordinateurs et réseaux précédemment autorisés?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Activer les paramètres de développement?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Ces paramètres sont en cours de développement. Ils peuvent endommager votre appareil et les applis qui s\'y trouvent, ou provoquer leur dysfonctionnement."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Vérifier les applis par USB"</string>
@@ -458,7 +461,7 @@
     <string name="force_resizable_activities" msgid="7143612144399959606">"Forcer les activités à être redimensionnables"</string>
     <string name="force_resizable_activities_summary" msgid="2490382056981583062">"Permet de redimensionner toutes les activités pour le mode Multifenêtre, indépendamment des valeurs du fichier de configuration."</string>
     <string name="enable_freeform_support" msgid="7599125687603914253">"Activer les fenêtres de forme libre"</string>
-    <string name="local_backup_password_title" msgid="4631017948933578709">"Mot de passe sauvegarde PC"</string>
+    <string name="local_backup_password_title" msgid="4631017948933578709">"Mot de passe de sauvegarde du PC"</string>
     <string name="local_backup_password_summary_none" msgid="7646898032616361714">"Les sauvegardes complètes sur PC ne sont pas protégées actuellement"</string>
     <string name="local_backup_password_summary_change" msgid="1707357670383995567">"Touchez pour modifier ou supprimer le mot de passe utilisé pour les sauvegardes complètes sur ordinateur."</string>
     <string name="local_backup_password_toast_success" msgid="4891666204428091604">"Le nouveau mot de passe de secours a bien été défini."</string>
@@ -647,7 +650,7 @@
     <string name="storage_category" msgid="2287342585424631813">"Espace de stockage"</string>
     <string name="shared_data_title" msgid="1017034836800864953">"Données partagées"</string>
     <string name="shared_data_summary" msgid="5516326713822885652">"Affichez et modifiez les données partagées"</string>
-    <string name="shared_data_no_blobs_text" msgid="3108114670341737434">"Il n\'y a aucune donnée partagée pour cet utilisateur."</string>
+    <string name="shared_data_no_blobs_text" msgid="3108114670341737434">"Il n\'y a aucune donnée partagée pour cet utilisateur"</string>
     <string name="shared_data_query_failure_text" msgid="3489828881998773687">"Une erreur s\'est produite lors de la récupération des données partagées. Réessayez."</string>
     <string name="blob_id_text" msgid="8680078988996308061">"Identifiant de données partagées : <xliff:g id="BLOB_ID">%d</xliff:g>"</string>
     <string name="blob_expires_text" msgid="7882727111491739331">"Expirent le <xliff:g id="DATE">%s</xliff:g>"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Ethernet déconnecté."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Aucun appel."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Clavier physique"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Sélectionner disposition du clavier"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"Par défaut"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Commande d\'activation de l\'écran"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Autoriser l\'activation de l\'écran"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Autorisez une appli à activer l\'écran. Lorsque vous accordez cette autorisation, l\'appli peut activer l\'écran à tout moment sans que vous lui demandiez."</string>

@@ -97,6 +97,7 @@ constructor(
         mediaPipelineRepository.addCurrentUserMediaEntry(data)
 
         mediaLogger.logMediaLoaded(data.instanceId, data.active, "loading media")
+        mediaLogger.logMediaNotificationExitedPipeline(data.packageName, data.song)
 
         // Notify listeners
         listeners.forEach { it.onMediaDataLoaded(key, oldKey, data) }

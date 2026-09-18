@@ -1,4 +1,5 @@
 metric_bundles {
+  bundle_id: "android_sf_critical_work_main_thread_cuj"
   row {
     values {
       double_value: 12000000.0

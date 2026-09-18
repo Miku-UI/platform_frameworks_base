@@ -196,4 +196,15 @@
          TODO: b/444730302 - remove config once status bar input layer can be removed for all
           devices. -->
     <bool name="config_removeStatusBarInputLayer">true</bool>
+
+    <!-- Whether to actively prompt user to use web rather than apps. -->
+    <bool name="config_appToWebActivePrompting">false</bool>
+    <!-- Packages that are exempt from the app-to-web first run prompt. -->
+    <string-array name="config_appToWebFirstRunPromptExemptPackages"></string-array>
+
+    <!-- Parameters for launching game controls -->
+    <string name="config_gameControlsSystemFeature" translatable="false"/>
+    <string name="config_gameControlsIntentReceiverPackage" translatable="false"/>
+    <string name="config_gameControlsIntentAction" translatable="false"/>
+    <string name="config_gameControlsOptOutMetadataKey" translatable="false"/>
 </resources>

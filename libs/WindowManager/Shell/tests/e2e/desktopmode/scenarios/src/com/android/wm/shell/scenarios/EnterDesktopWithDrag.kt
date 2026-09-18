@@ -18,6 +18,7 @@ package com.android.wm.shell.scenarios
 
 import android.tools.Rotation
 import org.junit.After
+import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
 
@@ -28,9 +29,15 @@ constructor(
     isResizeable: Boolean = true,
     isLandscapeApp: Boolean = true,
 ) : DesktopScenarioCustomAppTestBase(isResizeable, isLandscapeApp, rotation) {
+
+    @Before
+    fun setup() {
+        testApp.launchViaIntent(wmHelper)
+        testApp.exitDesktopModeToFullScreenIfNeeded(wmHelper, device)
+    }
+
     @Test
     open fun enterDesktopWithDrag() {
-        // By default this method uses drag to desktop
         testApp.enterDesktopMode(wmHelper, device, shouldUseDragToDesktop = true)
     }
 

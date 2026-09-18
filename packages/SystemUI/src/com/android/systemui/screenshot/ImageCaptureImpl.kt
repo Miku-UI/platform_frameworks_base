@@ -51,17 +51,14 @@ constructor(
     override suspend fun captureTask(taskId: Int): Bitmap? {
         val snapshot =
             withContext(bgContext) {
-                if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-                    TaskSnapshotManager.getInstance()
-                        .takeTaskSnapshot(taskId, false /* updateCache */)
-                } else {
-                    atmService.takeTaskSnapshot(taskId, false /* updateCache */)
-                }
+                TaskSnapshotManager.getInstance()
+                    .takeTaskSnapshot(
+                        taskId,
+                        false /* updateCache */,
+                        false /* lowResolution */,
+                        true, /* includeDecors */
+                    )
             } ?: return null
-        if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-            return snapshot.wrapToBitmap()
-        } else {
-            return Bitmap.wrapHardwareBuffer(snapshot.hardwareBuffer, snapshot.colorSpace)
-        }
+        return snapshot.wrapToBitmap()
     }
 }

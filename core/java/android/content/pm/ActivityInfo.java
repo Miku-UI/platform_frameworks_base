@@ -39,7 +39,10 @@ import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.ArraySet;
+import android.util.DisplayMetrics;
 import android.util.Printer;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.window.OnBackInvokedCallback;
 
 import com.android.internal.util.Parcelling;
@@ -640,6 +643,14 @@ public class ActivityInfo extends ComponentInfo implements Parcelable {
      * @hide
      */
     public static final int FLAG_ALWAYS_FOCUSABLE = 0x40000;
+
+    /**
+     * Bit in {@link #flags} indicating if the activity or the receiver should run in
+     * the Private Compute Core sandbox.
+     * @see android.R.styleable#AndroidManifestActivity_privateComputeCore
+     * @hide
+     */
+    public static final int FLAG_RUN_IN_PCC_SANDBOX = 0x80000;
 
     /**
      * Bit in {@link #flags} indicating if the activity is visible to instant
@@ -1330,26 +1341,6 @@ public class ActivityInfo extends ComponentInfo implements Parcelable {
             264301586L; // buganizer id
 
     /**
-     * Includes the packages the override is applied to in the camera compatibility treatment in
-     * free-form windowing mode for fixed-orientation apps.
-     *
-     * <p>In free-form windowing mode, the compatibility treatment emulates running on a portrait
-     * device by letterboxing the app window and changing the camera characteristics to what apps
-     * commonly expect in a portrait device: 90 and 270 degree sensor rotation for back and front
-     * cameras, respectively, and setting display rotation to 0.
-     *
-     * <p>Use this flag to enable the compatibility treatment for apps in which camera doesn't work
-     * well in freeform windowing.
-     *
-     * @hide
-     */
-    @ChangeId
-    @Overridable
-    @Disabled
-    public static final long OVERRIDE_CAMERA_COMPAT_ENABLE_FREEFORM_WINDOWING_TREATMENT =
-            314961188L;
-
-    /**
      * Excludes the packages the override is applied to from the camera compatibility treatment for
      * fixed-orientation apps, which simulates running on a portrait device, in the orientation
      * requested by the app.
@@ -1645,6 +1636,20 @@ public class ActivityInfo extends ComponentInfo implements Parcelable {
     private static final long CHECK_MIN_WIDTH_HEIGHT_FOR_MULTI_WINDOW = 197654537L;
 
     /**
+     * This change will enable synchronizing the system insets animation (e.g. showing IME) with
+     * the app content, if applicable. This means that the insets are applied per frame and the
+     * app needs to redraw. In case
+     * {@link android.view.WindowManager.LayoutParams#SOFT_INPUT_ADJUST_PAN} was set, this will
+     * synchronize the scrolling with the IME animation.
+     *
+     * @hide
+     */
+    @ChangeId
+    @EnabledSince(targetSdkVersion = Build.VERSION_CODES.BAKLAVA)
+    @Overridable
+    public static final long ENABLE_SYNCHRONIZED_INSETS_ANIMATION = 463899193L;
+
+    /**
      * The activity is targeting a SDK version that should receive the changed behavior of
      * configuration insets decouple.
      *
@@ -1678,13 +1683,13 @@ public class ActivityInfo extends ComponentInfo implements Parcelable {
      * When the override is enabled, the activity receives configuration coupled with caption bar
      * insets. Normally, caption bar insets are decoupled from configuration.
      *
-     * <p>Override applies only if the activity targets SDK level 34 or earlier version.
-     *
      * @hide
      */
     @ChangeId
     @Overridable
     @Disabled
+    @TestApi
+    @FlaggedApi(Flags.FLAG_EXCLUDE_CAPTION_INSETS_OPT_OUT_API)
     public static final long OVERRIDE_EXCLUDE_CAPTION_INSETS_FROM_APP_BOUNDS = 388014743L;
 
     /**
@@ -1728,6 +1733,70 @@ public class ActivityInfo extends ComponentInfo implements Parcelable {
     @Overridable
     @Disabled
     public static final long OVERRIDE_AUTO_RESTART_ON_DISPLAY_MOVE = 427878712L;
+
+    /**
+     * This change id masks {@link android.view.Display#FLAG_PRESENTATION} for apps that incorrectly
+     * interpret it as a security risk on internal/built-in displays.
+     *
+     * <p>Some apps refuse to function or crash if they detect a display with FLAG_PRESENTATION.
+     * This override allows masking this flag for internal displays on a per-application basis.
+     *
+     * @hide
+     */
+    @ChangeId
+    @Overridable
+    @Disabled
+    public static final long MASK_PRESENTATION_FLAGS_ON_INTERNAL_DISPLAYS = 483802160L;
+
+    /**
+     * This change id enables the virtual gamepad for game apps on foldable devices.
+     *
+     * <p>Some game apps don't work well on foldable devices. They misbehave upon device folding
+     * and unfolding when the display size changes. They also don't fully utilize the larger inner
+     * display space. In addition, even without compatibility issues, some games work better with
+     * a gamepad. Showing a system-provided virtual gamepad can improve the user experience.
+     *
+     * This flag also forces the app to be resizable similar to {@link #FORCE_RESIZE_APP} to ensure
+     * that the app works well with the virtual gamepad.
+     *
+     * This is disabled by default, and can be enabled by device manufacturers on a per-application
+     * basis, controlled via
+     * <a href="https://developer.android.com/guide/practices/device-compatibility-mode#device_manufacturer_per-app_overrides">Device manufacturer per-app overrides</a>.
+     *
+     * @hide
+     */
+    @ChangeId
+    @Overridable
+    @Disabled
+    @FlaggedApi(Flags.FLAG_VIRTUAL_GAMEPAD_DEVELOPER_OPT_OUT)
+    @TestApi
+    public static final long OVERRIDE_ENABLE_VIRTUAL_GAMEPAD = 447093535L;
+
+    /**
+     * This change id skips the activity recreation by default on config change of
+     * {@link #CONFIG_KEYBOARD}, {@link #CONFIG_KEYBOARD_HIDDEN}, {@link #CONFIG_NAVIGATION},
+     * {@link #CONFIG_TOUCHSCREEN}, {@link #CONFIG_COLOR_MODE} and {@link #CONFIG_UI_MODE} (only if
+     * it is changed from or to {@link Configuration#UI_MODE_TYPE_DESK}), unless the corresponding
+     * flag is explicitly defined in the {@link android.R.attr#recreateOnConfigChanges} attribute.
+     *
+     * @hide
+     */
+    @ChangeId
+    @Overridable
+    @FlaggedApi(Flags.FLAG_ENABLE_LESS_ACTIVITY_RECREATION_ON_CONFIG_CHANGE)
+    @TestApi
+    public static final long SKIP_ACTIVITY_RECREATION_ON_CONFIG_CHANGE = 454795633L;
+
+    /**
+     * This change id enables fluid resizing experience on desktop for listed apps.
+     * This is an experimental feature and we only enable it for well tested apps for now. The value
+     * is disabled by default. Further decision may be made based on the result.
+     * @hide
+     */
+    @ChangeId
+    @Disabled
+    @Overridable
+    public static final long ENABLE_FLUID_RESIZING = 460405642L;
 
     /**
      * Optional set of a certificates identifying apps that are allowed to embed this activity. From
@@ -2206,6 +2275,15 @@ public class ActivityInfo extends ComponentInfo implements Parcelable {
                 && (privateFlags & PRIVATE_FLAG_ENABLE_ON_BACK_INVOKED_CALLBACK) != 0;
     }
 
+    /**
+     * Returns whether the activity should run in PCC sandbox.
+     * @hide
+     */
+    @Override
+    public boolean shouldRunInPccSandbox() {
+        return (flags & FLAG_RUN_IN_PCC_SANDBOX) != 0;
+    }
+
     public void dump(Printer pw, String prefix) {
         dump(pw, prefix, DUMP_FLAG_ALL);
     }
@@ -2461,34 +2539,85 @@ public class ActivityInfo extends ComponentInfo implements Parcelable {
      * @attr ref android.R.styleable#AndroidManifestLayout_minHeight
      */
     public static final class WindowLayout {
+
+        /**
+         * An empty {@link WindowLayout} instance with all values set to undefined.
+         * Useful for testing or as a fallback default.
+         *
+         * @hide
+         */
+        public static final WindowLayout EMPTY = new WindowLayout(
+                -1 /* width */, -1 /* complexWidth */, -1f /* widthFraction */,
+                -1 /* height */, -1 /* complexHeight */, -1f /* heightFraction */,
+                Gravity.NO_GRAVITY, -1 /* minWidth */, -1 /* complexMinWidth */,
+                -1 /* minHeight */, -1 /* complexMinHeight */, null /* windowLayoutAffinity */);
+
+        /**
+         * Creates a new WindowLayout instance with the specified dimensions and constraints.
+         *
+         * @deprecated This constructor initializes the layout with pixel values resolved using the
+         * default device density. It does not reflect the actual constraints on displays with
+         * different densities (e.g. external monitors). The system automatically enforces the
+         * correct constraints at runtime based on the current display context.
+         * Do not use this constructor for manual layout calculations. Use {@link #EMPTY} instead
+         * if you need a default instance with no constraints.
+         */
+        @Deprecated
+        @FlaggedApi(Flags.FLAG_RUNTIME_DENSITY_RESOLUTION_FOR_WINDOW_LAYOUT)
         public WindowLayout(int width, float widthFraction, int height, float heightFraction,
                 int gravity, int minWidth, int minHeight) {
-            this(width, widthFraction, height, heightFraction, gravity, minWidth, minHeight,
+            this(width, TypedValue.createComplexDimension(width, TypedValue.COMPLEX_UNIT_PX),
+                    widthFraction, height,
+                    TypedValue.createComplexDimension(height, TypedValue.COMPLEX_UNIT_PX),
+                    heightFraction, gravity, minWidth,
+                    TypedValue.createComplexDimension(minWidth, TypedValue.COMPLEX_UNIT_PX),
+                    minHeight,
+                    TypedValue.createComplexDimension(minHeight, TypedValue.COMPLEX_UNIT_PX),
                     null /* windowLayoutAffinity */);
         }
 
         /** @hide */
-        public WindowLayout(int width, float widthFraction, int height, float heightFraction,
-                int gravity, int minWidth, int minHeight, String windowLayoutAffinity) {
+        public WindowLayout(int complexWidth, float widthFraction, int complexHeight,
+                float heightFraction, int gravity, int complexMinWidth, int complexMinHeight,
+                @Nullable String windowLayoutAffinity, @Nullable DisplayMetrics metrics) {
+            this(complexToDimensionPixelSize(complexWidth, metrics), complexWidth, widthFraction,
+                    complexToDimensionPixelSize(complexHeight, metrics), complexHeight,
+                    heightFraction, gravity, complexToDimensionPixelSize(complexMinWidth, metrics),
+                    complexMinWidth, complexToDimensionPixelSize(complexMinHeight, metrics),
+                    complexMinHeight, windowLayoutAffinity);
+        }
+
+        private WindowLayout(int width, int complexWidth, float widthFraction, int height,
+                int complexHeight, float heightFraction, int gravity, int minWidth,
+                int complexMinWidth, int minHeight, int complexMinHeight,
+                @Nullable String windowLayoutAffinity) {
             this.width = width;
+            this.complexWidth = complexWidth;
             this.widthFraction = widthFraction;
             this.height = height;
+            this.complexHeight = complexHeight;
             this.heightFraction = heightFraction;
             this.gravity = gravity;
             this.minWidth = minWidth;
+            this.complexMinWidth = complexMinWidth;
             this.minHeight = minHeight;
+            this.complexMinHeight = complexMinHeight;
             this.windowLayoutAffinity = windowLayoutAffinity;
         }
 
         /** @hide */
         public WindowLayout(Parcel source) {
             width = source.readInt();
+            complexWidth = source.readInt();
             widthFraction = source.readFloat();
             height = source.readInt();
+            complexHeight = source.readInt();
             heightFraction = source.readFloat();
             gravity = source.readInt();
             minWidth = source.readInt();
+            complexMinWidth = source.readInt();
             minHeight = source.readInt();
+            complexMinHeight = source.readInt();
             windowLayoutAffinity = source.readString8();
         }
 
@@ -2496,7 +2625,14 @@ public class ActivityInfo extends ComponentInfo implements Parcelable {
          * Width of activity in pixels.
          *
          * @attr ref android.R.styleable#AndroidManifestLayout_defaultWidth
+         * @deprecated This field contains the pixel value resolved at install time using the
+         * default device density. It does not reflect the actual constraint on displays with
+         * different densities (e.g. external monitors). The system automatically enforces the
+         * correct constraints at runtime based on the current display context. Do not use this
+         * value for manual layout calculations.
          */
+        @Deprecated
+        @FlaggedApi(Flags.FLAG_RUNTIME_DENSITY_RESOLUTION_FOR_WINDOW_LAYOUT)
         public final int width;
 
         /**
@@ -2508,10 +2644,23 @@ public class ActivityInfo extends ComponentInfo implements Parcelable {
         public final float widthFraction;
 
         /**
+         * Holds the default width in complex units to support runtime density updates.
+         * The value is resolved to pixels in {@link #getDefaultWidth(DisplayMetrics)}.
+         */
+        private final int complexWidth;
+
+        /**
          * Height of activity in pixels.
          *
          * @attr ref android.R.styleable#AndroidManifestLayout_defaultHeight
+         * @deprecated This field contains the pixel value resolved at install time using the
+         * default device density. It does not reflect the actual constraint on displays with
+         * different densities (e.g. external monitors). The system automatically enforces the
+         * correct constraints at runtime based on the current display context. Do not use this
+         * value for manual layout calculations.
          */
+        @Deprecated
+        @FlaggedApi(Flags.FLAG_RUNTIME_DENSITY_RESOLUTION_FOR_WINDOW_LAYOUT)
         public final int height;
 
         /**
@@ -2521,6 +2670,12 @@ public class ActivityInfo extends ComponentInfo implements Parcelable {
          * @attr ref android.R.styleable#AndroidManifestLayout_defaultHeight
          */
         public final float heightFraction;
+
+        /**
+         * Holds the default height in complex units to support runtime density updates.
+         * The value is resolved to pixels in {@link #getDefaultHeight(DisplayMetrics)}.
+         */
+        private final int complexHeight;
 
         /**
          * Gravity of activity.
@@ -2540,8 +2695,21 @@ public class ActivityInfo extends ComponentInfo implements Parcelable {
          * task. It will also ignore any other minimal width attributes of non-root activities.
          *
          * @attr ref android.R.styleable#AndroidManifestLayout_minWidth
+         * @deprecated This field contains the pixel value resolved at install time using the
+         * default device density. It does not reflect the actual constraint on displays with
+         * different densities (e.g. external monitors). The system automatically enforces the
+         * correct constraints at runtime based on the current display context. Do not use this
+         * value for manual layout calculations.
          */
+        @Deprecated
+        @FlaggedApi(Flags.FLAG_RUNTIME_DENSITY_RESOLUTION_FOR_WINDOW_LAYOUT)
         public final int minWidth;
+
+        /**
+         * Holds the minimum width in complex units to support runtime density updates.
+         * The value is resolved to pixels in {@link #getMinWidth(DisplayMetrics)}.
+         */
+        private final int complexMinWidth;
 
         /**
          * Minimal height of activity in pixels to be able to display its content.
@@ -2552,8 +2720,21 @@ public class ActivityInfo extends ComponentInfo implements Parcelable {
          * task. It will also ignore any other minimal height attributes of non-root activities.
          *
          * @attr ref android.R.styleable#AndroidManifestLayout_minHeight
+         * @deprecated This field contains the pixel value resolved at install time using the
+         * default device density. It does not reflect the actual constraint on displays with
+         * different densities (e.g. external monitors). The system automatically enforces the
+         * correct constraints at runtime based on the current display context. Do not use this
+         * value for manual layout calculations.
          */
+        @Deprecated
+        @FlaggedApi(Flags.FLAG_RUNTIME_DENSITY_RESOLUTION_FOR_WINDOW_LAYOUT)
         public final int minHeight;
+
+        /**
+         * Holds the minimum height in complex units to support runtime density updates.
+         * The value is resolved to pixels in {@link #getMinHeight(DisplayMetrics)}.
+         */
+        private final int complexMinHeight;
 
         /**
          * Affinity of window layout parameters. Activities with the same UID and window layout
@@ -2572,15 +2753,105 @@ public class ActivityInfo extends ComponentInfo implements Parcelable {
             return width >= 0 || height >= 0 || widthFraction >= 0 || heightFraction >= 0;
         }
 
+        /**
+         * Returns the default width of the window in pixels.
+         *
+         * @param metrics The display metrics used to resolve the complex dimension.
+         * @return The default width of the window in pixels.
+         * @hide
+         */
+        public int getDefaultWidth(@NonNull DisplayMetrics metrics) {
+            if (!Flags.runtimeDensityResolutionForWindowLayoutBugfix()) {
+                return this.width;
+            }
+
+            return complexToDimensionPixelSize(complexWidth, metrics);
+        }
+
+        /**
+         * Returns the default height of the window in pixels.
+         *
+         * @param metrics The display metrics used to resolve the complex dimension.
+         * @return The default height of the window in pixels.
+         * @hide
+         */
+        public int getDefaultHeight(@NonNull DisplayMetrics metrics) {
+            if (!Flags.runtimeDensityResolutionForWindowLayoutBugfix()) {
+                return this.height;
+            }
+
+            return complexToDimensionPixelSize(complexHeight, metrics);
+        }
+
+        /**
+         * Returns the minimum width of the window in pixels.
+         *
+         * @param metrics The display metrics used to resolve the complex dimension.
+         * @return The minimum width of the window in pixels.
+         * @hide
+         */
+        public int getMinWidth(@NonNull DisplayMetrics metrics) {
+            if (!Flags.runtimeDensityResolutionForWindowLayoutBugfix()) {
+                return this.minWidth;
+            }
+
+            return complexToDimensionPixelSize(complexMinWidth, metrics);
+        }
+
+        /**
+         * Returns the minimum height of the window in pixels.
+         *
+         * @param metrics The display metrics used to resolve the complex dimension.
+         * @return The minimum height of the window in pixels.
+         * @hide
+         */
+        public int getMinHeight(@NonNull DisplayMetrics metrics) {
+            if (!Flags.runtimeDensityResolutionForWindowLayoutBugfix()) {
+                return this.minHeight;
+            }
+
+            return complexToDimensionPixelSize(complexMinHeight, metrics);
+        }
+
+        /**
+         * Returns the minimum width of the window in complex format.
+         *
+         * @return The minimum width of the window in complex format.
+         * @hide
+         */
+        public int getComplexMinWidth() {
+            return complexMinWidth;
+        }
+
+        /**
+         * Returns the minimum height of the window in complex format.
+         *
+         * @return The minimum height of the window in complex format.
+         * @hide
+         */
+        public int getComplexMinHeight() {
+            return complexMinHeight;
+        }
+
+        private static int complexToDimensionPixelSize(int complex,
+                @Nullable DisplayMetrics metrics) {
+            return complex != -1 && metrics != null
+                    ? TypedValue.complexToDimensionPixelSize(complex, metrics) : -1;
+        }
+
         /** @hide */
         public void writeToParcel(Parcel dest) {
             dest.writeInt(width);
+            dest.writeInt(complexWidth);
             dest.writeFloat(widthFraction);
             dest.writeInt(height);
+            dest.writeInt(complexHeight);
             dest.writeFloat(heightFraction);
             dest.writeInt(gravity);
             dest.writeInt(minWidth);
+            dest.writeInt(complexMinWidth);
             dest.writeInt(minHeight);
+            dest.writeInt(complexMinHeight);
             dest.writeString8(windowLayoutAffinity);
         }
     }

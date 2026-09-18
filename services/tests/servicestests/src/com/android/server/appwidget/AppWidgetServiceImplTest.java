@@ -23,6 +23,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -31,9 +32,11 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,6 +45,7 @@ import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.AppOpsManagerInternal;
+import android.app.AppGlobals;
 import android.app.UiAutomation;
 import android.app.admin.DevicePolicyManagerInternal;
 import android.appwidget.AppWidgetManager;
@@ -54,18 +58,28 @@ import android.content.ComponentName;
 import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ActivityInfo;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.IPackageManager;
 import android.content.pm.LauncherApps;
+import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
 import android.content.pm.ShortcutServiceInternal;
+import android.graphics.Bitmap;
+import android.graphics.Point;
+import android.graphics.drawable.Icon;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.RemoteException;
 import android.os.UserHandle;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.ArraySet;
 import android.util.AtomicFile;
+import android.util.SizeF;
 import android.util.SparseArray;
 import android.util.Xml;
+import android.view.Display;
 import android.widget.RemoteViews;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -74,23 +88,32 @@ import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.frameworks.servicestests.R;
 import com.android.internal.appwidget.IAppWidgetHost;
+import com.android.internal.content.PackageMonitor;
 import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
 import com.android.server.LocalServices;
+import com.android.server.ServiceThread;
+import com.android.server.appwidget.AppWidgetServiceImpl.Host;
+import com.android.server.appwidget.AppWidgetServiceImpl.Provider;
+import com.android.server.appwidget.AppWidgetServiceImpl.Widget;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.AdditionalAnswers;
 import org.mockito.ArgumentCaptor;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -98,6 +121,7 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Tests for {@link AppWidgetManager} and {@link AppWidgetServiceImpl}.
@@ -115,6 +139,7 @@ public class AppWidgetServiceImplTest {
     private TestContext mTestContext;
     private String mPkgName;
     private AppWidgetServiceImpl mService;
+    private PackageManager mSpiedPackageManager;
     private AppWidgetManager mManager;
 
     private ShortcutServiceInternal mMockShortcutService;
@@ -133,6 +158,12 @@ public class AppWidgetServiceImplTest {
 
         mTestContext = new TestContext();
         mPkgName = mTestContext.getOpPackageName();
+
+        // Spy the package manager to allow mocking specific methods like isPackageAppLockEnabled
+        PackageManager realPackageManager = mTestContext.getBaseContext().getPackageManager();
+        mSpiedPackageManager = spy(realPackageManager);
+        mTestContext.setPackageManager(mSpiedPackageManager);
+
         mService = new AppWidgetServiceImpl(mTestContext);
         mManager = new AppWidgetManager(mTestContext, mService);
 
@@ -145,6 +176,8 @@ public class AppWidgetServiceImplTest {
         LocalServices.addService(AppOpsManagerInternal.class, mMockAppOpsManagerInternal);
         when(mMockPackageManager.filterAppAccess(anyString(), anyInt(), anyInt()))
                 .thenReturn(false);
+        when(mMockPackageManager.isSameApp(anyString(), anyInt(), anyInt()))
+                .thenReturn(true);
         mService.onStart();
         mService.systemServicesReady();
 
@@ -157,10 +190,91 @@ public class AppWidgetServiceImplTest {
     }
 
     @Test
+    public void testQueryIntentReceivers_errorOnFirstCall_successOnSecondCall() throws Exception {
+        IPackageManager realIPm = AppGlobals.getPackageManager();
+        IPackageManager mockIPm =
+                mock(IPackageManager.class, AdditionalAnswers.delegatesTo(realIPm));
+        Field pmField = AppWidgetServiceImpl.class.getDeclaredField("mPackageManager");
+        pmField.setAccessible(true);
+        pmField.set(mService, mockIPm);
+
+        doThrow(new RemoteException("Simulated error"))
+                .doAnswer(
+                        invocation ->
+                                invocation.getMethod().invoke(realIPm, invocation.getArguments()))
+                .when(mockIPm)
+                .queryIntentReceivers(any(), any(), anyLong(), anyInt());
+
+        // The first call will hit the simulated error in queryIntentReceivers
+        // and return an empty list, keeping the user in the unloaded state.
+        List<AppWidgetProviderInfo> providers1 =
+                mManager.getInstalledProvidersForPackage(mPkgName, null);
+        assertTrue(
+                "Providers should be empty on first call due to simulated error",
+                providers1.isEmpty());
+
+        // The second call will succeed, load the providers and populate the widgets.
+        List<AppWidgetProviderInfo> providers2 =
+                mManager.getInstalledProvidersForPackage(mPkgName, null);
+        assertFalse("Providers should be populated on second call", providers2.isEmpty());
+    }
+
+    @Test
     public void testLoadDescription() {
         AppWidgetProviderInfo info =
                 mManager.getInstalledProvidersForPackage(mPkgName, null).get(0);
         assertEquals(info.loadDescription(mTestContext), "widget description string");
+    }
+
+    @Test
+    public void testAppLockEnabledProvidersIsNull() throws Exception {
+        final int userId = mTestContext.getUserId();
+
+        // Get the PackageMonitor and its handler via reflection for triggering and synchronization.
+        final PackageMonitor packageMonitor = mService.mPackageMonitor;
+
+        final ServiceThread serviceThread = mService.mServiceThread;
+        final Handler handler = serviceThread.getThreadHandler();
+
+        // Set the changing user ID via reflection, as it's not set when calling
+        // onPackageAppLockEnabled directly.
+        Field userIdField = PackageMonitor.class.getDeclaredField("mChangeUserId");
+        userIdField.setAccessible(true);
+        userIdField.set(packageMonitor, userId);
+
+        // 1. Initial State: Provider should be available.
+        doReturn(false).when(mSpiedPackageManager).isPackageAppLockEnabled(eq(mPkgName));
+        List<AppWidgetProviderInfo> providers = mManager.getInstalledProvidersForPackage(
+                mPkgName, null);
+        assertFalse("Providers should be available initially", providers.isEmpty());
+
+        // 2. Simulate App Lock
+        doReturn(true).when(mSpiedPackageManager).isPackageAppLockEnabled(eq(mPkgName));
+        final CountDownLatch lockLatch = new CountDownLatch(1);
+        handler.post(() -> {
+            packageMonitor.onPackageAppLockEnabled(mPkgName);
+            lockLatch.countDown();
+        });
+        assertTrue("Timed out waiting for onPackageAppLockEnabled",
+                lockLatch.await(5, TimeUnit.SECONDS));
+
+        // 3. Verify provider is gone
+        providers = mManager.getInstalledProvidersForPackage(mPkgName, null);
+        assertTrue("Providers should be gone when app is locked", providers.isEmpty());
+
+        // 4. Simulate App Unlock
+        doReturn(false).when(mSpiedPackageManager).isPackageAppLockEnabled(eq(mPkgName));
+        final CountDownLatch unlockLatch = new CountDownLatch(1);
+        handler.post(() -> {
+            packageMonitor.onPackageAppLockDisabled(mPkgName);
+            unlockLatch.countDown();
+        });
+        assertTrue("Timed out waiting for onPackageAppLockDisabled",
+                unlockLatch.await(5, TimeUnit.SECONDS));
+
+        // 5. Verify provider is back
+        providers = mManager.getInstalledProvidersForPackage(mPkgName, null);
+        assertFalse("Providers should be back when app is unlocked", providers.isEmpty());
     }
 
     @Test
@@ -200,7 +314,6 @@ public class AppWidgetServiceImplTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_PLAY_STORE_PIN_WIDGETS)
     public void testRequestPinAppWidget_otherProvider_installPackagesPermission() {
         mUiAutomation.adoptShellPermissionIdentity(Manifest.permission.INSTALL_PACKAGES);
         ComponentName otherProvider = null;
@@ -240,12 +353,12 @@ public class AppWidgetServiceImplTest {
     @Test
     public void testIsRequestPinAppWidgetSupported() {
         // Set up users.
-        when(mMockShortcutService.isRequestPinItemSupported(anyInt(), anyInt()))
+        when(mMockShortcutService.isRequestPinItemSupported(anyString(), anyInt(), anyInt()))
                 .thenReturn(true, false);
         assertTrue(mManager.isRequestPinAppWidgetSupported());
         assertFalse(mManager.isRequestPinAppWidgetSupported());
 
-        verify(mMockShortcutService, times(2)).isRequestPinItemSupported(anyInt(),
+        verify(mMockShortcutService, times(2)).isRequestPinItemSupported(anyString(), anyInt(),
                 eq(LauncherApps.PinItemRequest.REQUEST_TYPE_APPWIDGET));
     }
 
@@ -516,6 +629,206 @@ public class AppWidgetServiceImplTest {
         }
     }
 
+    @Test
+    public void testProviderIdEquals_sameValues() {
+        final int APP_ID = 10123;
+        final int primaryUserId = 0;
+        final int primaryProfileUid = UserHandle.getUid(primaryUserId, APP_ID);
+        final ComponentName componentName = new ComponentName(mPkgName, "cls1");
+
+        AppWidgetServiceImpl.ProviderId id1 =
+                new AppWidgetServiceImpl.ProviderId(primaryProfileUid, componentName);
+        AppWidgetServiceImpl.ProviderId id2 =
+                new AppWidgetServiceImpl.ProviderId(primaryProfileUid, componentName);
+
+        assertThat(id1.equals(id2)).isTrue();
+        assertThat(id1.hashCode()).isEqualTo(id2.hashCode());
+    }
+
+    @Test
+    public void testProviderIdEquals_differentUid_notEqual() {
+        final int APP_ID = 10123;
+        final int primaryUserId = 0;
+        final int primaryProfileUid = UserHandle.getUid(primaryUserId, APP_ID);
+        final int workProfileUserId = 10;
+        final int workProfileUid = UserHandle.getUid(workProfileUserId, APP_ID);
+        final ComponentName componentName = new ComponentName(mPkgName, "cls1");
+
+        AppWidgetServiceImpl.ProviderId id1 =
+                new AppWidgetServiceImpl.ProviderId(primaryProfileUid, componentName);
+        AppWidgetServiceImpl.ProviderId id2 =
+                new AppWidgetServiceImpl.ProviderId(workProfileUid, componentName);
+
+        assertThat(id1.equals(id2)).isFalse();
+    }
+
+    @Test
+    public void testProviderIdEquals_knownUid_differentComponent_notEqual() {
+        final int APP_ID = 10123;
+        final int primaryUserId = 0;
+        final int primaryProfileUid = UserHandle.getUid(primaryUserId, APP_ID);
+        final ComponentName componentName1 = new ComponentName(mPkgName, "cls1");
+        final ComponentName componentName2 = new ComponentName(mPkgName, "cls2");
+
+        AppWidgetServiceImpl.ProviderId id1 = new AppWidgetServiceImpl.ProviderId(primaryProfileUid,
+                componentName1);
+        AppWidgetServiceImpl.ProviderId id2 = new AppWidgetServiceImpl.ProviderId(primaryProfileUid,
+                componentName2);
+
+        assertThat(id1.equals(id2)).isFalse();
+    }
+
+    @Test
+    public void testProviderIdEquals_unknownUid_differentRestoredProfileId_notEqual() {
+        final int UNKNOWN_UID = -1;
+        final int primaryUserId = 0;
+        final int workUserId = 10;
+        final ComponentName componentName = new ComponentName(mPkgName, "cls1");
+
+        AppWidgetServiceImpl.ProviderId id1 = new AppWidgetServiceImpl.ProviderId(UNKNOWN_UID,
+                componentName, primaryUserId);
+        AppWidgetServiceImpl.ProviderId id2 = new AppWidgetServiceImpl.ProviderId(UNKNOWN_UID,
+                componentName, workUserId);
+
+        assertThat(id1.equals(id2)).isFalse();
+    }
+
+    @Test
+    public void testProviderIdEquals_unknownUid_sameProfileId_areEqual() {
+        final int unknownUid = -1;
+        final int primaryUserId = 0;
+        final ComponentName componentName = new ComponentName(mPkgName, "cls1");
+
+        AppWidgetServiceImpl.ProviderId id1 = new AppWidgetServiceImpl.ProviderId(unknownUid,
+                componentName, primaryUserId);
+        AppWidgetServiceImpl.ProviderId id2 = new AppWidgetServiceImpl.ProviderId(unknownUid,
+                componentName, primaryUserId);
+
+        assertThat(id1.equals(id2)).isTrue();
+        assertThat(id1.hashCode()).isEqualTo(id2.hashCode());
+    }
+
+    @Test
+    public void testWidgetViewsMemoryLimit_pre38_bitmap() {
+        RemoteViews viewsWithBitmapOverLimit = new RemoteViews(mTestContext.getPackageName(),
+                R.layout.widget_preview);
+        viewsWithBitmapOverLimit.setBitmap(R.id.widget_preview, "method", createTooBigBitmap());
+        Widget widget = setupWidgetWithTargetSdk(37, viewsWithBitmapOverLimit);
+        assertThrows(IllegalArgumentException.class, () -> {
+            mService.ensureWidgetViewsMemoryLimitLocked(widget);
+        });
+    }
+
+    @Test
+    public void testWidgetViewsMemoryLimit_pre38_icon() {
+        RemoteViews viewsWithIconOverLimit = new RemoteViews(mTestContext.getPackageName(),
+                R.layout.widget_preview);
+        viewsWithIconOverLimit.setIcon(R.id.widget_preview, "method", Icon.createWithBitmap(
+                createTooBigBitmap()));
+        Widget widget = setupWidgetWithTargetSdk(37, viewsWithIconOverLimit);
+        // The following will only log, not throw an error
+        mService.ensureWidgetViewsMemoryLimitLocked(widget);
+    }
+
+    @Test
+    public void testWidgetViewsMemoryLimit_post38_bitmap() {
+        RemoteViews viewsWithBitmapOverLimit = new RemoteViews(mTestContext.getPackageName(),
+                R.layout.widget_preview);
+        viewsWithBitmapOverLimit.setBitmap(R.id.widget_preview, "method", createTooBigBitmap());
+
+        Widget widget = setupWidgetWithTargetSdk(38, viewsWithBitmapOverLimit);
+        assertThrows(IllegalArgumentException.class, () -> {
+            mService.ensureWidgetViewsMemoryLimitLocked(widget);
+        });
+    }
+
+    @Test
+    public void testWidgetViewsMemoryLimit_post38_icon() {
+        RemoteViews viewsWithIconOverLimit = new RemoteViews(mTestContext.getPackageName(),
+                R.layout.widget_preview);
+        viewsWithIconOverLimit.setIcon(R.id.widget_preview, "method", Icon.createWithBitmap(
+                createTooBigBitmap()));
+
+        Widget widget = setupWidgetWithTargetSdk(38, viewsWithIconOverLimit);
+        assertThrows(IllegalArgumentException.class, () -> {
+            mService.ensureWidgetViewsMemoryLimitLocked(widget);
+        });
+    }
+
+    @EnableFlags(Flags.FLAG_WIDGET_DISPLAY_CHANGES)
+    @Test
+    public void testSerializeAppWidgetOptions() throws Exception {
+        int minWidth = 50;
+        int minHeight = 50;
+        int maxWidth = 50;
+        int maxHeight = 50;
+        ArrayList<SizeF> sizes = new ArrayList<>(List.of(new SizeF(50, 50), new SizeF(100, 100)));
+        int category = AppWidgetProviderInfo.WIDGET_CATEGORY_KEYGUARD;
+        int displayId = 3;
+        boolean restoreCompleted = true;
+
+        Widget widget = new Widget();
+        widget.host = new Host();
+        Bundle options = new Bundle();
+        options.putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, minWidth);
+        options.putInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, minHeight);
+        options.putInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, maxWidth);
+        options.putInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, maxHeight);
+        options.putParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES, sizes);
+        options.putInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY, category);
+        options.putInt(AppWidgetManager.OPTION_APPWIDGET_DISPLAY_ID, displayId);
+        options.putBoolean(AppWidgetManager.OPTION_APPWIDGET_RESTORE_COMPLETED, restoreCompleted);
+        widget.options = options;
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        TypedXmlSerializer serializer = Xml.resolveSerializer(out);
+        serializer.startDocument(null, true);
+        mService.serializeAppWidget(serializer, widget, /* saveRestoreCompleted= */ true);
+        serializer.endDocument();
+        ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
+        TypedXmlPullParser parser = Xml.resolvePullParser(in);
+        assertThat(parser.next()).isEqualTo(XmlPullParser.START_TAG);
+        assertThat(parser.getName()).isEqualTo("g");
+        Bundle bundle = mService.parseWidgetIdOptions(parser);
+        assertThat(bundle.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH))
+                .isEqualTo(minWidth);
+        assertThat(bundle.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT))
+                .isEqualTo(minHeight);
+        assertThat(bundle.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH))
+                .isEqualTo(maxWidth);
+        assertThat(bundle.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT))
+                .isEqualTo(maxHeight);
+        assertThat(bundle.getParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES,
+                SizeF.class)).containsExactlyElementsIn(sizes);
+        assertThat(bundle.getInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY))
+                .isEqualTo(category);
+        assertThat(bundle.getInt(AppWidgetManager.OPTION_APPWIDGET_DISPLAY_ID))
+                .isEqualTo(displayId);
+        assertThat(bundle.getBoolean(AppWidgetManager.OPTION_APPWIDGET_RESTORE_COMPLETED))
+                .isEqualTo(restoreCompleted);
+    }
+
+    /**
+     * Create a bitmap that is bigger than mMaxWidgetBitmapMemory.
+     */
+    private Bitmap createTooBigBitmap() {
+        Display display = mTestContext.getDisplayNoVerify();
+        Point size = new Point();
+        display.getRealSize(size);
+        return  Bitmap.createBitmap(2 * size.x, 2 * size.y, Bitmap.Config.ARGB_8888);
+    }
+
+    private static Widget setupWidgetWithTargetSdk(int targetSdk, RemoteViews views) {
+        Widget widget = new Widget();
+        widget.views = views;
+        widget.provider = new Provider();
+        widget.provider.info = new AppWidgetProviderInfo();
+        widget.provider.info.providerInfo = new ActivityInfo();
+        widget.provider.info.providerInfo.applicationInfo = new ApplicationInfo();
+        widget.provider.info.providerInfo.applicationInfo.targetSdkVersion = targetSdk;
+        return widget;
+    }
+
     private void verifyRestoreUpdateRecord(
             @NonNull final List<AppWidgetServiceImpl.BackupRestoreController.RestoreUpdateRecord>
                     actualUpdates,
@@ -673,9 +986,20 @@ public class AppWidgetServiceImplTest {
     }
 
     private class TestContext extends ContextWrapper {
+        private PackageManager mPackageManager;
 
         public TestContext() {
             super(InstrumentationRegistry.getInstrumentation().getTargetContext());
+            mPackageManager = super.getPackageManager();
+        }
+
+        void setPackageManager(PackageManager pm) {
+            mPackageManager = pm;
+        }
+
+        @Override
+        public PackageManager getPackageManager() {
+            return mPackageManager;
         }
 
         @Override

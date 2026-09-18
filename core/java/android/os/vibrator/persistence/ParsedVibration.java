@@ -36,6 +36,7 @@ import java.util.Objects;
  * @hide
  */
 @SystemApi
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class ParsedVibration {
     private final ArrayList<VibrationEffect> mEffects;
 

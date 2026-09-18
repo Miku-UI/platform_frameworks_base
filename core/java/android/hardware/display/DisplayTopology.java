@@ -21,6 +21,7 @@ import android.annotation.IntDef;
 import android.annotation.Nullable;
 import android.annotation.TestApi;
 import android.graphics.PointF;
+import android.graphics.Rect;
 import android.graphics.RectF;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -827,6 +828,63 @@ public final class DisplayTopology implements Parcelable {
     }
 
     /**
+     * Calculates a direction vector from one display to another in the global DP space.
+     *
+     *   @param fromDisplayId The ID of the starting display.
+     *   @param toDisplayId The ID of the destination display.
+     *   @param fromWindowBoundsPx Optional local bounds (in pixels) of a window on the starting
+     *                             display. If set, the vector starts at the center of these bounds.
+     *                             If null, the vector starts at the center of the display.
+     *   @param toWindowBoundsPx Optional local bounds (in pixels) of a window on the destination
+     *                           display. If set, the vector ends at the center of these bounds.
+     *                           If null, the vector ends at the center of the display.
+     *   @return A {@link PointF} vector in DP. Returns a zero vector if one of the displays does
+     *   not exist.
+     *   @throws IllegalArgumentException if one of the displays is not in the topology
+     *
+     * @hide
+     */
+    public @NonNull PointF calculateRelativeDirection(int fromDisplayId, int toDisplayId,
+            @Nullable Rect fromWindowBoundsPx, @Nullable Rect toWindowBoundsPx) {
+        SparseArray<RectF> absoluteDisplayBoundsDp = getAbsoluteBounds();
+        RectF fromDisplayRectDp = absoluteDisplayBoundsDp.get(fromDisplayId);
+        RectF toDisplayRectDp = absoluteDisplayBoundsDp.get(toDisplayId);
+        if (fromDisplayRectDp == null || toDisplayRectDp == null) {
+            throw new IllegalArgumentException("One of the displays is not part of the display "
+                    + "topology.");
+        }
+        PointF sourceDp = getDpCenterPosition(fromDisplayId, fromDisplayRectDp,
+                fromWindowBoundsPx);
+        PointF targetDp = getDpCenterPosition(toDisplayId, toDisplayRectDp, toWindowBoundsPx);
+        return new PointF(targetDp.x - sourceDp.x, targetDp.y - sourceDp.y);
+    }
+
+    /**
+     * Helper method to calculate the center of window or center of display in the global DP space.
+     *
+     * @param displayId     The ID of the display.
+     * @param displayRectDp The absolute bounds of the display in DP.
+     * @param windowBoundsPx Optional local bounds of a window in pixels. If provided, the center
+     *                       of these bounds is converted to DP and offset from the display's
+     *                       top-left corner. If null, the center of the display is returned.
+     * @return The center position in the global DP space.
+     */
+    private @NonNull PointF getDpCenterPosition(int displayId, RectF displayRectDp,
+            @Nullable Rect windowBoundsPx) {
+        if (windowBoundsPx != null) {
+            TreeNode displayNode = findDisplay(displayId, mRoot);
+            if (displayNode != null) {
+                PointF positionDp = new PointF(displayRectDp.left, displayRectDp.top);
+                final int density = displayNode.getLogicalDensity();
+                positionDp.offset(pxToDp(windowBoundsPx.centerX(), density),
+                        pxToDp(windowBoundsPx.centerY(), density));
+                return positionDp;
+            }
+        }
+        return new PointF(displayRectDp.centerX(), displayRectDp.centerY());
+    }
+
+    /**
      * Tests whether two float values are within a small enough tolerance of each other.
      * @param a first float to compare
      * @param b second float to compare
@@ -870,12 +928,21 @@ public final class DisplayTopology implements Parcelable {
             return;
         }
         for (TreeNode child : display.mChildren) {
+            // Ensure cursor can cross display by forcing parent-child displays to overlap by 1px
+            float parentPixelDp = pxToDp(1, display.mLogicalDensity);
+            float childPixelDp = pxToDp(1, child.mLogicalDensity);
+            float minOverlap = Math.max(parentPixelDp, childPixelDp);
+
             if (child.mPosition == POSITION_LEFT || child.mPosition == POSITION_RIGHT) {
                 child.mOffset = MathUtils.constrain(
-                        child.mOffset, -child.getHeight(), display.getHeight());
+                        child.mOffset,
+                        -child.getHeight() + minOverlap,
+                        display.getHeight() - minOverlap);
             } else if (child.mPosition == POSITION_TOP || child.mPosition == POSITION_BOTTOM) {
                 child.mOffset = MathUtils.constrain(
-                        child.mOffset, -child.getWidth(), display.getWidth());
+                        child.mOffset,
+                        -child.getWidth() + minOverlap,
+                        display.getWidth() - minOverlap);
             }
             clampOffsets(child);
         }
@@ -992,6 +1059,10 @@ public final class DisplayTopology implements Parcelable {
 
         public int getPosition() {
             return mPosition;
+        }
+
+        public void setPosition(@Position int position) {
+            mPosition = position;
         }
 
         public float getOffset() {

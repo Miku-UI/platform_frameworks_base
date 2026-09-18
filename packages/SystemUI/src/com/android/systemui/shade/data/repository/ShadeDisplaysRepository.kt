@@ -16,8 +16,7 @@
 
 package com.android.systemui.shade.data.repository
 
-import android.provider.Settings.Global.DEVELOPMENT_SHADE_DISPLAY_AWARENESS
-import android.provider.Settings.Secure.MIRROR_BUILT_IN_DISPLAY
+import android.provider.Settings
 import android.view.Display
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
@@ -26,7 +25,6 @@ import com.android.systemui.keyguard.data.repository.KeyguardRepository
 import com.android.systemui.shade.ShadeOnDefaultDisplayWhenLocked
 import com.android.systemui.shade.display.ShadeDisplayPolicy
 import com.android.systemui.util.settings.GlobalSettings
-import com.android.systemui.util.settings.SecureSettings
 import com.android.systemui.util.settings.SettingsProxyExt.observerFlow
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -78,7 +76,6 @@ class ShadeDisplaysRepositoryImpl
 @Inject
 constructor(
     private val globalSettings: GlobalSettings,
-    private val secureSettings: SecureSettings,
     defaultPolicy: ShadeDisplayPolicy,
     @Background bgScope: CoroutineScope,
     policies: Set<@JvmSuppressWildcards ShadeDisplayPolicy>,
@@ -89,26 +86,24 @@ constructor(
 
     private val policy: StateFlow<ShadeDisplayPolicy> =
         globalSettings
-            .observerFlow(DEVELOPMENT_SHADE_DISPLAY_AWARENESS)
+            .observerFlow(Settings.Global.DEVELOPMENT_SHADE_DISPLAY_AWARENESS)
             .onStart { emit(Unit) }
             .map {
-                val current = globalSettings.getString(DEVELOPMENT_SHADE_DISPLAY_AWARENESS)
+                val current =
+                    globalSettings.getString(Settings.Global.DEVELOPMENT_SHADE_DISPLAY_AWARENESS)
                 for (policy in policies) {
                     if (policy.name == current) return@map policy
                 }
-                globalSettings.putString(DEVELOPMENT_SHADE_DISPLAY_AWARENESS, defaultPolicy.name)
+                globalSettings.putString(
+                    Settings.Global.DEVELOPMENT_SHADE_DISPLAY_AWARENESS,
+                    defaultPolicy.name,
+                )
                 return@map defaultPolicy
             }
             .distinctUntilChanged()
             .stateIn(bgScope, SharingStarted.Eagerly, defaultPolicy)
 
-    private val mirroringEnabled: StateFlow<Boolean> =
-        secureSettings
-            .observerFlow(MIRROR_BUILT_IN_DISPLAY)
-            .map { isMirroring() }
-            .stateIn(bgScope, SharingStarted.Eagerly, isMirroring())
-
-    private fun isMirroring() = secureSettings.getInt(MIRROR_BUILT_IN_DISPLAY, default = 0) == 1
+    private val mirroringEnabled: StateFlow<Boolean> = displayRepository.isMirroringEnabled
 
     private val displayIdFromPolicy: Flow<Int> =
         combine(

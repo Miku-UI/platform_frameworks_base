@@ -17,6 +17,7 @@
 package com.android.server;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.util.ArraySet;
 import android.util.SparseArray;
@@ -24,6 +25,9 @@ import android.view.inputmethod.EditorInfo;
 
 import com.android.internal.inputmethod.IAccessibilityInputMethodSession;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
+
+import java.util.List;
+import java.util.Set;
 
 /**
  * Accessibility manager local system service interface.
@@ -62,6 +66,37 @@ public abstract class AccessibilityManagerInternal {
      */
     public abstract boolean isTouchExplorationEnabled(@UserIdInt int userId);
 
+    /**
+     * Returns the filtered list of permitted accessibility services for a user.
+     * * This method is responsible for applying all policy-related filtering, including:
+     * 1. Policy set by Device/Profile Admins (the basePermittedServices).
+     * 2. Restrictions imposed by Advanced Protection Mode (APM), which is checked internally.
+     *
+     * @param adminPermittedServices The intersection of services explicitly allowed by all active
+     *                               Device/Profile Admins.
+     * @param userId                 The user ID to apply the policy filter to.
+     * @return A Set of package names that are finally allowed to run accessibility services.
+     */
+    public abstract Set<String> getPermittedAccessibilityServicePackages(
+            @Nullable List<String> adminPermittedServices, @UserIdInt int userId);
+
+    /**
+     * Returns the count of Accessibility Services and Shortcuts that would be restricted
+     * by Advanced Protection Mode.
+     */
+    public record AccessibilityFeatureRestrictedCounts(
+            int disabledServices, int removedShortcuts) {}
+
+    /**
+     * Returns the count of Accessibility Services and Shortcuts that would be restricted
+     * by Advanced Protection Mode.
+     *
+     * @param userId The user ID to check.
+     * @return The restricted counts.
+     */
+    public abstract AccessibilityFeatureRestrictedCounts getA11yFeatureRestrictedCounts(
+            @UserIdInt int userId);
+
     private static final AccessibilityManagerInternal NOP = new AccessibilityManagerInternal() {
         @Override
         public void setImeSessionEnabled(SparseArray<IAccessibilityInputMethodSession> sessions,
@@ -92,6 +127,17 @@ public abstract class AccessibilityManagerInternal {
 
         @Override
         public void performSystemAction(int actionId) {
+        }
+
+        @Override
+        public Set<String> getPermittedAccessibilityServicePackages(
+                List<String> adminPermittedServices, int userId) {
+            return Set.of();
+        }
+
+        @Override
+        public AccessibilityFeatureRestrictedCounts getA11yFeatureRestrictedCounts(int userId) {
+            return new AccessibilityFeatureRestrictedCounts(0, 0);
         }
     };
 

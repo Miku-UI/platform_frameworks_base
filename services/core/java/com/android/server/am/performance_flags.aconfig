@@ -1,0 +1,9 @@
+package: "com.android.server.am"
+container: "system"
+
+flag {
+    name: "memory_limiter_swap"
+    namespace: "system_performance"
+    description: "The memory limiter configures swap max."
+    bug: "491137082"
+}

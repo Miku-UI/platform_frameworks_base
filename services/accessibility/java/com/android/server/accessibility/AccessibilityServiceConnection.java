@@ -22,6 +22,7 @@ import static android.content.IntentFilter.SYSTEM_HIGH_PRIORITY;
 import static android.os.Trace.TRACE_TAG_WINDOW_MANAGER;
 
 import static com.android.internal.util.function.pooled.PooledLambda.obtainMessage;
+import static com.android.server.accessibility.Flags.keyEventDispatcherFixFlushRaceCondition;
 
 import android.Manifest;
 import android.accessibilityservice.AccessibilityService;
@@ -84,7 +85,7 @@ import java.util.Set;
  * connection for the service.
  */
 class AccessibilityServiceConnection extends AbstractAccessibilityServiceConnection {
-    private static final String LOG_TAG = "AccessibilityServiceConnection";
+    private static final String LOG_TAG = AccessibilityServiceConnection.class.getSimpleName();
     private static final int UID_UNKNOWN = -1;
 
     /*
@@ -198,6 +199,7 @@ class AccessibilityServiceConnection extends AbstractAccessibilityServiceConnect
                     && mContext.bindServiceAsUser(
                             mIntent, this, flags, new UserHandle(userState.mUserId))) {
                 userState.getBindingServicesLocked().add(mComponentName);
+                userState.addServiceConnectionLocked(this);
             }
         } finally {
             Binder.restoreCallingIdentity(identity);
@@ -223,6 +225,7 @@ class AccessibilityServiceConnection extends AbstractAccessibilityServiceConnect
         AccessibilityUserState userState = mUserStateWeakReference.get();
         if (userState == null) return;
         userState.removeServiceLocked(this);
+        userState.removeServiceConnectionLocked(this);
         mSystemSupport.getMagnificationProcessor().resetAllIfNeeded(mId);
         mActivityTaskManagerService.setAllowAppSwitches(mComponentName.flattenToString(), -1,
                 userState.mUserId);
@@ -512,6 +515,9 @@ class AccessibilityServiceConnection extends AbstractAccessibilityServiceConnect
             AccessibilityUserState userState = mUserStateWeakReference.get();
             if (userState != null) {
                 userState.serviceDisconnectedLocked(this);
+            }
+            if (keyEventDispatcherFixFlushRaceCondition()) {
+                mSystemSupport.getKeyEventDispatcher().flush(this);
             }
             resetLocked();
             mSystemSupport.getMagnificationProcessor().resetAllIfNeeded(mId);
@@ -846,13 +852,14 @@ class AccessibilityServiceConnection extends AbstractAccessibilityServiceConnect
 
         if (isInSetupWizard() || (mConnectedBrailleDisplaySerialNumber != null
                 && mConnectedBrailleDisplaySerialNumber.equals(device.getSerialNumber()))) {
+            // Uid of client's app
             int clientUid = getClientUid();
             if (clientUid == UID_UNKNOWN) {
                 return;
             }
 
             UsbManager usbManager = mContext.getSystemService(UsbManager.class);
-            usbManager.grantPermission(device, /* uid of client's App */ clientUid);
+            usbManager.grantPermission(device, getClientPackageName(), clientUid);
 
             String usbSerialNumber = device.getSerialNumber();
             if (!TextUtils.isEmpty(usbSerialNumber)) {
@@ -861,6 +868,16 @@ class AccessibilityServiceConnection extends AbstractAccessibilityServiceConnect
                 mConnectedBrailleDisplaySerialNumber = usbSerialNumber;
             }
         }
+    }
+
+    private @NonNull String getClientPackageName() {
+        ResolveInfo resolveInfo = mAccessibilityServiceInfo.getResolveInfo();
+        if (resolveInfo != null && resolveInfo.serviceInfo != null
+                && resolveInfo.serviceInfo.applicationInfo != null) {
+            return resolveInfo.serviceInfo.applicationInfo.packageName;
+        }
+
+        return "";
     }
 
     private int getClientUid() {

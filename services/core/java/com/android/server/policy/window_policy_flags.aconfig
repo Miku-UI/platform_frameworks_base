@@ -24,3 +24,20 @@ flag {
     description: "Migrate Wear key gestures handling logic to Wear code base."
     bug: "368159846"
 }
+
+flag {
+    name: "wear_keyguard_drawn_timeout_on_boot_config"
+    namespace: "wear_services"
+    description: "Set a timeout for keyguard drawn on boot based on the config value."
+    bug: "446797835"
+}
+
+flag {
+    name: "brightness_dialog_override_toast"
+    namespace: "systemui"
+    description: "Show a toast when brightness is overridden by a window."
+    bug: "489266560"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

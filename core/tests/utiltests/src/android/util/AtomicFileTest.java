@@ -24,15 +24,12 @@ import static org.mockito.ArgumentMatchers.longThat;
 import static org.mockito.Mockito.spy;
 
 import android.os.SystemClock;
-import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -50,9 +47,6 @@ import java.nio.file.Files;
 
 @RunWith(Parameterized.class)
 public class AtomicFileTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
-
     private static final String BASE_NAME = "base";
     private static final String NEW_NAME = BASE_NAME + ".new";
     private static final String LEGACY_BACKUP_NAME = BASE_NAME + ".bak";
@@ -281,7 +275,6 @@ public class AtomicFileTest {
     }
 
     @Test
-    @DisabledOnRavenwood(blockedBy = SystemConfigFileCommitEventLogger.class)
     public void testTimeLogging() throws Exception {
         var logger = spy(new SystemConfigFileCommitEventLogger("name"));
         var file = new AtomicFile(mBaseFile, logger);

@@ -1,6 +1,5 @@
 package com.android.systemui.statusbar
 
-import android.app.Flags.lifetimeExtensionRefactor
 import android.app.Notification
 import android.os.RemoteException
 import com.android.internal.statusbar.IStatusBarService
@@ -58,14 +57,7 @@ public class NotificationClickNotifier @Inject constructor(
             } catch (e: RemoteException) {
                 // nothing
             }
-            if (lifetimeExtensionRefactor()) {
-                notifyListenersAboutInteraction(key)
-            }
-        }
-        if (!lifetimeExtensionRefactor()) {
-            mainExecutor.execute {
-                notifyListenersAboutInteraction(key)
-            }
+            notifyListenersAboutInteraction(key)
         }
     }
 

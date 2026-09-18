@@ -706,7 +706,7 @@ void FilterClientCallbackImpl::getMediaEvent(const jobjectArray& arr, const int 
     }
     uint64_t avSharedMemSize = mFilterClient->getAvSharedHandleInfo().size;
     if (mediaEvent.avMemory.fds.size() > 0 || mediaEvent.avDataId != 0 ||
-        (dataLength > 0 && (dataLength + offset) < avSharedMemSize)) {
+        (dataLength > 0 && (dataLength + offset) <= avSharedMemSize)) {
         sp<MediaEvent> mediaEventSp =
                 new MediaEvent(mFilterClient, dupFromAidl(mediaEvent.avMemory),
                                mediaEvent.avDataId, dataLength + offset, obj.get());
@@ -4127,8 +4127,7 @@ static DemuxFilterRecordSettings getFilterRecordSettings(JNIEnv *env, const jobj
     jint scIndexMask = env->GetIntField(settings, env->GetFieldID(clazz, "mScIndexMask", "I"));
 
     // Backward compatibility for S- apps.
-    if (scIndexType == DemuxRecordScIndexType::SC &&
-        scIndexMask > static_cast<int32_t>(DemuxScIndex::SEQUENCE)) {
+    if (scIndexType == DemuxRecordScIndexType::SC && scIndexMask >= (1 << 4)) {
         scIndexType = DemuxRecordScIndexType::SC_AVC;
     }
     DemuxFilterRecordSettings filterRecordSettings {

@@ -17,6 +17,7 @@
 package com.android.systemui.screenrecord.data.repository
 
 import android.media.projection.StopReason
+import androidx.annotation.WorkerThread
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.screenrecord.ScreenRecordUxController
@@ -29,7 +30,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.withContext
 
 /**
  * Repository storing information about the state of screen recording.
@@ -37,12 +37,14 @@ import kotlinx.coroutines.withContext
  * Mostly a wrapper around [ScreenRecordUxController] so that new screen-recording-related code can
  * use recommended architecture.
  */
+@Deprecated(message = "Use ScreenRecordingServiceRepository directly")
 interface ScreenRecordRepository {
     /** The current screen recording state. Note that this is a cold flow. */
     val screenRecordState: Flow<ScreenRecordModel>
 
+    @WorkerThread
     /** Stops the recording. */
-    suspend fun stopRecording(@StopReason stopReason: Int)
+    fun stopRecording(@StopReason stopReason: Int)
 }
 
 @SysUISingleton
@@ -97,7 +99,7 @@ constructor(
         }
     }
 
-    override suspend fun stopRecording(@StopReason stopReason: Int) {
-        withContext(bgCoroutineContext) { screenRecordUxController.stopRecording(stopReason) }
+    override fun stopRecording(@StopReason stopReason: Int) {
+        screenRecordUxController.stopRecording(stopReason)
     }
 }

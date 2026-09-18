@@ -1,8 +1,26 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.android.systemui.shade.ui.viewmodel
 
 import android.content.Intent
 import android.content.res.Configuration
 import android.content.testableContext
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.provider.AlarmClock
 import android.provider.Settings
 import android.telephony.SubscriptionManager.PROFILE_CLASS_UNSET
@@ -10,12 +28,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.compose.animation.scene.OverlayKey
-import com.android.compose.animation.scene.SceneKey
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
 import com.android.systemui.flags.EnableSceneContainer
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
-import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
@@ -27,6 +42,8 @@ import com.android.systemui.privacy.PrivacyApplication
 import com.android.systemui.privacy.PrivacyItem
 import com.android.systemui.privacy.PrivacyType
 import com.android.systemui.res.R
+import com.android.systemui.scene.SceneHelper.setDeviceEntered
+import com.android.systemui.scene.SceneHelper.setScene
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
@@ -55,11 +72,12 @@ import org.mockito.Mockito.verify
 class ShadeHeaderViewModelTest : SysuiTestCase() {
 
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
-    private val underTest by lazy { kosmos.shadeHeaderViewModel }
+    private val Kosmos.underTest by
+        Kosmos.Fixture { shadeHeaderViewModelFactory.create(ignoreTestHarness = true) }
 
     @Before
     fun setUp() {
-        underTest.activateIn(kosmos.testScope)
+        kosmos.underTest.activateIn(kosmos.testScope)
     }
 
     @Test
@@ -103,6 +121,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun onClockClicked_enableDesktopStatusBarTrueAndDualShade_openNotifShade() =
         kosmos.runTest {
             setUseDesktopStatusBar(enable = true)
@@ -119,6 +138,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun onClockClicked_enablesetDesktopStatusBarTrueOnNotifShade_closesShade() =
         kosmos.runTest {
             setUseDesktopStatusBar(enable = true)
@@ -135,6 +155,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun onClockClicked_enableDesktopStatusBarTrueOnQSShade_openNotifShade() =
         kosmos.runTest {
             setUseDesktopStatusBar(enable = true)
@@ -152,6 +173,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun enableDesktopStatusBarTrue_inactiveChipHighlightReturnsTransparent() =
         kosmos.runTest {
             setUseDesktopStatusBar(enable = true)
@@ -180,6 +202,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun onSystemIconChipClicked_locked_collapsesShadeToLockscreen() =
         kosmos.runTest {
             disableDualShade()
@@ -192,6 +215,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun onSystemIconChipClicked_lockedOnQsShade_collapsesShadeToLockscreen() =
         kosmos.runTest {
             enableDualShade()
@@ -207,6 +231,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun onSystemIconChipClicked_lockedOnNotifShade_expandsQsShade() =
         kosmos.runTest {
             enableDualShade()
@@ -223,6 +248,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun onSystemIconChipClicked_unlocked_collapsesShadeToGone() =
         kosmos.runTest {
             disableDualShade()
@@ -235,6 +261,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun onSystemIconChipClicked_unlockedOnQsShade_collapsesShadeToGone() =
         kosmos.runTest {
             enableDualShade()
@@ -250,6 +277,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun onSystemIconChipClicked_unlockedOnNotifShade_expandsQsShade() =
         kosmos.runTest {
             enableDualShade()
@@ -266,6 +294,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun onNotificationIconChipClicked_lockedOnNotifShade_collapsesShadeToLockscreen_opensClock() =
         kosmos.runTest {
             enableDualShade()
@@ -286,6 +315,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun onNotificationIconChipClicked_lockedOnQsShade_expandsNotifShade() =
         kosmos.runTest {
             enableDualShade()
@@ -302,6 +332,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun onNotificationIconChipClicked_unlockedOnNotifShade_collapsesShadeToGone_opensClock() =
         kosmos.runTest {
             enableDualShade()
@@ -322,6 +353,7 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun onNotificationIconChipClicked_unlockedOnQsShade_expandsNotifShade() =
         kosmos.runTest {
             enableDualShade()
@@ -409,11 +441,6 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
             )
     }
 
-    private fun Kosmos.setScene(key: SceneKey) {
-        sceneInteractor.changeScene(key, "test")
-        sceneInteractor.setTransitionState(flowOf(ObservableTransitionState.Idle(key)))
-    }
-
     private fun Kosmos.setOverlay(key: OverlayKey) {
         sceneInteractor.showOverlay(key, "test")
         sceneInteractor.setTransitionState(
@@ -424,17 +451,6 @@ class ShadeHeaderViewModelTest : SysuiTestCase() {
                 )
             )
         )
-    }
-
-    private fun Kosmos.setDeviceEntered(isEntered: Boolean) {
-        if (isEntered) {
-            // Unlock the device marking the device has entered.
-            fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-                SuccessFingerprintAuthenticationStatus(0, true)
-            )
-        }
-        setScene(if (isEntered) Scenes.Gone else Scenes.Lockscreen)
-        assertThat(deviceEntryInteractor.isDeviceEntered.value).isEqualTo(isEntered)
     }
 
     private fun Kosmos.setUseDesktopStatusBar(enable: Boolean) {

@@ -94,7 +94,6 @@ public class BootReceiver extends BroadcastReceiver {
     private static final int GMSCORE_LASTK_LOG_SIZE = 196608;
 
     private static final String TAG_TOMBSTONE = "SYSTEM_TOMBSTONE";
-    private static final String TAG_TOMBSTONE_PROTO = "SYSTEM_TOMBSTONE_PROTO";
     private static final String TAG_TOMBSTONE_PROTO_WITH_HEADERS =
             "SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS";
 
@@ -354,57 +353,6 @@ public class BootReceiver extends BroadcastReceiver {
         sDropboxRateLimiter.reset();
     }
 
-    /**
-     * Add a tombstone to the DropBox.
-     *
-     * @param ctx Context
-     * @param tombstone path to the tombstone
-     * @param proto whether the tombstone is stored as proto
-     * @param processName the name of the process corresponding to the tombstone
-     * @param tmpFileLock the lock for reading/writing tmp files
-     */
-    public static void addTombstoneToDropBox(
-                Context ctx, File tombstone, boolean proto, String processName,
-                ReentrantLock tmpFileLock) {
-        final DropBoxManager db = ctx.getSystemService(DropBoxManager.class);
-        if (db == null) {
-            Slog.e(TAG, "Can't log tombstone: DropBoxManager not available");
-            return;
-        }
-
-        // Check if we should rate limit and abort early if needed.
-        DropboxRateLimiter.RateLimitResult rateLimitResult =
-                sDropboxRateLimiter.shouldRateLimit(
-                        proto ? TAG_TOMBSTONE_PROTO_WITH_HEADERS : TAG_TOMBSTONE, processName);
-        if (rateLimitResult.shouldRateLimit()) return;
-
-        HashMap<String, Long> timestamps = readTimestamps();
-        try {
-            if (proto) {
-                if (recordFileTimestamp(tombstone, timestamps)) {
-                    // We need to attach the count indicating the number of dropped dropbox entries
-                    // due to rate limiting. Do this by enclosing the proto tombsstone in a
-                    // container proto that has the dropped entry count and the proto tombstone as
-                    // bytes (to avoid the complexity of reading and writing nested protos).
-                    tmpFileLock.lock();
-                    try {
-                        addAugmentedProtoToDropbox(tombstone, db, rateLimitResult);
-                    } finally {
-                        tmpFileLock.unlock();
-                    }
-                }
-            } else {
-                // Add the header indicating how many events have been dropped due to rate limiting.
-                final String headers = getBootHeadersToLogAndUpdate()
-                        + rateLimitResult.createHeader();
-                addFileToDropBox(db, timestamps, headers, tombstone.getPath(), LOG_SIZE,
-                                 TAG_TOMBSTONE);
-            }
-        } catch (IOException e) {
-            Slog.e(TAG, "Can't log tombstone", e);
-        }
-        writeTimestamps(timestamps);
-    }
 
     /**
      * Processes a tombstone file and adds it to the DropBox after filtering and applying

@@ -23,6 +23,7 @@ import android.os.CancellationSignal;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+import android.view.accessibility.Flags;
 
 import java.util.function.Consumer;
 
@@ -146,7 +147,12 @@ public class ScrollViewCaptureHelper implements ScrollCaptureViewHelper<ViewGrou
         // requestRect is now local to contentView as requestedContentBounds
         // contentView (and each parent in turn if possible) will be scrolled
         // (if necessary) to make all of requestedContent visible, (if possible!)
-        contentView.requestRectangleOnScreen(input, true);
+        if (Flags.requestRectangleMigrateLegacyApis()) {
+            contentView.requestRectangleOnScreen(input, true,
+                    View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_SCROLL_ONLY);
+        } else {
+            contentView.requestRectangleOnScreen(input, true);
+        }
 
         // update new offset between starting and current scroll position
         scrollDelta = view.getScrollY() - mStartScrollY;

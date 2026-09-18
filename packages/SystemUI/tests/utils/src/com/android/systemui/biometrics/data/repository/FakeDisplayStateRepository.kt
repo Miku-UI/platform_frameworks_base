@@ -43,6 +43,9 @@ class FakeDisplayStateRepository @Inject constructor() : DisplayStateRepository 
     private val _isLargeScreen = MutableStateFlow(false)
     override val isLargeScreen: StateFlow<Boolean> = _isLargeScreen.asStateFlow()
 
+    private val _isExtraLargeScreen = MutableStateFlow(false)
+    override val isExtraLargeScreen: StateFlow<Boolean> = _isExtraLargeScreen.asStateFlow()
+
     private val _isWideScreen = MutableStateFlow(false)
     override val isWideScreen: StateFlow<Boolean> = _isWideScreen.asStateFlow()
 
@@ -65,6 +68,14 @@ class FakeDisplayStateRepository @Inject constructor() : DisplayStateRepository 
         if (isLargeScreen) {
             // Large necessarily implies wide, but not vice-versa.
             setIsWideScreen(true)
+        }
+    }
+
+    fun setIsExtraLargeScreen(isExtraLargeScreen: Boolean) {
+        _isExtraLargeScreen.value = isExtraLargeScreen
+        if (isExtraLargeScreen) {
+            // Extra Large implies large
+            setIsLargeScreen(true)
         }
     }
 

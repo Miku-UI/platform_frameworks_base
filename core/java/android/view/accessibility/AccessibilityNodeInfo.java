@@ -23,10 +23,13 @@ import static java.util.Collections.EMPTY_LIST;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.AccessibilityServiceInfo;
+import android.annotation.ColorInt;
 import android.annotation.FlaggedApi;
+import android.annotation.FloatRange;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.StringDef;
 import android.annotation.SuppressLint;
 import android.annotation.TestApi;
 import android.compat.annotation.UnsupportedAppUsage;
@@ -38,6 +41,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.os.Process;
 import android.text.InputType;
 import android.text.Spannable;
 import android.text.SpannableStringBuilder;
@@ -878,7 +882,7 @@ public class AccessibilityNodeInfo implements Parcelable {
      * <p>
      * Note that character locations returned are modified by changes in display magnification.
      *
-     * {@see #refreshWithExtraData(String, Bundle)}
+     * @see #refreshWithExtraData(String, Bundle)
      */
     public static final String EXTRA_DATA_TEXT_CHARACTER_LOCATION_KEY =
             "android.view.accessibility.extra.DATA_TEXT_CHARACTER_LOCATION_KEY";
@@ -907,7 +911,7 @@ public class AccessibilityNodeInfo implements Parcelable {
      * Note that character locations in window bounds are not modified by
      * changes in display magnification.
      *
-     * {@see #refreshWithExtraData(String, Bundle)}
+     * @see #refreshWithExtraData(String, Bundle)
      */
     @FlaggedApi(Flags.FLAG_A11Y_CHARACTER_IN_WINDOW_API)
     public static final String EXTRA_DATA_TEXT_CHARACTER_LOCATION_IN_WINDOW_KEY =
@@ -953,6 +957,35 @@ public class AccessibilityNodeInfo implements Parcelable {
      */
     public static final String EXTRA_DATA_RENDERING_INFO_KEY =
             "android.view.accessibility.extra.DATA_RENDERING_INFO_KEY";
+
+    /**
+     * Key used to request that the node source re-evaluate and update this node's layout-dependent
+     * actions. This request is made with {@link #refreshWithExtraData(String, Bundle)} and takes no
+     * arguments.
+     * <p>
+     * Some actions may depend on the on-screen layout of a node. In complex or dynamic UIs, it
+     * may be difficult for a source to determine if a node is truly actionable without more
+     * intensive inspection. For example, a node may be misreported as clickable despite being
+     * occluded, requiring a hit-test to confirm the availability of the action.
+     * <p>
+     * Using this key requests that the source perform a more intensive, layout-based analysis to
+     * determine which actions are available to the user. After this request, the source will update
+     * the actions and related properties of this node. For example, for clickability, this may
+     * result in changes to the value returned by {@link #isClickable()} and the presence of
+     * {@link AccessibilityAction#ACTION_CLICK} in the node's {@link #getActionList()}.
+     * <p>
+     * This analysis can be computationally expensive and should only be requested when needed to
+     * resolve ambiguous or inaccurate actions.
+     * <p>
+     * Providers may advertise that they support this request using
+     * {@link #setAvailableExtraData(List)}. Services may check for support with
+     * {@link #getAvailableExtraData()}.
+     *
+     * @see #refreshWithExtraData(String, Bundle)
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_LAYOUT_BASED_ACTIONS_API)
+    public static final String EXTRA_DATA_REQUEST_LAYOUT_BASED_ACTIONS_KEY =
+            "android.view.accessibility.extra.DATA_REQUEST_LAYOUT_BASED_ACTIONS_KEY";
 
     /** @hide */
     public static final String EXTRA_DATA_REQUESTED_KEY =
@@ -1108,6 +1141,7 @@ public class AccessibilityNodeInfo implements Parcelable {
 
     // Data.
     private int mWindowId = AccessibilityWindowInfo.UNDEFINED_WINDOW_ID;
+    private int mEmbeddingHostWindowId = AccessibilityWindowInfo.UNDEFINED_WINDOW_ID;
     @UnsupportedAppUsage
     private long mSourceNodeId = UNDEFINED_NODE_ID;
     private long mParentNodeId = UNDEFINED_NODE_ID;
@@ -1169,6 +1203,8 @@ public class AccessibilityNodeInfo implements Parcelable {
     private CollectionItemInfo mCollectionItemInfo;
 
     private TouchDelegateInfo mTouchDelegateInfo;
+
+    private StructuredDataInfo mStructuredDataInfo;
 
     private ExtraRenderingInfo mExtraRenderingInfo;
 
@@ -1319,12 +1355,49 @@ public class AccessibilityNodeInfo implements Parcelable {
     }
 
     /**
-     * Gets the id of the window from which the info comes from.
+     * Returns the id of the window that created this node.
+     *
+     * <p>
+     * <strong>Note:</strong> If this node comes from a window that is embedded in another window
+     * using {@link SurfaceView} then the return value is the id of the window that embeds this
+     * node's window.
      *
      * @return The window id.
      */
+    // Note: If this node's window is embedded in another window then this method returns that host
+    // window ID, so internal implementation logic should instead use #getRealWindowId() to get the
+    // ID of the actual window that owns this node.
     public int getWindowId() {
+        if (Flags.embeddedUiUsesHostWindowId()) {
+            if (mEmbeddingHostWindowId != AccessibilityWindowInfo.UNDEFINED_WINDOW_ID) {
+                return mEmbeddingHostWindowId;
+            }
+        }
         return mWindowId;
+    }
+
+    /**
+     * Returns the real id of the window that created this node.
+     *
+     * <p>
+     * <strong>Note:</strong> Use this for all internal implementation logic that needs access to
+     * the window, and not {@link #getWindowId()} nor {@link #getWindow()}. Those methods are the
+     * public APIs used by AccessibilityServices which may result in inaccurate results if used for
+     * internal node or window lookup logic.
+     *
+     * @hide
+     */
+    public int getRealWindowId() {
+        return mWindowId;
+    }
+
+    /**
+     * Sets the id of the window that embeds this node's window.
+     *
+     * @hide
+     */
+    public void setEmbeddingHostWindowId(int windowId) {
+        mEmbeddingHostWindowId = windowId;
     }
 
     /**
@@ -2230,13 +2303,26 @@ public class AccessibilityNodeInfo implements Parcelable {
      *
      * @see android.accessibilityservice.AccessibilityService#getWindows()
      */
+    // Note: If this node's window is embedded in another window then this method returns that host
+    // window, so internal implementation logic should instead use #getRealWindowId() and
+    // AccessibilityWindowManager to get the actual window of this node.
     public AccessibilityWindowInfo getWindow() {
         enforceSealed();
-        if (!canPerformRequestOverConnection(mConnectionId, mWindowId, mSourceNodeId)) {
+        final int windowId;
+        if (Flags.embeddedUiUsesHostWindowId()) {
+            if (mEmbeddingHostWindowId != AccessibilityWindowInfo.UNDEFINED_WINDOW_ID) {
+                windowId = mEmbeddingHostWindowId;
+            } else {
+                windowId = mWindowId;
+            }
+        } else {
+            windowId = mWindowId;
+        }
+        if (!canPerformRequestOverConnection(mConnectionId, windowId, mSourceNodeId)) {
             return null;
         }
         AccessibilityInteractionClient client = AccessibilityInteractionClient.getInstance();
-        return client.getWindow(mConnectionId, mWindowId);
+        return client.getWindow(mConnectionId, windowId);
     }
 
     /**
@@ -2720,8 +2806,10 @@ public class AccessibilityNodeInfo implements Parcelable {
         if (mSelection != null) {
             mSelection.getStart().setWindowId(mWindowId);
             mSelection.getStart().setConnectionId(mConnectionId);
+            mSelection.getStart().setAttachedToSealedNode(mSealed);
             mSelection.getEnd().setWindowId(mWindowId);
             mSelection.getEnd().setConnectionId(mConnectionId);
+            mSelection.getEnd().setAttachedToSealedNode(mSealed);
         }
         return mSelection;
     }
@@ -3203,6 +3291,35 @@ public class AccessibilityNodeInfo implements Parcelable {
     }
 
     /**
+     * Gets additional structured data properties of this node. This is only populated for nodes
+     * that offer additional structured data, like a mathematical expression.
+     *
+     * @return A concrete subclass of {@link StructuredDataInfo} representing the type and
+     *         additional structured data for this node, or {@code null} if this node does not have
+     *         additional structured data attached.
+     * @see #setStructuredDataInfo(StructuredDataInfo)
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_MATH_API)
+    @Nullable
+    public StructuredDataInfo getStructuredDataInfo() {
+        return mStructuredDataInfo;
+    }
+
+    /**
+     * Sets additional structured data properties of this node, such as for a mathematical
+     * expression.
+     *
+     * @param info The {@link StructuredDataInfo} object (e.g., an instance of {@link MathInfo})
+     *             describing the node.
+     * @see #getStructuredDataInfo()
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_MATH_API)
+    public void setStructuredDataInfo(@Nullable StructuredDataInfo info) {
+        enforceNotSealed();
+        mStructuredDataInfo = info;
+    }
+
+    /**
      * Sets the range info if this node is a range.
      * <p>
      *   <strong>Note:</strong> Cannot be called from an
@@ -3240,10 +3357,11 @@ public class AccessibilityNodeInfo implements Parcelable {
      *   This class is made immutable before being delivered to an AccessibilityService.
      * </p>
      *
-     * @param extraRenderingInfo The {@link ExtraRenderingInfo extra rendering info}.
-     * @hide
+     * @param extraRenderingInfo The {@link ExtraRenderingInfo extra rendering info}, or
+     *     {@code null} to remove a previously set value.
      */
-    public void setExtraRenderingInfo(@NonNull ExtraRenderingInfo extraRenderingInfo) {
+    @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+    public void setExtraRenderingInfo(@Nullable ExtraRenderingInfo extraRenderingInfo) {
         enforceNotSealed();
         mExtraRenderingInfo = extraRenderingInfo;
     }
@@ -4287,7 +4405,11 @@ public class AccessibilityNodeInfo implements Parcelable {
     public void setTextSelection(int start, int end) {
         enforceNotSealed();
         if (Flags.a11ySelectionApi()) {
-            Selection selection =
+            // If invalid text selection flag is enabled and text selection is invalid, then set the
+            // selection to null.
+            Selection selection = (Flags.a11ySelectionApiInvalidTextSelection()
+                    && (start == UNDEFINED_SELECTION_INDEX || end == UNDEFINED_SELECTION_INDEX))
+                            ? null :
                     new Selection(
                             new SelectionPosition(this, start), new SelectionPosition(this, end));
             setSelection(selection);
@@ -4640,6 +4762,10 @@ public class AccessibilityNodeInfo implements Parcelable {
     @UnsupportedAppUsage
     public void setSealed(boolean sealed) {
         mSealed = sealed;
+        if (mSelection != null) {
+            mSelection.getStart().setAttachedToSealedNode(mSealed);
+            mSelection.getEnd().setAttachedToSealedNode(mSealed);
+        }
     }
 
     /**
@@ -4821,6 +4947,10 @@ public class AccessibilityNodeInfo implements Parcelable {
         fieldIndex++;
         if (mWindowId != DEFAULT.mWindowId) nonDefaultFields |= bitAt(fieldIndex);
         fieldIndex++;
+        if (mEmbeddingHostWindowId != DEFAULT.mEmbeddingHostWindowId) {
+            nonDefaultFields |= bitAt(fieldIndex);
+        }
+        fieldIndex++;
         if (mParentNodeId != DEFAULT.mParentNodeId) nonDefaultFields |= bitAt(fieldIndex);
         fieldIndex++;
         if (mLabelForId != DEFAULT.mLabelForId) nonDefaultFields |= bitAt(fieldIndex);
@@ -4971,6 +5101,10 @@ public class AccessibilityNodeInfo implements Parcelable {
             nonDefaultFields |= bitAt(fieldIndex);
         }
         fieldIndex++;
+        if (!Objects.equals(mStructuredDataInfo, DEFAULT.mStructuredDataInfo)) {
+            nonDefaultFields |= bitAt(fieldIndex);
+        }
+        fieldIndex++;
         if (mChecked != DEFAULT.mChecked) {
             nonDefaultFields |= bitAt(fieldIndex);
         }
@@ -4986,6 +5120,7 @@ public class AccessibilityNodeInfo implements Parcelable {
         if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeInt(isSealed() ? 1 : 0);
         if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeLong(mSourceNodeId);
         if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeInt(mWindowId);
+        if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeInt(mEmbeddingHostWindowId);
         if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeLong(mParentNodeId);
         if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeLong(mLabelForId);
         if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeLong(mLabeledById);
@@ -5139,9 +5274,13 @@ public class AccessibilityNodeInfo implements Parcelable {
         }
 
         if (isBitSet(nonDefaultFields, fieldIndex++)) {
-            parcel.writeValue(mExtraRenderingInfo.getLayoutSize());
-            parcel.writeFloat(mExtraRenderingInfo.getTextSizeInPx());
-            parcel.writeInt(mExtraRenderingInfo.getTextSizeUnit());
+            if (Flags.a11yExtraRenderingInfoColorAdditions()) {
+                mExtraRenderingInfo.writeToParcel(parcel, flags);
+            } else {
+                parcel.writeValue(mExtraRenderingInfo.getLayoutSize());
+                parcel.writeFloat(mExtraRenderingInfo.getTextSizeInPx());
+                parcel.writeInt(mExtraRenderingInfo.getTextSizeUnit());
+            }
         }
 
         if (isBitSet(nonDefaultFields, fieldIndex++)) {
@@ -5155,6 +5294,11 @@ public class AccessibilityNodeInfo implements Parcelable {
         }
         if (isBitSet(nonDefaultFields, fieldIndex++)) {
             mSelection.writeToParcel(parcel, flags);
+        }
+        if (isBitSet(nonDefaultFields, fieldIndex++)) {
+            if (mStructuredDataInfo instanceof Parcelable) {
+                ((Parcelable) mStructuredDataInfo).writeToParcel(parcel, flags);
+            }
         }
         if (isBitSet(nonDefaultFields, fieldIndex++)) {
             parcel.writeInt(mChecked);
@@ -5188,6 +5332,7 @@ public class AccessibilityNodeInfo implements Parcelable {
         mTraversalAfter = other.mTraversalAfter;
         mMinDurationBetweenContentChanges = other.mMinDurationBetweenContentChanges;
         mWindowId = other.mWindowId;
+        mEmbeddingHostWindowId = other.mEmbeddingHostWindowId;
         mConnectionId = other.mConnectionId;
         mUniqueId = other.mUniqueId;
         mBoundsInParent.set(other.mBoundsInParent);
@@ -5279,8 +5424,12 @@ public class AccessibilityNodeInfo implements Parcelable {
             mCollectionItemInfo = builder.build();
         }
         ExtraRenderingInfo ti = other.mExtraRenderingInfo;
-        mExtraRenderingInfo = (ti == null) ? null
-                : new ExtraRenderingInfo(ti);
+        mExtraRenderingInfo =
+                (ti == null)
+                        ? null
+                        : (Flags.a11yExtraRenderingInfoColorAdditions()
+                                ? new ExtraRenderingInfo.Builder(ti).build()
+                                : new ExtraRenderingInfo(ti));
 
         if (Flags.a11ySelectionApi()) {
             if (other.getSelection() != null) {
@@ -5290,6 +5439,12 @@ public class AccessibilityNodeInfo implements Parcelable {
                         new Selection(
                                 new SelectionPosition(sps.mSourceNodeId, sps.getOffset()),
                                 new SelectionPosition(spe.mSourceNodeId, spe.getOffset()));
+            }
+        }
+
+        if (Flags.a11yMathApi()) {
+            if (other.mStructuredDataInfo instanceof MathInfo) {
+                mStructuredDataInfo = new MathInfo((MathInfo) other.mStructuredDataInfo);
             }
         }
     }
@@ -5308,6 +5463,7 @@ public class AccessibilityNodeInfo implements Parcelable {
                 : DEFAULT.mSealed;
         if (isBitSet(nonDefaultFields, fieldIndex++)) mSourceNodeId = parcel.readLong();
         if (isBitSet(nonDefaultFields, fieldIndex++)) mWindowId = parcel.readInt();
+        if (isBitSet(nonDefaultFields, fieldIndex++)) mEmbeddingHostWindowId = parcel.readInt();
         if (isBitSet(nonDefaultFields, fieldIndex++)) mParentNodeId = parcel.readLong();
         if (isBitSet(nonDefaultFields, fieldIndex++)) mLabelForId = parcel.readLong();
         if (isBitSet(nonDefaultFields, fieldIndex++)) mLabeledById = parcel.readLong();
@@ -5450,10 +5606,14 @@ public class AccessibilityNodeInfo implements Parcelable {
         }
 
         if (isBitSet(nonDefaultFields, fieldIndex++)) {
-            mExtraRenderingInfo = new ExtraRenderingInfo(null);
-            mExtraRenderingInfo.mLayoutSize = (Size) parcel.readValue(null);
-            mExtraRenderingInfo.mTextSizeInPx = parcel.readFloat();
-            mExtraRenderingInfo.mTextSizeUnit = parcel.readInt();
+            if (Flags.a11yExtraRenderingInfoColorAdditions()) {
+                mExtraRenderingInfo = ExtraRenderingInfo.CREATOR.createFromParcel(parcel);
+            } else {
+                mExtraRenderingInfo = new ExtraRenderingInfo(null);
+                mExtraRenderingInfo.mLayoutSize = (Size) parcel.readValue(null);
+                mExtraRenderingInfo.mTextSizeInPx = parcel.readFloat();
+                mExtraRenderingInfo.mTextSizeUnit = parcel.readInt();
+            }
         }
 
         if (isBitSet(nonDefaultFields, fieldIndex++)) {
@@ -5469,6 +5629,10 @@ public class AccessibilityNodeInfo implements Parcelable {
             mSelection = Selection.CREATOR.createFromParcel(parcel);
         }
         if (isBitSet(nonDefaultFields, fieldIndex++)) {
+            // TODO(460637464): Support polymorphism.
+            mStructuredDataInfo = MathInfo.CREATOR.createFromParcel(parcel);
+        }
+        if (isBitSet(nonDefaultFields, fieldIndex++)) {
             mChecked = parcel.readInt();
         }
         if (isBitSet(nonDefaultFields, fieldIndex++)) {
@@ -5476,13 +5640,6 @@ public class AccessibilityNodeInfo implements Parcelable {
         }
 
         mSealed = sealed;
-    }
-
-    /**
-     * Clears the state of this instance.
-     */
-    private void clear() {
-        init(DEFAULT);
     }
 
     private static boolean isDefaultStandardAction(AccessibilityAction action) {
@@ -5698,6 +5855,8 @@ public class AccessibilityNodeInfo implements Parcelable {
         if (DEBUG) {
             builder.append("; sourceNodeId: 0x").append(Long.toHexString(mSourceNodeId));
             builder.append("; windowId: 0x").append(Long.toHexString(mWindowId));
+            builder.append("; embeddingHostWindowId: 0x")
+                    .append(Long.toHexString(mEmbeddingHostWindowId));
             builder.append("; accessibilityViewId: 0x")
                     .append(Long.toHexString(getAccessibilityViewId(mSourceNodeId)));
             builder.append("; virtualDescendantId: 0x")
@@ -5764,6 +5923,13 @@ public class AccessibilityNodeInfo implements Parcelable {
         builder.append("; visible: ").append(isVisibleToUser());
         builder.append("; actions: ").append(mActions);
         builder.append("; isTextSelectable: ").append(isTextSelectable());
+
+        if (mStructuredDataInfo != null) {
+            builder.append("; StructuredDataInfo: ").append(mStructuredDataInfo.getTag());
+            if (!mStructuredDataInfo.getAttributes().isEmpty()) {
+                builder.append(", Attributes: ").append(mStructuredDataInfo.getAttributes());
+            }
+        }
 
         return builder.toString();
     }
@@ -5836,6 +6002,7 @@ public class AccessibilityNodeInfo implements Parcelable {
         private final long mSourceNodeId;
         private int mConnectionId;
         private int mWindowId;
+        private boolean mAttachedToSealedNode;
 
         /**
          * Instantiates a new SelectionPosition.
@@ -5857,10 +6024,7 @@ public class AccessibilityNodeInfo implements Parcelable {
          *     which should be a value between 0 and the length of {@code view}'s text.
          */
         public SelectionPosition(@NonNull View view, int offset) {
-            this(
-                    makeNodeId(
-                            view.getAccessibilityViewId(), AccessibilityNodeProvider.HOST_VIEW_ID),
-                    offset);
+            this(view, AccessibilityNodeProvider.HOST_VIEW_ID, offset);
         }
 
         /**
@@ -5880,6 +6044,15 @@ public class AccessibilityNodeInfo implements Parcelable {
         private SelectionPosition(long sourceNodeId, int offset) {
             mOffset = offset;
             mSourceNodeId = sourceNodeId;
+
+            // This member gets used to enforce this instance in several states:
+            // 1. when it is attached to a sealed {@link AccessibilityNodeInfo} via unparceling or
+            // {@link AccessibilityNodeInfo#setSelection}. In this state, we expect an {@link
+            // AccessibilityService} to be the caller.
+            //
+            // 2. when it is unparceled as part of an action or directly instantiated. In this
+            // state, we expect an app to be the caller.
+            mAttachedToSealedNode = false;
         }
 
         private SelectionPosition(Parcel in) {
@@ -5896,13 +6069,16 @@ public class AccessibilityNodeInfo implements Parcelable {
         }
 
         /**
-         * Gets the node for {@code this} {@link SelectionPosition}
-         * <br>
+         * Gets the node for {@code this} {@link SelectionPosition} <br>
          * <strong>Note:</strong> This api can only be called from {@link AccessibilityService}.
          *
          * @return The node associated with {@code this} {@link SelectionPosition}
+         * @throws IllegalStateException If not called from an accessibility service.
          */
         public @Nullable AccessibilityNodeInfo getNode() {
+            if (!usingDirectConnection(mConnectionId) && !mAttachedToSealedNode) {
+                throw new IllegalStateException("Cannot perform this action on this instance.");
+            }
             return getNodeForAccessibilityId(mConnectionId, mWindowId, mSourceNodeId);
         }
 
@@ -5914,6 +6090,47 @@ public class AccessibilityNodeInfo implements Parcelable {
          */
         public int getOffset() {
             return mOffset;
+        }
+
+        /**
+         * Gets the view for {@code this} {@link SelectionPosition}
+         *
+         * <p><strong>Note:</strong> Cannot be called from an {@link
+         * android.accessibilityservice.AccessibilityService}.
+         *
+         * @return The view associated with {@code this} {@link SelectionPosition}. Will return null
+         *     if the view is not attached to a window.
+         * @throws IllegalStateException If called from an accessibility service.
+         */
+        @FlaggedApi(Flags.FLAG_A11Y_SELECTION_POSITION_APP_GETTERS_API)
+        public @Nullable View getView() {
+            if (mAttachedToSealedNode) {
+                throw new IllegalStateException("Cannot perform this action on this instance.");
+            }
+            int viewId = AccessibilityNodeInfo.getAccessibilityViewId(mSourceNodeId);
+            return AccessibilityNodeIdManager.getInstance().findView(viewId);
+        }
+
+        /**
+         * Gets the virtual descendant id for {@code this} {@link SelectionPosition}.
+         *
+         * <p><strong>Note:</strong> Cannot be called from an {@link
+         * android.accessibilityservice.AccessibilityService}.
+         *
+         * @return A value representing the virtual descendant id of the {@link SelectionPosition}
+         * @throws IllegalStateException If called from an accessibility service.
+         */
+        @FlaggedApi(Flags.FLAG_A11Y_SELECTION_POSITION_APP_GETTERS_API)
+        public int getVirtualDescendantId() {
+            if (mAttachedToSealedNode) {
+                throw new IllegalStateException("Cannot perform this action on this instance.");
+            }
+            return AccessibilityNodeInfo.getVirtualDescendantId(mSourceNodeId);
+        }
+
+        /** @hide */
+        public void setAttachedToSealedNode(boolean sealed) {
+            mAttachedToSealedNode = sealed;
         }
 
         private boolean usesNode(@NonNull AccessibilityNodeInfo node) {
@@ -6150,7 +6367,7 @@ public class AccessibilityNodeInfo implements Parcelable {
         /**
          * Action that clears input focus of the node.
          * <p>The node that is cleared should return {@code false} for
-         * {@link AccessibilityNodeInfo#isFocused)}.
+         * {@link AccessibilityNodeInfo#isFocused()}.
          */
         public static final AccessibilityAction ACTION_CLEAR_FOCUS =
                 new AccessibilityAction(AccessibilityNodeInfo.ACTION_CLEAR_FOCUS);
@@ -7083,13 +7300,6 @@ public class AccessibilityNodeInfo implements Parcelable {
          */
         @Deprecated
         void recycle() {}
-
-        private void clear() {
-            mType = 0;
-            mMin = 0;
-            mMax = 0;
-            mCurrent = 0;
-        }
     }
 
     /**
@@ -7312,15 +7522,6 @@ public class AccessibilityNodeInfo implements Parcelable {
          */
         @Deprecated
         void recycle() {}
-
-        private void clear() {
-            mRowCount = 0;
-            mColumnCount = 0;
-            mHierarchical = false;
-            mSelectionMode = SELECTION_MODE_NONE;
-            mItemCount = UNDEFINED;
-            mImportantForAccessibilityItemCount = UNDEFINED;
-        }
 
         /**
          * The builder for CollectionInfo.
@@ -7784,21 +7985,6 @@ public class AccessibilityNodeInfo implements Parcelable {
         @Deprecated
         void recycle() {}
 
-        private void clear() {
-            mColumnIndex = 0;
-            mColumnSpan = 0;
-            mRowIndex = 0;
-            mRowSpan = 0;
-            mHeading = false;
-            mSelected = false;
-            mRowTitle = null;
-            mColumnTitle = null;
-
-            if (Flags.a11ySortDirectionApi()) {
-                mSortDirection = SORT_DIRECTION_NONE;
-            }
-        }
-
         /**
          * Builder for creating {@link CollectionItemInfo} objects.
          */
@@ -7981,6 +8167,360 @@ public class AccessibilityNodeInfo implements Parcelable {
     }
 
     /**
+     * An abstract base class for holding structured semantic information about a node.
+     * <p>
+     * This class provides a container for a "tag" (a string constant representing the node's role)
+     * and a set of key-value "attributes" that provide additional properties. This object can be
+     * attached to an {@link AccessibilityNodeInfo} to give accessibility services rich, structured
+     * information about the node's meaning.
+     * <p>
+     * This class is intended to be subclassed for structured semantic standards.
+     *
+     * @see #getStructuredDataInfo()
+     * @see #setStructuredDataInfo(StructuredDataInfo)
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_MATH_API)
+    public abstract static class StructuredDataInfo {
+        private final String mTag;
+        private Bundle mAttributes;
+
+        /**
+         * Creates a new StructuredDataInfo.
+         *
+         * @param tag The tag for this structured semantic information.
+         *
+         * @hide
+         */
+        protected StructuredDataInfo(@NonNull String tag) {
+            mTag = tag;
+        }
+
+        /**
+         * @return The internal attributes bundle.
+         *
+         * @hide
+         */
+        @NonNull
+        protected Bundle getAttributesBundle() {
+            if (mAttributes == null) {
+                mAttributes = new Bundle();
+            }
+            return mAttributes;
+        }
+
+        /**
+         * @param attributes The target internal attributes bundle.
+         *
+         * @hide
+         */
+        protected void setAttributesBundle(@Nullable Bundle attributes) {
+            mAttributes = attributes;
+        }
+
+        /**
+         * @return The tag for this structured semantic information.
+         */
+        @NonNull
+        public String getTag() {
+            return mTag;
+        }
+
+        /**
+         * Adds an attribute.
+         *
+         * @param attributeKey The attribute key.
+         * @param value The attribute value.
+         */
+        public void putAttribute(@NonNull String attributeKey, @NonNull String value) {
+            getAttributesBundle().putString(attributeKey, value);
+        }
+
+        /**
+         * Removes an attribute.
+         *
+         * @param attributeKey The attribute key.
+         */
+        public void removeAttribute(@NonNull String attributeKey) {
+            getAttributesBundle().remove(attributeKey);
+        }
+
+        /**
+         * Gets the value of an attribute.
+         *
+         * @param attributeKey The attribute key.
+         * @return The attribute value.
+         */
+        @Nullable
+        public String getAttribute(@NonNull String attributeKey) {
+            return getAttributesBundle().getString(attributeKey);
+        }
+
+        /**
+         * @return The map of attributes.
+         */
+        @NonNull
+        public Map<String, String> getAttributes() {
+            Map<String, String> attributesMap = new ArrayMap<>();
+            Bundle attributesBundle = getAttributesBundle();
+            for (String key : attributesBundle.keySet()) {
+                attributesMap.put(key, attributesBundle.getString(key));
+            }
+            return attributesMap;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof StructuredDataInfo)) return false;
+            StructuredDataInfo that = (StructuredDataInfo) o;
+            return Objects.equals(mTag, that.mTag)
+                    && Objects.equals(getAttributes(), that.getAttributes());
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(mTag, getAttributes());
+        }
+    }
+
+    /**
+     * A class that holds information about a node that represents a mathematical expression.
+     * <p>
+     * This class's structure is based on the concepts and tags defined in the
+     * <a href="https://www.w3.org/TR/mathml4/">W3C MathML standard</a>. An accessibility service
+     * can use this information to provide a richer experience for users interacting with
+     * mathematical content. For example, a screen reader could use the tag and attributes to
+     * correctly pronounce a fraction and allow the user to navigate between the numerator and
+     * the denominator.
+     * <p>
+     * To add math information to a node, create an instance of {@link MathInfo}, set its attributes
+     * using {@link #putAttribute(String, String)}, and then call {@link
+     * #setStructuredDataInfo(StructuredDataInfo)} on the {@link AccessibilityNodeInfo}.
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_MATH_API)
+    public static final class MathInfo extends StructuredDataInfo implements Parcelable {
+        /** @hide */
+        @StringDef({
+                MATH_TAG_MATH,
+                MATH_TAG_FRACTION,
+                MATH_TAG_IDENTIFIER,
+                MATH_TAG_MULTISCRIPTS,
+                MATH_TAG_NONE_SCRIPT,
+                MATH_TAG_NUMBER,
+                MATH_TAG_OPERATOR,
+                MATH_TAG_OVER,
+                MATH_TAG_PRESCRIPT_DELIMITER,
+                MATH_TAG_ROOT,
+                MATH_TAG_ROW,
+                MATH_TAG_SQUARE_ROOT,
+                MATH_TAG_STRING_LITERAL,
+                MATH_TAG_SUB,
+                MATH_TAG_SUB_SUP,
+                MATH_TAG_SUP,
+                MATH_TAG_TABLE,
+                MATH_TAG_TABLE_CELL,
+                MATH_TAG_TABLE_ROW,
+                MATH_TAG_TEXT,
+                MATH_TAG_UNDER,
+                MATH_TAG_UNDER_OVER,
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface MathTag {}
+
+        /** The top-level root element that encapsulates a MathML expression. */
+        public static final String MATH_TAG_MATH = "math";
+        /** An element for creating fractions. */
+        public static final String MATH_TAG_FRACTION = "mfrac";
+        /** An element for symbolic names or arbitrary text to be rendered as an identifier. */
+        public static final String MATH_TAG_IDENTIFIER = "mi";
+        /**
+         * An element for attaching any number of prescripts and postscripts to a base
+         * expression.
+         */
+        public static final String MATH_TAG_MULTISCRIPTS = "mmultiscripts";
+        /**
+         * Represents an empty element, often used as a placeholder in elements like
+         * {@code mmultiscripts}.
+         */
+        public static final String MATH_TAG_NONE_SCRIPT = "none";
+        /** An element for a numeric literal. */
+        public static final String MATH_TAG_NUMBER = "mn";
+        /** An element for an operator, fence, separator, or accent. */
+        public static final String MATH_TAG_OPERATOR = "mo";
+        /** An element that attaches an accent or a limit over a base expression. */
+        public static final String MATH_TAG_OVER = "mover";
+        /**
+         * An empty element used within {@code mmultiscripts} to separate postscripts from
+         * prescripts.
+         */
+        public static final String MATH_TAG_PRESCRIPT_DELIMITER = "mprescripts";
+        /** An element for radicals with an explicit index, such as a cube root. */
+        public static final String MATH_TAG_ROOT = "mroot";
+        /** An element for grouping sub-expressions horizontally. */
+        public static final String MATH_TAG_ROW = "mrow";
+        /** An element for a square root. */
+        public static final String MATH_TAG_SQUARE_ROOT = "msqrt";
+        /** An element for representing string literals, often for computer algebra systems. */
+        public static final String MATH_TAG_STRING_LITERAL = "ms";
+        /** An element that attaches a subscript to a base expression. */
+        public static final String MATH_TAG_SUB = "msub";
+        /** An element that attaches both a subscript and a superscript to a base expression. */
+        public static final String MATH_TAG_SUB_SUP = "msubsup";
+        /** An element that attaches a superscript to a base expression. */
+        public static final String MATH_TAG_SUP = "msup";
+        /** An element for creating tables or matrices. */
+        public static final String MATH_TAG_TABLE = "mtable";
+        /** An element representing a single cell in a table or matrix. */
+        public static final String MATH_TAG_TABLE_CELL = "mtd";
+        /** An element representing a single row in a a table or matrix. */
+        public static final String MATH_TAG_TABLE_ROW = "mtr";
+        /** An element for arbitrary text to be rendered as itself, often used for commentary. */
+        public static final String MATH_TAG_TEXT = "mtext";
+        /** An element that attaches an accent or a limit under a base expression. */
+        public static final String MATH_TAG_UNDER = "munder";
+        /** An element that attaches scripts both under and over a base expression. */
+        public static final String MATH_TAG_UNDER_OVER = "munderover";
+
+        /** @hide */
+        @StringDef({
+                MATH_ATTRIBUTE_INTENT,
+                MATH_ATTRIBUTE_ARG,
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface MathAttribute {}
+
+        /**
+         * An attribute that provides a semantic annotation for the element on which it is
+         * specified.
+         *
+         * <p>
+         * The {@code intent} attribute's value is a string that can be parsed to determine
+         * the meaning of the element and its children. An {@code intent} value is a string
+         * consisting of a single token, or a function-like expression.
+         *
+         * <p>
+         * Use this attribute on a container node to disambiguate mathematical notation. For
+         * example, the expression {@code (a, b)} is ambiguous; it could be a point, an open
+         * interval, or the greatest common divisor. By setting
+         * {@code intent="open-interval($1, $2)"} on the parent node, you provide a precise,
+         * machine-readable meaning that accessibility services can use to provide a better
+         * experience. The {@code $1} and {@code $2} are placeholders for the arguments, which are
+         * identified on child nodes using the {@link #MATH_ATTRIBUTE_ARG} attribute.
+         */
+        public static final String MATH_ATTRIBUTE_INTENT = "intent";
+
+        /**
+         * An attribute used to associate a child element with one of the arguments in its parent's
+         * {@link #MATH_ATTRIBUTE_INTENT} value.
+         *
+         * <p>
+         * The value of the {@code arg} attribute is a token that must match one of the argument
+         * names in the parent's {@code intent} value.
+         *
+         * <p>
+         * Use this attribute on a child node to explicitly link it to one of the argument
+         * placeholders in its parent's {@code intent} string. For example, if a parent node has
+         * {@code intent="gcd($1, $2)"}, the child node representing the first parameter of the
+         * function should have its {@code arg} attribute set to "1".
+         */
+        public static final String MATH_ATTRIBUTE_ARG = "arg";
+
+        /**
+         * Creates a new MathInfo.
+         *
+         * @param tag The MathML tag for this node.
+         */
+        public MathInfo(@MathTag @NonNull String tag) {
+            super(tag);
+        }
+
+        /**
+         * Creates a new MathInfo from an existing MathInfo object.
+         *
+         * @param other The existing MathInfo object to copy from.
+         */
+        private MathInfo(@NonNull MathInfo other) {
+            this(other.getTag());
+            setAttributesBundle(new Bundle(other.getAttributesBundle()));
+        }
+
+        private MathInfo(Parcel in) {
+            this(in.readString8());
+            setAttributesBundle(in.readBundle());
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        @NonNull
+        @MathTag
+        public String getTag() {
+            return super.getTag();
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void putAttribute(@MathAttribute @NonNull String attributeKey,
+                @NonNull String value) {
+            super.putAttribute(attributeKey, value);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void removeAttribute(@MathAttribute @NonNull String attributeKey) {
+            super.removeAttribute(attributeKey);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        @Nullable
+        public String getAttribute(@MathAttribute @NonNull String attributeKey) {
+            return super.getAttribute(attributeKey);
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void writeToParcel(@NonNull Parcel dest, int flags) {
+            dest.writeString8(getTag());
+            dest.writeBundle(getAttributesBundle());
+        }
+
+        /**
+         * @see android.os.Parcelable.Creator
+         */
+        @NonNull
+        public static final Parcelable.Creator<MathInfo> CREATOR =
+                new Parcelable.Creator<MathInfo>() {
+                    @Override
+                    public MathInfo createFromParcel(Parcel in) {
+                        return new MathInfo(in);
+                    }
+
+                    @Override
+                    public MathInfo[] newArray(int size) {
+                        return new MathInfo[size];
+                    }
+                };
+    }
+
+    /**
      * Class with information of touch delegated views and regions from {@link TouchDelegate} for
      * the {@link AccessibilityNodeInfo}.
      *
@@ -8147,19 +8687,27 @@ public class AccessibilityNodeInfo implements Parcelable {
 
     /**
      * Class with information of a view useful to evaluate accessibility needs. Developers can
-     * refresh the node with the key {@link #EXTRA_DATA_RENDERING_INFO_KEY} to fetch the text size
-     * and unit if it is {@link TextView} and the height and the width of layout params from
-     * {@link ViewGroup} or {@link TextView}.
+     * refresh the node with the key {@link #EXTRA_DATA_RENDERING_INFO_KEY} to fetch this
+     * information if it is available for this node.
      *
      * @see #EXTRA_DATA_RENDERING_INFO_KEY
+     * @see #getAvailableExtraData()
      * @see #refreshWithExtraData(String, Bundle)
      */
-    public static final class ExtraRenderingInfo {
+    public static final class ExtraRenderingInfo implements Parcelable {
         private static final int UNDEFINED_VALUE = -1;
+        // Zero (which is the same as Color.TRANSPARENT) is used for colors if they are
+        // unknown or not defined because -1 is WHITE.
+        private static final int UNDEFINED_COLOR = 0;
 
         private Size mLayoutSize;
         private float mTextSizeInPx = UNDEFINED_VALUE;
         private int mTextSizeUnit = UNDEFINED_VALUE;
+        private int mTextColor = UNDEFINED_COLOR;
+        private int mHintTextColor = UNDEFINED_COLOR;
+        private int mLinkTextColor = UNDEFINED_COLOR;
+        private int mBackgroundColor = UNDEFINED_COLOR;
+        private float mAlpha = UNDEFINED_VALUE;
 
         /**
          * Instantiates an ExtraRenderingInfo, by copying an existing one.
@@ -8186,6 +8734,9 @@ public class AccessibilityNodeInfo implements Parcelable {
             return new ExtraRenderingInfo(other);
         }
 
+        /** Creates a new instance. */
+        private ExtraRenderingInfo() {}
+
         /**
          * Creates a new rendering info of a view, and this new instance is initialized from
          * the given <code>other</code>.
@@ -8202,7 +8753,7 @@ public class AccessibilityNodeInfo implements Parcelable {
 
         /**
          * Gets the size object containing the height and the width of
-         * {@link android.view.ViewGroup.LayoutParams}  if the node is a {@link ViewGroup} or
+         * {@link android.view.ViewGroup.LayoutParams} if the node is a {@link ViewGroup} or
          * a {@link TextView}, or null otherwise. Useful for some accessibility services to
          * understand whether the text is scalable and fits the view or not.
          *
@@ -8281,10 +8832,395 @@ public class AccessibilityNodeInfo implements Parcelable {
         @Deprecated
         void recycle() {}
 
-        private void clear() {
-            mLayoutSize = null;
-            mTextSizeInPx = UNDEFINED_VALUE;
-            mTextSizeUnit = UNDEFINED_VALUE;
+        /**
+         * Returns the current color selected for primary text if the node has visible text. If the
+         * color has not been set or is unavailable, zero (equivalent to {@link Color#TRANSPARENT})
+         * will be returned.
+         *
+         * @see android.widget.TextView#getCurrentTextColor()
+         */
+        @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+        public @ColorInt int getTextColor() {
+            return mTextColor;
+        }
+
+        /**
+         * Returns the current color selected to paint the hint text if the node has hint text. If
+         * the color has not been set or is unavailable, zero (equivalent to {@link
+         * Color#TRANSPARENT}) will be returned.
+         *
+         * @see android.widget.TextView#getCurrentHintTextColor()
+         */
+        @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+        public @ColorInt int getHintTextColor() {
+            return mHintTextColor;
+        }
+
+        /**
+         * Returns the current color selected to paint the link text if the node has link text. If
+         * the color has not been set or is unavailable, zero (equivalent to {@link
+         * Color#TRANSPARENT}) will be returned.
+         *
+         * @see android.widget.TextView#getLinkTextColors()
+         */
+        @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+        public @ColorInt int getLinkTextColor() {
+            return mLinkTextColor;
+        }
+
+        /**
+         * Returns the background color of the node if it is a {@link
+         * android.graphics.drawable.ColorDrawable}. If the color has not been set or is
+         * unavailable, zero (equivalent to {@link Color#TRANSPARENT}) will be returned.
+         *
+         * @see android.view.View#getBackground()
+         */
+        @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+        public @ColorInt int getBackgroundColor() {
+            return mBackgroundColor;
+        }
+
+        /**
+         * Returns the opacity of the node if it is available, otherwise -1.0f.
+         *
+         * @see android.view.View#getAlpha()
+         */
+        @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+        public float getAlpha() {
+            return mAlpha;
+        }
+
+        @Override
+        @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+        public int describeContents() {
+            return 0;
+        }
+
+        private void initFromParcel(Parcel parcel) {
+            // Bit mask of non-default-valued field indices
+            long nonDefaultFields = parcel.readLong();
+            int fieldIndex = 0;
+
+            if (isBitSet(nonDefaultFields, fieldIndex++)) mLayoutSize = parcel.readSize();
+            if (isBitSet(nonDefaultFields, fieldIndex++)) mTextSizeInPx = parcel.readFloat();
+            if (isBitSet(nonDefaultFields, fieldIndex++)) mTextSizeUnit = parcel.readInt();
+            if (isBitSet(nonDefaultFields, fieldIndex++)) mTextColor = parcel.readInt();
+            if (isBitSet(nonDefaultFields, fieldIndex++)) mHintTextColor = parcel.readInt();
+            if (isBitSet(nonDefaultFields, fieldIndex++)) mLinkTextColor = parcel.readInt();
+            if (isBitSet(nonDefaultFields, fieldIndex++)) mBackgroundColor = parcel.readInt();
+            if (isBitSet(nonDefaultFields, fieldIndex++)) mAlpha = parcel.readFloat();
+        }
+
+        @Override
+        @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+        public void writeToParcel(@NonNull Parcel parcel, int flags) {
+            // Write bit set of indices of fields with values differing from default
+            long nonDefaultFields = 0;
+            int fieldIndex = 0; // index of the current field
+            if (mLayoutSize != null) nonDefaultFields |= bitAt(fieldIndex);
+            fieldIndex++;
+            if (mTextSizeInPx != UNDEFINED_VALUE) nonDefaultFields |= bitAt(fieldIndex);
+            fieldIndex++;
+            if (mTextSizeUnit != UNDEFINED_VALUE) nonDefaultFields |= bitAt(fieldIndex);
+            fieldIndex++;
+            if (mTextColor != UNDEFINED_COLOR) nonDefaultFields |= bitAt(fieldIndex);
+            fieldIndex++;
+            if (mHintTextColor != UNDEFINED_COLOR) nonDefaultFields |= bitAt(fieldIndex);
+            fieldIndex++;
+            if (mLinkTextColor != UNDEFINED_COLOR) nonDefaultFields |= bitAt(fieldIndex);
+            fieldIndex++;
+            if (mBackgroundColor != UNDEFINED_COLOR) nonDefaultFields |= bitAt(fieldIndex);
+            fieldIndex++;
+            if (mAlpha != UNDEFINED_VALUE) nonDefaultFields |= bitAt(fieldIndex);
+            fieldIndex++;
+
+            int totalFields = fieldIndex;
+            parcel.writeLong(nonDefaultFields);
+
+            fieldIndex = 0;
+            if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeSize(mLayoutSize);
+            if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeFloat(mTextSizeInPx);
+            if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeInt(mTextSizeUnit);
+            if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeInt(mTextColor);
+            if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeInt(mHintTextColor);
+            if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeInt(mLinkTextColor);
+            if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeInt(mBackgroundColor);
+            if (isBitSet(nonDefaultFields, fieldIndex++)) parcel.writeFloat(mAlpha);
+
+            if (DEBUG) {
+                fieldIndex--;
+                if (totalFields != fieldIndex) {
+                    throw new IllegalStateException(
+                            "Number of fields mismatch: " + totalFields + " vs " + fieldIndex);
+                }
+            }
+        }
+
+        @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+        public static final @NonNull Parcelable.Creator<ExtraRenderingInfo> CREATOR =
+                new Parcelable.Creator<ExtraRenderingInfo>() {
+                    public ExtraRenderingInfo createFromParcel(Parcel in) {
+                        ExtraRenderingInfo info = new ExtraRenderingInfo();
+                        info.initFromParcel(in);
+                        return info;
+                    }
+
+                    public ExtraRenderingInfo[] newArray(int size) {
+                        return new ExtraRenderingInfo[size];
+                    }
+                };
+
+        /** The builder for ExtraRenderingInfo. */
+        @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+        public static final class Builder {
+            private Size mLayoutSize;
+            private float mTextSizeInPx = UNDEFINED_VALUE;
+            private int mTextSizeUnit = UNDEFINED_VALUE;
+            private int mTextColor = UNDEFINED_COLOR;
+            private int mHintTextColor = UNDEFINED_COLOR;
+            private int mLinkTextColor = UNDEFINED_COLOR;
+            private int mBackgroundColor = UNDEFINED_COLOR;
+            private float mAlpha = UNDEFINED_VALUE;
+
+            /** Creates a new Builder. */
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public Builder() {}
+
+            /**
+             * Creates a new Builder that is initialized from an {@link ExtraRenderingInfo}.
+             *
+             * @param info an instance from which to initialize the builder
+             */
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public Builder(@NonNull ExtraRenderingInfo info) {
+                mLayoutSize = info.mLayoutSize;
+                mTextSizeInPx = info.mTextSizeInPx;
+                mTextSizeUnit = info.mTextSizeUnit;
+                mTextColor = info.mTextColor;
+                mHintTextColor = info.mHintTextColor;
+                mLinkTextColor = info.mLinkTextColor;
+                mBackgroundColor = info.mBackgroundColor;
+                mAlpha = info.mAlpha;
+            }
+
+            /**
+             * Sets layout width and layout height of the view.
+             *
+             * @param width The layout width.
+             * @param height The layout height.
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder setLayoutSize(int width, int height) {
+                mLayoutSize = new Size(width, height);
+                return this;
+            }
+
+            /**
+             * Clears the layout width and layout height of the view.
+             *
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder clearLayoutSize() {
+                mLayoutSize = null;
+                return this;
+            }
+
+            /**
+             * Sets text size of the view.
+             *
+             * @param textSizeInPx The text size in pixels.
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder setTextSizeInPx(float textSizeInPx) {
+                mTextSizeInPx = textSizeInPx;
+                return this;
+            }
+
+            /**
+             * Clears the text size of the view.
+             *
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder clearTextSizeInPx() {
+                mTextSizeInPx = UNDEFINED_VALUE;
+                return this;
+            }
+
+            /**
+             * Sets text size unit of the view.
+             *
+             * @param textSizeUnit The text size unit.
+             * @return This builder.
+             * @see TypedValue#TYPE_DIMENSION
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder setTextSizeUnit(int textSizeUnit) {
+                mTextSizeUnit = textSizeUnit;
+                return this;
+            }
+
+            /**
+             * Clears the text size unit of the view.
+             *
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder clearTextSizeUnit() {
+                mTextSizeUnit = UNDEFINED_VALUE;
+                return this;
+            }
+
+            /**
+             * Sets the current color selected for primary text.
+             *
+             * @param color The current text color.
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder setTextColor(@ColorInt int color) {
+                mTextColor = color;
+                return this;
+            }
+
+            /**
+             * Clears the current color selected for primary text.
+             *
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder clearTextColor() {
+                mTextColor = UNDEFINED_COLOR;
+                return this;
+            }
+
+            /**
+             * Sets the current color selected to paint the hint text.
+             *
+             * @param color The current hint text color.
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder setHintTextColor(@ColorInt int color) {
+                mHintTextColor = color;
+                return this;
+            }
+
+            /**
+             * Clears the current color selected to paint the hint text.
+             *
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder clearHintTextColor() {
+                mHintTextColor = UNDEFINED_COLOR;
+                return this;
+            }
+
+            /**
+             * Sets the current color selected to paint the link text.
+             *
+             * @param color The current link text color.
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder setLinkTextColor(@ColorInt int color) {
+                mLinkTextColor = color;
+                return this;
+            }
+
+            /**
+             * Clears the current color selected to paint the link text.
+             *
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder clearLinkTextColor() {
+                mLinkTextColor = UNDEFINED_COLOR;
+                return this;
+            }
+
+            /**
+             * Sets the background color of the node.
+             *
+             * @param color The background color.
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder setBackgroundColor(@ColorInt int color) {
+                mBackgroundColor = color;
+                return this;
+            }
+
+            /**
+             * Clears the background color of the node.
+             *
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder clearBackgroundColor() {
+                mBackgroundColor = UNDEFINED_COLOR;
+                return this;
+            }
+
+            /**
+             * Sets the opacity of the node.
+             *
+             * @param alpha The node opacity.
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder setAlpha(
+                    @FloatRange(from=0.0, to=1.0) float alpha) {
+                mAlpha = alpha;
+                return this;
+            }
+
+            /**
+             * Clears the opacity of the node.
+             *
+             * @return This builder.
+             */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo.Builder clearAlpha() {
+                mAlpha = UNDEFINED_VALUE;
+                return this;
+            }
+
+            /** Creates a new {@link ExtraRenderingInfo} instance. */
+            @NonNull
+            @FlaggedApi(Flags.FLAG_A11Y_EXTRA_RENDERING_INFO_COLOR_ADDITIONS)
+            public ExtraRenderingInfo build() {
+                ExtraRenderingInfo extraRenderingInfo = new ExtraRenderingInfo();
+                extraRenderingInfo.mLayoutSize = mLayoutSize;
+                extraRenderingInfo.mTextSizeInPx = mTextSizeInPx;
+                extraRenderingInfo.mTextSizeUnit = mTextSizeUnit;
+                extraRenderingInfo.mTextColor = mTextColor;
+                extraRenderingInfo.mHintTextColor = mHintTextColor;
+                extraRenderingInfo.mLinkTextColor = mLinkTextColor;
+                extraRenderingInfo.mBackgroundColor = mBackgroundColor;
+                extraRenderingInfo.mAlpha = mAlpha;
+                return extraRenderingInfo;
+            }
         }
     }
 

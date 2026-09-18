@@ -19,11 +19,14 @@ package com.android.systemui.accessibility.floatingmenu;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.graphics.Rect;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
+import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 
 import org.junit.Test;
@@ -71,6 +74,7 @@ public class MenuViewAppearanceTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_FLOATING_MENU_ADJUST_CUTOUT_AVOIDANCE)
     public void avoidVerticalDisplayCutout_doesNotExceedTopBounds() {
         final int y = DRAGGABLE_BOUNDS.top - 100;
 
@@ -82,6 +86,7 @@ public class MenuViewAppearanceTest extends SysuiTestCase {
 
 
     @Test
+    @DisableFlags(Flags.FLAG_FLOATING_MENU_ADJUST_CUTOUT_AVOIDANCE)
     public void avoidVerticalDisplayCutout_doesNotExceedBottomBounds() {
         final int y = DRAGGABLE_BOUNDS.bottom + 100;
 
@@ -89,5 +94,18 @@ public class MenuViewAppearanceTest extends SysuiTestCase {
                 y, MENU_HEIGHT, DRAGGABLE_BOUNDS, new Rect(0, 5, 0, 6));
 
         assertThat(end_y).isLessThan(DRAGGABLE_BOUNDS.bottom);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FLOATING_MENU_ADJUST_CUTOUT_AVOIDANCE)
+    public void avoidVerticalDisplayCutout_heightExceedsAvailableSpace_doesNothing() {
+        final int y = DRAGGABLE_BOUNDS.centerY();
+
+        final float end_y = MenuViewAppearance.avoidVerticalDisplayCutout(
+                y, /* height= */ 5,
+                DRAGGABLE_BOUNDS,
+                /* cutout= */ new Rect(0, 2, 0, 8));
+
+        assertThat(end_y).isEqualTo(y);
     }
 }

@@ -17,11 +17,8 @@
 package com.android.systemui.statusbar.policy
 
 import android.content.res.Configuration
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
@@ -40,7 +37,6 @@ class ClockTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun onConfigurationChanged_fontScaleChanges_paddingChanges() {
         val initialPadding = clock.paddingLeft
 
@@ -53,7 +49,6 @@ class ClockTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun onConfigurationChanged_densityChanges_paddingChanges() {
         val initialPadding = clock.paddingLeft
 
@@ -66,7 +61,6 @@ class ClockTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
     fun onConfigurationChanged_nothingChanges_paddingDoesNotChange() {
         val initialPadding = clock.paddingLeft
 
@@ -75,18 +69,5 @@ class ClockTest : SysuiTestCase() {
         clock.onConfigurationChanged(newConfig)
 
         assertThat(clock.paddingLeft).isNotEqualTo(initialPadding)
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
-    fun onConfigurationChanged_densityChanges_flagOff_paddingDoesNotChange() {
-        val initialPadding = clock.paddingLeft
-
-        val newConfig = Configuration(context.resources.configuration)
-        newConfig.densityDpi += 1
-
-        clock.onConfigurationChanged(newConfig)
-
-        assertThat(clock.paddingLeft).isEqualTo(initialPadding)
     }
 }

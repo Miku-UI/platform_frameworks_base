@@ -19,22 +19,33 @@ package com.android.systemui.qs.tiles.impl.screenrecord.domain.interactor
 import android.os.UserHandle
 import com.android.systemui.qs.tiles.base.domain.interactor.QSTileDataInteractor
 import com.android.systemui.qs.tiles.base.domain.model.DataUpdateTrigger
-import com.android.systemui.screenrecord.data.model.ScreenRecordModel
-import com.android.systemui.screenrecord.data.repository.ScreenRecordRepository
+import com.android.systemui.qs.tiles.impl.screenrecord.domain.model.ScreenRecordTileModel
+import com.android.systemui.screencapture.record.domain.interactor.ScreenCaptureRecordFeaturesInteractor
+import com.android.systemui.screenrecord.data.repository.ScreenRecordingServiceRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 
-/** Observes screen record state changes providing the [ScreenRecordModel]. */
+/** Observes screen record state changes providing the [ScreenRecordTileModel]. */
 class ScreenRecordTileDataInteractor
 @Inject
-constructor(private val screenRecordRepository: ScreenRecordRepository) :
-    QSTileDataInteractor<ScreenRecordModel> {
+constructor(
+    private val screenRecordRepository: ScreenRecordingServiceRepository,
+    private val screenCaptureRecordFeaturesInteractor: ScreenCaptureRecordFeaturesInteractor,
+) : QSTileDataInteractor<ScreenRecordTileModel> {
 
     override fun tileData(
         user: UserHandle,
         triggers: Flow<DataUpdateTrigger>,
-    ): Flow<ScreenRecordModel> = screenRecordRepository.screenRecordState
+    ): Flow<ScreenRecordTileModel> =
+        screenRecordRepository.screenRecordState.map {
+            ScreenRecordTileModel(
+                screenRecordModel = it,
+                isLargeScreenRecordingEnabled =
+                    screenCaptureRecordFeaturesInteractor.isLargeScreenRecordingEnabled,
+            )
+        }
 
     override fun availability(user: UserHandle): Flow<Boolean> = flowOf(true)
 }

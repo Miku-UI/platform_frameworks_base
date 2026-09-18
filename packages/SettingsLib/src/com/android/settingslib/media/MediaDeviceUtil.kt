@@ -31,6 +31,7 @@ fun isInfoMediaDevice(deviceType: Int): Boolean {
     MediaRoute2Info.TYPE_REMOTE_CAR,
     MediaRoute2Info.TYPE_REMOTE_SMARTWATCH,
     MediaRoute2Info.TYPE_REMOTE_SMARTPHONE,
+    MediaRoute2Info.TYPE_MULTICHANNEL_SPEAKER_GROUP,
       -> true
     else -> false
   }

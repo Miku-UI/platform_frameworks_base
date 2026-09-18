@@ -40,6 +40,7 @@ import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.PointerIconType;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Log;
 import android.util.SparseArray;
 import android.view.flags.Flags;
@@ -58,6 +59,7 @@ import java.lang.annotation.RetentionPolicy;
  * or by applications using bitmaps or application resources.
  * </p>
  */
+@RavenwoodKeepWholeClass
 public final class PointerIcon implements Parcelable {
     private static final String TAG = "PointerIcon";
 

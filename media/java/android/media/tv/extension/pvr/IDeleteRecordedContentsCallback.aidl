@@ -20,5 +20,14 @@ package android.media.tv.extension.pvr;
  * @hide
  */
 oneway interface IDeleteRecordedContentsCallback {
+    /**
+     * Callback method invoked to provide the results of a delete operation.
+     *
+     * @param contentUris An array of String objects representing the URIs of the contents targeted
+     *                    for deletion, where each one is from the recorded_programs table in tv.db.
+     * @param result      An array of integers where each element represents the result for the URI
+     *                    at the corresponding index in the contentUris array. Each of the result
+     *                    value must be in {@code RecordConstants.DeletionResult}.
+     */
     void onRecordedContentsDeleted(in String[] contentUri, in int[] result);
 }

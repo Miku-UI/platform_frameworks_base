@@ -20,6 +20,7 @@ import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.provider.DeviceConfig;
 import android.util.Log;
 import android.view.AttachedSurfaceControl;
 import android.view.Choreographer;
@@ -43,6 +44,10 @@ import java.util.List;
  */
 @FlaggedApi(Flags.FLAG_DETAILED_APP_JANK_METRICS_API)
 public class JankTracker {
+    public static final String NAMESPACE_SYSTEM_PERFORMANCE = "system_performance";
+    public static final String KEY_JANK_METRIC_COLLECTION_ENABLED =
+            "jank_metric_collection_enabled";
+    public static Boolean VALUE_JANK_METRIC_COLLECTION_ENABLED = null;
     private static final boolean DEBUG = false;
     private static final String DEBUG_KEY = "JANKTRACKER";
     // How long to delay the JankData listener registration.
@@ -69,6 +74,9 @@ public class JankTracker {
     // View that gives us access to ViewTreeObserver.
     private View mDecorView;
 
+    // Set to true after initializeJankTrackingComponents is called.
+    private boolean mComponentsReady = false;
+
     /**
      * Set by the activity to enable or disable jank tracking. Activities may disable tracking if
      * they are paused or not enable tracking if they are not visible or if the app category is not
@@ -80,6 +88,19 @@ public class JankTracker {
      * mTrackingEnabled and mListenersRegistered need to be true for JankData to be processed.
      */
     private boolean mListenersRegistered = false;
+
+    /**
+     *  Jank Tracking is only supported on devices that are configured to report jank metrics. Jank
+     *  metric reporting is limited to 1% of devices controlled via server side configurations.
+     */
+    public static boolean isJankTrackingSupported() {
+        if (VALUE_JANK_METRIC_COLLECTION_ENABLED != null) {
+            return VALUE_JANK_METRIC_COLLECTION_ENABLED;
+        }
+        VALUE_JANK_METRIC_COLLECTION_ENABLED = DeviceConfig.getBoolean(NAMESPACE_SYSTEM_PERFORMANCE,
+                KEY_JANK_METRIC_COLLECTION_ENABLED, false);
+        return VALUE_JANK_METRIC_COLLECTION_ENABLED;
+    }
 
     @FlaggedApi(com.android.window.flags.Flags.FLAG_JANK_API)
     private final SurfaceControl.OnJankDataListener mJankDataListener =
@@ -122,6 +143,7 @@ public class JankTracker {
         mJankDataProcessor = new JankDataProcessor(mStateTracker);
         mDecorView = decorView;
         mHandlerThread.start();
+        mComponentsReady = true;
         registerWindowListeners();
     }
 
@@ -303,10 +325,11 @@ public class JankTracker {
     @VisibleForTesting
     public boolean shouldTrack() {
         if (DEBUG) {
-            Log.d(DEBUG_KEY, String.format("mTrackingEnabled: %s | mListenersRegistered: %s",
-                    mTrackingEnabled, mListenersRegistered));
+            Log.d(DEBUG_KEY, String.format("mTrackingEnabled: %s | mListenersRegistered: %s | "
+                            + "mComponentsReady: %s",
+                    mTrackingEnabled, mListenersRegistered, mComponentsReady));
         }
-        return mTrackingEnabled && mListenersRegistered;
+        return mTrackingEnabled && mListenersRegistered && mComponentsReady;
     }
 
     /**
@@ -378,6 +401,7 @@ public class JankTracker {
             mJankDataProcessor = new JankDataProcessor(mStateTracker);
         }
 
+        mComponentsReady = true;
         addActivityToStateTracking();
         registerForJankData();
     }

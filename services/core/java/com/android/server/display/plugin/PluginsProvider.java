@@ -34,5 +34,7 @@ public interface PluginsProvider {
      */
     @NonNull
     List<Plugin> getPlugins(
-            Context context, PluginStorage storage, Set<PluginType<?>> enabledTypes);
+            Context context, PluginStorage storage,
+            PluginManager.PluginProviderDependencies dependencies,
+            Set<PluginType<?>> enabledTypes);
 }

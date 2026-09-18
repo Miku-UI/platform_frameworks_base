@@ -24,7 +24,6 @@ import android.content.res.Resources
 import android.os.UserHandle
 import android.provider.Settings
 import com.android.systemui.Flags.communalHub
-import com.android.systemui.Flags.glanceableHubEnabledByDefault
 import com.android.systemui.Flags.glanceableHubV2
 import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.communal.data.model.CommunalFeature
@@ -122,10 +121,7 @@ constructor(
         if (!glanceableHubV2()) {
             ENABLED_SETTING_DEFAULT_PRE_HUB_V2
         } else if (
-            glanceableHubEnabledByDefault() ||
-                resources.getBoolean(
-                    com.android.internal.R.bool.config_glanceableHubEnabledByDefault
-                )
+            resources.getBoolean(com.android.internal.R.bool.config_glanceableHubEnabledByDefault)
         ) {
             1
         } else {

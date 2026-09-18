@@ -32,6 +32,7 @@
 #include <cutils/properties.h>
 #include <gui/Flags.h>
 #include <gui/GLConsumer.h>
+#include <gui/IGraphicBufferProducer.h>
 #include <gui/Surface.h>
 #include <nativehelper/JNIHelp.h>
 #include <utils/Errors.h>
@@ -809,19 +810,25 @@ static void android_hardware_Camera_setPreviewTexture(JNIEnv *env,
     sp<Camera> camera = get_native_camera(env, thiz, NULL);
     if (camera == 0) return;
 
-#if WB_LIBCAMERASERVICE_WITH_DEPENDENCIES
     sp<Surface> surface;
-#endif
-    sp<IGraphicBufferProducer> producer = NULL;
+    sp<IGraphicBufferProducer> producer;
     if (jSurfaceTexture != NULL) {
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_SURFACETEXTURE)
+        surface = SurfaceTexture_getSurface(env, jSurfaceTexture);
+        if (surface == NULL) {
+            jniThrowException(env, "java/lang/IllegalArgumentException",
+                              "SurfaceTexture already released in setPreviewTexture");
+            return;
+        }
+        producer = surface->getIGraphicBufferProducer();
+#else
         producer = SurfaceTexture_getProducer(env, jSurfaceTexture);
         if (producer == NULL) {
             jniThrowException(env, "java/lang/IllegalArgumentException",
                     "SurfaceTexture already released in setPreviewTexture");
             return;
         }
-#if WB_LIBCAMERASERVICE_WITH_DEPENDENCIES
-        surface = new Surface(producer);
+        surface = sp<Surface>::make(producer);
 #endif
     }
 
@@ -1175,8 +1182,9 @@ static void android_hardware_Camera_setAudioRestriction(
         jniThrowRuntimeException(env, "camera has been disconnected");
         return;
     }
-
-    int32_t ret = camera->setAudioRestriction(mode);
+    auto modeEnum =
+            static_cast<android::hardware::camera2::ICameraDeviceUser::AudioRestriction>(mode);
+    int32_t ret = camera->setAudioRestriction(modeEnum);
     if (ret < 0) {
         jniThrowRuntimeException(env, "Illegal argument or low-level eror");
         return;
@@ -1193,7 +1201,7 @@ static int32_t android_hardware_Camera_getAudioRestriction(
         return -1;
     }
 
-    int32_t ret = camera->getGlobalAudioRestriction();
+    int32_t ret = static_cast<int32_t>(camera->getGlobalAudioRestriction());
     if (ret < 0) {
         jniThrowRuntimeException(env, "Illegal argument or low-level eror");
         return -1;

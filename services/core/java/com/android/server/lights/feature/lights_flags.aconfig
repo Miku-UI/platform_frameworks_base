@@ -1,0 +1,10 @@
+package: "com.android.server.lights.feature.flags"
+container: "system"
+
+flag {
+    name: "enable_light_animations"
+    namespace: "display_manager"
+    description: "Enables light animation support."
+    bug: "432307785"
+    is_exported: true
+}

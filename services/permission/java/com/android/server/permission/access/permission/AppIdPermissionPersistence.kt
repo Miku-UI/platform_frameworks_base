@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package com.android.server.permission.access.permission
 
 import android.content.pm.PermissionInfo
@@ -25,8 +27,8 @@ import com.android.server.permission.access.AppIdPermissionFlags
 import com.android.server.permission.access.MutableAccessState
 import com.android.server.permission.access.MutableAppIdPermissionFlags
 import com.android.server.permission.access.WriteMode
-import com.android.server.permission.access.collection.* // ktlint-disable no-wildcard-imports
-import com.android.server.permission.access.immutable.* // ktlint-disable no-wildcard-imports
+import com.android.server.permission.access.collection.*
+import com.android.server.permission.access.immutable.*
 import com.android.server.permission.access.util.andInv
 import com.android.server.permission.access.util.attribute
 import com.android.server.permission.access.util.attributeInt

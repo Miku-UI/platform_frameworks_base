@@ -74,10 +74,10 @@ public final class BrightnessReasonTest {
 
     @Test
     public void setModifierDoesntSetIfModifierIsBeyondExtremes() {
-        int extremeModifier = 0x80;
+        int extremeModifier = 0x100;
 
         // reset modifier
-        mBrightnessReason.setModifier(0);
+        mBrightnessReason.setModifier(BrightnessReason.MODIFIER_NONE);
 
         // test extreme
         mBrightnessReason.setModifier(extremeModifier);
@@ -102,7 +102,7 @@ public final class BrightnessReasonTest {
                 BrightnessReason.REASON_DOZE | BrightnessReason.REASON_BOOST);
     }
 
-    private BrightnessReason getReason(int reason, int modifier) {
+    private BrightnessReason getReason(int reason, @BrightnessReason.Modifier int modifier) {
         BrightnessReason brightnessReason = new BrightnessReason();
         brightnessReason.setReason(reason);
         brightnessReason.setModifier(modifier);

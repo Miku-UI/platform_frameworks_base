@@ -16,17 +16,14 @@
 
 package com.android.systemui.keyboard.shortcut
 
-import android.view.Display
-import com.android.systemui.Flags
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.LifecycleListener
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
 import com.android.systemui.keyboard.shortcut.ui.ShortcutHelperDialogStarter
 import com.android.systemui.keyboard.shortcut.ui.viewmodel.ShortcutHelperViewModel
 import dagger.Binds
-import dagger.Lazy
 import dagger.Module
-import dagger.Provides
 import dagger.multibindings.IntoSet
 
 /**
@@ -44,26 +41,6 @@ interface ShortcutHelperDisplayModule {
     @Binds
     @PerDisplaySingleton
     @DisplayAware
-    fun provideShortcutHelperDialogStarter(
-        impl: ShortcutHelperDialogStarter
-    ): ShortcutHelperDialogStarter
-
-    companion object {
-        @Provides
-        @PerDisplaySingleton
-        @DisplayAware
-        @IntoSet
-        fun provideShortcutHelperDialogStarterLifeCycleObserver(
-            @DisplayAware implLazy: Lazy<ShortcutHelperDialogStarter>,
-            @DisplayAware displayId: Int,
-        ): SystemUIDisplaySubcomponent.LifecycleListener {
-            return if (
-                displayId == Display.DEFAULT_DISPLAY || Flags.shortcutHelperMultiDisplaySupport()
-            ) {
-                implLazy.get()
-            } else {
-                SystemUIDisplaySubcomponent.LifecycleListener.NOP
-            }
-        }
-    }
+    @IntoSet
+    fun provideShortcutHelperDialogStarter(impl: ShortcutHelperDialogStarter): LifecycleListener
 }

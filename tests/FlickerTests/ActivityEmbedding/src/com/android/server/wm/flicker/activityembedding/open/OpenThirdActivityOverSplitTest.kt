@@ -50,7 +50,7 @@ class OpenThirdActivityOverSplitTest(flicker: FlickerTest) :
     /** {@inheritDoc} */
     override val transition: FlickerBuilder.() -> Unit = {
         setup {
-            tapl.setExpectedRotationCheckEnabled(false)
+            tapl.expectedRotationCheckEnabled = false
             // Launch a split.
             testApp.launchViaIntent(wmHelper)
             testApp.launchSecondaryActivity(wmHelper)
@@ -61,7 +61,7 @@ class OpenThirdActivityOverSplitTest(flicker: FlickerTest) :
         }
         transitions { testApp.launchThirdActivity(wmHelper) }
         teardown {
-            tapl.goHome()
+            device.pressHome()
             testApp.exit(wmHelper)
         }
     }

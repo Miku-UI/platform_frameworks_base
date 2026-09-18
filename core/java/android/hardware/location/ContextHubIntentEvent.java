@@ -26,9 +26,9 @@ import java.util.Objects;
 
 /**
  * A helper class to retrieve information about a Intent event received for a PendingIntent
- * registered with {@link ContextHubManager.createClient(ContextHubInfo, PendingIntent, long)}.
+ * registered with {@link ContextHubManager#createClient(ContextHubInfo, PendingIntent, long)}.
  * This object can only be created through the factory method
- * {@link ContextHubIntentEvent.fromIntent(Intent)}.
+ * {@link ContextHubIntentEvent#fromIntent(Intent)}.
  *
  * @hide
  */
@@ -87,7 +87,7 @@ public class ContextHubIntentEvent {
 
     /**
      * Creates a ContextHubIntentEvent object from an Intent received through a PendingIntent
-     * registered with {@link ContextHubManager.createClient(ContextHubInfo, PendingIntent, long)}.
+     * registered with {@link ContextHubManager#createClient(ContextHubInfo, PendingIntent, long)}.
      *
      * @param intent the Intent object from an Intent event
      * @return the ContextHubIntentEvent object describing the event

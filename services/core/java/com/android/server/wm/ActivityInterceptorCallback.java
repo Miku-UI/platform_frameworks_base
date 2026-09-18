@@ -25,6 +25,7 @@ import android.app.TaskInfo;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ResolveInfo;
+import android.view.Display;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -182,6 +183,7 @@ public interface ActivityInterceptorCallback {
         private final int mRealCallingUid;
         private final int mRealCallingPid;
         private final int mUserId;
+        private final int mSourceDisplayId;
         private final Intent mIntent;
         @NonNull
         private final ResolveInfo mResolveInfo;
@@ -207,6 +209,7 @@ public interface ActivityInterceptorCallback {
             this.mRealCallingUid = builder.mRealCallingUid;
             this.mRealCallingPid = builder.mRealCallingPid;
             this.mUserId = builder.mUserId;
+            this.mSourceDisplayId = builder.mSourceDisplayId;
             this.mIntent = builder.mIntent;
             this.mResolveInfo = builder.mResolveInfo;
             this.mActivityInfo = builder.mActivityInfo;
@@ -241,6 +244,7 @@ public interface ActivityInterceptorCallback {
             private ActivityOptions mCheckedOptions = null;
             @Nullable
             private Runnable mClearOptionsAnimation = null;
+            private int mSourceDisplayId = Display.INVALID_DISPLAY;
 
             /**
              * Constructor of {@link ActivityInterceptorInfo.Builder}.
@@ -317,6 +321,17 @@ public interface ActivityInterceptorCallback {
             public Builder setClearOptionsAnimationRunnable(@Nullable
                     Runnable clearOptionsAnimationRunnable) {
                 mClearOptionsAnimation = clearOptionsAnimationRunnable;
+                return this;
+            }
+
+            /**
+             * Sets the value for the source displayId.
+             * @param sourceDisplayId the source displayId.
+             * @hide
+             */
+            @NonNull
+            public Builder setSourceDisplayId(int sourceDisplayId) {
+                mSourceDisplayId = sourceDisplayId;
                 return this;
             }
         }
@@ -397,6 +412,15 @@ public interface ActivityInterceptorCallback {
         @Nullable
         public Runnable getClearOptionsAnimationRunnable() {
             return mClearOptionsAnimation;
+        }
+
+        /**
+         * Returns the displayId on which the activity is being launched from, or
+         * {@link Display#INVALID_DISPLAY} if the source display is not known.
+         * @hide
+         */
+        public int getSourceDisplayId() {
+            return mSourceDisplayId;
         }
     }
 

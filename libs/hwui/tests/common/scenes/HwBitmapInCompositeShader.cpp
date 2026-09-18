@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-#include "TestSceneBase.h"
-#include "utils/Color.h"
-
 #include <SkBlendMode.h>
 #include <SkColorSpace.h>
-#include <SkGradientShader.h>
-#include <SkImagePriv.h>
+#include <SkGradient.h>
 #include <ui/PixelFormat.h>
+
+#include "TestSceneBase.h"
+#include "utils/Color.h"
 
 class HwBitmapInCompositeShader;
 
@@ -56,13 +55,10 @@ public:
                                                         SkColorSpace::MakeSRGB()));
         sk_sp<SkShader> hardwareShader(createBitmapShader(*hardwareBitmap));
 
-        SkPoint center;
-        center.set(50, 50);
-        SkColor colors[2];
-        colors[0] = Color::Black;
-        colors[1] = Color::White;
-        sk_sp<SkShader> gradientShader = SkGradientShader::MakeRadial(
-                center, 50, colors, nullptr, 2, SkTileMode::kRepeat);
+        const SkPoint center = {50, 50};
+        const SkColor4f colors[] = {SkColors::kBlack, SkColors::kWhite};
+        sk_sp<SkShader> gradientShader = SkShaders::RadialGradient(
+                center, 50, SkGradient({colors, {}, SkTileMode::kRepeat}, {}));
 
         sk_sp<SkShader> compositeShader(
                 SkShaders::Blend(SkBlendMode::kDstATop, hardwareShader, gradientShader));

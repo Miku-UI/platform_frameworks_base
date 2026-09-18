@@ -24,7 +24,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.telecom.PhoneAccount;
-import android.content.pm.ParceledListSlice;
+import com.android.modules.utils.ParceledListSlice;
 import android.telecom.CallAttributes;
 import com.android.internal.telecom.ICallEventCallback;
 
@@ -318,15 +318,10 @@ interface ITelecomService {
      */
     void stopBlockSuppression();
 
-    /**
-    * @see TelecomServiceImpl#createManageBlockedNumbersIntent
-    **/
-    Intent createManageBlockedNumbersIntent(String callingPackage);
-
    /**
-    * @see TelecomServiceImpl#createLaunchEmergencyDialerIntent
+    * @see TelecomServiceImpl#getPackageForCreateLaunchEmergencyDialerIntent
     */
-    Intent createLaunchEmergencyDialerIntent(in String number);
+    String getPackageForCreateLaunchEmergencyDialerIntent();
 
     /**
      * @see TelecomServiceImpl#isIncomingCallPermitted
@@ -436,4 +431,56 @@ interface ITelecomService {
      * @see TelecomServiceImpl#setCallConnectedIndicatorPreference
      */
     void setCallConnectedIndicatorPreference(in String callingPackage, in int preference);
+
+    /**
+     * Returns a map containing the packages that have integrated call logs and their enabled
+     * states determined by user preference.
+     * @see TelecomServiceImpl#getVoipCallLogIntegrationStatus
+     */
+     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE)")
+     Map getVoipCallLogIntegrationStatus(in String callingPackage);
+
+    /**
+     * @see TelecomServiceImpl#setVoipCallLogIntegrationEnabled
+     */
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.MODIFY_PHONE_STATE)")
+     void setVoipCallLogIntegrationEnabled(in String callingPackage, in String packageName,
+         in boolean enabled);
+
+    /**
+     * @see TelecomServiceImpl#setTestLocalVoicemailService
+     */
+    void setTestLocalVoicemailService(in String packageName);
+
+    /**
+     * @see TelecomServiceImpl#isLocalVoicemailSupported
+     */
+    boolean isLocalVoicemailSupported(in String packageName);
+
+    /**
+     * @see TelecomServiceImpl#enableLocalVoicemailTimeout
+     */
+    void enableLocalVoicemail(in String packageName, in PhoneAccountHandle phoneAccountHandle,
+        long timeout);
+
+    /**
+     * @see TelecomServiceImpl# disableLocalVoicemail
+     */
+    void disableLocalVoicemail(in String packageName, in PhoneAccountHandle phoneAccountHandle);
+
+    /**
+     * @see TelecomServiceImpl#getLocalVoicemailTimeout
+     */
+    long getLocalVoicemailTimeout(in String packageName, in PhoneAccountHandle phoneAccountHandle);
+
+    /**
+     * @see TelecomServiceImpl#isLocalVoicemailEnabled
+     */
+    boolean isLocalVoicemailEnabled(in String packageName,
+        in PhoneAccountHandle phoneAccountHandle);
+
+    /**
+     * @see TelecomServiceImpl#getTelecomUiPackageName
+     */
+    String getTelecomUiPackageName();
 }

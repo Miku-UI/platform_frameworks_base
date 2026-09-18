@@ -81,10 +81,10 @@ object NotificationCustomContentMemoryVerifier {
             } else {
                 Log.w(
                     NOTIFICATION_SERVICE_TAG,
-                    "RemoteViews too large on pkg: ${entry.sbn.packageName} " +
+                    "RemoteViews too large on pkg: ${entry.sbn.packageName} ($memorySize bytes)" +
                         "tag: ${entry.sbn.tag} id: ${entry.sbn.id} " +
                         "this WILL notification WILL be dropped when targetSdk " +
-                        "is set to ${Build.VERSION_CODES.BAKLAVA}!",
+                        "is set to ${Build.VERSION_CODES.CINNAMON_BUN}!",
                 )
             }
 

@@ -123,9 +123,7 @@ public class UserUsageStatsServiceTest {
 
     @Test
     public void testReportEvent_packageUsedEventNotTracked() {
-        // For APP_COMPONENT_USED event, the time stamp should have been converted to current time
-        // before reported here.
-        Event event = new Event(APP_COMPONENT_USED, System.currentTimeMillis());
+        Event event = new Event(APP_COMPONENT_USED, SystemClock.elapsedRealtime());
         event.mPackage = TEST_PACKAGE_NAME;
         mService.reportEvent(event);
 

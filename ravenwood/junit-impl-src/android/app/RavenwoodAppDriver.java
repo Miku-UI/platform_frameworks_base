@@ -15,19 +15,38 @@
  */
 package android.app;
 
+import static android.os.Build.VERSION_CODES.S;
+import static android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE;
+
 import android.annotation.NonNull;
+import android.app.ActivityThread.AppBindData;
+import android.content.ContentProvider;
 import android.content.Context;
+import android.content.IContentProvider;
 import android.content.pm.ApplicationInfo;
 import android.os.Bundle;
+import android.os.ServiceManager;
+import android.os.ServiceManager.ServiceNotFoundException;
+import android.platform.test.ravenwood.RavenwoodDriver;
 import android.platform.test.ravenwood.RavenwoodEnvironment;
+import android.platform.test.ravenwood.RavenwoodErrorHandler;
+import android.platform.test.ravenwood.RavenwoodProxyHelper;
+import android.platform.test.ravenwood.RavenwoodSettingsProvider;
 import android.platform.test.ravenwood.RavenwoodSystemServer;
 import android.platform.test.ravenwood.RavenwoodUtils;
+import android.provider.Settings;
+import android.util.Log;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.compat.CompatibilityChangeInfo;
+import com.android.internal.compat.CompatibilityRules;
+import com.android.internal.ravenwood.RavenwoodHelperBridge.CompatIdsForTest;
 import com.android.ravenwood.common.SneakyThrow;
+import com.android.server.compat.PlatformCompat;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -38,6 +57,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * stuff. See also {@link RavenwoodEnvironment}.
  */
 public final class RavenwoodAppDriver {
+    private static final String TAG = RavenwoodDriver.TAG;
+
     /** Singleton instance. */
     private static final AtomicReference<RavenwoodAppDriver> sInstance = new AtomicReference<>();
 
@@ -62,6 +83,9 @@ public final class RavenwoodAppDriver {
     @GuardedBy("mLoadedApkCache")
     private final Map<String, LoadedApk> mLoadedApkCache = new HashMap<>();
 
+    @GuardedBy("mProviders")
+    private final Map<String, IContentProvider> mProviders = new HashMap<>();
+
     /** This is an empty instance created by Objenesis. None of its fields are initialized. */
     private final ActivityThread mActivityThread;
 
@@ -75,7 +99,15 @@ public final class RavenwoodAppDriver {
 
     private final Instrumentation mInstrumentation;
 
-    private final RavenwoodActivityDriver mActivityDriver = RavenwoodActivityDriver.getInstance();
+    private final RavenwoodSettingsProvider mSettingsProvider;
+
+    /**
+     * All the known compat-IDs. We use it to ensure no unknown compat-IDs may be used.
+     *
+     * We need to cache them, rather than asking PlatformCompat every time, because technically
+     * compat-IDs may be added anytime, even after we fetch the "disabled ID" list.
+     */
+    private static volatile long[] sAllKnownCompatIds = new long[0];
 
     /**
      * Constructor. It essentially simulates the start of an app lifecycle.
@@ -85,6 +117,7 @@ public final class RavenwoodAppDriver {
      * Use more of the real ActivityThread code, and move it to ActivityThread.
      */
     private RavenwoodAppDriver() {
+        Log.i(TAG, "RavenwoodAppDriver initializing...");
         var env = RavenwoodEnvironment.getInstance();
 
         // This must happen on the main thread.
@@ -94,6 +127,12 @@ public final class RavenwoodAppDriver {
 
         // Create the system context.
         mSystemContextImpl = ContextImpl.createSystemContext(mActivityThread);
+
+        RavenwoodSystemServer.init(mSystemContextImpl);
+
+        // We want to do it ASAP, but it depends on RavenwoodSystemServer.init(), so we can't
+        // move it above.
+        initializeCompatIds();
 
         // Create the target's context. Note, it's called "appContext" in handleBindApplication,
         // but its _not_ an of the Application class. We'll create the app object later,
@@ -110,7 +149,6 @@ public final class RavenwoodAppDriver {
         var uiAutomation = new UiAutomation(
                 mInstContext, new IUiAutomationConnection.Default());
 
-        var instArgs = Bundle.EMPTY;
         try {
             var clazz = Class.forName(env.getInstrumentationClass());
             mInstrumentation = (Instrumentation) clazz.getConstructor().newInstance();
@@ -123,7 +161,6 @@ public final class RavenwoodAppDriver {
 
         // Need to set it, as it's used by LoadedApk afer this.
         mActivityThread.mInstrumentation = mInstrumentation;
-        InstrumentationRegistry.registerInstance(mInstrumentation, instArgs);
 
         // Create the Application instance, which will be the "target" context.
         var application = mTargetLoadedApk.makeApplicationInner(
@@ -135,15 +172,101 @@ public final class RavenwoodAppDriver {
                 // That's what ActivityThread does in handleBindApplication() too.
                 /*instrumentation=*/ null
         );
+        // AndroidX's test runner will override the default handler, in makeApplication(),
+        // so we override it again.
+        // We could have HostStubGen redirect `Thread.setDefaultUncaughtExceptionHandler()`,
+        // but currently we exclude all androidx.* classes from HSG processing, and
+        // changing that could impact the build time, so let's just go with this hacky solution.
+        RavenwoodErrorHandler.setDefaultUncaughtExceptionHandler();
 
         mActivityThread.mInitialApplication = application;
         mTargetContext = appContext;
 
-        mInstrumentation.onCreate(instArgs);
+        var data = new AppBindData();
+        data.appInfo = application.getApplicationInfo();
+        mActivityThread.mBoundApplication = data;
+
+        mInstrumentation.onCreate(Bundle.EMPTY);
         mInstrumentation.callApplicationOnCreate(application);
 
-        // Maybe do it first?
-        RavenwoodSystemServer.init(mSystemContextImpl);
+        // Register a stub settings provider that always return nothing
+        mSettingsProvider = new RavenwoodSettingsProvider();
+        var mockSettings = RavenwoodProxyHelper.newProxy(
+                IContentProvider.class,
+                IContentProvider.descriptor,
+                mSettingsProvider);
+        synchronized (mProviders) {
+            mProviders.put(Settings.AUTHORITY, mockSettings);
+        }
+
+        reset();
+
+        Log.i(TAG, "RavenwoodAppDriver initialized");
+    }
+
+    private void initializeCompatIds() {
+        // Set up compat-IDs for the app side.
+        // TODO: Inside the system server, all the compat-IDs should be enabled,
+        // Due to the `AppCompatCallbacks.install(new long[0], new long[0] ...` call in
+        // SystemServer.
+
+        // Register test rules.
+        CompatibilityRules.initRulesForTest(
+                new CompatibilityChangeInfo(CompatIdsForTest.TEST_COMPAT_ID_1,
+                        "TEST_COMPAT_ID_1", -1, -1, false, false, false, "", false),
+                new CompatibilityChangeInfo(CompatIdsForTest.TEST_COMPAT_ID_2,
+                        "TEST_COMPAT_ID_2", -1, -1, true, false, false, "", false),
+                new CompatibilityChangeInfo(CompatIdsForTest.TEST_COMPAT_ID_3,
+                        "TEST_COMPAT_ID_3", -1, S, false, false, false, "", false),
+                new CompatibilityChangeInfo(CompatIdsForTest.TEST_COMPAT_ID_4,
+                        "TEST_COMPAT_ID_4", -1, UPSIDE_DOWN_CAKE, false, false, false, "", false),
+                new CompatibilityChangeInfo(CompatIdsForTest.TEST_COMPAT_ID_5,
+                        "TEST_COMPAT_ID_5", -1, -1, false, false, false, "", false)
+        );
+
+        var env = RavenwoodEnvironment.getInstance();
+
+        // Compat framework only uses the package name and the target SDK level.
+        ApplicationInfo appInfo = new ApplicationInfo();
+        appInfo.packageName = env.getTargetPackageName();
+        appInfo.targetSdkVersion = env.getTargetSdkLevel();
+
+        PlatformCompat platformCompat = null;
+        try {
+            platformCompat = (PlatformCompat) ServiceManager.getServiceOrThrow(
+                    Context.PLATFORM_COMPAT_SERVICE);
+        } catch (ServiceNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+
+        sAllKnownCompatIds = platformCompat.getAllChangeIds();
+        var disabledChanges = platformCompat.getDisabledChanges(appInfo);
+        var enabledChanges = platformCompat.getEnabledChanges(appInfo);
+        var loggableChanges = platformCompat.getLoggableChanges(appInfo);
+
+        AppCompatCallbacks.install(disabledChanges, enabledChanges, loggableChanges, false,
+                appInfo.targetSdkVersion);
+
+        Log.i(TAG, "CompatChanges initialized");
+    }
+
+    private static boolean isChangeIdKnown(long changeId) {
+        return Arrays.binarySearch(sAllKnownCompatIds, changeId) >= 0;
+    }
+
+    /**
+     * Throws if a change ID is unknown.
+     */
+    public static void validateChangeId(long changeId) {
+        if (sAllKnownCompatIds.length == 0) {
+            throw new IllegalStateException("@ChangeId's not initialized yet!");
+        }
+        var known = isChangeIdKnown(changeId);
+        if (!known) {
+            throw new IllegalStateException("@ChangeId " + changeId
+                    + " is not known to Ravenwood. Reach out to g/ravenwood to"
+                    + " get it available on Ravenwood");
+        }
     }
 
     /**
@@ -244,5 +367,19 @@ public final class RavenwoodAppDriver {
 
     public Instrumentation getInstrumentation() {
         return mInstrumentation;
+    }
+
+    public IContentProvider getProvider(Context context, String auth) {
+        synchronized (mProviders) {
+            return mProviders.get(ContentProvider.getAuthorityWithoutUserId(auth));
+        }
+    }
+
+    /**
+     * Reset some global state.
+     */
+    public void reset() {
+        InstrumentationRegistry.registerInstance(mInstrumentation, Bundle.EMPTY);
+        mSettingsProvider.reset();
     }
 }

@@ -80,20 +80,24 @@ class AutoEnterPipWithSrcRectHintViaTapHomeTest {
         val pipApp: PipAppHelper = PipAppHelper(instrumentation)
         private val pipAppComponentTemplate = ComponentTemplate("PIP_APP") { _ -> pipApp }
 
-        private val PIP_ENTER_CUJ_EXTRACTOR = TaggedScenarioExtractorBuilder()
-            .setTargetTag(CujType.CUJ_PIP_TRANSITION)
-            .setAdditionalCujFilter {
-                it.tag == "ENTER_PIP"
-            }.build()
+        private val PIP_ENTER_CUJ_EXTRACTOR =
+            TaggedScenarioExtractorBuilder()
+                .setTargetTag(CujType.CUJ_PIP_TRANSITION)
+                .setAdditionalCujFilter { it.tag == "ENTER_PIP" }
+                .build()
 
-        private val PIP_ENTER_CUJ_CONFIG = FlickerConfigEntry(
-            scenarioId = ScenarioId("PIP_ENTER_IN_BTN_NAV"),
-            extractor = PIP_ENTER_CUJ_EXTRACTOR,
-            assertions = AssertionTemplates.COMMON_ASSERTIONS + mapOf(
-                LayerReduces(pipAppComponentTemplate) to AssertionInvocationGroup.BLOCKING
-            ),
-            enabled = true
-        )
+        private val PIP_ENTER_CUJ_CONFIG =
+            FlickerConfigEntry(
+                scenarioId = ScenarioId("PIP_ENTER_IN_BTN_NAV"),
+                extractor = PIP_ENTER_CUJ_EXTRACTOR,
+                assertions =
+                    AssertionTemplates.COMMON_ASSERTIONS +
+                        mapOf(
+                            LayerReduces(pipAppComponentTemplate) to
+                                AssertionInvocationGroup.BLOCKING
+                        ),
+                enabled = true,
+            )
 
         @JvmStatic
         @FlickerConfigProvider

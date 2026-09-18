@@ -156,13 +156,23 @@ android_app {
     generate_product_characteristics_rro: true,
 
     flags_packages: [
+        "am_flags",
+        "android.aiseal.flags-aconfig",
+        "backup_flags",
         "android.systemserver.flags-aconfig",
         "android.app.appfunctions.flags-aconfig",
+        "android.app.supervision.flags-aconfig",
+        "android.app.contentrestriction.flags-aconfig",
+        "android.app.contentsafety-aconfig",
         "android.app.contextualsearch.flags-aconfig",
         "android.app.flags-aconfig",
+        "android.app.privatecompute.flags-aconfig",
         "android.appwidget.flags-aconfig",
+        "android.bluetooth.platform.flags-aconfig",
         "android.companion.virtualdevice.flags-aconfig",
+        "android.content.flags-aconfig",
         "android.content.pm.flags-aconfig",
+        "android.hardware.biometrics.flags-aconfig",
         "android.hardware.serial.flags-aconfig",
         "android.location.flags-aconfig",
         "android.media.audio-aconfig",
@@ -173,9 +183,13 @@ android_app {
         "android.permission.flags-aconfig",
         "android.companion.flags-aconfig",
         "android.os.flags-aconfig",
+        "android.os.multisensory.flags-aconfig",
         "android.os.vibrator.flags-aconfig",
         "android.media.tv.flags-aconfig",
         "android.security.flags-aconfig",
+        "android.view.contentprotection.flags-aconfig",
+        "android.view.flags-aconfig",
+        "android.widget.flags-aconfig",
         "device_policy_aconfig_flags",
         "devicelock-aconfig-flags",
         "android.xr.flags-aconfig",
@@ -189,8 +203,21 @@ android_app {
         "appsearch_aconfig_flags",
         "aconfig_trade_in_mode_flags",
         "com.android.media.flags.projection-aconfig",
+        "android.service.notification.flags-aconfig",
+        "android.service.personalcontext.flags-aconfig",
         "surfaceflinger_flags",
         "power_flags",
+        "display_flags",
+        "android.os.profiling.anomaly.flags-aconfig",
+        "com.android.media.flags.mediasession-aconfig",
+        "npumanager_aconfig_flags",
+        "com.android.input.flags-aconfig",
+        "telecom_flags",
+        "android.multiuser.flags-aconfig",
+        "com.android.nfc.module.flags-aconfig",
+        "android.service.chooser.flags-aconfig",
+        "com.android.server.flags.services-aconfig",
+        "uilatencystats_flags",
     ],
 }
 
@@ -220,6 +247,26 @@ genrule {
     tools: ["xmllint"],
 }
 
+// This genrule invokes a custom build tool to generate the permission-versions.xml file with
+// appropriate metadata extracted from the platform manfiest to power Studio lint rules associated
+// with permission purpose declarations.
+// NOTE: This module depends on fetching the state of all non updatable aconfig flags. Thus,
+// depending on this module can lead to worse incremental build time.
+genrule {
+    name: "permission-versions",
+    out: ["permission-versions.xml"],
+    srcs: ["AndroidManifest.xml"],
+    device_common_srcs: [":framework-minus-apex-aconfig-declarations{.combined_proto}"],
+    cmd: "$(location permission_versions_generator) $(location AndroidManifest.xml) $(location :framework-minus-apex-aconfig-declarations{.combined_proto}) $(out)",
+    tools: ["permission_versions_generator"],
+}
+
+prebuilt_etc_host {
+    name: "permission-versions.xml",
+    src: ":permission-versions",
+    filename_from_src: true,
+}
+
 filegroup {
     name: "frameworks-base-core-AndroidManifest.xml",
     srcs: ["AndroidManifest.xml"],
@@ -227,4 +274,17 @@ filegroup {
         "//frameworks/base",
         "//frameworks/base/api",
     ],
+}
+
+// For packaging part of sdk-repo-platforms*.zip.
+genrule {
+    name: "sdk_platforms_data_res",
+    tools: ["soong_zip"],
+    srcs: [
+        "res/**/*",
+    ],
+    out: ["sdk_platforms_data_res.zip"],
+    cmd: "mkdir -p $(genDir)/out/data/ && " +
+        "cp -r frameworks/base/core/res/res/ $(genDir)/out/data/ && " +
+        "$(location soong_zip) -o $(out) -C $(genDir)/out -D $(genDir)/out",
 }

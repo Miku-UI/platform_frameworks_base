@@ -17,7 +17,19 @@
 
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
     android:color="?android:attr/colorControlHighlight">
+    <item android:id="@android:id/mask"
+          android:featureFlag="com.android.printspooler.flags.updated_button_layout">
+        <shape android:shape="rectangle">
+            <corners android:radius="28dp" />
+            <solid android:color="@android:color/white" />
+        </shape>
+    </item>
     <item
-        android:drawable="@drawable/print_button_background">
+        android:drawable="@drawable/print_button_background"
+        android:featureFlag="!com.android.printspooler.flags.updated_button_layout">
+    </item>
+    <item
+        android:drawable="@drawable/solid_button_rounded_background"
+        android:featureFlag="com.android.printspooler.flags.updated_button_layout">
     </item>
 </ripple>

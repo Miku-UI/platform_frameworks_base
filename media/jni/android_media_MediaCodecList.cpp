@@ -75,30 +75,19 @@ public:
     JavaMediaCodecListWrapper(sp<IMediaCodecList> mcl)
             : mCodecList(mcl) {
         size_t numCodecs = mcl->countCodecs();
-        // First add the codecs with its unique codec name.
         for (size_t ix = 0; ix < numCodecs; ++ix) {
             sp<MediaCodecInfo> info = mcl->getCodecInfo(ix);
-            AString name = info->getCodecName();
-            // The codec names are guaranteed to be unique because:
-            // 1. Codecs hal names are unique.
-            // 2. MediaCodecListWriter splits MediaCodecInfos supporting
-            //    multiple media types and assigns each split a unique name.
-            // 3. codecName = supportMultipleMediaTypes ? splitName : halName
-            mInfoIndex.emplace(name, mInfoList.size());
-            mInfoList.emplace_back(Info { info, name });
-        }
-        // Then add codecs with its aliases. Skip aliases that have been used.
-        for (size_t ix = 0; ix < numCodecs; ++ix) {
-            sp<MediaCodecInfo> info = mcl->getCodecInfo(ix);
-            Vector<AString> aliases;
-            info->getAliases(&aliases);
-            for (const AString &alias : aliases) {
-                if (mInfoIndex.count(alias) > 0) {
+            Vector<AString> namesAndAliases;
+            info->getAliases(&namesAndAliases);
+            namesAndAliases.insertAt(0);
+            namesAndAliases.editItemAt(0) = info->getCodecName();
+            for (const AString &nameOrAlias : namesAndAliases) {
+                if (mInfoIndex.count(nameOrAlias) > 0) {
                     // skip duplicate names or aliases
                     continue;
                 }
-                mInfoIndex.emplace(alias, mInfoList.size());
-                mInfoList.emplace_back(Info { info, alias });
+                mInfoIndex.emplace(nameOrAlias, mInfoList.size());
+                mInfoList.emplace_back(Info { info, nameOrAlias });
             }
         }
     }
@@ -178,6 +167,17 @@ static jstring android_media_MediaCodecList_getCanonicalName(
     return env->NewStringUTF(name);
 }
 
+static jint android_media_MediaCodecList_getSecurityModel(
+        JNIEnv *env, jobject /* thiz */, jint index) {
+    JavaMediaCodecListWrapper::Info info = getCodecInfo(env, index);
+    if (info.info == NULL) {
+        // Runtime exception already pending.
+        return 0;
+    }
+
+    return info.info->getSecurityModel();
+}
+
 static jint android_media_MediaCodecList_findCodecByName(
         JNIEnv *env, jobject /* thiz */, jstring name) {
     if (name == NULL) {
@@ -253,29 +253,30 @@ static jobject android_media_MediaCodecList_getCodecCapabilities(
         return NULL;
     }
 
-
-    const char *typeStr = env->GetStringUTFChars(type, NULL);
-    if (typeStr == NULL) {
+    const char *extractedMediaType = env->GetStringUTFChars(type, NULL);
+    if (extractedMediaType == NULL) {
         // Out of memory exception already pending.
         return NULL;
     }
+    std::string mediaType = extractedMediaType;
+    env->ReleaseStringUTFChars(type, extractedMediaType);
+    extractedMediaType = NULL;
 
     jobject caps;
     if (android::media::codec::provider_->native_capabilites()) {
-        std::shared_ptr<CodecCapabilities> codecCaps = info.info->getCodecCapsFor(typeStr);
+        std::shared_ptr<CodecCapabilities> codecCaps =
+                        info.info->getCodecCapsFor(mediaType.c_str());
         caps = android::convertToJavaCodecCapabiliites(env, codecCaps);
     } else {
         Vector<MediaCodecInfo::ProfileLevel> profileLevels;
         Vector<uint32_t> colorFormats;
 
         sp<AMessage> defaultFormat = new AMessage();
-        defaultFormat->setString("mime", typeStr);
+        defaultFormat->setString("mime", mediaType.c_str());
 
         // TODO query default-format also from codec/codec list
         const sp<MediaCodecInfo::Capabilities> &capabilities =
-            info.info->getCapabilitiesFor(typeStr);
-        env->ReleaseStringUTFChars(type, typeStr);
-        typeStr = NULL;
+            info.info->getCapabilitiesFor(mediaType.c_str());
         if (capabilities == NULL) {
             jniThrowException(env, "java/lang/IllegalArgumentException", NULL);
             return NULL;
@@ -400,6 +401,9 @@ static const JNINativeMethod gMethods[] = {
 
     { "getCanonicalName", "(I)Ljava/lang/String;",
       (void *)android_media_MediaCodecList_getCanonicalName },
+
+    { "getSecurityModel", "(I)I",
+      (void *)android_media_MediaCodecList_getSecurityModel },
 
     { "getCodecName", "(I)Ljava/lang/String;",
       (void *)android_media_MediaCodecList_getCodecName },

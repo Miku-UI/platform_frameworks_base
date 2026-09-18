@@ -38,7 +38,7 @@ import java.lang.annotation.Retention;
  *
  * Most applications do not need to use this class.
  *
- * {@see android.hardware.input.InputManager#verifyInputEvent}
+ * @see android.hardware.input.InputManager#verifyInputEvent
  */
 @DataClass(genHiddenConstructor = true, genEqualsHashCode = true)
 public final class VerifiedKeyEvent extends VerifiedInputEvent implements Parcelable {

@@ -1543,12 +1543,16 @@ public class UsageStatsDatabase {
                 pw.increaseIndent();
                 for (int f = 0; f < size; f++) {
                     final long fileName = files.keyAt(f);
+                    final String timestamp =
+                            UserUsageStatsService.formatDateTime(fileName, !compact);
                     if (compact) {
-                        pw.print(UserUsageStatsService.formatDateTime(fileName, false));
+                        pw.print(timestamp);
                     } else {
-                        pw.printPair(Long.toString(fileName),
-                                UserUsageStatsService.formatDateTime(fileName, true));
+                        pw.printPair(Long.toString(fileName), timestamp);
                     }
+                    pw.print(" (");
+                    pw.printPair("size", files.valueAt(f).getBaseFile().length());
+                    pw.print(")");
                     pw.println();
                 }
                 pw.decreaseIndent();

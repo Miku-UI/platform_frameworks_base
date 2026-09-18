@@ -22,8 +22,6 @@ import static android.os.VibrationEffect.Composition.PRIMITIVE_SPIN;
 import static android.os.VibrationEffect.Composition.PRIMITIVE_TICK;
 import static android.os.VibrationEffect.EFFECT_CLICK;
 import static android.os.VibrationEffect.EFFECT_TICK;
-import static android.os.VibrationEffect.VibrationParameter.targetAmplitude;
-import static android.os.VibrationEffect.VibrationParameter.targetFrequency;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -34,7 +32,6 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -45,7 +42,6 @@ import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.ContextWrapper;
 import android.content.pm.PackageManagerInternal;
-import android.hardware.vibrator.Braking;
 import android.hardware.vibrator.IVibrator;
 import android.hardware.vibrator.IVibratorManager;
 import android.os.CombinedVibration;
@@ -63,7 +59,6 @@ import android.os.vibrator.Flags;
 import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.PrimitiveSegment;
 import android.os.vibrator.PwlePoint;
-import android.os.vibrator.RampSegment;
 import android.os.vibrator.StepSegment;
 import android.os.vibrator.VibrationConfig;
 import android.os.vibrator.VibrationEffectSegment;
@@ -88,12 +83,10 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -109,7 +102,6 @@ public class VibrationThreadTest {
     private static final int VIBRATOR_ID = 1;
     private static final String PACKAGE_NAME = "package";
     private static final VibrationAttributes ATTRS = new VibrationAttributes.Builder().build();
-    private static final int TEST_RAMP_STEP_DURATION = 5;
 
     @Rule
     public MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -160,7 +152,6 @@ public class VibrationThreadTest {
         when(mContextSpy.getContentResolver()).thenReturn(contentResolver);
 
         mVibrationConfigBuilder = new VibrationConfig.Builder(null); // use defaults
-        mVibrationConfigBuilder.setRampStepDurationMs(TEST_RAMP_STEP_DURATION);
 
         mockVibrators(VIBRATOR_ID);
 
@@ -504,38 +495,6 @@ public class VibrationThreadTest {
     }
 
     @Test
-    public void vibrate_singleVibratorRepeatingPwle_generatesLargestPwles() throws Exception {
-        HalVibratorHelper vibratorHelper = mVibratorHelpers.get(VIBRATOR_ID);
-        vibratorHelper.setCapabilities(IVibrator.CAP_GET_RESONANT_FREQUENCY,
-                IVibrator.CAP_FREQUENCY_CONTROL, IVibrator.CAP_COMPOSE_PWLE_EFFECTS);
-        vibratorHelper.setMinFrequency(100);
-        vibratorHelper.setResonantFrequency(150);
-        vibratorHelper.setFrequencyResolution(50);
-        vibratorHelper.setMaxAmplitudes(1, 1, 1);
-        vibratorHelper.setPwleSizeMax(10);
-
-        VibrationEffect effect = VibrationEffect.startWaveform(targetAmplitude(1))
-                // Very long segment so thread will be cancelled after first PWLE is triggered.
-                .addTransition(Duration.ofMillis(100), targetFrequency(100))
-                .build();
-        VibrationEffect repeatingEffect = VibrationEffect.startComposition()
-                .repeatEffectIndefinitely(effect)
-                .compose();
-        HalVibration vibration = startThreadAndDispatcher(repeatingEffect);
-
-        assertThat(waitUntil(() -> !vibratorHelper.getEffectSegments().isEmpty(),
-                TEST_TIMEOUT_MILLIS)).isTrue();
-        mVibrationConductor.notifyCancelled(
-                new Vibration.EndInfo(Status.CANCELLED_BY_USER), /* immediate= */ false);
-        waitForCompletion();
-
-        // PWLE size max was used to generate a single vibrate call with 10 segments.
-        verifyCallbacksTriggered(vibration, Status.CANCELLED_BY_USER);
-        assertThat(mVibrators.get(VIBRATOR_ID).isVibrating()).isFalse();
-        assertThat(vibratorHelper.getEffectSegments()).hasSize(10);
-    }
-
-    @Test
     public void vibrate_singleVibratorRepeatingPrimitives_generatesLargestComposition()
             throws Exception {
         HalVibratorHelper vibratorHelper = mVibratorHelpers.get(VIBRATOR_ID);
@@ -547,9 +506,7 @@ public class VibrationThreadTest {
                 // Very long delay so thread will be cancelled after first PWLE is triggered.
                 .addPrimitive(PRIMITIVE_CLICK, 1f, 100)
                 .compose();
-        VibrationEffect repeatingEffect = VibrationEffect.startComposition()
-                .repeatEffectIndefinitely(effect)
-                .compose();
+        VibrationEffect repeatingEffect = VibrationEffect.createRepeatingEffect(effect);
         HalVibration vibration = startThreadAndDispatcher(repeatingEffect);
 
         assertThat(waitUntil(() -> !vibratorHelper.getEffectSegments().isEmpty(),
@@ -653,7 +610,6 @@ public class VibrationThreadTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_VENDOR_VIBRATION_EFFECTS)
     public void vibrate_singleVibratorVendorEffectCancel_cancelsVibrationImmediately()
             throws Exception {
         mVibratorHelpers.get(VIBRATOR_ID).setCapabilities(IVibrator.CAP_PERFORM_VENDOR_EFFECTS);
@@ -808,7 +764,6 @@ public class VibrationThreadTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_VENDOR_VIBRATION_EFFECTS)
     public void vibrate_singleVibratorVendorEffect_runsVibration() {
         mVibratorHelpers.get(VIBRATOR_ID).setCapabilities(IVibrator.CAP_PERFORM_VENDOR_EFFECTS);
 
@@ -828,7 +783,6 @@ public class VibrationThreadTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_VENDOR_VIBRATION_EFFECTS)
     public void vibrate_singleVibratorVendorEffectFailed_returnsFailure() {
         HalVibratorHelper vibratorHelper = mVibratorHelpers.get(VIBRATOR_ID);
         vibratorHelper.setCapabilities(IVibrator.CAP_PERFORM_VENDOR_EFFECTS);
@@ -873,24 +827,6 @@ public class VibrationThreadTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
-    public void vibrate_singleVibratorComposedAndNoCapability_triggersHalAndReturnsUnsupported() {
-        VibrationEffect effect = VibrationEffect.startComposition()
-                .addPrimitive(PRIMITIVE_CLICK, 1f)
-                .compose();
-        HalVibration vibration = startThreadAndDispatcher(effect);
-        waitForCompletion();
-
-        verify(mManagerHooks).noteVibratorOn(eq(UID), eq(0L));
-        verify(mManagerHooks, never()).noteVibratorOff(eq(UID));
-        verify(mHalCallbacks, never())
-                .onVibrationStepComplete(eq(VIBRATOR_ID), eq(vibration.id), anyLong());
-        verifyCallbacksTriggered(vibration, Status.IGNORED_UNSUPPORTED);
-        assertThat(mVibratorHelpers.get(VIBRATOR_ID).getEffectSegments()).isEmpty();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_PRIMITIVE_COMPOSITION_ABSOLUTE_DELAY)
     public void vibrate_singleVibratorComposedAndNoCapability_ignoresVibration() {
         VibrationEffect effect = VibrationEffect.startComposition()
                 .addPrimitive(PRIMITIVE_CLICK, 1f)
@@ -948,61 +884,6 @@ public class VibrationThreadTest {
         verify(mHalCallbacks, times(2))
                 .onVibrationStepComplete(eq(VIBRATOR_ID), eq(vibration.id), anyLong());
         assertThat(vibratorHelper.getEffectSegments()).hasSize(3);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_NORMALIZED_PWLE_EFFECTS)
-    public void vibrate_singleVibratorComposedEffects_runsDifferentVibrations() {
-        HalVibratorHelper vibratorHelper = mVibratorHelpers.get(VIBRATOR_ID);
-        vibratorHelper.setSupportedEffects(EFFECT_CLICK);
-        vibratorHelper.setSupportedPrimitives(PRIMITIVE_CLICK, PRIMITIVE_TICK);
-        vibratorHelper.setCapabilities(IVibrator.CAP_AMPLITUDE_CONTROL,
-                IVibrator.CAP_GET_RESONANT_FREQUENCY, IVibrator.CAP_FREQUENCY_CONTROL,
-                IVibrator.CAP_COMPOSE_EFFECTS, IVibrator.CAP_COMPOSE_PWLE_EFFECTS);
-        vibratorHelper.setMinFrequency(100);
-        vibratorHelper.setResonantFrequency(150);
-        vibratorHelper.setFrequencyResolution(50);
-        vibratorHelper.setMaxAmplitudes(
-                0.5f /* 100Hz*/, 1 /* 150Hz */, 0.6f /* 200Hz */);
-
-        VibrationEffect effect = VibrationEffect.startComposition()
-                .addEffect(VibrationEffect.createOneShot(10, 100))
-                .addPrimitive(PRIMITIVE_CLICK, 1f)
-                .addPrimitive(PRIMITIVE_TICK, 0.5f)
-                .addEffect(VibrationEffect.get(EFFECT_CLICK))
-                .addEffect(VibrationEffect.startWaveform()
-                        .addTransition(Duration.ofMillis(10),
-                                targetAmplitude(1), targetFrequency(100))
-                        .addTransition(Duration.ofMillis(20), targetFrequency(120))
-                        .build())
-                .addEffect(VibrationEffect.get(EFFECT_CLICK))
-                .compose();
-        HalVibration vibration = startThreadAndDispatcher(effect);
-        waitForCompletion();
-
-        // Use first duration the vibrator is turned on since we cannot estimate the clicks.
-        verify(mManagerHooks).noteVibratorOn(eq(UID), eq(10L));
-        verify(mManagerHooks).noteVibratorOff(eq(UID));
-        verify(mHalCallbacks, times(5))
-                .onVibrationStepComplete(eq(VIBRATOR_ID), eq(vibration.id), anyLong());
-        verifyCallbacksTriggered(vibration, Status.FINISHED);
-        assertThat(mVibrators.get(VIBRATOR_ID).isVibrating()).isFalse();
-        assertThat(mVibratorHelpers.get(VIBRATOR_ID).getEffectSegments())
-                .containsExactly(
-                        expectedOneShot(10),
-                        expectedPrimitive(PRIMITIVE_CLICK, 1, 0),
-                        expectedPrimitive(PRIMITIVE_TICK, 0.5f, 0),
-                        expectedPrebaked(EFFECT_CLICK),
-                        expectedRamp(/* startAmplitude= */ 0, /* endAmplitude= */ 0.5f,
-                                /* startFrequencyHz= */ 150, /* endFrequencyHz= */ 100,
-                                /* duration= */ 10),
-                        expectedRamp(/* startAmplitude= */ 0.5f, /* endAmplitude= */ 0.7f,
-                                /* startFrequencyHz= */ 100, /* endFrequencyHz= */ 120,
-                                /* duration= */ 20),
-                        expectedPrebaked(EFFECT_CLICK))
-                .inOrder();
-        assertThat(mVibratorHelpers.get(VIBRATOR_ID).getAmplitudes())
-                .containsExactlyElementsIn(expectedAmplitudes(100)).inOrder();
     }
 
     @Test
@@ -1232,9 +1113,13 @@ public class VibrationThreadTest {
                         expectedPwle(0.0f, 100f, 0),
                         expectedPwle(0.8f, 100f, 30),
                         expectedPwle(0.0f, 100f, 30),
-                        expectedPwle(0.9f, 100f, 0),
+                        // Second batch
+                        expectedPwle(0.0f, 100f, 0),
+                        expectedPwle(0.9f, 100f, 30),
                         expectedPwle(0.4f, 100f, 30),
-                        expectedPwle(0.6f, 100f, 0),
+                        // Third batch
+                        expectedPwle(0.4f, 100f, 0),
+                        expectedPwle(0.6f, 100f, 30),
                         expectedPwle(0.7f, 100f, 30))
                 .inOrder();
     }
@@ -1262,83 +1147,6 @@ public class VibrationThreadTest {
         verifyCallbacksTriggered(vibration, Status.IGNORED_ERROR_DISPATCHING);
         assertThat(mVibrators.get(VIBRATOR_ID).isVibrating()).isFalse();
         assertThat(vibratorHelper.getEffectPwlePoints()).isEmpty();
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_NORMALIZED_PWLE_EFFECTS)
-    public void vibrate_singleVibratorPwle_runsComposePwle() {
-        HalVibratorHelper vibratorHelper = mVibratorHelpers.get(VIBRATOR_ID);
-        vibratorHelper.setCapabilities(IVibrator.CAP_GET_RESONANT_FREQUENCY,
-                IVibrator.CAP_FREQUENCY_CONTROL, IVibrator.CAP_COMPOSE_PWLE_EFFECTS);
-        vibratorHelper.setSupportedBraking(Braking.CLAB);
-        vibratorHelper.setMinFrequency(100);
-        vibratorHelper.setResonantFrequency(150);
-        vibratorHelper.setFrequencyResolution(50);
-        vibratorHelper.setMaxAmplitudes(
-                0.5f /* 100Hz*/, 1 /* 150Hz */, 0.6f /* 200Hz */);
-
-        VibrationEffect effect = VibrationEffect.startWaveform(targetAmplitude(1))
-                .addSustain(Duration.ofMillis(10))
-                .addTransition(Duration.ofMillis(20), targetAmplitude(0))
-                .addTransition(Duration.ZERO, targetAmplitude(0.8f), targetFrequency(100))
-                .addSustain(Duration.ofMillis(30))
-                .addTransition(Duration.ofMillis(40), targetAmplitude(0.6f), targetFrequency(200))
-                .build();
-        HalVibration vibration = startThreadAndDispatcher(effect);
-        waitForCompletion();
-
-        verify(mManagerHooks).noteVibratorOn(eq(UID), eq(100L));
-        verify(mManagerHooks).noteVibratorOff(eq(UID));
-        verify(mHalCallbacks).onVibrationStepComplete(eq(VIBRATOR_ID), eq(vibration.id), anyLong());
-        verifyCallbacksTriggered(vibration, Status.FINISHED);
-        assertThat(mVibrators.get(VIBRATOR_ID).isVibrating()).isFalse();
-        assertThat(vibratorHelper.getEffectSegments())
-                .containsExactly(
-                        expectedRamp(/* amplitude= */ 1, /* frequencyHz= */ 150,
-                                /* duration= */ 10),
-                        expectedRamp(/* startAmplitude= */ 1, /* endAmplitude= */ 0,
-                                /* startFrequencyHz= */ 150, /* endFrequencyHz= */ 150,
-                                /* duration= */ 20),
-                        expectedRamp(/* amplitude= */ 0.5f, /* frequencyHz= */ 100,
-                                /* duration= */ 30),
-                        expectedRamp(/* startAmplitude= */ 0.5f, /* endAmplitude= */ 0.6f,
-                                /* startFrequencyHz= */ 100, /* endFrequencyHz= */ 200,
-                                /* duration= */ 40))
-                .inOrder();
-    }
-
-    @Test
-    public void vibrate_singleVibratorLargePwle_splitsComposeCallWhenAmplitudeIsLowest() {
-        HalVibratorHelper vibratorHelper = mVibratorHelpers.get(VIBRATOR_ID);
-        vibratorHelper.setCapabilities(IVibrator.CAP_GET_RESONANT_FREQUENCY,
-                IVibrator.CAP_FREQUENCY_CONTROL, IVibrator.CAP_COMPOSE_PWLE_EFFECTS);
-        vibratorHelper.setMinFrequency(100);
-        vibratorHelper.setResonantFrequency(150);
-        vibratorHelper.setFrequencyResolution(50);
-        vibratorHelper.setMaxAmplitudes(1, 1, 1);
-        vibratorHelper.setPwleSizeMax(3);
-
-        VibrationEffect effect = VibrationEffect.startWaveform(targetAmplitude(1))
-                .addSustain(Duration.ofMillis(10))
-                .addTransition(Duration.ofMillis(20), targetAmplitude(0))
-                // Waveform will be split here, after vibration goes to zero amplitude
-                .addTransition(Duration.ZERO, targetAmplitude(0.8f), targetFrequency(100))
-                .addSustain(Duration.ofMillis(30))
-                .addTransition(Duration.ofMillis(40), targetAmplitude(0.6f), targetFrequency(200))
-                // Waveform will be split here at lowest amplitude.
-                .addTransition(Duration.ofMillis(40), targetAmplitude(0.7f), targetFrequency(200))
-                .addTransition(Duration.ofMillis(40), targetAmplitude(0.6f), targetFrequency(200))
-                .build();
-        HalVibration vibration = startThreadAndDispatcher(effect);
-        waitForCompletion();
-
-        verifyCallbacksTriggered(vibration, Status.FINISHED);
-
-        // Vibrator compose called 3 times with 2 segments instead of 2 times with 3 segments.
-        // Using best split points instead of max-packing PWLEs.
-        verify(mHalCallbacks, times(3))
-                .onVibrationStepComplete(eq(VIBRATOR_ID), eq(vibration.id), anyLong());
-        assertThat(vibratorHelper.getEffectSegments()).hasSize(6);
     }
 
     @Test
@@ -1475,54 +1283,6 @@ public class VibrationThreadTest {
                 .containsExactlyElementsIn(expectedAmplitudes(1, 2)).inOrder();
         assertThat(mVibratorHelpers.get(4).getEffectSegments())
                 .containsExactly(expectedPrimitive(PRIMITIVE_CLICK, 1, 0)).inOrder();
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_REMOVE_SEQUENTIAL_COMBINATION)
-    public void vibrate_multipleSequential_runsVibrationInOrderWithDelays() {
-        mockVibrators(1, 2, 3);
-        mVibratorHelpers.get(1).setCapabilities(IVibrator.CAP_AMPLITUDE_CONTROL);
-        mVibratorHelpers.get(2).setCapabilities(IVibrator.CAP_COMPOSE_EFFECTS);
-        mVibratorHelpers.get(2).setSupportedPrimitives(PRIMITIVE_CLICK);
-        mVibratorHelpers.get(3).setSupportedEffects(EFFECT_CLICK);
-
-        VibrationEffect composed = VibrationEffect.startComposition()
-                .addPrimitive(PRIMITIVE_CLICK)
-                .compose();
-        CombinedVibration effect = CombinedVibration.startSequential()
-                .addNext(3, VibrationEffect.get(EFFECT_CLICK), /* delay= */ 50)
-                .addNext(1, VibrationEffect.createOneShot(10, 100), /* delay= */ 50)
-                .addNext(2, composed, /* delay= */ 50)
-                .combine();
-        HalVibration vibration = startThreadAndDispatcher(effect);
-
-        waitForCompletion();
-        InOrder verifier = inOrder(mHalCallbacks);
-        verifier.verify(mHalCallbacks).onVibrationStepComplete(eq(3), eq(vibration.id), anyLong());
-        verifier.verify(mHalCallbacks).onVibrationStepComplete(eq(1), eq(vibration.id), anyLong());
-        verifier.verify(mHalCallbacks).onVibrationStepComplete(eq(2), eq(vibration.id), anyLong());
-
-        InOrder batteryVerifier = inOrder(mManagerHooks);
-        batteryVerifier.verify(mManagerHooks).noteVibratorOn(eq(UID), eq(20L));
-        batteryVerifier.verify(mManagerHooks).noteVibratorOff(eq(UID));
-        batteryVerifier.verify(mManagerHooks).noteVibratorOn(eq(UID), eq(10L));
-        batteryVerifier.verify(mManagerHooks).noteVibratorOff(eq(UID));
-        batteryVerifier.verify(mManagerHooks).noteVibratorOn(eq(UID), eq(20L));
-        batteryVerifier.verify(mManagerHooks).noteVibratorOff(eq(UID));
-
-        verifyCallbacksTriggered(vibration, Status.FINISHED);
-        assertThat(mVibrators.get(1).isVibrating()).isFalse();
-        assertThat(mVibrators.get(2).isVibrating()).isFalse();
-        assertThat(mVibrators.get(3).isVibrating()).isFalse();
-
-        assertThat(mVibratorHelpers.get(1).getEffectSegments())
-                .containsExactly(expectedOneShot(10)).inOrder();
-        assertThat(mVibratorHelpers.get(1).getAmplitudes())
-                .containsExactlyElementsIn(expectedAmplitudes(100)).inOrder();
-        assertThat(mVibratorHelpers.get(2).getEffectSegments())
-                .containsExactly(expectedPrimitive(PRIMITIVE_CLICK, 1, 0)).inOrder();
-        assertThat(mVibratorHelpers.get(3).getEffectSegments())
-                .containsExactly(expectedPrebaked(EFFECT_CLICK)).inOrder();
     }
 
     @Test
@@ -1932,7 +1692,6 @@ public class VibrationThreadTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_VENDOR_VIBRATION_EFFECTS)
     public void vibrate_multipleVendorEffectCancel_cancelsVibrationImmediately() throws Exception {
         mockVibrators(1, 2);
         mVibratorHelpers.get(1).setCapabilities(IVibrator.CAP_PERFORM_VENDOR_EFFECTS);
@@ -2125,7 +1884,6 @@ public class VibrationThreadTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_VENDOR_VIBRATION_EFFECTS)
     public void vibrate_vendorEffectWithRampDown_doesNotAddRampDown() {
         mVibrationConfigBuilder.setRampDownDurationMs(15);
         createThreadAndSettings();
@@ -2166,35 +1924,6 @@ public class VibrationThreadTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_NORMALIZED_PWLE_EFFECTS)
-    public void vibrate_pwleWithRampDown_doesNotAddRampDown() {
-        mVibrationConfigBuilder.setRampDownDurationMs(15);
-        createThreadAndSettings();
-        HalVibratorHelper vibratorHelper = mVibratorHelpers.get(VIBRATOR_ID);
-        vibratorHelper.setCapabilities(IVibrator.CAP_AMPLITUDE_CONTROL,
-                IVibrator.CAP_GET_RESONANT_FREQUENCY, IVibrator.CAP_FREQUENCY_CONTROL,
-                IVibrator.CAP_COMPOSE_PWLE_EFFECTS);
-        vibratorHelper.setMinFrequency(100);
-        vibratorHelper.setResonantFrequency(150);
-        vibratorHelper.setFrequencyResolution(50);
-        vibratorHelper.setMaxAmplitudes(1, 1, 1);
-        vibratorHelper.setPwleSizeMax(2);
-
-        VibrationEffect effect = VibrationEffect.startWaveform()
-                .addTransition(Duration.ofMillis(1), targetAmplitude(1))
-                .build();
-        HalVibration vibration = startThreadAndDispatcher(effect);
-        waitForCompletion();
-
-        verify(mHalCallbacks).onVibrationStepComplete(eq(VIBRATOR_ID), eq(vibration.id), anyLong());
-        verifyCallbacksTriggered(vibration, Status.FINISHED);
-
-        assertThat(vibratorHelper.getEffectSegments())
-                .containsExactly(expectedRamp(0, 1, 150, 150, 1)).inOrder();
-        assertThat(vibratorHelper.getAmplitudes()).isEmpty();
-    }
-
-    @Test
     public void vibrate_multipleVibrations_withCancel() throws Exception {
         mVibratorHelpers.get(VIBRATOR_ID).setSupportedEffects(EFFECT_CLICK, EFFECT_TICK);
         mVibratorHelpers.get(VIBRATOR_ID).setSupportedPrimitives(PRIMITIVE_CLICK);
@@ -2204,9 +1933,8 @@ public class VibrationThreadTest {
         // A simple effect, followed by a repeating effect that gets cancelled, followed by another
         // simple effect.
         VibrationEffect effect1 = VibrationEffect.get(EFFECT_CLICK);
-        VibrationEffect effect2 = VibrationEffect.startComposition()
-                .repeatEffectIndefinitely(VibrationEffect.get(EFFECT_TICK))
-                .compose();
+        VibrationEffect effect2 =
+                VibrationEffect.createRepeatingEffect(VibrationEffect.get(EFFECT_TICK));
         VibrationEffect effect3 = VibrationEffect.startComposition()
                 .addPrimitive(PRIMITIVE_CLICK)
                 .compose();
@@ -2285,53 +2013,6 @@ public class VibrationThreadTest {
 
         // No more segments.
         assertThat(nextSegment).isEqualTo(actualSegments.size());
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_REMOVE_SEQUENTIAL_COMBINATION)
-    public void vibrate_multipleVibratorsSequentialInSession_runsInOrderWithoutDelaysAndNoOffs() {
-        mockVibrators(1, 2, 3);
-        mVibratorHelpers.get(1).setCapabilities(IVibrator.CAP_AMPLITUDE_CONTROL);
-        mVibratorHelpers.get(2).setCapabilities(IVibrator.CAP_COMPOSE_EFFECTS);
-        mVibratorHelpers.get(2).setSupportedPrimitives(PRIMITIVE_CLICK);
-        mVibratorHelpers.get(3).setSupportedEffects(EFFECT_CLICK);
-
-        CombinedVibration effect = CombinedVibration.startSequential()
-                .addNext(3, VibrationEffect.get(EFFECT_CLICK), /* delay= */ TEST_TIMEOUT_MILLIS)
-                .addNext(1,
-                        VibrationEffect.createWaveform(
-                                new long[] {TEST_TIMEOUT_MILLIS, TEST_TIMEOUT_MILLIS}, -1),
-                        /* delay= */ TEST_TIMEOUT_MILLIS)
-                .addNext(2,
-                        VibrationEffect.startComposition()
-                                .addPrimitive(PRIMITIVE_CLICK, 1, /* delay= */ TEST_TIMEOUT_MILLIS)
-                                .compose(),
-                        /* delay= */ TEST_TIMEOUT_MILLIS)
-                .combine();
-        HalVibration vibration = startThreadAndDispatcher(effect, /* isInSession= */ true);
-
-        // Should not timeout as delays will not affect in session playback time.
-        waitForCompletion();
-
-        // Vibrating state remains ON until session resets it.
-        verifyCallbacksTriggered(vibration, Status.FINISHED);
-        assertThat(mVibrators.get(1).isVibrating()).isTrue();
-        assertThat(mVibrators.get(2).isVibrating()).isTrue();
-        assertThat(mVibrators.get(3).isVibrating()).isTrue();
-
-        // Off only called once during initialization.
-        assertThat(mVibratorHelpers.get(1).getOffCount()).isEqualTo(1);
-        assertThat(mVibratorHelpers.get(2).getOffCount()).isEqualTo(1);
-        assertThat(mVibratorHelpers.get(3).getOffCount()).isEqualTo(1);
-        assertThat(mVibratorHelpers.get(1).getEffectSegments())
-                .containsExactly(expectedOneShot(TEST_TIMEOUT_MILLIS)).inOrder();
-        assertThat(mVibratorHelpers.get(1).getAmplitudes())
-                .containsExactlyElementsIn(expectedAmplitudes(255)).inOrder();
-        assertThat(mVibratorHelpers.get(2).getEffectSegments())
-                .containsExactly(expectedPrimitive(PRIMITIVE_CLICK, 1, TEST_TIMEOUT_MILLIS))
-                .inOrder();
-        assertThat(mVibratorHelpers.get(3).getEffectSegments())
-                .containsExactly(expectedPrebaked(EFFECT_CLICK)).inOrder();
     }
 
     private void mockVibrators(int... vibratorIds) {
@@ -2453,8 +2134,7 @@ public class VibrationThreadTest {
     }
 
     private VibrationEffectSegment expectedOneShot(long millis) {
-        return new StepSegment(VibrationEffect.DEFAULT_AMPLITUDE,
-                /* frequencyHz= */ 0, (int) millis);
+        return new StepSegment(VibrationEffect.DEFAULT_AMPLITUDE, (int) millis);
     }
 
     private List<VibrationEffectSegment> expectedOneShots(long... millis) {
@@ -2469,16 +2149,6 @@ public class VibrationThreadTest {
 
     private VibrationEffectSegment expectedPrimitive(int primitiveId, float scale, int delay) {
         return new PrimitiveSegment(primitiveId, scale, delay);
-    }
-
-    private VibrationEffectSegment expectedRamp(float amplitude, float frequencyHz, int duration) {
-        return expectedRamp(amplitude, amplitude, frequencyHz, frequencyHz, duration);
-    }
-
-    private VibrationEffectSegment expectedRamp(float startAmplitude, float endAmplitude,
-            float startFrequencyHz, float endFrequencyHz, int duration) {
-        return new RampSegment(startAmplitude, endAmplitude, startFrequencyHz, endFrequencyHz,
-                duration);
     }
 
     private PwlePoint expectedPwle(float amplitude, float frequencyHz, int timeMillis) {

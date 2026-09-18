@@ -31,6 +31,7 @@ import android.util.proto.ProtoOutputStream;
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.DropBoxManagerInternal;
 import com.android.server.LocalServices;
+import com.android.server.am.psc.Constants.SchedGroup;
 
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
@@ -86,18 +87,22 @@ public abstract class BroadcastQueue {
                 TAG, cookie);
     }
 
+    static void traceInstant(@NonNull String msg) {
+        Trace.instantForTrack(Trace.TRACE_TAG_ACTIVITY_MANAGER, TAG, msg);
+    }
+
     public abstract void start(@NonNull ContentResolver resolver);
 
     /**
      * Return the preferred scheduling group for the given process, typically
      * influenced by a broadcast being actively dispatched.
      *
-     * @return scheduling group such as {@link ProcessList#SCHED_GROUP_DEFAULT},
-     *         otherwise {@link ProcessList#SCHED_GROUP_UNDEFINED} if this queue
+     * @return scheduling group such as {@link Constants#SCHED_GROUP_DEFAULT},
+     *         otherwise {@link Constants#SCHED_GROUP_UNDEFINED} if this queue
      *         has no opinion.
      */
     @GuardedBy("mService")
-    public abstract int getPreferredSchedulingGroupLocked(@NonNull ProcessRecord app);
+    public abstract @SchedGroup int getPreferredSchedulingGroupLocked(@NonNull ProcessRecord app);
 
     /**
      * Enqueue the given broadcast to be eventually dispatched.
@@ -240,6 +245,15 @@ public abstract class BroadcastQueue {
             long delayedDurationMs) {
         // No default implementation.
     }
+
+    /**
+     * Retrieves the value of a broadcast constant identified by its key.
+     *
+     * @param key The key (name) of the broadcast constant to retrieve.
+     * @return The string value of the broadcast constant, or {@code null} if the key is not found.
+     */
+    @Nullable
+    public abstract String getBroadcastConstant(@NonNull String key);
 
     /**
      * Brief summary of internal state, useful for debugging purposes.

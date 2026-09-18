@@ -39,12 +39,12 @@ import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dagger.qualifiers.UiBackground;
+import com.android.systemui.display.data.repository.DisplayRepository;
 import com.android.systemui.navigationbar.NavigationBarController;
 import com.android.systemui.navigationbar.views.NavigationBarView;
 import com.android.systemui.settings.DisplayTracker;
 import com.android.systemui.shade.ShadeDisplayAware;
 import com.android.systemui.shade.data.repository.ShadeDisplaysRepository;
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.wallpapers.WallpaperPresentationEnabled;
 
@@ -59,6 +59,9 @@ import javax.inject.Provider;
 
 /**
  * Manages Keyguard Presentations for non-primary display(s).
+ *
+ * Note that after [Flag.enableConnectedDisplaysWallpaperPresentations] is enabled, the presentation
+ * is set from [WallpaperPresentationManager].
  */
 @SysUISingleton
 public class KeyguardDisplayManager {
@@ -73,6 +76,7 @@ public class KeyguardDisplayManager {
     private final ConnectedDisplayKeyguardPresentationFactory
             mConnectedDisplayKeyguardPresentationFactory;
     private final Boolean mIsCentralizedWallpaperPresentationEnabled;
+    private final DisplayRepository mDisplayRepository;
     private final Context mContext;
 
     private boolean mShowing;
@@ -119,7 +123,8 @@ public class KeyguardDisplayManager {
                     connectedDisplayKeyguardPresentationFactory,
             Provider<ShadeDisplaysRepository> shadePositionRepositoryProvider,
             @Application CoroutineScope appScope,
-            @WallpaperPresentationEnabled Boolean isCentralizedWallpaperPresentationEnabled) {
+            @WallpaperPresentationEnabled Boolean isCentralizedWallpaperPresentationEnabled,
+            DisplayRepository displayRepository) {
         mContext = context;
         mNavigationBarControllerLazy = navigationBarControllerLazy;
         mShadePositionRepositoryProvider = shadePositionRepositoryProvider;
@@ -131,10 +136,9 @@ public class KeyguardDisplayManager {
         mKeyguardStateController = keyguardStateController;
         mConnectedDisplayKeyguardPresentationFactory = connectedDisplayKeyguardPresentationFactory;
         mIsCentralizedWallpaperPresentationEnabled = isCentralizedWallpaperPresentationEnabled;
-        if (ShadeWindowGoesAround.isEnabled()) {
-            collectFlow(appScope, shadePositionRepositoryProvider.get().getDisplayId(),
-                    (id) -> onShadeWindowMovedToDisplayId(id));
-        }
+        mDisplayRepository = displayRepository;
+        collectFlow(appScope, shadePositionRepositoryProvider.get().getPendingDisplayId(),
+                (id) -> onShadeWindowMovedToDisplayId(id));
     }
 
     private void onShadeWindowMovedToDisplayId(int shadeDisplayId) {
@@ -147,27 +151,19 @@ public class KeyguardDisplayManager {
     /**
      * Returns `true` if the keyguard can be shown for a given {@code display}. Otherwise, `false`.
      */
-    public boolean isKeyguardShowable(Display display) {
+    public boolean isKeyguardShowable(Display display, int shadeDisplayId) {
         if (display == null) {
             Log.i(TAG, "Cannot show Keyguard on null display");
             return false;
         }
-        if (ShadeWindowGoesAround.isEnabled()) {
-            int shadeDisplayId = mShadePositionRepositoryProvider.get().getDisplayId().getValue();
-            if (display.getDisplayId() == shadeDisplayId) {
-                Log.i(
-                    TAG,
-                    "Secondary Keyguard presentation not shown on display "
-                            + display.getDisplayId()
-                            + " because shade window is on it (with the primary keyguard)");
+        if (display.getDisplayId() == shadeDisplayId) {
+            Log.i(
+                TAG,
+                "Secondary Keyguard presentation not shown on display "
+                    + display.getDisplayId()
+                    + " because shade window is on it (with the primary keyguard)");
 
-                return false;
-            }
-        } else {
-            if (display.getDisplayId() == mDisplayTracker.getDefaultDisplayId()) {
-                Log.i(TAG, "Do not show KeyguardPresentation on the default display");
-                return false;
-            }
+            return false;
         }
         display.getDisplayInfo(mTmpDisplayInfo);
         if ((mTmpDisplayInfo.flags & Display.FLAG_PRIVATE) != 0) {
@@ -193,6 +189,12 @@ public class KeyguardDisplayManager {
 
         return true;
     }
+
+    private int getShadeDisplayId() {
+        return mShadePositionRepositoryProvider
+            .get().getPendingDisplayId().getValue();
+    }
+
     /**
      * @param display The display to show the presentation on.
      * @return {@code true} if a presentation was added.
@@ -204,7 +206,7 @@ public class KeyguardDisplayManager {
             // Handled in WallpaperPresentationManager.
             return false;
         }
-        if (!isKeyguardShowable(display)) return false;
+        if (!isKeyguardShowable(display, getShadeDisplayId())) return false;
         Log.i(TAG, "Keyguard enabled on display: " + display);
         final int displayId = display.getDisplayId();
         Presentation presentation = mPresentations.get(displayId);
@@ -306,8 +308,7 @@ public class KeyguardDisplayManager {
             }
         } else {
             if (mIsCentralizedWallpaperPresentationEnabled) {
-                for (Display display : mDisplayTracker.getAllDisplays()) {
-                    int displayId = display.getDisplayId();
+                for (int displayId : mDisplayRepository.getDisplayIds().getValue()) {
                     updateNavigationBarVisibility(displayId, true /* navBarVisible */);
                 }
             } else {

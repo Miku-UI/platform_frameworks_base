@@ -38,6 +38,7 @@ import com.android.systemui.Dependency;
 import com.android.systemui.plugins.PluginEnablerImpl;
 import com.android.systemui.plugins.PluginManager;
 import com.android.systemui.res.R;
+import com.android.systemui.shared.plugins.PackageConfig;
 import com.android.systemui.shared.plugins.PluginActionManager;
 import com.android.systemui.shared.plugins.PluginEnabler;
 import com.android.systemui.shared.plugins.PluginEnabler.DisableReason;
@@ -79,7 +80,7 @@ public class PluginFragment extends PreferenceFragment {
     }
 
     private void loadPrefs() {
-        PluginManager manager = Dependency.get(PluginManager.class);
+        PackageConfig packageConfig = Dependency.get(PackageConfig.class);
         PreferenceScreen screen = getPreferenceManager().createPreferenceScreen(getContext());
         screen.setOrderingAsAdded(false);
         Context prefContext = getPreferenceManager().getContext();
@@ -106,7 +107,7 @@ public class PluginFragment extends PreferenceFragment {
                 PackageManager.MATCH_DISABLED_COMPONENTS | PackageManager.GET_SERVICES);
         apps.forEach(app -> {
             if (!plugins.containsKey(app.packageName)) return;
-            if (manager.getConfig().isPackagePrivileged(app.packageName)) {
+            if (packageConfig.isPackagePrivileged(app.packageName)) {
                 // Don't manage privileged plugins, they are part of the OS.
                 return;
             }

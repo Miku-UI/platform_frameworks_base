@@ -50,7 +50,7 @@ public class TimeDetectorInternalImplTest {
     private static final Instant ARBITRARY_SUGGESTION_LOWER_BOUND = Instant.ofEpochMilli(0);
     private static final Instant ARBITRARY_SUGGESTION_UPPER_BOUND =
             Instant.ofEpochMilli(Long.MAX_VALUE);
-    private static final int[] ARBITRARY_ORIGIN_PRIORITIES = { ORIGIN_NETWORK };
+    private static final int[] ARBITRARY_ORIGIN_PRIORITIES = {ORIGIN_NETWORK};
 
     private Context mMockContext;
     private HandlerThread mHandlerThread;
@@ -74,9 +74,13 @@ public class TimeDetectorInternalImplTest {
         mFakeServiceConfigAccessorSpy = spy(new FakeServiceConfigAccessor());
         mFakeTimeDetectorStrategySpy = spy(new FakeTimeDetectorStrategy());
 
-        mTimeDetectorInternal = new TimeDetectorInternalImpl(
-                mMockContext, mTestHandler, mTestCurrentUserIdentityInjector,
-                mFakeServiceConfigAccessorSpy, mFakeTimeDetectorStrategySpy);
+        mTimeDetectorInternal =
+                new TimeDetectorInternalImpl(
+                        mMockContext,
+                        mTestHandler,
+                        mTestCurrentUserIdentityInjector,
+                        mFakeServiceConfigAccessorSpy,
+                        mFakeTimeDetectorStrategySpy);
     }
 
     @After
@@ -111,16 +115,16 @@ public class TimeDetectorInternalImplTest {
         mFakeServiceConfigAccessorSpy.initializeCurrentUserConfiguration(
                 initialConfigurationInternal);
 
-        TimeConfiguration timeConfiguration = new TimeConfiguration.Builder()
-                .setAutoDetectionEnabled(true)
-                .build();
+        TimeConfiguration timeConfiguration =
+                new TimeConfiguration.Builder().setAutoDetectionEnabled(true).build();
         assertTrue(mTimeDetectorInternal.updateConfigurationForDpm(timeConfiguration));
 
         final boolean expectedBypassUserPolicyChecks = true;
-        verify(mFakeServiceConfigAccessorSpy).updateConfiguration(
-                mTestCurrentUserIdentityInjector.getCurrentUserId(),
-                timeConfiguration,
-                expectedBypassUserPolicyChecks);
+        verify(mFakeServiceConfigAccessorSpy)
+                .updateConfiguration(
+                        mTestCurrentUserIdentityInjector.getCurrentUserId(),
+                        timeConfiguration,
+                        expectedBypassUserPolicyChecks);
     }
 
     @Test
@@ -132,8 +136,8 @@ public class TimeDetectorInternalImplTest {
 
         int expectedUserId = mTestCurrentUserIdentityInjector.getCurrentUserId();
         boolean expectedBypassUserPolicyChecks = false;
-        verify(mFakeTimeDetectorStrategySpy).suggestManualTime(
-                expectedUserId, timeSuggestion, expectedBypassUserPolicyChecks);
+        verify(mFakeTimeDetectorStrategySpy)
+                .suggestManualTime(expectedUserId, timeSuggestion, expectedBypassUserPolicyChecks);
     }
 
     @Test

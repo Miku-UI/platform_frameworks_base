@@ -28,9 +28,10 @@ object TintedIconViewBinder {
      */
     fun bind(tintedIcon: TintedIcon, view: ImageView) {
         IconViewBinder.bind(tintedIcon.icon, view)
+        val tint = tintedIcon.tint
         view.imageTintList =
-            if (tintedIcon.tint != null) {
-                view.context.getColorStateList(tintedIcon.tint)
+            if (tint != null) {
+                view.context.getColorStateList(tint)
             } else {
                 null
             }

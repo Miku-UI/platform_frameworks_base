@@ -69,7 +69,9 @@ ApkAssetsPtr ApkAssets::LoadTable(std::unique_ptr<Asset>&& resources_asset,
                   nullptr /* loaded_idmap */, std::move(get_flag_values_func));
 }
 
-ApkAssetsPtr ApkAssets::LoadOverlay(const std::string& idmap_path, package_property_t flags) {
+ApkAssetsPtr ApkAssets::LoadOverlay(const std::string& idmap_path,
+                                    GetFlagValuesFunc get_flag_values_func,
+                                    package_property_t flags) {
   CHECK((flags & PROPERTY_LOADER) == 0U) << "Cannot load RROs through loaders";
   auto idmap_asset = AssetsProvider::CreateAssetFromFile(idmap_path);
   if (idmap_asset == nullptr) {
@@ -101,7 +103,7 @@ ApkAssetsPtr ApkAssets::LoadOverlay(const std::string& idmap_path, package_prope
   }
 
   return LoadImpl(std::move(overlay_assets), flags | PROPERTY_OVERLAY, std::move(idmap_asset),
-                  std::move(loaded_idmap), nullptr);
+                  std::move(loaded_idmap), std::move(get_flag_values_func));
 }
 
 ApkAssetsPtr ApkAssets::LoadImpl(std::unique_ptr<AssetsProvider>&& assets,

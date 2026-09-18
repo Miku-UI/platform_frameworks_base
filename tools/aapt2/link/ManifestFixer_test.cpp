@@ -88,8 +88,8 @@ TEST_F(ManifestFixerTest, EnsureManifestIsRootTag) {
 TEST_F(ManifestFixerTest, EnsureManifestHasPackage) {
   EXPECT_THAT(Verify("<manifest package=\"android\" />"), NotNull());
   EXPECT_THAT(Verify("<manifest package=\"com.android\" />"), NotNull());
-  EXPECT_THAT(Verify("<manifest package=\"com.android.google\" />"), NotNull());
-  EXPECT_THAT(Verify("<manifest package=\"com.android.google.Class$1\" />"), IsNull());
+  EXPECT_THAT(Verify("<manifest package=\"com.android.foo\" />"), NotNull());
+  EXPECT_THAT(Verify("<manifest package=\"com.android.foo.Class$1\" />"), IsNull());
   EXPECT_THAT(Verify("<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" "
                      "android:package=\"com.android\" />"),
               IsNull());
@@ -253,7 +253,9 @@ TEST_F(ManifestFixerTest, RenameManifestPackageAndFullyQualifyClasses) {
         <uses-split android:name="feature_a" />
         <application android:name=".MainApplication" text="hello">
           <activity android:name=".activity.Start" />
-          <receiver android:name="com.google.android.Receiver" />
+          <receiver android:name="com.foo.android.Receiver" />
+          <activity-alias android:name=".activityAlias.Start"
+                          android:targetActivity=".activity.Start" />
         </application>
       </manifest>)EOF",
                                                             options);
@@ -299,11 +301,21 @@ TEST_F(ManifestFixerTest, RenameManifestPackageAndFullyQualifyClasses) {
 
   attr = el->FindAttribute(xml::kSchemaAndroid, "name");
   ASSERT_THAT(el, NotNull());
-  EXPECT_THAT(attr->value, StrEq("com.google.android.Receiver"));
+  EXPECT_THAT(attr->value, StrEq("com.foo.android.Receiver"));
+
+  el = application_el->FindChild({}, "activity-alias");
+  ASSERT_THAT(el, NotNull());
+
+  attr = el->FindAttribute(xml::kSchemaAndroid, "name");
+  ASSERT_THAT(el, NotNull());
+  EXPECT_THAT(attr->value, StrEq("android.activityAlias.Start"));
+
+  attr = el->FindAttribute(xml::kSchemaAndroid, "targetActivity");
+  ASSERT_THAT(el, NotNull());
+  EXPECT_THAT(attr->value, StrEq("android.activity.Start"));
 }
 
-TEST_F(ManifestFixerTest,
-       RenameManifestInstrumentationPackageAndFullyQualifyTarget) {
+TEST_F(ManifestFixerTest, RenameManifestInstrumentationPackageAndFullyQualifyTarget) {
   ManifestFixerOptions options;
   options.rename_instrumentation_target_package = std::string("com.android");
 
@@ -908,7 +920,7 @@ TEST_F(ManifestFixerTest, IgnoreNamespacedElements) {
   std::string input = R"EOF(
       <manifest xmlns:android="http://schemas.android.com/apk/res/android"
                 package="android">
-        <special:tag whoo="true" xmlns:special="http://google.com" />
+        <special:tag whoo="true" xmlns:special="http://foo.com" />
       </manifest>)EOF";
   EXPECT_THAT(Verify(input), NotNull());
 }
@@ -1661,5 +1673,154 @@ TEST_F(ManifestFixerTest, DoNothingForOtherConfigChanges) {
 
   attr = el->FindAttribute(xml::kSchemaAndroid, "configChanges");
   ASSERT_THAT(attr->value, "testConfigChange2");
+}
+
+TEST_F(ManifestFixerTest, PermissionPurposeTagsAreAllowed) {
+  // Verifies that <purpose> is a valid child of <uses-permission>.
+  std::string input = R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+        package="android">
+      <uses-permission android:name="android.permission.INTERNET">
+        <purpose />
+      </uses-permission>
+    </manifest>)";
+  EXPECT_THAT(Verify(input), NotNull());
+
+  // Verifies that <purpose> is a valid child of <uses-permission-sdk-23>.
+  input = R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+        package="android">
+      <uses-permission-sdk-23 android:name="android.permission.INTERNET">
+        <purpose />
+      </uses-permission-sdk-23>
+    </manifest>)";
+  EXPECT_THAT(Verify(input), NotNull());
+
+  // Verifies that <valid-purpose> is a valid child of <permission>
+  // and has a non-empty name attribute.
+  input = R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+        package="android">
+      <permission android:name="my.permission">
+        <valid-purpose android:name="foo" />
+      </permission>
+    </manifest>)";
+  EXPECT_THAT(Verify(input), NotNull());
+
+  // Verifies that <valid-purpose> must have a name attribute.
+  input = R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+        package="android">
+      <permission android:name="my.permission">
+        <valid-purpose />
+      </permission>
+    </manifest>)";
+  EXPECT_THAT(Verify(input), IsNull());
+
+  // Verifies that the name attribute of <valid-purpose> must not be empty.
+  input = R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+        package="android">
+      <permission android:name="my.permission">
+        <valid-purpose android:name="" />
+      </permission>
+    </manifest>)";
+  EXPECT_THAT(Verify(input), IsNull());
+}
+// --- Allow Component Access Tests ---
+
+// Verifies that an empty <allow-component-access> block is syntactically valid
+TEST_F(ManifestFixerTest, AllowComponentAccessEmptyPasses) {
+  std::string input = R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="android">
+      <allow-component-access />
+    </manifest>)";
+  ASSERT_TRUE(Verify(input));
+}
+
+// Verifies that unknown tags are not allowed inside <allow-component-access>
+TEST_F(ManifestFixerTest, AllowComponentAccessInvalidChildTagFails) {
+  std::string input = R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="android">
+      <allow-component-access>
+        <unknown android:name="com.android.test" />
+      </allow-component-access>
+    </manifest>)";
+  ASSERT_FALSE(Verify(input));
+}
+
+// Verifies that a standard Java package name is accepted
+TEST_F(ManifestFixerTest, AllowComponentAccessPackageValidNamePasses) {
+  std::string input = R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="android">
+      <allow-component-access>
+        <package android:name="com.android.test.allowed_app" />
+      </allow-component-access>
+    </manifest>)";
+  ASSERT_TRUE(Verify(input));
+}
+
+// Verifies rejection of illegal characters (dashes) in the package name
+TEST_F(ManifestFixerTest, AllowComponentAccessPackageInvalidNameFails) {
+  std::string input = R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="android">
+      <allow-component-access>
+        <package android:name="com.android.test.invalid-name" />
+      </allow-component-access>
+    </manifest>)";
+  ASSERT_FALSE(Verify(input));
+}
+
+// Verifies that android:name is MANDATORY for the <package> tag
+TEST_F(ManifestFixerTest, AllowComponentAccessPackageMissingNameFails) {
+  std::string input = R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="android">
+      <allow-component-access>
+        <package />
+      </allow-component-access>
+    </manifest>)";
+  ASSERT_FALSE(Verify(input));
+}
+
+// Verifies that <additional-certificate> is a valid child of <package> within the
+// <allow-component-access> block.
+TEST_F(ManifestFixerTest, AllowComponentAccessWithAdditionalCertificate) {
+  std::string input = R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="android">
+      <allow-component-access>
+        <package android:name="com.android.test">
+          <additional-certificate android:certDigest="6cecc50e34ae31bfb5678986d6d6d3736c571ded2f2459527793e1f054eb0c9b" />
+        </package>
+      </allow-component-access>
+    </manifest>)";
+  ASSERT_TRUE(Verify(input));
+}
+
+// Verifies that multiple <additional-certificate> tags can be nested under a single <package> tag.
+TEST_F(ManifestFixerTest, AllowComponentAccessMultipleAdditionalCertificates) {
+  std::string input = R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="android">
+      <allow-component-access>
+        <package android:name="com.android.test">
+          <additional-certificate android:certDigest="digest1" />
+          <additional-certificate android:certDigest="digest2" />
+        </package>
+      </allow-component-access>
+    </manifest>)";
+  ASSERT_TRUE(Verify(input));
+}
+
+// Verifies that the ManifestFixer rejects unknown or invalid child tags nested inside the
+// <package> element.
+TEST_F(ManifestFixerTest, AllowComponentAccessWithInvalidChildFails) {
+  std::string input = R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="android">
+      <allow-component-access>
+        <package android:name="com.android.test">
+          <invalid-child-tag />
+        </package>
+      </allow-component-access>
+    </manifest>)";
+  ASSERT_FALSE(Verify(input));
 }
 }  // namespace aapt

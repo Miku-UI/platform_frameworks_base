@@ -18,20 +18,23 @@ package com.android.wm.shell.desktopmode.data
 
 import android.content.Context
 import android.graphics.Rect
+import android.graphics.RectF
+import android.util.ArrayMap
 import android.view.Display.DEFAULT_DISPLAY
-import android.view.Display.INVALID_DISPLAY
 import android.window.DesktopExperienceFlags
 import android.window.DesktopModeFlags
 import com.android.internal.protolog.ProtoLog
+import com.android.window.flags.Flags
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.desktopmode.DesktopUserRepositories
-import com.android.wm.shell.desktopmode.data.DesktopRepositoryInitializer.DeskRecreationFactory
+import com.android.wm.shell.desktopmode.data.DesktopRepositoryInitializer.DeskRootHelper
 import com.android.wm.shell.desktopmode.data.persistence.Desktop
 import com.android.wm.shell.desktopmode.data.persistence.DesktopPersistentRepository
 import com.android.wm.shell.desktopmode.data.persistence.DesktopRepositoryState
 import com.android.wm.shell.desktopmode.data.persistence.DesktopTaskState
 import com.android.wm.shell.desktopmode.data.persistence.DesktopTaskTilingState
 import com.android.wm.shell.desktopmode.data.persistence.Rect as RectProto
+import com.android.wm.shell.desktopmode.data.persistence.RectF as RectFProto
 import com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_DESKTOP_MODE
 import com.android.wm.shell.shared.annotations.ShellMainThread
 import com.android.wm.shell.shared.desktopmode.DesktopConfig
@@ -56,7 +59,7 @@ class DesktopRepositoryInitializerImpl(
     private val displayController: DisplayController,
 ) : DesktopRepositoryInitializer {
 
-    override var deskRecreationFactory: DeskRecreationFactory = DefaultDeskRecreationFactory()
+    override var deskRootHelper: DeskRootHelper = SingleDeskRootHelper()
 
     private val _isInitialized = MutableStateFlow(false)
     override val isInitialized: StateFlow<Boolean> = _isInitialized
@@ -64,11 +67,7 @@ class DesktopRepositoryInitializerImpl(
     override fun initialize(userRepositories: DesktopUserRepositories) {
         val desktopSupportedOnDefaultDisplay =
             desktopState.isDesktopModeSupportedOnDisplay(DEFAULT_DISPLAY)
-        if (
-            !DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_PERSISTENCE.isTrue ||
-                (!desktopSupportedOnDefaultDisplay &&
-                    !DesktopExperienceFlags.ENABLE_EXTERNAL_DISPLAY_PERSISTENCE_BUGFIX.isTrue)
-        ) {
+        if (!DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_PERSISTENCE.isTrue) {
             _isInitialized.value = true
             return
         }
@@ -78,6 +77,7 @@ class DesktopRepositoryInitializerImpl(
                 val uniqueIdToDisplayIdMap = displayController.getAllDisplaysByUniqueId()
                 val desktopUserPersistentRepositoryMap =
                     persistentRepository.getUserDesktopRepositoryMap() ?: return@launch
+                val deskRootRemovalRequests = mutableListOf<DeskRootHelper.DeskRootRemovalRequest>()
                 for (userId in desktopUserPersistentRepositoryMap.keys) {
                     val repository = userRepositories.getProfile(userId)
                     val desktopRepositoryState =
@@ -99,6 +99,7 @@ class DesktopRepositoryInitializerImpl(
                             userId,
                             repository,
                             wasPreservedDisplay = false,
+                            deskRootRemovalRequests,
                         )
                     }
                     for (preservedDesktop in preservedDesksToRestore) {
@@ -110,13 +111,36 @@ class DesktopRepositoryInitializerImpl(
                             userId,
                             repository,
                             wasPreservedDisplay = true,
+                            deskRootRemovalRequests,
                         )
                     }
+                    if (Flags.enableRememberedBounds()) {
+                        restoreRememberedBoundsRatio(desktopRepositoryState, repository)
+                    }
+                }
+                if (deskRootRemovalRequests.isNotEmpty()) {
+                    deskRootHelper.removeDeskRoots(deskRootRemovalRequests)
                 }
             } finally {
                 _isInitialized.value = true
             }
         }
+    }
+
+    private suspend fun restoreRememberedBoundsRatio(
+        desktopRepositoryState: DesktopRepositoryState,
+        repository: DesktopRepository,
+    ) {
+        val map =
+            ArrayMap<String, RectF>().apply {
+                desktopRepositoryState.packageStateByPackageNameMap?.forEach { (packageName, state)
+                    ->
+                    state.rememberedBoundsRatio?.toRectF()?.let { bounds ->
+                        put(packageName, bounds)
+                    }
+                }
+            }
+        repository.restoreRememberedBoundsRatioByPackageName(map)
     }
 
     /** TODO: b/444034767 - Consider splitting this method into pieces. */
@@ -128,19 +152,16 @@ class DesktopRepositoryInitializerImpl(
         userId: Int,
         repository: DesktopRepository,
         wasPreservedDisplay: Boolean,
+        deskRootRemovalRequests: MutableList<DeskRootHelper.DeskRootRemovalRequest>,
     ) {
         val maxTasks = getTaskLimit(persistentDesktop)
         var uniqueDisplayId = persistentDesktop.uniqueDisplayId
         // TODO: b/441767264 - Consider waiting for DisplayController to receive all
         //  displayAdded signals before initializing here. This way we don't
         //  rely on an IPC if the display is not yet available.
-        val displayIdIfNotFound =
-            if (DesktopExperienceFlags.ENABLE_EXTERNAL_DISPLAY_PERSISTENCE_BUGFIX.isTrue) {
-                displayController.getDisplayIdByUniqueIdBlocking(uniqueDisplayId)
-            } else {
-                DEFAULT_DISPLAY
-            }
+        val displayIdIfNotFound = displayController.getDisplayIdByUniqueIdBlocking(uniqueDisplayId)
         var newDisplayId = uniqueIdToDisplayIdMap?.get(uniqueDisplayId) ?: displayIdIfNotFound
+
         val deskId = persistentDesktop.desktopId
         var transientDesk = false
         var preserveDesk = false
@@ -150,9 +171,9 @@ class DesktopRepositoryInitializerImpl(
             logV("desk=%d is going to the default display, skipping", deskId)
             return
         }
-        if (newDisplayId == INVALID_DISPLAY) {
+        if (newDisplayId != DEFAULT_DISPLAY) {
             val result =
-                handleInvalidDisplay(
+                handleNonDefaultDisplay(
                     deskId,
                     uniqueDisplayId,
                     uniqueIdToDisplayIdMap,
@@ -166,14 +187,14 @@ class DesktopRepositoryInitializerImpl(
         }
 
         val newDeskId =
-            deskRecreationFactory.recreateDesk(
+            deskRootHelper.recreateDeskRoot(
                 userId = userId,
                 destinationDisplayId = newDisplayId,
                 deskId = deskId,
             )
         if (newDeskId != null) {
             logV(
-                "Re-created desk=%d in uniqueDisplayId=%d using new" +
+                "Re-created desk=%d in uniqueDisplayId=%s using new" +
                     " deskId=%d and displayId=%d",
                 deskId,
                 uniqueDisplayId,
@@ -187,7 +208,7 @@ class DesktopRepositoryInitializerImpl(
         }
         if (newDeskId == null) {
             logW(
-                "Could not re-create desk=%d from uniqueDisplayId=%d " + "in displayId=%d",
+                "Could not re-create desk=%d from uniqueDisplayId=%s in displayId=%d",
                 deskId,
                 uniqueDisplayId,
                 newDisplayId,
@@ -225,6 +246,13 @@ class DesktopRepositoryInitializerImpl(
                     taskBounds = task.taskBounds.toRect(),
                 )
 
+                if (task.hasBoundsBeforeSnapOrMaximize()) {
+                    repository.saveBoundsBeforeSnapOrMaximize(
+                        task.taskId,
+                        task.boundsBeforeSnapOrMaximize.toRect(),
+                    )
+                }
+
                 if (isVisible) {
                     visibleTasksCount++
                 } else {
@@ -235,32 +263,44 @@ class DesktopRepositoryInitializerImpl(
                     )
                 }
 
-                val tilingEnabled = DesktopExperienceFlags.ENABLE_TILE_RESIZING.isTrue()
-                if (tilingEnabled && task.desktopTaskTilingState == DesktopTaskTilingState.LEFT) {
-                    repository.addLeftTiledTaskToDesk(
-                        persistentDesktop.displayId,
-                        task.taskId,
-                        newDeskId,
-                    )
-                }
-                if (tilingEnabled && task.desktopTaskTilingState == DesktopTaskTilingState.RIGHT) {
-                    repository.addRightTiledTaskToDesk(
-                        persistentDesktop.displayId,
-                        task.taskId,
-                        newDeskId,
-                    )
+                when (task.desktopTaskTilingState) {
+                    DesktopTaskTilingState.LEFT ->
+                        repository.addLeftTiledTaskToDesk(
+                            persistentDesktop.displayId,
+                            task.taskId,
+                            newDeskId,
+                        )
+                    DesktopTaskTilingState.RIGHT ->
+                        repository.addRightTiledTaskToDesk(
+                            persistentDesktop.displayId,
+                            task.taskId,
+                            newDeskId,
+                        )
+                    DesktopTaskTilingState.NONE -> logV("Restoring non-tiled task")
+                    else -> logV("Unexpected tiling state=%s", task.desktopTaskTilingState.name)
                 }
             }
         val activeDeskId =
             desktopRepositoryState
-                .getActiveDeskByUniqueDisplayId()[persistentDesktop.uniqueDisplayId]
-        if (newDisplayId != DEFAULT_DISPLAY && activeDeskId == deskId) {
-            // TODO: b/443876652 - Investigate solution for devices that don't
-            //  disable external display on boot.
-            repository.setActiveDesk(newDisplayId, newDeskId)
-        }
+                .getActiveDeskByUniqueDisplayIdMap()[persistentDesktop.uniqueDisplayId]
+        // If desk was active on reboot or prior to disconnect, activate it.
+        val isActiveDesk = activeDeskId == deskId
+        val wasActiveDesk =
+            wasPreservedDisplay &&
+                desktopRepositoryState.preservedDisplayByUniqueIdMap[
+                        persistentDesktop.uniqueDisplayId]
+                    ?.activeDeskId == deskId
         if (preserveDesk) {
-            repository.preserveDesk(newDeskId, persistentDesktop.uniqueDisplayId)
+            repository.preserveDesk(
+                deskId = newDeskId,
+                uniqueDisplayId = persistentDesktop.uniqueDisplayId,
+                preserveAsActive = isActiveDesk || wasActiveDesk,
+            )
+        }
+        if (transientDesk) {
+            // The transient desk is preserved and has served its purpose, it can be removed now.
+            repository.removeDesk(newDeskId)
+            deskRootRemovalRequests.add(DeskRootHelper.DeskRootRemovalRequest(newDeskId, userId))
         }
     }
 
@@ -269,19 +309,10 @@ class DesktopRepositoryInitializerImpl(
         userId: Int,
     ): Set<Desktop> {
         // TODO: b/365873835 - what about desks that won't be restored?
-        //  - invalid desk ids from multi-desk -> single-desk switching can be ignored / deleted.
-        val limitToSingleDeskPerDisplay =
-            !DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue
         return state.desktopMap.keys
-            .mapNotNull { deskId ->
-                persistentRepository.readDesktop(userId, deskId)?.takeIf { desk ->
-                    // Do not restore invalid desks when multi-desks is disabled. This is
-                    // possible if the feature is disabled after having created multiple desks.
-                    val isValidSingleDesk = desk.desktopId == desk.displayId
-                    (!limitToSingleDeskPerDisplay || isValidSingleDesk)
-                }
+            .mapNotNullTo(mutableSetOf()) { deskId ->
+                persistentRepository.readDesktop(userId, deskId)
             }
-            .toMutableSet()
     }
 
     private suspend fun getPreservedDesksToRestore(state: DesktopRepositoryState): Set<Desktop> {
@@ -295,16 +326,22 @@ class DesktopRepositoryInitializerImpl(
     }
 
     /**
-     * Handles the case where the initial display ID is invalid. Redirects the desk to
+     * Handles the case where the initial display ID is not the default. Redirects the desk to
      * DEFAULT_DISPLAY, marking it to be preserved and marking as transient if desktops are not
      * supported on the default display or if it was originally a preserved desk.
+     *
+     * This is to work around the fact that some devices disable displays during boot while others
+     * don't. This way, all external displays are treated the same and will go through the same
+     * flow: they will be initialized on default display, they will be preserved, and they will be
+     * marked as transient if appropriate. If the display is present when device boot is complete,
+     * the preserved desks will be restored.
      *
      * @param deskId The ID of the desk being processed.
      * @param currentUniqueDisplayId The current unique display ID.
      * @return A [DisplayRedirectResult] containing the updated display ID, unique display ID, and
      *   whether the display should be preserved or transient.
      */
-    private fun handleInvalidDisplay(
+    private fun handleNonDefaultDisplay(
         deskId: Int,
         currentUniqueDisplayId: String?,
         uniqueIdToDisplayIdMap: Map<String, Int>?,
@@ -339,13 +376,19 @@ class DesktopRepositoryInitializerImpl(
 
     private fun RectProto.toRect() = Rect(left, top, right, bottom)
 
+    private fun RectFProto.toRectF() = RectF(left, top, right, bottom)
+
     private fun getTaskLimit(persistedDesk: Desktop): Int =
         desktopConfig.maxTaskLimit.takeIf { it > 0 } ?: persistedDesk.zOrderedTasksCount
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logV(msg: String, vararg arguments: Any?) {
         ProtoLog.v(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logW(msg: String, vararg arguments: Any?) {
         ProtoLog.w(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }
@@ -366,13 +409,23 @@ class DesktopRepositoryInitializerImpl(
         val transientDesk: Boolean,
     )
 
-    /** A default implementation of [DeskRecreationFactory] that reuses the desk id. */
-    private class DefaultDeskRecreationFactory : DeskRecreationFactory {
-        override suspend fun recreateDesk(
+    /**
+     * A default implementation of [DeskRootHelper] that reuses the desk id.
+     *
+     * TODO: b/467431918 - clean up with multi-desks flag cleanup.
+     */
+    private class SingleDeskRootHelper : DeskRootHelper {
+        override suspend fun recreateDeskRoot(
             userId: Int,
             destinationDisplayId: Int,
             deskId: Int,
         ): Int = deskId
+
+        override suspend fun removeDeskRoots(
+            requests: List<DeskRootHelper.DeskRootRemovalRequest>
+        ) {
+            // No-op. Unsupported in single desk mode.
+        }
     }
 
     companion object {

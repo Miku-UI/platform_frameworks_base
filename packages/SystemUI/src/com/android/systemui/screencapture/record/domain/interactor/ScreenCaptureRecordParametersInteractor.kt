@@ -16,32 +16,69 @@
 
 package com.android.systemui.screencapture.record.domain.interactor
 
-import com.android.systemui.screencapture.common.ScreenCaptureUiScope
-import com.android.systemui.screencapture.common.shared.model.ScreenCaptureTarget
+import com.android.systemui.screencapture.common.ScreenCapture
+import com.android.systemui.screencapture.common.ScreenCaptureScope
 import com.android.systemui.screencapture.record.data.repository.ScreenCaptureRecordParametersRepository
 import com.android.systemui.screenrecord.ScreenRecordingAudioSource
+import com.android.systemui.screenrecord.domain.interactor.ScreenRecordingServiceInteractor
+import com.android.systemui.screenrecord.shared.model.ScreenRecordingStatus
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
-@ScreenCaptureUiScope
+@ScreenCaptureScope
 class ScreenCaptureRecordParametersInteractor
 @Inject
-constructor(private val repository: ScreenCaptureRecordParametersRepository) {
+constructor(
+    @ScreenCapture coroutineScope: CoroutineScope,
+    private val serviceInteractor: ScreenRecordingServiceInteractor,
+    private val repository: ScreenCaptureRecordParametersRepository,
+) {
 
-    val parameters = repository.parameters
+    var audioSource: ScreenRecordingAudioSource
+        set(value) {
+            if (canChangeAudioSource.value) {
+                repository.audioSource = value
+            }
+        }
+        get() = repository.audioSource
 
-    fun setAudioSource(audioSource: ScreenRecordingAudioSource) {
-        repository.updateParameters { it.copy(audioSource = audioSource) }
-    }
+    var shouldShowTaps: Boolean
+        set(value) {
+            serviceInteractor.updateShouldShowTaps(value)
+            repository.shouldShowTaps = value
+        }
+        get() = repository.shouldShowTaps
 
-    fun setRecordTarget(target: ScreenCaptureTarget) {
-        repository.updateParameters { it.copy(target = target) }
-    }
+    var shouldShowFrontCamera: Boolean
+        set(value) {
+            if (value) {
+                audioSource = audioSource.withEnabledMic()
+            }
+            repository.shouldShowFrontCamera = value
+        }
+        get() = repository.shouldShowFrontCamera
 
-    fun setShouldShowTaps(shouldShowTaps: Boolean) {
-        repository.updateParameters { it.copy(shouldShowTaps = shouldShowTaps) }
-    }
-
-    fun setShouldShowFrontCamera(shouldShowFrontCamera: Boolean) {
-        repository.updateParameters { it.copy(shouldShowFrontCamera = shouldShowFrontCamera) }
-    }
+    val canChangeAudioSource: StateFlow<Boolean> =
+        serviceInteractor.status
+            .map { it.canChangeAudioSource() }
+            .stateIn(
+                coroutineScope,
+                SharingStarted.Eagerly,
+                serviceInteractor.status.value.canChangeAudioSource(),
+            )
 }
+
+private fun ScreenRecordingAudioSource.withEnabledMic(): ScreenRecordingAudioSource =
+    when (this) {
+        ScreenRecordingAudioSource.MIC -> this
+        ScreenRecordingAudioSource.MIC_AND_INTERNAL -> this
+        ScreenRecordingAudioSource.NONE -> ScreenRecordingAudioSource.MIC
+        ScreenRecordingAudioSource.INTERNAL -> ScreenRecordingAudioSource.MIC_AND_INTERNAL
+    }
+
+private fun ScreenRecordingStatus.canChangeAudioSource(): Boolean =
+    this is ScreenRecordingStatus.Stopped

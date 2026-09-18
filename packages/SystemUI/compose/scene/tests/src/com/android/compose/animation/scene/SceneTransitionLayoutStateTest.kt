@@ -17,14 +17,25 @@
 package com.android.compose.animation.scene
 
 import android.util.Log
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import androidx.compose.runtime.InternalComposeApi
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.android.compose.animation.scene.TestOverlays.OverlayA
 import com.android.compose.animation.scene.TestScenes.SceneA
 import com.android.compose.animation.scene.TestScenes.SceneB
 import com.android.compose.animation.scene.TestScenes.SceneC
 import com.android.compose.animation.scene.content.state.TransitionState
 import com.android.compose.animation.scene.subjects.assertThat
 import com.android.compose.test.TestSceneTransition
+import com.android.compose.test.setContentAndCreateMainScope
 import com.android.compose.test.transition
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CompletableDeferred
@@ -477,5 +488,89 @@ class SceneTransitionLayoutStateTest {
         assertThat(cujWhenStarting[bToA]).isEqualTo(1)
         assertThat(cujWhenStarting[aToC]).isEqualTo(2)
         assertThat(cujWhenStarting[cToA]).isEqualTo(3)
+    }
+
+    @OptIn(InternalComposeApi::class)
+    @Test
+    // Regression test for b/462237692.
+    fun composingStlStateOnDetachedViewDoesNotThrow() {
+        lateinit var composeView: ComposeView
+        var composeStlState by mutableStateOf(false)
+        rule.setContent {
+            AndroidView(
+                factory = { context ->
+                    FrameLayout(context).apply {
+                        addView(
+                            ComposeView(context).apply {
+                                composeView = this
+                                setViewCompositionStrategy(
+                                    ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
+                                )
+                                setContent {
+                                    if (composeStlState) {
+                                        rememberMutableSceneTransitionLayoutState(SceneA)
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            )
+        }
+
+        rule.runOnUiThread {
+            (composeView.parent as ViewGroup).removeView(composeView)
+            composeStlState = true
+        }
+        rule.waitForIdle()
+    }
+
+    @Test
+    // Regression test for b/467108447.
+    fun readProgressDirectlyAfterTransitionIsStarted() = runMonotonicClockTest {
+        val state =
+            MutableSceneTransitionLayoutStateForTests(
+                SceneA,
+                onTransitionStart = { transition -> assertThat(transition.progress).isEqualTo(0f) },
+            )
+        state.setTargetScene(SceneB, animationScope = this)
+        state.showOverlay(OverlayA, animationScope = this)
+        state.hideOverlay(OverlayA, animationScope = this)
+    }
+
+    @Test
+    // Regression test for the first part of b/482599730.
+    fun exceptionThrownWhenStartingTransitionIsNotLost() {
+        val errorMessage = "error message"
+        val exception =
+            assertThrows(IllegalStateException::class.java) {
+                val state =
+                    MutableSceneTransitionLayoutStateForTests(
+                        SceneA,
+                        onTransitionStart = { error(errorMessage) },
+                    )
+
+                runTest {
+                    state.startTransitionImmediately(backgroundScope, transition(SceneA, SceneB))
+                }
+            }
+
+        assertThat(exception.message).isEqualTo(errorMessage)
+    }
+
+    @Test
+    fun defaultAnimationScope() {
+        val state = rule.runOnUiThread { HoistedSceneTransitionLayoutState(SceneA) }
+        val scope =
+            rule.setContentAndCreateMainScope {
+                SceneTransitionLayout(state) {
+                    scene(SceneA) {}
+                    scene(SceneB) {}
+                }
+            }
+
+        scope.launch { state.uiBoundState!!.startTransitionImmediately(transition(SceneA, SceneB)) }
+        rule.waitForIdle()
+        assertThat(state.isTransitioning(from = SceneA, to = SceneB)).isTrue()
     }
 }

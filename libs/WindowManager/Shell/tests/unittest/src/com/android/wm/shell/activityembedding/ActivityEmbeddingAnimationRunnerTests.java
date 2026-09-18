@@ -45,7 +45,7 @@ import android.window.TransitionInfo;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.wm.shell.transition.TransitionInfoBuilder;
+import com.android.testing.wm.util.TransitionInfoBuilder;
 
 import com.google.testing.junit.testparameterinjector.TestParameter;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;

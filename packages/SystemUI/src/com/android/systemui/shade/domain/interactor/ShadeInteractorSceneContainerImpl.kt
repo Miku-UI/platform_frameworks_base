@@ -17,7 +17,6 @@
 package com.android.systemui.shade.domain.interactor
 
 import android.graphics.Rect
-import com.android.app.tracing.FlowTracing.traceAsCounter
 import com.android.compose.animation.scene.ContentKey
 import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.compose.animation.scene.OverlayKey
@@ -25,16 +24,19 @@ import com.android.compose.animation.scene.SceneKey
 import com.android.compose.animation.scene.TransitionKey
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.keyguard.shared.model.KeyguardTransitionKeys.WithAnimationOverLockscreen
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.SceneFamilies
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.shared.model.TransitionKeys.Instant
+import com.android.systemui.scene.shared.model.TransitionKeys.ToAlwaysOnDisplay
 import com.android.systemui.scene.shared.model.TransitionKeys.ToSplitShade
 import com.android.systemui.shade.ShadeOverlayBoundsListener
 import com.android.systemui.shade.data.repository.ShadeRepository
 import com.android.systemui.shade.shared.model.ShadeMode
+import com.android.systemui.statusbar.quickactions.popups.StatusBarPopupChips
 import com.android.systemui.utils.coroutines.flow.flatMapLatestConflated
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -68,7 +70,6 @@ constructor(
             .flatMapLatest { shadeMode ->
                 transitionProgressExpansion(shadeMode.notificationsContentKey)
             }
-            .traceAsCounter("panel_expansion") { (it * 100f).toInt() }
             .stateIn(scope, SharingStarted.Eagerly, 0f)
 
     override val isNotificationsExpanded: StateFlow<Boolean> =
@@ -85,7 +86,7 @@ constructor(
     override val isQsBypassingShade: Flow<Boolean> =
         shadeModeInteractor.shadeMode
             .flatMapLatestConflated { shadeMode ->
-                sceneInteractor.transitionState
+                sceneInteractor.transitionStateFlow
                     .map { state ->
                         when (state) {
                             is ObservableTransitionState.Idle -> false
@@ -115,6 +116,9 @@ constructor(
     override val isAnyExpanded =
         anyExpansion.map { it > 0f }.stateIn(scope, SharingStarted.Eagerly, false)
 
+    @Deprecated("consider using isAnyExpanded instead")
+    override val isAnyExpansionGreaterThanZero: StateFlow<Boolean> = isAnyExpanded
+
     override val isUserInteractingWithShade: Flow<Boolean> =
         shadeModeInteractor.shadeMode.flatMapLatest { shadeMode ->
             when (shadeMode) {
@@ -137,12 +141,14 @@ constructor(
 
     override fun expandNotificationsShade(loggingReason: String, transitionKey: TransitionKey?) {
         if (shadeModeInteractor.isDualShade) {
-            // Collapse the quick settings shade if it's expanded (no-op if it isn't).
-            sceneInteractor.hideOverlay(
-                overlay = Overlays.QuickSettingsShade,
-                loggingReason = loggingReason,
-                transitionKey = transitionKey,
-            )
+            // Hide all overlays that can not be displayed with the notifications overlay.
+            notificationsMutuallyExclusiveOverlays.forEach {
+                sceneInteractor.hideOverlay(
+                    overlay = it,
+                    loggingReason = loggingReason,
+                    transitionKey = transitionKey,
+                )
+            }
             // Expand the notifications shade.
             sceneInteractor.showOverlay(
                 overlay = Overlays.NotificationsShade,
@@ -173,12 +179,14 @@ constructor(
 
     override fun expandQuickSettingsShade(loggingReason: String, transitionKey: TransitionKey?) {
         if (shadeModeInteractor.isDualShade) {
-            // Collapse the notifications shade if it's expanded (no-op if it isn't).
-            sceneInteractor.hideOverlay(
-                overlay = Overlays.NotificationsShade,
-                loggingReason = loggingReason,
-                transitionKey = transitionKey,
-            )
+            // Hide all overlays that cannot be displayed with the quick settings overlays.
+            qsMutuallyExclusiveOverlays.forEach {
+                sceneInteractor.hideOverlay(
+                    overlay = it,
+                    loggingReason = loggingReason,
+                    transitionKey = transitionKey,
+                )
+            }
             // Expand the quick settings shade.
             sceneInteractor.showOverlay(
                 overlay = Overlays.QuickSettingsShade,
@@ -206,7 +214,15 @@ constructor(
                     transitionKey = transitionKey,
                 )
             }
-        } else if (transitionKey == Instant) {
+            return
+        }
+
+        // Do nothing if the shade is not open
+        if (sceneInteractor.currentScene.value != Scenes.Shade) {
+            return
+        }
+
+        if (transitionKey == Instant) {
             // TODO(b/356596436): Define instant transition instead of snapToScene().
             sceneInteractor.snapToScene(
                 toScene = SceneFamilies.Home,
@@ -243,9 +259,15 @@ constructor(
             return
         }
 
+        // Do nothing if the quick settings is not open
+        val currentScene = sceneInteractor.currentScene.value
+        if (currentScene != Scenes.QuickSettings && currentScene != Scenes.Shade) {
+            return
+        }
         val isSplitShade = shadeModeInteractor.isSplitShade
         val targetScene =
             if (bypassNotificationsShade || isSplitShade) SceneFamilies.Home else Scenes.Shade
+
         if (transitionKey == Instant) {
             // TODO(b/356596436): Define instant transition instead of snapToScene().
             sceneInteractor.snapToScene(
@@ -266,10 +288,8 @@ constructor(
             "toggleNotificationsShade should only be called when dualShade is enabled."
         }
         if (isNotificationsExpanded.value) {
-            android.util.Log.e("amehfooz", "Collapse notification shade")
             collapseNotificationsShade(loggingReason, transitionKey)
         } else {
-            android.util.Log.e("amehfooz", "Expand Notifications Shade")
             expandNotificationsShade(loggingReason, transitionKey)
         }
     }
@@ -335,22 +355,29 @@ constructor(
         sceneInteractor
             .resolveSceneFamily(sceneKey)
             .flatMapLatestConflated { resolvedSceneKey ->
-                sceneInteractor.transitionState
+                sceneInteractor.transitionStateFlow
                     .flatMapLatestConflated { state ->
                         when (state) {
                             is ObservableTransitionState.Idle ->
-                                if (state.currentScene == resolvedSceneKey) {
-                                    flowOf(1f)
-                                } else {
-                                    flowOf(0f)
-                                }
-                            is ObservableTransitionState.Transition ->
-                                if (state.toContent == resolvedSceneKey) {
-                                    state.progress
-                                } else if (state.fromContent == resolvedSceneKey) {
-                                    state.progress.map { progress -> 1 - progress }
-                                } else {
-                                    flowOf(0f)
+                                flowOf(if (state.currentScene == resolvedSceneKey) 1f else 0f)
+                            is ObservableTransitionState.Transition.OverlayTransition ->
+                                flowOf(if (state.currentScene == resolvedSceneKey) 1f else 0f)
+                            is ObservableTransitionState.Transition.ChangeScene ->
+                                when (resolvedSceneKey) {
+                                    state.toContent -> state.progress
+                                    state.fromContent ->
+                                        if (
+                                            state.key == ToAlwaysOnDisplay ||
+                                                state.key == WithAnimationOverLockscreen
+                                        ) {
+                                            // Keep the scene expanded during a transition to AOD to
+                                            // fake out in place, or while running a notification
+                                            // animation to unlock
+                                            flowOf(1f)
+                                        } else {
+                                            state.progress.map { progress -> 1 - progress }
+                                        }
+                                    else -> flowOf(0f)
                                 }
                         }
                     }
@@ -363,7 +390,7 @@ constructor(
      * with a scene that is pulled down from the top of the screen.
      */
     fun sceneBasedInteracting(sceneInteractor: SceneInteractor, sceneKey: SceneKey) =
-        sceneInteractor.transitionState
+        sceneInteractor.transitionStateFlow
             .flatMapLatestConflated { state ->
                 when (state) {
                     is ObservableTransitionState.Idle -> flowOf(false)
@@ -382,7 +409,7 @@ constructor(
      * amount float.
      */
     private fun overlayBasedExpansion(sceneInteractor: SceneInteractor, overlay: OverlayKey) =
-        sceneInteractor.transitionState
+        sceneInteractor.transitionStateFlow
             .flatMapLatestConflated { state ->
                 when (state) {
                     is ObservableTransitionState.Idle ->
@@ -391,7 +418,17 @@ constructor(
                         if (state.toContent == overlay) {
                             state.progress
                         } else if (state.fromContent == overlay) {
-                            state.progress.map { progress -> 1 - progress }
+                            if (
+                                state.key == ToAlwaysOnDisplay ||
+                                    state.key == WithAnimationOverLockscreen
+                            ) {
+                                // Keep the scene expanded during a transition to AOD to
+                                // fake out in place, or while running a notification
+                                // animation to unlock
+                                flowOf(1f)
+                            } else {
+                                state.progress.map { progress -> 1 - progress }
+                            }
                         } else {
                             state.currentOverlays().map { if (overlay in it) 1f else 0f }
                         }
@@ -404,7 +441,7 @@ constructor(
      * with [overlay].
      */
     private fun overlayBasedInteracting(sceneInteractor: SceneInteractor, overlay: OverlayKey) =
-        sceneInteractor.transitionState
+        sceneInteractor.transitionStateFlow
             .map { state ->
                 when (state) {
                     is ObservableTransitionState.Idle -> false
@@ -418,7 +455,7 @@ constructor(
     /** Whether this content key is currently shown and in idle transition state. */
     private val ContentKey.isShownAndIdle: Flow<Boolean>
         get() {
-            return sceneInteractor.transitionState
+            return sceneInteractor.transitionStateFlow
                 .map { state ->
                     when (state) {
                         is ObservableTransitionState.Idle ->
@@ -449,4 +486,16 @@ constructor(
                 ShadeMode.Dual -> Overlays.QuickSettingsShade
             }
         }
+
+    private val notificationsMutuallyExclusiveOverlays =
+        setOfNotNull(
+            Overlays.QuickSettingsShade,
+            Overlays.QuickActions.takeIf { StatusBarPopupChips.isEnabled },
+        )
+
+    private val qsMutuallyExclusiveOverlays =
+        setOfNotNull(
+            Overlays.NotificationsShade,
+            Overlays.QuickActions.takeIf { StatusBarPopupChips.isEnabled },
+        )
 }

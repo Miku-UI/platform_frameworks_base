@@ -16,21 +16,20 @@
 
 package com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.compose.runtime.State as ComposeState
 import androidx.compose.runtime.getValue
 import com.android.settingslib.mobile.TelephonyIcons
 import com.android.systemui.KairosActivatable
-import com.android.systemui.KairosBuilder
 import com.android.systemui.activated
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.kairos.BuildScope
 import com.android.systemui.kairos.BuildSpec
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.Incremental
-import com.android.systemui.kairos.State as KairosState
 import com.android.systemui.kairos.State
+import com.android.systemui.kairos.allOf
 import com.android.systemui.kairos.buildSpec
 import com.android.systemui.kairos.combine
 import com.android.systemui.kairos.flatMap
@@ -39,7 +38,6 @@ import com.android.systemui.kairos.map
 import com.android.systemui.kairos.mapValues
 import com.android.systemui.kairos.stateOf
 import com.android.systemui.kairos.util.nameTag
-import com.android.systemui.kairosBuilder
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.log.table.TableLogBufferFactory
 import com.android.systemui.statusbar.phone.StatusBarLocation
@@ -59,17 +57,20 @@ import com.android.systemui.statusbar.pipeline.mobile.ui.view.ModernStatusBarMob
 import com.android.systemui.statusbar.pipeline.shared.ConnectivityConstants
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
 import com.android.systemui.util.composable.kairos.toComposeState
+import com.android.systemui.util.lifecycle.kairos.KairosBuilder
+import com.android.systemui.util.lifecycle.kairos.buildColdConflatedFlow
+import com.android.systemui.util.lifecycle.kairos.kairosBuilder
 import dagger.Provides
 import dagger.multibindings.ElementsIntoSet
 import javax.inject.Inject
 import javax.inject.Provider
+import kotlinx.coroutines.flow.Flow
 
 /**
  * View model for describing the system's current mobile cellular connections. The result is a list
  * of [MobileIconViewModelKairos]s which describe the individual icons and can be bound to
  * [ModernStatusBarMobileView].
  */
-@ExperimentalKairosApi
 @SysUISingleton
 class MobileIconsViewModelKairos
 @Inject
@@ -86,7 +87,7 @@ constructor(
     val activeSubscriptionId: State<Int?> =
         interactor.activeDataIconInteractor.map { it?.subscriptionId }
 
-    val subscriptionIds: KairosState<List<Int>> =
+    val subscriptionIds: State<List<Int>> =
         interactor.filteredSubscriptions.map { subscriptions ->
             subscriptions.map { it.subscriptionId }
         }
@@ -98,15 +99,22 @@ constructor(
     }
 
     /** Whether the mobile sub that's displayed first visually is showing its network type icon. */
-    val firstMobileSubShowingNetworkTypeIcon: KairosState<Boolean> = buildState {
+    val firstMobileSubShowingNetworkTypeIcon: State<Boolean> = buildState {
         combine(subscriptionIds.map { it.lastOrNull() }, icons) { lastId, icons ->
                 icons[lastId]?.networkTypeIcon?.map { it != null } ?: stateOf(false)
             }
             .flatten()
     }
 
-    val isStackable: KairosState<Boolean>
-        get() = interactor.isStackable
+    private val iconsAreAllVisible: State<Boolean> =
+        icons.flatMap { icons ->
+            icons.map { (_, icon) -> icon.isVisible }.combine { visStates -> visStates.all { it } }
+        }
+
+    val isStackable: State<Boolean> = allOf(iconsAreAllVisible, interactor.isStackable)
+
+    @SuppressLint("FlowExposedFromViewModel") // not consumed by compose
+    val isStackableFlow: Flow<Boolean> = buildColdConflatedFlow(isStackable)
 
     @Deprecated("Access view-models directly from \"icons\" property instead.")
     fun viewModelForSub(
@@ -217,7 +225,6 @@ constructor(
     }
 }
 
-@ExperimentalKairosApi
 class MobileIconsViewModelKairosComposeWrapper(
     icons: ComposeState<Map<Int, MobileIconViewModelKairos>>,
     val logger: MobileViewLogger,
@@ -225,7 +232,6 @@ class MobileIconsViewModelKairosComposeWrapper(
     val icons: Map<Int, MobileIconViewModelKairos> by icons
 }
 
-@ExperimentalKairosApi
 fun MobileIconsViewModelKairos.composeWrapper():
     BuildSpec<MobileIconsViewModelKairosComposeWrapper> = buildSpec {
     MobileIconsViewModelKairosComposeWrapper(

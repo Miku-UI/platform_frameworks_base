@@ -501,6 +501,10 @@ public class BatteryHistoryDirectory implements BatteryStatsHistory.BatteryHisto
         try {
             lock();
             try {
+                // Ensure at least two files are present to trim.
+                if (mHistoryFiles.size() <= 1) {
+                    return;
+                }
                 // if there is more history stored than allowed, delete oldest history files.
                 int size = 0;
                 for (int i = 0; i < mHistoryFiles.size(); i++) {

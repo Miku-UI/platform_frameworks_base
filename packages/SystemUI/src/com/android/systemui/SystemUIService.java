@@ -28,7 +28,6 @@ import android.util.Slog;
 
 import com.android.internal.os.BinderInternal;
 import com.android.systemui.application.SystemUIApplication;
-import com.android.systemui.application.impl.SystemUIApplicationImpl;
 import com.android.systemui.broadcast.BroadcastDispatcher;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dump.DumpHandler;

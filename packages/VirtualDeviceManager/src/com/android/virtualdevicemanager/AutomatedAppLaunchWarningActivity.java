@@ -18,19 +18,36 @@ package com.android.virtualdevicemanager;
 
 import static android.companion.virtual.computercontrol.ComputerControlSession.EXTRA_AUTOMATING_PACKAGE_NAME;
 
+import android.companion.virtual.IVirtualDeviceManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.os.Bundle;
+import android.os.RemoteException;
 import android.os.ResultReceiver;
+import android.os.ServiceManager;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.fragment.app.FragmentActivity;
 
 public class AutomatedAppLaunchWarningActivity extends FragmentActivity {
 
+    private static final String TAG = "AutomatedAppLaunchWarning";
+
+    private IVirtualDeviceManager mVirtualDeviceManager;
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        mVirtualDeviceManager = IVirtualDeviceManager.Stub.asInterface(
+                ServiceManager.getService(Context.VIRTUAL_DEVICE_SERVICE));
+        if (mVirtualDeviceManager == null) {
+            Log.e(TAG, "Could not get VirtualDeviceManager service");
+            finish();
+            return;
+        }
 
         Intent intent = getIntent();
         String targetPackageName = intent.getStringExtra(Intent.EXTRA_PACKAGE_NAME);
@@ -41,6 +58,14 @@ public class AutomatedAppLaunchWarningActivity extends FragmentActivity {
 
         if (targetPackageName == null || target == null || automatingPackageName == null
                 || resultReceiver == null) {
+            Log.e(TAG, "Got invalid intent");
+            finish();
+            return;
+        }
+
+        if (!validateAutomatedAppLaunchWarningIntent(intent)) {
+            Log.i(TAG, "Skip warning, automation is no longer active");
+            AutomatedAppLaunchWarningActivityFragment.startIntentSender(this, target);
             finish();
             return;
         }
@@ -49,4 +74,28 @@ public class AutomatedAppLaunchWarningActivity extends FragmentActivity {
                 targetPackageName, target, automatingPackageName, resultReceiver);
         getSupportFragmentManager().beginTransaction().add(fragment, null).commit();
     }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        Intent intent = getIntent();
+        if (!validateAutomatedAppLaunchWarningIntent(intent)) {
+            Log.i(TAG, "Skip warning, automation is no longer active");
+            IntentSender target =
+                    intent.getParcelableExtra(Intent.EXTRA_INTENT, IntentSender.class);
+            AutomatedAppLaunchWarningActivityFragment.startIntentSender(this, target);
+            finish();
+        }
+    }
+
+    private boolean validateAutomatedAppLaunchWarningIntent(Intent intent) {
+        try {
+            return mVirtualDeviceManager.validateAutomatedAppLaunchWarningIntent(intent);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Failed to validate autoamted app launch warning intent", e);
+            return false;
+        }
+    }
+
 }

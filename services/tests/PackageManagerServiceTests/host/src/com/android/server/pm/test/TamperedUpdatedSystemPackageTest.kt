@@ -38,6 +38,7 @@ class TamperedUpdatedSystemPackageTest : BaseHostJUnit4Test() {
     companion object {
         private const val TEST_PKG_NAME = "com.android.server.pm.test.test_app"
         private const val VERSION_ONE = "PackageManagerTestAppVersion1.apk"
+        private const val VERSION_TWO = "PackageManagerTestAppVersion2.apk"
         private const val VERSION_TWO_ALT_KEY = "PackageManagerTestAppVersion2AltKey.apk"
         private const val VERSION_TWO_ALT_KEY_IDSIG =
                 "PackageManagerTestAppVersion2AltKey.apk.idsig"
@@ -106,34 +107,6 @@ class TamperedUpdatedSystemPackageTest : BaseHostJUnit4Test() {
     }
 
     @Test
-    fun detectApkAndXmlTamperingAtBoot() {
-        // Set up the scenario where both APK and packages.xml are tampered by the attacker.
-        // This is done by booting with the "bad" APK in a system partition, re-installing it to
-        // /data. Then, replace the APK in the system partition with a "good" one.
-        preparer.pushResourceFile(VERSION_TWO_ALT_KEY, productPath.toString())
-                .reboot()
-
-        // Install the "bad" APK to /data. This will also update package manager's XML records.
-        val versionTwoFile = HostUtils.copyResourceToHostFile(
-            VERSION_TWO_ALT_KEY,
-                tempFolder.newFile()
-        )
-        assertThat(device.installPackage(versionTwoFile, true)).isNull()
-        assertThat(device.executeShellCommand("pm path ${TEST_PKG_NAME}"))
-                .doesNotContain(productPath.toString())
-
-        // "Restore" the system partition is to a good state with correct APK.
-        preparer.deleteFile(productPath.toString())
-                .pushResourceFile(VERSION_ONE, productPath.toString())
-
-        // Verify that upon the next boot, the system detect the problem and remove the problematic
-        // APK in the /data.
-        preparer.reboot()
-        assertThat(device.executeShellCommand("pm path ${TEST_PKG_NAME}"))
-                .contains(productPath.toString())
-    }
-
-    @Test
     fun detectApkTamperingAtBoot() {
         // Set up the scenario where APK is tampered but not the v4 signature. First, inject a
         // good APK as a system app.
@@ -169,6 +142,116 @@ class TamperedUpdatedSystemPackageTest : BaseHostJUnit4Test() {
         // Verify that upon the next boot, the system detect the problem and remove the problematic
         // APK in the /data.
         preparer.reboot()
+        assertThat(device.executeShellCommand("pm path ${TEST_PKG_NAME}"))
+                .contains(productPath.toString())
+    }
+
+    @Test
+    fun detectApkAndXmlTamperingAtBoot() {
+        // Set up the scenario where both APK and packages.xml are tampered by the attacker.
+        // This is done by booting with the "bad" APK in a system partition, re-installing it to
+        // /data. Then, replace the APK in the system partition with a "good" one.
+        preparer.pushResourceFile(VERSION_TWO_ALT_KEY, productPath.toString())
+                .reboot()
+
+        // Install the "bad" APK to /data. This will also update package manager's XML records.
+        val versionTwoFile = HostUtils.copyResourceToHostFile(
+            VERSION_TWO_ALT_KEY,
+            tempFolder.newFile()
+        )
+        assertThat(device.installPackage(versionTwoFile, true)).isNull()
+        assertThat(device.executeShellCommand("pm path ${TEST_PKG_NAME}"))
+                .doesNotContain(productPath.toString())
+
+        // "Restore" the system partition is to a good state with correct APK.
+        preparer.deleteFile(productPath.toString())
+                .pushResourceFile(VERSION_ONE, productPath.toString())
+
+        // Verify that upon the next boot, the system detect the problem and remove the problematic
+        // APK in the /data.
+        preparer.reboot()
+        assertThat(device.executeShellCommand("pm path ${TEST_PKG_NAME}"))
+                .contains(productPath.toString())
+    }
+
+    @Test
+    fun detectApkTamperingAndMalformedIdsigAtBoot() {
+        // Set up the scenario where APK is tampered and the v4 signature is malformed.
+        // First, inject a good APK as a system app.
+        preparer.pushResourceFile(VERSION_TWO_ALT_KEY, productPath.toString())
+                .reboot()
+
+        // Re-install the target APK to /data.
+        val versionTwoFile = HostUtils.copyResourceToHostFile(
+            VERSION_TWO_ALT_KEY,
+            tempFolder.newFile()
+        )
+        assertThat(device.installPackage(versionTwoFile, true)).isNull()
+        val baseApkPath = getBaseApkPath(TEST_PKG_NAME)
+        assertThat(baseApkPath).doesNotContain(productPath.toString())
+
+        // Push a malformed .idsig file.
+        val malformedIdsig = HostUtils.copyResourceToHostFile(
+            VERSION_TWO_ALT_KEY_IDSIG,
+            tempFolder.newFile()
+        )
+        RandomAccessFile(malformedIdsig, "rw").use {
+            it.seek(0) // Tamper from the beginning
+            it.writeBytes("tamper")
+        }
+        preparer.pushFile(malformedIdsig, baseApkPath.toString() + ".idsig")
+
+        // Replace the APK in /data with a tampered version. Restore fs-verity and attributes.
+        RandomAccessFile(versionTwoFile, "rw").use {
+            it.seek(30)
+            it.writeBytes("tamper")
+        }
+        device.executeShellCommand("touch ${TIMESTAMP_REFERENCE_FILE_PATH} -r $baseApkPath")
+        preparer.pushFile(versionTwoFile, baseApkPath)
+        device.executeShellCommand(
+            "cd ${baseApkPath.replace("base.apk", "")}" +
+                "&& chown system:system base.apk " +
+                "&& /data/local/tmp/fsverity_multilib enable base.apk" +
+                "&& touch base.apk -r ${TIMESTAMP_REFERENCE_FILE_PATH}"
+        )
+
+        // Verify that upon the next boot, the system detects the problem and reverts.
+        preparer.reboot()
+        assertThat(device.executeShellCommand("pm path ${TEST_PKG_NAME}"))
+                .contains(productPath.toString())
+    }
+
+    @Test
+    fun detectApkTamperingWithUnauthorizedIdsigAtBoot() {
+        // Set up the scenario where APK is tampered, and the v4 signature is updated to match
+        // the new hash, but is signed with an unauthorized certificate.
+
+        // 1. Install a good APK as a system app, signed with key A.
+        preparer.pushResourceFile(VERSION_ONE, productPath.toString())
+                .reboot()
+
+        // 2. Install a good update to /data, also signed with key A.
+        val versionTwoFile = HostUtils.copyResourceToHostFile(
+                VERSION_TWO,
+                tempFolder.newFile()
+        )
+        assertThat(device.installPackage(versionTwoFile, true)).isNull()
+        val baseApkPath = getBaseApkPath(TEST_PKG_NAME)
+        assertThat(baseApkPath).doesNotContain(productPath.toString())
+
+        // 3. Attacker replaces the APK on /data with a malicious one (signed with key B)
+        //    and provides a matching .idsig file (also signed with key B).
+        device.executeShellCommand("touch ${TIMESTAMP_REFERENCE_FILE_PATH} -r $baseApkPath")
+        preparer.pushResourceFile(VERSION_TWO_ALT_KEY, baseApkPath.toString())
+        preparer.pushResourceFile(VERSION_TWO_ALT_KEY_IDSIG, baseApkPath.toString() + ".idsig")
+        device.executeShellCommand("touch $baseApkPath -r ${TIMESTAMP_REFERENCE_FILE_PATH}")
+
+        // 4. Reboot the device.
+        preparer.reboot()
+
+        // 5. Verify that upon the next boot, the system detects the signature mismatch on the
+        //    .idsig (key B vs key A), removes the problematic update from /data, and reverts to
+        //    the system version.
         assertThat(device.executeShellCommand("pm path ${TEST_PKG_NAME}"))
                 .contains(productPath.toString())
     }

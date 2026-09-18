@@ -19,25 +19,23 @@ package com.android.wm.shell.flicker.resizing
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
+import com.android.wm.shell.flicker.utils.appLayerMaintainsAspectRatioAlways
+import com.android.wm.shell.flicker.utils.appWindowInsideDisplayBoundsAtEnd
+import com.android.wm.shell.flicker.utils.appWindowKeepVisible
+import com.android.wm.shell.flicker.utils.appWindowOnTopAtEnd
+import com.android.wm.shell.flicker.utils.appWindowReturnsToStartBoundsAndPosition
+import com.android.wm.shell.scenarios.SnapResizeAppWindowWithDrag
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-
-import com.android.wm.shell.flicker.utils.appWindowKeepVisible
-import com.android.wm.shell.flicker.utils.appWindowOnTopAtEnd
-import com.android.wm.shell.flicker.utils.appWindowInsideDisplayBoundsAtEnd
-import com.android.wm.shell.flicker.utils.appLayerMaintainsAspectRatioAlways
-import com.android.wm.shell.flicker.utils.appWindowReturnsToStartBoundsAndPosition
-import com.android.wm.shell.scenarios.SnapResizeAppWindowWithDrag
-
 
 /**
  * Snap resize non-resizable app window by dragging it to the left edge of the screen.
@@ -48,16 +46,15 @@ import com.android.wm.shell.scenarios.SnapResizeAppWindowWithDrag
 @RunWith(value = Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
-class SnapResizeNonResizableAppWindowRightWithDragFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(
-    flicker
-) {
+class SnapResizeNonResizableAppWindowRightWithDragFlickerTest(flicker: FlickerTest) :
+    DesktopModeBaseTest(flicker) {
 
-
-    inner class SnapResizeNonResizableAppWindowRightWithDragScenario : SnapResizeAppWindowWithDrag(
-        toLeft = false,
-        rotation = flicker.scenario.startRotation,
-        isResizable = false
-    )
+    inner class SnapResizeNonResizableAppWindowRightWithDragScenario :
+        SnapResizeAppWindowWithDrag(
+            toLeft = false,
+            rotation = flicker.scenario.startRotation,
+            isResizable = false,
+        )
 
     @Rule
     @JvmField
@@ -68,32 +65,20 @@ class SnapResizeNonResizableAppWindowRightWithDragFlickerTest(flicker: FlickerTe
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.snapResizeAppWindowWithDrag()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.snapResizeAppWindowWithDrag() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appWindowIsVisibleAlways() =
-        flicker.appWindowKeepVisible(testApp)
+    @Test fun appWindowIsVisibleAlways() = flicker.appWindowKeepVisible(testApp)
+
+    @Test fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(testApp)
 
     @Test
-    fun appWindowOnTopAtEnd() =
-        flicker.appWindowOnTopAtEnd(testApp)
+    fun appWindowRemainInsideDisplayBounds() = flicker.appWindowInsideDisplayBoundsAtEnd(testApp)
 
     @Test
-    fun appWindowRemainInsideDisplayBounds() =
-        flicker.appWindowInsideDisplayBoundsAtEnd(testApp)
-
-    @Test
-    fun appWindowMaintainsAspectRatioAlways() =
-        flicker.appLayerMaintainsAspectRatioAlways(testApp)
+    fun appWindowMaintainsAspectRatioAlways() = flicker.appLayerMaintainsAspectRatioAlways(testApp)
 
     @Test
     fun appWindowReturnsToStartBoundsAndPosition() =

@@ -27,6 +27,7 @@ import static android.companion.AssociationRequest.DEVICE_PROFILE_VIRTUAL_DEVICE
 import static android.companion.AssociationRequest.DEVICE_PROFILE_WATCH;
 import static android.companion.CompanionResources.PERMISSION_ADD_MIRROR_DISPLAY;
 import static android.companion.CompanionResources.PERMISSION_ADD_TRUSTED_DISPLAY;
+import static android.companion.CompanionResources.PERMISSION_APP_STREAMING;
 import static android.companion.CompanionResources.PERMISSION_BYPASS_DND;
 import static android.companion.CompanionResources.PERMISSION_CALENDAR;
 import static android.companion.CompanionResources.PERMISSION_CALL_LOGS;
@@ -57,10 +58,10 @@ import android.util.Slog;
 import com.android.internal.util.CollectionUtils;
 
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashSet;
 import java.util.function.Consumer;
 
 /** Utility methods for accessing {@link RoleManager} APIs. */
@@ -88,16 +89,15 @@ public final class RolesUtils {
             ),
 
             DEVICE_PROFILE_APP_STREAMING,
-            android.companion.virtualdevice.flags.Flags.itemizedVdmPermissions()
-                    ? List.of(PERMISSION_CREATE_VIRTUAL_DEVICE, PERMISSION_ADD_MIRROR_DISPLAY,
-                            PERMISSION_ADD_TRUSTED_DISPLAY, PERMISSION_POST_NOTIFICATIONS)
-                    : Collections.emptyList(),
+            android.companion.Flags.expandAppStreamingRolePermissions()
+                    ? List.of(PERMISSION_APP_STREAMING, PERMISSION_NOTIFICATIONS,
+                            PERMISSION_STORAGE)
+                    : List.of(PERMISSION_CREATE_VIRTUAL_DEVICE, PERMISSION_ADD_MIRROR_DISPLAY,
+                            PERMISSION_ADD_TRUSTED_DISPLAY, PERMISSION_POST_NOTIFICATIONS),
 
-            DEVICE_PROFILE_NEARBY_DEVICE_STREAMING,
-            android.companion.virtualdevice.flags.Flags.itemizedVdmPermissions()
-                    ? List.of(PERMISSION_CREATE_VIRTUAL_DEVICE, PERMISSION_ADD_TRUSTED_DISPLAY,
-                    PERMISSION_POST_NOTIFICATIONS)
-                    : Collections.emptyList(),
+            DEVICE_PROFILE_NEARBY_DEVICE_STREAMING, List.of(
+                    PERMISSION_CREATE_VIRTUAL_DEVICE, PERMISSION_ADD_TRUSTED_DISPLAY,
+                    PERMISSION_POST_NOTIFICATIONS),
 
             DEVICE_PROFILE_VIRTUAL_DEVICE, List.of(PERMISSION_CREATE_VIRTUAL_DEVICE,
                             PERMISSION_NEARBY_DEVICES, PERMISSION_POST_NOTIFICATIONS)
@@ -212,8 +212,14 @@ public final class RolesUtils {
      * Remove the role for the package association.
      */
     public static void removeRoleHolderForAssociation(
-            @NonNull Context context, int userId, String packageName, String deviceProfile) {
-        if (deviceProfile == null) return;
+            @NonNull Context context, int userId, String packageName, String deviceProfile,
+            Consumer<Boolean> callback) {
+        if (deviceProfile == null) {
+            if (callback != null) {
+                callback.accept(false);
+            }
+            return;
+        }
 
         // Check if the device profile has an alias.
         final String aliasedDeviceProfile =
@@ -227,15 +233,19 @@ public final class RolesUtils {
                 + " for userId=" + userId + ", packageName=" + packageName);
 
         Binder.withCleanCallingIdentity(() ->
-            roleManager.removeRoleHolderAsUser(aliasedDeviceProfile, packageName,
-                    MANAGE_HOLDERS_FLAG_DONT_KILL_APP, userHandle, context.getMainExecutor(),
-                    success -> {
-                        if (!success) {
-                            Slog.e(TAG, "Failed to remove userId=" + userId + ", packageName="
-                                    + packageName + " from the list of " + aliasedDeviceProfile
-                                    + " holders.");
-                        }
-                    })
+                roleManager.removeRoleHolderAsUser(aliasedDeviceProfile, packageName,
+                        MANAGE_HOLDERS_FLAG_DONT_KILL_APP, userHandle, context.getMainExecutor(),
+                        success -> {
+                            if (!success) {
+                                Slog.e(TAG, "Failed to remove userId=" + userId + ", packageName="
+                                        + packageName + " from the list of " + aliasedDeviceProfile
+                                        + " holders.");
+                            }
+
+                            if (callback != null) {
+                                callback.accept(success);
+                            }
+                        })
         );
     }
 

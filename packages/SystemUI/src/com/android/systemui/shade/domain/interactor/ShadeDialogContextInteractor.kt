@@ -28,7 +28,6 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.display.data.repository.DisplayWindowPropertiesRepository
 import com.android.systemui.shade.data.repository.ShadeDisplaysRepository
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlinx.coroutines.CoroutineScope
@@ -52,7 +51,6 @@ constructor(
 ) : CoreStartable, ShadeDialogContextInteractor {
 
     override fun start() {
-        if (ShadeWindowGoesAround.isUnexpectedlyInLegacyMode()) return
         bgScope.launchTraced(TAG) {
             shadeDisplaysRepository
                 .get()
@@ -68,20 +66,10 @@ constructor(
     }
 
     override val context: Context
-        get() =
-            if (!ShadeWindowGoesAround.isEnabled) {
-                defaultContext
-            } else {
-                getContextOrDefault(shadeDisplayId)
-            }
+        get() = getContextOrDefault(shadeDisplayId)
 
     private val shadeDisplayId: Int
-        get() =
-            if (!ShadeWindowGoesAround.isEnabled) {
-                Display.DEFAULT_DISPLAY
-            } else {
-                shadeDisplaysRepository.get().displayId.value
-            }
+        get() = shadeDisplaysRepository.get().displayId.value
 
     private fun getContextOrDefault(displayId: Int): Context {
         return try {

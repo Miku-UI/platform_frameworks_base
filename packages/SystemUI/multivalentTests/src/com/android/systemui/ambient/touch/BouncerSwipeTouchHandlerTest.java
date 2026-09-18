@@ -810,6 +810,58 @@ public class BouncerSwipeTouchHandlerTest extends SysuiTestCase {
         verify(mCommunalViewModel).onResetTouchState();
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER)
+    public void testUpEvent_sceneContainerEnabled_notCaptured_sentToWindowRootView() {
+        mTouchHandler.onSessionStart(mTouchSession);
+        ArgumentCaptor<GestureDetector.OnGestureListener> gestureListenerCaptor =
+                ArgumentCaptor.forClass(GestureDetector.OnGestureListener.class);
+        ArgumentCaptor<InputChannelCompat.InputEventListener> inputListenerCaptor =
+                ArgumentCaptor.forClass(InputChannelCompat.InputEventListener.class);
+        verify(mTouchSession).registerGestureListener(gestureListenerCaptor.capture());
+        verify(mTouchSession).registerInputListener(inputListenerCaptor.capture());
+
+        // Simulate a swipe down, which is not captured when direction filtering is on.
+        mSetFlagsRule.enableFlags(Flags.FLAG_DREAM_OVERLAY_BOUNCER_SWIPE_DIRECTION_FILTERING);
+
+        final float percent = .15f;
+        final float distanceY = SCREEN_HEIGHT_PX * percent;
+        final MotionEvent event1 = MotionEvent.obtain(0, 0, MotionEvent.ACTION_MOVE,
+                0, SCREEN_HEIGHT_PX - distanceY, 0);
+        final MotionEvent event2 = MotionEvent.obtain(0, 0, MotionEvent.ACTION_MOVE,
+                0, SCREEN_HEIGHT_PX, 0);
+
+        boolean captured = gestureListenerCaptor.getValue().onScroll(event1, event2, 0,
+                -distanceY);
+        assertThat(captured).isFalse();
+        verify(mWindowRootView, never()).dispatchTouchEvent(any());
+
+        // Simulate ACTION_UP
+        final MotionEvent upEvent = MotionEvent.obtain(0, 0, MotionEvent.ACTION_UP,
+                0, 0, 0);
+        inputListenerCaptor.getValue().onInputEvent(upEvent);
+
+        // Verify the ACTION_UP event was sent to the window root view
+        verify(mWindowRootView).dispatchTouchEvent(upEvent);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER)
+    public void testUpEvent_sceneContainerEnabled_captured_sentToWindowRootView() {
+        // Start a swipe up gesture that will open the bouncer.
+        final float swipeUpPercentage = .3f;
+        final float velocityY = -1;
+        swipeToPosition(swipeUpPercentage, velocityY);
+
+        ArgumentCaptor<MotionEvent> motionEventCaptor =
+                ArgumentCaptor.forClass(MotionEvent.class);
+        verify(mWindowRootView, Mockito.atLeast(1)).dispatchTouchEvent(
+                motionEventCaptor.capture());
+        List<MotionEvent> dispatchedEvents = motionEventCaptor.getAllValues();
+        MotionEvent lastEvent = dispatchedEvents.get(dispatchedEvents.size() - 1);
+        assertThat(lastEvent.getAction()).isEqualTo(MotionEvent.ACTION_UP);
+    }
+
     private void swipeToPosition(float percent, float velocityY) {
         Mockito.clearInvocations(mTouchSession);
         mTouchHandler.onSessionStart(mTouchSession);

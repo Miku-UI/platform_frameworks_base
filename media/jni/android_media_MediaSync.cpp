@@ -28,6 +28,7 @@
 #include "jni.h"
 #include <nativehelper/JNIHelp.h>
 
+#include <gui/Flags.h> // Remove with MediaSurfaceType
 #include <gui/Surface.h>
 
 #include <media/AudioResamplerPublic.h>
@@ -61,17 +62,16 @@ JMediaSync::JMediaSync() {
 JMediaSync::~JMediaSync() {
 }
 
-status_t JMediaSync::setSurface(const sp<IGraphicBufferProducer> &bufferProducer) {
-    return mSync->setSurface(bufferProducer);
+status_t JMediaSync::setSurface(const sp<MediaSurfaceType> &surface) {
+    return mSync->setSurface(surface);
 }
 
 status_t JMediaSync::setAudioTrack(const sp<AudioTrack> &audioTrack) {
     return mSync->setAudioTrack(audioTrack);
 }
 
-status_t JMediaSync::createInputSurface(
-        sp<IGraphicBufferProducer>* bufferProducer) {
-    return mSync->createInputSurface(bufferProducer);
+status_t JMediaSync::createInputSurface(sp<MediaSurfaceType>* outSurface) {
+    return mSync->createInputSurface(outSurface);
 }
 
 sp<const MediaClock> JMediaSync::getMediaClock() {
@@ -177,18 +177,17 @@ static void android_media_MediaSync_native_setSurface(
         return;
     }
 
-    sp<IGraphicBufferProducer> bufferProducer;
+    sp<MediaSurfaceType> surface;
     if (jsurface != NULL) {
-        sp<Surface> surface(android_view_Surface_getSurface(env, jsurface));
-        if (surface != NULL) {
-            bufferProducer = surface->getIGraphicBufferProducer();
-        } else {
+        sp<Surface> tmpSurface = android_view_Surface_getSurface(env, jsurface);
+        if (tmpSurface == NULL) {
             throwExceptionAsNecessary(env, BAD_VALUE, "The surface has been released");
             return;
         }
+        surface = mediaflagtools::surfaceToSurfaceType(tmpSurface);
     }
 
-    status_t err = sync->setSurface(bufferProducer);
+    status_t err = sync->setSurface(surface);
 
     if (err == INVALID_OPERATION) {
         throwExceptionAsNecessary(
@@ -242,16 +241,19 @@ static jobject android_media_MediaSync_createInputSurface(
     }
 
     // Tell the MediaSync that we want to use a Surface as input.
-    sp<IGraphicBufferProducer> bufferProducer;
-    status_t err = sync->createInputSurface(&bufferProducer);
+    sp<MediaSurfaceType> surface;
+    status_t err = sync->createInputSurface(&surface);
     if (err != NO_ERROR) {
         throwExceptionAsNecessary(env, INVALID_OPERATION);
         return NULL;
     }
 
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_MEDIA_MIGRATION)
+    return android_view_Surface_createFromSurface(env, surface);
+#else
     // Wrap the IGBP in a Java-language Surface.
-    return android_view_Surface_createFromIGraphicBufferProducer(env,
-            bufferProducer);
+    return android_view_Surface_createFromIGraphicBufferProducer(env, surface);
+#endif
 }
 
 static void android_media_MediaSync_native_updateQueuedAudioData(

@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.pipeline.mobile.data.repository
 
 import android.telephony.CellSignalStrength
 import android.telephony.TelephonyManager
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.State
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionState
@@ -37,7 +36,6 @@ import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityMod
  * This repository should have all of the relevant information for a single line of service, which
  * eventually becomes a single icon in the status bar.
  */
-@ExperimentalKairosApi
 interface MobileConnectionRepositoryKairos {
     /** The subscriptionId that this connection represents */
     val subId: Int

@@ -47,11 +47,23 @@ public final class SystemZenRules {
     /** Updates existing system-owned rules to use the new Modes fields (type, etc). */
     public static void maybeUpgradeRules(Context context, ZenModeConfig config) {
         for (ZenRule rule : config.automaticRules.values()) {
+            maybeFixSystemRuleWithIncorrectOwner(rule);
             if (isSystemOwnedRule(rule)) {
                 if (rule.type == AutomaticZenRule.TYPE_UNKNOWN) {
                     upgradeSystemProviderRule(context, rule);
                 }
                 rule.allowManualInvocation = true;
+            }
+        }
+    }
+
+    private static void maybeFixSystemRuleWithIncorrectOwner(ZenRule rule) {
+        // System rules were incorrectly assigned to the Settings (creator) package at some point,
+        // force them back to "android".
+        if (Objects.equals(rule.pkg, "com.android.settings")) {
+            if (Objects.equals(rule.component, ZenModeConfig.getScheduleConditionProvider())
+                    || Objects.equals(rule.component, ZenModeConfig.getEventConditionProvider())) {
+                rule.pkg = PACKAGE_ANDROID;
             }
         }
     }

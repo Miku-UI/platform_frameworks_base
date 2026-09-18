@@ -138,4 +138,127 @@ class NestedScrollControllerTest {
         rule.onRoot().performTouchInput { up() }
         assertThat(state.isOuterScrollAllowed).isTrue()
     }
+
+    @Test
+    fun stateUpdate_transfersLock() {
+        val state1 = NestedScrollControlState()
+        val state2 = NestedScrollControlState()
+        var activeState by mutableStateOf(state1)
+
+        rule.setContent {
+            Box(
+                Modifier.fillMaxSize()
+                    .nestedScrollController(activeState)
+                    .scrollable(
+                        // Always consume delta to ensure a lock is requested.
+                        rememberScrollableState { it },
+                        Orientation.Vertical,
+                    )
+            )
+        }
+
+        // Start a drag gesture to lock state1.
+        rule.onRoot().performTouchInput {
+            down(center)
+            moveBy(Offset(0f, 100f))
+        }
+
+        // Assert: state1 is locked, state2 is free.
+        assertThat(state1.isOuterScrollAllowed).isFalse()
+        assertThat(state2.isOuterScrollAllowed).isTrue()
+
+        // Hot-swap the state while the finger is still down.
+        activeState = state2
+        rule.waitForIdle()
+
+        // Ensure that if the state object changes while a gesture is in progress, the lock is
+        // safely transferred from the old state to the new state.
+        assertThat(state1.isOuterScrollAllowed).isTrue()
+        assertThat(state2.isOuterScrollAllowed).isFalse()
+
+        // Finish the gesture.
+        rule.onRoot().performTouchInput { up() }
+
+        // Everything is released.
+        assertThat(state2.isOuterScrollAllowed).isTrue()
+    }
+
+    @Test
+    fun multipleStates_areLockedSimultaneously() {
+        val parentState = NestedScrollControlState()
+        val grandParentState = NestedScrollControlState()
+
+        rule.setContent {
+            Box(
+                Modifier.fillMaxSize()
+                    .nestedScrollController(listOf(parentState, grandParentState))
+                    .scrollable(rememberScrollableState { it }, Orientation.Vertical)
+            )
+        }
+
+        // Perform a scroll.
+        rule.onRoot().performTouchInput {
+            down(center)
+            moveBy(Offset(0f, 100f))
+        }
+        assertThat(parentState.isOuterScrollAllowed).isFalse()
+        assertThat(grandParentState.isOuterScrollAllowed).isFalse()
+
+        // Release.
+        rule.onRoot().performTouchInput { up() }
+        assertThat(parentState.isOuterScrollAllowed).isTrue()
+        assertThat(grandParentState.isOuterScrollAllowed).isTrue()
+    }
+
+    @Test
+    fun sharedState_nestedHierarchy_removesLocksIndependently() {
+        val sharedState = NestedScrollControlState()
+
+        var isFirstActive by mutableStateOf(true)
+        var isSecondActive by mutableStateOf(true)
+
+        rule.setContent {
+            Box(
+                Modifier.fillMaxSize().thenIf(isFirstActive) {
+                    Modifier.nestedScrollController(sharedState)
+                }
+            ) {
+                Box(
+                    Modifier.fillMaxSize()
+                        .thenIf(isSecondActive) { Modifier.nestedScrollController(sharedState) }
+                        // The Scrollable driver.
+                        .scrollable(
+                            state = rememberScrollableState { it }, // Consume all delta.
+                            orientation = Orientation.Vertical,
+                        )
+                )
+            }
+        }
+
+        // Start a gesture (Down + Move) to trigger the locks.
+        rule.onRoot().performTouchInput {
+            down(center)
+            moveBy(Offset(0f, 100f))
+        }
+
+        // Both controllers should have voted to lock.
+        assertThat(sharedState.isOuterScrollAllowed).isFalse()
+
+        // Remove the second controller from composition while gesture is active.
+        isSecondActive = false
+        rule.waitForIdle()
+
+        // State is still locked. Because the first controller is still attached and holding its
+        // lock.
+        assertThat(sharedState.isOuterScrollAllowed).isFalse()
+
+        isFirstActive = false
+        rule.waitForIdle()
+
+        // Assert: Now that the last holder is gone, the state should be allowed.
+        assertThat(sharedState.isOuterScrollAllowed).isTrue()
+
+        // Cleanup: Lift the finger
+        rule.onRoot().performTouchInput { up() }
+    }
 }

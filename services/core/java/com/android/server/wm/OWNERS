@@ -1,26 +1,32 @@
 set noparent
 
-ogunwale@google.com
-jjaggi@google.com
-racarr@google.com
+natanieljr@google.com
 vishnun@google.com
-akulian@google.com
-roosa@google.com
 erosky@google.com
 riddlehsu@google.com
 louischang@google.com
 winsonc@google.com
 tigerhuang@google.com
 lihongyu@google.com
-mariiasand@google.com
 rgl@google.com
 yunfanc@google.com
 wilsonshih@google.com
 jiamingliu@google.com
 pdwilliams@google.com
 charlesccchen@google.com
+avener@google.com
+cosminbaies@google.com
+fstern@google.com
+raluf@google.com
 mcarli@google.com
 pbdr@google.com
+takise@google.com
+gracielawputri@google.com
+jjaggi@google.com
+racarr@google.com
+roosa@google.com
+akulian@google.com
+ogunwale@google.com
 
 # Files related to background activity launches
 per-file Background*Start* = set noparent
@@ -46,5 +52,12 @@ per-file DeviceStateAutoRotateSetting* = file:/services/foldables/OWNERS
 # Files related to content recordering
 per-file ContentRecord*.java = file:/media/java/android/media/projection/OWNERS
 
-# For desktop-first mode related chanegs.
+# For desktop-first mode related changes.
 per-file DesktopMode* = toshikikikuchi@google.com
+
+# For user-related changes
+per-file *User*.java = file:/MULTIUSER_OWNERS
+per-file *User*.java = file:/MULTIUSER_DESKTOP_OWNERS
+
+# Files related to App Lock
+per-file *AppLock*.java = file:/core/java/android/content/pm/APP_LOCK_OWNERS

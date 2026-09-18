@@ -39,8 +39,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * The interface for the class that implements the time detection algorithm used by the
- * {@link TimeDetectorService}.
+ * The interface for the class that implements the time detection algorithm used by the {@link
+ * TimeDetectorService}.
  *
  * <p>Most calls will be handled by a single thread but that is not true for all calls. For example
  * {@link #dump(IndentingPrintWriter, String[])}) may be called on a different thread so
@@ -50,9 +50,9 @@ import java.lang.annotation.Target;
  */
 public interface TimeDetectorStrategy extends Dumpable {
 
-    @IntDef({ ORIGIN_TELEPHONY, ORIGIN_MANUAL, ORIGIN_NETWORK, ORIGIN_GNSS, ORIGIN_EXTERNAL })
+    @IntDef({ORIGIN_TELEPHONY, ORIGIN_MANUAL, ORIGIN_NETWORK, ORIGIN_GNSS, ORIGIN_EXTERNAL})
     @Retention(RetentionPolicy.SOURCE)
-    @Target({ ElementType.TYPE_USE, ElementType.TYPE_PARAMETER })
+    @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
     @interface Origin {}
 
     /** Used when a time value originated from a telephony signal. */
@@ -82,19 +82,19 @@ public interface TimeDetectorStrategy extends Dumpable {
 
     /**
      * Signals that a user has confirmed the supplied time. If the {@code confirmationTime},
-     * adjusted for elapsed time since it was created (expected to be with {@link
-     * #getTimeState()}), is very close to the clock's current state, then this can be used to
-     * raise the system's confidence in that time. Returns {@code true} if confirmation was
-     * successful (i.e. the time matched), {@code false} otherwise.
+     * adjusted for elapsed time since it was created (expected to be with {@link #getTimeState()}),
+     * is very close to the clock's current state, then this can be used to raise the system's
+     * confidence in that time. Returns {@code true} if confirmation was successful (i.e. the time
+     * matched), {@code false} otherwise.
      */
     boolean confirmTime(@NonNull UnixEpochTime confirmationTime);
 
     /**
-     * Adds a listener that will be triggered when something changes that could affect the result
-     * of the {@link #getCapabilitiesAndConfig} call for the <em>current user only</em>. This
-     * includes the current user changing. This is exposed so that (indirect) users like SettingsUI
-     * can monitor for changes to data derived from {@link TimeCapabilitiesAndConfig} and update
-     * the UI accordingly.
+     * Adds a listener that will be triggered when something changes that could affect the result of
+     * the {@link #getCapabilitiesAndConfig} call for the <em>current user only</em>. This includes
+     * the current user changing. This is exposed so that (indirect) users like SettingsUI can
+     * monitor for changes to data derived from {@link TimeCapabilitiesAndConfig} and update the UI
+     * accordingly.
      */
     void addChangeListener(@NonNull StateChangeListener listener);
 
@@ -108,7 +108,7 @@ public interface TimeDetectorStrategy extends Dumpable {
      *
      * @param userId the user ID to retrieve the information for
      * @param bypassUserPolicyChecks {@code true} for device policy manager use cases where device
-     *   policy restrictions that should apply to actual users can be ignored
+     *     policy restrictions that should apply to actual users can be ignored
      */
     TimeCapabilitiesAndConfig getCapabilitiesAndConfig(
             @UserIdInt int userId, boolean bypassUserPolicyChecks);
@@ -122,14 +122,16 @@ public interface TimeDetectorStrategy extends Dumpable {
      * <p>See {@link #getCapabilitiesAndConfig} for guarantees about visibility of updates to
      * subsequent calls.
      *
-     * @param userId the current user ID, supplied to make sure that the asynchronous process
-     *   that happens when users switch is completed when the call is made
+     * @param userId the current user ID, supplied to make sure that the asynchronous process that
+     *     happens when users switch is completed when the call is made
      * @param configuration the configuration changes
      * @param bypassUserPolicyChecks {@code true} for device policy manager use cases where device
-     *   policy restrictions that should apply to actual users can be ignored
+     *     policy restrictions that should apply to actual users can be ignored
      */
-    boolean updateConfiguration(@UserIdInt int userId,
-            @NonNull TimeConfiguration configuration, boolean bypassUserPolicyChecks);
+    boolean updateConfiguration(
+            @UserIdInt int userId,
+            @NonNull TimeConfiguration configuration,
+            boolean bypassUserPolicyChecks);
 
     /** Processes the suggested time from telephony sources. */
     void suggestTelephonyTime(@NonNull TelephonyTimeSuggestion suggestion);
@@ -141,16 +143,17 @@ public interface TimeDetectorStrategy extends Dumpable {
      * matches the current device time is considered accepted.
      *
      * @param bypassUserPolicyChecks {@code true} for device policy manager use cases where device
-     *   policy restrictions that should apply to actual users can be ignored
+     *     policy restrictions that should apply to actual users can be ignored
      */
-    boolean suggestManualTime(@UserIdInt int userId, @NonNull ManualTimeSuggestion suggestion,
+    boolean suggestManualTime(
+            @UserIdInt int userId,
+            @NonNull ManualTimeSuggestion suggestion,
             boolean bypassUserPolicyChecks);
 
     /**
      * Processes the suggested network time. The suggestion may not be used to set the device's time
      * depending on device configuration and user settings, but can replace previous network
-     * suggestions received. See also
-     * {@link #addNetworkTimeUpdateListener(StateChangeListener)} and
+     * suggestions received. See also {@link #addNetworkTimeUpdateListener(StateChangeListener)} and
      * {@link #getLatestNetworkSuggestion()}.
      */
     void suggestNetworkTime(@NonNull NetworkTimeSuggestion suggestion);
@@ -189,42 +192,30 @@ public interface TimeDetectorStrategy extends Dumpable {
      */
     @NonNull
     static String originToString(@Origin int origin) {
-        switch (origin) {
-            case ORIGIN_MANUAL:
-                return "manual";
-            case ORIGIN_NETWORK:
-                return "network";
-            case ORIGIN_TELEPHONY:
-                return "telephony";
-            case ORIGIN_GNSS:
-                return "gnss";
-            case ORIGIN_EXTERNAL:
-                return "external";
-            default:
-                throw new IllegalArgumentException("origin=" + origin);
-        }
+        return switch (origin) {
+            case ORIGIN_MANUAL -> "manual";
+            case ORIGIN_NETWORK -> "network";
+            case ORIGIN_TELEPHONY -> "telephony";
+            case ORIGIN_GNSS -> "gnss";
+            case ORIGIN_EXTERNAL -> "external";
+            default -> throw new IllegalArgumentException("origin=" + origin);
+        };
     }
 
     /**
-     * Converts a human readable config string to one of the {@code ORIGIN_} constants.
-     * Throws an {@link IllegalArgumentException} if the value is unrecognized or {@code null}.
+     * Converts a human readable config string to one of the {@code ORIGIN_} constants. Throws an
+     * {@link IllegalArgumentException} if the value is unrecognized or {@code null}.
      */
     static @Origin int stringToOrigin(String originString) {
         Preconditions.checkArgument(originString != null);
 
-        switch (originString) {
-            case "manual":
-                return ORIGIN_MANUAL;
-            case "network":
-                return ORIGIN_NETWORK;
-            case "telephony":
-                return ORIGIN_TELEPHONY;
-            case "gnss":
-                return ORIGIN_GNSS;
-            case "external":
-                return ORIGIN_EXTERNAL;
-            default:
-                throw new IllegalArgumentException("originString=" + originString);
-        }
+        return switch (originString) {
+            case "manual" -> ORIGIN_MANUAL;
+            case "network" -> ORIGIN_NETWORK;
+            case "telephony" -> ORIGIN_TELEPHONY;
+            case "gnss" -> ORIGIN_GNSS;
+            case "external" -> ORIGIN_EXTERNAL;
+            default -> throw new IllegalArgumentException("originString=" + originString);
+        };
     }
 }

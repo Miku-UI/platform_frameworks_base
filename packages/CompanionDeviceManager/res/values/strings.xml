@@ -83,9 +83,6 @@
     <!-- Summary for associating an application with a companion device of APP_STREAMING profile [CHAR LIMIT=NONE] -->
     <string name="summary_app_streaming"><xliff:g id="app_name" example="Exo">%1$s</xliff:g> will be granted the following permissions:</string>
 
-    <!-- Legacy Summary for associating an application with a companion device of APP_STREAMING profile [CHAR LIMIT=NONE] -->
-    <string name="summary_app_streaming_legacy"><xliff:g id="app_name" example="Exo">%1$s</xliff:g> will have access to anything that’s visible or played on your <xliff:g id="device_type" example="phone">%2$s</xliff:g>, including audio, photos, payment info, passwords, and messages.&lt;br/>&lt;br/><xliff:g id="app_name" example="Exo">%1$s</xliff:g> will be able to stream apps to <xliff:g id="device_name" example="Chromebook">%3$s</xliff:g> until you remove access to this permission.</string>
-
     <!-- Description of the helper dialog for APP_STREAMING profile. [CHAR LIMIT=NONE] -->
     <string name="helper_summary_app_streaming"><xliff:g id="app_name" example="Exo">%1$s</xliff:g> is requesting permission on behalf of <xliff:g id="device_name" example="Chromebook">%2$s</xliff:g> to stream apps and system features between your devices</string>
 
@@ -113,9 +110,6 @@
     <!-- Summary for associating an application with a companion device of NEARBY_DEVICE_STREAMING profile [CHAR LIMIT=NONE] -->
     <string name="summary_nearby_device_streaming"><xliff:g id="app_name" example="Exo">%1$s</xliff:g> will be granted the following permissions:</string>
 
-    <!-- Legacy Summary for associating an application with a companion device of NEARBY_DEVICE_STREAMING profile [CHAR LIMIT=NONE] -->
-    <string name="summary_nearby_device_streaming_legacy"><xliff:g id="app_name" example="Exo">%1$s</xliff:g> will have access to anything that’s visible or played on <xliff:g id="device_name" example="Chromebook">%3$s</xliff:g>, including audio, photos, payment info, passwords, and messages.&lt;br/>&lt;br/><xliff:g id="app_name" example="Exo">%1$s</xliff:g> will be able to stream apps to <xliff:g id="device_name" example="Chromebook">%3$s</xliff:g> until you remove access to this permission.</string>
-
     <!-- Description of the helper dialog for NEARBY_DEVICE_STREAMING profile. [CHAR LIMIT=NONE] -->
     <string name="helper_summary_nearby_device_streaming"><xliff:g id="app_name" example="Exo">%1$s</xliff:g> is requesting permission on behalf of <xliff:g id="device_name" example="Chromebook">%2$s</xliff:g> to stream apps from your <xliff:g id="device_type" example="phone">%3$s</xliff:g></string>
 
@@ -134,6 +128,12 @@
 
     <!-- Description of the privileges the application will get if associated with the companion device of unspecified profile (type) [CHAR LIMIT=NONE] -->
     <string name="summary_generic">This app will be able to sync info, like the name of someone calling, between your phone and the chosen device</string>
+
+    <!-- Description of the privileges the app will get if associated with permissions and remote AI agent capability [CHAR LIMIT=NONE] -->
+    <string name="summary_generic_with_remote_ai_capability">Allow &lt;strong&gt;<xliff:g id="companion_device_name" example="Test Device">%1$s</xliff:g>&lt;/strong&gt; to sync info such as caller info and run smart actions from your <xliff:g id="device_type" example="phone">%2$s</xliff:g></string>
+
+    <!-- Description of the privileges the app will get if associated with remote AI agent capability [CHAR LIMIT=NONE] -->
+    <string name="summary_with_permissions_and_remote_ai_capability">Give &lt;strong&gt;<xliff:g id="companion_device_name" example="Test Device">%1$s</xliff:g>&lt;/strong&gt; permissions to sync info such as caller info and run smart actions from your <xliff:g id="device_type" example="phone">%2$s</xliff:g></string>
 
     <!-- ================= Buttons ================= -->
 
@@ -203,6 +203,9 @@
     <!-- Notification permission will be granted of corresponding profile [CHAR LIMIT=30] -->
     <string name="permission_notifications">Notifications</string>
 
+    <!-- Permission(s) for application, screen, and sensor streaming given to the APP_STREAMING profile [CHAR LIMIT=30] -->
+    <string name="permission_app_streaming">Mirror screen and stream apps</string>
+
     <!-- Virtual device permission will be granted of corresponding profile [CHAR LIMIT=30] -->
     <string name="permission_create_virtual_device">Stream data to your <xliff:g id="device_type" example="phone">%1$s</xliff:g></string>
 
@@ -243,13 +246,16 @@
     <string name="permission_notification_listener_access_summary">Read all notifications, including information like contacts, messages, and photos</string>
 
     <!-- Description of NLA & POST_NOTIFICATION of corresponding profile [CHAR LIMIT=NONE] -->
-    <string name="permission_notifications_summary">\u2022 Read all notifications, including info like contacts, messages, and photos&lt;br/>\u2022 Send you notifications&lt;br/>&lt;br/>You can manage this app\'s ability to read and send notifications anytime in Settings > Notifications.</string>
+    <string name="permission_notifications_summary">\u2022 Read all notifications, including info like contacts, messages, and photos&lt;br/>\u2022 Send you notifications&lt;br/>&lt;br/>You can manage this app\'s ability to read and send notifications anytime in Settings &#8250; Notifications.</string>
 
     <!-- Description of storage permission of corresponding profile [CHAR LIMIT=NONE] -->
-    <string name="permission_storage_summary"></string>
+    <string name="permission_storage_summary">Share your phone\'s photos and media with your other devices.</string>
 
     <!-- Description of post notifications permission of corresponding profile [CHAR LIMIT=NONE] -->
     <string name="permission_post_notifications_summary">Send you notifications</string>
+
+    <!-- Description of application, screen, and sensor streaming permission of the APP_STREAMING profile [CHAR LIMIT=NONE] -->
+    <string name="permission_app_streaming_summary">Share your phone\'s screen, including apps, to your devices. Your devices will have access to anything that\'s visible on your phone, including audio, photos, payment info, passwords and messages, even when your phone is locked.&lt;br/>&lt;br/>Provide microphone, camera and other sensor data from your devices back to your phone, including interactions like touch gestures and mouse clicks.</string>
 
     <!-- Description of virtual device permission of corresponding profile [CHAR LIMIT=NONE] -->
     <string name="permission_create_virtual_device_summary">Stream microphone, camera and other sensor data from &lt;strong&gt;<xliff:g id="device_name" example="Chromebook">%3$s</xliff:g>&lt;/strong&gt; to your <xliff:g id="device_type" example="phone">%2$s</xliff:g>.</string>
@@ -264,10 +270,10 @@
     <string name="permission_media_routing_control_summary">Access a list of available devices and control which one streams or casts audio or video from other apps</string>
 
     <!-- Description of schedule exact alarm permission to be granted to the corresponding profile [CHAR LIMIT=NONE] -->
-    <string name="permission_schedule_exact_alarm_summary"></string>
+    <string name="permission_schedule_exact_alarm_summary">Send you alerts</string>
 
     <!-- Description of bypass DND permission to be granted to the corresponding profile [CHAR LIMIT=NONE] -->
-    <string name="permission_bypass_dnd_summary"></string>
+    <string name="permission_bypass_dnd_summary">Send you alerts even when Do Not Disturb mode is on</string>
 
     <!-- The type of the device for phone [CHAR LIMIT=30] -->
     <string name="device_type" product="default">phone</string>

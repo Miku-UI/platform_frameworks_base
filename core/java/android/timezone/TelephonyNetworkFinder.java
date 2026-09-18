@@ -83,9 +83,7 @@ public final class TelephonyNetworkFinder {
                 ? new MobileCountries(telephonyNetworkDelegate) : null;
     }
 
-    /**
-     * Returns the countries where a given MCC is in use.
-     */
+    /** Returns the countries associated with a mobile country code (MCC). */
     @Nullable
     public MobileCountries findCountriesByMcc(@NonNull String mcc) {
         Objects.requireNonNull(mcc);

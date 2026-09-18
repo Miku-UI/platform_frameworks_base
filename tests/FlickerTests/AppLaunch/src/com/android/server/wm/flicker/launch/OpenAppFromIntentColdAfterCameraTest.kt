@@ -47,13 +47,12 @@ class OpenAppFromIntentColdAfterCameraTest(flicker: FlickerTest) :
         get() = {
             super.transition(this)
             setup {
-                tapl.setExpectedRotationCheckEnabled(false)
+                tapl.expectedRotationCheckEnabled = false
                 // 1. Open camera - cold -> close it first
                 cameraApp.exit(wmHelper)
                 cameraApp.launchViaIntent(wmHelper)
                 // Can't use TAPL due to Recents not showing in 3 Button Nav in full screen mode
                 device.pressHome()
-                tapl.getWorkspace()
                 wmHelper.StateSyncBuilder().withHomeActivityVisible().waitForAndVerify()
             }
             teardown { testApp.exit(wmHelper) }

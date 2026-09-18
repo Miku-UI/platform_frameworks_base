@@ -18,12 +18,15 @@ package com.android.server.am.psc;
 
 import android.annotation.ElapsedRealtimeLong;
 import android.app.ActivityManager;
+import android.app.ActivityManager.ProcessCapability;
+import android.app.ActivityManager.ProcessState;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.util.TimeUtils;
 
 import com.android.internal.annotations.CompositeRWLock;
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.annotations.VisibleForTesting;
 
 /**
  * Represents overall state information for a UID that has actively running processes,
@@ -43,12 +46,16 @@ public abstract class UidRecordInternal {
     /** The UID represented by this record. */
     protected final int mUid;
 
+    /** Sequence number associated with the {@link #mCurProcState}. */
+    @CompositeRWLock({"mService", "mProcLock"})
+    private long mCurProcStateSeq;
+
     /**
      * The minimum (i.e. most important) process state of the non-isolated processes under the UID
      * at the current round of computation.
      */
     @CompositeRWLock({"mService", "mProcLock"})
-    protected int mCurProcState;
+    protected @ProcessState int mCurProcState;
 
     /**
      * The minimum (i.e. most important) process state of the non-isolated processes under the UID
@@ -56,7 +63,7 @@ public abstract class UidRecordInternal {
      * The value will be updated to {@link #mCurProcState} when the computation is done.
      */
     @CompositeRWLock({"mService", "mProcLock"})
-    protected int mSetProcState = ActivityManager.PROCESS_STATE_NONEXISTENT;
+    protected @ProcessState int mSetProcState = ActivityManager.PROCESS_STATE_NONEXISTENT;
 
     /** Whether a process adjustment has changed for this UID since the last check. */
     @CompositeRWLock({"mService", "mProcLock"})
@@ -64,14 +71,14 @@ public abstract class UidRecordInternal {
 
     /** The aggregated capability flags for this UID at the current round of computation. */
     @CompositeRWLock({"mService", "mProcLock"})
-    protected int mCurCapability;
+    protected @ProcessCapability int mCurCapability;
 
     /**
      * The aggregated capability flags for this UID at the last round of computation.
      * The value will be updated to {@link #mCurCapability} when the computation is done.
      */
     @CompositeRWLock({"mService", "mProcLock"})
-    protected int mSetCapability;
+    protected @ProcessCapability int mSetCapability;
 
     /**
      * The elapsed real-time when the UID last went into the background.
@@ -137,7 +144,7 @@ public abstract class UidRecordInternal {
     public void reset() {
         mCurProcState = ActivityManager.PROCESS_STATE_CACHED_EMPTY;
         mHasForegroundServices = false;
-        mCurCapability = 0;
+        mCurCapability = ActivityManager.PROCESS_CAPABILITY_NONE;
     }
 
     public int getUid() {
@@ -145,22 +152,33 @@ public abstract class UidRecordInternal {
     }
 
     @GuardedBy(anyOf = {"mService", "mProcLock"})
-    public int getCurProcState() {
+    public long getCurProcStateSeq() {
+        return mCurProcStateSeq;
+    }
+
+    @VisibleForTesting
+    @GuardedBy({"mService", "mProcLock"})
+    void setCurProcStateSeq(long value) {
+        mCurProcStateSeq = value;
+    }
+
+    @GuardedBy(anyOf = {"mService", "mProcLock"})
+    public @ProcessState int getCurProcState() {
         return mCurProcState;
     }
 
     @GuardedBy({"mService", "mProcLock"})
-    public void setCurProcState(int curProcState) {
+    void setCurProcState(@ProcessState int curProcState) {
         mCurProcState = curProcState;
     }
 
     @GuardedBy(anyOf = {"mService", "mProcLock"})
-    public int getSetProcState() {
+    public @ProcessState int getSetProcState() {
         return mSetProcState;
     }
 
     @GuardedBy({"mService", "mProcLock"})
-    public void setSetProcState(int setProcState) {
+    void setSetProcState(@ProcessState int setProcState) {
         mSetProcState = setProcState;
     }
 
@@ -170,27 +188,27 @@ public abstract class UidRecordInternal {
     }
 
     @GuardedBy({"mService", "mProcLock"})
-    public void setProcAdjChanged(boolean procAdjChanged) {
+    void setProcAdjChanged(boolean procAdjChanged) {
         mProcAdjChanged = procAdjChanged;
     }
 
     @GuardedBy(anyOf = {"mService", "mProcLock"})
-    public int getCurCapability() {
+    public @ProcessCapability int getCurCapability() {
         return mCurCapability;
     }
 
     @GuardedBy({"mService", "mProcLock"})
-    public void setCurCapability(int curCapability) {
+    void setCurCapability(@ProcessCapability int curCapability) {
         mCurCapability = curCapability;
     }
 
     @GuardedBy(anyOf = {"mService", "mProcLock"})
-    public int getSetCapability() {
+    public @ProcessCapability int getSetCapability() {
         return mSetCapability;
     }
 
     @GuardedBy({"mService", "mProcLock"})
-    public void setSetCapability(int setCapability) {
+    void setSetCapability(@ProcessCapability int setCapability) {
         mSetCapability = setCapability;
     }
 
@@ -200,7 +218,7 @@ public abstract class UidRecordInternal {
     }
 
     @GuardedBy({"mService", "mProcLock"})
-    public void setLastBackgroundTime(long lastBackgroundTime) {
+    void setLastBackgroundTime(long lastBackgroundTime) {
         mLastBackgroundTime = lastBackgroundTime;
     }
 
@@ -222,7 +240,7 @@ public abstract class UidRecordInternal {
      * @param lastIdleTime The elapsed real-time when the UID became idle.
      */
     @GuardedBy({"mService", "mProcLock"})
-    public void setLastIdleTime(@ElapsedRealtimeLong long lastIdleTime) {
+    void setLastIdleTime(@ElapsedRealtimeLong long lastIdleTime) {
         mLastIdleTimeIfStillIdle = lastIdleTime;
         if (lastIdleTime > 0) {
             mRealLastIdleTime = lastIdleTime;
@@ -235,7 +253,7 @@ public abstract class UidRecordInternal {
     }
 
     @GuardedBy({"mService", "mProcLock"})
-    public void setEphemeral(boolean ephemeral) {
+    void setEphemeral(boolean ephemeral) {
         mEphemeral = ephemeral;
     }
 
@@ -245,7 +263,7 @@ public abstract class UidRecordInternal {
     }
 
     @GuardedBy({"mService", "mProcLock"})
-    public void setHasForegroundServices(boolean hasForeGroundServices) {
+    void setHasForegroundServices(boolean hasForeGroundServices) {
         mHasForegroundServices = hasForeGroundServices;
     }
 
@@ -255,7 +273,7 @@ public abstract class UidRecordInternal {
     }
 
     @GuardedBy({"mService", "mProcLock"})
-    public void setCurAllowListed(boolean curAllowList) {
+    void setCurAllowListed(boolean curAllowList) {
         mCurAllowList = curAllowList;
     }
 
@@ -265,7 +283,7 @@ public abstract class UidRecordInternal {
     }
 
     @GuardedBy({"mService", "mProcLock"})
-    public void setSetAllowListed(boolean setAllowlist) {
+    void setSetAllowListed(boolean setAllowlist) {
         mSetAllowList = setAllowlist;
     }
 
@@ -275,7 +293,7 @@ public abstract class UidRecordInternal {
     }
 
     @GuardedBy({"mService", "mProcLock"})
-    public void setIdle(boolean idle) {
+    void setIdle(boolean idle) {
         mIdle = idle;
     }
 
@@ -285,7 +303,7 @@ public abstract class UidRecordInternal {
     }
 
     @GuardedBy({"mService", "mProcLock"})
-    public void setSetIdle(boolean setIdle) {
+    void setSetIdle(boolean setIdle) {
         mSetIdle = setIdle;
     }
 

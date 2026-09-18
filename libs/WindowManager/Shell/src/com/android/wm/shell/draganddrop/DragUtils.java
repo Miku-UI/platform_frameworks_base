@@ -121,7 +121,7 @@ public class DragUtils {
     }
 
     /**
-     * Returns the string description of the given {@param dragFlags}.
+     * Returns the string description of the given {@code dragFlags}.
      */
     public static String dragFlagsToString(int dragFlags) {
         StringJoiner str = new StringJoiner("|");

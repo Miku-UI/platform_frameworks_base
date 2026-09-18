@@ -23,4 +23,5 @@ class FakeUserSwitcherRepository : UserSwitcherRepository {
     override val isEnabled = MutableStateFlow(false)
     override val userSwitcherStatus =
         MutableStateFlow<UserSwitcherStatusModel>(UserSwitcherStatusModel.Disabled)
+    override var isUserSwitchingMustGoThroughLoginScreen: Boolean = false
 }

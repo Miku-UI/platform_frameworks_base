@@ -16,7 +16,6 @@
 
 package com.android.systemui.accessibility.hearingaid;
 
-import static android.bluetooth.AudioInputControl.MUTE_DISABLED;
 import static android.bluetooth.AudioInputControl.MUTE_MUTED;
 import static android.bluetooth.AudioInputControl.MUTE_NOT_MUTED;
 import static android.view.View.GONE;
@@ -156,38 +155,6 @@ public class AmbientVolumeLayoutTest extends SysuiTestCase {
 
         int expectedLevel = calculateVolumeLevel(4, TEST_RIGHT_VOLUME_LEVEL);
         assertThat(mVolumeIcon.getDrawable().getLevel()).isEqualTo(expectedLevel);
-    }
-
-    @Test
-    public void isMutable_bothSideNotMutable_returnFalse() {
-        mLayout.setSliderMuteState(SIDE_LEFT, MUTE_DISABLED);
-        mLayout.setSliderMuteState(SIDE_RIGHT, MUTE_DISABLED);
-
-        assertThat(mLayout.isMutable()).isFalse();
-    }
-
-    @Test
-    public void isMutable_oneSideMutable_returnTrue() {
-        mLayout.setSliderMuteState(SIDE_LEFT, MUTE_DISABLED);
-        mLayout.setSliderMuteState(SIDE_RIGHT, MUTE_NOT_MUTED);
-
-        assertThat(mLayout.isMutable()).isTrue();
-    }
-
-    @Test
-    public void isMuted_bothSideMuted_returnTrue() {
-        mLayout.setSliderMuteState(SIDE_LEFT, MUTE_MUTED);
-        mLayout.setSliderMuteState(SIDE_RIGHT, MUTE_MUTED);
-
-        assertThat(mLayout.isMuted()).isTrue();
-    }
-
-    @Test
-    public void isMuted_oneSideNotMuted_returnFalse() {
-        mLayout.setSliderMuteState(SIDE_LEFT, MUTE_MUTED);
-        mLayout.setSliderMuteState(SIDE_RIGHT, MUTE_NOT_MUTED);
-
-        assertThat(mLayout.isMuted()).isFalse();
     }
 
     @Test

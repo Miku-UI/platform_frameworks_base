@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusEventModifierNode
 import androidx.compose.ui.focus.FocusState
 import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
@@ -44,14 +43,18 @@ fun Modifier.borderOnFocus(
     color: Color,
     cornerSize: CornerSize,
     strokeWidth: Dp = 3.dp,
-    padding: Dp = 2.dp,
-) = this then BorderOnFocusElement(color, cornerSize, strokeWidth, padding)
+    paddingHorizontal: Dp = 2.dp,
+    paddingVertical: Dp = 2.dp,
+) =
+    this then
+        BorderOnFocusElement(color, cornerSize, strokeWidth, paddingHorizontal, paddingVertical)
 
 private class BorderOnFocusNode(
     var color: Color,
     var cornerSize: CornerSize,
     var strokeWidth: Dp,
-    var padding: Dp,
+    var paddingHorizontal: Dp,
+    var paddingVertical: Dp,
 ) : FocusEventModifierNode, DrawModifierNode, Modifier.Node() {
 
     private var focused by mutableStateOf(false)
@@ -62,7 +65,13 @@ private class BorderOnFocusNode(
 
     override fun ContentDrawScope.draw() {
         drawContent()
-        val focusOutline = Rect(Offset.Zero, size).inflate(padding.toPx())
+        val focusOutline =
+            Rect(
+                left = -paddingHorizontal.toPx(),
+                top = -paddingVertical.toPx(),
+                right = size.width + paddingHorizontal.toPx(),
+                bottom = size.height + paddingVertical.toPx(),
+            )
         if (focused) {
             drawRoundRect(
                 color = color,
@@ -79,17 +88,19 @@ private data class BorderOnFocusElement(
     val color: Color,
     val cornerSize: CornerSize,
     val strokeWidth: Dp,
-    val padding: Dp,
+    val paddingHorizontal: Dp,
+    val paddingVertical: Dp,
 ) : ModifierNodeElement<BorderOnFocusNode>() {
     override fun create(): BorderOnFocusNode {
-        return BorderOnFocusNode(color, cornerSize, strokeWidth, padding)
+        return BorderOnFocusNode(color, cornerSize, strokeWidth, paddingHorizontal, paddingVertical)
     }
 
     override fun update(node: BorderOnFocusNode) {
         node.color = color
         node.cornerSize = cornerSize
         node.strokeWidth = strokeWidth
-        node.padding = padding
+        node.paddingHorizontal = paddingHorizontal
+        node.paddingVertical = paddingVertical
     }
 
     override fun InspectorInfo.inspectableProperties() {
@@ -97,6 +108,7 @@ private data class BorderOnFocusElement(
         properties["color"] = color
         properties["cornerSize"] = cornerSize
         properties["strokeWidth"] = strokeWidth
-        properties["padding"] = padding
+        properties["paddingHorizontal"] = paddingHorizontal
+        properties["paddingVertical"] = paddingVertical
     }
 }

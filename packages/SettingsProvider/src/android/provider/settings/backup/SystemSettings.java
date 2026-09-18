@@ -19,8 +19,6 @@ package android.provider.settings.backup;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.provider.Settings;
 
-import com.android.server.display.feature.flags.Flags;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -98,6 +96,7 @@ public class SystemSettings {
                 Settings.System.HAPTIC_FEEDBACK_INTENSITY,
                 Settings.System.HARDWARE_HAPTIC_FEEDBACK_INTENSITY,
                 Settings.System.GESTURE_INPUT_VIBRATION_INTENSITY,
+                Settings.System.KEYBOARD_VIBRATION_INTENSITY,
                 Settings.System.KEYBOARD_VIBRATION_ENABLED,
                 Settings.System.HAPTIC_FEEDBACK_ENABLED,
                 Settings.System.DISPLAY_COLOR_MODE_VENDOR_HINT, // must precede DISPLAY_COLOR_MODE
@@ -106,6 +105,7 @@ public class SystemSettings {
                 Settings.System.NOTIFICATION_LIGHT_PULSE,
                 Settings.System.WEAR_ACCESSIBILITY_GESTURE_ENABLED,
                 Settings.System.CLOCKWORK_BLUETOOTH_SETTINGS_PREF,
+                Settings.System.ENABLE_NOTIFICATION_WITHOUT_TAP_OR_TILT,
                 Settings.System.UNREAD_NOTIFICATION_DOT_INDICATOR,
                 Settings.System.AUTO_LAUNCH_MEDIA_CONTROLS,
                 Settings.System.LOCALE_PREFERENCES,
@@ -129,12 +129,11 @@ public class SystemSettings {
                 Settings.System.PREFERRED_REGION,
                 Settings.System.CV_ENABLED,
                 Settings.System.CV_DYNAMIC_ENABLED,
-                Settings.System.CV_PREFERRED_INTENSITY
+                Settings.System.CV_PREFERRED_INTENSITY,
+                Settings.System.PEAK_REFRESH_RATE,
+                Settings.System.MIN_REFRESH_RATE,
+                Settings.System.ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_DISABLE
         ));
-        if (Flags.backUpSmoothDisplayAndForcePeakRefreshRate()) {
-            settings.add(Settings.System.PEAK_REFRESH_RATE);
-            settings.add(Settings.System.MIN_REFRESH_RATE);
-        }
         return settings.toArray(new String[0]);
     }
 }

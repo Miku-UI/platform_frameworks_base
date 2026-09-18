@@ -35,6 +35,7 @@ import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
+import android.uilatencystats.UiLatencyStatsManager;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowManager;
@@ -51,10 +52,11 @@ import com.android.systemui.res.R;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
 import com.android.systemui.util.wrapper.LockPatternCheckerWrapper;
 
+import java.util.Optional;
+
 public class KeyguardSimPinViewController
         extends KeyguardPinBasedInputViewController<KeyguardSimPinView> {
     public static final String TAG = "KeyguardSimPinView";
-    private static final String LOG_TAG = "KeyguardSimPinView";
     private final KeyguardUpdateMonitor mKeyguardUpdateMonitor;
     private final TelephonyManager mTelephonyManager;
 
@@ -103,13 +105,14 @@ public class KeyguardSimPinViewController
             BouncerHapticPlayer bouncerHapticPlayer,
             UserActivityNotifier userActivityNotifier,
             InputManager inputManager,
-            LockPatternCheckerWrapper lockPatternCheckerWrapper
+            LockPatternCheckerWrapper lockPatternCheckerWrapper,
+            Optional<UiLatencyStatsManager> uiLatencyStatsManager
     ) {
         super(view, keyguardUpdateMonitor, securityMode, lockPatternUtils, keyguardSecurityCallback,
                 messageAreaControllerFactory, latencyTracker,
                 emergencyButtonController, falsingCollector, featureFlags, selectedUserInteractor,
                 keyguardKeyboardInteractor, bouncerHapticPlayer, userActivityNotifier, inputManager,
-                lockPatternCheckerWrapper
+                lockPatternCheckerWrapper, uiLatencyStatsManager
         );
         mKeyguardUpdateMonitor = keyguardUpdateMonitor;
         mTelephonyManager = telephonyManager;
@@ -173,7 +176,7 @@ public class KeyguardSimPinViewController
     protected void verifyPasswordAndUnlock() {
         String entry = mPasswordEntry.getText();
 
-        // A SIM PIN is 4 to 8 decimal digits according to 
+        // A SIM PIN is 4 to 8 decimal digits according to
         // GSM 02.17 version 5.0.1, Section 5.6 PIN Management
         if ((entry.length() < 4) || (entry.length() > 8)) {
             // otherwise, display a message to the user, and don't submit.
@@ -189,7 +192,7 @@ public class KeyguardSimPinViewController
         if (mCheckSimPinThread == null) {
             mCheckSimPinThread = new CheckSimPin(mPasswordEntry.getText(), mSubId) {
                 @Override
-                void onSimCheckResponse(final PinResult result) {
+                void onSimCheckResponse(final PinResult result, int subId) {
                     mView.post(() -> {
                         mRemainingAttempts = result.getAttemptsRemaining();
                         if (mSimUnlockProgressDialog != null) {
@@ -199,7 +202,7 @@ public class KeyguardSimPinViewController
                                 /* announce */
                                 result.getResult() != PinResult.PIN_RESULT_TYPE_SUCCESS);
                         if (result.getResult() == PinResult.PIN_RESULT_TYPE_SUCCESS) {
-                            mKeyguardUpdateMonitor.reportSimUnlocked(mSubId);
+                            mKeyguardUpdateMonitor.reportSimUnlocked(subId);
                             mRemainingAttempts = -1;
                             mShowDefaultMessage = true;
                             getKeyguardSecurityCallback().dismiss(
@@ -224,7 +227,7 @@ public class KeyguardSimPinViewController
                                 mMessageAreaController.setMessage(mView.getResources().getString(
                                         R.string.kg_password_pin_failed));
                             }
-                            Log.d(LOG_TAG, "verifyPasswordAndUnlock "
+                            Log.d(TAG, "verifyPasswordAndUnlock "
                                     + " CheckSimPin.onSimCheckResponse: " + result
                                     + " attemptsRemaining=" + result.getAttemptsRemaining());
                         }
@@ -286,7 +289,7 @@ public class KeyguardSimPinViewController
             displayMessage = mView.getResources()
                     .getString(R.string.kg_sim_lock_esim_instructions, displayMessage);
         }
-        Log.d(LOG_TAG, "getPinPasswordErrorMessage: attemptsRemaining="
+        Log.d(TAG, "getPinPasswordErrorMessage: attemptsRemaining="
                 + attemptsRemaining + " displayMessage=" + displayMessage);
         return displayMessage;
     }
@@ -299,8 +302,8 @@ public class KeyguardSimPinViewController
 
         // Sending empty PIN here to query the number of remaining PIN attempts
         new CheckSimPin("", mSubId) {
-            void onSimCheckResponse(final PinResult result) {
-                Log.d(LOG_TAG, "onSimCheckResponse " + " empty One result "
+            void onSimCheckResponse(final PinResult result, int subId) {
+                Log.d(TAG, "onSimCheckResponse (" + subId + ") empty One result "
                         + result.toString());
                 if (result.getAttemptsRemaining() >= 0) {
                     mRemainingAttempts = result.getAttemptsRemaining();
@@ -323,7 +326,7 @@ public class KeyguardSimPinViewController
             mSubId = subId;
         }
 
-        abstract void onSimCheckResponse(@NonNull PinResult result);
+        abstract void onSimCheckResponse(@NonNull PinResult result, int subId);
 
         @Override
         public void run() {
@@ -331,12 +334,16 @@ public class KeyguardSimPinViewController
             Log.v(TAG, "call supplyIccLockPin(subid=" + mSubId + ")");
             TelephonyManager telephonyManager = mTelephonyManager.createForSubscriptionId(mSubId);
             if (telephonyManager == null) {
-                Log.w(LOG_TAG, "Null telephonyManager, cannot validate SimPin");
+                Log.w(TAG, "Null telephonyManager, cannot validate SimPin");
                 return;
             }
-            final PinResult result = telephonyManager.supplyIccLockPin(mPin);
-            Log.v(TAG, "supplyIccLockPin returned: " + result.toString());
-            mView.post(() -> onSimCheckResponse(result));
+            try {
+                final PinResult result = telephonyManager.supplyIccLockPin(mPin);
+                Log.v(TAG, "supplyIccLockPin returned: " + result.toString());
+                mView.post(() -> onSimCheckResponse(result, mSubId));
+            } catch (IllegalStateException e) {
+                Log.e(TAG, "Error calling supplyIccLockPin", e);
+            }
         }
     }
 

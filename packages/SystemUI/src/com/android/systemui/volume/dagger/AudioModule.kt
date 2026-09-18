@@ -19,6 +19,7 @@ package com.android.systemui.volume.dagger
 import android.content.ContentResolver
 import android.content.Context
 import android.media.AudioManager
+import android.os.Handler
 import com.android.settingslib.bluetooth.LocalBluetoothManager
 import com.android.settingslib.flags.Flags
 import com.android.settingslib.notification.domain.interactor.NotificationsSoundPolicyInteractor
@@ -36,6 +37,7 @@ import com.android.settingslib.volume.shared.AudioManagerEventsReceiverImpl
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.volume.shared.VolumeLogger
 import dagger.Module
 import dagger.Provides
@@ -54,8 +56,18 @@ interface AudioModule {
             @Application context: Context,
             @Application coroutineScope: CoroutineScope,
             @Background coroutineContext: CoroutineContext,
+            @Background backgroundHandler: Handler,
         ): AudioManagerEventsReceiver =
-            AudioManagerEventsReceiverImpl(context, coroutineScope, coroutineContext)
+            AudioManagerEventsReceiverImpl(
+                context,
+                coroutineScope,
+                coroutineContext,
+                if (SceneContainerFlag.isEnabled) {
+                    backgroundHandler
+                } else {
+                    null
+                },
+            )
 
         @Provides
         @SysUISingleton

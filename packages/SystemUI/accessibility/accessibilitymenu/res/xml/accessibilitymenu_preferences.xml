@@ -15,7 +15,7 @@
   ~ limitations under the License.
   -->
 
-<androidx.preference.PreferenceScreen
+<PreferenceScreen
     xmlns:android="http://schemas.android.com/apk/res/android">
 
     <SwitchPreferenceCompat
@@ -29,4 +29,4 @@
         android:key="@string/pref_help"
         android:title="@string/pref_help_title"/>
 
-</androidx.preference.PreferenceScreen>
+</PreferenceScreen>

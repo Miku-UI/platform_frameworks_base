@@ -17,6 +17,8 @@
 syntax = "proto2";
 
 import "frameworks/base/core/proto/android/graphics/pixelformat.proto";
+import "frameworks/base/core/proto/android/graphics/insets.proto";
+import "frameworks/base/core/proto/android/graphics/rect.proto";
 import "frameworks/base/core/proto/android/view/display.proto";
 import "frameworks/base/core/proto/android/privacy.proto";
 import "frameworks/base/core/proto/android/typedef.proto";
@@ -67,4 +69,31 @@ message WindowLayoutParamsProto {
     optional uint32 fit_insets_types = 31 [(.android.typedef) = "android.view.WindowInsets.Type.InsetsType"];
     optional uint32 fit_insets_sides = 32 [(.android.typedef) = "android.view.WindowInsets.Side.InsetsSide"];
     optional bool fit_ignore_visibility = 33;
+    optional uint32 forcibly_shown_types = 34 [(.android.typedef) = "android.view.WindowInsets.Type.InsetsType"];
+    repeated InsetsFrameProviderProto provided_insets = 35;
+    repeated WindowLayoutParamsProto params_for_rotation = 36;
+    optional uint32 rendering_hints = 37 [(.android.typedef) = "android.view.WindowManager.LayoutParams.RenderingHints"];
+}
+
+/* represents InsetsFrameProvider */
+message InsetsFrameProviderProto {
+    option (android.msg_privacy).dest = DEST_AUTOMATIC;
+
+    optional int32 id = 1;
+    optional int32 type = 2;
+    optional int32 source = 3;
+    optional .android.graphics.RectProto arbitrary_rectangle = 4;
+    optional int32 flags = 5;
+    optional .android.graphics.InsetsProto insets_size = 6;
+    repeated InsetsSizeOverrideProto insets_size_override = 7;
+    optional .android.graphics.InsetsProto minimal_insets_size_in_display_cutout_safe = 8;
+    repeated .android.graphics.RectProto bounding_rects = 9;
+}
+
+/* represents InsetsSizeOverride */
+message InsetsSizeOverrideProto {
+    option (android.msg_privacy).dest = DEST_AUTOMATIC;
+
+    optional int32 windowType = 1;
+    optional .android.graphics.InsetsProto insets_size = 2;
 }

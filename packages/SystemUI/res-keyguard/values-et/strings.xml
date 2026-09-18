@@ -45,6 +45,7 @@
     <string name="keyguard_accessibility_password" msgid="3524161948484801450">"Seadme parool"</string>
     <string name="keyguard_accessibility_sim_pin_area" msgid="6272116591533888062">"SIM-kaardi PIN-koodi ala"</string>
     <string name="keyguard_accessibility_sim_puk_area" msgid="5537294043180237374">"SIM-kaardi PUK-koodi ala"</string>
+    <string name="keyguard_accessibility_pin_delete_long_click" msgid="1530074796041838525">"pikk vajutus kustutab kõik"</string>
     <string name="keyboardview_keycode_delete" msgid="8489719929424895174">"Kustuta"</string>
     <string name="disable_carrier_button_text" msgid="7153361131709275746">"Keela eSIM-kaart"</string>
     <string name="error_disable_esim_title" msgid="3802652622784813119">"eSIM-kaarti ei saa keelata"</string>
@@ -85,9 +86,20 @@
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"Sõrmejäljega ei saa avada. Liiga palju katseid."</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"Usaldusväärne agent pole saadaval"</string>
     <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"Liiga palju vale PIN-koodiga katseid."</string>
+    <string name="kg_primary_auth_duplicate_guess_pin" msgid="5834891656916692329">"Proovisite juba seda PIN-i. Proovige teist."</string>
+    <string name="kg_primary_auth_duplicate_guess_pattern" msgid="3827593245962385968">"Juba proovisite seda mustrit. Proovige mõnda muud."</string>
+    <string name="kg_primary_auth_duplicate_guess_password" msgid="3153406042812407458">"Juba proovisite seda parooli. Proovige mõnda muud."</string>
     <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"Liiga palju vale mustriga katseid."</string>
     <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"Liiga palju vale parooliga katseid."</string>
+    <string name="kg_primary_auth_locked_out_pin_shortlink" msgid="1294871994741389848">"Liiga palju vale PIN-koodiga katseid.\nLisateave: <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
+    <string name="kg_primary_auth_locked_out_pattern_shortlink" msgid="5998598232858156495">"Liiga palju vale mustriga katseid\nLisateave: <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
+    <string name="kg_primary_auth_locked_out_password_shortlink" msgid="7035847891707609104">"Liiga palju vale parooliga katseid\nLisateave: <xliff:g id="SHORTLINK">{shortlink}</xliff:g>"</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{Proovige uuesti # sekundi pärast.}other{Proovige uuesti # sekundi pärast.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_seconds" msgid="5869847493314053274">"{count,plural, =1{Proovige # sekundi pärast uuesti.}other{Proovige # sekundi pärast uuesti.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_minutes" msgid="6688071439818994316">"{count,plural, =1{Proovige # minuti pärast uuesti.}other{Proovige # minuti pärast uuesti.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_hours" msgid="4895375498917738857">"{count,plural, =1{Proovige # tunni pärast uuesti.}other{Proovige # tunni pärast uuesti.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_days" msgid="5427787465019979593">"{count,plural, =1{Proovige # päeva pärast uuesti.}other{Proovige # päeva pärast uuesti.}}"</string>
+    <string name="kg_too_many_failed_attempts_countdown_years" msgid="7115333753941425268">"{count,plural, =1{Proovige # aasta pärast uuesti.}other{Proovige # aasta pärast uuesti.}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"Sisestage SIM-kaardi PIN-kood."</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"Sisestage operaatori „<xliff:g id="CARRIER">%1$s</xliff:g>” SIM-kaardi PIN-kood."</string>
     <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g> Keelake eSIM-kaart, et seadet ilma mobiilsideteenuseta kasutada."</string>
@@ -112,6 +124,9 @@
     <string name="kg_prompt_reason_restart_pattern" msgid="3321211830602827742">"Pärast seadme taaskäivitamist on muster nõutav"</string>
     <string name="kg_prompt_reason_restart_pin" msgid="2672166323886110512">"Pärast seadme taaskäivitamist on PIN-kood nõutav"</string>
     <string name="kg_prompt_reason_restart_password" msgid="3967993994418885887">"Pärast seadme taaskäivitamist on parool nõutav"</string>
+    <string name="kg_prompt_reason_signin_pattern" msgid="1650886553162854395">"Sisselogimiseks on vaja mustrit."</string>
+    <string name="kg_prompt_reason_signin_pin" msgid="636031498838532631">"Sisselogimiseks on vaja PIN-koodi."</string>
+    <string name="kg_prompt_reason_signin_password" msgid="1020939174735616114">"Sisselogimiseks on vaja parooli."</string>
     <string name="kg_prompt_reason_timeout_pattern" msgid="5514969660010197363">"Kasutage tugevama turvalisuse huvides hoopis mustrit"</string>
     <string name="kg_prompt_reason_timeout_pin" msgid="4227962059353859376">"Kasutage tugevama turvalisuse huvides hoopis PIN-koodi"</string>
     <string name="kg_prompt_reason_timeout_password" msgid="8810879144143933690">"Kasutage tugevama turvalisuse huvides hoopis parooli"</string>

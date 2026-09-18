@@ -28,7 +28,6 @@ package com.android.systemui.kairos
  *
  * @see StatefulMode
  */
-@ExperimentalKairosApi
 fun interface BuildMode<out A> {
     /**
      * Invoked when this mode is enabled. Returns a value and an [Events] that signals a switch to a
@@ -43,7 +42,6 @@ fun interface BuildMode<out A> {
  *
  * @see BuildMode
  */
-@ExperimentalKairosApi
 val <A> BuildMode<A>.compiledBuildSpec: BuildSpec<State<A>>
     get() = buildSpec {
         var modeChangeEvents by EventsLoop<BuildMode<A>>()
@@ -70,7 +68,6 @@ val <A> BuildMode<A>.compiledBuildSpec: BuildSpec<State<A>>
  *
  * @see BuildMode
  */
-@ExperimentalKairosApi
 fun interface StatefulMode<out A> {
     /**
      * Invoked when this mode is enabled. Returns a value and an [Events] that signals a switch to a
@@ -86,7 +83,6 @@ fun interface StatefulMode<out A> {
  *
  * @see StatefulMode
  */
-@ExperimentalKairosApi
 val <A> StatefulMode<A>.compiledStateful: Stateful<State<A>>
     get() = statefully {
         var modeChangeEvents by EventsLoop<StatefulMode<A>>()

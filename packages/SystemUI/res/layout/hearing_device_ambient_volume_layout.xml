@@ -32,10 +32,9 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:padding="12dp"
-            android:contentDescription="@string/hearing_devices_ambient_unmute"
             android:src="@drawable/ic_ambient_volume"
-            android:tint="@androidprv:color/materialColorOnSurface"
-            android:background="@drawable/hearing_device_ambient_icon_background"/>
+            android:tint="@color/materialColorOnSurface"
+            android:importantForAccessibility="no" />
         <TextView
             android:id="@+id/ambient_title"
             android:layout_width="0dp"
@@ -52,7 +51,7 @@
             android:padding="10dp"
             android:contentDescription="@string/hearing_devices_ambient_expand_controls"
             android:src="@drawable/ic_hearing_device_expand"
-            android:tint="@androidprv:color/materialColorOnSurface"
+            android:tint="@color/materialColorOnSurface"
             android:background="@drawable/hearing_device_ambient_expand_icon_background"/>
     </LinearLayout>
     <LinearLayout

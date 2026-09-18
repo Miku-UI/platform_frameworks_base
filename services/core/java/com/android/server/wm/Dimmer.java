@@ -20,10 +20,13 @@ import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_DIMMER;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.graphics.Color;
 import android.graphics.Rect;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceControl;
+
+import androidx.annotation.ColorLong;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
@@ -46,8 +49,6 @@ class Dimmer {
 
     @Nullable
     DimState mDimState;
-    @NonNull
-    final DimmerAnimationHelper.AnimationAdapterFactory mAnimationAdapterFactory;
 
     /**
      * Controls the dim behaviour
@@ -66,13 +67,13 @@ class Dimmer {
         boolean mAnimateExit = true;
         /** Surface visibility and bounds */
         private boolean mIsVisible = false;
-        // TODO(b/64816140): Remove after confirming dimmer layer always matches its container.
+        /** The bounds in screen coordinates, used for proto dump. */
         @NonNull
         final Rect mDimBounds = new Rect();
 
         DimState() {
             mHostContainer = mHost;
-            mAnimationHelper = new DimmerAnimationHelper(mHost, mAnimationAdapterFactory);
+            mAnimationHelper = new DimmerAnimationHelper(mHost.mWmService.mSurfaceAnimationRunner);
             try {
                 mDimSurface = makeDimLayer();
                 EventLogTags.writeWmDimCreated(mHost.getName(), mDimSurface.getLayerId());
@@ -92,8 +93,8 @@ class Dimmer {
         /**
          * Set the parameters to prepare the dim to change its appearance
          */
-        void prepareLookChange(float alpha, int blurRadius) {
-            mAnimationHelper.setRequestedAppearance(alpha, blurRadius);
+        void prepareLookChange(float alpha, int blurRadius, @ColorLong long color) {
+            mAnimationHelper.setRequestedAppearance(alpha, blurRadius, color);
         }
 
         /**
@@ -159,7 +160,7 @@ class Dimmer {
          * Whether anyone is currently requesting the dim
          */
         boolean isDimming() {
-            return mLastDimmingWindow != null && mHostContainer.isVisibleRequested();
+            return mLastDimmingWindow != null && mHostContainer.isVisible();
         }
 
         @NonNull
@@ -174,14 +175,7 @@ class Dimmer {
     }
 
     protected Dimmer(@NonNull WindowContainer<?> host) {
-        this(host, new DimmerAnimationHelper.AnimationAdapterFactory());
-    }
-
-    @VisibleForTesting
-    Dimmer(@NonNull WindowContainer<?> host,
-            @NonNull DimmerAnimationHelper.AnimationAdapterFactory animationFactory) {
         mHost = host;
-        mAnimationAdapterFactory = animationFactory;
     }
 
     public boolean hostIsTask() {
@@ -216,14 +210,19 @@ class Dimmer {
      */
     protected void adjustAppearance(@NonNull WindowState dimmingContainer,
             float alpha, int blurRadius) {
-        if (!mHost.isVisibleRequested()) {
+        adjustAppearance(dimmingContainer, alpha, blurRadius, Color.pack(Color.BLACK));
+    }
+
+    protected void adjustAppearance(@NonNull WindowState dimmingContainer,
+            float alpha, int blurRadius, @ColorLong long color) {
+        if (!mHost.isVisible()) {
             // If the host is already going away, there is no point in keeping dimming
             return;
         }
 
         if (mDimState != null || (alpha != 0 || blurRadius != 0)) {
             final DimState d = obtainDimState(dimmingContainer);
-            d.prepareLookChange(alpha, blurRadius);
+            d.prepareLookChange(alpha, blurRadius, toOpaque(color));
         }
     }
 
@@ -282,10 +281,6 @@ class Dimmer {
         return mDimState != null;
     }
 
-    boolean isDimming() {
-        return mDimState != null && mDimState.isDimming();
-    }
-
     @NonNull
     private DimState obtainDimState(@NonNull WindowState window) {
         if (mDimState == null) {
@@ -302,6 +297,7 @@ class Dimmer {
         return mDimState != null ? mDimState.mDimSurface : null;
     }
 
+    /** Returns the bounds on screen. */
     @Nullable
     Rect getDimBounds() {
         return mDimState != null ? mDimState.mDimBounds : null;
@@ -311,5 +307,11 @@ class Dimmer {
         if (mDimState != null) {
             mDimState.mAnimateExit = false;
         }
+    }
+
+    @ColorLong
+    private static long toOpaque(@ColorLong long color) {
+        return Color.pack(Color.red(color), Color.green(color), Color.blue(color),
+                1.0f, Color.colorSpace(color));
     }
 }

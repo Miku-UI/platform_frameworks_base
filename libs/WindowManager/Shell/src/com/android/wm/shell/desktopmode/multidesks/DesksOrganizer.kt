@@ -98,8 +98,17 @@ interface DesksOrganizer {
     /** Whether the desk is activate according to the given change at the end of a transition. */
     fun isDeskActiveAtEnd(change: TransitionInfo.Change, deskId: Int): Boolean
 
+    /** Whether the task is in the given desk. */
+    fun isTaskInDesk(taskId: Int, deskId: Int): Boolean
+
     /** Allows for other classes to respond to task changes this organizer receives. */
     fun addOnDesktopTaskInfoChangedListener(listener: (ActivityManager.RunningTaskInfo) -> Unit)
+
+    /** Allows for other classes to respond to task vanishes this organizer receives. */
+    fun addOnDesktopTaskVanishedListener(listener: (ActivityManager.RunningTaskInfo) -> Unit)
+
+    /** Allows another class to respond to back presses this organizer receives. */
+    fun setBackPressOnDeskListener(listener: (task: ActivityManager.RunningTaskInfo) -> Unit)
 
     /** Move a desk to the given display area. */
     fun moveDeskToDisplay(

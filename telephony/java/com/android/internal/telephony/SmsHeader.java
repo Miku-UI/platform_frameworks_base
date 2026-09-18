@@ -222,7 +222,7 @@ public class SmsHeader {
         ByteArrayInputStream inStream = new ByteArrayInputStream(data);
         SmsHeader smsHeader = new SmsHeader();
         while (inStream.available() > 0) {
-            /**
+            /*
              * NOTE: as defined in the spec, ConcatRef and PortAddr
              * fields should not reoccur, but if they do the last
              * occurrence is to be used.  Also, for ConcatRef

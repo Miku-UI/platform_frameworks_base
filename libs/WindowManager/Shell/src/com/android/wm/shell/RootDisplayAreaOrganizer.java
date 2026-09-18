@@ -20,6 +20,7 @@ import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_DESKTOP_
 
 import android.annotation.SuppressLint;
 import android.app.WindowConfiguration;
+import android.util.Pair;
 import android.util.SparseArray;
 import android.view.SurfaceControl;
 import android.window.DisplayAreaAppearedInfo;
@@ -35,6 +36,7 @@ import com.android.internal.protolog.ProtoLog;
 import com.android.wm.shell.sysui.ShellInit;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
 
@@ -59,6 +61,20 @@ public class RootDisplayAreaOrganizer extends DisplayAreaOrganizer {
         for (int i = infos.size() - 1; i >= 0; --i) {
             onDisplayAreaAppeared(infos.get(i).getDisplayAreaInfo(), infos.get(i).getLeash());
         }
+    }
+
+    /**
+     * Returns the initial set of root display areas.
+     * This can be removed once we have a synchronizing transition for the initial state when SysUI
+     * starts up.
+     */
+    @NonNull
+    public List<Pair<DisplayAreaInfo, SurfaceControl>> getInitialRootDisplayAreas() {
+        final ArrayList<Pair<DisplayAreaInfo, SurfaceControl>> displayAreas = new ArrayList<>();
+        for (int i = mDisplayAreasInfo.size() - 1; i >= 0; --i) {
+            displayAreas.add(new Pair<>(mDisplayAreasInfo.valueAt(i), mLeashes.valueAt(i)));
+        }
+        return displayAreas;
     }
 
     public void attachToDisplayArea(int displayId, SurfaceControl.Builder b) {

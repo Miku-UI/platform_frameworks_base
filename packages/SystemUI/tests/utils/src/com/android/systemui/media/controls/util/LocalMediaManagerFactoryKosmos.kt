@@ -25,7 +25,8 @@ val Kosmos.localMediaManagerFactory by
     Kosmos.Fixture {
         LocalMediaManagerFactory(
             context = applicationContext,
-            localBluetoothManager =
-                LocalBluetoothManager.create(applicationContext, fakeExecutorHandler),
+            localBluetoothManager = {
+                LocalBluetoothManager.create(applicationContext, fakeExecutorHandler)
+            },
         )
     }

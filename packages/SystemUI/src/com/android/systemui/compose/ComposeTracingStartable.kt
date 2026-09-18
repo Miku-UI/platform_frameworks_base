@@ -18,13 +18,11 @@
 
 package com.android.systemui.compose
 
-import android.os.Trace
 import android.util.Log
-import androidx.compose.runtime.Composer
-import androidx.compose.runtime.CompositionTracer
 import androidx.compose.runtime.InternalComposeTracingApi
 import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.flags.SystemPropertiesHelper
 import com.android.systemui.statusbar.commandline.Command
 import com.android.systemui.statusbar.commandline.CommandRegistry
 import com.android.systemui.statusbar.commandline.ParseableCommand
@@ -35,29 +33,74 @@ private const val TAG = "ComposeTracingStartable"
 private const val COMMAND_NAME = "composition-tracing"
 private const val SUBCOMMAND_ENABLE = "enable"
 private const val SUBCOMMAND_DISABLE = "disable"
+private const val VERBOSE_FLAG = "verbose"
+
+/**
+ * When sysui boots it checks this sysprop. If enabled, it also enables compose tracing (verbose).
+ *
+ * ```
+ * adb shell setprop persist.debug.enable_verbose_compose_tracing_in_sysui_on_startup true
+ * ```
+ */
+private const val ENABLE_COMPOSE_TRACING_ON_STARTUP =
+    "persist.debug.enable_verbose_compose_tracing_in_sysui_on_startup"
 
 /**
  * Sets up a [Command] to enable or disable Composition tracing.
  *
  * Usage:
  * ```
- * adb shell cmd statusbar composition-tracing [enable|disable]
+ * # Enables just recomposition slices
+ * adb shell cmd statusbar composition-tracing [enable|disable] [--verbose]
+ *
  * ${ANDROID_BUILD_TOP}/external/perfetto/tools/record_android_trace -c ${ANDROID_BUILD_TOP}/prebuilts/tools/linux-x86_64/perfetto/configs/trace_config_detailed.textproto
+ * ```
+ *
+ * Note: you need to add the following bits to your perfetto config to get detailed recomposition
+ * tracing (enabled with `--verbose`):
+ * ```
+ * data_sources {
+ *   config {
+ *     name: "track_event"
+ *     track_event_config {
+ *       disabled_categories:"*"
+ *       enabled_categories: "cc"
+ *     }
+ *    }
+ *     producer_name_regex_filter: "com.android.systemui"
+ * }
  * ```
  */
 @SysUISingleton
-class ComposeTracingStartable @Inject constructor(private val commandRegistry: CommandRegistry) :
-    CoreStartable {
-    @OptIn(InternalComposeTracingApi::class)
+class ComposeTracingStartable
+@Inject
+constructor(
+    private val commandRegistry: CommandRegistry,
+    private val recompositionCauseTracing: RecompositionCauseTracing,
+    private val systemPropertiesHelper: SystemPropertiesHelper,
+) : CoreStartable {
+
     override fun start() {
         Log.i(TAG, "Set up Compose tracing command")
-        commandRegistry.registerCommand(COMMAND_NAME) { CompositionTracingCommand() }
+        commandRegistry.registerCommand(COMMAND_NAME) {
+            CompositionTracingCommand(recompositionCauseTracing)
+        }
+
+        if (isInitiallyEnabled()) {
+            CompositionSlicesTracing.enable()
+            recompositionCauseTracing.enable()
+        }
+    }
+
+    private fun isInitiallyEnabled(): Boolean {
+        return systemPropertiesHelper.getBoolean(ENABLE_COMPOSE_TRACING_ON_STARTUP, false)
     }
 }
 
-private class CompositionTracingCommand : ParseableCommand(COMMAND_NAME) {
-    val enable by subCommand(EnableCommand())
-    val disable by subCommand(DisableCommand())
+private class CompositionTracingCommand(recompositionCauseTracing: RecompositionCauseTracing) :
+    ParseableCommand(COMMAND_NAME) {
+    val enable by subCommand(EnableCommand(recompositionCauseTracing))
+    val disable by subCommand(DisableCommand(recompositionCauseTracing))
 
     override fun execute(pw: PrintWriter) {
         if ((enable != null) xor (disable != null)) {
@@ -69,38 +112,32 @@ private class CompositionTracingCommand : ParseableCommand(COMMAND_NAME) {
     }
 }
 
-private class EnableCommand : ParseableCommand(SUBCOMMAND_ENABLE) {
+private class EnableCommand(private val recompositionCauseTracing: RecompositionCauseTracing) :
+    ParseableCommand(SUBCOMMAND_ENABLE) {
+
+    private val verbose by flag(shortName = "v", longName = VERBOSE_FLAG)
+
     override fun execute(pw: PrintWriter) {
-        val msg = "Enabled Composition tracing"
+        val msg = "Enabling Composition tracing"
         Log.i(TAG, msg)
         pw.println(msg)
-        enableCompositionTracing()
-    }
-
-    private fun enableCompositionTracing() {
-        Composer.setTracer(
-            object : CompositionTracer {
-                override fun traceEventStart(key: Int, dirty1: Int, dirty2: Int, info: String) {
-                    Trace.traceBegin(Trace.TRACE_TAG_APP, info)
-                }
-
-                override fun traceEventEnd() = Trace.traceEnd(Trace.TRACE_TAG_APP)
-
-                override fun isTraceInProgress(): Boolean = Trace.isEnabled()
-            }
-        )
+        CompositionSlicesTracing.enable()
+        if (verbose) {
+            val msg = "Enabling recomposition cause tracing"
+            Log.i(TAG, msg)
+            pw.println(msg)
+            recompositionCauseTracing.enable()
+        }
     }
 }
 
-private class DisableCommand : ParseableCommand(SUBCOMMAND_DISABLE) {
+private class DisableCommand(private val recompositionCauseTracing: RecompositionCauseTracing) :
+    ParseableCommand(SUBCOMMAND_DISABLE) {
     override fun execute(pw: PrintWriter) {
-        val msg = "Disabled Composition tracing"
+        val msg = "Disabling Composition tracing"
         Log.i(TAG, msg)
         pw.println(msg)
-        disableCompositionTracing()
-    }
-
-    private fun disableCompositionTracing() {
-        Composer.setTracer(null)
+        CompositionSlicesTracing.disable()
+        recompositionCauseTracing.disable()
     }
 }

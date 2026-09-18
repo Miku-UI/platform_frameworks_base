@@ -61,9 +61,11 @@ class QuitFocusedAppKeyGestureHandlerTest : ShellTestCase() {
     @Before
     fun setUp() {
         doAnswer {
-            keyGestureEventHandler = (it.arguments[1] as KeyGestureEventHandler)
-            null
-        }.whenever(inputManager).registerKeyGestureEventHandler(any(), any())
+                keyGestureEventHandler = (it.arguments[1] as KeyGestureEventHandler)
+                null
+            }
+            .whenever(inputManager)
+            .registerKeyGestureEventHandler(any(), any())
         whenever(focusTransitionObserver.globallyFocusedTaskId).thenReturn(TASK_ID)
         quitFocusedAppKeyGestureHandler =
             QuitFocusedAppKeyGestureHandler(
@@ -74,7 +76,7 @@ class QuitFocusedAppKeyGestureHandlerTest : ShellTestCase() {
                 Optional.of(desktopModeKeyHandler),
                 activityTaskService,
                 focusTransitionObserver,
-                mainExecutor
+                mainExecutor,
             )
     }
 
@@ -116,14 +118,16 @@ class QuitFocusedAppKeyGestureHandlerTest : ShellTestCase() {
                 .setKeyGestureType(KeyGestureEvent.KEY_GESTURE_TYPE_QUIT_FOCUSED_TASK)
                 .setKeycodes(intArrayOf(KeyEvent.KEYCODE_ESCAPE))
                 .setAction(KeyGestureEvent.ACTION_GESTURE_START)
-                .build(), /* focusedToken =*/null
+                .build(),
+            /* focusedToken =*/ null,
         )
         keyGestureEventHandler.handleKeyGestureEvent(
             KeyGestureEvent.Builder()
                 .setKeyGestureType(KeyGestureEvent.KEY_GESTURE_TYPE_QUIT_FOCUSED_TASK)
                 .setKeycodes(intArrayOf(KeyEvent.KEYCODE_ESCAPE))
                 .setAction(KeyGestureEvent.ACTION_GESTURE_COMPLETE)
-                .build(), /* focusedToken =*/null
+                .build(),
+            /* focusedToken =*/ null,
         )
     }
 

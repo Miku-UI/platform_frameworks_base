@@ -18,6 +18,7 @@
 //#define LOG_NDEBUG 0
 #define LOG_TAG "MediaMetadataRetrieverJNI"
 
+#include <android_media_codec.h>
 #include <cmath>
 #include <assert.h>
 #include <utils/Log.h>
@@ -339,18 +340,102 @@ static jobject getBitmapFromVideoFrame(
     return jBitmap;
 }
 
-static AndroidBitmapFormat getColorFormat(JNIEnv *env, jobject options) {
+static AndroidBitmapFormat readColorFormatFromInputOptions(JNIEnv *env, jobject options) {
     if (options == NULL) {
-        return ANDROID_BITMAP_FORMAT_RGBA_8888;
+        return ANDROID_BITMAP_FORMAT_NONE;
     }
-
-    ScopedLocalRef<jobject> inConfig(env, env->GetObjectField(options, fields.inPreferredConfig));
+    ScopedLocalRef<jobject> inConfig(env,
+            env->GetObjectField(options, fields.inPreferredConfig));
     AndroidBitmapFormat format = ABitmapConfig_getFormatFromConfig(env, inConfig.get());
 
-    if (format == ANDROID_BITMAP_FORMAT_RGB_565) {
-        return ANDROID_BITMAP_FORMAT_RGB_565;
+    if (format == ANDROID_BITMAP_FORMAT_RGB_565 ||
+            (::android::media::codec::provider_->mediametadataretriever_10_bit_support() &&
+            format == ANDROID_BITMAP_FORMAT_RGBA_1010102)) {
+        return format;
     }
-    return ANDROID_BITMAP_FORMAT_RGBA_8888;
+    return ANDROID_BITMAP_FORMAT_NONE;
+}
+
+static AndroidBitmapFormat getColorFormatFromVideoTrack(JNIEnv *env, jobject thiz,
+        jobject options) {
+    AndroidBitmapFormat defaultPreferred = readColorFormatFromInputOptions(env, options);
+    if (defaultPreferred != ANDROID_BITMAP_FORMAT_NONE) {
+        return defaultPreferred;
+    }
+
+    defaultPreferred = ANDROID_BITMAP_FORMAT_RGBA_8888;
+
+    if (::android::media::codec::provider_->mediametadataretriever_10_bit_support()) {
+        // Extract the metadata to get the actual color format.
+        sp<MediaMetadataRetriever> retriever = getRetriever(env, thiz);
+        if (retriever == 0) {
+            jniThrowException(env, "java/lang/IllegalStateException", "No retriever available");
+            return defaultPreferred;
+        }
+        sp<IMemory> sharedMem = retriever->getFrameAtIndex(-1,
+                                                           defaultPreferred,
+                                                           true /* metaOnly */);
+
+        if (sharedMem == nullptr || sharedMem->unsecurePointer() == nullptr) {
+            return defaultPreferred;
+        }
+        VideoFrame* videoFrame = static_cast<VideoFrame*>(sharedMem->unsecurePointer());
+        if (videoFrame->mBitDepth == 10) {
+            return ANDROID_BITMAP_FORMAT_RGBA_1010102;
+        }
+    }
+
+    return defaultPreferred;
+}
+
+/**
+ * This method takes {@code AndroidBitmapFormat} input and maps it to {@code android_pixel_format_t}
+ */
+static int getPixelFormatFromBitmapFormat(AndroidBitmapFormat bitmapFormat) {
+    switch (bitmapFormat) {
+        case ANDROID_BITMAP_FORMAT_RGBA_8888:  // 1
+            return HAL_PIXEL_FORMAT_RGBA_8888;
+        case ANDROID_BITMAP_FORMAT_RGB_565:  // 4
+            return HAL_PIXEL_FORMAT_RGB_565;
+        case ANDROID_BITMAP_FORMAT_RGBA_1010102:  // 10
+            return HAL_PIXEL_FORMAT_RGBA_1010102;  // 43
+        default:
+            // There is no corresponding uninitialized format in HAL_PIXEL_FORMAT_*
+            // and this one equals to 0. Generally code should not reach here.
+            return ANDROID_BITMAP_FORMAT_NONE;
+    }
+}
+
+static AndroidBitmapFormat getColorFormatFromImageTrack(JNIEnv *env, jobject thiz,
+        jobject options) {
+    AndroidBitmapFormat defaultPreferred = readColorFormatFromInputOptions(env, options);
+    if (defaultPreferred != ANDROID_BITMAP_FORMAT_NONE) {
+        return defaultPreferred;
+    }
+
+    defaultPreferred = ANDROID_BITMAP_FORMAT_RGBA_8888;
+
+    if (::android::media::codec::provider_->mediametadataretriever_10_bit_support()) {
+        // Extract the metadata to get the actual color format.
+        sp<MediaMetadataRetriever> retriever = getRetriever(env, thiz);
+        if (retriever == 0) {
+            jniThrowException(env, "java/lang/IllegalStateException", "No retriever available");
+            return defaultPreferred;
+        }
+        sp<IMemory> sharedMem = retriever->getImageAtIndex(-1,
+                                                           defaultPreferred,
+                                                           true /* metaOnly */);
+
+        if (sharedMem == nullptr || sharedMem->unsecurePointer() == nullptr) {
+            return defaultPreferred;
+        }
+        VideoFrame* videoFrame = static_cast<VideoFrame*>(sharedMem->unsecurePointer());
+        if (videoFrame->mBitDepth == 10) {
+            return ANDROID_BITMAP_FORMAT_RGBA_1010102;
+        }
+    }
+
+    return defaultPreferred;
 }
 
 static void setOutConfig(JNIEnv *env, jobject options, AndroidBitmapFormat colorFormat) {
@@ -372,11 +457,12 @@ static jobject android_media_MediaMetadataRetriever_getFrameAtTime(
         return NULL;
     }
 
-    AndroidBitmapFormat colorFormat = getColorFormat(env, params);
+    AndroidBitmapFormat colorFormat = getColorFormatFromVideoTrack(env, thiz, params);
 
     // Call native method to retrieve a video frame
     VideoFrame *videoFrame = NULL;
-    sp<IMemory> frameMemory = retriever->getFrameAtTime(timeUs, option, colorFormat);
+    sp<IMemory> frameMemory = retriever->getFrameAtTime(timeUs, option,
+            getPixelFormatFromBitmapFormat(colorFormat));
     // TODO: Using unsecurePointer() has some associated security pitfalls
     //       (see declaration for details).
     //       Either document why it is safe in this case or address the
@@ -403,11 +489,12 @@ static jobject android_media_MediaMetadataRetriever_getImageAtIndex(
         return NULL;
     }
 
-    AndroidBitmapFormat colorFormat = getColorFormat(env, params);
+    AndroidBitmapFormat colorFormat = getColorFormatFromImageTrack(env, thiz, params);
 
     // Call native method to retrieve an image
     VideoFrame *videoFrame = NULL;
-    sp<IMemory> frameMemory = retriever->getImageAtIndex(index, colorFormat);
+    sp<IMemory> frameMemory = retriever->getImageAtIndex(index,
+            getPixelFormatFromBitmapFormat(colorFormat));
     if (frameMemory != 0) {  // cast the shared structure to a VideoFrame object
         // TODO: Using unsecurePointer() has some associated security pitfalls
         //       (see declaration for details).
@@ -435,13 +522,15 @@ static jobject android_media_MediaMetadataRetriever_getThumbnailImageAtIndex(
         return NULL;
     }
 
-    AndroidBitmapFormat colorFormat = getColorFormat(env, params);
+    AndroidBitmapFormat colorFormat = getColorFormatFromImageTrack(env, thiz, params);
+    int pixelFormat = getPixelFormatFromBitmapFormat(colorFormat);
+
     jint dst_width = -1, dst_height = -1;
 
     // Call native method to retrieve an image
     VideoFrame *videoFrame = NULL;
     sp<IMemory> frameMemory = retriever->getImageAtIndex(
-            index, colorFormat, true /*metaOnly*/, true /*thumbnail*/);
+            index, pixelFormat, true /*metaOnly*/, true /*thumbnail*/);
     if (frameMemory != 0) {
         // TODO: Using unsecurePointer() has some associated security pitfalls
         //       (see declaration for details).
@@ -459,7 +548,7 @@ static jobject android_media_MediaMetadataRetriever_getThumbnailImageAtIndex(
         if (thumbWidth >= targetSize || thumbHeight >= targetSize
                 || thumbPixels * 6 >= maxPixels) {
             frameMemory = retriever->getImageAtIndex(
-                    index, colorFormat, false /*metaOnly*/, true /*thumbnail*/);
+                    index, pixelFormat, false /*metaOnly*/, true /*thumbnail*/);
             if (frameMemory != 0) {
                 // TODO: Using unsecurePointer() has some associated security pitfalls
                 //       (see declaration for details).
@@ -507,11 +596,12 @@ static jobject android_media_MediaMetadataRetriever_getFrameAtIndex(
         return NULL;
     }
 
-    AndroidBitmapFormat colorFormat = getColorFormat(env, params);
+    AndroidBitmapFormat colorFormat = getColorFormatFromVideoTrack(env, thiz, params);
     setOutConfig(env, params, colorFormat);
     size_t i = 0;
     for (; i < numFrames; i++) {
-        sp<IMemory> frame = retriever->getFrameAtIndex(frameIndex + i, colorFormat);
+        sp<IMemory> frame = retriever->getFrameAtIndex(frameIndex + i,
+                getPixelFormatFromBitmapFormat(colorFormat));
         if (frame == NULL || frame->unsecurePointer() == NULL) {
             ALOGE("video frame at index %zu is a NULL pointer", frameIndex + i);
             break;

@@ -39,7 +39,7 @@
             android:adjustViewBounds="true"
             android:focusable="false"
             android:src="@drawable/ic_remove"
-            android:tint="?android:attr/textColorPrimary"
+            android:tint="@color/materialColorOnSurface"
             android:tintMode="src_in" />
     </FrameLayout>
 
@@ -66,7 +66,7 @@
             android:adjustViewBounds="true"
             android:focusable="false"
             android:src="@drawable/ic_add"
-            android:tint="?android:attr/textColorPrimary"
+            android:tint="@color/materialColorOnSurface"
             android:tintMode="src_in" />
     </FrameLayout>
 

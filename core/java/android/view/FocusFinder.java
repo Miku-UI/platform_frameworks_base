@@ -121,7 +121,7 @@ public class FocusFinder {
      * <p>
      * For example: normal focus navigation would stay within a ViewGroup marked as
      * touchscreenBlocksFocus and keyboardNavigationCluster until a cluster-jump out.
-     * @return the "effective" root of {@param focused}
+     * @return the "effective" root of {@code focused}
      */
     private ViewGroup getEffectiveRoot(ViewGroup root, View focused) {
         if (focused == null || focused == root) {

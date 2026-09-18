@@ -41,7 +41,7 @@
     <java-symbol type="string" name="config_bandwidthEstimateSource" />
 
     <!-- Whether to adopt the predefined handover policies for IWLAN.
-         {@see CarrierConfigManager#KEY_IWLAN_HANDOVER_POLICY_STRING_ARRAY}
+         @see CarrierConfigManager#KEY_IWLAN_HANDOVER_POLICY_STRING_ARRAY
     -->
     <bool name="config_enable_iwlan_handover_policy">true</bool>
     <java-symbol type="bool" name="config_enable_iwlan_handover_policy" />
@@ -219,6 +219,23 @@
     <integer name="config_wait_for_satellite_enabling_response_timeout_millis">180000</integer>
     <java-symbol type="integer" name="config_wait_for_satellite_enabling_response_timeout_millis" />
 
+
+    <!-- Specifies the frequency at which the Telephony framework suspends satellite mode to
+         permit background tasks, such as refreshing the current location. This periodic suspension
+         is conditional and triggers only when the device is idle (i.e., no user activity
+         or ongoing operations)
+         -->
+    <integer name="config_satellite_suspension_interval_millis">600000</integer>
+    <java-symbol type="integer" name="config_satellite_suspension_interval_millis" />
+
+    <!-- Specifies the maximum duration, in milliseconds, that Telephony waits for a modem
+         response to a satellite suspend or resume request. If this threshold is exceeded,
+         Telephony initiates recovery procedures—such as reverting to the IDLE state or
+         disabling satellite mode—to ensure system state consistency.
+         -->
+    <integer name="config_wait_for_satellite_suspension_response_timeout_millis">180000</integer>
+    <java-symbol type="integer" name="config_wait_for_satellite_suspension_response_timeout_millis" />
+
     <!-- The time duration in millis after which Telephony will abort the datagram sending requests
          and send failure response to the client that has requested sending the datagrams. Telephony
          starts a timer after pushing down the datagram sending request to modem. Before expiry, the
@@ -280,6 +297,16 @@
         <item>"302723"</item>
         <!-- Telstra - Australia -->
         <item>"50511"</item>
+        <!-- AST -->
+        <item>313210"</item>
+        <!-- DOCOMO - Japan -->
+        <item>44026</item>
+        <!-- SoftBank - Japan -->
+        <item>44025</item>
+        <!-- O2postpaid - Great Britain -->
+        <item>23402</item>
+        <!--Entel - Peru -->
+        <item>771688</item>
     </string-array>
     <java-symbol type="array" name="config_satellite_providers" />
 
@@ -533,6 +560,10 @@
     <bool name="config_satellite_allow_tn_scanning_during_satellite_session">true</bool>
     <java-symbol type="bool" name="config_satellite_allow_tn_scanning_during_satellite_session" />
 
+    <!-- Whether to allow suspend during satellite session. -->
+    <bool name="config_satellite_allow_suspend_during_satellite_session">false</bool>
+    <java-symbol type="bool" name="config_satellite_allow_suspend_during_satellite_session" />
+
     <!-- List of integer tag Ids representing VZW satellite coverage. -->
     <integer-array name="config_verizon_satellite_enabled_tagids">
     </integer-array>
@@ -540,7 +571,13 @@
 
     <!-- Telephony config for un-supported network capabilities in string array
          format. Refer to getNetworkCapabilityFromString() in DataUtils.java for available
-         capabilities. -->
+         capabilities. Note this is per-device setting. For per-carrier setting, please use
+         CarrierConfigManager#KEY_TELEPHONY_UNSUPPORTED_NETWORK_CAPABILITY_STRING_ARRAY.
+
+         The possible values are "MMS", "SUPL", "DUN", "FOTA", "IMS", "CBS", "XCAP", "EIMS",
+         "INTERNET", "MCX", "VSIM", "BIP", "ENTERPRISE", "PRIORITIZE_BANDWIDTH",
+         "PRIORITIZE_LATENCY", "RCS", "PRIORITIZE_UNIFIED_COMMUNICATIONS", "OEM_PAID", "OEM_PRIVATE"
+         -->
     <string-array name="config_unsupported_network_capabilities" translatable="false"></string-array>
     <java-symbol type="array" name="config_unsupported_network_capabilities" />
 
@@ -551,7 +588,56 @@
 
     <!-- Indicates the maximum allowed data mode specified by the OEMs. It ensures the entitled and
          carrier config overridden data mode by the carrier is within this value.
-         Refer {@see CarrierConfigManager#SATELLITE_DATA_SUPPORT_MODE} to see the possible values -->
+         Refer to {@link CarrierConfigManager#SATELLITE_DATA_SUPPORT_MODE} to see the possible values -->
     <integer name="max_allowed_data_mode">1</integer>
     <java-symbol type="integer" name="max_allowed_data_mode" />
+
+     <!-- Whether to wait for carrier config loaded before using operator name to publish from modem. -->
+    <bool name="config_update_operator_name_after_carrier_config_loaded">false</bool>
+    <java-symbol type="bool" name="config_update_operator_name_after_carrier_config_loaded" />
+
+    <!-- Name of the NetworkChangeNotification that prompts the user when the 2G network is
+    enabled/disabled by the carrier. -->
+    <string name="config_network_change_notification">
+        com.android.settings/com.android.settings.network.telephony.NetworkChangeNotification
+    </string>
+    <java-symbol type="string" name="config_network_change_notification" />
+
+    <!-- Default wait time in seconds for dismissing upsell notification after TN is stable -->
+    <integer name="config_upsell_notification_dismiss_delay_after_tn_stable_sec">1800</integer>
+    <java-symbol type="integer" name="config_upsell_notification_dismiss_delay_after_tn_stable_sec" />
+
+    <!-- Default maximum search time in seconds for upsell network scan -->
+    <integer name="config_upsell_network_scan_max_search_time_sec">60</integer>
+    <java-symbol type="integer" name="config_upsell_network_scan_max_search_time_sec" />
+
+    <!-- Configures the packages that are allowed to access the restricted
+         messages in the Telephony database (mmsmsms.db).
+         READ_RESTRICTED_MESSAGES app-op is granted to the packages listed in
+         this configuration at boot time.
+
+         Each element in the array should be either:
+         - a preinstalled (system) package name, e.g. com.package.example
+         - an installable package name and a sha256_digest of the apk's
+           certificate pair, e.g. <package_name>:<sha256_digest>,
+           e.g. com.package.example:B94D27B9934D3E08A52E52D7DA7DABFAC484EFE37A5380EE9088F7ACE2EFCDA9
+
+         Note:
+         The sha256_digest must be a 64-character hexadecimal string in uppercase
+         with no colons.
+    -->
+    <string-array name="config_messaging_read_restriction_allowlist" translatable="false"></string-array>
+    <java-symbol type="array" name="config_messaging_read_restriction_allowlist" />
+
+    <!-- These values are the base defaults and are intended to be overridden by device-specific overlays in device/<oem>/<device>/overlay/frameworks/base/core/res/res/values/config_telephony.xml -->
+    <bool name="config_satellite_enabled_reason_user_default">true</bool>
+    <java-symbol type="bool" name="config_satellite_enabled_reason_user_default" />
+
+    <!-- Whether the device handles STK SEND USSD command is processed by the Telephony framework -->
+    <bool name="config_stk_send_ussd_by_telephony">false</bool>
+    <java-symbol type="bool" name="config_stk_send_ussd_by_telephony" />
+
+    <!-- Whether the device handles STK SET UP CALL command is processed by the Telephony framework -->
+    <bool name="config_stk_set_up_call_by_telephony">false</bool>
+    <java-symbol type="bool" name="config_stk_set_up_call_by_telephony" />
 </resources>

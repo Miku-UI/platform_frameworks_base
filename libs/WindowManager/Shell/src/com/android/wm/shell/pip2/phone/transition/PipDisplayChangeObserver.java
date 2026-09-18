@@ -58,9 +58,6 @@ public class PipDisplayChangeObserver implements Transitions.TransitionObserver 
     @Override
     public void onTransitionStarting(@NonNull IBinder transition) {
         if (mDisplayChangeTransitions.containsKey(transition)) {
-            // The display change transition is being played now, so it's safe to reset
-            // the display change scheduled flag.
-            mPipTransitionState.setIsDisplayChangeScheduled(false);
             onDisplayChangeStarting(mDisplayChangeTransitions.get(transition));
         }
     }
@@ -87,6 +84,10 @@ public class PipDisplayChangeObserver implements Transitions.TransitionObserver 
     }
 
     private void onDisplayChangeStarting(@NonNull TransitionInfo info) {
+        // The display change transition is being played now, so it's safe to reset
+        // the display change scheduled flag.
+        mPipTransitionState.setIsDisplayChangeScheduled(false);
+
         final TransitionInfo.Change pipChange = PipTransitionUtils.getPipChange(info);
         if (pipChange == null || !mPipTransitionState.isPipStateIdle()) return;
 
@@ -101,6 +102,10 @@ public class PipDisplayChangeObserver implements Transitions.TransitionObserver 
     }
 
     private void onDisplayChangeFinished(@NonNull TransitionInfo info) {
+        // The display change transition could be merged / aborted and therefore bypasses the
+        // onTransitionStart callback, make sure the flag get reset.
+        mPipTransitionState.setIsDisplayChangeScheduled(false);
+
         final TransitionInfo.Change pipChange = PipTransitionUtils.getPipChange(info);
         if (pipChange == null || !mPipTransitionState.isInPip()) return;
 

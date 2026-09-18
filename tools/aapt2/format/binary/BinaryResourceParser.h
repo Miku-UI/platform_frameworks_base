@@ -55,7 +55,10 @@ class BinaryResourceParser {
   bool ParseTypeSpec(const ResourceTablePackage* package, const android::ResChunk_header* chunk,
                      uint8_t package_id);
   bool ParseType(const ResourceTablePackage* package, const android::ResChunk_header* chunk,
-                 uint8_t package_id);
+                 uint8_t package_id, const std::optional<FeatureFlagAttribute> flag_attribute = {},
+                 FlagStatus flag_status = FlagStatus::NoFlag);
+  bool ParseFlagged(const ResourceTablePackage* package, const android::ResChunk_header* chunk,
+                    uint8_t package_id);
   bool ParseLibrary(const android::ResChunk_header* chunk);
   bool ParseOverlayable(const android::ResChunk_header* chunk);
   bool ParseStagedAliases(const android::ResChunk_header* chunk);

@@ -990,8 +990,7 @@ please see styles_device_defaults.xml.
     </style>
 
     <style name="TextAppearance.Toast">
-        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-medium</item>
-        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@*android:string/config_bodyFontFamily</item>
+        <item name="fontFamily">variable-body-medium</item>
 
         <item name="textSize">14sp</item>
         <item name="lineHeight">20sp</item>
@@ -1607,6 +1606,33 @@ please see styles_device_defaults.xml.
         <item name="textColor">?attr/textColorPrimary</item>
         <item name="background">@drawable/btn_outlined</item>
     </style>
+    <!-- @hide The style for Autofill half sheet expressive dialog button -->
+    <style name="AutofillExpressiveButton" parent="Widget.Material.Button">
+        <item name="fontFamily">variable-label-large</item>
+        <item name="textSize">14sp</item>
+        <item name="lineHeight">20dp</item>
+        <item name="textStyle">normal</item>
+        <item name="textFontWeight">500</item>
+        <item name="letterSpacing">0</item>
+        <item name="textAllCaps">false</item>
+        <item name="minWidth">48dp</item>
+        <item name="paddingStart">16dp</item>
+        <item name="paddingEnd">16dp</item>
+        <item name="paddingTop">10dp</item>
+        <item name="paddingBottom">10dp</item>
+        <item name="background">@drawable/autofill_expressive_button</item>
+        <item name="stateListAnimator">@null</item>
+    </style>
+    <!-- @hide Filled button for Autofill half screen expressive dialog -->
+    <style name="AutofillExpressiveFilledButton" parent="AutofillExpressiveButton">
+        <item name="textColor">@color/materialColorOnPrimary</item>
+        <item name="backgroundTint">?attr/colorPrimary</item>
+        <item name="backgroundTintMode">src_over</item>
+    </style>
+    <!-- @hide The style for Autofill text button -->
+    <style name="AutofillExpressiveTextButton" parent="AutofillExpressiveButton">
+        <item name="textColor">?attr/colorPrimary</item>
+    </style>
 
     <!-- @hide Divider for Autofill half screen dialog -->
     <style name="AutofillHalfSheetDivider">
@@ -1626,6 +1652,17 @@ please see styles_device_defaults.xml.
         <item name="textSize">24sp</item>
     </style>
 
+    <!-- @hide Autofill dialog title expressive style -->
+    <style name="AutofillExpressiveDialogTitle" parent="TextAppearance.DeviceDefault.Headline">
+        <item name="textColor">@color/materialColorOnSurface</item>
+        <item name="fontFamily">variable-headline-small</item>
+        <item name="textSize">24sp</item>
+        <item name="letterSpacing">0</item>
+        <item name="lineHeight">32sp</item>
+        <item name="textAllCaps">false</item>
+        <item name="textFontWeight">400</item>
+    </style>
+
     <!--@hide -->
     <style name="AutofillHalfScreenAnimation">
         <item name="android:windowEnterAnimation">@anim/slide_in_up</item>
@@ -1640,17 +1677,16 @@ please see styles_device_defaults.xml.
 
     <!-- The style for normal action button on notification -->
     <style name="NotificationAction" parent="Widget.Material.Light.Button.Borderless.Small">
-        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-title-small-emphasized</item>
+        <item name="fontFamily">variable-title-small-emphasized</item>
 
-        <item name="textColor" android:featureFlag="android.app.notifications_redesign_fonts">@color/materialColorPrimary</item>
-        <item name="textColor" android:featureFlag="!android.app.notifications_redesign_fonts">@color/notification_action_button_text_color</item>
+        <item name="textColor">@color/materialColorPrimary</item>
 
         <item name="background">@drawable/notification_material_action_background</item>
     </style>
 
     <!-- The style for emphasized action button on notification (used e.g. for calls): Colored bordered ink button -->
     <style name="NotificationEmphasizedAction" parent="Widget.Material.Button">
-        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-title-medium-emphasized</item>
+        <item name="fontFamily">variable-title-medium-emphasized</item>
         <item name="background">@drawable/btn_notification_emphasized</item>
         <item name="stateListAnimator">@anim/flat_button_state_list_anim_material</item>
     </style>
@@ -1665,7 +1701,7 @@ please see styles_device_defaults.xml.
         <item name="ellipsize">end</item>
         <item name="maxLines">1</item>
         <item name="textSize">14sp</item>
-        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-medium</item>
+        <item name="fontFamily">variable-body-medium</item>
     </style>
 
     <!-- @hide -->
@@ -1673,14 +1709,7 @@ please see styles_device_defaults.xml.
         <item name="ellipsize">end</item>
         <item name="maxLines">1</item>
         <item name="textSize">14sp</item>
-        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-medium</item>
-    </style>
-
-    <!-- @hide -->
-    <style name="NotificationMetricUnit" parent="Widget.DeviceDefault.Notification.Text">
-        <item name="ellipsize">end</item>
-        <item name="maxLines">1</item>
-        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-medium</item>
+        <item name="fontFamily">variable-body-medium</item>
     </style>
 
     <!-- @hide -->
@@ -1689,7 +1718,17 @@ please see styles_device_defaults.xml.
     <!-- @hide -->
     <style name="NotificationExpandedMetricValue" parent="NotificationMetricValue">
         <item name="textSize">28sp</item>
-        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-headline-medium-emphasized</item>
+        <item name="fontFamily">variable-display-small-emphasized-narrow</item>
+        <item name="android:fontFeatureSettings">tnum</item>
+    </style>
+
+    <!-- @hide -->
+    <style name="NotificationExpandedSingleMetricLabel" parent="NotificationMetricLabel" />
+
+    <!-- @hide -->
+    <style name="NotificationExpandedSingleMetricValue" parent="NotificationExpandedMetricValue">
+        <item name="textSize">36sp</item>
+        <item name="gravity">end</item>
     </style>
 
     <style name="AccessibilityDialog">
@@ -1721,7 +1760,7 @@ please see styles_device_defaults.xml.
         <item name="android:layout_height">wrap_content</item>
         <item name="android:gravity">center</item>
         <item name="android:textSize">20sp</item>
-        <item name="android:textColor">?android:attr/textColorPrimary</item>
+        <item name="android:textColor">@color/materialColorOnSurface</item>
         <item name="android:fontFamily">@*android:string/config_headlineFontFamilyMedium</item>
     </style>
 
@@ -1732,7 +1771,7 @@ please see styles_device_defaults.xml.
         <item name="android:layout_marginTop">16dp</item>
         <item name="android:layout_marginBottom">32dp</item>
         <item name="android:textSize">16sp</item>
-        <item name="android:textColor">?android:attr/textColorPrimary</item>
+        <item name="android:textColor">@color/materialColorOnSurface</item>
     </style>
 
     <style name="AccessibilityDialogPermissionTitle"
@@ -1740,7 +1779,7 @@ please see styles_device_defaults.xml.
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textSize">16sp</item>
-        <item name="android:textColor">?android:attr/textColorPrimary</item>
+        <item name="android:textColor">@color/materialColorOnSurface</item>
         <item name="android:fontFamily">@*android:string/config_headlineFontFamily</item>
     </style>
 
@@ -1749,7 +1788,7 @@ please see styles_device_defaults.xml.
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:textSize">14sp</item>
-        <item name="android:textColor">?android:attr/textColorSecondary</item>
+        <item name="android:textColor">@color/materialColorOnSurfaceVariant</item>
     </style>
 
     <style name="AccessibilityDialogButtonBarSpace">
@@ -1812,5 +1851,17 @@ please see styles_device_defaults.xml.
     <style name="GrantCredentialsPermissionActivity"
            parent="@style/Theme.DeviceDefault.Light.DialogWhenLarge">
         <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+    </style>
+
+    <!-- Shared layout style for App Lock Info Item containers in App Lock user education dialog to reduce duplication -->
+    <style name="AppLockInfoItemStyle">
+        <item name="layout_width">match_parent</item>
+        <item name="layout_height">wrap_content</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="textAppearance">@style/TextAppearance.DeviceDefault.AppLock.ItemText</item>
+        <item name="paddingTop">@dimen/app_lock_padding_extra_small</item>
+        <item name="paddingBottom">@dimen/app_lock_padding_extra_small</item>
+        <item name="android:layout_marginBottom">@dimen/app_lock_margin_medium</item>
     </style>
 </resources>

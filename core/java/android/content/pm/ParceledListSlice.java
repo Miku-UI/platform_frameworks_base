@@ -38,7 +38,7 @@ public class ParceledListSlice<T extends Parcelable> extends BaseParceledListSli
         super(list);
     }
 
-    private ParceledListSlice(Parcel in, ClassLoader loader) {
+    protected ParceledListSlice(Parcel in, ClassLoader loader) {
         super(in, loader);
     }
 

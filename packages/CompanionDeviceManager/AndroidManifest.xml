@@ -44,6 +44,7 @@
             android:name=".CompanionAssociationActivity"
             android:exported="true"
             android:launchMode="singleInstance"
+            android:noHistory="true"
             android:excludeFromRecents="true"
             android:permission="android.permission.BIND_COMPANION_DEVICE_MANAGER_SERVICE"
             android:configChanges="orientation|screenSize"

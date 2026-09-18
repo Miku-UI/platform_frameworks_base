@@ -1,4 +1,5 @@
 metric_bundles {
+  bundle_id: "android_gralloc_buffers_per_process_metric"
   row {
     values {
       double_value: 10.0
@@ -11,9 +12,6 @@ metric_bundles {
     }
     dimension {
       string_value: "com.android.systemui"
-    }
-    dimension {
-      string_value: "mem.gralloc.buffers"
     }
   }
   row {
@@ -29,20 +27,15 @@ metric_bundles {
     dimension {
       string_value: "com.google.android.apps.nexuslauncher"
     }
-    dimension {
-      string_value: "mem.gralloc.buffers"
-    }
   }
   specs {
     id: "android_gralloc_buffers_per_process_metric_min_val"
     dimensions: "process_name"
-    dimensions: "counter_name"
     value: "min_val"
     query {
       inner_query_id: "gralloc_buffers_counter_span"
       group_by {
         column_names: "process_name"
-        column_names: "counter_name"
         aggregates {
           column_name: "metric_val"
           op: MIN
@@ -65,13 +58,11 @@ metric_bundles {
   specs {
     id: "android_gralloc_buffers_per_process_metric_max_val"
     dimensions: "process_name"
-    dimensions: "counter_name"
     value: "max_val"
     query {
       inner_query_id: "gralloc_buffers_counter_span"
       group_by {
         column_names: "process_name"
-        column_names: "counter_name"
         aggregates {
           column_name: "metric_val"
           op: MIN
@@ -94,13 +85,11 @@ metric_bundles {
   specs {
     id: "android_gralloc_buffers_per_process_metric_avg_val"
     dimensions: "process_name"
-    dimensions: "counter_name"
     value: "avg_val"
     query {
       inner_query_id: "gralloc_buffers_counter_span"
       group_by {
         column_names: "process_name"
-        column_names: "counter_name"
         aggregates {
           column_name: "metric_val"
           op: MIN

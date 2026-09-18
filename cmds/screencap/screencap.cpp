@@ -58,6 +58,9 @@ usage: %s [-ahp] [-d display-id] [FILENAME]
    -p: outputs in png format.
    --preserve-display-colors: Set to true to preserves the native display colorspace. Useful
        for mixed HDR + SDR content, using identical processing as the display's
+   --require-dpu: Set to true to force the device to use the DPU to composite the screenshot.
+       Does nothing if the device is not able to allocate a display resource to use the DPU.
+       Setting --require-dpu also implies --preserve-display-colors.
 
 If FILENAME ends with .png it will be saved as a png.
 If FILENAME is not given, the results will be printed to stdout.
@@ -79,6 +82,7 @@ namespace LongOpts {
 enum {
     Reserved = 255,
     PreservedDisplayColors,
+    RequireDpu,
 };
 }
 
@@ -87,6 +91,8 @@ static const struct option LONG_OPTIONS[] = {{"png", no_argument, nullptr, 'p'},
                                              {"help", no_argument, nullptr, 'h'},
                                              {"preserve-display-colors", no_argument, nullptr,
                                               LongOpts::PreservedDisplayColors},
+                                             {"require-dpu", no_argument, nullptr,
+                                              LongOpts::RequireDpu},
                                              {0, 0, 0, 0}};
 
 static int32_t flinger2bitmapFormat(aidl::android::hardware::graphics::common::PixelFormat f) {
@@ -318,6 +324,12 @@ int main(int argc, char** argv) {
                 }
                 usage(pname, displayIdOpt);
                 return 1;
+            case LongOpts::RequireDpu:
+                // require-dpu implies --preserve-display-colors
+                captureArgs.captureMode = android::gui::CaptureMode::RequireOptimized;
+                captureArgs.pixelFormat = 0; // unknown
+                [[fallthrough]];
+            // require-dpu implies --preserve-display-colors
             case LongOpts::PreservedDisplayColors:
                 captureArgs.preserveDisplayColors = true;
                 break;

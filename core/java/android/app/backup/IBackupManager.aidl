@@ -17,6 +17,7 @@
 package android.app.backup;
 
 import android.app.backup.BackupRestoreEventLogger.DataTypeResult;
+import android.app.backup.DelayedRestoreRequest;
 import android.app.backup.IBackupObserver;
 import android.app.backup.IBackupManagerMonitor;
 import android.app.backup.IFullBackupRestoreObserver;
@@ -34,7 +35,7 @@ import android.content.ComponentName;
  *
  * Apps will use the {@link android.app.backup.BackupManager} class rather than going through
  * this Binder interface directly.
- * 
+ *
  * @hide
  */
 interface IBackupManager {
@@ -709,4 +710,15 @@ interface IBackupManager {
     void excludeKeysFromRestore(String packageName, in List<String> keys);
 
     void reportDelayedRestoreResult(in String packageName, in List<DataTypeResult> results);
+
+    /**
+     * Registers a restore request that cannot be immediately met because of some external
+     * dependency. For example, a restore for a package might be requested before the package
+     * has been installed on the device. The system will store this request and attempt to
+     * perform the restore once the dependencies are met (e.g., the app is installed).
+     *
+     * @param request The DelayedRestoreRequest to schedule.
+     * @return boolean indicating the success of the scheduling request.
+     */
+    boolean scheduleDelayedRestore(in DelayedRestoreRequest request);
 }

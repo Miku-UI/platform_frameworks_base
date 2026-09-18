@@ -36,11 +36,15 @@ class MultiDisplayDragMoveIndicatorController(
         mutableMapOf<Int, MutableMap<Int, MultiDisplayDragMoveIndicatorSurface>>()
 
     /**
-     * Called during drag move, which started at [startDisplayId] and currently at
-     * [currentDisplayid]. Updates the position and visibility of the drag move indicators for the
-     * [taskInfo] based on [boundsDp] on the destination displays ([displayIds]) as the dragged
-     * window moves. [transactionSupplier] provides a [SurfaceControl.Transaction] for applying
-     * changes to the indicator surfaces.
+     * Updates the position and visibility of drag move indicators for a single task.
+     *
+     * @param boundsDp the current bounds of the dragged task
+     * @param currentDisplayId the ID of the display the drag is currently at
+     * @param startDisplayId the ID of the display the drag started at
+     * @param taskLeash the surface representing the task being dragged
+     * @param taskInfo the task being dragged
+     * @param displayIds contains the IDs of the displays to show drag move indicators on
+     * @param transaction is used to apply updates to indicator surfaces
      */
     fun onDragMove(
         boundsDp: RectF,
@@ -49,24 +53,13 @@ class MultiDisplayDragMoveIndicatorController(
         taskLeash: SurfaceControl,
         taskInfo: RunningTaskInfo,
         displayIds: Set<Int>,
-        transactionSupplier: () -> SurfaceControl.Transaction,
+        transaction: SurfaceControl.Transaction,
     ) {
         val startDisplayDpi =
             displayController.getDisplayLayout(startDisplayId)?.densityDpi() ?: return
-        val transaction = transactionSupplier()
         for (displayId in displayIds) {
-            val allowDropToDisplay =
-                if (
-                    DesktopExperienceFlags.ENABLE_BLOCK_NON_DESKTOP_DISPLAY_WINDOW_DRAG_BUGFIX
-                        .isTrue
-                )
-                    shellDesktopState.isEligibleWindowDropTarget(displayId)
-                else shellDesktopState.isDesktopModeSupportedOnDisplay(displayId)
-            if (
-                (displayId == startDisplayId &&
-                    !DesktopExperienceFlags.ENABLE_WINDOW_DROP_SMOOTH_TRANSITION.isTrue) ||
-                    !allowDropToDisplay
-            ) {
+            val allowDropToDisplay = shellDesktopState.isEligibleWindowDropTarget(displayId)
+            if (!allowDropToDisplay) {
                 // No need to render indicators on displays that do not support desktop mode.
                 continue
             }
@@ -117,7 +110,6 @@ class MultiDisplayDragMoveIndicatorController(
                     dragIndicatorsForTask[displayId] = newIndicator
                 }
         }
-        transaction.apply()
     }
 
     /**
@@ -131,20 +123,13 @@ class MultiDisplayDragMoveIndicatorController(
             ?.takeIf { it.isNotEmpty() }
             ?.let { indicators ->
                 indicators.forEach { indicator -> indicator.dispose(transaction) }
-                if (!DesktopExperienceFlags.ENABLE_WINDOW_DROP_SMOOTH_TRANSITION.isTrue) {
-                    transaction.apply()
-                }
             }
     }
 
-    /**
-     * Disposes all of the indicator surfaces with the [transaction].
-     */
+    /** Disposes all of the indicator surfaces with the [transaction]. */
     fun disposeAllIndicators(transaction: SurfaceControl.Transaction) {
         dragIndicators.values.forEach { innerIndicatorMap ->
-            innerIndicatorMap.values.forEach { indicator ->
-                indicator.dispose(transaction)
-            }
+            innerIndicatorMap.values.forEach { indicator -> indicator.dispose(transaction) }
         }
         dragIndicators.clear()
     }

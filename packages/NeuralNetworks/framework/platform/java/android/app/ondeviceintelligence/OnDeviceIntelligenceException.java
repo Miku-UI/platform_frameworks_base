@@ -21,6 +21,7 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.PersistableBundle;
+import android.app.ondeviceintelligence.flags.Flags;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -86,6 +87,14 @@ public class OnDeviceIntelligenceException extends Exception {
      * was unavailable.
      */
     public static final int PROCESSING_ERROR_SERVICE_UNAVAILABLE = 15;
+
+    /**
+     * The processing was not able to be passed on to the remote implementation, as the
+     * underlying service was not configured.
+     */
+    @FlaggedApi(Flags.FLAG_ON_DEVICE_INTELLIGENCE_26Q2)
+    public static final int PROCESSING_ERROR_SERVICE_NOT_CONFIGURED = 16;
+
     /**
      * Error code returned when the OnDeviceIntelligenceManager service is unavailable.
      */
@@ -119,6 +128,7 @@ public class OnDeviceIntelligenceException extends Exception {
                     PROCESSING_ERROR_SUSPENDED,
                     PROCESSING_ERROR_INTERNAL,
                     PROCESSING_ERROR_SERVICE_UNAVAILABLE,
+                    PROCESSING_ERROR_SERVICE_NOT_CONFIGURED,
                     ON_DEVICE_INTELLIGENCE_SERVICE_UNAVAILABLE,
                     PROCESSING_UPDATE_STATUS_CONNECTION_FAILED
             })

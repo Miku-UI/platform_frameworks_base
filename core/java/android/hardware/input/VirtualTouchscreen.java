@@ -16,10 +16,14 @@
 
 package android.hardware.input;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.RemoteException;
 import android.util.Log;
+import android.view.InputDevice;
+
+import java.io.Closeable;
 
 /**
  * A virtual touchscreen representing a touch-based display input mechanism on a remote device.
@@ -30,11 +34,36 @@ import android.util.Log;
  * @hide
  */
 @SystemApi
-public class VirtualTouchscreen extends VirtualInputDevice {
+public class VirtualTouchscreen implements Closeable {
+
+    private static final String TAG = "VirtualTouchscreen";
+
+    private final IVirtualTouchscreen mVirtualTouchscreen;
+
+    private final VirtualTouchscreenConfig mConfig;
+
     /** @hide */
     public VirtualTouchscreen(VirtualTouchscreenConfig config,
-            IVirtualInputDevice virtualInputDevice) {
-        super(config, virtualInputDevice);
+            IVirtualTouchscreen virtualTouchscreen) {
+        mConfig = config;
+        mVirtualTouchscreen = virtualTouchscreen;
+    }
+
+    /**
+     * Returns the ID of the underlying input device.
+     *
+     * @return The input device id of this device.
+     * @see InputDevice#getId()
+     * @hide
+     */
+    @FlaggedApi(com.android.hardware.input.Flags.FLAG_CREATE_VIRTUAL_KEYBOARD_API)
+    @SystemApi
+    public int getInputDeviceId() {
+        try {
+            return mVirtualTouchscreen.getInputDeviceId();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
     }
 
     /**
@@ -44,12 +73,27 @@ public class VirtualTouchscreen extends VirtualInputDevice {
      */
     public void sendTouchEvent(@NonNull VirtualTouchEvent event) {
         try {
-            if (!mVirtualInputDevice.sendTouchEvent(event)) {
+            if (!mVirtualTouchscreen.sendTouchEvent(event)) {
                 Log.w(TAG, "Failed to send touch event to virtual touchscreen "
                         + mConfig.getInputDeviceName());
             }
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
+    }
+
+    @Override
+    public void close() {
+        Log.d(TAG, "Closing virtual touchscreen " + mConfig.getInputDeviceName());
+        try {
+            mVirtualTouchscreen.close();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @Override
+    public String toString() {
+        return mConfig.toString();
     }
 }

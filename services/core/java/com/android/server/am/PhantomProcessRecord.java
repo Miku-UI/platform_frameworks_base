@@ -16,11 +16,13 @@
 
 package com.android.server.am;
 
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
 import static android.os.Process.PROC_NEWLINE_TERM;
 import static android.os.Process.PROC_OUT_LONG;
 
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_AM;
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_WITH_CLASS_NAME;
+import static com.android.server.am.psc.Constants.NATIVE_ADJ;
 
 import android.os.Handler;
 import android.os.Process;
@@ -78,7 +80,7 @@ public final class PhantomProcessRecord {
         mPid = pid;
         mPpid = ppid;
         mKilled = false;
-        mAdj = ProcessList.NATIVE_ADJ;
+        mAdj = NATIVE_ADJ;
         mKnownSince = SystemClock.elapsedRealtime();
         mService = service;
         mLock = service.mPhantomProcessList.mLock;
@@ -117,7 +119,7 @@ public final class PhantomProcessRecord {
                 Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER,
                         "killPhantom/" + mProcessName + "/" + reason);
             }
-            if (noisy || mUid == mService.mCurOomAdjUid) {
+            if (noisy || mUid == mService.mProcessStateController.getDebugUid()) {
                 mService.reportUidInfoMessageLocked(TAG,
                         "Killing " + toString() + ": " + reason, mUid);
             }
@@ -205,6 +207,9 @@ public final class PhantomProcessRecord {
             if (appId >= Process.FIRST_ISOLATED_UID && appId <= Process.LAST_ISOLATED_UID) {
                 sb.append('i');
                 sb.append(appId - Process.FIRST_ISOLATED_UID);
+            } else if (enablePccFrameworkSupport() && Process.isPrivateComputeCoreUid(appId)) {
+                sb.append('p');
+                sb.append(appId - Process.FIRST_PCC_UID);
             }
         }
         sb.append('}');

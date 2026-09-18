@@ -71,7 +71,10 @@ abstract class MinimizeWindowOnAppOpen : TestScenarioBase() {
             .openAllApps()
             .getAppIcon(browserAppHelper.appName)
             .launch(browserAppHelper.packageName)
-        assertWindowManagerState(appShouldBeMinimized = testAppHelper, appShouldBeOnTop = browserAppHelper)
+        assertWindowManagerState(
+            appShouldBeMinimized = testAppHelper,
+            appShouldBeOnTop = browserAppHelper,
+        )
     }
 
     @Test
@@ -82,7 +85,10 @@ abstract class MinimizeWindowOnAppOpen : TestScenarioBase() {
         tapl.launchedAppState.taskbar
             .getAppIcon(browserAppHelper.appName)
             .launch(browserAppHelper.packageName)
-        assertWindowManagerState(appShouldBeMinimized = testAppHelper, appShouldBeOnTop = browserAppHelper)
+        assertWindowManagerState(
+            appShouldBeMinimized = testAppHelper,
+            appShouldBeOnTop = browserAppHelper,
+        )
     }
 
     @Test
@@ -95,12 +101,15 @@ abstract class MinimizeWindowOnAppOpen : TestScenarioBase() {
         tapl.launchedAppState.taskbar
             .getAppIcon(browserAppHelper.appName)
             .launch(browserAppHelper.packageName)
-        assertWindowManagerState(appShouldBeMinimized = testAppHelper, appShouldBeOnTop = browserAppHelper)
+        assertWindowManagerState(
+            appShouldBeMinimized = testAppHelper,
+            appShouldBeOnTop = browserAppHelper,
+        )
     }
 
     private fun assertWindowManagerState(
         appShouldBeMinimized: StandardAppHelper,
-        appShouldBeOnTop: StandardAppHelper
+        appShouldBeOnTop: StandardAppHelper,
     ) {
         wmHelper
             .StateSyncBuilder()

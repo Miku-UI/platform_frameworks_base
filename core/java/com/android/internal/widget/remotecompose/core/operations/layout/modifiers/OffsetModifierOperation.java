@@ -19,10 +19,12 @@ import static com.android.internal.widget.remotecompose.core.documentation.Docum
 
 import android.annotation.NonNull;
 
+import com.android.internal.widget.remotecompose.core.CoreDocument;
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
 import com.android.internal.widget.remotecompose.core.PaintContext;
 import com.android.internal.widget.remotecompose.core.RemoteContext;
+import com.android.internal.widget.remotecompose.core.VariableSupport;
 import com.android.internal.widget.remotecompose.core.WireBuffer;
 import com.android.internal.widget.remotecompose.core.documentation.DocumentationBuilder;
 import com.android.internal.widget.remotecompose.core.operations.Utils;
@@ -34,32 +36,40 @@ import com.android.internal.widget.remotecompose.core.serialize.SerializeTags;
 import java.util.List;
 
 /** Represents an offset modifier. */
-public class OffsetModifierOperation extends DecoratorModifierOperation {
+public class OffsetModifierOperation extends DecoratorModifierOperation implements
+        VariableSupport {
     private static final int OP_CODE = Operations.MODIFIER_OFFSET;
     public static final String CLASS_NAME = "OffsetModifierOperation";
 
     float mX;
     float mY;
 
+    float mXValue;
+    float mYValue;
+
     public OffsetModifierOperation(float x, float y) {
         this.mX = x;
         this.mY = y;
+        this.mXValue = mX;
+        this.mYValue = mY;
     }
 
     public float getX() {
-        return mX;
+        return mXValue;
     }
 
     public float getY() {
-        return mY;
+        return mYValue;
     }
 
     public void setX(float x) {
         this.mX = x;
+        this.mXValue = x;
     }
 
     public void setY(float y) {
         this.mY = y;
+        this.mYValue = y;
     }
 
     @Override
@@ -70,7 +80,7 @@ public class OffsetModifierOperation extends DecoratorModifierOperation {
     /**
      * Serialize the string
      *
-     * @param indent padding to display
+     * @param indent     padding to display
      * @param serializer append the string
      */
     @Override
@@ -86,11 +96,13 @@ public class OffsetModifierOperation extends DecoratorModifierOperation {
 
     @Override
     public void paint(@NonNull PaintContext context) {
-        float x = context.getContext().mRemoteComposeState.getFloat(Utils.idFromNan(mX));
-        float y = context.getContext().mRemoteComposeState.getFloat(Utils.idFromNan(mY));
-        float density = context.getContext().getDensity();
-        x *= density;
-        y *= density;
+        float x = mXValue;
+        float y = mYValue;
+        if (context.getDensityBehavior() == CoreDocument.DENSITY_BEHAVIOR_DP) {
+            float density = context.getDensity();
+            x *= density;
+            y *= density;
+        }
         context.translate(x, y);
     }
 
@@ -122,8 +134,8 @@ public class OffsetModifierOperation extends DecoratorModifierOperation {
      * Write the operation to the buffer
      *
      * @param buffer a WireBuffer
-     * @param x x offset
-     * @param y y offset
+     * @param x      x offset
+     * @param y      y offset
      */
     public static void apply(@NonNull WireBuffer buffer, float x, float y) {
         buffer.start(OP_CODE);
@@ -134,7 +146,7 @@ public class OffsetModifierOperation extends DecoratorModifierOperation {
     /**
      * Read this operation and add it to the list of operations
      *
-     * @param buffer the buffer to read
+     * @param buffer     the buffer to read
      * @param operations the list of operations that will be added to
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
@@ -150,9 +162,10 @@ public class OffsetModifierOperation extends DecoratorModifierOperation {
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
         doc.operation("Modifier Operations", OP_CODE, CLASS_NAME)
-                .description("define the Offset Modifier")
-                .field(FLOAT, "x", "")
-                .field(FLOAT, "y", "");
+                .additionalDocumentation("modifier_offset")
+                .description("Shift the component's position")
+                .field(FLOAT, "x", "X offset")
+                .field(FLOAT, "y", "Y offset");
     }
 
     @Override
@@ -160,7 +173,8 @@ public class OffsetModifierOperation extends DecoratorModifierOperation {
             @NonNull RemoteContext context,
             @NonNull Component component,
             float width,
-            float height) {}
+            float height) {
+    }
 
     @Override
     public void serialize(@NonNull MapSerializer serializer) {
@@ -169,5 +183,21 @@ public class OffsetModifierOperation extends DecoratorModifierOperation {
                 .addType("OffsetModifierOperation")
                 .add("x", mX)
                 .add("y", mY);
+    }
+
+    @Override
+    public void registerListening(@NonNull RemoteContext context) {
+        if (Float.isNaN(mX)) {
+            context.listensTo(Utils.idFromNan(mX), this);
+        }
+        if (Float.isNaN(mY)) {
+            context.listensTo(Utils.idFromNan(mY), this);
+        }
+    }
+
+    @Override
+    public void updateVariables(@NonNull RemoteContext context) {
+        mXValue = Float.isNaN(mX) ? context.getFloat(Utils.idFromNan(mX)) : mX;
+        mYValue = Float.isNaN(mY) ? context.getFloat(Utils.idFromNan(mY)) : mY;
     }
 }

@@ -79,6 +79,18 @@ public class ProtoLogController {
      * @param groups The groups to register.
      */
     public void init(@NonNull IProtoLogGroup... groups) {
+        init(false, groups);
+    }
+
+    /**
+     * Asynchronously initializes the ProtoLog instance.
+     * @param groups The groups to register.
+     */
+    public void initAsync(@NonNull IProtoLogGroup... groups) {
+        init(true, groups);
+    }
+
+    private void init(boolean async, @NonNull IProtoLogGroup... groups) {
         registerLogGroupInProcess(groups);
 
         synchronized (mInitLock) {
@@ -92,10 +104,10 @@ public class ProtoLogController {
             if (shouldLogOnlyToLogcat()) {
                 mProtoLogInstance = createLogcatOnlyInstance();
             } else {
-                var datasource = ProtoLog.getSharedSingleInstanceDataSource();
+                var datasource = ProtoLog.getSharedSingleInstanceDataSource(!async);
 
                 mProtoLogInstance = createAndEnableNewPerfettoProtoLogImpl(
-                        datasource, mGroups.toArray(new IProtoLogGroup[0]));
+                        datasource, mGroups.toArray(new IProtoLogGroup[0]), async);
             }
         }
     }
@@ -153,11 +165,12 @@ public class ProtoLogController {
      */
     @NonNull
     protected PerfettoProtoLogImpl createAndEnableNewPerfettoProtoLogImpl(
-            @NonNull ProtoLogDataSource datasource, @NonNull IProtoLogGroup[] groups) {
+            @NonNull ProtoLogDataSource datasource, @NonNull IProtoLogGroup[] groups,
+            boolean async) {
         try {
             var unprocessedPerfettoProtoLogImpl =
                     new UnprocessedPerfettoProtoLogImpl(datasource, groups);
-            unprocessedPerfettoProtoLogImpl.enable();
+            unprocessedPerfettoProtoLogImpl.enable(async);
 
             return unprocessedPerfettoProtoLogImpl;
         } catch (ServiceManager.ServiceNotFoundException e) {

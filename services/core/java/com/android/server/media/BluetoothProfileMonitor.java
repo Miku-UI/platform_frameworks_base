@@ -42,7 +42,6 @@ import android.provider.Settings;
 import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
-import com.android.media.flags.Flags;
 
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
@@ -131,14 +130,12 @@ import java.util.concurrent.ThreadLocalRandom;
         mBluetoothAdapter.getProfileProxy(mContext, mProfileListener, BluetoothProfile.A2DP);
         mBluetoothAdapter.getProfileProxy(mContext, mProfileListener, BluetoothProfile.HEARING_AID);
         mBluetoothAdapter.getProfileProxy(mContext, mProfileListener, BluetoothProfile.LE_AUDIO);
-        if (Flags.enableOutputSwitcherPersonalAudioSharing()) {
-            mBluetoothAdapter.getProfileProxy(
-                    mContext, mProfileListener, BluetoothProfile.LE_AUDIO_BROADCAST);
-            mBluetoothAdapter.getProfileProxy(
-                    mContext, mProfileListener, BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT);
-            mBluetoothAdapter.getProfileProxy(
-                    mContext, mProfileListener, BluetoothProfile.VOLUME_CONTROL);
-        }
+        mBluetoothAdapter.getProfileProxy(
+                mContext, mProfileListener, BluetoothProfile.LE_AUDIO_BROADCAST);
+        mBluetoothAdapter.getProfileProxy(
+                mContext, mProfileListener, BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT);
+        mBluetoothAdapter.getProfileProxy(
+                mContext, mProfileListener, BluetoothProfile.VOLUME_CONTROL);
     }
 
     /* package */ boolean isProfileSupported(int profile, @NonNull BluetoothDevice device) {
@@ -366,7 +363,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
         if (settingBroadcastName == null || settingBroadcastName.isEmpty()) {
             int postfix = ThreadLocalRandom.current().nextInt(DEFAULT_CODE_MIN, DEFAULT_CODE_MAX);
-            String name = BluetoothAdapter.getDefaultAdapter().getName();
+            String name = mBluetoothAdapter.getName();
             if (name == null || name.isEmpty()) {
                 name = DEFAULT_BROADCAST_NAME_PREFIX;
             }
@@ -527,23 +524,17 @@ import java.util.concurrent.ThreadLocalRandom;
                         mLeAudioProfile = (BluetoothLeAudio) proxy;
                         break;
                     case BluetoothProfile.LE_AUDIO_BROADCAST:
-                        if (Flags.enableOutputSwitcherPersonalAudioSharing()) {
-                            mBroadcastProfile = (BluetoothLeBroadcast) proxy;
-                            mBroadcastProfile.registerCallback(mHandler::post, mBroadcastCallback);
-                        }
+                        mBroadcastProfile = (BluetoothLeBroadcast) proxy;
+                        mBroadcastProfile.registerCallback(mHandler::post, mBroadcastCallback);
                         break;
                     case BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT:
-                        if (Flags.enableOutputSwitcherPersonalAudioSharing()) {
-                            mAssistantProfile = (BluetoothLeBroadcastAssistant) proxy;
-                            mAssistantProfile.registerCallback(
-                                    mHandler::post, mBroadcastAssistantCallback);
-                        }
+                        mAssistantProfile = (BluetoothLeBroadcastAssistant) proxy;
+                        mAssistantProfile.registerCallback(
+                                mHandler::post, mBroadcastAssistantCallback);
                         break;
                     case BluetoothProfile.VOLUME_CONTROL:
-                        if (Flags.enableOutputSwitcherPersonalAudioSharing()) {
-                            mVolumeProfile = (BluetoothVolumeControl) proxy;
-                            mVolumeProfile.registerCallback(mHandler::post, mVolumeCallback);
-                        }
+                        mVolumeProfile = (BluetoothVolumeControl) proxy;
+                        mVolumeProfile.registerCallback(mHandler::post, mVolumeCallback);
                         break;
                 }
             }
@@ -563,23 +554,17 @@ import java.util.concurrent.ThreadLocalRandom;
                         mLeAudioProfile = null;
                         break;
                     case BluetoothProfile.LE_AUDIO_BROADCAST:
-                        if (Flags.enableOutputSwitcherPersonalAudioSharing()) {
-                            mBroadcastProfile.unregisterCallback(mBroadcastCallback);
-                            mBroadcastProfile = null;
-                            mBroadcastId = INVALID_BROADCAST_ID;
-                        }
+                        mBroadcastProfile.unregisterCallback(mBroadcastCallback);
+                        mBroadcastProfile = null;
+                        mBroadcastId = INVALID_BROADCAST_ID;
                         break;
                     case BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT:
-                        if (Flags.enableOutputSwitcherPersonalAudioSharing()) {
-                            mAssistantProfile.unregisterCallback(mBroadcastAssistantCallback);
-                            mAssistantProfile = null;
-                        }
+                        mAssistantProfile.unregisterCallback(mBroadcastAssistantCallback);
+                        mAssistantProfile = null;
                         break;
                     case BluetoothProfile.VOLUME_CONTROL:
-                        if (Flags.enableOutputSwitcherPersonalAudioSharing()) {
-                            mVolumeProfile.unregisterCallback(mVolumeCallback);
-                            mVolumeProfile = null;
-                        }
+                        mVolumeProfile.unregisterCallback(mVolumeCallback);
+                        mVolumeProfile = null;
                         break;
                 }
             }

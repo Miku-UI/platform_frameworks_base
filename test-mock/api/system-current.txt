@@ -1,4 +1,5 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package android.test.mock {
 
   public class MockContext extends android.content.Context {
@@ -32,7 +33,7 @@ package android.test.mock {
     method @Deprecated public void setUpdateAvailable(String, boolean);
     method @Deprecated public boolean updateIntentVerificationStatusAsUser(String, int, int);
     method @Deprecated public void updatePermissionFlags(String, String, int, int, android.os.UserHandle);
-    method @Deprecated public void verifyIntentFilter(int, int, java.util.List<java.lang.String>);
+    method @Deprecated public void verifyIntentFilter(int, int, java.util.List<String>);
   }
 
 }

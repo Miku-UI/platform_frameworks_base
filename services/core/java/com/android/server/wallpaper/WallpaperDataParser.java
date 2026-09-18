@@ -27,7 +27,6 @@ import static com.android.server.wallpaper.WallpaperUtils.WALLPAPER_CROP;
 import static com.android.server.wallpaper.WallpaperUtils.WALLPAPER_INFO;
 import static com.android.server.wallpaper.WallpaperUtils.getWallpaperDir;
 import static com.android.server.wallpaper.WallpaperUtils.makeWallpaperIdLocked;
-import static com.android.window.flags.Flags.multiCrop;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -133,14 +132,12 @@ public class WallpaperDataParser {
     /**
      * Load the system wallpaper (and the lock wallpaper, if it exists) from disk
      * @param userId the id of the user for which the wallpaper should be loaded
-     * @param keepDimensionHints if false, parse and set the
-     *                      {@link DisplayData} width and height for the specified userId
      * @param migrateFromOld whether the current wallpaper is pre-N and needs migration
      * @param which The wallpaper(s) to load.
      * @return a {@link WallpaperLoadingResult} object containing the wallpaper data.
      */
-    public WallpaperLoadingResult loadSettingsLocked(int userId, boolean keepDimensionHints,
-            boolean migrateFromOld, @SetWallpaperFlags int which) {
+    public WallpaperLoadingResult loadSettingsLocked(int userId, boolean migrateFromOld,
+            @SetWallpaperFlags int which) {
         // TODO(b/270726737) remove the "keepDimensionHints" arg when removing the multi crop flag
         JournaledFile journal = makeJournaledFile(userId);
         FileInputStream stream = null;
@@ -173,7 +170,7 @@ public class WallpaperDataParser {
             TypedXmlPullParser parser = Xml.resolvePullParser(stream);
 
             lockWallpaper = loadSettingsFromSerializer(parser, wallpaper, userId, loadSystem,
-                    loadLock, keepDimensionHints, wpdData);
+                    loadLock, wpdData);
 
             success = true;
         } catch (FileNotFoundException e) {
@@ -223,8 +220,8 @@ public class WallpaperDataParser {
     // created conditionally if there is lock screen wallpaper data to read.
     @VisibleForTesting
     WallpaperData loadSettingsFromSerializer(TypedXmlPullParser parser, WallpaperData wallpaper,
-            int userId, boolean loadSystem, boolean loadLock, boolean keepDimensionHints,
-            DisplayData wpdData) throws IOException, XmlPullParserException {
+            int userId, boolean loadSystem, boolean loadLock, DisplayData wpdData)
+            throws IOException, XmlPullParserException {
         WallpaperData lockWallpaper = null;
         int type;
         do {
@@ -238,14 +235,8 @@ public class WallpaperDataParser {
                     WallpaperData wallpaperToParse =
                             "wp".equals(tag) ? wallpaper : lockWallpaper;
 
-                    if (!multiCrop()) {
-                        parseWallpaperAttributes(parser, wallpaperToParse, keepDimensionHints);
-                    }
-
                     ComponentName comp = parseComponentName(parser);
-                    if (multiCrop()) {
-                        parseWallpaperAttributes(parser, wallpaperToParse, keepDimensionHints);
-                    }
+                    parseWallpaperAttributes(parser, wallpaperToParse);
 
                     if (DEBUG) {
                         Slog.v(TAG, "mWidth:" + wpdData.mWidth);
@@ -334,8 +325,8 @@ public class WallpaperDataParser {
     }
 
     @VisibleForTesting
-    void parseWallpaperAttributes(TypedXmlPullParser parser, WallpaperData wallpaper,
-            boolean keepDimensionHints) throws XmlPullParserException, IOException {
+    void parseWallpaperAttributes(TypedXmlPullParser parser, WallpaperData wallpaper)
+            throws XmlPullParserException, IOException {
         final int id = parser.getAttributeInt(null, "id", -1);
         if (id != -1) {
             wallpaper.wallpaperId = id;
@@ -357,7 +348,7 @@ public class WallpaperDataParser {
                 getAttributeInt(parser, "totalCropRight", 0),
                 getAttributeInt(parser, "totalCropBottom", 0));
         ComponentName componentName = parseComponentName(parser);
-        if (multiCrop() && mImageWallpaper.equals(componentName)) {
+        if (mImageWallpaper.equals(componentName)) {
             wallpaper.mCropHints = new SparseArray<>();
             for (Pair<Integer, String> pair: screenDimensionPairs()) {
                 Rect cropHint = new Rect(
@@ -379,21 +370,9 @@ public class WallpaperDataParser {
                 wallpaper.cropHint.set(totalCropHint);
             }
             wallpaper.mSampleSize = parser.getAttributeFloat(null, "sampleSize", 1f);
-        } else if (!multiCrop()) {
-            wallpaper.cropHint.set(legacyCropHint);
         }
         final DisplayData wpData = mWallpaperDisplayHelper
                 .getDisplayDataOrCreate(DEFAULT_DISPLAY);
-        if (!keepDimensionHints && !multiCrop()) {
-            wpData.mWidth = parser.getAttributeInt(null, "width", 0);
-            wpData.mHeight = parser.getAttributeInt(null, "height", 0);
-        }
-        if (!multiCrop()) {
-            wpData.mPadding.left = getAttributeInt(parser, "paddingLeft", 0);
-            wpData.mPadding.top = getAttributeInt(parser, "paddingTop", 0);
-            wpData.mPadding.right = getAttributeInt(parser, "paddingRight", 0);
-            wpData.mPadding.bottom = getAttributeInt(parser, "paddingBottom", 0);
-        }
         wallpaper.mWallpaperDimAmount = getAttributeFloat(parser, "dimAmount", 0f);
         BindSource bindSource;
         try {
@@ -448,7 +427,6 @@ public class WallpaperDataParser {
         if (wallpaper.getDescription().getComponent() == null) {
             // The last save was done before the content handling flag was enabled and has no
             // WallpaperDescription, so create a default one with the correct component.
-            // CSP: log boot after flag change to false -> true
             wallpaper.setDescription(
                     new WallpaperDescription.Builder().setComponent(componentName).build());
         }
@@ -509,7 +487,7 @@ public class WallpaperDataParser {
         out.startTag(null, tag);
         out.attributeInt(null, "id", wallpaper.wallpaperId);
 
-        if (multiCrop() && mImageWallpaper.equals(wallpaper.getComponent())) {
+        if (mImageWallpaper.equals(wallpaper.getComponent())) {
             if (wallpaper.mCropHints == null) {
                 Slog.e(TAG, "cropHints should not be null when saved");
                 wallpaper.mCropHints = new SparseArray<>();
@@ -549,27 +527,6 @@ public class WallpaperDataParser {
             out.attributeInt(null, "totalCropRight", wallpaper.cropHint.right);
             out.attributeInt(null, "totalCropBottom", wallpaper.cropHint.bottom);
             out.attributeFloat(null, "sampleSize", wallpaper.mSampleSize);
-        } else if (!multiCrop()) {
-            final DisplayData wpdData =
-                    mWallpaperDisplayHelper.getDisplayDataOrCreate(DEFAULT_DISPLAY);
-            out.attributeInt(null, "width", wpdData.mWidth);
-            out.attributeInt(null, "height", wpdData.mHeight);
-            out.attributeInt(null, "cropLeft", wallpaper.cropHint.left);
-            out.attributeInt(null, "cropTop", wallpaper.cropHint.top);
-            out.attributeInt(null, "cropRight", wallpaper.cropHint.right);
-            out.attributeInt(null, "cropBottom", wallpaper.cropHint.bottom);
-            if (wpdData.mPadding.left != 0) {
-                out.attributeInt(null, "paddingLeft", wpdData.mPadding.left);
-            }
-            if (wpdData.mPadding.top != 0) {
-                out.attributeInt(null, "paddingTop", wpdData.mPadding.top);
-            }
-            if (wpdData.mPadding.right != 0) {
-                out.attributeInt(null, "paddingRight", wpdData.mPadding.right);
-            }
-            if (wpdData.mPadding.bottom != 0) {
-                out.attributeInt(null, "paddingBottom", wpdData.mPadding.bottom);
-            }
         }
 
         out.attributeFloat(null, "dimAmount", wallpaper.mWallpaperDimAmount);
@@ -611,7 +568,7 @@ public class WallpaperDataParser {
         }
 
         out.attribute(null, "name", wallpaper.name);
-        if (wallpaper.getComponent() != null
+        if (!wallpaper.getComponent().equals(WallpaperData.NO_COMPONENT)
                 && !wallpaper.getComponent().equals(mImageWallpaper)) {
             out.attribute(null, "component",
                     wallpaper.getComponent().flattenToShortString());

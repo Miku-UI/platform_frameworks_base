@@ -105,7 +105,7 @@ public final class CurrentUserServiceSupplier extends BroadcastReceiver implemen
     public static class BoundServiceInfo extends ServiceWatcher.BoundServiceInfo {
 
         private static int parseUid(ResolveInfo resolveInfo) {
-            int uid = resolveInfo.serviceInfo.applicationInfo.uid;
+            int uid = resolveInfo.serviceInfo.getUid();
             Bundle metadata = resolveInfo.serviceInfo.metaData;
             if (metadata != null && metadata.getBoolean(EXTRA_SERVICE_IS_MULTIUSER, false)) {
                 // reconstruct a uid for the same app but with the system user - hope this exists

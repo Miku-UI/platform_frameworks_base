@@ -16,20 +16,22 @@
 
 package com.android.systemui.authentication.domain.interactor
 
+import com.android.internal.logging.latencyTracker
 import com.android.systemui.authentication.data.repository.authenticationRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.testDispatcher
-import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.user.domain.interactor.selectedUserInteractor
+import com.android.systemui.util.time.systemClock
 
 val Kosmos.authenticationInteractor by
     Kosmos.Fixture {
         AuthenticationInteractor(
             applicationScope = applicationCoroutineScope,
             backgroundDispatcher = testDispatcher,
+            clock = systemClock,
             repository = authenticationRepository,
             selectedUserInteractor = selectedUserInteractor,
-            tableLogBuffer = logcatTableLogBuffer(this, "sceneFrameworkTableLogBuffer"),
+            latencyTracker = latencyTracker,
         )
     }

@@ -16,9 +16,12 @@
 
 package com.android.systemui.util.sensors;
 
+import static com.android.internal.R.bool.config_dozeSupportsAodInactivityDetection;
+
 import android.content.res.Resources;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
+import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -26,8 +29,12 @@ import androidx.annotation.NonNull;
 
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.res.R;
+import com.android.systemui.shared.Flags;
 import com.android.systemui.statusbar.policy.DevicePostureController;
+import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
 import com.android.systemui.util.concurrency.DelayableExecutor;
+import com.android.systemui.util.concurrency.Execution;
+import com.android.systemui.util.settings.SecureSettings;
 
 import dagger.Lazy;
 import dagger.Module;
@@ -101,9 +108,73 @@ public class SensorModule {
         }
     }
 
+    /**
+     * Provides a ProximitySensor that may be backed by an activity detection sensor.
+     *
+     * If the user has enabled the activity detection setting for AOD, this provider will attempt to
+     * load the activity detection sensor doze_activity_sensor_type. If that sensor is unavailable
+     * or the setting is disabled, it will fall back to providing the generic ProximitySensor.
+     */
+    @Provides
+    @ActivityDetectionProximitySensor
+    static ProximitySensor provideActivityDetectionProximitySensor(
+            Lazy<ProximitySensor> genericProximitySensor,
+            ThresholdSensorImpl.Builder thresholdSensorBuilder,
+            SecureSettings secureSettings,
+            @Main Resources resources,
+            SelectedUserInteractor selectedUserInteractor,
+            @SecondaryProxSensor ThresholdSensor secondary,
+            @Main DelayableExecutor delayableExecutor,
+            Execution execution
+    ) {
+        boolean inactivityDetectionAvailable = Flags.aodInactivityDetection()
+                && resources.getBoolean(config_dozeSupportsAodInactivityDetection);
+        if (inactivityDetectionAvailable) {
+            // This is a blocking call, so we only make it when the device supports the feature.
+            boolean inactivityDetectionEnabled = secureSettings.getIntForUser(
+                    Settings.Secure.DOZE_ALWAYS_ON_INACTIVITY_DETECTION, 0,
+                    selectedUserInteractor.getSelectedUserId()) != 0;
+
+            if (inactivityDetectionEnabled) {
+                try {
+                    ThresholdSensor dozeActivitySensor = thresholdSensorBuilder
+                            .setSensorDelay(SensorManager.SENSOR_DELAY_NORMAL)
+                            .setSensorResourceId(R.string.doze_activity_sensor_type, true)
+                            .setThresholdResourceId(R.dimen.doze_activity_sensor_threshold)
+                            .setThresholdLatchResourceId(
+                                    R.dimen.doze_activity_sensor_threshold_latch)
+                            .build();
+                    return new ProximitySensorImpl(
+                            dozeActivitySensor, secondary, delayableExecutor, execution);
+                } catch (IllegalStateException e) {
+                    // Fall through to use the generic proximity sensor if activity sensor fails.
+                }
+            }
+        }
+
+        // Default case: return the standard, posture-aware proximity sensor.
+        return genericProximitySensor.get();
+    }
+
     @Provides
     static ProximityCheck provideProximityCheck(
             ProximitySensor proximitySensor,
+            @Main DelayableExecutor delayableExecutor
+    ) {
+        return new ProximityCheck(
+                proximitySensor,
+                delayableExecutor
+        );
+    }
+
+    /**
+     * Provides an alternative ProximityCheck that depends on the ProximitySensor that may be backed
+     * by an activity detection sensor.
+     */
+    @Provides
+    @ActivityDetectionProximitySensor
+    static ProximityCheck provideActivityDetectionProximityCheck(
+            @ActivityDetectionProximitySensor ProximitySensor proximitySensor,
             @Main DelayableExecutor delayableExecutor
     ) {
         return new ProximityCheck(

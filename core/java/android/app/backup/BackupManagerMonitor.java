@@ -146,6 +146,14 @@ public class BackupManagerMonitor {
   public static final String EXTRA_LOG_OPERATION_TYPE = "android.app.backup.extra.OPERATION_TYPE";
 
   /**
+   * boolean: This extra is present if the restore operation is a delayed restore.
+   *
+   * @hide
+   */
+  public static final String EXTRA_LOG_IS_DELAYED_RESTORE =
+          "android.app.backup.extra.LOG_IS_DELAYED_RESTORE";
+
+  /**
    * List of system components that do not support restore in a  V-> U OS downgrade, even if
    * restoreAnyVersion is set to true.
    * Read from Settings.Secure.V_TO_U_RESTORE_DENYLIST
@@ -306,8 +314,35 @@ public class BackupManagerMonitor {
    @hide */
   public static final int LOG_EVENT_ID_FAILED_TO_READ_DATA_FROM_TRANSPORT = 81;
 
-  /** The pipe between the BackupAgent and the framework was broken during full backup. @hide */
+  /**
+   * The pipe between the BackupAgent and the framework was broken during full backup.
+   * @hide
+   */
   public static final int LOG_EVENT_ID_FULL_BACKUP_AGENT_PIPE_BROKEN = 82;
+
+  /**
+   * Restore cancelled for the given package.
+   * @hide
+   */
+  public static final int LOG_EVENT_ID_RESTORE_CANCELLED = 83;
+
+  /**
+   * The delayed restore cleanup for a package has started.
+   * @hide
+   */
+  public static final int LOG_EVENT_ID_START_DELAYED_RESTORE_CLEANUP = 84;
+
+  /**
+   * The delayed restore cleanup for a package has finished.
+   * @hide
+   */
+  public static final int LOG_EVENT_ID_DELAYED_RESTORE_CLEANUP_FINISHED = 85;
+
+  /**
+   * A delayed restore operation was successfully scheduled.
+   * @hide
+   */
+  public static final int LOG_EVENT_ID_DELAYED_RESTORE_SCHEDULED = 86;
 
   /**
    * This method will be called each time something important happens on BackupManager.

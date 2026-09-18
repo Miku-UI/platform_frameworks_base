@@ -17,9 +17,16 @@
 package android.security.net.config;
 
 import static com.android.org.conscrypt.net.flags.Flags.networkSecurityConfigLocalhost;
+import static android.security.Flags.deprecateUsesCleartextTraffic2;
 
+import android.annotation.FlaggedApi;
+import android.app.compat.CompatChanges;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.Overridable;
+import android.compat.annotation.Disabled;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
+import android.os.Build;
 import android.util.Log;
 import android.util.Pair;
 
@@ -35,6 +42,14 @@ public class ManifestConfigSource implements ConfigSource {
     private final ApplicationInfo mApplicationInfo;
 
     private ConfigSource mConfigSource;
+
+    /**
+     * Disable the XML flag usesCleartextTraffic. Apps can still opt-in to
+     * cleartext traffic via their Network Security Config.
+     */
+    @ChangeId
+    @Disabled
+    static final long DEPRECATE_USES_CLEARTEXT_TRAFFIC = 415007211L;
 
     public ManifestConfigSource(Context context) {
         mContext = context;
@@ -80,9 +95,16 @@ public class ManifestConfigSource implements ConfigSource {
                 }
                 // the legacy FLAG_USES_CLEARTEXT_TRAFFIC is not supported for Ephemeral apps, they
                 // should use the network security config.
+                // This flag is only set to true on older platforms (see condition below). The
+                // attribute is being deprecated for newer platforms, for which its value is
+                // always treated as false.
                 boolean usesCleartextTraffic =
                         (mApplicationInfo.flags & ApplicationInfo.FLAG_USES_CLEARTEXT_TRAFFIC) != 0
                         && !mApplicationInfo.isInstantApp();
+                if (CompatChanges.isChangeEnabled(DEPRECATE_USES_CLEARTEXT_TRAFFIC) &&
+                    deprecateUsesCleartextTraffic2()) {
+                    usesCleartextTraffic = false;
+                }
                 source = new DefaultConfigSource(usesCleartextTraffic, mApplicationInfo);
             }
             mConfigSource = source;

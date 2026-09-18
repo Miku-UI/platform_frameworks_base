@@ -317,12 +317,10 @@ class ClockSizeTransition(
                         logger.e("No large clock set, falling back")
                         addTarget(ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE)
                     }
-                if (com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout()) {
-                    if (viewModel.shouldDateWeatherBeBelowLargeClock.value) {
-                        addTarget(sharedR.id.date_smartspace_view_large)
-                    } else {
-                        addTarget(sharedR.id.date_smartspace_view)
-                    }
+                if (viewModel.shouldDateWeatherBeBelowLargeClock.value) {
+                    addTarget(sharedR.id.date_smartspace_view_large)
+                } else {
+                    addTarget(sharedR.id.date_smartspace_view)
                 }
             } else {
                 logger.i("Adding small clock")

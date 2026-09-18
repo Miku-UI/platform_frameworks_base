@@ -48,14 +48,17 @@ constructor(
         pw.println("shade_display_override <policyName> ")
         pw.println("Set the display which is holding the shade, or the policy that defines it.")
         pw.println()
+        pw.println("shade_display_override display_id) ")
+        pw.println("Print the ID of the display which is holding the shade")
+        pw.println()
         pw.println("shade_display_override policies")
-        pw.println("Lists available policies")
+        pw.println("List available policies")
         pw.println()
         pw.println("shade_display_override reset ")
         pw.println("Reset the display which is holding the shade.")
         pw.println()
         pw.println("shade_display_override (list|status) ")
-        pw.println("Lists available displays and which has the shade")
+        pw.println("List available displays and which has the shade")
     }
 
     override fun execute(pw: PrintWriter, args: List<String>) {
@@ -70,6 +73,7 @@ constructor(
 
         fun execute() {
             when (val command = args.getOrNull(0)?.lowercase()) {
+                "display_id" -> printShadeDisplayId()
                 "reset" -> reset()
                 "policies" -> printPolicies()
                 "list",
@@ -85,6 +89,10 @@ constructor(
             } else {
                 help(pw)
             }
+        }
+
+        private fun printShadeDisplayId() {
+            pw.println(positionRepository.displayId.value)
         }
 
         private fun reset() {

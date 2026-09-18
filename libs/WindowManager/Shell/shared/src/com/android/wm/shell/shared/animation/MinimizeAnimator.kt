@@ -41,23 +41,19 @@ object MinimizeAnimator {
             endOffsetYDp = 12f,
             endScale = 0.97f,
             interpolator = Interpolators.STANDARD_ACCELERATE,
-            animBounds = if (DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-                // In some cases, nav-back on the last desktop task may cause it to be reparented
-                // into a fullscreen TDA before being minimized back into a desk by
-                // [DesktopBackNavTransitionObserver]. The minimize animation would then occur when
-                // the task is still fullscreen, which means it should use the start bounds for the
-                // minimize animation.
-                AnimationBounds.START
-            } else {
-                AnimationBounds.END
-            }
+            // In some cases, nav-back on the last desktop task may cause it to be
+            // reparented into a fullscreen TDA before being minimized back into a desk by
+            // [DesktopBackNavTransitionObserver]. The minimize animation would then occur
+            // when the task is still fullscreen, which means it should use the start
+            // bounds for the minimize animation.
+            animBounds = AnimationBounds.START,
         )
 
     /**
      * Creates a minimize animator for given task [Change].
      *
      * @param onAnimFinish finish-callback for the animation, note that this is called on the same
-     * thread as the animation itself.
+     *   thread as the animation itself.
      * @param animationHandler the Handler that the animation is running on.
      */
     @JvmStatic
@@ -71,40 +67,46 @@ object MinimizeAnimator {
         animationHandler: Handler,
         startAnimDelay: Duration = Duration.ZERO,
     ): Animator {
-        val boundsAnimator = WindowAnimator.createBoundsAnimator(
-            context.resources.displayMetrics,
-            minimizeBoundsAnimationDef,
-            change,
-            transaction,
-        )
-        val alphaAnimator = ValueAnimator.ofFloat(1f, 0f).apply {
-            duration = MINIMIZE_ANIM_ALPHA_DURATION_MS
-            interpolator = Interpolators.LINEAR
-            addUpdateListener { animation ->
-                transaction
-                    .setAlpha(change.leash, animation.animatedValue as Float)
-                    .setFrameTimeline(Choreographer.getInstance().vsyncId)
-                    .apply()
+        val boundsAnimator =
+            WindowAnimator.createBoundsAnimator(
+                context.resources.displayMetrics,
+                minimizeBoundsAnimationDef,
+                change,
+                transaction,
+            )
+        val alphaAnimator =
+            ValueAnimator.ofFloat(1f, 0f).apply {
+                duration = MINIMIZE_ANIM_ALPHA_DURATION_MS
+                interpolator = Interpolators.LINEAR
+                addUpdateListener { animation ->
+                    transaction
+                        .setAlpha(change.leash, animation.animatedValue as Float)
+                        .setFrameTimeline(Choreographer.getInstance().vsyncId)
+                        .apply()
+                }
             }
-        }
-        val listener = object : Animator.AnimatorListener {
-            override fun onAnimationStart(animator: Animator) {
-                interactionJankMonitor.begin(
-                    change.leash,
-                    context,
-                    animationHandler,
-                    CUJ_DESKTOP_MODE_MINIMIZE_WINDOW,
-                )
+        val listener =
+            object : Animator.AnimatorListener {
+                override fun onAnimationStart(animator: Animator) {
+                    interactionJankMonitor.begin(
+                        change.leash,
+                        context,
+                        animationHandler,
+                        CUJ_DESKTOP_MODE_MINIMIZE_WINDOW,
+                    )
+                }
+
+                override fun onAnimationCancel(animator: Animator) {
+                    interactionJankMonitor.cancel(CUJ_DESKTOP_MODE_MINIMIZE_WINDOW)
+                }
+
+                override fun onAnimationRepeat(animator: Animator) = Unit
+
+                override fun onAnimationEnd(animator: Animator) {
+                    interactionJankMonitor.end(CUJ_DESKTOP_MODE_MINIMIZE_WINDOW)
+                    onAnimFinish(animator)
+                }
             }
-            override fun onAnimationCancel(animator: Animator) {
-                interactionJankMonitor.cancel(CUJ_DESKTOP_MODE_MINIMIZE_WINDOW)
-            }
-            override fun onAnimationRepeat(animator: Animator) = Unit
-            override fun onAnimationEnd(animator: Animator) {
-                interactionJankMonitor.end(CUJ_DESKTOP_MODE_MINIMIZE_WINDOW)
-                onAnimFinish(animator)
-            }
-        }
         return AnimatorSet().apply {
             startDelay = startAnimDelay.toMillis()
             playTogether(boundsAnimator, alphaAnimator)

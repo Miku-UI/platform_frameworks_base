@@ -17,6 +17,7 @@
 package com.android.server.pm.pkg;
 
 import android.annotation.AppIdInt;
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
@@ -127,6 +128,12 @@ public interface PackageState {
     String getPackageName();
 
     /**
+     * @return The package's PCC application ID
+     * @hide
+     */
+    int getPccId();
+
+    /**
      * @see ApplicationInfo#primaryCpuAbi
      */
     @Nullable
@@ -185,6 +192,16 @@ public interface PackageState {
      * system partition.
      */
     boolean isUpdatedSystemApp();
+
+    /**
+     * Whether compiled package artifacts should be verified at boot.
+     * When this package is compiled it is done in a protected virtual machine where the inputs
+     * and outputs of the compilation process are recorded and then signed. This signed record
+     * is used by the compilation artifact verification process at boot.
+     */
+    @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
+    @FlaggedApi(android.content.pm.Flags.FLAG_VERIFIED_DEXOPT)
+    boolean shouldVerifyCompilationArtifacts();
 
     // Methods below this comment are not yet exposed as API
 

@@ -46,6 +46,7 @@ import java.lang.annotation.RetentionPolicy;
             DeviceSettingId.DEVICE_SETTING_ID_DEVICE_DETAILS_FOOTER,
             DeviceSettingId.DEVICE_SETTING_ID_ANC,
             DeviceSettingId.DEVICE_SETTING_ID_GENERAL_BLUETOOTH_DEVICE_HEADER,
+            DeviceSettingId.DEVICE_SETTING_ID_GAME_CONTROLLER_SETTINGS,
         },
         open = true)
 public @interface DeviceSettingId {
@@ -117,6 +118,9 @@ public @interface DeviceSettingId {
 
     /** Device setting ID for general bluetooth device header. */
     int DEVICE_SETTING_ID_GENERAL_BLUETOOTH_DEVICE_HEADER = 22;
+
+    /** Device setting ID for game controller settings. */
+    int DEVICE_SETTING_ID_GAME_CONTROLLER_SETTINGS = 24;
 
     /** Device setting ID for ANC. */
     int DEVICE_SETTING_ID_ANC = 1001;

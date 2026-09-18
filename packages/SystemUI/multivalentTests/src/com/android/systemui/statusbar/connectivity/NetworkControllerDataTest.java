@@ -50,6 +50,7 @@ import com.android.settingslib.mobile.TelephonyIcons;
 import com.android.settingslib.net.DataUsageController;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.log.LogBuffer;
+import com.android.systemui.shade.domain.interactor.ShadeModeInteractor;
 import com.android.systemui.statusbar.pipeline.StatusBarPipelineFlags;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
 import com.android.systemui.util.CarrierConfigTracker;
@@ -164,7 +165,8 @@ public class NetworkControllerDataTest extends NetworkControllerBaseTest {
                 mMobileFactory,
                 new Handler(TestableLooper.get(this).getLooper()),
                 mock(DumpManager.class),
-                mock(LogBuffer.class));
+                mock(LogBuffer.class),
+                mock(ShadeModeInteractor.class));
         setupNetworkController();
 
         setupDefaultSignal();

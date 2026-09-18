@@ -26,11 +26,13 @@ import com.android.systemui.log.table.logDiffsForTable
 import com.android.systemui.statusbar.phone.StatusBarLocation
 import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
 import com.android.systemui.statusbar.pipeline.dagger.MobileSummaryLog
+import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIconsInteractor
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileViewLogger
 import com.android.systemui.statusbar.pipeline.mobile.ui.VerboseMobileViewLogger
 import com.android.systemui.statusbar.pipeline.mobile.ui.view.ModernStatusBarMobileView
 import com.android.systemui.statusbar.pipeline.shared.ConnectivityConstants
+import com.android.systemui.util.kotlin.mapDirect
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
@@ -42,9 +44,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 
 /**
@@ -64,6 +64,11 @@ constructor(
     @MobileSummaryLog private val tableLogger: TableLogBuffer,
     @Background private val scope: CoroutineScope,
 ) {
+
+    init {
+        StatusBarMobileIconKairos.assertInLegacyMode()
+    }
+
     @VisibleForTesting
     val reuseCache = ConcurrentHashMap<Int, Pair<MobileIconViewModel, CoroutineScope>>()
 
@@ -71,7 +76,7 @@ constructor(
 
     val subscriptionIdsFlow: StateFlow<List<Int>> =
         interactor.filteredSubscriptions
-            .mapLatest { subscriptions ->
+            .mapDirect { subscriptions ->
                 subscriptions.map { subscriptionModel -> subscriptionModel.subscriptionId }
             }
             .stateIn(scope, SharingStarted.WhileSubscribed(), listOf())
@@ -80,30 +85,6 @@ constructor(
         subscriptionIdsFlow
             .map { ids -> ids.map { commonViewModelForSub(it) } }
             .stateIn(scope, SharingStarted.WhileSubscribed(), emptyList())
-
-    private val firstMobileSubViewModel: StateFlow<MobileIconViewModelCommon?> =
-        mobileSubViewModels
-            .map {
-                if (it.isEmpty()) {
-                    null
-                } else {
-                    // Mobile icons get reversed by [StatusBarIconController], so the last element
-                    // in this list will show up visually first.
-                    it.last()
-                }
-            }
-            .stateIn(scope, SharingStarted.WhileSubscribed(), null)
-
-    /**
-     * A flow that emits `true` if the mobile sub that's displayed first visually is showing its
-     * network type icon and `false` otherwise.
-     */
-    val firstMobileSubShowingNetworkTypeIcon: StateFlow<Boolean> =
-        firstMobileSubViewModel
-            .flatMapLatest { firstMobileSubViewModel ->
-                firstMobileSubViewModel?.networkTypeIcon?.map { it != null } ?: flowOf(false)
-            }
-            .stateIn(scope, SharingStarted.WhileSubscribed(), false)
 
     /** Whether all of [mobileSubViewModels] are visible or not. */
     private val iconsAreAllVisible =

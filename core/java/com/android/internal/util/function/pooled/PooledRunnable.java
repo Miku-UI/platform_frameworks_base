@@ -28,6 +28,6 @@ import com.android.internal.util.FunctionalUtils.ThrowingRunnable;
  */
 public interface PooledRunnable
         extends PooledLambda, Runnable, ThrowingRunnable, TraceNameSupplier {
-    /** @inheritDoc */
+    /** {@inheritDoc} */
     PooledRunnable recycleOnUse();
 }

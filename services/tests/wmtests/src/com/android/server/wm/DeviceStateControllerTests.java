@@ -23,7 +23,12 @@ import static android.hardware.devicestate.DeviceState.PROPERTY_FOLDABLE_DISPLAY
 import static android.hardware.devicestate.DeviceState.PROPERTY_FOLDABLE_HARDWARE_CONFIGURATION_FOLD_IN_CLOSED;
 import static android.hardware.devicestate.DeviceState.PROPERTY_FOLDABLE_HARDWARE_CONFIGURATION_FOLD_IN_HALF_OPEN;
 import static android.hardware.devicestate.DeviceState.PROPERTY_FOLDABLE_HARDWARE_CONFIGURATION_FOLD_IN_OPEN;
+import static android.hardware.devicestate.DeviceState.PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_DOCKED;
+import static android.hardware.devicestate.DeviceState.PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_CLOSED;
+import static android.hardware.devicestate.DeviceState.PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_OPEN;
+import static android.hardware.devicestate.DeviceState.PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_SLATE;
 import static android.hardware.devicestate.feature.flags.Flags.FLAG_DEVICE_STATE_PROPERTY_MIGRATION;
+import static android.hardware.devicestate.feature.flags.Flags.FLAG_DESKTOP_DEVICE_STATE_PROPERTY_API;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mock;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
@@ -82,8 +87,9 @@ public class DeviceStateControllerTests {
         mDeviceStateEnum = DeviceStateController.DeviceStateEnum.UNKNOWN;
     }
 
-    private void initialize(boolean supportFold, boolean supportHalfFold) {
+    private void initialize(boolean supportFold, boolean supportHalfFold, boolean supportLaptop) {
         mBuilder.setSupportFold(supportFold, supportHalfFold);
+        mBuilder.setSupportLaptop(supportLaptop);
         mDeviceStateListener = (deviceStateEnum, deviceState) -> {
             mDeviceStateEnum = deviceStateEnum;
         };
@@ -93,14 +99,15 @@ public class DeviceStateControllerTests {
 
     @Test
     public void testInitialization() {
-        initialize(true /* supportFold */, true /* supportHalfFolded */);
+        initialize(true /* supportFold */, true /* supportHalfFolded */, false /* supportLaptop */);
         mTarget.onDeviceStateReceivedByDisplayManager(mOpenDeviceStates.get(0).getIdentifier());
         assertEquals(DeviceStateController.DeviceStateEnum.OPEN, mDeviceStateEnum);
     }
 
     @Test
     public void testInitializationWithNoFoldSupport() {
-        initialize(false /* supportFold */, false /* supportHalfFolded */);
+        initialize(false /* supportFold */, false /* supportHalfFolded */,
+                false /* supportLaptop */);
         mTarget.onDeviceStateReceivedByDisplayManager(mFoldedStates.get(0).getIdentifier());
         // Note that the folded state is ignored.
         assertEquals(DeviceStateController.DeviceStateEnum.UNKNOWN, mDeviceStateEnum);
@@ -109,7 +116,8 @@ public class DeviceStateControllerTests {
     @Test
     @RequiresFlagsDisabled(FLAG_DEVICE_STATE_PROPERTY_MIGRATION)
     public void testWithFoldSupported_withOverlayConfigValues() {
-        initialize(true /* supportFold */, false /* supportHalfFolded */);
+        initialize(true /* supportFold */, false /* supportHalfFolded */,
+                false /* supportLaptop */);
         mTarget.onDeviceStateReceivedByDisplayManager(mOpenDeviceStates.get(0).getIdentifier());
         assertEquals(DeviceStateController.DeviceStateEnum.OPEN, mDeviceStateEnum);
         mTarget.onDeviceStateReceivedByDisplayManager(mFoldedStates.get(0).getIdentifier());
@@ -121,7 +129,8 @@ public class DeviceStateControllerTests {
     @Test
     @RequiresFlagsEnabled(FLAG_DEVICE_STATE_PROPERTY_MIGRATION)
     public void testWithFoldSupported_withDeviceStateManagerPropertyAPI() {
-        initialize(true /* supportFold */, false /* supportHalfFolded */);
+        initialize(true /* supportFold */, false /* supportHalfFolded */,
+                false /* supportLaptop */);
         mTarget.onDeviceStateReceivedByDisplayManager(mOpenDeviceStates.get(0).getIdentifier());
         assertEquals(DeviceStateController.DeviceStateEnum.OPEN, mDeviceStateEnum);
         mTarget.onDeviceStateReceivedByDisplayManager(mFoldedStates.get(0).getIdentifier());
@@ -133,7 +142,7 @@ public class DeviceStateControllerTests {
     @Test
     @RequiresFlagsDisabled(FLAG_DEVICE_STATE_PROPERTY_MIGRATION)
     public void testWithHalfFoldSupported_withOverlayConfigValue() {
-        initialize(true /* supportFold */, true /* supportHalfFolded */);
+        initialize(true /* supportFold */, true /* supportHalfFolded */, false /* supportLaptop */);
         mTarget.onDeviceStateReceivedByDisplayManager(mOpenDeviceStates.get(0).getIdentifier());
         assertEquals(DeviceStateController.DeviceStateEnum.OPEN, mDeviceStateEnum);
         mTarget.onDeviceStateReceivedByDisplayManager(mFoldedStates.get(0).getIdentifier());
@@ -147,7 +156,7 @@ public class DeviceStateControllerTests {
     @Test
     @RequiresFlagsEnabled(FLAG_DEVICE_STATE_PROPERTY_MIGRATION)
     public void testWithHalfFoldSupported_withDeviceStateManagerPropertyApi() {
-        initialize(true /* supportFold */, true /* supportHalfFolded */);
+        initialize(true /* supportFold */, true /* supportHalfFolded */, false /* supportLaptop */);
         mTarget.onDeviceStateReceivedByDisplayManager(mOpenDeviceStates.get(0).getIdentifier());
         assertEquals(DeviceStateController.DeviceStateEnum.OPEN, mDeviceStateEnum);
         mTarget.onDeviceStateReceivedByDisplayManager(mFoldedStates.get(0).getIdentifier());
@@ -160,7 +169,7 @@ public class DeviceStateControllerTests {
 
     @Test
     public void testUnregisterDeviceStateCallback() {
-        initialize(true /* supportFold */, true /* supportHalfFolded */);
+        initialize(true /* supportFold */, true /* supportHalfFolded */, false /* supportLaptop */);
         assertEquals(1, mTarget.mDeviceStateCallbacks.size());
         assertTrue(mTarget.mDeviceStateCallbacks.containsKey(mDeviceStateListener));
 
@@ -180,7 +189,7 @@ public class DeviceStateControllerTests {
 
     @Test
     public void testCopyDeviceStateCallbacks() {
-        initialize(true /* supportFold */, true /* supportHalfFolded */);
+        initialize(true /* supportFold */, true /* supportHalfFolded */, false /* supportLaptop */);
         assertEquals(1, mTarget.mDeviceStateCallbacks.size());
         assertTrue(mTarget.mDeviceStateCallbacks.containsKey(mDeviceStateListener));
 
@@ -198,7 +207,8 @@ public class DeviceStateControllerTests {
 
     @Test
     public void testWithFoldSupported_returnsThatDeviceIsFoldable() {
-        initialize(true /* supportFold */, false /* supportHalfFolded */);
+        initialize(true /* supportFold */, false /* supportHalfFolded */,
+                false /* supportLaptop */);
 
         final boolean isFoldable = mTarget.isFoldable();
 
@@ -207,11 +217,70 @@ public class DeviceStateControllerTests {
 
     @Test
     public void testWithFoldNotSupported_returnsThatDeviceIsNotFoldable() {
-        initialize(false /* supportFold */, false /* supportHalfFolded */);
+        initialize(false /* supportFold */, false /* supportHalfFolded */,
+                false /* supportLaptop */);
 
         final boolean isFoldable = mTarget.isFoldable();
 
         assertFalse(isFoldable);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_DESKTOP_DEVICE_STATE_PROPERTY_API)
+    public void testLidClosedState() {
+        initialize(false /* supportFold */, false /* supportHalfFolded */,
+                true /* supportLaptop */);
+        mTarget.onDeviceStateReceivedByDisplayManager(mLidClosedState.getIdentifier());
+        assertEquals(DeviceStateController.DeviceStateEnum.LID_CLOSED, mDeviceStateEnum);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_DESKTOP_DEVICE_STATE_PROPERTY_API)
+    public void testLidOpenState() {
+        initialize(false /* supportFold */, false /* supportHalfFolded */,
+                true /* supportLaptop */);
+        mTarget.onDeviceStateReceivedByDisplayManager(mLidOpenState.getIdentifier());
+        assertEquals(DeviceStateController.DeviceStateEnum.LID_OPEN, mDeviceStateEnum);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_DESKTOP_DEVICE_STATE_PROPERTY_API)
+    public void testSlateState() {
+        initialize(false /* supportFold */, false /* supportHalfFolded */,
+                true /* supportLaptop */);
+        mTarget.onDeviceStateReceivedByDisplayManager(mSlateState.getIdentifier());
+        assertEquals(DeviceStateController.DeviceStateEnum.SLATE, mDeviceStateEnum);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_DESKTOP_DEVICE_STATE_PROPERTY_API)
+    public void testDockedState() {
+        initialize(false /* supportFold */, false /* supportHalfFolded */,
+                true /* supportLaptop */);
+        mTarget.onDeviceStateReceivedByDisplayManager(mDockedState.getIdentifier());
+        assertEquals(DeviceStateController.DeviceStateEnum.DOCKED, mDeviceStateEnum);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_DESKTOP_DEVICE_STATE_PROPERTY_API)
+    public void testWithLaptopSupported_returnsThatDeviceIsLaptop() {
+        initialize(false /* supportFold */, false /* supportHalfFolded */,
+                true /* supportLaptop */);
+
+        final boolean isLaptop = mTarget.isLaptop();
+
+        assertTrue(isLaptop);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_DESKTOP_DEVICE_STATE_PROPERTY_API)
+    public void testWithLaptopNotSupported_returnsThatDeviceIsNotLaptop() {
+        initialize(false /* supportFold */, false /* supportHalfFolded */,
+                false /* supportLaptop */);
+
+        final boolean isLaptop = mTarget.isLaptop();
+
+        assertFalse(isLaptop);
     }
 
     private final List<DeviceState> mFoldedStates = new ArrayList<>(
@@ -251,10 +320,31 @@ public class DeviceStateControllerTests {
                     .setPhysicalProperties(new HashSet<>(List.of(
                             PROPERTY_FOLDABLE_HARDWARE_CONFIGURATION_FOLD_IN_OPEN)))
                     .build());
+    private final DeviceState mLidClosedState = new DeviceState(
+            new DeviceState.Configuration.Builder(5, "lid_closed")
+                    .setPhysicalProperties(new HashSet<>(List.of(
+                            PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_CLOSED)))
+                    .build());
+    private final DeviceState mLidOpenState = new DeviceState(
+            new DeviceState.Configuration.Builder(6, "lid_open")
+                    .setPhysicalProperties(new HashSet<>(List.of(
+                            PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_OPEN)))
+                    .build());
+    private final DeviceState mSlateState = new DeviceState(
+            new DeviceState.Configuration.Builder(7, "slate")
+                    .setPhysicalProperties(new HashSet<>(List.of(
+                            PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_SLATE)))
+                    .build());
+    private final DeviceState mDockedState = new DeviceState(
+            new DeviceState.Configuration.Builder(8, "docked")
+                    .setPhysicalProperties(new HashSet<>(List.of(
+                            PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_DOCKED)))
+                    .build());
 
     private class DeviceStateControllerBuilder {
         private boolean mSupportFold = false;
         private boolean mSupportHalfFold = false;
+        private boolean mSupportLaptop = false;
 
         private DeviceStateController.DeviceStateListener mDeviceStateListener;
         private final List<DeviceState> mDeviceStateList = new ArrayList<>();
@@ -266,13 +356,18 @@ public class DeviceStateControllerTests {
             return this;
         }
 
+        DeviceStateControllerBuilder setSupportLaptop(boolean supportLaptop) {
+            mSupportLaptop = supportLaptop;
+            return this;
+        }
+
         DeviceStateControllerBuilder setDeviceStateListener(
                 DeviceStateController.DeviceStateListener deviceStateListener) {
             mDeviceStateListener = deviceStateListener;
             return this;
         }
 
-        private void mockFold(boolean enableFold, boolean enableHalfFold) {
+        private void mockStates(boolean enableFold, boolean enableHalfFold, boolean enableLaptop) {
             if (enableFold || enableHalfFold) {
                 when(mMockContext.getResources()
                         .getIntArray(R.array.config_openDeviceStates))
@@ -306,6 +401,12 @@ public class DeviceStateControllerTests {
                         .thenReturn(mapDeviceStateListToIdentifierArray(mHalfFoldedStates));
                 mDeviceStateList.addAll(mHalfFoldedStates);
             }
+            if (enableLaptop) {
+                mDeviceStateList.add(mLidClosedState);
+                mDeviceStateList.add(mLidOpenState);
+                mDeviceStateList.add(mSlateState);
+                mDeviceStateList.add(mDockedState);
+            }
         }
 
         private void build() {
@@ -316,7 +417,7 @@ public class DeviceStateControllerTests {
             when(mMockDeviceStateManager.getSupportedDeviceStates()).thenReturn(mDeviceStateList);
             Resources mockRes = mock(Resources.class);
             when(mMockContext.getResources()).thenReturn((mockRes));
-            mockFold(mSupportFold, mSupportHalfFold);
+            mockStates(mSupportFold, mSupportHalfFold, mSupportLaptop);
             mTarget = new DeviceStateController(mMockContext, new WindowManagerGlobalLock());
             mTarget.registerDeviceStateCallback(mDeviceStateListener, mExecutor);
         }

@@ -4,10 +4,10 @@ container: "system"
 # Flags are ordered alphabetically by name.
 
 flag {
-    name: "clean_up_dead_router_records_after_unbinding"
+    name: "cleanup_unnecessary_scan_request_in_settings"
     namespace: "media_better_together"
-    description: "Fixes a bug of notifying unbound router records that causes DeadObjectException."
-    bug: "414836668"
+    description: "Removes unnecessary scan requests from Settings to reduce battery consumption"
+    bug: "336521860"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -31,13 +31,6 @@ flag {
 }
 
 flag {
-    name: "enable_device_address_as_identifier_in_media_router_2"
-    namespace: "media_better_together"
-    description: "Allows audio devices to retain address in identifier and selection in MR2."
-    bug: "384408833"
-}
-
-flag {
     name: "enable_audio_policies_device_and_bluetooth_controller"
     is_exported: true
     namespace: "media_solutions"
@@ -46,27 +39,28 @@ flag {
 }
 
 flag {
-     name: "enable_built_in_speaker_route_suitability_statuses"
-     is_exported: true
-     namespace: "media_solutions"
-     description: "Make MediaRoute2Info provide information about routes suitability for transfer."
-     bug: "279555229"
+    name: "enable_device_address_as_identifier_in_media_router_2"
+    namespace: "media_better_together"
+    description: "Allows audio devices to retain address in identifier and selection in MR2."
+    bug: "384408833"
 }
 
 flag {
-    name: "enable_cross_user_routing_in_media_router2"
-    is_exported: true
-    namespace: "media_solutions"
-    description: "Allows clients of privileged MediaRouter2 that hold INTERACT_ACROSS_USERS_FULL to control routing across users."
-    bug: "288580225"
-}
-
-flag {
-    name: "enable_suggested_device_api"
+    name: "enable_device_manufacturer_and_model_info"
     is_exported: true
     namespace: "media_better_together"
-    description: "Enables the API allowing proxy routers to suggest routes."
-    bug: "393216553"
+    description: "Adds device model information in MediaRouter2Info."
+    bug: "468015358"
+}
+
+flag {
+    name: "enable_fix_mr2_deadlock_on_bt_get_alias"
+    namespace: "media_better_together"
+    description: "Prevents calls to the bluetooth framework while holding a lock to prevent deadlocks."
+    bug: "476306639"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -88,27 +82,40 @@ flag {
 }
 
 flag {
+    name: "enable_media_output_switcher_entry_point_theming"
+    namespace: "media_better_together"
+    description: "Theme the Output Switcher dialog based on the entry point (e.g. System colors for Volume Settings)."
+    bug: "394098431"
+}
+
+flag {
     name: "enable_media_route_2_info_provider_package_name"
     namespace: "media_better_together"
     description: "Enables a new API to obtain the provider package name from MediaRoute2Info."
     bug: "378788958"
+    is_exported: true
+}
+
+flag {
+    name: "enable_media_route_2_provider_info_builder_caching"
+    namespace: "media_better_together"
+    description: "Enables caching for mPackageName and mIsSystem of provider info in MediaRoute2ProviderInfo."
+    bug: "441980279"
 }
 
 flag {
     name: "enable_mirroring_in_media_router_2"
     namespace: "media_better_together"
     description: "Enables support for mirroring routes in the MediaRouter2 framework, allowing Output Switcher to offer mirroring routes."
-    bug: "362507305"
+    bug: "479156700"
+    is_exported: true
 }
 
 flag {
-    name: "enable_mr2_service_non_main_bg_thread"
-    namespace: "media_solutions"
-    description: "Enables the use of a background thread in the media routing framework, instead of using the main thread."
-    bug: "310145678"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    name: "enable_mr2_proxy_invalidation_on_target_uninstall"
+    namespace: "media_better_together"
+    description: "Enables the invalidation of MediaRouter2 proxy instances when the target application being controlled is uninstalled."
+    bug: "331204554"
 }
 
 flag {
@@ -136,47 +143,10 @@ flag {
 }
 
 flag {
-    name: "enable_output_switcher_session_grouping"
+    name: "enable_output_switcher_compose"
     namespace: "media_better_together"
-    description: "Enables selected items in Output Switcher to be grouped together."
-    bug: "388347018"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-  name: "enable_output_switcher_redesign"
-  namespace: "media_better_together"
-  description: "Enables visual update for the Media Output Switcher"
-  bug: "388296370"
-}
-
-flag {
-    name: "allow_output_switcher_list_rearrangement_within_timeout"
-    namespace: "media_better_together"
-    description: "Allows Output Switcher device list to rearrange items within a short time after opening."
-    bug: "425986844"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "use_suggested_device_connection_manager"
-    namespace: "media_better_together"
-    description: "Use a separate class to manage the Suggested Device connection in Media Controls."
-    bug: "442856281"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "enable_prevention_of_keep_alive_route_providers"
-    namespace: "media_solutions"
-    description: "Enables mechanisms to prevent route providers from keeping malicious apps alive."
-    bug: "263520343"
+    description: "Enables migration of Output Switcher to Compose."
+    bug: "472871384"
 }
 
 flag {
@@ -185,6 +155,13 @@ flag {
     namespace: "media_solutions"
     description: "Allow access to privileged routing capabilities to MEDIA_ROUTING_CONTROL holders."
     bug: "305919655"
+}
+
+flag {
+    name: "enable_remove_preferred_device_fixes"
+    namespace: "media_better_together"
+    description: "Prevents MediaRouter2 from changing routing policies in specific situations where it shouldn't change them."
+    bug: "448815259"
 }
 
 flag {
@@ -204,21 +181,11 @@ flag {
 }
 
 flag {
-    name: "enable_route_visibility_control_compat_fixes"
-    namespace: "media_better_together"
-    description: "App compatability fixes for the route visibility control API"
-    bug: "433312596"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "enable_screen_off_scanning"
+    name: "enable_suggested_device_api"
     is_exported: true
-    namespace: "media_solutions"
-    description: "Enable new MediaRouter2 API to enable watch companion apps to scan while the phone screen is off."
-    bug: "281072508"
+    namespace: "media_better_together"
+    description: "Enables the API allowing proxy routers to suggest routes."
+    bug: "393216553"
 }
 
 flag {
@@ -233,13 +200,6 @@ flag {
 }
 
 flag {
-    name: "enable_use_of_bluetooth_device_get_alias_for_mr2info_get_name"
-    namespace: "media_solutions"
-    description: "Use BluetoothDevice.getAlias to populate the name of Bluetooth MediaRoute2Infos."
-    bug: "314324170"
-}
-
-flag {
     name: "enable_waiting_state_for_system_session_creation_request"
     namespace: "media_solutions"
     description: "Introduces a waiting state for the session creation request and prevents it from early failing when the selectedRoute from the bluetooth stack doesn't match the pending request route id."
@@ -247,10 +207,13 @@ flag {
 }
 
 flag {
-    name: "enable_output_switcher_personal_audio_sharing"
-    namespace: "cross_device_experiences"
-    description: "Enables personal audio sharing in the output switcher."
-    bug: "338479898"
+    name: "fix_output_switcher_multiuser_support"
+    namespace: "media_better_together"
+    description: "Fixes multi-user environment behavior in Output Switcher and SettingsLib/media."
+    bug: "491572006"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -264,8 +227,88 @@ flag {
 }
 
 flag {
-    name: "enable_device_suggestions_preference"
+    name: "make_device_selection_behaviour_respect_route_listing_preference"
     namespace: "media_better_together"
-    description: "Add a preference for device suggestions in the media settings page"
-    bug: "415096359"
+    description: "Makes sure selection behaviour strictly respects RouteListingPreference item"
+    bug: "479229905"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "move_output_switcher_calls_to_background_thread"
+    namespace: "media_better_together"
+    description: "Move blocking calls from Output Switcher to a background thread"
+    bug: "445243616"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "reduce_two_way_binder_calls_in_media_router2"
+    namespace: "media_better_together"
+    description: "Fix an issue of blocking binder calls for getting remote sessions in MediaRouter2."
+    bug: "330300516"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "release_ringtone_as_api"
+    namespace: "telecom"
+    description: "Flag for unhiding ringtone APIs"
+    bug: "450092456"
+    is_exported: true
+}
+
+flag {
+    name: "remove_local_network_access_compat_flag_check"
+    namespace: "media_better_together"
+    description: "Remove checks of the RESTRICT_LOCAL_NETWORK appcompat flag in media router code"
+    bug: "492280649"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_share_cast_in_media_chooser_dialog"
+    namespace: "media_better_together"
+    description: "Feature flag for Share Cast in Media Chooser Dialog"
+    bug: "408003639"
+}
+
+# Removed exported flags below this line.
+# ###############################
+# These are exported flags that:
+# - Have reached nextfood.
+# - Their references in code have been removed.
+# - Their declarations cannot be removed due to them being exported.
+# See go/exported-flag-deletion-checker.
+
+flag {
+     name: "enable_built_in_speaker_route_suitability_statuses"
+     is_exported: true
+     namespace: "media_solutions"
+     description: "Make MediaRoute2Info provide information about routes suitability for transfer."
+     bug: "279555229"
+}
+
+flag {
+    name: "enable_cross_user_routing_in_media_router2"
+    is_exported: true
+    namespace: "media_solutions"
+    description: "Allows clients of privileged MediaRouter2 that hold INTERACT_ACROSS_USERS_FULL to control routing across users."
+    bug: "288580225"
+}
+
+flag {
+    name: "enable_screen_off_scanning"
+    is_exported: true
+    namespace: "media_solutions"
+    description: "Enable new MediaRouter2 API to enable watch companion apps to scan while the phone screen is off."
+    bug: "281072508"
 }

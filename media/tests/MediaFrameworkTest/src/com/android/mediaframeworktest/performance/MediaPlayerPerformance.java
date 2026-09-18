@@ -16,6 +16,7 @@
 
 package com.android.mediaframeworktest.performance;
 
+import android.app.Instrumentation;
 import android.hardware.Camera;
 import android.hardware.Camera.PreviewCallback;
 import android.media.CamcorderProfile;
@@ -23,11 +24,13 @@ import android.media.MediaPlayer;
 import android.media.MediaRecorder;
 import android.os.ConditionVariable;
 import android.os.Looper;
+import android.os.ParcelFileDescriptor;
 import android.test.ActivityInstrumentationTestCase2;
 import android.util.Log;
 import android.view.SurfaceHolder;
 
 import androidx.test.filters.LargeTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.mediaframeworktest.MediaFrameworkPerfTestRunner;
 import com.android.mediaframeworktest.MediaFrameworkTest;
@@ -286,7 +289,7 @@ public class MediaPlayerPerformance extends ActivityInstrumentationTestCase2<Med
                 mStartMemory = getMediaserverVsize();
                 mMemWriter.write("Start memory : " + mStartMemory + "\n");
             }
-            memusage = captureMediaserverInfo();
+            memusage = captureMediaserverInfo() + "\n";
             mMemWriter.write(memusage);
             if (writeCount == NUM_STRESS_LOOP - 1) {
                 mEndMemory = getMediaserverVsize();
@@ -315,50 +318,44 @@ public class MediaPlayerPerformance extends ActivityInstrumentationTestCase2<Med
     }
 
     public String captureMediaserverInfo() {
-        String cm = "ps mediaserver";
-        String memoryUsage = null;
-
-        int ch;
-        try {
-            Process p = Runtime.getRuntime().exec(cm);
-            InputStream in = p.getInputStream();
-            StringBuffer sb = new StringBuffer(512);
-            while ((ch = in.read()) != -1) {
-                sb.append((char) ch);
-            }
-            memoryUsage = sb.toString();
-        } catch (IOException e) {
-            Log.v(TAG, e.toString());
-        }
-        String[] poList = memoryUsage.split("\r|\n|\r\n");
-        // A new media.log is enabled with ro.test_harness is set.
-        // The output of "ps mediaserver" will include the
-        // media.log process in the first line. Update the parsing
-        // to only read the thrid line.
-        // Smaple ps mediaserver output:
-        // USER     PID   PPID  VSIZE  RSS     WCHAN    PC         NAME
-        // media     131   1     13676  4796  ffffffff 400b1bd0 S media.log
+        String cm =
+                "ps -o USER=,PID=,PPID=,VSIZE=,RSS=,WCHAN=,ADDR=,S=,NAME= -p "
+                        + getMediaserverPid();
+        String memoryUsage = execShellCommand(cm);
+        // Sample output of the above ps command:
         // media     219   131   37768  6892  ffffffff 400b236c S /system/bin/mediaserver
-        String memusage = poList[poList.length-1].concat("\n");
-        return memusage;
+        Log.v(TAG, "memoryUsage " + memoryUsage);
+        return memoryUsage;
+    }
+
+    private String execShellCommand(String command) {
+        Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+        ParcelFileDescriptor pfd = instrumentation.getUiAutomation().executeShellCommand(command);
+        StringBuilder output = new StringBuilder();
+
+        try (BufferedReader reader =
+                new BufferedReader(
+                        new InputStreamReader(
+                                new ParcelFileDescriptor.AutoCloseInputStream(pfd)))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+            }
+        } catch (IOException e) {
+            Log.e(TAG, "Error executing command: " + command, e);
+        }
+        return output.toString().trim();
     }
 
     public int getMediaserverPid(){
-        String memoryUsage = null;
-        int pidvalue = 0;
-        memoryUsage = captureMediaserverInfo();
-        String[] poList2 = memoryUsage.split("\t|\\s+");
-        String pid = poList2[1];
-        pidvalue = Integer.parseInt(pid);
+        int pidvalue = Integer.parseInt(execShellCommand("pidof mediaserver"));
         Log.v(TAG, "PID = " + pidvalue);
         return pidvalue;
     }
 
     public int getMediaserverVsize(){
-        String memoryUsage = captureMediaserverInfo();
-        String[] poList2 = memoryUsage.split("\t|\\s+");
-        String vsize = poList2[3];
-        int vsizevalue = Integer.parseInt(vsize);
+        int vsizevalue =
+                Integer.parseInt(execShellCommand("ps -o VSIZE= -p " + getMediaserverPid()));
         Log.v(TAG, "VSIZE = " + vsizevalue);
         return vsizevalue;
     }

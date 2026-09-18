@@ -24,10 +24,18 @@ import static android.os.UserHandle.getUid;
 import static android.os.UserHandle.getUserId;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -35,6 +43,9 @@ import java.util.Random;
 
 @RunWith(AndroidJUnit4.class)
 public class UserHandleTest {
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+
     // NOTE: keep logic in sync with system/core/libcutils/tests/multiuser_test.cpp
 
     @Test
@@ -83,6 +94,83 @@ public class UserHandleTest {
         EXPECT_EQ(ERR_GID, multiuser_get_cache_gid(10, 1000));
         EXPECT_EQ(1020000, multiuser_get_cache_gid(10, 10000));
         EXPECT_EQ(ERR_GID, multiuser_get_cache_gid(10, 50000));
+
+        // PCC UIDs
+        EXPECT_EQ(60000, multiuser_get_cache_gid(0, 30000));
+        EXPECT_EQ(1060000, multiuser_get_cache_gid(10, 30000));
+        EXPECT_EQ(69999, multiuser_get_cache_gid(0, 39999));
+        EXPECT_EQ(1069999, multiuser_get_cache_gid(10, 39999));
+    }
+
+    @Test
+    public void testPccCache() throws Exception {
+        assertEquals(60000, UserHandle.getCacheAppGid(0, 30000));
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testIsSameAppIdWithPcc_identicalAppIds() {
+        int appUid = Process.FIRST_APPLICATION_UID + 123;
+        int pccUid = Process.FIRST_PCC_UID + 123;
+
+        assertTrue(UserHandle.isSameAppIdWithPcc(appUid, appUid));
+        assertTrue(UserHandle.isSameApp(appUid, appUid));
+        assertTrue(UserHandle.isSameAppIdWithPcc(pccUid, pccUid));
+        assertTrue(UserHandle.isSameApp(pccUid, pccUid));
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testIsSameAppIdWithPcc_pccSupportCrossChecks() {
+        int appUid = Process.FIRST_APPLICATION_UID + 123;
+        int pccUid = Process.FIRST_PCC_UID + 123;
+
+        // Cross-checks without PCC support
+        assertFalse(UserHandle.isSameApp(appUid, pccUid));
+        assertFalse(UserHandle.isSameApp(pccUid, appUid));
+
+        // Cross-checks with PCC support
+        assertTrue(UserHandle.isSameAppIdWithPcc(appUid, pccUid));
+        assertTrue(UserHandle.isSameAppIdWithPcc(pccUid, appUid));
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testIsSameAppIdWithPcc_differentAppIds() {
+        int appUid1 = Process.FIRST_APPLICATION_UID + 123;
+        int pccUid1 = Process.FIRST_PCC_UID + 123;
+        int appUid2 = Process.FIRST_APPLICATION_UID + 456;
+        int pccUid2 = Process.FIRST_PCC_UID + 456;
+
+        assertFalse(UserHandle.isSameAppIdWithPcc(appUid1, appUid2));
+        assertFalse(UserHandle.isSameAppIdWithPcc(appUid1, pccUid2));
+        assertFalse(UserHandle.isSameAppIdWithPcc(pccUid1, appUid2));
+        assertFalse(UserHandle.isSameAppIdWithPcc(pccUid1, pccUid2));
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testIsSameAppIdWithPcc_differentUsersSameApp() {
+        int appUid1 = Process.FIRST_APPLICATION_UID + 123;
+        int pccUid1 = Process.FIRST_PCC_UID + 123;
+        int u10App1 = UserHandle.getUid(10, appUid1);
+        int u10Pcc1 = UserHandle.getUid(10, pccUid1);
+
+        assertTrue(UserHandle.isSameAppIdWithPcc(appUid1, u10App1));
+        assertTrue(UserHandle.isSameAppIdWithPcc(appUid1, u10Pcc1));
+        assertTrue(UserHandle.isSameAppIdWithPcc(pccUid1, u10App1));
+        assertTrue(UserHandle.isSameAppIdWithPcc(pccUid1, u10Pcc1));
+    }
+
+    @Test
+    @RequiresFlagsDisabled(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testIsSameAppIdWithPcc_flagDisabled() {
+        int appUid1 = Process.FIRST_APPLICATION_UID + 123;
+        int pccUid1 = Process.FIRST_PCC_UID + 123;
+
+        // Cross-checks with PCC support but flag is disabled
+        assertFalse(UserHandle.isSameAppIdWithPcc(appUid1, pccUid1));
+        assertFalse(UserHandle.isSameAppIdWithPcc(pccUid1, appUid1));
     }
 
     @Test

@@ -23,18 +23,18 @@ import java.util.Set;
 
 public class RejectedModesVote implements Vote {
 
-    final Set<Integer> mModeIds;
+    final Set<Integer> mSfModeIds;
 
     RejectedModesVote(Set<Integer> modeIds) {
-        mModeIds = Collections.unmodifiableSet(modeIds);
+        mSfModeIds = Collections.unmodifiableSet(modeIds);
     }
     @Override
     public void updateSummary(@NonNull VoteSummary summary) {
-        summary.rejectedModeIds.addAll(mModeIds);
+        summary.rejectedSfModeIds.addAll(mSfModeIds);
     }
 
     @Override
     public String toString() {
-        return "RejectedModesVote{ mModeIds=" + mModeIds + " }";
+        return "RejectedModesVote{ mSfModeIds=" + mSfModeIds + " }";
     }
 }

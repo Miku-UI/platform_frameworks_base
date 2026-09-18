@@ -79,7 +79,6 @@ public class RequiresPermissionCheckerTest {
     @Test
     public void testSimple() {
         compilationHelper
-                .addSourceFile("/android/annotation/RequiresPermission.java")
                 .addSourceFile("/android/content/Context.java")
                 .addSourceFile("/android/content/Intent.java")
                 .addSourceLines("ColorManager.java",
@@ -105,7 +104,6 @@ public class RequiresPermissionCheckerTest {
     @Test
     public void testManager() {
         compilationHelper
-                .addSourceFile("/android/annotation/RequiresPermission.java")
                 .addSourceFile("/android/foo/IColorService.java")
                 .addSourceFile("/android/os/IInterface.java")
                 .addSourceLines("ColorManager.java",
@@ -138,7 +136,6 @@ public class RequiresPermissionCheckerTest {
     @Test
     public void testService() {
         compilationHelper
-                .addSourceFile("/android/annotation/RequiresPermission.java")
                 .addSourceFile("/android/content/Context.java")
                 .addSourceFile("/android/content/Intent.java")
                 .addSourceFile("/android/foo/IColorService.java")
@@ -185,7 +182,6 @@ public class RequiresPermissionCheckerTest {
     @Test
     public void testBroadcastReceiver() {
         compilationHelper
-                .addSourceFile("/android/annotation/RequiresPermission.java")
                 .addSourceFile("/android/content/BroadcastReceiver.java")
                 .addSourceFile("/android/content/Context.java")
                 .addSourceFile("/android/content/Intent.java")
@@ -208,7 +204,6 @@ public class RequiresPermissionCheckerTest {
     @Ignore
     public void testContentObserver() {
         compilationHelper
-                .addSourceFile("/android/annotation/RequiresPermission.java")
                 .addSourceFile("/android/database/ContentObserver.java")
                 .addSourceLines("ColorManager.java",
                         "import android.annotation.RequiresPermission;",
@@ -230,7 +225,6 @@ public class RequiresPermissionCheckerTest {
     @Test
     public void testHandler() {
         compilationHelper
-                .addSourceFile("/android/annotation/RequiresPermission.java")
                 .addSourceFile("/android/os/Handler.java")
                 .addSourceFile("/android/os/Message.java")
                 .addSourceLines("ColorManager.java",
@@ -250,7 +244,6 @@ public class RequiresPermissionCheckerTest {
     @Test
     public void testDeathRecipient() {
         compilationHelper
-                .addSourceFile("/android/annotation/RequiresPermission.java")
                 .addSourceFile("/android/os/IBinder.java")
                 .addSourceLines("ColorManager.java",
                         "import android.annotation.RequiresPermission;",
@@ -268,7 +261,6 @@ public class RequiresPermissionCheckerTest {
     @Test
     public void testClearCallingIdentity() {
         compilationHelper
-                .addSourceFile("/android/annotation/RequiresPermission.java")
                 .addSourceFile("/android/os/Binder.java")
                 .addSourceLines("ColorManager.java",
                         "import android.annotation.RequiresPermission;",
@@ -306,7 +298,6 @@ public class RequiresPermissionCheckerTest {
     @Test
     public void testSuppressLint() {
         compilationHelper
-                .addSourceFile("/android/annotation/RequiresPermission.java")
                 .addSourceFile("/android/annotation/SuppressLint.java")
                 .addSourceLines("Example.java",
                         "import android.annotation.RequiresPermission;",
@@ -328,8 +319,6 @@ public class RequiresPermissionCheckerTest {
     @Test
     public void testSendBroadcast() {
         compilationHelper
-                .addSourceFile("/android/annotation/RequiresPermission.java")
-                .addSourceFile("/android/annotation/SdkConstant.java")
                 .addSourceFile("/android/content/Context.java")
                 .addSourceFile("/android/content/Intent.java")
                 .addSourceLines("FooManager.java",
@@ -432,7 +421,6 @@ public class RequiresPermissionCheckerTest {
     @Test
     public void testInvalidFunctions() {
         compilationHelper
-                .addSourceFile("/android/annotation/RequiresPermission.java")
                 .addSourceFile("/android/annotation/SuppressLint.java")
                 .addSourceFile("/android/content/Context.java")
                 .addSourceLines("Example.java",
@@ -455,7 +443,6 @@ public class RequiresPermissionCheckerTest {
     @Test
     public void testEnforce() {
         compilationHelper
-                .addSourceFile("/android/annotation/EnforcePermission.java")
                 .addSourceFile("/android/content/Context.java")
                 .addSourceFile("/android/foo/IBarService.java")
                 .addSourceFile("/android/os/IInterface.java")

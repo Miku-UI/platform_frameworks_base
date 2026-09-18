@@ -114,16 +114,28 @@ class ShadeTouchHandlerTest(flags: FlagsParameterization) : SysuiTestCase() {
         assertThat(captured).isFalse()
     }
 
-    // Verifies that a swipe down forwards captured touches to central surfaces for handling.
     @Test
     @DisableFlags(Flags.FLAG_SCENE_CONTAINER, Flags.FLAG_RESTRICT_COMMUNAL_SHADE_TO_WHEN_IDLE)
     @EnableFlags(Flags.FLAG_COMMUNAL_HUB)
-    fun testSwipeDown_communalEnabled_sentToCentralSurfaces() {
+    fun testSwipeDown_communalEnabled_restrictToIdleOnCommunal_sentToCentralSurfaces() {
         kosmos.fakeFeatureFlagsClassic.set(COMMUNAL_SERVICE_ENABLED, true)
 
         swipe(Direction.DOWN)
 
-        // Both motion events are sent for central surfaces to process.
+        // Don't send motion events since we aren't idle on communal
+        verify(mCentralSurfaces, never()).handleExternalShadeWindowTouch(any())
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_SCENE_CONTAINER)
+    @EnableFlags(Flags.FLAG_COMMUNAL_HUB)
+    fun testSwipeDown_communalEnabled_idleOnCommunal_sentToCentralSurfaces() {
+        kosmos.communalSceneInteractor.snapToScene(CommunalScenes.Communal, "test")
+        kosmos.fakeFeatureFlagsClassic.set(COMMUNAL_SERVICE_ENABLED, true)
+
+        swipe(Direction.DOWN)
+
+        // Don't send motion events since we aren't idle on communal
         verify(mCentralSurfaces, times(2)).handleExternalShadeWindowTouch(any())
     }
 
@@ -183,7 +195,7 @@ class ShadeTouchHandlerTest(flags: FlagsParameterization) : SysuiTestCase() {
         swipe(Direction.DOWN)
 
         // Both motion events are sent for central surfaces to process.
-        assertThat(kosmos.sceneContainerRepository.isRemoteUserInputOngoing.value).isTrue()
+        assertThat(kosmos.sceneContainerRepository.isRemoteUserInputOngoing).isTrue()
         verify(windowRootView, times(2)).dispatchTouchEvent(any())
     }
 
@@ -195,7 +207,7 @@ class ShadeTouchHandlerTest(flags: FlagsParameterization) : SysuiTestCase() {
         swipe(Direction.DOWN)
 
         // Both motion events are sent for the shade view to process.
-        assertThat(kosmos.sceneContainerRepository.isRemoteUserInputOngoing.value).isTrue()
+        assertThat(kosmos.sceneContainerRepository.isRemoteUserInputOngoing).isTrue()
         verify(windowRootView, times(2)).dispatchTouchEvent(any())
     }
 
@@ -281,6 +293,33 @@ class ShadeTouchHandlerTest(flags: FlagsParameterization) : SysuiTestCase() {
         mInputListenerCaptor.lastValue.onInputEvent(upEvent)
 
         verify(communalViewModel).onResetTouchState()
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SCENE_CONTAINER)
+    fun testUpEvent_sceneContainerEnabled_notCaptured_sentToWindowRootView() {
+        mTouchHandler.onSessionStart(mTouchSession)
+        verify(mTouchSession).registerGestureListener(mGestureListenerCaptor.capture())
+        verify(mTouchSession).registerInputListener(mInputListenerCaptor.capture())
+
+        // Simulate a swipe up, which is not captured
+        val startY = TOUCH_HEIGHT.toFloat()
+        val endY = 0f
+        val event1 = MotionEvent.obtain(0, 0, MotionEvent.ACTION_MOVE, 0f, startY, 0)
+        val event2 = MotionEvent.obtain(0, 0, MotionEvent.ACTION_MOVE, 0f, endY, 0)
+        mInputListenerCaptor.lastValue.onInputEvent(event1)
+        mInputListenerCaptor.lastValue.onInputEvent(event2)
+        val captured = mGestureListenerCaptor.lastValue.onScroll(event1, event2, 0f, startY - endY)
+
+        assertThat(captured).isFalse()
+        verify(windowRootView, never()).dispatchTouchEvent(any())
+
+        // Simulate ACTION_UP
+        val upEvent = MotionEvent.obtain(0, 0, MotionEvent.ACTION_UP, 0f, 0f, 0)
+        mInputListenerCaptor.lastValue.onInputEvent(upEvent)
+
+        // Verify the ACTION_UP event was sent to the window root view
+        verify(windowRootView).dispatchTouchEvent(upEvent)
     }
 
     /**

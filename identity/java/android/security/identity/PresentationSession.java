@@ -16,6 +16,7 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
@@ -31,7 +32,10 @@ import java.security.PublicKey;
  *
  * Use {@link IdentityCredentialStore#createPresentationSession(int)} to create a {@link
  * PresentationSession} instance.
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public abstract class PresentationSession {
     /**
      * @hide
@@ -49,7 +53,11 @@ public abstract class PresentationSession {
      * calls to this method will return the same key-pair.
      *
      * @return ephemeral key pair to use to establish a secure channel with a reader.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public @NonNull abstract KeyPair getEphemeralKeyPair();
 
     /**
@@ -63,7 +71,11 @@ public abstract class PresentationSession {
      * @param readerEphemeralPublicKey The ephemeral public key provided by the reader to
      *                                 establish a secure session.
      * @throws InvalidKeyException if the given key is invalid.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract void setReaderEphemeralPublicKey(@NonNull PublicKey readerEphemeralPublicKey)
             throws InvalidKeyException;
 
@@ -85,7 +97,11 @@ public abstract class PresentationSession {
      * <p>This method can only be called once per {@link PresentationSession} instance.
      *
      * @param sessionTranscript the session transcript.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract void setSessionTranscript(@NonNull byte[] sessionTranscript);
 
     /**
@@ -161,7 +177,11 @@ public abstract class PresentationSession {
      *                                                the signature failed to validate.
      * @throws EphemeralPublicKeyNotFoundException    if the ephemeral public key was not found in
      *                                                the session transcript.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @Nullable CredentialDataResult getCredentialData(
             @NonNull String credentialName, @NonNull CredentialDataRequest request)
             throws NoAuthenticationKeyAvailableException, InvalidReaderSignatureException,
@@ -173,5 +193,6 @@ public abstract class PresentationSession {
      *
      * @hide
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
     public abstract long getCredstoreOperationHandle();
 }

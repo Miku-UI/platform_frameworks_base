@@ -16,10 +16,12 @@
 
 package com.android.systemui.statusbar.notification.stack.ui.viewmodel
 
+import com.android.compose.animation.scene.ContentKey
+import com.android.compose.animation.scene.SceneKey
 import com.android.systemui.dump.dumpManager
-import com.android.systemui.flags.featureFlagsClassic
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.notifications.ui.notificationPlaceholderStateStorage
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.shade.domain.interactor.shadeInteractor
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
@@ -28,24 +30,25 @@ import com.android.systemui.statusbar.notification.stack.domain.interactor.heads
 import com.android.systemui.statusbar.notification.stack.domain.interactor.notificationStackAppearanceInteractor
 import com.android.systemui.wallpapers.domain.interactor.wallpaperFocalAreaInteractor
 
-val Kosmos.notificationsPlaceholderViewModel by Fixture {
-    NotificationsPlaceholderViewModel(
-        interactor = notificationStackAppearanceInteractor,
-        sceneInteractor = sceneInteractor,
-        shadeInteractor = shadeInteractor,
-        shadeModeInteractor = shadeModeInteractor,
-        headsUpNotificationInteractor = headsUpNotificationInteractor,
-        remoteInputInteractor = remoteInputInteractor,
-        featureFlags = featureFlagsClassic,
-        dumpManager = dumpManager,
-        wallpaperFocalAreaInteractor = wallpaperFocalAreaInteractor,
-    )
-}
-
 val Kosmos.notificationsPlaceholderViewModelFactory by Fixture {
     object : NotificationsPlaceholderViewModel.Factory {
-        override fun create(): NotificationsPlaceholderViewModel {
-            return notificationsPlaceholderViewModel
+        override fun create(contentKey: ContentKey): NotificationsPlaceholderViewModel {
+            return NotificationsPlaceholderViewModel(
+                contentKey = contentKey,
+                placeholderStateStorage = notificationPlaceholderStateStorage,
+                interactor = notificationStackAppearanceInteractor,
+                sceneInteractor = sceneInteractor,
+                shadeInteractor = shadeInteractor,
+                shadeModeInteractor = shadeModeInteractor,
+                headsUpNotificationInteractor = headsUpNotificationInteractor,
+                remoteInputInteractor = remoteInputInteractor,
+                dumpManager = dumpManager,
+                wallpaperFocalAreaInteractor = wallpaperFocalAreaInteractor,
+            )
         }
     }
+}
+
+val Kosmos.notificationsPlaceholderViewModel by Fixture {
+    notificationsPlaceholderViewModelFactory.create(SceneKey("test"))
 }

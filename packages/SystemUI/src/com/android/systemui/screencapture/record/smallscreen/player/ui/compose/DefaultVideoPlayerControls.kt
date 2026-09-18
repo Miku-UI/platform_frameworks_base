@@ -20,6 +20,7 @@ import android.text.format.DateUtils
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,12 +36,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.android.systemui.common.shared.model.ContentDescription
@@ -58,7 +62,11 @@ fun DefaultVideoPlayerControls(
     color: Color = Color.White,
     contrastColor: Color = Color.Black.copy(alpha = 0.5f),
 ) {
-    val backgroundBrush = Brush.verticalGradient(colors = listOf(Color.Transparent, contrastColor))
+    val backgroundBrush =
+        remember(contrastColor) {
+            Brush.verticalGradient(colors = listOf(Color.Transparent, contrastColor))
+        }
+
     Column(
         verticalArrangement = Arrangement.Bottom,
         modifier = modifier.heightIn(min = 164.dp).drawBehind { drawRect(backgroundBrush) },
@@ -90,6 +98,7 @@ fun DefaultVideoPlayerControls(
                 currentPositionMillis = viewModel.videoPositionMillis,
                 durationMillis = viewModel.videoDurationMillis,
                 color = color,
+                modifier = Modifier.basicMarquee().weight(1f),
             )
             PlayerButton(
                 viewModel = viewModel,
@@ -124,7 +133,10 @@ fun DefaultVideoPlayerControls(
                     inactiveTickColor = color,
                     thumbColor = color,
                 ),
-            modifier = Modifier.padding(16.dp),
+            modifier =
+                Modifier.padding(16.dp).semantics {
+                    stateDescription = viewModel.a11yProgressDescription
+                },
         )
     }
 }

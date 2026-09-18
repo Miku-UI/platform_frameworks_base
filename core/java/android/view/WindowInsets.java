@@ -1765,7 +1765,7 @@ public final class WindowInsets {
         /**
          * Sets the display shape.
          *
-         * @see #getDisplayShape().
+         * @see #getDisplayShape()
          * @param displayShape the display shape.
          * @return itself.
          */

@@ -39,18 +39,13 @@ import com.android.wm.shell.shared.animation.Interpolators;
 /**
  * Animator that handles bounds animations for exit-via-expanding PIP.
  */
-public class PipExpandAnimator extends ValueAnimator {
+public class PipExpandAnimator extends PipAnimator {
     @NonNull
     private final SurfaceControl mLeash;
     private final SurfaceControl.Transaction mStartTransaction;
     private final SurfaceControl.Transaction mFinishTransaction;
     private final @Surface.Rotation int mRotation;
     private final Boolean mIsPipInDesktopMode;
-
-    // optional callbacks for tracking animation start and end
-    @Nullable
-    private Runnable mAnimationStartCallback;
-    @Nullable private Runnable mAnimationEndCallback;
 
     private final Rect mBaseBounds = new Rect();
     private final Rect mStartBounds = new Rect();
@@ -164,14 +159,6 @@ public class PipExpandAnimator extends ValueAnimator {
         setInterpolator(Interpolators.FAST_OUT_SLOW_IN);
         addListener(mAnimatorListener);
         addUpdateListener(mAnimatorUpdateListener);
-    }
-
-    public void setAnimationStartCallback(@NonNull Runnable runnable) {
-        mAnimationStartCallback = runnable;
-    }
-
-    public void setAnimationEndCallback(@NonNull Runnable runnable) {
-        mAnimationEndCallback = runnable;
     }
 
     private void onExpandAnimationUpdate(SurfaceControl.Transaction tx, float fraction) {

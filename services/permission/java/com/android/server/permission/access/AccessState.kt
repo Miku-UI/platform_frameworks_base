@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package com.android.server.permission.access
 
 import android.content.pm.PermissionGroupInfo
 import android.content.pm.SignedPackage
 import com.android.server.SystemConfig
-import com.android.server.permission.access.immutable.* // ktlint-disable no-wildcard-imports
+import com.android.server.permission.access.immutable.*
 import com.android.server.permission.access.permission.Permission
 import com.android.server.pm.permission.PermissionAllowlist
 import com.android.server.pm.pkg.PackageState

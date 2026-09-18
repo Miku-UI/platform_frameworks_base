@@ -41,6 +41,9 @@ import org.mockito.Mock
 import org.mockito.Mockito.any
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
+import org.mockito.Mockito.`when` as whenever
+import android.os.Handler
+
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
@@ -54,17 +57,27 @@ class AudioManagerEventsReceiverTest {
     @Mock private lateinit var context: Context
     @Captor private lateinit var receiverCaptor: ArgumentCaptor<BroadcastReceiver>
 
+    @Mock
+    private lateinit var mockHandler: Handler
+
     private lateinit var underTest: AudioManagerEventsReceiver
 
     @Before
     fun setup() {
         MockitoAnnotations.initMocks(this)
 
+        whenever(mockHandler.post(any(Runnable::class.java))).thenAnswer { invocation ->
+            val runnable = invocation.arguments[0] as Runnable
+            runnable.run()
+            null
+        }
+
         underTest =
             AudioManagerEventsReceiverImpl(
                 context,
                 testScope.backgroundScope,
                 testScope.testScheduler,
+                mockHandler,
             )
     }
 

@@ -15,7 +15,6 @@
  */
 package android.hardware.display;
 
-import android.annotation.FlaggedApi;
 import android.view.Display;
 import android.view.Surface;
 
@@ -106,7 +105,7 @@ public final class VirtualDisplay {
      */
     public void release() {
         if (mToken != null) {
-            mGlobal.releaseVirtualDisplay(mToken);
+            mGlobal.releaseVirtualDisplay(mToken, mDisplay.getDisplayId());
             mToken = null;
         }
     }
@@ -118,11 +117,7 @@ public final class VirtualDisplay {
      *     {@link Surface#ROTATION_90}, {@link Surface#ROTATION_180}, {@link Surface#ROTATION_270}.
      *     Upon creation, the rotation of the virtual display is always {@link Surface#ROTATION_0}.
      */
-    @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_VIRTUAL_DISPLAY_ROTATION_API)
     public void setRotation(@Surface.Rotation int rotation) {
-        if (!android.companion.virtualdevice.flags.Flags.virtualDisplayRotationApi()) {
-            return;
-        }
         if (rotation != Surface.ROTATION_0 && rotation != Surface.ROTATION_90
                 && rotation != Surface.ROTATION_180 && rotation != Surface.ROTATION_270) {
             throw new IllegalArgumentException(

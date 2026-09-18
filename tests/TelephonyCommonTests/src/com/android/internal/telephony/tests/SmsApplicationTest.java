@@ -126,6 +126,9 @@ public class SmsApplicationTest {
         when(mContext.getResources()).thenReturn(mResources);
         when(mResources.getString(eq(com.android.internal.R.string.config_systemBluetoothStack)))
                 .thenReturn(BLUETOOTH_PACKAGE_NAME);
+        when(mResources.getStringArray(eq(
+                com.android.internal.R.array.config_messaging_read_restriction_allowlist)))
+                .thenReturn(new String[0]);
 
         doAnswer(invocation -> getResolveInfosForIntent(invocation.getArgument(0)))
                 .when(mPackageManager)

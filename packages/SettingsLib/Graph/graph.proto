@@ -16,6 +16,10 @@ message PreferenceGraphProto {
   // Activities appear in the graph.
   // Key: activity class. Value: preference key of associated PreferenceScreen.
   map<string, string> activity_screens = 3;
+
+  // Value descriptors for the preference types.
+  // Key: key of the preference type. Value: possible values of the type.
+  map<string, PreferenceValueDescriptorProto> value_descriptors = 4;
 }
 
 // Proto of PreferenceScreen.
@@ -31,13 +35,24 @@ message PreferenceScreenProto {
   // If the preference screen is parameterized.
   optional bool parameterized = 5;
   // Available parameters of the parameterized screen.
-  repeated BundleProto parameters = 6;
+  // Deprecated: Use key_parameters instead. See b/447555338 for details.
+  repeated BundleProto parameters = 6 [deprecated = true];
+  // Schema for the key-value parameters.
+  optional KeyParametersSchemaProto parameters_schema = 7;
+  // Available type-safe parameters of the parameterized screen
+  repeated KeyParametersProto key_parameters = 8;
 }
 
 // Proto of parameterized preference screen
 message ParameterizedPreferenceScreenProto {
   // Arguments to materialize the parameterized screen.
-  optional BundleProto args = 1;
+  oneof args_oneof {
+    // Legacy bundle to pass the arguments. This is deprecated, please use
+    // key_parameters for new usages. See b/447555338 for details.
+    BundleProto args = 1 [deprecated = true];
+    // A map of string to string representing the parameters
+    KeyParametersProto key_parameters = 3;
+  }
   // Materialized screen.
   optional PreferenceScreenProto screen = 2;
 }
@@ -114,9 +129,47 @@ message PreferenceProto {
       // app or activity belongs to other app.
       IntentProto intent = 2;
     }
-    // Arguments to materialize the parameterized screen.
-    optional BundleProto args = 3;
+    oneof args_oneof {
+      // Arguments to materialize the parameterized screen.
+      BundleProto args = 3 [deprecated = true];
+      // A map of string to string representing the parameters
+      KeyParametersProto key_parameters = 4;
+    }
   }
+  optional int32 purpose = 21;
+  // Preconditions of the preference.
+  repeated string get_preconditions = 22 [deprecated = true];
+  // Preconditions of the preference when setting values.
+  repeated string set_preconditions = 23 [deprecated = true];
+  // True if the preference supports setting values in any circumstances.
+  optional bool writable = 24;
+  // Schema for the key-value parameters, as a string.
+  optional KeyParametersSchemaProto parameters_schema = 25;
+  // A map of string to string representing the parameters
+  optional KeyParametersProto key_parameters = 26;
+  // Warning of the preference when setting values.
+  optional SetWarningProto set_warning = 27;
+  repeated PreconditionStatusProto get_preconditions_status = 28;
+  repeated PreconditionStatusProto set_preconditions_status = 29;
+}
+
+message PreconditionStatusProto {
+  optional string precondition = 1;
+  optional bool satisfied = 2;
+  // Only populated when satisfied is false.
+  optional string failure = 3;
+  optional PreconditionStability stability = 4;
+}
+
+enum PreconditionStability {
+  STABILITY_UNKNOWN = 0;
+  STABLE_UNTIL_APK_UPDATE = 1;
+  UNSTABLE = 2;
+}
+
+message PossibleValueProto {
+  optional PreferenceValueProto value = 1;
+  optional string description = 2;
 }
 
 // Proto of permissions
@@ -148,26 +201,44 @@ message PreferenceValueProto {
     int32 int_value = 2;
     float float_value = 3;
     int64 long_value = 4;
+    string string_value = 5;
+    PreferenceErrorProto error = 6;
   }
+}
+
+message PreferenceErrorProto {
+  string error = 1;
 }
 
 // Proto of preference value descriptor.
 message PreferenceValueDescriptorProto {
   oneof type {
     bool boolean_type = 1;
+    // This actually means "integer". If all of the min, max, and step are
+    // unset, this is just an integer.
     RangeValueProto range_value = 2;
     bool float_type = 3;
     bool long_type = 4;
+    bool string_type = 5;
   }
+
+  repeated PossibleValueProto possible_values = 6;
+  optional string value_descriptor_key = 7;
+  optional string description = 8;
+
+  // Schema for the key-value parameters, as a string. This will only be present
+  // when the value descriptor is parameterized.
+  optional KeyParametersSchemaProto parameters_schema = 9;
+  optional KeyParametersProto parameters = 10;
 }
 
-// Proto of preference value that is between a range.
+// Proto of preference value that is an int
 message RangeValueProto {
-  // The lower bound (inclusive) of the range.
+  // The lower bound (inclusive) of the range. unset means no lower bound.
   optional int32 min = 1;
-  // The upper bound (inclusive) of the range.
+  // The upper bound (inclusive) of the range. unset means no upper bound.
   optional int32 max = 2;
-  // The increment step within the range. 0 means unset, which implies step size is 1.
+  // The increment step within the range. 0 or unset means step size is 1.
   optional int32 step = 3;
 }
 
@@ -224,4 +295,26 @@ message BundleProto {
       BundleProto bundle_value = 7;
     }
   }
+}
+
+// Proto of set warning
+message SetWarningProto {
+  repeated string preconditions = 1;
+  string warning = 2;
+}
+
+// Proto of KeyParameters
+message KeyParametersProto {
+  map<string, string> values = 1;
+}
+
+// Proto of KeyParametersSchema
+message KeyParametersSchemaProto {
+  map<string, ParameterDefinitionProto> parameters = 1;
+}
+
+message ParameterDefinitionProto {
+  optional string purpose = 1;
+  optional bool required = 2;
+  optional PreferenceValueDescriptorProto value_descriptor = 3;
 }

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues
+    type="baseline"
+    client=""
+    dependencies="true"
+    name=""
+    variant=""
+    version="">
+    <issue
+        id="NewApi"
+        message="Class requires API level 33 (current min is 23): `android.util.Dumpable`"
+        errorLine1="public interface DeviceStateAutoRotateSettingManager extends Dumpable {"
+        errorLine2="                                                             ~~~~~~~~">
+        <location
+            file="frameworks/base/packages/SettingsLib/DeviceStateRotationLock/src/com/android/settingslib/devicestate/DeviceStateAutoRotateSettingManager.java"
+            line="35"
+            column="62"/>
+    </issue>
+
+</issues>

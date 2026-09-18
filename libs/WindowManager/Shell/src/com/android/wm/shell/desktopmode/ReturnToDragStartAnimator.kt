@@ -57,8 +57,7 @@ class ReturnToDragStartAnimator(
         if (startBounds == endBounds) {
             ProtoLog.w(
                 ShellProtoLogGroup.WM_SHELL_DESKTOP_MODE,
-                "%s: reposition animation request with equal start/end bounds=%s, ignoring",
-                TAG,
+                "$TAG: reposition animation request with equal start/end bounds=%s, ignoring",
                 startBounds,
             )
             return

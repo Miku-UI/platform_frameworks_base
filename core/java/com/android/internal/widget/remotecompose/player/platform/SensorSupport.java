@@ -15,7 +15,6 @@
  */
 package com.android.internal.widget.remotecompose.player.platform;
 
-
 import android.annotation.NonNull;
 import android.content.Context;
 import android.hardware.Sensor;

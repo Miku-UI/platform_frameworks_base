@@ -16,16 +16,28 @@
 
 package com.android.systemui.screencapture.common.domain.interactor
 
+import androidx.core.graphics.createBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.runTest
+import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.screencapture.common.data.repository.fakeScreenCaptureThumbnailRepository
+import com.android.systemui.screencapture.common.domain.model.ScreenCaptureDisplay
 import com.android.systemui.screencapture.common.domain.model.ScreenCaptureRecentTask
+import com.android.systemui.screenshot.mockImageCapture
 import com.android.systemui.testKosmosNew
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.isNull
+import org.mockito.kotlin.stub
+import org.mockito.kotlin.verify
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -33,11 +45,19 @@ class ScreenCaptureThumbnailInteractorTest : SysuiTestCase() {
 
     private val kosmos = testKosmosNew()
 
+    private val Kosmos.interactor by
+        Kosmos.Fixture {
+            ScreenCaptureThumbnailInteractor(
+                bgContext = testDispatcher,
+                repository = fakeScreenCaptureThumbnailRepository,
+                imageCapture = mockImageCapture,
+            )
+        }
+
     @Test
-    fun loadThumbnail_returnsThumbnailFromRepository() =
+    fun loadThumbnail_recentTask_returnsThumbnailFromRepository() =
         kosmos.runTest {
             // Arrange
-            val interactor = ScreenCaptureThumbnailInteractor(fakeScreenCaptureThumbnailRepository)
             val fakeTask =
                 ScreenCaptureRecentTask(
                     taskId = 1,
@@ -46,6 +66,8 @@ class ScreenCaptureThumbnailInteractorTest : SysuiTestCase() {
                     component = null,
                     backgroundColor = null,
                     splitBounds = null,
+                    baseIntent = null,
+                    isForegroundTask = false,
                 )
 
             // Act
@@ -53,6 +75,24 @@ class ScreenCaptureThumbnailInteractorTest : SysuiTestCase() {
 
             // Assert
             assertThat(fakeScreenCaptureThumbnailRepository.loadThumbnailCalls).containsExactly(1)
-            assertThat(result).isEqualTo(fakeScreenCaptureThumbnailRepository.fakeThumbnail)
+            assertThat(result).isEqualTo(fakeScreenCaptureThumbnailRepository.defaultFakeThumbnail)
+        }
+
+    @Test
+    fun loadThumbnail_display_returnsCapturedThumbnail() =
+        kosmos.runTest {
+            // Arrange
+            val fakeThumbnail = createBitmap(200, 100)
+            mockImageCapture.stub {
+                on { captureDisplay(any(), anyOrNull()) } doReturn fakeThumbnail
+            }
+            val fakeDisplay = ScreenCaptureDisplay(displayId = 1, label = "FakeLabel")
+
+            // Act
+            val result = interactor.loadThumbnail(fakeDisplay)
+
+            // Assert
+            verify(mockImageCapture).captureDisplay(eq(1), isNull())
+            assertThat(result.getOrNull()?.sameAs(fakeThumbnail))
         }
 }

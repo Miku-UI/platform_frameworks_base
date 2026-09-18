@@ -42,15 +42,16 @@ import java.util.Objects;
 @SystemApi
 public final class TimeState implements Parcelable {
 
-    public static final @NonNull Creator<TimeState> CREATOR = new Creator<>() {
-        public TimeState createFromParcel(Parcel in) {
-            return TimeState.createFromParcel(in);
-        }
+    public static final @NonNull Creator<TimeState> CREATOR =
+            new Creator<>() {
+                public TimeState createFromParcel(Parcel in) {
+                    return TimeState.createFromParcel(in);
+                }
 
-        public TimeState[] newArray(int size) {
-            return new TimeState[size];
-        }
-    };
+                public TimeState[] newArray(int size) {
+                    return new TimeState[size];
+                }
+            };
 
     @NonNull private final UnixEpochTime mUnixEpochTime;
     private final boolean mUserShouldConfirmTime;
@@ -82,21 +83,13 @@ public final class TimeState implements Parcelable {
         String opt;
         while ((opt = cmd.getNextArg()) != null) {
             switch (opt) {
-                case "--elapsed_realtime": {
-                    elapsedRealtimeMillis = Long.parseLong(cmd.getNextArgRequired());
-                    break;
-                }
-                case "--unix_epoch_time": {
-                    unixEpochTimeMillis = Long.parseLong(cmd.getNextArgRequired());
-                    break;
-                }
-                case "--user_should_confirm_time": {
-                    userShouldConfirmTime  = Boolean.parseBoolean(cmd.getNextArgRequired());
-                    break;
-                }
-                default: {
-                    throw new IllegalArgumentException("Unknown option: " + opt);
-                }
+                case "--elapsed_realtime" ->
+                        elapsedRealtimeMillis = Long.parseLong(cmd.getNextArgRequired());
+                case "--unix_epoch_time" ->
+                        unixEpochTimeMillis = Long.parseLong(cmd.getNextArgRequired());
+                case "--user_should_confirm_time" ->
+                        userShouldConfirmTime = Boolean.parseBoolean(cmd.getNextArgRequired());
+                default -> throw new IllegalArgumentException("Unknown option: " + opt);
             }
         }
 
@@ -159,8 +152,10 @@ public final class TimeState implements Parcelable {
     @Override
     public String toString() {
         return "TimeState{"
-                + "mUnixEpochTime=" + mUnixEpochTime
-                + ", mUserShouldConfirmTime=" + mUserShouldConfirmTime
+                + "mUnixEpochTime="
+                + mUnixEpochTime
+                + ", mUserShouldConfirmTime="
+                + mUserShouldConfirmTime
                 + '}';
     }
 }

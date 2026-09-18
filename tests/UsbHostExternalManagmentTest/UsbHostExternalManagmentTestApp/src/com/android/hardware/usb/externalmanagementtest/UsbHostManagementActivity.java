@@ -25,10 +25,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.hardware.usb.UsbDevice;
-import android.hardware.usb.UsbDeviceConnection;
-import android.hardware.usb.UsbInterface;
 import android.hardware.usb.UsbManager;
-import android.net.nsd.NsdManager.DiscoveryListener;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -38,10 +35,8 @@ import android.widget.TextView;
 
 import com.android.hardware.usb.externalmanagementtest.UsbDeviceStateController.AoapSwitchRequest;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.List;
 
 public class UsbHostManagementActivity extends Activity
         implements UsbDeviceStateController.UsbDeviceStateListener {
@@ -150,9 +145,10 @@ public class UsbHostManagementActivity extends Activity
         } catch (NameNotFoundException e) {
             Log.w(TAG, "AOAP Test app not found:" + AOAP_APP_PACKAGE_NAME);
         }
+        String packageName = pi.applicationInfo.packageName;
         int uid = pi.applicationInfo.uid;
         UsbManager usbManager = (UsbManager)getSystemService(Context.USB_SERVICE);
-        usbManager.grantPermission(device, uid);
+        usbManager.grantPermission(device, packageName, uid);
         Intent intent = new Intent(UsbManager.ACTION_USB_DEVICE_ATTACHED);
         intent.putExtra(UsbManager.EXTRA_DEVICE, device);
         intent.setComponent(new ComponentName(AOAP_APP_PACKAGE_NAME, AOAP_APP_ACTIVITY_NAME));

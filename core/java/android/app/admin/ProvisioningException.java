@@ -16,10 +16,14 @@
 
 package android.app.admin;
 
+import static android.app.admin.flags.Flags.FLAG_MULTI_USER_MANAGEMENT_DEVICE_PROVISIONING;
+
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
+import android.app.admin.flags.Flags;
 import android.content.pm.PackageManager;
 import android.util.AndroidException;
 
@@ -35,6 +39,15 @@ import java.lang.annotation.RetentionPolicy;
  */
 @SystemApi
 public class ProvisioningException extends AndroidException {
+
+    /**
+     * Service-specific code for {@link DevicePolicyManager#provisionMultiuserManagedDevice}:
+     * Indicates a successful provisioning.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_MULTI_USER_MANAGEMENT_DEVICE_PROVISIONING)
+    public static final int ERROR_OK = -1;
 
     /**
      * Service-specific error code for {@link DevicePolicyManager#provisionFullyManagedDevice} and
@@ -86,6 +99,27 @@ public class ProvisioningException extends AndroidException {
      * Indicates that setting the device owner failed.
      */
     public static final int ERROR_SET_DEVICE_OWNER_FAILED = 7;
+
+    /**
+     * Service-specific error code for {@link DevicePolicyManager#provisionMultiuserManagedDevice}:
+     * Indicates that role assignment failed.
+     */
+    @FlaggedApi(Flags.FLAG_MULTI_USER_MANAGEMENT_DEVICE_PROVISIONING)
+    public static final int ERROR_SET_DEVICE_CONTROLLER_FAILED = 8;
+
+    /**
+     * Service-specific error code for {@link DevicePolicyManager#provisionMultiuserManagedDevice}:
+     * Indicates that provisioning timed out.
+     */
+    @FlaggedApi(Flags.FLAG_MULTI_USER_MANAGEMENT_DEVICE_PROVISIONING)
+    public static final int ERROR_TIMEOUT = 9;
+
+    /**
+     * Service-specific error code for {@link DevicePolicyManager#provisionMultiuserManagedDevice}:
+     * Indicates that provisioning was interrupted.
+     */
+    @FlaggedApi(Flags.FLAG_MULTI_USER_MANAGEMENT_DEVICE_PROVISIONING)
+    public static final int ERROR_INTERRUPTED = 10;
 
     /**
      * Service-specific error codes for {@link DevicePolicyManager#createAndProvisionManagedProfile}

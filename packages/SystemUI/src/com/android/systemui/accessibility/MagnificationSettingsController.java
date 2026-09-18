@@ -62,9 +62,11 @@ public class MagnificationSettingsController implements ComponentCallbacks {
             SfVsyncFrameCallbackProvider sfVsyncFrameProvider,
             @NonNull Callback settingsControllerCallback,
             SecureSettings secureSettings,
-            WindowManagerProvider windowManagerProvider) {
-        this(context, sfVsyncFrameProvider, settingsControllerCallback,  secureSettings,
-                windowManagerProvider, null);
+            WindowManagerProvider windowManagerProvider,
+            AccessibilityLogger accessibilityLogger) {
+        this(context, sfVsyncFrameProvider, settingsControllerCallback, secureSettings,
+                  windowManagerProvider, /* windowMagnificationSettings= */ null,
+                  accessibilityLogger);
     }
 
     @VisibleForTesting
@@ -74,7 +76,8 @@ public class MagnificationSettingsController implements ComponentCallbacks {
             @NonNull Callback settingsControllerCallback,
             SecureSettings secureSettings,
             WindowManagerProvider windowManagerProvider,
-            WindowMagnificationSettings windowMagnificationSettings) {
+            WindowMagnificationSettings windowMagnificationSettings,
+            AccessibilityLogger accessibilityLogger) {
         mContext = context.createWindowContext(
                 context.getDisplay(),
                 WindowManager.LayoutParams.TYPE_NAVIGATION_BAR_PANEL,
@@ -89,7 +92,7 @@ public class MagnificationSettingsController implements ComponentCallbacks {
             WindowManager windowManager = windowManagerProvider.getWindowManager(mContext);
             mWindowMagnificationSettings = new WindowMagnificationSettings(mContext,
                     mWindowMagnificationSettingsCallback,
-                    sfVsyncFrameProvider, secureSettings, windowManager);
+                    sfVsyncFrameProvider, secureSettings, windowManager, accessibilityLogger);
         }
     }
 

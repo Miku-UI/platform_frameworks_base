@@ -22,13 +22,18 @@ import android.os.VibrationEffect;
 import android.os.VibratorInfo;
 import android.os.vibrator.Flags;
 import android.os.vibrator.PrebakedSegment;
+import android.os.vibrator.PrimitiveSegment;
 import android.os.vibrator.VibrationEffectSegment;
+import android.util.Slog;
 import android.util.SparseArray;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /** Adapter that replaces unsupported {@link PrebakedSegment} with fallback. */
 final class PrebakedFallbackAdapter implements VibrationSegmentsAdapter {
+    private static final String TAG = "PrebakedFallbackAdapter";
+
     private final SparseArray<VibrationEffect> mFallbackEffects;
 
     PrebakedFallbackAdapter(SparseArray<VibrationEffect> fallbackEffects) {
@@ -53,9 +58,49 @@ final class PrebakedFallbackAdapter implements VibrationSegmentsAdapter {
             if (!(mFallbackEffects.get(effectId) instanceof VibrationEffect.Composed fallback)) {
                 continue;
             }
+            long startTimeMillis = prebaked.getStartTimeMillis();
+            List<VibrationEffectSegment> fallbackSegments = new ArrayList<>(fallback.getSegments());
+            if (startTimeMillis >= 0 && !fallbackSegments.isEmpty()) {
+                for (int j = 0; j < fallbackSegments.size(); j++) {
+                    VibrationEffectSegment segment = fallbackSegments.get(j);
+                    if (segment instanceof PrimitiveSegment) {
+                        Slog.wtf(TAG, "Found PrimitiveSegment in fallback effect for "
+                                + "PrebakedSegment. This co-existence should not happen.");
+                        // TODO(b/469962388): Convert PrimitiveSegment to PresetSegment if there is
+                        // any.
+                        continue;
+                    }
+                    long segmentStartTimeMillis = segment.getStartTimeMillis();
+                    long newStartTimeMillis = segmentStartTimeMillis;
+                    if (segmentStartTimeMillis >= 0) {
+                        newStartTimeMillis += startTimeMillis;
+                    } else if (j == 0) {
+                        // If the first segment has a negative start time, set it to the start time
+                        // of the PrebakedSegment.
+                        newStartTimeMillis = startTimeMillis;
+                    }
+                    fallbackSegments.set(j, segment.applyStartTime(newStartTimeMillis));
+                }
+            } else { // startTimeMillis < 0
+                for (int j = 0; j < fallbackSegments.size(); j++) {
+                    if (fallbackSegments.get(j) instanceof PrimitiveSegment) {
+                        Slog.wtf(TAG, "Found PrimitiveSegment in fallback effect for "
+                                + "PrebakedSegment. This co-existence should not happen.");
+                        // TODO(b/469962388): Convert PrimitiveSegment to PresetSegment if there is
+                        // any.
+                        continue;
+                    }
+                    if (fallbackSegments.get(j).getStartTimeMillis() >= 0) {
+                        Slog.wtf(TAG, "Found non-negative start time in fallback effect for "
+                                + "PrebakedSegment without start time. This is not supported and "
+                                + "should not happen.");
+                        fallbackSegments.set(j, fallbackSegments.get(j).applyStartTime(-1));
+                    }
+                }
+            }
             segments.remove(i);
-            segments.addAll(i, fallback.getSegments());
-            int segmentsAdded = fallback.getSegments().size() - 1;
+            segments.addAll(i, fallbackSegments);
+            int segmentsAdded = fallbackSegments.size() - 1;
             if (repeatIndex > i) {
                 repeatIndex += segmentsAdded;
             }

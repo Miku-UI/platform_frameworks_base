@@ -16,14 +16,18 @@
 
 package com.android.systemui.bouncer.domain.interactor
 
+import com.android.internal.logging.uiEventLogger
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
+import com.android.systemui.biometrics.domain.interactor.fingerprintPropertyInteractor
 import com.android.systemui.bouncer.data.repository.keyguardBouncerRepository
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryBiometricsAllowedInteractor
 import com.android.systemui.display.domain.interactor.displayStateInteractor
+import com.android.systemui.display.domain.interactor.shadeDisplayTypeInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.log.sessionTracker
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.securelockdevice.domain.interactor.secureLockDeviceInteractor
 
@@ -31,7 +35,7 @@ val Kosmos.alternateBouncerInteractor: AlternateBouncerInteractor by
     Kosmos.Fixture {
         AlternateBouncerInteractor(
             bouncerRepository = keyguardBouncerRepository,
-            fingerprintPropertyRepository = fingerprintPropertyRepository,
+            fingerprintPropertyInteractor = fingerprintPropertyInteractor,
             deviceEntryBiometricsAllowedInteractor = { deviceEntryBiometricsAllowedInteractor },
             keyguardInteractor = { keyguardInteractor },
             keyguardTransitionInteractor = { keyguardTransitionInteractor },
@@ -39,6 +43,9 @@ val Kosmos.alternateBouncerInteractor: AlternateBouncerInteractor by
             sceneInteractor = { sceneInteractor },
             displayStateInteractor = { displayStateInteractor },
             secureLockDeviceInteractor = { secureLockDeviceInteractor },
+            displayTypeInteractor = shadeDisplayTypeInteractor,
+            uiEventLogger = uiEventLogger,
+            sessionTracker = sessionTracker,
         )
     }
 

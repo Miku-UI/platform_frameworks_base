@@ -16,13 +16,13 @@
 
 package com.android.wm.shell.bubbles;
 
-import android.graphics.Bitmap;
 import android.view.View;
 
 import androidx.annotation.Nullable;
 
 import com.android.launcher3.icons.BitmapInfo;
 import com.android.wm.shell.bubbles.bar.BubbleBarExpandedView;
+import com.android.wm.shell.bubbles.model.BubbleIcon;
 
 /**
  * Interface to represent actual Bubbles and UI elements that act like bubbles, like BubbleOverflow.
@@ -60,9 +60,14 @@ public interface BubbleViewProvider {
     String getKey();
 
     /** Bubble icon bitmap with no badge and no dot. */
-    Bitmap getBubbleIcon();
+    BubbleIcon getBubbleIcon();
 
-    /** App badge drawable to draw above bubble icon. */
+    /**
+     * App badge drawable to draw above bubble icon.
+     *
+     * <p>Note that this is null for app bubbles. For work profile app icons, the work profile badge
+     * is part of the icon returned by {@link #getBubbleIcon()}.
+     */
     @Nullable BitmapInfo getAppBadge();
 
     /** Base app badge drawable without any markings. */

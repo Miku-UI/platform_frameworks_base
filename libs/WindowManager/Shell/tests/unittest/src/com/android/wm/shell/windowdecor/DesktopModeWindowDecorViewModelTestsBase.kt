@@ -17,6 +17,7 @@
 package com.android.wm.shell.windowdecor
 
 import android.app.ActivityManager.RunningTaskInfo
+import android.app.ActivityTaskManager
 import android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD
 import android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW
 import android.app.WindowConfiguration.WindowingMode
@@ -42,7 +43,7 @@ import android.window.DesktopExperienceFlags
 import com.android.dx.mockito.inline.extended.StaticMockitoSession
 import com.android.internal.jank.InteractionJankMonitor
 import com.android.internal.policy.DesktopModeCompatPolicy
-import com.android.window.flags.Flags
+import com.android.testing.wm.util.StubTransaction
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.ShellTestCase
@@ -52,6 +53,7 @@ import com.android.wm.shell.apptoweb.AppToWebGenericLinksParser
 import com.android.wm.shell.apptoweb.AppToWebRepositoryImpl
 import com.android.wm.shell.apptoweb.AssistContentRequester
 import com.android.wm.shell.bubbles.BubbleController
+import com.android.wm.shell.bubbles.BubbleHelper
 import com.android.wm.shell.common.DisplayChangeController
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.DisplayInsetsController
@@ -70,13 +72,15 @@ import com.android.wm.shell.desktopmode.DesktopTasksController
 import com.android.wm.shell.desktopmode.DesktopTasksLimiter
 import com.android.wm.shell.desktopmode.DesktopUserRepositories
 import com.android.wm.shell.desktopmode.FakeShellDesktopState
+import com.android.wm.shell.desktopmode.SnapController
 import com.android.wm.shell.desktopmode.WindowDecorCaptionRepository
 import com.android.wm.shell.desktopmode.data.DesktopRepository
 import com.android.wm.shell.desktopmode.education.AppHandleEducationController
 import com.android.wm.shell.desktopmode.multidesks.DesksOrganizer
 import com.android.wm.shell.freeform.FreeformTaskTransitionStarter
-import com.android.wm.shell.recents.RecentsTransitionHandler
-import com.android.wm.shell.recents.RecentsTransitionStateListener
+import com.android.wm.shell.pinnedlayer.phone.PinnedLayerController
+import com.android.wm.shell.pinnedlayer.phone.PinnedLayerUiState
+import com.android.wm.shell.recents.PerDisplayRecentsTransitionStateListener
 import com.android.wm.shell.shared.desktopmode.FakeDesktopConfig
 import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.android.wm.shell.splitscreen.SplitScreenController
@@ -85,10 +89,10 @@ import com.android.wm.shell.sysui.ShellController
 import com.android.wm.shell.sysui.ShellInit
 import com.android.wm.shell.transition.FocusTransitionObserver
 import com.android.wm.shell.transition.Transitions
-import com.android.wm.shell.util.StubTransaction
 import com.android.wm.shell.windowdecor.DesktopModeWindowDecorViewModel.DesktopModeKeyguardChangeListener
 import com.android.wm.shell.windowdecor.DesktopModeWindowDecorViewModel.DesktopModeOnInsetsChangedListener
-import com.android.wm.shell.windowdecor.common.AppHandleAndHeaderVisibilityHelper
+import com.android.wm.shell.windowdecor.common.CaptionVisibilityHelper
+import com.android.wm.shell.windowdecor.common.DecorThemeUtil
 import com.android.wm.shell.windowdecor.common.WindowDecorTaskResourceLoader
 import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHost
 import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHostSupplier
@@ -107,6 +111,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argThat
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doNothing
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.spy
 import org.mockito.kotlin.verify
@@ -163,7 +168,6 @@ open class DesktopModeWindowDecorViewModelTestsBase : ShellTestCase() {
     protected val mockFocusTransitionObserver = mock<FocusTransitionObserver>()
     protected val mockCaptionHandleRepository = mock<WindowDecorCaptionRepository>()
     protected val mockDesktopRepository: DesktopRepository = mock<DesktopRepository>()
-    protected val mockRecentsTransitionHandler = mock<RecentsTransitionHandler>()
     protected val mockTilingWindowDecoration = mock<DesktopTilingDecorViewModel>()
     protected val mockWindowDecoration = mock<WindowDecorationWrapper>()
     protected val mockLockTaskChangeListener = mock<LockTaskChangeListener>()
@@ -171,7 +175,9 @@ open class DesktopModeWindowDecorViewModelTestsBase : ShellTestCase() {
     private val displayLayout = mock<DisplayLayout>()
     private val display = mock<Display>()
     private val packageManager = mock<PackageManager>()
-    protected val mockBubbleController = mock<BubbleController>()
+    protected val bubbleHelper = mock<BubbleHelper>()
+    protected val bubbleController =
+        mock<BubbleController> { on { bubbleHelper } doReturn bubbleHelper }
     protected val homeComponentName = ComponentName(HOME_LAUNCHER_PACKAGE_NAME, /* class */ "")
     protected lateinit var spyContext: TestableContext
     private lateinit var desktopModeEventLogger: DesktopModeEventLogger
@@ -179,21 +185,31 @@ open class DesktopModeWindowDecorViewModelTestsBase : ShellTestCase() {
     protected lateinit var shellDesktopState: FakeShellDesktopState
     protected lateinit var desktopConfig: FakeDesktopConfig
     private val mockUserProfileContexts = mock<UserProfileContexts>()
+    private val mockRecentsTransitionStateListener =
+        mock<PerDisplayRecentsTransitionStateListener>()
+
+    protected val mockPinnedLayerController = mock<PinnedLayerController>()
+    protected val mockPinnedLayerUiState = mock<PinnedLayerUiState>()
+    protected val mockFluidTaskResizer = mock<FluidTaskResizer>()
+    protected val mockVeiledTaskResizer = mock<VeiledTaskResizer>()
+    protected val mockMultiDisplayTaskMover = mock<MultiDisplayTaskMover>()
+    protected val mockActivityTaskManager = mock<ActivityTaskManager>()
 
     private val transactionFactory =
         Supplier<SurfaceControl.Transaction> { SurfaceControl.Transaction() }
+    private val decorThemeUtilFactory = DecorThemeUtil.Factory()
     protected val windowDecorByTaskIdSpy = spy(SparseArray<WindowDecorationWrapper>())
 
     protected lateinit var mockitoSession: StaticMockitoSession
     protected lateinit var shellInit: ShellInit
     internal lateinit var desktopModeOnInsetsChangedListener: DesktopModeOnInsetsChangedListener
-    protected lateinit var desktopModeRecentsTransitionStateListener: RecentsTransitionStateListener
     protected lateinit var displayChangingListener:
         DisplayChangeController.OnDisplayChangingListener
     internal lateinit var desktopModeOnKeyguardChangedListener: DesktopModeKeyguardChangeListener
     protected lateinit var desktopModeWindowDecorViewModel: DesktopModeWindowDecorViewModel
     protected lateinit var desktopModeCompatPolicy: DesktopModeCompatPolicy
-    protected lateinit var appHandleAndHeaderVisibilityHelper: AppHandleAndHeaderVisibilityHelper
+    protected lateinit var captionVisibilityHelper: CaptionVisibilityHelper
+    protected lateinit var snapController: SnapController
 
     @Before
     fun earlySetUp() {
@@ -204,11 +220,13 @@ open class DesktopModeWindowDecorViewModelTestsBase : ShellTestCase() {
 
     fun setUpCommon() {
         spyContext = spy(mContext)
+        spyContext.setMockPackageManager(packageManager)
+        snapController = SnapController()
         doNothing().`when`(spyContext).startActivity(any())
-        doNothing().`when`(mockWindowDecoration).a11yAnnounceNewFocusedWindow()
         shellInit = ShellInit(testShellExecutor)
         windowDecorByTaskIdSpy.clear()
         spyContext.addMockSystemService(InputManager::class.java, mockInputManager)
+        spyContext.addMockSystemService(ActivityTaskManager::class.java, mockActivityTaskManager)
         desktopModeEventLogger = mock<DesktopModeEventLogger>()
         whenever(mockDesktopUserRepositories.current).thenReturn(mockDesktopRepository)
         whenever(mockDisplayController.getDisplayContext(any())).thenReturn(spyContext)
@@ -217,13 +235,15 @@ open class DesktopModeWindowDecorViewModelTestsBase : ShellTestCase() {
         whenever(mockDesktopUserRepositories.getProfile(anyInt())).thenReturn(mockDesktopRepository)
         whenever(mockUserProfileContexts[anyInt()]).thenReturn(spyContext)
         whenever(mockUserProfileContexts.getOrCreate(anyInt())).thenReturn(spyContext)
-        desktopModeCompatPolicy = DesktopModeCompatPolicy(spyContext)
-        appHandleAndHeaderVisibilityHelper =
-            AppHandleAndHeaderVisibilityHelper(
+        whenever(mockLockTaskChangeListener.isTaskLocked).thenReturn(false)
+        desktopModeCompatPolicy = spy(DesktopModeCompatPolicy(spyContext))
+        captionVisibilityHelper =
+            CaptionVisibilityHelper(
                 displayController = mockDisplayController,
                 desktopModeCompatPolicy = desktopModeCompatPolicy,
                 desktopState = desktopState,
-                bubbleController = Optional.of(mockBubbleController),
+                bubbleController = Optional.of(bubbleController),
+                lockTaskChangeListener = mockLockTaskChangeListener,
             )
         desktopModeWindowDecorViewModel =
             DesktopModeWindowDecorViewModel(
@@ -232,6 +252,7 @@ open class DesktopModeWindowDecorViewModelTestsBase : ShellTestCase() {
                 mockMainHandler,
                 mockMainChoreographer,
                 mock<MainCoroutineDispatcher>(),
+                mock<CoroutineScope>(),
                 mock<CoroutineScope>(),
                 mock<CoroutineScope>(),
                 bgExecutor,
@@ -260,9 +281,8 @@ open class DesktopModeWindowDecorViewModelTestsBase : ShellTestCase() {
                 mockRootTaskDisplayAreaOrganizer,
                 windowDecorByTaskIdSpy,
                 mockInteractionJankMonitor,
-                Optional.of(mockTasksLimiter),
                 mockAppHandleEducationController,
-                appHandleAndHeaderVisibilityHelper,
+                captionVisibilityHelper,
                 mockCaptionHandleRepository,
                 Optional.of(mockActivityOrientationChangeHandler),
                 mockTaskPositionerFactory,
@@ -270,7 +290,7 @@ open class DesktopModeWindowDecorViewModelTestsBase : ShellTestCase() {
                 desktopModeEventLogger,
                 mock<DesktopModeUiEventLogger>(),
                 mock<WindowDecorTaskResourceLoader>(),
-                mockRecentsTransitionHandler,
+                mockRecentsTransitionStateListener,
                 desktopModeCompatPolicy,
                 mockTilingWindowDecoration,
                 mockMultiDisplayDragMoveIndicatorController,
@@ -280,8 +300,18 @@ open class DesktopModeWindowDecorViewModelTestsBase : ShellTestCase() {
                 desktopConfig,
                 mockUserProfileContexts,
                 mockLockTaskChangeListener,
+                mockPinnedLayerController,
+                mockPinnedLayerUiState,
+                mockFluidTaskResizer,
+                mockVeiledTaskResizer,
+                mockMultiDisplayTaskMover,
+                snapController,
+                decorThemeUtilFactory,
             )
         desktopModeWindowDecorViewModel.setSplitScreenController(mockSplitScreenController)
+        desktopModeWindowDecorViewModel.setFreeformTaskTransitionStarter(
+            mockFreeformTaskTransitionStarter
+        )
         whenever(mockDisplayController.getDisplayLayout(any())).thenReturn(mockDisplayLayout)
         whenever(mockDisplayLayout.stableInsets()).thenReturn(STABLE_INSETS)
         whenever(mockInputMonitorFactory.create(any(), any())).thenReturn(mockInputMonitor)
@@ -298,14 +328,20 @@ open class DesktopModeWindowDecorViewModelTestsBase : ShellTestCase() {
                     any(),
                     any(),
                     any(),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
                 )
             )
             .thenReturn(mockTaskPositioner)
 
         // InputChannel cannot be mocked because it passes to InputEventReceiver.
-        val inputChannels = InputChannel.openInputChannelPair(TAG)
-        inputChannels.first().dispose()
-        whenever(mockInputMonitor.inputChannel).thenReturn(inputChannels[1])
+        whenever(mockInputMonitor.inputChannel).thenAnswer {
+            val inputChannels = InputChannel.openInputChannelPair(TAG)
+            inputChannels.first().dispose()
+            inputChannels.last()
+        }
 
         shellInit.init()
 
@@ -319,13 +355,6 @@ open class DesktopModeWindowDecorViewModelTestsBase : ShellTestCase() {
         verify(displayInsetsController)
             .addGlobalInsetsChangedListener(insetsChangedCaptor.capture())
         desktopModeOnInsetsChangedListener = insetsChangedCaptor.firstValue
-        val recentsTransitionStateListenerCaptor = argumentCaptor<RecentsTransitionStateListener>()
-        if (Flags.enableDesktopRecentsTransitionsCornersBugfix()) {
-            verify(mockRecentsTransitionHandler)
-                .addTransitionStateListener(recentsTransitionStateListenerCaptor.capture())
-            desktopModeRecentsTransitionStateListener =
-                recentsTransitionStateListenerCaptor.firstValue
-        }
         val keyguardChangedCaptor = argumentCaptor<DesktopModeKeyguardChangeListener>()
         verify(mockShellController).addKeyguardChangeListener(keyguardChangedCaptor.capture())
         desktopModeOnKeyguardChangedListener = keyguardChangedCaptor.firstValue
@@ -333,9 +362,11 @@ open class DesktopModeWindowDecorViewModelTestsBase : ShellTestCase() {
         whenever(displayLayout.getStableBounds(any())).thenAnswer { i ->
             (i.arguments.first() as Rect).set(STABLE_BOUNDS)
         }
-        spyContext.setMockPackageManager(packageManager)
-        whenever(packageManager.getHomeActivities(ArrayList())).thenReturn(homeComponentName)
-        whenever(mockDesktopTasksController.getNextFocusedTask(any())).thenReturn(testTaskId)
+        doReturn(HOME_LAUNCHER_PACKAGE_NAME)
+            .whenever(desktopModeCompatPolicy)
+            .getDefaultHomePackage(any())
+        whenever(mockDesktopTasksController.getTopTask(anyInt(), anyInt(), anyInt()))
+            .thenReturn(testTaskId)
         whenever(windowDecorByTaskIdSpy.get(testTaskId)).thenReturn(mockWindowDecoration)
     }
 
@@ -367,6 +398,7 @@ open class DesktopModeWindowDecorViewModelTestsBase : ShellTestCase() {
                         statusBars()
                     }
                 userId = context.userId
+                baseActivity = ComponentName(/* pkg= */ "", /* cls= */ "")
             }
     }
 

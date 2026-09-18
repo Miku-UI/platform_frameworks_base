@@ -52,6 +52,10 @@ public class ActivityOptions {
             /** Intent action used to toggle activity orientation. */
             public static final String ACTION_TOGGLE_ORIENTATION =
                     FLICKER_APP_PACKAGE + ".ImeActivity.TOGGLE_ORIENTATION";
+
+            /** Intent action used to start an adjacent activity to start split screen. */
+            public static final String ACTION_START_ADJACENT_ACTIVITY =
+                    FLICKER_APP_PACKAGE + ".ImeActivity.START_ADJACENT_ACTIVITY";
         }
 
         public static class AutoFocusActivity {
@@ -141,6 +145,12 @@ public class ActivityOptions {
         public static final String EXTRA_FIXED_ORIENTATION = "fixed_orientation";
     }
 
+    public static class MoveToBackOnBackPressedActivity {
+        public static final String LABEL = "MoveToBackOnBackPressedActivity";
+        public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
+                FLICKER_APP_PACKAGE + ".MoveToBackOnBackPressedActivity");
+    }
+
     public static class ActivityEmbedding {
         public static class MainActivity {
             public static final String LABEL = "ActivityEmbeddingMainActivity";
@@ -211,6 +221,7 @@ public class ActivityOptions {
         public static final String RES_ID_NEW_MULTIPLE_TASK_BUTTON = "launch_new_task";
         public static final String RES_ID_NEW_TASK_RECYCLE_IF_POSSIBLE_BUTTON =
                 "launch_new_task_with_recycle_if_possible";
+        public static final String RES_ID_NEW_BROWSER_BUTTON = "launch_new_browser";
     }
 
     public static class Game {
@@ -323,5 +334,36 @@ public class ActivityOptions {
         public static final String LABEL = "ImmersiveActivity";
         public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
                 FLICKER_APP_PACKAGE + ".ImmersiveActivity");
+    }
+
+    public static class StaticShortcutsActivity {
+        public static final String LABEL = "Static Shortcuts";
+        public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
+                FLICKER_APP_PACKAGE + ".StaticShortcutsActivity");
+
+        public static class Shortcuts {
+            public static final String LAUNCH_SSA = "Open SSA";
+        }
+    }
+
+    public static class RequestFullscreenModeActivity {
+        public static final String LABEL = "RequestFullscreenModeActivity";
+        public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
+                FLICKER_APP_PACKAGE + ".RequestFullscreenModeActivity");
+    }
+
+    public static class ClickToFinishActivity {
+        public static final String LABEL = "ClickToFinishActivity";
+        public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
+                FLICKER_APP_PACKAGE + ".ClickToFinishActivity");
+
+        public static final String RES_ID_FINISH_BUTTON = "finish_self";
+    }
+
+    public static class WebIntentActivity {
+        public static final String LABEL = "WebIntentActivity";
+        public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
+                FLICKER_APP_PACKAGE + ".WebIntentActivity");
+        public static final String URL = "https://www.android.com";
     }
 }

@@ -17,11 +17,13 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/toolbar_buttons_container"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:paddingStart="@dimen/settingslib_expressive_space_extrasmall6"
     android:layout_marginEnd="@dimen/settingslib_expressive_space_small4"
-    android:layout_gravity="end">
+    android:layout_gravity="end"
+    android:visibility="gone">
 
     <com.google.android.material.button.MaterialButton
         android:theme="@style/Theme.Material3.DynamicColors.DayNight"
@@ -46,5 +48,15 @@
         android:layout_width="wrap_content"
         android:layout_height="match_parent"
         style="@style/SettingsLibButtonStyle.Expressive.Filled"
+        android:visibility="gone"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/action_icon_only_button"
+        android:layout_width="@dimen/settingslib_expressive_space_medium5"
+        android:layout_height="@dimen/settingslib_expressive_space_medium4"
+        android:layout_gravity="center_horizontal"
+        style="@style/SettingsLibButtonStyle.Expressive.Filled"
+        app:iconPadding="@dimen/settingslib_expressive_space_none"
+        app:iconGravity="textStart"
         android:visibility="gone"/>
 </LinearLayout>

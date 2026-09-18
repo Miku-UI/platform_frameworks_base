@@ -28,11 +28,9 @@ import com.android.keyguard.keyguardUpdateMonitor
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.plugins.DarkIconDispatcher
-import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
-import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
-import com.android.systemui.statusbar.pipeline.mobile.data.repository.fakeMobileConnectionsRepository
+import com.android.systemui.statusbar.pipeline.airplane.data.repository.airplaneModeRepository
+import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.airplaneModeInteractor
 import com.android.systemui.statusbar.pipeline.mobile.util.FakeSubscriptionManagerProxy
-import com.android.systemui.statusbar.pipeline.shared.data.repository.FakeConnectivityRepository
 import com.android.systemui.testKosmos
 import com.android.systemui.tuner.TunerService
 import com.android.systemui.util.CarrierConfigTracker
@@ -54,7 +52,6 @@ import org.mockito.MockitoAnnotations
 @RunWith(AndroidJUnit4::class)
 class OperatorNameViewControllerTest : SysuiTestCase() {
     private lateinit var underTest: OperatorNameViewController
-    private lateinit var airplaneModeInteractor: AirplaneModeInteractor
 
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
@@ -67,9 +64,7 @@ class OperatorNameViewControllerTest : SysuiTestCase() {
     private val keyguardUpdateMonitor = kosmos.keyguardUpdateMonitor
     @Mock private lateinit var carrierConfigTracker: CarrierConfigTracker
     private val subscriptionManagerProxy = FakeSubscriptionManagerProxy()
-
-    private val airplaneModeRepository = FakeAirplaneModeRepository()
-    private val connectivityRepository = FakeConnectivityRepository()
+    private val airplaneModeRepository = kosmos.airplaneModeRepository
 
     @Mock private lateinit var resources: Resources
     private lateinit var testableResources: TestableResources
@@ -84,20 +79,13 @@ class OperatorNameViewControllerTest : SysuiTestCase() {
             1,
         )
 
-        airplaneModeInteractor =
-            AirplaneModeInteractor(
-                airplaneModeRepository,
-                connectivityRepository,
-                kosmos.fakeMobileConnectionsRepository,
-            )
-
         underTest =
             OperatorNameViewController.Factory(
                     tunerService,
                     telephonyManager,
                     keyguardUpdateMonitor,
                     carrierConfigTracker,
-                    airplaneModeInteractor,
+                    kosmos.airplaneModeInteractor,
                     subscriptionManagerProxy,
                     kosmos.javaAdapter,
                 )

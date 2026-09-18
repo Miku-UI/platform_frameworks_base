@@ -16,37 +16,26 @@
 package com.android.systemui.statusbar.phone
 
 import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper.RunWithLooper
-import android.view.View
-import android.widget.TextView
+import android.view.LayoutInflater
+import android.widget.FrameLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.kosmos.collectLastValue
-import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.plugins.fakeDarkIconDispatcher
 import com.android.systemui.plugins.statusbar.statusBarStateController
+import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeHeadsUpTracker
 import com.android.systemui.shade.shadeViewController
-import com.android.systemui.statusbar.HeadsUpStatusBarView
-import com.android.systemui.statusbar.commandQueue
-import com.android.systemui.statusbar.headsup.shared.StatusBarNoHunBehavior
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.buildNotificationEntry
-import com.android.systemui.statusbar.notification.domain.interactor.HeadsUpNotificationIconInteractor
-import com.android.systemui.statusbar.notification.domain.interactor.headsUpNotificationIconInteractor
 import com.android.systemui.statusbar.notification.headsup.PinnedStatus
 import com.android.systemui.statusbar.notification.headsup.mockHeadsUpManager
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notification.row.createRowWithEntry
-import com.android.systemui.statusbar.notification.row.shared.AsyncGroupHeaderViewInflation
 import com.android.systemui.statusbar.notification.stack.NotificationRoundnessManager
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayoutController
-import com.android.systemui.statusbar.policy.Clock
-import com.android.systemui.statusbar.policy.keyguardStateController
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
@@ -57,7 +46,6 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.reset
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import java.util.Optional
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -69,19 +57,13 @@ class HeadsUpAppearanceControllerTest : SysuiTestCase() {
     private val shadeViewController = kosmos.shadeViewController
     private val shadeHeadsUpTracker = mock<ShadeHeadsUpTracker>()
     private val darkIconDispatcher = kosmos.fakeDarkIconDispatcher
-    private val statusBarStateController = kosmos.statusBarStateController
     private val phoneStatusBarTransitions = kosmos.mockPhoneStatusBarTransitions
-    private val bypassController = kosmos.keyguardBypassController
-    private val wakeUpCoordinator = kosmos.notificationWakeUpCoordinator
-    private val keyguardStateController = kosmos.keyguardStateController
-    private val commandQueue = kosmos.commandQueue
     private val notificationRoundnessManager = mock<NotificationRoundnessManager>()
     private var headsUpManager = kosmos.mockHeadsUpManager
 
     private lateinit var row: ExpandableNotificationRow
     private lateinit var entry: NotificationEntry
-    private lateinit var headsUpStatusBarView: HeadsUpStatusBarView
-    private lateinit var operatorNameView: View
+    private lateinit var phoneStatusBarView: PhoneStatusBarView
 
     private lateinit var underTest: HeadsUpAppearanceController
 
@@ -91,246 +73,25 @@ class HeadsUpAppearanceControllerTest : SysuiTestCase() {
         allowTestableLooperAsMainThread()
         entry = kosmos.buildNotificationEntry()
         row = kosmos.createRowWithEntry(entry)
-        headsUpStatusBarView = HeadsUpStatusBarView(mContext, mock<View>(), mock<TextView>())
-        operatorNameView = View(mContext)
+        phoneStatusBarView =
+            LayoutInflater.from(context)
+                .inflate(
+                    R.layout.status_bar,
+                    /* root= */ FrameLayout(context),
+                    /* attachToRoot = */ false,
+                ) as PhoneStatusBarView
 
         whenever(shadeViewController.shadeHeadsUpTracker).thenReturn(shadeHeadsUpTracker)
         underTest =
             HeadsUpAppearanceController(
                 headsUpManager,
-                statusBarStateController,
                 phoneStatusBarTransitions,
-                bypassController,
-                wakeUpCoordinator,
-                darkIconDispatcher,
-                keyguardStateController,
-                commandQueue,
                 stackScrollerController,
                 shadeViewController,
                 notificationRoundnessManager,
-                headsUpStatusBarView,
-                Clock(mContext, null),
-                kosmos.headsUpNotificationIconInteractor,
-                Optional.of(operatorNameView),
+                phoneStatusBarView,
             )
         underTest.setAppearFraction(0.0f, 0.0f)
-    }
-
-    @Test
-    @DisableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun showingEntryUpdated_whenPinnedBySystem() {
-        row.setPinnedStatus(PinnedStatus.PinnedBySystem)
-        setHeadsUpNotifOnManager(entry)
-        underTest.onHeadsUpPinned(entry)
-
-        assertThat(headsUpStatusBarView.showingEntry).isEqualTo(entry)
-
-        row.setPinnedStatus(PinnedStatus.NotPinned)
-        setHeadsUpNotifOnManager(null)
-        underTest.onHeadsUpUnPinned(entry)
-
-        assertThat(headsUpStatusBarView.showingEntry).isNull()
-    }
-
-    @Test
-    @EnableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun showingEntryNotUpdated_whenPinnedBySystem_whenNoHunBehaviorEnabled() {
-        row.setPinnedStatus(PinnedStatus.PinnedBySystem)
-        setHeadsUpNotifOnManager(entry)
-        underTest.onHeadsUpPinned(entry)
-
-        assertThat(headsUpStatusBarView.showingEntry).isNull()
-    }
-
-    @Test
-    @DisableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNoHunBehavior.FLAG_NAME)
-    fun showingEntryUpdated_whenPinnedByUser_andNotifChipsFlagOff() {
-        row.setPinnedStatus(PinnedStatus.PinnedByUser)
-        setHeadsUpNotifOnManager(entry)
-        underTest.onHeadsUpPinned(entry)
-
-        assertThat(headsUpStatusBarView.showingEntry).isEqualTo(entry)
-    }
-
-    @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
-    fun showingEntryNotUpdated_whenPinnedByUser_andNotifChipsFlagOn() {
-        // WHEN the HUN was pinned by the user
-        row.setPinnedStatus(PinnedStatus.PinnedByUser)
-        setHeadsUpNotifOnManager(entry)
-        underTest.onHeadsUpPinned(entry)
-
-        // THEN we don't show the HUN status bar view
-        assertThat(headsUpStatusBarView.showingEntry).isNull()
-    }
-
-    @Test
-    @DisableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun pinnedStatusUpdatedToSystem_whenPinnedBySystem() {
-        row.setPinnedStatus(PinnedStatus.PinnedBySystem)
-        setHeadsUpNotifOnManager(entry)
-        underTest.onHeadsUpPinned(entry)
-        assertThat(underTest.pinnedStatus).isEqualTo(PinnedStatus.PinnedBySystem)
-
-        row.setPinnedStatus(PinnedStatus.NotPinned)
-        setHeadsUpNotifOnManager(null)
-        underTest.onHeadsUpUnPinned(entry)
-        assertThat(underTest.pinnedStatus).isEqualTo(PinnedStatus.NotPinned)
-    }
-
-    @Test
-    @EnableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun pinnedStatusNotUpdatedToSystem_whenPinnedBySystem_whenNoHunBehaviorEnabled() {
-        row.setPinnedStatus(PinnedStatus.PinnedBySystem)
-        setHeadsUpNotifOnManager(entry)
-        underTest.onHeadsUpPinned(entry)
-
-        assertThat(underTest.pinnedStatus).isEqualTo(PinnedStatus.NotPinned)
-    }
-
-    @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
-    @DisableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun pinnedStatusUpdatedToNotPinned_whenPinnedByUser_andNotifChipsFlagOn() {
-        row.setPinnedStatus(PinnedStatus.PinnedByUser)
-        setHeadsUpNotifOnManager(entry)
-        underTest.onHeadsUpPinned(entry)
-
-        // It's unintuitive that the pinnedStatus wouldn't match the status on the notification.
-        // Explanation: HeadsUpAppearanceController#updateTopEntry doesn't do anything if
-        // HeadsUpManager.pinnedHeadsUpStatus != PinnedBySystem. So when we're PinnedByUser,
-        // HeadsUpAppearanceController early-returns before even updating the pinned status.
-        assertThat(underTest.pinnedStatus).isEqualTo(PinnedStatus.NotPinned)
-    }
-
-    @Test
-    @DisableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun isolatedIconSet_whenPinnedBySystem() =
-        kosmos.runTest {
-            val latestIsolatedIcon by
-                collectLastValue(kosmos.headsUpNotificationIconInteractor.isolatedNotification)
-
-            row.setPinnedStatus(PinnedStatus.PinnedBySystem)
-            setHeadsUpNotifOnManager(entry)
-            underTest.onHeadsUpPinned(entry)
-
-            assertThat(latestIsolatedIcon).isEqualTo(entry.key)
-
-            row.setPinnedStatus(PinnedStatus.NotPinned)
-            setHeadsUpNotifOnManager(null)
-            underTest.onHeadsUpUnPinned(entry)
-
-            assertThat(latestIsolatedIcon).isNull()
-        }
-
-    @Test
-    @EnableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun isolatedIconNotSet_whenPinnedBySystem_whenNoHunBehaviorEnabled() =
-        kosmos.runTest {
-            val latestIsolatedIcon by
-                collectLastValue(kosmos.headsUpNotificationIconInteractor.isolatedNotification)
-
-            row.setPinnedStatus(PinnedStatus.PinnedBySystem)
-            setHeadsUpNotifOnManager(entry)
-            underTest.onHeadsUpPinned(entry)
-
-            assertThat(latestIsolatedIcon).isNull()
-        }
-
-    @Test
-    @DisableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNoHunBehavior.FLAG_NAME)
-    fun isolatedIconSet_whenPinnedByUser_andNotifChipsFlagOff() =
-        kosmos.runTest {
-            val latestIsolatedIcon by
-                collectLastValue(kosmos.headsUpNotificationIconInteractor.isolatedNotification)
-
-            row.setPinnedStatus(PinnedStatus.PinnedByUser)
-            setHeadsUpNotifOnManager(entry)
-            underTest.onHeadsUpPinned(entry)
-
-            assertThat(latestIsolatedIcon).isEqualTo(entry.key)
-        }
-
-    @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
-    fun isolatedIconNotSet_whenPinnedByUser_andNotifChipsFlagOn() =
-        kosmos.runTest {
-            val latestIsolatedIcon by
-                collectLastValue(kosmos.headsUpNotificationIconInteractor.isolatedNotification)
-
-            row.setPinnedStatus(PinnedStatus.PinnedByUser)
-            setHeadsUpNotifOnManager(entry)
-            underTest.onHeadsUpPinned(entry)
-
-            assertThat(latestIsolatedIcon).isNull()
-        }
-
-    @Test
-    @DisableFlags(AsyncGroupHeaderViewInflation.FLAG_NAME)
-    fun testHeaderUpdated() {
-        row.setPinnedStatus(PinnedStatus.PinnedBySystem)
-        setHeadsUpNotifOnManager(entry)
-        underTest.onHeadsUpPinned(entry)
-        assertThat(row.headerVisibleAmount).isEqualTo(0.0f)
-
-        row.setPinnedStatus(PinnedStatus.NotPinned)
-        setHeadsUpNotifOnManager(null)
-        underTest.onHeadsUpUnPinned(entry)
-        assertThat(row.headerVisibleAmount).isEqualTo(1.0f)
-    }
-
-    @Test
-    @DisableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun operatorNameViewUpdated_whenPinnedBySystem() {
-        underTest.setAnimationsEnabled(false)
-
-        row.setPinnedStatus(PinnedStatus.PinnedBySystem)
-        setHeadsUpNotifOnManager(entry)
-        underTest.onHeadsUpPinned(entry)
-        assertThat(operatorNameView.visibility).isEqualTo(View.INVISIBLE)
-
-        row.setPinnedStatus(PinnedStatus.NotPinned)
-        setHeadsUpNotifOnManager(null)
-        underTest.onHeadsUpUnPinned(entry)
-        assertThat(operatorNameView.visibility).isEqualTo(View.VISIBLE)
-    }
-
-    @Test
-    @EnableFlags(StatusBarNoHunBehavior.FLAG_NAME)
-    fun operatorNameViewNotUpdated_whenPinnedBySystem_whenNoHunBehaviorEnabled() {
-        underTest.setAnimationsEnabled(false)
-
-        row.setPinnedStatus(PinnedStatus.PinnedBySystem)
-        setHeadsUpNotifOnManager(entry)
-        underTest.onHeadsUpPinned(entry)
-
-        assertThat(operatorNameView.visibility).isEqualTo(View.VISIBLE)
-    }
-
-    @Test
-    @DisableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNoHunBehavior.FLAG_NAME)
-    fun operatorNameViewUpdated_whenPinnedByUser_andNotifChipsFlagOff() {
-        underTest.setAnimationsEnabled(false)
-
-        row.setPinnedStatus(PinnedStatus.PinnedByUser)
-        setHeadsUpNotifOnManager(entry)
-        underTest.onHeadsUpPinned(entry)
-
-        assertThat(operatorNameView.visibility).isEqualTo(View.INVISIBLE)
-    }
-
-    @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
-    fun operatorNameViewNotUpdated_whenPinnedByUser_andNotifChipsFlagOn() {
-        underTest.setAnimationsEnabled(false)
-
-        // WHEN the row was pinned by the user
-        row.setPinnedStatus(PinnedStatus.PinnedByUser)
-        setHeadsUpNotifOnManager(entry)
-        underTest.onHeadsUpPinned(entry)
-
-        // THEN we don't need to hide the operator name view
-        assertThat(operatorNameView.visibility).isEqualTo(View.VISIBLE)
     }
 
     @Test
@@ -343,20 +104,11 @@ class HeadsUpAppearanceControllerTest : SysuiTestCase() {
         val newController =
             HeadsUpAppearanceController(
                 headsUpManager,
-                statusBarStateController,
                 phoneStatusBarTransitions,
-                bypassController,
-                wakeUpCoordinator,
-                darkIconDispatcher,
-                keyguardStateController,
-                commandQueue,
                 stackScrollerController,
                 shadeViewController,
                 notificationRoundnessManager,
-                headsUpStatusBarView,
-                Clock(mContext, null),
-                mock<HeadsUpNotificationIconInteractor>(),
-                Optional.empty(),
+                phoneStatusBarView,
             )
 
         assertThat(newController.mExpandedHeight).isEqualTo(expandedHeight)

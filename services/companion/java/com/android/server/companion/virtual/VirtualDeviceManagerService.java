@@ -20,16 +20,20 @@ import static android.companion.virtual.VirtualDeviceParams.DEVICE_POLICY_DEFAUL
 import static android.companion.virtual.VirtualDeviceParams.DEVICE_POLICY_INVALID;
 import static android.companion.virtual.VirtualDeviceParams.POLICY_TYPE_DEFAULT_DEVICE_CAMERA_ACCESS;
 import static android.media.AudioManager.AUDIO_SESSION_ID_GENERATE;
+import static android.os.IServiceManager.DUMP_FLAG_PRIORITY_NORMAL;
 
 import static com.android.server.wm.ActivityInterceptorCallback.VIRTUAL_DEVICE_SERVICE_ORDERED_ID;
 
 import android.annotation.EnforcePermission;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.PermissionManuallyEnforced;
 import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
 import android.annotation.UserIdInt;
+import android.app.ActivityManagerInternal;
 import android.app.ActivityOptions;
+import android.app.IApplicationThread;
 import android.app.compat.CompatChanges;
 import android.app.role.RoleManager;
 import android.companion.AssociationInfo;
@@ -41,10 +45,12 @@ import android.companion.virtual.IVirtualDeviceListener;
 import android.companion.virtual.IVirtualDeviceManager;
 import android.companion.virtual.IVirtualDeviceSoundEffectListener;
 import android.companion.virtual.VirtualDevice;
+import android.companion.virtual.VirtualDevice.DeviceProfile;
 import android.companion.virtual.VirtualDeviceManager;
 import android.companion.virtual.VirtualDeviceParams;
 import android.companion.virtual.computercontrol.ComputerControlSessionParams;
 import android.companion.virtual.computercontrol.IAutomatedPackageListener;
+import android.companion.virtual.computercontrol.IComputerControlConsentManager;
 import android.companion.virtual.computercontrol.IComputerControlSessionCallback;
 import android.companion.virtual.sensor.VirtualSensor;
 import android.companion.virtualdevice.flags.Flags;
@@ -54,7 +60,6 @@ import android.compat.annotation.EnabledAfter;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.hardware.display.DisplayManagerInternal;
 import android.hardware.display.IVirtualDisplayCallback;
 import android.os.Binder;
@@ -64,6 +69,7 @@ import android.os.IBinder;
 import android.os.LocaleList;
 import android.os.Looper;
 import android.os.Parcel;
+import android.os.ParcelFileDescriptor;
 import android.os.Process;
 import android.os.RemoteCallbackList;
 import android.os.RemoteException;
@@ -80,15 +86,21 @@ import android.window.DisplayWindowPolicyController;
 
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.annotations.Initializer;
+import com.android.internal.annotations.SystemServerLock;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.DumpUtils;
+import com.android.internal.util.NamedLock;
 import com.android.internal.widget.LockPatternUtils;
 import com.android.modules.expresslog.Counter;
 import com.android.server.LocalServices;
+import com.android.server.LockGuard;
 import com.android.server.SystemService;
+import com.android.server.Watchdog;
 import com.android.server.companion.virtual.VirtualDeviceImpl.PendingTrampoline;
 import com.android.server.companion.virtual.computercontrol.AutomatedPackagesRepository;
 import com.android.server.companion.virtual.computercontrol.ComputerControlSessionProcessor;
+import com.android.server.companion.virtual.computercontrol.ComputerControlSessionRequest;
 import com.android.server.wm.ActivityInterceptorCallback;
 import com.android.server.wm.ActivityTaskManagerInternal;
 
@@ -106,7 +118,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @SuppressLint("LongLogTag")
-public class VirtualDeviceManagerService extends SystemService {
+public class VirtualDeviceManagerService extends SystemService implements Watchdog.Monitor {
 
     private static final String TAG = "VirtualDeviceManagerService";
 
@@ -138,8 +150,13 @@ public class VirtualDeviceManagerService extends SystemService {
      * Making a call to another service while holding this lock creates lock order inversion and
      * will potentially cause a deadlock.
      */
-    private final Object mVirtualDeviceManagerLock = new Object();
+    @SystemServerLock(LockGuard.INDEX_VIRTUAL_DEVICE_MANAGER)
+    private final Object mVirtualDeviceManagerLock = NamedLock.create("VirtualDeviceManager");
 
+    @SuppressWarnings("NullAway") // Initialized on start, not in constructor
+    private ActivityTaskManagerInternal mActivityTaskManagerInternal;
+    @SuppressWarnings("NullAway") // Initialized on start, not in constructor
+    private ActivityManagerInternal mActivityManagerInternal;
     private final VirtualDeviceManagerImpl mImpl;
     private final VirtualDeviceManagerNativeImpl mNativeImpl;
     private final VirtualDeviceManagerInternal mLocalService;
@@ -147,9 +164,10 @@ public class VirtualDeviceManagerService extends SystemService {
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private final PendingTrampolineMap mPendingTrampolines = new PendingTrampolineMap(mHandler);
     private final ComputerControlSessionProcessor mComputerControlSessionProcessor;
+    private final IComputerControlConsentManager mComputerControlConsentManager;
     private final AutomatedPackagesRepository mAutomatedPackagesRepository;
 
-    private static AtomicInteger sNextUniqueIndex = new AtomicInteger(
+    private static final AtomicInteger sNextUniqueIndex = new AtomicInteger(
             Context.DEVICE_ID_DEFAULT + 1);
 
     @GuardedBy("mVirtualDeviceManagerLock")
@@ -173,6 +191,7 @@ public class VirtualDeviceManagerService extends SystemService {
             }
         }
     }
+    @Nullable
     private StrongAuthTracker mStrongAuthTracker;
 
     private final RemoteCallbackList<IVirtualDeviceListener> mVirtualDeviceListeners =
@@ -197,8 +216,15 @@ public class VirtualDeviceManagerService extends SystemService {
         mNativeImpl = new VirtualDeviceManagerNativeImpl();
         mLocalService = new LocalService();
         mComputerControlSessionProcessor =
-                new ComputerControlSessionProcessor(context, mImpl::createLocalVirtualDevice);
+                new ComputerControlSessionProcessor(context, mLocalService,
+                        (token, attributionSource, params) ->
+                                new VirtualDeviceManager.VirtualDevice(context,
+                                        mImpl.createLocalVirtualDevice(
+                                                token, attributionSource, params,
+                                                VirtualDevice.DEVICE_PROFILE_COMPUTER_CONTROL)));
+        mComputerControlConsentManager = new ComputerControlConsentManagerImpl();
         mAutomatedPackagesRepository = new AutomatedPackagesRepository(mHandler);
+        Watchdog.getInstance().addMonitor(this);
     }
 
     private final ActivityInterceptorCallback mActivityInterceptorCallback =
@@ -208,6 +234,25 @@ public class VirtualDeviceManagerService extends SystemService {
                 @Override
                 public ActivityInterceptResult onInterceptActivityLaunch(@NonNull
                         ActivityInterceptorInfo info) {
+                    Integer overrideDisplayId = getOverrideDisplayIdForPendingTrampoline(info);
+                    if (overrideDisplayId == null) {
+                        overrideDisplayId = getOverrideDisplayIdForCrossDisplayLaunches(info);
+                    }
+
+                    if (overrideDisplayId == null) {
+                        return null;
+                    }
+                    ActivityOptions options = info.getCheckedOptions();
+                    if (options == null) {
+                        options = ActivityOptions.makeBasic();
+                    }
+                    return new ActivityInterceptResult(
+                            info.getIntent(), options.setLaunchDisplayId(overrideDisplayId));
+                }
+
+                @Nullable
+                private Integer getOverrideDisplayIdForPendingTrampoline(
+                        ActivityInterceptorInfo info) {
                     if (info.getCallingPackage() == null) {
                         return null;
                     }
@@ -216,26 +261,44 @@ public class VirtualDeviceManagerService extends SystemService {
                         return null;
                     }
                     pt.mResultReceiver.send(VirtualDeviceManager.LAUNCH_SUCCESS, null);
-                    ActivityOptions options = info.getCheckedOptions();
-                    if (options == null) {
-                        options = ActivityOptions.makeBasic();
+                    return pt.mDisplayId;
+                }
+
+                @Nullable
+                private Integer getOverrideDisplayIdForCrossDisplayLaunches(
+                        ActivityInterceptorInfo info) {
+                    final int sourceDisplayId = info.getSourceDisplayId();
+                    if (mComputerControlSessionProcessor.isComputerControlDisplay(
+                            sourceDisplayId)) {
+                        // Prevent cross-display activity launches for computer control sessions.
+                        // TODO: b/450304983 - Consider migrating this to a VirtualDevice policy.
+                        return sourceDisplayId;
                     }
-                    return new ActivityInterceptResult(
-                            info.getIntent(), options.setLaunchDisplayId(pt.mDisplayId));
+                    return null;
                 }
             };
 
     @Override
+    public void monitor() {
+        synchronized (mVirtualDeviceManagerLock) { /* no-op */ }
+        mComputerControlSessionProcessor.monitor();
+        mAutomatedPackagesRepository.monitor();
+        // TODO: b/488023190 - Integrate all VDM locks into this monitor request.
+    }
+
+    @Initializer
+    @Override
     @RequiresPermission(android.Manifest.permission.MANAGE_COMPANION_DEVICES)
     public void onStart() {
-        publishBinderService(Context.VIRTUAL_DEVICE_SERVICE, mImpl);
+        publishBinderService(Context.VIRTUAL_DEVICE_SERVICE, mImpl, /* allowIsolated= */ false,
+                DUMP_FLAG_PRIORITY_NORMAL);
         publishBinderService(VIRTUAL_DEVICE_NATIVE_SERVICE, mNativeImpl);
         publishLocalService(VirtualDeviceManagerInternal.class, mLocalService);
-        ActivityTaskManagerInternal activityTaskManagerInternal = getLocalService(
-                ActivityTaskManagerInternal.class);
-        activityTaskManagerInternal.registerActivityStartInterceptor(
+        mActivityTaskManagerInternal = getLocalService(ActivityTaskManagerInternal.class);
+        mActivityTaskManagerInternal.registerActivityStartInterceptor(
                 VIRTUAL_DEVICE_SERVICE_ORDERED_ID,
                 mActivityInterceptorCallback);
+        mActivityManagerInternal = getLocalService(ActivityManagerInternal.class);
 
         CompanionDeviceManager cdm = getContext().getSystemService(CompanionDeviceManager.class);
         if (cdm != null) {
@@ -249,9 +312,20 @@ public class VirtualDeviceManagerService extends SystemService {
             Slog.e(TAG, "Failed to find CompanionDeviceManager. No CDM association info "
                     + " will be available.");
         }
-        if (android.companion.virtualdevice.flags.Flags.deviceAwareDisplayPower()) {
-            mStrongAuthTracker = new StrongAuthTracker(getContext());
-            new LockPatternUtils(getContext()).registerStrongAuthTracker(mStrongAuthTracker);
+
+        mStrongAuthTracker = new StrongAuthTracker(getContext());
+        new LockPatternUtils(getContext()).registerStrongAuthTracker(mStrongAuthTracker);
+
+        mComputerControlSessionProcessor.initialize();
+    }
+
+    @Override
+    public void onUserStarting(@NonNull TargetUser user) {
+        super.onUserStarting(user);
+        ArrayList<VirtualDeviceImpl> virtualDevicesSnapshot = getVirtualDevicesSnapshot();
+        for (int i = 0; i < virtualDevicesSnapshot.size(); i++) {
+            VirtualDeviceImpl virtualDevice = virtualDevicesSnapshot.get(i);
+            virtualDevice.onUserStarting(user.getUserIdentifier());
         }
     }
 
@@ -276,6 +350,7 @@ public class VirtualDeviceManagerService extends SystemService {
         }
     }
 
+    @Nullable
     private CameraAccessController getCameraAccessController(UserHandle userHandle,
             VirtualDeviceParams params, String callingPackage) {
         if (CompatChanges.isChangeEnabled(ENABLE_DEFAULT_DEVICE_CAMERA_ACCESS, callingPackage,
@@ -419,12 +494,19 @@ public class VirtualDeviceManagerService extends SystemService {
         }
     }
 
-    private VirtualDeviceImpl getVirtualDeviceForId(int deviceId) {
+    VirtualDeviceImpl getVirtualDeviceForId(int deviceId) {
         synchronized (mVirtualDeviceManagerLock) {
             return mVirtualDevices.get(deviceId);
         }
     }
 
+    IVirtualDevice createShellVirtualDevice(
+            IBinder token, AttributionSource attributionSource, VirtualDeviceParams params) {
+        return mImpl.createLocalVirtualDevice(
+                token, attributionSource, params, VirtualDevice.DEVICE_PROFILE_SHELL);
+    }
+
+    @Nullable
     private String getDeviceOwnerForDisplayId(int displayId) {
         if (displayId == Display.INVALID_DISPLAY || displayId == Display.DEFAULT_DISPLAY) {
             return null;
@@ -439,12 +521,31 @@ public class VirtualDeviceManagerService extends SystemService {
         return null;
     }
 
+    @Nullable
+    private VirtualDeviceImpl getVirtualDeviceForDisplayId(int displayId) {
+        if (displayId == Display.INVALID_DISPLAY || displayId == Display.DEFAULT_DISPLAY) {
+            return null;
+        }
+        ArrayList<VirtualDeviceImpl> virtualDevicesSnapshot = getVirtualDevicesSnapshot();
+        for (int i = 0; i < virtualDevicesSnapshot.size(); i++) {
+            VirtualDeviceImpl virtualDevice = virtualDevicesSnapshot.get(i);
+            if (virtualDevice.isDisplayOwnedByVirtualDevice(displayId)) {
+                return virtualDevice;
+            }
+        }
+        return null;
+    }
+
     // TODO(b/442624418): Replace this explicit role holder check with a new role permission.
-    private void checkCallerHoldsHomeRole() {
+    private void checkCallerIsRecentsOrHomeRoleHolder() {
+        final int callingUid = Binder.getCallingUid();
+        if (mActivityTaskManagerInternal.isCallerRecents(callingUid)) {
+            return;
+        }
         final RoleManager roleManager = getContext().getSystemService(RoleManager.class);
         final List<String> homePackages = roleManager.getRoleHolders(RoleManager.ROLE_HOME);
         final String[] callerPackages =
-                getContext().getPackageManager().getPackagesForUid(Binder.getCallingUid());
+                getContext().getPackageManager().getPackagesForUid(callingUid);
         for (int i = 0; i < callerPackages.length; i++) {
             for (int j = 0; j < homePackages.size(); j++) {
                 if (callerPackages[i].equals(homePackages.get(j))) {
@@ -452,7 +553,7 @@ public class VirtualDeviceManagerService extends SystemService {
                 }
             }
         }
-        throw new SecurityException("Caller does not hold the HOME role.");
+        throw new SecurityException("Caller is neither recents, nor a HOME role holder.");
     }
 
     class VirtualDeviceManagerImpl extends IVirtualDeviceManager.Stub {
@@ -479,24 +580,30 @@ public class VirtualDeviceManagerService extends SystemService {
                     }
                 };
 
-        @EnforcePermission(android.Manifest.permission.ACCESS_COMPUTER_CONTROL)
+        @PermissionManuallyEnforced
         @Override // Binder call
         public void requestComputerControlSession(
+                @NonNull IApplicationThread appThread,
                 @NonNull AttributionSource attributionSource,
                 @NonNull ComputerControlSessionParams params,
                 @NonNull IComputerControlSessionCallback callback) {
-            // TODO(b/432678187): Replace the permission check with an alternative
-            requestComputerControlSession_enforcePermission();
             if (!android.companion.virtualdevice.flags.Flags.computerControlAccess()) {
                 throw new IllegalStateException(
                         "Cannot create ComputerControlSession - flag disabled");
             }
+            Objects.requireNonNull(appThread);
             Objects.requireNonNull(attributionSource);
             Objects.requireNonNull(params);
             Objects.requireNonNull(callback);
 
             mComputerControlSessionProcessor.processNewSessionRequest(
-                    attributionSource, params, callback);
+                    ComputerControlSessionRequest.create(
+                            getContext(), appThread, attributionSource, params, callback));
+        }
+
+        @Override // Binder call
+        public IComputerControlConsentManager getComputerControlConsentManager() {
+            return mComputerControlConsentManager;
         }
 
         @EnforcePermission(android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
@@ -527,25 +634,29 @@ public class VirtualDeviceManagerService extends SystemService {
                 }
             }
             return createVirtualDevice(token, attributionSource, associationInfo, params,
-                    activityListener, soundEffectListener);
+                    activityListener, soundEffectListener, getDeviceProfile(associationInfo));
         }
 
         private IVirtualDevice createLocalVirtualDevice(
                 IBinder token,
                 AttributionSource attributionSource,
                 @NonNull VirtualDeviceParams params,
-                @NonNull IVirtualDeviceActivityListener activityListener) {
+                @DeviceProfile int deviceProfile) {
+            IVirtualDeviceActivityListener stubActivityListener =
+                    new IVirtualDeviceActivityListener.Default();
             return createVirtualDevice(token, attributionSource, /* associationInfo= */ null,
-                    params, activityListener, /* soundEffectListener= */ null);
+                    params, /* activityListener= */ stubActivityListener,
+                    /* soundEffectListener= */ null, deviceProfile);
         }
 
         private IVirtualDevice createVirtualDevice(
                 IBinder token,
                 AttributionSource attributionSource,
-                AssociationInfo associationInfo,
+                @Nullable AssociationInfo associationInfo,
                 @NonNull VirtualDeviceParams params,
-                @Nullable IVirtualDeviceActivityListener activityListener,
-                @Nullable IVirtualDeviceSoundEffectListener soundEffectListener) {
+                @NonNull IVirtualDeviceActivityListener activityListener,
+                @Nullable IVirtualDeviceSoundEffectListener soundEffectListener,
+                @DeviceProfile int deviceProfile) {
             attributionSource.enforceCallingUid();
 
             final String packageName = attributionSource.getPackageName();
@@ -555,6 +666,9 @@ public class VirtualDeviceManagerService extends SystemService {
                                 + getCallingUid());
             }
             Objects.requireNonNull(params);
+            if (deviceProfile == VirtualDevice.DEVICE_PROFILE_UNKNOWN) {
+                throw new IllegalArgumentException("Device profile must be specified");
+            }
 
             final UserHandle userHandle = getCallingUserHandle();
             final CameraAccessController cameraAccessController =
@@ -563,7 +677,8 @@ public class VirtualDeviceManagerService extends SystemService {
             final int deviceId = sNextUniqueIndex.getAndIncrement();
             VirtualDeviceImpl virtualDevice = new VirtualDeviceImpl(getContext(), associationInfo,
                     VirtualDeviceManagerService.this, mVirtualDeviceLog, token, attributionSource,
-                    deviceId, cameraAccessController, mPendingTrampolineCallback, activityListener,
+                    deviceId, deviceProfile, cameraAccessController, mPendingTrampolineCallback,
+                    activityListener,
                     soundEffectListener, params);
             Counter.logIncrement("virtual_devices.value_virtual_devices_created_count");
 
@@ -603,6 +718,7 @@ public class VirtualDeviceManagerService extends SystemService {
         }
 
         @Override // Binder call
+        @Nullable
         public VirtualDevice getVirtualDevice(int deviceId) {
             VirtualDeviceImpl device = getVirtualDeviceForId(deviceId);
             return device == null ? null : device.getPublicVirtualDeviceObject();
@@ -620,14 +736,26 @@ public class VirtualDeviceManagerService extends SystemService {
 
         @Override // Binder call
         public void registerAutomatedPackageListener(IAutomatedPackageListener listener) {
-            checkCallerHoldsHomeRole();
+            checkCallerIsRecentsOrHomeRoleHolder();
             mAutomatedPackagesRepository.registerAutomatedPackageListener(listener);
         }
 
         @Override // Binder call
         public void unregisterAutomatedPackageListener(IAutomatedPackageListener listener) {
-            checkCallerHoldsHomeRole();
+            checkCallerIsRecentsOrHomeRoleHolder();
             mAutomatedPackagesRepository.unregisterAutomatedPackageListener(listener);
+        }
+
+        @Override // Binder call
+        public boolean validateAutomatedAppLaunchWarningIntent(@NonNull Intent intent) {
+            return mAutomatedPackagesRepository.validateAutomatedAppLaunchWarningIntent(intent);
+        }
+
+        @Override // Binder call
+        public boolean isComputerControlAvailable(@NonNull AttributionSource attributionSource,
+                int targetComputerControlVersion) {
+            return mComputerControlSessionProcessor.isComputerControlAvailable(attributionSource,
+                    targetComputerControlVersion);
         }
 
         @Override // Binder call
@@ -638,8 +766,7 @@ public class VirtualDeviceManagerService extends SystemService {
             }
             VirtualDeviceImpl virtualDevice = getVirtualDeviceForId(deviceId);
             if (virtualDevice == null) {
-                return Flags.handleInvalidDeviceId()
-                        ? DEVICE_POLICY_INVALID : DEVICE_POLICY_DEFAULT;
+                return DEVICE_POLICY_INVALID;
             }
             return virtualDevice.getDevicePolicy(policyType);
         }
@@ -648,11 +775,7 @@ public class VirtualDeviceManagerService extends SystemService {
         @VirtualDeviceParams.DevicePolicy
         public int getDevicePolicyForDisplayId(int displayId,
             @VirtualDeviceParams.PolicyType int policyType) {
-            final int deviceId = getDeviceIdForDisplayId(displayId);
-            if (deviceId == Context.DEVICE_ID_DEFAULT) {
-                return DEVICE_POLICY_DEFAULT;
-            }
-            VirtualDeviceImpl virtualDevice = getVirtualDeviceForId(deviceId);
+            VirtualDeviceImpl virtualDevice = getVirtualDeviceForDisplayId(displayId);
             // Do not return DEVICE_POLICY_INVALID here, because the display may exist but not
             // owned by any virtual device, just like the default display.
             if (virtualDevice == null) {
@@ -663,17 +786,8 @@ public class VirtualDeviceManagerService extends SystemService {
 
         @Override // Binder call
         public int getDeviceIdForDisplayId(int displayId) {
-            if (displayId == Display.INVALID_DISPLAY || displayId == Display.DEFAULT_DISPLAY) {
-                return Context.DEVICE_ID_DEFAULT;
-            }
-            ArrayList<VirtualDeviceImpl> virtualDevicesSnapshot = getVirtualDevicesSnapshot();
-            for (int i = 0; i < virtualDevicesSnapshot.size(); i++) {
-                VirtualDeviceImpl virtualDevice = virtualDevicesSnapshot.get(i);
-                if (virtualDevice.isDisplayOwnedByVirtualDevice(displayId)) {
-                    return virtualDevice.getDeviceId();
-                }
-            }
-            return Context.DEVICE_ID_DEFAULT;
+            VirtualDeviceImpl virtualDevice = getVirtualDeviceForDisplayId(displayId);
+            return virtualDevice == null ? Context.DEVICE_ID_DEFAULT : virtualDevice.getDeviceId();
         }
 
         @Override // Binder call
@@ -723,6 +837,16 @@ public class VirtualDeviceManagerService extends SystemService {
         }
 
         @Override // Binder call
+        @Nullable
+        public IBinder getAudioFocusEnvironment(int deviceId) {
+            VirtualDeviceImpl virtualDevice = getVirtualDeviceForId(deviceId);
+            if (virtualDevice == null) {
+                return null;
+            }
+            return virtualDevice.getAudioFocusEnvironment();
+        }
+
+        @Override // Binder call
         public boolean isVirtualDeviceOwnedMirrorDisplay(int displayId) {
             if (getDeviceIdForDisplayId(displayId) == Context.DEVICE_ID_DEFAULT) {
                 return false;
@@ -731,6 +855,36 @@ public class VirtualDeviceManagerService extends SystemService {
             DisplayManagerInternal displayManager = LocalServices.getService(
                     DisplayManagerInternal.class);
             return displayManager.getDisplayIdToMirror(displayId) != Display.INVALID_DISPLAY;
+        }
+
+        @Override // Binder call
+        @EnforcePermission(android.Manifest.permission.MANAGE_COMPUTER_CONTROL_CONSENT)
+        public boolean isPackageApprovedToRunComputerControlAutomation(@NonNull String packageName,
+                int userId) {
+            isPackageApprovedToRunComputerControlAutomation_enforcePermission();
+            // TODO(b/483624078): Consider exposing this API without permission. Currently
+            //  unblocking per-app consent UX by guarding with the signature permission
+            Objects.requireNonNull(packageName);
+            if (!android.companion.virtualdevice.flags.Flags.computerControlPerAppConsent()) {
+                return false;
+            }
+            return mComputerControlSessionProcessor.isPackageApprovedToRunAutomation(
+                    packageName, userId);
+        }
+
+        @Override // Binder call
+        @EnforcePermission(android.Manifest.permission.MANAGE_COMPUTER_CONTROL_CONSENT)
+        public boolean isPackageTargetableForComputerControlAutomation(@NonNull String packageName,
+                int userId) {
+            isPackageTargetableForComputerControlAutomation_enforcePermission();
+            // TODO(b/483624078): Consider exposing this API without permission. Currently
+            //  unblocking per-app consent UX by guarding with the signature permission
+            Objects.requireNonNull(packageName);
+            if (!android.companion.virtualdevice.flags.Flags.computerControlPerAppConsent()) {
+                return false;
+            }
+            return mComputerControlSessionProcessor.isPackageTargetableForAutomation(packageName,
+                    userId);
         }
 
         @Nullable
@@ -774,6 +928,16 @@ public class VirtualDeviceManagerService extends SystemService {
         }
 
         @Override
+        public int handleShellCommand(@NonNull ParcelFileDescriptor in,
+                @NonNull ParcelFileDescriptor out,
+                @NonNull ParcelFileDescriptor err,
+                @NonNull String[] args) {
+            return new VirtualDeviceShellCommand(VirtualDeviceManagerService.this)
+                    .exec(this, in.getFileDescriptor(), out.getFileDescriptor(),
+                            err.getFileDescriptor(), args);
+        }
+
+        @Override
         public void dump(@NonNull FileDescriptor fd,
                 @NonNull PrintWriter fout,
                 @Nullable String[] args) {
@@ -787,8 +951,95 @@ public class VirtualDeviceManagerService extends SystemService {
                 virtualDevicesSnapshot.get(i).dump(fd, fout, args);
             }
 
+            fout.println();
+            fout.println("ComputerControlSessionProcessor: ");
+            mComputerControlSessionProcessor.dump(fd, fout, args);
+
+            fout.println();
             mVirtualDeviceLog.dump(fout);
         }
+    }
+
+    private final class ComputerControlConsentManagerImpl extends
+            IComputerControlConsentManager.Stub {
+
+        @Override // Binder call
+        @EnforcePermission(android.Manifest.permission.MANAGE_COMPUTER_CONTROL_CONSENT)
+        public void addAppToAutomatableAppListForAgent(int agentUid,
+                @NonNull String agentPackageName, @NonNull String packageName) {
+            addAppToAutomatableAppListForAgent_enforcePermission();
+            Objects.requireNonNull(packageName);
+            if (!android.companion.virtualdevice.flags.Flags.computerControlPerAppConsent()) {
+                return;
+            }
+            mComputerControlSessionProcessor.addAppToAutomatableAppListForAgent(agentUid,
+                    agentPackageName, packageName);
+        }
+
+        @Override // Binder call
+        @EnforcePermission(android.Manifest.permission.MANAGE_COMPUTER_CONTROL_CONSENT)
+        public void removeAppFromAutomatableAppListForAgent(int agentUid,
+                @NonNull String agentPackageName,
+                @NonNull String packageName) {
+            removeAppFromAutomatableAppListForAgent_enforcePermission();
+            Objects.requireNonNull(packageName);
+            if (!android.companion.virtualdevice.flags.Flags.computerControlPerAppConsent()) {
+                return;
+            }
+            mComputerControlSessionProcessor.removeAppFromAutomatableAppListForAgent(agentUid,
+                    agentPackageName, packageName);
+        }
+
+        @Override // Binder call
+        @EnforcePermission(android.Manifest.permission.MANAGE_COMPUTER_CONTROL_CONSENT)
+        public void clearAutomatableAppListForAgent(int agentUid,
+                @NonNull String agentPackageName) {
+            clearAutomatableAppListForAgent_enforcePermission();
+            if (!android.companion.virtualdevice.flags.Flags.computerControlPerAppConsent()) {
+                return;
+            }
+            mComputerControlSessionProcessor.clearAutomatableAppListForAgent(agentUid,
+                    agentPackageName);
+        }
+
+        @Override // Binder call
+        @PermissionManuallyEnforced
+        public String[] getAutomatableAppListForAgent(int agentUid,
+                @NonNull String agentPackageName) {
+            if (!android.companion.virtualdevice.flags.Flags.computerControlPerAppConsent()) {
+                return new String[0];
+            }
+            // Allow agents to query its own automatable app list
+            final int callingUid = Binder.getCallingUid();
+            if (callingUid == agentUid) {
+                if (!PermissionUtils.validateCallingPackageName(getContext(), agentPackageName)) {
+                    throw new SecurityException(
+                            "Package name " + agentPackageName + " does not belong to calling uid "
+                                    + callingUid);
+                }
+            } else {
+                getContext().enforceCallingOrSelfPermission(
+                        android.Manifest.permission.MANAGE_COMPUTER_CONTROL_CONSENT,
+                        "getAutomatableAppListForAgent");
+            }
+            return mComputerControlSessionProcessor.getAutomatableAppListForAgent(agentUid,
+                    agentPackageName);
+        }
+    }
+
+    @DeviceProfile
+    private static int getDeviceProfile(@NonNull AssociationInfo associationInfo) {
+        return switch (associationInfo.getDeviceProfile()) {
+            case AssociationRequest.DEVICE_PROFILE_AUTOMOTIVE_PROJECTION ->
+                    VirtualDevice.DEVICE_PROFILE_AUTOMOTIVE_PROJECTION;
+            case AssociationRequest.DEVICE_PROFILE_APP_STREAMING ->
+                    VirtualDevice.DEVICE_PROFILE_APP_STREAMING;
+            case AssociationRequest.DEVICE_PROFILE_NEARBY_DEVICE_STREAMING ->
+                    VirtualDevice.DEVICE_PROFILE_NEARBY_DEVICE_STREAMING;
+            case AssociationRequest.DEVICE_PROFILE_VIRTUAL_DEVICE ->
+                    VirtualDevice.DEVICE_PROFILE_VIRTUAL_DEVICE;
+            default -> VirtualDevice.DEVICE_PROFILE_UNKNOWN;
+        };
     }
 
     final class VirtualDeviceManagerNativeImpl extends IVirtualDeviceManagerNative.Stub {
@@ -810,27 +1061,6 @@ public class VirtualDeviceManagerService extends SystemService {
     }
 
     private final class LocalService extends VirtualDeviceManagerInternal {
-
-        @Override
-        public @NonNull VirtualDeviceManager.VirtualDevice createVirtualDevice(
-                @NonNull VirtualDeviceParams params) {
-            if (getContext().checkCallingOrSelfPermission(
-                    android.Manifest.permission.CREATE_VIRTUAL_DEVICE)
-                    != PackageManager.PERMISSION_GRANTED) {
-                throw new SecurityException("Missing CREATE_VIRTUAL_DEVICE permission");
-            }
-
-            Objects.requireNonNull(params, "params must not be null");
-            Objects.requireNonNull(params.getName(), "virtual device name must not be null");
-            IVirtualDevice virtualDevice = mImpl.createVirtualDevice(
-                    new Binder(),
-                    getContext().getAttributionSource(),
-                    /* associationInfo= */ null,
-                    params,
-                    /* activityListener= */ null,
-                    /* soundEffectListener= */ null);
-            return new VirtualDeviceManager.VirtualDevice(getContext(), virtualDevice);
-        }
 
         @Override
         public int getDeviceOwnerUid(int deviceId) {
@@ -855,6 +1085,24 @@ public class VirtualDeviceManagerService extends SystemService {
                 }
             }
             return result;
+        }
+
+        @Override
+        public boolean isDeviceIdAssociationValid(int uid, int deviceId) {
+            if (getDeviceIdsForUid(uid).contains(deviceId)) {
+                return true;
+            }
+            VirtualDeviceImpl virtualDevice = getVirtualDeviceForId(deviceId);
+            if (virtualDevice == null) {
+                return false;
+            }
+            // Allow the device owners to be associated with their devices without having to run
+            // activities there.
+            if (uid == virtualDevice.getOwnerUid()) {
+                return true;
+            }
+            return mActivityManagerInternal.hasServiceBindingOrProviderUse(
+                    uid, virtualDevice.getOwnerUid());
         }
 
         @Override
@@ -884,6 +1132,14 @@ public class VirtualDeviceManagerService extends SystemService {
                 device.showToastWhereUidIsRunning(uid,
                         R.string.app_streaming_blocked_message_for_fingerprint_dialog,
                         Toast.LENGTH_LONG, Looper.getMainLooper());
+            }
+        }
+
+        @Override
+        public void onAuthenticationPrompt(int displayId, String packageName) {
+            VirtualDeviceImpl device = getVirtualDeviceForDisplayId(displayId);
+            if (device != null) {
+                device.onAuthenticationPrompt(displayId, packageName);
             }
         }
 
@@ -943,6 +1199,7 @@ public class VirtualDeviceManagerService extends SystemService {
         }
 
         @Override
+        @Nullable
         public VirtualDevice getVirtualDevice(int deviceId) {
             return mImpl.getVirtualDevice(deviceId);
         }
@@ -960,7 +1217,14 @@ public class VirtualDeviceManagerService extends SystemService {
             final String deviceOwnerForLaunchDisplayId = getDeviceOwnerForDisplayId(displayId);
             return mAutomatedPackagesRepository.createAutomatedAppLaunchWarningIntent(
                     packageName, userId, callingPackageName, deviceOwnerForLaunchDisplayId,
-                    mComputerControlSessionProcessor::closeSession);
+                    mComputerControlSessionProcessor::closeSessionByUserIntent);
+        }
+
+        @Override
+        public boolean isComputerControlNotification(int notificationId,
+                @Nullable String notificationTag, @NonNull String packageName) {
+            return mComputerControlSessionProcessor.isComputerControlNotification(
+                    notificationId, notificationTag, packageName);
         }
 
         @Override

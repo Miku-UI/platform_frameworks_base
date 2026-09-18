@@ -16,14 +16,14 @@
 
 package com.android.wm.shell.flicker.pip
 
-import androidx.test.filters.FlakyTest
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.Presubmit
-import androidx.test.filters.RequiresDevice
 import android.platform.test.annotations.RequiresFlagsDisabled
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
+import androidx.test.filters.FlakyTest
+import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.PipAppHelper
 import com.android.wm.shell.Flags
 import com.android.wm.shell.flicker.pip.common.EnterPipTransition
@@ -64,7 +64,7 @@ import org.junit.runners.Parameterized
 open class AutoEnterPipOnGoToHomeTest(flicker: FlickerTest) : EnterPipTransition(flicker) {
     override val pipApp: PipAppHelper = PipAppHelper(instrumentation)
 
-    override val thisTransition: FlickerBuilder.() -> Unit = { transitions { tapl.goHome() } }
+    override val thisTransition: FlickerBuilder.() -> Unit = { transitions { device.pressHome() } }
 
     override val defaultEnterPip: FlickerBuilder.() -> Unit = {
         setup {
@@ -96,18 +96,20 @@ open class AutoEnterPipOnGoToHomeTest(flicker: FlickerTest) : EnterPipTransition
             var currentLayer = previousLayer
             var i = 0
             invoke("layer area is decreasing") {
-                if (i < pipLayerList.size - 1) {
-                    previousLayer = currentLayer
-                    currentLayer = pipLayerList[++i]
-                    previousLayer.widthNotSmallerThan(currentLayer)
+                    if (i < pipLayerList.size - 1) {
+                        previousLayer = currentLayer
+                        currentLayer = pipLayerList[++i]
+                        previousLayer.widthNotSmallerThan(currentLayer)
+                    }
                 }
-            }.then().invoke("layer are is increasing", true /* isOptional */) {
-                if (i < pipLayerList.size - 1) {
-                    previousLayer = currentLayer
-                    currentLayer = pipLayerList[++i]
-                    currentLayer.widthNotSmallerThan(previousLayer)
+                .then()
+                .invoke("layer are is increasing", true /* isOptional */) {
+                    if (i < pipLayerList.size - 1) {
+                        previousLayer = currentLayer
+                        currentLayer = pipLayerList[++i]
+                        currentLayer.widthNotSmallerThan(previousLayer)
+                    }
                 }
-            }
         }
     }
 

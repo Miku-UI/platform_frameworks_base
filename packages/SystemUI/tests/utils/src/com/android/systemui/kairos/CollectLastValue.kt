@@ -38,7 +38,6 @@ import kotlinx.coroutines.test.runCurrent
  * }
  * ```
  */
-@ExperimentalKairosApi
 fun <T> TestScope.collectLastValue(state: State<T>, kairosNetwork: KairosNetwork): KairosValue<T?> {
     var value: T? = null
     backgroundScope.launch { kairosNetwork.activateSpec { state.observe { value = it } } }
@@ -59,7 +58,6 @@ fun <T> TestScope.collectLastValue(state: State<T>, kairosNetwork: KairosNetwork
  * }
  * ```
  */
-@ExperimentalKairosApi
 fun <T> TestScope.collectLastVaxlue(
     events: Events<T>,
     kairosNetwork: KairosNetwork,
@@ -83,7 +81,6 @@ fun <T> TestScope.collectLastVaxlue(
  * }
  * ```
  */
-@ExperimentalKairosApi
 fun <T> TestScope.collectValues(
     events: Events<T>,
     kairosNetwork: KairosNetwork,

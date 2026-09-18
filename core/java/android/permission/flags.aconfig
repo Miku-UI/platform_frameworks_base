@@ -11,13 +11,6 @@ flag {
 }
 
 flag {
-  name: "bluetooth_permission_use_module_protection_level"
-  namespace: "bluetooth"
-  description: "Flag for change to all the Bluetooth ROLE permissions to be provided by the module instead"
-  bug: "395709071"
-}
-
-flag {
     name: "voice_activation_permission_apis"
     is_exported: true
     namespace: "permissions"
@@ -32,6 +25,14 @@ flag {
     namespace: "permissions"
     description: "enable role controller in system server"
     bug: "302562590"
+}
+
+flag {
+    name: "read_media_documents_permission_enabled"
+    is_exported: true
+    namespace: "permissions"
+    description: "enable permission to read documents from shared storage"
+    bug: "442892237"
 }
 
 flag {
@@ -203,16 +204,6 @@ flag {
 }
 
 flag {
-    name: "finish_running_ops_for_killed_packages"
-    namespace: "permissions"
-    description: "Finish all appops for a dead app process"
-    bug: "234630570"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "device_id_in_op_proxy_info_enabled"
     is_fixed_read_only: true
     namespace: "permissions"
@@ -319,21 +310,20 @@ flag {
 }
 
 flag {
+    name: "should_show_permission_rationale_in_context_enabled"
+    is_exported: true
+    namespace: "permissions"
+    description: "Adds the shouldShowPermissionRationale API in Context"
+    bug: "279537108"
+}
+
+flag {
     name: "health_connect_backup_restore_permission_enabled"
     is_fixed_read_only: true
     namespace: "health_fitness_aconfig"
     description: "This flag protects the permission that is required to call Health Connect backup and restore apis"
     bug: "324019102" # android_fr bug
     is_exported: true
-}
-
-flag {
-    name: "enable_aiai_proxied_text_classifiers"
-    is_fixed_read_only: true
-    is_exported: true
-    namespace: "permissions"
-    description: "Enables the AiAi to utilize the default OTP text classifier that is also used by ExtServices"
-    bug: "377229653"
 }
 
 flag {
@@ -355,15 +345,6 @@ flag {
 }
 
 flag {
-    name: "record_all_runtime_appops_sqlite"
-    is_fixed_read_only: true
-    is_exported: true
-    namespace: "permissions"
-    description: "Enables recording of all runtime app ops into SQlite"
-    bug: "377584611"
-}
-
-flag {
     name: "ranging_permission_enabled"
     is_fixed_read_only: true
     is_exported: true
@@ -377,6 +358,13 @@ flag {
     namespace: "permissions"
     description: "Enables the system selection toolbar feature."
     bug: "363318732"
+}
+
+flag {
+    name: "system_selection_toolbar_session_enabled"
+    namespace: "permissions"
+    description: "Enables the session implementation of the selection toolbar."
+    bug: "462206038"
 }
 
 flag {
@@ -495,21 +483,6 @@ flag {
 }
 
 flag {
-    name: "app_ops_service_handler_fix"
-    is_fixed_read_only: true
-    namespace: "permissions"
-    description: "Use IoThread handler for AppOpsService background/IO work."
-    bug: "394380603"
-}
-
-flag {
-    name: "enforce_default_device_id_in_my_attribution_source"
-    namespace: "permissions"
-    description: "Force AttributionSource.myAttributionSource() to return a default device id"
-    bug: "343121936"
-}
-
-flag {
     name: "grant_read_blocked_numbers_to_system_ui_intelligence"
     is_exported: true
     is_fixed_read_only: true
@@ -553,11 +526,26 @@ flag {
 }
 
 flag {
-    name: "purpose_declaration_enabled"
-    is_fixed_read_only: true
+    name: "ppd_install_time_enabled"
     namespace: "permissions"
-    description: "This flag is used to enable the enforcement of purpose guarded permissions"
+    description: "This flag is used to enable the enforcement of install-time purpose guarded permissions and parsing of the purpose."
     bug: "418113890"
+}
+
+flag {
+    name: "ppd_manifest_enabled"
+    is_exported: true
+    namespace: "permissions"
+    description: "This flag is used to enable the parsing and system API fields in PackageInfo related to permission purpose declaration in Android Manifest. Specifically, this flag controls the objects containing purpose info and the purpose string that will be used for runtime PPDs."
+    bug: "438463457"
+}
+
+flag {
+    name: "ppd_purpose_enabled"
+    is_exported: true
+    namespace: "permissions"
+    description: "This flag is used to enable the parsing and system API fields in PackageInfo related to purposes for permission purpose declaration in Android Manifest."
+    bug: "438463457"
 }
 
 flag {
@@ -622,15 +610,6 @@ flag {
 }
 
 flag {
-    name: "watch_face_role_enabled"
-    is_exported: true
-    namespace: "wear_watchfaces"
-    description: "This flag enables watchface roles support and API"
-    bug: "399850691"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "access_local_network_permission_enabled"
     is_exported: true
     is_fixed_read_only: true
@@ -640,9 +619,138 @@ flag {
 }
 
 flag {
+    name: "use_loopback_interface_permission_enabled"
+    is_exported: true
+    namespace: "android_core_networking"
+    description: "This flag is used to enable the new USE_LOOPBACK_INTERFACE install permission. When enabled, this permission will guard IP traffic on the loopback interface."
+    bug: "430058614"
+}
+
+flag {
+    name: "interact_cellbroadcast_permission_enabled"
+    is_exported: true
+    namespace: "telephony"
+    description: "This flag is used to enable the INTERACT_CELL_BROADCAST permission. When enabled, this permission will guard to interact with cellbroadcast module"
+    bug: "410738387"
+}
+
+flag {
+    name: "granular_health_permissions_phase_two_enabled"
+    namespace: "android_health_services"
+    description: "This flag enables adding heart rate variability, respiratory rate, VO2 max and blood pressure permissions."
+    bug: "449221459"
+    is_exported: true
+}
+
+flag {
+    name: "skin_temp_oxygen_saturation_health_services_pregrant_enabled"
+    namespace: "android_health_services"
+    description: "This flag enables adding skin temp and SPO2 permission pregrants to health services."
+    bug: "463449714"
+    is_exported: true
+}
+
+flag{
     name: "content_restriction_role_enabled"
     is_exported: true
     namespace: "content_restriction"
     description: "This flag is used to enable the content restriction role"
     bug: "441559663"
+}
+
+flag {
+    name: "health_connect_provide_device_data_permission_enabled"
+    namespace: "health_fitness_aconfig"
+    description: "This flag protects the permission that is required to call Health Connect device data provider APIs"
+    bug: "416236349"
+    is_exported: true
+}
+
+flag {
+    name: "extend_send_safety_center_update_permission_to_signature"
+    namespace: "android_exploits_research"
+    description: "This flag controls whether the SEND_SAFETY_CENTER_UPDATE permission is extended to signature level"
+    bug: "403623944"
+}
+
+flag {
+    name: "assist_settings_privacy_improvements_enabled"
+    is_exported: true
+    namespace: "permissions"
+    description: "enable assistant settings privacy improvements"
+    bug: "437416500"
+}
+
+flag {
+    name: "active_watch_face_role_enabled"
+    is_exported: true
+    namespace: "wear_watchfaces"
+    description: "This flag enables watchface roles support and API"
+    bug: "396431730"
+}
+
+flag {
+    name: "restrict_assist_structure_screen_content_enabled"
+    is_exported: true
+    namespace: "permissions"
+    description: "enable restricted usage of assist_structure screen content via the new permission"
+    bug: "437416500"
+}
+
+flag {
+    name: "location_permission_new_radio_buttons_enabled"
+    is_exported: true
+    namespace: "permissions"
+    description: "When the flag is turned on, show new location permission radio buttons"
+    bug: "436314824"
+}
+
+flag {
+    name: "new_default_app_confirmation_dialog_enabled"
+    is_exported: true
+    namespace: "permissions"
+    description: "This flag controls whether to enable the new default app confirmation dialog"
+    bug: "440579404"
+}
+
+flag {
+    name: "manage_default_notes_role_package_enabled"
+    is_exported: true
+    namespace: "note"
+    description: "This flag controls role managers' ability to manage the notes role via RoleManager#getDefaultApplication and RoleManager#setDefaultApplication."
+    bug: "443222861"
+}
+
+flag {
+    name: "location_button_enabled"
+    namespace: "permissions"
+    is_exported: true
+    description: "Whether location button (rendered by a system process) APIs are enabled."
+    bug: "413293601"
+}
+
+flag {
+    name: "device_controller_role_api_enabled"
+    is_exported: true
+    namespace: "enterprise"
+    description: "This flag enables the device controller role API"
+    bug: "483629130"
+}
+
+flag {
+    name: "uri_grant_attribute_size_check_enabled"
+    namespace: "permissions"
+    description: "This flag enables the fix for URI grant persistence bypass."
+    bug: "262884935"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "full_loopback_protections_enabled"
+    is_exported: true
+    namespace: "android_core_networking"
+    description: "Enable the new USE_LOOPBACK_INTERFACE install permission required for traffic on loopback interface."
+    bug: "430058614"
 }

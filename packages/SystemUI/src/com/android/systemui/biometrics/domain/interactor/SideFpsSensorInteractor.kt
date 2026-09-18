@@ -20,9 +20,7 @@ import android.content.Context
 import android.hardware.biometrics.SensorLocationInternal
 import android.view.WindowManager
 import com.android.systemui.biometrics.FingerprintInteractiveToAuthProvider
-import com.android.systemui.biometrics.data.repository.FingerprintPropertyRepository
 import com.android.systemui.biometrics.domain.model.SideFpsSensorLocation
-import com.android.systemui.biometrics.shared.model.FingerprintSensorType
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.display.domain.interactor.DisplayStateInteractor
@@ -49,7 +47,7 @@ class SideFpsSensorInteractor
 @Inject
 constructor(
     @Main private val context: Context,
-    fingerprintPropertyRepository: FingerprintPropertyRepository,
+    fingerprintPropertyInteractor: FingerprintPropertyInteractor,
     @Main windowManager: WindowManager,
     displayStateInteractor: DisplayStateInteractor,
     fingerprintInteractiveToAuthProvider: Optional<FingerprintInteractiveToAuthProvider>,
@@ -64,14 +62,13 @@ constructor(
     private val sensorLocationForCurrentDisplay =
         combine(
                 displayStateInteractor.displayChanges,
-                fingerprintPropertyRepository.sensorLocations,
+                fingerprintPropertyInteractor.sensorLocations,
                 ::Pair,
             )
             .map { (_, locations) -> locations[context.display?.uniqueId] }
             .filterNotNull()
 
-    val isAvailable: Flow<Boolean> =
-        fingerprintPropertyRepository.sensorType.map { it == FingerprintSensorType.POWER_BUTTON }
+    val isAvailable: Flow<Boolean> = fingerprintPropertyInteractor.isSideFps
 
     val authenticationDuration: Flow<Long> =
         keyguardTransitionInteractor
@@ -104,8 +101,8 @@ constructor(
         if (!isProlongedTouchEnabledForDevice) {
             flowOf(false)
         } else {
-            combine(isAvailable, isSettingEnabled) { sfpsAvailable, isSettingEnabled ->
-                sfpsAvailable && isSettingEnabled
+            combine(isAvailable, isSettingEnabled) { sideFpsAvailable, isSettingEnabled ->
+                sideFpsAvailable && isSettingEnabled
             }
         }
 

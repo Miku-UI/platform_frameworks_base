@@ -20,7 +20,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.annotation.AnyThread
-import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -36,16 +35,44 @@ import kotlinx.coroutines.flow.Flow
  *
  * For parameterized preference screen that relies on additional information (e.g. package name,
  * language code) to build its content, the subclass must:
- * - override [arguments] in constructor
+ * - override [arguments] in constructor (Deprecated: Will be removed once the catalyst framework
+ *   stops passing the arguments as a bundle. Instead: override [ValidatedKeyParameters])
  * - override [bindingKey] to distinguish the preferences on the preference hierarchy
- * - add a static method `fun parameters(context: Context): Flow<Bundle>` (context is optional) to
- *   provide all possible arguments
+ * - add a companion object that inherits from [ParameterizedPreferenceScreenArgumentsFactory] and
+ *   provide the parameter schema and implement the `fun parameters(context: Context): Flow<Bundle>`
+ *   (context is optional) to provide all possible arguments
  */
 @AnyThread
 interface PreferenceScreenMetadata : PreferenceGroup {
     /** Arguments to build the screen content. */
+    @Deprecated(
+        "This property will be removed once the catalyst framework stops passing the arguments as a bundle. Use the keyParameters instead."
+    )
     val arguments: Bundle?
         get() = null
+
+    val keyParametersSchema: KeyParametersSchema?
+        get() = null
+
+    val keyParameters: ValidatedKeyParameters?
+        get() = null
+
+    /**
+     * Returns additional extras to be included in the intent used to launch this screen.
+     *
+     * These extras are typically used to pass specific data required by the destination
+     * fragment for its initialization.
+     *
+     * Note: The fragment will not receive this Bundle as a single nested extra. Instead,
+     * all values from this bundle will be added independently to the resulting launch
+     * intent's extras.
+     */
+    val launchScreenExtra: Bundle?
+        get() = null
+
+    /** The default sensitivity level of the screen. */
+    override val sensitivityLevel: @SensitivityLevel Int
+        get() = SensitivityLevel.NO_SENSITIVITY
 
     /**
      * The screen title resource, which precedes [getScreenTitle] if provided.
@@ -54,14 +81,6 @@ interface PreferenceScreenMetadata : PreferenceGroup {
      */
     val screenTitle: Int
         get() = title
-
-    /**
-     * String resource id to briefly describe the screen.
-     *
-     * Could be used for accessibility, search, etc.
-     */
-    val description: Int
-        @StringRes get() = 0
 
     /** Returns if the flag (e.g. for rollout) is enabled on current screen. */
     fun isFlagEnabled(context: Context): Boolean = true
@@ -127,7 +146,74 @@ interface PreferenceScreenMetadata : PreferenceGroup {
      *
      * @param metadata the preference to locate when show the screen
      */
-    fun getLaunchIntent(context: Context, metadata: PreferenceMetadata?): Intent? = null
+    fun getLaunchIntent(context: Context, metadata: PreferenceMetadata?): Intent? {
+        val highlightKey = metadata?.key
+        return when {
+            CatalystFlagProviderFactory.catalystUseKeyParameters() && keyParameters != null -> {
+                makeLaunchpadIntent(context, key, keyParameters!!, highlightKey)
+            }
+
+            arguments != null -> {
+                makeLaunchpadIntent(context, key, arguments!!, highlightKey)
+            }
+
+            else -> {
+                makeLaunchpadIntent(context, key, highlightKey)
+            }
+        }
+    }
+
+    private fun makeLaunchpadIntent(context: Context, screenKey: String, key: String?): Intent =
+        Intent(LAUNCH_SETTINGS_PAGES_ACTION).apply {
+            setPackage("com.android.settings")
+            putExtra(EXTRA_SCREEN_KEY, screenKey)
+            if (key != null) {
+                putExtra(EXTRA_FRAGMENT_ARG_KEY, key)
+            }
+        }
+
+    private fun makeLaunchpadIntent(
+        context: Context,
+        screenKey: String,
+        keyParameters: ValidatedKeyParameters,
+        key: String?,
+    ): Intent =
+        Intent(LAUNCH_SETTINGS_PAGES_ACTION).apply {
+            setPackage("com.android.settings")
+            launchScreenExtra?.let { putExtra(EXTRA_LAUNCH_SCREEN, it) }
+            putExtra(EXTRA_SCREEN_KEY, screenKey)
+            putExtra(EXTRA_SCREEN_ARGS, keyParameters.toBundle())
+            if (key != null) {
+                putExtra(EXTRA_FRAGMENT_ARG_KEY, key)
+            }
+        }
+
+    private fun makeLaunchpadIntent(
+        context: Context,
+        screenKey: String,
+        arguments: Bundle,
+        key: String?,
+    ): Intent =
+        Intent(LAUNCH_SETTINGS_PAGES_ACTION).apply {
+            setPackage("com.android.settings")
+            putExtra(EXTRA_SCREEN_KEY, screenKey)
+            putExtra(EXTRA_SCREEN_ARGS, arguments)
+            if (key != null) {
+                putExtra(EXTRA_FRAGMENT_ARG_KEY, key)
+            }
+        }
+
+    companion object {
+        const val LAUNCH_SETTINGS_PAGES_ACTION = "com.android.settings.action.LAUNCH_SETTINGS_PAGES"
+        const val EXTRA_SCREEN_KEY = "screen_key"
+        const val EXTRA_SCREEN_ARGS = "screen_args"
+        internal const val EXTRA_FRAGMENT_ARG_KEY = ":settings:fragment_args_key"
+
+        /** Key for a Bundle of extras to be added to the launch intent. See [launchScreenExtra]. */
+        const val EXTRA_LAUNCH_SCREEN = "launch_screen_extra"
+        /** Extra key for an itemization value to be mapped to the first screen parameter. */
+        const val EXTRA_ITEMIZATION = "itemization"
+    }
 }
 
 /**
@@ -173,7 +259,12 @@ fun interface PreferenceScreenMetadataFactory {
  * [ProvidePreferenceScreen] when [ProvidePreferenceScreen.parameterized] is `true`.
  */
 interface PreferenceScreenMetadataParameterizedFactory : PreferenceScreenMetadataFactory {
-    override fun create(context: Context) = create(context, Bundle.EMPTY)
+    override fun create(context: Context) =
+        if (CatalystFlagProviderFactory.catalystUseKeyParameters()) {
+            createWithKeyParameters(context, parametersSchema.prepareEmpty())
+        } else {
+            create(context, Bundle.EMPTY)
+        }
 
     /**
      * Creates a new [PreferenceScreenMetadata] with given arguments.
@@ -205,4 +296,48 @@ interface PreferenceScreenMetadataParameterizedFactory : PreferenceScreenMetadat
      * take care of backward compatibility.
      */
     fun acceptEmptyArguments(): Boolean = false
+
+    /**
+     * Creates a new [PreferenceScreenMetadata] with given key-parameters.
+     *
+     * @param context application context to create the PreferenceScreenMetadata
+     * @param keyParameters parameters to create the screen metadata
+     */
+    fun createWithKeyParameters(
+        context: Context,
+        keyParameters: ValidatedKeyParameters,
+    ): PreferenceScreenMetadata
+
+    /**
+     * Returns all possible key-parameters to create [PreferenceScreenMetadata].
+     *
+     * Note that an empty key-parameters is used for backward compatibility when a preference screen
+     * transitions from being non-parameterized to parameterized. In such migration scenarios the
+     * parameterized screen is expected to gracefully accept and handle empty key-parameters to
+     * ensure compatibility with older configurations or entry points.
+     *
+     * To mark a preference screen as transitioning from non-parameterized to parameterized:
+     * 1. Set [ProvidePreferenceScreen.parameterizedMigration] to `true`, so that the generated
+     *    [acceptEmptyArguments] will be `true`.
+     * 2. In the [keyParameters] implementation, produce a parametersSchema.prepareEmpty() for the
+     *    default case.
+     */
+    fun keyParameters(context: Context): Flow<ValidatedKeyParameters>
+
+    /**
+     * Defines the schema for the parameters in order to create an instance of the parameterized
+     * screen.
+     */
+    val parametersSchema: KeyParametersSchema
+}
+
+interface ParameterizedPreferenceScreenArgumentsFactory {
+    /**
+     * Defines the schema for the parameters in order to create an instance of the parameterized
+     * screen.
+     */
+    val parametersSchema: KeyParametersSchema
+
+    /** Returns all possible parameters to create a [PreferenceScreenMetadata]. */
+    fun keyParameters(context: Context): Flow<ValidatedKeyParameters>
 }

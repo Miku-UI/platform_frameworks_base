@@ -111,6 +111,10 @@ class SpyInputEventSender(channel: InputChannel, looper: Looper) :
         assertEquals("Unexpected 'handled' value", handled, finished!!.handled)
     }
 
+    fun popFinishedSignal(): FinishedSignal? {
+        return getEvent(mFinishedSignals)
+    }
+
     fun getTimeline(): Timeline? {
         return getEvent(mTimelines)
     }

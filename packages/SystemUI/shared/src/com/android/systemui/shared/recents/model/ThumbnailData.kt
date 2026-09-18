@@ -50,14 +50,8 @@ data class ThumbnailData(
         private fun makeThumbnail(snapshot: TaskSnapshot): Bitmap {
             var thumbnail: Bitmap? = null
             try {
-                if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
-                    thumbnail = snapshot.wrapToBitmap()
-                    snapshot.closeBuffer()
-                } else {
-                    snapshot.hardwareBuffer?.use { buffer ->
-                        thumbnail = Bitmap.wrapHardwareBuffer(buffer, snapshot.colorSpace)
-                    }
-                }
+                thumbnail = snapshot.wrapToBitmap()
+                snapshot.closeBuffer()
             } catch (ex: IllegalArgumentException) {
                 // TODO(b/157562905): Workaround for a crash when we get a snapshot without this
                 // state

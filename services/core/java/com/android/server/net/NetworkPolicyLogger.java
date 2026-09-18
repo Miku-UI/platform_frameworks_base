@@ -44,6 +44,7 @@ import static android.os.Process.INVALID_UID;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.ActivityManager.ProcessCapability;
+import android.app.ActivityManager.ProcessState;
 import android.net.NetworkPolicyManager;
 import android.os.UserHandle;
 import android.util.ArraySet;
@@ -114,8 +115,8 @@ public class NetworkPolicyLogger {
         }
     }
 
-    void uidStateChanged(int uid, int procState, long procStateSeq,
-            @ProcessCapability int capability) {
+    void uidStateChanged(int uid, @ProcessState int procState,
+            long procStateSeq, @ProcessCapability int capability) {
         synchronized (mLock) {
             if (LOGV || uid == mDebugUid) {
                 Slog.v(TAG, uid + " state changed to "
@@ -432,8 +433,8 @@ public class NetworkPolicyLogger {
             super(Data::new, Data[]::new, capacity);
         }
 
-        public void uidStateChanged(int uid, int procState, long procStateSeq,
-                @ProcessCapability int capability) {
+        public void uidStateChanged(int uid, @ProcessState int procState,
+                long procStateSeq, @ProcessCapability int capability) {
             final Data data = getNextSlot();
             if (data == null) return;
 

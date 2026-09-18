@@ -20,7 +20,7 @@ import android.os.UserHandle
 import androidx.annotation.VisibleForTesting
 import com.android.internal.logging.UiEventLogger
 import com.android.systemui.CoreStartable
-import com.android.systemui.common.domain.interactor.BatteryInteractorDeprecated
+import com.android.systemui.Flags.lowLightSensorWhileScreenOn
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.display.domain.interactor.DisplayStateInteractor
 import com.android.systemui.dreams.domain.interactor.DreamSettingsInteractor
@@ -39,7 +39,6 @@ import com.android.systemui.lowlightclock.LowLightDockEvent
 import com.android.systemui.lowlightclock.LowLightLogger
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.statusbar.pipeline.battery.domain.interactor.BatteryInteractor
-import com.android.systemui.statusbar.pipeline.battery.shared.StatusBarUniversalBatteryDataSource
 import com.android.systemui.user.domain.interactor.UserLockedInteractor
 import com.android.systemui.util.kotlin.BooleanFlowOperators.allOf
 import com.android.systemui.util.kotlin.BooleanFlowOperators.anyOf
@@ -82,7 +81,6 @@ constructor(
     private val uiEventLogger: UiEventLogger,
     private val lowLightBehaviorShellCommand: LowLightBehaviorShellCommand,
     private val lowLightShellCommand: LowLightShellCommand,
-    batteryInteractorDeprecated: BatteryInteractorDeprecated,
     batteryInteractor: BatteryInteractor,
 ) : CoreStartable {
 
@@ -90,13 +88,7 @@ constructor(
     private val isScreenOn = not(displayStateInteractor.isDefaultDisplayOff).distinctUntilChanged()
 
     /** Whether device is plugged in */
-    private val isPluggedIn =
-        if (StatusBarUniversalBatteryDataSource.isEnabled) {
-                batteryInteractor.isPluggedIn
-            } else {
-                batteryInteractorDeprecated.isDevicePluggedIn
-            }
-            .distinctUntilChanged()
+    private val isPluggedIn = batteryInteractor.isPluggedIn.distinctUntilChanged()
 
     /** Whether the device is currently in a low-light environment. */
     private val isLowLightFromSensor =
@@ -174,15 +166,37 @@ constructor(
             ),
         )
 
-    private fun shouldTrackLowLight(behavior: LowLightDisplayBehavior): Flow<Boolean> {
+    /**
+     * Initial conditions if it should track low light sensor when flag {@link
+     * lowLightSensorWhileScreenOn} is enabled.
+     */
+    private fun initialLowLightTrackingConditionsNew(): Flow<Boolean> {
+        return allOf(dreamSettingsInteractor.dreamingEnabled, isPluggedIn, isScreenOn, not(anyDoze))
+    }
+
+    /**
+     * Initial conditions if it should track low light sensor when flag {@link
+     * lowLightSensorWhileScreenOn} is disabled.
+     */
+    private fun initialLowLightTrackingConditionsLegacy(
+        behavior: LowLightDisplayBehavior
+    ): Flow<Boolean> {
         return allOf(
-                dreamSettingsInteractor.dreamingEnabled,
-                isPluggedIn,
-                anyOf(
-                    allOf(isScreenOn, isDeviceIdleAndNotDozing),
-                    allOf(not(isScreenOn), flowOf(behavior.allowedInScreenState(ScreenState.OFF))),
-                ),
-            )
+            dreamSettingsInteractor.dreamingEnabled,
+            isPluggedIn,
+            anyOf(
+                allOf(isScreenOn, isDeviceIdleAndNotDozing),
+                allOf(not(isScreenOn), flowOf(behavior.allowedInScreenState(ScreenState.OFF))),
+            ),
+        )
+    }
+
+    private fun shouldTrackLowLight(behavior: LowLightDisplayBehavior): Flow<Boolean> {
+        return if (lowLightSensorWhileScreenOn()) {
+                initialLowLightTrackingConditionsNew()
+            } else {
+                initialLowLightTrackingConditionsLegacy(behavior)
+            }
             .flatMapLatestConflated {
                 // The second set of conditions are separated from the above allOf flow combination
                 // to prevent isLowLight flow from activating while we're not in the correct

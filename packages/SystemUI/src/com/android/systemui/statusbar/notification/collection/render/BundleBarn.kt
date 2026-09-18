@@ -87,6 +87,12 @@ constructor(
             // A subset of NotificationRowBinderImpl.inflateViews
             debugBundleLog(TAG) { "finished inflating: ${bundleEntry.key}" }
             bundleEntry.row = row
+            val presenter = presenterLazy?.get()
+            if (presenter == null) {
+                debugBundleLog(TAG) { "presenter is null" }
+            } else {
+                presenter.onBindRow(row)
+            }
             val component =
                 rowComponent
                     .expandableNotificationRow(row)
@@ -183,12 +189,12 @@ private fun HeaderComposeViewContent(
         BundleHeader(viewModel)
         DisposableEffect(viewModel) {
             row.setBundleHeaderViewModel(viewModel)
-            row.setOnClickListener {
+            row.setOnBundleHeaderClickedListener {
                 viewModel.onHeaderClicked()
                 row.expandNotification()
             }
             onDispose {
-                row.setOnClickListener(null)
+                row.setOnBundleHeaderClickedListener(null)
                 row.setBundleHeaderViewModel(null)
             }
         }

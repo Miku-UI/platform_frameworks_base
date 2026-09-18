@@ -25,7 +25,7 @@
 
 namespace android {
 namespace uirenderer {
-
+class Matrix4;
 namespace VectorDrawable {
 class Tree;
 };
@@ -125,7 +125,8 @@ public:
 
     bool prepareListAndChildren(
             TreeObserver& observer, TreeInfo& info, bool functorsNeedLayer,
-            std::function<void(RenderNode*, TreeObserver&, TreeInfo&, bool)> childFn) {
+            std::function<void(RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool)>
+                    childFn) {
         return mImpl && mImpl->prepareListAndChildren(
                 observer, info, functorsNeedLayer, std::move(childFn));
     }
@@ -186,7 +187,8 @@ private:
         bool hasFunctor() const { return false; }
         bool prepareListAndChildren(
                 TreeObserver& observer, TreeInfo& info, bool functorsNeedLayer,
-                std::function<void(RenderNode*, TreeObserver&, TreeInfo&, bool)> childFn) {
+                std::function<void(RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool)>
+                        childFn) {
             return false;
         }
         void syncContents(const WebViewSyncData& data) { }
@@ -307,7 +309,8 @@ public:
 
     bool prepareListAndChildren(
             TreeObserver& observer, TreeInfo& info, bool functorsNeedLayer,
-            std::function<void(RenderNode*, TreeObserver&, TreeInfo&, bool)> childFn) {
+            std::function<void(RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool)>
+                    childFn) {
         return apply([&](auto& it) -> auto {
             return it.prepareListAndChildren(observer, info, functorsNeedLayer, std::move(childFn));
         });

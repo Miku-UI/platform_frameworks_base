@@ -23,18 +23,16 @@ import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.testing.TestableLooper.RunWithLooper
+import android.view.Display.DEFAULT_DISPLAY
 import android.window.DisplayAreaInfo
 import android.window.WindowContainerToken
 import androidx.test.filters.SmallTest
-import com.android.window.flags.Flags.FLAG_ENABLE_CONNECTED_DISPLAYS_PIP
-import com.android.window.flags.Flags.FLAG_ENABLE_DESKTOP_WINDOWING_PIP
-import com.android.window.flags.Flags.FLAG_ENABLE_DRAGGING_PIP_ACROSS_DISPLAYS
-import com.android.window.flags.Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND
+import com.android.window.flags.Flags.FLAG_ENABLE_DESKTOP_WINDOWING_FREE_FLOATING_PIP
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer
 import com.android.wm.shell.ShellTestCase
-import com.android.wm.shell.desktopmode.data.DesktopRepository
 import com.android.wm.shell.desktopmode.DesktopUserRepositories
 import com.android.wm.shell.desktopmode.DragToDesktopTransitionHandler
+import com.android.wm.shell.desktopmode.data.DesktopRepository
 import com.android.wm.shell.desktopmode.desktopfirst.DESKTOP_FIRST_DISPLAY_WINDOWING_MODE
 import com.android.wm.shell.desktopmode.desktopfirst.TOUCH_FIRST_DISPLAY_WINDOWING_MODE
 import com.android.wm.shell.recents.RecentsTransitionHandler
@@ -51,13 +49,10 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
-/**
- * Unit test against [PipDesktopState].
- */
+/** Unit test against [PipDesktopState]. */
 @SmallTest
 @RunWithLooper
 @RunWith(AndroidTestingRunner::class)
-@EnableFlags(FLAG_ENABLE_DESKTOP_WINDOWING_PIP)
 class PipDesktopStateTest : ShellTestCase() {
     private val mockPipDisplayLayoutState = mock<PipDisplayLayoutState>()
     private val mockRecentsTransitionHandler = mock<RecentsTransitionHandler>()
@@ -76,12 +71,11 @@ class PipDesktopStateTest : ShellTestCase() {
         whenever(mockTaskInfo.getDisplayId()).thenReturn(DISPLAY_ID)
         whenever(mockPipDisplayLayoutState.displayId).thenReturn(DISPLAY_ID)
 
-        defaultTda = DisplayAreaInfo(mock<WindowContainerToken>(), DISPLAY_ID, /* featureId = */ 0)
+        defaultTda = DisplayAreaInfo(mock<WindowContainerToken>(), DISPLAY_ID, /* featureId= */ 0)
         defaultTda.configuration.windowConfiguration.windowingMode =
             TOUCH_FIRST_DISPLAY_WINDOWING_MODE
-        whenever(mockRootTaskDisplayAreaOrganizer.getDisplayAreaInfo(DISPLAY_ID)).thenReturn(
-            defaultTda
-        )
+        whenever(mockRootTaskDisplayAreaOrganizer.getDisplayAreaInfo(DISPLAY_ID))
+            .thenReturn(defaultTda)
 
         pipDesktopState =
             PipDesktopState(
@@ -89,13 +83,16 @@ class PipDesktopStateTest : ShellTestCase() {
                 mockRecentsTransitionHandler,
                 Optional.of(mockDesktopUserRepositories),
                 Optional.of(mockDragToDesktopTransitionHandler),
-                mockRootTaskDisplayAreaOrganizer
+                mockRootTaskDisplayAreaOrganizer,
             )
 
         val captor = argumentCaptor<RecentsTransitionStateListener>()
         verify(mockRecentsTransitionHandler).addTransitionStateListener(captor.capture())
         recentsTransitionStateListener = captor.firstValue
-        recentsTransitionStateListener.onTransitionStateChanged(TRANSITION_STATE_NOT_RUNNING)
+        recentsTransitionStateListener.onTransitionStateChanged(
+            TRANSITION_STATE_NOT_RUNNING,
+            DEFAULT_DISPLAY,
+        )
 
         whenever(mockDesktopRepository.isAnyDeskActive(DISPLAY_ID)).thenReturn(true)
     }
@@ -106,16 +103,42 @@ class PipDesktopStateTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CONNECTED_DISPLAYS_PIP)
-    fun isConnectedDisplaysPipEnabled_returnsTrue() {
-        assertThat(pipDesktopState.isConnectedDisplaysPipEnabled()).isTrue()
+    fun desktopWindowingPipDisabled_missingDesktopUserRepositories_returnsFalse() {
+        // Create a new instance with the dependency missing.
+        val pipDesktopStateNoRepos =
+            PipDesktopState(
+                mockPipDisplayLayoutState,
+                mockRecentsTransitionHandler,
+                Optional.empty(), // Missing dependency
+                Optional.of(mockDragToDesktopTransitionHandler),
+                mockRootTaskDisplayAreaOrganizer,
+            )
+
+        // Verify that the feature and dependent features are disabled.
+        assertThat(pipDesktopStateNoRepos.isDesktopWindowingPipEnabled()).isFalse()
+        assertThat(pipDesktopStateNoRepos.isPipInDesktopMode()).isFalse()
+        assertThat(pipDesktopStateNoRepos.isDragToDesktopInProgress()).isFalse()
     }
 
     @Test
-    @EnableFlags(
-        FLAG_ENABLE_CONNECTED_DISPLAYS_PIP,
-        FLAG_ENABLE_DRAGGING_PIP_ACROSS_DISPLAYS
-    )
+    fun desktopWindowingPipDisabled_missingDragToDesktopHandler_returnsFalse() {
+        // Create a new instance with the dependency missing.
+        val pipDesktopStateNoHandler =
+            PipDesktopState(
+                mockPipDisplayLayoutState,
+                mockRecentsTransitionHandler,
+                Optional.of(mockDesktopUserRepositories),
+                Optional.empty(), // Missing dependency
+                mockRootTaskDisplayAreaOrganizer,
+            )
+
+        // Verify that the feature and dependent features are disabled.
+        assertThat(pipDesktopStateNoHandler.isDesktopWindowingPipEnabled()).isFalse()
+        assertThat(pipDesktopStateNoHandler.isPipInDesktopMode()).isFalse()
+        assertThat(pipDesktopStateNoHandler.isDragToDesktopInProgress()).isFalse()
+    }
+
+    @Test
     fun isDraggingPipAcrossDisplaysEnabled_returnsTrue() {
         assertThat(pipDesktopState.isDraggingPipAcrossDisplaysEnabled()).isTrue()
     }
@@ -136,15 +159,19 @@ class PipDesktopStateTest : ShellTestCase() {
         assertThat(pipDesktopState.isPipInDesktopMode()).isFalse()
     }
 
-    @DisableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
+    @EnableFlags(FLAG_ENABLE_DESKTOP_WINDOWING_FREE_FLOATING_PIP)
     @Test
-    fun isPipInDesktopMode_desktopFirstDisplay_returnsTrue() {
+    fun isFreeFloatingPipEnabled_touchFirstDisplay_returnsFalse() {
+        assertThat(pipDesktopState.isFreeFloatingPipEnabled()).isFalse()
+    }
+
+    @EnableFlags(FLAG_ENABLE_DESKTOP_WINDOWING_FREE_FLOATING_PIP)
+    @Test
+    fun isFreeFloatingPipEnabled_desktopFirstDisplay_returnsTrue() {
         defaultTda.configuration.windowConfiguration.windowingMode =
             DESKTOP_FIRST_DISPLAY_WINDOWING_MODE
-        assertThat(pipDesktopState.isPipInDesktopMode()).isTrue()
 
-        whenever(mockDesktopRepository.isAnyDeskActive(DISPLAY_ID)).thenReturn(false)
-        assertThat(pipDesktopState.isPipInDesktopMode()).isTrue()
+        assertThat(pipDesktopState.isFreeFloatingPipEnabled()).isTrue()
     }
 
     @Test
@@ -154,24 +181,6 @@ class PipDesktopStateTest : ShellTestCase() {
         assertThat(pipDesktopState.getOutPipWindowingMode()).isEqualTo(WINDOWING_MODE_UNDEFINED)
     }
 
-    @DisableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    @Test
-    fun outPipWindowingMode_exitToDesktop_displayFullscreen_returnsFreeform() {
-        setDisplayWindowingMode(WINDOWING_MODE_FULLSCREEN)
-
-        assertThat(pipDesktopState.getOutPipWindowingMode()).isEqualTo(WINDOWING_MODE_FREEFORM)
-    }
-
-    @DisableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    @Test
-    fun outPipWindowingMode_exitToFullscreen_displayFullscreen_returnsUndefined() {
-        whenever(mockDesktopRepository.isAnyDeskActive(DISPLAY_ID)).thenReturn(false)
-        setDisplayWindowingMode(WINDOWING_MODE_FULLSCREEN)
-
-        assertThat(pipDesktopState.getOutPipWindowingMode()).isEqualTo(WINDOWING_MODE_UNDEFINED)
-    }
-
-    @EnableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
     @Test
     fun outPipWindowingMode_exitToDesktop_multiDesktopsEnabled_returnsUndefined() {
         whenever(mockDesktopRepository.isAnyDeskActive(DISPLAY_ID)).thenReturn(true)
@@ -179,12 +188,35 @@ class PipDesktopStateTest : ShellTestCase() {
         assertThat(pipDesktopState.getOutPipWindowingMode()).isEqualTo(WINDOWING_MODE_UNDEFINED)
     }
 
-    @DisableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
     @Test
     fun outPipWindowingMode_midRecents_inDesktop_returnsFullscreen() {
-        recentsTransitionStateListener.onTransitionStateChanged(TRANSITION_STATE_ANIMATING)
+        recentsTransitionStateListener.onTransitionStateChanged(
+            TRANSITION_STATE_ANIMATING,
+            DEFAULT_DISPLAY,
+        )
 
         assertThat(pipDesktopState.getOutPipWindowingMode()).isEqualTo(WINDOWING_MODE_FULLSCREEN)
+    }
+
+    @Test
+    fun outPipWindowingMode_multiActivityChild_inDesktop_returnsUndefined() {
+        // When in desktop mode, a multi-activity child PiP should expand to an undefined
+        // windowing mode, so it can be resolved by the system (to freeform).
+        whenever(mockDesktopRepository.isAnyDeskActive(DISPLAY_ID)).thenReturn(true)
+
+        val windowingMode = pipDesktopState.getOutPipWindowingMode(isMultiActivityChild = true)
+
+        assertThat(windowingMode).isEqualTo(WINDOWING_MODE_UNDEFINED)
+    }
+
+    @Test
+    fun outPipWindowingMode_multiActivityChild_notInDesktop_returnsFullscreen() {
+        // When not in desktop mode, a multi-activity child PiP should expand to fullscreen.
+        whenever(mockDesktopRepository.isAnyDeskActive(DISPLAY_ID)).thenReturn(false)
+
+        val windowingMode = pipDesktopState.getOutPipWindowingMode(isMultiActivityChild = true)
+
+        assertThat(windowingMode).isEqualTo(WINDOWING_MODE_FULLSCREEN)
     }
 
     @Test

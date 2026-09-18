@@ -23,7 +23,7 @@ package android.os;
  * @hide
  */
 parcelable ExternalVibrationScale {
-    // TODO(b/345186129): remove this once we finish migrating to scale factor.
+    // TODO(b/360314386): remove this once we finish migrating to scale factor.
     @Backing(type="int")
     enum ScaleLevel {
         SCALE_MUTE = -100,
@@ -34,10 +34,13 @@ parcelable ExternalVibrationScale {
         SCALE_VERY_HIGH = 2
     }
 
-    // TODO(b/345186129): remove this once we finish migrating to scale factor.
     /**
      * The scale level that will be applied to external vibrations.
+     *
+     * This is a limited, discrete representation of scale factor, maintained for backwards
+     * compatibility with audio APIs for HapticGenerator support.
      */
+    // TODO(b/360314386): remove this once we finish migrating to scale factor.
     ScaleLevel scaleLevel = ScaleLevel.SCALE_NONE;
 
     /**
@@ -46,7 +49,7 @@ parcelable ExternalVibrationScale {
      * Values in (0,1) will scale down the vibrations, values > 1 will scale up vibrations within
      * hardware limits. A zero scale factor indicates the external vibration should be muted.
      *
-     * TODO(b/345186129): update this once we finish migrating, negative should not be expected.
+     * TODO(b/360314386): remove this once we finish migrating to scale factor.
      * Negative values should be ignored in favour of the legacy ScaleLevel.
      */
     float scaleFactor = -1f; // undefined

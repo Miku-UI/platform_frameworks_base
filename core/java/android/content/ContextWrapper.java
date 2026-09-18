@@ -964,7 +964,7 @@ public class ContextWrapper extends Context {
     }
 
     @Override
-    public void updateServiceBindings(@NonNull List<UpdateBindingParams> params) {
+    public void updateServiceBindings(@NonNull Collection<UpdateBindingParams> params) {
         mBase.updateServiceBindings(params);
     }
 
@@ -1043,6 +1043,11 @@ public class ContextWrapper extends Context {
     @Override
     public int getPermissionRequestState(String permission) {
         return mBase.getPermissionRequestState(permission);
+    }
+
+    @Override
+    public boolean shouldShowRequestPermissionRationale(@NonNull String permission) {
+        return mBase.shouldShowRequestPermissionRationale(permission);
     }
 
     @Override

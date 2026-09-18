@@ -23,6 +23,8 @@ import static android.service.notification.Flags.FLAG_REDACT_SENSITIVE_NOTIFICAT
 import static android.view.contentprotection.flags.Flags.FLAG_CREATE_ACCESSIBILITY_OVERLAY_APP_OP_ENABLED;
 import static android.view.contentprotection.flags.Flags.FLAG_RAPID_CLEAR_NOTIFICATIONS_BY_LISTENER_APP_OP_ENABLED;
 
+import static com.android.internal.telephony.flags.Flags.FLAG_SECURE_ACCESS_TO_RESTRICTED_RCS_MESSAGES;
+
 import static java.lang.Long.max;
 
 import android.Manifest;
@@ -78,6 +80,8 @@ import android.permission.PermissionGroupUsage;
 import android.permission.PermissionUsageHelper;
 import android.permission.flags.Flags;
 import android.provider.DeviceConfig;
+import android.ravenwood.annotation.RavenwoodIgnore;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -196,6 +200,7 @@ import java.util.function.Supplier;
  * particularly useful for an app that want to find unexpected private data accesses.
  */
 @SystemService(Context.APP_OPS_SERVICE)
+@RavenwoodKeepPartialClass
 public class AppOpsManager {
     /**
      * This is a subtle behavior change to {@link #startWatchingMode}.
@@ -501,6 +506,11 @@ public class AppOpsManager {
     };
 
     /** @hide */
+    public static boolean isModeValid(int mode) {
+        return mode >= 0 && mode < MODE_NAMES.length;
+    }
+
+    /** @hide */
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(prefix = { "UID_STATE_" }, value = {
             UID_STATE_PERSISTENT,
@@ -536,7 +546,7 @@ public class AppOpsManager {
      * This uid state is a counterpart to PROCESS_STATE_FOREGROUND_SERVICE_LOCATION which has been
      * deprecated.
      * @hide
-     * @deprecated
+     * @deprecated Unusable as PROCESS_STATE_FOREGROUND_SERVICE_LOCATION has been removed.
      */
     @SystemApi
     @Deprecated
@@ -1751,9 +1761,76 @@ public class AppOpsManager {
     /** @hide Access local network devices. */
     public static final int OP_ACCESS_LOCAL_NETWORK = AppOpEnums.APP_OP_ACCESS_LOCAL_NETWORK;
 
+    /**
+     * Access to read blood pressure.
+     *
+     * @hide
+     */
+    public static final int OP_READ_BLOOD_PRESSURE = AppOpEnums.APP_OP_READ_BLOOD_PRESSURE;
+
+    /**
+     * Access to read heart rate variability.
+     *
+     * @hide
+     */
+    public static final int OP_READ_HEART_RATE_VARIABILITY =
+            AppOpEnums.APP_OP_READ_HEART_RATE_VARIABILITY;
+
+    /**
+     * Access to read respiratory rate.
+     *
+     * @hide
+     */
+    public static final int OP_READ_RESPIRATORY_RATE = AppOpEnums.APP_OP_READ_RESPIRATORY_RATE;
+
+    /**
+     * Access to read VO2 max.
+     *
+     * @hide
+     */
+    public static final int OP_READ_VO2_MAX = AppOpEnums.APP_OP_READ_VO2_MAX;
+
+    /**
+     * Allow the app to continue across devices.
+     *
+     * @hide
+     */
+    public static final int OP_CONTINUE_ACROSS_DEVICES =
+            AppOpEnums.APP_OP_CONTINUE_ACROSS_DEVICES;
+
+    /**
+     * Access to screen and app context as voice interaction service.
+     *
+     * @hide
+     */
+    public static final int OP_READ_SCREEN_CONTEXT = AppOpEnums.APP_OP_READ_SCREEN_CONTEXT;
+
+    /**
+     * Access to read restricted messages from telephony messaging database.
+     *
+     * @hide
+     */
+    public static final int OP_READ_RESTRICTED_MESSAGES =
+            AppOpEnums.APP_OP_READ_RESTRICTED_MESSAGES;
+
+    /**
+     * Access to write restricted messages into telephony messaging database.
+     *
+     * @hide
+     */
+    public static final int OP_WRITE_RESTRICTED_MESSAGES =
+            AppOpEnums.APP_OP_WRITE_RESTRICTED_MESSAGES;
+
+    /**
+     * Access to HID API.
+     *
+     * @hide
+     */
+    public static final int OP_ACCESS_HID = AppOpEnums.APP_OP_ACCESS_HID;
+
     /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public static final int _NUM_OP = 170;
+    public static final int _NUM_OP = 179;
 
     /**
      * All app ops represented as strings.
@@ -1927,6 +2004,15 @@ public class AppOpsManager {
             OPSTR_COMPUTER_CONTROL,
             OPSTR_READ_OTP_SMS,
             OPSTR_ACCESS_LOCAL_NETWORK,
+            OPSTR_READ_BLOOD_PRESSURE,
+            OPSTR_READ_HEART_RATE_VARIABILITY,
+            OPSTR_READ_RESPIRATORY_RATE,
+            OPSTR_READ_VO2_MAX,
+            OPSTR_CONTINUE_ACROSS_DEVICES,
+            OPSTR_READ_SCREEN_CONTEXT,
+            OPSTR_READ_RESTRICTED_MESSAGES,
+            OPSTR_WRITE_RESTRICTED_MESSAGES,
+            OPSTR_ACCESS_HID,
     })
     public @interface AppOpString {}
 
@@ -1944,7 +2030,10 @@ public class AppOpsManager {
     /** Access to {@link android.app.usage.UsageStatsManager}. */
     public static final String OPSTR_GET_USAGE_STATS
             = "android:get_usage_stats";
-    /** Activate a VPN connection without user intervention. @hide */
+    /**
+     * Activate a VPN connection without user intervention.
+     * @hide
+     */
     @SystemApi
     public static final String OPSTR_ACTIVATE_VPN
             = "android:activate_vpn";
@@ -2645,7 +2734,7 @@ public class AppOpsManager {
      * user location setting is off, but only during pre-defined emergency sessions.
      *
      * <p>This op is only used for tracking, not for permissions, so it is still the client's
-     * responsibility to check the {@link Manifest.permission.LOCATION_BYPASS} permission
+     * responsibility to check the {@link Manifest.permission#LOCATION_BYPASS} permission
      * appropriately.
      *
      * @hide
@@ -2745,6 +2834,94 @@ public class AppOpsManager {
     /** @hide */
     public static final String OPSTR_ACCESS_LOCAL_NETWORK = "android:access_local_network";
 
+    /**
+     * Access to read blood pressure.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_GRANULAR_HEALTH_PERMISSIONS_PHASE_TWO_ENABLED)
+    public static final String OPSTR_READ_BLOOD_PRESSURE = "android:read_blood_pressure";
+
+    /**
+     * Access to read heart rate variability.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_GRANULAR_HEALTH_PERMISSIONS_PHASE_TWO_ENABLED)
+    public static final String OPSTR_READ_HEART_RATE_VARIABILITY =
+            "android:read_heart_rate_variability";
+
+    /**
+     * Access to read respiratory rate.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_GRANULAR_HEALTH_PERMISSIONS_PHASE_TWO_ENABLED)
+    public static final String OPSTR_READ_RESPIRATORY_RATE = "android:read_respiratory_rate";
+
+    /**
+     * Access to read VO2 max.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_GRANULAR_HEALTH_PERMISSIONS_PHASE_TWO_ENABLED)
+    public static final String OPSTR_READ_VO2_MAX = "android:read_vo2_max";
+
+    /**
+     * Access to continue an app across devices.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.companion.Flags.FLAG_TASK_CONTINUITY)
+    public static final String OPSTR_CONTINUE_ACROSS_DEVICES = "android:continue_across_devices";
+
+    /**
+     * Access to screen and app context as voice interaction service.
+     *
+     * @hide
+     */
+    @SuppressLint("IntentName")
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_ASSIST_SETTINGS_PRIVACY_IMPROVEMENTS_ENABLED)
+    public static final String OPSTR_READ_SCREEN_CONTEXT = "android:read_screen_context";
+
+    /**
+     * Access to read restricted messages stored in telephony database.
+     *
+     * <p>A message can be marked as restricted only by an app granted with
+     * {@link #OPSTR_WRITE_RESTRICTED_MESSAGES}. A restricted message can only be read by an app
+     * granted with this access. It is granted only to a limited set of roles.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(FLAG_SECURE_ACCESS_TO_RESTRICTED_RCS_MESSAGES)
+    public static final String OPSTR_READ_RESTRICTED_MESSAGES = "android:read_restricted_messages";
+
+    /**
+     * Access to write restricted messages into telephony database.
+     *
+     * <p>A message can be marked as restricted only by an app granted with this access and can only
+     * be read by an app granted with {@link #OPSTR_READ_RESTRICTED_MESSAGES}.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(FLAG_SECURE_ACCESS_TO_RESTRICTED_RCS_MESSAGES)
+    public static final String OPSTR_WRITE_RESTRICTED_MESSAGES =
+            "android:write_restricted_messages";
+
+    /**
+     * Access to raw HID device nodes.
+     * @hide
+     */
+    public static final String OPSTR_ACCESS_HID = "android:access_hid";
+
     /** {@link #sAppOpsToNote} not initialized yet for this op */
     private static final byte SHOULD_COLLECT_NOTE_OP_NOT_INITIALIZED = 0;
     /** Should not collect noting of this app-op in {@link #sAppOpsToNote} */
@@ -2824,6 +3001,11 @@ public class AppOpsManager {
             OP_READ_HEART_RATE,
             OP_READ_SKIN_TEMPERATURE,
             OP_READ_OXYGEN_SATURATION,
+            Flags.granularHealthPermissionsPhaseTwoEnabled() ? OP_READ_BLOOD_PRESSURE : OP_NONE,
+            Flags.granularHealthPermissionsPhaseTwoEnabled()
+            ? OP_READ_HEART_RATE_VARIABILITY : OP_NONE,
+            Flags.granularHealthPermissionsPhaseTwoEnabled() ? OP_READ_RESPIRATORY_RATE : OP_NONE,
+            Flags.granularHealthPermissionsPhaseTwoEnabled() ? OP_READ_VO2_MAX : OP_NONE,
             // Android XR
             android.xr.Flags.xrManifestEntries() ? OP_EYE_TRACKING_COARSE : OP_NONE,
             android.xr.Flags.xrManifestEntries() ? OP_EYE_TRACKING_FINE : OP_NONE,
@@ -2871,10 +3053,10 @@ public class AppOpsManager {
             OP_MEDIA_ROUTING_CONTROL,
             OP_READ_SYSTEM_GRAMMATICAL_GENDER,
             OP_WRITE_SYSTEM_PREFERENCES,
-            android.app.Flags.uiRichOngoing()
-                    ? OP_POST_PROMOTED_NOTIFICATIONS : OP_NONE,
+            OP_POST_PROMOTED_NOTIFICATIONS,
             com.android.media.projection.flags.Flags.recordingOverlay()
                     ? OP_SYSTEM_APPLICATION_OVERLAY : OP_NONE,
+            com.android.hardware.input.Flags.hidApi() ? OP_ACCESS_HID : OP_NONE,
     };
 
     @SuppressWarnings("FlaggedApi")
@@ -2906,14 +3088,16 @@ public class AppOpsManager {
             .setPermission(android.Manifest.permission.READ_CALL_LOG)
             .setRestriction(UserManager.DISALLOW_OUTGOING_CALLS)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_WRITE_CALL_LOG, OPSTR_WRITE_CALL_LOG, "WRITE_CALL_LOG")
+        new AppOpInfo.Builder(OP_WRITE_CALL_LOG, OPSTR_WRITE_CALL_LOG, "WRITE_CALL_LOG",
+                AppOpsManager.MODE_ERRORED)
             .setPermission(android.Manifest.permission.WRITE_CALL_LOG)
             .setRestriction(UserManager.DISALLOW_OUTGOING_CALLS)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_READ_CALENDAR, OPSTR_READ_CALENDAR, "READ_CALENDAR")
             .setPermission(android.Manifest.permission.READ_CALENDAR)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_WRITE_CALENDAR, OPSTR_WRITE_CALENDAR, "WRITE_CALENDAR")
+        new AppOpInfo.Builder(OP_WRITE_CALENDAR, OPSTR_WRITE_CALENDAR, "WRITE_CALENDAR",
+                AppOpsManager.MODE_ERRORED)
             .setPermission(android.Manifest.permission.WRITE_CALENDAR)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_WIFI_SCAN, OPSTR_WIFI_SCAN, "WIFI_SCAN")
@@ -2927,14 +3111,16 @@ public class AppOpsManager {
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_NEIGHBORING_CELLS, OPSTR_NEIGHBORING_CELLS, "NEIGHBORING_CELLS")
             .setSwitchCode(OP_COARSE_LOCATION).setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_CALL_PHONE, OPSTR_CALL_PHONE, "CALL_PHONE")
+        new AppOpInfo.Builder(OP_CALL_PHONE, OPSTR_CALL_PHONE, "CALL_PHONE",
+                AppOpsManager.MODE_ERRORED)
             .setSwitchCode(OP_CALL_PHONE).setPermission(android.Manifest.permission.CALL_PHONE)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_READ_SMS, OPSTR_READ_SMS, "READ_SMS")
             .setPermission(android.Manifest.permission.READ_SMS)
             .setRestriction(UserManager.DISALLOW_SMS).setDefaultMode(AppOpsManager.MODE_ALLOWED)
             .setDisableReset(true).build(),
-        new AppOpInfo.Builder(OP_WRITE_SMS, OPSTR_WRITE_SMS, "WRITE_SMS")
+        new AppOpInfo.Builder(OP_WRITE_SMS, OPSTR_WRITE_SMS, "WRITE_SMS",
+                AppOpsManager.MODE_ERRORED)
             .setRestriction(UserManager.DISALLOW_SMS)
             .setDefaultMode(AppOpsManager.MODE_IGNORED).setDisableReset(true).build(),
         new AppOpInfo.Builder(OP_RECEIVE_SMS, OPSTR_RECEIVE_SMS, "RECEIVE_SMS")
@@ -2952,7 +3138,8 @@ public class AppOpsManager {
         new AppOpInfo.Builder(OP_RECEIVE_WAP_PUSH, OPSTR_RECEIVE_WAP_PUSH, "RECEIVE_WAP_PUSH")
             .setPermission(android.Manifest.permission.RECEIVE_WAP_PUSH)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).setDisableReset(true).build(),
-        new AppOpInfo.Builder(OP_SEND_SMS, OPSTR_SEND_SMS, "SEND_SMS")
+        new AppOpInfo.Builder(OP_SEND_SMS, OPSTR_SEND_SMS, "SEND_SMS",
+                AppOpsManager.MODE_ERRORED)
             .setPermission(android.Manifest.permission.SEND_SMS)
             .setRestriction(UserManager.DISALLOW_SMS).setDefaultMode(AppOpsManager.MODE_ALLOWED)
             .setDisableReset(true).build(),
@@ -2960,10 +3147,12 @@ public class AppOpsManager {
             .setSwitchCode(OP_READ_SMS).setPermission(android.Manifest.permission.READ_SMS)
             .setRestriction(UserManager.DISALLOW_SMS).setDefaultMode(AppOpsManager.MODE_ALLOWED)
             .build(),
-        new AppOpInfo.Builder(OP_WRITE_ICC_SMS, OPSTR_WRITE_ICC_SMS, "WRITE_ICC_SMS")
+        new AppOpInfo.Builder(OP_WRITE_ICC_SMS, OPSTR_WRITE_ICC_SMS, "WRITE_ICC_SMS",
+                AppOpsManager.MODE_ERRORED)
             .setSwitchCode(OP_WRITE_SMS).setRestriction(UserManager.DISALLOW_SMS)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_WRITE_SETTINGS, OPSTR_WRITE_SETTINGS, "WRITE_SETTINGS")
+        new AppOpInfo.Builder(OP_WRITE_SETTINGS, OPSTR_WRITE_SETTINGS, "WRITE_SETTINGS",
+                AppOpsManager.MODE_ERRORED)
             .setPermission(android.Manifest.permission.WRITE_SETTINGS).build(),
         new AppOpInfo.Builder(OP_SYSTEM_ALERT_WINDOW, OPSTR_SYSTEM_ALERT_WINDOW,
                 "SYSTEM_ALERT_WINDOW")
@@ -2972,7 +3161,7 @@ public class AppOpsManager {
             .setAllowSystemRestrictionBypass(new RestrictionBypass(false, true, false))
             .setDefaultMode(getSystemAlertWindowDefault()).build(),
         new AppOpInfo.Builder(OP_ACCESS_NOTIFICATIONS, OPSTR_ACCESS_NOTIFICATIONS,
-                "ACCESS_NOTIFICATIONS")
+                "ACCESS_NOTIFICATIONS", AppOpsManager.MODE_ERRORED)
             .setPermission(android.Manifest.permission.ACCESS_NOTIFICATIONS).build(),
         new AppOpInfo.Builder(OP_CAMERA, OPSTR_CAMERA, "CAMERA")
             .setPermission(android.Manifest.permission.CAMERA)
@@ -3037,11 +3226,14 @@ public class AppOpsManager {
             .setRestriction(UserManager.DISALLOW_CREATE_WINDOWS)
             .setAllowSystemRestrictionBypass(new RestrictionBypass(false, true, false))
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_PROJECT_MEDIA, OPSTR_PROJECT_MEDIA, "PROJECT_MEDIA")
+        new AppOpInfo.Builder(OP_PROJECT_MEDIA, OPSTR_PROJECT_MEDIA, "PROJECT_MEDIA",
+                AppOpsManager.MODE_ERRORED)
             .setDefaultMode(AppOpsManager.MODE_IGNORED).build(),
-        new AppOpInfo.Builder(OP_ACTIVATE_VPN, OPSTR_ACTIVATE_VPN, "ACTIVATE_VPN")
+        new AppOpInfo.Builder(OP_ACTIVATE_VPN, OPSTR_ACTIVATE_VPN, "ACTIVATE_VPN",
+                AppOpsManager.MODE_ERRORED)
             .setDefaultMode(AppOpsManager.MODE_IGNORED).build(),
-        new AppOpInfo.Builder(OP_WRITE_WALLPAPER, OPSTR_WRITE_WALLPAPER, "WRITE_WALLPAPER")
+        new AppOpInfo.Builder(OP_WRITE_WALLPAPER, OPSTR_WRITE_WALLPAPER, "WRITE_WALLPAPER",
+                AppOpsManager.MODE_ERRORED)
             .setRestriction(UserManager.DISALLOW_WALLPAPER)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_ASSIST_STRUCTURE, OPSTR_ASSIST_STRUCTURE, "ASSIST_STRUCTURE")
@@ -3055,11 +3247,13 @@ public class AppOpsManager {
         new AppOpInfo.Builder(OP_ADD_VOICEMAIL, OPSTR_ADD_VOICEMAIL, "ADD_VOICEMAIL")
             .setPermission(Manifest.permission.ADD_VOICEMAIL)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_USE_SIP, OPSTR_USE_SIP, "USE_SIP")
+        new AppOpInfo.Builder(OP_USE_SIP, OPSTR_USE_SIP, "USE_SIP",
+                AppOpsManager.MODE_ERRORED)
             .setPermission(Manifest.permission.USE_SIP)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_PROCESS_OUTGOING_CALLS, OPSTR_PROCESS_OUTGOING_CALLS,
-                "PROCESS_OUTGOING_CALLS").setSwitchCode(OP_PROCESS_OUTGOING_CALLS)
+                "PROCESS_OUTGOING_CALLS", AppOpsManager.MODE_ERRORED)
+            .setSwitchCode(OP_PROCESS_OUTGOING_CALLS)
             .setPermission(Manifest.permission.PROCESS_OUTGOING_CALLS)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_USE_FINGERPRINT, OPSTR_USE_FINGERPRINT, "USE_FINGERPRINT")
@@ -3077,7 +3271,8 @@ public class AppOpsManager {
                 "READ_EXTERNAL_STORAGE").setPermission(Manifest.permission.READ_EXTERNAL_STORAGE)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_WRITE_EXTERNAL_STORAGE, OPSTR_WRITE_EXTERNAL_STORAGE,
-                "WRITE_EXTERNAL_STORAGE").setPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                "WRITE_EXTERNAL_STORAGE", AppOpsManager.MODE_ERRORED)
+            .setPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_TURN_SCREEN_ON, OPSTR_TURN_SCREEN_ON, "TURN_SCREEN_ON")
             .setPermission(Manifest.permission.TURN_SCREEN_ON)
@@ -3096,7 +3291,8 @@ public class AppOpsManager {
             .setPermission(Manifest.permission.READ_PHONE_NUMBERS)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_REQUEST_INSTALL_PACKAGES, OPSTR_REQUEST_INSTALL_PACKAGES,
-                "REQUEST_INSTALL_PACKAGES").setSwitchCode(OP_REQUEST_INSTALL_PACKAGES)
+                "REQUEST_INSTALL_PACKAGES", AppOpsManager.MODE_ERRORED)
+            .setSwitchCode(OP_REQUEST_INSTALL_PACKAGES)
             .setPermission(Manifest.permission.REQUEST_INSTALL_PACKAGES).build(),
         new AppOpInfo.Builder(OP_PICTURE_IN_PICTURE, OPSTR_PICTURE_IN_PICTURE, "PICTURE_IN_PICTURE")
             .setSwitchCode(OP_PICTURE_IN_PICTURE).setDefaultMode(AppOpsManager.MODE_ALLOWED)
@@ -3104,14 +3300,16 @@ public class AppOpsManager {
         new AppOpInfo.Builder(OP_INSTANT_APP_START_FOREGROUND, OPSTR_INSTANT_APP_START_FOREGROUND,
                 "INSTANT_APP_START_FOREGROUND")
             .setPermission(Manifest.permission.INSTANT_APP_FOREGROUND_SERVICE).build(),
-        new AppOpInfo.Builder(OP_ANSWER_PHONE_CALLS, OPSTR_ANSWER_PHONE_CALLS, "ANSWER_PHONE_CALLS")
+        new AppOpInfo.Builder(OP_ANSWER_PHONE_CALLS, OPSTR_ANSWER_PHONE_CALLS, "ANSWER_PHONE_CALLS",
+                AppOpsManager.MODE_ERRORED)
             .setSwitchCode(OP_ANSWER_PHONE_CALLS)
             .setPermission(Manifest.permission.ANSWER_PHONE_CALLS)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_RUN_ANY_IN_BACKGROUND, OPSTR_RUN_ANY_IN_BACKGROUND,
                 "RUN_ANY_IN_BACKGROUND")
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_CHANGE_WIFI_STATE, OPSTR_CHANGE_WIFI_STATE, "CHANGE_WIFI_STATE")
+        new AppOpInfo.Builder(OP_CHANGE_WIFI_STATE, OPSTR_CHANGE_WIFI_STATE, "CHANGE_WIFI_STATE",
+                AppOpsManager.MODE_ERRORED)
             .setSwitchCode(OP_CHANGE_WIFI_STATE)
             .setPermission(Manifest.permission.CHANGE_WIFI_STATE)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
@@ -3120,21 +3318,23 @@ public class AppOpsManager {
             .setPermission(Manifest.permission.REQUEST_DELETE_PACKAGES)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_BIND_ACCESSIBILITY_SERVICE, OPSTR_BIND_ACCESSIBILITY_SERVICE,
-                "BIND_ACCESSIBILITY_SERVICE")
+                "BIND_ACCESSIBILITY_SERVICE", AppOpsManager.MODE_ERRORED)
             .setPermission(Manifest.permission.BIND_ACCESSIBILITY_SERVICE)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_ACCEPT_HANDOVER, OPSTR_ACCEPT_HANDOVER, "ACCEPT_HANDOVER")
+        new AppOpInfo.Builder(OP_ACCEPT_HANDOVER, OPSTR_ACCEPT_HANDOVER, "ACCEPT_HANDOVER",
+                AppOpsManager.MODE_ERRORED)
             .setSwitchCode(OP_ACCEPT_HANDOVER)
             .setPermission(Manifest.permission.ACCEPT_HANDOVER)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_MANAGE_IPSEC_TUNNELS, OPSTR_MANAGE_IPSEC_TUNNELS,
-                "MANAGE_IPSEC_TUNNELS")
+                "MANAGE_IPSEC_TUNNELS", AppOpsManager.MODE_ERRORED)
             .setPermission(Manifest.permission.MANAGE_IPSEC_TUNNELS)
             .setDefaultMode(AppOpsManager.MODE_ERRORED).build(),
         new AppOpInfo.Builder(OP_START_FOREGROUND, OPSTR_START_FOREGROUND, "START_FOREGROUND")
             .setPermission(Manifest.permission.FOREGROUND_SERVICE)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_BLUETOOTH_SCAN, OPSTR_BLUETOOTH_SCAN, "BLUETOOTH_SCAN")
+        new AppOpInfo.Builder(OP_BLUETOOTH_SCAN, OPSTR_BLUETOOTH_SCAN, "BLUETOOTH_SCAN",
+                AppOpsManager.MODE_ERRORED)
             .setPermission(Manifest.permission.BLUETOOTH_SCAN)
             .setAllowSystemRestrictionBypass(new RestrictionBypass(false, true, false))
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
@@ -3146,25 +3346,29 @@ public class AppOpsManager {
             .setPermission(Manifest.permission.ACTIVITY_RECOGNITION)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_SMS_FINANCIAL_TRANSACTIONS, OPSTR_SMS_FINANCIAL_TRANSACTIONS,
-                "SMS_FINANCIAL_TRANSACTIONS")
+                "SMS_FINANCIAL_TRANSACTIONS", AppOpsManager.MODE_ERRORED)
             .setPermission(Manifest.permission.SMS_FINANCIAL_TRANSACTIONS)
             .setRestriction(UserManager.DISALLOW_SMS).build(),
         new AppOpInfo.Builder(OP_READ_MEDIA_AUDIO, OPSTR_READ_MEDIA_AUDIO, "READ_MEDIA_AUDIO")
             .setPermission(Manifest.permission.READ_MEDIA_AUDIO)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_WRITE_MEDIA_AUDIO, OPSTR_WRITE_MEDIA_AUDIO, "WRITE_MEDIA_AUDIO")
+        new AppOpInfo.Builder(OP_WRITE_MEDIA_AUDIO, OPSTR_WRITE_MEDIA_AUDIO, "WRITE_MEDIA_AUDIO",
+                AppOpsManager.MODE_ERRORED)
             .setDefaultMode(AppOpsManager.MODE_ERRORED).build(),
         new AppOpInfo.Builder(OP_READ_MEDIA_VIDEO, OPSTR_READ_MEDIA_VIDEO, "READ_MEDIA_VIDEO")
             .setPermission(Manifest.permission.READ_MEDIA_VIDEO)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_WRITE_MEDIA_VIDEO, OPSTR_WRITE_MEDIA_VIDEO, "WRITE_MEDIA_VIDEO")
+        new AppOpInfo.Builder(OP_WRITE_MEDIA_VIDEO, OPSTR_WRITE_MEDIA_VIDEO, "WRITE_MEDIA_VIDEO",
+                AppOpsManager.MODE_ERRORED)
             .setDefaultMode(AppOpsManager.MODE_ERRORED).setDisableReset(true).build(),
         new AppOpInfo.Builder(OP_READ_MEDIA_IMAGES, OPSTR_READ_MEDIA_IMAGES, "READ_MEDIA_IMAGES")
             .setPermission(Manifest.permission.READ_MEDIA_IMAGES)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_WRITE_MEDIA_IMAGES, OPSTR_WRITE_MEDIA_IMAGES, "WRITE_MEDIA_IMAGES")
+        new AppOpInfo.Builder(OP_WRITE_MEDIA_IMAGES, OPSTR_WRITE_MEDIA_IMAGES, "WRITE_MEDIA_IMAGES",
+                AppOpsManager.MODE_ERRORED)
             .setDefaultMode(AppOpsManager.MODE_ERRORED).setDisableReset(true).build(),
-        new AppOpInfo.Builder(OP_LEGACY_STORAGE, OPSTR_LEGACY_STORAGE, "LEGACY_STORAGE")
+        new AppOpInfo.Builder(OP_LEGACY_STORAGE, OPSTR_LEGACY_STORAGE, "LEGACY_STORAGE",
+                AppOpsManager.MODE_ERRORED)
             .setDisableReset(true).build(),
         new AppOpInfo.Builder(OP_ACCESS_ACCESSIBILITY, OPSTR_ACCESS_ACCESSIBILITY,
                 "ACCESS_ACCESSIBILITY").setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
@@ -3176,13 +3380,14 @@ public class AppOpsManager {
         new AppOpInfo.Builder(OP_QUERY_ALL_PACKAGES, OPSTR_QUERY_ALL_PACKAGES, "QUERY_ALL_PACKAGES")
             .build(),
         new AppOpInfo.Builder(OP_MANAGE_EXTERNAL_STORAGE, OPSTR_MANAGE_EXTERNAL_STORAGE,
-                "MANAGE_EXTERNAL_STORAGE")
+                "MANAGE_EXTERNAL_STORAGE", AppOpsManager.MODE_ERRORED)
             .setPermission(Manifest.permission.MANAGE_EXTERNAL_STORAGE).build(),
         new AppOpInfo.Builder(OP_INTERACT_ACROSS_PROFILES, OPSTR_INTERACT_ACROSS_PROFILES,
                 "INTERACT_ACROSS_PROFILES")
             .setPermission(android.Manifest.permission.INTERACT_ACROSS_PROFILES).build(),
         new AppOpInfo.Builder(OP_ACTIVATE_PLATFORM_VPN, OPSTR_ACTIVATE_PLATFORM_VPN,
-                "ACTIVATE_PLATFORM_VPN").setDefaultMode(AppOpsManager.MODE_IGNORED).build(),
+                "ACTIVATE_PLATFORM_VPN", AppOpsManager.MODE_ERRORED)
+            .setDefaultMode(AppOpsManager.MODE_IGNORED).build(),
         new AppOpInfo.Builder(OP_LOADER_USAGE_STATS, OPSTR_LOADER_USAGE_STATS, "LOADER_USAGE_STATS")
             .setPermission(android.Manifest.permission.LOADER_USAGE_STATS).build(),
         new AppOpInfo.Builder(OP_NONE, "", "").setDefaultMode(AppOpsManager.MODE_IGNORED).build(),
@@ -3193,7 +3398,8 @@ public class AppOpsManager {
                 OPSTR_AUTO_REVOKE_MANAGED_BY_INSTALLER, "AUTO_REVOKE_MANAGED_BY_INSTALLER")
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_NO_ISOLATED_STORAGE, OPSTR_NO_ISOLATED_STORAGE,
-                "NO_ISOLATED_STORAGE").setDefaultMode(AppOpsManager.MODE_ERRORED)
+                "NO_ISOLATED_STORAGE", AppOpsManager.MODE_ERRORED)
+            .setDefaultMode(AppOpsManager.MODE_ERRORED)
             .setDisableReset(true).build(),
         new AppOpInfo.Builder(OP_PHONE_CALL_MICROPHONE, OPSTR_PHONE_CALL_MICROPHONE,
                 "PHONE_CALL_MICROPHONE").setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
@@ -3202,18 +3408,22 @@ public class AppOpsManager {
         new AppOpInfo.Builder(OP_RECORD_AUDIO_HOTWORD, OPSTR_RECORD_AUDIO_HOTWORD,
                 "RECORD_AUDIO_HOTWORD").setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_MANAGE_ONGOING_CALLS, OPSTR_MANAGE_ONGOING_CALLS,
-                "MANAGE_ONGOING_CALLS").setPermission(Manifest.permission.MANAGE_ONGOING_CALLS)
+                "MANAGE_ONGOING_CALLS", AppOpsManager.MODE_ERRORED)
+            .setPermission(Manifest.permission.MANAGE_ONGOING_CALLS)
             .setDisableReset(true).build(),
-        new AppOpInfo.Builder(OP_MANAGE_CREDENTIALS, OPSTR_MANAGE_CREDENTIALS, "MANAGE_CREDENTIALS")
+        new AppOpInfo.Builder(OP_MANAGE_CREDENTIALS, OPSTR_MANAGE_CREDENTIALS, "MANAGE_CREDENTIALS",
+                AppOpsManager.MODE_ERRORED)
             .build(),
         new AppOpInfo.Builder(OP_USE_ICC_AUTH_WITH_DEVICE_IDENTIFIER,
-                OPSTR_USE_ICC_AUTH_WITH_DEVICE_IDENTIFIER, "USE_ICC_AUTH_WITH_DEVICE_IDENTIFIER")
+                OPSTR_USE_ICC_AUTH_WITH_DEVICE_IDENTIFIER, "USE_ICC_AUTH_WITH_DEVICE_IDENTIFIER",
+                AppOpsManager.MODE_ERRORED)
             .setPermission(Manifest.permission.USE_ICC_AUTH_WITH_DEVICE_IDENTIFIER)
             .setDisableReset(true).build(),
         new AppOpInfo.Builder(OP_RECORD_AUDIO_OUTPUT, OPSTR_RECORD_AUDIO_OUTPUT,
                 "RECORD_AUDIO_OUTPUT").setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_SCHEDULE_EXACT_ALARM, OPSTR_SCHEDULE_EXACT_ALARM,
-                "SCHEDULE_EXACT_ALARM").setPermission(Manifest.permission.SCHEDULE_EXACT_ALARM)
+                "SCHEDULE_EXACT_ALARM", AppOpsManager.MODE_ERRORED)
+            .setPermission(Manifest.permission.SCHEDULE_EXACT_ALARM)
             .build(),
         new AppOpInfo.Builder(OP_FINE_LOCATION_SOURCE, OPSTR_FINE_LOCATION_SOURCE,
                 "FINE_LOCATION_SOURCE").setSwitchCode(OP_FINE_LOCATION)
@@ -3221,12 +3431,14 @@ public class AppOpsManager {
         new AppOpInfo.Builder(OP_COARSE_LOCATION_SOURCE, OPSTR_COARSE_LOCATION_SOURCE,
                 "COARSE_LOCATION_SOURCE").setSwitchCode(OP_COARSE_LOCATION)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_MANAGE_MEDIA, OPSTR_MANAGE_MEDIA, "MANAGE_MEDIA")
+        new AppOpInfo.Builder(OP_MANAGE_MEDIA, OPSTR_MANAGE_MEDIA, "MANAGE_MEDIA",
+                AppOpsManager.MODE_ERRORED)
             .setPermission(Manifest.permission.MANAGE_MEDIA).build(),
         new AppOpInfo.Builder(OP_BLUETOOTH_CONNECT, OPSTR_BLUETOOTH_CONNECT, "BLUETOOTH_CONNECT")
             .setPermission(Manifest.permission.BLUETOOTH_CONNECT)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_UWB_RANGING, OPSTR_UWB_RANGING, "UWB_RANGING")
+        new AppOpInfo.Builder(OP_UWB_RANGING, OPSTR_UWB_RANGING, "UWB_RANGING",
+                AppOpsManager.MODE_ERRORED)
             .setPermission(Manifest.permission.UWB_RANGING)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_ACTIVITY_RECOGNITION_SOURCE, OPSTR_ACTIVITY_RECOGNITION_SOURCE,
@@ -3234,17 +3446,21 @@ public class AppOpsManager {
             .setSwitchCode(OP_ACTIVITY_RECOGNITION).setDefaultMode(AppOpsManager.MODE_ALLOWED)
             .build(),
         new AppOpInfo.Builder(OP_BLUETOOTH_ADVERTISE, OPSTR_BLUETOOTH_ADVERTISE,
-                "BLUETOOTH_ADVERTISE").setPermission(Manifest.permission.BLUETOOTH_ADVERTISE)
+                "BLUETOOTH_ADVERTISE", AppOpsManager.MODE_ERRORED)
+            .setPermission(Manifest.permission.BLUETOOTH_ADVERTISE)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_RECORD_INCOMING_PHONE_AUDIO, OPSTR_RECORD_INCOMING_PHONE_AUDIO,
                 "RECORD_INCOMING_PHONE_AUDIO").setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_NEARBY_WIFI_DEVICES, OPSTR_NEARBY_WIFI_DEVICES,
-                "NEARBY_WIFI_DEVICES").setPermission(Manifest.permission.NEARBY_WIFI_DEVICES)
+                "NEARBY_WIFI_DEVICES", AppOpsManager.MODE_ERRORED)
+            .setPermission(Manifest.permission.NEARBY_WIFI_DEVICES)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_ESTABLISH_VPN_SERVICE, OPSTR_ESTABLISH_VPN_SERVICE,
-                "ESTABLISH_VPN_SERVICE").setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
+                "ESTABLISH_VPN_SERVICE", AppOpsManager.MODE_ERRORED)
+            .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_ESTABLISH_VPN_MANAGER, OPSTR_ESTABLISH_VPN_MANAGER,
-                "ESTABLISH_VPN_MANAGER").setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
+                "ESTABLISH_VPN_MANAGER", AppOpsManager.MODE_ERRORED)
+            .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_ACCESS_RESTRICTED_SETTINGS, OPSTR_ACCESS_RESTRICTED_SETTINGS,
                 "ACCESS_RESTRICTED_SETTINGS").setDefaultMode(AppOpsManager.MODE_DEFAULT)
             .setDisableReset(true).setRestrictRead(true).build(),
@@ -3271,7 +3487,8 @@ public class AppOpsManager {
                 "SYSTEM_EXEMPT_FROM_DISMISSIBLE_NOTIFICATIONS")
                 .setDisableReset(true).build(),
         new AppOpInfo.Builder(OP_READ_WRITE_HEALTH_DATA, OPSTR_READ_WRITE_HEALTH_DATA,
-                "READ_WRITE_HEALTH_DATA").setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
+                "READ_WRITE_HEALTH_DATA", AppOpsManager.MODE_ERRORED)
+            .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_FOREGROUND_SERVICE_SPECIAL_USE,
                 OPSTR_FOREGROUND_SERVICE_SPECIAL_USE, "FOREGROUND_SERVICE_SPECIAL_USE")
                 .setPermission(Manifest.permission.FOREGROUND_SERVICE_SPECIAL_USE).build(),
@@ -3290,7 +3507,8 @@ public class AppOpsManager {
         new AppOpInfo.Builder(
                 OP_CAPTURE_CONSENTLESS_BUGREPORT_ON_USERDEBUG_BUILD,
                 OPSTR_CAPTURE_CONSENTLESS_BUGREPORT_ON_USERDEBUG_BUILD,
-                "CAPTURE_CONSENTLESS_BUGREPORT_ON_USERDEBUG_BUILD")
+                "CAPTURE_CONSENTLESS_BUGREPORT_ON_USERDEBUG_BUILD",
+                AppOpsManager.MODE_ERRORED)
                 .setPermission(Manifest.permission.CAPTURE_CONSENTLESS_BUGREPORT_ON_USERDEBUG_BUILD)
                 .build(),
         new AppOpInfo.Builder(OP_DEPRECATED_2, OPSTR_DEPRECATED_2, "DEPRECATED_2")
@@ -3314,7 +3532,7 @@ public class AppOpsManager {
                 "CREATE_ACCESSIBILITY_OVERLAY")
                 .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_MEDIA_ROUTING_CONTROL, OPSTR_MEDIA_ROUTING_CONTROL,
-                "MEDIA_ROUTING_CONTROL")
+                "MEDIA_ROUTING_CONTROL", AppOpsManager.MODE_ERRORED)
                 .setPermission(Manifest.permission.MEDIA_ROUTING_CONTROL).build(),
         new AppOpInfo.Builder(OP_ENABLE_MOBILE_DATA_BY_USER, OPSTR_ENABLE_MOBILE_DATA_BY_USER,
                 "ENABLE_MOBILE_DATA_BY_USER").setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
@@ -3337,7 +3555,8 @@ public class AppOpsManager {
         new AppOpInfo.Builder(OP_UNARCHIVAL_CONFIRMATION, OPSTR_UNARCHIVAL_CONFIRMATION,
                 "UNARCHIVAL_CONFIRMATION")
                 .setDefaultMode(MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_EMERGENCY_LOCATION, OPSTR_EMERGENCY_LOCATION, "EMERGENCY_LOCATION")
+        new AppOpInfo.Builder(OP_EMERGENCY_LOCATION, OPSTR_EMERGENCY_LOCATION, "EMERGENCY_LOCATION",
+                AppOpsManager.MODE_ERRORED)
                 .setDefaultMode(MODE_ALLOWED)
                 // even though this has a permission associated, this op is only used for tracking,
                 // and the client is responsible for checking the LOCATION_BYPASS permission.
@@ -3351,7 +3570,7 @@ public class AppOpsManager {
         new AppOpInfo.Builder(OP_READ_SKIN_TEMPERATURE, OPSTR_READ_SKIN_TEMPERATURE,
             "READ_SKIN_TEMPERATURE").setPermission(HealthPermissions.READ_SKIN_TEMPERATURE)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
-        new AppOpInfo.Builder(OP_RANGING, OPSTR_RANGING, "RANGING")
+        new AppOpInfo.Builder(OP_RANGING, OPSTR_RANGING, "RANGING", AppOpsManager.MODE_ERRORED)
             .setPermission(Flags.rangingPermissionEnabled()?
                 Manifest.permission.RANGING : null)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
@@ -3359,7 +3578,7 @@ public class AppOpsManager {
             "READ_OXYGEN_SATURATION").setPermission(HealthPermissions.READ_OXYGEN_SATURATION)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_WRITE_SYSTEM_PREFERENCES, OPSTR_WRITE_SYSTEM_PREFERENCES,
-            "WRITE_SYSTEM_PREFERENCES").setPermission(
+            "WRITE_SYSTEM_PREFERENCES", AppOpsManager.MODE_ERRORED).setPermission(
                      com.android.settingslib.flags.Flags.writeSystemPreferencePermissionEnabled()
                      ? Manifest.permission.WRITE_SYSTEM_PREFERENCES : null).build(),
         new AppOpInfo.Builder(OP_CONTROL_AUDIO, OPSTR_CONTROL_AUDIO,
@@ -3402,9 +3621,8 @@ public class AppOpsManager {
                     ? Manifest.permission.SCENE_UNDERSTANDING_FINE : null)
                 .build(),
         new AppOpInfo.Builder(OP_POST_PROMOTED_NOTIFICATIONS, OPSTR_POST_PROMOTED_NOTIFICATIONS,
-                "POST_PROMOTED_NOTIFICATIONS")
-                .setPermission(android.app.Flags.uiRichOngoing()
-                        ? Manifest.permission.POST_PROMOTED_NOTIFICATIONS : null)
+                "POST_PROMOTED_NOTIFICATIONS", AppOpsManager.MODE_ERRORED)
+                .setPermission(Manifest.permission.POST_PROMOTED_NOTIFICATIONS)
                 .build(),
         new AppOpInfo.Builder(OP_SYSTEM_APPLICATION_OVERLAY, OPSTR_SYSTEM_APPLICATION_OVERLAY,
                 "SYSTEM_APPLICATION_OVERLAY")
@@ -3423,16 +3641,54 @@ public class AppOpsManager {
         // slightly different semantics - the permission must be held in order to request a
         // computer control session at all, while the op mode determines whether explicit user
         // consent is required when requesting a computer control session.
-        new AppOpInfo.Builder(OP_COMPUTER_CONTROL, OPSTR_COMPUTER_CONTROL, "COMPUTER_CONTROL")
-                .setDefaultMode(AppOpsManager.MODE_IGNORED)
+        new AppOpInfo.Builder(OP_COMPUTER_CONTROL, OPSTR_COMPUTER_CONTROL, "COMPUTER_CONTROL",
+                AppOpsManager.MODE_ERRORED)
+                .setDefaultMode(AppOpsManager.MODE_DEFAULT)
                 .build(),
         new AppOpInfo.Builder(OP_READ_OTP_SMS, OPSTR_READ_OTP_SMS, "READ_OTP_SMS")
                 .build(),
         new AppOpInfo.Builder(OP_ACCESS_LOCAL_NETWORK, OPSTR_ACCESS_LOCAL_NETWORK,
-                "ACCESS_LOCAL_NETWORK")
+                "ACCESS_LOCAL_NETWORK", AppOpsManager.MODE_ERRORED)
                 .setPermission(Flags.accessLocalNetworkPermissionEnabled()
                         ? Manifest.permission.ACCESS_LOCAL_NETWORK : null)
                 .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
+        new AppOpInfo.Builder(OP_READ_BLOOD_PRESSURE, OPSTR_READ_BLOOD_PRESSURE,
+                "READ_BLOOD_PRESSURE").setPermission(
+                        Flags.granularHealthPermissionsPhaseTwoEnabled()
+                                ? HealthPermissions.READ_BLOOD_PRESSURE : null)
+                .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
+        new AppOpInfo.Builder(OP_READ_HEART_RATE_VARIABILITY, OPSTR_READ_HEART_RATE_VARIABILITY,
+                "READ_HEART_RATE_VARIABILITY").setPermission(
+                        Flags.granularHealthPermissionsPhaseTwoEnabled()
+                                ? HealthPermissions.READ_HEART_RATE_VARIABILITY : null)
+                .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
+        new AppOpInfo.Builder(OP_READ_RESPIRATORY_RATE, OPSTR_READ_RESPIRATORY_RATE,
+                "READ_RESPIRATORY_RATE").setPermission(
+                        Flags.granularHealthPermissionsPhaseTwoEnabled()
+                                ? HealthPermissions.READ_RESPIRATORY_RATE : null)
+                .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
+        new AppOpInfo.Builder(OP_READ_VO2_MAX, OPSTR_READ_VO2_MAX,
+                "READ_VO2_MAX").setPermission(
+                        Flags.granularHealthPermissionsPhaseTwoEnabled()
+                                ? HealthPermissions.READ_VO2_MAX : null)
+                .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
+        new AppOpInfo.Builder(OP_CONTINUE_ACROSS_DEVICES, OPSTR_CONTINUE_ACROSS_DEVICES,
+                "CONTINUE_ACROSS_DEVICES", AppOpsManager.MODE_ERRORED)
+                .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
+        new AppOpInfo.Builder(OP_READ_SCREEN_CONTEXT, OPSTR_READ_SCREEN_CONTEXT,
+                "READ_SCREEN_CONTEXT")
+                .setDefaultMode(AppOpsManager.MODE_IGNORED).build(),
+        new AppOpInfo.Builder(OP_READ_RESTRICTED_MESSAGES, OPSTR_READ_RESTRICTED_MESSAGES,
+                "READ_RESTRICTED_MESSAGES")
+                .setDefaultMode(AppOpsManager.MODE_IGNORED).build(),
+        new AppOpInfo.Builder(OP_WRITE_RESTRICTED_MESSAGES, OPSTR_WRITE_RESTRICTED_MESSAGES,
+                "WRITE_RESTRICTED_MESSAGES", AppOpsManager.MODE_ERRORED)
+                .setDefaultMode(AppOpsManager.MODE_IGNORED).build(),
+        new AppOpInfo.Builder(OP_ACCESS_HID, OPSTR_ACCESS_HID,
+                "ACCESS_HID", AppOpInfo.PCC_MODE_INHERIT)
+                .setPermission(
+                    com.android.hardware.input.Flags.hidApi()
+                            ? Manifest.permission.ACCESS_HID : null).build()
     };
 
     // The number of longs needed to form a full bitmask of app ops
@@ -3674,6 +3930,10 @@ public class AppOpsManager {
      * @hide
      */
     public static boolean opRestrictsRead(int op) {
+        // If the device has beeen downgraded, the app op info may not be present.
+        if (op >= sAppOpInfos.length) {
+            return true;
+        }
         return sAppOpInfos[op].restrictRead;
     }
 
@@ -3699,6 +3959,17 @@ public class AppOpsManager {
      */
     public static boolean opIsUidAppOpPermission(int op) {
         return op != OP_NONE && ArrayUtils.contains(APP_OP_PERMISSION_UID_OPS, op);
+    }
+
+    /**
+     * Retrieve the desired PCC mode for the app op
+     *
+     * @return The PCC mode
+     *
+     * @hide
+     */
+    public static int opToPccMode(int op) {
+        return sAppOpInfos[op].pccMode;
     }
 
     /**
@@ -9253,7 +9524,7 @@ public class AppOpsManager {
      * without an executor parameter.
      *
      * <p> Note that the listener will be called on the main thread using
-     * {@link Context.getMainThread()}. To specify the execution thread, use
+     * {@link Context#getMainThread()}. To specify the execution thread, use
      * {@link #startWatchingNoted(String[], Executor, OnOpNotedListener)}.
      *
      * @param ops      the ops to watch
@@ -10890,6 +11161,7 @@ public class AppOpsManager {
      *
      * @hide
      */
+    @RavenwoodIgnore(reason = "Only used in binder IPCs, which Ravenwood does not support")
     public static @Nullable PausedNotedAppOpsCollection pauseNotedAppOpsCollection() {
         Integer previousUid = sBinderThreadCallingUid.get();
         if (previousUid != null) {
@@ -10912,6 +11184,7 @@ public class AppOpsManager {
      *
      * @hide
      */
+    @RavenwoodIgnore(reason = "Only used in binder IPCs, which Ravenwood does not support")
     public static void resumeNotedAppOpsCollection(
             @Nullable PausedNotedAppOpsCollection prevCollection) {
         if (prevCollection != null) {
@@ -11221,7 +11494,7 @@ public class AppOpsManager {
      * and 4.
      *
      * Note that even with {@link #OP_NOTED_CALLBACK_FLAG_IGNORE_ASYNC},
-     * {@link #OnOpNotedCallback.onAsyncNoted} may still be invoked. This happens for sync events
+     * {@link OnOpNotedCallback#onAsyncNoted} may still be invoked. This happens for sync events
      * that were collected before a callback is registered.
      *
      * @param asyncExecutor executor to execute {@link OnOpNotedCallback#onAsyncNoted} on, {@code
@@ -11326,6 +11599,7 @@ public class AppOpsManager {
      *
      * @hide
      */
+    @RavenwoodIgnore(reason = "Only used in binder IPCs, which Ravenwood does not support")
     public static boolean isListeningForOpNoted() {
         return sOnOpNotedCallback != null || isCollectingStackTraces();
     }

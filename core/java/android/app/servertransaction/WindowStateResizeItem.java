@@ -30,6 +30,8 @@ import android.view.WindowRelayoutResult;
 import android.window.ActivityWindowInfo;
 import android.window.ClientWindowFrames;
 
+import com.android.internal.view.WindowClientTransactionHandler;
+
 import java.util.Objects;
 
 /**
@@ -71,6 +73,19 @@ public class WindowStateResizeItem extends WindowStateTransactionItem {
         mLayout.syncSeqId = syncSeqId;
         mSyncWithBuffers = syncWithBuffers;
         mDragResizing = dragResizing;
+    }
+
+    @Override
+    public void preExecute(@NonNull WindowClientTransactionHandler client) {
+        client.updatePendingResize(mLayout, mReportDraw, mForceLayout, mDisplayId, mSyncWithBuffers,
+                mDragResizing);
+    }
+
+    @Override
+    public void execute(@NonNull WindowClientTransactionHandler client) {
+        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "windowResized");
+        client.handleResized();
+        Trace.traceEnd(Trace.TRACE_TAG_WINDOW_MANAGER);
     }
 
     @Override

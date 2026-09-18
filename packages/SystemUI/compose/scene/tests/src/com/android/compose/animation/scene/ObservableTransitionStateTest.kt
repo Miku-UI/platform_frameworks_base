@@ -224,6 +224,29 @@ class ObservableTransitionStateTest {
         assertThat(state).isInstanceOf(ObservableTransitionState.Idle::class.java)
     }
 
+    @Test
+    fun transitionKey() = runTestWithSnapshots {
+        val layoutState = MutableSceneTransitionLayoutStateForTests(SceneA)
+
+        var observableState: ObservableTransitionState? = null
+        backgroundScope.launch {
+            layoutState.observableTransitionState().collect { observableState = it }
+        }
+
+        runCurrent()
+        assertThat(observableState).isEqualTo(ObservableTransitionState.Idle(SceneA))
+
+        val key = TransitionKey(debugName = "test")
+        layoutState.startTransitionImmediately(
+            animationScope = backgroundScope,
+            transition = transition(from = SceneA, to = SceneB, key = key),
+        )
+
+        runCurrent()
+        assertThat(observableState).isInstanceOf(ObservableTransitionState.Transition::class.java)
+        assertThat((observableState as ObservableTransitionState.Transition).key).isEqualTo(key)
+    }
+
     // See http://shortn/_hj4Mhikmos for inspiration.
     private fun runTestWithSnapshots(testBody: suspend TestScope.() -> Unit) {
         val globalWriteObserverHandle =

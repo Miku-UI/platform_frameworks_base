@@ -376,3 +376,16 @@ key MINUS {
     base:                               '-'
     shift:                              '_'
 }
+
+### NUMPAD
+
+key NUMPAD_DOT {
+    label:                              ','
+    base:                               fallback FORWARD_DEL
+    numlock:                            ','
+}
+
+key NUMPAD_COMMA {
+    label:                              '.'
+    base:                               '.'
+}

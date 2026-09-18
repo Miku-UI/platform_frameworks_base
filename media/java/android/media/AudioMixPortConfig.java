@@ -16,6 +16,7 @@
 
 package android.media;
 
+import android.annotation.NonNull;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Build;
 
@@ -33,6 +34,11 @@ public class AudioMixPortConfig extends AudioPortConfig {
     AudioMixPortConfig(AudioMixPort mixPort, int samplingRate, int channelMask, int format,
                 AudioGainConfig gain) {
         super((AudioPort)mixPort, samplingRate, channelMask, format, gain);
+    }
+
+    AudioMixPortConfig(AudioMixPort mixPort, int samplingRate,
+            @NonNull AudioFormat.ChannelMasks channelMasks, int format, AudioGainConfig gain) {
+        super((AudioPort) mixPort, samplingRate, channelMasks, format, gain);
     }
 
     /**

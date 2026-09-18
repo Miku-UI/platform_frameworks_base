@@ -74,6 +74,7 @@ stubs_defaults {
         ":framework-sdkextensions-sources",
         ":framework-sdksandbox-sources",
         ":framework-statsd-sources",
+        ":framework-telecom-internal-sources",
         ":framework-tethering-srcs",
         ":framework-uwb-updatable-sources",
         ":framework-wifi-updatable-sources",
@@ -210,6 +211,9 @@ droidstubs {
             removed_api_file: ":android-removed.api.combined.public.latest",
         },
     },
+    visibility: [
+        "//development/build",
+    ],
 }
 
 droidstubs {
@@ -318,13 +322,9 @@ droiddoc {
         "-title \"Android SDK\"",
     ],
     static_doc_index_redirect: "docs/docs-preview-index.html",
-    // The directory to publish the generated documentation under out/target/common/docs.
-    publish_dir: "offline-sdk",
-}
-
-phony_rule {
-    name: "docs",
-    phony_deps: ["offline-sdk-docs"],
+    visibility: [
+        "//development/build",
+    ],
 }
 
 droiddoc {

@@ -281,7 +281,7 @@ public final class RenderNode {
          */
         default void positionChanged(long frameNumber, int left, int top, int right, int bottom,
                 int clipLeft, int clipTop, int clipRight, int clipBottom,
-                int nodeWidth, int nodeHeight) {
+                int nodeWidth, int nodeHeight, boolean shouldDisableClip) {
             positionChanged(frameNumber, left, top, right, bottom);
         }
 
@@ -307,11 +307,11 @@ public final class RenderNode {
         static boolean callPositionChanged2(WeakReference<PositionUpdateListener> weakListener,
                 long frameNumber, int left, int top, int right, int bottom,
                 int clipLeft, int clipTop, int clipRight, int clipBottom,
-                int nodeWidth, int nodeHeight) {
+                int nodeWidth, int nodeHeight, boolean shouldDisableClip) {
             final PositionUpdateListener listener = weakListener.get();
             if (listener != null) {
                 listener.positionChanged(frameNumber, left, top, right, bottom, clipLeft,
-                        clipTop, clipRight, clipBottom, nodeWidth, nodeHeight);
+                        clipTop, clipRight, clipBottom, nodeWidth, nodeHeight, shouldDisableClip);
                 return true;
             } else {
                 return false;
@@ -405,10 +405,10 @@ public final class RenderNode {
         @Override
         public void positionChanged(long frameNumber, int left, int top, int right, int bottom,
                 int clipLeft, int clipTop, int clipRight, int clipBottom,
-                int nodeWidth, int nodeHeight) {
+                int nodeWidth, int nodeHeight, boolean shouldDisableClip) {
             for (PositionUpdateListener pul : mListeners) {
                 pul.positionChanged(frameNumber, left, top, right, bottom, clipLeft, clipTop,
-                        clipRight, clipBottom, nodeWidth, nodeHeight);
+                        clipRight, clipBottom, nodeWidth, nodeHeight, shouldDisableClip);
             }
         }
 

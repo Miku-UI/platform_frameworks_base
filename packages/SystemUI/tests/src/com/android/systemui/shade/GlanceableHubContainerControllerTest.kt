@@ -44,16 +44,19 @@ import com.android.systemui.communal.domain.interactor.communalSettingsInteracto
 import com.android.systemui.communal.domain.interactor.setCommunalAvailable
 import com.android.systemui.communal.domain.interactor.setCommunalV2ConfigEnabled
 import com.android.systemui.communal.shared.model.CommunalScenes
+import com.android.systemui.communal.shared.model.communalSceneDataSourceDelegator
 import com.android.systemui.communal.ui.compose.CommunalContent
 import com.android.systemui.communal.ui.compose.section.AmbientStatusBarSection
 import com.android.systemui.communal.ui.viewmodel.CommunalViewModel
 import com.android.systemui.communal.util.CommunalColors
 import com.android.systemui.communal.util.userTouchActivityNotifier
 import com.android.systemui.flags.DisableSceneContainer
+import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
+import com.android.systemui.keyguard.shared.model.StatusBarState
 import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.keyguard.userActivityNotifier
@@ -66,7 +69,6 @@ import com.android.systemui.log.logcatLogBuffer
 import com.android.systemui.media.controls.controller.keyguardMediaController
 import com.android.systemui.power.data.repository.fakePowerRepository
 import com.android.systemui.res.R
-import com.android.systemui.scene.shared.model.sceneDataSourceDelegator
 import com.android.systemui.shade.domain.interactor.shadeInteractor
 import com.android.systemui.statusbar.lockscreen.lockscreenSmartspaceController
 import com.android.systemui.statusbar.notification.stack.notificationStackScrollLayoutController
@@ -136,7 +138,7 @@ class GlanceableHubContainerControllerTest : SysuiTestCase() {
                 mock<CommunalColors>(),
                 ambientTouchComponentFactory,
                 mock<CommunalContent>(),
-                sceneDataSourceDelegator,
+                communalSceneDataSourceDelegator,
                 notificationStackScrollLayoutController,
                 keyguardMediaController,
                 lockscreenSmartspaceController,
@@ -180,7 +182,7 @@ class GlanceableHubContainerControllerTest : SysuiTestCase() {
                     mock<CommunalColors>(),
                     ambientTouchComponentFactory,
                     mock<CommunalContent>(),
-                    sceneDataSourceDelegator,
+                    communalSceneDataSourceDelegator,
                     notificationStackScrollLayoutController,
                     keyguardMediaController,
                     lockscreenSmartspaceController,
@@ -213,7 +215,7 @@ class GlanceableHubContainerControllerTest : SysuiTestCase() {
                     mock<CommunalColors>(),
                     ambientTouchComponentFactory,
                     mock<CommunalContent>(),
-                    sceneDataSourceDelegator,
+                    communalSceneDataSourceDelegator,
                     notificationStackScrollLayoutController,
                     keyguardMediaController,
                     lockscreenSmartspaceController,
@@ -242,7 +244,7 @@ class GlanceableHubContainerControllerTest : SysuiTestCase() {
                     mock<CommunalColors>(),
                     ambientTouchComponentFactory,
                     mock<CommunalContent>(),
-                    sceneDataSourceDelegator,
+                    communalSceneDataSourceDelegator,
                     notificationStackScrollLayoutController,
                     keyguardMediaController,
                     lockscreenSmartspaceController,
@@ -262,6 +264,7 @@ class GlanceableHubContainerControllerTest : SysuiTestCase() {
     @Test
     fun lifecycle_startedAfterFlowsUpdate() =
         kosmos.runTest {
+            testableLooper.processAllMessages()
             // Flows start collecting due to test setup, causing the state to advance to STARTED.
             assertThat(underTest.lifecycle.currentState).isEqualTo(Lifecycle.State.STARTED)
         }
@@ -533,6 +536,7 @@ class GlanceableHubContainerControllerTest : SysuiTestCase() {
             swipeToHubEnabled.value = true
 
             // On lockscreen.
+            fakeKeyguardRepository.setStatusBarState(StatusBarState.KEYGUARD)
             goToScene(CommunalScenes.Blank)
             whenever(notificationStackScrollLayoutController.isBelowLastNotification(any(), any()))
                 .thenReturn(true)

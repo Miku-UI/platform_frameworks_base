@@ -37,8 +37,9 @@ java_library_static {
         "android.hardware.usb-V1.1-java",
         "android.hardware.usb-V1.2-java",
         "android.hardware.usb-V1.3-java",
-        "android.hardware.usb-V3-java",
+        "android.hardware.usb-V4-java",
         "usb_flags_lib",
+        "android.hardware.usb.aoa-java",
     ],
     lint: {
         baseline_filename: "lint-baseline.xml",
@@ -54,5 +55,11 @@ aconfig_declarations {
 
 java_aconfig_library {
     name: "usb_flags_lib",
+    aconfig_declarations: "usb_flags",
+}
+
+rust_aconfig_library {
+    name: "libusb_flags_lib_rust",
+    crate_name: "usb_flags_lib_rust",
     aconfig_declarations: "usb_flags",
 }

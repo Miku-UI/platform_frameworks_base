@@ -83,6 +83,16 @@ class PackageUserStateDefault implements PackageUserStateInternal {
     }
 
     @Override
+    public long getPccCeDataInode() {
+        return 0;
+    }
+
+    @Override
+    public long getPccDeDataInode() {
+        return 0;
+    }
+
+    @Override
     public int getDistractionFlags() {
         return 0;
     }
@@ -131,6 +141,11 @@ class PackageUserStateDefault implements PackageUserStateInternal {
     }
 
     @Override
+    public boolean isAppLockEnabled() {
+        return false;
+    }
+
+    @Override
     public boolean isVirtualPreload() {
         return false;
     }
@@ -149,6 +164,16 @@ class PackageUserStateDefault implements PackageUserStateInternal {
     @Override
     public @PackageManager.UserMinAspectRatio int getMinAspectRatio() {
         return PackageManager.USER_MIN_ASPECT_RATIO_UNSET;
+    }
+
+    @Override
+    public @PackageManager.VirtualGamepadUserOption int getVirtualGamepadUserOption() {
+        return PackageManager.VIRTUAL_GAMEPAD_USER_OPTION_UNSET;
+    }
+
+    @Override
+    public @PackageManager.PersonalContextMode int getPersonalContextMode() {
+        return PackageManager.PERSONAL_CONTEXT_MODE_UNSET;
     }
 
     @Override

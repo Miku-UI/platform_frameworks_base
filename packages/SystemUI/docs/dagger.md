@@ -125,7 +125,7 @@ FragmentHostManager.get(view).create(NavigationBarFragment.class);
 
 We depend on the Dagger source found in external/dagger2. We should automatically pick up on updates
 when that repository is updated.
- 
+
 ## TODO List
 
  - Eliminate usages of Dependency#get: http://b/hotlists/3940788

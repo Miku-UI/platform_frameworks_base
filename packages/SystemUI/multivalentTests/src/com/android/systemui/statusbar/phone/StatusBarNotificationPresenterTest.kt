@@ -19,8 +19,6 @@ import android.app.Notification
 import android.app.Notification.Builder
 import android.app.PendingIntent
 import android.app.StatusBarManager
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper
 import android.testing.TestableLooper.RunWithLooper
 import android.view.Display.DEFAULT_DISPLAY
@@ -49,14 +47,11 @@ import com.android.systemui.statusbar.notification.collection.NotificationEntryB
 import com.android.systemui.statusbar.notification.domain.interactor.notificationAlertsInteractor
 import com.android.systemui.statusbar.notification.dynamicPrivacyController
 import com.android.systemui.statusbar.notification.headsup.headsUpManager
-import com.android.systemui.statusbar.notification.interruption.NotificationInterruptSuppressor
 import com.android.systemui.statusbar.notification.interruption.VisualInterruptionCondition
 import com.android.systemui.statusbar.notification.interruption.VisualInterruptionFilter
-import com.android.systemui.statusbar.notification.interruption.VisualInterruptionRefactor
 import com.android.systemui.statusbar.notification.interruption.VisualInterruptionType
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notification.row.entryAdapterFactory
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.statusbar.notification.stack.notificationStackScrollLayoutController
 import com.android.systemui.statusbar.notification.visualInterruptionDecisionProvider
 import com.android.systemui.statusbar.notificationLockscreenUserManager
@@ -95,8 +90,7 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
             lockscreenShadeTransitionController = mock()
         }
 
-    // initiated by argumentCaptors later in the setup step, based on the flag states
-    private var interruptSuppressor: NotificationInterruptSuppressor? = null
+    // initiated by argumentCaptors later in the setup step,
     private var alertsDisabledCondition: VisualInterruptionCondition? = null
     private var vrModeCondition: VisualInterruptionCondition? = null
     private var needsRedactionFilter: VisualInterruptionFilter? = null
@@ -116,43 +110,18 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
         factory = kosmos.entryAdapterFactory
 
         underTest = createPresenter()
-        if (VisualInterruptionRefactor.isEnabled) {
-            verifyAndCaptureSuppressors()
-        } else {
-            verifyAndCaptureLegacySuppressor()
-        }
+        verifyAndCaptureSuppressors()
     }
 
     @Test
-    @DisableFlags(VisualInterruptionRefactor.FLAG_NAME)
-    fun testInit_refactorDisabled() {
-        assertThat(VisualInterruptionRefactor.isEnabled).isFalse()
-        assertThat(alertsDisabledCondition).isNull()
-        assertThat(vrModeCondition).isNull()
-        assertThat(needsRedactionFilter).isNull()
-        assertThat(panelsDisabledCondition).isNull()
-        assertThat(interruptSuppressor).isNotNull()
-    }
-
-    @Test
-    @EnableFlags(VisualInterruptionRefactor.FLAG_NAME)
     fun testInit_refactorEnabled() {
-        assertThat(VisualInterruptionRefactor.isEnabled).isTrue()
         assertThat(alertsDisabledCondition).isNotNull()
         assertThat(vrModeCondition).isNotNull()
         assertThat(needsRedactionFilter).isNotNull()
         assertThat(panelsDisabledCondition).isNotNull()
-        assertThat(interruptSuppressor).isNull()
     }
 
     @Test
-    @DisableFlags(VisualInterruptionRefactor.FLAG_NAME)
-    fun testNoSuppressHeadsUp_default_refactorDisabled() {
-        assertThat(interruptSuppressor!!.suppressAwakeHeadsUp(createNotificationEntry())).isFalse()
-    }
-
-    @Test
-    @EnableFlags(VisualInterruptionRefactor.FLAG_NAME)
     fun testNoSuppressHeadsUp_default_refactorEnabled() {
         assertThat(alertsDisabledCondition!!.shouldSuppress()).isFalse()
         assertThat(vrModeCondition!!.shouldSuppress()).isFalse()
@@ -161,22 +130,6 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(VisualInterruptionRefactor.FLAG_NAME)
-    fun testSuppressHeadsUp_disabledStatusBar_refactorDisabled() {
-        commandQueue.disable(
-            /* displayId = */ DEFAULT_DISPLAY,
-            /* flags = */ StatusBarManager.DISABLE_EXPAND,
-            /* reason = */ 0,
-            /* animate = */ false,
-        )
-        TestableLooper.get(this).processAllMessages()
-        assertWithMessage("The panel should suppress heads up while disabled")
-            .that(interruptSuppressor!!.suppressAwakeHeadsUp(createNotificationEntry()))
-            .isTrue()
-    }
-
-    @Test
-    @EnableFlags(VisualInterruptionRefactor.FLAG_NAME)
     fun testSuppressHeadsUp_disabledStatusBar_refactorEnabled() {
         commandQueue.disable(
             /* displayId = */ DEFAULT_DISPLAY,
@@ -191,24 +144,6 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(VisualInterruptionRefactor.FLAG_NAME)
-    fun testSuppressHeadsUp_disabledNotificationShade_refactorDisabled() {
-        commandQueue.disable(
-            /* displayId = */ DEFAULT_DISPLAY,
-            /* flags = */ 0,
-            /* reason = */ StatusBarManager.DISABLE2_NOTIFICATION_SHADE,
-            /* animate = */ false,
-        )
-        TestableLooper.get(this).processAllMessages()
-        assertWithMessage(
-                "The panel should suppress interruptions while notification shade disabled"
-            )
-            .that(interruptSuppressor!!.suppressAwakeHeadsUp(createNotificationEntry()))
-            .isTrue()
-    }
-
-    @Test
-    @EnableFlags(VisualInterruptionRefactor.FLAG_NAME)
     fun testSuppressHeadsUp_disabledNotificationShade_refactorEnabled() {
         commandQueue.disable(
             /* displayId = */ DEFAULT_DISPLAY,
@@ -225,7 +160,6 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(VisualInterruptionRefactor.FLAG_NAME)
     fun testPanelsDisabledConditionSuppressesPeek() {
         val types: Set<VisualInterruptionType> = panelsDisabledCondition!!.types
         assertThat(types).contains(VisualInterruptionType.PEEK)
@@ -234,16 +168,6 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(VisualInterruptionRefactor.FLAG_NAME)
-    fun testNoSuppressHeadsUp_FSI_nonOccludedKeyguard_refactorDisabled() {
-        whenever(keyguardStateController.isShowing()).thenReturn(true)
-        whenever(keyguardStateController.isOccluded()).thenReturn(false)
-        assertThat(interruptSuppressor!!.suppressAwakeHeadsUp(createFsiNotificationEntry()))
-            .isFalse()
-    }
-
-    @Test
-    @EnableFlags(VisualInterruptionRefactor.FLAG_NAME)
     fun testNoSuppressHeadsUp_FSI_nonOccludedKeyguard_refactorEnabled() {
         whenever(keyguardStateController.isShowing()).thenReturn(true)
         whenever(keyguardStateController.isOccluded()).thenReturn(false)
@@ -255,16 +179,6 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(VisualInterruptionRefactor.FLAG_NAME)
-    fun testSuppressInterruptions_vrMode_refactorDisabled() {
-        underTest.mVrMode = true
-        assertWithMessage("Vr mode should suppress interruptions")
-            .that(interruptSuppressor!!.suppressAwakeInterruptions(createNotificationEntry()))
-            .isTrue()
-    }
-
-    @Test
-    @EnableFlags(VisualInterruptionRefactor.FLAG_NAME)
     fun testSuppressInterruptions_vrMode_refactorEnabled() {
         underTest.mVrMode = true
         assertWithMessage("Vr mode should suppress interruptions")
@@ -277,16 +191,6 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(VisualInterruptionRefactor.FLAG_NAME)
-    fun testSuppressInterruptions_statusBarAlertsDisabled_refactorDisabled() {
-        whenever(notificationAlertsInteractor.areNotificationAlertsEnabled()).thenReturn(false)
-        assertWithMessage("When alerts aren't enabled, interruptions are suppressed")
-            .that(interruptSuppressor!!.suppressInterruptions(createNotificationEntry()))
-            .isTrue()
-    }
-
-    @Test
-    @EnableFlags(VisualInterruptionRefactor.FLAG_NAME)
     fun testSuppressInterruptions_statusBarAlertsDisabled_refactorEnabled() {
         whenever(notificationAlertsInteractor.areNotificationAlertsEnabled()).thenReturn(false)
         assertWithMessage("When alerts aren't enabled, interruptions are suppressed")
@@ -300,32 +204,6 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
 
     @Test
     @EnableSceneContainer
-    @DisableFlags(NotificationBundleUi.FLAG_NAME)
-    fun testExpandSensitiveNotification_onLockScreen_opensShade() =
-        kosmos.runTest {
-            // Given we are on the keyguard
-            kosmos.sysuiStatusBarStateController.state = StatusBarState.KEYGUARD
-            // And the device is locked
-            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
-                AuthenticationMethodModel.Pin
-            )
-
-            // When the user expands a sensitive Notification
-            val entry = createNotificationEntry()
-            val row = createRow(entry)
-            entry.apply { setSensitive(/* sensitive= */ true, /* deviceSensitive= */ true) }
-
-            underTest.onExpandClicked(entry, mock(), /* nowExpanded= */ true)
-
-            // Then we open the locked shade
-            verify(kosmos.lockscreenShadeTransitionController)
-                // Explicit parameters to avoid issues with Kotlin default arguments in Mockito
-                .goToLockedShade(row, true)
-        }
-
-    @Test
-    @EnableSceneContainer
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     fun testExpandSensitiveNotification_onLockScreen_opensShade_entryAdapter() =
         kosmos.runTest {
             // Given we are on the keyguard
@@ -350,37 +228,10 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
 
     @Test
     @EnableSceneContainer
-    @DisableFlags(NotificationBundleUi.FLAG_NAME)
-    fun testExpandSensitiveNotification_onLockedShade_showsBouncer() =
-        kosmos.runTest {
-            // Given we are on the locked shade
-            kosmos.sysuiStatusBarStateController.state = StatusBarState.SHADE_LOCKED
-            // And the device is locked
-            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
-                AuthenticationMethodModel.Pin
-            )
-
-            // When the user expands a sensitive Notification
-            val entry = createNotificationEntry()
-            val row = createRow(entry)
-            entry.apply { setSensitive(/* sensitive= */ true, /* deviceSensitive= */ true) }
-            underTest.onExpandClicked(entry, mock(), /* nowExpanded= */ true)
-
-            // Then we show the bouncer
-            verify(kosmos.activityStarter).dismissKeyguardThenExecute(any(), eq(null), eq(false))
-        }
-
-    @Test
-    @EnableSceneContainer
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     fun testExpandSensitiveNotification_onLockedShade_showsBouncer_entryAdapter() =
         kosmos.runTest {
             // Given we are on the locked shade
-            kosmos.sysuiStatusBarStateController.state = StatusBarState.SHADE_LOCKED
-            // And the device is locked
-            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
-                AuthenticationMethodModel.Pin
-            )
+            whenever(kosmos.lockscreenShadeTransitionController.isLockdownShade()).thenReturn(true)
 
             // When the user expands a sensitive Notification
             val entry = createNotificationEntry()
@@ -428,8 +279,6 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
     }
 
     private fun verifyAndCaptureSuppressors() {
-        interruptSuppressor = null
-
         val conditionCaptor = argumentCaptor<VisualInterruptionCondition>()
         verify(visualInterruptionDecisionProvider, times(3)).addCondition(conditionCaptor.capture())
 
@@ -443,24 +292,9 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
         needsRedactionFilter = needsRedactionFilterCaptor.lastValue
     }
 
-    private fun verifyAndCaptureLegacySuppressor() {
-        alertsDisabledCondition = null
-        vrModeCondition = null
-        needsRedactionFilter = null
-        panelsDisabledCondition = null
-
-        val suppressorCaptor = argumentCaptor<NotificationInterruptSuppressor>()
-        verify(visualInterruptionDecisionProvider).addLegacySuppressor(suppressorCaptor.capture())
-        interruptSuppressor = suppressorCaptor.lastValue
-    }
-
     private fun createRow(entry: NotificationEntry): ExpandableNotificationRow {
         val row: ExpandableNotificationRow = mock()
-        if (NotificationBundleUi.isEnabled) {
-            whenever(row.entryAdapter).thenReturn(factory.create(entry))
-        } else {
-            whenever(row.entryLegacy).thenReturn(entry)
-        }
+        whenever(row.entryAdapter).thenReturn(factory.create(entry))
         entry.row = row
         return row
     }

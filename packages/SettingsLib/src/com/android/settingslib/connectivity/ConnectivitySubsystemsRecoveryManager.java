@@ -282,10 +282,29 @@ public class ConnectivitySubsystemsRecoveryManager {
             }
 
             if (mTelephonyManager != null && !isApmEnabled()) {
-                if (mTelephonyManager.rebootRadio()) {
+                try {
+                    // Devices launching with the 2026 (CINNAMON_BUN) HAL and later, will reliably
+                    // declare FEATURE_TELEPHONY_RADIO_ACCESS; however, starting with CINNAMON_BUN
+                    // OS, even devices which do not support rebootModem(), will reliably throw
+                    // UnsupportedOperationException; threfore, ConnectivitySubsystemRecoveryManager
+                    // can opportunistically attempt to reboot the modem and simply accept that
+                    // sometimes the hardware will indicate its lack of support at runtime, rather
+                    // than at compile time.
+                    //
+                    // Due to broad (even if not guaranteed-universal) support of rebootModem() even
+                    // on legacy devices it is preferable to try and sometimes fail, rather than
+                    // wait for the ecosystem and the feature flags to catch up.
+                    mTelephonyManager.rebootModem();
+
                     mTelephonyRestartInProgress = true;
                     someSubsystemRestarted = true;
                     startTrackingTelephonyRestart();
+                } catch (UnsupportedOperationException ignored) {
+                    // This is OK because not all devices support rebootModem()
+                    Log.w(TAG, "Modem reboot failed: unsupported on this device.");
+                } catch (Exception e) {
+                    Log.e(TAG, "Something has gone terribly wrong, probably why we're trying"
+                            + " to rebootModem, FAILED: " + e);
                 }
             }
 

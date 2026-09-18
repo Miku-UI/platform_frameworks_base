@@ -102,13 +102,12 @@ class MutableSelectionState {
             placementEnabled && selection == tileSpec -> TileState.Placeable
             placementEnabled -> TileState.GreyedOut
             selection == tileSpec -> {
-                if (previousState == TileState.None && canShowRemovalBadge) {
-                    // The tile decoration is None if a tile is newly composed OR the removal
-                    // badge can't be shown.
-                    // For newly composed and selected tiles, such as dragged tiles or moved
-                    // tiles from resizing, introduce a short delay. This avoids clipping issues
-                    // on the border and resizing handle, as well as letting the selection
-                    // animation play correctly.
+                if (previousState == TileState.New) {
+                    // The tile decoration is New if a tile is newly composed.
+                    // For newly composed tiles, such as dragged tiles or moved tiles from resizing,
+                    // introduce a short delay.
+                    // This avoids clipping issues on the border and resizing handle, as well as
+                    // letting the selection animation play correctly.
                     delay(250)
                 }
                 TileState.Selected
@@ -132,7 +131,7 @@ class MutableSelectionState {
                 placeTileAt(tileSpec)
             }
             else -> {
-                toggleSelection(tileSpec)
+                select(tileSpec)
             }
         }
     }
@@ -144,14 +143,9 @@ class MutableSelectionState {
      * selected, but selections can be moved to their position.
      */
     fun onTap(index: Int) {
-        when {
-            placementEnabled -> {
-                selection?.let { placementEvent = PlacementEvent.PlaceToIndex(it, index) }
-                exitPlacementMode()
-            }
-            selected -> {
-                unSelect()
-            }
+        if (placementEnabled) {
+            selection?.let { placementEvent = PlacementEvent.PlaceToIndex(it, index) }
+            exitPlacementMode()
         }
     }
 }

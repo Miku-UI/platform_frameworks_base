@@ -19,7 +19,6 @@ package com.android.server.appop;
 import static android.app.AppOpsManager.UID_STATE_CACHED;
 import static android.app.AppOpsManager.UID_STATE_MAX_LAST_NON_RESTRICTED;
 import static android.app.AppOpsManager.UID_STATE_NONEXISTENT;
-import static android.permission.flags.Flags.finishRunningOpsForKilledPackages;
 
 import static com.android.server.appop.AppOpsUidStateTracker.processStateToUidState;
 
@@ -120,8 +119,7 @@ public class AppOpsUidStateTrackerTransitionCallbackTest {
         mConstants.TOP_STATE_SETTLE_TIME = 10 * 1000L;
         mConstants.FG_SERVICE_STATE_SETTLE_TIME = 5 * 1000L;
         mConstants.BG_STATE_SETTLE_TIME = 1 * 1000L;
-        mIntf = new AppOpsUidStateTrackerImpl(mAmi, mExecutor, mClock, mConstants,
-                Thread.currentThread());
+        mIntf = new AppOpsUidStateTrackerImpl(mAmi, mExecutor, mClock, mConstants);
     }
 
     @After
@@ -142,8 +140,7 @@ public class AppOpsUidStateTrackerTransitionCallbackTest {
 
         boolean expectUidProcessDeath =
                 finalUidState == UID_STATE_NONEXISTENT
-                        && initialUidState != UID_STATE_NONEXISTENT
-                        && finishRunningOpsForKilledPackages();
+                        && initialUidState != UID_STATE_NONEXISTENT;
 
         boolean foregroundChange = initialUidState <= UID_STATE_MAX_LAST_NON_RESTRICTED
                 != finalUidState <= UID_STATE_MAX_LAST_NON_RESTRICTED;

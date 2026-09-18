@@ -21,6 +21,7 @@ import android.annotation.NonNull;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.graphics.ImageFormat;
+import android.hardware.camera2.impl.CameraExtensionUtils;
 import android.hardware.camera2.params.ColorSpaceProfiles;
 import android.hardware.camera2.params.DynamicRangeProfiles;
 import android.hardware.camera2.utils.SurfaceUtils;
@@ -46,7 +47,13 @@ public final class CameraOutputSurface {
     private final OutputSurface mOutputSurface;
 
     CameraOutputSurface(@NonNull OutputSurface surface) {
-       mOutputSurface = surface;
+        mOutputSurface = surface;
+        if (surface.surface != null) {
+            CameraExtensionUtils.SurfaceInfo surfaceInfo = CameraExtensionUtils.querySurface(
+                    surface.surface);
+            mOutputSurface.imageFormat = SurfaceUtils.getOverrideFormat(surfaceInfo.mFormat,
+                    surfaceInfo.mUsage);
+        }
     }
 
     /**
@@ -98,7 +105,7 @@ public final class CameraOutputSurface {
     /**
      * Return the dynamic range profile. The default
      * dynamicRangeProfile is
-     * {@link android.hardware.camera2.params.DynamicRangeProfiles.STANDARD}
+     * {@link android.hardware.camera2.params.DynamicRangeProfiles#STANDARD}
      * unless specified by CameraOutputSurface.setDynamicRangeProfile.
      */
     public @DynamicRangeProfiles.Profile long getDynamicRangeProfile() {
@@ -107,7 +114,7 @@ public final class CameraOutputSurface {
 
     /**
      * Return the color space. The default colorSpace is
-     * {@link android.hardware.camera2.params.ColorSpaceProfiles.UNSPECIFIED}
+     * {@link android.hardware.camera2.params.ColorSpaceProfiles#UNSPECIFIED}
      * unless specified by CameraOutputSurface.setColorSpace.
      */
     @SuppressLint("MethodNameUnits")
@@ -117,7 +124,7 @@ public final class CameraOutputSurface {
 
     /**
      * Set the dynamic range profile. The default dynamicRangeProfile
-     * will be {@link android.hardware.camera2.params.DynamicRangeProfiles.STANDARD}
+     * will be {@link android.hardware.camera2.params.DynamicRangeProfiles#STANDARD}
      * unless explicitly set using this method.
      */
     public void setDynamicRangeProfile(

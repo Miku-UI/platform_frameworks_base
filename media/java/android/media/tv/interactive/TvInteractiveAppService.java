@@ -514,6 +514,15 @@ public abstract class TvInteractiveAppService extends Service {
         }
 
         /**
+         * Callback when starts an interactive app using its handle id.
+         * @param handle the handle id of the interactive app.
+         *
+         * @hide
+         */
+        public void onStartInteractiveApp(int handle) {
+        }
+
+        /**
          * Creates broadcast-independent(BI) interactive application.
          *
          * <p>The implementation should call {@link #notifyBiInteractiveAppCreated(Uri, String)},
@@ -1030,6 +1039,33 @@ public abstract class TvInteractiveAppService extends Service {
          */
         public boolean onGenericMotionEvent(@NonNull MotionEvent event) {
             return false;
+        }
+
+        /**
+         * Callback for updating a Web Service client state using its handle id.
+         * @param handle the handle id of the Web Service client.
+         * @param state the new state of the Web Service client.
+         * @hide
+         */
+        public void onUpdateWebServiceClientState(int handle,
+                @WebServiceClientInfo.WebServiceClientState int state) {
+        }
+
+        /**
+         * Callback for removing a Web Service client.
+         *
+         * @param handle the handle id of the Web Service client to be removed.
+         * @hide
+         */
+        public void onRemoveWebServiceClient(int handle) {
+        }
+
+        /**
+         * Callback for requesting a list of Web Service clients.
+         * This API should call sendWebServiceClientList after obtaining the list.
+         * @hide
+         */
+        public void onRequestWebServiceClients() {
         }
 
         /**
@@ -1763,6 +1799,10 @@ public abstract class TvInteractiveAppService extends Service {
             onResetInteractiveApp();
         }
 
+        void startInteractiveApp(int handle) {
+            onStartInteractiveApp(handle);
+        }
+
         void createBiInteractiveApp(@NonNull Uri biIAppUri, @Nullable Bundle params) {
             onCreateBiInteractiveAppRequest(biIAppUri, params);
         }
@@ -1817,6 +1857,49 @@ public abstract class TvInteractiveAppService extends Service {
 
         void sendSigningResult(String signingId, byte[] result) {
             onSigningResult(signingId, result);
+        }
+
+        /**
+         * Update a Web Service client state using its handle id.
+         * @param handle the handle id of the Web Service client.
+         * @param state the new state of the Web Service client.
+         * @hide
+         */
+        public void updateWebServiceClientState(int handle,
+                @WebServiceClientInfo.WebServiceClientState int state) {
+            onUpdateWebServiceClientState(handle, state);
+        }
+
+        /**
+         * Removes a Web Service Client.
+         * @param handle the handle id of the Web Service client to be removed.
+         * @hide
+         */
+        public void removeWebServiceClient(int handle) {
+            onRemoveWebServiceClient(handle);
+        }
+
+        /**
+         * Requests the list of Web Service Clients.
+         * @hide
+         */
+        public void requestWebServiceClients() {
+            onRequestWebServiceClients();
+        }
+
+        /**
+         * Sends the list of Web Service Clients to the application.
+         * @param clients the list of Web Service Clients.
+         * @hide
+         */
+        public final void sendWebServiceClientList(@NonNull List<WebServiceClientInfo> clients) {
+            if (mSessionCallback != null) {
+                try {
+                    mSessionCallback.onSendWebServiceClientList(clients);
+                } catch (RemoteException e) {
+                    Log.e(TAG, "error in sendWebServiceClientList", e);
+                }
+            }
         }
 
         void sendCertificate(String host, int port, Bundle certBundle) {
@@ -2059,6 +2142,38 @@ public abstract class TvInteractiveAppService extends Service {
                         }
                     } catch (RemoteException e) {
                         Log.w(TAG, "error in notifySessionStateChanged", e);
+                    }
+                }
+            });
+        }
+
+        /**
+         * Notify when there is a change with app metadata of an interactive app.
+         *
+         * <p> This is used for AppCatUI feature defined in ABNT NBR 15606-2:2023 Section 9.3.2.
+         * For example, in the context of the Ginga-NCL, this is to list the applications in the
+         * structure that can be launched by the user, as well as allow them to add and remove the
+         * apps.
+         * </p>
+         *
+         * @param appInfo The interactive application info.
+         *
+         * @hide
+         */
+        public void notifyInteractiveAppInfoChanged(TvInteractiveAppInfo appInfo) {
+            executeOrPostRunnableOnMainThread(new Runnable() {
+                @MainThread
+                @Override
+                public void run() {
+                    try {
+                        if (DEBUG) {
+                            Log.d(TAG, "notifyInteractiveAppInfo changed");
+                        }
+                        if (mSessionCallback != null) {
+                            mSessionCallback.onInteractiveAppInfoChanged(appInfo);
+                        }
+                    } catch (RemoteException e) {
+                        Log.w(TAG, "error in notifyBroadcastInteractiveAppState", e);
                     }
                 }
             });

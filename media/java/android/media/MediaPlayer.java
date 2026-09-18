@@ -1107,10 +1107,15 @@ public class MediaPlayer extends PlayerBase
                 && Settings.AUTHORITY.equals(authority)) {
             // Try cached ringtone first since the actual provider may not be
             // encryption aware, or it may be stored on CE media storage
-            final int type = RingtoneManager.getDefaultType(uri);
-            final Uri cacheUri = RingtoneManager.getCacheForType(type, context.getUserId());
-            final Uri actualUri = RingtoneManager.getActualDefaultRingtoneUri(context, type);
+            final Uri cacheUri = RingtoneManager.getCacheUriFromSettingsUri(context, uri);
+            final Uri actualUri = RingtoneManager.getActualUriFromSettingsUri(context, uri);
             if (attemptDataSource(resolver, cacheUri)) {
+                return;
+            } else if (RingtoneManager.getDefaultType(uri) == RingtoneManager.TYPE_RINGTONE
+                    && attemptDataSource(resolver, RingtoneManager.getCacheForType(
+                            RingtoneManager.TYPE_RINGTONE, context.getUserId()))) {
+                // For TYPE_RINGTONE, if the cache for targeted Settings Uri
+                // is not available, try to use the default ringtone cache.
                 return;
             } else if (attemptDataSource(resolver, actualUri)) {
                 return;
@@ -2134,11 +2139,11 @@ public class MediaPlayer extends PlayerBase
      *
      * @param update_only controls whether the full set of available
      * metadata is returned or just the set that changed since the
-     * last call. See {@see #METADATA_UPDATE_ONLY} and {@see
+     * last call. See {@link #METADATA_UPDATE_ONLY} and {@link
      * #METADATA_ALL}.
      *
      * @param apply_filter if true only metadata that matches the
-     * filter is returned. See {@see #APPLY_METADATA_FILTER} and {@see
+     * filter is returned. See {@link #APPLY_METADATA_FILTER} and {@link
      * #BYPASS_METADATA_FILTER}.
      *
      * @return The metadata, possibly empty. null if an error occured.
@@ -2465,8 +2470,9 @@ public class MediaPlayer extends PlayerBase
     /**
      * Returns the audio session ID.
      *
-     * @return the audio session ID. {@see #setAudioSessionId(int)}
+     * @return the audio session ID.
      * Note that the audio session ID is 0 only if a problem occured when the MediaPlayer was contructed.
+     * @see #setAudioSessionId(int)
      */
     public native int getAudioSessionId();
 
@@ -5244,12 +5250,12 @@ public class MediaPlayer extends PlayerBase
      * provided to the DRM engine plugin using provideKeyResponse. When the
      * response is for an offline key request, a key-set identifier is returned that
      * can be used to later restore the keys to a new session with the method
-     * {@ link # restoreKeys}.
+     * {@link #restoreKeys}.
      * When the response is for a streaming or release request, null is returned.
      *
      * @param keySetId When the response is for a release request, keySetId identifies
      * the saved key associated with the release request (i.e., the same keySetId
-     * passed to the earlier {@ link # getKeyRequest} call. It MUST be null when the
+     * passed to the earlier {@link #getKeyRequest} call. It MUST be null when the
      * response is for either streaming or offline key requests.
      *
      * @param response the byte array response from the server

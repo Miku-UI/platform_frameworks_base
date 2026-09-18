@@ -1286,6 +1286,17 @@ public class PhoneNumberUtils {
 
     private static final String SINGAPORE_ISO_COUNTRY_CODE = "SG";
 
+    /*
+     * Need to reformat any local Korean phone numbers (when the user is in
+     * Korea) with country code to corresponding national format which would
+     * replace the leading +82 with 0.
+     *
+     * Need to reformat Japanese phone numbers (when user is in Japan) with the
+     * national dialing format.
+     *
+     * Need to reformat Singaporean phone numbers (when the user is in Singapore)
+     * with the country code (+65) removed to comply with Singaporean regulations.
+     */
     private static final String[] COUNTRY_CODES_TO_FORMAT_NATIONALLY = new String[] {
             "KR", // Korea
             "JP", // Japan
@@ -1600,8 +1611,8 @@ public class PhoneNumberUtils {
     }
 
     /**
-     * Determines if a {@param phoneNumber} is international if dialed from
-     * {@param defaultCountryIso}.
+     * Determines if a {@code phoneNumber} is international if dialed from
+     * {@code defaultCountryIso}.
      *
      * @param phoneNumber The phone number.
      * @param defaultCountryIso The current country ISO.
@@ -1661,52 +1672,18 @@ public class PhoneNumberUtils {
         String result = null;
         try {
             PhoneNumber pn = util.parseAndKeepRawInput(phoneNumber, defaultCountryIso);
-
-            if (Flags.nationalCountryCodeFormattingForLocalCalls()) {
-                if (Arrays.asList(COUNTRY_CODES_TO_FORMAT_NATIONALLY).contains(defaultCountryIso)
-                        && pn.getCountryCode() == util.getCountryCodeForRegion(defaultCountryIso)
-                        && pn.getCountryCodeSource()
-                        == PhoneNumber.CountryCodeSource.FROM_NUMBER_WITH_PLUS_SIGN) {
-                    return util.format(pn, PhoneNumberUtil.PhoneNumberFormat.NATIONAL);
-                } else {
-                    return util.formatInOriginalFormat(pn, defaultCountryIso);
-                }
+            if (Arrays.asList(COUNTRY_CODES_TO_FORMAT_NATIONALLY).contains(defaultCountryIso)
+                && pn.getCountryCode() == util.getCountryCodeForRegion(defaultCountryIso)
+                && pn.getCountryCodeSource()
+                == PhoneNumber.CountryCodeSource.FROM_NUMBER_WITH_PLUS_SIGN) {
+                return util.format(pn, PhoneNumberUtil.PhoneNumberFormat.NATIONAL);
             } else {
-                if (KOREA_ISO_COUNTRY_CODE.equalsIgnoreCase(defaultCountryIso) && (
-                        pn.getCountryCode() == util.getCountryCodeForRegion(KOREA_ISO_COUNTRY_CODE))
-                        && (pn.getCountryCodeSource()
-                        == PhoneNumber.CountryCodeSource.FROM_NUMBER_WITH_PLUS_SIGN)) {
-                    /**
-                     * Need to reformat any local Korean phone numbers (when the user is in
-                     * Korea) with country code to corresponding national format which would
-                     * replace the leading +82 with 0.
-                     */
-                    result = util.format(pn, PhoneNumberUtil.PhoneNumberFormat.NATIONAL);
-                } else if (JAPAN_ISO_COUNTRY_CODE.equalsIgnoreCase(defaultCountryIso)
-                        && pn.getCountryCode() == util.getCountryCodeForRegion(
-                        JAPAN_ISO_COUNTRY_CODE) && (pn.getCountryCodeSource()
-                        == PhoneNumber.CountryCodeSource.FROM_NUMBER_WITH_PLUS_SIGN)) {
-                    /**
-                     * Need to reformat Japanese phone numbers (when user is in Japan) with the
-                     * national dialing format.
-                     */
-                    result = util.format(pn, PhoneNumberUtil.PhoneNumberFormat.NATIONAL);
-                } else if (Flags.removeCountryCodeFromLocalSingaporeCalls() && (
-                        SINGAPORE_ISO_COUNTRY_CODE.equalsIgnoreCase(defaultCountryIso)
-                                && pn.getCountryCode() == util.getCountryCodeForRegion(
-                                SINGAPORE_ISO_COUNTRY_CODE) && (pn.getCountryCodeSource()
-                                == PhoneNumber.CountryCodeSource.FROM_NUMBER_WITH_PLUS_SIGN))) {
-                    /*
-                     * Need to reformat Singaporean phone numbers (when the user is in Singapore)
-                     * with the country code (+65) removed to comply with Singaporean regulations.
-                     */
-                    result = util.format(pn, PhoneNumberUtil.PhoneNumberFormat.NATIONAL);
-                } else {
-                    result = util.formatInOriginalFormat(pn, defaultCountryIso);
-                }
+                return util.formatInOriginalFormat(pn, defaultCountryIso);
             }
         } catch (NumberParseException e) {
-            if (DBG) log("formatNumber: NumberParseException caught " + e);
+            if (DBG) {
+                log("formatNumber: NumberParseException caught " + e);
+            }
         }
         return result;
     }
@@ -2279,7 +2256,7 @@ public class PhoneNumberUtils {
      * Create a {@code TtsSpan} for the supplied {@code String}.
      *
      * @param phoneNumberString A {@code String} the entirety of which represents a phone number.
-     * @return A {@code TtsSpan} for {@param phoneNumberString}.
+     * @return A {@code TtsSpan} for {@code phoneNumberString}.
      */
     public static TtsSpan createTtsSpan(String phoneNumberString) {
         if (phoneNumberString == null) {

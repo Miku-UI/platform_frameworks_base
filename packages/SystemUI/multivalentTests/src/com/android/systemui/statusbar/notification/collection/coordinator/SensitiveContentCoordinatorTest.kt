@@ -33,13 +33,14 @@ import com.android.server.notification.Flags.FLAG_SCREENSHARE_NOTIFICATION_HIDIN
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
-import com.android.systemui.deviceentry.data.repository.fakeDeviceEntryRepository
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.flags.andSceneContainer
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFaceAuthRepository
+import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
+import com.android.systemui.keyguard.domain.interactor.biometricUnlockInteractor
+import com.android.systemui.keyguard.shared.model.BiometricUnlockSource
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.plugins.statusbar.fakeStatusBarStateController
 import com.android.systemui.plugins.statusbar.statusBarStateController
@@ -67,6 +68,7 @@ import com.android.systemui.statusbar.notification.dynamicPrivacyController
 import com.android.systemui.statusbar.notification.mockDynamicPrivacyController
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notificationLockscreenUserManager
+import com.android.systemui.statusbar.phone.BiometricUnlockController
 import com.android.systemui.statusbar.policy.SensitiveNotificationProtectionController
 import com.android.systemui.statusbar.policy.mockSensitiveNotificationProtectionController
 import com.android.systemui.statusbar.policy.sensitiveNotificationProtectionController
@@ -117,7 +119,6 @@ class SensitiveContentCoordinatorTest(flags: FlagsParameterization) : SysuiTestC
     val deviceEntryInteractor: DeviceEntryInteractor
         get() = kosmos.deviceEntryInteractor
 
-    val faceAuthRepository = kosmos.fakeDeviceEntryFaceAuthRepository
     val sceneInteractor: SceneInteractor
         get() = kosmos.sceneInteractor
 
@@ -151,7 +152,10 @@ class SensitiveContentCoordinatorTest(flags: FlagsParameterization) : SysuiTestC
             clearInvocations(invalidationListener)
 
             // When the device gets unlocked
-            faceAuthRepository.isAuthenticated.value = true
+            kosmos.biometricUnlockInteractor.setBiometricUnlockState(
+                unlockStateInt = BiometricUnlockController.MODE_NONE_UNLOCKED,
+                biometricUnlockSource = BiometricUnlockSource.FACE_SENSOR,
+            )
             runCurrent()
 
             // Then the invalidationListener is called
@@ -815,7 +819,7 @@ class SensitiveContentCoordinatorTest(flags: FlagsParameterization) : SysuiTestC
                 if (canSwipeUp) AuthenticationMethodModel.None
                 else AuthenticationMethodModel.Password
             kosmos.fakeAuthenticationRepository.setAuthenticationMethod(authMethod)
-            kosmos.fakeDeviceEntryRepository.setLockscreenEnabled(true)
+            kosmos.fakeKeyguardRepository.setKeyguardEnabled(true)
             switchToScene(Scenes.Lockscreen)
         } else {
             whenever(dynamicPrivacyController.isDynamicallyUnlocked).thenReturn(canSwipeUp)

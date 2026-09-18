@@ -200,8 +200,6 @@
         <attr name="borderColor" format="color" />
     </declare-styleable>
 
-    <attr name="overlayButtonTextColor" format="color" />
-
     <declare-styleable name="DreamOverlayDotImageView">
         <attr name="dotColor" format="color" />
     </declare-styleable>

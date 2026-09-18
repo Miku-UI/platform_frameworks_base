@@ -370,7 +370,7 @@ public class AccessibilityServiceInfo implements Parcelable {
     public static final int FLAG_SERVICE_HANDLES_DOUBLE_TAP = 1 << 11;
 
     /**
-     * This flag requests that when when {@link #FLAG_REQUEST_TOUCH_EXPLORATION_MODE} is enabled,
+     * This flag requests that when {@link #FLAG_REQUEST_TOUCH_EXPLORATION_MODE} is enabled,
      * multi-finger gestures are also enabled. As a consequence, two-finger bypass gestures will be
      * disabled. If {@link #FLAG_REQUEST_TOUCH_EXPLORATION_MODE} is disabled this flag has no
      * effect.
@@ -380,7 +380,7 @@ public class AccessibilityServiceInfo implements Parcelable {
     public static final int FLAG_REQUEST_MULTI_FINGER_GESTURES = 1 << 12;
 
     /**
-     * This flag requests that when when {@link #FLAG_REQUEST_MULTI_FINGER_GESTURES} is enabled,
+     * This flag requests that when {@link #FLAG_REQUEST_MULTI_FINGER_GESTURES} is enabled,
      * two-finger passthrough gestures are re-enabled. Two-finger swipe gestures are not detected,
      * but instead passed through as one-finger gestures. In addition, three-finger swipes from the
      * bottom of the screen are not detected, and instead are passed through unchanged. If {@link
@@ -391,7 +391,7 @@ public class AccessibilityServiceInfo implements Parcelable {
     public static final int FLAG_REQUEST_2_FINGER_PASSTHROUGH = 1 << 13;
 
     /**
-     * This flag requests that when when {@link #FLAG_REQUEST_TOUCH_EXPLORATION_MODE} is enabled, a
+     * This flag requests that when {@link #FLAG_REQUEST_TOUCH_EXPLORATION_MODE} is enabled, a
      * service will receive the motion events for each successfully-detected gesture. The service
      * will also receive an AccessibilityGestureEvent of type GESTURE_INVALID for each cancelled
      * gesture along with its motion events. A service will receive a gesture of type

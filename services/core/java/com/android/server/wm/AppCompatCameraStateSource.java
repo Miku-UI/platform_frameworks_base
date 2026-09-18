@@ -38,9 +38,11 @@ class AppCompatCameraStateSource implements AppCompatCameraStatePolicy {
     }
 
     @Override
-    public void onCameraOpened(@NonNull WindowProcessController appProcess, @NonNull Task task) {
+    public void onCameraOpened(@NonNull CameraAppInfo cameraAppInfo,
+            @NonNull WindowProcessController appProcess,
+            @NonNull Task cameraTask) {
         for (int i = 0; i < mCameraStatePolicies.size(); i++) {
-            mCameraStatePolicies.get(i).onCameraOpened(appProcess, task);
+            mCameraStatePolicies.get(i).onCameraOpened(cameraAppInfo, appProcess, cameraTask);
         }
     }
 
@@ -48,9 +50,9 @@ class AppCompatCameraStateSource implements AppCompatCameraStatePolicy {
      * @return {@code false} if any listener has reported that they cannot process camera close now.
      */
     @Override
-    public boolean canCameraBeClosed(@NonNull String cameraId, @NonNull Task task) {
+    public boolean canCameraBeClosed(@NonNull CameraAppInfo cameraAppInfo, @NonNull Task task) {
         for (int i = 0; i < mCameraStatePolicies.size(); i++) {
-            if (!mCameraStatePolicies.get(i).canCameraBeClosed(cameraId, task)) {
+            if (!mCameraStatePolicies.get(i).canCameraBeClosed(cameraAppInfo, task)) {
                 return false;
             }
         }
@@ -58,9 +60,10 @@ class AppCompatCameraStateSource implements AppCompatCameraStatePolicy {
     }
 
     @Override
-    public void onCameraClosed(@Nullable WindowProcessController appProcess, @Nullable Task task) {
+    public void onCameraClosed(@NonNull CameraAppInfo cameraAppInfo,
+            @Nullable WindowProcessController appProcess, @Nullable Task task) {
         for (int i = 0; i < mCameraStatePolicies.size(); i++) {
-            mCameraStatePolicies.get(i).onCameraClosed(appProcess, task);
+            mCameraStatePolicies.get(i).onCameraClosed(cameraAppInfo, appProcess, task);
         }
     }
 }

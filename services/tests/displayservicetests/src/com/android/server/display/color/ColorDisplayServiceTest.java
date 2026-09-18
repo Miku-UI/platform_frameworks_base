@@ -36,12 +36,15 @@ import android.app.AlarmManager;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.res.Resources;
+import android.database.ContentObserver;
 import android.hardware.display.ColorDisplayManager;
 import android.hardware.display.DisplayManagerInternal;
 import android.hardware.display.Time;
 import android.os.Handler;
 import android.os.UserHandle;
-import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.provider.Settings;
@@ -49,7 +52,8 @@ import android.provider.Settings.Secure;
 import android.provider.Settings.System;
 import android.test.mock.MockContentResolver;
 import android.view.Display;
-
+import android.view.accessibility.AccessibilityManager;
+import android.view.accessibility.AccessibilityManager;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.runner.AndroidJUnit4;
 
@@ -57,10 +61,11 @@ import com.android.internal.R;
 import com.android.internal.util.test.FakeSettingsProvider;
 import com.android.internal.util.test.LocalServiceKeeperRule;
 import com.android.server.SystemService;
-import com.android.server.display.feature.flags.Flags;
+import com.android.server.accessibility.Flags;
 import com.android.server.twilight.TwilightListener;
 import com.android.server.twilight.TwilightManager;
 import com.android.server.twilight.TwilightState;
+import org.mockito.MockedStatic;
 
 import org.junit.After;
 import org.junit.Before;
@@ -104,6 +109,8 @@ public class ColorDisplayServiceTest {
 
     @Rule
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Before
     public void setUp() {
@@ -122,7 +129,7 @@ public class ColorDisplayServiceTest {
 
         final MockContentResolver cr = new MockContentResolver(mContext);
         cr.addProvider(Settings.AUTHORITY, new FakeSettingsProvider());
-        doReturn(cr).when(mContext).getContentResolver();
+        doReturn(Mockito.spy(cr)).when(mContext).getContentResolver();
 
         final AlarmManager am = Mockito.mock(AlarmManager.class);
         doReturn(am).when(mContext).getSystemService(Context.ALARM_SERVICE);
@@ -1015,7 +1022,6 @@ public class ColorDisplayServiceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_EVEN_DIMMER)
     public void ensureRbcDisabledWhenEvenDimmerEnabled() {
         // If rbc & even dimmer are enabled
         doReturn(true).when(mResourcesSpy).getBoolean(
@@ -1252,6 +1258,131 @@ public class ColorDisplayServiceTest {
         assertEquals(/* default = */ 44, mRbcSpy.getStrength());
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_COLOR_INVERSION_IN_SUW)
+    public void onUserChanged_whenUserNotSetupAndInversionEnabledInSuw_registersObserver() {
+        Secure.putIntForUser(mContext.getContentResolver(), Secure.USER_SETUP_COMPLETE, 0,
+                mUserId);
+        doReturn(true).when(mResourcesSpy).getBoolean(
+                R.bool.config_enableColorInversionInSetupWizard);
+
+        mCds.mHandler.runWithScissors(() -> mCds.onUserChanged(mUserId), 1000);
+
+        assertAccessibilityObserverRegistered(
+                mUserId, Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_COLOR_INVERSION_IN_SUW)
+    public void
+        onUserChanged_whenUserNotSetupAndInversionDisabledInSuwByConfig_doesNotRegisterObserver() {
+        Secure.putIntForUser(mContext.getContentResolver(), Secure.USER_SETUP_COMPLETE, 0,
+                mUserId);
+        doReturn(false).when(mResourcesSpy).getBoolean(
+                R.bool.config_enableColorInversionInSetupWizard);
+
+        mCds.mHandler.runWithScissors(() -> mCds.onUserChanged(mUserId), 1000);
+
+        assertAccessibilityObserverNotRegistered(
+                mUserId, Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED);
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ENABLE_COLOR_INVERSION_IN_SUW)
+    public void
+        onUserChanged_whenUserNotSetupAndInversionDisabledInSuwByFlag_doesNotRegisterObserver() {
+        Secure.putIntForUser(mContext.getContentResolver(), Secure.USER_SETUP_COMPLETE, 0,
+                mUserId);
+        doReturn(true).when(mResourcesSpy).getBoolean(
+                R.bool.config_enableColorInversionInSetupWizard);
+
+        mCds.mHandler.runWithScissors(() -> mCds.onUserChanged(mUserId), 1000);
+
+        assertAccessibilityObserverNotRegistered(
+                mUserId, Secure.ACCESSIBILITY_DISPLAY_INVERSION_ENABLED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_COLOR_DALTONIZER_IN_SUW)
+    public void onUserChanged_userNotSetupAndDaltonizerEnabledInSuw_registersObserver() {
+        Secure.putIntForUser(mContext.getContentResolver(), Secure.USER_SETUP_COMPLETE, 0, mUserId);
+        doReturn(true)
+                .when(mResourcesSpy)
+                .getBoolean(R.bool.config_enableColorDaltonizerInSetupWizard);
+
+        mCds.mHandler.runWithScissors(() -> mCds.onUserChanged(mUserId), 1000);
+
+        assertAccessibilityObserverRegistered(
+                mUserId, Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_COLOR_DALTONIZER_IN_SUW)
+    public void
+            onUserChanged_userNotSetupAndDaltonizerDisabledInSuwByConfig_doesNotRegisterObserver() {
+        Secure.putIntForUser(mContext.getContentResolver(), Secure.USER_SETUP_COMPLETE, 0, mUserId);
+        doReturn(false)
+                .when(mResourcesSpy)
+                .getBoolean(R.bool.config_enableColorDaltonizerInSetupWizard);
+
+        mCds.mHandler.runWithScissors(() -> mCds.onUserChanged(mUserId), 1000);
+
+        assertAccessibilityObserverNotRegistered(
+                mUserId, Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED);
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ENABLE_COLOR_DALTONIZER_IN_SUW)
+    public void
+            onUserChanged_userNotSetupAndDaltonizerDisabledInSuwByFlag_doesNotRegisterObserver() {
+        Secure.putIntForUser(mContext.getContentResolver(), Secure.USER_SETUP_COMPLETE, 0, mUserId);
+        doReturn(true)
+                .when(mResourcesSpy)
+                .getBoolean(R.bool.config_enableColorDaltonizerInSetupWizard);
+
+        mCds.mHandler.runWithScissors(() -> mCds.onUserChanged(mUserId), 1000);
+
+        assertAccessibilityObserverNotRegistered(
+                mUserId, Secure.ACCESSIBILITY_DISPLAY_DALTONIZER_ENABLED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_COLOR_DALTONIZER_IN_SUW)
+    public void
+            restoreDaltonizerSettings_userNotSetupAndDaltonizerSuwEnabled_doesNotApplyDaltonizer() {
+        if (!mContext.getResources().getConfiguration().isScreenWideColorGamut()) {
+            return;
+        }
+        Secure.putIntForUser(mContext.getContentResolver(), Secure.USER_SETUP_COMPLETE, 0, mUserId);
+        doReturn(true)
+                .when(mResourcesSpy)
+                .getBoolean(R.bool.config_enableColorDaltonizerInSetupWizard);
+        setAccessibilityColorCorrection(true);
+
+        mCds.mHandler.runWithScissors(() -> mCds.onUserChanged(mUserId), 1000);
+
+        assertActiveColorMode(ColorDisplayManager.COLOR_MODE_NATURAL);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_COLOR_DALTONIZER_IN_SUW)
+    public void
+            restoreDaltonizerSettings_userSetupCompleteAndDaltonizerSuwEnabled_appliesDaltonizer() {
+        if (!mContext.getResources().getConfiguration().isScreenWideColorGamut()) {
+            return;
+        }
+        doReturn(true)
+                .when(mResourcesSpy)
+                .getBoolean(R.bool.config_enableColorDaltonizerInSetupWizard);
+        setAccessibilityColorCorrection(true);
+        setColorMode(ColorDisplayManager.COLOR_MODE_NATURAL);
+
+        startService();
+
+        assertActiveColorMode(
+                mContext.getResources().getInteger(R.integer.config_accessibilityColorMode));
+    }
+
     /**
      * Configures Night display to use a custom schedule.
      *
@@ -1402,6 +1533,36 @@ public class ColorDisplayServiceTest {
         assertWithMessage("Incorrect Display White Balance state")
                 .that(mCds.mDisplayWhiteBalanceTintController.isActivated())
                 .isEqualTo(enabled);
+    }
+
+    /**
+     * Convenience method for asserting that the content observer for an accessibility setting is
+     * registered for a specific user.
+     *
+     * @param userId The user ID.
+     * @param accessibilitySetting accessibility setting.
+     */
+    private void assertAccessibilityObserverRegistered(int userId, String accessibilitySetting) {
+        verify(mContext.getContentResolver()).registerContentObserver(
+                eq(Secure.getUriFor(accessibilitySetting)),
+                anyBoolean(),
+                any(ContentObserver.class),
+                eq(userId));
+    }
+
+    /**
+     * Convenience method for asserting that the content observer for display inversion an
+     * accessibility setting is NOT registered for a specific user.
+     *
+     * @param userId The user ID.
+     * @param accessibilitySetting the accessibility setting.
+     */
+    private void assertAccessibilityObserverNotRegistered(int userId, String accessibilitySetting) {
+        verify(mContext.getContentResolver(), never()).registerContentObserver(
+                eq(Secure.getUriFor(accessibilitySetting)),
+                anyBoolean(),
+                any(ContentObserver.class),
+                eq(userId));
     }
 
     /**

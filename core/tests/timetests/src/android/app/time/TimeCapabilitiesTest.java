@@ -16,7 +16,6 @@
 
 package android.app.time;
 
-
 import static android.app.time.Capabilities.CAPABILITY_NOT_ALLOWED;
 import static android.app.time.Capabilities.CAPABILITY_NOT_APPLICABLE;
 import static android.app.time.Capabilities.CAPABILITY_NOT_SUPPORTED;
@@ -49,12 +48,14 @@ public class TimeCapabilitiesTest {
 
     @Test
     public void testEquals() {
-        TimeCapabilities.Builder builder1 = new TimeCapabilities.Builder(TEST_USER_HANDLE)
-                .setConfigureAutoDetectionEnabledCapability(CAPABILITY_POSSESSED)
-                .setSetManualTimeCapability(CAPABILITY_POSSESSED);
-        TimeCapabilities.Builder builder2 = new TimeCapabilities.Builder(TEST_USER_HANDLE)
-                .setConfigureAutoDetectionEnabledCapability(CAPABILITY_POSSESSED)
-                .setSetManualTimeCapability(CAPABILITY_POSSESSED);
+        TimeCapabilities.Builder builder1 =
+                new TimeCapabilities.Builder(TEST_USER_HANDLE)
+                        .setConfigureAutoDetectionEnabledCapability(CAPABILITY_POSSESSED)
+                        .setSetManualTimeCapability(CAPABILITY_POSSESSED);
+        TimeCapabilities.Builder builder2 =
+                new TimeCapabilities.Builder(TEST_USER_HANDLE)
+                        .setConfigureAutoDetectionEnabledCapability(CAPABILITY_POSSESSED)
+                        .setSetManualTimeCapability(CAPABILITY_POSSESSED);
         {
             TimeCapabilities one = builder1.build();
             TimeCapabilities two = builder2.build();
@@ -92,34 +93,35 @@ public class TimeCapabilitiesTest {
 
     @Test
     public void userHandle_notIgnoredInEquals() {
-        TimeCapabilities firstUserCapabilities = new TimeCapabilities.Builder(UserHandle.of(1))
-                .setConfigureAutoDetectionEnabledCapability(CAPABILITY_POSSESSED)
-                .setSetManualTimeCapability(CAPABILITY_POSSESSED)
-                .build();
+        TimeCapabilities firstUserCapabilities =
+                new TimeCapabilities.Builder(UserHandle.of(1))
+                        .setConfigureAutoDetectionEnabledCapability(CAPABILITY_POSSESSED)
+                        .setSetManualTimeCapability(CAPABILITY_POSSESSED)
+                        .build();
 
-        TimeCapabilities secondUserCapabilities = new TimeCapabilities.Builder(UserHandle.of(2))
-                .setConfigureAutoDetectionEnabledCapability(CAPABILITY_POSSESSED)
-                .setSetManualTimeCapability(CAPABILITY_POSSESSED)
-                .build();
+        TimeCapabilities secondUserCapabilities =
+                new TimeCapabilities.Builder(UserHandle.of(2))
+                        .setConfigureAutoDetectionEnabledCapability(CAPABILITY_POSSESSED)
+                        .setSetManualTimeCapability(CAPABILITY_POSSESSED)
+                        .build();
 
         assertThat(firstUserCapabilities).isNotEqualTo(secondUserCapabilities);
     }
 
     @Test
     public void testBuilder() {
-        TimeCapabilities capabilities = new TimeCapabilities.Builder(TEST_USER_HANDLE)
-                .setConfigureAutoDetectionEnabledCapability(CAPABILITY_NOT_APPLICABLE)
-                .setSetManualTimeCapability(CAPABILITY_NOT_SUPPORTED)
-                .build();
+        TimeCapabilities capabilities =
+                new TimeCapabilities.Builder(TEST_USER_HANDLE)
+                        .setConfigureAutoDetectionEnabledCapability(CAPABILITY_NOT_APPLICABLE)
+                        .setSetManualTimeCapability(CAPABILITY_NOT_SUPPORTED)
+                        .build();
 
         assertThat(capabilities.getConfigureAutoDetectionEnabledCapability())
                 .isEqualTo(CAPABILITY_NOT_APPLICABLE);
-        assertThat(capabilities.getSetManualTimeCapability())
-                .isEqualTo(CAPABILITY_NOT_SUPPORTED);
+        assertThat(capabilities.getSetManualTimeCapability()).isEqualTo(CAPABILITY_NOT_SUPPORTED);
 
         try {
-            new TimeCapabilities.Builder(TEST_USER_HANDLE)
-                    .build();
+            new TimeCapabilities.Builder(TEST_USER_HANDLE).build();
             fail("Should throw IllegalStateException");
         } catch (IllegalStateException ignored) {
             // expected
@@ -146,9 +148,10 @@ public class TimeCapabilitiesTest {
 
     @Test
     public void testParcelable() {
-        TimeCapabilities.Builder builder = new TimeCapabilities.Builder(TEST_USER_HANDLE)
-                .setConfigureAutoDetectionEnabledCapability(CAPABILITY_NOT_SUPPORTED)
-                .setSetManualTimeCapability(CAPABILITY_NOT_SUPPORTED);
+        TimeCapabilities.Builder builder =
+                new TimeCapabilities.Builder(TEST_USER_HANDLE)
+                        .setConfigureAutoDetectionEnabledCapability(CAPABILITY_NOT_SUPPORTED)
+                        .setSetManualTimeCapability(CAPABILITY_NOT_SUPPORTED);
 
         assertRoundTripParcelable(builder.build());
 
@@ -162,48 +165,46 @@ public class TimeCapabilitiesTest {
     @Test
     public void testTryApplyConfigChanges_permitted() {
         TimeConfiguration oldConfiguration =
-                new TimeConfiguration.Builder()
-                        .setAutoDetectionEnabled(true)
+                new TimeConfiguration.Builder().setAutoDetectionEnabled(true).build();
+        TimeCapabilities capabilities =
+                new TimeCapabilities.Builder(TEST_USER_HANDLE)
+                        .setConfigureAutoDetectionEnabledCapability(CAPABILITY_POSSESSED)
+                        .setSetManualTimeCapability(CAPABILITY_POSSESSED)
                         .build();
-        TimeCapabilities capabilities = new TimeCapabilities.Builder(TEST_USER_HANDLE)
-                .setConfigureAutoDetectionEnabledCapability(CAPABILITY_POSSESSED)
-                .setSetManualTimeCapability(CAPABILITY_POSSESSED)
-                .build();
 
-        TimeConfiguration configChange = new TimeConfiguration.Builder()
-                .setAutoDetectionEnabled(false)
-                .build();
+        TimeConfiguration configChange =
+                new TimeConfiguration.Builder().setAutoDetectionEnabled(false).build();
 
-        TimeConfiguration expected = new TimeConfiguration.Builder(oldConfiguration)
-                .setAutoDetectionEnabled(false)
-                .build();
+        TimeConfiguration expected =
+                new TimeConfiguration.Builder(oldConfiguration)
+                        .setAutoDetectionEnabled(false)
+                        .build();
         assertEquals(expected, capabilities.tryApplyConfigChanges(oldConfiguration, configChange));
     }
 
     @Test
     public void testTryApplyConfigChanges_notPermitted() {
         TimeConfiguration oldConfiguration =
-                new TimeConfiguration.Builder()
-                        .setAutoDetectionEnabled(true)
+                new TimeConfiguration.Builder().setAutoDetectionEnabled(true).build();
+        TimeCapabilities capabilities =
+                new TimeCapabilities.Builder(TEST_USER_HANDLE)
+                        .setConfigureAutoDetectionEnabledCapability(CAPABILITY_NOT_ALLOWED)
+                        .setSetManualTimeCapability(CAPABILITY_NOT_ALLOWED)
                         .build();
-        TimeCapabilities capabilities = new TimeCapabilities.Builder(TEST_USER_HANDLE)
-                .setConfigureAutoDetectionEnabledCapability(CAPABILITY_NOT_ALLOWED)
-                .setSetManualTimeCapability(CAPABILITY_NOT_ALLOWED)
-                .build();
 
-        TimeConfiguration configChange = new TimeConfiguration.Builder()
-                .setAutoDetectionEnabled(false)
-                .build();
+        TimeConfiguration configChange =
+                new TimeConfiguration.Builder().setAutoDetectionEnabled(false).build();
 
         assertNull(capabilities.tryApplyConfigChanges(oldConfiguration, configChange));
     }
 
     @Test
     public void copyBuilder_copiesAllFields() {
-        TimeCapabilities capabilities = new TimeCapabilities.Builder(TEST_USER_HANDLE)
-                .setConfigureAutoDetectionEnabledCapability(CAPABILITY_NOT_ALLOWED)
-                .setSetManualTimeCapability(CAPABILITY_NOT_ALLOWED)
-                .build();
+        TimeCapabilities capabilities =
+                new TimeCapabilities.Builder(TEST_USER_HANDLE)
+                        .setConfigureAutoDetectionEnabledCapability(CAPABILITY_NOT_ALLOWED)
+                        .setSetManualTimeCapability(CAPABILITY_NOT_ALLOWED)
+                        .build();
 
         {
             TimeCapabilities updatedCapabilities =

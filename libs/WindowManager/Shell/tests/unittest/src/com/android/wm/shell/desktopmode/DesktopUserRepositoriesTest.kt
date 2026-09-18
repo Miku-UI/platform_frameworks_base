@@ -19,13 +19,10 @@ package com.android.wm.shell.desktopmode
 import android.app.ActivityManager
 import android.content.pm.UserInfo
 import android.os.UserManager
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import androidx.test.filters.SmallTest
 import com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession
 import com.android.dx.mockito.inline.extended.StaticMockitoSession
-import com.android.window.flags.Flags.FLAG_ENABLE_DESKTOP_WINDOWING_HSUM
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.desktopmode.data.DesktopRepository
@@ -121,24 +118,14 @@ class DesktopUserRepositoriesTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_DESKTOP_WINDOWING_HSUM)
-    fun getProfile_flagEnabled_returnsProfileGroupId() {
+    fun getProfile_returnsProfileGroupId() {
         val desktopRepository: DesktopRepository = userRepositories.getProfile(PROFILE_ID_2)
 
         assertThat(desktopRepository.userId).isEqualTo(USER_ID_1)
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_DESKTOP_WINDOWING_HSUM)
-    fun getProfile_flagDisabled_returnsProfileId() {
-        val desktopRepository: DesktopRepository = userRepositories.getProfile(PROFILE_ID_2)
-
-        assertThat(desktopRepository.userId).isEqualTo(PROFILE_ID_2)
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_DESKTOP_WINDOWING_HSUM)
-    fun getUserForProfile_flagEnabled_returnsUserIdForProfile() {
+    fun getUserForProfile_returnsUserIdForProfile() {
         userRepositories.onUserChanged(USER_ID_2, mock())
         val profiles: MutableList<UserInfo> =
             mutableListOf(

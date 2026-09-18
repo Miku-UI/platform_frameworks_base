@@ -17,7 +17,7 @@
 package com.android.server;
 
 import android.annotation.RequiresPermission;
-import android.app.ActivityThread;
+import android.app.ActivityManager;
 import android.app.WallpaperInfo;
 import android.app.WallpaperManager;
 import android.content.BroadcastReceiver;
@@ -26,6 +26,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.ParcelFileDescriptor;
+import android.os.UserHandle;
 import android.util.Slog;
 
 /**
@@ -44,14 +45,17 @@ public class WallpaperUpdateReceiver extends BroadcastReceiver {
         if (DEBUG) Slog.d(TAG, "onReceive: " + intent);
 
         if (intent != null && Intent.ACTION_DEVICE_CUSTOMIZATION_READY.equals(intent.getAction())) {
-            AsyncTask.execute(this::updateWallpaper);
+            AsyncTask.execute(() -> {
+                int userId = ActivityManager.getCurrentUser();
+                updateWallpaper(context, userId);
+            });
         }
     }
 
-    private void updateWallpaper() {
+    private void updateWallpaper(Context context, int userId) {
         try {
-            ActivityThread currentActivityThread = ActivityThread.currentActivityThread();
-            Context uiContext = currentActivityThread.getSystemUiContext();
+            Slog.i(TAG, "Updating wallpaper for user " + userId);
+            Context uiContext = context.createContextAsUser(UserHandle.of(userId), 0);
             WallpaperManager wallpaperManager = WallpaperManager.getInstance(uiContext);
             if (isUserSetWallpaper(wallpaperManager, uiContext)) {
                 Slog.i(TAG, "User has set wallpaper, skip to resetting");

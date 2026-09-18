@@ -8,7 +8,7 @@
       ]
     },
     {
-      "name": "CtsStatsdAtomHostTestCases",
+      "name": "CtsPerformanceHintManagerAtomHostTestCases",
       "options": [
         {"include-filter": "android.cts.statsdatom.performancehintmanager"},
         {"exclude-annotation": "androidx.test.filters.FlakyTest"},

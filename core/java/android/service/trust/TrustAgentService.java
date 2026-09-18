@@ -458,7 +458,7 @@ public class TrustAgentService extends Service {
      * @param durationMs amount of time in milliseconds to keep the device in a trusted state.
      *    Trust for this agent will automatically be revoked when the timeout expires unless
      *    extended by a subsequent call to this function. The timeout is measured from the
-     *    invocation of this function as dictated by {@link SystemClock#elapsedRealtime())}.
+     *    invocation of this function as dictated by {@link SystemClock#elapsedRealtime()}.
      *    For security reasons, the value should be no larger than necessary.
      *    The value may be adjusted by the system as necessary to comply with a policy controlled
      *    by the system or {@link DevicePolicyManager} restrictions. See {@link #onTrustTimeout()}

@@ -1,3 +1,8 @@
 set noparent
 
 file:../../keyguard/OWNERS
+
+# Smartspace leads
+hyunyoungs@google.com
+jiuyu@google.com
+xilei@google.com

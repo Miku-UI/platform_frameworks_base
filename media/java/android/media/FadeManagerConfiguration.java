@@ -235,7 +235,7 @@ public final class FadeManagerConfiguration implements Parcelable {
      * Get the list of {@link android.media.AudioAttributes content types} that can be faded
      *
      * @return list of {@link android.media.AudioAttributes content types}
-     * @throws IllegalStateExceptionif if the fade state is set to {@link #FADE_STATE_DISABLED}
+     * @throws IllegalStateException if the fade state is set to {@link #FADE_STATE_DISABLED}
      */
     @NonNull
     public List<Integer> getUnfadeableContentTypes() {
@@ -1279,7 +1279,7 @@ public final class FadeManagerConfiguration implements Parcelable {
          * For example:
          * <pre class=prettyprint>
          *    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).build() </pre>
-         * is a generic audio attribute for {@link android.media.AudioAttributes.USAGE_MEDIA}.
+         * is a generic audio attribute for {@link android.media.AudioAttributes#USAGE_MEDIA}.
          * It is an undefined behavior to have an {@link android.media.AudioAttributes usage} in the
          * fadeable usage list and the corresponding generic {@link android.media.AudioAttributes}
          * in the unfadeable list. Such cases will result in an exception during {@link #build()}.
@@ -1690,4 +1690,3 @@ public final class FadeManagerConfiguration implements Parcelable {
         };
     }
 }
-

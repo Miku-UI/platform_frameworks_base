@@ -101,6 +101,14 @@ class WeaverHidlAdapter implements IWeaver {
     }
 
     @Override
+    public void warmUp() {}
+
+    @Override
+    public long getTimeout(int slotId) {
+        throw new UnsupportedOperationException("WeaverHidlAdapter does not support getTimeout");
+    }
+
+    @Override
     public String getInterfaceHash() {
         // We do not require the interface hash as the client.
         throw new UnsupportedOperationException(
@@ -109,8 +117,7 @@ class WeaverHidlAdapter implements IWeaver {
 
     @Override
     public int getInterfaceVersion() {
-        // Supports only V2 which is at feature parity.
-        return 2;
+        return 3;
     }
 
     @Override

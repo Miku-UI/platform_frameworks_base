@@ -35,7 +35,7 @@ object FlyoutDrawableLoader {
                 context.grantUriPermission(
                     context.packageName,
                     this.uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
                 )
             }
             return loadDrawable(context)

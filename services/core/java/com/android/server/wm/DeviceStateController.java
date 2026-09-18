@@ -21,6 +21,12 @@ import static android.hardware.devicestate.DeviceState.PROPERTY_FEATURE_REAR_DIS
 import static android.hardware.devicestate.DeviceState.PROPERTY_FOLDABLE_DISPLAY_CONFIGURATION_INNER_PRIMARY;
 import static android.hardware.devicestate.DeviceState.PROPERTY_FOLDABLE_DISPLAY_CONFIGURATION_OUTER_PRIMARY;
 import static android.hardware.devicestate.DeviceState.PROPERTY_FOLDABLE_HARDWARE_CONFIGURATION_FOLD_IN_HALF_OPEN;
+import static android.hardware.devicestate.DeviceState.PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_DOCKED;
+import static android.hardware.devicestate.DeviceState.PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_CLOSED;
+import static android.hardware.devicestate.DeviceState.PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_OPEN;
+import static android.hardware.devicestate.DeviceState.PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_SLATE;
+import static android.hardware.devicestate.feature.flags.Flags.desktopDeviceStatePropertyApi;
+import static android.hardware.devicestate.feature.flags.Flags.deviceStatePropertyMigration;
 
 import android.annotation.CallbackExecutor;
 import android.annotation.NonNull;
@@ -28,9 +34,8 @@ import android.annotation.Nullable;
 import android.content.Context;
 import android.hardware.devicestate.DeviceState;
 import android.hardware.devicestate.DeviceStateManager;
-import android.hardware.devicestate.feature.flags.FeatureFlags;
-import android.hardware.devicestate.feature.flags.FeatureFlagsImpl;
 import android.util.ArrayMap;
+import android.util.IntArray;
 import android.util.Pair;
 
 import com.android.internal.R;
@@ -64,6 +69,14 @@ final class DeviceStateController {
     private final List<Integer> mRearDisplayDeviceStates;
     private final List<Integer> mConcurrentDisplayDeviceStates;
     @NonNull
+    private final IntArray mLidClosedDeviceStates = new IntArray();
+    @NonNull
+    private final IntArray mLidOpenDeviceStates = new IntArray();
+    @NonNull
+    private final IntArray mSlateDeviceStates = new IntArray();
+    @NonNull
+    private final IntArray mDockedDeviceStates = new IntArray();
+    @NonNull
     private final List<Integer> mReverseRotationAroundZAxisStates;
     private final Map<Integer, DeviceState> mIdentifierToDeviceState = new HashMap<>();
     @GuardedBy("mWmLock")
@@ -84,13 +97,16 @@ final class DeviceStateController {
         HALF_FOLDED,
         REAR,
         CONCURRENT,
+        LID_CLOSED,
+        LID_OPEN,
+        SLATE,
+        DOCKED,
     }
 
     DeviceStateController(@NonNull Context context, @NonNull WindowManagerGlobalLock wmLock) {
         mWmLock = wmLock;
 
-        final FeatureFlags deviceStateManagerFlags = new FeatureFlagsImpl();
-        if (deviceStateManagerFlags.deviceStatePropertyMigration()) {
+        if (deviceStatePropertyMigration()) {
             mOpenDeviceStates = new ArrayList<>();
             mHalfFoldedDeviceStates = new ArrayList<>();
             mFoldedDeviceStates = new ArrayList<>();
@@ -121,6 +137,18 @@ final class DeviceStateController {
                         mHalfFoldedDeviceStates.add(state.getIdentifier());
                     } else {
                         mOpenDeviceStates.add(state.getIdentifier());
+                    }
+                }
+
+                if (desktopDeviceStatePropertyApi()) {
+                    if (state.hasProperty(PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_CLOSED)) {
+                        mLidClosedDeviceStates.add(state.getIdentifier());
+                    } else if (state.hasProperty(PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_OPEN)) {
+                        mLidOpenDeviceStates.add(state.getIdentifier());
+                    } else if (state.hasProperty(PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_SLATE)) {
+                        mSlateDeviceStates.add(state.getIdentifier());
+                    } else if (state.hasProperty(PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_DOCKED)) {
+                        mDockedDeviceStates.add(state.getIdentifier());
                     }
                 }
             }
@@ -172,6 +200,16 @@ final class DeviceStateController {
     }
 
     /**
+     * Checks if the current device is a laptop device based on if there is at least one laptop
+     * device state
+     * @return true if this is a laptop device, false otherwise
+     */
+    boolean isLaptop() {
+        return mLidClosedDeviceStates.size() != 0 || mLidOpenDeviceStates.size() != 0
+               || mSlateDeviceStates.size() != 0 || mDockedDeviceStates.size() != 0;
+    }
+
+    /**
      * @return true if the rotation direction on the Z axis should be reversed for the default
      * display.
      */
@@ -216,8 +254,15 @@ final class DeviceStateController {
             deviceStateEnum = DeviceStateEnum.OPEN;
         } else if (ArrayUtils.contains(mConcurrentDisplayDeviceStates, state)) {
             deviceStateEnum = DeviceStateEnum.CONCURRENT;
+        } else if (mLidClosedDeviceStates.contains(state)) {
+            deviceStateEnum = DeviceStateEnum.LID_CLOSED;
+        } else if (mLidOpenDeviceStates.contains(state)) {
+            deviceStateEnum = DeviceStateEnum.LID_OPEN;
+        } else if (mSlateDeviceStates.contains(state)) {
+            deviceStateEnum = DeviceStateEnum.SLATE;
+        } else if (mDockedDeviceStates.contains(state)) {
+            deviceStateEnum = DeviceStateEnum.DOCKED;
         } else {
-
             deviceStateEnum = DeviceStateEnum.UNKNOWN;
         }
 

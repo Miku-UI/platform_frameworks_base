@@ -40,6 +40,7 @@ import com.android.systemui.util.kotlin.pairwiseBy
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -120,6 +121,10 @@ constructor(
      * Asks for an asynchronous scene witch to [newScene], which will use the corresponding
      * installed transition or the one specified by [transitionKey], if provided.
      */
+    @Deprecated(
+        "Use SceneInteractor when SceneContainerFlag is enabled",
+        replaceWith = ReplaceWith("sceneInteractor.changeScene"),
+    )
     fun changeScene(
         newScene: SceneKey,
         loggingReason: String,
@@ -132,7 +137,7 @@ constructor(
                     toScene = newScene.toSceneContainerSceneKey(),
                     loggingReason = loggingReason,
                     transitionKey = transitionKey,
-                    sceneState = keyguardState,
+                    keyguardState = keyguardState,
                 )
                 return@launch
             }
@@ -157,6 +162,10 @@ constructor(
     }
 
     /** Immediately snaps to the new scene. */
+    @Deprecated(
+        "Use SceneInteractor when SceneContainerFlag is enabled",
+        replaceWith = ReplaceWith("sceneInteractor.snapToScene"),
+    )
     fun snapToScene(
         newScene: SceneKey,
         loggingReason: String,
@@ -164,6 +173,8 @@ constructor(
         keyguardState: KeyguardState? = null,
     ) {
         applicationScope.launch("$TAG#snapToScene", mainImmediateDispatcher) {
+            delay(delayMillis)
+
             if (SceneContainerFlag.isEnabled) {
                 sceneInteractor.snapToScene(
                     toScene = newScene.toSceneContainerSceneKey(),
@@ -172,7 +183,6 @@ constructor(
                 return@launch
             }
 
-            delay(delayMillis)
             if (currentScene.value == newScene) return@launch
             logger.logSceneChangeRequested(
                 from = currentScene.value,
@@ -253,16 +263,16 @@ constructor(
     }
 
     /** Transition state of the hub mode. */
-    val transitionState: StateFlow<ObservableTransitionState> =
+    val transitionStateFlow: StateFlow<ObservableTransitionState> =
         if (SceneContainerFlag.isEnabled) {
-            sceneInteractor.transitionState
+            sceneInteractor.transitionStateFlow
         } else {
-            repository.transitionState
+            repository.transitionStateFlow
                 .onEach { logger.logSceneTransition(it) }
                 .stateIn(
                     scope = applicationScope,
                     started = SharingStarted.Eagerly,
-                    initialValue = repository.transitionState.value,
+                    initialValue = repository.transitionStateFlow.value,
                 )
         }
 
@@ -286,7 +296,7 @@ constructor(
      * [SceneContainerFlag] is enabled.
      */
     fun transitionProgressToScene(targetScene: SceneKey) =
-        transitionState
+        transitionStateFlow
             .flatMapLatest { state ->
                 when (state) {
                     is ObservableTransitionState.Idle ->
@@ -315,7 +325,7 @@ constructor(
      * swipe to exit the hub starts.
      */
     val isIdleOnCommunal: StateFlow<Boolean> =
-        transitionState
+        transitionStateFlow
             .map {
                 it is ObservableTransitionState.Idle &&
                     (it.currentScene ==
@@ -328,6 +338,19 @@ constructor(
                 initialValue = false,
             )
 
+    /**
+     * A flow that emits `true` when the current scene is communal. This includes cases where the
+     * scene is idle on communal, transitioning to or from communal, or when an overlay is shown on
+     * top of communal.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val isCommunalCurrentScene: Flow<Boolean> =
+        transitionStateFlow
+            .flatMapLatest { it.currentScene() }
+            .map {
+                it == if (SceneContainerFlag.isEnabled) Scenes.Communal else CommunalScenes.Communal
+            }
+
     /** This flow will be true when idle on the hub and not transitioning to edit mode. */
     val isIdleOnCommunalNotEditMode: Flow<Boolean> =
         allOf(isIdleOnCommunal, editModeState.map { it == null })
@@ -338,7 +361,7 @@ constructor(
      * This flow will be true during any transition and when idle on the communal scene.
      */
     val isCommunalVisible: StateFlow<Boolean> =
-        transitionState
+        transitionStateFlow
             .map {
                 if (SceneContainerFlag.isEnabled)
                     it is ObservableTransitionState.Idle && it.currentScene == Scenes.Communal ||
@@ -356,7 +379,7 @@ constructor(
 
     /** Flow that emits a boolean if transitioning to or idle on communal scene. */
     val isTransitioningToOrIdleOnCommunal: Flow<Boolean> =
-        transitionState
+        transitionStateFlow
             .map {
                 (it is ObservableTransitionState.Idle &&
                     it.currentScene == CommunalScenes.Communal) ||
@@ -371,7 +394,7 @@ constructor(
 
     /** Flow that emits a boolean if user is swiping between two scenes. */
     val isCommunalSceneTransitioning: Flow<Boolean> =
-        transitionState
+        transitionStateFlow
             .map { it is ObservableTransitionState.Transition && it.isInitiatedByUserInput }
             .distinctUntilChanged()
 

@@ -59,7 +59,7 @@ public final class RemoteConference {
          * Invoked when this {@code RemoteConference} is disconnected.
          *
          * @param conference The {@code RemoteConference} invoking this method.
-         * @param disconnectCause The ({@see DisconnectCause}) associated with this failed
+         * @param disconnectCause The ({@link DisconnectCause}) associated with this failed
          *     conference.
          */
         public void onDisconnected(RemoteConference conference, DisconnectCause disconnectCause) {}

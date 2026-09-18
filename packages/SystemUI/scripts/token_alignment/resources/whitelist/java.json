@@ -23,7 +23,7 @@
     "frameworks/base/packages/SystemUI/src/com/android/systemui/accessibility/floatingmenu/BaseTooltipView.java",
     "frameworks/base/packages/SystemUI/src/com/android/systemui/people/PeopleStoryIconFactory.java",
     "frameworks/base/packages/SystemUI/src/com/android/systemui/qs/tileimpl/QSIconViewImpl.java",
-    "frameworks/base/packages/SystemUI/src/com/android/systemui/volume/VolumeDialogImpl.java",
+
     "frameworks/base/packages/SystemUI/src/com/android/systemui/wallet/ui/WalletActivity.java",
     "frameworks/base/packages/SystemUI/src/com/android/systemui/wallet/ui/WalletView.java",
     "frameworks/base/packages/SystemUI/src/com/android/systemui/wallet/ui/WalletActivity.java"

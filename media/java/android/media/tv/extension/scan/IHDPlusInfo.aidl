@@ -20,6 +20,13 @@ package android.media.tv.extension.scan;
  * @hide
  */
 interface IHDPlusInfo {
-    // Specifying a HDPlusInfo and start a network scan.
+    /**
+     * Specifying a HDPlusInfo and start a network scan. If an error occurs,
+     * IScanListener.onScanCompleted() is invoked and SCAN_RESULT_FAILED is notified.
+     *
+     * @param isBlindScanContinue true if continue blind scan.
+     * @param isHDMode true if it is HDMode.
+     * @return @ScanConstants.OpResult.RESULT_SUCCESS if set successfully else RESULT_FAILED.
+     */
     int setHDPlusInfo(boolean isBlindScanContinue, boolean isHDMode);
 }

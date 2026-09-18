@@ -23,6 +23,11 @@ import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.parceled;
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.set;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -50,6 +55,7 @@ import android.platform.test.annotations.Presubmit;
 import android.test.MoreAsserts;
 
 import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
 
 import com.android.frameworks.servicestests.R;
 
@@ -57,6 +63,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Locale;
+
+import org.junit.runner.RunWith;
+import org.junit.Test;
 
 /**
  * Tests for ShortcutService and ShortcutManager.
@@ -69,9 +78,11 @@ import java.util.Locale;
  */
 @Presubmit
 @SmallTest
+@RunWith(AndroidJUnit4.class)
 public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
     // ShortcutInfo tests
 
+    @Test
     public void testShortcutInfoMissingMandatoryFields() {
         // Disable throttling.
         mService.updateConfigurationLocked(
@@ -227,6 +238,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
                 });
     }
 
+    @Test
     public void testShortcutIdTruncated() {
         ShortcutInfo si = new ShortcutInfo.Builder(getTestContext(),
                 "s".repeat(Short.MAX_VALUE)).build();
@@ -236,6 +248,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
                 si.getId().length() <= ShortcutInfo.MAX_ID_LENGTH);
     }
 
+    @Test
     public void testShortcutInfoParcel() {
         setCaller(CALLING_PACKAGE_1, USER_11);
         ShortcutInfo si = parceled(new ShortcutInfo.Builder(mClientContext)
@@ -323,6 +336,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
                         new Capability.Builder("action.intent.START_EXERCISE").build()));
     }
 
+    @Test
     public void testShortcutInfoParcel_resId() {
         setCaller(CALLING_PACKAGE_1, USER_11);
         ShortcutInfo si;
@@ -377,6 +391,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
                 si.getStartingThemeResName());
     }
 
+    @Test
     public void testShortcutInfoClone() {
         setCaller(CALLING_PACKAGE_1, USER_12);
 
@@ -525,6 +540,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
         assertEquals(null, si.getIconResName());
     }
 
+    @Test
     public void testShortcutInfoClone_resId() {
         setCaller(CALLING_PACKAGE_1, USER_12);
 
@@ -649,6 +665,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
         assertEquals(null, si.getIconResName());
     }
 
+    @Test
     public void testShortcutInfoClone_minimum() {
         PersistableBundle pb = new PersistableBundle();
         pb.putInt("k", 1);
@@ -690,6 +707,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
         assertEquals(null, si.getCategories());
     }
 
+    @Test
     public void testShortcutInfoCopyNonNullFieldsFrom() throws InterruptedException {
         PersistableBundle pb = new PersistableBundle();
         pb.putInt("k", 1);
@@ -822,6 +840,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
         assertEquals(99, si.getExtras().getInt("x"));
     }
 
+    @Test
     public void testShortcutInfoCopyNonNullFieldsFrom_resId() throws InterruptedException {
         PersistableBundle pb = new PersistableBundle();
         pb.putInt("k", 1);
@@ -2215,6 +2234,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
     }
 
     // Test for a ShortcutInfo method.
+    @Test
     public void testGetResourcePackageName() {
         assertEquals(null, ShortcutInfo.getResourcePackageName(""));
         assertEquals(null, ShortcutInfo.getResourcePackageName("abc"));
@@ -2224,6 +2244,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
     }
 
     // Test for a ShortcutInfo method.
+    @Test
     public void testGetResourceTypeName() {
         assertEquals(null, ShortcutInfo.getResourceTypeName(""));
         assertEquals(null, ShortcutInfo.getResourceTypeName(":"));
@@ -2234,6 +2255,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
     }
 
     // Test for a ShortcutInfo method.
+    @Test
     public void testGetResourceTypeAndEntryName() {
         assertEquals(null, ShortcutInfo.getResourceTypeAndEntryName(""));
         assertEquals(null, ShortcutInfo.getResourceTypeAndEntryName("abc"));
@@ -2244,6 +2266,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
     }
 
     // Test for a ShortcutInfo method.
+    @Test
     public void testGetResourceEntryName() {
         assertEquals(null, ShortcutInfo.getResourceEntryName(""));
         assertEquals(null, ShortcutInfo.getResourceEntryName("ab:"));
@@ -2253,6 +2276,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
     }
 
     // Test for a ShortcutInfo method.
+    @Test
     public void testLookUpResourceName_systemResources() {
         // For android system resources, lookUpResourceName will simply return the value as a
         // string, regardless of "withType".
@@ -2270,6 +2294,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
                         getTestContext().getPackageName()));
     }
 
+    @Test
     public void testLookUpResourceName_appResources() {
         final Resources res = getTestContext().getResources();
 
@@ -2285,6 +2310,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
     }
 
     // Test for a ShortcutInfo method.
+    @Test
     public void testLookUpResourceId_systemResources() {
         final Resources res = getTestContext().getResources();
 
@@ -2301,6 +2327,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
     }
 
     // Test for a ShortcutInfo method.
+    @Test
     public void testLookUpResourceId_appResources() {
         final Resources res = getTestContext().getResources();
 
@@ -2356,6 +2383,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
      * Make sure the legacy file format that only supported a single intent per shortcut
      * can still be read.
      */
+    @Test
     public void testLoadLegacySavedFile() throws Exception {
         initService();
         final String legacyFile = readTestAsset("shortcut/shortcut_legacy_file.xml");
@@ -2378,6 +2406,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
         });
     }
 
+    @Test
     public void testIsUserUnlocked() {
         mRunningUsers.clear();
         mUnlockedUsers.clear();
@@ -2410,6 +2439,7 @@ public class ShortcutManagerTest2 extends BaseShortcutManagerTest {
         assertFalse(mService.isUserUnlockedL(USER_11));
     }
 
+    @Test
     public void testEphemeralApp() {
         mRunningUsers.put(USER_11, true); // this test needs user 10.
 

@@ -57,6 +57,7 @@ class AnnotationBasedFilter(
     partiallyAllowlistedClassAnnotations_: Set<String>,
     keepStaticInitializerAnnotations_: Set<String>,
     private val annotationAllowedClassesFilter: ClassPredicate,
+    private val ensureOutermostClassAnnotation: Boolean,
     fallback: OutputFilter,
 ) : DelegatingFilter(fallback) {
 
@@ -144,6 +145,26 @@ class AnnotationBasedFilter(
         return policyCache.getOrPut(cn.name) { ClassAnnotations(cn) }
     }
 
+    private fun hasOuterMostClassSomeAnnotation(itemClass: String): Boolean {
+        val outermostClassNode = classes.getClass(itemClass).let { cn ->
+            if (cn.nestHostClass == null) {
+                cn
+            } else {
+                classes.getClass(cn.nestHostClass)
+            }
+        }
+        val outermostPolicy = getAnnotationPolicy(outermostClassNode)
+        return outermostPolicy.classPolicy != null
+    }
+
+    private fun onMissingOuterAnnotationDetected(message: String) {
+        if (ensureOutermostClassAnnotation) {
+            errors.onErrorFound(message)
+        } else {
+            log.w(message)
+        }
+    }
+
     override fun getPolicyForClass(className: String): FilterPolicyWithReason {
         // If it's any of the annotations, then always keep it.
         if (alwaysKeepClasses.contains(className)) {
@@ -151,13 +172,29 @@ class AnnotationBasedFilter(
         }
 
         val cn = classes.getClass(className)
-        return getAnnotationPolicy(cn).classPolicy ?: super.getPolicyForClass(className)
+        getAnnotationPolicy(cn).classPolicy?.let {
+            val isNestClass = classes.getClass(className).nestHostClass != null
+            if (isNestClass && !hasOuterMostClassSomeAnnotation(className)) {
+                onMissingOuterAnnotationDetected(
+                    "Nest class ${className.toHumanReadableClassName()}" +
+                        " has annotations(s) but the outer-most class has no annotations")
+            }
+            return it
+        }
+        return super.getPolicyForClass(className)
     }
 
     override fun getPolicyForField(className: String, fieldName: String): FilterPolicyWithReason {
         val cn = classes.getClass(className)
-        return getAnnotationPolicy(cn).fieldPolicies[fieldName]
-            ?: super.getPolicyForField(className, fieldName)
+        getAnnotationPolicy(cn).fieldPolicies[fieldName]?.let {
+            if (!hasOuterMostClassSomeAnnotation(className)) {
+                onMissingOuterAnnotationDetected(
+                    "Field ${className.toHumanReadableClassName()}.$fieldName" +
+                        " has annotations(s) but the (outer-most) class has no annotations")
+            }
+            return it
+        }
+        return super.getPolicyForField(className, fieldName)
     }
 
     override fun getPolicyForMethod(
@@ -166,8 +203,15 @@ class AnnotationBasedFilter(
         descriptor: String
     ): FilterPolicyWithReason {
         val cn = classes.getClass(className)
-        return getAnnotationPolicy(cn).methodPolicies[MethodKey(methodName, descriptor)]
-            ?: super.getPolicyForMethod(className, methodName, descriptor)
+        getAnnotationPolicy(cn).methodPolicies[MethodKey(methodName, descriptor)]?.let {
+            if (!hasOuterMostClassSomeAnnotation(className)) {
+                onMissingOuterAnnotationDetected(
+                    "Method ${className.toHumanReadableClassName()}.$methodName$descriptor" +
+                        " has annotations(s) but the (outer-most) class has no annotations")
+            }
+            return it
+        }
+        return super.getPolicyForMethod(className, methodName, descriptor)
     }
 
     override fun getRenameTo(
@@ -378,7 +422,7 @@ class AnnotationBasedFilter(
                 } else {""}
                 throw InvalidAnnotationException(
                     "${desc()} is not allowed to have " +
-                            "Ravenwood annotations.$extInfo Contact g/ravenwood for more details."
+                            "Ravenwood annotations.$extInfo See http://go/ravenwood/annotations.md#new-api for more details."
                 )
             }
             if (visibleCount > 1) {

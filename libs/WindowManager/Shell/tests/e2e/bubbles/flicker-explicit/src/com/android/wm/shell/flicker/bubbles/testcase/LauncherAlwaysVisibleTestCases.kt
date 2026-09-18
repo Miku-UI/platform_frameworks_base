@@ -20,21 +20,15 @@ import android.tools.traces.component.ComponentNameMatcher
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerSubjects
 import org.junit.Test
 
-/**
- * Verifies [ComponentNameMatcher.LAUNCHER] is always visible.
- */
+/** Verifies [ComponentNameMatcher.LAUNCHER] is always visible. */
 interface LauncherAlwaysVisibleTestCases : BubbleFlickerSubjects {
-    /**
-     * Verifies the launcher window is always visible.
-     */
+    /** Verifies the launcher window is always visible. */
     @Test
     fun launcherWindowIsAlwaysVisible() {
         wmTraceSubject.isAppWindowVisible(ComponentNameMatcher.LAUNCHER).forAllEntries()
     }
 
-    /**
-     * Verifies the launcher layer is always visible.
-     */
+    /** Verifies the launcher layer is always visible. */
     @Test
     fun launcherLayerIsAlwaysVisible() {
         layersTraceSubject.isVisible(ComponentNameMatcher.LAUNCHER).forAllEntries()

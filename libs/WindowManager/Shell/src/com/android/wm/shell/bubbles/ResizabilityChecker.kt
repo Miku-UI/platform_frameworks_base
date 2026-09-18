@@ -19,9 +19,7 @@ package com.android.wm.shell.bubbles
 import android.content.Intent
 import android.content.pm.PackageManager
 
-/**
- * Interface to check whether the activity backed by a specific intent is resizable.
- */
+/** Interface to check whether the activity backed by a specific intent is resizable. */
 fun interface ResizabilityChecker {
 
     /**

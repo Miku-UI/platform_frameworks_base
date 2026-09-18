@@ -1477,9 +1477,7 @@ public class PropertyInvalidatedCache<Query, Result> {
                 }
             }
             sTestMode = mode;
-            if (Flags.picTestMode() || !mode) {
-                setTestModeLocked(mode);
-            }
+            setTestModeLocked(mode);
         }
     }
 

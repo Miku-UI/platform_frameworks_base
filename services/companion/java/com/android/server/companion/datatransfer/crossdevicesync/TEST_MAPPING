@@ -1,0 +1,7 @@
+{
+  "presubmit": [
+    {
+      "name": "FrameworksServicesTests_cross_device_sync"
+    }
+  ]
+}

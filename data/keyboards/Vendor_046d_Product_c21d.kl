@@ -12,25 +12,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Logitech F310
+# Logitech F310 Wired Controller
 
-key 304 BUTTON_A
-key 305 BUTTON_B
-key 307 BUTTON_X
-key 308 BUTTON_Y
-key 310 BUTTON_L1
-key 311 BUTTON_R1
-key 315 BUTTON_START
-key 314 BACK
-key 316 HOME
-key 317 BUTTON_THUMBL
-key 318 BUTTON_THUMBR
+# Standard face buttons
+key 304   BUTTON_A    # BTN_SOUTH
+key 305   BUTTON_B    # BTN_EAST
+key 307   BUTTON_X    # BTN_NORTH
+key 308   BUTTON_Y    # BTN_WEST
 
-axis 0x00 X
-axis 0x01 Y
-axis 0x03 Z
-axis 0x04 RZ
-axis 0x05 GAS
-axis 0x02 BRAKE
+# Shoulder buttons
+key 310   BUTTON_L1
+key 311   BUTTON_R1
+
+# Special buttons
+key 314   BUTTON_SELECT
+key 315   BUTTON_START
+key 316   BUTTON_MODE
+
+# Thumbstick buttons
+key 317   BUTTON_THUMBL
+key 318   BUTTON_THUMBR
+
+# The reported value for flat is 128 out of a range from -32767 to 32768, which is absurd.
+# This confuses applications that rely on the flat value because the joystick actually
+# settles in a flat range of +/- 4096 or so.
+# Left and Right Sticks
+axis 0x00 X flat 4096  # ABS_X
+axis 0x01 Y flat 4096  # ABS_Y
+axis 0x03 Z flat 4096  # ABS_RX
+axis 0x04 RZ flat 4096 # ABS_RY
+
+# Triggers
+axis 0x02 BRAKE     # ABS_Z
+axis 0x05 GAS       # ABS_RZ
+
+# D-Pad
 axis 0x10 HAT_X
 axis 0x11 HAT_Y

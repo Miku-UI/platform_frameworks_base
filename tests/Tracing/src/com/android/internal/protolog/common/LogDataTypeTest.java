@@ -57,14 +57,14 @@ public class LogDataTypeTest {
     public void logDataTypesToBitMask() {
         List<Integer> types = Arrays.asList(LogDataType.STRING, LogDataType.DOUBLE,
                 LogDataType.LONG, LogDataType.BOOLEAN);
-        int mask = LogDataType.logDataTypesToBitMask(types);
+        long mask = LogDataType.logDataTypesToBitMask(types);
         assertEquals(0b11011000, mask);
     }
 
     @Test(expected = BitmaskConversionException.class)
     public void logDataTypesToBitMask_toManyParams() {
         ArrayList<Integer> types = new ArrayList<>();
-        for (int i = 0; i <= 16; i++) {
+        for (int i = 0; i <= 32; i++) {
             types.add(LogDataType.STRING);
         }
         LogDataType.logDataTypesToBitMask(types);
@@ -72,7 +72,7 @@ public class LogDataTypeTest {
 
     @Test
     public void bitmaskToLogDataTypes() {
-        int bitmask = 0b11011000;
+        long bitmask = 0b11011000;
         List<Integer> types = Arrays.asList(LogDataType.STRING, LogDataType.DOUBLE,
                 LogDataType.LONG, LogDataType.BOOLEAN);
         for (int i = 0; i < types.size(); i++) {

@@ -176,7 +176,7 @@ public final class ManagedProfileProvisioningParams implements Parcelable {
         @Nullable private PersistableBundle mAdminExtras;
 
         /**
-         * Initialize a new {@link Builder) to construct a {@link ManagedProfileProvisioningParams}.
+         * Initialize a new {@link Builder} to construct a {@link ManagedProfileProvisioningParams}.
          * <p>
          * See {@link DevicePolicyManager#createAndProvisionManagedProfile}
          *

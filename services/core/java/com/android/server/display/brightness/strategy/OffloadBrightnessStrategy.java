@@ -44,13 +44,13 @@ public class OffloadBrightnessStrategy implements DisplayBrightnessStrategy {
     public DisplayBrightnessState updateBrightness(
             StrategyExecutionRequest strategyExecutionRequest) {
         float offloadBrightness = mOffloadScreenBrightness;
-        if (mDisplayManagerFlags.isRefactorDisplayPowerControllerEnabled()) {
-            // We reset the offload brightness to invalid so that there is no stale value lingering
-            // around. After this request is processed, the current brightness will be set to
-            // offload brightness. Hence even if the lux values don't become valid for the next
-            // request, we will fallback to the current brightness anyways.
-            mOffloadScreenBrightness = PowerManager.BRIGHTNESS_INVALID_FLOAT;
-        }
+
+        // We reset the offload brightness to invalid so that there is no stale value lingering
+        // around. After this request is processed, the current brightness will be set to
+        // offload brightness. Hence even if the lux values don't become valid for the next
+        // request, we will fallback to the current brightness anyways.
+        mOffloadScreenBrightness = PowerManager.BRIGHTNESS_INVALID_FLOAT;
+
         BrightnessReason brightnessReason = new BrightnessReason();
         brightnessReason.setReason(BrightnessReason.REASON_OFFLOAD);
         return new DisplayBrightnessState.Builder()

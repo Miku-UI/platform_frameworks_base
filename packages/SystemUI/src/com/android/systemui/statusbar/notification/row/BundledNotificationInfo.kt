@@ -23,7 +23,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import com.android.systemui.res.R
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.google.android.material.materialswitch.MaterialSwitch
 
 /**
@@ -59,13 +58,8 @@ class BundledNotificationInfo(context: Context?, attrs: AttributeSet?) :
         val done = findViewById<TextView>(R.id.done)
         done.setOnClickListener {
             try {
-                if (NotificationBundleUi.isEnabled) {
-                    if (enabled && !toggle.isChecked) {
-                        mEntryAdapter.onBundleDisabledForApp()
-                    }
-                } else {
-                    mEntry.markForUserTriggeredMovement(true)
-                    mOnUserInteractionCallback.onImportanceChanged(mEntry)
+                if (enabled && !toggle.isChecked) {
+                    mEntryAdapter.onBundleDisabledForApp()
                 }
                 mINotificationManager.setAdjustmentSupportedForPackage(
                     mSbn.normalizedUserId,

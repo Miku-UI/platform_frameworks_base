@@ -131,10 +131,10 @@ public class DomainVerificationManagerStub extends IDomainVerificationManager.St
     @Nullable
     @Override
     public List<DomainOwner> getOwnersForDomain(@NonNull String domain,
-            @UserIdInt int userId) {
+            @UserIdInt int userId, boolean includeUnverifiedOwners) {
         try {
             Objects.requireNonNull(domain);
-            return mService.getOwnersForDomain(domain, userId);
+            return mService.getOwnersForDomain(domain, userId, includeUnverifiedOwners);
         } catch (Exception e) {
             throw rethrow(e);
         }

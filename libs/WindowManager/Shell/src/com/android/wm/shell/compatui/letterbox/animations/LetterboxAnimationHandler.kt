@@ -27,7 +27,6 @@ import android.window.TransitionRequestInfo
 import android.window.WindowContainerTransaction
 import com.android.app.animation.Interpolators
 import com.android.internal.protolog.ProtoLog
-import com.android.window.flags.Flags.appCompatRefactoring
 import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.common.suppliers.TransactionSupplier
 import com.android.wm.shell.compatui.letterbox.LetterboxKey
@@ -68,10 +67,8 @@ constructor(
     private val rectEvaluator = RectEvaluator(Rect())
 
     init {
-        if (appCompatRefactoring()) {
-            ProtoLog.v(WM_SHELL_APP_COMPAT, "%s: %s", TAG, "Initializing...")
-            shellInit.addInitCallback({ transitions.addHandler(this) }, this)
-        }
+        ProtoLog.v(WM_SHELL_APP_COMPAT, "$TAG: Initializing...")
+        shellInit.addInitCallback({ transitions.addHandler(this) }, this)
     }
 
     override fun startAnimation(

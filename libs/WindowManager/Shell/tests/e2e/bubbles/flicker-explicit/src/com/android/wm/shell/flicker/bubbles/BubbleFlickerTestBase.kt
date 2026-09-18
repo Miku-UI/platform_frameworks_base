@@ -23,8 +23,10 @@ import android.tools.Tag
 import android.tools.device.apphelpers.StandardAppHelper
 import android.tools.flicker.assertions.SubjectsParser
 import android.tools.flicker.subject.events.EventLogSubject
+import android.tools.flicker.subject.events.FocusEventSubject
 import android.tools.flicker.subject.layers.LayerTraceEntrySubject
 import android.tools.flicker.subject.layers.LayersTraceSubject
+import android.tools.flicker.subject.protolog.ProtoLogSubject
 import android.tools.flicker.subject.wm.WindowManagerStateSubject
 import android.tools.flicker.subject.wm.WindowManagerTraceSubject
 import android.tools.io.Reader
@@ -52,56 +54,45 @@ import org.junit.Test
  */
 abstract class BubbleFlickerTestBase : BubbleFlickerSubjects {
 
-    @get:Rule
+    @get:Rule(order = 0)
     val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
-    /**
-     * The reader to read trace from.
-     */
+    /** The reader to read trace from. */
     abstract val traceDataReader: Reader
 
-    /**
-     * The event log subject.
-     */
-    final override lateinit var eventLogSubject: EventLogSubject
+    /** The focus events subject. */
+    final override lateinit var focusEventSubject: FocusEventSubject
 
     /**
-     * The WindowManager trace subject, which is equivalent to the data shown in
-     * `Window Manager` tab in go/winscope.
+     * The WindowManager trace subject, which is equivalent to the data shown in `Window Manager`
+     * tab in go/winscope.
      */
     final override lateinit var wmTraceSubject: WindowManagerTraceSubject
 
     /**
-     * The Layer trace subject, which is equivalent to the data shown in
-     * `Surface Flinger` tab in go/winscope.
+     * The Layer trace subject, which is equivalent to the data shown in `Surface Flinger` tab in
+     * go/winscope.
      */
     final override lateinit var layersTraceSubject: LayersTraceSubject
 
-    /**
-     * The first [WindowManagerState] of the WindowManager trace.
-     */
+    /** The first [WindowManagerState] of the WindowManager trace. */
     final override lateinit var wmStateSubjectAtStart: WindowManagerStateSubject
 
-    /**
-     * The last [WindowManagerState] of the WindowManager trace.
-     */
+    /** The last [WindowManagerState] of the WindowManager trace. */
     final override lateinit var wmStateSubjectAtEnd: WindowManagerStateSubject
 
-    /**
-     * The first [LayerTraceEntry] of the Layers trace.
-     */
+    /** The first [LayerTraceEntry] of the Layers trace. */
     final override lateinit var layerTraceEntrySubjectAtStart: LayerTraceEntrySubject
 
-    /**
-     * The last [LayerTraceEntry] of the Layers trace.
-     */
+    /** The last [LayerTraceEntry] of the Layers trace. */
     final override lateinit var layerTraceEntrySubjectAtEnd: LayerTraceEntrySubject
 
     // TODO(b/396020056): Verify bubble scenarios in 3-button mode.
-    /**
-     * Indicates whether the device uses gesture navigation bar or not.
-     */
+    /** Indicates whether the device uses gesture navigation bar or not. */
     override val isGesturalNavBar = tapl.navigationModel == NavigationModel.ZERO_BUTTON
+
+    /** Indicates whether the device is a tablet. */
+    override val isTablet = tapl.isTablet
 
     /**
      * The app used in flicker tests to verify with.
@@ -110,31 +101,44 @@ abstract class BubbleFlickerTestBase : BubbleFlickerSubjects {
      */
     override val testApp: StandardAppHelper = FlickerProperties.testApp
 
-    /**
-     * Initialize subjects inherited from [FlickerSubject].
-     */
+    /** Initialize subjects inherited from [FlickerSubject]. */
     @CallSuper
     @Before
     open fun setUp() {
-        eventLogSubject = EventLogSubject(
-            traceDataReader.readEventLogTrace() ?: error("Failed to read event log"),
-            traceDataReader
-        )
-        wmTraceSubject = WindowManagerTraceSubject(
-            traceDataReader.readWmTrace() ?: error("Failed to read WM trace")
-        )
-        layersTraceSubject = LayersTraceSubject(
-            traceDataReader.readLayersTrace() ?: error("Failed to read layer trace")
-        )
+        try {
+            if (!android.tracing.Flags.nativeProtoLogging()) {
+                focusEventSubject =
+                    EventLogSubject(
+                        traceDataReader.readEventLogTrace() ?: error("Failed to read event log"),
+                        traceDataReader,
+                    )
+            } else {
+                focusEventSubject =
+                    ProtoLogSubject(
+                        traceDataReader.readProtoLogTrace() ?: error("Failed to read protolog"),
+                        traceDataReader,
+                    )
+            }
+            wmTraceSubject =
+                WindowManagerTraceSubject(
+                    traceDataReader.readWmTrace() ?: error("Failed to read WM trace")
+                )
+            layersTraceSubject =
+                LayersTraceSubject(
+                    traceDataReader.readLayersTrace() ?: error("Failed to read layer trace")
+                )
 
-        val parser = SubjectsParser(traceDataReader)
-        wmStateSubjectAtStart = parser.getSubjectOfType(Tag.START)
-        wmStateSubjectAtEnd = parser.getSubjectOfType(Tag.END)
-        layerTraceEntrySubjectAtStart = parser.getSubjectOfType(Tag.START)
-        layerTraceEntrySubjectAtEnd = parser.getSubjectOfType(Tag.END)
+            val parser = SubjectsParser(traceDataReader)
+            wmStateSubjectAtStart = parser.getSubjectOfType(Tag.START)
+            wmStateSubjectAtEnd = parser.getSubjectOfType(Tag.END)
+            layerTraceEntrySubjectAtStart = parser.getSubjectOfType(Tag.START)
+            layerTraceEntrySubjectAtEnd = parser.getSubjectOfType(Tag.END)
+        } catch (_: UninitializedPropertyAccessException) {
+            error("traceDataReader is not initialized. See the first test to know why it failed.")
+        }
     }
 
-// region Generic tests
+    // region Generic tests
 
     /**
      * Verifies there's no flickers among all visible windows.
@@ -144,9 +148,7 @@ abstract class BubbleFlickerTestBase : BubbleFlickerSubjects {
      */
     @Test
     fun visibleWindowsShownMoreThanOneConsecutiveEntry() {
-        wmTraceSubject
-            .visibleWindowsShownMoreThanOneConsecutiveEntry()
-            .forAllEntries()
+        wmTraceSubject.visibleWindowsShownMoreThanOneConsecutiveEntry().forAllEntries()
     }
 
     /**
@@ -157,90 +159,68 @@ abstract class BubbleFlickerTestBase : BubbleFlickerSubjects {
      */
     @Test
     open fun visibleLayersShownMoreThanOneConsecutiveEntry() {
-        layersTraceSubject
-            .visibleLayersShownMoreThanOneConsecutiveEntry()
-            .forAllEntries()
+        layersTraceSubject.visibleLayersShownMoreThanOneConsecutiveEntry().forAllEntries()
     }
 
     /**
-     * Verifies if the stack space of all displays is fully covered by any visible
-     * layer, during the whole transitions.
+     * Verifies if the stack space of all displays is fully covered by any visible layer, during the
+     * whole transitions.
      */
     @Test
     fun entireScreenCovered() {
         layersTraceSubject.invoke("entireScreenCovered") { entry ->
             entry.entry.displays
                 .filter { it.isOn }
-                .forEach { display ->
-                    entry.visibleRegion().coversAtLeast(display.layerStackSpace)
-                }
+                .forEach { display -> entry.visibleRegion().coversAtLeast(display.layerStackSpace) }
         }
     }
 
-// endregion
-// region System bars tests
+    // endregion
+    // region System bars tests
 
-    /**
-     * Verifies navigation bar layer is visible at the start and end of transition.
-     */
+    /** Verifies navigation bar layer is visible at the start and end of transition. */
     @Test
     fun navBarLayerIsVisibleAtStartAndEnd() {
         layerTraceEntrySubjectAtStart.isVisible(ComponentNameMatcher.NAV_BAR)
         layerTraceEntrySubjectAtEnd.isVisible(ComponentNameMatcher.NAV_BAR)
     }
 
-    /**
-     * Verifies navigation bar position at the start and end of transition.
-     */
+    /** Verifies navigation bar position at the start and end of transition. */
     @Test
     fun navBarLayerPositionAtStartAndEnd() {
         assertNavBarPosition(layerTraceEntrySubjectAtStart, isGesturalNavBar)
         assertNavBarPosition(layerTraceEntrySubjectAtEnd, isGesturalNavBar)
     }
 
-    /**
-     * Verifies navigation bar window is visible.
-     */
+    /** Verifies navigation bar window is visible. */
     @Test
     fun navBarWindowIsAlwaysVisible() {
-        wmTraceSubject
-            .isAboveAppWindowVisible(ComponentNameMatcher.NAV_BAR)
-            .forAllEntries()
+        wmTraceSubject.isAboveAppWindowVisible(ComponentNameMatcher.NAV_BAR).forAllEntries()
     }
 
-    /**
-     * Verifies status bar layer is visible at the start and end of transition.
-     */
+    /** Verifies status bar layer is visible at the start and end of transition. */
     @Test
     fun statusBarLayerIsVisibleAtStartAndEnd() {
         layerTraceEntrySubjectAtStart.isVisible(ComponentNameMatcher.STATUS_BAR)
         layerTraceEntrySubjectAtEnd.isVisible(ComponentNameMatcher.STATUS_BAR)
     }
 
-    /**
-     * Verifies status bar position at the start and end of transition.
-     */
+    /** Verifies status bar position at the start and end of transition. */
     @Test
     fun statusBarLayerPositionAtStartAndEnd() {
         assertStatusBarLayerPosition(layerTraceEntrySubjectAtStart, wmStateSubjectAtStart.wmState)
         assertStatusBarLayerPosition(layerTraceEntrySubjectAtEnd, wmStateSubjectAtEnd.wmState)
     }
 
-    /**
-     * Verifies status bar window is visible.
-     */
+    /** Verifies status bar window is visible. */
     @Test
     fun statusBarWindowIsAlwaysVisible() {
-        wmTraceSubject
-            .isAboveAppWindowVisible(ComponentNameMatcher.STATUS_BAR)
-            .forAllEntries()
+        wmTraceSubject.isAboveAppWindowVisible(ComponentNameMatcher.STATUS_BAR).forAllEntries()
     }
 
-// endregion
+    // endregion
 
-    /**
-     * Essential properties to launch flicker tests.
-     */
+    /** Essential properties to launch flicker tests. */
     companion object FlickerProperties {
         val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
         val uiDevice: UiDevice = UiDevice.getInstance(instrumentation)
@@ -250,19 +230,12 @@ abstract class BubbleFlickerTestBase : BubbleFlickerSubjects {
          *
          * This is also used to wait for transition completes.
          */
-        val wmHelper = WindowManagerStateHelper(
-            instrumentation,
-            clearCacheAfterParsing = false,
-        )
+        val wmHelper = WindowManagerStateHelper(instrumentation, clearCacheAfterParsing = false)
 
-        /**
-         * Used for building the scenario.
-         */
+        /** Used for building the scenario. */
         val tapl: LauncherInstrumentation = LauncherInstrumentation()
 
-        /**
-         * The default app used in flicker tests to verify with.
-         */
+        /** The default app used in flicker tests to verify with. */
         val testApp: StandardAppHelper = SimpleAppHelper(instrumentation)
     }
 }

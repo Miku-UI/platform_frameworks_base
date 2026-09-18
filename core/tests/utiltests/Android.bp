@@ -32,6 +32,7 @@ android_test {
         "androidx.test.rules",
         "flag-junit",
         "frameworks-base-testutils",
+        "guava-android-testlib", // for EqualsTester
         "mockito-target-minus-junit4",
         "truth",
         "servicestests-utils",
@@ -60,11 +61,13 @@ android_ravenwood_test {
         "android.test.mock.stubs.system",
     ],
     static_libs: [
-        "androidx.annotation_annotation",
         "androidx.test.rules",
+        "flag-junit",
         "frameworks-base-testutils",
-        "notification_flags_lib",
+        "guava-android-testlib", // for EqualsTester
+        "truth",
         "servicestests-utils-ravenwood",
+        "notification_flags_lib",
         "testables",
     ],
     srcs: [
@@ -73,5 +76,4 @@ android_ravenwood_test {
         "src/com/android/internal/util/**/*.java",
     ],
     auto_gen_config: true,
-    team: "trendy_team_ravenwood",
 }

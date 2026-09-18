@@ -73,7 +73,9 @@ public class TileUtils {
      * <p>The icon may be defined by meta-data named {@link #META_DATA_PREFERENCE_ICON}
      * otherwise the icon for the activity will be used.
      *
-     * <p>A summary my be defined by meta-data named {@link #META_DATA_PREFERENCE_SUMMARY}
+     * <p>A summary may be defined by meta-data named {@link #META_DATA_PREFERENCE_SUMMARY}
+     *
+     * <p>The keywords may be defined by meta-data named {@link #META_DATA_PREFERENCE_KEYWORDS}
      */
     public static final String EXTRA_SETTINGS_ACTION = "com.android.settings.action.EXTRA_SETTINGS";
 
@@ -202,6 +204,12 @@ public class TileUtils {
      */
     public static final String META_DATA_PREFERENCE_SUMMARY_URI =
             "com.android.settings.summary_uri";
+
+    /**
+     * Name of the meta-data item that should be set in the AndroidManifest.xml to specify the
+     * keywords text that should be used for the preference. The format is a string array.
+     */
+    public static final String META_DATA_PREFERENCE_KEYWORDS = "com.android.settings.keywords";
 
     /**
      * Name of the meta-data item that should be set in the AndroidManifest.xml to specify the

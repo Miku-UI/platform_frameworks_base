@@ -27,6 +27,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 import org.mockito.Mockito.eq
+import org.mockito.Mockito.mock
+import org.mockito.Mockito.never
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import kotlin.test.assertFailsWith
@@ -91,6 +93,8 @@ class PackageFreezerTest {
         rule.system().stageNominalSystemState()
         pms = spy(createPackageManagerService(TEST_PACKAGE))
         whenever(pms.killApplication(any(), any(), any(), any(), any()))
+        whenever(pms.killApplicationSync(any(), any(), any(), any(), any()))
+        whenever(pms.stopAndKillApplication(any(), any(), any(), any(), any()))
     }
 
     @Test
@@ -149,5 +153,136 @@ class PackageFreezerTest {
         System.runFinalization()
 
         checkPackageStartable()
+    }
+
+    @Test
+    fun freezePackage_waitAppKilled() {
+        // This constructor should result in a call to killApplicationSync
+        val freezer = PackageFreezer(TEST_PACKAGE, TEST_USER_ID, TEST_REASON, pms,
+                TEST_EXIT_REASON, null /* request */, true /* waitAppKilled */)
+        verify(pms, times(1))
+                .killApplicationSync(eq(TEST_PACKAGE), any(), eq(TEST_USER_ID), eq(TEST_REASON),
+                        eq(TEST_EXIT_REASON))
+
+        assertThrowContainsMessage(SecurityException::class, frozenMessage(TEST_PACKAGE)) {
+            checkPackageStartable()
+        }
+
+        freezer.close()
+        checkPackageStartable()
+    }
+
+    @Test
+    fun freezePackage_waitAppStopped() {
+        // This constructor should result in a call to stopAndKillApplication
+        val freezer = PackageFreezer(TEST_PACKAGE, TEST_USER_ID, TEST_REASON, pms,
+                TEST_EXIT_REASON, null /* request */, false /* waitAppKilled */,
+                true /* waitAppStopped */)
+        verify(pms, times(1))
+                .stopAndKillApplication(eq(TEST_PACKAGE), any(), eq(TEST_USER_ID), eq(TEST_REASON),
+                        eq(TEST_EXIT_REASON))
+
+        assertThrowContainsMessage(SecurityException::class, frozenMessage(TEST_PACKAGE)) {
+            checkPackageStartable()
+        }
+
+        freezer.close()
+        checkPackageStartable()
+    }
+
+    @Test
+    fun freezePackage_withInstallRequest() {
+        // Verifies that onFreezeStarted is called but onStopAndKillStarted is not when
+        // an InstallRequest is provided without waitAppStopped.
+        val installRequest = mock(InstallRequest::class.java)
+        val freezer = PackageFreezer(TEST_PACKAGE, TEST_USER_ID, TEST_REASON, pms,
+                TEST_EXIT_REASON, installRequest)
+
+        // Verify killApplication is called and metrics are started correctly.
+        verify(pms, times(1))
+            .killApplication(eq(TEST_PACKAGE), any(), eq(TEST_USER_ID), eq(TEST_REASON),
+                    eq(TEST_EXIT_REASON))
+        verify(installRequest, times(1)).onFreezeStarted()
+        verify(installRequest, never()).onStopAndKillStarted()
+
+        // Ensure package is frozen.
+        assertThrowContainsMessage(SecurityException::class, frozenMessage(TEST_PACKAGE)) {
+            checkPackageStartable()
+        }
+
+        // Close the freezer and verify metrics are completed.
+        freezer.close()
+        verify(installRequest, times(1)).onFreezeCompleted()
+        checkPackageStartable()
+    }
+
+    @Test
+    fun freezePackage_waitAppKilled_withInstallRequest() {
+        // Verifies that onFreezeStarted is called but onStopAndKillStarted is not when
+        // an InstallRequest is provided with waitAppKilled but not waitAppStopped.
+        val installRequest = mock(InstallRequest::class.java)
+        val freezer = PackageFreezer(TEST_PACKAGE, TEST_USER_ID, TEST_REASON, pms,
+                TEST_EXIT_REASON, installRequest, true /* waitAppKilled */)
+
+        // Verify killApplicationSync is called and metrics are started correctly.
+        verify(pms, times(1))
+                .killApplicationSync(eq(TEST_PACKAGE), any(), eq(TEST_USER_ID), eq(TEST_REASON),
+                        eq(TEST_EXIT_REASON))
+        verify(installRequest, times(1)).onFreezeStarted()
+        verify(installRequest, never()).onStopAndKillStarted()
+
+        // Ensure package is frozen.
+        assertThrowContainsMessage(SecurityException::class, frozenMessage(TEST_PACKAGE)) {
+            checkPackageStartable()
+        }
+
+        // Close the freezer and verify metrics are completed.
+        freezer.close()
+        verify(installRequest, times(1)).onFreezeCompleted()
+        checkPackageStartable()
+    }
+
+    @Test
+    fun freezePackage_waitAppStopped_withInstallRequest() {
+        // Verifies that both onFreezeStarted and onStopAndKillStarted are called when
+        // an InstallRequest is provided and waitAppStopped is true.
+        val installRequest = mock(InstallRequest::class.java)
+        val freezer = PackageFreezer(TEST_PACKAGE, TEST_USER_ID, TEST_REASON, pms,
+                TEST_EXIT_REASON, installRequest, false /* waitAppKilled */,
+                true /* waitAppStopped */)
+
+        // Verify stopAndKillApplication is called and metrics are started correctly.
+        verify(pms, times(1))
+                .stopAndKillApplication(eq(TEST_PACKAGE), any(), eq(TEST_USER_ID), eq(TEST_REASON),
+                        eq(TEST_EXIT_REASON))
+        verify(installRequest, times(1)).onFreezeStarted()
+        verify(installRequest, times(1)).onStopAndKillStarted()
+
+        // Ensure package is frozen.
+        assertThrowContainsMessage(SecurityException::class, frozenMessage(TEST_PACKAGE)) {
+            checkPackageStartable()
+        }
+
+        // Close the freezer and verify metrics are completed.
+        freezer.close()
+        verify(installRequest, times(1)).onFreezeCompleted()
+        checkPackageStartable()
+    }
+
+    @Test
+    fun stubFreezer_withInstallRequest() {
+        // Verifies that the stub freezer correctly handles InstallRequest metrics.
+        val installRequest = mock(InstallRequest::class.java)
+        val freezer = PackageFreezer(pms, installRequest)
+
+        // Verify metrics are started, but no kill calls are made.
+        verify(installRequest, times(1)).onFreezeStarted()
+        verify(pms, never()).killApplication(any(), any(), any(), any(), any())
+        verify(pms, never()).killApplicationSync(any(), any(), any(), any(), any())
+        verify(pms, never()).stopAndKillApplication(any(), any(), any(), any(), any())
+
+        // Closing should complete the metrics.
+        freezer.close()
+        verify(installRequest, times(1)).onFreezeCompleted()
     }
 }

@@ -16,9 +16,11 @@
 
 package android.app.ondeviceintelligence;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
+import android.app.ondeviceintelligence.flags.Flags;
 import android.os.Parcelable;
 import android.os.PersistableBundle;
 
@@ -63,7 +65,7 @@ public final class FeatureDetails implements Parcelable {
             FEATURE_STATUS_DOWNLOADABLE,
             FEATURE_STATUS_DOWNLOADING,
             FEATURE_STATUS_AVAILABLE,
-            FEATURE_STATUS_SERVICE_UNAVAILABLE
+            FEATURE_STATUS_SERVICE_UNAVAILABLE,
     })
     @Target({ElementType.TYPE_USE, ElementType.METHOD, ElementType.PARAMETER, ElementType.FIELD})
     @Retention(RetentionPolicy.SOURCE)

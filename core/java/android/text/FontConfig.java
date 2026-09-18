@@ -19,6 +19,7 @@ package android.text;
 import static java.lang.annotation.RetentionPolicy.SOURCE;
 
 import android.annotation.CurrentTimeMillisLong;
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
@@ -581,6 +582,7 @@ public final class FontConfig implements Parcelable {
         private final @NonNull List<Font> mFonts;
         private final @NonNull LocaleList mLocaleList;
         private final @Variant int mVariant;
+        private final int mPriority;
 
         /** @hide */
         @Retention(SOURCE)
@@ -624,6 +626,20 @@ public final class FontConfig implements Parcelable {
             mFonts = fonts;
             mLocaleList = localeList;
             mVariant = variant;
+            mPriority = -1;
+        }
+
+        /**
+         * Construct a family instance.
+         *
+         * @hide Only system server can create this instance and passed via IPC.
+         */
+        public FontFamily(@NonNull List<Font> fonts, @NonNull LocaleList localeList,
+                @Variant int variant, int priority) {
+            mFonts = fonts;
+            mLocaleList = localeList;
+            mVariant = variant;
+            mPriority = priority;
         }
 
         /**
@@ -674,6 +690,14 @@ public final class FontConfig implements Parcelable {
             return mVariant;
         }
 
+        @FlaggedApi(com.android.text.flags.Flags.FLAG_INSERT_FONT_FAMILY)
+        // Returns the priority of this family.
+        // The priority will be used for deciding which font family should be used in fallback list.
+        // Higher value means higher priority.
+        public int getPriority() {
+            return mPriority;
+        }
+
         @Override
         public int describeContents() {
             return 0;
@@ -684,6 +708,7 @@ public final class FontConfig implements Parcelable {
             dest.writeTypedList(mFonts, flags);
             dest.writeString8(mLocaleList.toLanguageTags());
             dest.writeInt(mVariant);
+            dest.writeInt(mPriority);
         }
 
         public static final @NonNull Creator<FontFamily> CREATOR = new Creator<FontFamily>() {
@@ -694,8 +719,9 @@ public final class FontConfig implements Parcelable {
                 source.readTypedList(fonts, Font.CREATOR);
                 String langTags = source.readString8();
                 int variant = source.readInt();
-
-                return new FontFamily(fonts, LocaleList.forLanguageTags(langTags), variant);
+                int priority = source.readInt();
+                return new FontFamily(fonts, LocaleList.forLanguageTags(langTags),
+                        variant, priority);
             }
 
             @Override
@@ -730,6 +756,12 @@ public final class FontConfig implements Parcelable {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             FontFamily that = (FontFamily) o;
+            if (com.android.text.flags.Flags.insertFontFamily()) {
+                return mVariant == that.mVariant
+                        && mPriority == that.mPriority
+                        && Objects.equals(mFonts, that.mFonts)
+                        && Objects.equals(mLocaleList, that.mLocaleList);
+            }
             return mVariant == that.mVariant
                     && Objects.equals(mFonts, that.mFonts)
                     && Objects.equals(mLocaleList, that.mLocaleList);
@@ -737,11 +769,22 @@ public final class FontConfig implements Parcelable {
 
         @Override
         public int hashCode() {
+            if (com.android.text.flags.Flags.insertFontFamily()) {
+                return Objects.hash(mFonts, mLocaleList, mVariant, mPriority);
+            }
             return Objects.hash(mFonts, mLocaleList, mVariant);
         }
 
         @Override
         public String toString() {
+            if (com.android.text.flags.Flags.insertFontFamily()) {
+                return "FontFamily{"
+                        + "mFonts=" + mFonts
+                        + ", mLocaleList=" + mLocaleList
+                        + ", mVariant=" + mVariant
+                        + ", mPriority=" + mPriority
+                        + '}';
+            }
             return "FontFamily{"
                     + "mFonts=" + mFonts
                     + ", mLocaleList=" + mLocaleList

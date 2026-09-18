@@ -34,8 +34,7 @@
             android:layout_marginBottom="16dp"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/restr_pin_create_pin"
-            android:textColor="?android:attr/textColorSecondary" />
+            android:text="@string/restr_pin_create_pin"/>
 
         <EditText android:id="@+id/pin_text"
             style="?android:attr/textAppearanceMedium"
@@ -43,8 +42,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/restr_pin_enter_old_pin"
-            android:inputType="numberPassword"
-            android:textColor="?android:attr/textColorPrimary" />
+            android:inputType="numberPassword"/>
 
         <EditText android:id="@+id/pin_new_text"
             style="?android:attr/textAppearanceMedium"
@@ -52,8 +50,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/restr_pin_enter_new_pin"
-            android:inputType="numberPassword"
-            android:textColor="?android:attr/textColorPrimary" />
+            android:inputType="numberPassword"/>
 
         <EditText android:id="@+id/pin_confirm_text"
             style="?android:attr/textAppearanceMedium"
@@ -61,8 +58,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="@string/restr_pin_confirm_pin"
-            android:inputType="numberPassword"
-            android:textColor="?android:attr/textColorPrimary" />
+            android:inputType="numberPassword"/>
 
         <TextView android:id="@+id/pin_error_message"
             style="?android:attr/textAppearanceSmall"

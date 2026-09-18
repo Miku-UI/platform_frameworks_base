@@ -30,10 +30,6 @@ import android.view.WindowManager;
 import java.util.concurrent.Executors;
 
 public class BouncyBallActivity extends Activity {
-    // Since logging (to logcat) takes system resources, we chose not to log
-    // data every frame by default.
-    private static final boolean LOG_EVERY_FRAME = false;
-
     // To help with debugging and verifying behavior when frames are dropped,
     // this will drop one in every 64 frames.
     private static final boolean FORCE_DROPPED_FRAMES = false;
@@ -50,30 +46,41 @@ public class BouncyBallActivity extends Activity {
     // this a valid test.  We'll generally use the maximum of
     // getSuggestedFrameRate() and the rate the system launches us at.  But
     // if that maximum is less than this minimum, we'll use this minimum.
-    private static final float MINIMUM_TEST_FRAME_RATE = 60.0f;
+    private static final float MINIMUM_TEST_FRAME_RATE_HZ = 60.0f;
 
-    // This test measures sustained frame rate, so it's safe to ignore
-    // frame drops around the start time.
-    // This value must be high enough to skip jank due to clocks not having
-    // ramped up yet.
-    // This value must not be too high as to miss jank due to clocks ramping
-    // down.
-    private static final float INITIAL_TIME_TO_IGNORE_IN_SECONDS = 0.1f;
+    // This test focuses on sustained frame rate, so we want to ignore drops
+    // right at app start.  We don't want to wait too long, though, lest we
+    // miss drops due to clocks ramping down.  Unfortunately, some low end
+    // devices take a while to give the app focus.  So we provide a range
+    // here, starting our measurement as soon as we have focus within this
+    // range (and failing if we don't get focus in time).
+    private static final float INITIAL_MIN_TIME_TO_IGNORE_IN_SECONDS = 0.1f;
+
+    // If we've been up and running, drawing frames, for half a second, and
+    // we still don't have focus, that's not acceptable and we'll fail.
+    // LINT.IfChange
+    private static final float INITIAL_MAX_TIME_TO_IGNORE_IN_SECONDS = 0.5f;
+    // LINT.ThenChange(/tests/BouncyBall/automation_config.pbtx)
 
     // The app itself can run "forever".  But for automated testing, we want
     // a consistent testing time.  We don't want to take too long, but we want
     // to wait sufficiently for CPUs/GPU to clock down to save power under our
     // basic load.
+    // LINT.IfChange
     private static final int AUTOMATED_TEST_DURATION_IN_SECONDS = 120;
+    // LINT.ThenChange(/tests/BouncyBall/automation_config.pbtx)
 
     // We use a trace counter to let trace analysis know if a frame is relevant.
     private static final String TRACE_COUNTER_RELEVANT_FRAME = "relevant_frame";
 
-    // This is before INITIAL_TIME_TO_IGNORE_IN_SECONDS have passed.
-    private static final int TRACE_STATE_TOO_EARLY = 1;
+    // Initial state, before we've gotten focus and waited at least
+    // INITIAL_MIN_TIME_TO_IGNORE_IN_SECONDS.
+    private static final int TRACE_STATE_PRE_TEST_TIME = 1;
 
     // These are the relevant frames for automated testing.
+    // LINT.IfChange
     private static final int TRACE_STATE_IN_TEST_TIME = 2;
+    // LINT.ThenChange(/tests/BouncyBall/trace_metrics_v2_spec.pbtx)
 
     // This is after the time span for automated testing.
     private static final int TRACE_STATE_POST_TEST_TIME = 3;
@@ -81,13 +88,13 @@ public class BouncyBallActivity extends Activity {
     private int mDisplayId = -1;
     private boolean mHasFocus = false;
     private boolean mWarmedUp = false;
-    private float mFrameRate;
-    private long mFrameMaxDurationNanos;
+    private float mFrameRateHz;
     private int mFrameCount = 0;
-    private int mFirstAutomatedTestFrame = -1;
-    private int mEndingAutomatedTestFrame = -1;
-    private int mNumFramesDropped = 0;
-    private int mTraceState = TRACE_STATE_TOO_EARLY;
+    private int mMinFirstRelevantFrame = -1;
+    private int mMaxFirstRelevantFrame = -1;
+    private int mActualFirstRelevantFrame = -1;
+    private int mLastRelevantFrame = -1;
+    private int mTraceState = TRACE_STATE_PRE_TEST_TIME;
     private Choreographer mChoreographer;
 
     private final DisplayManager.DisplayListener mDisplayListener =
@@ -104,53 +111,33 @@ public class BouncyBallActivity extends Activity {
                     if (displayId != mDisplayId) {
                         return;
                     }
-                    float frameRate = getDisplay().getMode().getRefreshRate();
-                    if (frameRate == mFrameRate) {
+                    float frameRateHz = getDisplay().getMode().getRefreshRate();
+                    if (frameRateHz == mFrameRateHz) {
                         // On devices with API level < 36, we might get this
                         // called for other reasons (like brightness changing).
                         // We ignore anything but frame rate changes.
                         return;
                     }
-                    setFrameRate(frameRate);
-                    Log.i(LOG_TAG, "Using frame rate " + mFrameRate + "Hz");
+                    setFrameRate(frameRateHz);
+                    Log.i(LOG_TAG, "Using frame rate " + mFrameRateHz + "Hz");
                 }
             };
 
     private final Choreographer.FrameCallback mFrameCallback =
             new Choreographer.FrameCallback() {
 
-                private long mLastFrameTimeNanos = -1;
-
                 @Override
                 public void doFrame(long frameTimeNanos) {
-                    if (mFrameCount == mFirstAutomatedTestFrame) {
+                    if (!mWarmedUp && isReadyToStartTesting()) {
                         mWarmedUp = true;
                         mTraceState = TRACE_STATE_IN_TEST_TIME;
                         // We chose not to log this state change to minimize
                         // system load during testing time.
-                        if (!mHasFocus) {
-                            String msg = "App does not have focus after "
-                                    + mFrameCount + " frames";
-                            reportAssumptionFailure(msg);
-                        }
-                    } else if (mFrameCount == mEndingAutomatedTestFrame) {
+                    } else if (mFrameCount == mLastRelevantFrame) {
                         mTraceState = TRACE_STATE_POST_TEST_TIME;
                         Log.i(LOG_TAG, "Done with frames for automated testing.");
                     }
-                    if (mWarmedUp) {
-                        long elapsedNanos = frameTimeNanos - mLastFrameTimeNanos;
-                        if (elapsedNanos > mFrameMaxDurationNanos) {
-                            mNumFramesDropped++;
-                            Log.e(LOG_TAG, "DROPPED FRAME #" + mFrameCount
-                                    + " (total " + mNumFramesDropped
-                                    + "): Took " + nanosToMillis(elapsedNanos) + "ms");
-                        } else if (LOG_EVERY_FRAME) {
-                            Log.d(LOG_TAG, "Frame " + mFrameCount + " took "
-                                    + nanosToMillis(elapsedNanos) + "ms");
-                        }
-                    }
                     Trace.setCounter(TRACE_COUNTER_RELEVANT_FRAME, mTraceState);
-                    mLastFrameTimeNanos = frameTimeNanos;
                     mFrameCount++;
                     if (FORCE_DROPPED_FRAMES) {
                         dropFrameSometimes();
@@ -161,8 +148,10 @@ public class BouncyBallActivity extends Activity {
 
                 private void dropFrameSometimes() {
                     if ((mFrameCount % 64) == 0) {
+                        // We'll sleep for 1.5 frames worth of time to force a drop.
+                        float overFrameInMillis = 1.5f * 1_000.0f / mFrameRateHz;
                         try {
-                            Thread.sleep((long) nanosToMillis(mFrameMaxDurationNanos) + 1);
+                            Thread.sleep((long) overFrameInMillis);
                         } catch (InterruptedException ex) {
                             Thread.currentThread().interrupt();
                         }
@@ -213,37 +202,37 @@ public class BouncyBallActivity extends Activity {
         Display display = getDisplay();
         Display.Mode currentMode = display.getMode();
         mDisplayId = display.getDisplayId();
-        float minimumFrameRate = MINIMUM_TEST_FRAME_RATE;
+        float minimumFrameRateHz = MINIMUM_TEST_FRAME_RATE_HZ;
         if (Build.VERSION.SDK_INT >= 36) {
             // This API wasn't introduced until API level 36, so for testing
             // on older devices, we'll just stick with our MINIMUM.
             // TODO(b/442635053): Allow switching between NORMAL and HIGH here,
             //     so we can also test against the HIGH rate.
-            minimumFrameRate =
+            minimumFrameRateHz =
                 display.getSuggestedFrameRate(Display.FRAME_RATE_CATEGORY_NORMAL);
         }
-        if (minimumFrameRate < MINIMUM_TEST_FRAME_RATE) {
-            Log.w(LOG_TAG, "getSuggestedFrameRate (" + minimumFrameRate
-                    + "Hz) is below our testing minimum (" + MINIMUM_TEST_FRAME_RATE
+        if (minimumFrameRateHz < MINIMUM_TEST_FRAME_RATE_HZ) {
+            Log.w(LOG_TAG, "getSuggestedFrameRate (" + minimumFrameRateHz
+                    + "Hz) is below our testing minimum (" + MINIMUM_TEST_FRAME_RATE_HZ
                     + "Hz); using the latter for our minimum.");
-            minimumFrameRate = MINIMUM_TEST_FRAME_RATE;
+            minimumFrameRateHz = MINIMUM_TEST_FRAME_RATE_HZ;
         }
         setFrameRate(currentMode.getRefreshRate());
-        if (mFrameRate >= minimumFrameRate) {
+        if (mFrameRateHz >= minimumFrameRateHz) {
             // The default frame rate is sufficient for our testing.
             return;
         }
 
-        String minRateStr = minimumFrameRate + "Hz";
+        String minRateStr = minimumFrameRateHz + "Hz";
         // Using a Warning here, because this seems unexpected that a device
         // defaults to running at below this rate.
-        Log.w(LOG_TAG, "App launched with frame rate (" + mFrameRate
+        Log.w(LOG_TAG, "App launched with frame rate (" + mFrameRateHz
                   + "Hz), below the acceptable/expected minimum (" + minRateStr + ")");
 
         // If available at our current resolution, use 60Hz.  If not, use the
         // lowest refresh rate above 60Hz which is available.  Otherwise, throw
         // an exception which kills the app.
-        float preferredRate = Float.POSITIVE_INFINITY;
+        float preferredRateHz = Float.POSITIVE_INFINITY;
 
         for (Display.Mode mode : display.getSupportedModes()) {
             if ((currentMode.getPhysicalHeight() != mode.getPhysicalHeight())
@@ -251,59 +240,45 @@ public class BouncyBallActivity extends Activity {
                 // This is a different resolution; we'll skip it.
                 continue;
             }
-            float rate = mode.getRefreshRate();
-            if (rate == minimumFrameRate) {
+            float rateHz = mode.getRefreshRate();
+            if (rateHz == minimumFrameRateHz) {
                 // This is exactly what we were hoping for, so we can stop
                 // looking.
-                preferredRate = rate;
+                preferredRateHz = rateHz;
                 break;
             }
-            if ((rate > minimumFrameRate) && (rate < preferredRate)) {
+            if ((rateHz > minimumFrameRateHz) && (rateHz < preferredRateHz)) {
                 // This is the best rate we've seen so far in terms of being
                 // closest to our desired rate without being under it.
-                preferredRate = rate;
+                preferredRateHz = rateHz;
             }
         }
-        if (preferredRate == Float.POSITIVE_INFINITY) {
+        if (preferredRateHz == Float.POSITIVE_INFINITY) {
             String msg = "No display mode with at least " + minRateStr;
             throw new RuntimeException(msg);
         }
-        Log.i(LOG_TAG, "Requesting to run at " + preferredRate + "Hz");
+        Log.i(LOG_TAG, "Requesting to run at " + preferredRateHz + "Hz");
         Window window = getWindow();
         WindowManager.LayoutParams params = window.getAttributes();
-        params.preferredRefreshRate = preferredRate;
+        params.preferredRefreshRate = preferredRateHz;
         window.setAttributes(params);
     }
 
-    private void setFrameRate(float frameRate) {
-        mFrameRate = frameRate;
-        float frameMaxDurationMillis = 1_000.0f / mFrameRate;
-        // There is a little +/- of when our callback is called.  So we allow
-        // up to 25% beyond this before considering it a frame drop.  Since
-        // a frame drop should mean getting a value near double (or higher),
-        // allowing 25% shouldn't have us missing legitimate drops.
-        frameMaxDurationMillis *= 1.25f;
-        // We store as nanoseconds, to avoid per-frame floating point math in
-        // the common case.
-        mFrameMaxDurationNanos = ((long) frameMaxDurationMillis) * 1_000_000;
+    private void setFrameRate(float frameRateHz) {
+        mFrameRateHz = frameRateHz;
 
-        if (mTraceState != TRACE_STATE_TOO_EARLY) {
-            String msg = "Got new frame rate (" + frameRate + ") after "
-                    + mFrameCount + " frames, later than max of " + mFirstAutomatedTestFrame;
+        if (mTraceState != TRACE_STATE_PRE_TEST_TIME) {
+            String msg = "Got new frame rate (" + frameRateHz + ") after "
+                    + mFrameCount + " frames, later than first relevant frame "
+                    + mActualFirstRelevantFrame;
             reportAssumptionFailure(msg);
         }
-        Log.i(LOG_TAG, "Running at frame rate " + mFrameRate + "Hz");
+        Log.i(LOG_TAG, "Running at frame rate " + mFrameRateHz + "Hz");
 
-        mFirstAutomatedTestFrame =
-            Math.round(INITIAL_TIME_TO_IGNORE_IN_SECONDS * mFrameRate);
-
-        // We'll stop our automated test tracking on this frame.
-        mEndingAutomatedTestFrame =
-            mFirstAutomatedTestFrame + (AUTOMATED_TEST_DURATION_IN_SECONDS * (int) mFrameRate);
-    }
-
-    private float nanosToMillis(long nanos) {
-        return nanos / (1_000_000.0f);
+        mMinFirstRelevantFrame =
+            Math.round(INITIAL_MIN_TIME_TO_IGNORE_IN_SECONDS * mFrameRateHz);
+        mMaxFirstRelevantFrame =
+            Math.round(INITIAL_MAX_TIME_TO_IGNORE_IN_SECONDS * mFrameRateHz);
     }
 
     private void reportAssumptionFailure(String msg) {
@@ -312,5 +287,28 @@ public class BouncyBallActivity extends Activity {
             Log.e(LOG_TAG, "Exiting app due to assumption failure.");
             System.exit(1);
         }
+    }
+
+    private boolean isReadyToStartTesting() {
+        // We should only be checking this when we're before the testing time.
+        assert mTraceState == TRACE_STATE_PRE_TEST_TIME;
+
+        if (mFrameCount < mMinFirstRelevantFrame) {
+            return false;
+        }
+        if (mHasFocus) {
+            // We have the focus and we've reached our min first frame.
+            // Let's set our last frame and start testing.
+            mActualFirstRelevantFrame = mFrameCount;
+            mLastRelevantFrame = mActualFirstRelevantFrame
+                    + Math.round(AUTOMATED_TEST_DURATION_IN_SECONDS * mFrameRateHz);
+            return true;
+        }
+
+        if (mFrameCount > mMaxFirstRelevantFrame) {
+            String msg = "App does not have focus after " + mFrameCount + " frames";
+            reportAssumptionFailure(msg);
+        }
+        return false;
     }
 }

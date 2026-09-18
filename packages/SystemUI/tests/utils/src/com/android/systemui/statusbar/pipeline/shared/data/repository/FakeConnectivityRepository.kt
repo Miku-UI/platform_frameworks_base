@@ -30,6 +30,9 @@ class FakeConnectivityRepository : ConnectivityRepository {
     override val defaultConnections: MutableStateFlow<DefaultConnectionModel> =
         MutableStateFlow(DefaultConnectionModel())
 
+    override val resolvedConnections: MutableStateFlow<DefaultConnectionModel> =
+        MutableStateFlow(DefaultConnectionModel())
+
     override val vcnSubId: MutableStateFlow<Int?> = MutableStateFlow(null)
 
     fun setForceHiddenIcons(hiddenIcons: Set<ConnectivitySlot>) {
@@ -43,40 +46,47 @@ class FakeConnectivityRepository : ConnectivityRepository {
      */
     @JvmOverloads
     fun setMobileConnected(default: Boolean = true, validated: Boolean = true) {
-        defaultConnections.value =
+        val value =
             DefaultConnectionModel(
                 mobile = DefaultConnectionModel.Mobile(default),
                 isValidated = validated,
             )
+        defaultConnections.value = value
+        resolvedConnections.value = value
     }
 
     /** Similar convenience method for ethernet */
     @JvmOverloads
     fun setEthernetConnected(default: Boolean = true, validated: Boolean = true) {
-        defaultConnections.value =
+        val value =
             DefaultConnectionModel(
                 ethernet = DefaultConnectionModel.Ethernet(default),
                 isValidated = validated,
             )
+        defaultConnections.value = value
+        resolvedConnections.value = value
     }
 
     @JvmOverloads
     fun setWifiConnected(default: Boolean = true, validated: Boolean = true) {
-        defaultConnections.value =
+        val value =
             DefaultConnectionModel(
                 wifi = DefaultConnectionModel.Wifi(default),
                 isValidated = validated,
             )
+        defaultConnections.value = value
+        resolvedConnections.value = value
     }
 
     @JvmOverloads
     fun setCarrierMergedConnected(default: Boolean = true, validated: Boolean = true) {
-        defaultConnections.value =
+        val value =
             DefaultConnectionModel(
-                wifi = DefaultConnectionModel.Wifi(default),
                 carrierMerged = DefaultConnectionModel.CarrierMerged(default),
                 isValidated = validated,
             )
+        defaultConnections.value = value
+        resolvedConnections.value = value
     }
 }
 

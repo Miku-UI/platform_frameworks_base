@@ -127,4 +127,9 @@ abstract class AppCompatRobotBase {
     void applyOnResources(@NonNull Consumer<AppCompatResourcesRobot> consumer) {
         consumer.accept(mResourcesRobot);
     }
+
+    void reInitCameraPolicy() {
+        mWindowTestsBase.mWm.mAppCompatCameraPolicy.reInit();
+        mWindowTestsBase.mWm.mAppCompatCameraPolicy.start();
+    }
 }

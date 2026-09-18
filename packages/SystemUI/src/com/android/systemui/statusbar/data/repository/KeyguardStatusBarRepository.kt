@@ -18,10 +18,10 @@ package com.android.systemui.statusbar.data.repository
 
 import android.content.Context
 import com.android.internal.R
-import com.android.systemui.common.coroutine.ConflatedCallbackFlow
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.user.data.repository.UserSwitcherRepository
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import dagger.Binds
 import dagger.Module
 import javax.inject.Inject
@@ -33,7 +33,7 @@ import kotlinx.coroutines.flow.merge
 
 /**
  * Repository for data that's specific to the status bar **on keyguard**. For data that applies to
- * all status bars, use [StatusBarModeRepositoryStore].
+ * all status bars, use [StatusBarModePerDisplayRepository].
  */
 interface KeyguardStatusBarRepository {
     /** True if we can show the user switcher on keyguard and false otherwise. */
@@ -49,7 +49,7 @@ constructor(
     userSwitcherRepository: UserSwitcherRepository,
 ) : KeyguardStatusBarRepository {
     private val relevantConfigChanges: Flow<Unit> =
-        ConflatedCallbackFlow.conflatedCallbackFlow {
+        conflatedCallbackFlow {
             val callback =
                 object : ConfigurationController.ConfigurationListener {
                     override fun onSmallestScreenWidthChanged() {
@@ -73,10 +73,9 @@ constructor(
 
     /** True if we can show the user switcher on keyguard and false otherwise. */
     override val isKeyguardUserSwitcherEnabled: Flow<Boolean> =
-        combine(
-            userSwitcherRepository.isEnabled,
-            isKeyguardUserSwitcherConfigEnabled,
-        ) { isEnabled, isKeyguardEnabled ->
+        combine(userSwitcherRepository.isEnabled, isKeyguardUserSwitcherConfigEnabled) {
+            isEnabled,
+            isKeyguardEnabled ->
             isEnabled && isKeyguardEnabled
         }
 }

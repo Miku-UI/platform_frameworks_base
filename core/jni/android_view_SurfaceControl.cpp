@@ -234,11 +234,22 @@ static struct {
 static struct {
     jclass clazz;
     jmethodID ctor;
+    jfieldID minSfDurationNanos;
+    jfieldID maxSfDurationNanos;
+    jfieldID appDurationNanos;
+} gWorkDurationClassInfo;
+
+static struct {
+    jclass clazz;
+    jmethodID ctor;
+    jfieldID displayToken;
+    jfieldID applyToken;
     jfieldID defaultMode;
     jfieldID allowGroupSwitching;
     jfieldID primaryRanges;
     jfieldID appRequestRanges;
     jfieldID idleScreenRefreshRateConfig;
+    jfieldID workDuration;
 } gDesiredDisplayModeSpecsClassInfo;
 
 static struct {
@@ -791,6 +802,13 @@ static void nativeSetDesiredHdrHeadroom(JNIEnv* env, jclass clazz, jlong transac
     transaction->setDesiredHdrHeadroom(ctrl, desiredRatio);
 }
 
+static void nativeSetDesiredMaxHdrHeadroom(JNIEnv* env, jclass clazz, jlong transactionObj,
+                                           jlong nativeObject, float maxDesiredHdrSdrRatio) {
+    auto transaction = reinterpret_cast<SurfaceComposerClient::Transaction*>(transactionObj);
+    auto ctrl = SpFromRawPtr<SurfaceControl>(nativeObject);
+    transaction->setDesiredMaxHdrHeadroom(ctrl, maxDesiredHdrSdrRatio);
+}
+
 static void nativeSetLuts(JNIEnv* env, jclass clazz, jlong transactionObj, jlong nativeObject,
                           jfloatArray jbufferArray, jintArray joffsetArray,
                           jintArray jdimensionArray, jintArray jsizeArray,
@@ -882,6 +900,14 @@ static void nativeSetSystemContentPriority(JNIEnv* env, jclass clazz, jlong tran
     transaction->setSystemContentPriority(surfaceControl, priority);
 }
 
+static void nativeSetCompositionFilterFlag(JNIEnv* env, jclass clazz, jlong transactionObj,
+                                           jlong surfaceControlObj, jint compositionFilterFlag) {
+    auto transaction = reinterpret_cast<SurfaceComposerClient::Transaction*>(transactionObj);
+    auto surfaceControl = SpFromRawPtr<SurfaceControl>(surfaceControlObj);
+    transaction->setCompositionFilterFlag(surfaceControl,
+                                          static_cast<uint32_t>(compositionFilterFlag));
+}
+
 static void nativeSetCachingHint(JNIEnv* env, jclass clazz, jlong transactionObj,
                                  jlong nativeObject, jint cachingHint) {
     auto transaction = reinterpret_cast<SurfaceComposerClient::Transaction*>(transactionObj);
@@ -896,26 +922,34 @@ static void nativeSetBlurRegions(JNIEnv* env, jclass clazz, jlong transactionObj
 
     std::vector<BlurRegion> blurRegionVector;
     const int size = regionsLength;
-    float region[10];
+    float region[14];
     for (int i = 0; i < size; i++) {
         jfloatArray regionArray = (jfloatArray)env->GetObjectArrayElement(regions, i);
-        env->GetFloatArrayRegion(regionArray, 0, 10, region);
+        env->GetFloatArrayRegion(regionArray, 0, 14, region);
         float blurRadius = region[0];
         float alpha = region[1];
         float left = region[2];
         float top = region[3];
         float right = region[4];
         float bottom = region[5];
-        float cornerRadiusTL = region[6];
-        float cornerRadiusTR = region[7];
-        float cornerRadiusBL = region[8];
-        float cornerRadiusBR = region[9];
+        float cornerRadiusTLX = region[6];
+        float cornerRadiusTLY = region[7];
+        float cornerRadiusTRX = region[8];
+        float cornerRadiusTRY = region[9];
+        float cornerRadiusBLX = region[10];
+        float cornerRadiusBLY = region[11];
+        float cornerRadiusBRX = region[12];
+        float cornerRadiusBRY = region[13];
 
         blurRegionVector.push_back(BlurRegion{.blurRadius = static_cast<uint32_t>(blurRadius),
-                                              .cornerRadiusTL = cornerRadiusTL,
-                                              .cornerRadiusTR = cornerRadiusTR,
-                                              .cornerRadiusBL = cornerRadiusBL,
-                                              .cornerRadiusBR = cornerRadiusBR,
+                                              .cornerRadiusTLX = cornerRadiusTLX,
+                                              .cornerRadiusTLY = cornerRadiusTLY,
+                                              .cornerRadiusTRX = cornerRadiusTRX,
+                                              .cornerRadiusTRY = cornerRadiusTRY,
+                                              .cornerRadiusBLX = cornerRadiusBLX,
+                                              .cornerRadiusBLY = cornerRadiusBLY,
+                                              .cornerRadiusBRX = cornerRadiusBRX,
+                                              .cornerRadiusBRY = cornerRadiusBRY,
                                               .alpha = alpha,
                                               .left = static_cast<int>(left),
                                               .top = static_cast<int>(top),
@@ -1227,6 +1261,14 @@ static void nativeSetShadowRadius(JNIEnv* env, jclass clazz, jlong transactionOb
 
     const auto ctrl = SpFromRawPtr<SurfaceControl>(nativeObject);
     transaction->setShadowRadius(ctrl, shadowRadius);
+}
+
+static void nativeToggleRoundedCornerOpt(JNIEnv* env, jclass clazz, jlong transactionObj,
+                                         jlong nativeObject, jboolean enable) {
+    auto transaction = reinterpret_cast<SurfaceComposerClient::Transaction*>(transactionObj);
+
+    const auto ctrl = SpFromRawPtr<SurfaceControl>(nativeObject);
+    transaction->setRoundedCornerOpt(ctrl, enable);
 }
 
 static void nativeSetBoxShadowSettings(JNIEnv* env, jclass clazz, jlong transactionObj,
@@ -1696,11 +1738,9 @@ static jobject nativeGetDynamicDisplayInfo(JNIEnv* env, jclass clazz, jlong disp
     return object;
 }
 
-static jboolean nativeSetDesiredDisplayModeSpecs(JNIEnv* env, jclass clazz, jobject tokenObj,
-                                                 jobject DesiredDisplayModeSpecs) {
-    sp<IBinder> token(ibinderForJavaObject(env, tokenObj));
-    if (token == nullptr) return JNI_FALSE;
-
+static jboolean nativeSetDesiredDisplayModeSpecs(JNIEnv* env, jclass clazz,
+                                                 jobject applyTokenObj,
+                                                 jobjectArray jDesiredDisplayModeSpecs) {
     const auto makeRanges = [env](jobject obj) {
         const auto makeRange = [env](jobject obj) {
             gui::DisplayModeSpecs::RefreshRateRanges::RefreshRateRange range;
@@ -1727,31 +1767,64 @@ static jboolean nativeSetDesiredDisplayModeSpecs(JNIEnv* env, jclass clazz, jobj
         return idleScreenRefreshRateConfig;
     };
 
-    gui::DisplayModeSpecs specs;
-    specs.defaultMode = env->GetIntField(DesiredDisplayModeSpecs,
-                                         gDesiredDisplayModeSpecsClassInfo.defaultMode);
-    specs.allowGroupSwitching =
-            env->GetBooleanField(DesiredDisplayModeSpecs,
-                                 gDesiredDisplayModeSpecsClassInfo.allowGroupSwitching);
+    const jsize specsLength = env->GetArrayLength(jDesiredDisplayModeSpecs);
 
-    specs.primaryRanges =
-            makeRanges(env->GetObjectField(DesiredDisplayModeSpecs,
-                                           gDesiredDisplayModeSpecsClassInfo.primaryRanges));
-    specs.appRequestRanges =
-            makeRanges(env->GetObjectField(DesiredDisplayModeSpecs,
-                                           gDesiredDisplayModeSpecsClassInfo.appRequestRanges));
+    const auto makeWorkDuration =
+            [env](jobject obj) -> std::optional<gui::DisplayModeSpecs::WorkDuration> {
+        if (obj == NULL) {
+            return std::nullopt;
+        }
+        gui::DisplayModeSpecs::WorkDuration workDuration;
+        workDuration.minSfDurationNanos =
+                env->GetLongField(obj, gWorkDurationClassInfo.minSfDurationNanos);
+        workDuration.maxSfDurationNanos =
+                env->GetLongField(obj, gWorkDurationClassInfo.maxSfDurationNanos);
+        workDuration.appDurationNanos =
+                env->GetLongField(obj, gWorkDurationClassInfo.appDurationNanos);
+        return workDuration;
+    };
 
-    specs.idleScreenRefreshRateConfig = makeIdleScreenRefreshRateConfig(
-            env->GetObjectField(DesiredDisplayModeSpecs,
-                                gDesiredDisplayModeSpecsClassInfo.idleScreenRefreshRateConfig));
+    std::vector<gui::DisplayModeSpecs> displayModeSpecs;
+    displayModeSpecs.reserve(specsLength);
 
-    size_t result = SurfaceComposerClient::setDesiredDisplayModeSpecs(token, specs);
+    sp<IBinder> applyToken = ibinderForJavaObject(env, applyTokenObj);
+
+    for (jsize i = 0; i < specsLength; i++) {
+        const jobject jSpecs = env->GetObjectArrayElement(jDesiredDisplayModeSpecs, i);
+
+        jobject displayTokenObj =
+                env->GetObjectField(jSpecs, gDesiredDisplayModeSpecsClassInfo.displayToken);
+        sp<IBinder> displayToken = ibinderForJavaObject(env, displayTokenObj);
+        if (displayToken == nullptr) return JNI_FALSE;
+
+        gui::DisplayModeSpecs specs;
+        specs.displayToken = std::move(displayToken);
+        specs.defaultMode = env->GetIntField(jSpecs, gDesiredDisplayModeSpecsClassInfo.defaultMode);
+        specs.allowGroupSwitching =
+                env->GetBooleanField(jSpecs, gDesiredDisplayModeSpecsClassInfo.allowGroupSwitching);
+
+        specs.primaryRanges = makeRanges(
+                env->GetObjectField(jSpecs, gDesiredDisplayModeSpecsClassInfo.primaryRanges));
+        specs.appRequestRanges = makeRanges(
+                env->GetObjectField(jSpecs, gDesiredDisplayModeSpecsClassInfo.appRequestRanges));
+
+        specs.idleScreenRefreshRateConfig = makeIdleScreenRefreshRateConfig(
+                env->GetObjectField(jSpecs,
+                                    gDesiredDisplayModeSpecsClassInfo.idleScreenRefreshRateConfig));
+        specs.workDuration = makeWorkDuration(
+                env->GetObjectField(jSpecs, gDesiredDisplayModeSpecsClassInfo.workDuration));
+
+        displayModeSpecs.push_back(std::move(specs));
+    }
+
+    size_t result = SurfaceComposerClient::setDesiredDisplayModeSpecs(applyToken, displayModeSpecs);
     return result == NO_ERROR ? JNI_TRUE : JNI_FALSE;
 }
 
-static jobject nativeGetDesiredDisplayModeSpecs(JNIEnv* env, jclass clazz, jobject tokenObj) {
-    sp<IBinder> token(ibinderForJavaObject(env, tokenObj));
-    if (token == nullptr) return nullptr;
+static jobject nativeGetDesiredDisplayModeSpecs(JNIEnv* env, jclass clazz,
+                                                jobject displayTokenObj) {
+    sp<IBinder> displayToken = ibinderForJavaObject(env, displayTokenObj);
+    if (displayToken == nullptr) return nullptr;
 
     const auto rangesToJava = [env](const gui::DisplayModeSpecs::RefreshRateRanges& ranges) {
         const auto rangeToJava =
@@ -1775,16 +1848,29 @@ static jobject nativeGetDesiredDisplayModeSpecs(JNIEnv* env, jclass clazz, jobje
                               idleScreenRefreshRateConfig->timeoutMillis);
     };
 
+    const auto workDurationToJava =
+            [env](const std::optional<gui::DisplayModeSpecs::WorkDuration>& workDuration)
+            -> jobject {
+        if (!workDuration.has_value()) {
+            return NULL; // Return null if input config is null
+        }
+        return env->NewObject(gWorkDurationClassInfo.clazz, gWorkDurationClassInfo.ctor,
+                              workDuration->minSfDurationNanos, workDuration->maxSfDurationNanos,
+                              workDuration->appDurationNanos);
+    };
+
     gui::DisplayModeSpecs specs;
-    if (SurfaceComposerClient::getDesiredDisplayModeSpecs(token, &specs) != NO_ERROR) {
+    if (SurfaceComposerClient::getDesiredDisplayModeSpecs(displayToken, &specs) != NO_ERROR) {
         return nullptr;
     }
 
     return env->NewObject(gDesiredDisplayModeSpecsClassInfo.clazz,
-                          gDesiredDisplayModeSpecsClassInfo.ctor, specs.defaultMode,
+                          gDesiredDisplayModeSpecsClassInfo.ctor, displayTokenObj,
+                          specs.defaultMode,
                           specs.allowGroupSwitching, rangesToJava(specs.primaryRanges),
                           rangesToJava(specs.appRequestRanges),
-                          idleScreenRefreshRateConfigToJava(specs.idleScreenRefreshRateConfig));
+                          idleScreenRefreshRateConfigToJava(specs.idleScreenRefreshRateConfig),
+                          workDurationToJava(specs.workDuration));
 }
 
 static jobject nativeGetDisplayNativePrimaries(JNIEnv* env, jclass, jobject tokenObj) {
@@ -2198,6 +2284,22 @@ static jlong nativeMirrorSurface(JNIEnv* env, jclass clazz, jlong mirrorOfObj, j
     return reinterpret_cast<jlong>(surface.get());
 }
 
+static jlong nativeMirrorSurfaceWithCrop(JNIEnv* env, jclass clazz, jlong mirrorOfObj,
+                                           jlong stopAtObj, jlong cropByObj) {
+    sp<SurfaceComposerClient> client = SurfaceComposerClient::getDefault();
+    SurfaceControl* mirrorOf = reinterpret_cast<SurfaceControl*>(mirrorOfObj);
+    SurfaceControl* stopAt = reinterpret_cast<SurfaceControl*>(stopAtObj);
+    SurfaceControl* cropBy = reinterpret_cast<SurfaceControl*>(cropByObj);
+
+    sp<SurfaceControl> surface = client->mirrorSurface(mirrorOf, stopAt, cropBy);
+
+    if (surface == nullptr) {
+        return 0;
+    }
+    surface->incStrong((void*)nativeCreate);
+    return reinterpret_cast<jlong>(surface.get());
+}
+
 static void nativeSetGlobalShadowSettings(JNIEnv* env, jclass clazz, jfloatArray jAmbientColor,
         jfloatArray jSpotColor, jfloat lightPosY, jfloat lightPosZ, jfloat lightRadius) {
     sp<SurfaceComposerClient> client = SurfaceComposerClient::getDefault();
@@ -2365,6 +2467,49 @@ public:
         env->DeleteWeakGlobalRef(mOnJankDataListenerWeak);
     }
 
+    int getJavaJankType(int sfJankType) {
+        // The exposed constants in SurfaceControl are simplified, so we need to translate the
+        // jank type we get from SF to what is exposed in Java.
+        constexpr int JANK_NONE = 0x0;        // SurfaceControl.JankData.JANK_NONE
+        constexpr int JANK_COMPOSER = 0x1;    // SurfaceControl.JankData.JANK_COMPOSER
+        constexpr int JANK_APPLICATION = 0x2; // SurfaceControl.JankData.JANK_APPLICATION
+        constexpr int JANK_OTHER = 0x4;       // SurfaceControl.JankData.JANK_OTHER
+
+        constexpr int kComposerJankMask = JankType::DisplayHAL |
+                JankType::SurfaceFlingerCpuDeadlineMissed |
+                JankType::SurfaceFlingerGpuDeadlineMissed | JankType::PredictionError |
+                JankType::SurfaceFlingerScheduling;
+
+        constexpr int kApplicationJankMask =
+                JankType::AppDeadlineMissed | JankType::AppResyncedJitter;
+
+        constexpr int kNoneReportedJankMask = JankType::None | JankType::BufferStuffing |
+                JankType::SurfaceFlingerStuffing | JankType::Dropped | JankType::NonAnimating |
+                JankType::DisplayNotOn | JankType::DisplayModeChangeInProgress |
+                JankType::DisplayPowerModeChangeInProgress;
+
+        constexpr int kAllHandledJankMask =
+                kComposerJankMask | kApplicationJankMask | kNoneReportedJankMask;
+
+        static_assert((kJankTypeAll & ~(kAllHandledJankMask | JankType::Unknown)) == 0,
+                      "Missing a JankType handling");
+
+        int javaJankType = JANK_NONE;
+        if (sfJankType & kComposerJankMask) {
+            javaJankType |= JANK_COMPOSER;
+        }
+
+        if (sfJankType & kApplicationJankMask) {
+            javaJankType |= JANK_APPLICATION;
+        }
+
+        if (sfJankType & ~kAllHandledJankMask) {
+            javaJankType |= JANK_OTHER;
+        }
+
+        return javaJankType;
+    }
+
     bool onJankDataAvailable(const std::vector<gui::JankData>& jankData) override {
         // Don't invoke the listener if we've been force removed and got this
         // out-of-order callback.
@@ -2382,32 +2527,15 @@ public:
         jobjectArray jJankDataArray =
                 env->NewObjectArray(jankData.size(), gJankDataClassInfo.clazz, nullptr);
         for (size_t i = 0; i < jankData.size(); i++) {
-            // The exposed constants in SurfaceControl are simplified, so we need to translate the
-            // jank type we get from SF to what is exposed in Java.
-            int sfJankType = jankData[i].jankType;
-            int javaJankType = 0x0; // SurfaceControl.JankData.JANK_NONE
-            if (sfJankType &
-                (JankType::DisplayHAL | JankType::SurfaceFlingerCpuDeadlineMissed |
-                 JankType::SurfaceFlingerGpuDeadlineMissed | JankType::PredictionError |
-                 JankType::SurfaceFlingerScheduling)) {
-                javaJankType |= 0x1; // SurfaceControl.JankData.JANK_COMPOSER
-            }
-            if (sfJankType & JankType::AppDeadlineMissed) {
-                javaJankType |= 0x2; // SurfaceControl.JankData.JANK_APPLICATION
-            }
-            if (sfJankType &
-                ~(JankType::DisplayHAL | JankType::SurfaceFlingerCpuDeadlineMissed |
-                  JankType::SurfaceFlingerGpuDeadlineMissed | JankType::AppDeadlineMissed |
-                  JankType::PredictionError | JankType::SurfaceFlingerScheduling |
-                  JankType::BufferStuffing | JankType::SurfaceFlingerStuffing)) {
-                javaJankType |= 0x4; // SurfaceControl.JankData.JANK_OTHER
-            }
-
+            const int javaJankTypeLegacy = getJavaJankType(jankData[i].jankTypeLegacy);
+            const int javaJankTypeExperimental = getJavaJankType(jankData[i].jankTypeExperimental);
             jobject jJankData =
                     env->NewObject(gJankDataClassInfo.clazz, gJankDataClassInfo.ctor,
-                                   jankData[i].frameVsyncId, javaJankType,
-                                   jankData[i].frameIntervalNs, jankData[i].scheduledAppFrameTimeNs,
-                                   jankData[i].actualAppFrameTimeNs);
+                                   jankData[i].frameVsyncId, javaJankTypeLegacy,
+                                   javaJankTypeExperimental, jankData[i].frameIntervalNs,
+                                   jankData[i].scheduledAppFrameTimeNs,
+                                   jankData[i].actualAppFrameTimeNs, jankData[i].presentDelayNs,
+                                   jankData[i].jankScore);
             env->SetObjectArrayElement(jJankDataArray, i, jJankData);
             env->DeleteLocalRef(jJankData);
         }
@@ -2632,6 +2760,45 @@ static void nativeEnableDebugLogCallPoints(JNIEnv* env, jclass clazz, jlong tran
     transaction->enableDebugLogCallPoints();
 }
 
+static void nativeSetPostProcess(JNIEnv* env, jclass clazz, jlong transactionObj,
+                                 jlong nativeObject, jobject shader, jbyteArray uniformsByteArray,
+                                 jint target) {
+    auto transaction = reinterpret_cast<SurfaceComposerClient::Transaction*>(transactionObj);
+    auto ctrl = SpFromRawPtr<SurfaceControl>(nativeObject);
+
+    sp<IBinder> shaderBinder = ibinderForJavaObject(env, shader);
+    std::shared_ptr<std::vector<uint8_t>> uniforms;
+    if (uniformsByteArray != nullptr) {
+        jsize length = env->GetArrayLength(uniformsByteArray);
+        uniforms = std::make_shared<std::vector<uint8_t>>(length);
+        env->GetByteArrayRegion(uniformsByteArray, 0, length,
+                                reinterpret_cast<jbyte*>(uniforms->data()));
+    }
+
+    layer_state_t::SampleTarget sampleTarget = static_cast<layer_state_t::SampleTarget>(target);
+    transaction->setPostProcess(ctrl, shaderBinder, uniforms, sampleTarget);
+}
+
+static jobject nativeRegisterShader(JNIEnv* env, jclass clazz, jstring uniqueShaderName,
+                                    jstring shaderString) {
+    ScopedUtfChars name(env, uniqueShaderName);
+    if (!name.c_str()) {
+        return nullptr;
+    }
+    ScopedUtfChars shader(env, shaderString);
+    if (!shader.c_str()) {
+        return nullptr;
+    }
+    sp<IBinder> token = SurfaceComposerClient::registerShader(std::string(name.c_str()),
+                                                              std::string(shader.c_str()));
+    return javaObjectForIBinder(env, token);
+}
+
+static void nativeUnregisterShader(JNIEnv* env, jclass clazz, jobject shader) {
+    sp<IBinder> shaderBinder = ibinderForJavaObject(env, shader);
+    SurfaceComposerClient::unregisterShader(shaderBinder);
+}
+
 static const JNINativeMethod sSurfaceControlMethods[] = {
         // clang-format off
     {"nativeCreate", "(Landroid/view/SurfaceSession;Ljava/lang/String;IIIIJLandroid/os/Parcel;)J",
@@ -2720,8 +2887,16 @@ static const JNINativeMethod sSurfaceControlMethods[] = {
             (void*) nativeSetEdgeExtensionEffect },
     {"nativeSetShadowRadius", "(JJF)V",
             (void*)nativeSetShadowRadius },
+    {"nativeToggleRoundedCornerOpt", "(JJZ)V",
+            (void*)nativeToggleRoundedCornerOpt},
     {"nativeSetBoxShadowSettings", "(JJLandroid/os/Parcel;)V",
             (void*)nativeSetBoxShadowSettings },
+    {"nativeSetPostProcess", "(JJLandroid/os/IBinder;[BI)V",
+            (void*)nativeSetPostProcess },
+    {"nativeRegisterShader", "(Ljava/lang/String;Ljava/lang/String;)Landroid/os/IBinder;",
+            (void*)nativeRegisterShader },
+    {"nativeUnregisterShader", "(Landroid/os/IBinder;)V",
+            (void*)nativeUnregisterShader },
     {"nativeSetBorderSettings", "(JJLandroid/os/Parcel;)V",
             (void*)nativeSetBorderSettings },
     {"nativeSetFrameRate", "(JJFII)V",
@@ -2749,7 +2924,7 @@ static const JNINativeMethod sSurfaceControlMethods[] = {
             "(J)Landroid/view/SurfaceControl$DynamicDisplayInfo;",
             (void*)nativeGetDynamicDisplayInfo },
     {"nativeSetDesiredDisplayModeSpecs",
-            "(Landroid/os/IBinder;Landroid/view/SurfaceControl$DesiredDisplayModeSpecs;)Z",
+            "(Landroid/os/IBinder;[Landroid/view/SurfaceControl$DesiredDisplayModeSpecs;)Z",
             (void*)nativeSetDesiredDisplayModeSpecs },
     {"nativeGetDesiredDisplayModeSpecs",
             "(Landroid/os/IBinder;)Landroid/view/SurfaceControl$DesiredDisplayModeSpecs;",
@@ -2812,6 +2987,8 @@ static const JNINativeMethod sSurfaceControlMethods[] = {
             (void*)nativeSetExtendedRangeBrightness },
     {"nativeSetDesiredHdrHeadroom", "(JJF)V",
             (void*)nativeSetDesiredHdrHeadroom },
+    {"nativeSetDesiredMaxHdrHeadroom", "(JJF)V",
+            (void*)nativeSetDesiredMaxHdrHeadroom },
     {"nativeSetCachingHint", "(JJI)V",
             (void*)nativeSetCachingHint },
     {"nativeAddTransactionBarrier", "(JLandroid/os/Parcel;)V",
@@ -2830,6 +3007,8 @@ static const JNINativeMethod sSurfaceControlMethods[] = {
             (void*)nativeClearTransaction },
     {"nativeMirrorSurface", "(JJ)J",
             (void*)nativeMirrorSurface },
+    {"nativeMirrorSurfaceWithCrop", "(JJJ)J",
+            (void*)nativeMirrorSurfaceWithCrop },
     {"nativeSetGlobalShadowSettings", "([F[FFFF)V",
             (void*)nativeSetGlobalShadowSettings },
     {"nativeGetDisplayDecorationSupport",
@@ -2901,6 +3080,7 @@ static const JNINativeMethod sSurfaceControlMethods[] = {
     {"nativeSetPictureProfileId", "(JJJ)V", (void*)nativeSetPictureProfileId },
     {"nativeSetContentPriority", "(JJI)V", (void*)nativeSetContentPriority },
     {"nativeSetSystemContentPriority", "(JJI)V", (void*)nativeSetSystemContentPriority },
+    {"nativeSetCompositionFilterFlag", "(JJI)V", (void*)nativeSetCompositionFilterFlag },
         // clang-format on
 };
 
@@ -3100,14 +3280,31 @@ int register_android_view_SurfaceControl(JNIEnv* env)
     gIdleScreenRefreshRateConfigClassInfo.timeoutMillis =
             GetFieldIDOrDie(env, gIdleScreenRefreshRateConfigClassInfo.clazz, "timeoutMillis", "I");
 
+    jclass WorkDurationConfigClazz =
+            FindClassOrDie(env, "android/view/SurfaceControl$WorkDuration");
+    gWorkDurationClassInfo.clazz = MakeGlobalRefOrDie(env, WorkDurationConfigClazz);
+    gWorkDurationClassInfo.ctor =
+            GetMethodIDOrDie(env, gWorkDurationClassInfo.clazz, "<init>", "(JJJ)V");
+    gWorkDurationClassInfo.minSfDurationNanos =
+            GetFieldIDOrDie(env, gWorkDurationClassInfo.clazz, "minSfDurationNanos", "J");
+    gWorkDurationClassInfo.maxSfDurationNanos =
+            GetFieldIDOrDie(env, gWorkDurationClassInfo.clazz, "maxSfDurationNanos", "J");
+    gWorkDurationClassInfo.appDurationNanos =
+            GetFieldIDOrDie(env, gWorkDurationClassInfo.clazz, "appDurationNanos", "J");
+
     jclass DesiredDisplayModeSpecsClazz =
             FindClassOrDie(env, "android/view/SurfaceControl$DesiredDisplayModeSpecs");
     gDesiredDisplayModeSpecsClassInfo.clazz = MakeGlobalRefOrDie(env, DesiredDisplayModeSpecsClazz);
     gDesiredDisplayModeSpecsClassInfo.ctor =
             GetMethodIDOrDie(env, gDesiredDisplayModeSpecsClassInfo.clazz, "<init>",
-                             "(IZLandroid/view/SurfaceControl$RefreshRateRanges;Landroid/view/"
+                             "(Landroid/os/IBinder;IZ"
+                             "Landroid/view/SurfaceControl$RefreshRateRanges;Landroid/view/"
                              "SurfaceControl$RefreshRateRanges;Landroid/view/"
-                             "SurfaceControl$IdleScreenRefreshRateConfig;)V");
+                             "SurfaceControl$IdleScreenRefreshRateConfig;"
+                             "Landroid/view/SurfaceControl$WorkDuration;)V");
+    gDesiredDisplayModeSpecsClassInfo.displayToken =
+            GetFieldIDOrDie(env, DesiredDisplayModeSpecsClazz, "displayToken",
+                            "Landroid/os/IBinder;");
     gDesiredDisplayModeSpecsClassInfo.defaultMode =
             GetFieldIDOrDie(env, DesiredDisplayModeSpecsClazz, "defaultMode", "I");
     gDesiredDisplayModeSpecsClassInfo.allowGroupSwitching =
@@ -3121,11 +3318,15 @@ int register_android_view_SurfaceControl(JNIEnv* env)
     gDesiredDisplayModeSpecsClassInfo.idleScreenRefreshRateConfig =
             GetFieldIDOrDie(env, DesiredDisplayModeSpecsClazz, "idleScreenRefreshRateConfig",
                             "Landroid/view/SurfaceControl$IdleScreenRefreshRateConfig;");
+    gDesiredDisplayModeSpecsClassInfo.workDuration =
+            GetFieldIDOrDie(env, DesiredDisplayModeSpecsClazz, "workDuration",
+                            "Landroid/view/SurfaceControl$WorkDuration;");
 
     jclass jankDataClazz =
                 FindClassOrDie(env, "android/view/SurfaceControl$JankData");
     gJankDataClassInfo.clazz = MakeGlobalRefOrDie(env, jankDataClazz);
-    gJankDataClassInfo.ctor = GetMethodIDOrDie(env, gJankDataClassInfo.clazz, "<init>", "(JIJJJ)V");
+    gJankDataClassInfo.ctor =
+            GetMethodIDOrDie(env, gJankDataClassInfo.clazz, "<init>", "(JIIJJJJD)V");
     jclass onJankDataListenerClazz =
             FindClassOrDie(env, "android/view/SurfaceControl$OnJankDataListener");
     gJankDataListenerClassInfo.clazz = MakeGlobalRefOrDie(env, onJankDataListenerClazz);

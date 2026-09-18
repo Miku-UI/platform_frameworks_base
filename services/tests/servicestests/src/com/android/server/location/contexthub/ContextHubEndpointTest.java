@@ -174,6 +174,7 @@ public class ContextHubEndpointTest {
     }
 
     private void restartHalAndVerifyHubRegistration() throws RemoteException {
+        mEndpointManager.onHalDeath();
         mEndpointManager.onHalRestart();
         mNumHalRestarts++;
         verify(mMockContextHubWrapper, times(mNumHalRestarts + 1))
@@ -215,7 +216,8 @@ public class ContextHubEndpointTest {
                         TARGET_ENDPOINT_NAME,
                         TARGET_ENDPOINT_ID,
                         ENDPOINT_PACKAGE_NAME,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        /* sharedDataSupportVersion= */ null);
         int sessionId = endpoint.openSession(targetInfo, /* serviceDescriptor= */ null);
         mEndpointManager.onEndpointSessionOpenComplete(sessionId);
         assertThat(mEndpointManager.getNumAvailableSessions()).isEqualTo(SESSION_ID_RANGE - 1);
@@ -233,7 +235,8 @@ public class ContextHubEndpointTest {
                         TARGET_ENDPOINT_NAME,
                         TARGET_ENDPOINT_ID,
                         ENDPOINT_PACKAGE_NAME,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        /* sharedDataSupportVersion= */ null);
         int sessionId = endpoint.openSession(targetInfo, /* serviceDescriptor= */ null);
         mEndpointManager.onEndpointSessionOpenComplete(sessionId);
         assertThat(mEndpointManager.getNumAvailableSessions()).isEqualTo(SESSION_ID_RANGE - 1);
@@ -264,7 +267,8 @@ public class ContextHubEndpointTest {
                         TARGET_ENDPOINT_NAME,
                         TARGET_ENDPOINT_ID,
                         ENDPOINT_PACKAGE_NAME,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        /* sharedDataSupportVersion= */ null);
         int sessionId = endpoint.openSession(targetInfo, /* serviceDescriptor= */ null);
         mEndpointManager.onEndpointSessionOpenComplete(sessionId);
         assertThat(mEndpointManager.getNumAvailableSessions()).isEqualTo(SESSION_ID_RANGE - 1);
@@ -284,7 +288,8 @@ public class ContextHubEndpointTest {
                         TARGET_ENDPOINT_NAME,
                         TARGET_ENDPOINT_ID,
                         ENDPOINT_PACKAGE_NAME,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        /* sharedDataSupportVersion= */ null);
         mHubInfoRegistry.onEndpointStarted(new HubEndpointInfo[] {targetInfo});
         mEndpointManager.onEndpointSessionOpenRequest(
                 SESSION_ID_FOR_OPEN_REQUEST,
@@ -320,7 +325,8 @@ public class ContextHubEndpointTest {
                         TARGET_ENDPOINT_NAME,
                         TARGET_ENDPOINT_ID,
                         ENDPOINT_PACKAGE_NAME,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        /* sharedDataSupportVersion= */ null);
         mHubInfoRegistry.onEndpointStarted(new HubEndpointInfo[] {targetInfo});
         mEndpointManager.onEndpointSessionOpenRequest(
                 INVALID_SESSION_ID_FOR_OPEN_REQUEST,
@@ -351,7 +357,8 @@ public class ContextHubEndpointTest {
                         TARGET_ENDPOINT_NAME,
                         TARGET_ENDPOINT_ID,
                         ENDPOINT_PACKAGE_NAME,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        /* sharedDataSupportVersion= */ null);
         mHubInfoRegistry.onEndpointStarted(new HubEndpointInfo[] {targetInfo});
         mEndpointManager.onEndpointSessionOpenRequest(
                 SESSION_ID_FOR_OPEN_REQUEST,
@@ -389,7 +396,8 @@ public class ContextHubEndpointTest {
                         TARGET_ENDPOINT_NAME,
                         TARGET_ENDPOINT_ID,
                         ENDPOINT_PACKAGE_NAME,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        /* sharedDataSupportVersion= */ null);
         mHubInfoRegistry.onEndpointStarted(new HubEndpointInfo[] {targetInfo});
         mEndpointManager.onEndpointSessionOpenRequest(
                 SESSION_ID_FOR_OPEN_REQUEST,
@@ -431,7 +439,8 @@ public class ContextHubEndpointTest {
                         TARGET_ENDPOINT_NAME,
                         TARGET_ENDPOINT_ID,
                         ENDPOINT_PACKAGE_NAME,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        /* sharedDataSupportVersion= */ null);
         mHubInfoRegistry.onEndpointStarted(new HubEndpointInfo[] {targetInfo});
         mEndpointManager.onEndpointSessionOpenRequest(
                 SESSION_ID_FOR_OPEN_REQUEST,
@@ -615,7 +624,11 @@ public class ContextHubEndpointTest {
     private IContextHubEndpoint registerExampleEndpoint() throws RemoteException {
         HubEndpointInfo info =
                 new HubEndpointInfo(
-                        ENDPOINT_NAME, ENDPOINT_ID, ENDPOINT_PACKAGE_NAME, Collections.emptyList());
+                        ENDPOINT_NAME,
+                        ENDPOINT_ID,
+                        ENDPOINT_PACKAGE_NAME,
+                        Collections.emptyList(),
+                        /* sharedDataSupportVersion= */ null);
         IContextHubEndpoint endpoint =
                 mEndpointManager.registerEndpoint(
                         info, mMockCallback, ENDPOINT_PACKAGE_NAME, /* attributionTag= */ null);
@@ -653,7 +666,8 @@ public class ContextHubEndpointTest {
                         TARGET_ENDPOINT_NAME,
                         TARGET_ENDPOINT_ID,
                         ENDPOINT_PACKAGE_NAME,
-                        Collections.emptyList());
+                        Collections.emptyList(),
+                        /* sharedDataSupportVersion= */ null);
         int sessionId = endpoint.openSession(targetInfo, /* serviceDescriptor= */ null);
         mEndpointManager.onEndpointSessionOpenComplete(sessionId);
         return sessionId;

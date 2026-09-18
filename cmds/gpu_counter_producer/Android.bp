@@ -9,6 +9,7 @@ cc_binary {
     srcs: ["main.cpp"],
 
     shared_libs: [
+        "libbase",
         "libdl",
         "liblog",
     ],

@@ -16,22 +16,21 @@
 
 package com.android.systemui.shade
 
+import android.view.View
 import android.view.ViewGroup
 import androidx.constraintlayout.widget.ConstraintSet
-import com.android.systemui.res.R
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.res.R
 
-/**
- * Standard implementation of [CombinedShadeHeadersConstraintManager].
- */
+/** Standard implementation of [CombinedShadeHeadersConstraintManager]. */
 @SysUISingleton
 object CombinedShadeHeadersConstraintManagerImpl : CombinedShadeHeadersConstraintManager {
 
-    override fun privacyChipVisibilityConstraints(visible: Boolean): ConstraintsChanges {
-        val constraintAlpha = if (visible) 0f else 1f
+    override fun privacyChipVisibilityConstraints(chipVisible: Boolean): ConstraintsChanges {
+        val headerIconsVisibility = if (chipVisible) View.INVISIBLE else View.VISIBLE
         return ConstraintsChanges(
             qqsConstraintsChanges = {
-                setAlpha(R.id.shade_header_system_icons, constraintAlpha)
+                setVisibility(R.id.shade_header_system_icons, headerIconsVisibility)
             }
         )
     }
@@ -45,10 +44,14 @@ object CombinedShadeHeadersConstraintManagerImpl : CombinedShadeHeadersConstrain
                     ConstraintSet.START,
                     0,
                     R.id.shade_header_system_icons,
-                    R.id.privacy_container
+                    R.id.privacy_container,
                 )
-                connect(R.id.shade_header_system_icons, ConstraintSet.START, R.id.date,
-                    ConstraintSet.END)
+                connect(
+                    R.id.shade_header_system_icons,
+                    ConstraintSet.START,
+                    R.id.date,
+                    ConstraintSet.END,
+                )
                 connect(R.id.privacy_container, ConstraintSet.START, R.id.date, ConstraintSet.END)
                 constrainWidth(R.id.shade_header_system_icons, ViewGroup.LayoutParams.WRAP_CONTENT)
                 constrainedWidth(R.id.date, true)
@@ -61,7 +64,7 @@ object CombinedShadeHeadersConstraintManagerImpl : CombinedShadeHeadersConstrain
         cutoutStart: Int,
         paddingStart: Int,
         cutoutEnd: Int,
-        paddingEnd: Int
+        paddingEnd: Int,
     ): ConstraintsChanges {
         val change: ConstraintChange = {
             setGuidelineBegin(R.id.begin_guide, Math.max(cutoutStart - paddingStart, 0))
@@ -87,27 +90,17 @@ object CombinedShadeHeadersConstraintManagerImpl : CombinedShadeHeadersConstrain
                     R.id.shade_header_system_icons,
                     ConstraintSet.START,
                     centerEnd,
-                    ConstraintSet.END
+                    ConstraintSet.END,
                 )
-                connect(
-                    R.id.privacy_container,
-                    ConstraintSet.START,
-                    centerEnd,
-                    ConstraintSet.END
-                )
+                connect(R.id.privacy_container, ConstraintSet.START, centerEnd, ConstraintSet.END)
                 constrainedWidth(R.id.date, true)
                 constrainedWidth(R.id.shade_header_system_icons, true)
             },
             qsConstraintsChanges = {
                 setGuidelineBegin(centerStart, offsetFromEdge)
                 setGuidelineEnd(centerEnd, offsetFromEdge)
-                connect(
-                    R.id.privacy_container,
-                    ConstraintSet.START,
-                    centerEnd,
-                    ConstraintSet.END
-                )
-            }
+                connect(R.id.privacy_container, ConstraintSet.START, centerEnd, ConstraintSet.END)
+            },
         )
     }
 }

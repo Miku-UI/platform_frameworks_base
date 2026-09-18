@@ -61,10 +61,6 @@ class EndGenericShareToAppDialogDelegate(
     }
 
     private fun getMessage(): String {
-        if (!Flags.statusBarShareDialogWithAppName()) {
-            return context.getString(R.string.share_to_app_stop_dialog_message_generic)
-        }
-
         val hostAppName =
             endMediaProjectionDialogHelper.getAppName(state.projectionState.hostPackage)
         return if (hostAppName != null) {

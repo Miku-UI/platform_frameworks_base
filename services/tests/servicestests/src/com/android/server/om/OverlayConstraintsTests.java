@@ -29,6 +29,7 @@ import static junit.framework.Assert.assertNotNull;
 
 import static org.testng.Assert.assertThrows;
 
+import android.annotation.Nullable;
 import android.app.Activity;
 import android.companion.virtual.VirtualDeviceManager;
 import android.content.Context;
@@ -40,9 +41,11 @@ import android.content.om.OverlayManager;
 import android.content.om.OverlayManagerTransaction;
 import android.content.res.Flags;
 import android.content.res.Resources;
+import android.os.Bundle;
 import android.os.UserHandle;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.util.SparseIntArray;
 import android.view.Display;
 import android.virtualdevice.cts.common.VirtualDeviceRule;
 
@@ -83,19 +86,12 @@ public class OverlayConstraintsTests {
         final Context context = getApplicationContext();
         mOverlayManager = context.getSystemService(OverlayManager.class);
         mUserHandle = UserHandle.of(UserHandle.myUserId());
+        LaunchCounterActivity.clearLaunchCounts();
     }
 
     @After
     public void tearDown() throws Exception {
-        if (mOverlayIdentifier != null) {
-            OverlayManagerTransaction transaction =
-                    new OverlayManagerTransaction.Builder()
-                            .unregisterFabricatedOverlay(mOverlayIdentifier)
-                            .build();
-            mOverlayManager.commit(transaction);
-            mOverlayIdentifier = null;
-            waitForResourceValue(RESOURCE_DEFAULT_VALUE, getApplicationContext());
-        }
+        disableOverlay();
     }
 
     @Test
@@ -126,7 +122,7 @@ public class OverlayConstraintsTests {
     @Parameters(method = "getAllConstraintLists")
     @RequiresFlagsEnabled(Flags.FLAG_RRO_CONSTRAINTS)
     public void enableOverlayWithConstraints_writesConstraintsIntoOverlayInfo(
-            List<OverlayConstraint> constraints) throws Exception {
+            List<OverlayConstraint> constraints) {
         enableOverlay(constraints);
 
         OverlayInfo overlayInfo = mOverlayManager.getOverlayInfo(mOverlayIdentifier, mUserHandle);
@@ -136,7 +132,7 @@ public class OverlayConstraintsTests {
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_RRO_CONSTRAINTS)
-    public void disableOverlayWithConstraints_fails() throws Exception {
+    public void disableOverlayWithConstraints_fails() {
         FabricatedOverlay fabricatedOverlay = createFabricatedOverlay();
         assertThrows(SecurityException.class,
                 () -> mOverlayManager.commit(new OverlayManagerTransaction.Builder()
@@ -148,8 +144,7 @@ public class OverlayConstraintsTests {
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_RRO_CONSTRAINTS)
-    public void enableOverlayWithNewConstraints_updatesConstraintsIntoOverlayInfo()
-            throws Exception {
+    public void enableOverlayWithNewConstraints_updatesConstraintsIntoOverlayInfo() {
         List<OverlayConstraint> constraints1 =
                 List.of(new OverlayConstraint(TYPE_DISPLAY_ID, 1 /* value*/));
         enableOverlay(constraints1);
@@ -172,7 +167,7 @@ public class OverlayConstraintsTests {
 
     @Test
     @RequiresFlagsDisabled(Flags.FLAG_RRO_CONSTRAINTS)
-    public void enableOverlayWithConstraints_fails() throws Exception {
+    public void enableOverlayWithConstraints_fails() {
         assertThrows(SecurityException.class, () -> enableOverlay(
                 List.of(new OverlayConstraint(TYPE_DISPLAY_ID, DEFAULT_DISPLAY))));
     }
@@ -275,7 +270,7 @@ public class OverlayConstraintsTests {
         final Activity activityOnDefaultDisplay = mVirtualDeviceRule.startActivityOnDisplaySync(
                 DEFAULT_DISPLAY, Activity.class);
         final Activity activityOnVirtualDisplay = mVirtualDeviceRule.startActivityOnDisplaySync(
-                display.getDisplayId(), Activity.class);
+                display.getDisplayId(), TestActivity.class);
 
         enableOverlay(List.of(new OverlayConstraint(TYPE_DISPLAY_ID, display.getDisplayId())));
 
@@ -286,11 +281,11 @@ public class OverlayConstraintsTests {
 
         // Assert than the overlay is not applied for any new activity on the default display.
         final Activity newActivityOnDefaultDisplay = mVirtualDeviceRule.startActivityOnDisplaySync(
-                DEFAULT_DISPLAY, Activity.class);
+                DEFAULT_DISPLAY, TestActivity2.class);
         ensureResourceValueStaysAt(RESOURCE_DEFAULT_VALUE, newActivityOnDefaultDisplay);
         // Assert than the overlay is applied for any new activity on the virtual display.
         final Activity newActivityOnVirtualDisplay = mVirtualDeviceRule.startActivityOnDisplaySync(
-                display.getDisplayId(), Activity.class);
+                display.getDisplayId(), TestActivity2.class);
         waitForResourceValue(RESOURCE_OVERLAID_VALUE, newActivityOnVirtualDisplay);
     }
 
@@ -307,7 +302,7 @@ public class OverlayConstraintsTests {
         final Activity activityOnDefaultDevice = mVirtualDeviceRule.startActivityOnDisplaySync(
                 DEFAULT_DISPLAY, Activity.class);
         final Activity activityOnVirtualDevice = mVirtualDeviceRule.startActivityOnDisplaySync(
-                display.getDisplayId(), Activity.class);
+                display.getDisplayId(), TestActivity.class);
 
         enableOverlay(List.of(new OverlayConstraint(TYPE_DEVICE_ID, device.getDeviceId())));
 
@@ -318,12 +313,98 @@ public class OverlayConstraintsTests {
 
         // Assert than the overlay is not applied for any new activity on the default device.
         final Activity newActivityOnDefaultDevice = mVirtualDeviceRule.startActivityOnDisplaySync(
-                DEFAULT_DISPLAY, Activity.class);
+                DEFAULT_DISPLAY, TestActivity2.class);
         ensureResourceValueStaysAt(RESOURCE_DEFAULT_VALUE, newActivityOnDefaultDevice);
         // Assert than the overlay is applied for any new activity on the virtual device.
         final Activity newActivityOnVirtualDevice = mVirtualDeviceRule.startActivityOnDisplaySync(
-                display.getDisplayId(), Activity.class);
+                display.getDisplayId(), TestActivity2.class);
         waitForResourceValue(RESOURCE_OVERLAID_VALUE, newActivityOnVirtualDevice);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_RRO_CONSTRAINTS)
+    public void enableOverlayWithConstraints_withTypeDisplayId_restartsActivityOnlyOnTargetDisplay()
+            throws Exception {
+        final Display display =
+                mVirtualDeviceRule.createManagedUnownedVirtualDisplay(
+                                VirtualDeviceRule.createTrustedVirtualDisplayConfigBuilder())
+                        .getDisplay();
+        final int displayId = display.getDisplayId();
+        mVirtualDeviceRule.startActivityOnDisplaySync(DEFAULT_DISPLAY, LaunchCounterActivity.class);
+        mVirtualDeviceRule.startActivityOnDisplaySync(displayId, LaunchCounterActivity2.class);
+        // Verify that the activities have launched for the first time.
+        waitForActivityLaunchCount(1, DEFAULT_DISPLAY);
+        waitForActivityLaunchCount(1, displayId);
+
+        enableOverlay(List.of(new OverlayConstraint(TYPE_DISPLAY_ID, display.getDisplayId())));
+
+        // Verify that only the activity on the target display was launched again.
+        waitForActivityLaunchCount(1, DEFAULT_DISPLAY);
+        waitForActivityLaunchCount(2, displayId);
+
+        disableOverlay();
+
+        // Verify that only the activity on the target display was launched again.
+        waitForActivityLaunchCount(1, DEFAULT_DISPLAY);
+        waitForActivityLaunchCount(3, displayId);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_RRO_CONSTRAINTS)
+    public void enableOverlayWithConstraints_withTypeDeviceId_restartsActivityOnlyOnTargetDevice()
+            throws Exception {
+        final VirtualDeviceManager.VirtualDevice device =
+                mVirtualDeviceRule.createManagedVirtualDevice();
+        final Display display =
+                mVirtualDeviceRule.createManagedVirtualDisplay(device,
+                                VirtualDeviceRule.createTrustedVirtualDisplayConfigBuilder())
+                        .getDisplay();
+        final int displayId = display.getDisplayId();
+        mVirtualDeviceRule.startActivityOnDisplaySync(DEFAULT_DISPLAY, LaunchCounterActivity.class);
+        mVirtualDeviceRule.startActivityOnDisplaySync(displayId, LaunchCounterActivity2.class);
+        // Verify that the activities have launched for the first time.
+        waitForActivityLaunchCount(1, DEFAULT_DISPLAY);
+        waitForActivityLaunchCount(1, displayId);
+
+        enableOverlay(List.of(new OverlayConstraint(TYPE_DEVICE_ID, device.getDeviceId())));
+
+        // Verify that only the activity on the target device was launched again.
+        waitForActivityLaunchCount(1, DEFAULT_DISPLAY);
+        waitForActivityLaunchCount(2, displayId);
+
+        disableOverlay();
+
+        // Verify that only the activity on the target display was launched again.
+        waitForActivityLaunchCount(1, DEFAULT_DISPLAY);
+        waitForActivityLaunchCount(3, displayId);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_RRO_CONSTRAINTS)
+    public void enableOverlayWithoutConstraints_restartsActivitiesOnAllDisplays() throws Exception {
+        final VirtualDeviceManager.VirtualDevice device =
+                mVirtualDeviceRule.createManagedVirtualDevice();
+        final Display display =
+                mVirtualDeviceRule.createManagedVirtualDisplay(device,
+                                VirtualDeviceRule.createTrustedVirtualDisplayConfigBuilder())
+                        .getDisplay();
+        final int displayId = display.getDisplayId();
+        mVirtualDeviceRule.startActivityOnDisplaySync(DEFAULT_DISPLAY, LaunchCounterActivity.class);
+        mVirtualDeviceRule.startActivityOnDisplaySync(displayId, LaunchCounterActivity2.class);
+        // Verify that the activities have launched for the first time.
+        waitForActivityLaunchCount(1, DEFAULT_DISPLAY);
+        waitForActivityLaunchCount(1, displayId);
+
+        enableOverlay(Collections.emptyList());
+        // Verify that all activities were launched again.
+        waitForActivityLaunchCount(2, displayId);
+        waitForActivityLaunchCount(2, DEFAULT_DISPLAY);
+
+        disableOverlay();
+
+        // Verify that all activities were launched again.
+        waitForActivityLaunchCount(3, DEFAULT_DISPLAY);
+        waitForActivityLaunchCount(3, displayId);
     }
 
     private FabricatedOverlay createFabricatedOverlay() {
@@ -345,6 +426,32 @@ public class OverlayConstraintsTests {
                         .build();
         mOverlayManager.commit(transaction);
         mOverlayIdentifier = fabricatedOverlay.getIdentifier();
+    }
+
+    private void disableOverlay() throws Exception {
+        if (mOverlayIdentifier != null) {
+            OverlayManagerTransaction transaction =
+                    new OverlayManagerTransaction.Builder()
+                            .unregisterFabricatedOverlay(mOverlayIdentifier)
+                            .build();
+            mOverlayManager.commit(transaction);
+            mOverlayIdentifier = null;
+            waitForResourceValue(RESOURCE_DEFAULT_VALUE, getApplicationContext());
+        }
+    }
+
+    private static void waitForActivityLaunchCount(final int expectedValue, final int displayId)
+            throws TimeoutException {
+        final long endTime = System.currentTimeMillis() + TIMEOUT_MILLIS;
+        int launchCount = 0;
+        while (System.currentTimeMillis() < endTime) {
+            launchCount = LaunchCounterActivity.getLaunchCountForDisplay(displayId);
+            if (launchCount == expectedValue) {
+                return;
+            }
+        }
+        throw new TimeoutException("Timed out waiting for launch count on display " + displayId
+                + " to equal '" + expectedValue + "': current value is '" + launchCount + "'");
     }
 
     private static void waitForResourceValue(final String expectedValue, Context context)
@@ -387,4 +494,30 @@ public class OverlayConstraintsTests {
                         new OverlayConstraint(TYPE_DEVICE_ID, DEVICE_ID_DEFAULT))
         };
     }
+
+    public static class TestActivity extends Activity {}
+
+    public static class TestActivity2 extends Activity {}
+
+    public static class LaunchCounterActivity extends Activity {
+        private static final SparseIntArray sDisplayIdToActivityLaunchCount = new SparseIntArray();
+
+        static int getLaunchCountForDisplay(int displayId) {
+            return sDisplayIdToActivityLaunchCount.get(displayId);
+        }
+
+        static void clearLaunchCounts() {
+            sDisplayIdToActivityLaunchCount.clear();
+        }
+
+        @Override
+        protected void onCreate(@Nullable Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            final int displayId = getDisplay().getDisplayId();
+            final int launchCount = sDisplayIdToActivityLaunchCount.get(displayId);
+            sDisplayIdToActivityLaunchCount.put(displayId, launchCount + 1);
+        }
+    }
+
+    public static class LaunchCounterActivity2 extends LaunchCounterActivity {}
 }

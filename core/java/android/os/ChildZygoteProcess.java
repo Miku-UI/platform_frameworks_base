@@ -28,7 +28,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @hide
  */
-public class ChildZygoteProcess extends ZygoteProcess {
+public class ChildZygoteProcess {
+    /**
+     * The underlying ZygoteProcess.
+     */
+    private final IZygoteProcess mZygoteProcess;
+
     /**
      * The PID of the child zygote process.
      */
@@ -45,12 +50,42 @@ public class ChildZygoteProcess extends ZygoteProcess {
      */
     private AtomicBoolean mDead;
 
-
-    ChildZygoteProcess(LocalSocketAddress socketAddress, int pid, int uid) {
-        super(socketAddress, null);
+    private ChildZygoteProcess(IZygoteProcess zygoteProcess, int pid, int uid) {
         mPid = pid;
         mUid = uid;
         mDead = new AtomicBoolean(false);
+        mZygoteProcess = zygoteProcess;
+    }
+
+    /**
+     * Create the managed variant of ChildZygoteProcess
+     */
+    public static ChildZygoteProcess createManagedChildZygoteProcess(
+            LocalSocketAddress socketAddress, int pid, int uid) {
+        return new ChildZygoteProcess(new ZygoteProcess(socketAddress, null), pid, uid);
+    }
+
+    /**
+     * Create the native variant of ChildZygoteProcess
+     */
+    public static ChildZygoteProcess createNativeChildZygoteProcess(
+            LocalSocketAddress socketAddress, int pid, int uid) {
+        return new ChildZygoteProcess(new NativeZygoteProcess(socketAddress), pid, uid);
+    }
+
+    /**
+     * Return the underlying IZygoteProcess.
+     */
+    public IZygoteProcess getZygoteProcess() {
+        return mZygoteProcess;
+    }
+
+    /**
+     * Return the underlying ZygoteProcess. {@code ClassCastException} will be thrown if
+     * {@code mZygoteProcess} is not a ZygoteProcess.
+     */
+    public ZygoteProcess getZygoteProcessAsManaged() {
+        return (ZygoteProcess) mZygoteProcess;
     }
 
     /**

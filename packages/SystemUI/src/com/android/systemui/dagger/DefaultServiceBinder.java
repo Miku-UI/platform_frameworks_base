@@ -24,7 +24,9 @@ import com.android.systemui.doze.DozeService;
 import com.android.systemui.dreams.DreamOverlayService;
 import com.android.systemui.dump.SystemUIAuxiliaryDumpService;
 import com.android.systemui.keyguard.KeyguardService;
+import com.android.systemui.locationbutton.LocationButtonRenderService;
 import com.android.systemui.recordissue.IssueRecordingService;
+import com.android.systemui.recordissue.IssueRecordingServiceLegacy;
 import com.android.systemui.screenrecord.RecordingService;
 import com.android.systemui.statusbar.phone.NotificationListenerWithPlugins;
 import com.android.systemui.wallpapers.ImageWallpaper;
@@ -94,10 +96,22 @@ public abstract class DefaultServiceBinder {
     @ClassKey(IssueRecordingService.class)
     public abstract Service bindIssueRecordingService(IssueRecordingService service);
 
+    /** Inject into IssueRecordingServiceLegacy */
+    @Binds
+    @IntoMap
+    @ClassKey(IssueRecordingServiceLegacy.class)
+    public abstract Service bindIssueRecordingServiceLegacy(IssueRecordingServiceLegacy service);
+
     /** Inject into GlanceableHubWidgetManagerService */
     @Binds
     @IntoMap
     @ClassKey(GlanceableHubWidgetManagerService.class)
     public abstract Service bindGlanceableHubWidgetManagerService(
             GlanceableHubWidgetManagerService service);
+
+    /** Inject into LocationButtonRenderService */
+    @Binds
+    @IntoMap
+    @ClassKey(LocationButtonRenderService.class)
+    public abstract Service bindLocationButtonRenderService(LocationButtonRenderService service);
 }

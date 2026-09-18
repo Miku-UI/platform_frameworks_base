@@ -70,7 +70,7 @@ import java.util.function.Consumer;
  *        mSearchSession.close();
  *    }
  *
- * }</pre>
+ * }}</pre>
  *
  * @hide
  */
@@ -120,10 +120,9 @@ public final class SearchSession implements AutoCloseable {
      * Notifies the search service of an search target event (e.g., user interaction
      * and lifecycle event of the search surface).
      *
-     * {@see SearchTargetEvent}
-     *
      * @param query input object associated with the event.
      * @param event The {@link SearchTargetEvent} that represents the search target event.
+     * @see SearchTargetEvent
      */
     public void notifyEvent(@NonNull Query query, @NonNull SearchTargetEvent event) {
         if (mIsClosed.get()) {
@@ -166,7 +165,7 @@ public final class SearchSession implements AutoCloseable {
      * via the provided callback to render for zero state, until the given callback is
      * unregistered. Zero state means when user entered search ui but not issued any query yet.
      *
-     * @see SearchSession.Callback#onTargetsAvailable(List).
+     * @see SearchSession.Callback#onTargetsAvailable(List)
      *
      * @param callbackExecutor The callback executor to use when calling the callback.
      * @param callback The Callback to be called when updates of search targets for zero state

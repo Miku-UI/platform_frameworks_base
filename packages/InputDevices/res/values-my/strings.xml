@@ -3,6 +3,7 @@
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_label" msgid="8016145283189546017">"အချက်အလက်ဖြည့်သွင်းသည့် ကိရိယာများ"</string>
     <string name="keyboard_layouts_label" msgid="6688773268302087545">"အန်းဒရွိက် လက်ကွက်"</string>
+    <string name="keyboard_layout_english_ca_label" msgid="2415799429045326926">"အင်္ဂလိပ် (ကနေဒါ)"</string>
     <string name="keyboard_layout_english_uk_label" msgid="6664258463319999632">"အင်္ဂလိပ်(ယူကေ)"</string>
     <string name="keyboard_layout_english_us_label" msgid="8994890249649106291">"အင်္ဂလိပ် (ယူအက်စ်)"</string>
     <string name="keyboard_layout_english_us_intl" msgid="3705168594034233583">"အင်္ဂလိပ်(ယူအက်စ်)၊အပြည်ပြည်ဆိုင်ရာပုံစံ"</string>
@@ -34,6 +35,7 @@
     <string name="keyboard_layout_brazilian" msgid="5117896443147781939">"ဘရာဇီးလ်လီးယန်း"</string>
     <string name="keyboard_layout_portuguese" msgid="2888198587329660305">"ပေါ်တူဂီ"</string>
     <string name="keyboard_layout_slovak" msgid="2469379934672837296">"စလိုဗက်"</string>
+    <string name="keyboard_layout_slovak_qwerty" msgid="2786027565675359502">"ဆလိုဗက်ကီးယား၊ QWERTY ပုံစံ"</string>
     <string name="keyboard_layout_slovenian" msgid="1735933028924982368">"စလိုဗေးနီးယန်း"</string>
     <string name="keyboard_layout_turkish" msgid="7736163250907964898">"တူရကီ"</string>
     <string name="keyboard_layout_turkish_f" msgid="9130320856010776018">"တူရကီ F"</string>
@@ -58,4 +60,20 @@
     <string name="keyboard_layout_montenegrin_cyrillic" msgid="2391253952894077421">"မွန်တီနီဂရင်း (စီရီလစ်)"</string>
     <string name="keyboard_layout_romanian" msgid="8698989892731726903">"ရိုမေးနီးယား"</string>
     <string name="keyboard_layout_english_india" msgid="7962353311188603367">"အင်္ဂလိပ် (အိန္ဒိယ)"</string>
+    <string name="playstation_controller_circle_button" msgid="3436949457993997215">"စက်ဝိုင်းခလုတ်"</string>
+    <string name="playstation_controller_triangle_button" msgid="7058016183388142515">"တြိဂံခလုတ်"</string>
+    <string name="playstation_controller_square_button" msgid="1611460593522078301">"စတုရန်းခလုတ်"</string>
+    <string name="playstation_controller_cross_button" msgid="5263132258994089833">"ကြက်ခြေခတ် ခလုတ်"</string>
+    <string name="default_game_controller_down_button" msgid="5298575601656661456">"အောက်ခလုတ်"</string>
+    <string name="default_game_controller_left_button" msgid="8135197345326445929">"ဘယ်ခလုတ်"</string>
+    <string name="default_game_controller_right_button" msgid="7213665536684737133">"ညာခလုတ်"</string>
+    <string name="default_game_controller_up_button" msgid="5466016771871639338">"အပေါ်ခလုတ်"</string>
+    <string name="nintendo_game_controller_l_button" msgid="4725333055757177703">"L ခလုတ်"</string>
+    <string name="nintendo_game_controller_r_button" msgid="1916817307166823755">"R ခလုတ်"</string>
+    <string name="nintendo_game_controller_zl_button" msgid="7980363034784417011">"ZL ခလုတ်"</string>
+    <string name="nintendo_game_controller_zr_button" msgid="301860128142672009">"ZR ခလုတ်"</string>
+    <string name="xbox_game_controller_lb_button" msgid="3531058576782769049">"LB ခလုတ်"</string>
+    <string name="xbox_game_controller_rb_button" msgid="7009478913470850721">"RB ခလုတ်"</string>
+    <string name="xbox_game_controller_lt_button" msgid="6613016668751667815">"LT ခလုတ်"</string>
+    <string name="xbox_game_controller_rt_button" msgid="1259415225164057316">"RT ခလုတ်"</string>
 </resources>

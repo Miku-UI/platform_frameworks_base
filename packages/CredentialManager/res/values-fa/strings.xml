@@ -22,7 +22,7 @@
     <string name="string_continue" msgid="1346732695941131882">"ادامه"</string>
     <string name="string_more_options" msgid="2763852250269945472">"ذخیره به روشی دیگر"</string>
     <string name="string_learn_more" msgid="4541600451688392447">"بیشتر بدانید"</string>
-    <string name="content_description_show_password" msgid="3283502010388521607">"نمایش گذرواژه"</string>
+    <string name="content_description_show_password" msgid="3283502010388521607">"نشان دادن گذرواژه"</string>
     <string name="content_description_hide_password" msgid="6841375971631767996">"پنهان کردن گذرواژه"</string>
     <string name="passkey_creation_intro_title" msgid="4251037543787718844">"فضایی ایمن‌تر با گذرکلید"</string>
     <string name="passkey_creation_intro_body_password" msgid="8825872426579958200">"با گذرکلیدها، لازم نیست گذرواژه پیچیده‌ای بسازید یا آن را به‌خاطر بسپارید"</string>
@@ -83,7 +83,7 @@
     <string name="snackbar_action" msgid="37373514216505085">"مشاهده گزینه‌ها"</string>
     <string name="get_dialog_button_label_continue" msgid="6446201694794283870">"ادامه"</string>
     <string name="get_dialog_title_sign_in_options" msgid="2092876443114893618">"گزینه‌های ورود به سیستم"</string>
-    <string name="button_label_view_more" msgid="3429098227286495651">"مشاهده موارد بیشتر"</string>
+    <string name="button_label_view_more" msgid="3429098227286495651">"نمایش بیشتر"</string>
     <string name="get_dialog_heading_for_username" msgid="3456868514554204776">"برای <xliff:g id="USERNAME">%1$s</xliff:g>"</string>
     <string name="get_dialog_heading_locked_password_managers" msgid="8911514851762862180">"مدیران گذرواژه قفل‌شده"</string>
     <string name="locked_credential_entry_label_subtext_tap_to_unlock" msgid="6390367581393605009">"برای باز کردن قفل تک‌ضرب بزنید"</string>

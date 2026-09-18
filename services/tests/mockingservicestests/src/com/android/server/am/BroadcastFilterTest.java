@@ -20,9 +20,6 @@ import static android.content.IntentFilter.SYSTEM_LOW_PRIORITY;
 
 import static com.google.common.truth.Truth.assertWithMessage;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
 import android.content.pm.ApplicationInfo;
@@ -53,9 +50,6 @@ public class BroadcastFilterTest {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-
-        doReturn(true).when(mPlatformCompat).isChangeEnabledInternalNoLogging(
-                eq(BroadcastFilter.RESTRICT_PRIORITY_VALUES), any(ApplicationInfo.class));
     }
 
     @Test
@@ -82,42 +76,6 @@ public class BroadcastFilterTest {
                     Pair.create(SYSTEM_LOW_PRIORITY, SYSTEM_LOW_PRIORITY + 1),
                     Pair.create(SYSTEM_HIGH_PRIORITY + 1, SYSTEM_HIGH_PRIORITY - 1),
                     Pair.create(SYSTEM_LOW_PRIORITY - 1, SYSTEM_LOW_PRIORITY + 1),
-                    Pair.create(SYSTEM_HIGH_PRIORITY - 2, SYSTEM_HIGH_PRIORITY - 2),
-                    Pair.create(SYSTEM_LOW_PRIORITY + 2, SYSTEM_LOW_PRIORITY + 2)
-            };
-            for (Pair<Integer, Integer> priorityPair : priorities) {
-                assertAdjustedPriorityForAppUid(priorityPair.first, priorityPair.second);
-            }
-        }
-    }
-
-    @Test
-    public void testCalculateAdjustedPriority_withChangeIdDisabled() {
-        doReturn(false).when(mPlatformCompat).isChangeEnabledInternalNoLogging(
-                eq(BroadcastFilter.RESTRICT_PRIORITY_VALUES), any(ApplicationInfo.class));
-
-        {
-            // Pairs of {initial-priority, expected-adjusted-priority}
-            final Pair<Integer, Integer>[] priorities = new Pair[] {
-                    Pair.create(SYSTEM_HIGH_PRIORITY, SYSTEM_HIGH_PRIORITY),
-                    Pair.create(SYSTEM_LOW_PRIORITY, SYSTEM_LOW_PRIORITY),
-                    Pair.create(SYSTEM_HIGH_PRIORITY + 1, SYSTEM_HIGH_PRIORITY + 1),
-                    Pair.create(SYSTEM_LOW_PRIORITY - 1, SYSTEM_LOW_PRIORITY - 1),
-                    Pair.create(SYSTEM_HIGH_PRIORITY - 2, SYSTEM_HIGH_PRIORITY - 2),
-                    Pair.create(SYSTEM_LOW_PRIORITY + 2, SYSTEM_LOW_PRIORITY + 2)
-            };
-            for (Pair<Integer, Integer> priorityPair : priorities) {
-                assertAdjustedPriorityForSystemUid(priorityPair.first, priorityPair.second);
-            }
-        }
-
-        {
-            // Pairs of {initial-priority, expected-adjusted-priority}
-            final Pair<Integer, Integer>[] priorities = new Pair[] {
-                    Pair.create(SYSTEM_HIGH_PRIORITY, SYSTEM_HIGH_PRIORITY),
-                    Pair.create(SYSTEM_LOW_PRIORITY, SYSTEM_LOW_PRIORITY),
-                    Pair.create(SYSTEM_HIGH_PRIORITY + 1, SYSTEM_HIGH_PRIORITY + 1),
-                    Pair.create(SYSTEM_LOW_PRIORITY - 1, SYSTEM_LOW_PRIORITY - 1),
                     Pair.create(SYSTEM_HIGH_PRIORITY - 2, SYSTEM_HIGH_PRIORITY - 2),
                     Pair.create(SYSTEM_LOW_PRIORITY + 2, SYSTEM_LOW_PRIORITY + 2)
             };

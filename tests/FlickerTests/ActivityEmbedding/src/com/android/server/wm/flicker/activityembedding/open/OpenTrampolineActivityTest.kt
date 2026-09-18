@@ -49,7 +49,7 @@ import org.junit.runners.Parameterized
 class OpenTrampolineActivityTest(flicker: FlickerTest) : ActivityEmbeddingTestBase(flicker) {
     override val transition: FlickerBuilder.() -> Unit = {
         setup {
-            tapl.setExpectedRotationCheckEnabled(false)
+            tapl.expectedRotationCheckEnabled = false
             testApp.launchViaIntent(wmHelper)
             startDisplayBounds =
                 wmHelper.currentState.layerState.physicalDisplayBounds
@@ -57,7 +57,7 @@ class OpenTrampolineActivityTest(flicker: FlickerTest) : ActivityEmbeddingTestBa
         }
         transitions { testApp.launchTrampolineActivity(wmHelper) }
         teardown {
-            tapl.goHome()
+            device.pressHome()
             testApp.exit(wmHelper)
         }
     }

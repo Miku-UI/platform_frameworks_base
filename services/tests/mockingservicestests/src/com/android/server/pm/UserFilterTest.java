@@ -19,6 +19,10 @@ import static android.content.pm.UserInfo.FLAG_ADMIN;
 import static android.content.pm.UserInfo.FLAG_FULL;
 import static android.content.pm.UserInfo.FLAG_MAIN;
 import static android.content.pm.UserInfo.FLAG_SYSTEM;
+import static android.os.UserHandle.USER_ALL;
+import static android.os.UserHandle.USER_NULL;
+import static android.os.UserHandle.USER_CURRENT;
+import static android.os.UserHandle.USER_CURRENT_OR_SELF;
 import static android.os.UserHandle.USER_SYSTEM;
 import static android.os.UserManager.USER_TYPE_FULL_SYSTEM;
 import static android.os.UserManager.USER_TYPE_SYSTEM_HEADLESS;
@@ -39,6 +43,8 @@ import com.google.common.truth.Expect;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.util.function.Consumer;
+
 public final class UserFilterTest {
 
     private static final @UserIdInt int ADMIN_USER_ID = 4;
@@ -49,6 +55,10 @@ public final class UserFilterTest {
     private static final @UserIdInt int PRE_CREATED_USER_ID = 42;
 
     private static final DeathPredictor NOSTRADAMUS = user -> user.id == DYING_USER_ID;
+
+    private static final int[] SPECIAL_USER_IDS = {
+            USER_ALL, USER_NULL, USER_CURRENT, USER_CURRENT_OR_SELF
+    };
 
     private final UserInfo mNullUser = null;
 
@@ -96,6 +106,7 @@ public final class UserFilterTest {
         var builderWithEverything = createBuilder()
                 .withPartialUsers()
                 .withDyingUsers()
+                .excludeUserId(ADMIN_USER_ID)
                 .setRequiredFlags(FLAG_MAIN);
         UserFilter withEverything1 = builderWithEverything.build();
         UserFilter withEverything2 = builderWithEverything.build();
@@ -104,6 +115,47 @@ public final class UserFilterTest {
                 .addEqualityGroup(default1, default2)
                 .addEqualityGroup(withEverything1, withEverything2)
                 .testEquals();
+    }
+
+    @Test
+    public void testToString() {
+        var defaultFilter = createBuilder().build();
+        expect.withMessage("default filter").that(defaultFilter.toString())
+                .isEqualTo("UserFilter{noRequiredFlags}");
+
+        // Flag is the last field in the string and handled differently when absent, so we use one
+        // common builder (and override the flags before building the filters)
+        var builderWithEverythingExceptFlags = createBuilder()
+                .withPartialUsers()
+                .withDyingUsers()
+                .excludeUserId(4)
+                .excludeUserId(8)
+                .excludeUserId(15)
+                .excludeUserId(16)
+                .excludeUserId(23)
+                .excludeUserId(42);
+
+        var filterWithAlmostEverythingExceptFlags = builderWithEverythingExceptFlags.build();
+        expect.withMessage("filter with everything but flags")
+                .that(filterWithAlmostEverythingExceptFlags.toString())
+                .isEqualTo("UserFilter{includePartial, includeDying"
+                        + ", excludedIds=[4, 8, 15, 16, 23, 42], noRequiredFlags}");
+
+        var filterWithAlmostEverythingAndJustOneFlag = builderWithEverythingExceptFlags
+                .setRequiredFlags(FLAG_ADMIN)
+                .build();
+        expect.withMessage("filter with everything and one flag")
+                .that(filterWithAlmostEverythingAndJustOneFlag.toString())
+                .isEqualTo("UserFilter{includePartial, includeDying"
+                        + ", excludedIds=[4, 8, 15, 16, 23, 42], requiredFlags=ADMIN}");
+
+        var filterWithEverything = builderWithEverythingExceptFlags
+                .setRequiredFlags(FLAG_ADMIN | FLAG_MAIN)
+                .build();
+        expect.withMessage("filter with everything and multiple flags")
+                .that(filterWithEverything.toString())
+                .isEqualTo("UserFilter{includePartial, includeDying"
+                        + ", excludedIds=[4, 8, 15, 16, 23, 42], requiredFlags=ADMIN|MAIN}");
     }
 
     @Test
@@ -248,6 +300,67 @@ public final class UserFilterTest {
         expectMatches(filter, mPreCreatedUser, false);
     }
 
+    @Test
+    public void testExcludeUserId_invalid() {
+        onSpecialUserIds(userId -> assertThrows(IllegalArgumentException.class,
+                () -> createBuilder().excludeUserId(userId)));
+    }
+
+    @Test
+    public void testExcludeUserId_onlyOne() {
+        UserFilter filter = createBuilder()
+                .excludeUserId(ADMIN_USER_ID)
+                .build();
+
+        expectMatches(filter, mNullUser, false);
+        expectMatches(filter, mFullSystemUser, true);
+        expectMatches(filter, mHeadlessSystemUser, true);
+        expectMatches(filter, mAdminUser, false);
+        expectMatches(filter, mNonAdminUser, true);
+        expectMatches(filter, mFlagLessUser, true);
+        expectMatches(filter, mPartialUser, false);
+        expectMatches(filter, mDyingUser, false);
+        expectMatches(filter, mPreCreatedUser, false);
+    }
+
+    @Test
+    public void testExcludeUserId_onlyOneMultipleTimes() {
+        UserFilter filter = createBuilder()
+                .excludeUserId(ADMIN_USER_ID)
+                .excludeUserId(ADMIN_USER_ID)
+                .excludeUserId(ADMIN_USER_ID)
+                .excludeUserId(ADMIN_USER_ID)
+                .build();
+
+        expectMatches(filter, mNullUser, false);
+        expectMatches(filter, mFullSystemUser, true);
+        expectMatches(filter, mHeadlessSystemUser, true);
+        expectMatches(filter, mAdminUser, false);
+        expectMatches(filter, mNonAdminUser, true);
+        expectMatches(filter, mFlagLessUser, true);
+        expectMatches(filter, mPartialUser, false);
+        expectMatches(filter, mDyingUser, false);
+        expectMatches(filter, mPreCreatedUser, false);
+    }
+
+    @Test
+    public void testExcludeUserId_multiple() {
+        UserFilter filter = createBuilder()
+                .excludeUserId(ADMIN_USER_ID)
+                .excludeUserId(USER_SYSTEM)
+                .build();
+
+        expectMatches(filter, mNullUser, false);
+        expectMatches(filter, mFullSystemUser, false);
+        expectMatches(filter, mHeadlessSystemUser, false);
+        expectMatches(filter, mAdminUser, false);
+        expectMatches(filter, mNonAdminUser, true);
+        expectMatches(filter, mFlagLessUser, true);
+        expectMatches(filter, mPartialUser, false);
+        expectMatches(filter, mDyingUser, false);
+        expectMatches(filter, mPreCreatedUser, false);
+    }
+
     private void expectMatches(UserFilter filter, UserInfo user, boolean value) {
         expect.withMessage("matches %s", user).that(filter.matches(NOSTRADAMUS, user))
                 .isEqualTo(value);
@@ -262,7 +375,14 @@ public final class UserFilterTest {
         return createUser(userId, name, FLAG_FULL, USER_TYPE_FULL_SECONDARY);
     }
 
+    @SuppressWarnings("BadImport") // It's the Builder for the class being tested
     private Builder createBuilder() {
         return UserFilter.builder();
+    }
+
+    private static void onSpecialUserIds(Consumer<Integer> visitor) {
+        for (int userId : SPECIAL_USER_IDS) {
+            visitor.accept(userId);
+        }
     }
 }

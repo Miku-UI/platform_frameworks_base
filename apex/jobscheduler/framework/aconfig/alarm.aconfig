@@ -1,0 +1,20 @@
+package: "android.app"
+container: "system"
+
+flag {
+    name: "allow_listeners_while_idle"
+    is_exported: true
+    namespace: "backstage_power"
+    description: "Controls the visibility of the new AlarmManager API for setting allow while idle alarms using callback."
+    bug: "410015157"
+}
+
+flag {
+    name: "allow_alarms_with_relaxed_quota"
+    namespace: "backstage_power"
+    description: "Enables the allow while idle alarms that accept a callback to run with relaxed restrictions in idle or battery saver modes."
+    bug: "410015157"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

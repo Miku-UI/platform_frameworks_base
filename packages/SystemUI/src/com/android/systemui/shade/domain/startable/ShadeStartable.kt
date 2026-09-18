@@ -16,10 +16,8 @@
 
 package com.android.systemui.shade.domain.startable
 
-import android.content.Context
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.CoreStartable
-import com.android.systemui.common.ui.data.repository.ConfigurationRepository
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.log.LogBuffer
@@ -27,38 +25,29 @@ import com.android.systemui.log.dagger.ShadeTouchLog
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
-import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.ShadeExpansionStateManager
 import com.android.systemui.shade.TouchLogger.Companion.logTouchesTo
-import com.android.systemui.shade.data.repository.ShadeRepository
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
+import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.shade.transition.ScrimShadeTransitionController
 import com.android.systemui.statusbar.NotificationShadeDepthController
 import com.android.systemui.statusbar.PulseExpansionHandler
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayoutController
-import com.android.systemui.statusbar.policy.SplitShadeStateController
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
 
 @SysUISingleton
 class ShadeStartable
 @Inject
 constructor(
     @Application private val applicationScope: CoroutineScope,
-    @ShadeDisplayAware private val context: Context,
     @ShadeTouchLog private val touchLog: LogBuffer,
-    @ShadeDisplayAware private val configurationRepository: ConfigurationRepository,
-    private val shadeRepository: ShadeRepository,
     private val shadeInteractorProvider: Provider<ShadeInteractor>,
     private val shadeModeInteractorProvider: Provider<ShadeModeInteractor>,
-    private val splitShadeStateController: SplitShadeStateController,
     private val scrimShadeTransitionController: ScrimShadeTransitionController,
     private val sceneInteractorProvider: Provider<SceneInteractor>,
     private val shadeExpansionStateManager: ShadeExpansionStateManager,
@@ -68,7 +57,6 @@ constructor(
 ) : CoreStartable {
 
     override fun start() {
-        hydrateShadeLayoutWidth()
         hydrateFullWidth()
         hydrateShadeExpansionStateManager()
         logTouchesTo(touchLog)
@@ -81,12 +69,30 @@ constructor(
             val shadeInteractor = shadeInteractorProvider.get()
 
             combine(
-                    shadeInteractor.shadeExpansion,
+                    shadeInteractor.anyExpansion,
+                    shadeModeInteractorProvider.get().shadeMode,
                     sceneInteractorProvider.get().isTransitionUserInputOngoing,
-                    sceneInteractorProvider.get().transitionState,
-                ) { panelExpansion, tracking, transitionState ->
+                    sceneInteractorProvider.get().transitionStateFlow,
+                ) { panelExpansion, shadeMode, tracking, transitionState ->
                     val fraction =
-                        if (transitionState.isIdle(Scenes.Lockscreen)) 1f else panelExpansion
+                        if (transitionState.isIdle(Scenes.Lockscreen)) {
+                            1f
+                        } else if (
+                            shadeMode == ShadeMode.Single &&
+                                (transitionState.isTransitioning(
+                                    Scenes.Shade,
+                                    Scenes.QuickSettings,
+                                ) ||
+                                    transitionState.isTransitioning(
+                                        Scenes.QuickSettings,
+                                        Scenes.Shade,
+                                    ))
+                        ) {
+                            // Legacy behavior was that shade to QS and vice versa was 1f
+                            1f
+                        } else {
+                            panelExpansion
+                        }
                     shadeExpansionStateManager.onPanelExpansionChanged(
                         fraction = fraction,
                         expanded = fraction > 0f,
@@ -104,21 +110,6 @@ constructor(
                     depthController.transitionToFullShadeProgress = it
                 }
             }
-        }
-    }
-
-    private fun hydrateShadeLayoutWidth() {
-        applicationScope.launch {
-            configurationRepository.onConfigurationChange
-                // Force initial collection.
-                .onStart { emit(Unit) }
-                .map {
-                    // The configuration for 'shouldUseSplitNotificationShade' dictates the width of
-                    // the shade in single/split shade modes.
-                    splitShadeStateController.shouldUseSplitNotificationShade(context.resources)
-                }
-                .distinctUntilChanged()
-                .collect { shadeRepository.legacyUseSplitShade.value = it }
         }
     }
 

@@ -25,16 +25,19 @@ import java.io.IOException
 
 class BubblePersistentRepository(context: Context) {
 
-    private val bubbleFile: AtomicFile = AtomicFile(File(context.filesDir,
-            "overflow_bubbles.xml"), "overflow-bubbles")
+    private val bubbleFile: AtomicFile =
+        AtomicFile(File(context.filesDir, "overflow_bubbles.xml"), "overflow-bubbles")
 
     fun persistsToDisk(bubbles: SparseArray<List<BubbleEntity>>): Boolean {
         if (DEBUG) Log.d(TAG, "persisting ${bubbles.size()} bubbles")
         synchronized(bubbleFile) {
-            val stream: FileOutputStream = try { bubbleFile.startWrite() } catch (e: IOException) {
-                Log.e(TAG, "Failed to save bubble file", e)
-                return false
-            }
+            val stream: FileOutputStream =
+                try {
+                    bubbleFile.startWrite()
+                } catch (e: IOException) {
+                    Log.e(TAG, "Failed to save bubble file", e)
+                    return false
+                }
             try {
                 writeXml(stream, bubbles)
                 bubbleFile.finishWrite(stream)
@@ -51,7 +54,9 @@ class BubblePersistentRepository(context: Context) {
     fun readFromDisk(): SparseArray<List<BubbleEntity>> {
         synchronized(bubbleFile) {
             if (!bubbleFile.exists()) return SparseArray()
-            try { return bubbleFile.openRead().use(::readXml) } catch (e: Throwable) {
+            try {
+                return bubbleFile.openRead().use(::readXml)
+            } catch (e: Throwable) {
                 Log.e(TAG, "Failed to open bubble file", e)
             }
             return SparseArray()

@@ -735,6 +735,18 @@ public final class Icon implements Parcelable {
     }
 
     /**
+     * Internal constructor that creates a new Icon of a specific type and copies
+     * all metadata (tint, blend mode, adaptive flags) from a source Icon.
+     */
+    private Icon(int type, @NonNull Icon source) {
+        this.mType = type;
+        this.mTintList = source.mTintList;
+        this.mBlendMode = source.mBlendMode;
+        this.mUseMonochrome = source.mUseMonochrome;
+        this.mInsetScale = source.mInsetScale;
+    }
+
+    /**
      * Create an Icon from the specified stream.
      *
      * @param stream The input stream from which to reconstruct the Icon.
@@ -942,6 +954,30 @@ public final class Icon implements Parcelable {
             throw new IllegalArgumentException("Uri must not be null.");
         }
         return createWithContentUri(uri.toString());
+    }
+
+    /**
+     * Creates a new Icon pointing to the specified URI, while preserving all metadata
+     * (tint, blend mode, monochrome flags) from the provided source Icon.
+     *
+     * @param source The Icon to copy metadata from.
+     * @param uri The URI to use as the new content.
+     * @return A new Icon of type TYPE_URI or TYPE_URI_ADAPTIVE_BITMAP.
+     * @hide
+     */
+    public static @NonNull Icon createWithContentUri(@NonNull Icon source, @NonNull Uri uri) {
+        if (uri == null) {
+            throw new IllegalArgumentException("Uri must not be null.");
+        }
+
+        final int newType = (source.mType == TYPE_ADAPTIVE_BITMAP
+                || source.mType == TYPE_URI_ADAPTIVE_BITMAP)
+                ? TYPE_URI_ADAPTIVE_BITMAP
+                : TYPE_URI;
+
+        final Icon rep = new Icon(newType, source);
+        rep.mString1 = uri.toString();
+        return rep;
     }
 
     /**
@@ -1201,10 +1237,19 @@ public final class Icon implements Parcelable {
         if (bitmapWidth > maxWidth || bitmapHeight > maxHeight) {
             float scale = Math.min((float) maxWidth / bitmapWidth,
                     (float) maxHeight / bitmapHeight);
+            int newWidth = Math.max(1, (int) (scale * bitmapWidth));
+            int newHeight = Math.max(1, (int) (scale * bitmapHeight));
+
+            if (bitmap.isMutable() && bitmap.getAllocationByteCount() >= MIN_ASHMEM_ICON_SIZE) {
+                StrictMode.noteSlowCall("Downscaling oversized Icon Bitmap to ashmem");
+                // Downscale directly to ashmem in anticipation of parceling.
+                return Bitmap.createScaledAshmemBitmap(bitmap, newWidth, newHeight, true);
+            }
+
             StrictMode.noteSlowCall("Downscaling oversized Icon Bitmap");
             bitmap = Bitmap.createScaledBitmap(bitmap,
-                    Math.max(1, (int) (scale * bitmapWidth)),
-                    Math.max(1, (int) (scale * bitmapHeight)),
+                    newWidth,
+                    newHeight,
                     true /* filter */);
         }
         return bitmap;

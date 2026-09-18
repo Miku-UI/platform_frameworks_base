@@ -34,13 +34,19 @@ namespace skiapipeline {
  */
 class BackdropFilterDrawable : public SkDrawable {
 public:
-    BackdropFilterDrawable(RenderNode* renderNode, SkCanvas* canvas)
-            : mTargetRenderNode(renderNode), mBounds(canvas->getLocalClipBounds()) {}
+    BackdropFilterDrawable(RenderNode* renderNode, SkCanvas* canvas,
+                           bool inReorderingSection = false)
+            : mTargetRenderNode(renderNode)
+            , mInReorderingSection(inReorderingSection)
+            , mBounds(canvas->getLocalClipBounds()) {}
 
     ~BackdropFilterDrawable() = default;
 
+    void forceDraw(SkCanvas* canvas) const;
+
 private:
     RenderNode* mTargetRenderNode;
+    bool mInReorderingSection;
 
 protected:
     void onDraw(SkCanvas* canvas) override;

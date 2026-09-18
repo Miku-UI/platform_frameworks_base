@@ -20,8 +20,10 @@
     tools:targetApi="28">
     <style name="SettingsLibActionButton" parent="android:Widget.DeviceDefault.Button.Borderless.Colored">
         <item name="android:drawablePadding">4dp</item>
-        <item name="android:drawableTint">@*android:color/btn_colored_borderless_text_material</item>
+        <item name="android:drawableTint">@color/settingslib_actionbutton_content_color</item>
+        <item name="android:textColor">@color/settingslib_actionbutton_content_color</item>
         <item name="android:paddingTop">20dp</item>
         <item name="android:paddingBottom">20dp</item>
+        <item name="android:backgroundTint">@color/settingslib_colorSurface</item>
     </style>
 </resources>

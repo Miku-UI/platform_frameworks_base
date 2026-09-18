@@ -19,9 +19,10 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 
 import com.android.internal.widget.remotecompose.core.operations.layout.Component;
+import com.android.internal.widget.remotecompose.core.operations.layout.TouchOperation;
 
 /** Interface used by objects to register for touch events */
-public interface TouchListener {
+public interface TouchListener extends TouchOperation {
     /**
      * Called when touch down happens
      *

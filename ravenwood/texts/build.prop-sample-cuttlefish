@@ -113,7 +113,6 @@ dalvik.vm.minidebuginfo=true
 dalvik.vm.dex2oat-minidebuginfo=true
 dalvik.vm.madvise.vdexfile.size=104857600
 dalvik.vm.madvise.odexfile.size=104857600
-dalvik.vm.madvise.artfile.size=4294967295
 dalvik.vm.usap_pool_enabled=false
 dalvik.vm.usap_refill_threshold=1
 dalvik.vm.usap_pool_size_max=3

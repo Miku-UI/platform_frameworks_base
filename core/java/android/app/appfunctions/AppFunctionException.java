@@ -30,17 +30,18 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.Objects;
 
 /**
- * Represents an app function related error.
+ * App function related error.
  *
- * <p>This exception may include an {@link AppFunctionException#getExtras() Bundle} containing
+ * <p>This exception may include a {@link AppFunctionException#getExtras() Bundle} containing
  * additional error-specific metadata.
- *
- * <p>The AppFunction SDK can expose structured APIs by packing and unpacking this Bundle.
  */
 @FlaggedApi(FLAG_ENABLE_APP_FUNCTION_MANAGER)
 public final class AppFunctionException extends Exception implements Parcelable {
     /**
      * The caller does not have the permission to execute an app function.
+     *
+     * <p>This error is returned to the caller of {@link AppFunctionManager#executeAppFunction} if
+     * the caller does not have the necessary permission.
      *
      * <p>This error is in the {@link #ERROR_CATEGORY_REQUEST_ERROR} category.
      */
@@ -58,12 +59,30 @@ public final class AppFunctionException extends Exception implements Parcelable 
     /**
      * The caller tried to execute a disabled app function.
      *
+     * <p>This error is returned to the caller of {@link AppFunctionManager#executeAppFunction} if
+     * the app function is considered disabled according to {@link AppFunctionState#isEnabled}.
+     *
      * <p>This error is in the {@link #ERROR_CATEGORY_REQUEST_ERROR} category.
      */
     public static final int ERROR_DISABLED = 1002;
 
     /**
      * The caller tried to execute a function that does not exist.
+     *
+     * <p>This error is returned to the caller of {@link AppFunctionManager#executeAppFunction} if
+     * one of the following is true:
+     *
+     * <ul>
+     *   <li>The function identifier specified in {@link
+     *       ExecuteAppFunctionRequest#getFunctionIdentifier} does not match any function
+     *       identifiers in the metadata returned by {@link AppFunctionManager#searchAppFunctions}.
+     *   <li>The app function is {@link AppFunctionMetadata#SCOPE_ACTIVITY} and {@link
+     *       ExecuteAppFunctionRequest#getActivityId} is not provided or does not match any activity
+     *       identifiers returned by {@link AppFunctionState#getActivityIds}, this error will be
+     *       returned.
+     *   <li>The app function is {@link AppFunctionMetadata#SCOPE_GLOBAL} and {@link
+     *       ExecuteAppFunctionRequest#getActivityId} is non-null.
+     * </ul>
      *
      * <p>This error is in the {@link #ERROR_CATEGORY_REQUEST_ERROR} category.
      */
@@ -162,8 +181,10 @@ public final class AppFunctionException extends Exception implements Parcelable 
     }
 
     private AppFunctionException(@NonNull Parcel in) {
-        this(/* errorCode= */ in.readInt(), /* errorMessage= */ in.readString8(),
-                /* extras= */Objects.requireNonNull(in.readBundle(Bundle.class.getClassLoader())));
+        this(
+                /* errorCode= */ in.readInt(),
+                /* errorMessage= */ in.readString8(),
+                /* extras= */ Objects.requireNonNull(in.readBundle(Bundle.class.getClassLoader())));
     }
 
     /** Returns one of the {@code ERROR} constants. */

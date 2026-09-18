@@ -48,6 +48,7 @@ import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
 import com.android.wm.shell.shared.TransactionPool;
 import com.android.wm.shell.shared.annotations.ShellSplashscreenThread;
+import com.android.wm.shell.sysui.ShellController;
 
 /**
  * A class which able to draw splash screen or snapshot as the starting window for a task.
@@ -73,16 +74,20 @@ public class StartingSurfaceDrawer {
      * @param splashScreenExecutor The thread used to control add and remove starting window.
      */
     public StartingSurfaceDrawer(Context context, ShellExecutor splashScreenExecutor,
-            IconProvider iconProvider, TransactionPool pool) {
+            IconProvider iconProvider, TransactionPool pool, long minimumIconShowDuration,
+            ShellExecutor bgExecutor, ShellController shellController) {
         mSplashScreenExecutor = splashScreenExecutor;
         final DisplayManager displayManager = context.getSystemService(DisplayManager.class);
-        mSplashscreenContentDrawer = new SplashscreenContentDrawer(context, iconProvider, pool);
+        mSplashscreenContentDrawer = new SplashscreenContentDrawer(context, iconProvider, pool,
+                minimumIconShowDuration, shellController);
         displayManager.getDisplay(DEFAULT_DISPLAY);
 
         mSplashscreenWindowCreator = new SplashscreenWindowCreator(mSplashscreenContentDrawer,
                 context, splashScreenExecutor, displayManager, mWindowRecords);
-        mSnapshotWindowCreator = new SnapshotWindowCreator(splashScreenExecutor,
-                mWindowRecords);
+        final float lowResTaskSnapshotScale = context.getResources().getFloat(
+                com.android.internal.R.dimen.config_lowResTaskSnapshotScale);
+        mSnapshotWindowCreator = new SnapshotWindowCreator(lowResTaskSnapshotScale,
+                splashScreenExecutor, bgExecutor, mWindowRecords);
         mWindowlessSplashWindowCreator = new WindowlessSplashWindowCreator(
                 mSplashscreenContentDrawer, context, splashScreenExecutor, displayManager,
                 mWindowlessRecords, pool);

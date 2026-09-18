@@ -39,20 +39,23 @@ final class IncrementalProgressListener extends IPackageLoadingProgressCallback.
             return;
         }
 
-        boolean wasLoading = packageState.isLoading();
+        final boolean wasLoading = packageState.isLoading();
+        final boolean isLoading = PackageManagerServiceUtils.isLoading(progress);
         // Due to asynchronous progress reporting, incomplete progress might be received
         // after the app is migrated off incremental. Ignore such progress updates.
         if (wasLoading) {
             mPm.commitPackageStateMutation(null, mPackageName,
-                    state -> state.setLoadingProgress(progress));
-            // Only report the state change when loading state changes from loading to not
-            if (Math.abs(1.0f - progress) < 0.00000001f) {
-                mPm.commitPackageStateMutation(null, mPackageName,
-                        state -> state.setLoadingCompletedTime(System.currentTimeMillis()));
+                    state -> {
+                        state.setLoadingProgress(progress);
+                        if (!isLoading) {
+                            state.setLoadingCompletedTime(System.currentTimeMillis());
+                        }
+                    });
+            if (!isLoading) {
                 // Unregister progress listener
                 mPm.mIncrementalManager
                         .unregisterLoadingProgressCallbacks(packageState.getPathString());
-                // Make sure the information is preserved
+                // Only write the loading state change when it changes from loading to not loading.
                 mPm.scheduleWriteSettings();
             }
         }

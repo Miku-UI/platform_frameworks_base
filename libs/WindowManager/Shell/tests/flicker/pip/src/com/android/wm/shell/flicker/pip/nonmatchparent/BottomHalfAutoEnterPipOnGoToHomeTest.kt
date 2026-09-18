@@ -18,12 +18,12 @@ package com.android.wm.shell.flicker.pip.nonmatchparent
 
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.Presubmit
-import androidx.test.filters.RequiresDevice
 import android.platform.test.annotations.RequiresFlagsDisabled
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import androidx.test.filters.FlakyTest
+import androidx.test.filters.RequiresDevice
 import com.android.wm.shell.flicker.pip.common.widthNotSmallerThan
 import org.junit.Assume
 import org.junit.FixMethodOrder
@@ -64,10 +64,12 @@ import org.junit.runners.Parameterized
 class BottomHalfAutoEnterPipOnGoToHomeTest(flicker: FlickerTest) :
     BottomHalfEnterPipTransition(flicker) {
 
-    override val thisTransition: FlickerBuilder.() -> Unit = { transitions {
-        tapl.goHome()
-        pipApp.waitForPip(wmHelper)
-    } }
+    override val thisTransition: FlickerBuilder.() -> Unit = {
+        transitions {
+            device.pressHome()
+            pipApp.waitForPip(wmHelper)
+        }
+    }
 
     override val defaultEnterPip: FlickerBuilder.() -> Unit = {
         setup {
@@ -88,14 +90,12 @@ class BottomHalfAutoEnterPipOnGoToHomeTest(flicker: FlickerTest) :
      * Checks that [pipApp] window's width is first decreasing then increasing.
      *
      * In gestural navigation mode, auto entering PiP can initially make the layer smaller before it
-     * gets larger.
-     * This tests verifies the width of the PiP layer first decreases and then increases due to
-     * size and scale animations going to different directions.
+     * gets larger. This tests verifies the width of the PiP layer first decreases and then
+     * increases due to size and scale animations going to different directions.
      *
-     * Note that we still allow a margin of error of 1px, since around the time
-     * of handoff between gesture nav task view simulator and
-     * SwipePipToHomeAnimator, crop can get a bit smaller and scale can get a
-     * bit larger if swiped aggressively - this can produce off-by-1 errors for
+     * Note that we still allow a margin of error of 1px, since around the time of handoff between
+     * gesture nav task view simulator and SwipePipToHomeAnimator, crop can get a bit smaller and
+     * scale can get a bit larger if swiped aggressively - this can produce off-by-1 errors for
      * width too.
      */
     @Postsubmit
@@ -108,26 +108,26 @@ class BottomHalfAutoEnterPipOnGoToHomeTest(flicker: FlickerTest) :
             var currentLayer = previousLayer
             var i = 0
             invoke("layer area is decreasing") {
-                if (i < pipLayerList.size - 1) {
-                    previousLayer = currentLayer
-                    currentLayer = pipLayerList[++i]
-                    previousLayer.widthNotSmallerThan(currentLayer)
+                    if (i < pipLayerList.size - 1) {
+                        previousLayer = currentLayer
+                        currentLayer = pipLayerList[++i]
+                        previousLayer.widthNotSmallerThan(currentLayer)
+                    }
                 }
-            }.then().invoke("layer are is increasing", true /* isOptional */) {
-                if (i < pipLayerList.size - 1) {
-                    previousLayer = currentLayer
-                    currentLayer = pipLayerList[++i]
-                    currentLayer.widthNotSmallerThan(previousLayer)
+                .then()
+                .invoke("layer are is increasing", true /* isOptional */) {
+                    if (i < pipLayerList.size - 1) {
+                        previousLayer = currentLayer
+                        currentLayer = pipLayerList[++i]
+                        currentLayer.widthNotSmallerThan(previousLayer)
+                    }
                 }
-            }
         }
     }
 
     /* 3-button Navigation */
 
-    /**
-     * The PIP layer reduces continuously in 3-Button navigation mode.
-     */
+    /** The PIP layer reduces continuously in 3-Button navigation mode. */
     @Postsubmit
     @Test
     override fun pipLayerReduces() {

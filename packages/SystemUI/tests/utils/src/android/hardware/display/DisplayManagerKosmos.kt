@@ -17,11 +17,12 @@
 package android.hardware.display
 
 import android.view.Display
+import com.android.systemui.display.data.repository.display
 import com.android.systemui.kosmos.Kosmos
 import org.mockito.kotlin.mock
 
 val Kosmos.displayManager by Kosmos.Fixture { mock<DisplayManager>() }
 
-val Kosmos.defaultDisplay: Display by Kosmos.Fixture { mock<Display>() }
+var Kosmos.defaultDisplay: Display by Kosmos.Fixture { display() }
 
-val Kosmos.rearDisplay: Display by Kosmos.Fixture { mock<Display>() }
+val Kosmos.rearDisplay: Display by Kosmos.Fixture { display(flags = Display.FLAG_REAR) }

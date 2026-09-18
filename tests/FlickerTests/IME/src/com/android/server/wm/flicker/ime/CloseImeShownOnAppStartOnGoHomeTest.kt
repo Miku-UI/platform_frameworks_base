@@ -55,12 +55,12 @@ class CloseImeShownOnAppStartOnGoHomeTest(flicker: FlickerTest) : BaseTest(flick
     /** {@inheritDoc} */
     override val transition: FlickerBuilder.() -> Unit = {
         setup {
-            tapl.setExpectedRotationCheckEnabled(false)
+            tapl.expectedRotationCheckEnabled = false
             testApp.launchViaIntent(wmHelper)
         }
         teardown { testApp.exit(wmHelper) }
         transitions {
-            tapl.goHome()
+            device.pressHome()
             wmHelper.StateSyncBuilder().withHomeActivityVisible().withImeGone().waitForAndVerify()
         }
     }

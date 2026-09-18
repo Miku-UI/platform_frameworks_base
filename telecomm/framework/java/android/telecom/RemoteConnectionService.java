@@ -28,8 +28,6 @@ import com.android.internal.telecom.IConnectionService;
 import com.android.internal.telecom.IConnectionServiceAdapter;
 import com.android.internal.telecom.IVideoProvider;
 import com.android.internal.telecom.RemoteServiceCallback;
-import com.android.server.telecom.flags.FeatureFlags;
-import com.android.server.telecom.flags.FeatureFlagsImpl;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -566,9 +564,6 @@ final class RemoteConnectionService {
     private final Map<String, RemoteConference> mConferenceById = new HashMap<>();
     private final Set<RemoteConnection> mPendingConnections = new HashSet<>();
 
-    /** Telecom feature flags **/
-    private final FeatureFlags mTelecomFeatureFlags = new FeatureFlagsImpl();
-
     RemoteConnectionService(
             IConnectionService outgoingConnectionServiceRpc,
             ConnectionService ourConnectionServiceImpl) throws RemoteException {
@@ -597,14 +592,7 @@ final class RemoteConnectionService {
         extras.putString(Connection.EXTRA_REMOTE_CONNECTION_ORIGINATING_PACKAGE_NAME,
                 mOurConnectionServiceImpl.getApplicationContext().getOpPackageName());
 
-        // Defaulted ConnectionRequest params
-        String telecomCallId = "";
-        boolean shouldShowIncomingUI = false;
-        if (mTelecomFeatureFlags.setRemoteConnectionCallId()) {
-            telecomCallId = id;
-            shouldShowIncomingUI = request.shouldShowIncomingCallUi();
-        }
-
+        boolean shouldShowIncomingUI = request.shouldShowIncomingCallUi();
         final ConnectionRequest newRequest = new ConnectionRequest.Builder()
                 .setAccountHandle(request.getAccountHandle())
                 .setAddress(request.getAddress())
@@ -612,8 +600,7 @@ final class RemoteConnectionService {
                 .setVideoState(request.getVideoState())
                 .setRttPipeFromInCall(request.getRttPipeFromInCall())
                 .setRttPipeToInCall(request.getRttPipeToInCall())
-                // Flagged changes
-                .setTelecomCallId(telecomCallId)
+                .setTelecomCallId(id)
                 .setShouldShowIncomingCallUi(shouldShowIncomingUI)
                 .build();
         try {
@@ -657,10 +644,6 @@ final class RemoteConnectionService {
                         null /*Session.Info*/);
             }
 
-            // Set telecom call id to what's being tracked by base ConnectionService.
-            String telecomCallId = mTelecomFeatureFlags.setRemoteConnectionCallId()
-                    ? id : request.getTelecomCallId();
-
             final ConnectionRequest newRequest = new ConnectionRequest.Builder()
                     .setAccountHandle(request.getAccountHandle())
                     .setAddress(request.getAddress())
@@ -671,7 +654,7 @@ final class RemoteConnectionService {
                     .setRttPipeToInCall(request.getRttPipeToInCall())
                     .setParticipants(request.getParticipants())
                     .setIsAdhocConferenceCall(request.isAdhocConferenceCall())
-                    .setTelecomCallId(telecomCallId)
+                    .setTelecomCallId(id)
                     .build();
 
             RemoteConference conference = new RemoteConference(id, mOutgoingConnectionServiceRpc);

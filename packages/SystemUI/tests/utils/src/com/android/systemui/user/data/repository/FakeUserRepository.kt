@@ -17,7 +17,9 @@
 
 package com.android.systemui.user.data.repository
 
+import android.annotation.UserIdInt
 import android.content.pm.UserInfo
+import android.graphics.drawable.Drawable
 import android.os.UserHandle
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.user.data.model.SelectedUserModel
@@ -33,10 +35,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 
 @SysUISingleton
-class FakeUserRepository @Inject constructor() : UserRepository {
+class FakeUserRepository @Inject constructor(private val userIconProvider: UserIconProvider) :
+    UserRepository {
     companion object {
         // User id to represent a non system (human) user id. We presume this is the main user.
         const val MAIN_USER_ID = 10
@@ -76,6 +80,10 @@ class FakeUserRepository @Inject constructor() : UserRepository {
     private val _isUserManagerLogoutEnabled = MutableStateFlow<Boolean>(false)
     override val isUserManagerLogoutEnabled: StateFlow<Boolean> =
         _isUserManagerLogoutEnabled.asStateFlow()
+
+    private val _isCurrentUserHeadlessSystemUser = MutableStateFlow<Boolean>(false)
+    override val isCurrentUserHeadlessSystemUser: StateFlow<Boolean> =
+        _isCurrentUserHeadlessSystemUser.asStateFlow()
 
     private val _userUnlockedState = MutableStateFlow(emptyMap<UserHandle, Boolean>())
 
@@ -144,6 +152,14 @@ class FakeUserRepository @Inject constructor() : UserRepository {
         logOutWithUserManagerCallCount++
     }
 
+    override suspend fun getUserImage(@UserIdInt userId: Int, iconSize: Int): Drawable {
+        return userIconProvider.getUserImage(userId, iconSize)
+    }
+
+    override fun clearUserImageCacheForUser(@UserIdInt userId: Int) {
+        userIconProvider.clearCacheForUser(userId)
+    }
+
     fun setUserInfos(infos: List<UserInfo>) {
         _userInfos.value = infos
     }
@@ -166,6 +182,14 @@ class FakeUserRepository @Inject constructor() : UserRepository {
 
         selectedUser.value = SelectedUserModel(userInfo, selectionStatus)
         yield()
+    }
+
+    @JvmOverloads
+    fun setSelectedUserInfoBlocking(
+        userInfo: UserInfo,
+        selectionStatus: SelectionStatus = SelectionStatus.SELECTION_COMPLETE,
+    ) {
+        runBlocking { setSelectedUserInfo(userInfo, selectionStatus) }
     }
 
     /** Resets the current user to the default of [DEFAULT_SELECTED_USER_INFO]. */
@@ -201,6 +225,10 @@ class FakeUserRepository @Inject constructor() : UserRepository {
 
     fun getMainUser(): UserInfo {
         return MAIN_USER
+    }
+
+    fun setIsCurrentUserHeadlessSystemUser(value: Boolean) {
+        _isCurrentUserHeadlessSystemUser.value = value
     }
 }
 

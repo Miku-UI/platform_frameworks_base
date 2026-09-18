@@ -1,0 +1,18 @@
+{
+  "presubmit": [
+    {
+      "name": "PersonalContextTests"
+    },
+    {
+      "name": "CtsPersonalContextTestCases"
+    }
+  ],
+  "postsubmit": [
+    {
+      "name": "PersonalContextTests"
+    },
+    {
+      "name": "CtsPersonalContextTestCases"
+    }
+  ]
+}

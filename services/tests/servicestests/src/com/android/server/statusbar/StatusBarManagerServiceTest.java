@@ -35,9 +35,9 @@ import static android.app.StatusBarManager.DISABLE_SYSTEM_INFO;
 import static android.view.WindowManagerPolicyConstants.NAV_BAR_MODE_GESTURAL_OVERLAY;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -71,20 +71,20 @@ import android.os.Binder;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.quicksettings.TileService;
 import android.testing.TestableContext;
-import android.util.Pair;
 
 import androidx.test.InstrumentationRegistry;
 
-import com.android.internal.statusbar.DisableStates;
+import com.android.internal.infra.AndroidFuture;
 import com.android.internal.statusbar.IAddTileResultCallback;
 import com.android.internal.statusbar.IStatusBar;
 import com.android.server.LocalServices;
 import com.android.server.policy.GlobalActionsProvider;
 import com.android.server.wm.ActivityTaskManagerInternal;
-import com.android.systemui.shared.Flags;
 
 import libcore.junit.util.compat.CoreCompatChangeRule;
 
@@ -101,6 +101,9 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.stubbing.Answer;
+
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @RunWith(JUnit4.class)
 public class StatusBarManagerServiceTest {
@@ -119,6 +122,9 @@ public class StatusBarManagerServiceTest {
 
     @Rule
     public TestRule mCompatChangeRule = new PlatformCompatChangeRule();
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock
     private ActivityTaskManagerInternal mActivityTaskManagerInternal;
@@ -160,6 +166,15 @@ public class StatusBarManagerServiceTest {
         when(mMockStatusBar.asBinder()).thenReturn(mMockStatusBar);
         when(mMockStatusBar.isBinderAlive()).thenReturn(true);
         when(mApplicationInfo.loadLabel(any())).thenReturn(APP_NAME);
+        when(mPackageManagerInternal.isSameApp(anyString(), anyInt(), anyInt()))
+                .thenAnswer(inv -> {
+                    String pkg = inv.getArgument(0);
+                    int uid = inv.getArgument(1);
+                    int userId = inv.getArgument(2);
+                    PackageManagerInternal pm = (PackageManagerInternal) inv.getMock();
+                    return UserHandle.getAppId(uid) == UserHandle.getAppId(
+                            pm.getPackageUid(pkg, 0, userId));
+                });
         mockHandleIncomingUser();
 
         mStatusBarManagerService = new StatusBarManagerService(mContext);
@@ -761,7 +776,6 @@ public class StatusBarManagerServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_STATUS_BAR_CONNECTED_DISPLAYS)
     public void testDisableForAllDisplays() throws Exception {
         int user1Id = 0;
         mockUidCheck();
@@ -886,7 +900,6 @@ public class StatusBarManagerServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_STATUS_BAR_CONNECTED_DISPLAYS)
     public void testDisable2ForAllDisplays() throws Exception {
         int user1Id = 0;
         mockUidCheck();
@@ -1157,6 +1170,131 @@ public class StatusBarManagerServiceTest {
                 mStatusBarManagerService.getDisableFlags(mMockStatusBar, user2Id)[0]);
     }
 
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_STATUSBAR_API_SHOW_POWER_MENU)
+    public void testGlobalActionsDisabled_showGlobalActionsFromApp_disabledImmediate()
+            throws Exception {
+        String pkg = mContext.getPackageName();
+        // disable
+        mStatusBarManagerService.disable2(
+                DISABLE2_MASK & DISABLE2_GLOBAL_ACTIONS,
+                mMockStatusBar,
+                pkg
+        );
+        // check that false is returned
+        try {
+            InstrumentationRegistry.getInstrumentation()
+                    .getUiAutomation()
+                    .adoptShellPermissionIdentity(Manifest.permission.SHOW_POWER_MENU_PRIVILEGED);
+            AndroidFuture<Integer> future = new AndroidFuture<>();
+
+            mStatusBarManagerService.showGlobalActionsFromApp(future);
+            assertEquals(StatusBarManager.SHOW_POWER_MENU_RESULT_DISABLED,
+                    (int) future.getNow(-1000));
+        } finally {
+            InstrumentationRegistry.getInstrumentation()
+                    .getUiAutomation()
+                    .dropShellPermissionIdentity();
+        }
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_STATUSBAR_API_SHOW_POWER_MENU)
+    public void showGlobalActionsFromApp_callsStatusBar() throws Exception {
+        try {
+            InstrumentationRegistry.getInstrumentation()
+                    .getUiAutomation()
+                    .adoptShellPermissionIdentity(Manifest.permission.SHOW_POWER_MENU_PRIVILEGED);
+            AndroidFuture<Integer> future = new AndroidFuture<>();
+
+            mStatusBarManagerService.showGlobalActionsFromApp(future);
+            verify(mMockStatusBar).showGlobalActionsMenu();
+        } finally {
+            InstrumentationRegistry.getInstrumentation()
+                    .getUiAutomation()
+                    .dropShellPermissionIdentity();
+        }
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_STATUSBAR_API_SHOW_POWER_MENU)
+    public void showGlobalActionsFromApp_statusBarNoResponse_timeout() throws Exception {
+        try {
+            InstrumentationRegistry.getInstrumentation()
+                    .getUiAutomation()
+                    .adoptShellPermissionIdentity(Manifest.permission.SHOW_POWER_MENU_PRIVILEGED);
+            AndroidFuture<Integer> future = new AndroidFuture<>();
+
+            mStatusBarManagerService.showGlobalActionsFromApp(future);
+            assertThrows(TimeoutException.class, () -> future.get(1, TimeUnit.SECONDS));
+        } finally {
+            InstrumentationRegistry.getInstrumentation()
+                    .getUiAutomation()
+                    .dropShellPermissionIdentity();
+        }
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_STATUSBAR_API_SHOW_POWER_MENU)
+    public void showGlobalActionsFromApp_powerMenuShowing_showingImmediately() throws Exception {
+        try {
+            InstrumentationRegistry.getInstrumentation()
+                    .getUiAutomation()
+                    .adoptShellPermissionIdentity(Manifest.permission.SHOW_POWER_MENU_PRIVILEGED);
+            AndroidFuture<Integer> future = new AndroidFuture<>();
+            mStatusBarManagerService.onGlobalActionsShown();
+
+            mStatusBarManagerService.showGlobalActionsFromApp(future);
+            assertEquals(StatusBarManager.SHOW_POWER_MENU_RESULT_SHOWING,
+                    (int) future.getNow(-1000));
+        } finally {
+            InstrumentationRegistry.getInstrumentation()
+                    .getUiAutomation()
+                    .dropShellPermissionIdentity();
+        }
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_STATUSBAR_API_SHOW_POWER_MENU)
+    public void showGlobalActionsFromApp_powerMenuShows_thenReturnsTrue() throws Exception {
+        try {
+            InstrumentationRegistry.getInstrumentation()
+                    .getUiAutomation()
+                    .adoptShellPermissionIdentity(Manifest.permission.SHOW_POWER_MENU_PRIVILEGED);
+            AndroidFuture<Integer> future = new AndroidFuture<>();
+
+            mStatusBarManagerService.showGlobalActionsFromApp(future);
+
+            // Not done yet
+            assertFalse(future.isDone());
+
+            mStatusBarManagerService.onGlobalActionsShown();
+            assertEquals(StatusBarManager.SHOW_POWER_MENU_RESULT_SHOWING,
+                    (int) future.getNow(-1000));
+        } finally {
+            InstrumentationRegistry.getInstrumentation()
+                    .getUiAutomation()
+                    .dropShellPermissionIdentity();
+        }
+    }
+
+    @Test
+    @DisableFlags(android.app.Flags.FLAG_STATUSBAR_API_SHOW_POWER_MENU)
+    public void showGlobalActionsFromApp_flagOff_exception() throws Exception {
+        try {
+            InstrumentationRegistry.getInstrumentation()
+                    .getUiAutomation()
+                    .adoptShellPermissionIdentity(Manifest.permission.SHOW_POWER_MENU_PRIVILEGED);
+            AndroidFuture<Boolean> future = new AndroidFuture<>();
+
+            mStatusBarManagerService.showGlobalActionsFromApp(future);
+            assertEquals(RuntimeException.class, future.exceptionNow().getClass());
+        } finally {
+            InstrumentationRegistry.getInstrumentation()
+                    .getUiAutomation()
+                    .dropShellPermissionIdentity();
+        }
+    }
 
     private void mockUidCheck() {
         mockUidCheck(TEST_PACKAGE);

@@ -36,9 +36,9 @@ import org.junit.Test;
  */
 public final class UserVisibilityMediatorSUSDTest extends UserVisibilityMediatorTestCase {
 
-    public UserVisibilityMediatorSUSDTest() {
+    public UserVisibilityMediatorSUSDTest(boolean flagCacheEnabled) {
         super(/* backgroundUsersOnDisplaysEnabled= */ false,
-                /* backgroundUserOnDefaultDisplayAllowed= */ false);
+                /* backgroundUserOnDefaultDisplayAllowed= */ false, flagCacheEnabled);
     }
 
     @Test
@@ -64,6 +64,7 @@ public final class UserVisibilityMediatorSUSDTest extends UserVisibilityMediator
         expectUserIsVisibleOnDisplay(USER_ID, DEFAULT_DISPLAY);
         expectUserIsVisibleOnDisplay(USER_ID, SECONDARY_DISPLAY_ID);
         expectVisibleUsers(USER_ID);
+        expectVisibleUsersOnDisplay(DEFAULT_DISPLAY, USER_ID);
 
         expectDisplayAssignedToUser(USER_ID, DEFAULT_DISPLAY);
         expectUserAssignedToDisplay(DEFAULT_DISPLAY, USER_ID);
@@ -96,6 +97,7 @@ public final class UserVisibilityMediatorSUSDTest extends UserVisibilityMediator
         expectUserIsVisibleOnDisplay(currentUserId, DEFAULT_DISPLAY);
         expectUserIsVisibleOnDisplay(currentUserId, SECONDARY_DISPLAY_ID);
         expectVisibleUsers(currentUserId);
+        expectVisibleUsersOnDisplay(DEFAULT_DISPLAY, currentUserId);
 
         expectDisplayAssignedToUser(currentUserId, DEFAULT_DISPLAY);
         expectUserAssignedToDisplay(DEFAULT_DISPLAY, currentUserId);
@@ -132,6 +134,7 @@ public final class UserVisibilityMediatorSUSDTest extends UserVisibilityMediator
         expectUserIsVisibleOnDisplay(PROFILE_USER_ID, DEFAULT_DISPLAY);
         expectUserIsVisibleOnDisplay(PROFILE_USER_ID, SECONDARY_DISPLAY_ID);
         expectVisibleUsers(PARENT_USER_ID, PROFILE_USER_ID);
+        expectVisibleUsersOnDisplay(DEFAULT_DISPLAY, PARENT_USER_ID, PROFILE_USER_ID);
 
         expectDisplayAssignedToUser(PROFILE_USER_ID, DEFAULT_DISPLAY);
         expectUserAssignedToDisplay(DEFAULT_DISPLAY, PARENT_USER_ID);
@@ -171,7 +174,7 @@ public final class UserVisibilityMediatorSUSDTest extends UserVisibilityMediator
         expectUserIsNotVisibleOnDisplay(PROFILE_USER_ID, INVALID_DISPLAY);
         expectUserIsVisibleOnDisplay(PROFILE_USER_ID, DEFAULT_DISPLAY);
         expectUserIsVisibleOnDisplay(PROFILE_USER_ID, SECONDARY_DISPLAY_ID);
-        expectVisibleUsers(INITIAL_CURRENT_USER_ID, PROFILE_USER_ID);
+        expectVisibleUsersOnDisplay(DEFAULT_DISPLAY, INITIAL_CURRENT_USER_ID, PROFILE_USER_ID);
 
         expectDisplayAssignedToUser(PROFILE_USER_ID, DEFAULT_DISPLAY);
 

@@ -241,8 +241,9 @@ key RIGHT_BRACKET {
 key A {
     label:                              '\u042c'
     base:                               '\u044c'
-    shift, capslock:                    '\u042c'
-    shift+capslock:                     '\u044c'
+    capslock:                           '\u042c'
+    shift:                              '\u045d'
+    shift+capslock:                     '\u040d'
     ralt:                               'a'
     shift+ralt, capslock+ralt:          'A'
     shift+capslock+ralt:                'a'
@@ -459,4 +460,15 @@ key SLASH {
     shift+capslock:                     '\u0431'
     ralt:                               '/'
     ralt+shift:                         '?'
+}
+### NUMPAD
+key NUMPAD_DOT {
+    label:                              ','
+    base:                               fallback FORWARD_DEL
+    numlock:                            ','
+}
+
+key NUMPAD_COMMA {
+    label:                              ' '
+    base:                               '\u202f'
 }

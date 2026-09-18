@@ -22,13 +22,24 @@
     android:theme="?expressiveTwoTargetPreferenceTheme"
     style="?expressiveTwoTargetPreferenceRootStyle">
 
-    <include layout="@layout/settingslib_expressive_preference_icon_frame" />
-
-    <include layout="@layout/settingslib_expressive_preference_text_frame" />
-
-    <include layout="@layout/settingslib_expressive_two_target_divider" />
-
     <LinearLayout
-        android:id="@android:id/widget_frame"
-        style="?expressiveTwoTargetPreferenceWidgetFrameStyle" />
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:filterTouchesWhenObscured="false"
+        android:orientation="horizontal">
+
+        <include layout="@layout/settingslib_expressive_preference_icon_frame"/>
+
+        <include layout="@layout/settingslib_expressive_preference_text_frame" />
+
+        <include layout="@layout/settingslib_expressive_two_target_divider" />
+
+        <LinearLayout
+            android:id="@android:id/widget_frame"
+            style="?expressiveTwoTargetPreferenceWidgetFrameStyle" />
+
+    </LinearLayout>
+
+    <include layout="@layout/settingslib_expressive_preference_footer"/>
 </com.android.settingslib.widget.DrawableStateLinearLayout>

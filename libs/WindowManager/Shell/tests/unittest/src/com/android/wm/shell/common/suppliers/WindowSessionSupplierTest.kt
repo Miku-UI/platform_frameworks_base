@@ -26,8 +26,7 @@ import org.junit.runner.RunWith
 /**
  * Tests for [WindowSessionSupplier].
  *
- * Build/Install/Run:
- *  atest WMShellUnitTests:WindowSessionSupplierTest
+ * Build/Install/Run: atest WMShellUnitTests:WindowSessionSupplierTest
  */
 @RunWith(AndroidTestingRunner::class)
 @SmallTest
@@ -36,8 +35,6 @@ class WindowSessionSupplierTest : ShellTestCase() {
     @Test
     fun `WindowSessionSupplierTest supplies an IWindowSession`() {
         val supplier = WindowSessionSupplier()
-        SuppliersUtilsTest.assertSupplierProvidesValue(supplier) {
-            it is IWindowSession
-        }
+        SuppliersUtilsTest.assertSupplierProvidesValue(supplier) { it is IWindowSession }
     }
 }

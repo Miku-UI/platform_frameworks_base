@@ -933,19 +933,37 @@ public class ScreenDecorations implements
     /**
      * Creates the base {@link WindowManager.LayoutParams} that are used for all decoration windows.
      *
+     * NOTE: We *must not* add {@code FLAG_NOT_TOUCHABLE} to the window manager params, otherwise
+     * any UI that is important for accessibility won't be able to opt in for touches. See
+     * {@link com.android.systemui.statusbar.events.ui.view.PrivacyDotView} for an example of one
+     * such view.
+     *
      * @param excludeFromScreenshots whether to set the {@link
      *     WindowManager.LayoutParams#PRIVATE_FLAG_IS_ROUNDED_CORNERS_OVERLAY} flag.
      */
     public static WindowManager.LayoutParams getWindowLayoutBaseParams(
             boolean excludeFromScreenshots) {
-        final WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.TYPE_NAVIGATION_BAR_PANEL,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
-                        | WindowManager.LayoutParams.FLAG_SLIPPERY
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-                PixelFormat.TRANSLUCENT);
+        final WindowManager.LayoutParams lp;
+        // NOTE: FLAG_NOT_TOUCHABLE must not be set here in order to allow touches for
+        // accessibility-important views.
+        if (Flags.statusBarScreenDecorTouchHandlingFix()) {
+            lp = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.TYPE_NAVIGATION_BAR_PANEL,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                            | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                            | WindowManager.LayoutParams.FLAG_SLIPPERY
+                            | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                    PixelFormat.TRANSLUCENT);
+        } else {
+            lp = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.TYPE_NAVIGATION_BAR_PANEL,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                            | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                            | WindowManager.LayoutParams.FLAG_SLIPPERY
+                            | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                            | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                    PixelFormat.TRANSLUCENT);
+        }
         lp.privateFlags |= WindowManager.LayoutParams.SYSTEM_FLAG_SHOW_FOR_ALL_USERS
                 | WindowManager.LayoutParams.PRIVATE_FLAG_NO_MOVE_ANIMATION;
 
@@ -1060,11 +1078,11 @@ public class ScreenDecorations implements
      * When {@link ScreenDecorations#mDebug} is {@code true}, this value is updated to use
      * {@link ScreenDecorations#mDebugColor}, and does not handle inversion.
      *
-     * @param colorsInvertedValue if non-zero, assume that colors are inverted, and use Color.WHITE
+     * @param colorsInvertedValue if it is 1, assume that colors are inverted, and use Color.WHITE
      *                            for screen decoration tint
      */
     private void updateColorInversion(int colorsInvertedValue) {
-        mTintColor = colorsInvertedValue != 0 ? Color.WHITE : Color.BLACK;
+        mTintColor = colorsInvertedValue == 1 ? Color.WHITE : Color.BLACK;
         if (mDebug) {
             mTintColor = mDebugColor;
             mDebugRoundedCornerDelegate.setColor(mTintColor);

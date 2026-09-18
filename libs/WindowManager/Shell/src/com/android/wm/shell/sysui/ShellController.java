@@ -36,6 +36,7 @@ import android.os.Bundle;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.util.ArrayMap;
+import android.util.SparseBooleanArray;
 import android.view.InsetsSource;
 import android.view.InsetsState;
 import android.view.SurfaceControlRegistry;
@@ -44,7 +45,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.protolog.ProtoLog;
-import com.android.wm.shell.common.DisplayChangeController;
 import com.android.wm.shell.common.DisplayInsetsController;
 import com.android.wm.shell.common.DisplayInsetsController.OnInsetsChangedListener;
 import com.android.wm.shell.common.ExternalInterfaceBinder;
@@ -82,6 +82,8 @@ public class ShellController {
             new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<DisplayImeChangeListener, Executor> mDisplayImeChangeListeners =
             new ConcurrentHashMap<>();
+    private final CopyOnWriteArrayList<OverviewVisibilityChangeListener>
+            mOverviewVisibilityChangeListeners = new CopyOnWriteArrayList<>();
 
     private ArrayMap<String, Supplier<ExternalInterfaceBinder>> mExternalInterfaceSuppliers =
             new ArrayMap<>();
@@ -92,6 +94,7 @@ public class ShellController {
     private int mUserId;
     private Context mUserContext;
     private List<UserInfo> mProfiles;
+    private SparseBooleanArray mDisplayToOverviewVisibleMap = new SparseBooleanArray();
 
     private OnInsetsChangedListener mInsetsChangeListener = new OnInsetsChangedListener() {
         private InsetsState mInsetsState = new InsetsState();
@@ -231,6 +234,12 @@ public class ShellController {
         mUserChangeListeners.remove(listener);
     }
 
+    /** Adds a new overview visibility listener. */
+    public void addOverviewVisibilityChangeListener(OverviewVisibilityChangeListener listener) {
+        mOverviewVisibilityChangeListeners.remove(listener);
+        mOverviewVisibilityChangeListeners.add(listener);
+    }
+
     /**
      * Adds an interface that can be called from a remote process. This method takes a supplier
      * because each binder reference is valid for a single process, and in multi-user mode, SysUI
@@ -285,6 +294,11 @@ public class ShellController {
     @NonNull
     public List<UserInfo> getCurrentUserProfiles() {
         return mProfiles;
+    }
+
+    /** Returns whether overview is currently visible in the given display. */
+    public boolean isOverviewVisible(int displayId) {
+        return mDisplayToOverviewVisibleMap.get(displayId);
     }
 
     @VisibleForTesting
@@ -390,6 +404,32 @@ public class ShellController {
                     mContext.getDisplayId(), isShowing)));
     }
 
+    @VisibleForTesting
+    void onOverviewShown(int displayId) {
+        ProtoLog.v(WM_SHELL_SYSUI_EVENTS, "Overview visibility changed: displayId=%d to visible",
+                displayId);
+        if (!updateOverviewVisibility(displayId, /* visible = */ true)) {
+            // No change, do not notify listeners.
+            return;
+        }
+        for (OverviewVisibilityChangeListener listener : mOverviewVisibilityChangeListeners) {
+            listener.onOverviewShown(displayId);
+        }
+    }
+
+    @VisibleForTesting
+    void onOverviewHidden(int displayId) {
+        ProtoLog.v(WM_SHELL_SYSUI_EVENTS, "Overview visibility changed: displayId=%d to hidden",
+                displayId);
+        if (!updateOverviewVisibility(displayId, /* visible = */ false)) {
+            // No change, do not notify listeners.
+            return;
+        }
+        for (OverviewVisibilityChangeListener listener : mOverviewVisibilityChangeListeners) {
+            listener.onOverviewHidden(displayId);
+        }
+    }
+
     private void handleInit() {
         SurfaceControlRegistry.createProcessInstance(mContext);
         mShellInit.init();
@@ -431,15 +471,25 @@ public class ShellController {
         return mUserManager.getProfiles(userId);
     }
 
+    /** Updates the overview visibility and returns {@code true} if it changed. */
+    private boolean updateOverviewVisibility(int displayId, boolean visible) {
+        if (mDisplayToOverviewVisibleMap.get(displayId) == visible) return false;
+        mDisplayToOverviewVisibleMap.put(displayId, visible);
+        return true;
+    }
+
     public void dump(@NonNull PrintWriter pw, String prefix) {
         final String innerPrefix = prefix + "  ";
         pw.println(prefix + TAG);
         pw.println(innerPrefix + "mUserId=" + mUserId);
         pw.println(innerPrefix + "mProfiles=" + mProfiles);
+        pw.println(innerPrefix + "mDisplayToOverviewVisibleMap=" + mDisplayToOverviewVisibleMap);
         pw.println(innerPrefix + "mConfigChangeListeners=" + mConfigChangeListeners.size());
         pw.println(innerPrefix + "mLastConfiguration=" + mLastConfiguration);
         pw.println(innerPrefix + "mKeyguardChangeListeners=" + mKeyguardChangeListeners.size());
         pw.println(innerPrefix + "mUserChangeListeners=" + mUserChangeListeners.size());
+        pw.println(innerPrefix + "mOverviewVisibilityChangeListeners="
+                + mOverviewVisibilityChangeListeners.size());
 
         if (!mExternalInterfaces.isEmpty()) {
             pw.println(innerPrefix + "mExternalInterfaces={");
@@ -503,6 +553,18 @@ public class ShellController {
         public void removeDisplayImeChangeListener(DisplayImeChangeListener listener) {
             ProtoLog.v(WM_SHELL_SYSUI_EVENTS, "Removing DisplayImeChangeListener");
             mDisplayImeChangeListeners.remove(listener);
+        }
+
+        @Override
+        public void onOverviewShown(int displayId) {
+            ProtoLog.v(WM_SHELL_SYSUI_EVENTS, "onOverviewShown in displayId=%d", displayId);
+            mMainExecutor.execute(() -> ShellController.this.onOverviewShown(displayId));
+        }
+
+        @Override
+        public void onOverviewHidden(int displayId) {
+            ProtoLog.v(WM_SHELL_SYSUI_EVENTS, "onOverviewHidden in displayId=%d", displayId);
+            mMainExecutor.execute(() -> ShellController.this.onOverviewHidden(displayId));
         }
 
         @Override

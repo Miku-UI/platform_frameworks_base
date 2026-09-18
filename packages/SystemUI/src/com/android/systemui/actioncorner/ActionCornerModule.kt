@@ -16,20 +16,12 @@
 
 package com.android.systemui.actioncorner
 
-import com.android.app.displaylib.PerDisplayInstanceRepositoryImpl
-import com.android.app.displaylib.PerDisplayRepository
 import com.android.systemui.CoreStartable
 import com.android.systemui.actioncorner.data.repository.ActionCornerRepository
 import com.android.systemui.actioncorner.data.repository.ActionCornerRepositoryImpl
-import com.android.systemui.cursorposition.data.repository.MultiDisplayCursorPositionRepository
-import com.android.systemui.cursorposition.data.repository.MultiDisplayCursorPositionRepositoryImpl
-import com.android.systemui.cursorposition.data.repository.SingleDisplayCursorPositionRepository
-import com.android.systemui.cursorposition.data.repository.SingleDisplayCursorPositionRepositoryFactory
-import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.settings.UserSettingsRepositoryModule
 import dagger.Binds
 import dagger.Module
-import dagger.Provides
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
 
@@ -44,23 +36,4 @@ abstract class ActionCornerModule {
     abstract fun bindActionCornerRepository(
         impl: ActionCornerRepositoryImpl
     ): ActionCornerRepository
-
-    @Binds
-    abstract fun bindMultiDisplayCursorPositionRepository(
-        impl: MultiDisplayCursorPositionRepositoryImpl
-    ): MultiDisplayCursorPositionRepository
-
-    companion object {
-
-        @SysUISingleton
-        @Provides
-        fun provideCursorPositionRepository(
-            repositoryFactory:
-                PerDisplayInstanceRepositoryImpl.Factory<SingleDisplayCursorPositionRepository>,
-            instanceProvider: SingleDisplayCursorPositionRepositoryFactory,
-        ): PerDisplayRepository<SingleDisplayCursorPositionRepository> {
-            val debugName = "CursorPositionRepositoryPerDisplayRepo"
-            return repositoryFactory.create(debugName, instanceProvider)
-        }
-    }
 }

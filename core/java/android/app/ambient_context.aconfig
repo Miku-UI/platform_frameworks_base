@@ -1,0 +1,10 @@
+package: "android.app"
+container: "system"
+
+flag {
+  namespace: "location"
+  name: "ambient_context_emergency_event"
+  is_exported: true
+  description: "Feature flag for emergency event to Ambient Context API."
+  bug: "480257027"
+}

@@ -17,6 +17,7 @@
 package com.android.systemui.screencapture.record.largescreen.ui.compose
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
@@ -34,36 +35,53 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import com.android.systemui.common.shared.model.Icon as IconModel
 import com.android.systemui.common.ui.compose.Icon
 import com.android.systemui.res.R
 import com.android.systemui.screencapture.common.ui.compose.LoadingIcon
-import com.android.systemui.screencapture.record.largescreen.shared.model.ScreenCaptureType
-import com.android.systemui.screencapture.record.largescreen.ui.viewmodel.PreCaptureViewModel
+import com.android.systemui.screencapture.common.ui.compose.StyledTooltip
+import com.android.systemui.screencapture.common.ui.compose.loadIcon
+import com.android.systemui.screencapture.record.largescreen.ui.viewmodel.PreCaptureToolbarViewModel
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun CaptureSettingsMenu(viewModel: PreCaptureViewModel) {
-    val recordParameters = viewModel.screenCaptureRecordParametersViewModel
-    val isScreenRecording = viewModel.captureType == ScreenCaptureType.RECORDING
-    val icons = viewModel.icons
+fun CaptureSettingsMenu(viewModel: PreCaptureToolbarViewModel, screenRecordingSelected: Boolean) {
+    val recordParameters = viewModel.recordParametersViewModel
 
     val settingsButtonContentDescription =
         stringResource(R.string.screen_capture_toolbar_settings_button_a11y)
+    val expandedStateDescription =
+        stringResource(R.string.screen_capture_a11y_settings_menu_expanded)
+    val collapsedStateDescription =
+        stringResource(R.string.screen_capture_a11y_settings_menu_collapsed)
+
+    val settingsButtonIcon by
+        loadIcon(viewModel = viewModel, resId = R.drawable.ic_settings, contentDescription = null)
 
     Box {
         var showMenu by remember { mutableStateOf(false) }
-        IconToggleButton(
-            checked = showMenu,
-            onCheckedChange = { showMenu = it },
-            shape = IconButtonDefaults.smallSquareShape,
-            modifier =
-                Modifier.semantics { this.contentDescription = settingsButtonContentDescription },
-        ) {
-            LoadingIcon(viewModel.icons?.moreOptions)
+        StyledTooltip(tooltipText = settingsButtonContentDescription) {
+            IconToggleButton(
+                checked = showMenu,
+                onCheckedChange = { showMenu = it },
+                shape = IconButtonDefaults.smallSquareShape,
+                modifier =
+                    Modifier.semantics {
+                        this.role = Role.DropdownList
+                        this.contentDescription = settingsButtonContentDescription
+                        this.stateDescription =
+                            if (showMenu) expandedStateDescription else collapsedStateDescription
+                    },
+            ) {
+                LoadingIcon(settingsButtonIcon)
+            }
         }
         DropdownMenu(
             expanded = showMenu,
@@ -71,34 +89,74 @@ fun CaptureSettingsMenu(viewModel: PreCaptureViewModel) {
             offset = DpOffset(x = 0.dp, y = 28.dp),
             shape = RoundedCornerShape(28.dp),
         ) {
-            SettingsMenuItem(
-                text = stringResource(R.string.screen_capture_show_clicks_and_keys),
-                leadingIcon = { icons?.showClicks?.let { Icon(icon = it) } },
-                checked = recordParameters.shouldShowTaps ?: false,
-                onCheckedChange = { recordParameters.setShouldShowTaps(it) },
-                enabled = isScreenRecording,
-            )
+            if (viewModel.showClicksAndKeysSupported) {
+                val showClicksIcon by
+                    loadIcon(
+                        viewModel = viewModel,
+                        resId = R.drawable.ic_settings,
+                        contentDescription = null,
+                    )
+                SettingsMenuItem(
+                    text = stringResource(R.string.screen_capture_show_clicks_and_keys),
+                    leadingIcon = showClicksIcon,
+                    checked = recordParameters.shouldShowTaps,
+                    onCheckedChange = { recordParameters.shouldShowTaps = it },
+                    enabled = screenRecordingSelected,
+                )
+            }
+
+            val deviceAudioIcon by
+                loadIcon(
+                    viewModel = viewModel,
+                    resId = R.drawable.ic_speaker_rounded,
+                    contentDescription = null,
+                )
+            val microphoneAudioIcon by
+                loadIcon(
+                    viewModel = viewModel,
+                    resId = R.drawable.ic_mic_expressive,
+                    contentDescription = null,
+                )
+
             SettingsMenuItem(
                 text = stringResource(R.string.screen_capture_device_audio),
-                leadingIcon = { icons?.deviceAudio?.let { Icon(icon = it) } },
+                leadingIcon = deviceAudioIcon,
                 checked = recordParameters.shouldRecordDevice,
                 onCheckedChange = { recordParameters.shouldRecordDevice = it },
-                enabled = isScreenRecording,
+                enabled = screenRecordingSelected,
             )
             SettingsMenuItem(
                 text = stringResource(R.string.screen_capture_microphone_audio),
-                leadingIcon = { icons?.microphone?.let { Icon(icon = it) } },
+                leadingIcon = microphoneAudioIcon,
                 checked = recordParameters.shouldRecordMicrophone,
                 onCheckedChange = { recordParameters.shouldRecordMicrophone = it },
-                enabled = isScreenRecording,
+                enabled = screenRecordingSelected,
             )
-            SettingsMenuItem(
-                text = stringResource(R.string.screen_capture_front_camera),
-                leadingIcon = { icons?.frontCamera?.let { Icon(icon = it) } },
-                checked = recordParameters.shouldShowFrontCamera ?: false,
-                onCheckedChange = { recordParameters.setShouldShowFrontCamera(it) },
-                enabled = true,
-            )
+
+            if (viewModel.frontCameraSupported) {
+                val frontCameraIcon by
+                    loadIcon(
+                        viewModel = viewModel,
+                        resId = R.drawable.ic_person_filled,
+                        contentDescription = null,
+                    )
+                SettingsMenuItem(
+                    text = stringResource(R.string.screen_capture_front_camera),
+                    leadingIcon = frontCameraIcon,
+                    checked = recordParameters.shouldShowFrontCamera,
+                    onCheckedChange = { recordParameters.shouldShowFrontCamera = it },
+                    enabled = screenRecordingSelected,
+                )
+            }
+
+            if (viewModel.customSaveLocationSupported) {
+                SaveLocationDropdown(
+                    viewModel = viewModel,
+                    onClose = { showMenu = false },
+                    modifier =
+                        Modifier.padding(start = 14.dp, top = 12.dp, end = 14.dp, bottom = 6.dp),
+                )
+            }
         }
     }
 }
@@ -106,7 +164,7 @@ fun CaptureSettingsMenu(viewModel: PreCaptureViewModel) {
 @Composable
 private fun SettingsMenuItem(
     text: String,
-    leadingIcon: @Composable (() -> Unit)?,
+    leadingIcon: IconModel.Loaded?,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     enabled: Boolean,
@@ -114,14 +172,13 @@ private fun SettingsMenuItem(
     DropdownMenuItem(
         text = { Text(text) },
         onClick = { onCheckedChange(!checked) },
-        leadingIcon =
+        leadingIcon = {
             leadingIcon?.let {
-                {
-                    Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
-                        it()
-                    }
+                Box(modifier = Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                    Icon(icon = leadingIcon)
                 }
-            },
+            }
+        },
         trailingIcon = {
             Switch(checked = checked, onCheckedChange = onCheckedChange, enabled = enabled)
         },

@@ -16,7 +16,6 @@
 
 package com.android.wm.shell.shared.handles
 
-
 import android.graphics.Rect
 import android.testing.TestableLooper.RunWithLooper
 import android.view.SurfaceControl
@@ -49,20 +48,13 @@ import org.mockito.kotlin.argumentCaptor
 @RunWithLooper
 class RegionSamplingHelperTest : ShellTestCase() {
 
-    @Mock
-    lateinit var sampledView: View
-    @Mock
-    lateinit var samplingCallback: RegionSamplingHelper.SamplingCallback
-    @Mock
-    lateinit var compositionListener: RegionSamplingHelper.SysuiCompositionSamplingListener
-    @Mock
-    lateinit var viewRootImpl: ViewRootImpl
-    @Mock
-    lateinit var surfaceControl: SurfaceControl
-    @Mock
-    lateinit var wrappedSurfaceControl: SurfaceControl
-    @JvmField @Rule
-    var rule = MockitoJUnit.rule()
+    @Mock lateinit var sampledView: View
+    @Mock lateinit var samplingCallback: RegionSamplingHelper.SamplingCallback
+    @Mock lateinit var compositionListener: RegionSamplingHelper.SysuiCompositionSamplingListener
+    @Mock lateinit var viewRootImpl: ViewRootImpl
+    @Mock lateinit var surfaceControl: SurfaceControl
+    @Mock lateinit var wrappedSurfaceControl: SurfaceControl
+    @JvmField @Rule var rule = MockitoJUnit.rule()
     lateinit var regionSamplingHelper: RegionSamplingHelper
 
     @Before
@@ -73,16 +65,24 @@ class RegionSamplingHelperTest : ShellTestCase() {
         whenever(surfaceControl.isValid).thenReturn(true)
         whenever(wrappedSurfaceControl.isValid).thenReturn(true)
         whenever(samplingCallback.isSamplingEnabled).thenReturn(true)
-        getInstrumentation().runOnMainSync(Runnable {
-            regionSamplingHelper = object : RegionSamplingHelper(
-                sampledView, samplingCallback,
-                DirectExecutor.INSTANCE, DirectExecutor.INSTANCE, compositionListener
-            ) {
-                override fun wrap(stopLayerControl: SurfaceControl?): SurfaceControl {
-                    return wrappedSurfaceControl
+        getInstrumentation()
+            .runOnMainSync(
+                Runnable {
+                    regionSamplingHelper =
+                        object :
+                            RegionSamplingHelper(
+                                sampledView,
+                                samplingCallback,
+                                DirectExecutor.INSTANCE,
+                                DirectExecutor.INSTANCE,
+                                compositionListener,
+                            ) {
+                            override fun wrap(stopLayerControl: SurfaceControl?): SurfaceControl {
+                                return wrappedSurfaceControl
+                            }
+                        }
                 }
-            }
-        })
+            )
         regionSamplingHelper.setWindowVisible(true)
     }
 
@@ -122,16 +122,24 @@ class RegionSamplingHelperTest : ShellTestCase() {
 
         whenever(fakeSamplingCallback.isSamplingEnabled).thenReturn(true)
         whenever(wrappedSurfaceControl.isValid).thenReturn(true)
-        getInstrumentation().runOnMainSync(Runnable {
-            regionSamplingHelper = object : RegionSamplingHelper(
-                sampledView, fakeSamplingCallback,
-                DirectExecutor.INSTANCE, fakeExecutor, compositionListener
-            ) {
-                override fun wrap(stopLayerControl: SurfaceControl?): SurfaceControl {
-                    return wrappedSurfaceControl
+        getInstrumentation()
+            .runOnMainSync(
+                Runnable {
+                    regionSamplingHelper =
+                        object :
+                            RegionSamplingHelper(
+                                sampledView,
+                                fakeSamplingCallback,
+                                DirectExecutor.INSTANCE,
+                                fakeExecutor,
+                                compositionListener,
+                            ) {
+                            override fun wrap(stopLayerControl: SurfaceControl?): SurfaceControl {
+                                return wrappedSurfaceControl
+                            }
+                        }
                 }
-            }
-        })
+            )
         regionSamplingHelper.setWindowVisible(true)
         regionSamplingHelper.start(Rect(0, 0, 100, 100))
 
@@ -147,8 +155,8 @@ class RegionSamplingHelperTest : ShellTestCase() {
 
         // grab Rect passed into compositionSamplingListener and make sure it's not empty
         val argumentGrabber = argumentCaptor<Rect>()
-        verify(compositionListener).register(any(), anyInt(), eq(wrappedSurfaceControl),
-            argumentGrabber.capture())
+        verify(compositionListener)
+            .register(any(), anyInt(), eq(wrappedSurfaceControl), argumentGrabber.capture())
         assertThat(argumentGrabber.firstValue.isEmpty).isFalse()
     }
 }

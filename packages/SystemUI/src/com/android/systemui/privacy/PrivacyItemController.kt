@@ -35,14 +35,16 @@ import java.util.concurrent.Executor
 import javax.inject.Inject
 
 @SysUISingleton
-class PrivacyItemController @Inject constructor(
+class PrivacyItemController
+@Inject
+constructor(
     @Main uiExecutor: DelayableExecutor,
     @Background private val bgExecutor: DelayableExecutor,
     private val privacyConfig: PrivacyConfig,
     private val privacyItemMonitors: Set<@JvmSuppressWildcards PrivacyItemMonitor>,
     private val logger: PrivacyLogger,
     private val systemClock: SystemClock,
-    dumpManager: DumpManager
+    dumpManager: DumpManager,
 ) : Dumpable {
 
     @VisibleForTesting
@@ -51,7 +53,8 @@ class PrivacyItemController @Inject constructor(
         // LINT.IfChange
         @VisibleForTesting const val TIME_TO_HOLD_INDICATORS = 5_000L
         @VisibleForTesting const val TIME_TO_HOLD_INDICATORS_FOR_LOCATION = 10_000L
-        // LINT.ThenChange(/core/java/android/permission/PermissionUsageHelper.java, /packages/SystemUI/src/com/android/systemui/appops/AppOpsControllerImpl.java)
+        // LINT.ThenChange(/core/java/android/permission/PermissionUsageHelper.java,
+        // /packages/SystemUI/src/com/android/systemui/appops/AppOpsControllerImpl.java)
     }
 
     @VisibleForTesting
@@ -66,8 +69,10 @@ class PrivacyItemController @Inject constructor(
 
     val micCameraAvailable
         get() = privacyConfig.micCameraAvailable
+
     val locationAvailable
         get() = privacyConfig.locationAvailable
+
     val allIndicatorsAvailable
         get() = micCameraAvailable && locationAvailable && privacyConfig.mediaProjectionAvailable
 
@@ -81,25 +86,27 @@ class PrivacyItemController @Inject constructor(
         uiExecutor.execute(notifyChanges)
     }
 
-    private val optionsCallback = object : PrivacyConfig.Callback {
-        override fun onFlagLocationChanged(flag: Boolean) {
-            callbacks.forEach { it.get()?.onFlagLocationChanged(flag) }
+    private val optionsCallback =
+        object : PrivacyConfig.Callback {
+            override fun onFlagLocationChanged(flag: Boolean) {
+                callbacks.forEach { it.get()?.onFlagLocationChanged(flag) }
+            }
+
+            override fun onFlagMicCameraChanged(flag: Boolean) {
+                callbacks.forEach { it.get()?.onFlagMicCameraChanged(flag) }
+            }
+
+            override fun onFlagMediaProjectionChanged(flag: Boolean) {
+                callbacks.forEach { it.get()?.onFlagMediaProjectionChanged(flag) }
+            }
         }
 
-        override fun onFlagMicCameraChanged(flag: Boolean) {
-            callbacks.forEach { it.get()?.onFlagMicCameraChanged(flag) }
+    private val privacyItemMonitorCallback =
+        object : PrivacyItemMonitor.Callback {
+            override fun onPrivacyItemsChanged() {
+                update()
+            }
         }
-
-        override fun onFlagMediaProjectionChanged(flag: Boolean) {
-            callbacks.forEach { it.get()?.onFlagMediaProjectionChanged(flag) }
-        }
-    }
-
-    private val privacyItemMonitorCallback = object : PrivacyItemMonitor.Callback {
-        override fun onPrivacyItemsChanged() {
-            update()
-        }
-    }
 
     init {
         dumpManager.registerNormalDumpable(TAG, this)
@@ -107,9 +114,7 @@ class PrivacyItemController @Inject constructor(
     }
 
     private fun update() {
-        bgExecutor.execute {
-            updateListAndNotifyChanges.run()
-        }
+        bgExecutor.execute { updateListAndNotifyChanges.run() }
     }
 
     /**
@@ -164,9 +169,7 @@ class PrivacyItemController @Inject constructor(
     }
 
     private fun updatePrivacyList() {
-        holdingRunnableCanceler?.run()?.also {
-            holdingRunnableCanceler = null
-        }
+        holdingRunnableCanceler?.run()?.also { holdingRunnableCanceler = null }
         if (!listening) {
             privacyList = emptyList()
             return
@@ -198,9 +201,8 @@ class PrivacyItemController @Inject constructor(
 
         // Anything earlier than this timestamp can be removed
         val removeBeforeTime = systemClock.elapsedRealtime() - timeToHold
-        val mustKeep = privacyList.filter {
-            it.timeStampElapsed > removeBeforeTime && !(it isIn list)
-        }
+        val mustKeep =
+            privacyList.filter { it.timeStampElapsed > removeBeforeTime && !(it isIn list) }
 
         // There are items we must keep because they haven't been around for enough time.
         if (mustKeep.isNotEmpty()) {
@@ -215,14 +217,12 @@ class PrivacyItemController @Inject constructor(
         return list.filter { !it.paused } + mustKeep
     }
 
-    /**
-     * Ignores the paused status to determine if the element is in the list
-     */
+    /** Ignores the paused status to determine if the element is in the list */
     private infix fun PrivacyItem.isIn(list: List<PrivacyItem>): Boolean {
         return list.any {
             it.privacyType == privacyType &&
-                    it.application == application &&
-                    it.timeStampElapsed == timeStampElapsed
+                it.application == application &&
+                it.timeStampElapsed == timeStampElapsed
         }
     }
 
@@ -234,7 +234,7 @@ class PrivacyItemController @Inject constructor(
 
     private class NotifyChangesToCallback(
         private val callback: Callback?,
-        private val list: List<PrivacyItem>
+        private val list: List<PrivacyItem>,
     ) : Runnable {
         override fun run() {
             callback?.onPrivacyItemsChanged(list)
@@ -247,34 +247,20 @@ class PrivacyItemController @Inject constructor(
         ipw.withIncreasedIndent {
             ipw.println("Listening: $listening")
             ipw.println("Privacy Items:")
-            ipw.withIncreasedIndent {
-                privacyList.forEach {
-                    ipw.println(it.toString())
-                }
-            }
+            ipw.withIncreasedIndent { privacyList.forEach { ipw.println(it.toString()) } }
 
             ipw.println("Callbacks:")
             ipw.withIncreasedIndent {
-                callbacks.forEach {
-                    it.get()?.let {
-                        ipw.println(it.toString())
-                    }
-                }
+                callbacks.forEach { it.get()?.let { ipw.println(it.toString()) } }
             }
 
             ipw.println("PrivacyItemMonitors:")
-            ipw.withIncreasedIndent {
-                privacyItemMonitors.forEach {
-                    it.dump(ipw, args)
-                }
-            }
+            ipw.withIncreasedIndent { privacyItemMonitors.forEach { it.dump(ipw, args) } }
         }
         ipw.flush()
     }
 
-    private inner class MyExecutor(
-        private val delegate: DelayableExecutor
-    ) : Executor {
+    private inner class MyExecutor(private val delegate: DelayableExecutor) : Executor {
 
         private var listeningCanceller: Runnable? = null
 

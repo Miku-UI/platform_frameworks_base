@@ -17,17 +17,12 @@
 package com.android.server.notification;
 
 import static android.app.AppOpsManager.OP_SYSTEM_ALERT_WINDOW;
-import static android.app.Flags.nmSummarization;
-import static android.app.Flags.nmSummarizationUi;
-import static android.app.Flags.notificationClassificationUi;
 import static android.app.NotificationChannel.DEFAULT_CHANNEL_ID;
-import static android.app.NotificationChannel.NEWS_ID;
 import static android.app.NotificationChannel.PLACEHOLDER_CONVERSATION_ID;
-import static android.app.NotificationChannel.PROMOTIONS_ID;
-import static android.app.NotificationChannel.RECS_ID;
-import static android.app.NotificationChannel.SOCIAL_MEDIA_ID;
-import static android.app.NotificationChannel.SYSTEM_RESERVED_IDS;
 import static android.app.NotificationChannel.USER_LOCKED_IMPORTANCE;
+import static android.app.NotificationLoggingConstants.DATA_TYPE_NOTIF_GLOBAL;
+import static android.app.NotificationLoggingConstants.DATA_TYPE_NOTIF_PACKAGES;
+import static android.app.NotificationLoggingConstants.ERROR_XML_PARSING;
 import static android.app.NotificationManager.BUBBLE_PREFERENCE_ALL;
 import static android.app.NotificationManager.BUBBLE_PREFERENCE_NONE;
 import static android.app.NotificationManager.IMPORTANCE_DEFAULT;
@@ -37,7 +32,6 @@ import static android.app.NotificationManager.IMPORTANCE_NONE;
 import static android.app.NotificationManager.IMPORTANCE_UNSPECIFIED;
 import static android.os.Process.INVALID_UID;
 import static android.os.UserHandle.USER_SYSTEM;
-import static android.service.notification.Flags.notificationClassification;
 
 import static com.android.internal.util.FrameworkStatsLog.PACKAGE_NOTIFICATION_CHANNEL_GROUP_PREFERENCES;
 import static com.android.internal.util.FrameworkStatsLog.PACKAGE_NOTIFICATION_CHANNEL_PREFERENCES;
@@ -46,9 +40,7 @@ import static com.android.internal.util.FrameworkStatsLog.PACKAGE_NOTIFICATION_P
 import static com.android.internal.util.FrameworkStatsLog.PACKAGE_NOTIFICATION_PREFERENCES__FSI_STATE__GRANTED;
 import static com.android.internal.util.FrameworkStatsLog.PACKAGE_NOTIFICATION_PREFERENCES__FSI_STATE__NOT_REQUESTED;
 import static com.android.server.notification.PreferencesHelper.LockableAppFields.USER_LOCKED_BUBBLE;
-import static com.android.server.notification.PreferencesHelper.LockableAppFields.USER_LOCKED_PROMOTABLE;
 
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -58,7 +50,9 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationChannelGroup;
 import android.app.NotificationManager;
+import android.app.NotificationSoundCanonicalizer;
 import android.app.ZenBypassingApp;
+import android.app.backup.BackupRestoreEventLogger;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
@@ -72,7 +66,6 @@ import android.os.Build;
 import android.os.UserHandle;
 import android.permission.PermissionManager;
 import android.provider.Settings;
-import android.service.notification.Adjustment;
 import android.service.notification.ConversationChannelWrapper;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.RankingHelperProto;
@@ -81,7 +74,6 @@ import android.text.format.DateUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.IntArray;
-import android.util.Log;
 import android.util.Pair;
 import android.util.Slog;
 import android.util.SparseBooleanArray;
@@ -174,7 +166,7 @@ public class PreferencesHelper implements RankingConfig {
     private static final String ATT_SENT_VALID_MESSAGE = "sent_valid_msg";
     private static final String ATT_USER_DEMOTED_INVALID_MSG_APP = "user_demote_msg_app";
     private static final String ATT_SENT_VALID_BUBBLE = "sent_valid_bubble";
-    private static final String ATT_PROMOTE_NOTIFS = "promote";
+    private static final String ATT_PROMOTE_NOTIFS = "promote"; // removed
 
     private static final String ATT_CREATION_TIME = "creation_time";
 
@@ -186,7 +178,6 @@ public class PreferencesHelper implements RankingConfig {
     private static final boolean DEFAULT_SHOW_BADGE = true;
 
     private static final boolean DEFAULT_APP_LOCKED_IMPORTANCE  = false;
-    private static final boolean DEFAULT_CAN_HAVE_PROMOTED_NOTIFS = true;
 
     static final boolean DEFAULT_BUBBLES_ENABLED = true;
     @VisibleForTesting
@@ -210,7 +201,7 @@ public class PreferencesHelper implements RankingConfig {
     public @interface LockableAppFields {
         int USER_LOCKED_IMPORTANCE = 0x00000001;
         int USER_LOCKED_BUBBLE = 0x00000002;
-        int USER_LOCKED_PROMOTABLE = 0x00000004;
+        int USER_LOCKED_PROMOTABLE = 0x00000004; // removed
     }
 
     private final Object mLock = new Object();
@@ -231,6 +222,7 @@ public class PreferencesHelper implements RankingConfig {
     private final AppOpsManager mAppOps;
     private final ManagedServices.UserProfiles mUserProfiles;
     private final UriGrantsManagerInternal mUgmInternal;
+    private NotificationManagerPrivate mNmPrivate;
 
     private SparseBooleanArray mBadgingEnabled;
     private SparseBooleanArray mBubblesEnabled;
@@ -250,7 +242,8 @@ public class PreferencesHelper implements RankingConfig {
             NotificationChannelLogger notificationChannelLogger,
             AppOpsManager appOpsManager, ManagedServices.UserProfiles userProfiles,
             UriGrantsManagerInternal ugmInternal,
-            boolean showReviewPermissionsNotification, Clock clock) {
+            boolean showReviewPermissionsNotification, Clock clock,
+            NotificationManagerPrivate nmPrivate) {
         mContext = context;
         mZenModeHelper = zenHelper;
         mRankingHandler = rankingHandler;
@@ -265,6 +258,7 @@ public class PreferencesHelper implements RankingConfig {
         mIsMediaNotificationFilteringEnabled = context.getResources()
                 .getBoolean(R.bool.config_quickSettingsShowMediaPlayer);
         mClock = clock;
+        mNmPrivate = nmPrivate;
         XML_VERSION = 4;
 
         updateBadgingEnabled();
@@ -276,18 +270,21 @@ public class PreferencesHelper implements RankingConfig {
         // IpcDataCaches must be invalidated once data becomes available, as queries will only
         // begin to be cached after the first invalidation signal. At this point, we know about all
         // notification channels.
-        if (android.app.Flags.nmBinderPerfCacheChannels()) {
-            invalidateNotificationChannelCache();
-            invalidateNotificationChannelGroupCache();
-        }
+        invalidateNotificationChannelCache();
+        invalidateNotificationChannelGroupCache();
     }
 
-    public void readXml(TypedXmlPullParser parser, boolean forRestore, int userId)
+    public void readXml(TypedXmlPullParser parser, boolean forRestore, int userId,
+            @Nullable BackupRestoreEventLogger logger)
             throws XmlPullParserException, IOException {
         int type = parser.getEventType();
         if (type != XmlPullParser.START_TAG) return;
         String tag = parser.getName();
         if (!TAG_RANKING.equals(tag)) return;
+
+        int restoredPackageCount = 0;
+        int erroredPackageCount = 0;
+        boolean restoredStatus = false;
 
         final int xmlVersion = parser.getAttributeInt(null, ATT_VERSION, -1);
         boolean upgradeForBubbles = parser.getAttributeInt(null,
@@ -315,20 +312,36 @@ public class PreferencesHelper implements RankingConfig {
                         }
                         mHideSilentStatusBarIcons = parser.getAttributeBoolean(null,
                                 ATT_HIDE_SILENT, DEFAULT_HIDE_SILENT_STATUS_BAR_ICONS);
+                        if (logger != null) {
+                            restoredStatus = true;
+                        }
                     } else if (TAG_PACKAGE.equals(tag)) {
                         String name = parser.getAttributeValue(null, ATT_NAME);
                         if (!TextUtils.isEmpty(name)) {
-                            restorePackageLocked(parser, forRestore, userId, name,
+                            boolean success = restorePackageLocked(parser, forRestore, userId, name,
                                     upgradeForBubbles, migrateToPermission);
+                            if (logger != null) {
+                                if (success) {
+                                    restoredPackageCount++;
+                                } else {
+                                    erroredPackageCount++;
+                                }
+                            }
                         }
                     }
                 }
             }
         }
+        if (logger != null) {
+            logger.logItemsRestored(DATA_TYPE_NOTIF_GLOBAL, restoredStatus ? 1 : 0);
+            logger.logItemsRestored(DATA_TYPE_NOTIF_PACKAGES, restoredPackageCount);
+            logger.logItemsRestoreFailed(
+                    DATA_TYPE_NOTIF_PACKAGES, erroredPackageCount, ERROR_XML_PARSING);
+        }
     }
 
     @GuardedBy("mLock")
-    private void restorePackageLocked(TypedXmlPullParser parser, boolean forRestore,
+    private boolean restorePackageLocked(TypedXmlPullParser parser, boolean forRestore,
             @UserIdInt int userId, String name, boolean upgradeForBubbles,
             boolean migrateToPermission) {
         try {
@@ -382,10 +395,6 @@ public class PreferencesHelper implements RankingConfig {
             r.userDemotedMsgApp = parser.getAttributeBoolean(
                     null, ATT_USER_DEMOTED_INVALID_MSG_APP, false);
             r.hasSentValidBubble = parser.getAttributeBoolean(null, ATT_SENT_VALID_BUBBLE, false);
-            if (android.app.Flags.uiRichOngoing()) {
-                r.canHavePromotedNotifs = parser.getAttributeBoolean(null, ATT_PROMOTE_NOTIFS,
-                        DEFAULT_CAN_HAVE_PROMOTED_NOTIFS);
-            }
 
             final int innerDepth = parser.getDepth();
             int type;
@@ -453,7 +462,9 @@ public class PreferencesHelper implements RankingConfig {
             }
         } catch (Exception e) {
             Slog.w(TAG, "Failed to restore pkg", e);
+            return false;
         }
+        return true;
     }
 
     @GuardedBy("mLock")
@@ -461,18 +472,10 @@ public class PreferencesHelper implements RankingConfig {
             PackagePreferences r) {
         try {
             String id = parser.getAttributeValue(null, ATT_ID);
-            if (!notificationClassification() && SYSTEM_RESERVED_IDS.contains(id)) {
-                // delete bundle channels if flag is rolled back
-                return;
-            }
             String channelName = parser.getAttributeValue(null, ATT_NAME);
             int channelImportance = parser.getAttributeInt(
                     null, ATT_IMPORTANCE, DEFAULT_IMPORTANCE);
             if (!TextUtils.isEmpty(id) && !TextUtils.isEmpty(channelName)) {
-                // Force IMPORTANCE_LOW for reserved channels
-                if (notificationClassification() && SYSTEM_RESERVED_IDS.contains(id)) {
-                    channelImportance = IMPORTANCE_LOW;
-                }
                 NotificationChannel channel = new NotificationChannel(
                         id, channelName, channelImportance);
                 if (forRestore) {
@@ -486,6 +489,10 @@ public class PreferencesHelper implements RankingConfig {
 
                 if (isShortcutOk(channel) && isDeletionOk(channel)) {
                     r.channels.put(id, channel);
+                }
+                // Force IMPORTANCE_LOW for reserved channels
+                if (channel.isBundleChannel()) {
+                    channel.setImportance(IMPORTANCE_LOW);
                 }
             }
         } catch (Exception e) {
@@ -609,7 +616,7 @@ public class PreferencesHelper implements RankingConfig {
                 mRestoredWithoutUids.remove(unrestoredPackageKey(pkg, userId));
             }
         }
-        if (android.app.Flags.nmBinderPerfCacheChannels() && created) {
+        if (created) {
             invalidateNotificationChannelCache();
         }
         return r;
@@ -689,31 +696,23 @@ public class PreferencesHelper implements RankingConfig {
     }
 
     @GuardedBy("mLock")
-    private NotificationChannel addReservedChannelLocked(PackagePreferences p, String channelId) {
-        String label = "";
-        switch (channelId) {
-            case PROMOTIONS_ID:
-                label = mContext.getString(R.string.promotional_notification_channel_label);
-                break;
-            case RECS_ID:
-                label = mContext.getString(R.string.recs_notification_channel_label);
-                break;
-            case NEWS_ID:
-                label = mContext.getString(R.string.news_notification_channel_label);
-                break;
-            case SOCIAL_MEDIA_ID:
-                label = mContext.getString(R.string.social_notification_channel_label);
-                break;
-        }
+    private @NonNull NotificationChannel addReservedChannelLocked(PackagePreferences p,
+            String channelId, String label, String emoji) {
         NotificationChannel channel = new NotificationChannel(channelId, label, IMPORTANCE_LOW);
-        p.channels.put(channelId, channel);
-        if (android.app.Flags.nmBinderPerfCacheChannels()) {
-            invalidateNotificationChannelCache();
+        if (android.app.Flags.nmContextualDisplay()) {
+            channel.setIsBundleChannel(true);
         }
+        if (android.app.Flags.nmContextualDisplayLaunch()) {
+            channel.setIsBundleChannel(true);
+            channel.setEmoji(emoji);
+        }
+        p.channels.put(channelId, channel);
+        invalidateNotificationChannelCache();
         return channel;
     }
 
-    public void writeXml(TypedXmlSerializer out, boolean forBackup, int userId) throws IOException {
+    public void writeXml(TypedXmlSerializer out, boolean forBackup, int userId,
+            @Nullable BackupRestoreEventLogger logger) throws IOException {
         out.startTag(null, TAG_RANKING);
         out.attributeInt(null, ATT_VERSION, XML_VERSION);
         out.attributeInt(null, ATT_LAST_BUBBLES_VERSION_UPGRADE, Build.VERSION.SDK_INT);
@@ -727,6 +726,7 @@ public class PreferencesHelper implements RankingConfig {
             notifPermissions = mPermissionHelper.getNotificationPermissionValues(userId);
         }
 
+        int count = 0;
         synchronized (mLock) {
             final int N = mPackagePreferences.size();
             for (int i = 0; i < N; i++) {
@@ -735,6 +735,7 @@ public class PreferencesHelper implements RankingConfig {
                     continue;
                 }
                 writePackageXml(r, out, notifPermissions, forBackup);
+                count++;
             }
 
             if (!forBackup) {
@@ -756,6 +757,11 @@ public class PreferencesHelper implements RankingConfig {
             }
         }
         out.endTag(null, TAG_RANKING);
+
+        if (logger != null) {
+            logger.logItemsBackedUp(DATA_TYPE_NOTIF_PACKAGES, count);
+            logger.logItemsBackedUp(DATA_TYPE_NOTIF_GLOBAL, 1);
+        }
     }
 
     @GuardedBy("mLock")
@@ -796,11 +802,6 @@ public class PreferencesHelper implements RankingConfig {
         out.attributeBoolean(null, ATT_USER_DEMOTED_INVALID_MSG_APP,
                 r.userDemotedMsgApp);
         out.attributeBoolean(null, ATT_SENT_VALID_BUBBLE, r.hasSentValidBubble);
-        if (android.app.Flags.uiRichOngoing()) {
-            if (r.canHavePromotedNotifs != DEFAULT_CAN_HAVE_PROMOTED_NOTIFS) {
-                out.attributeBoolean(null, ATT_PROMOTE_NOTIFS, r.canHavePromotedNotifs);
-            }
-        }
 
         if (r.uid == INVALID_UID) {
             out.attributeLong(null, ATT_CREATION_TIME, r.creationTime);
@@ -902,45 +903,6 @@ public class PreferencesHelper implements RankingConfig {
         if (changed) {
             updateConfig();
         }
-    }
-
-    @FlaggedApi(android.app.Flags.FLAG_API_RICH_ONGOING)
-    public boolean canBePromoted(String packageName, int uid) {
-        if (android.app.Flags.uiRichOngoing()) {
-            Log.e(TAG, "Should not be checking here if uiRichOngoingPermission flag enabled");
-            return false;
-        }
-
-        synchronized (mLock) {
-            return getOrCreatePackagePreferencesLocked(packageName, uid).canHavePromotedNotifs;
-        }
-    }
-
-    @FlaggedApi(android.app.Flags.FLAG_API_RICH_ONGOING)
-    public boolean setCanBePromoted(String packageName, int uid, boolean promote,
-            boolean fromUser) {
-
-        if (android.app.Flags.uiRichOngoing()) {
-            Log.e(TAG, "Should not be writing here if uiRichOngoingPermission flag enabled");
-            return false;
-        }
-
-        boolean changed = false;
-        synchronized (mLock) {
-            PackagePreferences pkgPrefs = getOrCreatePackagePreferencesLocked(packageName, uid);
-            if (fromUser || ((pkgPrefs.lockedAppFields & USER_LOCKED_PROMOTABLE) == 0)) {
-                if (pkgPrefs.canHavePromotedNotifs != promote) {
-                    pkgPrefs.canHavePromotedNotifs = promote;
-                    if (fromUser) {
-                        pkgPrefs.lockedAppFields |= USER_LOCKED_PROMOTABLE;
-                    }
-                    changed = true;
-                }
-            }
-        }
-        // no need to send a ranking update because we need to update the flag value on all pending
-        // and posted notifs and NMS will take care of that
-        return changed;
     }
 
     public boolean isInInvalidMsgState(String packageName, int uid) {
@@ -1115,7 +1077,7 @@ public class PreferencesHelper implements RankingConfig {
         if (needsDndChange) {
             updateCurrentUserHasPriorityChannels();
         }
-        if (android.app.Flags.nmBinderPerfCacheChannels() && changed) {
+        if (changed) {
             invalidateNotificationChannelGroupCache();
         }
     }
@@ -1140,9 +1102,8 @@ public class PreferencesHelper implements RankingConfig {
             if (DEFAULT_CHANNEL_ID.equals(channel.getId())) {
                 throw new IllegalArgumentException("Reserved id");
             }
-            // Only the user can update bundle channel settings
-            if (notificationClassification() && !fromSystemOrSystemUi
-                    && SYSTEM_RESERVED_IDS.contains(channel.getId())) {
+            // Only the OS/user can update bundle channel settings
+            if (!fromSystemOrSystemUi && channel.isBundleChannel()) {
                 return false;
             }
             NotificationChannel existing = r.channels.get(channel.getId());
@@ -1279,8 +1240,7 @@ public class PreferencesHelper implements RankingConfig {
         if (needsDndChange) {
             updateCurrentUserHasPriorityChannels();
         }
-
-        if (android.app.Flags.nmBinderPerfCacheChannels() && needsPolicyFileChange) {
+        if (needsPolicyFileChange) {
             invalidateNotificationChannelCache();
         }
 
@@ -1303,9 +1263,7 @@ public class PreferencesHelper implements RankingConfig {
             }
             channel.unlockFields(USER_LOCKED_IMPORTANCE);
         }
-        if (android.app.Flags.nmBinderPerfCacheChannels()) {
-            invalidateNotificationChannelCache();
-        }
+        invalidateNotificationChannelCache();
     }
 
 
@@ -1322,6 +1280,16 @@ public class PreferencesHelper implements RankingConfig {
             if (channel == null || channel.isDeleted()) {
                 throw new IllegalArgumentException("Channel does not exist");
             }
+            //only settable on creation
+            updatedChannel.setIsBundleChannel(channel.isBundleChannel());
+
+            if (android.app.Flags.nmContextualDisplayLaunch()) {
+                // Only the OS/user can update bundle channel settings
+                if (!fromSystemOrSystemUi && channel.isBundleChannel()) {
+                    return;
+                }
+            }
+
             if (updatedChannel.getLockscreenVisibility() == Notification.VISIBILITY_PUBLIC) {
                 updatedChannel.setLockscreenVisibility(
                         NotificationListenerService.Ranking.VISIBILITY_NO_OVERRIDE);
@@ -1375,9 +1343,7 @@ public class PreferencesHelper implements RankingConfig {
             updateCurrentUserHasPriorityChannels();
         }
         if (changed) {
-            if (android.app.Flags.nmBinderPerfCacheChannels()) {
-                invalidateNotificationChannelCache();
-            }
+            invalidateNotificationChannelCache();
             updateConfig();
         }
     }
@@ -1479,12 +1445,7 @@ public class PreferencesHelper implements RankingConfig {
         }
     }
 
-    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
-    public NotificationChannel getReservedChannel(String pkg, int uid,
-            @Adjustment.Types int type) {
-        if (!notificationClassification()) {
-            return null;
-        }
+    public NotificationChannel getReservedChannel(String pkg, int uid, int type) {
         Objects.requireNonNull(pkg);
         if (uid == INVALID_UID) {
             return null;
@@ -1498,12 +1459,7 @@ public class PreferencesHelper implements RankingConfig {
         return channel;
     }
 
-    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
-    public NotificationChannel createReservedChannel(String pkg, int uid,
-            @Adjustment.Types int type) {
-        if (!notificationClassification()) {
-            return null;
-        }
+    public NotificationChannel createReservedChannel(String pkg, int uid, int type, String label) {
         Objects.requireNonNull(pkg);
         synchronized (mLock) {
             PackagePreferences r = getOrCreatePackagePreferencesLocked(pkg, uid);
@@ -1511,7 +1467,18 @@ public class PreferencesHelper implements RankingConfig {
             if (channelId == null) {
                 return null;
             }
-            return addReservedChannelLocked(r, channelId);
+            return addReservedChannelLocked(r, channelId, label, null);
+        }
+    }
+
+    public @NonNull NotificationChannel createReservedChannel(String pkg, int uid, String channelId,
+            String label, String emoji) {
+        Objects.requireNonNull(pkg);
+        synchronized (mLock) {
+            PackagePreferences r = getOrCreatePackagePreferencesLocked(pkg, uid);
+            NotificationChannel channel = addReservedChannelLocked(r, channelId, label, emoji);
+            mNmPrivate.triggerPolicyFileWrite();
+            return channel;
         }
     }
 
@@ -1585,8 +1552,7 @@ public class PreferencesHelper implements RankingConfig {
         if (channelBypassedDnd) {
             updateCurrentUserHasPriorityChannels();
         }
-
-        if (android.app.Flags.nmBinderPerfCacheChannels() && deletedChannel) {
+        if (deletedChannel) {
             invalidateNotificationChannelCache();
         }
         return deletedChannel;
@@ -1619,9 +1585,7 @@ public class PreferencesHelper implements RankingConfig {
             }
             r.channels.remove(channelId);
         }
-        if (android.app.Flags.nmBinderPerfCacheChannels()) {
-            invalidateNotificationChannelCache();
-        }
+        invalidateNotificationChannelCache();
     }
 
     @Override
@@ -1641,7 +1605,7 @@ public class PreferencesHelper implements RankingConfig {
                     deleted = true;
                 }
             }
-            if (android.app.Flags.nmBinderPerfCacheChannels() && deleted) {
+            if (deleted) {
                 invalidateNotificationChannelCache();
             }
         }
@@ -1649,12 +1613,8 @@ public class PreferencesHelper implements RankingConfig {
 
     // Update all reserved channels for the given adjustment type(s) when enabled or disabled.
     // If disabled, all relevant channels are marked as deleted until the type is re-enabled.
-    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     void updateReservedChannels(List<Integer> userIds, List<Integer> changedTypes,
             boolean enabled) {
-        if (!notificationClassification()) {
-            return;
-        }
         boolean shouldBeDeleted = !enabled;  // just for ease of reading boolean logic
         boolean updated = false;
         synchronized (mLock) {
@@ -1675,9 +1635,7 @@ public class PreferencesHelper implements RankingConfig {
         if (updated) {
             // We shouldn't need to sort upon update: if any current notifications are affected
             // they should be reclassified as part of the enable/disable operation.
-            if (android.app.Flags.nmBinderPerfCacheChannels()) {
-                invalidateNotificationChannelCache();
-            }
+            invalidateNotificationChannelCache();
         }
     }
 
@@ -1708,9 +1666,7 @@ public class PreferencesHelper implements RankingConfig {
                 }
             }
         }
-        if (android.app.Flags.nmBinderPerfCacheChannels()) {
-            invalidateNotificationChannelCache();
-        }
+        invalidateNotificationChannelCache();
     }
 
     public void updateDefaultApps(int userId, ArraySet<String> toRemove,
@@ -1740,9 +1696,7 @@ public class PreferencesHelper implements RankingConfig {
                 }
             }
         }
-        if (android.app.Flags.nmBinderPerfCacheChannels()) {
-            invalidateNotificationChannelCache();
-        }
+        invalidateNotificationChannelCache();
     }
 
     public NotificationChannelGroup getNotificationChannelGroupWithChannels(String pkg,
@@ -1815,13 +1769,11 @@ public class PreferencesHelper implements RankingConfig {
         if (groupBypassedDnd) {
             updateCurrentUserHasPriorityChannels();
         }
-        if (android.app.Flags.nmBinderPerfCacheChannels()) {
-            if (deletedChannels.size() > 0) {
-                invalidateNotificationChannelCache();
-            }
-            if (deleted) {
-                invalidateNotificationChannelGroupCache();
-            }
+        if (deletedChannels.size() > 0) {
+            invalidateNotificationChannelCache();
+        }
+        if (deleted) {
+            invalidateNotificationChannelGroupCache();
         }
         return deletedChannels;
     }
@@ -1979,9 +1931,7 @@ public class PreferencesHelper implements RankingConfig {
             if (mCurrentUserHasPriorityChannels) {
                 updateCurrentUserHasPriorityChannels();
             }
-            if (android.app.Flags.nmBinderPerfCacheChannels()) {
-                invalidateNotificationChannelCache();
-            }
+            invalidateNotificationChannelCache();
         }
         return deletedChannelIds;
     }
@@ -1995,20 +1945,12 @@ public class PreferencesHelper implements RankingConfig {
         }
         List<NotificationChannel> channels = new ArrayList<>();
         synchronized (mLock) {
-            PackagePreferences r;
-            if (android.app.Flags.nmBinderPerfCacheChannels()) {
-                r = getOrCreatePackagePreferencesLocked(pkg, uid);
-            } else {
-                r = getPackagePreferencesLocked(pkg, uid);
-            }
-            if (r == null) {
-                return ParceledListSlice.emptyList();
-            }
+            PackagePreferences r = getOrCreatePackagePreferencesLocked(pkg, uid);
             int N = r.channels.size();
             for (int i = 0; i < N; i++) {
                 final NotificationChannel nc = r.channels.valueAt(i);
                 if (includeDeleted || !nc.isDeleted()) {
-                    if (includeBundles || !SYSTEM_RESERVED_IDS.contains(nc.getId())) {
+                    if (includeBundles || !nc.isBundleChannel()) {
                         channels.add(nc);
                     }
                 }
@@ -2084,7 +2026,6 @@ public class PreferencesHelper implements RankingConfig {
      * Gets all apps for this user that have a nonzero number of channels. This count does not
      * include deleted channels.
      */
-    @FlaggedApi(android.app.Flags.FLAG_NM_BINDER_PERF_GET_APPS_WITH_CHANNELS)
     public @NonNull List<String> getPackagesWithAnyChannels(@UserIdInt int userId) {
         List<String> pkgs = new ArrayList<>();
         synchronized (mLock) {
@@ -2116,18 +2057,12 @@ public class PreferencesHelper implements RankingConfig {
                 if (r.channels.size() == 1) {
                     return true;
                 }
-                if (notificationClassification()) {
-                    if (r.channels.size() <= 5) {
-                        for (NotificationChannel c : r.channels.values()) {
-                            if (!SYSTEM_RESERVED_IDS.contains(c.getId()) &&
-                                    !DEFAULT_CHANNEL_ID.equals(c.getId())) {
-                                return false;
-                            }
-                            return true;
-                        }
-                    } else {
-                        return false;
+                if (r.channels.size() <= 5) {
+                    for (NotificationChannel c : r.channels.values()) {
+                        return c.isBundleChannel() || DEFAULT_CHANNEL_ID.equals(c.getId());
                     }
+                } else {
+                    return false;
                 }
             }
             return false;
@@ -2298,11 +2233,9 @@ public class PreferencesHelper implements RankingConfig {
             PackagePreferences prefs = getOrCreatePackagePreferencesLocked(sourcePkg, sourceUid);
             prefs.delegate = new Delegate(delegatePkg, delegateUid, true);
         }
-        if (android.app.Flags.nmBinderPerfCacheChannels()) {
-            // If package delegates change, then which packages can get what channel information
-            // also changes, so we need to clear the cache.
-            invalidateNotificationChannelCache();
-        }
+        // If package delegates change, then which packages can get what channel information
+        // also changes, so we need to clear the cache.
+        invalidateNotificationChannelCache();
     }
 
     /**
@@ -2315,9 +2248,7 @@ public class PreferencesHelper implements RankingConfig {
                 prefs.delegate.mEnabled = false;
             }
         }
-        if (android.app.Flags.nmBinderPerfCacheChannels()) {
-            invalidateNotificationChannelCache();
-        }
+        invalidateNotificationChannelCache();
     }
 
     /**
@@ -2442,11 +2373,6 @@ public class PreferencesHelper implements RankingConfig {
                 if (r.fixedImportance != DEFAULT_APP_LOCKED_IMPORTANCE) {
                     pw.print(" fixedImportance=");
                     pw.print(r.fixedImportance);
-                }
-                if (android.app.Flags.uiRichOngoing()
-                        && r.canHavePromotedNotifs != DEFAULT_CAN_HAVE_PROMOTED_NOTIFS) {
-                    pw.print(" promoted=");
-                    pw.print(r.canHavePromotedNotifs);
                 }
                 pw.println();
                 if (r.delegate != null) {
@@ -2633,7 +2559,8 @@ public class PreferencesHelper implements RankingConfig {
                 }
 
                 final boolean requestedFSIPermission = mPermissionHelper.hasRequestedPermission(
-                        android.Manifest.permission.USE_FULL_SCREEN_INTENT, r.pkg, r.uid);
+                        android.Manifest.permission.USE_FULL_SCREEN_INTENT, r.pkg,
+                        UserHandle.getUserId(r.uid));
 
                 final int fsiState = getFsiState(r.pkg, r.uid, requestedFSIPermission);
 
@@ -2644,11 +2571,6 @@ public class PreferencesHelper implements RankingConfig {
                 final boolean fsiIsUserSet =
                         isFsiPermissionUserSet(r.pkg, r.uid, fsiState,
                                 currentPermissionFlags);
-
-                if (!(notificationClassificationUi() || nmSummarization() || nmSummarizationUi())
-                        && adjustmentDeniedPackages.keySet().size() > 0) {
-                    Slog.w(TAG, "Pkg adjustment types improperly allowed without flag set");
-                }
 
                 int[] deniedAdjustmentsForPackage =
                         getDeniedAdjustmentsForPackage(adjustmentDeniedPackages,
@@ -2698,16 +2620,14 @@ public class PreferencesHelper implements RankingConfig {
     private int[] getDeniedAdjustmentsForPackage(
             @NonNull Map<Integer, Map<String, List<String>>> adjustmentDeniedPackages,
             @UserIdInt int userId, String pkg) {
-        if (notificationClassificationUi()) {
-            if (adjustmentDeniedPackages.containsKey(userId)) {
-                List<String> deniedKeys = adjustmentDeniedPackages.get(userId).getOrDefault(pkg,
-                        Collections.EMPTY_LIST);
-                int[] out = new int[deniedKeys.size()];
-                for (int i = 0; i < deniedKeys.size(); i++) {
-                    out[i] = NotificationPullStatsEvent.adjustmentKeyEnum(deniedKeys.get(i));
-                }
-                return out;
+        if (adjustmentDeniedPackages.containsKey(userId)) {
+            List<String> deniedKeys = adjustmentDeniedPackages.get(userId).getOrDefault(pkg,
+                    Collections.EMPTY_LIST);
+            int[] out = new int[deniedKeys.size()];
+            for (int i = 0; i < deniedKeys.size(); i++) {
+                out[i] = NotificationPullStatsEvent.adjustmentKeyEnum(deniedKeys.get(i));
             }
+            return out;
         }
         return new int[]{};
     }
@@ -2987,7 +2907,7 @@ public class PreferencesHelper implements RankingConfig {
                     removed = true;
                 }
             }
-            if (android.app.Flags.nmBinderPerfCacheChannels() && removed) {
+            if (removed) {
                 invalidateNotificationChannelCache();
                 invalidateNotificationChannelGroupCache();
             }
@@ -3009,10 +2929,9 @@ public class PreferencesHelper implements RankingConfig {
                                         R.string.default_notification_channel_label));
                         updated = true;
                     }
-                    // TODO (b/346396459): Localize all reserved channels
                 }
             }
-            if (android.app.Flags.nmBinderPerfCacheChannels() && updated) {
+            if (updated) {
                 invalidateNotificationChannelCache();
             }
         }
@@ -3054,12 +2973,15 @@ public class PreferencesHelper implements RankingConfig {
                             for (NotificationChannel channel : r.channels.values()) {
                                 if (!channel.isSoundRestored()) {
                                     Uri uri = channel.getSound();
-                                    Uri restoredUri =
-                                            channel.restoreSoundUri(
+                                    Pair<Uri, Boolean> restorationResult =
+                                            NotificationSoundCanonicalizer.restoreSoundUri(
                                                     mContext,
                                                     uri,
                                                     true,
-                                                    channel.getAudioAttributes().getUsage());
+                                                    channel.getAudioAttributes().getUsage(),
+                                                    false);
+                                    Uri restoredUri = restorationResult.first;
+                                    channel.setSoundRestored(restorationResult.second);
                                     if (Settings.System.DEFAULT_NOTIFICATION_URI.equals(
                                             restoredUri)) {
                                         Slog.w(TAG,
@@ -3102,10 +3024,8 @@ public class PreferencesHelper implements RankingConfig {
 
         if (updated) {
             updateConfig();
-            if (android.app.Flags.nmBinderPerfCacheChannels()) {
-                invalidateNotificationChannelCache();
-                invalidateNotificationChannelGroupCache();
-            }
+            invalidateNotificationChannelCache();
+            invalidateNotificationChannelGroupCache();
         }
         return updated;
     }
@@ -3123,10 +3043,9 @@ public class PreferencesHelper implements RankingConfig {
                 p.priority = DEFAULT_PRIORITY;
                 p.visibility = DEFAULT_VISIBILITY;
                 p.showBadge = DEFAULT_SHOW_BADGE;
-                if (android.app.Flags.nmBinderPerfCacheChannels()) {
-                    invalidateNotificationChannelCache();
-                    invalidateNotificationChannelGroupCache();
-                }
+
+                invalidateNotificationChannelCache();
+                invalidateNotificationChannelGroupCache();
             }
         }
     }
@@ -3311,9 +3230,7 @@ public class PreferencesHelper implements RankingConfig {
                 }
             }
         }
-        if (android.app.Flags.nmBinderPerfCacheChannels()) {
-            invalidateNotificationChannelCache();
-        }
+        invalidateNotificationChannelCache();
     }
 
     public void migrateNotificationPermissions(List<UserInfo> users) {
@@ -3386,10 +3303,6 @@ public class PreferencesHelper implements RankingConfig {
 
         boolean migrateToPm = false;
         long creationTime;
-
-        @FlaggedApi(android.app.Flags.FLAG_API_RICH_ONGOING)
-        // Until we enable the UI, we should return false.
-        boolean canHavePromotedNotifs = android.app.Flags.uiRichOngoing();
 
         @UserIdInt int userIdWhenUidUnknown;
 

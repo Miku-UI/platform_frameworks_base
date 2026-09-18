@@ -17,6 +17,8 @@
 package com.android.systemui.animation;
 
 import static android.view.WindowManager.TRANSIT_CHANGE;
+import static android.window.TransitionInfo.FLAG_BACK_GESTURE_ANIMATED;
+import static android.window.TransitionInfo.FLAG_MOVED_TO_TOP;
 
 import android.annotation.Nullable;
 import android.content.Context;
@@ -53,6 +55,7 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub implements
         TransitionAnimationController.AnimationRunnerListener {
     private static final String TAG = "OriginRemoteTransition";
     private static final long FINISH_ANIMATION_TIMEOUT_MS = 200;
+    private static final long PRE_LAUNCH_ANIMATION_TIMEOUT_MS = 500;
 
     private final Context mContext;
     private final boolean mIsEntry;
@@ -67,6 +70,7 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub implements
     @Nullable private SurfaceControl mOriginLeash;
     @Nullable private IBinder mLocalTransactionToken;
     @Nullable private IBinder mShellTransactionToken;
+    @Nullable private IOriginTransitionCallback mClientCallback;
 
 
     OriginRemoteTransition(
@@ -74,12 +78,14 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub implements
             boolean isEntry,
             UIComponent origin,
             TransitionPlayer player,
-            Handler handler) {
+            Handler handler,
+            @Nullable IOriginTransitionCallback callback) {
         mContext = context;
         mIsEntry = isEntry;
         mOrigin = origin;
         mPlayer = player;
         mHandler = handler;
+        mClientCallback = callback;
     }
 
     @Override
@@ -89,12 +95,38 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub implements
             SurfaceControl.Transaction t,
             IRemoteTransitionFinishedCallback finishCallback) {
         logD("startAnimation - " + info);
-        mHandler.post(
-                () -> {
-                    mStartTransaction = t;
-                    mFinishCallback = finishCallback;
-                    startAnimationInternal(info, /* states= */ null);
-                });
+
+        // The core logic to run after pre-launch animation finishes or times out.
+        Runnable startAnimRunnable = () -> {
+            mStartTransaction = t;
+            mFinishCallback = finishCallback;
+            startAnimationInternal(info, /* states= */ null);
+        };
+
+        if (mIsEntry && mClientCallback != null) {
+            // Use OneShotRunnable to ensure the animation start logic runs only once.
+            OneShotRunnable oneShotStartAnim = new OneShotRunnable(startAnimRunnable);
+
+            // Create the pre launch app animation callback implementation.
+            IPreLaunchAnimationFinishedCallback preLaunchCallback =
+                    () -> {
+                        logD("onFinishPreLaunchAnimation called");
+                        // Remove the timeout runnable as the callback was invoked.
+                        mHandler.removeCallbacks(oneShotStartAnim);
+                        // Post the animation start to the handler.
+                        mHandler.post(oneShotStartAnim);
+                    };
+
+            // Post the timeout.
+            logD("Posting pre-launch timeout for " + PRE_LAUNCH_ANIMATION_TIMEOUT_MS + "ms");
+            mHandler.postDelayed(oneShotStartAnim, PRE_LAUNCH_ANIMATION_TIMEOUT_MS);
+
+            logD("Calling onPreLaunchAnimationReady");
+            mClientCallback.onPreLaunchAnimationReady(preLaunchCallback);
+        } else {
+            // Not an entry animation or no observer, run the start animation logic directly.
+            mHandler.post(startAnimRunnable);
+        }
     }
 
     @Override
@@ -148,6 +180,16 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub implements
         }
         // Initialized anim controller and configure for player
         mAnimationController = new TransitionAnimationController(mHandler, this);
+
+        // Notify the observer.
+        if (mClientCallback != null) {
+            if (mIsEntry) {
+                mClientCallback.onLaunchAnimationStarted();
+            } else {
+                // This path is not expected if onLaunchTransitionReady was available
+                mClientCallback.onReturnAnimationStarted();
+            }
+        }
 
         // Notify player that we are starting.
         mPlayer.onStart(mAnimationController,
@@ -231,11 +273,10 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub implements
         List<SurfaceControl> openingSurfaces = new ArrayList<>();
         List<SurfaceControl> closingSurfaces = new ArrayList<>();
         for (Change change : info.getChanges()) {
-            int mode = change.getMode();
             SurfaceControl leash = change.getLeash();
             // Reparent leash to the transition root.
             tmpTransaction.reparent(leash, rootLeash);
-            if (TransitionUtil.isOpeningMode(mode)) {
+            if (shouldParticipateOpen(change)) {
                 openingSurfaces.add(change.getLeash());
                 // For opening surfaces, ending bounds are base bound. Apply corner radius if
                 // it's full screen.
@@ -245,8 +286,7 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub implements
                             .setCornerRadius(leash, windowRadius)
                             .setWindowCrop(leash, bounds.width(), bounds.height());
                 }
-            } else if (TransitionUtil.isClosingMode(mode) || mode == TRANSIT_CHANGE) {
-                // TRANSIT_CHANGE refers to the closing window in predictive back animation.
+            } else if (shouldParticipateClose(change)) {
                 closingSurfaces.add(change.getLeash());
                 // For closing surfaces, starting bounds are base bounds. Apply corner radius if
                 // it's full screen.
@@ -319,6 +359,7 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub implements
                     Log.w(TAG, "Timeout waiting for surface transaction!");
                     finishInternalRunnable.run();
                 };
+
         Runnable committedRunnable =
                 () -> {
                     // Remove the timeout runnable.
@@ -339,6 +380,16 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub implements
 
         // Notify client that we have ended.
         mPlayer.onEnd(finished);
+
+        // notify observer.
+        if (mClientCallback != null) {
+            if (mIsEntry) {
+                mClientCallback.onLaunchAnimationFinished();
+            } else {
+                mClientCallback.onReturnAnimationFinished();
+            }
+        }
+
         // Detach the origin from the transition leash and report finish after it's done.
         mOriginTransaction
                 .detachFromTransitionLeash(mOrigin, mHandler::post, committedRunnable)
@@ -441,8 +492,8 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub implements
         List<SurfaceControl> surfaces = new ArrayList<>();
         Rect maxBounds = new Rect();
         for (Change change : info.getChanges()) {
-            int mode = change.getMode();
-            if (TransitionUtil.isOpeningMode(mode) == isOpening) {
+            if (shouldParticipateOpen(change) && isOpening
+                    || shouldParticipateClose(change) && !isOpening) {
                 surfaces.add(change.getLeash());
                 Rect bounds = isOpening ? change.getEndAbsBounds() : change.getStartAbsBounds();
                 maxBounds.union(bounds);
@@ -455,6 +506,18 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub implements
                 /* bounds= */ maxBounds,
                 /* baseBounds= */ maxBounds,
                 /* enableBackgroundDimming= */ isOpening);
+    }
+
+    private static boolean shouldParticipateOpen(Change change) {
+        final int mode = change.getMode();
+        return TransitionUtil.isOpeningMode(mode)
+                || (mode == TRANSIT_CHANGE && change.hasFlags(FLAG_MOVED_TO_TOP));
+    }
+
+    private static boolean shouldParticipateClose(Change change) {
+        final int mode = change.getMode();
+        return TransitionUtil.isClosingMode(mode)
+                || (mode == TRANSIT_CHANGE && change.hasFlags(FLAG_BACK_GESTURE_ANIMATED));
     }
 
     private static void applyWindowAnimationStates(

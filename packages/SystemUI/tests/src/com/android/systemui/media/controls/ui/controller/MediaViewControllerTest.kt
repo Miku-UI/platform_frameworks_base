@@ -47,9 +47,9 @@ import com.android.systemui.media.controls.ui.view.MediaHost
 import com.android.systemui.media.controls.ui.view.MediaViewHolder
 import com.android.systemui.media.controls.ui.viewmodel.SeekBarViewModel
 import com.android.systemui.res.R
-import com.android.systemui.surfaceeffects.loadingeffect.LoadingEffectView
-import com.android.systemui.surfaceeffects.ripple.MultiRippleView
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseView
+import com.android.systemui.surfaceeffects.view.loadingeffect.LoadingEffectView
+import com.android.systemui.surfaceeffects.view.ripple.MultiRippleView
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseView
 import com.android.systemui.util.animation.MeasurementInput
 import com.android.systemui.util.animation.TransitionLayout
 import com.android.systemui.util.animation.TransitionViewState

@@ -285,25 +285,16 @@ easier.
         <item name="fontFamily">@string/config_bodyFontFamily</item>
     </style>
     <style name="TextAppearance.DeviceDefault.Notification" parent="TextAppearance.Material.Notification">
-        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-medium</item>
-        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@string/config_bodyFontFamily</item>
+        <item name="fontFamily">variable-body-medium</item>
     </style>
     <style name="TextAppearance.DeviceDefault.Notification.Title" parent="TextAppearance.Material.Notification.Title">
-        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-title-small-emphasized</item>
-        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@string/config_headlineFontFamilyMedium</item>
-    </style>
-    <!-- unused as of the 2025 redesign -->
-    <style name="TextAppearance.DeviceDefault.Notification.BigTitle" parent="TextAppearance.Material.Notification.BigTitle">
-        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-title-small-emphasized</item>
-        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@string/config_headlineFontFamilyMedium</item>
+        <item name="fontFamily">variable-title-small-emphasized</item>
     </style>
     <style name="TextAppearance.DeviceDefault.Notification.Reply" parent="TextAppearance.Material.Notification.Reply">
-        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-medium</item>
-        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@string/config_bodyFontFamily</item>
+        <item name="fontFamily">variable-body-medium</item>
     </style>
     <style name="TextAppearance.DeviceDefault.Notification.Info" parent="TextAppearance.Material.Notification.Info">
-        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-small</item>
-        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@string/config_bodyFontFamily</item>
+        <item name="fontFamily">variable-body-small</item>
     </style>
     <style name="TextAppearance.DeviceDefault.Notification.Label">
         <item name="fontFamily">variable-label-small-emphasized</item>
@@ -311,8 +302,7 @@ easier.
         <item name="lineHeight">16sp</item>
     </style>
     <style name="TextAppearance.DeviceDefault.Notification.Time" parent="TextAppearance.Material.Notification.Time">
-        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-small</item>
-        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@string/config_bodyFontFamily</item>
+        <item name="fontFamily">variable-body-small</item>
     </style>
     <style name="TextAppearance.DeviceDefault.Widget" parent="TextAppearance.Material.Widget">
         <item name="fontFamily">@string/config_bodyFontFamily</item>
@@ -467,4 +457,35 @@ easier.
     <style name="DeviceDefault.Light.ButtonBar.AlertDialog" parent="Widget.Material.Light.ButtonBar.AlertDialog"/>
     <style name="DeviceDefault.Light.SegmentedButton" parent="Widget.Material.Light.SegmentedButton"/>
 
+   <!-- Theme for AppLockActivity: A bottom-anchored layout covering half the screen with a curved-top profile. -->
+   <style name="Theme.DeviceDefault.AppLockActivity" parent="Theme.DeviceDefault.Resolver">
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowNoDisplay">false</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Activity</item>
+    </style>
+
+    <!-- App Lock font styles -->
+    <style name="TextAppearance.DeviceDefault.AppLock.Title" parent="TextAppearance.DeviceDefault.Headline">
+        <item name="fontFamily">variable-headline-small</item>
+        <item name="textSize">@dimen/app_lock_font_size_large</item>
+    </style>
+
+    <style name="TextAppearance.DeviceDefault.AppLock.Body" parent="TextAppearance.DeviceDefault">
+        <item name="fontFamily">variable-body-medium</item>
+        <item name="textSize">@dimen/app_lock_font_size_medium</item>
+    </style>
+
+    <style name="TextAppearance.DeviceDefault.AppLock.InfoHeader" parent="TextAppearance.DeviceDefault">
+        <item name="fontFamily">variable-label-large-emphasized</item>
+        <item name="textSize">@dimen/app_lock_font_size_medium</item>
+    </style>
+
+    <style name="TextAppearance.DeviceDefault.AppLock.ItemText" parent="TextAppearance.DeviceDefault">
+        <item name="fontFamily">variable-title-small</item>
+        <item name="textFontWeight">@integer/app_lock_font_weight_medium</item>
+        <item name="textSize">@dimen/app_lock_font_size_medium</item>
+    </style>
 </resources>

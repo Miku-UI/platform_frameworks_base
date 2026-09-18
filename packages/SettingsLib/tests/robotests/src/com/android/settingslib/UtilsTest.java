@@ -27,7 +27,9 @@ import static org.mockito.Mockito.when;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.UserInfo;
 import android.content.res.Resources;
+import android.graphics.drawable.Drawable;
 import android.hardware.usb.UsbManager;
 import android.hardware.usb.UsbPort;
 import android.hardware.usb.UsbPortStatus;
@@ -37,6 +39,8 @@ import android.media.AudioManager;
 import android.os.BatteryManager;
 import android.os.SystemProperties;
 import android.os.UserHandle;
+import android.os.UserManager;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 import android.telephony.AccessNetworkConstants;
@@ -54,10 +58,12 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.shadows.ShadowSettings;
+import org.robolectric.shadows.ShadowUserManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -553,5 +559,41 @@ public class UtilsTest {
         when(mUsbPort.supportsComplianceWarnings()).thenReturn(true);
         when(mUsbPortStatus.isConnected()).thenReturn(true);
         when(mUsbPortStatus.getComplianceWarnings()).thenReturn(new int[] {complianceWarningType});
+    }
+
+    private void setupHsum() {
+        ShadowUserManager shadowUserManager =
+                Shadows.shadowOf(mContext.getSystemService(UserManager.class));
+        shadowUserManager.setHeadlessSystemUserMode(true);
+    }
+
+    @Test
+    @EnableFlags(android.multiuser.Flags.FLAG_HSU_APP_MANAGEMENT)
+    public void getUserLabel_hsuMode_userSystem_returnsHsuName() {
+        setupHsum();
+
+        UserInfo userInfo = new UserInfo();
+        userInfo.id = UserHandle.USER_SYSTEM;
+        userInfo.name = "System User";
+
+        String label = Utils.getUserLabel(mContext, userInfo);
+
+        assertThat(label).isEqualTo(mContext.getString(
+                com.android.internal.R.string.headless_system_user_name));
+    }
+
+    @Test
+    @EnableFlags(android.multiuser.Flags.FLAG_HSU_APP_MANAGEMENT)
+    public void getUserIcon_hsuMode_userSystem_returnsHsuIcon() {
+        setupHsum();
+
+        UserInfo userInfo = new UserInfo();
+        userInfo.id = UserHandle.USER_SYSTEM;
+        UserManager userManager = mContext.getSystemService(UserManager.class);
+
+        Drawable icon = Utils.getUserIcon(mContext, userManager, userInfo);
+
+        assertThat(Shadows.shadowOf(icon).getCreatedFromResId()).isEqualTo(
+                com.android.internal.R.drawable.ic_hsu_badge);
     }
 }

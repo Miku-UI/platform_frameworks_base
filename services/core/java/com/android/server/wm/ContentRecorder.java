@@ -48,7 +48,6 @@ import android.window.DesktopExperienceFlags;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
-import com.android.server.display.feature.DisplayManagerFlags;
 
 import java.util.LinkedList;
 import java.util.Queue;
@@ -144,6 +143,21 @@ final class ContentRecorder implements WindowContainerListener {
      * has content or the display is not on.
      */
     void updateRecording() {
+        // If a display allows content mode switch and should not show system decorations, it is
+        // expected to be empty to start content recording. Log an error if any existing content
+        // is blocking the content recording.
+        if (mDisplayContent.allowContentModeSwitch()
+                && !mDisplayContent.mWmService.mDisplayWindowSettings
+                .shouldShowSystemDecorsLocked(mDisplayContent)
+                && mDisplayContent.getLastHasContent()) {
+            ProtoLog.e(WM_DEBUG_CONTENT_RECORDING, "Content Recording: Display %d should start"
+                    + " recording but failed because has content on it: ",
+                    mDisplayContent.getDisplayId());
+            mDisplayContent.forAllWindows((w) -> {
+                ProtoLog.e(WM_DEBUG_CONTENT_RECORDING, "\t%s, displayId=%d", w, w.getDisplayId());
+            }, true /* traverseTopToBottom */);
+        }
+
         if (isCurrentlyRecording() && (mDisplayContent.getLastHasContent()
                 || mDisplayContent.getDisplayInfo().state == Display.STATE_OFF)) {
             pauseRecording();
@@ -406,8 +420,7 @@ final class ContentRecorder implements WindowContainerListener {
                 mDisplayContent.getDisplayId(), mDisplayContent.getDisplayInfo().state);
 
         // Create a mirrored hierarchy for the SurfaceControl of the DisplayArea to capture.
-        if (com.android.media.projection.flags.Flags.recordingOverlay()
-                && com.android.graphics.surfaceflinger.flags.Flags.stopLayer()) {
+        if (com.android.media.projection.flags.Flags.recordingOverlay()) {
             mRecordedSurface = SurfaceControl.mirrorSurface(sourceSurface, stopAt);
         } else {
             mRecordedSurface = SurfaceControl.mirrorSurface(sourceSurface);
@@ -457,9 +470,6 @@ final class ContentRecorder implements WindowContainerListener {
     @Nullable
     private SurfaceControl findOwnerTopOverlayWindow(WindowContainer<?> recordedWindowContainer) {
         if (!com.android.media.projection.flags.Flags.recordingOverlay()) {
-            return null;
-        }
-        if (!com.android.graphics.surfaceflinger.flags.Flags.stopLayer()) {
             return null;
         }
         if (mContentRecordingSession.getContentToRecord() != RECORD_CONTENT_BELOW_OVERLAY) {

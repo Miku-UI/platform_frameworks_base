@@ -27,6 +27,7 @@ import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.res.R
+import com.android.systemui.statusbar.policy.domain.interactor.DeviceProvisioningInteractor
 import dagger.Lazy
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -40,6 +41,7 @@ class GrowthInteractor
 constructor(
     @Main private val resources: Resources,
     private val deviceEntryInteractor: Lazy<DeviceEntryInteractor>,
+    private val deviceProvisioningInteractor: DeviceProvisioningInteractor,
     private val broadcastSender: BroadcastSender,
 ) : ExclusiveActivatable() {
     private val growthAppPackageName = resources.getString(R.string.config_growthAppPackageName)
@@ -49,7 +51,7 @@ constructor(
         resources.getInteger(R.integer.config_growthBroadcastDelayMillis)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         deviceEntryInteractor
             // When the device is entered directly (`isEntered` is true), wait for a delay and then
             // emit. `transformLatest` will cancel the delay if `isDeviceEnteredDirectly` emits a
@@ -63,9 +65,7 @@ constructor(
                     emit(Unit)
                 }
             }
-            .collect {
-                sendBroadcast()
-            }
+            .collect { sendBroadcast() }
         // The underlying flow should never complete, so this line should not be reachable.
         throw IllegalStateException("isDeviceEnteredDirectly flow completed unexpectedly")
     }
@@ -75,6 +75,10 @@ constructor(
      * entered directly. The broadcast is explicit if a package and receiver class are configured.
      */
     private suspend fun sendBroadcast() {
+        // Do not send the broadcast before OOBE is completed as this will trigger the flow and
+        if (!deviceProvisioningInteractor.isDeviceProvisioned()) {
+            return
+        }
         // Broadcast the device entered event.
         val intent = Intent().apply { setAction(ACTION_DEVICE_ENTERED_DIRECTLY) }
         if (growthAppPackageName.isNotEmpty() && growthReceiverClassName.isNotEmpty()) {

@@ -23,14 +23,15 @@ import static android.view.WindowInsets.Type.navigationBars;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static com.android.window.flags.Flags.FLAG_APP_COMPAT_UI_FRAMEWORK;
-import static com.android.window.flags.Flags.FLAG_ENABLE_COMPATUI_SYSUI_LAUNCHER_FIX;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -42,7 +43,8 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Rect;
-import android.platform.test.annotations.EnableFlags;
+import android.os.Handler;
+import android.os.Looper;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper.RunWithLooper;
@@ -104,6 +106,8 @@ public class UserAspectRatioSettingsWindowManagerTest extends ShellTestCase {
             mOnUserAspectRatioSettingsButtonClicked;
     @Mock private ShellTaskOrganizer.TaskListener mTaskListener;
     @Mock private UserAspectRatioSettingsLayout mLayout;
+    @Mock private Handler mHandler;
+    @Mock private Looper mLooper;
     @Mock private FrameLayout mLayoutParent;
     @Mock private ViewTreeObserver mViewTreeObserver;
     @Mock private SurfaceControlViewHost mViewHost;
@@ -149,6 +153,9 @@ public class UserAspectRatioSettingsWindowManagerTest extends ShellTestCase {
         doReturn(mLayout).when(mLayoutParent).findViewById(R.id.user_aspect_ratio_layout);
         doReturn(mViewHost).when(mWindowManager).createSurfaceViewHost();
         doReturn(false).when(mUserAspectRatioButtonShownChecker).get();
+        doReturn(mHandler).when(mLayout).getHandler();
+        doReturn(mLooper).when(mHandler).getLooper();
+        doReturn(true).when(mLooper).isCurrentThread();
     }
 
     @Test
@@ -203,6 +210,26 @@ public class UserAspectRatioSettingsWindowManagerTest extends ShellTestCase {
         mWindowManager.release();
 
         verify(mViewHost).release();
+        verify(mHandler, never()).post(any());
+    }
+
+    @Test
+    @RequiresFlagsDisabled(FLAG_APP_COMPAT_UI_FRAMEWORK)
+    public void testRelease_fromBackgroundThread() {
+        doReturn(false).when(mLooper).isCurrentThread();
+        doAnswer(invocation -> {
+            ((Runnable) invocation.getArgument(0)).run();
+            return true;
+        }).when(mHandler).post(any());
+        mWindowManager.mHasUserAspectRatioSettingsButton = true;
+        mWindowManager.createLayout(/* canShow= */ true);
+
+        verify(mWindowManager).inflateLayout();
+
+        mWindowManager.release();
+
+        verify(mViewHost).release();
+        verify(mHandler).post(any());
     }
 
     @Test
@@ -496,7 +523,6 @@ public class UserAspectRatioSettingsWindowManagerTest extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_COMPATUI_SYSUI_LAUNCHER_FIX)
     public void testCreateLayout_returnsParentLayout() {
         mWindowManager.mHasUserAspectRatioSettingsButton = true;
         final View result = mWindowManager.createLayout();
@@ -505,16 +531,6 @@ public class UserAspectRatioSettingsWindowManagerTest extends ShellTestCase {
     }
 
     @Test
-    @RequiresFlagsDisabled(FLAG_ENABLE_COMPATUI_SYSUI_LAUNCHER_FIX)
-    public void testCreateLayout_flagDisabled_returnsButtonLayout() {
-        mWindowManager.mHasUserAspectRatioSettingsButton = true;
-        final View result = mWindowManager.createLayout();
-
-        Assert.assertEquals(mLayout, result);
-    }
-
-    @Test
-    @EnableFlags(FLAG_ENABLE_COMPATUI_SYSUI_LAUNCHER_FIX)
     public void testUpdateLayoutBounds_flagEnabled_setsFullscreenAndMargins() {
         mWindowManager.mHasUserAspectRatioSettingsButton = true;
         mWindowManager.createLayout(true /* canShow */);

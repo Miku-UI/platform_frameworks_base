@@ -46,12 +46,14 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.ServiceManager;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.server.wm.BuildUtils;
 import android.view.IWindowManager;
 import android.view.PointerIcon;
 import android.view.SurfaceControl;
 import android.view.cts.surfacevalidator.BitmapPixelChecker;
 import android.view.cts.surfacevalidator.SaveBitmapHelper;
+import android.window.ScreenCapture;
 import android.window.ScreenCaptureInternal;
 import android.window.ScreenCaptureInternal.ScreenshotHardwareBuffer;
 
@@ -60,6 +62,7 @@ import androidx.test.filters.SmallTest;
 import androidx.test.rule.ActivityTestRule;
 
 import com.android.server.wm.utils.CommonUtils;
+import com.android.window.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
@@ -77,7 +80,7 @@ import java.util.concurrent.TimeUnit;
  */
 @SmallTest
 @Presubmit
-public class ScreenshotTests {
+public class ScreenshotTests extends SystemServiceTestsBase {
     private static final long WAIT_TIME_S = 5L * BuildUtils.HW_TIMEOUT_MULTIPLIER;
     private static final int BUFFER_WIDTH = 100;
     private static final int BUFFER_HEIGHT = 100;
@@ -219,6 +222,69 @@ public class ScreenshotTests {
         assertTrue("Failed to wait for stable geometry",
                 waitForStableWindowGeometry(Duration.ofSeconds(WAIT_TIME_S)));
 
+        verifyDisplayScreenshotContent(windowManager, null, point, Color.RED,
+                true /* expectedToMatch */);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_SCREEN_CAPTURE_EXCLUSION_FLAGS)
+    public void testCaptureWithExclusionMask() throws Exception {
+        IWindowManager windowManager = IWindowManager.Stub.asInterface(
+                ServiceManager.getService(Context.WINDOW_SERVICE));
+        SurfaceControl sc = new SurfaceControl.Builder()
+                .setName("ExclusionSurfaceControl")
+                .setBLASTLayer()
+                .setCallsite("testCaptureWithExclusionMask")
+                .build();
+
+        SurfaceControl.Transaction t = mActivity.addChildSc(sc);
+        mInstrumentation.waitForIdleSync();
+
+        GraphicBuffer buffer = GraphicBuffer.create(BUFFER_WIDTH, BUFFER_HEIGHT,
+                PixelFormat.RGBA_8888,
+                GraphicBuffer.USAGE_HW_TEXTURE | GraphicBuffer.USAGE_HW_COMPOSER
+                        | GraphicBuffer.USAGE_SW_WRITE_RARELY);
+
+        Canvas canvas = buffer.lockCanvas();
+        canvas.drawColor(Color.RED);
+        buffer.unlockCanvasAndPost(canvas);
+
+        Point point = mActivity.getPositionBelowStatusBar();
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        t.show(sc)
+                .setBuffer(sc, HardwareBuffer.createFromGraphicBuffer(buffer))
+                .setDataSpace(sc, DataSpace.DATASPACE_SRGB)
+                .setPosition(sc, point.x, point.y)
+                .setCompositionFilterFlag(sc, ScreenCapture.ScreenCaptureParams.FLAG_SCREENSHOT_UI)
+                .addTransactionCommittedListener(Runnable::run, countDownLatch::countDown)
+                .apply();
+        assertTrue("Failed to wait for transaction to get committed",
+                countDownLatch.await(WAIT_TIME_S, TimeUnit.SECONDS));
+        assertTrue("Failed to wait for stable geometry",
+                waitForStableWindowGeometry(Duration.ofSeconds(WAIT_TIME_S)));
+
+        // Capture with exclusion mask that matches the flag (should be hidden)
+        ScreenCaptureInternal.CaptureArgs argsWithMatchingExclusion =
+                new ScreenCaptureInternal.CaptureArgs.Builder<>()
+                        .setExclusionMask(ScreenCapture.ScreenCaptureParams.FLAG_SCREENSHOT_UI)
+                        .build();
+
+        verifyDisplayScreenshotContent(windowManager, argsWithMatchingExclusion, point, Color.RED,
+                false /* expectedToMatch */);
+
+        // Capture with exclusion mask that does NOT match the flag (should be visible)
+        ScreenCaptureInternal.CaptureArgs argsWithNonMatchingExclusion =
+                new ScreenCaptureInternal.CaptureArgs.Builder<>()
+                        .setExclusionMask(ScreenCapture.ScreenCaptureParams.FLAG_IME)
+                        .build();
+
+        verifyDisplayScreenshotContent(windowManager, argsWithNonMatchingExclusion, point,
+                Color.RED, true /* expectedToMatch */);
+    }
+
+    private void verifyDisplayScreenshotContent(IWindowManager windowManager,
+            ScreenCaptureInternal.CaptureArgs args, Point point, int color, boolean expectedToMatch)
+            throws Exception {
         ScreenshotHardwareBuffer[] screenCapture = new ScreenshotHardwareBuffer[1];
         Bitmap screenshot = null;
         Bitmap swBitmap = null;
@@ -226,7 +292,7 @@ public class ScreenshotTests {
             CountDownLatch screenshotComplete = new CountDownLatch(1);
             windowManager.captureDisplay(
                     DEFAULT_DISPLAY,
-                    null,
+                    args,
                     new ScreenCaptureInternal.ScreenCaptureListener(
                             (screenshotHardwareBuffer, result) -> {
                                 if (result == 0) {
@@ -243,19 +309,16 @@ public class ScreenshotTests {
 
             swBitmap = screenshot.copy(Bitmap.Config.ARGB_8888, false);
 
-            BitmapPixelChecker bitmapPixelChecker = new BitmapPixelChecker(Color.RED);
+            BitmapPixelChecker bitmapPixelChecker = new BitmapPixelChecker(color);
             Rect bounds = new Rect(point.x, point.y, BUFFER_WIDTH + point.x,
                     BUFFER_HEIGHT + point.y);
             int numMatchingPixels = bitmapPixelChecker.getNumMatchingPixels(swBitmap, bounds);
-            int pixelMatchSize = bounds.width() * bounds.height();
-            boolean success = numMatchingPixels == pixelMatchSize;
-
-            if (!success) {
+            int expectNumMatchingPixels = expectedToMatch ? bounds.width() * bounds.height() : 0;
+            if (numMatchingPixels != expectNumMatchingPixels) {
                 SaveBitmapHelper.saveBitmap(swBitmap, getClass(), mTestName, "failedImage");
             }
-            assertTrue(
-                    "numMatchingPixels=" + numMatchingPixels + " pixelMatchSize=" + pixelMatchSize,
-                    success);
+            assertEquals("Number of matching pixel was incorrect:", expectNumMatchingPixels,
+                    numMatchingPixels);
         } finally {
             if (screenshot != null) {
                 screenshot.recycle();
@@ -263,7 +326,7 @@ public class ScreenshotTests {
             if (swBitmap != null) {
                 swBitmap.recycle();
             }
-            if (screenCapture[0].getHardwareBuffer() != null) {
+            if (screenCapture[0] != null && screenCapture[0].getHardwareBuffer() != null) {
                 screenCapture[0].getHardwareBuffer().close();
             }
         }

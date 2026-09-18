@@ -79,7 +79,7 @@ constructor(
             }
 
             if (SceneContainerFlag.isEnabled) {
-                sceneInteractor.transitionState.map { transitionState ->
+                sceneInteractor.transitionStateFlow.map { transitionState ->
                     transitionState.isLockscreenIdleWithoutShades() ||
                         transitionState.isTransitioningToLockscreenFromNonShade()
                 }

@@ -35,13 +35,13 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Queue;
-
 import platform.test.runner.parameterized.Parameter;
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
 import platform.test.runner.parameterized.Parameters;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Queue;
 
 /**
  * Parameterized unit test for Events.logEvent.
@@ -219,7 +219,13 @@ public class EventsTest extends SysuiTestCase {
                         Events.VolumeDialogEvent.VOLUME_DIALOG_ODI_CAPTIONS_CLICKED},
                 {Events.EVENT_ODI_CAPTIONS_TOOLTIP_CLICK, null,
                         "writeEvent odi_captions_tooltip_click", null,
-                        Events.VolumeDialogEvent.VOLUME_DIALOG_ODI_CAPTIONS_TOOLTIP_CLICKED}
+                        Events.VolumeDialogEvent.VOLUME_DIALOG_ODI_CAPTIONS_TOOLTIP_CLICKED},
+                {Events.EVENT_DISMISS_DIALOG,
+                        new Object[]{Events.DISMISS_REASON_BRIGHTNESS_DIALOG_SHOWING, true},
+                        "writeEvent dismiss_dialog brightness_dialog_showing",
+                        new int[]{MetricsEvent.VOLUME_DIALOG},
+                        Events.VolumeDialogCloseEvent
+                                .VOLUME_DIALOG_DISMISS_BRIGHTNESS_DIALOG_SHOWING}
         });
     }
 }

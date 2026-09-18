@@ -35,7 +35,6 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.display.data.repository.displaySubcomponentPerDisplayRepository
 import com.android.systemui.plugins.fakeDarkIconDispatcher
 import com.android.systemui.res.R
-import com.android.systemui.statusbar.data.repository.statusBarConfigurationControllerStore
 import com.android.systemui.statusbar.policy.FakeConfigurationController
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.argumentCaptor
@@ -61,7 +60,6 @@ class StatusOverlayHoverListenerTest : SysuiTestCase() {
             context.resources,
             FakeConfigurationController(),
             kosmos.displaySubcomponentPerDisplayRepository,
-            kosmos.statusBarConfigurationControllerStore,
         )
     private val view = TestableStatusContainer(context, viewOverlay)
 
@@ -134,13 +132,54 @@ class StatusOverlayHoverListenerTest : SysuiTestCase() {
             .isEqualTo(context.resources.getColor(R.color.status_bar_icons_hover_color_light))
     }
 
+    @Test
+    fun onHover_customHeightNull_overlayHeightIsViewHeight() {
+        view.setUpDarkAwareHoverListener(customHeightPx = null)
+
+        view.hoverStarted()
+
+        assertThat(overlayDrawable.bounds.height()).isEqualTo(view.height)
+    }
+
+    @Test
+    fun onHover_customHeightNegative_overlayHeightIsViewHeight() {
+        view.setUpDarkAwareHoverListener(customHeightPx = -3)
+
+        view.hoverStarted()
+
+        assertThat(overlayDrawable.bounds.height()).isEqualTo(view.height)
+    }
+
+    @Test
+    fun onHover_customHeightLargerThanViewHeight_overlayHeightIsViewHeight() {
+        attachView(view)
+        view.setOnHoverListener(factory.createDarkAwareListener(view, view.height + 3))
+
+        view.hoverStarted()
+
+        assertThat(overlayDrawable.bounds.height()).isEqualTo(view.height)
+    }
+
+    @Test
+    fun onHover_customHeightSmallerThanViewHeight_usesCustomHeight() {
+        attachView(view)
+        val customHeightPx = view.height - 10
+        view.setOnHoverListener(factory.createDarkAwareListener(view, customHeightPx))
+        view.hoverStarted()
+
+        assertThat(overlayDrawable.bounds.height()).isLessThan(view.height)
+        // Height adjustment split equally between top and bottom
+        assertThat(overlayDrawable.bounds.top).isEqualTo(5)
+        assertThat(overlayDrawable.bounds.bottom).isEqualTo(view.height - 5)
+    }
+
     private fun View.setUpHoverListener() {
         setOnHoverListener(factory.createListener(view))
         attachView(view)
     }
 
-    private fun View.setUpDarkAwareHoverListener() {
-        setOnHoverListener(factory.createDarkAwareListener(view))
+    private fun View.setUpDarkAwareHoverListener(customHeightPx: Int? = null) {
+        setOnHoverListener(factory.createDarkAwareListener(view, customHeightPx))
         attachView(view)
     }
 

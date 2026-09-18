@@ -63,6 +63,8 @@ final class AdditionalSubtypeUtils {
     private static final String ATTR_LABEL = "label";
     /** The untranslatable name of the subtype. */
     private static final String ATTR_NAME_OVERRIDE = "nameOverride";
+    /** The short label of the subtype. */
+    private static final String ATTR_SUBTYPE_SHORT_LABEL = "shortLabel";
     /** The layout label string resource identifier. */
     private static final String ATTR_LAYOUT_LABEL = "layoutLabel";
     /** The non-localized layout label. */
@@ -179,6 +181,8 @@ final class AdditionalSubtypeUtils {
                     out.attributeInt(null, ATTR_ICON, subtype.getIconResId());
                     out.attributeInt(null, ATTR_LABEL, subtype.getNameResId());
                     out.attribute(null, ATTR_NAME_OVERRIDE, subtype.getNameOverride().toString());
+                    out.attribute(null, ATTR_SUBTYPE_SHORT_LABEL,
+                            subtype.getSubtypeShortLabel().toString());
                     out.attributeInt(null, ATTR_LAYOUT_LABEL, subtype.getLayoutLabelResource());
                     out.attribute(null, ATTR_LAYOUT_LABEL_NON_LOCALIZED,
                             subtype.getLayoutLabelNonLocalized().toString());
@@ -273,6 +277,8 @@ final class AdditionalSubtypeUtils {
                     final int label = parser.getAttributeInt(null, ATTR_LABEL);
                     final String untranslatableName = parser.getAttributeValue(null,
                             ATTR_NAME_OVERRIDE);
+                    final String subtypeShortLabel = parser.getAttributeValue(null,
+                            ATTR_SUBTYPE_SHORT_LABEL);
                     final int layoutLabelResource = parser.getAttributeInt(null, ATTR_LAYOUT_LABEL);
                     final String layoutLabelNonLocalized = parser.getAttributeValue(null,
                             ATTR_LAYOUT_LABEL_NON_LOCALIZED);
@@ -313,6 +319,9 @@ final class AdditionalSubtypeUtils {
                     }
                     if (untranslatableName != null) {
                         builder.setSubtypeNameOverride(untranslatableName);
+                    }
+                    if (subtypeShortLabel != null) {
+                        builder.setSubtypeShortLabel(subtypeShortLabel);
                     }
                     if (layoutLabelNonLocalized != null) {
                         builder.setLayoutLabelNonLocalized(layoutLabelNonLocalized);

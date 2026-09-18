@@ -16,6 +16,7 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -52,6 +53,11 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+/**
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
+ */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 class CredstoreIdentityCredential extends IdentityCredential {
 
     private static final String TAG = "CredstoreIdentityCredential";
@@ -269,8 +275,12 @@ class CredstoreIdentityCredential extends IdentityCredential {
      * Called by android.hardware.biometrics.CryptoObject#getOpId() to get an
      * operation handle.
      *
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      * @hide
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     @Override
     public long getCredstoreOperationHandle() {
         if (!mOperationHandleSet) {

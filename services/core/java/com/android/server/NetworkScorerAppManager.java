@@ -81,7 +81,7 @@ public class NetworkScorerAppManager {
         List<NetworkScorerAppData> appDataList = new ArrayList<>();
         for (int i = 0; i < resolveInfos.size(); i++) {
             final ServiceInfo serviceInfo = resolveInfos.get(i).serviceInfo;
-            if (hasPermissions(serviceInfo.applicationInfo.uid, serviceInfo.packageName)) {
+            if (hasPermissions(serviceInfo.getUid(), serviceInfo.packageName)) {
                 if (VERBOSE) {
                     Log.v(TAG, serviceInfo.packageName + " is a valid scorer/recommender.");
                 }
@@ -93,7 +93,7 @@ public class NetworkScorerAppManager {
                 final String networkAvailableNotificationChannelId =
                         getNetworkAvailableNotificationChannelId(serviceInfo);
                 appDataList.add(
-                        new NetworkScorerAppData(serviceInfo.applicationInfo.uid,
+                        new NetworkScorerAppData(serviceInfo.getUid(),
                                 serviceComponentName, serviceLabel, useOpenWifiNetworksActivity,
                                 networkAvailableNotificationChannelId));
             } else {

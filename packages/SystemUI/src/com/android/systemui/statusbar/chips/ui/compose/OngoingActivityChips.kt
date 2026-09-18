@@ -77,10 +77,11 @@ fun OngoingActivityChips(
                 key(it.key) {
                     val chipModifier =
                         Modifier.sysuiResTag(it.key).onGloballyPositioned { coordinates ->
-                            onChipBoundsChanged.invoke(
-                                it.key,
-                                coordinates.boundsInWindow().toAndroidRectF(),
-                            )
+                            val bounds = coordinates.boundsInWindow().toAndroidRectF()
+                            val notificationKey = it.notificationKey
+                            if (notificationKey != null) {
+                                onChipBoundsChanged(notificationKey, bounds)
+                            }
                         }
                     if (activeChips.size == 1) {
                         // AnimatedVisibility works well if we have just 1 active chip, but it

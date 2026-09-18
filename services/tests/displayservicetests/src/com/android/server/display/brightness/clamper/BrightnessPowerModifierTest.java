@@ -75,6 +75,8 @@ public class BrightnessPowerModifierTest {
     @Mock
     private IBinder mMockBinder;
     @Mock
+    private IThermalService mMockThermalService;
+    @Mock
     private BrightnessClamperController.ClamperChangeListener mMockClamperChangeListener;
     private final FakeDeviceConfigInterface mFakeDeviceConfigInterface =
             new FakeDeviceConfigInterface();
@@ -165,6 +167,76 @@ public class BrightnessPowerModifierTest {
                 BRIGHTNESS_MAX, DEFAULT_BRIGHTNESS, CUSTOM_ANIMATION_RATE_NOT_SET, false);
     }
 
+     @Test
+    public void testPowerThrottlingUnderQuota() throws RemoteException {
+        // Start with Temperature.THROTTLING_LIGHT
+        mTestInjector.mCapturedPmicMonitor.setThermalStatus(Temperature.THROTTLING_LIGHT);
+        mTestHandler.flush();
+
+        // update a new device config for power-throttling.
+        float powerQuota = 100f;
+        float avgPowerConsumed = 200f;
+        onDisplayChanged(
+                List.of(new ThrottlingLevel(PowerManager.THERMAL_STATUS_LIGHT, powerQuota)));
+        mTestInjector.mCapturedPmicMonitor.setAvgPowerConsumed(avgPowerConsumed);
+
+        float expectedBrightnessCap = (powerQuota / avgPowerConsumed) * DEFAULT_BRIGHTNESS;
+        mTestHandler.flush();
+
+        assertModifierState(DEFAULT_BRIGHTNESS, expectedBrightnessCap, expectedBrightnessCap,
+                CUSTOM_ANIMATION_RATE, true);
+
+        // power under quota
+        avgPowerConsumed = 50f;
+        mTestInjector.mCapturedPmicMonitor.setAvgPowerConsumed(avgPowerConsumed);
+        expectedBrightnessCap = (powerQuota / avgPowerConsumed) * expectedBrightnessCap;
+        mTestHandler.flush();
+
+        assertModifierState(DEFAULT_BRIGHTNESS, expectedBrightnessCap, expectedBrightnessCap,
+                CUSTOM_ANIMATION_RATE_NOT_SET, true);
+
+        // power under quota
+        avgPowerConsumed = 10f;
+        mTestInjector.mCapturedPmicMonitor.setAvgPowerConsumed(avgPowerConsumed);
+        mTestHandler.flush();
+
+        assertModifierState(DEFAULT_BRIGHTNESS, BRIGHTNESS_MAX, DEFAULT_BRIGHTNESS,
+                CUSTOM_ANIMATION_RATE_NOT_SET, false);
+    }
+
+    @Test
+    public void testThermalThrottlingRemoveBrightnessCap() throws RemoteException {
+        // Start with Temperature.THROTTLING_LIGHT
+        mTestInjector.mCapturedPmicMonitor.setThermalStatus(Temperature.THROTTLING_LIGHT);
+        mTestHandler.flush();
+
+        // update a new device config for power-throttling.
+        float powerQuota = 100f;
+        float avgPowerConsumed = 200f;
+        onDisplayChanged(
+                List.of(new ThrottlingLevel(PowerManager.THERMAL_STATUS_LIGHT, powerQuota)));
+        mTestInjector.mCapturedPmicMonitor.setAvgPowerConsumed(avgPowerConsumed);
+
+        // cap applied for Temperature.THROTTLING_LIGHT
+        mTestHandler.flush();
+
+        // Modifier should be active
+        float expectedBrightnessCap = (powerQuota / avgPowerConsumed) * DEFAULT_BRIGHTNESS;
+        assertModifierState(DEFAULT_BRIGHTNESS, expectedBrightnessCap, expectedBrightnessCap,
+                CUSTOM_ANIMATION_RATE, true);
+
+        // Get the listener and notify it back to Temperature.THROTTLING_NONE
+        BrightnessPowerModifier.ThermalLevelListener listener = mModifier.getThermalLevelListener();
+        listener.notifyThrottling(
+                new Temperature(20f, Temperature.TYPE_SKIN, "test_skin_temp",
+                        Temperature.THROTTLING_NONE));
+        mTestHandler.flush();
+
+        // Modifier should not be active anymore, no throttling
+        assertModifierState(DEFAULT_BRIGHTNESS,
+                BRIGHTNESS_MAX, DEFAULT_BRIGHTNESS, CUSTOM_ANIMATION_RATE_NOT_SET, false);
+    }
+
     private void onDisplayChanged(List<ThrottlingLevel> throttlingLevels) {
         Map<String, PowerThrottlingData> throttlingLevelsMap = new HashMap<>();
         throttlingLevelsMap.put(DisplayDeviceConfig.DEFAULT_ID,
@@ -233,6 +305,11 @@ public class BrightnessPowerModifierTest {
             mCapturedPmicMonitor = new TestPmicMonitor(listener, thermalService,
                     maxPollingTimeMillis, minPollingTimeMillis);
             return mCapturedPmicMonitor;
+        }
+
+        @Override
+        IThermalService getThermalService() {
+            return mMockThermalService;
         }
 
         @Override

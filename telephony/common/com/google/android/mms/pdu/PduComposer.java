@@ -1188,7 +1188,7 @@ public class PduComposer {
      *         PDU_UNKNOWN_ADDRESS_TYPE if it is unknown.
      */
     protected static int checkAddressType(String address) {
-        /**
+        /*
          * From OMA-TS-MMS-ENC-V1_3-20050927-C.pdf, section 8.
          * address = ( e-mail / device-address / alphanum-shortcode / num-shortcode)
          * e-mail = mailbox; to the definition of mailbox as described in

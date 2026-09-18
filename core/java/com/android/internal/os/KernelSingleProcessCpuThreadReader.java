@@ -30,7 +30,7 @@ import java.util.Arrays;
  * each thread. The CPU usage statistics contain the amount of time spent in a frequency band. CPU
  * usage is collected using {@link ProcTimeInStateReader}.
  */
-public class KernelSingleProcessCpuThreadReader {
+public final class KernelSingleProcessCpuThreadReader {
 
     private static final String TAG = "KernelSingleProcCpuThreadRdr";
 

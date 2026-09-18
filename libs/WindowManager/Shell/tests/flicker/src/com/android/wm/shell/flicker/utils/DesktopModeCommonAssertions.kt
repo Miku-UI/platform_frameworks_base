@@ -18,25 +18,47 @@
 
 package com.android.wm.shell.flicker.utils
 
+import android.graphics.Point
+import android.tools.PlatformConsts.DESKTOP_MODE_CASCADING_OFFSET_DP
 import android.tools.flicker.FlickerTest
 import android.tools.helpers.WindowUtils
 import android.tools.traces.component.IComponentMatcher
 import android.tools.traces.wm.WindowManagerState
+import com.android.window.flags.Flags
 
 // Common assertions for Desktop mode features.
 
-fun FlickerTest.cascadingEffectAppliedAtEnd(component: IComponentMatcher) {
+fun FlickerTest.cascadingEffectAppliedAtEnd(
+    newComponent: IComponentMatcher,
+    prevComponent: IComponentMatcher,
+) {
     assertWmEnd {
-        val displayAppBounds = WindowUtils.getInsetDisplayBounds(scenario.startRotation)
-        val windowBounds = visibleRegion(component).region.bounds
+        if (!Flags.enableSteppedCascading() || prevComponent == null) {
+            val displayAppBounds = WindowUtils.getInsetDisplayBounds(scenario.startRotation)
+            val windowBounds = visibleRegion(newComponent).region.bounds
 
-        val onRightSide = windowBounds.right == displayAppBounds.right
-        val onLeftSide = windowBounds.left == displayAppBounds.left
-        val onTopSide = windowBounds.top == displayAppBounds.top
-        val onBottomSide = windowBounds.bottom == displayAppBounds.bottom
-        val alignedOnCorners = onRightSide.xor(onLeftSide) and onTopSide.xor(onBottomSide)
+            val onRightSide = windowBounds.right == displayAppBounds.right
+            val onLeftSide = windowBounds.left == displayAppBounds.left
+            val onTopSide = windowBounds.top == displayAppBounds.top
+            val onBottomSide = windowBounds.bottom == displayAppBounds.bottom
+            val alignedOnCorners = onRightSide.xor(onLeftSide) and onTopSide.xor(onBottomSide)
 
-        check { "window corner must meet display corner" }.that(alignedOnCorners).isEqual(true)
+            check { "window corner must meet display corner" }.that(alignedOnCorners).isEqual(true)
+        } else {
+            val offset =
+                WindowManagerState.dpToPx(
+                    DESKTOP_MODE_CASCADING_OFFSET_DP.toFloat(),
+                    WindowUtils.defaultDisplayDpi,
+                )
+            val newBounds = visibleRegion(newComponent).region.bounds
+            val newPosition = Point(newBounds.left, newBounds.top)
+            val prevBounds = visibleRegion(prevComponent).region.bounds
+            val cascadedPrevPosition = Point(prevBounds.left + offset, prevBounds.top + offset)
+
+            check { "new window must cascade from previous" }
+                .that(newPosition)
+                .isEqual(cascadedPrevPosition)
+        }
     }
 }
 
@@ -48,7 +70,8 @@ fun FlickerTest.appLayerPositionedBottomRightAtEnd(component: IComponentMatcher)
         val onRightSide = windowBounds.right == displayAppBounds.right
         val onBottomSide = windowBounds.bottom == displayAppBounds.bottom
 
-        check { "window corner must meet display corner" }.that(onRightSide && onBottomSide)
+        check { "window corner must meet display corner" }
+            .that(onRightSide && onBottomSide)
             .isEqual(true)
     }
 }
@@ -100,9 +123,7 @@ fun FlickerTest.appLayerMaintainsAspectRatioAlways(component: IComponentMatcher)
 fun FlickerTest.resizeVeilKeepsIncreasingInSize(component: IComponentMatcher) {
     assertLayers {
         val layerList = layers {
-            component.layerMatchesAnyOf(it) &&
-                    it.isVisible &&
-                    it.name.contains("Resize veil")
+            component.layerMatchesAnyOf(it) && it.isVisible && it.name.contains("Resize veil")
         }
 
         layerList.zipWithNext { previous, current ->
@@ -114,9 +135,7 @@ fun FlickerTest.resizeVeilKeepsIncreasingInSize(component: IComponentMatcher) {
 fun FlickerTest.resizeVeilKeepsDecreasingInSize(component: IComponentMatcher) {
     assertLayers {
         val layerList = layers {
-            component.layerMatchesAnyOf(it) &&
-                    it.isVisible &&
-                    it.name.contains("Resize veil")
+            component.layerMatchesAnyOf(it) && it.isVisible && it.name.contains("Resize veil")
         }
 
         layerList.zipWithNext { previous, current ->
@@ -125,16 +144,10 @@ fun FlickerTest.resizeVeilKeepsDecreasingInSize(component: IComponentMatcher) {
     }
 }
 
-fun FlickerTest.appLayerHasSizeAtEnd(
-    component: IComponentMatcher,
-    widthDp: Int,
-    heightDp: Int
-) {
+fun FlickerTest.appLayerHasSizeAtEnd(component: IComponentMatcher, widthDp: Int, heightDp: Int) {
     val width = WindowManagerState.dpToPx(widthDp.toFloat(), WindowUtils.defaultDisplayDpi)
     val height = WindowManagerState.dpToPx(heightDp.toFloat(), WindowUtils.defaultDisplayDpi)
-    assertLayersEnd {
-        visibleRegion(component).hasSameSize(width, height, diffThreshold = 50)
-    }
+    assertLayersEnd { visibleRegion(component).hasSameSize(width, height, diffThreshold = 50) }
 }
 
 fun FlickerTest.leftTiledAppLargerThanRightAtEnd(
@@ -146,6 +159,7 @@ fun FlickerTest.leftTiledAppLargerThanRightAtEnd(
         visibleRegion(leftComponent).isStrictlyWiderThan(rightRegion.region)
     }
 }
+
 /**
  * Verify that app window fills > 95% of either half of the screen, accounting for the difference
  * due to the divider handle.
@@ -177,13 +191,9 @@ fun FlickerTest.appWindowBecomesPinned(component: IComponentMatcher) {
     }
 }
 
-/**
- * Assert that the app window launches on the default display.
- */
+/** Assert that the app window launches on the default display. */
 fun FlickerTest.appWindowOnDefaultDisplayAtEnd(component: IComponentMatcher) {
-    assertWmEnd {
-        this.containsAppWindow(component)
-    }
+    assertWmEnd { this.containsAppWindow(component) }
 }
 
 fun FlickerTest.appWindowReturnsToStartBoundsAndPosition(component: IComponentMatcher) {
@@ -221,7 +231,7 @@ fun FlickerTest.tilingDividerBecomesInvisibleThenVisible() {
 
 fun FlickerTest.layerExactlyCoversAnotherAtEnd(
     coveredLayer: IComponentMatcher,
-    coveringLayer: IComponentMatcher
+    coveringLayer: IComponentMatcher,
 ) {
     assertLayersEnd {
         val coveredLayerBounds = visibleRegion(coveredLayer).region.bounds
@@ -231,7 +241,7 @@ fun FlickerTest.layerExactlyCoversAnotherAtEnd(
 
 fun FlickerTest.layerContainsAnotherAtEnd(
     outerLayer: IComponentMatcher,
-    innerLayer: IComponentMatcher
+    innerLayer: IComponentMatcher,
 ) {
     assertWmEnd {
         val outerBounds = visibleRegion(outerLayer).region.bounds

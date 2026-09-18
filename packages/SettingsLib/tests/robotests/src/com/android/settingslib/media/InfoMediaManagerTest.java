@@ -87,7 +87,8 @@ import java.util.Set;
 
 @RunWith(RobolectricTestRunner.class)
 public class InfoMediaManagerTest {
-    @Rule public final MockitoRule mockito = MockitoJUnit.rule();
+    @Rule
+    public final MockitoRule mockito = MockitoJUnit.rule();
 
     private static final String TEST_PACKAGE_NAME = "com.test.packagename";
     private static final String TEST_ID = "test_id";
@@ -138,7 +139,8 @@ public class InfoMediaManagerTest {
 
     private static final int ASYNC_TIMEOUT_SECONDS = 5;
 
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock
     private MediaRouter2Manager mRouterManager;
@@ -150,8 +152,10 @@ public class InfoMediaManagerTest {
     private MediaSessionManager mMediaSessionManager;
     @Mock
     private ComponentName mComponentName;
-    @Mock private MediaRouter2 mRouter2;
-    @Mock private RoutingController mRoutingController;
+    @Mock
+    private MediaRouter2 mRouter2;
+    @Mock
+    private RoutingController mRoutingController;
 
     @Captor
     private ArgumentCaptor<DeviceSuggestionsUpdatesCallback> mDeviceSuggestionsUpdatesCallback;
@@ -366,6 +370,31 @@ public class InfoMediaManagerTest {
         assertThat(mInfoMediaManager.mMediaDevices.get(1).getId()).isEqualTo(TEST_ID_1);
         assertThat(mInfoMediaManager.mMediaDevices.get(2).getId()).isEqualTo(TEST_ID_3);
         assertThat(mInfoMediaManager.mMediaDevices.get(3).getId()).isEqualTo(TEST_ID_4);
+    }
+
+    @Test
+    public void onRouteListingPreferenceUpdated_refreshesDeviceList() {
+        ReflectionHelpers.setStaticField(Build.VERSION.class, "SDK_INT",
+                Build.VERSION_CODES.UPSIDE_DOWN_CAKE);
+
+        when(mRoutingController.getSelectedRoutes())
+                .thenReturn(List.of(TEST_SELECTED_SYSTEM_ROUTE));
+
+        mInfoMediaManager.registerCallback(mCallback);
+        clearInvocations(mCallback);
+
+        RouteListingPreference routeListingPreference = new RouteListingPreference.Builder()
+                .setItems(ImmutableList.of())
+                .setUseSystemOrdering(true)
+                .build();
+        when(mRouter2.getRouteListingPreference()).thenReturn(routeListingPreference);
+
+        // Simulate the RouteListingPreference update from MediaRouter2.
+        // This should trigger notifyRouteListingPreferenceUpdated -> refreshDevices ->
+        // dispatchDeviceListAdded.
+        mInfoMediaManager.mRouteListingPreferenceCallback.accept(routeListingPreference);
+
+        verify(mCallback).onDeviceListAdded(any());
     }
 
     private RouteListingPreference setUpPreferenceList(boolean useSystemOrdering) {
@@ -602,8 +631,8 @@ public class InfoMediaManagerTest {
         when(route2Info.getClientPackageName()).thenReturn(TEST_PACKAGE_NAME);
 
         assertThat(
-                        mInfoMediaManager.removeDeviceFromPlayMedia(
-                                device, /* routingChangeInfo= */ null))
+                mInfoMediaManager.removeDeviceFromPlayMedia(
+                        device, /* routingChangeInfo= */ null))
                 .isTrue();
     }
 
@@ -626,8 +655,8 @@ public class InfoMediaManagerTest {
         when(route2Info.getClientPackageName()).thenReturn(TEST_PACKAGE_NAME);
 
         assertThat(
-                        mInfoMediaManager.removeDeviceFromPlayMedia(
-                                device, /* routingChangeInfo= */ null))
+                mInfoMediaManager.removeDeviceFromPlayMedia(
+                        device, /* routingChangeInfo= */ null))
                 .isFalse();
     }
 
@@ -953,6 +982,23 @@ public class InfoMediaManagerTest {
     }
 
     @Test
+    public void addMediaDevice_bluetoothManagerNull_shouldNotAddDevice() {
+        RouterInfoMediaManager manager = new RouterInfoMediaManager(
+                mContext,
+                TEST_PACKAGE_NAME,
+                mContext.getUser(),
+                /* localBluetoothManager= */ null,
+                /* mediaController= */ null,
+                mRouter2,
+                mRouterManager);
+
+        manager.addMediaDeviceLocked(TEST_BLUETOOTH_ROUTE,
+                TEST_SYSTEM_ROUTING_SESSION, /* rlpItem= */ null);
+
+        assertThat(manager.mMediaDevices).isEmpty();
+    }
+
+    @Test
     public void onRoutesUpdated_setsFirstSelectedRouteAsCurrentConnectedDevice() {
         final CachedBluetoothDeviceManager cachedBluetoothDeviceManager =
                 mock(CachedBluetoothDeviceManager.class);
@@ -1207,5 +1253,137 @@ public class InfoMediaManagerTest {
                 .asList()
                 .containsExactly(TEST_ID_4, TEST_ID_1, TEST_ID_3)
                 .inOrder();
+
+    }
+
+    @Test
+    public void getMissingPermissionsInfo_noPreference_returnsNull() {
+        when(mRouter2.getRouteListingPreference()).thenReturn(null);
+        Set<String> testPermissions = Set.of("perm1", "perm2");
+        when(mRouter2.getMissingPermissions()).thenReturn(testPermissions);
+
+        mInfoMediaManager.notifyRouteListingPreferenceUpdated(null);
+
+        assertThat(mInfoMediaManager.getMissingPermissionsInfo()).isNull();
+    }
+
+    @Test
+    public void getMissingPermissionsInfo_noComponent_returnsNull() {
+        RouteListingPreference preference = new RouteListingPreference.Builder()
+                .setItems(ImmutableList.of())
+                .setMissingPermissionsComponentName(null)
+                .build();
+        when(mRouter2.getRouteListingPreference()).thenReturn(preference);
+        Set<String> permissions = Set.of("perm1", "perm2");
+        when(mRouter2.getMissingPermissions()).thenReturn(permissions);
+
+        mInfoMediaManager.notifyRouteListingPreferenceUpdated(preference);
+
+        assertThat(mInfoMediaManager.getMissingPermissionsInfo()).isNull();
+    }
+
+    @Test
+    public void getMissingPermissionsInfo_withComponentAndPermissions_returnsInfo() {
+        RouteListingPreference pref = new RouteListingPreference.Builder()
+                .setItems(ImmutableList.of())
+                .setMissingPermissionsComponentName(new ComponentName(TEST_PACKAGE_NAME, "MyClass"))
+                .build();
+        when(mRouter2.getRouteListingPreference()).thenReturn(pref);
+        Set<String> permissions = Set.of("perm1", "perm2");
+        when(mRouter2.getMissingPermissions()).thenReturn(permissions);
+
+        mInfoMediaManager.notifyRouteListingPreferenceUpdated(pref);
+        MissingPermissionsInfo info = mInfoMediaManager.getMissingPermissionsInfo();
+
+        assertThat(info).isNotNull();
+        assertThat(info.getComponentName()).isEqualTo(pref.getMissingPermissionsComponentName());
+        assertThat(info.getPermissions()).containsExactlyElementsIn(permissions);
+    }
+
+    @Test
+    public void getMissingPermissionsInfo_callbackAddedAfterComponentAndPermsSet_returnsInfo() {
+        RouteListingPreference pref = new RouteListingPreference.Builder()
+                .setItems(ImmutableList.of())
+                .setMissingPermissionsComponentName(new ComponentName(TEST_PACKAGE_NAME, "MyClass"))
+                .build();
+        when(mRouter2.getRouteListingPreference()).thenReturn(pref);
+        Set<String> permissions = Set.of("perm1", "perm2");
+        when(mRouter2.getMissingPermissions()).thenReturn(permissions);
+
+        mInfoMediaManager.registerCallback(mCallback);
+        MissingPermissionsInfo info = mInfoMediaManager.getMissingPermissionsInfo();
+
+        assertThat(info).isNotNull();
+        assertThat(info.getComponentName()).isEqualTo(pref.getMissingPermissionsComponentName());
+        assertThat(info.getPermissions()).containsExactlyElementsIn(permissions);
+    }
+
+    @Test
+    public void notifyRouteListingPreferenceUpdated_dispatchesMissingPermissions() {
+        mInfoMediaManager.registerCallback(mCallback);
+        clearInvocations(mCallback);
+
+        RouteListingPreference pref = new RouteListingPreference.Builder()
+                .setItems(ImmutableList.of())
+                .setMissingPermissionsComponentName(new ComponentName(TEST_PACKAGE_NAME, "Class1"))
+                .build();
+        when(mRouter2.getRouteListingPreference()).thenReturn(pref);
+        Set<String> permissions = Set.of("perm1");
+        when(mRouter2.getMissingPermissions()).thenReturn(permissions);
+
+        mInfoMediaManager.notifyRouteListingPreferenceUpdated(pref);
+
+        ArgumentCaptor<MissingPermissionsInfo> captor =
+                ArgumentCaptor.forClass(MissingPermissionsInfo.class);
+        verify(mCallback).onMissingPermissionsUpdated(captor.capture());
+        MissingPermissionsInfo info = captor.getValue();
+        assertThat(info).isNotNull();
+        assertThat(info.getComponentName()).isEqualTo(pref.getMissingPermissionsComponentName());
+        assertThat(info.getPermissions()).containsExactlyElementsIn(permissions);
+    }
+
+    @Test
+    public void notifyMissingPermissionsUpdated_dispatchesMissingPermissions() {
+        mInfoMediaManager.registerCallback(mCallback);
+        clearInvocations(mCallback);
+
+        RouteListingPreference pref = new RouteListingPreference.Builder()
+                .setItems(ImmutableList.of())
+                .setMissingPermissionsComponentName(new ComponentName(TEST_PACKAGE_NAME, "MyClass"))
+                .build();
+        when(mRouter2.getRouteListingPreference()).thenReturn(pref);
+
+        Set<String> permissions = Set.of("perm1");
+        when(mRouter2.getMissingPermissions()).thenReturn(permissions);
+        mInfoMediaManager.notifyMissingPermissionsUpdated(permissions);
+
+        ArgumentCaptor<MissingPermissionsInfo> captor =
+                ArgumentCaptor.forClass(MissingPermissionsInfo.class);
+        verify(mCallback).onMissingPermissionsUpdated(captor.capture());
+        MissingPermissionsInfo info = captor.getValue();
+        assertThat(info).isNotNull();
+        assertThat(info.getComponentName()).isEqualTo(pref.getMissingPermissionsComponentName());
+        assertThat(info.getPermissions()).containsExactlyElementsIn(permissions);
+    }
+
+    @Test
+    public void refreshMissingPermissionsInfo_onlyDispatchesCallbackOnChanges() {
+        mInfoMediaManager.registerCallback(mCallback);
+        clearInvocations(mCallback);
+
+        RouteListingPreference pref = new RouteListingPreference.Builder()
+                .setItems(ImmutableList.of())
+                .setMissingPermissionsComponentName(new ComponentName(TEST_PACKAGE_NAME, "Class1"))
+                .build();
+        when(mRouter2.getRouteListingPreference()).thenReturn(pref);
+        Set<String> permissions = Set.of("perm1");
+        when(mRouter2.getMissingPermissions()).thenReturn(permissions);
+
+        // Send 2 callbacks
+        mInfoMediaManager.notifyRouteListingPreferenceUpdated(pref);
+        mInfoMediaManager.notifyMissingPermissionsUpdated(permissions);
+
+        // The update should only happen once
+        verify(mCallback, times(1)).onMissingPermissionsUpdated(any());
     }
 }

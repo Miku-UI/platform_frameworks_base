@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
+import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.phone.SystemUIDialog
 import com.android.systemui.statusbar.phone.SystemUIDialogFactory
@@ -112,7 +113,15 @@ constructor(
         if (controller == null) {
             dialog.show()
         } else {
-            dialogTransitionAnimator.show(dialog, controller)
+            if (TransitionAnimator.dynamicTargetResolutionEnabled()) {
+                dialogTransitionAnimator.show(
+                    dialog,
+                    expandable::dialogTransitionController,
+                    controller.cuj,
+                )
+            } else {
+                dialogTransitionAnimator.show(dialog, controller)
+            }
         }
     }
 

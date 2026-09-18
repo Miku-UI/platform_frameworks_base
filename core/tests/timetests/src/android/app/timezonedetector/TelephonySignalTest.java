@@ -17,6 +17,7 @@
 package android.app.timezonedetector;
 
 import static android.app.time.ParcelableTestSupport.assertRoundTripParcelable;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;

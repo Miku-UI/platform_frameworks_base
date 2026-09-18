@@ -276,4 +276,11 @@ public abstract class StorageManagerInternal {
      */
     public abstract int enableFsverity(IInstalld.IFsveritySetupAuthToken authToken, String filePath,
             String packageName) throws IOException;
+
+    /**
+     * Waits for a checkpoint to be ready and calls the provided callback when it is.
+     *
+     * @return true if it's waiting for a checkpoint, false otherwise.
+     */
+    public abstract boolean waitForCheckpointReady(Runnable onSyncReady);
 }

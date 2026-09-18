@@ -17,12 +17,11 @@
 package com.android.wm.shell.flicker.bubbles.testcase
 
 /**
- * Verifies a single bubble app [testApp] is dismissed, and bubble window
- * (represented as expanded bubble or bubble bar) is also dismissed.
- *
+ * Verifies a single bubble app [testApp] is dismissed, and bubble window (represented as expanded
+ * bubble or bubble bar) is also dismissed.
  * - [BubbleAppBecomesNotExpandedTestCases]
  * - [LauncherAlwaysVisibleTestCases]
  * - [BubbleDismissesTestCases]
  */
-interface DismissSingleExpandedBubbleTestCases : BubbleAppBecomesNotExpandedTestCases,
-   LauncherAlwaysVisibleTestCases, BubbleDismissesTestCases
+interface DismissSingleExpandedBubbleTestCases :
+    BubbleAppBecomesNotExpandedTestCases, LauncherAlwaysVisibleTestCases, BubbleDismissesTestCases

@@ -17,11 +17,13 @@
 package android.view.selectiontoolbar;
 
 import android.graphics.Rect;
+import android.graphics.Region;
 import android.view.SurfaceControlViewHost;
 
 /**
  * @hide
  */
+@JavaDerive(toString=true, equals=true)
 parcelable WidgetInfo {
 
     /**
@@ -34,6 +36,11 @@ parcelable WidgetInfo {
      * its host window.
      */
     Rect contentRect;
+
+    /**
+    * A Region that defines the touchable content area with respect to its host window.
+    */
+    Region touchableRegion;
 
     /**
      * The SurfacePackage pointing to the remote view.

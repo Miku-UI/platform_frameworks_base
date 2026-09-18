@@ -1,0 +1,21 @@
+package {
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "frameworks_base_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["frameworks_base_license"],
+}
+
+// Due to the fact that the "master-art" branch does not include frameworks/base,
+// we cannot define any android_ravenwood_test targets in any repositories included
+// in the "master-art" manifest.
+// See: https://android.googlesource.com/platform/manifest/+/refs/heads/master-art/default.xml
+android_ravenwood_test {
+    name: "LibnativehelperInternalTestCasesRavenwood",
+    static_libs: ["LibnativehelperInternalTestLib"],
+    jni_libs: [
+        "libnativehelper_internal_tests_jni",
+    ],
+    auto_gen_config: true,
+}

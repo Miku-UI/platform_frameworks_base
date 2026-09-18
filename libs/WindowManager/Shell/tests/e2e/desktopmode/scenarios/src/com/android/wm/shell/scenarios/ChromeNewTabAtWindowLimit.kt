@@ -27,7 +27,9 @@ import androidx.test.uiautomator.UiDevice
 import com.android.launcher3.tapl.LauncherInstrumentation
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.MailAppHelper
+import com.android.wm.shell.shared.desktopmode.DesktopConfig
 import org.junit.After
+import org.junit.Assume
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
@@ -40,6 +42,8 @@ abstract class ChromeNewTabAtWindowLimit(val rotation: Rotation = Rotation.ROTAT
     private val tapl = LauncherInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
+    private val desktopConfig = DesktopConfig.fromContext(instrumentation.context)
+
     private val mailAppHelper = MailAppHelper(instrumentation)
     private val mailAppDesktopHelper = DesktopModeAppHelper(mailAppHelper)
     private val calculatorHelper = CalculatorAppHelper(instrumentation)
@@ -48,6 +52,8 @@ abstract class ChromeNewTabAtWindowLimit(val rotation: Rotation = Rotation.ROTAT
 
     @Before
     fun setup() {
+        Assume.assumeTrue(desktopConfig.maxTaskLimit > 0)
+
         mailAppDesktopHelper.enterDesktopMode(wmHelper, device)
         calculatorHelper.launchViaIntent(wmHelper)
         clockAppHelper.launchViaIntent(wmHelper)
@@ -57,11 +63,10 @@ abstract class ChromeNewTabAtWindowLimit(val rotation: Rotation = Rotation.ROTAT
 
     @Test
     open fun openNewTab() {
-        tapl.launchedAppState.taskbar
-            .getAppIcon(browserAppHelper.appName)
-            .openDeepShortcutMenu()
+        tapl.launchedAppState.taskbar.getAppIcon(browserAppHelper.appName).openDeepShortcutMenu()
         browserAppHelper.clickNewTabInTaskbarContextMenu()
-        wmHelper.StateSyncBuilder()
+        wmHelper
+            .StateSyncBuilder()
             .withAppTransitionIdle()
             .withLayerVisible(browserAppHelper.componentMatcher)
             .withLayerVisible(mailAppHelper.componentMatcher)

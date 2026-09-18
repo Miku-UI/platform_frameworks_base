@@ -18,6 +18,8 @@ package android.util;
 
 import android.compat.annotation.UnsupportedAppUsage;
 
+import dalvik.annotation.optimization.NeverInline;
+
 /**
  * Singleton helper class for lazily initialization.
  *
@@ -41,12 +43,16 @@ public abstract class Singleton<T> {
     public final T get() {
         T instance = mInstance;
         if (instance == null) {
-            synchronized (this) {
-                if (mInstance == null) {
-                    mInstance = create();
-                }
-                instance = mInstance;
-            }
+            instance = maybeCreate();
+        }
+        return instance;
+    }
+
+    @NeverInline  // Cold code, not worth inlining and bloating the caller.
+    private synchronized T maybeCreate() {
+        T instance = mInstance;
+        if (instance == null) {
+            instance = mInstance = create();
         }
         return instance;
     }

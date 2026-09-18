@@ -75,7 +75,7 @@ constructor(
                     checkNotNull(stack.pop()) { "Cannot pop ${from.debugName} when stack is empty" }
             }
         }
-        logger.logSceneBackStack(backStack.value)
+        logger.logSceneBackStack(backStack.value, reason = "scene change")
         tableLogBuffer.logDiffs(
             prevVal = DiffableSceneStack(prevVal),
             newVal = DiffableSceneStack(backStack.value),
@@ -83,10 +83,10 @@ constructor(
     }
 
     /** Applies the given [transform] to the back stack. */
-    fun updateBackStack(transform: (SceneStack) -> SceneStack) {
+    fun updateBackStack(reason: String, transform: (SceneStack) -> SceneStack) {
         val prevVal = backStack.value
         _backStack.update { stack -> transform(stack) }
-        logger.logSceneBackStack(backStack.value)
+        logger.logSceneBackStack(backStack.value, reason)
         tableLogBuffer.logDiffs(
             prevVal = DiffableSceneStack(prevVal),
             newVal = DiffableSceneStack(backStack.value),
@@ -97,15 +97,60 @@ constructor(
      * If the [Scenes.Lockscreen] is on the bottom of the navigation backstack, replaces it with
      * [Scenes.Gone].
      */
-    fun replaceLockscreenSceneOnBackStack() {
-        updateBackStack { stack ->
-            val list = stack.asIterable().toMutableList()
-            if (list.lastOrNull() == Scenes.Lockscreen) {
-                list[list.size - 1] = Scenes.Gone
-                sceneStackOf(*list.toTypedArray())
-            } else {
-                stack
+    fun replaceLockscreenSceneOnBackStack(reason: String) {
+        replaceBottomScene(from = Scenes.Lockscreen, to = Scenes.Gone, reason)
+    }
+
+    /**
+     * If the [Scenes.Gone] is on the bottom of the navigation backstack, replaces it with
+     * [Scenes.Lockscreen].
+     */
+    fun replaceGoneSceneOnBackStack(reason: String) {
+        replaceBottomScene(from = Scenes.Gone, to = Scenes.Lockscreen, reason)
+    }
+
+    /**
+     * Remove Occluded from the backstack, usually due to the occluded app being stopped underneath
+     * the existing scene (like shade).
+     */
+    fun removeOccludedSceneOnBackStack(reason: String) {
+        updateBackStackList(reason) { list -> list.removeAll { it == Scenes.Occluded } }
+    }
+
+    /** Generic helper for simple 1:1 replacements at the bottom (end) of the stack. */
+    private fun replaceBottomScene(from: SceneKey, to: SceneKey, reason: String) {
+        updateBackStackList(reason) { list ->
+            if (list.lastOrNull() == from) {
+                list[list.lastIndex] = to
             }
+        }
+    }
+
+    /**
+     * Adds the [Scenes.Lockscreen] to the bottom of the navigation backstack.
+     *
+     * If the backstack is empty, the lockscreen is pushed onto the stack. Otherwise, if the last
+     * item on the stack is [Scenes.Gone] it is replaced with the lockscreen.
+     */
+    fun addLockscreenToBackStack(reason: String) {
+        updateBackStackList(reason) { list ->
+            if (list.isEmpty()) {
+                list.add(Scenes.Lockscreen)
+            } else if (list.lastOrNull() == Scenes.Gone) {
+                list[list.lastIndex] = Scenes.Lockscreen
+            }
+        }
+    }
+
+    /** Utility to modify the back stack as a mutable list. */
+    private inline fun updateBackStackList(
+        reason: String,
+        crossinline mutate: (MutableList<SceneKey>) -> Unit,
+    ) {
+        updateBackStack(reason) { stack ->
+            val list = stack.asIterable().toMutableList()
+            mutate(list)
+            sceneStackOf(*list.toTypedArray())
         }
     }
 

@@ -201,7 +201,7 @@ public class VolumeDialogComponent implements VolumeComponent, TunerService.Tuna
         mActivityStarter.startActivity(intent, true /* onlyProvisioned */, true /* dismissShade */);
     }
 
-    private final VolumeDialogImpl.Callback mVolumeDialogCallback = new VolumeDialogImpl.Callback() {
+    private final VolumeDialog.Callback mVolumeDialogCallback = new VolumeDialog.Callback() {
         @Override
         public void onZenSettingsClicked() {
             startSettings(ZEN_SETTINGS);

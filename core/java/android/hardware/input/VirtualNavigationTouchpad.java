@@ -16,10 +16,14 @@
 
 package android.hardware.input;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.RemoteException;
 import android.util.Log;
+import android.view.InputDevice;
+
+import java.io.Closeable;
 
 /**
  * A virtual navigation touchpad representing a touch-based input mechanism on a remote device.
@@ -35,12 +39,36 @@ import android.util.Log;
  * @hide
  */
 @SystemApi
-public class VirtualNavigationTouchpad extends VirtualInputDevice {
+public class VirtualNavigationTouchpad implements Closeable {
+
+    private static final String TAG = "VirtualNavTouchpad";
+
+    private final IVirtualNavigationTouchpad mVirtualNavigationTouchpad;
+
+    private final VirtualNavigationTouchpadConfig mConfig;
 
     /** @hide */
     public VirtualNavigationTouchpad(VirtualNavigationTouchpadConfig config,
-            IVirtualInputDevice virtualInputDevice) {
-        super(config, virtualInputDevice);
+            IVirtualNavigationTouchpad virtualNavigationTouchpad) {
+        mConfig = config;
+        mVirtualNavigationTouchpad = virtualNavigationTouchpad;
+    }
+
+    /**
+     * Returns the ID of the underlying input device.
+     *
+     * @return The input device id of this device.
+     * @see InputDevice#getId()
+     * @hide
+     */
+    @FlaggedApi(com.android.hardware.input.Flags.FLAG_CREATE_VIRTUAL_KEYBOARD_API)
+    @SystemApi
+    public int getInputDeviceId() {
+        try {
+            return mVirtualNavigationTouchpad.getInputDeviceId();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
     }
 
     /**
@@ -50,12 +78,27 @@ public class VirtualNavigationTouchpad extends VirtualInputDevice {
      */
     public void sendTouchEvent(@NonNull VirtualTouchEvent event) {
         try {
-            if (!mVirtualInputDevice.sendTouchEvent(event)) {
+            if (!mVirtualNavigationTouchpad.sendTouchEvent(event)) {
                 Log.w(TAG, "Failed to send touch event to virtual navigation touchpad "
                         + mConfig.getInputDeviceName());
             }
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
+    }
+
+    @Override
+    public void close() {
+        Log.d(TAG, "Closing virtual navigation touchpad " + mConfig.getInputDeviceName());
+        try {
+            mVirtualNavigationTouchpad.close();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @Override
+    public String toString() {
+        return mConfig.toString();
     }
 }

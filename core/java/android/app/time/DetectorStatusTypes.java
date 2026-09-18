@@ -29,11 +29,11 @@ import java.lang.annotation.Target;
  * A set of constants that can relate to time or time zone detector status.
  *
  * <ul>
- *     <li>Detector status - the status of the overall detector.</li>
- *     <li>Detection algorithm status - the status of an algorithm that a detector can use.
- *     Each detector is expected to have one or more known algorithms to detect its chosen property,
- *     e.g. for time zone devices can have a "location" detection algorithm, where the device's
- *     location is used to detect the time zone.</li>
+ *   <li>Detector status - the status of the overall detector.
+ *   <li>Detection algorithm status - the status of an algorithm that a detector can use. Each
+ *       detector is expected to have one or more known algorithms to detect its chosen property,
+ *       e.g. for time zone devices can have a "location" detection algorithm, where the device's
+ *       location is used to detect the time zone.
  * </ul>
  *
  * @hide
@@ -41,12 +41,14 @@ import java.lang.annotation.Target;
 public final class DetectorStatusTypes {
 
     /** A status code for a detector. */
-    @IntDef(prefix = "DETECTOR_STATUS_", value = {
-            DETECTOR_STATUS_UNKNOWN,
-            DETECTOR_STATUS_NOT_SUPPORTED,
-            DETECTOR_STATUS_NOT_RUNNING,
-            DETECTOR_STATUS_RUNNING,
-    })
+    @IntDef(
+            prefix = "DETECTOR_STATUS_",
+            value = {
+                DETECTOR_STATUS_UNKNOWN,
+                DETECTOR_STATUS_NOT_SUPPORTED,
+                DETECTOR_STATUS_NOT_RUNNING,
+                DETECTOR_STATUS_RUNNING,
+            })
     @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
     public @interface DetectorStatus {}
@@ -68,15 +70,15 @@ public final class DetectorStatusTypes {
 
     private DetectorStatusTypes() {}
 
-    /**
-     * A status code for a detection algorithm.
-     */
-    @IntDef(prefix = "DETECTION_ALGORITHM_STATUS_", value = {
-            DETECTION_ALGORITHM_STATUS_UNKNOWN,
-            DETECTION_ALGORITHM_STATUS_NOT_SUPPORTED,
-            DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
-            DETECTION_ALGORITHM_STATUS_RUNNING,
-    })
+    /** A status code for a detection algorithm. */
+    @IntDef(
+            prefix = "DETECTION_ALGORITHM_STATUS_",
+            value = {
+                DETECTION_ALGORITHM_STATUS_UNKNOWN,
+                DETECTION_ALGORITHM_STATUS_NOT_SUPPORTED,
+                DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
+                DETECTION_ALGORITHM_STATUS_RUNNING,
+            })
     @Target(ElementType.TYPE_USE)
     @Retention(RetentionPolicy.SOURCE)
     public @interface DetectionAlgorithmStatus {}
@@ -111,30 +113,25 @@ public final class DetectorStatusTypes {
     }
 
     /**
-     * Returns a string for each {@code DETECTOR_STATUS_} constant. See also
-     * {@link #detectorStatusFromString(String)}.
+     * Returns a string for each {@code DETECTOR_STATUS_} constant. See also {@link
+     * #detectorStatusFromString(String)}.
      *
      * @throws IllegalArgumentException if the value is not recognized
      */
     @NonNull
     public static String detectorStatusToString(@DetectorStatus int detectorStatus) {
-        switch (detectorStatus) {
-            case DETECTOR_STATUS_UNKNOWN:
-                return "UNKNOWN";
-            case DETECTOR_STATUS_NOT_SUPPORTED:
-                return "NOT_SUPPORTED";
-            case DETECTOR_STATUS_NOT_RUNNING:
-                return "NOT_RUNNING";
-            case DETECTOR_STATUS_RUNNING:
-                return "RUNNING";
-            default:
-                throw new IllegalArgumentException("Unknown status: " + detectorStatus);
-        }
+        return switch (detectorStatus) {
+            case DETECTOR_STATUS_UNKNOWN -> "UNKNOWN";
+            case DETECTOR_STATUS_NOT_SUPPORTED -> "NOT_SUPPORTED";
+            case DETECTOR_STATUS_NOT_RUNNING -> "NOT_RUNNING";
+            case DETECTOR_STATUS_RUNNING -> "RUNNING";
+            default -> throw new IllegalArgumentException("Unknown status: " + detectorStatus);
+        };
     }
 
     /**
-     * Returns {@code DETECTOR_STATUS_} constant value from a string. See also
-     * {@link #detectorStatusToString(int)}.
+     * Returns {@code DETECTOR_STATUS_} constant value from a string. See also {@link
+     * #detectorStatusToString(int)}.
      *
      * @throws IllegalArgumentException if the value is not recognized or is invalid
      */
@@ -144,18 +141,14 @@ public final class DetectorStatusTypes {
             throw new IllegalArgumentException("Empty status: " + detectorStatusString);
         }
 
-        switch (detectorStatusString) {
-            case "UNKNOWN":
-                return DETECTOR_STATUS_UNKNOWN;
-            case "NOT_SUPPORTED":
-                return DETECTOR_STATUS_NOT_SUPPORTED;
-            case "NOT_RUNNING":
-                return DETECTOR_STATUS_NOT_RUNNING;
-            case "RUNNING":
-                return DETECTOR_STATUS_RUNNING;
-            default:
-                throw new IllegalArgumentException("Unknown status: " + detectorStatusString);
-        }
+        return switch (detectorStatusString) {
+            case "UNKNOWN" -> DETECTOR_STATUS_UNKNOWN;
+            case "NOT_SUPPORTED" -> DETECTOR_STATUS_NOT_SUPPORTED;
+            case "NOT_RUNNING" -> DETECTOR_STATUS_NOT_RUNNING;
+            case "RUNNING" -> DETECTOR_STATUS_RUNNING;
+            default ->
+                    throw new IllegalArgumentException("Unknown status: " + detectorStatusString);
+        };
     }
 
     /**
@@ -175,31 +168,28 @@ public final class DetectorStatusTypes {
     }
 
     /**
-     * Returns a string for each {@code DETECTION_ALGORITHM_} constant. See also
-     * {@link #detectionAlgorithmStatusFromString(String)}
+     * Returns a string for each {@code DETECTION_ALGORITHM_} constant. See also {@link
+     * #detectionAlgorithmStatusFromString(String)}
      *
      * @throws IllegalArgumentException if the value is not recognized
      */
     @NonNull
     public static String detectionAlgorithmStatusToString(
             @DetectionAlgorithmStatus int detectorAlgorithmStatus) {
-        switch (detectorAlgorithmStatus) {
-            case DETECTION_ALGORITHM_STATUS_UNKNOWN:
-                return "UNKNOWN";
-            case DETECTION_ALGORITHM_STATUS_NOT_SUPPORTED:
-                return "NOT_SUPPORTED";
-            case DETECTION_ALGORITHM_STATUS_NOT_RUNNING:
-                return "NOT_RUNNING";
-            case DETECTION_ALGORITHM_STATUS_RUNNING:
-                return "RUNNING";
-            default:
-                throw new IllegalArgumentException("Unknown status: " + detectorAlgorithmStatus);
-        }
+        return switch (detectorAlgorithmStatus) {
+            case DETECTION_ALGORITHM_STATUS_UNKNOWN -> "UNKNOWN";
+            case DETECTION_ALGORITHM_STATUS_NOT_SUPPORTED -> "NOT_SUPPORTED";
+            case DETECTION_ALGORITHM_STATUS_NOT_RUNNING -> "NOT_RUNNING";
+            case DETECTION_ALGORITHM_STATUS_RUNNING -> "RUNNING";
+            default ->
+                    throw new IllegalArgumentException(
+                            "Unknown status: " + detectorAlgorithmStatus);
+        };
     }
 
     /**
-     * Returns {@code DETECTION_ALGORITHM_} constant value from a string. See also
-     * {@link #detectionAlgorithmStatusToString(int)} (String)}
+     * Returns {@code DETECTION_ALGORITHM_} constant value from a string. See also {@link
+     * #detectionAlgorithmStatusToString(int)} (String)}
      *
      * @throws IllegalArgumentException if the value is not recognized or is invalid
      */
@@ -210,18 +200,14 @@ public final class DetectorStatusTypes {
             throw new IllegalArgumentException("Empty status: " + detectorAlgorithmStatusString);
         }
 
-        switch (detectorAlgorithmStatusString) {
-            case "UNKNOWN":
-                return DETECTION_ALGORITHM_STATUS_UNKNOWN;
-            case "NOT_SUPPORTED":
-                return DETECTION_ALGORITHM_STATUS_NOT_SUPPORTED;
-            case "NOT_RUNNING":
-                return DETECTION_ALGORITHM_STATUS_NOT_RUNNING;
-            case "RUNNING":
-                return DETECTION_ALGORITHM_STATUS_RUNNING;
-            default:
-                throw new IllegalArgumentException(
-                        "Unknown status: " + detectorAlgorithmStatusString);
-        }
+        return switch (detectorAlgorithmStatusString) {
+            case "UNKNOWN" -> DETECTION_ALGORITHM_STATUS_UNKNOWN;
+            case "NOT_SUPPORTED" -> DETECTION_ALGORITHM_STATUS_NOT_SUPPORTED;
+            case "NOT_RUNNING" -> DETECTION_ALGORITHM_STATUS_NOT_RUNNING;
+            case "RUNNING" -> DETECTION_ALGORITHM_STATUS_RUNNING;
+            default ->
+                    throw new IllegalArgumentException(
+                            "Unknown status: " + detectorAlgorithmStatusString);
+        };
     }
 }

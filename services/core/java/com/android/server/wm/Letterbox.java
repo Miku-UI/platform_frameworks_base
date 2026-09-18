@@ -264,11 +264,9 @@ public class Letterbox {
 
     private final class InputInterceptor implements Runnable {
 
-        private final InputChannel mClientChannel;
         private final InputWindowHandle mWindowHandle;
         private final InputEventReceiver mInputEventReceiver;
         private final WindowManagerService mWmService;
-        private final IBinder mToken;
         private final Handler mHandler;
 
         InputInterceptor(String namePrefix, WindowState win) {
@@ -276,21 +274,22 @@ public class Letterbox {
             mHandler = UiThread.getHandler();
             final String name = namePrefix
                     + (win.mActivityRecord != null ? win.mActivityRecord : win);
-            mClientChannel = mWmService.mInputManager.createInputChannel(name);
-            mInputEventReceiver = new TapEventReceiver(mClientChannel, mWmService, mHandler);
-
-            mToken = mClientChannel.getToken();
+            InputChannel clientChannel = mWmService.mInputManager.createInputChannel(name);
+            mInputEventReceiver = new TapEventReceiver(clientChannel, mWmService, mHandler);
 
             mWindowHandle = new InputWindowHandle(null /* inputApplicationHandle */,
                     win.getDisplayId());
             mWindowHandle.name = name;
-            mWindowHandle.token = mToken;
+            mWindowHandle.token = mInputEventReceiver.getToken();
             mWindowHandle.layoutParamsType = Flags.scrollingFromLetterbox()
                     ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
                     : WindowManager.LayoutParams.TYPE_INPUT_CONSUMER;
             mWindowHandle.dispatchingTimeoutMillis = DEFAULT_DISPATCHING_TIMEOUT_MILLIS;
-            mWindowHandle.ownerPid = WindowManagerService.MY_PID;
-            mWindowHandle.ownerUid = WindowManagerService.MY_UID;
+            // Set owner to the app's UID to prevent tapjacking. This ensures the letterbox is not
+            // treated as a trusted system window for input security checks, which could be used
+            // to bypass obscured touch logic.
+            mWindowHandle.ownerPid = win.mSession.mPid;
+            mWindowHandle.ownerUid = win.mSession.mUid;
             mWindowHandle.scaleFactor = 1.0f;
             mWindowHandle.inputConfig = InputConfig.NOT_FOCUSABLE
                     | (Flags.scrollingFromLetterbox() ? InputConfig.SPY : InputConfig.SLIPPERY);
@@ -304,7 +303,7 @@ public class Letterbox {
                 mWindowHandle.token = null;
                 return;
             }
-            mWindowHandle.token = mToken;
+            mWindowHandle.token = mInputEventReceiver.getToken();
             mWindowHandle.touchableRegion.set(frame);
             mWindowHandle.touchableRegion.translate(-frame.left, -frame.top);
         }
@@ -312,11 +311,10 @@ public class Letterbox {
         @Override
         public void run() {
             mInputEventReceiver.dispose();
-            mClientChannel.dispose();
         }
 
         void dispose() {
-            mWmService.mInputManager.removeInputChannel(mToken);
+            mWmService.mInputManager.removeInputChannel(mInputEventReceiver.getToken());
             // Perform dispose on the same thread that dispatches input event
             mHandler.post(this);
         }

@@ -17,7 +17,6 @@
 package com.android.server;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doAnswer;
-import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
 
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -31,6 +30,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.ContextWrapper;
@@ -45,11 +45,12 @@ import android.util.Log;
 
 import androidx.test.InstrumentationRegistry;
 
-import org.junit.After;
+import com.android.modules.utils.testing.ExtendedMockitoRule;
+
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
-import org.mockito.MockitoSession;
 import org.mockito.quality.Strictness;
 
 import java.util.concurrent.CountDownLatch;
@@ -63,7 +64,13 @@ public final class MasterClearReceiverTest {
 
     private static final String TAG = MasterClearReceiverTest.class.getSimpleName();
 
-    private MockitoSession mSession;
+    @Rule
+    public final ExtendedMockitoRule mExtendedMockitoRule = new ExtendedMockitoRule.Builder(this)
+            .spyStatic(ActivityManager.class)
+            .mockStatic(RecoverySystem.class)
+            .spyStatic(UserManager.class)
+            .setStrictness(Strictness.LENIENT)
+            .build();
 
     // Cannot @Mock context because MasterClearReceiver shows an AlertDialog, which relies
     // on resources - we'd need to mock them as well.
@@ -100,22 +107,7 @@ public final class MasterClearReceiverTest {
 
     @Before
     public void startSession() {
-        mSession = mockitoSession()
-                .initMocks(this)
-                .mockStatic(RecoverySystem.class)
-                .mockStatic(UserManager.class)
-                .strictness(Strictness.LENIENT)
-                .startMocking();
         setPendingResultForUser(UserHandle.myUserId());
-    }
-
-    @After
-    public void finishSession() {
-        if (mSession == null) {
-            Log.w(TAG, "finishSession(): no session");
-            return;
-        }
-        mSession.finishMocking();
     }
 
     @Test
@@ -164,6 +156,8 @@ public final class MasterClearReceiverTest {
 
     @Test
     public void testNonSystemUser() throws Exception {
+        expectCurrentUserIsSystemUser();
+        expectHeadlessSystemUserMode(false);
         expectWipeNonSystemUser();
 
         Intent intent = new Intent(Intent.ACTION_FACTORY_RESET);
@@ -177,9 +171,9 @@ public final class MasterClearReceiverTest {
 
     @Test
     public void testHeadlessSystemUser() throws Exception {
+        expectHeadlessSystemUserMode(true);
         expectNoWipeExternalData();
         expectRebootWipeUserData();
-        expectHeadlessSystemUserMode();
 
         Intent intent = new Intent(Intent.ACTION_FACTORY_RESET);
         setPendingResultForUser(/* userId= */ 10);
@@ -230,10 +224,16 @@ public final class MasterClearReceiverTest {
                 .thenReturn(UserManager.REMOVE_RESULT_REMOVED);
     }
 
-    private void expectHeadlessSystemUserMode() {
+    private void expectCurrentUserIsSystemUser() {
+        doAnswer((inv) -> {
+            return UserHandle.USER_SYSTEM;
+        }).when(() -> ActivityManager.getCurrentUser());
+    }
+
+    private void expectHeadlessSystemUserMode(boolean isHeadlessSystemUserMode) {
         doAnswer((inv) -> {
             Log.i(TAG, inv.toString());
-            return true;
+            return isHeadlessSystemUserMode;
         }).when(() -> UserManager.isHeadlessSystemUserMode());
     }
 

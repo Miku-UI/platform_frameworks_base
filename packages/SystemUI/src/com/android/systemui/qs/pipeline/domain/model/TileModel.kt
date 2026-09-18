@@ -16,6 +16,7 @@
 
 package com.android.systemui.qs.pipeline.domain.model
 
+import com.android.systemui.animation.Expandable
 import com.android.systemui.plugins.qs.QSTile
 import com.android.systemui.qs.pipeline.shared.TileSpec
 
@@ -25,7 +26,7 @@ import com.android.systemui.qs.pipeline.shared.TileSpec
  * spec.spec == tile.tileSpec
  * ```
  */
-data class TileModel(val spec: TileSpec, val tile: QSTile) {
+data class TileModel(val spec: TileSpec, val tile: QSTile, val expandable: Expandable) {
     init {
         check(spec.spec == tile.tileSpec)
     }

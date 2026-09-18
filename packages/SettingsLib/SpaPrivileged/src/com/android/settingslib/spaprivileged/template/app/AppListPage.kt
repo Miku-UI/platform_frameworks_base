@@ -16,9 +16,12 @@
 
 package com.android.settingslib.spaprivileged.template.app
 
+import android.os.UserHandle
+import android.os.UserManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
@@ -49,6 +52,7 @@ fun <T : AppRecord> AppListPage(
     noItemMessage: String? = null,
     moreOptions: @Composable MoreOptionsScope.() -> Unit = {},
     header: @Composable () -> Unit = {},
+    footer: @Composable () -> Unit = {},
     appList: @Composable AppListInput<T>.() -> Unit = { AppList() },
 ) {
     var showSystem by rememberSaveable { mutableStateOf(showSystemAppsInitially) }
@@ -64,9 +68,18 @@ fun <T : AppRecord> AppListPage(
         },
     ) { bottomPadding, searchQuery ->
         UserProfilePager { userGroup ->
+            val userIds = remember(userGroup) {
+                userGroup.userInfos.map { it.id }.toMutableList().apply {
+                    val myUserId = android.os.Process.myUserHandle().identifier
+                    // In Headless System User Mode, show system user apps when "Show System" is on.
+                    if (android.multiuser.Flags.hsuAppManagement() && contains(myUserId) && UserManager.isHeadlessSystemUserMode() && !contains(UserHandle.USER_SYSTEM)) {
+                        add(UserHandle.USER_SYSTEM)
+                    }
+                }
+            }
             val appListInput = AppListInput(
                 config = AppListConfig(
-                    userIds = userGroup.userInfos.map { it.id },
+                    userIds = userIds,
                     showInstantApps = showInstantApps,
                     matchAnyUserForAdmin = matchAnyUserForAdmin,
                 ),
@@ -76,6 +89,7 @@ fun <T : AppRecord> AppListPage(
                     searchQuery = searchQuery,
                 ),
                 header = header,
+                footer = footer,
                 bottomPadding = bottomPadding,
                 noItemMessage = noItemMessage,
             )

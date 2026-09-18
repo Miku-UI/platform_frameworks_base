@@ -95,7 +95,7 @@ class DomainVerificationSettings {
     }
 
     /**
-     * Parses a previously stored set of states and merges them with {@param liveState}, directly
+     * Parses a previously stored set of states and merges them with {@code liveState}, directly
      * mutating the values. This is intended for reading settings written by {@link
      * #writeSettings(TypedXmlSerializer, DomainVerificationStateMap, int, Function)} on the same
      * device setup.
@@ -134,7 +134,7 @@ class DomainVerificationSettings {
     }
 
     /**
-     * Parses a previously stored set of states and merges them with {@param liveState}, directly
+     * Parses a previously stored set of states and merges them with {@code liveState}, directly
      * mutating the values. This is intended for restoration across device setups.
      */
     public void restoreSettings(@NonNull TypedXmlPullParser parser,
@@ -211,7 +211,7 @@ class DomainVerificationSettings {
      * assumes that all user IDs on the device match. If this isn't the case, then restore may set
      * unexpected values.
      *
-     * NOTE: This will mutate {@param oldState} to contain the merged state.
+     * NOTE: This will mutate {@code oldState} to contain the merged state.
      */
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
     public void mergePkgState(@NonNull DomainVerificationPkgState oldState,

@@ -22,7 +22,10 @@ import static android.app.Notification.CATEGORY_EVENT;
 import static android.app.Notification.CATEGORY_MESSAGE;
 import static android.app.Notification.CATEGORY_REMINDER;
 import static android.app.Notification.FLAG_BUBBLE;
-import static android.app.NotificationChannel.SYSTEM_RESERVED_IDS;
+import static android.app.NotificationChannel.NEWS_ID;
+import static android.app.NotificationChannel.PROMOTIONS_ID;
+import static android.app.NotificationChannel.RECS_ID;
+import static android.app.NotificationChannel.SOCIAL_MEDIA_ID;
 import static android.app.NotificationManager.Policy.SUPPRESSED_EFFECT_AMBIENT;
 import static android.app.NotificationManager.Policy.SUPPRESSED_EFFECT_BADGE;
 import static android.app.NotificationManager.Policy.SUPPRESSED_EFFECT_FULL_SCREEN_INTENT;
@@ -31,15 +34,19 @@ import static android.app.NotificationManager.Policy.SUPPRESSED_EFFECT_PEEK;
 import static android.app.NotificationManager.Policy.SUPPRESSED_EFFECT_STATUS_BAR;
 
 import static com.android.systemui.statusbar.notification.collection.NotifCollection.REASON_NOT_CANCELED;
+import static com.android.systemui.statusbar.notification.stack.NotificationPriorityBucketKt.BUCKET_DYNAMIC_BUNDLE;
+import static com.android.systemui.statusbar.notification.stack.NotificationPriorityBucketKt.BUCKET_NEWS;
+import static com.android.systemui.statusbar.notification.stack.NotificationPriorityBucketKt.BUCKET_PROMO;
+import static com.android.systemui.statusbar.notification.stack.NotificationPriorityBucketKt.BUCKET_RECS;
+import static com.android.systemui.statusbar.notification.stack.NotificationPriorityBucketKt.BUCKET_SOCIAL;
 
 import static java.util.Objects.requireNonNull;
 
-import android.annotation.FlaggedApi;
-import android.app.Flags;
 import android.app.Notification;
 import android.app.Notification.MessagingStyle.Message;
 import android.app.NotificationChannel;
 import android.app.NotificationManager.Policy;
+import android.app.PendingIntent;
 import android.app.Person;
 import android.app.RemoteInput;
 import android.app.RemoteInputHistoryItem;
@@ -51,6 +58,7 @@ import android.os.SystemClock;
 import android.service.notification.NotificationListenerService.Ranking;
 import android.service.notification.SnoozeCriterion;
 import android.service.notification.StatusBarNotification;
+import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 import android.util.Slog;
@@ -63,6 +71,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.ContrastColorUtil;
 import com.android.systemui.statusbar.InflationTask;
+import com.android.systemui.statusbar.notification.NmSummarizationAllFlag;
 import com.android.systemui.statusbar.notification.collection.NotifCollection.CancellationReason;
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifFilter;
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifPromoter;
@@ -77,7 +86,8 @@ import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notification.row.NotificationGuts;
 import com.android.systemui.statusbar.notification.row.shared.HeadsUpStatusBarModel;
 import com.android.systemui.statusbar.notification.row.shared.NotificationContentModel;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
+import com.android.systemui.statusbar.notification.shared.LaunchNewFsiOnUpdate;
+import com.android.systemui.statusbar.notification.stack.PriorityBucket;
 
 import kotlinx.coroutines.flow.MutableStateFlow;
 import kotlinx.coroutines.flow.StateFlow;
@@ -135,6 +145,7 @@ public final class NotificationEntry extends ListEntry {
     private IconPack mIcons = IconPack.buildEmptyPack(null);
     private boolean interruption;
     public int targetSdk;
+    private boolean mIsFullScreenIntentNewlyAdded;
     private long lastFullScreenIntentLaunchTime = NOT_LAUNCHED_YET;
     public CharSequence remoteInputText;
     public List<RemoteInputHistoryItem> remoteInputs = null;
@@ -200,6 +211,13 @@ public final class NotificationEntry extends ListEntry {
     //  NotificationRowContentBinderRefactor has been inlined.
     private PromotedNotificationContentModels mPromotedNotificationContentModels;
 
+    private static final boolean isFsiRequestedButDenied(StatusBarNotification sbn) {
+        if (sbn == null) {
+            return false;
+        }
+        return (sbn.getNotification().flags & Notification.FLAG_FSI_REQUESTED_BUT_DENIED) != 0;
+    }
+
     /**
      * True if both
      *  1) app provided full screen intent but does not have the permission to send it
@@ -207,8 +225,7 @@ public final class NotificationEntry extends ListEntry {
      */
     public boolean isStickyAndNotDemoted() {
 
-        final boolean fsiRequestedButDenied =  (getSbn().getNotification().flags
-                & Notification.FLAG_FSI_REQUESTED_BUT_DENIED) != 0;
+        final boolean fsiRequestedButDenied = isFsiRequestedButDenied(getSbn());
 
         if (!fsiRequestedButDenied && !mIsDemoted) {
             demoteStickyHun();
@@ -324,8 +341,42 @@ public final class NotificationEntry extends ListEntry {
                     + " doesn't match existing key " + getKey());
         }
 
+        trackFullScreenIntentChange(mSbn, sbn);
         mSbn = sbn;
         mBubbleMetadata = mSbn.getNotification().getBubbleMetadata();
+    }
+
+    public void trackFullScreenIntentChange(
+            @Nullable StatusBarNotification oldSbn,
+            @NonNull StatusBarNotification newSbn) {
+        if (!LaunchNewFsiOnUpdate.isEnabled()) { return; }
+        PendingIntent oldFullScreenIntent = oldSbn == null ? null
+                : oldSbn.getNotification().fullScreenIntent;
+        PendingIntent newFullScreenIntent = newSbn.getNotification().fullScreenIntent;
+        if (newFullScreenIntent == null) {
+            // if the FSI is absent, it can't be newly added.
+            mIsFullScreenIntentNewlyAdded = false;
+        } else if (oldFullScreenIntent == null && !isFsiRequestedButDenied(oldSbn)) {
+            // We only want to consider the FSI "newly added" if the app didn't set it before. But
+            // we may have previously removed the FSI because the app lacked the FSI permission, so
+            // we need to check for that flag on the old SBN as well.
+            // Only if neither indicator of a "previous FSI" is present, is this a newly added FSI.
+            mIsFullScreenIntentNewlyAdded = true;
+        }
+    }
+
+    public void markFullScreenIntentEvaluated() {
+        if (LaunchNewFsiOnUpdate.isUnexpectedlyInLegacyMode()) {
+            return;
+        }
+        mIsFullScreenIntentNewlyAdded = false;
+    }
+
+    public boolean isFullScreenIntentNewlyAdded() {
+        if (LaunchNewFsiOnUpdate.isUnexpectedlyInLegacyMode()) {
+            return false;
+        }
+        return mIsFullScreenIntentNewlyAdded;
     }
 
     /**
@@ -416,9 +467,6 @@ public final class NotificationEntry extends ListEntry {
         return mRanking.getSnoozeCriteria();
     }
 
-    public int getUserSentiment() {
-        return mRanking.getUserSentiment();
-    }
 
     public int getSuppressedVisualEffects() {
         return mRanking.getSuppressedVisualEffects();
@@ -438,11 +486,29 @@ public final class NotificationEntry extends ListEntry {
     }
 
     public boolean isBundled() {
-        if (getRanking() == null || getRanking().getChannel() == null) {
-            Slog.wtfQuiet(TAG, "getRanking() or getRanking().getChannel() is null " + getKey());
+        if (getRanking() == null) {
+            Slog.wtfQuiet(TAG, "getRanking() is null " + getKey());
             return false;
         }
-        return SYSTEM_RESERVED_IDS.contains(getRanking().getChannel().getId());
+        if (getRanking().getChannel() == null) {
+            Slog.wtfQuiet(TAG, "getRanking().getChannel() is null " + getKey());
+            return false;
+        }
+        return getRanking().getChannel().isBundleChannel();
+    }
+
+    @Override
+    public @PriorityBucket int getBucketForLogging() {
+        if (isBundled()) {
+            return switch (getChannel().getId()) {
+                case NEWS_ID -> BUCKET_NEWS;
+                case PROMOTIONS_ID ->  BUCKET_PROMO;
+                case SOCIAL_MEDIA_ID -> BUCKET_SOCIAL;
+                case RECS_ID -> BUCKET_RECS;
+                default -> BUCKET_DYNAMIC_BUNDLE;
+            };
+        }
+        return getBucket();
     }
 
     /*
@@ -529,28 +595,11 @@ public final class NotificationEntry extends ListEntry {
      * TODO: Seems like most callers here should be asking a PipelineEntry, not a NotificationEntry
      */
     public @Nullable List<NotificationEntry> getAttachedNotifChildren() {
-        if (NotificationBundleUi.isEnabled()) {
-            if (isGroupSummary()) {
-                GroupEntry parent = (GroupEntry) getParent();
-                return parent != null ? new ArrayList<>(parent.getChildren()) : null;
-            }
-        } else {
-            if (row == null) {
-                return null;
-            }
-
-            List<ExpandableNotificationRow> rowChildren = row.getAttachedChildren();
-            if (rowChildren == null) {
-                return null;
-            }
-
-            ArrayList<NotificationEntry> children = new ArrayList<>();
-            for (ExpandableNotificationRow child : rowChildren) {
-                children.add(child.getEntryLegacy());
-            }
-
-            return children;
+        if (isGroupSummary()) {
+            GroupEntry parent = (GroupEntry) getParent();
+            return parent != null ? new ArrayList<>(parent.getChildren()) : null;
         }
+
         return null;
     }
 
@@ -579,12 +628,6 @@ public final class NotificationEntry extends ListEntry {
 
     public boolean hasJustSentRemoteInput() {
         return SystemClock.elapsedRealtime() < lastRemoteInputSent + REMOTE_INPUT_COOLDOWN;
-    }
-
-    public boolean hasFinishedInitialization() {
-        NotificationBundleUi.assertInLegacyMode();
-        return initializationTime != -1
-                && SystemClock.elapsedRealtime() > initializationTime + INITIALIZATION_DELAY;
     }
 
     public int getContrastedColor(Context context, boolean isLowPriority,
@@ -665,30 +708,12 @@ public final class NotificationEntry extends ListEntry {
         return false;
     }
 
-    public void resetInitializationTime() {
-        NotificationBundleUi.assertInLegacyMode();
-        initializationTime = -1;
-    }
-
-    public void setInitializationTime(long time) {
-        NotificationBundleUi.assertInLegacyMode();
-        if (initializationTime == -1) {
-            initializationTime = time;
-        }
-    }
-
     /**
      * Used by NotificationMediaManager to determine... things
      * @return {@code true} if we are a media notification
      */
     public boolean isMediaNotification() {
-        if (NotificationBundleUi.isEnabled()) {
-            return getSbn().getNotification().isMediaNotification();
-        } else {
-            if (row == null) return false;
-
-            return row.isMediaRow();
-        }
+        return getSbn().getNotification().isMediaNotification();
     }
 
     public boolean containsCustomViews() {
@@ -760,12 +785,12 @@ public final class NotificationEntry extends ListEntry {
         return row;
     }
 
-    public void setUserLocked(boolean userLocked) {
-        if (row != null) row.setUserLocked(userLocked);
+    public void setUserSwipingToExpandRow(boolean isUserSwiping) {
+        if (row != null) row.setUserSwipingToExpandRow(isUserSwiping);
     }
 
     public void notifyHeightChanged(boolean needsAnimation) {
-        if (row != null) row.notifyHeightChanged(needsAnimation);
+        if (row != null) row.notifyHeightChanged(needsAnimation, "NotifEntry.notifyHeightChanged");
     }
 
     public void closeRemoteInput() {
@@ -974,7 +999,7 @@ public final class NotificationEntry extends ListEntry {
         getRow().setSensitive(sensitive, deviceSensitive);
         if (sensitive != mSensitive.getValue()) {
             mSensitive.setValue(sensitive);
-            for (PipelineEntry.OnSensitivityChangedListener listener :
+            for (OnSensitivityChangedListener listener :
                     mOnSensitivityChangedListeners) {
                 listener.onSensitivityChanged(this);
             }
@@ -1074,18 +1099,12 @@ public final class NotificationEntry extends ListEntry {
      * surfaces (like status bar chips and AOD).
      */
     public PromotedNotificationContentModels getPromotedNotificationContentModels() {
-        if (PromotedNotificationContentModel.featureFlagEnabled()) {
-            return mPromotedNotificationContentModels;
-        } else {
-            Log.wtf(TAG, "getting promoted content without feature flag enabled", new Throwable());
-            return null;
-        }
+        return mPromotedNotificationContentModels;
     }
 
     /**
      * Returns whether the NotificationEntry is promoted ongoing.
      */
-    @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
     public boolean isPromotedOngoing() {
         return mSbn.getNotification().isPromotedOngoing();
     }
@@ -1096,11 +1115,18 @@ public final class NotificationEntry extends ListEntry {
      */
     public void setPromotedNotificationContentModels(
             @Nullable PromotedNotificationContentModels promotedNotificationContentModels) {
-        if (PromotedNotificationContentModel.featureFlagEnabled()) {
-            this.mPromotedNotificationContentModels = promotedNotificationContentModels;
-        } else {
-            Log.wtf(TAG, "setting promoted content without feature flag enabled", new Throwable());
+        this.mPromotedNotificationContentModels = promotedNotificationContentModels;
+    }
+
+    public @Nullable String getSummarization() {
+        CharSequence summarization = null;
+        if (NmSummarizationAllFlag.isEnabled()) {
+            summarization = mSbn.getNotification().getSummarizedContent();
         }
+        if (TextUtils.isEmpty(summarization)) {
+            summarization = getRanking() != null ? getRanking().getSummarization() : null;
+        }
+        return summarization != null ? summarization.toString() : null;
     }
 
     /** Information about a suggestion that is being edited. */

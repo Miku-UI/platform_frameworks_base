@@ -16,10 +16,17 @@
 
 package com.android.server.power.stats;
 
+import static android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+
+import android.content.pm.PackageManager;
+import android.os.Process;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 
 import androidx.test.runner.AndroidJUnit4;
 
@@ -35,10 +42,14 @@ public class PowerStatsUidResolverTest {
     private final PowerStatsUidResolver mResolver = new PowerStatsUidResolver();
     @Mock
     PowerStatsUidResolver.Listener mListener;
+    @Mock
+    private PackageManager mPackageManager;
 
     @Before
     public void setup() {
         MockitoAnnotations.initMocks(this);
+
+        mResolver.setPackageManager(mPackageManager);
     }
 
     @Test
@@ -112,4 +123,35 @@ public class PowerStatsUidResolverTest {
         mResolver.releaseUidsInRange(5, 9);     // Empty
         verifyNoMoreInteractions(mListener);
     }
+
+    @Test
+    public void getOwnerUid_normalUid() {
+        int uid = 10100;
+        assertThat(mResolver.getOwnerUid(uid)).isEqualTo(uid);
+    }
+
+    @Test
+    public void getOwnerUid_isolatedUid() {
+        int isolatedUid = 99000;
+        int appUid = 10100;
+        mResolver.noteIsolatedUidAdded(isolatedUid, appUid);
+        assertThat(mResolver.getOwnerUid(isolatedUid)).isEqualTo(appUid);
+    }
+
+    @Test
+    public void getOwnerUid_sdkSandboxUid() {
+        int appUid = 10100;
+        int sdkSandboxUid = Process.toSdkSandboxUid(appUid);
+        assertThat(mResolver.getOwnerUid(sdkSandboxUid)).isEqualTo(appUid);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void getOwnerUid_privateComputeCoreUid() {
+        int appUid = 10100;
+        int pccUid = 30000; // Process.FIRST_PCC_UID
+        when(mPackageManager.getAppUidForPrivateComputeCoreUid(pccUid)).thenReturn(appUid);
+        assertThat(mResolver.getOwnerUid(pccUid)).isEqualTo(appUid);
+    }
+
 }

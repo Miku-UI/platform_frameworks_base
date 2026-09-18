@@ -20,13 +20,17 @@
 
 #include "android_media_AudioTrack.h"
 
+#include <android-base/expected.h>
 #include <android-base/macros.h>
+#include <android/media/audio/common/FlushFromFrameAccuracy.h>
+#include <android/media/audio/common/FlushFromFrameSupport.h>
 #include <android_os_Parcel.h>
 #include <binder/MemoryBase.h>
 #include <binder/MemoryHeapBase.h>
 #include <media/AudioParameter.h>
 #include <media/AudioSystem.h>
 #include <media/AudioTrack.h>
+#include <media/AudioTrackMmap.h>
 #include <nativehelper/JNIHelp.h>
 #include <nativehelper/ScopedUtfChars.h>
 #include <utils/Log.h>
@@ -49,6 +53,8 @@
 using namespace android;
 
 using ::android::media::VolumeShaper;
+using ::android::media::audio::common::FlushFromFrameAccuracy;
+using ::android::media::audio::common::FlushFromFrameSupport;
 
 // ----------------------------------------------------------------------------
 static const char* const kClassPathName = "android/media/AudioTrack";
@@ -63,6 +69,7 @@ struct audio_track_fields_t {
 static audio_track_fields_t      javaAudioTrackFields;
 static PlaybackParams::fields_t gPlaybackParamsFields;
 static VolumeShaperHelper::fields_t gVolumeShaperFields;
+static ChannelMasks::fields_t gAudioChannelMasksFields;
 
 class AudioTrackCallbackImpl : public AudioTrack::IAudioTrackCallback {
   public:
@@ -103,7 +110,7 @@ class AudioTrackCallbackImpl : public AudioTrack::IAudioTrackCallback {
           LOG_FATAL("Received canWrite callback for non-offload track");
           return 0;
       }
-      const size_t availableForWrite = buffer.size();
+      const size_t availableForWrite = buffer.frameCount;
       const int arg = availableForWrite > INT32_MAX ? INT32_MAX : (int) availableForWrite;
       postEvent(EVENT_CAN_WRITE_MORE_DATA, arg);
       return 0;
@@ -233,6 +240,21 @@ sp<AudioTrack> getAudioTrack(JNIEnv* env, jobject thiz) {
     return getFieldSp<AudioTrack>(env, thiz, javaAudioTrackFields.nativeTrackInJavaObj);
 }
 
+// These values must match the values defined in AudioTrack.java.
+static constexpr int FLUSH_FROM_ACCURACY_BEST_EFFORT = 0;
+static constexpr int FLUSH_FROM_ACCURACY_EXACT = 1;
+
+::android::ConversionResult<FlushFromFrameAccuracy> javaInt2FlushFromFrameAccuracy(jint accuracy) {
+    switch (accuracy) {
+        case FLUSH_FROM_ACCURACY_BEST_EFFORT:
+            return FlushFromFrameAccuracy::BEST_EFFORT;
+        case FLUSH_FROM_ACCURACY_EXACT:
+            return FlushFromFrameAccuracy::EXACT;
+        default:
+            return ::base::unexpected(BAD_VALUE);
+    }
+}
+
 } // anonymous
 // ----------------------------------------------------------------------------
 // For MediaSync
@@ -241,18 +263,18 @@ sp<AudioTrack> android_media_AudioTrack_getAudioTrack(JNIEnv* env, jobject audio
 }
 
 // ----------------------------------------------------------------------------
-static jint android_media_AudioTrack_setup(JNIEnv *env, jobject thiz, jobject weak_this,
+static jint android_media_AudioTrack_setup(JNIEnv* env, jobject thiz, jobject weak_this,
                                            jobject jaa, jintArray jSampleRate,
-                                           jint channelPositionMask, jint channelIndexMask,
-                                           jint audioFormat, jint buffSizeInBytes, jint memoryMode,
+                                           jobject jChannelMasks, jint audioFormat,
+                                           jint buffSizeInBytes, jint memoryMode,
                                            jintArray jSession, jobject jAttributionSource,
                                            jlong nativeAudioTrack, jboolean offload,
                                            jint encapsulationMode, jobject tunerConfiguration,
-                                           jstring opPackageName) {
-    ALOGV("sampleRates=%p, channel mask=%x, index mask=%x, audioFormat(Java)=%d, buffSize=%d,"
+                                           jstring opPackageName, jstring codecProvenance) {
+    ALOGV("sampleRates=%p, audioFormat(Java)=%d, buffSize=%d,"
           " nativeAudioTrack=0x%" PRIX64 ", offload=%d encapsulationMode=%d tuner=%p",
-          jSampleRate, channelPositionMask, channelIndexMask, audioFormat, buffSizeInBytes,
-          nativeAudioTrack, offload, encapsulationMode, tunerConfiguration);
+          jSampleRate, audioFormat, buffSizeInBytes, nativeAudioTrack, offload, encapsulationMode,
+          tunerConfiguration);
 
     if (jSession == NULL) {
         ALOGE("Error creating AudioTrack: invalid session ID pointer");
@@ -296,10 +318,14 @@ static jint android_media_AudioTrack_setup(JNIEnv *env, jobject thiz, jobject we
         env->ReleaseIntArrayElements(jSampleRate, sampleRates, JNI_ABORT);
 
         // Invalid channel representations are caught by !audio_is_output_channel() below.
-        audio_channel_mask_t nativeChannelMask = nativeChannelMaskFromJavaChannelMasks(
-                channelPositionMask, channelIndexMask);
-        if (!audio_is_output_channel(nativeChannelMask)) {
-            ALOGE("Error creating AudioTrack: invalid native channel mask %#x.", nativeChannelMask);
+        audio_channel_mask_t nativeChannelMask =
+                nativeChannelMaskFromJavaChannelMasks(env, gAudioChannelMasksFields, jChannelMasks,
+                                                      false /*isInput*/);
+        audio_channel_mask_t audioOutputChannelMask =
+                (audio_channel_mask_t)((uint32_t)nativeChannelMask & ~AUDIO_CHANNEL_HAPTIC_ALL);
+        if (!audio_is_output_channel(audioOutputChannelMask)) {
+            ALOGE("Error creating AudioTrack: invalid native output audio channel mask %#x.",
+                  audioOutputChannelMask);
             return (jint) AUDIOTRACK_ERROR_SETUP_INVALIDCHANNELMASK;
         }
 
@@ -324,10 +350,10 @@ static jint android_media_AudioTrack_setup(JNIEnv *env, jobject thiz, jobject we
 
         // create the native AudioTrack object
         ScopedUtfChars opPackageNameStr(env, opPackageName);
+        ScopedUtfChars codecProvenanceStr(env, codecProvenance);
 
         android::content::AttributionSourceState attributionSource;
         attributionSource.readFromParcel(parcelForJavaObject(env, jAttributionSource));
-        lpTrack = sp<AudioTrack>::make(attributionSource);
 
         // read the AudioAttributes values
         auto paa = JNIAudioAttributeHelper::makeUnique();
@@ -363,28 +389,47 @@ static jint android_media_AudioTrack_setup(JNIEnv *env, jobject thiz, jobject we
         }
 
         // initialize the native AudioTrack object
-        status_t status = NO_ERROR;
         switch (memoryMode) {
-        case MODE_STREAM:
-            status = lpTrack->set(AUDIO_STREAM_DEFAULT, // stream type, but more info conveyed
-                                                        // in paa (last argument)
-                                  sampleRateInHertz,
-                                  format, // word length, PCM
-                                  nativeChannelMask, offload ? 0 : frameCount,
-                                  offload ? AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD
-                                          : AUDIO_OUTPUT_FLAG_NONE,
-                                  lpJniStorage,
-                                  0,    // notificationFrames == 0 since not using EVENT_MORE_DATA
-                                        // to feed the AudioTrack
-                                  0,    // shared mem
-                                  true, // thread can call Java
-                                  sessionId, // audio session ID
-                                  offload ? AudioTrack::TRANSFER_SYNC_NOTIF_CALLBACK
-                                          : AudioTrack::TRANSFER_SYNC,
-                                  (offload || encapsulationMode) ? &offloadInfo : NULL,
-                                  attributionSource, // Passed from Java
-                                  paa.get());
-            break;
+            case MODE_STREAM: {
+                bool useMmapAsBackend = false;
+                if (audio_is_linear_pcm(format) && offload) {
+                    if (AudioSystem::useMmapForPcmOffload(&useMmapAsBackend) != NO_ERROR) {
+                        ALOGD("Failed to query useMmapForPcmOffload, will use classical offload");
+                        useMmapAsBackend = false;
+                    }
+                    ALOGD("Use aaudio mmap as backend for PCM offload: %d", useMmapAsBackend);
+                }
+                auto params = AudioTrack::SetParams{
+                        .streamType = AUDIO_STREAM_DEFAULT,
+                        .sampleRate = static_cast<uint32_t>(sampleRateInHertz),
+                        .format = format,
+                        .channelMask = nativeChannelMask,
+                        .frameCount = offload ? 0 : frameCount,
+                        .flags = offload ? AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD
+                                         : AUDIO_OUTPUT_FLAG_NONE,
+                        .callback = lpJniStorage,
+                        .notificationFrames = 0,
+                        .sharedBuffer = nullptr,
+                        .threadCanCallJava = true,
+                        .sessionId = sessionId,
+                        .transferType = offload ? AudioTrack::TRANSFER_SYNC_NOTIF_CALLBACK
+                                                : AudioTrack::TRANSFER_SYNC,
+                        .offloadInfo = (offload || encapsulationMode) ? &offloadInfo : nullptr,
+                        .attributionSource = attributionSource,
+                        .pAttributes = paa.get(),
+                        .doNotReconnect = false,
+                        .maxRequiredSpeed = 1.0f,
+                        .selectedDeviceId = AUDIO_PORT_HANDLE_NONE,
+                        .codecProvenance = codecProvenanceStr.c_str() != nullptr
+                                ? codecProvenanceStr.c_str()
+                                : "",
+                };
+                if (useMmapAsBackend) {
+                    lpTrack = sp<AudioTrackMmap>::make(std::move(params));
+                } else {
+                    lpTrack = sp<AudioTrack>::make(std::move(params));
+                }
+            } break;
 
         case MODE_STATIC:
         {
@@ -394,22 +439,27 @@ static jint android_media_AudioTrack_setup(JNIEnv *env, jobject thiz, jobject we
                 ALOGE("Error creating AudioTrack in static mode: error creating mem heap base");
                 goto native_init_failure;
             }
-
-            status = lpTrack->set(AUDIO_STREAM_DEFAULT, // stream type, but more info conveyed
-                                                        // in paa (last argument)
-                                  sampleRateInHertz,
-                                  format, // word length, PCM
-                                  nativeChannelMask, frameCount, AUDIO_OUTPUT_FLAG_NONE,
-                                  lpJniStorage,
-                                  0,    // notificationFrames == 0 since not using EVENT_MORE_DATA
-                                        // to feed the AudioTrack
-                                  iMem, // shared mem
-                                  true, // thread can call Java
-                                  sessionId, // audio session ID
-                                  AudioTrack::TRANSFER_SHARED,
-                                  nullptr,           // default offloadInfo
-                                  attributionSource, // Passed from Java
-                                  paa.get());
+            lpTrack = sp<AudioTrack>::make(AudioTrack::SetParams{
+                    .streamType = AUDIO_STREAM_DEFAULT,
+                    .sampleRate = static_cast<uint32_t>(sampleRateInHertz),
+                    .format = format,
+                    .channelMask = nativeChannelMask,
+                    .frameCount = frameCount,
+                    .flags = AUDIO_OUTPUT_FLAG_NONE,
+                    .callback = lpJniStorage,
+                    .notificationFrames = 0,
+                    .sharedBuffer = iMem,
+                    .threadCanCallJava = true,
+                    .sessionId = sessionId,
+                    .transferType = AudioTrack::TRANSFER_SHARED,
+                    .offloadInfo = nullptr,
+                    .attributionSource = attributionSource,
+                    .pAttributes = paa.get(),
+                    .doNotReconnect = false,
+                    .maxRequiredSpeed = 1.0f,
+                    .selectedDeviceId = AUDIO_PORT_HANDLE_NONE,
+                    .codecProvenance = "",
+            });
             break;
         }
         default:
@@ -417,8 +467,8 @@ static jint android_media_AudioTrack_setup(JNIEnv *env, jobject thiz, jobject we
             goto native_init_failure;
         }
 
-        if (status != NO_ERROR) {
-            ALOGE("Error %d initializing AudioTrack", status);
+        if (lpTrack->initCheck() != NO_ERROR) {
+            ALOGE("Error %d initializing AudioTrack", lpTrack->initCheck());
             goto native_init_failure;
         }
         // Set caller name so it can be logged in destructor.
@@ -437,8 +487,7 @@ static jint android_media_AudioTrack_setup(JNIEnv *env, jobject thiz, jobject we
         //  mState (?)
         //  mPlayState (?)
         // these may be used internally (Java AudioTrack.audioParamCheck():
-        //  mChannelMask
-        //  mChannelIndexMask
+        //  mChannelMasks
         //  mDataLoadMode
 
         // initialize the callback information:
@@ -500,16 +549,17 @@ native_init_failure:
 }
 
 // ----------------------------------------------------------------------------
-static jboolean
-android_media_AudioTrack_is_direct_output_supported(JNIEnv *env, jobject thiz,
-                                             jint encoding, jint sampleRate,
-                                             jint channelMask, jint channelIndexMask,
-                                             jint contentType, jint usage, jint flags) {
+static jboolean android_media_AudioTrack_is_direct_output_supported(JNIEnv* env, jobject thiz,
+                                                                    jint encoding, jint sampleRate,
+                                                                    jobject channelMasks,
+                                                                    jint contentType, jint usage,
+                                                                    jint flags) {
     audio_config_base_t config = {};
     audio_attributes_t attributes = {};
     config.format = static_cast<audio_format_t>(audioFormatToNative(encoding));
     config.sample_rate = static_cast<uint32_t>(sampleRate);
-    config.channel_mask = nativeChannelMaskFromJavaChannelMasks(channelMask, channelIndexMask);
+    config.channel_mask = nativeChannelMaskFromJavaChannelMasks(env, gAudioChannelMasksFields,
+                                                                channelMasks, false /*isInput*/);
     attributes.content_type = static_cast<audio_content_type_t>(contentType);
     attributes.usage = static_cast<audio_usage_t>(usage);
     attributes.flags = static_cast<audio_flags_mask_t>(flags);
@@ -946,6 +996,17 @@ static jint android_media_AudioTrack_get_pos_update_period(JNIEnv *env,  jobject
     return (jint)period;
 }
 
+// ----------------------------------------------------------------------------
+static jlong android_media_AudioTrack_get_written_frames_count(JNIEnv *env, jobject thiz) {
+    sp<AudioTrack> lpTrack = getAudioTrack(env, thiz);
+
+    if (lpTrack == nullptr) {
+        jniThrowException(env, "java/lang/IllegalStateException",
+                          "Unable to retrieve AudioTrack pointer for getWrittenFramesCount()");
+        return (jlong)AUDIO_JAVA_ERROR;
+    }
+    return (jlong)lpTrack->getWrittenFramesCount();
+}
 
 // ----------------------------------------------------------------------------
 static jint android_media_AudioTrack_set_position(JNIEnv *env,  jobject thiz,
@@ -1300,7 +1361,7 @@ static int android_media_AudioTrack_setPresentation(
         return (jint)AUDIO_JAVA_ERROR;
     }
 
-    return (jint)lpTrack->selectPresentation((int)presentationId, (int)programId);
+    return nativeToJavaStatus(lpTrack->selectPresentation((int)presentationId, (int)programId));
 }
 
 // ----------------------------------------------------------------------------
@@ -1453,19 +1514,80 @@ static jint android_media_AudioTrack_setStartThresholdInFrames(JNIEnv *env, jobj
     return (jint)result; // this should be a positive value.
 }
 
+static jlong android_media_AudioTrack_flushFromFrame(JNIEnv* env, jobject thiz, jint accuracy,
+                                                     jlong positionInFrames) {
+    sp<AudioTrack> lpTrack = getAudioTrack(env, thiz);
+    if (lpTrack == nullptr) {
+        jniThrowException(env, "java/lang/IllegalStateException",
+                          "Unable to retrieve AudioTrack pointer for flushFromFrame()");
+        return (jint)AUDIO_JAVA_ERROR;
+    }
+    auto aidlFlushFromFrameAccuracy = javaInt2FlushFromFrameAccuracy(accuracy);
+    if (!aidlFlushFromFrameAccuracy.ok()) {
+        jniThrowExceptionFmt(env, "java/lang/IllegalArgumentException",
+                             "Illegal flush from frame accuracy = %d", accuracy);
+        return (jlong)AUDIO_JAVA_ERROR;
+    }
+    int64_t result;
+    auto status = lpTrack->flushFromFrame(aidlFlushFromFrameAccuracy.value(),
+                                          (int64_t)positionInFrames, &result);
+    if (status == NO_ERROR) {
+        return (jlong)result;
+    } else if (status == BAD_VALUE) {
+        jniThrowException(env, "java/lang/IllegalArgumentException", "Illegal value");
+        return (jlong)AUDIO_JAVA_ERROR;
+    } else {
+        jniThrowException(env, "java/lang/UnsupportedOperationException",
+                          "flushWrittenFramesFromPosition is not supported");
+        return (jlong)AUDIO_JAVA_ERROR;
+    }
+}
+
+static jint android_media_AudioTrack_getFlushWrittenFramesFromPositionSupport(
+        JNIEnv* env, jobject /*thiz*/, jint jEncoding, jint jSampleRate, jobject jChannelMasks,
+        jobject jAudioAttributes) {
+    audio_config_base_t nConfig = AUDIO_CONFIG_BASE_INITIALIZER;
+    nConfig.format = audioFormatToNative(jEncoding);
+    nConfig.sample_rate = jSampleRate;
+    nConfig.channel_mask = nativeChannelMaskFromJavaChannelMasks(env, gAudioChannelMasksFields,
+                                                                 jChannelMasks, false /*isInput*/);
+
+    JNIAudioAttributeHelper::UniqueAaPtr paa = JNIAudioAttributeHelper::makeUnique();
+    jint jStatus = JNIAudioAttributeHelper::nativeFromJava(env, jAudioAttributes, paa.get());
+    if (jStatus != (jint)AUDIO_JAVA_SUCCESS) {
+        ALOGE("%s failed to convert audio attributes to native, %d", __func__, jStatus);
+        return (jint)FlushFromFrameSupport::UNSUPPORTED;
+    }
+
+    FlushFromFrameSupport support = FlushFromFrameSupport::UNSUPPORTED;
+    if (status_t status =
+                AudioSystem::getFlushFromFrameSupport(nConfig, *paa.get(),
+                                                      static_cast<audio_output_flags_t>(
+                                                              AUDIO_OUTPUT_FLAG_COMPRESS_OFFLOAD |
+                                                              AUDIO_OUTPUT_FLAG_NON_BLOCKING),
+                                                      &support);
+        status != NO_ERROR) {
+        ALOGE("%s failed to query, error=%d", __func__, status);
+        return (jint)FlushFromFrameSupport::UNSUPPORTED;
+    }
+
+    return (jint)support;
+}
+
 // ----------------------------------------------------------------------------
 // ----------------------------------------------------------------------------
+// clang-format off
 static const JNINativeMethod gMethods[] = {
         // name,              signature,     funcPtr
-        {"native_is_direct_output_supported", "(IIIIIII)Z",
+        {"native_is_direct_output_supported", "(IILjava/lang/Object;III)Z",
          (void *)android_media_AudioTrack_is_direct_output_supported},
         {"native_start", "()V", (void *)android_media_AudioTrack_start},
         {"native_stop", "()V", (void *)android_media_AudioTrack_stop},
         {"native_pause", "()V", (void *)android_media_AudioTrack_pause},
         {"native_flush", "()V", (void *)android_media_AudioTrack_flush},
         {"native_setup",
-         "(Ljava/lang/Object;Ljava/lang/Object;[IIIIII[ILandroid/os/Parcel;"
-         "JZILjava/lang/Object;Ljava/lang/String;)I",
+         "(Ljava/lang/Object;Ljava/lang/Object;[ILjava/lang/Object;III[ILandroid/os/Parcel;"
+         "JZILjava/lang/Object;Ljava/lang/String;Ljava/lang/String;)I",
          (void *)android_media_AudioTrack_setup},
         {"native_finalize", "()V", (void *)android_media_AudioTrack_finalize},
         {"native_release", "()V", (void *)android_media_AudioTrack_release},
@@ -1495,6 +1617,8 @@ static const JNINativeMethod gMethods[] = {
          (void *)android_media_AudioTrack_set_pos_update_period},
         {"native_get_pos_update_period", "()I",
          (void *)android_media_AudioTrack_get_pos_update_period},
+        {"native_get_written_frames_count", "()J",
+         (void *)android_media_AudioTrack_get_written_frames_count},
         {"native_set_position", "(I)I", (void *)android_media_AudioTrack_set_position},
         {"native_get_position", "()I", (void *)android_media_AudioTrack_get_position},
         {"native_get_latency", "()I", (void *)android_media_AudioTrack_get_latency},
@@ -1538,7 +1662,12 @@ static const JNINativeMethod gMethods[] = {
          (void *)android_media_AudioTrack_setStartThresholdInFrames},
         {"native_getStartThresholdInFrames", "()I",
          (void *)android_media_AudioTrack_getStartThresholdInFrames},
+        {"native_flushFromFrame", "(IJ)J", (void *)android_media_AudioTrack_flushFromFrame},
+        {"native_getFlushWrittenFramesFromPositionSupport",
+         "(IILandroid/media/AudioFormat$ChannelMasks;Landroid/media/AudioAttributes;)I",
+         (void *)android_media_AudioTrack_getFlushWrittenFramesFromPositionSupport},
 };
+// clang-format on
 
 // field names found in android/media/AudioTrack.java
 #define JAVA_POSTEVENT_CALLBACK_NAME                    "postEventFromNative"
@@ -1596,6 +1725,8 @@ int register_android_media_AudioTrack(JNIEnv *env)
     gPlaybackParamsFields.init(env);
 
     gVolumeShaperFields.init(env);
+
+    gAudioChannelMasksFields.init(env);
 
     // optional check that the TunerConfiguration class and fields exist.
     TunerConfigurationHelper::initCheckOrDie(env);

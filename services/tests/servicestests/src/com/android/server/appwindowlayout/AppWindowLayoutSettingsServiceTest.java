@@ -25,6 +25,7 @@ import static com.android.server.appwindowlayout.AppWindowLayoutSettingsRestoreS
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -36,6 +37,7 @@ import static org.mockito.Mockito.verify;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.IPackageManager;
+import android.content.pm.PackageInfo;
 import android.net.Uri;
 import android.os.Environment;
 import android.os.Looper;
@@ -128,28 +130,52 @@ public class AppWindowLayoutSettingsServiceTest {
         final int userId = mContext.getUserId();
         mService.awaitPackageInstallForAspectRatio(DEFAULT_PACKAGE_NAME, userId,
                 USER_MIN_ASPECT_RATIO_FULLSCREEN);
-
-        sendPackageAddedEvent(DEFAULT_PACKAGE_NAME);
+        setPackageInfo(DEFAULT_PACKAGE_NAME);
+        sendPackageAddedEvent(DEFAULT_PACKAGE_NAME, /* fullyInstalled= */ true);
 
         verify(mIPackageManager).setUserMinAspectRatio(DEFAULT_PACKAGE_NAME, userId,
                 USER_MIN_ASPECT_RATIO_FULLSCREEN);
     }
 
     @Test
-    public void testOnPackageAdded_setAllAspectRatios_stopListeningForPackageUpdates() {
+    public void testOnPackageAdded_appNotYetInstalled_awaitsPackageFullyInstalled()
+            throws RemoteException {
+        final int userId = mContext.getUserId();
+        mService.awaitPackageInstallForAspectRatio(DEFAULT_PACKAGE_NAME, userId,
+                USER_MIN_ASPECT_RATIO_FULLSCREEN);
+
+        sendPackageAddedEvent(DEFAULT_PACKAGE_NAME, /* fullyInstalled= */ false);
+
+        verify(mIPackageManager, never()).setUserMinAspectRatio(eq(DEFAULT_PACKAGE_NAME),
+                eq(userId), anyInt());
+
+        setPackageInfo(DEFAULT_PACKAGE_NAME);
+        sendPackageAddedEvent(DEFAULT_PACKAGE_NAME, /* fullyInstalled= */ true);
+
+
+        verify(mIPackageManager).setUserMinAspectRatio(DEFAULT_PACKAGE_NAME, userId,
+                USER_MIN_ASPECT_RATIO_FULLSCREEN);
+    }
+
+
+    @Test
+    public void testOnPackageAdded_setAllAspectRatios_stopListeningForPackageUpdates()
+            throws Exception {
         mService.awaitPackageInstallForAspectRatio(DEFAULT_PACKAGE_NAME, mUserId,
                 USER_MIN_ASPECT_RATIO_FULLSCREEN);
 
         // AppWindowLayoutSettingsService should remove the package data from storage after
         // processing package-added.
-        sendPackageAddedEvent(DEFAULT_PACKAGE_NAME);
+        setPackageInfo(DEFAULT_PACKAGE_NAME);
+        sendPackageAddedEvent(DEFAULT_PACKAGE_NAME, /* fullyInstalled= */ true);
 
         // As the only package data has been processed, stop listening to package updates.
         verify(mPackageMonitor).unregister();
     }
 
     @Test
-    public void testOnPackageAdded_twoPackagesButOnlyOneInstalled_stillRegisteredPackageUpdates() {
+    public void testOnPackageAdded_twoPackagesButOnlyOneInstalled_stillRegisteredPackageUpdates()
+            throws Exception {
         mService.awaitPackageInstallForAspectRatio(DEFAULT_PACKAGE_NAME, mUserId,
                 USER_MIN_ASPECT_RATIO_FULLSCREEN);
         mService.awaitPackageInstallForAspectRatio(ANOTHER_PACKAGE_NAME, mUserId,
@@ -157,7 +183,8 @@ public class AppWindowLayoutSettingsServiceTest {
 
         // AppWindowLayoutSettingsService should remove the package data from storage after
         // processing package-added.
-        sendPackageAddedEvent(DEFAULT_PACKAGE_NAME);
+        setPackageInfo(DEFAULT_PACKAGE_NAME);
+        sendPackageAddedEvent(DEFAULT_PACKAGE_NAME, /* fullyInstalled= */ true);
 
         // As the only package data has been processed, stop listening to package updates.
         verify(mPackageMonitor, never()).unregister();
@@ -166,7 +193,8 @@ public class AppWindowLayoutSettingsServiceTest {
     @Test
     public void testOnPackageAdded_noUserAspectRatioExists_noUserAspectRatioIsSet()
             throws Exception {
-        sendPackageAddedEvent(DEFAULT_PACKAGE_NAME);
+        setPackageInfo(DEFAULT_PACKAGE_NAME);
+        sendPackageAddedEvent(DEFAULT_PACKAGE_NAME, /* fullyInstalled= */ true);
 
         verify(mIPackageManager, never()).setUserMinAspectRatio(anyString(), anyInt(), anyInt());
     }
@@ -179,7 +207,8 @@ public class AppWindowLayoutSettingsServiceTest {
         mService.awaitPackageInstallForAspectRatio(DEFAULT_PACKAGE_NAME, mUserId,
                 USER_MIN_ASPECT_RATIO_FULLSCREEN);
 
-        sendPackageAddedEvent(DEFAULT_PACKAGE_NAME);
+        setPackageInfo(DEFAULT_PACKAGE_NAME);
+        sendPackageAddedEvent(DEFAULT_PACKAGE_NAME, /* fullyInstalled= */ true);
 
         verify(mIPackageManager, never()).setUserMinAspectRatio(DEFAULT_PACKAGE_NAME, mUserId,
                 USER_MIN_ASPECT_RATIO_FULLSCREEN);
@@ -204,12 +233,17 @@ public class AppWindowLayoutSettingsServiceTest {
                 + filename);
     }
 
-    private void sendPackageAddedEvent(@NonNull String packageName) {
+    private void sendPackageAddedEvent(@NonNull String packageName, boolean fullyInstalled) {
         Intent intent = new Intent(Intent.ACTION_PACKAGE_ADDED);
         intent.setData(Uri.fromParts("package", packageName, null));
         intent.putExtra(Intent.EXTRA_USER_HANDLE, mUserId);
         intent.putExtra(Intent.EXTRA_UID, mContext.getApplicationInfo().uid);
-        intent.putExtra(Intent.EXTRA_REPLACING, false);
+        intent.putExtra(Intent.EXTRA_REPLACING, fullyInstalled);
         mPackageMonitor.doHandlePackageEvent(intent);
+    }
+
+    private void setPackageInfo(@NonNull String packageName) throws RemoteException {
+        doReturn(mock(PackageInfo.class)).when(mIPackageManager).getPackageInfo(eq(packageName),
+                anyLong(), eq(mUserId));
     }
 }

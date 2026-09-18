@@ -26,16 +26,12 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.os.Process
-import org.mockito.Mockito
 import java.util.Random
+import org.mockito.Mockito
 
-/**
- * Convenience methods for drag tests.
- */
+/** Convenience methods for drag tests. */
 object DragTestUtils {
-    /**
-     * Creates an app-based clip data that is by default resizeable.
-     */
+    /** Creates an app-based clip data that is by default resizeable. */
     @JvmStatic
     fun createAppClipData(mimeType: String): ClipData {
         val clipDescription = ClipDescription(mimeType, arrayOf(mimeType))
@@ -62,18 +58,12 @@ object DragTestUtils {
         return data
     }
 
-    /**
-     * Creates an intent-based clip data that is by default resizeable.
-     */
+    /** Creates an intent-based clip data that is by default resizeable. */
     @JvmStatic
     fun createIntentClipData(intent: PendingIntent): ClipData {
-        val clipDescription = ClipDescription(
-            "Intent",
-            arrayOf(ClipDescription.MIMETYPE_TEXT_INTENT)
-        )
-        val item = ClipData.Item.Builder()
-            .setIntentSender(intent.intentSender)
-            .build()
+        val clipDescription =
+            ClipDescription("Intent", arrayOf(ClipDescription.MIMETYPE_TEXT_INTENT))
+        val item = ClipData.Item.Builder().setIntentSender(intent.intentSender).build()
         item.activityInfo = ActivityInfo()
         item.activityInfo.applicationInfo = ApplicationInfo()
         val data = ClipData(clipDescription, item)
@@ -81,42 +71,36 @@ object DragTestUtils {
         return data
     }
 
-    /**
-     * Creates a new launchable intent.
-     */
+    /** Creates a new launchable intent. */
     @JvmStatic
-    fun createLaunchableIntent(context: Context) : PendingIntent {
+    fun createLaunchableIntent(context: Context): PendingIntent {
         val fakeActivityIntent = Intent()
-        fakeActivityIntent.component = ComponentName("com.android.wm.shell.draganddrop",
-            "FakeActivity")
+        fakeActivityIntent.component =
+            ComponentName("com.android.wm.shell.draganddrop", "FakeActivity")
         return PendingIntent.getActivity(context, 0, fakeActivityIntent, FLAG_IMMUTABLE)
     }
 
-    /**
-     * Sets the given clip data to be resizeable.
-     */
+    /** Sets the given clip data to be resizeable. */
     @JvmStatic
     fun setClipDataResizeable(data: ClipData, resizeable: Boolean) {
-        data.getItemAt(0).activityInfo.resizeMode = if (resizeable)
-            ActivityInfo.RESIZE_MODE_RESIZEABLE
-        else
-            ActivityInfo.RESIZE_MODE_UNRESIZEABLE
+        data.getItemAt(0).activityInfo.resizeMode =
+            if (resizeable) ActivityInfo.RESIZE_MODE_RESIZEABLE
+            else ActivityInfo.RESIZE_MODE_UNRESIZEABLE
     }
 
-    /**
-     * Creates a task info with the given params.
-     */
+    /** Creates a task info with the given params. */
     @JvmStatic
     fun createTaskInfo(winMode: Int, actType: Int): ActivityManager.RunningTaskInfo {
         return createTaskInfo(winMode, actType, false)
     }
 
-    /**
-     * Creates a task info with the given params.
-     */
+    /** Creates a task info with the given params. */
     @JvmStatic
-    fun createTaskInfo(winMode: Int, actType: Int, alwaysOnTop: Boolean = false):
-            ActivityManager.RunningTaskInfo {
+    fun createTaskInfo(
+        winMode: Int,
+        actType: Int,
+        alwaysOnTop: Boolean = false,
+    ): ActivityManager.RunningTaskInfo {
         val info = ActivityManager.RunningTaskInfo()
         info.taskId = Random().nextInt()
         info.configuration.windowConfiguration.activityType = actType
@@ -124,10 +108,7 @@ object DragTestUtils {
         info.configuration.windowConfiguration.isAlwaysOnTop = alwaysOnTop
         info.isVisible = true
         info.isResizeable = true
-        info.baseActivity = ComponentName(
-            "com.android.wm.shell",
-            ".ActivityWithMode$winMode"
-        )
+        info.baseActivity = ComponentName("com.android.wm.shell", ".ActivityWithMode$winMode")
         info.baseIntent = Intent()
         info.baseIntent.setComponent(info.baseActivity)
         val activityInfo = ActivityInfo()

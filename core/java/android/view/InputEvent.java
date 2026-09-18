@@ -20,12 +20,14 @@ import android.annotation.TestApi;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Common base class for input events.
  */
+@RavenwoodKeepWholeClass
 public abstract class InputEvent implements Parcelable {
     /** @hide */
     protected static final int PARCEL_TOKEN_MOTION_EVENT = 1;

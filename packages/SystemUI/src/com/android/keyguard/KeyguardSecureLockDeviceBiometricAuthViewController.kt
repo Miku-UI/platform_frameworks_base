@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.lifecycleScope
 import com.android.systemui.bouncer.ui.helper.BouncerHapticPlayer
 import com.android.systemui.flags.FeatureFlags
+import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.res.R
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
@@ -46,7 +47,7 @@ class KeyguardSecureLockDeviceBiometricAuthViewController(
     mEmergencyButtonController: EmergencyButtonController,
     messageAreaControllerFactory: KeyguardMessageAreaController.Factory?,
     featureFlags: FeatureFlags,
-    bouncerHapticPlayer: BouncerHapticPlayer?,
+    bouncerHapticPlayer: BouncerHapticPlayer,
 ) :
     KeyguardInputViewController<KeyguardSecureLockDeviceBiometricAuthView>(
         view,
@@ -71,7 +72,12 @@ class KeyguardSecureLockDeviceBiometricAuthViewController(
                 id = R.id.secure_lock_device_biometric_auth_content
                 setContent {
                     SecureLockDeviceContent(
-                        secureLockDeviceViewModelFactory = secureLockDeviceViewModelFactory,
+                        viewModel =
+                            rememberViewModel(
+                                traceName = "SecureLockDeviceBiometricAuthContentViewModel"
+                            ) {
+                                secureLockDeviceViewModelFactory.create()
+                            },
                         modifier = Modifier.fillMaxSize(),
                     )
                 }

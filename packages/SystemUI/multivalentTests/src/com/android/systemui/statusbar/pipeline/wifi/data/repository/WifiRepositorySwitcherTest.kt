@@ -31,7 +31,7 @@ import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.DemoWif
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.model.FakeWifiEventModel
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.prod.WifiRepositoryImpl
 import com.android.systemui.testKosmos
-import com.android.systemui.user.data.repository.FakeUserRepository
+import com.android.systemui.user.data.repository.fakeUserRepository
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.kotlinArgumentCaptor
@@ -74,7 +74,7 @@ class WifiRepositorySwitcherTest : SysuiTestCase() {
     private val demoModelFlow = MutableStateFlow<FakeWifiEventModel?>(null)
 
     private val mainExecutor = FakeExecutor(FakeSystemClock())
-    private val userRepository = FakeUserRepository()
+    private val userRepository = kosmos.fakeUserRepository
     private val connectivityRepository = kosmos.connectivityRepository
 
     private val testDispatcher = UnconfinedTestDispatcher()

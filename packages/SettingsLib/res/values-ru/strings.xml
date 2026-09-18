@@ -48,7 +48,7 @@
     <string name="wifi_security_psk_sae" msgid="8135104122179904684">"WPA2/WPA3-Personal"</string>
     <string name="wifi_security_none_owe" msgid="5241745828327404101">"Не настроено/Enhanced Open"</string>
     <string name="wifi_security_owe" msgid="3343421403561657809">"Enhanced Open"</string>
-    <string name="wifi_security_eap_suiteb" msgid="415842785991698142">"WPA3-Enterprise 192 бита"</string>
+    <string name="wifi_security_eap_suiteb" msgid="415842785991698142">"WPA3-Enterprise (192 бита)"</string>
     <string name="wifi_remembered" msgid="3266709779723179188">"Сохранено"</string>
     <string name="wifi_disconnected" msgid="7054450256284661757">"Не подключено"</string>
     <string name="wifi_disabled_generic" msgid="2651916945380294607">"Отключено"</string>
@@ -56,7 +56,7 @@
     <string name="wifi_disabled_password_failure" msgid="6892387079613226738">"Ошибка аутентификации"</string>
     <string name="wifi_cant_connect" msgid="5718417542623056783">"Ошибка подключения"</string>
     <string name="wifi_cant_connect_to_ap" msgid="3099667989279700135">"Не удалось подключиться к сети \"<xliff:g id="AP_NAME">%1$s</xliff:g>\""</string>
-    <string name="wifi_check_password_try_again" msgid="8817789642851605628">"Возможно, вы указали неверный пароль. Повторите попытку."</string>
+    <string name="wifi_check_password_try_again" msgid="8817789642851605628">"Проверьте пароль и повторите попытку"</string>
     <string name="wifi_not_in_range" msgid="1541760821805777772">"Недоступна"</string>
     <string name="wifi_no_internet_no_reconnect" msgid="821591791066497347">"Подключение не будет выполняться автоматически"</string>
     <string name="wifi_no_internet" msgid="1774198889176926299">"Без доступа к интернету"</string>
@@ -126,11 +126,11 @@
     <string name="bluetooth_guest_battery_level_untethered" msgid="5404013822067644960">"Гостевое устройство. Заряд батареи: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> (Л), <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> (П)."</string>
     <string name="bluetooth_guest_media_only_battery_level" msgid="7928347900623812299">"Гостевое устройство (только медиафайлы). Заряд батареи: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_guest_media_only_battery_level_untethered" msgid="4458143141394300892">"Гостевое устройство (только медиафайлы). Заряд батареи: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> (Л), <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> (П)."</string>
-    <string name="bluetooth_battery_level_lea_support" msgid="5968584103507988820">"Подключено (поддерживается отправка аудио), заряд: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
-    <string name="bluetooth_battery_level_untethered_lea_support" msgid="803110681688633362">"Подключено (поддерживается отправка аудио), заряд: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> (Л), <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> (П)."</string>
-    <string name="bluetooth_battery_level_untethered_left_lea_support" msgid="7707464334346454950">"Подключено (поддерживается отправка аудио), заряд: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> (Л)."</string>
-    <string name="bluetooth_battery_level_untethered_right_lea_support" msgid="8941549024377771038">"Подключено (поддерживается отправка аудио), заряд: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> (П)."</string>
-    <string name="bluetooth_no_battery_level_lea_support" msgid="5721725041048434075">"Подключено (поддерживается отправка аудио)."</string>
+    <string name="bluetooth_battery_level_lea_support" msgid="5968584103507988820">"Подключено (поддерживается передача аудио), заряд: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
+    <string name="bluetooth_battery_level_untethered_lea_support" msgid="803110681688633362">"Подключено (поддерживается передача аудио), заряд: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> (Л), <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> (П)."</string>
+    <string name="bluetooth_battery_level_untethered_left_lea_support" msgid="7707464334346454950">"Подключено (поддерживается передача аудио), заряд: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> (Л)."</string>
+    <string name="bluetooth_battery_level_untethered_right_lea_support" msgid="8941549024377771038">"Подключено (поддерживается передача аудио), заряд: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> (П)."</string>
+    <string name="bluetooth_no_battery_level_lea_support" msgid="5721725041048434075">"Подключено (поддерживается передача аудио)"</string>
     <string name="bluetooth_guest_battery_level_lea_support" msgid="8098327939585013928">"Гостевое устройство (поддерживает передачу аудио). Заряд батареи: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_guest_battery_level_untethered_lea_support" msgid="3701035025565668360">"Гостевое устройство (поддерживает передачу аудио). Заряд батареи: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> (Л), <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> (П)."</string>
     <string name="bluetooth_guest_no_battery_level_lea_support" msgid="2977038548753103470">"Гостевое устройство (поддерживает передачу аудио)"</string>
@@ -148,7 +148,7 @@
     <string name="bluetooth_profile_hid" msgid="2969922922664315866">"Устройство ввода"</string>
     <string name="bluetooth_profile_pan" msgid="1006235139308318188">"Доступ к интернету"</string>
     <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"Разрешить доступ к контактам и журналу звонков"</string>
-    <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"Эти сведения нужны для оповещений о звонках и других функций"</string>
+    <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"Эта информация будет использоваться для оповещений о звонках и других функций"</string>
     <string name="bluetooth_profile_pan_nap" msgid="7871974753822470050">"Профиль PAN"</string>
     <string name="bluetooth_profile_map" msgid="8907204701162107271">"Текстовые сообщения"</string>
     <string name="bluetooth_profile_sap" msgid="8304170950447934386">"Доступ к SIM-карте"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wi-Fi: три деления"</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Wi-Fi: надежный сигнал"</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"Подключено к точке доступа на вашем устройстве."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"Эта сеть доступна всем пользователям устройства."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"Открытая сеть"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"Защищенная сеть"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"ОС Android"</string>
@@ -268,15 +269,15 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"Этот пользователь не может изменять настройки точки доступа"</string>
     <string name="enable_adb" msgid="8072776357237289039">"Отладка по USB"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"Режим отладки при подключении по USB"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"Отозвать доступ для отладки по USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"Запретить доступ к отладке с помощью adb"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"Отладка по Wi-Fi"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Режим отладки при подключении по Wi‑Fi"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Ошибка"</string>
     <string name="adb_wireless_settings" msgid="2295017847215680229">"Отладка по Wi-Fi"</string>
-    <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"Чтобы увидеть и использовать доступные устройства, включите отладку по Wi-Fi."</string>
+    <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"Чтобы просматривать и использовать доступные устройства, включите отладку по Wi-Fi."</string>
     <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"Подключить устройство с помощью QR-кода"</string>
     <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"Отсканировать QR-код для подключения устройства"</string>
-    <string name="adb_pair_method_code_title" msgid="1122590300445142904">"Подключить устройство с помощью кода подключения"</string>
+    <string name="adb_pair_method_code_title" msgid="1122590300445142904">"Подключить устройство с помощью кода"</string>
     <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"Ввести шестизначный код для подключения устройства"</string>
     <string name="adb_paired_devices_title" msgid="5268997341526217362">"Подключенные устройства"</string>
     <string name="adb_wireless_device_connected_summary" msgid="3039660790249148713">"Текущие подключения"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Подключение устройства…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Не удалось подключить устройство. QR-код неверный, или устройство находится в другой сети."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP-адрес и порт"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"Недоступно (запрещено)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"Недоступно (нет подключения к Wi-Fi)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Отсканируйте QR-код"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Отсканируйте QR-код, чтобы подключить устройство через Wi‑Fi."</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Подключите устройство к сети Wi-Fi."</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"Отладка по USB – это режим, который позволяет использовать ваше устройство как внешний накопитель: перемещать файлы (с компьютера и на компьютер), напрямую устанавливать приложения, а также просматривать системные журналы."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"Разрешить отладку по Wi-Fi?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"Отладка по Wi-Fi – это режим, предназначенный только для разработчиков. Он позволяет перемещать файлы между устройством и компьютером, напрямую устанавливать приложения, а также просматривать системные журналы."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"Запретить доступ к USB-отладке для всех компьютеров, которым он был разрешен?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"Запретить доступ к отладке с помощью adb для всех компьютеров и сетей, которым он был разрешен?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"Изменение настроек"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Только для разработчиков. Изменение этих настроек может привести к сбоям или неправильной работе устройства и приложений."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Проверять приложения при установке по USB"</string>
@@ -575,7 +578,7 @@
     <string name="retail_demo_reset_next" msgid="3688129033843885362">"Далее"</string>
     <string name="retail_demo_reset_title" msgid="1866911701095959800">"Требуется пароль"</string>
     <string name="active_input_method_subtypes" msgid="4232680535471633046">"Активные способы ввода"</string>
-    <string name="use_system_language_to_select_input_method_subtypes" msgid="4865195835541387040">"Языки системы"</string>
+    <string name="use_system_language_to_select_input_method_subtypes" msgid="4865195835541387040">"Использовать языки системы"</string>
     <string name="failed_to_open_app_settings_toast" msgid="764897252657692092">"Не удалось открыть настройки приложения \"<xliff:g id="SPELL_APPLICATION_NAME">%1$s</xliff:g>\""</string>
     <string name="ime_security_warning" msgid="6547562217880551450">"При использовании этого способа могут собираться все вводимые данные, в том числе пароли и номера кредитных карт. Запрос поступил от приложения \"<xliff:g id="IME_APPLICATION_NAME">%1$s</xliff:g>\". Использовать этот способ ввода?"</string>
     <string name="direct_boot_unaware_dialog_message" msgid="7845398276735021548">"Примечание. После перезагрузки это приложение не запустится, пока вы не разблокируете устройство."</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"Устройство отключено от Ethernet."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"Ethernet."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"Совершение вызовов невозможно."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"Физическая клавиатура"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"Выберите раскладку клавиатуры"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"По умолчанию"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"Управление включением экрана"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"Разрешить приложению включать экран"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"Приложение сможет в любое время включать экран без явного согласия с вашей стороны"</string>

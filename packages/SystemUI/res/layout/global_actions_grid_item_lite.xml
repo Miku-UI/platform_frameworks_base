@@ -30,7 +30,7 @@
             android:layout_marginBottom="@dimen/global_actions_grid_container_bottom_margin"
             android:padding="@dimen/global_actions_button_padding"
             android:scaleType="centerInside"
-            android:tint="@androidprv:color/materialColorOnSurface"
+            android:tint="@color/materialColorOnSurface"
             android:background="@drawable/global_actions_lite_button"/>
         <TextView
             android:id="@*android:id/message"
@@ -41,6 +41,6 @@
             android:singleLine="true"
             android:textSize="14sp"
             android:gravity="center"
-            android:textColor="@androidprv:color/materialColorOnSurface"
+            android:textColor="@color/materialColorOnSurface"
             android:textAppearance="?android:attr/textAppearanceSmall" />
 </com.android.systemui.globalactions.GlobalActionsItem>

@@ -2161,22 +2161,22 @@ static const JNINativeMethod gMethods[] = {
     { "provideProvisionResponseNative", "([B)Landroid/media/MediaDrm$Certificate;",
       (void *)android_media_MediaDrm_provideProvisionResponseNative },
 
-    { "getSecureStops", "()Ljava/util/List;",
+    { "getSecureStopsNative", "()Ljava/util/List;",
       (void *)android_media_MediaDrm_getSecureStops },
 
-    { "getSecureStopIds", "()Ljava/util/List;",
+    { "getSecureStopIdsNative", "()Ljava/util/List;",
       (void *)android_media_MediaDrm_getSecureStopIds },
 
-    { "getSecureStop", "([B)[B",
+    { "getSecureStopNative", "([B)[B",
       (void *)android_media_MediaDrm_getSecureStop },
 
-    { "releaseSecureStops", "([B)V",
+    { "releaseSecureStopsNative", "([B)V",
       (void *)android_media_MediaDrm_releaseSecureStops },
 
-    { "removeSecureStop", "([B)V",
+    { "removeSecureStopNative", "([B)V",
       (void *)android_media_MediaDrm_removeSecureStop },
 
-    { "removeAllSecureStops", "()V",
+    { "removeAllSecureStopsNative", "()V",
       (void *)android_media_MediaDrm_removeAllSecureStops },
 
     { "getConnectedHdcpLevel", "()I",

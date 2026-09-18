@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package systemui.shared.clocks.view
+package com.android.systemui.shared.clocks.view
 
 import android.graphics.Typeface
 import android.testing.AndroidTestingRunner
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.customization.clocks.ClockContext
+import com.android.systemui.customization.clocks.ClockContextImpl
 import com.android.systemui.customization.clocks.ClockLogger
 import com.android.systemui.customization.clocks.FixedTimeKeeper
-import com.android.systemui.customization.clocks.FontTextStyle
+import com.android.systemui.customization.clocks.FontTextStyleImpl
 import com.android.systemui.customization.clocks.TypefaceCache
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockSettings
-import com.android.systemui.shared.clocks.view.FlexClockTextView
+import com.android.systemui.shared.clocks.FlexClockContext
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -45,10 +45,7 @@ class FlexClockTextViewTest : SysuiTestCase() {
     fun setup() {
         underTest =
             FlexClockTextView(
-                ClockContext(
-                    context,
-                    context.resources,
-                    ClockSettings(),
+                FlexClockContext(
                     TypefaceCache(messageBuffer, 20) {
                         // TODO(b/364680873): Move constant to config_clockFontFamily when shipping
                         return@TypefaceCache Typeface.create(
@@ -56,16 +53,21 @@ class FlexClockTextViewTest : SysuiTestCase() {
                             Typeface.NORMAL,
                         )
                     },
-                    messageBuffer,
-                    vibrator = null,
-                    timeKeeper = FixedTimeKeeper(0),
+                    ClockContextImpl(
+                        context,
+                        context.resources,
+                        ClockSettings(),
+                        messageBuffer,
+                        vibrator = null,
+                        timeKeeper = FixedTimeKeeper(),
+                        isAnimationEnabled = false,
+                    ),
                 ),
                 isLargeClock = false,
             )
-        underTest.textStyle = FontTextStyle()
-        underTest.aodStyle = FontTextStyle()
+        underTest.applyStyles(FontTextStyleImpl(), FontTextStyleImpl())
         underTest.text = "0"
-        underTest.applyTextSize(defaultLargeClockTextSize)
+        underTest.applyTextSize(defaultLargeClockTextSize, constrainedByHeight = false)
     }
 
     @Test
@@ -97,7 +99,7 @@ class FlexClockTextViewTest : SysuiTestCase() {
     @Test
     fun applyFirstMeasureConstrainedTextSize_applyUnconstrainedTextSize() {
         underTest.applyTextSize(firstMeasureTextSize, constrainedByHeight = true)
-        underTest.applyTextSize(defaultLargeClockTextSize)
+        underTest.applyTextSize(defaultLargeClockTextSize, constrainedByHeight = false)
         assertEquals(defaultLargeClockTextSize, underTest.textSize)
     }
 }

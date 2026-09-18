@@ -80,6 +80,7 @@ public abstract class Conference extends Conferenceable {
                 Conference c, String callerDisplayName, int presentation) {}
         public void onCallDirectionChanged(Conference c, int callDirection) {}
         public void onRingbackRequested(Conference c, boolean ringback) {}
+        public void onConferenceMergeFailed(Conference c) {}
     }
 
     private final Set<Listener> mListeners = new CopyOnWriteArraySet<>();
@@ -128,7 +129,7 @@ public abstract class Conference extends Conferenceable {
     private final Connection.Listener mConnectionDeathListener = new Connection.Listener() {
         @Override
         public void onDestroyed(Connection c) {
-            if (Flags.multiPartyAnchorConf()) {
+            if (android.telecom.flags.Flags.multiPartyAnchorConf()) {
                 if (mConferenceables.remove(c)) {
                     fireOnConferenceableConnectionsChanged();
                 }
@@ -308,7 +309,7 @@ public abstract class Conference extends Conferenceable {
      *
      * @param conference The {@code Conference} to merge.
      */
-    @FlaggedApi(Flags.FLAG_MULTI_PARTY_ANCHOR_CONF)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_MULTI_PARTY_ANCHOR_CONF)
 
     public void onMerge(@NonNull Conference conference) {}
 
@@ -557,14 +558,14 @@ public abstract class Conference extends Conferenceable {
      *
      * @deprecated Use {@link #setConferenceables} instead.
      */
-    @FlaggedApi(Flags.FLAG_MULTI_PARTY_ANCHOR_CONF)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_MULTI_PARTY_ANCHOR_CONF)
     @Deprecated
     public final void setConferenceableConnections(List<Connection> conferenceableConnections) {
         clearConferenceableList();
         for (Connection c : conferenceableConnections) {
             // If statement checks for duplicates in input. It makes it N^2 but we're dealing with a
             // small amount of items here.
-            if (Flags.multiPartyAnchorConf()) {
+            if (android.telecom.flags.Flags.multiPartyAnchorConf()) {
                 if (!mConferenceables.contains(c)) {
                     c.addConnectionListener(mConnectionDeathListener);
                     mConferenceables.add(c);
@@ -585,7 +586,7 @@ public abstract class Conference extends Conferenceable {
      *
      * @param conferenceables The set of conferenceables this conference can conference with.
      */
-    @FlaggedApi(Flags.FLAG_MULTI_PARTY_ANCHOR_CONF)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_MULTI_PARTY_ANCHOR_CONF)
     public final void setConferenceables(@NonNull List<Conferenceable> conferenceables) {
         clearConferenceableList();
         for (Conferenceable c : conferenceables) {
@@ -652,7 +653,7 @@ public abstract class Conference extends Conferenceable {
 
     private final void fireOnConferenceableConnectionsChanged() {
         for (Listener l : mListeners) {
-            if (Flags.multiPartyAnchorConf()) {
+            if (android.telecom.flags.Flags.multiPartyAnchorConf()) {
                 l.onConferenceablesChanged(this, getConferenceables());
             } else {
                 l.onConferenceableConnectionsChangedLegacy(this,
@@ -665,7 +666,7 @@ public abstract class Conference extends Conferenceable {
      * Returns the {@link Connection}s or {@link Conference}s with which this {@link Conference}
      * can be merged / conferenced.
      */
-    @FlaggedApi(Flags.FLAG_MULTI_PARTY_ANCHOR_CONF)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_MULTI_PARTY_ANCHOR_CONF)
     public final @NonNull List<Conferenceable> getConferenceables() {
         return mUnmodifiableConferenceables;
     }
@@ -674,7 +675,7 @@ public abstract class Conference extends Conferenceable {
      * Returns the connections with which this connection can be conferenced.
      */
     public final List<Connection> getConferenceableConnections() {
-        if (Flags.multiPartyAnchorConf()) {
+        if (android.telecom.flags.Flags.multiPartyAnchorConf()) {
             // return the list of Connection instances from mUnmodifiableConferenceables
             List<Connection> connections = new ArrayList<>();
             for (Conferenceable c : mUnmodifiableConferenceables) {
@@ -930,7 +931,7 @@ public abstract class Conference extends Conferenceable {
      * The returned {@code Conference} can be assumed to {@link #destroy()} itself when appropriate,
      * so users of this method need not maintain a reference to its return value to destroy it.
      *
-     * @param disconnectCause The disconnect cause, ({@see android.telecomm.DisconnectCause}).
+     * @param disconnectCause The disconnect cause, (see {@link android.telecomm.DisconnectCause}).
      * @return A {@code Conference} which indicates failure.
      */
     public @NonNull static Conference createFailedConference(
@@ -939,7 +940,7 @@ public abstract class Conference extends Conferenceable {
     }
 
     private final void clearConferenceableList() {
-        if (Flags.multiPartyAnchorConf()) {
+        if (android.telecom.flags.Flags.multiPartyAnchorConf()) {
             for (Conferenceable c : mConferenceables) {
                 if (c instanceof Connection) {
                     Connection connection = (Connection) c;
@@ -1184,16 +1185,16 @@ public abstract class Conference extends Conferenceable {
      * <p>
      * This API is intended for use by the platform Telephony stack only.
      *
-     * @param isConference {@code true} if this {@link Conference} should be treated like a
+     * @param isMultiparty {@code true} if this {@link Conference} should be treated like a
      *      conference call, {@code false} if it should be treated like a single-party call.
      * @hide
      */
     @SystemApi
     @RequiresPermission(MODIFY_PHONE_STATE)
-    public void setConferenceState(boolean isConference) {
-        mIsMultiparty = isConference;
+    public void setConferenceState(boolean isMultiparty) {
+        mIsMultiparty = isMultiparty;
         for (Listener l : mListeners) {
-            l.onConferenceStateChanged(this, isConference);
+            l.onConferenceStateChanged(this, isMultiparty);
         }
     }
 
@@ -1206,7 +1207,9 @@ public abstract class Conference extends Conferenceable {
      * @param callDirection The direction of the conference.
      * @hide
      */
+    @SystemApi
     @RequiresPermission(MODIFY_PHONE_STATE)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_TELECOM_MAINLINE_API)
     public final void setCallDirection(@Call.Details.CallDirection int callDirection) {
         Log.d(this, "setDirection %d", callDirection);
         mCallDirection = callDirection;
@@ -1226,6 +1229,8 @@ public abstract class Conference extends Conferenceable {
      * {@code false} if it should emulate a standalone call (i.e. not multiparty).
      * @hide
      */
+    @SystemApi
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_TELECOM_MAINLINE_API)
     public boolean isMultiparty() {
         return mIsMultiparty;
     }
@@ -1245,7 +1250,7 @@ public abstract class Conference extends Conferenceable {
     @SystemApi
     @RequiresPermission(MODIFY_PHONE_STATE)
     public final void setAddress(@NonNull Uri address,
-            @TelecomManager.Presentation int presentation) {
+            @Annotation.Presentation int presentation) {
         Log.d(this, "setAddress %s", address);
         mAddress = address;
         mAddressPresentation = presentation;
@@ -1286,7 +1291,7 @@ public abstract class Conference extends Conferenceable {
      * @return The address presentation of the conference.
      * @hide
      */
-    public final @TelecomManager.Presentation int getAddressPresentation() {
+    public final @Annotation.Presentation int getAddressPresentation() {
         return mAddressPresentation;
     }
 
@@ -1331,7 +1336,7 @@ public abstract class Conference extends Conferenceable {
      */
     @SystemApi
     public final void setCallerDisplayName(@NonNull String callerDisplayName,
-            @TelecomManager.Presentation int presentation) {
+            @Annotation.Presentation int presentation) {
         Log.d(this, "setCallerDisplayName %s", callerDisplayName);
         mCallerDisplayName = callerDisplayName;
         mCallerDisplayNamePresentation = presentation;
@@ -1409,6 +1414,17 @@ public abstract class Conference extends Conferenceable {
     public void sendConferenceEvent(@NonNull String event, @Nullable Bundle extras) {
         for (Listener l : mListeners) {
             l.onConnectionEvent(this, event, extras);
+        }
+    }
+
+    /**
+     * Called by a {@link ConnectionService} to notify Telecom that a {@link Conference#onMerge()}
+     * request failed.
+     */
+    @FlaggedApi(Flags.FLAG_CONFERENCE_MODIFY_MERGE_FAIL)
+    public void notifyConferenceMergeFailed() {
+        for (Listener l : mListeners) {
+            l.onConferenceMergeFailed(this);
         }
     }
 }

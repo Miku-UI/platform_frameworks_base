@@ -27,7 +27,10 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier.Companion.TYPE_NON_PERSON
 import com.android.systemui.statusbar.notification.row.data.repository.TEST_BUNDLE_SPEC
 import com.android.systemui.statusbar.notification.row.entryAdapterFactory
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
+import com.android.systemui.statusbar.notification.shared.NmContextualDisplay
+import com.android.systemui.statusbar.notification.stack.BUCKET_DYNAMIC_BUNDLE
+import com.android.systemui.statusbar.notification.stack.BUCKET_NEWS
+import com.android.systemui.statusbar.notification.stack.BUCKET_SILENT
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
@@ -38,7 +41,6 @@ import org.junit.runner.RunWith
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @RunWithLooper
-@EnableFlags(NotificationBundleUi.FLAG_NAME)
 class BundleEntryAdapterTest : SysuiTestCase() {
     private lateinit var entry: BundleEntry
 
@@ -52,6 +54,36 @@ class BundleEntryAdapterTest : SysuiTestCase() {
     fun setUp() {
         entry = BundleEntry(TEST_BUNDLE_SPEC)
         underTest = factory.create(entry) as BundleEntryAdapter
+    }
+
+    @Test
+    @EnableFlags(NmContextualDisplay.FLAG_NAME)
+    fun getLoggingBucket_staticBundle() {
+        entry = BundleEntry(BundleSpec.NEWS)
+        underTest = factory.create(entry) as BundleEntryAdapter
+
+        assertThat(underTest.loggingBucket).isEqualTo(BUCKET_NEWS)
+    }
+
+    @Test
+    @EnableFlags(NmContextualDisplay.FLAG_NAME)
+    fun getSectionBucket_staticBundle() {
+        entry = BundleEntry(BundleSpec.NEWS)
+        underTest = factory.create(entry) as BundleEntryAdapter
+
+        assertThat(underTest.sectionBucket).isEqualTo(BUCKET_SILENT)
+    }
+
+    @Test
+    @EnableFlags(NmContextualDisplay.FLAG_NAME)
+    fun getLoggingBucket_dynamicBundle() {
+        assertThat(underTest.loggingBucket).isEqualTo(BUCKET_DYNAMIC_BUNDLE)
+    }
+
+    @Test
+    @EnableFlags(NmContextualDisplay.FLAG_NAME)
+    fun getSectionBucket_dynamicBundle() {
+        assertThat(underTest.sectionBucket).isEqualTo(BUCKET_SILENT)
     }
 
     @Test

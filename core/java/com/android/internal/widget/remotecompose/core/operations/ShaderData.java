@@ -15,16 +15,15 @@
  */
 package com.android.internal.widget.remotecompose.core.operations;
 
-import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.BYTE;
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.FLOAT_ARRAY;
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.INT;
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.INT_ARRAY;
-import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.SHORT;
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.UTF8;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
+import com.android.internal.widget.remotecompose.core.Limits;
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
 import com.android.internal.widget.remotecompose.core.RemoteContext;
@@ -32,6 +31,7 @@ import com.android.internal.widget.remotecompose.core.VariableSupport;
 import com.android.internal.widget.remotecompose.core.WireBuffer;
 import com.android.internal.widget.remotecompose.core.documentation.DocumentationBuilder;
 import com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation;
+import com.android.internal.widget.remotecompose.core.operations.utilities.CollectionsAccess;
 import com.android.internal.widget.remotecompose.core.serialize.MapSerializer;
 import com.android.internal.widget.remotecompose.core.serialize.Serializable;
 
@@ -46,13 +46,16 @@ import java.util.List;
 public class ShaderData extends Operation implements VariableSupport, Serializable {
     private static final int OP_CODE = Operations.DATA_SHADER;
     private static final String CLASS_NAME = "ShaderData";
-    private static final int MAX_FLOAT_LEN = 200;
     int mShaderTextId; // the actual text of a shader
     int mShaderID; // allows shaders to be referenced by number
-    @Nullable HashMap<String, float[]> mUniformRawFloatMap = null;
-    @Nullable HashMap<String, float[]> mUniformFloatMap = null;
-    @Nullable HashMap<String, int[]> mUniformIntMap;
-    @Nullable HashMap<String, Integer> mUniformBitmapMap = null;
+    @Nullable
+    HashMap<String, float[]> mUniformRawFloatMap = null;
+    @Nullable
+    HashMap<String, float[]> mUniformFloatMap = null;
+    @Nullable
+    HashMap<String, int[]> mUniformIntMap;
+    @Nullable
+    HashMap<String, Integer> mUniformBitmapMap = null;
     private boolean mShaderValid = false;
 
     public ShaderData(
@@ -183,10 +186,20 @@ public class ShaderData extends Operation implements VariableSupport, Serializab
             float[] out = null;
             for (int i = 0; i < value.length; i++) {
                 if (Float.isNaN(value[i])) {
+                    float[] dynamicValues = null;
+                    CollectionsAccess collectionsAccess = context.getCollectionsAccess();
+                    if (collectionsAccess != null) {
+                        dynamicValues = collectionsAccess
+                                .getDynamicFloats(Utils.idFromNan(value[i]));
+                    }
                     if (out == null) { // need to copy
                         out = Arrays.copyOf(value, value.length);
                     }
-                    out[i] = context.getFloat(Utils.idFromNan(value[i]));
+                    if (dynamicValues == null) {
+                        out[i] = context.getFloat(Utils.idFromNan(value[i]));
+                    } else {
+                        out[i] = value[i];
+                    }
                 }
             }
             mUniformFloatMap.put(name, out == null ? value : out);
@@ -230,12 +243,12 @@ public class ShaderData extends Operation implements VariableSupport, Serializab
     /**
      * Writes out the operation to the buffer
      *
-     * @param buffer buffer to write into
-     * @param shaderID id of shader
+     * @param buffer       buffer to write into
+     * @param shaderID     id of shader
      * @param shaderTextId id of text of shader
-     * @param floatMap the map of float uniforms
-     * @param intMap the map of int uniforms
-     * @param bitmapMap the map of bitmap uniforms
+     * @param floatMap     the map of float uniforms
+     * @param intMap       the map of int uniforms
+     * @param bitmapMap    the map of bitmap uniforms
      */
     public static void apply(
             @NonNull WireBuffer buffer,
@@ -289,7 +302,7 @@ public class ShaderData extends Operation implements VariableSupport, Serializab
     /**
      * Read this operation and add it to the list of operations
      *
-     * @param buffer the buffer to read
+     * @param buffer     the buffer to read
      * @param operations the list of operations that will be added to
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
@@ -307,7 +320,7 @@ public class ShaderData extends Operation implements VariableSupport, Serializab
             for (int i = 0; i < floatMapSize; i++) {
                 String name = buffer.readUTF8();
                 int len = buffer.readInt();
-                if (len > MAX_FLOAT_LEN) {
+                if (len > Limits.MAX_SHADER_FLOAT_COUNT) {
                     throw new RuntimeException("Float array too long");
                 }
                 float[] val = new float[len];
@@ -327,7 +340,7 @@ public class ShaderData extends Operation implements VariableSupport, Serializab
             for (int i = 0; i < intMapSize; i++) {
                 String name = buffer.readUTF8();
                 int len = buffer.readInt();
-                if (len > MAX_FLOAT_LEN) {
+                if (len > Limits.MAX_SHADER_FLOAT_COUNT) {
                     throw new RuntimeException("int array too long");
                 }
                 int[] val = new int[len];
@@ -356,20 +369,21 @@ public class ShaderData extends Operation implements VariableSupport, Serializab
      * @param doc to append the description to.
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
-        doc.operation("Data Operations", OP_CODE, CLASS_NAME)
-                .description("Shader")
-                .field(DocumentedOperation.INT, "shaderID", "id of shader")
-                .field(BYTE, " floatSize", "number of float uniforms")
-                .field(BYTE, " intSize", "number of int uniform")
-                .field(SHORT, " intSize", "number of int uniform")
-                .field(UTF8, "floatName", "name of float uniform")
-                .field(INT, "length", "length")
-                .field(FLOAT_ARRAY, "VALUE", "float uniform (max 4)")
-                .field(UTF8, "IntName", "id of shader text")
-                .field(INT, "length", "length of uniform")
-                .field(INT_ARRAY, "VALUE", "int uniform (max 4)")
-                .field(UTF8, "bitmapName", "name of bitmap")
-                .field(INT, "VALUE", "id of bitmap");
+        doc.operation("Paint & Styles Operations", OP_CODE, CLASS_NAME)
+                .additionalDocumentation("shader_data")
+                .description("Define a shader with associated uniforms")
+                .field(DocumentedOperation.INT, "shaderID", "The ID of the shader")
+                .field(DocumentedOperation.INT, "shaderTextId", "The ID of the shader source text")
+                .field(DocumentedOperation.INT, "sizes",
+                        "Encoded sizes of uniform maps (float, int, bitmap)")
+                .field(UTF8, "floatUniformName[0..n]", "Name of float uniform")
+                .field(INT, "floatUniformLength[0..n]", "Length of float uniform")
+                .field(FLOAT_ARRAY, "floatUniformValues[0..n]", "Values of float uniform")
+                .field(UTF8, "intUniformName[0..n]", "Name of int uniform")
+                .field(INT, "intUniformLength[0..n]", "Length of int uniform")
+                .field(INT_ARRAY, "intUniformValues[0..n]", "Values of int uniform")
+                .field(UTF8, "bitmapUniformName[0..n]", "Name of bitmap uniform")
+                .field(INT, "bitmapUniformValue[0..n]", "ID of bitmap uniform");
     }
 
     @Override

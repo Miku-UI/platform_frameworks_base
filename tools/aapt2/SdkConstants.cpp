@@ -39,7 +39,9 @@ static constexpr StringPiece sDevelopmentSdkCodeNames[] = {
     "UpsideDownCake"sv,
     "VanillaIceCream"sv,
     "Baklava"sv,
+    "CinnamonBun"sv,
     "CANARY"sv,
+    "DEV"sv,
 };
 // clang-format on
 

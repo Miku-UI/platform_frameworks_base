@@ -118,7 +118,8 @@ class LockscreenToPrimaryBouncerTransitionViewModelTest(flags: FlagsParameteriza
     @DisableSceneContainer
     fun lockscreenAlphaEndsWithZero() =
         testScope.runTest {
-            val alpha by collectLastValue(underTest.lockscreenAlpha)
+            val viewState = ViewStateAccessor(alpha = { 1f })
+            val alpha by collectLastValue(underTest.lockscreenAlpha(viewState))
 
             repository.sendTransitionStep(step(0f, TransitionState.STARTED))
             runCurrent()
@@ -159,6 +160,28 @@ class LockscreenToPrimaryBouncerTransitionViewModelTest(flags: FlagsParameteriza
             assertThat(actual).isEqualTo(0f)
 
             repository.sendTransitionStep(step(1f, TransitionState.FINISHED))
+            assertThat(actual).isEqualTo(0f)
+        }
+
+    @Test
+    @DisableSceneContainer
+    fun deviceEntryParentViewAlpha_onCancel() =
+        testScope.runTest {
+            val actual by collectLastValue(underTest.deviceEntryParentViewAlpha)
+            shadeExpanded(false)
+            runCurrent()
+
+            // start fade out
+            repository.sendTransitionStep(step(0f, TransitionState.STARTED))
+            assertThat(actual).isEqualTo(1f)
+
+            repository.sendTransitionStep(step(.1f))
+            assertThat(actual).isIn(Range.open(.1f, .9f))
+
+            // WHEN transition cancelled
+            repository.sendTransitionStep(step(.2f, TransitionState.CANCELED))
+
+            // THEN end state is immediately updated to 0f
             assertThat(actual).isEqualTo(0f)
         }
 

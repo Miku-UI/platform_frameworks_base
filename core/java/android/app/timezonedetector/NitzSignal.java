@@ -15,14 +15,14 @@
  */
 package android.app.timezonedetector;
 
+import android.annotation.DurationMillisLong;
+import android.annotation.ElapsedRealtimeLong;
 import android.annotation.Nullable;
 import android.os.Parcel;
 import android.os.Parcelable;
+
 import java.util.Objects;
 import java.util.TimeZone;
-
-import android.annotation.ElapsedRealtimeLong;
-import android.annotation.DurationMillisLong;
 
 /**
  * A data class that captures information about a Network Identity and Timezone (NITZ) signal. This

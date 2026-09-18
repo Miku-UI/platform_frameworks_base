@@ -16,7 +16,6 @@
 
 package com.android.systemui.statusbar.notification.stack.ui.viewbinder
 
-import com.android.systemui.common.coroutine.ConflatedCallbackFlow
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout
 import com.android.systemui.statusbar.notification.stack.ui.view.NotificationStatsLogger
 import com.android.systemui.statusbar.notification.stack.ui.viewmodel.NotificationLoggerViewModel
@@ -24,6 +23,7 @@ import com.android.systemui.util.kotlin.Utils
 import com.android.systemui.util.kotlin.sample
 import com.android.systemui.util.kotlin.throttle
 import com.android.systemui.util.time.SystemClock
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -74,7 +74,7 @@ object NotificationStatsLoggerBinder {
 
 private val NotificationStackScrollLayout.onNotificationLocationsUpdated
     get() =
-        ConflatedCallbackFlow.conflatedCallbackFlow {
+        conflatedCallbackFlow {
             val callback =
                 NotificationStackScrollLayout.OnNotificationLocationsChangedListener { callable ->
                     trySend(callable)

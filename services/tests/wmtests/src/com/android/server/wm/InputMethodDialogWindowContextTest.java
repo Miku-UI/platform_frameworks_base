@@ -154,7 +154,7 @@ public class InputMethodDialogWindowContextTest extends WindowTestsBase {
         final WindowTokenClient tokenClient = (WindowTokenClient) context.getWindowContextToken();
         spyOn(requireNonNull(tokenClient));
 
-        final DisplayArea.Tokens imeContainer = mSecondaryDisplay.getImeContainer();
+        final ImeContainer imeContainer = mSecondaryDisplay.getImeContainer();
         spyOn(imeContainer);
         assertThat(imeContainer.getRootDisplayArea()).isEqualTo(mSecondaryDisplay);
 

@@ -21,6 +21,10 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.annotation.TestApi;
+import android.compat.Compatibility;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledAfter;
+import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -37,7 +41,6 @@ import java.util.Objects;
  * @hide
  */
 @SystemApi
-@FlaggedApi(Flags.FLAG_SECURITY_ALGORITHMS_UPDATE_INDICATIONS)
 public final class SecurityAlgorithmUpdate implements Parcelable {
     private static final String TAG = "SecurityAlgorithmUpdate";
 
@@ -51,7 +54,9 @@ public final class SecurityAlgorithmUpdate implements Parcelable {
     public static final int CONNECTION_EVENT_PS_SIGNALLING_3G = 3;
     /** 4G Non-access stratum */
     public static final int CONNECTION_EVENT_NAS_SIGNALLING_LTE = 4;
-    /** 4G Access-stratum */
+    /** 4G Access-stratum
+     * @deprecated use CONNECTION_EVENT_AS_SIGNALLING_5G_DRB and
+     * CONNECTION_EVENT_AS_SIGNALLING_5G_NON_DRB instead */
     public static final int CONNECTION_EVENT_AS_SIGNALLING_LTE = 5;
     /** VOLTE SIP */
     public static final int CONNECTION_EVENT_VOLTE_SIP = 6;
@@ -63,7 +68,10 @@ public final class SecurityAlgorithmUpdate implements Parcelable {
     public static final int CONNECTION_EVENT_VOLTE_RTP_SOS = 9;
     /** 5G Non-access stratum */
     public static final int CONNECTION_EVENT_NAS_SIGNALLING_5G = 10;
-    /** 5G Access stratum */
+    /** 5G Access stratum
+     * @deprecated use CONNECTION_EVENT_AS_SIGNALLING_5G_DRB and
+     * CONNECTION_EVENT_AS_SIGNALLING_5G_NON_DRB instead */
+    @Deprecated
     public static final int CONNECTION_EVENT_AS_SIGNALLING_5G = 11;
     /** VoNR SIP */
     public static final int CONNECTION_EVENT_VONR_SIP = 12;
@@ -73,6 +81,18 @@ public final class SecurityAlgorithmUpdate implements Parcelable {
     public static final int CONNECTION_EVENT_VONR_RTP = 14;
     /** VoNR RTP SOS (emergency) */
     public static final int CONNECTION_EVENT_VONR_RTP_SOS = 15;
+    /** LTE DRB signalling data */
+    @FlaggedApi(Flags.FLAG_DRB_SECURITY_TRANSPARENCY)
+    public static final int CONNECTION_EVENT_AS_SIGNALLING_LTE_DRB = 16;
+    /** 5G DRB signalling data */
+    @FlaggedApi(Flags.FLAG_DRB_SECURITY_TRANSPARENCY)
+    public static final int CONNECTION_EVENT_AS_SIGNALLING_LTE_NON_DRB = 17;
+    /** 5G DRB signalling data */
+    @FlaggedApi(Flags.FLAG_DRB_SECURITY_TRANSPARENCY)
+    public static final int CONNECTION_EVENT_AS_SIGNALLING_5G_DRB = 18;
+    /** 5G DRB signalling data */
+    @FlaggedApi(Flags.FLAG_DRB_SECURITY_TRANSPARENCY)
+    public static final int CONNECTION_EVENT_AS_SIGNALLING_5G_NON_DRB = 19;
 
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
@@ -84,7 +104,9 @@ public final class SecurityAlgorithmUpdate implements Parcelable {
             CONNECTION_EVENT_VOLTE_RTP_SOS, CONNECTION_EVENT_NAS_SIGNALLING_5G,
             CONNECTION_EVENT_AS_SIGNALLING_5G, CONNECTION_EVENT_VONR_SIP,
             CONNECTION_EVENT_VONR_SIP_SOS, CONNECTION_EVENT_VONR_RTP,
-            CONNECTION_EVENT_VONR_RTP_SOS})
+            CONNECTION_EVENT_VONR_RTP_SOS, CONNECTION_EVENT_AS_SIGNALLING_LTE_DRB,
+            CONNECTION_EVENT_AS_SIGNALLING_LTE_NON_DRB, CONNECTION_EVENT_AS_SIGNALLING_5G_DRB,
+            CONNECTION_EVENT_AS_SIGNALLING_5G_NON_DRB})
     public @interface ConnectionEvent {
     }
 
@@ -208,6 +230,14 @@ public final class SecurityAlgorithmUpdate implements Parcelable {
     public @interface SecurityAlgorithm {
     }
 
+    /**
+     * Used for checking if SDK version for {@code SecurityAlgorithmUpdate#getConnectionEvent} is
+     * U or above.
+     */
+    @ChangeId
+    @EnabledAfter(targetSdkVersion = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    private static final long CONNECTION_EVENT_DRB_SPLIT_REVISION = 411183432L;
+
     private @ConnectionEvent int mConnectionEvent;
     private @SecurityAlgorithm int mEncryption;
     private @SecurityAlgorithm int mIntegrity;
@@ -236,6 +266,16 @@ public final class SecurityAlgorithmUpdate implements Parcelable {
      * @return the connection event.
      */
     public @ConnectionEvent int getConnectionEvent() {
+        if (!Compatibility.isChangeEnabled(CONNECTION_EVENT_DRB_SPLIT_REVISION)) {
+            if (mConnectionEvent == CONNECTION_EVENT_AS_SIGNALLING_LTE_DRB
+                    || mConnectionEvent == CONNECTION_EVENT_AS_SIGNALLING_LTE_NON_DRB) {
+                return CONNECTION_EVENT_AS_SIGNALLING_LTE;
+            }
+            if (mConnectionEvent == CONNECTION_EVENT_AS_SIGNALLING_5G_DRB
+                    || mConnectionEvent == CONNECTION_EVENT_AS_SIGNALLING_5G_NON_DRB) {
+                return CONNECTION_EVENT_AS_SIGNALLING_5G;
+            }
+        }
         return mConnectionEvent;
     }
 

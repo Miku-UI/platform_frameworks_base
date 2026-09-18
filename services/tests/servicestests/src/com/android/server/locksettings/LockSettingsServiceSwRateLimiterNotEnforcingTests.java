@@ -20,7 +20,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
 
@@ -54,7 +53,6 @@ public class LockSettingsServiceSwRateLimiterNotEnforcingTests
     }
 
     @Test
-    @EnableFlags(android.security.Flags.FLAG_SOFTWARE_RATELIMITER)
     public void testDuplicateWrongGuesses() throws Exception {
         final int userId = PRIMARY_USER_ID;
         final LockscreenCredential pin = newPin("1234");

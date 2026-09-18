@@ -57,8 +57,10 @@ import com.android.systemui.statusbar.policy.ConfigurationController;
 import com.android.systemui.tuner.TunerService;
 import com.android.systemui.unfold.FoldAodAnimationController;
 import com.android.systemui.unfold.SysUIUnfoldComponent;
+import com.android.systemui.util.concurrency.FakeExecutor;
 import com.android.systemui.util.settings.FakeSettings;
 import com.android.systemui.util.settings.SecureSettings;
+import com.android.systemui.util.time.FakeSystemClock;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -126,9 +128,11 @@ public class DozeParametersTest extends SysuiTestCase {
         when(mMinModeManager.isMinModeEnabled()).thenReturn(false);
 
         SecureSettings secureSettings = new FakeSettings();
+        FakeExecutor uiExecutor = new FakeExecutor(new FakeSystemClock());
         mDozeParameters = new DozeParameters(
             mContext,
             mHandler,
+            uiExecutor,
             mResources,
             mAmbientDisplayConfiguration,
             mAlwaysOnDisplayPolicy,

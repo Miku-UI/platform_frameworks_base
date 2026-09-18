@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 
 import android.os.PerformanceCollector.PerformanceResultsWriter;
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
@@ -31,7 +30,6 @@ import androidx.test.filters.SmallTest;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -42,8 +40,6 @@ import java.util.Random;
 @RunWith(AndroidJUnit4.class)
 @DisabledOnRavenwood(blockedBy = PerformanceCollector.class)
 public class PerformanceCollectorTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private PerformanceCollector mPerfCollector;
 

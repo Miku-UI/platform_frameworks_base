@@ -18,6 +18,12 @@ package com.android.internal.os;
 
 import java.io.EOFException;
 import java.util.ArrayList;
+import java.util.Arrays;
+
+import android.ravenwood.annotation.RavenwoodKeep;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
+
+import com.android.internal.annotations.VisibleForTesting;
 
 /**
  * Handles argument parsing for args related to the zygote spawner.
@@ -26,7 +32,7 @@ import java.util.ArrayList;
  * <ul>
  *   <li> --setuid=<i>uid of child process, defaults to 0</i>
  *   <li> --setgid=<i>gid of child process, defaults to 0</i>
- *   <li> --setgroups=<i>comma-separated list of supplimentary gid's</i>
+ *   <li> --setgroups=<i>comma-separated list of supplementary gid's</i>
  *   <li> --capabilities=<i>a pair of comma-separated integer strings
  * indicating Linux capabilities(2) set for child. The first string
  * represents the <code>permitted</code> set, and the second the
@@ -46,8 +52,10 @@ import java.util.ArrayList;
  * Android runtime startup (eg, Binder initialization) is also eschewed.
  *   <li> [--] &lt;args for RuntimeInit &gt;
  * </ul>
+ * @hide
  */
-class ZygoteArguments {
+@RavenwoodKeepPartialClass
+public class ZygoteArguments {
 
     /**
      * from --setuid
@@ -200,6 +208,12 @@ class ZygoteArguments {
     long[] mDisabledCompatChanges = null;
 
     /**
+     * A set of enabled app compatibility changes for the running app. From
+     * --enabled-compat-changes.
+     */
+    long[] mEnabledCompatChanges = null;
+
+    /**
      * A list that stores all related packages and its data info: volume uuid and inode.
      * Null if it does need to do app data isolation.
      */
@@ -225,6 +239,16 @@ class ZygoteArguments {
      * @see Zygote#BIND_MOUNT_SYSPROP_OVERRIDES
      */
     boolean mBindMountSyspropOverrides;
+
+    /**
+     * @see Zygote#APP_DATA_ISOLATION_ENABLED
+     */
+    boolean mAppDataIsolationEnabled;
+
+    /**
+     * from --preload-package
+     */
+    String mPreloadPackage;
 
     /**
      * Constructs instance and parses args
@@ -442,15 +466,9 @@ class ZygoteArguments {
             } else if (arg.startsWith(Zygote.START_AS_TOP_APP_ARG)) {
                 mIsTopApp = true;
             } else if (arg.startsWith("--disabled-compat-changes=")) {
-                if (mDisabledCompatChanges != null) {
-                    throw new IllegalArgumentException("Duplicate arg specified");
-                }
-                final String[] params = getAssignmentList(arg);
-                final int length = params.length;
-                mDisabledCompatChanges = new long[length];
-                for (int i = 0; i < length; i++) {
-                    mDisabledCompatChanges[i] = Long.parseLong(params[i]);
-                }
+                mDisabledCompatChanges = parseAndMergeCompatChanges(arg, mDisabledCompatChanges);
+            } else if (arg.startsWith("--enabled-compat-changes=")) {
+                mEnabledCompatChanges = parseAndMergeCompatChanges(arg, mEnabledCompatChanges);
             } else if (arg.startsWith(Zygote.PKG_DATA_INFO_MAP)) {
                 mPkgDataInfoList = getAssignmentList(arg);
             } else if (arg.startsWith(Zygote.ALLOWLISTED_DATA_INFO_MAP)) {
@@ -514,11 +532,81 @@ class ZygoteArguments {
         }
     }
 
+    @RavenwoodKeep
     private static String getAssignmentValue(String arg) {
         return arg.substring(arg.indexOf('=') + 1);
     }
 
     private static String[] getAssignmentList(String arg) {
         return getAssignmentValue(arg).split(",");
+    }
+
+    /**
+     * Parse and merge compatibility changes from a zygote argument.
+     * The resulting array is sorted to allow O(log n) lookup via Arrays.binarySearch.
+     *
+     * @hide
+     */
+    @VisibleForTesting
+    @RavenwoodKeep
+    static long[] parseAndMergeCompatChanges(String arg, long[] existingChanges) {
+        final String value = getAssignmentValue(arg);
+        final int oldLen = (existingChanges == null) ? 0 : existingChanges.length;
+
+        if (value.isEmpty()) {
+            return existingChanges == null ? new long[0] : existingChanges;
+        }
+
+        // Count commas to determine the maximum possible number of new changes.
+        int commaCount = 0;
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) == ',') {
+                commaCount++;
+            }
+        }
+        final int maxNewChanges = commaCount + 1;
+
+        // Pre-allocate the merged array to avoid multiple intermediate allocations.
+        long[] merged = new long[oldLen + maxNewChanges];
+        if (oldLen > 0) {
+            System.arraycopy(existingChanges, 0, merged, 0, oldLen);
+        }
+
+        int actualCount = oldLen;
+        int start = 0;
+        final int length = value.length();
+        while (start < length) {
+            int end = value.indexOf(',', start);
+            if (end == -1) {
+                end = length;
+            }
+            if (start < end) {
+                merged[actualCount++] = Long.parseLong(value.substring(start, end));
+            }
+            start = end + 1;
+        }
+
+        // Shrink if there were empty parameters (e.g. "1,,2")
+        if (actualCount < merged.length) {
+            merged = Arrays.copyOf(merged, actualCount);
+        }
+
+        Arrays.sort(merged);
+
+        // In-place deduplication to avoid Set allocations on the critical path
+        if (merged.length > 1) {
+            int uniqueIndex = 0;
+            for (int i = 1; i < merged.length; i++) {
+                if (merged[uniqueIndex] != merged[i]) {
+                    uniqueIndex++;
+                    merged[uniqueIndex] = merged[i];
+                }
+            }
+            int uniqueCount = uniqueIndex + 1;
+            if (uniqueCount < merged.length) {
+                merged = Arrays.copyOf(merged, uniqueCount);
+            }
+        }
+        return merged;
     }
 }

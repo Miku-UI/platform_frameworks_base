@@ -76,35 +76,40 @@ class PromptFallbackViewModelTest : SysuiTestCase() {
             val listener = identityCheckStateListenerCaptor.value
 
             // WATCH_RANGING_IDLE - Button disabled, footer, no subtitle
-            listener.onWatchRangingStateChanged(WatchRangingState.WATCH_RANGING_IDLE.ordinal)
+            listener.onWatchRangingStateChanged(WatchRangingState.WATCH_RANGING_IDLE.ordinal, -1)
             assertThat(isEnabled).isFalse()
             assertThat(subtitle).isNull()
             assertThat(showFooter).isTrue()
 
             // WATCH_RANGING_STARTED - Button disabled, no footer, ranging subtitle
-            listener.onWatchRangingStateChanged(WatchRangingState.WATCH_RANGING_STARTED.ordinal)
+            listener.onWatchRangingStateChanged(WatchRangingState.WATCH_RANGING_STARTED.ordinal, -1)
             assertThat(isEnabled).isFalse()
             assertThat(subtitle).isEqualTo(R.string.biometric_dialog_identity_check_watch_ranging)
             assertThat(showFooter).isFalse()
 
             // WATCH_RANGING_SUCCESSFUL - Button enabled, no footer, no subtitle
-            listener.onWatchRangingStateChanged(WatchRangingState.WATCH_RANGING_SUCCESSFUL.ordinal)
+            listener.onWatchRangingStateChanged(
+                WatchRangingState.WATCH_RANGING_SUCCESSFUL.ordinal,
+                -1,
+            )
             assertThat(isEnabled).isTrue()
             assertThat(subtitle).isNull()
             assertThat(showFooter).isFalse()
 
             // WATCH_RANGING_STOPPED - Button disabled, footer, disabled subtitle
-            listener.onWatchRangingStateChanged(WatchRangingState.WATCH_RANGING_STOPPED.ordinal)
+            listener.onWatchRangingStateChanged(WatchRangingState.WATCH_RANGING_STOPPED.ordinal, -1)
             assertThat(isEnabled).isFalse()
             assertThat(subtitle).isEqualTo(R.string.biometric_dialog_unavailable)
             assertThat(showFooter).isTrue()
         }
 
     @Test
-    fun showCredentialAndManageIdentityCheckButtons() =
+    fun showCredentialAndManageIdentityCheckButton() =
         testScope.runTest {
             val showCredential by collectLastValue(viewModel.showCredential)
             val showManageIdentityCheck by collectLastValue(viewModel.showManageIdentityCheck)
+            val showIdentityCheckCredentialFallback by
+                collectLastValue(viewModel.showIdentityCheckCredentialFallback)
 
             // When credential is allowed and identity check is inactive, show credential button
             setPrompt(
@@ -114,6 +119,7 @@ class PromptFallbackViewModelTest : SysuiTestCase() {
                 }
             )
             assertThat(showCredential).isTrue()
+            assertThat(showIdentityCheckCredentialFallback).isFalse()
             assertThat(showManageIdentityCheck).isFalse()
 
             // When credential is allowed and identity check is active, show manage button
@@ -124,6 +130,7 @@ class PromptFallbackViewModelTest : SysuiTestCase() {
                 }
             )
             assertThat(showCredential).isFalse()
+            assertThat(showIdentityCheckCredentialFallback).isTrue()
             assertThat(showManageIdentityCheck).isTrue()
 
             // When credential is not allowed, show neither button
@@ -134,6 +141,7 @@ class PromptFallbackViewModelTest : SysuiTestCase() {
                 }
             )
             assertThat(showCredential).isFalse()
+            assertThat(showIdentityCheckCredentialFallback).isFalse()
             assertThat(showManageIdentityCheck).isFalse()
 
             // When credential is allowed and identity check is not active, show neither
@@ -144,6 +152,29 @@ class PromptFallbackViewModelTest : SysuiTestCase() {
                 }
             )
             assertThat(showCredential).isFalse()
+            assertThat(showIdentityCheckCredentialFallback).isFalse()
+            assertThat(showManageIdentityCheck).isFalse()
+        }
+
+    @Test
+    fun showCredentialButOmitManageIdentityCheckButton() =
+        testScope.runTest {
+            val showCredential by collectLastValue(viewModel.showCredential)
+            val showManageIdentityCheck by collectLastValue(viewModel.showManageIdentityCheck)
+            val showIdentityCheckCredentialFallback by
+                collectLastValue(viewModel.showIdentityCheckCredentialFallback)
+
+            // When credential is allowed, identity check is active and identity check fallback
+            // is omitted
+            setPrompt(
+                PromptInfo().apply {
+                    isDeviceCredentialAllowed = true
+                    isIdentityCheckActive = true
+                    this.clearIdentityCheckFallbackOption()
+                }
+            )
+            assertThat(showCredential).isFalse()
+            assertThat(showIdentityCheckCredentialFallback).isTrue()
             assertThat(showManageIdentityCheck).isFalse()
         }
 

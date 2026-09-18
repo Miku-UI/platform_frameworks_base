@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2024 The Android Open Source Project
+ * Copyright 2026 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import static com.android.internal.widget.remotecompose.player.accessibility.Rem
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
 import android.graphics.PointF;
 import android.os.Bundle;
 import android.util.IntArray;
@@ -36,13 +37,21 @@ import com.android.internal.widget.remotecompose.player.accessibility.CoreDocume
 import com.android.internal.widget.remotecompose.player.accessibility.RemoteComposeDocumentAccessibility;
 import com.android.internal.widget.remotecompose.player.accessibility.SemanticNodeApplier;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
+@SuppressLint({"RestrictedApiAndroidX", "deprecation", "PrimitiveInCollection", "UnknownNullness"})
 public class PlatformRemoteComposeTouchHelper extends ExploreByTouchHelper {
     private final RemoteComposeDocumentAccessibility mRemoteDocA11y;
 
     private final SemanticNodeApplier<AccessibilityNodeInfo> mApplier;
     private final View mHost;
+
+    // Cache for last known child to semantic parent mapping
+    // to allow correct calculation of boundsInParent
+    // May grow, but not indefinitely O(200) entries
+    private final Map<Integer, Integer> mChildToParentMapping = new HashMap<>();
 
     public PlatformRemoteComposeTouchHelper(
             View host,
@@ -54,9 +63,7 @@ public class PlatformRemoteComposeTouchHelper extends ExploreByTouchHelper {
         this.mHost = host;
     }
 
-    /**
-     * access the helper
-     */
+    /** access the helper */
     public static PlatformRemoteComposeTouchHelper forRemoteComposePlayer(
             View player, @NonNull CoreDocument coreDocument) {
         return new PlatformRemoteComposeTouchHelper(
@@ -106,9 +113,7 @@ public class PlatformRemoteComposeTouchHelper extends ExploreByTouchHelper {
         }
     }
 
-    /**
-     * returns the list of visible children
-     */
+    /** returns the list of visible children */
     @SuppressWarnings("JdkImmutableCollections")
     public List<Integer> getVisibleChildVirtualViews() {
         Component rootComponent = mRemoteDocA11y.findComponentById(RootId);
@@ -142,11 +147,15 @@ public class PlatformRemoteComposeTouchHelper extends ExploreByTouchHelper {
 
         List<AccessibilitySemantics> semantics =
                 mRemoteDocA11y.semanticModifiersForComponent(component);
-        mApplier.applyComponent(mRemoteDocA11y, node, component, semantics);
+        Integer semanticParentId = mChildToParentMapping.get(virtualViewId);
+        mApplier.applyComponent(mRemoteDocA11y, node, component, semantics, semanticParentId);
 
         if (mergeMode == Mode.SET) {
             List<Integer> childViews =
                     mRemoteDocA11y.semanticallyRelevantChildComponents(component, false);
+
+            // declare children so parent is known
+            childViews.forEach((id) -> mChildToParentMapping.put(id, virtualViewId));
 
             mApplier.addChildren(node, childViews);
         }
@@ -154,7 +163,10 @@ public class PlatformRemoteComposeTouchHelper extends ExploreByTouchHelper {
 
     @Override
     protected void onPopulateEventForVirtualView(
-            int virtualViewId, @NonNull AccessibilityEvent event) {}
+            int virtualViewId, @NonNull AccessibilityEvent event) {
+        // This field should always be filled to keep the Accessibility framework happy.
+        event.setContentDescription("");
+    }
 
     @Override
     protected boolean onPerformActionForVirtualView(

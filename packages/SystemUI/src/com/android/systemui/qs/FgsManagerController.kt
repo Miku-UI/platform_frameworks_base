@@ -58,6 +58,7 @@ import com.android.systemui.Dumpable
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
+import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
@@ -430,7 +431,15 @@ constructor(
                             )
                         )
                     if (controller != null) {
-                        dialogTransitionAnimator.show(dialog, controller)
+                        if (TransitionAnimator.dynamicTargetResolutionEnabled()) {
+                            dialogTransitionAnimator.show(
+                                dialog,
+                                expandable::dialogTransitionController,
+                                controller.cuj,
+                            )
+                        } else {
+                            dialogTransitionAnimator.show(dialog, controller)
+                        }
                     } else {
                         dialog.show()
                     }
@@ -735,10 +744,10 @@ constructor(
                     PowerExemptionManager.REASON_DEVICE_DEMO_MODE -> UIControl.HIDE_ENTRY
 
                     PowerExemptionManager.REASON_SYSTEM_ALLOW_LISTED,
-                    PowerExemptionManager.REASON_DEVICE_OWNER,
+                    PowerExemptionManager.REASON_DEVICE_DPC,
                     PowerExemptionManager.REASON_DISALLOW_APPS_CONTROL,
                     PowerExemptionManager.REASON_DPO_PROTECTED_APP,
-                    PowerExemptionManager.REASON_PROFILE_OWNER,
+                    PowerExemptionManager.REASON_USER_DPC,
                     PowerExemptionManager.REASON_ACTIVE_DEVICE_ADMIN,
                     PowerExemptionManager.REASON_PROC_STATE_PERSISTENT,
                     PowerExemptionManager.REASON_PROC_STATE_PERSISTENT_UI,

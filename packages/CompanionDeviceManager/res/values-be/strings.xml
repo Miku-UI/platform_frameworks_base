@@ -35,7 +35,6 @@
     <string name="profile_name_medical" msgid="5617160509499466400">"медыцынская прылада"</string>
     <string name="title_app_streaming" msgid="237666000400427614">"Дазволіць праграме &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; трансліраваць праграмы і сістэмныя функцыі паміж прыладамі \"<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>\" і &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
     <string name="summary_app_streaming" msgid="8346968726357732862">"Праграма \"<xliff:g id="APP_NAME">%1$s</xliff:g>\" атрымае наступныя дазволы:"</string>
-    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"Праграма \"<xliff:g id="APP_NAME_0">%1$s</xliff:g>\" будзе мець доступ да ўсяго, што паказваецца ці прайграецца на прыладзе тыпу \"<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>\", у тым ліку да аўдыя, фота, плацежнай інфармацыі, пароляў і паведамленняў.&lt;br/&gt;&lt;br/&gt;Праграма \"<xliff:g id="APP_NAME_1">%1$s</xliff:g>\" зможа трансліраваць праграмы на прыладу \"<xliff:g id="DEVICE_NAME">%3$s</xliff:g>\", пакуль вы не адклічаце гэты дазвол."</string>
     <string name="helper_summary_app_streaming" msgid="160149899100957545">"Праграма \"<xliff:g id="APP_NAME">%1$s</xliff:g>\" запытвае дазвол ад імя прылады \"<xliff:g id="DEVICE_NAME">%2$s</xliff:g>\" на трансляцыю праграм і сістэмных функцый паміж прыладамі"</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
@@ -43,12 +42,13 @@
     <string name="helper_summary_computer" msgid="2298803016482139668">"Праграма \"<xliff:g id="APP_NAME">%1$s</xliff:g>\" запытвае дазвол ад імя вашай прылады \"<xliff:g id="DEVICE_NAME">%2$s</xliff:g>\" на доступ да фота, медыяфайлаў і апавяшчэнняў на прыладзе тыпу \"<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>\""</string>
     <string name="title_nearby_device_streaming" msgid="5342768208699657581">"Дазволіць праграме &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; трансліраваць праграмы і сістэмныя функцыі паміж прыладамі \"<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>\" і &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
     <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"Праграма \"<xliff:g id="APP_NAME">%1$s</xliff:g>\" атрымае наступныя дазволы:"</string>
-    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"Праграма \"<xliff:g id="APP_NAME_0">%1$s</xliff:g>\" будзе мець доступ да ўсяго, што паказваецца ці прайграецца на прыладзе \"<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>\", у тым ліку да аўдыя, фота, плацежнай інфармацыі, пароляў і паведамленняў.&lt;br/&gt;&lt;br/&gt;Праграма \"<xliff:g id="APP_NAME_2">%1$s</xliff:g>\" зможа трансліраваць праграмы на прыладу \"<xliff:g id="DEVICE_NAME_3">%3$s</xliff:g>\", пакуль вы не адклічаце гэты дазвол."</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"Праграма \"<xliff:g id="APP_NAME">%1$s</xliff:g>\" запытвае дазвол ад імя прылады \"<xliff:g id="DEVICE_NAME">%2$s</xliff:g>\" на трансляцыю праграм з прылады тыпу \"<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>\""</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"Дазволіць праграме &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; трансліраваць аўдыя і сістэмныя функцыі паміж прыладамі \"<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>\" і &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt;?"</string>
     <string name="summary_virtual_device" msgid="1062189396947962635">"Праграма \"<xliff:g id="APP_NAME">%2$s</xliff:g>\" атрымае наступныя дазволы:"</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"прылада"</string>
     <string name="summary_generic" msgid="1761976003668044801">"Гэта праграма зможа сінхранізаваць інфармацыю (напрыклад, імя таго, хто звоніць) паміж тэлефонам і выбранай прыладай"</string>
+    <string name="summary_generic_with_remote_ai_capability" msgid="5053633566439056634">"Праграма &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; зможа сінхранізаваць інфармацыю (напрыклад, даныя пра абанента) і выконваць разумныя дзеянні з прылады \"<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>\""</string>
+    <string name="summary_with_permissions_and_remote_ai_capability" msgid="5240771314596527096">"Праграма &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; зможа сінхранізаваць інфармацыю (напрыклад, даныя пра абанента) і выконваць разумныя дзеянні з прылады \"<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>\""</string>
     <string name="consent_yes" msgid="8344487259618762872">"Дазволіць"</string>
     <string name="consent_no" msgid="2640796915611404382">"Не дазваляць"</string>
     <string name="consent_cancel" msgid="5655005528379285841">"Скасаваць"</string>
@@ -70,6 +70,7 @@
     <string name="permission_media_routing_control" msgid="5498639511586715253">"Змяненне прылады вываду медыя"</string>
     <string name="permission_storage" msgid="6831099350839392343">"Фота і медыяфайлы"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"Апавяшчэнні"</string>
+    <string name="permission_app_streaming" msgid="4488910074894929222">"Адлюстраванне і трансляцыя"</string>
     <string name="permission_create_virtual_device" msgid="1102905050922460040">"Трансліраваць даныя на <xliff:g id="DEVICE_TYPE">%1$s</xliff:g>"</string>
     <string name="permission_add_mirror_display" msgid="3743433250535606288">"Дубліраваць экран"</string>
     <string name="permission_add_trusted_display" msgid="9052824856626276723">"Трансліраваць праграмы"</string>
@@ -83,15 +84,16 @@
     <string name="permission_microphone_summary" msgid="4862628553869973259">"Запіс гуку"</string>
     <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"Пошук прылад паблізу, падключэнне да іх і вызначэнне іх адноснага месцазнаходжання"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"Чытанне ўсіх апавяшчэнняў, у тым ліку такой інфармацыі, як кантакты, паведамленні і фота"</string>
-    <string name="permission_notifications_summary" msgid="6819393427371255636">"• Чытанне ўсіх апавяшчэнняў, у тым ліку такой інфармацыі, як кантакты, паведамленні і фота.&lt;br/&gt;• Адпраўка вам апавяшчэнняў.&lt;br/&gt;&lt;br/&gt;Дазволы гэтай праграмы на чытанне і адпраўку апавяшчэнняў можна змяніць у любы час, выбраўшы пункт меню \"Налады &gt; Апавяшчэнні\"."</string>
-    <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_notifications_summary" msgid="7491920318334824691">"• Чытанне ўсіх апавяшчэнняў, у тым ліку такой інфармацыі, як кантакты, паведамленні і фота.&lt;br/&gt;• Адпраўка вам апавяшчэнняў.&lt;br/&gt;&lt;br/&gt;Дазволы гэтай праграмы на чытанне і адпраўку апавяшчэнняў можна змяніць у меню \"Налады › Апавяшчэнні\"."</string>
+    <string name="permission_storage_summary" msgid="3779040306012319942">"Абагульванне фота і медыяфайлаў з тэлефона з іншымі прыладамі."</string>
     <string name="permission_post_notifications_summary" msgid="1099188848900200165">"Адпраўка вам апавяшчэнняў"</string>
+    <string name="permission_app_streaming_summary" msgid="4114223538437344105">"Абагульванне экрана тэлефона (у тым ліку праграм) з іншымі прыладамі. Вашы прылады будуць мець доступ да ўсяго, што паказваецца на экране тэлефона, у тым ліку да аўдыя, фота, плацежнай інфармацыі, пароляў і паведамленняў, нават калі тэлефон заблакіраваны.&lt;br/&gt;&lt;br/&gt;Вы можаце перадаваць на тэлефон даныя з мікрафона, камеры і іншых датчыкаў прылад, у тым ліку інфармацыю пра такія дзеянні, як жэсты дакранання і націсканні мышы."</string>
     <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"Трансляцыя даных з мікрафона, камеры і датчыкаў прылады &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; на вашу прыладу \"<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>\"."</string>
     <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"Запіс экрана прылады \"<xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>\", а таксама яго трансляцыя на прыладу &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; або абагульванне з ёй.&lt;br/&gt;&lt;br/&gt;Праграма \"<xliff:g id="APP_NAME">%1$s</xliff:g>\" будзе мець доступ да ўсяго, што паказваецца ці прайграецца на прыладзе \"<xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g>\", у тым ліку да аўдыя, фота, плацежнай інфармацыі, пароляў і паведамленняў."</string>
     <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"Трансляцыя праграм з прылады \"<xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>\" на прыладу &lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;Праграма \"<xliff:g id="APP_NAME">%1$s</xliff:g>\" будзе мець доступ да ўсяго, што паказваецца ці прайграецца на прыладзе \"<xliff:g id="DEVICE_NAME_2">%3$s</xliff:g>\", у тым ліку да аўдыя, фота, плацежнай інфармацыі, пароляў і паведамленняў, нават калі прылада \"<xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g>\" заблакіравана."</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"Прагляд спіса даступных прылад і кіраванне тым, на якой з іх будзе трансліравацца аўдыя і відэа з іншых праграм"</string>
-    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
-    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="4263728689361283271">"Адпраўляць абвесткі"</string>
+    <string name="permission_bypass_dnd_summary" msgid="3649231048838415756">"Адпраўляць абвесткі, нават калі ўключаны рэжым \"Не турбаваць\""</string>
     <string name="device_type" product="default" msgid="8268703872070046263">"тэлефон"</string>
     <string name="device_type" product="tablet" msgid="5038791954983067774">"планшэт"</string>
     <string name="device_type" product="tv" msgid="5355611506659405636">"тэлевізар"</string>

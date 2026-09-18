@@ -65,7 +65,7 @@
         app:layout_constraintStart_toStartOf="@id/bluetooth_tile_dialog_progress_animation"
         app:layout_constraintTop_toTopOf="@id/bluetooth_tile_dialog_progress_animation"
         app:layout_constraintBottom_toBottomOf="@id/bluetooth_tile_dialog_progress_animation"
-        android:background="?androidprv:attr/colorSurfaceVariant" />
+        android:background="@color/materialColorSurfaceContainerHigh" />
 
     <ProgressBar
         android:id="@+id/bluetooth_tile_dialog_progress_animation"
@@ -176,7 +176,7 @@
                 android:src="@drawable/ic_info_outline"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:tint="?android:attr/textColorTertiary"
+                android:tint="@color/materialColorOutline"
                 android:paddingStart="36dp"
                 android:layout_marginTop="20dp"
                 android:layout_marginBottom="@dimen/bluetooth_dialog_layout_margin"
@@ -219,7 +219,7 @@
                 app:layout_constraintBottom_toTopOf="@+id/pair_new_device_button"
                 android:drawableStart="@drawable/ic_arrow_forward"
                 android:drawablePadding="26dp"
-                android:drawableTint="?android:attr/textColorPrimary"
+                android:drawableTint="@color/materialColorOnSurface"
                 android:text="@string/see_all_bluetooth_devices"
                 android:textSize="14sp"
                 android:textAppearance="@style/TextAppearance.BluetoothTileDialog"
@@ -229,30 +229,41 @@
                 android:ellipsize="end"
                 android:visibility="gone" />
 
-            <Button
+            <FrameLayout
                 android:id="@+id/pair_new_device_button"
-                style="@style/BluetoothTileDialog.Device"
-                android:paddingEnd="0dp"
-                android:paddingStart="26dp"
-                android:background="@drawable/bluetooth_tile_dialog_bg_off"
                 android:layout_width="0dp"
-                android:layout_height="64dp"
-                android:layout_marginBottom="9dp"
-                android:contentDescription="@string/accessibility_bluetooth_device_settings_pair_new_device"
+                android:layout_height="wrap_content"
+                android:minHeight="@dimen/tile_details_button_tappable_height"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/see_all_button"
-                android:drawableStart="@drawable/ic_add"
-                android:drawablePadding="26dp"
-                android:drawableTint="?android:attr/textColorPrimary"
-                android:text="@string/pair_new_bluetooth_devices"
-                android:textSize="14sp"
-                android:textAppearance="@style/TextAppearance.BluetoothTileDialog"
-                android:textDirection="locale"
-                android:textAlignment="viewStart"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:visibility="gone" />
+                android:clipToPadding="false"
+                android:visibility="gone"
+                android:focusable="true"
+                android:contentDescription="@string/accessibility_bluetooth_device_settings_pair_new_device">
+
+                <Button
+                    style="@style/BluetoothTileDialog.Device"
+                    android:paddingEnd="0dp"
+                    android:paddingStart="26dp"
+                    android:background="@drawable/bluetooth_tile_dialog_bg_off"
+                    android:layout_width="match_parent"
+                    android:layout_height="64dp"
+                    android:drawableStart="@drawable/ic_add"
+                    android:drawablePadding="26dp"
+                    android:drawableTint="@color/materialColorOnSurface"
+                    android:text="@string/pair_new_bluetooth_devices"
+                    android:textSize="14sp"
+                    android:textAppearance="@style/TextAppearance.BluetoothTileDialog"
+                    android:textDirection="locale"
+                    android:textAlignment="viewStart"
+                    android:maxLines="1"
+                    android:ellipsize="end"
+                    android:layout_gravity="center"
+                    android:duplicateParentState="true"
+                    android:focusable="false"
+                    android:clickable="false" />
+            </FrameLayout>
 
             <androidx.constraintlayout.widget.Barrier
                 android:id="@+id/barrier"

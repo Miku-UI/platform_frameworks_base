@@ -23,6 +23,7 @@ import android.security.Flags.FLAG_SECURE_LOCK_DEVICE
 import android.telephony.TelephonyManager
 import android.testing.TestableLooper.RunWithLooper
 import android.testing.TestableResources
+import android.uilatencystats.UiLatencyStatsManager
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -42,6 +43,8 @@ import com.android.keyguard.KeyguardSecurityModel.SecurityMode
 import com.android.keyguard.domain.interactor.KeyguardKeyboardInteractor
 import com.android.systemui.Flags as AConfigFlags
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.authentication.domain.interactor.AuthenticationInteractor
+import com.android.systemui.authentication.domain.interactor.authenticationInteractor
 import com.android.systemui.biometrics.FaceAuthAccessibilityDelegate
 import com.android.systemui.bouncer.domain.interactor.BouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
@@ -57,17 +60,19 @@ import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.flags.FakeFeatureFlags
 import com.android.systemui.flags.Flags
 import com.android.systemui.keyboard.data.repository.FakeKeyboardRepository
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
+import com.android.systemui.keyguard.domain.interactor.biometricUnlockInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardDismissTransitionInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
-import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
+import com.android.systemui.keyguard.shared.model.BiometricUnlockSource
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.log.SessionTracker
 import com.android.systemui.plugins.ActivityStarter.OnDismissAction
 import com.android.systemui.plugins.FalsingManager
 import com.android.systemui.res.R
+import com.android.systemui.scene.data.repository.lockDevice
+import com.android.systemui.scene.data.repository.unlockDevice
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
@@ -78,6 +83,7 @@ import com.android.systemui.scene.shared.model.fakeSceneDataSource
 import com.android.systemui.securelockdevice.data.repository.fakeSecureLockDeviceRepository
 import com.android.systemui.securelockdevice.domain.interactor.secureLockDeviceInteractor
 import com.android.systemui.shade.domain.interactor.enableSingleShade
+import com.android.systemui.statusbar.phone.BiometricUnlockController
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.DevicePostureController
 import com.android.systemui.statusbar.policy.DeviceProvisionedController
@@ -99,6 +105,7 @@ import com.android.systemui.util.wrapper.LockPatternCheckerWrapper
 import com.android.systemui.window.domain.interactor.windowRootViewBlurInteractor
 import com.google.common.truth.Truth
 import com.google.common.truth.Truth.assertThat
+import java.util.Optional
 import junit.framework.Assert
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -170,6 +177,7 @@ class KeyguardSecurityContainerControllerTest : SysuiTestCase() {
     @Mock private lateinit var mUserActivityNotifier: UserActivityNotifier
     @Mock private lateinit var bouncerInteractor: BouncerInteractor
     @Mock private lateinit var lockPatternChecker: LockPatternCheckerWrapper
+    @Mock private lateinit var mUiLatencyStatsManager: UiLatencyStatsManager
 
     @Captor
     private lateinit var keyguardUpdateMonitorCallbackCaptor:
@@ -188,6 +196,7 @@ class KeyguardSecurityContainerControllerTest : SysuiTestCase() {
     private lateinit var kosmos: Kosmos
     private lateinit var sceneInteractor: SceneInteractor
     private lateinit var keyguardTransitionInteractor: KeyguardTransitionInteractor
+    private lateinit var authenticationInteractor: AuthenticationInteractor
     private lateinit var deviceEntryInteractor: DeviceEntryInteractor
     @Mock private lateinit var primaryBouncerInteractor: PrimaryBouncerInteractor
     private lateinit var sceneTransitionStateFlow: MutableStateFlow<ObservableTransitionState>
@@ -257,6 +266,7 @@ class KeyguardSecurityContainerControllerTest : SysuiTestCase() {
                 null,
                 mUserActivityNotifier,
                 lockPatternChecker,
+                Optional.of(mUiLatencyStatsManager),
             )
 
         kosmos = testKosmos()
@@ -265,6 +275,7 @@ class KeyguardSecurityContainerControllerTest : SysuiTestCase() {
         sceneTransitionStateFlow =
             MutableStateFlow(ObservableTransitionState.Idle(Scenes.Lockscreen))
         sceneInteractor.setTransitionState(sceneTransitionStateFlow)
+        authenticationInteractor = kosmos.authenticationInteractor
         deviceEntryInteractor = kosmos.deviceEntryInteractor
 
         fakeSceneDataSource = kosmos.fakeSceneDataSource
@@ -291,6 +302,7 @@ class KeyguardSecurityContainerControllerTest : SysuiTestCase() {
                 telephonyManager,
                 viewMediatorCallback,
                 audioManager,
+                { authenticationInteractor },
                 faceAuthInteractor,
                 mock(),
                 { kosmos.javaAdapter },
@@ -653,6 +665,31 @@ class KeyguardSecurityContainerControllerTest : SysuiTestCase() {
 
     @Test
     @DisableSceneContainer
+    fun showNextSecurityScreenOrFinish_Password_SimPin() {
+        // GIVEN the current security method is SimPin
+        whenever(keyguardUpdateMonitor.getUserHasTrust(anyInt())).thenReturn(false)
+        whenever(keyguardUpdateMonitor.getUserUnlockedWithBiometric(TARGET_USER_ID))
+            .thenReturn(false)
+        underTest.showSecurityScreen(SecurityMode.PIN)
+
+        // WHEN a request is made from the PIN screen to show the next security method
+        whenever(keyguardSecurityModel.getSecurityMode(TARGET_USER_ID))
+            .thenReturn(SecurityMode.SimPin)
+
+        // WHEN the PIN has successfully been entered and authenticate looks complete
+        underTest.showNextSecurityScreenOrFinish(
+            /* authenticated= */ true,
+            TARGET_USER_ID,
+            /* bypassSecondaryLockScreen= */ true,
+            SecurityMode.PIN,
+        )
+
+        // THEN we will show the SimPin screen.
+        verify(viewFlipperController).getSecurityView(eq(SecurityMode.SimPin), any(), any())
+    }
+
+    @Test
+    @DisableSceneContainer
     fun showNextSecurityScreenOrFinish_SimPin_SimPin() {
         // GIVEN the current security method is SimPin
         whenever(keyguardUpdateMonitor.getUserHasTrust(anyInt())).thenReturn(false)
@@ -973,6 +1010,7 @@ class KeyguardSecurityContainerControllerTest : SysuiTestCase() {
             // Upon init, we have never dismisses the keyguard.
             underTest.onInit()
             runCurrent()
+            kosmos.lockDevice()
             verify(primaryBouncerInteractor, never())
                 .notifyKeyguardAuthenticatedPrimaryAuth(anyInt())
 
@@ -1004,8 +1042,9 @@ class KeyguardSecurityContainerControllerTest : SysuiTestCase() {
 
             // While listening, going from the bouncer scene to the gone scene, does dismiss the
             // keyguard.
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-                SuccessFingerprintAuthenticationStatus(0, true)
+            kosmos.biometricUnlockInteractor.setBiometricUnlockState(
+                unlockStateInt = BiometricUnlockController.MODE_DISMISS,
+                biometricUnlockSource = BiometricUnlockSource.FINGERPRINT_SENSOR,
             )
             runCurrent()
             fakeSceneDataSource.pause()
@@ -1035,6 +1074,7 @@ class KeyguardSecurityContainerControllerTest : SysuiTestCase() {
             sceneInteractor.snapToScene(Scenes.Shade, "reason")
             runCurrent()
 
+            kosmos.lockDevice()
             fakeSceneDataSource.pause()
             sceneInteractor.showOverlay(Overlays.Bouncer, "reason")
             sceneTransitionStateFlow.value =
@@ -1058,9 +1098,9 @@ class KeyguardSecurityContainerControllerTest : SysuiTestCase() {
                 .notifyKeyguardAuthenticatedPrimaryAuth(anyInt())
 
             // Detaching the view stops listening, so moving from the bouncer scene to the gone
-            // scene
-            // does not dismiss the keyguard while we're not listening.
+            // scene does not dismiss the keyguard while we're not listening.
             underTest.onViewDetached()
+            kosmos.unlockDevice()
             fakeSceneDataSource.pause()
             sceneInteractor.changeScene(Scenes.Gone, "reason")
             sceneInteractor.hideOverlay(Overlays.Bouncer, "reason")

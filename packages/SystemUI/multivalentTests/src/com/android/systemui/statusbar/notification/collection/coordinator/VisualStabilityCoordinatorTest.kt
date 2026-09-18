@@ -154,7 +154,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
         kosmos.statusBarStateController = mock()
         // TODO(377868472) only override this when SceneContainer is disabled
         kosmos.shadeAnimationInteractor =
-            ShadeAnimationInteractorLegacyImpl(ShadeAnimationRepository(), shadeRepository)
+            ShadeAnimationInteractorLegacyImpl(ShadeAnimationRepository(), shadeRepository, mock())
     }
 
     @Test
@@ -923,7 +923,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
     }
 
     private fun setActivityLaunching(activityLaunching: Boolean) {
-        kosmos.shadeAnimationInteractor.setIsLaunchingActivity(activityLaunching)
+        kosmos.shadeAnimationInteractor.setIsLaunchingActivity(activityLaunching, "test")
         testScope.testScheduler.runCurrent()
     }
 

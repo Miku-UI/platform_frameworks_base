@@ -33,6 +33,7 @@ import com.android.internal.telecom.IVideoCallback;
 import com.android.internal.telecom.IVideoProvider;
 
 import java.util.NoSuchElementException;
+import java.util.Objects;
 
 /**
  * Implementation of a Video Call, which allows InCallUi to communicate commands to the underlying
@@ -51,6 +52,7 @@ public class VideoCallImpl extends VideoCall {
     private final String mCallingPackageName;
 
     private int mTargetSdkVersion;
+    private String mCallId;
 
     private IBinder.DeathRecipient mDeathRecipient = new IBinder.DeathRecipient() {
         @Override
@@ -211,6 +213,11 @@ public class VideoCallImpl extends VideoCall {
 
     VideoCallImpl(IVideoProvider videoProvider, String callingPackageName, int targetSdkVersion)
             throws RemoteException {
+        this(videoProvider, callingPackageName, targetSdkVersion, null);
+    }
+
+    VideoCallImpl(IVideoProvider videoProvider, String callingPackageName, int targetSdkVersion,
+            String callId) throws RemoteException {
         mVideoProvider = videoProvider;
         mVideoProvider.asBinder().linkToDeath(mDeathRecipient, 0);
 
@@ -218,6 +225,7 @@ public class VideoCallImpl extends VideoCall {
         mVideoProvider.addVideoCallback(mBinder);
         mCallingPackageName = callingPackageName;
         setTargetSdkVersion(targetSdkVersion);
+        mCallId = callId;
     }
 
     @VisibleForTesting
@@ -371,5 +379,19 @@ public class VideoCallImpl extends VideoCall {
      */
     public IVideoProvider getVideoProvider() {
         return mVideoProvider;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o instanceof VideoCallImpl d) {
+            return Objects.equals(mVideoProvider.asBinder(), d.mVideoProvider.asBinder()) &&
+                    Objects.equals(mCallId, d.mCallId);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mVideoProvider.asBinder(), mCallId);
     }
 }

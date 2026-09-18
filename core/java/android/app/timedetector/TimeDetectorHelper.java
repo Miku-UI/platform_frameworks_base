@@ -50,9 +50,9 @@ public class TimeDetectorHelper {
     /**
      * The maximum gregorian calendar year to allow for manual date selection on devices that may
      * have Y2038 issues. This serves as a sensible UI-enforced limit though the system server may
-     * support a larger upper bound. That is, the signed 32-bit milliseconds value is
-     * 03:14:07 UTC on 19 January 2038, but this constant means users can only enter dates up to
-     * 2037-12-31. See {@link #MANUAL_SUGGESTION_YEAR_MAX_WITH_Y2038_ISSUE}.
+     * support a larger upper bound. That is, the signed 32-bit milliseconds value is 03:14:07 UTC
+     * on 19 January 2038, but this constant means users can only enter dates up to 2037-12-31. See
+     * {@link #MANUAL_SUGGESTION_YEAR_MAX_WITH_Y2038_ISSUE}.
      *
      * <p>Note: This UI limit also doesn't prevent devices reaching the Y2038 roll-over time through
      * the natural passage of time, it just prevents users potentially causing issues in the years
@@ -86,11 +86,12 @@ public class TimeDetectorHelper {
      * The lowest value in Unix epoch milliseconds that is considered a valid automatic suggestion.
      * See also {@link #MANUAL_SUGGESTION_LOWER_BOUND}.
      *
-     * <p>Note that this is a default value. The lower value enforced can be overridden to be
-     * lower in the system server with flags for testing.
+     * <p>Note that this is a default value. The lower value enforced can be overridden to be lower
+     * in the system server with flags for testing.
      */
-    private static final Instant AUTO_SUGGESTION_LOWER_BOUND_DEFAULT = Instant.ofEpochMilli(
-            Long.max(android.os.Environment.getRootDirectory().lastModified(), Build.TIME));
+    private static final Instant AUTO_SUGGESTION_LOWER_BOUND_DEFAULT =
+            Instant.ofEpochMilli(
+                    Long.max(android.os.Environment.getRootDirectory().lastModified(), Build.TIME));
 
     /** The singleton instance of this class. */
     public static final TimeDetectorHelper INSTANCE = new TimeDetectorHelper();
@@ -149,8 +150,8 @@ public class TimeDetectorHelper {
     }
 
     /**
-     * Returns {@code true} if the device may be at risk of time_t overflow (because bionic
-     * defines time_t as a 32-bit signed integer for 32-bit processes).
+     * Returns {@code true} if the device may be at risk of time_t overflow (because bionic defines
+     * time_t as a 32-bit signed integer for 32-bit processes).
      */
     private boolean getDeviceHasY2038Issue() {
         return Build.SUPPORTED_32_BIT_ABIS.length > 0;

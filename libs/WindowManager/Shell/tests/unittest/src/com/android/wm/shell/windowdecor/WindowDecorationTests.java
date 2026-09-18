@@ -40,6 +40,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.inOrder;
@@ -63,12 +64,12 @@ import android.graphics.Region;
 import android.os.LocaleList;
 import android.os.Looper;
 import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.UsesFlags;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.util.DisplayMetrics;
 import android.view.AttachedSurfaceControl;
 import android.view.Display;
+import android.view.InsetsBoundingRect;
 import android.view.InsetsSource;
 import android.view.InsetsState;
 import android.view.SurfaceControl;
@@ -76,15 +77,14 @@ import android.view.SurfaceControlViewHost;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManager.LayoutParams;
-import android.window.DesktopExperienceFlags;
 import android.window.SurfaceSyncGroup;
 import android.window.WindowContainerToken;
 import android.window.WindowContainerTransaction;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.testing.wm.util.MockToken;
 import com.android.window.flags.Flags;
-import com.android.wm.shell.MockToken;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.ShellTestCase;
 import com.android.wm.shell.TestHandler;
@@ -133,8 +133,7 @@ public class WindowDecorationTests extends ShellTestCase {
     @Parameters(name = "{0}")
     public static List<FlagsParameterization> getParams() {
         return FlagsParameterization.allCombinationsOf(
-                Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX,
-                Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS);
+                Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS_V2);
     }
 
     private final WindowDecoration.RelayoutResult<TestView> mRelayoutResult =
@@ -162,6 +161,8 @@ public class WindowDecorationTests extends ShellTestCase {
     private SurfaceSyncGroup mMockSurfaceSyncGroup;
     @Mock
     private SurfaceControl mMockTaskSurface;
+    @Mock
+    private SurfaceControl mMockCaptionSurface;
     @Mock
     private DesktopModeEventLogger mDesktopModeEventLogger;
     @Mock
@@ -196,15 +197,12 @@ public class WindowDecorationTests extends ShellTestCase {
                 (ctx, display) -> WindowDecoration.loadDimensionPixelSize(ctx.getResources(),
                         R.dimen.test_freeform_decor_caption_height);
         mCaptionMenuWidthId = R.dimen.test_freeform_decor_caption_menu_width;
-        if (Flags.enableFreeformBoxShadows()) {
+        if (Flags.enableFreeformBoxShadowsV2()) {
             mRelayoutParams.mBoxShadowSettingsIds = new int[]{R.style.BoxShadowParamsKeyFocused};
             mRelayoutParams.mBorderSettingsId = R.style.BorderSettingsFocusedDark;
-        } else if (DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue()) {
+        } else {
             mRelayoutParams.mShadowRadiusId = R.dimen.test_freeform_shadow_radius;
             mRelayoutParams.mCornerRadiusId = R.dimen.test_freeform_corner_radius;
-        } else {
-            mRelayoutParams.mShadowRadius = SHADOW_RADIUS;
-            mRelayoutParams.mCornerRadius = CORNER_RADIUS;
         }
 
         when(mMockDisplayController.getDisplay(Display.DEFAULT_DISPLAY))
@@ -221,7 +219,11 @@ public class WindowDecorationTests extends ShellTestCase {
 
         when(mMockWindowDecorViewHostSupplier.acquire(any(), any()))
                 .thenReturn(mMockWindowDecorViewHost);
-        when(mMockWindowDecorViewHost.getSurfaceControl()).thenReturn(mock(SurfaceControl.class));
+        when(mMockWindowDecorViewHost.getSurfaceControl()).thenReturn(mMockCaptionSurface);
+        doAnswer(invocation -> {
+            ((Runnable) invocation.getArgument(0)).run();
+            return null;
+        }).when(mMockBGExecutor).execute(any());
     }
 
     @Test
@@ -325,7 +327,7 @@ public class WindowDecorationTests extends ShellTestCase {
         verifyAddedInsets(1, taskInfo.token, 0 /* index */, WindowInsets.Type.captionBar(),
                 new Rect(100, 300, 400, 364));
 
-        if (Flags.enableFreeformBoxShadows()) {
+        if (Flags.enableFreeformBoxShadowsV2()) {
             if (inSyncWithTransition) {
                 verify(mMockSurfaceControlStartT).setBoxShadowSettings(eq(mMockTaskSurface), any());
                 verify(mMockSurfaceControlFinishT).setBoxShadowSettings(eq(mMockTaskSurface),
@@ -342,7 +344,7 @@ public class WindowDecorationTests extends ShellTestCase {
                 verify(mMockSurfaceControlFinishT, never()).setBorderSettings(eq(mMockTaskSurface),
                         any());
             }
-        } else if (DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue()) {
+        } else {
             if (inSyncWithTransition) {
                 final int cornerRadius = WindowDecoration.loadDimensionPixelSize(
                         windowDecor.mDecorWindowContext.getResources(),
@@ -361,10 +363,6 @@ public class WindowDecorationTests extends ShellTestCase {
                 verify(mMockSurfaceControlStartT, never()).setShadowRadius(eq(mMockTaskSurface),
                         anyFloat());
             }
-        } else {
-            verify(mMockSurfaceControlStartT).setCornerRadius(mMockTaskSurface, CORNER_RADIUS);
-            verify(mMockSurfaceControlFinishT).setCornerRadius(mMockTaskSurface, CORNER_RADIUS);
-            verify(mMockSurfaceControlStartT).setShadowRadius(mMockTaskSurface, SHADOW_RADIUS);
         }
 
         assertEquals(300, mRelayoutResult.mWidth);
@@ -906,34 +904,6 @@ public class WindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_RELATIVE_INSETS)
-    public void testRelayout_taskFrameChanged_insetsReapplied() {
-        final Display defaultDisplay = mock(Display.class);
-        doReturn(defaultDisplay).when(mMockDisplayController)
-                .getDisplay(Display.DEFAULT_DISPLAY);
-        mInsetsState.getOrCreateSource(STATUS_BAR_INSET_SOURCE_ID, captionBar()).setVisible(true);
-        final WindowContainerToken token = new MockToken().token();
-        final TestRunningTaskInfoBuilder builder = new TestRunningTaskInfoBuilder()
-                .setDisplayId(Display.DEFAULT_DISPLAY)
-                .setVisible(true);
-        mRelayoutParams.mIsCaptionVisible = true;
-
-        // Relayout twice with different bounds.
-        final ActivityManager.RunningTaskInfo firstTaskInfo =
-                builder.setToken(token).setBounds(new Rect(0, 0, 1000, 1000)).build();
-        final TestWindowDecoration windowDecor = createWindowDecoration(firstTaskInfo);
-        windowDecor.relayout(firstTaskInfo, true /* hasGlobalFocus */);
-        final ActivityManager.RunningTaskInfo secondTaskInfo =
-                builder.setToken(token).setBounds(new Rect(50, 50, 1000, 1000)).build();
-        windowDecor.relayout(secondTaskInfo, true /* hasGlobalFocus */);
-
-        // Insets should be applied twice.
-        verifyAddedInsets(2 /* times */, token, 0 /* index */, captionBar());
-        verifyAddedInsets(2 /* times */, token, 0 /* index */, mandatorySystemGestures());
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_RELATIVE_INSETS)
     public void testRelayout_captionFrameChanged_insetsReapplied() {
         final Display defaultDisplay = mock(Display.class);
         doReturn(defaultDisplay).when(mMockDisplayController)
@@ -1012,6 +982,7 @@ public class WindowDecorationTests extends ShellTestCase {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_REFACTOR_CAPTION_SANDBOXING_TO_CORE)
     public void testRelayout_setAppBoundsIfNeeded() {
         final Display defaultDisplay = mock(Display.class);
         doReturn(defaultDisplay).when(mMockDisplayController).getDisplay(Display.DEFAULT_DISPLAY);
@@ -1034,6 +1005,7 @@ public class WindowDecorationTests extends ShellTestCase {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_REFACTOR_CAPTION_SANDBOXING_TO_CORE)
     public void testRelayout_setAppBoundsIfNeeded_reset() {
         final Display defaultDisplay = mock(Display.class);
         doReturn(defaultDisplay).when(mMockDisplayController).getDisplay(Display.DEFAULT_DISPLAY);
@@ -1183,6 +1155,38 @@ public class WindowDecorationTests extends ShellTestCase {
     }
 
     @Test
+    public void relayout_validCaptionSurface_excludesFromTaskSnapshot() {
+        final ActivityManager.RunningTaskInfo taskInfo = new TestRunningTaskInfoBuilder()
+                .setDisplayId(Display.DEFAULT_DISPLAY)
+                .setVisible(true)
+                .build();
+        final TestWindowDecoration windowDecor = createWindowDecoration(taskInfo);
+        mRelayoutParams.mIsCaptionVisible = true;
+        when(mMockCaptionSurface.isValid()).thenReturn(true);
+
+        windowDecor.relayout(taskInfo, true /* hasGlobalFocus */);
+
+        SurfaceControl[] expectedLayers = {mMockCaptionSurface};
+        verify(mMockShellTaskOrganizer).setExcludeLayersFromTaskSnapshot(
+                eq(taskInfo.token), argThat(layers -> layers[0] == expectedLayers[0]));
+    }
+
+    @Test
+    public void relayout_invalidCaptionSurface_doesNotExcludeFromTaskSnapshot() {
+        final ActivityManager.RunningTaskInfo taskInfo = new TestRunningTaskInfoBuilder()
+                .setDisplayId(Display.DEFAULT_DISPLAY)
+                .setVisible(true)
+                .build();
+        final TestWindowDecoration windowDecor = createWindowDecoration(taskInfo);
+        mRelayoutParams.mIsCaptionVisible = true;
+        when(mMockCaptionSurface.isValid()).thenReturn(false);
+
+        windowDecor.relayout(taskInfo, true /* hasGlobalFocus */);
+
+        verify(mMockShellTaskOrganizer, never()).setExcludeLayersFromTaskSnapshot(any(), any());
+    }
+
+    @Test
     public void onStatusBarVisibilityChange() {
         final ActivityManager.RunningTaskInfo task = createTaskInfo();
         task.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
@@ -1287,35 +1291,37 @@ public class WindowDecorationTests extends ShellTestCase {
     }
 
     private void verifyAddedInsets(int times, WindowContainerToken token, int index, int type) {
-        if (com.android.window.flags.Flags.relativeInsets()) {
+        if (com.android.window.flags.Flags.improveFluidResizingPerformance()) {
             verify(mMockWindowContainerTransaction, times(times)).addInsetsSource(eq(token), any(),
-                    eq(index), eq(type), any(Insets.class), any(), anyInt());
+                    eq(index), eq(type), any(Insets.class), (InsetsBoundingRect[]) any(), anyInt());
         } else {
             verify(mMockWindowContainerTransaction, times(times)).addInsetsSource(eq(token), any(),
-                    eq(index), eq(type), any(Rect.class), any(), anyInt());
+                    eq(index), eq(type), any(Insets.class), (Rect[]) any(), anyInt());
         }
     }
 
     private void verifyAddedInsets(int times, WindowContainerToken token, int index, int type,
             int flags) {
-        if (com.android.window.flags.Flags.relativeInsets()) {
+        if (com.android.window.flags.Flags.improveFluidResizingPerformance()) {
             verify(mMockWindowContainerTransaction, times(times)).addInsetsSource(eq(token), any(),
-                    eq(index), eq(type), any(Insets.class), any(), eq(flags));
+                    eq(index), eq(type), any(Insets.class), (InsetsBoundingRect[]) any(),
+                    eq(flags));
         } else {
             verify(mMockWindowContainerTransaction, times(times)).addInsetsSource(eq(token), any(),
-                    eq(index), eq(type), any(Rect.class), any(), eq(flags));
+                    eq(index), eq(type), any(Insets.class), (Rect[]) any(), eq(flags));
         }
     }
 
     private void verifyAddedInsets(int times, WindowContainerToken token, int index, int type,
             Rect attachedRect) {
-        if (com.android.window.flags.Flags.relativeInsets()) {
+        if (com.android.window.flags.Flags.improveFluidResizingPerformance()) {
             verify(mMockWindowContainerTransaction, times(times)).addInsetsSource(eq(token), any(),
-                    eq(index), eq(type), eq(Insets.of(0, attachedRect.height(), 0, 0)), any(),
-                    anyInt());
+                    eq(index), eq(type), eq(Insets.of(0, attachedRect.height(), 0, 0)),
+                    (InsetsBoundingRect[]) any(), anyInt());
         } else {
             verify(mMockWindowContainerTransaction, times(times)).addInsetsSource(eq(token), any(),
-                    eq(index), eq(type), eq(attachedRect), any(), anyInt());
+                    eq(index), eq(type), eq(Insets.of(0, attachedRect.height(), 0, 0)),
+                    (Rect[]) any(), anyInt());
         }
     }
 

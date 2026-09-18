@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_label" msgid="1092971641119916701">"កម្មវិធីគ្រប់គ្រងឧបករណ៍និម្មិត"</string>
+    <string name="request_computer_control_access_dialog_title" msgid="1970509993635617382">"អនុញ្ញាតឱ្យ &lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; ប្រើស្វ័យប្រវត្តិកម្មអេក្រង់ឬ?"</string>
+    <string name="request_computer_control_access_per_app_consent_dialog_title" msgid="8118885324223570680">"អនុញ្ញាតឱ្យ &lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; ប្រើស្វ័យប្រវត្តិកម្មអេក្រង់ជាមួយ &lt;strong&gt;<xliff:g id="AUTOMATABLE_APP_NAME">%2$s</xliff:g>&lt;/strong&gt; ឬ?"</string>
+    <string name="request_computer_control_access_dialog_description" msgid="3423347516805473691">"កម្មវិធីនេះនឹងអាចមើលឃើញ និងធ្វើអន្តរកម្មជាមួយខ្លឹមសារអេក្រង់របស់កម្មវិធីផ្សេងទៀត ដើម្បីជួយអ្នកបំពេញកិច្ចការនានា ទោះបីជាកម្មវិធីស្ថិតនៅផ្ទៃខាងក្រោយក៏ដោយ"</string>
+    <string name="request_computer_control_access_dialog_button_allow" msgid="6210271960695301518">"តែពេលនេះ​ប៉ុណ្ណោះ"</string>
+    <string name="request_computer_control_access_dialog_button_dont_allow" msgid="4793579155406896411">"មិនអនុញ្ញាត"</string>
+    <string name="request_computer_control_access_dialog_button_always_allow" msgid="1551784758130170359">"អនុញ្ញាត​ជានិច្ច"</string>
+    <string name="automated_app_launch_warning_dialog_title" msgid="5210938311581044737">"<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g> កំពុងប្រើ <xliff:g id="TARGET_APP_NAME">%2$s</xliff:g>"</string>
+    <string name="automated_app_launch_warning_dialog_description" msgid="5372128583106771831">"ដើម្បីមើលដំណើរវិវឌ្ឍន៍នៃកិច្ចការ សូមបើកកម្មវិធី <xliff:g id="AGENT_APP_NAME_0">%1$s</xliff:g>។<xliff:g id="EMPTY_LINE">
+
+</xliff:g>ប្រសិនបើអ្នកបញ្ឈប់កិច្ចការឥឡូវនេះ អ្នកអាចនឹងបាត់បង់ដំណើរវិវឌ្ឍន៍របស់អ្នក។ ដើម្បីចាប់ផ្ដើមឡើងវិញ សូមបើកកម្មវិធី <xliff:g id="AGENT_APP_NAME_1">%1$s</xliff:g>។"</string>
+    <string name="automated_app_launch_warning_dialog_stop" msgid="5255022618671675595">"បញ្ឈប់កិច្ចការ និងបើកកម្មវិធី"</string>
+    <string name="automated_app_launch_warning_dialog_wait" msgid="3472782366270857170">"បិទ"</string>
+</resources>

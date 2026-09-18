@@ -43,10 +43,10 @@ import com.android.systemui.Flags
 import com.android.systemui.ambient.touch.SURFACE_HUB
 import com.android.systemui.ambient.touch.TouchMonitor
 import com.android.systemui.ambient.touch.dagger.AmbientTouchComponent
-import com.android.systemui.communal.dagger.Communal
 import com.android.systemui.communal.domain.interactor.CommunalInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
+import com.android.systemui.communal.shared.model.CommunalSceneDataSourceDelegator
 import com.android.systemui.communal.ui.compose.CommunalContainer
 import com.android.systemui.communal.ui.compose.CommunalContent
 import com.android.systemui.communal.ui.compose.section.AmbientStatusBarSection
@@ -65,7 +65,6 @@ import com.android.systemui.log.core.Logger
 import com.android.systemui.log.dagger.CommunalTouchLog
 import com.android.systemui.media.controls.ui.controller.KeyguardMediaController
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
-import com.android.systemui.scene.shared.model.SceneDataSourceDelegator
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.statusbar.lockscreen.LockscreenSmartspaceController
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayoutController
@@ -97,7 +96,7 @@ constructor(
     private val communalColors: CommunalColors,
     private val ambientTouchComponentFactory: AmbientTouchComponent.Factory,
     private val communalContent: CommunalContent,
-    @Communal private val dataSourceDelegator: SceneDataSourceDelegator,
+    private val dataSourceDelegator: CommunalSceneDataSourceDelegator,
     private val notificationStackScrollLayoutController: NotificationStackScrollLayoutController,
     private val keyguardMediaController: KeyguardMediaController,
     private val lockscreenSmartspaceController: LockscreenSmartspaceController,

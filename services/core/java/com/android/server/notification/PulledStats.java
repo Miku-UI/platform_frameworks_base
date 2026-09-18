@@ -68,6 +68,11 @@ public class PulledStats {
 
             default:
                 Slog.w(TAG, "Unknown pulled stats request: " + report);
+                try {
+                    fds[1].close();
+                } catch (IOException e) {
+                    Slog.w(TAG, "Failure closing pipe", e);
+                }
                 break;
         }
         return fds[0];

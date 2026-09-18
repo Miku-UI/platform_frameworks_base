@@ -27,7 +27,6 @@ import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.res.R
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,7 +54,7 @@ constructor(
     val audioSharingButtonStateUpdate: StateFlow<AudioSharingButtonState> =
         mutableButtonState.asStateFlow()
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         combine(
                 bluetoothStateInteractor.bluetoothStateUpdate,
                 deviceItemInteractor.deviceItemUpdate,
@@ -64,7 +63,6 @@ constructor(
                 getButtonState(bluetoothState, deviceItem, audioSharingOn)
             }
             .collect { mutableButtonState.value = it }
-        awaitCancellation()
     }
 
     private fun getButtonState(

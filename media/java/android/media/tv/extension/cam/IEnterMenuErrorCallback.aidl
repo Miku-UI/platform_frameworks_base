@@ -20,5 +20,8 @@ package android.media.tv.extension.cam;
  * @hide
  */
 oneway interface IEnterMenuErrorCallback {
+    /**
+     * Callback to inform AppInfoEnterMenu failed to setup.
+     */
     void onAppInfoEnterMenuError();
 }

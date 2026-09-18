@@ -25,8 +25,16 @@ static void SkRuntimeEffectBuilder_delete(SkRuntimeEffectBuilder* builder) {
     delete builder;
 }
 
-static jlong RuntimeXfermode_getNativeFinalizer(JNIEnv*, jobject) {
+static jlong RuntimeXfermode_getNativeBuilderFinalizer(JNIEnv*, jobject) {
     return static_cast<jlong>(reinterpret_cast<uintptr_t>(&SkRuntimeEffectBuilder_delete));
+}
+
+static void Blender_safeUnref(SkBlender* blender) {
+    SkSafeUnref(blender);
+}
+
+static jlong RuntimeXfermode_getNativeXfermodeFinalizer(JNIEnv*, jobject) {
+    return static_cast<jlong>(reinterpret_cast<uintptr_t>(&Blender_safeUnref));
 }
 
 static jlong RuntimeXfermode_createBuilder(JNIEnv* env, jobject, jstring sksl) {
@@ -45,6 +53,7 @@ static jlong RuntimeXfermode_create(JNIEnv* env, jobject, jlong builderPtr) {
     sk_sp<SkBlender> blender = builder->makeBlender();
     if (!blender) {
         doThrowIAE(env);
+        return 0;
     }
     return reinterpret_cast<jlong>(blender.release());
 }
@@ -108,7 +117,8 @@ static void RuntimeXfermode_updateColorFilter(JNIEnv* env, jobject, jlong builde
 }
 
 static const JNINativeMethod gRuntimeXfermodeMethods[] = {
-        {"nativeGetFinalizer", "()J", (void*)RuntimeXfermode_getNativeFinalizer},
+        {"nativeGetBuilderFinalizer", "()J", (void*)RuntimeXfermode_getNativeBuilderFinalizer},
+        {"nativeGetXfermodeFinalizer", "()J", (void*)RuntimeXfermode_getNativeXfermodeFinalizer},
         {"nativeCreateBlenderBuilder", "(Ljava/lang/String;)J",
          (void*)RuntimeXfermode_createBuilder},
         {"nativeCreateNativeInstance", "(J)J", (void*)RuntimeXfermode_create},

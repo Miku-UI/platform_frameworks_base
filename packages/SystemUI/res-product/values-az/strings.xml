@@ -20,54 +20,111 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="dock_alignment_slow_charging" product="default" msgid="6997633396534416792">"Sürətli şarj etmək üçün telefonu doğru yerləşdirin"</string>
+    <string name="dock_alignment_slow_charging" product="desktop" msgid="3407039002024253081">"Cihazı daha sürətli şarj etmək üçün yenidən yerləşdirin"</string>
     <string name="dock_alignment_not_charging" product="default" msgid="3980752926226749808">"Simsiz şarj etmək üçün telefonu doğru yerləşdirin"</string>
+    <string name="dock_alignment_not_charging" product="desktop" msgid="1650693501464120367">"Simsiz şarj etmək üçün cihazı yenidən yerləşdirin"</string>
     <string name="inattentive_sleep_warning_message" product="tv" msgid="6844464574089665063">"Android TV cihazı tezliklə deaktiv olacaq; aktiv saxlamaq üçün düyməyə basın."</string>
     <string name="inattentive_sleep_warning_message" product="default" msgid="5693904520452332224">"Cihaz tezliklə deaktiv olacaq; aktiv saxlamaq üçün basın."</string>
     <string name="keyguard_missing_sim_message" product="tablet" msgid="408124574073032188">"Planşetdə SIM kart yoxdur."</string>
     <string name="keyguard_missing_sim_message" product="default" msgid="2605468359948247208">"Telefonda SIM kart yoxdur."</string>
+    <string name="keyguard_missing_sim_message" product="desktop" msgid="6678465505993388400">"Cihazda SIM yoxdur."</string>
     <string name="kg_invalid_confirm_pin_hint" product="default" msgid="6278551068943958651">"PIN kodlar uyğun gəlmir"</string>
     <string name="kg_failed_attempts_almost_at_wipe" product="tablet" msgid="302165994845009232">"Planşetin kilidini açmaq üçün <xliff:g id="NUMBER_0">%1$d</xliff:g> dəfə yanlış cəhd etmisiniz. Daha <xliff:g id="NUMBER_1">%2$d</xliff:g> uğursuz cəhddən sonra bu planşet sıfırlanacaq və bütün data silinəcək."</string>
     <string name="kg_failed_attempts_almost_at_wipe" product="default" msgid="2594813176164266847">"Telefonun kilidini açmaq üçün <xliff:g id="NUMBER_0">%1$d</xliff:g> dəfə yanlış cəhd etmisiniz. Daha <xliff:g id="NUMBER_1">%2$d</xliff:g> uğursuz cəhddən sonra bu telefon sıfırlanacaq və bütün data silinəcək."</string>
+    <string name="kg_failed_attempts_almost_at_wipe" product="desktop" msgid="6414651766868767274">"Cihazın kilidini açmaq üçün <xliff:g id="NUMBER_0">%1$d</xliff:g> dəfə yanlış cəhd etmisiniz. Daha <xliff:g id="NUMBER_1">%2$d</xliff:g> uğursuz cəhddən sonra bu cihaz sıfırlanacaq və bütün data silinəcək."</string>
     <string name="kg_failed_attempts_now_wiping" product="tablet" msgid="8710104080409538587">"Planşetin kilidini açmaq üçün <xliff:g id="NUMBER">%d</xliff:g> dəfə yanlış cəhd etmisiniz. Bu planşet sıfırlanacaq və bütün data silinəcək."</string>
     <string name="kg_failed_attempts_now_wiping" product="default" msgid="6381835450014881813">"Telefonun kilidini açmaq üçün <xliff:g id="NUMBER">%d</xliff:g> dəfə yanlış cəhd etmisiniz. Bu telefon sıfırlanacaq və bütün data silinəcək."</string>
+    <string name="kg_failed_attempts_now_wiping" product="desktop" msgid="2277485562881116948">"Cihazın kilidini açmaq üçün <xliff:g id="NUMBER">%d</xliff:g> dəfə yanlış cəhd etmisiniz. Bu cihaz sıfırlanacaq və bütün data silinəcək."</string>
     <string name="kg_failed_attempts_almost_at_erase_user" product="tablet" msgid="7325071812832605911">"Planşetin kilidini açmaq üçün <xliff:g id="NUMBER_0">%1$d</xliff:g> dəfə yanlış cəhd etdiniz. Daha <xliff:g id="NUMBER_1">%2$d</xliff:g> uğursuz cəhddən sonra bu istifadəçi silinəcək və bütün istifadəçi datası ləğv ediləcək."</string>
     <string name="kg_failed_attempts_almost_at_erase_user" product="default" msgid="8110939900089863103">"Telefonun kilidini açmaq üçün <xliff:g id="NUMBER_0">%1$d</xliff:g> dəfə yanlış cəhd etdiniz. Daha <xliff:g id="NUMBER_1">%2$d</xliff:g> uğursuz cəhddən sonra bu istifadəçi silinəcək və bütün istifadəçi datası ləğv ediləcək."</string>
+    <string name="kg_failed_attempts_almost_at_erase_user" product="desktop" msgid="6685285863549889535">"Cihazın kilidini açmaq üçün <xliff:g id="NUMBER_0">%1$d</xliff:g> dəfə yanlış cəhd etmisiniz. Daha <xliff:g id="NUMBER_1">%2$d</xliff:g> uğursuz cəhddən sonra bu istifadəçi və bütün istifadəçi datası silinəcək."</string>
     <string name="kg_failed_attempts_now_erasing_user" product="tablet" msgid="8509811676952707883">"Planşetin kilidini açmaq üçün <xliff:g id="NUMBER">%d</xliff:g> dəfə yanlış cəhd etmisiniz. Bu istifadəçi silinəcək və bütün data ləğv ediləcək."</string>
     <string name="kg_failed_attempts_now_erasing_user" product="default" msgid="3051962486994265014">"Telefonun kilidini açmaq üçün <xliff:g id="NUMBER">%d</xliff:g> dəfə yanlış cəhd etmisiniz. Bu istifadəçi silinəcək və bütün data ləğv ediləcək."</string>
+    <string name="kg_failed_attempts_now_erasing_user" product="desktop" msgid="3003054879895735837">"Cihazın kilidini açmaq üçün <xliff:g id="NUMBER">%d</xliff:g> dəfə yanlış cəhd etmisiniz. Bu istifadəçi və bütün istifadəçi datası silinəcək."</string>
     <string name="kg_failed_attempts_almost_at_erase_profile" product="tablet" msgid="1049523640263353830">"Planşetin kilidini açmaq üçün <xliff:g id="NUMBER_0">%1$d</xliff:g> dəfə yanlış cəhd etmisiniz. Daha <xliff:g id="NUMBER_1">%2$d</xliff:g> uğursuz cəhddən sonra iş profili silinəcək və bütün profil datası ləğv ediləcək."</string>
     <string name="kg_failed_attempts_almost_at_erase_profile" product="default" msgid="3280816298678433681">"Telefonun kilidini açmaq üçün <xliff:g id="NUMBER_0">%1$d</xliff:g> dəfə yanlış cəhd etmisiniz. Daha <xliff:g id="NUMBER_1">%2$d</xliff:g> uğursuz cəhddən sonra iş profili silinəcək və bütün profil datası ləğv ediləcək."</string>
+    <string name="kg_failed_attempts_almost_at_erase_profile" product="desktop" msgid="6020310710703619275">"Cihazın kilidini açmaq üçün <xliff:g id="NUMBER_0">%1$d</xliff:g> dəfə yanlış cəhd etmisiniz. Daha <xliff:g id="NUMBER_1">%2$d</xliff:g> uğursuz cəhddən sonra iş profili və bütün profil datası silinəcək."</string>
     <string name="kg_failed_attempts_now_erasing_profile" product="tablet" msgid="4417100487251371559">"Planşetin kilidini açmaq üçün <xliff:g id="NUMBER">%d</xliff:g> dəfə yanlış cəhd etmisiniz. İş profili silinəcək və bütün data ləğv ediləcək."</string>
     <string name="kg_failed_attempts_now_erasing_profile" product="default" msgid="4682221342671290678">"Telefonun kilidini açmaq üçün <xliff:g id="NUMBER">%d</xliff:g> dəfə yanlış cəhd etmisiniz. İş profili silinəcək və bütün data ləğv ediləcək."</string>
+    <string name="kg_failed_attempts_now_erasing_profile" product="desktop" msgid="2786666082798973358">"Cihazın kilidini açmaq üçün <xliff:g id="NUMBER">%d</xliff:g> dəfə yanlış cəhd etmisiniz. İş profili və bütün profil datası silinəcək."</string>
     <string name="kg_failed_attempts_almost_at_login" product="tablet" msgid="1860049973474855672">"Kilid açma modelini <xliff:g id="NUMBER_0">%1$d</xliff:g> dəfə yanlış çəkmisiniz. Daha <xliff:g id="NUMBER_1">%2$d</xliff:g> uğursuz cəhddən sonra planşet kilidini e-poçt hesabınızla açmaq tələb olunacaq.\n\n <xliff:g id="NUMBER_2">%3$d</xliff:g> saniyə sonra cəhd edin."</string>
     <string name="kg_failed_attempts_almost_at_login" product="default" msgid="44112553371516141">"Kilid açma modelini artıq <xliff:g id="NUMBER_0">%1$d</xliff:g> dəfə yanlış çəkmisiniz. Daha <xliff:g id="NUMBER_1">%2$d</xliff:g> uğursuz cəhddən sonra telefon kilidini e-poçt hesabınızla açmaq tələb olunacaq.\n\n <xliff:g id="NUMBER_2">%3$d</xliff:g> saniyə sonra cəhd edin."</string>
+    <string name="kg_failed_attempts_almost_at_login" product="desktop" msgid="1821951547429595155">"Kilidaçma modelini artıq <xliff:g id="NUMBER_0">%1$d</xliff:g> dəfə yanlış daxil etmisiniz. Daha <xliff:g id="NUMBER_1">%2$d</xliff:g> uğursuz cəhddən sonra cihazın kilidini e-poçt hesabınızla açmaq tələb olunacaq.\n\n <xliff:g id="NUMBER_2">%3$d</xliff:g> saniyə sonra təkrar cəhd edin."</string>
     <string name="thermal_shutdown_title" product="default" msgid="8039593017174903505">"Telefon qızdığı üçün söndü"</string>
+    <string name="thermal_shutdown_title" product="desktop" msgid="2954206342842856379">"Cihaz qızdığı üçün söndü"</string>
     <string name="thermal_shutdown_title" product="device" msgid="2954206342842856379">"Cihaz qızdığı üçün söndü"</string>
     <string name="thermal_shutdown_title" product="tablet" msgid="8941033526856177533">"Planşet qızdığı üçün söndü"</string>
     <string name="thermal_shutdown_message" product="default" msgid="6685194547904051408">"Hazırda telefon normal işləyir.\nƏtraflı məlumat üçün toxunun"</string>
     <string name="thermal_shutdown_message" product="device" msgid="3039675532521590478">"Hazırda cihaz normal işləyir.\nƏtraflı məlumat üçün toxunun"</string>
     <string name="thermal_shutdown_message" product="tablet" msgid="5285898074484811386">"Hazırda planşet normal işləyir.\nƏtraflı məlumat üçün toxunun"</string>
+    <string name="thermal_shutdown_message" product="desktop" msgid="3039675532521590478">"Hazırda cihaz normal işləyir.\nƏtraflı məlumat üçün toxunun"</string>
     <string name="thermal_shutdown_dialog_message" product="default" msgid="6145923570358574186">"Telefon çox isti idi və soyumaq üçün söndü. Hazırda telefon normal işləyir.\n\nTelefon bu hallarda çox isinə bilər:\n	• Çoxresurslu tətbiq (oyun, video və ya naviqasiya tətbiqi kimi) istifadə etsəniz\n	• Böyük fayl endirsəniz və ya yükləsəniz\n	• Telefonu yüksək temperaturda istifadə etsəniz"</string>
     <string name="thermal_shutdown_dialog_message" product="device" msgid="3647879000909527365">"Cihaz çox isti idi və soyumaq üçün söndü. Hazırda cihaz normal işləyir.\n\nCihaz bu hallarda çox isinə bilər:\n	• Çoxresurslu tətbiq (oyun, video və ya naviqasiya tətbiqi kimi) istifadə etsəniz\n	• Böyük fayl endirsəniz və ya yükləsəniz\n	• Cihazı yüksək temperaturda istifadə etsəniz"</string>
     <string name="thermal_shutdown_dialog_message" product="tablet" msgid="8274487811928782165">"Planşet çox isti idi və soyumaq üçün söndü. Hazırda planşet normal işləyir.\n\nPlanşet bu hallarda çox isinə bilər:\n	• Çoxresurslu tətbiq (oyun, video və ya naviqasiya tətbiqi kimi) istifadə etsəniz\n	• Böyük fayl endirsəniz və ya yükləsəniz\n	• Planşeti yüksək temperaturda istifadə etsəniz"</string>
+    <string name="thermal_shutdown_dialog_message" product="desktop" msgid="3647879000909527365">"Cihaz çox isti idi və soyumaq üçün söndü. Hazırda cihaz normal işləyir.\n\nCihaz bu hallarda çox isinə bilər:\n	• Çoxresurslu tətbiq (oyun, video və ya naviqasiya tətbiqi kimi) istifadə etsəniz\n	• Böyük fayl endirsəniz və ya yükləsəniz\n	• Cihazı yüksək temperaturda istifadə etsəniz"</string>
     <string name="high_temp_title" product="default" msgid="5365000411304924115">"Telefon isinir"</string>
     <string name="high_temp_title" product="device" msgid="6622009907401563664">"Cihaz isinir"</string>
     <string name="high_temp_title" product="tablet" msgid="9039733706606446616">"Planşet isinir"</string>
+    <string name="high_temp_title" product="desktop" msgid="6622009907401563664">"Cihaz isinir"</string>
     <string name="high_temp_notif_message" product="default" msgid="3928947950087257452">"Telefon soyuyarkən bəzi funksiyalar məhdudlaşdırılır.\nƏtraflı məlumat üçün toxunun"</string>
     <string name="high_temp_notif_message" product="device" msgid="6105125771372547292">"Cihaz soyuyarkən bəzi funksiyalar məhdudlaşdırılır.\nƏtraflı məlumat üçün toxunun"</string>
     <string name="high_temp_notif_message" product="tablet" msgid="7799279192797476850">"Planşet soyuyarkən bəzi funksiyalar məhdudlaşdırılır.\nƏtraflı məlumat üçün toxunun"</string>
+    <string name="high_temp_notif_message" product="desktop" msgid="6105125771372547292">"Cihaz soyuyarkən bəzi funksiyalar məhdudlaşdırılır.\nƏtraflı məlumat üçün toxunun"</string>
     <string name="high_temp_dialog_message" product="default" msgid="4272882413847595625">"Telefon avtomatik soyuyacaq. Telefondan istifadə mümkündür, lakin asta işləyə bilər.\n\nSoyuduqdan sonra normal işləyəcək."</string>
     <string name="high_temp_dialog_message" product="device" msgid="263861943935989046">"Cihaz avtomatik soyuyacaq. Cihazdan istifadə mümkündür, lakin asta işləyə bilər.\n\nSoyuduqdan sonra normal işləyəcək."</string>
     <string name="high_temp_dialog_message" product="tablet" msgid="5613713326841935537">"Planşet avtomatik soyuyacaq. Planşetdən istifadə mümkündür, lakin asta işləyə bilər.\n\nSoyuduqdan sonra normal işləyəcək."</string>
+    <string name="high_temp_dialog_message" product="desktop" msgid="263861943935989046">"Cihaz avtomatik soyuyacaq. Cihazdan istifadə mümkündür, lakin asta işləyə bilər.\n\nSoyuduqdan sonra normal işləyəcək."</string>
     <string name="security_settings_sfps_enroll_find_sensor_message" product="tablet" msgid="3726972508570143945">"Barmaq izi sensoru enerji düyməsinin üzərindədir. Bu, planşetin kənarındakı qabarıq səs düyməsinin yanındakı yastı düymədir."</string>
     <string name="security_settings_sfps_enroll_find_sensor_message" product="device" msgid="2929467060295094725">"Barmaq izi sensoru enerji düyməsinin üzərindədir. Bu, cihazın kənarındakı qabarıq səs düyməsinin yanındakı yastı düymədir."</string>
     <string name="security_settings_sfps_enroll_find_sensor_message" product="default" msgid="8582726566542997639">"Barmaq izi sensoru enerji düyməsinin üzərindədir. Bu, telefonun kənarındakı qabarıq səs düyməsinin yanındakı yastı düymədir."</string>
+    <string name="security_settings_sfps_enroll_find_sensor_message" product="desktop" msgid="2929467060295094725">"Barmaq izi sensoru enerji düyməsinin üzərindədir. Bu, cihazın kənarındakı qabarıq səs düyməsinin yanındakı yastı düymədir."</string>
     <string name="global_action_lock_message" product="default" msgid="7092460751050168771">"Daha çox seçim üçün telefonu kiliddən çıxarın"</string>
     <string name="global_action_lock_message" product="tablet" msgid="1024230056230539493">"Daha çox seçim üçün planşeti kiliddən çıxarın"</string>
     <string name="global_action_lock_message" product="device" msgid="3165224897120346096">"Daha çox seçim üçün cihazı kiliddən çıxarın"</string>
+    <string name="global_action_lock_message" product="desktop" msgid="3165224897120346096">"Daha çox seçim üçün cihazı kiliddən çıxarın"</string>
     <string name="media_transfer_playing_this_device" product="default" msgid="5795784619523545556">"Bu telefonda oxudulur"</string>
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Bu planşetdə oxudulur"</string>
+    <string name="media_transfer_playing_this_device" product="desktop" msgid="3299409636487714269">"Bu cihazda oxudulur"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Bu telefon sönülü olsa belə, Cihazın Tapılması ilə onu tapa bilərsiniz"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Bu planşet sönülü olsa belə, Cihazın Tapılması ilə onu tapa bilərsiniz"</string>
+    <string name="finder_active" product="desktop" msgid="924749965418452906">"Bu cihaz sönülü olsa belə, Cihazın tapılması funksiyası ilə onu tapa bilərsiniz"</string>
     <string name="find_hub_active" product="default" msgid="8884083861904230143">"Bu telefon sönülü olsa belə, Cihazın tapılması funksiyası ilə onu tapa bilərsiniz"</string>
     <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Bu planşet sönülü olsa belə, Cihazın tapılması funksiyası ilə onu tapa bilərsiniz"</string>
+    <string name="find_hub_active" product="desktop" msgid="5324909071852240549">"Bu cihaz sönülü olsa belə, Cihazın tapılması funksiyası ilə onu tapa bilərsiniz"</string>
+    <string name="dream_setup_description" product="default" msgid="5167691612621831552">"Telefonunuz şarj edilən zaman saat, foto və ya hava şəraiti göstərilsin"</string>
+    <string name="dream_setup_description" product="tablet" msgid="6296793330727926553">"Planşetiniz şarj edilən zaman saat, foto və ya hava şəraiti göstərilsin"</string>
+    <string name="dream_setup_description" product="device" msgid="3098487756905462324">"Cihazınız şarj edilən zaman saat, foto və ya hava şəraiti göstərilsin"</string>
+    <string name="dream_setup_description" product="desktop" msgid="3098487756905462324">"Cihazınız şarj edilən zaman saat, foto və ya hava şəraiti göstərilsin"</string>
+    <string name="accessibility_retry_face_auth" product="default" msgid="92100916134164459">"Üz ilə Kiliddən Açmanı yenidən sınayın"</string>
+    <string name="accessibility_retry_face_auth" product="desktop" msgid="5630058255754932537">"Üz ilə kiliddən çıxarmağa yenidən cəhd edin"</string>
+    <string name="face_re_enroll_notification_title" product="default" msgid="1533872824718008968">"Üz ilə Kiliddən Açma funksiyasını yenidən ayarlayın"</string>
+    <string name="face_re_enroll_notification_title" product="desktop" msgid="5218710819864377084">"Üz ilə kiliddən çıxarmağı yenidən ayarlayın"</string>
+    <string name="biometric_dialog_tap_confirm_with_face" product="default" msgid="2261934158598458578">"Üz ilə kiliddən çıxarılıb"</string>
+    <string name="biometric_dialog_tap_confirm_with_face" product="desktop" msgid="2066067154465078068">"Üz ilə kiliddən çıxarılıb"</string>
+    <string name="biometric_dialog_tap_confirm_with_face_alt_1" product="default" msgid="1268255053915789297">"Üz ilə kiliddən çıxarılıb. Davam etmək üçün basın."</string>
+    <string name="biometric_dialog_tap_confirm_with_face_alt_1" product="desktop" msgid="1514178179652703156">"Üz ilə kiliddən çıxarılıb. Davam etmək üçün basın."</string>
+    <string name="biometric_dialog_tap_confirm_with_face_sfps" product="default" msgid="2492608775606333432">"Üz ilə kiliddən çıxarılıb. Davam etmək üçün toxunun."</string>
+    <string name="biometric_dialog_tap_confirm_with_face_sfps" product="desktop" msgid="7918648092655463233">"Üz ilə kiliddən çıxarılıb. Davam etmək üçün toxunun."</string>
+    <string name="face_re_enroll_notification_name" product="default" msgid="5965443249759045602">"Üz ilə Kiliddən Açma"</string>
+    <string name="face_re_enroll_notification_name" product="desktop" msgid="3705121888554395242">"Üz ilə kiliddən çıxarmaq"</string>
+    <string name="face_re_enroll_dialog_title" product="default" msgid="2719988247243428771">"Üz ilə Kiliddən Açma funksiyasını ayarlayın"</string>
+    <string name="face_re_enroll_dialog_title" product="desktop" msgid="4217639465392210803">"Üz ilə kiliddən çıxarmağı ayarlayın"</string>
+    <string name="face_re_enroll_dialog_content" product="default" msgid="7290782487464426692">"Üz ilə Kiliddən Açma funksiyasını yenidən ayarlamaq üçün cari üz modeli silinəcək.\n\nTelefonu üz ilə kiliddən çıxarmaq üçün bu funksiyanı yenidən ayarlamalısınız."</string>
+    <string name="face_re_enroll_dialog_content" product="desktop" msgid="7718739738665960268">"Üz ilə kiliddən çıxarmağı yenidən ayarlamaq üçün cari üz modeli silinəcək.\n\nCihazı üz ilə kiliddən çıxarmaq üçün bu funksiyanı yenidən ayarlamalısınız."</string>
+    <string name="face_reenroll_failure_dialog_content" product="default" msgid="6318784230085101323">"Üz ilə kiliddən açma funksiyasını ayarlamaq olmadı. Yenidən cəhd etmək üçün Ayarlara keçin."</string>
+    <string name="face_reenroll_failure_dialog_content" product="desktop" msgid="1206573626798969692">"Üz ilə kiliddən çıxarmağı ayarlamaq olmadı. Ayarlarda yenidən cəhd edin."</string>
+    <string name="keyguard_face_unlock_unavailable" product="default" msgid="3188895702987679056">"Üz ilə Kiliddən Açma funksiyası əlçatan deyil"</string>
+    <string name="keyguard_face_unlock_unavailable" product="desktop" msgid="7088502865328130614">"Üz ilə kiliddən çıxarmaq əlçatan deyil"</string>
+    <string name="accesssibility_keyguard_retry" product="default" msgid="5017097587017783548">"Yuxarı çəkməklə Üz ilə Kiliddən Açmanı yenidən sınayın"</string>
+    <string name="accesssibility_keyguard_retry" product="desktop" msgid="5084769005671288179">"Yuxarı çəkməklə üz ilə kiliddən çıxarmağı yenidən sınayın"</string>
+    <string name="keyguard_face_successful_unlock_swipe" product="default" msgid="1358318947548832086">"Üz ilə kiliddən çıxarılıb. Açmaq üçün yuxarı çəkin."</string>
+    <string name="keyguard_face_successful_unlock_swipe" product="desktop" msgid="4016445068612817741">"Üz ilə kiliddən çıxarılıb. Açmaq üçün yuxarı çəkin."</string>
+    <string name="keyguard_face_successful_unlock_confirm_button" product="default" msgid="4883782574761031564">"Üz ilə kiliddən çıxarılıb. Davam etmək üçün təsdiqləyin."</string>
+    <string name="keyguard_face_successful_unlock_confirm_button" product="desktop" msgid="7268520979450633978">"Üz ilə kiliddən çıxarılıb. Davam etmək üçün təsdiqləyin."</string>
+    <string name="keyguard_face_successful_unlock_press" product="default" msgid="7293890116185253825">"Üz ilə kiliddən çıxarılıb. Kiliddən çıxarmaq ikonuna basıb açın."</string>
+    <string name="keyguard_face_successful_unlock_press" product="desktop" msgid="6158498006084899116">"Üz ilə kiliddən çıxarılıb. Kiliddən çıxarmaq ikonuna basıb açın."</string>
+    <string name="keyguard_face_successful_unlock_press_alt_1" product="default" msgid="6269966346565076951">"Üz ilə kiliddən çıxarılıb. Açmaq üçün basın."</string>
+    <string name="keyguard_face_successful_unlock_press_alt_1" product="desktop" msgid="1612731733090835687">"Üz ilə kiliddən çıxarılıb. Açmaq üçün basın."</string>
+    <string name="keyguard_face_successful_unlock" product="default" msgid="5544493091450184889">"Üz ilə kiliddən çıxarılıb"</string>
+    <string name="keyguard_face_successful_unlock" product="desktop" msgid="5348626087316804379">"Üz ilə kiliddən çıxarılıb"</string>
 </resources>

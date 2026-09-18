@@ -23,7 +23,7 @@ import com.android.internal.logging.InstanceId
 import com.android.systemui.Dumpable
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.MainImmediate
 import com.android.systemui.dagger.qualifiers.UiBackground
 import com.android.systemui.plugins.qs.QSTile
 import com.android.systemui.plugins.qs.TileDetailsViewModel
@@ -56,7 +56,7 @@ import kotlinx.coroutines.launch
 class QSTileViewModelAdapter
 @AssistedInject
 constructor(
-    @Application private val applicationScope: CoroutineScope,
+    @MainImmediate private val applicationScope: CoroutineScope,
     private val qsHost: QSHost,
     @Assisted private val qsTileViewModel: QSTileViewModel,
     @UiBackground private val uiBgDispatcher: CoroutineDispatcher,

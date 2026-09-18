@@ -40,3 +40,29 @@ java_library {
         "kotlinx_coroutines_test",
     ],
 }
+
+// A subset of the testable library that is also useful outside of SysUI tests
+java_library {
+    name: "testable-framework-libs",
+    srcs: [
+        "src/android/testing/AndroidTestingRunner.java",
+        "src/android/testing/LeakCheck.java",
+        "src/android/testing/TestableContentResolver.java",
+        "src/android/testing/TestableContext.java",
+        "src/android/testing/TestableImageView.java",
+        "src/android/testing/TestableInstrumentation.java",
+        "src/android/testing/TestableLooper.java",
+        "src/android/testing/TestablePermissions.java",
+        "src/android/testing/TestableResources.java",
+        "src/android/testing/TestableSettingsProvider.java",
+        "src/android/testing/TestableSettingsProviderBase.java",
+        "src/android/testing/TestWithLooperRule.java",
+        "src/android/testing/UiThreadTest.java",
+    ],
+    libs: [
+        "android.test.runner.stubs.system",
+        "android.test.mock.stubs.system",
+        "androidx.test.rules",
+        "mockito",
+    ],
+}

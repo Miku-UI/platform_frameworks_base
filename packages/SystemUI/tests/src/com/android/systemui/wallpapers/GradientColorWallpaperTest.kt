@@ -16,14 +16,11 @@
 
 package com.android.systemui.wallpapers
 
-import android.app.Flags
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.service.wallpaper.WallpaperService.Engine
 import android.testing.TestableLooper.RunWithLooper
 import android.view.Surface
@@ -45,7 +42,6 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
-import org.mockito.kotlin.verifyNoMoreInteractions
 import org.mockito.kotlin.whenever
 
 @SmallTest
@@ -85,18 +81,6 @@ class GradientColorWallpaperTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_CONNECTED_DISPLAYS_WALLPAPER)
-    fun onSurfaceRedrawNeeded_flagDisabled_shouldNotDrawInCanvas() {
-        val engine = createGradientColorWallpaperEngine()
-        engine.onCreate(surfaceHolder)
-
-        engine.onSurfaceRedrawNeeded(surfaceHolder)
-
-        verifyNoMoreInteractions(canvas)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CONNECTED_DISPLAYS_WALLPAPER)
     fun onSurfaceRedrawNeeded_shouldDrawInCanvas() {
         val engine = createGradientColorWallpaperEngine()
         engine.onCreate(surfaceHolder)

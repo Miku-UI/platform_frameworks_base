@@ -121,38 +121,10 @@ public class InputMethodSubtypeHandleTest {
     }
 
     @Test
-    public void testParcelablility() {
-        final InputMethodSubtypeHandle original =
-                InputMethodSubtypeHandle.of("com.android.test/.Ime1:subtype:1");
-        final InputMethodSubtypeHandle cloned = cloneHandle(original);
-        assertEquals(original, cloned);
-        assertEquals(original.hashCode(), cloned.hashCode());
-        assertEquals(original.getComponentName(), cloned.getComponentName());
-        assertEquals(original.getImeId(), cloned.getImeId());
-        assertEquals(original.toStringHandle(), cloned.toStringHandle());
-    }
-
-    @Test
     public void testNoUnnecessaryStringInstantiationInToStringHandle() {
         final String validHandleStr = "com.android.test/.Ime1:subtype:1";
         // Verify that toStringHandle() returns the same String object if the input is valid for
         // an efficient memory usage.
         assertSame(validHandleStr, InputMethodSubtypeHandle.of(validHandleStr).toStringHandle());
-    }
-
-    @NonNull
-    private static InputMethodSubtypeHandle cloneHandle(
-            @NonNull InputMethodSubtypeHandle original) {
-        Parcel parcel = null;
-        try {
-            parcel = Parcel.obtain();
-            original.writeToParcel(parcel, 0);
-            parcel.setDataPosition(0);
-            return InputMethodSubtypeHandle.CREATOR.createFromParcel(parcel);
-        } finally {
-            if (parcel != null) {
-                parcel.recycle();
-            }
-        }
     }
 }

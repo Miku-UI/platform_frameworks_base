@@ -60,14 +60,14 @@ class TvPipNotificationTests : TvPipTestBase() {
 
         assertNotNull(
             "Pip notification should have been posted",
-            waitForNotificationToAppear { it.isPipNotificationWithTitle(testApp.appName) }
+            waitForNotificationToAppear { it.isPipNotificationWithTitle(testApp.appName) },
         )
 
         testApp.closePipWindow()
 
         assertTrue(
             "Pip notification should have been dismissed",
-            waitForNotificationToDisappear { it.isPipNotificationWithTitle(testApp.appName) }
+            waitForNotificationToDisappear { it.isPipNotificationWithTitle(testApp.appName) },
         )
     }
 
@@ -84,11 +84,11 @@ class TvPipNotificationTests : TvPipTestBase() {
 
         assertTrue(
             "Pip should have closed by sending the `delete_intent`",
-            testApp.waitUntilClosed()
+            testApp.waitUntilClosed(),
         )
         assertTrue(
             "Pip notification should have been dismissed",
-            waitForNotificationToDisappear { it.isPipNotificationWithTitle(testApp.appName) }
+            waitForNotificationToDisappear { it.isPipNotificationWithTitle(testApp.appName) },
         )
     }
 
@@ -106,7 +106,7 @@ class TvPipNotificationTests : TvPipTestBase() {
 
         assertNotNull(
             "Pip menu should have been shown after sending `content_intent`",
-            uiDevice.waitForTvPipMenu()
+            uiDevice.waitForTvPipMenu(),
         )
 
         uiDevice.pressBack()
@@ -126,7 +126,7 @@ class TvPipNotificationTests : TvPipTestBase() {
         // ... and make sure "regular" PiP notification is now shown
         assertNull(
             "Regular notification should not have been posted",
-            findNotification { it.isPipNotificationWithTitle(testApp.appName) }
+            findNotification { it.isPipNotificationWithTitle(testApp.appName) },
         )
 
         // Pause the media session. When paused the application updates the title for the media
@@ -139,7 +139,7 @@ class TvPipNotificationTests : TvPipTestBase() {
         // ... and make sure "playing" PiP notification is gone
         assertNull(
             "Regular notification should not have been posted",
-            findNotification { it.isPipNotificationWithTitle(TITLE_MEDIA_SESSION_PLAYING) }
+            findNotification { it.isPipNotificationWithTitle(TITLE_MEDIA_SESSION_PLAYING) },
         )
 
         // Now stop the media session, which should revert the title to the "default" one.
@@ -151,7 +151,7 @@ class TvPipNotificationTests : TvPipTestBase() {
         // ... and make sure previous ("paused") notification is gone
         assertNull(
             "Regular notification should not have been posted",
-            findNotification { it.isPipNotificationWithTitle(TITLE_MEDIA_SESSION_PAUSED) }
+            findNotification { it.isPipNotificationWithTitle(TITLE_MEDIA_SESSION_PAUSED) },
         )
 
         testApp.closePipWindow()

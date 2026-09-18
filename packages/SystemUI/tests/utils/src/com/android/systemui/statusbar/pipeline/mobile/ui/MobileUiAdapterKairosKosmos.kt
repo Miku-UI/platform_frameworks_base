@@ -18,13 +18,11 @@ package com.android.systemui.statusbar.pipeline.mobile.ui
 
 import com.android.systemui.dump.dumpManager
 import com.android.systemui.kairos.ActivatedKairosFixture
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.statusbar.phone.ui.statusBarIconController
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.mobileIconsViewModelKairos
 
-@ExperimentalKairosApi
 val Kosmos.mobileUiAdapterKairos by ActivatedKairosFixture {
     MobileUiAdapterKairos(
         statusBarIconController,

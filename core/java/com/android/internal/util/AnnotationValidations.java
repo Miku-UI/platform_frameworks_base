@@ -29,6 +29,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.PackageInfoFlagsBits;
 import android.content.pm.PackageManager.PermissionResult;
 import android.os.UserHandle;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import java.lang.annotation.Annotation;
 
@@ -44,6 +45,7 @@ import java.lang.annotation.Annotation;
  * The ignored {@link Annotation} parameter is used to differentiate between overloads that would
  * otherwise have the same jvm signature. It's usually null at runtime.
  */
+@RavenwoodKeepWholeClass
 public class AnnotationValidations {
     private AnnotationValidations() {}
 

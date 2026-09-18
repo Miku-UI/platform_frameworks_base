@@ -32,6 +32,7 @@ import java.util.Locale;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class XmlConstants {
 
     public static final String NAMESPACE = null;
@@ -63,6 +64,7 @@ public final class XmlConstants {
     public static final String ATTRIBUTE_SCALE = "scale";
     public static final String ATTRIBUTE_DELAY_MS = "delayMs";
     public static final String ATTRIBUTE_DELAY_TYPE = "delayType";
+    public static final String ATTRIBUTE_START_TIME_MS = "startTimeMs";
 
     public static final String VALUE_AMPLITUDE_DEFAULT = "default";
 

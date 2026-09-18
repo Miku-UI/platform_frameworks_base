@@ -23,11 +23,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.location.flags.Flags;
 import android.os.SystemClock;
 import android.telephony.TelephonyCallback;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.server.FgThread;
 
@@ -44,7 +46,11 @@ public class SystemEmergencyHelper extends EmergencyHelper {
 
     TelephonyManager mTelephonyManager;
 
+    @GuardedBy("this")
     boolean mIsInEmergencyCall;
+    @GuardedBy("this")
+    boolean mEmergencyCallbackMode;
+    @GuardedBy("this")
     long mEmergencyCallEndRealtimeMs = Long.MIN_VALUE;
 
     public SystemEmergencyHelper(Context context) {
@@ -93,6 +99,14 @@ public class SystemEmergencyHelper extends EmergencyHelper {
                     return;
                 }
 
+                if (Flags.cacheEmergencyCallbackMode()) {
+                    boolean emergencyCallbackMode = intent.getBooleanExtra(
+                            TelephonyManager.EXTRA_PHONE_IN_ECM_STATE, false);
+                    synchronized (SystemEmergencyHelper.this) {
+                        mEmergencyCallbackMode = emergencyCallbackMode;
+                    }
+                }
+
                 dispatchEmergencyStateChanged();
             }
         }, new IntentFilter(TelephonyIntents.ACTION_EMERGENCY_CALLBACK_MODE_CHANGED));
@@ -106,14 +120,19 @@ public class SystemEmergencyHelper extends EmergencyHelper {
         boolean emergencyCallbackMode = false;
         boolean emergencySmsMode = false;
         PackageManager pm = mContext.getPackageManager();
-        if (pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_CALLING)) {
-            emergencyCallbackMode = mTelephonyManager.getEmergencyCallbackMode();
+        if (!Flags.cacheEmergencyCallbackMode()) {
+            if (pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_CALLING)) {
+                emergencyCallbackMode = mTelephonyManager.getEmergencyCallbackMode();
+            }
         }
         if (pm.hasSystemFeature(PackageManager.FEATURE_TELEPHONY_MESSAGING)) {
             emergencySmsMode = mTelephonyManager.isInEmergencySmsMode();
         }
         boolean isInExtensionTime;
         synchronized (this) {
+            if (Flags.cacheEmergencyCallbackMode()) {
+                emergencyCallbackMode = mEmergencyCallbackMode;
+            }
             isInExtensionTime = mEmergencyCallEndRealtimeMs != Long.MIN_VALUE
                     && (SystemClock.elapsedRealtime() - mEmergencyCallEndRealtimeMs)
                     < extensionTimeMs;

@@ -50,6 +50,7 @@ import android.net.NetworkStats;
 import android.net.NetworkTemplate;
 import android.net.TelephonyNetworkSpecifier;
 import android.net.Uri;
+import android.net.platform.flags.Flags;
 import android.os.BestClock;
 import android.os.Handler;
 import android.os.SystemClock;
@@ -201,6 +202,8 @@ public class MultipathPolicyTracker {
         private boolean mUsageCallbackRegistered = false;
         private NetworkCapabilities mNetworkCapabilities;
         private final NetworkStatsManager mStatsManager;
+        // Whether to use the new NetworkStatsManager.querySummaryForDevice(flags) API.
+        private final boolean mUseNetstatsPerQueryFlags;
 
         public MultipathTracker(Network network, NetworkCapabilities nc) {
             this.network = network;
@@ -241,12 +244,17 @@ public class MultipathPolicyTracker {
                 }
             };
             mStatsManager = mContext.getSystemService(NetworkStatsManager.class);
+            mUseNetstatsPerQueryFlags = Flags.useNetstatsPerQueryFlags();
             // Query stats from NetworkStatsService will trigger a poll by default.
             // But since MultipathPolicyTracker listens NPMS events that triggered by
             // stats updated event, and will query stats
             // after the event. A polling -> updated -> query -> polling loop will be introduced
-            // if polls on open. Hence, set flag to false to prevent a polling loop.
-            mStatsManager.setPollOnOpen(false);
+            // if polls on open. Hence, to prevent a polling loop, setPollOnOpen(false) is used
+            // when the flag is disabled, or 0 is passed to querySummaryForDevice when the flag is
+            // enabled.
+            if (!mUseNetstatsPerQueryFlags) {
+                mStatsManager.setPollOnOpen(false);
+            }
 
             updateMultipathBudget();
         }
@@ -270,8 +278,14 @@ public class MultipathPolicyTracker {
 
         private long getNetworkTotalBytes(long start, long end) {
             try {
-                final android.app.usage.NetworkStats.Bucket ret =
-                        mStatsManager.querySummaryForDevice(mNetworkTemplate, start, end);
+                final android.app.usage.NetworkStats.Bucket ret;
+                if (mUseNetstatsPerQueryFlags) {
+                    // Pass 0 to prevent polling for new stats.
+                    ret = mStatsManager.querySummaryForDevice(
+                            mNetworkTemplate, start, end, 0 /* flags */);
+                } else {
+                    ret = mStatsManager.querySummaryForDevice(mNetworkTemplate, start, end);
+                }
                 return ret.getRxBytes() + ret.getTxBytes();
             } catch (RuntimeException e) {
                 Log.w(TAG, "Failed to get data usage: " + e);

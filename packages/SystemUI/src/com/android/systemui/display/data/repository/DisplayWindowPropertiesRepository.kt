@@ -29,9 +29,6 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.display.shared.model.DisplayWindowProperties
 import com.android.systemui.res.R
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
-import com.android.systemui.shared.Flags.cursorHotCorner
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
 import com.android.systemui.utils.windowmanager.WindowManagerUtils
 import com.google.common.collect.HashBasedTable
 import com.google.common.collect.Table
@@ -62,17 +59,6 @@ constructor(
     private val globalLayoutInflater: LayoutInflater,
     private val displayRepository: DisplayRepository,
 ) : DisplayWindowPropertiesRepository, CoreStartable {
-
-    init {
-        check(
-            StatusBarConnectedDisplays.isEnabled ||
-                ShadeWindowGoesAround.isEnabled ||
-                cursorHotCorner()
-        ) {
-            "This should be instantiated only when either StatusBarConnectedDisplays or " +
-                "ShadeWindowGoesAround or cursorHotCorner are enabled."
-        }
-    }
 
     private val properties: Table<Int, Int, DisplayWindowProperties> = HashBasedTable.create()
 

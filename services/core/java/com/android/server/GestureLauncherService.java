@@ -147,6 +147,7 @@ public class GestureLauncherService extends SystemService {
     private Context mContext;
     private final MetricsLogger mMetricsLogger;
     private PowerManager mPowerManager;
+
     private WindowManagerInternal mWindowManagerInternal;
 
     /** The wake lock held when a gesture is detected. */
@@ -841,7 +842,6 @@ public class GestureLauncherService extends SystemService {
             Slog.e(TAG, "PendingIntent was canceled", e);
         }
     }
-
 
     /**
      * @return true if camera was launched, false otherwise.

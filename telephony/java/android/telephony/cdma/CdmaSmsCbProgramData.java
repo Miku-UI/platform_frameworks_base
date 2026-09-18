@@ -129,40 +129,76 @@ public final class CdmaSmsCbProgramData implements Parcelable {
             })
     public @interface Category {}
 
-    /** Alert option: no alert. @hide */
+    /**
+     * Alert option: no alert.
+     * @hide
+     */
     public static final int ALERT_OPTION_NO_ALERT               = 0;
 
-    /** Alert option: default alert. @hide */
+    /**
+     * Alert option: default alert.
+     * @hide
+     */
     public static final int ALERT_OPTION_DEFAULT_ALERT          = 1;
 
-    /** Alert option: vibrate alert once. @hide */
+    /**
+     * Alert option: vibrate alert once.
+     * @hide
+     */
     public static final int ALERT_OPTION_VIBRATE_ONCE           = 2;
 
-    /** Alert option: vibrate alert - repeat. @hide */
+    /**
+     * Alert option: vibrate alert - repeat.
+     * @hide
+     */
     public static final int ALERT_OPTION_VIBRATE_REPEAT         = 3;
 
-    /** Alert option: visual alert once. @hide */
+    /**
+     * Alert option: visual alert once.
+     * @hide
+     */
     public static final int ALERT_OPTION_VISUAL_ONCE            = 4;
 
-    /** Alert option: visual alert - repeat. @hide */
+    /**
+     * Alert option: visual alert - repeat.
+     * @hide
+     */
     public static final int ALERT_OPTION_VISUAL_REPEAT          = 5;
 
-    /** Alert option: low-priority alert once. @hide */
+    /**
+     * Alert option: low-priority alert once.
+     * @hide
+     */
     public static final int ALERT_OPTION_LOW_PRIORITY_ONCE      = 6;
 
-    /** Alert option: low-priority alert - repeat. @hide */
+    /**
+     * Alert option: low-priority alert - repeat.
+     * @hide
+     */
     public static final int ALERT_OPTION_LOW_PRIORITY_REPEAT    = 7;
 
-    /** Alert option: medium-priority alert once. @hide */
+    /**
+     * Alert option: medium-priority alert once.
+     * @hide
+     */
     public static final int ALERT_OPTION_MED_PRIORITY_ONCE      = 8;
 
-    /** Alert option: medium-priority alert - repeat. @hide */
+    /**
+     * Alert option: medium-priority alert - repeat.
+     * @hide
+     */
     public static final int ALERT_OPTION_MED_PRIORITY_REPEAT    = 9;
 
-    /** Alert option: high-priority alert once. @hide */
+    /**
+     * Alert option: high-priority alert once.
+     * @hide
+     */
     public static final int ALERT_OPTION_HIGH_PRIORITY_ONCE     = 10;
 
-    /** Alert option: high-priority alert - repeat. @hide */
+    /**
+     * Alert option: high-priority alert - repeat.
+     * @hide
+     */
     public static final int ALERT_OPTION_HIGH_PRIORITY_REPEAT   = 11;
 
     /** Service category operation (add/delete/clear). */

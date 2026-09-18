@@ -106,7 +106,7 @@ internal class StateScopeImpl(
         }
         val changesImpl: EventsImpl<Map<K, Maybe<A>>> =
             mapImpl(
-                upstream = { this@applyLatestStatefulForKey.init.connect(evalScope = this) },
+                upstream = { this@applyLatestStatefulForKey.init.connect(initScope = this) },
                 nameData + "changes",
             ) { upstreamMap, _ ->
                 reenterStateScope(this@StateScopeImpl).run {
@@ -133,7 +133,7 @@ internal class StateScopeImpl(
             constInit(
                 nameData,
                 mapImpl(
-                        upstream = { this@applyStatefuls.init.connect(evalScope = this) },
+                        upstream = { this@applyStatefuls.init.connect(initScope = this) },
                         nameData,
                     ) { stateful, _ ->
                         reenterStateScope(outerScope = this@StateScopeImpl).stateful()
@@ -239,7 +239,7 @@ private fun <A> Events<A>.holdStateDeferredUnsafe(
         activatedStateSource(
             nameData,
             evalScope,
-            { changes.init.connect(evalScope = this) },
+            { changes.init.connect(initScope = this) },
             initialValue,
         )
     return StateInit(constInit(nameData, impl))

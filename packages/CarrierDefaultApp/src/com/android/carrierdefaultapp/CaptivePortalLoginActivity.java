@@ -49,6 +49,7 @@ import android.webkit.WebViewClient;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.util.ArrayUtils;
 import com.android.net.module.util.NetworkStackConstants;
 
@@ -203,7 +204,9 @@ public class CaptivePortalLoginActivity extends Activity {
 
     private URL getUrlForCaptivePortal() {
         String url = getIntent().getStringExtra(TelephonyManager.EXTRA_REDIRECTION_URL);
-        if (TextUtils.isEmpty(url)) url = mCm.getCaptivePortalServerUrl();
+        if (TextUtils.isEmpty(url) && !Flags.skipConnectivityManagerCaptivePortalCheck()) {
+            url = mCm.getCaptivePortalServerUrl();
+        }
         final CarrierConfigManager configManager = getApplicationContext()
                 .getSystemService(CarrierConfigManager.class);
         final int subId = getIntent().getIntExtra(SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX,
@@ -240,8 +243,7 @@ public class CaptivePortalLoginActivity extends Activity {
                 int oldTag = TrafficStats.getAndSetThreadStatsTag(
                         NetworkStackConstants.TAG_SYSTEM_PROBE);
                 try {
-                    urlConnection = (HttpURLConnection) mNetwork.openConnection(
-                            new URL(mCm.getCaptivePortalServerUrl()));
+                    urlConnection = (HttpURLConnection) mNetwork.openConnection(mUrl);
                     urlConnection.setInstanceFollowRedirects(false);
                     urlConnection.setConnectTimeout(SOCKET_TIMEOUT_MS);
                     urlConnection.setReadTimeout(SOCKET_TIMEOUT_MS);

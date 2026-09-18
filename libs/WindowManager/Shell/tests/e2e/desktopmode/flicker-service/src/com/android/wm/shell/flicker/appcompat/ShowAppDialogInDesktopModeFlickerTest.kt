@@ -65,19 +65,16 @@ class ShowAppDialogInDesktopModeFlickerTest(flicker: FlickerTest) : DesktopModeB
             teardown { scenario.teardown() }
         }
 
-    @Test
-    fun appDialogWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(appDialogMatcher)
+    @Test fun appDialogWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(appDialogMatcher)
 
     @Test
     fun appDialogInsideDisplayBoundsAtEnd() =
         flicker.appWindowInsideDisplayBoundsAtEnd(appDialogMatcher)
 
     @Test
-    fun appDialogCoversFullScreenAtEnd() =
-        flicker.layerCoversFullScreenAtEnd(appDialogMatcher)
+    fun appDialogCoversFullScreenAtEnd() = flicker.layerCoversFullScreenAtEnd(appDialogMatcher)
 
-    @Test
-    fun appWindowKeepVisible() = flicker.appWindowKeepVisible(browserApp)
+    @Test fun appWindowKeepVisible() = flicker.appWindowKeepVisible(browserApp)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

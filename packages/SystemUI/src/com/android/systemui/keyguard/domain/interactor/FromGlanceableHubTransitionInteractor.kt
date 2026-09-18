@@ -19,7 +19,6 @@ package com.android.systemui.keyguard.domain.interactor
 import android.animation.ValueAnimator
 import com.android.app.animation.Interpolators
 import com.android.app.tracing.coroutines.launchTraced as launch
-import com.android.systemui.Flags
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
 import com.android.systemui.communal.shared.model.CommunalScenes
@@ -127,22 +126,14 @@ constructor(
             powerInteractor.isAsleep
                 .filterRelevantKeyguardStateAnd { isAsleep -> isAsleep }
                 .collect {
-                    if (Flags.communalPowerTransitionFix()) {
-                        // Snap to blank immediately when asleep so that KTF can transition
-                        // correctly if the power button is pressed quickly in succession, ex.
-                        // pressing twice should end up on lock screen.
-                        communalSceneInteractor.snapToScene(
-                            newScene = CommunalScenes.Blank,
-                            loggingReason = "hub to sleep",
-                            keyguardState = keyguardInteractor.asleepKeyguardState.value,
-                        )
-                    } else {
-                        communalSceneInteractor.changeScene(
-                            newScene = CommunalScenes.Blank,
-                            loggingReason = "hub to sleep",
-                            keyguardState = keyguardInteractor.asleepKeyguardState.value,
-                        )
-                    }
+                    // Snap to blank immediately when asleep so that KTF can transition
+                    // correctly if the power button is pressed quickly in succession, ex.
+                    // pressing twice should end up on lock screen.
+                    communalSceneInteractor.snapToScene(
+                        newScene = CommunalScenes.Blank,
+                        loggingReason = "hub to sleep",
+                        keyguardState = keyguardInteractor.asleepKeyguardState.value,
+                    )
                 }
         }
     }
@@ -153,8 +144,8 @@ constructor(
         }
 
         scope.launch {
-            keyguardInteractor.isAbleToDream
-                .filterRelevantKeyguardStateAnd { isAbleToDream -> isAbleToDream }
+            keyguardInteractor.isDreamingNotDozing
+                .filterRelevantKeyguardStateAnd { isDreamingNotDozing -> isDreamingNotDozing }
                 .collect {
                     communalSceneInteractor.changeScene(
                         newScene = CommunalScenes.Blank,
@@ -222,8 +213,6 @@ constructor(
         scope.launch {
             allOf(
                     keyguardInteractor.isKeyguardGoingAway,
-                    // TODO(b/327225415): Handle edit mode opening here to avoid going to GONE
-                    // state until after edit mode is ready to be shown.
                     noneOf(
                         // When launching activities from widgets on the hub, we wait to change
                         // scenes until the activity launch is complete.
@@ -234,14 +223,9 @@ constructor(
                 .collect {
                     val editModeState = communalSceneInteractor.editModeState.value
                     if (editModeState != null) {
-                        if (Flags.hubEditModeTransition()) {
-                            // If transitioning to edit mode, do nothing here. Scene change is
-                            // handled by the edit mode activity.
-                            return@collect
-                        }
-
-                        // Don't change scenes here as that is handled by the edit activity.
-                        startTransitionTo(KeyguardState.GONE)
+                        // If transitioning to edit mode, do nothing here. Scene change is
+                        // handled by the edit mode activity.
+                        return@collect
                     } else {
                         communalSceneInteractor.changeScene(
                             newScene = CommunalScenes.Blank,

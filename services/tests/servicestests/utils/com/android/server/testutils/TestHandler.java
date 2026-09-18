@@ -28,6 +28,7 @@ import android.util.ArrayMap;
 import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.function.LongSupplier;
+import java.util.function.Predicate;
 
 /**
  * A test {@link Handler} that stores incoming {@link Message}s and {@link Runnable callbacks}
@@ -116,6 +117,13 @@ public class TestHandler extends Handler {
 
     public PriorityQueue<MsgInfo> getPendingMessages() {
         return new PriorityQueue<>(mMessages);
+    }
+
+    /**
+     * Removes messages matching the predicate
+     */
+    public void removeIf(Predicate<? super MsgInfo> predicate) {
+        mMessages.removeIf(predicate);
     }
 
     /**

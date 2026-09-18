@@ -110,10 +110,6 @@ class FrameCallbackProvider(val scope: CoroutineScope) : AnimationFrameCallbackP
         callback.tryEmit(cb)
     }
 
-    override fun postCommitCallback(runnable: Runnable) {}
-
-    override fun getFrameTime() = frameCount
-
     override fun getFrameDelay() = 1L
 
     override fun setFrameDelay(delay: Long) {}

@@ -43,6 +43,7 @@ import android.view.DisplayCutout;
 import android.view.DisplayInfo;
 import android.view.DisplayShape;
 import android.view.FrameRateCategoryRate;
+import android.view.FrameRateVelocityPoint;
 import android.view.RoundedCorner;
 import android.view.RoundedCorners;
 import android.view.SurfaceControl.RefreshRateRange;
@@ -57,6 +58,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -313,6 +315,19 @@ public class DeferredDisplayUpdaterDiffTest {
         } else if (type.isArray() && type.getComponentType().equals(float.class)) {
             field.set(first, new float[]{60.0f});
             field.set(second, new float[]{120.0f});
+        } else if (type.equals(List.class)
+                && ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0].equals(
+                FrameRateVelocityPoint.class)) {
+            List<FrameRateVelocityPoint> firstPoints = Arrays.asList(
+                    new FrameRateVelocityPoint(120, 1000),
+                    new FrameRateVelocityPoint(90, 900)
+            );
+            field.set(first, firstPoints);
+            List<FrameRateVelocityPoint> secondPoints = Arrays.asList(
+                    new FrameRateVelocityPoint(80, 650),
+                    new FrameRateVelocityPoint(60, 450)
+            );
+            field.set(second, secondPoints);
         } else {
             throw new IllegalArgumentException("Field " + field
                     + " is not supported by this test, please add implementation of setting "

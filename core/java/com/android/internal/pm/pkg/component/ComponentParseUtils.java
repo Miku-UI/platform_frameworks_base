@@ -16,6 +16,8 @@
 
 package com.android.internal.pm.pkg.component;
 
+import static android.content.pm.PermissionInfo.NO_TARGET_SDK_VERSION;
+
 import android.annotation.AttrRes;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -62,11 +64,18 @@ public class ComponentParseUtils {
         // Beginning in Android 17, permissions may specify valid usage purposes. Currently, valid
         // purposes are only processed for enforcement if the permission is defined within the
         // Android platform manifest. This limitation might be lifted in future versions.
+        final boolean isParsedPermissionComponent =
+                component instanceof ParsedPermissionImpl
+                && "android".equals(pkg.getPackageName());
+        final boolean shouldParseAllValidPurposes =
+                Flags.ppdManifestEnabled()
+                        && isParsedPermissionComponent;
+        // TODO(b/443057927): rename to shouldParseValidPurposes
         final boolean shouldParseValidPurposes =
-                Flags.purposeDeclarationEnabled()
-                        && component instanceof ParsedPermissionImpl
-                        && "android".equals(pkg.getPackageName());
+                (Flags.ppdPurposeEnabled() || Flags.ppdInstallTimeEnabled())
+                        && isParsedPermissionComponent;
         final List<ParsedValidPurpose> validPurposes = new ArrayList<>();
+        final List<ParsedValidGeneralPurpose> validGeneralPurposes = new ArrayList<>();
         final int depth = parser.getDepth();
         int type;
         while ((type = parser.next()) != XmlPullParser.END_DOCUMENT
@@ -74,7 +83,7 @@ public class ComponentParseUtils {
             if (type != XmlPullParser.START_TAG) {
                 continue;
             }
-            if (ParsingPackageUtils.getAconfigFlags().skipCurrentElement(pkg, parser)) {
+            if (AconfigFlags.getInstance().skipCurrentElement(pkg, parser)) {
                 XmlUtils.skipCurrentTag(parser);
                 continue;
             }
@@ -89,6 +98,14 @@ public class ComponentParseUtils {
                 if (validPurposeResult.isSuccess()) {
                     validPurposes.add(validPurposeResult.getResult());
                 }
+            } else if (shouldParseAllValidPurposes
+                    && "valid-general-purpose".equals(parser.getName())) {
+                final ParseResult<ParsedValidGeneralPurpose> validGeneralPurposeResult =
+                        parseValidGeneralPurpose(res, parser, input);
+                result = validGeneralPurposeResult;
+                if (validGeneralPurposeResult.isSuccess()) {
+                    validGeneralPurposes.add(validGeneralPurposeResult.getResult());
+                }
             } else {
                 result = ParsingUtils.unknownTag(tag, pkg, parser, input);
             }
@@ -100,11 +117,24 @@ public class ComponentParseUtils {
 
         if (shouldParseValidPurposes) {
             final ParsedPermissionImpl permission = (ParsedPermissionImpl) component;
-            if (permission.isPurposeRequired() && validPurposes.isEmpty()) {
+            if (permission.getRequiresPurposeTargetSdkVersion() != NO_TARGET_SDK_VERSION
+                    && validPurposes.isEmpty()) {
                 return input.error(
                         "<permission> requires purpose but no valid purpose defined!");
             } else {
                 permission.setValidPurposes(validPurposes);
+            }
+        }
+
+        if (shouldParseAllValidPurposes) {
+            final ParsedPermissionImpl permission = (ParsedPermissionImpl) component;
+            if (permission.getRequiresGeneralPurposeTargetSdkVersion() != NO_TARGET_SDK_VERSION
+                    && validGeneralPurposes.isEmpty()) {
+                return input.error(
+                        "<permission> requires general purpose but no valid general purpose"
+                                + " defined");
+            } else {
+                permission.setValidGeneralPurposes(validGeneralPurposes);
             }
         }
 
@@ -126,6 +156,27 @@ public class ComponentParseUtils {
                             R.styleable.AndroidManifestValidPurpose_maxTargetSdkVersion,
                             /* defaultValue= */ Integer.MAX_VALUE);
             return input.success(new ParsedValidPurposeImpl(name, maxTargetSdkVersion));
+        } finally {
+            sa.recycle();
+        }
+    }
+
+    private static ParseResult<ParsedValidGeneralPurpose> parseValidGeneralPurpose(
+            Resources res, XmlResourceParser parser, ParseInput input) {
+        TypedArray sa =
+                res.obtainAttributes(parser, R.styleable.AndroidManifestValidGeneralPurpose);
+        try {
+            final String name = sa.getString(R.styleable.AndroidManifestValidGeneralPurpose_name);
+            if (TextUtils.isEmpty(name)) {
+                return input.error(
+                        "The android:name attribute for <valid-general-purpose> cannot be null or empty!");
+            }
+            final int maxTargetSdkVersion =
+                    ParsingPackageUtils.parseMinOrMaxSdkVersion(
+                            sa,
+                            R.styleable.AndroidManifestValidGeneralPurpose_maxTargetSdkVersion,
+                            /* defaultValue= */ Integer.MAX_VALUE);
+            return input.success(new ParsedValidGeneralPurposeImpl(name, maxTargetSdkVersion));
         } finally {
             sa.recycle();
         }

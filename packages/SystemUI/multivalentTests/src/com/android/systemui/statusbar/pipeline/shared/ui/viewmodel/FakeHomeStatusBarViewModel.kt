@@ -23,34 +23,31 @@ import android.graphics.RectF
 import android.view.View
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.plugins.DarkIconDispatcher
 import com.android.systemui.statusbar.chips.mediaprojection.domain.model.MediaProjectionStopDialogModel
 import com.android.systemui.statusbar.chips.ui.model.MultipleOngoingActivityChipsModel
-import com.android.systemui.statusbar.chips.ui.model.MultipleOngoingActivityChipsModelLegacy
-import com.android.systemui.statusbar.chips.ui.model.OngoingActivityChipModel
 import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState.Idle
-import com.android.systemui.statusbar.featurepods.popups.ui.model.PopupChipModel
 import com.android.systemui.statusbar.layout.ui.viewmodel.AppHandlesViewModel
 import com.android.systemui.statusbar.layout.ui.viewmodel.StatusBarBoundsViewModel
 import com.android.systemui.statusbar.phone.domain.interactor.IsAreaDark
-import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryNextToPercentViewModel
 import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryViewModel
 import com.android.systemui.statusbar.pipeline.shared.ui.model.ChipsVisibilityModel
 import com.android.systemui.statusbar.pipeline.shared.ui.model.SystemInfoCombinedVisibilityModel
 import com.android.systemui.statusbar.pipeline.shared.ui.model.VisibilityModel
 import com.android.systemui.statusbar.policy.Clock
+import com.android.systemui.statusbar.quickactions.shared.model.QuickActionChipModel
+import com.android.systemui.statusbar.systemstatusicons.domain.interactor.SystemStatusIconBlocklistInteractor
 import com.android.systemui.statusbar.systemstatusicons.ui.viewmodel.SystemStatusIconsViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
 import org.mockito.Mockito.mock
 
 class FakeHomeStatusBarViewModel(
     override val operatorNameViewModel: StatusBarOperatorNameViewModel
-) : HomeStatusBarViewModel, ExclusiveActivatable() {
-    private val hydrator = Hydrator("FakeHomeStatusBarViewModel.hydrator")
+) : HomeStatusBarViewModel, HydratedActivatable() {
 
     override val areNotificationsLightsOut = MutableStateFlow(false)
 
@@ -58,35 +55,31 @@ class FakeHomeStatusBarViewModel(
 
     override val transitionFromLockscreenToDreamStartedEvent = MutableSharedFlow<Unit>()
 
-    override val primaryOngoingActivityChip: MutableStateFlow<OngoingActivityChipModel> =
-        MutableStateFlow(OngoingActivityChipModel.Inactive())
-
     override val ongoingActivityChips =
         ChipsVisibilityModel(MultipleOngoingActivityChipsModel(), areChipsAllowed = false)
 
     override fun onChipBoundsChanged(key: String, bounds: RectF) {}
 
+    override fun onStatusBarTap(eventX: Float) {}
+
+    override fun onStatusBarLongPressed() {}
+
+    override fun onClockClicked() {}
+
+    override fun onSpacerClicked() {}
+
     override fun onQuickSettingsChipClicked() {}
 
     override fun onNotificationIconChipClicked() {}
 
-    override val ongoingActivityChipsLegacy =
-        MutableStateFlow(MultipleOngoingActivityChipsModelLegacy())
+    override fun onShadeExpansionIntent(eventX: Float, statusBarWidth: Int, isConsumed: Boolean) {}
 
-    override val popupChips = emptyList<PopupChipModel.Shown>()
+    override val popupChips = emptyList<QuickActionChipModel.PopupChip>()
 
     override val mediaProjectionStopDialogDueToCallEndedState =
         MutableStateFlow(MediaProjectionStopDialogModel.Hidden)
 
     override val isHomeStatusBarAllowed = MutableStateFlow(false)
-
-    override val canShowOngoingActivityChips: Flow<Boolean> = MutableStateFlow(false)
-
-    override val batteryNextToPercentViewModel: BatteryNextToPercentViewModel.Factory =
-        object : BatteryNextToPercentViewModel.Factory {
-            override fun create(): BatteryNextToPercentViewModel =
-                mock(BatteryNextToPercentViewModel::class.java)
-        }
 
     override val unifiedBatteryViewModel: BatteryViewModel.BasedOnUserSetting.Factory =
         BatteryViewModel.BasedOnUserSetting.Factory {
@@ -95,8 +88,10 @@ class FakeHomeStatusBarViewModel(
 
     override val systemStatusIconsViewModelFactory: SystemStatusIconsViewModel.Factory =
         object : SystemStatusIconsViewModel.Factory {
-            override fun create(context: Context): SystemStatusIconsViewModel =
-                mock(SystemStatusIconsViewModel::class.java)
+            override fun create(
+                context: Context,
+                systemStatusIconBlocklistInteractor: SystemStatusIconBlocklistInteractor,
+            ): SystemStatusIconsViewModel = mock(SystemStatusIconsViewModel::class.java)
         }
 
     override val statusBarBoundsViewModelFactory: StatusBarBoundsViewModel.Factory =
@@ -131,6 +126,11 @@ class FakeHomeStatusBarViewModel(
 
     override val iconBlockList: MutableStateFlow<List<String>> = MutableStateFlow(listOf())
 
+    override val systemStatusIconBlockListInteractor: SystemStatusIconBlocklistInteractor =
+        object : SystemStatusIconBlocklistInteractor {
+            override val blockedIconSlots: Flow<Set<String>> = iconBlockList.map { it.toSet() }
+        }
+
     override val contentArea = MutableStateFlow(Rect(0, 0, 1, 1))
 
     val darkRegions = mutableListOf<Rect>()
@@ -161,17 +161,17 @@ class FakeHomeStatusBarViewModel(
             }
         )
 
-    override val areaDark: IsAreaDark by
-        hydrator.hydratedStateOf(traceName = "areaDark", source = isAreaDarkSource)
+    override val areaDark: IsAreaDark by isAreaDarkSource.hydratedStateOf()
 
     val desktopStatusBarEnabledSource = MutableStateFlow(false)
 
     override val useDesktopStatusBar: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "areaDark",
-            source = desktopStatusBarEnabledSource,
-            initialValue = false,
-        )
+        desktopStatusBarEnabledSource.hydratedStateOf(initialValue = false)
+
+    val hasStatusBarNotificationsSource = MutableStateFlow(false)
+
+    override val hasStatusBarNotifications: Boolean by
+        hasStatusBarNotificationsSource.hydratedStateOf(initialValue = false)
 
     val isQuickSettingsChipHighlightedSource = mutableStateOf(false)
     override val isQuickSettingsChipHighlighted: Boolean by isQuickSettingsChipHighlightedSource
@@ -179,7 +179,13 @@ class FakeHomeStatusBarViewModel(
     val isNotificationsChipHighlightedSource = mutableStateOf(false)
     override val isNotificationsChipHighlighted: Boolean by isNotificationsChipHighlightedSource
 
-    override suspend fun onActivated(): Nothing {
-        hydrator.activate()
-    }
+    val isNotificationsChipClickableSource = mutableStateOf(false)
+    override val isNotificationsChipClickable: Boolean by isNotificationsChipClickableSource
+
+    val isQuickSettingsChipClickableSource = mutableStateOf(false)
+    override val isQuickSettingsChipClickable: Boolean by isQuickSettingsChipClickableSource
+
+    override val isSignOutButtonVisible: Boolean = false
+
+    override fun onSignOut() {}
 }

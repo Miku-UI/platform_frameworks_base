@@ -37,7 +37,7 @@ import java.lang.annotation.RetentionPolicy;
      */
     int TRANSACTION = 1;
     /**
-     * Trace single state snapshots when the Perfetto data source is started.
+     * Trace single state snapshots when the Perfetto data source is stopped.
      */
     int SINGLE_DUMP = 2;
 }

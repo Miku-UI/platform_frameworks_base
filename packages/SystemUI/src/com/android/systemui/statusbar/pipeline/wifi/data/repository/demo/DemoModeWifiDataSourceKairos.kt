@@ -17,14 +17,13 @@
 package com.android.systemui.statusbar.pipeline.wifi.data.repository.demo
 
 import com.android.systemui.KairosActivatable
-import com.android.systemui.KairosBuilder
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.kairos.Events
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.util.nameTag
-import com.android.systemui.kairosBuilder
 import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.model.FakeWifiEventModel
+import com.android.systemui.util.lifecycle.kairos.KairosBuilder
+import com.android.systemui.util.lifecycle.kairos.kairosBuilder
 import dagger.Provides
 import dagger.multibindings.ElementsIntoSet
 import javax.inject.Inject
@@ -35,7 +34,6 @@ import javax.inject.Provider
  *
  * @see DemoModeWifiDataSource
  */
-@ExperimentalKairosApi
 @SysUISingleton
 class DemoModeWifiDataSourceKairos
 private constructor(

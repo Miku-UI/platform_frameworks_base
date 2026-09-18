@@ -23,37 +23,35 @@ import android.util.Pair
 import com.android.internal.annotations.VisibleForTesting
 import com.android.wm.shell.common.ShellExecutor
 
-class PipAppOpsListener(
-    private val mContext: Context,
-    private val mMainExecutor: ShellExecutor
-) {
-    private val mAppOpsManager: AppOpsManager = checkNotNull(
-        mContext.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager)
+class PipAppOpsListener(private val mContext: Context, private val mMainExecutor: ShellExecutor) {
+    private val mAppOpsManager: AppOpsManager =
+        checkNotNull(mContext.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager)
     private var mTopPipActivityInfoSupplier: (Context) -> Pair<ComponentName?, Int> =
         PipUtils::getTopPipActivity
-    private val mAppOpsChangedListener = AppOpsManager.OnOpChangedListener { _, packageName ->
-        try {
-            // Dismiss the PiP once the user disables the app ops setting for that package
-            val topPipActivityInfo = mTopPipActivityInfoSupplier.invoke(mContext)
-            val componentName = topPipActivityInfo.first ?: return@OnOpChangedListener
-            val userId = topPipActivityInfo.second
-            val appInfo = mContext.packageManager
-                .getApplicationInfoAsUser(packageName, 0, userId)
-            if (appInfo.packageName == componentName.packageName &&
-                mAppOpsManager.checkOpNoThrow(
-                    AppOpsManager.OP_PICTURE_IN_PICTURE, appInfo.uid,
-                    packageName
-                ) != AppOpsManager.MODE_ALLOWED
-            ) {
-                mCallback?.let {
-                    mMainExecutor.execute { it.dismissPip() }
+    private val mAppOpsChangedListener =
+        AppOpsManager.OnOpChangedListener { _, packageName ->
+            try {
+                // Dismiss the PiP once the user disables the app ops setting for that package
+                val topPipActivityInfo = mTopPipActivityInfoSupplier.invoke(mContext)
+                val componentName = topPipActivityInfo.first ?: return@OnOpChangedListener
+                val userId = topPipActivityInfo.second
+                val appInfo =
+                    mContext.packageManager.getApplicationInfoAsUser(packageName, 0, userId)
+                if (
+                    appInfo.packageName == componentName.packageName &&
+                        mAppOpsManager.checkOpNoThrow(
+                            AppOpsManager.OP_PICTURE_IN_PICTURE,
+                            appInfo.uid,
+                            packageName,
+                        ) != AppOpsManager.MODE_ALLOWED
+                ) {
+                    mCallback?.let { mMainExecutor.execute { it.dismissPip() } }
                 }
+            } catch (e: PackageManager.NameNotFoundException) {
+                // Unregister the listener if the package can't be found
+                unregisterAppOpsListener()
             }
-        } catch (e: PackageManager.NameNotFoundException) {
-            // Unregister the listener if the package can't be found
-            unregisterAppOpsListener()
         }
-    }
 
     private var mCallback: Callback? = null
 
@@ -73,8 +71,9 @@ class PipAppOpsListener(
 
     private fun registerAppOpsListener(packageName: String) {
         mAppOpsManager.startWatchingMode(
-            AppOpsManager.OP_PICTURE_IN_PICTURE, packageName,
-            mAppOpsChangedListener
+            AppOpsManager.OP_PICTURE_IN_PICTURE,
+            packageName,
+            mAppOpsChangedListener,
         )
     }
 
@@ -82,9 +81,9 @@ class PipAppOpsListener(
         mAppOpsManager.stopWatchingMode(mAppOpsChangedListener)
     }
 
-    /** Callback for PipAppOpsListener to request changes to the PIP window.  */
+    /** Callback for PipAppOpsListener to request changes to the PIP window. */
     interface Callback {
-        /** Dismisses the PIP window.  */
+        /** Dismisses the PIP window. */
         fun dismissPip()
     }
 

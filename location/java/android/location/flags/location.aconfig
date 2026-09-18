@@ -12,14 +12,7 @@ flag {
 flag {
     name: "keep_gnss_stationary_throttling"
     namespace: "location"
-    description: "Keeps stationary throttling for the GNSS provider even if the disable_stationary_throttling flag is true."
-    bug: "354000147"
-}
-
-flag {
-    name: "disable_stationary_throttling"
-    namespace: "location"
-    description: "Disables stationary throttling for all providers"
+    description: "Keeps stationary throttling for the GNSS provider."
     bug: "354000147"
 }
 
@@ -29,13 +22,6 @@ flag {
     description: "Flag for new Geocoder APIs"
     bug: "229872126"
     is_exported: true
-}
-
-flag {
-    name: "enable_location_bypass"
-    namespace: "location"
-    description: "Enable location bypass feature"
-    bug: "301150056"
 }
 
 flag {
@@ -90,20 +76,6 @@ flag {
 }
 
 flag {
-    name: "population_density_provider"
-    namespace: "location"
-    description: "Flag for enabling the population density provider"
-    bug: "376198890"
-}
-
-flag {
-    name: "density_based_coarse_locations"
-    namespace: "location"
-    description: "Flag for gating the density-based coarse locations"
-    bug: "376198890"
-}
-
-flag {
     name: "gnss_assistance_interface"
     namespace: "location"
     description: "Flag for GNSS assistance interface"
@@ -129,12 +101,7 @@ flag {
     is_fixed_read_only: true
 }
 
-flag {
-    name: "gnss_assistance_interface_jni"
-    namespace: "location"
-    description: "Flag for GNSS assistance interface JNI"
-    bug: "209078566"
-}
+
 
 flag {
     name: "service_watcher_unstable_fallback"
@@ -152,6 +119,20 @@ flag {
 }
 
 flag {
+    name: "location_indicators_animation"
+    namespace: "location"
+    description: "Enables indicator animation for location privacy items"
+    bug: "441820971"
+}
+
+flag {
+    name: "location_indicators_outline"
+    namespace: "location"
+    description: "Enables indicator outline for location-only privacy items"
+    bug: "448768810"
+}
+
+flag {
     name: "change_get_adas_allowlist_from_hidden_to_system"
     namespace: "location"
     description: "Changes the getAdasAllowlist API from hidden to system"
@@ -160,20 +141,11 @@ flag {
 }
 
 flag {
-    name: "fix_glonass_almanac_frequency_channel_range"
-    namespace: "location"
-    description: "Fix GLONASS almanac frequency channel range"
-    bug: "428050932"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "support_toa_in_gnss_satellite_almanac"
     namespace: "location"
     description: "Support TOA in GnssSatelliteAlmanac"
     bug: "409934786"
+    is_exported: true
 }
 
 flag {
@@ -188,4 +160,92 @@ flag {
     namespace: "location"
     description: "Support IONEX assistance"
     bug: "434875844"
+    is_exported: true
+}
+
+flag {
+    name: "fix_app_ops_restriction_for_emergency_mode"
+    namespace: "location"
+    description: "Only allow the ignore-setting allowlist to be excluded in app ops restrictions in emergency mode"
+    bug: "488393284"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "cache_emergency_callback_mode"
+    namespace: "location"
+    description: "Cache the value of Emergency callback mode from the broadcast extra to avoid direct querying the TelephonyManager API"
+    bug: "426562854"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "location_auditing"
+    namespace: "location"
+    description: "Flag for auditing MLS violations"
+    bug: "431045539"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "support_codetype_in_gnss_status"
+    namespace: "location"
+    description: "Support code type and elapsed real time in GnssStatus"
+    bug: "361042865"
+    is_exported: true
+}
+
+flag {
+    name: "gnss_capability_restart_engine_after_power_mode_change"
+    namespace: "location"
+    description: "Flag for engine restart after power mode change capability"
+    bug: "475552312"
+    is_exported: true
+}
+
+flag {
+    name: "check_bypass_permission_before_emergency_mode"
+    namespace: "location"
+    description: "Check bypass permission before checking emergency mode to avoid unnecessary IPC calls."
+    bug: "355384257"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "gnss_qzss_svid_range_extension"
+    namespace: "location"
+    description: "Extend QZSS SVID range from [183, 206] to [183, 212]"
+    bug: "483079505"
+    is_exported: true
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "gnss_restart_location_request_on_resume"
+    namespace: "location"
+    description: "Restart GNSS provider on resume to synchronize stale intervals."
+    bug: "475877334"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "use_settings_main_switch_for_scanning"
+    namespace: "location"
+    description: "Use SettingsMainSwitchPreference for Wi-Fi/Bluetooth scanning to fix b/467021844."
+    bug: "467021844"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

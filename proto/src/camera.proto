@@ -69,4 +69,6 @@ message CameraStreamProto {
     optional int64 stream_use_case = 15;
     // The color space of the stream
     optional int32 color_space = 16;
+    // The current surface ID of the stream
+    optional int32 current_surface_id = 17;
 }

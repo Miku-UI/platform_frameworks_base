@@ -16,14 +16,15 @@
 
 package com.android.systemui.shade
 
+import android.view.View
 import android.view.ViewGroup
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
 import androidx.constraintlayout.widget.ConstraintSet.START
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.res.R
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.res.R
 import com.google.common.truth.Expect
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
@@ -40,20 +41,18 @@ class CombinedShadeHeaderConstraintsTest : SysuiTestCase() {
     private lateinit var qsConstraint: ConstraintSet
     private lateinit var largeScreenConstraint: ConstraintSet
 
-    @get:Rule
-    val expect: Expect = Expect.create()
+    @get:Rule val expect: Expect = Expect.create()
 
     @Before
     fun setUp() {
-        qqsConstraint = ConstraintSet().apply {
-            load(context, context.resources.getXml(R.xml.qqs_header))
-        }
-        qsConstraint = ConstraintSet().apply {
-            load(context, context.resources.getXml(R.xml.qs_header))
-        }
-        largeScreenConstraint = ConstraintSet().apply {
-            load(context, context.resources.getXml(R.xml.large_screen_shade_header))
-        }
+        qqsConstraint =
+            ConstraintSet().apply { load(context, context.resources.getXml(R.xml.qqs_header)) }
+        qsConstraint =
+            ConstraintSet().apply { load(context, context.resources.getXml(R.xml.qs_header)) }
+        largeScreenConstraint =
+            ConstraintSet().apply {
+                load(context, context.resources.getXml(R.xml.large_screen_shade_header))
+            }
     }
 
     @Test
@@ -69,8 +68,7 @@ class CombinedShadeHeaderConstraintsTest : SysuiTestCase() {
 
             assertThat(getConstraint(R.id.privacy_container).layout.endToEnd)
                 .isEqualTo(R.id.end_guide)
-            assertThat(getConstraint(R.id.privacy_container).layout.horizontalBias)
-                .isEqualTo(1f)
+            assertThat(getConstraint(R.id.privacy_container).layout.horizontalBias).isEqualTo(1f)
         }
     }
 
@@ -128,39 +126,33 @@ class CombinedShadeHeaderConstraintsTest : SysuiTestCase() {
 
     @Test
     fun testPrivacyChipVisibilityConstraints_notVisible() {
-        val changes = CombinedShadeHeadersConstraintManagerImpl
-            .privacyChipVisibilityConstraints(false)
+        val changes =
+            CombinedShadeHeadersConstraintManagerImpl.privacyChipVisibilityConstraints(false)
         changes()
 
-        with(qqsConstraint) {
-            assertThat(systemIconsAlphaConstraint).isEqualTo(1f)
-        }
+        with(qqsConstraint) { assertThat(systemIconsVisibilityConstraint).isEqualTo(View.VISIBLE) }
 
-        with(qsConstraint) {
-            assertThat(systemIconsAlphaConstraint).isEqualTo(1f)
-        }
+        with(qsConstraint) { assertThat(systemIconsVisibilityConstraint).isEqualTo(View.VISIBLE) }
 
         with(largeScreenConstraint) {
-            assertThat(systemIconsAlphaConstraint).isEqualTo(1f)
+            assertThat(systemIconsVisibilityConstraint).isEqualTo(View.VISIBLE)
         }
     }
 
     @Test
     fun testPrivacyChipVisibilityConstraints_visible() {
-        val changes = CombinedShadeHeadersConstraintManagerImpl
-            .privacyChipVisibilityConstraints(true)
+        val changes =
+            CombinedShadeHeadersConstraintManagerImpl.privacyChipVisibilityConstraints(true)
         changes()
 
         with(qqsConstraint) {
-            assertThat(systemIconsAlphaConstraint).isEqualTo(0f)
+            assertThat(systemIconsVisibilityConstraint).isEqualTo(View.INVISIBLE)
         }
 
-        with(qsConstraint) {
-            assertThat(systemIconsAlphaConstraint).isEqualTo(1f)
-        }
+        with(qsConstraint) { assertThat(systemIconsVisibilityConstraint).isEqualTo(View.VISIBLE) }
 
         with(largeScreenConstraint) {
-            assertThat(systemIconsAlphaConstraint).isEqualTo(1f)
+            assertThat(systemIconsVisibilityConstraint).isEqualTo(View.VISIBLE)
         }
     }
 
@@ -180,10 +172,9 @@ class CombinedShadeHeaderConstraintsTest : SysuiTestCase() {
             assertThat(getConstraint(R.id.shade_header_system_icons).layout.startToEnd)
                 .isEqualTo(R.id.date)
             assertThat(getConstraint(R.id.privacy_container).layout.startToEnd).isEqualTo(R.id.date)
-            assertThat(getConstraint(R.id.barrier).layout.mReferenceIds).asList().containsExactly(
-                R.id.shade_header_system_icons,
-                R.id.privacy_container
-            )
+            assertThat(getConstraint(R.id.barrier).layout.mReferenceIds)
+                .asList()
+                .containsExactly(R.id.shade_header_system_icons, R.id.privacy_container)
             assertThat(getConstraint(R.id.barrier).layout.mBarrierDirection).isEqualTo(START)
         }
     }
@@ -193,33 +184,31 @@ class CombinedShadeHeaderConstraintsTest : SysuiTestCase() {
         val cutoutStart = 100
         val padding = 10
         val cutoutEnd = 30
-        val changes = CombinedShadeHeadersConstraintManagerImpl.edgesGuidelinesConstraints(
-            cutoutStart,
-            padding,
-            cutoutEnd,
-            padding
-        )
+        val changes =
+            CombinedShadeHeadersConstraintManagerImpl.edgesGuidelinesConstraints(
+                cutoutStart,
+                padding,
+                cutoutEnd,
+                padding,
+            )
         changes()
 
         with(qqsConstraint) {
             assertThat(getConstraint(R.id.begin_guide).layout.guideBegin)
                 .isEqualTo(cutoutStart - padding)
-            assertThat(getConstraint(R.id.end_guide).layout.guideEnd)
-                .isEqualTo(cutoutEnd - padding)
+            assertThat(getConstraint(R.id.end_guide).layout.guideEnd).isEqualTo(cutoutEnd - padding)
         }
 
         with(qsConstraint) {
             assertThat(getConstraint(R.id.begin_guide).layout.guideBegin)
                 .isEqualTo(cutoutStart - padding)
-            assertThat(getConstraint(R.id.end_guide).layout.guideEnd)
-                .isEqualTo(cutoutEnd - padding)
+            assertThat(getConstraint(R.id.end_guide).layout.guideEnd).isEqualTo(cutoutEnd - padding)
         }
 
         with(largeScreenConstraint) {
             assertThat(getConstraint(R.id.begin_guide).layout.guideBegin)
                 .isEqualTo(cutoutStart - padding)
-            assertThat(getConstraint(R.id.end_guide).layout.guideEnd)
-                .isEqualTo(cutoutEnd - padding)
+            assertThat(getConstraint(R.id.end_guide).layout.guideEnd).isEqualTo(cutoutEnd - padding)
         }
     }
 
@@ -229,12 +218,13 @@ class CombinedShadeHeaderConstraintsTest : SysuiTestCase() {
         val padding = 10
         val cutoutEnd = 10
 
-        val changes = CombinedShadeHeadersConstraintManagerImpl.edgesGuidelinesConstraints(
-            cutoutStart,
-            padding,
-            cutoutEnd,
-            padding
-        )
+        val changes =
+            CombinedShadeHeadersConstraintManagerImpl.edgesGuidelinesConstraints(
+                cutoutStart,
+                padding,
+                cutoutEnd,
+                padding,
+            )
         changes()
 
         with(qqsConstraint) {
@@ -258,8 +248,8 @@ class CombinedShadeHeaderConstraintsTest : SysuiTestCase() {
         val offsetFromEdge = 400
         val rtl = false
 
-        val changes = CombinedShadeHeadersConstraintManagerImpl
-            .centerCutoutConstraints(rtl, offsetFromEdge)
+        val changes =
+            CombinedShadeHeadersConstraintManagerImpl.centerCutoutConstraints(rtl, offsetFromEdge)
         changes()
 
         // In LTR, center_left is towards the start and center_right is towards the end
@@ -297,8 +287,8 @@ class CombinedShadeHeaderConstraintsTest : SysuiTestCase() {
         val offsetFromEdge = 400
         val rtl = true
 
-        val changes = CombinedShadeHeadersConstraintManagerImpl
-            .centerCutoutConstraints(rtl, offsetFromEdge)
+        val changes =
+            CombinedShadeHeadersConstraintManagerImpl.centerCutoutConstraints(rtl, offsetFromEdge)
         changes()
 
         // In RTL, center_left is towards the end and center_right is towards the start
@@ -333,44 +323,45 @@ class CombinedShadeHeaderConstraintsTest : SysuiTestCase() {
 
     @Test
     fun testRelevantViewsAreNotMatchConstraints() {
-        val views = mapOf(
-                R.id.clock to "clock",
-                R.id.date to "date",
-                R.id.privacy_container to "privacy",
-        )
+        val views =
+            mapOf(R.id.clock to "clock", R.id.date to "date", R.id.privacy_container to "privacy")
         views.forEach { (id, name) ->
             assertWithMessage("$name has 0 height in qqs")
-                    .that(qqsConstraint.getConstraint(id).layout.mHeight).isNotEqualTo(0)
+                .that(qqsConstraint.getConstraint(id).layout.mHeight)
+                .isNotEqualTo(0)
             assertWithMessage("$name has 0 width in qqs")
-                    .that(qqsConstraint.getConstraint(id).layout.mWidth).isNotEqualTo(0)
+                .that(qqsConstraint.getConstraint(id).layout.mWidth)
+                .isNotEqualTo(0)
             assertWithMessage("$name has 0 height in qs")
-                    .that(qsConstraint.getConstraint(id).layout.mHeight).isNotEqualTo(0)
+                .that(qsConstraint.getConstraint(id).layout.mHeight)
+                .isNotEqualTo(0)
             assertWithMessage("$name has 0 width in qs")
-                    .that(qsConstraint.getConstraint(id).layout.mWidth).isNotEqualTo(0)
+                .that(qsConstraint.getConstraint(id).layout.mWidth)
+                .isNotEqualTo(0)
         }
     }
 
     @Test
     fun testCheckViewsDontChangeSizeBetweenAnimationConstraints() {
-        val views = mapOf(
-                R.id.clock to "clock",
-                R.id.privacy_container to "privacy",
-        )
+        val views = mapOf(R.id.clock to "clock", R.id.privacy_container to "privacy")
         views.forEach { (id, name) ->
-            expect.withMessage("$name changes height")
-                    .that(qqsConstraint.getConstraint(id).layout.mHeight.fromConstraint())
-                    .isEqualTo(qsConstraint.getConstraint(id).layout.mHeight.fromConstraint())
-            expect.withMessage("$name changes width")
-                    .that(qqsConstraint.getConstraint(id).layout.mWidth.fromConstraint())
-                    .isEqualTo(qsConstraint.getConstraint(id).layout.mWidth.fromConstraint())
+            expect
+                .withMessage("$name changes height")
+                .that(qqsConstraint.getConstraint(id).layout.mHeight.fromConstraint())
+                .isEqualTo(qsConstraint.getConstraint(id).layout.mHeight.fromConstraint())
+            expect
+                .withMessage("$name changes width")
+                .that(qqsConstraint.getConstraint(id).layout.mWidth.fromConstraint())
+                .isEqualTo(qsConstraint.getConstraint(id).layout.mWidth.fromConstraint())
         }
     }
 
-    private fun Int.fromConstraint() = when (this) {
-        ViewGroup.LayoutParams.MATCH_PARENT -> "MATCH_PARENT"
-        ViewGroup.LayoutParams.WRAP_CONTENT -> "WRAP_CONTENT"
-        else -> toString()
-    }
+    private fun Int.fromConstraint() =
+        when (this) {
+            ViewGroup.LayoutParams.MATCH_PARENT -> "MATCH_PARENT"
+            ViewGroup.LayoutParams.WRAP_CONTENT -> "WRAP_CONTENT"
+            else -> toString()
+        }
 
     @Test
     fun testEmptyCutoutDateIconsAreConstrainedWidth() {
@@ -390,8 +381,8 @@ class CombinedShadeHeaderConstraintsTest : SysuiTestCase() {
         assertThat(shadeHeaderConstraint.layout.constrainedWidth).isTrue()
     }
 
-    private val ConstraintSet.systemIconsAlphaConstraint
-        get() = getConstraint(R.id.shade_header_system_icons).propertySet.alpha
+    private val ConstraintSet.systemIconsVisibilityConstraint
+        get() = getConstraint(R.id.shade_header_system_icons).propertySet.visibility
 
     private operator fun ConstraintsChanges.invoke() {
         qqsConstraintsChanges?.invoke(qqsConstraint)

@@ -44,6 +44,7 @@
     <string name="expand_handle" msgid="7282974448109280522">"Úchyt k rozbalení"</string>
     <string name="collapse_handle" msgid="6886637989442507451">"Úchyt ke sbalení"</string>
     <string name="print_button" msgid="645164566271246268">"Tisk"</string>
+    <string name="setup_button" msgid="323390526074568450">"Nastavit"</string>
     <string name="savetopdf_button" msgid="2976186791686924743">"Uložit do souboru PDF"</string>
     <string name="print_options_expanded" msgid="6944679157471691859">"Možnosti tisku jsou rozbaleny"</string>
     <string name="print_options_collapsed" msgid="7455930445670414332">"Možnosti tisku jsou sbaleny"</string>

@@ -26,6 +26,7 @@ import com.android.internal.widget.remotecompose.core.RemoteContext;
 import com.android.internal.widget.remotecompose.core.VariableSupport;
 import com.android.internal.widget.remotecompose.core.WireBuffer;
 import com.android.internal.widget.remotecompose.core.documentation.DocumentationBuilder;
+import com.android.internal.widget.remotecompose.core.operations.utilities.ArrayAccess;
 import com.android.internal.widget.remotecompose.core.serialize.MapSerializer;
 import com.android.internal.widget.remotecompose.core.serialize.Serializable;
 
@@ -36,14 +37,13 @@ import java.util.List;
  * [command][textId][before,after][flags] before and after define number of digits before and after
  * the decimal point
  */
-public class TextLookup extends Operation implements VariableSupport, Serializable {
+public class TextLookup extends Operation implements VariableSupport, Serializable, ComponentData {
     private static final int OP_CODE = Operations.TEXT_LOOKUP;
     private static final String CLASS_NAME = "TextFromFloat";
     public int mTextId;
     public int mDataSetId;
     public float mOutIndex, mIndex;
-
-    public static final int MAX_STRING_SIZE = 4000;
+    private boolean mRegisteredForArray = false;
 
     public TextLookup(int textId, int dataSetId, float index) {
         this.mTextId = textId;
@@ -79,6 +79,21 @@ public class TextLookup extends Operation implements VariableSupport, Serializab
         if (Float.isNaN(mIndex)) {
             context.listensTo(Utils.idFromNan(mIndex), this);
         }
+        if (context.useFeature(Header.FEATURE_ARRAY_LISTENERS)) {
+            registerForArray(context);
+        }
+    }
+
+    private void registerForArray(@NonNull RemoteContext context) {
+        ArrayAccess array = context.getCollectionsAccess().getArray(
+                mDataSetId);
+        if (array != null) {
+            for (int i = 0; i < array.getLength(); i++) {
+                int next = array.getId(i);
+                context.listensTo(next, this);
+            }
+            mRegisteredForArray = true;
+        }
     }
 
     /**
@@ -103,10 +118,10 @@ public class TextLookup extends Operation implements VariableSupport, Serializab
     /**
      * Writes out the operation to the buffer
      *
-     * @param buffer buffer to write to
-     * @param textId the id of the output text
+     * @param buffer  buffer to write to
+     * @param textId  the id of the output text
      * @param dataSet float pointer to the array/list to turn int a string
-     * @param index index of element to return
+     * @param index   index of element to return
      */
     public static void apply(@NonNull WireBuffer buffer, int textId, int dataSet, float index) {
         buffer.start(OP_CODE);
@@ -118,7 +133,7 @@ public class TextLookup extends Operation implements VariableSupport, Serializab
     /**
      * Read this operation and add it to the list of operations
      *
-     * @param buffer the buffer to read
+     * @param buffer     the buffer to read
      * @param operations the list of operations that will be added to
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
@@ -134,15 +149,19 @@ public class TextLookup extends Operation implements VariableSupport, Serializab
      * @param doc to append the description to.
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
-        doc.operation("Expressions Operations", OP_CODE, CLASS_NAME)
-                .description("Look an array and turn into a text object")
-                .field(INT, "textId", "id of the text generated")
-                .field(FLOAT, "dataSet", "float pointer to the array/list to turn int a string")
-                .field(FLOAT, "index", "index of element to return");
+        doc.operation("Text Operations", OP_CODE, CLASS_NAME)
+                .description("Look up a string from a collection via index")
+                .field(INT, "textId", "The ID of the resulting text")
+                .field(INT, "dataSetId", "The ID of the string collection")
+                .field(FLOAT, "index", "The index of the string to retrieve");
     }
 
     @Override
     public void apply(@NonNull RemoteContext context) {
+        if (!mRegisteredForArray && context.useFeature(Header.FEATURE_ARRAY_LISTENERS)) {
+            registerForArray(context);
+        }
+
         int id = context.getCollectionsAccess().getId(mDataSetId, (int) mOutIndex);
         context.loadText(mTextId, context.getText(id));
     }

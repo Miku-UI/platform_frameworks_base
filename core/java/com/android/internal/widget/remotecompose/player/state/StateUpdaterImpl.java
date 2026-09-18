@@ -15,8 +15,8 @@
  */
 package com.android.internal.widget.remotecompose.player.state;
 
-
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.graphics.Bitmap;
 
 import com.android.internal.widget.remotecompose.core.RemoteContext;
@@ -26,33 +26,65 @@ public class StateUpdaterImpl implements StateUpdater {
 
     private final RemoteContext mRemoteContext;
 
-    public StateUpdaterImpl(RemoteContext remoteContext) {
+    public StateUpdaterImpl(@NonNull RemoteContext remoteContext) {
         this.mRemoteContext = remoteContext;
     }
 
     @Override
-    public void setNamedLong(@NonNull String name, long value) {
-        mRemoteContext.setNamedLong(name, value);
+    public void setNamedLong(@NonNull String name, @Nullable Long value) {
+        if (value != null) {
+            mRemoteContext.setNamedLong(name, value);
+        } else {
+            //            mRemoteContext.clearNamedLong(name);
+        }
     }
 
     @Override
-    public void setUserLocalInt(String integerName, int value) {
-        mRemoteContext.setNamedIntegerOverride(
-                StateUpdater.getUserDomainString(integerName), value);
+    public void setUserLocalFloat(@NonNull String floatName, @Nullable Float value) {
+        if (value != null) {
+            mRemoteContext.setNamedFloatOverride(
+                    StateUpdater.getUserDomainString(floatName), value);
+        } else {
+            mRemoteContext.clearNamedFloatOverride(StateUpdater.getUserDomainString(floatName));
+        }
     }
 
     @Override
-    public void setUserLocalColor(String name, int value) {
-        mRemoteContext.setNamedColorOverride(StateUpdater.getUserDomainString(name), value);
+    public void setUserLocalInt(@NonNull String integerName, @Nullable Integer value) {
+        if (value != null) {
+            mRemoteContext.setNamedIntegerOverride(
+                    StateUpdater.getUserDomainString(integerName), value);
+        } else {
+            mRemoteContext.clearNamedIntegerOverride(StateUpdater.getUserDomainString(integerName));
+        }
     }
 
     @Override
-    public void setUserLocalBitmap(String name, Bitmap content) {
-        mRemoteContext.setNamedDataOverride(StateUpdater.getUserDomainString(name), content);
+    public void setUserLocalColor(@NonNull String name, @Nullable Integer value) {
+        if (value != null) {
+            mRemoteContext.setNamedColorOverride(StateUpdater.getUserDomainString(name), value);
+        } else {
+            //
+            // mRemoteContext.clearNamedColorOverride(StateUpdater.getUserDomainString(name));
+        }
     }
 
     @Override
-    public void setUserLocalString(String stringName, String value) {
-        mRemoteContext.setNamedStringOverride(StateUpdater.getUserDomainString(stringName), value);
+    public void setUserLocalBitmap(@NonNull String name, @Nullable Bitmap content) {
+        if (content != null) {
+            mRemoteContext.setNamedDataOverride(StateUpdater.getUserDomainString(name), content);
+        } else {
+            mRemoteContext.clearNamedDataOverride(StateUpdater.getUserDomainString(name));
+        }
+    }
+
+    @Override
+    public void setUserLocalString(@NonNull String stringName, @Nullable String value) {
+        if (value != null) {
+            mRemoteContext.setNamedStringOverride(
+                    StateUpdater.getUserDomainString(stringName), value);
+        } else {
+            mRemoteContext.clearNamedStringOverride(StateUpdater.getUserDomainString(stringName));
+        }
     }
 }

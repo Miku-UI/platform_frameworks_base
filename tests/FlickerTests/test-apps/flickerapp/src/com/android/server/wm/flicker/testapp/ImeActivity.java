@@ -20,6 +20,7 @@ import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
 import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
 
 import static com.android.server.wm.flicker.testapp.ActivityOptions.Ime.Default.ACTION_FINISH_ACTIVITY;
+import static com.android.server.wm.flicker.testapp.ActivityOptions.Ime.Default.ACTION_START_ADJACENT_ACTIVITY;
 import static com.android.server.wm.flicker.testapp.ActivityOptions.Ime.Default.ACTION_START_DIALOG_THEMED_ACTIVITY;
 import static com.android.server.wm.flicker.testapp.ActivityOptions.Ime.Default.ACTION_TOGGLE_ORIENTATION;
 
@@ -49,6 +50,12 @@ public class ImeActivity extends Activity {
                             ? SCREEN_ORIENTATION_PORTRAIT
                             : SCREEN_ORIENTATION_UNSPECIFIED);
                 }
+                case ACTION_START_ADJACENT_ACTIVITY -> {
+                    final Intent it = new Intent(context, SplitScreenSecondaryActivity.class);
+                    it.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT | Intent.FLAG_ACTIVITY_NEW_TASK
+                            | Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
+                    startActivity(it);
+                }
                 default -> Log.w(TAG, "Unhandled action=" + intent.getAction());
             }
         }
@@ -69,6 +76,7 @@ public class ImeActivity extends Activity {
         filter.addAction(ACTION_FINISH_ACTIVITY);
         filter.addAction(ACTION_START_DIALOG_THEMED_ACTIVITY);
         filter.addAction(ACTION_TOGGLE_ORIENTATION);
+        filter.addAction(ACTION_START_ADJACENT_ACTIVITY);
         registerReceiver(mBroadcastReceiver, filter, Context.RECEIVER_EXPORTED);
     }
 

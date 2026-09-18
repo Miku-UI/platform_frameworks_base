@@ -39,11 +39,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import com.android.compose.modifiers.padding
 import com.android.compose.modifiers.thenIf
+import com.android.compose.modifiers.width
 import com.android.systemui.res.R
 import com.android.systemui.screencapture.common.ui.compose.LoadingIcon
 import com.android.systemui.screencapture.common.ui.compose.loadIcon
@@ -60,18 +66,23 @@ fun <T> CaptureTargetSelector(
     isItemEnabled: @Composable (T) -> Boolean = { true },
 ) {
     val itemHeight = 56.dp
-    val width = 272.dp
     val shape = RoundedCornerShape(itemHeight / 2)
     var expanded by remember { mutableStateOf(false) }
+    var buttonWidthPx by remember { mutableStateOf(0) }
 
-    Box(modifier = modifier.width(width)) {
+    Box(modifier = modifier) {
         TextButton(
             onClick = { expanded = true },
             shape = shape,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             colors =
                 ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            modifier =
+                Modifier.height(itemHeight)
+                    .width(272.dp)
+                    .onGloballyPositioned { buttonWidthPx = it.size.width }
+                    .semantics { role = Role.DropdownList },
         ) {
             if (!items.isNullOrEmpty()) {
                 Text(
@@ -93,13 +104,13 @@ fun <T> CaptureTargetSelector(
         DropdownMenu(
             expanded = expanded,
             shape = shape,
-            // -1.dp guarantees overlap with the TextButton border. Otherwise the dialog doesn't
+            // -1.dp guarantees overlap with the TextButton border. Otherwise, the dialog doesn't
             // fully cover its top
             offset = DpOffset(0.dp, -itemHeight - 1.dp),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             onDismissRequest = { expanded = false },
             // DropdownMenu adds unavoidable vertical padding to the content. This offsets it
-            modifier = Modifier.width(width).padding(vertical = { -8.dp.roundToPx() }),
+            modifier = Modifier.width { buttonWidthPx }.padding(vertical = { -8.dp.roundToPx() }),
         ) {
             items ?: return@DropdownMenu
             items.fastForEachIndexed { index, item ->
@@ -170,8 +181,11 @@ private fun Item(
                 leadingIconColor = contentColor,
             ),
         modifier =
-            modifier.clip(shape).thenIf(selected) {
-                Modifier.background(color = selectedBackgroundColor, shape = shape)
-            },
+            modifier
+                .clip(shape)
+                .thenIf(selected) {
+                    Modifier.background(color = selectedBackgroundColor, shape = shape)
+                }
+                .semantics { this.selected = selected },
     )
 }

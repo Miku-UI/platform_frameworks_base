@@ -21,6 +21,9 @@ import androidx.core.graphics.ColorUtils
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.surfaceeffects.core.ripple.RippleAnimationConfig
+import com.android.systemui.surfaceeffects.core.ripple.RippleShader
+import com.android.systemui.surfaceeffects.view.ripple.RippleAnimation
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat
@@ -47,23 +50,23 @@ class RippleAnimationTest : SysuiTestCase() {
                         fadeInStart = 0f,
                         fadeInEnd = 0.3f,
                         fadeOutStart = 0.5f,
-                        fadeOutEnd = 1f
+                        fadeOutEnd = 1f,
                     ),
                 sparkleRingFadeParams =
                     RippleShader.FadeParams(
                         fadeInStart = 0.1f,
                         fadeInEnd = 0.2f,
                         fadeOutStart = 0.7f,
-                        fadeOutEnd = 0.9f
+                        fadeOutEnd = 0.9f,
                     ),
                 centerFillFadeParams =
                     RippleShader.FadeParams(
                         fadeInStart = 0f,
                         fadeInEnd = 0.1f,
                         fadeOutStart = 0.2f,
-                        fadeOutEnd = 0.3f
+                        fadeOutEnd = 0.3f,
                     ),
-                sparkleStrength = 0.3f
+                sparkleStrength = 0.3f,
             )
         val rippleAnimation = RippleAnimation(config)
 

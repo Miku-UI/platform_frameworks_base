@@ -33,6 +33,7 @@ import com.android.test.silkfx.hdr.GlowActivity
 import com.android.test.silkfx.hdr.LutTestActivity
 import com.android.test.silkfx.materials.GlassActivity
 import com.android.test.silkfx.materials.BackgroundBlurActivity
+import com.android.test.silkfx.materials.SurfaceViewBlurActivity
 import kotlin.reflect.KClass
 
 class Demo(val name: String, val makeIntent: (Context) -> Intent) {
@@ -63,8 +64,10 @@ private val AllDemos = listOf(
         )),
         DemoGroup("Materials", listOf(
                 Demo("Glass", GlassActivity::class),
+                Demo("Comp Shaders", CompShadersActivity::class),
                 Demo("Background Blur", BackgroundBlurActivity::class),
-                Demo("View blur behind", R.layout.view_blur_behind, commonControls = false)
+                Demo("View blur behind", R.layout.view_blur_behind, commonControls = false),
+                Demo("SurfaceView Blur Test", SurfaceViewBlurActivity::class)
         ))
 )
 

@@ -34,7 +34,6 @@ import com.android.systemui.statusbar.notification.collection.provider.visualSta
 import com.android.systemui.statusbar.notification.collection.render.GroupMembershipManagerImpl
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManagerTestUtil.createCallEntry
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManagerTestUtil.createFullScreenIntentEntry
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.shared.AvalancheReplaceHunWhenCritical
 import com.android.systemui.statusbar.notification.shared.NotificationThrottleHun
 import com.android.systemui.statusbar.phone.keyguardBypassController
@@ -433,27 +432,7 @@ class AvalancheControllerTest(val flags: FlagsParameterization) : SysuiTestCase(
     }
 
     @Test
-    @DisableFlags(PromotedNotificationUi.FLAG_NAME)
-    fun testGetDuration_nextEntryIsPinnedByUser_flagOff_1000() {
-        // Entry is showing
-        val showingEntry = createHeadsUpEntry(id = 0)
-        mAvalancheController.headsUpEntryShowing = showingEntry
-
-        // There's another entry waiting to show next and it's PinnedByUser
-        val nextEntry = createHeadsUpEntry(id = 1)
-        nextEntry.requestedPinnedStatus = PinnedStatus.PinnedByUser
-        mAvalancheController.addToNext(nextEntry, runnableMock!!)
-
-        val durationMs = mAvalancheController.getDuration(showingEntry, autoDismissMsValue = 5000)
-
-        // BUT PinnedByUser is ignored because flag is off, so the duration for a SAME priority next
-        // is used
-        assertThat((durationMs as RemainingDuration.UpdatedDuration).duration).isEqualTo(1000)
-    }
-
-    @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
-    fun testGetDuration_nextEntryIsPinnedByUser_flagOn_hideImmediately() {
+    fun testGetDuration_nextEntryIsFromUserOpenAction_hideImmediately() {
         // Entry is showing
         val showingEntry = createHeadsUpEntry(id = 0)
         mAvalancheController.headsUpEntryShowing = showingEntry
@@ -542,7 +521,6 @@ class AvalancheControllerTest(val flags: FlagsParameterization) : SysuiTestCase(
         @Parameters(name = "{0}")
         fun getParams(): List<FlagsParameterization> {
             return FlagsParameterization.allCombinationsOf(
-                PromotedNotificationUi.FLAG_NAME,
                 AvalancheReplaceHunWhenCritical.FLAG_NAME,
             )
         }

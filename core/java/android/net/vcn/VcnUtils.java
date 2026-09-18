@@ -15,6 +15,8 @@
  */
 package android.net.vcn;
 
+import static android.net.NetworkCapabilities.TRANSPORT_CELLULAR;
+import static android.net.NetworkCapabilities.TRANSPORT_WIFI;
 import static android.telephony.SubscriptionManager.INVALID_SUBSCRIPTION_ID;
 
 import android.annotation.NonNull;
@@ -55,7 +57,12 @@ public class VcnUtils {
         return (WifiInfo) underlyingTransportInfo;
     }
 
-    /** Get the subscription ID of the VCN's underlying Cell network */
+    /**
+     * Get the subscription ID of the VCN's underlying Cell network
+     *
+     * @deprecated please use {@link #getSubIdFromVcnCapsForAnyTransport(ConnectivityManager,
+     *     NetworkCapabilities)} instead
+     */
     public static int getSubIdFromVcnCaps(
             @NonNull ConnectivityManager connectivityMgr,
             @NonNull NetworkCapabilities networkCapabilities) {
@@ -72,6 +79,36 @@ public class VcnUtils {
         }
 
         return ((TelephonyNetworkSpecifier) underlyingNetworkSpecifier).getSubscriptionId();
+    }
+
+    /**
+     * Get the subscription ID of the VCN's underlying network for any transport type.
+     *
+     * <p>This method will return a valid subscription ID if the underlying network is either
+     * Cellular or a subscription-associated Wi-Fi network (e.g. carrier-merged Wi-Fi).
+     */
+    public static int getSubIdFromVcnCapsForAnyTransport(
+            @NonNull ConnectivityManager connectivityMgr,
+            @NonNull NetworkCapabilities networkCapabilities) {
+        final NetworkCapabilities underlyingCaps =
+                getVcnUnderlyingCaps(connectivityMgr, networkCapabilities);
+
+        if (underlyingCaps == null) {
+            return INVALID_SUBSCRIPTION_ID;
+        }
+
+        if (underlyingCaps.hasTransport(TRANSPORT_CELLULAR)) {
+            return getSubIdFromVcnCaps(connectivityMgr, networkCapabilities);
+        }
+
+        if (underlyingCaps.hasTransport(TRANSPORT_WIFI)) {
+            final WifiInfo wifiInfo = getWifiInfoFromVcnCaps(connectivityMgr, networkCapabilities);
+            if (wifiInfo != null) {
+                return wifiInfo.getSubscriptionId();
+            }
+        }
+
+        return INVALID_SUBSCRIPTION_ID;
     }
 
     @Nullable

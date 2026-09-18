@@ -29,9 +29,6 @@ import android.app.UiAutomation;
 import android.graphics.Rect;
 import android.os.Process;
 import android.os.SystemClock;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.text.TextUtils;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
@@ -70,8 +67,6 @@ public class AccessibilityInteractionControllerTest {
     @Rule
     public ActivityTestRule<AccessibilityTestActivity> mActivityRule = new ActivityTestRule<>(
             AccessibilityTestActivity.class, false, false);
-    @Rule
-    public SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private AccessibilityInteractionController mAccessibilityInteractionController;
     private ViewRootImpl mViewRootImpl;
@@ -148,22 +143,6 @@ public class AccessibilityInteractionControllerTest {
     }
 
     @Test
-    @DisableFlags(android.view.accessibility.Flags.FLAG_COPY_SURFACE_CONTROL_FOR_WINDOW_SCREENSHOTS)
-    public void getWindowSurfaceInfo_shouldCallCallbackWithWindowSurfaceDataFromVri()
-            throws Exception {
-        final ViewRootImpl vri = mButton.getRootView().getViewRootImpl();
-        IWindowSurfaceInfoCallback callback = Mockito.mock(IWindowSurfaceInfoCallback.class);
-
-        sInstrumentation.runOnMainSync(() ->
-                mAccessibilityInteractionController.getWindowSurfaceInfoClientThread(callback));
-        sInstrumentation.waitForIdleSync();
-
-        Mockito.verify(callback).provideWindowSurfaceInfo(
-                vri.getWindowFlags(), Process.myUid(), vri.getSurfaceControl());
-    }
-
-    @Test
-    @EnableFlags(android.view.accessibility.Flags.FLAG_COPY_SURFACE_CONTROL_FOR_WINDOW_SCREENSHOTS)
     public void getWindowSurfaceInfo_shouldCallCallbackWithWindowSurfaceData_CopiedFromVri()
             throws Exception {
         final ViewRootImpl vri = mButton.getRootView().getViewRootImpl();
@@ -182,15 +161,6 @@ public class AccessibilityInteractionControllerTest {
     }
 
     @Test
-    @EnableFlags(android.view.accessibility.Flags.FLAG_IGNORE_UNIMPORTANT_ROOT)
-    public void getRootView_isUnimportant_returnsNull() {
-        mViewRootImpl.getView().setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-
-        assertThat(mAccessibilityInteractionController.getRootView()).isNull();
-    }
-
-    @Test
-    @DisableFlags(android.view.accessibility.Flags.FLAG_IGNORE_UNIMPORTANT_ROOT)
     public void getRootView_isUnimportant_returnsRoot() {
         mViewRootImpl.getView().setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
 

@@ -41,16 +41,42 @@ import android.os.VibratorInfo;
  */
 @TestApi
 @SuppressWarnings({"ParcelNotFinal", "ParcelCreator"}) // Parcel only extended here.
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public abstract class VibrationEffectSegment implements Parcelable {
     static final int PARCEL_TOKEN_PREBAKED = 1;
     static final int PARCEL_TOKEN_PRIMITIVE = 2;
     static final int PARCEL_TOKEN_STEP = 3;
-    static final int PARCEL_TOKEN_RAMP = 4;
-    static final int PARCEL_TOKEN_PWLE = 5;
-    static final int PARCEL_TOKEN_BASIC_PWLE = 6;
+    static final int PARCEL_TOKEN_PWLE = 4;
+    static final int PARCEL_TOKEN_BASIC_PWLE = 5;
+
+    private final long mStartTimeMillis;
 
     /** Prevent subclassing from outside of this package */
     VibrationEffectSegment() {
+        this(/* startTimeMillis= */ -1);
+    }
+
+    /**
+     * Prevent subclassing from outside of this package
+     *
+     * <p>The default value of startTimeMillis is -1. When the value is negative, it means the
+     * segment is not the first segment of an atomic event, it is an intermediate segment.
+     */
+    VibrationEffectSegment(long startTimeMillis) {
+        mStartTimeMillis = startTimeMillis;
+    }
+
+    /**
+     * The start time of the segment in the composition, in milliseconds.
+     *
+     * <p> This is used to determine the start of the vibration relative to the start of the
+     * composition. If the value is negative, the segment should be played immediately after the
+     * previous segment.
+     *
+     * @hide
+     */
+    public long getStartTimeMillis() {
+        return mStartTimeMillis;
     }
 
     /**
@@ -124,7 +150,7 @@ public abstract class VibrationEffectSegment implements Parcelable {
     public abstract <T extends VibrationEffectSegment> T scale(float scaleFactor);
 
     /**
-     * Performs a linear scaling on the segment intensity with the given factor.
+     * Applies given scale factor as adaptive scale.
      *
      * @param scaleFactor scale factor to be applied to the intensity. Values within [0,1) will
      *                    scale down the intensity, values larger than 1 will scale up
@@ -132,7 +158,7 @@ public abstract class VibrationEffectSegment implements Parcelable {
      * @hide
      */
     @NonNull
-    public abstract <T extends VibrationEffectSegment> T scaleLinearly(float scaleFactor);
+    public abstract <T extends VibrationEffectSegment> T applyAdaptiveScale(float scaleFactor);
 
     /**
      * Applies given effect strength to prebaked effects.
@@ -144,6 +170,23 @@ public abstract class VibrationEffectSegment implements Parcelable {
      */
     @NonNull
     public abstract <T extends VibrationEffectSegment> T applyEffectStrength(int effectStrength);
+
+    /**
+     * Applies given start time to the segment and returns a new segment with the applied start
+     * time.
+     *
+     * <p>It throws an exception if the segment doesn't support it, i.e. when the segment is a
+     * legacy PrimitiveSegment.
+     *
+     * <p>The default value of startTimeMillis is -1. When the value is negative, it means the
+     * segment is not the first segment of an atomic event, it is an intermediate segment. When the
+     * value is non-negative, it means the segment is the first segment of an atomic event, it is
+     * a leading segment.
+     *
+     * @hide
+     */
+    @NonNull
+    public abstract <T extends VibrationEffectSegment> T applyStartTime(long startTimeMillis);
 
     /**
      * Returns a compact version of the {@link #toString()} result for debugging purposes.
@@ -219,8 +262,6 @@ public abstract class VibrationEffectSegment implements Parcelable {
                     switch (in.readInt()) {
                         case PARCEL_TOKEN_STEP:
                             return new StepSegment(in);
-                        case PARCEL_TOKEN_RAMP:
-                            return new RampSegment(in);
                         case PARCEL_TOKEN_PREBAKED:
                             return new PrebakedSegment(in);
                         case PARCEL_TOKEN_PRIMITIVE:

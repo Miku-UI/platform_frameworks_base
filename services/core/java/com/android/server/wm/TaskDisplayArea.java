@@ -33,6 +33,7 @@ import static android.view.Display.INVALID_DISPLAY;
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_ORIENTATION;
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_TASKS;
 import static com.android.server.wm.ActivityRecord.State.RESUMED;
+import static com.android.server.wm.ActivityStarter.Request.DEFAULT_REAL_CALLING_UID;
 import static com.android.server.wm.ActivityTaskManagerService.TAG_ROOT_TASK;
 import static com.android.server.wm.DisplayContent.alwaysCreateRootTask;
 import static com.android.server.wm.WindowManagerDebugConfig.DEBUG_ROOT_TASK;
@@ -53,8 +54,6 @@ import android.view.WindowManager;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
 import com.android.internal.util.ArrayUtils;
-import com.android.internal.util.function.pooled.PooledLambda;
-import com.android.internal.util.function.pooled.PooledPredicate;
 import com.android.server.pm.UserManagerInternal;
 import com.android.server.wm.LaunchParamsController.LaunchParams;
 
@@ -278,10 +277,13 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
     private void addChildTask(Task task, int position) {
         if (DEBUG_ROOT_TASK) Slog.d(TAG_WM, "Set task=" + task + " on taskDisplayArea=" + this);
 
-        addRootTaskReferenceIfNeeded(task);
         position = findPositionForRootTask(position, task, true /* adding */);
 
         super.addChild(task, position);
+        if (task.mReparenting) {
+            addRootTaskReferenceIfNeeded(task);
+        }
+
         if (mPreferredTopFocusableRootTask != null
                 && task.isFocusable()
                 && mPreferredTopFocusableRootTask.compareTo(task) < 0) {
@@ -292,7 +294,10 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
         // Update the top resumed activity because the preferred top focusable task may be changed.
         mAtmService.mTaskSupervisor.updateTopResumedActivityIfNeeded("addChildTask");
 
-        mAtmService.updateSleepIfNeededLocked();
+        // If the display was previously empty, then we may need to wake it up.
+        if (mDisplayContent != null) {
+            mDisplayContent.wakeIfNeeded();
+        }
     }
 
     @Override
@@ -311,7 +316,10 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
     private void removeChildTask(Task task) {
         super.removeChild(task);
         onRootTaskRemoved(task);
-        mAtmService.updateSleepIfNeededLocked();
+        // If the display becomes empty, we may need to put it to sleep
+        if (mDisplayContent != null) {
+            mDisplayContent.sleepIfNeeded();
+        }
         removeRootTaskReferenceIfNeeded(task);
     }
 
@@ -394,6 +402,9 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
 
     void onTaskMoved(@NonNull Task t, boolean toTop, boolean toBottom) {
         if (toBottom && !t.isLeafTask()) {
+            if (t.forAllLeafTasks(childTask -> childTask.isTaskId(mLastLeafTaskToFrontId))) {
+                notifyTaskToFrontWhenPreviousTopLeafTaskMovedToBack();
+            }
             // Return early when a non-leaf task moved to bottom, to prevent sending duplicated
             // leaf task movement callback if the leaf task is moved along with its parent tasks.
             // Unless, we also track the task id, like `mLastLeafTaskToFrontId`.
@@ -412,16 +423,7 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
 
         if (!toTop) {
             if (t.mTaskId == mLastLeafTaskToFrontId) {
-                // If the previous front-most task is moved to the back, then notify of the new
-                // front-most task.
-                final ActivityRecord topMost = getTopNonFinishingActivity();
-                if (topMost != null) {
-                    mAtmService.getTaskChangeNotificationController().notifyTaskMovedToFront(
-                            topMost.getTask().getTaskInfo());
-                    mLastLeafTaskToFrontId = topMost.getTask().mTaskId;
-                } else {
-                    mLastLeafTaskToFrontId = INVALID_TASK_ID;
-                }
+                notifyTaskToFrontWhenPreviousTopLeafTaskMovedToBack();
             }
             return;
         }
@@ -434,6 +436,19 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
         // Notifying only when a leaf task moved to front. Or the listeners would be notified
         // couple times from the leaf task all the way up to the root task.
         mAtmService.getTaskChangeNotificationController().notifyTaskMovedToFront(t.getTaskInfo());
+    }
+
+    private void notifyTaskToFrontWhenPreviousTopLeafTaskMovedToBack() {
+        // If the previous front-most task is moved to the back, then notify of the new
+        // front-most task.
+        final ActivityRecord topMost = getTopNonFinishingActivity();
+        if (topMost != null) {
+            mAtmService.getTaskChangeNotificationController().notifyTaskMovedToFront(
+                    topMost.getTask().getTaskInfo());
+            mLastLeafTaskToFrontId = topMost.getTask().mTaskId;
+        } else {
+            mLastLeafTaskToFrontId = INVALID_TASK_ID;
+        }
     }
 
     @Override
@@ -761,11 +776,13 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
      * Returns an existing root task compatible with the windowing mode and activity type or
      * creates one if a compatible root task doesn't exist.
      *
-     * @see #getOrCreateRootTask(int, int, boolean, Task, Task, ActivityOptions, int)
+     * @see #getOrCreateRootTask(int, int, boolean, Task, Task, ActivityOptions, int, boolean, int)
      */
     Task getOrCreateRootTask(int windowingMode, int activityType, boolean onTop) {
         return getOrCreateRootTask(windowingMode, activityType, onTop, null /* candidateTask */,
-                null /* sourceTask */, null /* options */, 0 /* intent */);
+                null /* sourceTask */, null /* options */, 0 /* intent */,
+                false /* forceReparentLeafTaskToTda */,
+                DEFAULT_REAL_CALLING_UID /* originalCallerUid */);
     }
 
     /**
@@ -783,12 +800,15 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
      *                      adjacent roots should be launch root of the new task. Can be null.
      * @param options       The activity options used to the launch. Can be null.
      * @param launchFlags   The launch flags for this launch.
+     * @param forceReparentLeafTaskToTda If true the leaf task will be force reparent to TDA.
+     * @param originalCallerUid The original caller uid of the launch event.
      * @return The root task to use for the launch.
      * @see #getRootTask(int, int)
      */
     Task getOrCreateRootTask(int windowingMode, int activityType, boolean onTop,
             @Nullable Task candidateTask, @Nullable Task sourceTask,
-            @Nullable ActivityOptions options, int launchFlags) {
+            @Nullable ActivityOptions options, int launchFlags,
+            boolean forceReparentLeafTaskToTda, int originalCallerUid) {
         final int resolvedWindowingMode =
                 windowingMode == WINDOWING_MODE_UNDEFINED ? getWindowingMode() : windowingMode;
         // Need to pass in a determined windowing mode to see if a new root task should be created,
@@ -801,9 +821,10 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
         } else if (candidateTask != null) {
             final int position = onTop ? POSITION_TOP : POSITION_BOTTOM;
             final Task launchParentTask = getLaunchRootTask(resolvedWindowingMode, activityType,
-                    options, sourceTask, launchFlags, candidateTask);
+                    options, sourceTask, launchFlags, candidateTask, originalCallerUid);
             final boolean reparentToTda = (options != null && options.getReparentLeafTaskToTda())
                     || candidateTask.getRootTask().mReparentLeafTaskIfRelaunch
+                    || forceReparentLeafTaskToTda
                     // TODO(b/407669465): remove it once migrated to the new approach
                     // Before using a root task to manage the bubble tasks, the launching bubble
                     // task should be re-parented to TDA.
@@ -860,7 +881,8 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
      */
     Task getOrCreateRootTask(@Nullable ActivityRecord r, @Nullable ActivityOptions options,
             @Nullable Task candidateTask, @Nullable Task sourceTask,
-            @Nullable LaunchParams launchParams, int launchFlags, int activityType, boolean onTop) {
+            @Nullable LaunchParams launchParams, int launchFlags, int activityType, boolean onTop,
+            int originalCallerUid) {
         int windowingMode = WINDOWING_MODE_UNDEFINED;
         if (launchParams != null) {
             // If launchParams isn't null, windowing mode is already resolved.
@@ -874,8 +896,11 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
         // UNDEFINED windowing mode is a valid result and means that the new root task will inherit
         // it's display's windowing mode.
         windowingMode = validateWindowingMode(windowingMode, r, candidateTask);
+
+        final boolean forceReparentLeafTaskToTda =
+                launchParams != null && launchParams.mIsRelaunchFromHomeToReparent;
         return getOrCreateRootTask(windowingMode, activityType, onTop, candidateTask, sourceTask,
-                options, launchFlags);
+                options, launchFlags, forceReparentLeafTaskToTda, originalCallerUid);
     }
 
     @VisibleForTesting
@@ -975,12 +1000,13 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
     Task getLaunchRootTask(int windowingMode, int activityType, @Nullable ActivityOptions options,
             @Nullable Task sourceTask, int launchFlags) {
         return getLaunchRootTask(windowingMode, activityType, options, sourceTask, launchFlags,
-                null /* candidateTask */);
+                null /* candidateTask */, DEFAULT_REAL_CALLING_UID /* originalCallerUid */);
     }
 
     @Nullable
     Task getLaunchRootTask(int windowingMode, int activityType, @Nullable ActivityOptions options,
-            @Nullable Task sourceTask, int launchFlags, @Nullable Task candidateTask) {
+            @Nullable Task sourceTask, int launchFlags, @Nullable Task candidateTask,
+            int originalCallerUid) {
         // Try to use the launch root task in options if available.
         if (options != null) {
             final Task launchRootTask = Task.fromWindowContainerToken(options.getLaunchRootTask());
@@ -1042,41 +1068,70 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
             }
         }
 
-        // If a task is launching from a created-by-organizer task, it should be launched into the
-        // same created-by-organizer task as well. Unless, the candidate task is already positioned
-        // in the another adjacent task.
-        if (sourceTask != null && (candidateTask == null
-                // A pinned task relaunching should be handled by its task organizer. Skip fallback
-                // launch target of a pinned task from source task.
-                || candidateTask.getWindowingMode() != WINDOWING_MODE_PINNED)) {
-            final Task taskWithAdjacent = sourceTask.getTaskWithAdjacent();
-            if (taskWithAdjacent != null) {
-                // Has adjacent.
-                if (candidateTask == null) {
-                    return sourceTask.getCreatedByOrganizerTask();
-                }
-                // Check if the candidate is already positioned in the adjacent Task.
-                final Task[] adjacentRootTask = new Task[1];
-                sourceTask.forOtherAdjacentTasks(task -> {
-                    if (candidateTask == task || candidateTask.isDescendantOf(task)) {
-                        adjacentRootTask[0] = task;
-                        return true;
-                    }
-                    return false;
-                });
-                if (adjacentRootTask[0] != null) {
-                    return adjacentRootTask[0];
-                }
-                return sourceTask.getCreatedByOrganizerTask();
-            }
-            if (com.android.window.flags.Flags.rootTaskForBubble()) {
-                final Task parentTask = sourceTask.getParent().asTask();
-                if (parentTask != null && parentTask.mCreatedByOrganizer) {
-                    return parentTask;
+        // Select the same created-by-organizer root task from the source if possible.
+        final Task candidateLaunchRoot = getCandidateLaunchRootFromOrganizedSource(sourceTask,
+                candidateTask);
+        if (candidateLaunchRoot != null && candidateTask != null) {
+            final Task preservedRootTask = candidateTask.getPreservedRootTaskIfEnabled();
+            if (preservedRootTask != null) {
+                // Reuse the existing root task if it should be preserved.
+                // However, if the source task is in a split screen and the candidate task is a
+                // multi-trampoline launch from the same app, we want the candidate task to be
+                // reparented to the split screen root task instead of reusing the preserved root
+                // task (e.g. bubble).
+                final boolean isSourceWithAdjacent = sourceTask.getTaskWithAdjacent() != null;
+                final boolean isSameAppTrampoline = originalCallerUid == candidateTask.effectiveUid;
+                if (!(isSourceWithAdjacent && isSameAppTrampoline)) {
+                    return preservedRootTask;
                 }
             }
         }
+        return candidateLaunchRoot;
+    }
 
+    @Nullable
+    private Task getCandidateLaunchRootFromOrganizedSource(@Nullable Task sourceTask,
+            @Nullable Task candidateTask) {
+        if (sourceTask == null) {
+            return null;
+        }
+
+        // A pinned task relaunching should be handled by its task organizer. Skip fallback
+        // launch target of a pinned task from source task.
+        if (candidateTask != null && candidateTask.getWindowingMode() == WINDOWING_MODE_PINNED) {
+            return null;
+        }
+
+        // If a task is launching from a created-by-organizer task, it should be launched into the
+        // same created-by-organizer task as well. Unless, the candidate task is already positioned
+        // in the another adjacent task.
+        final Task taskWithAdjacent = sourceTask.getTaskWithAdjacent();
+        if (taskWithAdjacent != null) {
+            // Has adjacent.
+            if (candidateTask == null) {
+                return sourceTask.getCreatedByOrganizerTask();
+            }
+            // Check if the candidate is already positioned in the adjacent Task.
+            final Task[] adjacentRootTask = new Task[1];
+            sourceTask.forOtherAdjacentTasks(task -> {
+                if (candidateTask == task || candidateTask.isDescendantOf(task)) {
+                    adjacentRootTask[0] = task;
+                    return true;
+                }
+                return false;
+            });
+            if (adjacentRootTask[0] != null) {
+                return adjacentRootTask[0];
+            }
+            return sourceTask.getCreatedByOrganizerTask();
+        }
+        if (com.android.window.flags.Flags.enableBubbleRootTask()) {
+            final Task parentTask = sourceTask.getParent().asTask();
+            if (parentTask != null && parentTask.mCreatedByOrganizer
+                    && parentTask.getTaskDisplayArea() == this) {
+                return parentTask;
+            }
+        }
         return null;
     }
 
@@ -1109,9 +1164,6 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
     }
 
     Task getNextFocusableRootTask(Task currentFocus, boolean ignoreCurrent) {
-        final int currentWindowingMode = currentFocus != null
-                ? currentFocus.getWindowingMode() : WINDOWING_MODE_UNDEFINED;
-
         Task candidate = null;
         for (int i = mChildren.size() - 1; i >= 0; --i) {
             final WindowContainer child = mChildren.get(i);
@@ -1231,7 +1283,7 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
     }
 
     /**
-     * Returns whether the {@param windowingMode} is supported.
+     * Returns whether the {@code windowingMode} is supported.
      * @param windowingMode The windowing mode to check for.
      * @return Whether this windowing mode is supported.
      */
@@ -1242,7 +1294,7 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
     }
 
     /**
-     * Returns true if the {@param windowingMode} is supported based on other parameters passed in.
+     * Returns true if the {@code windowingMode} is supported based on other parameters passed in.
      *
      * @param windowingMode       The windowing mode we are checking support for.
      * @param supportsMultiWindow If we should consider support for multi-window mode in general.
@@ -1519,7 +1571,7 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
         // Take into account if this TaskDisplayArea can have a home task before trying to
         // create the root task
         if (homeTask == null && canHostHomeTask()) {
-            homeTask = createRootTask(WINDOWING_MODE_UNDEFINED, ACTIVITY_TYPE_HOME, onTop);
+            homeTask = createRootTask(WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_HOME, onTop);
         }
         return homeTask;
     }
@@ -1564,12 +1616,7 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
             return null;
         }
 
-        final PooledPredicate p = PooledLambda.obtainPredicate(
-                TaskDisplayArea::isHomeActivityForUser, PooledLambda.__(ActivityRecord.class),
-                userId);
-        final ActivityRecord r = rootHomeTask.getActivity(p);
-        p.recycle();
-        return r;
+        return rootHomeTask.getActivity(r -> isHomeActivityForUser(r, userId));
     }
 
     private static boolean isHomeActivityForUser(ActivityRecord r, int userId) {
@@ -1577,8 +1624,8 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
     }
 
     /**
-     * Moves the {@param rootTask} behind the given {@param behindRootTask} if possible. If
-     * {@param behindRootTask} is not currently in the display, then then the root task is moved
+     * Moves the {@code rootTask} behind the given {@code behindRootTask} if possible. If
+     * {@code behindRootTask} is not currently in the display, then then the root task is moved
      * to the back.
      */
     void moveRootTaskBehindRootTask(Task rootTask, Task behindRootTask) {
@@ -1608,19 +1655,13 @@ final class TaskDisplayArea extends DisplayArea<WindowContainer> {
     }
 
     /**
-     * @return the root task currently above the {@param rootTask}. Can be null if the
-     * {@param rootTask} is already top-most.
+     * @return the root task currently above the {@code rootTask}. Can be null if the
+     * {@code rootTask} is already top-most.
      */
     static Task getRootTaskAbove(Task rootTask) {
         final WindowContainer wc = rootTask.getParent();
         final int index = wc.mChildren.indexOf(rootTask) + 1;
         return (index < wc.mChildren.size()) ? (Task) wc.mChildren.get(index) : null;
-    }
-
-    /** Returns true if the root task in the windowing mode is visible. */
-    boolean isRootTaskVisible(int windowingMode) {
-        final Task rootTask = getTopRootTaskInWindowingMode(windowingMode);
-        return rootTask != null && rootTask.isVisible();
     }
 
     void removeRootTask(Task rootTask) {

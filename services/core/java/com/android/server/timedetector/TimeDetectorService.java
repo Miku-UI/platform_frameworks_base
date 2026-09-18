@@ -87,15 +87,23 @@ public final class TimeDetectorService extends ITimeDetectorService.Stub
             // Create and publish the local service for use by internal callers.
             CurrentUserIdentityInjector currentUserIdentityInjector =
                     CurrentUserIdentityInjector.REAL;
-            TimeDetectorInternal internal = new TimeDetectorInternalImpl(
-                    context, handler, currentUserIdentityInjector, serviceConfigAccessor,
-                    timeDetectorStrategy);
+            TimeDetectorInternal internal =
+                    new TimeDetectorInternalImpl(
+                            context,
+                            handler,
+                            currentUserIdentityInjector,
+                            serviceConfigAccessor,
+                            timeDetectorStrategy);
             publishLocalService(TimeDetectorInternal.class, internal);
 
             CallerIdentityInjector callerIdentityInjector = CallerIdentityInjector.REAL;
-            TimeDetectorService service = new TimeDetectorService(
-                    context, handler, callerIdentityInjector, timeDetectorStrategy,
-                    NtpTrustedTime.getInstance(context));
+            TimeDetectorService service =
+                    new TimeDetectorService(
+                            context,
+                            handler,
+                            callerIdentityInjector,
+                            timeDetectorStrategy,
+                            NtpTrustedTime.getInstance(context));
 
             // Publish the binder service so it can be accessed from other (appropriately
             // permissioned) processes.
@@ -118,7 +126,9 @@ public final class TimeDetectorService extends ITimeDetectorService.Stub
     private final ArrayMap<IBinder, ITimeDetectorListener> mListeners = new ArrayMap<>();
 
     @VisibleForTesting
-    public TimeDetectorService(@NonNull Context context, @NonNull Handler handler,
+    public TimeDetectorService(
+            @NonNull Context context,
+            @NonNull Handler handler,
             @NonNull CallerIdentityInjector callerIdentityInjector,
             @NonNull TimeDetectorStrategy timeDetectorStrategy,
             @NonNull NtpTrustedTime ntpTrustedTime) {
@@ -159,9 +169,7 @@ public final class TimeDetectorService extends ITimeDetectorService.Stub
         return updateConfiguration(callingUserId, configuration);
     }
 
-    /**
-     * Updates the user's configuration. Exposed for use by {@link TimeDetectorShellCommand}.
-     */
+    /** Updates the user's configuration. Exposed for use by {@link TimeDetectorShellCommand}. */
     boolean updateConfiguration(@UserIdInt int userId, @NonNull TimeConfiguration configuration) {
         // Resolve constants like USER_CURRENT to the true user ID as needed.
         int resolvedUserId = mCallerIdentityInjector.resolveUserId(userId, "updateConfiguration");
@@ -216,9 +224,13 @@ public final class TimeDetectorService extends ITimeDetectorService.Stub
                 removedListener = true;
             }
             if (!removedListener) {
-                Slog.w(TAG, "Client asked to remove listener=" + listener
-                        + ", but no listeners were removed."
-                        + " mListeners=" + mListeners);
+                Slog.w(
+                        TAG,
+                        "Client asked to remove listener="
+                                + listener
+                                + ", but no listeners were removed."
+                                + " mListeners="
+                                + mListeners);
             }
         }
     }
@@ -230,8 +242,8 @@ public final class TimeDetectorService extends ITimeDetectorService.Stub
     }
 
     /**
-     * Called when one of the ITimeDetectorListener processes dies before calling
-     * {@link #removeListener(ITimeDetectorListener)}.
+     * Called when one of the ITimeDetectorListener processes dies before calling {@link
+     * #removeListener(ITimeDetectorListener)}.
      */
     @Override
     public void binderDied(IBinder who) {
@@ -247,9 +259,13 @@ public final class TimeDetectorService extends ITimeDetectorService.Stub
                 }
             }
             if (!removedListener) {
-                Slog.w(TAG, "Notified of binder death for who=" + who
-                        + ", but did not remove any listeners."
-                        + " mListeners=" + mListeners);
+                Slog.w(
+                        TAG,
+                        "Notified of binder death for who="
+                                + who
+                                + ", but did not remove any listeners."
+                                + " mListeners="
+                                + mListeners);
             }
         }
     }
@@ -395,10 +411,12 @@ public final class TimeDetectorService extends ITimeDetectorService.Stub
             // The old implementation.
             NtpTrustedTime.TimeResult ntpResult = mNtpTrustedTime.getCachedTimeResult();
             if (ntpResult != null) {
-                latestNetworkTime = new NetworkTimeSuggestion(
-                        new UnixEpochTime(
-                                ntpResult.getElapsedRealtimeMillis(), ntpResult.getTimeMillis()),
-                        ntpResult.getUncertaintyMillis());
+                latestNetworkTime =
+                        new NetworkTimeSuggestion(
+                                new UnixEpochTime(
+                                        ntpResult.getElapsedRealtimeMillis(),
+                                        ntpResult.getTimeMillis()),
+                                ntpResult.getUncertaintyMillis());
             } else {
                 latestNetworkTime = null;
             }
@@ -417,9 +435,7 @@ public final class TimeDetectorService extends ITimeDetectorService.Stub
         return mTimeDetectorStrategy.getLatestNetworkSuggestion();
     }
 
-    /**
-     * Suggests GNSS time with permission checks. For use by {@link TimeDetectorShellCommand}.
-     */
+    /** Suggests GNSS time with permission checks. For use by {@link TimeDetectorShellCommand}. */
     void suggestGnssTime(@NonNull GnssTimeSuggestion timeSignal) {
         enforceSuggestGnssTimePermission();
         Objects.requireNonNull(timeSignal);
@@ -453,11 +469,12 @@ public final class TimeDetectorService extends ITimeDetectorService.Stub
             suggestion.addDebugInfo("Injected for tests");
             mTimeDetectorStrategy.suggestNetworkTime(suggestion);
         } else {
-            NtpTrustedTime.TimeResult timeResult = new NtpTrustedTime.TimeResult(
-                    unixEpochTime.getUnixEpochTimeMillis(),
-                    unixEpochTime.getElapsedRealtimeMillis(),
-                    uncertaintyMillis,
-                    InetSocketAddress.createUnresolved("time.set.for.tests", 123));
+            NtpTrustedTime.TimeResult timeResult =
+                    new NtpTrustedTime.TimeResult(
+                            unixEpochTime.getUnixEpochTimeMillis(),
+                            unixEpochTime.getElapsedRealtimeMillis(),
+                            uncertaintyMillis,
+                            InetSocketAddress.createUnresolved("time.set.for.tests", 123));
             mNtpTrustedTime.setCachedTimeResult(timeResult);
         }
     }
@@ -487,8 +504,8 @@ public final class TimeDetectorService extends ITimeDetectorService.Stub
     }
 
     @Override
-    protected void dump(@NonNull FileDescriptor fd, @NonNull PrintWriter pw,
-            @Nullable String[] args) {
+    protected void dump(
+            @NonNull FileDescriptor fd, @NonNull PrintWriter pw, @Nullable String[] args) {
         if (!DumpUtils.checkDumpPermission(mContext, TAG, pw)) return;
 
         IndentingPrintWriter ipw = new IndentingPrintWriter(pw);
@@ -497,10 +514,14 @@ public final class TimeDetectorService extends ITimeDetectorService.Stub
     }
 
     @Override
-    public void onShellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
-            String[] args, ShellCallback callback, ResultReceiver resultReceiver) {
-        new TimeDetectorShellCommand(this).exec(
-                this, in, out, err, args, callback, resultReceiver);
+    public void onShellCommand(
+            FileDescriptor in,
+            FileDescriptor out,
+            FileDescriptor err,
+            String[] args,
+            ShellCallback callback,
+            ResultReceiver resultReceiver) {
+        new TimeDetectorShellCommand(this).exec(this, in, out, err, args, callback, resultReceiver);
     }
 
     private void enforceSuggestTelephonyTimePermission() {
@@ -517,14 +538,12 @@ public final class TimeDetectorService extends ITimeDetectorService.Stub
 
     private void enforceSuggestNetworkTimePermission() {
         mContext.enforceCallingPermission(
-                android.Manifest.permission.SET_TIME,
-                "suggest network time");
+                android.Manifest.permission.SET_TIME, "suggest network time");
     }
 
     private void enforceSuggestGnssTimePermission() {
         mContext.enforceCallingPermission(
-                android.Manifest.permission.SET_TIME,
-                "suggest gnss time");
+                android.Manifest.permission.SET_TIME, "suggest gnss time");
     }
 
     private void enforceSuggestExternalTimePermission() {

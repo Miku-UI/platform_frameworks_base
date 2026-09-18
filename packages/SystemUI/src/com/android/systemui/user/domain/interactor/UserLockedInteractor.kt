@@ -24,6 +24,7 @@ import com.android.systemui.utils.coroutines.flow.flatMapLatestConflated
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 
 @SysUISingleton
@@ -43,4 +44,7 @@ constructor(
                 userRepository.isUserUnlocked(userHandle)
             }
             .flowOn(backgroundDispatcher)
+
+    suspend fun isCurrentUserStorageLocked(): Boolean =
+        !isUserUnlocked(UserHandle.CURRENT).first()
 }

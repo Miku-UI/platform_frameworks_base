@@ -16,9 +16,9 @@
 
 package com.android.systemui.shade
 
+import com.android.systemui.brightness.domain.interactor.BrightnessMirrorShowingInteractor
+import com.android.systemui.brightness.domain.interactor.BrightnessMirrorShowingInteractorPassThrough
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.settings.brightness.domain.interactor.BrightnessMirrorShowingInteractor
-import com.android.systemui.settings.brightness.domain.interactor.BrightnessMirrorShowingInteractorPassThrough
 import com.android.systemui.shade.data.repository.PrivacyChipRepository
 import com.android.systemui.shade.data.repository.PrivacyChipRepositoryImpl
 import com.android.systemui.shade.data.repository.ShadeRepository

@@ -37,12 +37,13 @@ import com.android.systemui.statusbar.chips.mediaprojection.domain.model.Project
 import com.android.systemui.statusbar.chips.mediaprojection.ui.view.EndMediaProjectionDialogHelper
 import com.android.systemui.statusbar.chips.sharetoapp.ui.view.EndGenericShareToAppDialogDelegate
 import com.android.systemui.statusbar.chips.sharetoapp.ui.view.EndShareScreenToAppDialogDelegate
+import com.android.systemui.statusbar.chips.ui.model.Chronometer
 import com.android.systemui.statusbar.chips.ui.model.ColorsModel
+import com.android.systemui.statusbar.chips.ui.model.EventTime
 import com.android.systemui.statusbar.chips.ui.model.OngoingActivityChipModel
 import com.android.systemui.statusbar.chips.ui.viewmodel.ChipTransitionHelper
 import com.android.systemui.statusbar.chips.ui.viewmodel.OngoingActivityChipViewModel
 import com.android.systemui.statusbar.chips.ui.viewmodel.OngoingActivityChipViewModel.Companion.createDialogLaunchOnClickCallback
-import com.android.systemui.statusbar.chips.ui.viewmodel.OngoingActivityChipViewModel.Companion.createDialogLaunchOnClickListener
 import com.android.systemui.statusbar.chips.uievents.StatusBarChipsUiEventLogger
 import com.android.systemui.util.kotlin.sample
 import com.android.systemui.util.time.SystemClock
@@ -155,25 +156,36 @@ constructor(
     private val chipTransitionHelper = ChipTransitionHelper(scope)
 
     override val chip: StateFlow<OngoingActivityChipModel> =
-        combine(chipTransitionHelper.createChipFlow(internalChip), stopDialogToShow) {
-                currentChip,
-                stopDialog ->
-                if (
-                    com.android.media.projection.flags.Flags.showStopDialogPostCallEnd() &&
-                        stopDialog is MediaProjectionStopDialogModel.Shown
-                ) {
-                    logger.log(
-                        TAG,
-                        LogLevel.INFO,
-                        {},
-                        { "Hiding the chip as stop dialog is being shown" },
-                    )
-                    OngoingActivityChipModel.Inactive()
-                } else {
-                    currentChip
+        if (context.resources.getBoolean(R.bool.config_largeScreenPrivacyIndicator)) {
+            // The share-to-app chip is not used on large screens, as the privacy indicator is
+            // handled by the large screen-specific privacy chip defined at
+            // [ShareScreenPrivacyIndicatorViewModel].
+            MutableStateFlow(OngoingActivityChipModel.Inactive()).asStateFlow()
+        } else {
+            combine(chipTransitionHelper.createChipFlow(internalChip), stopDialogToShow) {
+                    currentChip,
+                    stopDialog ->
+                    if (
+                        com.android.media.projection.flags.Flags.showStopDialogPostCallEnd() &&
+                            stopDialog is MediaProjectionStopDialogModel.Shown
+                    ) {
+                        logger.log(
+                            TAG,
+                            LogLevel.INFO,
+                            {},
+                            { "Hiding the chip as stop dialog is being shown" },
+                        )
+                        OngoingActivityChipModel.Inactive()
+                    } else {
+                        currentChip
+                    }
                 }
-            }
-            .stateIn(scope, SharingStarted.WhileSubscribed(), OngoingActivityChipModel.Inactive())
+                .stateIn(
+                    scope,
+                    SharingStarted.WhileSubscribed(),
+                    OngoingActivityChipModel.Inactive(),
+                )
+        }
 
     /**
      * Notifies this class that the user just stopped a screen recording from the dialog that's
@@ -227,6 +239,7 @@ constructor(
     ): OngoingActivityChipModel.Active {
         return OngoingActivityChipModel.Active(
             key = KEY,
+            notificationKey = null, // Not tied to a notification
             isImportantForPrivacy = true,
             icon =
                 OngoingActivityChipModel.ChipIcon.SingleColorIcon(
@@ -238,20 +251,13 @@ constructor(
             content =
                 OngoingActivityChipModel.Content.Timer(
                     // TODO(b/332662551): Maybe use a MediaProjection API to fetch this time.
-                    startTimeMs = systemClock.elapsedRealtime()
+                    value =
+                        Chronometer.Running(
+                            EventTime.ElapsedRealtime(systemClock.elapsedRealtime())
+                        ),
+                    timeSource = systemClock,
                 ),
             colors = ColorsModel.Red,
-            onClickListenerLegacy =
-                createDialogLaunchOnClickListener(
-                    { context -> createShareScreenToAppDialogDelegate(context, state) },
-                    dialogTransitionAnimator,
-                    DIALOG_CUJ,
-                    key = KEY,
-                    instanceId = instanceId,
-                    uiEventLogger = uiEventLogger,
-                    logger = logger,
-                    tag = TAG,
-                ),
             clickBehavior =
                 OngoingActivityChipModel.ClickBehavior.ExpandAction(
                     onClick =
@@ -276,6 +282,7 @@ constructor(
     ): OngoingActivityChipModel.Active {
         return OngoingActivityChipModel.Active(
             key = KEY,
+            notificationKey = null, // Not tied to a notification
             isImportantForPrivacy = true,
             icon =
                 OngoingActivityChipModel.ChipIcon.SingleColorIcon(
@@ -288,17 +295,6 @@ constructor(
                 ),
             content = OngoingActivityChipModel.Content.IconOnly,
             colors = ColorsModel.Red,
-            onClickListenerLegacy =
-                createDialogLaunchOnClickListener(
-                    { context -> createGenericShareToAppDialogDelegate(context, state) },
-                    dialogTransitionAnimator,
-                    DIALOG_CUJ_AUDIO_ONLY,
-                    key = KEY,
-                    instanceId = instanceId,
-                    uiEventLogger = uiEventLogger,
-                    logger = logger,
-                    tag = TAG,
-                ),
             clickBehavior =
                 OngoingActivityChipModel.ClickBehavior.ExpandAction(
                     createDialogLaunchOnClickCallback(

@@ -25,9 +25,15 @@
  */
 #define NO_STACK_PROTECTOR __attribute__((no_stack_protector))
 
-#include <jni.h>
-#include <vector>
 #include <android-base/stringprintf.h>
+#include <cutils/trace.h>
+#include <jni.h>
+#include <tracing_perfetto.h>
+
+#include <vector>
+
+#define ZYGOTE_TRACE_BEGIN(name) ::tracing_perfetto::traceBegin(ATRACE_TAG, name)
+#define ZYGOTE_TRACE_END(name) ::tracing_perfetto::traceEnd(ATRACE_TAG)
 
 #define CREATE_ERROR(...) StringPrintf("%s:%d: ", __FILE__, __LINE__). \
                               append(StringPrintf(__VA_ARGS__))

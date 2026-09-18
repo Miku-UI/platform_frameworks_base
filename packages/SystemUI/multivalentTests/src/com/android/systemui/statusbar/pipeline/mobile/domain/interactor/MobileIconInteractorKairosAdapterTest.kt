@@ -22,7 +22,6 @@ import com.android.settingslib.SignalIcon
 import com.android.settingslib.mobile.MobileIconCarrierIdOverrides
 import com.android.systemui.activated
 import com.android.systemui.kairos.BuildScope
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.Incremental
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.asIncremental
@@ -38,7 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import org.junit.runner.RunWith
 
-@OptIn(ExperimentalKairosApi::class, ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class MobileIconInteractorKairosAdapterTest : MobileIconInteractorTestBase() {
@@ -104,6 +103,10 @@ class MobileIconInteractorKairosAdapterTest : MobileIconInteractorTestBase() {
                 interactor.activeDataIconInteractor.toState().mapLatestBuild() {
                     it?.let { wrap(it) }
                 },
+            defaultDataIconInteractor =
+                interactor.defaultDataIconInteractor.toState().mapLatestBuild() {
+                    it?.let { wrap(it) }
+                },
             alwaysShowDataRatIcon = interactor.alwaysShowDataRatIcon.toState(),
             alwaysUseCdmaLevel = interactor.alwaysUseCdmaLevel.toState(),
             isSingleCarrier = interactor.isSingleCarrier.toState(),
@@ -128,6 +131,7 @@ class MobileIconInteractorKairosAdapterTest : MobileIconInteractorTestBase() {
         override val isStackable: State<Boolean>,
         override val activeDataConnectionHasDataEnabled: State<Boolean>,
         override val activeDataIconInteractor: State<MobileIconInteractorKairos?>,
+        override val defaultDataIconInteractor: State<MobileIconInteractorKairos?>,
         override val alwaysShowDataRatIcon: State<Boolean>,
         override val alwaysUseCdmaLevel: State<Boolean>,
         override val isSingleCarrier: State<Boolean>,

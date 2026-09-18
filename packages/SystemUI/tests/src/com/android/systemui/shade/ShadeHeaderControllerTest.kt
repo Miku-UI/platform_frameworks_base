@@ -38,10 +38,9 @@ import androidx.test.filters.SmallTest
 import com.android.app.animation.Interpolators
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.animation.ShadeInterpolation
-import com.android.systemui.battery.BatteryMeterView
-import com.android.systemui.battery.BatteryMeterViewController
 import com.android.systemui.demomode.DemoMode
 import com.android.systemui.demomode.DemoModeController
+import com.android.systemui.display.data.repository.displaySubcomponentPerDisplayRepository
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.qs.ChipVisibilityListener
@@ -54,13 +53,12 @@ import com.android.systemui.shade.ShadeHeaderController.Companion.QS_HEADER_CONS
 import com.android.systemui.shade.carrier.ShadeCarrierGroup
 import com.android.systemui.shade.carrier.ShadeCarrierGroupController
 import com.android.systemui.shade.data.repository.shadeDisplaysRepository
-import com.android.systemui.statusbar.data.repository.fakeStatusBarContentInsetsProviderStore
+import com.android.systemui.statusbar.layout.mockStatusBarContentInsetsProvider
 import com.android.systemui.statusbar.phone.StatusIconContainer
 import com.android.systemui.statusbar.phone.StatusOverlayHoverListenerFactory
 import com.android.systemui.statusbar.phone.ui.StatusBarIconController
 import com.android.systemui.statusbar.phone.ui.TintedIconManager
 import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.batteryViewModelAlwaysShowPercentFactory
-import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.batteryWithPercentViewModelFactory
 import com.android.systemui.statusbar.policy.Clock
 import com.android.systemui.statusbar.policy.FakeConfigurationController
 import com.android.systemui.statusbar.policy.NextAlarmController
@@ -99,8 +97,7 @@ private val EMPTY_CHANGES = ConstraintsChanges()
 class ShadeHeaderControllerTest : SysuiTestCase() {
 
     private val kosmos = testKosmos()
-    private val insetsProviderStore = kosmos.fakeStatusBarContentInsetsProviderStore
-    private val insetsProvider = insetsProviderStore.forDisplay(context.displayId)
+    private val insetsProvider = kosmos.mockStatusBarContentInsetsProvider
 
     @Mock(answer = Answers.RETURNS_MOCKS) private lateinit var view: MotionLayout
     @Mock private lateinit var statusIcons: StatusIconContainer
@@ -113,8 +110,6 @@ class ShadeHeaderControllerTest : SysuiTestCase() {
     @Mock private lateinit var clock: Clock
     @Mock private lateinit var date: VariableDateView
     @Mock private lateinit var carrierGroup: ShadeCarrierGroup
-    @Mock private lateinit var batteryMeterView: BatteryMeterView
-    @Mock private lateinit var batteryMeterViewController: BatteryMeterViewController
     @Mock private lateinit var privacyIconsController: HeaderPrivacyIconsController
     @Mock private lateinit var variableDateViewControllerFactory: VariableDateViewController.Factory
     @Mock private lateinit var variableDateViewController: VariableDateViewController
@@ -157,9 +152,6 @@ class ShadeHeaderControllerTest : SysuiTestCase() {
         whenever<ShadeCarrierGroup>(view.requireViewById(R.id.carrier_group))
             .thenReturn(carrierGroup)
 
-        whenever<BatteryMeterView>(view.requireViewById(R.id.batteryRemainingIcon))
-            .thenReturn(batteryMeterView)
-
         whenever<StatusIconContainer>(view.requireViewById(R.id.statusIcons))
             .thenReturn(statusIcons)
         whenever<View>(view.requireViewById(R.id.hover_system_icons_container))
@@ -198,14 +190,12 @@ class ShadeHeaderControllerTest : SysuiTestCase() {
                 statusBarIconController,
                 iconManagerFactory,
                 privacyIconsController,
-                insetsProviderStore,
+                kosmos.displaySubcomponentPerDisplayRepository,
                 configurationController,
                 viewContext,
                 Lazy { kosmos.shadeDisplaysRepository },
                 variableDateViewControllerFactory,
-                batteryMeterViewController,
                 kosmos.batteryViewModelAlwaysShowPercentFactory,
-                kosmos.batteryWithPercentViewModelFactory,
                 dumpManager,
                 mShadeCarrierGroupControllerBuilder,
                 combinedShadeHeadersConstraintManager,
@@ -309,6 +299,13 @@ class ShadeHeaderControllerTest : SysuiTestCase() {
         val bgColor = context.getColor(R.color.shade_header_text_color_bg)
         verify(carrierGroup)
             .updateTextAppearanceAndTint(R.style.TextAppearance_QS_Status, fgColor, bgColor)
+    }
+
+    @Test
+    fun updateConfig_reloadIconGroupLayoutParams() {
+        configurationController.notifyDensityOrFontScaleChanged()
+
+        verify(statusBarIconController).reloadIconGroupLayoutParams(eq(iconManager))
     }
 
     @Test

@@ -21,11 +21,14 @@ import android.view.View.VISIBLE
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseController.Companion.AnimationState.EASE_IN
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseController.Companion.AnimationState.EASE_OUT
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseController.Companion.AnimationState.MAIN
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseController.Companion.AnimationState.NOT_PLAYING
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseAnimationConfig
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseController
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseController.Companion.AnimationState.FADE_IN
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseController.Companion.AnimationState.FADE_OUT
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseController.Companion.AnimationState.MAIN
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseController.Companion.AnimationState.NOT_PLAYING
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseView
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat
@@ -50,17 +53,17 @@ class TurbulenceNoiseControllerTest : SysuiTestCase() {
         fakeExecutor.execute {
             turbulenceNoiseController.play(SIMPLEX_NOISE, config)
 
-            assertThat(turbulenceNoiseController.state).isEqualTo(EASE_IN)
+            assertThat(turbulenceNoiseController.state).isEqualTo(FADE_IN)
 
-            fakeSystemClock.advanceTime(config.easeInDuration.toLong())
+            fakeSystemClock.advanceTime(config.fadeInDuration.toLong())
 
             assertThat(turbulenceNoiseController.state).isEqualTo(MAIN)
 
             fakeSystemClock.advanceTime(config.maxDuration.toLong())
 
-            assertThat(turbulenceNoiseController.state).isEqualTo(EASE_OUT)
+            assertThat(turbulenceNoiseController.state).isEqualTo(FADE_OUT)
 
-            fakeSystemClock.advanceTime(config.easeOutDuration.toLong())
+            fakeSystemClock.advanceTime(config.fadeOutDuration.toLong())
 
             assertThat(turbulenceNoiseController.state).isEqualTo(NOT_PLAYING)
         }
@@ -83,7 +86,7 @@ class TurbulenceNoiseControllerTest : SysuiTestCase() {
     }
 
     @Test
-    fun finish_mainAnimationPlaying_playsEaseOutAnimation() {
+    fun finish_mainAnimationPlaying_playsFadeOutAnimation() {
         val config = TurbulenceNoiseAnimationConfig(maxDuration = 1000f)
         val turbulenceNoiseView = TurbulenceNoiseView(context, null)
         val turbulenceNoiseController =
@@ -96,7 +99,7 @@ class TurbulenceNoiseControllerTest : SysuiTestCase() {
 
             turbulenceNoiseController.finish()
 
-            assertThat(turbulenceNoiseController.state).isEqualTo(EASE_OUT)
+            assertThat(turbulenceNoiseController.state).isEqualTo(FADE_OUT)
         }
     }
 
@@ -105,7 +108,7 @@ class TurbulenceNoiseControllerTest : SysuiTestCase() {
         val config = TurbulenceNoiseAnimationConfig(maxDuration = 1000f)
         val turbulenceNoiseView = TurbulenceNoiseView(context, null)
         val turbulenceNoiseController =
-            TurbulenceNoiseController(turbulenceNoiseView).also { it.state = EASE_IN }
+            TurbulenceNoiseController(turbulenceNoiseView).also { it.state = FADE_IN }
 
         fakeExecutor.execute {
             turbulenceNoiseController.play(SIMPLEX_NOISE, config)
@@ -114,7 +117,7 @@ class TurbulenceNoiseControllerTest : SysuiTestCase() {
 
             turbulenceNoiseController.finish()
 
-            assertThat(turbulenceNoiseController.state).isEqualTo(EASE_IN)
+            assertThat(turbulenceNoiseController.state).isEqualTo(FADE_IN)
         }
     }
 
@@ -131,15 +134,15 @@ class TurbulenceNoiseControllerTest : SysuiTestCase() {
         fakeExecutor.execute {
             turbulenceNoiseController.play(SIMPLEX_NOISE, config)
 
-            assertThat(turbulenceNoiseController.state).isEqualTo(EASE_IN)
+            assertThat(turbulenceNoiseController.state).isEqualTo(FADE_IN)
             assertThat(turbulenceNoiseView.visibility).isEqualTo(VISIBLE)
             assertThat(turbulenceNoiseView.noiseConfig).isEqualTo(config)
 
             // Play all the animations.
             fakeSystemClock.advanceTime(
-                config.easeInDuration.toLong() +
+                config.fadeInDuration.toLong() +
                     config.maxDuration.toLong() +
-                    config.easeOutDuration.toLong()
+                    config.fadeOutDuration.toLong()
             )
 
             assertThat(turbulenceNoiseController.state).isEqualTo(NOT_PLAYING)
@@ -174,7 +177,7 @@ class TurbulenceNoiseControllerTest : SysuiTestCase() {
             TurbulenceNoiseAnimationConfig(
                 noiseOffsetX = expectedNoiseOffset[0],
                 noiseOffsetY = expectedNoiseOffset[1],
-                noiseOffsetZ = expectedNoiseOffset[2]
+                noiseOffsetZ = expectedNoiseOffset[2],
             )
         val turbulenceNoiseView = TurbulenceNoiseView(context, null)
         val turbulenceNoiseController = TurbulenceNoiseController(turbulenceNoiseView)

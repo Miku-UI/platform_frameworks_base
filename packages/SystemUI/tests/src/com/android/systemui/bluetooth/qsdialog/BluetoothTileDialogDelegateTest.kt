@@ -24,14 +24,12 @@ import androidx.test.filters.SmallTest
 import com.android.internal.logging.UiEventLogger
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.bluetooth.ui.viewModel.BluetoothDetailsContentViewModel
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.shade.data.repository.shadeDialogContextInteractor
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
-import com.android.systemui.statusbar.phone.SystemUIDialog
-import com.android.systemui.statusbar.phone.SystemUIDialogManager
+import com.android.systemui.statusbar.phone.systemUIDialogDotFactory
 import com.android.systemui.testKosmos
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -69,10 +67,6 @@ class BluetoothTileDialogDelegateTest : SysuiTestCase() {
 
     @Mock private lateinit var uiEventLogger: UiEventLogger
 
-    @Mock private lateinit var sysuiDialogFactory: SystemUIDialog.Factory
-    @Mock private lateinit var dialogManager: SystemUIDialogManager
-    @Mock private lateinit var dialogTransitionAnimator: DialogTransitionAnimator
-
     private val uiProperties =
         BluetoothDetailsContentViewModel.UiProperties.build(
             isBluetoothEnabled = ENABLED,
@@ -96,23 +90,11 @@ class BluetoothTileDialogDelegateTest : SysuiTestCase() {
                 CONTENT_HEIGHT,
                 {},
                 uiEventLogger,
-                sysuiDialogFactory,
+                kosmos.systemUIDialogDotFactory,
                 kosmos.shadeDialogContextInteractor,
                 bluetoothDetailsContentManagerFactory,
                 kosmos.shadeModeInteractor,
             )
-
-        whenever(sysuiDialogFactory.create(any<SystemUIDialog.Delegate>(), any())).thenAnswer {
-            SystemUIDialog(
-                mContext,
-                0,
-                SystemUIDialog.DEFAULT_DISMISS_ON_DEVICE_LOCK,
-                dialogManager,
-                fakeBroadcastDispatcher,
-                dialogTransitionAnimator,
-                it.getArgument(0),
-            )
-        }
 
         whenever(bluetoothDetailsContentManagerFactory.create(any(), anyInt(), anyBoolean(), any()))
             .thenReturn(bluetoothDetailsContentManager)

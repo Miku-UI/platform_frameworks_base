@@ -43,14 +43,13 @@ import com.android.systemui.SysuiTestCase;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.res.R;
+import com.android.systemui.retail.domain.interactor.RetailModeInteractor;
 import com.android.systemui.shade.domain.interactor.FakeShadeDialogContextInteractor;
 import com.android.systemui.statusbar.phone.SystemUIDialog;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.util.concurrency.FakeExecutor;
 import com.android.systemui.util.time.FakeSystemClock;
 import com.android.wifitrackerlib.WifiEntry;
-
-import kotlinx.coroutines.CoroutineScope;
 
 import org.junit.After;
 import org.junit.Before;
@@ -59,6 +58,7 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.MockitoSession;
+import org.mockito.quality.Strictness;
 
 import java.util.List;
 
@@ -76,8 +76,6 @@ public class InternetDialogDelegateLegacyTest extends SysuiTestCase {
 
     @Mock
     private Handler mHandler;
-    @Mock
-    CoroutineScope mScope;
     @Mock
     private TelephonyManager mTelephonyManager;
     @Mock
@@ -98,6 +96,8 @@ public class InternetDialogDelegateLegacyTest extends SysuiTestCase {
     private SystemUIDialog mSystemUIDialog;
     @Mock
     private Window mWindow;
+    @Mock
+    private RetailModeInteractor mRetailModeInteractor;
 
     private FakeExecutor mBgExecutor = new FakeExecutor(new FakeSystemClock());
     private InternetDialogDelegateLegacy mInternetDialogDelegateLegacy;
@@ -123,6 +123,7 @@ public class InternetDialogDelegateLegacyTest extends SysuiTestCase {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
+        when(mRetailModeInteractor.isInRetailMode()).thenReturn(false);
         doReturn(mTelephonyManager).when(mTelephonyManager).createForSubscriptionId(anyInt());
         when(mInternetWifiEntry.getTitle()).thenReturn(WIFI_TITLE);
         when(mInternetWifiEntry.getSummary(false)).thenReturn(WIFI_SUMMARY);
@@ -140,6 +141,7 @@ public class InternetDialogDelegateLegacyTest extends SysuiTestCase {
         when(mInternetDetailsContentController.getActiveAutoSwitchNonDdsSubId()).thenReturn(
                 SubscriptionManager.INVALID_SUBSCRIPTION_ID);
         mMockitoSession = ExtendedMockito.mockitoSession()
+                .strictness(Strictness.LENIENT)
                 .spyStatic(WifiEnterpriseRestrictionUtils.class)
                 .startMocking();
         when(WifiEnterpriseRestrictionUtils.isChangeWifiStateAllowed(mContext)).thenReturn(true);
@@ -158,7 +160,7 @@ public class InternetDialogDelegateLegacyTest extends SysuiTestCase {
                 true,
                 true,
                 true,
-                mScope,
+                mKosmos.getTestScope(),
                 mock(UiEventLogger.class),
                 mDialogTransitionAnimator,
                 mHandler,
@@ -166,7 +168,9 @@ public class InternetDialogDelegateLegacyTest extends SysuiTestCase {
                 mKeyguard,
                 mSystemUIDialogFactory,
                 new FakeShadeDialogContextInteractor(mContext),
-                mKosmos.getShadeModeInteractor());
+                mKosmos.getShadeModeInteractor(),
+                mRetailModeInteractor,
+                mKosmos.getFakeUserRepository());
         mInternetDialogDelegateLegacy.createDialog();
         mInternetDialogDelegateLegacy.onCreate(mSystemUIDialog, null);
         mInternetDialogDelegateLegacy.mAdapter = mInternetAdapter;
@@ -965,6 +969,45 @@ public class InternetDialogDelegateLegacyTest extends SysuiTestCase {
         mEthernet.setVisibility(ethernetVisible ? View.VISIBLE : View.GONE);
         mMobileDataLayout.setVisibility(mobileDataVisible ? View.VISIBLE : View.GONE);
         mConnectedWifi.setVisibility(connectedWifiVisible ? View.VISIBLE : View.GONE);
+    }
+
+    @Test
+    public void updateDialog_canConfigMobileDataFalse_mobileDataToggleHidden() {
+        mInternetDialogDelegateLegacy.dismissDialog();
+        mInternetDialogDelegateLegacy =
+                new InternetDialogDelegateLegacy(
+                        mContext,
+                        mock(InternetDialogManager.class),
+                        mInternetDetailsContentController,
+                        false, // canConfigMobileData
+                        true,
+                        true,
+                        mKosmos.getTestScope(),
+                        mock(UiEventLogger.class),
+                        mDialogTransitionAnimator,
+                        mHandler,
+                        mBgExecutor,
+                        mKeyguard,
+                        mSystemUIDialogFactory,
+                        new FakeShadeDialogContextInteractor(mContext),
+                        mKosmos.getShadeModeInteractor(),
+                        mRetailModeInteractor,
+                        mKosmos.getFakeUserRepository());
+        mInternetDialogDelegateLegacy.createDialog();
+        mInternetDialogDelegateLegacy.onCreate(mSystemUIDialog, null);
+        mMobileToggleSwitch = mInternetDialogDelegateLegacy.mDialogView.requireViewById(
+                R.id.mobile_toggle);
+
+        when(mInternetDetailsContentController.hasActiveSubIdOnDds()).thenReturn(true);
+        when(mInternetDetailsContentController.isCarrierNetworkActive()).thenReturn(true);
+
+        mInternetDialogDelegateLegacy.updateDialog(true);
+        mBgExecutor.runAllReady();
+
+        mInternetDialogDelegateLegacy.mDataInternetContent.observe(
+                mInternetDialogDelegateLegacy.mLifecycleOwner, i -> {
+                    assertThat(mMobileToggleSwitch.getVisibility()).isEqualTo(View.INVISIBLE);
+                });
     }
 
     @Test

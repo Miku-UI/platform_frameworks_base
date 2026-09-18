@@ -17,4 +17,33 @@
 
 <resources>
     <color name="settingslib_protection_color">@android:color/white</color>
+
+    <!-- Skin tones should use constant values independent of the theme. -->
+    <color name="warm_skin_tone_1">#FFE0BA</color>
+    <color name="warm_skin_tone_2">#F8AA89</color>
+    <color name="warm_skin_tone_3">#FA996A</color>
+    <color name="warm_skin_tone_4">#FF7856</color>
+    <color name="warm_skin_tone_5">#965347</color>
+    <color name="warm_skin_tone_6">#2F1713</color>
+    <color name="illo_skin_tone_1">@color/warm_skin_tone_1</color>
+    <color name="illo_skin_tone_2">@color/warm_skin_tone_2</color>
+    <color name="illo_skin_tone_3">@color/warm_skin_tone_3</color>
+    <color name="illo_skin_tone_4">@color/warm_skin_tone_4</color>
+    <color name="illo_skin_tone_5">@color/warm_skin_tone_5</color>
+    <color name="illo_skin_tone_6">@color/warm_skin_tone_6</color>
+
+    <!-- Custom semantic colors for the illustration palette. -->
+    <color name="illo_fixed_black">@android:color/black</color>
+    <color name="illo_fixed_white">@android:color/white</color>
+    <color name="illo_inverse_black">@android:color/black</color>
+    <color name="illo_inverse_white">@android:color/white</color>
+    <color name="illo_error_1">#F55E57</color>
+    <color name="illo_error_2">#FFDAD6</color>
+    <color name="illo_error_3">#3A0A08</color>
+    <color name="illo_warning_1">#FCBD00</color>
+    <color name="illo_warning_2">#FFE082</color>
+    <color name="illo_warning_3">#2F1400</color>
+    <color name="illo_positive_1">#1AA64A</color>
+    <color name="illo_positive_2">#BDEFBC</color>
+    <color name="illo_positive_3">#002110</color>
 </resources>

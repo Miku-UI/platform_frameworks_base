@@ -31,7 +31,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.android.systemui.compose.ComposeInitializer;
-import com.android.systemui.statusbar.core.StatusBarRootModernization;
 import com.android.systemui.statusbar.data.repository.StatusBarConfigurationController;
 
 /**
@@ -47,8 +46,6 @@ public class StatusBarWindowView extends FrameLayout {
     private int mRightInset = 0;
     private int mTopInset = 0;
 
-    private float mTouchDownY = 0;
-
     @Nullable private StatusBarConfigurationController mConfigurationController;
 
     public StatusBarWindowView(Context context, AttributeSet attrs) {
@@ -60,18 +57,14 @@ public class StatusBarWindowView extends FrameLayout {
     public void onAttachedToWindow() {
         super.onAttachedToWindow();
 
-        if (StatusBarRootModernization.isEnabled()) {
-            ComposeInitializer.INSTANCE.onAttachedToWindow(this);
-        }
+        ComposeInitializer.INSTANCE.onAttachedToWindow(this);
     }
 
     @Override
     public void onDetachedFromWindow() {
         super.onDetachedFromWindow();
 
-        if (StatusBarRootModernization.isEnabled()) {
-            ComposeInitializer.INSTANCE.onDetachedFromWindow(this);
-        }
+        ComposeInitializer.INSTANCE.onDetachedFromWindow(this);
     }
 
     /**

@@ -162,8 +162,26 @@ public final class AudioProductStrategy implements Parcelable {
             Manifest.permission.MODIFY_AUDIO_SETTINGS_PRIVILEGED
     })
     public static int getZoneIdForAudioVolumeGroupId(int groupId) {
-        List<AudioProductStrategy> strategies =
-                getAudioProductStrategiesFromService(/* filterInternal= */ true);
+        IAudioService service = getService();
+        try {
+            return service.getZoneIdForAudioVolumeGroupId(groupId);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Error getting audio product strategies", e);
+            return DEFAULT_ZONE_ID;
+        }
+    }
+
+    /**
+     * Selects the zone id for a volume group id.
+     *
+     * @param strategies audio product strategies to search
+     * @param groupId to consider
+     * @return the zone id for the given groupId if found, {@code #INVALID_ZONE_ID} otherwise.
+     *
+     * @hide
+     */
+    public static int getZoneIdForAudioVolumeGroupId(List<AudioProductStrategy> strategies,
+            int groupId) {
         for (AudioProductStrategy strategy : strategies) {
             for (AudioAttributesGroup aag : strategy.mAudioAttributesGroups) {
                 if (aag.mVolumeGroupId == groupId) {

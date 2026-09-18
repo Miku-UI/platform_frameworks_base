@@ -20,7 +20,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.Log;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -31,7 +30,6 @@ import com.google.android.collect.Maps;
 
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -44,8 +42,6 @@ import java.util.Map;
 @RunWith(AndroidJUnit4.class)
 @DisabledOnRavenwood(blockedBy = FileObserver.class)
 public class FileObserverTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private Observer mObserver;
     private File mTestFile;

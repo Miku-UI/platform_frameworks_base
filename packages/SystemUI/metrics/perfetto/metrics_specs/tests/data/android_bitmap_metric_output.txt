@@ -1,4 +1,5 @@
 metric_bundles {
+  bundle_id: "android_bitmap_metric"
   row {
     values {
       double_value: 10.0

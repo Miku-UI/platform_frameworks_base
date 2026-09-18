@@ -189,7 +189,9 @@ public final class SEService {
         if (seService != null) {
             mSecureElementService = ISecureElementService.Stub.asInterface(seService);
             Log.i(TAG, "Got SecureElementService from system, not sending intent.");
-            executor.execute(listener::onConnected);
+            mContext.getMainExecutor().execute(() -> {
+                executor.execute(listener::onConnected);
+            });
             return;
         }
 

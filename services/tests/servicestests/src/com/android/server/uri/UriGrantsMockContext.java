@@ -64,6 +64,10 @@ public class UriGrantsMockContext extends MockContext {
     static final String PKG_FORCE = "com.example.force";
     /** Complex provider that offers nested grants */
     static final String PKG_COMPLEX = "com.example.complex";
+    /** PCC package */
+    static final String PKG_PCC = "com.example.pcc";
+    /** PCC Trusted package */
+    static final String PKG_PCC_TRUSTED = "com.example.pcctrusted";
 
     private static final int UID_SOCIAL = android.os.Process.LAST_APPLICATION_UID - 1;
     private static final int UID_CAMERA = android.os.Process.LAST_APPLICATION_UID - 2;
@@ -71,6 +75,8 @@ public class UriGrantsMockContext extends MockContext {
     private static final int UID_PUBLIC = android.os.Process.LAST_APPLICATION_UID - 4;
     private static final int UID_FORCE = android.os.Process.LAST_APPLICATION_UID - 5;
     private static final int UID_COMPLEX = android.os.Process.LAST_APPLICATION_UID - 6;
+    private static final int UID_PCC_TRUSTED = android.os.Process.LAST_APPLICATION_UID - 7;
+    private static final int UID_PCC = UID_SOCIAL + 20000;
 
     static final int UID_PRIMARY_SOCIAL = UserHandle.getUid(USER_PRIMARY, UID_SOCIAL);
     static final int UID_PRIMARY_CAMERA = UserHandle.getUid(USER_PRIMARY, UID_CAMERA);
@@ -78,6 +84,8 @@ public class UriGrantsMockContext extends MockContext {
     static final int UID_PRIMARY_PUBLIC = UserHandle.getUid(USER_PRIMARY, UID_PUBLIC);
     static final int UID_PRIMARY_FORCE = UserHandle.getUid(USER_PRIMARY, UID_FORCE);
     static final int UID_PRIMARY_COMPLEX = UserHandle.getUid(USER_PRIMARY, UID_COMPLEX);
+    static final int UID_PRIMARY_PCC_TRUSTED = UserHandle.getUid(USER_PRIMARY, UID_PCC_TRUSTED);
+    static final int UID_PRIMARY_PCC = UserHandle.getUid(USER_PRIMARY, UID_PCC);
 
     static final int UID_SECONDARY_SOCIAL = UserHandle.getUid(USER_SECONDARY, UID_SOCIAL);
     static final int UID_SECONDARY_CAMERA = UserHandle.getUid(USER_SECONDARY, UID_CAMERA);
@@ -85,12 +93,16 @@ public class UriGrantsMockContext extends MockContext {
     static final int UID_SECONDARY_PUBLIC = UserHandle.getUid(USER_SECONDARY, UID_PUBLIC);
     static final int UID_SECONDARY_FORCE = UserHandle.getUid(USER_SECONDARY, UID_FORCE);
     static final int UID_SECONDARY_COMPLEX = UserHandle.getUid(USER_SECONDARY, UID_COMPLEX);
+    static final int UID_SECONDARY_PCC_TRUSTED = UserHandle.getUid(USER_SECONDARY, UID_PCC_TRUSTED);
+    static final int UID_SECONDARY_PCC = UserHandle.getUid(USER_SECONDARY, UID_PCC);
 
     static final Uri URI_PHOTO_1 = Uri.parse("content://" + PKG_CAMERA + "/1");
     static final Uri URI_PHOTO_2 = Uri.parse("content://" + PKG_CAMERA + "/2");
     static final Uri URI_PRIVATE = Uri.parse("content://" + PKG_PRIVATE + "/42");
     static final Uri URI_PUBLIC = Uri.parse("content://" + PKG_PUBLIC + "/42");
     static final Uri URI_FORCE = Uri.parse("content://" + PKG_FORCE + "/42");
+    static final Uri URI_PCC = Uri.parse("content://" + PKG_PCC + "/1");
+    static final Uri URI_PCC_TRUSTED = Uri.parse("content://" + PKG_PCC_TRUSTED + "/1");
 
     private final File mDir;
 
@@ -125,6 +137,10 @@ public class UriGrantsMockContext extends MockContext {
                     .thenReturn(UserHandle.getUid(userId, UID_FORCE));
             when(mPmInternal.getPackageUid(eq(PKG_COMPLEX), anyLong(), eq(userId)))
                     .thenReturn(UserHandle.getUid(userId, UID_COMPLEX));
+            when(mPmInternal.getPackageUid(eq(PKG_PCC), anyLong(), eq(userId)))
+                    .thenReturn(UserHandle.getUid(userId, UID_PCC));
+            when(mPmInternal.getPackageUid(eq(PKG_PCC_TRUSTED), anyLong(), eq(userId)))
+                    .thenReturn(UserHandle.getUid(userId, UID_PCC_TRUSTED));
 
             when(mPmInternal.resolveContentProvider(eq(PKG_CAMERA), anyLong(), eq(userId),
                     eq(Process.SYSTEM_UID)))
@@ -132,30 +148,67 @@ public class UriGrantsMockContext extends MockContext {
             when(mPmInternal.resolveContentProvider(eq(PKG_CAMERA), anyLong(), eq(userId),
                     eq(UserHandle.getUid(userId, UID_CAMERA))))
                     .thenReturn(buildCameraProvider(userId));
+            // Add PCC to Camera provider access
+            when(mPmInternal.resolveContentProvider(eq(PKG_CAMERA), anyLong(), eq(userId),
+                    eq(UserHandle.getUid(userId, UID_PCC))))
+                    .thenReturn(buildCameraProvider(userId));
+
             when(mPmInternal.resolveContentProvider(eq(PKG_PRIVATE), anyLong(), eq(userId),
                     eq(Process.SYSTEM_UID)))
                     .thenReturn(buildPrivateProvider(userId));
             when(mPmInternal.resolveContentProvider(eq(PKG_PRIVATE), anyLong(), eq(userId),
                     eq(UserHandle.getUid(userId, UID_PRIVATE))))
                     .thenReturn(buildPrivateProvider(userId));
+
             when(mPmInternal.resolveContentProvider(eq(PKG_PUBLIC), anyLong(), eq(userId),
                     eq(Process.SYSTEM_UID)))
                     .thenReturn(buildPublicProvider(userId));
             when(mPmInternal.resolveContentProvider(eq(PKG_PUBLIC), anyLong(), eq(userId),
                     eq(UserHandle.getUid(userId, UID_PUBLIC))))
                     .thenReturn(buildPublicProvider(userId));
+            // Add PCC to Public provider access
+            when(mPmInternal.resolveContentProvider(eq(PKG_PUBLIC), anyLong(), eq(userId),
+                    eq(UserHandle.getUid(userId, UID_PCC))))
+                    .thenReturn(buildPublicProvider(userId));
+
             when(mPmInternal.resolveContentProvider(eq(PKG_FORCE), anyLong(), eq(userId),
                     eq(Process.SYSTEM_UID)))
                     .thenReturn(buildForceProvider(userId));
             when(mPmInternal.resolveContentProvider(eq(PKG_FORCE), anyLong(), eq(userId),
                     eq(UserHandle.getUid(userId, UID_FORCE))))
                     .thenReturn(buildForceProvider(userId));
+
             when(mPmInternal.resolveContentProvider(eq(PKG_COMPLEX), anyLong(), eq(userId),
                     eq(Process.SYSTEM_UID)))
                     .thenReturn(buildComplexProvider(userId));
             when(mPmInternal.resolveContentProvider(eq(PKG_COMPLEX), anyLong(), eq(userId),
                     eq(UserHandle.getUid(userId, UID_COMPLEX))))
                     .thenReturn(buildComplexProvider(userId));
+
+            // PCC Provider mocks
+            when(mPmInternal.resolveContentProvider(eq(PKG_PCC), anyLong(), eq(userId),
+                    eq(Process.SYSTEM_UID)))
+                    .thenReturn(buildPccProvider(userId));
+            when(mPmInternal.resolveContentProvider(eq(PKG_PCC), anyLong(), eq(userId),
+                    eq(UserHandle.getUid(userId, UID_PCC))))
+                    .thenReturn(buildPccProvider(userId));
+            when(mPmInternal.resolveContentProvider(eq(PKG_PCC), anyLong(), eq(userId),
+                    eq(UserHandle.getUid(userId, UID_CAMERA))))
+                    .thenReturn(buildPccProvider(userId));
+
+            // PCC Trusted Provider mocks
+            when(mPmInternal.resolveContentProvider(eq(PKG_PCC_TRUSTED), anyLong(), eq(userId),
+                    eq(Process.SYSTEM_UID)))
+                    .thenReturn(buildPccTrustedProvider(userId));
+            when(mPmInternal.resolveContentProvider(eq(PKG_PCC_TRUSTED), anyLong(), eq(userId),
+                    eq(UserHandle.getUid(userId, UID_PCC_TRUSTED))))
+                    .thenReturn(buildPccTrustedProvider(userId));
+            when(mPmInternal.resolveContentProvider(eq(PKG_PCC_TRUSTED), anyLong(), eq(userId),
+                    eq(UserHandle.getUid(userId, UID_CAMERA))))
+                    .thenReturn(buildPccTrustedProvider(userId));
+            when(mPmInternal.resolveContentProvider(eq(PKG_PCC_TRUSTED), anyLong(), eq(userId),
+                    eq(UserHandle.getUid(userId, UID_PCC))))
+                    .thenReturn(buildPccTrustedProvider(userId));
         }
     }
 
@@ -163,6 +216,7 @@ public class UriGrantsMockContext extends MockContext {
         final ProviderInfo pi = new ProviderInfo();
         pi.packageName = PKG_CAMERA;
         pi.authority = PKG_CAMERA;
+        pi.exported = true;
         pi.readPermission = android.Manifest.permission.READ_EXTERNAL_STORAGE;
         pi.writePermission = android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
         pi.grantUriPermissions = true;
@@ -222,6 +276,29 @@ public class UriGrantsMockContext extends MockContext {
                 new PatternMatcher("/secure", PathPermission.PATTERN_PREFIX),
                 new PatternMatcher("/insecure", PathPermission.PATTERN_PREFIX),
         };
+        return pi;
+    }
+
+    private static ProviderInfo buildPccProvider(int userId) {
+        final ProviderInfo pi = new ProviderInfo();
+        pi.packageName = PKG_PCC;
+        pi.authority = PKG_PCC;
+        pi.exported = true;
+        pi.grantUriPermissions = true;
+        pi.applicationInfo = new ApplicationInfo();
+        pi.applicationInfo.uid = UserHandle.getUid(userId, UID_PCC);
+        pi.applicationInfo.pccUid = UserHandle.getUid(userId, UID_PCC); // Maybe used later
+        return pi;
+    }
+
+    private static ProviderInfo buildPccTrustedProvider(int userId) {
+        final ProviderInfo pi = new ProviderInfo();
+        pi.packageName = PKG_PCC_TRUSTED;
+        pi.authority = PKG_PCC_TRUSTED;
+        pi.exported = true;
+        pi.grantUriPermissions = true;
+        pi.applicationInfo = new ApplicationInfo();
+        pi.applicationInfo.uid = UserHandle.getUid(userId, UID_PCC_TRUSTED);
         return pi;
     }
 

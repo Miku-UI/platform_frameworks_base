@@ -28,6 +28,7 @@ import android.telephony.TelephonyManager
 import android.telephony.euicc.EuiccManager
 import android.text.TextUtils
 import android.util.Log
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.keyguard.KeyguardUpdateMonitor
 import com.android.systemui.bouncer.data.repository.SimBouncerRepository
 import com.android.systemui.bouncer.data.repository.SimBouncerRepositoryImpl
@@ -35,7 +36,6 @@ import com.android.systemui.bouncer.data.repository.SimBouncerRepositoryImpl.Com
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
-import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionsRepository
@@ -49,7 +49,6 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
-import com.android.app.tracing.coroutines.launchTraced as launch
 import kotlinx.coroutines.withContext
 
 /** Handles domain layer logic for locked sim cards. */
@@ -73,7 +72,7 @@ constructor(
     val isAnySimSecure: StateFlow<Boolean> =
         mobileConnectionsRepository.isAnySimSecure.stateIn(
             scope = applicationScope,
-            started = SharingStarted.WhileSubscribed(),
+            started = SharingStarted.Eagerly,
             initialValue = mobileConnectionsRepository.getIsAnySimSecure(),
         )
     val isLockedEsim: StateFlow<Boolean?> = repository.isLockedEsim
@@ -98,7 +97,15 @@ constructor(
         val displayName = info?.displayName
         var msg: String =
             when {
-                count < 2 && isPuk -> resources.getString(R.string.kg_puk_enter_puk_hint)
+                count < 2 && isPuk -> {
+                    when {
+                        repository.simPukInputModel.enteredSimPuk.isNullOrEmpty() ->
+                            resources.getString(R.string.kg_puk_enter_puk_hint)
+                        repository.simPukInputModel.enteredSimPin.isNullOrEmpty() ->
+                            resources.getString(R.string.kg_puk_enter_pin_hint)
+                        else -> resources.getString(R.string.kg_enter_confirm_pin_hint)
+                    }
+                }
                 count < 2 -> resources.getString(R.string.kg_sim_pin_instructions)
                 else -> {
                     when {
@@ -150,7 +157,7 @@ constructor(
                 0 /* requestCode */,
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE_UNAUDITED,
-                UserHandle.SYSTEM
+                UserHandle.SYSTEM,
             )
         applicationScope.launch(context = backgroundDispatcher) {
             if (euiccManager != null) {
@@ -189,11 +196,22 @@ constructor(
         }
         val result =
             withContext(backgroundDispatcher) {
-                val telephonyManager: TelephonyManager =
+                Log.v(TAG, "call supplyIccLockPin(subid=$subscriptionId)")
+                val telephonyManager: TelephonyManager? =
                     telephonyManager.createForSubscriptionId(subscriptionId)
-                telephonyManager.supplyIccLockPin(input)
+                if (telephonyManager == null) {
+                    Log.w(TAG, "Null telephonyManager, cannot validate SimPin")
+                    null
+                } else {
+                    try {
+                        telephonyManager.supplyIccLockPin(input)
+                    } catch (e: IllegalStateException) {
+                        Log.e(TAG, "Error calling supplyIccLockPin", e)
+                        null
+                    }
+                }
             }
-        when (result.result) {
+        when (result?.result) {
             PinResult.PIN_RESULT_TYPE_SUCCESS -> {
                 keyguardUpdateMonitor.reportSimUnlocked(subscriptionId)
                 _bouncerMessageChanged.emit(null)
@@ -238,10 +256,7 @@ constructor(
         // Stage 2: Set a new sim pin to lock the sim card.
         if (enteredSimPin == null) {
             if (entry.length in MIN_SIM_PIN_LENGTH..MAX_SIM_PIN_LENGTH) {
-                repository.setSimPukUserInput(
-                    enteredSimPuk = enteredSimPuk,
-                    enteredSimPin = entry,
-                )
+                repository.setSimPukUserInput(enteredSimPuk = enteredSimPuk, enteredSimPin = entry)
                 _bouncerMessageChanged.emit(resources.getString(R.string.kg_enter_confirm_pin_hint))
             } else {
                 _bouncerMessageChanged.emit(resources.getString(R.string.kg_invalid_sim_pin_hint))
@@ -280,7 +295,7 @@ constructor(
                         getPukPasswordErrorMessage(
                             result.attemptsRemaining,
                             isDefault = false,
-                            isEsimLocked = repository.isLockedEsim.value == true
+                            isEsimLocked = repository.isLockedEsim.value == true,
                         )
                     )
                     _bouncerMessageChanged.emit(null)
@@ -289,7 +304,7 @@ constructor(
                         getPukPasswordErrorMessage(
                             result.attemptsRemaining,
                             isDefault = false,
-                            isEsimLocked = repository.isLockedEsim.value == true
+                            isEsimLocked = repository.isLockedEsim.value == true,
                         )
                     )
                 }

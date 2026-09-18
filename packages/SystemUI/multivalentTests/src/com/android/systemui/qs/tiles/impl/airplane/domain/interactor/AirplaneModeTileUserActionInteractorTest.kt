@@ -26,10 +26,9 @@ import com.android.systemui.qs.tiles.base.domain.actions.QSTileIntentUserInputHa
 import com.android.systemui.qs.tiles.base.domain.model.QSTileInputTestKtx.click
 import com.android.systemui.qs.tiles.base.domain.model.QSTileInputTestKtx.longClick
 import com.android.systemui.qs.tiles.impl.airplane.domain.model.AirplaneModeTileModel
-import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
-import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
+import com.android.systemui.statusbar.pipeline.airplane.data.repository.airplaneModeRepository
+import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.airplaneModeInteractor
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.fakeMobileConnectionsRepository
-import com.android.systemui.statusbar.pipeline.shared.data.repository.FakeConnectivityRepository
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
@@ -41,26 +40,17 @@ import org.junit.runner.RunWith
 class AirplaneModeTileUserActionInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos()
 
-    private val mobileConnectionsRepository = kosmos.fakeMobileConnectionsRepository
-    private val connectivityRepository = FakeConnectivityRepository()
-    private val airplaneModeRepository = FakeAirplaneModeRepository()
+    private val airplaneModeRepository = kosmos.airplaneModeRepository
     private val inputHandler = FakeQSTileIntentUserInputHandler()
 
     private val underTest =
-        AirplaneModeTileUserActionInteractor(
-            AirplaneModeInteractor(
-                airplaneModeRepository,
-                connectivityRepository,
-                mobileConnectionsRepository,
-            ),
-            inputHandler,
-        )
+        AirplaneModeTileUserActionInteractor(kosmos.airplaneModeInteractor, inputHandler)
 
     @Test
     fun handleClickInEcmMode() = runTest {
         val isInAirplaneMode = false
         airplaneModeRepository.setIsAirplaneMode(isInAirplaneMode)
-        mobileConnectionsRepository.setIsInEcmState(true)
+        kosmos.fakeMobileConnectionsRepository.setIsInEcmState(true)
 
         underTest.handleInput(click(AirplaneModeTileModel(isInAirplaneMode)))
 
@@ -75,7 +65,7 @@ class AirplaneModeTileUserActionInteractorTest : SysuiTestCase() {
     fun handleClickNotInEcmMode() = runTest {
         val isInAirplaneMode = false
         airplaneModeRepository.setIsAirplaneMode(isInAirplaneMode)
-        mobileConnectionsRepository.setIsInEcmState(isInAirplaneMode)
+        kosmos.fakeMobileConnectionsRepository.setIsInEcmState(isInAirplaneMode)
 
         underTest.handleInput(click(AirplaneModeTileModel(false)))
 

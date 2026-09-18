@@ -49,6 +49,7 @@ import android.os.InputEventInjectionSync;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.Vibrator;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Log;
 import android.view.Display;
 import android.view.InputDevice;
@@ -69,12 +70,18 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 
 /**
  * Provides information about input devices and available key layouts.
  */
 @SystemService(Context.INPUT_SERVICE)
+@RavenwoodKeepWholeClass(conditional = true, comment = """
+        Need to provide an implementation of IInputManager and initialize with
+        InputManagerGlobal#createTestSession before using any of its methods.
+        The behavior of this class fully depends on the provided IInputManager.
+        """)
 public final class InputManager {
     private static final String TAG = "InputManager";
     // To enable these logs, run: 'adb shell setprop log.tag.InputManager DEBUG' (requires restart)
@@ -258,6 +265,39 @@ public final class InputManager {
         int REMAPPABLE_MODIFIER_KEY_SHIFT_LEFT = KeyEvent.KEYCODE_SHIFT_LEFT;
         int REMAPPABLE_MODIFIER_KEY_SHIFT_RIGHT = KeyEvent.KEYCODE_SHIFT_RIGHT;
         int REMAPPABLE_MODIFIER_KEY_CAPS_LOCK = KeyEvent.KEYCODE_CAPS_LOCK;
+    }
+
+    /** @hide */
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef(prefix = {"CONTROLLER_BUTTON_"}, value = {
+            ControllerButton.CONTROLLER_BUTTON_A,
+            ControllerButton.CONTROLLER_BUTTON_B,
+            ControllerButton.CONTROLLER_BUTTON_X,
+            ControllerButton.CONTROLLER_BUTTON_Y,
+            ControllerButton.CONTROLLER_BUTTON_L1,
+            ControllerButton.CONTROLLER_BUTTON_R1,
+            ControllerButton.CONTROLLER_BUTTON_L2,
+            ControllerButton.CONTROLLER_BUTTON_R2,
+            ControllerButton.CONTROLLER_BUTTON_SELECT,
+            ControllerButton.CONTROLLER_BUTTON_START,
+            ControllerButton.CONTROLLER_BUTTON_MODE,
+            ControllerButton.CONTROLLER_BUTTON_THUMBSTICK_LEFT,
+            ControllerButton.CONTROLLER_BUTTON_THUMBSTICK_RIGHT,
+    })
+    public @interface ControllerButton {
+        int CONTROLLER_BUTTON_A = KeyEvent.KEYCODE_BUTTON_A;
+        int CONTROLLER_BUTTON_B = KeyEvent.KEYCODE_BUTTON_B;
+        int CONTROLLER_BUTTON_X = KeyEvent.KEYCODE_BUTTON_X;
+        int CONTROLLER_BUTTON_Y = KeyEvent.KEYCODE_BUTTON_Y;
+        int CONTROLLER_BUTTON_L1 = KeyEvent.KEYCODE_BUTTON_L1;
+        int CONTROLLER_BUTTON_R1 = KeyEvent.KEYCODE_BUTTON_R1;
+        int CONTROLLER_BUTTON_L2 = KeyEvent.KEYCODE_BUTTON_L2;
+        int CONTROLLER_BUTTON_R2 = KeyEvent.KEYCODE_BUTTON_R2;
+        int CONTROLLER_BUTTON_SELECT = KeyEvent.KEYCODE_BUTTON_SELECT;
+        int CONTROLLER_BUTTON_START = KeyEvent.KEYCODE_BUTTON_START;
+        int CONTROLLER_BUTTON_MODE = KeyEvent.KEYCODE_BUTTON_MODE;
+        int CONTROLLER_BUTTON_THUMBSTICK_LEFT = KeyEvent.KEYCODE_BUTTON_THUMBL;
+        int CONTROLLER_BUTTON_THUMBSTICK_RIGHT = KeyEvent.KEYCODE_BUTTON_THUMBR;
     }
 
     /**
@@ -689,6 +729,287 @@ public final class InputManager {
     }
 
     /**
+     * Remaps a controller button.
+     *
+     * @param identifier The unique identifier for the device.
+     * @param fromButton The controller button getting remapped. This represents the positional
+     *                   code for the key.
+     * @param toKeyCode The key code that it is mapped to.
+     *
+     * @throws IllegalArgumentException if the provided fromButton is not a valid controller button
+     * @throws IllegalArgumentException if the provided toKeycode is not a valid gamepad keycode.
+     * @see KeyEvent#isGamepadButton(int)
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(com.android.hardware.input.Flags.FLAG_CONTROLLER_REMAPPING)
+    @RequiresPermission(Manifest.permission.CONTROLLER_REMAPPING)
+    public void remapControllerButton(@NonNull InputDeviceIdentifier identifier,
+            @ControllerButton int fromButton, int toKeyCode) {
+        Objects.requireNonNull(identifier, "Device identifier must not be null");
+        try {
+            mIm.remapControllerButton(mContext.getUserId(), identifier, fromButton, toKeyCode);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Removes controller button remapping.
+     *
+     * @param identifier The unique identifier for the device.
+     * @param fromButton The controller button getting remapped. This represents the positional code
+     *                for the button.
+     *
+     * @throws IllegalArgumentException if the provided fromButton is not a valid controller button
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(com.android.hardware.input.Flags.FLAG_CONTROLLER_REMAPPING)
+    @RequiresPermission(Manifest.permission.CONTROLLER_REMAPPING)
+    public void removeControllerButtonRemapping(@NonNull InputDeviceIdentifier identifier,
+            @ControllerButton int fromButton) {
+        Objects.requireNonNull(identifier, "Device identifier must not be null");
+        try {
+            mIm.removeControllerButtonRemapping(mContext.getUserId(), identifier, fromButton);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Clears all existing controller button remappings for a given device.
+     *
+     * @param identifier The unique identifier for the device.
+     *
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(com.android.hardware.input.Flags.FLAG_CONTROLLER_REMAPPING)
+    @RequiresPermission(Manifest.permission.CONTROLLER_REMAPPING)
+    public void clearAllControllerButtonRemappings(@NonNull InputDeviceIdentifier identifier) {
+        Objects.requireNonNull(identifier, "Device identifier must not be null");
+        try {
+            mIm.clearAllControllerButtonRemappings(mContext.getUserId(), identifier);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Provides the current controller button remappings for a given device.
+     *
+     * @param identifier The unique identifier for the device.
+     * @return a {fromButton, toKeycode} map that contains the existing controller button remapping.
+     *
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(com.android.hardware.input.Flags.FLAG_CONTROLLER_REMAPPING)
+    @NonNull
+    @SuppressWarnings("unchecked")
+    @RequiresPermission(Manifest.permission.CONTROLLER_REMAPPING)
+    public Map<Integer, Integer> getControllerButtonRemappings(
+            @NonNull InputDeviceIdentifier identifier) {
+        Objects.requireNonNull(identifier, "Device identifier must not be null");
+        try {
+            return mIm.getControllerButtonRemappings(mContext.getUserId(), identifier);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Remaps a controller button to an axis.
+     *
+     * <p>This makes pressing the button produce motion events with the specified axis value of
+     * either 0 or 1.
+     *
+     * <p>Only physical controller devices with {@link InputDevice#getSources()} containing both
+     * {@link InputDevice#SOURCE_CLASS_JOYSTICK} and {@link InputDevice#SOURCE_CLASS_BUTTON} can be
+     * remapped. Virtual controller devices are not supported.
+     *
+     * <p>Only <i>controller</i> buttons can be remapped. Attempt to remap non-controller buttons
+     * such as keyboard or mouse buttons will fail.
+     *
+     * <p>If the button is not supported by the device the operation is a no-op.
+     *
+     * <p>If the axis is not supported by the device it starts behaving as if it is supported, i.e.
+     * reported by {@link InputDevice#getMotionRange(int)} and {@link
+     * InputDevice#getAxisValue(int)}.
+     *
+     * <p>If the button is already mapped to an axis, the existing mapping gets replaced.
+     *
+     * <p>The existing button to button or axis to axis remappings are both not affected by this
+     * operation and in return don't affect this operation, i.e. the button will start producing
+     * both key and motion events.
+     *
+     * <p>The mappings are <i>not</i> transitive:
+     *
+     * <ul>
+     *   <li>If the button is mapped to axis A, and the axis A is mapped to axis B, pressing the
+     *       button will produce motion events for the axis A, but not for B.
+     *   <li>If button A is mapped to button B, and button B is mapped to an axis, pressing the
+     *       button A will produce key events for B, but not produce any motion events for the axis.
+     * </ul>
+     *
+     * @param identifier The unique identifier for the device.
+     * @param fromButton The controller button getting remapped. This represents the positional code
+     *     for the key.
+     * @param toAxis The axis that it is mapped to.
+     * @hide
+     */
+    @TestApi // Effectively hidden, useful for being tested in isolation.
+    @SuppressWarnings("UnflaggedApi")
+    @RequiresPermission(Manifest.permission.CONTROLLER_REMAPPING)
+    public void remapControllerButtonToAxis(
+            @NonNull InputDeviceIdentifier identifier,
+            @ControllerButton int fromButton,
+            @MotionEvent.Axis int toAxis) {
+        try {
+            mIm.remapControllerButtonToAxis(mContext.getUserId(), identifier, fromButton, toAxis);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Removes a controller button to axis remapping.
+     *
+     * <p>Stops the button from producing motion events. If the button is not mapped to an axis, the
+     * operation is a no-op.
+     *
+     * <p>The existing button to button or axis to axis remappings are not affected.
+     *
+     * @param identifier The unique identifier for the device.
+     * @param fromButton The controller button getting remapped. This represents the positional code
+     *     for the button.
+     * @throws IllegalArgumentException if the provided fromButton is not a valid controller button
+     * @hide
+     */
+    @TestApi // Effectively hidden, useful for being tested in isolation.
+    @SuppressWarnings("UnflaggedApi")
+    @RequiresPermission(Manifest.permission.CONTROLLER_REMAPPING)
+    public void removeControllerButtonToAxisRemapping(
+            @NonNull InputDeviceIdentifier identifier, @ControllerButton int fromButton) {
+        try {
+            mIm.removeControllerButtonToAxisRemapping(mContext.getUserId(), identifier, fromButton);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Clears all existing controller button to axis remappings for a given device.
+     *
+     * <p>Semantically equivalent to calling {@link #removeControllerButtonToAxisRemapping} for all
+     * possible controller buttons.
+     *
+     * @param identifier The unique identifier for the device.
+     * @hide
+     */
+    @TestApi // Effectively hidden, useful for being tested in isolation.
+    @SuppressWarnings("UnflaggedApi")
+    @RequiresPermission(Manifest.permission.CONTROLLER_REMAPPING)
+    public void clearAllControllerButtonToAxisRemappings(
+            @NonNull InputDeviceIdentifier identifier) {
+        try {
+            mIm.clearAllControllerButtonToAxisRemappings(mContext.getUserId(), identifier);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Remaps a controller axis.
+     *
+     * @param identifier The unique identifier for the device.
+     * @param fromAxis The controller axis getting remapped.
+     * @param toAxis The controller axis that it is mapped to, or {@link MotionEvent#AXIS_DISABLED}
+     *               to disable the axis.
+     *
+     * @throws IllegalArgumentException if the provided fromAxis or toAxis is not a valid axis
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(com.android.hardware.input.Flags.FLAG_CONTROLLER_REMAPPING)
+    @RequiresPermission(Manifest.permission.CONTROLLER_REMAPPING)
+    public void remapControllerAxis(@NonNull InputDeviceIdentifier identifier,
+            @MotionEvent.Axis int fromAxis, @MotionEvent.Axis int toAxis) {
+        Objects.requireNonNull(identifier, "Device identifier must not be null");
+        try {
+            mIm.remapControllerAxis(mContext.getUserId(), identifier, fromAxis, toAxis);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Removes a controller axis remapping.
+     *
+     * @param identifier The unique identifier for the device.
+     * @param fromAxis The controller axis getting remapped.
+     *
+     * @throws IllegalArgumentException if the provided fromAxis is not a valid axis
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(com.android.hardware.input.Flags.FLAG_CONTROLLER_REMAPPING)
+    @RequiresPermission(Manifest.permission.CONTROLLER_REMAPPING)
+    public void removeControllerAxisRemapping(@NonNull InputDeviceIdentifier identifier,
+            @MotionEvent.Axis int fromAxis) {
+        Objects.requireNonNull(identifier, "Device identifier must not be null");
+        try {
+            mIm.removeControllerAxisRemapping(mContext.getUserId(), identifier, fromAxis);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Clears all existing controller axis remappings for a given device.
+     *
+     * @param identifier The unique identifier for the device.
+     *
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(com.android.hardware.input.Flags.FLAG_CONTROLLER_REMAPPING)
+    @RequiresPermission(Manifest.permission.CONTROLLER_REMAPPING)
+    public void clearAllControllerAxisRemappings(@NonNull InputDeviceIdentifier identifier) {
+        Objects.requireNonNull(identifier, "Device identifier must not be null");
+        try {
+            mIm.clearAllControllerAxisRemappings(mContext.getUserId(), identifier);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Provides the current controller axis remappings for a given device.
+     *
+     * @param identifier The unique identifier for the device.
+     * @return a {fromAxis, toAxis} map that contains the existing controller axis remappings, where
+     * fromAxis and toAxis are {@link MotionEvent.Axis}.
+     *
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(com.android.hardware.input.Flags.FLAG_CONTROLLER_REMAPPING)
+    @NonNull
+    @SuppressWarnings("unchecked")
+    @RequiresPermission(Manifest.permission.CONTROLLER_REMAPPING)
+    public Map<Integer, Integer> getControllerAxisRemappings(
+            @NonNull InputDeviceIdentifier identifier) {
+        Objects.requireNonNull(identifier, "Device identifier must not be null");
+        try {
+            return mIm.getControllerAxisRemappings(mContext.getUserId(), identifier);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * Gets the TouchCalibration applied to the specified input device's coordinates.
      *
      * @param inputDeviceDescriptor The input device descriptor.
@@ -1020,6 +1341,40 @@ public final class InputManager {
     @NonNull
     public VirtualKeyboard createVirtualKeyboard(@NonNull VirtualKeyboardConfig config) {
         return mGlobal.createVirtualKeyboard(config);
+    }
+
+    /**
+     * Returns a {@link VirtualGamepad} to the caller.
+     * See {@link android.hardware.input.VirtualGamepadConfig} for additional configurations
+     * available, e.g. display association, vendor id, product id, device name.
+     *
+     * @param config the gamepad configuration
+     * @return VirtualGamepad a virtual gamepad device
+     *
+     * @hide
+     */
+    @RequiresPermission(Manifest.permission.INJECT_EVENTS)
+    @NonNull
+    public VirtualGamepad createVirtualGamepad(@NonNull VirtualGamepadConfig config) {
+        return mGlobal.createVirtualGamepad(config);
+    }
+
+    /**
+     * Returns a {@link VirtualMouse} to the caller.
+     * See {@link android.hardware.input.VirtualMouseConfig} for additional configurations
+     * available, e.g. display association, vendor id, product id, device name.
+     *
+     * @param config the mouse configuration
+     * @return VirtualMouse a virtual mouse device
+     *
+     * @hide
+     */
+    @TestApi
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+    @RequiresPermission(Manifest.permission.INJECT_EVENTS)
+    @NonNull
+    public VirtualMouse createVirtualMouse(@NonNull VirtualMouseConfig config) {
+        return mGlobal.createVirtualMouse(config);
     }
 
     /**
@@ -1842,5 +2197,4 @@ public final class InputManager {
     public boolean unregisterKeyEventActivityListener(@NonNull KeyEventActivityListener listener) {
         return mGlobal.unregisterKeyEventActivityListener(listener);
     }
-
 }

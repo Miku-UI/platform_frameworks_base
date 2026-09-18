@@ -19,6 +19,7 @@
 #include <SkData.h>
 #include <SkRefCnt.h>
 #include <SkString.h>
+#include <com_android_graphics_hwui_flags.h>
 #include <ganesh/GrDirectContext.h>
 #include <log/log.h>
 
@@ -30,16 +31,7 @@
 #include "Properties.h"
 #include "ShaderCache.h"
 
-#ifdef __linux__
-#include <com_android_graphics_hwui_flags.h>
 namespace hwui_flags = com::android::graphics::hwui::flags;
-#else   // __linux__
-namespace hwui_flags {
-constexpr bool separate_pipeline_cache() {
-    return false;
-}
-}  // namespace hwui_flags
-#endif  // __linux__
 
 namespace {
 
@@ -110,9 +102,6 @@ sk_sp<SkData> PersistentGraphicsCache::load(const SkData& key) {
     }
 
     if (mPipelineCache == nullptr) {
-        LOG_ALWAYS_FATAL(
-                "PersistentGraphicsCache::load: pipeline cache path was not initialized, aborting "
-                "load");
         return nullptr;
     }
 
@@ -132,9 +121,6 @@ void PersistentGraphicsCache::store(const SkData& key, const SkData& data,
     }
 
     if (mPipelineCache == nullptr) {
-        LOG_ALWAYS_FATAL(
-                "PersistentGraphicsCache::store: pipeline cache path was not initialized, aborting "
-                "store");
         return;
     }
 
@@ -149,6 +135,18 @@ void PersistentGraphicsCache::store(const SkData& key, const SkData& data,
     }
 
     ShaderCache::get().store(key, data, description);
+}
+
+PipelineCacheStats PersistentGraphicsCache::getPipelineCacheStats() const {
+    PipelineCacheStats stats{};
+
+    if (mPipelineCache == nullptr) {
+        return stats;
+    }
+
+    stats.inUse = true;
+    mPipelineCache->fillStats(stats);
+    return stats;
 }
 
 }  // namespace skiapipeline

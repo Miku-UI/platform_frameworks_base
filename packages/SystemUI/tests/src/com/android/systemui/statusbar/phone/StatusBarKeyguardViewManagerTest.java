@@ -94,7 +94,6 @@ import com.android.systemui.navigationbar.TaskbarDelegate;
 import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.plugins.ActivityStarter.OnDismissAction;
 import com.android.systemui.scene.domain.interactor.SceneInteractor;
-import com.android.systemui.scene.shared.model.Overlays;
 import com.android.systemui.securelockdevice.domain.interactor.SecureLockDeviceInteractor;
 import com.android.systemui.shade.NotificationShadeWindowView;
 import com.android.systemui.shade.ShadeController;
@@ -372,7 +371,7 @@ public class StatusBarKeyguardViewManagerTest extends SysuiTestCase {
     @Test
     public void onPanelExpansionChanged_neverTranslatesBouncerWhenWakeAndUnlock() {
         when(mBiometricUnlockController.getMode())
-                .thenReturn(BiometricUnlockController.MODE_WAKE_AND_UNLOCK);
+                .thenReturn(BiometricUnlockController.MODE_WAKE_AND_DISMISS);
         mStatusBarKeyguardViewManager.onPanelExpansionChanged(
                 expansionEvent(
                         /* fraction= */ EXPANSION_VISIBLE,
@@ -453,19 +452,19 @@ public class StatusBarKeyguardViewManagerTest extends SysuiTestCase {
         clearInvocations(mKeyguardStateController);
         clearInvocations(mKeyguardUpdateMonitor);
 
-        mStatusBarKeyguardViewManager.setOccluded(false /* occluded */, false /* animated */);
+        mStatusBarKeyguardViewManager.setOccluded(false /* occluded */);
         verify(mKeyguardStateController).notifyKeyguardState(true, false);
 
         clearInvocations(mKeyguardUpdateMonitor);
         clearInvocations(mKeyguardStateController);
 
-        mStatusBarKeyguardViewManager.setOccluded(true /* occluded */, false /* animated */);
+        mStatusBarKeyguardViewManager.setOccluded(true /* occluded */);
         verify(mKeyguardStateController).notifyKeyguardState(true, true);
 
         clearInvocations(mKeyguardUpdateMonitor);
         clearInvocations(mKeyguardStateController);
 
-        mStatusBarKeyguardViewManager.setOccluded(false /* occluded */, false /* animated */);
+        mStatusBarKeyguardViewManager.setOccluded(false /* occluded */);
         verify(mKeyguardStateController).notifyKeyguardState(true, false);
     }
 
@@ -473,7 +472,7 @@ public class StatusBarKeyguardViewManagerTest extends SysuiTestCase {
     public void setOccluded_isInLaunchTransition_onKeyguardOccludedChangedCalled() {
         mStatusBarKeyguardViewManager.show(null);
 
-        mStatusBarKeyguardViewManager.setOccluded(true /* occluded */, false /* animated */);
+        mStatusBarKeyguardViewManager.setOccluded(true /* occluded */);
         verify(mKeyguardStateController).notifyKeyguardState(true, true);
     }
 
@@ -482,7 +481,7 @@ public class StatusBarKeyguardViewManagerTest extends SysuiTestCase {
         when(mCentralSurfaces.isLaunchingActivityOverLockscreen()).thenReturn(true);
         mStatusBarKeyguardViewManager.show(null);
 
-        mStatusBarKeyguardViewManager.setOccluded(true /* occluded */, false /* animated */);
+        mStatusBarKeyguardViewManager.setOccluded(true /* occluded */);
         verify(mKeyguardStateController).notifyKeyguardState(true, true);
     }
 
@@ -709,6 +708,7 @@ public class StatusBarKeyguardViewManagerTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableSceneContainer
     public void testHideTaskbar() {
         when(mTaskbarDelegate.isInitialized()).thenReturn(true);
         mStatusBarKeyguardViewManager.setTaskbarDelegate(mTaskbarDelegate);
@@ -762,7 +762,7 @@ public class StatusBarKeyguardViewManagerTest extends SysuiTestCase {
                 };
 
         // the following call before registering centralSurfaces should NOT throw a NPE:
-        mStatusBarKeyguardViewManager.hideAlternateBouncer(true);
+        mStatusBarKeyguardViewManager.hideAlternateBouncer(true, true);
     }
 
     @Test
@@ -935,7 +935,7 @@ public class StatusBarKeyguardViewManagerTest extends SysuiTestCase {
     @EnableSceneContainer
     public void showPrimaryBouncer() {
         mStatusBarKeyguardViewManager.showPrimaryBouncer(false, TEST_REASON);
-        verify(mSceneInteractor).showOverlay(eq(Overlays.Bouncer), anyString());
+        verify(mDeviceEntryInteractor).attemptDeviceEntry(anyString(), eq(null), eq(true));
     }
 
     @Test
@@ -973,15 +973,17 @@ public class StatusBarKeyguardViewManagerTest extends SysuiTestCase {
     }
 
     @Test
+    @EnableSceneContainer
     public void hideAlternateBouncer_clearsDismissActionByDefault() {
         clearInvocations(mKeyguardDismissActionInteractor);
 
-        mStatusBarKeyguardViewManager.hideAlternateBouncer(/* updateScrim= */ true);
+        mStatusBarKeyguardViewManager.hideAlternateBouncer(/* updateScrim= */ true, true);
 
         verify(mKeyguardDismissActionInteractor).clearDismissAction();
     }
 
     @Test
+    @EnableSceneContainer
     public void hideAlternateBouncer_clearsDismissActionExplicitly() {
         clearInvocations(mKeyguardDismissActionInteractor);
 
@@ -992,6 +994,7 @@ public class StatusBarKeyguardViewManagerTest extends SysuiTestCase {
     }
 
     @Test
+    @EnableSceneContainer
     public void hideAlternateBouncer_doNotClearDismissActionExplicitly() {
         clearInvocations(mKeyguardDismissActionInteractor);
 

@@ -52,4 +52,12 @@
         <!-- network type: "5G+" -->
         <item>@string/data_connection_5g_plus_carrier_2032</item>
     </integer-array>
+
+    <!--
+    Whether to allow the user to choose between Single and Dual Shade modes via the Settings app.
+    When `false`, the preference and associated Settings Page are absent from the Settings app
+    (including any shortcuts to them), the user preference value is ignored, and
+    `config_dualShadeEnabledByDefault` is used.
+    -->
+    <bool name="config_useDualShadeSetting">true</bool>
 </resources>

@@ -20,29 +20,16 @@ import android.app.TaskInfo
 import android.content.Context
 import android.os.SystemProperties
 import android.util.IndentingPrintWriter
-import android.window.DesktopExperienceFlags
-import android.window.DesktopModeFlags
 import com.android.internal.R
 import com.android.internal.annotations.VisibleForTesting
 import com.android.wm.shell.shared.desktopmode.DesktopConfigImpl.Companion.WINDOW_DECOR_PRE_WARM_SIZE
 import java.io.PrintWriter
 
 @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-class DesktopConfigImpl(
-    private val context: Context,
-    private val desktopState: DesktopState,
-) : DesktopConfig {
+class DesktopConfigImpl(private val context: Context, private val desktopState: DesktopState) :
+    DesktopConfig {
 
     constructor(context: Context) : this(context, DesktopState.fromContext(context))
-
-    override val shouldMaximizeWhenDragToTopEdge: Boolean
-        get() {
-            if (!DesktopExperienceFlags.ENABLE_DRAG_TO_MAXIMIZE.isTrue) return false
-            return SystemProperties.getBoolean(
-                ENABLE_DRAG_TO_MAXIMIZE_SYS_PROP,
-                context.getResources().getBoolean(R.bool.config_dragToMaximizeInDesktopMode),
-            )
-        }
 
     override val useDesktopOverrideDensity: Boolean =
         DESKTOP_DENSITY_OVERRIDE_ENABLED && isValidDesktopDensityOverrideSet()
@@ -57,8 +44,6 @@ class DesktopConfigImpl(
 
     override val windowDecorScvhPoolSize: Int
         get() {
-            if (!DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_SCVH_CACHE.isTrue) return 0
-
             if (maxTaskLimit > 0) return maxTaskLimit
 
             // TODO: b/368032552 - task limit equal to 0 means unlimited. Figure out what the pool
@@ -81,10 +66,7 @@ class DesktopConfigImpl(
     override fun useWindowShadow(isFocusedWindow: Boolean): Boolean =
         USE_WINDOW_SHADOWS || (isFocusedWindow && USE_WINDOW_SHADOWS_FOCUSED_WINDOW)
 
-    override fun shouldSetBackground(taskInfo: TaskInfo): Boolean =
-        taskInfo.isFreeform &&
-            (!isVeiledResizeEnabled ||
-                DesktopModeFlags.ENABLE_OPAQUE_BACKGROUND_FOR_TRANSPARENT_WINDOWS.isTrue)
+    override fun shouldSetBackground(taskInfo: TaskInfo): Boolean = taskInfo.isFreeform
 
     override val maxTaskLimit: Int =
         SystemProperties.getInt(
@@ -159,15 +141,6 @@ class DesktopConfigImpl(
          * The limit does NOT affect desks created by connecting additional displays.
          */
         private const val MAX_DESK_LIMIT_SYS_PROP = "persist.wm.debug.desktop_max_desk_limit"
-
-        /**
-         * Sysprop declaring whether to enable drag-to-maximize for desktop windows.
-         *
-         * If it is not defined, then `R.integer.config_dragToMaximizeInDesktopMode`
-         * is used.
-         */
-        private const val ENABLE_DRAG_TO_MAXIMIZE_SYS_PROP =
-            "persist.wm.debug.enable_drag_to_maximize"
 
         /** Flag to indicate whether to apply shadows to windows in desktop mode. */
         private val USE_WINDOW_SHADOWS =

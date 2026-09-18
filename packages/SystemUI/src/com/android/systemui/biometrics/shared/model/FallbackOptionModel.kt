@@ -26,4 +26,7 @@ enum class IconType {
     ACCOUNT,
     GENERIC,
     SETTING,
+    RESET,
+    MESSAGE,
+    SUPERVISED,
 }

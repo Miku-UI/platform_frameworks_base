@@ -16,6 +16,8 @@
 package com.android.hoststubgen
 
 import java.io.PrintWriter
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.system.exitProcess
 
 /**
@@ -134,4 +136,24 @@ inline fun runMainWithBoilerplate(realMain: () -> Unit) {
     }
 
     exitProcess(if (success) 0 else 1)
+}
+
+/** Generate a text file context put in the "hoststubgen.txt" file. */
+fun getJarMetadata(
+    tool: String,
+    inFiles: List<String>,
+    outFile: String,
+): String {
+    val currentDateTime = LocalDateTime.now()
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH-mm-ss")
+    val formattedTime = currentDateTime.format(formatter)
+
+    // The last blank line is needed to preserve the final newline.
+    return """
+        |tool: $tool
+        |infiles: ${inFiles.joinToString(":")}
+        |outfile: $outFile
+        |timestamp: $formattedTime
+        |
+        """.trimMargin()
 }

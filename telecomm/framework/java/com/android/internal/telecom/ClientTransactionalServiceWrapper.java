@@ -30,7 +30,6 @@ import android.telecom.CallEventCallback;
 import android.telecom.CallException;
 import android.telecom.DisconnectCause;
 import android.telecom.PhoneAccountHandle;
-import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.server.telecom.flags.Flags;
@@ -69,7 +68,7 @@ public class ClientTransactionalServiceWrapper {
      * @param callId that is tied to TransactionalCall object
      */
     public void untrackCall(String callId) {
-        Log.i(TAG, TextUtils.formatSimple("removeCall: with id=[%s]", callId));
+        Log.i(TAG, String.format("removeCall: with id=[%s]", callId));
         if (mCallIdToTransactionalCall.containsKey(callId)) {
             // remove the call from the hashmap
             TransactionalCall call = mCallIdToTransactionalCall.remove(callId);
@@ -156,7 +155,7 @@ public class ClientTransactionalServiceWrapper {
 
         private void handleCallEventCallback(String action, String callId,
                 ResultReceiver ackResultReceiver, Object... args) {
-            Log.i(TAG, TextUtils.formatSimple("hCEC: id=[%s], action=[%s]", callId, action));
+            Log.i(TAG, String.format("hCEC: id=[%s], action=[%s]", callId, action));
             // lookup the callEventCallback associated with the particular call
             TransactionalCall call = mCallIdToTransactionalCall.get(callId);
 
@@ -201,7 +200,7 @@ public class ClientTransactionalServiceWrapper {
         @Override
         public void onAddCallControl(String callId, int resultCode, ICallControl callControl,
                 CallException transactionalException) {
-            Log.i(TAG, TextUtils.formatSimple("oACC: id=[%s], code=[%d]", callId, resultCode));
+            Log.i(TAG, String.format("oACC: id=[%s], code=[%d]", callId, resultCode));
             TransactionalCall call = mCallIdToTransactionalCall.get(callId);
 
             if (call != null) {
@@ -270,7 +269,7 @@ public class ClientTransactionalServiceWrapper {
         }
 
         public void handleEventCallback(String callId, String action, Object arg) {
-            Log.d(TAG, TextUtils.formatSimple("hEC: [%s], callId=[%s]", action, callId));
+            Log.d(TAG, String.format("hEC: [%s], callId=[%s]", action, callId));
             // lookup the callEventCallback associated with the particular call
             TransactionalCall call = mCallIdToTransactionalCall.get(callId);
             if (call != null) {
@@ -317,7 +316,7 @@ public class ClientTransactionalServiceWrapper {
 
         @Override
         public void onCallStreamingFailed(String callId, int reason) {
-            Log.i(TAG, TextUtils.formatSimple("oCSF: id=[%s], reason=[%s]", callId, reason));
+            Log.i(TAG, String.format("oCSF: id=[%s], reason=[%s]", callId, reason));
             handleEventCallback(callId, ON_CALL_STREAMING_FAILED, reason);
         }
 

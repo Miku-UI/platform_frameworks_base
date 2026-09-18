@@ -22,6 +22,7 @@ import android.annotation.TestApi;
 import android.os.Parcel;
 import android.os.VibrationEffect;
 import android.os.VibratorInfo;
+import android.util.MathUtils;
 
 import com.android.internal.util.Preconditions;
 
@@ -39,6 +40,7 @@ import java.util.Objects;
  */
 @TestApi
 @FlaggedApi(Flags.FLAG_NORMALIZED_PWLE_EFFECTS)
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class PwleSegment extends VibrationEffectSegment {
     private final float mStartAmplitude;
     private final float mStartFrequencyHz;
@@ -47,13 +49,26 @@ public final class PwleSegment extends VibrationEffectSegment {
     private final long mDuration;
 
     PwleSegment(@android.annotation.NonNull Parcel in) {
-        this(in.readFloat(), in.readFloat(), in.readFloat(), in.readFloat(), in.readLong());
+        this(in.readFloat(), in.readFloat(), in.readFloat(), in.readFloat(), in.readLong(),
+             in.readLong());
     }
 
     /** @hide */
-    @FlaggedApi(Flags.FLAG_NORMALIZED_PWLE_EFFECTS)
     public PwleSegment(float startAmplitude, float endAmplitude, float startFrequencyHz,
             float endFrequencyHz, long duration) {
+        this(startAmplitude, endAmplitude, startFrequencyHz, endFrequencyHz, duration, -1);
+    }
+
+    /**
+     * @param startTimeMillis  The time in milliseconds at which this segment should start within
+     *                         the overall {@link VibrationEffect}. The default value is -1. When
+     *                         the value is negative, it means the segment is not the first segment
+     *                         of an atomic event, it is an intermediate segment.
+     * @hide
+     */
+    public PwleSegment(float startAmplitude, float endAmplitude, float startFrequencyHz,
+            float endFrequencyHz, long duration, long startTimeMillis) {
+        super(startTimeMillis);
         mStartAmplitude = startAmplitude;
         mEndAmplitude = endAmplitude;
         mStartFrequencyHz = startFrequencyHz;
@@ -92,7 +107,8 @@ public final class PwleSegment extends VibrationEffectSegment {
                 && Float.compare(mEndAmplitude, other.mEndAmplitude) == 0
                 && Float.compare(mStartFrequencyHz, other.mStartFrequencyHz) == 0
                 && Float.compare(mEndFrequencyHz, other.mEndFrequencyHz) == 0
-                && mDuration == other.mDuration;
+                && mDuration == other.mDuration
+                && getStartTimeMillis() == other.getStartTimeMillis();
     }
 
     /** @hide */
@@ -149,22 +165,24 @@ public final class PwleSegment extends VibrationEffectSegment {
         }
         return new PwleSegment(newStartAmplitude, newEndAmplitude, mStartFrequencyHz,
                 mEndFrequencyHz,
-                mDuration);
+                mDuration,
+                getStartTimeMillis());
     }
 
     /** @hide */
     @NonNull
     @Override
-    public PwleSegment scaleLinearly(float scaleFactor) {
-        float newStartAmplitude = VibrationEffect.scaleLinearly(mStartAmplitude, scaleFactor);
-        float newEndAmplitude = VibrationEffect.scaleLinearly(mEndAmplitude, scaleFactor);
+    public PwleSegment applyAdaptiveScale(float scaleFactor) {
+        float newStartAmplitude = MathUtils.constrain(mStartAmplitude * scaleFactor, 0f, 1f);
+        float newEndAmplitude = MathUtils.constrain(mEndAmplitude * scaleFactor, 0f, 1f);
         if (Float.compare(mStartAmplitude, newStartAmplitude) == 0
                 && Float.compare(mEndAmplitude, newEndAmplitude) == 0) {
             return this;
         }
         return new PwleSegment(newStartAmplitude, newEndAmplitude, mStartFrequencyHz,
                 mEndFrequencyHz,
-                mDuration);
+                mDuration,
+                getStartTimeMillis());
     }
 
     /** @hide */
@@ -174,10 +192,18 @@ public final class PwleSegment extends VibrationEffectSegment {
         return this;
     }
 
+    /** @hide */
+    @NonNull
+    @Override
+    public PwleSegment applyStartTime(long startTimeMillis) {
+        return new PwleSegment(mStartAmplitude, mEndAmplitude, mStartFrequencyHz, mEndFrequencyHz,
+                mDuration, startTimeMillis);
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(mStartAmplitude, mEndAmplitude, mStartFrequencyHz, mEndFrequencyHz,
-                mDuration);
+                mDuration, getStartTimeMillis());
     }
 
     @Override
@@ -187,18 +213,20 @@ public final class PwleSegment extends VibrationEffectSegment {
                 + ", startFrequencyHz=" + mStartFrequencyHz
                 + ", endFrequencyHz=" + mEndFrequencyHz
                 + ", duration=" + mDuration
+                + (getStartTimeMillis() > 0 ? ", startTimeMillis=" + getStartTimeMillis() : "")
                 + "}";
     }
 
     /** @hide */
     @Override
     public String toDebugString() {
-        return String.format(Locale.US, "Pwle=%dms(amplitude=%.2f @ %.2fHz to %.2f @ %.2fHz)",
+        return String.format(Locale.US, "Pwle=%dms(amplitude=%.2f @ %.2fHz to %.2f @ %.2fHz%s)",
                 mDuration,
                 mStartAmplitude,
                 mStartFrequencyHz,
                 mEndAmplitude,
-                mEndFrequencyHz);
+                mEndFrequencyHz,
+                ", startTime=" + getStartTimeMillis());
     }
 
     @Override
@@ -214,6 +242,7 @@ public final class PwleSegment extends VibrationEffectSegment {
         dest.writeFloat(mStartFrequencyHz);
         dest.writeFloat(mEndFrequencyHz);
         dest.writeLong(mDuration);
+        dest.writeLong(getStartTimeMillis());
     }
 
     @android.annotation.NonNull

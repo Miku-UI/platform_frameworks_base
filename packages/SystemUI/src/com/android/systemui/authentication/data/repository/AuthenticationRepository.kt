@@ -18,15 +18,19 @@ package com.android.systemui.authentication.data.repository
 
 import android.annotation.UserIdInt
 import android.app.admin.DevicePolicyManager
+import android.content.Context
 import android.content.IntentFilter
 import android.os.UserHandle
+import android.security.Flags.lockscreenIndicateDuplicateGuesses
 import android.security.Flags.secureLockDevice
+import android.text.ShowSecretsSetting
 import android.util.Log
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.internal.widget.LockPatternUtils
 import com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE
 import com.android.internal.widget.LockscreenCredential
 import com.android.keyguard.KeyguardSecurityModel
+import com.android.systemui.authentication.data.repository.AuthenticationRepository.Companion.WARM_UP_THROTTLE_DURATION
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Biometric
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.None
@@ -34,10 +38,15 @@ import com.android.systemui.authentication.shared.model.AuthenticationMethodMode
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Pattern
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Pin
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Sim
+import com.android.systemui.authentication.shared.model.AuthenticationResult
 import com.android.systemui.authentication.shared.model.AuthenticationResultModel
 import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.log.table.TableLogBuffer
+import com.android.systemui.log.table.logDiffsForTable
+import com.android.systemui.scene.domain.SceneFrameworkTableLog
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionsRepository
 import com.android.systemui.user.data.repository.UserRepository
@@ -47,17 +56,26 @@ import dagger.Binds
 import dagger.Module
 import java.util.function.Function
 import javax.inject.Inject
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
+import kotlin.time.toKotlinDuration
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 
 /** Defines interface for classes that can access authentication-related application state. */
@@ -94,11 +112,11 @@ interface AuthenticationRepository {
      * Timestamp for when the current lockout (aka "throttling") will end, allowing the user to
      * attempt authentication again. Returns `null` if no lockout is active.
      *
-     * Note that the value is in milliseconds and matches [SystemClock.elapsedRealtime].
+     * Note that the value should be compared to [SystemClock.elapsedRealtime].milliseconds.
      *
      * Also note that the value may change when the selected user is changed.
      */
-    val lockoutEndTimestamp: Long?
+    val lockoutEndTime: Duration?
 
     /**
      * Whether lockout has occurred at least once since the last successful authentication of any
@@ -107,17 +125,19 @@ interface AuthenticationRepository {
     val hasLockoutOccurred: StateFlow<Boolean>
 
     /**
+     * Whether the primary authentication attempt was the same as a previous attempt since the last
+     * successful authentication.
+     */
+    val isDuplicateAttempt: StateFlow<Boolean>
+
+    /**
      * The currently-configured authentication method. This determines how the authentication
      * challenge needs to be completed in order to unlock an otherwise locked device.
      *
      * Note: there may be other ways to unlock the device that "bypass" the need for this
      * authentication challenge (notably, biometrics like fingerprint or face unlock).
-     *
-     * Note: by design, this is a [Flow] and not a [StateFlow]; a consumer who wishes to get a
-     * snapshot of the current authentication method without establishing a collector of the flow
-     * can do so by invoking [getAuthenticationMethod].
      */
-    val authenticationMethod: Flow<AuthenticationMethodModel>
+    val authenticationMethod: StateFlow<AuthenticationMethodModel>
 
     /** The minimal length of a pattern. */
     val minPatternLength: Int
@@ -128,34 +148,32 @@ interface AuthenticationRepository {
     /** Whether the "enhanced PIN privacy" setting is enabled for the current user. */
     val isPinEnhancedPrivacyEnabled: StateFlow<Boolean>
 
+    /** Whether characters in password/secret fields should be shown for touch input. */
+    val isShowPasswordsTouchEnabled: StateFlow<Boolean>
+
+    /** Whether characters in password/secret fields should be shown for physical keyboard input. */
+    val isShowPasswordsPhysicalEnabled: StateFlow<Boolean>
+
     /**
      * Checks the given [LockscreenCredential] to see if it's correct, returning an
      * [AuthenticationResultModel] representing what happened.
      */
-    suspend fun checkCredential(credential: LockscreenCredential): AuthenticationResultModel
-
-    /**
-     * Returns the currently-configured authentication method. This determines how the
-     * authentication challenge needs to be completed in order to unlock an otherwise locked device.
-     *
-     * Note: there may be other ways to unlock the device that "bypass" the need for this
-     * authentication challenge (notably, biometrics like fingerprint or face unlock).
-     *
-     * Note: by design, this is offered as a convenience method alongside [authenticationMethod].
-     * The flow should be used for code that wishes to stay up-to-date its logic as the
-     * authentication changes over time and this method should be used for simple code that only
-     * needs to check the current value.
-     */
-    suspend fun getAuthenticationMethod(): AuthenticationMethodModel
+    suspend fun checkCredential(
+        credential: LockscreenCredential,
+        onEarlyMatched: () -> Unit,
+    ): AuthenticationResultModel
 
     /** Returns the length of the PIN or `0` if the current auth method is not PIN. */
     suspend fun getPinLength(): Int
 
-    /** Reports an authentication attempt. */
-    suspend fun reportAuthenticationAttempt(isSuccessful: Boolean)
+    /** Reports an authentication attempt. Skipped attempts are not reported downstream. */
+    suspend fun reportAuthenticationAttempt(
+        result: AuthenticationResult,
+        isDuplicate: Boolean = false,
+    )
 
     /** Reports that the user has entered a temporary device lockout (throttling). */
-    suspend fun reportLockoutStarted(durationMs: Int)
+    suspend fun reportLockoutStarted(duration: Duration)
 
     /**
      * Returns the current maximum number of login attempts that are allowed before the device or
@@ -186,8 +204,38 @@ interface AuthenticationRepository {
      */
     suspend fun getMaximumTimeToLock(): Long
 
-    /** Returns `true` if the power button should instantly lock the device, `false` otherwise. */
-    suspend fun getPowerButtonInstantlyLocks(): Boolean
+    /**
+     * Returns true if the power button should instantly lock the device, false otherwise.
+     *
+     * If the device is not secure, return true - this is a quirk of the settings app. If you have
+     * swipe security set, you can no longer access the "power button locks instantly" setting in
+     * the UI and it defaults to true, so the swipe lockscreen will always show up after pressing
+     * the power button.
+     *
+     * WARNING: This causes a blocking IPC to LockPatternUtils (b/446735679).
+     */
+    fun getPowerButtonInstantlyLocks(): Boolean
+
+    /**
+     * The last time a warm up signal was triggered to the system, as a Duration wrapping
+     * [SystemClock.elapsedRealtime] milliseconds. [ZERO - WARM_UP_THROTTLE_DURATION] serves as the
+     * first value to allow for a warm up to be triggered immediately after boot.
+     */
+    var lastWarmUpTrigger: Duration
+
+    /**
+     * Sends a signal to the system to trigger warm ups of any LSKF auth system components that may
+     * be in a low power state. The signal is expected to be handled by the system and return
+     * instantly without throwing any exceptions.
+     *
+     * The signal is expected to only be sent down to the system a maximum of once for every
+     * [WARM_UP_THROTTLE_DURATION].
+     */
+    suspend fun triggerAuthWarmUp()
+
+    companion object {
+        val WARM_UP_THROTTLE_DURATION = 5.seconds
+    }
 }
 
 @SysUISingleton
@@ -196,6 +244,7 @@ class AuthenticationRepositoryImpl
 constructor(
     @Background private val applicationScope: CoroutineScope,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
+    @Application private val context: Context,
     private val clock: SystemClock,
     private val getSecurityMode: Function<Int, KeyguardSecurityModel.SecurityMode>,
     private val userRepository: UserRepository,
@@ -203,6 +252,7 @@ constructor(
     private val devicePolicyManager: DevicePolicyManager,
     broadcastDispatcher: BroadcastDispatcher,
     mobileConnectionsRepository: MobileConnectionsRepository,
+    @SceneFrameworkTableLog private val tableLogBuffer: TableLogBuffer,
 ) : AuthenticationRepository {
 
     override val hintedPinLength: Int = 6
@@ -220,7 +270,7 @@ constructor(
             getFreshValue = lockPatternUtils::isAutoPinConfirmEnabled,
         )
 
-    override val authenticationMethod: Flow<AuthenticationMethodModel> =
+    override val authenticationMethod: StateFlow<AuthenticationMethodModel> =
         combine(userRepository.selectedUserInfo, mobileConnectionsRepository.isAnySimSecure) {
                 selectedUserInfo,
                 _ ->
@@ -238,8 +288,17 @@ constructor(
                     .onStart { emit(Unit) }
                     .map { selectedUserId }
             }
-            .map(::getAuthenticationMethod)
-            .distinctUntilChanged()
+            .map {
+                withContext(backgroundDispatcher) {
+                    getAuthenticationMethodBlocking(selectedUserId)
+                }
+            }
+            .logDiffsForTable(tableLogBuffer = tableLogBuffer, initialValue = None)
+            .stateIn(
+                scope = applicationScope,
+                started = SharingStarted.Eagerly,
+                initialValue = getAuthenticationMethodBlocking(selectedUserId),
+            )
 
     override val minPatternLength: Int = LockPatternUtils.MIN_LOCK_PATTERN_SIZE
 
@@ -251,18 +310,65 @@ constructor(
             getFreshValue = { userId -> lockPatternUtils.isPinEnhancedPrivacyEnabled(userId) },
         )
 
+    override val isShowPasswordsTouchEnabled: StateFlow<Boolean> =
+        userRepository.selectedUserInfo
+            .map { it.id }
+            .distinctUntilChanged()
+            .flatMapLatest { userId ->
+                callbackFlow {
+                    val userContext = context.createContextAsUser(UserHandle.of(userId), 0)
+                    val unregister =
+                        ShowSecretsSetting.registerCallback(userContext) {
+                            trySend(ShowSecretsSetting.shouldShowTouchInput(userContext))
+                        }
+                    trySend(ShowSecretsSetting.shouldShowTouchInput(userContext))
+                    awaitClose { unregister.run() }
+                }
+            }
+            .stateIn(
+                scope = applicationScope,
+                started = SharingStarted.Eagerly,
+                initialValue = false,
+            )
+
+    override val isShowPasswordsPhysicalEnabled: StateFlow<Boolean> =
+        userRepository.selectedUserInfo
+            .map { it.id }
+            .distinctUntilChanged()
+            .flatMapLatest { userId ->
+                callbackFlow {
+                    val userContext = context.createContextAsUser(UserHandle.of(userId), 0)
+                    val unregister =
+                        ShowSecretsSetting.registerCallback(userContext) {
+                            trySend(ShowSecretsSetting.shouldShowPhysicalInput(userContext))
+                        }
+                    trySend(ShowSecretsSetting.shouldShowPhysicalInput(userContext))
+                    awaitClose { unregister.run() }
+                }
+            }
+            .stateIn(
+                scope = applicationScope,
+                started = SharingStarted.Eagerly,
+                initialValue = false,
+            )
+
     private val _failedAuthenticationAttempts = MutableStateFlow(0)
     override val failedAuthenticationAttempts: StateFlow<Int> =
         _failedAuthenticationAttempts.asStateFlow()
 
-    override val lockoutEndTimestamp: Long?
+    override val lockoutEndTime: Duration?
         get() =
-            lockPatternUtils.getLockoutAttemptDeadline(selectedUserId).takeIf {
-                clock.elapsedRealtime() < it
+            lockPatternUtils.getLockoutEndTime(selectedUserId).toKotlinDuration().takeIf {
+                clock.elapsedRealtime().milliseconds < it
             }
 
     private val _hasLockoutOccurred = MutableStateFlow(false)
     override val hasLockoutOccurred: StateFlow<Boolean> = _hasLockoutOccurred.asStateFlow()
+
+    private val _isDuplicateAttempt = MutableStateFlow(false)
+    override val isDuplicateAttempt: StateFlow<Boolean> = _isDuplicateAttempt.asStateFlow()
+
+    override var lastWarmUpTrigger = ZERO - WARM_UP_THROTTLE_DURATION
 
     init {
         if (SceneContainerFlag.isEnabled) {
@@ -277,56 +383,67 @@ constructor(
     }
 
     override suspend fun checkCredential(
-        credential: LockscreenCredential
+        credential: LockscreenCredential,
+        onEarlyMatched: () -> Unit,
     ): AuthenticationResultModel {
         return withContext(backgroundDispatcher) {
-            try {
-                val matched = lockPatternUtils.checkCredential(credential, selectedUserId) {}
-                AuthenticationResultModel(isSuccessful = matched, lockoutDurationMs = 0)
-            } catch (ex: LockPatternUtils.RequestThrottledException) {
-                AuthenticationResultModel(isSuccessful = false, lockoutDurationMs = ex.timeoutMs)
-            }
+            val response =
+                lockPatternUtils.checkCredential(credential, selectedUserId) { onEarlyMatched() }
+            return@withContext AuthenticationResultModel(
+                isSuccessful = response.isMatched,
+                lockoutDuration = response.timeout.toKotlinDuration(),
+                isDuplicate = lockscreenIndicateDuplicateGuesses() && response.isCredAlreadyTried,
+            )
         }
     }
-
-    override suspend fun getAuthenticationMethod(): AuthenticationMethodModel =
-        getAuthenticationMethod(selectedUserId)
 
     override suspend fun getPinLength(): Int {
         return withContext(backgroundDispatcher) { lockPatternUtils.getPinLength(selectedUserId) }
     }
 
-    override suspend fun reportAuthenticationAttempt(isSuccessful: Boolean) {
+    override suspend fun reportAuthenticationAttempt(
+        result: AuthenticationResult,
+        isDuplicate: Boolean,
+    ) {
         withContext(backgroundDispatcher) {
-            if (isSuccessful) {
-                if (
-                    secureLockDevice() &&
-                        SceneContainerFlag.isEnabled &&
-                        lockPatternUtils
-                            .getStrongAuthForUser(selectedUserId)
-                            .and(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE) != 0
-                ) {
-                    Log.d(
-                        TAG,
-                        "Device is in secure lock device mode; awaiting second factor " +
-                            "biometric authentication before unlocking.",
-                    )
-                } else {
-                    lockPatternUtils.userPresent(selectedUserId)
-                    lockPatternUtils.reportSuccessfulPasswordAttempt(selectedUserId)
+            when (result) {
+                AuthenticationResult.SUCCEEDED -> {
+                    if (
+                        secureLockDevice() &&
+                            SceneContainerFlag.isEnabled &&
+                            lockPatternUtils
+                                .getStrongAuthForUser(selectedUserId)
+                                .and(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE) != 0
+                    ) {
+                        Log.d(
+                            TAG,
+                            "Device is in secure lock device mode; awaiting second factor " +
+                                "biometric authentication before unlocking.",
+                        )
+                    } else {
+                        lockPatternUtils.userPresent(selectedUserId)
+                        lockPatternUtils.reportSuccessfulPasswordAttempt(selectedUserId)
+                    }
+                    _hasLockoutOccurred.value = false
                 }
-                _hasLockoutOccurred.value = false
-            } else {
-                lockPatternUtils.reportFailedPasswordAttempt(selectedUserId)
+                AuthenticationResult.FAILED -> {
+                    lockPatternUtils.reportFailedPasswordAttempt(selectedUserId)
+                }
+                AuthenticationResult.SKIPPED -> {
+                    // Skipped, we don't want to use any downstream attempts here.
+                }
             }
-            _failedAuthenticationAttempts.value = getFailedAuthenticationAttemptCount()
+            _isDuplicateAttempt.value = isDuplicate
+            // Skipped attempts don't change anything downstream.
+            if (result != AuthenticationResult.SKIPPED) {
+                _failedAuthenticationAttempts.value = getFailedAuthenticationAttemptCount()
+            }
         }
     }
 
-    override suspend fun reportLockoutStarted(durationMs: Int) {
-        lockPatternUtils.setLockoutAttemptDeadline(selectedUserId, durationMs)
+    override suspend fun reportLockoutStarted(duration: Duration) {
         withContext(backgroundDispatcher) {
-            lockPatternUtils.reportPasswordLockout(durationMs, selectedUserId)
+            lockPatternUtils.reportPasswordLockout(duration.toJavaDuration(), selectedUserId)
         }
         _hasLockoutOccurred.value = true
     }
@@ -355,10 +472,16 @@ constructor(
         }
     }
 
-    /** Returns `true` if the power button should instantly lock the device, `false` otherwise. */
-    override suspend fun getPowerButtonInstantlyLocks(): Boolean {
-        return withContext(backgroundDispatcher) {
+    override fun getPowerButtonInstantlyLocks(): Boolean {
+        return !lockPatternUtils.isSecure(selectedUserId) ||
             lockPatternUtils.getPowerButtonInstantlyLocks(selectedUserId)
+    }
+
+    override suspend fun triggerAuthWarmUp() {
+        withContext(backgroundDispatcher) {
+            val now = clock.elapsedRealtime().milliseconds
+            lockPatternUtils.prepareToVerifyCredential(selectedUserId)
+            Log.d(TAG, "Triggered a background auth warm up for user $selectedUserId at $now")
         }
     }
 
@@ -404,19 +527,20 @@ constructor(
         return flow.asStateFlow()
     }
 
-    /** Returns the authentication method for the given user ID. */
-    private suspend fun getAuthenticationMethod(@UserIdInt userId: Int): AuthenticationMethodModel {
-        return withContext(backgroundDispatcher) {
-            when (getSecurityMode.apply(userId)) {
-                KeyguardSecurityModel.SecurityMode.PIN -> Pin
-                KeyguardSecurityModel.SecurityMode.SimPin,
-                KeyguardSecurityModel.SecurityMode.SimPuk -> Sim
-                KeyguardSecurityModel.SecurityMode.Password -> Password
-                KeyguardSecurityModel.SecurityMode.Pattern -> Pattern
-                KeyguardSecurityModel.SecurityMode.None -> None
-                KeyguardSecurityModel.SecurityMode.SecureLockDeviceBiometricAuth -> Biometric
-                KeyguardSecurityModel.SecurityMode.Invalid -> error("Invalid security mode!")
-            }
+    /**
+     * Returns the authentication method for the given user ID. This is a blocking call that
+     * normally should only be made off the main thread.
+     */
+    private fun getAuthenticationMethodBlocking(@UserIdInt userId: Int): AuthenticationMethodModel {
+        return when (getSecurityMode.apply(userId)) {
+            KeyguardSecurityModel.SecurityMode.PIN -> Pin
+            KeyguardSecurityModel.SecurityMode.SimPin,
+            KeyguardSecurityModel.SecurityMode.SimPuk -> Sim
+            KeyguardSecurityModel.SecurityMode.Password -> Password
+            KeyguardSecurityModel.SecurityMode.Pattern -> Pattern
+            KeyguardSecurityModel.SecurityMode.None -> None
+            KeyguardSecurityModel.SecurityMode.SecureLockDeviceBiometricAuth -> Biometric
+            KeyguardSecurityModel.SecurityMode.Invalid -> error("Invalid security mode!")
         }
     }
 

@@ -38,6 +38,10 @@ import android.perftests.utils.TraceMarkParser;
 import android.perftests.utils.TraceMarkParser.TraceMarkSlice;
 import android.provider.Settings;
 import android.text.TextUtils;
+import android.tools.traces.io.ResultWriter;
+import android.tools.traces.monitors.PerfettoTraceMonitor;
+import android.tracing.perfetto.InitArguments;
+import android.tracing.perfetto.Producer;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -56,6 +60,7 @@ import com.android.compatibility.common.util.SystemUtil;
 
 import junit.framework.Assert;
 
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -93,7 +98,8 @@ public class ImePerfTest extends ImePerfTestBase
             "applyPostLayoutPolicy",
             "applyWindowSurfaceChanges",
             "ISC.onPreLayout",
-            "ISC.onPostLayout"
+            "ISC.onPostLayout",
+            "inputmethod_service_dump", // always-on IMS tracing
     };
 
     /** IMF show methods to log in trace. */
@@ -142,6 +148,13 @@ public class ImePerfTest extends ImePerfTestBase
     private TraceMarkParser mTraceMethods;
 
     private boolean mIsTraceStarted;
+
+    private PerfettoTraceMonitor mPerfettoTracingMonitor;
+
+    @BeforeClass
+    public static void initPerfetto() {
+        Producer.init(InitArguments.DEFAULTS);
+    }
 
     /**
      * Ime Session for {@link BaselineIme}.
@@ -254,7 +267,7 @@ public class ImePerfTest extends ImePerfTestBase
             try (ImeSession imeSession = new ImeSession(BaselineIme.getName(
                     getInstrumentation().getContext()))) {
                 if (!mIsTraceStarted) {
-                    startAsyncAtrace();
+                    startTracing();
                 }
                 final AtomicReference<CountDownLatch> latchStart = new AtomicReference<>();
                 final Activity activity = getActivityWithFocus();
@@ -271,7 +284,7 @@ public class ImePerfTest extends ImePerfTestBase
                 });
 
                 measuredTimeNs = waitForAnimationStart(latchStart, startTime);
-                stopAsyncAtraceAndDumpTraces();
+                stopTracingAndDumpTraces();
 
                 if (measuredTimeNs == ANIMATION_NOT_STARTED) {
                     // Animation didn't start within timeout,
@@ -283,7 +296,7 @@ public class ImePerfTest extends ImePerfTestBase
                 mActivityRule.finishActivity();
             }
         }
-        stopAsyncAtrace();
+        stopTracing();
         addResultToState(state);
     }
 
@@ -342,7 +355,7 @@ public class ImePerfTest extends ImePerfTestBase
                     }
                 }
                 if (!mIsTraceStarted && !state.isWarmingUp()) {
-                    startAsyncAtrace();
+                    startTracing();
                     mIsTraceStarted = true;
                 }
 
@@ -389,7 +402,7 @@ public class ImePerfTest extends ImePerfTestBase
             }
         } finally {
             if (mIsTraceStarted) {
-                stopAsyncAtraceAndDumpTraces();
+                stopTracingAndDumpTraces();
             }
         }
         mActivityRule.finishActivity();
@@ -488,15 +501,28 @@ public class ImePerfTest extends ImePerfTestBase
                 });
     }
 
-    private void startAsyncAtrace() {
+    /** Starts both atrace (for performance/slice events) and Perfetto (for IME events) tracing. */
+    private void startTracing() {
         mIsTraceStarted = true;
         // IMF uses 'wm' component for trace in InputMethodService, InputMethodManagerService,
         // WindowManagerService and 'view' for client window (InsetsController).
         // TODO(b/167947940): Consider a separate input_method atrace
         startAsyncAtrace("wm view");
+
+        if (android.tracing.Flags.perfettoImeServiceTracingAot()) {
+            if (mPerfettoTracingMonitor == null) {
+                mPerfettoTracingMonitor = PerfettoTraceMonitor.newBuilder()
+                        // Currently, only IMS is suitable for always-on tracing
+                        .enableImeTrace(false /* client */, true /* service */,
+                                false /* managerService */)
+                        .build();
+            }
+            mPerfettoTracingMonitor.start();
+        }
     }
 
-    private void stopAsyncAtraceAndDumpTraces() {
+    /** Stops both atrace and Perfetto, and parses the atrace output. */
+    private void stopTracingAndDumpTraces() {
         if (!mIsTraceStarted) {
             return;
         }
@@ -510,20 +536,38 @@ public class ImePerfTest extends ImePerfTestBase
         } catch (IOException e) {
             Log.w(TAG, "Failed to read the result of stopped atrace", e);
         }
+        stopPerfettoTrace();
     }
 
-    private void stopAsyncAtrace() {
+    /** Stops both atrace and Perfetto without parsing any trace output. */
+    private void stopTracing() {
         if (!mIsTraceStarted) {
             return;
         }
         mIsTraceStarted = false;
         getUiAutomation().executeShellCommand("atrace --async_stop");
+        stopPerfettoTrace();
+    }
+
+    private void stopPerfettoTrace() {
+        if (!android.tracing.Flags.perfettoImeServiceTracingAot()) {
+            return;
+        }
+        if (mPerfettoTracingMonitor != null) {
+            try {
+                mPerfettoTracingMonitor.stop(new ResultWriter()
+                        .withOutputDir(getInstrumentation().getContext().getCacheDir())
+                        .setRunComplete());
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to stop Perfetto trace", e);
+            }
+        }
     }
 
     @Override
     public void onStart(int iteration) {
         // Do not capture trace when profiling because the result will be much slower.
-        stopAsyncAtrace();
+        stopTracing();
     }
 
     @Override

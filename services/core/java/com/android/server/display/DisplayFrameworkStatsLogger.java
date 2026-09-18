@@ -26,14 +26,23 @@ import com.android.internal.util.FrameworkStatsLog;
 
 public final class DisplayFrameworkStatsLogger {
 
+    /** Logs DisplayEventCallbackOccurred push atoms */
+    public void logDisplayEvents(SparseIntArray notifiedUids) {
+        // Need to unwrap the notified UIDs array (UID -> eventMask) to an event -> countOfUIDs map.
+        final SparseIntArray eventCounts = aggregateEventCounts(notifiedUids);
+        for (int i = 0; i < eventCounts.size(); i++) {
+            logDisplayEvent(eventCounts.keyAt(i), eventCounts.valueAt(i));
+        }
+    }
+
     /** Logs DisplayEventCallbackOccurred push atom */
-    public void logDisplayEvent(@DisplayManagerGlobal.DisplayEvent int event,
-            SparseIntArray notifiedUids) {
+    private void logDisplayEvent(@DisplayManagerGlobal.DisplayEvent int event,
+            int notifiedUidsCount) {
         FrameworkStatsLog.write(
                 FrameworkStatsLog.DISPLAY_EVENT_CALLBACK_OCCURRED,
                 toProtoEventType(event),
-                notifiedUids.copyKeys(),
-                notifiedUids.size());
+                new int[0], // UIDs list is not used in the metrics, no need to calculate it.
+                notifiedUidsCount);
     }
 
     /** Logs DisplayInfoChanged push atom */
@@ -50,6 +59,24 @@ public final class DisplayFrameworkStatsLogger {
                 (changedGroups & DisplayInfoGroup.COLOR_AND_BRIGHTNESS.getMask()) > 0 ? 1 : 0,
                 (changedGroups & DisplayInfoGroup.STATE.getMask()) > 0 ? 1 : 0,
                 toProtoEventSource(source));
+    }
+
+    /**
+     * Counts the occurrences of each event type from a map of UIDs to their event masks.
+     * @return A SparseIntArray mapping each event type to its total count of UIDs.
+     */
+    private SparseIntArray aggregateEventCounts(SparseIntArray uidEventMasks) {
+        final SparseIntArray eventCounts = new SparseIntArray();
+        for (int i = 0; i < uidEventMasks.size(); i++) {
+            int mask = uidEventMasks.valueAt(i);
+            while (mask != 0) {
+                int event = Integer.lowestOneBit(mask);
+                // Increment the counter for this specific event type.
+                eventCounts.put(event, eventCounts.get(event, 0) + 1);
+                mask &= ~event;
+            }
+        }
+        return eventCounts;
     }
 
     /** Maps DisplayInfoChangeSource to atom */

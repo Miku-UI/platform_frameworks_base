@@ -44,6 +44,7 @@ import com.android.wm.shell.R
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.DisplayController.OnDisplaysChangedListener
 import com.android.wm.shell.shared.annotations.ShellMainThread
+import com.android.wm.shell.shared.annotations.ShellMainThreadImmediate
 import com.android.wm.shell.windowdecor.WindowDecoration.SurfaceControlViewHostFactory
 import com.android.wm.shell.windowdecor.common.DecorThemeUtil
 import com.android.wm.shell.windowdecor.common.Theme
@@ -63,7 +64,7 @@ constructor(
     private val displayController: DisplayController,
     private val taskResourceLoader: WindowDecorTaskResourceLoader,
     @ShellMainThread private val mainDispatcher: CoroutineDispatcher,
-    @ShellMainThread private val mainScope: CoroutineScope,
+    @ShellMainThreadImmediate private val mainImmediateScope: CoroutineScope,
     private var parentSurface: SurfaceControl,
     private val surfaceControlTransactionSupplier: Supplier<SurfaceControl.Transaction>,
     private val surfaceControlBuilderFactory: SurfaceControlBuilderFactory =
@@ -171,7 +172,7 @@ constructor(
         viewHost = surfaceControlViewHostFactory.create(context, display, wwm, "ResizeVeil")
         viewHost?.setView(rootView, lp)
         loadAppInfoJob =
-            mainScope.launch {
+            mainImmediateScope.launch {
                 if (!isActive) return@launch
                 val icon = taskResourceLoader.getVeilIcon(taskInfo)
                 iconView.setImageBitmap(icon)
@@ -303,7 +304,7 @@ constructor(
             .setLayer(icon, VEIL_ICON_LAYER)
             .setLayer(background, VEIL_BACKGROUND_LAYER)
             .setColor(background, Color.valueOf(backgroundColor.toArgb()).components)
-        relayout(taskBounds, t)
+        relayout(taskBounds, t, trackJank = fadeIn)
         if (!fadeIn) {
             t.show(icon).show(background).setAlpha(icon, 1f).setAlpha(background, 1f)
         }
@@ -322,8 +323,14 @@ constructor(
      * Update veil bounds to match bounds changes.
      *
      * @param newBounds bounds to update veil to.
+     * @param trackJank whether to track jank for this transaction - this should only happen if the
+     *   relayout is triggered during an animation or an input event.
      */
-    private fun relayout(newBounds: Rect, t: SurfaceControl.Transaction) {
+    private fun relayout(
+        newBounds: Rect,
+        t: SurfaceControl.Transaction,
+        trackJank: Boolean = true,
+    ) {
         val iconPosition = calculateAppIconPosition(newBounds)
         val veil = veilSurface
         val icon = iconSurface
@@ -332,7 +339,9 @@ constructor(
             .setPosition(icon, iconPosition.x, iconPosition.y)
             .setPosition(parentSurface, newBounds.left.toFloat(), newBounds.top.toFloat())
             .setWindowCrop(parentSurface, newBounds.width(), newBounds.height())
-            .setFrameTimeline(Choreographer.getInstance().vsyncId)
+        if (trackJank) {
+            t.setFrameTimeline(Choreographer.getInstance().vsyncId)
+        }
     }
 
     /**

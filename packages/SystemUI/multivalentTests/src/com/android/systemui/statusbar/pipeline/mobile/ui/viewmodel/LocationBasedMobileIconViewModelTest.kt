@@ -23,8 +23,7 @@ import com.android.systemui.flags.FakeFeatureFlagsClassic
 import com.android.systemui.flags.Flags
 import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.statusbar.connectivity.MobileIconCarrierIdOverridesFake
-import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
-import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
+import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.airplaneModeInteractor
 import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionState
 import com.android.systemui.statusbar.pipeline.mobile.data.model.ResolvedNetworkType
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.FakeMobileConnectionRepository
@@ -66,7 +65,6 @@ class LocationBasedMobileIconViewModelTest : SysuiTestCase() {
     private lateinit var interactor: MobileIconInteractor
     private val connectionsRepository = kosmos.fakeMobileConnectionsRepository
     private lateinit var repository: FakeMobileConnectionRepository
-    private lateinit var airplaneModeInteractor: AirplaneModeInteractor
 
     private val connectivityRepository = FakeConnectivityRepository()
     private val flags =
@@ -85,12 +83,7 @@ class LocationBasedMobileIconViewModelTest : SysuiTestCase() {
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
-        airplaneModeInteractor =
-            AirplaneModeInteractor(
-                FakeAirplaneModeRepository(),
-                FakeConnectivityRepository(),
-                connectionsRepository,
-            )
+
         repository =
             FakeMobileConnectionRepository(SUB_1_ID, tableLogBuffer).apply {
                 isInService.value = true
@@ -139,7 +132,7 @@ class LocationBasedMobileIconViewModelTest : SysuiTestCase() {
             MobileIconViewModel(
                 SUB_1_ID,
                 interactor,
-                airplaneModeInteractor,
+                kosmos.airplaneModeInteractor,
                 constants,
                 testScope.backgroundScope,
             )
@@ -185,7 +178,7 @@ class LocationBasedMobileIconViewModelTest : SysuiTestCase() {
 
         /** Convenience constructor for these tests */
         fun defaultSignal(level: Int = 1): SignalIconModel {
-            return SignalIconModel.Cellular(
+            return SignalIconModel.CellularTypeIconModel.Cellular(
                 level,
                 NUM_LEVELS,
                 showExclamationMark = false,

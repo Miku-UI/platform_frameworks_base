@@ -16,13 +16,15 @@
 
 package com.android.systemui.volume.panel.component.anc
 
-import com.android.systemui.volume.panel.component.anc.domain.AncAvailabilityCriteria
-import com.android.systemui.volume.panel.component.anc.ui.composable.AncButtonComponent
+import com.android.systemui.volume.panel.component.anc.domain.AncDeviceSettingAvailabilityCriteria
+import com.android.systemui.volume.panel.component.anc.ui.viewmodel.AncSettingViewModel
+import com.android.systemui.volume.panel.component.devicesetting.ui.composable.DeviceSettingComponent
 import com.android.systemui.volume.panel.component.shared.model.VolumePanelComponents
 import com.android.systemui.volume.panel.domain.ComponentAvailabilityCriteria
 import com.android.systemui.volume.panel.shared.model.VolumePanelUiComponent
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.multibindings.IntoMap
 import dagger.multibindings.StringKey
 
@@ -34,11 +36,18 @@ interface AncModule {
     @IntoMap
     @StringKey(VolumePanelComponents.ANC)
     fun bindComponentAvailabilityCriteria(
-        criteria: AncAvailabilityCriteria
+        criteria: AncDeviceSettingAvailabilityCriteria
     ): ComponentAvailabilityCriteria
 
-    @Binds
-    @IntoMap
-    @StringKey(VolumePanelComponents.ANC)
-    fun bindVolumePanelUiComponent(component: AncButtonComponent): VolumePanelUiComponent
+    companion object {
+
+        @Provides
+        @IntoMap
+        @StringKey(VolumePanelComponents.ANC)
+        fun provideVolumePanelUiComponent(
+            ancSettingViewModel: AncSettingViewModel.Factory,
+            deviceSettingComponentFactory: DeviceSettingComponent.Factory,
+        ): VolumePanelUiComponent =
+            deviceSettingComponentFactory.create(ancSettingViewModel::create)
+    }
 }

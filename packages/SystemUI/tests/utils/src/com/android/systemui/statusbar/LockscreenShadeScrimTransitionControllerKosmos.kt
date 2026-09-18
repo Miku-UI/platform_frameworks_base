@@ -20,6 +20,8 @@ import android.content.applicationContext
 import com.android.systemui.dump.dumpManager
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.kosmos.testScope
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.statusbar.phone.scrimController
 import com.android.systemui.statusbar.policy.configurationController
 import com.android.systemui.statusbar.policy.splitShadeStateController
@@ -31,5 +33,7 @@ val Kosmos.lockscreenShadeScrimTransitionController by Fixture {
         configurationController = configurationController,
         dumpManager = dumpManager,
         splitShadeStateController = splitShadeStateController,
+        shadeModeInteractor = shadeModeInteractor,
+        backgroundScope = testScope.backgroundScope,
     )
 }

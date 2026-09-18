@@ -42,70 +42,96 @@ public class DetectorStatusTypesTest {
     @Test
     public void testRequireValidDetectionAlgorithmStatus() {
         for (@DetectionAlgorithmStatus int status = DETECTION_ALGORITHM_STATUS_UNKNOWN;
-                status <= DETECTION_ALGORITHM_STATUS_RUNNING; status++) {
+                status <= DETECTION_ALGORITHM_STATUS_RUNNING;
+                status++) {
             assertEquals(status, DetectorStatusTypes.requireValidDetectionAlgorithmStatus(status));
         }
 
-        assertThrows(IllegalArgumentException.class,
-                () -> DetectorStatusTypes.requireValidDetectionAlgorithmStatus(
-                        DETECTION_ALGORITHM_STATUS_UNKNOWN - 1));
-        assertThrows(IllegalArgumentException.class,
-                () -> DetectorStatusTypes.requireValidDetectionAlgorithmStatus(
-                        DETECTION_ALGORITHM_STATUS_RUNNING + 1));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        DetectorStatusTypes.requireValidDetectionAlgorithmStatus(
+                                DETECTION_ALGORITHM_STATUS_UNKNOWN - 1));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        DetectorStatusTypes.requireValidDetectionAlgorithmStatus(
+                                DETECTION_ALGORITHM_STATUS_RUNNING + 1));
     }
 
     @Test
     public void testFormatAndParseDetectionAlgorithmStatus() {
         for (@DetectionAlgorithmStatus int status = DETECTION_ALGORITHM_STATUS_UNKNOWN;
-                status <= DETECTION_ALGORITHM_STATUS_RUNNING; status++) {
-            assertEquals(status, DetectorStatusTypes.detectionAlgorithmStatusFromString(
-                    DetectorStatusTypes.detectionAlgorithmStatusToString(status)));
+                status <= DETECTION_ALGORITHM_STATUS_RUNNING;
+                status++) {
+            assertEquals(
+                    status,
+                    DetectorStatusTypes.detectionAlgorithmStatusFromString(
+                            DetectorStatusTypes.detectionAlgorithmStatusToString(status)));
         }
 
-        assertThrows(IllegalArgumentException.class,
-                () -> DetectorStatusTypes.detectorStatusToString(
-                        DETECTION_ALGORITHM_STATUS_UNKNOWN - 1));
-        assertThrows(IllegalArgumentException.class,
-                () -> DetectorStatusTypes.detectorStatusToString(
-                        DETECTION_ALGORITHM_STATUS_RUNNING + 1));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        DetectorStatusTypes.detectorStatusToString(
+                                DETECTION_ALGORITHM_STATUS_UNKNOWN - 1));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        DetectorStatusTypes.detectorStatusToString(
+                                DETECTION_ALGORITHM_STATUS_RUNNING + 1));
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> DetectorStatusTypes.detectorStatusFromString(null));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> DetectorStatusTypes.detectorStatusFromString(""));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> DetectorStatusTypes.detectorStatusFromString("FOO"));
     }
 
     @Test
     public void testRequireValidDetectorStatus() {
         for (@DetectorStatus int status = DETECTOR_STATUS_UNKNOWN;
-                status <= DETECTOR_STATUS_RUNNING; status++) {
+                status <= DETECTOR_STATUS_RUNNING;
+                status++) {
             assertEquals(status, DetectorStatusTypes.requireValidDetectorStatus(status));
         }
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> DetectorStatusTypes.requireValidDetectorStatus(DETECTOR_STATUS_UNKNOWN - 1));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> DetectorStatusTypes.requireValidDetectorStatus(DETECTOR_STATUS_RUNNING + 1));
     }
 
     @Test
     public void testFormatAndParseDetectorStatus() {
         for (@DetectorStatus int status = DETECTOR_STATUS_UNKNOWN;
-                status <= DETECTOR_STATUS_RUNNING; status++) {
-            assertEquals(status, DetectorStatusTypes.detectorStatusFromString(
-                    DetectorStatusTypes.detectorStatusToString(status)));
+                status <= DETECTOR_STATUS_RUNNING;
+                status++) {
+            assertEquals(
+                    status,
+                    DetectorStatusTypes.detectorStatusFromString(
+                            DetectorStatusTypes.detectorStatusToString(status)));
         }
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> DetectorStatusTypes.detectorStatusToString(DETECTOR_STATUS_UNKNOWN - 1));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> DetectorStatusTypes.detectorStatusToString(DETECTOR_STATUS_RUNNING + 1));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> DetectorStatusTypes.detectorStatusFromString(null));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> DetectorStatusTypes.detectorStatusFromString(""));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> DetectorStatusTypes.detectorStatusFromString("FOO"));
     }
 }

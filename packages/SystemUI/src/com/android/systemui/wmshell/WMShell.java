@@ -16,7 +16,6 @@
 
 package com.android.systemui.wmshell;
 
-import static com.android.systemui.Flags.shadeAppLaunchAnimationSkipInDesktop;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_BOUNCER_SHOWING;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_BUBBLES_EXPANDED;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_BUBBLES_MANAGE_MENU_EXPANDED;
@@ -38,7 +37,6 @@ import android.inputmethodservice.InputMethodService;
 import android.inputmethodservice.InputMethodService.BackDispositionMode;
 import android.inputmethodservice.InputMethodService.ImeWindowVisibility;
 import android.util.Log;
-import android.view.Display;
 import android.view.KeyEvent;
 
 import androidx.annotation.NonNull;
@@ -64,7 +62,7 @@ import com.android.systemui.statusbar.policy.ConfigurationController;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.util.kotlin.JavaAdapter;
 import com.android.wm.shell.dagger.WMComponent;
-import com.android.wm.shell.desktopmode.DesktopMode;
+import com.android.wm.shell.desktopmode.api.DesktopMode;
 import com.android.wm.shell.desktopmode.data.DesktopRepository;
 import com.android.wm.shell.onehanded.OneHanded;
 import com.android.wm.shell.onehanded.OneHandedEventCallback;
@@ -107,6 +105,7 @@ public final class WMShell implements
         CoreStartable,
         CommandQueue.Callbacks {
     private static final String TAG = WMShell.class.getSimpleName();
+    private static final boolean DEBUG = false;
     private static final long INVALID_SYSUI_STATE_MASK =
             SYSUI_STATE_DIALOG_SHOWING
                     | SYSUI_STATE_STATUS_BAR_KEYGUARD_SHOWING
@@ -307,14 +306,12 @@ public final class WMShell implements
                         // No op.
                     }
                 }, mSysUiMainExecutor);
-        pip.addOnIsInPipStateChangedListener((isInPip) -> {
-            mSysUiMainExecutor.execute(() -> {
-                if (!isInPip) {
-                    Log.d(TAG, "Reset disable_gesture_pip_animating on pip exit");
-                    mSysUiState.setFlag(SYSUI_STATE_DISABLE_GESTURE_PIP_ANIMATING, false)
-                            .commitUpdate();
-                }
-            });
+        pip.addOnIsInPipStateChangedListener(mSysUiMainExecutor, isInPip -> {
+            if (!isInPip) {
+                Log.d(TAG, "Reset disable_gesture_pip_animating on pip exit");
+                mSysUiState.setFlag(SYSUI_STATE_DISABLE_GESTURE_PIP_ANIMATING, false)
+                        .commitUpdate();
+            }
         });
         mSysUiState.addCallback((sysUiStateFlag, displayId) -> {
             mIsSysUiStateValid = (sysUiStateFlag & INVALID_SYSUI_STATE_MASK) == 0;
@@ -426,7 +423,7 @@ public final class WMShell implements
 
             @Override
             public void setImeWindowStatus(int displayId, @ImeWindowVisibility int vis,
-                    @BackDispositionMode int backDisposition, boolean showImeSwitcher) {
+                    @BackDispositionMode int backDisposition, boolean showImeSwitcherButton) {
                 if (displayId == mDisplayTracker.getDefaultDisplayId()
                         && (vis & InputMethodService.IME_VISIBLE) != 0) {
                     oneHanded.stopOneHanded(
@@ -437,18 +434,6 @@ public final class WMShell implements
     }
 
     void initDesktopMode(DesktopMode desktopMode) {
-        desktopMode.addVisibleTasksListener(
-                new DesktopRepository.VisibleTasksListener() {
-                    @Override
-                    public void onTasksVisibilityChanged(int displayId, int visibleTasksCount) {
-                        if (displayId == Display.DEFAULT_DISPLAY
-                                && !shadeAppLaunchAnimationSkipInDesktop()) {
-                            mSysUiState.setFlag(SYSUI_STATE_FREEFORM_ACTIVE_IN_DESKTOP_MODE,
-                                            visibleTasksCount > 0)
-                                    .commitUpdate(mDisplayTracker.getDefaultDisplayId());
-                        }
-                    }
-                }, mSysUiMainExecutor);
         desktopMode.addDeskChangeListener(new DesktopRepository.DeskChangeListener() {
             @Override
             public void onDeskAdded(int displayId, int deskId) {
@@ -463,18 +448,41 @@ public final class WMShell implements
             @Override
             public void onActiveDeskChanged(int displayId, int newActiveDeskId,
                     int oldActiveDeskId) {
+                if (DEBUG) {
+                    Log.d(TAG, "onActiveDeskChanged: displayId=" + displayId
+                            + ", newActiveDeskId=" + newActiveDeskId
+                            + ", oldActiveDeskId=" + oldActiveDeskId);
+                }
                 SysUiState sysUiState = mPerDisplaySysUiStateRepository.get(displayId);
-                if (sysUiState != null && shadeAppLaunchAnimationSkipInDesktop()) {
-                    boolean enterFreeform = newActiveDeskId != DesktopRepository.INVALID_DESK_ID
-                            && oldActiveDeskId == DesktopRepository.INVALID_DESK_ID;
-                    boolean exitFreeform = newActiveDeskId == DesktopRepository.INVALID_DESK_ID
-                            && oldActiveDeskId != DesktopRepository.INVALID_DESK_ID;
-                    if (enterFreeform) {
-                        sysUiState.setFlag(SYSUI_STATE_FREEFORM_ACTIVE_IN_DESKTOP_MODE,
-                                true).commitUpdate();
-                    } else if (exitFreeform) {
-                        sysUiState.setFlag(SYSUI_STATE_FREEFORM_ACTIVE_IN_DESKTOP_MODE,
-                                false).commitUpdate();
+                if (sysUiState == null) {
+                    if (DEBUG) {
+                        Log.d(TAG, "onActiveDeskChanged: sysUiState is null for displayId="
+                                + displayId);
+                    }
+                    return;
+                }
+                boolean enterFreeform = newActiveDeskId != DesktopRepository.INVALID_DESK_ID
+                        && oldActiveDeskId == DesktopRepository.INVALID_DESK_ID;
+                boolean exitFreeform = newActiveDeskId == DesktopRepository.INVALID_DESK_ID
+                        && oldActiveDeskId != DesktopRepository.INVALID_DESK_ID;
+                if (enterFreeform) {
+                    if (DEBUG) {
+                        Log.d(TAG, "onActiveDeskChanged displayId=" + displayId
+                                + ": enter freeform:  FREEFORM_ACTIVE_IN_DESKTOP_MODE -> true");
+                    }
+                    sysUiState.setFlag(SYSUI_STATE_FREEFORM_ACTIVE_IN_DESKTOP_MODE,
+                            true).commitUpdate();
+                } else if (exitFreeform) {
+                    if (DEBUG) {
+                        Log.d(TAG, "onActiveDeskChanged displayId=" + displayId
+                                + ": exit freeform:  FREEFORM_ACTIVE_IN_DESKTOP_MODE -> false");
+                    }
+                    sysUiState.setFlag(SYSUI_STATE_FREEFORM_ACTIVE_IN_DESKTOP_MODE,
+                            false).commitUpdate();
+                } else {
+                    if (DEBUG) {
+                        Log.d(TAG, "onActiveDeskChanged displayId=" + displayId
+                                + ": No state change required");
                     }
                 }
             }
@@ -483,6 +491,9 @@ public final class WMShell implements
             public void onCanCreateDesksChanged(boolean canCreateDesks) {
 
             }
+
+            @Override
+            public void onTaskAppearingInDesk(int displayId, int deskId, int taskId) {}
         }, mSysUiMainExecutor);
         mCommandQueue.addCallback(new CommandQueue.Callbacks() {
             @Override
@@ -503,6 +514,7 @@ public final class WMShell implements
     }
 
     @VisibleForTesting
+    // TODO(b/461749621): Adjust for scene container or deprecate
     void initRecentTasks(RecentTasks recentTasks) {
         recentTasks.addAnimationStateListener(mSysUiMainExecutor,
                 mCommandQueue::onRecentsAnimationStateChanged);

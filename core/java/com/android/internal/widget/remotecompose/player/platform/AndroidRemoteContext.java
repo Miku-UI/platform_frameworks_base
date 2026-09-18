@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023 The Android Open Source Project
+ * Copyright 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,18 @@
  */
 package com.android.internal.widget.remotecompose.player.platform;
 
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.widget.EdgeEffect;
 
+import com.android.internal.widget.remotecompose.core.Limits;
+import com.android.internal.widget.remotecompose.core.RemoteClock;
 import com.android.internal.widget.remotecompose.core.RemoteContext;
+import com.android.internal.widget.remotecompose.core.ScrollingEdgeEffect;
 import com.android.internal.widget.remotecompose.core.SystemClock;
 import com.android.internal.widget.remotecompose.core.TouchListener;
 import com.android.internal.widget.remotecompose.core.VariableSupport;
@@ -35,8 +38,6 @@ import com.android.internal.widget.remotecompose.core.operations.utilities.DataM
 import com.android.internal.widget.remotecompose.core.types.LongConstant;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,20 +50,36 @@ import java.util.HashMap;
 public class AndroidRemoteContext extends RemoteContext {
     private static final boolean CHECK_DATA_SIZE = true;
 
+    public @Nullable EdgeEffectBuilder mEdgeEffectBuilder;
+
     private boolean mA11yAnimationEnabled = true;
 
-    /** Default constructor, uses a {@link SystemClock} as the clock. */
+    @NonNull private BitmapLoader mBitmapLoader = BitmapLoader.UNSUPPORTED;
+
+    /** Default constructor, uses a {@link RemoteClock#SYSTEM} as the clock. */
     public AndroidRemoteContext() {
-        this(new SystemClock());
+        this(RemoteClock.SYSTEM);
+    }
+
+    public AndroidRemoteContext(@NonNull Clock clock) {
+        super(new SystemClock(clock));
+        setBitmapLoader(new AndroidBitmapLoader());
+    }
+
+    public AndroidRemoteContext(@NonNull RemoteClock clock) {
+        super(clock);
+        setBitmapLoader(new AndroidBitmapLoader());
     }
 
     /**
-     * Context for the Android Implementation.
+     * Sets the BitmapLoader to be used by the RemoteContext for loading bitmaps from URLs. This is
+     * useful when you want to provide a custom way of loading bitmaps, for example, from a network
+     * cache or a local file system.
      *
-     * @param clock The clock used for tracking time.
+     * @param bitmapLoader The BitmapLoader to be used.
      */
-    public AndroidRemoteContext(Clock clock) {
-        super(clock);
+    public void setBitmapLoader(@NonNull BitmapLoader bitmapLoader) {
+        mBitmapLoader = bitmapLoader;
     }
 
     /**
@@ -73,7 +90,7 @@ public class AndroidRemoteContext extends RemoteContext {
      *
      * @param canvas The Android Canvas to be used for drawing.
      */
-    public void useCanvas(Canvas canvas) {
+    public void useCanvas(@NonNull Canvas canvas) {
         if (mPaintContext == null) {
             mPaintContext = new AndroidPaintContext(this, canvas);
         } else {
@@ -86,17 +103,49 @@ public class AndroidRemoteContext extends RemoteContext {
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
+    // Edge effect handling
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    /** EdgeEffectBuilder interface */
+    public interface EdgeEffectBuilder {
+        /**
+         * Create a new EdgeEffect
+         *
+         * @return EdgeEffect
+         */
+        @NonNull
+        EdgeEffect create();
+    }
+
+    /**
+     * Set a builder for EdgeEffects
+     *
+     * @param builder EdgeEffectBuilder
+     */
+    public void setEdgeEffectBuilder(@NonNull EdgeEffectBuilder builder) {
+        mEdgeEffectBuilder = builder;
+    }
+
+    @Override
+    public @Nullable ScrollingEdgeEffect createEdgeEffect(int direction) {
+        if (mEdgeEffectBuilder == null) {
+            return null;
+        }
+        return new AndroidEdgeEffect(mEdgeEffectBuilder.create(), direction);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
     // Data handling
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
-    public void loadPathData(int instanceId, int winding, @NonNull float [] floatPath) {
+    public void loadPathData(int instanceId, int winding, @NonNull float[] floatPath) {
         mRemoteComposeState.putPathData(instanceId, floatPath);
         mRemoteComposeState.putPathWinding(instanceId, winding);
     }
 
     @Override
-    public float[] getPathData(int instanceId) {
+    public @Nullable float[] getPathData(int instanceId) {
         return mRemoteComposeState.getPathData(instanceId);
     }
 
@@ -112,102 +161,162 @@ public class AndroidRemoteContext extends RemoteContext {
         }
     }
 
-    HashMap<String, VarName> mVarNameHashMap = new HashMap<>();
+    HashMap<String, ArrayList<VarName>> mVarNameHashMap = new HashMap<>();
+
+    /**
+     * Returns the id of a variable
+     *
+     * @param name name of variable
+     * @return id of variable
+     */
+    public int getVariableId(@NonNull String name) {
+        ArrayList<VarName> list = mVarNameHashMap.get(name);
+        if (list == null || list.isEmpty()) {
+            throw new java.util.NoSuchElementException("Variable " + name + " not found");
+        }
+        return list.get(0).mId;
+    }
+
+    /**
+     * Returns the content of a name variable
+     *
+     * @param name name of variable
+     * @return content of variable
+     */
+    public @Nullable String getStringVariableName(@NonNull String name) {
+        int id = getVariableId(name);
+        return getText(id);
+    }
 
     @Override
     public void loadVariableName(@NonNull String varName, int varId, int varType) {
-        mVarNameHashMap.put(varName, new VarName(varName, varId, varType));
+        ArrayList<VarName> list = mVarNameHashMap.get(varName);
+        if (list == null) {
+            list = new ArrayList<>();
+            mVarNameHashMap.put(varName, list);
+        }
+        // Avoid duplicates if re-initializing the same document
+        for (int i = 0; i < list.size(); i++) {
+            if (list.get(i).mId == varId) {
+                return;
+            }
+        }
+        list.add(new VarName(varName, varId, varType));
     }
 
     @Override
     public void setNamedStringOverride(@NonNull String stringName, @NonNull String value) {
-        if (mVarNameHashMap.get(stringName) != null) {
-            int id = mVarNameHashMap.get(stringName).mId;
-            overrideText(id, value);
+        ArrayList<VarName> list = mVarNameHashMap.get(stringName);
+        if (list != null) {
+            for (VarName var : list) {
+                overrideText(var.mId, value);
+            }
         }
     }
 
     @Override
     public void clearNamedStringOverride(@NonNull String stringName) {
-        if (mVarNameHashMap.get(stringName) != null) {
-            int id = mVarNameHashMap.get(stringName).mId;
-            clearDataOverride(id);
+        ArrayList<VarName> list = mVarNameHashMap.get(stringName);
+        if (list != null) {
+            for (VarName var : list) {
+                clearDataOverride(var.mId);
+            }
         }
-        mVarNameHashMap.put(stringName, null);
+    }
+
+    @Override
+    public void setNamedBooleanOverride(@NonNull String booleanName, boolean value) {
+        setNamedIntegerOverride(booleanName, value ? 1 : 0);
+    }
+
+    @Override
+    public void clearNamedBooleanOverride(@NonNull String booleanName) {
+        clearNamedIntegerOverride(booleanName);
     }
 
     @Override
     public void setNamedIntegerOverride(@NonNull String integerName, int value) {
-        if (mVarNameHashMap.get(integerName) != null) {
-            int id = mVarNameHashMap.get(integerName).mId;
-            overrideInt(id, value);
+        ArrayList<VarName> list = mVarNameHashMap.get(integerName);
+        if (list != null) {
+            for (VarName var : list) {
+                overrideInt(var.mId, value);
+            }
         }
     }
 
     @Override
     public void clearNamedIntegerOverride(@NonNull String integerName) {
-        if (mVarNameHashMap.get(integerName) != null) {
-            int id = mVarNameHashMap.get(integerName).mId;
-            clearIntegerOverride(id);
+        ArrayList<VarName> list = mVarNameHashMap.get(integerName);
+        if (list != null) {
+            for (VarName var : list) {
+                clearIntegerOverride(var.mId);
+            }
         }
-        mVarNameHashMap.put(integerName, null);
     }
 
     @Override
     public void setNamedFloatOverride(@NonNull String floatName, float value) {
-        if (mVarNameHashMap.get(floatName) != null) {
-            int id = mVarNameHashMap.get(floatName).mId;
-            overrideFloat(id, value);
+        ArrayList<VarName> list = mVarNameHashMap.get(floatName);
+        if (list != null) {
+            for (VarName var : list) {
+                overrideFloat(var.mId, value);
+            }
         }
     }
 
     @Override
     public void clearNamedFloatOverride(@NonNull String floatName) {
-        if (mVarNameHashMap.get(floatName) != null) {
-            int id = mVarNameHashMap.get(floatName).mId;
-            clearFloatOverride(id);
+        ArrayList<VarName> list = mVarNameHashMap.get(floatName);
+        if (list != null) {
+            for (VarName var : list) {
+                clearFloatOverride(var.mId);
+            }
         }
-        mVarNameHashMap.put(floatName, null);
     }
 
     @Override
     public void setNamedLong(@NonNull String name, long value) {
-        VarName entry = mVarNameHashMap.get(name);
-        if (entry != null) {
-            int id = entry.mId;
-            LongConstant longConstant = (LongConstant) mRemoteComposeState.getObject(id);
-            longConstant.setValue(value);
+        ArrayList<VarName> list = mVarNameHashMap.get(name);
+        if (list != null) {
+            for (VarName var : list) {
+                LongConstant longConstant = (LongConstant) mRemoteComposeState.getObject(var.mId);
+                longConstant.setValue(value);
+            }
         }
     }
 
     @Override
     public void setNamedDataOverride(@NonNull String dataName, @NonNull Object value) {
-        if (mVarNameHashMap.get(dataName) != null) {
-            int id = mVarNameHashMap.get(dataName).mId;
-            overrideData(id, value);
+        ArrayList<VarName> list = mVarNameHashMap.get(dataName);
+        if (list != null) {
+            for (VarName var : list) {
+                overrideData(var.mId, value);
+            }
         }
     }
 
     @Override
     public void clearNamedDataOverride(@NonNull String dataName) {
-        if (mVarNameHashMap.get(dataName) != null) {
-            int id = mVarNameHashMap.get(dataName).mId;
-            clearDataOverride(id);
+        ArrayList<VarName> list = mVarNameHashMap.get(dataName);
+        if (list != null) {
+            for (VarName var : list) {
+                clearDataOverride(var.mId);
+            }
         }
-        mVarNameHashMap.put(dataName, null);
     }
 
     /**
      * Override a color to force it to be the color provided
      *
      * @param colorName name of color
-     * @param color
      */
     @Override
     public void setNamedColorOverride(@NonNull String colorName, int color) {
-        if (mVarNameHashMap.get(colorName) != null) {
-            int id = mVarNameHashMap.get(colorName).mId;
-            mRemoteComposeState.overrideColor(id, color);
+        ArrayList<VarName> list = mVarNameHashMap.get(colorName);
+        if (list != null) {
+            for (VarName var : list) {
+                mRemoteComposeState.overrideColor(var.mId, color);
+            }
         }
     }
 
@@ -222,6 +331,7 @@ public class AndroidRemoteContext extends RemoteContext {
     }
 
     @Override
+    @Nullable
     public DataMap getDataMap(int id) {
         return mRemoteComposeState.getDataMap(id);
     }
@@ -251,7 +361,7 @@ public class AndroidRemoteContext extends RemoteContext {
      */
     @Override
     public void loadBitmap(
-            int imageId, short encoding, short type, int width, int height, @NonNull byte [] data) {
+            int imageId, short encoding, short type, int width, int height, @NonNull byte[] data) {
         if (!mRemoteComposeState.containsId(imageId)) {
             Bitmap image = null;
             switch (encoding) {
@@ -325,10 +435,13 @@ public class AndroidRemoteContext extends RemoteContext {
                     image = BitmapFactory.decodeFile(new String(data));
                     break;
                 case BitmapData.ENCODING_URL:
+                    if (!Limits.ENABLE_IMAGE_URLS) {
+                        throw new RuntimeException("URL image not supported [" + imageId + "]");
+                    }
                     try {
-                        image = BitmapFactory.decodeStream(new URL(new String(data)).openStream());
-                    } catch (MalformedURLException e) {
-                        throw new RuntimeException(e);
+                        image =
+                                BitmapFactory.decodeStream(
+                                        mBitmapLoader.loadBitmap(new String(data)));
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
@@ -340,7 +453,7 @@ public class AndroidRemoteContext extends RemoteContext {
         }
     }
 
-    private Bitmap decodePreferringAlpha8(@NonNull byte [] data) {
+    private Bitmap decodePreferringAlpha8(@NonNull byte[] data) {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ALPHA_8;
         return BitmapFactory.decodeByteArray(data, 0, data.length, options);
@@ -361,7 +474,7 @@ public class AndroidRemoteContext extends RemoteContext {
      * @param id The ID of the text to override.
      * @param text The new text value.
      */
-    public void overrideText(int id, String text) {
+    public void overrideText(int id, @NonNull String text) {
         mRemoteComposeState.overrideData(id, text);
     }
 
@@ -381,7 +494,7 @@ public class AndroidRemoteContext extends RemoteContext {
      * @param id The ID of the data to override.
      * @param value The new data value.
      */
-    public void overrideData(int id, Object value) {
+    public void overrideData(int id, @NonNull Object value) {
         mRemoteComposeState.overrideData(id, value);
     }
 
@@ -413,6 +526,7 @@ public class AndroidRemoteContext extends RemoteContext {
     }
 
     @Override
+    @Nullable
     public String getText(int id) {
         return (String) mRemoteComposeState.getFromId(id);
     }
@@ -430,6 +544,11 @@ public class AndroidRemoteContext extends RemoteContext {
     @Override
     public void loadInteger(int id, int value) {
         mRemoteComposeState.updateInteger(id, value);
+    }
+
+    @Override
+    public void markVariableDirty(int id) {
+        mRemoteComposeState.markVariableDirty(id);
     }
 
     /**
@@ -481,6 +600,7 @@ public class AndroidRemoteContext extends RemoteContext {
     }
 
     @Override
+    @Nullable
     public Object getObject(int id) {
         return mRemoteComposeState.getObject(id);
     }
@@ -528,7 +648,8 @@ public class AndroidRemoteContext extends RemoteContext {
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
     // Click handling
-    ///////////////////////////////////////////////////////////////////////////////////////////////
+
+    /// ////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
     public void addClickArea(

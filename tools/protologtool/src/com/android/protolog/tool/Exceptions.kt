@@ -19,19 +19,25 @@ package com.android.protolog.tool
 import java.lang.Exception
 
 open class CodeProcessingException(
-    message: String, context: ParsingContext, cause: Throwable? = null
-) : Exception("Code processing error in ${context.filePath}:${context.lineNumber}:\n" +
-        "  $message", cause)
+    message: String,
+    val context: ParsingContext,
+    cause: Throwable? = null,
+) :
+    Exception(
+        "Code processing error in ${context.filePath}:${context.lineNumber}:\n" + "  $message",
+        cause,
+    )
 
-class HashCollisionException(
-    message: String, context: ParsingContext, cause: Throwable? = null
-) : CodeProcessingException(message, context, cause)
+class HashCollisionException(message: String, context: ParsingContext, cause: Throwable? = null) :
+    CodeProcessingException(message, context, cause)
 
 class IllegalImportException(message: String, context: ParsingContext, cause: Throwable? = null) :
-        CodeProcessingException("Illegal import: $message", context, cause)
+    CodeProcessingException("Illegal import: $message", context, cause)
 
 class InvalidProtoLogCallException(
-    message: String, context: ParsingContext, cause: Throwable? = null
+    message: String,
+    context: ParsingContext,
+    cause: Throwable? = null,
 ) : CodeProcessingException("InvalidProtoLogCall: $message", context, cause)
 
 class ParsingException(message: String, context: ParsingContext, cause: Throwable? = null) :

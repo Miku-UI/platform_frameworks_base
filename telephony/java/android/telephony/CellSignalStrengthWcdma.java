@@ -166,7 +166,7 @@ public final class CellSignalStrengthWcdma extends CellSignalStrength implements
             default:
                 loge("Invalid Level Calculation Method for CellSignalStrengthWcdma = "
                         + calcMethod);
-                /** fall through */
+                /* fall through */
             case LEVEL_CALCULATION_METHOD_RSSI:
                 if (mRssi < WCDMA_RSSI_MIN || mRssi > WCDMA_RSSI_MAX) {
                     mLevel = SIGNAL_STRENGTH_NONE_OR_UNKNOWN;

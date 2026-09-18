@@ -17,7 +17,6 @@
 package com.android.systemui.keyboard.shortcut.data.source
 
 import android.content.res.mainResources
-import android.platform.test.annotations.EnableFlags
 import android.view.KeyEvent.KEYCODE_D
 import android.view.KeyEvent.KEYCODE_DPAD_DOWN
 import android.view.KeyEvent.KEYCODE_EQUALS
@@ -36,10 +35,6 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.res.R
 import com.android.systemui.testKosmos
-import com.android.window.flags.Flags
-import com.android.window.flags.Flags.FLAG_ENABLE_MOVE_TO_NEXT_DISPLAY_SHORTCUT
-import com.android.window.flags.Flags.FLAG_ENABLE_TASK_RESIZING_KEYBOARD_SHORTCUTS
-import com.android.window.flags.Flags.FLAG_KEYBOARD_SHORTCUTS_TO_SWITCH_DESKS
 import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.google.common.truth.Truth.assertThat
 import kotlin.Triple
@@ -145,11 +140,6 @@ class MultitaskingShortcutsSourceTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_MOVE_TO_NEXT_DISPLAY_SHORTCUT,
-        Flags.FLAG_ENABLE_TASK_RESIZING_KEYBOARD_SHORTCUTS,
-        Flags.FLAG_KEYBOARD_SHORTCUTS_TO_SWITCH_DESKS,
-    )
     fun shortcutGroups_containsDesktopShortcuts() {
         testScope.runTest {
             val groups = source.shortcutGroups(TEST_DEVICE_ID)
@@ -161,12 +151,6 @@ class MultitaskingShortcutsSourceTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_MOVE_TO_NEXT_DISPLAY_SHORTCUT,
-        Flags.FLAG_ENABLE_TASK_RESIZING_KEYBOARD_SHORTCUTS,
-        Flags.FLAG_KEYBOARD_SHORTCUTS_TO_SWITCH_DESKS,
-        Flags.FLAG_CLOSE_TASK_KEYBOARD_SHORTCUT,
-    )
     fun shortcutGroups_desktopDisabled_doesNotContainDesktopShortcuts() {
         testScope.runTest {
             desktopState.canEnterDesktopMode = false

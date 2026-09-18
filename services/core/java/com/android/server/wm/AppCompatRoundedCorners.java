@@ -95,6 +95,7 @@ class AppCompatRoundedCorners {
         // control is in the top left corner of an app window so offsetting bounds
         // accordingly.
         cropBounds.offsetTo(0, 0);
+        AppCompatUtils.adjustCropBoundsForSurfaceInsets(cropBounds, mainWindow);
         return cropBounds;
     }
 
@@ -136,10 +137,19 @@ class AppCompatRoundedCorners {
     private boolean requiresRoundedCorners(@NonNull final WindowState mainWindow) {
         if (com.android.wm.shell.Flags.enableCreateAnyBubble()) {
             final Task task = mActivityRecord.getTask();
-            if (task != null && task.mLaunchNextToBubble) {
-                // Don't set rounded corners for letterboxed bubble'd apps for better UX.
-                // TODO(b/407669465): Update mLaunchNextToBubble usage when migrated.
-                return false;
+            if (task != null) {
+                if (com.android.window.flags.Flags.enableBubbleRootTask()) {
+                    final Task rootTask = task.getRootTask();
+                    if (rootTask != null && rootTask.disableAppCompatRoundedCorners()) {
+                        return false;
+                    }
+                } else {
+                    if (task.mLaunchNextToBubble) {
+                        // Don't set rounded corners for letterboxed bubble'd apps for better UX.
+                        return false;
+                    }
+                }
+
             }
         }
         final AppCompatLetterboxOverrides letterboxOverrides = mActivityRecord

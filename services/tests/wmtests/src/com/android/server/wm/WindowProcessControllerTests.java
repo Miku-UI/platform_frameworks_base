@@ -17,10 +17,13 @@
 package com.android.server.wm;
 
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_HOME;
+import static android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
+import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.content.pm.ActivityInfo.INSETS_DECOUPLED_CONFIGURATION_ENFORCED;
 import static android.content.pm.ActivityInfo.OVERRIDE_ENABLE_INSETS_DECOUPLED_CONFIGURATION;
+import static android.content.pm.ActivityInfo.PERSIST_ACROSS_REBOOTS;
 import static android.content.res.Configuration.GRAMMATICAL_GENDER_NOT_SPECIFIED;
 import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
@@ -53,6 +56,7 @@ import static org.mockito.Mockito.when;
 
 import android.Manifest;
 import android.app.ActivityManager;
+import android.app.ActivityManagerInternal;
 import android.app.ClientTransactionHandler;
 import android.app.IApplicationThread;
 import android.app.servertransaction.ConfigurationChangeItem;
@@ -63,12 +67,12 @@ import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.os.LocaleList;
 import android.os.RemoteException;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.view.Display;
 import android.view.DisplayInfo;
 
-import com.android.window.flags.Flags;
+import com.android.server.am.psc.ProcessRecordInternal;
+import com.android.server.wm.utils.StubOrganizer;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -76,6 +80,9 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Tests for the {@link WindowProcessController} class.
@@ -89,17 +96,21 @@ public class WindowProcessControllerTests extends WindowTestsBase {
 
     WindowProcessController mWpc;
     WindowProcessListener mMockListener;
+    StubOrganizer mStubOrganizer;
 
     @Before
     public void setUp() {
         mMockListener = mock(WindowProcessListener.class);
+        final ProcessRecordInternal owner = mock(ProcessRecordInternal.class);
 
         ApplicationInfo info = mock(ApplicationInfo.class);
         info.packageName = "test.package.name";
         doReturn(true).when(info).isChangeEnabled(INSETS_DECOUPLED_CONFIGURATION_ENFORCED);
         mWpc = new WindowProcessController(
-                mAtm, info, null, 0, -1, null, mMockListener);
+                mAtm, info, null, 0, -1, owner, mMockListener);
         mWpc.setThread(mock(IApplicationThread.class));
+        mStubOrganizer = new StubOrganizer();
+        mWm.mAtmService.mTaskOrganizerController.registerTaskOrganizer(mStubOrganizer);
     }
 
     @Test
@@ -109,14 +120,14 @@ public class WindowProcessControllerTests extends WindowTestsBase {
 
         // Register to ImeContainer on display 1 as a listener.
         final TestDisplayContent testDisplayContent1 = createTestDisplayContentInContainer();
-        final DisplayArea imeContainer1 = testDisplayContent1.getImeContainer();
+        final ImeContainer imeContainer1 = testDisplayContent1.getImeContainer();
         mWpc.registerDisplayAreaConfigurationListener(imeContainer1);
         assertTrue(imeContainer1.containsListener(mWpc));
         assertEquals(imeContainer1, mWpc.getDisplayArea());
 
         // Register to ImeContainer on display 2 as a listener.
         final TestDisplayContent testDisplayContent2 = createTestDisplayContentInContainer();
-        final DisplayArea imeContainer2 = testDisplayContent2.getImeContainer();
+        final ImeContainer imeContainer2 = testDisplayContent2.getImeContainer();
         mWpc.registerDisplayAreaConfigurationListener(imeContainer2);
         assertFalse(imeContainer1.containsListener(mWpc));
         assertTrue(imeContainer2.containsListener(mWpc));
@@ -149,7 +160,7 @@ public class WindowProcessControllerTests extends WindowTestsBase {
                 .setDensityDpi(300)
                 .setPosition(DisplayContent.POSITION_TOP)
                 .build();
-        final DisplayArea imeContainer = display.getImeContainer();
+        final ImeContainer imeContainer = display.getImeContainer();
 
         // Register to the ime container.
         mWpc.registerDisplayAreaConfigurationListener(imeContainer);
@@ -171,7 +182,7 @@ public class WindowProcessControllerTests extends WindowTestsBase {
     @Test
     public void testDestroy_unregistersDisplayAreaListener() {
         final TestDisplayContent testDisplayContent1 = createTestDisplayContentInContainer();
-        final DisplayArea imeContainer1 = testDisplayContent1.getImeContainer();
+        final ImeContainer imeContainer1 = testDisplayContent1.getImeContainer();
         mWpc.registerDisplayAreaConfigurationListener(imeContainer1);
 
         mWpc.destroy();
@@ -213,7 +224,7 @@ public class WindowProcessControllerTests extends WindowTestsBase {
         // Register to the ImeContainer on the new display as a listener.
         final DisplayContent display = new TestDisplayContent.Builder(mAtm, 2000, 1000)
                 .setDensityDpi(300).setPosition(DisplayContent.POSITION_TOP).build();
-        final DisplayArea imeContainer = display.getImeContainer();
+        final ImeContainer imeContainer = display.getImeContainer();
         mWpc.registerDisplayAreaConfigurationListener(imeContainer);
 
         assertEquals(imeContainer, mWpc.getDisplayArea());
@@ -227,9 +238,10 @@ public class WindowProcessControllerTests extends WindowTestsBase {
         final ComponentName systemUiServiceComponent = mAtm.getSysUiServiceComponentLocked();
         ApplicationInfo applicationInfo = mock(ApplicationInfo.class);
         applicationInfo.packageName = systemUiServiceComponent.getPackageName();
+        final ProcessRecordInternal owner = mock(ProcessRecordInternal.class);
 
         WindowProcessController wpc = new WindowProcessController(
-                mAtm, applicationInfo, null, 0, -1, null, mMockListener);
+                mAtm, applicationInfo, null, 0, -1, owner, mMockListener);
         wpc.setThread(mock(IApplicationThread.class));
 
         final ActivityRecord activity = createActivityRecord(wpc);
@@ -297,6 +309,24 @@ public class WindowProcessControllerTests extends WindowTestsBase {
         assertTrue(mWpc.registeredForActivityConfigChanges());
         assertEquals("Config seq of process should not be affected by activity",
                 mWpc.getConfiguration().seq, globalSeq);
+    }
+
+    @Test
+    public void testResolveOverrideConfiguration_clearsActivityTypeInRequestedConfig() {
+        // Set a requested override configuration with a specific activity type.
+        Configuration requestedOverride = new Configuration();
+        requestedOverride.windowConfiguration.setActivityType(ACTIVITY_TYPE_HOME);
+        mWpc.onRequestedOverrideConfigurationChanged(requestedOverride);
+
+        // After a configuration change, the requested override should have its activity type
+        // cleared. This is because resolveOverrideConfiguration modifies the requested config
+        // directly.
+        assertEquals(ACTIVITY_TYPE_UNDEFINED,
+                mWpc.getRequestedOverrideConfiguration().windowConfiguration.getActivityType());
+
+        // And the resolved config should also have it cleared.
+        assertEquals(ACTIVITY_TYPE_UNDEFINED,
+                mWpc.getResolvedOverrideConfiguration().windowConfiguration.getActivityType());
     }
 
     @Test
@@ -477,9 +507,6 @@ public class WindowProcessControllerTests extends WindowTestsBase {
         final DisplayPolicy displayPolicy = displayContent.getDisplayPolicy();
         // Setup the decor insets info.
         final DisplayPolicy.DecorInsets.Info decorInsetsInfo = new DisplayPolicy.DecorInsets.Info();
-        final Rect emptyRect = new Rect();
-        decorInsetsInfo.mNonDecorInsets.set(emptyRect);
-        decorInsetsInfo.mConfigInsets.set(emptyRect);
         decorInsetsInfo.mOverrideConfigInsets.set(new Rect(0, 100, 0, 200));
         decorInsetsInfo.mOverrideNonDecorInsets.set(new Rect(0, 0, 0, 200));
         decorInsetsInfo.mOverrideConfigFrame.set(new Rect(0, 100, 1000, 1300));
@@ -518,7 +545,6 @@ public class WindowProcessControllerTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CRASH_LOGGING_FOR_DESKTOP)
     public void testGetCrashTag_desktopModeFalse() {
         doReturn(false).when(() -> DesktopModeHelper.canEnterDesktopMode(mContext));
         final ActivityRecord activity = createActivityRecord(mWpc);
@@ -528,7 +554,6 @@ public class WindowProcessControllerTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CRASH_LOGGING_FOR_DESKTOP)
     public void testGetCrashTag_desktopModeFalse_relaunchReason() {
         doReturn(false).when(() -> DesktopModeHelper.canEnterDesktopMode(mContext));
         final ActivityRecord activity = createActivityRecord(mWpc);
@@ -540,7 +565,6 @@ public class WindowProcessControllerTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CRASH_LOGGING_FOR_DESKTOP)
     public void testGetCrashTag_desktopModeTrue_freeform() {
         doReturn(true).when(() -> DesktopModeHelper.canEnterDesktopMode(mContext));
         final ActivityRecord activity = createActivityRecord(mWpc);
@@ -550,7 +574,6 @@ public class WindowProcessControllerTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CRASH_LOGGING_FOR_DESKTOP)
     public void testGetCrashTag_desktopModeTrue_freeformOnExternalDisplay() {
         doReturn(true).when(() -> DesktopModeHelper.canEnterDesktopMode(mContext));
         DisplayInfo displayInfo = new DisplayInfo();
@@ -564,6 +587,241 @@ public class WindowProcessControllerTests extends WindowTestsBase {
         mWpc.addRecentTask(task);
 
         assertEquals("Freeform-Tasks=1 On-External-Display=Yes", mWpc.getCrashTag());
+    }
+
+    @Test
+    public void testStopAndKillProcess_rootPersistableActivity_isStoppedAnKilled() {
+        class PackageUpdateOrganizer extends StubOrganizer {
+            List<ActivityManager.RunningTaskInfo> mUpdatingTaskInfos = new ArrayList<>();
+
+            @Override
+            public void onPackageUpdateRequested(
+                    List<ActivityManager.RunningTaskInfo> updatingTaskInfos) {
+                mUpdatingTaskInfos = updatingTaskInfos;
+            }
+        }
+        PackageUpdateOrganizer o = new PackageUpdateOrganizer();
+        mWm.mAtmService.mTaskOrganizerController.registerTaskOrganizer(o);
+        mAtm.mAmInternal = mock(ActivityManagerInternal.class);
+        final ActivityRecord activity = createActivityRecord(mWpc);
+        activity.getTask().mHandlePackageUpdate = true;
+        activity.info.persistableMode = PERSIST_ACROSS_REBOOTS;
+        activity.setState(RESUMED, "test");
+        spyOn(activity);
+
+        mWpc.stopAndKillProcessForUpdate(activity.packageName);
+
+        verify(activity, never()).stopIfPossible();
+        assertEquals(o.mUpdatingTaskInfos.get(0).taskId, activity.getTask().mTaskId);
+
+        mWpc.onActivityStopped(activity);
+        mWpc.onTaskPackageUpdateHandled(activity.getTask());
+
+        verify(mAtm).onProcessReadyToBeKilled(activity.packageName, mWpc);
+    }
+
+    @Test
+    public void testStopAndKillProcess_rootPersistableActivity_taskNotHandled_doesNothing() {
+        class PackageUpdateOrganizer extends StubOrganizer {
+            List<ActivityManager.RunningTaskInfo> mUpdatingTaskInfos = new ArrayList<>();
+
+            @Override
+            public void onPackageUpdateRequested(
+                    List<ActivityManager.RunningTaskInfo> updatingTaskInfos) {
+                mUpdatingTaskInfos = updatingTaskInfos;
+            }
+        }
+        PackageUpdateOrganizer o = new PackageUpdateOrganizer();
+        mWm.mAtmService.mTaskOrganizerController.registerTaskOrganizer(o);
+        mAtm.mAmInternal = mock(ActivityManagerInternal.class);
+        final ActivityRecord activity = createActivityRecord(mWpc);
+        activity.getTask().mHandlePackageUpdate = true;
+        activity.info.persistableMode = PERSIST_ACROSS_REBOOTS;
+        activity.setState(RESUMED, "test");
+        spyOn(activity);
+
+        mWpc.stopAndKillProcessForUpdate(activity.packageName);
+
+        verify(activity, never()).stopIfPossible();
+        assertEquals(o.mUpdatingTaskInfos.get(0).taskId, activity.getTask().mTaskId);
+
+        mWpc.onActivityStopped(activity);
+
+        verify(mAtm, never()).onProcessReadyToBeKilled(activity.packageName, mWpc);
+    }
+
+    @Test
+    public void testStopAndKillProcess_notHandled_rootPersistableActivity_isStoppedAnKilled() {
+        mAtm.mAmInternal = mock(ActivityManagerInternal.class);
+        final ActivityRecord activity = createActivityRecord(mWpc);
+        final Task task = activity.getTask();
+        activity.info.persistableMode = PERSIST_ACROSS_REBOOTS;
+        activity.setState(RESUMED, "test");
+        spyOn(activity);
+        spyOn(task);
+
+        mWpc.stopAndKillProcessForUpdate(activity.packageName);
+
+        verify(task).moveTaskToBack(task);
+        verify(activity).stopIfPossible();
+
+        // Set state to STOPPING, or ActivityRecord#activityStoppedLocked() call will be ignored.
+        mWpc.onActivityStopped(activity);
+        waitHandlerIdle(mAtm.mH);
+
+        verify(mAtm).onProcessReadyToBeKilled(activity.packageName, mWpc);
+    }
+
+    @Test
+    public void testStopAndKillProcess_noActivitiesToStopTaskHandled_killsProcess() {
+        class PackageUpdateOrganizer extends StubOrganizer {
+            List<ActivityManager.RunningTaskInfo> mUpdatingTaskInfos = new ArrayList<>();
+
+            @Override
+            public void onPackageUpdateRequested(
+                    List<ActivityManager.RunningTaskInfo> updatingTaskInfos) {
+                mUpdatingTaskInfos = updatingTaskInfos;
+            }
+        }
+        PackageUpdateOrganizer o = new PackageUpdateOrganizer();
+        mWm.mAtmService.mTaskOrganizerController.registerTaskOrganizer(o);
+        mAtm.mAmInternal = mock(ActivityManagerInternal.class);
+        final ActivityRecord activity = createActivityRecord(mWpc);
+        activity.getTask().mHandlePackageUpdate = true;
+        activity.setState(STOPPED, "test");
+
+        mWpc.stopAndKillProcessForUpdate(activity.packageName);
+        assertEquals(o.mUpdatingTaskInfos.get(0).taskId, activity.getTask().mTaskId);
+
+        mWpc.onTaskPackageUpdateHandled(activity.getTask());
+        verify(activity, never()).stopIfPossible();
+        verify(mAtm).onProcessReadyToBeKilled(activity.packageName, mWpc);
+    }
+
+    @Test
+    public void testStopAndKillProcess_noActivitiesToStop_taskHandled_wrongPkg_doesNotNotify() {
+        class PackageUpdateOrganizer extends StubOrganizer {
+            List<ActivityManager.RunningTaskInfo> mUpdatingTaskInfos = new ArrayList<>();
+
+            @Override
+            public void onPackageUpdateRequested(
+                    List<ActivityManager.RunningTaskInfo> updatingTaskInfos) {
+                mUpdatingTaskInfos = updatingTaskInfos;
+            }
+        }
+        PackageUpdateOrganizer o = new PackageUpdateOrganizer();
+        mWm.mAtmService.mTaskOrganizerController.registerTaskOrganizer(o);
+        mAtm.mAmInternal = mock(ActivityManagerInternal.class);
+        final ActivityRecord activity = createActivityRecord(mWpc);
+        activity.getTask().mHandlePackageUpdate = true;
+        activity.setState(STOPPED, "test");
+
+        mWpc.stopAndKillProcessForUpdate("wrong.pkg");
+        mWpc.onTaskPackageUpdateHandled(activity.getTask());
+
+        assertTrue(o.mUpdatingTaskInfos.isEmpty());
+    }
+
+    @Test
+    public void testStopAndKillProcess_noActivitiesToStopTaskNotHandled_killsProcess() {
+        class PackageUpdateOrganizer extends StubOrganizer {
+            List<ActivityManager.RunningTaskInfo> mUpdatingTaskInfos = new ArrayList<>();
+
+            @Override
+            public void onPackageUpdateRequested(
+                    List<ActivityManager.RunningTaskInfo> updatingTaskInfos) {
+                mUpdatingTaskInfos = updatingTaskInfos;
+            }
+        }
+        PackageUpdateOrganizer o = new PackageUpdateOrganizer();
+        mWm.mAtmService.mTaskOrganizerController.registerTaskOrganizer(o);
+        mAtm.mAmInternal = mock(ActivityManagerInternal.class);
+        final ActivityRecord activity = createActivityRecord(mWpc);
+        activity.setState(STOPPED, "test");
+
+        mWpc.stopAndKillProcessForUpdate(activity.packageName);
+
+        verify(activity, never()).stopIfPossible();
+        verify(mAtm).onProcessReadyToBeKilled(activity.packageName, mWpc);
+    }
+
+    @Test
+    public void testStopAndKillProcess_noHandlePackageUpdate_noActivitiesToStop_killsProcess() {
+        mAtm.mAmInternal = mock(ActivityManagerInternal.class);
+        final ActivityRecord activity = createActivityRecord(mWpc);
+        activity.setState(STOPPED, "test");
+
+        mWpc.stopAndKillProcessForUpdate(activity.packageName);
+
+        verify(activity, never()).stopIfPossible();
+        verify(mAtm).onProcessReadyToBeKilled(activity.packageName, mWpc);
+    }
+
+    @Test
+    public void testStopAndKillProcess_handlePackageUpdateOnRoot_marksLeafUpdating() {
+        class PackageUpdateOrganizer extends StubOrganizer {
+            List<ActivityManager.RunningTaskInfo> mUpdatingTaskInfos = new ArrayList<>();
+
+            @Override
+            public void onPackageUpdateRequested(
+                    List<ActivityManager.RunningTaskInfo> updatingTaskInfos) {
+                mUpdatingTaskInfos = updatingTaskInfos;
+            }
+        }
+        final PackageUpdateOrganizer o = new PackageUpdateOrganizer();
+        mWm.mAtmService.mTaskOrganizerController.registerTaskOrganizer(o);
+        mAtm.mAmInternal = mock(ActivityManagerInternal.class);
+        final ActivityRecord activity = createActivityRecord(mWpc);
+        activity.info.persistableMode = PERSIST_ACROSS_REBOOTS;
+        activity.setState(RESUMED, "test");
+
+        // Set up root task
+        final Task rootTask = createTask(mDisplayContent, WINDOWING_MODE_MULTI_WINDOW,
+                ACTIVITY_TYPE_STANDARD);
+        activity.getTask().setParent(rootTask);
+        activity.getTask().mTaskOrganizer = o;
+        rootTask.mHandlePackageUpdate = true;
+        spyOn(activity);
+
+        mWpc.stopAndKillProcessForUpdate(activity.packageName);
+
+        verify(activity, never()).stopIfPossible();
+        assertEquals(o.mUpdatingTaskInfos.get(0).taskId, activity.getTask().mTaskId);
+    }
+
+    @Test
+    public void testOnActivityStoppedForUpdate_killsProcessWhenLastActivityStopped() {
+        mAtm.mAmInternal = mock(ActivityManagerInternal.class);
+        final ActivityRecord activity1 = createActivityRecord(mWpc);
+        activity1.info.persistableMode = PERSIST_ACROSS_REBOOTS;
+        activity1.setState(RESUMED, "test");
+        spyOn(activity1);
+        final ActivityRecord activity2 = createActivityRecord(mWpc);
+        activity2.info.persistableMode = PERSIST_ACROSS_REBOOTS;
+        activity2.setState(RESUMED, "test");
+        spyOn(activity2);
+
+        mWpc.stopAndKillProcessForUpdate(activity1.packageName);
+        verify(activity1).stopIfPossible();
+        verify(activity2).stopIfPossible();
+
+        mWpc.onActivityStopped(activity1);
+        verify(mAtm, never()).onProcessReadyToBeKilled(activity1.packageName, mWpc);
+
+        mWpc.onActivityStopped(activity2);
+        verify(mAtm).onProcessReadyToBeKilled(activity1.packageName, mWpc);
+    }
+
+    @Test
+    public void testOnActivityStoppedForUpdate_noActivitiesToBeStopped_doesNothing() {
+        mAtm.mAmInternal = mock(ActivityManagerInternal.class);
+        final ActivityRecord activity1 = createActivityRecord(mWpc);
+        activity1.setState(STOPPED, "test");
+        spyOn(activity1);
+
+        mWpc.onActivityStopped(activity1);
+
+        verify(mAtm, never()).onProcessReadyToBeKilled(activity1.packageName, mWpc);
     }
 
     private TestDisplayContent createTestDisplayContentInContainer() {

@@ -17,10 +17,10 @@
 package com.android.wm.shell.flicker.splitscreen
 
 import android.platform.test.annotations.Presubmit
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import androidx.test.filters.FlakyTest
 import androidx.test.filters.RequiresDevice
 import com.android.wm.shell.flicker.splitscreen.benchmark.SwitchBetweenSplitPairsBenchmark
@@ -89,7 +89,7 @@ class SwitchBetweenSplitPairsTest(override val flicker: FlickerTest) :
         flicker.splitAppLayerBoundsIsVisibleAtEnd(
             primaryApp,
             landscapePosLeft = tapl.isTablet,
-            portraitPosTop = false
+            portraitPosTop = false,
         )
 
     @Presubmit
@@ -98,7 +98,7 @@ class SwitchBetweenSplitPairsTest(override val flicker: FlickerTest) :
         flicker.splitAppLayerBoundsIsVisibleAtEnd(
             secondaryApp,
             landscapePosLeft = !tapl.isTablet,
-            portraitPosTop = true
+            portraitPosTop = true,
         )
 
     @Presubmit
@@ -109,7 +109,7 @@ class SwitchBetweenSplitPairsTest(override val flicker: FlickerTest) :
                 thirdApp,
                 landscapePosLeft = tapl.isTablet,
                 portraitPosTop = false,
-                flicker.scenario.startRotation
+                flicker.scenario.startRotation,
             )
         }
 
@@ -121,7 +121,7 @@ class SwitchBetweenSplitPairsTest(override val flicker: FlickerTest) :
                 fourthApp,
                 landscapePosLeft = !tapl.isTablet,
                 portraitPosTop = true,
-                flicker.scenario.startRotation
+                flicker.scenario.startRotation,
             )
         }
 

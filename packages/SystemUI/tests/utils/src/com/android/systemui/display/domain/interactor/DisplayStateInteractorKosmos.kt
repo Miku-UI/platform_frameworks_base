@@ -18,11 +18,14 @@ package com.android.systemui.display.domain.interactor
 
 import android.content.applicationContext
 import com.android.systemui.display.data.repository.DisplayStateRepository
+import com.android.systemui.display.data.repository.DisplayTypeRepositoryImpl
 import com.android.systemui.display.data.repository.displayRepository
 import com.android.systemui.display.data.repository.displayStateRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.applicationCoroutineScope
+import com.android.systemui.kosmos.testScope
+import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
 import com.android.systemui.util.mockito.mock
 import java.util.concurrent.Executor
 
@@ -40,4 +43,12 @@ fun Kosmos.createDisplayStateInteractor(
 
 val Kosmos.displayStateInteractor by Fixture {
     createDisplayStateInteractor(displayStateRepository)
+}
+
+val Kosmos.shadeDisplayTypeRepository by Fixture {
+    DisplayTypeRepositoryImpl(
+        displayRepository,
+        fakeShadeDisplaysRepository.pendingDisplayId,
+        testScope.backgroundScope,
+    )
 }

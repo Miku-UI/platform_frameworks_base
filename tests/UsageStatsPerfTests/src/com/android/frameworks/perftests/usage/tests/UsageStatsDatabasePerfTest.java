@@ -92,7 +92,7 @@ public class UsageStatsDatabasePerfTest {
             event.mPackage = "fake.package.name" + pkg;
             event.mClass = event.mPackage + ".class1";
             event.mTimeStamp = 1;
-            event.mEventType = UsageEvents.Event.ACTIVITY_RESUMED;
+            event.mEventType = UsageEvents.Event.STANDBY_BUCKET_CHANGED;
             for (int evt = 0; evt < eventsPerPackage; evt++) {
                 intervalStats.events.insert(event);
                 intervalStats.update(event.mPackage, event.mClass, event.mTimeStamp,

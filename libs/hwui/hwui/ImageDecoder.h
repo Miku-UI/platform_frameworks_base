@@ -74,6 +74,9 @@ public:
     bool isAnimated();
     int currentFrame() const;
 
+    void setAllocationLimit(size_t limit);
+    size_t getAllocationLimit();
+
     SkCodec::FrameInfo getCurrentFrameInfo();
 
     // Set whether the ImageDecoder should handle RestorePrevious frames.
@@ -118,6 +121,7 @@ private:
     sk_sp<Bitmap> mRestoreFrame;
     std::optional<SkIRect> mCropRect;
     std::optional<SkEncodedOrigin> mOverrideOrigin;
+    size_t mAllocationLimit;
 
     ImageDecoder(const ImageDecoder&) = delete;
     ImageDecoder& operator=(const ImageDecoder&) = delete;

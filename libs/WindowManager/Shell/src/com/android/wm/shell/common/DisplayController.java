@@ -23,12 +23,14 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
 import android.content.res.Configuration;
+import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.DisplayTopology;
 import android.os.RemoteException;
 import android.util.ArraySet;
+import android.util.Log;
 import android.util.Size;
 import android.util.Slog;
 import android.util.SparseArray;
@@ -37,6 +39,7 @@ import android.view.IDisplayWindowListener;
 import android.view.IWindowManager;
 import android.view.InsetsState;
 import android.window.DesktopExperienceFlags;
+import android.window.DisplayAreaInfo;
 import android.window.WindowContainerTransaction;
 
 import androidx.annotation.BinderThread;
@@ -101,8 +104,7 @@ public class DisplayController {
                 onDisplayAdded(displayIds[i]);
             }
 
-            if (DesktopExperienceFlags.ENABLE_CONNECTED_DISPLAYS_WINDOW_DRAG.isTrue()
-                    && mDesktopState.canEnterDesktopMode()) {
+            if (mDesktopState.canEnterDesktopMode()) {
                 mDisplayManager.registerTopologyListener(mMainExecutor,
                         this::onDisplayTopologyChanged);
                 onDisplayTopologyChanged(mDisplayManager.getDisplayTopology());
@@ -165,6 +167,56 @@ public class DisplayController {
     }
 
     /**
+     * Returns the relative direction from one display to another based on the topology.
+     */
+    public PointF getRelativeDisplayDirection(int fromDisplayId, int toDisplayId,
+            @Nullable Rect fromWindowBoundsPx, @Nullable Rect toWindowBoundsPx) {
+        if (mDisplayTopology == null) {
+            return new PointF(0, 0);
+        }
+        return mDisplayTopology.calculateRelativeDirection(fromDisplayId, toDisplayId,
+                fromWindowBoundsPx, toWindowBoundsPx);
+    }
+
+    /**
+     * Calculates a translation vector in DP for a move from one display to another.
+     * The vector is normalized to the given {@code distanceDp} and is only along the X-axis.
+     */
+    public PointF getRelativeTranslationDp(int fromDisplayId, int toDisplayId,
+            @Nullable Rect fromWindowBoundsPx, @Nullable Rect toWindowBoundsPx, float distanceDp) {
+        PointF direction;
+        try {
+            direction = getRelativeDisplayDirection(fromDisplayId, toDisplayId, fromWindowBoundsPx,
+                    toWindowBoundsPx);
+        } catch (IllegalArgumentException e) {
+            Log.e(TAG, "Couldn't calculate the relative direction. Using (0,0) instead.", e);
+            direction = new PointF(0, 0);
+        }
+        // There are general patterns about not moving on two axis at the same so we only support
+        // horizontal translations for now and ignore the vertical component of the direction
+        // vector, forcing the result to be strictly horizontal.
+        direction.y = 0;
+        // Since y is 0, the magnitude of the vector is just the absolute value of x and the sign of
+        // x determines the direction.
+        if (Math.abs(direction.x) > 1e-6) {
+            return new PointF(Math.signum(direction.x) * distanceDp, 0);
+        }
+        // Fallback if topology is vertical or missing
+        direction.set(fromDisplayId <= toDisplayId ? 1f : -1f, 0f);
+        return new PointF(direction.x * distanceDp, 0);
+    }
+
+    /**
+     *  Converts a vector from DP to pixels based on the density of the given display.
+     */
+    public PointF convertDpVectorToPxVector(int displayId, PointF vector) {
+        final Context context = getDisplayContext(displayId);
+        final float density = context != null
+                ? context.getResources().getDisplayMetrics().density : 1f;
+        return new PointF(vector.x * density, vector.y * density);
+    }
+
+    /**
      * Gets the DisplayLayout associated with a display.
      */
     public @Nullable DisplayLayout getDisplayLayout(int displayId) {
@@ -193,7 +245,7 @@ public class DisplayController {
      */
     public boolean isAnimationsDisabled(int displayId) {
         final DisplayRecord r = mDisplays.get(displayId);
-        return r == null || r.mAnimationsDisabled;
+        return r != null && r.mAnimationsDisabled;
     }
 
     /**
@@ -298,17 +350,21 @@ public class DisplayController {
 
     /** Called when a display rotate requested. */
     public void onDisplayChangeRequested(WindowContainerTransaction wct, int displayId,
-            Rect startAbsBounds, Rect endAbsBounds, int fromRotation, int toRotation) {
+            Rect startAbsBounds, Rect endAbsBounds, int fromRotation, int toRotation,
+            @Nullable InsetsState endInsetsState, @Nullable DisplayAreaInfo displayAreaInfo) {
         synchronized (mDisplays) {
-            final DisplayLayout dl = getDisplayLayout(displayId);
-            if (dl == null) {
+            final DisplayRecord dr = mDisplays.get(displayId);
+            if (dr == null) {
                 Slog.w(TAG, "Skipping Display rotate on non-added display.");
                 return;
+            }
+            if (endInsetsState != null) {
+                dr.setInsets(endInsetsState);
             }
             updateDisplayLayout(displayId, startAbsBounds, endAbsBounds, fromRotation, toRotation);
 
             mChangeController.dispatchOnDisplayChange(
-                    wct, displayId, fromRotation, toRotation, null /* newDisplayAreaInfo */);
+                    wct, displayId, fromRotation, toRotation, displayAreaInfo);
         }
     }
 
@@ -484,8 +540,7 @@ public class DisplayController {
                     ? new DisplayLayout(
                             context, display, true /* hasNavigationBar */, true /* hasTaskBar */)
                     : new DisplayLayout(context, display);
-            if (DesktopExperienceFlags.ENABLE_CONNECTED_DISPLAYS_WINDOW_DRAG.isTrue()
-                    && mDisplayTopology != null) {
+            if (mDisplayTopology != null) {
                 final RectF globalBounds = mDisplayTopology.getAbsoluteBounds().get(mDisplayId);
                 if (globalBounds != null) {
                     layout.setGlobalBoundsDp(globalBounds);

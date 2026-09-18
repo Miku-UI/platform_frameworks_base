@@ -16,8 +16,14 @@
 
 package com.android.server.locksettings;
 
+import android.annotation.Nullable;
+import android.os.RemoteException;
+import android.os.UserHandle;
+import android.security.GateKeeper;
 import android.security.keystore.KeyProperties;
+import android.security.keystore.KeyProtection;
 import android.security.keystore2.AndroidKeyStoreLoadStoreParameter;
+import android.text.TextUtils;
 import android.util.ArrayMap;
 
 import com.android.internal.util.Preconditions;
@@ -53,12 +59,32 @@ public final class FakeKeyStore {
 
     public static class FakeKeyStoreSpi extends KeyStoreSpi {
 
-        private final ArrayMap<String, SecretKey> mKeyByAlias = new ArrayMap<>();
+        private record SecretKeyEntry(SecretKey secretKey, @Nullable Long boundSid) {
+            SecretKeyEntry {
+                Preconditions.checkArgument(
+                        boundSid == null || boundSid != GateKeeper.INVALID_SECURE_USER_ID);
+            }
+        }
+
+        private static FakeGateKeeperService sFakeGateKeeperService = null;
+
+        private final ArrayMap<String, SecretKeyEntry> mKeyByAlias = new ArrayMap<>();
 
         @Override
         public Key engineGetKey(String alias, char[] password)
                 throws NoSuchAlgorithmException, UnrecoverableKeyException {
-            return mKeyByAlias.get(alias);
+            SecretKeyEntry entry = mKeyByAlias.get(alias);
+            if (entry == null) {
+                throw new UnrecoverableKeyException(
+                        TextUtils.formatSimple("Key %s not found", alias));
+            }
+            if (entry.boundSid != null) {
+                // Key is bound to an sid, implying authentication is required.
+                if (sFakeGateKeeperService.getAuthTokenForSid(entry.boundSid) == null) {
+                    throw new UnrecoverableKeyException("User not authenticated");
+                }
+            }
+            return entry.secretKey;
         }
 
         @Override
@@ -80,7 +106,29 @@ public final class FakeKeyStore {
         public void engineSetEntry(
                 String alias, KeyStore.Entry entry, KeyStore.ProtectionParameter protParam)
                 throws KeyStoreException {
-            mKeyByAlias.put(alias, ((KeyStore.SecretKeyEntry) entry).getSecretKey());
+            if (entry instanceof KeyStore.SecretKeyEntry) {
+                KeyProtection keyProtection = (KeyProtection) protParam;
+                Long boundSid = null;
+                if (keyProtection.isUserAuthenticationRequired()) {
+                    long boundSidParam = keyProtection.getBoundToSpecificSecureUserId();
+                    if (boundSidParam == GateKeeper.INVALID_SECURE_USER_ID) {
+                        try {
+                            boundSidParam =
+                                    sFakeGateKeeperService.getSecureUserId(UserHandle.myUserId());
+                        } catch (RemoteException e) {
+                            throw new KeyStoreException(e);
+                        }
+                        if (boundSidParam == GateKeeper.INVALID_SECURE_USER_ID) {
+                            throw new KeyStoreException("Current user not enrolled in Gatekeeper!");
+                        }
+                        boundSid = boundSidParam;
+                    }
+                }
+                mKeyByAlias.put(
+                        alias,
+                        new SecretKeyEntry(
+                                ((KeyStore.SecretKeyEntry) entry).getSecretKey(), boundSid));
+            }
         }
 
         @Override
@@ -182,8 +230,13 @@ public final class FakeKeyStore {
         }
     }
 
+    public static void setFakeGatekeeperService(FakeGateKeeperService fakeGateKeeperService) {
+        FakeKeyStoreSpi.sFakeGateKeeperService = fakeGateKeeperService;
+    }
+
     private static void uninstallFakeKeyStore() {
         Security.removeProvider(FakeKeyStore.NAME);
+        FakeKeyStoreSpi.sFakeGateKeeperService = null;
     }
 
     /** Installs an in-memory keystore for the duration of a JUnit test. */

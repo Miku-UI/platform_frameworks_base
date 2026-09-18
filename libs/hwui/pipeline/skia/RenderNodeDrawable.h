@@ -32,6 +32,7 @@ class RenderProperties;
 
 namespace skiapipeline {
 
+class BackdropFilterDrawable;
 class SkiaDisplayList;
 
 /**
@@ -85,6 +86,16 @@ public:
         mProjectedDisplayList = projectedDisplayList;
     }
 
+    /**
+     * Sets the BackdropFilterDrawable associated with this RenderNodeDrawable.
+     */
+    void setBackdropFilterDrawable(BackdropFilterDrawable* backdropFilterDrawable);
+
+    /**
+     * Returns the BackdropFilterDrawable associated with this RenderNodeDrawable, if any.
+     */
+    BackdropFilterDrawable* getBackdropFilterDrawable() const;
+
 protected:
     /*
      * Return the (conservative) bounds of what the drawable will draw.
@@ -119,8 +130,11 @@ private:
     /**
      * Applies the rendering properties of a view onto a SkCanvas.
      */
-    static void setViewProperties(const RenderProperties& properties, SkCanvas* canvas,
-                                  float* alphaMultiplier, bool ignoreLayer = false);
+    static void setViewProperties(const RenderNode* renderNode, SkCanvas* canvas,
+                                  float* alphaMultiplier, bool ignoreLayer = false,
+                                  bool applyClip = true);
+
+    static void applyViewClips(const RenderProperties& properties, SkCanvas* canvas, int clipFlags);
 
     /**
      * Stores transform on the canvas at time of recording and is used for
@@ -149,6 +163,11 @@ private:
      * display list that is searched for any render nodes with getProjectBackwards==true
      */
     SkiaDisplayList* mProjectedDisplayList = nullptr;
+
+    /**
+     * The BackdropFilterDrawable associated with this RenderNodeDrawable.
+     */
+    BackdropFilterDrawable* mBackdropFilterDrawable = nullptr;
 
     /**
      * Allow BackdropFilterDrawable to apply same render properties onto SkCanvas.

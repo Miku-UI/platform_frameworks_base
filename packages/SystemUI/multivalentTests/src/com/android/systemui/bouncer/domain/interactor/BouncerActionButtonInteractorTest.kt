@@ -118,6 +118,7 @@ class BouncerActionButtonInteractorTest : SysuiTestCase() {
             val underTest = kosmos.bouncerActionButtonInteractor
             val actionButton by collectLastValue(underTest.actionButton)
             assertThat(actionButton).isNull()
+            assertThat(underTest.currentActionButton).isEqualTo(actionButton)
         }
 
     @Test
@@ -127,6 +128,7 @@ class BouncerActionButtonInteractorTest : SysuiTestCase() {
             val underTest = kosmos.bouncerActionButtonInteractor
             val actionButton by collectLastValue(underTest.actionButton)
             assertThat(actionButton).isNull()
+            assertThat(underTest.currentActionButton).isEqualTo(actionButton)
         }
 
     @Test
@@ -140,6 +142,7 @@ class BouncerActionButtonInteractorTest : SysuiTestCase() {
             assertThat(actionButton?.labelResId).isEqualTo(R.string.lockscreen_return_to_call)
             assertThat(actionButton)
                 .isInstanceOf(BouncerActionButtonModel.ReturnToCallButtonModel::class.java)
+            assertThat(underTest.currentActionButton).isEqualTo(actionButton)
 
             underTest.onReturnToCallButtonClicked()
             runCurrent()
@@ -167,6 +170,7 @@ class BouncerActionButtonInteractorTest : SysuiTestCase() {
             assertThat(actionButton?.labelResId).isEqualTo(R.string.lockscreen_emergency_call)
             assertThat(actionButton)
                 .isInstanceOf(BouncerActionButtonModel.EmergencyButtonModel::class.java)
+            assertThat(underTest.currentActionButton).isEqualTo(actionButton)
 
             underTest.onEmergencyButtonClicked()
             runCurrent()
@@ -201,6 +205,7 @@ class BouncerActionButtonInteractorTest : SysuiTestCase() {
             assertThat(actionButton?.labelResId).isEqualTo(R.string.lockscreen_emergency_call)
             assertThat(actionButton)
                 .isInstanceOf(BouncerActionButtonModel.EmergencyButtonModel::class.java)
+            assertThat(underTest.currentActionButton).isEqualTo(actionButton)
         }
 
     @Test
@@ -232,6 +237,7 @@ class BouncerActionButtonInteractorTest : SysuiTestCase() {
             runCurrent()
 
             assertThat(actionButton).isNull()
+            assertThat(underTest.currentActionButton).isEqualTo(actionButton)
         }
 
     @EnableFlags(FLAG_SECURE_LOCK_DEVICE)

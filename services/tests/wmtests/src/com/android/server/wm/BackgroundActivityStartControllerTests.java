@@ -16,6 +16,9 @@
 
 package com.android.server.wm;
 
+import static android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT;
+
+import static com.android.server.wm.BackgroundActivityStartController.BAL_ALLOW_PCC_DEFINING_APP_HAS_VISIBLE_WINDOW;
 import static com.android.server.wm.BackgroundActivityStartController.BAL_ALLOW_PERMISSION;
 import static com.android.server.wm.BackgroundActivityStartController.BAL_ALLOW_VISIBLE_WINDOW;
 import static com.android.server.wm.BackgroundActivityStartController.BAL_BLOCK;
@@ -33,8 +36,11 @@ import android.app.BackgroundStartPrivileges;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
+import android.os.Process;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.provider.DeviceConfig;
 
 import androidx.test.filters.SmallTest;
@@ -111,6 +117,8 @@ public class BackgroundActivityStartControllerTests {
     MirrorActiveUids mActiveUids = new MirrorActiveUids();
     @Mock
     VisibleActivityProcessTracker mVisibleActivityProcessTracker;
+    @Mock
+    PackageManager mPackageManager;
 
     WindowProcessControllerMap mProcessMap = new WindowProcessControllerMap();
 
@@ -296,6 +304,42 @@ public class BackgroundActivityStartControllerTests {
         assertThat(verdict).isEqualTo(BalVerdict.BLOCK);
         assertThat(mBalAllowedLogs).containsExactly(
                 new BalAllowedLog("package.app3/someClass", BAL_BLOCK));
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void testPccActivityStart_parentVisible_isAllowed() {
+        int parentAppUid = REGULAR_UID_1;
+        // PCC UIDS are currently at a fixed offset from refular app uids
+        int pccUid = REGULAR_UID_1 + Process.FIRST_PCC_UID - Process.FIRST_APPLICATION_UID;
+        Mockito.when(mContext.getPackageManager()).thenReturn(mPackageManager);
+        Mockito.when(mPackageManager.getAppUidForPrivateComputeCoreUid(pccUid))
+                .thenReturn(parentAppUid);
+        Mockito.when(mService.hasActiveVisibleWindow(parentAppUid)).thenReturn(true);
+
+        int callingPid = REGULAR_PID_1;
+        String callingPackage = "com.android.pcc";
+        PendingIntentRecord originatingPendingIntent = null;
+        Intent intent = TEST_INTENT;
+        ActivityOptions checkedOptions = ActivityOptions.makeBasic();
+
+        BalVerdict verdict = mController.checkBackgroundActivityStart(
+                pccUid,
+                callingPid,
+                callingPackage,
+                pccUid, // realCallingUid
+                callingPid, // realCallingPid
+                mCallerApp,
+                originatingPendingIntent,
+                false, // allowBalExemptionForSystemProcess
+                mResultRecord,
+                intent,
+                checkedOptions);
+
+        assertThat(verdict.getCode()).isEqualTo(BAL_ALLOW_PCC_DEFINING_APP_HAS_VISIBLE_WINDOW);
+        assertThat(mBalAllowedLogs).containsExactly(
+                new BalAllowedLog("package.app3/someClass",
+                        BAL_ALLOW_PCC_DEFINING_APP_HAS_VISIBLE_WINDOW));
     }
 
     @Test
@@ -557,7 +601,7 @@ public class BackgroundActivityStartControllerTests {
                         + "isCallForResult: false; "
                         + "isPendingIntent: false; "
                         + "autoOptInReason: notPendingIntent; "
-                        + "realCallingPackage: uid=1[debugOnly]; "
+                        + "realCallingPackage: uid=1; "
                         + "realCallingPackageTargetSdk: -1; "
                         + "realCallingUid: 1; "
                         + "realCallingPid: 1; "
@@ -660,7 +704,7 @@ public class BackgroundActivityStartControllerTests {
                         + "isCallForResult: false; "
                         + "isPendingIntent: true; "
                         + "autoOptInReason: null; "
-                        + "realCallingPackage: uid=1[debugOnly]; "
+                        + "realCallingPackage: uid=1; "
                         + "realCallingPackageTargetSdk: -1; "
                         + "realCallingUid: 1; "
                         + "realCallingPid: 1; "
@@ -674,5 +718,62 @@ public class BackgroundActivityStartControllerTests {
                         + "balAllowedByPiSender: BSP.ALLOW_FGS; "
                         + "realCallerStartMode: MODE_BACKGROUND_ACTIVITY_START_SYSTEM_DEFINED; "
                         + "balDontBringExistingBackgroundTaskStackToFg: true]");
+    }
+
+    @Test
+    public void testAbortLaunch_noRealCaller_doesNotCrash() {
+        // This test verifies the fix for a potential NPE in abortLaunch.
+        // GIVEN a blocked activity start with no real caller (not a PendingIntent).
+        // In this case, mResultForRealCaller will be null inside abortLaunch.
+        mController.setCallerVerdict(BalVerdict.BLOCK);
+
+        // WHEN checking the background activity start for a non-PendingIntent
+        BalVerdict verdict = mController.checkBackgroundActivityStart(
+                REGULAR_UID_1, REGULAR_PID_1, REGULAR_PACKAGE_1,
+                -1 /* realCallingUid */, -1 /* realCallingPid */,
+                mCallerApp, null /* originatingPendingIntent */,
+                false /* allowBalExemptionForSystemProcess */,
+                null /* resultRecord */, TEST_INTENT, ActivityOptions.makeBasic());
+
+        // THEN the launch is blocked and no crash occurs.
+        assertThat(verdict.getCode()).isEqualTo(BAL_BLOCK);
+        // AND no toast is shown because mResultForCaller does not allow the start.
+        assertThat(mShownToasts).isEmpty();
+    }
+
+    private void checkAndAssertLoggedActivityName(Intent intent, String expectedActivityName) {
+        mController.checkBackgroundActivityStart(
+                REGULAR_UID_1,
+                REGULAR_PID_1,
+                REGULAR_PACKAGE_1,
+                -1, // realCallingUid
+                -1, // realCallingPid
+                mCallerApp,
+                null, // originatingPendingIntent
+                false, // allowBalExemptionForSystemProcess
+                null, // resultRecord
+                intent,
+                ActivityOptions.makeBasic());
+
+        assertThat(mBalAllowedLogs).hasSize(1);
+        assertThat(mBalAllowedLogs.get(0).packageName()).isEqualTo(expectedActivityName);
+    }
+
+    @Test
+    public void testGetComponent_withNullIntent_returnsNoIntent() {
+        // GIVEN a background activity start check with a null intent
+        // WHEN checking the background activity start
+        // THEN the logged activity name should be "noIntent"
+        checkAndAssertLoggedActivityName(null /* intent */, "noIntent");
+    }
+
+    @Test
+    public void testGetComponent_withIntentNoComponent_returnsNoComponent() {
+        // GIVEN a background activity start check with an intent that has no component
+        Intent intent = new Intent("some.action");
+
+        // WHEN checking the background activity start
+        // THEN the logged activity name should be "noComponent"
+        checkAndAssertLoggedActivityName(intent, "noComponent");
     }
 }

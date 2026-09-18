@@ -16,8 +16,12 @@
 
 package com.android.server.display;
 
+import static android.hardware.display.DisplayTopology.POSITION_BOTTOM;
+
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
@@ -26,12 +30,12 @@ import android.hardware.display.DisplayTopology;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.rule.SettingOverrideRule;
+import android.provider.Settings;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import org.junit.After;
 import org.junit.Before;
@@ -41,6 +45,14 @@ import org.junit.Test;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import platform.test.desktop.DesktopModeTestUtil;
+import platform.test.desktop.DisplayPeripheral;
+import platform.test.desktop.DisplaySize;
+import platform.test.desktop.PeripheralDevice;
+import platform.test.desktop.PeripheralDeviceTestRule;
+import platform.test.desktop.PeripheralType;
+import platform.test.desktop.PeripheralsResponse;
+
 /**
  * Tests that applications can receive topology updates correctly.
  */
@@ -48,14 +60,20 @@ public class TopologyUpdateDeliveryTest extends EventDeliveryTestBase {
     private static final String TAG = TopologyUpdateDeliveryTest.class.getSimpleName();
 
     @Rule
-    public final CheckFlagsRule mCheckFlagsRule =
-            DeviceFlagsValueProvider.createCheckFlagsRule();
+    public final SettingOverrideRule mIncludeDefaultDisplayInTopologyRule =
+            new SettingOverrideRule(Settings.Secure.INCLUDE_DEFAULT_DISPLAY_IN_TOPOLOGY, "1");
+
+    @Rule
+    public final PeripheralDeviceTestRule mPeripheralDeviceRule = new PeripheralDeviceTestRule();
 
     private static final String TEST_PACKAGE = "com.android.servicestests.apps.topologytestapp";
     private static final String TEST_ACTIVITY = TEST_PACKAGE + ".TopologyUpdateActivity";
 
     // Topology updates we expect to receive before timeout
     private final LinkedBlockingQueue<DisplayTopology> mExpectations = new LinkedBlockingQueue<>();
+
+    @Nullable
+    private DisplayTopology mOldTopology;
 
     /**
      * Add the received topology update from the test activity to the queue
@@ -90,8 +108,10 @@ public class TopologyUpdateDeliveryTest extends EventDeliveryTestBase {
                         TimeUnit.MILLISECONDS);
                 assertNotNull(update);
                 if (expect.equals(update)) {
-                    Log.d(TAG, "Found " + update);
+                    Log.d(TAG, "Found the expected topology: " + update);
                     return;
+                } else {
+                    Log.d(TAG, "Found a topology, but not the expected one yet: " + update);
                 }
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
@@ -128,11 +148,36 @@ public class TopologyUpdateDeliveryTest extends EventDeliveryTestBase {
     @Before
     public void setUp() {
         super.setUp();
+        assumeDesktopModeSupported();
+
+        // Create a new display that will be added to the topology. We need at least 2 displays
+        // to be able to change the topology.
+        PeripheralsResponse response =
+                mPeripheralDeviceRule.requestPeripherals(
+                        new DisplayPeripheral(
+                                PeripheralType.PHYSICAL_OR_SIMULATED, DisplaySize.SIZE_1080P));
+        int connectedDevices = 0;
+        for (PeripheralDevice device : response.getDevices()) {
+            if (device.getConnected()) {
+                connectedDevices++;
+            }
+            if (device instanceof platform.test.desktop.DisplayDevice d) {
+                assertTrue(d.getDisplayId() > 0);
+            } else {
+                fail("Unexpected peripheral device: " + device);
+            }
+        }
+        assertEquals(1, connectedDevices);
+
+        mOldTopology = mDisplayManager.getDisplayTopology();
     }
 
     @After
     public void tearDown() throws Exception {
         super.tearDown();
+        if (mOldTopology != null) {
+            mDisplayManager.setDisplayTopology(mOldTopology);
+        }
     }
 
     @Override
@@ -160,6 +205,7 @@ public class TopologyUpdateDeliveryTest extends EventDeliveryTestBase {
 
     private void testTopologyUpdateInternal(boolean cached, boolean frozen) {
         Log.d(TAG, "Start test testTopologyUpdate " + cached + " " + frozen);
+
         // Launch activity and start listening to topology updates
         int pid = launchTestActivity();
 
@@ -172,15 +218,8 @@ public class TopologyUpdateDeliveryTest extends EventDeliveryTestBase {
         }
 
         // Change the topology
-        int primaryDisplayId = 3;
-        DisplayTopology.TreeNode root = new DisplayTopology.TreeNode(primaryDisplayId,
-                /* logicalWidth= */ 600, /* logicalHeight= */ 400, /* logicalDensity= */ 160,
-                DisplayTopology.POSITION_LEFT, /* offset= */ 0);
-        DisplayTopology.TreeNode child = new DisplayTopology.TreeNode(/* displayId= */ 1,
-                /* logicalWidth= */ 800, /* logicalHeight= */ 600, /* logicalDensity= */ 160,
-                DisplayTopology.POSITION_LEFT, /* offset= */ 0);
-        root.addChild(child);
-        DisplayTopology topology = new DisplayTopology(root, primaryDisplayId);
+        DisplayTopology topology = mDisplayManager.getDisplayTopology();
+        topology.getRoot().getChildren().get(0).setPosition(POSITION_BOTTOM);
         mDisplayManager.setDisplayTopology(topology);
 
         if (cached || frozen) {
@@ -203,8 +242,13 @@ public class TopologyUpdateDeliveryTest extends EventDeliveryTestBase {
         }
     }
 
+    private void assumeDesktopModeSupported() {
+        boolean isDesktopModeSupported =
+                new DesktopModeTestUtil(mContext.getResources()).canEnterDesktopMode();
+        assumeTrue("Device does not support desktop mode", isDesktopModeSupported);
+    }
+
     @Test
-    @RequiresFlagsEnabled(com.android.server.display.feature.flags.Flags.FLAG_DISPLAY_TOPOLOGY)
     public void testTopologyUpdate() {
         testTopologyUpdateInternal(false, false);
     }
@@ -214,7 +258,6 @@ public class TopologyUpdateDeliveryTest extends EventDeliveryTestBase {
      * app.
      */
     @Test
-    @RequiresFlagsEnabled(com.android.server.display.feature.flags.Flags.FLAG_DISPLAY_TOPOLOGY)
     public void testTopologyUpdateCached() {
         testTopologyUpdateInternal(true, false);
     }
@@ -222,7 +265,6 @@ public class TopologyUpdateDeliveryTest extends EventDeliveryTestBase {
     /**
      * The app is frozen and the test verifies that no updates are delivered to the frozen app.
      */
-    @RequiresFlagsEnabled(com.android.server.display.feature.flags.Flags.FLAG_DISPLAY_TOPOLOGY)
     @Test
     public void testTopologyUpdateFrozen() {
         assumeTrue(isAppFreezerEnabled());
@@ -232,7 +274,6 @@ public class TopologyUpdateDeliveryTest extends EventDeliveryTestBase {
     /**
      * The app is cached and frozen and the test verifies that no updates are delivered to the app.
      */
-    @RequiresFlagsEnabled(com.android.server.display.feature.flags.Flags.FLAG_DISPLAY_TOPOLOGY)
     @Test
     public void testTopologyUpdateCachedFrozen() {
         assumeTrue(isAppFreezerEnabled());

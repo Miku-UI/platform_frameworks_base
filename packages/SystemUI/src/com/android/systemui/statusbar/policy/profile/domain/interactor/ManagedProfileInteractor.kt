@@ -20,6 +20,7 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.statusbar.policy.profile.data.repository.ManagedProfileRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
@@ -37,9 +38,9 @@ constructor(
     private val shouldShowProfileInfo: Flow<Boolean> =
         combine(
             deviceEntryInteractor.isDeviceEntered,
-            keyguardTransitionInteractor.currentKeyguardState,
-        ) { deviceEntered, keyguardState ->
-            deviceEntered || keyguardState == KeyguardState.OCCLUDED
+            keyguardTransitionInteractor.isFinishedIn(Scenes.Occluded, KeyguardState.OCCLUDED),
+        ) { deviceEntered, isOccluded ->
+            deviceEntered || isOccluded
         }
 
     /** Flow that emits the current profile info, or null if it should be hidden. */

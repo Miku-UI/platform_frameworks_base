@@ -26,7 +26,6 @@ import android.util.Slog;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.LocalServices;
-import com.android.server.display.feature.DisplayManagerFlags;
 import com.android.server.display.utils.DebugUtils;
 
 import java.io.IOException;
@@ -71,7 +70,7 @@ public class DisplayBackupHelper extends BlobBackupHelper {
 
     @Override
     protected byte[] getBackupPayload(String key) {
-        if (!KEY_DISPLAY.equals(key) || !mInjector.isDisplayTopologyFlagEnabled()) {
+        if (!KEY_DISPLAY.equals(key)) {
             return null;
         }
         try {
@@ -86,7 +85,7 @@ public class DisplayBackupHelper extends BlobBackupHelper {
 
     @Override
     protected void applyRestoredPayload(String key, byte[] payload) {
-        if (!KEY_DISPLAY.equals(key) || !mInjector.isDisplayTopologyFlagEnabled()) {
+        if (!KEY_DISPLAY.equals(key)) {
             return;
         }
         try (var oStream = mInjector.writeTopologyFile(mUserId)) {
@@ -109,13 +108,6 @@ public class DisplayBackupHelper extends BlobBackupHelper {
 
     @VisibleForTesting
     static class Injector {
-        private final boolean mIsDisplayTopologyEnabled =
-                new DisplayManagerFlags().isDisplayTopologyEnabled();
-
-        boolean isDisplayTopologyFlagEnabled() {
-            return mIsDisplayTopologyEnabled;
-        }
-
         @Nullable
         DisplayManagerInternal getDisplayManagerInternal() {
             return LocalServices.getService(DisplayManagerInternal.class);

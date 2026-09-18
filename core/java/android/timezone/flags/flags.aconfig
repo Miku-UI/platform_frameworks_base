@@ -1,18 +1,18 @@
 package: "android.timezone.flags"
 container: "system"
 
+# namespace: "location" is used by the Android System Time team for feature flags.
 
 flag {
     name: "expose_time_zone_system_api"
-    # "location" is used by the Android System Time team for feature flags.
     namespace: "location"
     description: "Turn time zone methods into system APIs for mainline modules"
     bug: "432239933"
+    is_exported: true
 }
 
 flag {
     name: "enable_fused_time_zone_detector"
-    # "location" is used by the Android System Time team for feature flags.
     namespace: "location"
     description: "Enable the fused time zone detector for time zone detection"
     bug: "394770805"
@@ -20,7 +20,6 @@ flag {
 
 flag {
     name: "enable_automatic_time_zone_rejection_logging"
-    # "location" is used by the Android System Time team for feature flags.
     namespace: "location"
     description: "Enable logging of rejections of automatic time zone changes events."
     bug: "417458133"
@@ -28,7 +27,6 @@ flag {
 
 flag {
     name: "enable_time_zone_transition_telemetry_logging"
-    # "location" is used by the Android System Time team for feature flags.
     namespace: "location"
     description: "Enable logging of time zone transitions."
     bug: "417458133"
@@ -36,8 +34,40 @@ flag {
 
 flag {
     name: "enable_permanent_time_zone_correctness_telemetry_logging"
-    # "location" is used by the Android System Time team for feature flags.
     namespace: "location"
     description: "Enable logging of time zone providers inconsistencies."
     bug: "417458133"
+}
+
+flag {
+    name: "enable_time_zone_offset_change_broadcast"
+    namespace: "location"
+    description: "Enable broadcast of intent for time zone offset changes."
+    bug: "452947405"
+    is_exported: true
+}
+
+flag {
+    name: "time_zone_offset_change_notifications"
+    namespace: "location"
+    description: "Enable notifications for time zone offset changes."
+    bug: "454896139"
+}
+
+flag {
+    name: "enable_home_time_zone_api"
+    namespace: "location"
+    description: "Enable home time zone detection and API."
+    bug: "462709479"
+    is_exported: true
+}
+
+flag {
+    name: "enable_ternary_time_format_setting"
+    namespace: "location"
+    description: "Enable the ternary time format setting."
+    bug: "441087711"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

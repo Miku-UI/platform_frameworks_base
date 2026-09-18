@@ -18,10 +18,11 @@ package com.android.systemui.screencapture.common
 
 import android.view.Display
 import android.view.Window
+import androidx.compose.animation.core.Transition
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.screencapture.common.shared.model.ScreenCaptureType
 import com.android.systemui.screencapture.common.ui.compose.ScreenCaptureContent
-import com.android.systemui.screencapture.common.ui.compose.screenCaptureContents
+import com.android.systemui.screencapture.record.ui.compose.screenCaptureRecordContent
 import kotlinx.coroutines.CoroutineScope
 
 fun Kosmos.screenCaptureUiComponentBuilder(
@@ -29,20 +30,28 @@ fun Kosmos.screenCaptureUiComponentBuilder(
 ): ScreenCaptureUiComponent.Builder =
     object : ScreenCaptureUiComponent.Builder {
 
-        private lateinit var scope: CoroutineScope
+        private lateinit var transition: Transition<Boolean>
 
-        override fun setScope(scope: CoroutineScope): ScreenCaptureUiComponent.Builder {
-            this.scope = scope
-            return this
-        }
+        override fun setScope(scope: CoroutineScope): ScreenCaptureUiComponent.Builder = this
 
         override fun setDisplay(display: Display): ScreenCaptureUiComponent.Builder = this
 
         override fun setWindow(window: Window?): ScreenCaptureUiComponent.Builder = this
 
+        override fun setVisibilityTransition(
+            transition: Transition<Boolean>
+        ): ScreenCaptureUiComponent.Builder {
+            this.transition = transition
+            return this
+        }
+
         override fun build(): ScreenCaptureUiComponent =
             object : ScreenCaptureUiComponent {
                 override val screenCaptureContent: ScreenCaptureContent
-                    get() = screenCaptureContents.getValue(type)
+                    get() =
+                        when (type) {
+                            ScreenCaptureType.RECORD -> screenCaptureRecordContent(transition)
+                            else -> throw IllegalArgumentException("$type is not yet supported")
+                        }
             }
     }

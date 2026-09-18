@@ -51,46 +51,43 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
-/**
- * A singleton implementation of {@link ServiceConfigAccessor}.
- */
+/** A singleton implementation of {@link ServiceConfigAccessor}. */
 public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
 
-    /**
-     * Device config keys that can affect the content of {@link ConfigurationInternal}.
-     */
-    private static final Set<String> CONFIGURATION_INTERNAL_SERVER_FLAGS_KEYS_TO_WATCH = Set.of(
-            ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_FEATURE_SUPPORTED,
-            ServerFlags.KEY_PRIMARY_LTZP_MODE_OVERRIDE,
-            ServerFlags.KEY_SECONDARY_LTZP_MODE_OVERRIDE,
-            ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_RUN_IN_BACKGROUND_ENABLED,
-            ServerFlags.KEY_ENHANCED_METRICS_COLLECTION_ENABLED,
-            ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_DEFAULT,
-            ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_OVERRIDE,
-            ServerFlags.KEY_TIME_ZONE_DETECTOR_AUTO_DETECTION_ENABLED_DEFAULT,
-            ServerFlags.KEY_TIME_ZONE_DETECTOR_TELEPHONY_FALLBACK_SUPPORTED,
-            ServerFlags.KEY_TIME_ZONE_NOTIFICATIONS_SUPPORTED,
-            ServerFlags.KEY_TIME_ZONE_NOTIFICATIONS_ENABLED_DEFAULT,
-            ServerFlags.KEY_TIME_ZONE_NOTIFICATIONS_TRACKING_SUPPORTED,
-            ServerFlags.KEY_TIME_ZONE_MANUAL_CHANGE_TRACKING_SUPPORTED
-    );
+    /** Device config keys that can affect the content of {@link ConfigurationInternal}. */
+    private static final Set<String> CONFIGURATION_INTERNAL_SERVER_FLAGS_KEYS_TO_WATCH =
+            Set.of(
+                    ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_FEATURE_SUPPORTED,
+                    ServerFlags.KEY_PRIMARY_LTZP_MODE_OVERRIDE,
+                    ServerFlags.KEY_SECONDARY_LTZP_MODE_OVERRIDE,
+                    ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_RUN_IN_BACKGROUND_ENABLED,
+                    ServerFlags.KEY_ENHANCED_METRICS_COLLECTION_ENABLED,
+                    ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_DEFAULT,
+                    ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_OVERRIDE,
+                    ServerFlags.KEY_TIME_ZONE_DETECTOR_AUTO_DETECTION_ENABLED_DEFAULT,
+                    ServerFlags.KEY_TIME_ZONE_DETECTOR_TELEPHONY_FALLBACK_SUPPORTED,
+                    ServerFlags.KEY_TIME_ZONE_NOTIFICATIONS_SUPPORTED,
+                    ServerFlags.KEY_TIME_ZONE_NOTIFICATIONS_ENABLED_DEFAULT,
+                    ServerFlags.KEY_TIME_ZONE_NOTIFICATIONS_TRACKING_SUPPORTED,
+                    ServerFlags.KEY_TIME_ZONE_MANUAL_CHANGE_TRACKING_SUPPORTED,
+                    ServerFlags.KEY_TIME_ZONE_OFFSET_CHANGE_NOTIFICATIONS_SUPPORTED);
 
     /**
      * Device config keys that can affect {@link
      * com.android.server.timezonedetector.location.LocationTimeZoneManagerService} behavior.
      */
-    private static final Set<String> LOCATION_TIME_ZONE_MANAGER_SERVER_FLAGS_KEYS_TO_WATCH = Set.of(
-            ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_FEATURE_SUPPORTED,
-            ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_RUN_IN_BACKGROUND_ENABLED,
-            ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_DEFAULT,
-            ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_OVERRIDE,
-            ServerFlags.KEY_PRIMARY_LTZP_MODE_OVERRIDE,
-            ServerFlags.KEY_SECONDARY_LTZP_MODE_OVERRIDE,
-            ServerFlags.KEY_LTZP_INITIALIZATION_TIMEOUT_MILLIS,
-            ServerFlags.KEY_LTZP_INITIALIZATION_TIMEOUT_FUZZ_MILLIS,
-            ServerFlags.KEY_LTZP_EVENT_FILTERING_AGE_THRESHOLD_MILLIS,
-            ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_UNCERTAINTY_DELAY_MILLIS
-    );
+    private static final Set<String> LOCATION_TIME_ZONE_MANAGER_SERVER_FLAGS_KEYS_TO_WATCH =
+            Set.of(
+                    ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_FEATURE_SUPPORTED,
+                    ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_RUN_IN_BACKGROUND_ENABLED,
+                    ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_DEFAULT,
+                    ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_SETTING_ENABLED_OVERRIDE,
+                    ServerFlags.KEY_PRIMARY_LTZP_MODE_OVERRIDE,
+                    ServerFlags.KEY_SECONDARY_LTZP_MODE_OVERRIDE,
+                    ServerFlags.KEY_LTZP_INITIALIZATION_TIMEOUT_MILLIS,
+                    ServerFlags.KEY_LTZP_INITIALIZATION_TIMEOUT_FUZZ_MILLIS,
+                    ServerFlags.KEY_LTZP_EVENT_FILTERING_AGE_THRESHOLD_MILLIS,
+                    ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_UNCERTAINTY_DELAY_MILLIS);
 
     private static final Duration DEFAULT_LTZP_INITIALIZATION_TIMEOUT = Duration.ofMinutes(5);
     private static final Duration DEFAULT_LTZP_INITIALIZATION_TIMEOUT_FUZZ = Duration.ofMinutes(1);
@@ -104,37 +101,31 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
     @Nullable
     private static ServiceConfigAccessor sInstance;
 
-    @NonNull
-    private final Context mContext;
-    @NonNull
-    private final ServerFlags mServerFlags;
-    @NonNull
-    private final ContentResolver mCr;
-    @NonNull
-    private final UserManager mUserManager;
-    @NonNull
-    private final LocationManager mLocationManager;
+    @NonNull private final Context mContext;
+    @NonNull private final ServerFlags mServerFlags;
+    @NonNull private final ContentResolver mCr;
+    @NonNull private final UserManager mUserManager;
+    @NonNull private final LocationManager mLocationManager;
 
     @GuardedBy("this")
     @NonNull
     private final List<StateChangeListener> mConfigurationInternalListeners = new ArrayList<>();
 
     /**
-     * The mode to use for the primary location time zone provider in a test. Setting this
-     * disables some permission checks.
-     * This state is volatile: it is never written to storage / never survives a reboot. This is to
-     * avoid a test provider accidentally being left configured on a device.
-     * See also {@link #resetVolatileTestConfig()}.
+     * The mode to use for the primary location time zone provider in a test. Setting this disables
+     * some permission checks. This state is volatile: it is never written to storage / never
+     * survives a reboot. This is to avoid a test provider accidentally being left configured on a
+     * device. See also {@link #resetVolatileTestConfig()}.
      */
     @GuardedBy("this")
     @Nullable
     private String mTestPrimaryLocationTimeZoneProviderMode;
 
     /**
-     * The package name to use for the primary location time zone provider in a test.
-     * This state is volatile: it is never written to storage / never survives a reboot. This is to
-     * avoid a test provider accidentally being left configured on a device.
-     * See also {@link #resetVolatileTestConfig()}.
+     * The package name to use for the primary location time zone provider in a test. This state is
+     * volatile: it is never written to storage / never survives a reboot. This is to avoid a test
+     * provider accidentally being left configured on a device. See also {@link
+     * #resetVolatileTestConfig()}.
      */
     @GuardedBy("this")
     @Nullable
@@ -157,10 +148,9 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
     private String mTestSecondaryLocationTimeZoneProviderPackageName;
 
     /**
-     * Whether to record state changes for tests.
-     * This state is volatile: it is never written to storage / never survives a reboot. This is to
-     * avoid a test state accidentally being left configured on a device.
-     * See also {@link #resetVolatileTestConfig()}.
+     * Whether to record state changes for tests. This state is volatile: it is never written to
+     * storage / never survives a reboot. This is to avoid a test state accidentally being left
+     * configured on a device. See also {@link #resetVolatileTestConfig()}.
      */
     @GuardedBy("this")
     private boolean mRecordStateChangesForTests;
@@ -180,39 +170,53 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_USER_SWITCHED);
         filter.addAction(LocationManager.MODE_CHANGED_ACTION);
-        mContext.registerReceiverForAllUsers(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                handleConfigurationInternalChangeOnMainThread();
-            }
-        }, filter, null, null /* main thread */);
+        mContext.registerReceiverForAllUsers(
+                new BroadcastReceiver() {
+                    @Override
+                    public void onReceive(Context context, Intent intent) {
+                        handleConfigurationInternalChangeOnMainThread();
+                    }
+                },
+                filter,
+                /* broadcastPermission= */ null,
+                /* scheduler= */ null /* main thread */);
 
         Handler mainThreadHandler = mContext.getMainThreadHandler();
 
         // Add async callbacks for changes to global settings that influence behavior.
         ContentResolver contentResolver = mContext.getContentResolver();
-        ContentObserver contentObserver = new ContentObserver(mainThreadHandler) {
-            @Override
-            public void onChange(boolean selfChange) {
-                handleConfigurationInternalChangeOnMainThread();
-            }
-        };
+        ContentObserver contentObserver =
+                new ContentObserver(mainThreadHandler) {
+                    @Override
+                    public void onChange(boolean selfChange) {
+                        handleConfigurationInternalChangeOnMainThread();
+                    }
+                };
         contentResolver.registerContentObserver(
                 Settings.Global.getUriFor(Settings.Global.AUTO_TIME_ZONE), true, contentObserver);
         contentResolver.registerContentObserver(
-                Settings.Global.getUriFor(Settings.Global.AUTO_TIME_ZONE_EXPLICIT), true,
+                Settings.Global.getUriFor(Settings.Global.AUTO_TIME_ZONE_EXPLICIT),
+                true,
                 contentObserver);
         contentResolver.registerContentObserver(
-                Settings.Global.getUriFor(Settings.Global.TIME_ZONE_NOTIFICATIONS), true,
+                Settings.Global.getUriFor(Settings.Global.TIME_ZONE_NOTIFICATIONS),
+                true,
+                contentObserver);
+        contentResolver.registerContentObserver(
+                Settings.Global.getUriFor(Settings.Global.TIME_ZONE_OFFSET_CHANGE_NOTIFICATIONS),
+                true,
                 contentObserver);
 
         // Add async callbacks for user scoped location settings being changed.
         contentResolver.registerContentObserver(
                 Settings.Secure.getUriFor(Settings.Secure.LOCATION_TIME_ZONE_DETECTION_ENABLED),
-                true, contentObserver, UserHandle.USER_ALL);
+                true,
+                contentObserver,
+                UserHandle.USER_ALL);
 
         // Watch server flags.
-        mServerFlags.addListener(this::handleConfigurationInternalChangeOnMainThread,
+        mServerFlags.addListener(
+                this::handleConfigurationInternalChangeOnMainThread,
                 CONFIGURATION_INTERNAL_SERVER_FLAGS_KEYS_TO_WATCH);
 
         // Watch for policy changes that affect what the user is permitted to do.
@@ -224,8 +228,9 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
                         // This callback currently delivered on main thread, but this post() is
                         // defensive and doesn't rely on that in case it changes.
                         mainThreadHandler.post(
-                                () -> handleUserRestrictionsChangeOnMainThread(
-                                        userId, newRestrictions, prevRestrictions));
+                                () ->
+                                        handleUserRestrictionsChangeOnMainThread(
+                                                userId, newRestrictions, prevRestrictions));
                     }
                 });
     }
@@ -280,7 +285,8 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
     }
 
     @Override
-    public synchronized boolean updateConfiguration(@UserIdInt int userId,
+    public synchronized boolean updateConfiguration(
+            @UserIdInt int userId,
             @NonNull TimeZoneConfiguration requestedConfigurationUpdates,
             boolean bypassUserPolicyChecks) {
         Objects.requireNonNull(requestedConfigurationUpdates);
@@ -305,12 +311,13 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
     }
 
     /**
-     * Stores the configuration properties contained in {@code newConfiguration}.
-     * All checks about user capabilities must be done by the caller and
-     * {@link TimeZoneConfiguration#isComplete()} must be {@code true}.
+     * Stores the configuration properties contained in {@code newConfiguration}. All checks about
+     * user capabilities must be done by the caller and {@link TimeZoneConfiguration#isComplete()}
+     * must be {@code true}.
      */
     @GuardedBy("this")
-    private void storeConfiguration(@UserIdInt int userId,
+    private void storeConfiguration(
+            @UserIdInt int userId,
             @NonNull TimeZoneConfiguration requestedConfigurationUpdates,
             @NonNull TimeZoneConfiguration newConfiguration) {
         Objects.requireNonNull(newConfiguration);
@@ -351,6 +358,16 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
             }
             setNotificationsEnabledIfRequired(newConfiguration.areNotificationsEnabled());
         }
+
+        if (areTimeZoneOffsetChangeNotificationsSupported()) {
+            if (requestedConfigurationUpdates.hasIsTimeZoneOffsetChangeNotificationsEnabled()) {
+                setTimeZoneOffsetChangeNotificationsEnabledSetting(
+                        requestedConfigurationUpdates
+                                .areTimeZoneOffsetChangeNotificationsEnabled());
+            }
+            setTimeZoneOffsetChangeNotificationsEnabledIfRequired(
+                    newConfiguration.areTimeZoneOffsetChangeNotificationsEnabled());
+        }
     }
 
     @Override
@@ -372,6 +389,10 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
                 .setNotificationsEnabledSetting(getNotificationsEnabledSetting())
                 .setNotificationsTrackingSupported(isNotificationTrackingSupported())
                 .setManualChangeTrackingSupported(isManualChangeTrackingSupported())
+                .setTimeZoneOffsetChangeNotificationsSupported(
+                        areTimeZoneOffsetChangeNotificationsSupported())
+                .setTimeZoneOffsetChangeNotificationsEnabledSetting(
+                        getTimeZoneOffsetChangeNotificationsEnabledSetting())
                 .build();
     }
 
@@ -398,8 +419,9 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
         boolean autoDetectionEnabledSetting =
                 Settings.Global.getInt(mCr, Settings.Global.AUTO_TIME_ZONE, 1 /* default */) > 0;
 
-        Optional<Boolean> optionalFlagValue = mServerFlags.getOptionalBoolean(
-                ServerFlags.KEY_TIME_ZONE_DETECTOR_AUTO_DETECTION_ENABLED_DEFAULT);
+        Optional<Boolean> optionalFlagValue =
+                mServerFlags.getOptionalBoolean(
+                        ServerFlags.KEY_TIME_ZONE_DETECTOR_AUTO_DETECTION_ENABLED_DEFAULT);
         if (optionalFlagValue.isPresent()) {
             // This branch is rare: it is expected to happen only for internal testers.
 
@@ -432,16 +454,22 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
         }
 
         final boolean geoDetectionEnabledByDefault = isGeoDetectionEnabledForUsersByDefault();
-        return Settings.Secure.getIntForUser(mCr,
-                Settings.Secure.LOCATION_TIME_ZONE_DETECTION_ENABLED,
-                (geoDetectionEnabledByDefault ? 1 : 0) /* defaultValue */, userId) != 0;
+        return Settings.Secure.getIntForUser(
+                        mCr,
+                        Settings.Secure.LOCATION_TIME_ZONE_DETECTION_ENABLED,
+                        (geoDetectionEnabledByDefault ? 1 : 0) /* defaultValue */,
+                        userId)
+                != 0;
     }
 
     private void setGeoDetectionEnabledSettingIfRequired(@UserIdInt int userId, boolean enabled) {
         // See comment in setAutoDetectionEnabledIfRequired. http://b/171953500
         if (getGeoDetectionEnabledSetting(userId) != enabled) {
-            Settings.Secure.putIntForUser(mCr, Settings.Secure.LOCATION_TIME_ZONE_DETECTION_ENABLED,
-                    enabled ? 1 : 0, userId);
+            Settings.Secure.putIntForUser(
+                    mCr,
+                    Settings.Secure.LOCATION_TIME_ZONE_DETECTION_ENABLED,
+                    enabled ? 1 : 0,
+                    userId);
         }
     }
 
@@ -465,8 +493,11 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
 
     private boolean getNotificationsEnabledSetting() {
         final boolean notificationsEnabledByDefault = areNotificationsEnabledByDefault();
-        return Settings.Global.getInt(mCr, Settings.Global.TIME_ZONE_NOTIFICATIONS,
-                (notificationsEnabledByDefault ? 1 : 0) /* defaultValue */) != 0;
+        return Settings.Global.getInt(
+                        mCr,
+                        Settings.Global.TIME_ZONE_NOTIFICATIONS,
+                        (notificationsEnabledByDefault ? 1 : 0) /* defaultValue */)
+                != 0;
     }
 
     private boolean areNotificationsEnabledByDefault() {
@@ -488,9 +519,45 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
         }
     }
 
+    private boolean areTimeZoneOffsetChangeNotificationsSupported() {
+        return mServerFlags.getBoolean(
+                ServerFlags.KEY_TIME_ZONE_OFFSET_CHANGE_NOTIFICATIONS_SUPPORTED,
+                getConfigBoolean(R.bool.config_enableTimeZoneOffsetChangeNotificationsSupported));
+    }
+
+    private boolean getTimeZoneOffsetChangeNotificationsEnabledSetting() {
+        final boolean notificationsEnabledByDefault =
+                areTimeZoneOffsetChangeNotificationsEnabledByDefault();
+        return Settings.Global.getInt(
+                        mCr,
+                        Settings.Global.TIME_ZONE_OFFSET_CHANGE_NOTIFICATIONS,
+                        (notificationsEnabledByDefault ? 1 : 0) /* defaultValue */)
+                != 0;
+    }
+
+    private boolean areTimeZoneOffsetChangeNotificationsEnabledByDefault() {
+        return mServerFlags.getBoolean(
+                ServerFlags.KEY_TIME_ZONE_OFFSET_CHANGE_NOTIFICATIONS_ENABLED_DEFAULT, true);
+    }
+
+    private void setTimeZoneOffsetChangeNotificationsEnabledSetting(boolean enabled) {
+        Settings.Global.putInt(
+                mCr, Settings.Global.TIME_ZONE_OFFSET_CHANGE_NOTIFICATIONS, enabled ? 1 : 0);
+    }
+
+    private void setTimeZoneOffsetChangeNotificationsEnabledIfRequired(boolean enabled) {
+        // This check is racey, but the whole settings update process is racey. This check prevents
+        // a ConfigurationChangeListener callback triggering due to ContentObserver's still
+        // triggering *sometimes* for no-op updates. Because callbacks are async this is necessary
+        // for stable behavior during tests.
+        if (getTimeZoneOffsetChangeNotificationsEnabledSetting() != enabled) {
+            Settings.Global.putInt(
+                    mCr, Settings.Global.TIME_ZONE_OFFSET_CHANGE_NOTIFICATIONS, enabled ? 1 : 0);
+        }
+    }
+
     @Override
-    public void addLocationTimeZoneManagerConfigListener(
-            @NonNull StateChangeListener listener) {
+    public void addLocationTimeZoneManagerConfigListener(@NonNull StateChangeListener listener) {
         mServerFlags.addListener(listener, LOCATION_TIME_ZONE_MANAGER_SERVER_FLAGS_KEYS_TO_WATCH);
     }
 
@@ -524,8 +591,8 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
 
     private boolean atLeastOneProviderIsEnabled() {
         return !(Objects.equals(getPrimaryLocationTimeZoneProviderMode(), PROVIDER_MODE_DISABLED)
-                && Objects.equals(getSecondaryLocationTimeZoneProviderMode(),
-                PROVIDER_MODE_DISABLED));
+                && Objects.equals(
+                        getSecondaryLocationTimeZoneProviderMode(), PROVIDER_MODE_DISABLED));
     }
 
     /**
@@ -535,8 +602,7 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
     private boolean isGeoTimeZoneDetectionFeatureSupportedInternal() {
         final boolean defaultEnabled = true;
         return mServerFlags.getBoolean(
-                ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_FEATURE_SUPPORTED,
-                defaultEnabled);
+                ServerFlags.KEY_LOCATION_TIME_ZONE_DETECTION_FEATURE_SUPPORTED, defaultEnabled);
     }
 
     /**
@@ -558,8 +624,7 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
     private boolean isEnhancedMetricsCollectionEnabled() {
         final boolean defaultEnabled = false;
         return mServerFlags.getBoolean(
-                ServerFlags.KEY_ENHANCED_METRICS_COLLECTION_ENABLED,
-                defaultEnabled);
+                ServerFlags.KEY_ENHANCED_METRICS_COLLECTION_ENABLED, defaultEnabled);
     }
 
     @Override
@@ -569,8 +634,8 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
             // In test mode: use the test setting value.
             return mTestPrimaryLocationTimeZoneProviderPackageName;
         }
-        return mContext.getResources().getString(
-                R.string.config_primaryLocationTimeZoneProviderPackageName);
+        return mContext.getResources()
+                .getString(R.string.config_primaryLocationTimeZoneProviderPackageName);
     }
 
     @Override
@@ -580,7 +645,8 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
                 testPrimaryLocationTimeZoneProviderPackageName;
         mTestPrimaryLocationTimeZoneProviderMode =
                 mTestPrimaryLocationTimeZoneProviderPackageName == null
-                        ? PROVIDER_MODE_DISABLED : PROVIDER_MODE_ENABLED;
+                        ? PROVIDER_MODE_DISABLED
+                        : PROVIDER_MODE_ENABLED;
         // Changing this state can affect the content of ConfigurationInternal, so listeners need to
         // be informed.
         mContext.getMainThreadHandler().post(this::handleConfigurationInternalChangeOnMainThread);
@@ -598,8 +664,8 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
             // In test mode: use the test setting value.
             return mTestSecondaryLocationTimeZoneProviderPackageName;
         }
-        return mContext.getResources().getString(
-                R.string.config_secondaryLocationTimeZoneProviderPackageName);
+        return mContext.getResources()
+                .getString(R.string.config_secondaryLocationTimeZoneProviderPackageName);
     }
 
     @Override
@@ -609,7 +675,8 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
                 testSecondaryLocationTimeZoneProviderPackageName;
         mTestSecondaryLocationTimeZoneProviderMode =
                 mTestSecondaryLocationTimeZoneProviderPackageName == null
-                        ? PROVIDER_MODE_DISABLED : PROVIDER_MODE_ENABLED;
+                        ? PROVIDER_MODE_DISABLED
+                        : PROVIDER_MODE_ENABLED;
         // Changing this state can affect the content of ConfigurationInternal, so listeners need to
         // be informed.
         mContext.getMainThreadHandler().post(this::handleConfigurationInternalChangeOnMainThread);
@@ -637,7 +704,8 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
             // In test mode: use the test setting value.
             return mTestPrimaryLocationTimeZoneProviderMode;
         }
-        return mServerFlags.getOptionalString(ServerFlags.KEY_PRIMARY_LTZP_MODE_OVERRIDE)
+        return mServerFlags
+                .getOptionalString(ServerFlags.KEY_PRIMARY_LTZP_MODE_OVERRIDE)
                 .orElse(getPrimaryLocationTimeZoneProviderModeFromConfig());
     }
 
@@ -645,7 +713,8 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
     private synchronized @ProviderMode String getPrimaryLocationTimeZoneProviderModeFromConfig() {
         int providerEnabledConfigId = R.bool.config_enablePrimaryLocationTimeZoneProvider;
         return getConfigBoolean(providerEnabledConfigId)
-                ? PROVIDER_MODE_ENABLED : PROVIDER_MODE_DISABLED;
+                ? PROVIDER_MODE_ENABLED
+                : PROVIDER_MODE_DISABLED;
     }
 
     @Override
@@ -654,7 +723,8 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
             // In test mode: use the test setting value.
             return mTestSecondaryLocationTimeZoneProviderMode;
         }
-        return mServerFlags.getOptionalString(ServerFlags.KEY_SECONDARY_LTZP_MODE_OVERRIDE)
+        return mServerFlags
+                .getOptionalString(ServerFlags.KEY_SECONDARY_LTZP_MODE_OVERRIDE)
                 .orElse(getSecondaryLocationTimeZoneProviderModeFromConfig());
     }
 
@@ -662,7 +732,8 @@ public final class ServiceConfigAccessorImpl implements ServiceConfigAccessor {
     private synchronized @ProviderMode String getSecondaryLocationTimeZoneProviderModeFromConfig() {
         int providerEnabledConfigId = R.bool.config_enableSecondaryLocationTimeZoneProvider;
         return getConfigBoolean(providerEnabledConfigId)
-                ? PROVIDER_MODE_ENABLED : PROVIDER_MODE_DISABLED;
+                ? PROVIDER_MODE_ENABLED
+                : PROVIDER_MODE_DISABLED;
     }
 
     @Override

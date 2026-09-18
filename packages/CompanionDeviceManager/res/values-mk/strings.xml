@@ -35,7 +35,6 @@
     <string name="profile_name_medical" msgid="5617160509499466400">"медицински уред"</string>
     <string name="title_app_streaming" msgid="237666000400427614">"Да се дозволи &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; да стримува апликации и системски функции меѓу вашиот <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> и &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
     <string name="summary_app_streaming" msgid="8346968726357732862">"<xliff:g id="APP_NAME">%1$s</xliff:g> ќе ги добие следниве дозволи:"</string>
-    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> ќе има пристап до сѐ што е видливо или пуштено на <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>, вклучително и аудио, фотографии, податоци за плаќање, лозинки и пораки.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_1">%1$s</xliff:g> ќе може да стримува апликации на <xliff:g id="DEVICE_NAME">%3$s</xliff:g> сѐ додека не ја отстраните дозволава."</string>
     <string name="helper_summary_app_streaming" msgid="160149899100957545">"<xliff:g id="APP_NAME">%1$s</xliff:g> бара дозвола во име на <xliff:g id="DEVICE_NAME">%2$s</xliff:g> за да стримува апликации и системски функции меѓу вашите уреди"</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
@@ -43,12 +42,13 @@
     <string name="helper_summary_computer" msgid="2298803016482139668">"<xliff:g id="APP_NAME">%1$s</xliff:g> бара дозвола во име на вашиот <xliff:g id="DEVICE_NAME">%2$s</xliff:g> за да пристапува до фотографиите, аудиовизуелните содржини и известувањата на <xliff:g id="DEVICE_TYPE">%3$s</xliff:g>"</string>
     <string name="title_nearby_device_streaming" msgid="5342768208699657581">"Да се дозволи &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; да стримува апликации и системски функции меѓу вашиот <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> и &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
     <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"<xliff:g id="APP_NAME">%1$s</xliff:g> ќе ги добие следниве дозволи:"</string>
-    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> ќе има пристап до сѐ што е видливо или пуштено на <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>, вклучително и аудио, фотографии, податоци за плаќање, лозинки и пораки.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%1$s</xliff:g> ќе може да стримува апликации на <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> сѐ додека не ја отстраните дозволава."</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"<xliff:g id="APP_NAME">%1$s</xliff:g> бара дозвола во име на <xliff:g id="DEVICE_NAME">%2$s</xliff:g> за да стримува апликации од вашиот <xliff:g id="DEVICE_TYPE">%3$s</xliff:g>"</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"Да се дозволи &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; да стримува аудио и системски функции меѓу вашиот <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> и &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt;?"</string>
     <string name="summary_virtual_device" msgid="1062189396947962635">"<xliff:g id="APP_NAME">%2$s</xliff:g> ќе ги добие следниве дозволи:"</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"уред"</string>
     <string name="summary_generic" msgid="1761976003668044801">"Оваа апликација ќе може да ги синхронизира податоците како што се имињата на јавувачите помеѓу вашиот телефон и избраниот уред"</string>
+    <string name="summary_generic_with_remote_ai_capability" msgid="5053633566439056634">"Дозволете &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; да синхронизира податоци како што се податоците за повикувачот и да извршува паметни дејства од вашиот <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>"</string>
+    <string name="summary_with_permissions_and_remote_ai_capability" msgid="5240771314596527096">"Дајте му дозволи на уредот &lt;strong&gt;<xliff:g id="COMPANION_DEVICE_NAME">%1$s</xliff:g>&lt;/strong&gt; да ги синхронизира податоците како на пр. податоците за повикувачот и да извршува паметни дејства од вашиот <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>"</string>
     <string name="consent_yes" msgid="8344487259618762872">"Дозволи"</string>
     <string name="consent_no" msgid="2640796915611404382">"Не дозволувај"</string>
     <string name="consent_cancel" msgid="5655005528379285841">"Откажи"</string>
@@ -70,6 +70,7 @@
     <string name="permission_media_routing_control" msgid="5498639511586715253">"Менување излез за аудио/видео"</string>
     <string name="permission_storage" msgid="6831099350839392343">"Аудиовизуелни содржини"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"Известувања"</string>
+    <string name="permission_app_streaming" msgid="4488910074894929222">"Синхронизирајте и стримувајте"</string>
     <string name="permission_create_virtual_device" msgid="1102905050922460040">"Стримувајте ги податоците на <xliff:g id="DEVICE_TYPE">%1$s</xliff:g>"</string>
     <string name="permission_add_mirror_display" msgid="3743433250535606288">"Отсликувајте го екранот"</string>
     <string name="permission_add_trusted_display" msgid="9052824856626276723">"Стримувајте апликации"</string>
@@ -83,15 +84,16 @@
     <string name="permission_microphone_summary" msgid="4862628553869973259">"Снима аудио"</string>
     <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"Наоѓа и се поврзува со уреди во близина и ја утврдува нивната релативна положба"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"Ги чита сите известувања, меѓу кои и податоци како контакти, пораки и фотографии"</string>
-    <string name="permission_notifications_summary" msgid="6819393427371255636">"• Ги чита сите известувања, меѓу кои и податоци како контакти, пораки и фотографии&lt;br/&gt;• Ви испраќа известувања&lt;br/&gt;&lt;br/&gt;Може да управувате со способноста на апликацијава да чита и испраќа известувања кога било во „Поставки &gt; Известувања“."</string>
-    <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_notifications_summary" msgid="7491920318334824691">"• Ги чита сите известувања, меѓу кои и податоци како контакти, пораки и фотографии&lt;br/&gt;• Ви испраќа известувања&lt;br/&gt;&lt;br/&gt;Може да управувате со способноста на апликацијава да чита и испраќа известувања кога било во „Поставки › Известувања“."</string>
+    <string name="permission_storage_summary" msgid="3779040306012319942">"да ги споделува фотографиите и аудиовизуелните содржини од телефонот со другите уреди."</string>
     <string name="permission_post_notifications_summary" msgid="1099188848900200165">"Ви испраќа известувања"</string>
+    <string name="permission_app_streaming_summary" msgid="4114223538437344105">"да го споделува екранот на телефонот, вклучително и апликациите, на вашите уреди. Вашите уреди ќе имаат пристап до сѐ што е видливо на телефонот, вклучително и аудиото, фотографиите, податоците за плаќање, лозинките и пораките, дури и кога е заклучен телефонот.&lt;br/&gt;&lt;br/&gt;да обезбедува податоци од микрофонот, камерата и други податоци од сензорите од вашите уреди назад до телефонот, вклучително и интеракциите како движења со допир и кликнувања со глувчето."</string>
     <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"Стримувајте микрофон, камера и други податоци од сензорите од &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; на вашиот уред <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>."</string>
     <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"Снимајте, емитувајте или споделувајте го екранот на <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> со &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> ќе има пристап до сѐ што е видливо или пуштено на вашиот уред <xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g>, вклучително и аудио, фотографии, податоци за плаќање, лозинки и пораки."</string>
     <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"Стримувајте ги апликациите од <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> на &lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> ќе има пристап до сѐ што е видливо или пуштено на <xliff:g id="DEVICE_NAME_2">%3$s</xliff:g>, вклучително и аудио, фотографии, податоци за плаќање, лозинки и пораки, дури и кога вашиот уред <xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g> е заклучен."</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"Пристап до списокот со достапни уреди и контрола кои стримуваат или емитуваат аудио или видео од други апликации"</string>
-    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
-    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="4263728689361283271">"Ви испраќа известувања"</string>
+    <string name="permission_bypass_dnd_summary" msgid="3649231048838415756">"Ви испраќа предупредувања дури и кога е вклучен режимот „Не вознемирувај“"</string>
     <string name="device_type" product="default" msgid="8268703872070046263">"телефон"</string>
     <string name="device_type" product="tablet" msgid="5038791954983067774">"таблет"</string>
     <string name="device_type" product="tv" msgid="5355611506659405636">"ТВ"</string>

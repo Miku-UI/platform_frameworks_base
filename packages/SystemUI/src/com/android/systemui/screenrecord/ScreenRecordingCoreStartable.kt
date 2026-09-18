@@ -19,14 +19,14 @@ package com.android.systemui.screenrecord
 import android.content.Context
 import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.screenrecord.domain.ScreenRecordingPreferenceUtil
+import com.android.systemui.screenrecord.data.repository.ScreenRecordingPreferenceRepository
 import javax.inject.Inject
 
 @SysUISingleton
 class ScreenRecordingCoreStartable @Inject constructor(context: Context) : CoreStartable {
-    private val preferenceUtil = ScreenRecordingPreferenceUtil(context)
+    private val screenRecordingPreferenceRepository = ScreenRecordingPreferenceRepository(context)
 
     override fun start() {
-        preferenceUtil.maybeRestoreShowTapsSetting()
+        screenRecordingPreferenceRepository.maybeRestoreSetting()
     }
 }

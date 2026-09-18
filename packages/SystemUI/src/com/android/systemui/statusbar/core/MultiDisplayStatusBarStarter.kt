@@ -22,6 +22,7 @@ import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.display.data.repository.DisplayRepository
+import com.android.systemui.log.MultiDisplayStatusBarLogger
 import com.android.systemui.statusbar.data.repository.LightBarControllerStore
 import com.android.systemui.statusbar.data.repository.PrivacyDotWindowControllerStore
 import com.android.systemui.util.kotlin.pairwiseBy
@@ -43,26 +44,26 @@ constructor(
     private val statusBarInitializerStore: StatusBarInitializerStore,
     private val privacyDotWindowControllerStore: PrivacyDotWindowControllerStore,
     private val lightBarControllerStore: LightBarControllerStore,
+    private val logger: MultiDisplayStatusBarLogger,
 ) : CoreStartable {
-
-    init {
-        StatusBarConnectedDisplays.unsafeAssertInNewMode()
-    }
 
     override fun start() {
         applicationScope.launch {
             displayRepository.displayIdsWithSystemDecorations
                 .pairwiseBy { previousDisplays, currentDisplays ->
+                    logger.logDisplaysWithSystemDecorationsChange(previousDisplays, currentDisplays)
                     currentDisplays - previousDisplays
                 }
                 .onStart { emit(displayRepository.displayIdsWithSystemDecorations.value) }
                 .collect { newDisplays ->
+                    logger.logNewDisplaysWithSystemDecorations(newDisplays)
                     newDisplays.forEach { createAndStartComponentsForDisplay(it) }
                 }
         }
     }
 
     private fun createAndStartComponentsForDisplay(displayId: Int) {
+        logger.logCreatingAndStartingComponents(displayId)
         createAndStartOrchestratorForDisplay(displayId)
         createAndStartInitializerForDisplay(displayId)
         startPrivacyDotForDisplay(displayId)

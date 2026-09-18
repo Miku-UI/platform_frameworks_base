@@ -23,7 +23,6 @@ import android.telecom.Log;
 import android.text.TextUtils;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.telecom.flags.Flags;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -309,39 +308,7 @@ public class Session {
 
     // Print out the full Session tree from any subsession node
     public String printFullSessionTree() {
-        if (Flags.fixSessionTreeLogging()) {
-            return getRootSession("printFullSessionTree").printSessionTree();
-        } else {
-            return getRootSession("printFullSessionTree").printSessionTreeLegacy();
-        }
-    }
-
-    private String printSessionTreeLegacy() {
-        StringBuilder sb = new StringBuilder();
-        int depth = 0;
-        ArrayDeque<Session> deque = new ArrayDeque<>();
-        deque.add(this);
-        while (!deque.isEmpty()) {
-            Session node = deque.pollFirst();
-            sb.append("\t".repeat(depth));
-            sb.append(node.toString());
-            sb.append("\n");
-            if (depth >= SESSION_RECURSION_LIMIT) {
-                sb.append(TRUNCATE_STRING);
-                depth -= 1;
-                continue;
-            }
-            List<Session> childSessions = node.getChildSessions().reversed();
-            if (!childSessions.isEmpty()) {
-                depth += 1;
-                for (Session child : childSessions) {
-                    deque.addFirst(child);
-                }
-            } else {
-                depth -= 1;
-            }
-        }
-        return sb.toString();
+        return getRootSession("printFullSessionTree").printSessionTree();
     }
 
     private String printSessionTree() {

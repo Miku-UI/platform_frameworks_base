@@ -79,7 +79,7 @@ public final class SrvccCall implements Parcelable {
     /**
      * @return the call ID associated with this IMS call.
      *
-     * @see android.telephony.ims.stub.ImsCallSessionImplBase#getCallId().
+     * @see android.telephony.ims.stub.ImsCallSessionImplBase#getCallId()
      */
     @NonNull
     public String getCallId() {

@@ -20,6 +20,14 @@ flag {
 }
 
 flag {
+    name: "a11y_extra_rendering_info_color_additions"
+    namespace: "accessibility"
+    is_exported: true
+    description: "Adds a public Builder API for AccessibilityNodeInfo.ExtraRenderingInfo and adds color properties"
+    bug: "452371989"
+}
+
+flag {
     name: "a11y_is_required_api"
     namespace: "accessibility"
     description: "Adds an API to indicate whether a form field (or similar element) is required."
@@ -36,6 +44,22 @@ flag {
 }
 
 flag {
+    name: "a11y_layout_based_actions_api"
+    namespace: "accessibility"
+    description: "Enables new extra data key for an AccessibilityService to request layout-based actions."
+    bug: "455070192"
+    is_exported: true
+}
+
+flag {
+    name: "a11y_math_api"
+    namespace: "accessibility"
+    description: "Enables new APIs for an app to convey mathematical expressions."
+    bug: "394599112"
+    is_exported: true
+}
+
+flag {
     name: "a11y_overlay_callbacks"
     is_exported: true
     namespace: "accessibility"
@@ -48,13 +72,25 @@ flag {
     namespace: "accessibility"
     description: "Enables new APIs for an AccessibilityService to control selection across nodes."
     bug: "362782866"
+    is_exported: true
 }
 
 flag {
-    name: "a11y_sequential_focus_starting_point"
+    name: "a11y_selection_api_invalid_text_selection"
     namespace: "accessibility"
-    description: "Enables sequential focus's starting point to be set to accessibility focus when system focus is null."
-    bug: "393668020"
+    description: "Sets multi-node selection to null if setTextSelection called with invalid indexes."
+    bug: "464963130"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "a11y_selection_position_app_getters_api"
+    namespace: "accessibility"
+    description: "Enables new APIs for an app to get the nodes from a SelectionPosition without a direct node instance."
+    bug: "362783892"
+    is_exported: true
 }
 
 flag {
@@ -62,6 +98,15 @@ flag {
     namespace: "accessibility"
     description: "Enables new APIs to convey the sort direction applied to the data associated with this node."
     bug: "411187064"
+    is_exported: true
+}
+
+flag {
+    name: "a11y_text_change_types_api"
+    namespace: "accessibility"
+    description: "Enables sending specific text change types (e.g., in composition, committed by IME) in AccessibilityEvent"
+    bug: "436338406"
+    is_exported: true
 }
 
 flag {
@@ -73,10 +118,13 @@ flag {
 }
 
 flag {
-    name: "button_chooser_activity_bottom_margin_system_bar"
+    name: "allow_a11y_button_on_large_screen"
     namespace: "accessibility"
-    description: "Uses system bar insets as a bottom margin for AccessibilityButtonChooserActivity, preventing overlap."
-    bug: "433572832"
+    description: "Allows the accessibility button location setting to be configured on large screen devices with gesture navigation."
+    bug: "477701122"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -85,16 +133,6 @@ flag {
     is_exported: true
     description: "Fields for total items and the number of important for accessibility items in a collection"
     bug: "302376158"
-}
-
-flag {
-    name: "copy_surface_control_for_window_screenshots"
-    namespace: "accessibility"
-    description: "Copies and sends the copied SurfaceControl when an A11yService requests a single-window app screenshot"
-    bug: "431752508"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -114,6 +152,40 @@ flag {
 }
 
 flag {
+    name: "disable_edt_for_autofill_inline_view"
+    namespace: "accessibility"
+    description: "Disables expanded dark theme for the autofill inline view that is embedded in an IME"
+    bug: "438345051"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "embedded_ui_uses_host_window_id"
+    namespace: "accessibility"
+    description: "Updates A11yNodeInfos & A11yEvents from embedded windows to return the ID of their host window from getWindowId()"
+    bug: "452744032"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_a11y_top_row_shortcut"
+    namespace: "accessibility"
+    description: "Support physical keyboard top row accessibility key shortcut"
+    bug: "440411783"
+}
+
+flag {
+    name: "enable_captions_easy_reader"
+    namespace: "tv_os"
+    description: "Adds easy reader (simplified language) support to caption settings."
+    bug: "478309695"
+}
+
+flag {
     name: "enable_refresh_window_info"
     namespace: "accessibility"
     is_exported: true
@@ -130,11 +202,23 @@ flag {
 }
 
 flag {
-    name: "enable_type_window_control"
+    name: "fix_a11y_lock_screen_jank"
     namespace: "accessibility"
-    is_exported: true
-    description: "adds new TYPE_WINDOW_CONTROL to AccessibilityWindowInfo for detecting Window Decorations"
-    bug: "320445550"
+    description: "Improves the accessibility lock screen transition by locking immediately and using the smooth 'key' animation path."
+    bug: "436933192"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_add_extra_data_to_accessibility_node_info_delegation"
+    namespace: "accessibility"
+    description: "Fix missing delegation to AccessibilityDelegate in View#addExtraDataToAccessibilityNodeInfo."
+    bug: "465180578"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -156,7 +240,7 @@ flag {
     name: "global_action_media_play_pause"
     namespace: "accessibility"
     description: "Allow AccessibilityService to perform GLOBAL_ACTION_MEDIA_PLAY_PAUSE"
-    bug: "334954140"
+    bug: "333881343"
     is_exported: true
 }
 
@@ -164,7 +248,7 @@ flag {
     name: "global_action_menu"
     namespace: "accessibility"
     description: "Allow AccessibilityService to perform GLOBAL_ACTION_MENU"
-    bug: "334954140"
+    bug: "333881343"
     is_exported: true
 }
 
@@ -177,38 +261,11 @@ flag {
 }
 
 flag {
-    name: "ignore_unimportant_root"
-    namespace: "accessibility"
-    description: "findViewByAccessibilityId will return null if the id matches the root but the root is unimportant."
-    bug: "407099631"
-}
-
-flag {
     name: "indeterminate_range_info"
     namespace: "accessibility"
     description: "Creates a way to create an INDETERMINATE RangeInfo"
     bug: "376108874"
     is_exported: true
-}
-
-flag {
-    name: "launcher_app_display_progress_update_on_visibility_change"
-    namespace: "accessibility"
-    description: "Forces update to navbar button positioning upon changes to visibility"
-    bug: "417894369"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "light_bar_update_button_tint_on_nav_mode_change"
-    namespace: "accessibility"
-    description: "adds logic to update navbar button tint when navigation mode changes"
-    bug: "387395420"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -220,10 +277,13 @@ flag {
 }
 
 flag {
-    name: "navbar_flip_order_option"
+    name: "prevent_a11y_event_null_record"
     namespace: "accessibility"
-    description: "Adds a setting for users to change the order of the navbar's 3 main buttons."
-    bug: "410601652"
+    description: "Prevent apps adding null record via accessibilityEvent#appendRecord"
+    bug: "454269244"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -234,6 +294,13 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "quick_access_shortcut_type"
+    namespace: "accessibility"
+    description: "Add a new QUICK_ACCESS accessibility shortcut type used by the Quick Access dialog"
+    bug: "455679688"
 }
 
 flag {
@@ -251,18 +318,20 @@ flag {
 }
 
 flag {
-    name: "request_rectangle_with_source"
+    name: "request_rectangle_migrate_legacy_apis"
     namespace: "accessibility"
-    description: "Request rectangle on screen with source parameter"
-    bug: "391877896"
-    is_exported: true
+    description: "Update calls to legacy requestRectangleOnScreen APIs to use the new API and pass a source parameter"
+    bug: "456809623"
 }
 
 flag {
-    name: "skip_accessibility_warning_dialog_for_trusted_services"
+    name: "restrict_viewgroup_accessibility_event_population"
     namespace: "accessibility"
-    description: "Skips showing the accessibility warning dialog for trusted services."
-    bug: "303511250"
+    description: "Impose additional restrictions on which ViewGroup children may populate AccessibilityEvents based on accessibility importance and data sensitivity"
+    bug: "455971973"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -286,13 +355,6 @@ flag {
     namespace: "accessibility"
     description: "Feature flag for declaring system pinch zoom opt-out apis"
     bug: "315089687"
-}
-
-flag {
-    name: "text_cursor_blink_interval"
-    namespace: "accessibility"
-    description: "Configure the text cursor blink interval"
-    bug: "402134144"
 }
 
 flag {

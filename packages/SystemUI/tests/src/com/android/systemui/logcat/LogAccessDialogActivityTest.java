@@ -31,6 +31,7 @@ import androidx.test.filters.LargeTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.internal.app.ILogAccessDialogCallback;
+import com.android.systemui.integration.SystemUiIntegrationTest;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.res.R;
 
@@ -42,6 +43,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 @LargeTest
+@SystemUiIntegrationTest
 public class LogAccessDialogActivityTest extends SysuiTestCase {
 
     public static final String EXTRA_CALLBACK = "EXTRA_CALLBACK";

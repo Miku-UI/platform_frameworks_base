@@ -198,6 +198,8 @@ public class Am extends BaseCommand {
             } else if (opt.equals("--instrument-sdk-in-sandbox")) {
                 instrument.instrumentSdkSandbox = true;
                 instrument.instrumentSdkInSandbox = true;
+            } else if (opt.equals("--instrument-in-pcc")) {
+                instrument.instrumentInPcc = true;
             } else {
                 System.err.println("Error: Unknown option: " + opt);
                 return;

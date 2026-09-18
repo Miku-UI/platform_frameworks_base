@@ -121,6 +121,11 @@ object PinBouncerConstants {
         @JvmField
         val expansionInterpolator = c(old = Interpolators.LINEAR, new = Interpolators.LINEAR)!!
 
+        @JvmField
+        val enableInterpolator = Interpolators.STANDARD
+        @JvmField
+        val disableInterpolator =  Interpolators.STANDARD
+
         @JvmField val contractionDuration = c(old = 417, new = 300)
         @JvmField val contractionStartDelay = c(old = 33, new = 0)
         @JvmField

@@ -53,7 +53,7 @@ class WindowDecorTaskResourceLoaderImpl(
     private val shellController: ShellController,
     @ShellMainThread private val mainHandler: Handler,
     @ShellMainThread private val mainScope: CoroutineScope,
-    @ShellMainThread private val mainDispatcher: CoroutineDispatcher,
+    @ShellMainThread private val mainImmediateDispatcher: CoroutineDispatcher,
     @ShellBackgroundThread private val bgDispatcher: CoroutineDispatcher,
     private val shellCommandHandler: ShellCommandHandler,
     private val userProfilesContexts: UserProfileContexts,
@@ -67,7 +67,7 @@ class WindowDecorTaskResourceLoaderImpl(
         shellController: ShellController,
         mainHandler: Handler,
         mainScope: CoroutineScope,
-        mainDispatcher: CoroutineDispatcher,
+        mainImmediateDispatcher: CoroutineDispatcher,
         bgDispatcher: CoroutineDispatcher,
         shellCommandHandler: ShellCommandHandler,
         userProfileContexts: UserProfileContexts,
@@ -76,7 +76,7 @@ class WindowDecorTaskResourceLoaderImpl(
         shellController,
         mainHandler,
         mainScope,
-        mainDispatcher,
+        mainImmediateDispatcher,
         bgDispatcher,
         shellCommandHandler,
         userProfileContexts,
@@ -124,7 +124,7 @@ class WindowDecorTaskResourceLoaderImpl(
     override suspend fun getNameAndHeaderIcon(
         taskInfo: RunningTaskInfo
     ): Pair<CharSequence, Bitmap> =
-        withContext(mainDispatcher) {
+        withContext(mainImmediateDispatcher) {
             suspendCoroutine { cont ->
                 getNameAndHeaderIcon(taskInfo) { name, headerIcon ->
                     cont.resumeWith(Result.success(Pair(name, headerIcon)))
@@ -159,7 +159,7 @@ class WindowDecorTaskResourceLoaderImpl(
     }
 
     override suspend fun getVeilIcon(taskInfo: RunningTaskInfo): Bitmap =
-        withContext(mainDispatcher) {
+        withContext(mainImmediateDispatcher) {
             checkWindowDecorExists(taskInfo)
             val cachedResources = taskToResourceCache[taskInfo.taskId]
             if (cachedResources != null) {
@@ -187,7 +187,7 @@ class WindowDecorTaskResourceLoaderImpl(
 
     private fun checkWindowDecorExists(taskInfo: RunningTaskInfo) {
         check(existingTasks.contains(taskInfo.taskId)) {
-            "Attempt to obtain resource for non-existent decoration"
+            "Attempt to obtain resource for non-existent decoration of Task=${taskInfo.taskId}"
         }
     }
 

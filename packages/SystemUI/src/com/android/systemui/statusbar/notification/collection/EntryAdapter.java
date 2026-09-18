@@ -26,6 +26,7 @@ import androidx.annotation.Nullable;
 import com.android.systemui.statusbar.notification.collection.notifcollection.NotifLifetimeExtender;
 import com.android.systemui.statusbar.notification.icon.IconPack;
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier;
+import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModels;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.row.NotifBindPipeline;
 import com.android.systemui.statusbar.notification.row.RowContentBindStage;
@@ -138,10 +139,10 @@ public interface EntryAdapter {
     @Nullable
     NotificationListenerService.Ranking getRanking();
 
+    @Deprecated
     void endLifetimeExtension(
             @Nullable NotifLifetimeExtender.OnEndLifetimeExtensionCallback callback,
             @NonNull NotifLifetimeExtender extender);
-
 
     void onImportanceChanged();
 
@@ -172,7 +173,12 @@ public interface EntryAdapter {
 
     @Nullable String getStyle();
 
+    @Nullable
+    default PromotedNotificationContentModels getPromotedContentModel() { return null; }
+
     int getSectionBucket();
+
+    int getLoggingBucket();
 
     boolean isAmbient();
 

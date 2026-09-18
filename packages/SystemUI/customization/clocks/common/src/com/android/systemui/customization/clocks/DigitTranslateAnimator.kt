@@ -25,12 +25,17 @@ import com.android.systemui.plugins.keyguard.VPointF.Companion.times
 
 class DigitTranslateAnimator(private val updateCallback: (VPointF) -> Unit) {
     var currentTranslation = VPointF.ZERO
-    var baseTranslation = VPointF.ZERO
-    var targetTranslation = VPointF.ZERO
+        private set
+
+    private var baseTranslation = VPointF.ZERO
+    private var targetTranslation = VPointF.ZERO
 
     private val bounceAnimator: ValueAnimator =
         ValueAnimator.ofFloat(1f).apply {
-            addUpdateListener { updateCallback(getInterpolatedTranslation(it.animatedFraction)) }
+            addUpdateListener {
+                currentTranslation = getInterpolatedTranslation(it.animatedFraction)
+                updateCallback(currentTranslation)
+            }
             addListener(
                 object : AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: Animator) {
@@ -81,7 +86,7 @@ class DigitTranslateAnimator(private val updateCallback: (VPointF) -> Unit) {
         }
     }
 
-    fun getInterpolatedTranslation(progress: Float): VPointF {
+    private fun getInterpolatedTranslation(progress: Float): VPointF {
         return baseTranslation + progress * (targetTranslation - baseTranslation)
     }
 }

@@ -91,8 +91,7 @@ public class AppOpsUidStateTrackerTest {
         mConstants.TOP_STATE_SETTLE_TIME = 10 * 1000L;
         mConstants.FG_SERVICE_STATE_SETTLE_TIME = 5 * 1000L;
         mConstants.BG_STATE_SETTLE_TIME = 1 * 1000L;
-        mIntf = new AppOpsUidStateTrackerImpl(mAmi, mExecutor, mClock, mConstants,
-                Thread.currentThread());
+        mIntf = new AppOpsUidStateTrackerImpl(mAmi, mExecutor, mClock, mConstants);
     }
 
     @After

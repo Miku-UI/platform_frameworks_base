@@ -17,8 +17,10 @@
 package com.android.systemui.scene.domain.interactor
 
 import android.content.pm.UserInfo
+import android.platform.test.annotations.EnableFlags
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.OverlayKey
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.Kosmos
@@ -28,8 +30,8 @@ import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.scene.domain.model.DualShadeEducationModel
 import com.android.systemui.scene.shared.model.Overlays
-import com.android.systemui.shade.domain.interactor.disableDualShade
 import com.android.systemui.shade.domain.interactor.enableDualShade
+import com.android.systemui.shade.domain.interactor.enableSingleShade
 import com.android.systemui.testKosmos
 import com.android.systemui.user.data.repository.fakeUserRepository
 import com.android.systemui.user.domain.interactor.selectedUserInteractor
@@ -43,6 +45,7 @@ import platform.test.runner.parameterized.Parameters
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4::class)
 @EnableSceneContainer
+@EnableFlags(FLAG_DUAL_SHADE)
 class DualShadeEducationInteractorTest(private val forOverlay: OverlayKey) : SysuiTestCase() {
     private val kosmos = testKosmos()
     private lateinit var underTest: DualShadeEducationInteractor
@@ -64,15 +67,15 @@ class DualShadeEducationInteractorTest(private val forOverlay: OverlayKey) : Sys
 
             showOverlay(otherOverlay)
             // No education before the delay.
-            assertEducation(DualShadeEducationModel.None)
+            assertEducation(DualShadeEducationModel.None, inProgress = true)
 
             // SHOW EDUCATION
             advanceTimeBy(DualShadeEducationInteractor.TOOLTIP_APPEARANCE_DELAY_MS - 1)
             // No education because didn't wait quite long enough yet.
-            assertEducation(DualShadeEducationModel.None)
+            assertEducation(DualShadeEducationModel.None, inProgress = true)
             advanceTimeBy(1)
             // Expected education after the full delay.
-            assertEducation(expectedEducation(forOverlay))
+            assertEducation(expectedEducation(forOverlay), inProgress = true)
 
             // UI reports impression and dismissal of the tooltip.
             when (forOverlay) {
@@ -103,11 +106,11 @@ class DualShadeEducationInteractorTest(private val forOverlay: OverlayKey) : Sys
             val otherOverlay = otherOverlay(forOverlay)
             showOverlay(otherOverlay)
             // No tooltip before the delay.
-            assertEducation(DualShadeEducationModel.None)
+            assertEducation(DualShadeEducationModel.None, inProgress = true)
 
             advanceTimeBy(DualShadeEducationInteractor.TOOLTIP_APPEARANCE_DELAY_MS - 1)
             // No education because didn't wait quite long enough yet.
-            assertEducation(DualShadeEducationModel.None)
+            assertEducation(DualShadeEducationModel.None, inProgress = true)
 
             // Overlay hidden before the delay elapses.
             hideOverlay(otherOverlay)
@@ -121,7 +124,7 @@ class DualShadeEducationInteractorTest(private val forOverlay: OverlayKey) : Sys
     @Test
     fun notDualShadeMode_noEducation() =
         kosmos.runTest {
-            disableDualShade()
+            enableSingleShade()
             showOverlay(otherOverlay(forOverlay))
             advanceTimeBy(DualShadeEducationInteractor.TOOLTIP_APPEARANCE_DELAY_MS)
             assertEducation(DualShadeEducationModel.None)
@@ -133,7 +136,7 @@ class DualShadeEducationInteractorTest(private val forOverlay: OverlayKey) : Sys
             val otherOverlay = otherOverlay(forOverlay)
             showOverlay(otherOverlay)
             advanceTimeBy(DualShadeEducationInteractor.TOOLTIP_APPEARANCE_DELAY_MS)
-            assertEducation(expectedEducation(forOverlay))
+            assertEducation(expectedEducation(forOverlay), inProgress = true)
             when (forOverlay) {
                 Overlays.NotificationsShade -> {
                     underTest.recordNotificationsShadeTooltipImpression()
@@ -152,7 +155,20 @@ class DualShadeEducationInteractorTest(private val forOverlay: OverlayKey) : Sys
             showOverlay(otherOverlay)
             advanceTimeBy(DualShadeEducationInteractor.TOOLTIP_APPEARANCE_DELAY_MS)
             // New user, education shown again.
-            assertEducation(expectedEducation(forOverlay))
+            assertEducation(expectedEducation(forOverlay), inProgress = true)
+        }
+
+    @Test
+    fun hidesTooltip_whenOverlayHidden() =
+        kosmos.runTest {
+            val otherOverlay = otherOverlay(forOverlay)
+            showOverlay(otherOverlay)
+            advanceTimeBy(DualShadeEducationInteractor.TOOLTIP_APPEARANCE_DELAY_MS)
+            assertEducation(expectedEducation(forOverlay), inProgress = true)
+
+            hideOverlay(otherOverlay)
+
+            assertEducation(DualShadeEducationModel.None)
         }
 
     /**
@@ -167,9 +183,13 @@ class DualShadeEducationInteractorTest(private val forOverlay: OverlayKey) : Sys
         }
     }
 
-    private fun Kosmos.assertEducation(expected: DualShadeEducationModel) {
+    private fun Kosmos.assertEducation(
+        expected: DualShadeEducationModel,
+        inProgress: Boolean = false,
+    ) {
         runCurrent()
         assertThat(underTest.education).isEqualTo(expected)
+        assertThat(underTest.isEducationInProgress).isEqualTo(inProgress)
     }
 
     private fun expectedEducation(forOverlay: OverlayKey): DualShadeEducationModel {

@@ -131,5 +131,9 @@
 
     <!-- Default for DeviceIdleController.Constants.USE_MODE_MANAGER -->
     <bool name="device_idle_use_mode_manager">false</bool>
+
+    <!-- Default for DeviceIdleController.Constants.USE_NON_WAKE_UP_DEEP_ALARMS
+         Read and applied only for watches. -->
+    <bool name="device_idle_use_non_wakeup_deep_alarms">false</bool>
 </resources>
 

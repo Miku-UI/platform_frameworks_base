@@ -23,7 +23,6 @@ import android.os.UserHandle
 import android.util.LayoutDirection
 import com.android.systemui.Dumpable
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
-import com.android.systemui.common.coroutine.ConflatedCallbackFlow
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dump.DumpManager
@@ -38,6 +37,7 @@ import com.android.systemui.res.R
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.util.kotlin.FlowDumperImpl
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import java.io.PrintWriter
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -77,7 +77,7 @@ constructor(
     private val configsByAffordanceId: Map<String, KeyguardQuickAffordanceConfig> =
         configs.associateBy { it.key }
     private val userId: Flow<Int> =
-        ConflatedCallbackFlow.conflatedCallbackFlow {
+        conflatedCallbackFlow {
             val callback =
                 object : UserTracker.Callback {
                     override fun onUserChanged(newUser: Int, userContext: Context) {

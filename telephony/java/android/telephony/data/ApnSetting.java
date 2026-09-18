@@ -1762,14 +1762,14 @@ public class ApnSetting implements Parcelable {
     }
 
     // Implement Parcelable.
-    @Override
     /** @hide */
+    @Override
     public int describeContents() {
         return 0;
     }
 
-    @Override
     /** @hide */
+    @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeInt(mId);
         dest.writeString(mOperatorNumeric);

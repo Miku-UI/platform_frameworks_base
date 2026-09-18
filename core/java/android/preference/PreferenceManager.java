@@ -32,6 +32,8 @@ import android.content.pm.ResolveInfo;
 import android.content.res.XmlResourceParser;
 import android.os.Build;
 import android.os.Bundle;
+import android.ravenwood.annotation.RavenwoodKeep;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -55,6 +57,7 @@ import java.util.List;
  *      <a href="{@docRoot}guide/topics/ui/settings.html">Settings</a>.
  */
 @Deprecated
+@RavenwoodKeepPartialClass
 public class PreferenceManager {
 
     private static final String TAG = "PreferenceManager";
@@ -541,6 +544,7 @@ public class PreferenceManager {
      * @return A {@link SharedPreferences} instance that can be used to retrieve and listen
      *         to values of the preferences.
      */
+    @RavenwoodKeep
     public static SharedPreferences getDefaultSharedPreferences(Context context) {
         return context.getSharedPreferences(getDefaultSharedPreferencesName(context),
                 getDefaultSharedPreferencesMode());
@@ -551,10 +555,12 @@ public class PreferenceManager {
      *
      * @see #getDefaultSharedPreferences(Context)
      */
+    @RavenwoodKeep
     public static String getDefaultSharedPreferencesName(Context context) {
         return context.getPackageName() + "_preferences";
     }
 
+    @RavenwoodKeep
     private static int getDefaultSharedPreferencesMode() {
         return Context.MODE_PRIVATE;
     }

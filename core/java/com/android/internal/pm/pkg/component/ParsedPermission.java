@@ -42,12 +42,17 @@ public interface ParsedPermission extends ParsedComponent {
 
     int getRequestRes();
 
-    boolean isPurposeRequired();
-
     int getRequiresPurposeTargetSdkVersion();
+
+    int getRequiresGeneralPurposeTargetSdkVersion();
+
+    int getRequiresPurposeStringTargetSdkVersion();
 
     @NonNull
     List<ParsedValidPurpose> getValidPurposes();
+
+    @NonNull
+    List<ParsedValidGeneralPurpose> getValidGeneralPurposes();
 
     boolean isTree();
 }

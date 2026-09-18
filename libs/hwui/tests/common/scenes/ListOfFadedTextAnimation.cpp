@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-#include "TestSceneBase.h"
-#include "tests/common/TestListViewSceneBase.h"
-#include "hwui/Paint.h"
 #include <SkBlendMode.h>
-#include <SkGradientShader.h>
+#include <SkGradient.h>
+
+#include "TestSceneBase.h"
+#include "hwui/Paint.h"
+#include "tests/common/TestListViewSceneBase.h"
 
 class ListOfFadedTextAnimation;
 
@@ -39,13 +40,10 @@ class ListOfFadedTextAnimation : public TestListViewSceneBase {
         textPaint.setAntiAlias(true);
         TestUtils::drawUtf8ToCanvas(&canvas, "not that long long text", textPaint, dp(10), dp(30));
 
-        SkPoint pts[2];
-        pts[0].set(0, 0);
-        pts[1].set(0, 1);
-
-        SkColor colors[2] = {Color::Black, Color::Transparent};
+        const SkPoint pts[] = {{0, 0}, {0, 1}};
+        const SkColor4f colors[] = {SkColors::kBlack, SkColors::kTransparent};
         sk_sp<SkShader> s(
-                SkGradientShader::MakeLinear(pts, colors, NULL, 2, SkTileMode::kClamp));
+                SkShaders::LinearGradient(pts, SkGradient({colors, {}, SkTileMode::kClamp}, {})));
 
         SkMatrix matrix;
         matrix.setScale(1, length);

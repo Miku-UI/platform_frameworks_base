@@ -120,7 +120,7 @@ public class FaceSensorConfigurations implements Parcelable {
     }
 
     /**
-     * Checks if {@param instance} exists.
+     * Checks if {@code instance} exists.
      */
     @Nullable
     public boolean doesInstanceExist(String instance) {
@@ -128,7 +128,7 @@ public class FaceSensorConfigurations implements Parcelable {
     }
 
     /**
-     * Return the first HAL instance, which does not correspond to the given {@param instance}.
+     * Return the first HAL instance, which does not correspond to the given {@code instance}.
      * If another instance is not available, then null is returned.
      */
     @Nullable
@@ -198,7 +198,7 @@ public class FaceSensorConfigurations implements Parcelable {
 
 
     /**
-     * Returns face sensor props for the HAL {@param instance}.
+     * Returns face sensor props for the HAL {@code instance}.
      */
     @Nullable
     public SensorProps[] getSensorPropForInstance(String instance) {

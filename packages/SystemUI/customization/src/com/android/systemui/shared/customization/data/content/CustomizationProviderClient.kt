@@ -92,6 +92,9 @@ interface CustomizationProviderClient {
      */
     fun observeAffordances(): Flow<List<Affordance>>
 
+    /** Triggers a refresh of the affordances by notifying the content resolver. */
+    fun refreshAffordances()
+
     /** Returns the current slot-affordance selections. */
     suspend fun querySelections(): List<Selection>
 
@@ -397,6 +400,13 @@ class CustomizationProviderClientImpl(
         return observeUri(Contract.LockScreenQuickAffordances.AffordanceTable.URI).map {
             queryAffordances()
         }
+    }
+
+    override fun refreshAffordances() {
+        context.contentResolver.notifyChange(
+            Contract.LockScreenQuickAffordances.AffordanceTable.URI,
+            /* observer= */ null,
+        )
     }
 
     override suspend fun querySelections(): List<CustomizationProviderClient.Selection> {

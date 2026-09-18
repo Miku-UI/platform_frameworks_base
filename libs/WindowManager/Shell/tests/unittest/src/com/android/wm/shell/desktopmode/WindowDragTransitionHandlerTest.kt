@@ -18,13 +18,13 @@ package com.android.wm.shell.desktopmode
 import android.graphics.Point
 import android.graphics.Rect
 import android.os.IBinder
-import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.view.SurfaceControl
 import android.window.TransitionInfo
 import android.window.TransitionRequestInfo
 import androidx.test.filters.SmallTest
-import com.android.window.flags.Flags
+import com.android.internal.jank.Cuj
+import com.android.internal.jank.InteractionJankMonitor
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.TestRunningTaskInfoBuilder
 import com.android.wm.shell.common.MultiDisplayDragMoveIndicatorController
@@ -56,10 +56,15 @@ class WindowDragTransitionHandlerTest : ShellTestCase() {
     private val mockFinishCallback: Transitions.TransitionFinishCallback = mock()
     private val mockMultiDisplayDragMoveIndicatorController =
         mock<MultiDisplayDragMoveIndicatorController>()
+    private val mockInteractionJankMonitor = mock<InteractionJankMonitor>()
 
     @Before
     fun setUp() {
-        handler = WindowDragTransitionHandler(mockMultiDisplayDragMoveIndicatorController)
+        handler =
+            WindowDragTransitionHandler(
+                mockMultiDisplayDragMoveIndicatorController,
+                mockInteractionJankMonitor,
+            )
         whenever(mockStartTransaction.setWindowCrop(any(), any(), any()))
             .thenReturn(mockStartTransaction)
         whenever(mockFinishTransaction.setWindowCrop(any(), any(), any()))
@@ -73,7 +78,6 @@ class WindowDragTransitionHandlerTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DROP_SMOOTH_TRANSITION)
     fun startAnimation_verifyTransformationsApplied() {
         val mockChange1 = mock<TransitionInfo.Change>()
         val leash1 = mock<SurfaceControl>()
@@ -116,13 +120,14 @@ class WindowDragTransitionHandlerTest : ShellTestCase() {
 
         verify(mockMultiDisplayDragMoveIndicatorController)
             .onDragEnd(eq(10), eq(mockFinishTransaction))
+        verify(mockInteractionJankMonitor).end(Cuj.CUJ_DESKTOP_MODE_DRAG_WINDOW)
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DROP_SMOOTH_TRANSITION)
     fun onTransitionConsumed_disposesIndicators() {
         handler.onTransitionConsumed(mockTransition, false, mockFinishTransaction)
         verify(mockMultiDisplayDragMoveIndicatorController)
             .disposeAllIndicators(mockFinishTransaction)
+        verify(mockInteractionJankMonitor).end(Cuj.CUJ_DESKTOP_MODE_DRAG_WINDOW)
     }
 }

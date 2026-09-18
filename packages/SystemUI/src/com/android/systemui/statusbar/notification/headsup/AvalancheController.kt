@@ -25,10 +25,10 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManagerImpl.HeadsUpEntry
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.shared.AvalancheReplaceHunWhenCritical
 import com.android.systemui.statusbar.notification.shared.NotificationThrottleHun
 import java.io.PrintWriter
+import java.util.function.BiConsumer
 import javax.inject.Inject
 
 /*
@@ -52,6 +52,7 @@ constructor(
     private val tag = "AvalancheController"
     private val debug = false // Compile.IS_DEBUG && Log.isLoggable(tag, Log.DEBUG)
     var baseEntryMapStr: () -> String = { "baseEntryMapStr not initialized" }
+    var onCleanup: BiConsumer<HeadsUpEntry, String> = BiConsumer { _, _ -> }
 
     var enableAtRuntime = true
         set(value) {
@@ -88,6 +89,9 @@ constructor(
 
     // Map of Runnable to label for debugging only
     private val debugRunnableLabelMap: MutableMap<Runnable, String> = HashMap()
+
+    // The last state string that was logged. Used to reduce log spam from duplicate state.
+    private var lastStateStr = ""
 
     enum class ThrottleEvent(private val id: Int) : UiEventLogger.UiEventEnum {
         @UiEvent(doc = "HUN was shown.") AVALANCHE_THROTTLING_HUN_SHOWN(1821),
@@ -215,10 +219,7 @@ constructor(
      */
     private fun checkNextPinnedByUser(entry: HeadsUpEntry): String? {
         AvalancheReplaceHunWhenCritical.assertInLegacyMode()
-        if (
-            PromotedNotificationUi.isEnabled &&
-                entry.requestedPinnedStatus == PinnedStatus.PinnedByUser
-        ) {
+        if (entry.requestedPinnedStatus == PinnedStatus.PinnedByUser) {
             val string = "next is PinnedByUser"
             headsUpEntryShowing?.updateEntry(
                 /* updatePostTime= */ false,
@@ -248,10 +249,7 @@ constructor(
             result = "$result next is critical call"
             ignoreSticky = true
         }
-        if (
-            PromotedNotificationUi.isEnabled &&
-                entry.requestedPinnedStatus == PinnedStatus.PinnedByUser
-        ) {
+        if (entry.requestedPinnedStatus == PinnedStatus.PinnedByUser) {
             result = "$result next is PinnedByUser"
             ignoreSticky = true
         }
@@ -327,6 +325,7 @@ constructor(
         }
         val outcome: String
         if (entry in nextMap) {
+            onCleanup.accept(entry, caller)
             if (entry in nextMap) nextMap.remove(entry)
             if (entry in nextList) nextList.remove(entry)
             uiEventLogger.log(ThrottleEvent.AVALANCHE_THROTTLING_HUN_REMOVED)
@@ -337,7 +336,7 @@ constructor(
             // onHeadsUpPinnedModeChanged, which causes
             // NotificationPanelViewController.updateTouchableRegion to hide the window while the
             // HUN is animating out, resulting in a flicker.
-            showNext()
+            showNext(caller)
             runnable.run()
             outcome = "remove showing. ${getStateStr()}"
         } else {
@@ -411,10 +410,7 @@ constructor(
         val nextEntry = entryList[nextEntryIndex]
         val nextKey = getKey(nextEntry)
 
-        if (
-            PromotedNotificationUi.isEnabled &&
-                nextEntry.requestedPinnedStatus == PinnedStatus.PinnedByUser
-        ) {
+        if (nextEntry.requestedPinnedStatus == PinnedStatus.PinnedByUser) {
             return RemainingDuration.HideImmediately.also {
                 headsUpManagerLogger.logAvalancheDuration(
                     thisKey,
@@ -570,7 +566,7 @@ constructor(
         }
     }
 
-    private fun showNext() {
+    private fun showNext(reason: String = "") {
         headsUpManagerLogger.logAvalancheStage("show next", key = "")
         headsUpEntryShowing = null
 
@@ -585,8 +581,11 @@ constructor(
         headsUpEntryShowing = nextList[0]
         headsUpEntryShowingRunnableList = nextMap[headsUpEntryShowing]!!
 
-        // Remove runnable labels for dropped huns
         val listToDrop = nextList.subList(1, nextList.size)
+        for (entry in listToDrop) {
+            // Remove NotificationEntry to prevent memory leak
+            onCleanup.accept(entry, reason)
+        }
         logDroppedHunsInBackground(listToDrop.size)
 
         if (debug) {
@@ -623,8 +622,7 @@ constructor(
     }
 
     // Methods below are for logging only ==========================================================
-
-    private fun getStateStr(): String {
+    private fun calculateStateStr(): String {
         return "\n[AC state]" +
             "\nshow: ${getKey(headsUpEntryShowing)}" +
             "\nprevious: $previousHunKey" +
@@ -632,6 +630,18 @@ constructor(
             "\n[HeadsUpManagerImpl.mHeadsUpEntryMap] " +
             baseEntryMapStr() +
             "\n"
+    }
+
+    /**
+     * Returns the state string for logging, only if it has changed since the last call.
+     */
+    private fun getStateStr(): String {
+        val currentStr = calculateStateStr()
+        if (currentStr == lastStateStr) {
+            return "" // Suppress log if state hasn't changed
+        }
+        lastStateStr = currentStr
+        return currentStr
     }
 
     private val nextStr: String
@@ -657,6 +667,6 @@ constructor(
     }
 
     override fun dump(pw: PrintWriter, args: Array<out String>) {
-        pw.println("AvalancheController: ${getStateStr()}")
+        pw.println("AvalancheController: ${calculateStateStr()}")
     }
 }

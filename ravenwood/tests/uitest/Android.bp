@@ -10,7 +10,7 @@ package {
 java_defaults {
     name: "ravenwood-uitest-defaults",
     srcs: [
-        "test/**/*.java",
+        "src/**/*.java",
     ],
     static_libs: [
         "androidx.annotation_annotation",

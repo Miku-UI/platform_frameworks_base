@@ -213,7 +213,7 @@ public final class CompactionStatsManager {
         mLastCompactionStats.remove(pid);
         mLastCompactionStats.put(pid, memStats);
         mCompactionStatsHistory.add(memStats);
-        if (!logFieldMetric) {
+        if (logFieldMetric) {
             memStats.sendStat();
         }
     }

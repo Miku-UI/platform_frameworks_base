@@ -23,6 +23,7 @@ import com.android.systemui.SystemUIService
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.screencapture.record.domain.interactor.ScreenCaptureRecordFeaturesInteractor
 import com.android.systemui.screenshot.ImageCapture
 import com.android.systemui.screenshot.ScreenshotRequestProcessor
 import com.android.systemui.screenshot.data.repository.DisplayContentRepository
@@ -67,6 +68,7 @@ interface ScreenshotPolicyModule {
             displayContentRepo: DisplayContentRepository,
             policyListProvider: Provider<List<CapturePolicy>>,
             standardPolicy: ScreenshotPolicy,
+            screenCaptureRecordFeaturesInteractor: ScreenCaptureRecordFeaturesInteractor,
         ): ScreenshotRequestProcessor {
             return PolicyRequestProcessor(
                 background = background,
@@ -77,6 +79,7 @@ interface ScreenshotPolicyModule {
                 defaultComponent =
                     ComponentName(context.packageName, SystemUIService::class.java.toString()),
                 policy = standardPolicy,
+                screenCaptureRecordFeaturesInteractor = screenCaptureRecordFeaturesInteractor,
             )
         }
     }

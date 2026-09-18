@@ -24,6 +24,7 @@ import static android.tracing.perfetto.TestUtils.createTempWriter;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -43,10 +44,12 @@ import android.tools.io.TraceType;
 import android.tools.traces.io.ResultReader;
 import android.tools.traces.io.ResultWriter;
 import android.tools.traces.monitors.PerfettoTraceMonitor;
+import android.tools.traces.protolog.ProtoLogMessage;
 import android.tools.traces.protolog.ProtoLogTrace;
 import android.tracing.perfetto.DataSource;
 import android.tracing.perfetto.DataSourceParams;
 
+import androidx.annotation.NonNull;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.internal.protolog.ProtoLogConfigurationServiceImpl.ViewerConfigFileTracer;
@@ -78,6 +81,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * Test class for {@link ProtoLogImpl}.
@@ -86,7 +90,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Presubmit
 @RunWith(JUnit4.class)
 public class ProcessedPerfettoProtoLogImplTest {
-    private static final String TEST_PROTOLOG_DATASOURCE_NAME = "test.android.protolog";
+    private static final String TEST_PROTOLOG_DATASOURCE_NAME = getTestDsName();
     private static final String MOCK_VIEWER_CONFIG_FILE = "my/mock/viewer/config/file.pb";
     private final File mTracingDirectory = InstrumentationRegistry.getInstrumentation()
             .getTargetContext().getFilesDir();
@@ -101,58 +105,63 @@ public class ProcessedPerfettoProtoLogImplTest {
 
     private static int sOriginalMaxInternedStringsSize;
 
-
-    public ProcessedPerfettoProtoLogImplTest() throws IOException { }
+    private static String getTestDsName() {
+        if (android.tracing.Flags.javaNativeProtolog()) {
+            return "android.protolog";
+        } else {
+            return "test.android.protolog";
+        }
+    }
 
     @BeforeClass
     public static void setUp() throws Exception {
         sViewerConfigBuilder = Protolog.ProtoLogViewerConfig.newBuilder()
                 .addGroups(
                         Protolog.ProtoLogViewerConfig.Group.newBuilder()
-                                .setId(1)
+                                .setId(TestProtoLogGroup.TEST_GROUP.getId())
                                 .setName(TestProtoLogGroup.TEST_GROUP.toString())
                                 .setTag(TestProtoLogGroup.TEST_GROUP.getTag())
                 ).addMessages(
                         Protolog.ProtoLogViewerConfig.MessageData.newBuilder()
-                                .setMessageId(1)
+                                .setMessageId(1231)
                                 .setMessage("My Test Debug Log Message %b")
                                 .setLevel(ProtologCommon.ProtoLogLevel.PROTOLOG_LEVEL_DEBUG)
-                                .setGroupId(1)
+                                .setGroupId(TestProtoLogGroup.TEST_GROUP.getId())
                                 .setLocation("com/test/MyTestClass.java:123")
                 ).addMessages(
                         Protolog.ProtoLogViewerConfig.MessageData.newBuilder()
-                                .setMessageId(2)
+                                .setMessageId(1232)
                                 .setMessage("My Test Verbose Log Message %b")
                                 .setLevel(ProtologCommon.ProtoLogLevel.PROTOLOG_LEVEL_VERBOSE)
-                                .setGroupId(1)
+                                .setGroupId(TestProtoLogGroup.TEST_GROUP.getId())
                                 .setLocation("com/test/MyTestClass.java:342")
                 ).addMessages(
                         Protolog.ProtoLogViewerConfig.MessageData.newBuilder()
-                                .setMessageId(3)
+                                .setMessageId(1233)
                                 .setMessage("My Test Warn Log Message %b")
                                 .setLevel(ProtologCommon.ProtoLogLevel.PROTOLOG_LEVEL_WARN)
-                                .setGroupId(1)
+                                .setGroupId(TestProtoLogGroup.TEST_GROUP.getId())
                                 .setLocation("com/test/MyTestClass.java:563")
                 ).addMessages(
                         Protolog.ProtoLogViewerConfig.MessageData.newBuilder()
-                                .setMessageId(4)
+                                .setMessageId(1234)
                                 .setMessage("My Test Error Log Message %b")
                                 .setLevel(ProtologCommon.ProtoLogLevel.PROTOLOG_LEVEL_ERROR)
-                                .setGroupId(1)
+                                .setGroupId(TestProtoLogGroup.TEST_GROUP.getId())
                                 .setLocation("com/test/MyTestClass.java:156")
                 ).addMessages(
                         Protolog.ProtoLogViewerConfig.MessageData.newBuilder()
-                                .setMessageId(5)
+                                .setMessageId(1235)
                                 .setMessage("My Test WTF Log Message %b")
                                 .setLevel(ProtologCommon.ProtoLogLevel.PROTOLOG_LEVEL_WTF)
-                                .setGroupId(1)
+                                .setGroupId(TestProtoLogGroup.TEST_GROUP.getId())
                                 .setLocation("com/test/MyTestClass.java:192")
                 ).addMessages(
                         Protolog.ProtoLogViewerConfig.MessageData.newBuilder()
-                                .setMessageId(6)
+                                .setMessageId(1236)
                                 .setMessage("My Test String Arg Message %s")
                                 .setLevel(ProtologCommon.ProtoLogLevel.PROTOLOG_LEVEL_DEBUG)
-                                .setGroupId(1)
+                                .setGroupId(TestProtoLogGroup.TEST_GROUP.getId())
                                 .setLocation("com/test/MyTestClass.java:193")
                 );
 
@@ -165,15 +174,6 @@ public class ProcessedPerfettoProtoLogImplTest {
         sCacheUpdater = (instance) -> {};
         sReader = Mockito.spy(new ProtoLogViewerConfigReader(viewerConfigInputStreamProvider));
         sTestDataSource = new ProtoLogDataSource(TEST_PROTOLOG_DATASOURCE_NAME);
-        DataSourceParams params =
-                new DataSourceParams.Builder()
-                        .setBufferExhaustedPolicy(
-                                DataSourceParams
-                                        .PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_DROP)
-                        .build();
-        sTestDataSource.register(params);
-        busyWaitForDataSourceRegistration(TEST_PROTOLOG_DATASOURCE_NAME);
-
         final ViewerConfigFileTracer tracer = (dataSource, viewerConfigFilePath) -> {
             Utils.dumpViewerConfig(dataSource, () -> {
                 if (!viewerConfigFilePath.equals(MOCK_VIEWER_CONFIG_FILE)) {
@@ -185,12 +185,20 @@ public class ProcessedPerfettoProtoLogImplTest {
         };
         sProtoLogConfigurationService =
                 new ProtoLogConfigurationServiceImpl(sTestDataSource, tracer);
+        DataSourceParams params =
+                new DataSourceParams.Builder()
+                        .setBufferExhaustedPolicy(
+                                DataSourceParams
+                                        .PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_DROP)
+                        .build();
+        sTestDataSource.register(params);
 
         sProtoLog = new ProcessedPerfettoProtoLogImpl(sTestDataSource,
                 MOCK_VIEWER_CONFIG_FILE, viewerConfigInputStreamProvider, sReader,
-                (instance) -> sCacheUpdater.update(instance), TestProtoLogGroup.values(),
-                sProtoLogConfigurationService);
-        sProtoLog.enable();
+                (instance) -> sCacheUpdater.update(instance), TestProtoLogGroup.values());
+
+        sProtoLog.enable(false, sProtoLogConfigurationService);
+        busyWaitForDataSourceRegistration(TEST_PROTOLOG_DATASOURCE_NAME);
 
         sOriginalMaxInternedStringsSize =
                 PerfettoProtoLogImpl.MAX_INTERNED_STRINGS_SIZE_BYTES_BEFORE_RESET;
@@ -252,17 +260,15 @@ public class ProcessedPerfettoProtoLogImplTest {
         final var writer = createTempWriter(mTracingDirectory);
         try {
             traceMonitor.start();
-            // Shouldn't be logging anything except WTF unless explicitly requested in the group
-            // override.
-            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1,
+            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1231,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.VERBOSE, TestProtoLogGroup.TEST_GROUP, 2,
+            sProtoLog.log(LogLevel.VERBOSE, TestProtoLogGroup.TEST_GROUP, 1232,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.WARN, TestProtoLogGroup.TEST_GROUP, 3,
+            sProtoLog.log(LogLevel.WARN, TestProtoLogGroup.TEST_GROUP, 1233,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.ERROR, TestProtoLogGroup.TEST_GROUP, 4,
+            sProtoLog.log(LogLevel.ERROR, TestProtoLogGroup.TEST_GROUP, 1234,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.WTF, TestProtoLogGroup.TEST_GROUP, 5,
+            sProtoLog.log(LogLevel.WTF, TestProtoLogGroup.TEST_GROUP, 1235,
                     LogDataType.BOOLEAN, new Object[]{true});
         } finally {
             traceMonitor.stop(writer);
@@ -271,8 +277,17 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader = new ResultReader(writer.write());
         final ProtoLogTrace protolog = reader.readProtoLogTrace();
 
-        Truth.assertThat(protolog.messages).hasSize(1);
-        Truth.assertThat(protolog.messages.getFirst().getLevel()).isEqualTo(LogLevel.WTF);
+        if (android.tracing.Flags.javaNativeProtolog()) {
+            // On the native side we don't log WTF by default, so this will provide no logs.
+            Truth.assertThat(getTestMessages(protolog)).isEmpty();
+        } else {
+            // Shouldn't be logging anything except WTF unless explicitly requested in the
+            // group
+            // override.
+            final var messages = getTestMessages(protolog);
+            Truth.assertThat(messages).hasSize(1);
+            Truth.assertThat(messages.getFirst().getLevel()).isEqualTo(LogLevel.WTF);
+        }
     }
 
     @Test
@@ -288,15 +303,15 @@ public class ProcessedPerfettoProtoLogImplTest {
         final var writer = createTempWriter(mTracingDirectory);
         try {
             traceMonitor.start();
-            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1,
+            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1231,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.VERBOSE, TestProtoLogGroup.TEST_GROUP, 2,
+            sProtoLog.log(LogLevel.VERBOSE, TestProtoLogGroup.TEST_GROUP, 1232,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.WARN, TestProtoLogGroup.TEST_GROUP, 3,
+            sProtoLog.log(LogLevel.WARN, TestProtoLogGroup.TEST_GROUP, 1233,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.ERROR, TestProtoLogGroup.TEST_GROUP, 4,
+            sProtoLog.log(LogLevel.ERROR, TestProtoLogGroup.TEST_GROUP, 1234,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.WTF, TestProtoLogGroup.TEST_GROUP, 5,
+            sProtoLog.log(LogLevel.WTF, TestProtoLogGroup.TEST_GROUP, 1235,
                     LogDataType.BOOLEAN, new Object[]{true});
         } finally {
             traceMonitor.stop(writer);
@@ -305,11 +320,12 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader = new ResultReader(writer.write());
         final ProtoLogTrace protolog = reader.readProtoLogTrace();
 
-        Truth.assertThat(protolog.messages).hasSize(4);
-        Truth.assertThat(protolog.messages.get(0).getLevel()).isEqualTo(LogLevel.DEBUG);
-        Truth.assertThat(protolog.messages.get(1).getLevel()).isEqualTo(LogLevel.WARN);
-        Truth.assertThat(protolog.messages.get(2).getLevel()).isEqualTo(LogLevel.ERROR);
-        Truth.assertThat(protolog.messages.get(3).getLevel()).isEqualTo(LogLevel.WTF);
+        final var messages = getTestMessages(protolog);
+        Truth.assertThat(messages).hasSize(4);
+        Truth.assertThat(messages.get(0).getLevel()).isEqualTo(LogLevel.DEBUG);
+        Truth.assertThat(messages.get(1).getLevel()).isEqualTo(LogLevel.WARN);
+        Truth.assertThat(messages.get(2).getLevel()).isEqualTo(LogLevel.ERROR);
+        Truth.assertThat(messages.get(3).getLevel()).isEqualTo(LogLevel.WTF);
     }
 
     @Test
@@ -320,20 +336,20 @@ public class ProcessedPerfettoProtoLogImplTest {
                         List.of(new PerfettoTraceMonitor.Builder.ProtoLogGroupOverride(
                                 TestProtoLogGroup.TEST_GROUP.toString(), LogLevel.WARN, false)),
                         TEST_PROTOLOG_DATASOURCE_NAME
-                    ).build();
+                ).build();
 
         final var writer = createTempWriter(mTracingDirectory);
         try {
             traceMonitor.start();
-            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1,
+            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1231,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.VERBOSE, TestProtoLogGroup.TEST_GROUP, 2,
+            sProtoLog.log(LogLevel.VERBOSE, TestProtoLogGroup.TEST_GROUP, 1232,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.WARN, TestProtoLogGroup.TEST_GROUP, 3,
+            sProtoLog.log(LogLevel.WARN, TestProtoLogGroup.TEST_GROUP, 1233,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.ERROR, TestProtoLogGroup.TEST_GROUP, 4,
+            sProtoLog.log(LogLevel.ERROR, TestProtoLogGroup.TEST_GROUP, 1234,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.WTF, TestProtoLogGroup.TEST_GROUP, 5,
+            sProtoLog.log(LogLevel.WTF, TestProtoLogGroup.TEST_GROUP, 1235,
                     LogDataType.BOOLEAN, new Object[]{true});
         } finally {
             traceMonitor.stop(writer);
@@ -342,10 +358,11 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader = new ResultReader(writer.write());
         final ProtoLogTrace protolog = reader.readProtoLogTrace();
 
-        Truth.assertThat(protolog.messages).hasSize(3);
-        Truth.assertThat(protolog.messages.get(0).getLevel()).isEqualTo(LogLevel.WARN);
-        Truth.assertThat(protolog.messages.get(1).getLevel()).isEqualTo(LogLevel.ERROR);
-        Truth.assertThat(protolog.messages.get(2).getLevel()).isEqualTo(LogLevel.WTF);
+        final var messages = getTestMessages(protolog);
+        Truth.assertThat(messages).hasSize(3);
+        Truth.assertThat(messages.get(0).getLevel()).isEqualTo(LogLevel.WARN);
+        Truth.assertThat(messages.get(1).getLevel()).isEqualTo(LogLevel.ERROR);
+        Truth.assertThat(messages.get(2).getLevel()).isEqualTo(LogLevel.WTF);
     }
 
     @Test
@@ -357,15 +374,15 @@ public class ProcessedPerfettoProtoLogImplTest {
         final var writer = createTempWriter(mTracingDirectory);
         try {
             traceMonitor.start();
-            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1,
+            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1231,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.VERBOSE, TestProtoLogGroup.TEST_GROUP, 2,
+            sProtoLog.log(LogLevel.VERBOSE, TestProtoLogGroup.TEST_GROUP, 1232,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.WARN, TestProtoLogGroup.TEST_GROUP, 3,
+            sProtoLog.log(LogLevel.WARN, TestProtoLogGroup.TEST_GROUP, 1233,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.ERROR, TestProtoLogGroup.TEST_GROUP, 4,
+            sProtoLog.log(LogLevel.ERROR, TestProtoLogGroup.TEST_GROUP, 1234,
                     LogDataType.BOOLEAN, new Object[]{true});
-            sProtoLog.log(LogLevel.WTF, TestProtoLogGroup.TEST_GROUP, 5,
+            sProtoLog.log(LogLevel.WTF, TestProtoLogGroup.TEST_GROUP, 1235,
                     LogDataType.BOOLEAN, new Object[]{true});
         } finally {
             traceMonitor.stop(writer);
@@ -374,12 +391,13 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader = new ResultReader(writer.write());
         final ProtoLogTrace protolog = reader.readProtoLogTrace();
 
-        Truth.assertThat(protolog.messages).hasSize(5);
-        Truth.assertThat(protolog.messages.get(0).getLevel()).isEqualTo(LogLevel.DEBUG);
-        Truth.assertThat(protolog.messages.get(1).getLevel()).isEqualTo(LogLevel.VERBOSE);
-        Truth.assertThat(protolog.messages.get(2).getLevel()).isEqualTo(LogLevel.WARN);
-        Truth.assertThat(protolog.messages.get(3).getLevel()).isEqualTo(LogLevel.ERROR);
-        Truth.assertThat(protolog.messages.get(4).getLevel()).isEqualTo(LogLevel.WTF);
+        final var messages = getTestMessages(protolog);
+        Truth.assertThat(messages).hasSize(5);
+        Truth.assertThat(messages.get(0).getLevel()).isEqualTo(LogLevel.DEBUG);
+        Truth.assertThat(messages.get(1).getLevel()).isEqualTo(LogLevel.VERBOSE);
+        Truth.assertThat(messages.get(2).getLevel()).isEqualTo(LogLevel.WARN);
+        Truth.assertThat(messages.get(3).getLevel()).isEqualTo(LogLevel.ERROR);
+        Truth.assertThat(messages.get(4).getLevel()).isEqualTo(LogLevel.WTF);
     }
 
     @Test
@@ -393,7 +411,7 @@ public class ProcessedPerfettoProtoLogImplTest {
                 new Object[]{true, 10000, 30000, "test", 0.000003});
 
         verify(implSpy).passToLogcat(eq(TestProtoLogGroup.TEST_GROUP.getTag()), eq(
-                LogLevel.INFO),
+                        LogLevel.INFO),
                 eq("test true 10000 % 0x7530 test 3.0E-6"));
         verify(sReader).getViewerString(eq(1234L));
     }
@@ -409,7 +427,7 @@ public class ProcessedPerfettoProtoLogImplTest {
                 new Object[]{true, 10000, 0.0001, 0.00002, "test"});
 
         verify(implSpy).passToLogcat(eq(TestProtoLogGroup.TEST_GROUP.getTag()), eq(
-                LogLevel.INFO),
+                        LogLevel.INFO),
                 eq("FORMAT_ERROR \"test %b %d %% %x %s %f\", "
                         + "args=(true, 10000, 1.0E-4, 2.0E-5, test)"));
         verify(sReader).getViewerString(eq(1234L));
@@ -423,7 +441,7 @@ public class ProcessedPerfettoProtoLogImplTest {
 
         var assertion = assertThrows(RuntimeException.class, () ->
                 implSpy.log(LogLevel.INFO, TestProtoLogGroup.TEST_GROUP, 1234, 4321,
-                    new Object[]{5}));
+                        new Object[]{5}));
         Truth.assertThat(assertion).hasMessageThat()
                 .contains("Failed to decode message for logcat");
     }
@@ -473,12 +491,13 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader = new ResultReader(writer.write());
         final ProtoLogTrace protolog = reader.readProtoLogTrace();
 
-        Truth.assertThat(protolog.messages).hasSize(1);
-        Truth.assertThat(protolog.messages.getFirst().getTimestamp().getElapsedNanos())
+        final var messages = getTestMessages(protolog);
+        Truth.assertThat(messages).hasSize(1);
+        Truth.assertThat(messages.getFirst().getTimestamp().getElapsedNanos())
                 .isAtLeast(before);
-        Truth.assertThat(protolog.messages.getFirst().getTimestamp().getElapsedNanos())
+        Truth.assertThat(messages.getFirst().getTimestamp().getElapsedNanos())
                 .isAtMost(after);
-        Truth.assertThat(protolog.messages.getFirst().getMessage())
+        Truth.assertThat(messages.getFirst().getMessage())
                 .isEqualTo(
                         "My test message :: test, 1, 2, 3, 0.400000, 5.000000e-01, 0.6, true");
     }
@@ -499,8 +518,8 @@ public class ProcessedPerfettoProtoLogImplTest {
             before = SystemClock.elapsedRealtimeNanos();
             sProtoLog.log(
                     LogLevel.INFO, TestProtoLogGroup.TEST_GROUP,
-                    "My test message :: %s, %d, %x, %f, %b",
-                    "test", 1, 3, 0.4, true);
+                            "My test message :: %s, %d, %f, %b",
+                            "test", 1, 0.4, true);
             after = SystemClock.elapsedRealtimeNanos();
         } finally {
             traceMonitor.stop(writer);
@@ -509,17 +528,18 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader = new ResultReader(writer.write());
         final ProtoLogTrace protolog = reader.readProtoLogTrace();
 
-        Truth.assertThat(protolog.messages).hasSize(1);
-        Truth.assertThat(protolog.messages.getFirst().getTimestamp().getElapsedNanos())
+        final var messages = getTestMessages(protolog);
+        Truth.assertThat(messages).hasSize(1);
+        Truth.assertThat(messages.getFirst().getTimestamp().getElapsedNanos())
                 .isAtLeast(before);
-        Truth.assertThat(protolog.messages.getFirst().getTimestamp().getElapsedNanos())
+        Truth.assertThat(messages.getFirst().getTimestamp().getElapsedNanos())
                 .isAtMost(after);
-        Truth.assertThat(protolog.messages.getFirst().getMessage())
-                .isEqualTo("My test message :: test, 1, 3, 0.400000, true");
+        Truth.assertThat(messages.getFirst().getMessage())
+                        .isEqualTo("My test message :: test, 1, 0.400000, true");
     }
 
     @Test
-    public  void supportsLocationInformation() throws IOException {
+    public void supportsLocationInformation() throws IOException {
         PerfettoTraceMonitor traceMonitor = PerfettoTraceMonitor.newBuilder()
                 .enableProtoLog(true, List.of(), TEST_PROTOLOG_DATASOURCE_NAME)
                 .build();
@@ -527,7 +547,7 @@ public class ProcessedPerfettoProtoLogImplTest {
         final var writer = createTempWriter(mTracingDirectory);
         try {
             traceMonitor.start();
-            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1,
+            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1231,
                     LogDataType.BOOLEAN, new Object[]{true});
         } finally {
             traceMonitor.stop(writer);
@@ -536,8 +556,9 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader = new ResultReader(writer.write());
         final ProtoLogTrace protolog = reader.readProtoLogTrace();
 
-        Truth.assertThat(protolog.messages).hasSize(1);
-        Truth.assertThat(protolog.messages.get(0).getLocation())
+        final var messages = getTestMessages(protolog);
+        Truth.assertThat(messages).hasSize(1);
+        Truth.assertThat(messages.getFirst().getLocation())
                 .isEqualTo("com/test/MyTestClass.java:123");
     }
 
@@ -547,7 +568,7 @@ public class ProcessedPerfettoProtoLogImplTest {
                 .setMessageId(messageId)
                 .setMessage(message)
                 .setLevel(logLevel)
-                .setGroupId(1)
+                .setGroupId(TestProtoLogGroup.TEST_GROUP.getId())
         );
 
         return messageId;
@@ -583,7 +604,7 @@ public class ProcessedPerfettoProtoLogImplTest {
         final var writer = createTempWriter(mTracingDirectory);
         try {
             traceMonitor.start();
-            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1,
+            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1231,
                     0b11, new Object[]{true});
         } finally {
             traceMonitor.stop(writer);
@@ -592,11 +613,14 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader = new ResultReader(writer.write());
         final ProtoLogTrace protolog = reader.readProtoLogTrace();
 
-        Truth.assertThat(protolog.messages).isEmpty();
+        Truth.assertThat(getTestMessages(protolog)).isEmpty();
     }
 
     @Test
     public void stackTraceTrimmed() throws IOException {
+        // TODO(b/477870887): Figure out a way to support this
+        assumeFalse(android.tracing.Flags.javaNativeProtolog());
+
         PerfettoTraceMonitor traceMonitor = PerfettoTraceMonitor.newBuilder()
                 .enableProtoLog(
                         true,
@@ -611,7 +635,7 @@ public class ProcessedPerfettoProtoLogImplTest {
             traceMonitor.start();
 
             ProtoLogImpl.setSingleInstance(sProtoLog);
-            ProtoLogImpl.d(TestProtoLogGroup.TEST_GROUP, 1,
+            ProtoLogImpl.d(TestProtoLogGroup.TEST_GROUP, 1231,
                     0b11, true);
         } finally {
             traceMonitor.stop(writer);
@@ -620,8 +644,9 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader = new ResultReader(writer.write());
         final ProtoLogTrace protolog = reader.readProtoLogTrace();
 
-        Truth.assertThat(protolog.messages).hasSize(1);
-        String stacktrace = protolog.messages.getFirst().getStacktrace();
+        final var messages = getTestMessages(protolog);
+        Truth.assertThat(messages).hasSize(1);
+        String stacktrace = messages.getFirst().getStacktrace();
         Truth.assertThat(stacktrace)
                 .doesNotContain(PerfettoProtoLogImpl.class.getSimpleName() + ".java");
         Truth.assertThat(stacktrace).doesNotContain(DataSource.class.getSimpleName() + ".java");
@@ -787,9 +812,12 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader = new ResultReader(writer.write());
         final ProtoLogTrace protolog = reader.readProtoLogTrace();
 
-        Truth.assertThat(protolog.messages).hasSize(1);
-        Truth.assertThat(protolog.messages.getFirst().getMessage())
-                .isEqualTo("My test null string: null");
+        final var messages = getTestMessages(protolog).stream()
+                        .map(ProtoLogMessage::getMessage)
+                        .collect(Collectors.toList());
+        Truth.assertThat(messages).hasSize(1);
+        Truth.assertThat(messages.getFirst())
+                        .isEqualTo("My test null string: null");
     }
 
     @Test
@@ -803,7 +831,7 @@ public class ProcessedPerfettoProtoLogImplTest {
             traceMonitor.start();
 
             sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP,
-                    "My null args: %d, %f, %b", null, null, null);
+                            "My null args: %d, %f, %b, %s", null, null, null, null);
         } finally {
             traceMonitor.stop(writer);
         }
@@ -813,7 +841,7 @@ public class ProcessedPerfettoProtoLogImplTest {
 
         Truth.assertThat(protolog.messages).hasSize(1);
         Truth.assertThat(protolog.messages.getFirst().getMessage())
-                .isEqualTo("My null args: 0, 0.000000, false");
+                        .isEqualTo("My null args: 0, 0.000000, false, null");
     }
 
     @Test
@@ -832,7 +860,7 @@ public class ProcessedPerfettoProtoLogImplTest {
             traceMonitor1.start();
             traceMonitor2.start();
 
-            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1,
+            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1231,
                     LogDataType.BOOLEAN, new Object[]{true});
         } finally {
             traceMonitor1.stop(writer);
@@ -845,12 +873,18 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader2 = new ResultReader(writer2.write());
         final ProtoLogTrace protologFromMonitor2 = reader2.readProtoLogTrace();
 
-        Truth.assertThat(protologFromMonitor1.messages).hasSize(1);
-        Truth.assertThat(protologFromMonitor1.messages.getFirst().getMessage())
+        final var messages1 = getTestMessages(protologFromMonitor1).stream()
+                        .map(ProtoLogMessage::getMessage)
+                        .collect(Collectors.toList());
+        Truth.assertThat(messages1).hasSize(1);
+        Truth.assertThat(messages1.getFirst())
                 .isEqualTo("My Test Debug Log Message true");
 
-        Truth.assertThat(protologFromMonitor2.messages).hasSize(1);
-        Truth.assertThat(protologFromMonitor2.messages.getFirst().getMessage())
+        final var messages2 = getTestMessages(protologFromMonitor2).stream()
+                        .map(ProtoLogMessage::getMessage)
+                        .collect(Collectors.toList());
+        Truth.assertThat(messages2).hasSize(1);
+        Truth.assertThat(messages2.getFirst())
                 .isEqualTo("My Test Debug Log Message true");
     }
 
@@ -876,17 +910,21 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader = new ResultReader(writer.write());
         final ProtoLogTrace protolog = reader.readProtoLogTrace();
 
-        Truth.assertThat(protolog.messages).hasSize(2);
+        final var messages = getTestMessages(protolog);
+        final var msgStrings = messages.stream()
+                .map(ProtoLogMessage::getMessage)
+                .collect(Collectors.toList());
+        Truth.assertThat(msgStrings).hasSize(2);
 
-        Truth.assertThat(protolog.messages.get(0).getLevel())
-                .isEqualTo(LogLevel.WARN);
-        Truth.assertThat(protolog.messages.get(0).getMessage())
-                .isEqualTo("This message should be logged 123");
+        Truth.assertThat(messages.get(0).getLevel())
+                        .isEqualTo(LogLevel.WARN);
+        Truth.assertThat(messages.get(0).getMessage())
+                        .isEqualTo("This message should be logged 123");
 
-        Truth.assertThat(protolog.messages.get(1).getLevel())
-                .isEqualTo(LogLevel.ERROR);
-        Truth.assertThat(protolog.messages.get(1).getMessage())
-                .isEqualTo("This message should also be logged 567");
+        Truth.assertThat(messages.get(1).getLevel())
+                        .isEqualTo(LogLevel.ERROR);
+        Truth.assertThat(messages.get(1).getMessage())
+                        .isEqualTo("This message should also be logged 567");
     }
 
     @Test
@@ -909,7 +947,10 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader = new ResultReader(writer.write());
         final ProtoLogTrace protolog = reader.readProtoLogTrace();
 
-        Truth.assertThat(protolog.messages).hasSize(1);
+        final var messageStrings = protolog.messages.stream()
+                .map(ProtoLogMessage::getMessage)
+                .collect(Collectors.toList());
+        Truth.assertThat(messageStrings).hasSize(1);
 
         Truth.assertThat(protolog.messages.getFirst().getLevel())
                 .isEqualTo(LogLevel.DEBUG);
@@ -951,7 +992,8 @@ public class ProcessedPerfettoProtoLogImplTest {
     @Test
     public void enablesLogGroupAfterLoadingConfig() {
         sProtoLog.stopLoggingToLogcat(
-                new String[] { TestProtoLogGroup.TEST_GROUP.name() }, (msg) -> {});
+                new String[]{TestProtoLogGroup.TEST_GROUP.name()}, (msg) -> {
+                });
         Truth.assertThat(TestProtoLogGroup.TEST_GROUP.isLogToLogcat()).isFalse();
 
         doAnswer((Answer<Void>) invocation -> {
@@ -961,14 +1003,16 @@ public class ProcessedPerfettoProtoLogImplTest {
         }).when(sReader).unloadViewerConfig(any(), any());
 
         sProtoLog.startLoggingToLogcat(
-                new String[] { TestProtoLogGroup.TEST_GROUP.name() }, (msg) -> {});
+                new String[]{TestProtoLogGroup.TEST_GROUP.name()}, (msg) -> {
+                });
         Truth.assertThat(TestProtoLogGroup.TEST_GROUP.isLogToLogcat()).isTrue();
     }
 
     @Test
     public void disablesLogGroupBeforeUnloadingConfig() {
         sProtoLog.startLoggingToLogcat(
-                new String[] { TestProtoLogGroup.TEST_GROUP.name() }, (msg) -> {});
+                new String[]{TestProtoLogGroup.TEST_GROUP.name()}, (msg) -> {
+                });
         Truth.assertThat(TestProtoLogGroup.TEST_GROUP.isLogToLogcat()).isTrue();
 
         doAnswer((Answer<Void>) invocation -> {
@@ -977,7 +1021,8 @@ public class ProcessedPerfettoProtoLogImplTest {
             return null;
         }).when(sReader).unloadViewerConfig(any(), any());
         sProtoLog.stopLoggingToLogcat(
-                new String[] { TestProtoLogGroup.TEST_GROUP.name() }, (msg) -> {});
+                new String[]{TestProtoLogGroup.TEST_GROUP.name()}, (msg) -> {
+                });
         Truth.assertThat(TestProtoLogGroup.TEST_GROUP.isLogToLogcat()).isFalse();
     }
 
@@ -987,7 +1032,7 @@ public class ProcessedPerfettoProtoLogImplTest {
                 sProtoLog.isProtoEnabled());
 
         // Log a message when ProtoLog is disabled.
-        sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1,
+        sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1231,
                 LogDataType.BOOLEAN, new Object[]{false}); // "false" to distinguish
 
         PerfettoTraceMonitor traceMonitor = PerfettoTraceMonitor.newBuilder()
@@ -1001,7 +1046,7 @@ public class ProcessedPerfettoProtoLogImplTest {
                     sProtoLog.isProtoEnabled());
 
             // Log a message when ProtoLog is enabled.
-            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1,
+            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1231,
                     LogDataType.BOOLEAN, new Object[]{true}); // "true" to distinguish
         } finally {
             traceMonitor.stop(writer);
@@ -1015,6 +1060,107 @@ public class ProcessedPerfettoProtoLogImplTest {
                 .isEqualTo("My Test Debug Log Message true"); // Only the "true" message
     }
 
+    @Test
+    public void messagesLoggedDuringAsyncInitAreTraced() throws Exception {
+        final String dataSourceName;
+        if (android.tracing.Flags.javaNativeProtolog()) {
+            dataSourceName = TEST_PROTOLOG_DATASOURCE_NAME;
+        } else {
+            dataSourceName = "test.async.init.protolog." + new Random().nextInt();
+        }
+        ProtoLogDataSource dataSource = new ProtoLogDataSource(dataSourceName);
+        // The data source is NOT registered at this point. This will be done asynchronously
+        // by the ProtoLog implementation itself.
+
+        ViewerConfigInputStreamProvider viewerConfigInputStreamProvider = Mockito.mock(
+                ViewerConfigInputStreamProvider.class);
+        Mockito.when(viewerConfigInputStreamProvider.getInputStream())
+                .thenAnswer(it -> new AutoClosableProtoInputStream(
+                        sViewerConfigBuilder.build().toByteArray()));
+
+        final var protoLogConfigurationService = getProtoLogConfigurationService(dataSource);
+
+        // Start a Perfetto trace.
+        PerfettoTraceMonitor traceMonitor = PerfettoTraceMonitor.newBuilder()
+                .enableProtoLog(true, List.of(), dataSourceName)
+                .build();
+        final var writer = createTempWriter(mTracingDirectory);
+
+        ProcessedPerfettoProtoLogImpl protoLog = new ProcessedPerfettoProtoLogImpl(dataSource,
+                MOCK_VIEWER_CONFIG_FILE, viewerConfigInputStreamProvider, sReader,
+                (instance) -> sCacheUpdater.update(instance), TestProtoLogGroup.values());
+
+        try {
+            traceMonitor.start();
+
+            // Block the internal executor to simulate a delay in initialization and ensure we
+            // can log the logs below and start the trace while the initialization is happening.
+            final CountDownLatch releaseExecutor = new CountDownLatch(1);
+            final CountDownLatch executorBlocked = new CountDownLatch(1);
+            protoLog.mSingleThreadedExecutor.execute(() -> {
+                executorBlocked.countDown();
+                try {
+                    // This task will sit at the head of the queue and block it.
+                    releaseExecutor.await(10, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            assertTrue("Executor did not block in time",
+                    executorBlocked.await(5, TimeUnit.SECONDS));
+
+            // This will set initialize the datasource asynchronously.
+            protoLog.enable(true, protoLogConfigurationService);
+            assertTrue(protoLog.isEnabled(TestProtoLogGroup.TEST_GROUP, LogLevel.DEBUG));
+
+            // Log messages while initialization is pending. These should be buffered.
+            protoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP,
+                    1231, LogDataType.BOOLEAN, new Object[]{true});
+            protoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP,
+                    "Some string message with an arg: %b", true);
+
+            releaseExecutor.countDown();
+            protoLog.waitForInitialization();
+        } finally {
+            var countDownLatch = new CountDownLatch(1);
+            protoLog.mSingleThreadedExecutor.execute(countDownLatch::countDown);
+
+            var success = countDownLatch.await(5, TimeUnit.SECONDS);
+            Truth.assertWithMessage("Background thread did not clear in time")
+                    .that(success).isTrue();
+
+            traceMonitor.stop(writer);
+
+            protoLog.disable();
+        }
+
+        final ResultReader reader = new ResultReader(writer.write());
+        final ProtoLogTrace protologTrace = reader.readProtoLogTrace();
+        final var messages = getTestMessages(protologTrace);
+        final var messageStrs = messages.stream()
+                .map(it -> it.getMessage())
+                .collect(Collectors.toList());
+        Truth.assertThat(messages).hasSize(2);
+        Truth.assertThat(messageStrs)
+                .contains("My Test Debug Log Message true");
+        Truth.assertThat(messageStrs)
+                .contains("Some string message with an arg: true");
+    }
+
+    @NonNull
+    private static ProtoLogConfigurationServiceImpl getProtoLogConfigurationService(
+                    ProtoLogDataSource dataSource) {
+        final ViewerConfigFileTracer tracer = (ds, viewerConfigFilePath) -> {
+            Utils.dumpViewerConfig(ds, () -> {
+                if (!viewerConfigFilePath.equals(MOCK_VIEWER_CONFIG_FILE)) {
+                    throw new RuntimeException(
+                            "Unexpected viewer config file path provided");
+                }
+                return new AutoClosableProtoInputStream(sViewerConfigBuilder.build().toByteArray());
+            });
+        };
+        return new ProtoLogConfigurationServiceImpl(dataSource, tracer);
+    }
 
     @Test
     public void messagesInQueueBeforeNewSessionActivationAreNotTracedInNewSession()
@@ -1049,7 +1195,7 @@ public class ProcessedPerfettoProtoLogImplTest {
 
         // Log "old" messages. These are queued before we start the second tracing session.
         for (int i = 0; i < numOldMessages; i++) {
-            sProtoLog.log(LogLevel.WARN, TestProtoLogGroup.TEST_GROUP, 1,
+            sProtoLog.log(LogLevel.WARN, TestProtoLogGroup.TEST_GROUP, 1231,
                     LogDataType.BOOLEAN, new Object[]{false}); // Task_LogOld_i
         }
 
@@ -1066,7 +1212,7 @@ public class ProcessedPerfettoProtoLogImplTest {
 
         // Log "new" messages. These are for traceMonitor1.
         for (int i = 0; i < numNewMessages; i++) {
-            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1,
+            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1231,
                     LogDataType.BOOLEAN, new Object[]{true});
         }
 
@@ -1087,19 +1233,20 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader0 = new ResultReader(writer0.write());
         final ProtoLogTrace protolog0 = reader0.readProtoLogTrace();
 
-        Truth.assertThat(protolog0.messages).hasSize(numOldMessages + numNewMessages);
+        Truth.assertThat(getTestMessages(protolog0)).hasSize(numOldMessages + numNewMessages);
 
         final ResultReader reader1 = new ResultReader(writer1.write());
         final ProtoLogTrace protolog1 = reader1.readProtoLogTrace();
 
-        Truth.assertThat(protolog1.messages).hasSize(numNewMessages);
+        final var messages1 = getTestMessages(protolog1);
+        Truth.assertThat(messages1).hasSize(numNewMessages);
         for (int i = 0; i < numNewMessages; i++) {
-            Truth.assertThat(protolog1.messages.get(i).getLevel()).isEqualTo(LogLevel.DEBUG);
-            Truth.assertThat(protolog1.messages.get(i).getMessage())
+            Truth.assertThat(messages1.get(i).getLevel()).isEqualTo(LogLevel.DEBUG);
+            Truth.assertThat(messages1.get(i).getMessage())
                     .isEqualTo("My Test Debug Log Message true");
         }
         // Ensure no messages (from the "old" batch) are present.
-        for (var msg : protolog1.messages) {
+        for (var msg : messages1) {
             Truth.assertThat(msg.getLevel()).isNotEqualTo(LogLevel.VERBOSE);
         }
     }
@@ -1133,7 +1280,7 @@ public class ProcessedPerfettoProtoLogImplTest {
                     if (!allowProcessingToContinueLatch.await(60, TimeUnit.SECONDS)) {
                         // Fail fast if timeout occurs, to avoid test hanging indefinitely
                         Truth.assertWithMessage(
-                                "Timeout waiting for allowProcessingToContinueLatch")
+                                        "Timeout waiting for allowProcessingToContinueLatch")
                                 .fail();
                     }
                 } catch (InterruptedException e) {
@@ -1149,7 +1296,7 @@ public class ProcessedPerfettoProtoLogImplTest {
 
             // Now, submit all the log messages. They will be queued behind the blocking task.
             for (int i = 0; i < numMessages; i++) {
-                sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1,
+                sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1231,
                         LogDataType.BOOLEAN, new Object[]{true});
             }
 
@@ -1158,7 +1305,7 @@ public class ProcessedPerfettoProtoLogImplTest {
             assertTrue("Blocking task should have started execution.",
                     blockingTaskStartedExecution.get());
             Truth.assertWithMessage(
-                    "allowProcessingToContinueLatch should not have been counted down yet.")
+                            "allowProcessingToContinueLatch should not have been counted down yet.")
                     .that(allowProcessingToContinueLatch.getCount())
                     .isEqualTo(1L);
 
@@ -1182,10 +1329,14 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader reader = new ResultReader(writer.write());
         final ProtoLogTrace protolog = reader.readProtoLogTrace();
 
-        Truth.assertThat(protolog.messages).hasSize(numMessages);
+        final var filteredMessages = getTestMessages(protolog);
+        final var messages = filteredMessages.stream()
+                        .map(ProtoLogMessage::getMessage)
+                        .collect(Collectors.toList());
+        Truth.assertThat(messages).hasSize(numMessages);
         for (int i = 0; i < numMessages; i++) {
-            Truth.assertThat(protolog.messages.get(i).getLevel()).isEqualTo(LogLevel.DEBUG);
-            Truth.assertThat(protolog.messages.get(i).getMessage())
+            Truth.assertThat(filteredMessages.get(i).getLevel()).isEqualTo(LogLevel.DEBUG);
+            Truth.assertThat(filteredMessages.get(i).getMessage())
                     .isEqualTo("My Test Debug Log Message true");
         }
     }
@@ -1215,7 +1366,7 @@ public class ProcessedPerfettoProtoLogImplTest {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 Truth.assertWithMessage(
-                        "Background thread interrupted while waiting on pause latch.")
+                                "Background thread interrupted while waiting on pause latch.")
                         .fail();
             }
         });
@@ -1239,14 +1390,18 @@ public class ProcessedPerfettoProtoLogImplTest {
         final ResultReader resultReader = new ResultReader(writer.write());
         final ProtoLogTrace protologTrace = resultReader.readProtoLogTrace();
 
-        Truth.assertThat(protologTrace.messages).hasSize(1);
+        final var messages = getTestMessages(protologTrace);
+        Truth.assertThat(messages).hasSize(1);
         final String expectedLoggedMessage = String.format(logMessageFormat, initialValue);
-        Truth.assertThat(protologTrace.messages.getFirst().getMessage())
+        Truth.assertThat(messages.getFirst().getMessage())
                 .isEqualTo(expectedLoggedMessage);
     }
 
     @Test
     public void incrementalStateFlagSetForStackTrace() throws IOException {
+        // TODO(b/477870887): Figure out a way to support this
+        assumeFalse(android.tracing.Flags.javaNativeProtolog());
+
         PerfettoTraceMonitor traceMonitor = PerfettoTraceMonitor.newBuilder()
                 .enableProtoLog(
                         true,
@@ -1262,7 +1417,7 @@ public class ProcessedPerfettoProtoLogImplTest {
 
             // Log a message with a stacktrace but no string arguments. The stacktrace is the only
             // interned data.
-            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1,
+            sProtoLog.log(LogLevel.DEBUG, TestProtoLogGroup.TEST_GROUP, 1231,
                     LogDataType.BOOLEAN, new Object[]{true});
         } finally {
             traceMonitor.stop(writer);
@@ -1273,7 +1428,7 @@ public class ProcessedPerfettoProtoLogImplTest {
         final var trace = Trace.parseFrom(traceBytes);
         final var protoLogMessagePackets = trace.getPacketList().stream()
                 .filter(it -> it.hasProtologMessage()
-                        && it.getProtologMessage().getMessageId() == 1)
+                        && it.getProtologMessage().getMessageId() == 1231)
                 .toList();
 
         Truth.assertThat(protoLogMessagePackets).hasSize(1);
@@ -1319,6 +1474,7 @@ public class ProcessedPerfettoProtoLogImplTest {
     @Test
     public void incrementalStateResetWhenStringsTooLarge() throws IOException {
         assumeTrue(android.tracing.Flags.protologAutoClearIncrementalState());
+        assumeFalse(android.tracing.Flags.javaNativeProtolog());
         PerfettoProtoLogImpl.MAX_INTERNED_STRINGS_SIZE_BYTES_BEFORE_RESET = 10;
 
         PerfettoTraceMonitor traceMonitor = PerfettoTraceMonitor.newBuilder()
@@ -1349,13 +1505,20 @@ public class ProcessedPerfettoProtoLogImplTest {
 
         final var clearPackets = trace.getPacketList().stream()
                 .filter(it -> (it.getSequenceFlags()
-                        & SEQ_INCREMENTAL_STATE_CLEARED.getNumber()) != 0)
+                        & SEQ_INCREMENTAL_STATE_CLEARED.getNumber()) != 0
+                        && !it.getPreviousPacketDropped())
                 .toList();
         Truth.assertThat(clearPackets).hasSize(1);
     }
 
+    private List<ProtoLogMessage> getTestMessages(ProtoLogTrace protolog) {
+        return protolog.messages.stream()
+                .filter(it -> it.getTag().equals(TestProtoLogGroup.TEST_GROUP.getTag()))
+                .collect(Collectors.toList());
+    }
+
     private enum TestProtoLogGroup implements IProtoLogGroup {
-        TEST_GROUP(true, false, "TEST_TAG");
+            TEST_GROUP(true, false, "TEST_GROUP");
 
         private final boolean mEnabled;
         private volatile boolean mLogToLogcat;
@@ -1396,7 +1559,7 @@ public class ProcessedPerfettoProtoLogImplTest {
 
         @Override
         public int getId() {
-            return ordinal();
+            return 123;
         }
 
     }

@@ -19,5 +19,5 @@
         android:type="linear"
         android:angle="90"
         android:endColor="@android:color/transparent"
-        android:startColor="?androidprv:attr/colorSurfaceHeader" />
+        android:startColor="@color/materialColorSurfaceContainerHighest" />
 </shape>

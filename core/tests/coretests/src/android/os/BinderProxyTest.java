@@ -28,14 +28,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.MediumTest;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -59,8 +57,6 @@ public class BinderProxyTest {
         }
     };
 
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private Context mContext;
     private ActivityManager mActivityManager;

@@ -16,10 +16,12 @@
 
 package com.android.systemui.qs.pipeline.domain.interactor
 
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.Dumpable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dump.DumpManager
+import com.android.systemui.qs.panels.domain.interactor.IconTilesInteractor
 import com.android.systemui.qs.pipeline.data.repository.AutoAddRepository
 import com.android.systemui.qs.pipeline.domain.model.AutoAddSignal
 import com.android.systemui.qs.pipeline.domain.model.AutoAddTracking
@@ -39,7 +41,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.take
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 /**
  * Collects the signals coming from all registered [AutoAddable] and adds/removes tiles accordingly.
@@ -57,14 +58,19 @@ constructor(
 
     private val initialized = AtomicBoolean(false)
     private lateinit var currentTilesInteractor: CurrentTilesInteractor
+    private lateinit var iconTilesInteractor: IconTilesInteractor
 
     /** Start collection of signals following the user from [currentTilesInteractor]. */
-    fun init(currentTilesInteractor: CurrentTilesInteractor) {
+    fun init(
+        currentTilesInteractor: CurrentTilesInteractor,
+        iconTilesInteractor: IconTilesInteractor,
+    ) {
         if (!initialized.compareAndSet(false, true)) {
             return
         }
 
         this.currentTilesInteractor = currentTilesInteractor
+        this.iconTilesInteractor = iconTilesInteractor
         dumpManager.registerNormalDumpable(TAG, this)
 
         scope.launch {
@@ -115,7 +121,19 @@ constructor(
                     is AutoAddSignal.Add -> {
                         if (signal.spec !in previouslyAdded.value) {
                             currentTilesInteractor.addTile(signal.spec, signal.position)
-                            qsPipelineLogger.logTileAutoAdded(userId, signal.spec, signal.position)
+                            when (signal.size) {
+                                AutoAddSignal.AutoAddSize.LARGE ->
+                                    iconTilesInteractor.addLargeTile(signal.spec)
+                                AutoAddSignal.AutoAddSize.SMALL ->
+                                    iconTilesInteractor.removeLargeTiles(setOf(signal.spec))
+                                AutoAddSignal.AutoAddSize.DEFAULT -> {}
+                            }
+                            qsPipelineLogger.logTileAutoAdded(
+                                userId,
+                                signal.spec,
+                                signal.position,
+                                signal.size,
+                            )
                             repository.markTileAdded(userId, signal.spec)
                         }
                     }
@@ -127,6 +145,10 @@ constructor(
                     is AutoAddSignal.RemoveTracking -> {
                         qsPipelineLogger.logTileUnmarked(userId, signal.spec)
                         repository.unmarkTileAdded(userId, signal.spec)
+                    }
+                    is AutoAddSignal.AddTracking -> {
+                        qsPipelineLogger.logTileMarked(userId, signal.spec)
+                        repository.markTileAdded(userId, signal.spec)
                     }
                 }
             }

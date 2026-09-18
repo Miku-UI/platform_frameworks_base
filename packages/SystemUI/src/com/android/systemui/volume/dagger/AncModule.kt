@@ -17,13 +17,15 @@
 package com.android.systemui.volume.dagger
 
 import android.content.Context
-import androidx.slice.SliceViewManager
+import com.android.settingslib.bluetooth.devicesettings.data.repository.DeviceSettingRepository
+import com.android.settingslib.bluetooth.devicesettings.data.repository.DeviceSettingRepositoryImpl
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
-import com.android.systemui.volume.panel.component.anc.data.repository.AncSliceRepository
-import com.android.systemui.volume.panel.component.anc.data.repository.AncSliceRepositoryImpl
+import com.android.systemui.dagger.qualifiers.Background
 import dagger.Module
 import dagger.Provides
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineScope
 
 /** Dagger module that provides ANC controlling backend. */
 @Module
@@ -32,9 +34,15 @@ interface AncModule {
     companion object {
         @Provides
         @SysUISingleton
-        fun provideAncSliceRepository(
+        fun provideDeviceSettingsRepository(
             @Application context: Context,
-            implFactory: AncSliceRepositoryImpl.Factory
-        ): AncSliceRepository = implFactory.create(SliceViewManager.getInstance(context))
+            @Application coroutineScope: CoroutineScope,
+            @Background coroutineContext: CoroutineContext,
+        ): DeviceSettingRepository =
+            DeviceSettingRepositoryImpl(
+                context = context,
+                coroutineScope = coroutineScope,
+                backgroundCoroutineContext = coroutineContext,
+            )
     }
 }

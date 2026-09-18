@@ -33,7 +33,7 @@ import kotlinx.coroutines.flow.flowOf
 class DeviceEntryUdfpsInteractor
 @Inject
 constructor(
-    fingerprintPropertyInteractor: FingerprintPropertyInteractor,
+    private val fingerprintPropertyInteractor: FingerprintPropertyInteractor,
     // TODO (b/309655554): create & use interactors for these repositories
     fingerprintAuthRepository: DeviceEntryFingerprintAuthRepository,
     biometricSettingsRepository: BiometricSettingsRepository,
@@ -70,4 +70,7 @@ constructor(
                 flowOf(null)
             }
         }
+
+    val scaleFactor: Float
+        get() = fingerprintPropertyInteractor.scaleFactor
 }

@@ -3,10 +3,9 @@ container: "system"
 
 flag {
   name: "multidisplay"
-  namespace: "bootanimation"
+  namespace: "systemui"
   description: "Enable boot animation on multiple displays (e.g. foldables)"
   bug: "335406617"
   is_fixed_read_only: true
 }
-
 

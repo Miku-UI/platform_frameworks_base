@@ -22,7 +22,9 @@ import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import com.android.systemui.qs.panels.ui.compose.selection.ResizingState.ResizeOperation.FinalResizeOperation
 import com.android.systemui.qs.panels.ui.compose.selection.ResizingState.ResizeOperation.TemporaryResizeOperation
 import com.android.systemui.qs.pipeline.shared.TileSpec
@@ -37,6 +39,14 @@ enum class QSDragAnchor {
     Large,
 }
 
+/**
+ * Holds the data required to calculate the anchors of a resizable tile.
+ *
+ * @property isIcon whether or not the tile is currently an icon or a large tile
+ * @property width the current width in pixel of the tile
+ */
+data class QSDragAnchorsData(val isIcon: Boolean, val width: Int)
+
 class ResizingState(tileSpec: TileSpec, startsAsIcon: Boolean) {
     val anchoredDraggableState =
         AnchoredDraggableState(if (startsAsIcon) QSDragAnchor.Icon else QSDragAnchor.Large)
@@ -45,6 +55,13 @@ class ResizingState(tileSpec: TileSpec, startsAsIcon: Boolean) {
         anchoredDraggableState.anchors.minPosition().takeIf { !it.isNaN() } to
             anchoredDraggableState.anchors.maxPosition().takeIf { !it.isNaN() }
     }
+
+    /** Whether or not the resizing state is idle at one of the anchors */
+    val isIdle by derivedStateOf { progress().let { it == 0f || it == 1f } }
+
+    /** Whether or not the handle is currently being dragged. */
+    var isDragActive by mutableStateOf(false)
+        private set
 
     val temporaryResizeOperation by derivedStateOf {
         TemporaryResizeOperation(
@@ -60,11 +77,19 @@ class ResizingState(tileSpec: TileSpec, startsAsIcon: Boolean) {
         )
     }
 
+    fun dragStarted() {
+        isDragActive = true
+    }
+
+    fun dragEnded() {
+        isDragActive = false
+    }
+
     /** Calculates and updates the drag anchors based on the size and maximum span. */
-    fun updateAnchors(isIcon: Boolean, width: Int, maxSpan: Int, padding: Int) {
+    fun updateAnchors(data: QSDragAnchorsData, maxSpan: Int, padding: Int) {
         val totalPadding = (maxSpan - 1) * padding
-        val min = if (isIcon) width else (width - totalPadding) / maxSpan
-        val max = if (isIcon) (width * maxSpan) + totalPadding else width
+        val min = if (data.isIcon) data.width else (data.width - totalPadding) / maxSpan
+        val max = if (data.isIcon) (data.width * maxSpan) + totalPadding else data.width
         updateAnchors(min.toFloat(), max.toFloat())
     }
 
@@ -86,7 +111,18 @@ class ResizingState(tileSpec: TileSpec, startsAsIcon: Boolean) {
         updateCurrentValue(!isIcon)
     }
 
-    fun progress(): Float = anchoredDraggableState.progress(QSDragAnchor.Icon, QSDragAnchor.Large)
+    fun progress(): Float {
+        // Check if anchors are defined before calculating progress since it defaults to 1f
+        // otherwise.
+        return if (
+            anchoredDraggableState.anchors.positionOf(QSDragAnchor.Icon).isNaN() ||
+                anchoredDraggableState.anchors.positionOf(QSDragAnchor.Large).isNaN()
+        ) {
+            if (anchoredDraggableState.currentValue == QSDragAnchor.Icon) 0f else 1f
+        } else {
+            anchoredDraggableState.progress(QSDragAnchor.Icon, QSDragAnchor.Large)
+        }
+    }
 
     /**
      * Represents a resizing operation for a tile.

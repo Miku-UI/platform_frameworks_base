@@ -26,7 +26,7 @@ import android.view.selectiontoolbar.WidgetInfo;
  */
 oneway interface ISelectionToolbarCallback {
     void onShown(in WidgetInfo info);
+    void onInvisible();
     void onWidgetUpdated(in WidgetInfo info);
     void onMenuItemClicked(int itemIndex);
-    void onError(int errorCode, int sequenceNumber);
 }

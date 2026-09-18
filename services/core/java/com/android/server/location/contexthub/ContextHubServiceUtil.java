@@ -454,6 +454,7 @@ import java.util.List;
         outputInfo.id = new android.hardware.contexthub.EndpointId();
         outputInfo.id.id = endpointId;
         outputInfo.id.hubId = hubId;
+        outputInfo.type = info.getType();
         outputInfo.name = info.getName();
         outputInfo.version = info.getVersion();
         outputInfo.tag = info.getTag();
@@ -482,7 +483,8 @@ import java.util.List;
     /* package */
     static Message createHalMessage(HubMessage message) {
         Message outMessage = new Message();
-        outMessage.flags = message.isResponseRequired() ? Message.FLAG_REQUIRES_DELIVERY_STATUS : 0;
+        outMessage.flags |=
+                message.isResponseRequired() ? (int) Message.FLAG_REQUIRES_DELIVERY_STATUS : 0;
         outMessage.permissions = new String[0];
         outMessage.sequenceNumber = message.getMessageSequenceNumber();
         outMessage.type = message.getMessageType();

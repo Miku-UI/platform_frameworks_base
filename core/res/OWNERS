@@ -8,7 +8,6 @@ hackbod@android.com
 hackbod@google.com
 ilyamaty@google.com
 jbolinger@google.com
-jsharkey@android.com
 juliacr@google.com
 michaelwr@google.com
 nandana@google.com
@@ -23,6 +22,7 @@ yamasani@google.com
 # TODO(262451702): Move WindowManager configs out of config.xml in a separate file
 per-file res/values/config.xml = file:/services/core/java/com/android/server/wm/OWNERS
 per-file res/values/symbols.xml = file:/services/core/java/com/android/server/wm/OWNERS
+per-file res/values/dimen.xml = file:/services/core/java/com/android/server/wm/OWNERS
 
 # Resources finalization
 per-file res/xml/public-staging.xml = file:/tools/aapt2/OWNERS
@@ -92,3 +92,11 @@ per-file res/values/styles.xml = arteiro@google.com
 per-file res/values/symbols.xml = arteiro@google.com
 per-file res/values/themes_device_defaults.xml = arteiro@google.com
 per-file res/values/styles_material.xml = arteiro@google.com
+per-file res/values/colors_dynamic.xml= file:platform/frameworks/base:/core/java/android/content/theming/OWNERS
+per-file res/res/values-night/colors_dynamic.xml= file:platform/frameworks/base:/core/java/android/content/theming/OWNERS
+
+# Serial ports
+per-file res/values/config_serial.xml = file:/services/serial/OWNERS
+
+# Locales
+per-file res/values/locale_config.xml = file:/platform/external/icu:/OWNERS

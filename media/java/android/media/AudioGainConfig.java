@@ -16,7 +16,9 @@
 
 package android.media;
 
+import android.annotation.NonNull;
 import android.compat.annotation.UnsupportedAppUsage;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 /**
  * The AudioGainConfig is used by APIs setting or getting values on a given gain
@@ -26,6 +28,7 @@ import android.compat.annotation.UnsupportedAppUsage;
  * @see AudioPort
  * @hide
  */
+@RavenwoodKeepWholeClass
 public class AudioGainConfig {
     AudioGain mGain;
     @UnsupportedAppUsage
@@ -33,7 +36,7 @@ public class AudioGainConfig {
     @UnsupportedAppUsage
     private final int mMode;
     @UnsupportedAppUsage
-    private final int mChannelMask;
+    @NonNull private final AudioFormat.ChannelMasks mChannelMasks;
     @UnsupportedAppUsage
     private final int mValues[];
     @UnsupportedAppUsage
@@ -42,10 +45,17 @@ public class AudioGainConfig {
     @UnsupportedAppUsage
     AudioGainConfig(int index, AudioGain gain, int mode, int channelMask,
             int[] values, int rampDurationMs) {
+        this(index, gain, mode, new AudioFormat.ChannelMasks(channelMask), values, rampDurationMs);
+    }
+
+    @UnsupportedAppUsage
+    AudioGainConfig(int index, AudioGain gain, int mode,
+            @NonNull AudioFormat.ChannelMasks channelMasks,
+            int[] values, int rampDurationMs) {
         mIndex = index;
         mGain = gain;
         mMode = mode;
-        mChannelMask = channelMask;
+        mChannelMasks = channelMasks;
         mValues = values;
         mRampDurationMs = rampDurationMs;
     }
@@ -71,7 +81,14 @@ public class AudioGainConfig {
      * See {@link AudioFormat#CHANNEL_OUT_STEREO}, {@link AudioFormat#CHANNEL_OUT_MONO} ...
      */
     public int channelMask() {
-        return mChannelMask;
+        return mChannelMasks.getPositionMask();
+    }
+
+    /**
+     * Channel mask configuration.
+     */
+    public @NonNull AudioFormat.ChannelMasks channelMasks() {
+        return mChannelMasks;
     }
 
     /**

@@ -60,7 +60,7 @@ import com.android.frameworks.mockingservicestests.R;
 import com.android.server.backup.FileMetadata;
 import com.android.server.backup.Flags;
 import com.android.server.backup.UserBackupManagerService;
-import com.android.server.backup.restore.PerformAdbRestoreTask;
+import com.android.server.backup.adb.PerformAdbRestoreTask;
 import com.android.server.backup.restore.RestorePolicy;
 import com.android.server.backup.testutils.PackageManagerStub;
 

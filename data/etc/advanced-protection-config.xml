@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License
+  -->
+
+<!--
+    This XML file declares the configuration for advanced protection features. Features listed in
+    this file can be turned on by the AdvancedProtectionService when the device is put into
+    advanced protection mode.
+
+    The canonical list of all potential protections is defined in the schema,
+    (see advanced-protection-config.xsd), and includes:
+    - DISALLOW_CELLULAR_2G
+    - DISALLOW_INSTALL_UNKNOWN_SOURCES
+    - DISALLOW_USB
+    - ENABLE_MTE
+    - DISALLOW_NON_TOOL_ACCESSIBILITY_SERVICES
+
+    Use the featureFlag attribute to guard protection features with trunk stable flags. The
+    featureFlag attribute supports addition and removal of protections features. For example,
+    featureFlag="my.flag" will add the protection feature if my.flag is true, while
+    featureFlag="!my.flag" will remove the protection feature if my.flag is true.
+
+    Note: if the feature ID defined in AdvancedProtectionManager is guarded by a trunk stable flag,
+    make sure to guard it with the same flag in this file.
+-->
+
+<advanced-protection-config>
+    <available-protections>
+        <protection id="DISALLOW_CELLULAR_2G" />
+        <protection id="DISALLOW_INSECURE_WIFI_AUTOJOIN"
+                    featureFlag="android.security.aapm_feature_disable_insecure_wifi_autojoin" />
+        <protection id="DISALLOW_INSTALL_UNKNOWN_SOURCES" />
+        <protection id="DISALLOW_USB" />
+        <protection id="ENABLE_MTE" />
+        <protection id="DISALLOW_NON_TOOL_ACCESSIBILITY_SERVICES"
+                    featureFlag="android.security.extend_aapm_to_a11y_services" />
+    </available-protections>
+</advanced-protection-config>

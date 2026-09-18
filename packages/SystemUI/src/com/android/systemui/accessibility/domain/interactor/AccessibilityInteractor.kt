@@ -20,15 +20,12 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import com.android.systemui.accessibility.data.repository.AccessibilityRepository
 import com.android.systemui.dagger.SysUISingleton
 import javax.inject.Inject
+import kotlin.time.Duration
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 @SysUISingleton
-class AccessibilityInteractor
-@Inject
-constructor(
-    private val a11yRepo: AccessibilityRepository,
-) {
+class AccessibilityInteractor @Inject constructor(private val a11yRepo: AccessibilityRepository) {
     /** @see [android.view.accessibility.AccessibilityManager.isTouchExplorationEnabled] */
     val isTouchExplorationEnabled: Flow<Boolean> = a11yRepo.isTouchExplorationEnabled
 
@@ -37,4 +34,9 @@ constructor(
 
     /** This returns whether a filtered set of [AccessibilityServiceInfo]s are enabled. */
     val isEnabledFiltered: StateFlow<Boolean> = a11yRepo.isEnabledFiltered
+
+    /** @see [android.view.accessibility.AccessibilityManager.getRecommendedTimeoutMillis] */
+    fun getRecommendedTimeout(originalTimeout: Duration, uiFlags: Int): Duration {
+        return a11yRepo.getRecommendedTimeout(originalTimeout, uiFlags)
+    }
 }

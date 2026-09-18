@@ -958,7 +958,7 @@ public final class AccessibilityInteractionClient
                     if (cachedInfo != null) {
                         if (DEBUG) {
                             Log.i(LOG_TAG, "Focused node cache hit retrieved"
-                                    + idToString(cachedInfo.getWindowId(),
+                                    + idToString(cachedInfo.getRealWindowId(),
                                     cachedInfo.getSourceNodeId()));
                         }
                         return cachedInfo;
@@ -1152,11 +1152,11 @@ public final class AccessibilityInteractionClient
     public void onAccessibilityEvent(AccessibilityEvent event, int connectionId) {
         switch (event.getEventType()) {
             case AccessibilityEvent.TYPE_VIEW_SCROLLED:
-                updateScrollingWindow(event.getWindowId(), SystemClock.uptimeMillis());
+                updateScrollingWindow(event.getRealWindowId(), SystemClock.uptimeMillis());
                 break;
             case AccessibilityEvent.TYPE_WINDOWS_CHANGED:
                 if (event.getWindowChanges() == AccessibilityEvent.WINDOWS_CHANGE_REMOVED) {
-                    deleteScrollingWindow(event.getWindowId());
+                    deleteScrollingWindow(event.getRealWindowId());
                 }
                 break;
             default:

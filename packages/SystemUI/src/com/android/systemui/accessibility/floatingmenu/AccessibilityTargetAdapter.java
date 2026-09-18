@@ -17,9 +17,12 @@
 package com.android.systemui.accessibility.floatingmenu;
 
 import static com.android.internal.accessibility.AccessibilityShortcutController.ACCESSIBILITY_HEARING_AIDS_COMPONENT_NAME;
+import static com.android.internal.accessibility.AccessibilityShortcutController.MAGNIFICATION_CONTROLLER_NAME;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.InsetDrawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -36,6 +39,8 @@ import com.android.internal.accessibility.common.ShortcutConstants.Accessibility
 import com.android.internal.accessibility.dialog.AccessibilityTarget;
 import com.android.settingslib.bluetooth.HearingAidDeviceManager;
 import com.android.settingslib.bluetooth.HearingAidDeviceManager.ConnectionStatus;
+import com.android.systemui.Flags;
+import com.android.systemui.accessibility.Magnification;
 import com.android.systemui.accessibility.floatingmenu.AccessibilityTargetAdapter.ViewHolder;
 import com.android.systemui.accessibility.hearingaid.HearingDeviceStatusDrawableInfo;
 import com.android.systemui.res.R;
@@ -57,6 +62,27 @@ public class AccessibilityTargetAdapter extends Adapter<ViewHolder> {
 
     private int mHearingDeviceStatus;
     private boolean mBadgeOnLeftSide = false;
+    private MoreOptionsClickListener mMoreOptionsClickListener;
+
+    /** A listener for when the "More Options" menu item is clicked. */
+    public interface MoreOptionsClickListener {
+        /**
+         * A callback that is invoked when the "More Options" menu item is clicked.
+         *
+         * @param view The view that was clicked.
+         */
+        void onMoreOptionsClicked(View view);
+    }
+
+    private Context mContext;
+    private Magnification mMagnification;
+
+    private Magnification.MagnificationActivationChangedListener mMagnificationEnabledListener =
+            (displayId) -> {
+                if (displayId == mContext.getDisplayId()) {
+                    notifyDataSetChanged();
+                }
+            };
 
     @IntDef({
             ItemType.FIRST_ITEM,
@@ -70,8 +96,22 @@ public class AccessibilityTargetAdapter extends Adapter<ViewHolder> {
         int LAST_ITEM = 2;
     }
 
-    public AccessibilityTargetAdapter(@NonNull List<AccessibilityTarget> targets) {
+    public AccessibilityTargetAdapter(@NonNull List<AccessibilityTarget> targets,
+            Context context,
+            Magnification magnification) {
         mTargets = targets;
+        mContext = context;
+        mMagnification = magnification;
+    }
+
+    void show() {
+        if (Flags.floatingMenuMagnificationStatus()) {
+            mMagnification.registerActivationChangedListener(mMagnificationEnabledListener);
+        }
+    }
+
+    void hide() {
+        mMagnification.unregisterActivationChangedListener(mMagnificationEnabledListener);
     }
 
     @NonNull
@@ -81,28 +121,63 @@ public class AccessibilityTargetAdapter extends Adapter<ViewHolder> {
                 R.layout.accessibility_floating_menu_item, parent,
                 /* attachToRoot= */ false);
 
-        if (itemType == ItemType.FIRST_ITEM) {
-            return new TopViewHolder(root);
-        }
+        if (!com.android.systemui.Flags.floatingMenuUniformPadding()) {
+            if (itemType == ItemType.FIRST_ITEM) {
+                return new TopViewHolder(root);
+            }
 
-        if (itemType == ItemType.LAST_ITEM) {
-            return new BottomViewHolder(root);
+            if (itemType == ItemType.LAST_ITEM) {
+                return new BottomViewHolder(root);
+            }
         }
 
         return new ViewHolder(root);
     }
 
+    public void setMoreOptionsClickListener(MoreOptionsClickListener listener) {
+        mMoreOptionsClickListener = listener;
+    }
+
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         final AccessibilityTarget target = mTargets.get(position);
-        holder.mIconView.setBackground(target.getIcon());
+        Drawable icon = target.getIcon();
+        if (target instanceof MoreOptionsTarget) {
+            final int iconSize = icon.getIntrinsicWidth();
+            if (mIconWidthHeight > iconSize && iconSize > 0) {
+                final int inset = (mIconWidthHeight - iconSize) / 2;
+                icon = new InsetDrawable(icon, inset);
+            }
+        }
+        holder.mIconView.setBackground(icon);
         holder.mRightBadgeView.setBackground(null);
         holder.mLeftBadgeView.setBackground(null);
         holder.updateIconSize(mIconWidthHeight);
         holder.updateItemPadding(mItemPadding, getItemCount());
-        holder.itemView.setOnClickListener((v) -> target.onSelected());
-        holder.itemView.setStateDescription(target.getStateDescription());
+        holder.itemView.setOnClickListener(view -> {
+            if (target instanceof MoreOptionsTarget) {
+                if (mMoreOptionsClickListener != null) {
+                    mMoreOptionsClickListener.onMoreOptionsClicked(view);
+                }
+            } else {
+                target.onSelected();
+            }
+        });
         holder.itemView.setContentDescription(target.getLabel());
+
+        if (Flags.floatingMenuMagnificationStatus()
+                && MAGNIFICATION_CONTROLLER_NAME.equals(target.getId())) {
+            final int statusResId =
+                    mMagnification.isAnyMagnificationActivated(mContext.getDisplayId())
+                            ? com.android.internal.R.string
+                            .accessibility_shortcut_menu_item_status_on
+                            : com.android.internal.R.string
+                                    .accessibility_shortcut_menu_item_status_off;
+
+            holder.itemView.setStateDescription(mContext.getString(statusResId));
+        } else {
+            holder.itemView.setStateDescription(target.getStateDescription());
+        }
 
         final String clickHint = target.getFragmentType() == AccessibilityFragmentType.TOGGLE
                 ? holder.itemView.getResources().getString(
@@ -112,9 +187,23 @@ public class AccessibilityTargetAdapter extends Adapter<ViewHolder> {
                 AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
                 clickHint, /* command= */ null);
 
+        ViewCompat.setAccessibilityDelegate(
+                holder.itemView,
+                new androidx.core.view.AccessibilityDelegateCompat() {
+                    @Override
+                    public void onInitializeAccessibilityNodeInfo(
+                            View host, AccessibilityNodeInfoCompat info) {
+                        super.onInitializeAccessibilityNodeInfo(host, info);
+                        if (target instanceof MoreOptionsTarget) {
+                            info.setClassName(android.widget.Button.class.getName());
+                        }
+                    }
+                });
+
         if (com.android.settingslib.flags.Flags.hearingDeviceSetConnectionStatusReport()) {
-            if (ACCESSIBILITY_HEARING_AIDS_COMPONENT_NAME.equals(
-                    ComponentName.unflattenFromString(target.getId()))) {
+            final String targetId = target.getId();
+            if (targetId != null && ACCESSIBILITY_HEARING_AIDS_COMPONENT_NAME.equals(
+                    ComponentName.unflattenFromString(targetId))) {
                 updateHearingDeviceStatusDrawable(holder, mHearingDeviceStatus);
             }
         }
@@ -262,7 +351,11 @@ public class AccessibilityTargetAdapter extends Adapter<ViewHolder> {
         }
 
         void updateItemPadding(int padding, int size) {
-            itemView.setPaddingRelative(padding, padding, padding, 0);
+            if (com.android.systemui.Flags.floatingMenuUniformPadding()) {
+                itemView.setPaddingRelative(padding, padding, padding, padding);
+            } else {
+                itemView.setPaddingRelative(padding, padding, padding, 0);
+            }
         }
     }
 

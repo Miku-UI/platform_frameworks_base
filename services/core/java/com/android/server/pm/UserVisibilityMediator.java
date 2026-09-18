@@ -40,9 +40,11 @@ import android.os.UserManager;
 import android.util.DebugUtils;
 import android.util.Dumpable;
 import android.util.EventLog;
+import android.util.ImmutableIntArray;
 import android.util.IndentingPrintWriter;
 import android.util.IntArray;
 import android.util.Log;
+import android.util.SparseArray;
 import android.util.SparseIntArray;
 import android.view.Display;
 
@@ -183,6 +185,20 @@ public final class UserVisibilityMediator implements Dumpable {
     @GuardedBy("mLock")
     @Nullable
     private final List<Integer> mStartedInvisibleProfileUserIds;
+
+    /**
+     * Cache used on {@link #getVisibleUsers(int)}.
+     *
+     * <p>It's updated by {@link #updateVisibleUsersByDisplayCacheLocked()},
+     * {@link #updateVisibleUsersByDisplayCacheLocked(int)}, and {@link #getVisibleUsers(int)}
+     * itself (see comment on that method).
+     */
+    @GuardedBy("mLock")
+    @Nullable // TODO(b/456300837): make non-null once flag is gone
+    private final SparseArray<ImmutableIntArray> mVisibleUserIdsPerDisplayCache =
+            android.multiuser.Flags.hsuAllowlistActivities()
+                    ? new SparseArray<>()
+                    : null;
 
     /**
      * Handler user to call listeners
@@ -329,6 +345,8 @@ public final class UserVisibilityMediator implements Dumpable {
             }
 
             visibleUsersAfter = getVisibleUsers();
+
+            updateVisibleUsersByDisplayCacheLocked(displayId);
         }
 
         dispatchVisibilityChanged(visibleUsersBefore, visibleUsersAfter);
@@ -591,6 +609,9 @@ public final class UserVisibilityMediator implements Dumpable {
                         userId);
             }
             mExtraDisplaysAssignedToUsers.put(displayId, userId);
+
+            updateVisibleUsersByDisplayCacheLocked(displayId);
+
         }
         return true;
     }
@@ -623,6 +644,8 @@ public final class UserVisibilityMediator implements Dumpable {
                 Slogf.d(TAG, "removing %d from map", displayId);
             }
             mExtraDisplaysAssignedToUsers.delete(displayId);
+
+            updateVisibleUsersByDisplayCacheLocked(displayId);
         }
         return true;
     }
@@ -641,6 +664,9 @@ public final class UserVisibilityMediator implements Dumpable {
             unassignUserFromAllDisplaysOnStopLocked(userId);
 
             visibleUsersAfter = getVisibleUsers();
+
+            updateVisibleUsersByDisplayCacheLocked();
+
         }
         dispatchVisibilityChanged(visibleUsersBefore, visibleUsersAfter);
     }
@@ -656,6 +682,9 @@ public final class UserVisibilityMediator implements Dumpable {
             Slogf.d(TAG, "Removing %d from list of invisible profiles", userId);
             mStartedInvisibleProfileUserIds.remove(Integer.valueOf(userId));
         }
+
+        updateVisibleUsersByDisplayCacheLocked();
+
 
         if (!mVisibleBackgroundUsersEnabled) {
             // Don't need to update mUsersAssignedToDisplayOnStart because methods (such as
@@ -964,6 +993,130 @@ public final class UserVisibilityMediator implements Dumpable {
         return visibleUsers;
     }
 
+    // TODO(b/456300837): this method is not used anymore
+    /**
+     * Gets the {@code userIds} of the visible users in the given display.
+     */
+    public ImmutableIntArray getVisibleUsers(int displayId) {
+        if (mVisibleUserIdsPerDisplayCache == null) {
+            throw new IllegalStateException("not set - is flag hsu_allowlist_activities enabled?");
+        }
+        ImmutableIntArray visibleUserIds;
+        synchronized (mLock) {
+            visibleUserIds = mVisibleUserIdsPerDisplayCache.get(displayId);
+            if (visibleUserIds == null) {
+                // updateVisibleUsersByDisplayCacheLocked(displayId) only updates the users visible
+                // on that specific display, but the current user (and its profiles) might be
+                // visible on secondary displays as well, so we need to infer if that's the case
+                // here...
+                visibleUserIds = updateVisibleUsersByDisplayCacheLocked(displayId);
+                if (DBG) {
+                    Slogf.d(TAG, "getVisibleUsers(%d): not found, inferred as %s", displayId,
+                            visibleUserIds);
+                }
+                // NOTE: updateVisibleUsersByDisplayCacheLocked() is marked as @Nullable, but
+                // it only returns null when the flag is not set (and mVisibleUserIdsPerDisplayCache
+                // is null), which would never happen as it's checked above.
+            }
+        }
+        return visibleUserIds;
+    }
+
+    @GuardedBy("mLock")
+    private void updateVisibleUsersByDisplayCacheLocked() {
+        if (mVisibleUserIdsPerDisplayCache == null) {
+            return;
+        }
+        if (DBG) {
+            Slogf.d(TAG, "clearVisibleUsersByDisplayCacheLocked(): cache before=%s",
+                    mVisibleUserIdsPerDisplayCache);
+        }
+        // Ideally it should iterate over the keys of mVisibleUserIdsPerDisplayCache and call
+        // updateVisibleUsersByDisplayCacheLocked() on each of them, but that cache might contain
+        // entries that were created on demand by getVisibleUsers(displayId) to secondary displays
+        // that no user was started on, so it's better to clear the cache and iterate over the known
+        // displays.
+        mVisibleUserIdsPerDisplayCache.clear();
+        updateVisibleUsersByDisplayCacheLocked(DEFAULT_DISPLAY);
+        if (mExtraDisplaysAssignedToUsers != null) {
+            for (int i = 0; i < mExtraDisplaysAssignedToUsers.size(); i++) {
+                int displayId = mExtraDisplaysAssignedToUsers.keyAt(i);
+                updateVisibleUsersByDisplayCacheLocked(displayId);
+            }
+        }
+        if (DBG) {
+            Slogf.d(TAG, "clearVisibleUsersByDisplayCacheLocked(): cache after=%s",
+                    mVisibleUserIdsPerDisplayCache);
+        }
+
+    }
+
+    // TODO(b/456300837): make non-null once flag is gone
+    /**
+     * Updates the cache of users visible by display, and return the user ids of the users
+     * visible in that given display.
+     */
+    @GuardedBy("mLock")
+    private @Nullable ImmutableIntArray updateVisibleUsersByDisplayCacheLocked(int displayId) {
+        if (mVisibleUserIdsPerDisplayCache == null) {
+            return null;
+        }
+        if (DBG) {
+            Slogf.d(TAG, "updateVisibleUsersByDisplayCacheLocked(%d): before=%s", displayId,
+                    mVisibleUserIdsPerDisplayCache.get(displayId));
+        }
+        ImmutableIntArray visibleUserIds = inferVisibleUsersLocked(displayId);
+        if (DBG) {
+            Slogf.d(TAG, "updateVisibleUsersByDisplayCacheLocked(%d): after=%s", displayId,
+                    visibleUserIds);
+        }
+        mVisibleUserIdsPerDisplayCache.put(displayId, visibleUserIds);
+        return visibleUserIds;
+    }
+
+    @GuardedBy("mLock")
+    private ImmutableIntArray inferVisibleUsersLocked(int displayId) {
+        // Optimize for default display on devices that don't support visible background users,
+        // which is the most common case (only current users and its running profiles are visible)
+        if (displayId == DEFAULT_DISPLAY && !mVisibleBackgroundUsersEnabled
+                && !mVisibleBackgroundUserOnDefaultDisplayEnabled) {
+            int numberProfiles = mStartedVisibleProfileGroupIds.size();
+            IntArray visibleUsers = new IntArray(numberProfiles);
+            synchronized (mLock) {
+                for (int i = 0; i < numberProfiles; i++) {
+                    int profileGroupId = mStartedVisibleProfileGroupIds.valueAt(i);
+                    if (profileGroupId == mCurrentUserId
+                            || profileGroupId == ALWAYS_VISIBLE_PROFILE_GROUP_ID) {
+                        int userId = mStartedVisibleProfileGroupIds.keyAt(i);
+                        visibleUsers.add(userId);
+                    }
+                }
+            }
+            if (DBG) {
+                Slogf.d(TAG, "inferVisibleUsersLocked(%d): optimized to %s", displayId,
+                        visibleUsers);
+            }
+            return ImmutableIntArray.from(visibleUsers);
+        }
+
+        // TODO(b/258054362): logic below was mimicked by getVisibleUsers() (only the check in
+        // the inner if statement is different), hence it's not concerned about performance
+        // (see comment on that method).
+        IntArray visibleUsers = new IntArray();
+        synchronized (mLock) {
+            for (int i = 0; i < mStartedVisibleProfileGroupIds.size(); i++) {
+                int userId = mStartedVisibleProfileGroupIds.keyAt(i);
+                if (isUserVisible(userId, displayId)) {
+                    visibleUsers.add(userId);
+                }
+            }
+        }
+        if (DBG) {
+            Slogf.d(TAG, "inferVisibleUsersLocked(%d): %s", displayId, visibleUsers);
+        }
+        return ImmutableIntArray.from(visibleUsers);
+    }
+
     /**
      * Adds a {@link UserVisibilityListener listener}.
      */
@@ -1076,6 +1229,13 @@ public final class UserVisibilityMediator implements Dumpable {
             dumpSparseIntArray(ipw, mUsersAssignedToDisplayOnStart, "user / display", "u", "d");
             dumpSparseIntArray(ipw, mExtraDisplaysAssignedToUsers, "extra display / user",
                     "d", "u");
+
+            ipw.print("Visible users per display cache: ");
+            if (mVisibleUserIdsPerDisplayCache != null) {
+                ipw.println(mVisibleUserIdsPerDisplayCache);
+            } else {
+                ipw.println("N/A");
+            }
 
             int numberListeners = mListeners.size();
             ipw.print("Number of listeners: ");

@@ -35,7 +35,7 @@
         android:fontFamily="google-sans-medium"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="?android:attr/textColorPrimary"/>
+        android:textColor="@color/materialColorOnSurface"/>
 
     <TextView
         android:id="@+id/message"
@@ -47,7 +47,7 @@
         android:textAlignment="center"
         android:textSize="16sp"
         android:fontFamily="roboto-regular"
-        android:textColor="?android:attr/textColorPrimary" />
+        android:textColor="@color/materialColorOnSurface" />
 
     <LinearLayout
         android:layout_width="match_parent"

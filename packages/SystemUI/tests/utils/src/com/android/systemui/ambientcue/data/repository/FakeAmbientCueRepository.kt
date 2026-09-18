@@ -18,6 +18,7 @@ package com.android.systemui.ambientcue.data.repository
 
 import android.graphics.Rect
 import com.android.systemui.plugins.cuebar.ActionModel
+import java.time.Instant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,6 +56,17 @@ class FakeAmbientCueRepository : AmbientCueRepository {
 
     private val _ambientCueTimeoutMs = MutableStateFlow(0)
     override val ambientCueTimeoutMs: StateFlow<Int> = _ambientCueTimeoutMs.asStateFlow()
+
+    private val _dismissedGroups = MutableStateFlow<Map<String, Instant>>(emptyMap())
+    override val dismissedGroups: StateFlow<Map<String, Instant>> = _dismissedGroups.asStateFlow()
+
+    override fun addDismissedGroups(dismissalGroupIds: Set<String>, expiry: Instant) {
+        _dismissedGroups.update { current ->
+            val newMap = current.toMutableMap()
+            dismissalGroupIds.forEach { id -> newMap[id] = expiry }
+            newMap
+        }
+    }
 
     fun setActions(actions: List<ActionModel>) {
         _actions.update { actions }

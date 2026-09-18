@@ -29,9 +29,7 @@ import javax.inject.Inject
 @SysUISingleton
 class ConnectivityInputLogger
 @Inject
-constructor(
-    @SharedConnectivityInputLog private val buffer: LogBuffer,
-) {
+constructor(@SharedConnectivityInputLog private val buffer: LogBuffer) {
     fun logTuningChanged(tuningList: String?) {
         buffer.log(TAG, LogLevel.DEBUG, { str1 = tuningList }, { "onTuningChanged: $str1" })
     }
@@ -54,12 +52,25 @@ constructor(
     }
 
     fun logDefaultConnectionsChanged(model: DefaultConnectionModel) {
-        buffer.log(
+        buffer.log(TAG, LogLevel.DEBUG, model::messageInitializer, model::messagePrinter)
+    }
+
+    fun logOnCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+        LoggerHelper.logOnCapabilitiesChanged(
+            buffer,
             TAG,
-            LogLevel.DEBUG,
-            model::messageInitializer,
-            model::messagePrinter,
+            network,
+            networkCapabilities,
+            isDefaultNetworkCallback = true,
         )
+    }
+
+    fun logOnLost(network: Network) {
+        LoggerHelper.logOnLost(buffer, TAG, network, isDefaultNetworkCallback = true)
+    }
+
+    fun logConnectionsChanged(model: DefaultConnectionModel) {
+        buffer.log(TAG, LogLevel.DEBUG, model::messageInitializer, model::messagePrinter)
     }
 
     fun logVcnSubscriptionId(subId: Int) {

@@ -510,8 +510,8 @@ public class ScanTests {
     public void factoryTestFlagSet() throws Exception {
         final ParsingPackage basicPackage = createBasicPackage(DUMMY_PACKAGE_NAME)
                 .addUsesPermission(
-                        new ParsedUsesPermissionImpl(Manifest.permission.FACTORY_TEST, 0,
-                                Collections.emptySet()));
+                        new ParsedUsesPermissionImpl(Manifest.permission.FACTORY_TEST, 0, 0,
+                                Collections.emptySet(), Collections.emptySet()));
 
         final ScanResult scanResult = ScanPackageUtils.scanPackageOnly(
                 createBasicScanRequestBuilder(basicPackage).build(),

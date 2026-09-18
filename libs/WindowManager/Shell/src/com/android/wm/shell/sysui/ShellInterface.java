@@ -78,6 +78,16 @@ public interface ShellInterface {
     default void removeDisplayImeChangeListener(DisplayImeChangeListener listener) {}
 
     /**
+     * Notifies the Shell when overview is shown in the given display.
+     */
+    default void onOverviewShown(int displayId) {}
+
+    /**
+     * Notifies the Shell when overview is hidden in the given display.
+     */
+    default void onOverviewHidden(int displayId) {}
+
+    /**
      * Handles a shell command.
      */
     default boolean handleCommand(final String[] args, PrintWriter pw) {
@@ -85,7 +95,7 @@ public interface ShellInterface {
     }
 
     /**
-     * Updates the given {@param bundle} with the set of exposed interfaces.
+     * Updates the given {@code bundle} with the set of exposed interfaces.
      */
     default void createExternalInterfaces(Bundle bundle) {}
 

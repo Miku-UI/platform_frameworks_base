@@ -107,7 +107,7 @@ public class ModifierShortcutManager {
     private static Intent resolveComponentNameIntent(
             Context context, String packageName, String className) {
         PackageManager pm = context.getPackageManager();
-        int flags = PackageManager.MATCH_DIRECT_BOOT_UNAWARE;
+        int flags = PackageManager.MATCH_DIRECT_BOOT_AUTO;
         ComponentName componentName = new ComponentName(packageName, className);
         try {
             pm.getActivityInfo(componentName, flags);

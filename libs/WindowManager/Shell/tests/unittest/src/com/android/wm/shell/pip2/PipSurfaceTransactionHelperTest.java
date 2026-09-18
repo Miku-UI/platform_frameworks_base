@@ -22,11 +22,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.intThat;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.gui.BorderSettings;
 import android.gui.BoxShadowSettings;
@@ -35,6 +38,7 @@ import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.testing.TestableLooper;
+import android.view.Choreographer;
 import android.view.SurfaceControl;
 
 import androidx.test.filters.SmallTest;
@@ -43,6 +47,7 @@ import com.android.modules.utils.testing.ExtendedMockitoRule;
 import com.android.wm.shell.Flags;
 import com.android.wm.shell.R;
 import com.android.wm.shell.common.BoxShadowHelper;
+import com.android.wm.shell.common.pip.IPipAnimationListener.PipResources;
 import com.android.wm.shell.common.pip.PipDisplayLayoutState;
 import com.android.wm.shell.common.pip.PipUtils;
 import com.android.wm.shell.sysui.ShellInit;
@@ -59,7 +64,6 @@ import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
 import platform.test.runner.parameterized.Parameters;
 
 import java.util.List;
-
 
 /**
  * Unit test against {@link PipSurfaceTransactionHelper}.
@@ -92,9 +96,9 @@ public class PipSurfaceTransactionHelperTest {
     @Mock private SurfaceControl.Transaction mMockTransaction;
     @Mock private ShellInit mMockShellInit;
     @Mock private PipDisplayLayoutState mMockPipDisplayLayoutState;
+    @Mock private Choreographer mMockChoreographer;
     private PipSurfaceTransactionHelper mPipSurfaceTransactionHelper;
     private SurfaceControl mTestLeash;
-
 
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
@@ -103,13 +107,13 @@ public class PipSurfaceTransactionHelperTest {
     public final ExtendedMockitoRule mExtendedMockitoRule = new ExtendedMockitoRule.Builder(this)
             .mockStatic(BoxShadowHelper.class)
             .mockStatic(PipUtils.class)
+            .mockStatic(Choreographer.class)
             .build();
-
 
     @Parameters(name = "{0}")
     public static List<FlagsParameterization> getParams() {
         return FlagsParameterization.allCombinationsOf(
-                Flags.FLAG_ENABLE_PIP_BOX_SHADOWS);
+                Flags.FLAG_ENABLE_PIP_BOX_SHADOWS_V2);
     }
 
     public PipSurfaceTransactionHelperTest(FlagsParameterization flags) {
@@ -129,6 +133,18 @@ public class PipSurfaceTransactionHelperTest {
         when(mMockTransaction.setCornerRadius(any(SurfaceControl.class), anyFloat()))
                 .thenReturn(mMockTransaction);
         when(mMockTransaction.setShadowRadius(any(SurfaceControl.class), anyFloat()))
+                .thenReturn(mMockTransaction);
+        when(mMockTransaction.setMatrix(any(SurfaceControl.class), any(Matrix.class), any()))
+                .thenReturn(mMockTransaction);
+        when(mMockTransaction.setCrop(any(SurfaceControl.class), any(Rect.class)))
+                .thenReturn(mMockTransaction);
+        when(mMockTransaction.setPosition(any(SurfaceControl.class), anyFloat(), anyFloat()))
+                .thenReturn(mMockTransaction);
+        when(mMockTransaction.setAlpha(any(SurfaceControl.class), anyFloat()))
+                .thenReturn(mMockTransaction);
+        when(mMockTransaction.setLayer(any(SurfaceControl.class), any(Integer.class)))
+                .thenReturn(mMockTransaction);
+        when(mMockTransaction.show(any(SurfaceControl.class)))
                 .thenReturn(mMockTransaction);
 
         mPipSurfaceTransactionHelper = new PipSurfaceTransactionHelper(mMockContext,
@@ -152,6 +168,8 @@ public class PipSurfaceTransactionHelperTest {
                 any(BorderSettings.class)))
                 .thenReturn(mMockTransaction);
 
+        when(Choreographer.getInstance()).thenReturn(mMockChoreographer);
+
         when(BoxShadowHelper.getBoxShadowSettings(
                 eq(mMockContext), aryEq(LIGHT_SHADOW_STYLES))).thenReturn(
                 mLightBoxShadowSettings);
@@ -162,8 +180,6 @@ public class PipSurfaceTransactionHelperTest {
                 eq(mMockContext), aryEq(DARK_SHADOW_STYLES))).thenReturn(mDarkBoxShadowSettings);
         when(BoxShadowHelper.getBorderSettings(
                 eq(mMockContext), eq(DARK_BORDER_STYLE))).thenReturn(mDarkBorderSettings);
-
-
     }
 
     @Test
@@ -181,7 +197,7 @@ public class PipSurfaceTransactionHelperTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_PIP_BOX_SHADOWS)
+    @DisableFlags(Flags.FLAG_ENABLE_PIP_BOX_SHADOWS_V2)
     public void shadow_doNotApply_setZeroShadowRadius() {
         mPipSurfaceTransactionHelper.shadow(mMockTransaction, mTestLeash, false /* apply */);
 
@@ -189,7 +205,7 @@ public class PipSurfaceTransactionHelperTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_PIP_BOX_SHADOWS)
+    @DisableFlags(Flags.FLAG_ENABLE_PIP_BOX_SHADOWS_V2)
     public void shadow_doApply_setExactShadowRadius() {
         mPipSurfaceTransactionHelper.shadow(mMockTransaction, mTestLeash, true /* apply */);
 
@@ -197,7 +213,7 @@ public class PipSurfaceTransactionHelperTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PIP_BOX_SHADOWS)
+    @EnableFlags(Flags.FLAG_ENABLE_PIP_BOX_SHADOWS_V2)
     public void shadow_flagEnabled_applyFalse_setsEmptyBoxShadowAndBorder() {
         mPipSurfaceTransactionHelper.shadow(mMockTransaction, mTestLeash, false /* apply */);
 
@@ -216,7 +232,7 @@ public class PipSurfaceTransactionHelperTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PIP_BOX_SHADOWS)
+    @EnableFlags(Flags.FLAG_ENABLE_PIP_BOX_SHADOWS_V2)
     public void onThemeChanged_switchToDarkTheme_usesDarkSettingsOnShadow() {
         when(PipUtils.isDarkSystemTheme(mMockContext)).thenReturn(true);
 
@@ -233,7 +249,7 @@ public class PipSurfaceTransactionHelperTest {
 
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_PIP_BOX_SHADOWS)
+    @EnableFlags(Flags.FLAG_ENABLE_PIP_BOX_SHADOWS_V2)
     public void onThemeChanged_switchToLightTheme_usesLightSettingsOnShadow() {
         when(PipUtils.isDarkSystemTheme(mMockContext)).thenReturn(false);
 
@@ -265,5 +281,213 @@ public class PipSurfaceTransactionHelperTest {
         verify(mMockTransaction).setMatrix(eq(mTestLeash), any(), any());
         verify(mMockTransaction).setLayer(eq(mTestLeash),
                 intThat((layer) -> layer < Integer.MAX_VALUE));
+    }
+
+    @Test
+    public void getCornerRadius_returnsCorrectValue() {
+        assertEquals(CORNER_RADIUS, mPipSurfaceTransactionHelper.getCornerRadius());
+    }
+
+    @Test
+    public void getPipResources_returnsCorrectValues() {
+        PipResources resources = mPipSurfaceTransactionHelper.getPipResources();
+
+        assertEquals(CORNER_RADIUS, resources.cornerRadius);
+        assertEquals(SHADOW_RADIUS, resources.shadowRadius);
+
+        if (Flags.enablePipBoxShadowsV2()) {
+            when(PipUtils.isDarkSystemTheme(mMockContext)).thenReturn(false);
+            mPipSurfaceTransactionHelper.onThemeChanged(mMockContext);
+            resources = mPipSurfaceTransactionHelper.getPipResources();
+            assertEquals(mLightBoxShadowSettings, resources.boxShadowSettings);
+            assertEquals(mLightBorderSettings, resources.borderSettings);
+
+            when(PipUtils.isDarkSystemTheme(mMockContext)).thenReturn(true);
+            mPipSurfaceTransactionHelper.onThemeChanged(mMockContext);
+            resources = mPipSurfaceTransactionHelper.getPipResources();
+            assertEquals(mDarkBoxShadowSettings, resources.boxShadowSettings);
+            assertEquals(mDarkBorderSettings, resources.borderSettings);
+        } else {
+            assertEquals(null, resources.boxShadowSettings);
+            assertEquals(null, resources.borderSettings);
+        }
+    }
+
+    @Test
+    public void onDisplayIdChanged_reloadsResources() {
+        Context newContext = mock(Context.class);
+        Resources newResources = mock(Resources.class);
+        when(newContext.getResources()).thenReturn(newResources);
+        int newCornerRadius = CORNER_RADIUS + 1;
+        when(newResources.getDimensionPixelSize(R.dimen.pip_corner_radius))
+                .thenReturn(newCornerRadius);
+        // Needed for the reload resources call
+        when(newResources.getDimensionPixelSize(R.dimen.pip_shadow_radius))
+                .thenReturn(SHADOW_RADIUS);
+        when(newResources.getFloat(R.dimen.config_pipDraggingAcrossDisplaysOpacity))
+                .thenReturn(MIRROR_OPACITY);
+
+        mPipSurfaceTransactionHelper.onDisplayIdChanged(newContext);
+
+        assertEquals(newCornerRadius, mPipSurfaceTransactionHelper.getCornerRadius());
+    }
+
+    @Test
+    public void round_withBounds_setsScaledCornerRadius() {
+        Rect fromBounds = new Rect(0, 0, 200, 200);
+        Rect toBounds = new Rect(0, 0, 100, 100);
+        // scale = hypot(200, 200) / hypot(100, 100) = 2.0
+        float expectedRadius = CORNER_RADIUS * 2.0f;
+
+        mPipSurfaceTransactionHelper.round(mMockTransaction, mTestLeash, fromBounds, toBounds);
+
+        verify(mMockTransaction).setCornerRadius(eq(mTestLeash), eq(expectedRadius));
+    }
+
+    @Test
+    public void scaleAndCrop_notInPipDirection_appliesCorrectTransform() {
+        Rect sourceBounds = new Rect(0, 0, 400, 200);
+        Rect destinationBounds = new Rect(10, 20, 110, 70); // 100x50
+        Rect insets = new Rect(5, 5, 5, 5);
+        float expectedScale = 0.25f; // max(100/400, 50/200) = 0.25
+        float expectedX = 10 - 5 * expectedScale; // dest.left - insets.left * scale
+        float expectedY = 20 - 5 * expectedScale; // dest.top - insets.top * scale
+
+        mPipSurfaceTransactionHelper.scaleAndCrop(mMockTransaction, mTestLeash,
+                null /* sourceRectHint */, sourceBounds, destinationBounds, insets,
+                false /* isInPipDirection */, 0f /* fraction */);
+
+        ArgumentCaptor<Matrix> matrixCaptor = ArgumentCaptor.forClass(Matrix.class);
+        verify(mMockTransaction).setMatrix(eq(mTestLeash), matrixCaptor.capture(), any());
+        verify(mMockTransaction).setPosition(eq(mTestLeash), eq(expectedX), eq(expectedY));
+
+        float[] values = new float[9];
+        matrixCaptor.getValue().getValues(values);
+        assertEquals(expectedScale, values[Matrix.MSCALE_X], 0.001f);
+        assertEquals(expectedScale, values[Matrix.MSCALE_Y], 0.001f);
+
+        ArgumentCaptor<Rect> cropCaptor = ArgumentCaptor.forClass(Rect.class);
+        verify(mMockTransaction).setCrop(eq(mTestLeash), cropCaptor.capture());
+        Rect expectedCrop = new Rect(0, 0, 400, 200);
+        expectedCrop.inset(insets);
+        assertEquals(expectedCrop, cropCaptor.getValue());
+    }
+
+    @Test
+    public void scaleAndCrop_inPipDirectionWithHint_fractionalScaling() {
+        Rect sourceBounds = new Rect(0, 0, 1000, 1000);
+        Rect sourceRectHint = new Rect(100, 100, 900, 900); // 800x800
+        Rect destinationBounds = new Rect(0, 0, 200, 200);
+        Rect insets = new Rect(0, 0, 0, 0);
+        float fraction = 0.5f;
+
+        // startScale = 200 / 1000 = 0.2
+        float startScale = (float) destinationBounds.width() / sourceBounds.width();
+        // endScale = 200 / 800 = 0.25
+        float endScale = (float) destinationBounds.width() / sourceRectHint.width();
+        // expectedScale = 0.2 * 0.5 + 0.25 * 0.5 = 0.1 + 0.125 = 0.225
+        float expectedScale = (1 - fraction) * startScale + fraction * endScale;
+
+        mPipSurfaceTransactionHelper.scaleAndCrop(mMockTransaction, mTestLeash,
+                sourceRectHint, sourceBounds, destinationBounds, insets,
+                true /* isInPipDirection */, fraction);
+
+        ArgumentCaptor<Matrix> matrixCaptor = ArgumentCaptor.forClass(Matrix.class);
+        verify(mMockTransaction).setMatrix(eq(mTestLeash), matrixCaptor.capture(), any());
+
+        float[] values = new float[9];
+        matrixCaptor.getValue().getValues(values);
+        assertEquals(expectedScale, values[Matrix.MSCALE_X], 0.001f);
+    }
+
+    @Test
+    public void rotateAndScaleWithCrop_expanding_appliesCorrectTransform() {
+        Rect sourceBounds = new Rect(0, 0, 200, 400);
+        Rect destinationBounds = new Rect(10, 20, 110, 120); // 100x100
+        Rect insets = new Rect(5, 10, 5, 10);
+        float degrees = 90f;
+        float positionX = 10f;
+        float positionY = 20f;
+
+        final float scale = 100f / (200f - 5f - 5f); // destW / (srcW - insets on width)
+        final float expectedX = positionX - insets.left * scale;
+        final float expectedY = positionY - insets.top * scale;
+
+        mPipSurfaceTransactionHelper.rotateAndScaleWithCrop(mMockTransaction, mTestLeash,
+                sourceBounds, destinationBounds, insets, degrees, positionX, positionY,
+                true /* isExpanding */, true /* clockwise */);
+
+        ArgumentCaptor<Matrix> matrixCaptor = ArgumentCaptor.forClass(Matrix.class);
+        verify(mMockTransaction).setMatrix(eq(mTestLeash), matrixCaptor.capture(), any());
+
+        Matrix expectedMatrix = new Matrix();
+        expectedMatrix.setScale(scale, scale);
+        expectedMatrix.postTranslate(expectedX, expectedY);
+        expectedMatrix.postRotate(degrees);
+        assertEquals(expectedMatrix, matrixCaptor.getValue());
+    }
+
+    @Test
+    public void rotateAndScaleWithCrop_shrinkingClockwise_appliesCorrectTransform() {
+        Rect sourceBounds = new Rect(0, 0, 200, 400);
+        Rect destinationBounds = new Rect(10, 20, 110, 120); // 100x100
+        Rect insets = new Rect(5, 10, 5, 10);
+        float degrees = 90f;
+        float positionX = 10f;
+        float positionY = 20f;
+
+        final float scale = 100f / (200f - 5f - 5f);
+        final float expectedX = positionX - insets.top * scale;
+        final float expectedY = positionY + insets.left * scale;
+
+        mPipSurfaceTransactionHelper.rotateAndScaleWithCrop(mMockTransaction, mTestLeash,
+                sourceBounds, destinationBounds, insets, degrees, positionX, positionY,
+                false /* isExpanding */, true /* clockwise */);
+
+        ArgumentCaptor<Matrix> matrixCaptor = ArgumentCaptor.forClass(Matrix.class);
+        verify(mMockTransaction).setMatrix(eq(mTestLeash), matrixCaptor.capture(), any());
+
+        Matrix expectedMatrix = new Matrix();
+        expectedMatrix.setScale(scale, scale);
+        expectedMatrix.postTranslate(expectedX, expectedY);
+        expectedMatrix.postRotate(degrees);
+        assertEquals(expectedMatrix, matrixCaptor.getValue());
+    }
+
+    @Test
+    public void rotateAndScaleWithCrop_shrinkingCounterClockwise_appliesCorrectTransform() {
+        Rect sourceBounds = new Rect(0, 0, 200, 400);
+        Rect destinationBounds = new Rect(10, 20, 110, 120); // 100x100
+        Rect insets = new Rect(5, 10, 5, 10);
+        float degrees = 90f;
+        float positionX = 10f;
+        float positionY = 20f;
+
+        final float scale = 100f / (200f - 5f - 5f);
+        final float expectedX = positionX + insets.top * scale;
+        final float expectedY = positionY - insets.left * scale;
+
+        mPipSurfaceTransactionHelper.rotateAndScaleWithCrop(mMockTransaction, mTestLeash,
+                sourceBounds, destinationBounds, insets, degrees, positionX, positionY,
+                false /* isExpanding */, false /* clockwise */);
+
+        ArgumentCaptor<Matrix> matrixCaptor = ArgumentCaptor.forClass(Matrix.class);
+        verify(mMockTransaction).setMatrix(eq(mTestLeash), matrixCaptor.capture(), any());
+
+        Matrix expectedMatrix = new Matrix();
+        expectedMatrix.setScale(scale, scale);
+        expectedMatrix.postTranslate(expectedX, expectedY);
+        expectedMatrix.postRotate(degrees);
+        assertEquals(expectedMatrix, matrixCaptor.getValue());
+    }
+
+    @Test
+    public void vsyncSurfaceControlTransactionFactory_callsGetVsyncId() {
+        PipSurfaceTransactionHelper.VsyncSurfaceControlTransactionFactory factory =
+                new PipSurfaceTransactionHelper.VsyncSurfaceControlTransactionFactory();
+
+        factory.getTransaction();
+
+        verify(mMockChoreographer, atLeastOnce()).getVsyncId();
     }
 }

@@ -168,7 +168,13 @@ public class IntentFirewall {
         mObserver.startWatching();
     }
 
-    PackageManagerInternal getPackageManager() {
+    /**
+     * Gets the PackageManagerInternal service.
+     *
+     * @return {@link PackageManagerInternal} instance.
+     * @hide
+     */
+    public PackageManagerInternal getPackageManager() {
         if (mPackageManager == null) {
             mPackageManager = LocalServices.getService(PackageManagerInternal.class);
         }

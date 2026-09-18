@@ -2,7 +2,7 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="accessibility_menu_service_name" msgid="730136711554740131">"ਪਹੁੰਚਯੋਗਤਾ ਮੀਨੂ"</string>
-    <string name="accessibility_menu_intro" msgid="3164193281544042394">"ਤੁਹਾਡੇ ਡੀਵਾਈਸ ਨੂੰ ਕੰਟਰੋਲ ਕਰਨ ਲਈ ਪਹੁੰਚਯੋਗਤਾ ਮੀਨੂ ਇੱਕ ਵੱਡਾ ਆਨ-ਸਕ੍ਰੀਨ ਮੀਨੂ ਮੁਹੱਈਆ ਕਰਦਾ ਹੈ। ਤੁਸੀਂ ਆਪਣੇ ਡੀਵਾਈਸ ਨੂੰ ਲਾਕ ਕਰ ਸਕਦੇ ਹੋ, ਅਵਾਜ਼ ਅਤੇ ਚਮਕ ਨੂੰ ਕੰਟਰੋਲ ਕਰ ਸਕਦੇ ਹੋ, ਸਕ੍ਰੀਨਸ਼ਾਟ ਲੈ ਸਕਦੇ ਹੋ ਅਤੇ ਹੋਰ ਵੀ ਬਹੁਤ ਕੁਝ ਕਰ ਸਕਦੇ ਹੋ।"</string>
+    <string name="accessibility_menu_intro" msgid="3164193281544042394">"ਤੁਹਾਡੇ ਡੀਵਾਈਸ ਨੂੰ ਕੰਟਰੋਲ ਕਰਨ ਲਈ ਪਹੁੰਚਯੋਗਤਾ ਮੀਨੂ ਇੱਕ ਵੱਡਾ ਆਨ-ਸਕ੍ਰੀਨ ਮੀਨੂ ਮੁਹੱਈਆ ਕਰਵਾਉਂਦਾ ਹੈ। ਤੁਸੀਂ ਆਪਣੇ ਡੀਵਾਈਸ ਨੂੰ ਲਾਕ ਕਰ ਸਕਦੇ ਹੋ, ਅਵਾਜ਼ ਅਤੇ ਚਮਕ ਨੂੰ ਕੰਟਰੋਲ ਕਰ ਸਕਦੇ ਹੋ, ਸਕ੍ਰੀਨਸ਼ਾਟ ਲੈ ਸਕਦੇ ਹੋ ਅਤੇ ਹੋਰ ਵੀ ਬਹੁਤ ਕੁਝ ਕਰ ਸਕਦੇ ਹੋ।"</string>
     <string name="assistant_label" msgid="6796392082252272356">"Assistant"</string>
     <string name="assistant_utterance" msgid="65509599221141377">"Assistant"</string>
     <string name="a11y_settings_label" msgid="3977714687248445050">"ਪਹੁੰਚਯੋਗਤਾ ਸੈਟਿੰਗਾਂ"</string>

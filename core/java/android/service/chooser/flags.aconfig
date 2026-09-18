@@ -51,3 +51,26 @@ flag {
   description: "Enables Interactive Chooser Session API."
   bug: "404593897"
 }
+
+flag {
+  name: "interactive_chooser_default_bounds"
+  is_exported: true
+  namespace: "intentresolver"
+  description: "26Q2 interactive chooser API revision."
+  bug: "444268782"
+}
+
+flag {
+  name: "tap_to_share"
+  is_exported: true
+  namespace: "intentresolver"
+  description: "Enables Tap to Share feature."
+  bug: "461778971"
+}
+
+flag {
+    name: "resolver_respect_auto_launch_single_choice"
+    namespace: "documentsui"
+    description: "ResolverActivity will respect Intent.EXTRA_AUTO_LAUNCH_SINGLE_CHOICE"
+    bug: "459640815"
+}

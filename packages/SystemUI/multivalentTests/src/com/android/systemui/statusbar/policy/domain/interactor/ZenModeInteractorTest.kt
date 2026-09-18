@@ -20,11 +20,8 @@ import android.app.AutomaticZenRule
 import android.app.AutomaticZenRule.TYPE_BEDTIME
 import android.app.AutomaticZenRule.TYPE_DRIVING
 import android.app.AutomaticZenRule.TYPE_OTHER
-import android.app.Flags
 import android.app.NotificationManager.Policy
 import android.media.AudioManager
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.provider.Settings
 import android.provider.Settings.Secure.ZEN_DURATION
 import android.provider.Settings.Secure.ZEN_DURATION_FOREVER
@@ -235,7 +232,6 @@ class ZenModeInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
     fun deactivateAllModes_deactivatesInOrder() =
         kosmos.runTest {
             zenModeRepository.activateMode(MANUAL_DND) // Priority 1
@@ -307,38 +303,6 @@ class ZenModeInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST) // getActiveModes will be deleted
-    fun getActiveModes_computesMainActiveMode() =
-        kosmos.runTest {
-            zenModeRepository.addMode(id = "Bedtime", type = AutomaticZenRule.TYPE_BEDTIME)
-            zenModeRepository.addMode(id = "Other", type = AutomaticZenRule.TYPE_OTHER)
-
-            var activeModes = underTest.getActiveModes()
-            assertThat(activeModes.names).hasSize(0)
-            assertThat(activeModes.main).isNull()
-
-            zenModeRepository.activateMode("Other")
-            activeModes = underTest.getActiveModes()
-            assertThat(activeModes.names).containsExactly("Mode Other")
-            assertThat(activeModes.main?.name).isEqualTo("Mode Other")
-
-            zenModeRepository.activateMode("Bedtime")
-            activeModes = underTest.getActiveModes()
-            assertThat(activeModes.names).containsExactly("Mode Bedtime", "Mode Other").inOrder()
-            assertThat(activeModes.main?.name).isEqualTo("Mode Bedtime")
-
-            zenModeRepository.deactivateMode("Other")
-            activeModes = underTest.getActiveModes()
-            assertThat(activeModes.names).containsExactly("Mode Bedtime")
-            assertThat(activeModes.main?.name).isEqualTo("Mode Bedtime")
-
-            zenModeRepository.deactivateMode("Bedtime")
-            activeModes = underTest.getActiveModes()
-            assertThat(activeModes.names).hasSize(0)
-            assertThat(activeModes.main).isNull()
-        }
-
-    @Test
     fun mainActiveMode_flows() =
         kosmos.runTest {
             val mainActiveMode by collectLastValue(underTest.mainActiveMode)
@@ -367,18 +331,15 @@ class ZenModeInteractorTest : SysuiTestCase() {
 
             zenModeRepository.activateMode("Other")
             assertThat(mainActiveMode?.name).isEqualTo("Mode Other")
-            assertThat(mainActiveMode?.icon?.resId)
-                .isEqualTo(R.drawable.ic_zen_mode_type_other)
+            assertThat(mainActiveMode?.icon?.resId).isEqualTo(R.drawable.ic_zen_mode_type_other)
 
             zenModeRepository.activateMode("Bedtime")
             assertThat(mainActiveMode?.name).isEqualTo("Mode Bedtime")
-            assertThat(mainActiveMode?.icon?.resId)
-                .isEqualTo(R.drawable.ic_zen_mode_type_bedtime)
+            assertThat(mainActiveMode?.icon?.resId).isEqualTo(R.drawable.ic_zen_mode_type_bedtime)
 
             zenModeRepository.deactivateMode("Other")
             assertThat(mainActiveMode?.name).isEqualTo("Mode Bedtime")
-            assertThat(mainActiveMode?.icon?.resId)
-                .isEqualTo(R.drawable.ic_zen_mode_type_bedtime)
+            assertThat(mainActiveMode?.icon?.resId).isEqualTo(R.drawable.ic_zen_mode_type_bedtime)
 
             zenModeRepository.deactivateMode("Bedtime")
             assertThat(mainActiveMode).isNull()
@@ -392,6 +353,45 @@ class ZenModeInteractorTest : SysuiTestCase() {
 
             zenModeRepository.activateMode(MANUAL_DND)
             assertThat(dndMode!!.isActive).isTrue()
+        }
+
+    @Test
+    fun activeModesBlockingMedia_hasModesWithPolicyBlockingAssistant() =
+        kosmos.runTest {
+            val blockingMedia by
+                collectLastValue(
+                    underTest.activeModesBlockingStream(AudioStream(AudioManager.STREAM_ASSISTANT))
+                )
+
+            zenModeRepository.addModes(
+                listOf(
+                    TestModeBuilder()
+                        .setName("Blocks media, Not active")
+                        .setZenPolicy(ZenPolicy.Builder().allowMedia(false).build())
+                        .setActive(false)
+                        .build(),
+                    TestModeBuilder()
+                        .setName("Allows media, Active")
+                        .setZenPolicy(ZenPolicy.Builder().allowMedia(true).build())
+                        .setActive(true)
+                        .build(),
+                    TestModeBuilder()
+                        .setName("Blocks media, Active")
+                        .setZenPolicy(ZenPolicy.Builder().allowMedia(false).build())
+                        .setActive(true)
+                        .build(),
+                    TestModeBuilder()
+                        .setName("Blocks media, Active Too")
+                        .setZenPolicy(ZenPolicy.Builder().allowMedia(false).build())
+                        .setActive(true)
+                        .build(),
+                )
+            )
+
+            assertThat(blockingMedia!!.main!!.name).isEqualTo("Blocks media, Active")
+            assertThat(blockingMedia!!.names)
+                .containsExactly("Blocks media, Active", "Blocks media, Active Too")
+                .inOrder()
         }
 
     @Test

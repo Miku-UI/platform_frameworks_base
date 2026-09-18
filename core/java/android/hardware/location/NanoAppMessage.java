@@ -275,14 +275,13 @@ public final class NanoAppMessage implements Parcelable {
         boolean isEqual = false;
         if (object instanceof NanoAppMessage) {
             NanoAppMessage other = (NanoAppMessage) object;
-            isEqual = (other.getNanoAppId() == mNanoAppId)
-                    && (other.getMessageType() == mMessageType)
-                    && (other.isBroadcastMessage() == mIsBroadcasted)
-                    && Arrays.equals(other.getMessageBody(), mMessageBody)
-                    && (!Flags.reliableMessage()
-                            || (other.isReliable() == mIsReliable))
-                    && (!Flags.reliableMessage()
-                            || (other.getMessageSequenceNumber() == mMessageSequenceNumber));
+            isEqual =
+                    (other.getNanoAppId() == mNanoAppId)
+                            && (other.getMessageType() == mMessageType)
+                            && (other.isBroadcastMessage() == mIsBroadcasted)
+                            && Arrays.equals(other.getMessageBody(), mMessageBody)
+                            && (other.isReliable() == mIsReliable)
+                            && (other.getMessageSequenceNumber() == mMessageSequenceNumber);
         }
 
         return isEqual;

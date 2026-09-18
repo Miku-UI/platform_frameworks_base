@@ -171,6 +171,11 @@ public final class InputRouteManager {
             @MediaRecorder.SystemSource int capturePreset,
             @NonNull List<AudioDeviceAttributes> devices) {
         if (capturePreset == MediaRecorder.AudioSource.MIC) {
+            if (!devices.isEmpty()) {
+                mSelectedDeviceAttributes = devices.get(0);
+            } else {
+                mSelectedDeviceAttributes = retrieveDefaultSelectedInputDeviceAttrs();
+            }
             dispatchInputDeviceListUpdate();
         }
     }
@@ -322,6 +327,7 @@ public final class InputRouteManager {
                         inputMediaDevice.getAddress());
         Slog.v(TAG, "User selected device: type=" + mSelectedDeviceAttributes.getType()
                 + ", addr=" + mSelectedDeviceAttributes.getAddress());
+        dispatchInputDeviceListUpdate();
         try {
             setPreferredDeviceForAllPresets(mSelectedDeviceAttributes);
         } catch (IllegalArgumentException e) {

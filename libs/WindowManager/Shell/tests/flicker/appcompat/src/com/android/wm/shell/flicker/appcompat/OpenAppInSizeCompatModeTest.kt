@@ -17,11 +17,11 @@
 package com.android.wm.shell.flicker.appcompat
 
 import android.platform.test.annotations.Postsubmit
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.RequiresDevice
 import org.junit.Test
@@ -96,8 +96,8 @@ class OpenAppInSizeCompatModeTest(flicker: FlickerTest) : BaseAppCompat(flicker)
         /**
          * Creates the test configurations.
          *
-         * See [FlickerTestFactory.rotationTests] for configuring screen orientation and
-         * navigation modes.
+         * See [FlickerTestFactory.rotationTests] for configuring screen orientation and navigation
+         * modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic

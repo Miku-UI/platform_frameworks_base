@@ -21,7 +21,6 @@ import android.app.RemoteInput
 import android.graphics.drawable.Icon
 import android.text.TextUtils
 import com.android.systemui.statusbar.NotificationLockscreenUserManager.RedactionType
-import com.android.systemui.statusbar.notification.row.shared.AsyncGroupHeaderViewInflation
 
 /**
  * An immutable object which contains minimal state extracted from an entry that represents state
@@ -57,9 +56,7 @@ internal constructor(
                 areDifferent(oldAdjustment.smartActions, newAdjustment.smartActions) -> true
                 newAdjustment.smartReplies != oldAdjustment.smartReplies -> true
                 !oldAdjustment.isChildInGroup && newAdjustment.isChildInGroup -> true
-                AsyncGroupHeaderViewInflation.isEnabled &&
-                    !oldAdjustment.isGroupSummary &&
-                    newAdjustment.isGroupSummary -> true
+                !oldAdjustment.isGroupSummary && newAdjustment.isGroupSummary -> true
                 oldAdjustment.summarization != newAdjustment.summarization -> true
                 oldAdjustment.isBundled != newAdjustment.isBundled -> true
                 else -> false

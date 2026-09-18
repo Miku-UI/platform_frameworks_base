@@ -72,6 +72,7 @@ public class SessionTracker implements CoreStartable {
     private final Map<Integer, InstanceId> mSessionToInstanceId = new HashMap<>();
 
     private boolean mKeyguardSessionStarted;
+    private boolean mSessionTrackerStarted;
 
     @Inject
     public SessionTracker(
@@ -94,11 +95,18 @@ public class SessionTracker implements CoreStartable {
 
     @Override
     public void start() {
+        if (mSessionTrackerStarted) {
+            return;
+        }
+        mSessionTrackerStarted = true;
         mAuthController.addCallback(mAuthControllerCallback);
         mKeyguardUpdateMonitor.registerCallback(mKeyguardUpdateMonitorCallback);
         mKeyguardStateController.addCallback(mKeyguardStateCallback);
 
-        if (mKeyguardStateController.isShowing()) {
+        // isKeyguardShowing may not be updated immediately after first boot, so we also
+        // check whether the device has not yet been entered since firsts boot to determine
+        // if we should start the session.
+        if (isKeyguardShowingOrNotEnteredSinceBoot()) {
             mKeyguardSessionStarted = true;
             startSession(SESSION_KEYGUARD);
         }
@@ -108,6 +116,12 @@ public class SessionTracker implements CoreStartable {
      * Get the session ID associated with the passed session type.
      */
     public @Nullable InstanceId getSessionId(int type) {
+        // It's possible the session id is needed for a UiEvent that is being logged from a
+        // CoreStartable that's started before the SessionTracker. In that case, start the
+        // SessionTracker earlier.
+        if (!mSessionTrackerStarted) {
+            start();
+        }
         return mSessionToInstanceId.getOrDefault(type, null);
     }
 
@@ -116,7 +130,6 @@ public class SessionTracker implements CoreStartable {
             Log.e(TAG, "session [" + getString(type) + "] was already started");
             return;
         }
-
         final InstanceId instanceId = mInstanceIdGenerator.newInstanceId();
         mSessionToInstanceId.put(type, instanceId);
 
@@ -193,7 +206,8 @@ public class SessionTracker implements CoreStartable {
             new KeyguardStateController.Callback() {
         public void onKeyguardShowingChanged() {
             boolean wasSessionStarted = mKeyguardSessionStarted;
-            boolean keyguardShowing = mKeyguardStateController.isShowing();
+            boolean keyguardShowing = isKeyguardShowingOrNotEnteredSinceBoot();
+
             if (keyguardShowing && !wasSessionStarted) {
                 // the keyguard can start showing without the device going to sleep (ie: lockdown
                 // from the power button), so we start a new keyguard session when the keyguard is
@@ -217,8 +231,9 @@ public class SessionTracker implements CoreStartable {
         }
 
         @Override
-        public void onBiometricPromptDismissed(int reason) {
-            mBiometricPromptLogger.logPromptEnd(getSessionId(SESSION_BIOMETRIC_PROMPT), reason);
+        public void onBiometricPromptDismissed(int reason, int credentialType) {
+            mBiometricPromptLogger.logPromptEnd(getSessionId(SESSION_BIOMETRIC_PROMPT), reason,
+                    credentialType);
             endSession(SESSION_BIOMETRIC_PROMPT);
         }
     };
@@ -243,6 +258,11 @@ public class SessionTracker implements CoreStartable {
         }
 
         return "unknownType=" + sessionType;
+    }
+
+    private boolean isKeyguardShowingOrNotEnteredSinceBoot() {
+        return mKeyguardStateController.isShowing()
+                || !mKeyguardUpdateMonitor.getStrongAuthTracker().hasUserAuthenticatedSinceBoot();
     }
 
     enum SessionUiEvent implements UiEventLogger.UiEventEnum {

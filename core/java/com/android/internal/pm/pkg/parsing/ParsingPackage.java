@@ -33,6 +33,7 @@ import android.util.SparseIntArray;
 
 import com.android.internal.pm.parsing.pkg.ParsedPackage;
 import com.android.internal.pm.pkg.component.ParsedActivity;
+import com.android.internal.pm.pkg.component.ParsedAllowComponentAccessPolicy;
 import com.android.internal.pm.pkg.component.ParsedApexSystemService;
 import com.android.internal.pm.pkg.component.ParsedAttribution;
 import com.android.internal.pm.pkg.component.ParsedInstrumentation;
@@ -258,6 +259,13 @@ public interface ParsingPackage {
 
     ParsingPackage setBackupAgentName(String backupAgentName);
 
+    /**
+     * Sets the process that the backup agent will run in.
+     * @see android.R.styleable#AndroidManifestApplication_BackupAgentProcess
+     */
+    ParsingPackage setBackupAgentProcess(
+            @ApplicationInfo.BackupAgentProcess int backupAgentProcess);
+
     ParsingPackage setBannerResourceId(int banner);
 
     ParsingPackage setCategory(int category);
@@ -379,6 +387,16 @@ public interface ParsingPackage {
 
     ParsingPackage setZygotePreloadName(String zygotePreloadName);
 
+    /**
+     * Set the name of the library to preloaded for Native App Zygote
+     */
+    ParsingPackage setZygotePreloadNativeLib(String zygotePreloadNativeLib);
+
+    /**
+     * Set the name of the function to be called once the library specified above is preloaded.
+     */
+    ParsingPackage setZygotePreloadNativeFunc(String zygotePreloadNativeFunc);
+
     ParsingPackage setAllowCrossUidActivitySwitchFromBelow(
             boolean allowCrossUidActivitySwitchFromBelow);
 
@@ -416,22 +434,22 @@ public interface ParsingPackage {
     ParsingPackage setOnBackInvokedCallbackEnabled(boolean enableOnBackInvokedCallback);
 
     /**
-     * Set the drawable resources id array of the alternate icons that are parsing from the
-     * AndroidManifest file
+     * Sets whether this application has any component that should run in
+     * the Private Compute Core sandbox.
+     * @see android.R.styleable#AndroidManifestPrivateCompute
      */
-    ParsingPackage setAlternateLauncherIconResIds(int[] alternateLauncherIconResIds);
+    ParsingPackage setHasPccComponents(boolean hasPccComponents);
 
     /**
-     * Set the string resources id array of the alternate labels that are parsing from the
-     * AndroidManifest file
+     * Sets the policy that declares which other components this package is allowed
+     * to associate with.
+     *
+     * @param policy The complete, parsed policy object from the manifest.
+     * @return The ParsingPackage instance for chaining.
+     * @see R.styleable#AndroidManifestAllowComponentAccess
      */
-    ParsingPackage setAlternateLauncherLabelResIds(int[] alternateLauncherLabelResIds);
+    ParsingPackage setParsedAllowComponentAccessPolicy(ParsedAllowComponentAccessPolicy policy);
 
-    /**
-     * Sets whether this application should run in the Private Compute Core sandbox.
-     * @see android.R.styleable#AndroidManifestApplication_runInPccSandbox
-     */
-    ParsingPackage setRunInPccSandbox(boolean runInPccSandbox);
 
     @CallSuper
     ParsedPackage hideAsParsed();
@@ -544,6 +562,18 @@ public interface ParsingPackage {
     @Nullable
     String getZygotePreloadName();
 
+    /**
+     * Return the name of the library to be preloaded in Native App Zygote
+     */
+    @Nullable
+    String getZygotePreloadNativeLib();
+
+    /**
+     * Return the name of the function to be called after the specified library is preloaded
+     */
+    @Nullable
+    String getZygotePreloadNativeFunc();
+
     boolean isAllowCrossUidActivitySwitchFromBelow();
 
     boolean isBackupAllowed();
@@ -573,6 +603,22 @@ public interface ParsingPackage {
     boolean isNormalScreensSupported();
 
     boolean isSmallScreensSupported();
+
+    /**
+     * Returns true if this application has any component that should run in
+     * the Private Compute Core sandbox.
+     *
+     * @see R.styleable#AndroidManifestPrivateCompute
+     */
+    boolean hasPccComponents();
+
+    /**
+     * Returns the process that the backup agent will run in.
+     * @see R.styleable#AndroidManifestApplication_backupAgentProcess
+     * @hide
+     */
+    @ApplicationInfo.BackupAgentProcess
+    int getBackupAgentProcess();
 
     /**
      * Sets the intent matching flags. This value is intended to be set from the "application" tag.

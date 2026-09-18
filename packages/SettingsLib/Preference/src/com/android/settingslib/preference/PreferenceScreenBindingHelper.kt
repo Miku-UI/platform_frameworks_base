@@ -32,6 +32,7 @@ import com.android.settingslib.datastore.KeyValueStore
 import com.android.settingslib.datastore.KeyedDataObservable
 import com.android.settingslib.datastore.KeyedObservable
 import com.android.settingslib.datastore.KeyedObserver
+import com.android.settingslib.metadata.CatalystFlagProviderFactory
 import com.android.settingslib.metadata.EXTRA_BINDING_SCREEN_ARGS
 import com.android.settingslib.metadata.PreferenceChangeReason
 import com.android.settingslib.metadata.PreferenceHierarchy
@@ -351,7 +352,17 @@ class PreferenceScreenBindingHelper(
         fun bind(preferenceScreen: PreferenceScreen, coroutineScope: CoroutineScope) {
             val context = preferenceScreen.context
             val args = preferenceScreen.peekExtras()?.getBundle(EXTRA_BINDING_SCREEN_ARGS)
-            PreferenceScreenRegistry.create(context, preferenceScreen.key, args)?.run {
+
+            val preferenceScreenMetadata = if (CatalystFlagProviderFactory.catalystUseKeyParameters()) {
+                val parametersSchema = PreferenceScreenRegistry.getScreenParametersSchema(preferenceScreen.key)
+                val keyParameters = args?.let { parametersSchema?.prepare(it) }
+
+                PreferenceScreenRegistry.createWithKeyParameters(context, preferenceScreen.key, keyParameters)
+            } else {
+                PreferenceScreenRegistry.create(context, preferenceScreen.key, args)
+            }
+
+            preferenceScreenMetadata?.run {
                 if (!hasCompleteHierarchy()) {
                     val preferenceBindingFactory =
                         (this as? PreferenceScreenCreator)?.preferenceBindingFactory ?: return

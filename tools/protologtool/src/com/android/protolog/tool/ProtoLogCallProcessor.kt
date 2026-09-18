@@ -23,6 +23,6 @@ interface ProtoLogCallProcessor {
         code: CompilationUnit,
         logCallVisitor: ProtoLogCallVisitor?,
         otherCallVisitor: MethodCallVisitor?,
-        fileName: String
+        fileName: String,
     ): Collection<CodeProcessingException>
 }

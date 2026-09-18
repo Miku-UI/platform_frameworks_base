@@ -31,7 +31,7 @@ internal sealed interface SchedulableNode {
     fun moveIndirectUpstreamToDirect(
         scheduler: Scheduler,
         oldIndirectDepth: Int,
-        oldIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
+        oldIndirectSet: ScatterSet<MuxDeferredNode<*, *, *, *>>,
         newDirectDepth: Int,
     )
 
@@ -39,21 +39,21 @@ internal sealed interface SchedulableNode {
         scheduler: Scheduler,
         oldDepth: Int,
         newDepth: Int,
-        removals: ScatterSet<MuxDeferredNode<*, *, *>>,
-        additions: ScatterSet<MuxDeferredNode<*, *, *>>,
+        removals: ScatterSet<MuxDeferredNode<*, *, *, *>>,
+        additions: ScatterSet<MuxDeferredNode<*, *, *, *>>,
     )
 
     fun moveDirectUpstreamToIndirect(
         scheduler: Scheduler,
         oldDirectDepth: Int,
         newIndirectDepth: Int,
-        newIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
+        newIndirectSet: ScatterSet<MuxDeferredNode<*, *, *, *>>,
     )
 
     fun removeIndirectUpstream(
         scheduler: Scheduler,
         depth: Int,
-        indirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
+        indirectSet: ScatterSet<MuxDeferredNode<*, *, *, *>>,
     )
 
     fun removeDirectUpstream(scheduler: Scheduler, depth: Int)
@@ -83,12 +83,12 @@ internal sealed interface PushNode<A> : PullNode<A> {
     fun removeDownstream(downstream: Schedulable)
 
     /** called during cleanup phase */
-    fun deactivateIfNeeded()
+    fun deactivateIfNeeded(evalScope: EvalScope)
 
     /** called from mux nodes after severs */
     fun scheduleDeactivationIfNeeded(evalScope: EvalScope)
 
     fun addDownstream(downstream: Schedulable)
 
-    fun removeDownstreamAndDeactivateIfNeeded(downstream: Schedulable)
+    fun removeDownstreamAndDeactivateIfNeeded(downstream: Schedulable, evalScope: EvalScope)
 }

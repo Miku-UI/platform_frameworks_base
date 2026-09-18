@@ -1,0 +1,83 @@
+// Copyright (C) 2026 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+package {
+    default_applicable_licenses: ["frameworks_base_packages_SystemUI_license"],
+    default_visibility: ["//frameworks/base/packages/SystemUI/pods/headline/ui:__subpackages__"],
+}
+
+java_library {
+    name: "com.android.systemui.headline.ui_api",
+    defaults: ["sysui_api"],
+    static_libs: ["androidx.compose.runtime_runtime"],
+    libs: [
+        "com.android.systemui.common.shared.model_api",
+        "com.android.systemui.statusbar.chips.ui_api",
+        "com.android.systemui.util.time_api",
+        "PlatformComposeSceneTransitionLayout",
+        "androidx.compose.ui_ui",
+    ],
+}
+
+java_library {
+    name: "com.android.systemui.headline.ui_main",
+    defaults: ["sysui_main"],
+    static_libs: [
+        "com.android.systemui.common.shared.model_api",
+        "com.android.systemui.common.ui.compose_api",
+        "com.android.systemui.headline.ui_api",
+        "com.android.systemui.lifecycle_api",
+        "com.android.systemui.statusbar.chips.ui_api",
+        "com.android.systemui.util.time_api",
+        "PlatformComposeCore",
+        "PlatformComposeSceneTransitionLayout",
+        "androidx.compose.material3_material3",
+        "androidx.compose.runtime_runtime",
+        "androidx.compose.foundation_foundation",
+        "androidx.compose.ui_ui-util",
+    ],
+}
+
+java_library {
+    name: "com.android.systemui.headline.ui_dagger",
+    defaults: ["sysui_dagger"],
+    static_libs: [
+        "com.android.systemui.headline.ui_main",
+    ],
+}
+
+android_library {
+    name: "com.android.systemui.headline.ui_preview",
+    package_name: "com.android.systemui.headline.ui.preview",
+    defaults: ["sysui_preview"],
+    resource_dirs: ["src/resPreview"],
+    static_libs: [
+        "com.android.systemui.headline.ui_main",
+        "com.android.systemui.headline.ui_api",
+        "SystemUI-res",
+        "androidx.compose.material_material-icons-core",
+        "androidx.compose.material3_material3",
+        "androidx.compose.runtime_runtime",
+    ],
+    visibility: [
+        // Needed for Gallery
+        "//vendor:__subpackages__",
+    ],
+}
+
+filegroup {
+    name: "com.android.systemui.headline.ui_fixtureFiles",
+    defaults: ["sysui_fixtureFiles"],
+}

@@ -129,7 +129,9 @@ constructor(
             cancelButtonClicked || executedActionFinish || userSwitched
         }
 
-    private fun toViewModel(model: UserModel): UserViewModel {
+    private fun toViewModel(
+        model: UserModel,
+    ): UserViewModel {
         return UserViewModel(
             viewKey = model.id,
             name =
@@ -150,13 +152,14 @@ constructor(
         )
     }
 
-    private fun toViewModel(model: UserActionModel): UserActionViewModel {
+    private fun toViewModel(
+        model: UserActionModel,
+    ): UserActionViewModel {
         return UserActionViewModel(
             viewKey = model.ordinal.toLong(),
             iconResourceId =
                 LegacyUserUiHelper.getUserSwitcherActionIconResourceId(
                     isAddSupervisedUser = model == UserActionModel.ADD_SUPERVISED_USER,
-                    isSignOut = model == UserActionModel.SIGN_OUT,
                     isAddUser = model == UserActionModel.ADD_USER,
                     isGuest = model == UserActionModel.ENTER_GUEST_MODE,
                     isManageUsers = model == UserActionModel.NAVIGATE_TO_USER_MANAGEMENT,
@@ -168,7 +171,6 @@ constructor(
                     isGuestUserAutoCreated = guestUserInteractor.isGuestUserAutoCreated,
                     isGuestUserResetting = guestUserInteractor.isGuestUserResetting,
                     isAddSupervisedUser = model == UserActionModel.ADD_SUPERVISED_USER,
-                    isSignOut = model == UserActionModel.SIGN_OUT,
                     isAddUser = model == UserActionModel.ADD_USER,
                     isManageUsers = model == UserActionModel.NAVIGATE_TO_USER_MANAGEMENT,
                     isTablet = true,

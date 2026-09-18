@@ -45,7 +45,6 @@ import com.android.systemui.statusbar.notification.stack.AnimationProperties;
 import com.android.systemui.statusbar.notification.stack.StackStateAnimator;
 import com.android.systemui.statusbar.phone.DozeParameters;
 import com.android.systemui.statusbar.phone.LockscreenGestureLogger;
-import com.android.systemui.statusbar.phone.ScreenOffAnimationController;
 import com.android.systemui.statusbar.phone.UserAvatarView;
 import com.android.systemui.user.data.source.UserRecord;
 import com.android.systemui.util.ViewController;
@@ -121,7 +120,6 @@ public class KeyguardQsUserSwitchController extends ViewController<FrameLayout> 
             FalsingManager falsingManager,
             ConfigurationController configurationController,
             DozeParameters dozeParameters,
-            ScreenOffAnimationController screenOffAnimationController,
             UserSwitchDialogController userSwitchDialogController,
             UiEventLogger uiEventLogger) {
         super(view);

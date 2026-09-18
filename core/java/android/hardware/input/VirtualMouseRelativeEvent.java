@@ -21,6 +21,7 @@ import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.SystemClock;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.view.InputEvent;
 
 /**
@@ -31,6 +32,7 @@ import android.view.InputEvent;
  * @hide
  */
 @SystemApi
+@RavenwoodKeepWholeClass
 public final class VirtualMouseRelativeEvent implements Parcelable {
 
     private final float mRelativeX;

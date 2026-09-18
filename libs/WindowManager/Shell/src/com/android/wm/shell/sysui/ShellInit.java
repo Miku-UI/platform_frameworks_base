@@ -22,6 +22,7 @@ import android.os.Build;
 import android.os.SystemClock;
 import android.util.Pair;
 import android.view.SurfaceControl;
+import android.view.ViewRootImpl;
 
 import androidx.annotation.VisibleForTesting;
 
@@ -79,6 +80,7 @@ public class ShellInit {
     public void init() {
         ProtoLog.v(WM_SHELL_INIT, "Initializing Shell Components: %d", mInitCallbacks.size());
         SurfaceControl.setDebugUsageAfterRelease(true);
+        ViewRootImpl.setDebugWrongThreadInit(true);
         // Init in order of registration
         for (int i = 0; i < mInitCallbacks.size(); i++) {
             final Pair<String, Runnable> info = mInitCallbacks.get(i);

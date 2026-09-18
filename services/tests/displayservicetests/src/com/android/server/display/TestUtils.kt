@@ -23,22 +23,13 @@ import android.os.Parcel
 import android.os.SystemClock
 import android.view.Display
 import android.view.DisplayAddress
-import java.io.InputStream
-import java.io.OutputStream
+import android.view.SurfaceControl
+import kotlin.Int
 
 internal const val TEST_SENSOR_NAME = "test_sensor_name"
 internal const val TEST_SENSOR_TYPE_STRING = "test_sensor_type"
 internal const val TEST_SENSOR_TYPE = 0
 internal const val TEST_SENSOR_MAX_RANGE = 1f
-
-
-internal fun createInMemoryPersistentDataStore(): PersistentDataStore {
-    return PersistentDataStore(object : PersistentDataStore.Injector() {
-        override fun openRead(): InputStream = InputStream.nullInputStream()
-        override fun startWrite(): OutputStream = OutputStream.nullOutputStream()
-        override fun finishWrite(os: OutputStream?, success: Boolean) {}
-    })
-}
 
 /**
  * Create a custom {@link DisplayAddress} to ensure we're not relying on any specific
@@ -74,6 +65,7 @@ internal fun createSensorEvent(
 fun createDisplayMode(
     id: Int = Display.Mode.INVALID_MODE_ID,
     parentId: Int = Display.Mode.INVALID_MODE_ID,
+    sfModeId: Int = Display.Mode.INVALID_MODE_ID,
     flags: Int = 0,
     width: Int = 100,
     height: Int = 200,
@@ -83,6 +75,34 @@ fun createDisplayMode(
     supportedHdrTypes: IntArray = intArrayOf()
 
 ): Display.Mode = Display.Mode(
-    id, parentId, flags, width, height, peakRefreshRate, vsyncRate,
+    id, parentId, sfModeId, flags, width, height, peakRefreshRate, vsyncRate,
     alternativeRefreshRates, supportedHdrTypes
 )
+
+@JvmOverloads
+fun createSfDisplayMode(
+    id: Int = Display.Mode.INVALID_MODE_ID,
+    width: Int = 100,
+    height: Int = 200,
+    xDpi: Float = 1f,
+    yDpi: Float = 1f,
+    peakRefreshRate: Float = 60f,
+    vsyncRate: Float = 60f,
+    appVsyncOffsetNanos: Long = 0L,
+    presentationDeadlineNanos: Long = 0L,
+    supportedHdrTypes: IntArray = intArrayOf(),
+    group: Int = 0
+): SurfaceControl.DisplayMode = SurfaceControl.DisplayMode().also { mode ->
+    mode.id = id
+    mode.width = width
+    mode.height = height
+    mode.xDpi = xDpi
+    mode.yDpi = yDpi
+    mode.peakRefreshRate = peakRefreshRate
+    mode.vsyncRate = vsyncRate
+    mode.appVsyncOffsetNanos = appVsyncOffsetNanos
+    mode.presentationDeadlineNanos = presentationDeadlineNanos
+    mode.supportedHdrTypes = supportedHdrTypes
+    mode.group = group
+}
+

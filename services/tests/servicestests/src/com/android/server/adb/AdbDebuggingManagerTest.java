@@ -838,8 +838,9 @@ public final class AdbDebuggingManagerTest {
 
     @Test
     public void testAdbKeyStore_adbWifiConnect_storesBssidWhenAlwaysAllow() throws Exception {
-        String trustedNetwork = "My Network";
-        mKeyStore.addTrustedNetwork(trustedNetwork);
+        String trustedNetworkBssid = "My Network BSSID";
+        String trustedNetworkSsid = "My Network SSID";
+        mKeyStore.addTrustedNetwork(trustedNetworkBssid, trustedNetworkSsid);
         persistKeyStore();
 
         AdbKeyStore newKeyStore = new AdbKeyStore(
@@ -850,7 +851,43 @@ public final class AdbDebuggingManagerTest {
 
         assertTrue(
                 "Persisted trusted network not found in new keystore instance.",
-                newKeyStore.isTrustedNetwork(trustedNetwork));
+                newKeyStore.isTrustedNetwork(trustedNetworkBssid, trustedNetworkSsid));
+    }
+
+    @Test
+    public void testAdbKeyStore_networkIsTrustedIfOnlySsidMatch() throws Exception {
+        String trustedNetworkBssid = "My Network BSSID";
+        String trustedNetworkSsid = "My Network SSID";
+        mKeyStore.addTrustedNetwork(trustedNetworkBssid, trustedNetworkSsid);
+        persistKeyStore();
+
+        AdbKeyStore newKeyStore = new AdbKeyStore(
+                mContext,
+                mAdbKeyXmlFile,
+                mAdbKeyFile,
+                mFakeTicker);
+
+        assertTrue(
+                "Persisted trusted network not found in new keystore instance.",
+                newKeyStore.isTrustedNetwork("different BSSID", trustedNetworkSsid));
+    }
+
+    @Test
+    public void testAdbKeyStore_networkIsNotTrustedIfSsidAndBssidDoNotMatch() throws Exception {
+        String trustedNetworkBssid = "My Network BSSID";
+        String trustedNetworkSsid = "My Network SSID";
+        mKeyStore.addTrustedNetwork(trustedNetworkBssid, trustedNetworkSsid);
+        persistKeyStore();
+
+        AdbKeyStore newKeyStore = new AdbKeyStore(
+                mContext,
+                mAdbKeyXmlFile,
+                mAdbKeyFile,
+                mFakeTicker);
+
+        assertFalse(
+                "Network shouldn't be trusted if BSSID and SSID do not match.",
+                newKeyStore.isTrustedNetwork("different BSSID", "different SSID"));
     }
 
     @Test

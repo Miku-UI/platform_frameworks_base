@@ -24,7 +24,6 @@ import static com.android.settingslib.bluetooth.HearingAidInfo.DeviceSide.SIDE_L
 import static com.android.settingslib.bluetooth.HearingAidInfo.DeviceSide.SIDE_RIGHT;
 
 import android.content.Context;
-import android.util.ArrayMap;
 import android.util.AttributeSet;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -57,11 +56,8 @@ public class AmbientVolumeLayout extends LinearLayout implements AmbientVolumeUi
     private ImageView mExpandIcon;
     private ImageView mVolumeIcon;
     private final BiMap<Integer, AmbientVolumeSlider> mSideToSliderMap = HashBiMap.create();
-    private final Map<Integer, Integer> mSideToMuteStateMap = new ArrayMap<>();
-
     private boolean mExpandable = true;
     private boolean mExpanded = false;
-    private int mVolumeLevel = AMBIENT_VOLUME_LEVEL_DEFAULT;
 
     private HearingDevicesUiEventLogger mUiEventLogger;
     private int mLaunchSourceId;
@@ -70,12 +66,9 @@ public class AmbientVolumeLayout extends LinearLayout implements AmbientVolumeUi
             (slider, value) -> {
                 final Integer side = mSideToSliderMap.inverse().get(slider);
                 if (side != null) {
-                    if (mUiEventLogger != null) {
-                        HearingDevicesUiEvent uiEvent = side == SIDE_UNIFIED
-                                ? HearingDevicesUiEvent.HEARING_DEVICES_AMBIENT_CHANGE_UNIFIED
-                                : HearingDevicesUiEvent.HEARING_DEVICES_AMBIENT_CHANGE_SEPARATED;
-                        mUiEventLogger.log(uiEvent, mLaunchSourceId);
-                    }
+                    logMetrics(side == SIDE_UNIFIED
+                            ? HearingDevicesUiEvent.HEARING_DEVICES_AMBIENT_CHANGE_UNIFIED
+                            : HearingDevicesUiEvent.HEARING_DEVICES_AMBIENT_CHANGE_SEPARATED);
                     if (mListener != null) {
                         mListener.onSliderValueChange(side, value);
                     }
@@ -105,22 +98,6 @@ public class AmbientVolumeLayout extends LinearLayout implements AmbientVolumeUi
     private void init() {
         mVolumeIcon = requireViewById(R.id.ambient_volume_icon);
         mVolumeIcon.setImageResource(com.android.settingslib.R.drawable.ic_ambient_volume);
-        mVolumeIcon.setOnClickListener(v -> {
-            if (!isMutable()) {
-                return;
-            }
-            int updatedMuteState = isMuted() ? MUTE_NOT_MUTED : MUTE_MUTED;
-            setSliderMuteState(SIDE_UNIFIED, updatedMuteState);
-            if (mUiEventLogger != null) {
-                HearingDevicesUiEvent uiEvent = isMuted()
-                        ? HearingDevicesUiEvent.HEARING_DEVICES_AMBIENT_MUTE
-                        : HearingDevicesUiEvent.HEARING_DEVICES_AMBIENT_UNMUTE;
-                mUiEventLogger.log(uiEvent, mLaunchSourceId);
-            }
-            if (mListener != null) {
-                mListener.onAmbientVolumeIconClick();
-            }
-        });
         updateVolumeIcon();
 
         mExpandIcon = requireViewById(R.id.ambient_expand_icon);
@@ -129,12 +106,9 @@ public class AmbientVolumeLayout extends LinearLayout implements AmbientVolumeUi
                 return;
             }
             setControlExpanded(!mExpanded);
-            if (mUiEventLogger != null) {
-                HearingDevicesUiEvent uiEvent = mExpanded
-                        ? HearingDevicesUiEvent.HEARING_DEVICES_AMBIENT_EXPAND_CONTROLS
-                        : HearingDevicesUiEvent.HEARING_DEVICES_AMBIENT_COLLAPSE_CONTROLS;
-                mUiEventLogger.log(uiEvent, mLaunchSourceId);
-            }
+            logMetrics(mExpanded
+                    ? HearingDevicesUiEvent.HEARING_DEVICES_AMBIENT_EXPAND_CONTROLS
+                    : HearingDevicesUiEvent.HEARING_DEVICES_AMBIENT_COLLAPSE_CONTROLS);
             if (mListener != null) {
                 mListener.onExpandIconClick();
             }
@@ -178,51 +152,18 @@ public class AmbientVolumeLayout extends LinearLayout implements AmbientVolumeUi
     }
 
     @Override
-    public boolean isMutable() {
-        return mSideToMuteStateMap.values().stream().anyMatch(mute -> mute != MUTE_DISABLED);
-    }
-
-    @Override
-    public boolean isMuted() {
-        return mSideToMuteStateMap.values().stream().allMatch(mute -> mute == MUTE_MUTED);
-    }
-
-    @Override
     public void setSliderMuteState(int side, int muteState) {
-        if (side == SIDE_UNIFIED) {
-            // propagate the mute state to all other sliders
-            mSideToSliderMap.keySet().forEach(s -> {
-                if (s != SIDE_UNIFIED) {
-                    setSliderMuteState(s, muteState);
-                }
-            });
-        } else {
-            AmbientVolumeSlider slider = mSideToSliderMap.get(side);
-            if (slider != null) {
-                mSideToMuteStateMap.put(side, muteState);
-                if (muteState == MUTE_MUTED) {
-                    slider.setValue(slider.getMin());
-                }
-                AmbientVolumeSlider unifiedSlider = mSideToSliderMap.get(SIDE_UNIFIED);
-                if (isMuted() && unifiedSlider != null) {
-                    unifiedSlider.setValue(unifiedSlider.getMin());
-                }
-                updateVolumeLevel();
-            }
+        AmbientVolumeSlider slider = mSideToSliderMap.get(side);
+        if (slider != null) {
+            slider.setMuteState(muteState);
+            updateMuteStateFromSide(side);
         }
     }
 
     @Override
     public int getSliderMuteState(int side) {
-        if (side == SIDE_UNIFIED) {
-            if (!isMutable()) {
-                return MUTE_DISABLED;
-            } else {
-                return isMuted() ? MUTE_MUTED : MUTE_NOT_MUTED;
-            }
-        } else {
-            return mSideToMuteStateMap.getOrDefault(side, MUTE_DISABLED);
-        }
+        AmbientVolumeSlider slider = mSideToSliderMap.get(side);
+        return slider == null ? MUTE_DISABLED : slider.getMuteState();
     }
 
     @Override
@@ -251,9 +192,10 @@ public class AmbientVolumeLayout extends LinearLayout implements AmbientVolumeUi
     @Override
     public void setSliderValue(int side, int value) {
         AmbientVolumeSlider slider = mSideToSliderMap.get(side);
-        if (slider != null && slider.getValue() != value) {
+        if (slider != null && slider.getValue() != value && slider.getMin() <= value
+                && slider.getMax() >= value) {
             slider.setValue(value);
-            updateVolumeLevel();
+            updateVolumeIcon();
         }
     }
 
@@ -262,10 +204,7 @@ public class AmbientVolumeLayout extends LinearLayout implements AmbientVolumeUi
         AmbientVolumeSlider slider = mSideToSliderMap.get(side);
         if (slider != null) {
             slider.setEnabled(enabled);
-            if (!enabled) {
-                slider.setValue(slider.getMin());
-            }
-            updateVolumeLevel();
+            updateVolumeIcon();
         }
     }
 
@@ -278,6 +217,11 @@ public class AmbientVolumeLayout extends LinearLayout implements AmbientVolumeUi
         }
     }
 
+    void setUiEventLogger(HearingDevicesUiEventLogger uiEventLogger, int launchSourceId) {
+        mUiEventLogger = uiEventLogger;
+        mLaunchSourceId = launchSourceId;
+    }
+
     private void updateLayout() {
         mSideToSliderMap.forEach((side, slider) -> {
             if (side == SIDE_UNIFIED) {
@@ -286,35 +230,27 @@ public class AmbientVolumeLayout extends LinearLayout implements AmbientVolumeUi
                 slider.setVisibility(mExpanded ? VISIBLE : GONE);
             }
         });
-        updateVolumeLevel();
-    }
-
-    void setUiEventLogger(HearingDevicesUiEventLogger uiEventLogger, int launchSourceId) {
-        mUiEventLogger = uiEventLogger;
-        mLaunchSourceId = launchSourceId;
-    }
-
-    private void updateVolumeLevel() {
-        int leftLevel, rightLevel;
-        if (isControlExpanded()) {
-            leftLevel = getVolumeLevel(SIDE_LEFT);
-            rightLevel = getVolumeLevel(SIDE_RIGHT);
-        } else {
-            final int unifiedLevel = getVolumeLevel(SIDE_UNIFIED);
-            leftLevel = unifiedLevel;
-            rightLevel = unifiedLevel;
-        }
-        mVolumeLevel = Ints.constrainToRange(leftLevel * 5 + rightLevel,
-                AMBIENT_VOLUME_LEVEL_MIN, AMBIENT_VOLUME_LEVEL_MAX);
         updateVolumeIcon();
     }
 
-    private int getVolumeLevel(int side) {
-        AmbientVolumeSlider slider = mSideToSliderMap.get(side);
-        if (slider == null || !slider.isEnabled()) {
-            return 0;
+    private void updateVolumeIcon() {
+        int leftLevel, rightLevel;
+        if (isControlExpanded()) {
+            final AmbientVolumeSlider leftSlider = mSideToSliderMap.get(SIDE_LEFT);
+            final AmbientVolumeSlider rightSlider = mSideToSliderMap.get(SIDE_RIGHT);
+            leftLevel = leftSlider == null ? 0 : leftSlider.getVolumeLevel();
+            rightLevel = rightSlider == null ? 0 : rightSlider.getVolumeLevel();
+        } else {
+            final AmbientVolumeSlider unifiedSlider = mSideToSliderMap.get(SIDE_UNIFIED);
+            final int unifiedLevel = unifiedSlider == null ? 0 : unifiedSlider.getVolumeLevel();
+            leftLevel = unifiedLevel;
+            rightLevel = unifiedLevel;
         }
-        return slider.getVolumeLevel();
+        int volumeLevel = Ints.constrainToRange(
+                leftLevel * AMBIENT_VOLUME_LEVEL_NUMBER + rightLevel,
+                AMBIENT_VOLUME_LEVEL_MIN,
+                AMBIENT_VOLUME_LEVEL_MAX);
+        mVolumeIcon.setImageLevel(volumeLevel);
     }
 
     private void updateExpandIcon() {
@@ -330,42 +266,75 @@ public class AmbientVolumeLayout extends LinearLayout implements AmbientVolumeUi
         }
     }
 
-    private void updateVolumeIcon() {
-        mVolumeIcon.setImageLevel(mVolumeLevel);
-        if (isMutable()) {
-            final int stringRes = isMuted() ? R.string.hearing_devices_ambient_unmute
-                    : R.string.hearing_devices_ambient_mute;
-            mVolumeIcon.setContentDescription(mContext.getString(stringRes));
-            mVolumeIcon.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_YES);
-        }  else {
-            mVolumeIcon.setContentDescription(null);
-            mVolumeIcon.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+    private void updateMuteStateFromSide(int side) {
+        if (side == SIDE_UNIFIED) {
+            // propagate the mute state to all other sliders
+            mSideToSliderMap.forEach((entrySide, entrySlider) -> {
+                if (entrySide != SIDE_UNIFIED) {
+                    entrySlider.setMuteState(getSliderMuteState(SIDE_UNIFIED));
+                }
+            });
+        } else {
+            AmbientVolumeSlider unifiedSlider = mSideToSliderMap.get(SIDE_UNIFIED);
+            if (unifiedSlider != null) {
+                boolean allSideDisabled = mSideToSliderMap.entrySet().stream()
+                        .filter(entry -> entry.getKey() != SIDE_UNIFIED)
+                        .allMatch(entry -> entry.getValue().getMuteState() == MUTE_DISABLED);
+                boolean allSideMuted = mSideToSliderMap.entrySet().stream()
+                        .filter(entry -> entry.getKey() != SIDE_UNIFIED)
+                        .allMatch(entry -> entry.getValue().getMuteState() == MUTE_MUTED);
+                if (allSideDisabled) {
+                    unifiedSlider.setMuteState(MUTE_DISABLED);
+                } else if (allSideMuted) {
+                    unifiedSlider.setMuteState(MUTE_MUTED);
+                } else {
+                    unifiedSlider.setMuteState(MUTE_NOT_MUTED);
+                }
+            }
         }
+        updateVolumeIcon();
     }
 
     private void createSlider(int side) {
         if (mSideToSliderMap.containsKey(side)) {
             return;
         }
-        AmbientVolumeSlider slider = new AmbientVolumeSlider(mContext);
-        slider.addOnChangeListener(mSliderOnChangeListener);
+        int titleResId = 0;
+        int contentResId;
         if (side == SIDE_LEFT) {
-            slider.setTitle(mContext.getString(R.string.hearing_devices_ambient_control_left));
-            slider.setContentDescription(
-                    mContext.getString(R.string.hearing_devices_ambient_control_left));
-            slider.setSliderContentDescription(
-                    mContext.getString(R.string.hearing_devices_ambient_control_left_description));
+            titleResId = R.string.hearing_devices_ambient_control_left;
+            contentResId = R.string.hearing_devices_ambient_control_left_description;
         } else if (side == SIDE_RIGHT) {
-            slider.setTitle(mContext.getString(R.string.hearing_devices_ambient_control_right));
-            slider.setContentDescription(
-                    mContext.getString(R.string.hearing_devices_ambient_control_right));
-            slider.setSliderContentDescription(
-                    mContext.getString(R.string.hearing_devices_ambient_control_right_description));
+            titleResId = R.string.hearing_devices_ambient_control_right;
+            contentResId = R.string.hearing_devices_ambient_control_right_description;
         } else {
-            slider.setSliderContentDescription(
-                    mContext.getString(R.string.hearing_devices_ambient_control_description));
+            contentResId = R.string.hearing_devices_ambient_control_description;
         }
+        String title = titleResId == 0 ? null : mContext.getString(titleResId);
+        String content = contentResId == 0 ? null : mContext.getString(contentResId);
+
+        AmbientVolumeSlider slider = new AmbientVolumeSlider(mContext);
+        slider.setTitle(title);
+        slider.setContentDescription(title);
+        slider.setSliderContentDescription(content);
+        slider.addOnChangeListener(mSliderOnChangeListener);
+        slider.setOnMuteIconClickListener((v) -> {
+            updateMuteStateFromSide(side);
+
+            boolean muted = slider.getMuteState() == MUTE_MUTED;
+            logMetrics(muted ? HearingDevicesUiEvent.HEARING_DEVICES_AMBIENT_MUTE
+                    : HearingDevicesUiEvent.HEARING_DEVICES_AMBIENT_UNMUTE);
+            if (mListener != null) {
+                mListener.onSliderMuteChange(side, muted);
+            }
+        });
         mSideToSliderMap.put(side, slider);
+    }
+
+    private void logMetrics(HearingDevicesUiEvent event) {
+        if (mUiEventLogger != null) {
+            mUiEventLogger.log(event, mLaunchSourceId);
+        }
     }
 
     @VisibleForTesting

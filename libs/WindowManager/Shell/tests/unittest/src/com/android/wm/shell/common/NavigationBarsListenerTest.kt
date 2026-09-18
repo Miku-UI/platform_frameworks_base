@@ -39,7 +39,6 @@ import org.mockito.Mock
 import org.mockito.Mockito
 import org.mockito.kotlin.whenever
 
-
 @SmallTest
 @RunWith(AndroidTestingRunner::class)
 class NavigationBarsListenerTest : ShellTestCase() {
@@ -47,13 +46,15 @@ class NavigationBarsListenerTest : ShellTestCase() {
     private lateinit var displayLayout: DisplayLayout
 
     @Mock private lateinit var displayController: DisplayController
+
     @Before
     fun setUp() {
         val resources = createResources(40, 50, false)
         val displayInfo = createDisplayInfo(1000, 1500, 0, Surface.ROTATION_0)
         displayLayout = DisplayLayout(displayInfo, resources, false, false)
         whenever(displayController.getDisplayLayout(DEFAULT_DISPLAY_ID)).thenReturn(displayLayout)
-        navigationBarsListener = TestingNavigationBarsListener(displayController, DEFAULT_DISPLAY_ID)
+        navigationBarsListener =
+            TestingNavigationBarsListener(displayController, DEFAULT_DISPLAY_ID)
     }
 
     @Test
@@ -96,13 +97,19 @@ class NavigationBarsListenerTest : ShellTestCase() {
         displayRect.set(0, 0, displayLayout.width(), displayLayout.height())
 
         val insetsState = InsetsState()
-        val insetsSource = insetsState.getOrCreateSource(
-            InsetsSource.createId(
-                null, 0, Type.navigationBars()), Type.navigationBars()
-        )
+        val insetsSource =
+            insetsState.getOrCreateSource(
+                InsetsSource.createId(null, 0, Type.navigationBars()),
+                Type.navigationBars(),
+            )
 
-        val frame = Rect(0, displayLayout.height() - insets.bottom,
-            displayLayout.width(), displayLayout.height())
+        val frame =
+            Rect(
+                0,
+                displayLayout.height() - insets.bottom,
+                displayLayout.width(),
+                displayLayout.height(),
+            )
         insetsSource.setFrame(frame)
         return insetsState
     }
@@ -114,13 +121,19 @@ class NavigationBarsListenerTest : ShellTestCase() {
         displayRect.set(0, 0, displayLayout.width(), displayLayout.height())
 
         val insetsState = InsetsState()
-        val insetsSource = insetsState.getOrCreateSource(
-            InsetsSource.createId(
-                null, 0, Type.navigationBars()), Type.navigationBars()
-        )
+        val insetsSource =
+            insetsState.getOrCreateSource(
+                InsetsSource.createId(null, 0, Type.navigationBars()),
+                Type.navigationBars(),
+            )
 
-        val frame = Rect(displayLayout.width() - insets.right, 0,
-                displayLayout.width(), displayLayout.height())
+        val frame =
+            Rect(
+                displayLayout.width() - insets.right,
+                0,
+                displayLayout.width(),
+                displayLayout.height(),
+            )
         insetsSource.setFrame(frame)
         return insetsState
     }
@@ -134,24 +147,39 @@ class NavigationBarsListenerTest : ShellTestCase() {
         val insetsState = InsetsState()
         val insetsSource = insetsState.getOrCreateSource(ID_IME, Type.ime())
         insetsSource.setVisible(true)
-        insetsSource.setFrame(stableBounds.left, stableBounds.bottom - insets.bottom,
-            stableBounds.right, stableBounds.bottom)
+        insetsSource.setFrame(
+            stableBounds.left,
+            stableBounds.bottom - insets.bottom,
+            stableBounds.right,
+            stableBounds.bottom,
+        )
         return insetsState
     }
 
-    private fun createDisplayInfo(width: Int, height: Int, cutoutHeight: Int,
-        rotation: Int): DisplayInfo {
+    private fun createDisplayInfo(
+        width: Int,
+        height: Int,
+        cutoutHeight: Int,
+        rotation: Int,
+    ): DisplayInfo {
         val info = DisplayInfo()
         info.logicalWidth = width
         info.logicalHeight = height
         info.rotation = rotation
         if (cutoutHeight > 0) {
-            info.displayCutout = DisplayCutout(
-                Insets.of(0, cutoutHeight, 0, 0) /* safeInsets */,
-                null /* boundLeft */,
-                Rect(width / 2 - cutoutHeight, 0, width / 2 + cutoutHeight,
-                    cutoutHeight) /* boundTop */, null /* boundRight */,
-                null /* boundBottom */)
+            info.displayCutout =
+                DisplayCutout(
+                    Insets.of(0, cutoutHeight, 0, 0) /* safeInsets */,
+                    null /* boundLeft */,
+                    Rect(
+                        width / 2 - cutoutHeight,
+                        0,
+                        width / 2 + cutoutHeight,
+                        cutoutHeight,
+                    ) /* boundTop */,
+                    null /* boundRight */,
+                    null, /* boundBottom */
+                )
         } else {
             info.displayCutout = DisplayCutout.NO_CUTOUT
         }
@@ -163,18 +191,20 @@ class NavigationBarsListenerTest : ShellTestCase() {
         val cfg = Configuration()
         cfg.uiMode = Configuration.UI_MODE_TYPE_NORMAL
         val res = Mockito.mock(Resources::class.java)
-        Mockito.doReturn(navLand).whenever(res).getDimensionPixelSize(
-            R.dimen.navigation_bar_height_landscape_car_mode)
-        Mockito.doReturn(navPort).whenever(res).getDimensionPixelSize(
-            R.dimen.navigation_bar_height_car_mode)
-        Mockito.doReturn(navLand).whenever(res).getDimensionPixelSize(
-            R.dimen.navigation_bar_width_car_mode)
-        Mockito.doReturn(navLand).whenever(res).getDimensionPixelSize(
-            R.dimen.navigation_bar_height_landscape)
-        Mockito.doReturn(navPort).whenever(res).getDimensionPixelSize(
-            R.dimen.navigation_bar_height)
-        Mockito.doReturn(navLand).whenever(res).getDimensionPixelSize(
-            R.dimen.navigation_bar_width)
+        Mockito.doReturn(navLand)
+            .whenever(res)
+            .getDimensionPixelSize(R.dimen.navigation_bar_height_landscape_car_mode)
+        Mockito.doReturn(navPort)
+            .whenever(res)
+            .getDimensionPixelSize(R.dimen.navigation_bar_height_car_mode)
+        Mockito.doReturn(navLand)
+            .whenever(res)
+            .getDimensionPixelSize(R.dimen.navigation_bar_width_car_mode)
+        Mockito.doReturn(navLand)
+            .whenever(res)
+            .getDimensionPixelSize(R.dimen.navigation_bar_height_landscape)
+        Mockito.doReturn(navPort).whenever(res).getDimensionPixelSize(R.dimen.navigation_bar_height)
+        Mockito.doReturn(navLand).whenever(res).getDimensionPixelSize(R.dimen.navigation_bar_width)
         Mockito.doReturn(navMoves).whenever(res).getBoolean(R.bool.config_navBarCanMove)
         Mockito.doReturn(cfg).whenever(res).configuration
         return res
@@ -182,7 +212,7 @@ class NavigationBarsListenerTest : ShellTestCase() {
 
     private class TestingNavigationBarsListener(
         displayController: DisplayController,
-        displayId: Int
+        displayId: Int,
     ) : NavigationBarsListener(displayController, displayId) {
         var testInsets = Insets.NONE
 

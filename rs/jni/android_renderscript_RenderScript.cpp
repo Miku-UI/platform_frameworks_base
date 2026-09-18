@@ -43,6 +43,7 @@
 #include <gui/Surface.h>
 #include <gui/GLConsumer.h>
 #include <android_runtime/android_graphics_SurfaceTexture.h>
+#include <gui/Flags.h> // Remove with WB_MEDIA_MIGRATION
 
 //#define LOG_API ALOGE
 static constexpr bool kLogApi = false;
@@ -1267,10 +1268,7 @@ nAllocationGetSurface(JNIEnv *_env, jobject _this, jlong con, jlong a)
     ANativeWindow *anw = (ANativeWindow *)rsAllocationGetSurface((RsContext)con, (RsAllocation)a);
 
     sp<Surface> surface(static_cast<Surface*>(anw));
-    sp<IGraphicBufferProducer> bp = surface->getIGraphicBufferProducer();
-
-    jobject o = android_view_Surface_createFromIGraphicBufferProducer(_env, bp);
-    return o;
+    return android_view_Surface_createFromSurface(_env, surface);
 }
 
 static void

@@ -26,6 +26,8 @@ import android.util.ArraySet;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import com.android.internal.dev.perfetto.sdk.PerfettoTrace;
+
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -52,7 +54,6 @@ import java.util.Set;
 @RunWith(AndroidJUnit4.class)
 @DisabledOnRavenwood(blockedBy = PerfettoTrace.class)
 @RequiresFlagsEnabled({
-    android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2,
     android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V3
 })
 public class PerfettoTraceV3InitializationTest {
@@ -65,8 +66,8 @@ public class PerfettoTraceV3InitializationTest {
 
     @BeforeClass
     public static void setUpClass() {
-        PerfettoTrace.register(true);
-        PerfettoTrace.registerCategories();
+        com.android.internal.dev.perfetto.sdk.PerfettoTrace.register(true);
+        PerfettoCategories.registerCategories();
     }
 
     @Before
@@ -78,16 +79,14 @@ public class PerfettoTraceV3InitializationTest {
 
     @Test
     public void testSendMessageQueueCategoryEvent() throws Exception {
-        // This asserts that we don't accidentally initialize the old API.
-        assertThat(PerfettoTrace.MQ_CATEGORY.isRegistered()).isFalse();
         // This asserts that we correctly initialize the new API.
-        assertThat(PerfettoTrace.MQ_CATEGORY_V3.isRegistered()).isTrue();
+        assertThat(PerfettoCategories.MQ_CATEGORY.isRegistered()).isTrue();
 
         com.android.internal.dev.perfetto.sdk.PerfettoTrace.Session session =
                 new com.android.internal.dev.perfetto.sdk.PerfettoTrace.Session(
                         true, getTraceConfig("mq").toByteArray());
-        com.android.internal.dev.perfetto.sdk.PerfettoTrace.instant(
-                        PerfettoTrace.MQ_CATEGORY_V3, "my_event")
+        com.android.internal.dev.perfetto.sdk.PerfettoTrace
+                .instant(PerfettoCategories.MQ_CATEGORY, "my_event")
                 .addArg("string_key", "foo")
                 .emit();
 

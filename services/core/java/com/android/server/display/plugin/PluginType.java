@@ -19,6 +19,7 @@ package com.android.server.display.plugin;
 import com.android.internal.annotations.Keep;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.display.plugin.types.HdrBoostOverride;
+import com.android.server.display.plugin.types.MaxBrightnessCapOverride;
 
 /**
  * Represent customisation entry point to Framework. OEM and Framework team should define
@@ -38,6 +39,15 @@ public class PluginType<T> {
     */
     public static final PluginType<HdrBoostOverride> HDR_BOOST_OVERRIDE = new PluginType<>(
             HdrBoostOverride.class, "hdr_boost_override");
+
+    /*
+     * PluginType for max brightness cap override. If set, system will use the values to
+     * control the maximum brightness cap the display outputs.
+     * To disable, Plugin should set the type to null.
+     * Value change will trigger whole power state recalculation.
+     */
+    public static final PluginType<MaxBrightnessCapOverride> MAX_BRIGHTNESS_CAP_OVERRIDE =
+            new PluginType<>(MaxBrightnessCapOverride.class, "max_brightness_cap_override");
 
     final Class<T> mType;
     final String mName;

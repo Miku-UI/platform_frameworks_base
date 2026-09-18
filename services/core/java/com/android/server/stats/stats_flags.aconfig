@@ -48,3 +48,24 @@ flag {
     description: "Adds memcgv2 atom logging"
     bug: "434920925"
 }
+
+flag {
+    name: "add_adaptive_suspend_stats_puller"
+    namespace: "pixel_power_sw"
+    description: "Adds adaptive_suspend_stats atom logging"
+    bug: "442333174"
+}
+
+flag {
+    name: "add_keystore_per_uid_puller"
+    namespace: "statsd"
+    description: "Adds keystore per-UID pullers"
+    bug: "440046237"
+}
+
+flag {
+    name: "add_webview_pin_quota_puller"
+    namespace: "webview"
+    description: "Adds webview_pin_quota atom logging"
+    bug: "491437662"
+}

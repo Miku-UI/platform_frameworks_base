@@ -35,6 +35,9 @@ import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor;
+import com.android.systemui.deviceentry.domain.interactor.DeviceUnlockedInteractor;
+import com.android.systemui.deviceentry.shared.model.DeviceUnlockSource;
+import com.android.systemui.deviceentry.shared.model.DeviceUnlockStatus;
 import com.android.systemui.dock.DockManager;
 import com.android.systemui.keyguard.domain.interactor.KeyguardOcclusionInteractor;
 import com.android.systemui.plugins.FalsingManager;
@@ -97,6 +100,7 @@ class FalsingCollectorImpl implements FalsingCollector {
     private final Lazy<SelectedUserInteractor> mUserInteractor;
     private final Lazy<DeviceEntryInteractor> mDeviceEntryInteractor;
     private final Lazy<KeyguardOcclusionInteractor> mOcclusionInteractor;
+    private final Lazy<DeviceUnlockedInteractor> mDeviceUnlockedInteractor;
 
     private int mState;
     private boolean mShowingAod;
@@ -182,7 +186,8 @@ class FalsingCollectorImpl implements FalsingCollector {
             Lazy<CommunalInteractor> communalInteractorLazy,
             Lazy<CommunalSceneInteractor> communalSceneInteractorLazy,
             Lazy<DeviceEntryInteractor> deviceEntryInteractor,
-            Lazy<KeyguardOcclusionInteractor> occlusionInteractor) {
+            Lazy<KeyguardOcclusionInteractor> occlusionInteractor,
+            Lazy<DeviceUnlockedInteractor> deviceUnlockedInteractor) {
         mFalsingDataProvider = falsingDataProvider;
         mFalsingManager = falsingManager;
         mKeyguardUpdateMonitor = keyguardUpdateMonitor;
@@ -201,6 +206,7 @@ class FalsingCollectorImpl implements FalsingCollector {
         mCommunalSceneInteractorLazy = communalSceneInteractorLazy;
         mDeviceEntryInteractor = deviceEntryInteractor;
         mOcclusionInteractor = occlusionInteractor;
+        mDeviceUnlockedInteractor = deviceUnlockedInteractor;
     }
 
     @Override
@@ -220,11 +226,14 @@ class FalsingCollectorImpl implements FalsingCollector {
                     mOcclusionInteractor.get().isKeyguardOccluded(),
                     this::isKeyguardOccluded
             );
+            mJavaAdapter.alwaysCollectFlow(
+                    mDeviceUnlockedInteractor.get().getDeviceUnlockStatus(),
+                    this::deviceUnlockSourceChanged
+            );
         } else {
             mKeyguardStateController.addCallback(mKeyguardStateControllerCallback);
+            mKeyguardUpdateMonitor.registerCallback(mKeyguardUpdateCallback);
         }
-
-        mKeyguardUpdateMonitor.registerCallback(mKeyguardUpdateCallback);
 
         mJavaAdapter.alwaysCollectFlow(
                 mShadeInteractorLazy.get().isQsExpanded(),
@@ -235,12 +244,26 @@ class FalsingCollectorImpl implements FalsingCollector {
         mJavaAdapter.alwaysCollectFlow(
                 BooleanFlowOperators.allOf(
                         communalInteractor.isCommunalEnabled(),
-                        communalSceneInteractor.isIdleOnCommunal()),
+                        SceneContainerFlag.isEnabled()
+                                ? communalSceneInteractor.isCommunalCurrentScene()
+                                : communalSceneInteractor.isIdleOnCommunal()),
                 this::onShowingCommunalHubChanged
         );
 
         mBatteryController.addCallback(mBatteryListener);
         mDockManager.addListener(mDockEventListener);
+    }
+
+    private void deviceUnlockSourceChanged(DeviceUnlockStatus deviceUnlockStatus) {
+        DeviceUnlockSource source = deviceUnlockStatus.getDeviceUnlockSource();
+        if (source != null) {
+            if (deviceUnlockStatus.getDeviceUnlockSource()
+                    instanceof DeviceUnlockSource.FaceWithoutBypass) {
+                mFalsingDataProvider.setJustUnlockedWithFace(true);
+            } else if (deviceUnlockStatus.getDeviceUnlockSource().getDismissesLockscreen()) {
+                mFalsingDataProvider.setUnlockedAndDismissing(true);
+            }
+        }
     }
 
     public void isDeviceEnteredChanged(boolean unused) {
@@ -278,9 +301,7 @@ class FalsingCollectorImpl implements FalsingCollector {
     private void onShowingCommunalHubChanged(boolean isShowing) {
         logDebug("REAL: onShowingCommunalHubChanged(" + isShowing + ")");
         mShowingCommunalHub = isShowing;
-        if (Flags.communalShadeTouchHandlingFixes()) {
-            mFalsingDataProvider.setShowingCommunalHub(isShowing);
-        }
+        mFalsingDataProvider.setShowingCommunalHub(isShowing);
         updateSessionActive();
     }
 
@@ -477,6 +498,7 @@ class FalsingCollectorImpl implements FalsingCollector {
             logDebug("Starting Session");
             mSessionStarted = true;
             mFalsingDataProvider.setJustUnlockedWithFace(false);
+            mFalsingDataProvider.setUnlockedAndDismissing(false);
             mFalsingDataProvider.onSessionStarted();
         }
     }

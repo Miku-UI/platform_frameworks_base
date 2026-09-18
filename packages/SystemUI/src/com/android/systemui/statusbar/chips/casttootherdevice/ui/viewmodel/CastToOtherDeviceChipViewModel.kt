@@ -37,12 +37,13 @@ import com.android.systemui.statusbar.chips.casttootherdevice.ui.view.EndGeneric
 import com.android.systemui.statusbar.chips.mediaprojection.domain.interactor.MediaProjectionChipInteractor
 import com.android.systemui.statusbar.chips.mediaprojection.domain.model.ProjectionChipModel
 import com.android.systemui.statusbar.chips.mediaprojection.ui.view.EndMediaProjectionDialogHelper
+import com.android.systemui.statusbar.chips.ui.model.Chronometer
 import com.android.systemui.statusbar.chips.ui.model.ColorsModel
+import com.android.systemui.statusbar.chips.ui.model.EventTime
 import com.android.systemui.statusbar.chips.ui.model.OngoingActivityChipModel
 import com.android.systemui.statusbar.chips.ui.viewmodel.ChipTransitionHelper
 import com.android.systemui.statusbar.chips.ui.viewmodel.OngoingActivityChipViewModel
 import com.android.systemui.statusbar.chips.ui.viewmodel.OngoingActivityChipViewModel.Companion.createDialogLaunchOnClickCallback
-import com.android.systemui.statusbar.chips.ui.viewmodel.OngoingActivityChipViewModel.Companion.createDialogLaunchOnClickListener
 import com.android.systemui.statusbar.chips.uievents.StatusBarChipsUiEventLogger
 import com.android.systemui.util.time.SystemClock
 import javax.inject.Inject
@@ -197,6 +198,7 @@ constructor(
     ): OngoingActivityChipModel.Active {
         return OngoingActivityChipModel.Active(
             key = KEY,
+            notificationKey = null, // Not tied to a notification
             isImportantForPrivacy = true,
             icon =
                 OngoingActivityChipModel.ChipIcon.SingleColorIcon(
@@ -211,22 +213,13 @@ constructor(
             content =
                 OngoingActivityChipModel.Content.Timer(
                     // TODO(b/332662551): Maybe use a MediaProjection API to fetch this time.
-                    startTimeMs = systemClock.elapsedRealtime()
+                    value =
+                        Chronometer.Running(
+                            EventTime.ElapsedRealtime(systemClock.elapsedRealtime())
+                        ),
+                    timeSource = systemClock,
                 ),
             colors = ColorsModel.Red,
-            onClickListenerLegacy =
-                createDialogLaunchOnClickListener(
-                    dialogDelegateCreator = { context ->
-                        createCastScreenToOtherDeviceDialogDelegate(context, state)
-                    },
-                    dialogTransitionAnimator = dialogTransitionAnimator,
-                    cuj = DIALOG_CUJ,
-                    key = KEY,
-                    instanceId = instanceId,
-                    uiEventLogger = uiEventLogger,
-                    logger = logger,
-                    tag = TAG,
-                ),
             clickBehavior =
                 OngoingActivityChipModel.ClickBehavior.ExpandAction(
                     onClick =
@@ -250,6 +243,7 @@ constructor(
     private fun createIconOnlyCastChip(deviceName: String?): OngoingActivityChipModel.Active {
         return OngoingActivityChipModel.Active(
             key = KEY,
+            notificationKey = null, // Not tied to a notification
             isImportantForPrivacy = true,
             icon =
                 OngoingActivityChipModel.ChipIcon.SingleColorIcon(
@@ -261,19 +255,6 @@ constructor(
                 ),
             content = OngoingActivityChipModel.Content.IconOnly,
             colors = ColorsModel.Red,
-            onClickListenerLegacy =
-                createDialogLaunchOnClickListener(
-                    dialogDelegateCreator = { context ->
-                        createGenericCastToOtherDeviceDialogDelegate(context, deviceName)
-                    },
-                    dialogTransitionAnimator = dialogTransitionAnimator,
-                    cuj = DIALOG_CUJ_AUDIO_ONLY,
-                    key = KEY,
-                    instanceId = instanceId,
-                    uiEventLogger = uiEventLogger,
-                    logger = logger,
-                    tag = TAG,
-                ),
             clickBehavior =
                 OngoingActivityChipModel.ClickBehavior.ExpandAction(
                     createDialogLaunchOnClickCallback(

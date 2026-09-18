@@ -25,8 +25,8 @@ import com.android.wm.shell.flicker.pip.common.ExitPipToAppTransition
 import org.junit.Test
 
 /**
- * Base test class to verify PIP exit animation with an activity layout to the bottom half of
- * the container.
+ * Base test class to verify PIP exit animation with an activity layout to the bottom half of the
+ * container.
  */
 abstract class BottomHalfExitPipToAppTransition(flicker: FlickerTest) :
     ExitPipToAppTransition(flicker) {
@@ -52,29 +52,26 @@ abstract class BottomHalfExitPipToAppTransition(flicker: FlickerTest) :
     }
 
     /**
-     * Checks that the [testApp] and [pipApp] are always visible since the [pipApp] only covers
-     * half of screen.
+     * Checks that the [testApp] and [pipApp] are always visible since the [pipApp] only covers half
+     * of screen.
      */
     @Presubmit
     @Test
     fun showBothAppLayersDuringPipTransition() {
         flicker.assertLayers {
-            isVisible(testApp)
-                .isVisible(pipApp.or(ComponentNameMatcher.TRANSITION_SNAPSHOT))
+            isVisible(testApp).isVisible(pipApp.or(ComponentNameMatcher.TRANSITION_SNAPSHOT))
         }
     }
 
     /**
-     * Checks that the [testApp] and [pipApp] are always visible since the [pipApp] only covers
-     * half of screen.
+     * Checks that the [testApp] and [pipApp] are always visible since the [pipApp] only covers half
+     * of screen.
      */
     @Presubmit
     @Test
     fun showBothAppWindowsDuringPipTransition() {
         flicker.assertWm {
-            isAppWindowVisible(testApp)
-                .isAppWindowOnTop(pipApp)
-                .isAppWindowVisible(pipApp)
+            isAppWindowVisible(testApp).isAppWindowOnTop(pipApp).isAppWindowVisible(pipApp)
         }
     }
 

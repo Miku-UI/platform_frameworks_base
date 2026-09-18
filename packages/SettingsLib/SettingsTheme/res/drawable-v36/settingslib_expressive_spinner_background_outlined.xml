@@ -27,6 +27,7 @@
       <item>
         <shape>
           <corners android:radius="@dimen/settingslib_expressive_radius_full"/>
+          <solid android:color="@color/settingslib_expressive_color_button_outlined_container"/>
           <stroke
               android:color="@color/settingslib_materialColorOutlineVariant"
               android:width="1dp"/>
@@ -44,7 +45,7 @@
             android:height="24dp"
             android:viewportWidth="24"
             android:viewportHeight="24"
-            android:tint="@color/settingslib_materialColorPrimary">
+            android:tint="@color/settingslib_expressive_color_button_outlined_text_icon">
           <path
               android:fillColor="@android:color/white"
               android:pathData="M16.59,8.59L12,13.17 7.41,8.59 6,10l6,6 6,-6 -1.41,-1.41z"/>

@@ -17,6 +17,7 @@
 package com.android.systemui.inputmethod.domain.interactor
 
 import android.os.UserHandle
+import android.view.inputmethod.InputMethodManager.IMPickerEntryPoint
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.inputmethod.data.repository.InputMethodRepository
 import javax.inject.Inject
@@ -50,7 +51,11 @@ constructor(
     }
 
     /** Shows the system's input method picker dialog. */
-    suspend fun showInputMethodPicker(displayId: Int, showAuxiliarySubtypes: Boolean) {
-        repository.showInputMethodPicker(displayId, showAuxiliarySubtypes)
+    suspend fun showInputMethodPicker(
+        showAuxiliarySubtypes: Boolean,
+        @IMPickerEntryPoint entryPoint: Int,
+        displayId: Int,
+    ) {
+        repository.showInputMethodPicker(showAuxiliarySubtypes, entryPoint, displayId)
     }
 }

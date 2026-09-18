@@ -19,6 +19,7 @@ package com.android.server.wm;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
+import static android.internal.perfetto.protos.Windowmanagerservice.DisplayContentProto.INSETS_STATE_CONTROLLER;
 import static android.view.InsetsSource.ID_IME;
 import static android.view.WindowInsets.Type.ime;
 import static android.view.WindowInsets.Type.navigationBars;
@@ -49,6 +50,7 @@ import static org.mockito.Mockito.verify;
 import android.graphics.Rect;
 import android.platform.test.annotations.Presubmit;
 import android.util.SparseArray;
+import android.util.proto.ProtoOutputStream;
 import android.view.InsetsSource;
 import android.view.InsetsSourceControl;
 import android.view.InsetsState;
@@ -58,8 +60,12 @@ import androidx.test.filters.SmallTest;
 
 import com.android.internal.util.function.TriFunction;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import perfetto.protos.Windowmanagerservice;
 
 @SmallTest
 @Presubmit
@@ -718,5 +724,26 @@ public class InsetsStateControllerTest extends WindowTestsBase {
 
     private InsetsStateController getController() {
         return mDisplayContent.getInsetsStateController();
+    }
+
+    @Test
+    public void testDumpDebug() throws InvalidProtocolBufferException {
+        final InsetsStateController controller = getController();
+        final InsetsSourceProvider statusBarProvider = controller.getOrCreateSourceProvider(
+                ID_STATUS_BAR, statusBars());
+        final InsetsState state = controller.getRawInsetsState();
+        state.setSourceVisible(ID_STATUS_BAR, true);
+
+        final ProtoOutputStream proto = new ProtoOutputStream();
+        controller.dumpDebug(proto, INSETS_STATE_CONTROLLER);
+
+        final Windowmanagerservice.InsetsStateControllerProto controllerProto =
+                Windowmanagerservice.DisplayContentProto.parseFrom(
+                        proto.getBytes()).getInsetsStateController();
+        assertEquals(controller.getRawInsetsState().sourceSize(),
+                controllerProto.getInsetsState().getSourcesCount());
+        assertEquals(1, controllerProto.getInsetsSourceProvidersCount());
+        assertEquals(statusBarProvider.getSource().getType(),
+                controllerProto.getInsetsSourceProviders(0).getSource().getTypeNumber());
     }
 }

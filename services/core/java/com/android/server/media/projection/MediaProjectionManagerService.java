@@ -57,6 +57,8 @@ import android.content.pm.ServiceInfo;
 import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
 import android.media.MediaRouter;
+import android.media.projection.IAppContentProjectionCallback;
+import android.media.projection.IAppContentProjectionSession;
 import android.media.projection.IMediaProjection;
 import android.media.projection.IMediaProjectionCallback;
 import android.media.projection.IMediaProjectionManager;
@@ -183,7 +185,7 @@ public final class MediaProjectionManagerService extends SystemService
 
     private void maybeStopMediaProjection(int reason) {
         synchronized (mLock) {
-            if (Flags.stopOnDisplayRemoval() && reason == STOP_REASON_DISPLAY_REMOVED) {
+            if (reason == STOP_REASON_DISPLAY_REMOVED) {
                 mProjectionGrant.stop(StopReason.STOP_TARGET_REMOVED);
                 return;
             }
@@ -345,9 +347,7 @@ public final class MediaProjectionManagerService extends SystemService
         }
         mProjectionToken = projection.asBinder();
         mProjectionGrant = projection;
-        if (Flags.stopOnDisplayRemoval()) {
-            mMediaProjectionStopController.setRecordedDisplay(projection.mDisplayId);
-        }
+        mMediaProjectionStopController.setRecordedDisplay(projection.mDisplayId);
         dispatchStart(projection);
     }
 
@@ -363,9 +363,7 @@ public final class MediaProjectionManagerService extends SystemService
                         ? session.getTargetUid()
                         : ContentRecordingSession.TARGET_UID_UNKNOWN;
         mMediaProjectionMetricsLogger.logStopped(projection.uid, targetUid, stopReason);
-        if (Flags.stopOnDisplayRemoval()) {
-            mMediaProjectionStopController.clearRecordedDisplay();
-        }
+        mMediaProjectionStopController.clearRecordedDisplay();
         mProjectionToken = null;
         mProjectionGrant = null;
         dispatchStop(projection);
@@ -531,8 +529,8 @@ public final class MediaProjectionManagerService extends SystemService
      * Returns an intent to re-show the consent dialog in SysUI. Should only be used for the
      * scenario where the host app has re-used the consent token.
      *
-     * <p>Consent dialog result handled in
-     * {@link BinderService#setUserReviewGrantedConsentResult(int)}.
+     * <p>Consent dialog result handled in {@link
+     * BinderService#setUserReviewGrantedConsentResult(int, IMediaProjection)}.
      */
     private Intent buildReviewGrantedConsentIntentLocked() {
         final String permissionDialogString = mContext.getResources().getString(
@@ -706,6 +704,33 @@ public final class MediaProjectionManagerService extends SystemService
         return projection;
     }
 
+    private MediaProjection createProjectionForAppContent(
+            int uid,
+            String packageName,
+            IAppContentProjectionSession session,
+            int contentId,
+            boolean isAudioRequested,
+            IAppContentProjectionCallback callback) {
+        if (callback != null) {
+            try {
+                callback.onLoopbackProjectionStarted(session, contentId, isAudioRequested);
+            } catch (RemoteException e) {
+                Slog.e(TAG, "Failed to notify IAppContentProjectionCallback", e);
+            }
+        }
+        synchronized (mLock) {
+            if (mProjectionGrant != null && mProjectionGrant.uid == uid
+                    && Objects.equals(mProjectionGrant.packageName, packageName)) {
+                mProjectionGrant.setAppContentCallback(callback);
+                return mProjectionGrant;
+            }
+        }
+        MediaProjection projection = createProjectionInternal(uid, packageName,
+                MediaProjectionManager.TYPE_APP_CONTENT, false, DEFAULT_DISPLAY);
+        projection.setAppContentCallback(callback);
+        return projection;
+    }
+
     // TODO(b/261563516): Remove internal method and test aidl directly, here and elsewhere.
     @VisibleForTesting
     MediaProjection getProjectionInternal(int uid, String packageName) {
@@ -863,13 +888,10 @@ public final class MediaProjectionManagerService extends SystemService
                     projection == null ? null : projection.asBinder());
         }
 
+        @android.annotation.EnforcePermission(android.Manifest.permission.MANAGE_MEDIA_PROJECTION)
         @Override // Binder call
         public MediaProjectionInfo getActiveProjectionInfo() {
-            if (mContext.checkCallingPermission(MANAGE_MEDIA_PROJECTION)
-                        != PackageManager.PERMISSION_GRANTED) {
-                throw new SecurityException("Requires MANAGE_MEDIA_PROJECTION in order to get "
-                        + "active projection info");
-            }
+            getActiveProjectionInfo_enforcePermission();
             final long token = Binder.clearCallingIdentity();
             try {
                 return MediaProjectionManagerService.this.getActiveProjectionInfo();
@@ -988,6 +1010,26 @@ public final class MediaProjectionManagerService extends SystemService
                         incomingSession);
             } finally {
                 Binder.restoreCallingIdentity(origId);
+            }
+        }
+
+        @android.annotation.EnforcePermission(android.Manifest.permission.MANAGE_MEDIA_PROJECTION)
+        @Override
+        public IMediaProjection createProjectionForAppContent(
+                int uid,
+                String packageName,
+                IAppContentProjectionSession session,
+                int contentId,
+                boolean isAudioRequested,
+                IAppContentProjectionCallback callback) {
+            createProjectionForAppContent_enforcePermission();
+            final long token = Binder.clearCallingIdentity();
+            try {
+                return MediaProjectionManagerService.this.createProjectionForAppContent(
+                        uid, packageName, session, contentId, isAudioRequested,
+                        callback);
+            } finally {
+                Binder.restoreCallingIdentity(token);
             }
         }
 
@@ -1151,6 +1193,12 @@ public final class MediaProjectionManagerService extends SystemService
         // The associated session details already sent to WindowManager.
         private ContentRecordingSession mSession;
 
+        /**
+         * The callback if the projection is of type {@link MediaProjectionManager#TYPE_APP_CONTENT}
+         */
+        @Nullable
+        private IAppContentProjectionCallback mAppContentCallback;
+
         MediaProjection(
                 int type,
                 int uid,
@@ -1207,7 +1255,8 @@ public final class MediaProjectionManagerService extends SystemService
                 flags |= DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY |
                         DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION;
                 return flags;
-            } else if (mType == MediaProjectionManager.TYPE_PRESENTATION) {
+            } else if (mType == MediaProjectionManager.TYPE_PRESENTATION
+                    || mType == MediaProjectionManager.TYPE_APP_CONTENT) {
                 flags &= ~DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY;
                 flags |= DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC |
                         DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION |
@@ -1362,6 +1411,7 @@ public final class MediaProjectionManagerService extends SystemService
                 unregisterCallback(mCallback);
                 mCallback = null;
             }
+            setAppContentCallback(null);
             // Run on a separate thread, to ensure no lock is held when calling into
             // ActivityManagerService.
             mHandler.post(() -> mActivityManagerInternal.notifyMediaProjectionEvent(uid, asBinder(),
@@ -1521,6 +1571,51 @@ public final class MediaProjectionManagerService extends SystemService
             pw.println("    displayId of the display to mirror: " + mDisplayId);
             pw.println("    taskId to mirror: " + mTaskId);
             pw.println("    mSession: " + mSession.toString());
+        }
+
+        private void setAppContentCallback(IAppContentProjectionCallback callback) {
+            Slog.d(TAG, "IAppContentProjectionCallback:" + callback);
+
+            synchronized (mLock) {
+                if (callback == mAppContentCallback) {
+                    return;
+                }
+                final IAppContentProjectionCallback oldCallback = mAppContentCallback;
+                if (mAppContentCallback != null) {
+                    mHandler.post(() -> {
+                        try {
+                            oldCallback.onSessionStopped();
+                        } catch (RemoteException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                    mDeathEaters.remove(oldCallback.asBinder());
+                }
+                mAppContentCallback = callback;
+            }
+            if (callback == null) {
+                return;
+            }
+
+            IBinder binder = callback.asBinder();
+            DeathRecipient deathRecipient = () -> {
+                synchronized (mLock) {
+                    // Check if this is still the current active callback
+                    if (mAppContentCallback != null && mAppContentCallback.asBinder() == binder) {
+                        Slog.i(TAG, "AppContent callback died; cleaning up session");
+                        if (mProjectionGrant != null) {
+                            stopProjectionLocked(mProjectionGrant, StopReason.STOP_TARGET_REMOVED);
+                        }
+                        mAppContentCallback = null;
+                    }
+                }
+            };
+            try {
+                binder.linkToDeath(deathRecipient, 0);
+                mDeathEaters.put(binder, deathRecipient);
+            } catch (RemoteException e) {
+                Slog.e(TAG, "Failed to link IAppContentProjectionCallback to death", e);
+            }
         }
     }
 
@@ -1832,6 +1927,8 @@ public final class MediaProjectionManagerService extends SystemService
                 return "TYPE_MIRRORING";
             case MediaProjectionManager.TYPE_PRESENTATION:
                 return "TYPE_PRESENTATION";
+            case MediaProjectionManager.TYPE_APP_CONTENT:
+                return "TYPE_APP_CONTENT";
             default:
                 return Integer.toString(type);
         }

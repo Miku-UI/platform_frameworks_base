@@ -44,8 +44,11 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.BackgroundThread;
 import com.android.internal.util.DumpUtils;
 import com.android.server.SystemService;
+import com.android.server.am.PersistentConnection;
+import com.android.server.appbinding.finders.AllowlistProviderServiceFinder;
 import com.android.server.appbinding.finders.AppServiceFinder;
 import com.android.server.appbinding.finders.CarrierMessagingClientServiceFinder;
+import com.android.server.appbinding.finders.ContentRestrictionAppServiceFinder;
 import com.android.server.appbinding.finders.SupervisionAppServiceFinder;
 import com.android.server.utils.Slogf;
 
@@ -59,7 +62,7 @@ import java.util.function.Consumer;
 /**
  * System server that keeps a binding to an app to keep it always running.
  *
- * <p>We only use it for the default SMS app and the Supervision App.
+ * <p>We only use it for the default SMS app, the Supervision App and the Content Restriction App.
  *
  * Relevant tests:
  * atest CtsAppBindingHostTestCases
@@ -144,44 +147,16 @@ public class AppBindingService extends Binder {
     }
 
     /**
-     * Get the list of services bound to a specific finder class.
-     *
-     * This method will block until all connections are established or a timeout occurs.
-     *
-     * <p><b>NOTE: This method should be called from a background thread other than
-     * {@link BackgroundThread}, otherwise the {@link PersistentConnection} callbacks will not be
-     * delivered until after this method returns.</b></p>
+     * Dispatches an event without a timeout (fire-and-forget).
      */
-    public List<AppServiceConnection> getAppServiceConnectionsBlocking(
-            Class<? extends AppServiceFinder<?, ?>> appServiceFinderClass, int userId) {
-        List<AppServiceConnection> serviceConnections = new ArrayList<>();
-        synchronized (mLock) {
-            for (int i = 0; i < mApps.size(); i++) {
-                final AppServiceFinder app = mApps.get(i);
-                if (app.getClass() != appServiceFinderClass) {
-                    continue;
-                }
-                serviceConnections.addAll(getConnectionsLocked(userId, app));
-            }
+    public void dispatchAppServiceEvent(
+            Class<? extends AppServiceFinder> finderClass,
+            int userId,
+            Consumer<AppServiceConnection> action) {
+        if (Flags.enableTimeoutInDispatchAppServiceEvent()) {
+            dispatchAppServiceEvent(finderClass, userId, action, 0);
+            return;
         }
-
-        List<AppServiceConnection> boundConnections = new ArrayList<>();
-        for (AppServiceConnection conn: serviceConnections) {
-            conn.bind();
-            if (conn.awaitConnection()) {
-                boundConnections.add(conn);
-            } else {
-                Slogf.w(TAG, "Failed to establish connection for %s, user %d, package %s",
-                        conn.getFinder().getAppDescription(), userId, conn.getPackageName());
-            }
-        }
-        return boundConnections;
-    }
-
-
-    public <T> void dispatchAppServiceEvent(
-            Class<? extends AppServiceFinder<?, ?>> finderClass,
-            int userId, Consumer<AppServiceConnection> action) {
         List<AppServiceConnection> serviceConnections = new ArrayList<>();
         synchronized (mLock) {
             for (int i = 0; i < mApps.size(); i++) {
@@ -192,8 +167,58 @@ public class AppBindingService extends Binder {
                 serviceConnections.addAll(getConnectionsLocked(userId, app));
             }
         }
+
+        if (serviceConnections.isEmpty()) {
+            mHandler.post(() -> {
+                action.accept(null);
+            });
+            return;
+        }
+
         for (AppServiceConnection conn: serviceConnections) {
             conn.addCallback(action);
+            conn.bind();
+        }
+    }
+
+    /**
+     * Dispatches an event when the connection is established or a timeout is reached.
+     *
+     * <p><b>Note:</b> Callers must verify the connection state within the {@code action}
+     * callback to ensure the service is ready for use.
+     *
+     * @param finderClass   The class type used to filter and identify target services.
+     * @param userId        The user ID for which the services should be retrieved.
+     * @param action        The callback to be executed; receives {@code null} if no service
+     *                      is found, or an unbound connection upon timeout.
+     * @param timeoutMillis The maximum duration (in milliseconds) to wait for a
+     *                      successful binding before triggering the callback regardless.
+     */
+    public void dispatchAppServiceEvent(
+            Class<? extends AppServiceFinder> finderClass,
+            int userId,
+            Consumer<AppServiceConnection> action,
+            long timeoutMillis) {
+        List<AppServiceConnection> serviceConnections = new ArrayList<>();
+        synchronized (mLock) {
+            for (int i = 0; i < mApps.size(); i++) {
+                final AppServiceFinder app = mApps.get(i);
+                if (app.getClass() != finderClass) {
+                    continue;
+                }
+                serviceConnections.addAll(getConnectionsLocked(userId, app));
+            }
+        }
+
+        if (serviceConnections.isEmpty()) {
+            mHandler.post(() -> {
+                action.accept(null);
+            });
+            return;
+        }
+
+        for (AppServiceConnection conn: serviceConnections) {
+            conn.addCallback(action, timeoutMillis);
             conn.bind();
         }
     }
@@ -222,8 +247,13 @@ public class AppBindingService extends Binder {
 
         mHandler = BackgroundThread.getHandler();
         mApps.add(new CarrierMessagingClientServiceFinder(context, this::onAppChanged, mHandler));
-        if (Flags.enableSupervisionAppService()) {
-            mApps.add(new SupervisionAppServiceFinder(context, this::onAppChanged, mHandler));
+        mApps.add(new SupervisionAppServiceFinder(context, this::onAppChanged, mHandler));
+        if (android.app.contentrestriction.flags.Flags.contentRestrictionApi()) {
+            mApps.add(new ContentRestrictionAppServiceFinder(
+                    context, this::onAppChanged, mHandler));
+        }
+        if (android.app.appfunctions.flags.Flags.enableAppFunctionPermissionV2()) {
+            mApps.add(new AllowlistProviderServiceFinder(context, this::onAppChanged, mHandler));
         }
 
         // Initialize with the default value to make it non-null.
@@ -247,28 +277,6 @@ public class AppBindingService extends Binder {
             case SystemService.PHASE_THIRD_PARTY_APPS_CAN_START:
                 onPhaseThirdPartyAppsCanStart();
                 break;
-            case SystemService.PHASE_SYSTEM_SERVICES_READY:
-                if (Flags.enableSupervisionAppService()) {
-                    registerSupervisionListener();
-                }
-                break;
-        }
-    }
-
-    private void registerSupervisionListener() {
-        SupervisionManager supervisionManager =
-                mContext.getSystemService(SupervisionManager.class);
-        if (supervisionManager != null) {
-            SupervisionManager.SupervisionListener listener =
-                    new SupervisionManager.SupervisionListener() {
-                        @Override
-                        public void onSupervisionDisabled(int userId) {
-                            synchronized (mLock) {
-                                unbindServicesLocked(userId, null, "supervision disabled");
-                            }
-                        }
-                    };
-            supervisionManager.registerSupervisionListener(listener);
         }
     }
 
@@ -357,16 +365,16 @@ public class AppBindingService extends Binder {
             switch (action) {
                 case Intent.ACTION_PACKAGE_ADDED:
                     if (replacing) {
-                        handlePackageAddedReplacing(packageName, userId);
+                        onPackageUpdated(packageName, userId);
                     }
                     break;
                 case Intent.ACTION_PACKAGE_CHANGED:
-                    handlePackageAddedReplacing(packageName, userId);
+                    onPackageUpdated(packageName, userId);
                     break;
                 case Intent.ACTION_PACKAGE_REMOVED:
                 case Intent.ACTION_PACKAGE_FULLY_REMOVED:
                     if (!replacing) {
-                        onAppRemoved(userId, packageName);
+                        onPackageRemoved(userId, packageName);
                     }
                     break;
             }
@@ -389,7 +397,7 @@ public class AppBindingService extends Binder {
         }
         synchronized (mLock) {
             mRunningUsers.append(userId, true);
-            bindServicesLocked(userId, null, "user start");
+            bindAllServicesLocked(userId, "user start");
         }
     }
 
@@ -399,7 +407,7 @@ public class AppBindingService extends Binder {
             Slog.d(TAG, "onUnlockUser: u" + userId);
         }
         synchronized (mLock) {
-            bindServicesLocked(userId, null, "user unlock");
+            bindAllServicesLocked(userId, "user start");
         }
     }
 
@@ -409,8 +417,7 @@ public class AppBindingService extends Binder {
             Slog.d(TAG, "onStopUser: u" + userId);
         }
         synchronized (mLock) {
-            unbindServicesLocked(userId, null, "user stop");
-
+            unbindAndRemoveConnectionsLocked(userId, "user stop");
             mRunningUsers.delete(userId);
         }
     }
@@ -421,24 +428,16 @@ public class AppBindingService extends Binder {
         }
         synchronized (mLock) {
             forAllAppsLocked((app) -> app.onUserRemoved(userId));
-
             mRunningUsers.delete(userId);
         }
     }
 
-    private void onAppRemoved(int userId, String packageName) {
-        if (!Flags.enableSupervisionAppService()) {
-            return;
-        }
-
+    private void onPackageRemoved(int userId, String packageName) {
         if (DEBUG) {
-            Slogf.d(TAG, "onAppRemoved: u%s %s", userId, packageName);
+            Slogf.d(TAG, "onPackageRemoved: u%s package=%s", userId, packageName);
         }
         synchronized (mLock) {
-            final AppServiceFinder finder = findFinderLocked(userId, packageName);
-            if (finder != null) {
-                bindServicesLocked(userId, finder, "package removed");
-            }
+            unbindAndRemoveConnectionsLocked(userId, packageName, "package removed");
         }
     }
 
@@ -452,37 +451,9 @@ public class AppBindingService extends Binder {
 
         synchronized (mLock) {
             final String reason = finder.getAppDescription() + " changed";
-            unbindServicesLocked(userId, finder, reason);
-            bindServicesLocked(userId, finder, reason);
+            unbindAndRemoveInvalidConnectionsLocked(userId, finder, reason);
+            bindServicesForFinderLocked(userId, finder, reason);
         }
-    }
-
-    @Nullable
-    private AppServiceFinder findFinderLocked(int userId, @NonNull String packageName) {
-        for (int i = 0; i < mApps.size(); i++) {
-            final AppServiceFinder app = mApps.get(i);
-            if (Flags.enableSupervisionAppService()) {
-                if (app.getTargetPackages(userId).contains(packageName)) {
-                    return app;
-                }
-            } else {
-                if (packageName.equals(app.getTargetPackage(userId))) {
-                    return app;
-                }
-            }
-        }
-        return null;
-    }
-
-    @Nullable
-    private AppServiceConnection findConnectionLock(int userId, @NonNull AppServiceFinder target) {
-        for (int i = 0; i < mConnections.size(); i++) {
-            final AppServiceConnection conn = mConnections.get(i);
-            if ((conn.getUserId() == userId) && (conn.getFinder() == target)) {
-                return conn;
-            }
-        }
-        return null;
     }
 
     @Nullable
@@ -493,6 +464,7 @@ public class AppBindingService extends Binder {
             if ((conn.getUserId() == userId)
                     && (conn.getFinder() == target)
                     && conn.getPackageName().equals(targetPackage)) {
+                logConnection(conn, "RETURNING", "get or create");
                 return conn;
             }
         }
@@ -510,21 +482,19 @@ public class AppBindingService extends Binder {
                             targetPackage,
                             service.getComponentName());
             mConnections.add(conn);
+            logConnection(conn, "CREATING", "get or create");
             return conn;
         }
         return null;
     }
 
-    private void handlePackageAddedReplacing(String packageName, int userId) {
+    private void onPackageUpdated(String packageName, int userId) {
         if (DEBUG) {
-            Slog.d(TAG, "handlePackageAddedReplacing: u" + userId + " " + packageName);
+            Slogf.d(TAG, "onPackageUpdated: u%s package=%s", userId, packageName);
         }
         synchronized (mLock) {
-            final AppServiceFinder finder = findFinderLocked(userId, packageName);
-            if (finder != null) {
-                unbindServicesLocked(userId, finder, "package update");
-                bindServicesLocked(userId, finder, "package update");
-            }
+            unbindAndRemoveInvalidConnectionsLocked(userId, packageName, "package update");
+            bindServicesForPackageLocked(userId, packageName, "package update");
         }
     }
 
@@ -534,87 +504,135 @@ public class AppBindingService extends Binder {
                 continue;
             }
             final int userId = mRunningUsers.keyAt(i);
-
-            unbindServicesLocked(userId, null, reason);
-            bindServicesLocked(userId, null, reason);
+            unbindAndRemoveConnectionsLocked(userId, reason);
+            bindAllServicesLocked(userId, reason);
         }
     }
 
-    private void bindServicesLocked(int userId, @Nullable AppServiceFinder target,
-            @NonNull String reasonForLog) {
-        for (int i = 0; i < mApps.size(); i++) {
-            final AppServiceFinder app = mApps.get(i);
-            if (target != null && target != app) {
-                continue;
-            }
-            if (!Flags.enableSupervisionAppService()) {
-                bindServicesForFinderLocked(userId, target, reasonForLog, app); // old code
-                continue;
-            }
-            // Disconnect from existing binding.
-            unbindServicesLocked(userId, app, reasonForLog);
 
-            final List<ServiceInfo> services =
-                    app.findServices(userId, mIPackageManager, mConstants);
-            if (services==null || services.isEmpty()) {
-                continue;
-            }
-            for (ServiceInfo service : services) {
-                if (DEBUG) {
-                    Slog.d(TAG, "bindServicesLocked: u" + userId + " " + app.getAppDescription()
-                            + " binding " + service.getComponentName() + " for " + reasonForLog);
-                }
-                if (service == null) {
-                    continue;
-                }
-                final AppServiceConnection conn =
-                        new AppServiceConnection(mContext, userId, mConstants, mHandler,
-                                app, service.packageName, service.getComponentName());
-                mConnections.add(conn);
+    private void bindAllServicesLocked(int userId, @NonNull String reasonForLog) {
+        for (AppServiceFinder finder: mApps) {
+            bindServicesForFinderLocked(userId, finder, reasonForLog);
+        }
+    }
+
+
+    private void bindServicesForPackageLocked(int userId, @NonNull String targetPackage,
+            @NonNull String reasonForLog) {
+        for (AppServiceFinder finder: mApps) {
+            final AppServiceConnection conn = getOrCreateConnectionLocked(userId, finder,
+                    targetPackage);
+            if (isConnectionValid(conn)) {
                 conn.bind();
+                logConnection(conn, "BINDING", reasonForLog);
             }
         }
     }
 
-    private void bindServicesForFinderLocked(int userId, @Nullable AppServiceFinder target,
-            @NonNull String reasonForLog, AppServiceFinder app) {
-            // Disconnect from existing binding.
-            final AppServiceConnection existingConn = findConnectionLock(userId, app);
-            if (existingConn != null) {
-                unbindServicesLocked(userId, target, reasonForLog);
-            }
-
-            final ServiceInfo service = app.findService(userId, mIPackageManager, mConstants);
-            if (service == null) {
-                return;
-            }
-            if (DEBUG) {
-                Slog.d(TAG, "bindServicesLocked: u" + userId + " " + app.getAppDescription()
-                        + " binding " + service.getComponentName() + " for " + reasonForLog);
-            }
-            final AppServiceConnection conn =
-                    new AppServiceConnection(mContext, userId, mConstants, mHandler,
-                            app, service.packageName, service.getComponentName());
-            mConnections.add(conn);
-            conn.bind();
-    }
-
-    private void unbindServicesLocked(int userId, @Nullable AppServiceFinder target,
+    private void bindServicesForFinderLocked(int userId, @NonNull AppServiceFinder finder,
             @NonNull String reasonForLog) {
-        for (int i = mConnections.size() - 1; i >= 0; i--) {
-            final AppServiceConnection conn = mConnections.get(i);
-            if ((conn.getUserId() != userId)
-                    || (target != null && conn.getFinder() != target)) {
-                continue;
+        final Set<String> packages = finder.getTargetPackages(userId);
+        for (String targetPackage : packages) {
+            final AppServiceConnection conn = getOrCreateConnectionLocked(userId, finder,
+                    targetPackage);
+            if (isConnectionValid(conn)) {
+                conn.bind();
+                logConnection(conn, "BINDING", reasonForLog);
             }
-            if (DEBUG) {
-                Slog.d(TAG, "unbindServicesLocked: u" + userId
-                        + " " + conn.getFinder().getAppDescription()
-                        + " unbinding " + conn.getComponentName() + " for " + reasonForLog);
-            }
-            mConnections.remove(i);
-            conn.unbind();
         }
+    }
+
+    private void unbindAndRemoveConnectionsLocked(int userId, @NonNull String reasonForLog) {
+        mConnections.removeIf(conn -> {
+            if (conn.getUserId() == userId) {
+                logConnection(conn, "REMOVING", reasonForLog);
+                conn.unbind();
+                return true;
+            }
+            return false;
+        });
+    }
+
+    private void unbindAndRemoveConnectionsLocked(int userId, @NonNull String targetPackage,
+            @NonNull String reasonForLog) {
+        mConnections.removeIf(conn -> {
+             if (conn.getUserId() == userId
+                     && (conn.getPackageName().equals(targetPackage))) {
+                 logConnection(conn, "REMOVING", reasonForLog);
+                conn.unbind();
+                return true;
+            }
+            return false;
+        });
+    }
+
+    public void unbindAndRemoveInvalidConnections(int userId,
+            Class<? extends AppServiceFinder<?, ?>> finderClass) {
+        synchronized (mLock) {
+            mConnections.removeIf(conn -> {
+                if (conn.getUserId() == userId
+                        && finderClass.equals(conn.getFinder().getClass())
+                        && !isConnectionValid(conn)) {
+                    logConnection(conn, "REMOVING", "external call");
+                    conn.addCallback(PersistentConnection::unbind);
+                    return true;
+                }
+                return false;
+            });
+        }
+    }
+
+    private void unbindAndRemoveInvalidConnectionsLocked(int userId, @NonNull String packageName,
+            @NonNull String reasonForLog) {
+        mConnections.removeIf(conn -> {
+            if (conn.getUserId() == userId
+                    && packageName.equals(conn.getPackageName())
+                    && !isConnectionValid(conn)) {
+                logConnection(conn, "REMOVING", reasonForLog);
+                conn.unbind();
+                return true;
+            }
+            return false;
+        });
+    }
+
+
+    private void unbindAndRemoveInvalidConnectionsLocked(int userId,
+            @NonNull AppServiceFinder target, @NonNull String reasonForLog) {
+        mConnections.removeIf(conn -> {
+            if (conn.getUserId() == userId
+                    && conn.getFinder() == target
+                    && !isConnectionValid(conn)) {
+                logConnection(conn, "REMOVING", reasonForLog);
+                conn.addCallback(PersistentConnection::unbind);
+                return true;
+            }
+            return false;
+        });
+    }
+
+    private static void logConnection(AppServiceConnection conn, String action,
+            String reasonForLog) {
+        if (DEBUG) {
+            Slogf.d(TAG, "%s: u%d %s %s connection %s for %s",
+                    conn.getFinder().getAppDescription(),
+                    conn.getUserId(),
+                    conn.getPackageName(),
+                    action,
+                    conn.getComponentName(),
+                    reasonForLog);
+        }
+    }
+
+    private boolean isConnectionValid(@Nullable AppServiceConnection connection) {
+        if (connection == null) {
+            return false;
+        }
+        final ServiceInfo service =
+                connection.getFinder().findService(connection.getUserId(), mIPackageManager,
+                        mConstants, connection.getPackageName());
+        return service != null &&
+                connection.getComponentName().equals(service.getComponentName());
     }
 
     @Override
@@ -690,9 +708,5 @@ public class AppBindingService extends Binder {
             }
             forAllAppsLocked((app) -> app.dumpSimple(pw));
         }
-    }
-
-    AppBindingConstants getConstantsForTest() {
-        return mConstants;
     }
 }

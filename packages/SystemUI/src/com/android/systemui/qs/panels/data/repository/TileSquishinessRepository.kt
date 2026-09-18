@@ -16,6 +16,7 @@
 
 package com.android.systemui.qs.panels.data.repository
 
+import android.util.Log
 import com.android.systemui.dagger.SysUISingleton
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,10 +24,19 @@ import kotlinx.coroutines.flow.asStateFlow
 
 @SysUISingleton
 class TileSquishinessRepository @Inject constructor() {
-    private val _squishiness = MutableStateFlow(1f)
+    private val _squishiness = MutableStateFlow(DEFAULT_SQUISHINESS)
     val squishiness = _squishiness.asStateFlow()
 
     fun setSquishinessValue(value: Float) {
-        _squishiness.value = value
+        _squishiness.value =
+            value.takeIf { !it.isNaN() }
+                ?: DEFAULT_SQUISHINESS.also {
+                    Log.w(TAG, "Received NaN value for squishiness, defaulting to $it")
+                }
+    }
+
+    private companion object {
+        const val DEFAULT_SQUISHINESS = 1f
+        const val TAG = "TileSquishinessRepository"
     }
 }

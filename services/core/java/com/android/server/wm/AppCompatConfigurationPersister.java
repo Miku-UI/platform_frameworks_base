@@ -129,6 +129,7 @@ class AppCompatConfigurationPersister {
         mPersisterQueue.startPersisting();
     }
 
+
     /*
      * Gets the horizontal position of the letterboxed app window when horizontal reachability is
      * enabled.

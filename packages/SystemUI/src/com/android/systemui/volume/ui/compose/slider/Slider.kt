@@ -22,6 +22,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.interaction.Interaction
@@ -46,6 +47,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -185,6 +191,40 @@ fun Slider(
         }
         onValueChanged(newValue)
     }
+
+    val keyboardModifier =
+        Modifier.focusable(enabled = isEnabled).onKeyEvent { event ->
+            if (isEnabled && event.type == KeyEventType.KeyDown) {
+                val change =
+                    when (event.key) {
+                        Key.DirectionRight -> {
+                            stepDistance
+                        }
+                        Key.DirectionLeft -> {
+                            -stepDistance
+                        }
+                        Key.DirectionUp -> {
+                            if (isVertical) stepDistance else null
+                        }
+                        Key.DirectionDown -> {
+                            if (isVertical) -stepDistance else null
+                        }
+                        else -> {
+                            null
+                        }
+                    }
+
+                if (change != null) {
+                    val newValue =
+                        (value + change).coerceIn(valueRange.start, valueRange.endInclusive)
+                    valueChange(newValue)
+                    onValueChangeFinished?.invoke(newValue)
+                    return@onKeyEvent true
+                }
+            }
+            false
+        }
+
     val semantics =
         createSemantics(
             accessibilityParams,
@@ -201,6 +241,8 @@ fun Slider(
     }
     sliderState.onValueChange = valueChange
 
+    val finalModifier = modifier.then(keyboardModifier).clearAndSetSemantics(semantics)
+
     if (isVertical) {
         VerticalSlider(
             state = sliderState,
@@ -210,7 +252,7 @@ fun Slider(
             colors = colors,
             track = track,
             thumb = { thumb(it, interactionSource) },
-            modifier = modifier.clearAndSetSemantics(semantics),
+            modifier = finalModifier,
         )
     } else {
         Slider(
@@ -220,7 +262,7 @@ fun Slider(
             colors = colors,
             track = track,
             thumb = { thumb(it, interactionSource) },
-            modifier = modifier.clearAndSetSemantics(semantics),
+            modifier = finalModifier,
         )
     }
 }

@@ -42,6 +42,7 @@ import android.app.ActivityThread;
 import android.app.ResourcesManager;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.ConfigurationInfo;
 import android.content.pm.FeatureGroupInfo;
@@ -50,6 +51,8 @@ import android.content.pm.Flags;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.Property;
+import android.content.pm.ProviderInfo;
+import android.content.pm.ServiceInfo;
 import android.content.pm.Signature;
 import android.content.pm.SigningDetails;
 import android.content.pm.parsing.ApkLiteParseUtils;
@@ -98,6 +101,7 @@ import com.android.internal.pm.pkg.component.InstallConstraintsTagParser;
 import com.android.internal.pm.pkg.component.ParsedActivity;
 import com.android.internal.pm.pkg.component.ParsedActivityImpl;
 import com.android.internal.pm.pkg.component.ParsedActivityUtils;
+import com.android.internal.pm.pkg.component.ParsedAllowComponentAccessPolicyUtils;
 import com.android.internal.pm.pkg.component.ParsedApexSystemService;
 import com.android.internal.pm.pkg.component.ParsedApexSystemServiceUtils;
 import com.android.internal.pm.pkg.component.ParsedAttribution;
@@ -108,7 +112,6 @@ import com.android.internal.pm.pkg.component.ParsedInstrumentationUtils;
 import com.android.internal.pm.pkg.component.ParsedIntentInfo;
 import com.android.internal.pm.pkg.component.ParsedIntentInfoImpl;
 import com.android.internal.pm.pkg.component.ParsedIntentInfoUtils;
-import com.android.internal.pm.pkg.component.ParsedMainComponent;
 import com.android.internal.pm.pkg.component.ParsedPermission;
 import com.android.internal.pm.pkg.component.ParsedPermissionGroup;
 import com.android.internal.pm.pkg.component.ParsedPermissionUtils;
@@ -158,13 +161,6 @@ public class ParsingPackageUtils {
 
     private static final String TAG = ParsingUtils.TAG;
 
-    // It is the maximum length of the typedArray of {@link android.R.attr#alternateIcons}
-    // and {@link android.R.attr#alternateLabels}.
-    private static final int MAXIMUM_LAUNCHER_ALTERNATE_IDS_LENGTH = 500;
-
-    private static final String TYPE_STRING = "string";
-    private static final String TYPE_DRAWABLE = "drawable";
-
     public static final boolean DEBUG_JAR = false;
     public static final boolean DEBUG_BACKUP = false;
     public static final float DEFAULT_PRE_O_MAX_ASPECT_RATIO = 1.86f;
@@ -212,6 +208,7 @@ public class ParsingPackageUtils {
     public static final String TAG_USES_PERMISSION_SDK_M = "uses-permission-sdk-m";
     public static final String TAG_USES_SDK = "uses-sdk";
     public static final String TAG_USES_SPLIT = "uses-split";
+    public static final String TAG_ALLOW_COMPONENT_ACCESS = "allow-component-access";
 
     public static final String METADATA_MAX_ASPECT_RATIO = "android.max_aspect";
     public static final String METADATA_SUPPORTS_SIZE_CHANGES = "android.supports_size_changes";
@@ -317,7 +314,7 @@ public class ParsingPackageUtils {
     @NonNull
     private final List<PermissionManager.SplitPermissionInfo> mSplitPermissionInfos;
     private final Callback mCallback;
-    private static final AconfigFlags sAconfigFlags = new AconfigFlags();
+
 
     public ParsingPackageUtils(String[] separateProcesses, DisplayMetrics displayMetrics,
             @NonNull List<PermissionManager.SplitPermissionInfo> splitPermissions,
@@ -792,7 +789,7 @@ public class ParsingPackageUtils {
             if (outerDepth + 1 < parser.getDepth() || type != XmlPullParser.START_TAG) {
                 continue;
             }
-            if (sAconfigFlags.skipCurrentElement(pkg, parser)) {
+            if (AconfigFlags.getInstance().skipCurrentElement(pkg, parser)) {
                 XmlUtils.skipCurrentTag(parser);
                 continue;
             }
@@ -872,71 +869,18 @@ public class ParsingPackageUtils {
             if (type != XmlPullParser.START_TAG) {
                 continue;
             }
-            if (sAconfigFlags.skipCurrentElement(pkg, parser)) {
+            if (AconfigFlags.getInstance().skipCurrentElement(pkg, parser)) {
                 XmlUtils.skipCurrentTag(parser);
                 continue;
             }
 
-            ParsedMainComponent mainComponent = null;
-
             final ParseResult result;
             String tagName = parser.getName();
-            boolean isActivity = false;
-            switch (tagName) {
-                case "activity":
-                    isActivity = true;
-                    // fall-through
-                case "receiver":
-                    ParseResult<ParsedActivity> activityResult =
-                            ParsedActivityUtils.parseActivityOrReceiver(mSeparateProcesses, pkg,
-                                    res, parser, flags, sUseRoundIcon, defaultSplitName, input);
-                    if (activityResult.isSuccess()) {
-                        ParsedActivity activity = activityResult.getResult();
-                        if (isActivity) {
-                            pkg.addActivity(activity);
-                        } else {
-                            pkg.addReceiver(activity);
-                        }
-                        mainComponent = activity;
-                    }
-                    result = activityResult;
-                    break;
-                case "service":
-                    ParseResult<ParsedService> serviceResult = ParsedServiceUtils.parseService(
-                            mSeparateProcesses, pkg, res, parser, flags, sUseRoundIcon,
-                            defaultSplitName, input);
-                    if (serviceResult.isSuccess()) {
-                        ParsedService service = serviceResult.getResult();
-                        pkg.addService(service);
-                        mainComponent = service;
-                    }
-                    result = serviceResult;
-                    break;
-                case "provider":
-                    ParseResult<ParsedProvider> providerResult =
-                            ParsedProviderUtils.parseProvider(mSeparateProcesses, pkg, res, parser,
-                                    flags, sUseRoundIcon, defaultSplitName, input);
-                    if (providerResult.isSuccess()) {
-                        ParsedProvider provider = providerResult.getResult();
-                        pkg.addProvider(provider);
-                        mainComponent = provider;
-                    }
-                    result = providerResult;
-                    break;
-                case "activity-alias":
-                    activityResult = ParsedActivityUtils.parseActivityAlias(pkg, res, parser,
-                            sUseRoundIcon, defaultSplitName, input);
-                    if (activityResult.isSuccess()) {
-                        ParsedActivity activity = activityResult.getResult();
-                        pkg.addActivity(activity);
-                        mainComponent = activity;
-                    }
-
-                    result = activityResult;
-                    break;
-                default:
-                    result = parseSplitBaseAppChildTags(input, tagName, pkg, res, parser);
-                    break;
+            if (isMainComponentTag(tagName)) {
+                result = parseMainComponent(input, pkg, res, parser, tagName, defaultSplitName,
+                        flags);
+            } else {
+                result = parseSplitBaseAppChildTags(input, tagName, pkg, res, parser);
             }
 
             if (result.isError()) {
@@ -1019,7 +963,7 @@ public class ParsingPackageUtils {
             if (type != XmlPullParser.START_TAG) {
                 continue;
             }
-            if (sAconfigFlags.skipCurrentElement(pkg, parser)) {
+            if (AconfigFlags.getInstance().skipCurrentElement(pkg, parser)) {
                 XmlUtils.skipCurrentTag(parser);
                 continue;
             }
@@ -1161,6 +1105,13 @@ public class ParsingPackageUtils {
                         mCallback.getInstallConstraintsAllowlist());
             case TAG_QUERIES:
                 return parseQueries(input, pkg, res, parser);
+            case TAG_ALLOW_COMPONENT_ACCESS:
+                if (android.app.privatecompute.flags.Flags.enableAllowComponentAccess()) {
+                    return ParsedAllowComponentAccessPolicyUtils.parseAllowComponentAccessPolicy(
+                            input, pkg, res, parser);
+                }
+                XmlUtils.skipCurrentTag(parser);
+                return input.success(pkg);
             default:
                 return ParsingUtils.unknownTag("<manifest>", pkg, parser, input);
         }
@@ -1404,6 +1355,14 @@ public class ParsingPackageUtils {
                     R.styleable.AndroidManifestUsesPermission_maxSdkVersion,
                     Integer.MAX_VALUE);
 
+            int purposeStringResource = 0;
+            final boolean isAllPurposeEnabled = android.permission.flags.Flags.ppdManifestEnabled();
+            if (isAllPurposeEnabled) {
+                purposeStringResource = sa.getResourceId(
+                        R.styleable.AndroidManifestUsesPermission_purposeString,
+                        0);
+            }
+
             final ArraySet<String> requiredFeatures = new ArraySet<>();
             String feature = sa.getNonConfigurationString(
                     com.android.internal.R.styleable.AndroidManifestUsesPermission_requiredFeature,
@@ -1428,9 +1387,10 @@ public class ParsingPackageUtils {
                             0);
 
             final Set<String> purposes = new ArraySet<>();
+            final Set<String> generalPurposes = new ArraySet<>();
             final boolean isPurposesEnabled =
-                    android.permission.flags.Flags.purposeDeclarationEnabled();
-
+                    android.permission.flags.Flags.ppdPurposeEnabled()
+                    || android.permission.flags.Flags.ppdInstallTimeEnabled();
             final int outerDepth = parser.getDepth();
             int type;
             while ((type = parser.next()) != XmlPullParser.END_DOCUMENT
@@ -1462,6 +1422,15 @@ public class ParsingPackageUtils {
                                         : input.success(null);
                         if (result.isSuccess() && result.getResult() != null) {
                             purposes.add((String) result.getResult());
+                        }
+                        break;
+                    case "general-purpose":
+                        result =
+                                isAllPurposeEnabled
+                                        ? parseGeneralPurpose(input, res, parser)
+                                        : input.success(null);
+                        if (result.isSuccess() && result.getResult() != null) {
+                            generalPurposes.add((String) result.getResult());
                         }
                         break;
                     default:
@@ -1524,6 +1493,25 @@ public class ParsingPackageUtils {
                                         + pkg.getPackageName()
                                         + " at: "
                                         + parser.getPositionDescription());
+                    } else if (isAllPurposeEnabled
+                            && !Objects.equals(usesPermission.getGeneralPurposes(),
+                            generalPurposes)) {
+                        return input.error(
+                                "Conflicting uses-permissions general purposes: "
+                                        + name
+                                        + " in package: "
+                                        + pkg.getPackageName()
+                                        + " at: "
+                                        + parser.getPositionDescription());
+                    } else if (isAllPurposeEnabled && (usesPermission.getPurposeStringResource()
+                            != purposeStringResource)) {
+                        return input.error(
+                                "Conflicting uses-permissions purpose string: "
+                                        + name
+                                        + " in package: "
+                                        + pkg.getPackageName()
+                                        + " at: "
+                                        + parser.getPositionDescription());
                     } else {
                         Slog.w(TAG, "Ignoring duplicate uses-permissions/uses-permissions-sdk-m: "
                                 + name + " in package: " + pkg.getPackageName() + " at: "
@@ -1536,7 +1524,7 @@ public class ParsingPackageUtils {
 
             if (!found) {
                 pkg.addUsesPermission(
-                        new ParsedUsesPermissionImpl(name, usesPermissionFlags, purposes));
+                        new ParsedUsesPermissionImpl(name, usesPermissionFlags, purposeStringResource, purposes, generalPurposes));
             }
             return success;
         } finally {
@@ -1559,6 +1547,32 @@ public class ParsingPackageUtils {
                     parseMinOrMaxSdkVersion(
                             sa,
                             R.styleable.AndroidManifestPurpose_maxSdkVersion,
+                            Integer.MAX_VALUE);
+
+            return input.success(
+                    isValidPurpose(purpose, minSdkVersion, maxSdkVersion) ? purpose : null);
+        } finally {
+            sa.recycle();
+        }
+    }
+
+    private ParseResult<String> parseGeneralPurpose(ParseInput input,
+            Resources res,
+            AttributeSet attrs) {
+        final TypedArray sa =
+                res.obtainAttributes(
+                        attrs, com.android.internal.R.styleable.AndroidManifestGeneralPurpose);
+        try {
+            final String purpose = sa.getString(R.styleable.AndroidManifestGeneralPurpose_name);
+            final int minSdkVersion =
+                    parseMinOrMaxSdkVersion(
+                            sa,
+                            R.styleable.AndroidManifestGeneralPurpose_minSdkVersion,
+                            Integer.MIN_VALUE);
+            final int maxSdkVersion =
+                    parseMinOrMaxSdkVersion(
+                            sa,
+                            R.styleable.AndroidManifestGeneralPurpose_maxSdkVersion,
                             Integer.MAX_VALUE);
 
             return input.success(
@@ -1686,7 +1700,7 @@ public class ParsingPackageUtils {
             if (type != XmlPullParser.START_TAG) {
                 continue;
             }
-            if (sAconfigFlags.skipCurrentElement(pkg, parser)) {
+            if (AconfigFlags.getInstance().skipCurrentElement(pkg, parser)) {
                 XmlUtils.skipCurrentTag(parser);
                 continue;
             }
@@ -1930,7 +1944,7 @@ public class ParsingPackageUtils {
             if (type != XmlPullParser.START_TAG) {
                 continue;
             }
-            if (sAconfigFlags.skipCurrentElement(pkg, parser)) {
+            if (AconfigFlags.getInstance().skipCurrentElement(pkg, parser)) {
                 XmlUtils.skipCurrentTag(parser);
                 continue;
             }
@@ -2099,24 +2113,6 @@ public class ParsingPackageUtils {
                 pkg.setManageSpaceActivityName(manageSpaceActivityName);
             }
 
-            if (Flags.changeLauncherBadging()) {
-                ParseResult<int[]> result = drawableResIdArray(input, sa, res,
-                        R.styleable.AndroidManifestApplication_alternateLauncherIcons,
-                        MAXIMUM_LAUNCHER_ALTERNATE_IDS_LENGTH);
-                if (result.isError()) {
-                    return input.error(result);
-                }
-                pkg.setAlternateLauncherIconResIds(result.getResult());
-
-                result = stringResIdArray(input, sa, res,
-                        R.styleable.AndroidManifestApplication_alternateLauncherLabels,
-                        MAXIMUM_LAUNCHER_ALTERNATE_IDS_LENGTH);
-                if (result.isError()) {
-                    return input.error(result);
-                }
-                pkg.setAlternateLauncherLabelResIds(result.getResult());
-            }
-
             if (pkg.isBackupAllowed()) {
                 // backupAgent, killAfterRestore, fullBackupContent, backupInForeground,
                 // and restoreAnyVersion are only relevant if backup is possible for the
@@ -2145,6 +2141,12 @@ public class ParsingPackageUtils {
                                 R.styleable.AndroidManifestApplication_killAfterRestore, sa))
                         .setRestoreAnyVersion(bool(false,
                                 R.styleable.AndroidManifestApplication_restoreAnyVersion, sa));
+
+                if (android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()) {
+                    pkg.setBackupAgentProcess(
+                            sa.getInt(R.styleable.AndroidManifestApplication_backupAgentProcess,
+                                    ApplicationInfo.BACKUP_AGENT_PROCESS_MAIN));
+                }
 
                 TypedValue v = sa.peekValue(
                         R.styleable.AndroidManifestApplication_fullBackupContent);
@@ -2308,105 +2310,57 @@ public class ParsingPackageUtils {
             if (type != XmlPullParser.START_TAG) {
                 continue;
             }
-            if (sAconfigFlags.skipCurrentElement(pkg, parser)) {
+            if (AconfigFlags.getInstance().skipCurrentElement(pkg, parser)) {
                 XmlUtils.skipCurrentTag(parser);
                 continue;
             }
 
             final ParseResult result;
             String tagName = parser.getName();
-            boolean isActivity = false;
-            switch (tagName) {
-                case "activity":
-                    isActivity = true;
-                    // fall-through
-                case "receiver":
-                    if (shouldSkipComponents) {
-                        continue;
-                    }
-                    ParseResult<ParsedActivity> activityResult =
-                            ParsedActivityUtils.parseActivityOrReceiver(mSeparateProcesses, pkg,
-                                    res, parser, flags, sUseRoundIcon, null /*defaultSplitName*/,
-                                    input);
-
-                    if (activityResult.isSuccess()) {
-                        ParsedActivity activity = activityResult.getResult();
-                        if (isActivity) {
-                            hasActivityOrder |= (activity.getOrder() != 0);
-                            pkg.addActivity(activity);
-                        } else {
-                            hasReceiverOrder |= (activity.getOrder() != 0);
-                            pkg.addReceiver(activity);
+            if (isMainComponentTag(tagName)) {
+                if (shouldSkipComponents) {
+                    continue;
+                }
+                ParseResult<ParseMainComponentResult> mainComponentResult =
+                        parseMainComponent(input, pkg, res, parser, tagName,
+                                /*defaultSplitName*/ null, flags);
+                if (mainComponentResult.isSuccess()) {
+                    ParseMainComponentResult parseResult = mainComponentResult.getResult();
+                    hasActivityOrder |= parseResult.mHasActivityOrder;
+                    hasReceiverOrder |= parseResult.mHasReceiverOrder;
+                    hasServiceOrder |= parseResult.mHasServiceOrder;
+                }
+                result = mainComponentResult;
+            } else {
+                switch (tagName) {
+                    case "apex-system-service":
+                        ParseResult<ParsedApexSystemService> systemServiceResult =
+                                ParsedApexSystemServiceUtils.parseApexSystemService(res,
+                                        parser, input);
+                        if (systemServiceResult.isSuccess()) {
+                            ParsedApexSystemService systemService =
+                                    systemServiceResult.getResult();
+                            pkg.addApexSystemService(systemService);
                         }
-                    }
 
-                    result = activityResult;
-                    break;
-                case "service":
-                    if (shouldSkipComponents) {
-                        continue;
-                    }
-                    ParseResult<ParsedService> serviceResult =
-                            ParsedServiceUtils.parseService(mSeparateProcesses, pkg, res, parser,
-                                    flags, sUseRoundIcon, null /*defaultSplitName*/,
-                                    input);
-                    if (serviceResult.isSuccess()) {
-                        ParsedService service = serviceResult.getResult();
-                        hasServiceOrder |= (service.getOrder() != 0);
-                        pkg.addService(service);
-                    }
-
-                    result = serviceResult;
-                    break;
-                case "provider":
-                    if (shouldSkipComponents) {
-                        continue;
-                    }
-                    ParseResult<ParsedProvider> providerResult =
-                            ParsedProviderUtils.parseProvider(mSeparateProcesses, pkg, res, parser,
-                                    flags, sUseRoundIcon, null /*defaultSplitName*/,
-                                    input);
-                    if (providerResult.isSuccess()) {
-                        pkg.addProvider(providerResult.getResult());
-                    }
-
-                    result = providerResult;
-                    break;
-                case "activity-alias":
-                    if (shouldSkipComponents) {
-                        continue;
-                    }
-                    activityResult = ParsedActivityUtils.parseActivityAlias(pkg, res,
-                            parser, sUseRoundIcon, null /*defaultSplitName*/,
-                            input);
-                    if (activityResult.isSuccess()) {
-                        ParsedActivity activity = activityResult.getResult();
-                        hasActivityOrder |= (activity.getOrder() != 0);
-                        pkg.addActivity(activity);
-                    }
-
-                    result = activityResult;
-                    break;
-                case "apex-system-service":
-                    ParseResult<ParsedApexSystemService> systemServiceResult =
-                            ParsedApexSystemServiceUtils.parseApexSystemService(res,
-                                    parser, input);
-                    if (systemServiceResult.isSuccess()) {
-                        ParsedApexSystemService systemService =
-                                systemServiceResult.getResult();
-                        pkg.addApexSystemService(systemService);
-                    }
-
-                    result = systemServiceResult;
-                    break;
-                default:
-                    result = parseBaseAppChildTag(input, tagName, pkg, res, parser, flags);
-                    break;
+                        result = systemServiceResult;
+                        break;
+                    default:
+                        result = parseBaseAppChildTag(input, tagName, pkg, res, parser, flags);
+                        break;
+                }
             }
 
             if (result.isError()) {
                 return input.error(result);
             }
+        }
+
+        if (!pkg.hasPccComponents()
+                && pkg.getBackupAgentProcess() == ApplicationInfo.BACKUP_AGENT_PROCESS_PCC) {
+            return input.error("Application has private compute core backup agent "
+                    + "without other private compute core components"
+                    + "(activities, services, providers, receivers)");
         }
 
         if (TextUtils.isEmpty(pkg.getStaticSharedLibraryName()) && TextUtils.isEmpty(
@@ -2507,10 +2461,6 @@ public class ParsingPackageUtils {
                 .setOnBackInvokedCallbackEnabled(bool(
                         targetSdk > Build.VERSION_CODES.VANILLA_ICE_CREAM,
                         R.styleable.AndroidManifestApplication_enableOnBackInvokedCallback, sa))
-                .setRunInPccSandbox(
-                        android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()
-                        && bool(false,
-                        R.styleable.AndroidManifestApplication_runInPccSandbox, sa))
                 // Ints Default 0
                 .setUiOptions(anInt(R.styleable.AndroidManifestApplication_uiOptions, sa))
                 // Ints
@@ -2534,6 +2484,10 @@ public class ParsingPackageUtils {
                 .setRequiredAccountType(string(R.styleable.AndroidManifestApplication_requiredAccountType, sa))
                 .setRestrictedAccountType(string(R.styleable.AndroidManifestApplication_restrictedAccountType, sa))
                 .setZygotePreloadName(string(R.styleable.AndroidManifestApplication_zygotePreloadName, sa))
+                .setZygotePreloadNativeLib(string(
+                        R.styleable.AndroidManifestApplication_zygotePreloadNativeLib, sa))
+                .setZygotePreloadNativeFunc(string(
+                        R.styleable.AndroidManifestApplication_zygotePreloadNativeFunc, sa))
                 // Non-Config String
                 .setPermission(nonConfigString(0, R.styleable.AndroidManifestApplication_permission, sa))
                 .setAllowCrossUidActivitySwitchFromBelow(bool(true, R.styleable.AndroidManifestApplication_allowCrossUidActivitySwitchFromBelow, sa));
@@ -2594,6 +2548,99 @@ public class ParsingPackageUtils {
             default:
                 return ParsingUtils.unknownTag("<application>", pkg, parser, input);
         }
+    }
+
+    private boolean isMainComponentTag(String tag) {
+        return tag.equals("activity") || tag.equals("service") || tag.equals("receiver")
+                || tag.equals("provider") || tag.equals("activity-alias");
+    }
+
+    @NonNull
+    private ParseResult<ParseMainComponentResult> parseMainComponent(ParseInput input,
+            ParsingPackage pkg, Resources res, XmlResourceParser parser, String tagName,
+            @Nullable String defaultSplitName, int flags)
+            throws XmlPullParserException, IOException {
+        final ParseMainComponentResult resultToReturn = new ParseMainComponentResult();
+        final ParseResult parseResult;
+        boolean isActivity = false;
+        switch (tagName) {
+            case "activity": {
+                isActivity = true;
+                // fall-through
+            }
+            case "receiver":
+                ParseResult<ParsedActivity> activityResult =
+                        ParsedActivityUtils.parseActivityOrReceiver(mSeparateProcesses, pkg,
+                                res, parser, flags, sUseRoundIcon, defaultSplitName,
+                                input);
+
+                if (activityResult.isSuccess()) {
+                    ParsedActivity activity = activityResult.getResult();
+                    if (isActivity) {
+                        resultToReturn.mHasActivityOrder |= (activity.getOrder() != 0);
+                        pkg.addActivity(activity);
+                    } else {
+                        resultToReturn.mHasReceiverOrder |= (activity.getOrder() != 0);
+                        pkg.addReceiver(activity);
+                    }
+                    if ((activity.getFlags() & ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX) != 0) {
+                        pkg.setHasPccComponents(true);
+                    }
+                }
+
+                parseResult = activityResult;
+                break;
+            case "service":
+                ParseResult<ParsedService> serviceResult =
+                        ParsedServiceUtils.parseService(mSeparateProcesses, pkg, res, parser,
+                                flags, sUseRoundIcon, defaultSplitName, input);
+                if (serviceResult.isSuccess()) {
+                    ParsedService service = serviceResult.getResult();
+                    resultToReturn.mHasServiceOrder |= (service.getOrder() != 0);
+                    pkg.addService(service);
+                    if ((service.getFlags() & ServiceInfo.FLAG_RUN_IN_PCC_SANDBOX) != 0) {
+                        pkg.setHasPccComponents(true);
+                    }
+                }
+
+                parseResult = serviceResult;
+                break;
+            case "provider":
+                ParseResult<ParsedProvider> providerResult =
+                        ParsedProviderUtils.parseProvider(mSeparateProcesses, pkg, res, parser,
+                                flags, sUseRoundIcon, defaultSplitName, input);
+                if (providerResult.isSuccess()) {
+                    ParsedProvider provider = providerResult.getResult();
+                    pkg.addProvider(provider);
+                    if ((provider.getFlags() & ProviderInfo.FLAG_RUN_IN_PCC_SANDBOX) != 0) {
+                        pkg.setHasPccComponents(true);
+                    }
+                }
+
+                parseResult = providerResult;
+                break;
+            case "activity-alias":
+                activityResult = ParsedActivityUtils.parseActivityAlias(pkg, res,
+                        parser, sUseRoundIcon, defaultSplitName, input);
+                if (activityResult.isSuccess()) {
+                    ParsedActivity activity = activityResult.getResult();
+                    resultToReturn.mHasActivityOrder |= (activity.getOrder() != 0);
+                    pkg.addActivity(activity);
+                    if ((activity.getFlags() & ActivityInfo.FLAG_RUN_IN_PCC_SANDBOX) != 0) {
+                        pkg.setHasPccComponents(true);
+                    }
+                }
+
+                parseResult = activityResult;
+                break;
+            default:
+                throw new IllegalArgumentException("Unknown tag passed to parseMainComponent: "
+                        + tagName);
+        }
+        if (parseResult.isError()) {
+            return input.error(parseResult);
+        }
+        return input.success(resultToReturn);
     }
 
     @NonNull
@@ -2901,7 +2948,25 @@ public class ParsingPackageUtils {
         }
     }
 
-    private static ParseResult<String[]> parseAdditionalCertificates(ParseInput input,
+    /**
+     * Parses all nested {@code <additional-certificate>} tags within the current XML element.
+     *
+     * <p>This method iterates through the child elements of the tag where the parser is
+     * currently positioned, <b>consuming the input until the {@code END_TAG} of the
+     * current element is reached</b>.
+     *
+     * <p>It extracts the certificate digests, cleans them by removing colon delimiters
+     * and converting to lowercase, and returns them as a string array.
+     *
+     * @param input The {@link ParseInput} used to track parsing status and errors.
+     * @param pkg The {@link ParsingPackage} being parsed, used for feature flag validation.
+     * @param resources The {@link Resources} to obtain attributes from.
+     * @param parser The {@link XmlResourceParser} currently positioned at the parent start tag.
+     * @return A {@link ParseResult} containing an array of SHA-256 certificate digests.
+     * @throws XmlPullParserException If an error occurs during XML parsing.
+     * @throws IOException If an I/O error occurs.
+     */
+    public static ParseResult<String[]> parseAdditionalCertificates(ParseInput input,
             ParsingPackage pkg, Resources resources, XmlResourceParser parser)
             throws XmlPullParserException, IOException {
         String[] certSha256Digests = EmptyArray.STRING;
@@ -2913,7 +2978,7 @@ public class ParsingPackageUtils {
             if (type != XmlPullParser.START_TAG) {
                 continue;
             }
-            if (sAconfigFlags.skipCurrentElement(pkg, parser)) {
+            if (AconfigFlags.getInstance().skipCurrentElement(pkg, parser)) {
                 XmlUtils.skipCurrentTag(parser);
                 continue;
             }
@@ -3220,6 +3285,11 @@ public class ParsingPackageUtils {
         final int listSize = mSplitPermissionInfos.size();
         for (int is = 0; is < listSize; is++) {
             final PermissionManager.SplitPermissionInfo spi = mSplitPermissionInfos.get(is);
+            String featureFlag = spi.getFeatureFlag();
+            if (featureFlag != null && AconfigFlags.getInstance().skip(pkg, featureFlag,
+                    spi.isFeatureFlagNegated())) {
+                continue;
+            }
             Set<String> requestedPermissions = pkg.getRequestedPermissions();
             if (pkg.getTargetSdkVersion() >= spi.getTargetSdk()
                     || !requestedPermissions.contains(spi.getSplitPermission())) {
@@ -3513,95 +3583,6 @@ public class ParsingPackageUtils {
         return sa.getResourceId(attribute, 0);
     }
 
-    /**
-     * Parse the drawable resource id array in the typed array {@code resourceId}
-     * if available. If {@code maxSize} is not zero, only parse and preserve at most
-     * {@code maxSize} ids.
-     */
-    private static ParseResult<int[]> drawableResIdArray(ParseInput input, @NonNull TypedArray sa,
-            @NonNull Resources res, int resourceId, int maxSize) {
-        return resIdArray(input, sa, res, resourceId, TYPE_DRAWABLE, maxSize);
-    }
-
-    /**
-     * Parse the string resource id array in the typed array {@code resourceId}
-     * if available. If {@code maxSize} is not zero, only parse and preserve at most
-     * {@code maxSize} ids.
-     */
-    private static ParseResult<int[]> stringResIdArray(ParseInput input, @NonNull TypedArray sa,
-            @NonNull Resources res, int resourceId, int maxSize) {
-        return resIdArray(input, sa, res, resourceId, TYPE_STRING, maxSize);
-    }
-
-    /**
-     * Parse the resource id array in the typed array {@code resourceId}
-     * if available. If {@code maxSize} is larger than zero, only parse and preserve
-     * at most {@code maxSize} ids that type is matched to the {@code expectedTypeName}.
-     * Because the TypedArray allows mixed types in an array, if {@code expectedTypeName}
-     * is null, it means don't check the type.
-     */
-    private static ParseResult<int[]> resIdArray(ParseInput input, @NonNull TypedArray sa,
-            @NonNull Resources res, int resourceId, @Nullable String expectedTypeName,
-            int maxSize) {
-        if (!sa.hasValue(resourceId)) {
-            return input.success(null);
-        }
-
-        final int typeArrayResId = sa.getResourceId(resourceId, /* defValue= */ 0);
-        if (typeArrayResId == 0) {
-            return input.success(null);
-        }
-
-        // Parse the typedArray
-        try (TypedArray typedArray = res.obtainTypedArray(typeArrayResId)) {
-            final String typedArrayName = res.getResourceName(typeArrayResId);
-            final int length = typedArray.length();
-            if (maxSize > 0 && length > maxSize) {
-                return input.error(TextUtils.formatSimple(
-                        "The length of the typedArray (%s) is larger than %d.",
-                        typedArrayName, maxSize));
-            }
-            Set<Integer> resourceIdSet = new ArraySet<>();
-            for (int i = 0; i < length; i++) {
-                final int id = typedArray.getResourceId(i, /* defValue= */ 0);
-                // Add the id when the conditions are all matched:
-                // 1. The resource Id is not 0
-                // 2. The type is the expected type
-                // 3. The id is not duplicated
-                if (id == 0) {
-                    return input.error(TextUtils.formatSimple(
-                            "There is an item that is not a resource id in the typedArray (%s).",
-                            typedArrayName));
-                }
-
-                try {
-                    if (resourceIdSet.contains(id)) {
-                        return input.error(TextUtils.formatSimple(
-                                "There is a duplicated resource (%s) in the typedArray (%s).",
-                                res.getResourceName(id), typedArrayName));
-                    }
-                    final String typeName = res.getResourceTypeName(id);
-                    if (expectedTypeName != null
-                            && !TextUtils.equals(typeName, expectedTypeName)) {
-                        return input.error(TextUtils.formatSimple(
-                                "There is a resource (%s) in the typedArray (%s) that is not a"
-                                        + " %s type.", res.getResourceName(id), typedArrayName,
-                                expectedTypeName));
-                    }
-                } catch (Resources.NotFoundException e) {
-                    return input.error(TextUtils.formatSimple(
-                            "There is a resource in the typedArray (%s) that is not found in"
-                                    + " the app resources.", typedArrayName));
-                }
-                resourceIdSet.add(id);
-            }
-            if (resourceIdSet.isEmpty()) {
-                return input.success(null);
-            }
-            return input.success(resourceIdSet.stream().mapToInt(i -> i).toArray());
-        }
-    }
-
     private static String string(@StyleableRes int attribute, TypedArray sa) {
         return sa.getString(attribute);
     }
@@ -3692,11 +3673,9 @@ public class ParsingPackageUtils {
         @NonNull Set<String> getInstallConstraintsAllowlist();
     }
 
-    /**
-     * Getter for the flags object
-     */
-    @android.ravenwood.annotation.RavenwoodKeep
-    public static AconfigFlags getAconfigFlags() {
-        return sAconfigFlags;
+    private static class ParseMainComponentResult {
+        boolean mHasActivityOrder = false;
+        boolean mHasReceiverOrder = false;
+        boolean mHasServiceOrder = false;
     }
 }

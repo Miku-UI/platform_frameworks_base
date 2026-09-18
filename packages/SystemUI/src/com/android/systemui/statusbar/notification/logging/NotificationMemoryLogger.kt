@@ -18,6 +18,7 @@
 package com.android.systemui.statusbar.notification.logging
 
 import android.app.StatsManager
+import android.app.StatsManager.PullAtomMetadata
 import android.util.Log
 import android.util.StatsEvent
 import androidx.annotation.VisibleForTesting
@@ -29,6 +30,7 @@ import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.shared.system.SysUiStatsLog
 import com.android.systemui.statusbar.notification.collection.NotifPipeline
 import com.android.systemui.Flags.doNotUseRunBlocking
+import javax.inject.Provider
 import kotlinx.coroutines.CoroutineDispatcher
 import java.lang.Exception
 import java.util.concurrent.Executor
@@ -40,7 +42,7 @@ import kotlin.math.roundToInt
 class NotificationMemoryLogger
 @Inject
 constructor(
-    private val notificationPipeline: NotifPipeline,
+    private val notificationPipeline: Provider<NotifPipeline>,
     private val statsManager: StatsManager,
     @Main private val mainDispatcher: CoroutineDispatcher,
     @Background private val backgroundExecutor: Executor,
@@ -75,9 +77,12 @@ constructor(
     }
 
     fun init() {
+        // This processing takes a bit (in BG), so we need to give it a bit longer
+        // than 1.5 secs by default.
+        val metadata = PullAtomMetadata.Builder().setTimeoutMillis(5000).build()
         statsManager.setPullAtomCallback(
             SysUiStatsLog.NOTIFICATION_MEMORY_USE,
-            null,
+            metadata,
             backgroundExecutor,
             this,
         )
@@ -147,10 +152,10 @@ constructor(
 
     private fun getAllNotifications() =
         if (doNotUseRunBlocking()) {
-            traceSection("NML#getNotifications") { notificationPipeline.allNotifs.toList() }
+            traceSection("NML#getNotifications") { notificationPipeline.get().allNotifs.toList() }
         } else {
             runBlocking(context = mainDispatcher) {
-                traceSection("NML#getNotifications") { notificationPipeline.allNotifs.toList() }
+                traceSection("NML#getNotifications") { notificationPipeline.get().allNotifs.toList() }
             }
         }
 }

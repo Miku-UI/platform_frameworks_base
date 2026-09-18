@@ -20,5 +20,7 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="js_dialog_before_unload" msgid="7213364985774778744">"<xliff:g id="MESSAGE">%s</xliff:g>\n\n¿Estás seguro de que quieres salir de esta página?"</string>
     <string name="owner_name" msgid="8713560351570795743">"Propietario"</string>
+    <string name="satellite_messaging_not_provisioned_notification_summary" msgid="1060961852174442155">"Asegúrate de estar conectado a Internet y vuelve a intentar la configuración"</string>
 </resources>

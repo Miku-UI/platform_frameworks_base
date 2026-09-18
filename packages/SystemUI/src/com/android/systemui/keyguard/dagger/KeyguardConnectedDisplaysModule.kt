@@ -18,10 +18,8 @@ package com.android.systemui.keyguard.dagger
 
 import android.view.Display
 import com.android.keyguard.ConnectedDisplayConstraintLayoutKeyguardPresentation
-import com.android.keyguard.ConnectedDisplayKeyguardPresentation
 import com.android.keyguard.ConnectedDisplayKeyguardPresentationFactory
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.keyguard.KeyguardPresentationCLRefactor
 import dagger.Module
 import dagger.Provides
 
@@ -31,16 +29,11 @@ object KeyguardConnectedDisplaysModule {
     @Provides
     @SysUISingleton
     fun provideConnectedDisplaysPresentation(
-        connectedDisplayKeyguardPresentationFactory: ConnectedDisplayKeyguardPresentation.Factory,
         connectedDisplayConstraintLayoutKeyguardPresentationFactory:
             ConnectedDisplayConstraintLayoutKeyguardPresentation.Factory,
     ): ConnectedDisplayKeyguardPresentationFactory {
         return ConnectedDisplayKeyguardPresentationFactory { display: Display ->
-            if (KeyguardPresentationCLRefactor.isEnabled) {
-                connectedDisplayConstraintLayoutKeyguardPresentationFactory.create(display)
-            } else {
-                connectedDisplayKeyguardPresentationFactory.create(display)
-            }
+            connectedDisplayConstraintLayoutKeyguardPresentationFactory.create(display)
         }
     }
 }

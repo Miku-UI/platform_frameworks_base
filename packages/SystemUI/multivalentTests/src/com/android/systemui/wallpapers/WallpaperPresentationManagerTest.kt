@@ -21,6 +21,7 @@ import android.hardware.display.DisplayManagerGlobal
 import android.view.Display
 import android.view.DisplayAdjustments
 import android.view.DisplayInfo
+import android.view.WindowManager.InvalidDisplayException
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -39,11 +40,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoInteractions
 import org.mockito.kotlin.verifyNoMoreInteractions
+import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -97,6 +100,18 @@ class WallpaperPresentationManagerTest : SysuiTestCase() {
         }
 
     @Test
+    fun emitProvisioning_displayInvalid_noCrash() =
+        kosmos.runTest {
+            doThrow(InvalidDisplayException()).whenever(provisioningPresentation).show()
+            wallpaperPresentationManager.start()
+
+            fakeWallpaperPresentationInteractor._presentationFactoryFlow.emit(PROVISIONING)
+
+            verify(provisioningPresentationFactory).create(eq(testDisplay))
+            verify(provisioningPresentation).show()
+        }
+
+    @Test
     fun emitProvisioningThenNone_hideProvisioningPresentation() =
         kosmos.runTest {
             wallpaperPresentationManager.start()
@@ -133,6 +148,18 @@ class WallpaperPresentationManagerTest : SysuiTestCase() {
             verify(keyguardPresentation).show()
             verifyNoMoreInteractions(keyguardPresentation)
             verifyNoInteractions(provisioningPresentationFactory)
+        }
+
+    @Test
+    fun emitKeyguard_displayInvalid_noCrash() =
+        kosmos.runTest {
+            doThrow(InvalidDisplayException()).whenever(keyguardPresentation).show()
+            wallpaperPresentationManager.start()
+
+            fakeWallpaperPresentationInteractor._presentationFactoryFlow.emit(KEYGUARD)
+
+            verify(keyguardPresentationFactory).create(eq(testDisplay))
+            verify(keyguardPresentation).show()
         }
 
     @Test

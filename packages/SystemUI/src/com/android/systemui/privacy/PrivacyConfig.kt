@@ -17,6 +17,7 @@
 package com.android.systemui.privacy
 
 import android.location.flags.Flags.locationIndicatorsEnabled
+import android.location.flags.Flags.locationIndicatorsOutline
 import android.provider.DeviceConfig
 import com.android.internal.annotations.VisibleForTesting
 import com.android.internal.annotations.WeaklyReferencedCallback
@@ -53,10 +54,24 @@ constructor(
         private const val DEFAULT_MEDIA_PROJECTION = true
 
         fun getPrivacyColor(locationOnly: Boolean): Int {
-            if (locationOnly) {
+            if (locationIndicatorsEnabled() && locationOnly) {
                 return R.color.privacy_chip_location_only_background
             }
             return R.color.privacy_chip_background
+        }
+
+        fun getPrivacyOutlineColor(locationOnly: Boolean): Int {
+            if (locationIndicatorsEnabled() && locationIndicatorsOutline() && locationOnly) {
+                return R.color.privacy_chip_location_only_outline
+            }
+            return R.color.transparent
+        }
+
+        fun getPrivacyOutlineStroke(locationOnly: Boolean): Int {
+            if (locationIndicatorsEnabled() && locationIndicatorsOutline() && locationOnly) {
+                return 1
+            }
+            return 0
         }
 
         fun privacyItemsAreLocationOnly(privacyItems: List<PrivacyItem>): Boolean {

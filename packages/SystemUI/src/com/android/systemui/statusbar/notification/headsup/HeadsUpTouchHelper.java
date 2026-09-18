@@ -34,6 +34,7 @@ import com.android.systemui.statusbar.notification.row.ExpandableView;
  */
 public class HeadsUpTouchHelper implements Gefingerpoken {
 
+    public static final String TAG = "HeadsUpTouchHelper";
     private final HeadsUpManager mHeadsUpManager;
     private final IStatusBarService mStatusBarService;
     private final Callback mCallback;
@@ -46,6 +47,22 @@ public class HeadsUpTouchHelper implements Gefingerpoken {
     private boolean mCollapseSnoozes;
     private final HeadsUpNotificationViewController mPanel;
     private ExpandableNotificationRow mPickedChild;
+    private String mPickedReason;
+
+    public static final Boolean DEBUG = false;
+
+    public static void debugLog(String s) {
+        if (DEBUG) {
+            android.util.Log.i(TAG, s);
+        }
+    }
+
+    public void setPickedChild(
+            ExpandableNotificationRow pickedChild, String reason) {
+        debugLog( reason + " => setPicked");
+        mPickedChild = pickedChild;
+        mPickedReason = reason;
+    }
 
     public HeadsUpTouchHelper(HeadsUpManager headsUpManager,
             IStatusBarService statusBarService,
@@ -76,11 +93,14 @@ public class HeadsUpTouchHelper implements Gefingerpoken {
         }
         final float x = event.getX(pointerIndex);
         final float y = event.getY(pointerIndex);
+        String eventStr = "";
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                eventStr = "ACTION_DOWN";
                 mInitialTouchY = y;
                 mInitialTouchX = x;
-                setTrackingHeadsUp(false);
+
+                setTrackingHeadsUp(false, "Intercept DOWN ");
                 ExpandableView child = mCallback.getChildAtRawPosition(x, y);
                 mTouchingHeadsUpView = false;
                 if (child instanceof ExpandableNotificationRow) {
@@ -88,19 +108,23 @@ public class HeadsUpTouchHelper implements Gefingerpoken {
                     mTouchingHeadsUpView = !mCallback.isExpanded()
                             && pickedChild.isHeadsUp() && pickedChild.isPinned();
                     if (mTouchingHeadsUpView) {
-                        mPickedChild = pickedChild;
+                        setPickedChild(pickedChild, "Intercept DOWN on HUN");
+                        eventStr += " on HUN";
                     }
                 } else if (child == null && !mCallback.isExpanded()) {
-                    // We might touch above the visible heads up child, but then we still would
-                    // like to capture it.
+                    // Over home screen:
+                    // Touch was outside visible HUN but we still want to capture it.
                     NotificationEntry topEntry = mHeadsUpManager.getTopEntry();
                     if (topEntry != null && topEntry.isRowPinned()) {
-                        mPickedChild = topEntry.getRow();
+                        setPickedChild(topEntry.getRow(), "Intercept DOWN outside HUN");
                         mTouchingHeadsUpView = true;
+                        eventStr += " outside HUN";
                     }
                 }
                 break;
             case MotionEvent.ACTION_POINTER_UP:
+                eventStr = "ACTION_POINTER_UP";
+
                 final int upPointer = event.getPointerId(event.getActionIndex());
                 if (mTrackingPointer == upPointer) {
                     // gesture is ongoing, find a new pointer to track
@@ -113,10 +137,14 @@ public class HeadsUpTouchHelper implements Gefingerpoken {
 
             case MotionEvent.ACTION_MOVE:
                 final float h = y - mInitialTouchY;
-                if (mTouchingHeadsUpView && Math.abs(h) > mTouchSlop
-                        && Math.abs(h) > Math.abs(x - mInitialTouchX)) {
+                final boolean movedEnough = Math.abs(h) > mTouchSlop;
+                final boolean downward = Math.abs(h) > Math.abs(x - mInitialTouchX);
+                eventStr = "ACTION_MOVE touching:" + mTouchingHeadsUpView
+                        + " movedEnough:" + movedEnough
+                        + " downward:" + downward;
+                if (mTouchingHeadsUpView && movedEnough && downward) {
                     if (!SceneContainerFlag.isEnabled()) {
-                        setTrackingHeadsUp(true);
+                        setTrackingHeadsUp(true, "Intercept MOVE");
                         mCollapseSnoozes = h < 0;
                         mInitialTouchX = x;
                         mInitialTouchY = y;
@@ -127,35 +155,44 @@ public class HeadsUpTouchHelper implements Gefingerpoken {
 
                         // This call needs to be after the expansion start otherwise we will get a
                         // flicker of one frame as it's not expanded yet.
-                        mHeadsUpManager.unpinAll(true);
+                        mHeadsUpManager.unpinAll(true, "HeadsUpTouchHelper.onInterceptTouchEvent");
 
                         clearNotificationEffects();
                         endMotion();
                     }
+                    debugLog("Intercept => " + eventStr + " => TRUE");
                     return true;
                 }
                 break;
 
             case MotionEvent.ACTION_CANCEL:
             case MotionEvent.ACTION_UP:
+                if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                    eventStr = "ACTION_CANCEL";
+                } else if (event.getActionMasked() == MotionEvent.ACTION_UP) {
+                    eventStr = "ACTION_UP";
+                }
                 if (mPickedChild != null && mTouchingHeadsUpView) {
                     // We may swallow this click if the heads up just came in.
                     if (mHeadsUpManager.shouldSwallowClick(
                             mPickedChild.getKey())) {
                         endMotion();
+                        debugLog("Intercept UP just arrived => ");
                         return true;
                     }
                 }
                 endMotion();
                 break;
         }
+        debugLog("Intercept => " + eventStr + " => FALSE");
         return false;
     }
 
-    private void setTrackingHeadsUp(boolean tracking) {
+    private void setTrackingHeadsUp(boolean tracking, String reason) {
         mTrackingHeadsUp = tracking;
         mHeadsUpManager.setTrackingHeadsUp(tracking);
-        mPanel.setTrackedHeadsUp(tracking ? mPickedChild : null);
+        mPanel.setTrackedHeadsUp(tracking ? mPickedChild : null, reason
+                + " lastPickedBecause: " + mPickedReason);
     }
 
     public void notifyFling(boolean collapse) {
@@ -167,6 +204,7 @@ public class HeadsUpTouchHelper implements Gefingerpoken {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        String eventStr = "";
         if (SceneContainerFlag.isEnabled()) {
             int pointerIndex = event.findPointerIndex(mTrackingPointer);
             if (pointerIndex < 0) {
@@ -176,7 +214,17 @@ public class HeadsUpTouchHelper implements Gefingerpoken {
             final float x = event.getX(pointerIndex);
             final float y = event.getY(pointerIndex);
             switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    eventStr = "ACTION_DOWN";
+                    if (mTouchingHeadsUpView) {
+                        debugLog("Touch => " + eventStr + " => TRUE");
+                        // the HUN would like to keep listening to the gesture flow
+                        return true;
+                    }
+                    break;
+
                 case MotionEvent.ACTION_POINTER_UP:
+                    eventStr = "ACTION_POINTER_UP";
                     final int upPointer = event.getPointerId(event.getActionIndex());
                     if (mTrackingPointer == upPointer) {
                         // gesture is ongoing, find a new pointer to track
@@ -186,11 +234,16 @@ public class HeadsUpTouchHelper implements Gefingerpoken {
                         mInitialTouchY = event.getY(newIndex);
                     }
                     break;
+
                 case MotionEvent.ACTION_MOVE:
                     final float h = y - mInitialTouchY;
-                    if (mTouchingHeadsUpView && Math.abs(h) > mTouchSlop
-                            && Math.abs(h) > Math.abs(x - mInitialTouchX)) {
-                        setTrackingHeadsUp(true);
+                    final boolean movedEnough = Math.abs(h) > mTouchSlop;
+                    final boolean downward = Math.abs(h) > Math.abs(x - mInitialTouchX);
+                    eventStr = "ACTION_MOVE touching:" + mTouchingHeadsUpView
+                            + " movedEnough:" + movedEnough
+                            + " downward:" + downward;
+                    if (mTouchingHeadsUpView && movedEnough && downward) {
+                        setTrackingHeadsUp(true, "Touch MOVE");
                         mCollapseSnoozes = h < 0;
                         mInitialTouchX = x;
                         mInitialTouchY = y;
@@ -201,43 +254,63 @@ public class HeadsUpTouchHelper implements Gefingerpoken {
 
                         clearNotificationEffects();
                         endMotion();
+                        // threshold is met, the HUN system claims the gesture and sets the NSSL to
+                        // being dragged on HUN, the NSSL will dispatch the
+                        mCallback.startDraggingOnHun();
+                        debugLog("Touch => " + eventStr + " => TRUE => startDraggingOnHun");
                         return true;
                     }
                     break;
+
                 case MotionEvent.ACTION_CANCEL:
                 case MotionEvent.ACTION_UP:
+                    if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                        eventStr = "ACTION_CANCEL";
+                    } else if (event.getActionMasked() == MotionEvent.ACTION_UP) {
+                        eventStr = "ACTION_UP";
+                    }
                     if (mPickedChild != null && mTouchingHeadsUpView) {
                         // We may swallow this click if the heads up just came in.
                         if (mHeadsUpManager.shouldSwallowClick(
                                 mPickedChild.getKey())) {
                             endMotion();
-                            setTrackingHeadsUp(false);
+                            setTrackingHeadsUp(false, "Touch UP ignore click");
+                            debugLog("Touch => " + eventStr + " => TRUE");
                             return true;
                         }
                     }
                     endMotion();
-                    setTrackingHeadsUp(false);
+                    setTrackingHeadsUp(false," Touch UP complete");
+                    debugLog("Touch => " + eventStr + " => FALSE");
                     return false;
             }
+            debugLog("Touch => " + eventStr + " => FALSE");
             return false;
         } else {
             if (!mTrackingHeadsUp) {
+                debugLog("Touch => notTrackingHun => FALSE");
                 return false;
             }
             switch (event.getActionMasked()) {
                 case MotionEvent.ACTION_UP:
                 case MotionEvent.ACTION_CANCEL:
+                    if (event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+                        eventStr = "ACTION_CANCEL";
+                    } else if (event.getActionMasked() == MotionEvent.ACTION_UP) {
+                        eventStr = "ACTION_UP";
+                    }
                     endMotion();
-                    setTrackingHeadsUp(false);
+                    setTrackingHeadsUp(false," Touch UP swipe complete");
                     break;
             }
+            debugLog("Touch => " + eventStr + " => TRUE");
             return true;
         }
     }
 
     private void endMotion() {
         mTrackingPointer = -1;
-        mPickedChild = null;
+        setPickedChild(null, "endMotion");
         mTouchingHeadsUpView = false;
     }
 
@@ -253,6 +326,17 @@ public class HeadsUpTouchHelper implements Gefingerpoken {
         ExpandableView getChildAtRawPosition(float touchX, float touchY);
         boolean isExpanded();
         Context getContext();
+
+        /**
+         * Sets the NotificationStackScrollLayout is being dragged by HUN.
+         * There's no need to stopDraggingOnHun because the touchEvent is supposed to be dispatched
+         * by the NSSL before it reaches here, and the NSSL will reset its own states once an UP or
+         * CANCEL event is detected in NSSL.dispatchTouchEvent(MotionEvent ev).
+         * <p>
+         * Only used when scene container is enabled, mark that the NSSL is being dragged so start
+         * dispatching the rest of the gesture to scene container.
+         */
+        void startDraggingOnHun();
     }
 
     /** The controller for a view that houses heads up notifications. */
@@ -261,7 +345,8 @@ public class HeadsUpTouchHelper implements Gefingerpoken {
         void setHeadsUpDraggingStartingHeight(int startHeight);
 
         /** Sets notification that is being expanded. */
-        void setTrackedHeadsUp(@Nullable ExpandableNotificationRow expandableNotificationRow);
+        void setTrackedHeadsUp(@Nullable ExpandableNotificationRow expandableNotificationRow,
+                String reason);
 
         /** Called when a MotionEvent is about to trigger expansion. */
         void startExpand(float newX, float newY, boolean startTracking, float expandedHeight);

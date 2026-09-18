@@ -19,7 +19,10 @@ package com.android.systemui.keyguard.domain.interactor
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
 import com.android.systemui.keyguard.data.repository.keyguardTransitionRepository
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.testScope
 import com.android.systemui.power.domain.interactor.powerInteractor
+import com.android.systemui.scene.domain.interactor.onBootTransitionInteractor
+import com.android.systemui.scene.domain.interactor.sceneBackInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.statusbar.notification.domain.interactor.notificationLaunchAnimationInteractor
 import com.android.systemui.statusbar.policy.domain.interactor.deviceProvisioningInteractor
@@ -40,5 +43,8 @@ val Kosmos.windowManagerLockscreenVisibilityInteractor by
             wakeToGoneInteractor = keyguardWakeDirectlyToGoneInteractor,
             deviceProvisioningInteractor = { deviceProvisioningInteractor },
             powerInteractor = powerInteractor,
+            sceneBackInteractor = { sceneBackInteractor },
+            scope = testScope.backgroundScope,
+            onBootTransitionInteractor = onBootTransitionInteractor,
         )
     }

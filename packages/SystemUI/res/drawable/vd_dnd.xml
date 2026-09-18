@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+    Copyright (C) 2025 The Android Open Source Project
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+         http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:name="root_vector"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportHeight="24"
+    android:viewportWidth="24">
+    <group
+        android:pivotX="32"
+        android:pivotY="32"
+        android:scaleX="0.7746"
+        android:scaleY="0.7746"
+        android:translateX="-20"
+        android:translateY="-20">
+        <group
+            android:name="root_group"
+            android:pivotX="32"
+            android:pivotY="32.5">
+            <path
+                android:fillColor="#ffffff"
+                android:fillType="evenOdd"
+                android:pathData="M26.6667 33.7667H37.4667C37.8222 33.7667 38.1222 33.6445 38.3667 33.4C38.6111 33.1556 38.7333 32.8445 38.7333 32.4667C38.7333 32.1111 38.6111 31.8111 38.3667 31.5667C38.1222 31.3222 37.8222 31.2 37.4667 31.2H26.6667C26.3111 31.2 26.0111 31.3222 25.7667 31.5667C25.5222 31.8111 25.4 32.1222 25.4 32.5C25.4 32.8556 25.5222 33.1556 25.7667 33.4C26.0111 33.6445 26.3111 33.7667 26.6667 33.7667ZM32.0667 45.8334C30.2222 45.8334 28.4889 45.4889 26.8667 44.8C25.2444 44.0889 23.8333 43.1334 22.6333 41.9334C21.4333 40.7334 20.4778 39.3222 19.7667 37.7C19.0778 36.0778 18.7333 34.3445 18.7333 32.5C18.7333 30.6556 19.0778 28.9222 19.7667 27.3C20.4778 25.6778 21.4333 24.2667 22.6333 23.0667C23.8333 21.8667 25.2444 20.9222 26.8667 20.2334C28.4889 19.5222 30.2222 19.1667 32.0667 19.1667C33.9111 19.1667 35.6444 19.5222 37.2667 20.2334C38.8889 20.9222 40.3 21.8667 41.5 23.0667C42.7 24.2667 43.6444 25.6778 44.3333 27.3C45.0444 28.9222 45.4 30.6556 45.4 32.5C45.4 34.3445 45.0444 36.0778 44.3333 37.7C43.6444 39.3222 42.7 40.7334 41.5 41.9334C40.3 43.1334 38.8889 44.0889 37.2667 44.8C35.6444 45.4889 33.9111 45.8334 32.0667 45.8334Z" />
+        </group>
+    </group>
+</vector>

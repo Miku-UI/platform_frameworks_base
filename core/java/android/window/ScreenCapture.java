@@ -31,6 +31,7 @@ import android.os.Parcelable;
 import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.view.IWindowManager;
+import android.view.SurfaceControl;
 import android.view.WindowManagerGlobal;
 
 import java.lang.annotation.Retention;
@@ -148,6 +149,50 @@ public class ScreenCapture {
          * fall back to the 'None' behavior.
          */
         public static final int CAPTURE_MODE_REQUIRE_OPTIMIZED = 1;
+
+        /**
+         * Indicates a window should be treated as a mouse cursor in screen capturing.
+         *
+         * @hide
+         */
+        public static final int FLAG_MOUSE_CURSOR =
+                android.gui.CompositionFilterFlag.FLAG_MOUSE_CURSOR;
+
+        /**
+         * Indicates a window should be treated as screenshot UI elements in screen capturing.
+         *
+         * @hide
+         */
+        public static final int FLAG_SCREENSHOT_UI =
+                android.gui.CompositionFilterFlag.FLAG_SCREENSHOT_UI;
+
+        /**
+         * Indicates the window should be treated as a status bar in screen capturing.
+         *
+         * @hide
+         */
+        public static final int FLAG_STATUS_BAR = android.gui.CompositionFilterFlag.FLAG_STATUS_BAR;
+
+        /**
+         * Indicates the window should be treated as a IME window in screen capturing.
+         *
+         * @hide
+         */
+        public static final int FLAG_IME = android.gui.CompositionFilterFlag.FLAG_IME;
+
+        /**
+         * A {@link CompositionFilterFlag} is a property of a window. It's used to denote windows
+         * of specific type or behavior. The flag is mainly used to filter windows in screen
+         * capturing.
+         *
+         * <p>See
+         * {@link android.view.SurfaceControl.Transaction#setCompositionFilterFlag(SurfaceControl, int)}}
+         *
+         * @hide
+         */
+        @IntDef(value = {FLAG_MOUSE_CURSOR, FLAG_SCREENSHOT_UI, FLAG_STATUS_BAR, FLAG_IME})
+        public @interface CompositionFilterFlag {
+        }
 
         private final int mDisplayId;
 

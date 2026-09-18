@@ -19,11 +19,11 @@ package com.android.wm.shell.flicker.fundamentals
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
 import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher
 import android.tools.traces.component.ComponentNameMatcher.Companion.DESKTOP_WALLPAPER_ACTIVITY
 import com.android.wm.shell.Utils
@@ -49,7 +49,7 @@ class CloseAllAppsWithBackNavigationTest(flicker: FlickerTest) : DesktopModeBase
     inner class CloseAllAppsWithBackNavigationScenario :
         CloseAllAppsWithBackNavigation(
             navigationMode = flicker.scenario.navBarMode,
-            rotation = flicker.scenario.startRotation
+            rotation = flicker.scenario.startRotation,
         )
 
     @Rule
@@ -58,31 +58,22 @@ class CloseAllAppsWithBackNavigationTest(flicker: FlickerTest) : DesktopModeBase
     val scenario = CloseAllAppsWithBackNavigationScenario()
     private val appsInZOrder = scenario.appsInZOrder
 
-
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.closeAllAppsInDesktop()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.closeAllAppsInDesktop() }
+            teardown { scenario.teardown() }
         }
 
     @Test
-    fun appWindowIsInvisibleAtEnd() =
-        appsInZOrder.forEach { flicker.appWindowIsInvisibleAtEnd(it) }
+    fun appWindowIsInvisibleAtEnd() = appsInZOrder.forEach { flicker.appWindowIsInvisibleAtEnd(it) }
 
     @Test
     fun launcherWindowIsInvisibleAtEnd() =
         flicker.appWindowIsInvisibleAtEnd(ComponentNameMatcher.LAUNCHER)
 
     @Test
-    fun wallpaperActivityOnTopAtEnd() =
-        flicker.appWindowIsVisibleAtEnd(DESKTOP_WALLPAPER_ACTIVITY)
+    fun wallpaperActivityOnTopAtEnd() = flicker.appWindowIsVisibleAtEnd(DESKTOP_WALLPAPER_ACTIVITY)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

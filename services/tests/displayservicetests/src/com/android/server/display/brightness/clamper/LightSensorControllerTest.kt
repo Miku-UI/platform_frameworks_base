@@ -164,6 +164,38 @@ class LightSensorControllerTest {
         }
     }
 
+    @Test
+    fun ignoresNaNLuxValues() {
+        val eventTime = 60L
+        val listenerCaptor = argumentCaptor<SensorEventListener>()
+        testInjector.lightSensor = createSensor(Sensor.TYPE_LIGHT, Sensor.STRING_TYPE_LIGHT)
+        controller.configure(dummySensorData, DISPLAY_ID)
+        controller.restart()
+        testHandler.flush()
+        verify(mockSensorManager).registerListener(listenerCaptor.capture(),
+            eq(testInjector.lightSensor), eq(LIGHT_SENSOR_RATE * 1000), eq(mockHandler))
+
+        val listener = listenerCaptor.lastValue
+
+        // Send a valid event
+        val validLux1 = 50f
+        val expectedLux1 = 40f
+        whenever(mockAmbientFilter.getEstimate(NOW)).thenReturn(expectedLux1)
+        listener.onSensorChanged(createSensorEvent(testInjector.lightSensor!!,
+            validLux1, eventTime * 1_000_000))
+        verify(mockAmbientFilter).addValue(eventTime, validLux1)
+        verify(mockLightSensorListener).onAmbientLuxChange(expectedLux1)
+
+        // Send a NaN event
+        org.mockito.Mockito.reset(mockAmbientFilter, mockLightSensorListener)
+        val nanLux = Float.NaN
+        listener.onSensorChanged(createSensorEvent(testInjector.lightSensor!!,
+            nanLux, (eventTime + 10) * 1_000_000))
+
+        // Verify NaN was ignored - No interactions on the mocks after reset
+        verifyNoMoreInteractions(mockAmbientFilter, mockLightSensorListener)
+    }
+
     private inner class TestInjector : Injector() {
         var lightSensor: Sensor? = null
         override fun getLightSensor(sensorManager: SensorManager?,

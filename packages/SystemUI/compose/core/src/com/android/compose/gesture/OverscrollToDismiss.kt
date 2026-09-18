@@ -23,6 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerType
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
@@ -39,6 +40,7 @@ import androidx.compose.ui.platform.InspectorInfo
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastCoerceAtLeast
 import com.android.mechanics.DistanceGestureContext
 import com.android.mechanics.MotionValue
 import com.android.mechanics.debug.DebugMotionValueNode
@@ -96,19 +98,17 @@ private class OverscrollToDismissNode(
     NestedDraggable,
     NestedDraggable.Controller {
 
-    // This implementation always tracks the gesture from 0..x, independent of whether the
-    // overscroll is positive or negative. Thus, the output needs to be multiplied by this sign to
-    // compute the actual value.
-    private var overscrollSign: Float = 0f
     private val gestureContext =
         DistanceGestureContext(0f, InputDirection.Max, directionChangeSlop = 1f)
 
     private var dragState: DragState by mutableStateOf(DragState.Idle)
 
-    enum class DragState {
-        Idle,
-        Dragging,
-        Dismissed,
+    sealed interface DragState {
+        object Idle : DragState
+
+        data class Dragging(val sign: Float) : DragState
+
+        data class Dismissed(val targetOffset: Float) : DragState
     }
 
     private lateinit var motionValue: MotionValue
@@ -132,13 +132,18 @@ private class OverscrollToDismissNode(
             with(motionBuilderContext) {
                 when (dragState) {
                     DragState.Idle -> fixedSpatialValueSpec(0f, SnapBackSpring)
-                    DragState.Dragging -> spatialMotionSpec { after(0f, MagneticDetach()) }
-                    DragState.Dismissed ->
+                    is DragState.Dragging ->
+                        spatialMotionSpec {
+                            before(0f, MagneticDetach())
+                            after(0f, MagneticDetach())
+                        }
+                    is DragState.Dismissed -> {
                         fixedSpatialValueSpec(
-                            contentBoxWidth.toFloat(),
+                            (dragState as DragState.Dismissed).targetOffset,
                             SnapBackSpring,
                             listOf(isDismissedState with true),
                         )
+                    }
                 }
             }
         }
@@ -171,9 +176,11 @@ private class OverscrollToDismissNode(
         val placeable = measurable.measure(constraints)
         contentBoxWidth = placeable.measuredWidth
         return layout(placeable.measuredWidth, placeable.measuredHeight) {
-            placeable.place((motionValue.output * overscrollSign).toInt(), 0)
+            placeable.place((motionValue.output).toInt(), 0)
         }
     }
+
+    override fun shouldStartDrag(change: PointerInputChange) = false
 
     override val autoStopNestedDrags: Boolean
         get() = true
@@ -184,10 +191,11 @@ private class OverscrollToDismissNode(
         pointersDown: Int,
         pointerType: PointerType?,
     ): NestedDraggable.Controller {
-        overscrollSign = sign
-        gestureContext.reset(dragOffset = motionValue.output, direction = InputDirection.Max)
-        dragState = DragState.Dragging
-
+        gestureContext.reset(
+            dragOffset = 0f,
+            direction = if (sign < 0) InputDirection.Min else InputDirection.Max,
+        )
+        dragState = DragState.Dragging(sign)
         return this
     }
 
@@ -196,23 +204,33 @@ private class OverscrollToDismissNode(
     }
 
     override fun onDrag(delta: Float): Float {
+        if (dragState !is DragState.Dragging) return 0f
+
         val previousOffset = gestureContext.dragOffset
-        val currentOffset = (gestureContext.dragOffset + delta * overscrollSign).coerceAtLeast(0f)
-        gestureContext.dragOffset = currentOffset
-        return (currentOffset - previousOffset) * overscrollSign
+        val currentOffset = (gestureContext.dragOffset + delta)
+
+        // Consume the overscroll only back to 0
+        val dragSign = (dragState as DragState.Dragging).sign
+        val coercedOffset = (currentOffset * dragSign).fastCoerceAtLeast(0f) * dragSign
+
+        gestureContext.dragOffset = coercedOffset
+        return (coercedOffset - previousOffset)
     }
 
     override suspend fun onDragStopped(velocity: Float, awaitFling: suspend () -> Unit): Float {
         val currentState = motionValue[AttachDetachState]
         with(requireDensity()) {
+            val outputSign = motionValue.output.sign
             val isFlingInOppositeDirection =
-                abs(velocity) > AbortVelocity.toPx() && velocity.sign != overscrollSign
+                abs(velocity) > AbortVelocity.toPx() && velocity.sign != outputSign
 
             val settleAttached =
                 currentState == MagneticDetach.State.Attached ||
                     (currentState == MagneticDetach.State.Detached && isFlingInOppositeDirection)
 
-            dragState = if (settleAttached) DragState.Idle else DragState.Dismissed
+            dragState =
+                if (settleAttached) DragState.Idle
+                else DragState.Dismissed(contentBoxWidth * outputSign)
         }
         return velocity
     }

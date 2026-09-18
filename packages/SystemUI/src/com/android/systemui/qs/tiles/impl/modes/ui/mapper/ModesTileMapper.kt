@@ -17,7 +17,6 @@
 package com.android.systemui.qs.tiles.impl.modes.ui.mapper
 
 import android.content.res.Resources
-import android.icu.text.MessageFormat
 import android.widget.Button
 import com.android.systemui.qs.tiles.base.shared.model.QSTileConfig
 import com.android.systemui.qs.tiles.base.shared.model.QSTileState
@@ -25,7 +24,6 @@ import com.android.systemui.qs.tiles.base.ui.model.QSTileDataToStateMapper
 import com.android.systemui.qs.tiles.impl.modes.domain.model.ModesTileModel
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
-import java.util.Locale
 import javax.inject.Inject
 
 class ModesTileMapper
@@ -41,13 +39,8 @@ constructor(@ShadeDisplayAware private val resources: Resources, val theme: Reso
                 } else {
                     QSTileState.ActivationState.INACTIVE
                 }
-            if (android.app.Flags.modesUiTileReactivatesLast()) {
-                label = getLabel(data, resources)
-                secondaryLabel = getSecondaryLabel(data, resources)
-            } else {
-                // label is fixed, set by QSTileState.build() from uiConfig
-                secondaryLabel = legacyGetModesStatus(data, resources)
-            }
+            label = getLabel(data, resources)
+            secondaryLabel = getSecondaryLabel(data, resources)
             contentDescription = "$label. $secondaryLabel"
             supportedActions =
                 setOf(
@@ -70,17 +63,5 @@ constructor(@ShadeDisplayAware private val resources: Resources, val theme: Reso
         return if (data.activeModes.size >= 2)
             resources.getString(R.string.zen_modes_multiple_on_status)
         else if (data.activeModes.size == 1) resources.getString(R.string.zen_mode_on) else ""
-    }
-
-    private fun legacyGetModesStatus(data: ModesTileModel, resources: Resources): String {
-        val msgFormat =
-            MessageFormat(resources.getString(R.string.zen_mode_active_modes), Locale.getDefault())
-        val count = data.activeModes.count()
-        val args: MutableMap<String, Any> = HashMap()
-        args["count"] = count
-        if (count >= 1) {
-            args["mode"] = data.activeModes[0].name
-        }
-        return msgFormat.format(args)
     }
 }

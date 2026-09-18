@@ -20,6 +20,8 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static junit.framework.Assert.fail;
 
+import static org.junit.Assume.assumeTrue;
+
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -35,6 +37,7 @@ import androidx.test.uiautomator.UiDevice;
 
 import com.android.frameworks.coretests.aidl.ICmdCallback;
 import com.android.frameworks.coretests.aidl.ICmdReceiver;
+import com.android.internal.os.KernelCpuThreadReader;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -72,6 +75,8 @@ public class CpuPowerStatsCollectorValidationTest {
 
     @Test
     public void totalTimeInPowerBrackets() throws Exception {
+        assumeTrue(KernelCpuThreadReader.isTimeInStateSupported());
+
         dumpCpuStats();     // For the side effect of capturing the baseline.
 
         doSomeWork();

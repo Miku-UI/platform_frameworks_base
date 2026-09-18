@@ -20,11 +20,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import com.android.systemui.KairosActivatable
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosNetwork
 import com.android.systemui.kairos.util.nameTag
 
-@ExperimentalKairosApi
 @Composable
 fun <T : KairosActivatable> rememberKairosActivatable(
     name: String,

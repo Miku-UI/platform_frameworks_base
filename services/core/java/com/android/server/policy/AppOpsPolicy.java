@@ -412,7 +412,7 @@ public final class AppOpsPolicy implements AppOpsManagerInternal.CheckOpsDelegat
                     Arrays.asList(tagsList.split(ACTIVITY_RECOGNITION_TAGS_SEPARATOR))).build();
             synchronized (mLock) {
                 updateAllowListedTagsForPackageLocked(
-                        UserHandle.getAppId(resolvedService.serviceInfo.applicationInfo.uid),
+                        UserHandle.getAppId(resolvedService.serviceInfo.getUid()),
                         packageTagsList,
                         mActivityRecognitionTags);
             }

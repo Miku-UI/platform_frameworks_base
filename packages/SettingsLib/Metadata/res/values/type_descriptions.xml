@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Copyright (C) 2026 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<resources>
+    <string name="any_boolean_type_description">A boolean value.</string>
+    <string name="any_int_type_description">An integer value.</string>
+    <string name="any_string_type_description">A string value.</string>
+    <string name="display_id_type_description">A system display identifier (can be internal or external based on configuration).</string>
+    <string name="installed_package_name_type_description">Any package installed on the device.</string>
+    <string name="int_in_range_type_description_from">An integer greater than or equal to %1$d, with step %2$d.</string>
+    <string name="int_in_range_type_description_to">An integer less than or equal to %1$d, with step %2$d.</string>
+    <string name="int_in_range_type_description_between">An integer in a given range [%1$d, %2$d], with step %3$d.</string>
+    <string name="time_of_day_type_description">A time of day defined by the 24-hour format HH:mm.</string>
+    <string name="time_duration_type_description">A time duration represented in integer with the precision of seconds.</string>
+    <string name="sim_slot_id_type_description">A valid SIM slot ID.</string>
+    <string name="subscription_id_type_description">A valid subscription ID.</string>
+    <string name="wifi_ssid_type_description">The SSID of a Wi-Fi network.</string>
+</resources>

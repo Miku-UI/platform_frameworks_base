@@ -19,16 +19,6 @@ flag {
 }
 
 flag {
-    name: "use_cpu_time_for_temp_allowlist"
-    namespace: "backstage_power"
-    description: "Use CPU time for temporary allowlists"
-    bug: "376561328"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "enable_non_scheduled_exit_from_idle_pending"
     namespace: "backstage_power"
     description: "If the Device Idle state is IDLE_PENDING, allow directly going past the state if IDLE_AFTER_INACTIVE_TIMEOUT is 0."
@@ -46,4 +36,42 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "allow_non_wake_up_deep_alarms"
+    namespace: "wear_frameworks"
+    description: "Allows using non-wakeup alarms to transition between deep alarm states."
+    bug: "458144517"
+}
+
+flag {
+    name: "offload_motion_context_for_device_idle"
+    namespace: "backstage_power"
+    description: "Use Offloaded Motion Context for device idle when available"
+    bug: "450597782"
+}
+
+flag {
+    name: "remove_notification_seen_elevation"
+    namespace: "backstage_power"
+    description: "Stop promoting apps to a higher standby bucket when a notification is seen."
+    bug: "411478606"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "support_allow_while_idle_quota_zero"
+    namespace: "backstage_power"
+    description: "Allows the allow-while-idle quotas to be set to 0"
+    bug: "437418242"
+}
+
+flag {
+    name: "quick_doze_on_lid_close"
+    namespace: "backstage_power"
+    description: "Enables Quick Doze transition when the desktop device lid is closed"
+    bug: "437418242"
 }

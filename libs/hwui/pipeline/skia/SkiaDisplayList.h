@@ -29,6 +29,7 @@
 
 namespace android {
 namespace uirenderer {
+class Matrix4;
 
 namespace renderthread {
 class CanvasContext;
@@ -144,7 +145,8 @@ public:
 
     bool prepareListAndChildren(
             TreeObserver& observer, TreeInfo& info, bool functorsNeedLayer,
-            std::function<void(RenderNode*, TreeObserver&, TreeInfo&, bool)> childFn);
+            std::function<void(RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool)>
+                    childFn);
 
     /**
      *  Calls the provided function once for each child of this DisplayList

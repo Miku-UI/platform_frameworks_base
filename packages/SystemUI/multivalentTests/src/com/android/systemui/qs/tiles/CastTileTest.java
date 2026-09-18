@@ -26,13 +26,20 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.Dialog;
+import android.content.Context;
 import android.media.MediaRouter;
 import android.media.MediaRouter.RouteInfo;
 import android.media.projection.MediaProjectionInfo;
 import android.media.projection.StopReason;
 import android.os.Handler;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.service.quicksettings.Tile;
 import android.testing.TestableLooper;
+import android.view.View;
+import android.view.Window;
+import android.window.OnBackInvokedDispatcher;
 
 import androidx.lifecycle.LifecycleOwner;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -40,6 +47,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.internal.logging.MetricsLogger;
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.SysuiTestableContext;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.classifier.FalsingManagerFake;
 import com.android.systemui.plugins.ActivityStarter;
@@ -72,6 +80,8 @@ import java.util.List;
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
 @SmallTest
 public class CastTileTest extends SysuiTestCase {
+    private static final int PRIMARY_USER_ID = 0;
+    private static final int SECONDARY_USER_ID = 10;
 
     @Mock
     private CastController mController;
@@ -103,6 +113,7 @@ public class CastTileTest extends SysuiTestCase {
             new FakeConnectivityRepository();
     private final ShadeDialogContextInteractor mShadeDialogContextInteractor =
             new FakeShadeDialogContextInteractor(mContext);
+    private final FakeDialogCreator mDialogCreator = new FakeDialogCreator();
 
     private TestableLooper mTestableLooper;
     private CastTile mCastTile;
@@ -125,6 +136,7 @@ public class CastTileTest extends SysuiTestCase {
     // All these tests for enabled/disabled wifi have hotspot not enabled
 
     @Test
+    @DisableFlags(com.android.systemui.Flags.FLAG_QS_CAST_TILE_SKIP_WIFI_CHECK)
     public void stateUnavailable_noDefaultNetworks_newPipeline() {
         createAndStartTile();
         mTestableLooper.processAllMessages();
@@ -133,12 +145,32 @@ public class CastTileTest extends SysuiTestCase {
     }
 
     @Test
+    @EnableFlags(com.android.systemui.Flags.FLAG_QS_CAST_TILE_SKIP_WIFI_CHECK)
+    public void stateInactive_noDefaultNetworks_skipWifiCheckEnabled() {
+        createAndStartTile();
+        mTestableLooper.processAllMessages();
+
+        assertEquals(Tile.STATE_INACTIVE, mCastTile.getState().state);
+    }
+
+    @Test
+    @DisableFlags(com.android.systemui.Flags.FLAG_QS_CAST_TILE_SKIP_WIFI_CHECK)
     public void stateUnavailable_mobileConnected_newPipeline() {
         createAndStartTile();
         mConnectivityRepository.setMobileConnected(true);
         mTestableLooper.processAllMessages();
 
         assertEquals(Tile.STATE_UNAVAILABLE, mCastTile.getState().state);
+    }
+
+    @Test
+    @EnableFlags(com.android.systemui.Flags.FLAG_QS_CAST_TILE_SKIP_WIFI_CHECK)
+    public void stateInactive_mobileConnected_skipWifiCheckEnabled() {
+        createAndStartTile();
+        mConnectivityRepository.setMobileConnected(true);
+        mTestableLooper.processAllMessages();
+
+        assertEquals(Tile.STATE_INACTIVE, mCastTile.getState().state);
     }
 
     @Test
@@ -194,6 +226,7 @@ public class CastTileTest extends SysuiTestCase {
     // -------------------------------------------------
     // All these tests for enabled/disabled hotspot have wifi not enabled
     @Test
+    @DisableFlags(com.android.systemui.Flags.FLAG_QS_CAST_TILE_SKIP_WIFI_CHECK)
     public void testStateUnavailable_hotspotDisabled() {
         createAndStartTile();
         mHotspotCallback.onHotspotChanged(false, 0);
@@ -203,12 +236,33 @@ public class CastTileTest extends SysuiTestCase {
     }
 
     @Test
+    @EnableFlags(com.android.systemui.Flags.FLAG_QS_CAST_TILE_SKIP_WIFI_CHECK)
+    public void testStateInactive_hotspotDisabled_skipWifiCheckEnabled() {
+        createAndStartTile();
+        mHotspotCallback.onHotspotChanged(false, 0);
+        mTestableLooper.processAllMessages();
+
+        assertEquals(Tile.STATE_INACTIVE, mCastTile.getState().state);
+    }
+
+    @Test
+    @DisableFlags(com.android.systemui.Flags.FLAG_QS_CAST_TILE_SKIP_WIFI_CHECK)
     public void testStateUnavailable_hotspotEnabledNotConnected() {
         createAndStartTile();
         mHotspotCallback.onHotspotChanged(true, 0);
         mTestableLooper.processAllMessages();
 
         assertEquals(Tile.STATE_UNAVAILABLE, mCastTile.getState().state);
+    }
+
+    @Test
+    @EnableFlags(com.android.systemui.Flags.FLAG_QS_CAST_TILE_SKIP_WIFI_CHECK)
+    public void testStateInactive_hotspotEnabledNotConnected_skipWifiCheckEnabled() {
+        createAndStartTile();
+        mHotspotCallback.onHotspotChanged(true, 0);
+        mTestableLooper.processAllMessages();
+
+        assertEquals(Tile.STATE_INACTIVE, mCastTile.getState().state);
     }
 
     @Test
@@ -462,6 +516,7 @@ public class CastTileTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableFlags(com.android.systemui.Flags.FLAG_QS_CAST_TILE_SKIP_WIFI_CHECK)
     public void testDetailsViewUnavailableState_returnsNull() {
         createAndStartTile();
         mTestableLooper.processAllMessages();
@@ -484,6 +539,66 @@ public class CastTileTest extends SysuiTestCase {
         mCastTile.getDetailsViewModel(Assert::assertNotNull);
     }
 
+    @Test
+    @EnableFlags(com.android.systemui.Flags.FLAG_QS_CAST_TILE_HSUM_FIX)
+    public void initialize_castControllerUserIdIsSet() {
+        when(mHost.getUserId()).thenReturn(PRIMARY_USER_ID);
+
+        createAndStartTile();
+
+        verify(mController).setCurrentUserId(eq(PRIMARY_USER_ID));
+    }
+
+    @Test
+    @EnableFlags(com.android.systemui.Flags.FLAG_QS_CAST_TILE_HSUM_FIX)
+    public void switchUser_castControllerUserIdIsSet() {
+        when(mHost.getUserId()).thenReturn(PRIMARY_USER_ID);
+        createAndStartTile();
+        when(mHost.getUserId()).thenReturn(SECONDARY_USER_ID);
+
+        mCastTile.userSwitch(SECONDARY_USER_ID);
+        mTestableLooper.processAllMessages();
+
+        verify(mController).setCurrentUserId(eq(SECONDARY_USER_ID));
+    }
+
+    @Test
+    @EnableFlags(com.android.systemui.Flags.FLAG_QS_CAST_TILE_HSUM_FIX)
+    public void createDialog_primaryUser_usesCorrectContext() {
+        mContext.ensureTestableResources();
+        when(mHost.getUserContext()).thenReturn(mContext);
+
+        List<CastDevice> emptyDeviceList = List.of();
+        when(mController.getCastDevices()).thenReturn(emptyDeviceList);
+        createAndStartTile();
+        mConnectivityRepository.setWifiConnected(true);
+        mTestableLooper.processAllMessages();
+
+        mCastTile.handleClick(null /* view */);
+        mTestableLooper.processAllMessages();
+
+        assertEquals(mDialogCreator.mLastContextPassedToCreateDialog, mContext);
+    }
+
+    @Test
+    @EnableFlags(com.android.systemui.Flags.FLAG_QS_CAST_TILE_HSUM_FIX)
+    public void createDialog_secondaryUser_usesCorrectContext() {
+        SysuiTestableContext secondaryUserContext = new SysuiTestableContext(mContext);
+        secondaryUserContext.ensureTestableResources();
+        when(mHost.getUserContext()).thenReturn(secondaryUserContext);
+
+        List<CastDevice> emptyDeviceList = List.of();
+        when(mController.getCastDevices()).thenReturn(emptyDeviceList);
+        createAndStartTile();
+        mConnectivityRepository.setWifiConnected(true);
+        mTestableLooper.processAllMessages();
+
+        mCastTile.handleClick(null /* view */);
+        mTestableLooper.processAllMessages();
+
+        assertEquals(mDialogCreator.mLastContextPassedToCreateDialog, secondaryUserContext);
+    }
+
     private void createAndStartTile() {
         mCastTile = new CastTile(
                 mHost,
@@ -502,7 +617,8 @@ public class CastTileTest extends SysuiTestCase {
                 mConnectivityRepository,
                 mJavaAdapter,
                 mShadeDialogContextInteractor,
-                mCastDetailsViewModelFactory
+                mCastDetailsViewModelFactory,
+                mDialogCreator
         );
         mCastTile.initialize();
 
@@ -527,4 +643,29 @@ public class CastTileTest extends SysuiTestCase {
                 /* origin= */ CastDevice.CastOrigin.MediaProjection,
                 /* tag= */ null);
     }
+
+    private static class FakeDialogCreator extends CastTile.DialogCreator {
+        Context mLastContextPassedToCreateDialog;
+
+        @Override
+        public Dialog createDialog(Context context, int routeTypes, View.OnClickListener listener,
+                int theme, boolean showProgressBarWhenEmpty) {
+            mLastContextPassedToCreateDialog = context;
+
+            Window window = mock(Window.class);
+            View decorView = mock(View.class);
+            when(decorView.getResources()).thenReturn(context.getResources());
+            when(window.getDecorView()).thenReturn(decorView);
+            when(window.getAttributes()).thenReturn(new android.view.WindowManager.LayoutParams());
+
+            Dialog dialog = mock(Dialog.class);
+            when(dialog.getContext()).thenReturn(context);
+            when(dialog.getWindow()).thenReturn(window);
+            OnBackInvokedDispatcher backInvokedDispatcher = mock(OnBackInvokedDispatcher.class);
+            when(dialog.getOnBackInvokedDispatcher()).thenReturn(backInvokedDispatcher);
+
+            return dialog;
+        }
+    }
+
 }

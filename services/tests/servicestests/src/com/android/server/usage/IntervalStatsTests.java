@@ -24,7 +24,6 @@ import static com.android.server.usage.PackagesTokenData.UNASSIGNED_TOKEN;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
-import android.app.usage.Flags;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
 import android.content.res.Configuration;
@@ -115,21 +114,19 @@ public final class IntervalStatsTests {
                     event.mLocusId = "locus" + (i % 7); //"random" locus
                     break;
                 case UsageEvents.Event.USER_INTERACTION:
-                    if (Flags.userInteractionTypeApi()) {
-                        // "random" user interaction extras.
-                        final PersistableBundle extras = new PersistableBundle();
-                        extras.putString(UsageStatsManager.EXTRA_EVENT_CATEGORY,
-                                "fake.namespace.category" + (i % 13));
-                        extras.putString(UsageStatsManager.EXTRA_EVENT_ACTION,
-                                "fakeaction" + (i % 13));
-                        extras.putIntArray(EXTRA_KEY_INT_ARRAY,
-                            new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
-                        final char[] longString = new char[256];
-                        Arrays.fill(longString, 'a');
-                        extras.putString(EXTRA_KEY_STRING, new String(longString));
-                        extras.putPersistableBundle(EXTRA_KEY_BUNDLE, new PersistableBundle());
-                        event.mExtras = extras;
-                    }
+                    // "random" user interaction extras.
+                    final PersistableBundle extras = new PersistableBundle();
+                    extras.putString(UsageStatsManager.EXTRA_EVENT_CATEGORY,
+                            "fake.namespace.category" + (i % 13));
+                    extras.putString(UsageStatsManager.EXTRA_EVENT_ACTION,
+                            "fakeaction" + (i % 13));
+                    extras.putIntArray(EXTRA_KEY_INT_ARRAY,
+                        new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+                    final char[] longString = new char[256];
+                    Arrays.fill(longString, 'a');
+                    extras.putString(EXTRA_KEY_STRING, new String(longString));
+                    extras.putPersistableBundle(EXTRA_KEY_BUNDLE, new PersistableBundle());
+                    event.mExtras = extras;
                     break;
             }
 

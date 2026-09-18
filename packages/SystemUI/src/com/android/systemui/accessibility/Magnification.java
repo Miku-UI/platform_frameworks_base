@@ -66,4 +66,32 @@ public interface Magnification extends CoreStartable {
             float positionX,
             float positionY,
             IRemoteMagnificationAnimationCallback callback);
+
+    /**
+     * Returns {@code true} if any magnification controller is currently activated.
+     * Otherwise, it returns {@code false}.
+     *
+     * @param displayId the displayId to check.
+     */
+    @MainThread
+    boolean isAnyMagnificationActivated(int displayId);
+
+    /**
+     * Registers a listener to receive changes to magnification on/off status.
+     */
+    @MainThread
+    void registerActivationChangedListener(MagnificationActivationChangedListener listener);
+
+    /**
+     * Unregisters a listener to stop receiving changes to magnification on/off status.
+     */
+    @MainThread
+    void unregisterActivationChangedListener(MagnificationActivationChangedListener listener);
+
+    interface MagnificationActivationChangedListener {
+        /**
+         * Callback for whenever the on/off status changes.
+         */
+        void onActivationChanged(int displayId);
+    }
 }

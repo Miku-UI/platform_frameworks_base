@@ -39,6 +39,10 @@
 #include <sys/stat.h>
 #include <utils/StatsUtils.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 #include "Bitmap.h"
 #include "BitmapFactory.h"
 #include "ByteBufferStreamAdaptor.h"
@@ -73,9 +77,10 @@ enum Allocator {
 
 // These need to stay in sync with ImageDecoder.java's Error constants.
 enum Error {
-    kSourceException     = 1,
-    kSourceIncomplete    = 2,
+    kSourceException = 1,
+    kSourceIncomplete = 2,
     kSourceMalformedData = 3,
+    kGainmapExtractionFailed = 4,
 };
 
 // These need to stay in sync with PixelFormat.java's Format constants.
@@ -161,10 +166,30 @@ static jobject native_create(JNIEnv* env, std::unique_ptr<SkStream> stream,
                           animated, isNinePatch);
 }
 
+// Gets the 'handle' field from a FileDescriptor object. This field is only
+// populated in Windows.
+#ifdef _WIN32
+static jlong jniGetHandleFromFileDescriptor(JNIEnv* env, jobject fileDescriptor) {
+    jclass fileDescriptorClass = android::FindClassOrDie(env, "java/io/FileDescriptor");
+    jfieldID handleField = android::GetFieldIDOrDie(env, fileDescriptorClass, "handle", "J");
+    return env->GetLongField(fileDescriptor, handleField);
+}
+#endif
+
 static jobject ImageDecoder_nCreateFd(JNIEnv* env, jobject /*clazz*/,
         jobject fileDescriptor, jlong length, jboolean preferAnimation, jobject source) {
-#ifdef _WIN32  // LayoutLib for Windows does not support F_DUPFD_CLOEXEC
-    return throw_exception(env, kSourceException, "Not supported on Windows", nullptr, source);
+#ifdef _WIN32
+    HANDLE fileHandle = (HANDLE)jniGetHandleFromFileDescriptor(env, fileDescriptor);
+
+    // Duplicate the file handle
+    HANDLE duplicateHandle;
+    if (!DuplicateHandle(GetCurrentProcess(), fileHandle, GetCurrentProcess(), &duplicateHandle, 0,
+                         FALSE, DUPLICATE_SAME_ACCESS)) {
+        return nullObjectReturn("DuplicateHandle failed");
+    }
+
+    int dupDescriptor = _open_osfhandle((intptr_t)duplicateHandle, _O_RDONLY);
+    FILE* file = _fdopen(dupDescriptor, "r");
 #else
     int descriptor = jniGetFDFromFileDescriptor(env, fileDescriptor);
 
@@ -176,6 +201,7 @@ static jobject ImageDecoder_nCreateFd(JNIEnv* env, jobject /*clazz*/,
 
     int dupDescriptor = fcntl(descriptor, F_DUPFD_CLOEXEC, 0);
     FILE* file = fdopen(dupDescriptor, "r");
+#endif
     if (file == NULL) {
         close(dupDescriptor);
         return throw_exception(env, kSourceMalformedData, "Could not open file",
@@ -191,7 +217,6 @@ static jobject ImageDecoder_nCreateFd(JNIEnv* env, jobject /*clazz*/,
         fileStream.reset(new SkFILEStream(file, length));
     }
     return native_create(env, std::move(fileStream), source, preferAnimation);
-#endif
 }
 
 static jobject ImageDecoder_nCreateInputStream(JNIEnv* env, jobject /*clazz*/,
@@ -254,7 +279,7 @@ static jobject ImageDecoder_nDecodeBitmap(JNIEnv* env, jobject /*clazz*/, jlong 
                                           jboolean requireMutable, jint allocator,
                                           jboolean requireUnpremul, jboolean preferRamOverQuality,
                                           jboolean asAlphaMask, jlong colorSpaceHandle,
-                                          jboolean extended) {
+                                          jboolean extended, jlong allocationLimit) {
     ATRACE_CALL();
     auto* decoder = reinterpret_cast<ImageDecoder*>(nativePtr);
     if (!decoder->setTargetSize(targetWidth, targetHeight)) {
@@ -340,6 +365,29 @@ static jobject ImageDecoder_nDecodeBitmap(JNIEnv* env, jobject /*clazz*/, jlong 
         return nullptr;
     }
 
+    if (allocationLimit) {
+        size_t size;
+        if (!Bitmap::computeAllocationSize(bm.rowBytes(), bm.height(), &size)) {
+            SkString msg;
+            msg.printf("Error calculating bitmap allocation size with dimensions %i x %i",
+                       bitmapInfo.width(), bitmapInfo.height());
+            doThrowIOE(env, msg.c_str());
+            return nullptr;
+        }
+
+        if (size > allocationLimit) {
+            SkString msg;
+            msg.printf("Size (%zu) exceeds allocation limit (%lli)",
+                            size, static_cast<long long>(allocationLimit));
+            doThrowIOE(env, msg.c_str());
+            return nullptr;
+        }
+
+        // 0 indicates no limit so use lower bound of 1 for remaining allocation limit
+        allocationLimit = std::max<size_t>(1, static_cast<size_t>(allocationLimit) - size);
+        decoder->setAllocationLimit(allocationLimit);
+    }
+
     sk_sp<Bitmap> nativeBitmap;
     if (allocator == kSharedMemory_Allocator) {
         nativeBitmap = Bitmap::allocateAshmemBitmap(&bm);
@@ -358,17 +406,6 @@ static jobject ImageDecoder_nDecodeBitmap(JNIEnv* env, jobject /*clazz*/, jlong 
     SkCodec::Result result = decoder->decode(bm.getPixels(), bm.rowBytes());
     jthrowable jexception = get_and_clear_exception(env);
     int onPartialImageError = jexception ? kSourceException : 0;  // No error.
-
-    // Only attempt to extract the gainmap if we're not post-processing, as we can't automatically
-    // mimic that to the gainmap and expect it to be meaningful. And also don't extract the gainmap
-    // if we're prioritizing RAM over quality, since the gainmap improves quality at the
-    // cost of RAM
-    if (result == SkCodec::kSuccess && !jpostProcess && !preferRamOverQuality) {
-        // The gainmap costs RAM to improve quality, so skip this if we're prioritizing RAM instead
-        result = decoder->extractGainmap(nativeBitmap.get(),
-                                         allocator == kSharedMemory_Allocator ? true : false);
-        jexception = get_and_clear_exception(env);
-    }
 
     switch (result) {
         case SkCodec::kSuccess:
@@ -391,6 +428,23 @@ static jobject ImageDecoder_nDecodeBitmap(JNIEnv* env, jobject /*clazz*/, jlong 
             msg.printf("getPixels failed with error %s", SkCodec::ResultToString(result));
             doThrowIOE(env, msg.c_str());
             return nullptr;
+    }
+
+    // Only attempt to extract the gainmap if we're not post-processing, as we can't automatically
+    // mimic that to the gainmap and expect it to be meaningful. And also don't extract the gainmap
+    // if we're prioritizing RAM over quality, since the gainmap improves quality at the
+    // cost of RAM
+    if (result == SkCodec::kSuccess && !jpostProcess && !preferRamOverQuality) {
+        // The gainmap costs RAM to improve quality, so skip this if we're prioritizing RAM instead
+        result = decoder->extractGainmap(nativeBitmap.get(),
+                                         allocator == kSharedMemory_Allocator ? true : false);
+        jexception = get_and_clear_exception(env);
+
+        if (result != SkCodec::kSuccess) {
+            if (!jexception) {
+                onPartialImageError = kGainmapExtractionFailed;
+            }
+        }
     }
 
     if (onPartialImageError) {
@@ -541,7 +595,7 @@ static const JNINativeMethod gImageDecoderMethods[] = {
     { "nCreate",        "([BIIZLandroid/graphics/ImageDecoder$Source;)Landroid/graphics/ImageDecoder;", (void*) ImageDecoder_nCreateByteArray },
     { "nCreate",        "(Ljava/io/InputStream;[BZLandroid/graphics/ImageDecoder$Source;)Landroid/graphics/ImageDecoder;", (void*) ImageDecoder_nCreateInputStream },
     { "nCreate",        "(Ljava/io/FileDescriptor;JZLandroid/graphics/ImageDecoder$Source;)Landroid/graphics/ImageDecoder;", (void*) ImageDecoder_nCreateFd },
-    { "nDecodeBitmap",  "(JLandroid/graphics/ImageDecoder;ZIILandroid/graphics/Rect;ZIZZZJZ)Landroid/graphics/Bitmap;",
+    { "nDecodeBitmap",  "(JLandroid/graphics/ImageDecoder;ZIILandroid/graphics/Rect;ZIZZZJZJ)Landroid/graphics/Bitmap;",
                                                                  (void*) ImageDecoder_nDecodeBitmap },
     { "nGetSampledSize","(JI)Landroid/util/Size;",               (void*) ImageDecoder_nGetSampledSize },
     { "nGetPadding",    "(JLandroid/graphics/Rect;)V",           (void*) ImageDecoder_nGetPadding },

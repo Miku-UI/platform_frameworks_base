@@ -19,6 +19,7 @@ package com.android.settingslib.service
 import android.Manifest.permission.WRITE_SYSTEM_PREFERENCES
 import android.os.Binder
 import android.os.Build
+import android.os.DeadSystemException
 import android.os.OutcomeReceiver
 import android.service.settings.preferences.GetValueRequest
 import android.service.settings.preferences.GetValueResult
@@ -75,23 +76,17 @@ constructor(
         // MUST get pid/uid in binder thread
         val callingPid = Binder.getCallingPid()
         val callingUid = Binder.getCallingUid()
-        Log.i(TAG, "GetAllPreferenceMetadata pid=$callingPid uid=$callingUid")
-        scope.launch {
-            try {
-                val graphProto =
-                    graphApi.invoke(
-                        application,
-                        callingPid,
-                        callingUid,
-                        GetPreferenceGraphRequest(flags = PreferenceGetterFlags.METADATA),
-                    )
-                val result =
-                    transformCatalystGetMetadataResponse(this@SettingsPreferenceService, graphProto)
-                callback.onResult(result)
-            } catch (e: RuntimeException) {
-                Log.e(TAG, "GetAllPreferenceMetadata pid=$callingPid uid=$callingUid", e)
-                callback.onError(e)
-            }
+        launchSafe("GetAllPreferenceMetadata", callingPid, callingUid, callback::onError) {
+            val graphProto =
+                graphApi.invoke(
+                    application,
+                    callingPid,
+                    callingUid,
+                    GetPreferenceGraphRequest(flags = PreferenceGetterFlags.METADATA),
+                )
+            val result =
+                transformCatalystGetMetadataResponse(this@SettingsPreferenceService, graphProto)
+            callback.onResult(result)
         }
     }
 
@@ -102,25 +97,19 @@ constructor(
         // MUST get pid/uid in binder thread
         val callingPid = Binder.getCallingPid()
         val callingUid = Binder.getCallingUid()
-        Log.i(TAG, "GetPreferenceValue pid=$callingPid uid=$callingUid")
-        scope.launch {
-            try {
-                val apiRequest = transformFrameworkGetValueRequest(request)
-                val response = getApiHandler.invoke(application, callingPid, callingUid, apiRequest)
-                val result =
-                    transformCatalystGetValueResponse(
-                        this@SettingsPreferenceService,
-                        request,
-                        response,
-                    )
-                if (result == null) {
-                    callback.onError(IllegalStateException("No response"))
-                } else {
-                    callback.onResult(result)
-                }
-            } catch (e: RuntimeException) {
-                Log.e(TAG, "GetPreferenceValue pid=$callingPid uid=$callingUid", e)
-                callback.onError(e)
+        launchSafe("GetPreferenceValue", callingPid, callingUid, callback::onError) {
+            val apiRequest = transformFrameworkGetValueRequest(request)
+            val response = getApiHandler.invoke(application, callingPid, callingUid, apiRequest)
+            val result =
+                transformCatalystGetValueResponse(
+                    this@SettingsPreferenceService,
+                    request,
+                    response,
+                )
+            if (result == null) {
+                callback.onError(IllegalStateException("No response"))
+            } else {
+                callback.onResult(result)
             }
         }
     }
@@ -132,22 +121,49 @@ constructor(
         // MUST get pid/uid in binder thread
         val callingPid = Binder.getCallingPid()
         val callingUid = Binder.getCallingUid()
-        Log.i(TAG, "SetPreferenceValue pid=$callingPid uid=$callingUid")
+        launchSafe("SetPreferenceValue", callingPid, callingUid, callback::onError) {
+            val apiRequest = transformFrameworkSetValueRequest(request)
+            if (apiRequest == null) {
+                callback.onResult(
+                    SetValueResult.Builder(SetValueResult.RESULT_INVALID_REQUEST).build()
+                )
+            } else {
+                val response =
+                    setApiHandler.invoke(application, callingPid, callingUid, apiRequest)
+                callback.onResult(transformCatalystSetValueResponse(response))
+            }
+        }
+    }
+
+    private fun launchSafe(
+        methodName: String,
+        callingPid: Int,
+        callingUid: Int,
+        onError: (Exception) -> Unit,
+        block: suspend () -> Unit,
+    ) {
+        Log.i(TAG, "$methodName pid=$callingPid uid=$callingUid")
         scope.launch {
             try {
-                val apiRequest = transformFrameworkSetValueRequest(request)
-                if (apiRequest == null) {
-                    callback.onResult(
-                        SetValueResult.Builder(SetValueResult.RESULT_INVALID_REQUEST).build()
-                    )
-                } else {
-                    val response =
-                        setApiHandler.invoke(application, callingPid, callingUid, apiRequest)
-                    callback.onResult(transformCatalystSetValueResponse(response))
+                block()
+            } catch (e: Exception) {
+                // Check for DeadSystemException or its runtime wrapper cause.
+                // This is necessary because DeadSystemRuntimeException is @hide.
+                if (e is DeadSystemException || e.cause is DeadSystemException) {
+                    Log.w(TAG, "DeadSystemException (swallowing) in $methodName", e)
+                    return@launch
                 }
-            } catch (e: RuntimeException) {
-                Log.e(TAG, "SetPreferenceValue pid=$callingPid uid=$callingUid", e)
-                callback.onError(e)
+
+                Log.e(TAG, "$methodName pid=$callingPid uid=$callingUid", e)
+                try {
+                    onError(e)
+                } catch (ex: Exception) {
+                    if (ex is DeadSystemException || ex.cause is DeadSystemException) {
+                        Log.w(TAG, "Failed to report error due to DeadSystemException", ex)
+                    } else {
+                        throw ex
+                    }
+                }
             }
         }
     }

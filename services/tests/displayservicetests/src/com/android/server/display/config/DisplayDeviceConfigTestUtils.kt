@@ -18,6 +18,7 @@ package com.android.server.display.config
 
 import android.util.Spline
 import android.util.Xml
+import android.view.SurfaceControl.WorkDuration
 import com.android.server.display.config.HighBrightnessModeData.HDR_PERCENT_OF_SCREEN_REQUIRED_DEFAULT
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -40,13 +41,15 @@ fun createRefreshRateData(
     defaultPeakRefreshRate: Int = 60,
     defaultRefreshRateInHbmHdr: Int = 60,
     defaultRefreshRateInHbmSunlight: Int = 60,
+    defaultWorkDurations: WorkDuration? = null,
     lowPowerSupportedModes: List<SupportedModeData> = emptyList(),
-    lowLightBlockingZoneSupportedModes: List<SupportedModeData> = emptyList()
+    lowLightBlockingZoneSupportedModes: List<SupportedModeData> = emptyList(),
+    lowPowerWorkDurations: WorkDuration? = null
 ): RefreshRateData {
     return RefreshRateData(
         defaultRefreshRate, defaultPeakRefreshRate,
-        defaultRefreshRateInHbmHdr, defaultRefreshRateInHbmSunlight,
-        lowPowerSupportedModes, lowLightBlockingZoneSupportedModes
+        defaultRefreshRateInHbmHdr, defaultRefreshRateInHbmSunlight, defaultWorkDurations,
+        lowPowerSupportedModes, lowLightBlockingZoneSupportedModes, lowPowerWorkDurations
     )
 }
 
@@ -131,6 +134,104 @@ fun XmlSerializer.hdrBrightnessConfig(
     }
 }
 
+fun XmlSerializer.defaultWorkDurations(
+    lateWorkDuration: String,
+    earlyWorkDuration: String,
+    appWorkDuration: String
+) {
+    element("defaultWorkDurations") {
+        element("lateWorkDuration", lateWorkDuration)
+        element("earlyWorkDuration", earlyWorkDuration)
+        element("appWorkDuration", appWorkDuration)
+    }
+}
+
+
+fun XmlSerializer.thermalThrottlingWorkDurations(
+    lateWorkDuration: String,
+    earlyWorkDuration: String,
+    appWorkDuration: String
+) {
+    element("thermalThrottlingWorkDurations") {
+        element("lateWorkDuration", lateWorkDuration)
+        element("earlyWorkDuration", earlyWorkDuration)
+        element("appWorkDuration", appWorkDuration)
+    }
+}
+
+fun XmlSerializer.lowPowerWorkDurations(
+    lateWorkDuration: String,
+    earlyWorkDuration: String,
+    appWorkDuration: String
+) {
+    element("lowPowerWorkDurations") {
+        element("lateWorkDuration", lateWorkDuration)
+        element("earlyWorkDuration", earlyWorkDuration)
+        element("appWorkDuration", appWorkDuration)
+    }
+}
+
+fun XmlSerializer.thermalThrottling(content: XmlSerializer.() -> Unit) {
+    element("thermalThrottling") {
+        content()
+    }
+}
+
+fun XmlSerializer.workDurationsThrottlingMap(content: XmlSerializer.() -> Unit) {
+    element("workDurationsThrottlingMap") {
+        content()
+    }
+}
+
+fun XmlSerializer.workDurationsThrottlingPair(content: XmlSerializer.() -> Unit) {
+    element("workDurationsThrottlingPair") {
+        content()
+    }
+}
+
+enum class ThermalStatusEnum(val value: String) {
+    NONE("none"),
+    LIGHT("light"),
+    MODERATE("moderate"),
+    SEVERE("severe"),
+    CRITICAL("critical"),
+    EMERGENCY("emergency"),
+    SHUTDOWN("shutdown");
+
+    /**
+     * Converts the enum to the corresponding android.os.PowerManager.THERMAL_STATUS_* constant.
+     */
+    fun toPowerManagerConstant(): Int {
+        return when (this) {
+            NONE -> 0 // PowerManager.THERMAL_STATUS_NONE
+            LIGHT -> 1 // PowerManager.THERMAL_STATUS_LIGHT
+            MODERATE -> 2 // PowerManager.THERMAL_STATUS_MODERATE
+            SEVERE -> 3 // PowerManager.THERMAL_STATUS_SEVERE
+            CRITICAL -> 4 // PowerManager.THERMAL_STATUS_CRITICAL
+            EMERGENCY -> 5 // PowerManager.THERMAL_STATUS_EMERGENCY
+            SHUTDOWN -> 6 // PowerManager.THERMAL_STATUS_SHUTDOWN
+        }
+    }
+
+    override fun toString() = value
+}
+
+fun XmlSerializer.thermalStatus(status: ThermalStatusEnum) {
+    element("thermalStatus", status.value) // Output "none", "severe", etc.
+}
+
+fun XmlSerializer.refreshRateConfigs(content: XmlSerializer.() -> Unit) {
+    element("refreshRate") {
+        content()
+    }
+}
+
+fun XmlSerializer.frameRateVelocityDataConfig(
+    frameRateVelocityMapping: List<Pair<String, String>>? = null,
+) {
+    map("frameRateVelocityMapping", "point", "first", "second", frameRateVelocityMapping)
+}
+
 fun createDisplayConfiguration(content: XmlSerializer.() -> Unit = { }): DisplayConfiguration {
     val byteArrayOutputStream = ByteArrayOutputStream()
     val xmlSerializer = Xml.newSerializer()
@@ -185,4 +286,8 @@ private fun XmlSerializer.element(name: String, content: XmlSerializer.() -> Uni
     startTag("", name)
     content()
     endTag("", name)
+}
+
+private fun XmlSerializer.attribute(namespace: String?, name: String, value: String) {
+    this.attribute(namespace, name, value)
 }

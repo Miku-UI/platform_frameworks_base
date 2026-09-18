@@ -19,6 +19,7 @@ package com.android.server.accessibility.magnification;
 import static android.accessibilityservice.AccessibilityTrace.FLAGS_MAGNIFICATION_CONNECTION;
 import static android.accessibilityservice.AccessibilityTrace.FLAGS_MAGNIFICATION_CONNECTION_CALLBACK;
 import static android.os.Build.HW_TIMEOUT_MULTIPLIER;
+import static android.os.UserHandle.USER_SYSTEM;
 import static android.os.UserHandle.getCallingUserId;
 import static android.view.accessibility.MagnificationAnimationCallback.STUB_ANIMATION_CALLBACK;
 
@@ -55,6 +56,7 @@ import com.android.internal.accessibility.util.AccessibilityStatsLogUtils;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.LocalServices;
+import com.android.server.accessibility.AccessibilityLogUtil;
 import com.android.server.accessibility.AccessibilityTraceManager;
 import com.android.server.pm.UserManagerInternal;
 import com.android.server.statusbar.StatusBarManagerInternal;
@@ -75,9 +77,8 @@ public class MagnificationConnectionManager implements
         PanningScalingHandler.MagnificationDelegate,
         WindowManagerInternal.AccessibilityControllerInternal.UiChangesForAccessibilityCallbacks {
 
-    private static final boolean DBG = false;
-
-    private static final String TAG = "MagnificationConnectionManager";
+    private static final String TAG = MagnificationConnectionManager.class.getSimpleName();
+    private static final boolean DEBUG = AccessibilityLogUtil.isDebugEnabled(TAG);
 
     /**
      * Indicate that the magnification window is at the magnification center.
@@ -232,7 +233,7 @@ public class MagnificationConnectionManager implements
      * @param connection {@link IMagnificationConnection}
      */
     public void setConnection(@Nullable IMagnificationConnection connection) {
-        if (DBG) {
+        if (DEBUG) {
             Slog.d(TAG, "setConnection :" + connection + ", mConnectionState="
                     + connectionStateToString(mConnectionState));
         }
@@ -291,15 +292,19 @@ public class MagnificationConnectionManager implements
      *
      * @param connect {@code true} if needs connection, otherwise set the connection to null and
      *                destroy all window magnifications.
-     * @return {@code true} if {@link IMagnificationConnection} state is going to change.
      */
     public boolean requestConnection(boolean connect) {
-        final int callingUserId = getCallingUserId();
-        if (mUserManagerInternal.isVisibleBackgroundFullUser(callingUserId)) {
+        return requestConnection(connect, getCallingUserId());
+    }
+
+    @VisibleForTesting
+    boolean requestConnection(boolean connect, int callingUserId) {
+        if (callingUserId != USER_SYSTEM
+                && mUserManagerInternal.isVisibleBackgroundFullUser(callingUserId)) {
             throw new SecurityException("Visible background user(u" + callingUserId
                     + " is not permitted to request magnification connection.");
         }
-        if (DBG) {
+        if (DEBUG) {
             Slog.d(TAG, "requestConnection :" + connect);
         }
         if (mTrace.isA11yTracingEnabledForTypes(FLAGS_MAGNIFICATION_CONNECTION)) {
@@ -360,7 +365,7 @@ public class MagnificationConnectionManager implements
     }
 
     private void setConnectionState(@ConnectionState int state) {
-        if (DBG) {
+        if (DEBUG) {
             Slog.d(TAG, "setConnectionState : state=" + state + ", mConnectionState="
                     + connectionStateToString(mConnectionState));
         }
@@ -995,7 +1000,7 @@ public class MagnificationConnectionManager implements
                 if (magnifier == null) {
                     magnifier = createWindowMagnifier(displayId);
                 }
-                if (DBG) {
+                if (DEBUG) {
                     Slog.i(TAG,
                             "onWindowMagnifierBoundsChanged -" + displayId + " bounds = " + bounds);
                 }
@@ -1250,7 +1255,7 @@ public class MagnificationConnectionManager implements
         void startTrackingTypingFocusRecord() {
             if (mTrackingTypingFocusStartTime == 0) {
                 mTrackingTypingFocusStartTime = SystemClock.uptimeMillis();
-                if (DBG) {
+                if (DEBUG) {
                     Slog.d(TAG, "start: mTrackingTypingFocusStartTime = "
                             + mTrackingTypingFocusStartTime);
                 }
@@ -1263,7 +1268,7 @@ public class MagnificationConnectionManager implements
                 // update mTrackingTypingFocusSumTime value in an atomic operation
                 SUM_TIME_UPDATER.addAndGet(this, elapsed);
                 mTrackingTypingFocusStartTime = 0;
-                if (DBG) {
+                if (DEBUG) {
                     Slog.d(TAG, "pause: mTrackingTypingFocusSumTime = "
                             + mTrackingTypingFocusSumTime + ", elapsed = " + elapsed);
                 }
@@ -1275,7 +1280,7 @@ public class MagnificationConnectionManager implements
                 final long elapsed = mTrackingTypingFocusStartTime != 0
                         ? (SystemClock.uptimeMillis() - mTrackingTypingFocusStartTime) : 0;
                 final long duration = mTrackingTypingFocusSumTime + elapsed;
-                if (DBG) {
+                if (DEBUG) {
                     Slog.d(TAG, "stop and log: session duration = " + duration
                             + ", elapsed = " + elapsed);
                 }

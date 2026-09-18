@@ -36,6 +36,8 @@ import com.android.systemui.navigationbar.NavigationModeController.ModeChangedLi
 import com.android.systemui.plugins.qs.QS
 import com.android.systemui.res.R
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
+import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
+import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayoutController
 import com.android.systemui.statusbar.policy.ResourcesSplitShadeStateController
 import com.android.systemui.util.concurrency.FakeExecutor
@@ -45,7 +47,14 @@ import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat
 import java.util.function.Consumer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -78,6 +87,9 @@ class NotificationsQSContainerControllerTest : SysuiTestCase() {
     private val notificationStackScrollLayoutController =
         mock<NotificationStackScrollLayoutController>()
     private val largeScreenHeaderHelper = mock<LargeScreenHeaderHelper>()
+    private val shadeModeInteractor = mock<ShadeModeInteractor>()
+    private val testDispatcher = StandardTestDispatcher(TestCoroutineScheduler())
+    private val testScope = CoroutineScope(testDispatcher)
 
     @Captor lateinit var navigationModeCaptor: ArgumentCaptor<ModeChangedListener>
     @Captor lateinit var taskbarVisibilityCaptor: ArgumentCaptor<LauncherProxyListener>
@@ -105,6 +117,7 @@ class NotificationsQSContainerControllerTest : SysuiTestCase() {
         whenever(fragmentService.getFragmentHostManager(any())).thenReturn(fragmentHostManager)
 
         whenever(shadeInteractor.isQsExpanded).thenReturn(MutableStateFlow(false))
+        whenever(shadeModeInteractor.shadeMode).thenReturn(MutableStateFlow(ShadeMode.Dual))
 
         underTest =
             NotificationsQSContainerController(
@@ -117,7 +130,9 @@ class NotificationsQSContainerControllerTest : SysuiTestCase() {
                 delayableExecutor,
                 notificationStackScrollLayoutController,
                 ResourcesSplitShadeStateController(),
+                shadeModeInteractor,
                 largeScreenHeaderHelperLazy = { largeScreenHeaderHelper },
+                testScope,
             )
 
         overrideResource(R.dimen.split_shade_notifications_scrim_margin_bottom, SCRIM_MARGIN)
@@ -196,208 +211,234 @@ class NotificationsQSContainerControllerTest : SysuiTestCase() {
     }
 
     @Test
-    fun testTaskbarVisibleInSplitShade() {
-        enableSplitShade()
+    fun testTaskbarVisibleInSplitShade() =
+        runTest(testDispatcher) {
+            setSplitShadeEnabled(true)
 
-        given(
-            taskbarVisible = true,
-            navigationMode = GESTURES_NAVIGATION,
-            insets = windowInsets().withStableBottom(),
-        )
-        then(
-            expectedContainerPadding = 0, // taskbar should disappear when shade is expanded
-            expectedNotificationsMargin = NOTIFICATIONS_MARGIN,
-            expectedQsPadding = NOTIFICATIONS_MARGIN - QS_PADDING_OFFSET,
-        )
+            given(
+                taskbarVisible = true,
+                navigationMode = GESTURES_NAVIGATION,
+                insets = windowInsets().withStableBottom(),
+            )
+            then(
+                expectedContainerPadding = 0, // taskbar should disappear when shade is expanded
+                expectedNotificationsMargin = NOTIFICATIONS_MARGIN,
+                expectedQsPadding = NOTIFICATIONS_MARGIN - QS_PADDING_OFFSET,
+            )
 
-        given(
-            taskbarVisible = true,
-            navigationMode = BUTTONS_NAVIGATION,
-            insets = windowInsets().withStableBottom(),
-        )
-        then(
-            expectedContainerPadding = STABLE_INSET_BOTTOM,
-            expectedNotificationsMargin = NOTIFICATIONS_MARGIN,
-            expectedQsPadding = NOTIFICATIONS_MARGIN - QS_PADDING_OFFSET,
-        )
-    }
-
-    @Test
-    fun testTaskbarNotVisibleInSplitShade() {
-        // when taskbar is not visible, it means we're on the home screen
-        enableSplitShade()
-
-        given(
-            taskbarVisible = false,
-            navigationMode = GESTURES_NAVIGATION,
-            insets = windowInsets().withStableBottom(),
-        )
-        then(
-            expectedContainerPadding = 0,
-            expectedQsPadding = NOTIFICATIONS_MARGIN - QS_PADDING_OFFSET,
-        )
-
-        given(
-            taskbarVisible = false,
-            navigationMode = BUTTONS_NAVIGATION,
-            insets = windowInsets().withStableBottom(),
-        )
-        then(
-            expectedContainerPadding = 0, // qs goes full height as it's not obscuring nav buttons
-            expectedNotificationsMargin = STABLE_INSET_BOTTOM + NOTIFICATIONS_MARGIN,
-            expectedQsPadding = STABLE_INSET_BOTTOM + NOTIFICATIONS_MARGIN - QS_PADDING_OFFSET,
-        )
-    }
+            given(
+                taskbarVisible = true,
+                navigationMode = BUTTONS_NAVIGATION,
+                insets = windowInsets().withStableBottom(),
+            )
+            then(
+                expectedContainerPadding = STABLE_INSET_BOTTOM,
+                expectedNotificationsMargin = NOTIFICATIONS_MARGIN,
+                expectedQsPadding = NOTIFICATIONS_MARGIN - QS_PADDING_OFFSET,
+            )
+        }
 
     @Test
-    fun testTaskbarNotVisibleInSplitShadeWithCutout() {
-        enableSplitShade()
+    fun testTaskbarNotVisibleInSplitShade() =
+        runTest(testDispatcher) {
+            // when taskbar is not visible, it means we're on the home screen
+            setSplitShadeEnabled(true)
 
-        given(
-            taskbarVisible = false,
-            navigationMode = GESTURES_NAVIGATION,
-            insets = windowInsets().withCutout(),
-        )
-        then(
-            expectedContainerPadding = CUTOUT_HEIGHT,
-            expectedQsPadding = NOTIFICATIONS_MARGIN - QS_PADDING_OFFSET,
-        )
+            given(
+                taskbarVisible = false,
+                navigationMode = GESTURES_NAVIGATION,
+                insets = windowInsets().withStableBottom(),
+            )
+            then(
+                expectedContainerPadding = 0,
+                expectedQsPadding = NOTIFICATIONS_MARGIN - QS_PADDING_OFFSET,
+            )
 
-        given(
-            taskbarVisible = false,
-            navigationMode = BUTTONS_NAVIGATION,
-            insets = windowInsets().withCutout().withStableBottom(),
-        )
-        then(
-            expectedContainerPadding = 0,
-            expectedNotificationsMargin = STABLE_INSET_BOTTOM + NOTIFICATIONS_MARGIN,
-            expectedQsPadding = STABLE_INSET_BOTTOM + NOTIFICATIONS_MARGIN - QS_PADDING_OFFSET,
-        )
-    }
-
-    @Test
-    fun testTaskbarVisibleInSinglePaneShade() {
-        disableSplitShade()
-
-        given(
-            taskbarVisible = true,
-            navigationMode = GESTURES_NAVIGATION,
-            insets = windowInsets().withStableBottom(),
-        )
-        then(expectedContainerPadding = 0, expectedQsPadding = STABLE_INSET_BOTTOM)
-
-        given(
-            taskbarVisible = true,
-            navigationMode = BUTTONS_NAVIGATION,
-            insets = windowInsets().withStableBottom(),
-        )
-        then(
-            expectedContainerPadding = STABLE_INSET_BOTTOM,
-            expectedQsPadding = STABLE_INSET_BOTTOM,
-        )
-    }
+            given(
+                taskbarVisible = false,
+                navigationMode = BUTTONS_NAVIGATION,
+                insets = windowInsets().withStableBottom(),
+            )
+            then(
+                expectedContainerPadding =
+                    0, // qs goes full height as it's not obscuring nav buttons
+                expectedNotificationsMargin = STABLE_INSET_BOTTOM + NOTIFICATIONS_MARGIN,
+                expectedQsPadding = STABLE_INSET_BOTTOM + NOTIFICATIONS_MARGIN - QS_PADDING_OFFSET,
+            )
+        }
 
     @Test
-    fun testTaskbarNotVisibleInSinglePaneShade() {
-        disableSplitShade()
+    fun testTaskbarNotVisibleInSplitShadeWithCutout() =
+        runTest(testDispatcher) {
+            setSplitShadeEnabled(true)
 
-        given(taskbarVisible = false, navigationMode = GESTURES_NAVIGATION, insets = emptyInsets())
-        then(expectedContainerPadding = 0)
+            given(
+                taskbarVisible = false,
+                navigationMode = GESTURES_NAVIGATION,
+                insets = windowInsets().withCutout(),
+            )
+            then(
+                expectedContainerPadding = CUTOUT_HEIGHT,
+                expectedQsPadding = NOTIFICATIONS_MARGIN - QS_PADDING_OFFSET,
+            )
 
-        given(
-            taskbarVisible = false,
-            navigationMode = GESTURES_NAVIGATION,
-            insets = windowInsets().withCutout().withStableBottom(),
-        )
-        then(expectedContainerPadding = CUTOUT_HEIGHT, expectedQsPadding = STABLE_INSET_BOTTOM)
-
-        given(
-            taskbarVisible = false,
-            navigationMode = BUTTONS_NAVIGATION,
-            insets = windowInsets().withStableBottom(),
-        )
-        then(
-            expectedContainerPadding = 0,
-            expectedNotificationsMargin = STABLE_INSET_BOTTOM + NOTIFICATIONS_MARGIN,
-            expectedQsPadding = STABLE_INSET_BOTTOM,
-        )
-    }
-
-    @Test
-    fun testDetailShowingInSinglePaneShade() {
-        disableSplitShade()
-        underTest.setDetailShowing(true)
-
-        // always sets spacings to 0
-        given(
-            taskbarVisible = false,
-            navigationMode = GESTURES_NAVIGATION,
-            insets = windowInsets().withStableBottom(),
-        )
-        then(expectedContainerPadding = 0, expectedNotificationsMargin = 0)
-
-        given(taskbarVisible = false, navigationMode = BUTTONS_NAVIGATION, insets = emptyInsets())
-        then(expectedContainerPadding = 0, expectedNotificationsMargin = 0)
-    }
+            given(
+                taskbarVisible = false,
+                navigationMode = BUTTONS_NAVIGATION,
+                insets = windowInsets().withCutout().withStableBottom(),
+            )
+            then(
+                expectedContainerPadding = 0,
+                expectedNotificationsMargin = STABLE_INSET_BOTTOM + NOTIFICATIONS_MARGIN,
+                expectedQsPadding = STABLE_INSET_BOTTOM + NOTIFICATIONS_MARGIN - QS_PADDING_OFFSET,
+            )
+        }
 
     @Test
-    fun testDetailShowingInSplitShade() {
-        enableSplitShade()
-        underTest.setDetailShowing(true)
+    fun testTaskbarVisibleInSinglePaneShade() =
+        runTest(testDispatcher) {
+            setSplitShadeEnabled(false)
 
-        given(
-            taskbarVisible = false,
-            navigationMode = GESTURES_NAVIGATION,
-            insets = windowInsets().withStableBottom(),
-        )
-        then(expectedContainerPadding = 0)
+            given(
+                taskbarVisible = true,
+                navigationMode = GESTURES_NAVIGATION,
+                insets = windowInsets().withStableBottom(),
+            )
+            then(expectedContainerPadding = 0, expectedQsPadding = STABLE_INSET_BOTTOM)
 
-        // should not influence spacing
-        given(taskbarVisible = false, navigationMode = BUTTONS_NAVIGATION, insets = emptyInsets())
-        then(expectedContainerPadding = 0)
-    }
-
-    @Test
-    fun testNotificationsMarginBottomIsUpdated() {
-        Mockito.clearInvocations(view)
-        enableSplitShade()
-        verify(view).setNotificationsMarginBottom(NOTIFICATIONS_MARGIN)
-
-        overrideResource(R.dimen.notification_panel_margin_bottom, 100)
-        disableSplitShade()
-        verify(view).setNotificationsMarginBottom(100)
-    }
+            given(
+                taskbarVisible = true,
+                navigationMode = BUTTONS_NAVIGATION,
+                insets = windowInsets().withStableBottom(),
+            )
+            then(
+                expectedContainerPadding = STABLE_INSET_BOTTOM,
+                expectedQsPadding = STABLE_INSET_BOTTOM,
+            )
+        }
 
     @Test
-    fun testSplitShadeLayout_isAlignedToGuideline() {
-        enableSplitShade()
-        underTest.updateResources()
-        assertThat(getConstraintSetLayout(R.id.qs_frame).endToEnd).isEqualTo(R.id.qs_edge_guideline)
-    }
+    fun testTaskbarNotVisibleInSinglePaneShade() =
+        runTest(testDispatcher) {
+            setSplitShadeEnabled(false)
+
+            given(
+                taskbarVisible = false,
+                navigationMode = GESTURES_NAVIGATION,
+                insets = emptyInsets(),
+            )
+            then(expectedContainerPadding = 0)
+
+            given(
+                taskbarVisible = false,
+                navigationMode = GESTURES_NAVIGATION,
+                insets = windowInsets().withCutout().withStableBottom(),
+            )
+            then(expectedContainerPadding = CUTOUT_HEIGHT, expectedQsPadding = STABLE_INSET_BOTTOM)
+
+            given(
+                taskbarVisible = false,
+                navigationMode = BUTTONS_NAVIGATION,
+                insets = windowInsets().withStableBottom(),
+            )
+            then(
+                expectedContainerPadding = 0,
+                expectedNotificationsMargin = STABLE_INSET_BOTTOM + NOTIFICATIONS_MARGIN,
+                expectedQsPadding = STABLE_INSET_BOTTOM,
+            )
+        }
 
     @Test
-    fun testSinglePaneLayout_childrenHaveEqualMargins() {
-        disableSplitShade()
-        underTest.updateResources()
-        val qsStartMargin = getConstraintSetLayout(R.id.qs_frame).startMargin
-        val qsEndMargin = getConstraintSetLayout(R.id.qs_frame).endMargin
-        assertThat(qsStartMargin == qsEndMargin).isTrue()
-    }
+    fun testDetailShowingInSinglePaneShade() =
+        runTest(testDispatcher) {
+            setSplitShadeEnabled(false)
+            underTest.setDetailShowing(true)
+
+            // always sets spacings to 0
+            given(
+                taskbarVisible = false,
+                navigationMode = GESTURES_NAVIGATION,
+                insets = windowInsets().withStableBottom(),
+            )
+            then(expectedContainerPadding = 0, expectedNotificationsMargin = 0)
+
+            given(
+                taskbarVisible = false,
+                navigationMode = BUTTONS_NAVIGATION,
+                insets = emptyInsets(),
+            )
+            then(expectedContainerPadding = 0, expectedNotificationsMargin = 0)
+        }
 
     @Test
-    fun testSplitShadeLayout_childrenHaveInsideMarginsOfZero() {
-        enableSplitShade()
-        underTest.updateResources()
-        assertThat(getConstraintSetLayout(R.id.qs_frame).endMargin).isEqualTo(0)
-    }
+    fun testDetailShowingInSplitShade() =
+        runTest(testDispatcher) {
+            setSplitShadeEnabled(true)
+            underTest.setDetailShowing(true)
+
+            given(
+                taskbarVisible = false,
+                navigationMode = GESTURES_NAVIGATION,
+                insets = windowInsets().withStableBottom(),
+            )
+            then(expectedContainerPadding = 0)
+
+            // should not influence spacing
+            given(
+                taskbarVisible = false,
+                navigationMode = BUTTONS_NAVIGATION,
+                insets = emptyInsets(),
+            )
+            then(expectedContainerPadding = 0)
+        }
 
     @Test
-    fun testSplitShadeLayout_qsFrameHasHorizontalMarginsOfZero() {
-        enableSplitShade()
-        underTest.updateResources()
-        assertThat(getConstraintSetLayout(R.id.qs_frame).endMargin).isEqualTo(0)
-        assertThat(getConstraintSetLayout(R.id.qs_frame).startMargin).isEqualTo(0)
-    }
+    fun testNotificationsMarginBottomIsUpdated() =
+        runTest(testDispatcher) {
+            Mockito.clearInvocations(view)
+            setSplitShadeEnabled(true)
+            verify(view).setNotificationsMarginBottom(NOTIFICATIONS_MARGIN)
+
+            overrideResource(R.dimen.notification_panel_margin_bottom, 100)
+            setSplitShadeEnabled(false)
+            verify(view).setNotificationsMarginBottom(100)
+        }
+
+    @Test
+    fun testSplitShadeLayout_isAlignedToGuideline() =
+        runTest(testDispatcher) {
+            setSplitShadeEnabled(true)
+            underTest.updateResources()
+            assertThat(getConstraintSetLayout(R.id.qs_frame).endToEnd)
+                .isEqualTo(R.id.qs_edge_guideline)
+        }
+
+    @Test
+    fun testSinglePaneLayout_childrenHaveEqualMargins() =
+        runTest(testDispatcher) {
+            setSplitShadeEnabled(false)
+            underTest.updateResources()
+            val qsStartMargin = getConstraintSetLayout(R.id.qs_frame).startMargin
+            val qsEndMargin = getConstraintSetLayout(R.id.qs_frame).endMargin
+            assertThat(qsStartMargin == qsEndMargin).isTrue()
+        }
+
+    @Test
+    fun testSplitShadeLayout_childrenHaveInsideMarginsOfZero() =
+        runTest(testDispatcher) {
+            setSplitShadeEnabled(true)
+            underTest.updateResources()
+            assertThat(getConstraintSetLayout(R.id.qs_frame).endMargin).isEqualTo(0)
+        }
+
+    @Test
+    fun testSplitShadeLayout_qsFrameHasHorizontalMarginsOfZero() =
+        runTest(testDispatcher) {
+            setSplitShadeEnabled(true)
+            underTest.updateResources()
+            assertThat(getConstraintSetLayout(R.id.qs_frame).endMargin).isEqualTo(0)
+            assertThat(getConstraintSetLayout(R.id.qs_frame).startMargin).isEqualTo(0)
+        }
 
     @Test
     fun testLargeScreenLayout_qsAndNotifsTopMarginIsOfHeaderHelperHeight() {
@@ -426,24 +467,28 @@ class NotificationsQSContainerControllerTest : SysuiTestCase() {
     }
 
     @Test
-    fun testSinglePaneShadeLayout_qsFrameHasHorizontalMarginsSetToCorrectValue() {
-        disableSplitShade()
-        underTest.updateResources()
-        val notificationPanelMarginHorizontal =
-            mContext.resources.getDimensionPixelSize(R.dimen.notification_panel_margin_horizontal)
-        assertThat(getConstraintSetLayout(R.id.qs_frame).endMargin)
-            .isEqualTo(notificationPanelMarginHorizontal)
-        assertThat(getConstraintSetLayout(R.id.qs_frame).startMargin)
-            .isEqualTo(notificationPanelMarginHorizontal)
-    }
+    fun testSinglePaneShadeLayout_qsFrameHasHorizontalMarginsSetToCorrectValue() =
+        runTest(testDispatcher) {
+            setSplitShadeEnabled(false)
+            underTest.updateResources()
+            val notificationPanelMarginHorizontal =
+                mContext.resources.getDimensionPixelSize(
+                    R.dimen.notification_panel_margin_horizontal
+                )
+            assertThat(getConstraintSetLayout(R.id.qs_frame).endMargin)
+                .isEqualTo(notificationPanelMarginHorizontal)
+            assertThat(getConstraintSetLayout(R.id.qs_frame).startMargin)
+                .isEqualTo(notificationPanelMarginHorizontal)
+        }
 
     @Test
-    fun testSinglePaneShadeLayout_isAlignedToParent() {
-        disableSplitShade()
-        underTest.updateResources()
-        assertThat(getConstraintSetLayout(R.id.qs_frame).endToEnd)
-            .isEqualTo(ConstraintSet.PARENT_ID)
-    }
+    fun testSinglePaneShadeLayout_isAlignedToParent() =
+        runTest(testDispatcher) {
+            setSplitShadeEnabled(false)
+            underTest.updateResources()
+            assertThat(getConstraintSetLayout(R.id.qs_frame).endToEnd)
+                .isEqualTo(ConstraintSet.PARENT_ID)
+        }
 
     @Test
     fun testAllChildrenOfNotificationContainer_haveIds() {
@@ -464,7 +509,9 @@ class NotificationsQSContainerControllerTest : SysuiTestCase() {
                 delayableExecutor,
                 notificationStackScrollLayoutController,
                 ResourcesSplitShadeStateController(),
+                shadeModeInteractor,
                 largeScreenHeaderHelperLazy = { largeScreenHeaderHelper },
+                testScope,
             )
         controller.updateConstraints()
 
@@ -473,24 +520,25 @@ class NotificationsQSContainerControllerTest : SysuiTestCase() {
     }
 
     @Test
-    fun testWindowInsetDebounce() {
-        disableSplitShade()
+    fun testWindowInsetDebounce() =
+        runTest(testDispatcher) {
+            setSplitShadeEnabled(false)
 
-        given(
-            taskbarVisible = false,
-            navigationMode = GESTURES_NAVIGATION,
-            insets = emptyInsets(),
-            applyImmediately = false,
-        )
-        fakeSystemClock.advanceTime(INSET_DEBOUNCE_MILLIS / 2)
-        windowInsetsCallback.accept(windowInsets().withStableBottom())
+            given(
+                taskbarVisible = false,
+                navigationMode = GESTURES_NAVIGATION,
+                insets = emptyInsets(),
+                applyImmediately = false,
+            )
+            fakeSystemClock.advanceTime(INSET_DEBOUNCE_MILLIS / 2)
+            windowInsetsCallback.accept(windowInsets().withStableBottom())
 
-        delayableExecutor.advanceClockToLast()
-        delayableExecutor.runAllReady()
+            delayableExecutor.advanceClockToLast()
+            delayableExecutor.runAllReady()
 
-        verify(view, never()).setQSContainerPaddingBottom(0)
-        verify(view).setQSContainerPaddingBottom(STABLE_INSET_BOTTOM)
-    }
+            verify(view, never()).setQSContainerPaddingBottom(0)
+            verify(view).setQSContainerPaddingBottom(STABLE_INSET_BOTTOM)
+        }
 
     @Test
     fun testStartCustomizingWithDuration() {
@@ -518,16 +566,13 @@ class NotificationsQSContainerControllerTest : SysuiTestCase() {
         verify(fragmentHostManager).removeTagListener(eq(QS.TAG), eq(view))
     }
 
-    private fun disableSplitShade() {
-        setSplitShadeEnabled(false)
-    }
-
-    private fun enableSplitShade() {
-        setSplitShadeEnabled(true)
-    }
-
-    private fun setSplitShadeEnabled(enabled: Boolean) {
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun TestScope.setSplitShadeEnabled(enabled: Boolean) {
+        whenever(shadeModeInteractor.shadeMode)
+            .thenReturn(MutableStateFlow(if (enabled) ShadeMode.Split else ShadeMode.Dual))
         overrideResource(R.bool.config_use_split_notification_shade, enabled)
+        underTest.observeSplitShadeState()
+        advanceUntilIdle()
         underTest.updateResources()
     }
 

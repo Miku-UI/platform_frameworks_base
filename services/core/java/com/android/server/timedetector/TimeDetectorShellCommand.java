@@ -63,46 +63,29 @@ class TimeDetectorShellCommand extends ShellCommand {
             return handleDefaultCommands(cmd);
         }
 
-        switch (cmd) {
-            case SHELL_COMMAND_IS_AUTO_DETECTION_ENABLED:
-                return runIsAutoDetectionEnabled();
-            case SHELL_COMMAND_SET_AUTO_DETECTION_ENABLED:
-                return runSetAutoDetectionEnabled();
-            case SHELL_COMMAND_SUGGEST_MANUAL_TIME:
-                return runSuggestManualTime();
-            case SHELL_COMMAND_SUGGEST_TELEPHONY_TIME:
-                return runSuggestTelephonyTime();
-            case SHELL_COMMAND_SUGGEST_NETWORK_TIME:
-                return runSuggestNetworkTime();
-            case SHELL_COMMAND_GET_NETWORK_TIME:
-                return runGetLatestNetworkTime();
-            case SHELL_COMMAND_CLEAR_NETWORK_TIME:
-                return runClearLatestNetworkTime();
-            case SHELL_COMMAND_SUGGEST_GNSS_TIME:
-                return runSuggestGnssTime();
-            case SHELL_COMMAND_SUGGEST_EXTERNAL_TIME:
-                return runSuggestExternalTime();
-            case SHELL_COMMAND_GET_TIME_STATE:
-                return runGetTimeState();
-            case SHELL_COMMAND_SET_TIME_STATE:
-                return runSetTimeState();
-            case SHELL_COMMAND_CONFIRM_TIME:
-                return runConfirmTime();
-            case SHELL_COMMAND_CLEAR_SYSTEM_CLOCK_NETWORK_TIME:
-                return runClearSystemClockNetworkTime();
-            case SHELL_COMMAND_SET_SYSTEM_CLOCK_NETWORK_TIME:
-                return runSetSystemClockNetworkTime();
-            default: {
-                return handleDefaultCommands(cmd);
-            }
-        }
+        return switch (cmd) {
+            case SHELL_COMMAND_IS_AUTO_DETECTION_ENABLED -> runIsAutoDetectionEnabled();
+            case SHELL_COMMAND_SET_AUTO_DETECTION_ENABLED -> runSetAutoDetectionEnabled();
+            case SHELL_COMMAND_SUGGEST_MANUAL_TIME -> runSuggestManualTime();
+            case SHELL_COMMAND_SUGGEST_TELEPHONY_TIME -> runSuggestTelephonyTime();
+            case SHELL_COMMAND_SUGGEST_NETWORK_TIME -> runSuggestNetworkTime();
+            case SHELL_COMMAND_GET_NETWORK_TIME -> runGetLatestNetworkTime();
+            case SHELL_COMMAND_CLEAR_NETWORK_TIME -> runClearLatestNetworkTime();
+            case SHELL_COMMAND_SUGGEST_GNSS_TIME -> runSuggestGnssTime();
+            case SHELL_COMMAND_SUGGEST_EXTERNAL_TIME -> runSuggestExternalTime();
+            case SHELL_COMMAND_GET_TIME_STATE -> runGetTimeState();
+            case SHELL_COMMAND_SET_TIME_STATE -> runSetTimeState();
+            case SHELL_COMMAND_CONFIRM_TIME -> runConfirmTime();
+            case SHELL_COMMAND_CLEAR_SYSTEM_CLOCK_NETWORK_TIME -> runClearSystemClockNetworkTime();
+            case SHELL_COMMAND_SET_SYSTEM_CLOCK_NETWORK_TIME -> runSetSystemClockNetworkTime();
+            default -> handleDefaultCommands(cmd);
+        };
     }
 
     private int runIsAutoDetectionEnabled() {
         final PrintWriter pw = getOutPrintWriter();
-        boolean enabled = mInterface.getCapabilitiesAndConfig()
-                .getConfiguration()
-                .isAutoDetectionEnabled();
+        boolean enabled =
+                mInterface.getCapabilitiesAndConfig().getConfiguration().isAutoDetectionEnabled();
         pw.println(enabled);
         return 0;
     }
@@ -110,9 +93,8 @@ class TimeDetectorShellCommand extends ShellCommand {
     private int runSetAutoDetectionEnabled() {
         boolean enabled = Boolean.parseBoolean(getNextArgRequired());
         int userId = UserHandle.USER_CURRENT;
-        TimeConfiguration configuration = new TimeConfiguration.Builder()
-                .setAutoDetectionEnabled(enabled)
-                .build();
+        TimeConfiguration configuration =
+                new TimeConfiguration.Builder().setAutoDetectionEnabled(enabled).build();
         return mInterface.updateConfiguration(userId, configuration) ? 0 : 1;
     }
 
@@ -148,8 +130,7 @@ class TimeDetectorShellCommand extends ShellCommand {
 
     private int runSuggestGnssTime() {
         return runSuggestTime(
-                () -> GnssTimeSuggestion.parseCommandLineArg(this),
-                mInterface::suggestGnssTime);
+                () -> GnssTimeSuggestion.parseCommandLineArg(this), mInterface::suggestGnssTime);
     }
 
     private int runSuggestExternalTime() {
@@ -241,13 +222,14 @@ class TimeDetectorShellCommand extends ShellCommand {
         // TODO(b/222295093) Remove these "system_clock" commands when
         //  SystemClock.currentNetworkTimeClock() is guaranteed to use the latest network
         //  suggestion. Then, commands above can be used instead.
-        pw.printf("  %s <network suggestion opts>\n",
-                SHELL_COMMAND_SET_SYSTEM_CLOCK_NETWORK_TIME);
-        pw.printf("    Sets the network time information used for"
-                + " SystemClock.currentNetworkTimeClock().\n");
+        pw.printf("  %s <network suggestion opts>\n", SHELL_COMMAND_SET_SYSTEM_CLOCK_NETWORK_TIME);
+        pw.printf(
+                "    Sets the network time information used for"
+                        + " SystemClock.currentNetworkTimeClock().\n");
         pw.printf("  %s\n", SHELL_COMMAND_CLEAR_SYSTEM_CLOCK_NETWORK_TIME);
-        pw.printf("    Clears the network time information used for"
-                + " SystemClock.currentNetworkTimeClock().\n");
+        pw.printf(
+                "    Clears the network time information used for"
+                        + " SystemClock.currentNetworkTimeClock().\n");
         pw.println();
         ManualTimeSuggestion.printCommandLineOpts(pw);
         pw.println();
@@ -263,11 +245,14 @@ class TimeDetectorShellCommand extends ShellCommand {
         pw.println();
         UnixEpochTime.printCommandLineOpts(pw);
         pw.println();
-        pw.printf("This service is also affected by the following device_config flags in the"
-                + " %s namespace:\n", NAMESPACE_SYSTEM_TIME);
+        pw.printf(
+                "This service is also affected by the following device_config flags in the"
+                        + " %s namespace:\n",
+                NAMESPACE_SYSTEM_TIME);
         pw.printf("  %s\n", KEY_TIME_DETECTOR_LOWER_BOUND_MILLIS_OVERRIDE);
-        pw.printf("    The lower bound used to validate time suggestions when they are received."
-                + "\n");
+        pw.printf(
+                "    The lower bound used to validate time suggestions when they are received."
+                        + "\n");
         pw.printf("    Specified in milliseconds since the start of the Unix epoch.\n");
         pw.printf("  %s\n", KEY_TIME_DETECTOR_ORIGIN_PRIORITIES_OVERRIDE);
         pw.printf("    A comma separated list of origins. See TimeDetectorStrategy for details.\n");

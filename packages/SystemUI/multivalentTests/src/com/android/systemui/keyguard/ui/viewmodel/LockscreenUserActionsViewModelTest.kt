@@ -16,8 +16,10 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper.RunWithLooper
+import androidx.compose.ui.input.pointer.PointerType
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.ContentKey
 import com.android.compose.animation.scene.Edge
@@ -33,8 +35,8 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
 import com.android.systemui.communal.domain.interactor.setCommunalAvailable
-import com.android.systemui.deviceentry.data.repository.fakeDeviceEntryRepository
 import com.android.systemui.flags.EnableSceneContainer
+import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
@@ -47,7 +49,6 @@ import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.shared.model.TransitionKeys
-import com.android.systemui.scene.ui.viewmodel.SceneContainerArea
 import com.android.systemui.shade.domain.interactor.disableDualShade
 import com.android.systemui.shade.domain.interactor.enableDualShade
 import com.android.systemui.shade.domain.interactor.enableSingleShade
@@ -178,10 +179,11 @@ class LockscreenUserActionsViewModelTest : SysuiTestCase() {
 
     @Test
     @EnableFlags(Flags.FLAG_COMMUNAL_HUB)
+    @DisableFlags(Flags.FLAG_DUAL_SHADE)
     fun userActions_combinedShade() =
         kosmos.runTest {
             disableDualShade()
-            fakeDeviceEntryRepository.setLockscreenEnabled(true)
+            fakeKeyguardRepository.setKeyguardEnabled(true)
             fakeAuthenticationRepository.setAuthenticationMethod(
                 if (canSwipeToEnter) {
                     AuthenticationMethodModel.None
@@ -263,14 +265,16 @@ class LockscreenUserActionsViewModelTest : SysuiTestCase() {
                         isShadeTouchable = isShadeTouchable,
                     )
                 )
+
+            assertThat(userActions?.get(Swipe.End)).isNull()
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_COMMUNAL_HUB)
+    @EnableFlags(Flags.FLAG_COMMUNAL_HUB, Flags.FLAG_DUAL_SHADE)
     fun userActions_dualShade() =
         kosmos.runTest {
             enableDualShade(wideLayout = !isNarrowScreen)
-            fakeDeviceEntryRepository.setLockscreenEnabled(true)
+            fakeKeyguardRepository.setKeyguardEnabled(true)
             fakeAuthenticationRepository.setAuthenticationMethod(
                 if (canSwipeToEnter) {
                     AuthenticationMethodModel.None
@@ -291,32 +295,23 @@ class LockscreenUserActionsViewModelTest : SysuiTestCase() {
                     Swipe.Down(
                         fromSource = Edge.Top.takeIf { downFromEdge },
                         pointerCount = if (downWithTwoPointers) 2 else 1,
+                        // ShadeUserActions filters one-finger swipes to "not mouse".
+                        pointerType = if (downWithTwoPointers) null else PointerType.Touch,
                     )
                 )
 
-            if (downFromEdge || downWithTwoPointers || !isShadeTouchable) {
-                // Top edge is not applicable in dual shade, as well as two-finger swipe.
-                assertThat(downDestination).isNull()
-            } else {
-                assertThat(downDestination).isEqualTo(ShowOverlay(Overlays.NotificationsShade))
-                assertThat(downDestination?.transitionKey).isNull()
-            }
-
-            val downFromEndHalfDestination =
-                userActions?.get(
-                    Swipe.Down(
-                        fromSource = SceneContainerArea.EndHalf,
-                        pointerCount = if (downWithTwoPointers) 2 else 1,
-                    )
-                )
+            // Assert that the correct action is returned for a down swipe.
             when {
-                !isShadeTouchable -> assertThat(downFromEndHalfDestination).isNull()
-                downWithTwoPointers -> assertThat(downFromEndHalfDestination).isNull()
-                else -> {
-                    assertThat(downFromEndHalfDestination)
-                        .isEqualTo(ShowOverlay(Overlays.QuickSettingsShade))
-                    assertThat(downFromEndHalfDestination?.transitionKey).isNull()
-                }
+                // Swiping is disabled if the shade is not touchable.
+                !isShadeTouchable -> assertThat(downDestination).isNull()
+                // Swiping from the top edge has no action in dual shade mode.
+                downFromEdge -> assertThat(downDestination).isNull()
+                // A two-finger swipe should open the quick settings shade.
+                downWithTwoPointers ->
+                    assertThat(downDestination).isEqualTo(ShowOverlay(Overlays.QuickSettingsShade))
+                // A one-finger swipe should open the notifications shade.
+                else ->
+                    assertThat(downDestination).isEqualTo(ShowOverlay(Overlays.NotificationsShade))
             }
 
             val upContent =
@@ -351,5 +346,7 @@ class LockscreenUserActionsViewModelTest : SysuiTestCase() {
                         isShadeTouchable = isShadeTouchable,
                     )
                 )
+
+            assertThat(userActions?.get(Swipe.End)).isNull()
         }
 }

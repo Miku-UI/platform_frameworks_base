@@ -101,6 +101,11 @@ import java.util.concurrent.Executor;
  * When there are no more live calls, telecom will unbind from the {@link ConnectionService}.
  * <p>
  * <h1>Self-Managed Connection Services</h1>
+ * NOTE: VoIP applications that want to integrate with the Telecom framework should transition to
+ * the new Telecom VoIP APIs which are wrapped by the
+ * <a href="https://developer.android.com/reference/androidx/core/telecom/CallsManager>Core
+ * Telecom</a> Jetpack library.
+ * <p>
  * A VoIP app can implement a {@link ConnectionService} to ensure that its calls are integrated
  * into the Android platform.  There are numerous benefits to using the Telecom APIs for a VoIP app:
  * <ul>
@@ -342,6 +347,12 @@ public abstract class ConnectionService extends Service {
      * @hide
      */
     public static final String EXTRA_IS_HANDOVER = TelecomManager.EXTRA_IS_HANDOVER;
+
+    /**
+     * Extra passed in when binding to a ConnectionService for the purpose of granting BAL.
+     * @hide
+     */
+    public static final String EXTRA_IS_BAL_BINDING = "android.telecom.extra.IS_BAL_BINDING";
 
     // Flag controlling whether PII is emitted into the logs
     private static final boolean PII_DEBUG = Log.isLoggable(android.util.Log.DEBUG);
@@ -2017,6 +2028,14 @@ public abstract class ConnectionService extends Service {
             Log.d(this, "Adapter conference onRingback %b", ringback);
             mAdapter.setRingbackRequested(id, ringback);
         }
+
+        @Override
+        public void onConferenceMergeFailed(Conference conference) {
+            String id = mIdByConference.get(conference);
+            if (id != null) {
+                mAdapter.onConferenceMergeFailed(id);
+            }
+        }
     };
 
     private final Connection.Listener mConnectionListener = new Connection.Listener() {
@@ -2281,15 +2300,23 @@ public abstract class ConnectionService extends Service {
     /** {@inheritDoc} */
     @Override
     public boolean onUnbind(Intent intent) {
-        endAllConnections();
+        Bundle extras = intent.getExtras();
+        if (extras != null && extras.getBoolean(EXTRA_IS_BAL_BINDING, false)) {
+            Log.i(this, "onUnbind - skipping call disconnect for BAL binding");
+        } else {
+            endAllConnections();
+        }
         return super.onUnbind(intent);
     }
 
     /**
-     * Used for testing to let the test suite know when the connection service has been bound.
+     * Called when a client binds to the {@link ConnectionService}.
+     *
+     * @param intent The intent that was used to bind to the service.
      * @hide
      */
-    @TestApi
+    @SystemApi
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_TELECOM_MAINLINE_API)
     public void onBindClient(@Nullable Intent intent) {
     }
 
@@ -2492,9 +2519,6 @@ public abstract class ConnectionService extends Service {
         if (isIncoming && request.shouldShowIncomingCallUi() && isSelfManaged) {
             // Tell ConnectionService to show its incoming call UX.
             connection.onShowIncomingCallUi();
-        }
-        if (isUnknown) {
-            triggerConferenceRecalculate();
         }
     }
 
@@ -2759,7 +2783,7 @@ public abstract class ConnectionService extends Service {
                     // Call 2 is a connection so merge via call 1 (conference).
                     conference1.onMerge(connection2);
                 } else {
-                    if (Flags.multiPartyAnchorConf()) {
+                    if (android.telecom.flags.Flags.multiPartyAnchorConf()) {
                         // Call 2 is ALSO a conference, so merge together.
                         Log.i(this, "conference: merging 2 conferences into a "
                                 + "multi-party anchor conference call. conference1 = [%s] "
@@ -3072,7 +3096,6 @@ public abstract class ConnectionService extends Service {
      * @param conference The new conference object.
      * @param originalConnection The original connection object.
      */
-    @FlaggedApi(Flags.FLAG_REUSE_ORIGINAL_CONN_REMOTE_CONF_API)
     public final void addConferenceFromConnection(@NonNull Conference conference,
             @NonNull Connection originalConnection) {
         Log.d(this, "addConferenceFromConnection: conference=%s "
@@ -3285,7 +3308,7 @@ public abstract class ConnectionService extends Service {
                     connection.getExtras(),
                     conferenceId,
                     connection.getCallDirection(),
-                    Connection.VERIFICATION_STATUS_NOT_VERIFIED);
+                    connection.getCallerNumberVerificationStatus());
             mAdapter.addExistingConnection(id, parcelableConnection);
         }
     }
@@ -3445,17 +3468,6 @@ public abstract class ConnectionService extends Service {
     public void onCreateOutgoingConferenceFailed(
             @NonNull PhoneAccountHandle connectionManagerPhoneAccount,
             @NonNull ConnectionRequest request) {
-    }
-
-
-    /**
-     * Trigger recalculate functinality for conference calls. This is used when a Telephony
-     * Connection is part of a conference controller but is not yet added to Connection
-     * Service and hence cannot be added to the conference call.
-     *
-     * @hide
-     */
-    public void triggerConferenceRecalculate() {
     }
 
     /**
@@ -3675,27 +3687,27 @@ public abstract class ConnectionService extends Service {
 
     /**
      * Called when a connection is added.
-     * @hide
      */
-    public void onConnectionAdded(Connection connection) {}
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_TELECOM_MAINLINE_API)
+    public void onConnectionAdded(@NonNull Connection connection) {}
 
     /**
      * Called when a connection is removed.
-     * @hide
      */
-    public void onConnectionRemoved(Connection connection) {}
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_TELECOM_MAINLINE_API)
+    public void onConnectionRemoved(@NonNull Connection connection) {}
 
     /**
      * Called when a conference is added.
-     * @hide
      */
-    public void onConferenceAdded(Conference conference) {}
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_TELECOM_MAINLINE_API)
+    public void onConferenceAdded(@NonNull Conference conference) {}
 
     /**
      * Called when a conference is removed.
-     * @hide
      */
-    public void onConferenceRemoved(Conference conference) {}
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_TELECOM_MAINLINE_API)
+    public void onConferenceRemoved(@NonNull Conference conference) {}
 
     /**
      * Indicates that a remote conference has been created for existing {@link RemoteConnection}s.
@@ -3912,8 +3924,10 @@ public abstract class ConnectionService extends Service {
     }
 
     private void endAllConnections() {
+
         // Unbound from telecomm.  We should end all connections and conferences.
         for (Connection connection : mIdByConnection.keySet()) {
+            Log.i(this, "endAllConnections; terminating %s", connection.getTelecomCallId());
             // only operate on top-level calls. Conference calls will be removed on their own.
             if (connection.getConference() == null) {
                 connection.onDisconnect();

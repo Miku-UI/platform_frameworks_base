@@ -29,12 +29,12 @@ import com.android.systemui.statusbar.pipeline.mobile.ui.model.DualSimConstants.
 data class DualSim(
     private val primarySubId: Int,
     private val secondarySubId: Int,
-    val primary: SignalIconModel.Cellular,
-    val secondary: SignalIconModel.Cellular,
+    val primary: SignalIconModel.CellularTypeIconModel.Cellular,
+    val secondary: SignalIconModel.CellularTypeIconModel.Cellular,
 ) : Diffable<DualSim> {
     constructor(
-        primary: Pair<Int, SignalIconModel.Cellular>,
-        secondary: Pair<Int, SignalIconModel.Cellular>,
+        primary: Pair<Int, SignalIconModel.CellularTypeIconModel.Cellular>,
+        secondary: Pair<Int, SignalIconModel.CellularTypeIconModel.Cellular>,
     ) : this(
         primarySubId = primary.first,
         primary = primary.second,
@@ -83,6 +83,10 @@ data class DualSim(
         override fun logChange(columnName: String, value: Int) {
             row.logChange("$prefix.$columnName", value)
         }
+
+        override fun logChange(columnName: String, value: Float) {
+            row.logChange("$prefix.$columnName", value)
+        }
     }
 }
 
@@ -96,11 +100,11 @@ data class DualSim(
  * @return a [DualSim] representing the connections, or null if the connections are not stackable.
  */
 fun tryParseDualSim(idsToIcon: List<Pair<Int, SignalIconModel>>): DualSim? {
-    var first: Pair<Int, SignalIconModel.Cellular>? = null
-    var second: Pair<Int, SignalIconModel.Cellular>? = null
+    var first: Pair<Int, SignalIconModel.CellularTypeIconModel.Cellular>? = null
+    var second: Pair<Int, SignalIconModel.CellularTypeIconModel.Cellular>? = null
     for ((id, icon) in idsToIcon) {
         when {
-            icon !is SignalIconModel.Cellular -> continue
+            icon !is SignalIconModel.CellularTypeIconModel.Cellular -> continue
             first == null -> {
                 first = id to icon
             }

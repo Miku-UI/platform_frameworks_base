@@ -21,8 +21,7 @@ import androidx.compose.runtime.getValue
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.display.domain.interactor.ConnectedDisplayInteractor
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
 import com.android.systemui.statusbar.systemstatusicons.ui.viewmodel.SystemStatusIconViewModel
@@ -38,30 +37,24 @@ import kotlinx.coroutines.flow.map
 class ConnectedDisplayIconViewModel
 @AssistedInject
 constructor(@Assisted private val context: Context, interactor: ConnectedDisplayInteractor) :
-    SystemStatusIconViewModel.Default, ExclusiveActivatable() {
+    SystemStatusIconViewModel.Default, HydratedActivatable() {
     init {
         SystemStatusIconsInCompose.expectInNewMode()
     }
-
-    private val hydrator = Hydrator("ConnectedDisplayIconViewModel.hydrator")
 
     override val slotName =
         context.getString(com.android.internal.R.string.status_bar_connected_display)
 
     override val visible: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = null,
-            initialValue = false,
-            source = interactor.connectedDisplayState.map { it.isVisible() },
-        )
+        interactor.connectedDisplayState
+            .map { it.isVisible() }
+            .hydratedStateOf(traceName = null, initialValue = false)
 
     override val icon: Icon?
         get() = visible.toUiState()
 
-    override suspend fun onActivated(): Nothing = hydrator.activate()
-
-    private fun Boolean.toUiState(): Icon? =
-        if (this) {
+    private fun Boolean.toUiState(): Icon? {
+        return if (this) {
             Icon.Resource(
                 resId = R.drawable.stat_sys_connected_display,
                 contentDescription =
@@ -70,6 +63,7 @@ constructor(@Assisted private val context: Context, interactor: ConnectedDisplay
         } else {
             null
         }
+    }
 
     private fun ConnectedDisplayInteractor.State.isVisible(): Boolean =
         when (this) {

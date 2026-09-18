@@ -18,9 +18,12 @@ package android.os;
 
 import static android.os.Flags.FLAG_STATE_OF_HEALTH_PUBLIC;
 import static android.os.Flags.FLAG_BATTERY_PART_STATUS_API;
+import static android.os.Flags.FLAG_BATTERY_CHARGING_INFO_API;
+import static android.os.Flags.FLAG_BATTERY_MANUFACTURER_DIAGNOSTICS_API;
 
 import android.Manifest.permission;
 import android.annotation.FlaggedApi;
+import android.annotation.IntDef;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.SuppressLint;
@@ -33,6 +36,9 @@ import android.content.Intent;
 import android.hardware.health.V1_0.Constants;
 
 import com.android.internal.app.IBatteryStats;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
  * The BatteryManager class contains strings and constants used for values
@@ -165,6 +171,7 @@ public class BatteryManager {
      * Int value representing the battery charging status.
      */
     public static final String EXTRA_CHARGING_STATUS = "android.os.extra.CHARGING_STATUS";
+    // TODO: b/461917615 - add EXTRA_CHARGING_STATUS API constants with clear definitions
 
     /**
      * Battery capacity level is unsupported.
@@ -294,6 +301,18 @@ public class BatteryManager {
     /** Power source is dock. */
     public static final int BATTERY_PLUGGED_DOCK = OsProtoEnums.BATTERY_PLUGGED_DOCK; // = 8
 
+    /** @hide */
+    @IntDef(prefix = { "CHARGING_POLICY_" }, value = {
+            CHARGING_POLICY_DEFAULT,
+            CHARGING_POLICY_ADAPTIVE_AON,
+            CHARGING_POLICY_ADAPTIVE_AC,
+            CHARGING_POLICY_ADAPTIVE_LONGLIFE,
+            CHARGING_POLICY_FORCE_FULL_CHARGE
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface BatteryChargingPolicy {}
+
+
     // values for "charge policy" property
     /**
      * Default policy (e.g. normal).
@@ -322,6 +341,16 @@ public class BatteryManager {
     @SystemApi
     public static final int CHARGING_POLICY_ADAPTIVE_LONGLIFE =
                                             OsProtoEnums.CHARGING_POLICY_ADAPTIVE_LONGLIFE; // = 4
+
+    /**
+     * Bypassing the "LONGLIFE" policy to charge to full, which recalibrates the battery's capacity
+     * estimation to maintain accuracy.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(FLAG_BATTERY_CHARGING_INFO_API)
+    public static final int CHARGING_POLICY_FORCE_FULL_CHARGE =
+                                            OsProtoEnums.CHARGING_POLICY_FORCE_FULL_CHARGE; // = 5
 
     /**
      * Returns true if the policy is some type of adaptive charging policy.
@@ -513,6 +542,61 @@ public class BatteryManager {
     @SystemApi
     @FlaggedApi(FLAG_BATTERY_PART_STATUS_API)
     public static final int BATTERY_PROPERTY_PART_STATUS = 12;
+
+    /**
+     * Battery part manufacturer name, as a string.
+     *
+     * <p class="note">
+     * The sender must hold the {@link android.Manifest.permission#BATTERY_STATS} permission.
+     *
+     * @hide
+     */
+    @RequiresPermission(permission.BATTERY_STATS)
+    @SystemApi
+    @FlaggedApi(FLAG_BATTERY_MANUFACTURER_DIAGNOSTICS_API)
+    public static final int BATTERY_PROPERTY_MANUFACTURER = 13;
+
+    /**
+     * Battery part model name, assigned by its manufacturer, as a string.
+     *
+     * <p class="note">
+     * The sender must hold the {@link android.Manifest.permission#BATTERY_STATS} permission.
+     *
+     * @hide
+     */
+    @RequiresPermission(permission.BATTERY_STATS)
+    @SystemApi
+    @FlaggedApi(FLAG_BATTERY_MANUFACTURER_DIAGNOSTICS_API)
+    public static final int BATTERY_PROPERTY_MODEL_NAME = 14;
+
+    /**
+     * The minimum expected value for the battery's design voltage, as a long integer in
+     * micro-Volts.
+     *
+     * This is usually the same as the battery's actual design voltage, but may be different if the
+     * actual design voltage is not known. This represents a nominal battery voltage that has no
+     * particular relationship to absolute thresholds: the battery voltage may safely fall below or
+     * rise above this voltage with no particular battery behavior guaranteed to occur.
+     *
+     * Users should take care not to confuse this value with an absolute minimum allowed battery
+     * voltage, despite its name. 'Minimum' here allows for uncertainty in what the battery's design
+     * parameters are, allowing a system to report its design voltage when only a range of nominal
+     * values are known. A related 'maximum design voltage' property would provide the upper bound
+     * to this property's lower bound, and they would be equal if a precise design voltage were
+     * known.
+     *
+     * This value should be treated as advisory only, reflecting design goals of the battery
+     * subsystem without making any statements about the absolute limits or its guarantees.
+     *
+     * <p class="note>
+     * The sender must hold the {@link android.Manifest.permission#BATTERY_STATS} permission.
+     *
+     * @hide
+     */
+    @RequiresPermission(permission.BATTERY_STATS)
+    @SystemApi
+    @FlaggedApi(FLAG_BATTERY_MANUFACTURER_DIAGNOSTICS_API)
+    public static final int BATTERY_PROPERTY_VOLTAGE_MIN_DESIGN = 15;
 
     private final Context mContext;
     private final IBatteryStats mBatteryStats;

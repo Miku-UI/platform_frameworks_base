@@ -16,8 +16,6 @@
 
 package com.android.internal.view;
 
-import static android.view.flags.Flags.scrollCaptureRelaxScrollViewCriteria;
-
 import android.annotation.Nullable;
 import android.content.Context;
 import android.content.res.Resources;
@@ -97,16 +95,7 @@ public class ScrollCaptureInternal {
         if (DEBUG_VERBOSE) {
             Log.v(TAG, "hint: is a subclass of ViewGroup");
         }
-        // Flag: Optionally allow ScrollView-like ViewGroups which have more than one child view.
-        if (!scrollCaptureRelaxScrollViewCriteria()) {
-            // ScrollViews accept only a single child.
-            if (((ViewGroup) view).getChildCount() > 1) {
-                if (DEBUG_VERBOSE) {
-                    Log.v(TAG, "hint: scrollable with multiple children");
-                }
-                return TYPE_RECYCLING;
-            }
-        }
+
         // At least one child view is required.
         if (((ViewGroup) view).getChildCount() == 0) {
             Log.w(TAG, "scrollable but no children!");

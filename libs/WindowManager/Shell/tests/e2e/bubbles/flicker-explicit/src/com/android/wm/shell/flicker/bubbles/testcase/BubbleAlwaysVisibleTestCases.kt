@@ -21,22 +21,18 @@ import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerSubjects
 import org.junit.Test
 
 /**
- * The test cases to check whether both window and layer that [BUBBLE] stack is attached are
- * visible during the transition.
+ * The test cases to check whether both window and layer that [BUBBLE] stack is attached are visible
+ * during the transition.
  */
 interface BubbleAlwaysVisibleTestCases : BubbleFlickerSubjects {
 
-    /**
-     * Verifies the bubble window is always visible.
-     */
+    /** Verifies the bubble window is always visible. */
     @Test
     fun bubbleWindowIsAlwaysVisible() {
         wmTraceSubject.isAboveAppWindowVisible(BUBBLE).forAllEntries()
     }
 
-    /**
-     * Verifies the bubble layer is always visible.
-     */
+    /** Verifies the bubble layer is always visible. */
     @Test
     fun bubbleLayerIsAlwaysVisible() {
         layersTraceSubject.isVisible(BUBBLE).forAllEntries()

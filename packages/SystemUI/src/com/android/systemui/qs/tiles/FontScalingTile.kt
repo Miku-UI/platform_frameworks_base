@@ -25,6 +25,7 @@ import com.android.systemui.accessibility.fontscaling.FontScalingDialogDelegate
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
+import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.plugins.ActivityStarter
@@ -91,8 +92,17 @@ constructor(
                             INTERACTION_JANK_TAG,
                         )
                     )
-                controller?.let { dialogTransitionAnimator.show(dialog, controller) }
-                    ?: dialog.show()
+                controller?.let {
+                    if (TransitionAnimator.dynamicTargetResolutionEnabled()) {
+                        dialogTransitionAnimator.show(
+                            dialog,
+                            expandable::dialogTransitionController,
+                            it.cuj,
+                        )
+                    } else {
+                        dialogTransitionAnimator.show(dialog, it)
+                    }
+                } ?: dialog.show()
             } else {
                 dialog.show()
             }

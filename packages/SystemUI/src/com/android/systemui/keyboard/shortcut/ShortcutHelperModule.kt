@@ -17,7 +17,6 @@
 package com.android.systemui.keyboard.shortcut
 
 import com.android.systemui.CoreStartable
-import com.android.systemui.Flags.keyboardShortcutHelperRewrite
 import com.android.systemui.keyboard.shortcut.data.repository.AppsShortcutCategoryRepository
 import com.android.systemui.keyboard.shortcut.data.repository.CustomShortcutCategoriesRepository
 import com.android.systemui.keyboard.shortcut.data.repository.DefaultShortcutCategoriesRepository
@@ -39,9 +38,7 @@ import com.android.systemui.keyboard.shortcut.qualifiers.InputShortcuts
 import com.android.systemui.keyboard.shortcut.qualifiers.MultitaskingShortcuts
 import com.android.systemui.keyboard.shortcut.qualifiers.SystemShortcuts
 import dagger.Binds
-import dagger.Lazy
 import dagger.Module
-import dagger.Provides
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
 
@@ -94,21 +91,8 @@ interface ShortcutHelperModule {
         impl: AppsShortcutCategoryRepository
     ): ShortcutCategoriesRepository
 
-    companion object {
-        @Provides
-        @IntoMap
-        @ClassKey(ShortcutHelperCoreStartable::class)
-        fun repo(implLazy: Lazy<ShortcutHelperCoreStartable>): CoreStartable {
-            return if (keyboardShortcutHelperRewrite()) {
-                implLazy.get()
-            } else {
-                // No-op implementation when the flag is disabled.
-                NoOpStartable
-            }
-        }
-    }
-}
-
-private object NoOpStartable : CoreStartable {
-    override fun start() {}
+    @Binds
+    @IntoMap
+    @ClassKey(ShortcutHelperCoreStartable::class)
+    fun shortcutHelperCoreStartable(impl: ShortcutHelperCoreStartable): CoreStartable
 }

@@ -481,6 +481,16 @@ final class OverlayManagerServiceImpl {
         }
     }
 
+    @NonNull
+    List<OverlayConstraint> getOverlayConstraints(@NonNull final String overlayBaseCodePath,
+            final int userId) {
+        try {
+            return mSettings.getOverlayConstraints(overlayBaseCodePath, userId);
+        } catch (OverlayManagerSettings.BadKeyException e) {
+            return Collections.emptyList();
+        }
+    }
+
     List<OverlayInfo> getOverlayInfosForTarget(@NonNull final String targetPackageName,
             final int userId) {
         return mSettings.getOverlaysForTarget(targetPackageName, userId);

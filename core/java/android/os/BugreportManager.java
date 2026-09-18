@@ -238,12 +238,7 @@ public final class BugreportManager {
 
             boolean deferConsent =
                     (params.getFlags() & BugreportParams.BUGREPORT_FLAG_DEFER_CONSENT) != 0;
-            boolean isScreenshotRequested;
-            if (Flags.bugreportDeferredConsentScreenshotFix()) {
-                isScreenshotRequested = screenshotFd != null;
-            } else {
-                isScreenshotRequested = screenshotFd != null || deferConsent;
-            }
+            boolean isScreenshotRequested = screenshotFd != null;
             if (screenshotFd == null) {
                 // Binder needs a valid File Descriptor to be passed
                 screenshotFd =

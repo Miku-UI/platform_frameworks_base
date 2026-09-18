@@ -23,6 +23,7 @@ import static android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED;
 import static android.view.WindowManager.LayoutParams.SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS;
 
 import android.annotation.ColorInt;
+import android.annotation.ColorLong;
 import android.annotation.DrawableRes;
 import android.annotation.FlaggedApi;
 import android.annotation.FloatRange;
@@ -324,6 +325,7 @@ public abstract class Window {
 
     private boolean mHaveWindowFormat = false;
     private boolean mHaveDimAmount = false;
+    private boolean mHasDimColor = false;
     private int mDefaultWindowFormat = PixelFormat.OPAQUE;
 
     private boolean mHasSoftInputMode = false;
@@ -1370,6 +1372,12 @@ public abstract class Window {
         dispatchWindowAttributesChanged(attrs);
     }
 
+    private void setRenderingHints(int hints, int mask) {
+        final WindowManager.LayoutParams attrs = getAttributes();
+        attrs.renderingHints = (attrs.renderingHints & ~mask) | (hints & mask);
+        dispatchWindowAttributesChanged(attrs);
+    }
+
     private void setPrivateFlags(int flags, int mask) {
         final WindowManager.LayoutParams attrs = getAttributes();
         attrs.privateFlags = (attrs.privateFlags & ~mask) | (flags & mask);
@@ -1602,6 +1610,22 @@ public abstract class Window {
     }
 
     /**
+     * Set the color of the dim behind the window when using
+     * {@link WindowManager.LayoutParams#FLAG_DIM_BEHIND}.  This overrides
+     * the default dim color that is selected by the Window based on
+     * its theme.
+     *
+     * @param color The new dim color.
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_SUPPORT_CUSTOM_DIM_COLOR)
+    public void setDimColor(@ColorLong long color) {
+        final WindowManager.LayoutParams attrs = getAttributes();
+        attrs.dimColor = color;
+        mHasDimColor = true;
+        dispatchWindowAttributesChanged(attrs);
+    }
+
+    /**
      * Sets whether the decor view should fit root-level content views for {@link WindowInsets}.
      * <p>
      * If set to {@code true}, the framework will inspect the now deprecated
@@ -1707,13 +1731,15 @@ public abstract class Window {
         return mCloseOnTouchOutside && peekDecorView() != null && isOutside;
     }
 
-    /* Sets the Sustained Performance requirement for the calling window.
+    /**
+     * Sets the Sustained Performance requirement for the calling window.
+     *
      * @param enable disables or enables the mode.
      */
     public void setSustainedPerformanceMode(boolean enable) {
-        setPrivateFlags(enable
-                ? WindowManager.LayoutParams.PRIVATE_FLAG_SUSTAINED_PERFORMANCE_MODE : 0,
-                WindowManager.LayoutParams.PRIVATE_FLAG_SUSTAINED_PERFORMANCE_MODE);
+        setRenderingHints(
+                enable ? WindowManager.LayoutParams.RENDERING_HINT_SUSTAINED_PERFORMANCE_MODE : 0,
+                WindowManager.LayoutParams.RENDERING_HINT_SUSTAINED_PERFORMANCE_MODE);
     }
 
     private boolean isOutOfBounds(Context context, MotionEvent event) {
@@ -2266,6 +2292,12 @@ public abstract class Window {
         return mHaveDimAmount;
     }
 
+    /** @hide */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_SUPPORT_CUSTOM_DIM_COLOR)
+    protected boolean hasDimColor() {
+        return mHasDimColor;
+    }
+
     public abstract void setChildDrawable(int featureId, Drawable drawable);
 
     public abstract void setChildInt(int featureId, int value);
@@ -2771,14 +2803,14 @@ public abstract class Window {
     public abstract int getNavigationBarColor();
 
     /**
-     * Sets the color of the navigation bar to {@param color}.
+     * Sets the color of the navigation bar to {@code color}.
      *
      * For this to take effect,
      * the window must be drawing the system bar backgrounds with
      * {@link android.view.WindowManager.LayoutParams#FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS} and
      * {@link android.view.WindowManager.LayoutParams#FLAG_TRANSLUCENT_NAVIGATION} must not be set.
      *
-     * If {@param color} is not opaque, consider setting
+     * If {@code color} is not opaque, consider setting
      * {@link android.view.View#SYSTEM_UI_FLAG_LAYOUT_STABLE} and
      * {@link android.view.View#SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION}.
      * <p>

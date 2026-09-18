@@ -369,7 +369,7 @@ public final class StorageSessionController {
         }
 
         mExternalStorageServicePackageName = provider.applicationInfo.packageName;
-        mExternalStorageServiceAppId = UserHandle.getAppId(provider.applicationInfo.uid);
+        mExternalStorageServiceAppId = UserHandle.getAppId(provider.getUid());
 
         ServiceInfo serviceInfo = resolveExternalStorageServiceAsUser(UserHandle.USER_SYSTEM);
         if (serviceInfo == null) {

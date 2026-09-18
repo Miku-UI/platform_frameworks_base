@@ -32,7 +32,6 @@ import com.android.systemui.qs.tiles.ColorCorrectionTile
 import com.android.systemui.qs.tiles.ColorInversionTile
 import com.android.systemui.qs.tiles.DataSaverTile
 import com.android.systemui.qs.tiles.DeviceControlsTile
-import com.android.systemui.qs.tiles.DreamTile
 import com.android.systemui.qs.tiles.FlashlightTile
 import com.android.systemui.qs.tiles.FontScalingTile
 import com.android.systemui.qs.tiles.HotspotTile
@@ -90,7 +89,6 @@ private val specMap =
         "qr_code_scanner" to QRCodeScannerTile::class.java,
         "onehanded" to OneHandedModeTile::class.java,
         "color_correction" to ColorCorrectionTile::class.java,
-        "dream" to DreamTile::class.java,
         "font_scaling" to FontScalingTile::class.java,
     )
 
@@ -128,7 +126,6 @@ class QSFactoryImplTest : SysuiTestCase() {
     @Mock private lateinit var qrCodeScannerTile: QRCodeScannerTile
     @Mock private lateinit var oneHandedModeTile: OneHandedModeTile
     @Mock private lateinit var colorCorrectionTile: ColorCorrectionTile
-    @Mock private lateinit var dreamTile: DreamTile
     @Mock private lateinit var fontScalingTile: FontScalingTile
 
     private lateinit var factory: QSFactoryImpl
@@ -169,7 +166,6 @@ class QSFactoryImplTest : SysuiTestCase() {
                 "qr_code_scanner" to Provider { qrCodeScannerTile },
                 "onehanded" to Provider { oneHandedModeTile },
                 "color_correction" to Provider { colorCorrectionTile },
-                "dream" to Provider { dreamTile },
                 "font_scaling" to Provider { fontScalingTile },
             )
 

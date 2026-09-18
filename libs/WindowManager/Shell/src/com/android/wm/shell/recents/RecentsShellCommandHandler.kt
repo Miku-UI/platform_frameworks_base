@@ -16,16 +16,17 @@
 
 package com.android.wm.shell.recents
 
+import android.app.ActivityManager
 import android.os.RemoteException
 import com.android.wm.shell.sysui.ShellCommandHandler.ShellCommandActionHandler
 import java.io.PrintWriter
 
-class RecentsShellCommandHandler(
-    private val recentTasksController: RecentTasksController
-) : ShellCommandActionHandler {
+class RecentsShellCommandHandler(private val recentTasksController: RecentTasksController) :
+    ShellCommandActionHandler {
     override fun onShellCommand(args: Array<out String>, pw: PrintWriter): Boolean {
         when (args[0]) {
             "clearAll" -> return runClearAll(pw)
+            "visibleCount" -> return printVisibleCount(pw)
             else -> {
                 pw.println("Invalid command: " + args[0])
                 return false
@@ -47,5 +48,25 @@ class RecentsShellCommandHandler(
             return false
         }
         return true
+    }
+
+    private fun printVisibleCount(pw: PrintWriter): Boolean {
+        try {
+            val visibleCount =
+                recentTasksController
+                    .getRecentTasks(
+                        Int.MAX_VALUE,
+                        ActivityManager.RECENT_IGNORE_UNAVAILABLE,
+                        ActivityManager.getCurrentUser(),
+                    )
+                    .size
+
+            pw.println("Visible recent tasks: $visibleCount")
+            return true
+        } catch (e: RemoteException) {
+            pw.println("Exception while getting visible recent tasks count")
+            e.printStackTrace(pw)
+            return false
+        }
     }
 }

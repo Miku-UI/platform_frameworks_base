@@ -74,7 +74,8 @@ constructor(
                         val contentType =
                             when (state) {
                                 is MediaProjectionState.Projecting.EntireScreen,
-                                is MediaProjectionState.Projecting.SingleTask ->
+                                is MediaProjectionState.Projecting.SingleTask,
+                                is MediaProjectionState.Projecting.AppContent ->
                                     ProjectionChipModel.ContentType.Screen
                                 is MediaProjectionState.Projecting.NoScreen ->
                                     ProjectionChipModel.ContentType.Audio

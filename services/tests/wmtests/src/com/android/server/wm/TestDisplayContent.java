@@ -121,11 +121,18 @@ class TestDisplayContent extends DisplayContent {
             mInfo.uniqueId = generateUniqueId();
         }
         Builder(ActivityTaskManagerService service, DisplayInfo info) {
+            // Set unique ID so physical display overrides are not inherited from
+            // DisplayWindowSettings.
+            this(service, info, /* generateUniqueId= */ true);
+        }
+        Builder(ActivityTaskManagerService service, DisplayInfo info, boolean generateUniqueId) {
             mService = service;
             mInfo = info;
             // Set unique ID so physical display overrides are not inheritted from
             // DisplayWindowSettings.
-            mInfo.uniqueId = generateUniqueId();
+            if (generateUniqueId) {
+                mInfo.uniqueId = generateUniqueId();
+            }
         }
         private String generateUniqueId() {
             return "TEST_DISPLAY_CONTENT_" + System.currentTimeMillis();
@@ -269,6 +276,13 @@ class TestDisplayContent extends DisplayContent {
 
             // Set the default focused TDA.
             newDisplay.onLastFocusedTaskDisplayAreaChanged(newDisplay.getDefaultTaskDisplayArea());
+
+            // Skip WAKE transition when adding a task to the empty display. If the test wants to
+            // verify the WAKE transition behavior of non-default display, it can set to a different
+            // type, e.g. PresentationControllerTests uses TYPE_EXTERNAL.
+            if (mInfo.type == Display.TYPE_INTERNAL) {
+                newDisplay.setIsSleeping(false);
+            }
 
             return newDisplay;
         }

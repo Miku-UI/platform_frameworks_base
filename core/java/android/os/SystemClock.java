@@ -105,6 +105,7 @@ import java.time.ZoneOffset;
  *     {@link android.content.Intent} broadcast when they occur.
  * </ul>
  */
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
 public final class SystemClock {
     private static final String TAG = "SystemClock";
 

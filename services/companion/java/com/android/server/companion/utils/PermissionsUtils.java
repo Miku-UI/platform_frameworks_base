@@ -16,6 +16,7 @@
 
 package com.android.server.companion.utils;
 
+import static android.Manifest.permission.ACCESS_COMPANION_MESSAGE_PCC;
 import static android.Manifest.permission.ADD_MIRROR_DISPLAY;
 import static android.Manifest.permission.ADD_TRUSTED_DISPLAY;
 import static android.Manifest.permission.ACCESS_COMPANION_INFO;
@@ -51,6 +52,7 @@ import static android.Manifest.permission.RECORD_AUDIO;
 import static android.Manifest.permission.REQUEST_COMPANION_SELF_MANAGED;
 import static android.Manifest.permission.REQUEST_OBSERVE_DEVICE_UUID_PRESENCE;
 import static android.Manifest.permission.SEND_SMS;
+import static android.Manifest.permission.USE_COMPANION_TRANSPORTS;
 import static android.Manifest.permission.USE_SIP;
 import static android.Manifest.permission.WRITE_CALENDAR;
 import static android.Manifest.permission.WRITE_CALL_LOG;
@@ -68,6 +70,13 @@ import static android.companion.AssociationRequest.DEVICE_PROFILE_NEARBY_DEVICE_
 import static android.companion.AssociationRequest.DEVICE_PROFILE_VIRTUAL_DEVICE;
 import static android.companion.AssociationRequest.DEVICE_PROFILE_WATCH;
 import static android.companion.AssociationRequest.DEVICE_PROFILE_WEARABLE_SENSING;
+import static android.companion.CompanionDeviceManager.FLAG_CALL_METADATA;
+import static android.companion.CompanionDeviceManager.FLAG_TASK_CONTINUITY;
+import static android.companion.CompanionDeviceManager.FLAG_UNIVERSAL_MODES;
+import static android.companion.CompanionDeviceManager.FLAG_UNIVERSAL_CLIPBOARD;
+import static android.companion.CompanionDeviceManager.FLAG_AIRPLANE_MODE;
+import static android.companion.AssociationRequest.PERMISSION_GROUP_NEARBY;
+import static android.companion.CompanionDeviceManager.MESSAGE_ONEWAY_PCC;
 import static android.companion.CompanionResources.PERMISSION_ADD_MIRROR_DISPLAY;
 import static android.companion.CompanionResources.PERMISSION_ADD_TRUSTED_DISPLAY;
 import static android.companion.CompanionResources.PERMISSION_CALENDAR;
@@ -99,15 +108,19 @@ import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.companion.AssociationRequest;
 import android.companion.CompanionDeviceManager;
+import android.companion.Flags;
 import android.content.Context;
 import android.os.Binder;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.os.UserHandle;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 
 import com.android.internal.app.IAppOpsService;
+import com.android.internal.util.CollectionUtils;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -140,6 +153,10 @@ public final class PermissionsUtils {
             Map.entry(PERMISSION_ADD_MIRROR_DISPLAY, List.of(ADD_MIRROR_DISPLAY)),
             Map.entry(PERMISSION_ADD_TRUSTED_DISPLAY, List.of(ADD_TRUSTED_DISPLAY)));
 
+    public static final Map<String, Integer> EXTRA_PERM_SET_TO_ID = Map.ofEntries(
+            Map.entry(PERMISSION_GROUP_NEARBY, PERMISSION_NEARBY_DEVICES)
+    );
+
     private static final Set<String> SYSTEM_ONLY_DEVICE_PROFILES;
     static {
         final Set<String> set = new ArraySet<>();
@@ -166,6 +183,18 @@ public final class PermissionsUtils {
                 Manifest.permission.REQUEST_COMPANION_PROFILE_VIRTUAL_DEVICE);
 
         DEVICE_PROFILE_TO_PERMISSION = unmodifiableMap(map);
+    }
+
+    private static final Map<Integer, String> SYSTEM_DATA_SYNC_FLAG_TO_PERMISSION;
+    static {
+        final Map<Integer, String> map = new ArrayMap<>();
+        map.put(FLAG_CALL_METADATA, null);
+        map.put(FLAG_TASK_CONTINUITY, null);
+        map.put(FLAG_UNIVERSAL_MODES, null);
+        map.put(FLAG_UNIVERSAL_CLIPBOARD, Manifest.permission.REQUEST_COMPANION_SELF_MANAGED);
+        map.put(FLAG_AIRPLANE_MODE, null);
+
+        SYSTEM_DATA_SYNC_FLAG_TO_PERMISSION = unmodifiableMap(map);
     }
 
     /**
@@ -323,6 +352,32 @@ public final class PermissionsUtils {
     }
 
     /**
+     * Require the caller to hold necessary permission to interact with the system data sync flags.
+     */
+    public static void enforceCallerCanInteractWithSystemDataSyncFlags(@NonNull Context context,
+            int flags) {
+        if (flags == 0) {
+            return;
+        }
+
+        Set<String> requiredPermissions = new ArraySet<>();
+        for (Map.Entry<Integer, String> entry : SYSTEM_DATA_SYNC_FLAG_TO_PERMISSION.entrySet()) {
+            if (entry.getValue() == null) {
+                continue;
+            }
+            if ((entry.getKey() & flags) != 0) {
+                requiredPermissions.add(entry.getValue());
+            }
+        }
+        for (String permission : requiredPermissions) {
+            if (context.checkCallingPermission(permission) != PERMISSION_GRANTED) {
+                throw new SecurityException("Caller (uid=" + getCallingUid() + ") does not have "
+                        + "permission to interact with system data sync flags: " + flags);
+            }
+        }
+    }
+
+    /**
      * Require the caller to be Shell or Root.
      */
     public static void enforceCallerShellOrRoot() {
@@ -330,6 +385,85 @@ public final class PermissionsUtils {
         if (callingUid == SHELL_UID || callingUid == ROOT_UID) return;
 
         throw new SecurityException("Caller is neither Shell nor Root");
+    }
+
+    /**
+     * Enforce that caller must use their own app's name as the serviceName.
+     */
+    public static void enforceValidServiceName(@NonNull String serviceName,
+            @NonNull String callingPackageName) {
+        if (!serviceName.equals(callingPackageName)) {
+            throw new SecurityException("Caller must use their own app's name as "
+                    + "the serviceName");
+        }
+    }
+
+    /**
+     * Check that the caller has necessary permissions to manage trusted associations.
+     */
+    public static boolean checkCallerCanManageTrustedAssociations(@NonNull Context context) {
+        return Flags.trustedDevices()
+                && context.checkCallingPermission(ACCESS_COMPANION_MESSAGE_PCC)
+                        == PERMISSION_GRANTED;
+    }
+
+    /**
+     * Check that the caller has necessary permissions to use system data transports.
+     */
+    public static boolean checkCallerCanUseSystemDataTransports(@NonNull Context context) {
+        return UserHandle.getCallingAppId() == SYSTEM_UID
+                || context.checkCallingPermission(USE_COMPANION_TRANSPORTS)
+                == PERMISSION_GRANTED;
+    }
+
+    /**
+     * Convert a set of permissions to a list of their corresponding Integer IDs.
+     */
+    public static Set<Integer> extraPermissionsToIds(Set<String> permissionSetKeys) {
+        Set<Integer> extraPermissionIds = new HashSet<>();
+        if (CollectionUtils.isEmpty(permissionSetKeys)) {
+            return extraPermissionIds;
+        }
+
+        for (String setKey : permissionSetKeys) {
+            Integer permId = EXTRA_PERM_SET_TO_ID.get(setKey);
+            if (setKey != null && permId != null) {
+                extraPermissionIds.add(permId);
+            }
+        }
+        return extraPermissionIds;
+    }
+
+    /**
+     * Converts a set of permission group keys into a single set of all individual permissions
+     * contained within those groups.
+     */
+    public static Set<String> getIndividualPermissionsFromKeys(
+            @NonNull Set<String> permissionSetKeys) {
+        Set<String> individualPermissions = new HashSet<>();
+        for (Integer permSetKeyInt : extraPermissionsToIds(permissionSetKeys)) {
+            individualPermissions.addAll(PERM_SET_TO_PERMS.get(permSetKeyInt));
+        }
+        return individualPermissions;
+    }
+
+    /**
+     * Enforce permissions for sending messages.
+     */
+    public static void enforceMessagePermissions(Context context, int messageType) {
+        if (checkCallerCanUseSystemDataTransports(context)) {
+            return;
+        }
+        switch (messageType) {
+            case MESSAGE_ONEWAY_PCC -> {
+                if (context.checkCallingPermission(ACCESS_COMPANION_MESSAGE_PCC)
+                        != PERMISSION_GRANTED) {
+                    throw new SecurityException("sendMessage(PCC) permission denied");
+                }
+            }
+            default -> throw new SecurityException("sendMessage(0x"
+                    + Integer.toHexString(messageType) + ") permission denied");
+        }
     }
 
     private static boolean checkPackage(@UserIdInt int uid, @NonNull String packageName) {

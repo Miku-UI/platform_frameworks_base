@@ -23,9 +23,8 @@ import static android.content.pm.ActivityInfo.SIZE_CHANGES_UNSUPPORTED_METADATA;
 import static android.content.pm.ActivityInfo.SIZE_CHANGES_UNSUPPORTED_OVERRIDE;
 import static android.content.res.Configuration.ORIENTATION_UNDEFINED;
 import static android.internal.perfetto.protos.Windowmanagerservice.ActivityRecordProto.IN_SIZE_COMPAT_MODE;
-import static android.window.DesktopExperienceFlags.ENABLE_SIZE_COMPAT_MODE_IMPROVEMENTS_FOR_CONNECTED_DISPLAYS;
-import static android.window.DesktopExperienceFlags.ENABLE_UPSCALING_SIZE_COMPAT_ON_EXITING_DESKTOP_BUGFIX;
 
+import static com.android.server.wm.AppCompatSandboxingPolicy.ConfigOverrideHint;
 import static com.android.server.wm.AppCompatUtils.isDesktopFirst;
 import static com.android.server.wm.AppCompatUtils.isInDesktopMode;
 
@@ -194,11 +193,16 @@ class AppCompatSizeCompatModePolicy {
     }
 
     void clearSizeCompatModeIfNeededOnResolveOverrideConfiguration() {
-        if (mAppCompatDisplayInsets == null || !mActivityRecord.isUniversalResizeable()) {
+        if (mAppCompatDisplayInsets == null) {
             return;
         }
-        clearSizeCompatModeAttributes();
-        clearOverrideConfiguration();
+        final AppCompatAspectRatioOverrides aspectRatioOverrides =
+                mActivityRecord.mAppCompatController.getAspectRatioOverrides();
+        if (mActivityRecord.isUniversalResizeable()
+                || aspectRatioOverrides.isSystemOverrideToFullscreenEnabled()) {
+            clearSizeCompatModeAttributes();
+            clearOverrideConfiguration();
+        }
     }
 
     void dump(@NonNull PrintWriter pw, @NonNull String prefix) {
@@ -230,18 +234,20 @@ class AppCompatSizeCompatModePolicy {
         // saved here before resolved bounds are overridden below.
         final AppCompatAspectRatioPolicy aspectRatioPolicy = mActivityRecord.mAppCompatController
                 .getAspectRatioPolicy();
+        final ConfigOverrideHint overrideHint = mActivityRecord.mAppCompatController
+                .getSandboxingPolicy().getResolveConfigHint();
         final boolean useResolvedBounds = aspectRatioPolicy.isAspectRatioApplied();
         final Rect containerBounds = useResolvedBounds
                 ? new Rect(resolvedBounds)
-                : mActivityRecord.mResolveConfigHint.mParentBoundsOverride;
+                : overrideHint.getParentBoundsOverride();
         final Rect containerAppBounds = useResolvedBounds
                 ? new Rect(resolvedConfig.windowConfiguration.getAppBounds())
-                : mActivityRecord.mResolveConfigHint.mParentAppBoundsOverride;
+                : overrideHint.getParentAppBoundsOverride();
 
         final int requestedOrientation = mActivityRecord.getRequestedConfigurationOrientation();
         final boolean orientationRequested = requestedOrientation != ORIENTATION_UNDEFINED;
-        final int parentOrientation = mActivityRecord.mResolveConfigHint.mUseOverrideInsetsForConfig
-                ? mActivityRecord.mResolveConfigHint.mTmpOverrideConfigOrientation
+        final int parentOrientation = overrideHint.shouldUseOverrideInsetsForConfig()
+                ? overrideHint.getOverrideOrientation()
                 : newParentConfiguration.orientation;
         final int orientation = orientationRequested
                 ? requestedOrientation
@@ -285,7 +291,6 @@ class AppCompatSizeCompatModePolicy {
         // Use resolvedBounds to compute other override configurations such as appBounds. The bounds
         // are calculated in compat container space. The actual position on screen will be applied
         // later, so the calculation is simpler that doesn't need to involve offset from parent.
-        mActivityRecord.mResolveConfigHint.mTmpCompatInsets = appCompatDisplayInsets;
         mActivityRecord.computeConfigByResolveHint(resolvedConfig, newParentConfiguration);
         // Use current screen layout as source because the size of app is independent to parent.
         resolvedConfig.screenLayout = ActivityRecord.computeScreenLayout(
@@ -383,14 +388,12 @@ class AppCompatSizeCompatModePolicy {
         // relatively fixed.
         overrideConfig.colorMode = fullConfig.colorMode;
         overrideConfig.densityDpi = fullConfig.densityDpi;
-        if (ENABLE_SIZE_COMPAT_MODE_IMPROVEMENTS_FOR_CONNECTED_DISPLAYS.isTrue()) {
-            overrideConfig.touchscreen = fullConfig.touchscreen;
-            overrideConfig.navigation = fullConfig.navigation;
-            overrideConfig.keyboard = fullConfig.keyboard;
-            overrideConfig.keyboardHidden = fullConfig.keyboardHidden;
-            overrideConfig.hardKeyboardHidden = fullConfig.hardKeyboardHidden;
-            overrideConfig.navigationHidden = fullConfig.navigationHidden;
-        }
+        overrideConfig.touchscreen = fullConfig.touchscreen;
+        overrideConfig.navigation = fullConfig.navigation;
+        overrideConfig.keyboard = fullConfig.keyboard;
+        overrideConfig.keyboardHidden = fullConfig.keyboardHidden;
+        overrideConfig.hardKeyboardHidden = fullConfig.hardKeyboardHidden;
+        overrideConfig.navigationHidden = fullConfig.navigationHidden;
         // The smallest screen width is the short side of screen bounds. Because the bounds
         // and density won't be changed, smallestScreenWidthDp is also fixed.
         overrideConfig.smallestScreenWidthDp = fullConfig.smallestScreenWidthDp;
@@ -407,8 +410,13 @@ class AppCompatSizeCompatModePolicy {
         // The role of AppCompatDisplayInsets is like the override bounds.
         mAppCompatDisplayInsets =
                 new AppCompatDisplayInsets(mActivityRecord.mDisplayContent, mActivityRecord,
-                        letterboxedContainerBounds, mActivityRecord.mResolveConfigHint
-                            .mUseOverrideInsetsForConfig);
+                        letterboxedContainerBounds,
+                        mActivityRecord.mAppCompatController.getSandboxingPolicy()
+                                .getResolveConfigHint().shouldUseOverrideInsetsForConfig());
+        final Task task = mActivityRecord.getTask();
+        if (task != null) {
+            task.updateCompatAspectRatioIfNeeded(mAppCompatDisplayInsets.mAspectRatio);
+        }
     }
 
     /**
@@ -601,12 +609,11 @@ class AppCompatSizeCompatModePolicy {
         final boolean launchedInAndExitedFromDesktop  = getAppCompatDisplayInsets() != null
                 && getAppCompatDisplayInsets().mInDesktopMode && !isInDesktopMode;
         final boolean hasMovedBetweenDisplays = mActivityRecord.mAppCompatController
-                .getDisplayCompatModePolicy().getDisplayChangedWithoutRestart();
+                .getDisplayCompatPolicy().getDisplayChangedWithoutRestart();
         final boolean isOnIgnoreOrientationRequestInternalDisplay = isOnInternalDisplay()
                 && mActivityRecord.getDisplayContent().getIgnoreOrientationRequest();
 
-        return ENABLE_UPSCALING_SIZE_COMPAT_ON_EXITING_DESKTOP_BUGFIX.isTrue()
-                && (launchedInAndExitedFromDesktop || hasMovedBetweenDisplays)
+        return (launchedInAndExitedFromDesktop || hasMovedBetweenDisplays)
                 && (!isOnIgnoreOrientationRequestInternalDisplay
                         || isDesktopFirst(mActivityRecord.getDisplayArea()));
     }

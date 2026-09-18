@@ -19,6 +19,7 @@ package com.android.keyguard;
 import static android.app.StatusBarManager.SESSION_KEYGUARD;
 import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
+import static android.security.Flags.enableWeaverWarmup;
 import static android.security.Flags.secureLockDevice;
 
 import static com.android.keyguard.KeyguardSecurityContainer.BOUNCER_DISMISSIBLE_KEYGUARD;
@@ -30,6 +31,9 @@ import static com.android.keyguard.KeyguardSecurityContainer.BOUNCER_DISMISS_SIM
 import static com.android.keyguard.KeyguardSecurityContainer.USER_TYPE_PRIMARY;
 import static com.android.keyguard.KeyguardSecurityContainer.USER_TYPE_SECONDARY_USER;
 import static com.android.keyguard.KeyguardSecurityContainer.USER_TYPE_WORK_PROFILE;
+import static com.android.keyguard.KeyguardSecurityModel.SecurityMode.PIN;
+import static com.android.keyguard.KeyguardSecurityModel.SecurityMode.Password;
+import static com.android.keyguard.KeyguardSecurityModel.SecurityMode.Pattern;
 import static com.android.keyguard.KeyguardSecurityModel.SecurityMode.SecureLockDeviceBiometricAuth;
 import static com.android.keyguard.KeyguardSecurityModel.SecurityMode.SimPin;
 import static com.android.keyguard.KeyguardSecurityModel.SecurityMode.SimPuk;
@@ -75,6 +79,7 @@ import com.android.keyguard.dagger.KeyguardBouncerScope;
 import com.android.settingslib.utils.ThreadUtils;
 import com.android.systemui.Flags;
 import com.android.systemui.Gefingerpoken;
+import com.android.systemui.authentication.domain.interactor.AuthenticationInteractor;
 import com.android.systemui.biometrics.FaceAuthAccessibilityDelegate;
 import com.android.systemui.bouncer.domain.interactor.BouncerInteractor;
 import com.android.systemui.bouncer.domain.interactor.BouncerMessageInteractor;
@@ -107,9 +112,12 @@ import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteracto
 
 import dagger.Lazy;
 
+import kotlin.Unit;
+
 import kotlinx.coroutines.Job;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.Executor;
 
@@ -141,6 +149,7 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
     private final FeatureFlags mFeatureFlags;
     private final SessionTracker mSessionTracker;
     private final FalsingA11yDelegate mFalsingA11yDelegate;
+    private final Lazy<AuthenticationInteractor> mAuthenticationInteractor;
     private final DeviceEntryFaceAuthInteractor mDeviceEntryFaceAuthInteractor;
     private final BouncerMessageInteractor mBouncerMessageInteractor;
     private final Lazy<WindowRootViewBlurInteractor> mRootViewBlurInteractor;
@@ -218,6 +227,15 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
     private KeyguardSecurityCallback mKeyguardSecurityCallback = new KeyguardSecurityCallback() {
         @Override
         public void onUserInput() {
+            if (enableWeaverWarmup()) {
+                // We don't care about the result of this call.
+                mJavaAdapter.get().<Unit>runSuspend(
+                    mAuthenticationInteractor.get()::triggerAuthWarmUp,
+                    /* onSuccess= */ unused -> Unit.INSTANCE,
+                    /* onCancel= */ unused -> Unit.INSTANCE,
+                    /* onFailure= */ unused -> Unit.INSTANCE
+                );
+            }
             mBouncerMessageInteractor.onPrimaryBouncerUserInput();
             mDeviceEntryFaceAuthInteractor.onPrimaryBouncerUserInput();
         }
@@ -252,9 +270,10 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
         }
 
         @Override
-        public void reportUnlockAttempt(int userId, boolean success, int timeoutMs) {
-            if (timeoutMs == 0 && !success) {
-                mBouncerMessageInteractor.onPrimaryAuthIncorrectAttempt();
+        public void reportUnlockAttempt(int userId, boolean success, Duration timeout,
+                boolean isDuplicate) {
+            if (timeout.isZero() && !success) {
+                mBouncerMessageInteractor.onPrimaryAuthIncorrectAttempt(isDuplicate);
             }
             int bouncerSide = SysUiStatsLog.KEYGUARD_BOUNCER_PASSWORD_ENTERED__SIDE__DEFAULT;
             if (mView.isSidedSecurityMode()) {
@@ -284,12 +303,32 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
                 SysUiStatsLog.write(SysUiStatsLog.KEYGUARD_BOUNCER_PASSWORD_ENTERED,
                         SysUiStatsLog.KEYGUARD_BOUNCER_PASSWORD_ENTERED__RESULT__FAILURE,
                         bouncerSide);
-                reportFailedUnlockAttempt(userId, timeoutMs);
+                reportFailedUnlockAttempt(userId, timeout);
             }
             mMetricsLogger.write(new LogMaker(MetricsEvent.BOUNCER)
                     .setType(success ? MetricsEvent.TYPE_SUCCESS : MetricsEvent.TYPE_FAILURE));
             mUiEventLogger.log(success ? BouncerUiEvent.BOUNCER_PASSWORD_SUCCESS
                     : BouncerUiEvent.BOUNCER_PASSWORD_FAILURE, getSessionId());
+
+            if (mCurrentSecurityMode == Password) {
+                mUiEventLogger.log(
+                        success
+                                ? com.android.systemui.bouncer.shared.logging
+                                .BouncerUiEvent.BOUNCER_SUCCESS_PASSWORD
+                                : com.android.systemui.bouncer.shared.logging
+                                        .BouncerUiEvent.BOUNCER_FAILURE_PASSWORD,
+                        getSessionId());
+            } else if (mCurrentSecurityMode == PIN) {
+                mUiEventLogger.log(success ? com.android.systemui.bouncer.shared.logging
+                        .BouncerUiEvent.BOUNCER_SUCCESS_PIN
+                        : com.android.systemui.bouncer.shared.logging
+                                .BouncerUiEvent.BOUNCER_FAILURE_PIN, getSessionId());
+            } else if (mCurrentSecurityMode == Pattern) {
+                mUiEventLogger.log(success ? com.android.systemui.bouncer.shared.logging
+                        .BouncerUiEvent.BOUNCER_SUCCESS_PATTERN
+                        : com.android.systemui.bouncer.shared.logging
+                                .BouncerUiEvent.BOUNCER_FAILURE_PATTERN, getSessionId());
+            }
         }
 
         @Override
@@ -476,6 +515,7 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
             TelephonyManager telephonyManager,
             ViewMediatorCallback viewMediatorCallback,
             AudioManager audioManager,
+            Lazy<AuthenticationInteractor> authenticationInteractor,
             DeviceEntryFaceAuthInteractor deviceEntryFaceAuthInteractor,
             BouncerMessageInteractor bouncerMessageInteractor,
             Provider<JavaAdapter> javaAdapter,
@@ -516,6 +556,7 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
         mTelephonyManager = telephonyManager;
         mViewMediatorCallback = viewMediatorCallback;
         mAudioManager = audioManager;
+        mAuthenticationInteractor = authenticationInteractor;
         mDeviceEntryFaceAuthInteractor = deviceEntryFaceAuthInteractor;
         mBouncerMessageInteractor = bouncerMessageInteractor;
         mSelectedUserInteractor = selectedUserInteractor;
@@ -738,7 +779,7 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
     public int getTop() {
         int top = mView.getTop();
         // The password view has an extra top padding that should be ignored.
-        if (getCurrentSecurityMode() == SecurityMode.Password) {
+        if (getCurrentSecurityMode() == Password) {
             View messageArea = mView.findViewById(R.id.keyguard_message_area);
             top += messageArea.getTop();
         }
@@ -854,6 +895,7 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
                         boolean didRunAnimation = controller.startDisappearAnimation(
                                 onFinishRunnable);
                         if (!didRunAnimation && onFinishRunnable != null) {
+                            Log.i(TAG, "View did not invoke onFinishRunnable directly");
                             onFinishRunnable.run();
                         }
                     });
@@ -969,9 +1011,9 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
                     break;
             }
         }
-        // A check to dismiss was made without any authentication. Verify there are no remaining SIM
-        // screens, which may happen on an unlocked lockscreen
-        if (!authenticated) {
+        // A check to dismiss was made without any authentication, or the previous code believes
+        // that bouncer is no longer required. Verify there are no remaining SIM screens first.
+        if (!authenticated || finish) {
             SecurityMode securityMode = mSecurityModel.getSecurityMode(targetUserId);
             if (Arrays.asList(SimPin, SimPuk).contains(securityMode)) {
                 Log.v(TAG, "Dismiss called but SIM/PUK unlock screen still required");
@@ -1042,7 +1084,7 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
      * @return whether we should dispatch the back key event before Ime.
      */
     public boolean dispatchBackKeyEventPreIme() {
-        return getCurrentSecurityMode() == SecurityMode.Password;
+        return getCurrentSecurityMode() == Password;
     }
 
     /**
@@ -1207,7 +1249,11 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
                 }, mFalsingA11yDelegate, mBouncerInteractor.get());
     }
 
-    public void reportFailedUnlockAttempt(int userId, int timeoutMs) {
+    /**
+     * Reports a failed unlock attempt and the associated timeout for the given user to services.
+     * May also show messages to the user.
+     */
+    public void reportFailedUnlockAttempt(int userId, Duration timeout) {
         // +1 for this time
         final int failedAttempts = mLockPatternUtils.getCurrentFailedPasswordAttempts(userId) + 1;
 
@@ -1232,10 +1278,10 @@ public class KeyguardSecurityContainerController extends ViewController<Keyguard
                     userId, expiringUser, mainUser, remainingBeforeWipe, failedAttempts);
         }
         mLockPatternUtils.reportFailedPasswordAttempt(userId);
-        if (timeoutMs > 0) {
-            mLockPatternUtils.reportPasswordLockout(timeoutMs, userId);
+        if (timeout.isPositive()) {
+            mLockPatternUtils.reportPasswordLockout(timeout, userId);
             if (!com.android.systemui.Flags.revampedBouncerMessages()) {
-                mView.showTimeoutDialog(userId, timeoutMs, mLockPatternUtils,
+                mView.showTimeoutDialog(userId, timeout, mLockPatternUtils,
                         mSecurityModel.getSecurityMode(userId));
             }
         }

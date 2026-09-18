@@ -48,17 +48,24 @@ public class LocationAlgorithmEventTest {
                     .build();
 
     public static final LocationTimeZoneAlgorithmStatus ARBITRARY_LOCATION_ALGORITHM_STATUS =
-            new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                    PROVIDER_STATUS_IS_CERTAIN, ARBITRARY_PROVIDER_STATUS,
-                    PROVIDER_STATUS_NOT_PRESENT, null);
+            new LocationTimeZoneAlgorithmStatus(
+                    DETECTION_ALGORITHM_STATUS_RUNNING,
+                    PROVIDER_STATUS_IS_CERTAIN,
+                    ARBITRARY_PROVIDER_STATUS,
+                    PROVIDER_STATUS_NOT_PRESENT,
+                    null);
 
     @Test
     public void testEquals() {
         GeolocationTimeZoneSuggestion suggestion1 =
                 GeolocationTimeZoneSuggestion.createUncertainSuggestion(1111L);
-        LocationTimeZoneAlgorithmStatus status1 = new LocationTimeZoneAlgorithmStatus(
-                DETECTION_ALGORITHM_STATUS_RUNNING,
-                PROVIDER_STATUS_NOT_PRESENT, null, PROVIDER_STATUS_NOT_PRESENT, null);
+        LocationTimeZoneAlgorithmStatus status1 =
+                new LocationTimeZoneAlgorithmStatus(
+                        DETECTION_ALGORITHM_STATUS_RUNNING,
+                        PROVIDER_STATUS_NOT_PRESENT,
+                        null,
+                        PROVIDER_STATUS_NOT_PRESENT,
+                        null);
         LocationAlgorithmEvent event1v1 = new LocationAlgorithmEvent(status1, suggestion1);
         assertEqualsAndHashCode(event1v1, event1v1);
 
@@ -70,9 +77,13 @@ public class LocationAlgorithmEventTest {
         LocationAlgorithmEvent event2 = new LocationAlgorithmEvent(status1, suggestion2);
         assertNotEquals(event1v1, event2);
 
-        LocationTimeZoneAlgorithmStatus status2 = new LocationTimeZoneAlgorithmStatus(
-                DETECTION_ALGORITHM_STATUS_RUNNING,
-                PROVIDER_STATUS_NOT_PRESENT, null, PROVIDER_STATUS_NOT_READY, null);
+        LocationTimeZoneAlgorithmStatus status2 =
+                new LocationTimeZoneAlgorithmStatus(
+                        DETECTION_ALGORITHM_STATUS_RUNNING,
+                        PROVIDER_STATUS_NOT_PRESENT,
+                        null,
+                        PROVIDER_STATUS_NOT_READY,
+                        null);
         LocationAlgorithmEvent event3 = new LocationAlgorithmEvent(status2, suggestion1);
         assertNotEquals(event1v1, event3);
 
@@ -96,10 +107,11 @@ public class LocationAlgorithmEventTest {
     @Test
     public void testParseCommandLineArg_noSuggestion() {
         GeolocationTimeZoneSuggestion suggestion = null;
-        LocationAlgorithmEvent event = new LocationAlgorithmEvent(
-                ARBITRARY_LOCATION_ALGORITHM_STATUS, suggestion);
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                Arrays.asList("--status", event.getAlgorithmStatus().toString()));
+        LocationAlgorithmEvent event =
+                new LocationAlgorithmEvent(ARBITRARY_LOCATION_ALGORITHM_STATUS, suggestion);
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        Arrays.asList("--status", event.getAlgorithmStatus().toString()));
 
         assertEquals(event, LocationAlgorithmEvent.parseCommandLineArg(testShellCommand));
     }
@@ -108,11 +120,15 @@ public class LocationAlgorithmEventTest {
     public void testParseCommandLineArg_suggestionUncertain() {
         GeolocationTimeZoneSuggestion suggestion =
                 GeolocationTimeZoneSuggestion.createUncertainSuggestion(1111L);
-        LocationAlgorithmEvent event = new LocationAlgorithmEvent(
-                ARBITRARY_LOCATION_ALGORITHM_STATUS, suggestion);
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                Arrays.asList("--status", event.getAlgorithmStatus().toString(),
-                        "--suggestion", "UNCERTAIN"));
+        LocationAlgorithmEvent event =
+                new LocationAlgorithmEvent(ARBITRARY_LOCATION_ALGORITHM_STATUS, suggestion);
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        Arrays.asList(
+                                "--status",
+                                event.getAlgorithmStatus().toString(),
+                                "--suggestion",
+                                "UNCERTAIN"));
 
         LocationAlgorithmEvent parsedEvent =
                 LocationAlgorithmEvent.parseCommandLineArg(testShellCommand);
@@ -125,11 +141,15 @@ public class LocationAlgorithmEventTest {
         GeolocationTimeZoneSuggestion suggestion =
                 GeolocationTimeZoneSuggestion.createCertainSuggestion(
                         1111L, Collections.emptyList());
-        LocationAlgorithmEvent event = new LocationAlgorithmEvent(
-                ARBITRARY_LOCATION_ALGORITHM_STATUS, suggestion);
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                Arrays.asList("--status", event.getAlgorithmStatus().toString(),
-                        "--suggestion", "EMPTY"));
+        LocationAlgorithmEvent event =
+                new LocationAlgorithmEvent(ARBITRARY_LOCATION_ALGORITHM_STATUS, suggestion);
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        Arrays.asList(
+                                "--status",
+                                event.getAlgorithmStatus().toString(),
+                                "--suggestion",
+                                "EMPTY"));
 
         LocationAlgorithmEvent parsedEvent =
                 LocationAlgorithmEvent.parseCommandLineArg(testShellCommand);
@@ -142,11 +162,15 @@ public class LocationAlgorithmEventTest {
         GeolocationTimeZoneSuggestion suggestion =
                 GeolocationTimeZoneSuggestion.createCertainSuggestion(
                         1111L, Arrays.asList("Europe/London", "Europe/Paris"));
-        LocationAlgorithmEvent event = new LocationAlgorithmEvent(
-                ARBITRARY_LOCATION_ALGORITHM_STATUS, suggestion);
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                Arrays.asList("--status", event.getAlgorithmStatus().toString(),
-                        "--suggestion", "Europe/London,Europe/Paris"));
+        LocationAlgorithmEvent event =
+                new LocationAlgorithmEvent(ARBITRARY_LOCATION_ALGORITHM_STATUS, suggestion);
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        Arrays.asList(
+                                "--status",
+                                event.getAlgorithmStatus().toString(),
+                                "--suggestion",
+                                "Europe/London,Europe/Paris"));
 
         LocationAlgorithmEvent parsedEvent =
                 LocationAlgorithmEvent.parseCommandLineArg(testShellCommand);
@@ -159,11 +183,16 @@ public class LocationAlgorithmEventTest {
         GeolocationTimeZoneSuggestion suggestion =
                 GeolocationTimeZoneSuggestion.createCertainSuggestion(
                         1111L, Arrays.asList("Europe/London", "Europe/Paris"));
-        LocationAlgorithmEvent event = new LocationAlgorithmEvent(
-                ARBITRARY_LOCATION_ALGORITHM_STATUS, suggestion);
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                Arrays.asList("--status", event.getAlgorithmStatus().toString(),
-                        "--suggestion", "Europe/London,Europe/Paris", "--bad_arg"));
+        LocationAlgorithmEvent event =
+                new LocationAlgorithmEvent(ARBITRARY_LOCATION_ALGORITHM_STATUS, suggestion);
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions(
+                        Arrays.asList(
+                                "--status",
+                                event.getAlgorithmStatus().toString(),
+                                "--suggestion",
+                                "Europe/London,Europe/Paris",
+                                "--bad_arg"));
         LocationAlgorithmEvent.parseCommandLineArg(testShellCommand);
     }
 

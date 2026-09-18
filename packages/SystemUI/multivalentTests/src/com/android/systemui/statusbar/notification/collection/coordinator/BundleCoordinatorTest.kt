@@ -16,13 +16,19 @@
 
 package com.android.systemui.statusbar.notification.collection.coordinator
 
+import android.app.INotificationManager
 import android.app.NotificationChannel
-import android.app.NotificationChannel.NEWS_ID
 import android.app.NotificationChannel.PROMOTIONS_ID
-import android.app.NotificationChannel.RECS_ID
-import android.app.NotificationChannel.SOCIAL_MEDIA_ID
+import android.app.NotificationManager.ACTION_DYNAMIC_BUNDLE_MODIFIED
+import android.app.NotificationManager.DYNAMIC_BUNDLE_MODIFICATION_TYPE_ADDED
+import android.app.NotificationManager.DYNAMIC_BUNDLE_MODIFICATION_TYPE_REMOVED
+import android.app.NotificationManager.EXTRA_DYNAMIC_BUNDLE
+import android.app.NotificationManager.EXTRA_DYNAMIC_BUNDLE_MODIFICATION_TYPE
+import android.content.Intent
+import android.content.applicationContext
 import android.os.UserHandle
 import android.platform.test.annotations.EnableFlags
+import android.service.notification.DynamicBundle
 import android.testing.TestableLooper
 import android.util.Pair
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -31,22 +37,27 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.MutableSceneTransitionLayoutState
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.kosmos.currentValue
 import com.android.systemui.notifications.ui.composable.row.BundleHeader
+import com.android.systemui.settings.UserTracker
 import com.android.systemui.statusbar.notification.OnboardingAffordanceManager
 import com.android.systemui.statusbar.notification.collection.BundleEntry
+import com.android.systemui.statusbar.notification.collection.BundleSpec
 import com.android.systemui.statusbar.notification.collection.GroupEntry
 import com.android.systemui.statusbar.notification.collection.InternalNotificationsApi
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder
 import com.android.systemui.statusbar.notification.collection.provider.SectionHeaderVisibilityProvider
 import com.android.systemui.statusbar.notification.collection.render.BundleBarn
-import com.android.systemui.statusbar.notification.collection.render.NodeController
 import com.android.systemui.statusbar.notification.row.data.model.AppData
 import com.android.systemui.statusbar.notification.row.data.repository.TEST_BUNDLE_SPEC
 import com.android.systemui.statusbar.notification.row.data.repository.TEST_BUNDLE_SPEC_2
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
+import com.android.systemui.testKosmos
+import com.android.systemui.util.concurrency.FakeExecutor
+import com.android.systemui.util.time.FakeSystemClock
 import com.android.systemui.util.time.SystemClock
+import com.google.common.truth.Correspondence
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -56,6 +67,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mock
 import org.mockito.Mockito.`when` as whenever
 import org.mockito.MockitoAnnotations
@@ -69,13 +81,17 @@ import org.mockito.MockitoAnnotations
 @RunWith(AndroidJUnit4::class)
 @TestableLooper.RunWithLooper
 class BundleCoordinatorTest : SysuiTestCase() {
-    @Mock private lateinit var newsController: NodeController
-    @Mock private lateinit var socialController: NodeController
-    @Mock private lateinit var recsController: NodeController
-    @Mock private lateinit var promoController: NodeController
+    private val kosmos = testKosmos()
     @Mock private lateinit var bundleBarn: BundleBarn
     @Mock private lateinit var systemClock: SystemClock
     @Mock private lateinit var sectionHeaderVisProvider: SectionHeaderVisibilityProvider
+
+    @Mock private lateinit var notificationManager: INotificationManager
+    @Mock private lateinit var userTracker: UserTracker
+
+    private var executor: FakeExecutor = FakeExecutor(FakeSystemClock())
+
+    private val broadcastDispatcher = kosmos.broadcastDispatcher
 
     private val onboardingMgr by lazy {
         OnboardingAffordanceManager("test bundle onboarding", sectionHeaderVisProvider)
@@ -94,44 +110,16 @@ class BundleCoordinatorTest : SysuiTestCase() {
         MockitoAnnotations.initMocks(this)
         coordinator =
             BundleCoordinator(
-                newsController,
-                socialController,
-                recsController,
-                promoController,
                 bundleBarn,
                 systemClock,
                 TestScope(UnconfinedTestDispatcher()),
                 onboardingMgr,
+                notificationManager,
+                executor,
+                executor,
+                userTracker,
+                broadcastDispatcher,
             )
-    }
-
-    @Test
-    fun newsSectioner() {
-        assertThat(coordinator.newsSectioner.isInSection(makeEntryOfChannelType(NEWS_ID))).isTrue()
-        assertThat(coordinator.newsSectioner.isInSection(makeEntryOfChannelType("news"))).isFalse()
-    }
-
-    @Test
-    fun socialSectioner() {
-        assertThat(coordinator.socialSectioner.isInSection(makeEntryOfChannelType(SOCIAL_MEDIA_ID)))
-            .isTrue()
-        assertThat(coordinator.socialSectioner.isInSection(makeEntryOfChannelType("social")))
-            .isFalse()
-    }
-
-    @Test
-    fun recsSectioner() {
-        assertThat(coordinator.recsSectioner.isInSection(makeEntryOfChannelType(RECS_ID))).isTrue()
-        assertThat(coordinator.recsSectioner.isInSection(makeEntryOfChannelType("recommendations")))
-            .isFalse()
-    }
-
-    @Test
-    fun promoSectioner() {
-        assertThat(coordinator.promoSectioner.isInSection(makeEntryOfChannelType(PROMOTIONS_ID)))
-            .isTrue()
-        assertThat(coordinator.promoSectioner.isInSection(makeEntryOfChannelType("promo")))
-            .isFalse()
     }
 
     @Test
@@ -146,7 +134,6 @@ class BundleCoordinatorTest : SysuiTestCase() {
         assertEquals(coordinator.bundler.getBundleIdOrNull(unclassifiedEntry), null)
     }
 
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     @Test
     fun membershipUpdater_notif_setKeyAndTime() {
         val testTime = 1000L
@@ -162,7 +149,6 @@ class BundleCoordinatorTest : SysuiTestCase() {
         assertThat(notifEntry.timeAddedToBundle.second).isEqualTo(testTime)
     }
 
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     @Test
     fun membershipUpdater_group_setKeyAndTime() {
         val testTime = 2000L
@@ -193,7 +179,6 @@ class BundleCoordinatorTest : SysuiTestCase() {
         assertThat(groupChild.timeAddedToBundle.second).isEqualTo(testTime)
     }
 
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     @Test
     fun membershipUpdater_notifStaysInSameBundle_nonZeroTimeNotUpdated() {
         val initialTime = 100L
@@ -212,7 +197,6 @@ class BundleCoordinatorTest : SysuiTestCase() {
         assertThat(notif.timeAddedToBundle.second).isEqualTo(initialTime)
     }
 
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     @Test
     fun membershipUpdater_notifStaysInSameBundle_zeroTimeUpdated() {
         val currentTime = 200L
@@ -230,7 +214,6 @@ class BundleCoordinatorTest : SysuiTestCase() {
         assertThat(notif.timeAddedToBundle.second).isEqualTo(currentTime)
     }
 
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     @Test
     fun membershipUpdater_entryMovesToNewBundle_updatesKeyAndTime() {
         val time1 = 100L
@@ -250,7 +233,6 @@ class BundleCoordinatorTest : SysuiTestCase() {
         assertThat(notif.timeAddedToBundle.second).isEqualTo(time2)
     }
 
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     @Test
     fun appDataUpdater_emptyChildren_setsEmptyAppListWhenCollapsed() = runTest {
         val bundle = BundleEntry(TEST_BUNDLE_SPEC)
@@ -265,7 +247,6 @@ class BundleCoordinatorTest : SysuiTestCase() {
         assertThat(currentValue(bundle.bundleRepository.appDataList)).isEmpty()
     }
 
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     @Test
     fun appDataUpdater_emptyChildren_setsEmptyAppListWhenExpanded() {
         val bundle = BundleEntry(TEST_BUNDLE_SPEC)
@@ -277,7 +258,6 @@ class BundleCoordinatorTest : SysuiTestCase() {
         assertThat(bundle.bundleRepository.appDataList.value).isEmpty()
     }
 
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     @Test
     fun appDataUpdater_twoNotifs_whileCollapsed() = runTest {
         val bundle = BundleEntry(TEST_BUNDLE_SPEC)
@@ -304,7 +284,6 @@ class BundleCoordinatorTest : SysuiTestCase() {
             .containsExactly(AppData(pkg1, user1, time1), AppData(pkg2, user2, time2))
     }
 
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     @Test
     fun appDataUpdater_notifAndGroup_whileCollapsed() = runTest {
         val bundle = BundleEntry(TEST_BUNDLE_SPEC)
@@ -341,7 +320,6 @@ class BundleCoordinatorTest : SysuiTestCase() {
             .containsExactly(AppData(pkg1, user1, time1), AppData(pkg2, user2, time2))
     }
 
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     @Test
     fun appDataUpdater_notifAndGroup_usesMaxTimeFromSummaryOrChildren() {
         val bundle = BundleEntry(TEST_BUNDLE_SPEC)
@@ -389,7 +367,6 @@ class BundleCoordinatorTest : SysuiTestCase() {
             )
     }
 
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     @Test
     fun appDataUpdater_twoNotifsWhileExpanded_updatedWhenRemoved() = runTest {
         val bundle = BundleEntry(TEST_BUNDLE_SPEC)
@@ -420,7 +397,6 @@ class BundleCoordinatorTest : SysuiTestCase() {
             .containsExactly(AppData(pkg2, user2, time2))
     }
 
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     @Test
     fun appDataUpdater_closedBundle_usesMaxTimeAddedToBundleForSameAppUser() {
         val bundle = BundleEntry(TEST_BUNDLE_SPEC)
@@ -466,7 +442,6 @@ class BundleCoordinatorTest : SysuiTestCase() {
             .containsExactly(AppData(pkg1, user1, time2), AppData(pkg2, user2, time1))
     }
 
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     @Test
     fun appDataUpdater_filtersOutZeroTimeAddedToBundleInFinalList() {
         val bundle = BundleEntry(TEST_BUNDLE_SPEC)
@@ -601,6 +576,80 @@ class BundleCoordinatorTest : SysuiTestCase() {
 
         coordinator.bundleCountUpdater.onBeforeFinalizeFilter(listOf(bundle))
         assertThat(bundle.bundleRepository.numberOfChildren).isEqualTo(0)
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_NM_CONTEXTUAL_DISPLAY)
+    fun testAddDynamicBundles() {
+        val bundles = listOf(DynamicBundle(130, "Group Chats"), DynamicBundle(140, "Spoilers"))
+        whenever(notificationManager.getDynamicBundles(any(), any())).thenReturn(bundles)
+
+        executor.runAllReady()
+
+        // 4 static bundles and 2 dynamic bundles
+        assertThat(coordinator.bundler.bundleSpecs)
+            .comparingElementsUsing<BundleSpec, Int>(
+                Correspondence.transforming({ it?.bundleType }, "bundleType")
+            )
+            .containsExactly(1, 2, 3, 4, 130, 140)
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_NM_CONTEXTUAL_DISPLAY)
+    fun testAddDynamicBundles_afterBoot() {
+        val bundles =
+            mutableListOf(DynamicBundle(130, "Group Chats"), DynamicBundle(140, "Spoilers"))
+        whenever(notificationManager.getDynamicBundles(any(), any())).thenReturn(bundles)
+
+        executor.runAllReady()
+
+        val newBundle = DynamicBundle(150, "bundle!")
+        bundles.add(newBundle)
+        broadcastDispatcher.sendIntentToMatchingReceiversOnly(
+            kosmos.applicationContext,
+            Intent(ACTION_DYNAMIC_BUNDLE_MODIFIED).apply {
+                putExtra(
+                    EXTRA_DYNAMIC_BUNDLE_MODIFICATION_TYPE,
+                    DYNAMIC_BUNDLE_MODIFICATION_TYPE_ADDED,
+                )
+                putExtra(EXTRA_DYNAMIC_BUNDLE, newBundle)
+            },
+        )
+
+        // 4 static bundles and 3 dynamic bundles
+        assertThat(coordinator.bundler.bundleSpecs)
+            .comparingElementsUsing<BundleSpec, Int>(
+                Correspondence.transforming({ it?.bundleType }, "bundleType")
+            )
+            .containsExactly(1, 2, 3, 4, 130, 140, 150)
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_NM_CONTEXTUAL_DISPLAY)
+    fun testRemoveDynamicBundles() {
+        val removable = DynamicBundle(140, "Spoilers")
+        val bundles = mutableListOf(DynamicBundle(130, "Group Chats"), removable)
+        whenever(notificationManager.getDynamicBundles(any(), any())).thenReturn(bundles)
+
+        executor.runAllReady()
+
+        broadcastDispatcher.sendIntentToMatchingReceiversOnly(
+            kosmos.applicationContext,
+            Intent(ACTION_DYNAMIC_BUNDLE_MODIFIED).apply {
+                putExtra(
+                    EXTRA_DYNAMIC_BUNDLE_MODIFICATION_TYPE,
+                    DYNAMIC_BUNDLE_MODIFICATION_TYPE_REMOVED,
+                )
+                putExtra(EXTRA_DYNAMIC_BUNDLE, removable)
+            },
+        )
+
+        // 4 static bundles and 1 dynamic bundle
+        assertThat(coordinator.bundler.bundleSpecs)
+            .comparingElementsUsing<BundleSpec, Int>(
+                Correspondence.transforming({ it?.bundleType }, "bundleType")
+            )
+            .containsExactly(1, 2, 3, 4, 130)
     }
 
     private fun makeEntryOfChannelType(

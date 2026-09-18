@@ -30,6 +30,7 @@ import android.util.Log;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import com.android.internal.util.CollectionUtils;
 import com.android.settingslib.bluetooth.HearingAidAudioRoutingConstants.RoutingValue;
 
 import java.util.ArrayList;
@@ -54,10 +55,10 @@ public class HearingAidAudioRoutingHelper {
      * Gets the list of {@link AudioProductStrategy} referred by the given list of usage values
      * defined in {@link AudioAttributes}
      */
-    public List<AudioProductStrategy> getSupportedStrategies(int[] attributeSdkUsageList) {
-        final List<AudioAttributes> audioAttrList = new ArrayList<>(attributeSdkUsageList.length);
-        for (int attributeSdkUsage : attributeSdkUsageList) {
-            audioAttrList.add(new AudioAttributes.Builder().setUsage(attributeSdkUsage).build());
+    public List<AudioProductStrategy> getSupportedStrategies(int[] audioAttributeUsages) {
+        final List<AudioAttributes> audioAttrList = new ArrayList<>(audioAttributeUsages.length);
+        for (int audioAttributeUsage : audioAttributeUsages) {
+            audioAttrList.add(new AudioAttributes.Builder().setUsage(audioAttributeUsage).build());
         }
 
         final List<AudioProductStrategy> allStrategies = getAudioProductStrategies();
@@ -76,9 +77,9 @@ public class HearingAidAudioRoutingHelper {
     /**
      * Sets the preferred device for the given strategies.
      *
-     * @param supportedStrategies A list of {@link AudioProductStrategy} used to configure audio
+     * @param strategies A list of {@link AudioProductStrategy} used to configure audio
      *                            routing
-     * @param hearingDevice {@link AudioDeviceAttributes} of the device to be changed in audio
+     * @param deviceAttributes {@link AudioDeviceAttributes} of the device to be changed in audio
      *                      routing
      * @param routingValue one of value defined in
      *                     {@link RoutingValue}, denotes routing
@@ -86,24 +87,58 @@ public class HearingAidAudioRoutingHelper {
      * @return {code true} if the routing value successfully configure
      */
     public boolean setPreferredDeviceRoutingStrategies(
-            List<AudioProductStrategy> supportedStrategies, AudioDeviceAttributes hearingDevice,
+            List<AudioProductStrategy> strategies, AudioDeviceAttributes deviceAttributes,
             @RoutingValue int routingValue) {
         boolean status;
         switch (routingValue) {
             case RoutingValue.AUTO:
-                status = removePreferredDeviceForStrategies(supportedStrategies);
+                status = removePreferredDeviceForStrategies(strategies);
                 return status;
             case RoutingValue.HEARING_DEVICE:
-                status = removePreferredDeviceForStrategies(supportedStrategies);
-                status &= setPreferredDeviceForStrategies(supportedStrategies, hearingDevice);
+                status = removePreferredDeviceForStrategies(strategies);
+                status &= setPreferredDeviceForStrategies(strategies, deviceAttributes);
                 return status;
             case RoutingValue.BUILTIN_DEVICE:
-                status = removePreferredDeviceForStrategies(supportedStrategies);
-                status &= setPreferredDeviceForStrategies(supportedStrategies,
+                status = removePreferredDeviceForStrategies(strategies);
+                status &= setPreferredDeviceForStrategies(strategies,
                         HearingAidAudioRoutingConstants.BUILTIN_SPEAKER);
                 return status;
             default:
                 throw new IllegalArgumentException("Unexpected routingValue: " + routingValue);
+        }
+    }
+
+    /**
+     * Configures the device for the given strategies.
+     *
+     * This API will use deny list
+     * {@link AudioManager#setDeviceAsNonDefaultForStrategy} to not route hearing device to given
+     * strategy, so it is for boolean option routing, route/not route.
+     *
+     * @param strategies A list of {@link AudioProductStrategy} used to configure audio
+     *                            routing
+     * @param deviceAttributes {@link AudioDeviceAttributes} of the device to be changed in audio
+     *                      routing
+     * @param routingValue one of value defined in {@link RoutingValue}, denotes routing
+     *                     destination.
+     * @return {@code true} if the routing value successfully configure
+     */
+    public boolean configureRoutingStrategies(
+            List<AudioProductStrategy> strategies,
+            @Nullable AudioDeviceAttributes deviceAttributes, @RoutingValue int routingValue) {
+        boolean status;
+        switch (routingValue) {
+            case RoutingValue.AUTO, RoutingValue.HEARING_DEVICE -> {
+                status = removeDeviceAsNonDefaultForStrategies(strategies, deviceAttributes);
+                return status;
+            }
+            case RoutingValue.BUILTIN_DEVICE -> {
+                status = removeDeviceAsNonDefaultForStrategies(strategies, deviceAttributes);
+                status &= setDeviceAsNonDefaultForStrategies(strategies, deviceAttributes);
+                return status;
+            }
+            default -> throw new IllegalArgumentException(
+                    "Unexpected routingValue: " + routingValue);
         }
     }
 
@@ -218,8 +253,8 @@ public class HearingAidAudioRoutingHelper {
         return null;
     }
 
-    private boolean matchAddress(CachedBluetoothDevice device, AudioDeviceInfo audioDevice) {
-        final String audioDeviceAddress = audioDevice.getAddress();
+    private boolean matchAddress(CachedBluetoothDevice device, AudioDeviceInfo audioDeviceInfo) {
+        final String audioDeviceAddress = audioDeviceInfo.getAddress();
         final CachedBluetoothDevice subDevice = device.getSubDevice();
         final Set<CachedBluetoothDevice> memberDevices = device.getMemberDevice();
 
@@ -230,10 +265,10 @@ public class HearingAidAudioRoutingHelper {
     }
 
     private boolean setPreferredDeviceForStrategies(List<AudioProductStrategy> strategies,
-            AudioDeviceAttributes audioDevice) {
+            AudioDeviceAttributes deviceAttributes) {
         boolean status = true;
         for (AudioProductStrategy strategy : strategies) {
-            status &= mAudioManager.setPreferredDeviceForStrategy(strategy, audioDevice);
+            status &= mAudioManager.setPreferredDeviceForStrategy(strategy, deviceAttributes);
         }
 
         return status;
@@ -248,6 +283,59 @@ public class HearingAidAudioRoutingHelper {
         }
 
         return status;
+    }
+
+    private boolean setDeviceAsNonDefaultForStrategies(List<AudioProductStrategy> strategies,
+            AudioDeviceAttributes deviceAttributes) {
+        if (deviceAttributes == null) {
+            return true;
+        }
+
+        boolean status = true;
+        for (AudioProductStrategy strategy : strategies) {
+            status &= mAudioManager.setDeviceAsNonDefaultForStrategy(strategy, deviceAttributes);
+        }
+
+        return status;
+    }
+
+    private boolean removeDeviceAsNonDefaultForStrategies(
+            List<AudioProductStrategy> strategies, AudioDeviceAttributes deviceAttributes) {
+        if (deviceAttributes == null) {
+            return true;
+        }
+
+        boolean status = true;
+        for (AudioProductStrategy strategy : strategies) {
+            List<AudioDeviceAttributes> nonDefaultDevices =
+                    mAudioManager.getNonDefaultDevicesForStrategy(strategy);
+            if (!CollectionUtils.isEmpty(nonDefaultDevices)) {
+                status &= mAudioManager.removeDeviceAsNonDefaultForStrategy(strategy,
+                        deviceAttributes);
+            }
+        }
+
+        return status;
+    }
+
+    /**
+     * Remove specific device in the given strategies.
+     *
+     * @param strategies A list of {@link AudioProductStrategy} used to configure audio routing
+     * @param device the {@link CachedBluetoothDevice}
+     */
+    public void removeDevicesStrategies(List<AudioProductStrategy> strategies,
+            CachedBluetoothDevice device) {
+        for (AudioProductStrategy strategy : strategies) {
+            List<AudioDeviceAttributes> audioDeviceAttributes =
+                    mAudioManager.getNonDefaultDevicesForStrategy(strategy).stream()
+                            .filter(attribute -> (
+                                    attribute.getAddress().equals(device.getAddress())))
+                            .toList();
+            for (AudioDeviceAttributes audioDeviceAttribute : audioDeviceAttributes) {
+                mAudioManager.removeDeviceAsNonDefaultForStrategy(strategy, audioDeviceAttribute);
+            }
+        }
     }
 
     @VisibleForTesting

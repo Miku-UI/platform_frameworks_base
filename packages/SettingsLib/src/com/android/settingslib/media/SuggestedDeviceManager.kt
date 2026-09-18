@@ -22,7 +22,6 @@ import android.os.Handler
 import android.util.Log
 import androidx.annotation.GuardedBy
 import androidx.annotation.VisibleForTesting
-import com.android.media.flags.Flags.useSuggestedDeviceConnectionManager
 import com.android.settingslib.media.LocalMediaManager.MediaDeviceState
 import com.android.settingslib.media.LocalMediaManager.MediaDeviceState.STATE_CONNECTED
 import com.android.settingslib.media.LocalMediaManager.MediaDeviceState.STATE_CONNECTING
@@ -102,15 +101,6 @@ class SuggestedDeviceManager(
           dispatchOnSuggestedDeviceUpdated()
         }
       }
-
-      override fun onConnectSuggestedDeviceFinished(
-        newSuggestedDeviceState: SuggestedDeviceState,
-        success: Boolean,
-      ) {
-        if (!useSuggestedDeviceConnectionManager()) {
-          onSuggestedDeviceConnectionFinished(newSuggestedDeviceState, success)
-        }
-      }
     }
 
   fun addListener(listener: Listener) {
@@ -140,10 +130,14 @@ class SuggestedDeviceManager(
   }
 
   fun cancelAllRequests() {
-    if (useSuggestedDeviceConnectionManager()) suggestedDeviceConnectionManager.cancel()
+    suggestedDeviceConnectionManager.cancel()
   }
 
   fun requestDeviceSuggestion() {
+    if (suggestedDeviceState?.connectionState == STATE_CONNECTING) {
+      Log.i(TAG, "Connection in progress, aborting request for a new suggestion.")
+      return
+    }
     localMediaManager.requestDeviceSuggestion()
     stopHidingSuggestedDeviceState()
   }
@@ -177,27 +171,19 @@ class SuggestedDeviceManager(
       Log.w(TAG, "Suggestion got changed, aborting connection.")
       return
     }
-    if (useSuggestedDeviceConnectionManager()) {
-      try {
-        suggestedDeviceConnectionManager.connect(
-          newSuggestedDeviceState,
-          routingChangeInfo,
-        ) { suggestedDeviceState, success ->
-          onSuggestedDeviceConnectionFinished(suggestedDeviceState, success)
-        }
-        overrideSuggestedStateWithExpiration(
-          connectionState = STATE_CONNECTING,
-          timeoutMs = CONNECTING_TIMEOUT_MS,
-        )
-      } catch (e: IllegalStateException) {
-        Log.e(TAG, "Connection already in progress", e)
+    try {
+      suggestedDeviceConnectionManager.connect(
+        newSuggestedDeviceState,
+        routingChangeInfo,
+      ) { suggestedDeviceState, success ->
+        onSuggestedDeviceConnectionFinished(suggestedDeviceState, success)
       }
-    } else {
       overrideSuggestedStateWithExpiration(
         connectionState = STATE_CONNECTING,
         timeoutMs = CONNECTING_TIMEOUT_MS,
       )
-      localMediaManager.connectSuggestedDevice(newSuggestedDeviceState, routingChangeInfo)
+    } catch (e: IllegalStateException) {
+      Log.e(TAG, "Connection already in progress", e)
     }
   }
 

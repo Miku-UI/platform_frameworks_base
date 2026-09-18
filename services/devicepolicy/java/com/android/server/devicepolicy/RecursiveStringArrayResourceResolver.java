@@ -47,7 +47,7 @@ public class RecursiveStringArrayResourceResolver {
 
     /**
      * Resolves a given {@code <string-array/>} resource specified via
-     * {@param rootId} in {@param pkg}. During resolution all values prefixed with
+     * {@code rootId} in {@code pkg}. During resolution all values prefixed with
      * {@link #IMPORT_PREFIX} are expanded and injected
      * into the final list at the position of the import statement,
      * pushing all the following values (and their expansions) down.
@@ -68,7 +68,7 @@ public class RecursiveStringArrayResourceResolver {
      * will cause the entire resolution to fail with an error.
      *
      * @param pkg    the package owning the resource
-     * @param rootId the id of the {@code <string-array>} resource within {@param pkg} to start the
+     * @param rootId the id of the {@code <string-array>} resource within {@code pkg} to start the
      *               resolution from
      * @return a flattened list of all the resolved string array values from the root resource
      * as well as all the imported arrays
@@ -109,14 +109,14 @@ public class RecursiveStringArrayResourceResolver {
 
     /**
      * Resolves an import of the {@code <string-array>} resource
-     * in the context of {@param importingPackage} by the provided {@param ref}.
+     * in the context of {@code importingPackage} by the provided {@code ref}.
      *
      * @param cache            a list of already resolved packages to be passed along into chained
      *                         {@link #resolve} calls
      * @param importingPackage the package that owns the resource which defined the import being
      *                         processed.
      *                         It is also used to expand all {@link #PWP} shorthands in
-     *                         {@param ref}
+     *                         {@code ref}
      * @param ref              reference to the resource to be imported in a form of
      *                         "{package}{@link #SEPARATOR}{resourceName}".
      *                         e.g.: {@code com.android.internal/disallowed_apps_managed_user}

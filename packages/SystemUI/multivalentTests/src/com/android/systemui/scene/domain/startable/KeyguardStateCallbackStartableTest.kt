@@ -19,16 +19,15 @@ package com.android.systemui.scene.domain.startable
 import android.content.pm.UserInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.internal.policy.IKeyguardStateCallback
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.EnableSceneContainer
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeTrustRepository
-import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.scene.data.repository.Idle
+import com.android.systemui.scene.data.repository.lockDevice
 import com.android.systemui.scene.data.repository.setSceneTransition
-import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.scene.data.repository.unlockDevice
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.fakeMobileConnectionsRepository
 import com.android.systemui.testKosmos
@@ -188,9 +187,7 @@ class KeyguardStateCallbackStartableTest : SysuiTestCase() {
         kosmos.fakeUserRepository.setUserInfos(listOf(selectedUser))
         kosmos.fakeUserRepository.setSelectedUserInfo(selectedUser)
 
-        if (isInputRestricted && !isKeyguardShowing) {
-            // TODO(b/348644111): add support for mNeedToReshowWhenReenabled
-        } else if (!isInputRestricted) {
+        if (!isInputRestricted) {
             assertWithMessage(
                     "If isInputRestricted is false, isKeyguardShowing must also be false!"
                 )
@@ -210,16 +207,13 @@ class KeyguardStateCallbackStartableTest : SysuiTestCase() {
     }
 
     private fun lockDevice() {
-        kosmos.setSceneTransition(ObservableTransitionState.Idle(Scenes.Lockscreen))
-        kosmos.sceneInteractor.changeScene(Scenes.Lockscreen, "")
+        kosmos.lockDevice()
+        kosmos.setSceneTransition(Idle(Scenes.Lockscreen))
     }
 
     private fun unlockDevice() {
-        kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-            SuccessFingerprintAuthenticationStatus(0, true)
-        )
-        kosmos.setSceneTransition(ObservableTransitionState.Idle(Scenes.Gone))
-        kosmos.sceneInteractor.changeScene(Scenes.Gone, "")
+        kosmos.unlockDevice()
+        kosmos.setSceneTransition(Idle(Scenes.Gone))
     }
 
     private fun mockCallback(): IKeyguardStateCallback {
@@ -235,11 +229,6 @@ class KeyguardStateCallbackStartableTest : SysuiTestCase() {
     )
 
     companion object {
-        private val selectedUser =
-            UserInfo(
-                /* id= */ 100,
-                /* name= */ "First user",
-                /* flags= */ 0,
-            )
+        private val selectedUser = UserInfo(/* id= */ 100, /* name= */ "First user", /* flags= */ 0)
     }
 }

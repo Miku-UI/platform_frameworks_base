@@ -37,6 +37,7 @@ import com.android.systemui.keyguard.TAG
 import com.android.systemui.keyguard.domain.interactor.KeyguardSurfaceBehindInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardSurfaceBehindModel
 import com.android.wm.shell.shared.animation.Interpolators
+import com.android.wm.shell.shared.compat.AnimatedSurface
 import java.lang.Math.clamp
 import java.util.concurrent.Executor
 import javax.inject.Inject
@@ -77,7 +78,7 @@ constructor(
     private val interactor: KeyguardSurfaceBehindInteractor,
     context: Context,
 ) {
-    private var surfaceBehind: RemoteAnimationTarget? = null
+    private var surfaceBehind: AnimatedSurface? = null
         set(value) {
             field = value
             interactor.setSurfaceRemoteAnimationTargetAvailable(value != null)
@@ -149,7 +150,7 @@ constructor(
      * Provides us with a surface to animate. We'll apply the [viewParams] to this surface and start
      * any necessary animations.
      */
-    fun applyParamsToSurface(surface: RemoteAnimationTarget) {
+    fun applyParamsToSurface(surface: AnimatedSurface) {
         this.surfaceBehind = surface
         startOrUpdateAnimators()
         applyToSurfaceBehind()
@@ -220,9 +221,9 @@ constructor(
     }
 
     private fun applyToSurfaceBehind() {
-        surfaceBehind?.let { target ->
+        surfaceBehind?.let { surface ->
             executor.execute {
-                if (surfaceBehind == null) {
+                if (surfaceBehind == null || !surface.leash.isValid) {
                     Log.d(
                         TAG,
                         "Attempting to modify params of surface that isn't " +
@@ -232,14 +233,14 @@ constructor(
                     return@execute
                 }
 
-                val translationX = target.screenSpaceBounds.left.toFloat()
+                val translationX = surface.endState.bounds.left
                 val baseTranslationY =
                     if (translateYSpring.isRunning) {
                         animatedTranslationY.value
                     } else {
                         viewParams.translationY
                     }
-                val translationY = target.screenSpaceBounds.top.toFloat() + baseTranslationY
+                val translationY = surface.endState.bounds.top + baseTranslationY
 
                 var percentTranslated =
                     clamp(1f - (baseTranslationY / animatingFromTranslationY), 0f, 1f)
@@ -257,24 +258,24 @@ constructor(
                 matrix.setScale(
                     scaleFactor,
                     scaleFactor,
-                    target.screenSpaceBounds.width() / 2f,
-                    target.screenSpaceBounds.height() * SCALE_PIVOT_Y,
+                    surface.endState.bounds.width() / 2f,
+                    surface.endState.bounds.height() * SCALE_PIVOT_Y,
                 )
                 matrix.postTranslate(translationX, translationY)
 
                 if (
                     keyguardViewController.viewRootImpl.view?.visibility != View.VISIBLE &&
-                        target.leash.isValid
+                        surface.leash.isValid
                 ) {
                     with(SurfaceControl.Transaction()) {
-                        setMatrix(target.leash, matrix, tmpFloat)
-                        setAlpha(target.leash, alpha)
-                        setCornerRadius(target.leash, roundedCornerRadius)
+                        setMatrix(surface.leash, matrix, tmpFloat)
+                        setAlpha(surface.leash, alpha)
+                        setCornerRadius(surface.leash, roundedCornerRadius)
                         apply()
                     }
                 } else {
                     surfaceTransactionApplier.scheduleApply(
-                        SyncRtSurfaceTransactionApplier.SurfaceParams.Builder(target.leash)
+                        SyncRtSurfaceTransactionApplier.SurfaceParams.Builder(surface.leash)
                             .withMatrix(matrix)
                             .withAlpha(alpha)
                             .withCornerRadius(roundedCornerRadius)

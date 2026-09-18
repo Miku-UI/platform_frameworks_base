@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
+@file:Suppress("ktlint:standard:no-wildcard-imports")
+
 package com.android.server.permission.access
 
 import android.content.pm.SignedPackage
+import android.permission.flags.Flags
 import android.util.Slog
 import com.android.modules.utils.BinaryXmlPullParser
 import com.android.modules.utils.BinaryXmlSerializer
@@ -24,8 +27,8 @@ import com.android.server.SystemConfig
 import com.android.server.permission.access.appfunction.AppIdAppFunctionAccessPolicy
 import com.android.server.permission.access.appop.AppIdAppOpPolicy
 import com.android.server.permission.access.appop.PackageAppOpPolicy
-import com.android.server.permission.access.collection.* // ktlint-disable no-wildcard-imports
-import com.android.server.permission.access.immutable.* // ktlint-disable no-wildcard-imports
+import com.android.server.permission.access.collection.*
+import com.android.server.permission.access.immutable.*
 import com.android.server.permission.access.immutable.IndexedMap
 import com.android.server.permission.access.permission.AppIdPermissionPolicy
 import com.android.server.permission.access.permission.DevicePermissionPolicy
@@ -460,7 +463,17 @@ private constructor(
     companion object {
         private val LOG_TAG = AccessPolicy::class.java.simpleName
 
-        internal const val VERSION_LATEST = 17
+        internal val VERSION_LATEST =
+            // accessLocalNetworkPermissionEnabled flag is already in nextfood.
+            if (Flags.locationButtonEnabled() && Flags.accessLocalNetworkPermissionEnabled()) {
+                20
+            } else if (Flags.accessLocalNetworkPermissionEnabled()) {
+                // Version 18 is skipped because it was taken by a rolled back launch for app
+                // function.
+                19
+            } else {
+                17
+            }
 
         private const val TAG_ACCESS = "access"
         private const val TAG_DEFAULT_PERMISSION_GRANT = "default-permission-grant"

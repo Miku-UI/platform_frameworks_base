@@ -73,7 +73,7 @@ query: {
                         WHERE name = 'RenderEngine'
                     )
                 )
-                AND s.name LIKE 'drawLayersInternal for RegionSampling%'
+                AND s.name LIKE 'drawLayersInternal% for RegionSampling%'
             ORDER BY
                 s.ts ASC
         ),

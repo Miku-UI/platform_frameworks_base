@@ -147,6 +147,11 @@ final class ChildContentCaptureSession extends ContentCaptureSession {
     }
 
     @Override
+    void internalNotifyContentInteractionEvent(int sessionId, @NonNull AutofillId autofillId) {
+        getMainCaptureSession().internalNotifyContentInteractionEvent(sessionId, autofillId);
+    }
+
+    @Override
     boolean isContentCaptureEnabled() {
         return getMainCaptureSession().isContentCaptureEnabled();
     }
@@ -160,5 +165,12 @@ final class ChildContentCaptureSession extends ContentCaptureSession {
     public void notifyContentCaptureEvents(
             @NonNull SparseArray<ArrayList<Object>> contentCaptureEvents) {
         getMainCaptureSession().notifyContentCaptureEvents(contentCaptureEvents);
+    }
+
+    @Override
+    public void notifyContentCaptureInteractionEvents(
+            @NonNull SparseArray<ArrayList<Object>> contentCaptureInteractionEvents) {
+        getMainCaptureSession().notifyContentCaptureInteractionEvents(
+                contentCaptureInteractionEvents);
     }
 }

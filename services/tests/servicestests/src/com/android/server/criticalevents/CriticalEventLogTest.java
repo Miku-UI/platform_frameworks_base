@@ -784,7 +784,7 @@ public class CriticalEventLogTest {
         }
 
         @Override
-        protected long getWallTimeMillis() {
+        protected long getUptimeMillis() {
             return mNowMillis;
         }
 

@@ -20,15 +20,15 @@ import android.content.Context
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.view.WindowManager
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.keyboard.docking.ui.KeyboardDockingIndicationView
 import com.android.systemui.keyboard.docking.ui.viewmodel.KeyboardDockingIndicationViewModel
-import com.android.systemui.surfaceeffects.PaintDrawCallback
-import com.android.systemui.surfaceeffects.glowboxeffect.GlowBoxEffect
+import com.android.systemui.surfaceeffects.view.PaintDrawCallback
+import com.android.systemui.surfaceeffects.view.glowboxeffect.GlowBoxEffect
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 @SysUISingleton
 class KeyboardDockingIndicationViewBinder
@@ -37,7 +37,7 @@ constructor(
     context: Context,
     @Application private val applicationScope: CoroutineScope,
     private val viewModel: KeyboardDockingIndicationViewModel,
-    private val windowManager: WindowManager
+    private val windowManager: WindowManager,
 ) {
 
     private val windowLayoutParams =

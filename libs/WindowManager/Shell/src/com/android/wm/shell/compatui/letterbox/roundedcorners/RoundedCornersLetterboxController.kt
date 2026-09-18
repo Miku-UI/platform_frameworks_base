@@ -101,6 +101,6 @@ constructor(
     }
 
     override fun dump() {
-        ProtoLog.v(WM_SHELL_APP_COMPAT, "%s: %s", TAG, "$roundedCornersMap")
+        ProtoLog.v(WM_SHELL_APP_COMPAT, "$TAG: %s", roundedCornersMap)
     }
 }

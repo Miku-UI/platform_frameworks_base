@@ -19,16 +19,6 @@ package {
     default_applicable_licenses: ["frameworks_base_packages_SystemUI_license"],
 }
 
-filegroup {
-    name: "systemui_tests_base_manifest",
-    srcs: ["AndroidManifest-base.xml"],
-}
-
-filegroup {
-    name: "systemui_tests_additional_manifest",
-    srcs: ["AndroidManifest.xml"],
-}
-
 java_defaults {
     name: "SystemUITests_defaults",
     use_resource_processor: true,
@@ -57,8 +47,7 @@ java_defaults {
     // UI it doesn't own. This is necessary to allow screenshots to be taken
     certificate: "platform",
 
-    additional_manifests: [":systemui_tests_additional_manifest"],
-    manifest: ":systemui_tests_base_manifest",
+    manifest: "AndroidManifest.xml",
 }
 
 android_test {
@@ -84,5 +73,45 @@ test_module_config {
     exclude_annotations: [
         "android.platform.test.annotations.Ignore",
         "android.platform.test.annotations.FlakyTest",
+        "androidx.test.filters.FlakyTest",
+        "org.junit.Ignore",
+    ],
+}
+
+android_library {
+    name: "SystemUI_test_fixtures",
+    package_name: "com.android.systemui.tests.fixtures",
+    resource_dirs: [],
+
+    use_resource_processor: true,
+
+    srcs: [
+        "utils/src/**/*.java",
+        "utils/src/**/*.kt",
+        ":SystemUI_pod_fixtureFiles",
+    ],
+
+    static_libs: [
+        "androidx.compose.ui_ui-test-junit4",
+    ],
+
+    libs: [
+        // go/keep-sorted start
+        "PlatformMotionTestingCompose",
+        "SystemUI-application",
+        "SystemUICustomizationTestUtils",
+        "android.test.mock.stubs.system",
+        "androidx.compose.ui_ui-test",
+        "androidx.compose.ui_ui-test-junit4",
+        "androidx.core_core-animation-testing",
+        "flag-junit",
+        "flag-junit-base",
+        "kosmos",
+        "mockito-kotlin-nodeps",
+        "mockito-target-extended-minus-junit4",
+        "ravenwood-junit",
+        "testables",
+        "truth",
+        // go/keep-sorted end
     ],
 }

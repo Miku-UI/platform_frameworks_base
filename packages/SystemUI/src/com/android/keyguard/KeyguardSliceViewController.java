@@ -38,7 +38,6 @@ import androidx.slice.widget.SliceContent;
 import androidx.slice.widget.SliceLiveData;
 
 import com.android.systemui.Dumpable;
-import com.android.systemui.Flags;
 import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dump.DumpManager;
@@ -188,14 +187,11 @@ public class KeyguardSliceViewController extends ViewController<KeyguardSliceVie
             if (KeyguardSliceProvider.KEYGUARD_SLICE_URI.equals(mKeyguardSliceUri.toString())) {
                 KeyguardSliceProvider instance = KeyguardSliceProvider.getAttachedInstance();
                 if (instance != null) {
-                    if (Flags.sliceManagerBinderCallBackground()) {
-                        mBgHandler.post(() -> {
-                            Slice _slice = instance.onBindSlice(mKeyguardSliceUri);
-                            mHandler.post(() -> mObserver.onChanged(_slice));
-                        });
-                        return;
-                    }
-                    slice = instance.onBindSlice(mKeyguardSliceUri);
+                    mBgHandler.post(() -> {
+                        Slice _slice = instance.onBindSlice(mKeyguardSliceUri);
+                        mHandler.post(() -> mObserver.onChanged(_slice));
+                    });
+                    return;
                 } else {
                     Log.w(TAG, "Keyguard slice not bound yet?");
                     slice = null;

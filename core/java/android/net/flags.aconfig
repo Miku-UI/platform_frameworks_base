@@ -48,7 +48,7 @@ flag {
 flag {
   name: "vpn_type_oem_service_and_legacy"
   namespace: "android_core_networking"
-  is_exported: false
+  is_exported: true
   description: "Flags the TYPE_VPN_OEM_SERVICE and TYPE_VPN_OEM_LEGACY VpnManager API constants"
   bug: "389829981"
 }
@@ -70,18 +70,18 @@ flag {
 }
 
 flag {
-    name: "collect_vpn_metrics"
-    namespace: "android_core_networking"
-    is_exported: false
-    description: "This flag controls VPN metrics collection."
-    bug: "306313287"
-}
-
-flag {
   name: "create_app_specific_network_permission"
   namespace: "android_core_networking"
   is_exported: false
   description: "Flag for adding CREATE_APP_SPECIFIC_NETWORK permission"
+  bug: "435313135"
+}
+
+flag {
+  name: "make_app_specific_network_permission_api"
+  namespace: "android_core_networking"
+  is_exported: true
+  description: "Flag for making CREATE_APP_SPECIFIC_NETWORK permission API"
   bug: "435313135"
 }
 
@@ -94,4 +94,45 @@ flag {
   metadata {
     purpose: PURPOSE_BUGFIX
   }
+}
+
+flag {
+  name: "connectivity_service_modify_qdisc_clsact"
+  namespace: "android_core_networking"
+  is_exported: true
+  description: "Flag for moving the modify qdisc clsact logic in Netd to the Connectivity service"
+  bug: "430428527"
+}
+
+flag {
+  name: "autonomous_repairing_initiation"
+  is_exported: true
+  namespace: "bluetooth"
+  description: "Enable Autonomous repairing changes for Android Bluetooth from 26Q2"
+  bug: "459761960"
+}
+
+flag {
+  name: "bluetooth_pairing_hardening"
+  is_exported: true
+  namespace: "bluetooth"
+  description: "Enable pairing API hardening changes for Android Bluetooth from 26Q2"
+  bug: "461869367"
+}
+
+flag {
+    name: "use_netstats_per_query_flags"
+    namespace: "android_core_networking"
+    description: "Use NetworkStatsManager APIs with query flags"
+    bug: "453909242"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+  name: "enable_multi_proxy_system_platform"
+  namespace: "android_core_networking"
+  description: "Platform-side flag to control interactions related to multi-proxy support."
+  bug: "463367733"
 }

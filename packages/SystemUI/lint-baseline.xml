@@ -22067,17 +22067,6 @@
         errorLine1=""
         errorLine2=" ^">
         <location
-            file="frameworks/base/packages/SystemUI/src/com/android/keyguard/dagger/KeyguardDisplayModule.kt"
-            line="2"
-            column="2"/>
-    </issue>
-
-    <issue
-        id="MissingApacheLicenseDetector"
-        message="License header is missing&#xA;Please add the following copyright and license header to the beginning of the file:&#xA;&#xA;/*&#xA; * Copyright (C) 2024 The Android Open Source Project&#xA; *&#xA; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);&#xA; * you may not use this file except in compliance with the License.&#xA; * You may obtain a copy of the License at&#xA; *&#xA; *     http://www.apache.org/licenses/LICENSE-2.0&#xA; *&#xA; * Unless required by applicable law or agreed to in writing, software&#xA; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,&#xA; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.&#xA; * See the License for the specific language governing permissions and&#xA; * limitations under the License.&#xA; */"
-        errorLine1=""
-        errorLine2=" ^">
-        <location
             file="frameworks/base/packages/SystemUI/src/com/android/systemui/log/dagger/KeyguardLog.kt"
             line="2"
             column="2"/>
@@ -24276,7 +24265,7 @@
         errorLine1="import com.android.app.tracing.coroutines.runBlockingTraced as runBlocking"
         errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
-            file="frameworks/base/packages/SystemUI/src/com/android/systemui/user/data/repository/UserRepository.kt"
+            file="frameworks/base/packages/SystemUI/src/com/android/systemui/user/data/repository/UserRepositoryImpl.kt"
             line="34"
             column="1"/>
     </issue>
@@ -26028,17 +26017,6 @@
             file="frameworks/base/packages/SystemUI/src/com/android/systemui/statusbar/policy/UserInfoControllerImpl.java"
             line="147"
             column="25"/>
-    </issue>
-
-    <issue
-        id="UseCompoundDrawables"
-        message="This tag and its children can be replaced by one `&lt;TextView/>` and a compound drawable"
-        errorLine1="    &lt;LinearLayout"
-        errorLine2="     ~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/packages/SystemUI/res/layout/media_session_end_dialog.xml"
-            line="26"
-            column="6"/>
     </issue>
 
     <issue
@@ -29574,17 +29552,6 @@
 
     <issue
         id="ClickableViewAccessibility"
-        message="Custom view ``MediaOutputSeekbar`` has `setOnTouchListener` called on it but does not override `performClick`"
-        errorLine1="            mSeekBar.setOnTouchListener((v, event) -> true);"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/packages/SystemUI/src/com/android/systemui/media/dialog/MediaOutputBaseAdapter.java"
-            line="509"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
         message="`onTouch` lambda should call `View#performClick` when a click is detected"
         errorLine1="            mSeekBar.setOnTouchListener((v, event) -> true);"
         errorLine2="                                        ~~~~~~~~~~~~~~~~~~">
@@ -29592,17 +29559,6 @@
             file="frameworks/base/packages/SystemUI/src/com/android/systemui/media/dialog/MediaOutputBaseAdapter.java"
             line="509"
             column="41"/>
-    </issue>
-
-    <issue
-        id="ClickableViewAccessibility"
-        message="Custom view ``MediaOutputSeekbar`` has `setOnTouchListener` called on it but does not override `performClick`"
-        errorLine1="            mSeekBar.setOnTouchListener((v, event) -> false);"
-        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/packages/SystemUI/src/com/android/systemui/media/dialog/MediaOutputBaseAdapter.java"
-            line="515"
-            column="13"/>
     </issue>
 
     <issue

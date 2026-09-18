@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_label" msgid="1092971641119916701">"Virtual Device Manager"</string>
+    <string name="request_computer_control_access_dialog_title" msgid="1970509993635617382">"&lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; toestaan om schermautomatisering te gebruiken?"</string>
+    <string name="request_computer_control_access_per_app_consent_dialog_title" msgid="8118885324223570680">"&lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; toestaan om schermautomatisering te gebruiken met &lt;strong&gt;<xliff:g id="AUTOMATABLE_APP_NAME">%2$s</xliff:g>&lt;/strong&gt;?"</string>
+    <string name="request_computer_control_access_dialog_description" msgid="3423347516805473691">"Deze app kan de schermcontent van andere apps bekijken en er interactie mee hebben om je te helpen taken uit te voeren, zelfs als de apps op de achtergrond worden uitgevoerd"</string>
+    <string name="request_computer_control_access_dialog_button_allow" msgid="6210271960695301518">"Alleen deze keer"</string>
+    <string name="request_computer_control_access_dialog_button_dont_allow" msgid="4793579155406896411">"Niet toestaan"</string>
+    <string name="request_computer_control_access_dialog_button_always_allow" msgid="1551784758130170359">"Altijd toestaan"</string>
+    <string name="automated_app_launch_warning_dialog_title" msgid="5210938311581044737">"<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g> gebruikt <xliff:g id="TARGET_APP_NAME">%2$s</xliff:g>"</string>
+    <string name="automated_app_launch_warning_dialog_description" msgid="5372128583106771831">"Open de <xliff:g id="AGENT_APP_NAME_0">%1$s</xliff:g>-app om de voortgang van de taak te bekijken.<xliff:g id="EMPTY_LINE">
+
+</xliff:g>Als je de taak nu stopt, kun je je voortgang kwijtraken. Open de <xliff:g id="AGENT_APP_NAME_1">%1$s</xliff:g>-app om opnieuw te beginnen."</string>
+    <string name="automated_app_launch_warning_dialog_stop" msgid="5255022618671675595">"Taak stoppen en app openen"</string>
+    <string name="automated_app_launch_warning_dialog_wait" msgid="3472782366270857170">"Sluiten"</string>
+</resources>

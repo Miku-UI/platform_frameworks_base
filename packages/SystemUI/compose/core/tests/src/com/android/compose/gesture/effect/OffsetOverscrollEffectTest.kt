@@ -16,6 +16,9 @@
 
 package com.android.compose.gesture.effect
 
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.SetFlagsRule
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.OverscrollEffect
 import androidx.compose.foundation.gestures.Orientation
@@ -44,6 +47,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.android.systemui.Flags
 import com.google.common.truth.Truth.assertThat
 import kotlin.properties.Delegates
 import kotlinx.coroutines.test.runTest
@@ -54,6 +58,8 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class OffsetOverscrollEffectTest {
     @get:Rule val rule = createComposeRule()
+
+    @get:Rule val setFlagsRule = SetFlagsRule()
 
     private val BOX_TAG = "box"
 
@@ -236,7 +242,36 @@ class OffsetOverscrollEffectTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_STL_FLING_ANIMATION_CONSUME_OVERSHOOT)
     fun isScrollInProgress_scroll() = runTest {
+        val info =
+            setupOverscrollableBox(
+                scrollableOrientation = Orientation.Vertical,
+                canScroll = { true },
+            )
+
+        rule.onNodeWithTag(BOX_TAG).assertTopPositionInRootIsEqualTo(0.dp)
+
+        // Start a swipe gesture, and swipe down to scroll.
+        rule.onRoot().performTouchInput {
+            down(center)
+            moveBy(Offset(0f, info.touchSlop + info.layoutSize.toPx() / 2))
+        }
+
+        assertThat(info.scrollableState.isScrollInProgress).isTrue()
+        assertThat(info.overscrollEffect.isInProgress).isFalse()
+
+        // Finish the swipe gesture.
+        rule.onRoot().performTouchInput { up() }
+
+        // Scrolling is complete, no overshoot expected
+        assertThat(info.scrollableState.isScrollInProgress).isFalse()
+        assertThat(info.overscrollEffect.isInProgress).isFalse()
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_STL_FLING_ANIMATION_CONSUME_OVERSHOOT)
+    fun isScrollInProgress_withoutAnimationFix_scroll() = runTest {
         val info =
             setupOverscrollableBox(
                 scrollableOrientation = Orientation.Vertical,
@@ -263,6 +298,7 @@ class OffsetOverscrollEffectTest {
         // Wait until the overscroll returns to idle.
         rule.awaitIdle()
 
+        // Scrolling is complete, no overshoot expected
         assertThat(info.scrollableState.isScrollInProgress).isFalse()
         assertThat(info.overscrollEffect.isInProgress).isFalse()
     }

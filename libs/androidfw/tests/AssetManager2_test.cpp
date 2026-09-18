@@ -84,7 +84,7 @@ class AssetManager2Test : public ::testing::Test {
     app_assets_ = ApkAssets::Load("app/app.apk");
     ASSERT_THAT(app_assets_, NotNull());
 
-    overlay_assets_ = ApkAssets::LoadOverlay("overlay/overlay.idmap");
+    overlay_assets_ = ApkAssets::LoadOverlay("overlay/overlay.idmap", nullptr);
     ASSERT_NE(nullptr, overlay_assets_);
 
     overlayable_assets_ = ApkAssets::Load("overlayable/overlayable.apk");

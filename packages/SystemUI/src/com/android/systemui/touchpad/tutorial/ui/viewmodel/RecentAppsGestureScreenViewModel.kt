@@ -17,6 +17,7 @@
 package com.android.systemui.touchpad.tutorial.ui.viewmodel
 
 import android.view.MotionEvent
+import com.android.systemui.Flags
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState
 import com.android.systemui.res.R
 import com.android.systemui.touchpad.tutorial.ui.gesture.handleTouchpadMotionEvent
@@ -32,7 +33,9 @@ class RecentAppsGestureScreenViewModel(private val gestureRecognizer: GestureRec
                 it to
                     TutorialAnimationProperties(
                         progressStartMarker = "drag with gesture",
-                        progressEndMarker = "onPause",
+                        progressEndMarker =
+                            if (Flags.touchpadGestureTutorialBugFixes()) "release playback realtime"
+                            else "onPause",
                         successAnimation = R.raw.trackpad_recent_apps_success,
                     )
             }

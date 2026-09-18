@@ -2,13 +2,6 @@ package: "com.android.server.biometrics"
 container: "system"
 
 flag {
-  name: "face_vhal_feature"
-  namespace: "biometrics_framework"
-  description: "This flag controls tunscany virtual HAL feature"
-  bug: "294254230"
-}
-
-flag {
   name: "use_vhal_for_testing"
   namespace: "biometrics_framework"
   description: "This flag controls whether virtual HAL is used for testing instead of TestHal "
@@ -16,38 +9,30 @@ flag {
 }
 
 flag {
-  name: "set_ignore_speed_up"
+  name: "return_credential_not_enrolled"
   namespace: "biometrics_framework"
-  description: "This flag controls whether setIgnoreDisplayTouches is called directly on session from FingerprintProvider"
-  bug: "359289274"
+  description: "This bugfix flag is to prioritize credential not enrolled error"
+  bug: "466940874"
   metadata {
-      purpose: PURPOSE_BUGFIX
+    purpose: PURPOSE_BUGFIX
   }
 }
 
 flag {
-  name: "frr_dialog_improvement"
+  name: "bp_computer_controlled"
   namespace: "biometrics_framework"
-  description: "This flag controls FRR dialog improvement"
-  bug: "380800403"
-}
-
-flag {
-  name: "biometric_prompt_external_display"
-  namespace: "biometrics_framework"
-  description: "This flag returns error code when biometric prompt is requested on external display."
-  bug: "421237594"
+  description: "This flag is to block biometric prompt in computer controlled displays"
+  bug: "481273047"
   metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    purpose: PURPOSE_BUGFIX
+  }
 }
 
-
 flag {
-  name: "internal_cleanup_for_all_profiles"
+  name: "frr_dialog_enroll_time"
   namespace: "biometrics_framework"
-  description: "Feature flag for scheduling internal cleanup for all profiles"
-  bug: "441557507"
+  description: "This flag is to address the timing of saving into shared preference"
+  bug: "483582188"
   metadata {
     purpose: PURPOSE_BUGFIX
   }

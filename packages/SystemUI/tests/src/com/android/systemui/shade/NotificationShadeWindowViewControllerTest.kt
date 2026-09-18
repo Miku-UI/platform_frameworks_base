@@ -17,12 +17,10 @@
 package com.android.systemui.shade
 
 import android.content.Context
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.annotations.RequiresFlagsDisabled
 import android.platform.test.flag.junit.FlagsParameterization
 import android.testing.TestableLooper
 import android.testing.TestableLooper.RunWithLooper
-import android.view.Choreographer
 import android.view.Display
 import android.view.MotionEvent
 import android.view.View
@@ -37,6 +35,8 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
 import com.android.systemui.bouncer.ui.binder.BouncerViewBinder
+import com.android.systemui.brightness.data.repository.BrightnessMirrorShowingRepositoryImpl
+import com.android.systemui.brightness.domain.interactor.BrightnessMirrorShowingInteractorPassThrough
 import com.android.systemui.classifier.FalsingCollectorFake
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.dock.DockManager
@@ -47,8 +47,11 @@ import com.android.systemui.flags.Flags.SPLIT_SHADE_SUBPIXEL_OPTIMIZATION
 import com.android.systemui.flags.andSceneContainer
 import com.android.systemui.keyevent.domain.interactor.SysUIKeyEventHandler
 import com.android.systemui.keyguard.KeyguardUnlockAnimationController
+import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.domain.interactor.dozeTouchInteractor
+import com.android.systemui.keyguard.shared.model.DozeStateModel
+import com.android.systemui.keyguard.shared.model.DozeTransitionModel
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState.DREAMING
 import com.android.systemui.keyguard.shared.model.KeyguardState.LOCKSCREEN
@@ -57,11 +60,8 @@ import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.log.assertLogsWtf
-import com.android.systemui.qs.flags.QSComposeFragment
 import com.android.systemui.res.R
 import com.android.systemui.scene.ui.view.WindowRootViewKeyEventHandler
-import com.android.systemui.settings.brightness.data.repository.BrightnessMirrorShowingRepository
-import com.android.systemui.settings.brightness.domain.interactor.BrightnessMirrorShowingInteractorPassThrough
 import com.android.systemui.shade.NotificationShadeWindowView.InteractionEventHandler
 import com.android.systemui.shade.data.repository.ShadeAnimationRepository
 import com.android.systemui.shade.data.repository.ShadeRepositoryImpl
@@ -69,14 +69,12 @@ import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
 import com.android.systemui.shade.domain.interactor.PanelExpansionInteractor
 import com.android.systemui.shade.domain.interactor.ShadeAnimationInteractorLegacyImpl
 import com.android.systemui.shade.domain.interactor.shadeStatusBarComponentsInteractor
-import com.android.systemui.statusbar.BlurUtils
 import com.android.systemui.statusbar.DragDownHelper
 import com.android.systemui.statusbar.LockscreenShadeTransitionController
 import com.android.systemui.statusbar.NotificationInsetsController
 import com.android.systemui.statusbar.NotificationShadeDepthController
 import com.android.systemui.statusbar.NotificationShadeWindowController
 import com.android.systemui.statusbar.SysuiStatusBarStateController
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
 import com.android.systemui.statusbar.data.repository.homeStatusBarComponentsRepository
 import com.android.systemui.statusbar.notification.data.repository.NotificationLaunchAnimationRepository
 import com.android.systemui.statusbar.notification.domain.interactor.NotificationLaunchAnimationInteractor
@@ -97,6 +95,7 @@ import com.android.systemui.util.kotlin.javaAdapter
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.time.FakeSystemClock
+import com.android.systemui.window.ui.BlurChoreographer
 import com.android.systemui.window.ui.viewmodel.WindowRootViewModel
 import com.google.common.truth.Truth.assertThat
 import java.util.Optional
@@ -175,14 +174,13 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
     @Mock lateinit var sysUIKeyEventHandler: SysUIKeyEventHandler
     @Mock lateinit var primaryBouncerInteractor: PrimaryBouncerInteractor
     @Mock lateinit var alternateBouncerInteractor: AlternateBouncerInteractor
-    @Mock private lateinit var blurUtils: BlurUtils
-    @Mock private lateinit var choreographer: Choreographer
+    @Mock private lateinit var blurChoreographer: BlurChoreographer
     @Mock private lateinit var windowViewModelFactory: WindowRootViewModel.Factory
     private val notificationLaunchAnimationRepository = NotificationLaunchAnimationRepository()
     private val notificationLaunchAnimationInteractor =
         NotificationLaunchAnimationInteractor(notificationLaunchAnimationRepository)
 
-    private val brightnessMirrorShowingRepository = BrightnessMirrorShowingRepository()
+    private val brightnessMirrorShowingRepository = BrightnessMirrorShowingRepositoryImpl()
     private val brightnessMirrorShowingInteractor =
         BrightnessMirrorShowingInteractorPassThrough(brightnessMirrorShowingRepository)
 
@@ -231,9 +229,8 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
         fakeClock = FakeSystemClock()
         underTest =
             NotificationShadeWindowViewController(
-                blurUtils,
+                blurChoreographer,
                 windowViewModelFactory,
-                choreographer,
                 lockscreenShadeTransitionController,
                 falsingCollector,
                 sysuiStatusBarStateController,
@@ -243,7 +240,8 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
                 shadeViewController,
                 ShadeAnimationInteractorLegacyImpl(
                     ShadeAnimationRepository(),
-                    ShadeRepositoryImpl(testScope),
+                    ShadeRepositoryImpl(testScope, dumpManager),
+                    mock(ShadeWindowLogger::class.java),
                 ),
                 panelExpansionInteractor,
                 ShadeExpansionStateManager(),
@@ -395,6 +393,7 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
         }
 
     @Test
+    @DisableSceneContainer
     fun handleDispatchTouchEvent_downEventSentToSbThenAnotherEvent_sendsTouchToSb() =
         testScope.runTest {
             setStatusBarViewController()
@@ -467,11 +466,13 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
         }
 
     @Test
-    fun shouldInterceptTouchEvent_dozing_touchNotInLockIconArea_touchIntercepted() {
+    fun shouldInterceptTouchEvent_aodInterceptingTouches_touchIntercepted() {
         // GIVEN dozing
-        whenever(sysuiStatusBarStateController.isDozing).thenReturn(true)
+        kosmos.fakeKeyguardRepository.setDozeTransitionModel(
+            DozeTransitionModel(from = DozeStateModel.INITIALIZED, to = DozeStateModel.DOZE_AOD)
+        )
         // AND quick settings controller doesn't want it
-        whenever(quickSettingsController.shouldQuickSettingsIntercept(any(), any(), any()))
+        whenever(quickSettingsController.shouldQuickSettingsIntercept(any(), any(), any(), any()))
             .thenReturn(false)
 
         // THEN touch should be intercepted by NotificationShade
@@ -479,11 +480,14 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
     }
 
     @Test
-    fun shouldInterceptTouchEvent_dozing_touchInStatusBar_touchIntercepted() {
+    fun shouldInterceptTouchEvent_aod_touchInStatusBar_touchIntercepted() {
         // GIVEN dozing
-        whenever(sysuiStatusBarStateController.isDozing).thenReturn(true)
+        kosmos.fakeKeyguardRepository.setDozeTransitionModel(
+            DozeTransitionModel(from = DozeStateModel.INITIALIZED, to = DozeStateModel.DOZE_AOD)
+        )
+
         // AND quick settings controller DOES want it
-        whenever(quickSettingsController.shouldQuickSettingsIntercept(any(), any(), any()))
+        whenever(quickSettingsController.shouldQuickSettingsIntercept(any(), any(), any(), any()))
             .thenReturn(true)
 
         // THEN touch should be intercepted by NotificationShade
@@ -496,8 +500,11 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
         whenever(sysuiStatusBarStateController.isDozing).thenReturn(true)
         // AND pulsing
         whenever(dozeServiceHost.isPulsing()).thenReturn(true)
+        kosmos.fakeKeyguardRepository.setDozeTransitionModel(
+            DozeTransitionModel(from = DozeStateModel.DOZE_AOD, to = DozeStateModel.DOZE_PULSING)
+        )
         // AND quick settings controller DOES want it
-        whenever(quickSettingsController.shouldQuickSettingsIntercept(any(), any(), any()))
+        whenever(quickSettingsController.shouldQuickSettingsIntercept(any(), any(), any(), any()))
             .thenReturn(true)
         // AND bouncer is not showing
         whenever(centralSurfaces.isBouncerShowing()).thenReturn(false)
@@ -549,7 +556,6 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_HUB_BLURRED_BY_SHADE_FIX)
     fun handleExternalTouch_isNotInterceptedAndIsNotDraggingDown_onTouchNotSent() {
         whenever(view.dispatchTouchEvent(any())).thenReturn(true)
         whenever(view.onInterceptTouchEvent(any())).thenReturn(false)
@@ -567,7 +573,6 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_HUB_BLURRED_BY_SHADE_FIX)
     fun handleExternalTouch_isDraggingDown_onTouchSentAndInterceptTouchNotCalledAgain() {
         whenever(view.dispatchTouchEvent(any())).thenReturn(true)
         whenever(view.onInterceptTouchEvent(any())).thenReturn(false)
@@ -577,7 +582,7 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
 
         whenever(panelExpansionInteractor.isFullyExpanded).thenReturn(true)
         // AND quick settings controller doesn't want it
-        whenever(quickSettingsController.shouldQuickSettingsIntercept(any(), any(), any()))
+        whenever(quickSettingsController.shouldQuickSettingsIntercept(any(), any(), any(), any()))
             .thenReturn(false)
         whenever(dragDownHelper.isDragDownEnabled).thenReturn(true)
         whenever(dragDownHelper.onInterceptTouchEvent(any())).thenReturn(true)
@@ -599,7 +604,6 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_COMMUNAL_SHADE_TOUCH_HANDLING_FIXES)
     @DisableSceneContainer
     fun handleExternalTouch_hubDoesNotSeeTouches() =
         testScope.runTest {
@@ -694,7 +698,6 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
     }
 
     @Test
-    @EnableFlags(QSComposeFragment.FLAG_NAME)
     fun mirrorShowing_depthControllerSet() =
         testScope.runTest {
             try {
@@ -729,20 +732,16 @@ class NotificationShadeWindowViewControllerTest(flags: FlagsParameterization) : 
     private fun setStatusBarViewController(
         controller: PhoneStatusBarViewController? = phoneStatusBarViewController
     ) {
-        if (StatusBarConnectedDisplays.isEnabled) {
-            kosmos.fakeShadeDisplaysRepository.setDisplayId(Display.DEFAULT_DISPLAY)
-            if (controller != null) {
-                val component =
-                    kosmos.createFakeHomeStatusBarComponent(
-                        phoneStatusBarViewController = controller,
-                        displayId = Display.DEFAULT_DISPLAY,
-                    )
-                kosmos.homeStatusBarComponentsRepository.onStatusBarViewInitialized(component)
-            } else {
-                // Simulate a null controller by not adding any HomeStatusBarComponent.
-            }
+        kosmos.fakeShadeDisplaysRepository.setDisplayId(Display.DEFAULT_DISPLAY)
+        if (controller != null) {
+            val component =
+                kosmos.createFakeHomeStatusBarComponent(
+                    phoneStatusBarViewController = controller,
+                    displayId = Display.DEFAULT_DISPLAY,
+                )
+            kosmos.homeStatusBarComponentsRepository.onStatusBarViewInitialized(component)
         } else {
-            underTest.setStatusBarViewController(controller)
+            // Simulate a null controller by not adding any HomeStatusBarComponent.
         }
     }
 

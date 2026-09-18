@@ -16,9 +16,12 @@
 
 package android.app.supervision;
 
+import android.app.supervision.Policy;
+
 /**
  * @hide
  */
 oneway interface ISupervisionListener {
     oneway void onSetSupervisionEnabled(int userId, boolean enabled);
+    oneway void onPolicyChanged(in Policy policy);
 }

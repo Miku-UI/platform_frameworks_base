@@ -19,10 +19,15 @@ package com.android.server.locksettings;
 import static android.Manifest.permission.CONFIGURE_FACTORY_RESET_PROTECTION;
 import static android.security.Flags.FLAG_SECURE_LOCK_DEVICE;
 
+import static androidx.test.ext.truth.os.ParcelableSubject.assertThat;
+
 import static com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_NONE;
 import static com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_PASSWORD;
 import static com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_PATTERN;
 import static com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_PIN;
+import static com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_UNKNOWN;
+
+import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -66,7 +71,21 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.io.IOException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
+import java.util.function.Supplier;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 /** atest FrameworksServicesTests:LockSettingsServiceTests */
 @SmallTest
@@ -74,6 +93,8 @@ import java.time.Duration;
 @RunWith(AndroidJUnit4.class)
 public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     private static final Duration TEN_YEARS = Duration.ofDays(10 * 365);
+    private static final Duration MAX_LENGTH_DURATION =
+            Duration.ofSeconds(Long.MAX_VALUE, 999999999L);
 
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     @Rule
@@ -86,7 +107,20 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     @Test
+    @EnableFlags({
+        android.security.Flags.FLAG_APP_LOCK_APIS,
+        android.security.Flags.FLAG_MOVE_NOTIFY_LOCK_CREDENTIAL_CALLS,
+    })
     public void testSetPasswordPrimaryUser() throws RemoteException {
+        setAndVerifyCredential(PRIMARY_USER_ID, newPassword("password"));
+    }
+
+    @Test
+    @DisableFlags({
+        android.security.Flags.FLAG_APP_LOCK_APIS,
+        android.security.Flags.FLAG_MOVE_NOTIFY_LOCK_CREDENTIAL_CALLS,
+    })
+    public void testSetPasswordPrimaryUser_flagsOff() throws RemoteException {
         setAndVerifyCredential(PRIMARY_USER_ID, newPassword("password"));
     }
 
@@ -195,6 +229,23 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     @Test
+    public void testManagedProfileUnifiedChallenge_useSpProtectorPasswordAfterMigration()
+            throws Exception {
+        final LockscreenCredential unifiedPassword = newPassword("pwd-1");
+        setUpUnifiedPassword(unifiedPassword, /* isLegacy= */ true);
+        assertTrue(mStorage.hasChildProfileLock(MANAGED_PROFILE_USER_ID));
+        assertFalse(hasSpProtectorPassword(MANAGED_PROFILE_USER_ID));
+
+        VerifyCredentialResponse response =
+                mService.verifyTiedProfileChallenge(
+                        unifiedPassword, MANAGED_PROFILE_USER_ID, 0 /* flags */);
+
+        assertFalse(mStorage.hasChildProfileLock(MANAGED_PROFILE_USER_ID));
+        assertTrue(hasSpProtectorPassword(MANAGED_PROFILE_USER_ID));
+        assertTrue(response.isMatched());
+    }
+
+    @Test
     public void testManagedProfileSeparateChallenge() throws RemoteException {
         final LockscreenCredential primaryPassword = newPassword("primary");
         final LockscreenCredential profilePassword = newPassword("profile");
@@ -289,13 +340,12 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
 
     @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
     @Test
-    public void testStrongAuthNotifiedAndCeLocked_afterSecureLockDeviceDisabledWithoutAuth()
+    public void testStrongAuthNotified_afterSecureLockDeviceDisabledWithoutAuth()
             throws RemoteException {
         when(mSecureLockDeviceServiceInternal.isSecureLockDeviceEnabled()).thenReturn(true);
         mLocalService.disableSecureLockDevice(PRIMARY_USER_ID, /* authenticationComplete=*/ false);
 
         verify(mStrongAuth).disableSecureLockDevice(eq(PRIMARY_USER_ID), eq(false));
-        verify(mInjector.getStorageManager()).lockCeStorage(eq(PRIMARY_USER_ID));
     }
 
     @Test
@@ -643,7 +693,6 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     @Test
-    @EnableFlags(android.security.Flags.FLAG_SOFTWARE_RATELIMITER)
     public void testDuplicateWrongGuessesAreNotCounted() throws Exception {
         final int userId = PRIMARY_USER_ID;
         final LockscreenCredential pin = newPin("1234");
@@ -666,7 +715,7 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
             assertFalse(response.isMatched());
             assertTrue(response.isCredCertainlyIncorrect());
             assertEquals(i != 0, response.isCredAlreadyTried());
-            assertEquals(0, response.getTimeout());
+            assertTrue(response.getTimeoutAsDuration().isZero());
         }
         // The software and hardware counters should now be 1, for 1 unique guess.
         assertEquals(1, mSpManager.readFailureCounter(lskfId));
@@ -674,38 +723,6 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     @Test
-    @DisableFlags(android.security.Flags.FLAG_SOFTWARE_RATELIMITER)
-    public void testSoftwareRateLimiterFlagDisabled() throws Exception {
-        final int userId = PRIMARY_USER_ID;
-        final LockscreenCredential pin = newPin("1234");
-        final LockscreenCredential wrongPin = newPin("1111");
-        final int numGuesses = 100;
-
-        mSpManager.enableWeaver();
-        setCredential(userId, pin);
-        final long protectorId = mService.getCurrentLskfBasedProtectorId(userId);
-        final LskfIdentifier lskfId = new LskfIdentifier(userId, protectorId);
-
-        // The software and hardware counters start at 0.
-        assertEquals(0, mSpManager.readFailureCounter(lskfId));
-        assertEquals(0, mSpManager.getSumOfWeaverFailureCounters());
-
-        // Try the same wrong PIN repeatedly.
-        for (int i = 0; i < numGuesses; i++) {
-            VerifyCredentialResponse response =
-                    mService.verifyCredential(wrongPin, userId, 0 /* flags */);
-            assertFalse(response.isMatched());
-            assertTrue(response.isOtherError());
-        }
-        // The software counter should still be 0, since the software rate-limiter is fully disabled
-        // and thus it should have never been told about the guesses at all. The hardware counter
-        // should now be numGuesses, as all the (duplicate) guesses should have been sent to it.
-        assertEquals(0, mSpManager.readFailureCounter(lskfId));
-        assertEquals(numGuesses, mSpManager.getSumOfWeaverFailureCounters());
-    }
-
-    @Test
-    @EnableFlags(android.security.Flags.FLAG_SOFTWARE_RATELIMITER)
     public void testVerifyCredentialTooShort() throws Exception {
         final int userId = PRIMARY_USER_ID;
         setCredential(userId, newPassword("password"));
@@ -714,21 +731,10 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
         assertTrue(response.isCredTooShort());
     }
 
-    @Test
-    @DisableFlags(android.security.Flags.FLAG_SOFTWARE_RATELIMITER)
-    public void testVerifyCredentialTooShort_softwareRateLimiterFlagDisabled() throws Exception {
-        final int userId = PRIMARY_USER_ID;
-        setCredential(userId, newPassword("password"));
-        VerifyCredentialResponse response =
-                mService.verifyCredential(newPassword("a"), userId, /* flags= */ 0);
-        assertTrue(response.isOtherError());
-    }
-
     // Tests that if verifyCredential is passed a wrong guess and Weaver reports INCORRECT_KEY with
     // zero timeout (which indicates a certainly wrong guess), then LockSettingsService saves that
     // guess as a recent wrong guess and rejects a repeat of it as a duplicate.
     @Test
-    @EnableFlags(android.security.Flags.FLAG_SOFTWARE_RATELIMITER)
     public void testRepeatOfWrongGuessRejectedAsDuplicate_afterWeaverIncorrectKeyWithoutTimeout()
             throws Exception {
         final int userId = PRIMARY_USER_ID;
@@ -752,7 +758,7 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     @Test
-    @EnableFlags(com.android.server.flags.Flags.FLAG_KEYSTORE_IN_MEMORY_CLEANUP)
+    @EnableFlags(com.android.server.flags.Flags.FLAG_FIX_KEYSTORE_MEMORY_CLEANUP)
     public void testLockUser_locksCeStorageAndKeystore() throws Exception {
         final int userId = PRIMARY_USER_ID;
         final LockscreenCredential password = newPassword("password");
@@ -765,7 +771,6 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
 
     // Same as preceding test case, but uses a nonzero timeout.
     @Test
-    @EnableFlags(android.security.Flags.FLAG_SOFTWARE_RATELIMITER)
     public void testRepeatOfWrongGuessRejectedAsDuplicate_afterWeaverIncorrectKeyWithTimeout()
             throws Exception {
         final int userId = PRIMARY_USER_ID;
@@ -792,13 +797,8 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
         assertEquals(Duration.ZERO, response.getTimeoutAsDuration());
     }
 
-    // When handling hardware timeouts, both software and hardware timeouts should preempt
-    // duplicate detection.
+    // Both software and hardware timeouts should preempt duplicate detection.
     @Test
-    @EnableFlags({
-        android.security.Flags.FLAG_SOFTWARE_RATELIMITER,
-        android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE
-    })
     public void testRepeatOfWrongGuessThrottled_afterWeaverIncorrectKeyWithTimeoutButWithinTimeout()
             throws Exception {
         final int userId = PRIMARY_USER_ID;
@@ -832,7 +832,6 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     // timeout in Weaver), then LockSettingsService does not block the same guess from being
     // re-attempted and in particular does not reject it as a duplicate wrong guess.
     @Test
-    @EnableFlags(android.security.Flags.FLAG_SOFTWARE_RATELIMITER)
     public void testRepeatOfCorrectGuessAllowed_afterWeaverThrottle() throws Exception {
         final int userId = PRIMARY_USER_ID;
         final LockscreenCredential credential = newPassword("password");
@@ -859,7 +858,6 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     // the guess), then LockSettingsService does not block the same guess from being re-attempted
     // and in particular does not reject it as a duplicate wrong guess.
     @Test
-    @EnableFlags(android.security.Flags.FLAG_SOFTWARE_RATELIMITER)
     public void testRepeatOfCorrectGuessAllowed_afterWeaverFailed() throws Exception {
         final int userId = PRIMARY_USER_ID;
         final LockscreenCredential credential = newPassword("password");
@@ -878,7 +876,6 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     @Test
-    @EnableFlags(android.security.Flags.FLAG_SOFTWARE_RATELIMITER)
     public void test20UniqueGuessesAllowed() throws Exception {
         final int userId = PRIMARY_USER_ID;
         final LockscreenCredential credential = newPassword("password");
@@ -892,7 +889,6 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     @Test
-    @EnableFlags(android.security.Flags.FLAG_SOFTWARE_RATELIMITER)
     public void testMoreThan20UniqueGuessesNotAllowed() throws Exception {
         final int userId = PRIMARY_USER_ID;
         final LockscreenCredential credential = newPassword("password");
@@ -906,20 +902,87 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     @Test
-    @DisableFlags(android.security.Flags.FLAG_SOFTWARE_RATELIMITER)
-    public void testMoreThan20UniqueGuessesAllowed_softwareRateLimiterFlagDisabled()
-            throws Exception {
-        final int userId = PRIMARY_USER_ID;
-        final LockscreenCredential credential = newPassword("password");
-        VerifyCredentialResponse response;
+    public void testVerifyCredentialResponseEqualsAndHashCode() {
+        testEqualsAndHashCode(() -> new VerifyCredentialResponse.Builder().build());
+        testEqualsAndHashCode(
+                () ->
+                        new VerifyCredentialResponse.Builder()
+                                .setGatekeeperHAT(new byte[] {0, 1, 2, 3})
+                                .setGatekeeperPasswordHandle(1L)
+                                .build());
+        Arrays.asList(Duration.ZERO, TEN_YEARS, MAX_LENGTH_DURATION).forEach(timeout -> {
+            testEqualsAndHashCode(() -> VerifyCredentialResponse.credIncorrect(timeout));
+            testEqualsAndHashCode(() -> VerifyCredentialResponse.fromTimeout(timeout));
+        });
+        testEqualsAndHashCode(VerifyCredentialResponse::credAlreadyTried);
+        testEqualsAndHashCode(VerifyCredentialResponse::credTooShort);
+        testEqualsAndHashCode(VerifyCredentialResponse::fromError);
+    }
 
-        setCredential(userId, credential);
-        guessWrongCredential(userId, /* times= */ 20);
-        response = mService.verifyCredential(credential, userId, /* flags= */ 0);
-        assertTrue(response.isMatched());
+    private void testEqualsAndHashCode(Supplier<VerifyCredentialResponse> responseFactory) {
+        VerifyCredentialResponse first = responseFactory.get();
+        VerifyCredentialResponse second = responseFactory.get();
+        assertThat(first).isEqualTo(second);
+        assertThat(first.hashCode()).isEqualTo(second.hashCode());
     }
 
     @Test
+    public void testVerifyCredentialResponseNotEqual() {
+        VerifyCredentialResponse okResponse = new VerifyCredentialResponse.Builder().build();
+        VerifyCredentialResponse okResponseWithHat = new VerifyCredentialResponse.Builder()
+                .setGatekeeperPasswordHandle(1234L)
+                .setGatekeeperHAT(new byte[] { 1 })
+                .build();
+        VerifyCredentialResponse incorrectResponse = VerifyCredentialResponse.credIncorrect();
+        VerifyCredentialResponse incorrectResponseWithTimeout =
+                VerifyCredentialResponse.credIncorrect(Duration.ofMillis(1000));
+        VerifyCredentialResponse incorrectResponseWithTimeout2 =
+                VerifyCredentialResponse.credIncorrect(Duration.ofMillis(2000));
+        VerifyCredentialResponse timeoutResponse =
+                VerifyCredentialResponse.fromTimeout(Duration.ofMillis(1000));
+        VerifyCredentialResponse timeoutResponse2 =
+                VerifyCredentialResponse.fromTimeout(Duration.ofMillis(2000));
+        VerifyCredentialResponse tooShortResponse =
+                VerifyCredentialResponse.credTooShort();
+        VerifyCredentialResponse alreadyTriedResponse = VerifyCredentialResponse.credAlreadyTried();
+        VerifyCredentialResponse errorResponse = VerifyCredentialResponse.fromError();
+
+        List<VerifyCredentialResponse> responses = Arrays.asList(okResponse, okResponseWithHat,
+                incorrectResponse, incorrectResponseWithTimeout, incorrectResponseWithTimeout2,
+                timeoutResponse, timeoutResponse2, tooShortResponse, alreadyTriedResponse,
+                errorResponse);
+
+        // All responses are distinct and should not be equal.
+        for (int i = 0; i < responses.size() - 1; i++) {
+            for (int j = i + 1; j < responses.size(); j++) {
+                assertThat(responses.get(i)).isNotEqualTo(responses.get(j));
+            }
+        }
+    }
+
+    @Test
+    public void testVerifyCredentialResponseRecreatesEqual() {
+        testRecreatesEqual(new VerifyCredentialResponse.Builder().build());
+        testRecreatesEqual(
+                new VerifyCredentialResponse.Builder()
+                        .setGatekeeperHAT(new byte[] {0, 1, 2, 3})
+                        .setGatekeeperPasswordHandle(1L)
+                        .build());
+        Arrays.asList(Duration.ZERO, TEN_YEARS, MAX_LENGTH_DURATION).forEach(timeout -> {
+            testRecreatesEqual(VerifyCredentialResponse.credIncorrect(timeout));
+            testRecreatesEqual(VerifyCredentialResponse.fromTimeout(timeout));
+        });
+        testRecreatesEqual(VerifyCredentialResponse.credAlreadyTried());
+        testRecreatesEqual(VerifyCredentialResponse.credTooShort());
+        testRecreatesEqual(VerifyCredentialResponse.fromError());
+    }
+
+    private void testRecreatesEqual(VerifyCredentialResponse response) {
+        assertThat(response).recreatesEqual(VerifyCredentialResponse.CREATOR);
+    }
+
+    @Test
+    @DisableFlags(android.security.Flags.FLAG_ENABLE_UNCLAMPED_LOCKOUTS)
     public void testVerifyCredentialResponseTimeoutClamping() {
         testTimeoutClamping(Duration.ofMillis(Long.MIN_VALUE), Integer.MAX_VALUE);
         testTimeoutClamping(Duration.ofMillis(Integer.MIN_VALUE), Integer.MAX_VALUE);
@@ -937,6 +1000,24 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     @Test
+    @EnableFlags(android.security.Flags.FLAG_ENABLE_UNCLAMPED_LOCKOUTS)
+    public void testVerifyCredentialResponseNoTimeoutClamping() {
+        testNoTimeoutClamping(Duration.ofMillis(Long.MIN_VALUE));
+        testNoTimeoutClamping(Duration.ofMillis(Integer.MIN_VALUE));
+        testNoTimeoutClamping(Duration.ofMillis(-100));
+        testNoTimeoutClamping(Duration.ofMillis(-1));
+        testNoTimeoutClamping(Duration.ofNanos(-1));
+        testNoTimeoutClamping(Duration.ZERO);
+        testNoTimeoutClamping(Duration.ofNanos(1));
+        testNoTimeoutClamping(Duration.ofMillis(1));
+        testNoTimeoutClamping(Duration.ofSeconds(1));
+        testNoTimeoutClamping(Duration.ofSeconds(1000000));
+        testNoTimeoutClamping(Duration.ofMillis(Integer.MAX_VALUE));
+        testNoTimeoutClamping(Duration.ofMillis((long) Integer.MAX_VALUE + 1));
+        testNoTimeoutClamping(Duration.ofMillis(Long.MAX_VALUE));
+    }
+
+    @Test
     public void testGetLockoutEndTime_initialState() {
         final int userId = PRIMARY_USER_ID;
 
@@ -948,10 +1029,6 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     @Test
-    @EnableFlags({
-        android.security.Flags.FLAG_SOFTWARE_RATELIMITER,
-        android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE,
-    })
     public void testGetLockoutEndTime_nonZeroAfterTimedOutAttempt() throws Exception {
         final int userId = PRIMARY_USER_ID;
         final LockscreenCredential credential = newPassword("password");
@@ -969,10 +1046,6 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     @Test
-    @EnableFlags({
-        android.security.Flags.FLAG_SOFTWARE_RATELIMITER,
-        android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE,
-    })
     public void testGetLockoutEndTime_zeroAfterVerificationPostLockout() throws Exception {
         final int userId = PRIMARY_USER_ID;
         final LockscreenCredential credential = newPassword("password");
@@ -996,10 +1069,6 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     @Test
-    @EnableFlags({
-        android.security.Flags.FLAG_SOFTWARE_RATELIMITER,
-        android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE,
-    })
     public void testGetLockoutEndTime_zeroAfterEndTime() throws Exception {
         final int userId = PRIMARY_USER_ID;
         final LockscreenCredential credential = newPassword("password");
@@ -1020,10 +1089,6 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     @Test
-    @EnableFlags({
-        android.security.Flags.FLAG_SOFTWARE_RATELIMITER,
-        android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE,
-    })
     public void testGetLockoutEndTime_zeroAfterCredentialResetWithToken() throws Exception {
         byte[] token = "some-high-entropy-secure-token".getBytes();
         EscrowTokenStateChangeCallback mockActivateListener =
@@ -1048,6 +1113,73 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
         verify(mInvalidateLockoutEndTimeCacheMock).run();
     }
 
+    @Test
+    @DisableFlags(android.security.Flags.FLAG_ENABLE_WEAVER_GET_TIMEOUT)
+    public void testGetLockoutEndTime_doesNotAccountForWeaverTimeoutWhenFlagDisabled()
+            throws Exception {
+        final int userId = PRIMARY_USER_ID;
+        final LockscreenCredential credential = newPassword("password");
+        final Duration now = Duration.ZERO;
+        final Duration hwTimeout = Duration.ofMinutes(5);
+
+        mInjector.setTimeSinceBoot(now);
+        mSpManager.enableWeaver();
+        mSpManager.injectWeaverTimeout(hwTimeout);
+        setCredential(userId, credential);
+        assertEquals(Duration.ZERO, mService.getLockoutEndTime(userId).getDuration());
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_ENABLE_WEAVER_GET_TIMEOUT)
+    public void testGetLockoutEndTime_accountsForWeaverTimeout() throws Exception {
+        final int userId = PRIMARY_USER_ID;
+        final LockscreenCredential credential = newPassword("password");
+        final Duration now = Duration.ZERO;
+        final Duration hwTimeout = Duration.ofMinutes(5);
+
+        mInjector.setTimeSinceBoot(now);
+        mSpManager.enableWeaver();
+        mSpManager.injectWeaverTimeout(hwTimeout);
+        setCredential(userId, credential);
+        assertEquals(hwTimeout, mService.getLockoutEndTime(userId).getDuration());
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_ENABLE_SERVICE_SIDE_CREDENTIAL_TYPE_CACHE)
+    public void testUserCredentialCache() throws Exception {
+        final int userId = PRIMARY_USER_ID;
+
+        // The initial getCredentialType() should return NONE and set the cache entry.
+        assertEquals(CREDENTIAL_TYPE_UNKNOWN, mService.queryServiceSideCredentialTypeCache(userId));
+        assertEquals(CREDENTIAL_TYPE_NONE, mService.getCredentialType(userId));
+        assertEquals(CREDENTIAL_TYPE_NONE, mService.queryServiceSideCredentialTypeCache(userId));
+
+        // Set a PIN.
+        assertTrue(mService.setLockCredential(newPin("1234"), nonePassword(), userId));
+
+        // setLockCredential() should have updated the cache entry to PIN. (Actually it removes the
+        // cache entry and then re-adds it, but the effect is the same.)
+        assertEquals(CREDENTIAL_TYPE_PIN, mService.queryServiceSideCredentialTypeCache(userId));
+
+        // getCredentialType() should return PIN, and the cache entry should remain set.
+        assertEquals(CREDENTIAL_TYPE_PIN, mService.getCredentialType(userId));
+        assertEquals(CREDENTIAL_TYPE_PIN, mService.queryServiceSideCredentialTypeCache(userId));
+    }
+
+    @Test
+    @DisableFlags(android.security.Flags.FLAG_ENABLE_SERVICE_SIDE_CREDENTIAL_TYPE_CACHE)
+    public void testUserCredentialCache_disabled() throws Exception {
+        final int userId = PRIMARY_USER_ID;
+
+        assertEquals(CREDENTIAL_TYPE_UNKNOWN, mService.queryServiceSideCredentialTypeCache(userId));
+        assertEquals(CREDENTIAL_TYPE_NONE, mService.getCredentialType(userId));
+        assertEquals(CREDENTIAL_TYPE_UNKNOWN, mService.queryServiceSideCredentialTypeCache(userId));
+        assertTrue(mService.setLockCredential(newPin("1234"), nonePassword(), userId));
+        assertEquals(CREDENTIAL_TYPE_UNKNOWN, mService.queryServiceSideCredentialTypeCache(userId));
+        assertEquals(CREDENTIAL_TYPE_PIN, mService.getCredentialType(userId));
+        assertEquals(CREDENTIAL_TYPE_UNKNOWN, mService.queryServiceSideCredentialTypeCache(userId));
+    }
+
     private void guessWrongCredential(int userId, int times) {
         guessWrongCredential(userId, times, Duration.ZERO);
     }
@@ -1063,7 +1195,12 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
 
     private void testTimeoutClamping(Duration originalTimeout, int expectedClampedTimeout) {
         VerifyCredentialResponse response = VerifyCredentialResponse.fromTimeout(originalTimeout);
-        assertEquals(expectedClampedTimeout, response.getTimeout());
+        assertEquals(Duration.ofMillis(expectedClampedTimeout), response.getTimeout());
+    }
+
+    private void testNoTimeoutClamping(Duration originalTimeout) {
+        VerifyCredentialResponse response = VerifyCredentialResponse.fromTimeout(originalTimeout);
+        assertEquals(originalTimeout, response.getTimeout());
     }
 
     private void checkRecordedFrpNotificationIntent() {
@@ -1129,8 +1266,34 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
     }
 
     private void setUpUnifiedPassword(LockscreenCredential unifiedPassword) throws RemoteException {
+        setUpUnifiedPassword(unifiedPassword, /* isLegacy= */ false);
+    }
+
+    private void setUpUnifiedPassword(LockscreenCredential unifiedPassword, boolean isLegacy)
+            throws RemoteException {
         setCredential(PRIMARY_USER_ID, unifiedPassword);
         mService.setSeparateProfileChallengeEnabled(MANAGED_PROFILE_USER_ID, false, null);
+        LockscreenCredential unifiedProfilePassword = null;
+        try {
+            unifiedProfilePassword =
+                    mService.getDecryptedPasswordForUnifiedProfile(MANAGED_PROFILE_USER_ID);
+        } catch (KeyStoreException
+                | UnrecoverableKeyException
+                | NoSuchAlgorithmException
+                | NoSuchPaddingException
+                | InvalidKeyException
+                | InvalidAlgorithmParameterException
+                | IllegalBlockSizeException
+                | BadPaddingException
+                | CertificateException
+                | IOException e) {
+            throw new IllegalStateException("Unexpected failure to get profile password", e);
+        }
+        assertTrue(unifiedProfilePassword.isUnifiedProfilePassword());
+        setUpChildProfileLockFileIfNeeded(
+                /* hasChildProfileLockBefore= */ isLegacy, unifiedProfilePassword);
+        setUpSpProtectorPasswordIfNeeded(
+                /* hasSpProtectorPasswordBefore= */ !isLegacy, unifiedProfilePassword);
     }
 
     private void setAndVerifyCredential(int userId, LockscreenCredential newCredential)
@@ -1151,7 +1314,13 @@ public class LockSettingsServiceTests extends BaseLockSettingsServiceTests {
 
     private void setCredential(int userId, LockscreenCredential newCredential,
             LockscreenCredential oldCredential) throws RemoteException {
+        reset(mMockWindowManager, mMockPackageManagerInternal);
         assertTrue(mService.setLockCredential(newCredential, oldCredential, userId));
+        flushHandlerTasks();
+        verify(mMockWindowManager).reportPasswordChanged(userId);
+        if (android.security.Flags.appLockApis()) {
+            verify(mMockPackageManagerInternal).reportLockCredentialChanged(userId);
+        }
         assertEquals(newCredential.getType(), mService.getCredentialType(userId));
         if (newCredential.isNone()) {
             assertEquals(0, mGateKeeperService.getSecureUserId(userId));

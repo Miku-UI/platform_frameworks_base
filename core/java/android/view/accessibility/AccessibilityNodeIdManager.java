@@ -18,7 +18,15 @@ package android.view.accessibility;
 
 import android.view.View;
 
-/** @hide */
+/**
+ * Note that this class is intended to be used only by {@link android.view.View} or {@link
+ * AccessibilityInteractionController}. Exceptions should be carefully vetted.
+ *
+ * <p>Exceptions: {@link AccessibilityNodeInfo.SelectionPosition#getView}: any substantial changes
+ * to AccessibilityNodeIdManager should require revisiting this usage.
+ *
+ * @hide
+ */
 public final class AccessibilityNodeIdManager {
     private WeakSparseArray<View> mIdsToViews = new WeakSparseArray<View>();
     private static AccessibilityNodeIdManager sIdManager;

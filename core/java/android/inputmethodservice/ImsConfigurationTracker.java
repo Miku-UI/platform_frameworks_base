@@ -91,8 +91,7 @@ public final class ImsConfigurationTracker {
             return;
         }
         // Don't restart InputMethodService that claims it does not use resources at all.
-        boolean neverReset = android.content.res.Flags.handleAllConfigChanges()
-                && (mHandledConfigChanges & CONFIG_RESOURCES_UNUSED) != 0;
+        boolean neverReset = (mHandledConfigChanges & CONFIG_RESOURCES_UNUSED) != 0;
 
         final int diff = mLastKnownConfig != null
                 ? mLastKnownConfig.diffPublicOnly(newConfig) : CONFIG_CHANGED;

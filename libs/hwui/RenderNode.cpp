@@ -277,18 +277,55 @@ void RenderNode::prepareTreeImpl(TreeObserver& observer, TreeInfo& info, bool fu
     if (mDisplayList) {
         info.out.hasFunctors |= mDisplayList.hasFunctor();
         mHasHolePunches = mDisplayList.hasHolePunches();
+        mActiveBackdropRegions.clear();
+
+        auto backdropFilter = mProperties.layerProperties().getBackdropImageFilter();
+        if (backdropFilter) {
+            mHasBackdropFilters = true;
+            BackdropFilterRegion region;
+            region.filter = sk_ref_sp(backdropFilter);
+            region.bounds.set(0, 0, properties().getWidth(), properties().getHeight());
+            const auto& outline = properties().getOutline();
+            if (outline.getShouldClip() && outline.getPath()) {
+                region.path = *(outline.getPath());
+            } else {
+                region.path = SkPath::Rect(region.bounds.toSkRect());
+            }
+            mActiveBackdropRegions.push_back(std::move(region));
+        }
+
         bool isDirty = mDisplayList.prepareListAndChildren(
                 observer, info, childFunctorsNeedLayer,
-                [this](RenderNode* child, TreeObserver& observer, TreeInfo& info,
-                       bool functorsNeedLayer) {
+                [this](RenderNode* child, const Matrix4& recordedMatrix, TreeObserver& observer,
+                       TreeInfo& info, bool functorsNeedLayer) {
                     child->prepareTreeImpl(observer, info, functorsNeedLayer);
                     mHasHolePunches |= child->hasHolePunches();
+                    if (child->hasBackdropFilters()) {
+                        mHasBackdropFilters = true;
+                        for (const auto& childRegion : child->getActiveBackdropRegions()) {
+                            BackdropFilterRegion region;
+                            region.filter = childRegion.filter;
+
+                            Rect transformedBounds = childRegion.bounds;
+                            Matrix4 transform = recordedMatrix;
+                            child->applyViewPropertyTransforms(transform);
+                            transform.mapRect(transformedBounds);
+                            region.bounds = transformedBounds;
+
+                            SkMatrix skiaMatrix;
+                            transform.copyTo(skiaMatrix);
+                            region.path = childRegion.path.makeTransform(skiaMatrix);
+                            mActiveBackdropRegions.push_back(std::move(region));
+                        }
+                    }
                 });
         if (isDirty) {
             damageSelf(info);
         }
     } else {
         mHasHolePunches = false;
+        mHasBackdropFilters = false;
+        mActiveBackdropRegions.clear();
     }
     pushLayerUpdate(info);
 
@@ -428,7 +465,8 @@ void RenderNode::gatherColorAreasForSubtree(ColorArea& target, bool isModeFull) 
         displayList = &mStagingDisplayList;
     }
 
-    if (displayList && displayList->isValid() && !(displayList->isEmpty())) {
+    if (displayList && displayList->isValid() && !(displayList->isEmpty()) &&
+        usageHint() != UsageHint::NavigationBarBackground) {
         displayList->findFillAreas(target);
         displayList->updateChildren([&target, &isModeFull](RenderNode* node) {
             if (!node) return;
@@ -645,8 +683,7 @@ const SkPath* RenderNode::getClippedOutline(const SkRect& clipRect) const {
         mClippedOutlineCache.clipRect = clipRect;
 
         // update the cache value by recomputing a new path
-        SkPath clipPath;
-        clipPath.addRect(clipRect);
+        const SkPath clipPath = SkPath::Rect(clipRect);
         Op(*outlinePath, clipPath, kIntersect_SkPathOp, &mClippedOutlineCache.clippedOutline);
     }
     return &mClippedOutlineCache.clippedOutline;

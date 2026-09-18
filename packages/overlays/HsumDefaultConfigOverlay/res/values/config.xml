@@ -22,14 +22,8 @@
        with admin privileges and admin privileges can be granted/revoked from existing users. -->
   <bool name="config_enableMultipleAdmins">true</bool>
 
-  <!-- Whether the device will automatically (at first boot) have a designated main user and treat
-       it as a permanent admin.
-       Since the main user is a permanent admin user it can't be deleted or downgraded to
-       non-admin status.
-       This is generally only relevant on headless system user mode (HSUM) devices; on other
-       devices, the main user is the system user which is always a permanent admin anyway.
-       Note that HSUM devices without this enabled will not automatically have a main user. -->
-  <bool name="config_isMainUserPermanentAdmin">true</bool>
+    <!-- Whether this device supports multiple switchable users. -->
+    <bool name="config_enableMultiUserUI">true</bool>
 
   <!-- Maximum number of users we allow to be running at a time.
        Note that this includes the headless system user. -->

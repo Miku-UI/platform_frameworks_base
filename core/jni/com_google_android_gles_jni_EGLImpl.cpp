@@ -16,22 +16,18 @@
 */
 #undef ANDROID_UTILS_REF_BASE_DISABLE_IMPLICIT_CONSTRUCTION // TODO:remove this and fix code
 
-#include <nativehelper/JNIHelp.h>
-#include <android_runtime/AndroidRuntime.h>
-#include <android_runtime/android_view_Surface.h>
-#include <android_runtime/android_graphics_SurfaceTexture.h>
-#include <utils/misc.h>
-
-
 #include <EGL/egl.h>
 #include <GLES/gl.h>
-#include <private/EGL/display.h>
-
-#include <gui/Surface.h>
+#include <android_runtime/AndroidRuntime.h>
+#include <android_runtime/android_graphics_SurfaceTexture.h>
+#include <android_runtime/android_view_Surface.h>
+#include <com_android_graphics_libgui_flags.h>
 #include <gui/GLConsumer.h>
 #include <gui/Surface.h>
-
+#include <nativehelper/JNIHelp.h>
+#include <private/EGL/display.h>
 #include <ui/ANativeObjectBase.h>
+#include <utils/misc.h>
 
 namespace android {
 
@@ -298,9 +294,12 @@ not_valid_surface:
                 "Make sure the SurfaceTexture is valid");
         return 0;
     }
-
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_SURFACETEXTURE)
+    window = SurfaceTexture_getSurface(_env, native_window);
+#else
     sp<IGraphicBufferProducer> producer(SurfaceTexture_getProducer(_env, native_window));
     window = sp<Surface>::make(producer, true);
+#endif
     if (window == NULL)
         goto not_valid_surface;
 

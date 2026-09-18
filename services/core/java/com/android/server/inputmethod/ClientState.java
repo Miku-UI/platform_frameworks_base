@@ -49,6 +49,7 @@ final class ClientState {
     @Nullable
     InputMethodManagerService.SessionState mCurSession;
 
+    /** Accessibility sessions on this client, indexed by the accessibility service id. */
     @GuardedBy("ImfLock.class")
     @NonNull
     final SparseArray<InputMethodManagerService.AccessibilitySessionState> mAccessibilitySessions =

@@ -25,20 +25,16 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.testng.Assert.assertThrows;
 
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.os.BinderInternal;
 
-import org.junit.Rule;
 import org.junit.Test;
 
 public class BinderTest {
     private static final int UID = 100;
 
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     @Test
     @SmallTest

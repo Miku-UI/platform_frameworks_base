@@ -175,7 +175,7 @@ public class PipSurfaceTransactionHelper {
      */
     public PipSurfaceTransactionHelper shadow(SurfaceControl.Transaction tx, SurfaceControl leash,
             boolean applyShadowRadius) {
-        if (Flags.enablePipBoxShadows()) {
+        if (Flags.enablePipBoxShadowsV2()) {
             // Override and disable elevation shadows set by freeform transition.
             //
             // PiP uses box shadows but freeform windows use
@@ -207,7 +207,7 @@ public class PipSurfaceTransactionHelper {
                         .setTransform(float9, rotation)
                         .setCornerRadius(cornerRadius)
                         .setWindowCrop(windowCrop);
-        if (Flags.enablePipBoxShadows()) {
+        if (Flags.enablePipBoxShadowsV2()) {
             builder.setShadowRadius(0);
             builder.setBoxShadowSettings(mBoxShadowSettings);
             builder.setBorderSettings(mBorderSettings);

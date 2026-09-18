@@ -165,10 +165,6 @@ public class UserManagerServiceCreateProfileTest {
         List<UserInfo> users = mUserManagerService.getUsers(/* excludeDying */ false);
         UserInfo system = users.get(0);
         int max = mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED);
-        if (!android.multiuser.Flags.decoupleMaxUsersFromProfiles() && max < 0) {
-            // Indicates no max. Instead of infinite, we'll just do 10.
-            max = 10;
-        }
         // Badges should get allocated 0 -> max
         for (int i = 0; i < max; ++i) {
             int nextBadge = mUserManagerService.getFreeProfileBadgeLU(UserHandle.USER_SYSTEM,
@@ -193,10 +189,7 @@ public class UserManagerServiceCreateProfileTest {
 
         // Edge case of reuse that only applies if we ever support 3 managed profiles
         // We should prioritise using lower badge indexes
-        boolean legacyUnlimitedCheck = !android.multiuser.Flags.decoupleMaxUsersFromProfiles()
-                && mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED) < 0;
-        if (mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED) > 2
-                || legacyUnlimitedCheck) {
+        if (mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED) > 2) {
             UserInfo profileBadgeOne = addProfile(secondaryUser);
             profileBadgeOne.profileBadge = 1;
             // 0 and 2 are free, we should reuse 0 rather than 2.
@@ -212,11 +205,6 @@ public class UserManagerServiceCreateProfileTest {
         // skip the test
         if (!mUserManagerService.canAddMoreProfilesToUser(USER_TYPE_PROFILE_MANAGED,
                 UserHandle.USER_SYSTEM, false)) {
-            return;
-        }
-        if (android.multiuser.Flags.decoupleMaxUsersFromProfiles() &&
-                mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED) < 0) {
-            // Indicates no limit, so we cannot run this test;
             return;
         }
 
@@ -238,11 +226,6 @@ public class UserManagerServiceCreateProfileTest {
         // skip the test
         if (!mUserManagerService.canAddMoreProfilesToUser(USER_TYPE_PROFILE_MANAGED,
                 UserHandle.USER_SYSTEM, false)) {
-            return;
-        }
-        if (!android.multiuser.Flags.decoupleMaxUsersFromProfiles() &&
-                mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED) < 0) {
-            // Indicates no limit, so we cannot run this test;
             return;
         }
 

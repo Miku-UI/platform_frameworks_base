@@ -45,7 +45,6 @@ import androidx.customview.widget.ExploreByTouchHelper;
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
 
 import com.android.internal.graphics.ColorUtils;
-import com.android.systemui.Flags;
 import com.android.systemui.res.R;
 
 import java.util.List;
@@ -381,10 +380,8 @@ public class CropView extends View {
         if (lower >= upper) {
             Log.wtf(TAG, "getAllowedValues computed an invalid range "
                     + "[" + lower + ", " + upper + "]");
-            if (Flags.screenshotScrollCropViewCrashFix()) {
-                lower = Math.min(lower, upper);
-                upper = lower;
-            }
+            lower = Math.min(lower, upper);
+            upper = lower;
         }
         return new Range<>(lower, upper);
     }
@@ -674,13 +671,13 @@ public class CropView extends View {
          */
         private SavedState(Parcel in) {
             super(in);
-            mCrop = in.readParcelable(ClassLoader.getSystemClassLoader());
+            mCrop = in.readTypedObject(RectF.CREATOR);
         }
 
         @Override
         public void writeToParcel(Parcel out, int flags) {
             super.writeToParcel(out, flags);
-            out.writeParcelable(mCrop, 0);
+            out.writeTypedObject(mCrop, flags);
         }
 
         public static final Parcelable.Creator<SavedState> CREATOR = new Parcelable.Creator<>() {

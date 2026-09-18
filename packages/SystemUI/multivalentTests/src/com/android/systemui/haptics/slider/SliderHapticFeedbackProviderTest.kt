@@ -18,11 +18,8 @@ package com.android.systemui.haptics.slider
 
 import android.os.VibrationAttributes
 import android.os.VibrationEffect
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.haptics.fakeVibratorHelper
 import com.android.systemui.haptics.msdl.fakeMSDLPlayer
@@ -34,7 +31,6 @@ import com.google.android.msdl.domain.InteractionProperties
 import com.google.common.truth.Truth.assertThat
 import kotlin.math.max
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -85,24 +81,6 @@ class SliderHapticFeedbackProviderTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    fun playHapticAtLowerBookend_playsClick() =
-        with(kosmos) {
-            val vibration =
-                VibrationEffect.startComposition()
-                    .addPrimitive(
-                        VibrationEffect.Composition.PRIMITIVE_CLICK,
-                        sliderHapticFeedbackProvider.scaleOnEdgeCollision(config.maxVelocityToScale),
-                    )
-                    .compose()
-
-            sliderHapticFeedbackProvider.onLowerBookend()
-
-            assertTrue(vibratorHelper.hasVibratedWithEffects(vibration))
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     fun playHapticAtLowerBookend_playsDragThresholdLimitToken() =
         testScope.runTest {
             sliderHapticFeedbackProvider.onLowerBookend()
@@ -113,25 +91,6 @@ class SliderHapticFeedbackProviderTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    fun playHapticAtLowerBookend_twoTimes_playsClickOnlyOnce() =
-        with(kosmos) {
-            val vibration =
-                VibrationEffect.startComposition()
-                    .addPrimitive(
-                        VibrationEffect.Composition.PRIMITIVE_CLICK,
-                        sliderHapticFeedbackProvider.scaleOnEdgeCollision(config.maxVelocityToScale),
-                    )
-                    .compose()
-
-            sliderHapticFeedbackProvider.onLowerBookend()
-            sliderHapticFeedbackProvider.onLowerBookend()
-
-            assertTrue(vibratorHelper.hasVibratedWithEffects(vibration))
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     fun playHapticAtLowerBookend_twoTimes_playsDragThresholdLimitTokenOnlyOnce() =
         testScope.runTest {
             sliderHapticFeedbackProvider.onLowerBookend()
@@ -144,24 +103,6 @@ class SliderHapticFeedbackProviderTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    fun playHapticAtUpperBookend_playsClick() =
-        with(kosmos) {
-            val vibration =
-                VibrationEffect.startComposition()
-                    .addPrimitive(
-                        VibrationEffect.Composition.PRIMITIVE_CLICK,
-                        sliderHapticFeedbackProvider.scaleOnEdgeCollision(config.maxVelocityToScale),
-                    )
-                    .compose()
-
-            sliderHapticFeedbackProvider.onUpperBookend()
-
-            assertTrue(vibratorHelper.hasVibratedWithEffects(vibration))
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     fun playHapticAtUpperBookend_playsDragThresholdLimitToken() =
         testScope.runTest {
             sliderHapticFeedbackProvider.onUpperBookend()
@@ -172,25 +113,6 @@ class SliderHapticFeedbackProviderTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    fun playHapticAtUpperBookend_twoTimes_playsClickOnlyOnce() =
-        with(kosmos) {
-            val vibration =
-                VibrationEffect.startComposition()
-                    .addPrimitive(
-                        VibrationEffect.Composition.PRIMITIVE_CLICK,
-                        sliderHapticFeedbackProvider.scaleOnEdgeCollision(config.maxVelocityToScale),
-                    )
-                    .compose()
-
-            sliderHapticFeedbackProvider.onUpperBookend()
-            sliderHapticFeedbackProvider.onUpperBookend()
-
-            assertEquals(/* expected= */ 1, vibratorHelper.timesVibratedWithEffect(vibration))
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     fun playHapticAtUpperBookend_twoTimes_playsDragThresholdLimitTokenOnlyOnce() =
         testScope.runTest {
             sliderHapticFeedbackProvider.onUpperBookend()
@@ -203,64 +125,6 @@ class SliderHapticFeedbackProviderTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    fun playHapticAtProgress_onQuickSuccession_playsLowTicksOnce() =
-        with(kosmos) {
-            // GIVEN max velocity and slider progress
-            val progress = 1f
-            val expectedScale =
-                sliderHapticFeedbackProvider.scaleOnDragTexture(config.maxVelocityToScale, progress)
-            val ticks = VibrationEffect.startComposition()
-            repeat(config.numberOfLowTicks) {
-                ticks.addPrimitive(VibrationEffect.Composition.PRIMITIVE_LOW_TICK, expectedScale)
-            }
-
-            // GIVEN system running for 1s
-            fakeSystemClock.advanceTime(1000)
-
-            // WHEN two calls to play occur immediately
-            sliderHapticFeedbackProvider.onProgress(progress)
-            sliderHapticFeedbackProvider.onProgress(progress)
-
-            // THEN the correct composition only plays once
-            assertEquals(/* expected= */ 1, vibratorHelper.timesVibratedWithEffect(ticks.compose()))
-        }
-
-    @Test
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    fun playHapticAtProgress_forDiscreteSlider_playsTick() =
-        with(kosmos) {
-            config = SliderHapticFeedbackConfig(sliderStepSize = 0.2f)
-            sliderHapticFeedbackProvider =
-                SliderHapticFeedbackProvider(
-                    vibratorHelper,
-                    msdlPlayer,
-                    dragVelocityProvider,
-                    config,
-                    kosmos.fakeSystemClock,
-                )
-
-            // GIVEN max velocity and slider progress
-            val progress = 1f
-            val expectedScale =
-                sliderHapticFeedbackProvider.scaleOnDragTexture(config.maxVelocityToScale, progress)
-            val tick =
-                VibrationEffect.startComposition()
-                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_TICK, expectedScale)
-                    .compose()
-
-            // GIVEN system running for 1s
-            fakeSystemClock.advanceTime(1000)
-
-            // WHEN called to play haptics
-            sliderHapticFeedbackProvider.onProgress(progress)
-
-            // THEN the correct composition only plays once
-            assertEquals(expected = 1, vibratorHelper.timesVibratedWithEffect(tick))
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     fun playHapticAtProgress_forDiscreteSlider_playsDiscreteSliderToken() =
         with(kosmos) {
             config = SliderHapticFeedbackConfig(sliderStepSize = 0.2f)
@@ -293,7 +157,6 @@ class SliderHapticFeedbackProviderTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     fun playHapticAtProgress_onQuickSuccession_playsContinuousDragTokenOnce() =
         with(kosmos) {
             // GIVEN max velocity and slider progress
@@ -317,33 +180,6 @@ class SliderHapticFeedbackProviderTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    fun playHapticAtProgress_beforeNextDragThreshold_playsLowTicksOnce() =
-        with(kosmos) {
-            // GIVEN max velocity and a slider progress at half progress
-            val firstProgress = 0.5f
-            val firstTicks = generateTicksComposition(config.maxVelocityToScale, firstProgress)
-
-            // Given a second slider progress event smaller than the progress threshold
-            val secondProgress =
-                firstProgress + max(0f, config.deltaProgressForDragThreshold - 0.01f)
-
-            // GIVEN system running for 1s
-            fakeSystemClock.advanceTime(1000)
-
-            // WHEN two calls to play occur with the required threshold separation (time and
-            // progress)
-            sliderHapticFeedbackProvider.onProgress(firstProgress)
-            fakeSystemClock.advanceTime(dragTextureThresholdMillis.toLong())
-            sliderHapticFeedbackProvider.onProgress(secondProgress)
-
-            // THEN Only the first compositions plays
-            assertEquals(/* expected= */ 1, vibratorHelper.timesVibratedWithEffect(firstTicks))
-            assertEquals(/* expected= */ 1, vibratorHelper.totalVibrations)
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     fun playHapticAtProgress_beforeNextDragThreshold_playsContinousDragTokenOnce() =
         with(kosmos) {
             // GIVEN max velocity and a slider progress at half progress
@@ -377,33 +213,6 @@ class SliderHapticFeedbackProviderTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    fun playHapticAtProgress_afterNextDragThreshold_playsLowTicksTwice() =
-        with(kosmos) {
-            // GIVEN max velocity and a slider progress at half progress
-            val firstProgress = 0.5f
-            val firstTicks = generateTicksComposition(config.maxVelocityToScale, firstProgress)
-
-            // Given a second slider progress event beyond progress threshold
-            val secondProgress = firstProgress + config.deltaProgressForDragThreshold + 0.01f
-            val secondTicks = generateTicksComposition(config.maxVelocityToScale, secondProgress)
-
-            // GIVEN system running for 1s
-            fakeSystemClock.advanceTime(1000)
-
-            // WHEN two calls to play occur with the required threshold separation (time and
-            // progress)
-            sliderHapticFeedbackProvider.onProgress(firstProgress)
-            fakeSystemClock.advanceTime(dragTextureThresholdMillis.toLong())
-            sliderHapticFeedbackProvider.onProgress(secondProgress)
-
-            // THEN the correct compositions play
-            assertEquals(/* expected= */ 1, vibratorHelper.timesVibratedWithEffect(firstTicks))
-            assertEquals(/* expected= */ 1, vibratorHelper.timesVibratedWithEffect(secondTicks))
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     fun playHapticAtProgress_afterNextDragThreshold_playsContinuousDragTokenTwice() =
         with(kosmos) {
             // GIVEN max velocity and a slider progress at half progress
@@ -447,42 +256,7 @@ class SliderHapticFeedbackProviderTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    fun playHapticAtLowerBookend_afterPlayingAtProgress_playsTwice() =
-        with(kosmos) {
-            // GIVEN max velocity and slider progress
-            val progress = 1f
-            val expectedScale =
-                sliderHapticFeedbackProvider.scaleOnDragTexture(config.maxVelocityToScale, progress)
-            val ticks = VibrationEffect.startComposition()
-            repeat(config.numberOfLowTicks) {
-                ticks.addPrimitive(VibrationEffect.Composition.PRIMITIVE_LOW_TICK, expectedScale)
-            }
-            val bookendVibration =
-                VibrationEffect.startComposition()
-                    .addPrimitive(
-                        VibrationEffect.Composition.PRIMITIVE_CLICK,
-                        sliderHapticFeedbackProvider.scaleOnEdgeCollision(config.maxVelocityToScale),
-                    )
-                    .compose()
-
-            // GIVEN a vibration at the lower bookend followed by a request to vibrate at progress
-            sliderHapticFeedbackProvider.onLowerBookend()
-            sliderHapticFeedbackProvider.onProgress(progress)
-
-            // WHEN a vibration is to trigger again at the lower bookend
-            sliderHapticFeedbackProvider.onLowerBookend()
-
-            // THEN there are two bookend vibrations
-            assertEquals(
-                /* expected= */ 2,
-                vibratorHelper.timesVibratedWithEffect(bookendVibration),
-            )
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    fun playHapticAtLowerBookend_afterPlayingAtProgress_playsTokensTwice() =
+    fun playHapticAtLowerBookend_afterPlayingAtProgress_playsThreeTokens() =
         with(kosmos) {
             // GIVEN max velocity and slider progress
             val progress = 1f
@@ -499,53 +273,21 @@ class SliderHapticFeedbackProviderTest : SysuiTestCase() {
             // WHEN a vibration is to trigger again at the lower bookend
             sliderHapticFeedbackProvider.onLowerBookend()
 
-            // THEN there are two bookend token vibrations
-            assertThat(msdlPlayer.getHistory().size).isEqualTo(2)
+            // THEN there are two bookend token vibrations and a one drag texture vibration
+            assertThat(msdlPlayer.getHistory().size).isEqualTo(3)
             assertThat(msdlPlayer.tokensPlayed[0])
                 .isEqualTo(MSDLToken.DRAG_THRESHOLD_INDICATOR_LIMIT)
             assertThat(msdlPlayer.propertiesPlayed[0]).isEqualTo(expectedProperties)
-            assertThat(msdlPlayer.tokensPlayed[1])
+
+            assertThat(msdlPlayer.tokensPlayed[1]).isEqualTo(MSDLToken.DRAG_INDICATOR_CONTINUOUS)
+
+            assertThat(msdlPlayer.tokensPlayed[2])
                 .isEqualTo(MSDLToken.DRAG_THRESHOLD_INDICATOR_LIMIT)
-            assertThat(msdlPlayer.propertiesPlayed[1]).isEqualTo(expectedProperties)
+            assertThat(msdlPlayer.propertiesPlayed[2]).isEqualTo(expectedProperties)
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    fun playHapticAtUpperBookend_afterPlayingAtProgress_playsTwice() =
-        with(kosmos) {
-            // GIVEN max velocity and slider progress
-            val progress = 1f
-            val expectedScale =
-                sliderHapticFeedbackProvider.scaleOnDragTexture(config.maxVelocityToScale, progress)
-            val ticks = VibrationEffect.startComposition()
-            repeat(config.numberOfLowTicks) {
-                ticks.addPrimitive(VibrationEffect.Composition.PRIMITIVE_LOW_TICK, expectedScale)
-            }
-            val bookendVibration =
-                VibrationEffect.startComposition()
-                    .addPrimitive(
-                        VibrationEffect.Composition.PRIMITIVE_CLICK,
-                        sliderHapticFeedbackProvider.scaleOnEdgeCollision(config.maxVelocityToScale),
-                    )
-                    .compose()
-
-            // GIVEN a vibration at the upper bookend followed by a request to vibrate at progress
-            sliderHapticFeedbackProvider.onUpperBookend()
-            sliderHapticFeedbackProvider.onProgress(progress)
-
-            // WHEN a vibration is to trigger again at the upper bookend
-            sliderHapticFeedbackProvider.onUpperBookend()
-
-            // THEN there are two bookend vibrations
-            assertEquals(
-                /* expected= */ 2,
-                vibratorHelper.timesVibratedWithEffect(bookendVibration),
-            )
-        }
-
-    @Test
-    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
-    fun playHapticAtUpperBookend_afterPlayingAtProgress_playsTokensTwice() =
+    fun playHapticAtUpperBookend_afterPlayingAtProgress_playsThreeTokens() =
         with(kosmos) {
             // GIVEN max velocity and slider progress
             val progress = 1f
@@ -562,14 +304,17 @@ class SliderHapticFeedbackProviderTest : SysuiTestCase() {
             // WHEN a vibration is to trigger again at the upper bookend
             sliderHapticFeedbackProvider.onUpperBookend()
 
-            // THEN there are two bookend vibrations
-            assertThat(msdlPlayer.getHistory().size).isEqualTo(2)
+            // THEN there are two bookend vibrations and one drag texture vibration
+            assertThat(msdlPlayer.getHistory().size).isEqualTo(3)
             assertThat(msdlPlayer.tokensPlayed[0])
                 .isEqualTo(MSDLToken.DRAG_THRESHOLD_INDICATOR_LIMIT)
             assertThat(msdlPlayer.propertiesPlayed[0]).isEqualTo(expectedProperties)
-            assertThat(msdlPlayer.tokensPlayed[1])
+
+            assertThat(msdlPlayer.tokensPlayed[1]).isEqualTo(MSDLToken.DRAG_INDICATOR_CONTINUOUS)
+
+            assertThat(msdlPlayer.tokensPlayed[2])
                 .isEqualTo(MSDLToken.DRAG_THRESHOLD_INDICATOR_LIMIT)
-            assertThat(msdlPlayer.propertiesPlayed[1]).isEqualTo(expectedProperties)
+            assertThat(msdlPlayer.propertiesPlayed[2]).isEqualTo(expectedProperties)
         }
 
     @Test

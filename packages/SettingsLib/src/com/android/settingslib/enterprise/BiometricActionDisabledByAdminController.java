@@ -16,6 +16,7 @@
 
 package com.android.settingslib.enterprise;
 
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -56,8 +57,13 @@ public class BiometricActionDisabledByAdminController extends BaseActionDisabled
     @Override
     public DialogInterface.OnClickListener getPositiveButtonListener(@NonNull Context context,
             @NonNull RestrictedLockUtils.EnforcedAdmin enforcedAdmin) {
+        ComponentName adminComponent = enforcedAdmin.component;
+        if (adminComponent == null) {
+            return null;
+        }
+
         return (dialog, which) -> {
-            Log.d(TAG, "Positive button clicked, component: " + enforcedAdmin.component);
+            Log.d(TAG, "Positive button clicked, component: " + adminComponent);
             final Intent intent = new Intent(Settings.ACTION_MANAGE_SUPERVISOR_RESTRICTED_SETTING)
                     .putExtra(Settings.EXTRA_SUPERVISOR_RESTRICTED_SETTING_KEY,
                             Settings.SUPERVISOR_VERIFICATION_SETTING_BIOMETRICS)
@@ -65,7 +71,7 @@ public class BiometricActionDisabledByAdminController extends BaseActionDisabled
                             .scheme("policy")
                             .appendPath("biometric")
                             .build())
-                    .setPackage(enforcedAdmin.component.getPackageName());
+                    .setPackage(adminComponent.getPackageName());
             context.startActivity(intent);
         };
     }

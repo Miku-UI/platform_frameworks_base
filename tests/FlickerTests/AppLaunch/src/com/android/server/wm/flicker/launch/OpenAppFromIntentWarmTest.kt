@@ -64,9 +64,9 @@ class OpenAppFromIntentWarmTest(flicker: FlickerTest) :
         get() = {
             super.transition(this)
             setup {
-                tapl.setExpectedRotationCheckEnabled(false)
+                tapl.expectedRotationCheckEnabled = false
                 testApp.launchViaIntent(wmHelper)
-                tapl.goHome()
+                device.pressHome()
                 wmHelper.StateSyncBuilder().withHomeActivityVisible().waitForAndVerify()
                 this.setRotation(flicker.scenario.startRotation)
             }

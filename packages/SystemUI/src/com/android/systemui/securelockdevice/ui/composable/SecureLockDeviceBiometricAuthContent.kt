@@ -44,7 +44,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -72,13 +71,11 @@ import com.android.compose.modifiers.height
 import com.android.compose.modifiers.width
 import com.android.internal.jank.Cuj
 import com.android.internal.jank.InteractionJankMonitor
-import com.android.systemui.Flags.bpColors
 import com.android.systemui.biometrics.BiometricAuthIconAssets
 import com.android.systemui.bouncer.shared.model.SecureLockDeviceBouncerActionButtonModel
 import com.android.systemui.deviceentry.ui.binder.UdfpsAccessibilityOverlayBinder
 import com.android.systemui.deviceentry.ui.view.UdfpsAccessibilityOverlay
 import com.android.systemui.deviceentry.ui.viewmodel.AlternateBouncerUdfpsAccessibilityOverlayViewModel
-import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.res.R
 import com.android.systemui.securelockdevice.ui.viewmodel.SecureLockDeviceBiometricAuthContentViewModel
 import com.android.systemui.util.ui.compose.LottieColorUtils
@@ -90,25 +87,20 @@ private val TO_GONE_DURATION = 500.milliseconds
 
 @Composable
 fun SecureLockDeviceContent(
-    secureLockDeviceViewModelFactory: SecureLockDeviceBiometricAuthContentViewModel.Factory,
+    viewModel: SecureLockDeviceBiometricAuthContentViewModel,
     modifier: Modifier = Modifier,
 ) {
-    val secureLockDeviceViewModel =
-        rememberViewModel(traceName = "SecureLockDeviceBiometricAuthContentViewModel") {
-            secureLockDeviceViewModelFactory.create()
-        }
 
     val view = LocalView.current
 
-    val interactionJankMonitor: InteractionJankMonitor =
-        secureLockDeviceViewModel.interactionJankMonitor
+    val interactionJankMonitor: InteractionJankMonitor = viewModel.interactionJankMonitor
 
-    val isVisible = secureLockDeviceViewModel.isVisible
-    val isReadyToDismissBiometricAuth = secureLockDeviceViewModel.isReadyToDismissBiometricAuth
+    val isVisible = viewModel.isVisible
+    val isReadyToDismissBiometricAuth = viewModel.isReadyToDismissBiometricAuth
     val visibleState = remember { MutableTransitionState(isVisible) }
 
     /** This effect is run when the composable enters the composition */
-    LaunchedEffect(Unit) { secureLockDeviceViewModel.startAppearAnimation() }
+    LaunchedEffect(Unit) { viewModel.startAppearAnimation() }
 
     /**
      * Updates the [visibleState] that drives the [AnimatedVisibility] animation.
@@ -134,9 +126,7 @@ fun SecureLockDeviceContent(
             isReadyToDismissBiometricAuth = isReadyToDismissBiometricAuth,
             interactionJankMonitor = interactionJankMonitor,
             view = view,
-            onDisappearAnimationFinished = {
-                secureLockDeviceViewModel.onDisappearAnimationFinished()
-            },
+            onDisappearAnimationFinished = { viewModel.onDisappearAnimationFinished() },
         )
     }
 
@@ -148,15 +138,15 @@ fun SecureLockDeviceContent(
         exit = fadeOut(tween(durationMillis = TO_GONE_DURATION.toInt(DurationUnit.MILLISECONDS))),
         modifier = modifier,
     ) {
-        Box(modifier = modifier.background(color = Color.Transparent).fillMaxSize()) {
+        Box(modifier = modifier.fillMaxSize()) {
             ButtonArea(
-                viewModel = secureLockDeviceViewModel,
+                viewModel = viewModel,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
             )
         }
 
-        val hasUdfps: Boolean = secureLockDeviceViewModel.iconViewModel.hasUdfpsState
-        val iconSize: Pair<Int, Int> = secureLockDeviceViewModel.iconViewModel.iconSizeState
+        val hasUdfps: Boolean = viewModel.iconViewModel.hasUdfpsState
+        val iconSize: Pair<Int, Int> = viewModel.iconViewModel.iconSizeState
         var globalCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
         Box(
@@ -165,7 +155,7 @@ fun SecureLockDeviceContent(
                     globalCoordinates = coordinates
                 }
         ) {
-            val udfpsLocation = secureLockDeviceViewModel.iconViewModel.udfpsLocation
+            val udfpsLocation = viewModel.iconViewModel.udfpsLocationState
             val iconModifier =
                 if (hasUdfps && udfpsLocation != null && globalCoordinates != null) {
                     with(LocalDensity.current) {
@@ -187,15 +177,15 @@ fun SecureLockDeviceContent(
                 }
 
             BiometricIconLottie(
-                viewModel = secureLockDeviceViewModel,
+                viewModel = viewModel,
                 modifier = iconModifier.width { iconSize.first }.height { iconSize.second },
             )
         }
 
-        val shouldListenForBiometricAuth = secureLockDeviceViewModel.shouldListenForBiometricAuth
+        val shouldListenForBiometricAuth = viewModel.shouldListenForBiometricAuth
         if (hasUdfps && shouldListenForBiometricAuth) {
             UdfpsA11yOverlay(
-                viewModel = secureLockDeviceViewModel.udfpsAccessibilityOverlayViewModel,
+                viewModel = viewModel.udfpsAccessibilityOverlayViewModel,
                 modifier = Modifier.fillMaxHeight(),
             )
         }
@@ -253,6 +243,7 @@ private fun BiometricIconLottie(
     val iconContentDescription =
         if (iconState.contentDescriptionId != -1) stringResource(iconState.contentDescriptionId)
         else ""
+
     val showingError = iconViewModel.showingErrorState
     val isPendingConfirmation = iconViewModel.isPendingConfirmationState
 
@@ -286,13 +277,14 @@ private fun BiometricIconLottie(
             iterations = numIterations,
             clipSpec = LottieClipSpec.Frame(min = minFrame),
         )
+
     if (progress == 1f) {
         viewModel.onIconAnimationFinished()
     }
 
     LottieAnimation(
         composition = lottie,
-        dynamicProperties = LottieColorUtils.getDynamicProperties(bpColors()),
+        dynamicProperties = LottieColorUtils.getDynamicProperties(true),
         modifier =
             modifier
                 .graphicsLayer { rotationZ = iconState.rotation }

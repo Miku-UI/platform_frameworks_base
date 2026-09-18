@@ -40,35 +40,33 @@ public class TimeZoneConfigurationTest {
         assertFalse(empty.isComplete());
         assertFalse(empty.hasIsAutoDetectionEnabled());
 
-        TimeZoneConfiguration completeConfig = new TimeZoneConfiguration.Builder()
-                .setAutoDetectionEnabled(true)
-                .setGeoDetectionEnabled(true)
-                .setNotificationsEnabled(true)
-                .build();
+        TimeZoneConfiguration completeConfig =
+                new TimeZoneConfiguration.Builder()
+                        .setAutoDetectionEnabled(true)
+                        .setGeoDetectionEnabled(true)
+                        .setNotificationsEnabled(true)
+                        .setTimeZoneOffsetChangeNotificationsEnabled(true)
+                        .build();
         assertTrue(completeConfig.isComplete());
         assertTrue(completeConfig.hasIsGeoDetectionEnabled());
         assertTrue(completeConfig.hasIsNotificationsEnabled());
+        assertTrue(completeConfig.hasIsTimeZoneOffsetChangeNotificationsEnabled());
     }
 
     @Test
     public void testBuilder_mergeProperties() {
-        TimeZoneConfiguration configuration1 = new TimeZoneConfiguration.Builder()
-                .setAutoDetectionEnabled(true)
-                .build();
+        TimeZoneConfiguration configuration1 =
+                new TimeZoneConfiguration.Builder().setAutoDetectionEnabled(true).build();
 
         {
             TimeZoneConfiguration mergedEmptyAnd1 =
-                    new TimeZoneConfiguration.Builder()
-                            .mergeProperties(configuration1)
-                            .build();
+                    new TimeZoneConfiguration.Builder().mergeProperties(configuration1).build();
             assertEquals(configuration1, mergedEmptyAnd1);
         }
 
         {
             TimeZoneConfiguration configuration2 =
-                    new TimeZoneConfiguration.Builder()
-                            .setAutoDetectionEnabled(false)
-                            .build();
+                    new TimeZoneConfiguration.Builder().setAutoDetectionEnabled(false).build();
 
             // With only one property to merge in, merging configuration2 into configuration1
             // results in a configuration equals() to configuration2.

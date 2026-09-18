@@ -17,6 +17,7 @@
 #include "RenderThread.h"
 
 #include <android-base/properties.h>
+#include <com_android_graphics_hwui_flags.h>
 #include <dlfcn.h>
 #include <gui/TraceUtils.h>
 #include <include/gpu/ganesh/GrContextOptions.h>
@@ -46,6 +47,8 @@
 #include "pipeline/skia/SkiaVulkanPipeline.h"
 #include "renderstate/RenderState.h"
 #include "utils/TimeUtils.h"
+
+namespace hwui_flags = com::android::graphics::hwui::flags;
 
 namespace android {
 namespace uirenderer {
@@ -87,10 +90,24 @@ void RenderThread::frameCallback(int64_t vsyncId, int64_t frameDeadline, int64_t
         const auto deadlineTimePoint = SteadyClock::time_point(Nanos(frameDeadline));
 
         const auto timeUntilDeadline = deadlineTimePoint - frameTimeTimePoint;
-        const auto runAt = (frameTimeTimePoint + (timeUntilDeadline / 4));
+        const auto runAt = [&] {
+            const auto defaultRunAt = (frameTimeTimePoint + (timeUntilDeadline / 4));
+            if (!hwui_flags::use_prev_frame_duration_for_render_thread()) {
+                return defaultRunAt;
+            }
 
-        ATRACE_FORMAT("queue mFrameCallbackTask to run after %.2fms",
-                      toFloatMillis(runAt - SteadyClock::now()).count());
+            const auto callbacksDuration = estimateCallbacksExpectedDuration();
+            // If the estimate is greater than the time we have left, assume this is due
+            // to the previous frame transiently taking longer than it should and give the
+            // UI thread a chance to produce this frame.
+            if (callbacksDuration > timeUntilDeadline) {
+                return defaultRunAt;
+            }
+            return (frameTimeTimePoint + (timeUntilDeadline - callbacksDuration));
+        }();
+
+        ATRACE_FORMAT_INSTANT("queue mFrameCallbackTask to run after %.2fms",
+                              toFloatMillis(runAt - SteadyClock::now()).count());
         queue().postAt(toNsecs_t(runAt.time_since_epoch()).count(),
                        [this]() { dispatchFrameCallbacks(); });
     }
@@ -388,6 +405,16 @@ void RenderThread::requestVsync() {
         mVsyncRequested = true;
         mVsyncSource->requestNextVsync();
     }
+}
+
+std::chrono::nanoseconds RenderThread::estimateCallbacksExpectedDuration() const {
+    std::chrono::nanoseconds total = std::chrono::nanoseconds(0);
+    for (const auto& callback : mFrameCallbacks) {
+        total += callback->getExpectedDuration();
+    }
+
+    // Inflate the expected duration to avoid missing the deadline due to a scheduling delay.
+    return 4 * total / 3;
 }
 
 bool RenderThread::threadLoop() {

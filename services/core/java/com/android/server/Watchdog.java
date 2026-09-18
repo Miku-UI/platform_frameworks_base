@@ -108,7 +108,7 @@ public class Watchdog implements Dumpable {
 
     // Throttle non-fatal thread dumps to avoid adversely affecting performance.
     private static final long PRE_WATCHDOG_COOL_OFF_MILLIS =
-            com.android.internal.os.Flags.preWatchdogThrottleThreadDump() ? 60 * 60 * 1000 : 0;
+            60 * 60 * 1000;
 
     // These are temporally ordered: larger values as lateness increases
     static final int COMPLETED = 0;
@@ -128,7 +128,6 @@ public class Watchdog implements Dumpable {
         "/system/bin/cameraserver",
         "/system/bin/drmserver",
         "/system/bin/idmap2d",
-        "/system/bin/keystore2",
         "/system/bin/mediadrmserver",
         "/system/bin/mediaserver",
         "/system/bin/netd",
@@ -162,7 +161,6 @@ public class Watchdog implements Dumpable {
             "android.hardware.graphics.allocator@4.0::IAllocator",
             "android.hardware.graphics.composer@2.1::IComposer",
             "android.hardware.health@2.0::IHealth",
-            "android.hardware.light@2.0::ILight",
             "android.hardware.media.c2@1.0::IComponentStore",
             "android.hardware.media.omx@1.0::IOmx",
             "android.hardware.media.omx@1.0::IOmxStore",

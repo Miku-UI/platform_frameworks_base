@@ -54,6 +54,8 @@ public class AmbientStatusBarView extends ConstraintLayout {
             STATUS_ICON_PRIORITY_MODE_ON,
             STATUS_ICON_ASSISTANT_ATTENTION_ACTIVE,
             STATUS_ICON_LOCATION_ACTIVE,
+            STATUS_ICON_MIC_PRIVACY_ON,
+            STATUS_ICON_CAMERA_PRIVACY_ON,
     })
     public @interface StatusIconType {}
     public static final int STATUS_ICON_NOTIFICATIONS = 0;
@@ -64,6 +66,8 @@ public class AmbientStatusBarView extends ConstraintLayout {
     public static final int STATUS_ICON_PRIORITY_MODE_ON = 5;
     public static final int STATUS_ICON_ASSISTANT_ATTENTION_ACTIVE = 6;
     public static final int STATUS_ICON_LOCATION_ACTIVE = 7;
+    public static final int STATUS_ICON_MIC_PRIVACY_ON = 8;
+    public static final int STATUS_ICON_CAMERA_PRIVACY_ON = 9;
 
     private final Map<Integer, View> mStatusIcons = new HashMap<>();
     private Context mContext;
@@ -138,6 +142,10 @@ public class AmbientStatusBarView extends ConstraintLayout {
                         fetchStatusIconForResId(R.id.dream_overlay_assistant_attention_indicator)));
         mStatusIcons.put(STATUS_ICON_LOCATION_ACTIVE,
                 addDoubleShadow(fetchStatusIconForResId(R.id.dream_overlay_location_active)));
+        mStatusIcons.put(STATUS_ICON_MIC_PRIVACY_ON,
+                addDoubleShadow(fetchStatusIconForResId(R.id.dream_overlay_mic_privacy)));
+        mStatusIcons.put(STATUS_ICON_CAMERA_PRIVACY_ON,
+                addDoubleShadow(fetchStatusIconForResId(R.id.dream_overlay_camera_privacy)));
 
         mSystemStatusViewGroup = findViewById(R.id.dream_overlay_system_status);
         mExtraSystemStatusViewGroup = findViewById(R.id.dream_overlay_extra_items);
@@ -153,6 +161,8 @@ public class AmbientStatusBarView extends ConstraintLayout {
             case STATUS_ICON_PRIORITY_MODE_ON -> "priority_mode_on";
             case STATUS_ICON_ASSISTANT_ATTENTION_ACTIVE -> "assistant_attention_active";
             case STATUS_ICON_LOCATION_ACTIVE -> "location_active";
+            case STATUS_ICON_MIC_PRIVACY_ON -> "mic_privacy_on";
+            case STATUS_ICON_CAMERA_PRIVACY_ON -> "camera_privacy_on";
             default -> type + "(unknown)";
         };
     }

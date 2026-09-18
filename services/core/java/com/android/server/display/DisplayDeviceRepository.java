@@ -25,10 +25,11 @@ import android.view.Surface;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.display.DisplayManagerService.SyncRoot;
+import com.android.server.display.persistence.PersistentDataStoreDelegate;
 import com.android.server.display.utils.DebugUtils;
 
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -64,16 +65,20 @@ class DisplayDeviceRepository implements DisplayAdapter.Listener {
     /** Global lock object from {@link DisplayManagerService}. */
     private final SyncRoot mSyncRoot;
 
-    private final PersistentDataStore mPersistentDataStore;
+    private final PersistentDataStoreDelegate mPersistentDataStore;
+    private final boolean mStableEdidsFlag;
 
     /**
-     * @param syncRoot The global lock for DisplayManager related objects.
+     * @param syncRoot            The global lock for DisplayManager related objects.
      * @param persistentDataStore Settings data store from {@link DisplayManagerService}.
+     * @param stableEdidsFlag     Flag for whether stable edids feature is enabled.
+     *
      */
     DisplayDeviceRepository(@NonNull SyncRoot syncRoot,
-            @NonNull PersistentDataStore persistentDataStore) {
+            @NonNull PersistentDataStoreDelegate persistentDataStore, boolean stableEdidsFlag) {
         mSyncRoot = syncRoot;
         mPersistentDataStore = persistentDataStore;
+        mStableEdidsFlag = stableEdidsFlag;
     }
 
     public void addListener(@NonNull Listener listener) {
@@ -132,8 +137,9 @@ class DisplayDeviceRepository implements DisplayAdapter.Listener {
         for (int i = mDisplayDevices.size() - 1; i >= 0; i--) {
             final DisplayDevice device = mDisplayDevices.get(i);
             final DisplayDeviceInfo info = device.getDisplayDeviceInfoLocked();
-            if (address.equals(info.address)
-                    || DisplayAddress.Physical.isPortMatch(address, info.address)) {
+
+            if (address.equals(info.address) || DisplayAddress.matchInternalDisplays(address,
+                    info.address, mStableEdidsFlag)) {
                 return device;
             }
         }

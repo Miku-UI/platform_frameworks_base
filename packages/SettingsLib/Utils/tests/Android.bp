@@ -14,8 +14,11 @@ android_robolectric_test {
         "SettingsLibUtils",
         "androidx.core_core-ktx",
         "androidx.test.ext.junit",
+        "kotlinx_coroutines_test",
         "mockito-robolectric-prebuilt", // mockito deps order matters!
         "mockito-kotlin2",
+        "truth",
+        "kotlin-test",
     ],
     associates: ["SettingsLibUtils"],
     coverage_libs: ["SettingsLibUtils"],

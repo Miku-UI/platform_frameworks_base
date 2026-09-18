@@ -20,6 +20,7 @@ import com.android.internal.logging.uiEventLoggerFake
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.qs.external.ui.dialog.tileRequestDialogDelegateFactory
 import com.android.systemui.qs.instanceIdSequenceFake
+import com.android.systemui.qs.panels.domain.interactor.iconTilesInteractor
 import com.android.systemui.qs.qsHostAdapter
 import com.android.systemui.statusbar.commandQueue
 import com.android.systemui.statusbar.commandline.commandRegistry
@@ -27,6 +28,7 @@ import com.android.systemui.statusbar.commandline.commandRegistry
 val Kosmos.tileServiceRequestControllerBuilder by
     Kosmos.Fixture {
         TileServiceRequestController.Builder(
+            iconTilesInteractor,
             commandQueue,
             commandRegistry,
             tileRequestDialogDelegateFactory,
@@ -37,6 +39,7 @@ val Kosmos.tileServiceRequestController by
     Kosmos.Fixture {
         TileServiceRequestController(
             qsHostAdapter,
+            iconTilesInteractor,
             commandQueue,
             commandRegistry,
             TileRequestDialogEventLogger(uiEventLoggerFake, instanceIdSequenceFake),

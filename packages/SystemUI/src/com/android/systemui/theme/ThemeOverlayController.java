@@ -16,7 +16,6 @@
 
 package com.android.systemui.theme;
 
-import static android.app.Flags.fixContrastAndForceInvertStateForMultiUser;
 import static android.util.TypedValue.TYPE_INT_COLOR_ARGB8;
 
 import static com.android.systemui.Flags.hardwareColorStyles;
@@ -128,6 +127,11 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
     protected static final String TAG = "ThemeOverlayController";
     private static final boolean DEBUG = false;
 
+    private static final String KEY_COLOR_PALETTE_VERSION = "global_color_palette_version";
+
+    // The wallpaper colors source is always the home wallpaper.
+    private static final int WALLPAPER_COLORS_SOURCE = WallpaperManager.FLAG_SYSTEM;
+
     private final ThemeOverlayApplier mThemeManager;
     private final UserManager mUserManager;
     private final BroadcastDispatcher mBroadcastDispatcher;
@@ -209,6 +213,9 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
 
         @Override
         public void onColorsChanged(WallpaperColors wallpaperColors, int which, int userId) {
+            if (!wallpaperColorsNeedUpdate(which)) {
+                return;
+            }
             WallpaperColors currentColors = mCurrentColors.get(userId);
             if (wallpaperColors != null && wallpaperColors.equals(currentColors)) {
                 return;
@@ -240,13 +247,11 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
     private final UserTracker.Callback mUserTrackerCallback = new UserTracker.Callback() {
         @Override
         public void onUserChanged(int newUser, @NonNull Context userContext) {
-            if (fixContrastAndForceInvertStateForMultiUser()) {
-                UiModeManager uiModeManager = mUiModeManagerProvider.forUser(
-                        UserHandle.of(newUser));
-                uiModeManager.removeContrastChangeListener(mContrastChangeListener);
-                uiModeManager.addContrastChangeListener(mMainExecutor, mContrastChangeListener);
-                mContrast = uiModeManager.getContrast();
-            }
+            UiModeManager uiModeManager = mUiModeManagerProvider.forUser(
+                    UserHandle.of(newUser));
+            uiModeManager.removeContrastChangeListener(mContrastChangeListener);
+            uiModeManager.addContrastChangeListener(mMainExecutor, mContrastChangeListener);
+            mContrast = uiModeManager.getContrast();
 
             boolean isManagedProfile = mUserManager.isManagedProfile(newUser);
             if (!mDeviceProvisionedController.isCurrentUserSetup() && isManagedProfile) {
@@ -260,23 +265,29 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
         }
     };
 
+    private boolean shouldForceReloadForVersion() {
+        String storedVersion = Settings.Global.getString(mContext.getContentResolver(),
+                KEY_COLOR_PALETTE_VERSION);
+        String currentVersion = mSystemPropertiesHelper.get("ro.build.date.utc", null);
+
+        if (TextUtils.isEmpty(currentVersion)) {
+            Log.i(TAG, "Palette version missing. Refreshing overlays");
+            return true;
+        }
+
+        if (storedVersion != null && Objects.equals(storedVersion, currentVersion)) return false;
+
+        Log.i(TAG, "Palette version bumped from " + storedVersion + " to " + currentVersion);
+        Settings.Global.putString(mContext.getContentResolver(), KEY_COLOR_PALETTE_VERSION,
+                currentVersion);
+        return true;
+    }
+
     private final UiModeManager.ContrastChangeListener mContrastChangeListener = contrast -> {
         mContrast = contrast;
         // Force reload so that we update even when the main color has not changed
         reevaluateSystemTheme(true /* forceReload */);
     };
-
-    private int getDefaultWallpaperColorsSource(int userId) {
-        if (com.android.systemui.shared.Flags.newCustomizationPickerUi()) {
-            // The wallpaper colors source is always the home wallpaper.
-            return WallpaperManager.FLAG_SYSTEM;
-        } else {
-            // The wallpaper colors source is based on the last set wallpaper.
-            return mWallpaperManager.getWallpaperIdForUser(WallpaperManager.FLAG_LOCK, userId)
-                    > mWallpaperManager.getWallpaperIdForUser(WallpaperManager.FLAG_SYSTEM, userId)
-                    ? WallpaperManager.FLAG_LOCK : WallpaperManager.FLAG_SYSTEM;
-        }
-    }
 
     private boolean isSeedColorSet(JSONObject jsonObject, WallpaperColors newWallpaperColors) {
         if (newWallpaperColors == null) {
@@ -309,8 +320,7 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
     private void handleWallpaperColors(WallpaperColors wallpaperColors, int flags, int userId) {
         final int currentUser = mUserTracker.getUserId();
         final boolean hadWallpaperColors = mCurrentColors.get(userId) != null;
-        int wallpaperColorsSource = getDefaultWallpaperColorsSource(userId);
-        boolean wallpaperColorsNeedUpdate = (flags & wallpaperColorsSource) != 0;
+        boolean wallpaperColorsNeedUpdate = wallpaperColorsNeedUpdate(flags);
         if (wallpaperColorsNeedUpdate) {
             mCurrentColors.put(userId, wallpaperColors);
             if (DEBUG) Log.d(TAG, "got new colors: " + wallpaperColors + " where: " + flags);
@@ -401,13 +411,11 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
                         mUserManager.isManagedProfile(newUserHandle.getIdentifier());
                 if (!mDeviceProvisionedController.isUserSetup(newUserHandle.getIdentifier())
                         && isManagedProfile) {
-                    Log.i(TAG, "User setup not finished when " + intent.getAction()
+                    Log.i(TAG, "User setup not finished when " + intent.getAction() 
                             + " was received. Deferring... Managed profile? " + isManagedProfile);
                     return;
                 }
-                if (android.os.Flags.allowPrivateProfile()
-                        && android.multiuser.Flags.enablePrivateSpaceFeatures()
-                        && isPrivateProfile(newUserHandle)) {
+                if (isPrivateProfile(newUserHandle)) {
                     mDeferredThemeEvaluation = true;
                     Log.i(TAG, "Deferring theme for private profile till user setup is complete");
                     return;
@@ -473,7 +481,8 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
         dumpManager.registerDumpable(TAG, this);
 
         Flow<Boolean> isFinishedInAsleepStateFlow = mKeyguardTransitionInteractor
-                .isFinishedInStateWhere(KeyguardState.Companion::deviceIsAsleepInState);
+                .isFinishedInStateWhereWithScene(KeyguardState.Companion::deviceIsAsleepInState);
+
         mIsKeyguardOnAsleepState = mJavaAdapter.stateInApp(isFinishedInAsleepStateFlow, false);
     }
 
@@ -511,18 +520,9 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
                 },
                 UserHandle.USER_ALL);
         int userId = mUserTracker.getUserId();
-        if (fixContrastAndForceInvertStateForMultiUser()) {
-            UiModeManager uiModeManager = mUiModeManagerProvider.forUser(UserHandle.of(userId));
-            uiModeManager.addContrastChangeListener(mMainExecutor, mContrastChangeListener);
-            mContrast = uiModeManager.getContrast();
-        } else {
-            mContrast = mUiModeManager.getContrast();
-            mUiModeManager.addContrastChangeListener(mMainExecutor, contrast -> {
-                mContrast = contrast;
-                // Force reload so that we update even when the main color has not changed
-                reevaluateSystemTheme(true /* forceReload */);
-            });
-        }
+        UiModeManager uiModeManager = mUiModeManagerProvider.forUser(UserHandle.of(userId));
+        uiModeManager.addContrastChangeListener(mMainExecutor, mContrastChangeListener);
+        mContrast = uiModeManager.getContrast();
 
         // All wallpaper color and keyguard logic only applies when Monet is enabled.
         if (!mIsMonetEnabled) {
@@ -581,15 +581,14 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
             // now we have to update
 
         } else {
-            systemColor = mWallpaperManager.getWallpaperColors(
-                    getDefaultWallpaperColorsSource(mUserTracker.getUserId()));
+            systemColor = getWallpaperColors();
         }
 
         // Upon boot, make sure we have the most up to date colors
         Runnable updateColors = () -> {
             if (DEBUG) Log.d(TAG, "Boot colors: " + systemColor);
             mCurrentColors.put(mUserTracker.getUserId(), systemColor);
-            reevaluateSystemTheme(false /* forceReload */);
+            reevaluateSystemTheme(shouldForceReloadForVersion());
         };
 
         // Whenever we're going directly to setup wizard, we need to process colors synchronously,
@@ -655,7 +654,7 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
             }
         }
 
-        updateThemeOverlays();
+        updateThemeOverlays(forceReload);
     }
 
     /**
@@ -692,30 +691,24 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
         mColorScheme = isNightMode() ? mDarkColorScheme : mLightColorScheme;
 
         mAccentOverlay = newFabricatedOverlay("accent");
-        assignColorsToOverlay(mAccentOverlay, DynamicColors.getAllAccentPalette(), false);
+        assignColorsToOverlay(mAccentOverlay, DynamicColors.getAllAccentPalette());
 
         mNeutralOverlay = newFabricatedOverlay("neutral");
-        assignColorsToOverlay(mNeutralOverlay, DynamicColors.getAllNeutralPalette(), false);
+        assignColorsToOverlay(mNeutralOverlay, DynamicColors.getAllNeutralPalette());
 
         mDynamicOverlay = newFabricatedOverlay("dynamic");
         // Themed Colors
-        assignColorsToOverlay(mDynamicOverlay, DynamicColors.getAllDynamicColorsMapped(), false);
+        assignColorsToOverlay(mDynamicOverlay, DynamicColors.getAllDynamicColorsMapped());
         // Fixed Colors
-        assignColorsToOverlay(mDynamicOverlay, DynamicColors.getFixedColorsMapped(), true);
+        assignColorsToOverlay(mDynamicOverlay, DynamicColors.getFixedColorsMapped());
         // Custom Colors
-        assignColorsToOverlay(mDynamicOverlay, DynamicColors.getCustomColorsMapped(), false);
+        assignColorsToOverlay(mDynamicOverlay, DynamicColors.getCustomColorsMapped());
     }
 
     private void assignColorsToOverlay(FabricatedOverlay overlay,
-            List<Pair<String, DynamicColor>> colors, Boolean isFixed) {
+            List<Pair<String, DynamicColor>> colors) {
         colors.forEach(p -> {
             String prefix = "android:color/system_" + p.first;
-
-            if (isFixed) {
-                overlay.setResourceValue(prefix, TYPE_INT_COLOR_ARGB8,
-                        p.second.getArgb(mLightColorScheme.getMaterialScheme()), null);
-                return;
-            }
 
             overlay.setResourceValue(prefix + "_light", TYPE_INT_COLOR_ARGB8,
                     p.second.getArgb(mLightColorScheme.getMaterialScheme()), null);
@@ -767,7 +760,7 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
     }
 
     @SuppressWarnings("StringCaseLocaleUsage") // Package name is not localized
-    private void updateThemeOverlays() {
+    private void updateThemeOverlays(boolean forceUpdate) {
         final int currentUser = mUserTracker.getUserId();
         final String overlayPackageJson = mSecureSettings.getStringForUser(
                 Settings.Secure.THEME_CUSTOMIZATION_OVERLAY_PACKAGES,
@@ -848,7 +841,7 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
             mActivityManager.setThemeOverlayReady(currentUser);
         };
 
-        if (colorSchemeIsApplied(managedProfiles)) {
+        if (!forceUpdate && colorSchemeIsApplied(managedProfiles)) {
             Log.d(TAG, "Skipping overlay creation. Theme was already: " + mColorScheme);
             onCompleteCallback.run();
             return;
@@ -954,8 +947,7 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
         boolean isWallpaper = styleAndSource.second.equals(COLOR_SOURCE_HOME);
 
         if (isWallpaper) {
-            WallpaperColors wallpaperColors = mWallpaperManager.getWallpaperColors(
-                    getDefaultWallpaperColorsSource(mUserTracker.getUserId()));
+            WallpaperColors wallpaperColors = getWallpaperColors();
 
             if (wallpaperColors != null) {
                 defaultSeedColor = wallpaperColors.getPrimaryColor();
@@ -976,6 +968,21 @@ public class ThemeOverlayController implements CoreStartable, Dumpable {
 
         return new HardwareDefaultSetting(defaultSeedColor, styleAndSource.first,
                 isWallpaper ? COLOR_SOURCE_HOME : COLOR_SOURCE_PRESET);
+    }
+
+    /**
+     * Returns whether the cached wallpaper colors need to be updated based on which screen was
+     * updated. Wallpaper colors only need update if the home wallpaper changes.
+     *
+     * @param which {@link WallpaperManager} flag representing which screen is updated
+     * @return true if the system's cached wallpaper colors need to be updated
+     */
+    private boolean wallpaperColorsNeedUpdate(int which) {
+        return (which & WALLPAPER_COLORS_SOURCE) != 0;
+    }
+
+    private WallpaperColors getWallpaperColors() {
+        return mWallpaperManager.getWallpaperColors(WALLPAPER_COLORS_SOURCE);
     }
 
     @Override

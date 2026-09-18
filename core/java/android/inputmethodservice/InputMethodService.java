@@ -98,6 +98,7 @@ import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.os.SystemClock;
 import android.os.Trace;
+import android.os.UserHandle;
 import android.provider.Settings;
 import android.text.InputType;
 import android.text.Layout;
@@ -444,6 +445,8 @@ public class InputMethodService extends AbstractInputMethodService {
     @Deprecated
     public static final int BACK_DISPOSITION_WILL_DISMISS = 2;
 
+    // TODO(b/454542168): update javadoc with the BACK_DISPOSITION_CONTROLS_BACK_INTERCEPTION
+    //  behaviour changes.
     /**
      * Asks the system to not adjust the back button affordance even when the software keyboard is
      * shown.
@@ -543,6 +546,21 @@ public class InputMethodService extends AbstractInputMethodService {
     @ChangeId
     @EnabledSince(targetSdkVersion = Build.VERSION_CODES.S)
     public static final long FINISH_INPUT_NO_FALLBACK_CONNECTION = 156215187L; // This is a bug id.
+
+    /**
+     * When this change is enabled for an IME with {@code enableOnBackInvokedCallback="true"}
+     * in its manifest, setting {@link #BACK_DISPOSITION_ADJUST_NOTHING} causes back events to
+     * bypass the IME and be sent directly to the app process by default.
+     *
+     * <p>If an IME wants to set {@link #BACK_DISPOSITION_ADJUST_NOTHING}, but still
+     * receive back events, it can do so by registering a custom back callback
+     * through {@code getWindow().getOnBackInvokedDispatcher()
+     * .registerOnBackInvokedCallback(...)}.</p>
+     * @hide
+     */
+    @ChangeId
+    @EnabledSince(targetSdkVersion = Build.VERSION_CODES.CINNAMON_BUN)
+    public static final long BACK_DISPOSITION_CONTROLS_BACK_INTERCEPTION = 454542168L;
 
     /**
      * Disallow IMEs to override {@link InputMethodService#onCreateInputMethodSessionInterface()}
@@ -1978,6 +1996,8 @@ public class InputMethodService extends AbstractInputMethodService {
         return mWindow;
     }
 
+    // TODO(b/454542168): update javadoc with the BACK_DISPOSITION_CONTROLS_BACK_INTERCEPTION
+    //  behaviour changes.
     /**
      * Sets the disposition mode that indicates the expected affordance for the back button.
      *
@@ -1998,6 +2018,11 @@ public class InputMethodService extends AbstractInputMethodService {
             return;
         }
         mBackDisposition = disposition;
+        if (CompatChanges.isChangeEnabled(BACK_DISPOSITION_CONTROLS_BACK_INTERCEPTION)
+                && getApplicationInfo().isOnBackInvokedCallbackEnabled()) {
+            mImeBackCallbackSender.setSkipDefaultCallbackRegistration(
+                    disposition == BACK_DISPOSITION_ADJUST_NOTHING);
+        }
         setImeWindowStatus(mImeWindowVisibility, mBackDisposition);
     }
 
@@ -4500,7 +4525,7 @@ public class InputMethodService extends AbstractInputMethodService {
     private ImeTracker.Token createStatsToken(boolean show, @SoftInputShowHideReason int reason,
             boolean isFromUser) {
         return ImeTracker.forLogging().onStart(show ? ImeTracker.TYPE_SHOW : ImeTracker.TYPE_HIDE,
-                ImeTracker.ORIGIN_IME, reason, isFromUser);
+                ImeTracker.ORIGIN_IME, reason, isFromUser, UserHandle.myUserId(), getDisplayId());
     }
 
     /**

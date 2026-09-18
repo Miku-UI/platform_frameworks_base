@@ -34,7 +34,6 @@ private const val TAG = "FloatingCoordinator"
  * other content out of the way. [onContentRemoved] should be called when the content is removed or
  * no longer visible.
  */
-
 class FloatingContentCoordinator constructor() {
     /**
      * Represents a piece of floating content, such as PIP or the Bubbles stack. Provides methods
@@ -87,22 +86,23 @@ class FloatingContentCoordinator constructor() {
          * delegates to [findAreaForContentVertically].
          *
          * @param overlappingContentBounds The bounds of the other piece of content, which
-         * necessitated this content's relocation. Your new position must not overlap with these
-         * bounds.
+         *   necessitated this content's relocation. Your new position must not overlap with these
+         *   bounds.
          * @param otherContentBounds The bounds of any other pieces of floating content. Your new
-         * position must not overlap with any of these either. These bounds are guaranteed to be
-         * non-overlapping.
+         *   position must not overlap with any of these either. These bounds are guaranteed to be
+         *   non-overlapping.
          * @return The new bounds for this content.
          */
         fun calculateNewBoundsOnOverlap(
             overlappingContentBounds: Rect,
-            otherContentBounds: List<Rect>
+            otherContentBounds: List<Rect>,
         ): Rect {
             return findAreaForContentVertically(
-                    getFloatingBoundsOnScreen(),
-                    overlappingContentBounds,
-                    otherContentBounds,
-                    getAllowedFloatingBoundsRegion())
+                getFloatingBoundsOnScreen(),
+                overlappingContentBounds,
+                otherContentBounds,
+                getAllowedFloatingBoundsRegion(),
+            )
         }
     }
 
@@ -153,8 +153,10 @@ class FloatingContentCoordinator constructor() {
         }
 
         if (!allContentBounds.containsKey(content)) {
-            Log.wtf(TAG, "Received onContentMoved call before onContentAdded! " +
-                    "This should never happen.")
+            Log.wtf(
+                TAG,
+                "Received onContentMoved call before onContentAdded! " + "This should never happen.",
+            )
             return
         }
 
@@ -192,31 +194,33 @@ class FloatingContentCoordinator constructor() {
 
         val conflictingNewBounds = allContentBounds[fromContent]!!
         allContentBounds
-                // Filter to content that intersects with the new bounds. That's content that needs
-                // to move.
-                .filter { (content, bounds) ->
-                    content != fromContent && Rect.intersects(conflictingNewBounds, bounds) }
-                // Tell that content to get out of the way, and save the bounds it says it's moving
-                // (or animating) to.
-                .forEach { (content, bounds) ->
-                    val newBounds = content.calculateNewBoundsOnOverlap(
-                            conflictingNewBounds,
-                            // Pass all of the content bounds except the bounds of the
-                            // content we're asking to move, and the conflicting new bounds
-                            // (since those are passed separately).
-                            otherContentBounds = allContentBounds.values
-                                    .minus(bounds)
-                                    .minus(conflictingNewBounds))
+            // Filter to content that intersects with the new bounds. That's content that needs
+            // to move.
+            .filter { (content, bounds) ->
+                content != fromContent && Rect.intersects(conflictingNewBounds, bounds)
+            }
+            // Tell that content to get out of the way, and save the bounds it says it's moving
+            // (or animating) to.
+            .forEach { (content, bounds) ->
+                val newBounds =
+                    content.calculateNewBoundsOnOverlap(
+                        conflictingNewBounds,
+                        // Pass all of the content bounds except the bounds of the
+                        // content we're asking to move, and the conflicting new bounds
+                        // (since those are passed separately).
+                        otherContentBounds =
+                            allContentBounds.values.minus(bounds).minus(conflictingNewBounds),
+                    )
 
-                    // If the new bounds are empty, it means there's no non-overlapping position
-                    // that is in bounds. Just leave the content where it is. This should normally
-                    // not happen, but sometimes content like PIP reports incorrect bounds
-                    // temporarily.
-                    if (!newBounds.isEmpty) {
-                        content.moveToBounds(newBounds)
-                        allContentBounds[content] = content.getFloatingBoundsOnScreen()
-                    }
+                // If the new bounds are empty, it means there's no non-overlapping position
+                // that is in bounds. Just leave the content where it is. This should normally
+                // not happen, but sometimes content like PIP reports incorrect bounds
+                // temporarily.
+                if (!newBounds.isEmpty) {
+                    content.moveToBounds(newBounds)
+                    allContentBounds[content] = content.getFloatingBoundsOnScreen()
                 }
+            }
 
         currentlyResolvingConflicts = false
     }
@@ -240,34 +244,35 @@ class FloatingContentCoordinator constructor() {
          *
          * @param contentRect The bounds of the content for which we're finding a new home.
          * @param newlyOverlappingRect The bounds of the content that forced this relocation by
-         * intersecting with the content we now need to move. If the overlapping content is
-         * overlapping the top half of this content, we'll try to move this content downward if
-         * possible (since the other content is 'pushing' it down), and vice versa.
+         *   intersecting with the content we now need to move. If the overlapping content is
+         *   overlapping the top half of this content, we'll try to move this content downward if
+         *   possible (since the other content is 'pushing' it down), and vice versa.
          * @param exclusionRects Any other areas that we need to avoid when finding a new home for
-         * the content. These areas must be non-overlapping with each other.
+         *   the content. These areas must be non-overlapping with each other.
          * @param allowedBounds The area within which we're allowed to find new bounds for the
-         * content.
-         * @return New bounds for the content that don't intersect the exclusion rects or the
-         * newly overlapping rect, and that is within bounds - or an empty Rect if no in-bounds
-         * position exists.
+         *   content.
+         * @return New bounds for the content that don't intersect the exclusion rects or the newly
+         *   overlapping rect, and that is within bounds - or an empty Rect if no in-bounds position
+         *   exists.
          */
         @JvmStatic
         fun findAreaForContentVertically(
             contentRect: Rect,
             newlyOverlappingRect: Rect,
             exclusionRects: Collection<Rect>,
-            allowedBounds: Rect
+            allowedBounds: Rect,
         ): Rect {
             // If the newly overlapping Rect's center is above the content's center, we'll prefer to
             // find a space for this content that is below the overlapping content, since it's
             // 'pushing' it down. This may not be possible due to to screen bounds, in which case
             // we'll find space in the other direction.
             val overlappingContentPushingDown =
-                    newlyOverlappingRect.centerY() < contentRect.centerY()
+                newlyOverlappingRect.centerY() < contentRect.centerY()
 
             // Filter to exclusion rects that are above or below the content that we're finding a
             // place for. Then, split into two lists - rects above the content, and rects below it.
-            var (rectsToAvoidAbove, rectsToAvoidBelow) = exclusionRects
+            var (rectsToAvoidAbove, rectsToAvoidBelow) =
+                exclusionRects
                     .filter { rectToAvoid -> rectsIntersectVertically(rectToAvoid, contentRect) }
                     .partition { rectToAvoid -> rectToAvoid.top < contentRect.top }
 
@@ -275,15 +280,17 @@ class FloatingContentCoordinator constructor() {
             // current location.
             val newContentBoundsAbove by lazy {
                 findAreaForContentAboveOrBelow(
-                        contentRect,
-                        exclusionRects = rectsToAvoidAbove.plus(newlyOverlappingRect),
-                        findAbove = true)
+                    contentRect,
+                    exclusionRects = rectsToAvoidAbove.plus(newlyOverlappingRect),
+                    findAbove = true,
+                )
             }
             val newContentBoundsBelow by lazy {
                 findAreaForContentAboveOrBelow(
-                        contentRect,
-                        exclusionRects = rectsToAvoidBelow.plus(newlyOverlappingRect),
-                        findAbove = false)
+                    contentRect,
+                    exclusionRects = rectsToAvoidBelow.plus(newlyOverlappingRect),
+                    findAbove = false,
+                )
             }
 
             val positionAboveInBounds by lazy { allowedBounds.contains(newContentBoundsAbove) }
@@ -293,8 +300,8 @@ class FloatingContentCoordinator constructor() {
             // out of bounds. Also use it if the content is being overlapped from the bottom, but
             // the 'above' position is out of bounds. Otherwise, use the 'above' position.
             val usePositionBelow =
-                    overlappingContentPushingDown && positionBelowInBounds ||
-                            !overlappingContentPushingDown && !positionAboveInBounds
+                overlappingContentPushingDown && positionBelowInBounds ||
+                    !overlappingContentPushingDown && !positionAboveInBounds
 
             // Return the content rect, but offset to reflect the new position.
             val newBounds = if (usePositionBelow) newContentBoundsBelow else newContentBoundsAbove
@@ -318,21 +325,21 @@ class FloatingContentCoordinator constructor() {
          *
          * @param contentRect The content we're finding an area for.
          * @param exclusionRects The areas we need to avoid when finding a new area for the content.
-         * These areas must be non-overlapping with each other.
+         *   These areas must be non-overlapping with each other.
          * @param findAbove Whether we are finding an area above the content's current position,
-         * rather than an area below it.
+         *   rather than an area below it.
          */
         fun findAreaForContentAboveOrBelow(
             contentRect: Rect,
             exclusionRects: Collection<Rect>,
-            findAbove: Boolean
+            findAbove: Boolean,
         ): Rect {
             // Sort the rects, since we want to move the content as little as possible. We'll
             // start with the rects closest to the content and move outward. If we're finding an
             // area above the content, that means we sort in reverse order to search the rects
             // from highest to lowest y-value.
             val sortedExclusionRects =
-                    exclusionRects.sortedBy { if (findAbove) -it.top else it.top }
+                exclusionRects.sortedBy { if (findAbove) -it.top else it.top }
 
             val proposedNewBounds = Rect(contentRect)
             for (exclusionRect in sortedExclusionRects) {
@@ -348,10 +355,11 @@ class FloatingContentCoordinator constructor() {
                     // exclusion rect. If we're finding an area below, propose new bounds that
                     // place the content just below the exclusion rect.
                     val verticalOffset =
-                            if (findAbove) -contentRect.height() else exclusionRect.height()
+                        if (findAbove) -contentRect.height() else exclusionRect.height()
                     proposedNewBounds.offsetTo(
-                            proposedNewBounds.left,
-                            exclusionRect.top + verticalOffset)
+                        proposedNewBounds.left,
+                        exclusionRect.top + verticalOffset,
+                    )
                 }
             }
 
@@ -361,7 +369,7 @@ class FloatingContentCoordinator constructor() {
         /** Returns whether or not the two Rects share any of the same space on the X axis. */
         private fun rectsIntersectVertically(r1: Rect, r2: Rect): Boolean {
             return (r1.left >= r2.left && r1.left <= r2.right) ||
-                    (r1.right <= r2.right && r1.right >= r2.left)
+                (r1.right <= r2.right && r1.right >= r2.left)
         }
     }
 }

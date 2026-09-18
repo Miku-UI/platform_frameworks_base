@@ -18,11 +18,13 @@ package android.view;
 
 import android.graphics.FrameInfo;
 import android.os.IInputConstants;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 /**
  * The timing information of events taking place in ViewRootImpl
  * @hide
  */
+@RavenwoodKeepWholeClass
 public class ViewFrameInfo {
     public long drawStart;
 

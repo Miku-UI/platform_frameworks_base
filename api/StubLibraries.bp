@@ -211,18 +211,6 @@ non_updatable_exportable_droidstubs {
                 {
                     targets: ["sdk"],
                     dir: "apistubs/android/test/api",
-                    dest: "android.txt",
-                    tag: ".exportable.api.txt",
-                },
-                {
-                    targets: ["sdk"],
-                    dir: "apistubs/android/test/api",
-                    dest: "removed.txt",
-                    tag: ".exportable.removed-api.txt",
-                },
-                {
-                    targets: ["sdk"],
-                    dir: "apistubs/android/test/api",
                     dest: "android-non-updatable.txt",
                     tag: ".exportable.api.txt",
                 },
@@ -235,18 +223,6 @@ non_updatable_exportable_droidstubs {
             ],
             conditions_default: {
                 dists: [
-                    {
-                        targets: ["sdk"],
-                        dir: "apistubs/android/test/api",
-                        dest: "android.txt",
-                        tag: ".api.txt",
-                    },
-                    {
-                        targets: ["sdk"],
-                        dir: "apistubs/android/test/api",
-                        dest: "removed.txt",
-                        tag: ".removed-api.txt",
-                    },
                     {
                         targets: ["sdk"],
                         dir: "apistubs/android/test/api",
@@ -355,7 +331,10 @@ java_defaults {
 
 java_defaults {
     name: "android-non-updatable_from_source_defaults",
-    libs: ["stub-annotations"],
+    libs: [
+        "stub-annotations",
+        "DevicePolicyAnnotation",
+    ],
     static_libs: ["framework-res-package-jar"], // Export package of framework-res
 }
 
@@ -371,6 +350,10 @@ java_defaults {
 java_library {
     name: "android-non-updatable.stubs",
     defaults: ["android-non-updatable_defaults"],
+    visibility: [
+        // Needed for android.test.mock.
+        "//frameworks/base/test-mock",
+    ],
     static_libs: select(product_variable("build_from_text_stub"), {
         true: [
             "android-non-updatable.stubs.from-text",
@@ -392,6 +375,10 @@ java_library {
 java_library {
     name: "android-non-updatable.stubs.system",
     defaults: ["android-non-updatable_defaults"],
+    visibility: [
+        // Needed for android.test.mock.
+        "//frameworks/base/test-mock",
+    ],
     static_libs: select(product_variable("build_from_text_stub"), {
         true: [
             "android-non-updatable.stubs.system.from-text",
@@ -434,6 +421,10 @@ java_library {
 java_library {
     name: "android-non-updatable.stubs.test",
     defaults: ["android-non-updatable_defaults"],
+    visibility: [
+        // Needed for android.test.mock.
+        "//frameworks/base/test-mock",
+    ],
     static_libs: select(product_variable("build_from_text_stub"), {
         true: [
             "android-non-updatable.stubs.test.from-text",
@@ -896,7 +887,7 @@ java_library {
         "//visibility:private",
     ],
     static_libs: [
-        "stable.core.platform.api.stubs",
+        "legacy.core.platform.api.stubs",
         "core-lambda-stubs-for-system-modules",
         "core-generated-annotation-stubs",
         "framework",
@@ -1050,7 +1041,10 @@ droidstubs {
     defaults: ["api_versions_complete_defaults"],
     srcs: [":android_stubs_current_with_test_libs{.jar}"],
     api_levels_sdk_type: "public",
-    visibility: ["//frameworks/base"],
+    visibility: [
+        "//frameworks/base",
+        "//development/build",
+    ],
 
     // Use the compatibility check properties to supply the previously released API to which
     // flagged APIs can be reverted but disable the compatibility check as it is not required.
@@ -1091,6 +1085,7 @@ droidstubs {
             tag: ".api_versions.xml",
         },
     ],
+    visibility: ["//development/build"],
 }
 
 // Defaults for `droidstubs` modules that generate `api-versions.xml` files that
@@ -1128,6 +1123,7 @@ droidstubs {
             removed_api_file: ":android-removed.api.combined.module-lib.latest",
         },
     },
+    visibility: ["//development/build"],
 }
 
 // Create a single jar containing the whole module-lib API surface.
@@ -1164,6 +1160,7 @@ droidstubs {
             removed_api_file: ":android-removed.api.combined.module-lib.latest",
         },
     },
+    visibility: ["//development/build"],
 }
 
 // Produces an `api-versions.xml` file that includes up-to-date information
@@ -1186,6 +1183,7 @@ droidstubs {
             removed_api_file: ":android-removed.api.combined.system-server.latest",
         },
     },
+    visibility: ["//development/build"],
 }
 
 // Create a single jar containing the whole system-server API surface.
@@ -1226,6 +1224,7 @@ droidstubs {
             removed_api_file: ":android-removed.api.combined.system-server.latest",
         },
     },
+    visibility: ["//development/build"],
 }
 
 /////////////////////////////////////////////////////////////////////

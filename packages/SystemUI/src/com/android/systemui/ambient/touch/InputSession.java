@@ -23,7 +23,6 @@ import android.view.Choreographer;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 
-import com.android.systemui.Flags;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.shared.system.InputChannelCompat;
 import com.android.systemui.shared.system.InputMonitorCompat;
@@ -77,12 +76,22 @@ public class InputSession {
 
                     if (ev instanceof MotionEvent
                             && mGestureDetector.onTouchEvent((MotionEvent) ev)
-                            && pilferOnGestureConsume
-                            && !(mPilfering && Flags.dreamInputSessionPilferOnce())) {
-                        mPilfering = true;
-                        mInputMonitor.pilferPointers();
+                            && pilferOnGestureConsume) {
+                        pilfer();
                     }
                 });
+    }
+
+    /**
+     * Explicitly requests pilfering of a touch event.
+     * This is useful for asynchronous gestures (e.g. Long Press) where the consumption cannot
+     * be determined synchronously during an InputEvent.
+     */
+    public void pilfer() {
+        if (!mPilfering) {
+            mPilfering = true;
+            mInputMonitor.pilferPointers();
+        }
     }
 
     /**

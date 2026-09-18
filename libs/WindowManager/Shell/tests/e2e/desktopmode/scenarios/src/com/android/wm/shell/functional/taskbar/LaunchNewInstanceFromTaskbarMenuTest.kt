@@ -16,8 +16,7 @@
 
 package com.android.wm.shell.functional.taskbar
 
-import android.platform.test.annotations.Presubmit
-import android.platform.test.annotations.RequiresDesktopDevice
+import android.platform.test.annotations.Postsubmit
 import android.platform.test.rule.ScreenRecordRule
 import com.android.wm.shell.scenarios.LaunchNewInstanceFromTaskbarMenu
 import org.junit.runner.RunWith
@@ -26,7 +25,6 @@ import org.junit.runners.BlockJUnit4ClassRunner
 /* Functional test for [LaunchNewInstanceFromTaskbarMenu]. */
 
 @RunWith(BlockJUnit4ClassRunner::class)
-@RequiresDesktopDevice
-@Presubmit
+@Postsubmit
 @ScreenRecordRule.ScreenRecord
 class LaunchNewInstanceFromTaskbarMenuTest : LaunchNewInstanceFromTaskbarMenu()

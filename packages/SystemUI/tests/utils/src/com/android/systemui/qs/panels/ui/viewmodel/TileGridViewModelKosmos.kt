@@ -22,21 +22,18 @@ import com.android.systemui.qs.panels.domain.interactor.gridLayoutTypeInteractor
 import com.android.systemui.qs.panels.ui.compose.infinitegrid.infiniteGridLayout
 import com.android.systemui.qs.pipeline.domain.interactor.currentTilesInteractor
 
-val Kosmos.tileGridViewModel by
-    Kosmos.Fixture {
-        TileGridViewModel(
-            gridLayoutTypeInteractor,
-            gridLayoutMap,
-            currentTilesInteractor,
-            infiniteGridLayout,
-        )
-    }
+val Kosmos.tileGridViewModel by Kosmos.Fixture { tileGridViewModelFactory.create() }
 
 val Kosmos.tileGridViewModelFactory by
     Kosmos.Fixture {
         object : TileGridViewModel.Factory {
             override fun create(): TileGridViewModel {
-                return tileGridViewModel
+                return TileGridViewModel(
+                    gridLayoutTypeInteractor,
+                    gridLayoutMap,
+                    currentTilesInteractor,
+                    infiniteGridLayout,
+                )
             }
         }
     }

@@ -53,15 +53,13 @@ public final class ProviderMap {
 
     private final ActivityManagerService mAm;
 
-    private final HashMap<String, ContentProviderRecord> mSingletonByName
-            = new HashMap<String, ContentProviderRecord>();
-    private final HashMap<ComponentName, ContentProviderRecord> mSingletonByClass
-            = new HashMap<ComponentName, ContentProviderRecord>();
+    private final HashMap<String, ContentProviderRecord> mSingletonByName = new HashMap<>();
+    private final HashMap<ComponentName, ContentProviderRecord> mSingletonByClass = new HashMap<>();
 
-    private final SparseArray<HashMap<String, ContentProviderRecord>> mProvidersByNamePerUser
-            = new SparseArray<HashMap<String, ContentProviderRecord>>();
-    private final SparseArray<HashMap<ComponentName, ContentProviderRecord>> mProvidersByClassPerUser
-            = new SparseArray<HashMap<ComponentName, ContentProviderRecord>>();
+    private final SparseArray<HashMap<String, ContentProviderRecord>> mProvidersByNamePerUser =
+            new SparseArray<>();
+    private final SparseArray<HashMap<ComponentName, ContentProviderRecord>>
+            mProvidersByClassPerUser = new SparseArray<>();
 
     ProviderMap(ActivityManagerService am) {
         mAm = am;
@@ -106,12 +104,12 @@ public final class ProviderMap {
     void putProviderByName(String name, ContentProviderRecord record) {
         if (DBG) {
             Slog.i(TAG, "putProviderByName: " + name + " , callingUid = " + Binder.getCallingUid()
-                + ", record uid = " + record.appInfo.uid);
+                    + ", record uid = " + record.mAppInfo.uid);
         }
-        if (record.singleton) {
+        if (record.mSingleton) {
             mSingletonByName.put(name, record);
         } else {
-            final int userId = UserHandle.getUserId(record.appInfo.uid);
+            final int userId = UserHandle.getUserId(record.mAppInfo.uid);
             getProvidersByName(userId).put(name, record);
         }
     }
@@ -119,30 +117,32 @@ public final class ProviderMap {
     void putProviderByClass(ComponentName name, ContentProviderRecord record) {
         if (DBG) {
             Slog.i(TAG, "putProviderByClass: " + name + " , callingUid = " + Binder.getCallingUid()
-                + ", record uid = " + record.appInfo.uid);
+                    + ", record uid = " + record.mAppInfo.uid);
         }
-        if (record.singleton) {
+        if (record.mSingleton) {
             mSingletonByClass.put(name, record);
         } else {
-            final int userId = UserHandle.getUserId(record.appInfo.uid);
+            final int userId = UserHandle.getUserId(record.mAppInfo.uid);
             getProvidersByClass(userId).put(name, record);
         }
     }
 
     void removeProviderByName(String name, int userId) {
         if (mSingletonByName.containsKey(name)) {
-            if (DBG)
+            if (DBG) {
                 Slog.i(TAG, "Removing from globalByName name=" + name);
+            }
             mSingletonByName.remove(name);
         } else {
             if (userId < 0) throw new IllegalArgumentException("Bad user " + userId);
-            if (DBG)
+            if (DBG) {
                 Slog.i(TAG,
                         "Removing from providersByName name=" + name + " user=" + userId);
+            }
             HashMap<String, ContentProviderRecord> map = getProvidersByName(userId);
             // map returned by getProvidersByName wouldn't be null
             map.remove(name);
-            if (map.size() == 0) {
+            if (map.isEmpty()) {
                 mProvidersByNamePerUser.remove(userId);
             }
         }
@@ -150,18 +150,20 @@ public final class ProviderMap {
 
     void removeProviderByClass(ComponentName name, int userId) {
         if (mSingletonByClass.containsKey(name)) {
-            if (DBG)
+            if (DBG) {
                 Slog.i(TAG, "Removing from globalByClass name=" + name);
+            }
             mSingletonByClass.remove(name);
         } else {
             if (userId < 0) throw new IllegalArgumentException("Bad user " + userId);
-            if (DBG)
+            if (DBG) {
                 Slog.i(TAG,
                         "Removing from providersByClass name=" + name + " user=" + userId);
+            }
             HashMap<ComponentName, ContentProviderRecord> map = getProvidersByClass(userId);
             // map returned by getProvidersByClass wouldn't be null
             map.remove(name);
-            if (map.size() == 0) {
+            if (map.isEmpty()) {
                 mProvidersByClassPerUser.remove(userId);
             }
         }
@@ -171,7 +173,8 @@ public final class ProviderMap {
         if (userId < 0) throw new IllegalArgumentException("Bad user " + userId);
         final HashMap<String, ContentProviderRecord> map = mProvidersByNamePerUser.get(userId);
         if (map == null) {
-            HashMap<String, ContentProviderRecord> newMap = new HashMap<String, ContentProviderRecord>();
+            HashMap<String, ContentProviderRecord> newMap =
+                    new HashMap<>();
             mProvidersByNamePerUser.put(userId, newMap);
             return newMap;
         } else {
@@ -184,8 +187,7 @@ public final class ProviderMap {
         final HashMap<ComponentName, ContentProviderRecord> map
                 = mProvidersByClassPerUser.get(userId);
         if (map == null) {
-            HashMap<ComponentName, ContentProviderRecord> newMap
-                    = new HashMap<ComponentName, ContentProviderRecord>();
+            HashMap<ComponentName, ContentProviderRecord> newMap = new HashMap<>();
             mProvidersByClassPerUser.put(userId, newMap);
             return newMap;
         } else {
@@ -200,11 +202,12 @@ public final class ProviderMap {
         boolean didSomething = false;
         for (ContentProviderRecord provider : providers.values()) {
             final boolean sameComponent = packageName == null
-                    || (provider.info.packageName.equals(packageName)
-                        && (filterByClasses == null
-                            || filterByClasses.contains(provider.name.getClassName())));
+                    || (provider.mProviderInfo.packageName.equals(packageName)
+                    && (filterByClasses == null
+                    || filterByClasses.contains(provider.name.getClassName())));
             if (sameComponent
-                    && (provider.proc == null || evenPersistent || !provider.proc.isPersistent())) {
+                    && (provider.mProc == null || evenPersistent
+                    || !provider.mProc.isPersistent())) {
                 if (!doit) {
                     return true;
                 }
@@ -254,7 +257,7 @@ public final class ProviderMap {
         while (it.hasNext()) {
             Map.Entry<ComponentName, ContentProviderRecord> e = it.next();
             ContentProviderRecord r = e.getValue();
-            if (dumpPackage != null && !dumpPackage.equals(r.appInfo.packageName)) {
+            if (dumpPackage != null && !dumpPackage.equals(r.mAppInfo.packageName)) {
                 continue;
             }
             if (needSep) {
@@ -280,7 +283,7 @@ public final class ProviderMap {
         while (it.hasNext()) {
             Map.Entry<String, ContentProviderRecord> e = it.next();
             ContentProviderRecord r = e.getValue();
-            if (dumpPackage != null && !dumpPackage.equals(r.appInfo.packageName)) {
+            if (dumpPackage != null && !dumpPackage.equals(r.mAppInfo.packageName)) {
                 continue;
             }
             if (needSep) {
@@ -303,7 +306,7 @@ public final class ProviderMap {
     boolean dumpProvidersLocked(PrintWriter pw, boolean dumpAll, String dumpPackage) {
         boolean needSep = false;
 
-        if (mSingletonByClass.size() > 0) {
+        if (!mSingletonByClass.isEmpty()) {
             needSep |= dumpProvidersByClassLocked(pw, dumpAll, dumpPackage,
                     "  Published single-user content providers (by class):", needSep,
                     mSingletonByClass);
@@ -331,14 +334,14 @@ public final class ProviderMap {
     }
 
     private ArrayList<ContentProviderRecord> getProvidersForName(String name) {
-        ArrayList<ContentProviderRecord> allProviders = new ArrayList<ContentProviderRecord>();
+        ArrayList<ContentProviderRecord> allProviders = new ArrayList<>();
         final ArrayList<ContentProviderRecord> ret = new ArrayList<>();
 
         final Predicate<ContentProviderRecord> filter = DumpUtils.filterRecord(name);
 
         synchronized (mAm) {
             allProviders.addAll(mSingletonByClass.values());
-            for (int i=0; i<mProvidersByClassPerUser.size(); i++) {
+            for (int i = 0; i < mProvidersByClassPerUser.size(); i++) {
                 allProviders.addAll(mProvidersByClassPerUser.valueAt(i).values());
             }
 
@@ -349,7 +352,7 @@ public final class ProviderMap {
         return ret;
     }
 
-    protected boolean dumpProvider(FileDescriptor fd, PrintWriter pw, String name, String[] args,
+    boolean dumpProvider(FileDescriptor fd, PrintWriter pw, String name, String[] args,
             int opti, boolean dumpAll) {
         try {
             mAm.getCachedAppOptimizer().enableFreezer(false);
@@ -360,7 +363,7 @@ public final class ProviderMap {
             }
 
             boolean needSep = false;
-            for (int i=0; i<providers.size(); i++) {
+            for (int i = 0; i < providers.size(); i++) {
                 if (needSep) {
                     pw.println();
                 }
@@ -379,22 +382,23 @@ public final class ProviderMap {
      */
     private void dumpProvider(String prefix, FileDescriptor fd, PrintWriter pw,
             final ContentProviderRecord r, String[] args, boolean dumpAll) {
-        final IApplicationThread thread = r.proc != null ? r.proc.getThread() : null;
-        for (String s: args) {
+        final IApplicationThread thread = r.mProc != null ? r.mProc.getThread() : null;
+        for (String s : args) {
             if (!dumpAll && s.contains("--proto")) {
                 if (thread != null) {
-                    dumpToTransferPipe(null , fd, pw, r, thread, args);
+                    dumpToTransferPipe(null, fd, pw, r, thread, args);
                 }
                 return;
             }
         }
         String innerPrefix = prefix + "  ";
         synchronized (mAm) {
-            pw.print(prefix); pw.print("PROVIDER ");
+            pw.print(prefix);
+            pw.print("PROVIDER ");
             pw.print(r);
             pw.print(" pid=");
-            if (r.proc != null) {
-                pw.println(r.proc.getPid());
+            if (r.mProc != null) {
+                pw.println(r.mProc.getPid());
             } else {
                 pw.println("(not running)");
             }
@@ -413,7 +417,7 @@ public final class ProviderMap {
      * Similar to the dumpProvider, but only dumps the first matching provider.
      * The provider is responsible for dumping as proto.
      */
-    protected boolean dumpProviderProto(FileDescriptor fd, PrintWriter pw, String name,
+    boolean dumpProviderProto(FileDescriptor fd, PrintWriter pw, String name,
             String[] args) {
         //add back the --proto arg, which was stripped out by PriorityDump
         String[] newArgs = Arrays.copyOf(args, args.length + 1);
@@ -429,7 +433,7 @@ public final class ProviderMap {
         for (int i = 0; i < providers.size(); i++) {
             final ContentProviderRecord r = providers.get(i);
             IApplicationThread thread;
-            if (r.proc != null && (thread = r.proc.getThread()) != null) {
+            if (r.mProc != null && (thread = r.mProc.getThread()) != null) {
                 dumpToTransferPipe(null, fd, pw, r, thread, newArgs);
                 return true;
             }
@@ -447,7 +451,7 @@ public final class ProviderMap {
             TransferPipe tp = new TransferPipe();
             try {
                 thread.dumpProvider(
-                    tp.getWriteFd(), r.provider.asBinder(), args);
+                        tp.getWriteFd(), r.mProvider.asBinder(), args);
                 tp.setBufferPrefix(prefix);
                 // Short timeout, since blocking here can
                 // deadlock with the application.

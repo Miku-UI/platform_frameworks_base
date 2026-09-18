@@ -16,6 +16,7 @@
 package com.android.hoststubgen.utils
 
 import com.android.hoststubgen.ArgumentsException
+import com.android.hoststubgen.InputDirectoryNotFoundException
 import com.android.hoststubgen.InputFileNotFoundException
 import com.android.hoststubgen.JarResourceNotFoundException
 import com.android.hoststubgen.log
@@ -245,4 +246,14 @@ fun String.ensureFileExists(): String {
         throw InputFileNotFoundException(this)
     }
     return this
+}
+
+/**
+ * Ensures a path exists and is a directory. Returns the input string with a "/".
+ */
+fun String.ensureDirExists(): String {
+    if (!File(this).isDirectory()) {
+        throw InputDirectoryNotFoundException(this)
+    }
+    return if (this.endsWith("/")) this else "$this/"
 }

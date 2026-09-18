@@ -20,7 +20,6 @@ package com.android.systemui.keyguard.ui.viewmodel
 import androidx.annotation.VisibleForTesting
 import com.android.app.tracing.FlowTracing.traceEmissionCount
 import com.android.app.tracing.coroutines.flow.flowName
-import com.android.systemui.Flags
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
@@ -30,8 +29,8 @@ import com.android.systemui.keyguard.domain.model.KeyguardQuickAffordanceModel
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.quickaffordance.ActivationState
 import com.android.systemui.keyguard.shared.quickaffordance.KeyguardQuickAffordancePosition
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
-import com.android.systemui.shared.Flags as SharedFlags
 import com.android.systemui.shared.keyguard.shared.model.KeyguardQuickAffordanceSlots
 import com.android.systemui.utils.coroutines.flow.flatMapLatestConflated
 import javax.inject.Inject
@@ -42,6 +41,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
@@ -68,6 +68,9 @@ constructor(
     lockscreenToOccludedTransitionViewModel: LockscreenToOccludedTransitionViewModel,
     lockscreenToPrimaryBouncerTransitionViewModel: LockscreenToPrimaryBouncerTransitionViewModel,
     lockscreenToGlanceableHubTransitionViewModel: LockscreenToGlanceableHubTransitionViewModel,
+    toLockscreenEndStateTransitionViewModel: ToLockscreenEndStateTransitionViewModel,
+    toAodEndStateTransitionViewModel: ToAodEndStateTransitionViewModel,
+    toDozingEndStateTransitionViewModel: ToDozingEndStateTransitionViewModel,
     transitionInteractor: KeyguardTransitionInteractor,
 ) {
 
@@ -88,11 +91,22 @@ constructor(
 
     /** The only time the expansion is important is while lockscreen is actively displayed */
     private val shadeExpansionAlpha =
-        combine(showingLockscreen, shadeInteractor.anyExpansion) { showingLockscreen, expansion ->
-            if (showingLockscreen) {
-                1 - expansion
-            } else {
-                0f
+        if (SceneContainerFlag.isEnabled) {
+            showingLockscreen.flatMapLatestConflated { showingLockscreen ->
+                if (showingLockscreen) {
+                    shadeInteractor.anyExpansion.map { 1 - it }
+                } else {
+                    flowOf(0f)
+                }
+            }
+        } else {
+            combine(showingLockscreen, shadeInteractor.anyExpansion) { showingLockscreen, expansion
+                ->
+                if (showingLockscreen) {
+                    1 - expansion
+                } else {
+                    0f
+                }
             }
         }
 
@@ -114,6 +128,7 @@ constructor(
             offToLockscreenTransitionViewModel.shortcutsAlpha,
             primaryBouncerToLockscreenTransitionViewModel.shortcutsAlpha,
             glanceableHubToLockscreenTransitionViewModel.shortcutsAlpha,
+            toLockscreenEndStateTransitionViewModel.shortcutsAlpha,
         )
 
     /** alpha while fading the quick affordances in */
@@ -126,6 +141,8 @@ constructor(
             lockscreenToOccludedTransitionViewModel.shortcutsAlpha,
             lockscreenToPrimaryBouncerTransitionViewModel.shortcutsAlpha,
             lockscreenToGlanceableHubTransitionViewModel.shortcutsAlpha,
+            toAodEndStateTransitionViewModel.shortcutsAlpha,
+            toDozingEndStateTransitionViewModel.shortcutsAlpha,
             shadeExpansionAlpha,
         )
 
@@ -161,28 +178,20 @@ constructor(
 
     /** An observable for the view-model of the "start button" quick affordance. */
     val startButton: Flow<KeyguardQuickAffordanceViewModel> =
-        if (SharedFlags.newCustomizationPickerUi()) {
-            previewAffordances.flatMapLatestConflated {
-                button(
-                    position = KeyguardQuickAffordancePosition.BOTTOM_START,
-                    overrideQuickAffordanceId = it[KeyguardQuickAffordancePosition.BOTTOM_START],
-                )
-            }
-        } else {
-            button(KeyguardQuickAffordancePosition.BOTTOM_START)
+        previewAffordances.flatMapLatestConflated {
+            button(
+                position = KeyguardQuickAffordancePosition.BOTTOM_START,
+                overrideQuickAffordanceId = it[KeyguardQuickAffordancePosition.BOTTOM_START],
+            )
         }
 
     /** An observable for the view-model of the "end button" quick affordance. */
     val endButton: Flow<KeyguardQuickAffordanceViewModel> =
-        if (SharedFlags.newCustomizationPickerUi()) {
-            previewAffordances.flatMapLatestConflated {
-                button(
-                    position = KeyguardQuickAffordancePosition.BOTTOM_END,
-                    overrideQuickAffordanceId = it[KeyguardQuickAffordancePosition.BOTTOM_END],
-                )
-            }
-        } else {
-            button(KeyguardQuickAffordancePosition.BOTTOM_END)
+        previewAffordances.flatMapLatestConflated {
+            button(
+                position = KeyguardQuickAffordancePosition.BOTTOM_END,
+                overrideQuickAffordanceId = it[KeyguardQuickAffordancePosition.BOTTOM_END],
+            )
         }
 
     /**
@@ -281,7 +290,7 @@ constructor(
                     }
                     .distinctUntilChanged()
             }
-            .traceEmissionCount({ "QuickAfforcances#button${position.toSlotId()}" })
+            .traceEmissionCount({ "QuickAffordances#button${position.toSlotId()}" })
     }
 
     private fun KeyguardQuickAffordanceModel.toViewModel(
@@ -321,7 +330,7 @@ constructor(
 
     @VisibleForTesting
     fun nonTintedIcon(icon: Icon): Icon =
-        if (Flags.clearShortcutIconTint() && icon is Icon.Loaded) {
+        if (icon is Icon.Loaded) {
             icon.apply { drawable.setTintList(null) }
         } else {
             icon

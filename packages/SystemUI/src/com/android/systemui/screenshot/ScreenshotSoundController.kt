@@ -21,6 +21,7 @@ import android.media.MediaPlayer
 import android.util.Log
 import com.android.app.tracing.coroutines.asyncTraced as async
 import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.systemui.Flags.screenshotRemoveNonforcedSound
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import javax.inject.Inject
@@ -64,7 +65,11 @@ constructor(
     private val player: Deferred<MediaPlayer?> =
         coroutineScope.async("loadScreenshotSound", bgDispatcher) {
             try {
-                soundProvider.getScreenshotSound()
+                if (!screenshotRemoveNonforcedSound()) {
+                    soundProvider.getScreenshotSound()
+                } else {
+                    null
+                }
             } catch (e: IllegalStateException) {
                 Log.w(TAG, "Screenshot sound initialization failed", e)
                 null

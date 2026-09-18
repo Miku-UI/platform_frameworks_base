@@ -15,12 +15,13 @@
  */
 package android.platform.test.ravenwood;
 
-import static com.android.ravenwood.common.RavenwoodInternalUtils.RAVENWOOD_VERBOSE_LOGGING;
+import static android.platform.test.ravenwood.RavenwoodAwareTestRunner.getCurrentRunnerNoCheck;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import android.app.RavenwoodAppDriver;
 import android.util.Log;
 import android.util.Pair;
 
@@ -49,41 +50,28 @@ public final class RavenwoodRunnerState {
 
     private static final String ALLOW_ALL_SYSPROP_READ_ENV = "RAVENWOOD_ALLOW_ANY_SYSPROP_READ";
 
-    private static final List<Pair<RavenwoodRule, RavenwoodPropertyState>> sActiveProperties =
+    private final List<Pair<RavenwoodRule, RavenwoodPropertyState>> mActiveProperties =
             new ArrayList<>();
 
-    private final RavenwoodAwareTestRunner mRunner;
-
-    /**
-     * Ctor.
-     */
-    public RavenwoodRunnerState(RavenwoodAwareTestRunner runner) {
-        mRunner = runner;
-    }
-
     public void enterTestRunner() {
-        if (RAVENWOOD_VERBOSE_LOGGING) {
-            Log.v(TAG, "enterTestRunner: " + mRunner);
-        }
         RavenwoodDriver.initForRunner();
+        RavenwoodAppDriver.getInstance().reset();
+        RavenwoodErrorHandler.enterTestRunner();
     }
 
     public void enterTestClass() {
-        if (RAVENWOOD_VERBOSE_LOGGING) {
-            Log.v(TAG, "enterTestClass: " + mRunner.mTestJavaClass.getName());
-        }
     }
 
     public void exitTestClass() {
-        if (RAVENWOOD_VERBOSE_LOGGING) {
-            Log.v(TAG, "exitTestClass: " + mRunner.mTestJavaClass.getName());
-        }
-        assertTrue(RAVENWOOD_RULE_ERROR, sActiveProperties.isEmpty());
-        RavenwoodErrorHandler.exitTestClass();
+        RavenwoodErrorHandler.dumpWarnings(RavenwoodLogManager.getLogcatOut(TAG, Log.WARN));
+        RavenwoodBugreportManager.dumpBugreportFiles();
+        assertTrue(RAVENWOOD_RULE_ERROR, mActiveProperties.isEmpty());
     }
 
     /** Called when a test method is about to start */
     public void enterTestMethod(Description description) {
+        // If the method has @DisabledOnRavenwood, this will skip the execution.
+        RavenwoodEnablementChecker.getInstance().assumeShouldRunTestMethod(description);
         RavenwoodDriver.enterTestMethod(description);
         RavenwoodErrorHandler.enterTestMethod(description);
     }
@@ -130,28 +118,21 @@ public final class RavenwoodRunnerState {
         }
     }
 
-    private static void pushTestProperties(RavenwoodRule rule) {
-        sActiveProperties.add(Pair.create(rule, new RavenwoodPropertyState(rule.mProperties)));
+    private void pushTestProperties(RavenwoodRule rule) {
+        mActiveProperties.add(Pair.create(rule, new RavenwoodPropertyState(rule.mProperties)));
         rule.mProperties.mValues.forEach(RavenwoodRuntimeNative::setSystemProperty);
     }
 
-    private static void popTestProperties(RavenwoodRule rule) {
-        var pair = sActiveProperties.removeLast();
+    private void popTestProperties(RavenwoodRule rule) {
+        var pair = mActiveProperties.removeLast();
         assertNotNull(RAVENWOOD_RULE_ERROR, pair);
         assertEquals(RAVENWOOD_RULE_ERROR, rule, pair.first);
         pair.second.restore();
     }
 
-    @SuppressWarnings("unused")  // Called from native code (ravenwood_sysprop.cpp)
-    private static void checkSystemPropertyAccess(String key, boolean write) {
-        if (write && RavenwoodSystemProperties.sDefaultValues.containsKey(key)) {
-            // The default core values should never be modified
-            throw new IllegalArgumentException(
-                    "Setting core system property '" + key + "' is not allowed");
-        }
-
+    private void checkSystemPropertyAccessInner(String key, boolean write) {
         final boolean result = RavenwoodSystemProperties.isKeyAccessible(key, write)
-                || sActiveProperties.stream().anyMatch(p -> p.second.isKeyAccessible(key, write));
+                || mActiveProperties.stream().anyMatch(p -> p.second.isKeyAccessible(key, write));
 
         if (!result) {
             if ((RavenwoodExperimentalApiChecker.isExperimentalApiEnabled()
@@ -163,6 +144,20 @@ public final class RavenwoodRunnerState {
 
             throw new IllegalArgumentException((write ? "Write" : "Read")
                     + " access to system property '" + key + "' denied via RavenwoodRule");
+        }
+    }
+
+    @SuppressWarnings("unused")  // Called from native code (ravenwood_sysprop.cpp)
+    private static void checkSystemPropertyAccess(String key, boolean write) {
+        if (write && RavenwoodSystemProperties.sDefaultValues.containsKey(key)) {
+            // The default core values should never be modified
+            throw new IllegalArgumentException(
+                    "Setting core system property '" + key + "' is not allowed");
+        }
+
+        var runner = getCurrentRunnerNoCheck();
+        if (runner != null) {
+            runner.mState.checkSystemPropertyAccessInner(key, write);
         }
     }
 }

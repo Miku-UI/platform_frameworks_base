@@ -17,10 +17,7 @@
 
 package com.android.systemui.statusbar.notification.stack.domain.interactor
 
-import androidx.compose.ui.Alignment
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Application
-import com.android.systemui.desktop.domain.interactor.DesktopInteractor
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
 import com.android.systemui.shade.shared.model.ShadeMode
@@ -34,59 +31,26 @@ import com.android.systemui.statusbar.notification.stack.shared.model.ShadeScrol
 import com.android.systemui.util.state.ObservableState
 import java.util.function.Consumer
 import javax.inject.Inject
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.stateIn
 
 /** An interactor which controls the appearance of the NSSL. */
 @SysUISingleton
 class NotificationStackAppearanceInteractor
 @Inject
 constructor(
-    @Application private val applicationScope: CoroutineScope,
     private val viewHeightRepository: NotificationViewHeightRepository,
     private val placeholderRepository: NotificationPlaceholderRepository,
     sceneInteractor: SceneInteractor,
     shadeModeInteractor: ShadeModeInteractor,
-    desktopInteractor: DesktopInteractor,
 ) {
     /** The bounds of the notification stack in the current scene. */
     val notificationShadeScrimBounds: StateFlow<ShadeScrimBounds?> =
         placeholderRepository.notificationShadeScrimBounds.asStateFlow()
-
-    /**
-     * The horizontal alignment of the notification stack on the screen. This determines the
-     * position of the notifications shade, lockscreen content columns, HUNs, etc.
-     */
-    val notificationStackHorizontalAlignment: StateFlow<Alignment.Horizontal> =
-        combine(shadeModeInteractor.shadeMode, shadeModeInteractor.isFullWidthShade) {
-                shadeMode,
-                isFullWidthShade ->
-                @Suppress("DEPRECATION") // to handle split shade
-                when (shadeMode) {
-                    is ShadeMode.Single -> Alignment.CenterHorizontally
-                    is ShadeMode.Split -> Alignment.End
-                    is ShadeMode.Dual ->
-                        if (isFullWidthShade) {
-                            Alignment.CenterHorizontally
-                        } else if (desktopInteractor.isNotificationShadeOnTopEnd) {
-                            Alignment.End
-                        } else {
-                            Alignment.Start
-                        }
-                }
-            }
-            .stateIn(
-                scope = applicationScope,
-                started = SharingStarted.Eagerly,
-                initialValue = Alignment.CenterHorizontally,
-            )
 
     /**
      * Whether the stack is expanding from GONE-with-HUN to SHADE
@@ -97,12 +61,19 @@ constructor(
 
     /** The rounding of the notification stack. */
     val shadeScrimRounding: Flow<ShadeScrimRounding> =
-        combine(shadeModeInteractor.shadeMode, isExpandingFromHeadsUp) {
-                shadeMode,
-                isExpandingFromHeadsUp ->
+        combine(
+                shadeModeInteractor.shadeMode,
+                shadeModeInteractor.isFullWidthShade,
+                isExpandingFromHeadsUp,
+            ) { shadeMode, isFullWidthShade, isExpandingFromHeadsUp ->
                 ShadeScrimRounding(
-                    isTopRounded = !(shadeMode == ShadeMode.Split && isExpandingFromHeadsUp),
-                    isBottomRounded = shadeMode != ShadeMode.Single,
+                    isTopRounded =
+                        when (shadeMode) {
+                            is ShadeMode.Single -> true
+                            is ShadeMode.Split -> !isExpandingFromHeadsUp
+                            is ShadeMode.Dual -> !isFullWidthShade
+                        },
+                    isBottomRounded = shadeMode !is ShadeMode.Single,
                 )
             }
             .distinctUntilChanged()

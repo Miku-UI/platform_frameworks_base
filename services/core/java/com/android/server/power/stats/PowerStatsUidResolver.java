@@ -16,6 +16,8 @@
 
 package com.android.server.power.stats;
 
+import android.content.pm.PackageManager;
+import android.os.Process;
 import android.util.IntArray;
 import android.util.Slog;
 import android.util.SparseIntArray;
@@ -67,6 +69,12 @@ public class PowerStatsUidResolver {
 
     // Keep the list read-only in order to avoid locking during the delivery of listener calls.
     private volatile List<Listener> mListeners = Collections.emptyList();
+
+    private PackageManager mPackageManager;
+
+    public void setPackageManager(PackageManager packageManager) {
+        mPackageManager = packageManager;
+    }
 
     /**
      * Adds a listener.
@@ -221,6 +229,30 @@ public class PowerStatsUidResolver {
         synchronized (this) {
             return mIsolatedUids.get(/*key=*/uid, /*valueIfKeyNotFound=*/uid);
         }
+    }
+
+    /**
+     * Maps a UID to its "owning" UID.
+     *
+     * <p>For SDK sandbox UIDs, returns the app UID.
+     * <p>For private compute core UIDs, returns the app UID.
+     * <p>For isolated UIDs, returns the owning app UID if known, otherwise returns the isolated UID
+     * itself (via PowerStatsIsolatedUidResolver).
+     */
+    public int getOwnerUid(int uid) {
+        if (android.os.Process.isSdkSandboxUid(uid)) {
+            return android.os.Process.getAppUidForSdkSandboxUid(uid);
+        }
+        if (android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()
+                && Process.isPrivateComputeCoreUid(uid)) {
+            if (mPackageManager == null) {
+                Slog.wtf(TAG, "Cannot find App UID for PCC UID. "
+                        + "PackageManager is null.");
+                return uid;
+            }
+            return mPackageManager.getAppUidForPrivateComputeCoreUid(uid);
+        }
+        return mapUid(uid);
     }
 
     /**

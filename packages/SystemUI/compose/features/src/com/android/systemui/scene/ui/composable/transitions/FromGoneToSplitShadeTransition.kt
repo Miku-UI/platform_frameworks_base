@@ -16,35 +16,8 @@
 
 package com.android.systemui.scene.ui.composable.transitions
 
-import androidx.compose.animation.core.tween
 import com.android.compose.animation.scene.TransitionBuilder
-import com.android.compose.animation.scene.UserActionDistance
-import com.android.systemui.media.remedia.ui.compose.Media
-import com.android.systemui.notifications.ui.composable.Notifications
-import com.android.systemui.qs.shared.ui.QuickSettings
-import com.android.systemui.shade.ui.composable.Shade
-import com.android.systemui.shade.ui.composable.ShadeHeader
-import kotlin.time.Duration.Companion.milliseconds
 
 fun TransitionBuilder.goneToSplitShadeTransition(durationScale: Double = 1.0) {
-    spec = tween(durationMillis = (DefaultDuration * durationScale).inWholeMilliseconds.toInt())
-    distance = UserActionDistance { fromContent, _, _ ->
-        val fromContentSize = checkNotNull(fromContent.targetSize())
-        fromContentSize.height.toFloat() * 2 / 3f
-    }
-
-    fractionRange(end = .33f) { fade(Shade.Elements.BackgroundScrim) }
-
-    fractionRange(start = .33f) {
-        fade(Media.Elements.mediaCarousel)
-        fade(ShadeHeader.Elements.Clock)
-        fade(ShadeHeader.Elements.CollapsedContentStart)
-        fade(ShadeHeader.Elements.CollapsedContentEnd)
-        fade(ShadeHeader.Elements.PrivacyChip)
-        fade(QuickSettings.Elements.SplitShadeQuickSettings)
-        fade(QuickSettings.Elements.FooterActions)
-        fade(Notifications.Elements.NotificationScrim)
-    }
+    toSplitShadeTransition(durationScale)
 }
-
-private val DefaultDuration = 500.milliseconds

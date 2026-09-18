@@ -841,6 +841,7 @@ public class SoundDoseHelper {
     }
 
     /*package*/ void dump(PrintWriter pw) {
+        pw.println("## SoundDoseHelper");
         pw.print("  mEnableCsd="); pw.println(mEnableCsd.get());
         if (mEnableCsd.get()) {
             synchronized (mCsdStateLock) {

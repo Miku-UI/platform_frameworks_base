@@ -24,6 +24,7 @@ import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothCodecConfig;
+import android.bluetooth.BluetoothCodecType;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothUuid;
@@ -309,39 +310,15 @@ public class A2dpProfile implements LocalBluetoothProfile {
 
         final BluetoothCodecConfig codecConfig = (selectable == null || selectable.size() < 1)
                 ? null : selectable.get(0);
-        final int codecType = (codecConfig == null || codecConfig.isMandatoryCodec())
-                ? BluetoothCodecConfig.SOURCE_CODEC_TYPE_INVALID : codecConfig.getCodecType();
-
-        int index = -1;
-        switch (codecType) {
-           case BluetoothCodecConfig.SOURCE_CODEC_TYPE_SBC:
-               index = 1;
-               break;
-           case BluetoothCodecConfig.SOURCE_CODEC_TYPE_AAC:
-               index = 2;
-               break;
-           case BluetoothCodecConfig.SOURCE_CODEC_TYPE_APTX:
-               index = 3;
-               break;
-           case BluetoothCodecConfig.SOURCE_CODEC_TYPE_APTX_HD:
-               index = 4;
-               break;
-           case BluetoothCodecConfig.SOURCE_CODEC_TYPE_LDAC:
-               index = 5;
-               break;
-            case BluetoothCodecConfig.SOURCE_CODEC_TYPE_LC3:
-                index = 6;
-                break;
-            case BluetoothCodecConfig.SOURCE_CODEC_TYPE_OPUS:
-                index = 7;
-                break;
-           }
-
-        if (index < 0) {
+        if (codecConfig == null || codecConfig.isMandatoryCodec()) {
             return mContext.getString(unknownCodecId);
         }
-        return mContext.getString(R.string.bluetooth_profile_a2dp_high_quality,
-                mContext.getResources().getStringArray(R.array.bluetooth_a2dp_codec_titles)[index]);
+        BluetoothCodecType codecType = codecConfig.getExtendedCodecType();
+        if (codecType == null) {
+            return mContext.getString(unknownCodecId);
+        }
+        return mContext.getString(
+                R.string.bluetooth_profile_a2dp_high_quality, codecType.getCodecName());
     }
 
     public String toString() {

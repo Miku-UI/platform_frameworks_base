@@ -16,17 +16,25 @@
 
 package android.security.identity;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 
 /**
  * Base class for all Identity Credential exceptions.
+ * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
+@Deprecated
 public class IdentityCredentialException extends Exception {
     /**
      * Constructs a new {@link IdentityCredentialException} exception.
      *
      * @param message the detail message.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public IdentityCredentialException(@NonNull String message) {
         super(message);
     }
@@ -36,7 +44,11 @@ public class IdentityCredentialException extends Exception {
      *
      * @param message the detail message.
      * @param cause   the cause.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public IdentityCredentialException(@NonNull String message, @NonNull Throwable cause) {
         super(message, cause);
     }

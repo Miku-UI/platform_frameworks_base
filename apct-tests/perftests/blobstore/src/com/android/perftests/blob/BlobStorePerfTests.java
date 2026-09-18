@@ -64,6 +64,8 @@ public class BlobStorePerfTests {
 
     public static final int BUFFER_SIZE_BYTES = 16 * 1024;
 
+    private final byte[] mRandomSourceBuffer = new byte[BUFFER_SIZE_BYTES];
+
     private Context mContext;
     private BlobStoreManager mBlobStoreManager;
     private AtraceUtils mAtraceUtils;
@@ -92,6 +94,7 @@ public class BlobStorePerfTests {
                 Context.BLOB_STORE_SERVICE);
         mAtraceUtils = AtraceUtils.getInstance(InstrumentationRegistry.getInstrumentation());
         mState = mPerfManualStatusReporter.getBenchmarkState();
+        new Random(0).nextBytes(mRandomSourceBuffer);
     }
 
     @After
@@ -209,11 +212,11 @@ public class BlobStorePerfTests {
     }
 
     private void writeData(FileOutputStream outputStream, long sizeBytes) throws Exception {
-        final byte[] buffer = new byte[BUFFER_SIZE_BYTES];
+        // Note that we reuse an already seeded randomized buffer, as we don't want to include any
+        // randomization overhead in the write benchmark.
+        final byte[] buffer = mRandomSourceBuffer;
         long bytesWritten = 0;
-        final Random random = new Random(0);
         while (bytesWritten < sizeBytes) {
-            random.nextBytes(buffer);
             final int toWrite = (bytesWritten + buffer.length <= sizeBytes)
                     ? buffer.length : (int) (sizeBytes - bytesWritten);
             outputStream.write(buffer, 0, toWrite);

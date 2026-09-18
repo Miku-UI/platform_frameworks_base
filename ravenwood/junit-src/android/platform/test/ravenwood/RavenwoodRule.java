@@ -31,6 +31,20 @@ import org.junit.runners.model.Statement;
 public final class RavenwoodRule implements TestRule {
     final RavenwoodTestProperties mProperties = new RavenwoodTestProperties();
 
+    /**
+     * Implement this interface to apply RavenwoodRule on legacy JUnit3 testcases.
+     *
+     * @deprecated Please migrate tests to JUnit4 for proper rule support.
+     */
+    @Deprecated
+    public interface Provider {
+        /**
+         * Returns a {@link RavenwoodRule} to apply on the JUnit3 {@link junit.framework.TestCase}.
+         */
+        @Nullable
+        RavenwoodRule getRavenwoodRule();
+    }
+
     public static class Builder {
 
         private final RavenwoodRule mRule = new RavenwoodRule();

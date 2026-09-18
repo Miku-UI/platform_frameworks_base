@@ -34,11 +34,6 @@ import android.annotation.Nullable;
 import android.annotation.SpecialUsers.CanBeALL;
 import android.annotation.UserIdInt;
 import android.content.pm.PackageManager;
-import android.content.pm.UserInfo;
-import android.content.pm.parsing.ApkLiteParseUtils;
-import android.content.pm.parsing.PackageLite;
-import android.content.pm.parsing.result.ParseResult;
-import android.content.pm.parsing.result.ParseTypeImpl;
 import android.os.Environment;
 import android.os.Trace;
 import android.os.UserHandle;
@@ -59,6 +54,7 @@ import com.android.server.pm.pkg.PackageStateInternal;
 
 import java.io.File;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -302,6 +298,8 @@ final class RemovePackageHelper {
             synchronized (mPm.mLock) {
                 ps.setCeDataInode(-1, userId);
                 ps.setDeDataInode(-1, userId);
+                ps.setPccCeDataInode(-1, userId);
+                ps.setPccDeDataInode(-1, userId);
             }
         }
 
@@ -478,12 +476,11 @@ final class RemovePackageHelper {
                 }
             }
         }
-        final List<UserInfo> activeUsers = Settings.getActiveUsers(mPm.mUserManager);
         synchronized (mPm.mLock) {
             // can downgrade to reader
             if (writeSettings) {
                 // Save settings now
-                mPm.writeSettingsLPrTEMP(activeUsers);
+                mPm.writeSettingsLPrTEMP();
             }
             if (installedStateChanged) {
                 mPm.mSettings.writeKernelMappingLPr(deletedPs);
@@ -513,7 +510,7 @@ final class RemovePackageHelper {
 
     void cleanUpResources(@Nullable String packageName, @Nullable File codeFile) {
         try (PackageManagerTracedLock installLock = mPm.mInstallLock.acquireLock()) {
-            cleanUpResourcesLI(codeFile);
+            removeCodePathLI(codeFile);
         }
         if (packageName == null) {
             return;
@@ -526,25 +523,29 @@ final class RemovePackageHelper {
         }
     }
 
-    // Need installer lock especially for dex file removal.
-    @GuardedBy("mPm.mInstallLock")
-    private void cleanUpResourcesLI(@Nullable File codeFile) {
-        // Try enumerating all code paths before deleting
-        List<String> allCodePaths = Collections.EMPTY_LIST;
-        if (codeFile != null && codeFile.exists()) {
-            final ParseTypeImpl input = ParseTypeImpl.forDefaultParsing();
-            final ParseResult<PackageLite> result = ApkLiteParseUtils.parsePackageLite(
-                    input.reset(), codeFile, /* flags */ 0);
-            if (result.isSuccess()) {
-                // Ignore error; we tried our best
-                allCodePaths = result.getResult().getAllApkPaths();
+    void cleanUpOldPaths(@Nullable String packageName) {
+        if (packageName == null) {
+            return;
+        }
+        final PackageSetting ps;
+        synchronized (mPm.mLock) {
+            ps = mPm.mSettings.getPackageLPr(packageName);
+        }
+        if (ps == null) {
+            return;
+        }
+        LinkedHashSet<File> oldPaths = ps.getOldPaths();
+        if (oldPaths == null || oldPaths.isEmpty()) {
+            return;
+        }
+        try (PackageManagerTracedLock installLock = mPm.mInstallLock.acquireLock()) {
+            for (File oldPath : oldPaths) {
+                removeCodePathLI(oldPath);
             }
         }
-
-        removeCodePathLI(codeFile);
-
-        // TODO(b/265813358): ART Service currently doesn't support deleting optimized artifacts
-        // relative to an arbitrary APK path. Skip this and rely on its file GC instead.
+        synchronized (mPm.mLock) {
+            ps.clearOldPaths();
+        }
     }
 
     void cleanUpForMoveInstall(String volumeUuid, String packageName, String fromCodePath) {
@@ -565,7 +566,7 @@ final class RemovePackageHelper {
             for (int userId : userIds) {
                 try {
                     mPm.mInstaller.destroyAppData(volumeUuid, packageName, userId, flags,
-                            0);
+                            /* ceDataInode= */ 0, /* pccCeDataInode= */ 0);
                 } catch (Installer.InstallerException e) {
                     Slog.w(TAG, String.valueOf(e));
                 }

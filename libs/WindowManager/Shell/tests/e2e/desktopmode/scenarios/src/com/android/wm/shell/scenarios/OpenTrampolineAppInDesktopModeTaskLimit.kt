@@ -19,8 +19,6 @@ package com.android.wm.shell.scenarios
 import android.app.Instrumentation
 import android.tools.Rotation
 import android.tools.device.apphelpers.CalculatorAppHelper
-import android.tools.device.apphelpers.ClockAppHelper
-import android.tools.device.apphelpers.MessagingAppHelper
 import android.tools.traces.parsers.WindowManagerStateHelper
 import android.tools.traces.parsers.toFlickerComponent
 import androidx.test.platform.app.InstrumentationRegistry
@@ -29,7 +27,7 @@ import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.MailAppHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
 import com.android.server.wm.flicker.testapp.ActivityOptions
-import com.android.window.flags.Flags
+import com.android.wm.shell.shared.desktopmode.DesktopConfig
 import org.junit.After
 import org.junit.Assume
 import org.junit.Before
@@ -37,54 +35,56 @@ import org.junit.Ignore
 import org.junit.Test
 
 @Ignore("Test Base Class")
-abstract class OpenTrampolineAppInDesktopModeTaskLimit(val rotation: Rotation = Rotation.ROTATION_0) :
-    TestScenarioBase(rotation) {
+abstract class OpenTrampolineAppInDesktopModeTaskLimit(
+    val rotation: Rotation = Rotation.ROTATION_0
+) : TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
+    private val desktopConfig = DesktopConfig.fromContext(instrumentation.context)
 
     private val mailAppHelper = MailAppHelper(instrumentation)
     private val mailAppDesktopHelper = DesktopModeAppHelper(mailAppHelper)
+
     private val calculatorHelper = CalculatorAppHelper(instrumentation)
-    private val clockAppHelper = ClockAppHelper()
-    private val messagingAppHelper = MessagingAppHelper(instrumentation)
-    private val trampolineAppHelper = SimpleAppHelper(
-        instrumentation,
-        launcherName = ActivityOptions.TrampolineStartActivity.LABEL,
-        component = ActivityOptions.TrampolineStartActivity.COMPONENT.toFlickerComponent()
-    )
+    private val calculatorDesktopHelper = DesktopModeAppHelper(calculatorHelper)
+
+
+    private val trampolineAppHelper =
+        SimpleAppHelper(
+            instrumentation,
+            launcherName = ActivityOptions.TrampolineStartActivity.LABEL,
+            component = ActivityOptions.TrampolineStartActivity.COMPONENT.toFlickerComponent(),
+        )
 
     @Before
     fun setup() {
-        Assume.assumeTrue(Flags.enableDesktopTaskLimitSeparateTransition())
-        mailAppDesktopHelper.enterDesktopMode(wmHelper, device)
-        calculatorHelper.launchViaIntent(wmHelper)
-        clockAppHelper.launchViaIntent(wmHelper)
-        messagingAppHelper.launchViaIntent(wmHelper)
+        Assume.assumeTrue(desktopConfig.maxTaskLimit > 0)
+        calculatorDesktopHelper.enterDesktopMode(wmHelper, device)
+        mailAppDesktopHelper.openTasks(wmHelper, numTasks = desktopConfig.maxTaskLimit - 1)
+
     }
 
     @Test
     open fun openTrampolineApp() {
         trampolineAppHelper.launchViaIntent()
-        wmHelper.StateSyncBuilder()
+        wmHelper
+            .StateSyncBuilder()
             .withAppTransitionIdle()
             // Exactly one app is minimized
-            .withWindowSurfaceDisappeared(mailAppHelper.componentMatcher)
-            .withLayerVisible(calculatorHelper.componentMatcher)
-            .withLayerVisible(clockAppHelper.componentMatcher)
-            .withLayerVisible(messagingAppHelper.componentMatcher)
+            .withWindowSurfaceDisappeared(calculatorHelper.componentMatcher)
             // We need to verify that the second Activity (opened as trampolined task) is visible
-            .withLayerVisible(ActivityOptions.TrampolineFinishActivity.COMPONENT.toFlickerComponent())
+            .withLayerVisible(
+                ActivityOptions.TrampolineFinishActivity.COMPONENT.toFlickerComponent()
+            )
             .waitForAndVerify()
     }
 
     @After
     fun teardown() {
         trampolineAppHelper.exit(wmHelper)
-        messagingAppHelper.exit()
-        clockAppHelper.exit()
-        calculatorHelper.exit()
-        mailAppHelper.exit()
+        mailAppDesktopHelper.exit(wmHelper)
+        calculatorDesktopHelper.exit(wmHelper)
     }
 }

@@ -59,9 +59,7 @@ public final class GnssTimeUpdateService extends Binder {
     private static final String TAG = "GnssTimeUpdateService";
     private static final boolean D = Log.isLoggable(TAG, Log.DEBUG);
 
-    /**
-     * Handles the lifecycle events for the GnssTimeUpdateService.
-     */
+    /** Handles the lifecycle events for the GnssTimeUpdateService. */
     public static class Lifecycle extends SystemService {
         private GnssTimeUpdateService mService;
 
@@ -79,8 +77,13 @@ public final class GnssTimeUpdateService extends Binder {
             TimeDetectorInternal timeDetectorInternal =
                     LocalServices.getService(TimeDetectorInternal.class);
 
-            mService = new GnssTimeUpdateService(context, alarmManager, locationManager,
-                    locationManagerInternal, timeDetectorInternal);
+            mService =
+                    new GnssTimeUpdateService(
+                            context,
+                            alarmManager,
+                            locationManager,
+                            locationManagerInternal,
+                            timeDetectorInternal);
             publishBinderService("gnss_time_update_service", mService);
         }
 
@@ -102,12 +105,14 @@ public final class GnssTimeUpdateService extends Binder {
     private static final String ATTRIBUTION_TAG = "GnssTimeUpdateService";
 
     /**
-     * A log that records the decisions to fetch a GNSS time update.
-     * This is logged in bug reports to assist with debugging issues with GNSS time suggestions.
+     * A log that records the decisions to fetch a GNSS time update. This is logged in bug reports
+     * to assist with debugging issues with GNSS time suggestions.
      */
     private final LocalLog mLocalLog = new LocalLog(10, false /* useLocalTimestamps */);
+
     /** The executor used for async operations */
     private final Executor mExecutor = FgThread.getExecutor();
+
     /** The handler used for async operations */
     private final Handler mHandler = FgThread.getHandler();
 
@@ -117,15 +122,22 @@ public final class GnssTimeUpdateService extends Binder {
     private final LocationManager mLocationManager;
     private final LocationManagerInternal mLocationManagerInternal;
 
-
     private final Object mLock = new Object();
-    @GuardedBy("mLock") @Nullable private AlarmManager.OnAlarmListener mAlarmListener;
-    @GuardedBy("mLock") @Nullable private LocationListener mLocationListener;
+
+    @GuardedBy("mLock")
+    @Nullable
+    private AlarmManager.OnAlarmListener mAlarmListener;
+
+    @GuardedBy("mLock")
+    @Nullable
+    private LocationListener mLocationListener;
 
     @Nullable private volatile UnixEpochTime mLastSuggestedGnssTime;
 
     @VisibleForTesting
-    GnssTimeUpdateService(@NonNull Context context, @NonNull AlarmManager alarmManager,
+    GnssTimeUpdateService(
+            @NonNull Context context,
+            @NonNull AlarmManager alarmManager,
             @NonNull LocationManager locationManager,
             @NonNull LocationManagerInternal locationManagerInternal,
             @NonNull TimeDetectorInternal timeDetectorInternal) {
@@ -233,15 +245,10 @@ public final class GnssTimeUpdateService extends Binder {
             }
 
             // Set next alarm to re-enable location updates.
-            long next = SystemClock.elapsedRealtime()
-                    + GNSS_TIME_UPDATE_ALARM_INTERVAL.toMillis();
+            long next = SystemClock.elapsedRealtime() + GNSS_TIME_UPDATE_ALARM_INTERVAL.toMillis();
             mAlarmListener = this::handleAlarmFired;
             mAlarmManager.set(
-                    AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                    next,
-                    TAG,
-                    mAlarmListener,
-                    mHandler);
+                    AlarmManager.ELAPSED_REALTIME_WAKEUP, next, TAG, mAlarmListener, mHandler);
         }
     }
 
@@ -254,9 +261,7 @@ public final class GnssTimeUpdateService extends Binder {
         }
     }
 
-    /**
-     * Convert LocationTime to TimestampedValue. Then suggest TimestampedValue to Time Detector.
-     */
+    /** Convert LocationTime to TimestampedValue. Then suggest TimestampedValue to Time Detector. */
     private void suggestGnssTime(LocationTime locationTime) {
         logDebug("suggestGnssTime()");
 
@@ -287,10 +292,15 @@ public final class GnssTimeUpdateService extends Binder {
     }
 
     @Override
-    public void onShellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
-            String[] args, ShellCallback callback, ResultReceiver resultReceiver) {
-        new GnssTimeUpdateServiceShellCommand(this).exec(
-                this, in, out, err, args, callback, resultReceiver);
+    public void onShellCommand(
+            FileDescriptor in,
+            FileDescriptor out,
+            FileDescriptor err,
+            String[] args,
+            ShellCallback callback,
+            ResultReceiver resultReceiver) {
+        new GnssTimeUpdateServiceShellCommand(this)
+                .exec(this, in, out, err, args, callback, resultReceiver);
     }
 
     private void logError(String msg) {

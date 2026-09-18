@@ -33,7 +33,6 @@ import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.util.kotlin.Utils.Companion.sample
-import com.android.systemui.util.kotlin.sample
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineDispatcher
@@ -66,6 +65,7 @@ constructor(
     ) {
 
     override fun start() {
+        if (SceneContainerFlag.isEnabled) return
         listenForOccludedToLockscreenOrHub()
         listenForOccludedToDreaming()
         listenForOccludedToAsleep()
@@ -75,7 +75,6 @@ constructor(
     }
 
     private fun listenForOccludedToPrimaryBouncer() {
-        if (SceneContainerFlag.isEnabled) return
         scope.launch {
             keyguardInteractor.primaryBouncerShowing
                 .filterRelevantKeyguardStateAnd { isBouncerShowing -> isBouncerShowing }
@@ -84,14 +83,16 @@ constructor(
     }
 
     private fun listenForOccludedToDreaming() {
+        if (SceneContainerFlag.isEnabled) return
         scope.launch {
-            keyguardInteractor.isAbleToDream
-                .filterRelevantKeyguardStateAnd { isAbleToDream -> isAbleToDream }
+            keyguardInteractor.isDreamingNotDozing
+                .filterRelevantKeyguardStateAnd { isDreamingNotDozing -> isDreamingNotDozing }
                 .collect { startTransitionTo(KeyguardState.DREAMING) }
         }
     }
 
     private fun listenForOccludedToLockscreenOrHub() {
+        if (SceneContainerFlag.isEnabled) return
         if (KeyguardWmStateRefactor.isEnabled) {
             scope.launch {
                 keyguardOcclusionInteractor.isShowWhenLockedActivityOnTop

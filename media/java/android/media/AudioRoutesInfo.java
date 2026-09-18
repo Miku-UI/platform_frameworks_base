@@ -18,12 +18,14 @@ package android.media;
 
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.text.TextUtils;
 
 /**
  * Information available from AudioService about the current routes.
  * @hide
  */
+@RavenwoodKeepWholeClass
 public class AudioRoutesInfo implements Parcelable {
     public static final int MAIN_SPEAKER = 0;
     public static final int MAIN_HEADSET = 1<<0;

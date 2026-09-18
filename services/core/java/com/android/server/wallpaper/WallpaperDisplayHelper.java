@@ -18,8 +18,6 @@ package com.android.server.wallpaper;
 
 import static android.view.Display.DEFAULT_DISPLAY;
 
-import static com.android.window.flags.Flags.multiCrop;
-
 import android.app.WallpaperManager;
 import android.content.res.Resources;
 import android.graphics.Point;
@@ -69,10 +67,6 @@ class WallpaperDisplayHelper {
             Resources resources) {
         mDisplayManager = displayManager;
         mWindowManagerInternal = windowManagerInternal;
-        if (!multiCrop()) {
-            mDefaultDisplayInfo = new WallpaperDefaultDisplayInfo();
-            return;
-        }
         mDefaultDisplayInfo = new WallpaperDefaultDisplayInfo(windowManager, resources);
     }
 

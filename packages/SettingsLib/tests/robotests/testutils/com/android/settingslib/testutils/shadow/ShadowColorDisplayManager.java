@@ -17,9 +17,12 @@
 package com.android.settingslib.testutils.shadow;
 
 import android.Manifest;
+import android.annotation.NonNull;
 import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
 import android.hardware.display.ColorDisplayManager;
+
+import java.time.LocalTime;
 
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
@@ -29,6 +32,9 @@ public class ShadowColorDisplayManager extends org.robolectric.shadows.ShadowCol
 
     private boolean mIsReduceBrightColorsActivated;
     private int mColorMode;
+    private boolean mIsDeviceColorManaged;
+    private LocalTime mNightDisplayCustomStartTime = LocalTime.of(22, 0);
+    private LocalTime mNightDisplayCustomEndTime = LocalTime.of(6, 0);
 
     @Implementation
     @SystemApi
@@ -52,5 +58,41 @@ public class ShadowColorDisplayManager extends org.robolectric.shadows.ShadowCol
     @Implementation
     public void setColorMode(int colorMode) {
         mColorMode = colorMode;
+    }
+
+    @Implementation
+    public boolean isDeviceColorManaged() {
+        return mIsDeviceColorManaged;
+    }
+
+    @Implementation
+    public void setDeviceColorManaged(boolean enabled) {
+        mIsDeviceColorManaged = enabled;
+    }
+
+    @Implementation
+    public @NonNull LocalTime getNightDisplayCustomStartTime() {
+        return mNightDisplayCustomStartTime;
+    }
+
+    @Implementation
+    @SystemApi
+    @RequiresPermission(Manifest.permission.CONTROL_DISPLAY_COLOR_TRANSFORMS)
+    public boolean setNightDisplayCustomStartTime(@NonNull LocalTime startTime) {
+        mNightDisplayCustomStartTime = startTime;
+        return true;
+    }
+
+    @Implementation
+    public @NonNull LocalTime getNightDisplayCustomEndTime() {
+        return mNightDisplayCustomEndTime;
+    }
+
+    @Implementation
+    @SystemApi
+    @RequiresPermission(Manifest.permission.CONTROL_DISPLAY_COLOR_TRANSFORMS)
+    public boolean setNightDisplayCustomEndTime(@NonNull LocalTime endTime) {
+        mNightDisplayCustomEndTime = endTime;
+        return true;
     }
 }

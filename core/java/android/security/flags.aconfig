@@ -50,34 +50,10 @@ flag {
 }
 
 flag {
-    name: "reset_auth_flags_and_metrics_in_lock_user"
+    name: "enable_weaver_warmup"
     namespace: "security"
-    description: "Make LockSettingsService#lockUser() always handle resetting strong auth flags and removing user password metrics"
-    bug: "319142556"
-}
-
-flag {
-    name: "scrypt_parameter_change"
-    namespace: "security"
-    description: "Use n=9 instead of n=11 for scrypt for lock screen knowledge factors"
-    bug: "416772194"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "software_ratelimiter"
-    namespace: "security"
-    description: "Enable support for SoftwareRateLimiter in LockSettingsService"
-    bug: "395976735"
-}
-
-flag {
-    name: "stop_recognizing_legacy_password_hashes"
-    namespace: "security"
-    description: "Make LockSettingsService stop recognizing legacy password hashes"
-    bug: "442877927"
+    description: "Enable warm-up of secure element before credential verification"
+    bug: "455600390"
 }
 
 flag {
@@ -112,6 +88,13 @@ flag {
     metadata {
       purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "lockscreen_timeout_shortlink"
+    namespace: "security"
+    description: "Show a shortlink when there is a non-zero timeout"
+    bug: "445533486"
 }
 
 flag {
@@ -155,13 +138,6 @@ flag {
 }
 
 flag {
-    name: "disable_adaptive_auth_counter_lock"
-    namespace: "biometrics"
-    description: "Flag to allow an adb secure setting to disable the adaptive auth lock"
-    bug: "371057865"
-}
-
-flag {
     name: "failed_auth_lock_toggle"
     namespace: "biometrics"
     description: "Feature flag to enable the toggle for failed authentication lock"
@@ -169,25 +145,118 @@ flag {
 }
 
 flag {
-    name: "deprecate_uses_cleartext_traffic"
+    name: "deprecate_uses_cleartext_traffic2"
     namespace: "network_security"
     description: "If enabled, the XML application flag usesCleartextTraffic is ignored for targetSdk version C+."
     bug: "415007211"
-    is_fixed_read_only: true
+    is_exported: true
 }
 
 flag {
     name: "enable_talisman_service"
     namespace: "cross_device_authentication"
     description: "Enable the Talisman service."
-    bug: "433283951"
+    bug: "477486847"
 }
 
 flag {
-    name: "manage_lockout_end_time_in_service"
+    name: "talisman_service_api"
+    namespace: "cross_device_authentication"
+    description: "Enable the Talisman service API."
+    bug: "433283951"
+    is_exported: true
+}
+
+flag {
+    name: "lockscreen_timeout_deactivate_pin_pad"
     namespace: "security"
-    description: "Manage lockout end time in LockSettingsService rather than LockPatternUtils"
+    description: "Deactivate pin pad buttons when lockscreen is timed out"
+    bug: "445769118"
+}
+
+flag {
+    name: "lockscreen_larger_timeout_time_units"
+    namespace: "security"
+    description: "Show larger time units than seconds on lockscreen"
+    bug: "443823194"
+}
+
+flag {
+    name: "enable_weaver_get_timeout"
+    namespace: "security"
+    description: "Use IWeaver#getTimeout() to improve accuracy of lockout end time reporting"
+    bug: "449795194"
+}
+
+flag {
+    name: "lockscreen_indicate_duplicate_guesses"
+    namespace: "security"
+    description: "Indicate explicitly that duplicate failed lockscreen guesses are duplicates"
     bug: "322014085"
+}
+
+flag {
+    name: "enable_unclamped_lockouts"
+    namespace: "security"
+    description: "Do not clamp lockout durations to Integer.MAX_VALUE milliseconds"
+    bug: "444472965"
+}
+
+flag {
+    name: "enable_service_side_credential_type_cache"
+    namespace: "security"
+    description: "Enable credential type cache in LockSettingsService"
+    bug: "492567083"
+}
+
+flag {
+    name: "app_lock_apis"
+    namespace: "security"
+    description: "Flag to enable access to the App Lock APIs in PackageManager"
+    bug: "415167460"
+    is_exported: true
+}
+
+flag {
+    name: "app_lock_core"
+    namespace: "security"
+    description: "Flag to enable access to the core App Lock functionality"
+    bug: "415167460"
+}
+
+flag {
+    name: "apk_pqc_hybrid_signing"
+    namespace: "hardware_backed_security"
+    description: "Enable support for ML-DSA hybrid signing / verification of APKs"
+    bug: "458115629"
+}
+
+flag {
+    name: "auto_sim_pin_management"
+    namespace: "security"
+    description: "Enables automatic management of SIM PIN"
+    bug: "381850338"
+    is_exported: true
+    metadata {
+      purpose: PURPOSE_FEATURE
+    }
+}
+
+flag {
+    name: "move_notify_lock_credential_calls"
+    namespace: "security"
+    description: "Move calls to consumers of new lock credentials to the proper helper in LockSettingsService"
+    bug: "481759344"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_auto_sim_pin_ui"
+    namespace: "security"
+    description: "Enables the user interface for automatic management of SIM PIN"
+    bug: "481248675"
     metadata {
       purpose: PURPOSE_BUGFIX
     }

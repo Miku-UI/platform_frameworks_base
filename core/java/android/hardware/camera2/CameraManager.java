@@ -23,8 +23,8 @@ import static android.companion.virtual.VirtualDeviceParams.DEVICE_POLICY_INVALI
 import static android.companion.virtual.VirtualDeviceParams.POLICY_TYPE_CAMERA;
 import static android.content.Context.DEVICE_ID_DEFAULT;
 import static android.content.Context.DEVICE_ID_INVALID;
+import static android.hardware.devicestate.feature.flags.Flags.deviceStatePropertyMigration;
 import static android.view.Surface.ROTATION_0;
-import static android.view.Surface.ROTATION_270;
 import static android.view.Surface.ROTATION_90;
 
 import android.annotation.CallbackExecutor;
@@ -32,12 +32,10 @@ import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
-import android.app.ActivityManager;
-import android.app.CameraCompatTaskInfo;
-import android.app.TaskInfo;
 import android.app.compat.CompatChanges;
 import android.companion.virtual.VirtualDeviceManager;
 import android.compat.annotation.ChangeId;
@@ -49,8 +47,6 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.CameraCompatibilityInfo;
 import android.content.res.CompatibilityInfo;
-import android.graphics.Point;
-import android.hardware.Camera;
 import android.hardware.CameraExtensionSessionStats;
 import android.hardware.CameraStatus;
 import android.hardware.ICameraService;
@@ -68,15 +64,12 @@ import android.hardware.camera2.utils.ConcurrentCameraIdCombination;
 import android.hardware.camera2.utils.ExceptionUtils;
 import android.hardware.devicestate.DeviceState;
 import android.hardware.devicestate.DeviceStateManager;
-import android.hardware.devicestate.feature.flags.FeatureFlags;
-import android.hardware.devicestate.feature.flags.FeatureFlagsImpl;
 import android.hardware.display.DisplayManager;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.HandlerThread;
 import android.os.IBinder;
-import android.os.Process;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.ServiceSpecificException;
@@ -88,7 +81,6 @@ import android.util.Log;
 import android.util.Pair;
 import android.util.Size;
 import android.view.Display;
-import android.view.Surface;
 
 import com.android.internal.camera.flags.Flags;
 import com.android.internal.util.ArrayUtils;
@@ -167,7 +159,6 @@ public final class CameraManager {
 
     private static final String CAMERA_OPEN_CLOSE_LISTENER_PERMISSION =
             "android.permission.CAMERA_OPEN_CLOSE_LISTENER";
-    private final boolean mHasOpenCloseListenerPermission;
 
     private VirtualDeviceManager mVirtualDeviceManager;
 
@@ -216,9 +207,6 @@ public final class CameraManager {
     public CameraManager(Context context) {
         synchronized(mLock) {
             mContext = context;
-            mHasOpenCloseListenerPermission =
-                    mContext.checkSelfPermission(CAMERA_OPEN_CLOSE_LISTENER_PERMISSION) ==
-                    PackageManager.PERMISSION_GRANTED;
         }
     }
 
@@ -235,17 +223,15 @@ public final class CameraManager {
         private ArrayList<WeakReference<DeviceStateListener>> mDeviceStateListeners =
                 new ArrayList<>();
         private boolean mFoldedDeviceState;
-        private final FeatureFlags mDeviceStateManagerFlags;
 
         public FoldStateListener(Context context) {
             mFoldedDeviceStates = context.getResources().getIntArray(
                     com.android.internal.R.array.config_foldedDeviceStates);
-            mDeviceStateManagerFlags = new FeatureFlagsImpl();
         }
 
         private synchronized void handleStateChange(DeviceState state) {
             final boolean folded;
-            if (mDeviceStateManagerFlags.deviceStatePropertyMigration()) {
+            if (deviceStatePropertyMigration()) {
                 folded = state.hasProperty(
                         DeviceState.PROPERTY_FOLDABLE_DISPLAY_CONFIGURATION_OUTER_PRIMARY);
             } else {
@@ -325,6 +311,22 @@ public final class CameraManager {
     }
 
     /**
+     * Returns whether the default app social media parity is enabled for the given device.
+     *
+     * <p>When enabled, the default app image captures will be in parity with social media apps
+     * capture as per the requirements listed in section 7.5.4 of the CDD.
+     * These checks are only applicable for primary cameras only i.e.
+     * first rear facing or front facing camera returned by getCameraIdList.</p>
+     *
+     * @hide
+     */
+    @TestApi
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+    public boolean isDefaultAppSocialMediaParityEnabled() throws CameraAccessException {
+        return CameraManagerGlobal.get().isDefaultAppSocialMediaParityEnabled();
+    }
+
+    /**
      * Return the set of combinations of currently connected camera device identifiers, which
      * support configuring camera device sessions concurrently.
      *
@@ -363,7 +365,7 @@ public final class CameraManager {
      * part of a logical multi-camera device.</p>
      *
      * <p> If a new camera id becomes available through
-     * {@link AvailabilityCallback#onCameraUnavailable(String)}, clients can call
+     * {@link AvailabilityCallback#onCameraAvailable(String)}, clients can call
      * this method to check if new combinations of camera ids which can stream concurrently are
      * available.
      *
@@ -452,7 +454,8 @@ public final class CameraManager {
     public void registerAvailabilityCallback(@NonNull AvailabilityCallback callback,
             @Nullable Handler handler) {
         CameraManagerGlobal.get().registerAvailabilityCallback(callback,
-                CameraDeviceImpl.checkAndWrapHandler(handler), mHasOpenCloseListenerPermission,
+                CameraDeviceImpl.checkAndWrapHandler(handler),
+                hasOpenCloseListenerPermission(mContext),
                 mContext.getDeviceId(), getDevicePolicyFromContext(mContext));
     }
 
@@ -492,8 +495,13 @@ public final class CameraManager {
             throw new IllegalArgumentException("executor was null");
         }
         CameraManagerGlobal.get().registerAvailabilityCallback(callback, executor,
-                mHasOpenCloseListenerPermission, mContext.getDeviceId(),
+                hasOpenCloseListenerPermission(mContext), mContext.getDeviceId(),
                 getDevicePolicyFromContext(mContext));
+    }
+
+    private boolean hasOpenCloseListenerPermission(@NonNull Context context) {
+        return context.checkSelfPermission(CAMERA_OPEN_CLOSE_LISTENER_PERMISSION)
+                == PackageManager.PERMISSION_GRANTED;
     }
 
     /**
@@ -584,33 +592,27 @@ public final class CameraManager {
                 : mVirtualDeviceManager.getDevicePolicy(context.getDeviceId(), POLICY_TYPE_CAMERA);
     }
 
-    // TODO(b/147726300): Investigate how to support foldables/multi-display devices.
     private Size getDisplaySize() {
         Size ret = new Size(0, 0);
+        DisplayManager displayManager = mContext.getSystemService(DisplayManager.class);
 
-        try {
-            DisplayManager displayManager =
-                    (DisplayManager) mContext.getSystemService(Context.DISPLAY_SERVICE);
-            Display display = displayManager.getDisplay(Display.DEFAULT_DISPLAY);
-            if (display != null) {
-                Point sz = new Point();
-                display.getRealSize(sz);
-                int width = sz.x;
-                int height = sz.y;
-
+        Display[] builtinDisplays = displayManager.getDisplays(
+                DisplayManager.DISPLAY_CATEGORY_BUILT_IN_DISPLAYS);
+        for (Display display : builtinDisplays) {
+            Display.Mode[] supportedModes = display.getSupportedModes();
+            for (Display.Mode mode : supportedModes) {
+                int width = mode.getPhysicalWidth();
+                int height = mode.getPhysicalHeight();
                 if (height > width) {
-                    height = width;
-                    width = sz.y;
+                    width = height;
+                    height = mode.getPhysicalWidth();
                 }
-
-                ret = new Size(width, height);
-            } else {
-                Log.e(TAG, "Invalid default display!");
+                if (width * height
+                                > ret.getWidth() * ret.getHeight()) {
+                    ret = new Size(width, height);
+                }
             }
-        } catch (Exception e) {
-            Log.e(TAG, "getDisplaySize Failed. " + e);
         }
-
         return ret;
     }
 
@@ -719,11 +721,11 @@ public final class CameraManager {
      * <p>Query the capabilities of a camera device. These capabilities are
      * immutable for a given camera.</p>
      *
-     * <p>The value of {@link CameraCharacteristics.SENSOR_ORIENTATION} will change for landscape
+     * <p>The value of {@link CameraCharacteristics#SENSOR_ORIENTATION} will change for landscape
      * cameras depending on whether overrideToPortrait is enabled. If enabled, these cameras will
      * appear to be portrait orientation instead, provided that the override is supported by the
      * camera device. Only devices that can be opened by {@link #openCamera} will report a changed
-     * {@link CameraCharacteristics.SENSOR_ORIENTATION}.</p>
+     * {@link CameraCharacteristics#SENSOR_ORIENTATION}.</p>
      *
      * @param cameraId The id of the camera device to query. This could be either a standalone
      * camera ID which can be directly opened by {@link #openCamera}, or a physical camera ID that
@@ -970,7 +972,6 @@ public final class CameraManager {
      * @see #getCameraIdList()
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
     @SystemApi
     public boolean isCameraDeviceSharingSupported(@NonNull String cameraId)
             throws CameraAccessException {
@@ -1362,7 +1363,6 @@ public final class CameraManager {
             android.Manifest.permission.SYSTEM_CAMERA,
             android.Manifest.permission.CAMERA,
     })
-    @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
     public void openSharedCamera(@NonNull String cameraId,
             @NonNull @CallbackExecutor Executor executor,
             @NonNull final CameraDevice.StateCallback callback)
@@ -1660,34 +1660,9 @@ public final class CameraManager {
     @TestApi
     public static CameraCompatibilityInfo getRotationOverride(@Nullable Context context,
             @Nullable PackageManager packageManager, @Nullable String packageName) {
-        if (com.android.window.flags.Flags
-                .enableCameraCompatCompatibilityInfoRotateAndCropBugfix()
-                && isCameraCompatibilityInfoRequested()) {
+        if (isCameraCompatibilityInfoRequested()) {
             return CompatibilityInfo.getCameraCompatibilityInfo();
-        } else {
-            // Isolated process does not have access to ActivityTaskManager service, which is used
-            // indirectly in `ActivityManager.getAppTasks()`.
-            if (context != null && !Process.isIsolated()) {
-                final ActivityManager activityManager = context.getSystemService(
-                        ActivityManager.class);
-                if (activityManager != null) {
-                    for (ActivityManager.AppTask appTask : activityManager.getAppTasks()) {
-                        final TaskInfo taskInfo = appTask.getTaskInfo();
-                        final int cameraCompatMode = taskInfo.appCompatTaskInfo
-                                .cameraCompatTaskInfo.cameraCompatMode;
-                        if (isInCameraCompatibilityInfo(cameraCompatMode)
-                                && taskInfo.topActivity != null
-                                && taskInfo.topActivity.getPackageName().equals(packageName)) {
-                            // WindowManager has requested rotation override.
-                            return getCameraCompatibilityInfoForCompatFreeform(cameraCompatMode,
-                                    taskInfo.appCompatTaskInfo.cameraCompatTaskInfo
-                                            .displayRotation);
-                        }
-                    }
-                }
-            }
         }
-
         if (!CameraManagerGlobal.sLandscapeToPortrait) {
             // No override and crop, and no change to sensor orientation.
             return new CameraCompatibilityInfo.Builder().build();
@@ -1720,54 +1695,6 @@ public final class CameraManager {
                 && compatInfo.getRotateAndCropRotation() != ROTATION_0)
                 || compatInfo.shouldOverrideSensorOrientation()
                 || !compatInfo.shouldAllowTransformInverseDisplay();
-    }
-
-    // TODO(b/430274604): remove once refactoring is launched.
-    private static boolean isInCameraCompatibilityInfo(@CameraCompatTaskInfo.CameraCompatMode int
-            cameraCompatMode) {
-        return (cameraCompatMode != CameraCompatTaskInfo.CAMERA_COMPAT_UNSPECIFIED)
-                && (cameraCompatMode != CameraCompatTaskInfo.CAMERA_COMPAT_NONE);
-    }
-
-    // TODO(b/430274604): remove once refactoring is launched.
-    private static CameraCompatibilityInfo getCameraCompatibilityInfoForCompatFreeform(
-            @CameraCompatTaskInfo.CameraCompatMode int freeformCameraCompatMode,
-            @Surface.Rotation int displayRotation) {
-        int rotateAndCrop = Surface.ROTATION_0;
-        // Only rotate-and-crop if the app and device orientations do not match.
-        if (freeformCameraCompatMode
-                == CameraCompatTaskInfo.CAMERA_COMPAT_LANDSCAPE_DEVICE_IN_PORTRAIT
-                || freeformCameraCompatMode
-                    == CameraCompatTaskInfo.CAMERA_COMPAT_PORTRAIT_DEVICE_IN_LANDSCAPE) {
-            // Rotate-and-crop compensates for changes in camera preview calculations (sandboxing).
-            // Recommended calculation of camera preview is:
-            // rotation = (sensorOrientationDegrees - deviceOrientationDegrees * sign + 360) % 360
-            // (camera-facing - sign - is accounted for later).
-            // If any of the parameters above are changed, rotate-and-crop should be applied to
-            // equal the changed amount.
-            // For example, with real display rotation 90 sandboxed to 0, rotate-and-crop by 270
-            // degrees (-90) for back camera, and 90 for front camera.
-            // Use `displayRotation` param, sent by WindowManager, as the display rotation in the
-            // app process might be sandboxed.
-            if (displayRotation == ROTATION_90) {
-                // The actual rotate and crop will be decided later, taking camera facing into
-                // account: back camera: 270 degrees, front camera: 90 degrees.
-                rotateAndCrop = Surface.ROTATION_270;
-            } else if (displayRotation == ROTATION_270) {
-                // The actual rotate and crop will be decided later, taking camera facing into
-                // account: back camera: 90 degrees, front camera: 270 degrees.
-                rotateAndCrop = Surface.ROTATION_90;
-            } else {
-                // TODO(b/390183440): differentiate between LANDSCAPE and REVERSE_LANDSCAPE
-                //  requested orientation for landscape apps. 'displayRotation` is 0 or 180 (rare)
-                //  in either case.
-                // The actual rotate and crop will be decided later, taking camera facing into
-                // account: back camera: 90 degrees, front camera: 270 degrees.
-                rotateAndCrop = Surface.ROTATION_90;
-            }
-        }
-        return new CameraCompatibilityInfo.Builder().setRotateAndCropRotation(rotateAndCrop)
-                .setShouldOverrideSensorOrientation(false).build();
     }
 
     /**
@@ -2011,6 +1938,28 @@ public final class CameraManager {
         public void onCameraClosed(@NonNull String cameraId) {
             // default empty implementation
         }
+
+        /**
+         * A camera device has been physically removed or is no longer available to the system.
+         *
+         * <p>This callback is invoked when a previously available camera, such as a removable
+         * external camera, is disconnected. The camera ID will no longer be included in the list
+         * returned by {@link CameraManager#getCameraIdList()} and any attempt to open it will
+         * result in an {@link IllegalArgumentException}.</p>
+         *
+         * <p>If an application has an active {@link CameraDevice} instance for the removed camera
+         * that the client did not {@link CameraDevice#close() close}, then the application will
+         * receive a {@link CameraDevice.StateCallback#onDisconnected disconnection error}.</p>
+         *
+         * <p>When a camera is removed, {@link #onCameraUnavailable(String)} will be invoked
+         * for the given {@code cameraId} before this callback is triggered.</p>
+         *
+         * @param cameraId The unique identifier of the camera that has been removed.
+         */
+        @FlaggedApi(Flags.FLAG_DEVICE_REMOVED_CALLBACK)
+        public void onCameraRemoved(@NonNull String cameraId) {
+            // default empty implementation
+        }
     }
 
     /**
@@ -2176,6 +2125,33 @@ public final class CameraManager {
                 throw ExceptionUtils.throwAsPublicException(sse);
             }
         }
+    }
+
+
+    /**
+     * Send a hint to the camera sub-system to warm up the given camera id in expectation
+     * of an imminent {@link CameraManager#openCamera} call.
+     *
+     * This call is only legal to call from a client with the android.permission.CAMERA_WARMUP
+     * permission
+     *
+     * @param cameraId       The camera id of client to inject session params into.
+     *                       If no such client exists for cameraId, no warm up hint is sent.
+     *
+     * @throws CameraAccessException    {@link CameraAccessException#CAMERA_DISCONNECTED} will be
+     *                                  thrown if camera service is not available. Further, if
+     *                                  if no such client exists for cameraId,
+     *                                  {@link CameraAccessException#CAMERA_ERROR} will be thrown.
+     * @throws SecurityException        If the caller does not have permission to send
+     *                                  the warm up hint.
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.WARM_UP_CAMERA)
+    public void warmUp(@NonNull String cameraId)
+            throws CameraAccessException, SecurityException {
+        CameraManagerGlobal.get().warmUp(cameraId,
+                getClientAttribution(),
+                getDevicePolicyFromContext(mContext));
     }
 
     /**
@@ -2365,15 +2341,39 @@ public final class CameraManager {
             }
         }
 
+        private void connectCameraServiceLocked() {
+            connectCameraServiceLocked(false /*resetListener*/);
+        }
+
         /**
          * Connect to the camera service if it's available, and set up listeners.
-         * If the service is already connected, do nothing.
+         *
+         * <p>If the service is already connected, do nothing if resetListener is false, reset self
+         * as the listener if resetListener is true.</p>
          *
          * <p>Sets mCameraService to a valid pointer or null if the connection does not succeed.</p>
          */
-        private void connectCameraServiceLocked() {
+
+        private void connectCameraServiceLocked(boolean resetListener) {
             // Only reconnect if necessary
-            if (mCameraService != null || sCameraServiceDisabled) return;
+            if (mCameraService != null) {
+                if (resetListener) {
+                    try {
+                        // Re-registering the listener forces the camera service to re-evaluate
+                        // permissions for onCameraOpened/onCameraClosed callbacks.
+                        mCameraService.removeListener(this);
+                        mCameraService.addListener(this);
+                    } catch (ServiceSpecificException e) {
+                        // Unexpected failure
+                        throw new IllegalStateException(
+                                "Failed to re-register a camera service listener", e);
+                    } catch (RemoteException e) {
+                        // Camera service is now down, leave mCameraService as null
+                    }
+                }
+                return;
+            }
+            if (sCameraServiceDisabled) return;
 
             Log.i(TAG, "Connecting to camera service");
 
@@ -2453,6 +2453,33 @@ public final class CameraManager {
                         e);
             } catch (RemoteException e) {
                 // Camera service died in all probability
+            }
+        }
+
+        /** Sends notification to warm up camera pipelines for cameraId. */
+        public void warmUp(@NonNull String cameraId,
+                AttributionSourceState clientAttribution,
+                int devicePolicy)
+                throws CameraAccessException, SecurityException {
+            synchronized (mLock) {
+                ICameraService cameraService = getCameraService();
+                if (cameraService == null) {
+                    throw new CameraAccessException(
+                            CameraAccessException.CAMERA_DISCONNECTED,
+                            "Camera service is currently unavailable.");
+                }
+
+                try {
+                    // Virtual camera warm ups not allowed, cameraserver verifies
+                    // for cameraId -> default device id mapping
+                    cameraService.warmUp(cameraId, clientAttribution, devicePolicy);
+                } catch (ServiceSpecificException e) {
+                    throw ExceptionUtils.throwAsPublicException(e);
+                } catch (RemoteException e) {
+                    throw new CameraAccessException(
+                            CameraAccessException.CAMERA_DISCONNECTED,
+                            "Camera service is currently unavailable.");
+                }
             }
         }
 
@@ -2591,6 +2618,11 @@ public final class CameraManager {
                 }
             }
             return false;
+        }
+
+        public boolean isDefaultAppSocialMediaParityEnabled() {
+            return SystemProperties.getBoolean("ro.camera.default_app_social_media_parity_enabled",
+                    false);
         }
 
         public String[] getCameraIdListNoLazy(int deviceId, int devicePolicy) {
@@ -2998,6 +3030,18 @@ public final class CameraManager {
                     Binder.restoreCallingIdentity(ident);
                 }
             }
+            if (Flags.deviceRemovedCallback() && (physicalId == null) &&
+                    (status == STATUS_NOT_PRESENT)) {
+                final long ident = Binder.clearCallingIdentity();
+                try {
+                    executor.execute(
+                            () -> {
+                                callback.onCameraRemoved(id);
+                            });
+                } finally {
+                    Binder.restoreCallingIdentity(ident);
+                }
+            }
         }
 
         private void postSingleTorchUpdate(final TorchCallback callback, final Executor executor,
@@ -3122,7 +3166,15 @@ public final class CameraManager {
             // Translate all the statuses to either 'available' or 'not available'
             //  available -> available         => no new update
             //  not available -> not available => no new update
-            if (oldStatus != null && isAvailable(status) == isAvailable(oldStatus)) {
+            boolean minimizeNotPresent = true;
+            if (Flags.deviceRemovedCallback() && (status == STATUS_NOT_PRESENT)) {
+                // STATUS_NOT_PRESENT is relatively uncommon compared to STATUS_NOT_AVAILABLE
+                // and we may not want to always group it together with STATUS_NOT_AVAILABLE
+                // when minimizing state transition notifications.
+                minimizeNotPresent = false;
+            }
+            if (oldStatus != null && isAvailable(status) == isAvailable(oldStatus) &&
+                    minimizeNotPresent) {
                 if (DEBUG) {
                     Log.v(TAG,
                             String.format(
@@ -3299,10 +3351,15 @@ public final class CameraManager {
         public void registerAvailabilityCallback(AvailabilityCallback callback, Executor executor,
                 boolean hasOpenCloseListenerPermission, int deviceId, int devicePolicy) {
             synchronized (mLock) {
-                // In practice, this permission doesn't change. So we don't need one flag for each
-                // callback object.
-                mHasOpenCloseListenerPermission = hasOpenCloseListenerPermission;
-                connectCameraServiceLocked();
+                // The CAMERA_OPEN_CLOSE_LISTENER permission can change dynamically for a process
+                // during testing (e.g. when adopting shell permissions). A listener reset is
+                // needed for the service to pick up the new permission state.
+                boolean listenerPermissionChanged = false;
+                if (hasOpenCloseListenerPermission != mHasOpenCloseListenerPermission) {
+                    listenerPermissionChanged = true;
+                    mHasOpenCloseListenerPermission = hasOpenCloseListenerPermission;
+                }
+                connectCameraServiceLocked(listenerPermissionChanged);
 
                 callback.mDeviceId = deviceId;
                 callback.mDevicePolicy = devicePolicy;

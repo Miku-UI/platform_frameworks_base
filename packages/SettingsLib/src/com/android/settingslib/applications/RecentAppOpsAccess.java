@@ -207,12 +207,9 @@ public class RecentAppOpsAccess {
     }
 
     private boolean shouldHideUser(UserManager userManager, UserHandle userHandle) {
-        if (android.multiuser.Flags.enablePrivateSpaceFeatures()) {
-            return userManager.isQuietModeEnabled(userHandle)
-                    && userManager.getUserProperties(userHandle).getShowInQuietMode()
-                            == UserProperties.SHOW_IN_QUIET_MODE_HIDDEN;
-        }
-        return false;
+        return userManager.isQuietModeEnabled(userHandle)
+                && userManager.getUserProperties(userHandle).getShowInQuietMode()
+                        == UserProperties.SHOW_IN_QUIET_MODE_HIDDEN;
     }
 
     /**

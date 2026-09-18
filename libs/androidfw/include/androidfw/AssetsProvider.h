@@ -47,7 +47,7 @@ struct AssetsProvider {
   // an I/O error.
   std::unique_ptr<Asset> Open(const std::string& path,
                               Asset::AccessMode mode = Asset::AccessMode::ACCESS_RANDOM,
-                              bool* file_exists = nullptr) const;
+                              bool* file_exists = nullptr, off64_t max_size = -1) const;
 
   // Iterate over all files and directories provided by the interface. The order of iteration is
   // stable.
@@ -73,15 +73,15 @@ struct AssetsProvider {
   // The asset takes ownership of the file descriptor. If `length` equals kUnknownLength, offset
   // must equal 0; otherwise, the asset data will be read using the `offset` into the file
   // descriptor and will be `length` bytes long.
-  static std::unique_ptr<Asset> CreateAssetFromFd(base::unique_fd fd,
-                                                  const char* path,
+  static std::unique_ptr<Asset> CreateAssetFromFd(base::unique_fd fd, const char* path,
                                                   off64_t offset = 0,
-                                                  off64_t length = AssetsProvider::kUnknownLength);
+                                                  off64_t length = AssetsProvider::kUnknownLength,
+                                                  off64_t max_size = -1);
 
   virtual ~AssetsProvider() = default;
  protected:
   virtual std::unique_ptr<Asset> OpenInternal(const std::string& path, Asset::AccessMode mode,
-                                              bool* file_exists) const = 0;
+                                              bool* file_exists, off64_t max_size = -1) const = 0;
 };
 
 // Supplies assets from a zip archive.
@@ -106,7 +106,7 @@ struct ZipAssetsProvider : public AssetsProvider {
   ~ZipAssetsProvider() override = default;
  protected:
   std::unique_ptr<Asset> OpenInternal(const std::string& path, Asset::AccessMode mode,
-                                      bool* file_exists) const override;
+                                      bool* file_exists, off64_t max_size) const override;
 
  private:
   struct PathOrDebugName;
@@ -162,9 +162,8 @@ struct DirectoryAssetsProvider : public AssetsProvider {
 
   ~DirectoryAssetsProvider() override = default;
  protected:
-  std::unique_ptr<Asset> OpenInternal(const std::string& path,
-                                      Asset::AccessMode mode,
-                                      bool* file_exists) const override;
+  std::unique_ptr<Asset> OpenInternal(const std::string& path, Asset::AccessMode mode,
+                                      bool* file_exists, off64_t max_size = -1) const override;
 
  private:
   explicit DirectoryAssetsProvider(std::string&& path, ModDate last_mod_time);
@@ -187,8 +186,8 @@ struct MultiAssetsProvider : public AssetsProvider {
 
   ~MultiAssetsProvider() override = default;
  protected:
-  std::unique_ptr<Asset> OpenInternal(
-      const std::string& path, Asset::AccessMode mode, bool* file_exists) const override;
+  std::unique_ptr<Asset> OpenInternal(const std::string& path, Asset::AccessMode mode,
+                                      bool* file_exists, off64_t max_size = -1) const override;
 
  private:
   MultiAssetsProvider(std::unique_ptr<AssetsProvider>&& primary,
@@ -215,7 +214,7 @@ struct EmptyAssetsProvider : public AssetsProvider {
   ~EmptyAssetsProvider() override = default;
  protected:
   std::unique_ptr<Asset> OpenInternal(const std::string& path, Asset::AccessMode mode,
-                                      bool* file_exists) const override;
+                                      bool* file_exists, off64_t max_size = -1) const override;
 
  private:
   explicit EmptyAssetsProvider(std::optional<std::string>&& path);

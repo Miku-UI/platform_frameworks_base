@@ -19,9 +19,13 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <!-- Indication when device is slow charging due to misalignment on the dock. [CHAR LIMIT=60] -->
     <string name="dock_alignment_slow_charging" product="default">Realign phone for faster charging</string>
+    <!-- Indication when desktop device is slow charging due to misalignment on the dock. [CHAR LIMIT=60] -->
+    <string name="dock_alignment_slow_charging" product="desktop">Realign device for faster charging</string>
 
     <!-- Indication when device is not charging due to bad placement on the dock. [CHAR LIMIT=60] -->
     <string name="dock_alignment_not_charging" product="default">Realign phone to charge wirelessly</string>
+    <!-- Indication when desktop device is not charging due to bad placement on the dock. [CHAR LIMIT=60] -->
+    <string name="dock_alignment_not_charging" product="desktop">Realign device to charge wirelessly</string>
 
     <!-- Message of the overlay warning the user that the TV is about to go to standby unless a TV remote button is pressed. [CHAR LIMIT=NONE] -->
     <string name="inattentive_sleep_warning_message" product="tv">The Android TV device will soon turn off; press a button to keep it on.</string>
@@ -32,6 +36,8 @@
     <string name="keyguard_missing_sim_message" product="tablet">No SIM in tablet.</string>
     <!-- Shown when there is no SIM. -->
     <string name="keyguard_missing_sim_message" product="default">No SIM in phone.</string>
+    <!-- Shown when there is no SIM. -->
+    <string name="keyguard_missing_sim_message" product="desktop">No SIM in device.</string>
 
     <!-- String shown in PUK screen when PIN codes don't match -->
     <string name="kg_invalid_confirm_pin_hint" product="default">PIN codes does not match</string>
@@ -48,6 +54,12 @@
        After <xliff:g id="number">%2$d</xliff:g> more unsuccessful attempts,
        this phone will be reset, which will delete all its data.
     </string>
+    <!-- Message shown when user is almost at the limit of password attempts where the desktop device will be wiped. [CHAR LIMIT=none] -->
+    <string name="kg_failed_attempts_almost_at_wipe" product="desktop">
+       You have incorrectly attempted to unlock the device <xliff:g id="number">%1$d</xliff:g> times.
+       After <xliff:g id="number">%2$d</xliff:g> more unsuccessful attempts,
+       this device will be reset, which will delete all its data.
+    </string>
     <!-- Message shown in dialog when user has exceeded the maximum attempts and the device will now be wiped [CHAR LIMIT=none] -->
     <string name="kg_failed_attempts_now_wiping" product="tablet">
        You have incorrectly attempted to unlock the tablet <xliff:g id="number">%d</xliff:g> times.
@@ -57,6 +69,11 @@
     <string name="kg_failed_attempts_now_wiping" product="default">
        You have incorrectly attempted to unlock the phone <xliff:g id="number">%d</xliff:g> times.
        This phone will be reset, which will delete all its data.
+    </string>
+    <!-- Message shown in dialog when user has exceeded the maximum attempts and the desktop device will now be wiped [CHAR LIMIT=none] -->
+    <string name="kg_failed_attempts_now_wiping" product="desktop">
+       You have incorrectly attempted to unlock the device <xliff:g id="number">%d</xliff:g> times.
+       This device will be reset, which will delete all its data.
     </string>
 
     <!-- Message shown when user is almost at the limit of password attempts where the user will be removed. [CHAR LIMIT=none] -->
@@ -71,6 +88,12 @@
        After <xliff:g id="number">%2$d</xliff:g> more unsuccessful attempts,
        this user will be removed, which will delete all user data.
     </string>
+    <!-- Message shown when user is almost at the limit of password attempts where the user will be removed. [CHAR LIMIT=none] -->
+    <string name="kg_failed_attempts_almost_at_erase_user" product="desktop">
+       You have incorrectly attempted to unlock the device <xliff:g id="number">%1$d</xliff:g> times.
+       After <xliff:g id="number">%2$d</xliff:g> more unsuccessful attempts,
+       this user will be removed, which will delete all user data.
+    </string>
     <!-- Message shown in dialog when user has exceeded the maximum attempts and the user will be removed. [CHAR LIMIT=none] -->
     <string name="kg_failed_attempts_now_erasing_user" product="tablet">
        You have incorrectly attempted to unlock the tablet <xliff:g id="number">%d</xliff:g> times.
@@ -79,6 +102,11 @@
     <!-- Message shown in dialog when user has exceeded the maximum attempts and the user will be removed. [CHAR LIMIT=none] -->
     <string name="kg_failed_attempts_now_erasing_user" product="default">
        You have incorrectly attempted to unlock the phone <xliff:g id="number">%d</xliff:g> times.
+       This user will be removed, which will delete all user data.
+    </string>
+    <!-- Message shown in dialog when user has exceeded the maximum attempts and the user will be removed. [CHAR LIMIT=none] -->
+    <string name="kg_failed_attempts_now_erasing_user" product="desktop">
+       You have incorrectly attempted to unlock the device <xliff:g id="number">%d</xliff:g> times.
        This user will be removed, which will delete all user data.
     </string>
 
@@ -94,6 +122,12 @@
        After <xliff:g id="number">%2$d</xliff:g> more unsuccessful attempts,
        the work profile will be removed, which will delete all profile data.
     </string>
+    <!-- Message shown when user is almost at the limit of password attempts where the profile will be removed. [CHAR LIMIT=none] -->
+    <string name="kg_failed_attempts_almost_at_erase_profile" product="desktop">
+       You have incorrectly attempted to unlock the device <xliff:g id="number">%1$d</xliff:g> times.
+       After <xliff:g id="number">%2$d</xliff:g> more unsuccessful attempts,
+       the work profile will be removed, which will delete all profile data.
+    </string>
     <!-- Message shown in dialog when user has exceeded the maximum attempts and the profile will be removed. [CHAR LIMIT=none] -->
     <string name="kg_failed_attempts_now_erasing_profile" product="tablet">
        You have incorrectly attempted to unlock the tablet <xliff:g id="number">%d</xliff:g> times.
@@ -102,6 +136,11 @@
     <!-- Message shown in dialog when user has exceeded the maximum attempts and the profile will be removed. [CHAR LIMIT=none] -->
     <string name="kg_failed_attempts_now_erasing_profile" product="default">
        You have incorrectly attempted to unlock the phone <xliff:g id="number">%d</xliff:g> times.
+       The work profile will be removed, which will delete all profile data.
+    </string>
+    <!-- Message shown in dialog when user has exceeded the maximum attempts and the profile will be removed. [CHAR LIMIT=none] -->
+    <string name="kg_failed_attempts_now_erasing_profile" product="desktop">
+       You have incorrectly attempted to unlock the device <xliff:g id="number">%d</xliff:g> times.
        The work profile will be removed, which will delete all profile data.
     </string>
 
@@ -121,9 +160,19 @@
        you will be asked to unlock your phone using an email account.\n\n
        Try again in <xliff:g id="number">%3$d</xliff:g> seconds.
     </string>
+    <!-- Message shown in dialog when user is almost at the limit where they will be
+    locked out and may have to enter an alternate username/password to unlock the device -->
+    <string name="kg_failed_attempts_almost_at_login" product="desktop">
+       You have incorrectly drawn your unlock pattern <xliff:g id="number">%1$d</xliff:g> times.
+       After <xliff:g id="number">%2$d</xliff:g> more unsuccessful attempts,
+       you will be asked to unlock your device using an email account.\n\n
+       Try again in <xliff:g id="number">%3$d</xliff:g> seconds.
+    </string>
 
     <!-- Title for notification & dialog that the user's phone last shut down because it got too hot. [CHAR LIMIT=40] -->
     <string name="thermal_shutdown_title" product="default">Phone turned off due to heat</string>
+    <!-- Title for notification & dialog that the user's desktop last shut down because it got too hot. [CHAR LIMIT=40] -->
+    <string name="thermal_shutdown_title" product="desktop">Device turned off due to heat</string>
     <!-- Title for notification & dialog that the user's device last shut down because it got too hot. [CHAR LIMIT=40] -->
     <string name="thermal_shutdown_title" product="device">Device turned off due to heat</string>
     <!-- Title for notification & dialog that the user's tablet last shut down because it got too hot. [CHAR LIMIT=40] -->
@@ -134,12 +183,16 @@
     <string name="thermal_shutdown_message" product="device">Your device is now running normally.\nTap for more info</string>
     <!-- Message body for notification that user's tablet last shut down because it got too hot. [CHAR LIMIT=120] -->
     <string name="thermal_shutdown_message" product="tablet">Your tablet is now running normally.\nTap for more info</string>
+    <!-- Message body for notification that user's desktop last shut down because it got too hot. [CHAR LIMIT=120] -->
+    <string name="thermal_shutdown_message" product="desktop">Your device is now running normally.\nTap for more info</string>
     <!-- Text body for dialog alerting user that their phone last shut down because it got too hot. [CHAR LIMIT=500] -->
     <string name="thermal_shutdown_dialog_message" product="default">Your phone was too hot, so it turned off to cool down. Your phone is now running normally.\n\nYour phone may get too hot if you:\n\t&#8226; Use resource-intensive apps (such as gaming, video, or navigation apps)\n\t&#8226; Download or upload large files\n\t&#8226; Use your phone in high temperatures</string>
     <!-- Text body for dialog alerting user that their device last shut down because it got too hot. [CHAR LIMIT=500] -->
     <string name="thermal_shutdown_dialog_message" product="device">Your device was too hot, so it turned off to cool down. Your device is now running normally.\n\nYour device may get too hot if you:\n\t&#8226; Use resource-intensive apps (such as gaming, video, or navigation apps)\n\t&#8226; Download or upload large files\n\t&#8226; Use your device in high temperatures</string>
     <!-- Text body for dialog alerting user that their tablet last shut down because it got too hot. [CHAR LIMIT=500] -->
     <string name="thermal_shutdown_dialog_message" product="tablet">Your tablet was too hot, so it turned off to cool down. Your tablet is now running normally.\n\nYour tablet may get too hot if you:\n\t&#8226; Use resource-intensive apps (such as gaming, video, or navigation apps)\n\t&#8226; Download or upload large files\n\t&#8226; Use your tablet in high temperatures</string>
+    <!-- Text body for dialog alerting user that their desktop last shut down because it got too hot. [CHAR LIMIT=500] -->
+    <string name="thermal_shutdown_dialog_message" product="desktop">Your device was too hot, so it turned off to cool down. Your device is now running normally.\n\nYour device may get too hot if you:\n\t&#8226; Use resource-intensive apps (such as gaming, video, or navigation apps)\n\t&#8226; Download or upload large files\n\t&#8226; Use your device in high temperatures</string>
 
     <!-- Title for notification (and dialog) that user's phone has reached a certain temperature and may start to slow down in order to cool down. [CHAR LIMIT=30] -->
     <string name="high_temp_title" product="default">Phone is getting warm</string>
@@ -147,18 +200,24 @@
     <string name="high_temp_title" product="device">Device is getting warm</string>
     <!-- Title for notification (and dialog) that user's phone has reached a certain temperature and may start to slow down in order to cool down. [CHAR LIMIT=30] -->
     <string name="high_temp_title" product="tablet">Tablet is getting warm</string>
+    <!-- Title for notification (and dialog) that user's desktop has reached a certain temperature and may start to slow down in order to cool down. [CHAR LIMIT=30] -->
+    <string name="high_temp_title" product="desktop">Device is getting warm</string>
     <!-- Message body for notification that user's phone has reached a certain temperature and may start to slow down in order to cool down. [CHAR LIMIT=120] -->
     <string name="high_temp_notif_message" product="default">Some features limited while phone cools down.\nTap for more info</string>
     <!-- Message body for notification that user's device has reached a certain temperature and may start to slow down in order to cool down. [CHAR LIMIT=120] -->
     <string name="high_temp_notif_message" product="device">Some features limited while device cools down.\nTap for more info</string>
     <!-- Message body for notification that user's tablet has reached a certain temperature and may start to slow down in order to cool down. [CHAR LIMIT=120] -->
     <string name="high_temp_notif_message" product="tablet">Some features limited while tablet cools down.\nTap for more info</string>
+    <!-- Message body for notification that user's desktop has reached a certain temperature and may start to slow down in order to cool down. [CHAR LIMIT=120] -->
+    <string name="high_temp_notif_message" product="desktop">Some features limited while device cools down.\nTap for more info</string>
     <!-- Text body for dialog alerting user that their phone has reached a certain temperature and may start to slow down in order to cool down. [CHAR LIMIT=350] -->
     <string name="high_temp_dialog_message" product="default">Your phone will automatically try to cool down. You can still use your phone, but it may run slower.\n\nOnce your phone has cooled down, it will run normally.</string>
     <!-- Text body for dialog alerting user that their phone has reached a certain temperature and may start to slow down in order to cool down. [CHAR LIMIT=350] -->
     <string name="high_temp_dialog_message" product="device">Your device will automatically try to cool down. You can still use your device, but it may run slower.\n\nOnce your device has cooled down, it will run normally.</string>
     <!-- Text body for dialog alerting user that their phone has reached a certain temperature and may start to slow down in order to cool down. [CHAR LIMIT=350] -->
     <string name="high_temp_dialog_message" product="tablet">Your tablet will automatically try to cool down. You can still use your tablet, but it may run slower.\n\nOnce your tablet has cooled down, it will run normally.</string>
+    <!-- Text body for dialog alerting user that their desktop has reached a certain temperature and may start to slow down in order to cool down. [CHAR LIMIT=350] -->
+    <string name="high_temp_dialog_message" product="desktop">Your device will automatically try to cool down. You can still use your device, but it may run slower.\n\nOnce your device has cooled down, it will run normally.</string>
 
     <!-- Content description of the fingerprint icon when the system-provided fingerprint dialog is showing, to locate the sensor (tablet) for accessibility (not shown on the screen). [CHAR LIMIT=NONE]-->
     <string name="security_settings_sfps_enroll_find_sensor_message" product="tablet">The fingerprint sensor is on the power button. It’s the flat button next to the raised volume button on the edge of the tablet.</string>
@@ -166,6 +225,8 @@
     <string name="security_settings_sfps_enroll_find_sensor_message" product="device">The fingerprint sensor is on the power button. It’s the flat button next to the raised volume button on the edge of the device.</string>
     <!-- Content description of the fingerprint icon when the system-provided fingerprint dialog is showing, to locate the sensor (default) for accessibility (not shown on the screen). [CHAR LIMIT=NONE]-->
     <string name="security_settings_sfps_enroll_find_sensor_message" product="default">The fingerprint sensor is on the power button. It’s the flat button next to the raised volume button on the edge of the phone.</string>
+    <!-- Content description of the fingerprint icon when the system-provided fingerprint dialog is showing, to locate the sensor (desktop) for accessibility (not shown on the screen). [CHAR LIMIT=NONE]-->
+    <string name="security_settings_sfps_enroll_find_sensor_message" product="desktop">The fingerprint sensor is on the power button. It’s the flat button next to the raised volume button on the edge of the device.</string>
 
     <!-- Text shown when viewing global actions while phone is locked and additional controls are hidden [CHAR LIMIT=NONE] -->
     <string name="global_action_lock_message" product="default">Unlock your phone for more options</string>
@@ -173,19 +234,100 @@
     <string name="global_action_lock_message" product="tablet">Unlock your tablet for more options</string>
     <!-- Text shown when viewing global actions while phone is locked and additional controls are hidden [CHAR LIMIT=NONE] -->
     <string name="global_action_lock_message" product="device">Unlock your device for more options</string>
+    <!-- Text shown when viewing global actions while desktop is locked and additional controls are hidden [CHAR LIMIT=NONE] -->
+    <string name="global_action_lock_message" product="desktop">Unlock your device for more options</string>
 
     <!-- Text informing the user that their media is now playing on this device. [CHAR LIMIT=50] -->
     <string name="media_transfer_playing_this_device" product="default">Playing on this phone</string>
     <!-- Text informing the user that their media is now playing on this tablet device. [CHAR LIMIT=50] -->
     <string name="media_transfer_playing_this_device" product="tablet">Playing on this tablet</string>
+    <!-- Text informing the user that their media is now playing on this desktop device. [CHAR LIMIT=50] -->
+    <string name="media_transfer_playing_this_device" product="desktop">Playing on this device</string>
 
     <!-- Message shown during shutdown when Find My Device with Dead Battery Finder is active  [CHAR LIMIT=300] -->
     <string name="finder_active" product="default">You can locate this phone with Find My Device even when powered off</string>
     <string name="finder_active" product="tablet">You can locate this tablet with Find My Device even when powered off</string>
+    <!-- Message shown during shutdown when Find My Device with Dead Battery Finder is active  [CHAR LIMIT=300] -->
+    <string name="finder_active" product="desktop">You can locate this device with Find My Device even when powered off</string>
 
     <!-- Message shown during phone shutdown when Find Hub with Dead Battery Finder is active. Same as 2734050945122991747, except the new product name that should be taken from Localizer.  [CHAR LIMIT=300] [BACKUP_MESSAGE_ID: 2734050945122991747]-->
     <string name="find_hub_active" product="default">You can locate this phone with Find Hub even when powered off</string>
     <!-- Message shown during tablet shutdown when Find Hub with Dead Battery Finder is active Same as 8045583079989970505, except the new product name that should be taken from Localizer.  [CHAR LIMIT=300] [BACKUP_MESSAGE_ID: 8045583079989970505]-->
     <string name="find_hub_active" product="tablet">You can locate this tablet with Find Hub even when powered off</string>
+    <!-- Message shown during device shutdown when Find Hub with Dead Battery Finder is active Same as `finder_active`, except the new product name that should be taken from Localizer.  [CHAR LIMIT=300]-->
+    <string name="find_hub_active" product="desktop">You can locate this device with Find Hub even when powered off</string>
 
+    <!-- Description for the dream contextual setup bottom sheet. [CHAR LIMIT=NONE] -->
+    <string name="dream_setup_description" product="default">Show a clock, photos, or weather when your phone is charging</string>
+    <!-- Description for the dream contextual setup bottom sheet. [CHAR LIMIT=NONE] -->
+    <string name="dream_setup_description" product="tablet">Show a clock, photos, or weather when your tablet is charging</string>
+    <!-- Description for the dream contextual setup bottom sheet. [CHAR LIMIT=NONE] -->
+    <string name="dream_setup_description" product="device">Show a clock, photos, or weather when your device is charging</string>
+    <!-- Description for the dream contextual setup bottom sheet. [CHAR LIMIT=NONE] -->
+    <string name="dream_setup_description" product="desktop">Show a clock, photos, or weather when your device is charging</string>
+
+   <!-- Content description of the try again button shown when a face auth error occurs on lock screen and user interaction is required to retry auth. [CHAR LIMIT=30] -->
+   <string name="accessibility_retry_face_auth" product="default">Try Face Unlock again</string>
+   <!-- Content description of the try again button shown when a face auth error occurs on lock screen and user interaction is required to retry auth. [CHAR LIMIT=50] -->
+   <string name="accessibility_retry_face_auth" product="desktop">Try unlocking with face again</string>
+   <!-- Notification title shown when the system requires the user to re-enroll their face. [CHAR LIMIT=NONE] -->
+   <string name="face_re_enroll_notification_title" product="default">Set up Face Unlock again</string>
+   <!-- Notification title shown when the system requires the user to re-enroll their face. [CHAR LIMIT=NONE] -->
+   <string name="face_re_enroll_notification_title" product="desktop">Set up unlocking with face again</string>
+   <!-- Message shown when a biometric has authenticated with a user's face and is waiting for the user to confirm authentication [CHAR LIMIT=60]-->
+   <string name="biometric_dialog_tap_confirm_with_face" product="default">Unlocked by face</string>
+   <!-- Message shown when a biometric has authenticated with a user's face and is waiting for the user to confirm authentication [CHAR LIMIT=60]-->
+   <string name="biometric_dialog_tap_confirm_with_face" product="desktop">Unlocked with face</string>
+   <!-- Message shown when a biometric has authenticated with a user's face and is waiting for the user to confirm authentication [CHAR LIMIT=60]-->
+   <string name="biometric_dialog_tap_confirm_with_face_alt_1" product="default">Unlocked by face. Press to continue.</string>
+   <!-- Message shown when a biometric has authenticated with a user's face and is waiting for the user to confirm authentication [CHAR LIMIT=60]-->
+   <string name="biometric_dialog_tap_confirm_with_face_alt_1" product="desktop">Unlocked with face. Press to continue.</string>
+   <!-- Message shown when a biometric has authenticated with a user's face and is waiting for the user to confirm authentication with SFPS [CHAR LIMIT=60]-->
+   <string name="biometric_dialog_tap_confirm_with_face_sfps" product="default">Unlocked by face. Tap to continue.</string>
+   <!-- Message shown when a biometric has authenticated with a user's face and is waiting for the user to confirm authentication with SFPS [CHAR LIMIT=60]-->
+   <string name="biometric_dialog_tap_confirm_with_face_sfps" product="desktop">Unlocked with face. Tap to continue.</string>
+   <!-- Name shown for system notifications related to the face unlock feature. [CHAR LIMIT=NONE] -->
+   <string name="face_re_enroll_notification_name" product="default">Face Unlock</string>
+   <!-- Name shown for system notifications related to the face unlock feature. [CHAR LIMIT=NONE] -->
+   <string name="face_re_enroll_notification_name" product="desktop">Unlocking with face</string>
+   <!-- Title for a dialog shown when the system requires the user to re-enroll their face. [CHAR LIMIT=NONE] -->
+   <string name="face_re_enroll_dialog_title" product="default">Set up Face Unlock</string>
+   <!-- Title for a dialog shown when the system requires the user to re-enroll their face. [CHAR LIMIT=NONE] -->
+   <string name="face_re_enroll_dialog_title" product="desktop">Set up unlocking with face</string>
+   <!-- Content for a dialog shown when the system requires the user to re-enroll their face. [CHAR LIMIT=NONE] -->
+   <string name="face_re_enroll_dialog_content" product="default">To set up Face Unlock again, your current face model will be deleted.\n\nYou\’ll need to set up this feature again to use your face to unlock your phone.</string>
+   <!-- Content for a dialog shown when the system requires the user to re-enroll their face. [CHAR LIMIT=NONE] -->
+   <string name="face_re_enroll_dialog_content" product="desktop">To set up unlocking with face again, your current face model will be deleted.\n\nYou\’ll need to set up this feature again to use your face to unlock your device.</string>
+   <!-- Content for a dialog shown when an error occurs while the user is trying to re-enroll their face. [CHAR LIMIT=NONE] -->
+   <string name="face_reenroll_failure_dialog_content" product="default">Couldn\u2019t set up face unlock. Go to Settings to try again.</string>
+   <!-- Content for a dialog shown when an error occurs while the user is trying to re-enroll their face. [CHAR LIMIT=NONE] -->
+   <string name="face_reenroll_failure_dialog_content" product="desktop">Couldn\u2019t set up unlocking with face. Try again in Settings.</string>
+   <!-- Message shown to inform the user that face unlock is not available. [CHAR LIMIT=59] -->
+   <string name="keyguard_face_unlock_unavailable" product="default">Face Unlock unavailable</string>
+   <!-- Message shown to inform the user that face unlock is not available. [CHAR LIMIT=80] -->
+   <string name="keyguard_face_unlock_unavailable" product="desktop">Unlocking with face unavailable</string>
+   <!-- Message shown when face authentication fails and the pin pad is visible. [CHAR LIMIT=60] -->
+   <string name="accesssibility_keyguard_retry" product="default">Swipe up to try Face Unlock again</string>
+   <!-- Message shown when face authentication fails and the pin pad is visible. [CHAR LIMIT=80] -->
+   <string name="accesssibility_keyguard_retry" product="desktop">Swipe up to try unlocking with face again</string>
+   <!-- Message shown when non-bypass face authentication succeeds. Provides extra instructions for how the user can enter their device [CHAR LIMIT=60] -->
+   <string name="keyguard_face_successful_unlock_swipe" product="default">Unlocked by face. Swipe up to open.</string>
+   <!-- Message shown when non-bypass face authentication succeeds. Provides extra instructions for how the user can enter their device [CHAR LIMIT=60] -->
+   <string name="keyguard_face_successful_unlock_swipe" product="desktop">Unlocked with face. Swipe up to open.</string>
+   <!-- Message shown when non-bypass face authentication succeeds and UDFPS is supported. Provides extra instructions for how the user can enter their device [CHAR LIMIT=60] -->
+   <string name="keyguard_face_successful_unlock_confirm_button" product="default">Unlocked by face. Press confirm to continue.</string>
+   <!-- Message shown when non-bypass face authentication succeeds and UDFPS is supported. Provides extra instructions for how the user can enter their device [CHAR LIMIT=60] -->
+   <string name="keyguard_face_successful_unlock_confirm_button" product="desktop">Unlocked with face. Press confirm to continue.</string>
+   <!-- Message shown when non-bypass face authentication succeeds and UDFPS is supported. Provides extra instructions for how the user can enter their device [CHAR LIMIT=60] -->
+   <string name="keyguard_face_successful_unlock_press" product="default">Unlocked by face. Press the unlock icon to open.</string>
+   <!-- Message shown when non-bypass face authentication succeeds and UDFPS is supported. Provides extra instructions for how the user can enter their device [CHAR LIMIT=60] -->
+   <string name="keyguard_face_successful_unlock_press" product="desktop">Unlocked with face. Press the unlock icon to open.</string>
+   <!-- Message shown when non-bypass face authentication succeeds and UDFPS is supported. Provides extra instructions for how the user can enter their device [CHAR LIMIT=60] -->
+   <string name="keyguard_face_successful_unlock_press_alt_1" product="default">Unlocked by face. Press to open.</string>
+   <!-- Message shown when non-bypass face authentication succeeds and UDFPS is supported. Provides extra instructions for how the user can enter their device [CHAR LIMIT=60] -->
+   <string name="keyguard_face_successful_unlock_press_alt_1" product="desktop">Unlocked with face. Press to open.</string>
+   <!-- Message shown when non-bypass face authentication succeeds. [CHAR LIMIT=60] -->
+   <string name="keyguard_face_successful_unlock" product="default">Unlocked by face</string>
+   <!-- Message shown when non-bypass face authentication succeeds. [CHAR LIMIT=60] -->
+   <string name="keyguard_face_successful_unlock" product="desktop">Unlocked with face</string>
 </resources>

@@ -406,12 +406,6 @@ constructor(
 
     var interpolatedRevealAmount: Float = 1f
 
-    val isScrimAlmostOccludes: Boolean
-        get() {
-            // if the interpolatedRevealAmount less than 0.1, over 90% of the screen is black.
-            return interpolatedRevealAmount < 0.1f
-        }
-
     private fun updateScrimOpaque() {
         isScrimOpaque = revealAmount == 0.0f && alpha == 1.0f && visibility == VISIBLE
     }

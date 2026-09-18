@@ -31,7 +31,7 @@ import android.widget.FrameLayout
 import android.widget.FrameLayout.LayoutParams.UNSPECIFIED_GRAVITY
 import android.widget.ImageView
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags.FLAG_SHADE_WINDOW_GOES_AROUND
+import com.android.systemui.Flags.FLAG_SCENE_CONTAINER
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.backgroundScope
 import com.android.systemui.kosmos.runTest
@@ -43,16 +43,17 @@ import com.android.systemui.res.R
 import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
 import com.android.systemui.shade.domain.interactor.shadeDisplaysInteractor
 import com.android.systemui.shade.domain.interactor.shadeInteractor
-import com.android.systemui.shared.Flags.FLAG_STATUS_BAR_CONNECTED_DISPLAYS
+import com.android.systemui.shade.shadeTestUtil
 import com.android.systemui.statusbar.FakeStatusBarStateController
+import com.android.systemui.statusbar.StatusBarState.KEYGUARD
 import com.android.systemui.statusbar.StatusBarState.SHADE
 import com.android.systemui.statusbar.events.PrivacyDotCorner.BottomLeft
 import com.android.systemui.statusbar.events.PrivacyDotCorner.BottomRight
 import com.android.systemui.statusbar.events.PrivacyDotCorner.TopLeft
 import com.android.systemui.statusbar.events.PrivacyDotCorner.TopRight
-import com.android.systemui.statusbar.featurepods.av.domain.interactor.fakeAvControlsChipInteractor
 import com.android.systemui.statusbar.layout.StatusBarContentInsetsProvider
 import com.android.systemui.statusbar.policy.FakeConfigurationController
+import com.android.systemui.statusbar.quickactions.av.domain.interactor.fakeAvControlsChipInteractor
 import com.android.systemui.testKosmos
 import com.android.systemui.util.concurrency.DelayableExecutor
 import com.android.systemui.util.leak.RotationUtils.ROTATION_LANDSCAPE
@@ -86,9 +87,6 @@ class PrivacyDotViewControllerTest(flags: FlagsParameterization) : SysuiTestCase
     private val statusBarStateController = FakeStatusBarStateController()
     private val configurationController = FakeConfigurationController()
     private val contentInsetsProvider = createMockContentInsetsProvider()
-    private val shadeDisplaysInteractor = kosmos.shadeDisplaysInteractor
-    private val shadeDisplaysRepository = kosmos.fakeShadeDisplaysRepository
-    private val shadeInteractor = kosmos.shadeInteractor
 
     private val topLeftView = initDotView()
     private val topRightView = initDotView()
@@ -108,18 +106,21 @@ class PrivacyDotViewControllerTest(flags: FlagsParameterization) : SysuiTestCase
             configurationController,
             contentInsetsProvider,
             animationScheduler = mockAnimationScheduler,
-            shadeInteractor = shadeInteractor,
+            shadeInteractor = kosmos.shadeInteractor,
             avControlsChipInteractor = kosmos.fakeAvControlsChipInteractor,
             uiExecutor = executor,
             displayId = DISPLAY_ID,
-            shadeDisplaysInteractor = { shadeDisplaysInteractor },
+            shadeDisplaysInteractor = { kosmos.shadeDisplaysInteractor },
         )
 
     companion object {
         @JvmStatic
         @Parameters(name = "{0}")
         fun getParams(): List<FlagsParameterization> {
-            return FlagsParameterization.allCombinationsOf(Flags.FLAG_LOCATION_INDICATORS_ENABLED)
+            return FlagsParameterization.allCombinationsOf(
+                Flags.FLAG_LOCATION_INDICATORS_ENABLED,
+                FLAG_SCENE_CONTAINER,
+            )
         }
     }
 
@@ -340,30 +341,29 @@ class PrivacyDotViewControllerTest(flags: FlagsParameterization) : SysuiTestCase
     }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_CONNECTED_DISPLAYS, FLAG_SHADE_WINDOW_GOES_AROUND)
     fun init_shadeExpandedOnDifferentDisplay_doesNotChangeShadeExpandedState() =
         kosmos.runTest {
-            shadeDisplaysRepository.setDisplayId(Display.DEFAULT_DISPLAY)
+            fakeShadeDisplaysRepository.setDisplayId(Display.DEFAULT_DISPLAY)
             statusBarStateController.state = SHADE
             statusBarStateController.expanded = true
 
             val controller = createAndInitializeController()
-            shadeDisplaysRepository.setDisplayId(DISPLAY_ID + 1) // other display id
+            fakeShadeDisplaysRepository.setDisplayId(DISPLAY_ID + 1) // other display id
             statusBarStateController.fakeShadeExpansionFullyChanged(true)
 
             assertThat(controller.currentViewState.shadeExpanded).isEqualTo(false)
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_CONNECTED_DISPLAYS, FLAG_SHADE_WINDOW_GOES_AROUND)
     fun init_shadeExpandedOnThisDisplay_doesChangeShadeExpandedState() =
         kosmos.runTest {
-            shadeDisplaysRepository.setDisplayId(Display.DEFAULT_DISPLAY)
+            fakeShadeDisplaysRepository.setDisplayId(Display.DEFAULT_DISPLAY)
             statusBarStateController.state = SHADE
             statusBarStateController.expanded = false
 
             val controller = createAndInitializeController()
-            shadeDisplaysRepository.setDisplayId(DISPLAY_ID)
+            fakeShadeDisplaysRepository.setDisplayId(DISPLAY_ID)
+            kosmos.shadeTestUtil.setShadeExpansion(1f)
             statusBarStateController.fakeShadeExpansionFullyChanged(true)
 
             assertThat(controller.currentViewState.shadeExpanded).isEqualTo(true)
@@ -420,6 +420,96 @@ class PrivacyDotViewControllerTest(flags: FlagsParameterization) : SysuiTestCase
             // This informs the controller of an active privacy event.
             callback.onSystemStatusAnimationTransitionToPersistentDot(null, null)
             assertThat(controller.currentViewState.shouldShowDot()).isEqualTo(false)
+        }
+
+    @Test
+    fun initialize_animationFinished_shadeExpanded_noShow() =
+        kosmos.runTest {
+            val captor = ArgumentCaptor.forClass(SystemStatusAnimationCallback::class.java)
+            val controller: PrivacyDotViewController = createAndInitializeController()
+            Mockito.verify(mockAnimationScheduler).addCallback(captor.capture())
+            val callback: SystemStatusAnimationCallback = captor.value
+            fakeAvControlsChipInteractor.isShowingAvChip.value = false
+            // This informs the controller of an active privacy event.
+            callback.onSystemStatusAnimationTransitionToPersistentDot(null, null)
+            assertThat(controller.currentViewState.shouldShowDot()).isTrue()
+
+            // Shade is expanded
+            kosmos.shadeTestUtil.setShadeAndQsExpansion(0.5f, 0.5f)
+            statusBarStateController.fakeShadeExpansionFullyChanged(true)
+
+            // Dot should not show
+            assertThat(controller.currentViewState.shouldShowDot()).isFalse()
+
+            // Shade is collapsed
+            kosmos.shadeTestUtil.setShadeAndQsExpansion(0f, 0f)
+            statusBarStateController.fakeShadeExpansionFullyChanged(false)
+
+            // Show dot
+            assertThat(controller.currentViewState.shouldShowDot()).isTrue()
+        }
+
+    @Test
+    fun initialize_animationFinished_qsExpanded_noShow() =
+        kosmos.runTest {
+            val captor = ArgumentCaptor.forClass(SystemStatusAnimationCallback::class.java)
+            val controller: PrivacyDotViewController = createAndInitializeController()
+            Mockito.verify(mockAnimationScheduler).addCallback(captor.capture())
+            val callback: SystemStatusAnimationCallback = captor.value
+            fakeAvControlsChipInteractor.isShowingAvChip.value = false
+            // This informs the controller of an active privacy event.
+            callback.onSystemStatusAnimationTransitionToPersistentDot(null, null)
+            assertThat(controller.currentViewState.shouldShowDot()).isTrue()
+
+            // QS is expanded
+            kosmos.shadeTestUtil.setShadeAndQsExpansion(0.5f, 0.5f)
+            statusBarStateController.fakeShadeExpansionFullyChanged(true)
+
+            // Dot should not show
+            assertThat(controller.currentViewState.shouldShowDot()).isFalse()
+
+            // QS is collapsed
+            kosmos.shadeTestUtil.setShadeAndQsExpansion(0f, 0f)
+            statusBarStateController.fakeShadeExpansionFullyChanged(false)
+
+            // Show dot
+            assertThat(controller.currentViewState.shouldShowDot()).isTrue()
+        }
+
+    @Test
+    fun onStop_removesSystemStatusAnimationCallback() {
+        val captor = ArgumentCaptor.forClass(SystemStatusAnimationCallback::class.java)
+        val controller = createAndInitializeController()
+        Mockito.verify(mockAnimationScheduler).addCallback(captor.capture())
+
+        controller.stop()
+
+        Mockito.verify(mockAnimationScheduler).removeCallback(captor.value)
+    }
+
+    @Test
+    fun statusBarStateListener_onStateChanged_updatesDotState() =
+        kosmos.runTest {
+            val captor = ArgumentCaptor.forClass(SystemStatusAnimationCallback::class.java)
+            val controller: PrivacyDotViewController = createAndInitializeController()
+            Mockito.verify(mockAnimationScheduler).addCallback(captor.capture())
+            val callback: SystemStatusAnimationCallback = captor.value
+            fakeAvControlsChipInteractor.isShowingAvChip.value = false
+            // This informs the controller of an active privacy event.
+            callback.onSystemStatusAnimationTransitionToPersistentDot(null, null)
+
+            // Dot is hidden when QS expanded
+            kosmos.shadeTestUtil.setShadeAndQsExpansion(0.5f, 0.5f)
+            statusBarStateController.fakeShadeExpansionFullyChanged(true)
+            assertThat(controller.currentViewState.shouldShowDot()).isFalse()
+
+            // Force status bar state change
+            kosmos.shadeTestUtil.setShadeAndQsExpansion(0f, 0f)
+            statusBarStateController.expanded = false // Set state without triggering listener
+            statusBarStateController.setState(KEYGUARD)
+
+            // Dot is shown
+            assertThat(controller.currentViewState.shouldShowDot()).isTrue()
         }
 
     @Test

@@ -73,6 +73,7 @@ public class IllustrationPreference extends Preference implements GroupSectionDi
     private View mMiddleGroundView;
     private OnBindListener mOnBindListener;
     private boolean mLottieDynamicColor;
+    private boolean mApplyIlloColors;
     private CharSequence mContentDescription;
     private boolean mIsTablet;
     private boolean mIsAnimatable;
@@ -194,6 +195,11 @@ public class IllustrationPreference extends Preference implements GroupSectionDi
         if (mLottieDynamicColor) {
             LottieColorUtils.applyDynamicColors(getContext(), illustrationView);
         }
+
+        if (mApplyIlloColors) {
+            LottieColorUtils.applyIlloColors(getContext(), illustrationView);
+        }
+
         if (SettingsThemeHelper.isExpressiveTheme(getContext())) {
             LottieColorUtils.applyMaterialColor(getContext(), illustrationView);
         }
@@ -354,10 +360,25 @@ public class IllustrationPreference extends Preference implements GroupSectionDi
     }
 
     /**
+     * Sets the lottie illustration apply illo color.
+     */
+    public void applyIlloColors() {
+        mApplyIlloColors = true;
+        notifyChanged();
+    }
+
+    /**
      * Return if the lottie illustration apply dynamic color or not.
      */
     public boolean isApplyDynamicColor() {
         return mLottieDynamicColor;
+    }
+
+    /**
+     * Return if the lottie illustration apply illo color or not.
+     */
+    public boolean isApplyIlloColors() {
+        return mApplyIlloColors;
     }
 
     private void resetImageResourceCache() {

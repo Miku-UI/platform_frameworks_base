@@ -1,16 +1,5 @@
 {
   "presubmit": [
-    // Non-ravenwood host side tests.
-    { "name": "tiny-framework-dump-test" },
-    { "name": "hoststubgentest" },
-    { "name": "ravenhelpertest" },
-    { "name": "hoststubgen-test-tiny-test" },
-    { "name": "hoststubgen-invoke-test" },
-
-    // This test fails with mysterious errors on the server side. Commenting out for now.
-    // TODO(b/438195035) Un-comment it
-    // { "name": "ravenwood-scripts-sh-golden-test" },
-
     // Device side tests for the bivalent tests.
     { "name": "RavenwoodMockitoTest_device" },
     { "name": "RavenwoodBivalentTest_device" },
@@ -55,6 +44,7 @@
       ]
     }
   ],
+  // LINT.IfChange
   "ravenwood-presubmit": [
 // TODO(b/440069724) these tests didn't get to run on presubmit somehow
 //    {
@@ -80,11 +70,11 @@
       "host": true
     },
     {
-      "name": "AdServicesSharedLibrariesUnitTestsRavenwood",
+      "name": "android.test.mock.ravenwood.tests",
       "host": true
     },
     {
-      "name": "android.test.mock.ravenwood.tests",
+      "name": "AudioServiceTestsRavenwood",
       "host": true
     },
     {
@@ -181,7 +171,15 @@
       "host": true
     },
     {
+      "name": "FrameworksVibratorCoreTestsRavenwood",
+      "host": true
+    },
+    {
       "name": "InternalTestsRavenwood",
+      "host": true
+    },
+    {
+      "name": "LibnativehelperInternalTestCasesRavenwood",
       "host": true
     },
     {
@@ -238,6 +236,10 @@
     }
     // AUTO-GENERATED-END
   ],
+  // When adding high-priority tests here, consider adding it to the following file,
+  // which is included by frameworks/base/TEST_MAPPING.
+  // (But do not add low-priority tests.)
+  // LINT.ThenChange(/ravenwood-framework-test-mapping/TEST_MAPPING)
   "ravenwood-postsubmit": [
     // We haven't maintained SystemUiRavenTests, and as a result, it's been demoted already.
     // Disable it until we fix the issues: b/319647875
@@ -245,5 +247,27 @@
     //   "name": "SystemUiRavenTests",
     //   "host": true
     // }
+  ],
+
+  // "ravenwood-presubmit-nonblocking" runs in presubmit, but is non-blocking.
+  //
+  // We hardcode "RavenwoodUiTest_exp" to always run it with exp-APIs enabled.
+  // We want to run it in presubmit as a quick check on startActivitySync(),
+  // but we still do not want to depend on exp-APIs in blocking presubmit, so
+  // so we use "-nonblocking" instead of "ravenwood-presubmit".
+  //
+  // We also run "RavenwoodUiTest_noexp" in the same suite too (even though
+  // we run it in "ravenwood-presubmit"), which allows us to quickly
+  // ensure when "RavenwoodUiTest_exp" is broken, it's because the exp-APIs
+  // are broken, or something else.
+  "ravenwood-presubmit-nonblocking": [
+    {
+      "name": "RavenwoodUiTest_exp",
+      "host": true
+    },
+    {
+      "name": "RavenwoodUiTest_noexp",
+      "host": true
+    }
   ]
 }

@@ -18,6 +18,7 @@ package com.android.server.policy;
 
 import android.annotation.Nullable;
 import android.os.SystemClock;
+import android.view.KeyEvent;
 
 import com.android.internal.annotations.Keep;
 import com.android.server.LocalServices;
@@ -39,16 +40,21 @@ public interface WindowWakeUpPolicyInternal {
         /**
          * Wakes up the device in response to a key event.
          *
+         * @param displayId the ID of the display associated with the input that caused the wake.
          * @param eventTime the timestamp of the event in {@link SystemClock#uptimeMillis()}.
          * @param keyCode the {@link android.view.KeyEvent} key code of the key event.
          * @param isDown {@code true} if the event's action is {@link KeyEvent#ACTION_DOWN}.
+         * @param keyEventFlags flags associated with the event (see {@link KeyEvent#getFlags()}).
          * @return {@code true} if the delegate handled the wake up. {@code false} if the delegate
          *      decided not to handle the wake up. The policy will execute the wake up in this case.
          */
-        boolean wakeUpFromKey(long eventTime, int keyCode, boolean isDown);
+        boolean wakeUpFromKey(
+                int displayId, long eventTime, int keyCode, boolean isDown, int keyEventFlags);
+
         /**
          * Wakes up the device in response to a motion event.
          *
+         * @param displayId the ID of the display associated with the input that caused the wake.
          * @param eventTime the timestamp of the event in {@link SystemClock#uptimeMillis()}.
          * @param source the {@link android.view.InputDevice} source that caused the event.
          * @param isDown {@code true} if the event's action is {@link MotionEvent#ACTION_DOWN}.
@@ -59,7 +65,8 @@ public interface WindowWakeUpPolicyInternal {
          *      decided not to handle the wake up. The policy will execute the wake up in this case.
          */
         boolean wakeUpFromMotion(
-                long eventTime, int source, boolean isDown, boolean deviceGoingToSleep);
+                int displayId, long eventTime, int source, boolean isDown,
+                boolean deviceGoingToSleep);
     }
 
     /**

@@ -22,6 +22,7 @@ import com.android.systemui.kairos.util.Maybe
 import com.android.systemui.kairos.util.NameData
 import com.android.systemui.kairos.util.appendNames
 import com.android.systemui.kairos.util.map
+import com.android.systemui.kairos.util.orElseGet
 import com.android.systemui.kairos.util.plus
 import com.android.systemui.kairos.util.toMaybe
 
@@ -64,20 +65,19 @@ private fun <K, V> Map<K, V>.applyPatchCalm(
     val filteredPatch = mutableMapOf<K, Maybe<V>>()
     val new = current.toMutableMap()
     patch.forEach { key, change ->
-        when (change) {
-            is Maybe.Present -> {
-                if (key !in current || current.getValue(key) != change.value) {
+        change
+            .map { value ->
+                if (key !in current || current.getValue(key) != value) {
                     filteredPatch[key] = change
-                    new[key] = change.value
+                    new[key] = value
                 }
             }
-            Maybe.Absent -> {
+            .orElseGet {
                 if (key in current) {
                     filteredPatch[key] = change
                     new.remove(key)
                 }
             }
-        }
     }
     return if (filteredPatch.isNotEmpty()) filteredPatch to new else null
 }

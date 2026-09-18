@@ -20,15 +20,12 @@ import android.telephony.CellSignalStrength.SIGNAL_STRENGTH_NONE_OR_UNKNOWN
 import android.telephony.SubscriptionManager.INVALID_SUBSCRIPTION_ID
 import android.telephony.TelephonyManager
 import android.util.Log
-import com.android.systemui.KairosBuilder
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.combine
 import com.android.systemui.kairos.map
 import com.android.systemui.kairos.stateOf
 import com.android.systemui.kairos.util.nameTag
-import com.android.systemui.kairosBuilder
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionState
 import com.android.systemui.statusbar.pipeline.mobile.data.model.NetworkNameModel
@@ -41,6 +38,8 @@ import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConn
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.WifiRepository
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel
+import com.android.systemui.util.lifecycle.kairos.KairosBuilder
+import com.android.systemui.util.lifecycle.kairos.kairosBuilder
 import javax.inject.Inject
 
 /**
@@ -53,7 +52,6 @@ import javax.inject.Inject
  * See [MobileConnectionRepositoryImpl] for a repository implementation of a typical mobile
  * connection.
  */
-@ExperimentalKairosApi
 class CarrierMergedConnectionRepositoryKairos(
     override val subId: Int,
     override val tableLogBuffer: TableLogBuffer,

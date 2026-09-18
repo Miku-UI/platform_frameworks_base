@@ -201,11 +201,7 @@ constructor(
 
     override fun shouldShowAodIconsWhenShade(): Boolean = shouldPlayAnimation()
 
-    override fun shouldAnimateAodIcons(): Boolean = !shouldPlayAnimation()
-
     override fun shouldAnimateDozingChange(): Boolean = !shouldPlayAnimation()
-
-    override fun shouldAnimateClockChange(): Boolean = !isAnimationPlaying()
 
     override fun shouldDelayDisplayDozeTransition(): Boolean = shouldPlayAnimation()
 

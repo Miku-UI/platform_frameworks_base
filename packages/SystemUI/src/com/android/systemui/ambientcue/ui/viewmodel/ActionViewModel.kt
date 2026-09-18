@@ -27,6 +27,7 @@ data class ActionViewModel(
     val actionType: ActionType,
     val oneTapEnabled: Boolean = false,
     val oneTapDelayMs: Long = 0L,
+    val dismissalGroupId: String? = null,
 )
 
 enum class ActionType {

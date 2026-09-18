@@ -22,27 +22,20 @@ import android.content.Context
 import android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR_SUB_PANEL
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.internal.jank.InteractionJankMonitor
-import com.android.internal.logging.UiEventLogger
 import com.android.settingslib.users.UserCreatingDialog
 import com.android.systemui.CoreStartable
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
-import com.android.systemui.broadcast.BroadcastSender
-import com.android.systemui.classifier.FalsingCollector
+import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.display.data.repository.DisplayWindowPropertiesRepository
-import com.android.systemui.plugins.ActivityStarter
-import com.android.systemui.plugins.FalsingManager
-import com.android.systemui.qs.tiles.UserDetailView
 import com.android.systemui.shade.domain.interactor.ShadeDialogContextInteractor
-import com.android.systemui.user.UserSwitchFullscreenDialog
+import com.android.systemui.user.UserSwitcherFullscreenDialogDelegate
 import com.android.systemui.user.domain.interactor.UserSwitcherInteractor
 import com.android.systemui.user.domain.model.ShowDialogRequestModel
-import com.android.systemui.user.ui.viewmodel.UserSwitcherViewModel
 import dagger.Lazy
 import javax.inject.Inject
-import javax.inject.Provider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.filterNotNull
 
@@ -52,17 +45,15 @@ class UserSwitcherDialogCoordinator
 @Inject
 constructor(
     @Application private val applicationScope: Lazy<CoroutineScope>,
-    private val falsingManager: Lazy<FalsingManager>,
-    private val broadcastSender: Lazy<BroadcastSender>,
     private val dialogTransitionAnimator: Lazy<DialogTransitionAnimator>,
     private val interactor: Lazy<UserSwitcherInteractor>,
-    private val userDetailAdapterProvider: Provider<UserDetailView.Adapter>,
-    private val eventLogger: Lazy<UiEventLogger>,
-    private val activityStarter: Lazy<ActivityStarter>,
-    private val falsingCollector: Lazy<FalsingCollector>,
-    private val userSwitcherViewModel: Lazy<UserSwitcherViewModel>,
     private val shadeDialogContextInteractor: Lazy<ShadeDialogContextInteractor>,
     private val displayPropertiesRepository: Lazy<DisplayWindowPropertiesRepository>,
+    private val addUserDialogDelegateFactory: AddUserDialogDelegate.Factory,
+    private val exitGuestDialogDelegateFactory: ExitGuestDialogDelegate.Factory,
+    private val userSwitchDialogDelegateFactory: UserSwitchDialogDelegate.Factory,
+    private val userSwitcherFullscreenDialogDelegateFactory:
+        UserSwitcherFullscreenDialogDelegate.Factory,
 ) : CoreStartable {
 
     private var currentDialog: Dialog? = null
@@ -86,15 +77,13 @@ constructor(
                     when (request) {
                         is ShowDialogRequestModel.ShowAddUserDialog ->
                             Pair(
-                                AddUserDialog(
-                                    context = context,
-                                    userHandle = request.userHandle,
-                                    isKeyguardShowing = request.isKeyguardShowing,
-                                    showEphemeralMessage = request.showEphemeralMessage,
-                                    falsingManager = falsingManager.get(),
-                                    broadcastSender = broadcastSender.get(),
-                                    dialogTransitionAnimator = dialogTransitionAnimator.get(),
-                                ),
+                                addUserDialogDelegateFactory
+                                    .create(
+                                        request.userHandle,
+                                        request.isKeyguardShowing,
+                                        request.showEphemeralMessage,
+                                    )
+                                    .createDialog(),
                                 DialogCuj(
                                     InteractionJankMonitor.CUJ_USER_DIALOG_OPEN,
                                     INTERACTION_JANK_ADD_NEW_USER_TAG,
@@ -104,16 +93,16 @@ constructor(
                             Pair(UserCreatingDialog(context, request.isGuest), null)
                         is ShowDialogRequestModel.ShowExitGuestDialog ->
                             Pair(
-                                ExitGuestDialog(
-                                    context = context,
-                                    guestUserId = request.guestUserId,
-                                    isGuestEphemeral = request.isGuestEphemeral,
-                                    targetUserId = request.targetUserId,
-                                    isKeyguardShowing = request.isKeyguardShowing,
-                                    falsingManager = falsingManager.get(),
-                                    dialogTransitionAnimator = dialogTransitionAnimator.get(),
-                                    onExitGuestUserListener = request.onExitGuestUser,
-                                ),
+                                exitGuestDialogDelegateFactory
+                                    .create(
+                                        context,
+                                        request.guestUserId,
+                                        request.isGuestEphemeral,
+                                        request.targetUserId,
+                                        request.isKeyguardShowing,
+                                        request.onExitGuestUser,
+                                    )
+                                    .createDialog(),
                                 DialogCuj(
                                     InteractionJankMonitor.CUJ_USER_DIALOG_OPEN,
                                     INTERACTION_JANK_EXIT_GUEST_MODE_TAG,
@@ -121,14 +110,7 @@ constructor(
                             )
                         is ShowDialogRequestModel.ShowUserSwitcherDialog ->
                             Pair(
-                                UserSwitchDialog(
-                                    context = context,
-                                    adapter = userDetailAdapterProvider.get(),
-                                    uiEventLogger = eventLogger.get(),
-                                    falsingManager = falsingManager.get(),
-                                    activityStarter = activityStarter.get(),
-                                    dialogTransitionAnimator = dialogTransitionAnimator.get(),
-                                ),
+                                userSwitchDialogDelegateFactory.create(context).createDialog(),
                                 DialogCuj(
                                     InteractionJankMonitor.CUJ_USER_DIALOG_OPEN,
                                     INTERACTION_JANK_EXIT_GUEST_MODE_TAG,
@@ -136,11 +118,9 @@ constructor(
                             )
                         is ShowDialogRequestModel.ShowUserSwitcherFullscreenDialog ->
                             Pair(
-                                UserSwitchFullscreenDialog(
-                                    context = context,
-                                    falsingCollector = falsingCollector.get(),
-                                    userSwitcherViewModel = userSwitcherViewModel.get(),
-                                ),
+                                userSwitcherFullscreenDialogDelegateFactory
+                                    .create(context)
+                                    .createDialog(),
                                 null, /* dialogCuj */
                             )
                     }
@@ -148,7 +128,17 @@ constructor(
 
                 val controller = request.expandable?.dialogTransitionController(dialogCuj)
                 if (controller != null) {
-                    dialogTransitionAnimator.get().show(dialog, controller)
+                    if (TransitionAnimator.dynamicTargetResolutionEnabled()) {
+                        dialogTransitionAnimator
+                            .get()
+                            .show(
+                                dialog,
+                                request.expandable!!::dialogTransitionController,
+                                controller.cuj,
+                            )
+                    } else {
+                        dialogTransitionAnimator.get().show(dialog, controller)
+                    }
                 } else if (request.dialogShower != null && dialogCuj != null) {
                     request.dialogShower?.showDialog(dialog, dialogCuj)
                 } else {

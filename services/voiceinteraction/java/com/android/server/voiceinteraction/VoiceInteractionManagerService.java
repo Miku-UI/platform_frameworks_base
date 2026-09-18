@@ -17,24 +17,36 @@
 package com.android.server.voiceinteraction;
 
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.voiceinteraction.VoiceInteractionManager.READ_SCREEN_CONTEXT_REQUEST_STATE_GRANTED;
+import static android.app.voiceinteraction.VoiceInteractionManager.READ_SCREEN_CONTEXT_REQUEST_STATE_REQUESTABLE;
+import static android.app.voiceinteraction.VoiceInteractionManager.READ_SCREEN_CONTEXT_REQUEST_STATE_UNREQUESTABLE;
 import static android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK;
 import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 import static android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION;
 import static android.content.Intent.FLAG_ACTIVITY_NO_USER_ACTION;
 
+import static com.android.server.pm.UserManagerInternal.USER_FILTER_WITH_ALL_COMPLETE_USERS;
+import static com.android.server.voiceinteraction.flags.Flags.disableStartingContextualSearchViaVims;
+
 import android.Manifest;
 import android.annotation.CallbackExecutor;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.PermissionManuallyEnforced;
 import android.annotation.RequiresPermission;
 import android.annotation.UserIdInt;
 import android.app.ActivityManager;
 import android.app.ActivityManagerInternal;
 import android.app.ActivityOptions;
 import android.app.AppGlobals;
+import android.app.AppOpsManager;
 import android.app.admin.DevicePolicyManagerInternal;
 import android.app.role.OnRoleHoldersChangedListener;
 import android.app.role.RoleManager;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.Disabled;
+import android.compat.annotation.EnabledSince;
+import android.compat.annotation.NoLogging;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -62,6 +74,8 @@ import android.media.AudioFormat;
 import android.media.permission.Identity;
 import android.media.permission.PermissionUtil;
 import android.media.permission.SafeCloseable;
+import android.media.projection.IMediaProjectionManager;
+import android.media.projection.MediaProjectionInfo;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
@@ -73,8 +87,10 @@ import android.os.RemoteCallback;
 import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
+import android.os.ServiceManager;
 import android.os.SharedMemory;
 import android.os.ShellCallback;
+import android.os.SystemClock;
 import android.os.Trace;
 import android.os.UserHandle;
 import android.provider.Settings;
@@ -85,12 +101,12 @@ import android.service.voice.VoiceInteractionManagerInternal;
 import android.service.voice.VoiceInteractionService;
 import android.service.voice.VoiceInteractionServiceInfo;
 import android.service.voice.VoiceInteractionSession;
+import android.service.voice.flags.Flags;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
 import android.util.Slog;
-import android.window.DesktopExperienceFlags;
 import android.window.ScreenCaptureInternal;
 
 import com.android.internal.R;
@@ -105,6 +121,7 @@ import com.android.internal.app.IVoiceInteractionSessionListener;
 import com.android.internal.app.IVoiceInteractionSessionShowCallback;
 import com.android.internal.app.IVoiceInteractionSoundTriggerSession;
 import com.android.internal.app.IVoiceInteractor;
+import com.android.internal.compat.IPlatformCompat;
 import com.android.internal.content.PackageMonitor;
 import com.android.internal.os.BackgroundThread;
 import com.android.internal.util.DumpUtils;
@@ -152,9 +169,46 @@ public class VoiceInteractionManagerService extends SystemService {
     private static final String CS_INTENT_FILTER =
             "com.android.contextualsearch.LAUNCH";
 
+    /**
+     * To enhance user privacy and improve platform performance, this changes how assistant
+     * applications access screen content. Previously, AssistStructure data, which includes the view
+     * hierarchy of the screen, was provided to VoiceInteractionService implementations by default.
+     * To reduce latency and avoid unnecessary data collection, this behavior is changing. For
+     * applications targeting the {@link android.os.Build.VERSION_CODES.CINNAMON_BUN}, this data
+     * will no longer be provided implicitly. To receive screen content in the AssistStructure,
+     * developers must now declare their intent by setting the usesAssistStructureScreenContent
+     * attribute to true in their voice interaction service's manifest file. Additionally, they must
+     * request the new {@link READ_ASSIST_STRUCTURE_SCREEN_CONTENT} permission and use the {@link
+     * SHOW_WITH_ASSIST_STRUCTURE_SCREEN_CONTENT} flag in their {@link showSession} calls to receive
+     * the data. These changes ensure that screen content is only collected and delivered when
+     * explicitly requested by an assistant that has declared its intent to use it.
+     */
+    @ChangeId
+    @EnabledSince(targetSdkVersion = android.os.Build.VERSION_CODES.CINNAMON_BUN)
+    static final long ENABLE_RESTRICT_ASSIST_STRUCTURE = 437416500L;
+
+    /**
+     * Change ID to allow the Voice Interaction Service to bypass the background self-trigger
+     * restriction. This is intended solely for CTS tests to validate legacy behavior or specific
+     * test cases that require programmatic session triggering from the background.
+     */
+    @ChangeId
+    @Disabled
+    @NoLogging
+    static final long BYPASS_SELF_TRIGGER_ASSIST_RESTRICTION = 454889405L;
+
+    /**
+     * Length of time in milliseconds where the current VIS service can trigger a new session in
+     * response to a Hotword detection event.
+     *
+     * This corresponds to Android compatibility definition document [9.8/H-1-5] around VIS audio
+     * interactions.
+     */
+    static final long HOTWORD_TRIGGER_WINDOW_MILLIS = 30_000L;
 
     final Context mContext;
     final ContentResolver mResolver;
+    final IPlatformCompat mPlatformCompat;
     // Can be overridden for testing purposes
     private IEnrolledModelDb mDbHelper;
     private final IEnrolledModelDb mRealDbHelper;
@@ -168,6 +222,8 @@ public class VoiceInteractionManagerService extends SystemService {
     ShortcutServiceInternal mShortcutServiceInternal;
     SoundTriggerInternal mSoundTriggerInternal;
 
+    private final Object mAssistSettingsLock = new Object();
+
     private final RemoteCallbackList<IVoiceInteractionSessionListener>
             mVoiceInteractionSessionListeners = new RemoteCallbackList<>();
     private IVisualQueryRecognitionStatusListener mVisualQueryRecognitionStatusListener;
@@ -176,8 +232,11 @@ public class VoiceInteractionManagerService extends SystemService {
         super(context);
         mContext = context;
         mResolver = context.getContentResolver();
-        mUserManagerInternal = Objects.requireNonNull(
-                LocalServices.getService(UserManagerInternal.class));
+        mPlatformCompat =
+                IPlatformCompat.Stub.asInterface(
+                        ServiceManager.getService(Context.PLATFORM_COMPAT_SERVICE));
+        mUserManagerInternal =
+                Objects.requireNonNull(LocalServices.getService(UserManagerInternal.class));
         mDbHelper = mRealDbHelper = new DatabaseHelper(context);
         mServiceStub = new VoiceInteractionManagerServiceStub();
         mAmInternal = Objects.requireNonNull(
@@ -225,6 +284,8 @@ public class VoiceInteractionManagerService extends SystemService {
             mShortcutServiceInternal = Objects.requireNonNull(
                     LocalServices.getService(ShortcutServiceInternal.class));
             mSoundTriggerInternal = LocalServices.getService(SoundTriggerInternal.class);
+        } else if (phase == PHASE_ACTIVITY_MANAGER_READY) {
+            mServiceStub.activityManagerReady();
         } else if (phase == PHASE_THIRD_PARTY_APPS_CAN_START) {
             mServiceStub.systemRunning(isSafeMode());
         } else if (phase == PHASE_BOOT_COMPLETED) {
@@ -261,6 +322,94 @@ public class VoiceInteractionManagerService extends SystemService {
         if (DEBUG_USER) Slog.d(TAG, "onSwitchUser(" + from + " > " + to + ")");
 
         mServiceStub.switchUser(to.getUserIdentifier());
+    }
+
+    private void performAssistStructureUpgradeIfNeeded() {
+        if (!android.permission.flags.Flags.assistSettingsPrivacyImprovementsEnabled()) {
+            return;
+        }
+        synchronized (mAssistSettingsLock) {
+            final VoiceInteractionManagerSettings settings =
+                    VoiceInteractionManagerSettings.getInstance();
+            final PackageManager packageManager = mContext.getPackageManager();
+            if (DEBUG) {
+                Slog.i(TAG, "performAssistStructureUpgradeIfNeeded isDeviceUpgrading:"
+                        + packageManager.isDeviceUpgrading() + ", isAssistMigrationComplete:"
+                        + settings.isAssistMigrationComplete());
+            }
+            if (settings.isAssistMigrationComplete()) {
+                return;
+            } else if (!packageManager.isDeviceUpgrading()) {
+                settings.setAssistMigrationComplete();
+                // Now that the migration is complete, re-run the observer logic.
+                mServiceStub.updateAssistStructureSecureSettingsForAllUsers();
+                return;
+            }
+
+            List<UserInfo> users =
+                    mUserManagerInternal.getUsers(USER_FILTER_WITH_ALL_COMPLETE_USERS);
+            for (UserInfo user : users) {
+                final int userId = user.id;
+
+                if (DEBUG) {
+                    Slog.i(TAG, "Performing assist structure upgrade for user " + userId);
+                }
+
+                final RoleManager roleManager = mContext.getSystemService(RoleManager.class);
+                final List<String> holders =
+                        roleManager.getRoleHoldersAsUser(RoleManager.ROLE_ASSISTANT,
+                                UserHandle.of(userId));
+                if (holders.isEmpty()) {
+                    continue;
+                }
+
+                // New default mode is MODE_IGNORED. For migration of this setting we set:
+                // MODE_ALLOWED only if both settings are explicitly enabled (1), MODE_IGNORED
+                // if either setting is explicitly disabled (0), and MODE_DEFAULT otherwise
+                final ContentResolver contentResolver = mContext.getContentResolver();
+                final int isAssistStructureEnabled = Settings.Secure.getIntForUser(
+                        contentResolver, Settings.Secure.ASSIST_STRUCTURE_ENABLED, -1, userId);
+                final int isAssistScreenshotEnabled = Settings.Secure.getIntForUser(
+                        contentResolver, Settings.Secure.ASSIST_SCREENSHOT_ENABLED, -1, userId);
+                int assistStructureMode;
+                if (isAssistStructureEnabled == 1 && isAssistScreenshotEnabled == 1) {
+                    assistStructureMode = AppOpsManager.MODE_ALLOWED;
+                } else if (isAssistStructureEnabled == 0 || isAssistScreenshotEnabled == 0) {
+                    assistStructureMode = AppOpsManager.MODE_IGNORED;
+                } else {
+                    assistStructureMode = AppOpsManager.MODE_DEFAULT;
+                }
+
+                if (DEBUG) {
+                    Slog.i(TAG, "Attempting to migrate ASSIST_STRUCTURE_ENABLED and "
+                            + "ASSIST_SCREENSHOT_ENABLED to appop. "
+                            + isAssistStructureEnabled + " & "
+                            + isAssistScreenshotEnabled + " -> " + assistStructureMode);
+                }
+                final String assistantPackage = holders.get(0);
+                try {
+                    final int assistantUid = packageManager.getPackageUidAsUser(assistantPackage,
+                            userId);
+                    final AppOpsManager appOpsManager = mContext.getSystemService(
+                            AppOpsManager.class);
+                    appOpsManager.setUidMode(AppOpsManager.OPSTR_READ_SCREEN_CONTEXT,
+                            assistantUid, assistStructureMode);
+                    if (DEBUG) {
+                        Slog.i(TAG, "Set OPSTR_READ_SCREEN_CONTEXT to "
+                                + assistStructureMode + " for assistant " + assistantPackage);
+                    }
+                } catch (PackageManager.NameNotFoundException e) {
+                    Slog.e(TAG, "Assistant package not found: " + assistantPackage, e);
+                }
+            }
+            settings.setAssistMigrationComplete();
+            if (DEBUG) {
+                Slog.i(TAG, "Marked assist structure upgrade as complete for all users");
+            }
+
+            // Now that the migration is complete, re-run the observer logic.
+            mServiceStub.updateAssistStructureSecureSettingsForAllUsers();
+        }
     }
 
     class LocalService extends VoiceInteractionManagerInternal {
@@ -418,6 +567,13 @@ public class VoiceInteractionManagerService extends SystemService {
         /** The start value of showSessionId */
         private static final int SHOW_SESSION_START_ID = 0;
 
+        /**
+         * Maximum user denied read screen context access requests an app can make before
+         * {@link #getReadScreenContextRequestState} returns
+         * {@link android.app.voiceinteraction.VoiceInteractionManager#READ_SCREEN_CONTEXT_REQUEST_STATE_UNREQUESTABLE}.
+         */
+        private static final int MAX_READ_SCREEN_CONTENT_REQUEST_DENIALS = 10;
+
         private final boolean IS_HDS_REQUIRED = AppOpsPolicy.isHotwordDetectionServiceRequired(
                 mContext.getPackageManager());
 
@@ -431,18 +587,10 @@ public class VoiceInteractionManagerService extends SystemService {
 
         VoiceInteractionManagerServiceStub() {
             mEnableService = shouldEnableService(mContext);
-
-            // If this flag is enabled, initialize in SystemServerInitThreadPool. This is intended
-            // to avoid blocking system_server start on loading resources.
-            if (android.server.Flags.voiceinteractionmanagerserviceGetResourcesInInitThread()) {
-                mRoleObserver = null;
-                mRoleObserverFuture = SystemServerInitThreadPool.submit(() -> {
-                    return new RoleObserver(mContext.getMainExecutor());
-                }, "RoleObserver");
-            } else {
-                mRoleObserver = new RoleObserver(mContext.getMainExecutor());
-                mRoleObserverFuture = null;
-            }
+            mRoleObserver = null;
+            mRoleObserverFuture = SystemServerInitThreadPool.submit(() -> {
+                return new RoleObserver(mContext.getMainExecutor());
+            }, "RoleObserver");
         }
 
         void handleUserStop(String packageName, int userHandle) {
@@ -747,6 +895,22 @@ public class VoiceInteractionManagerService extends SystemService {
             return TextUtils.isEmpty(interactorPackage) ? null : interactorPackage;
         }
 
+        public void activityManagerReady() {
+            Trace.traceBegin(Trace.TRACE_TAG_SYSTEM_SERVER,
+                    "VoiceInteractionManagerService#activityManagerReady");
+            try {
+                if (android.permission.flags.Flags.assistSettingsPrivacyImprovementsEnabled()) {
+                    // performAssistStructureUpgradeIfNeeded references
+                    // PackageManager#isDeviceUpgrading() which is only ready only after
+                    // PHASE_SYSTEM_SERVICES_READY phase completes
+                    performAssistStructureUpgradeIfNeeded();
+                    new ReadScreenContextAppOpObserver();
+                }
+            } finally {
+                Trace.traceEnd(Trace.TRACE_TAG_SYSTEM_SERVER);
+            }
+        }
+
         public void systemRunning(boolean safeMode) {
             mSafeMode = safeMode;
 
@@ -1049,13 +1213,214 @@ public class VoiceInteractionManagerService extends SystemService {
             synchronized (this) {
                 enforceIsCurrentVoiceInteractionService();
 
+                final int callingUid = Binder.getCallingUid();
                 final long caller = Binder.clearCallingIdentity();
+
+                int modifiedFlags = enforceSessionFlags(flags, callingUid);
                 try {
-                    mImpl.showSessionLocked(args, flags, attributionTag, null, null);
+                    mImpl.showSessionLocked(args, modifiedFlags, attributionTag, null, null);
                 } finally {
                     Binder.restoreCallingIdentity(caller);
                 }
             }
+        }
+
+        /**
+         * Enforces restrictions on session flags based on the active voice interaction service's
+         * manifest and the nature of the session trigger.
+         *
+         * <p>This method applies two main sets of restrictions:
+         *
+         * <ol>
+         *   <li><b>Manifest-based restrictions:</b> For services targeting {@link
+         *       android.os.Build.VERSION_CODES#CINNAMON_BUN} or higher (as determined by the {@link
+         *       #ENABLE_RESTRICT_ASSIST_STRUCTURE} compatibility change), this method removes flags
+         *       for features that the service has not explicitly declared in its manifest.
+         *       Specifically:
+         *       <ul>
+         *         <li>{@link VoiceInteractionSession#SHOW_WITH_ASSIST} is removed if {@code
+         *             usesAssistData} is not declared.
+         *         <li>{@link VoiceInteractionSession#SHOW_WITH_SCREENSHOT} is removed if {@code
+         *             usesAssistScreenshots} is not declared.
+         *         <li>{@link VoiceInteractionSession#SHOW_WITH_ASSIST_STRUCTURE_SCREEN_CONTENT} is
+         *             removed if {@code usesAssistStructureScreenContent} is not declared.
+         *       </ul>
+         *   <li><b>Self-trigger restrictions:</b> If the session is initiated by the voice
+         *       interaction service itself from the background without a valid user signal (as
+         *       determined by {@link #isSelfTriggerAllowed()}), all flags related to accessing
+         *       screen content ({@link VoiceInteractionSession#SHOW_WITH_ASSIST}, {@link
+         *       VoiceInteractionSession#SHOW_WITH_SCREENSHOT}, and {@link
+         *       VoiceInteractionSession#SHOW_WITH_ASSIST_STRUCTURE_SCREEN_CONTENT}) are removed.
+         *       This prevents the service from accessing sensitive data during a disallowed
+         *       background start.
+         * </ol>
+         *
+         * @param requestedFlags The original set of flags requested for the session.
+         * @param callingUid The UID of the triggering caller.
+         * @return The filtered set of flags, with any disallowed feature flags removed.
+         */
+        private int enforceSessionFlags(int requestedFlags, int callingUid) {
+
+            // Ensure both an active VIS service and service info object exist, or exit early.
+            if (mImpl == null || mImpl.mInfo == null) {
+                return requestedFlags;
+            }
+
+            int modifiedFlags = requestedFlags;
+
+            boolean shouldRestrictAssistStructure = false;
+            try {
+                shouldRestrictAssistStructure =
+                        mPlatformCompat.isChangeEnabled(
+                                ENABLE_RESTRICT_ASSIST_STRUCTURE, mImpl.getApplicationInfo());
+            } catch (RemoteException e) {
+                Slog.w(TAG, "RemoteException while calling isChangeEnabled", e);
+            }
+
+            if (shouldRestrictAssistStructure) {
+
+                if (!mImpl.mInfo.getUsesAssistData()) {
+                    modifiedFlags &= ~VoiceInteractionSession.SHOW_WITH_ASSIST;
+                }
+
+                if (!mImpl.mInfo.getUsesAssistScreenshots()) {
+                    modifiedFlags &= ~VoiceInteractionSession.SHOW_WITH_SCREENSHOT;
+                }
+
+                if (!mImpl.mInfo.getUsesAssistStructureScreenContent()) {
+                    modifiedFlags &=
+                            ~VoiceInteractionSession.SHOW_WITH_ASSIST_STRUCTURE_SCREEN_CONTENT;
+                }
+            }
+
+            // If this is a self trigger which is not deemed allowed, then strip all assist data
+            // flags to prevent the VIS service from acquiring any assist data for this restricted
+            // session.
+            if (com.android.server.voiceinteraction.flags.Flags.enableRestrictVisSelfTrigger()
+                    && !isSelfTriggerAllowed(callingUid)) {
+                modifiedFlags &= ~VoiceInteractionSession.SHOW_WITH_ASSIST;
+                modifiedFlags &= ~VoiceInteractionSession.SHOW_WITH_SCREENSHOT;
+                modifiedFlags &= ~VoiceInteractionSession.SHOW_WITH_ASSIST_STRUCTURE_SCREEN_CONTENT;
+            }
+
+            return modifiedFlags;
+        }
+
+        /**
+         * Determines if a voice interaction service is allowed to trigger a new session on its own
+         * behalf.
+         *
+         * <p>A self-trigger is permitted under two conditions:
+         *
+         * <ol>
+         *   <li>There has been a recent hotword detection event within a specific time window
+         *       ({@link #HOTWORD_TRIGGER_WINDOW}).
+         *   <li>The voice interaction service's application is already in the foreground.
+         *   <li>The voice interaction service is currently associated with a media projection
+         *       session.
+         * </ol>
+         *
+         * <p>This check prevents the service from starting sessions and potentially accessing
+         * screen content from the background without a recent, explicit user signal.
+         *
+         * @param callingUid The UID of the triggering caller.
+         * @return {@code true} if the self-trigger is allowed, {@code false} otherwise.
+         */
+        @RequiresPermission(allOf = {
+                Manifest.permission.LOG_COMPAT_CHANGE,
+                Manifest.permission.READ_COMPAT_CHANGE_CONFIG
+        })
+        private boolean isSelfTriggerAllowed(int callingUid) {
+
+            if (mImpl == null) {
+                // No current impl is started, so the session cannot be started anyway.
+                return false;
+            }
+
+            int visUid = -1;
+            if (mImpl.mInfo != null) {
+                visUid = mImpl.mInfo.getServiceInfo().getUid();
+            }
+
+            final boolean isCallerCurrentVoiceInteractionService =
+                    visUid != -1 && visUid == callingUid;
+
+            if (!isCallerCurrentVoiceInteractionService) {
+                Slog.d(TAG, "Self-trigger check: not from VIS");
+                // Current caller is not the VIS, so this is not considered a self-trigger.
+                return true;
+            }
+
+            // Allow self-triggering if the caller has enabled the bypass compat change.
+            // This allows CTS tests to proceed by enabling this change for the test app / helper.
+            if (mImpl.mInfo != null) {
+                try {
+                    if (mPlatformCompat.isChangeEnabled(BYPASS_SELF_TRIGGER_ASSIST_RESTRICTION,
+                            mImpl.getApplicationInfo())) {
+                        Slog.d(TAG, "Self-trigger check: bypass enabled for "
+                                + mImpl.mInfo.getServiceInfo().packageName);
+                        return true;
+                    }
+                } catch (RemoteException e) {
+                    Slog.w(TAG, "RemoteException while calling isChangeEnabled", e);
+                }
+            }
+
+            // Condition 1: There has been a hotword trigger inside the allowable window.
+            final long now = SystemClock.uptimeMillis();
+            final boolean recentHotword =
+                    now - mImpl.getLastHotwordDetectedMillis() <= HOTWORD_TRIGGER_WINDOW_MILLIS;
+            Slog.d(TAG, "Now: " + now + " last: " + mImpl.getLastHotwordDetectedMillis());
+
+            if (recentHotword) {
+                Slog.d(TAG, "Self-trigger check: VIS triggering from recent hotword");
+                return true;
+            }
+
+            // Condition 2: VIS application is already in the foreground
+            boolean isVisForeground =
+                    LocalServices.getService(ActivityTaskManagerInternal.class)
+                            .isUidForeground(callingUid);
+
+            if (isVisForeground) {
+                Slog.d(TAG, "Self-trigger check: VIS triggering from foreground");
+                return true;
+            }
+
+            // Condition 3: VIS is running an active MediaProjection session
+            if (isActiveMediaProjection(mImpl.mInfo.getServiceInfo().packageName, callingUid)) {
+                Slog.d(TAG, "Self-trigger check: VIS triggering from active MediaProjection");
+                return true;
+            }
+
+            // Neither condition has been met, this trigger should be disallowed.
+            Slog.d(TAG, "Self-trigger check: VIS self trigger not allowed.");
+            return false;
+        }
+
+        /**
+         * Checks if there is an active Media Projection session running, and if the
+         * package associated with the session is the provided package / uid.
+         */
+        private boolean isActiveMediaProjection(String packageName, int uid) {
+            final long token = Binder.clearCallingIdentity();
+            try {
+                IMediaProjectionManager mediaProjectionManager =
+                        IMediaProjectionManager.Stub.asInterface(
+                                ServiceManager.getService(Context.MEDIA_PROJECTION_SERVICE));
+                MediaProjectionInfo projectionInfo =
+                        mediaProjectionManager.getActiveProjectionInfo();
+                if (projectionInfo != null) {
+                    return Objects.equals(projectionInfo.getPackageName(), packageName)
+                            && projectionInfo.getUserHandle().getIdentifier()
+                            == UserHandle.getUserId(uid);
+                }
+            } catch (RemoteException | NullPointerException e) {
+                Slog.w(TAG, "Failed to get active media projection info", e);
+            } finally {
+                Binder.restoreCallingIdentity(token);
+            }
+            return false;
         }
 
         @Override
@@ -1085,7 +1450,8 @@ public class VoiceInteractionManagerService extends SystemService {
                         .getString(R.string.config_defaultContextualSearchEnabled);
 
                 // If the request is for Contextual Search, process it differently
-                if (sessionArgs != null && sessionArgs.containsKey(csKey)) {
+                if (!disableStartingContextualSearchViaVims()
+                    && sessionArgs != null && sessionArgs.containsKey(csKey)) {
                     if (sessionArgs.getBoolean(csEnabledKey, true)) {
                         // If Contextual Search is enabled, try to follow that path.
                         Intent launchIntent;
@@ -1149,9 +1515,13 @@ public class VoiceInteractionManagerService extends SystemService {
                 if (token == null) {
                     HotwordMetricsLogger.cancelHotwordTriggerToUiLatencySession(mContext);
                 }
+                final int callingUid = Binder.getCallingUid();
                 final long caller = Binder.clearCallingIdentity();
+
+                int modifiedFlags = enforceSessionFlags(flags, callingUid);
                 try {
-                    return mImpl.showSessionLocked(sessionArgs, flags, attributionTag, null, null);
+                    return mImpl.showSessionLocked(
+                            sessionArgs, modifiedFlags, attributionTag, null, null);
                 } finally {
                     Binder.restoreCallingIdentity(caller);
                 }
@@ -1189,7 +1559,7 @@ public class VoiceInteractionManagerService extends SystemService {
                     final ActivityInfo activityInfo = intent.resolveActivityInfo(
                             mContext.getPackageManager(), PackageManager.MATCH_ALL);
                     if (activityInfo != null) {
-                        final int activityUid = activityInfo.applicationInfo.uid;
+                        final int activityUid = activityInfo.getUid();
                         mImpl.grantImplicitAccessLocked(activityUid, intent);
                     } else {
                         Slog.w(TAG, "Cannot find ActivityInfo in startVoiceActivity.");
@@ -2051,7 +2421,68 @@ public class VoiceInteractionManagerService extends SystemService {
             }
         }
 
-        @android.annotation.EnforcePermission(android.Manifest.permission.ACCESS_VOICE_INTERACTION_SERVICE)
+        /**
+         * Returns the default session flags based on the active voice interaction service's
+         * manifest attributes and target SDK version.
+         *
+         * <p>For services targeting {@link android.os.Build.VERSION_CODES#CINNAMON_BUN} or higher,
+         * this method respects the {@code usesAssistData}, {@code usesAssistScreenshots}, and
+         * {@code usesAssistStructureScreenContent} attributes declared in the manifest. If these
+         * attributes are not declared, they default to {@code false}.
+         *
+         * <p>For services targeting older SDKs, it returns a default set of flags that includes
+         * {@link VoiceInteractionSession#SHOW_WITH_ASSIST}, {@link
+         * VoiceInteractionSession#SHOW_WITH_SCREENSHOT}, and {@link
+         * VoiceInteractionSession#SHOW_WITH_ASSIST_STRUCTURE_SCREEN_CONTENT}.
+         *
+         * <p>This behavior is controlled by the {@link Flags#enableAssistResourceAttributes()}
+         * feature flag.
+         *
+         * @return The default session flags for the active assistant.
+         */
+        private int getDefaultAssistantFlagsFromInfo() {
+            int sessionFlags = 0;
+
+            if (mImpl == null || mImpl.mInfo == null) {
+                return sessionFlags;
+            }
+
+            // Resource attributes are only respected beyond the CINNAMON_BUN sdk. If the current
+            // VIS service declares a target sdk >= CINNAMON_BUN then use the manifest attributes
+            // (or the defaults if they weren't declared).
+            boolean changeEnabled = false;
+            try {
+                changeEnabled =
+                        mPlatformCompat.isChangeEnabled(
+                                ENABLE_RESTRICT_ASSIST_STRUCTURE, mImpl.getApplicationInfo());
+            } catch (RemoteException e) {
+                Slog.w(TAG, "RemoteException while calling isChangeEnabled", e);
+            }
+            if (Flags.enableAssistResourceAttributes() && changeEnabled) {
+                if (mImpl.mInfo.getUsesAssistData()) {
+                    sessionFlags |= VoiceInteractionSession.SHOW_WITH_ASSIST;
+                }
+                if (mImpl.mInfo.getUsesAssistScreenshots()) {
+                    sessionFlags |= VoiceInteractionSession.SHOW_WITH_SCREENSHOT;
+                }
+                if (mImpl.mInfo.getUsesAssistStructureScreenContent()) {
+                    sessionFlags |=
+                            VoiceInteractionSession.SHOW_WITH_ASSIST_STRUCTURE_SCREEN_CONTENT;
+                }
+                // Otherwise, this is the pre CINNAMON_BUN implicit behavior where the platform
+                // provides these flags as defaults for sessions started via this entry-point.
+            } else {
+                sessionFlags |=
+                        VoiceInteractionSession.SHOW_WITH_ASSIST
+                                | VoiceInteractionSession.SHOW_WITH_SCREENSHOT
+                                | VoiceInteractionSession.SHOW_WITH_ASSIST_STRUCTURE_SCREEN_CONTENT;
+            }
+
+            return sessionFlags;
+        }
+
+        @android.annotation.EnforcePermission(
+                android.Manifest.permission.ACCESS_VOICE_INTERACTION_SERVICE)
         @Override
         public boolean showSessionForActiveService(@Nullable Bundle args, int sourceFlags,
                 @Nullable String attributionTag,
@@ -2059,7 +2490,7 @@ public class VoiceInteractionManagerService extends SystemService {
                 @Nullable IBinder activityToken) {
             super.showSessionForActiveService_enforcePermission();
 
-            if (DEBUG_USER) Slog.d(TAG, "showSessionForActiveService()");
+            Slog.d(TAG, "showSessionForActiveService()");
 
             synchronized (this) {
                 if (mImpl == null) {
@@ -2080,11 +2511,11 @@ public class VoiceInteractionManagerService extends SystemService {
                     // HAL event.
                     HotwordMetricsLogger.cancelHotwordTriggerToUiLatencySession(mContext);
 
-                    return mImpl.showSessionLocked(args,
-                            sourceFlags
-                                    | VoiceInteractionSession.SHOW_WITH_ASSIST
-                                    | VoiceInteractionSession.SHOW_WITH_SCREENSHOT,
-                            attributionTag, showCallback, activityToken);
+                    // Merge the sourceFlags and the declared flags from the assistants VIS manifest
+                    // before starting the session
+                    int flags = sourceFlags | getDefaultAssistantFlagsFromInfo();
+                    return mImpl.showSessionLocked(
+                            args, flags, attributionTag, showCallback, activityToken);
                 } finally {
                     Binder.restoreCallingIdentity(caller);
                 }
@@ -2319,6 +2750,187 @@ public class VoiceInteractionManagerService extends SystemService {
             }
         }
 
+        @Nullable
+        private String getAssistantRoleHolderForUser(int userId) {
+            final long identity = Binder.clearCallingIdentity();
+            try {
+                RoleManager roleManager = mContext.getSystemService(RoleManager.class);
+                List<String> roleHolders =
+                        roleManager.getRoleHoldersAsUser(RoleManager.ROLE_ASSISTANT,
+                                UserHandle.of(userId));
+                if (roleHolders.isEmpty()) {
+                    if (DEBUG) {
+                        Slog.i(TAG, "No role holder found.");
+                    }
+                    return null;
+                }
+                return roleHolders.get(0);
+            } finally {
+                Binder.restoreCallingIdentity(identity);
+            }
+        }
+
+        private boolean isAssistStructureEnabledInternal(int userId) {
+            String packageName = getAssistantRoleHolderForUser(userId);
+            if (packageName == null) {
+                if (DEBUG) {
+                    Slog.i(TAG, "Can not get assist structure enabled. No role holder found.");
+                }
+                return false;
+            }
+            int uid;
+            try {
+                uid = mContext.getPackageManager().getPackageUidAsUser(packageName, userId);
+            } catch (PackageManager.NameNotFoundException e) {
+                if (DEBUG) {
+                    Slog.e(TAG, "Can not get assist structure enabled. No role holder package"
+                            + " found.");
+                }
+                return false;
+            }
+            AppOpsManager appOpsManager = mContext.getSystemService(AppOpsManager.class);
+            int mode = appOpsManager.checkOpNoThrow(
+                    AppOpsManager.OPSTR_READ_SCREEN_CONTEXT, uid, packageName);
+            if (DEBUG) {
+                Slog.i(TAG, "isAssistStructureEnabledInternal: packageName:" + packageName
+                        + ", uid:" + uid + " -> " + mode);
+            }
+            return mode == AppOpsManager.MODE_ALLOWED || mode == AppOpsManager.MODE_DEFAULT;
+        }
+
+        private void updateAssistStructureSecureSettingsForUser(int userId) {
+            synchronized (mAssistSettingsLock) {
+                if (!VoiceInteractionManagerSettings.getInstance().isAssistMigrationComplete()) {
+                    if (DEBUG) {
+                        Slog.d(TAG, "updateAssistStructureSecureSettingsForUser "
+                                + "isAssistMigrationComplete false");
+                    }
+                    // Migration is not complete yet, so don't update the settings.
+                    return;
+                }
+
+                final long identity = Binder.clearCallingIdentity();
+                try {
+                    boolean enabled = isAssistStructureEnabledInternal(userId);
+
+                    if (DEBUG) {
+                        Slog.d(TAG, "updateAssistStructureSecureSettingsForUser userId:" + userId
+                                + ", enabled:" + enabled);
+                    }
+                    Settings.Secure.putIntForUser(mContext.getContentResolver(),
+                            Settings.Secure.ASSIST_STRUCTURE_ENABLED, enabled ? 1 : 0, userId);
+                    Settings.Secure.putIntForUser(mContext.getContentResolver(),
+                            Settings.Secure.ASSIST_SCREENSHOT_ENABLED, enabled ? 1 : 0, userId);
+                } finally {
+                    Binder.restoreCallingIdentity(identity);
+                }
+            }
+        }
+
+        private void updateAssistStructureSecureSettingsForAllUsers() {
+            for (UserInfo user : mUserManagerInternal.getUsers(
+                    USER_FILTER_WITH_ALL_COMPLETE_USERS)) {
+                updateAssistStructureSecureSettingsForUser(user.id);
+            }
+        }
+
+        private void enforceCrossUserPermission(int userId, @NonNull String message) {
+            if (userId != UserHandle.getUserId(Binder.getCallingUid())) {
+                mContext.enforceCallingOrSelfPermission(
+                        android.Manifest.permission.INTERACT_ACROSS_USERS_FULL, message);
+            }
+        }
+
+        @Override
+        @PermissionManuallyEnforced
+        public int getReadScreenContextRequestState(int uid) {
+            if (uid != Binder.getCallingUid()) {
+                mContext.enforceCallingOrSelfPermission(
+                        Manifest.permission.MANAGE_READ_SCREEN_CONTEXT_REQUEST,
+                        "Requires MANAGE_READ_SCREEN_CONTEXT_REQUEST if specified UID is different"
+                                + " from the calling UID.");
+            }
+            final int userId = UserHandle.getUserId(uid);
+            enforceCrossUserPermission(userId, "getReadScreenContextRequestState");
+
+            String roleHolder = getAssistantRoleHolderForUser(userId);
+            if (roleHolder == null) {
+                if (DEBUG) {
+                    Slog.i(TAG, "No role holder found for user " + userId);
+                }
+                return READ_SCREEN_CONTEXT_REQUEST_STATE_UNREQUESTABLE;
+            }
+            try {
+                int roleHolderUid =
+                        mContext.getPackageManager().getPackageUidAsUser(roleHolder, userId);
+                if (roleHolderUid != uid) {
+                    // Specified app/uid is not the current role holder
+                    return READ_SCREEN_CONTEXT_REQUEST_STATE_UNREQUESTABLE;
+                }
+            } catch (PackageManager.NameNotFoundException e) {
+                if (DEBUG) {
+                    Slog.e(TAG, "No role holder package found for user " + userId);
+                }
+                return READ_SCREEN_CONTEXT_REQUEST_STATE_UNREQUESTABLE;
+            }
+
+            if (isAssistStructureEnabledInternal(userId)) {
+                return READ_SCREEN_CONTEXT_REQUEST_STATE_GRANTED;
+            }
+
+            if (getReadScreenContextRequestDeniedCountInternal(userId)
+                    >= MAX_READ_SCREEN_CONTENT_REQUEST_DENIALS) {
+                return READ_SCREEN_CONTEXT_REQUEST_STATE_UNREQUESTABLE;
+            }
+
+            return READ_SCREEN_CONTEXT_REQUEST_STATE_REQUESTABLE;
+        }
+
+        private int getReadScreenContextRequestDeniedCountInternal(int userId) {
+            final long identity = Binder.clearCallingIdentity();
+            try {
+                return Settings.Secure.getIntForUser(mContext.getContentResolver(),
+                        Settings.Secure.READ_SCREEN_CONTEXT_REQUEST_DENIED_COUNT,
+                        0, userId);
+            } finally {
+                Binder.restoreCallingIdentity(identity);
+            }
+        }
+
+        private void setReadScreenContextRequestDeniedCountInternal(int count, int userId) {
+            final long identity = Binder.clearCallingIdentity();
+            try {
+                Settings.Secure.putIntForUser(mContext.getContentResolver(),
+                        Settings.Secure.READ_SCREEN_CONTEXT_REQUEST_DENIED_COUNT,
+                        count, userId);
+            } finally {
+                Binder.restoreCallingIdentity(identity);
+            }
+        }
+
+        @Override
+        @PermissionManuallyEnforced
+        public void incrementReadScreenContextRequestDeniedCountForUser(int userId) {
+            enforceCrossUserPermission(userId,
+                    "incrementReadScreenContextRequestDeniedCountForUser");
+            mContext.enforceCallingOrSelfPermission(
+                    Manifest.permission.MANAGE_READ_SCREEN_CONTEXT_REQUEST,
+                    "incrementReadScreenContextRequestDeniedCountForUser");
+
+            int count = getReadScreenContextRequestDeniedCountInternal(userId) + 1;
+            setReadScreenContextRequestDeniedCountInternal(count, userId);
+        }
+
+        @Override
+        @PermissionManuallyEnforced
+        public void clearReadScreenContextRequestDeniedCountForUser(int userId) {
+            enforceCrossUserPermission(userId, "clearReadScreenContextRequestDeniedCountForUser");
+            mContext.enforceCallingOrSelfPermission(
+                    Manifest.permission.MANAGE_READ_SCREEN_CONTEXT_REQUEST,
+                    "clearReadScreenContextRequestDeniedCountForUser");
+
+            setReadScreenContextRequestDeniedCountInternal(0, userId);
+        }
 
         @Override
         public void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
@@ -2485,7 +3097,7 @@ public class VoiceInteractionManagerService extends SystemService {
                             roleHolders);
                 }
 
-                // TODO(b/226201975): this method is beling called when a pre-created user is added,
+                // TODO(b/226201975): this method is being called when a pre-created user is added,
                 // at which point it doesn't have any role holders. But it's not called again when
                 // the actual user is added (i.e., when the  pre-created user is converted), so we
                 // need to save the user id and call this method again when it's converted
@@ -2503,6 +3115,9 @@ public class VoiceInteractionManagerService extends SystemService {
                 }
 
                 int userId = user.getIdentifier();
+                if (android.permission.flags.Flags.assistSettingsPrivacyImprovementsEnabled()) {
+                    updateAssistStructureSecureSettingsForUser(userId);
+                }
                 if (roleHolders.isEmpty()) {
                     Settings.Secure.putStringForUser(getContext().getContentResolver(),
                             Settings.Secure.ASSISTANT, "", userId);
@@ -2549,7 +3164,6 @@ public class VoiceInteractionManagerService extends SystemService {
 
                     for (ResolveInfo resolveInfo : activities) {
                         ActivityInfo activityInfo = resolveInfo.activityInfo;
-
                         Settings.Secure.putStringForUser(getContext().getContentResolver(),
                                 Settings.Secure.ASSISTANT,
                                 activityInfo.getComponentName().flattenToShortString(), userId);
@@ -2575,6 +3189,32 @@ public class VoiceInteractionManagerService extends SystemService {
                 synchronized (VoiceInteractionManagerServiceStub.this) {
                     switchImplementationIfNeededLocked(false);
                 }
+            }
+        }
+
+        private final class ReadScreenContextAppOpObserver implements
+                AppOpsManager.OnOpChangedListener {
+            ReadScreenContextAppOpObserver() {
+                // Do an initial sync of ASSIST_STRUCTURE app ops mode for all users
+                updateAssistStructureSecureSettingsForAllUsers();
+
+                AppOpsManager appOpsManager = mContext.getSystemService(AppOpsManager.class);
+                appOpsManager.startWatchingMode(
+                        AppOpsManager.OPSTR_READ_SCREEN_CONTEXT,
+                        null /* all packages */, this);
+            }
+
+            @Override
+            public void onOpChanged(String op, String packageName) {}
+
+            @Override
+            public void onOpChanged(@NonNull String op, @NonNull String packageName, int userId) {
+                if (DEBUG) {
+                    Slog.d(TAG, "onOpChanged with op: " + op + ", packageName: " + packageName
+                            + ", userId: " + userId);
+                }
+
+                updateAssistStructureSecureSettingsForUser(userId);
             }
         }
 
@@ -2831,9 +3471,9 @@ public class VoiceInteractionManagerService extends SystemService {
             final ActivityOptions opts = ActivityOptions.makeCustomTaskAnimation(mContext,
                     /* enterResId= */ 0, /* exitResId= */ 0, null, null, null);
             opts.setDisableStartingWindow(true);
-            if (DesktopExperienceFlags.ENABLE_FREEFORM_DISPLAY_LAUNCH_PARAMS.isTrue()) {
-                opts.setLaunchWindowingMode(WINDOWING_MODE_FULLSCREEN);
-            }
+            opts.setLaunchWindowingMode(WINDOWING_MODE_FULLSCREEN);
+            opts.setPendingIntentBackgroundActivityStartMode(
+                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS);
             int resultCode = mAtmInternal.startActivityWithScreenshot(launchIntent,
                     mContext.getPackageName(), Binder.getCallingUid(), Binder.getCallingPid(), null,
                     opts.toBundle(), userId);

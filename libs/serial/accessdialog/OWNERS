@@ -1,0 +1,5 @@
+file:/services/serial/OWNERS
+
+# Include SysUI OWNERS as this library is eventually part of SysUI, but exclude them from the
+# OWNERS suggestions.
+file:/packages/SystemUI/OWNERS #{LAST_RESORT_SUGGESTION}

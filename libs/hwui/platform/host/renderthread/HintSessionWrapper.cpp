@@ -35,9 +35,11 @@ bool HintSessionWrapper::init() {
     return false;
 }
 
-void HintSessionWrapper::updateTargetWorkDuration(long targetWorkDurationNanos) {}
+void HintSessionWrapper::setHintSessionEnabled(bool enabled) {}
 
-void HintSessionWrapper::reportActualWorkDuration(long actualDurationNanos) {}
+void HintSessionWrapper::updateTargetWorkDuration(int64_t targetWorkDurationNanos) {}
+
+void HintSessionWrapper::reportActualWorkDuration(int64_t actualDurationNanos) {}
 
 void HintSessionWrapper::sendCpuLoadResetHint() {}
 

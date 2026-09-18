@@ -16,8 +16,13 @@
 
 package android.media.metrics;
 
+import static android.media.metrics.Flags.FLAG_ENABLE_EXTENDED_BUNDLE_METRICS;
+
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.media.MediaMetrics;
+import android.os.PersistableBundle;
 
 import com.android.internal.util.AnnotationValidations;
 
@@ -26,41 +31,16 @@ import java.util.Objects;
 /**
  * An instances of this class represents a session of media recording.
  */
-public final class RecordingSession implements AutoCloseable {
-    private final @NonNull String mId;
-    private final @NonNull MediaMetricsManager mManager;
-    private final @NonNull LogSessionId mLogSessionId;
-    private boolean mClosed = false;
+public final class RecordingSession extends BaseSession {
 
     /** @hide */
     public RecordingSession(@NonNull String id, @NonNull MediaMetricsManager manager) {
-        mId = id;
-        mManager = manager;
-        AnnotationValidations.validate(NonNull.class, null, mId);
-        AnnotationValidations.validate(NonNull.class, null, mManager);
-        mLogSessionId = new LogSessionId(mId);
+        super(id, manager);
     }
 
-    public @NonNull LogSessionId getSessionId() {
-        return mLogSessionId;
-    }
-
+    @FlaggedApi(FLAG_ENABLE_EXTENDED_BUNDLE_METRICS)
     @Override
-    public boolean equals(@Nullable Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        RecordingSession that = (RecordingSession) o;
-        return Objects.equals(mId, that.mId);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(mId);
-    }
-
-    @Override
-    public void close() {
-        mClosed = true;
-        mManager.releaseSessionId(mLogSessionId.getStringId());
+    public void reportBundleMetrics(@NonNull PersistableBundle metrics) {
+        super.reportBundleMetrics(metrics);
     }
 }

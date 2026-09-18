@@ -23,7 +23,6 @@ import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.content.pm.PackageManager.FEATURE_PC;
 import static android.provider.Settings.Global.DEVELOPMENT_FORCE_DESKTOP_MODE_ON_EXTERNAL_DISPLAYS;
 import static android.view.WindowManager.TRANSIT_CHANGE;
-import static android.window.DesktopExperienceFlags.ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS;
 
 import static com.android.wm.shell.windowdecor.DragPositioningCallbackUtility.getInputMethodFromMotionEvent;
 
@@ -49,12 +48,14 @@ import android.view.MotionEvent;
 import android.view.SurfaceControl;
 import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.ViewGroup;
 import android.window.DisplayAreaInfo;
 import android.window.WindowContainerToken;
 import android.window.WindowContainerTransaction;
 
 import androidx.annotation.Nullable;
 
+import com.android.internal.jank.InteractionJankMonitor;
 import com.android.wm.shell.R;
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer;
 import com.android.wm.shell.ShellTaskOrganizer;
@@ -127,6 +128,7 @@ public class CaptionWindowDecorViewModel implements WindowDecorViewModel, FocusT
 
     private final WindowDecorationWrapper.Factory mWindowDecorationWrapperFactory =
             new WindowDecorationWrapper.Factory();
+    private final InteractionJankMonitor mInteractionJankMonitor;
 
     public CaptionWindowDecorViewModel(
             Context context,
@@ -144,7 +146,8 @@ public class CaptionWindowDecorViewModel implements WindowDecorViewModel, FocusT
             FocusTransitionObserver focusTransitionObserver,
             WindowDecorViewHostSupplier<WindowDecorViewHost> windowDecorViewHostSupplier,
             DesktopState desktopState,
-            DesktopConfig desktopConfig) {
+            DesktopConfig desktopConfig,
+            InteractionJankMonitor interactionJankMonitor) {
         mContext = context;
         mMainExecutor = shellExecutor;
         mMainHandler = mainHandler;
@@ -161,6 +164,7 @@ public class CaptionWindowDecorViewModel implements WindowDecorViewModel, FocusT
         mInputManager = mContext.getSystemService(InputManager.class);
         mDesktopState = desktopState;
         mDesktopConfig = desktopConfig;
+        mInteractionJankMonitor = interactionJankMonitor;
 
         shellInit.addInitCallback(this::onInit, this);
     }
@@ -214,13 +218,9 @@ public class CaptionWindowDecorViewModel implements WindowDecorViewModel, FocusT
             return;
         }
 
-        if (ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS.isTrue()) {
-            // Pass the current global focus status to avoid updates outside of a ShellTransition.
-            decoration.relayout(
-                    taskInfo, decoration.getHasGlobalFocus(), decoration.getExclusionRegion());
-        } else {
-            decoration.relayout(taskInfo, taskInfo.isFocused, decoration.getExclusionRegion());
-        }
+        // Pass the current global focus status to avoid updates outside of a ShellTransition.
+        decoration.relayout(
+                taskInfo, decoration.getHasGlobalFocus(), decoration.getExclusionRegion());
     }
 
     @Override
@@ -364,7 +364,7 @@ public class CaptionWindowDecorViewModel implements WindowDecorViewModel, FocusT
 
         final FluidResizeTaskPositioner taskPositioner =
                 new FluidResizeTaskPositioner(mTaskOrganizer, mTransitions, windowDecoration,
-                        mDisplayController, mDesktopState);
+                        mDisplayController, mDesktopState, mInteractionJankMonitor, mMainHandler);
         final CaptionTouchEventListener touchEventListener =
                 new CaptionTouchEventListener(taskInfo, taskPositioner);
         windowDecoration.setCaptionListeners(touchEventListener, touchEventListener,
@@ -378,7 +378,9 @@ public class CaptionWindowDecorViewModel implements WindowDecorViewModel, FocusT
     }
 
     private class CaptionTouchEventListener implements
-            View.OnClickListener, View.OnTouchListener, DragDetector.MotionEventHandler {
+            View.OnClickListener,
+            WindowDecorLinearLayout.GestureInterceptor,
+            DragDetector.MotionEventHandler {
 
         private final int mTaskId;
         private final WindowContainerToken mTaskToken;
@@ -418,6 +420,11 @@ public class CaptionWindowDecorViewModel implements WindowDecorViewModel, FocusT
                 mTaskOperations.maximizeTask(taskInfo,
                         rootDisplayAreaInfo.configuration.windowConfiguration.getWindowingMode());
             }
+        }
+
+        @Override
+        public boolean onInterceptTouchEvent(ViewGroup v, MotionEvent e) {
+            return false;
         }
 
         @Override

@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.notification;
 
 import android.util.Pools;
+import android.util.Log;
 import android.view.View;
 import android.view.animation.Interpolator;
 import android.widget.ImageView;
@@ -38,6 +39,7 @@ import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 */
 public class TransformState {
 
+    private static final String TAG = "TransformState";
     public static final int TRANSFORM_X = 0x1;
     public static final int TRANSFORM_Y = 0x10;
     public static final int TRANSFORM_ALL = TRANSFORM_X | TRANSFORM_Y;
@@ -405,17 +407,30 @@ public class TransformState {
         if (transformScale) {
             float transformationStartScaleX = getTransformationStartScaleX();
             if (transformationStartScaleX != UNDEFINED) {
-                transformedView.setScaleX(
-                        NotificationUtils.interpolate(transformationStartScaleX,
-                                (otherContentWidth / (float) ownContentWidth),
-                                interpolatedValue));
+                float endScaleX = NotificationUtils.interpolate(
+                        transformationStartScaleX,
+                        (otherContentWidth / (float) ownContentWidth),
+                        interpolatedValue);
+                if (!Float.isNaN(endScaleX)) {
+                    transformedView.setScaleX(endScaleX);
+                } else {
+                    Log.w(TAG, "endScaleX is NaN " + transformationStartScaleX + " "
+                            + ownContentWidth + " " + interpolatedValue);
+                }
             }
             float transformationStartScaleY = getTransformationStartScaleY();
             if (transformationStartScaleY != UNDEFINED) {
-                transformedView.setScaleY(
-                        NotificationUtils.interpolate(transformationStartScaleY,
-                                (otherState.getContentHeight() / (float) getContentHeight()),
-                                interpolatedValue));
+                float endScaleY = NotificationUtils.interpolate(
+                            transformationStartScaleY,
+                            (otherState.getContentHeight() / (float) getContentHeight()),
+                            interpolatedValue);
+                if (!Float.isNaN(endScaleY)) {
+                    transformedView.setScaleY(endScaleY);
+                }  else {
+                    Log.w(TAG, "endScaleY is NaN " + transformationStartScaleY + " "
+                            + otherState.getContentHeight() + " " + getContentHeight() + " "
+                            + interpolatedValue);
+                }
             }
         }
     }

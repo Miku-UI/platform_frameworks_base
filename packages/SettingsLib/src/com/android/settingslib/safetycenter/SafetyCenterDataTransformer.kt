@@ -16,6 +16,7 @@
 
 package com.android.settingslib.safetycenter
 
+import android.os.UserHandle
 import android.permission.flags.Flags
 import android.safetycenter.SafetyCenterData
 import android.safetycenter.SafetyCenterIssue
@@ -31,19 +32,25 @@ object SafetyCenterDataTransformer {
             return SafetyCenterUiData(
                 status = data.status,
                 entriesByUserIdAndSourceId = emptyMap(),
+                staticEntriesByUserIdAndSourceId = emptyMap(),
                 activeIssuesBySourceId = emptyMap(),
                 dismissedIssuesBySourceId = emptyMap(),
             )
         }
 
         val entriesByUserIdAndSourceId =
-            data.entriesOrGroups
-                .flatMap { it.entryGroup?.entries ?: listOfNotNull(it.entry) }
-                .filter { it.user != null && it.safetySourceId != null }
-                .groupBy { it.user!!.identifier }
-                .mapValues { (_, entries) ->
-                    entries.associateBy { it.safetySourceId!! }
-                }
+            processEntries(
+                data.entriesOrGroups.flatMap { it.entryGroup?.entries ?: listOfNotNull(it.entry) },
+                getUser = { entry -> entry.user },
+                getSourceId = { entry -> entry.safetySourceId },
+            )
+
+        val staticEntriesByUserIdAndSourceId =
+            processEntries(
+                data.staticEntryGroups.flatMap { it.staticEntries },
+                getUser = { entry -> entry.user },
+                getSourceId = { entry -> entry.safetySourceId },
+            )
 
         val activeIssuesBySourceId = processIssues(data.issues)
         val dismissedIssuesBySourceId = processIssues(data.dismissedIssues)
@@ -51,13 +58,25 @@ object SafetyCenterDataTransformer {
         return SafetyCenterUiData(
             status = data.status,
             entriesByUserIdAndSourceId = entriesByUserIdAndSourceId,
+            staticEntriesByUserIdAndSourceId = staticEntriesByUserIdAndSourceId,
             activeIssuesBySourceId = activeIssuesBySourceId,
             dismissedIssuesBySourceId = dismissedIssuesBySourceId,
         )
     }
 
+    private fun <T> processEntries(
+        entries: List<T>,
+        getUser: (T) -> UserHandle?,
+        getSourceId: (T) -> String?,
+    ): Map<Int, Map<String, T>> {
+        return entries
+            .filter { getUser(it) != null && getSourceId(it) != null }
+            .groupBy { getUser(it)!!.identifier }
+            .mapValues { (_, entries) -> entries.associateBy { getSourceId(it)!! } }
+    }
+
     private fun processIssues(
-        issues: List<SafetyCenterIssue>,
+        issues: List<SafetyCenterIssue>
     ): Map<String, List<SafetyCenterIssue>> {
         return issues
             .flatMap { issue -> issue.safetySourceIds.map { sourceId -> sourceId to issue } }

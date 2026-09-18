@@ -21,6 +21,7 @@ import static android.app.admin.DevicePolicyManager.KEYGUARD_DISABLE_FEATURES_NO
 import static android.app.admin.DevicePolicyManager.KEYGUARD_DISABLE_FINGERPRINT;
 import static android.app.admin.DevicePolicyManager.KEYGUARD_DISABLE_REMOTE_INPUT;
 import static android.app.admin.DevicePolicyManager.KEYGUARD_DISABLE_UNREDACTED_NOTIFICATIONS;
+import static android.app.admin.DpcAuthority.DPC_AUTHORITY;
 import static android.security.advancedprotection.AdvancedProtectionManager.ADVANCED_PROTECTION_SYSTEM_ENTITY;
 
 import static com.android.settingslib.RestrictedLockUtils.EnforcedAdmin;
@@ -36,9 +37,10 @@ import static org.mockito.Mockito.when;
 
 import android.app.admin.Authority;
 import android.app.admin.DeviceAdminAuthority;
+import android.app.admin.DevicePolicyIdentifiers;
 import android.app.admin.DevicePolicyManager;
-import android.app.admin.DpcAuthority;
 import android.app.admin.EnforcingAdmin;
+import android.app.admin.PolicyEnforcementInfo;
 import android.app.admin.RoleAuthority;
 import android.app.admin.SystemAuthority;
 import android.app.admin.UnknownAuthority;
@@ -68,6 +70,7 @@ import org.robolectric.RobolectricTestRunner;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 @RunWith(RobolectricTestRunner.class)
 public class RestrictedLockUtilsTest {
@@ -108,57 +111,7 @@ public class RestrictedLockUtilsTest {
         RestrictedLockUtilsInternal.sProxy = mProxy;
     }
 
-    @RequiresFlagsDisabled(android.security.Flags.FLAG_AAPM_API)
-    @Test
-    public void checkIfRestrictionEnforced_deviceOwner()
-            throws PackageManager.NameNotFoundException {
-        UserManager.EnforcingUser enforcingUser = new UserManager.EnforcingUser(mUserId,
-                UserManager.RESTRICTION_SOURCE_DEVICE_OWNER);
-        final String userRestriction = UserManager.DISALLOW_UNINSTALL_APPS;
-        when(mUserManager.getUserRestrictionSources(userRestriction,
-                UserHandle.of(mUserId))).
-                thenReturn(Collections.singletonList(enforcingUser));
-
-        when(mContext.createPackageContextAsUser(any(), eq(0),
-                eq(UserHandle.of(mUserId))))
-                .thenReturn(mContext);
-
-        setUpDeviceOwner(mAdmin1, mUserId);
-
-        EnforcedAdmin enforcedAdmin = RestrictedLockUtilsInternal
-                .checkIfRestrictionEnforced(mContext, userRestriction, mUserId);
-
-        assertThat(enforcedAdmin).isNotNull();
-        assertThat(enforcedAdmin.enforcedRestriction).isEqualTo(userRestriction);
-        assertThat(enforcedAdmin.component).isEqualTo(mAdmin1);
-    }
-
-    @RequiresFlagsDisabled(android.security.Flags.FLAG_AAPM_API)
-    @Test
-    public void checkIfRestrictionEnforced_profileOwner()
-            throws PackageManager.NameNotFoundException {
-        UserManager.EnforcingUser enforcingUser = new UserManager.EnforcingUser(mUserId,
-                UserManager.RESTRICTION_SOURCE_PROFILE_OWNER);
-        final String userRestriction = UserManager.DISALLOW_UNINSTALL_APPS;
-        when(mUserManager.getUserRestrictionSources(userRestriction,
-                UserHandle.of(mUserId))).
-                thenReturn(Collections.singletonList(enforcingUser));
-
-        when(mContext.createPackageContextAsUser(any(), eq(0),
-                eq(UserHandle.of(mUserId))))
-                .thenReturn(mContext);
-
-        setUpProfileOwner(mAdmin1);
-
-        EnforcedAdmin enforcedAdmin = RestrictedLockUtilsInternal
-                .checkIfRestrictionEnforced(mContext, userRestriction, mUserId);
-
-        assertThat(enforcedAdmin).isNotNull();
-        assertThat(enforcedAdmin.enforcedRestriction).isEqualTo(userRestriction);
-        assertThat(enforcedAdmin.component).isEqualTo(mAdmin1);
-    }
-
-    @RequiresFlagsEnabled(android.security.Flags.FLAG_AAPM_API)
+    @RequiresFlagsDisabled(android.app.admin.flags.Flags.FLAG_POLICY_TRANSPARENCY_REFACTOR_ENABLED)
     @Test
     public void checkIfRestrictionEnforced_getEnforcingAdminExists() {
         UserManager.EnforcingUser enforcingUser = new UserManager.EnforcingUser(mUserId,
@@ -182,7 +135,7 @@ public class RestrictedLockUtilsTest {
         assertThat(enforcedAdmin.user).isEqualTo(enforcingAdmin.getUserHandle());
     }
 
-    @RequiresFlagsEnabled(android.security.Flags.FLAG_AAPM_API)
+    @RequiresFlagsDisabled(android.app.admin.flags.Flags.FLAG_POLICY_TRANSPARENCY_REFACTOR_ENABLED)
     @Test
     public void checkIfRestrictionEnforced_getEnforcingAdminReturnsNull_deviceOwner()
             throws PackageManager.NameNotFoundException {
@@ -209,7 +162,7 @@ public class RestrictedLockUtilsTest {
         assertThat(enforcedAdmin.component).isEqualTo(mAdmin1);
     }
 
-    @RequiresFlagsEnabled(android.security.Flags.FLAG_AAPM_API)
+    @RequiresFlagsDisabled(android.app.admin.flags.Flags.FLAG_POLICY_TRANSPARENCY_REFACTOR_ENABLED)
     @Test
     public void checkIfRestrictionEnforced_getEnforcingAdminReturnsNull_profileOwner()
             throws PackageManager.NameNotFoundException {
@@ -236,14 +189,48 @@ public class RestrictedLockUtilsTest {
         assertThat(enforcedAdmin.component).isEqualTo(mAdmin1);
     }
 
-    @RequiresFlagsEnabled(android.security.Flags.FLAG_AAPM_API)
+    @RequiresFlagsEnabled(android.app.admin.flags.Flags.FLAG_POLICY_TRANSPARENCY_REFACTOR_ENABLED)
+    @Test
+    public void checkIfRestrictionEnforced_onlyEnforcedBySystem_returnsNull() {
+        final String userRestriction = UserManager.DISALLOW_UNINSTALL_APPS;
+        when(mDevicePolicyManager.getEnforcingAdminsForPolicy(
+                DevicePolicyIdentifiers.getIdentifierForUserRestriction(userRestriction),
+                mUserId)).thenReturn(new PolicyEnforcementInfo(
+                List.of(new EnforcingAdmin("package", new SystemAuthority("system"),
+                        UserHandle.of(mUserId)))));
+
+        EnforcedAdmin enforcedAdmin = RestrictedLockUtilsInternal
+                .checkIfRestrictionEnforced(mContext, userRestriction, mUserId);
+
+        assertThat(enforcedAdmin).isNull();
+    }
+
+    @RequiresFlagsEnabled(android.app.admin.flags.Flags.FLAG_POLICY_TRANSPARENCY_REFACTOR_ENABLED)
+    @Test
+    public void checkIfRestrictionEnforced_enforcedByAdmin_returnsAdmin() {
+        final String userRestriction = UserManager.DISALLOW_UNINSTALL_APPS;
+        final EnforcingAdmin admin = new EnforcingAdmin(mAdmin1.getPackageName(), DPC_AUTHORITY,
+                UserHandle.of(mUserId), mAdmin1);
+        when(mDevicePolicyManager.getEnforcingAdminsForPolicy(
+                DevicePolicyIdentifiers.getIdentifierForUserRestriction(userRestriction),
+                mUserId)).thenReturn(new PolicyEnforcementInfo(
+                List.of(admin)));
+
+        EnforcedAdmin enforcedAdmin = RestrictedLockUtilsInternal
+                .checkIfRestrictionEnforced(mContext, userRestriction, mUserId);
+
+        assertThat(enforcedAdmin).isNotNull();
+        assertThat(enforcedAdmin.enforcedRestriction).isEqualTo(userRestriction);
+        assertThat(enforcedAdmin.component).isEqualTo(mAdmin1);
+    }
+
     @Test
     public void isPolicyEnforcedByAdvancedProtection_notEnforced_returnsFalse() {
         final String userRestriction = UserManager.DISALLOW_UNINSTALL_APPS;
         final Authority[] allNonAdvancedProtectionAuthorities = new Authority[] {
                 UnknownAuthority.UNKNOWN_AUTHORITY,
                 DeviceAdminAuthority.DEVICE_ADMIN_AUTHORITY,
-                DpcAuthority.DPC_AUTHORITY,
+                DPC_AUTHORITY,
                 new RoleAuthority(Collections.singleton("some-role"))
         };
 
@@ -261,7 +248,6 @@ public class RestrictedLockUtilsTest {
         }
     }
 
-    @RequiresFlagsEnabled(android.security.Flags.FLAG_AAPM_API)
     @Test
     public void isPolicyEnforcedByAdvancedProtection_enforced_returnsTrue() {
         final Authority advancedProtectionAuthority = new SystemAuthority(

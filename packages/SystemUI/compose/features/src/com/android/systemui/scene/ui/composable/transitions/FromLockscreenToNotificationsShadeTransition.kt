@@ -22,12 +22,14 @@ import com.android.mechanics.behavior.VerticalExpandContainerSpec
 
 fun TransitionBuilder.lockscreenToNotificationsShadeTransition(
     durationScale: Double = 1.0,
+    useSharedElementTransitions: Boolean,
     shadeExpansionMotion: VerticalExpandContainerSpec,
     revealHaptics: ContainerRevealHaptics,
 ) {
-    lockscreenToOverlayTransition(durationScale = durationScale)
+    lockscreenFadeOutTransition(durationScale = durationScale)
     toNotificationsShadeTransition(
         durationScale = durationScale,
+        enableSharedElements = useSharedElementTransitions,
         shadeExpansionMotion = shadeExpansionMotion,
         revealHaptics = revealHaptics,
     )

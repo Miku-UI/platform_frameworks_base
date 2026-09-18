@@ -38,78 +38,91 @@ public interface TimeDetector {
 
     /**
      * The name of the service for shell commands.
+     *
      * @hide
      */
     String SHELL_COMMAND_SERVICE_NAME = "time_detector";
 
     /**
      * A shell command that prints the current "auto time detection" global setting value.
+     *
      * @hide
      */
     String SHELL_COMMAND_IS_AUTO_DETECTION_ENABLED = "is_auto_detection_enabled";
 
     /**
      * A shell command that sets the current "auto time detection" global setting value.
+     *
      * @hide
      */
     String SHELL_COMMAND_SET_AUTO_DETECTION_ENABLED = "set_auto_detection_enabled";
 
     /**
      * A shell command that injects a manual time suggestion.
+     *
      * @hide
      */
     String SHELL_COMMAND_SUGGEST_MANUAL_TIME = "suggest_manual_time";
 
     /**
      * A shell command that injects a telephony time suggestion.
+     *
      * @hide
      */
     String SHELL_COMMAND_SUGGEST_TELEPHONY_TIME = "suggest_telephony_time";
 
     /**
      * A shell command that injects a network time suggestion.
+     *
      * @hide
      */
     String SHELL_COMMAND_SUGGEST_NETWORK_TIME = "suggest_network_time";
 
     /**
      * A shell command that prints the current network time information.
+     *
      * @hide
      */
     String SHELL_COMMAND_GET_NETWORK_TIME = "get_network_time";
 
     /**
      * A shell command that clears the detector's network time information.
+     *
      * @hide
      */
     String SHELL_COMMAND_CLEAR_NETWORK_TIME = "clear_network_time";
 
     /**
      * A shell command that injects a GNSS time suggestion.
+     *
      * @hide
      */
     String SHELL_COMMAND_SUGGEST_GNSS_TIME = "suggest_gnss_time";
 
     /**
      * A shell command that injects a external time suggestion.
+     *
      * @hide
      */
     String SHELL_COMMAND_SUGGEST_EXTERNAL_TIME = "suggest_external_time";
 
     /**
      * A shell command that retrieves the current system clock time state.
+     *
      * @hide
      */
     String SHELL_COMMAND_GET_TIME_STATE = "get_time_state";
 
     /**
      * A shell command that sets the current time state for testing.
+     *
      * @hide
      */
     String SHELL_COMMAND_SET_TIME_STATE = "set_time_state_for_tests";
 
     /**
      * A shell command that sets the confidence in the current time state for testing.
+     *
      * @hide
      */
     String SHELL_COMMAND_CONFIRM_TIME = "confirm_time";
@@ -117,6 +130,7 @@ public interface TimeDetector {
     /**
      * A shell command that clears the network time signal used by {@link
      * SystemClock#currentNetworkTimeClock()}.
+     *
      * @hide
      */
     String SHELL_COMMAND_CLEAR_SYSTEM_CLOCK_NETWORK_TIME = "clear_system_clock_network_time";
@@ -124,6 +138,7 @@ public interface TimeDetector {
     /**
      * A shell command that sets the network time signal used by {@link
      * SystemClock#currentNetworkTimeClock()}.
+     *
      * @hide
      */
     String SHELL_COMMAND_SET_SYSTEM_CLOCK_NETWORK_TIME = "set_system_clock_network_time";
@@ -149,11 +164,11 @@ public interface TimeDetector {
     void suggestTelephonyTime(@NonNull TelephonyTimeSuggestion timeSuggestion);
 
     /**
-     * Suggests the current time, determined from the user's manually entered information, to
-     * the detector. Returns {@code false} if the suggestion was invalid, or the device
-     * configuration prevented the suggestion being used, {@code true} if the suggestion was
-     * accepted. A suggestion that is valid but does not change the time because it matches the
-     * current device time is considered accepted.
+     * Suggests the current time, determined from the user's manually entered information, to the
+     * detector. Returns {@code false} if the suggestion was invalid, or the device configuration
+     * prevented the suggestion being used, {@code true} if the suggestion was accepted. A
+     * suggestion that is valid but does not change the time because it matches the current device
+     * time is considered accepted.
      *
      * @hide
      */

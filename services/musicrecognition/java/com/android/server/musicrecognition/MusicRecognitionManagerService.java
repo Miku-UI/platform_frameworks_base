@@ -24,7 +24,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.pm.PackageManager;
+import android.content.pm.PackageManagerInternal;
 import android.media.musicrecognition.IMusicRecognitionManager;
 import android.media.musicrecognition.IMusicRecognitionManagerCallback;
 import android.media.musicrecognition.RecognitionRequest;
@@ -37,6 +37,7 @@ import android.os.UserHandle;
 import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.server.LocalServices;
 import com.android.server.infra.AbstractMasterSystemService;
 import com.android.server.infra.FrameworkResourcesServiceNameResolver;
 
@@ -178,18 +179,9 @@ public class MusicRecognitionManagerService extends
 
             final String servicePackageName = serviceComponent.getPackageName();
 
-            final PackageManager pm = getContext().getPackageManager();
-            final int serviceUid;
-            try {
-                serviceUid = pm.getPackageUidAsUser(servicePackageName,
-                        UserHandle.getCallingUserId());
-            } catch (PackageManager.NameNotFoundException e) {
-                Slog.w(TAG, methodName + ": could not verify UID for " + serviceName);
-                return false;
-            }
-            if (callingUid != serviceUid) {
-                Slog.e(TAG, methodName + ": called by UID " + callingUid + ", but service UID is "
-                        + serviceUid);
+            if (!LocalServices.getService(PackageManagerInternal.class).isSameApp(
+                    servicePackageName, callingUid, UserHandle.getUserId(callingUid))) {
+                Slog.e(TAG, methodName + ": called by UID " + callingUid);
                 return false;
             }
 

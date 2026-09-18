@@ -116,7 +116,7 @@ public:
 class SpriteController {
 public:
     using ParentSurfaceProvider = std::function<sp<SurfaceControl>(ui::LogicalDisplayId)>;
-    SpriteController(const sp<Looper>& looper, int32_t overlayLayer, ParentSurfaceProvider parent);
+    SpriteController(const sp<Looper>& looper, ParentSurfaceProvider parent);
     SpriteController(const SpriteController&) = delete;
     SpriteController& operator=(const SpriteController&) = delete;
     virtual ~SpriteController();
@@ -256,7 +256,6 @@ private:
     mutable Mutex mLock;
 
     sp<Looper> mLooper;
-    const int32_t mOverlayLayer;
     sp<Handler> mHandler;
     ParentSurfaceProvider mParentSurfaceProvider;
 

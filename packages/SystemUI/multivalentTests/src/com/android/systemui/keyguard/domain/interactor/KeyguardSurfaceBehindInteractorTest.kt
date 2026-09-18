@@ -24,11 +24,10 @@ import com.android.systemui.coroutines.collectValues
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.FakeKeyguardTransitionRepository
-import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
+import com.android.systemui.keyguard.shared.model.BiometricUnlockSource
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.KeyguardSurfaceBehindModel
-import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
 import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.keyguard.util.mockTopActivityClassName
@@ -41,6 +40,7 @@ import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shared.system.ActivityManagerWrapper
 import com.android.systemui.shared.system.activityManagerWrapper
 import com.android.systemui.statusbar.notification.domain.interactor.notificationLaunchAnimationInteractor
+import com.android.systemui.statusbar.phone.BiometricUnlockController
 import com.android.systemui.testKosmos
 import com.android.systemui.util.assertValuesMatch
 import com.google.common.truth.Truth.assertThat
@@ -254,8 +254,9 @@ class KeyguardSurfaceBehindInteractorTest : SysuiTestCase() {
         testScope.runTest {
             val values by collectValues(underTest.viewParams)
             kosmos.sceneInteractor.snapToScene(Scenes.Lockscreen, "")
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-                SuccessFingerprintAuthenticationStatus(0, true)
+            kosmos.biometricUnlockInteractor.setBiometricUnlockState(
+                unlockStateInt = BiometricUnlockController.MODE_DISMISS,
+                biometricUnlockSource = BiometricUnlockSource.FINGERPRINT_SENSOR,
             )
             runCurrent()
 
@@ -302,8 +303,9 @@ class KeyguardSurfaceBehindInteractorTest : SysuiTestCase() {
             val values by collectValues(underTest.viewParams)
             activityManagerWrapper.mockTopActivityClassName(LAUNCHER_ACTIVITY_NAME)
             kosmos.sceneInteractor.snapToScene(Scenes.Lockscreen, "")
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-                SuccessFingerprintAuthenticationStatus(0, true)
+            kosmos.biometricUnlockInteractor.setBiometricUnlockState(
+                unlockStateInt = BiometricUnlockController.MODE_DISMISS,
+                biometricUnlockSource = BiometricUnlockSource.FINGERPRINT_SENSOR,
             )
             runCurrent()
 
@@ -348,7 +350,10 @@ class KeyguardSurfaceBehindInteractorTest : SysuiTestCase() {
             kosmos.notificationLaunchAnimationInteractor.setIsLaunchAnimationRunning(true)
             runCurrent()
 
-            kosmos.setSceneTransition(Transition(Scenes.Lockscreen, Scenes.Gone))
+            kosmos.setSceneTransition(
+                Transition(Scenes.Lockscreen, Scenes.Gone),
+                unlockDevice = true,
+            )
 
             values.assertValuesMatch(
                 // We should be at alpha = 0f during the animation.
@@ -447,8 +452,9 @@ class KeyguardSurfaceBehindInteractorTest : SysuiTestCase() {
             val isAnimatingSurface by collectLastValue(underTest.isAnimatingSurface)
 
             kosmos.sceneInteractor.snapToScene(Scenes.Lockscreen, "")
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
-                SuccessFingerprintAuthenticationStatus(0, true)
+            kosmos.biometricUnlockInteractor.setBiometricUnlockState(
+                unlockStateInt = BiometricUnlockController.MODE_DISMISS,
+                biometricUnlockSource = BiometricUnlockSource.FINGERPRINT_SENSOR,
             )
             runCurrent()
 

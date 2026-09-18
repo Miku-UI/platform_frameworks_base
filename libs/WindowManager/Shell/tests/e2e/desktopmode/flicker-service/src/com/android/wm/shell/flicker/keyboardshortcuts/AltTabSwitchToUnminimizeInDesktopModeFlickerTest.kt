@@ -37,25 +37,24 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 /**
- * Flicker test suite for verifying the Alt-Tab switching behavior to unminimize applications
- * in Desktop Mode.
+ * Flicker test suite for verifying the Alt-Tab switching behavior to unminimize applications in
+ * Desktop Mode.
  *
  * The tests assert that the target application (YouTube):
- *  - Remains within display bounds after being unminimized.
- *  - Is the top-most window after the Alt-Tab switch.
- *  - Its layer becomes visible.
+ * - Remains within display bounds after being unminimized.
+ * - Is the top-most window after the Alt-Tab switch.
+ * - Its layer becomes visible.
  *
- *  The tests assert that the Clock application is the top-most window before the Alt-Tab switch.
+ *   The tests assert that the Clock application is the top-most window before the Alt-Tab switch.
  */
 @RequiresDesktopDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
 class AltTabSwitchToUnminimizeInDesktopModeFlickerTest(flicker: FlickerTest) :
-        DesktopModeBaseTest(flicker) {
-    inner class AltTabSwitchToUnminimizeInDesktopModeScenario : AltTabSwitchToUnminimizeInDesktopMode(
-        rotation = flicker.scenario.startRotation
-    )
+    DesktopModeBaseTest(flicker) {
+    inner class AltTabSwitchToUnminimizeInDesktopModeScenario :
+        AltTabSwitchToUnminimizeInDesktopMode(rotation = flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -66,28 +65,19 @@ class AltTabSwitchToUnminimizeInDesktopModeFlickerTest(flicker: FlickerTest) :
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.switchApp()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.switchApp() }
+            teardown { scenario.teardown() }
         }
 
     @Test
     fun appWindowInsideDisplayBoundsAtEnd() = flicker.appWindowInsideDisplayBoundsAtEnd(messagesApp)
 
-    @Test
-    fun appWindowOnTopAtStart() = flicker.appWindowOnTopAtStart(clockApp)
+    @Test fun appWindowOnTopAtStart() = flicker.appWindowOnTopAtStart(clockApp)
 
-    @Test
-    fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(messagesApp)
+    @Test fun appWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(messagesApp)
 
-    @Test
-    fun layerBecomesVisible() = flicker.layerBecomesVisible(messagesApp)
+    @Test fun layerBecomesVisible() = flicker.layerBecomesVisible(messagesApp)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

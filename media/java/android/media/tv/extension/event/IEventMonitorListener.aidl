@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package android.media.tv.extension.event;
 
 import android.os.Bundle;
@@ -22,5 +21,13 @@ import android.os.Bundle;
  * @hide
  */
 oneway interface IEventMonitorListener {
+    /**
+     * Invoked when the present and following event information for a channel is updated.
+     *
+     * @param channelDbId The tv.db ID of the channel that was updated.
+     * @param eventId The ID of the specific event that triggered the update.
+     * @param eventInfo A bundle containing the updated event information. The keys
+     *                 defined as the {@link IEventMonoitor#getPresentEventInfo}
+     */
     void onInfoChanged(long channelDbId, in Bundle eventinfo);
 }

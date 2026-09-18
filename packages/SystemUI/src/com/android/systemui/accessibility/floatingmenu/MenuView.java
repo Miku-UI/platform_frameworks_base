@@ -38,6 +38,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.android.internal.accessibility.dialog.AccessibilityTarget;
 import com.android.modules.expresslog.Counter;
 import com.android.settingslib.bluetooth.HearingAidDeviceManager;
+import com.android.systemui.accessibility.Magnification;
 import com.android.systemui.util.settings.SecureSettings;
 
 import java.util.ArrayList;
@@ -48,7 +49,7 @@ import java.util.List;
  * The container view displays the accessibility features.
  */
 @SuppressLint("ViewConstructor")
-class MenuView extends FrameLayout implements
+public class MenuView extends FrameLayout implements
         ViewTreeObserver.OnComputeInternalInsetsListener, ComponentCallbacks {
     private static final int INDEX_MENU_ITEM = 0;
     private final List<AccessibilityTarget> mTargetFeatures = new ArrayList<>();
@@ -78,14 +79,14 @@ class MenuView extends FrameLayout implements
     private SecureSettings mSecureSettings;
 
     MenuView(Context context, MenuViewModel menuViewModel, MenuViewAppearance menuViewAppearance,
-            SecureSettings secureSettings) {
+            SecureSettings secureSettings, Magnification magnification) {
         super(context);
 
         mMenuViewModel = menuViewModel;
         mMenuViewAppearance = menuViewAppearance;
         mSecureSettings = secureSettings;
         mMenuAnimationController = new MenuAnimationController(this, menuViewAppearance);
-        mAdapter = new AccessibilityTargetAdapter(mTargetFeatures);
+        mAdapter = new AccessibilityTargetAdapter(mTargetFeatures, mContext, magnification);
         mTargetFeaturesView = new RecyclerView(context);
         mTargetFeaturesView.setAdapter(mAdapter);
         mTargetFeaturesView.setLayoutManager(new LinearLayoutManager(context));
@@ -403,6 +404,7 @@ class MenuView extends FrameLayout implements
         mMenuViewModel.registerObserversAndCallbacks();
         getViewTreeObserver().addOnComputeInternalInsetsListener(this);
         getViewTreeObserver().addOnDrawListener(mSystemGestureExcludeUpdater);
+        mAdapter.show();
     }
 
     void hide() {
@@ -419,6 +421,7 @@ class MenuView extends FrameLayout implements
         mMenuViewModel.unregisterObserversAndCallbacks();
         getViewTreeObserver().removeOnComputeInternalInsetsListener(this);
         getViewTreeObserver().removeOnDrawListener(mSystemGestureExcludeUpdater);
+        mAdapter.hide();
     }
 
     void onDraggingStart() {

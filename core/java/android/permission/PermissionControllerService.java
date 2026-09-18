@@ -46,6 +46,7 @@ import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
+import android.os.Process;
 import android.os.UserHandle;
 import android.permission.PermissionControllerManager.CountPermissionAppsFlag;
 import android.permission.flags.Flags;
@@ -97,6 +98,13 @@ public abstract class PermissionControllerService extends Service {
     @ChangeId
     @Disabled
     private static final long CAMERA_MIC_INDICATORS_NOT_PRESENT = 162547999L;
+
+    /**
+     * A ChangeId indicating that this device does not support location indicators. Will be "false"
+     * if present, because the CompatChanges#isChangeEnabled method returns true if the change id is
+     * not present.
+     */
+    @ChangeId @Disabled private static final long LOCATION_INDICATORS_NOT_PRESENT = 430681066L;
 
     /**
      * Revoke a set of runtime permissions for various apps.
@@ -769,7 +777,7 @@ public abstract class PermissionControllerService extends Service {
                     final int callingUid = Binder.getCallingUid();
                     int targetPackageUid = getPackageManager().getPackageUid(packageName,
                             PackageManager.PackageInfoFlags.of(0));
-                    if (targetPackageUid != callingUid) {
+                    if (targetPackageUid != getPccAwareUid(callingUid)) {
                         enforceSomePermissionsGrantedToCaller(
                                 Manifest.permission.REVOKE_RUNTIME_PERMISSIONS);
                     }
@@ -778,6 +786,14 @@ public abstract class PermissionControllerService extends Service {
                 } catch (Throwable t) {
                     callback.completeExceptionally(t);
                 }
+            }
+
+            private int getPccAwareUid(int uid) {
+                if (android.app.privatecompute.flags.Flags.enablePccFrameworkSupport()
+                        && Process.isPrivateComputeCoreUid(uid)) {
+                    return getPackageManager().getAppUidForPrivateComputeCoreUid(uid);
+                }
+                return uid;
             }
         };
     }

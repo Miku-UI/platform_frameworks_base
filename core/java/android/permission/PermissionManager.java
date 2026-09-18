@@ -253,7 +253,7 @@ public final class PermissionManager {
             IOnPermissionsChangeListener> mPermissionListeners = new ArrayMap<>();
     private PermissionUsageHelper mUsageHelper;
 
-    private List<SplitPermissionInfo> mSplitPermissionInfos;
+    private List<SplitPermissionInfo> mEnabledSplitPermissionInfos;
 
     /**
      * Creates a new instance.
@@ -1262,21 +1262,36 @@ public final class PermissionManager {
      * @return All permissions that are split.
      */
     public @NonNull List<SplitPermissionInfo> getSplitPermissions() {
-        if (mSplitPermissionInfos != null) {
-            return mSplitPermissionInfos;
+        return getSplitPermissions(false);
+    }
+
+    /**
+     * @param includeDisabled whether to include split permissions that are disabled by feature
+     *                        flags
+     * @return All permissions that are split.
+     * @hide
+     */
+    public @NonNull List<SplitPermissionInfo> getSplitPermissions(boolean includeDisabled) {
+        if (!includeDisabled && mEnabledSplitPermissionInfos != null) {
+            return mEnabledSplitPermissionInfos;
         }
 
         List<SplitPermissionInfoParcelable> parcelableList;
         try {
-            parcelableList = ActivityThread.getPermissionManager().getSplitPermissions();
+            parcelableList = ActivityThread.getPermissionManager()
+                    .getSplitPermissions(includeDisabled);
         } catch (RemoteException e) {
             Slog.e(LOG_TAG, "Error getting split permissions", e);
             return Collections.emptyList();
         }
 
-        mSplitPermissionInfos = splitPermissionInfoListToNonParcelableList(parcelableList);
+        List<SplitPermissionInfo> splitPermissionInfos =
+                splitPermissionInfoListToNonParcelableList(parcelableList);
+        if (!includeDisabled) {
+            mEnabledSplitPermissionInfos = splitPermissionInfos;
+        }
 
-        return mSplitPermissionInfos;
+        return splitPermissionInfos;
     }
 
     /**
@@ -1437,7 +1452,8 @@ public final class PermissionManager {
         for (int i = 0; i < size; i++) {
             SplitPermissionInfo info = splitPermissionsList.get(i);
             outList.add(new SplitPermissionInfoParcelable(
-                    info.getSplitPermission(), info.getNewPermissions(), info.getTargetSdk()));
+                    info.getSplitPermission(), info.getNewPermissions(), info.getTargetSdk(),
+                    info.getFeatureFlag(), info.isFeatureFlagNegated()));
         }
         return outList;
     }
@@ -1485,17 +1501,36 @@ public final class PermissionManager {
         }
 
         /**
+         * Get the feature flag that gates this split permission.
+         * @hide
+         */
+        public @Nullable String getFeatureFlag() {
+            return mSplitPermissionInfoParcelable.getFeatureFlag();
+        }
+
+        /**
+         * Whether the feature flag is negated.
+         * @hide
+         */
+        public boolean isFeatureFlagNegated() {
+            return mSplitPermissionInfoParcelable.isFeatureFlagNegated();
+        }
+
+        /**
          * Constructs a split permission.
          *
          * @param splitPerm old permission that will be split
          * @param newPerms list of new permissions that {@code rootPerm} will be split into
-         * @param targetSdk apps targetting SDK versions below this will have {@code rootPerm}
+         * @param targetSdk apps targeting SDK versions below this will have {@code rootPerm}
          * split into {@code newPerms}
+         * @param featureFlag the feature flag that gates this split permission
+         * @param isFeatureFlagNegated whether the feature flag is negated
          * @hide
          */
         public SplitPermissionInfo(@NonNull String splitPerm, @NonNull List<String> newPerms,
-                int targetSdk) {
-            this(new SplitPermissionInfoParcelable(splitPerm, newPerms, targetSdk));
+                int targetSdk, @Nullable String featureFlag, boolean isFeatureFlagNegated) {
+            this(new SplitPermissionInfoParcelable(splitPerm, newPerms, targetSdk, featureFlag,
+                    isFeatureFlagNegated));
         }
 
         private SplitPermissionInfo(@NonNull SplitPermissionInfoParcelable parcelable) {

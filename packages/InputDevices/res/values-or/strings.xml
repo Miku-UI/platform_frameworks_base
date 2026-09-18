@@ -3,6 +3,7 @@
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_label" msgid="8016145283189546017">"ଇନପୁଟ୍‌ ଡିଭାଇସ୍"</string>
     <string name="keyboard_layouts_label" msgid="6688773268302087545">"Android କୀ’ବୋର୍ଡ"</string>
+    <string name="keyboard_layout_english_ca_label" msgid="2415799429045326926">"ଇଂରାଜୀ (କାନାଡା)"</string>
     <string name="keyboard_layout_english_uk_label" msgid="6664258463319999632">"ଇଂରାଜୀ (ଯୁକ୍ତରାଜ୍ୟ)"</string>
     <string name="keyboard_layout_english_us_label" msgid="8994890249649106291">"ଇଂରାଜୀ (ଯୁକ୍ତରାଷ୍ଟ୍ର)"</string>
     <string name="keyboard_layout_english_us_intl" msgid="3705168594034233583">"ଇଂରାଜୀ (ୟୁଏସ୍‍), ଇଣ୍ଟରନେସନାଲ୍‍ ଷ୍ଟାଇଲ୍‍"</string>
@@ -34,6 +35,7 @@
     <string name="keyboard_layout_brazilian" msgid="5117896443147781939">"ବ୍ରାଜିଲିୟାନ୍"</string>
     <string name="keyboard_layout_portuguese" msgid="2888198587329660305">"ପର୍ତ୍ତୁଗୀଜ୍"</string>
     <string name="keyboard_layout_slovak" msgid="2469379934672837296">"ସ୍ଲୋଭାକ୍"</string>
+    <string name="keyboard_layout_slovak_qwerty" msgid="2786027565675359502">"ସ୍ଲୋଭାକ, QWERTY ଷ୍ଟାଇଲ"</string>
     <string name="keyboard_layout_slovenian" msgid="1735933028924982368">"ସ୍ଲୋଭେନିଆନ୍"</string>
     <string name="keyboard_layout_turkish" msgid="7736163250907964898">"ତୁର୍କିସ୍"</string>
     <string name="keyboard_layout_turkish_f" msgid="9130320856010776018">"ତୁର୍କିଶ୍ F"</string>
@@ -58,4 +60,20 @@
     <string name="keyboard_layout_montenegrin_cyrillic" msgid="2391253952894077421">"ମଣ୍ଟେନେଗ୍ରିନ (ସିରିଲିକ)"</string>
     <string name="keyboard_layout_romanian" msgid="8698989892731726903">"ରୋମାନିଆନ"</string>
     <string name="keyboard_layout_english_india" msgid="7962353311188603367">"ଇଂରାଜୀ (ଭାରତ)"</string>
+    <string name="playstation_controller_circle_button" msgid="3436949457993997215">"ସର୍କଲ ବଟନ"</string>
+    <string name="playstation_controller_triangle_button" msgid="7058016183388142515">"ଟ୍ରାଏଙ୍ଗଲ ବଟନ"</string>
+    <string name="playstation_controller_square_button" msgid="1611460593522078301">"ସ୍କୁଏର ବଟନ"</string>
+    <string name="playstation_controller_cross_button" msgid="5263132258994089833">"କ୍ରସ ବଟନ"</string>
+    <string name="default_game_controller_down_button" msgid="5298575601656661456">"ଡାଉନ ବଟନ"</string>
+    <string name="default_game_controller_left_button" msgid="8135197345326445929">"ବାମପଟ ବଟନ"</string>
+    <string name="default_game_controller_right_button" msgid="7213665536684737133">"ଡାହାଣପଟ ବଟନ"</string>
+    <string name="default_game_controller_up_button" msgid="5466016771871639338">"ଅପ ବଟନ"</string>
+    <string name="nintendo_game_controller_l_button" msgid="4725333055757177703">"L ବଟନ"</string>
+    <string name="nintendo_game_controller_r_button" msgid="1916817307166823755">"R ବଟନ"</string>
+    <string name="nintendo_game_controller_zl_button" msgid="7980363034784417011">"ZL ବଟନ"</string>
+    <string name="nintendo_game_controller_zr_button" msgid="301860128142672009">"ZR ବଟନ"</string>
+    <string name="xbox_game_controller_lb_button" msgid="3531058576782769049">"LB ବଟନ"</string>
+    <string name="xbox_game_controller_rb_button" msgid="7009478913470850721">"RB ବଟନ"</string>
+    <string name="xbox_game_controller_lt_button" msgid="6613016668751667815">"LT ବଟନ"</string>
+    <string name="xbox_game_controller_rt_button" msgid="1259415225164057316">"RT ବଟନ"</string>
 </resources>

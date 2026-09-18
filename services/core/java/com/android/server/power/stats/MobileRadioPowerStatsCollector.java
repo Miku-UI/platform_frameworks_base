@@ -306,7 +306,7 @@ public class MobileRadioPowerStatsCollector extends PowerStatsCollector {
                 continue;
             }
 
-            int uid = mUidResolver.mapUid(uidDelta.getUid());
+            int uid = mUidResolver.getOwnerUid(uidDelta.getUid());
             long[] stats = mPowerStats.uidStats.get(uid);
             if (stats == null) {
                 stats = new long[mLayout.getUidStatsArrayLength()];

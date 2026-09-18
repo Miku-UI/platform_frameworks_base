@@ -1,5 +1,8 @@
 # File containing standard options to Ravenizer for Ravenwood
 
+--warn
+# --debug # To enable debug log on console
+
 # Keep all classes / methods / fields in tests and its target
 --default-keep
 

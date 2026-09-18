@@ -16,10 +16,52 @@
 
 package com.android.systemui.volume.panel.component.mediainput.ui.viewmodel
 
-import com.android.systemui.volume.panel.dagger.scope.VolumePanelScope
-import javax.inject.Inject
+import androidx.compose.runtime.getValue
+import com.android.internal.logging.UiEventLogger
+import com.android.systemui.animation.Expandable
+import com.android.systemui.common.shared.model.Icon
+import com.android.systemui.lifecycle.HydratedActivatable
+import com.android.systemui.media.dialog.MediaSwitchingType
+import com.android.systemui.res.R
+import com.android.systemui.volume.panel.component.mediainput.domain.interactor.MediaInputComponentInteractor
+import com.android.systemui.volume.panel.component.mediaoutput.domain.interactor.MediaOutputActionsInteractor
+import com.android.systemui.volume.panel.ui.VolumePanelUiEvent
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.map
 
-@VolumePanelScope
-class MediaInputViewModel @Inject constructor() {
-    // TODO(b/378513663): Implement the content of media input view model
+class MediaInputViewModel
+@AssistedInject
+constructor(
+    mediaInputComponentInteractor: MediaInputComponentInteractor,
+    private val actionsInteractor: MediaOutputActionsInteractor,
+    private val uiEventLogger: UiEventLogger,
+) : HydratedActivatable() {
+    val hasInputDevice: Boolean by
+        mediaInputComponentInteractor.currentInputDevice
+            .map { mediaDevice -> mediaDevice != null }
+            .hydratedStateOf(initialValue = false)
+
+    val connectedDeviceName: String? by
+        mediaInputComponentInteractor.currentInputDevice
+            .map { mediaDevice -> mediaDevice?.name }
+            .hydratedStateOf(initialValue = null)
+
+    val connectedDeviceIcon: Icon by
+        mediaInputComponentInteractor.currentInputDevice
+            .map { mediaDevice ->
+                mediaDevice?.icon?.let { Icon.Loaded(it, null) }
+                    ?: Icon.Resource(R.drawable.ic_media_home_devices, null)
+            }
+            .hydratedStateOf(initialValue = Icon.Resource(R.drawable.ic_media_home_devices, null))
+
+    fun onBarClick(expandable: Expandable?) {
+        uiEventLogger.log(VolumePanelUiEvent.VOLUME_PANEL_MEDIA_INPUT_CLICKED)
+        actionsInteractor.onBarClick(/* model= */ null, expandable, MediaSwitchingType.INPUT)
+    }
+
+    @AssistedFactory
+    interface Factory {
+        fun create(): MediaInputViewModel
+    }
 }

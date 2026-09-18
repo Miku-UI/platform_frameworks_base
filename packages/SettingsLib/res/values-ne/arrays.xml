@@ -87,24 +87,14 @@
     <item msgid="1963366694959681026">"avrcp १६"</item>
   </string-array>
   <string-array name="bluetooth_map_versions">
-    <item msgid="8786402640610987099">"MAP १.२ (डिफल्ट)"</item>
+    <item msgid="21178836630730799">"MAP १.४ (डिफल्ट)"</item>
     <item msgid="6817922176194686449">"MAP १.३"</item>
-    <item msgid="3423518690032737851">"MAP १.४"</item>
+    <item msgid="8011898423554516831">"MAP १.२"</item>
   </string-array>
   <string-array name="bluetooth_map_version_values">
-    <item msgid="1164651830068248391">"map12"</item>
+    <item msgid="1357192863455358941">"map14"</item>
     <item msgid="7073042887003102964">"map13"</item>
-    <item msgid="8147982633566548515">"map14"</item>
-  </string-array>
-  <string-array name="bluetooth_a2dp_codec_titles">
-    <item msgid="2494959071796102843">"सिस्टमको छनौट प्रयोग गर्नुहोस् (डिफल्ट)"</item>
-    <item msgid="4055460186095649420">"SBC"</item>
-    <item msgid="720249083677397051">"AAC"</item>
-    <item msgid="1049450003868150455">"<xliff:g id="QUALCOMM">Qualcomm®</xliff:g> <xliff:g id="APTX">aptX™</xliff:g> अडियो"</item>
-    <item msgid="2908219194098827570">"<xliff:g id="QUALCOMM">Qualcomm®</xliff:g> <xliff:g id="APTX_HD">aptX™ HD</xliff:g> अडियो"</item>
-    <item msgid="3825367753087348007">"LDAC"</item>
-    <item msgid="328951785723550863">"LC3"</item>
-    <item msgid="506175145534048710">"Opus"</item>
+    <item msgid="7955441600179437965">"map12"</item>
   </string-array>
   <string-array name="bluetooth_a2dp_codec_summaries">
     <item msgid="8868109554557331312">"सिस्टमको छनौट प्रयोग गर्नुहोस् (डिफल्ट)"</item>
@@ -113,8 +103,7 @@
     <item msgid="8627333814413492563">"<xliff:g id="QUALCOMM">Qualcomm®</xliff:g> <xliff:g id="APTX">aptX™</xliff:g> अडियो"</item>
     <item msgid="3517061573669307965">"<xliff:g id="QUALCOMM">Qualcomm®</xliff:g> <xliff:g id="APTX_HD">aptX™ HD</xliff:g> अडियो"</item>
     <item msgid="2553206901068987657">"LDAC"</item>
-    <item msgid="3940992993241040716">"LC3"</item>
-    <item msgid="7940970833006181407">"Opus"</item>
+    <item msgid="3026476115049855657">"Opus"</item>
   </string-array>
   <string-array name="bluetooth_a2dp_codec_sample_rate_titles">
     <item msgid="926809261293414607">"सिस्टमको छनौट प्रयोग गर्नुहोस् (डिफल्ट)"</item>
@@ -234,16 +223,16 @@
   <string-array name="overlay_display_devices_entries">
     <item msgid="4497393944195787240">"कुनै पनि होइन"</item>
     <item msgid="8461943978957133391">"४८० पिक्सेल"</item>
-    <item msgid="6923083594932909205">"४८० पिक्सेल (सुरक्षित)"</item>
+    <item msgid="7951013832222751703">"४८० पिक्सेल (बाह्य, सुरक्षित)"</item>
     <item msgid="1226941831391497335">"७२० पिक्सेल"</item>
-    <item msgid="7051983425968643928">"७२० पिक्सेल (सुरक्षित)"</item>
+    <item msgid="7753610443869941984">"७२० पिक्सेल (बाह्य, सुरक्षित)"</item>
     <item msgid="7765795608738980305">"१०८० पिक्सेल"</item>
-    <item msgid="8084293856795803592">"१०८० पिक्सेल (सुरक्षित)"</item>
+    <item msgid="780227292936715856">"१०८० पिक्सेल (बाह्य, सुरक्षित)"</item>
     <item msgid="938784192903353277">"४ हजार"</item>
-    <item msgid="8612549335720461635">"४ हजार (सुरक्षित)"</item>
+    <item msgid="3210535805151556703">"4K (सुरक्षित, बाह्य)"</item>
     <item msgid="7322156123728520872">"४ हजार (upscaled)"</item>
-    <item msgid="7735692090314849188">"४ हजार (upscaled, सुरक्षित)"</item>
-    <item msgid="7346816300608639624">"७२० पिक्सेल, १०८० पिक्सेल (Dual Screen)"</item>
+    <item msgid="7117474422501223109">"4K (अपस्केल गरिएको, बाह्य, सुरक्षित)"</item>
+    <item msgid="6450685034481873043">"७२० पिक्सेल, १०८० पिक्सेल (डुअल स्क्रिन, बाह्य, सुरक्षित)"</item>
   </string-array>
   <string-array name="enable_opengl_traces_entries">
     <item msgid="4433736508877934305">"कुनै पनि होइन"</item>

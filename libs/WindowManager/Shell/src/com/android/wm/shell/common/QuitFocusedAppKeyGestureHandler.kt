@@ -41,21 +41,18 @@ class QuitFocusedAppKeyGestureHandler(
     val desktopModeKeyGestureHandler: Optional<DesktopModeKeyGestureHandler>,
     val activityTaskManagerService: IActivityTaskManager,
     val focusTransitionObserver: FocusTransitionObserver,
-    @ShellMainThread val executor: ShellExecutor
+    @ShellMainThread val executor: ShellExecutor,
 ) : InputManager.KeyGestureEventHandler {
     init {
         inputManager.registerKeyGestureEventHandler(
             listOf(KeyGestureEvent.KEY_GESTURE_TYPE_QUIT_FOCUSED_TASK),
-            this
+            this,
         )
     }
 
-    override fun handleKeyGestureEvent(
-        event: KeyGestureEvent,
-        focusedToken: IBinder?
-    ) {
+    override fun handleKeyGestureEvent(event: KeyGestureEvent, focusedToken: IBinder?) {
         if (event.keyGestureType != KeyGestureEvent.KEY_GESTURE_TYPE_QUIT_FOCUSED_TASK) {
-            logW("Unsupported key gesture received $event")
+            logW("Unsupported key gesture received %s", event)
             return
         }
         if (event.action == KeyGestureEvent.ACTION_GESTURE_START || event.isCancelled) {
@@ -79,18 +76,24 @@ class QuitFocusedAppKeyGestureHandler(
             }
             activityTaskManagerService.removeTask(focusedTaskId)
         } catch (e: RemoteException) {
-            logE("Unable to quit focused task $e")
+            logE("Unable to quit focused task %s", e)
         }
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logV(msg: String, vararg arguments: Any?) {
         ProtoLog.v(WM_SHELL, "%s: $msg", TAG, *arguments)
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logW(msg: String, vararg arguments: Any?) {
         ProtoLog.w(WM_SHELL, "%s: $msg", TAG, *arguments)
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logE(msg: String, vararg arguments: Any?) {
         ProtoLog.e(WM_SHELL, "%s: $msg", TAG, *arguments)
     }

@@ -19,13 +19,13 @@ package com.android.wm.shell.bubbles
 import android.app.ActivityManager.RunningTaskInfo
 import android.app.ActivityTaskManager.INVALID_TASK_ID
 import android.content.ComponentName
+import android.window.WindowContainerTransaction
 import androidx.annotation.VisibleForTesting
+import com.android.wm.shell.Flags
+import com.android.wm.shell.bubbles.util.BubbleUtils.isBubbleMovedToAnotherRootTask
 import com.android.wm.shell.bubbles.util.BubbleUtils.isBubbleToFullscreen
-import com.android.wm.shell.bubbles.util.BubbleUtils.isBubbleToSplit
-import com.android.wm.shell.splitscreen.SplitScreenController
+import com.android.wm.shell.shared.bubbles.BubbleFlagHelper
 import com.android.wm.shell.taskview.TaskView
-import dagger.Lazy
-import java.util.Optional
 import java.util.concurrent.Executor
 
 /**
@@ -33,24 +33,23 @@ import java.util.concurrent.Executor
  *
  * [delegateListener] allows callers to change listeners after a task has been created.
  */
-class BubbleTaskView @JvmOverloads constructor(
+class BubbleTaskView(
     val taskView: TaskView,
     executor: Executor,
-    private val splitScreenController: Lazy<Optional<SplitScreenController>> =
-        Lazy { Optional.empty() },
+    val bubbleController: BubbleController,
 ) {
 
     /** Whether the task is already created. */
     var isCreated = false
-      private set
+        private set
 
     /** The task id. */
     var taskId = INVALID_TASK_ID
-      private set
+        private set
 
     /** The component name of the application running in the task. */
     var componentName: ComponentName? = null
-      private set
+        private set
 
     /**
      * Whether the task view is visible and has a surface. Note that this does not check the alpha
@@ -58,54 +57,59 @@ class BubbleTaskView @JvmOverloads constructor(
      *
      * When this is `true` it is safe to start showing the task view. Otherwise if this is `false`
      * callers should wait for it to be visible which will be indicated either by a call to
-     * [TaskView.Listener.onTaskCreated] or [TaskView.Listener.onTaskVisibilityChanged]. */
+     * [TaskView.Listener.onTaskCreated] or [TaskView.Listener.onTaskVisibilityChanged].
+     */
     var isVisible = false
-      private set
+        private set
 
     /** [TaskView.Listener] for users of this class. */
     var delegateListener: TaskView.Listener? = null
 
+    /** Whether the task should be removed during [cleanup] or not. */
+    var taskShouldBeRemoved = false
+
     /** A [TaskView.Listener] that delegates to [delegateListener]. */
     @get:VisibleForTesting
-    val listener = object : TaskView.Listener {
-        override fun onInitialized() {
-            delegateListener?.onInitialized()
-        }
+    val listener =
+        object : TaskView.Listener {
+            override fun onInitialized() {
+                delegateListener?.onInitialized()
+            }
 
-        override fun onSurfaceAlreadyCreated() {
-            delegateListener?.onSurfaceAlreadyCreated()
-        }
+            override fun onSurfaceAlreadyCreated() {
+                delegateListener?.onSurfaceAlreadyCreated()
+            }
 
-        override fun onReleased() {
-            delegateListener?.onReleased()
-        }
+            override fun onReleased() {
+                delegateListener?.onReleased()
+            }
 
-        override fun onTaskCreated(taskId: Int, name: ComponentName) {
-            delegateListener?.onTaskCreated(taskId, name)
-            this@BubbleTaskView.taskId = taskId
-            isCreated = true
-            componentName = name
-            // when the task is created it is visible
-            isVisible = true
-        }
+            override fun onTaskCreated(taskId: Int, name: ComponentName) {
+                delegateListener?.onTaskCreated(taskId, name)
+                this@BubbleTaskView.taskId = taskId
+                isCreated = true
+                componentName = name
+                // when the task is created it is visible
+                isVisible = true
+            }
 
-        override fun onTaskVisibilityChanged(taskId: Int, visible: Boolean) {
-            this@BubbleTaskView.isVisible = visible
-            delegateListener?.onTaskVisibilityChanged(taskId, visible)
-        }
+            override fun onTaskVisibilityChanged(taskId: Int, visible: Boolean) {
+                this@BubbleTaskView.isVisible = visible
+                delegateListener?.onTaskVisibilityChanged(taskId, visible)
+            }
 
-        override fun onTaskRemovalStarted(taskId: Int) {
-            delegateListener?.onTaskRemovalStarted(taskId)
-        }
+            override fun onTaskRemovalStarted(taskId: Int) {
+                delegateListener?.onTaskRemovalStarted(taskId)
+            }
 
-        override fun onTaskInfoChanged(taskInfo: RunningTaskInfo?) {
-            delegateListener?.onTaskInfoChanged(taskInfo)
-        }
+            override fun onTaskInfoChanged(taskInfo: RunningTaskInfo?) {
+                delegateListener?.onTaskInfoChanged(taskInfo)
+            }
 
-        override fun onBackPressedOnTaskRoot(taskId: Int) {
-            delegateListener?.onBackPressedOnTaskRoot(taskId)
+            override fun onBackPressedOnTaskRoot(taskId: Int) {
+                delegateListener?.onBackPressedOnTaskRoot(taskId)
+            }
         }
-    }
 
     init {
         taskView.setListener(executor, listener)
@@ -118,10 +122,56 @@ class BubbleTaskView @JvmOverloads constructor(
      */
     fun cleanup() {
         val task = taskView.taskInfo
-        if (task.isBubbleToFullscreen() || task.isBubbleToSplit(splitScreenController)) {
+        if (task != null && task.token != null && Flags.fixMarkTaskAsTrimmable()) {
+            markTaskAsTrimmable(task)
+        }
+
+        if (BubbleFlagHelper.enableRootTaskForBubble()) {
+            task?.let { t ->
+                val bubble = bubbleController.getBubble(t)
+                if (
+                    bubble == null ||
+                        bubble.isChat ||
+                        bubbleController.bubbleHelper.isAppBubbleTask(t)
+                ) {
+                    if (
+                        task.isBubbleToFullscreen() ||
+                            task.isBubbleMovedToAnotherRootTask(bubbleController.bubbleHelper)
+                    ) {
+                        taskView.unregisterTask()
+                    } else if (!isCreated) {
+                        // Task should be removed if cleanup is called before the task was created.
+                        taskView.removeTask()
+                    } else if (Flags.bugDontRemoveTaskBubble()) {
+                        if (taskShouldBeRemoved) {
+                            taskView.removeTask()
+                        } else {
+                            taskView.unregisterTask()
+                            taskView.release()
+                        }
+                    } else {
+                        taskView.removeTask()
+                    }
+                } else {
+                    // Just unregister the task if the task is no longer a bubble, e.g. relaunched
+                    // into split-screen, or desktop.
+                    taskView.unregisterTask()
+                }
+            }
+        } else if (
+            task.isBubbleToFullscreen() ||
+                task.isBubbleMovedToAnotherRootTask(bubbleController.bubbleHelper)
+        ) {
             taskView.unregisterTask()
         } else {
             taskView.removeTask()
         }
+    }
+
+    /** Ensures that the task is marked as trimmable from recents during cleanup */
+    private fun markTaskAsTrimmable(taskInfo: RunningTaskInfo) {
+        val wct = WindowContainerTransaction()
+        wct.setTaskTrimmableFromRecents(taskInfo.token, /* isTrimmableFromRecents */ true)
+        taskView.controller.taskOrganizer.applyTransaction(wct)
     }
 }

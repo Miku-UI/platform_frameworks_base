@@ -28,9 +28,6 @@ import android.media.ImageReader;
 import android.util.Slog;
 import android.window.TaskSnapshot;
 
-import com.android.internal.policy.TransitionAnimation;
-import com.android.window.flags.Flags;
-
 /**
  * Utility class providing methods to convert snapshots between Bitmap formats and/or scale them.
  */
@@ -44,16 +41,8 @@ public class TaskSnapshotConvertUtil {
         if (swBitmap == null) {
             return null;
         }
-        final int width;
-        final int height;
-        if (Flags.reduceTaskSnapshotMemoryUsage()) {
-            width = snapshot.getHardwareBufferWidth();
-            height = snapshot.getHardwareBufferHeight();
-        } else {
-            final HardwareBuffer hwBuffer = snapshot.getHardwareBuffer();
-            width = hwBuffer.getWidth();
-            height = hwBuffer.getHeight();
-        }
+        final int width = snapshot.getHardwareBufferWidth();
+        final int height = snapshot.getHardwareBufferHeight();
         final Bitmap lowResBitmap = Bitmap.createScaledBitmap(swBitmap,
                 (int) (width * scaleFactor),
                 (int) (height * scaleFactor),
@@ -65,16 +54,8 @@ public class TaskSnapshotConvertUtil {
     }
 
     static boolean mustPersistByHardwareRender(@NonNull TaskSnapshot snapshot) {
-        final int pixelFormat;
-        final boolean hasProtectedContent;
-        if (Flags.reduceTaskSnapshotMemoryUsage()) {
-            pixelFormat = snapshot.getHardwareBufferFormat();
-            hasProtectedContent = snapshot.hasProtectedContent();
-        } else {
-            final HardwareBuffer hwBuffer = snapshot.getHardwareBuffer();
-            pixelFormat = hwBuffer.getFormat();
-            hasProtectedContent = TransitionAnimation.hasProtectedContent(hwBuffer);
-        }
+        final int pixelFormat = snapshot.getHardwareBufferFormat();
+        final boolean hasProtectedContent = snapshot.hasProtectedContent();
         return (pixelFormat != PixelFormat.RGB_565 && pixelFormat != PixelFormat.RGBA_8888)
                 || !snapshot.isRealSnapshot()
                 || hasProtectedContent;
@@ -102,32 +83,16 @@ public class TaskSnapshotConvertUtil {
     }
 
     static Bitmap copySWBitmap(TaskSnapshot snapshot) {
-        final int width;
-        final int height;
-        final int pixelFormat;
-        if (Flags.reduceTaskSnapshotMemoryUsage()) {
-            width = snapshot.getHardwareBufferWidth();
-            height = snapshot.getHardwareBufferHeight();
-            pixelFormat = snapshot.getHardwareBufferFormat();
-        } else {
-            final HardwareBuffer hwBuffer = snapshot.getHardwareBuffer();
-            width = hwBuffer.getWidth();
-            height = hwBuffer.getHeight();
-            pixelFormat = hwBuffer.getFormat();
-        }
+        final int width = snapshot.getHardwareBufferWidth();
+        final int height = snapshot.getHardwareBufferHeight();
+        final int pixelFormat = snapshot.getHardwareBufferFormat();
         return mustPersistByHardwareRender(snapshot)
                 ? copyToSwBitmapReadBack(snapshot)
                 : copyToSwBitmapDirect(width, height, pixelFormat, snapshot);
     }
 
     private static Bitmap copyToSwBitmapReadBack(TaskSnapshot snapshot) {
-        final Bitmap bitmap;
-        if (Flags.reduceTaskSnapshotMemoryUsage()) {
-            bitmap = snapshot.wrapToBitmap();
-        } else {
-            bitmap = Bitmap.wrapHardwareBuffer(
-                    snapshot.getHardwareBuffer(), snapshot.getColorSpace());
-        }
+        final Bitmap bitmap = snapshot.wrapToBitmap();
         if (bitmap == null) {
             Slog.e(TAG, "Invalid task snapshot hw bitmap");
             return null;
@@ -151,12 +116,7 @@ public class TaskSnapshotConvertUtil {
             TaskSnapshot snapshot) {
         try (ImageReader ir = ImageReader.newInstance(width, height,
                 pixelFormat, 1 /* maxImages */)) {
-            if (Flags.reduceTaskSnapshotMemoryUsage()) {
-                snapshot.attachAndQueueBufferWithColorSpace(ir.getSurface());
-            } else {
-                ir.getSurface().attachAndQueueBufferWithColorSpace(
-                        snapshot.getHardwareBuffer(), snapshot.getColorSpace());
-            }
+            snapshot.attachAndQueueBufferWithColorSpace(ir.getSurface());
             try (Image image = ir.acquireLatestImage()) {
                 if (image == null || image.getPlaneCount() < 1) {
                     Slog.e(TAG, "Image reader cannot acquire image");

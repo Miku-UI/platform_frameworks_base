@@ -16,28 +16,29 @@
 
 package com.android.server.notification;
 
-import static android.app.Flags.FLAG_LIFETIME_EXTENSION_REFACTOR;
+import static android.app.NotificationLoggingConstants.DATA_TYPE_MANAGED_SERVICE_PRIMARY_APPROVED;
+import static android.app.NotificationLoggingConstants.DATA_TYPE_MANAGED_SERVICE_SECONDARY_APPROVED;
 import static android.content.Context.BIND_ALLOW_WHITELIST_MANAGEMENT;
 import static android.content.Context.BIND_AUTO_CREATE;
 import static android.content.Context.BIND_FOREGROUND_SERVICE;
 import static android.content.Context.DEVICE_POLICY_SERVICE;
 import static android.os.UserHandle.USER_ALL;
 import static android.os.UserHandle.USER_SYSTEM;
-import static android.service.notification.Flags.reportNlsStartAndEnd;
 import static android.service.notification.NotificationListenerService.META_DATA_DEFAULT_AUTOBIND;
 
 import static com.android.server.notification.Flags.FLAG_MANAGED_SERVICES_CONCURRENT_MULTIUSER;
 import static com.android.server.notification.Flags.managedServicesConcurrentMultiuser;
-import static com.android.server.notification.NotificationManagerService.privateSpaceFlagsEnabled;
 
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.app.ActivityManager;
 import android.app.ActivityOptions;
 import android.app.IBinderSession;
 import android.app.PendingIntent;
 import android.app.admin.DevicePolicyManager;
+import android.app.backup.BackupRestoreEventLogger;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -76,8 +77,9 @@ import android.util.SparseArray;
 import android.util.SparseSetArray;
 import android.util.proto.ProtoOutputStream;
 
+import androidx.annotation.VisibleForTesting;
+
 import com.android.internal.annotations.GuardedBy;
-import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.XmlUtils;
 import com.android.internal.util.function.TriPredicate;
 import com.android.modules.utils.TypedXmlPullParser;
@@ -114,11 +116,11 @@ abstract public class ManagedServices {
     protected final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
 
     private static final int ON_BINDING_DIED_REBIND_DELAY_MS = 10000;
-    private boolean mRebindAsyncDelay = true;
     protected static final String ENABLED_SERVICES_SEPARATOR = ":";
     private static final String DB_VERSION_1 = "1";
     private static final String DB_VERSION_2 = "2";
     private static final String DB_VERSION_3 = "3";
+
 
     /**
      * List of components and apps that can have running {@link ManagedServices}.
@@ -150,14 +152,15 @@ abstract public class ManagedServices {
     private final UserProfiles mUserProfiles;
     protected final IPackageManager mPm;
     protected final UserManager mUm;
-    protected final UserManagerInternal mUmInternal;
+    protected UserManagerInternal mUmInternal;
     private final Config mConfig;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
 
     // contains connections to all connected services, including app services
     // and system services
     @GuardedBy("mMutex")
-    private final ArrayList<ManagedServiceInfo> mServices = new ArrayList<>();
+    @VisibleForTesting
+    final ArrayList<ManagedServiceInfo> mServices = new ArrayList<>();
     /**
      * The services that have been bound by us. If the service is also connected, it will also
      * be in {@link #mServices}.
@@ -445,6 +448,7 @@ abstract public class ManagedServices {
                 if (filter != null && !filter.matches(info.component)) continue;
                 pw.println("      " + info.component
                         + " (user " + info.userid + "): " + info.service
+                        + " (sc=" + info.getConnectionId() + ")"
                         + (info.isSystem ? " SYSTEM" : "")
                         + (info.isGuest(this) ? " GUEST" : ""));
             }
@@ -574,7 +578,8 @@ abstract public class ManagedServices {
         }
     }
 
-    public void writeXml(TypedXmlSerializer out, boolean forBackup, int userId) throws IOException {
+    public void writeXml(TypedXmlSerializer out, boolean forBackup, int userId,
+            @Nullable BackupRestoreEventLogger logger) throws IOException {
         out.startTag(null, getConfig().xmlTag);
 
         out.attributeInt(null, ATT_VERSION, Integer.parseInt(DB_VERSION));
@@ -584,6 +589,9 @@ abstract public class ManagedServices {
         if (forBackup) {
             trimApprovedListsAccordingToInstalledServices(userId);
         }
+
+        int primaryCount = 0;
+        int secondaryCount = 0;
 
         synchronized (mApproved) {
             final int N = mApproved.size();
@@ -627,16 +635,25 @@ abstract public class ManagedServices {
                                             approvedUserId);
                                 }
                             }
-
+                            if (isPrimary) {
+                                primaryCount += approved.size();
+                            } else {
+                                secondaryCount += approved.size();
+                            }
                         }
                     }
                 }
             }
         }
 
-        writeExtraXmlTags(out);
+        writeExtraXmlTags(out, logger);
 
         out.endTag(null, getConfig().xmlTag);
+
+        if (logger != null) {
+            logger.logItemsBackedUp(DATA_TYPE_MANAGED_SERVICE_PRIMARY_APPROVED, primaryCount);
+            logger.logItemsBackedUp(DATA_TYPE_MANAGED_SERVICE_SECONDARY_APPROVED, secondaryCount);
+        }
     }
 
     /**
@@ -654,12 +671,14 @@ abstract public class ManagedServices {
     /**
      * Writes extra xml tags within the parent tag specified in {@link Config#xmlTag}.
      */
-    protected void writeExtraXmlTags(TypedXmlSerializer out) throws IOException {}
+    protected void writeExtraXmlTags(TypedXmlSerializer out,
+            @Nullable BackupRestoreEventLogger logger) throws IOException {}
 
     /**
      * This is called to process tags other than {@link #TAG_MANAGED_SERVICES}.
      */
-    protected void readExtraTag(String tag, TypedXmlPullParser parser)
+    protected void readExtraTag(String tag, TypedXmlPullParser parser,
+            @Nullable BackupRestoreEventLogger logger)
             throws IOException, XmlPullParserException {}
 
     protected final void migrateToXml() {
@@ -705,13 +724,18 @@ abstract public class ManagedServices {
             TypedXmlPullParser parser,
             TriPredicate<String, Integer, String> allowedManagedServicePackages,
             boolean forRestore,
-            int userId)
+            int userId,
+            @Nullable BackupRestoreEventLogger logger)
             throws XmlPullParserException, IOException {
         // read grants
         int type;
         String version = XmlUtils.readStringAttribute(parser, ATT_VERSION);
         boolean needUpgradeUserset = false;
         readDefaults(parser);
+
+        int primaryCount = 0;
+        int secondaryCount = 0;
+
         while ((type = parser.next()) != XmlPullParser.END_DOCUMENT) {
             String tag = parser.getName();
             if (type == XmlPullParser.END_TAG
@@ -781,14 +805,19 @@ abstract public class ManagedServices {
                                 getPackageName(approved), resolvedUserId, getRequiredPermission())
                                 || approved.isEmpty()) {
                             if (mUm.getUserInfo(resolvedUserId) != null) {
-                                addApprovedList(approved, resolvedUserId, isPrimary,
-                                        userSetComponent);
+                                int addedCount = addApprovedList(approved, resolvedUserId,
+                                        isPrimary, userSetComponent);
+                                if (isPrimary) {
+                                    primaryCount += addedCount;
+                                } else {
+                                    secondaryCount += addedCount;
+                                }
                             }
                             mUseXml = true;
                         }
                     }
                 } else {
-                    readExtraTag(tag, parser);
+                    readExtraTag(tag, parser, logger);
                 }
             }
         }
@@ -801,6 +830,11 @@ abstract public class ManagedServices {
         }
         if (needUpgradeUserset) {
             upgradeUserSet();
+        }
+
+        if (logger != null) {
+            logger.logItemsRestored(DATA_TYPE_MANAGED_SERVICE_PRIMARY_APPROVED, primaryCount);
+            logger.logItemsRestored(DATA_TYPE_MANAGED_SERVICE_SECONDARY_APPROVED, secondaryCount);
         }
 
         rebindServices(false, USER_ALL);
@@ -846,11 +880,12 @@ abstract public class ManagedServices {
 
     protected abstract String getRequiredPermission();
 
-    protected void addApprovedList(String approved, int userId, boolean isPrimary) {
-        addApprovedList(approved, userId, isPrimary, approved);
+    protected int addApprovedList(String approved, int userId, boolean isPrimary) {
+        return addApprovedList(approved, userId, isPrimary, approved);
     }
 
-    protected void addApprovedList(String approved, int userId, boolean isPrimary, String userSet) {
+    protected int addApprovedList(String approved, int userId, boolean isPrimary, String userSet) {
+        int added = 0;
         if (TextUtils.isEmpty(approved)) {
             approved = "";
         }
@@ -880,6 +915,7 @@ abstract public class ManagedServices {
                 String approvedItem = getApprovedValue(pkgOrComponent);
                 if (approvedItem != null) {
                     approvedList.add(approvedItem);
+                    added++;
                 }
                 int uid = getUidForPackageOrComponent(pkgOrComponent, userId);
                 if (uid != Process.INVALID_UID) {
@@ -900,6 +936,7 @@ abstract public class ManagedServices {
                 }
             }
         }
+        return added;
     }
 
     protected void denyPregrantedAppUserSet(int userId, boolean isPrimary) {
@@ -978,8 +1015,7 @@ abstract public class ManagedServices {
             if (approvedItem != null) {
                 int uid = getUidForPackageOrComponent(pkgOrComponent, userId);
                 if (enabled) {
-                    if (!Flags.limitManagedServicesCount()
-                            || approved.size() < MAX_SERVICE_ENTRIES) {
+                    if (approved.size() < MAX_SERVICE_ENTRIES) {
                         approved.add(approvedItem);
                         if (uid != Process.INVALID_UID) {
                             approvedUids.add(uid);
@@ -1006,8 +1042,7 @@ abstract public class ManagedServices {
                     mUserSetServices.put(userId, userSetServices);
                 }
                 if (userSet) {
-                    if (!Flags.limitManagedServicesCount()
-                            || userSetServices.size() < MAX_SERVICE_ENTRIES) {
+                    if (userSetServices.size() < MAX_SERVICE_ENTRIES) {
                         userSetServices.add(pkgOrComponent);
                     }
                 } else {
@@ -1016,7 +1051,7 @@ abstract public class ManagedServices {
             }
         }
 
-        if (!Flags.limitManagedServicesCount() || changed) {
+        if (changed) {
             rebindServices(false, userId);
         }
 
@@ -1186,31 +1221,31 @@ abstract public class ManagedServices {
                     anyServicesInvolved = removeUninstalledItemsFromApprovedLists(userId, pkg);
                 }
             }
-            for (String pkgName : pkgList) {
+            for (int i = 0; i < pkgList.length; i++) {
+                String pkgName = pkgList[i];
                 if (!managedServicesConcurrentMultiuser()) {
                     if (isComponentEnabledForPackage(pkgName)) {
                         anyServicesInvolved = true;
                     }
                 }
-                if (uidList != null && uidList.length > 0) {
-                    for (int uid : uidList) {
-                        if (managedServicesConcurrentMultiuser()) {
-                            if (isComponentEnabledForPackage(pkgName, UserHandle.getUserId(uid))) {
-                                anyServicesInvolved = true;
-                            }
-                        }
-                        if (isPackageAllowed(pkgName, UserHandle.getUserId(uid))) {
+
+                if (uidList != null && uidList.length == pkgList.length) {
+                    @UserIdInt int userId = UserHandle.getUserId(uidList[i]);
+                    if (managedServicesConcurrentMultiuser()) {
+                        if (isComponentEnabledForPackage(pkgName, userId)) {
                             anyServicesInvolved = true;
-                            trimApprovedListsForInvalidServices(pkgName, UserHandle.getUserId(uid));
                         }
+                    }
+                    if (isPackageAllowed(pkgName, userId)) {
+                        anyServicesInvolved = true;
+                        trimApprovedListsForInvalidServices(pkgName, userId);
                     }
                 }
             }
-            if (!Flags.useOnBindingDied()) {
-                if (anyServicesInvolved) {
-                    // make sure we're still bound to any of our services who may have just upgraded
-                    rebindServices(false, USER_ALL);
-                }
+
+            if (anyServicesInvolved) {
+                // make sure we're still bound to any of our services who may have just upgraded
+                rebindServices(false, USER_ALL);
             }
         }
     }
@@ -1266,6 +1301,18 @@ abstract public class ManagedServices {
     public void onUserUnlocked(int user) {
         if (DEBUG) Slog.d(TAG, "onUserUnlocked u=" + user);
         rebindServices(false, user);
+    }
+
+    @Nullable
+    private ManagedServiceInfo getService(ComponentName cn, @UserIdInt int userId) {
+        synchronized (mMutex) {
+            for (ManagedServiceInfo info : mServices) {
+                if (Objects.equals(info.component, cn) && info.userid == userId) {
+                    return info;
+                }
+            }
+            return null;
+        }
     }
 
     private ManagedServiceInfo getServiceFromTokenLocked(IInterface service) {
@@ -1799,8 +1846,7 @@ abstract public class ManagedServices {
     /**
      * Version of registerService that takes the name of a service component to bind to.
      */
-    @VisibleForTesting
-    void registerService(final ServiceInfo si, final int userId) {
+    private void registerService(final ServiceInfo si, final int userId) {
         ensureFilters(si, userId);
         registerService(si.getComponentName(), userId);
     }
@@ -1819,10 +1865,6 @@ abstract public class ManagedServices {
         if (isPackageOrComponentAllowedWithPermission(cn, userId)) {
             registerService(cn, userId);
         } else {
-            if (Flags.useOnBindingDied()) {
-                // clean up enabled component list
-                mEnabledServicesByUser.get(resolveUserId(userId)).remove(cn);
-            }
             if (DEBUG) Slog.v(TAG, "skipped reregisterService cn=" + cn + " u=" + userId
                     + " because of isPackageOrComponentAllowedWithPermission check");
         }
@@ -1831,21 +1873,10 @@ abstract public class ManagedServices {
     /**
      * Inject a system service into the management list.
      */
+    @VisibleForTesting(otherwise = VisibleForTesting.NONE)
     public void registerSystemService(final ComponentName name, final int userid) {
         synchronized (mMutex) {
             registerServiceLocked(name, userid, true /* isSystem */);
-        }
-    }
-
-    @GuardedBy("mMutex")
-    private void disconnectServiceLocked(ServiceConnection sc, IInterface service,
-            @UserIdInt int userId, ComponentName cn) {
-        if (service != null) {
-            Slog.w(TAG, userId + " " + getCaption() + " unregister: " + cn);
-            unregisterService(service, userId);
-        } else {
-            Slog.w(TAG, userId + " " + getCaption() + " unbind: " + cn);
-            unbindService(sc, cn, userId);
         }
     }
 
@@ -1855,40 +1886,28 @@ abstract public class ManagedServices {
     }
 
     @GuardedBy("mMutex")
-    private boolean isServiceAlreadyBoundLocked(ManagedServiceInfo info) {
-        for (ManagedServiceInfo info2 : mServices) {
-            if (Objects.equals(info.component, info2.component) && info.userid == info2.userid) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @GuardedBy("mMutex")
     private void registerServiceLocked(final ComponentName name, final int userid,
             final boolean isSystem) {
         if (DEBUG) Slog.v(TAG, "registerService: " + name + " u=" + userid);
 
         final Pair<ComponentName, Integer> servicesBindingTag = Pair.create(name, userid);
         if (mServicesBound.contains(servicesBindingTag)) {
-            Slog.v(TAG, "Not registering " + name + " is already binding");
+            Slog.v(TAG, "Not registering " + name + " is already bound");
             // stop registering this thing already! we're working on it
             return;
         }
         mServicesBound.add(servicesBindingTag);
 
-        if (!Flags.useOnBindingDied()) {
-            final int N = mServices.size();
-            for (int i = N - 1; i >= 0; i--) {
-                final ManagedServiceInfo info = mServices.get(i);
-                if (name.equals(info.component)
-                        && info.userid == userid) {
-                    // cut old connections
-                    Slog.v(TAG, "    disconnecting old " + getCaption() + ": " + info.service);
-                    removeServiceLocked(i);
-                    if (info.connection != null) {
-                        unbindService(info.connection, info.component, info.userid);
-                    }
+        final int N = mServices.size();
+        for (int i = N - 1; i >= 0; i--) {
+            final ManagedServiceInfo info = mServices.get(i);
+            if (name.equals(info.component)
+                && info.userid == userid) {
+                // cut old connections
+                Slog.v(TAG, "    disconnecting old " + getCaption() + ": " + info.service);
+                removeServiceLocked(i);
+                if (info.connection != null) {
+                    unbindService(info.connection, info.component, info.userid);
                 }
             }
         }
@@ -1925,34 +1944,28 @@ abstract public class ManagedServices {
                 @Override
                 public void onServiceConnected(ComponentName name, IBinder binder,
                         IBinderSession binderSession) {
-                    Slog.v(TAG, userid + " " + getCaption() + " service connected: " + name);
+                    Slog.v(TAG,  userid + " " + getCaption() + " service connected: " + name);
                     boolean added = false;
                     ManagedServiceInfo info = null;
                     synchronized (mMutex) {
                         mServicesRebinding.remove(servicesBindingTag);
                         try {
                             mService = asInterface(binder);
-                            if (reportNlsStartAndEnd()) {
-                                info = new ManagedServiceInfo(mService, name, userid, isSystem,
-                                        this, targetSdkVersion, uid, binderSession);
-                            } else {
-                                info = new ManagedServiceInfo(mService, name, userid, isSystem,
-                                        this, targetSdkVersion, uid);
+                            info = new ManagedServiceInfo(mService, name, userid, isSystem,
+                                    this, targetSdkVersion, uid, binderSession);
+                            ManagedServiceInfo previousBinding = getService(name, userid);
+                            if (previousBinding != null) {
+                                Slog.wtfStack(TAG,
+                                        "Duplicate binding! previous=" + previousBinding
+                                                + "; current=" + info);
+                                if (Flags.ignoreDuplicateBindings()) {
+                                    Slog.w(TAG, "Ignoring callback for duplicate binding.");
+                                    return;
+                                }
                             }
-                            if (!Flags.useOnBindingDied()) {
-                                binder.linkToDeath(info, 0);
-                            }
-                            if (Flags.useOnBindingDied() && isServiceAlreadyBoundLocked(info)) {
-                                Slog.wtfStack(TAG, "Duplicate binding " + info);
-                            }
+                            binder.linkToDeath(info, 0);
                             added = mServices.add(info);
                         } catch (RemoteException e) {
-                            if (Flags.useOnBindingDied()) {
-                                // This block is likely unreachable because RemoteException is
-                                // typically thrown by binder.linkToDeath, which is skipped
-                                // when Flags.useOnBindingDied() is true.
-                                mServicesBound.remove(servicesBindingTag);
-                            }
                             Slog.e(TAG, "Failed to linkToDeath, already dead", e);
                         }
                     }
@@ -1976,22 +1989,14 @@ abstract public class ManagedServices {
 
                 @Override
                 public void onBindingDied(ComponentName name) {
-                    Slog.w(TAG, userid + " " + getCaption() + " binding died: " + name);
+                    Slog.w(TAG,  userid + " " + getCaption() + " binding died: " + name);
                     synchronized (mMutex) {
-                        if (Flags.useOnBindingDied()) {
-                            disconnectServiceLocked(this, mService, userid, name);
-                        } else {
-                            unbindService(this, name, userid);
-                        }
+                        unbindService(this, name, userid);
                         if (!mServicesRebinding.contains(servicesBindingTag)) {
                             mServicesRebinding.add(servicesBindingTag);
-                            if (mRebindAsyncDelay) {
-                                mHandler.postDelayed(() ->
-                                                reregisterService(name, userid),
-                                        ON_BINDING_DIED_REBIND_DELAY_MS);
-                            } else {
-                                reregisterService(name, userid);
-                            }
+                            mHandler.postDelayed(() ->
+                                    reregisterService(name, userid),
+                                    ON_BINDING_DIED_REBIND_DELAY_MS);
                         } else {
                             Slog.v(TAG, getCaption() + " not rebinding in user " + userid
                                     + " as a previous rebind attempt was made: " + name);
@@ -2002,20 +2007,19 @@ abstract public class ManagedServices {
                 @Override
                 public void onNullBinding(ComponentName name) {
                     Slog.v(TAG, "onNullBinding() called with: name = [" + name + "]");
-                    if (Flags.useOnBindingDied()) {
-                        disconnectServiceLocked(this, mService, userid, name);
-                    } else {
-                        mContext.unbindService(this);
-                    }
+                    mContext.unbindService(this);
                 }
             };
+
             if (!mContext.bindServiceAsUser(intent,
                     serviceConnection,
                     BindServiceFlags.of(getBindFlags()),
                     new UserHandle(userid))) {
-                mServicesBound.remove(servicesBindingTag);
                 Slog.w(TAG, "Unable to bind " + getCaption() + " service: " + intent
                         + " in user " + userid);
+                // Need to call Context.unbindService() to dispose of the ServiceConnection even
+                // when bindService returns false.
+                unbindService(serviceConnection, name, userid);
             }
         } catch (SecurityException ex) {
             mServicesBound.remove(servicesBindingTag);
@@ -2104,7 +2108,11 @@ abstract public class ManagedServices {
     private ManagedServiceInfo registerServiceImpl(ManagedServiceInfo info) {
         synchronized (mMutex) {
             try {
-                info.service.asBinder().linkToDeath(info, 0);
+                if (!info.isGuest(this)) {
+                    // Guest services are already linkedToDeath in their hosts, and the host
+                    // will call unregisterService() to remove them from this.mServices.
+                    info.service.asBinder().linkToDeath(info, 0);
+                }
                 mServices.add(info);
                 return info;
             } catch (RemoteException e) {
@@ -2186,17 +2194,11 @@ abstract public class ManagedServices {
      */
     protected abstract boolean allowRebindForParentUser();
 
-    @VisibleForTesting
-    void setRebindAsyncDelay(boolean rebindAsyncDelay) {
-        mRebindAsyncDelay = rebindAsyncDelay;
-    }
-
     public class ManagedServiceInfo implements IBinder.DeathRecipient {
         public IInterface service;
         public ComponentName component;
         public int userid;
         public boolean isSystem;
-        @FlaggedApi(FLAG_LIFETIME_EXTENSION_REFACTOR)
         public boolean isSystemUi;
         public ServiceConnection connection;
         public int targetSdkVersion;
@@ -2246,7 +2248,6 @@ abstract public class ManagedServices {
             return isSystem;
         }
 
-        @FlaggedApi(FLAG_LIFETIME_EXTENSION_REFACTOR)
         public boolean isSystemUi() {
             return isSystemUi;
         }
@@ -2258,10 +2259,19 @@ abstract public class ManagedServices {
                     .append(",userid=").append(userid)
                     .append(",isSystem=").append(isSystem)
                     .append(",targetSdkVersion=").append(targetSdkVersion)
-                    .append(",connection=").append(connection == null ? null : "<connection>")
+                    .append(",connection=").append(getConnectionId())
                     .append(",service=").append(service)
                     .append(",serviceAsBinder=").append(service != null ? service.asBinder() : null)
                     .append(']').toString();
+        }
+
+        /**
+         * Returns an id for the {@link #connection}, if present. Current implementation is just
+         * the hex string of the connection's hash code.
+         */
+        @Nullable
+        public String getConnectionId() {
+            return connection != null ? Integer.toHexString(connection.hashCode()) : null;
         }
 
         public void dumpDebug(ProtoOutputStream proto, long fieldId, ManagedServices host) {
@@ -2281,7 +2291,7 @@ abstract public class ManagedServices {
             return userId == USER_ALL || userId == this.userid;
         }
 
-        public boolean enabledAndUserMatches(int nid) {
+        public boolean enabledAndUserMatches(@UserIdInt int nid) {
             if (!isEnabledForUser()) {
                 return false;
             }
@@ -2308,9 +2318,6 @@ abstract public class ManagedServices {
 
         @Override
         public void binderDied() {
-            if (Flags.useOnBindingDied()) {
-                return;
-            }
             if (DEBUG) Slog.d(TAG, "binderDied " + this);
             // Remove the service, but don't unbind from the service. The system will bring the
             // service back up, and the onServiceConnected handler will read the service with the
@@ -2447,10 +2454,7 @@ abstract public class ManagedServices {
                 if (user == null) {
                     return false;
                 }
-                if (privateSpaceFlagsEnabled()) {
-                    return user.isProfile() && hasParent(user, context);
-                }
-                return user.isManagedProfile() || user.isCloneProfile();
+                return user.isProfile() && hasParent(user, context);
             }
         }
 

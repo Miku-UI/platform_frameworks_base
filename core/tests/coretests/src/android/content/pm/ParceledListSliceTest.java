@@ -18,7 +18,9 @@ package android.content.pm;
 
 import static org.junit.Assert.assertThrows;
 
+import android.annotation.NonNull;
 import android.os.Parcel;
+import android.os.Parcel.ReadWriteHelper;
 import android.os.Parcelable;
 import android.os.ServiceSpecificException;
 import android.platform.test.annotations.Presubmit;
@@ -30,6 +32,7 @@ import junit.framework.TestCase;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Presubmit
 @LargeTest
@@ -207,6 +210,118 @@ public class ParceledListSliceTest extends TestCase {
         }
     }
 
+    public static final class ParceledListSliceWithReadWriteHelper
+            extends ParceledListSlice<StringObject> {
+        // Cannot be instantiated here because it's used from the super constructor,
+        // which is called before field initialization.
+        AtomicInteger mReadWriteHelperCreated;
+        List<String> mStringsWritten;
+        List<String> mStringsRead;
+
+        public ParceledListSliceWithReadWriteHelper(List<StringObject> list) {
+            super(list);
+            mStringsWritten = new ArrayList<>();
+            mStringsRead = new ArrayList<>();
+        }
+
+        public ParceledListSliceWithReadWriteHelper(Parcel p) {
+            super(p, StringObject.class.getClassLoader());
+            if (mStringsWritten == null) {
+                mStringsWritten = new ArrayList<>();
+            }
+            if (mStringsRead == null) {
+                mStringsRead = new ArrayList<>();
+            }
+        }
+
+        @Override
+        protected ReadWriteHelper createReadWriteHelper() {
+            if (mReadWriteHelperCreated == null) {
+                mReadWriteHelperCreated = new AtomicInteger(0);
+            }
+            mReadWriteHelperCreated.incrementAndGet();
+            return new ReadWriteHelper() {
+                @Override
+                public void writeString16(Parcel p, String s) {
+                    p.writeString16NoHelper(s);
+                    if (mStringsWritten == null) {
+                        mStringsWritten = new ArrayList<>();
+                    }
+                    mStringsWritten.add(s);
+                }
+
+                @Override
+                public String readString16(Parcel p) {
+                    String s = p.readString16NoHelper();
+                    if (mStringsRead == null) {
+                        mStringsRead = new ArrayList<>();
+                    }
+                    mStringsRead.add(s);
+                    return s;
+                }
+            };
+        }
+
+        @NonNull
+        public static final Creator<ParceledListSliceWithReadWriteHelper> CREATOR =
+                new Creator<ParceledListSliceWithReadWriteHelper>() {
+                    @Override
+                    public ParceledListSliceWithReadWriteHelper createFromParcel(Parcel in) {
+                        return new ParceledListSliceWithReadWriteHelper(in);
+                    }
+
+                    @Override
+                    public ParceledListSliceWithReadWriteHelper[] newArray(int size) {
+                        return new ParceledListSliceWithReadWriteHelper[size];
+                    }
+                };
+    }
+
+    private static int measureStringObject(String s) {
+        StringObject str = new StringObject(s);
+        Parcel parcel = Parcel.obtain();
+        try {
+            parcel.writeParcelable(str, 0);
+            return parcel.dataSize();
+        } finally {
+            parcel.recycle();
+        }
+    }
+
+    /**
+     * Test that a {@link ReadWriteHelper} is used across pages.
+     */
+    // Same logic as testLargeStringList, but using StringObject to test ReadWriteHelper.
+    public void testReadWriteHelper() throws Exception {
+        final int thresholdBytes = 256 * 1024;
+        final int objectCount = thresholdBytes / measureStringObject("value 999999");
+
+        List<StringObject> list = new ArrayList<StringObject>();
+        for (int i = 0; i < objectCount; i++) {
+            list.add(new StringObject(String.format("value %6d", i)));
+        }
+
+        ParceledListSliceWithReadWriteHelper writeSlice =
+                new ParceledListSliceWithReadWriteHelper(list);
+        ParceledListSliceWithReadWriteHelper readSlice;
+
+        Parcel parcel = Parcel.obtain();
+        try {
+            parcel.writeParcelable(writeSlice, 0);
+            parcel.setDataPosition(0);
+            readSlice = parcel.readParcelable(getClass().getClassLoader());
+        } finally {
+            parcel.recycle();
+        }
+
+        assertEquals(1, writeSlice.mReadWriteHelperCreated.get());
+        assertEquals(1, readSlice.mReadWriteHelperCreated.get());
+        assertTrue(writeSlice.mStringsRead.isEmpty());
+        assertTrue(readSlice.mStringsWritten.isEmpty());
+        assertEquals(list.stream().map(s -> s.mField).toList(), writeSlice.mStringsWritten);
+        assertEquals(list.stream().map(s -> s.mField).toList(), readSlice.mStringsRead);
+    }
+
     /**
      * Write a ParcelableListSlice that uses the BaseObject base class as the Creator.
      * This is dangerous, as it may affect how the data is unparceled, then later parceled
@@ -382,6 +497,40 @@ public class ParceledListSliceTest extends TestCase {
             @Override
             public LargeObject[] newArray(int size) {
                 return new LargeObject[size];
+            }
+        };
+    }
+
+    public static class StringObject implements Parcelable {
+        public String mField;
+
+        public StringObject(String value) {
+            mField = value;
+        }
+
+        @Override
+        public void writeToParcel(Parcel dest, int flags) {
+            dest.writeString(mField);
+        }
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+
+        public static StringObject createFromParcelBody(Parcel source) {
+            return new StringObject(source.readString());
+        }
+
+        public static final Creator<StringObject> CREATOR = new Creator<StringObject>() {
+            @Override
+            public StringObject createFromParcel(Parcel source) {
+                return createFromParcelBody(source);
+            }
+
+            @Override
+            public StringObject[] newArray(int size) {
+                return new StringObject[size];
             }
         };
     }

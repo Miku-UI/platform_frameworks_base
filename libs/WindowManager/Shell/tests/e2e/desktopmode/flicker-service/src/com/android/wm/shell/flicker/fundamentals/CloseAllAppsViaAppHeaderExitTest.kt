@@ -19,11 +19,11 @@ package com.android.wm.shell.flicker.fundamentals
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
 import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.traces.component.ComponentNameMatcher
 import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
@@ -45,7 +45,8 @@ import org.junit.runners.Parameterized
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @Postsubmit
 class CloseAllAppsViaAppHeaderExitTest(flicker: FlickerTest) : DesktopModeBaseTest(flicker) {
-    inner class CloseAllAppsWithAppHeaderExitScenario : CloseAllAppsWithAppHeaderExit(flicker.scenario.startRotation)
+    inner class CloseAllAppsWithAppHeaderExitScenario :
+        CloseAllAppsWithAppHeaderExit(flicker.scenario.startRotation)
 
     @Rule
     @JvmField
@@ -53,27 +54,18 @@ class CloseAllAppsViaAppHeaderExitTest(flicker: FlickerTest) : DesktopModeBaseTe
     val scenario = CloseAllAppsWithAppHeaderExitScenario()
     private val appsInZOrder = scenario.appsInZOrder
 
-
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.closeAllAppsInDesktop()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.closeAllAppsInDesktop() }
+            teardown { scenario.teardown() }
         }
 
     @Test
-    fun appWindowIsInvisibleAtEnd() =
-        appsInZOrder.forEach { flicker.appWindowIsInvisibleAtEnd(it) }
+    fun appWindowIsInvisibleAtEnd() = appsInZOrder.forEach { flicker.appWindowIsInvisibleAtEnd(it) }
 
     @Test
-    fun launcherWindowOnTopAtEnd() =
-        flicker.appWindowOnTopAtEnd(ComponentNameMatcher.LAUNCHER)
+    fun launcherWindowOnTopAtEnd() = flicker.appWindowOnTopAtEnd(ComponentNameMatcher.LAUNCHER)
 
     companion object {
         @Parameterized.Parameters(name = "{0}")

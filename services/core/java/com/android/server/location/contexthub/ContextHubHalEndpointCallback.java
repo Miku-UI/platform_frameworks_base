@@ -15,6 +15,9 @@
  */
 package com.android.server.location.contexthub;
 
+import android.hardware.contexthub.DataFlowSinkContext;
+import android.hardware.contexthub.DataFlowSinkRegistrationParams;
+import android.hardware.contexthub.DataFlowId;
 import android.hardware.contexthub.EndpointId;
 import android.hardware.contexthub.HubEndpointInfo;
 import android.hardware.contexthub.HubMessage;
@@ -28,6 +31,7 @@ public class ContextHubHalEndpointCallback
         extends android.hardware.contexthub.IEndpointCallback.Stub {
     private final IEndpointLifecycleCallback mEndpointLifecycleCallback;
     private final IEndpointSessionCallback mEndpointSessionCallback;
+    private final IEndpointDataFlowCallback mEndpointDataFlowCallback;
 
     /** Interface for listening for endpoint start and stop events. */
     public interface IEndpointLifecycleCallback {
@@ -60,11 +64,30 @@ public class ContextHubHalEndpointCallback
         void onMessageDeliveryStatusReceived(int sessionId, int sequenceNumber, byte errorCode);
     }
 
+    /** Interface for listening for data flow events. */
+    public interface IEndpointDataFlowCallback {
+        /** Called when a data flow host sink is registered. */
+        void onDataFlowHostSinkRegistered(
+                DataFlowSinkContext handle,
+                HubEndpointInfo.HubEndpointIdentifier sourceId,
+                HubEndpointInfo.HubEndpointIdentifier sinkId,
+                HubMessage msg,
+                int sessionId);
+
+        /** Called when a data flow offload endpoint is unregistered. */
+        void onDataFlowOffloadEndpointUnregistered(
+                DataFlowId dataFlowId,
+                HubEndpointInfo.HubEndpointIdentifier endpointId,
+                HubEndpointInfo.HubEndpointIdentifier[] destinationIds);
+    }
+
     ContextHubHalEndpointCallback(
             IEndpointLifecycleCallback endpointLifecycleCallback,
-            IEndpointSessionCallback endpointSessionCallback) {
+            IEndpointSessionCallback endpointSessionCallback,
+            IEndpointDataFlowCallback endpointDataFlowCallback) {
         mEndpointLifecycleCallback = endpointLifecycleCallback;
         mEndpointSessionCallback = endpointSessionCallback;
+        mEndpointDataFlowCallback = endpointDataFlowCallback;
     }
 
     @Override
@@ -125,6 +148,35 @@ public class ContextHubHalEndpointCallback
                 sessionId,
                 messageDeliveryStatus.messageSequenceNumber,
                 messageDeliveryStatus.errorCode);
+    }
+
+    @Override
+    public void onDataFlowHostSinkRegistered(DataFlowSinkRegistrationParams params)
+            throws RemoteException {
+        mEndpointDataFlowCallback.onDataFlowHostSinkRegistered(
+                params.context,
+                new HubEndpointInfo.HubEndpointIdentifier(
+                        params.sourceId.hubId, params.sourceId.id),
+                new HubEndpointInfo.HubEndpointIdentifier(params.sinkId.hubId, params.sinkId.id),
+                params.msg == null ? null : ContextHubServiceUtil.createHubMessage(params.msg),
+                params.sessionId);
+    }
+
+    @Override
+    public void onDataFlowOffloadEndpointUnregistered(
+            DataFlowId dataFlowId, EndpointId endpointId, EndpointId[] destinationIds)
+            throws RemoteException {
+        HubEndpointInfo.HubEndpointIdentifier[] hubEndpointDestinationIds =
+                new HubEndpointInfo.HubEndpointIdentifier[destinationIds.length];
+        for (int i = 0; i < destinationIds.length; i++) {
+            hubEndpointDestinationIds[i] =
+                    new HubEndpointInfo.HubEndpointIdentifier(
+                            destinationIds[i].hubId, destinationIds[i].id);
+        }
+        mEndpointDataFlowCallback.onDataFlowOffloadEndpointUnregistered(
+                dataFlowId,
+                new HubEndpointInfo.HubEndpointIdentifier(endpointId.hubId, endpointId.id),
+                hubEndpointDestinationIds);
     }
 
     @Override

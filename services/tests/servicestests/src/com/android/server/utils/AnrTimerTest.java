@@ -169,19 +169,53 @@ public class AnrTimerTest {
     }
 
     /**
+     * There are three timer modes.  The normal mode is normal operation.  The fallback mode uses
+     * MessageQueue (legacy behavior) and is suitable for environments that do not support the
+     * native timers.  The test mode uses a pseudo-clock that must be manually stepped.
+     */
+    private enum TimerMode {
+        NORMAL,
+        FALLBACK,
+        TEST
+    }
+
+    /**
+     * Control the test behavior of an AnrTimer.
+     */
+    private static class TestInjector extends AnrTimer.Injector {
+        final TimerMode mTimerMode;
+        TestInjector(TimerMode timerMode) {
+            mTimerMode = timerMode;
+        }
+
+        @Override
+        boolean disableNativeTimersForTesting() {
+            return mTimerMode == TimerMode.FALLBACK;
+        }
+
+        @Override
+        boolean setNativeTimersInTestMode() {
+            return mTimerMode == TimerMode.TEST;
+        }
+    }
+
+    /**
+     * Return an Args object for testing.
+     */
+    private AnrTimer.Args getArgs(TimerMode timerMode) {
+        return new AnrTimer.Args().injector(new TestInjector(timerMode));
+    }
+
+    /**
      * An instrumented AnrTimer.
      */
     private class TestAnrTimer extends AnrTimer<TestArg> {
-        private TestAnrTimer(Handler h, int key, String tag, boolean enable, boolean testMode) {
-            super(h, key, tag, new AnrTimer.Args().enable(enable).testMode(testMode));
+        private TestAnrTimer(Handler h, int key, String tag, TimerMode timerMode) {
+            super(h, key, tag, getArgs(timerMode));
         }
 
-        TestAnrTimer(Helper helper, boolean enable, boolean testMode) {
-            this(helper.mHandler, MSG_TIMEOUT, caller(), enable, testMode);
-        }
-
-        TestAnrTimer(Helper helper, boolean enable) {
-            this(helper, enable, false);
+        TestAnrTimer(Helper helper, TimerMode timerMode) {
+            this(helper.mHandler, MSG_TIMEOUT, caller(), timerMode);
         }
 
         TestAnrTimer(Helper helper, AnrTimer.Args args) {
@@ -243,11 +277,9 @@ public class AnrTimerTest {
      * procedure waits 5s for the expiration message, but under correct operation, the test will
      * only take 10ms
      */
-    private void testSimpleTimeout(boolean enable) throws Exception {
+    private void testSimpleTimeout(TimerMode timerMode) throws Exception {
         Helper helper = new Helper(1);
-        try (TestAnrTimer timer = new TestAnrTimer(helper, enable)) {
-            // One-time check that the injector is working as expected.
-            assertThat(enable).isEqualTo(timer.serviceEnabled());
+        try (TestAnrTimer timer = new TestAnrTimer(helper, timerMode)) {
             TestArg t = new TestArg(1, 1);
             timer.start(t, 10);
             assertThat(helper.await(5000)).isTrue();
@@ -257,22 +289,22 @@ public class AnrTimerTest {
     }
 
     @Test
-    public void testSimpleTimeoutDisabled() throws Exception {
-        testSimpleTimeout(false);
+    public void testSimpleTimeoutFallback() throws Exception {
+        testSimpleTimeout(TimerMode.FALLBACK);
     }
 
     @Test
-    public void testSimpleTimeoutEnabled() throws Exception {
-        testSimpleTimeout(true);
+    public void testSimpleTimeout() throws Exception {
+        testSimpleTimeout(TimerMode.NORMAL);
     }
 
     /**
      * Verify that a restarted timer is delivered exactly once.  The initial timer value is very
      * large, to ensure it does not expire before the timer can be restarted.
      */
-    private void testTimerRestart(boolean enable) throws Exception {
+    private void testTimerRestart(TimerMode timerMode) throws Exception {
         Helper helper = new Helper(1);
-        try (TestAnrTimer timer = new TestAnrTimer(helper, enable)) {
+        try (TestAnrTimer timer = new TestAnrTimer(helper, timerMode)) {
             TestArg t = new TestArg(1, 1);
             timer.start(t, 10000);
             // Briefly pause.
@@ -286,13 +318,13 @@ public class AnrTimerTest {
     }
 
     @Test
-    public void testTimerRestartDisabled() throws Exception {
-        testTimerRestart(false);
+    public void testTimerRestartFallback() throws Exception {
+        testTimerRestart(TimerMode.FALLBACK);
     }
 
     @Test
-    public void testTimerRestartEnabled() throws Exception {
-        testTimerRestart(true);
+    public void testTimerRestart() throws Exception {
+        testTimerRestart(TimerMode.NORMAL);
     }
 
     /**
@@ -300,9 +332,9 @@ public class AnrTimerTest {
      * timeout.  The order in which the timers are delivered is unpredictable (it is based on CPU
      * time during the test), so it is not checked.
      */
-    private void testTimerZero(boolean enable) throws Exception {
+    private void testTimerZero(TimerMode timerMode) throws Exception {
         Helper helper = new Helper(2);
-        try (TestAnrTimer timer = new TestAnrTimer(helper, enable)) {
+        try (TestAnrTimer timer = new TestAnrTimer(helper, timerMode)) {
             TestArg t1 = new TestArg(1, 1);
             timer.start(t1, 0);
             TestArg t2 = new TestArg(1, 2);
@@ -318,26 +350,26 @@ public class AnrTimerTest {
     }
 
     @Test
-    public void testTimerZeroDisabled() throws Exception {
-        testTimerZero(false);
+    public void testTimerZeroFallback() throws Exception {
+        testTimerZero(TimerMode.FALLBACK);
     }
 
     @Test
-    public void testTimerZeroEnabled() throws Exception {
-        testTimerZero(true);
+    public void testTimerZero() throws Exception {
+        testTimerZero(TimerMode.NORMAL);
     }
 
     /**
      * Verify that if three timers are scheduled on a single AnrTimer, they are delivered in time
      * order.
      */
-    private void testMultipleTimers(boolean enable) throws Exception {
+    private void testMultipleTimers(TimerMode timerMode) throws Exception {
         // Expect three messages.
         Helper helper = new Helper(3);
         TestArg t1 = new TestArg(1, 1);
         TestArg t2 = new TestArg(1, 2);
         TestArg t3 = new TestArg(1, 3);
-        try (TestAnrTimer timer = new TestAnrTimer(helper, enable)) {
+        try (TestAnrTimer timer = new TestAnrTimer(helper, timerMode)) {
             timer.start(t1, 50);
             timer.start(t2, 60);
             timer.start(t3, 40);
@@ -351,25 +383,25 @@ public class AnrTimerTest {
     }
 
     @Test
-    public void testMultipleTimersDisabled() throws Exception {
-        testMultipleTimers(false);
+    public void testMultipleTimersFallback() throws Exception {
+        testMultipleTimers(TimerMode.FALLBACK);
     }
 
     @Test
-    public void testMultipleTimersEnabled() throws Exception {
-        testMultipleTimers(true);
+    public void testMultipleTimers() throws Exception {
+        testMultipleTimers(TimerMode.NORMAL);
     }
 
     /**
      * Verify that a canceled timer is not delivered.
      */
-    private void testCancelTimer(boolean enable) throws Exception {
+    private void testCancelTimer(TimerMode timerMode) throws Exception {
         // Expect two messages.
         Helper helper = new Helper(2);
         TestArg t1 = new TestArg(1, 1);
         TestArg t2 = new TestArg(1, 2);
         TestArg t3 = new TestArg(1, 3);
-        try (TestAnrTimer timer = new TestAnrTimer(helper, enable)) {
+        try (TestAnrTimer timer = new TestAnrTimer(helper, timerMode)) {
             timer.start(t1, 200);
             timer.start(t2, 300);
             timer.start(t3, 100);
@@ -385,13 +417,13 @@ public class AnrTimerTest {
     }
 
     @Test
-    public void testCancelTimerDisabled() throws Exception {
-        testCancelTimer(false);
+    public void testCancelTimerFallback() throws Exception {
+        testCancelTimer(TimerMode.FALLBACK);
     }
 
     @Test
-    public void testCancelTimerEnabled() throws Exception {
-        testCancelTimer(true);
+    public void testCancelTimer() throws Exception {
+        testCancelTimer(TimerMode.NORMAL);
     }
 
     /**
@@ -406,7 +438,7 @@ public class AnrTimerTest {
         TestArg t1 = new TestArg(1, 1);
         TestArg t2 = new TestArg(1, 2);
         TestArg t3 = new TestArg(1, 3);
-        try (TestAnrTimer timer = new TestAnrTimer(helper, true, true)) {
+        try (TestAnrTimer timer = new TestAnrTimer(helper, TimerMode.TEST)) {
             timer.start(t1, 50);
             timer.start(t2, 60);
             timer.start(t3, 40);
@@ -450,10 +482,7 @@ public class AnrTimerTest {
     @Test
     public void testSplitPoint() throws Exception {
         assumeTrue(AnrTimer.nativeTimersSupported());
-        AnrTimer.Args args =
-                new AnrTimer.Args()
-                .enable(true)
-                .testMode(true)
+        AnrTimer.Args args = getArgs(TimerMode.TEST)
                 .splitPoint(new AnrTimer.Args.SplitPoint(50, 2));
 
         // Wait for four events on each of two timer instances.
@@ -491,10 +520,7 @@ public class AnrTimerTest {
     @Test
     public void testSplitPoint2() throws Exception {
         assumeTrue(AnrTimer.nativeTimersSupported());
-        AnrTimer.Args args =
-                new AnrTimer.Args()
-                .enable(true)
-                .testMode(true)
+        AnrTimer.Args args = getArgs(TimerMode.TEST)
                 .splitPoint(new AnrTimer.Args.SplitPoint(25, 1))
                 .splitPoint(new AnrTimer.Args.SplitPoint(50, 2))
                 .splitPoint(new AnrTimer.Args.SplitPoint(75, 3));
@@ -538,10 +564,7 @@ public class AnrTimerTest {
     @Test
     public void testExpiredTimer() throws Exception {
         assumeTrue(AnrTimer.nativeTimersSupported());
-        AnrTimer.Args args =
-                new AnrTimer.Args()
-                .enable(true)
-                .testMode(true);
+        AnrTimer.Args args = getArgs(TimerMode.TEST);
 
         Helper helper = new Helper(1);
         TestArg t1 = new TestArg(1, 1);
@@ -598,7 +621,7 @@ public class AnrTimerTest {
         TestArg t1 = new TestArg(1, 1);
         TestArg t2 = new TestArg(1, 2);
         TestArg t3 = new TestArg(1, 3);
-        try (TestAnrTimer timer = new TestAnrTimer(helper, true, true)) {
+        try (TestAnrTimer timer = new TestAnrTimer(helper, TimerMode.TEST)) {
             timer.start(t1, 5000);
             timer.start(t2, 5000);
             timer.start(t3, 5000);
@@ -630,7 +653,7 @@ public class AnrTimerTest {
         TestArg t3 = new TestArg(1, 3);
         // The timer is explicitly not closed.  It is, however, scoped to the next block.
         {
-            TestAnrTimer timer = new TestAnrTimer(helper, true);
+            TestAnrTimer timer = new TestAnrTimer(helper, TimerMode.NORMAL);
             timer.start(t1, 5000);
             timer.start(t2, 5000);
             timer.start(t3, 5000);

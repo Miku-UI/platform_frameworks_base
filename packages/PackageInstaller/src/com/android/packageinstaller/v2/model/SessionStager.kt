@@ -23,6 +23,7 @@ import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import com.android.packageinstaller.stats.PiaStagesLatencyTracker
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,7 +31,8 @@ import kotlinx.coroutines.withContext
 class SessionStager internal constructor(
     private val context: Context,
     private val uri: Uri,
-    private val stagedSessionId: Int
+    private val stagedSessionId: Int,
+    private val piaLatencyTracker: PiaStagesLatencyTracker
 ) {
 
     companion object {
@@ -58,6 +60,7 @@ class SessionStager internal constructor(
 
                 val sizeBytes = getContentSizeBytes()
                 publishProgress(if (sizeBytes > 0) 0 else -1)
+                piaLatencyTracker.setApkSize(sizeBytes.toInt())
 
                 var totalRead: Long = 0
                 session.openWrite("PackageInstaller", 0, sizeBytes).use { out ->

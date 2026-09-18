@@ -23,6 +23,8 @@ import static com.android.server.wm.Task.TAG_VISIBILITY;
 import android.annotation.Nullable;
 import android.util.Slog;
 
+import com.android.window.flags.Flags;
+
 import java.util.ArrayList;
 
 /** Helper class to ensure activities are in the right visible state for a container. */
@@ -78,17 +80,24 @@ class EnsureActivitiesVisibleHelper {
             mTaskFragment.asTask().checkTranslucentActivityWaiting(mTopRunningActivity);
         }
 
+        final boolean canTopActivityResume = mTopRunningActivity != null
+                && !mTopRunningActivity.mLaunchTaskBehind
+                && mTaskFragment.canBeResumed(starting);
+
         // We should not resume activities that being launched behind because these
         // activities are actually behind other fullscreen activities, but still required
         // to be visible (such as performing Recents animation).
-        final boolean resumeTopActivity = mTopRunningActivity != null
-                && !mTopRunningActivity.mLaunchTaskBehind
-                && mTaskFragment.canBeResumed(starting)
+        final boolean resumeTopActivity = canTopActivityResume
                 && (starting == null || !starting.isDescendantOf(mTaskFragment));
 
         ArrayList<TaskFragment> adjacentTaskFragments = null;
         for (int i = mTaskFragment.mChildren.size() - 1; i >= 0; --i) {
             final WindowContainer child = mTaskFragment.mChildren.get(i);
+            if (child.asTask() != null && child.asTask().isVisibilityBarrier()) {
+                // Visibility barrier is occluding.
+                mBehindFullyOccludedContainer = true;
+                continue;
+            }
             final TaskFragment childTaskFragment = child.asTaskFragment();
             if (childTaskFragment != null
                     && childTaskFragment.getTopNonFinishingActivity() != null) {
@@ -132,6 +141,16 @@ class EnsureActivitiesVisibleHelper {
             } else if (child.asActivityRecord() != null) {
                 setActivityVisibilityState(child.asActivityRecord(), starting, resumeTopActivity);
             }
+        }
+
+        // Visibility should be updated by now, so let's update resumed state too.
+        if (Flags.allowDragAndDropWhenInteractiveBugfix() && mTaskFragment.asTask() != null) {
+            final Task task = mTaskFragment.asTask();
+            // The task should 1) be visible; 2) an activity would resume if put into the task.
+            final boolean isTaskResumed = canTopActivityResume && task.isVisibleRequested();
+            final Transition collecting = task.mTransitionController.getCollectingTransition();
+            task.mTransitionController.recordLifecycle(task);
+            task.setInteractive(isTaskResumed);
         }
     }
 

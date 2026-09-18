@@ -25,6 +25,7 @@ import com.android.systemui.animation.dialogTransitionAnimator
 import com.android.systemui.dock.dockManager
 import com.android.systemui.flags.featureFlagsClassic
 import com.android.systemui.haptics.msdl.msdlPlayer
+import com.android.systemui.inputdevice.domain.interactor.pointerDeviceInteractor
 import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.keyguardQuickAffordanceRepository
 import com.android.systemui.keyguard.shared.quickaffordance.KeyguardQuickAffordancesMetricsLogger
@@ -55,11 +56,12 @@ var Kosmos.keyguardQuickAffordanceInteractor by Fixture {
         secureLockDeviceInteractor = { secureLockDeviceInteractor },
         devicePolicyManager = devicePolicyManager,
         dockManager = dockManager,
+        pointerDeviceInteractor = pointerDeviceInteractor,
         biometricSettingsRepository = biometricSettingsRepository,
         accessibilityInteractor = accessibilityInteractor,
         backgroundDispatcher = testDispatcher,
         appContext = applicationContext,
         sceneInteractor = { sceneInteractor },
-        msdlPlayer = msdlPlayer,
+        msdlPlayer = { msdlPlayer },
     )
 }

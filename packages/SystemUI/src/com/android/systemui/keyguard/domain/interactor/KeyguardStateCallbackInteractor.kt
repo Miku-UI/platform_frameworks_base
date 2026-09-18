@@ -27,8 +27,8 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.keyguard.DismissCallbackRegistry
-import com.android.systemui.keyguard.KeyguardWmStateRefactor
 import com.android.systemui.keyguard.shared.model.KeyguardState
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
@@ -59,7 +59,7 @@ constructor(
     private val callbacks = mutableListOf<IKeyguardStateCallback>()
 
     override fun start() {
-        if (!KeyguardWmStateRefactor.isEnabled) {
+        if (!SceneContainerFlag.isEnabled) {
             return
         }
 
@@ -129,7 +129,7 @@ constructor(
     }
 
     fun addCallback(callback: IKeyguardStateCallback) {
-        KeyguardWmStateRefactor.isUnexpectedlyInLegacyMode()
+        SceneContainerFlag.isUnexpectedlyInLegacyMode()
         callbacks.add(callback)
 
         // Send initial values to new callbacks.

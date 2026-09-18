@@ -49,7 +49,7 @@ public class AconfigPackagePerfTest {
     }
 
     private static final Set<String> PLATFORM_CONTAINERS =
-        Set.of("system", "system_ext", "vendor", "product");
+            Set.of("system", "system_ext", "vendor", "product");
     private static List<parsed_flag> sFlags;
 
     @BeforeClass

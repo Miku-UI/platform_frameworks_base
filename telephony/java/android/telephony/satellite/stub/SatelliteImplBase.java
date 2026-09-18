@@ -18,6 +18,7 @@ package android.telephony.satellite.stub;
 
 import android.annotation.NonNull;
 import android.hardware.radio.network.IRadioNetwork;
+import android.os.Binder;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.telephony.IBooleanConsumer;
@@ -25,6 +26,7 @@ import android.telephony.IIntegerConsumer;
 import android.util.Log;
 
 import com.android.internal.telephony.util.TelephonyUtils;
+import com.android.internal.util.FunctionalUtils;
 
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -42,6 +44,7 @@ public class SatelliteImplBase extends SatelliteService {
     private static final String TAG = "SatelliteImplBase";
 
     protected final Executor mExecutor;
+    private ISatelliteListener mSatelliteListener;
 
     /**
      * Create SatelliteImplBase using the Executor specified for methods being called from the
@@ -87,6 +90,15 @@ public class SatelliteImplBase extends SatelliteService {
                     () -> SatelliteImplBase.this
                             .enableTerrestrialNetworkScanWhileSatelliteModeIsOn(
                     enabled, resultCallback), "enableTerrestrialNetworkScanWhileSatelliteModeIsOn");
+        }
+
+        @Override
+        public void requestSatelliteSuspended(boolean enabled,
+                IIntegerConsumer resultCallback) throws RemoteException {
+            executeMethodAsync(
+                    () -> SatelliteImplBase.this
+                            .requestSatelliteSuspended(
+                    enabled, resultCallback), "requestSatelliteSuspended");
         }
 
         @Override
@@ -252,6 +264,32 @@ public class SatelliteImplBase extends SatelliteService {
                     "updateSystemSelectionChannels");
         }
 
+        @Override
+        public void setSatelliteNetworkInfo(int simSlot,
+                SatelliteNetworkInfo satelliteNetworkInfo,
+                IIntegerConsumer resultCallback) throws RemoteException {
+            executeMethodAsync(() -> SatelliteImplBase.this.setSatelliteNetworkInfo(
+                    simSlot, satelliteNetworkInfo, resultCallback),
+                    "setSatelliteNetworkInfo");
+        }
+
+        @Override
+        public void enablePrioritizedNetworkScan(int simSlot,
+                PrioritizedNetworkScanRequest scanRequest,
+                IIntegerConsumer resultCallback) throws RemoteException {
+            executeMethodAsync(() -> SatelliteImplBase.this.enablePrioritizedNetworkScan(
+                    simSlot, scanRequest, resultCallback),
+                    "enablePrioritizedNetworkScan");
+        }
+
+        @Override
+        public void disablePrioritizedNetworkScan(int simSlot,
+                IIntegerConsumer resultCallback) throws RemoteException {
+            executeMethodAsync(() -> SatelliteImplBase.this.disablePrioritizedNetworkScan(
+                    simSlot, resultCallback),
+                    "disablePrioritizedNetworkScan");
+        }
+
         // Call the methods with a clean calling identity on the executor and wait indefinitely for
         // the future to return.
         private void executeMethodAsync(Runnable r, String errorLogName) throws RemoteException {
@@ -282,7 +320,7 @@ public class SatelliteImplBase extends SatelliteService {
      *   SatelliteResult:SATELLITE_RESULT_NO_RESOURCES
      */
     public void setSatelliteListener(@NonNull ISatelliteListener listener) {
-        // stub implementation
+        mSatelliteListener = listener;
     }
 
     /**
@@ -306,7 +344,8 @@ public class SatelliteImplBase extends SatelliteService {
      */
     public void requestSatelliteListeningEnabled(boolean enable, int timeout,
             @NonNull IIntegerConsumer resultCallback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -317,7 +356,20 @@ public class SatelliteImplBase extends SatelliteService {
      */
     public void enableTerrestrialNetworkScanWhileSatelliteModeIsOn(boolean enabled,
             @NonNull IIntegerConsumer resultCallback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
+    }
+
+    /**
+     * Request to suspend or resume satellite mode.
+     * @param enabled  {@code true} to enable suspension while satellite mode is on
+     * and {@code false} to resume satellite mode
+     * @param resultCallback The callback to receive the error code result of the operation.
+     */
+    public void requestSatelliteSuspended(boolean enabled,
+            @NonNull IIntegerConsumer resultCallback) {
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -340,7 +392,8 @@ public class SatelliteImplBase extends SatelliteService {
      */
     public void requestSatelliteEnabled(SatelliteModemEnableRequestAttributes enableAttributes,
             @NonNull IIntegerConsumer resultCallback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -364,7 +417,8 @@ public class SatelliteImplBase extends SatelliteService {
      */
     public void requestIsSatelliteEnabled(@NonNull IIntegerConsumer resultCallback,
             @NonNull IBooleanConsumer callback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -388,7 +442,8 @@ public class SatelliteImplBase extends SatelliteService {
      */
     public void requestIsSatelliteSupported(@NonNull IIntegerConsumer resultCallback,
             @NonNull IBooleanConsumer callback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -412,7 +467,8 @@ public class SatelliteImplBase extends SatelliteService {
      */
     public void requestSatelliteCapabilities(@NonNull IIntegerConsumer resultCallback,
             @NonNull ISatelliteCapabilitiesConsumer callback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -433,7 +489,8 @@ public class SatelliteImplBase extends SatelliteService {
      *   SatelliteResult:SATELLITE_RESULT_NO_RESOURCES
      */
     public void startSendingSatellitePointingInfo(@NonNull IIntegerConsumer resultCallback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -453,7 +510,8 @@ public class SatelliteImplBase extends SatelliteService {
      *   SatelliteResult:SATELLITE_RESULT_NO_RESOURCES
      */
     public void stopSendingSatellitePointingInfo(@NonNull IIntegerConsumer resultCallback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -479,7 +537,8 @@ public class SatelliteImplBase extends SatelliteService {
      *   SatelliteResult:SATELLITE_RESULT_NOT_AUTHORIZED
      */
     public void pollPendingSatelliteDatagrams(@NonNull IIntegerConsumer resultCallback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -507,7 +566,8 @@ public class SatelliteImplBase extends SatelliteService {
      */
     public void sendSatelliteDatagram(@NonNull SatelliteDatagram datagram, boolean isEmergency,
             @NonNull IIntegerConsumer resultCallback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -533,7 +593,8 @@ public class SatelliteImplBase extends SatelliteService {
      */
     public void requestSatelliteModemState(@NonNull IIntegerConsumer resultCallback,
             @NonNull IIntegerConsumer callback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -559,7 +620,8 @@ public class SatelliteImplBase extends SatelliteService {
      */
     public void requestTimeForNextSatelliteVisibility(@NonNull IIntegerConsumer resultCallback,
             @NonNull IIntegerConsumer callback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
 
@@ -595,7 +657,8 @@ public class SatelliteImplBase extends SatelliteService {
     public void setSatellitePlmn(@NonNull int simLogicalSlotIndex,
             @NonNull List<String> carrierPlmnList, @NonNull List<String> allSatellitePlmnList,
             @NonNull IIntegerConsumer resultCallback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -620,7 +683,8 @@ public class SatelliteImplBase extends SatelliteService {
     @Deprecated
     public void setSatelliteEnabledForCarrier(@NonNull int simLogicalSlotIndex,
             @NonNull boolean satelliteEnabled, @NonNull IIntegerConsumer callback) {
-        // stub implementation
+        runWithExecutor(() -> callback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -645,7 +709,8 @@ public class SatelliteImplBase extends SatelliteService {
     @Deprecated
     public void requestIsSatelliteEnabledForCarrier(@NonNull int simLogicalSlotIndex,
             @NonNull IIntegerConsumer resultCallback, @NonNull IBooleanConsumer callback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -656,7 +721,8 @@ public class SatelliteImplBase extends SatelliteService {
      */
     public void requestSignalStrength(@NonNull IIntegerConsumer resultCallback,
             INtnSignalStrengthConsumer callback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -667,7 +733,8 @@ public class SatelliteImplBase extends SatelliteService {
      * @param resultCallback The {@link SatelliteError} result of the operation.
      */
     public void startSendingNtnSignalStrength(@NonNull IIntegerConsumer resultCallback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -676,7 +743,8 @@ public class SatelliteImplBase extends SatelliteService {
      * @param resultCallback The {@link SatelliteError} result of the operation.
      */
     public void stopSendingNtnSignalStrength(@NonNull IIntegerConsumer resultCallback){
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -685,7 +753,8 @@ public class SatelliteImplBase extends SatelliteService {
      * @param resultCallback The {@link SatelliteError} result of the operation.
      */
     public void abortSendingSatelliteDatagrams(@NonNull IIntegerConsumer resultCallback){
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -696,7 +765,8 @@ public class SatelliteImplBase extends SatelliteService {
      */
     public void updateSatelliteSubscription(String iccId,
             @NonNull IIntegerConsumer resultCallback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
     }
 
     /**
@@ -708,6 +778,59 @@ public class SatelliteImplBase extends SatelliteService {
     public void updateSystemSelectionChannels(
             @NonNull List<SystemSelectionSpecifier> systemSelectionSpecifiers,
             @NonNull IIntegerConsumer resultCallback) {
-        // stub implementation
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
+    }
+
+    /**
+     * Set the non-terrestrial PLMN with lower priority than terrestrial networks.
+     *
+     * @param simSlot Indicates the SIM slot to which this API will be applied. The modem will use
+     *                this information to determine the relevant carrier.
+     * @param satelliteNetworkInfo The list of roaming PLMN used for connecting to satellite
+     *                             networks supported by user subscription.
+     * @param resultCallback The callback to receive the error code result of the operation.
+     */
+    public void setSatelliteNetworkInfo(int simSlot,
+            @NonNull SatelliteNetworkInfo satelliteNetworkInfo,
+            @NonNull IIntegerConsumer resultCallback) {
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
+    }
+
+    /**
+     * Enable a prioritized, aggressive scanning mode for specific networks.
+     *
+     * @param simSlot Indicates the SIM slot to which this method will be applied.
+     * @param scanRequest The list of roaming PLMN used for connecting to satellite networks
+     *                    supported by user subscription.
+     * @param resultCallback The callback to receive the error code result of the operation.
+     */
+    public void enablePrioritizedNetworkScan(int simSlot,
+            @NonNull PrioritizedNetworkScanRequest scanRequest,
+            @NonNull IIntegerConsumer resultCallback) {
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
+    }
+
+    /**
+     * Disable a prioritized, aggressive scanning mode for specific networks.
+     *
+     * @param simSlot Indicates the SIM slot to which this method will be applied.
+     * @param resultCallback The callback to receive the error code result of the operation.
+     */
+    public void disablePrioritizedNetworkScan(int simSlot,
+            @NonNull IIntegerConsumer resultCallback) {
+        runWithExecutor(() -> resultCallback.accept(
+            SatelliteResult.SATELLITE_RESULT_REQUEST_NOT_SUPPORTED));
+    }
+
+    /**
+     * Execute the given runnable using the executor that this service was created with.
+     *
+     * @param r A runnable that can throw an exception.
+     */
+    private void runWithExecutor(@NonNull FunctionalUtils.ThrowingRunnable r) {
+        mExecutor.execute(() -> Binder.withCleanCallingIdentity(r));
     }
 }

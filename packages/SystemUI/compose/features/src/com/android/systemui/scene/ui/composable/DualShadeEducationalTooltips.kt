@@ -19,6 +19,8 @@
 package com.android.systemui.scene.ui.composable
 
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,11 +31,18 @@ import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.PopupPositionProvider
 import com.android.compose.theme.LocalAndroidColorScheme
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.scene.ui.viewmodel.DualShadeEducationalTooltipsViewModel
@@ -98,8 +107,34 @@ private fun AnchoredTooltip(
         }
     }
 
+    val density = LocalDensity.current
+    val caretSize = TooltipDefaults.caretSize
+    val caretSizePx = with(density) { caretSize.toSize() }
+    val gapBetweenPopupAndAnchor = with(density) { 2.dp.roundToPx() }
+    val displayCutoutTop = WindowInsets.displayCutout.getTop(density)
     TooltipBox(
-        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
+        positionProvider =
+            remember(caretSizePx, gapBetweenPopupAndAnchor, displayCutoutTop) {
+                object : PopupPositionProvider {
+                    override fun calculatePosition(
+                        anchorBounds: IntRect,
+                        windowSize: IntSize,
+                        layoutDirection: LayoutDirection,
+                        popupContentSize: IntSize,
+                    ): IntOffset {
+                        return IntOffset(
+                            x =
+                                if (anchorBounds.left + popupContentSize.width < windowSize.width) {
+                                    anchorBounds.left
+                                } else {
+                                    anchorBounds.left -
+                                        (popupContentSize.width - anchorBounds.width)
+                                },
+                            y = anchorBounds.bottom - displayCutoutTop,
+                        )
+                    }
+                }
+            },
         tooltip = {
             RichTooltip(
                 colors =
@@ -107,7 +142,7 @@ private fun AnchoredTooltip(
                         containerColor = LocalAndroidColorScheme.current.tertiaryFixed,
                         contentColor = LocalAndroidColorScheme.current.onTertiaryFixed,
                     ),
-                caretSize = TooltipDefaults.caretSize,
+                caretShape = TooltipDefaults.caretShape(),
                 shadowElevation = 2.dp,
             ) {
                 Text(text = text ?: "", modifier = Modifier.padding(8.dp))

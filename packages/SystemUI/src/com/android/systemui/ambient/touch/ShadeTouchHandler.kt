@@ -91,7 +91,16 @@ constructor(
             if (ev is MotionEvent) {
                 if (capture == true) {
                     sendTouchEvent(ev)
+                } else if (
+                    SceneContainerFlag.isEnabled &&
+                        (ev.action == MotionEvent.ACTION_UP ||
+                            ev.action == MotionEvent.ACTION_CANCEL)
+                ) {
+                    // When the scene container is enabled, we want to ensure the final touch
+                    // event is passed to the window so it can reset its own state.
+                    sendTouchEvent(ev)
                 }
+
                 if (ev.action == MotionEvent.ACTION_UP || ev.action == MotionEvent.ACTION_CANCEL) {
                     if (capture == true) {
                         communalViewModel.onResetTouchState()
@@ -150,9 +159,7 @@ constructor(
             // Send touches to central surfaces only when on the glanceable hub while not dreaming.
             // While sending touches where while dreaming will open the shade, the shade
             // while closing if opened then closed in the same gesture.
-            if (
-                !restrictCommunalShadeToWhenIdle() || communalSceneInteractor.isIdleOnCommunal.value
-            ) {
+            if (communalSceneInteractor.isIdleOnCommunal.value) {
                 surfaces.get().handleExternalShadeWindowTouch(event)
             }
         } else {

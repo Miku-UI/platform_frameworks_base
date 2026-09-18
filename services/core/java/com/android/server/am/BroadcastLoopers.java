@@ -16,12 +16,13 @@
 
 package com.android.server.am;
 
+import static com.android.server.am.ActivityManagerDebugConfig.DEBUG_BROADCAST;
+
 import android.annotation.NonNull;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.MessageQueue;
-import android.os.SystemClock;
 import android.util.ArraySet;
 import android.util.Slog;
 
@@ -30,6 +31,7 @@ import com.android.internal.annotations.GuardedBy;
 import java.io.PrintWriter;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 /**
@@ -62,7 +64,9 @@ public class BroadcastLoopers {
         if (looper != null) {
             synchronized (sLoopers) {
                 if (sLoopers.add(looper)) {
-                    Slog.w(TAG, "Found previously unknown looper " + looper.getThread());
+                    if (DEBUG_BROADCAST) {
+                        Slog.w(TAG, "Found previously unknown looper " + looper.getThread());
+                    }
                 }
             }
         }
@@ -116,15 +120,20 @@ public class BroadcastLoopers {
             }
         }
 
-        long lastPrint = 0;
+        boolean interrupted = false;
         while (latch.getCount() > 0) {
-            final long now = SystemClock.uptimeMillis();
-            if (now >= lastPrint + 1000) {
-                lastPrint = now;
-                pw.println("Waiting for " + latch.getCount() + " loopers to drain...");
-                pw.flush();
+            try {
+                if (!latch.await(1, TimeUnit.SECONDS)) {
+                    // If it returns false, it means 1 second passed and we're still waiting.
+                    pw.println("Waiting for " + latch.getCount() + " loopers to drain...");
+                    pw.flush();
+                }
+            } catch (InterruptedException e) {
+                interrupted = true;
             }
-            SystemClock.sleep(100);
+        }
+        if (interrupted) {
+            Thread.currentThread().interrupt();
         }
         pw.println("Loopers drained!");
         pw.flush();

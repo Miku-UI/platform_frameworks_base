@@ -70,6 +70,10 @@ system_optimized_java_defaults {
                     // and implemented in system_server are kept.
                     ":framework-res{.aapt.proguardOptionsFile}",
                 ],
+                trace_references_from: select(soong_config_variable("ANDROID", "system_server_trace_refs"), {
+                    any @ trace_refs: trace_refs,
+                    default: [],
+                }),
             },
             conditions_default: {
                 optimize: {
@@ -90,13 +94,6 @@ system_optimized_java_defaults {
         FULL_SYSTEM_OPTIMIZE_JAVA: {
             optimize: {
                 optimize: true,
-                // TODO(b/212737576): Apply this property for the SYSTEM_OPTIMIZE_JAVA case after
-                // resolving all downstream cyclic dependencies. For now, full optimization is
-                // more sensitive to downstream lib references, so it stands the most to benefit.
-                trace_references_from: select(soong_config_variable("ANDROID", "system_server_trace_refs"), {
-                    any @ trace_refs: trace_refs,
-                    default: [],
-                }),
             },
         },
     },
@@ -107,6 +104,10 @@ filegroup {
     srcs: [
         "java/**/*.java",
         "java/**/package.html",
+    ],
+    exclude_srcs: [
+        "java/com/android/server/binder_observer/enabled/BinderObserverConfig.java",
+        "java/com/android/server/binder_observer/disabled/BinderObserverConfig.java",
     ],
     path: "java",
     visibility: ["//visibility:private"],
@@ -127,19 +128,22 @@ filegroup {
         ":services.backup-sources",
         ":services.companion-sources",
         ":services.contentcapture-sources",
+        ":services.allowlist-sources",
         ":services.appfunctions-sources",
+        ":services.contentrestriction-sources",
         ":services.contentsuggestions-sources",
         ":services.contextualsearch-sources",
         ":services.coverage-sources",
         ":services.credentials-sources",
         ":services.devicepolicy-sources",
+        ":services.files-sources",
+        ":services.lskfreset-sources",
         ":services.midi-sources",
         ":services.musicsearch-sources",
         ":services.net-sources",
         ":services.permission-sources",
         ":services.print-sources",
         ":services.profcollect-sources",
-        ":services.userrecovery-sources",
         ":services.restrictions-sources",
         ":services.searchui-sources",
         ":services.selectiontoolbar-sources",
@@ -198,28 +202,6 @@ art_profile_java_defaults {
                     profile: ":art-profile-combined",
                 },
             },
-        },
-    },
-}
-
-// Conditionally add crashrecovery stubs library
-soong_config_module_type {
-    name: "crashrecovery_java_defaults",
-    module_type: "java_defaults",
-    config_namespace: "ANDROID",
-    bool_variables: [
-        "release_crashrecovery_module",
-    ],
-    properties: [
-        "libs",
-    ],
-}
-
-crashrecovery_java_defaults {
-    name: "services_crashrecovery_stubs_conditionally",
-    soong_config_variables: {
-        release_crashrecovery_module: {
-            libs: ["service-crashrecovery.stubs.system_server"],
         },
     },
 }
@@ -307,10 +289,20 @@ vintf_fragment {
 
 // merge all required services into one intermediate jar
 // ============================================================
+
+java_library {
+    name: "binder_observer_config_enabled",
+    srcs: ["java/com/android/server/binder_observer/enabled/BinderObserverConfig.java"],
+}
+
+java_library {
+    name: "binder_observer_config_disabled",
+    srcs: ["java/com/android/server/binder_observer/disabled/BinderObserverConfig.java"],
+}
+
 java_library {
     name: "services.impl",
     defaults: [
-        "services_crashrecovery_stubs_conditionally",
         "ondeviceintelligence_conditionally",
         "services_anomaly_detector_stubs_conditionally",
     ],
@@ -320,17 +312,23 @@ java_library {
         d8_on_eng: true,
     },
 
-    srcs: [":services-main-sources"],
+    srcs: [
+        ":services-main-sources",
+        ":statslog-privatecompute-java-gen",
+    ],
 
     // The convention is to name each service module 'services.$(module_name)'
     static_libs: [
         "services.core",
         "services.accessibility",
+        "services.aiseal",
         "services.appprediction",
         "services.appwidget",
         "services.autofill",
         "services.backup",
         "services.companion",
+        "services.contentrestriction",
+        "services.allowlist",
         "services.appfunctions",
         "services.contentcapture",
         "services.contentsuggestions",
@@ -339,6 +337,8 @@ java_library {
         "services.credentials",
         "services.devicepolicy",
         "services.flags",
+        "services.files",
+        "services.lskfreset",
         "services.midi",
         "services.musicsearch",
         "services.net",
@@ -346,7 +346,6 @@ java_library {
         "services.permission",
         "services.print",
         "services.profcollect",
-        "services.userrecovery",
         "services.restrictions",
         "services.searchui",
         "services.selectiontoolbar",
@@ -365,12 +364,12 @@ java_library {
         "service-blobstore",
         "service-jobscheduler",
         "android.hidl.base-V1.0-java",
-    ] + select(release_flag("RELEASE_MOVE_VCN_TO_MAINLINE"), {
-        true: [],
-        default: ["service-connectivity-b-platform"],
-    }) + select(release_flag("RELEASE_ANOMALY_DETECTOR"), {
+    ] + select(release_flag("RELEASE_ANOMALY_DETECTOR"), {
         true: ["services.signal-collectors"],
         default: [],
+    }) + select(release_flag("RELEASE_LIBBINDER_BINDER_OBSERVER"), {
+        true: ["binder_observer_config_enabled"],
+        default: ["binder_observer_config_disabled"],
     }),
 
     libs: [
@@ -378,9 +377,11 @@ java_library {
         "framework-tethering.stubs.module_lib",
         "keepanno-annotations",
         "service-art.stubs.system_server",
+        "service-crashrecovery.stubs.system_server",
         "service-permission.stubs.system_server",
         "service-rkp.stubs.system_server",
         "service-sdksandbox.stubs.system_server",
+        "service-telecom.stubs.system_server",
     ],
 
     // Uncomment to enable output of certain warnings (deprecated, unchecked)
@@ -389,6 +390,7 @@ java_library {
     visibility: [
         ":__subpackages__",
         "//frameworks/opt:__subpackages__",
+        "//vendor:__subpackages__",
     ],
 
     lint: {
@@ -440,6 +442,8 @@ system_java_library {
 
     required: [
         "libukey2_jni_shared",
+        "submerge_java_shared",
+        "libtrust_token_jni",
         "core.protolog.pb",
         "libusb4_policies_jni",
     ],
@@ -488,7 +492,6 @@ stubs_defaults {
     installable: false,
     flags: [
         "--show-annotation android.annotation.SystemApi\\(client=android.annotation.SystemApi.Client.SYSTEM_SERVER\\)",
-        "--hide-annotation android.annotation.Hide",
         "--hide InternalClasses", // com.android.* classes are okay in this interface
         // TODO: remove the --hide options below
         "--hide DeprecationMismatch",
@@ -560,5 +563,6 @@ non_updatable_exportable_droidstubs {
     sdk_version: "module_current",
     libs: [
         "framework-annotations-lib",
+        "am_flags_lib",
     ],
 }

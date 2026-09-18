@@ -16,8 +16,6 @@
 
 package android.view;
 
-import static android.view.flags.Flags.FLAG_SCROLL_CAPTURE_TARGET_Z_ORDER_FIX;
-
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
 import static org.junit.Assert.assertEquals;
@@ -32,7 +30,6 @@ import android.content.Context;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.os.CancellationSignal;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
 
@@ -248,7 +245,6 @@ public class ViewGroupScrollCaptureTest {
         assertNull(results.getTopResult());
     }
 
-    @EnableFlags(FLAG_SCROLL_CAPTURE_TARGET_Z_ORDER_FIX)
     @MediumTest
     @Test
     public void testDispatchScrollCaptureSearch_traversesInDrawingOrder() throws Exception {

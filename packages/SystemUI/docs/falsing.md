@@ -1,9 +1,9 @@
 # Falsing in SystemUI
 
-Phones are easily and often accidentally-activated in owners' pockets ("falsing" or "pocket 
+Phones are easily and often accidentally-activated in owners' pockets ("falsing" or "pocket
 dialing"). Because a phone's screen can be turned on with a single tap, and because we have further
 actions that be activated with basic tapping and swiping, it is critical that we
-analyze touch events on the screen for intentional vs accidental behavior. With analysis, 
+analyze touch events on the screen for intentional vs accidental behavior. With analysis,
 features within SystemUI have an opportunity to ignore or even undo accidental interactions as they
 are occurring.
 
@@ -31,23 +31,23 @@ The flow through the system looks like such:
 
 1. Gesture on the screen.
 2. The `FalsingManager` makes a note of all of the `MotionEvents`.
-    * If no feature/touch target receives the `MotionEvents`, skip to 4. 
+    * If no feature/touch target receives the `MotionEvents`, skip to 4.
 3. Your touch target receives the `MotionEvents`.
     * Once your feature is ready to respond to the gesture in a substantive manner, it queries
       the `FalsingManager`.
       - Dragging animations, touch ripples, and other purely visual effects should not query.
       - Query once you are ready to launch a new feature or dialogue, or are otherwise going to
-        change the state of the UI. 
+        change the state of the UI.
       - Generally, wait until `MotionEvent.ACTION_UP` to query or `View.OnClickListener#onClick`.
       - Only query once per gesture, at the end.
     * If the `FalsingManager` says it looks good, respond to the touch.
-4. The `FalsingManager` checks to see if anyone queried about the gesture. If not, mark it as 
-   accidental. 
-   
-There is also an event fired by the `FalsingManager` that can be listened to by anyone, that 
+4. The `FalsingManager` checks to see if anyone queried about the gesture. If not, mark it as
+   accidental.
+
+There is also an event fired by the `FalsingManager` that can be listened to by anyone, that
 indicates that the the `FalsingManager` believes the phone is actively being pocket-dialed. When
-fired, modal features, such as quick settings, keyguard bouncer, and others should retract 
-themselves to prevent further pocket-dialing.  
+fired, modal features, such as quick settings, keyguard bouncer, and others should retract
+themselves to prevent further pocket-dialing.
 
 ## Falsing "Belief" and History
 
@@ -65,7 +65,7 @@ taps, or more deliberate swipes.)
 
 ## Responding to Touch Events
 
-The methods below inform the `FalsingManager` that a tap is occurring within an expected touch 
+The methods below inform the `FalsingManager` that a tap is occurring within an expected touch
 target. Match the methods with the gesture you expect the device owner to use.
 
 ### Single Tap
@@ -162,7 +162,7 @@ if (!mFalsingManager.isFalseTap(false, 0)) {
 } else {
   // must be a false.
 }
-``` 
+```
 
 Do:
 ```
@@ -182,7 +182,7 @@ void onGestureB() {
     // do thing b
   }
 }
-``` 
+```
 
 
 ## Influencing Belief
@@ -204,7 +204,7 @@ two extremes makes sense.
 
 A good example of where this is used is in the "Pattern" password input. We
 avoid recording those gestures in the `FalsingManager`, but we have the pattern input update
-the `FalsingManager` directly in some cases. If the owner simply taps on the pattern input, we 
+the `FalsingManager` directly in some cases. If the owner simply taps on the pattern input, we
 record it as a false, (patterns are always 4 "cells" long, so single "cell" inputs are penalized).
 
 Conversely, if you think the owner does something that deserves a nice reward:

@@ -16,6 +16,8 @@
 
 package com.android.server.accessibility.magnification;
 
+import static android.os.UserHandle.USER_SYSTEM;
+
 import static com.android.server.accessibility.magnification.MockMagnificationConnection.TEST_DISPLAY;
 import static com.android.server.accessibility.magnification.MockMagnificationConnection.TEST_DISPLAY_2;
 import static com.android.server.accessibility.magnification.MockMagnificationConnection.TEST_SOURCE_INPUT_FOCUS;
@@ -53,7 +55,6 @@ import android.graphics.Region;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.SystemClock;
-import android.os.UserHandle;
 import android.provider.Settings;
 import android.test.mock.MockContentResolver;
 import android.view.InputDevice;
@@ -82,8 +83,7 @@ import org.mockito.invocation.InvocationOnMock;
  * Tests for WindowMagnificationManager.
  */
 public class MagnificationConnectionManagerTest {
-
-    private static final int CURRENT_USER_ID = UserHandle.USER_SYSTEM;
+    private static final int CURRENT_USER_ID = USER_SYSTEM;
     private static final int SERVICE_ID = 1;
 
     private MockMagnificationConnection mMockConnection;
@@ -1034,6 +1034,14 @@ public class MagnificationConnectionManagerTest {
 
         verify(mMockConnection.getConnection())
                 .onFullscreenMagnificationActivationChanged(eq(TEST_DISPLAY), eq(true));
+    }
+
+    @Test
+    public void requestConnection_systemUser_isVisibleBackgroundUser_throwsNoException() {
+        when(mMockUserManagerInternal.isVisibleBackgroundFullUser(
+                USER_SYSTEM)).thenReturn(true);
+
+        mMagnificationConnectionManager.requestConnection(true, USER_SYSTEM);
     }
 
     private MotionEvent generatePointersDownEvent(PointF[] pointersLocation) {

@@ -41,6 +41,13 @@ public abstract class ContentCaptureManagerInternal {
     public abstract boolean isContentCaptureServiceForUser(int uid, @UserIdInt int userId);
 
     /**
+     * Returns the package name of the {@link android.service.contentcapture.ContentCaptureService}
+     * implementation associated with the given {@code userId}, or null if one does not exist.
+     */
+    @Nullable
+    public abstract String getContentCaptureServicePackageNameForUser(@UserIdInt int userId);
+
+    /**
      * Notifies the intelligence service of new intent data associated with an activity start event.
      *
      * @return {@code false} if there was no service set for the given user

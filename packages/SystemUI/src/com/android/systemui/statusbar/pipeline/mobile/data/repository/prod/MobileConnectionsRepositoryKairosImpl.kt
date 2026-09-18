@@ -37,7 +37,6 @@ import com.android.settingslib.SignalIcon.MobileIconGroup
 import com.android.settingslib.mobile.MobileMappings.Config
 import com.android.systemui.Dumpable
 import com.android.systemui.KairosActivatable
-import com.android.systemui.KairosBuilder
 import com.android.systemui.activated
 import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.dagger.SysUISingleton
@@ -46,7 +45,6 @@ import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.kairos.BuildSpec
 import com.android.systemui.kairos.Events
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.Incremental
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.StateSelector
@@ -70,7 +68,6 @@ import com.android.systemui.kairos.switchEvents
 import com.android.systemui.kairos.transitions
 import com.android.systemui.kairos.util.WithPrev
 import com.android.systemui.kairos.util.nameTag
-import com.android.systemui.kairosBuilder
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.log.table.TableLogBufferFactory
 import com.android.systemui.log.table.logDiffsForTable
@@ -90,6 +87,8 @@ import com.android.systemui.statusbar.pipeline.shared.data.model.DefaultConnecti
 import com.android.systemui.statusbar.pipeline.shared.data.repository.ConnectivityRepository
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.WifiRepository
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel
+import com.android.systemui.util.lifecycle.kairos.KairosBuilder
+import com.android.systemui.util.lifecycle.kairos.kairosBuilder
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import dagger.Binds
 import dagger.Lazy
@@ -106,7 +105,6 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 
-@ExperimentalKairosApi
 @SysUISingleton
 class MobileConnectionsRepositoryKairosImpl
 @Inject
@@ -642,7 +640,6 @@ constructor(
     }
 }
 
-@ExperimentalKairosApi
 class MobileConnectionRepositoryKairosFactoryImpl
 @Inject
 constructor(

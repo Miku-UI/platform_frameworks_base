@@ -22,11 +22,12 @@ import android.view.Display;
 
 import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.dagger.qualifiers.Main;
+import com.android.systemui.dump.DumpModule;
 import com.android.systemui.plugins.PluginsModule;
 import com.android.systemui.unfold.UnfoldTransitionModule;
 import com.android.systemui.util.concurrency.GlobalConcurrencyModule;
 import com.android.systemui.util.kotlin.GlobalCoroutinesModule;
-import com.android.systemui.util.time.impl.TimeModule;
+import com.android.systemui.util.time.TimeModule;
 
 import dagger.Module;
 import dagger.Provides;
@@ -48,6 +49,7 @@ import dagger.Provides;
  */
 @Module(includes = {
         AndroidInternalsModule.class,
+        DumpModule.class,
         FrameworkServicesModule.class,
         GlobalConcurrencyModule.class,
         GlobalCoroutinesModule.class,

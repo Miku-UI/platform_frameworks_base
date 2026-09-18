@@ -28,12 +28,6 @@ import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 public interface OnUserInteractionCallback {
 
     /**
-     * Triggered after a user has changed the importance of the notification via its
-     * {@link NotificationGuts}.
-     */
-    void onImportanceChanged(NotificationEntry entry);
-
-    /**
      * Called once it is known that a dismissal will take place for the given reason.
      * This returns a Runnable which MUST be invoked when the dismissal is ready to be completed.
      * <p>

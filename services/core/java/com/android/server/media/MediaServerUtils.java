@@ -72,9 +72,8 @@ import java.util.List;
         if (TextUtils.isEmpty(packageName)) {
             throw new IllegalArgumentException("packageName may not be empty");
         }
-        final PackageManagerInternal packageManagerInternal =
-                LocalServices.getService(PackageManagerInternal.class);
-        if (!packageManagerInternal.isSameApp(packageName, uid, UserHandle.getUserId(uid))) {
+
+        if (!isSameApp(packageName, uid)) {
             String[] uidPackages = context.getPackageManager().getPackagesForUid(uid);
             throw new IllegalArgumentException(
                     "packageName does not belong to the calling uid; "
@@ -86,6 +85,15 @@ import java.util.List;
                             + Arrays.toString(uidPackages)
                             + ")");
         }
+    }
+
+    public static boolean isSameApp(String packageName, int uid) {
+        if (TextUtils.isEmpty(packageName)) {
+            return false;
+        }
+        final PackageManagerInternal packageManagerInternal =
+                LocalServices.getService(PackageManagerInternal.class);
+        return packageManagerInternal.isSameApp(packageName, uid, UserHandle.getUserId(uid));
     }
 
     /**

@@ -182,7 +182,7 @@ class DeviceItemInteractorTest : SysuiTestCase() {
     @Test
     fun testUpdateDeviceItems_hasCachedDevice_filterMatch_returnMultipleDeviceItem() {
         testScope.runTest {
-            `when`(adapter.mostRecentlyConnectedDevices).thenReturn(null)
+            `when`(adapter.mostRecentlyConnectedDevices).thenReturn(emptyList())
             interactor =
                 DeviceItemInteractor(
                     bluetoothTileDialogRepository,
@@ -213,7 +213,7 @@ class DeviceItemInteractorTest : SysuiTestCase() {
     @Test
     fun testUpdateDeviceItems_sortByDisplayPriority() {
         testScope.runTest {
-            `when`(adapter.mostRecentlyConnectedDevices).thenReturn(null)
+            `when`(adapter.mostRecentlyConnectedDevices).thenReturn(emptyList())
             interactor =
                 DeviceItemInteractor(
                     bluetoothTileDialogRepository,
@@ -296,7 +296,7 @@ class DeviceItemInteractorTest : SysuiTestCase() {
         testScope.runTest {
             `when`(bluetoothTileDialogRepository.cachedDevices)
                 .thenReturn(listOf(cachedDevice2, cachedDevice2, cachedDevice2, cachedDevice2))
-            `when`(adapter.mostRecentlyConnectedDevices).thenReturn(null)
+            `when`(adapter.mostRecentlyConnectedDevices).thenReturn(emptyList())
             interactor =
                 DeviceItemInteractor(
                     bluetoothTileDialogRepository,

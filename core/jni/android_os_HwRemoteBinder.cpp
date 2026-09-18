@@ -43,17 +43,18 @@ using android::AndroidRuntime;
 
 namespace android {
 
-static struct fields_t {
+namespace {
+struct fields_t {
     jclass proxy_class;
     jfieldID contextID;
     jmethodID constructID;
     jmethodID sendDeathNotice;
 } gProxyOffsets;
 
-static struct class_offsets_t
-{
+struct class_offsets_t {
     jmethodID mGetName;
 } gClassOffsets;
+} // namespace
 
 static JavaVM* jnienv_to_javavm(JNIEnv* env)
 {

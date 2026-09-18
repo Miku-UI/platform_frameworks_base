@@ -17,7 +17,6 @@
 package com.android.systemui.statusbar.phone.fragment.dagger
 
 import android.content.testableContext
-import com.android.systemui.battery.BatteryMeterViewController
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.plugins.DarkIconDispatcher
 import com.android.systemui.plugins.fakeDarkIconDispatcher
@@ -32,7 +31,6 @@ import com.android.systemui.statusbar.phone.phoneStatusBarViewController
 import org.mockito.kotlin.mock
 
 fun Kosmos.createFakeHomeStatusBarComponent(
-    batteryMeterViewController: BatteryMeterViewController = mock(),
     phoneStatusBarView: PhoneStatusBarView = mock(),
     phoneStatusBarViewController: PhoneStatusBarViewController = this.phoneStatusBarViewController,
     headsUpAppearanceController: HeadsUpAppearanceController = mock(),
@@ -44,10 +42,6 @@ fun Kosmos.createFakeHomeStatusBarComponent(
     displayId: Int = testableContext.displayId,
 ): HomeStatusBarComponent {
     return object : HomeStatusBarComponent {
-        override fun getBatteryMeterViewController(): BatteryMeterViewController {
-            return batteryMeterViewController
-        }
-
         override fun getPhoneStatusBarView(): PhoneStatusBarView {
             return phoneStatusBarView
         }

@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package android.media.tv.extension.event;
 
 import android.media.tv.extension.event.IEventDownloadListener;
@@ -21,9 +20,18 @@ import android.os.Bundle;
 import android.os.IBinder;
 
 /**
+ * Interface for managing an event download session.
+ *
  * @hide
  */
 interface IEventDownload {
-    // Create an event download session and return it as a Ibinder for DVB/DTMB
+    /**
+     *  Create an event download session and return it as an IBinder.
+     *
+     * @param eventDownloadParams A Bundle containing parameters for the session, keys should follow
+     *                            {@link EventConstants.EventDownloadKeys}.
+     * @param listener An IEventDownloadListener for receiving notifications.
+     * @return An IBinder interface to the created session for making AIDL calls.
+     */
     IBinder createSession(in Bundle eventDownloadParams, in IEventDownloadListener listener);
 }

@@ -24,6 +24,8 @@ import static junit.framework.Assert.assertTrue;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertThrows;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import android.hardware.vibrator.IVibrator;
 import android.os.Parcel;
 import android.os.VibrationEffect;
@@ -55,6 +57,8 @@ public class PrebakedSegmentTest {
         original.writeToParcel(parcel, 0);
         parcel.setDataPosition(0);
         assertEquals(original, PrebakedSegment.CREATOR.createFromParcel(parcel));
+        parcel.setDataPosition(0);
+        assertEquals(original, VibrationEffectSegment.CREATOR.createFromParcel(parcel));
     }
 
     @Test
@@ -107,10 +111,10 @@ public class PrebakedSegmentTest {
     }
 
     @Test
-    public void testScaleLinearly_ignoresAndReturnsSameEffect() {
+    public void testApplyAdaptiveScale_ignoresAndReturnsSameEffect() {
         PrebakedSegment prebaked = new PrebakedSegment(
                 VibrationEffect.EFFECT_CLICK, true, VibrationEffect.EFFECT_STRENGTH_MEDIUM);
-        assertSame(prebaked, prebaked.scaleLinearly(0.5f));
+        assertSame(prebaked, prebaked.applyAdaptiveScale(0.5f));
     }
 
     @Test
@@ -317,6 +321,71 @@ public class PrebakedSegmentTest {
     public void testIsHapticFeedbackCandidate_prebakedRingtones_notCandidates() {
         assertFalse(createSegmentWithFallback(VibrationEffect.RINGTONES[1])
                 .isHapticFeedbackCandidate());
+    }
+
+    @Test
+    public void testToString() {
+        PrebakedSegment segment =
+                new PrebakedSegment(
+                        VibrationEffect.EFFECT_CLICK, true, VibrationEffect.EFFECT_STRENGTH_MEDIUM);
+        String str = segment.toString();
+        assertThat(str).contains("CLICK");
+        assertThat(str).contains("MEDIUM");
+        assertThat(str).contains("fallback=true");
+    }
+
+    @Test
+    public void testEquals() {
+        PrebakedSegment segment =
+                new PrebakedSegment(
+                        VibrationEffect.EFFECT_CLICK,
+                        true,
+                        VibrationEffect.EFFECT_STRENGTH_MEDIUM,
+                        200);
+        assertThat(segment)
+                .isEqualTo(
+                        new PrebakedSegment(
+                                VibrationEffect.EFFECT_CLICK,
+                                true,
+                                VibrationEffect.EFFECT_STRENGTH_MEDIUM,
+                                200));
+        assertThat(segment)
+                .isNotEqualTo(
+                        new PrebakedSegment(
+                                VibrationEffect.EFFECT_THUD,
+                                true,
+                                VibrationEffect.EFFECT_STRENGTH_MEDIUM,
+                                200));
+        assertThat(segment)
+                .isNotEqualTo(
+                        new PrebakedSegment(
+                                VibrationEffect.EFFECT_CLICK,
+                                false,
+                                VibrationEffect.EFFECT_STRENGTH_MEDIUM,
+                                200));
+        assertThat(segment)
+                .isNotEqualTo(
+                        new PrebakedSegment(
+                                VibrationEffect.EFFECT_CLICK,
+                                true,
+                                VibrationEffect.EFFECT_STRENGTH_STRONG,
+                                200));
+        assertThat(segment.applyStartTime(100)).isNotEqualTo(segment);
+    }
+
+    @Test
+    public void testApplyStartTime() {
+        PrebakedSegment segment =
+                new PrebakedSegment(
+                        VibrationEffect.EFFECT_CLICK, true, VibrationEffect.EFFECT_STRENGTH_MEDIUM);
+        assertThat(segment.getStartTimeMillis()).isEqualTo(-1);
+        PrebakedSegment newSegment = segment.applyStartTime(100);
+        assertThat(newSegment).isNotSameInstanceAs(segment);
+        assertThat(newSegment.getStartTimeMillis()).isEqualTo(100);
+        assertThat(newSegment.getEffectId()).isEqualTo(VibrationEffect.EFFECT_CLICK);
+        assertThat(newSegment.shouldFallback()).isTrue();
+        assertThat(newSegment.getEffectStrength())
+                .isEqualTo(VibrationEffect.EFFECT_STRENGTH_MEDIUM);
     }
 
     private static PrebakedSegment createSegmentWithFallback(int effectId) {

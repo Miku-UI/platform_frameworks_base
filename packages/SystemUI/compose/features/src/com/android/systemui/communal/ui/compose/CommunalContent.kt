@@ -36,7 +36,6 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.toSize
@@ -52,9 +51,12 @@ import com.android.systemui.communal.ui.compose.section.HubOnboardingSection
 import com.android.systemui.communal.ui.view.layout.sections.CommunalAppWidgetSection
 import com.android.systemui.communal.ui.viewmodel.CommunalViewModel
 import com.android.systemui.keyguard.ui.composable.elements.IndicationAreaElementProvider
+import com.android.systemui.keyguard.ui.composable.elements.LockIconAlignmentLines
 import com.android.systemui.keyguard.ui.composable.elements.LockIconElementProvider
-import com.android.systemui.keyguard.ui.composable.layout.LockIconAlignmentLines
+import com.android.systemui.keyguard.ui.composable.elements.LockscreenElements
+import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementKeys
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.statusbar.phone.SystemUIDialogFactory
 import javax.inject.Inject
 
@@ -71,14 +73,13 @@ constructor(
     private val communalPopupSection: CommunalPopupSection,
     private val widgetSection: CommunalAppWidgetSection,
     private val hubOnboardingSection: HubOnboardingSection,
+    private val lockscreenElements: LockscreenElements,
 ) {
-
     @Composable
     fun ContentScope.Content(modifier: Modifier = Modifier) {
         val showLockIconAndChargingStatus = !communalSettingsInteractor.isV2FlagEnabled()
 
         CommunalTouchableSurface(viewModel = viewModel, modifier = modifier) {
-            val orientation = LocalConfiguration.current.orientation
             var gridRegion by remember { mutableStateOf<Rect?>(null) }
             val showBackgroundForEditModeTransition by
                 viewModel.showBackgroundForEditModeTransition.collectAsStateWithLifecycle(
@@ -94,6 +95,10 @@ constructor(
                 exit = fadeOut(tween(TransitionDuration.EDIT_MODE_BACKGROUND_ANIM_DURATION_MS)),
             ) {
                 Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceDim))
+            }
+
+            if (SceneContainerFlag.isEnabled) {
+                with(lockscreenElements) { LockscreenElement(LockscreenElementKeys.StatusBar) }
             }
 
             Layout(

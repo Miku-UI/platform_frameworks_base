@@ -42,6 +42,11 @@ class FakeFocusedDisplayRepository @Inject constructor() : FocusedDisplayReposit
 
     suspend fun setGlobalTask(runningTaskInfo: RunningTaskInfo) =
         globalTaskFlow.emit(runningTaskInfo)
+
+    /** Set the displayId directly, for use in java tests */
+    fun setDirectDisplayId(focusedDisplay: Int) {
+        displayFlow.value = focusedDisplay
+    }
 }
 
 @Module

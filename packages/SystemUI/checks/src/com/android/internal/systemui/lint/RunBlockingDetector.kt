@@ -39,6 +39,9 @@ class RunBlockingDetector : Detector(), SourceCodeScanner {
     override fun createUastHandler(context: JavaContext): UElementHandler {
         return object : UElementHandler() {
             override fun visitFile(node: UFile) {
+                if (node.classes.any { it.name?.contains("test", ignoreCase = true) == true }) {
+                    return
+                }
                 for (importStatement in node.imports) {
                     visitImportStatement(context, importStatement)
                 }

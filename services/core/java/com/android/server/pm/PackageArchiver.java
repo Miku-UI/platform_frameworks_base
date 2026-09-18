@@ -717,7 +717,8 @@ public class PackageArchiver {
             throws PackageManager.NameNotFoundException {
         if (!ps.getUserStateOrDefault(userId).isInstalled()) {
             throw new PackageManager.NameNotFoundException(
-                    TextUtils.formatSimple("%s is not installed.", ps.getPackageName()));
+                    TextUtils.formatSimple("%s is not installed for user %d.", ps.getPackageName(),
+                            userId));
         }
     }
 

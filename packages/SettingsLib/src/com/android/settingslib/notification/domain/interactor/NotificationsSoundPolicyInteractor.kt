@@ -77,6 +77,8 @@ class NotificationsSoundPolicyInteractor(private val repository: ZenModeReposito
                             return@combine true
                         stream.value == AudioManager.STREAM_MUSIC && !isMediaAllowed ->
                             return@combine true
+                        stream.value == AudioManager.STREAM_ASSISTANT && !isMediaAllowed ->
+                            return@combine true
                         stream.value == AudioManager.STREAM_SYSTEM && !isSystemAllowed ->
                             return@combine true
                         (stream.value == AudioManager.STREAM_RING ||

@@ -18,6 +18,7 @@ package com.android.wm.shell.shared.bubbles;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.ActivityTaskManager;
 import android.graphics.Point;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -58,6 +59,7 @@ public class BubbleBarUpdate implements Parcelable {
      * Whether to suppress the animation of this update. Currently, this is only used for jumpcut.
      */
     public boolean suppressAnimation;
+    public int bubbleRootTaskId = ActivityTaskManager.INVALID_TASK_ID;
 
     // This is only populated if bubbles have been removed.
     public List<RemovedBubble> removedBubbles = new ArrayList<>();
@@ -101,6 +103,7 @@ public class BubbleBarUpdate implements Parcelable {
         showOverflowChanged = parcel.readBoolean();
         showOverflow = parcel.readBoolean();
         suppressAnimation = parcel.readBoolean();
+        bubbleRootTaskId = parcel.readInt();
     }
 
     /**
@@ -141,6 +144,7 @@ public class BubbleBarUpdate implements Parcelable {
                 + " showOverflowChanged=" + showOverflowChanged
                 + " showOverflow=" + showOverflow
                 + " suppressAnimation=" + suppressAnimation
+                + " bubbleRootTaskId=" + bubbleRootTaskId
                 + " }";
     }
 
@@ -168,6 +172,7 @@ public class BubbleBarUpdate implements Parcelable {
         parcel.writeBoolean(showOverflowChanged);
         parcel.writeBoolean(showOverflow);
         parcel.writeBoolean(suppressAnimation);
+        parcel.writeInt(bubbleRootTaskId);
     }
 
     /**

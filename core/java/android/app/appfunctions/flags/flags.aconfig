@@ -9,3 +9,61 @@ flag {
     description: "This flag the new App Function manager system service."
     bug: "357551503"
 }
+
+flag {
+    name: "enable_dynamic_app_functions"
+    is_exported: true
+    namespace: "app_function"
+    description: "This flags the Dynamic App Functions Feature."
+    bug: "445901741"
+}
+
+flag {
+    name: "enable_app_interaction_api"
+    is_exported: true
+    namespace: "app_function"
+    description: "This flags the App Interaction Feature."
+    bug: "452916227"
+}
+
+flag {
+    name: "enable_app_function_permission_v2"
+    is_exported: true
+    namespace: "app_function"
+    description: "This flags the App Interaction Feature."
+    bug: "443924426"
+}
+
+flag {
+    name: "enable_request_response_logging"
+    namespace: "app_function"
+    description: "This flag enables logging of app function requests and responses for debugging."
+    bug: "465699882"
+}
+
+flag {
+    name: "enable_multi_service"
+    namespace: "app_function"
+    description: "Enables indexing and serving app functions from multiple services."
+    bug: "468288106"
+}
+
+flag {
+    name: "enable_app_function_search_optimization"
+    namespace: "app_function"
+    description: "Enable optimization for app function search."
+    bug: "473468720"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_multi_service_bugfix"
+    namespace: "app_function"
+    description: "Enables indexing and serving app functions from multiple services."
+    bug: "468288106"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

@@ -90,7 +90,9 @@ class ApkAssets : public RefBase {
 
   // Creates an ApkAssets from an IDMAP, which contains the original APK path, and the overlay
   // data.
-  static ApkAssetsPtr LoadOverlay(const std::string& idmap_path, package_property_t flags = 0U);
+  static ApkAssetsPtr LoadOverlay(const std::string& idmap_path,
+                                  GetFlagValuesFunc get_flag_values_func,
+                                  package_property_t flags = 0U);
 
   // Path to the contents of the ApkAssets on disk. The path could represent an APk, a directory,
   // or some other file type.
@@ -165,6 +167,7 @@ class ApkAssets : public RefBase {
             package_property_t property_flags, std::unique_ptr<Asset> idmap_asset,
             std::unique_ptr<LoadedIdmap> loaded_idmap);
 
+ private:
   std::unique_ptr<Asset> resources_asset_;
   std::unique_ptr<LoadedArsc> loaded_arsc_;
 

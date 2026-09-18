@@ -59,7 +59,7 @@
     <string name="accessibility_split_right" msgid="8441001008181296837">"ଡାହାଣପଟକୁ ସ୍ପ୍ଲିଟ କରନ୍ତୁ"</string>
     <string name="accessibility_split_top" msgid="2789329702027147146">"ଶୀର୍ଷକୁ ସ୍ପ୍ଲିଟ କରନ୍ତୁ"</string>
     <string name="accessibility_split_bottom" msgid="8694551025220868191">"ନିମ୍ନକୁ ସ୍ଲିଟ କରନ୍ତୁ"</string>
-    <string name="one_handed_tutorial_title" msgid="4583241688067426350">"ଏକ-ହାତ ମୋଡ୍ ବ୍ୟବହାର କରି"</string>
+    <string name="one_handed_tutorial_title" msgid="4583241688067426350">"ୱାନ-ହେଣ୍ଡେଡ ମୋଡକୁ ବ୍ୟବହାର କରି"</string>
     <string name="one_handed_tutorial_description" msgid="3486582858591353067">"ବାହାରି ଯିବା ପାଇଁ, ସ୍କ୍ରିନର ତଳୁ ଉପରକୁ ସ୍ୱାଇପ୍ କରନ୍ତୁ କିମ୍ବା ଆପରେ ଯେ କୌଣସି ସ୍ଥାନରେ ଟାପ୍ କରନ୍ତୁ"</string>
     <string name="accessibility_action_start_one_handed" msgid="5070337354072861426">"ଏକ-ହାତ ମୋଡ୍ ଆରମ୍ଭ କରନ୍ତୁ"</string>
     <string name="accessibility_action_stop_one_handed" msgid="1369940261782179442">"ଏକ-ହାତ ମୋଡରୁ ବାହାରି ଯାଆନ୍ତୁ"</string>
@@ -76,28 +76,23 @@
     <string name="bubble_accessibility_action_collapse_menu" msgid="2975310870146231463">"ମେନୁକୁ ସଙ୍କୁଚିତ କରନ୍ତୁ"</string>
     <string name="bubble_accessibility_action_move_bar_left" msgid="4803535120353716759">"ବାମକୁ ମୁଭ କରନ୍ତୁ"</string>
     <string name="bubble_accessibility_action_move_bar_right" msgid="7686542531917510421">"ଡାହାଣକୁ ମୁଭ କରନ୍ତୁ"</string>
-    <string name="bubble_accessibility_announce_expand" msgid="5388792092888203776">"<xliff:g id="BUBBLE_TITLE">%1$s</xliff:g> ବିସ୍ତାର କରନ୍ତୁ"</string>
-    <string name="bubble_accessibility_announce_collapse" msgid="3178806224494537097">"<xliff:g id="BUBBLE_TITLE">%1$s</xliff:g> ସଙ୍କୁଚିତ କରନ୍ତୁ"</string>
     <string name="bubbles_app_settings" msgid="3617224938701566416">"<xliff:g id="NOTIFICATION_TITLE">%1$s</xliff:g> ସେଟିଂସ୍"</string>
-    <string name="bubble_dismiss_text" msgid="8816558050659478158">"ବବଲ୍ ଖାରଜ କରନ୍ତୁ"</string>
+    <string name="bubble_dismiss_text" msgid="8816558050659478158">"ବବଲ ଖାରଜ କରନ୍ତୁ"</string>
     <string name="bubble_fullscreen_text" msgid="1006758103218086231">"ପୂର୍ଣ୍ଣସ୍କ୍ରିନକୁ ମୁଭ କରନ୍ତୁ"</string>
-    <string name="bubbles_dont_bubble_conversation" msgid="310000317885712693">"ବାର୍ତ୍ତାଳାପକୁ ବବଲ୍ କରନ୍ତୁ ନାହିଁ"</string>
-    <string name="bubbles_user_education_title" msgid="2112319053732691899">"ବବଲଗୁଡ଼ିକୁ ବ୍ୟବହାର କରି ଚାଟ୍ କରନ୍ତୁ"</string>
+    <string name="bubbles_dont_bubble_conversation" msgid="310000317885712693">"ବାର୍ତ୍ତାଳାପକୁ ବବଲ କରନ୍ତୁ ନାହିଁ"</string>
+    <string name="bubbles_user_education_title" msgid="2112319053732691899">"ବବଲଗୁଡ଼ିକୁ ବ୍ୟବହାର କରି ଚାଟ କରନ୍ତୁ"</string>
     <string name="bubbles_user_education_description" msgid="4215862563054175407">"ନୂଆ ବାର୍ତ୍ତାଳାପଗୁଡ଼ିକ ଫ୍ଲୋଟିଂ ଆଇକନ୍ କିମ୍ବା ବବଲ୍ ଭାବେ ଦେଖାଯିବ। ବବଲ୍ ଖୋଲିବାକୁ ଟାପ୍ କରନ୍ତୁ। ଏହାକୁ ମୁଭ୍ କରିବାକୁ ଟାଣନ୍ତୁ।"</string>
     <string name="bubbles_user_education_manage_title" msgid="7042699946735628035">"ଯେ କୌଣସି ସମୟରେ ବବଲଗୁଡ଼ିକ ନିୟନ୍ତ୍ରଣ କରନ୍ତୁ"</string>
-    <string name="bubbles_user_education_manage" msgid="3460756219946517198">"ଏହି ଆପର ବବଲଗୁଡ଼ିକ ବନ୍ଦ କରିବା ପାଇଁ \'ପରିଚାଳନା କରନ୍ତୁ\' ବଟନରେ ଟାପ୍ କରନ୍ତୁ"</string>
+    <string name="bubbles_user_education_manage" msgid="3460756219946517198">"ଏହି ଆପର ବବଲଗୁଡ଼ିକ ବନ୍ଦ କରିବା ପାଇଁ \'ପରିଚାଳନା କରନ୍ତୁ\' ବଟନରେ ଟାପ କରନ୍ତୁ"</string>
     <string name="bubbles_user_education_got_it" msgid="3382046149225428296">"ବୁଝିଗଲି"</string>
-    <string name="bubble_overflow_empty_title" msgid="2397251267073294968">"ବର୍ତ୍ତମାନ କୌଣସି ବବଲ୍ ନାହିଁ"</string>
+    <string name="bubble_overflow_empty_title" msgid="2397251267073294968">"ବର୍ତ୍ତମାନ କୌଣସି ବବଲ ନାହିଁ"</string>
     <string name="bubble_overflow_empty_subtitle" msgid="2627417924958633713">"ବର୍ତ୍ତମାନର ଏବଂ ଖାରଜ କରାଯାଇଥିବା ବବଲଗୁଡ଼ିକ ଏଠାରେ ଦେଖାଯିବ"</string>
-    <string name="bubble_bar_education_stack_title" msgid="2486903590422497245">"ବବଲଗୁଡ଼ିକୁ ବ୍ୟବହାର କରି ଚାଟ୍ କରନ୍ତୁ"</string>
+    <string name="bubble_bar_education_stack_title" msgid="2486903590422497245">"ବବଲଗୁଡ଼ିକୁ ବ୍ୟବହାର କରି ଚାଟ କରନ୍ତୁ"</string>
     <string name="bubble_bar_education_stack_text" msgid="2446934610817409820">"ନୂଆ ବାର୍ତ୍ତାଳାପଗୁଡ଼ିକ ଆପଣଙ୍କ ସ୍କ୍ରିନର ଏକ ନିମ୍ନ କୋଣରେ ଆଇକନଗୁଡ଼ିକ ଭାବେ ଦେଖାଯାଏ। ସେଗୁଡ଼ିକୁ ବିସ୍ତାର କରିବା ପାଇଁ ଟାପ କରନ୍ତୁ କିମ୍ବା ସେଗୁଡ଼ିକୁ ଖାରଜ କରିବା ପାଇଁ ଡ୍ରାଗ କରନ୍ତୁ।"</string>
     <string name="bubble_bar_education_manage_title" msgid="6148404487810835924">"ଯେ କୌଣସି ସମୟରେ ବବଲଗୁଡ଼ିକ ନିୟନ୍ତ୍ରଣ କରନ୍ତୁ"</string>
     <string name="bubble_bar_education_manage_text" msgid="3199732148641842038">"କେଉଁ ଆପ୍ସ ଓ ବାର୍ତ୍ତାଳାପଗୁଡ଼ିକ ବବଲ ହୋଇପାରିବ ତାହା ପରିଚାଳନା କରିବାକୁ ଏଠାରେ ଟାପ କରନ୍ତୁ"</string>
     <string name="notification_bubble_title" msgid="6082910224488253378">"ବବଲ୍"</string>
     <string name="manage_bubbles_text" msgid="7730624269650594419">"ପରିଚାଳନା କରନ୍ତୁ"</string>
-    <string name="accessibility_bubble_dismissed" msgid="8367471990421247357">"ବବଲ୍ ଖାରଜ କରାଯାଇଛି।"</string>
-    <string name="bubble_shortcut_label" msgid="666269077944378311">"ବବଲ"</string>
-    <string name="bubble_shortcut_long_label" msgid="6088437544312894043">"ବବଲ ଦେଖାନ୍ତୁ"</string>
     <string name="restart_button_description" msgid="4564728020654658478">"ଏକ ଆହୁରି ଭଲ ଭ୍ୟୁ ପାଇଁ ଏହି ଆପ ରିଷ୍ଟାର୍ଟ କରିବାକୁ ଟାପ କରନ୍ତୁ"</string>
     <string name="user_aspect_ratio_settings_button_hint" msgid="734835849600713016">"ସେଟିଂସରେ ଏହି ଆପର ଚଉଡ଼ା ଓ ଉଚ୍ଚତାର ଅନୁପାତ ପରିବର୍ତ୍ତନ କରନ୍ତୁ"</string>
     <string name="user_aspect_ratio_settings_button_description" msgid="4315566801697411684">"ଚଉଡ଼ା ଓ ଉଚ୍ଚତାର ଅନୁପାତ ପରିବର୍ତ୍ତନ କରନ୍ତୁ"</string>
@@ -121,6 +116,7 @@
     <string name="maximize_button_text" msgid="8106849394538234709">"<xliff:g id="APP_NAME">%1$s</xliff:g> ବଡ଼ କରନ୍ତୁ"</string>
     <string name="restore_button_text" msgid="5377571986086775288">"<xliff:g id="APP_NAME">%1$s</xliff:g> ରିଷ୍ଟୋର କରନ୍ତୁ"</string>
     <string name="minimize_button_text" msgid="5213953162664451152">"<xliff:g id="APP_NAME">%1$s</xliff:g> ଛୋଟ କରନ୍ତୁ"</string>
+    <string name="exit_fullscreen_button_text" msgid="7970660979589417830">"<xliff:g id="APP_NAME">%1$s</xliff:g> ପାଇଁ ପୂର୍ଣ୍ଣସ୍କ୍ରିନରୁ ବାହାରି ଯାଆନ୍ତୁ"</string>
     <string name="close_button_text" msgid="4544839489310949894">"<xliff:g id="APP_NAME">%1$s</xliff:g> ବନ୍ଦ କରନ୍ତୁ"</string>
     <string name="back_button_text" msgid="1469718707134137085">"ପଛକୁ ଫେରନ୍ତୁ"</string>
     <string name="handle_text" msgid="4419667835599523257">"ଆପର ହେଣ୍ଡେଲ"</string>
@@ -137,41 +133,52 @@
     <string name="new_window_text" msgid="6318648868380652280">"ନୂଆ ୱିଣ୍ଡୋ"</string>
     <string name="manage_windows_text" msgid="5567366688493093920">"ୱିଣ୍ଡୋଗୁଡ଼ିକୁ ପରିଚାଳନା କରନ୍ତୁ"</string>
     <string name="change_aspect_ratio_text" msgid="9104456064548212806">"ଚଉଡ଼ା ଓ ଉଚ୍ଚତାର ଅନୁପାତ ପରିବର୍ତ୍ତନ କରନ୍ତୁ"</string>
+    <string name="handle_menu_game_controls_text" msgid="8049059289860078063">"ଗେମ ନିୟନ୍ତ୍ରଣ"</string>
     <string name="handle_menu_restart_text" msgid="3907767216238298098">"ଭ୍ୟୁ ଅପ୍ଟିମାଇଜ କରନ୍ତୁ"</string>
     <string name="handle_menu_error_icon_text" msgid="7200375184879808684">"ତ୍ରୁଟି ଆଇକନ"</string>
     <string name="close_text" msgid="4986518933445178928">"ବନ୍ଦ କରନ୍ତୁ"</string>
     <string name="collapse_menu_text" msgid="7515008122450342029">"ମେନୁ ବନ୍ଦ କରନ୍ତୁ"</string>
-    <string name="desktop_mode_app_header_chip_text" msgid="7617377295944971651">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ଡେସ୍କଟପ ୱିଣ୍ଡୋଇଂ)"</string>
-    <string name="desktop_mode_maximize_menu_maximize_text" msgid="3275717276171114411">"ସ୍କ୍ରିନକୁ ବଡ଼ କରନ୍ତୁ"</string>
-    <string name="desktop_mode_maximize_menu_snap_text" msgid="5673738963174074006">"ରିସାଇଜ କରନ୍ତୁ"</string>
+    <string name="desktop_mode_header_chip_text" msgid="7171700244998923330">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ଡେସ୍କଟପ ୱିଣ୍ଡୋଇଂ)"</string>
+    <string name="desktop_mode_layout_menu_maximize_text" msgid="7086608727256054454">"ସ୍କ୍ରିନକୁ ବଡ଼ କରନ୍ତୁ"</string>
+    <string name="desktop_mode_layout_menu_snap_text" msgid="7558194147987254333">"ରିସାଇଜ କରନ୍ତୁ"</string>
     <string name="desktop_mode_non_resizable_snap_text" msgid="3771776422751387878">"ଆପକୁ ଏଠାକୁ ମୁଭ କରାଯାଇପାରିବ ନାହିଁ"</string>
-    <string name="desktop_mode_talkback_state_opening" msgid="8505494249513712682">"ନୂଆ ଆପ ୱିଣ୍ଡୋ ଖୋଲୁଛି"</string>
     <string name="desktop_mode_talkback_state_closing" msgid="6791583518636526904">"ଆପ ୱିଣ୍ଡୋକୁ ବନ୍ଦ କରାଯାଉଛି"</string>
     <string name="desktop_mode_talkback_state_minimizing" msgid="7406911785134757827">"ଆପ ୱିଣ୍ଡୋକୁ ଛୋଟ କରନ୍ତୁ"</string>
     <string name="desktop_mode_talkback_state_focused" msgid="6287982923335568236">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ଫୋକସ କରାଯାଇଛି)"</string>
     <string name="desktop_mode_talkback_state_not_focused" msgid="4640618691603218929">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ଫୋକସ କରାଯାଇନାହିଁ)"</string>
-    <string name="desktop_mode_maximize_menu_immersive_button_text" msgid="559492223133829481">"ଇମର୍ସିଭ"</string>
-    <string name="desktop_mode_maximize_menu_immersive_restore_button_text" msgid="4900114367354709257">"ରିଷ୍ଟୋର କରନ୍ତୁ"</string>
-    <string name="desktop_mode_maximize_menu_maximize_button_text" msgid="3090199175564175845">"ବଡ଼ କରନ୍ତୁ"</string>
-    <string name="desktop_mode_maximize_menu_restore_button_text" msgid="4234449220944704387">"ରିଷ୍ଟୋର କରନ୍ତୁ"</string>
-    <string name="desktop_mode_maximize_menu_snap_left_button_text" msgid="8077452201179893424">"ବାମରେ ସ୍ନାପ କରନ୍ତୁ"</string>
-    <string name="desktop_mode_maximize_menu_snap_right_button_text" msgid="7117751068945657304">"ଡାହାଣରେ ସ୍ନାପ କରନ୍ତୁ"</string>
+    <string name="desktop_mode_layout_menu_immersive_button_text" msgid="9009888844507160172">"ଇମର୍ସିଭ"</string>
+    <string name="desktop_mode_layout_menu_immersive_restore_button_text" msgid="3110073879417912032">"ରିଷ୍ଟୋର କରନ୍ତୁ"</string>
+    <string name="desktop_mode_layout_menu_maximize_button_text" msgid="5586863071181530250">"ବଡ଼ କରନ୍ତୁ"</string>
+    <string name="desktop_mode_layout_menu_restore_button_text" msgid="5422006898402949300">"ରିଷ୍ଟୋର କରନ୍ତୁ"</string>
+    <string name="desktop_mode_layout_menu_snap_left_button_text" msgid="6464364897343872665">"ବାମପଟକୁ ସ୍ନାପ କରନ୍ତୁ"</string>
+    <string name="desktop_mode_layout_menu_snap_right_button_text" msgid="565024687319285843">"ଡାହାଣପଟକୁ ସ୍ନାପ କରନ୍ତୁ"</string>
     <string name="desktop_mode_a11y_action_snap_left" msgid="2932955411661734668">"ଆପ ୱିଣ୍ଡୋ ରିସାଇଜ କରିବା ପାଇଁ ବାମ ବଟନ"</string>
     <string name="desktop_mode_a11y_action_snap_right" msgid="4577032451624261787">"ଆପ ୱିଣ୍ଡୋ ରିସାଇଜ କରିବା ପାଇଁ ଡାହାଣ ବଟନ"</string>
     <string name="desktop_mode_a11y_action_maximize_restore" msgid="8026037983417986686">"ୱିଣ୍ଡୋ ସାଇଜକୁ ମେକ୍ସିମାଇଜ କିମ୍ବା ରିଷ୍ଟୋର କରନ୍ତୁ"</string>
+    <string name="desktop_mode_a11y_action_exit_fullscreen" msgid="1854054435132984004">"ପୂର୍ଣ୍ଣସ୍କ୍ରିନରୁ ବାହାରି ଯାଆନ୍ତୁ"</string>
     <string name="app_handle_chip_accessibility_announce" msgid="499881698947450536">"ମେନୁ ଖୋଲନ୍ତୁ"</string>
     <string name="app_handle_menu_accessibility_announce" msgid="7928858564852785398">"<xliff:g id="WINDOWING_MODE">%1$s</xliff:g>ରେ ଲେଖନ୍ତୁ"</string>
-    <string name="maximize_menu_talkback_action_snap_left_text" msgid="500309467459084564">"ବାମପଟକୁ ୱିଣ୍ଡୋ ରିସାଇଜ କରନ୍ତୁ"</string>
-    <string name="maximize_menu_talkback_action_snap_right_text" msgid="7010831426654467163">"ଡାହାଣପଟକୁ ୱିଣ୍ଡୋ ରିସାଇଜ କରନ୍ତୁ"</string>
-    <string name="maximize_menu_talkback_action_maximize_restore_text" msgid="4942610897847934859">"ୱିଣ୍ଡୋ ସାଇଜକୁ ମେକ୍ସିମାଇଜ କିମ୍ବା ରିଷ୍ଟୋର କରନ୍ତୁ"</string>
+    <string name="layout_menu_talkback_action_snap_left_text" msgid="8141501620544883986">"ବାମପଟକୁ ୱିଣ୍ଡୋ ରିସାଇଜ କରନ୍ତୁ"</string>
+    <string name="layout_menu_talkback_action_snap_right_text" msgid="7819760135716721943">"ଡାହାଣପଟକୁ ୱିଣ୍ଡୋ ରିସାଇଜ କରନ୍ତୁ"</string>
+    <string name="layout_menu_talkback_action_maximize_restore_text" msgid="132471919764977708">"ଆପ ୱିଣ୍ଡୋର ସାଇଜକୁ ବଡ଼ କରନ୍ତୁ"</string>
+    <string name="layout_menu_talkback_action_restore_text" msgid="1791365751744400881">"ୱିଣ୍ଡୋର ସାଇଜ ରିଷ୍ଟୋର କରନ୍ତୁ"</string>
+    <string name="layout_menu_talkback_action_immersive_enter_text" msgid="1753945477839147586">"ଇମର୍ସିଭ ମୋଡକୁ ଯାଆନ୍ତୁ"</string>
+    <string name="layout_menu_talkback_action_immersive_restore_text" msgid="6913341567930893074">"ୱିଣ୍ଡୋର ସାଇଜ ରିଷ୍ଟୋର କରନ୍ତୁ"</string>
     <string name="app_header_talkback_action_maximize_button_text" msgid="8776156791095878638">"ଆପ ଇଣ୍ଡୋ ଆକାର ବଡ଼ କରନ୍ତୁ"</string>
     <string name="app_header_talkback_action_restore_button_text" msgid="2153022340772980863">"ୱିଣ୍ଡୋ ଆକାର ରିଷ୍ଟୋର କରନ୍ତୁ"</string>
     <string name="app_header_talkback_action_minimize_button_text" msgid="7491054416186901764">"ଆପ ୱିଣ୍ଡୋକୁ ମିନିମାଇଜ କରନ୍ତୁ"</string>
     <string name="app_header_talkback_action_close_button_text" msgid="5159612596378268926">"ଆପ ୱିଣ୍ଡୋ ବନ୍ଦ କରନ୍ତୁ"</string>
+    <string name="fullscreen_header_talkback_action_exit_fullscreen_button_text" msgid="5271884324741706388">"ପୂର୍ଣ୍ଣସ୍କ୍ରିନରୁ ବାହାରି ଯାଆନ୍ତୁ"</string>
     <string name="open_by_default_settings_text" msgid="2526548548598185500">"ଡିଫଲ୍ଟ ସେଟିଂସକୁ ଖୋଲନ୍ତୁ"</string>
     <string name="open_by_default_dialog_subheader_text" msgid="1729599730664063881">"ଏହି ଆପ ପାଇଁ ୱେବ ଲିଙ୍କଗୁଡ଼ିକୁ କିପରି ଖୋଲିବେ, ତାହା ବାଛନ୍ତୁ"</string>
     <string name="open_by_default_dialog_in_app_text" msgid="6978022419634199806">"ଆପରେ"</string>
     <string name="open_by_default_dialog_in_browser_text" msgid="8042769465958497081">"ଆପଣଙ୍କ ବ୍ରାଉଜରରେ"</string>
     <string name="open_by_default_dialog_dismiss_button_text" msgid="3487238795534582291">"ଠିକ ଅଛି"</string>
     <string name="desktop_windowing_app_to_web_education_text" msgid="1599668769538703570">"ଏଠାରେ ଆପଣଙ୍କ ବ୍ରାଉଜରରେ ଥିବା ଆପ୍ସକୁ ଶୀଘ୍ର ଖୋଲନ୍ତୁ"</string>
+    <string name="open_by_default_splash_dialog_title_text" msgid="2645214455870859991">"ଆପଣ &lt;b&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/b&gt; ଲିଙ୍କଗୁଡ଼ିକୁ କିପରି ଖୋଲିବାକୁ ଚାହୁଁଛନ୍ତି?"</string>
+    <string name="open_by_default_splash_dialog_checkbox_text" msgid="7367791478473586694">"ମୋ ପସନ୍ଦ ମନେରଖନ୍ତୁ"</string>
+    <string name="open_by_default_splash_dialog_browser_text" msgid="4439951040200685938">"ବ୍ରାଉଜରରେ ଖୋଲନ୍ତୁ"</string>
+    <string name="open_by_default_splash_dialog_app_text" msgid="2680408983754147907">"ଆପରେ ରୁହନ୍ତୁ"</string>
+    <string name="open_by_default_splash_dialog_ask_me_later_text" msgid="2706872945449736432">"ମୋତେ ପରେ ପଚାରନ୍ତୁ"</string>
+    <string name="package_update_text" msgid="196015273357188152">"ଅପଡେଟ କରାଯାଉଛି..."</string>
 </resources>

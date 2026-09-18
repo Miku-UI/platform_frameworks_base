@@ -175,7 +175,6 @@ public class ProtoLogViewerConfigReader {
                 } else if (pis.getFieldNumber() == (int) GROUPS) {
                     final long inMessageToken = pis.start(GROUPS);
 
-                    long groupId = 0;
                     ParsedGroup parsedGroup = readGroup(pis);
                     if (parsedGroup.groupName != null) {
                         groupMap.put(parsedGroup.groupId, parsedGroup.groupName);

@@ -16,6 +16,7 @@
 
 package com.android.server.power.stats;
 
+import static android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT;
 import static android.net.NetworkStats.DEFAULT_NETWORK_NO;
 import static android.net.NetworkStats.METERED_NO;
 import static android.net.NetworkStats.ROAMING_NO;
@@ -42,6 +43,7 @@ import android.os.Handler;
 import android.os.WorkSource;
 import android.os.connectivity.WifiActivityEnergyInfo;
 import android.os.connectivity.WifiBatteryStats;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.IndentingPrintWriter;
 import android.util.SparseArray;
@@ -66,6 +68,7 @@ public class WifiPowerStatsCollectorTest {
     private static final int APP_UID2 = 24;
     private static final int APP_UID3 = 44;
     private static final int ISOLATED_UID = 99123;
+    private static final int PCC_UID = 30000;
 
     @Rule(order = 0)
     public final BatteryUsageStatsRule mStatsRule = new BatteryUsageStatsRule()
@@ -175,10 +178,14 @@ public class WifiPowerStatsCollectorTest {
         MockitoAnnotations.initMocks(this);
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WIFI)).thenReturn(true);
-        when(mPowerStatsUidResolver.mapUid(anyInt())).thenAnswer(invocation -> {
+        when(mPackageManager.getAppUidForPrivateComputeCoreUid(PCC_UID)).thenReturn(APP_UID1);
+        mPowerStatsUidResolver.setPackageManager(mPackageManager);
+        when(mPowerStatsUidResolver.getOwnerUid(anyInt())).thenAnswer(invocation -> {
             int uid = invocation.getArgument(0);
             if (uid == ISOLATED_UID) {
                 return APP_UID2;
+            } else if (uid == PCC_UID) {
+                return APP_UID1;
             } else {
                 return uid;
             }
@@ -240,7 +247,7 @@ public class WifiPowerStatsCollectorTest {
 
     @Test
     public void collectStats_powerReportingSupported() throws Throwable {
-        PowerStats powerStats = collectPowerStats(true);
+        PowerStats powerStats = collectPowerStats(true, false);
         assertThat(powerStats.durationMs).isEqualTo(7500);
 
         PowerStats.Descriptor descriptor = powerStats.descriptor;
@@ -253,36 +260,64 @@ public class WifiPowerStatsCollectorTest {
         assertThat(layout.getConsumedEnergy(powerStats.stats, 0))
                 .isEqualTo((64321 - 10000) * 1000 / 3500);
 
-        verifyUidStats(powerStats);
+        verifyUidStats(powerStats, false);
     }
 
     @Test
     public void collectStats_powerReportingUnsupported() {
-        PowerStats powerStats = collectPowerStats(false);
+        PowerStats powerStats = collectPowerStats(false, false);
         assertThat(powerStats.durationMs).isEqualTo(13200);
 
         PowerStats.Descriptor descriptor = powerStats.descriptor;
         WifiPowerStatsLayout layout = new WifiPowerStatsLayout(descriptor);
         assertThat(layout.isPowerReportingSupported()).isFalse();
         assertThat(layout.getDeviceActiveTime(powerStats.stats)).isEqualTo(7500);
-        assertThat(layout.getDeviceBasicScanTime(powerStats.stats)).isEqualTo(234 + 100 + 300);
-        assertThat(layout.getDeviceBatchedScanTime(powerStats.stats)).isEqualTo(345 + 200 + 400);
+        assertThat(layout.getDeviceBasicScanTime(powerStats.stats)).isEqualTo(
+                234 + 100 + 300);
+        assertThat(layout.getDeviceBatchedScanTime(powerStats.stats)).isEqualTo(
+                345 + 200 + 400);
         assertThat(layout.getConsumedEnergy(powerStats.stats, 0))
                 .isEqualTo((64321 - 10000) * 1000 / 3500);
 
-        verifyUidStats(powerStats);
+        verifyUidStats(powerStats, false);
     }
 
-    private void verifyUidStats(PowerStats powerStats) {
+    @Test
+    @RequiresFlagsEnabled(FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void collectStats_hasPccUidStats() {
+        PowerStats powerStats = collectPowerStats(false, true);
+        assertThat(powerStats.durationMs).isEqualTo(13200);
+
+        PowerStats.Descriptor descriptor = powerStats.descriptor;
+        WifiPowerStatsLayout layout = new WifiPowerStatsLayout(descriptor);
+        assertThat(layout.isPowerReportingSupported()).isFalse();
+        assertThat(layout.getDeviceActiveTime(powerStats.stats)).isEqualTo(7500);
+        assertThat(layout.getDeviceBasicScanTime(powerStats.stats)).isEqualTo(
+                234 + 100 + 300 + 150);
+        assertThat(layout.getDeviceBatchedScanTime(powerStats.stats)).isEqualTo(
+                345 + 200 + 400 + 250);
+        assertThat(layout.getConsumedEnergy(powerStats.stats, 0))
+                .isEqualTo((64321 - 10000) * 1000 / 3500);
+
+        verifyUidStats(powerStats, true);
+    }
+
+    private void verifyUidStats(PowerStats powerStats, boolean hasPccUidStats) {
         WifiPowerStatsLayout layout = new WifiPowerStatsLayout(powerStats.descriptor);
         assertThat(powerStats.uidStats.size()).isEqualTo(2);
         long[] actual1 = powerStats.uidStats.get(APP_UID1);
-        assertThat(layout.getUidRxBytes(actual1)).isEqualTo(1000);
-        assertThat(layout.getUidTxBytes(actual1)).isEqualTo(2000);
-        assertThat(layout.getUidRxPackets(actual1)).isEqualTo(100);
-        assertThat(layout.getUidTxPackets(actual1)).isEqualTo(200);
-        assertThat(layout.getUidScanTime(actual1)).isEqualTo(234);
-        assertThat(layout.getUidBatchedScanTime(actual1)).isEqualTo(345);
+        assertThat(layout.getUidRxBytes(actual1))
+                .isEqualTo(1000 + (hasPccUidStats ? 1100 : 0));
+        assertThat(layout.getUidTxBytes(actual1))
+                .isEqualTo(2000 + (hasPccUidStats ? 550 : 0));
+        assertThat(layout.getUidRxPackets(actual1))
+                .isEqualTo(100 + (hasPccUidStats ? 11 : 0));
+        assertThat(layout.getUidTxPackets(actual1))
+                .isEqualTo(200 + (hasPccUidStats ? 5 : 0));
+        assertThat(layout.getUidScanTime(actual1))
+                .isEqualTo(234 + (hasPccUidStats ? 150 : 0));
+        assertThat(layout.getUidBatchedScanTime(actual1))
+                .isEqualTo(345 + (hasPccUidStats ? 250 : 0));
 
         // Combines APP_UID2 and ISOLATED_UID
         long[] actual2 = powerStats.uidStats.get(APP_UID2);
@@ -295,11 +330,14 @@ public class WifiPowerStatsCollectorTest {
 
         assertThat(powerStats.uidStats.get(ISOLATED_UID)).isNull();
         assertThat(powerStats.uidStats.get(APP_UID3)).isNull();
+        if (hasPccUidStats) {
+            assertThat(powerStats.uidStats.get(PCC_UID)).isNull();
+        }
     }
 
     @Test
     public void dump() throws Throwable {
-        PowerStats powerStats = collectPowerStats(true);
+        PowerStats powerStats = collectPowerStats(true, false);
         StringWriter sw = new StringWriter();
         IndentingPrintWriter pw = new IndentingPrintWriter(sw);
         powerStats.dump(pw);
@@ -315,6 +353,27 @@ public class WifiPowerStatsCollectorTest {
         assertThat(dump).contains(
                 "UID 42: rx-pkts: 100 rx-B: 1000 tx-pkts: 200 tx-B: 2000"
                         + " scan: 234 batched-scan: 345");
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void dump_withPccUidStats() throws Throwable {
+        PowerStats powerStats = collectPowerStats(true, true);
+        StringWriter sw = new StringWriter();
+        IndentingPrintWriter pw = new IndentingPrintWriter(sw);
+        powerStats.dump(pw);
+        pw.flush();
+        String dump = sw.toString();
+        assertThat(dump).contains("duration=7500");
+        assertThat(dump).contains(
+                "rx: 6000 tx: 1000 idle: 300 scan: 200 basic-scan: 784 batched-scan: 1195"
+                        + " energy: " + ((64321 - 10000) * 1000 / 3500));
+        assertThat(dump).contains(
+                "UID 24: rx-pkts: 60 rx-B: 6000 tx-pkts: 30 tx-B: 3000"
+                        + " scan: 400 batched-scan: 600");
+        assertThat(dump).contains(
+                "UID 42: rx-pkts: 111 rx-B: 2100 tx-pkts: 205 tx-B: 2550"
+                        + " scan: 384 batched-scan: 595");
     }
 
     @Test
@@ -358,7 +417,7 @@ public class WifiPowerStatsCollectorTest {
         assertThat(stats.getSleepTimeMillis()).isEqualTo(30000 - 6000 - 1000 - 300);
     }
 
-    private PowerStats collectPowerStats(boolean hasPowerReporting) {
+    private PowerStats collectPowerStats(boolean hasPowerReporting, boolean hasPccUidStats) {
         when(mWifiManager.isEnhancedPowerReportingSupported()).thenReturn(hasPowerReporting);
 
         WifiPowerStatsCollector collector = new WifiPowerStatsCollector(mInjector, null);
@@ -378,9 +437,15 @@ public class WifiPowerStatsCollectorTest {
         mockNetworkStatsEntry(APP_UID2, 4000, 40, 2000, 20);
         mockNetworkStatsEntry(ISOLATED_UID, 2000, 20, 1000, 10);
         mockNetworkStatsEntry(APP_UID3, 314, 281, 314, 281);
+        if (hasPccUidStats) {
+            mockNetworkStatsEntry(PCC_UID, 1000, 10, 500, 5);
+        }
         mockWifiScanTimes(APP_UID1, 1000, 2000);
         mockWifiScanTimes(APP_UID2, 3000, 4000);
         mockWifiScanTimes(ISOLATED_UID, 5000, 6000);
+        if (hasPccUidStats) {
+            mockWifiScanTimes(PCC_UID, 100, 200);
+        }
 
         when(mConsumedEnergyRetriever.getConsumedEnergy(eq(new int[]{777})))
                 .thenReturn(new EnergyConsumerResult[]{mockEnergyConsumer(10_000)});
@@ -397,9 +462,15 @@ public class WifiPowerStatsCollectorTest {
         mockNetworkStatsEntry(APP_UID2, 8000, 80, 4000, 40);
         mockNetworkStatsEntry(ISOLATED_UID, 4000, 40, 2000, 20);
         mockNetworkStatsEntry(APP_UID3, 314, 281, 314, 281);    // Unchanged
+        if (hasPccUidStats) {
+            mockNetworkStatsEntry(PCC_UID, 2100, 21, 1050, 10);
+        }
         mockWifiScanTimes(APP_UID1, 1234, 2345);
         mockWifiScanTimes(APP_UID2, 3100, 4200);
         mockWifiScanTimes(ISOLATED_UID, 5300, 6400);
+        if (hasPccUidStats) {
+            mockWifiScanTimes(PCC_UID, 250, 450);
+        }
 
         when(mConsumedEnergyRetriever.getConsumedEnergy(eq(new int[]{777})))
                 .thenReturn(new EnergyConsumerResult[]{mockEnergyConsumer(64_321)});

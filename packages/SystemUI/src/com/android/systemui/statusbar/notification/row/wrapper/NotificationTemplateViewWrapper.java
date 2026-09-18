@@ -16,7 +16,6 @@
 
 package com.android.systemui.statusbar.notification.row.wrapper;
 
-import static android.app.Flags.notificationsRedesignTemplates;
 import static android.view.View.VISIBLE;
 
 import static com.android.systemui.statusbar.notification.row.ExpandableNotificationRow.DEFAULT_HEADER_VISIBLE_AMOUNT;
@@ -52,7 +51,6 @@ import com.android.systemui.statusbar.notification.ImageTransformState;
 import com.android.systemui.statusbar.notification.TransformState;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.row.HybridNotificationView;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import java.util.function.Consumer;
 
@@ -67,6 +65,8 @@ public class NotificationTemplateViewWrapper extends NotificationHeaderViewWrapp
     protected ImageView mLeftIcon;
     private ProgressBar mProgressBar;
     private TextView mTitle;
+    private TextView mAltTitle;
+
     private TextView mText;
     protected View mSmartReplyContainer;
     protected View mActionsContainer;
@@ -153,13 +153,9 @@ public class NotificationTemplateViewWrapper extends NotificationHeaderViewWrapp
 
                 }, TRANSFORMING_VIEW_TEXT);
         int contentMargin = ctx.getResources().getDimensionPixelSize(
-                com.android.internal.R.dimen.notification_content_margin);
-        int contentMarginTop =
-                notificationsRedesignTemplates()
-                        ? Notification.Builder.getContentMarginTop(ctx,
-                            com.android.internal.R.dimen.notification_2025_content_margin_top)
-                        : ctx.getResources().getDimensionPixelSize(
-                            com.android.internal.R.dimen.notification_content_margin_top);
+                com.android.internal.R.dimen.notification_2025_margin);
+        int contentMarginTop = Notification.Builder.getContentMarginTop(ctx,
+                        com.android.internal.R.dimen.notification_2025_content_margin_top);
         mFullHeaderTranslation = contentMargin - contentMarginTop;
     }
 
@@ -175,6 +171,8 @@ public class NotificationTemplateViewWrapper extends NotificationHeaderViewWrapp
             mLeftIcon.setTag(ImageTransformState.ICON_TAG, getLargeIcon(sbn.getNotification()));
         }
         mTitle = mView.findViewById(com.android.internal.R.id.title);
+        mAltTitle = mView.findViewById(com.android.internal.R.id.alt_title);
+
         mText = mView.findViewById(com.android.internal.R.id.text);
         final View progress = mView.findViewById(com.android.internal.R.id.progress);
         if (progress instanceof ProgressBar) {
@@ -276,9 +274,7 @@ public class NotificationTemplateViewWrapper extends NotificationHeaderViewWrapp
     public void onContentUpdated(ExpandableNotificationRow row) {
         // Reinspect the notification. Before the super call, because the super call also updates
         // the transformation types and we need to have our values set by then.
-        resolveTemplateViews(NotificationBundleUi.isEnabled()
-                ? row.getEntryAdapter().getSbn()
-                : row.getEntryLegacy().getSbn());
+        resolveTemplateViews(row.getEntryAdapter().getSbn());
         super.onContentUpdated(row);
         // With the modern templates, a large icon visually overlaps the header, so we can't
         // hide the header, we must show it.
@@ -296,6 +292,9 @@ public class NotificationTemplateViewWrapper extends NotificationHeaderViewWrapp
         if (mTitle != null) {
             mTransformationHelper.addTransformedView(TransformableView.TRANSFORMING_VIEW_TITLE,
                     mTitle);
+        } else if (mAltTitle != null && mAltTitle.getVisibility() == View.VISIBLE) {
+            mTransformationHelper.addTransformedView(TransformableView.TRANSFORMING_VIEW_TITLE,
+                    mAltTitle);
         }
         if (mText != null) {
             mTransformationHelper.addTransformedView(TransformableView.TRANSFORMING_VIEW_TEXT,
@@ -362,10 +361,6 @@ public class NotificationTemplateViewWrapper extends NotificationHeaderViewWrapp
     @Override
     public int getExtraMeasureHeight() {
         int extra = 0;
-        if (!notificationsRedesignTemplates() && mActions != null) {
-            // With the redesign, this should always be 0.
-            extra = mActions.getExtraMeasureHeight();
-        }
         if (mRemoteInputHistory != null && mRemoteInputHistory.getVisibility() != View.GONE) {
             extra += mRow.getContext().getResources().getDimensionPixelSize(
                     R.dimen.remote_input_history_extra_height);

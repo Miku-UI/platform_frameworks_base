@@ -26,6 +26,9 @@ import java.io.PrintWriter;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Date;
@@ -37,11 +40,11 @@ import java.util.Locale;
  */
 public class EventLogger {
 
-    /** Prefix for the title added at the beginning of a {@link #dump(PrintWriter)} operation */
-    private static final String DUMP_TITLE_PREFIX = "Events log: ";
-
     /** Identifies the source of events. */
-    @Nullable private final String mTag;
+    @Nullable private final String mTitle;
+
+    /** Default tag for logcat */
+    private final String mTag;
 
     /** Stores the events using a ring buffer. */
     private final ArrayDeque<Event> mEvents;
@@ -57,12 +60,18 @@ public class EventLogger {
     /**
      * Constructor for logger.
      * @param size the maximum number of events to keep in log
-     * @param tag the string displayed before the recorded log
+     * @param title the string displayed before the recorded log
+     * @param defaultTag the default tag for printing to system log
      */
-    public EventLogger(int size, @Nullable String tag) {
+    public EventLogger(int size, @Nullable String title, String defaultTag) {
         mEvents = new ArrayDeque<>(size);
         mMemSize = size;
-        mTag = tag;
+        mTitle = title;
+        mTag = defaultTag;
+    }
+
+    public EventLogger(int size, @Nullable String title) {
+        this(size, title, "EventLogger");
     }
 
     /** Enqueues {@code event} to be logged. */
@@ -85,6 +94,9 @@ public class EventLogger {
         enqueue(event.printLog(logType, tag));
     }
 
+    public synchronized void enqueueAndLog(String msg, @Event.LogType int logType) {
+        enqueueAndLog(msg, logType, mTag);
+    }
     /**
      * Add a string-based event to the system log, and print it to the log with a specific severity.
      * @param msg the message to appear in the log
@@ -96,9 +108,13 @@ public class EventLogger {
         enqueue(event.printSlog(logType, tag));
     }
 
+    public synchronized void enqueueAndSlog(String msg, @Event.LogType int logType) {
+        enqueueAndSlog(msg, logType, mTag);
+    }
+
     /** Dumps events into the given {@link DumpSink}. */
     public synchronized void dump(DumpSink dumpSink) {
-        dumpSink.sink(mTag, new ArrayList<>(mEvents));
+        dumpSink.sink(mTitle, new ArrayList<>(mEvents));
     }
 
     /** Dumps events using {@link PrintWriter}. */
@@ -107,10 +123,7 @@ public class EventLogger {
     }
 
     protected String getDumpTitle() {
-        if (mTag == null) {
-            return DUMP_TITLE_PREFIX;
-        }
-        return DUMP_TITLE_PREFIX + mTag;
+        return mTitle;
     }
 
     /** Dumps events using {@link PrintWriter} with a certain indent. */
@@ -133,8 +146,8 @@ public class EventLogger {
     public abstract static class Event {
 
         /** Timestamps formatter. */
-        private static final SimpleDateFormat sFormat =
-                new SimpleDateFormat("MM-dd HH:mm:ss:SSS", Locale.US);
+        private static final DateTimeFormatter sFormatter =
+                DateTimeFormatter.ofPattern("MM-dd HH:mm:ss:SSS", Locale.US);
 
         private final long mTimestamp;
 
@@ -143,8 +156,14 @@ public class EventLogger {
         }
 
         public String toString() {
-            return (new StringBuilder(sFormat.format(new Date(mTimestamp))))
-                    .append(" ").append(eventToString()).toString();
+            // Instant represents a point in time (UTC).
+            // ZoneId.systemDefault() always gets the current default time zone.
+            // We combine the instant with the current zone to get the correct local time.
+            final String formattedTimestamp =
+                    sFormatter.withZone(ZoneId.systemDefault()).format(
+                            Instant.ofEpochMilli(mTimestamp));
+
+            return formattedTimestamp + " " + eventToString();
         }
 
         /**

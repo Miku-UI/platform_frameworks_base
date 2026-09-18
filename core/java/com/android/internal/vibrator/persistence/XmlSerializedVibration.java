@@ -35,6 +35,7 @@ import java.io.IOException;
  * @param <T> The type of vibration represented by this serialization
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public interface XmlSerializedVibration<T> {
 
     /** Reconstructs the vibration using the serialized fields. */

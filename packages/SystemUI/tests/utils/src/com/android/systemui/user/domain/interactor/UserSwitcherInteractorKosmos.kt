@@ -31,7 +31,7 @@ import com.android.systemui.plugins.activityStarter
 import com.android.systemui.process.processWrapper
 import com.android.systemui.telephony.domain.interactor.telephonyInteractor
 import com.android.systemui.user.data.repository.userRepository
-import com.android.systemui.utils.userRestrictionChecker
+import com.android.systemui.util.policy.userRestrictionChecker
 
 val Kosmos.userSwitcherInteractor by
     Kosmos.Fixture {
@@ -55,6 +55,5 @@ val Kosmos.userSwitcherInteractor by
             uiEventLogger = uiEventLogger,
             userRestrictionChecker = userRestrictionChecker,
             processWrapper = processWrapper,
-            userLogoutInteractor = userLogoutInteractor,
         )
     }

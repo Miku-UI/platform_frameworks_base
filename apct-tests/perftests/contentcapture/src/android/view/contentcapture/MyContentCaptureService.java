@@ -36,6 +36,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.Locale;
 
 public class MyContentCaptureService extends ContentCaptureService {
 
@@ -50,6 +51,7 @@ public class MyContentCaptureService extends ContentCaptureService {
     private final List<ContentCaptureEvent> mCapturedEvents = new ArrayList<>();
     private int appearedCount = 0;
     private int flushCount = 0;
+    private int interactionCount = 0;
     @NonNull
     public static ServiceWatcher setServiceWatcher() {
         if (sServiceWatcher != null) {
@@ -132,7 +134,8 @@ public class MyContentCaptureService extends ContentCaptureService {
     @Override
     public void onContentCaptureEvent(ContentCaptureSessionId sessionId,
             ContentCaptureEvent event) {
-        Log.i(TAG, "onContentCaptureEventsRequest(session=" + sessionId + "): " + event);
+        Log.i(TAG, "onContentCaptureEventsRequest(session=" + sessionId + "): " + event +
+                " viewNode=" + getViewInfoForLogging(event) + " text=" + getEventText(event));
         lock.lock();
         try {
             mCapturedEvents.add(event);
@@ -140,6 +143,8 @@ public class MyContentCaptureService extends ContentCaptureService {
                 appearedCount++;
             } else if (event.getType() == ContentCaptureEvent.TYPE_SESSION_FLUSH) {
                 flushCount++;
+            } else if (event.getType() == ContentCaptureEvent.TYPE_CONTENT_INTERACTION) {
+                interactionCount++;
             }
             eventsChanged.signalAll();
         } finally {
@@ -151,12 +156,37 @@ public class MyContentCaptureService extends ContentCaptureService {
         }
     }
 
+
+    private static String getViewInfoForLogging(ContentCaptureEvent event) {
+        ViewNode viewNode = event.getViewNode();
+        if (viewNode == null) {
+            return "[node data not available]";
+        }
+        String resourceId = viewNode.getIdEntry();
+        String nodeText = "";
+        @Nullable CharSequence text = viewNode.getText();
+        if (text != null) {
+            nodeText = text.toString();
+        }
+
+        return String.format(Locale.US, "[text=%s resourceId=%s]", nodeText, resourceId);
+    }
+
+    private static @Nullable String getEventText(ContentCaptureEvent event) {
+        CharSequence eventText = event.getText();
+        if (eventText != null) {
+            return eventText.toString();
+        }
+        return null;
+    }
+
     public void clearEvents() {
         lock.lock();
         try {
             mCapturedEvents.clear();
             appearedCount = 0;
             flushCount = 0;
+            interactionCount = 0;
         } finally {
             lock.unlock();
         }
@@ -190,6 +220,15 @@ public class MyContentCaptureService extends ContentCaptureService {
         }
     }
 
+    public int getInteractionCount() {
+        lock.lock();
+        try {
+            return interactionCount;
+        } finally {
+            lock.unlock();
+        }
+    }
+
     public boolean waitForAppearedEvents(
             int expectedCount, long timeoutMillis) throws InterruptedException {
         return waitForEvents(expectedCount, timeoutMillis, ContentCaptureEvent.TYPE_VIEW_APPEARED);
@@ -198,6 +237,12 @@ public class MyContentCaptureService extends ContentCaptureService {
     public boolean waitForFlushEvents(
             int expectedCount, long timeoutMillis) throws InterruptedException {
         return waitForEvents(expectedCount, timeoutMillis, ContentCaptureEvent.TYPE_SESSION_FLUSH);
+    }
+
+    public boolean waitForInteractionEvents(
+            int expectedCount, long timeoutMillis) throws InterruptedException {
+        return waitForEvents(expectedCount, timeoutMillis,
+                ContentCaptureEvent.TYPE_CONTENT_INTERACTION);
     }
 
     private boolean waitForEvents(int expectedCount, long timeoutMillis, int type)
@@ -211,6 +256,8 @@ public class MyContentCaptureService extends ContentCaptureService {
                     actualCount = appearedCount;
                 } else if (type == ContentCaptureEvent.TYPE_SESSION_FLUSH) {
                     actualCount = flushCount;
+                } else if (type == ContentCaptureEvent.TYPE_CONTENT_INTERACTION) {
+                    actualCount = interactionCount;
                 } else {
                     return false;
                 }

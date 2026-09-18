@@ -19,7 +19,7 @@ package com.android.server.os;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
-import android.content.pm.PackageManager;
+import android.content.pm.PackageManagerInternal;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IDeviceIdentifiersPolicyService;
@@ -28,6 +28,7 @@ import android.os.SystemProperties;
 import android.os.UserHandle;
 
 import com.android.internal.telephony.TelephonyPermissions;
+import com.android.server.LocalServices;
 import com.android.server.SystemService;
 
 /**
@@ -82,17 +83,12 @@ public final class DeviceIdentifiersPolicyService extends SystemService {
         }
 
         private boolean checkPackageBelongsToCaller(String callingPackage) {
-            int callingUid = Binder.getCallingUid();
-            int callingUserId = UserHandle.getUserId(callingUid);
-            int callingPackageUid;
-            try {
-                callingPackageUid = mContext.getPackageManager().getPackageUidAsUser(
-                        callingPackage, callingUserId);
-            } catch (PackageManager.NameNotFoundException e) {
-                return false;
-            }
-
-            return callingPackageUid == callingUid;
+            PackageManagerInternal pmi = LocalServices.getService(PackageManagerInternal.class);
+            return pmi != null
+                    && pmi.isSameApp(
+                            callingPackage,
+                            Binder.getCallingUid(),
+                            UserHandle.getUserId(Binder.getCallingUid()));
         }
     }
 }

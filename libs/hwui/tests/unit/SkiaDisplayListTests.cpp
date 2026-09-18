@@ -189,8 +189,9 @@ RENDERTHREAD_TEST(SkiaDisplayList, prepareListAndChildren) {
     ASSERT_FALSE(cleanVD.isDirty());
     ASSERT_FALSE(cleanVD.getPropertyChangeWillBeConsumed());
     TestUtils::MockTreeObserver observer;
-    ASSERT_FALSE(skiaDL.prepareListAndChildren(observer, info, false,
-                                               [](RenderNode*, TreeObserver&, TreeInfo&, bool) {}));
+    ASSERT_FALSE(skiaDL.prepareListAndChildren(
+            observer, info, false,
+            [](RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool) {}));
     ASSERT_FALSE(cleanVD.getPropertyChangeWillBeConsumed());
 
     // prepare again this time adding a dirty VD
@@ -200,8 +201,9 @@ RENDERTHREAD_TEST(SkiaDisplayList, prepareListAndChildren) {
 
     ASSERT_TRUE(dirtyVD.isDirty());
     ASSERT_FALSE(dirtyVD.getPropertyChangeWillBeConsumed());
-    ASSERT_TRUE(skiaDL.prepareListAndChildren(observer, info, false,
-                                              [](RenderNode*, TreeObserver&, TreeInfo&, bool) {}));
+    ASSERT_TRUE(skiaDL.prepareListAndChildren(
+            observer, info, false,
+            [](RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool) {}));
     ASSERT_TRUE(dirtyVD.getPropertyChangeWillBeConsumed());
 
     // prepare again this time adding a RenderNode and a callback
@@ -212,8 +214,8 @@ RENDERTHREAD_TEST(SkiaDisplayList, prepareListAndChildren) {
     bool hasRun = false;
     ASSERT_TRUE(skiaDL.prepareListAndChildren(
             observer, info, false,
-            [&hasRun, renderNode, infoPtr](RenderNode* n, TreeObserver& observer, TreeInfo& i,
-                                           bool r) {
+            [&hasRun, renderNode, infoPtr](RenderNode* n, const Matrix4&, TreeObserver& observer,
+                                           TreeInfo& i, bool r) {
                 hasRun = true;
                 ASSERT_EQ(renderNode.get(), n);
                 ASSERT_EQ(infoPtr, &i);
@@ -260,7 +262,8 @@ RENDERTHREAD_TEST(SkiaDisplayList, prepareListAndChildren_vdOffscreen) {
 
         TestUtils::MockTreeObserver observer;
         ASSERT_FALSE(skiaDL.prepareListAndChildren(
-                observer, info, false, [](RenderNode*, TreeObserver&, TreeInfo&, bool) {}));
+                observer, info, false,
+                [](RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool) {}));
         ASSERT_FALSE(dirtyVD.getPropertyChangeWillBeConsumed());
     }
 
@@ -284,7 +287,8 @@ RENDERTHREAD_TEST(SkiaDisplayList, prepareListAndChildren_vdOffscreen) {
 
         TestUtils::MockTreeObserver observer;
         ASSERT_FALSE(skiaDL.prepareListAndChildren(
-                observer, info, false, [](RenderNode*, TreeObserver&, TreeInfo&, bool) {}));
+                observer, info, false,
+                [](RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool) {}));
         ASSERT_FALSE(dirtyVD.getPropertyChangeWillBeConsumed());
         damageAccumulator.popTransform();
     }
@@ -304,7 +308,8 @@ RENDERTHREAD_TEST(SkiaDisplayList, prepareListAndChildren_vdOffscreen) {
 
         TestUtils::MockTreeObserver observer;
         ASSERT_FALSE(skiaDL.prepareListAndChildren(
-                observer, info, false, [](RenderNode*, TreeObserver&, TreeInfo&, bool) {}));
+                observer, info, false,
+                [](RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool) {}));
         ASSERT_FALSE(dirtyVD.getPropertyChangeWillBeConsumed());
     }
 
@@ -326,7 +331,8 @@ RENDERTHREAD_TEST(SkiaDisplayList, prepareListAndChildren_vdOffscreen) {
 
         TestUtils::MockTreeObserver observer;
         ASSERT_FALSE(skiaDL.prepareListAndChildren(
-                observer, info, false, [](RenderNode*, TreeObserver&, TreeInfo&, bool) {}));
+                observer, info, false,
+                [](RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool) {}));
         ASSERT_FALSE(dirtyVD.getPropertyChangeWillBeConsumed());
         damageAccumulator.popTransform();
     }
@@ -348,7 +354,8 @@ RENDERTHREAD_TEST(SkiaDisplayList, prepareListAndChildren_vdOffscreen) {
 
         TestUtils::MockTreeObserver observer;
         ASSERT_TRUE(skiaDL.prepareListAndChildren(
-                observer, info, false, [](RenderNode*, TreeObserver&, TreeInfo&, bool) {}));
+                observer, info, false,
+                [](RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool) {}));
         ASSERT_TRUE(dirtyVD.getPropertyChangeWillBeConsumed());
         damageAccumulator.popTransform();
     }
@@ -364,7 +371,8 @@ RENDERTHREAD_TEST(SkiaDisplayList, prepareListAndChildren_vdOffscreen) {
 
         TestUtils::MockTreeObserver observer;
         ASSERT_TRUE(skiaDL.prepareListAndChildren(
-                observer, info, false, [](RenderNode*, TreeObserver&, TreeInfo&, bool) {}));
+                observer, info, false,
+                [](RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool) {}));
         ASSERT_TRUE(dirtyVD.getPropertyChangeWillBeConsumed());
     }
     {
@@ -381,7 +389,8 @@ RENDERTHREAD_TEST(SkiaDisplayList, prepareListAndChildren_vdOffscreen) {
 
         TestUtils::MockTreeObserver observer;
         ASSERT_TRUE(skiaDL.prepareListAndChildren(
-                observer, info, false, [](RenderNode*, TreeObserver&, TreeInfo&, bool) {}));
+                observer, info, false,
+                [](RenderNode*, const Matrix4&, TreeObserver&, TreeInfo&, bool) {}));
         ASSERT_TRUE(dirtyVD.getPropertyChangeWillBeConsumed());
     }
 }

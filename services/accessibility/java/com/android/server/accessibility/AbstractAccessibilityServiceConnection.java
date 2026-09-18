@@ -35,6 +35,7 @@ import static android.view.accessibility.AccessibilityNodeInfo.ACTION_CLEAR_ACCE
 import static android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK;
 import static android.view.accessibility.AccessibilityNodeInfo.ACTION_LONG_CLICK;
 
+import static com.android.server.accessibility.Flags.keyEventDispatcherFixFlushRaceCondition;
 import static com.android.server.pm.UserManagerService.enforceCurrentUserIfVisibleBackgroundEnabled;
 import static com.android.window.flags.Flags.scvhSurfaceControlLifetimeFix;
 
@@ -130,8 +131,9 @@ import java.util.Set;
 abstract class AbstractAccessibilityServiceConnection extends IAccessibilityServiceConnection.Stub
         implements ServiceConnection, IBinder.DeathRecipient, KeyEventDispatcher.KeyEventFilter,
         FingerprintGestureDispatcher.FingerprintGestureClient {
-    private static final boolean DEBUG = false;
-    private static final String LOG_TAG = "AbstractAccessibilityServiceConnection";
+    private static final String LOG_TAG =
+            AbstractAccessibilityServiceConnection.class.getSimpleName();
+    private static final boolean DEBUG = AccessibilityLogUtil.isDebugEnabled(LOG_TAG);
     private static final String TRACE_SVC_CONN = LOG_TAG + ".IAccessibilityServiceConnection";
     private static final String TRACE_SVC_CLIENT = LOG_TAG + ".IAccessibilityServiceClient";
     private static final String TRACE_WM = "WindowManagerInternal";
@@ -529,6 +531,9 @@ abstract class AbstractAccessibilityServiceConnection extends IAccessibilityServ
             Slog.e(LOG_TAG, "Observing motion events requires permission "
                     + ACCESSIBILITY_MOTION_EVENT_OBSERVING);
             info.setObservedMotionEventSources(0);
+            if (Flags.resetMotionEventSourcesOnDeniedPermission()) {
+                info.setMotionEventSources(0);
+            }
         }
         final long identity = Binder.clearCallingIdentity();
         try {
@@ -1503,10 +1508,7 @@ abstract class AbstractAccessibilityServiceConnection extends IAccessibilityServ
                                     // ignore - the other side will time out
                                 }
                             }
-                            if (android.view.accessibility.Flags
-                                    .copySurfaceControlForWindowScreenshots()) {
-                                surfaceControl.release();
-                            }
+                            surfaceControl.release();
                         }
                     };
             connection.getRemote().getWindowSurfaceInfo(infoCallback);
@@ -1781,7 +1783,9 @@ abstract class AbstractAccessibilityServiceConnection extends IAccessibilityServ
 
     public void resetLocked() {
         mAccessibilityServiceInfo.resetDynamicallyConfigurableProperties();
-        mSystemSupport.getKeyEventDispatcher().flush(this);
+        if (!keyEventDispatcherFixFlushRaceCondition()) {
+            mSystemSupport.getKeyEventDispatcher().flush(this);
+        }
         try {
             // Clear the proxy in the other process so this
             // IAccessibilityServiceConnection can be garbage collected.
@@ -1864,7 +1868,7 @@ abstract class AbstractAccessibilityServiceConnection extends IAccessibilityServ
 
         final boolean includeNotImportantViews = (mFetchFlags
                 & AccessibilityNodeInfo.FLAG_SERVICE_REQUESTS_INCLUDE_NOT_IMPORTANT_VIEWS) != 0;
-        if ((event.getWindowId() != AccessibilityWindowInfo.UNDEFINED_WINDOW_ID)
+        if ((event.getRealWindowId() != AccessibilityWindowInfo.UNDEFINED_WINDOW_ID)
                 && !event.isImportantForAccessibility()
                 && !includeNotImportantViews) {
             return false;

@@ -30,11 +30,11 @@ import android.os.Handler
 import android.os.RemoteException
 import android.util.TimeUtils
 import android.view.Choreographer
-import android.view.Display
 import android.view.IRemoteAnimationFinishedCallback
 import android.view.IRemoteAnimationRunner
 import android.view.RemoteAnimationTarget
 import android.view.SurfaceControl
+import android.view.WindowManagerPolicyConstants.NAV_BAR_MODE_GESTURAL
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.Interpolator
 import android.view.animation.Transformation
@@ -44,8 +44,8 @@ import android.window.BackEvent.EDGE_RIGHT
 import android.window.BackMotionEvent
 import android.window.BackNavigationInfo
 import android.window.BackProgressAnimator
-import android.window.DesktopExperienceFlags
 import android.window.IOnBackInvokedCallback
+import com.android.graphics.surfaceflinger.flags.Flags.setClientDrawnCornerRadii
 import com.android.internal.dynamicanimation.animation.FloatValueHolder
 import com.android.internal.dynamicanimation.animation.SpringAnimation
 import com.android.internal.dynamicanimation.animation.SpringForce
@@ -53,11 +53,16 @@ import com.android.internal.jank.Cuj
 import com.android.internal.policy.ScreenDecorationsUtils
 import com.android.internal.policy.SystemBarUtils
 import com.android.internal.protolog.ProtoLog
+import com.android.systemui.Flags as SysuiFlags
+import com.android.window.flags.Flags.fixCrossActivityBackAnimationInBubbles
 import com.android.wm.shell.R
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer
+import com.android.wm.shell.bubbles.BubbleController
+import com.android.wm.shell.common.split.SplitScreenUtils
 import com.android.wm.shell.protolog.ShellProtoLogGroup
 import com.android.wm.shell.shared.animation.Interpolators
 import com.android.wm.shell.shared.annotations.ShellMainThread
+import java.util.Optional
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -68,6 +73,7 @@ abstract class CrossActivityBackAnimation(
     private val rootTaskDisplayAreaOrganizer: RootTaskDisplayAreaOrganizer,
     protected val transaction: SurfaceControl.Transaction,
     @ShellMainThread handler: Handler,
+    private val bubbleController: Optional<BubbleController>,
 ) : ShellBackAnimation() {
 
     protected val startClosingRect = RectF()
@@ -79,10 +85,11 @@ abstract class CrossActivityBackAnimation(
     protected val currentEnteringRect = RectF()
 
     protected val backAnimRect = Rect()
+    private val screenSpaceBounds = Rect()
     private val cropRect = Rect()
     private val tempRectF = RectF()
 
-    private var cornerRadius = ScreenDecorationsUtils.getWindowCornerRadius(context)
+    protected var cornerRadius = ScreenDecorationsUtils.getWindowCornerRadius(context)
     private var statusbarHeight = SystemBarUtils.getStatusBarHeight(context)
 
     private val backAnimationRunner =
@@ -118,7 +125,8 @@ abstract class CrossActivityBackAnimation(
 
     private val postCommitFlingScale = FloatValueHolder(SPRING_SCALE)
     private var lastPostCommitFlingScale = SPRING_SCALE
-    private val postCommitFlingSpring = SpringForce(SPRING_SCALE)
+    private val postCommitFlingSpring =
+        SpringForce(SPRING_SCALE)
             .setStiffness(SpringForce.STIFFNESS_LOW)
             .setDampingRatio(SpringForce.DAMPING_RATIO_LOW_BOUNCY)
     private var swipeEdge = EDGE_LEFT
@@ -134,8 +142,8 @@ abstract class CrossActivityBackAnimation(
     abstract val allowEnteringYShift: Boolean
 
     /**
-     * Subclasses must set the [startClosingRect] and [targetClosingRect] to define the movement
-     * of the closingTarget during pre-commit phase.
+     * Subclasses must set the [startClosingRect] and [targetClosingRect] to define the movement of
+     * the closingTarget during pre-commit phase.
      */
     abstract fun preparePreCommitClosingRectMovement(@BackEvent.SwipeEdge swipeEdge: Int)
 
@@ -145,9 +153,7 @@ abstract class CrossActivityBackAnimation(
      */
     abstract fun preparePreCommitEnteringRectMovement()
 
-    /**
-     * Subclasses must provide a duration (in ms) for the post-commit part of the animation
-     */
+    /** Subclasses must provide a duration (in ms) for the post-commit part of the animation */
     abstract fun getPostCommitAnimationDuration(): Long
 
     /**
@@ -176,7 +182,7 @@ abstract class CrossActivityBackAnimation(
         if (enteringTarget == null || closingTarget == null) {
             ProtoLog.d(
                 ShellProtoLogGroup.WM_SHELL_BACK_PREVIEW,
-                "Entering target or closing target is null."
+                "Entering target or closing target is null.",
             )
             return
         }
@@ -200,18 +206,65 @@ abstract class CrossActivityBackAnimation(
         // Offset start rectangle to align task bounds.
         backAnimRect.offsetTo(0, 0)
 
+        val isGestureNav =
+            context.resources.getInteger(
+                com.android.internal.R.integer.config_navBarInteractionMode
+            ) == NAV_BAR_MODE_GESTURAL
+        val isLargeScreen = SplitScreenUtils.isLargeScreen(context.resources)
+
+        if (SysuiFlags.fixPredictiveBackClipping()) {
+            if (isGestureNav || isLargeScreen) {
+                backAnimRect.inset(0, 0, 0, closingTarget!!.contentInsets.bottom)
+            }
+        }
+
+        screenSpaceBounds.set(closingTarget!!.screenSpaceBounds)
+
+        if (fixCrossActivityBackAnimationInBubbles()) {
+            // Use a custom corner radius when we're inside a Bubble or a freeform task.
+            cornerRadius =
+                when {
+                    bubbleController.isPresent &&
+                        bubbleController.get().hasStableBubbleForTask(closingTarget!!.taskId) ->
+                        bubbleController.get().getBubbleCornerRadius(closingTarget!!.taskId)
+                    closingTarget!!.taskInfo.isFreeform ->
+                        context.resources
+                            .getDimensionPixelSize(
+                                com.android.wm.shell.shared.R.dimen
+                                    .desktop_windowing_freeform_rounded_corner_radius
+                            )
+                            .toFloat()
+                    else -> ScreenDecorationsUtils.getWindowCornerRadius(context)
+                }
+        }
+
         preparePreCommitClosingRectMovement(backMotionEvent.swipeEdge)
         preparePreCommitEnteringRectMovement()
 
+        val backgroundCrop =
+            if (
+                closingTarget!!.windowConfiguration.tasksAreFloating() ||
+                    fixCrossActivityBackAnimationInBubbles()
+            ) {
+                closingTarget!!.localBounds
+            } else {
+                null
+            }
+        val cornerRadii =
+            if (fixCrossActivityBackAnimationInBubbles() && setClientDrawnCornerRadii()) {
+                getTaskAlignedCornerRadii()
+            } else {
+                floatArrayOf(cornerRadius, cornerRadius, cornerRadius, cornerRadius)
+            }
         background.ensureBackground(
-                closingTarget!!.windowConfiguration.bounds,
-                getBackgroundColor(),
-                transaction,
-                statusbarHeight,
-                if (closingTarget!!.windowConfiguration.tasksAreFloating())
-                    closingTarget!!.localBounds else null,
-                cornerRadius,
-                closingTarget!!.taskInfo.getDisplayId()
+            closingTarget!!.windowConfiguration.bounds,
+            getBackgroundColor(),
+            transaction,
+            statusbarHeight,
+            backgroundCrop,
+            cornerRadii,
+            closingTarget!!.taskInfo.getDisplayId(),
+            if (fixCrossActivityBackAnimationInBubbles()) enteringTarget!!.leash else null,
         )
         ensureScrimLayer()
         if (isLetterboxed && enteringHasSameLetterbox) {
@@ -220,7 +273,7 @@ abstract class CrossActivityBackAnimation(
                 closingTarget!!.localBounds.left,
                 0,
                 closingTarget!!.localBounds.right,
-                closingTarget!!.windowConfiguration.bounds.height()
+                closingTarget!!.windowConfiguration.bounds.height(),
             )
             // and add fake letterbox square surfaces instead
             ensureLetterboxes()
@@ -244,10 +297,18 @@ abstract class CrossActivityBackAnimation(
             enteringTarget?.leash,
             currentEnteringRect,
             enteringTransformation?.alpha ?: 1f,
-            enteringTransformation
+            enteringTransformation,
         )
         applyTransaction()
-        background.customizeStatusBarAppearance(currentClosingRect.top.toInt())
+        if (fixCrossActivityBackAnimationInBubbles()) {
+            if (screenSpaceBounds.top <= statusbarHeight / 2) {
+                background.customizeStatusBarAppearance(
+                    (currentClosingRect.top + screenSpaceBounds.top).toInt()
+                )
+            }
+        } else {
+            background.customizeStatusBarAppearance(currentClosingRect.top.toInt())
+        }
         velocityTracker.addPosition(backEvent.frameTimeMillis, progress)
     }
 
@@ -286,10 +347,11 @@ abstract class CrossActivityBackAnimation(
         if (gestureProgress < 0.1f) {
             startVelocity = startVelocity.coerceAtLeast(DEFAULT_FLING_VELOCITY)
         }
-        val flingAnimation = SpringAnimation(postCommitFlingScale, SPRING_SCALE)
-            .setStartVelocity(-startVelocity.coerceIn(0f, MAX_FLING_VELOCITY))
-            .setStartValue(SPRING_SCALE)
-            .setSpring(postCommitFlingSpring)
+        val flingAnimation =
+            SpringAnimation(postCommitFlingScale, SPRING_SCALE)
+                .setStartVelocity(-startVelocity.coerceIn(0f, MAX_FLING_VELOCITY))
+                .setStartValue(SPRING_SCALE)
+                .setSpring(postCommitFlingSpring)
         flingAnimation.start()
         // do an animation-frame immediately to prevent idle frame
         flingAnimation.doAnimationFrame(
@@ -358,15 +420,16 @@ abstract class CrossActivityBackAnimation(
         rect: RectF,
         alpha: Float,
         baseTransformation: Transformation? = null,
-        flingMode: FlingMode = FlingMode.NO_FLING
+        flingMode: FlingMode = FlingMode.NO_FLING,
     ) {
         if (leash == null || !leash.isValid) return
         tempRectF.set(rect)
         if (flingMode != FlingMode.NO_FLING) {
-            lastPostCommitFlingScale = min(
-                postCommitFlingScale.value / SPRING_SCALE,
-                if (flingMode == FlingMode.FLING_BOUNCE) 1f else lastPostCommitFlingScale
-            )
+            lastPostCommitFlingScale =
+                min(
+                    postCommitFlingScale.value / SPRING_SCALE,
+                    if (flingMode == FlingMode.FLING_BOUNCE) 1f else lastPostCommitFlingScale,
+                )
             // apply an additional scale to the closing target to account for fling velocity
             tempRectF.scaleCentered(lastPostCommitFlingScale)
         }
@@ -403,12 +466,10 @@ abstract class CrossActivityBackAnimation(
                 .setOpaque(false)
                 .setHidden(false)
 
-        if (DesktopExperienceFlags.ENABLE_MULTIDISPLAY_TRACKPAD_BACK_GESTURE.isTrue()) {
-            rootTaskDisplayAreaOrganizer.attachToDisplayArea(
-                closingTarget!!.taskInfo.getDisplayId(), scrimBuilder)
-        } else {
-            rootTaskDisplayAreaOrganizer.attachToDisplayArea(Display.DEFAULT_DISPLAY, scrimBuilder)
-        }
+        rootTaskDisplayAreaOrganizer.attachToDisplayArea(
+            closingTarget!!.taskInfo.getDisplayId(),
+            scrimBuilder,
+        )
         scrimLayer = scrimBuilder.build()
         val colorComponents = floatArrayOf(0f, 0f, 0f)
         maxScrimAlpha = if (isDarkTheme) MAX_SCRIM_ALPHA_DARK else MAX_SCRIM_ALPHA_LIGHT
@@ -422,8 +483,37 @@ abstract class CrossActivityBackAnimation(
             .setColor(scrimLayer, colorComponents)
             .setAlpha(scrimLayer!!, maxScrimAlpha)
             .setCrop(scrimLayer!!, scrimCrop)
+            .setTaskAlignedCornerRadius(scrimLayer!!)
             .setRelativeLayer(scrimLayer!!, closingTarget!!.leash, -1)
             .show(scrimLayer)
+    }
+
+    /**
+     * @return A [FloatArray] containing the radii in the order: Top-Left, Top-Right, Bottom-Right,
+     *   Bottom-Left.
+     */
+    private fun getTaskAlignedCornerRadii(): FloatArray {
+        val taskBounds = closingTarget!!.taskInfo.configuration.windowConfiguration.bounds
+        val activityBounds = closingTarget!!.localBounds
+        // Only round corners that align with the task bounds.
+        // If the activity is embedded or letterboxed, the inner corners should not be rounded.
+        val touchesTop = activityBounds.top <= taskBounds.top
+        val touchesRight = activityBounds.right >= taskBounds.right
+        val touchesBottom = activityBounds.bottom >= taskBounds.bottom
+        val touchesLeft = activityBounds.left <= taskBounds.left
+        val topLeft = if (touchesLeft && touchesTop) cornerRadius else 0f
+        val topRight = if (touchesTop && touchesRight) cornerRadius else 0f
+        val bottomRight = if (touchesRight && touchesBottom) cornerRadius else 0f
+        val bottomLeft = if (touchesBottom && touchesLeft) cornerRadius else 0f
+        return floatArrayOf(topLeft, topRight, bottomRight, bottomLeft)
+    }
+
+    private fun SurfaceControl.Transaction.setTaskAlignedCornerRadius(sc: SurfaceControl) = apply {
+        if (!fixCrossActivityBackAnimationInBubbles() || !setClientDrawnCornerRadii()) {
+            return this
+        }
+        val radii = getTaskAlignedCornerRadii()
+        setCornerRadius(sc, radii[0], radii[1], radii[3], radii[2])
     }
 
     private fun removeScrimLayer() {
@@ -443,7 +533,7 @@ abstract class CrossActivityBackAnimation(
                         0,
                         t.windowConfiguration.bounds.top,
                         t.localBounds.left,
-                        t.windowConfiguration.bounds.bottom
+                        t.windowConfiguration.bounds.bottom,
                     )
                 leftLetterboxLayer = ensureLetterbox(bounds)
             }
@@ -456,7 +546,7 @@ abstract class CrossActivityBackAnimation(
                         t.localBounds.right,
                         t.windowConfiguration.bounds.top,
                         t.windowConfiguration.bounds.right,
-                        t.windowConfiguration.bounds.bottom
+                        t.windowConfiguration.bounds.bottom,
                     )
                 rightLetterboxLayer = ensureLetterbox(bounds)
             }
@@ -472,19 +562,16 @@ abstract class CrossActivityBackAnimation(
                 .setOpaque(true)
                 .setHidden(false)
 
-        if (DesktopExperienceFlags.ENABLE_MULTIDISPLAY_TRACKPAD_BACK_GESTURE.isTrue()) {
-            rootTaskDisplayAreaOrganizer.attachToDisplayArea(
-                closingTarget!!.taskInfo.getDisplayId(), letterboxBuilder)
-        } else {
-            rootTaskDisplayAreaOrganizer.attachToDisplayArea(
-                Display.DEFAULT_DISPLAY, letterboxBuilder)
-        }
+        rootTaskDisplayAreaOrganizer.attachToDisplayArea(
+            closingTarget!!.taskInfo.getDisplayId(),
+            letterboxBuilder,
+        )
         val layer = letterboxBuilder.build()
         val colorComponents =
             floatArrayOf(
                 Color.red(letterboxColor) / 255f,
                 Color.green(letterboxColor) / 255f,
-                Color.blue(letterboxColor) / 255f
+                Color.blue(letterboxColor) / 255f,
             )
         transaction
             .setColor(layer, colorComponents)
@@ -512,7 +599,7 @@ abstract class CrossActivityBackAnimation(
 
     override fun prepareNextAnimation(
         animationInfo: BackNavigationInfo.CustomAnimationInfo?,
-        letterboxColor: Int
+        letterboxColor: Int,
     ): Boolean {
         this.letterboxColor = letterboxColor
         return false
@@ -554,11 +641,11 @@ abstract class CrossActivityBackAnimation(
             apps: Array<RemoteAnimationTarget>,
             wallpapers: Array<RemoteAnimationTarget>?,
             nonApps: Array<RemoteAnimationTarget>?,
-            finishedCallback: IRemoteAnimationFinishedCallback
+            finishedCallback: IRemoteAnimationFinishedCallback,
         ) {
             ProtoLog.d(
                 ShellProtoLogGroup.WM_SHELL_BACK_PREVIEW,
-                "Start back to activity animation."
+                "Start back to activity animation.",
             )
             for (a in apps) {
                 when (a.mode) {
@@ -576,7 +663,9 @@ abstract class CrossActivityBackAnimation(
 
     companion object {
         /** Max scale of the closing window. */
-        internal const val MAX_SCALE = 0.9f
+        internal const val MAX_SCALE = 0.85f
+        /** Initial scale of the entering window. */
+        internal const val INITIAL_ENTERING_SCALE = 0.95f
         private const val MAX_SCRIM_ALPHA_DARK = 0.8f
         private const val MAX_SCRIM_ALPHA_LIGHT = 0.2f
         private const val SPRING_SCALE = 100f
@@ -595,10 +684,10 @@ abstract class CrossActivityBackAnimation(
 
         /**
          * This is used for the closing and opening target in the default cross-activity back
-         * animation. When the back gesture is flung, the closing and opening targets shrink a
-         * bit further and then bounce back with a spring motion.
+         * animation. When the back gesture is flung, the closing and opening targets shrink a bit
+         * further and then bounce back with a spring motion.
          */
-        FLING_BOUNCE
+        FLING_BOUNCE,
     }
 }
 
@@ -618,7 +707,7 @@ internal fun RectF.setInterpolatedRectF(start: RectF, target: RectF, progress: F
 internal fun RectF.scaleCentered(
     scale: Float,
     pivotX: Float = left + width() / 2,
-    pivotY: Float = top + height() / 2
+    pivotY: Float = top + height() / 2,
 ) {
     offset(-pivotX, -pivotY) // move pivot to origin
     scale(scale)

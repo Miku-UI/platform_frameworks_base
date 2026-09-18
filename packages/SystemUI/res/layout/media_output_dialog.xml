@@ -46,9 +46,9 @@
             android:orientation="vertical">
             <ImageView
                 android:id="@+id/app_source_icon"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_marginBottom="7dp"
+                android:layout_width="@dimen/media_output_dialog_app_icon_size"
+                android:layout_height="@dimen/media_output_dialog_app_icon_size"
+                android:layout_marginBottom="@dimen/media_output_dialog_app_icon_bottom_margin"
                 android:gravity="center_vertical"
                 android:visibility="gone"
                 android:importantForAccessibility="no"/>
@@ -59,8 +59,7 @@
                 android:ellipsize="end"
                 android:gravity="center_vertical"
                 android:maxLines="1"
-                android:textColor="?android:attr/textColorPrimary"
-                android:fontFamily="@*android:string/config_headlineFontFamilyMedium"
+                android:fontFamily="variable-title-medium-emphasized"
                 android:textSize="16sp"/>
             <TextView
                 android:id="@+id/header_subtitle"
@@ -69,8 +68,7 @@
                 android:gravity="center_vertical"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="?android:attr/textColorSecondary"
-                android:fontFamily="@*android:string/config_bodyFontFamily"
+                android:fontFamily="variable-title-small"
                 android:textSize="14sp"/>
         </LinearLayout>
     </LinearLayout>
@@ -143,6 +141,7 @@
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/dialog_footer"
+        android:background="@drawable/media_output_dialog_footer_background"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingTop="4dp"
@@ -152,9 +151,46 @@
         android:orientation="horizontal"
         android:gravity="end">
 
+        <LinearLayout
+            android:id="@+id/warning_section"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            android:paddingTop="16dp"
+            android:visibility="gone"
+            android:orientation="vertical"
+            android:gravity="start">
+            <ImageView
+                android:id="@+id/ic_info_outline"
+                android:src="@drawable/ic_info_outline"
+                android:tint="@color/materialColorError"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="8dp"
+                android:importantForAccessibility="no"/>
+            <TextView
+                android:id="@+id/warning_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="8dp"
+                android:paddingTop="8dp"
+                android:textColor="@color/materialColorError" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/warning_fix_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="8dp"
+                android:gravity="start|center_vertical"
+                android:paddingStart="0dp"
+                style="@style/MediaOutput.Dialog.FixPermissionsButton" />
+        </LinearLayout>
+
         <Button
             android:id="@+id/stop"
             style="@style/Widget.Dialog.Button.BorderButton"
+            android:fontFamily="variable-label-large"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/media_output_dialog_button_stop_casting"
@@ -163,6 +199,7 @@
         <Button
             android:id="@+id/done"
             style="@style/Widget.Dialog.Button"
+            android:fontFamily="variable-label-large"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/inline_done_button"/>
@@ -173,11 +210,13 @@
             android:layout_height="wrap_content"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/warning_section"
             android:orientation="horizontal"
             app:flow_wrapMode="chain"
             app:constraint_referenced_ids="stop,done"
-            app:flow_horizontalStyle="spread_inside"
+            app:flow_horizontalBias="1.0"
+            app:flow_horizontalGap="@dimen/media_output_dialog_button_gap"
+            app:flow_horizontalStyle="packed"
             app:flow_verticalAlign="center" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </LinearLayout>

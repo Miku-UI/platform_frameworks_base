@@ -54,6 +54,7 @@ import com.google.common.collect.HashBiMap;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /** This class controls ambient volume UI with local and remote ambient data. */
 public class AmbientVolumeUiController implements
@@ -63,6 +64,8 @@ public class AmbientVolumeUiController implements
 
     private static final boolean DEBUG = true;
     private static final String TAG = "AmbientVolumeUiController";
+    private static final long SYNC_DELAY_MS = 1200L;
+    private static final long COMMAND_DELAY_MS = 1000L;
 
     private final Context mContext;
     private final BluetoothEventManager mEventManager;
@@ -133,7 +136,7 @@ public class AmbientVolumeUiController implements
         if (DEBUG) {
             Log.d(TAG, "onAmbientChanged, value:" + gainSettings + ", device:" + device);
         }
-        HearingDeviceLocalDataManager.Data data = mLocalDataManager.get(device);
+        final HearingDeviceLocalDataManager.Data data = mLocalDataManager.get(device);
         final boolean expanded = mAmbientLayout.isControlExpanded();
         final boolean isInitiatedFromUi = (expanded && data.ambient() == gainSettings)
                 || (!expanded && data.groupAmbient() == gainSettings);
@@ -142,10 +145,17 @@ public class AmbientVolumeUiController implements
             return;
         }
 
-        // We have to check if we need to expand the controls by getting all remote
-        // device's ambient value, delay for a while to wait all remote devices update
-        // to the latest value to avoid unnecessary expand action.
-        postDelayedOnMainThread(this::refresh, 1200L);
+        postOnMainThread(() -> {
+            if (mAmbientLayout.isControlExpanded()) {
+                final int side = mSideToDeviceMap.inverse().getOrDefault(device, SIDE_INVALID);
+                setVolumeIfValid(side, gainSettings);
+            } else {
+                // The control is collapsed and have to check if we need to expand the controls by
+                // waiting all remote device's ambient value up-to-date, delay for a while to avoid
+                // unnecessary expand action.
+                postDelayedOnMainThread(this::refresh, SYNC_DELAY_MS);
+            }
+        });
     }
 
     @Override
@@ -153,18 +163,29 @@ public class AmbientVolumeUiController implements
         if (DEBUG) {
             Log.d(TAG, "onMuteChanged, mute:" + mute + ", device:" + device);
         }
-        final boolean muted = mAmbientLayout.isMuted();
-        boolean isInitiatedFromUi = (muted && mute == MUTE_MUTED)
-                || (!muted && mute == MUTE_NOT_MUTED);
-        if (isInitiatedFromUi) {
+        final int side = mSideToDeviceMap.inverse().getOrDefault(device, SIDE_INVALID);
+        final int muteState = mAmbientLayout.getSliderMuteState(side);
+        if (muteState == mute) {
             // The change is initiated from UI, no need to update UI
             return;
         }
-
-        // We have to check if we need to mute the devices by getting all remote
-        // device's mute state, delay for a while to wait all remote devices update
-        // to the latest value.
-        postDelayedOnMainThread(this::refresh, 1200L);
+        postOnMainThread(() -> {
+            mAmbientLayout.setSliderMuteState(side, mute);
+            if (mute == MUTE_NOT_MUTED) {
+                loadLocalDataToUi(device);
+            }
+            if (!mAmbientLayout.isControlExpanded()) {
+                // The control is collapsed and have to check if we need to expand the controls by
+                // waiting all remote device's mute state up-to-date, delay for a while to avoid
+                // unnecessary expand action.
+                postDelayedOnMainThread(() -> {
+                    int unifiedMuteState = mAmbientLayout.getSliderMuteState(SIDE_UNIFIED);
+                    if (mute != unifiedMuteState) {
+                        setAmbientControlExpanded(true);
+                    }
+                }, SYNC_DELAY_MS);
+            }
+        });
     }
 
     @Override
@@ -178,13 +199,37 @@ public class AmbientVolumeUiController implements
 
     @Override
     public void onExpandIconClick() {
+        final AtomicBoolean performUnmuteAction = new AtomicBoolean(false);
+        if (!mAmbientLayout.isControlExpanded()
+                &&  mAmbientLayout.getSliderMuteState(SIDE_UNIFIED) == MUTE_NOT_MUTED) {
+            // When collapsing the control, the unified slider will be unmuted if at least one of
+            // the device is unmuted. We need to unmute all muted device in this case.
+            mSideToDeviceMap.forEach((s, d) -> {
+                if (mAmbientLayout.getSliderMuteState(s) == MUTE_MUTED) {
+                    mAmbientLayout.setSliderMuteState(s, MUTE_NOT_MUTED);
+                    mVolumeController.setMuted(d, false);
+                    performUnmuteAction.set(true);
+                }
+            });
+        }
+
         mSideToDeviceMap.forEach((s, d) -> {
-            if (!isDeviceMuted(d)) {
+            int sideMuteState = mAmbientLayout.getSliderMuteState(s);
+            if (sideMuteState == MUTE_NOT_MUTED) {
                 // Apply previous collapsed/expanded volume to remote device
                 HearingDeviceLocalDataManager.Data data = mLocalDataManager.get(d);
                 int volume = mAmbientLayout.isControlExpanded()
                         ? data.ambient() : data.groupAmbient();
-                mVolumeController.setAmbient(d, volume);
+                final Runnable setAmbientRunnable = () -> {
+                    mVolumeController.setAmbient(d, volume);
+                };
+                if (performUnmuteAction.get()) {
+                    // Delay set ambient on remote device since the immediately sequential command
+                    // might get failed sometimes
+                    postDelayedOnMainThread(setAmbientRunnable, COMMAND_DELAY_MS);
+                } else {
+                    setAmbientRunnable.run();
+                }
             }
             // Update new value to local data
             mLocalDataManager.updateAmbientControlExpanded(d, mAmbientLayout.isControlExpanded());
@@ -193,13 +238,19 @@ public class AmbientVolumeUiController implements
     }
 
     @Override
-    public void onAmbientVolumeIconClick() {
-        if (!mAmbientLayout.isMuted()) {
-            loadLocalDataToUi();
+    public void onSliderMuteChange(int side, boolean muted) {
+        final Set<BluetoothDevice> targetDevices = new ArraySet<>();
+        if (side == SIDE_UNIFIED) {
+            targetDevices.addAll(mSideToDeviceMap.values());
+        } else {
+            targetDevices.add(mSideToDeviceMap.get(side));
         }
-        for (BluetoothDevice device : mSideToDeviceMap.values()) {
-            mVolumeController.setMuted(device, mAmbientLayout.isMuted());
-        }
+        targetDevices.forEach(device -> {
+            mVolumeController.setMuted(device, muted);
+            if (!muted) {
+                loadLocalDataToUi(device);
+            }
+        });
     }
 
     @Override
@@ -209,39 +260,25 @@ public class AmbientVolumeUiController implements
         }
         setVolumeIfValid(side, value);
 
-        Runnable setAmbientRunnable = () -> {
-            if (side == SIDE_UNIFIED) {
-                mSideToDeviceMap.forEach((s, d) -> mVolumeController.setAmbient(d, value));
-            } else {
-                final BluetoothDevice device = mSideToDeviceMap.get(side);
-                mVolumeController.setAmbient(device, value);
-            }
-        };
-
-        boolean performUnmuteAction = false;
+        Set<BluetoothDevice> targetDevices = new ArraySet<>();
         if (side == SIDE_UNIFIED) {
-            if (mAmbientLayout.isMuted()) {
-                // User drag on the unified slider when muted. Unmute all devices first.
-                mAmbientLayout.setSliderMuteState(side, MUTE_NOT_MUTED);
-                for (BluetoothDevice device : mSideToDeviceMap.values()) {
-                    mVolumeController.setMuted(device, false);
-                }
-                performUnmuteAction = true;
-            }
+            targetDevices.addAll(mSideToDeviceMap.values());
         } else {
-            final BluetoothDevice device = mSideToDeviceMap.get(side);
-            if (isDeviceMuted(device)) {
-                // User drag on the slider when muted. Unmute the device first.
-                mAmbientLayout.setSliderMuteState(side, MUTE_NOT_MUTED);
-                mVolumeController.setMuted(device, false);
-                performUnmuteAction = true;
-
-            }
+            targetDevices.add(mSideToDeviceMap.get(side));
+        }
+        Runnable setAmbientRunnable = () -> targetDevices.forEach(
+                device -> mVolumeController.setAmbient(device, value));
+        boolean performUnmuteAction = false;
+        if (mAmbientLayout.getSliderMuteState(side) == MUTE_MUTED) {
+            // User drag on the slider when muted. Unmute corresponding device first.
+            mAmbientLayout.setSliderMuteState(side, MUTE_NOT_MUTED);
+            targetDevices.forEach(device -> mVolumeController.setMuted(device, false));
+            performUnmuteAction = true;
         }
         if (performUnmuteAction) {
             // Delay set ambient on remote device since the immediately sequential command
             // might get failed sometimes
-            postDelayedOnMainThread(setAmbientRunnable, 1000L);
+            postDelayedOnMainThread(setAmbientRunnable, COMMAND_DELAY_MS);
         } else {
             setAmbientRunnable.run();
         }
@@ -255,7 +292,7 @@ public class AmbientVolumeUiController implements
                 && mCachedDevices.contains(cachedDevice)) {
             // After VCP connected, AICS may not ready yet and still return invalid value, delay
             // a while to wait AICS ready as a workaround
-            postDelayedOnMainThread(this::refresh, 1000L);
+            postDelayedOnMainThread(this::refresh, SYNC_DELAY_MS);
         }
     }
 
@@ -354,7 +391,7 @@ public class AmbientVolumeUiController implements
             // We have to check if we need to expand the controls by getting all remote
             // device's ambient value, delay for a while to wait all remote devices connected and
             // updated to the latest value to avoid unnecessary expand action.
-            postDelayedOnMainThread(this::refresh, 1200L);
+            postDelayedOnMainThread(this::refresh, SYNC_DELAY_MS);
         }
     }
 
@@ -378,10 +415,6 @@ public class AmbientVolumeUiController implements
         if (volume == INVALID_VOLUME) {
             return;
         }
-        if (!mRangeInitializedSliderSides.contains(side)) {
-            Log.w(TAG, "the slider is not initialized yet, skip set volume on side=" + side);
-            return;
-        }
         mAmbientLayout.setSliderValue(side, volume);
         // Update new value to local data
         if (side == SIDE_UNIFIED) {
@@ -392,17 +425,14 @@ public class AmbientVolumeUiController implements
         mLocalDataManager.flush();
     }
 
-    private void loadLocalDataToUi() {
-        mSideToDeviceMap.forEach((s, d) -> loadLocalDataToUi(d));
-    }
-
     private void loadLocalDataToUi(BluetoothDevice device) {
         final HearingDeviceLocalDataManager.Data data = mLocalDataManager.get(device);
         if (DEBUG) {
             Log.d(TAG, "loadLocalDataToUi, data=" + data + ", device=" + device);
         }
-        if (isDeviceAmbientControlAvailable(device) && !isDeviceMuted(device)) {
-            final int side = mSideToDeviceMap.inverse().getOrDefault(device, SIDE_INVALID);
+        final int side = mSideToDeviceMap.inverse().getOrDefault(device, SIDE_INVALID);
+        if (isDeviceAmbientControlAvailable(device)
+                && mAmbientLayout.getSliderMuteState(side) == MUTE_NOT_MUTED) {
             setVolumeIfValid(side, data.ambient());
             setVolumeIfValid(SIDE_UNIFIED, data.groupAmbient());
         }
@@ -419,6 +449,7 @@ public class AmbientVolumeUiController implements
         if (DEBUG) {
             Log.d(TAG, "loadRemoteDataToUi, left=" + leftState + ", right=" + rightState);
         }
+
         // Update ambient range. This should be done first since the muted state and enabled state
         // will set the value to minimum value
         mSideToDeviceMap.forEach((side, device) -> {
@@ -434,40 +465,34 @@ public class AmbientVolumeUiController implements
             }
         });
 
-        // Check the remote mute state to decide if we need to expand the control. This should be
-        // done before updating ambient value since it'll affect the controls expanded state
+        // Expand the controls if two devices have different remote state
+        final int leftAmbient = leftState != null ? leftState.gainSetting() : INVALID_VOLUME;
+        final int rightAmbient = rightState != null ? rightState.gainSetting() : INVALID_VOLUME;
+        if (leftAmbient != INVALID_VOLUME && rightAmbient != INVALID_VOLUME
+                && leftAmbient != rightAmbient) {
+            setAmbientControlExpanded(true);
+        }
         final int leftMuteState = leftState != null ? leftState.mute() : MUTE_DISABLED;
         final int rightMuteState = rightState != null ? rightState.mute() : MUTE_DISABLED;
         if (leftMuteState != MUTE_DISABLED && rightMuteState != MUTE_DISABLED
                 && leftMuteState != rightMuteState) {
-            // Expand the controls if two devices are mutable but with different mute states
             setAmbientControlExpanded(true);
         }
 
         // Update ambient volume
-        final int leftAmbient = leftState != null ? leftState.gainSetting() : INVALID_VOLUME;
-        final int rightAmbient = rightState != null ? rightState.gainSetting() : INVALID_VOLUME;
         if (mAmbientLayout.isControlExpanded()) {
             setVolumeIfValid(SIDE_LEFT, leftAmbient);
             setVolumeIfValid(SIDE_RIGHT, rightAmbient);
         } else {
-            if (leftAmbient != INVALID_VOLUME && rightAmbient != INVALID_VOLUME
-                    && leftAmbient != rightAmbient) {
-                // Expand the controls if two devices have different ambient values
-                setVolumeIfValid(SIDE_LEFT, leftAmbient);
-                setVolumeIfValid(SIDE_RIGHT, rightAmbient);
-                setAmbientControlExpanded(true);
-            } else {
-                int unifiedAmbient = leftAmbient != INVALID_VOLUME ? leftAmbient : rightAmbient;
-                setVolumeIfValid(SIDE_UNIFIED, unifiedAmbient);
-            }
+            int unifiedAmbient = leftAmbient != INVALID_VOLUME ? leftAmbient : rightAmbient;
+            setVolumeIfValid(SIDE_UNIFIED, unifiedAmbient);
         }
         // Initialize local data between side and group value
         initLocalAmbientDataIfNeeded();
 
         // Update slider mute state. This should be done after loading remote ambient into local
         // database since we'll show minimum value of the slider instead of the remote value if the
-        // device is muted
+        // device is muted.
         mAmbientLayout.setSliderMuteState(SIDE_LEFT, leftMuteState);
         mAmbientLayout.setSliderMuteState(SIDE_RIGHT, rightMuteState);
 
@@ -532,11 +557,6 @@ public class AmbientVolumeUiController implements
             }
         }
         mLocalDataManager.flush();
-    }
-
-    private boolean isDeviceMuted(BluetoothDevice device) {
-        final int side = mSideToDeviceMap.inverse().getOrDefault(device, SIDE_INVALID);
-        return mAmbientLayout.getSliderMuteState(side) == MUTE_MUTED;
     }
 
     private boolean isDeviceAmbientControlAvailable(BluetoothDevice device) {

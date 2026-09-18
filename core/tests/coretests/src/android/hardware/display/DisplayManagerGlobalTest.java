@@ -20,25 +20,34 @@ import static android.hardware.display.DisplayManagerGlobal.EVENT_DISPLAY_STATE_
 import static android.hardware.display.DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_REFRESH_RATE;
 import static android.hardware.display.DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_STATE;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.content.Context;
+import android.hardware.display.DisplayManagerGlobal.DisplayIdsCache;
 import android.os.Handler;
 import android.os.RemoteException;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.flag.junit.SetFlagsRule;
+import android.view.Display;
 import android.view.DisplayInfo;
 
+import androidx.annotation.Nullable;
 import androidx.test.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
@@ -56,6 +65,7 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
+import java.util.Arrays;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
@@ -74,6 +84,8 @@ public class DisplayManagerGlobalTest {
     @Rule
     public final CheckFlagsRule mCheckFlagsRule =
             DeviceFlagsValueProvider.createCheckFlagsRule();
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private static final long DISPLAY_CHANGE_EVENTS =
             DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_BASIC_CHANGED
@@ -116,12 +128,17 @@ public class DisplayManagerGlobalTest {
 
     @Test
     public void testDisplayListenerIsCalled_WhenDisplayEventOccurs() throws RemoteException {
+        mDisplayManagerGlobal.disableLocalDisplayInfoCaches();
         mDisplayManagerGlobal.registerDisplayListener(mDisplayListener, mHandler,
-                ALL_DISPLAY_EVENTS, /* packageName= */ null,
+                ALL_DISPLAY_EVENTS,
+                /* packageName= */ null,
                 /* isEventFilterExplicit */ true);
         Mockito.verify(mDisplayManager)
                 .registerCallbackWithEventMask(mCallbackCaptor.capture(), anyLong());
         IDisplayManagerCallback callback = mCallbackCaptor.getValue();
+
+        var defaultDisplaySnapshot = new int[] { Display.DEFAULT_DISPLAY };
+        callback.onDisplaySnapshot(defaultDisplaySnapshot, defaultDisplaySnapshot);
 
         int displayId = 1;
         callback.onDisplayEvent(displayId, DisplayManagerGlobal.EVENT_DISPLAY_ADDED);
@@ -170,6 +187,72 @@ public class DisplayManagerGlobalTest {
         callback.onDisplayEvent(displayId, EVENT_DISPLAY_STATE_CHANGED);
         waitForHandler();
         Mockito.verify(mDisplayListener).onDisplayChanged(eq(displayId));
+        Mockito.verifyNoMoreInteractions(mDisplayListener);
+    }
+
+    @Test
+    @RequiresFlagsEnabled({
+            Flags.FLAG_DISPLAY_LISTENER_PERFORMANCE_IMPROVEMENTS,
+            Flags.FLAG_COMMITTED_STATE_SEPARATE_EVENT
+    })
+    public void testDisplayEventsAreHandledInCorrectOrder() throws RemoteException {
+        testDisplayEventsAreHandledInCorrectOrderInternal();
+    }
+
+    private void testDisplayEventsAreHandledInCorrectOrderInternal() throws RemoteException {
+        // Register a listener for all possible events.
+        long allInternalEvents =
+                DisplayManagerGlobal.INTERNAL_EVENT_FLAG_TOPOLOGY_UPDATED
+                        | DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_CONNECTION_CHANGED
+                        | DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_ADDED
+                        | DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_BASIC_CHANGED
+                        | DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_REFRESH_RATE
+                        | DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_STATE
+                        | DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_COMMITTED_STATE_CHANGED
+                        | DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_HDR_SDR_RATIO_CHANGED
+                        | DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_BRIGHTNESS_CHANGED
+                        | DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_REMOVED;
+
+        mDisplayManagerGlobal.registerDisplayListener(mDisplayListener, mHandler,
+                allInternalEvents, /* packageName= */ null,
+                /* isEventFilterExplicit */ true);
+        Mockito.verify(mDisplayManager)
+                .registerCallbackWithEventMask(mCallbackCaptor.capture(), anyLong());
+        IDisplayManagerCallback callback = mCallbackCaptor.getValue();
+
+        int displayId = 1;
+        // Mock IDisplayManager to return a different display info to trigger display change.
+        final DisplayInfo newDisplayInfo = new DisplayInfo();
+        newDisplayInfo.rotation++;
+        doReturn(newDisplayInfo).when(mDisplayManager).getDisplayInfo(displayId);
+
+        int allEventsMask =
+                DisplayManagerGlobal.EVENT_DISPLAY_CONNECTED
+                        | DisplayManagerGlobal.EVENT_DISPLAY_ADDED
+                        | DisplayManagerGlobal.EVENT_DISPLAY_BASIC_CHANGED
+                        | DisplayManagerGlobal.EVENT_DISPLAY_REFRESH_RATE_CHANGED
+                        | DisplayManagerGlobal.EVENT_DISPLAY_STATE_CHANGED
+                        | DisplayManagerGlobal.EVENT_DISPLAY_COMMITTED_STATE_CHANGED
+                        | DisplayManagerGlobal.EVENT_DISPLAY_HDR_SDR_RATIO_CHANGED
+                        | DisplayManagerGlobal.EVENT_DISPLAY_BRIGHTNESS_CHANGED
+                        | DisplayManagerGlobal.EVENT_DISPLAY_REMOVED
+                        | DisplayManagerGlobal.EVENT_DISPLAY_DISCONNECTED;
+
+        // Trigger the event.
+        callback.onDisplayEvent(displayId, allEventsMask);
+        waitForHandler();
+
+        // Verify the order of callbacks. The order should be based on the event's integer value,
+        // not the order they were OR'd into the mask.
+        InOrder inOrder = inOrder(mDisplayListener);
+        inOrder.verify(mDisplayListener).onDisplayConnected(eq(displayId));
+        inOrder.verify(mDisplayListener).onDisplayAdded(eq(displayId));
+        // BASIC_CHANGED, REFRESH_RATE_CHANGED, STATE_CHANGED, COMMITTED_STATE_CHANGED
+        // HDR_SDR_RATIO_CHANGED, BRIGHTNESS_CHANGED
+        inOrder.verify(mDisplayListener, times(6)).onDisplayChanged(eq(displayId));
+        inOrder.verify(mDisplayListener).onDisplayRemoved(eq(displayId));
+        inOrder.verify(mDisplayListener).onDisplayDisconnected(eq(displayId));
+
         Mockito.verifyNoMoreInteractions(mDisplayListener);
     }
 
@@ -389,7 +472,6 @@ public class DisplayManagerGlobalTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_DISPLAY_TOPOLOGY)
     public void testTopologyListenerIsCalled_WhenTopologyUpdateOccurs() throws RemoteException {
         mDisplayManagerGlobal.registerTopologyListener(mExecutor, mTopologyListener,
                 /* packageName= */ null);
@@ -471,6 +553,159 @@ public class DisplayManagerGlobalTest {
                 mDisplayManagerGlobal
                         .mapFiltersToInternalEventFlag(0,
                                 DisplayManager.PRIVATE_EVENT_TYPE_DISPLAY_COMMITTED_STATE_CHANGED));
+    }
+
+    @Test
+    public void testUpdateDisplayIdsCache() {
+        var cache = initDisplayIdsCache(/*enableConnectedCache=*/ true, /*enableAddedCache=*/ true);
+        assertExpectedCache(cache, new int[] { 0, 1 }, new int[] { 0 });
+
+        cache.updateCacheLocked(1, DisplayManagerGlobal.EVENT_DISPLAY_ADDED);
+        assertExpectedCache(cache, new int[] { 0, 1 }, new int[] { 0, 1 });
+
+        cache.updateCacheLocked(1, DisplayManagerGlobal.EVENT_DISPLAY_REMOVED
+                        | DisplayManagerGlobal.EVENT_DISPLAY_DISCONNECTED);
+        assertExpectedCache(cache, new int[] { 0 }, new int[] { 0 });
+
+        cache.updateCacheLocked(2, DisplayManagerGlobal.EVENT_DISPLAY_ADDED
+                        | DisplayManagerGlobal.EVENT_DISPLAY_CONNECTED);
+        assertExpectedCache(cache, new int[] { 0, 2 }, new int[] { 0, 2 });
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DISPLAY_IDS_CACHE_VALIDATION)
+    public void testConnectedEventForLocallyControlledDisplay_doesNotStopLocalControl() {
+        var cache = initDisplayIdsCache(/*enableConnectedCache=*/ true, /*enableAddedCache=*/ true);
+        cache.injectLocked(2);
+        var mask = cache.updateCacheLocked(2, DisplayManagerGlobal.EVENT_DISPLAY_CONNECTED);
+        assertEquals("Out mask must contain CONNECTED",
+                DisplayManagerGlobal.EVENT_DISPLAY_CONNECTED, mask);
+
+        assertExpectedCache(cache, new int[] { 0, 1, 2 }, new int[] { 0, 2 });
+        mask = cache.updateCacheLocked(2, DisplayManagerGlobal.EVENT_DISPLAY_ADDED);
+        assertEquals("Out mask must contain ADDED",
+                DisplayManagerGlobal.EVENT_DISPLAY_ADDED, mask);
+        assertExpectedCache(cache, new int[] { 0, 1, 2 }, new int[] { 0, 2 });
+    }
+
+    @Test
+    public void testUpdateDisplayIdsCache_skipRemovedAndDisconnectedForUnknownDisplayId() {
+        var cache = initDisplayIdsCache(/*enableConnectedCache=*/ true, /*enableAddedCache=*/ true);
+        var mask = cache.updateCacheLocked(1, DisplayManagerGlobal.EVENT_DISPLAY_REMOVED
+                | DisplayManagerGlobal.EVENT_DISPLAY_DISCONNECTED);
+        assertEquals("Out mask must contain REMOVED AND DISCONNECTED",
+                DisplayManagerGlobal.EVENT_DISPLAY_REMOVED
+                        | DisplayManagerGlobal.EVENT_DISPLAY_DISCONNECTED, mask);
+
+        mask = cache.updateCacheLocked(2, DisplayManagerGlobal.EVENT_DISPLAY_REMOVED
+                | DisplayManagerGlobal.EVENT_DISPLAY_DISCONNECTED);
+        assertEquals("Out mask should not contain REMOVED AND DISCONNECTED", 0, mask);
+    }
+
+    @Test
+    public void testInvalidateDisplayIdsCache() {
+        var cache = initDisplayIdsCache(/*enableConnectedCache=*/ true, /*enableAddedCache=*/ true);
+        assertExpectedCache(cache, new int[] { 0, 1 }, new int[] { 0 });
+
+        cache.setAddedCachingEnabledLocked(false);
+        assertExpectedCache(cache, new int[] { 0, 1 }, null);
+
+        cache.setConnectedCachingEnabledLocked(false);
+        assertExpectedCache(cache, null, null);
+
+        cache.setConnectedCachingEnabledLocked(true);
+        assertExpectedCache(cache, null, null);
+
+        cache.setAddedCachingEnabledLocked(true);
+        assertExpectedCache(cache, null, null);
+
+        cache.updateCacheLocked(new int[] { 0 }, new int[] {});
+        assertExpectedCache(cache, new int[] { 0 }, null);
+
+        cache.updateCacheLocked(new int[] { 0, 1 }, new int[] { 0 });
+        assertExpectedCache(cache, new int[] { 0, 1 }, new int[] { 0 });
+
+        cache.updateCacheLocked(new int[] { 0, 1, 2 }, new int[] {});
+        assertExpectedCache(cache, new int[] { 0, 1, 2 }, new int[] { 0 });
+
+        cache.updateCacheLocked(new int[] {}, new int[] { 0, 1 });
+        assertExpectedCache(cache, new int[] { 0, 1, 2 }, new int[] { 0, 1 });
+    }
+
+    @Test
+    public void testInjectLocalDisplayId() {
+        var cache = initDisplayIdsCache(/*enableConnectedCache=*/ true, /*enableAddedCache=*/ true);
+        cache.injectLocked(2);
+        assertExpectedCache(cache, new int[] { 0, 1, 2 }, new int[] { 0, 2 });
+        cache.evictLocked(2);
+        assertExpectedCache(cache, new int[] { 0, 1 }, new int[] { 0 });
+    }
+
+    @Test
+    public void testInjectLocalDisplayIdAddedOnly() {
+        var cache = initDisplayIdsCache(/*enableConnectedCache=*/ false,
+                /*enableAddedCache=*/ true);
+        assertExpectedCache(cache, null, new int[] { 0 });
+        cache.injectLocked(2);
+        assertExpectedCache(cache, null, new int[] { 0, 2 });
+        cache.evictLocked(2);
+        assertExpectedCache(cache, null, new int[] { 0 });
+    }
+
+    @Test
+    public void testInjectLocalDisplayIdConnectedOnly() {
+        var cache = initDisplayIdsCache(/*enableConnectedCache=*/ true,
+                /*enableAddedCache=*/ false);
+        assertExpectedCache(cache, new int[] { 0, 1 }, null);
+        cache.injectLocked(2);
+        assertExpectedCache(cache, new int[] { 0, 1, 2 }, null);
+        cache.evictLocked(1);
+        assertExpectedCache(cache, new int[] { 0, 2 }, null);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_NULL_DISPLAY_INFO_CACHE)
+    public void getDisplayInfo_cachesNullResultsFromService() throws Exception {
+        int testDisplayId = 123;
+
+        doReturn(null).when(mDisplayManager).getDisplayInfo(testDisplayId);
+
+        // First call, triggers the binder call.
+        DisplayInfo info1 = mDisplayManagerGlobal.getDisplayInfo(testDisplayId);
+        assertNull("First call should return null as mocked", info1);
+        verify(mDisplayManager, times(1)).getDisplayInfo(testDisplayId);
+
+        // Second call to getDisplayInfo, should retrieve the cached null value.
+        DisplayInfo info2 = mDisplayManagerGlobal.getDisplayInfo(testDisplayId);
+        assertNull("Second call should also return null", info2);
+        // no additional binder calls to getDisplayInfo
+        verify(mDisplayManager, times(1)).getDisplayInfo(testDisplayId);
+    }
+
+    private void assertExpectedCache(DisplayIdsCache cache, @Nullable int[] connectedIds,
+            @Nullable int[] addedIds) {
+        var connected = cache.getConnectedLocked();
+        var cacheConnected = connected != null ? Arrays.stream(connected).sorted().toArray() : null;
+        assertArrayEquals("Connected ids must be equal", connectedIds, cacheConnected);
+        var added = cache.getAddedLocked();
+        var cacheAdded = added != null ? Arrays.stream(added).sorted().toArray() : null;
+        assertArrayEquals("Added ids must be equal", addedIds, cacheAdded);
+    }
+
+    private DisplayIdsCache initDisplayIdsCache(boolean enableConnectedCache,
+            boolean enableAddedCache) {
+        var cache = new DisplayIdsCache();
+        cache.setConnectedCachingEnabledLocked(enableConnectedCache);
+        cache.setAddedCachingEnabledLocked(enableAddedCache);
+        var connectedSnapshot = new int[] { 0, 1 };
+        var addedSnapshot = new int[] { 0 };
+
+        assertNull(cache.getAddedLocked());
+        assertNull(cache.getConnectedLocked());
+
+        cache.updateCacheLocked(connectedSnapshot, addedSnapshot);
+
+        return cache;
     }
 
     private void waitForHandler() {

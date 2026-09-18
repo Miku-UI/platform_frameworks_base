@@ -23,9 +23,7 @@ import com.android.systemui.flags.Flags
 import com.android.systemui.flags.fake
 import com.android.systemui.flags.featureFlagsClassic
 import com.android.systemui.kairos.ActivatedKairosFixture
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosTestScope
-import com.android.systemui.kairos.kairos
 import com.android.systemui.kairos.runKairosTest
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
@@ -52,7 +50,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
 
-@OptIn(ExperimentalKairosApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class LocationBasedMobileIconViewModelKairosTest : SysuiTestCase() {
@@ -93,7 +90,7 @@ class LocationBasedMobileIconViewModelKairosTest : SysuiTestCase() {
 
     private val Kosmos.repository: FakeMobileConnectionRepositoryKairos by
         Kosmos.Fixture {
-            FakeMobileConnectionRepositoryKairos(SUB_1_ID, kairos, tableLogBuffer).apply {
+            FakeMobileConnectionRepositoryKairos(SUB_1_ID, tableLogBuffer).apply {
                 isInService.setValue(true)
                 cdmaLevel.setValue(1)
                 primaryLevel.setValue(1)
@@ -164,7 +161,7 @@ class LocationBasedMobileIconViewModelKairosTest : SysuiTestCase() {
 
         /** Convenience constructor for these tests */
         fun defaultSignal(level: Int = 1): SignalIconModel {
-            return SignalIconModel.Cellular(
+            return SignalIconModel.CellularTypeIconModel.Cellular(
                 level,
                 NUM_LEVELS,
                 showExclamationMark = false,

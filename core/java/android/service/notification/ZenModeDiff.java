@@ -766,6 +766,8 @@ public class ZenModeDiff {
         public static final String FIELD_VISUAL_EFFECT_NOTIFICATION_LIST =
                 "mVisualEffects_NotificationList";
 
+        public static final String FIELD_INTERRUPTION_TYPE_ALARMS = "mInterruptionType_Alarms";
+
         public static final String FIELD_PRIORITY_MESSAGES = "mPriorityMessages";
         public static final String FIELD_PRIORITY_CALLS = "mPriorityCalls";
         public static final String FIELD_CONVERSATION_SENDERS = "mConversationSenders";
@@ -883,6 +885,13 @@ public class ZenModeDiff {
             if (from.getPriorityChannelsAllowed() != to.getPriorityChannelsAllowed()) {
                 addField(FIELD_ALLOW_CHANNELS, new FieldDiff<>(from.getPriorityChannelsAllowed(),
                         to.getPriorityChannelsAllowed()));
+            }
+            if (Flags.splitSoundVibrationForNotificationBreakthrough()
+                    && from.getInterruptionTypeAlarms() != to.getInterruptionTypeAlarms()) {
+                addField(
+                        FIELD_INTERRUPTION_TYPE_ALARMS,
+                        new FieldDiff<>(
+                                from.getInterruptionTypeAlarms(), to.getInterruptionTypeAlarms()));
             }
         }
 

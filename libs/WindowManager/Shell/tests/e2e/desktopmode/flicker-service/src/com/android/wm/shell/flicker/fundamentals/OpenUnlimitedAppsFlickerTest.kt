@@ -19,17 +19,17 @@ package com.android.wm.shell.flicker.fundamentals
 import android.platform.test.annotations.Postsubmit
 import android.platform.test.annotations.RequiresDesktopDevice
 import android.tools.NavBar
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
+import com.android.wm.shell.Utils
 import com.android.wm.shell.flicker.DesktopModeBaseTest
 import com.android.wm.shell.flicker.utils.appWindowBecomesVisible
 import com.android.wm.shell.flicker.utils.appWindowInsideDisplayBoundsAtEnd
 import com.android.wm.shell.flicker.utils.appWindowIsVisibleAtStart
 import com.android.wm.shell.scenarios.OpenUnlimitedApps
-import com.android.wm.shell.Utils
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -58,29 +58,19 @@ class OpenUnlimitedAppsFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(f
 
     override val transition: FlickerBuilder.() -> Unit
         get() = {
-            setup {
-                scenario.setup()
-            }
-            transitions {
-                scenario.openUnlimitedApps()
-            }
-            teardown {
-                scenario.teardown()
-            }
+            setup { scenario.setup() }
+            transitions { scenario.openUnlimitedApps() }
+            teardown { scenario.teardown() }
         }
 
-    @Test
-    fun initialAppWindowIsVisibleAtStart() = flicker.appWindowIsVisibleAtStart(testApp)
+    @Test fun initialAppWindowIsVisibleAtStart() = flicker.appWindowIsVisibleAtStart(testApp)
 
     @Test
-    fun launchedAppsAreInsideDisplayBoundsAtEnd() = appsInDesktop.forEach {
-        flicker.appWindowInsideDisplayBoundsAtEnd(it)
-    }
+    fun launchedAppsAreInsideDisplayBoundsAtEnd() =
+        appsInDesktop.forEach { flicker.appWindowInsideDisplayBoundsAtEnd(it) }
 
     @Test
-    fun launchedAppsBecomesVisible() = appsInDesktop.forEach {
-        flicker.appWindowBecomesVisible(it)
-    }
+    fun launchedAppsBecomesVisible() = appsInDesktop.forEach { flicker.appWindowBecomesVisible(it) }
 
     companion object {
         @Parameterized.Parameters(name = "{0}")
@@ -92,4 +82,3 @@ class OpenUnlimitedAppsFlickerTest(flicker: FlickerTest) : DesktopModeBaseTest(f
         }
     }
 }
-

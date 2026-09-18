@@ -17,7 +17,6 @@
 package com.android.server.autofill;
 
 import static android.service.autofill.FillRequest.INVALID_REQUEST_ID;
-import static android.service.autofill.Flags.remoteFillServiceUseWeakReference;
 
 import static com.android.server.autofill.Helper.sVerbose;
 
@@ -260,22 +259,16 @@ final class RemoteFillService extends ServiceConnector.Impl<IAutoFillService> {
      * to be held by {@link mFillCallback} so it's not deallocated prematurely.
      */
     private IFillCallback maybeWrapWithWeakReference(IFillCallback callback) {
-        if (remoteFillServiceUseWeakReference()) {
-            mFillCallback = new AtomicReference<>(callback);
-            return new IFillCallbackDelegate(callback);
-        }
-        return callback;
+        mFillCallback = new AtomicReference<>(callback);
+        return new IFillCallbackDelegate(callback);
     }
 
     /**
      * Wraps an {@link ISaveCallback} object using weak reference.
      */
     private ISaveCallback maybeWrapWithWeakReference(ISaveCallback callback) {
-        if (remoteFillServiceUseWeakReference()) {
-            mSaveCallback = new AtomicReference<>(callback);
-            return new ISaveCallbackDelegate(callback);
-        }
-        return callback;
+        mSaveCallback = new AtomicReference<>(callback);
+        return new ISaveCallbackDelegate(callback);
     }
 
     /**
@@ -283,11 +276,8 @@ final class RemoteFillService extends ServiceConnector.Impl<IAutoFillService> {
      */
     private IConvertCredentialCallback maybeWrapWithWeakReference(
             IConvertCredentialCallback callback) {
-        if (remoteFillServiceUseWeakReference()) {
-            mConvertCredentialCallback = new AtomicReference<>(callback);
-            return new IConvertCredentialCallbackDelegate(callback);
-        }
-        return callback;
+        mConvertCredentialCallback = new AtomicReference<>(callback);
+        return new IConvertCredentialCallbackDelegate(callback);
     }
 
     public void onFillCredentialRequest(@NonNull FillRequest request, IBinder autofillCallback) {

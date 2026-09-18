@@ -144,13 +144,6 @@ flag {
 }
 
 flag {
-  name: "bitmap_ashmem_long_name"
-  namespace: "core_graphics"
-  description: "Whether to have more information in ashmem filenames for bitmaps"
-  bug: "369619160"
-}
-
-flag {
   name: "animated_image_drawable_filter_bitmap"
   is_exported: true
   namespace: "core_graphics"
@@ -159,29 +152,13 @@ flag {
 }
 
 flag {
-  name: "remove_vri_sketchy_destroy"
+  name: "fix_avd_wrong_resources"
   namespace: "core_graphics"
-  description: "Remove the eager yet thread-violating destroyHardwareResources in VRI#die"
-  bug: "377057106"
+  description: "Fix that AVD loads from the wrong Resources instance in applyTheme"
+  bug: "448274242"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
-}
-
-flag {
-  name: "early_preinit_buffer_allocator"
-  namespace: "core_graphics"
-  description: "Initialize GraphicBufferAllocater on ViewRootImpl init, to avoid blocking on init during buffer allocation, improving app launch latency."
-  bug: "389908734"
-  is_fixed_read_only: true
-}
-
-flag {
-  name: "bitmap_use_memfd"
-  namespace: "system_performance"
-  description: "Whether to parcel implicit copies of bitmaps to memfd instead of ashmem"
-  bug: "400807118"
-  is_fixed_read_only: true
 }
 
 flag {
@@ -189,6 +166,7 @@ flag {
   namespace: "core_graphics"
   description: "Add two helper constants to SurfaceControl to improve @IntDef lint"
   bug: "413710706"
+  is_exported: true
 }
 
 flag {
@@ -202,10 +180,61 @@ flag {
 }
 
 flag {
-  name: "surfaceview_stretch_alignment"
+  name: "image_decoder_gainmap_fail"
   namespace: "core_graphics"
-  description: "Fix SurfaceView alignment when overscroll stretch is occurring"
-  bug: "419836766"
+  description: "Add API for partial decoding of gainmap images with ImageDecoder"
+  bug: "437807032"
+  is_exported: true
+}
+
+flag {
+  name: "animated_image_frame_rate_hint"
+  namespace: "core_graphics"
+  description: "Enables AnimatedImageDrawable to send frame rate hints to its callback for power savings."
+  bug: "454016825"
+}
+
+flag {
+  name: "image_decoder_default_listener"
+  namespace: "core_graphics"
+  is_exported: true
+  description: "Set a default listener for ImageDecoder"
+  bug: "447585785"
+}
+
+flag {
+  name: "image_decoder_allocation_limit"
+  namespace: "core_graphics"
+  is_exported: true
+  description: "Set a memory allocation limit for ImageDecoder"
+  bug: "473563356"
+}
+
+flag {
+  name: "edt_gradient_detection"
+  namespace: "accessibility"
+  description: "Add detection for the gradient lightness to improve the decision in expanded Dark theme"
+  bug: "418004794"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "use_prev_frame_duration_for_render_thread"
+  namespace: "core_graphics"
+  description: "Use previous frame duration for calculating render rate schedule time"
+  bug: "361682988"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "remove_composer_overlay_usage"
+  namespace: "core_graphics"
+  description: "Remove composer overlay usage from hardware bitmap creation"
+  bug: "182901940"
   metadata {
     purpose: PURPOSE_BUGFIX
   }

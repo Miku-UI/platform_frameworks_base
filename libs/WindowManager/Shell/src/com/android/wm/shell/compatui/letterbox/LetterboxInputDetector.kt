@@ -30,6 +30,7 @@ import android.view.InputEventReceiver
 import android.view.MotionEvent
 import android.view.SurfaceControl
 import android.view.SurfaceControl.Transaction
+import android.view.WindowInputChannelParams
 import android.view.WindowManager
 import android.window.InputTransferToken
 import com.android.internal.protolog.ProtoLog
@@ -66,13 +67,7 @@ class LetterboxInputDetector(
             if (tmpState.start(tx)) {
                 state = tmpState
             } else {
-                ProtoLog.v(
-                    WM_SHELL_APP_COMPAT,
-                    "%s not started for %s on %s",
-                    TAG,
-                    "$source",
-                    "$key",
-                )
+                ProtoLog.v(WM_SHELL_APP_COMPAT, "$TAG not started for %s on %s", source, key)
             }
         }
     }
@@ -127,20 +122,18 @@ class LetterboxInputDetector(
                         "ShellLetterboxInputSurface $source",
                         "$TAG creation",
                     )
-                val inputChannel =
-                    windowSession.grantInputChannel(
-                        displayId,
-                        inputSurface,
-                        inputToken,
-                        null,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                        WindowManager.LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY,
-                        WindowManager.LayoutParams.INPUT_FEATURE_SPY,
-                        WindowManager.LayoutParams.TYPE_INPUT_CONSUMER,
-                        null,
-                        inputTransferToken,
-                        "$TAG of $source",
-                    )
+                val params = WindowInputChannelParams().apply {
+                    displayId = this@InputDetectorState.displayId
+                    surface = inputSurface
+                    this.clientToken = inputToken
+                    this.inputTransferToken = inputTransferToken
+                    type = WindowManager.LayoutParams.TYPE_INPUT_CONSUMER
+                    flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    privateFlags = WindowManager.LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY
+                    inputFeatures = WindowManager.LayoutParams.INPUT_FEATURE_SPY
+                    inputHandleName = "$TAG of $source"
+                }
+                val inputChannel = windowSession.grantInputChannel(params)
                 receiver = EventReceiver(context, inputChannel, handler, letterboxListener)
                 return true
             } catch (e: RemoteException) {
@@ -153,16 +146,16 @@ class LetterboxInputDetector(
             try {
                 tx.setWindowCrop(inputSurface, region.bounds.width(), region.bounds.height())
 
-                windowSession.updateInputChannel(
-                    receiver?.token,
-                    null /* hostInputTransferToken */,
-                    displayId,
-                    inputSurface,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                    WindowManager.LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY,
-                    WindowManager.LayoutParams.INPUT_FEATURE_SPY,
-                    region,
-                )
+                val params = WindowInputChannelParams().apply {
+                    displayId = this@InputDetectorState.displayId
+                    channelToken = receiver?.token
+                    surface = inputSurface
+                    flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    privateFlags = WindowManager.LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY
+                    inputFeatures = WindowManager.LayoutParams.INPUT_FEATURE_SPY
+                    this.region = region
+                }
+                windowSession.updateInputChannel(params)
             } catch (e: RemoteException) {
                 e.rethrowFromSystemServer()
             }

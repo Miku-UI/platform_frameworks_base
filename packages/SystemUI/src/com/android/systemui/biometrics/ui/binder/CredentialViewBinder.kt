@@ -7,15 +7,19 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.android.app.animation.Interpolators
 import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.compose.theme.PlatformTheme
 import com.android.systemui.biometrics.AuthPanelController
 import com.android.systemui.biometrics.plugins.AuthContextPlugins
 import com.android.systemui.biometrics.ui.CredentialPasswordView
 import com.android.systemui.biometrics.ui.CredentialPatternView
 import com.android.systemui.biometrics.ui.CredentialView
+import com.android.systemui.biometrics.ui.view.CredentialScreen
 import com.android.systemui.biometrics.ui.viewmodel.CredentialViewModel
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.plugins.AuthContextPlugin
@@ -36,6 +40,41 @@ private const val ANIMATE_CREDENTIAL_INITIAL_DURATION_MS = 150
  * and [CredentialPatternViewBinder].
  */
 object CredentialViewBinder {
+
+    /**
+     * Entry point for the Compose Credential View. To be removed once the root view also moves to
+     * compose
+     */
+    @JvmStatic
+    fun bindCompose(
+        view: ComposeView,
+        viewModelFactory: CredentialViewModel.Factory,
+        host: CredentialView.Host,
+        legacyCallback: Spaghetti.Callback,
+    ) {
+        view.setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+
+        view.isFocusable = true
+        view.isFocusableInTouchMode = true
+
+        view.setContent {
+            PlatformTheme {
+                CredentialScreen(
+                    viewModelFactory = viewModelFactory,
+                    onCancel = { host.onCredentialAborted() },
+                    onCredentialMatched = { credential, isAllowed ->
+                        host.onCredentialMatched(credential, isAllowed)
+                    },
+                    onFallbackSelected = { option ->
+                        legacyCallback.onFallbackOptionPressed(option)
+                    },
+                    onContentViewMoreOptionsButtonPressed = {
+                        legacyCallback.onContentViewMoreOptionsButtonPressed()
+                    },
+                )
+            }
+        }
+    }
 
     /** Binds a [CredentialPasswordView] or [CredentialPatternView] to a [CredentialViewModel]. */
     @JvmStatic
@@ -96,7 +135,7 @@ object CredentialViewBinder {
                         BiometricCustomizedViewBinder.bind(
                             customizedViewContainer,
                             header.contentView,
-                            legacyCallback,
+                            legacyCallback::onContentViewMoreOptionsButtonPressed,
                         )
 
                         iconView?.setImageDrawable(header.icon)

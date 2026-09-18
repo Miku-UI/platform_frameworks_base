@@ -29,8 +29,7 @@ import static android.view.WindowManager.TRANSIT_CHANGE;
 
 import static com.android.wm.shell.MockSurfaceControlHelper.createMockSurfaceControlTransaction;
 import static com.android.wm.shell.shared.split.SplitScreenConstants.SPLIT_POSITION_BOTTOM_OR_RIGHT;
-import static com.android.wm.shell.windowdecor.DesktopModeWindowDecoration.CLOSE_MAXIMIZE_MENU_DELAY_MS;
-import static com.android.wm.shell.windowdecor.WindowDecoration.INVALID_CORNER_RADIUS;
+import static com.android.wm.shell.windowdecor.DesktopModeWindowDecoration.CLOSE_LAYOUT_MENU_DELAY_MS;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -84,6 +83,7 @@ import android.view.MotionEvent;
 import android.view.SurfaceControl;
 import android.view.SurfaceControlViewHost;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.window.WindowContainerTransaction;
@@ -112,15 +112,19 @@ import com.android.wm.shell.common.SyncTransactionQueue;
 import com.android.wm.shell.desktopmode.CaptionState;
 import com.android.wm.shell.desktopmode.DesktopModeEventLogger;
 import com.android.wm.shell.desktopmode.DesktopModeUiEventLogger;
+import com.android.wm.shell.desktopmode.DesktopTasksController;
 import com.android.wm.shell.desktopmode.DesktopUserRepositories;
 import com.android.wm.shell.desktopmode.WindowDecorCaptionRepository;
 import com.android.wm.shell.desktopmode.data.DesktopRepository;
+import com.android.wm.shell.pinnedlayer.phone.PinnedLayerController;
 import com.android.wm.shell.shared.desktopmode.FakeDesktopConfig;
 import com.android.wm.shell.shared.desktopmode.FakeDesktopState;
 import com.android.wm.shell.splitscreen.SplitScreenController;
+import com.android.wm.shell.transition.FocusTransitionObserver;
 import com.android.wm.shell.transition.Transitions;
 import com.android.wm.shell.windowdecor.WindowDecoration.RelayoutParams;
 import com.android.wm.shell.windowdecor.caption.OccludingElement;
+import com.android.wm.shell.windowdecor.common.DecorThemeUtil;
 import com.android.wm.shell.windowdecor.common.ExclusionRegionListener;
 import com.android.wm.shell.windowdecor.common.WindowDecorTaskResourceLoader;
 import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHost;
@@ -204,8 +208,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     @Mock
     private CoroutineScope mMockMainCoroutineScope;
     @Mock
-    private CoroutineScope mMockBgCoroutineScope;
-    @Mock
     private SyncTransactionQueue mMockSyncQueue;
     @Mock
     private AppHeaderViewHolder.Factory mMockAppHeaderViewHolderFactory;
@@ -271,6 +273,13 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     private Transitions mTransitions;
     @Mock
     private LockTaskChangeListener mLockTaskChangeListener;
+    @Mock
+    private FocusTransitionObserver mFocusTransitionObserver;
+    @Mock
+    private PinnedLayerController mPinnedLayerController;
+    @Mock
+    private DesktopTasksController mDesktopTasksController;
+    private DecorThemeUtil.Factory mDecorThemeUtilFactory = new DecorThemeUtil.Factory();
     private final TestHandler mTestHandler = new TestHandler(Looper.getMainLooper());
     @Captor
     private ArgumentCaptor<Function1<Boolean, Unit>> mOnMaxMenuHoverChangeListener;
@@ -323,16 +332,18 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 Display.DEFAULT_DISPLAY);
         when(mMockHandleMenuFactory.create(any(), any(), any(), any(), any(), any(), anyInt(),
                 any(), anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean(),
-                anyBoolean(), anyBoolean(), any(), any(), any(), anyInt(), anyInt(), anyInt(),
-                anyInt()))
+                anyBoolean(), anyBoolean(), any(), any(), any(), anyInt(), anyInt(),
+                anyInt(), anyInt(), any()))
                 .thenReturn(mMockHandleMenu);
         when(mMockMultiInstanceHelper.supportsMultiInstanceSplit(any(), anyInt()))
                 .thenReturn(false);
         when(mMockAppHeaderViewHolderFactory
-                .create(any(), any(), any(), any(), any(), any(), any(), any(), any()))
+                .create(any(), any(), any(), any(), any(), any(),
+                        any(), any(), any(), any(), any()))
                 .thenReturn(mMockAppHeaderViewHolder);
         when(mMockAppHandleViewHolderFactory
-                .create(any(), any(), any(), any(), any(), any(), any()))
+                .create(any(), any(), any(), any(), any(), any(),
+                        any(), any(), any(), any(), any()))
                 .thenReturn(mMockAppHandleViewHolder);
         when(mMockDesktopUserRepositories.getCurrent()).thenReturn(mDesktopRepository);
         when(mMockDesktopUserRepositories.getProfile(anyInt())).thenReturn(mDesktopRepository);
@@ -361,124 +372,12 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
 
         // Menus should close if open before the task being invisible causes relayout to return.
         verify(spyWindowDecor).closeHandleMenu();
-        verify(spyWindowDecor).closeMaximizeMenu();
+        verify(spyWindowDecor).closeLayoutMenu();
 
     }
 
     @Test
-    @DisableFlags({Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX,
-            Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS})
-    public void updateRelayoutParams_noSysPropFlagsSet_windowShadowsAreSetForFreeform_dynamicDisabled() {
-        final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
-        taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
-        RelayoutParams relayoutParams = new RelayoutParams();
-
-        updateRelayoutParams(relayoutParams, taskInfo);
-
-        assertThat(relayoutParams.mShadowRadius)
-                .isNotEqualTo(WindowDecoration.INVALID_SHADOW_RADIUS);
-    }
-
-    @Test
-    @DisableFlags({Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX,
-            Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS})
-    public void updateRelayoutParams_noSysPropFlagsSet_windowShadowsAreNotSetForFullscreen_dynamicDisabled() {
-        final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
-        taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
-        RelayoutParams relayoutParams = new RelayoutParams();
-
-        updateRelayoutParams(relayoutParams, taskInfo);
-
-        assertThat(relayoutParams.mShadowRadius).isEqualTo(WindowDecoration.INVALID_SHADOW_RADIUS);
-    }
-
-    @Test
-    @DisableFlags({Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX,
-            Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS})
-    public void updateRelayoutParams_noSysPropFlagsSet_windowShadowsAreNotSetForSplit_dynamicDisabled() {
-        final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
-        taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_MULTI_WINDOW);
-        RelayoutParams relayoutParams = new RelayoutParams();
-
-        updateRelayoutParams(relayoutParams, taskInfo);
-
-        assertThat(relayoutParams.mShadowRadius).isEqualTo(WindowDecoration.INVALID_SHADOW_RADIUS);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX)
-    public void updateRelayoutParams_noSysPropFlagsSet_roundedCornersSetForFreeform_dynamicDisabled() {
-        final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
-        taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
-        fillRoundedCornersResources(/* fillValue= */ 30);
-        RelayoutParams relayoutParams = new RelayoutParams();
-
-        updateRelayoutParams(relayoutParams, taskInfo);
-
-        assertThat(relayoutParams.mCornerRadius).isGreaterThan(0);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX)
-    public void updateRelayoutParams_noSysPropFlagsSet_roundedCornersNotSetForFullscreen_dynamicDisabled() {
-        final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
-        taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
-        fillRoundedCornersResources(/* fillValue= */ 30);
-        RelayoutParams relayoutParams = new RelayoutParams();
-
-        updateRelayoutParams(relayoutParams, taskInfo);
-
-        assertThat(relayoutParams.mCornerRadius).isEqualTo(INVALID_CORNER_RADIUS);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX)
-    public void updateRelayoutParams_noSysPropFlagsSet_roundedCornersNotSetForSplit_dynamicDisabled() {
-        final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
-        taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_MULTI_WINDOW);
-        fillRoundedCornersResources(/* fillValue= */ 30);
-        RelayoutParams relayoutParams = new RelayoutParams();
-
-        updateRelayoutParams(relayoutParams, taskInfo);
-
-        assertThat(relayoutParams.mCornerRadius).isEqualTo(INVALID_CORNER_RADIUS);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX)
-    public void updateRelayoutParams_shouldIgnoreCornerRadius_roundedCornersNotSet_dynamicDisabled() {
-        final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
-        taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
-        fillRoundedCornersResources(/* fillValue= */ 30);
-        RelayoutParams relayoutParams = new RelayoutParams();
-
-        DesktopModeWindowDecoration.updateRelayoutParams(
-                relayoutParams,
-                mTestableContext,
-                taskInfo,
-                mMockSplitScreenController,
-                DEFAULT_APPLY_START_TRANSACTION_ON_DRAW,
-                DEFAULT_SHOULD_SET_TASK_POSITIONING_AND_CROP,
-                DEFAULT_IS_STATUSBAR_VISIBLE,
-                DEFAULT_IS_KEYGUARD_VISIBLE_AND_OCCLUDED,
-                DEFAULT_IS_IN_FULL_IMMERSIVE_MODE,
-                DEFAULT_IS_DRAGGING,
-                new InsetsState(),
-                DEFAULT_HAS_GLOBAL_FOCUS,
-                mExclusionRegion,
-                /* shouldIgnoreCornerRadius= */ true,
-                DEFAULT_SHOULD_EXCLUDE_CAPTION_FROM_APP_BOUNDS,
-                mDesktopConfig,
-                DEFAULT_IN_SYNC_WITH_TRANSITION,
-                DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
-
-        assertThat(relayoutParams.mCornerRadius).isEqualTo(INVALID_CORNER_RADIUS);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX)
-    @DisableFlags(Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS)
+    @DisableFlags(Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS_V2)
     public void updateRelayoutParams_noSysPropFlagsSet_windowShadowsAreSetForFreeform() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -490,8 +389,7 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX)
-    @DisableFlags(Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS)
+    @DisableFlags(Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS_V2)
     public void updateRelayoutParams_noSysPropFlagsSet_windowShadowsAreNotSetForFullscreen() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
@@ -503,8 +401,7 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX)
-    @DisableFlags(Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS)
+    @DisableFlags(Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS_V2)
     public void updateRelayoutParams_noSysPropFlagsSet_windowShadowsAreNotSetForSplit() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_MULTI_WINDOW);
@@ -516,8 +413,7 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX)
-    @DisableFlags(Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS)
+    @DisableFlags(Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS_V2)
     public void updateRelayoutParams_noSysPropFlagsSet_roundedCornersSetForFreeform() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -529,7 +425,7 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS)
+    @EnableFlags(Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS_V2)
     public void updateRelayoutParams_windowBoxShadowsAreSetForFreeform() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -546,8 +442,7 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
 
 
     @Test
-    @EnableFlags({Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX,
-            Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS})
+    @EnableFlags(Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS_V2)
     public void updateRelayoutParams_noSysPropFlagsSet_windowBoxShadowsAreNotSetForFullscreen() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
@@ -560,8 +455,7 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX,
-            Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS})
+    @EnableFlags(Flags.FLAG_ENABLE_FREEFORM_BOX_SHADOWS_V2)
     public void updateRelayoutParams_noSysPropFlagsSet_windowBoxShadowsAreNotSetForSplit() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_MULTI_WINDOW);
@@ -574,7 +468,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX)
     public void updateRelayoutParams_noSysPropFlagsSet_roundedCornersNotSetForFullscreen() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
@@ -586,7 +479,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX)
     public void updateRelayoutParams_noSysPropFlagsSet_roundedCornersNotSetForSplit() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_MULTI_WINDOW);
@@ -598,7 +490,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX)
     public void updateRelayoutParams_shouldIgnoreCornerRadius_roundedCornersNotSet() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -623,13 +514,13 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
 
         assertThat(relayoutParams.mCornerRadiusId).isEqualTo(Resources.ID_NULL);
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_APP_HEADER_WITH_TASK_DENSITY)
     public void updateRelayoutParams_appHeader_usesTaskDensity() {
         final int systemDensity = mTestableContext.getOrCreateTestableResources().getResources()
                 .getConfiguration().densityDpi;
@@ -642,23 +533,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
         updateRelayoutParams(relayoutParams, taskInfo);
 
         assertThat(relayoutParams.mWindowDecorConfig.densityDpi).isEqualTo(customTaskDensity);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_ENABLE_APP_HEADER_WITH_TASK_DENSITY)
-    public void updateRelayoutParams_appHeader_usesSystemDensity() {
-        mDesktopConfig.setUseDesktopOverrideDensity(true);
-        final int systemDensity = mTestableContext.getOrCreateTestableResources().getResources()
-                .getConfiguration().densityDpi;
-        final int customTaskDensity = systemDensity + 300;
-        final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
-        taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
-        taskInfo.configuration.densityDpi = customTaskDensity;
-        final RelayoutParams relayoutParams = new RelayoutParams();
-
-        updateRelayoutParams(relayoutParams, taskInfo);
-
-        assertThat(relayoutParams.mWindowDecorConfig.densityDpi).isEqualTo(systemDensity);
     }
 
     @Test
@@ -675,7 +549,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_ACCESSIBLE_CUSTOM_HEADERS)
     public void updateRelayoutParams_freeformAndTransparentAppearance_limitedTouchRegion() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -701,7 +574,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_ACCESSIBLE_CUSTOM_HEADERS)
     public void updateRelayoutParams_freeformButOpaqueAppearance_unlimitedTouchRegion() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -714,19 +586,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_REMOVE_STATUS_BAR_INPUT_LAYER)
-    public void updateRelayoutParams_fullscreenWithStatusBarInputLayer_disallowsInputFallthrough() {
-        final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
-        taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
-        final RelayoutParams relayoutParams = new RelayoutParams();
-
-        updateRelayoutParams(relayoutParams, taskInfo);
-
-        assertThat(relayoutParams.hasInputFeatureSpy()).isFalse();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_REMOVE_STATUS_BAR_INPUT_LAYER)
     public void updateRelayoutParams_fullscreenWithoutStatusBarInputLayer_isInputFeatureSpy() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
@@ -738,7 +597,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_ACCESSIBLE_CUSTOM_HEADERS)
     public void updateRelayoutParams_fullscreen_unlimitedTouchRegion() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
@@ -785,7 +643,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION)
     public void updateRelayoutParams_defaultHeader_addsForceConsumingFlag() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -798,7 +655,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION)
     public void updateRelayoutParams_customHeader_noForceConsumptionFlag() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -812,8 +668,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION,
-            Flags.FLAG_ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION_ALWAYS})
     public void updateRelayoutParams_excludeCaptionTrue_forceConsumptionFalse() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -839,7 +693,8 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
 
         // Force consuming flags are disabled.
         assertThat((relayoutParams.mInsetSourceFlags & FLAG_FORCE_CONSUMING) == 0).isTrue();
@@ -851,8 +706,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION,
-            Flags.FLAG_ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION_ALWAYS})
     public void updateRelayoutParams_excludeCaptionFalse_forceConsumptionTrue() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -878,7 +731,8 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
 
         assertThat((relayoutParams.mInsetSourceFlags & FLAG_FORCE_CONSUMING) != 0).isTrue();
         assertThat(
@@ -889,7 +743,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION_ALWAYS)
     public void updateRelayoutParams_header_addsForceConsumingCaptionBar() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -903,7 +756,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION_ALWAYS)
     public void updateRelayoutParams_handle_skipsForceConsumingCaptionBar() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
@@ -930,7 +782,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP)
     public void updateRelayoutParams_header_addsPaddingInFullImmersive() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -961,14 +812,14 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
 
         // Takes status bar inset as padding, ignores caption bar inset.
         assertThat(relayoutParams.mCaptionTopPadding).isEqualTo(50);
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP)
     public void updateRelayoutParams_header_notAnInsetsSourceInFullyImmersive() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -993,45 +844,13 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
 
         assertThat(relayoutParams.mIsInsetSource).isFalse();
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP)
-    public void updateRelayoutParams_header_statusBarInvisible_captionVisible() {
-        final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
-        taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
-        final RelayoutParams relayoutParams = new RelayoutParams();
-
-        DesktopModeWindowDecoration.updateRelayoutParams(
-                relayoutParams,
-                mTestableContext,
-                taskInfo,
-                mMockSplitScreenController,
-                DEFAULT_APPLY_START_TRANSACTION_ON_DRAW,
-                DEFAULT_SHOULD_SET_TASK_POSITIONING_AND_CROP,
-                /* isStatusBarVisible */ false,
-                DEFAULT_IS_KEYGUARD_VISIBLE_AND_OCCLUDED,
-                DEFAULT_IS_IN_FULL_IMMERSIVE_MODE,
-                DEFAULT_IS_DRAGGING,
-                new InsetsState(),
-                DEFAULT_HAS_GLOBAL_FOCUS,
-                mExclusionRegion,
-                DEFAULT_SHOULD_IGNORE_CORNER_RADIUS,
-                DEFAULT_SHOULD_EXCLUDE_CAPTION_FROM_APP_BOUNDS,
-                mDesktopConfig,
-                DEFAULT_IN_SYNC_WITH_TRANSITION,
-                DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
-
-        // Header is always shown because it's assumed the status bar is always visible.
-        assertThat(relayoutParams.mIsCaptionVisible).isTrue();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_ENTERPRISE_BUGFIX)
     public void updateRelayoutParams_header_lockedTask_captionInvisible() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
@@ -1056,7 +875,8 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 /* isTaskLocked= */ true,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
 
         // Caption should not show when in Lock Task mode
         assertThat(relayoutParams.mIsCaptionVisible).isFalse();
@@ -1087,7 +907,8 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
 
         assertThat(relayoutParams.mIsCaptionVisible).isTrue();
     }
@@ -1117,7 +938,8 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
 
         assertThat(relayoutParams.mIsCaptionVisible).isFalse();
     }
@@ -1147,13 +969,13 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
 
         assertThat(relayoutParams.mIsCaptionVisible).isFalse();
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP)
     public void updateRelayoutParams_header_fullyImmersive_captionVisFollowsStatusBar() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -1178,7 +1000,8 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
 
         assertThat(relayoutParams.mIsCaptionVisible).isTrue();
 
@@ -1201,13 +1024,13 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
 
         assertThat(relayoutParams.mIsCaptionVisible).isFalse();
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_IMMERSIVE_DRAG_BUGFIX)
     public void updateRelayoutParams_header_fullyImmersive_captionVisDuringDrag() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
@@ -1232,13 +1055,13 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
 
         assertThat(relayoutParams.mIsCaptionVisible).isTrue();
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP)
     public void updateRelayoutParams_header_fullyImmersive_overKeyguard_captionNotVisible() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
@@ -1263,7 +1086,8 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
 
         assertThat(relayoutParams.mIsCaptionVisible).isFalse();
     }
@@ -1315,28 +1139,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_TALL_APP_HEADERS)
-    public void updateRelayoutParams_header_hasDisplayCutout_ignoreCutoutInCaptionHeight() {
-        // Have cutout be larger than desktop header so it would affect the size if used
-        final int desktopHeaderHeight = mContext.getResources().getDimensionPixelSize(
-                R.dimen.desktop_view_default_header_height);
-        final int cutoutHeight = desktopHeaderHeight + 100;
-        final DisplayCutout cutout = createDisplayCutout(cutoutHeight);
-        when(mDefaultDisplay.getCutout()).thenReturn(cutout);
-
-        final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
-        taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
-        createWindowDecoration(taskInfo, /* relayout= */ true);
-
-        ArgumentCaptor<WindowManager.LayoutParams> captor = ArgumentCaptor.forClass(
-                WindowManager.LayoutParams.class);
-        verify(mMockWindowDecorViewHost).updateView(any(), captor.capture(), any(), any(), any());
-        WindowManager.LayoutParams lp = captor.getValue();
-        assertThat(lp.height).isEqualTo(desktopHeaderHeight);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_TALL_APP_HEADERS)
     public void updateRelayoutParams_largeHeader_hasDisplayCutout_ignoreCutoutInCaptionHeight() {
         // Have cutout be larger than desktop header so it would affect the size if used
         final int desktopHeaderHeight = mContext.getResources().getDimensionPixelSize(
@@ -1384,12 +1186,10 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION_ALWAYS,
-            Flags.FLAG_ENABLE_DESKTOP_WINDOWING_PIP})
     public void relayout_shouldSetAppBounds_startsTransition() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         final DesktopModeWindowDecoration spyWindowDecor =
-                spy(createWindowDecoration(taskInfo, new FakeMaximizeMenuFactory(), /* relayout= */
+                spy(createWindowDecoration(taskInfo, new FakeLayoutMenuFactory(), /* relayout= */
                         false, mTestHandler));
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
         when(mDesktopModeCompatPolicy.shouldExcludeCaptionFromAppBounds(taskInfo)).thenReturn(true);
@@ -1400,12 +1200,10 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_ENABLE_CAPTION_COMPAT_INSET_FORCE_CONSUMPTION_ALWAYS,
-            Flags.FLAG_ENABLE_DESKTOP_WINDOWING_PIP})
     public void relayout_shouldNotSetAppBounds_doesNotStartTransition() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
         final DesktopModeWindowDecoration spyWindowDecor =
-                spy(createWindowDecoration(taskInfo, new FakeMaximizeMenuFactory(), /* relayout= */
+                spy(createWindowDecoration(taskInfo, new FakeLayoutMenuFactory(), /* relayout= */
                         false, mTestHandler));
         taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FREEFORM);
         when(mDesktopModeCompatPolicy.shouldExcludeCaptionFromAppBounds(taskInfo)).thenReturn(
@@ -1417,67 +1215,67 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    public void createMaximizeMenu_showsMenu() {
+    public void createLayoutMenu_showsMenu() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
-        final MaximizeMenu menu = mock(MaximizeMenu.class);
+        final LayoutMenu menu = mock(LayoutMenu.class);
         final DesktopModeWindowDecoration decoration = createWindowDecoration(taskInfo,
-                new FakeMaximizeMenuFactory(menu));
-        assertFalse(decoration.isMaximizeMenuActive());
+                new FakeLayoutMenuFactory(menu));
+        assertFalse(decoration.isLayoutMenuActive());
 
-        createMaximizeMenu(decoration);
+        createLayoutMenu(decoration);
 
         verify(menu).show(anyBoolean(), anyBoolean(), anyBoolean(),
                 mOnMaxMenuHoverChangeListener.capture(), any(), any());
-        assertTrue(decoration.isMaximizeMenuActive());
+        assertTrue(decoration.isLayoutMenuActive());
     }
 
     @Test
-    public void maximizeMenu_unHoversMenu_schedulesCloseMenu() {
+    public void layoutMenu_unHoversMenu_schedulesCloseMenu() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
-        final MaximizeMenu menu = mock(MaximizeMenu.class);
+        final LayoutMenu menu = mock(LayoutMenu.class);
         final DesktopModeWindowDecoration decoration = createWindowDecoration(taskInfo,
-                new FakeMaximizeMenuFactory(menu));
-        decoration.setAppHeaderMaximizeButtonHovered(false);
-        createMaximizeMenu(decoration);
+                new FakeLayoutMenuFactory(menu));
+        decoration.setHeaderMaximizeButtonHovered(false);
+        createLayoutMenu(decoration);
         verify(menu).show(anyBoolean(), anyBoolean(), anyBoolean(),
                 mOnMaxMenuHoverChangeListener.capture(), any(), any());
 
         mOnMaxMenuHoverChangeListener.getValue().invoke(false);
 
         verify(mMockHandler)
-                .postDelayed(mCloseMaxMenuRunnable.capture(), eq(CLOSE_MAXIMIZE_MENU_DELAY_MS));
+                .postDelayed(mCloseMaxMenuRunnable.capture(), eq(CLOSE_LAYOUT_MENU_DELAY_MS));
 
         mCloseMaxMenuRunnable.getValue().run();
         verify(menu).close(any());
-        assertFalse(decoration.isMaximizeMenuActive());
+        assertFalse(decoration.isLayoutMenuActive());
     }
 
     @Test
-    public void maximizeMenu_unHoversButton_schedulesCloseMenu() {
+    public void layoutMenu_unHoversButton_schedulesCloseMenu() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
-        final MaximizeMenu menu = mock(MaximizeMenu.class);
+        final LayoutMenu menu = mock(LayoutMenu.class);
         final DesktopModeWindowDecoration decoration = createWindowDecoration(taskInfo,
-                new FakeMaximizeMenuFactory(menu));
-        decoration.setAppHeaderMaximizeButtonHovered(true);
-        createMaximizeMenu(decoration);
+                new FakeLayoutMenuFactory(menu));
+        decoration.setHeaderMaximizeButtonHovered(true);
+        createLayoutMenu(decoration);
 
-        decoration.setAppHeaderMaximizeButtonHovered(false);
+        decoration.setHeaderMaximizeButtonHovered(false);
 
         verify(mMockHandler)
-                .postDelayed(mCloseMaxMenuRunnable.capture(), eq(CLOSE_MAXIMIZE_MENU_DELAY_MS));
+                .postDelayed(mCloseMaxMenuRunnable.capture(), eq(CLOSE_LAYOUT_MENU_DELAY_MS));
 
         mCloseMaxMenuRunnable.getValue().run();
         verify(menu).close(any());
-        assertFalse(decoration.isMaximizeMenuActive());
+        assertFalse(decoration.isLayoutMenuActive());
     }
 
     @Test
-    public void maximizeMenu_hoversMenu_cancelsCloseMenu() {
+    public void layoutMenu_hoversMenu_cancelsCloseMenu() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
-        final MaximizeMenu menu = mock(MaximizeMenu.class);
+        final LayoutMenu menu = mock(LayoutMenu.class);
         final DesktopModeWindowDecoration decoration = createWindowDecoration(taskInfo,
-                new FakeMaximizeMenuFactory(menu));
-        createMaximizeMenu(decoration);
+                new FakeLayoutMenuFactory(menu));
+        createLayoutMenu(decoration);
         verify(menu).show(anyBoolean(), anyBoolean(), anyBoolean(),
                 mOnMaxMenuHoverChangeListener.capture(), any(), any());
 
@@ -1487,30 +1285,29 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    public void maximizeMenu_hoversButton_cancelsCloseMenu() {
+    public void layoutMenu_hoversButton_cancelsCloseMenu() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
-        final MaximizeMenu menu = mock(MaximizeMenu.class);
+        final LayoutMenu menu = mock(LayoutMenu.class);
         final DesktopModeWindowDecoration decoration = createWindowDecoration(taskInfo,
-                new FakeMaximizeMenuFactory(menu));
-        createMaximizeMenu(decoration);
+                new FakeLayoutMenuFactory(menu));
+        createLayoutMenu(decoration);
         verify(menu).show(anyBoolean(), anyBoolean(), anyBoolean(),
                 mOnMaxMenuHoverChangeListener.capture(), any(), any());
 
-        decoration.setAppHeaderMaximizeButtonHovered(true);
+        decoration.setHeaderMaximizeButtonHovered(true);
 
         verify(mMockHandler).removeCallbacks(any());
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP)
-    public void createMaximizeMenu_taskRequestsImmersive_showsImmersiveOption() {
+    public void createLayoutMenu_taskRequestsImmersive_showsImmersiveOption() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
         taskInfo.requestedVisibleTypes = ~statusBars();
-        final MaximizeMenu menu = mock(MaximizeMenu.class);
+        final LayoutMenu menu = mock(LayoutMenu.class);
         final DesktopModeWindowDecoration decoration = createWindowDecoration(taskInfo,
-                new FakeMaximizeMenuFactory(menu));
+                new FakeLayoutMenuFactory(menu));
 
-        createMaximizeMenu(decoration);
+        createLayoutMenu(decoration);
 
         verify(menu).show(
                 anyBoolean(),
@@ -1523,15 +1320,14 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP)
-    public void createMaximizeMenu_taskDoesNotRequestImmersive_hiddenImmersiveOption() {
+    public void createLayoutMenu_taskDoesNotRequestImmersive_hiddenImmersiveOption() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
         taskInfo.requestedVisibleTypes = statusBars();
-        final MaximizeMenu menu = mock(MaximizeMenu.class);
+        final LayoutMenu menu = mock(LayoutMenu.class);
         final DesktopModeWindowDecoration decoration = createWindowDecoration(taskInfo,
-                new FakeMaximizeMenuFactory(menu));
+                new FakeLayoutMenuFactory(menu));
 
-        createMaximizeMenu(decoration);
+        createLayoutMenu(decoration);
 
         verify(menu).show(
                 anyBoolean(),
@@ -1544,15 +1340,14 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP)
-    public void createMaximizeMenu_taskResizable_showsSnapOptions() {
+    public void createLayoutMenu_taskResizable_showsSnapOptions() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
         taskInfo.isResizeable = true;
-        final MaximizeMenu menu = mock(MaximizeMenu.class);
+        final LayoutMenu menu = mock(LayoutMenu.class);
         final DesktopModeWindowDecoration decoration = createWindowDecoration(taskInfo,
-                new FakeMaximizeMenuFactory(menu));
+                new FakeLayoutMenuFactory(menu));
 
-        createMaximizeMenu(decoration);
+        createLayoutMenu(decoration);
 
         verify(menu).show(
                 anyBoolean(),
@@ -1565,15 +1360,14 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP)
-    public void createMaximizeMenu_taskUnresizable_hiddenSnapOptions() {
+    public void createLayoutMenu_taskUnresizable_hiddenSnapOptions() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
         taskInfo.isResizeable = false;
-        final MaximizeMenu menu = mock(MaximizeMenu.class);
+        final LayoutMenu menu = mock(LayoutMenu.class);
         final DesktopModeWindowDecoration decoration = createWindowDecoration(taskInfo,
-                new FakeMaximizeMenuFactory(menu));
+                new FakeLayoutMenuFactory(menu));
 
-        createMaximizeMenu(decoration);
+        createLayoutMenu(decoration);
 
         verify(menu).show(
                 anyBoolean(),
@@ -1586,7 +1380,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_TO_WEB)
     public void capturedLink_CapturedLinkUsedIfValidAndWebUriUnavailable() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
         final DesktopModeWindowDecoration decor = createWindowDecoration(
@@ -1599,7 +1392,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_TO_WEB)
     public void capturedLink_capturedLinkNotResetToSameLink() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
         final DesktopModeWindowDecoration decor = createWindowDecoration(
@@ -1629,7 +1421,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_TO_WEB)
     public void capturedLink_capturedLinkSetToUsedAfterClick() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
         final DesktopModeWindowDecoration decor = createWindowDecoration(
@@ -1657,7 +1448,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_TO_WEB)
     public void capturedLink_openInBrowserListenerCalledOnClick() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
         final DesktopModeWindowDecoration decor = createWindowDecoration(
@@ -1682,9 +1472,8 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_TO_WEB,
-            com.android.wm.shell.Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE,
-            com.android.wm.shell.Flags.FLAG_ENABLE_BUBBLE_TO_FULLSCREEN})
+    @EnableFlags({com.android.wm.shell.Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE,
+ com.android.wm.shell.Flags.FLAG_ENABLE_BUBBLE_TO_FULLSCREEN})
     public void capturedLink_desktopNotAvailable_linkNotUsed() {
         mDesktopState.getOverrideDesktopModeSupportPerDisplay().put(Display.DEFAULT_DISPLAY, false);
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
@@ -1700,7 +1489,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_TO_WEB)
     public void sessionTransferUri_sessionTransferUriUsedWhenWhenAvailable() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
         final DesktopModeWindowDecoration decor = createWindowDecoration(
@@ -1712,7 +1500,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_TO_WEB)
     public void webUri_webUriUsedWhenSessionTransferUriUnavailable() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
         final DesktopModeWindowDecoration decor = createWindowDecoration(
@@ -1724,7 +1511,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_TO_WEB)
     public void genericLink_genericLinkUsedWhenCapturedLinkAndAssistContentUriUnavailable() {
         final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(true /* visible */);
         final DesktopModeWindowDecoration decor = createWindowDecoration(
@@ -1778,20 +1564,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 any(),
                 /* forceShowSystemBars= */ eq(true)
         );
-    }
-
-    @Test
-    @DisableFlags({Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_HANDLE_EDUCATION,
-            Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_TO_WEB_EDUCATION_INTEGRATION,
-            Flags.FLAG_ENABLE_APP_HANDLE_POSITION_REPORTING})
-    public void notifyCaptionStateChanged_flagDisabled_doNoNotify() {
-        final ActivityManager.RunningTaskInfo taskInfo = createTaskInfo(/* visible= */ true);
-        final DesktopModeWindowDecoration spyWindowDecor = spy(createWindowDecoration(taskInfo));
-        taskInfo.configuration.windowConfiguration.setWindowingMode(WINDOWING_MODE_FULLSCREEN);
-
-        spyWindowDecor.relayout(taskInfo, true /* hasGlobalFocus */, mExclusionRegion);
-
-        verify(mMockCaptionHandleRepository, never()).notifyCaptionChanged(any());
     }
 
     @Test
@@ -1902,7 +1674,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_TO_WEB)
     public void browserApp_transferSessionUriUsedForBrowserAppWhenAvailable() {
         // Make {@link AppToWebUtils#isBrowserApp} return true
         ResolveInfo browserResolveInfo = createResolveInfo(true /* handleAllWebUriData */);
@@ -1921,7 +1692,6 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
 
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_TO_WEB)
     public void browserApp_webUriUsedForBrowserAppWhenTransferSessionUriUnavailable() {
         // Make {@link AppToWebUtils#isBrowserApp} return true
         ResolveInfo resolveInfo = new ResolveInfo();
@@ -1971,7 +1741,7 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
 
         // Verify that calling onMaximizeButtonHoverExit does not cause a crash
         try {
-            decor.onMaximizeButtonHoverExit();
+            decor.onLayoutButtonHoverExit();
         } catch (NullPointerException e) {
             throw new AssertionError(
                     "Attempted to access view holder after window decor is closed", e);
@@ -1982,14 +1752,20 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     private void verifyHandleMenuCreated(@Nullable Uri uri) {
         verify(mMockHandleMenuFactory).create(any(), any(), any(), any(), any(), any(), anyInt(),
                 any(), anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean(), anyBoolean(),
-                anyBoolean(), anyBoolean(), argThat(intent ->
-                        (uri == null && intent == null) || intent.getData().equals(uri)),
-                any(), any(), anyInt(), anyInt(), anyInt(), anyInt());
+                anyBoolean(), anyBoolean(), argThat(appToWebData ->
+                        verifyAppToWebData(uri, appToWebData)),
+                any(), any(), anyInt(), anyInt(), anyInt(), anyInt(), any());
     }
 
-    private void createMaximizeMenu(DesktopModeWindowDecoration decoration) {
+    private boolean verifyAppToWebData(@Nullable Uri uri,
+            @Nullable HandleMenu.AppToWebData appToWebData) {
+        return uri == null ? appToWebData.getOpenInAppOrBrowserIntent() == null
+                : appToWebData.getOpenInAppOrBrowserIntent().getData().equals(uri);
+    }
+
+    private void createLayoutMenu(DesktopModeWindowDecoration decoration) {
         final Function0<Unit> l = () -> Unit.INSTANCE;
-        decoration.createMaximizeMenu();
+        decoration.createLayoutMenu();
     }
 
     private void fillRoundedCornersResources(int fillValue) {
@@ -2030,7 +1806,8 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 mDesktopConfig,
                 DEFAULT_IN_SYNC_WITH_TRANSITION,
                 DEFAULT_IS_TASK_LOCKED,
-                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR);
+                DEFAULT_OCCLUDING_ELEMENTS_CALCULATOR,
+                mDecorThemeUtilFactory);
     }
 
     private DesktopModeWindowDecoration createWindowDecoration(
@@ -2043,54 +1820,56 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
         final String genericLinkString = genericLink == null ? null : genericLink.toString();
         doReturn(genericLinkString).when(mMockGenericLinksParser).getGenericLink(any());
         // Relayout to set captured link
-        return createWindowDecoration(taskInfo, new FakeMaximizeMenuFactory(), true /* relayout */);
+        return createWindowDecoration(taskInfo, new FakeLayoutMenuFactory(), true /* relayout */);
     }
 
     private DesktopModeWindowDecoration createWindowDecoration(
             ActivityManager.RunningTaskInfo taskInfo) {
-        return createWindowDecoration(taskInfo, new FakeMaximizeMenuFactory(),
+        return createWindowDecoration(taskInfo, new FakeLayoutMenuFactory(),
                 false /* relayout */);
     }
 
     private DesktopModeWindowDecoration createWindowDecoration(
             ActivityManager.RunningTaskInfo taskInfo, boolean relayout) {
-        return createWindowDecoration(taskInfo, new FakeMaximizeMenuFactory(), relayout);
+        return createWindowDecoration(taskInfo, new FakeLayoutMenuFactory(), relayout);
     }
 
     private DesktopModeWindowDecoration createWindowDecoration(
             ActivityManager.RunningTaskInfo taskInfo,
-            MaximizeMenuFactory maximizeMenuFactory) {
-        return createWindowDecoration(taskInfo, maximizeMenuFactory, false /* relayout */);
+            LayoutMenuFactory layoutMenuFactory) {
+        return createWindowDecoration(taskInfo, layoutMenuFactory, false /* relayout */);
     }
 
     private DesktopModeWindowDecoration createWindowDecoration(
             ActivityManager.RunningTaskInfo taskInfo,
-            MaximizeMenuFactory maximizeMenuFactory,
+            LayoutMenuFactory layoutMenuFactory,
             boolean relayout) {
-        return createWindowDecoration(taskInfo, maximizeMenuFactory, relayout, mMockHandler);
+        return createWindowDecoration(taskInfo, layoutMenuFactory, relayout, mMockHandler);
     }
 
     private DesktopModeWindowDecoration createWindowDecoration(
             ActivityManager.RunningTaskInfo taskInfo,
-            MaximizeMenuFactory maximizeMenuFactory,
+            LayoutMenuFactory layoutMenuFactory,
             boolean relayout,
             Handler handler) {
         final DesktopModeWindowDecoration windowDecor = new DesktopModeWindowDecoration(mContext,
                 mContext, mMockDisplayController, mMockTaskResourceLoader,
                 mMockSplitScreenController, mMockDesktopUserRepositories, mMockShellTaskOrganizer,
                 taskInfo, mMockSurfaceControl, handler, mMainExecutor,
-                mMockMainCoroutineDispatcher, mMockMainCoroutineScope, mMockBgCoroutineScope,
+                mMockMainCoroutineDispatcher, mMockMainCoroutineScope,
                 mBgExecutor, mTransitions,
                 mMockChoreographer, mMockSyncQueue, mMockAppHeaderViewHolderFactory,
                 mMockAppHandleViewHolderFactory, mMockRootTaskDisplayAreaOrganizer,
                 mMockGenericLinksParser, mMockAssistContentRequester, SurfaceControl.Builder::new,
                 mMockTransactionSupplier, WindowContainerTransaction::new, SurfaceControl::new,
                 new WindowManagerWrapper(mMockWindowManager), mMockSurfaceControlViewHostFactory,
-                mMockWindowDecorViewHostSupplier, maximizeMenuFactory, mMockHandleMenuFactory,
+                mMockWindowDecorViewHostSupplier, layoutMenuFactory, mMockHandleMenuFactory,
                 mMockMultiInstanceHelper, mMockCaptionHandleRepository, mDesktopModeEventLogger,
                 mDesktopModeUiEventLogger, mDesktopModeCompatPolicy, mDesktopState,
-                mDesktopConfig, mMockWindowDecorationActions, mLockTaskChangeListener);
-        windowDecor.setCaptionListeners(mMockTouchEventListener, mMockTouchEventListener,
+                mDesktopConfig, mMockWindowDecorationActions, mLockTaskChangeListener,
+                mFocusTransitionObserver, mPinnedLayerController, mDesktopTasksController,
+                mDecorThemeUtilFactory);
+        windowDecor.setCaptionListeners(mMockTouchEventListener,
                 mMockTouchEventListener, mMockTouchEventListener);
         windowDecor.setExclusionRegionListener(mMockExclusionRegionListener);
         windowDecor.mDecorWindowContext = mContext;
@@ -2178,8 +1957,9 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
     }
 
     private static class TestTouchEventListener extends GestureDetector.SimpleOnGestureListener
-            implements View.OnClickListener, View.OnTouchListener, View.OnLongClickListener,
-            View.OnGenericMotionListener, DragDetector.MotionEventHandler {
+            implements View.OnClickListener, WindowDecorLinearLayout.GestureInterceptor,
+            View.OnLongClickListener, View.OnGenericMotionListener,
+            DragDetector.MotionEventHandler {
 
         @Override
         public void onClick(View v) {}
@@ -2195,6 +1975,11 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
         }
 
         @Override
+        public boolean onInterceptTouchEvent(ViewGroup v, MotionEvent event) {
+            return false;
+        }
+
+        @Override
         public boolean onTouch(View v, MotionEvent event) {
             return false;
         }
@@ -2205,20 +1990,20 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
         }
     }
 
-    private static final class FakeMaximizeMenuFactory implements MaximizeMenuFactory {
-        private final MaximizeMenu mMaximizeMenu;
+    private static final class FakeLayoutMenuFactory implements LayoutMenuFactory {
+        private final LayoutMenu mLayoutMenu;
 
-        FakeMaximizeMenuFactory() {
-            this(mock(MaximizeMenu.class));
+        FakeLayoutMenuFactory() {
+            this(mock(LayoutMenu.class));
         }
 
-        FakeMaximizeMenuFactory(MaximizeMenu menu) {
-            mMaximizeMenu = menu;
+        FakeLayoutMenuFactory(LayoutMenu menu) {
+            mLayoutMenu = menu;
         }
 
         @NonNull
         @Override
-        public MaximizeMenu create(@NonNull SyncTransactionQueue syncQueue,
+        public LayoutMenu create(@NonNull SyncTransactionQueue syncQueue,
                 @NonNull RootTaskDisplayAreaOrganizer rootTdaOrganizer,
                 @NonNull DisplayController displayController,
                 @NonNull WindowDecorationActions windowDecorationActions,
@@ -2227,8 +2012,9 @@ public class DesktopModeWindowDecorationTests extends ShellTestCase {
                 @NonNull Function2<? super Integer,? super Integer,? extends Point>
                     positionSupplier,
                 @NonNull Supplier<SurfaceControl.Transaction> transactionSupplier,
-                @NonNull DesktopModeUiEventLogger desktopModeUiEventLogger) {
-            return mMaximizeMenu;
+                @NonNull DesktopModeUiEventLogger desktopModeUiEventLogger,
+                @NonNull SplitScreenController splitScreenController) {
+            return mLayoutMenu;
         }
     }
 }

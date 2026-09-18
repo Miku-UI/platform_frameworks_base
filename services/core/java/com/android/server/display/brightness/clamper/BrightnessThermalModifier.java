@@ -168,6 +168,11 @@ class BrightnessThermalModifier implements BrightnessStateModifier,
     public void setAmbientLux(float lux) {
         // noop
     }
+
+    @PowerManager.ThermalStatus
+    int getThermalStatus() {
+        return mThrottlingStatus;
+    }
     //endregion
 
     //region DisplayDeviceDataListener

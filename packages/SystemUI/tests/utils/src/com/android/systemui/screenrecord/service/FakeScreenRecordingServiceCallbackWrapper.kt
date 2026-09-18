@@ -38,9 +38,18 @@ class FakeScreenRecordingServiceCallbackWrapper(private val real: IScreenRecordi
         real.onRecordingInterrupted(userId, reason)
     }
 
-    override fun onRecordingSaved(recordingUri: Uri, thumbnail: Icon) {
+    override fun onRecordingSaved(recordingUri: Uri, thumbnail: Icon, notificationId: Int) {
         _status.value = RecordingStatus.Saved(recordingUri = recordingUri, thumbnail = thumbnail)
-        real.onRecordingSaved(recordingUri, thumbnail)
+        real.onRecordingSaved(recordingUri, thumbnail, notificationId)
+    }
+
+    override fun onRecordingSaveError(recordingUri: Uri, notificationId: Int) {
+        real.onRecordingSaveError(recordingUri, notificationId)
+    }
+
+    override fun onSavingRecording(recordingUri: Uri, notificationId: Int) {
+        _status.value = RecordingStatus.Saving(recordingUri)
+        real.onSavingRecording(recordingUri, notificationId)
     }
 
     sealed interface RecordingStatus {
@@ -48,6 +57,8 @@ class FakeScreenRecordingServiceCallbackWrapper(private val real: IScreenRecordi
         data object Initial : RecordingStatus
 
         data object Started : RecordingStatus
+
+        data class Saving(val recordingUri: Uri) : RecordingStatus
 
         data class Saved(val recordingUri: Uri, val thumbnail: Icon) : RecordingStatus
 

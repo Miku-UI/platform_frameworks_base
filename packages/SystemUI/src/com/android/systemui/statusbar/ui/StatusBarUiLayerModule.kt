@@ -16,8 +16,6 @@
 
 package com.android.systemui.statusbar.ui
 
-import com.android.systemui.statusbar.layout.ui.viewmodel.StatusBarContentInsetsViewModelStoreModule
 import dagger.Module
 
-@Module(includes = [StatusBarContentInsetsViewModelStoreModule::class])
-object StatusBarUiLayerModule
+@Module object StatusBarUiLayerModule

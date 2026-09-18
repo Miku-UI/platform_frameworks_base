@@ -30,7 +30,7 @@
         <path
             android:name="background_track"
             android:pathData="M -180.0,-5.0 l 360.0,0 l 0,10.0 l -360.0,0 Z"
-            android:fillColor="?androidprv:attr/colorSurfaceVariant"/>
+            android:fillColor="@color/materialColorSurfaceContainerHigh"/>
         <group
             android:name="rect_grp"
             android:translateX="-197.60001"
@@ -38,7 +38,7 @@
             <path
                 android:name="rect"
                 android:pathData="M -144.0,-5.0 l 288.0,0 l 0,10.0 l -288.0,0 Z"
-                android:fillColor="@androidprv:color/materialColorPrimary" />
+                android:fillColor="@color/materialColorPrimary" />
         </group>
     </group>
 </vector>

@@ -257,7 +257,7 @@ class AccessPointControllerImplTest : SysuiTestCase() {
         // is switched. The first WifiPickerTracker should have its onStop() method called prior to
         // the new WifiPickerTracker being created.
         verify(wifiPickerTrackerFactory, times(2)).create(any(), any(), any(), any())
-        verify(wifiPickerTracker).onStop()
+        verify(wifiPickerTracker).close()
     }
 
     @Test
@@ -271,6 +271,7 @@ class AccessPointControllerImplTest : SysuiTestCase() {
         // have no effects.
         verify(wifiPickerTrackerFactory, times(1)).create(any(), any(), any(), any())
         verify(wifiPickerTracker, never()).onStop()
+        verify(wifiPickerTracker, never()).close()
     }
 
     private companion object {

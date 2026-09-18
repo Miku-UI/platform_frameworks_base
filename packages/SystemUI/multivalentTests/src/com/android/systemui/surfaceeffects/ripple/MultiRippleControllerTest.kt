@@ -20,7 +20,11 @@ import android.graphics.Color
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.surfaceeffects.ripple.MultiRippleController.Companion.MAX_RIPPLE_NUMBER
+import com.android.systemui.surfaceeffects.core.ripple.RippleAnimationConfig
+import com.android.systemui.surfaceeffects.view.ripple.MultiRippleController
+import com.android.systemui.surfaceeffects.view.ripple.MultiRippleController.Companion.MAX_RIPPLE_NUMBER
+import com.android.systemui.surfaceeffects.view.ripple.MultiRippleView
+import com.android.systemui.surfaceeffects.view.ripple.RippleAnimation
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat

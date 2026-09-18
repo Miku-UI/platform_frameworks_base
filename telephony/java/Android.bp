@@ -18,6 +18,14 @@ filegroup {
     visibility: ["//frameworks/base"],
 }
 
+filegroup {
+    name: "satellite-stub-aidl",
+    srcs: [
+        "android/telephony/satellite/stub/*.aidl",
+    ],
+    visibility: ["//cts/tests/tests/telephony/current"],
+}
+
 genrule {
     name: "statslog-telephony-java-gen",
     tools: ["stats-log-api-gen"],

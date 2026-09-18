@@ -112,6 +112,36 @@ struct OverlayableInfo {
   uint32_t policy_flags;
 };
 
+
+// Possible statuses for android feature flags
+enum class LoadedArscFeatureFlagStatus {
+  // The flag is enabled and should be included only for non-negated conditions
+  Enabled,
+  // The flag is disabled and should be included only for negated conditions
+  Disabled,
+  // The flag should always be included regardless of whether the condition is negated or not
+  AlwaysShown,
+  // The flag should never be included regardless of whether the condition is negated or not
+  AlwaysHidden,
+  // The status of the flag is unknown
+  Unknown
+};
+
+struct FeatureFlagInfo {
+  std::string name;
+  LoadedArscFeatureFlagStatus status;
+};
+
+inline bool ShouldIncludeFlaggedResource(LoadedArscFeatureFlagStatus status, bool flag_negated) {
+  return (status == LoadedArscFeatureFlagStatus::AlwaysShown) ||
+         ((status == LoadedArscFeatureFlagStatus::Enabled) && !flag_negated) ||
+         ((status == LoadedArscFeatureFlagStatus::Disabled) && flag_negated);
+};
+
+// A map from flag name (as an index in the StringPool it's stored in) to enabled status, during
+// resource loading we can check flag values to determine if values should be included
+using FlagMap = std::unordered_map<size_t, FeatureFlagInfo>;
+
 class LoadedPackage {
  public:
   class iterator {
@@ -164,7 +194,8 @@ class LoadedPackage {
   }
 
   static std::unique_ptr<const LoadedPackage> Load(const Chunk& chunk,
-                                                   package_property_t property_flags);
+                                                   package_property_t property_flags,
+                                                   const FlagMap& flag_map);
 
   // Finds the entry with the specified type name and entry name. The names are in UTF-16 because
   // the underlying ResStringPool API expects this. For now this is acceptable, but since
@@ -312,19 +343,6 @@ class LoadedPackage {
   // A map of overlayable name to actor
   std::unordered_map<std::string, std::string> overlayable_map_;
 };
-
-// Possible statuses for android feature flags
-enum class LoadedArscFlagStatus {
-  Enabled,
-  Disabled,
-  AlwaysShown,
-  AlwaysHidden,
-  Unknown
-};
-
-// A map from flag name to enabled status, during resource loading we can check flag values to
-// determine if values should be included
-using FlagMap = std::unordered_map<std::string, LoadedArscFlagStatus>;
 
 // A callback that take a flag map and populates the enabled status for each of the flags
 using GetFlagValuesFunc = std::function<void(FlagMap&)>;

@@ -31,6 +31,7 @@ import com.android.systemui.communal.data.backup.CommunalBackupUtilsTest.Compani
 import com.android.systemui.communal.data.backup.CommunalBackupUtilsTest.FakeWidgetMetadata
 import com.android.systemui.communal.data.db.CommunalDatabase
 import com.android.systemui.communal.data.db.CommunalWidgetDao
+import com.android.systemui.communal.data.model.CommunalWidgetId
 import com.android.systemui.communal.proto.toCommunalHubState
 import com.android.systemui.communal.shared.model.SpanValue
 import com.android.systemui.lifecycle.InstantTaskExecutorRule
@@ -140,7 +141,7 @@ class CommunalBackupHelperTest : SysuiTestCase() {
             )
             .onEach {
                 dao.addWidget(
-                    widgetId = it.widgetId,
+                    widgetId = CommunalWidgetId(it.widgetId),
                     componentName = it.componentName,
                     rank = it.rank,
                     userSerialNumber = it.userSerialNumber,

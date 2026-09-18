@@ -37,7 +37,6 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.mock;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spy;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
 import static com.android.server.job.Flags.FLAG_BATCH_CONNECTIVITY_JOBS_PER_NETWORK;
-import static com.android.server.job.Flags.FLAG_RELAX_PREFETCH_CONNECTIVITY_CONSTRAINT_ONLY_ON_CHARGER;
 import static com.android.server.job.JobSchedulerService.FREQUENT_INDEX;
 import static com.android.server.job.JobSchedulerService.RARE_INDEX;
 import static com.android.server.job.JobSchedulerService.RESTRICTED_INDEX;
@@ -936,19 +935,6 @@ public class ConnectivityControllerTest {
             assertFalse(controller.isSatisfied(latePrefetch, net, caps, mConstants));
             assertFalse(controller.isSatisfied(latePrefetchUnknownDown, net, caps, mConstants));
             assertFalse(controller.isSatisfied(latePrefetchUnknownUp, net, caps, mConstants));
-            mSetFlagsRule.disableFlags(FLAG_RELAX_PREFETCH_CONNECTIVITY_CONSTRAINT_ONLY_ON_CHARGER);
-            when(mService.isBatteryCharging()).thenReturn(false);
-            when(mService.isBatteryNotLow()).thenReturn(false);
-
-            when(mNetPolicyManagerInternal.getSubscriptionOpportunisticQuota(
-                    any(), eq(NetworkPolicyManagerInternal.QUOTA_TYPE_JOBS)))
-                    .thenReturn(9876543210L);
-            assertTrue(controller.isSatisfied(latePrefetch, net, caps, mConstants));
-            // Only relax restrictions when we at least know the estimated download bytes.
-            assertFalse(controller.isSatisfied(latePrefetchUnknownDown, net, caps, mConstants));
-            assertTrue(controller.isSatisfied(latePrefetchUnknownUp, net, caps, mConstants));
-
-            mSetFlagsRule.enableFlags(FLAG_RELAX_PREFETCH_CONNECTIVITY_CONSTRAINT_ONLY_ON_CHARGER);
             when(mNetPolicyManagerInternal.getSubscriptionOpportunisticQuota(
                     any(), eq(NetworkPolicyManagerInternal.QUOTA_TYPE_JOBS)))
                     .thenReturn(9876543210L);

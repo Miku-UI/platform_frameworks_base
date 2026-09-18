@@ -56,6 +56,7 @@ import java.io.FileDescriptor;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 import sun.misc.Cleaner;
 
@@ -260,17 +261,22 @@ public class HardwareRenderer {
     /**
      * Creates a new instance of a HardwareRenderer. The HardwareRenderer will default
      * to opaque with no light source configured.
+     * @hide
      */
-    public HardwareRenderer() {
+    public HardwareRenderer(boolean useIpcCanvas) {
         ProcessInitializer.sInstance.initUsingContext();
         mRootNode = RenderNode.adopt(nCreateRootRenderNode());
         mRootNode.setClipToBounds(false);
-        mNativeProxy = nCreateProxy(!mOpaque, mRootNode.mNativeRenderNode);
+        mNativeProxy = nCreateProxy(!mOpaque, mRootNode.mNativeRenderNode, useIpcCanvas);
         if (mNativeProxy == 0) {
             throw new OutOfMemoryError("Unable to create hardware renderer");
         }
         Cleaner.create(this, new DestroyContextRunnable(mNativeProxy));
         ProcessInitializer.sInstance.init(mNativeProxy);
+    }
+
+    public HardwareRenderer() {
+        this(false);
     }
 
     /**
@@ -412,6 +418,40 @@ public class HardwareRenderer {
     }
 
     /**
+     * @hide
+     */
+    public interface CornerRadiiCallback {
+        /**
+         * @hide
+         */
+        void onCornerRadiiChanged(float[] cornerRadii);
+    }
+
+    /**
+     * @hide
+     */
+    public void setCornerRadiiCallback(@Nullable CornerRadiiCallback callback) {
+        nSetCornerRadiiCallback(mNativeProxy, callback);
+    }
+
+    /**
+     * @hide
+     */
+    public interface WaitForBufferReleaseCallback {
+        /**
+         * @hide
+         */
+        void onWaitForBufferRelease(long durationNanos);
+    }
+
+    /**
+     * @hide
+     */
+    public void setWaitForBufferReleaseCallback(@Nullable WaitForBufferReleaseCallback callback) {
+        nSetWaitForBufferReleaseCallback(mNativeProxy, callback);
+    }
+
+    /**
      * Sets the SurfaceControl to be used internally inside render thread
      * @hide
      * @param surfaceControl The surface control to pass to render thread in hwui.
@@ -420,6 +460,7 @@ public class HardwareRenderer {
     public void setSurfaceControl(@Nullable SurfaceControl surfaceControl,
             @Nullable BLASTBufferQueue blastBufferQueue) {
         nSetSurfaceControl(mNativeProxy, surfaceControl != null ? surfaceControl.mNativeObject : 0);
+        nSetBLASTBufferQueue(mNativeProxy, blastBufferQueue != null ? blastBufferQueue.mNativeObject : 0);
     }
 
     /**
@@ -464,7 +505,7 @@ public class HardwareRenderer {
         public @NonNull FrameRenderRequest setVsyncTime(long vsyncTime) {
             // TODO(b/168552873): populate vsync Id once available to Choreographer public API
             mFrameInfo.setVsync(vsyncTime, vsyncTime, FrameInfo.INVALID_VSYNC_ID, Long.MAX_VALUE,
-                    vsyncTime, -1);
+                    vsyncTime, -1, -1);
             mFrameInfo.addFlags(FrameInfo.FLAG_SURFACE_CANVAS);
             return this;
         }
@@ -652,6 +693,26 @@ public class HardwareRenderer {
     }
 
     /**
+     * Toggles whether or not this HardwareRenderer instance will produce drawing output.
+     *
+     * Unlike the global {@link #setDrawingEnabled(boolean)} toggle which applies to all
+     * HardwareRenderer instances, this toggle only applies to the instance on which it is applied.
+     * This renderer will only produce output if and only if drawing is enabled via BOTH
+     * {@link #setDrawingEnabled(boolean)} and this method. Drawing is enabled by default.
+     *
+     * This can be toggled on and off at will to enable screenshot-based system features. For
+     * example, you can toggle drawing on, force a frame to be drawn (e.g. by calling
+     * view#invalidate()), and toggle it back off once the frame is drawn to produce a single frame
+     * output.
+     *
+     * @see #setDrawingEnabled(boolean)
+     * @hide
+     */
+    public void setRendererDrawingEnabled(boolean enabled) {
+        nSetDrawingEnabledForProxy(mNativeProxy, enabled);
+    }
+
+    /**
      * Allocate buffers ahead of time to avoid allocation delays during rendering.
      *
      * <p>Typically a Surface will allocate buffers lazily. This is usually fine and reduces the
@@ -696,6 +757,17 @@ public class HardwareRenderer {
             mOpaque = opaque;
             nSetOpaque(mNativeProxy, mOpaque);
         }
+    }
+
+    /**
+     * Sets whether the performance hint session is enabled. By default, the hint session
+     * is enabled.
+     *
+     * @param enabled true if the performance hint session is enabled, false otherwise.
+     * @hide
+     */
+    public void setHintSessionEnabled(boolean enabled) {
+        nSetHintSessionEnabled(mNativeProxy, enabled);
     }
 
     /**
@@ -1144,6 +1216,114 @@ public class HardwareRenderer {
         nNotifyGpuLoadUp(mNativeProxy);
     }
 
+
+    /**
+     * The following methods are used to synchronize with frame production. While they
+     * can be invoked from any-thread, in general it only makes sense to invoke them from
+     * RenderThread or the RenderThread worker pool, as otherwise we can't guarantee which
+     * frame we are syncing with. An exception is applyTransactionInOrder which can be invoked
+     * from any thread while maintaining correctness.
+     *
+     * @hide
+     */
+    public class SyncInterface {
+        /**
+         * Send a callback that accepts a transaction to BBQ. BBQ will acquire buffers into the a
+         * transaction it created and will eventually send the transaction into the callback
+         * when it is ready.
+         * @param callback The callback invoked when the buffer has been added to the transaction. The
+         *                 callback will contain the transaction with the buffer.
+         * @param acquireSingleBuffer If true, only acquire a single buffer when processing frames. The
+         *                            callback will be cleared once a single buffer has been
+         *                            acquired. If false, continue to acquire all buffers into the
+         *                            transaction until stopContinuousSyncTransaction is called.
+         * @hide
+         */
+        public static boolean syncNextTransaction(HardwareRenderer r, boolean acquireSingleBuffer,
+                @NonNull Consumer<SurfaceControl.Transaction> callback) {
+            return nSyncNextTransaction(r.mNativeProxy, callback, acquireSingleBuffer);
+        }
+
+        /**
+         * Send a callback that accepts a transaction to BBQ. BBQ will acquire buffers into the a
+         * transaction it created and will eventually send the transaction into the callback
+         * when it is ready.
+         * @param callback The callback invoked when the buffer has been added to the transaction. The
+         *                 callback will contain the transaction with the buffer.
+         * @hide
+         */
+        public static boolean syncNextTransaction(HardwareRenderer r, @NonNull Consumer<SurfaceControl.Transaction> callback) {
+            return syncNextTransaction(r, true /* acquireSingleBuffer */, callback);
+        }
+
+        /**
+         * Apply any transactions that were passed to {@link #mergeWithNextTransaction} with the
+         * specified frameNumber. This is intended to ensure transactions don't get stuck as pending
+         * if the specified frameNumber is never drawn.
+         *
+         * @param frameNumber The frameNumber used to determine which transactions to apply.
+         * @hide
+         */
+        public static void applyPendingTransactions(HardwareRenderer r, long frameNumber) {
+            nApplyPendingTransactions(r.mNativeProxy, frameNumber);
+        }
+
+        /**
+         * Merge the transaction passed in to the next transaction in BlastBufferQueue. The next
+         * transaction will be applied or merged when the next frame with specified frame number
+         * is available.
+         * @hide
+         */
+        public static void mergeWithNextTransaction(HardwareRenderer r, SurfaceControl.Transaction t, long frameNumber) {
+            nMergeWithNextTransaction(r.mNativeProxy, t.mNativeObject, frameNumber);
+        }
+
+        /**
+         * Applies the given transaction with the Transaction queues of the HardwareRenderer
+         * meaning the Transaction will be applied after any work already submitted by the
+         * HardwareRenderer.
+         *
+         * @hide
+         */
+        public static void applyTransactionInOrder(HardwareRenderer r, SurfaceControl.Transaction t) {
+            nMergeWithNextTransaction(r.mNativeProxy, t.mNativeObject, 0);
+        }
+
+        /**
+         * Clear the sync transaction. The callback will not be invoked when the next frame is
+         * acquired.
+         * @hide
+         */
+        public static void clearSyncTransaction(HardwareRenderer r) {
+            nClearSyncTransaction(r.mNativeProxy);
+        }
+
+        /**
+         * Get any transactions that were passed to {@link #mergeWithNextTransaction} with the
+         * specified frameNumber. This is intended to ensure transactions don't get stuck as pending
+         * if the specified frameNumber is never drawn.
+         *
+         * @param frameNumber The frameNumber used to determine which transactions to apply.
+         * @return a Transaction that contains the merge of all the transactions that were sent to
+         *         mergeWithNextTransaction
+         * @hide
+         */
+        public static SurfaceControl.Transaction gatherPendingTransactions(HardwareRenderer r,
+                long frameNumber) {
+            return nGatherPendingTransactions(r.mNativeProxy, frameNumber);
+        }
+    }
+
+    /**
+     * Update the size of the rendering surface. At the moment only used
+     * for out-of-process-rendering
+     *
+     * @hide
+     */
+    public void updateRenderTargetSize(long width, long height) {
+        nUpdateRenderTargetSize(mNativeProxy, width, height);
+    }
+
     /**
      * b/68769804, b/66945974: For low FPS experiments.
      *
@@ -1341,7 +1521,7 @@ public class HardwareRenderer {
      * emulators or if {@link #setDrawingEnabled(boolean)} is used.
      */
     public static boolean isDrawingEnabled() {
-        return nIsDrawingEnabled();
+        return nIsDrawingEnabledForProcess();
     }
 
     /**
@@ -1363,7 +1543,7 @@ public class HardwareRenderer {
      */
     // TODO(b/194195794): Add link to androidx's Screenshot library for help with this
     public static void setDrawingEnabled(boolean drawingEnabled) {
-        nSetDrawingEnabled(drawingEnabled);
+        nSetDrawingEnabledForProcess(drawingEnabled);
     }
 
     /**
@@ -1374,6 +1554,17 @@ public class HardwareRenderer {
      */
     public static void setRtAnimationsEnabled(boolean enabled) {
         nSetRtAnimationsEnabled(enabled);
+    }
+
+    /**
+     * Disable renderThread animations drawn directly from the same window as the renderThread plan.
+     * This option is used when we do not want to de-schedule draw requests from the UI thread
+     * and do not want to disable the RenderThread animation of other windows in the same process.
+     *
+     * @hide
+     */
+    public void setRtAnimationsEnabledForWindow(boolean enabled) {
+        nSetRtAnimationsEnabledForContext(mNativeProxy, enabled);
     }
 
     private static final class DestroyContextRunnable implements Runnable {
@@ -1607,7 +1798,8 @@ public class HardwareRenderer {
 
     private static native long nCreateRootRenderNode();
 
-    private static native long nCreateProxy(boolean translucent, long rootRenderNode);
+    private static native long nCreateProxy(boolean translucent, long rootRenderNode,
+            boolean useIpc);
 
     private static native void nDeleteProxy(long nativeProxy);
 
@@ -1618,6 +1810,11 @@ public class HardwareRenderer {
     private static native void nSetSurface(long nativeProxy, Surface window, boolean discardBuffer);
 
     private static native void nSetSurfaceControl(long nativeProxy, long nativeSurfaceControl);
+    private static native void nSetBLASTBufferQueue(long nativeProxy, long nativeBbq);
+    private static native void nSetCornerRadiiCallback(long nativeProxy,
+            CornerRadiiCallback callback);
+    private static native void nSetWaitForBufferReleaseCallback(long nativeProxy,
+            WaitForBufferReleaseCallback callback);
 
     private static native boolean nPause(long nativeProxy);
 
@@ -1630,6 +1827,8 @@ public class HardwareRenderer {
             float spotShadowAlpha);
 
     private static native void nSetOpaque(long nativeProxy, boolean opaque);
+
+    private static native void nSetHintSessionEnabled(long nativeProxy, boolean enabled);
 
     private static native float nSetColorMode(long nativeProxy, int colorMode);
 
@@ -1740,15 +1939,31 @@ public class HardwareRenderer {
             boolean supportsFp16ForHdr, boolean isRgba10101010SupportedForHdr,
             boolean nSupportMixedColorSpaces);
 
-    private static native void nSetDrawingEnabled(boolean drawingEnabled);
+    private static native void nSetDrawingEnabledForProcess(boolean drawingEnabled);
 
-    private static native boolean nIsDrawingEnabled();
+    private static native boolean nIsDrawingEnabledForProcess();
+
+    private static native void nSetDrawingEnabledForProxy(long nativeProxy, boolean enabled);
 
     private static native void nSetRtAnimationsEnabled(boolean rtAnimationsEnabled);
+
+    private static native void nSetRtAnimationsEnabledForContext(long nativeProxy,
+            boolean rtAnimationsEnabled);
 
     private static native void nNotifyCallbackPending(long nativeProxy);
 
     private static native void nNotifyExpensiveFrame(long nativeProxy);
 
     private static native void nNotifyGpuLoadUp(long nativeProxy);
+
+    private static native boolean nSyncNextTransaction(long ptr,
+            Consumer<SurfaceControl.Transaction> callback, boolean acquireSingleBuffer);
+
+    private static native void nMergeWithNextTransaction(long ptr, long transactionPtr,
+                                                              long frameNumber);
+    private static native void nApplyPendingTransactions(long ptr, long frameNumber);
+    private static native void nClearSyncTransaction(long ptr);
+    private static native SurfaceControl.Transaction nGatherPendingTransactions(long ptr,
+            long frameNumber);
+    private static native void nUpdateRenderTargetSize(long ptr, long width, long height);
 }

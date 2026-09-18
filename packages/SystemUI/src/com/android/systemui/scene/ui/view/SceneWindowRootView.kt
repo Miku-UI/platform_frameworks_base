@@ -7,6 +7,8 @@ import android.view.View
 import android.view.WindowInsets
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import com.android.systemui.Flags.blackScreenOnSceneContainerStartFix
+import com.android.systemui.keyguard.ui.viewmodel.AuthRippleScrimViewModel
 import com.android.systemui.scene.shared.model.SceneContainerConfig
 import com.android.systemui.scene.shared.model.SceneDataSourceDelegator
 import com.android.systemui.scene.ui.composable.Overlay
@@ -32,9 +34,14 @@ class SceneWindowRootView(context: Context, attrs: AttributeSet?) : WindowRootVi
         layoutInsetController: LayoutInsetsController,
         sceneDataSourceDelegator: SceneDataSourceDelegator,
         sceneJankMonitorFactory: SceneJankMonitor.Factory,
+        sceneTransitionLatencyMonitor: SceneTransitionLatencyMonitor,
         windowRootViewKeyEventHandler: WindowRootViewKeyEventHandler,
         tintedIconManagerFactory: TintedIconManager.Factory,
+        authRippleViewModelFactory: AuthRippleScrimViewModel.Factory,
     ) {
+        if (blackScreenOnSceneContainerStartFix()) {
+            super.setVisibility(View.INVISIBLE)
+        }
         setLayoutInsetsController(layoutInsetController)
         SceneWindowRootViewBinder.bind(
             view = this@SceneWindowRootView,
@@ -52,7 +59,9 @@ class SceneWindowRootView(context: Context, attrs: AttributeSet?) : WindowRootVi
             },
             dataSourceDelegator = sceneDataSourceDelegator,
             sceneJankMonitorFactory = sceneJankMonitorFactory,
+            sceneTransitionLatencyMonitor = sceneTransitionLatencyMonitor,
             tintedIconManagerFactory = tintedIconManagerFactory,
+            authRippleViewModelFactory = authRippleViewModelFactory,
         )
         setWindowRootViewKeyEventHandler(windowRootViewKeyEventHandler)
     }

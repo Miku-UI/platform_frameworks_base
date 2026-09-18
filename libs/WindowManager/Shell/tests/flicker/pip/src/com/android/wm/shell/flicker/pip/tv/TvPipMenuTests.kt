@@ -67,25 +67,24 @@ class TvPipMenuTests : TvPipTestBase() {
             testApp.ui?.visibleBounds ?: error("Could not retrieve Pip Activity bounds")
         assertTrue(
             "Pip Activity is positioned correctly while Pip menu is shown",
-            pipBoundsWhileInMenu == activityBounds
+            pipBoundsWhileInMenu == activityBounds,
         )
 
         // Make sure the Pip Menu Actions are positioned correctly.
         uiDevice.findTvPipMenuControls()?.visibleBounds?.run {
             assertTrue(
                 "Pip Menu Actions should be positioned below the Activity in Pip",
-                top >= activityBounds.bottom
+                top >= activityBounds.bottom,
             )
             assertTrue(
                 "Pip Menu Actions should be positioned central horizontally",
-                centerX() == uiDevice.displayWidth / 2
+                centerX() == uiDevice.displayWidth / 2,
             )
             assertTrue(
                 "Pip Menu Actions should be fully shown on the screen",
-                left >= 0 && right <= uiDevice.displayWidth && bottom <= uiDevice.displayHeight
+                left >= 0 && right <= uiDevice.displayWidth && bottom <= uiDevice.displayHeight,
             )
-        }
-            ?: error("Could not retrieve Pip Menu Actions bounds")
+        } ?: error("Could not retrieve Pip Menu Actions bounds")
 
         testApp.closePipWindow()
     }
@@ -138,7 +137,7 @@ class TvPipMenuTests : TvPipTestBase() {
         uiDevice.clickTvPipMenuFullscreenButton()
         assertTrue(
             "\"Full screen\" button should open the app fullscreen",
-            wait { testApp.ui?.isFullscreen(uiDevice) ?: false }
+            wait { testApp.ui?.isFullscreen(uiDevice) ?: false },
         )
 
         // Close the app
@@ -198,7 +197,7 @@ class TvPipMenuTests : TvPipTestBase() {
             ?: fail("\"On\" button should be shown in Pip for a corresponding custom action")
         assertNull(
             "\"No-Op\" button should not be shown in Pip menu",
-            uiDevice.findTvPipMenuElementWithDescription(ActivityOptions.Pip.MENU_ACTION_NO_OP)
+            uiDevice.findTvPipMenuElementWithDescription(ActivityOptions.Pip.MENU_ACTION_NO_OP),
         )
         uiDevice.findTvPipMenuElementWithDescription(ActivityOptions.Pip.MENU_ACTION_CLEAR)
             ?: fail("\"Clear\" button should be shown in Pip menu")
@@ -213,15 +212,15 @@ class TvPipMenuTests : TvPipTestBase() {
             ?.also { isGone -> if (!isGone) fail("\"On\" button should not be shown in Pip menu") }
         assertNull(
             "\"Off\" button should not be shown in Pip menu",
-            uiDevice.findTvPipMenuElementWithDescription(ActivityOptions.Pip.MENU_ACTION_OFF)
+            uiDevice.findTvPipMenuElementWithDescription(ActivityOptions.Pip.MENU_ACTION_OFF),
         )
         assertNull(
             "\"Clear\" button should not be shown in Pip menu",
-            uiDevice.findTvPipMenuElementWithDescription(ActivityOptions.Pip.MENU_ACTION_CLEAR)
+            uiDevice.findTvPipMenuElementWithDescription(ActivityOptions.Pip.MENU_ACTION_CLEAR),
         )
         assertNull(
             "\"No-Op\" button should not be shown in Pip menu",
-            uiDevice.findTvPipMenuElementWithDescription(ActivityOptions.Pip.MENU_ACTION_NO_OP)
+            uiDevice.findTvPipMenuElementWithDescription(ActivityOptions.Pip.MENU_ACTION_NO_OP),
         )
         // ... but the menu should still contain the "Full screen" and "Close" buttons.
         assertFullscreenAndCloseButtonsAreShown()
@@ -248,11 +247,11 @@ class TvPipMenuTests : TvPipTestBase() {
         // ... but should not contain media buttons.
         assertNull(
             "\"Play\" button should not be shown in menu when there are custom actions",
-            uiDevice.findTvPipMenuElementWithDescription(playButtonDescription)
+            uiDevice.findTvPipMenuElementWithDescription(playButtonDescription),
         )
         assertNull(
             "\"Pause\" button should not be shown in menu when there are custom actions",
-            uiDevice.findTvPipMenuElementWithDescription(pauseButtonDescription)
+            uiDevice.findTvPipMenuElementWithDescription(pauseButtonDescription),
         )
 
         uiDevice.clickTvPipMenuElementWithDescription(ActivityOptions.Pip.MENU_ACTION_CLEAR)

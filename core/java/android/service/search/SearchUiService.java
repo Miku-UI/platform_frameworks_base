@@ -48,8 +48,8 @@ import java.util.function.Consumer;
  * and also to return search result on a query.
  *
  * To understand the lifecycle of search session and how a query get issued,
- * {@see SearchSession}
  *
+ * @see SearchSession
  * @hide
  */
 @SystemApi
@@ -178,7 +178,7 @@ public abstract class SearchUiService extends Service {
      * Called by a client to indicate an interaction (tap, long press, drag, etc) on target(s)
      * and lifecycle event on the search surface (e.g., visibility change).
      *
-     * {@see SearchTargetEvent}
+     * @see SearchTargetEvent
      */
     @MainThread
     public abstract void onNotifyEvent(@NonNull SearchSessionId sessionId,

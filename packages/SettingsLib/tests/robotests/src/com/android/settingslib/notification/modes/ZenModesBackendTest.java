@@ -34,9 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.robolectric.Shadows.shadowOf;
 
-import android.app.Application;
 import android.app.AutomaticZenRule;
 import android.app.NotificationManager;
 import android.app.NotificationManager.Policy;
@@ -58,10 +56,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 import org.robolectric.RobolectricTestRunner;
-import org.robolectric.RuntimeEnvironment;
-import org.robolectric.shadows.ShadowApplication;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -93,6 +90,8 @@ public class ZenModesBackendTest {
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule(
             SetFlagsRule.DefaultInitValueType.DEVICE_DEFAULT);
+    @Rule
+    public final MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     // Helper methods to add active/inactive rule state to a config. Returns a copy.
     private static ZenModeConfig configWithManualRule(ZenModeConfig base, boolean active) {
@@ -145,13 +144,8 @@ public class ZenModesBackendTest {
 
     @Before
     public void setup() {
-        MockitoAnnotations.initMocks(this);
-        ShadowApplication shadowApplication =
-                shadowOf((Application) ApplicationProvider.getApplicationContext());
-        shadowApplication.setSystemService(Context.NOTIFICATION_SERVICE, mNm);
-
-        mContext = RuntimeEnvironment.application;
-        mBackend = new ZenModesBackend(mContext);
+        mContext = ApplicationProvider.getApplicationContext();
+        mBackend = new ZenModesBackend(mContext, mNm);
 
         // Default catch-all case with no data. This isn't realistic, but tests below that rely
         // on the config to get data on rules active will create those individually.

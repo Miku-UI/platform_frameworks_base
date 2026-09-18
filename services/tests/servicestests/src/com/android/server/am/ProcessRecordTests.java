@@ -20,9 +20,12 @@ import static android.testing.DexmakerShareClassLoaderRule.runWithDexmakerShareC
 
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -37,6 +40,8 @@ import androidx.test.filters.FlakyTest;
 
 import com.android.internal.os.TimeoutRecord;
 import com.android.server.LocalServices;
+import com.android.server.am.psc.ProcessRecordInternal;
+import com.android.server.am.psc.ProcessStateController;
 import com.android.server.wm.ActivityTaskManagerService;
 
 import org.junit.AfterClass;
@@ -72,8 +77,12 @@ public class ProcessRecordTests {
             final ProcessStateController psc = mock(ProcessStateController.class);
             doReturn(mock(ProcessStateController.ActivityStateAsyncUpdater.class)).when(
                     psc).createActivityStateAsyncUpdater(any());
+            doCallRealMethod().when(psc).setKilled(any(ProcessRecordInternal.class), anyBoolean());
+            doCallRealMethod().when(psc).setKilledByAm(any(ProcessRecordInternal.class),
+                    anyBoolean());
 
             sService = mock(ActivityManagerService.class);
+            sService.mProcessStateController = psc;
             sService.mActivityTaskManager = new ActivityTaskManagerService(sContext);
             sService.mActivityTaskManager.initialize(null, null, psc, sContext.getMainLooper());
             sService.mAtmInternal = sService.mActivityTaskManager.getAtmInternal();
@@ -155,7 +164,7 @@ public class ProcessRecordTests {
      */
     @Test
     public void testAnrWhenKilledByAm() {
-        mProcessRecord.setKilledByAm(true);
+        sService.mProcessStateController.setKilledByAm(mProcessRecord, true);
         appNotResponding(mProcessErrorState, "Test ANR when killed by AM");
         assertFalse(mProcessErrorState.isNotResponding());
         assertFalse(mProcessErrorState.isCrashing());
@@ -167,7 +176,7 @@ public class ProcessRecordTests {
      */
     @Test
     public void testAnrWhenKilled() {
-        mProcessRecord.setKilled(true);
+        sService.mProcessStateController.setKilled(mProcessRecord, true);
         appNotResponding(mProcessErrorState, "Test ANR when killed");
         assertFalse(mProcessErrorState.isNotResponding());
         assertFalse(mProcessErrorState.isCrashing());
@@ -200,6 +209,20 @@ public class ProcessRecordTests {
         assertFalse(mProcessErrorState.isCrashing());
         assertTrue(mProcessRecord.isKilledByAm());
         assertTrue(mProcessRecord.isKilled());
+    }
+
+    @Test
+    public void testHostingRecordCallerInfo() {
+        final int callerUid = 54321;
+        final String callerProcessName = "com.caller";
+        final HostingRecord hostingRecord = new HostingRecord(HostingRecord.HOSTING_TYPE_BROADCAST,
+                new ComponentName(sContext.getPackageName(), "Receiver"), "action",
+                HostingRecord.TRIGGER_TYPE_PUSH_MESSAGE, false, callerUid, callerProcessName);
+        mProcessRecord.setHostingRecord(hostingRecord);
+
+        assertEquals(hostingRecord, mProcessRecord.getHostingRecord());
+        assertEquals(callerUid, mProcessRecord.getHostingRecord().getCallerUid());
+        assertEquals(callerProcessName, mProcessRecord.getHostingRecord().getCallerProcessName());
     }
 
     private void appNotResponding(ProcessErrorStateRecord processErrorState,

@@ -16,11 +16,11 @@
 
 package com.android.systemui.statusbar.window
 
-import android.app.StatusBarManager.WindowVisibleState
 import android.app.StatusBarManager.WINDOW_NAVIGATION_BAR
 import android.app.StatusBarManager.WINDOW_STATE_HIDDEN
 import android.app.StatusBarManager.WINDOW_STATE_SHOWING
 import android.app.StatusBarManager.WINDOW_STATUS_BAR
+import android.app.StatusBarManager.WindowVisibleState
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -40,8 +40,7 @@ class StatusBarWindowStateControllerTest : SysuiTestCase() {
     private lateinit var controller: StatusBarWindowStateController
     private lateinit var callback: CommandQueue.Callbacks
 
-    @Mock
-    private lateinit var commandQueue: CommandQueue
+    @Mock private lateinit var commandQueue: CommandQueue
 
     @Before
     fun setUp() {
@@ -51,6 +50,13 @@ class StatusBarWindowStateControllerTest : SysuiTestCase() {
         val callbackCaptor = ArgumentCaptor.forClass(CommandQueue.Callbacks::class.java)
         verify(commandQueue).addCallback(callbackCaptor.capture())
         callback = callbackCaptor.value!!
+    }
+
+    @Test
+    fun stop_removesCallback() {
+        controller.stop()
+
+        verify(commandQueue).removeCallback(callback)
     }
 
     @Test
@@ -96,6 +102,7 @@ class StatusBarWindowStateControllerTest : SysuiTestCase() {
 
     private class TestListener : StatusBarWindowStateListener {
         @WindowVisibleState var state: Int? = null
+
         override fun onStatusBarWindowStateChanged(@WindowVisibleState state: Int) {
             this.state = state
         }

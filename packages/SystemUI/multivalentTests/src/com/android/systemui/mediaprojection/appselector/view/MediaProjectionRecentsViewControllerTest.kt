@@ -28,6 +28,7 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.mediaprojection.appselector.MediaProjectionAppSelectorResultHandler
 import com.android.systemui.mediaprojection.appselector.data.RecentTask
 import com.android.systemui.util.mockito.mock
+import com.android.users.UserType
 import com.android.wm.shell.shared.split.SplitBounds
 import com.android.wm.shell.splitscreen.SplitScreen
 import com.google.common.truth.Expect
@@ -63,9 +64,10 @@ class MediaProjectionRecentsViewControllerTest : SysuiTestCase() {
             userId = 789,
             topActivityComponent = null,
             baseIntentComponent = null,
+            baseIntent = null,
             colorBackground = null,
             isForegroundTask = false,
-            userType = RecentTask.UserType.STANDARD,
+            userType = UserType.MAIN,
             splitBounds = null,
         )
 
@@ -76,9 +78,10 @@ class MediaProjectionRecentsViewControllerTest : SysuiTestCase() {
             userId = 789,
             topActivityComponent = null,
             baseIntentComponent = null,
+            baseIntent = null,
             colorBackground = null,
             isForegroundTask = false,
-            userType = RecentTask.UserType.STANDARD,
+            userType = UserType.MAIN,
             splitBounds = SplitBounds(Rect(), Rect(), 1, 2, 0),
         )
 
@@ -125,7 +128,7 @@ class MediaProjectionRecentsViewControllerTest : SysuiTestCase() {
         controller.onRecentAppClicked(fullScreenTask, taskView)
 
         assertThat(getStartedTaskActivityOptions(fullScreenTask.taskId).launchDisplayId)
-            .isEqualTo(fullScreenTask.displayId)
+            .isEqualTo(context.displayId)
     }
 
     @Test

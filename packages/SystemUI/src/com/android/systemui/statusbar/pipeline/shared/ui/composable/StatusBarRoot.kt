@@ -19,10 +19,15 @@ package com.android.systemui.statusbar.pipeline.shared.ui.composable
 import android.content.Context
 import android.graphics.Rect
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.flags.Flags as ViewFlags
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import androidx.annotation.VisibleForTesting
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -41,7 +46,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEvent
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onLayoutRectChanged
@@ -49,58 +58,58 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.android.compose.modifiers.thenIf
 import com.android.compose.theme.PlatformTheme
 import com.android.compose.theme.colorAttr
-import com.android.keyguard.AlphaOptimizedLinearLayout
 import com.android.systemui.Flags
+import com.android.systemui.clock.ClockModernization
+import com.android.systemui.clock.ui.composable.Clock
 import com.android.systemui.clock.ui.viewmodel.AmPmStyle
 import com.android.systemui.clock.ui.viewmodel.ClockViewModel
+import com.android.systemui.common.ui.compose.gestures.detectTapGesturesStrict
+import com.android.systemui.communal.ui.compose.extensions.detectLongPressGesture
 import com.android.systemui.compose.modifiers.sysUiResTagContainer
+import com.android.systemui.compose.modifiers.sysuiResTag
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
 import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
+import com.android.systemui.headline.ui.compose.Headline
+import com.android.systemui.headline.ui.compose.drawWithHeadlineScrim
+import com.android.systemui.headline.ui.viewmodel.HeadlineViewModel
+import com.android.systemui.initOnBackPressedDispatcherOwner
 import com.android.systemui.lifecycle.WindowLifecycleState
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.lifecycle.viewModel
-import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager
-import com.android.systemui.media.controls.ui.view.MediaHost
-import com.android.systemui.media.controls.ui.view.MediaHostState
-import com.android.systemui.media.dagger.MediaModule.POPUP
-import com.android.systemui.media.remedia.ui.viewmodel.MediaViewModel
 import com.android.systemui.plugins.DarkIconDispatcher
 import com.android.systemui.res.R
-import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.ui.view.WindowRootView
 import com.android.systemui.shade.ui.composable.VariableDayDate
 import com.android.systemui.statusbar.StatusBarAlwaysUseRegionSampling
 import com.android.systemui.statusbar.chips.ui.compose.OngoingActivityChips
 import com.android.systemui.statusbar.core.NewStatusBarIcons
-import com.android.systemui.statusbar.core.RudimentaryBattery
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
+import com.android.systemui.statusbar.core.StatusBarEventForwardingModernization
 import com.android.systemui.statusbar.core.StatusBarForDesktop
 import com.android.systemui.statusbar.events.domain.interactor.SystemStatusEventAnimationInteractor
-import com.android.systemui.statusbar.featurepods.popups.StatusBarPopupChips
-import com.android.systemui.statusbar.featurepods.popups.ui.compose.StatusBarPopupChipsContainer
 import com.android.systemui.statusbar.layout.ui.viewmodel.AppHandlesViewModel
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.ConnectedDisplaysStatusBarNotificationIconViewStore
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.NotificationIconContainerStatusBarViewBinder
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.NotificationIconContainerViewBinder
+import com.android.systemui.statusbar.notification.shared.StatusBarHeadline
 import com.android.systemui.statusbar.phone.NotificationIconContainer
 import com.android.systemui.statusbar.phone.PhoneStatusBarView
 import com.android.systemui.statusbar.phone.StatusBarLocation
 import com.android.systemui.statusbar.phone.StatusIconContainer
 import com.android.systemui.statusbar.phone.domain.interactor.IsAreaDark
-import com.android.systemui.statusbar.phone.ongoingcall.OngoingCallController
-import com.android.systemui.statusbar.phone.ongoingcall.StatusBarChipsModernization
 import com.android.systemui.statusbar.phone.ui.DarkIconManager
 import com.android.systemui.statusbar.phone.ui.StatusBarIconController
 import com.android.systemui.statusbar.phone.ui.TintedIconManager
-import com.android.systemui.statusbar.pipeline.battery.ui.composable.BatteryWithChargeStatus
-import com.android.systemui.statusbar.pipeline.battery.ui.composable.ShowPercentMode
 import com.android.systemui.statusbar.pipeline.battery.ui.composable.UnifiedBattery
 import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryViewModel
 import com.android.systemui.statusbar.pipeline.shared.ui.binder.HomeStatusBarIconBlockListBinder
@@ -111,12 +120,13 @@ import com.android.systemui.statusbar.pipeline.shared.ui.viewmodel.HomeStatusBar
 import com.android.systemui.statusbar.pipeline.shared.ui.viewmodel.HomeStatusBarViewModel.HomeStatusBarViewModelFactory
 import com.android.systemui.statusbar.policy.Clock
 import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
+import com.android.systemui.statusbar.systemstatusicons.domain.interactor.SystemStatusIconBlocklistInteractor
 import com.android.systemui.statusbar.systemstatusicons.ui.compose.SystemStatusIcons
 import com.android.systemui.statusbar.systemstatusicons.ui.viewmodel.SystemStatusIconsViewModel
 import com.android.systemui.statusbar.ui.viewmodel.StatusBarRegionSamplingViewModel
 import com.android.systemui.util.boundsOnScreen
 import javax.inject.Inject
-import javax.inject.Named
+import kotlin.math.abs
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.awaitCancellation
 
@@ -130,16 +140,15 @@ constructor(
     private val clockViewModelFactory: ClockViewModel.Factory,
     private val darkIconManagerFactory: DarkIconManager.Factory,
     private val tintedIconManagerFactory: TintedIconManager.Factory,
+    private val headlineComposer: Headline,
     private val iconController: StatusBarIconController,
-    private val ongoingCallController: OngoingCallController,
-    private val eventAnimationInteractor: SystemStatusEventAnimationInteractor,
-    private val mediaHierarchyManager: MediaHierarchyManager,
-    @Named(POPUP) private val mediaHost: MediaHost,
-    private val mediaViewModelFactory: MediaViewModel.Factory,
+    @DisplayAware private val eventAnimationInteractor: SystemStatusEventAnimationInteractor,
     @DisplayAware private val darkIconDispatcher: DarkIconDispatcher,
     @DisplayAware private val homeStatusBarViewBinder: HomeStatusBarViewBinder,
     @DisplayAware private val homeStatusBarViewModelFactory: HomeStatusBarViewModelFactory,
+    @DisplayAware private val headlineViewModelFactory: HeadlineViewModel.Factory,
     private val statusBarRegionSamplingViewModelFactory: StatusBarRegionSamplingViewModel.Factory,
+    private val shadeWindowRootView: WindowRootView,
 ) {
     fun create(root: ViewGroup, andThen: (ViewGroup) -> Unit): ComposeView {
         val composeView = ComposeView(root.context)
@@ -148,6 +157,7 @@ constructor(
                 PlatformTheme {
                     StatusBarRoot(
                         parent = root,
+                        shadeWindowRootView = shadeWindowRootView,
                         statusBarViewModelFactory = homeStatusBarViewModelFactory,
                         statusBarViewBinder = homeStatusBarViewBinder,
                         notificationIconsBinder = notificationIconsBinder,
@@ -155,13 +165,11 @@ constructor(
                         clockViewModelFactory = clockViewModelFactory,
                         darkIconManagerFactory = darkIconManagerFactory,
                         tintedIconManagerFactory = tintedIconManagerFactory,
+                        headlineViewModelFactory = headlineViewModelFactory,
+                        headlineComposer = headlineComposer,
                         iconController = iconController,
-                        ongoingCallController = ongoingCallController,
                         darkIconDispatcher = darkIconDispatcher,
                         eventAnimationInteractor = eventAnimationInteractor,
-                        mediaHierarchyManager = mediaHierarchyManager,
-                        mediaHost = mediaHost,
-                        mediaViewModelFactory = mediaViewModelFactory,
                         statusBarRegionSamplingViewModelFactory =
                             statusBarRegionSamplingViewModelFactory,
                         onViewCreated = andThen,
@@ -188,6 +196,7 @@ constructor(
 @Composable
 fun StatusBarRoot(
     parent: ViewGroup,
+    shadeWindowRootView: WindowRootView,
     statusBarViewModelFactory: HomeStatusBarViewModelFactory,
     statusBarViewBinder: HomeStatusBarViewBinder,
     notificationIconsBinder: NotificationIconContainerStatusBarViewBinder,
@@ -195,13 +204,11 @@ fun StatusBarRoot(
     clockViewModelFactory: ClockViewModel.Factory,
     darkIconManagerFactory: DarkIconManager.Factory,
     tintedIconManagerFactory: TintedIconManager.Factory,
+    headlineViewModelFactory: HeadlineViewModel.Factory,
+    headlineComposer: Headline,
     iconController: StatusBarIconController,
-    ongoingCallController: OngoingCallController,
     darkIconDispatcher: DarkIconDispatcher,
     eventAnimationInteractor: SystemStatusEventAnimationInteractor,
-    mediaHierarchyManager: MediaHierarchyManager,
-    mediaHost: MediaHost,
-    mediaViewModelFactory: MediaViewModel.Factory,
     statusBarRegionSamplingViewModelFactory: StatusBarRegionSamplingViewModel.Factory,
     onViewCreated: (ViewGroup) -> Unit,
     modifier: Modifier = Modifier,
@@ -209,30 +216,23 @@ fun StatusBarRoot(
     val displayId = parent.context.displayId
     val statusBarViewModel =
         rememberViewModel("HomeStatusBar") { statusBarViewModelFactory.create() }
-    val iconViewStore: NotificationIconContainerViewBinder.IconViewStore? =
-        if (StatusBarConnectedDisplays.isEnabled) {
-            rememberViewModel("HomeStatusBar.IconViewStore[$displayId]") {
-                iconViewStoreFactory.create(displayId)
-            }
-        } else {
-            null
+    val iconViewStore: NotificationIconContainerViewBinder.IconViewStore =
+        rememberViewModel("HomeStatusBar.IconViewStore[$displayId]") {
+            iconViewStoreFactory.create(displayId)
         }
     val appHandlesViewModel =
         rememberViewModel("AppHandleBounds") {
             statusBarViewModel.appHandlesViewModelFactory.create(displayId)
         }
+    val headlineViewModel =
+        if (StatusBarHeadline.isEnabled) {
+            rememberViewModel("HeadlineViewModel") { headlineViewModelFactory.create() }
+        } else {
+            null
+        }
     var touchableExclusionRegionDisposableHandle: DisposableHandle? = null
 
-    if (StatusBarPopupChips.isEnabled) {
-        with(mediaHost) {
-            expansion = MediaHostState.EXPANDED
-            expandedMatchesParentHeight = true
-            showsOnlyActiveMedia = true
-            falsingProtectionNeeded = false
-            disableScrolling = true
-            init(MediaHierarchyManager.LOCATION_STATUS_BAR_POPUP)
-        }
-    }
+    val touchSlop = LocalViewConfiguration.current.touchSlop
 
     // Let the DesktopStatusBar compose all the UI if [useDesktopStatusBar] is true.
     if (StatusBarForDesktop.isEnabled && statusBarViewModel.useDesktopStatusBar) {
@@ -241,50 +241,41 @@ fun StatusBarRoot(
             clockViewModelFactory = clockViewModelFactory,
             statusBarIconController = iconController,
             iconManagerFactory = tintedIconManagerFactory,
-            mediaHierarchyManager = mediaHierarchyManager,
-            mediaViewModelFactory = mediaViewModelFactory,
-            mediaHost = mediaHost,
             iconViewStore = iconViewStore,
+            modifier =
+                modifier.forwardDragAndSwipeToShadeRootView(shadeWindowRootView, touchSlop) {
+                    position,
+                    size,
+                    isConsumed ->
+                    // This call is needed to make sure the shade is preemptively moved to the
+                    // display that the user is currently interacting with.
+                    statusBarViewModel.onShadeExpansionIntent(position.x, size.width, isConsumed)
+                },
         )
         return
     }
 
-    Box { // TODO(b/433578931): Remove this Box once the full solution for b/433578931 is settled.
+    Box {
         AndroidView(
             factory = { context ->
                 val inflater = LayoutInflater.from(context)
                 val phoneStatusBarView =
                     inflater.inflate(R.layout.status_bar, parent, false) as PhoneStatusBarView
 
-                if (StatusBarChipsModernization.isEnabled) {
-                    addStartSideComposable(
-                        phoneStatusBarView = phoneStatusBarView,
-                        clockViewModelFactory = clockViewModelFactory,
-                        statusBarViewModel = statusBarViewModel,
-                        iconViewStore = iconViewStore,
-                        appHandlesViewModel = appHandlesViewModel,
-                        context = context,
-                    )
-                }
+                addStartSideComposable(
+                    phoneStatusBarView = phoneStatusBarView,
+                    clockViewModelFactory = clockViewModelFactory,
+                    statusBarViewModel = statusBarViewModel,
+                    iconViewStore = iconViewStore,
+                    appHandlesViewModel = appHandlesViewModel,
+                    context = context,
+                )
 
                 touchableExclusionRegionDisposableHandle =
                     HomeStatusBarTouchExclusionRegionBinder.bind(
                         phoneStatusBarView,
                         appHandlesViewModel,
                     )
-
-                if (StatusBarChipsModernization.isEnabled) {
-                    // Make sure the primary chip is hidden when StatusBarChipsModernization is
-                    // enabled. OngoingActivityChips will be shown in a composable container
-                    // when this flag is enabled.
-                    phoneStatusBarView
-                        .requireViewById<View>(R.id.ongoing_activity_chip_primary)
-                        .visibility = View.GONE
-                } else {
-                    ongoingCallController.setChipView(
-                        phoneStatusBarView.requireViewById(R.id.ongoing_activity_chip_primary)
-                    )
-                }
 
                 // For notifications, first inflate the [NotificationIconContainer]
                 val notificationIconArea =
@@ -295,44 +286,6 @@ fun StatusBarRoot(
                     phoneStatusBarView.requireViewById<NotificationIconContainer>(
                         R.id.notificationIcons
                     )
-
-                // Add a composable container for `StatusBarPopupChip`s
-                if (StatusBarPopupChips.isEnabled) {
-                    val endSideContent =
-                        phoneStatusBarView.requireViewById<AlphaOptimizedLinearLayout>(
-                            R.id.status_bar_end_side_content
-                        )
-
-                    val composeView =
-                        ComposeView(context).apply {
-                            layoutParams =
-                                LinearLayout.LayoutParams(
-                                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                                )
-
-                            setViewCompositionStrategy(
-                                if (SceneContainerFlag.isEnabled) {
-                                    ViewCompositionStrategy.Default
-                                } else {
-                                    ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
-                                }
-                            )
-
-                            setContent {
-                                StatusBarPopupChipsContainer(
-                                    chips = statusBarViewModel.popupChips,
-                                    mediaViewModelFactory = mediaViewModelFactory,
-                                    mediaHost = mediaHost,
-                                    onMediaControlPopupVisibilityChanged = { popupShowing ->
-                                        mediaHierarchyManager.isMediaControlPopupShowing =
-                                            popupShowing
-                                    },
-                                )
-                            }
-                        }
-                    endSideContent.addView(composeView, 0)
-                }
 
                 // If the flag is enabled, create and add a compose section to the end
                 // of the system_icons container
@@ -349,12 +302,12 @@ fun StatusBarRoot(
                             StatusBarLocation.HOME,
                             darkIconDispatcher,
                         )
-                    iconController.addIconGroup(darkIconManager)
 
                     HomeStatusBarIconBlockListBinder.bind(
                         statusIconContainer,
                         darkIconManager,
                         statusBarViewModel.iconBlockList,
+                        iconController,
                     )
 
                     if (NewStatusBarIcons.isEnabled) {
@@ -391,9 +344,48 @@ fun StatusBarRoot(
                 onViewCreated(phoneStatusBarView)
                 phoneStatusBarView
             },
-            modifier = modifier,
+            modifier =
+                modifier
+                    .thenIf(StatusBarEventForwardingModernization.isEnabled) {
+                        Modifier.pointerInput(Unit) {
+                                if (ViewFlags.scrollToTop()) {
+                                    detectTapGesturesStrict(
+                                        onTap = { statusBarViewModel.onStatusBarTap(it.x) },
+                                        onLongPress = {
+                                            statusBarViewModel.onStatusBarLongPressed()
+                                        },
+                                    )
+                                } else {
+                                    detectLongPressGesture {
+                                        statusBarViewModel.onStatusBarLongPressed()
+                                    }
+                                }
+                            }
+                            .forwardDragAndSwipeToShadeRootView(shadeWindowRootView, touchSlop) {
+                                position,
+                                size,
+                                isConsumed ->
+                                // This call is needed to make sure the shade is preemptively moved
+                                // to
+                                // the display that the user is currently interacting with.
+                                statusBarViewModel.onShadeExpansionIntent(
+                                    position.x,
+                                    size.width,
+                                    isConsumed,
+                                )
+                            }
+                    }
+                    .thenIf(headlineViewModel != null) {
+                        Modifier.drawWithHeadlineScrim(headlineViewModel!!)
+                    },
             onRelease = { touchableExclusionRegionDisposableHandle?.dispose() },
         )
+
+        if (StatusBarHeadline.isEnabled && headlineViewModel != null) {
+            val lifecycle = LocalLifecycleOwner.current.lifecycle
+            parent.initOnBackPressedDispatcherOwner(lifecycle, force = true)
+            headlineComposer.Content(headlineViewModel, modifier = Modifier.align(Alignment.Center))
+        }
     }
 }
 
@@ -419,10 +411,10 @@ private fun addStartSideComposable(
             layoutParams =
                 LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.MATCH_PARENT,
                     )
                     .apply {
-                        if (showDate) {
+                        if (showDate || ClockModernization.isEnabled) {
                             gravity = android.view.Gravity.CENTER_VERTICAL
                         }
                     }
@@ -436,13 +428,45 @@ private fun addStartSideComposable(
                         )
                     }
 
-                if (showDate) {
-                    val clockViewModel =
+                var clockViewModel: ClockViewModel? = null
+                if (showDate || ClockModernization.isEnabled) {
+                    clockViewModel =
                         rememberViewModel("HomeStatusBar.Clock") {
                             clockViewModelFactory.create(AmPmStyle.Gone)
                         }
+                }
+
+                if (ClockModernization.isEnabled) {
+                    clockView.visibility = View.GONE
+                    WithAdaptiveTint(
+                        isDarkProvider = { bounds ->
+                            statusBarViewModel.areaDark.isDarkTheme(bounds)
+                        }
+                    ) { tint ->
+                        Clock(
+                            clockViewModel = checkNotNull(clockViewModel),
+                            textColor = tint,
+                            modifier =
+                                Modifier.padding(end = 2.dp)
+                                    .wrapContentSize()
+                                    .onGloballyPositioned { coordinates ->
+                                        val boundsInWindow = coordinates.boundsInWindow()
+                                        val bounds =
+                                            Rect(
+                                                boundsInWindow.left.toInt(),
+                                                boundsInWindow.top.toInt(),
+                                                boundsInWindow.right.toInt(),
+                                                boundsInWindow.bottom.toInt(),
+                                            )
+                                        statusBarBoundsViewModel.updateComposeClockBounds(bounds)
+                                    },
+                        )
+                    }
+                }
+
+                if (showDate) {
                     VariableDayDate(
-                        longerDateText = clockViewModel.longerDateText,
+                        longerDateText = checkNotNull(clockViewModel).longerDateText,
                         shorterDateText = clockViewModel.shorterDateText,
                         textColor = colorAttr(R.attr.wallpaperTextColor),
                         modifier =
@@ -500,14 +524,25 @@ private fun addStartSideComposable(
             }
         }
 
-    // Add the composable container for ongoingActivityChips before the
-    // notification_icon_area to maintain the same ordering for ongoing activity
-    // chips in the status bar layout.
-    val notificationIconAreaIndex =
-        startSideExceptHeadsUp.indexOfChild(
-            startSideExceptHeadsUp.findViewById(R.id.notification_icon_area)
-        )
-    startSideExceptHeadsUp.addView(composeView, notificationIconAreaIndex)
+    if (!Flags.statusBarChipVisibilityJankFix()) {
+        // Add the composable container for ongoingActivityChips before the
+        // notification_icon_area to maintain the same ordering for ongoing activity
+        // chips in the status bar layout.
+        val notificationIconAreaIndex =
+            startSideExceptHeadsUp.indexOfChild(
+                startSideExceptHeadsUp.findViewById(R.id.start_side_notif_and_chip_container)
+            )
+        startSideExceptHeadsUp.addView(composeView, notificationIconAreaIndex)
+    } else {
+        // notif_and_chip_container is a FrameLayout so the chips and notif icon container views
+        // don't interfere with each other's layout bounds. They are mutually exclusive per the
+        // view model
+        val startSideNotifAndChipsView =
+            phoneStatusBarView.requireViewById<FrameLayout>(
+                R.id.start_side_notif_and_chip_container
+            )
+        startSideNotifAndChipsView.addView(composeView, 0)
+    }
 }
 
 @VisibleForTesting
@@ -556,29 +591,19 @@ private fun addBatteryComposable(
     val batteryComposeView =
         ComposeView(phoneStatusBarView.context).apply {
             setContent {
-                if (RudimentaryBattery.isEnabled) {
-                    BatteryWithChargeStatus(
-                        viewModelFactory = statusBarViewModel.batteryNextToPercentViewModel,
-                        isDarkProvider = { statusBarViewModel.areaDark },
-                        showPercentMode = ShowPercentMode.FollowSetting,
-                        modifier = Modifier.sysUiResTagContainer().wrapContentSize(),
-                    )
-                } else {
-                    val height =
-                        with(LocalDensity.current) {
-                            BatteryViewModel.getStatusBarBatteryHeight(LocalContext.current).toDp()
-                        }
-                    val viewModel =
-                        rememberViewModel(traceName = "UnifiedBattery") {
-                            statusBarViewModel.unifiedBatteryViewModel.create()
-                        }
-                    UnifiedBattery(
-                        modifier =
-                            Modifier.sysUiResTagContainer().height(height).wrapContentWidth(),
-                        viewModel = viewModel,
-                        isDarkProvider = { statusBarViewModel.areaDark },
-                    )
-                }
+                val height =
+                    with(LocalDensity.current) {
+                        BatteryViewModel.getStatusBarBatteryHeight(LocalContext.current).toDp()
+                    }
+                val viewModel =
+                    rememberViewModel(traceName = "UnifiedBattery") {
+                        statusBarViewModel.unifiedBatteryViewModel.create()
+                    }
+                UnifiedBattery(
+                    modifier = Modifier.sysUiResTagContainer().height(height).wrapContentWidth(),
+                    viewModel = viewModel,
+                    isDarkProvider = { statusBarViewModel.areaDark },
+                )
             }
         }
     phoneStatusBarView.findViewById<ViewGroup>(R.id.system_icons).apply {
@@ -605,38 +630,30 @@ private fun addEndSideComposable(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     modifier =
-                        Modifier.widthIn(max = with(LocalDensity.current) { endSideWidth.toDp() }),
+                        Modifier.widthIn(max = with(LocalDensity.current) { endSideWidth.toDp() })
+                            .sysUiResTagContainer(),
                 ) {
                     SystemStatusIconsContainer(
                         viewModelFactory = statusBarViewModel.systemStatusIconsViewModelFactory,
                         isDark = statusBarViewModel.areaDark,
-                        modifier = Modifier.weight(1f, fill = false),
+                        modifier = Modifier.weight(1f, fill = false).sysuiResTag("system_icons"),
+                        systemStatusIconBlockListInteractor =
+                            statusBarViewModel.systemStatusIconBlockListInteractor,
                     )
 
-                    if (RudimentaryBattery.isEnabled) {
-                        BatteryWithChargeStatus(
-                            viewModelFactory = statusBarViewModel.batteryNextToPercentViewModel,
-                            isDarkProvider = { statusBarViewModel.areaDark },
-                            showPercentMode = ShowPercentMode.FollowSetting,
-                            modifier = Modifier.sysUiResTagContainer().wrapContentSize(),
-                        )
-                    } else {
-                        val height =
-                            with(LocalDensity.current) {
-                                BatteryViewModel.getStatusBarBatteryHeight(LocalContext.current)
-                                    .toDp()
-                            }
-                        val viewModel =
-                            rememberViewModel(traceName = "UnifiedBattery") {
-                                statusBarViewModel.unifiedBatteryViewModel.create()
-                            }
-                        UnifiedBattery(
-                            viewModel = viewModel,
-                            isDarkProvider = { statusBarViewModel.areaDark },
-                            modifier =
-                                Modifier.sysUiResTagContainer().height(height).wrapContentWidth(),
-                        )
-                    }
+                    val height =
+                        with(LocalDensity.current) {
+                            BatteryViewModel.getStatusBarBatteryHeight(LocalContext.current).toDp()
+                        }
+                    val viewModel =
+                        rememberViewModel(traceName = "UnifiedBattery") {
+                            statusBarViewModel.unifiedBatteryViewModel.create()
+                        }
+                    UnifiedBattery(
+                        viewModel = viewModel,
+                        isDarkProvider = { statusBarViewModel.areaDark },
+                        modifier = Modifier.height(height).wrapContentWidth(),
+                    )
                 }
             }
         }
@@ -651,6 +668,7 @@ private fun SystemStatusIconsContainer(
     viewModelFactory: SystemStatusIconsViewModel.Factory,
     isDark: IsAreaDark,
     modifier: Modifier = Modifier,
+    systemStatusIconBlockListInteractor: SystemStatusIconBlocklistInteractor,
 ) {
     var bounds by remember { mutableStateOf(Rect()) }
     val tint = if (isDark.isDarkTheme(bounds)) Color.White else Color.Black
@@ -662,6 +680,7 @@ private fun SystemStatusIconsContainer(
                 bounds =
                     with(relativeLayoutBounds.boundsInScreen) { Rect(left, top, right, bottom) }
             },
+        systemStatusIconBlocklistInteractor = systemStatusIconBlockListInteractor,
     )
 }
 
@@ -710,4 +729,84 @@ private fun rememberViewWidthAsState(view: View): MutableIntState {
         onDispose { view.removeOnLayoutChangeListener(layoutListener) }
     }
     return viewWidth
+}
+
+/**
+ * A pointer input modifier that intercepts events and forwards them to a provided view if there is
+ * a drag or swipe.
+ *
+ * It works by:
+ * 1. Observing pointer events in the 'Initial' pass, before they reach child composables.
+ * 2. Caching events (ACTION_DOWN, ACTION_MOVE) until the vertical drag distance exceeds the system
+ *    touch slop.
+ * 3. Once the slop is exceeded, it begins "intercepting". It dispatches the entire cached gesture
+ *    (starting from ACTION_DOWN) to the provided [view].
+ * 4. For the remainder of the gesture, it continues dispatching events directly to the [view] and
+ *    consumes them, preventing any child composables from receiving them.
+ */
+@VisibleForTesting
+fun Modifier.forwardDragAndSwipeToShadeRootView(
+    view: View,
+    touchSlop: Float,
+    onDown: (downPosition: Offset, size: IntSize, isConsumed: Boolean) -> Unit,
+): Modifier =
+    pointerInput(view) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
+            val isConsumed = down.isConsumed
+
+            val cachedEvents = mutableListOf<MotionEvent>()
+            var isIntercepting = false
+
+            // Always cache the down event.
+            currentEvent.motionEvent?.let { cachedEvents.add(MotionEvent.obtain(it)) }
+
+            onDown(down.position, size, isConsumed)
+            try {
+                // Loop to process events for the current gesture.
+                do {
+                    val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                    val mainChange = event.changes.first()
+
+                    if (isIntercepting) {
+                        // If we are already intercepting, dispatch and consume.
+                        dispatchAndConsume(event, view)
+                    } else {
+                        // If not intercepting, check if we should start.
+                        val dy = mainChange.position.y - down.position.y
+                        if (abs(dy) > touchSlop) {
+                            isIntercepting = true
+
+                            // Slop exceeded. Dispatch the cached events...
+                            cachedEvents.forEach { view.dispatchTouchEvent(it) }
+                            // ...and the current event, then consume it.
+                            dispatchAndConsume(event, view)
+                        } else {
+                            // Slop not exceeded, just cache the event.
+                            event.motionEvent?.let { cachedEvents.add(MotionEvent.obtain(it)) }
+                        }
+                    }
+
+                    // Continue tracking until ALL pointers involved in the gesture are lifted.
+                    // This ensures downstream nodes receive their terminal events during
+                    // multi-touch gestures.
+                } while (event.changes.any { it.pressed })
+            } finally {
+                // Ensure all cached events are recycled at the end of the gesture.
+                cachedEvents.forEach { it.recycle() }
+            }
+        }
+    }
+
+/** Helper to dispatch a copy of the MotionEvent and consume all PointerChanges. */
+private fun dispatchAndConsume(event: PointerEvent, legacyView: View) {
+    event.motionEvent?.let {
+        val copy = MotionEvent.obtain(it)
+        try {
+            legacyView.dispatchTouchEvent(copy)
+        } finally {
+            copy.recycle()
+        }
+    }
+    event.changes.forEach { it.consume() }
 }

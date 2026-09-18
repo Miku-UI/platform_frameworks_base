@@ -44,4 +44,14 @@ message ApplicationExitInfoProto {
     optional string description = 14 [(.android.privacy).dest = DEST_EXPLICIT];
     optional bytes state = 15;
     optional string trace_file = 16;
+
+    // Additional information about ANR when the exit reason is REASON_ANR.
+    message AnrInfo {
+        optional int32 anr_id = 1;
+        optional int32 anr_type = 2;
+        optional int64 timeout_millis = 3;
+        optional bool is_user_perceptible = 4;
+    }
+
+    optional AnrInfo anr_info = 17;
 }

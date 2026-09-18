@@ -53,10 +53,10 @@ import android.util.IndentingPrintWriter;
 import android.util.Slog;
 
 import com.android.internal.R;
-import com.android.internal.infra.ServiceConnector;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.infra.AndroidFuture;
+import com.android.internal.infra.ServiceConnector;
 import com.android.server.LocalServices;
 import com.android.server.infra.AbstractPerUserSystemService;
 
@@ -715,9 +715,8 @@ final class WearableSensingManagerPerUserService
             Slog.w(TAG, "Cannot create WearableSensingCallback because mComponentName is null.");
             return null;
         }
-        if (Binder.getCallingUid()
-                != mPackageManagerInternal.getPackageUid(
-                        mComponentName.getPackageName(), /* flags= */ 0, mUserId)) {
+        if (!mPackageManagerInternal.isSameApp(mComponentName.getPackageName(), /* flags= */ 0,
+                Binder.getCallingUid(), mUserId)) {
             Slog.d(
                     TAG,
                     "Caller does not belong to the package that provides the WearableSensingService"

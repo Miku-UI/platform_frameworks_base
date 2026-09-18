@@ -1,0 +1,144 @@
+/*
+ * Copyright (C) 2022 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.server.input
+
+import android.content.Context
+import android.content.ContextWrapper
+import android.hardware.input.InputManager
+import android.os.test.TestLooper
+import android.platform.test.annotations.Presubmit
+import android.view.InputDevice
+import android.view.KeyEvent
+import androidx.test.core.app.ApplicationProvider
+import com.android.test.input.MockInputManagerRule
+import java.io.FileNotFoundException
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
+import org.junit.Assert.assertEquals
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.mockito.Mock
+import org.mockito.Mockito
+import org.mockito.junit.MockitoJUnit
+
+private fun createKeyboard(deviceId: Int): InputDevice =
+    InputDevice.Builder()
+        .setId(deviceId)
+        .setName("Device $deviceId")
+        .setDescriptor("descriptor $deviceId")
+        .setSources(InputDevice.SOURCE_KEYBOARD)
+        .setKeyboardType(InputDevice.KEYBOARD_TYPE_ALPHABETIC)
+        .setExternal(true)
+        .build()
+
+/**
+ * Tests for {@link KeyRemapper}.
+ *
+ * Build/Install/Run: atest InputTests:KeyRemapperTests
+ */
+@Presubmit
+class ModifierKeyRemapperTests {
+
+    companion object {
+        const val DEVICE_ID = 1
+        val REMAPPABLE_KEYS =
+            intArrayOf(
+                KeyEvent.KEYCODE_CTRL_LEFT,
+                KeyEvent.KEYCODE_CTRL_RIGHT,
+                KeyEvent.KEYCODE_META_LEFT,
+                KeyEvent.KEYCODE_META_RIGHT,
+                KeyEvent.KEYCODE_ALT_LEFT,
+                KeyEvent.KEYCODE_ALT_RIGHT,
+                KeyEvent.KEYCODE_SHIFT_LEFT,
+                KeyEvent.KEYCODE_SHIFT_RIGHT,
+                KeyEvent.KEYCODE_CAPS_LOCK,
+            )
+    }
+
+    @get:Rule val rule = MockitoJUnit.rule()!!
+
+    @get:Rule val inputManagerRule = MockInputManagerRule()
+
+    @Mock private lateinit var native: NativeInputManagerService
+    private lateinit var mModifierKeyRemapper: ModifierKeyRemapper
+    private lateinit var context: Context
+    private lateinit var dataStore: PersistentDataStore
+    private lateinit var testLooper: TestLooper
+
+    @Before
+    fun setup() {
+        context = Mockito.spy(ContextWrapper(ApplicationProvider.getApplicationContext()))
+        dataStore =
+            PersistentDataStore(
+                object : PersistentDataStore.Injector() {
+                    override fun openRead(): InputStream? {
+                        throw FileNotFoundException()
+                    }
+
+                    override fun startWrite(): FileOutputStream? {
+                        throw IOException()
+                    }
+
+                    override fun finishWrite(fos: FileOutputStream?, success: Boolean) {}
+                }
+            )
+        testLooper = TestLooper()
+        mModifierKeyRemapper = ModifierKeyRemapper(context, native, dataStore, testLooper.looper)
+        val inputManager = InputManager(context)
+        Mockito.`when`(context.getSystemService(Mockito.eq(Context.INPUT_SERVICE)))
+            .thenReturn(inputManager)
+        Mockito.`when`(inputManagerRule.mock.inputDeviceIds).thenReturn(intArrayOf(DEVICE_ID))
+    }
+
+    @Test
+    fun testKeyRemapping_whenRemappingEnabled() {
+        val keyboard = createKeyboard(DEVICE_ID)
+        Mockito.`when`(inputManagerRule.mock.getInputDevice(DEVICE_ID)).thenReturn(keyboard)
+
+        for (i in REMAPPABLE_KEYS.indices) {
+            val fromKeyCode = REMAPPABLE_KEYS[i]
+            val toKeyCode = REMAPPABLE_KEYS[(i + 1) % REMAPPABLE_KEYS.size]
+            mModifierKeyRemapper.remapKey(fromKeyCode, toKeyCode)
+            testLooper.dispatchNext()
+        }
+
+        val remapping = mModifierKeyRemapper.keyRemapping
+        val expectedSize = REMAPPABLE_KEYS.size
+        assertEquals("Remapping size should be $expectedSize", expectedSize, remapping.size)
+
+        for (i in REMAPPABLE_KEYS.indices) {
+            val fromKeyCode = REMAPPABLE_KEYS[i]
+            val toKeyCode = REMAPPABLE_KEYS[(i + 1) % REMAPPABLE_KEYS.size]
+            assertEquals(
+                "Remapping should include mapping from $fromKeyCode to $toKeyCode",
+                toKeyCode,
+                remapping.getOrDefault(fromKeyCode, -1),
+            )
+        }
+
+        mModifierKeyRemapper.clearAllKeyRemappings()
+        testLooper.dispatchNext()
+
+        assertEquals(
+            "Remapping size should be 0 after clearAllModifierKeyRemappings",
+            0,
+            mModifierKeyRemapper.keyRemapping.size,
+        )
+    }
+}

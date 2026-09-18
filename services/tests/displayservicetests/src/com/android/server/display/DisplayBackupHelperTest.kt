@@ -45,12 +45,6 @@ class DisplayBackupHelperTest {
     }
 
     @Test
-    fun testBackupDisplayReturnsNullWhenFlagDisabled() {
-        whenever(mockInjector.isDisplayTopologyFlagEnabled()).thenReturn(false)
-        assertThat(helper.getBackupPayload("display")).isNull()
-    }
-
-    @Test
     fun testRestoreDisplay() {
         helper.applyRestoredPayload("display", byteArray)
         verify(mockWriteTopologyFile).write(byteArray)
@@ -66,20 +60,10 @@ class DisplayBackupHelperTest {
         verify(mockDmsInternal, never()).reloadTopologies(0)
     }
 
-    @Test
-    fun testRestoreDisplayDoesNothingWhenFlagDisabled() {
-        whenever(mockInjector.isDisplayTopologyFlagEnabled()).thenReturn(false)
-        helper.applyRestoredPayload("display", byteArray)
-        verify(mockWriteTopologyFile, never()).write(byteArray)
-        verify(mockWriteTopologyFile, never()).markSuccess()
-        verify(mockDmsInternal, never()).reloadTopologies(0)
-    }
-
     fun createBackupHelper(userId: Int, topologyToBackup: ByteArray): DisplayBackupHelper {
         whenever(mockInjector.getDisplayManagerInternal()).thenReturn(mockDmsInternal)
         whenever(mockInjector.readTopologyFile(userId)).thenReturn(topologyToBackup)
         whenever(mockInjector.writeTopologyFile(userId)).thenReturn(mockWriteTopologyFile)
-        whenever(mockInjector.isDisplayTopologyFlagEnabled()).thenReturn(true)
 
         return DisplayBackupHelper(userId, mockInjector)
     }

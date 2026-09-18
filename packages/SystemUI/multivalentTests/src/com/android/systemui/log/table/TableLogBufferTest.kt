@@ -26,10 +26,9 @@ import com.android.systemui.log.table.TableChange.Companion.IS_INITIAL_PREFIX
 import com.android.systemui.log.table.TableChange.Companion.MAX_STRING_LENGTH
 import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat
-import org.junit.Assert
-import org.junit.Assert.assertThrows
 import java.io.PrintWriter
 import java.io.StringWriter
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -140,6 +139,19 @@ class TableLogBufferTest : SysuiTestCase() {
     }
 
     @Test
+    fun dumpChanges_float_separatorNotAllowedInPrefix() {
+        val next =
+            object : TestDiffable() {
+                override fun logDiffs(prevVal: TestDiffable, row: TableRowLogger) {
+                    row.logChange("columnName", 1.23f)
+                }
+            }
+        assertThrows(IllegalArgumentException::class.java) {
+            underTest.logDiffs("some${SEPARATOR}thing", TestDiffable(), next)
+        }
+    }
+
+    @Test
     fun dumpChanges_str_separatorNotAllowedInColumnName() {
         val next =
             object : TestDiffable() {
@@ -173,6 +185,20 @@ class TableLogBufferTest : SysuiTestCase() {
             object : TestDiffable() {
                 override fun logDiffs(prevVal: TestDiffable, row: TableRowLogger) {
                     row.logChange("column${SEPARATOR}Name", 456)
+                }
+            }
+
+        assertThrows(IllegalArgumentException::class.java) {
+            underTest.logDiffs("prefix", TestDiffable(), next)
+        }
+    }
+
+    @Test
+    fun dumpChanges_float_separatorNotAllowedInColumnName() {
+        val next =
+            object : TestDiffable() {
+                override fun logDiffs(prevVal: TestDiffable, row: TableRowLogger) {
+                    row.logChange("column${SEPARATOR}Name", 4.56f)
                 }
             }
 
@@ -288,6 +314,37 @@ class TableLogBufferTest : SysuiTestCase() {
                 "67890"
         assertThat(dumpedString).contains(expected)
         assertThat(dumpedString).doesNotContain("12345")
+    }
+
+    @Test
+    fun dumpChanges_floatChange_logsFromNext() {
+        systemClock.setCurrentTimeMillis(100L)
+
+        val prevDiffable =
+            object : TestDiffable() {
+                override fun logDiffs(prevVal: TestDiffable, row: TableRowLogger) {
+                    row.logChange("floatValChange", 12.345f)
+                }
+            }
+        val nextDiffable =
+            object : TestDiffable() {
+                override fun logDiffs(prevVal: TestDiffable, row: TableRowLogger) {
+                    row.logChange("floatValChange", 67.899f)
+                }
+            }
+
+        underTest.logDiffs("prefix", prevDiffable, nextDiffable)
+
+        val dumpedString = dumpChanges()
+
+        val expected =
+            TABLE_LOG_DATE_FORMAT.format(100L) +
+                SEPARATOR +
+                "prefix.floatValChange" +
+                SEPARATOR +
+                "67.899"
+        assertThat(dumpedString).contains(expected)
+        assertThat(dumpedString).doesNotContain("12.345")
     }
 
     @Test

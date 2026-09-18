@@ -16,26 +16,26 @@
 
 package com.android.wm.shell.compatui.impl
 
+import com.android.wm.shell.compatui.api.CompatUIComponentRepository
 import com.android.wm.shell.compatui.api.CompatUIComponentState
-import com.android.wm.shell.compatui.api.CompatUIState
 import junit.framework.Assert.assertEquals
-import junit.framework.Assert.assertNotNull
-import junit.framework.Assert.assertNull
-
-/** Asserts no component state exists for the given CompatUISpec */
-internal fun CompatUIState.assertHasNoStateFor(componentId: String) =
-    assertNull(stateForComponent(componentId))
 
 /** Asserts component state for the given CompatUISpec */
-internal fun CompatUIState.assertHasStateEqualsTo(
+internal fun CompatUIComponentRepository.assertHasStateEqualsTo(
     componentId: String,
     expected: CompatUIComponentState,
 ) = assertEquals(stateForComponent(componentId), expected)
 
-/** Asserts no component exists for the given CompatUISpec */
-internal fun CompatUIState.assertHasNoComponentFor(componentId: String) =
-    assertNull(getUIComponent(componentId))
+internal fun CompatUIComponentRepository.assertHasComponentFor(
+    componentId: String,
+    expected: Boolean = true,
+) {
+    kotlin.test.assertEquals(expected, find(componentId)?.component != null)
+}
 
-/** Asserts component for the given CompatUISpec */
-internal fun CompatUIState.assertHasComponentFor(componentId: String) =
-    assertNotNull(getUIComponent(componentId))
+internal fun CompatUIComponentRepository.assertHasStateFor(
+    componentId: String,
+    expected: Boolean = true,
+) {
+    kotlin.test.assertEquals(expected, find(componentId)?.componentState != null)
+}

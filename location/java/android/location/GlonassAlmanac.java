@@ -163,13 +163,8 @@ public final class GlonassAlmanac implements Parcelable {
             Preconditions.checkArgument(builder.mSlotNumber >= 1);
             // Allow healthState beyond the range to support potential future extensibility.
             Preconditions.checkArgument(builder.mHealthState >= 0);
-            if (Flags.fixGlonassAlmanacFrequencyChannelRange()) {
-                Preconditions.checkArgumentInRange(
-                        builder.mFrequencyChannelNumber, -7, 6, "FrequencyChannelNumber");
-            } else {
-                Preconditions.checkArgumentInRange(
-                        builder.mFrequencyChannelNumber, 0, 31, "FrequencyChannelNumber");
-            }
+            Preconditions.checkArgumentInRange(
+                    builder.mFrequencyChannelNumber, -7, 6, "FrequencyChannelNumber");
             Preconditions.checkArgumentInRange(
                     builder.mCalendarDayNumber, 1, 1461, "CalendarDayNumber");
             Preconditions.checkArgumentInRange(builder.mTau, -1.9e-3f, 1.9e-3f, "Tau");

@@ -18,6 +18,7 @@ package android.os;
 
 import static java.util.Objects.requireNonNull;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.compat.annotation.UnsupportedAppUsage;
@@ -447,13 +448,8 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
                 object = ((BiFunction<Class<?>, Class<?>[], ?>) object).apply(clazz, itemTypes);
             } catch (BadParcelableException e) {
                 if (sShouldDefuse) {
-                    if (Flags.wtfBundleDefuse()) {
-                        Slog.wtf(TAG, "Failed to parse item " + mMap.keyAt(i) + ", returning null.",
-                                e);
-                    } else {
-                        Log.w(TAG, "Failed to parse item " + mMap.keyAt(i) + ", returning null.",
-                                e);
-                    }
+                    Slog.wtf(TAG, "Failed to parse item " + mMap.keyAt(i) + ", returning null.",
+                            e);
                     if (Flags.deprecateBundleDefuse()) {
                         throw e;
                     }
@@ -517,11 +513,7 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
                     /* lazy */ ownsParcel, this, numLazyValues);
         } catch (BadParcelableException e) {
             if (sShouldDefuse) {
-                if (Flags.wtfBundleDefuse()) {
-                    Slog.wtf(TAG, "Failed to parse Bundle, but defusing quietly", e);
-                } else {
-                    Log.w(TAG, "Failed to parse Bundle, but defusing quietly", e);
-                }
+                Slog.wtf(TAG, "Failed to parse Bundle, but defusing quietly", e);
                 if (Flags.deprecateBundleDefuse()) {
                     throw e;
                 }
@@ -1043,7 +1035,8 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
      * @param key a String, or null
      * @param value a byte array object, or null
      */
-    void putByteArray(@Nullable String key, @Nullable byte[] value) {
+    @FlaggedApi(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public void putByteArray(@Nullable String key, @Nullable byte[] value) {
         unparcel();
         mMap.put(key, value);
     }
@@ -1647,7 +1640,8 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
      * @return a byte[] value, or null
      */
     @Nullable
-    byte[] getByteArray(@Nullable String key) {
+    @FlaggedApi(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public byte[] getByteArray(@Nullable String key) {
         unparcel();
         Object o = mMap.get(key);
         if (o == null) {

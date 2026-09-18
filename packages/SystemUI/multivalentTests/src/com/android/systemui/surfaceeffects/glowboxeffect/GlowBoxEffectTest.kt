@@ -23,7 +23,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.animation.AnimatorTestRule
-import com.android.systemui.surfaceeffects.PaintDrawCallback
+import com.android.systemui.surfaceeffects.core.glowboxeffect.GlowBoxConfig
+import com.android.systemui.surfaceeffects.view.PaintDrawCallback
+import com.android.systemui.surfaceeffects.view.glowboxeffect.GlowBoxEffect
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
 import org.junit.Rule
@@ -57,8 +59,8 @@ class GlowBoxEffectTest : SysuiTestCase() {
                 color = Color.WHITE,
                 blurAmount = 0.1f,
                 duration = 100L,
-                easeInDuration = 100L,
-                easeOutDuration = 100L
+                fadeInDuration = 100L,
+                fadeOutDuration = 100L,
             )
         glowBoxEffect = GlowBoxEffect(config, drawCallback)
     }
@@ -88,17 +90,17 @@ class GlowBoxEffectTest : SysuiTestCase() {
 
         glowBoxEffect.play()
 
-        assertThat(glowBoxEffect.state).isEqualTo(GlowBoxEffect.AnimationState.EASE_IN)
+        assertThat(glowBoxEffect.state).isEqualTo(GlowBoxEffect.AnimationState.FADE_IN)
 
-        animatorTestRule.advanceAnimationDuration(config.easeInDuration + 50L)
+        animatorTestRule.advanceAnimationDuration(config.fadeInDuration + 50L)
 
         assertThat(glowBoxEffect.state).isEqualTo(GlowBoxEffect.AnimationState.MAIN)
 
         animatorTestRule.advanceAnimationDuration(config.duration + 50L)
 
-        assertThat(glowBoxEffect.state).isEqualTo(GlowBoxEffect.AnimationState.EASE_OUT)
+        assertThat(glowBoxEffect.state).isEqualTo(GlowBoxEffect.AnimationState.FADE_OUT)
 
-        animatorTestRule.advanceAnimationDuration(config.easeOutDuration + 50L)
+        animatorTestRule.advanceAnimationDuration(config.fadeOutDuration + 50L)
 
         assertThat(glowBoxEffect.state).isEqualTo(GlowBoxEffect.AnimationState.NOT_PLAYING)
     }
@@ -110,7 +112,7 @@ class GlowBoxEffectTest : SysuiTestCase() {
         glowBoxEffect.play()
         glowBoxEffect.finish()
 
-        assertThat(glowBoxEffect.state).isEqualTo(GlowBoxEffect.AnimationState.EASE_OUT)
+        assertThat(glowBoxEffect.state).isEqualTo(GlowBoxEffect.AnimationState.FADE_OUT)
     }
 
     @Test

@@ -29,7 +29,7 @@ import org.xmlpull.v1.XmlPullParserException;
 import java.io.IOException;
 import java.util.Objects;
 
-final class IntegerPolicySerializer extends PolicySerializer<Integer> {
+public final class IntegerPolicySerializer extends PolicySerializer<Integer> {
 
     private static final String TAG = "IntegerPolicySerializer";
 

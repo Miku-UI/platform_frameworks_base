@@ -8,8 +8,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.battery.BatteryMeterView
+import com.android.systemui.display.data.repository.displaySubcomponentPerDisplayRepository
 import com.android.systemui.res.R
-import com.android.systemui.statusbar.data.repository.fakeStatusBarContentInsetsProviderStore
+import com.android.systemui.statusbar.layout.mockStatusBarContentInsetsProvider
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
@@ -37,8 +38,7 @@ class QsBatteryModeControllerTest : SysuiTestCase() {
     }
 
     private val kosmos = testKosmos()
-    private val insetsProviderStore = kosmos.fakeStatusBarContentInsetsProviderStore
-    private val insetsProvider = insetsProviderStore.forDisplay(context.displayId)
+    private val insetsProvider = kosmos.mockStatusBarContentInsetsProvider
 
     @JvmField @Rule val mockitoRule = MockitoJUnit.rule()!!
 
@@ -53,7 +53,8 @@ class QsBatteryModeControllerTest : SysuiTestCase() {
         whenever(mockedResources.getInteger(R.integer.fade_in_start_frame)).thenReturn(QS_END_FRAME)
         whenever(mockedResources.getInteger(R.integer.fade_out_complete_frame))
             .thenReturn(QQS_START_FRAME)
-        controller = QsBatteryModeController(mockedContext, insetsProviderStore)
+        controller =
+            QsBatteryModeController(mockedContext, kosmos.displaySubcomponentPerDisplayRepository)
     }
 
     @Test

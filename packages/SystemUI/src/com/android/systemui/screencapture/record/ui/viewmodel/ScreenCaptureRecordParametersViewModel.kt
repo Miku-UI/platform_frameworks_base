@@ -16,98 +16,171 @@
 
 package com.android.systemui.screencapture.record.ui.viewmodel
 
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import com.android.internal.logging.UiEventLogger
 import com.android.systemui.lifecycle.HydratedActivatable
-import com.android.systemui.screencapture.common.shared.model.ScreenCaptureTarget
+import com.android.systemui.screencapture.record.camera.domain.interactor.ScreenCaptureCameraHintInteractor
+import com.android.systemui.screencapture.record.camera.domain.interactor.ScreenRecordCameraInteractor
+import com.android.systemui.screencapture.record.domain.interactor.ScreenCaptureRecordFeaturesInteractor
 import com.android.systemui.screencapture.record.domain.interactor.ScreenCaptureRecordParametersInteractor
+import com.android.systemui.screencapture.record.shared.model.ScreenRecordEvent
+import com.android.systemui.screencapture.record.smallscreen.domain.interactor.RecordDetailsTargetInteractor
+import com.android.systemui.screencapture.record.smallscreen.shared.model.currentTargetModel
 import com.android.systemui.screenrecord.ScreenRecordingAudioSource
+import com.android.systemui.screenrecord.domain.interactor.ScreenRecordingServiceInteractor
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 class ScreenCaptureRecordParametersViewModel
 @AssistedInject
-constructor(private val interactor: ScreenCaptureRecordParametersInteractor) :
-    HydratedActivatable() {
+constructor(
+    private val screenRecordingServiceInteractor: ScreenRecordingServiceInteractor,
+    private val interactor: ScreenCaptureRecordParametersInteractor,
+    screenRecordCameraInteractor: ScreenRecordCameraInteractor,
+    screenCaptureRecordFeaturesInteractor: ScreenCaptureRecordFeaturesInteractor,
+    recordDetailsTargetInteractor: RecordDetailsTargetInteractor,
+    private val screenCaptureCameraHintInteractor: ScreenCaptureCameraHintInteractor,
+    private val uiEventLogger: UiEventLogger,
+) : HydratedActivatable() {
 
-    val audioSource: ScreenRecordingAudioSource? by
-        interactor.parameters
-            .map { it.audioSource }
-            .hydratedStateOf("ScreenCaptureAudioSourceViewModel#audioSource", null)
+    val audioSource: ScreenRecordingAudioSource by interactor::audioSource
+    val canChangeAudioSource: Boolean by
+        interactor.canChangeAudioSource.hydratedStateOf(
+            "ScreenCaptureAudioSourceViewModel#canChangeAudioSource"
+        )
 
-    val target: ScreenCaptureTarget? by
-        interactor.parameters
-            .map { it.target }
-            .hydratedStateOf("ScreenCaptureAudioSourceViewModel#target", null)
+    var shouldShowTaps: Boolean
+        get() = interactor.shouldShowTaps
+        set(value) {
+            uiEventLogger.logShouldShowTapsChanged(
+                shouldShowTaps = value,
+                isRecording = screenRecordingServiceInteractor.status.value.isRecording,
+            )
+            interactor.shouldShowTaps = value
+        }
 
-    val shouldShowTaps: Boolean? by
-        interactor.parameters
-            .map { it.shouldShowTaps }
-            .hydratedStateOf("ScreenCaptureAudioSourceViewModel#shouldShowTaps", null)
-
-    val shouldShowFrontCamera: Boolean? by
-        interactor.parameters
-            .map { it.shouldShowFrontCamera }
-            .hydratedStateOf("ScreenCaptureAudioSourceViewModel#shouldShowFrontCamera", null)
+    var shouldShowFrontCamera: Boolean
+        get() = interactor.shouldShowFrontCamera
+        set(value) {
+            uiEventLogger.logShouldShowCameraChanged(
+                shouldShowCamera = value,
+                isRecording = screenRecordingServiceInteractor.status.value.isRecording,
+            )
+            interactor.shouldShowFrontCamera = value
+        }
 
     var shouldRecordDevice: Boolean
         get() =
-            audioSource == ScreenRecordingAudioSource.MIC_AND_INTERNAL ||
-                audioSource == ScreenRecordingAudioSource.INTERNAL
-        set(value) {
-            if (value) {
-                if (shouldRecordMicrophone) {
-                    setAudioSource(ScreenRecordingAudioSource.MIC_AND_INTERNAL)
-                } else {
-                    setAudioSource(ScreenRecordingAudioSource.INTERNAL)
-                }
-            } else {
-                if (shouldRecordMicrophone) {
-                    setAudioSource(ScreenRecordingAudioSource.MIC)
-                } else {
-                    setAudioSource(ScreenRecordingAudioSource.NONE)
-                }
+            with(interactor) {
+                audioSource == ScreenRecordingAudioSource.MIC_AND_INTERNAL ||
+                    audioSource == ScreenRecordingAudioSource.INTERNAL
             }
+        set(value) {
+            interactor.audioSource =
+                if (value) {
+                    uiEventLogger.log(ScreenRecordEvent.SCREEN_RECORD_AUDIO_DEVICE_ENABLED)
+                    if (shouldRecordMicrophone) {
+                        ScreenRecordingAudioSource.MIC_AND_INTERNAL
+                    } else {
+                        ScreenRecordingAudioSource.INTERNAL
+                    }
+                } else {
+                    uiEventLogger.log(ScreenRecordEvent.SCREEN_RECORD_AUDIO_DEVICE_DISABLED)
+                    if (shouldRecordMicrophone) {
+                        ScreenRecordingAudioSource.MIC
+                    } else {
+                        ScreenRecordingAudioSource.NONE
+                    }
+                }
         }
 
     var shouldRecordMicrophone: Boolean
         get() =
-            audioSource == ScreenRecordingAudioSource.MIC_AND_INTERNAL ||
-                audioSource == ScreenRecordingAudioSource.MIC
-        set(value) {
-            if (value) {
-                if (shouldRecordDevice) {
-                    setAudioSource(ScreenRecordingAudioSource.MIC_AND_INTERNAL)
-                } else {
-                    setAudioSource(ScreenRecordingAudioSource.MIC)
-                }
-            } else {
-                if (shouldRecordDevice) {
-                    setAudioSource(ScreenRecordingAudioSource.INTERNAL)
-                } else {
-                    setAudioSource(ScreenRecordingAudioSource.NONE)
-                }
+            with(interactor) {
+                audioSource == ScreenRecordingAudioSource.MIC_AND_INTERNAL ||
+                    audioSource == ScreenRecordingAudioSource.MIC
             }
+        set(value) {
+            interactor.audioSource =
+                if (value) {
+                    uiEventLogger.log(ScreenRecordEvent.SCREEN_RECORD_AUDIO_MIC_ENABLED)
+                    if (shouldRecordDevice) {
+                        ScreenRecordingAudioSource.MIC_AND_INTERNAL
+                    } else {
+                        ScreenRecordingAudioSource.MIC
+                    }
+                } else {
+                    uiEventLogger.log(ScreenRecordEvent.SCREEN_RECORD_AUDIO_MIC_DISABLED)
+                    if (shouldRecordDevice) {
+                        ScreenRecordingAudioSource.INTERNAL
+                    } else {
+                        ScreenRecordingAudioSource.NONE
+                    }
+                }
         }
 
-    fun setAudioSource(audioSource: ScreenRecordingAudioSource) {
-        interactor.setAudioSource(audioSource)
+    val canUseFrontCamera: Boolean by
+        if (screenCaptureRecordFeaturesInteractor.isSelfieAvailable) {
+                combine(
+                    recordDetailsTargetInteractor.model.map { it.currentTargetModel.canUseCamera },
+                    screenRecordCameraInteractor.isCameraSupported,
+                ) { canUseCameraForTarget, isCameraSupported ->
+                    canUseCameraForTarget && isCameraSupported
+                }
+            } else {
+                flowOf(false)
+            }
+            .hydratedStateOf("ScreenCaptureAudioSourceViewModel#canUseFrontCamera", true)
+
+    val shouldShowHint: Boolean by derivedStateOf {
+        screenCaptureCameraHintInteractor.shouldShowHint
     }
 
-    fun setRecordTarget(target: ScreenCaptureTarget) {
-        interactor.setRecordTarget(target)
-    }
-
-    fun setShouldShowTaps(shouldShowTaps: Boolean) {
-        interactor.setShouldShowTaps(shouldShowTaps)
-    }
-
-    fun setShouldShowFrontCamera(shouldShowFrontCamera: Boolean) {
-        interactor.setShouldShowFrontCamera(shouldShowFrontCamera)
+    suspend fun onCameraHintShown() {
+        screenCaptureCameraHintInteractor.onHintShown()
     }
 
     @AssistedFactory
     interface Factory {
         fun create(): ScreenCaptureRecordParametersViewModel
+    }
+}
+
+private fun UiEventLogger.logShouldShowTapsChanged(shouldShowTaps: Boolean, isRecording: Boolean) {
+    if (isRecording) {
+        if (shouldShowTaps) {
+            log(ScreenRecordEvent.SCREEN_RECORD_SHOW_TOUCHES_ENABLED_MID_RECORDING)
+        } else {
+            log(ScreenRecordEvent.SCREEN_RECORD_SHOW_TOUCHES_DISABLED_MID_RECORDING)
+        }
+    } else {
+        if (shouldShowTaps) {
+            log(ScreenRecordEvent.SCREEN_RECORD_SHOW_TOUCHES_ENABLED_PRE_RECORDING)
+        } else {
+            log(ScreenRecordEvent.SCREEN_RECORD_SHOW_TOUCHES_DISABLED_PRE_RECORDING)
+        }
+    }
+}
+
+private fun UiEventLogger.logShouldShowCameraChanged(
+    shouldShowCamera: Boolean,
+    isRecording: Boolean,
+) {
+    if (isRecording) {
+        if (shouldShowCamera) {
+            log(ScreenRecordEvent.SCREEN_RECORD_CAMERA_ENABLED_MID_RECORDING)
+        } else {
+            log(ScreenRecordEvent.SCREEN_RECORD_CAMERA_DISABLED_MID_RECORDING)
+        }
+    } else {
+        if (shouldShowCamera) {
+            log(ScreenRecordEvent.SCREEN_RECORD_CAMERA_ENABLED_PRE_RECORDING)
+        } else {
+            log(ScreenRecordEvent.SCREEN_RECORD_CAMERA_DISABLED_PRE_RECORDING)
+        }
     }
 }

@@ -129,3 +129,9 @@ class com.android.hoststubgen.test.tinyframework.packagetest.KeepC7_MethodAnnota
     method m3_throw exp
     method m4_remove exp
     method m5_redirect exp
+
+class com.android.hoststubgen.test.tinyframework.ThrowClassTest throw
+    method <init> keep # allow instantiating the class for the test. # no-pta
+
+class com.android.hoststubgen.test.tinyframework.IgnoreClassTest ignore
+    method <init> keep # Ignore on a ctor doesn't work. b/448180616 # no-pta

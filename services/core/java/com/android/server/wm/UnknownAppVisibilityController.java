@@ -103,7 +103,7 @@ class UnknownAppVisibilityController {
     }
 
     /**
-     * Notifies that {@param activity} has been launched behind Keyguard, and we need to wait until
+     * Notifies that {@code activity} has been launched behind Keyguard, and we need to wait until
      * it is resumed and relaid out to resolve the visibility.
      */
     void notifyLaunched(@NonNull ActivityRecord activity) {
@@ -120,7 +120,7 @@ class UnknownAppVisibilityController {
     }
 
     /**
-     * Notifies that {@param activity} has finished resuming.
+     * Notifies that {@code activity} has finished resuming.
      */
     void notifyAppResumedFinished(@NonNull ActivityRecord activity) {
         if (mUnknownApps.isEmpty()) {
@@ -136,7 +136,7 @@ class UnknownAppVisibilityController {
     }
 
     /**
-     * Notifies that {@param activity} has relaid out.
+     * Notifies that {@code activity} has relaid out.
      */
     void notifyRelayouted(@NonNull ActivityRecord activity) {
         if (mUnknownApps.isEmpty()) {

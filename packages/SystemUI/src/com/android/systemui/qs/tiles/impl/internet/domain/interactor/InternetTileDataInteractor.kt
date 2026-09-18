@@ -24,6 +24,7 @@ import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.ContentDescription.Companion.loadContentDescription
 import com.android.systemui.common.shared.model.Text
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.qs.flags.QsSplitInternetTile
 import com.android.systemui.qs.tiles.base.domain.interactor.QSTileDataInteractor
 import com.android.systemui.qs.tiles.base.domain.model.DataUpdateTrigger
 import com.android.systemui.qs.tiles.impl.internet.domain.model.InternetTileModel
@@ -32,6 +33,7 @@ import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.statusbar.connectivity.ui.MobileContextProvider
 import com.android.systemui.statusbar.pipeline.airplane.data.repository.AirplaneModeRepository
 import com.android.systemui.statusbar.pipeline.ethernet.domain.EthernetInteractor
+import com.android.systemui.statusbar.pipeline.mobile.NewSatelliteIcon
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIconsInteractor
 import com.android.systemui.statusbar.pipeline.mobile.domain.model.SignalIconModel
 import com.android.systemui.statusbar.pipeline.shared.data.repository.ConnectivityRepository
@@ -90,19 +92,53 @@ constructor(
             if (it == null) {
                 flowOf(null)
             } else {
-                combine(it.isRoaming, it.networkTypeIconGroup) { isRoaming, networkTypeIconGroup ->
-                    val mobileContext =
-                        mobileContextProvider.getMobileContextForSub(it.subscriptionId, context)
-                    val cd = loadString(networkTypeIconGroup.contentDescription, mobileContext)
-                    if (isRoaming) {
-                        val roaming = mobileContext.getString(R.string.data_connection_roaming)
-                        if (cd != null) {
-                            mobileContext.getString(R.string.mobile_data_text_format, roaming, cd)
+                if (NewSatelliteIcon.isEnabled) {
+                    combine(it.isRoaming, it.networkTypeIconGroup, it.isNonTerrestrial) {
+                        isRoaming,
+                        networkTypeIconGroup,
+                        isNonTerrestrial ->
+                        val mobileContext =
+                            mobileContextProvider.getMobileContextForSub(it.subscriptionId, context)
+                        val cd = loadString(networkTypeIconGroup.contentDescription, mobileContext)
+                        if (isNonTerrestrial) {
+                            mobileContext.getString(
+                                com.android.internal.R.string.satellite_indicator
+                            )
+                        } else if (isRoaming) {
+                            val roaming = mobileContext.getString(R.string.data_connection_roaming)
+                            if (cd != null) {
+                                mobileContext.getString(
+                                    R.string.mobile_data_text_format,
+                                    roaming,
+                                    cd,
+                                )
+                            } else {
+                                roaming
+                            }
                         } else {
-                            roaming
+                            cd
                         }
-                    } else {
-                        cd
+                    }
+                } else {
+                    combine(it.isRoaming, it.networkTypeIconGroup) { isRoaming, networkTypeIconGroup
+                        ->
+                        val mobileContext =
+                            mobileContextProvider.getMobileContextForSub(it.subscriptionId, context)
+                        val cd = loadString(networkTypeIconGroup.contentDescription, mobileContext)
+                        if (isRoaming) {
+                            val roaming = mobileContext.getString(R.string.data_connection_roaming)
+                            if (cd != null) {
+                                mobileContext.getString(
+                                    R.string.mobile_data_text_format,
+                                    roaming,
+                                    cd,
+                                )
+                            } else {
+                                roaming
+                            }
+                        } else {
+                            cd
+                        }
                     }
                 }
             }
@@ -121,7 +157,7 @@ constructor(
                     }
                     .mapLatestConflated { (networkNameModel, signalIcon, dataContentDescription) ->
                         when (signalIcon) {
-                            is SignalIconModel.Cellular -> {
+                            is SignalIconModel.CellularTypeIconModel -> {
                                 val secondary =
                                     mobileDataContentConcat(
                                         networkNameModel.name,
@@ -130,7 +166,7 @@ constructor(
 
                                 InternetTileModel.Active(
                                     secondaryTitle = secondary,
-                                    icon = InternetTileIconModel.Cellular(signalIcon.level),
+                                    icon = InternetTileIconModel.SignalLevel(signalIcon.level),
                                     stateDescription =
                                         ContentDescription.Loaded(secondary.toString()),
                                     contentDescription = ContentDescription.Loaded(internetLabel),
@@ -247,7 +283,7 @@ constructor(
         user: UserHandle,
         triggers: Flow<DataUpdateTrigger>,
     ): Flow<InternetTileModel> =
-        connectivityRepository.defaultConnections.flatMapLatest {
+        connectivityRepository.resolvedConnections.flatMapLatest {
             when {
                 it.ethernet.isDefault -> ethernetIconFlow
                 it.mobile.isDefault || it.carrierMerged.isDefault -> mobileIconFlow
@@ -256,7 +292,8 @@ constructor(
             }
         }
 
-    override fun availability(user: UserHandle): Flow<Boolean> = flowOf(true)
+    override fun availability(user: UserHandle): Flow<Boolean> =
+        flowOf(!QsSplitInternetTile.isEnabled)
 
     private companion object {
         val NOT_CONNECTED_NETWORKS_UNAVAILABLE =

@@ -18,6 +18,7 @@ package com.android.systemui.screencapture.common
 
 import android.view.Display
 import android.view.Window
+import androidx.compose.animation.core.Transition
 import com.android.systemui.screencapture.common.ui.compose.ScreenCaptureContent
 import dagger.BindsInstance
 import dagger.Subcomponent
@@ -52,6 +53,9 @@ interface ScreenCaptureUiComponent {
 
         /** [Window] that hosts the Screen Capture UI. */
         @BindsInstance fun setWindow(@ScreenCaptureUi window: Window?): Builder
+
+        @BindsInstance
+        fun setVisibilityTransition(@ScreenCaptureUi transition: Transition<Boolean>): Builder
 
         /**
          * Builds this [ScreenCaptureUiComponent]. Actual Subcomponent Builders should override this

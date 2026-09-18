@@ -22,7 +22,6 @@ import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
 import android.view.DragEvent;
 import android.view.IScrollCaptureResponseListener;
-import android.view.IWindow;
 import android.view.InsetsSourceControl;
 import android.view.InsetsState;
 import android.view.ScrollCaptureResponse;
@@ -30,10 +29,11 @@ import android.view.WindowRelayoutResult;
 import android.view.inputmethod.ImeTracker;
 
 import com.android.internal.os.IResultReceiver;
+import com.android.internal.view.WindowClientTransactionHandler;
 
 import java.util.ArrayList;
 
-public class TestIWindow extends IWindow.Stub {
+public class TestIWindow extends WindowClientTransactionHandler {
 
     private ArrayList<DragEvent> mDragEvents;
 
@@ -90,10 +90,6 @@ public class TestIWindow extends IWindow.Stub {
     }
 
     @Override
-    public void dispatchWindowShown() throws RemoteException {
-    }
-
-    @Override
     public void requestAppKeyboardShortcuts(IResultReceiver receiver, int deviceId)
             throws RemoteException {
     }
@@ -123,5 +119,21 @@ public class TestIWindow extends IWindow.Stub {
     @Override
     public void dumpWindow(ParcelFileDescriptor pfd) {
 
+    }
+
+    @Override
+    public void requestHardwareRendererOutputDisabled(boolean disabled) throws RemoteException {
+
+    }
+
+    @Override
+    public void requestViewAnimationsDisabled(boolean disabled) {}
+
+    @Override
+    public void dispatchScrollToTop(int x) {
+    }
+
+    @Override
+    public void requestAccessibilityEmbeddedConnection(IResultReceiver receiver) {
     }
 }

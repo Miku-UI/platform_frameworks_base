@@ -20,9 +20,11 @@ import android.view.ViewGroup
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.android.app.tracing.coroutines.launchTraced as launch
-import com.android.internal.jank.Cuj.CUJ_LOCKSCREEN_TRANSITION_FROM_AOD
-import com.android.internal.jank.Cuj.CUJ_LOCKSCREEN_TRANSITION_TO_AOD
-import com.android.internal.jank.Cuj.CUJ_SCREEN_OFF_SHOW_AOD
+import com.android.internal.jank.Cuj.CUJ_KEYGUARD_TRANSITION_AOD_TO_LOCKSCREEN
+import com.android.internal.jank.Cuj.CUJ_KEYGUARD_TRANSITION_LOCKSCREEN_TO_AOD
+import com.android.internal.jank.Cuj.CUJ_KEYGUARD_TRANSITION_LOCKSCREEN_TO_DOZING
+import com.android.internal.jank.Cuj.CUJ_KEYGUARD_TRANSITION_GONE_TO_AOD
+import com.android.internal.jank.Cuj.CUJ_KEYGUARD_TRANSITION_GONE_TO_DOZING
 import com.android.internal.jank.InteractionJankMonitor
 import com.android.systemui.keyguard.KeyguardViewMediator
 import com.android.systemui.keyguard.domain.interactor.KeyguardClockInteractor
@@ -73,10 +75,16 @@ object KeyguardJankBinder {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 launch {
                     viewModel.goneToAodTransition.collect {
-                        processStep(it, CUJ_SCREEN_OFF_SHOW_AOD)
+                        processStep(it, CUJ_KEYGUARD_TRANSITION_GONE_TO_AOD)
                         if (it.transitionState == TransitionState.FINISHED) {
                             keyguardViewMediator?.maybeHandlePendingLock()
                         }
+                    }
+                }
+
+                launch {
+                    viewModel.goneToDozingTransition.collect {
+                        processStep(it, CUJ_KEYGUARD_TRANSITION_GONE_TO_DOZING)
                     }
                 }
 
@@ -84,13 +92,19 @@ object KeyguardJankBinder {
                 if (!SceneContainerFlag.isEnabled) {
                     launch {
                         viewModel.lockscreenToAodTransition.collect {
-                            processStep(it, CUJ_LOCKSCREEN_TRANSITION_TO_AOD)
+                            processStep(it, CUJ_KEYGUARD_TRANSITION_LOCKSCREEN_TO_AOD)
                         }
                     }
 
                     launch {
                         viewModel.aodToLockscreenTransition.collect {
-                            processStep(it, CUJ_LOCKSCREEN_TRANSITION_FROM_AOD)
+                            processStep(it, CUJ_KEYGUARD_TRANSITION_AOD_TO_LOCKSCREEN)
+                        }
+                    }
+
+                    launch {
+                        viewModel.lockscreenToDozingTransition.collect {
+                            processStep(it, CUJ_KEYGUARD_TRANSITION_LOCKSCREEN_TO_DOZING)
                         }
                     }
                 }

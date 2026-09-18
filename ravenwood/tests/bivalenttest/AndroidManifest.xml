@@ -15,7 +15,7 @@
 -->
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-        package="com.android.ravenwood.bivalenttest">
+        package="com.android.ravenwoodtest.bivalenttest">
 
     <application android:debuggable="true" >
         <uses-library android:name="android.test.runner" />
@@ -23,6 +23,5 @@
 
     <instrumentation
         android:name="androidx.test.runner.AndroidJUnitRunner"
-        android:targetPackage="com.android.ravenwood.bivalenttest"
-        />
+        android:targetPackage="com.android.ravenwoodtest.bivalenttest" />
 </manifest>

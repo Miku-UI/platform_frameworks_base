@@ -72,7 +72,7 @@ public final class TimerStat implements Parcelable {
     }
 
     /**
-     * @inheritDoc
+     * {@inheritDoc}
      */
     public int describeContents() {
         return 0;

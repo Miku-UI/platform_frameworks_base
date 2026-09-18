@@ -70,10 +70,29 @@ public class DomainVerificationEnforcer {
                 break;
             default:
                 if (!proxy.isCallerVerifier(callingUid)) {
-                    mContext.enforcePermission(android.Manifest.permission.DUMP,
-                            Binder.getCallingPid(), callingUid,
-                            "Caller " + callingUid
-                                    + " is not allowed to query domain verification state");
+                    if (android.view.flags.Flags.redactWebOtpSmsApi()) {
+                      boolean hasQueryDomainVerificationPermission =
+                          mContext.checkPermission(
+                              android.Manifest.permission.QUERY_DOMAIN_VERIFICATION,
+                              Binder.getCallingPid(),
+                              callingUid) == PackageManager.PERMISSION_GRANTED;
+                      boolean hasDumpPermission =
+                          mContext.checkPermission(
+                              android.Manifest.permission.DUMP,
+                              Binder.getCallingPid(),
+                              callingUid) == PackageManager.PERMISSION_GRANTED;
+                      if (!hasQueryDomainVerificationPermission && !hasDumpPermission) {
+                        throw new SecurityException(
+                              "Caller " + callingUid
+                                     + " does not have any of the following permission:"
+                                     + " QUERY_DOMAIN_VERIFICATION, DUMP");
+                      }
+                    } else {
+                      mContext.enforcePermission(android.Manifest.permission.DUMP,
+                              Binder.getCallingPid(), callingUid,
+                              "Caller " + callingUid
+                                      + " is not allowed to query domain verification state");
+                    }
                     break;
                 }
 
@@ -242,9 +261,28 @@ public class DomainVerificationEnforcer {
                 callingPid, callingUid, "Caller " + callingUid + " does not hold "
                         + android.Manifest.permission.QUERY_ALL_PACKAGES);
 
-        mContext.enforcePermission(
-                android.Manifest.permission.UPDATE_DOMAIN_VERIFICATION_USER_SELECTION,
-                callingPid, callingUid, "Caller is not allowed to query user selections");
+        if (android.view.flags.Flags.redactWebOtpSmsApi()) {
+            int updateDomainVerificationUserSelectionPermission =
+                    mContext.checkPermission(
+                            android.Manifest.permission.UPDATE_DOMAIN_VERIFICATION_USER_SELECTION,
+                            callingPid, callingUid);
+
+            int queryDomainVerificationPermission =
+                    mContext.checkPermission(
+                            android.Manifest.permission.QUERY_DOMAIN_VERIFICATION,
+                            callingPid, callingUid);
+
+            if (updateDomainVerificationUserSelectionPermission != PackageManager.PERMISSION_GRANTED
+                    && queryDomainVerificationPermission != PackageManager.PERMISSION_GRANTED) {
+                throw new SecurityException(
+                        "Caller " + callingUid + " does not have any of the following permission: "
+                        + "UPDATE_DOMAIN_VERIFICATION_USER_SELECTION, QUERY_DOMAIN_VERIFICATION.");
+            }
+        } else {
+            mContext.enforcePermission(
+                    android.Manifest.permission.UPDATE_DOMAIN_VERIFICATION_USER_SELECTION,
+                    callingPid, callingUid, "Caller is not allowed to query user selections");
+        }
 
         if (!mCallback.doesUserExist(callingUserId)) {
             throw new SecurityException("User " + callingUserId + " does not exist");

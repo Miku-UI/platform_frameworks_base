@@ -24,6 +24,7 @@ import com.android.launcher3.icons.BaseIconFactory
 import com.android.launcher3.icons.IconFactory
 import com.android.launcher3.util.UserIconInfo
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.users.UserType
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlinx.coroutines.CoroutineDispatcher
@@ -38,31 +39,18 @@ constructor(
     private val iconFactoryProvider: Provider<IconFactory>,
 ) {
 
-    suspend fun loadIcon(
-        userId: Int,
-        userType: RecentTask.UserType,
-        componentName: ComponentName
-    ): Drawable? =
+    suspend fun loadIcon(userId: Int, userType: UserType, componentName: ComponentName): Drawable? =
         withContext(backgroundDispatcher) {
             iconFactoryProvider.get().use<IconFactory, Drawable?> { iconFactory ->
                 val icon =
                     basicAppIconLoader.loadIcon(userId, componentName) ?: return@withContext null
                 val userHandler = UserHandle.of(userId)
-                val iconType = getIconType(userType)
                 val options =
                     BaseIconFactory.IconOptions().apply {
-                        setUser(UserIconInfo(userHandler, iconType))
+                        setUser(UserIconInfo(userHandler, userType))
                     }
                 val badgedIcon = iconFactory.createBadgedIconBitmap(icon, options)
                 badgedIcon.newIcon(context)
             }
-        }
-
-    private fun getIconType(userType: RecentTask.UserType): Int =
-        when (userType) {
-            RecentTask.UserType.CLONED -> UserIconInfo.TYPE_CLONED
-            RecentTask.UserType.WORK -> UserIconInfo.TYPE_WORK
-            RecentTask.UserType.PRIVATE -> UserIconInfo.TYPE_PRIVATE
-            RecentTask.UserType.STANDARD -> UserIconInfo.TYPE_MAIN
         }
 }

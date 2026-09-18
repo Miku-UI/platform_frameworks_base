@@ -24,3 +24,7 @@ per-file *Locale* = file:platform/packages/apps/Settings:/src/com/android/settin
 
 # Media
 per-file *MediaRoute* = file:/packages/SystemUI/src/com/android/systemui/media/dialog/OWNERS
+
+# App Lock
+per-file *AppLock* = file:/core/java/android/content/pm/APP_LOCK_OWNERS
+per-file LockedAppActivity.java = file:/core/java/android/content/pm/APP_LOCK_OWNERS

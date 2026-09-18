@@ -63,6 +63,7 @@ android_robolectric_test {
         "settingslib_illustrationpreference_flags_lib",
         "settingslib_media_flags_lib",
         "testng", // TODO: remove once JUnit on Android provides assertThrows
+        "truth-liteproto-extension",
     ],
     java_resource_dirs: ["config"],
     instrumentation_for: "SettingsLibShell",
@@ -90,6 +91,12 @@ java_library {
     name: "SettingsLib-robo-testutils",
     srcs: [
         "testutils/com/android/settingslib/testutils/**/*.java",
+        "testutils/com/android/settingslib/testutils/**/*.kt",
+    ],
+    static_libs: [
+        "SettingsLibGraph",
+        "mockito-robolectric-prebuilt", // mockito deps order matters
+        "mockito-kotlin2",
     ],
     javacflags: [
         "-Aorg.robolectric.annotation.processing.sdkCheckMode=ERROR",

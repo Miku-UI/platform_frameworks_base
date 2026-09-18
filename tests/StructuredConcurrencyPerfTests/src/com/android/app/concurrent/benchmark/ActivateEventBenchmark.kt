@@ -16,7 +16,6 @@
 package com.android.app.concurrent.benchmark
 
 import androidx.benchmark.BlackHole
-import androidx.benchmark.ExperimentalBlackHoleApi
 import com.android.app.concurrent.benchmark.base.ConcurrentBenchmarkRule
 import com.android.app.concurrent.benchmark.event.BaseEventBenchmark
 import com.android.app.concurrent.benchmark.event.EventContextProvider
@@ -25,9 +24,9 @@ import com.android.app.concurrent.benchmark.event.IntEventCombiner
 import com.android.app.concurrent.benchmark.event.SimpleEvent
 import com.android.app.concurrent.benchmark.event.SimpleWritableEventBuilder
 import com.android.app.concurrent.benchmark.event.WritableEventFactory
-import com.android.app.concurrent.benchmark.util.ExecutorServiceCoroutineScopeBuilder
-import com.android.app.concurrent.benchmark.util.ExecutorThreadBuilder
-import com.android.app.concurrent.benchmark.util.ThreadFactory
+import com.android.app.concurrent.benchmark.util.ExecutorServiceThreadWithExecutorBuilder
+import com.android.app.concurrent.benchmark.util.ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder
+import com.android.app.concurrent.benchmark.util.ThreadBuilder
 import com.android.app.concurrent.benchmark.util.dbg
 import java.util.concurrent.Executor
 import kotlinx.coroutines.CoroutineScope
@@ -39,7 +38,6 @@ import org.junit.runners.MethodSorters
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
 
-@OptIn(ExperimentalBlackHoleApi::class)
 private sealed interface ActivateEventBenchmark<T, E : Any>
     where T : WritableEventFactory<E>, T : EventContextProvider<E>, T : IntEventCombiner<E> {
     val benchmarkRule: ConcurrentBenchmarkRule
@@ -75,8 +73,9 @@ private sealed interface ActivateEventBenchmark<T, E : Any>
                         }
                     }
                 }
-                lateinit var lastRead: AutoCloseable
+                var lastRead: AutoCloseable? = null
                 onEachIteration { n, barrier ->
+                    lastRead?.close()
                     lastRead =
                         context.read {
                             sourceEvents.forEach { sourceEvent ->
@@ -96,7 +95,7 @@ private sealed interface ActivateEventBenchmark<T, E : Any>
                             }
                         }
                 }
-                afterEachIteration { lastRead.close() }
+                afterLastIteration { lastRead?.close() }
             }
 
             onEachIteration { n ->
@@ -116,7 +115,7 @@ private sealed interface ActivateEventBenchmark<T, E : Any>
 
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class SimpleActivateEventBenchmark(param: ThreadFactory<Any, Executor>) :
+class SimpleActivateEventBenchmark(param: ThreadBuilder<Executor>) :
     BaseEventBenchmark<Executor, SimpleWritableEventBuilder>(
         param,
         { SimpleWritableEventBuilder(it) },
@@ -124,13 +123,15 @@ class SimpleActivateEventBenchmark(param: ThreadFactory<Any, Executor>) :
     ActivateEventBenchmark<SimpleWritableEventBuilder, SimpleEvent<*>> {
 
     companion object {
-        @Parameters(name = "{0}") @JvmStatic fun getDispatchers() = listOf(ExecutorThreadBuilder)
+        @Parameters(name = "{0}")
+        @JvmStatic
+        fun getParameters() = listOf(ExecutorServiceThreadWithExecutorBuilder)
     }
 }
 
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class FlowActivateEventBenchmark(param: ThreadFactory<Any, CoroutineScope>) :
+class FlowActivateEventBenchmark(param: ThreadBuilder<CoroutineScope>) :
     BaseEventBenchmark<CoroutineScope, FlowWritableEventBuilder>(
         param,
         { FlowWritableEventBuilder(it) },
@@ -140,6 +141,6 @@ class FlowActivateEventBenchmark(param: ThreadFactory<Any, CoroutineScope>) :
     companion object {
         @Parameters(name = "{0}")
         @JvmStatic
-        fun getDispatchers() = listOf(ExecutorServiceCoroutineScopeBuilder)
+        fun getParameters() = listOf(ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder)
     }
 }

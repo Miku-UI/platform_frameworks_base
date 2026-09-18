@@ -16,9 +16,11 @@
 
 package android.webkit;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
+import android.annotation.TestApi;
 import android.app.ActivityThread;
 import android.app.Application;
 import android.compat.annotation.UnsupportedAppUsage;
@@ -32,6 +34,8 @@ import android.util.SparseArray;
 import android.view.View;
 import android.view.ViewRootImpl;
 
+import java.lang.reflect.InvocationTargetException;
+
 /**
  * Delegate used by the WebView provider implementation to access
  * the required framework functionality needed to implement a {@link WebView}.
@@ -41,8 +45,11 @@ import android.view.ViewRootImpl;
 @SystemApi
 public final class WebViewDelegate {
 
+    /** @hide */
+    @TestApi
     @UnsupportedAppUsage
-    /* package */ WebViewDelegate() { }
+    @FlaggedApi(Flags.FLAG_SELECTION_ACTION_MENU_CLIENT)
+    public WebViewDelegate() { }
 
     /**
      * Listener that gets notified whenever tracing has been enabled/disabled.
@@ -170,6 +177,33 @@ public final class WebViewDelegate {
      */
     public String getErrorString(Context context, int errorCode) {
         return LegacyErrorStrings.getString(errorCode, context);
+    }
+
+    /**
+     * Returns an instance of SelectionActionMenuClient used to customise WebView's selection
+     * context menu. This will be called once per app process and the same object may be used for
+     * multiple instances of WebView.
+     */
+    @FlaggedApi(Flags.FLAG_SELECTION_ACTION_MENU_CLIENT)
+    public @NonNull SelectionActionMenuClient getSelectionActionMenuClient(
+            @NonNull Context context) {
+        String packageName =
+                context.getString(
+                        com.android.internal.R.string
+                                .config_webViewSelectionActionMenuClientPackage);
+        try {
+            return Class.forName(packageName)
+                    .asSubclass(SelectionActionMenuClient.class)
+                    .getConstructor()
+                    .newInstance();
+        } catch (ClassNotFoundException
+                | NoSuchMethodException
+                | InvocationTargetException
+                | InstantiationException
+                | IllegalAccessException e) {
+            // Unable to instantiate an instance of SelectionActionMenuClient.
+            throw new RuntimeException(e);
+        }
     }
 
     /**

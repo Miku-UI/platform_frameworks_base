@@ -43,7 +43,6 @@ import android.content.pm.VersionedPackage;
 import android.content.rollback.PackageRollbackInfo;
 import android.content.rollback.RollbackInfo;
 import android.content.rollback.RollbackManager;
-import android.crashrecovery.flags.Flags;
 import android.net.ConnectivityModuleConnector;
 import android.net.ConnectivityModuleConnector.ConnectivityModuleHealthListener;
 import android.os.Handler;
@@ -550,11 +549,6 @@ public class CrashRecoveryTest {
             watchdog.onPackagesReady();
             // Verify controller by default is started when packages are ready
             assertThat(controller.mIsEnabled).isTrue();
-
-            if (!Flags.refactorCrashrecovery()) {
-                verify(mConnectivityModuleConnector).registerHealthListener(
-                        mConnectivityModuleCallbackCaptor.capture());
-            }
         }
         mAllocatedWatchdogs.add(watchdog);
         return watchdog;

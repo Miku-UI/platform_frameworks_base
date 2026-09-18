@@ -26,6 +26,17 @@ flag {
 }
 
 flag {
+    name: "enable_device_and_interface_filter_separation"
+    is_exported: false
+    namespace: "usb"
+    description: "Feature flag to enable device and interface filter separation"
+    bug: "464179952"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
     name: "expose_usb_speed_system_api"
     namespace: "usb"
     description: "Feature flag to enable exposing usb speed system api"
@@ -39,4 +50,50 @@ flag {
     namespace: "usb"
     description: "Feature flag to enable stream APIs for Accessory mode"
     bug: "369356693"
+}
+
+flag {
+    name: "enable_feature_usb_device"
+    is_exported: true
+    namespace: "usb"
+    description: "Feature flag to enable PackageManager feature FEATURE_USB_DEVICE"
+    bug: "457480832"
+}
+
+flag {
+    name: "enable_aoa_userspace_implementation"
+    namespace: "usb"
+    description: "Enables AOA userspace implementation"
+    bug: "407985367"
+}
+
+flag {
+    name: "enable_uaoa_p6"
+    namespace: "usb"
+    description: "Enables AOA userspace implementation only for pixel 6 series devices"
+    bug: "440091110"
+}
+
+flag {
+    name: "enable_uaoa_p8"
+    namespace: "usb"
+    description: "Enables AOA userspace implementation only for pixel 8 series devices"
+    bug: "440091110"
+}
+
+flag {
+    name: "enable_uaoa_p10"
+    namespace: "usb"
+    description: "Enables AOA userspace implementation only for pixel 10 series devices"
+    bug: "440091110"
+}
+
+flag {
+    name: "mtp_ffs_handle_close_concurrency_fix"
+    namespace: "usb"
+    description: "Fix a race condition when shutting down MtpFfsHandle while new events are being added."
+    bug: "372823688"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

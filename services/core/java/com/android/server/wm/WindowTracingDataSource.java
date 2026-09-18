@@ -18,6 +18,7 @@ package com.android.server.wm;
 
 import static android.tracing.perfetto.DataSourceParams.PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP;
 
+import android.annotation.CallSuper;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.internal.perfetto.protos.DataSourceConfigOuterClass.DataSourceConfig;
@@ -90,16 +91,20 @@ public final class WindowTracingDataSource extends DataSource<WindowTracingDataS
             mWindowTracing = windowTracing;
         }
 
+        @CallSuper
         @Override
         protected void onStart(StartCallbackArguments args) {
+            super.onStart(args);
             WindowTracingPerfetto windowTracing = mWindowTracing.get();
             if (windowTracing != null) {
                 windowTracing.onStart(mConfig);
             }
         }
 
+        @CallSuper
         @Override
         protected void onStop(StopCallbackArguments args) {
+            super.onStop(args);
             WindowTracingPerfetto windowTracing = mWindowTracing.get();
             if (windowTracing != null) {
                 windowTracing.onStop(this);

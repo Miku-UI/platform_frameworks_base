@@ -18,10 +18,8 @@ package com.android.systemui.clock.ui.viewmodel
 
 import android.icu.text.DateTimePatternGenerator
 import androidx.compose.runtime.getValue
-import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.clock.domain.interactor.ClockInteractor
-import com.android.systemui.lifecycle.ExclusiveActivatable
-import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.util.time.DateFormatUtil
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -30,8 +28,6 @@ import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Locale
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.awaitCancellation
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
@@ -49,18 +45,14 @@ constructor(
     clockInteractor: ClockInteractor,
     private val dateFormatUtil: DateFormatUtil,
     @Assisted private val amPmStyle: AmPmStyle,
-) : ExclusiveActivatable() {
-    private val hydrator = Hydrator("ClockViewModel.hydrator")
-
+) : HydratedActivatable() {
     // For content description, we use `DateTimePatternGenerator` to generate the best time format
     // for all the locales. For clock time, since we want to utilize removing AM/PM marker for
     // `AmPmStyle.Gone`, we will just use `SimpleDateFormat` instead.
     private lateinit var dateTimePatternGenerator: DateTimePatternGenerator
 
     private val contentDescriptionFormat: Flow<DateFormat> =
-        combine(clockInteractor.onTimezoneOrLocaleChanged, clockInteractor.showSeconds) {
-            _,
-            showSeconds ->
+        combine(clockInteractor.onTimeFormatChange, clockInteractor.showSeconds) { _, showSeconds ->
             getSimpleDateFormat(getContentDescriptionFormatString(showSeconds))
         }
 
@@ -72,16 +64,12 @@ constructor(
         }
 
     val contentDescriptionText: String by
-        hydrator.hydratedStateOf(
-            traceName = "clockContentDescriptionText",
-            initialValue = clockInteractor.currentTime.value.toString(),
-            source = _contentDescriptionText,
+        _contentDescriptionText.hydratedStateOf(
+            initialValue = clockInteractor.currentTime.value.toString()
         )
 
     private val clockTextFormat: Flow<SimpleDateFormat> =
-        combine(clockInteractor.onTimezoneOrLocaleChanged, clockInteractor.showSeconds) {
-            _,
-            showSeconds ->
+        combine(clockInteractor.onTimeFormatChange, clockInteractor.showSeconds) { _, showSeconds ->
             getSimpleDateFormat(getClockTextFormatString(showSeconds))
         }
 
@@ -91,43 +79,19 @@ constructor(
         }
 
     val clockText: String by
-        hydrator.hydratedStateOf(
-            traceName = "clockText",
-            initialValue = clockInteractor.currentTime.value.toString(),
-            source = _clockText,
-        )
+        _clockText.hydratedStateOf(initialValue = clockInteractor.currentTime.value.toString())
 
     val longerDateText: String by
-        hydrator.hydratedStateOf(
-            traceName = "longerDateText",
-            initialValue = "",
-            source =
-                combine(clockInteractor.longerDateFormat, clockInteractor.currentTime) {
-                    format,
-                    time ->
-                    format.format(time)
-                },
-        )
+        combine(clockInteractor.longerDateFormat, clockInteractor.currentTime) { format, time ->
+                format.format(time)
+            }
+            .hydratedStateOf(initialValue = "")
 
     val shorterDateText: String by
-        hydrator.hydratedStateOf(
-            traceName = "shorterDateText",
-            initialValue = "",
-            source =
-                combine(clockInteractor.shorterDateFormat, clockInteractor.currentTime) {
-                    format,
-                    time ->
-                    format.format(time)
-                },
-        )
-
-    override suspend fun onActivated(): Nothing {
-        coroutineScope {
-            launch { hydrator.activate() }
-
-            awaitCancellation()
-        }
-    }
+        combine(clockInteractor.shorterDateFormat, clockInteractor.currentTime) { format, time ->
+                format.format(time)
+            }
+            .hydratedStateOf(initialValue = "")
 
     @AssistedFactory
     interface Factory {

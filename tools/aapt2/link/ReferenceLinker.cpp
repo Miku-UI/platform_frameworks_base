@@ -493,6 +493,10 @@ bool ReferenceLinker::Consume(IAaptContext* context, ResourceTable* table) {
           config_value->value = config_value->value->Transform(reference_transformer);
         }
 
+        for (auto& config_value : entry->readwrite_flag_values) {
+          config_value->value = config_value->value->Transform(reference_transformer);
+        }
+
         if (reference_transformer.HasError()) {
           error = true;
         }

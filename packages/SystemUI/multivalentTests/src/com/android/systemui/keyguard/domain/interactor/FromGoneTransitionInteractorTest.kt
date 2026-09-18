@@ -29,6 +29,8 @@ import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepositorySpy
 import com.android.systemui.keyguard.data.repository.keyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.AuthenticationFlags
+import com.android.systemui.keyguard.shared.model.DozeStateModel
+import com.android.systemui.keyguard.shared.model.DozeTransitionModel
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionStep
@@ -129,5 +131,53 @@ class FromGoneTransitionInteractorTest : SysuiTestCase() {
             // We're in the middle of a GONE -> LOCKSCREEN transition.
             assertThat(keyguardTransitionRepository)
                 .startedTransition(to = KeyguardState.LOCKSCREEN)
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR)
+    @DisableSceneContainer
+    fun testTransitionsToDreaming_ifDozeHasNotStarted() =
+        testScope.runTest {
+            keyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.LOCKSCREEN,
+                to = KeyguardState.GONE,
+                testScope,
+            )
+            reset(keyguardTransitionRepository)
+
+            kosmos.fakeKeyguardRepository.setDozeTransitionModel(
+                DozeTransitionModel(
+                    from = DozeStateModel.INITIALIZED,
+                    to = DozeStateModel.UNINITIALIZED,
+                )
+            )
+            kosmos.fakeKeyguardRepository.setDreaming(true)
+            runCurrent()
+
+            assertThat(keyguardTransitionRepository).startedTransition(to = KeyguardState.DREAMING)
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR)
+    @DisableSceneContainer
+    fun testNoTransitionToDreaming_ifDozeHasStarted() =
+        testScope.runTest {
+            keyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.LOCKSCREEN,
+                to = KeyguardState.GONE,
+                testScope,
+            )
+            reset(keyguardTransitionRepository)
+
+            kosmos.fakeKeyguardRepository.setDozeTransitionModel(
+                DozeTransitionModel(
+                    from = DozeStateModel.UNINITIALIZED,
+                    to = DozeStateModel.INITIALIZED,
+                )
+            )
+            kosmos.fakeKeyguardRepository.setDreaming(true)
+            runCurrent()
+
+            assertThat(keyguardTransitionRepository).noTransitionsStarted()
         }
 }

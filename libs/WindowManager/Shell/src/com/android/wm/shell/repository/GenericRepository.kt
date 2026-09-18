@@ -18,33 +18,32 @@ package com.android.wm.shell.repository
 
 /**
  * Simple repository abstraction for common use.
- * @param Key     The generic type for the key.
- * @param Item    The generic type for the value stored in the repository.
+ *
+ * @param Key The generic type for the key.
+ * @param Item The generic type for the value stored in the repository.
  */
 interface GenericRepository<Key, Item> {
 
-    /**
-     * @return The Item for a given [key] if present.
-     */
+    /** @return The Item for a given [key] if present. */
     fun find(key: Key): Item?
 
     /**
      * Inserts the given [item] for the given [key].
      *
-     * @param key   The Key for the new item
-     * @param item  The Item for the given key.
+     * @param key The Key for the new item
+     * @param item The Item for the given key.
      * @param overrideIfPresent If {@code true} the value is updated when already present.
      * @return `true` if the value has been updated and `false` otherwise.
      */
     fun insert(key: Key, item: Item, overrideIfPresent: Boolean = true): Boolean
 
     /**
-     * Inserts the given [item] for the given [key]. The [item] is created only in the case
-     * when [overrideIfPresent] is [true] or it's not present. This prevents the [item] from
-     * being created if not necessary.
+     * Inserts the given [item] for the given [key]. The [item] is created only in the case when
+     * [overrideIfPresent] is [true] or it's not present. This prevents the [item] from being
+     * created if not necessary.
      *
-     * @param key   The Key for the new item
-     * @param item  The Item for the given key.
+     * @param key The Key for the new item
+     * @param item The Item for the given key.
      * @param overrideIfPresent If {@code true} the value is updated when already present.
      * @return `true` if the value has been updated and `false` otherwise.
      */
@@ -53,42 +52,34 @@ interface GenericRepository<Key, Item> {
     /**
      * Deletes the Item for the given [key].
      *
-     * @param key   The Key of the item to delete.
+     * @param key The Key of the item to delete.
      * @return `true` if the item has been removed and `false` otherwise.
      */
     fun delete(key: Key): Boolean
 
     /**
-     * Search for the Item for the given [key] and invoked the [onItem] on it if
-     * present.
+     * Search for the Item for the given [key] and invoked the [onItem] on it if present.
      *
-     * @param key   The Key for the Item in the repository.
+     * @param key The Key for the Item in the repository.
      * @param defaultResult The value to return in case there's no value for the key
-     * @param onItem    The function to invoke in case the Item is present.
+     * @param onItem The function to invoke in case the Item is present.
      * @return The result of [onItem] if the item is present or [defaultResult] otherwise.
      */
-    fun executeOn(
-        key: Key,
-        defaultResult: Boolean = false,
-        onItem: (Item) -> Boolean
-    ): Boolean = find(key)?.let { onItem(it) } ?: defaultResult
+    fun executeOn(key: Key, defaultResult: Boolean = false, onItem: (Item) -> Boolean): Boolean =
+        find(key)?.let { onItem(it) } ?: defaultResult
 
     /**
      * Updates the value if present.
      *
-     * @param key   The Key for the Item in the repository.
+     * @param key The Key for the Item in the repository.
      * @param updateItem The function which updated the Item if present.
      * @return [true] if the item has been updated and [false] if not present.
      */
     fun update(key: Key, updateItem: (Item) -> Item): Boolean
 
-    /**
-     * Finds the items for a given [predicate].
-     */
+    /** Finds the items for a given [predicate]. */
     fun find(predicate: (Key, Item) -> Boolean): List<Item>
 
-    /**
-     * Shows what's in the repository for debugging purpose.
-     */
+    /** Shows what's in the repository for debugging purpose. */
     fun dump()
 }

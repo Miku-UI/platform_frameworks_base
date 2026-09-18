@@ -19,6 +19,7 @@ package com.android.systemui.statusbar.chips.screenrecord.domain.interactor
 import android.media.projection.StopReason
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel
 import com.android.systemui.mediaprojection.data.model.MediaProjectionState
@@ -29,6 +30,7 @@ import com.android.systemui.statusbar.chips.StatusBarChipLogTags.pad
 import com.android.systemui.statusbar.chips.StatusBarChipsLog
 import com.android.systemui.statusbar.chips.screenrecord.domain.model.ScreenRecordChipModel
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -45,6 +47,7 @@ class ScreenRecordChipInteractor
 @Inject
 constructor(
     @Application private val scope: CoroutineScope,
+    @Background private val backgroundContext: CoroutineContext,
     private val screenRecordRepository: ScreenRecordRepository,
     private val mediaProjectionRepository: MediaProjectionRepository,
     @StatusBarChipsLog private val logger: LogBuffer,
@@ -148,7 +151,9 @@ constructor(
 
     /** Stops the recording. */
     fun stopRecording() {
-        scope.launch { screenRecordRepository.stopRecording(StopReason.STOP_PRIVACY_CHIP) }
+        scope.launch(backgroundContext) {
+            screenRecordRepository.stopRecording(StopReason.STOP_PRIVACY_CHIP)
+        }
     }
 
     companion object {

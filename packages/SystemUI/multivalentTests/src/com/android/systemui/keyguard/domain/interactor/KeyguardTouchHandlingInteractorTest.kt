@@ -18,6 +18,7 @@
 package com.android.systemui.keyguard.domain.interactor
 
 import android.content.Intent
+import android.graphics.Point
 import android.os.PowerManager
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
@@ -33,19 +34,22 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryFaceAuthInteractor
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
+import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.inputdevice.data.repository.pointerDeviceRepository
 import com.android.systemui.keyguard.data.repository.FakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.data.repository.KeyguardRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.power.domain.interactor.powerInteractor
 import com.android.systemui.res.R
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.securelockdevice.domain.interactor.secureLockDeviceInteractor
-import com.android.systemui.shade.pulsingGestureListener
+import com.android.systemui.shade.PulsingGestureListener
 import com.android.systemui.shared.settings.data.repository.SecureSettingsRepository
 import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
 import com.android.systemui.statusbar.phone.statusBarKeyguardViewManager
@@ -55,7 +59,9 @@ import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.settings.data.repository.userAwareSecureSettingsRepository
 import com.android.systemui.util.time.fakeSystemClock
+import com.android.systemui.wallpapers.domain.interactor.wallpaperFocalAreaInteractor
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -74,7 +80,7 @@ import org.mockito.MockitoAnnotations
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class KeyguardTouchHandlingInteractorTest : SysuiTestCase() {
     private val kosmos =
         testKosmos().apply {
@@ -92,6 +98,7 @@ class KeyguardTouchHandlingInteractorTest : SysuiTestCase() {
     private lateinit var sceneInteractor: SceneInteractor
     private lateinit var statusBarKeyguardViewManager: StatusBarKeyguardViewManager
 
+    @Mock private lateinit var pulsingGestureListener: PulsingGestureListener
     @Mock private lateinit var powerManager: PowerManager
 
     @Before
@@ -134,6 +141,13 @@ class KeyguardTouchHandlingInteractorTest : SysuiTestCase() {
                 }
             }
         }
+
+    @Test
+    @EnableSceneContainer
+    fun onSceneClickNotifiesPulsingGestureListener() {
+        underTest.onSceneClick(1f, 2f)
+        verify(pulsingGestureListener).onSingleTapUp(1f, 2f)
+    }
 
     @Test
     fun isLongPressEnabled_alwaysFalseWhenQuickSettingsAreVisible() =
@@ -198,21 +212,6 @@ class KeyguardTouchHandlingInteractorTest : SysuiTestCase() {
 
             assertThat(isMenuVisible).isFalse()
             assertThat(shouldOpenSettings).isFalse()
-        }
-
-    @Test
-    fun longPressed_isA11yAction_doesNotShowMenu_opensSettings() =
-        testScope.runTest {
-            createUnderTest()
-            val isMenuVisible by collectLastValue(underTest.isMenuVisible)
-            val shouldOpenSettings by collectLastValue(underTest.shouldOpenSettings)
-            val isA11yAction = true
-            runCurrent()
-
-            underTest.onLongPress(isA11yAction)
-
-            assertThat(isMenuVisible).isFalse()
-            assertThat(shouldOpenSettings).isTrue()
         }
 
     @Test
@@ -423,6 +422,21 @@ class KeyguardTouchHandlingInteractorTest : SysuiTestCase() {
         }
     }
 
+    @Test
+    @EnableSceneContainer
+    fun onClick_setsLastRootViewTapPosition() =
+        kosmos.runTest {
+            val lastRootViewTapPosition by
+                collectLastValue(keyguardRepository.lastRootViewTapPosition)
+            assertThat(lastRootViewTapPosition).isNull()
+
+            underTest.onClick(100f, 100f)
+            assertThat(lastRootViewTapPosition).isEqualTo(Point(100, 100))
+
+            underTest.onClick(200f, 100f)
+            assertThat(lastRootViewTapPosition).isEqualTo(Point(200, 100))
+        }
+
     private suspend fun createUnderTest(isRevampedWppFeatureEnabled: Boolean = true) {
         // This needs to be re-created for each test outside of kosmos since the flag values are
         // read during initialization to set up flows. Maybe there is a better way to handle that.
@@ -436,7 +450,7 @@ class KeyguardTouchHandlingInteractorTest : SysuiTestCase() {
                 broadcastDispatcher = fakeBroadcastDispatcher,
                 accessibilityManager = kosmos.accessibilityManagerWrapper,
                 statusBarKeyguardViewManager = statusBarKeyguardViewManager,
-                pulsingGestureListener = kosmos.pulsingGestureListener,
+                pulsingGestureListener = pulsingGestureListener,
                 faceAuthInteractor = kosmos.deviceEntryFaceAuthInteractor,
                 deviceEntryInteractor = kosmos.deviceEntryInteractor,
                 powerInteractor = kosmos.powerInteractor,
@@ -445,6 +459,7 @@ class KeyguardTouchHandlingInteractorTest : SysuiTestCase() {
                 systemClock = kosmos.fakeSystemClock,
                 pointerDeviceRepository = kosmos.pointerDeviceRepository,
                 secureLockDeviceInteractor = { kosmos.secureLockDeviceInteractor },
+                wallpaperFocalAreaInteractor = kosmos.wallpaperFocalAreaInteractor,
             )
         setUpState()
     }

@@ -17,17 +17,21 @@
 package com.android.systemui.statusbar.layout.ui.viewmodel
 
 import android.graphics.Rect
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
 import com.android.systemui.statusbar.layout.StatusBarContentInsetsChangedListener
 import com.android.systemui.statusbar.layout.StatusBarContentInsetsProvider
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
+import javax.inject.Inject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.onStart
 
 /** A recommended architecture version of [StatusBarContentInsetsProvider]. */
-class StatusBarContentInsetsViewModel(
-    private val statusBarContentInsetsProvider: StatusBarContentInsetsProvider
+class StatusBarContentInsetsViewModel
+@Inject
+constructor(
+    @DisplayAware private val statusBarContentInsetsProvider: StatusBarContentInsetsProvider
 ) {
     /** Emits the status bar content area for the given rotation in absolute bounds. */
     val contentArea: Flow<Rect> =

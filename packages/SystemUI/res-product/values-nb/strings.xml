@@ -20,54 +20,111 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="dock_alignment_slow_charging" product="default" msgid="6997633396534416792">"Juster telefonen for å lade raskere"</string>
+    <string name="dock_alignment_slow_charging" product="desktop" msgid="3407039002024253081">"Flytt på enheten for å lade raskere"</string>
     <string name="dock_alignment_not_charging" product="default" msgid="3980752926226749808">"Juster telefonen for å lade trådløst"</string>
+    <string name="dock_alignment_not_charging" product="desktop" msgid="1650693501464120367">"Flytt på enheten for å lade trådløst"</string>
     <string name="inattentive_sleep_warning_message" product="tv" msgid="6844464574089665063">"Android TV-enheten slås snart av. Trykk på en knapp for å holde den på."</string>
     <string name="inattentive_sleep_warning_message" product="default" msgid="5693904520452332224">"Enheten slås snart av. Trykk for å holde den på."</string>
     <string name="keyguard_missing_sim_message" product="tablet" msgid="408124574073032188">"Det er ingen SIM-kort i nettbrettet."</string>
     <string name="keyguard_missing_sim_message" product="default" msgid="2605468359948247208">"Det er ingen SIM-kort i telefonen."</string>
+    <string name="keyguard_missing_sim_message" product="desktop" msgid="6678465505993388400">"Det er ingen SIM-kort i enheten."</string>
     <string name="kg_invalid_confirm_pin_hint" product="default" msgid="6278551068943958651">"PIN-kodene stemmer ikke overens"</string>
     <string name="kg_failed_attempts_almost_at_wipe" product="tablet" msgid="302165994845009232">"Du har gjort feil i forsøket på å låse opp nettbrettet <xliff:g id="NUMBER_0">%1$d</xliff:g> ganger. Nettbrettet tilbakestilles etter <xliff:g id="NUMBER_1">%2$d</xliff:g> nye mislykkede forsøk, noe som sletter alle dataene på nettbrettet."</string>
     <string name="kg_failed_attempts_almost_at_wipe" product="default" msgid="2594813176164266847">"Du har gjort feil i forsøket på å låse opp telefonen <xliff:g id="NUMBER_0">%1$d</xliff:g> ganger. Telefonen tilbakestilles etter <xliff:g id="NUMBER_1">%2$d</xliff:g> nye mislykkede forsøk, noe som sletter alle dataene på telefonen."</string>
+    <string name="kg_failed_attempts_almost_at_wipe" product="desktop" msgid="6414651766868767274">"Du har gjort feil i forsøket på å låse opp enheten <xliff:g id="NUMBER_0">%1$d</xliff:g> ganger. Enheten tilbakestilles etter <xliff:g id="NUMBER_1">%2$d</xliff:g> nye mislykkede forsøk, noe som sletter alle dataene på den."</string>
     <string name="kg_failed_attempts_now_wiping" product="tablet" msgid="8710104080409538587">"Du har gjort feil i forsøket på å låse opp nettbrettet <xliff:g id="NUMBER">%d</xliff:g> ganger. Dette nettbrettet blir tilbakestilt, og alle dataene blir slettet."</string>
     <string name="kg_failed_attempts_now_wiping" product="default" msgid="6381835450014881813">"Du har gjort feil i forsøket på å låse opp telefonen <xliff:g id="NUMBER">%d</xliff:g> ganger. Denne telefonen blir tilbakestilt, og alle dataene blir slettet."</string>
+    <string name="kg_failed_attempts_now_wiping" product="desktop" msgid="2277485562881116948">"Du har gjort feil i forsøket på å låse opp enheten <xliff:g id="NUMBER">%d</xliff:g> ganger. Denne enheten blir tilbakestilt, og alle dataene blir slettet."</string>
     <string name="kg_failed_attempts_almost_at_erase_user" product="tablet" msgid="7325071812832605911">"Du har gjort feil i forsøket på å låse opp nettbrettet <xliff:g id="NUMBER_0">%1$d</xliff:g> ganger. Brukeren fjernes etter <xliff:g id="NUMBER_1">%2$d</xliff:g> nye mislykkede forsøk, noe som sletter alle brukerdataene."</string>
     <string name="kg_failed_attempts_almost_at_erase_user" product="default" msgid="8110939900089863103">"Du har gjort feil i forsøket på å låse opp telefonen <xliff:g id="NUMBER_0">%1$d</xliff:g> ganger. Brukeren fjernes etter <xliff:g id="NUMBER_1">%2$d</xliff:g> nye mislykkede forsøk, noe som sletter alle brukerdataene."</string>
+    <string name="kg_failed_attempts_almost_at_erase_user" product="desktop" msgid="6685285863549889535">"Du har gjort feil i forsøket på å låse opp enheten <xliff:g id="NUMBER_0">%1$d</xliff:g> ganger. Brukeren fjernes etter <xliff:g id="NUMBER_1">%2$d</xliff:g> nye mislykkede forsøk, noe som sletter alle brukerdataene."</string>
     <string name="kg_failed_attempts_now_erasing_user" product="tablet" msgid="8509811676952707883">"Du har gjort feil i forsøket på å låse opp nettbrettet <xliff:g id="NUMBER">%d</xliff:g> ganger. Denne brukeren blir fjernet, og alle brukerdataene blir slettet."</string>
     <string name="kg_failed_attempts_now_erasing_user" product="default" msgid="3051962486994265014">"Du har gjort feil i forsøket på å låse opp telefonen <xliff:g id="NUMBER">%d</xliff:g> ganger. Denne brukeren blir fjernet, og alle brukerdataene blir slettet."</string>
+    <string name="kg_failed_attempts_now_erasing_user" product="desktop" msgid="3003054879895735837">"Du har gjort feil i forsøket på å låse opp enheten <xliff:g id="NUMBER">%d</xliff:g> ganger. Denne brukeren blir fjernet, og alle brukerdataene blir slettet."</string>
     <string name="kg_failed_attempts_almost_at_erase_profile" product="tablet" msgid="1049523640263353830">"Du har gjort feil i forsøket på å låse opp nettbrettet <xliff:g id="NUMBER_0">%1$d</xliff:g> ganger. Jobbprofilen fjernes etter <xliff:g id="NUMBER_1">%2$d</xliff:g> nye mislykkede forsøk, noe som sletter alle profildataene."</string>
     <string name="kg_failed_attempts_almost_at_erase_profile" product="default" msgid="3280816298678433681">"Du har gjort feil i forsøket på å låse opp telefonen <xliff:g id="NUMBER_0">%1$d</xliff:g> ganger. Jobbprofilen fjernes etter <xliff:g id="NUMBER_1">%2$d</xliff:g> nye mislykkede forsøk, noe som sletter alle profildataene."</string>
+    <string name="kg_failed_attempts_almost_at_erase_profile" product="desktop" msgid="6020310710703619275">"Du har gjort feil i forsøket på å låse opp enheten <xliff:g id="NUMBER_0">%1$d</xliff:g> ganger. Jobbprofilen fjernes etter <xliff:g id="NUMBER_1">%2$d</xliff:g> nye mislykkede forsøk, noe som sletter alle profildataene."</string>
     <string name="kg_failed_attempts_now_erasing_profile" product="tablet" msgid="4417100487251371559">"Du har gjort feil i forsøket på å låse opp nettbrettet <xliff:g id="NUMBER">%d</xliff:g> ganger. Jobbprofilen blir fjernet, og alle profildataene blir slettet."</string>
     <string name="kg_failed_attempts_now_erasing_profile" product="default" msgid="4682221342671290678">"Du har gjort feil i forsøket på å låse opp telefonen <xliff:g id="NUMBER">%d</xliff:g> ganger. Jobbprofilen blir fjernet, og alle profildataene blir slettet."</string>
+    <string name="kg_failed_attempts_now_erasing_profile" product="desktop" msgid="2786666082798973358">"Du har gjort feil i forsøket på å låse opp enheten <xliff:g id="NUMBER">%d</xliff:g> ganger. Jobbprofilen blir fjernet, og alle profildataene blir slettet."</string>
     <string name="kg_failed_attempts_almost_at_login" product="tablet" msgid="1860049973474855672">"Du har tegnet opplåsingsmønsteret feil <xliff:g id="NUMBER_0">%1$d</xliff:g> ganger. Etter ytterligere <xliff:g id="NUMBER_1">%2$d</xliff:g> nye mislykkede forsøk blir du bedt om å låse opp nettbrettet via en e-postkonto.\n\n Prøv på nytt om <xliff:g id="NUMBER_2">%3$d</xliff:g> sekunder."</string>
     <string name="kg_failed_attempts_almost_at_login" product="default" msgid="44112553371516141">"Du har tegnet opplåsingsmønsteret feil <xliff:g id="NUMBER_0">%1$d</xliff:g> ganger. Etter ytterligere <xliff:g id="NUMBER_1">%2$d</xliff:g> nye mislykkede forsøk blir du bedt om å låse opp telefonen via en e-postkonto.\n\n Prøv på nytt om <xliff:g id="NUMBER_2">%3$d</xliff:g> sekunder."</string>
+    <string name="kg_failed_attempts_almost_at_login" product="desktop" msgid="1821951547429595155">"Du har tegnet opplåsingsmønsteret feil <xliff:g id="NUMBER_0">%1$d</xliff:g> ganger. Etter ytterligere <xliff:g id="NUMBER_1">%2$d</xliff:g> mislykkede forsøk blir du bedt om å låse opp enheten via en e-postkonto.\n\n Prøv på nytt om <xliff:g id="NUMBER_2">%3$d</xliff:g> sekunder."</string>
     <string name="thermal_shutdown_title" product="default" msgid="8039593017174903505">"Telefonen ble slått av på grunn av varme"</string>
+    <string name="thermal_shutdown_title" product="desktop" msgid="2954206342842856379">"Enheten ble slått av på grunn av varme"</string>
     <string name="thermal_shutdown_title" product="device" msgid="2954206342842856379">"Enheten ble slått av på grunn av varme"</string>
     <string name="thermal_shutdown_title" product="tablet" msgid="8941033526856177533">"Nettbrett ble slått av på grunn av varme"</string>
     <string name="thermal_shutdown_message" product="default" msgid="6685194547904051408">"Telefonen kjører nå som normalt.\nTrykk for å se mer informasjon"</string>
     <string name="thermal_shutdown_message" product="device" msgid="3039675532521590478">"Enheten kjører nå som normalt.\nTrykk for å se mer informasjon"</string>
     <string name="thermal_shutdown_message" product="tablet" msgid="5285898074484811386">"Nettbrettet kjører nå som normalt.\nTrykk for å se mer informasjon"</string>
+    <string name="thermal_shutdown_message" product="desktop" msgid="3039675532521590478">"Enheten kjører nå som normalt.\nTrykk for å se mer informasjon"</string>
     <string name="thermal_shutdown_dialog_message" product="default" msgid="6145923570358574186">"Telefonen var for varm, så den ble slått av for å kjøles ned. Den kjører nå som normalt.\n\nTelefonen kan blir for varm hvis du\n	• bruker ressurskrevende apper (for eksempel spill-, video- eller navigeringsapper)\n	• laster store filer opp eller ned\n	• bruker den ved høy temperatur"</string>
     <string name="thermal_shutdown_dialog_message" product="device" msgid="3647879000909527365">"Enheten var for varm, så den ble slått av for å kjøles ned. Den kjører nå som normalt.\n\nEnheten kan blir for varm hvis du\n	• bruker ressurskrevende apper (for eksempel spill-, video- eller navigeringsapper)\n	• laster store filer opp eller ned\n	• bruker den ved høy temperatur"</string>
     <string name="thermal_shutdown_dialog_message" product="tablet" msgid="8274487811928782165">"Nettbrettet var for varmt, så det ble slått av for å kjøles ned. Det kjører nå som normalt.\n\nNettbrettet kan blir for varmt hvis du\n	• bruker ressurskrevende apper (for eksempel spill-, video- eller navigeringsapper)\n	• laster store filer opp eller ned\n	• bruker det ved høy temperatur"</string>
+    <string name="thermal_shutdown_dialog_message" product="desktop" msgid="3647879000909527365">"Enheten var for varm, så den ble slått av for å kjøles ned. Den kjører nå som normalt.\n\nEnheten kan blir for varm hvis du\n	• bruker ressurskrevende apper (for eksempel spill-, video- eller navigeringsapper)\n	• laster store filer opp eller ned\n	• bruker den ved høy temperatur"</string>
     <string name="high_temp_title" product="default" msgid="5365000411304924115">"Telefonen begynner å bli varm"</string>
     <string name="high_temp_title" product="device" msgid="6622009907401563664">"Enheten begynner å bli varm"</string>
     <string name="high_temp_title" product="tablet" msgid="9039733706606446616">"Nettbrett begynner å bli varmt"</string>
+    <string name="high_temp_title" product="desktop" msgid="6622009907401563664">"Enheten begynner å bli varm"</string>
     <string name="high_temp_notif_message" product="default" msgid="3928947950087257452">"Enkelte funksjoner er begrenset mens telefonen kjøles ned.\nTrykk for å se mer informasjon"</string>
     <string name="high_temp_notif_message" product="device" msgid="6105125771372547292">"Enkelte funksjoner er begrenset mens enheten kjøles ned.\nTrykk for å se mer informasjon"</string>
     <string name="high_temp_notif_message" product="tablet" msgid="7799279192797476850">"Enkelte funksjoner er begrenset mens nettbrettet kjøles ned.\nTrykk for å se mer informasjon"</string>
+    <string name="high_temp_notif_message" product="desktop" msgid="6105125771372547292">"Enkelte funksjoner er begrenset mens enheten kjøles ned.\nTrykk for å se mer informasjon"</string>
     <string name="high_temp_dialog_message" product="default" msgid="4272882413847595625">"Telefonen prøver automatisk å kjøle seg ned. Du kan fremdeles bruke den, men den kjører muligens saktere.\n\nNår telefonen har kjølt seg ned, kjører den som normalt."</string>
     <string name="high_temp_dialog_message" product="device" msgid="263861943935989046">"Enheten prøver automatisk å kjøle seg ned. Du kan fremdeles bruke den, men den kjører muligens saktere.\n\nNår enheten har kjølt seg ned, kjører den som normalt."</string>
     <string name="high_temp_dialog_message" product="tablet" msgid="5613713326841935537">"Nettbrettet prøver automatisk å kjøle seg ned. Du kan fremdeles bruke det, men det kjører muligens saktere.\n\nNår nettbrettet har kjølt seg ned, kjører det som normalt."</string>
+    <string name="high_temp_dialog_message" product="desktop" msgid="263861943935989046">"Enheten prøver automatisk å kjøle seg ned. Du kan fremdeles bruke den, men den kjører muligens saktere.\n\nNår enheten har kjølt seg ned, kjører den som normalt."</string>
     <string name="security_settings_sfps_enroll_find_sensor_message" product="tablet" msgid="3726972508570143945">"Fingeravtrykkssensoren er på av/på-knappen. Det er den flate knappen ved siden av den hevede volumknappen på nettbrettets kant."</string>
     <string name="security_settings_sfps_enroll_find_sensor_message" product="device" msgid="2929467060295094725">"Fingeravtrykkssensoren er på av/på-knappen. Det er den flate knappen ved siden av den hevede volumknappen på siden av enheten."</string>
     <string name="security_settings_sfps_enroll_find_sensor_message" product="default" msgid="8582726566542997639">"Fingeravtrykkssensoren er på av/på-knappen. Det er den flate knappen ved siden av den hevede volumknappen på telefonens kant."</string>
+    <string name="security_settings_sfps_enroll_find_sensor_message" product="desktop" msgid="2929467060295094725">"Fingeravtrykkssensoren er på av/på-knappen. Det er den flate knappen ved siden av den hevede volumknappen på siden av enheten."</string>
     <string name="global_action_lock_message" product="default" msgid="7092460751050168771">"Lås opp telefonen din for å få flere alternativer"</string>
     <string name="global_action_lock_message" product="tablet" msgid="1024230056230539493">"Lås opp nettbrettet ditt for å få flere alternativer"</string>
     <string name="global_action_lock_message" product="device" msgid="3165224897120346096">"Lås opp enheten din for å få flere alternativer"</string>
+    <string name="global_action_lock_message" product="desktop" msgid="3165224897120346096">"Lås opp enheten din for å få flere alternativer"</string>
     <string name="media_transfer_playing_this_device" product="default" msgid="5795784619523545556">"Spilles av på denne telefonen"</string>
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Spilles av på dette nettbrettet"</string>
+    <string name="media_transfer_playing_this_device" product="desktop" msgid="3299409636487714269">"Spilles av på denne enheten"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Du kan finne denne telefonen med Finn enheten min, selv når den er slått av"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Du kan finne dette nettbrettet med Finn enheten min, selv når det er slått av"</string>
-    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Du kan finne denne telefonen med Finn-oversikt, selv når den er slått av"</string>
-    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Du kan finne dette nettbrettet med Finn-oversikt, selv når det er slått av"</string>
+    <string name="finder_active" product="desktop" msgid="924749965418452906">"Du kan finne denne enheten med Finn enheten min, selv når den er slått av"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Du kan finne denne telefonen med Find Hub, selv når den er slått av"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Du kan finne dette nettbrettet med Find Hub, selv når det er slått av"</string>
+    <string name="find_hub_active" product="desktop" msgid="5324909071852240549">"Du kan finne denne enheten med Find Hub, selv når den er slått av"</string>
+    <string name="dream_setup_description" product="default" msgid="5167691612621831552">"Vis en klokke, bilder eller været når telefonen lades"</string>
+    <string name="dream_setup_description" product="tablet" msgid="6296793330727926553">"Vis en klokke, bilder eller været når nettbrettet lades"</string>
+    <string name="dream_setup_description" product="device" msgid="3098487756905462324">"Vis en klokke, bilder eller været når enheten lades"</string>
+    <string name="dream_setup_description" product="desktop" msgid="3098487756905462324">"Vis en klokke, bilder eller været når enheten lades"</string>
+    <string name="accessibility_retry_face_auth" product="default" msgid="92100916134164459">"Prøv ansiktslås igjen"</string>
+    <string name="accessibility_retry_face_auth" product="desktop" msgid="5630058255754932537">"Prøv å låse opp med ansiktet igjen"</string>
+    <string name="face_re_enroll_notification_title" product="default" msgid="1533872824718008968">"Konfigurer ansiktslåsen på nytt"</string>
+    <string name="face_re_enroll_notification_title" product="desktop" msgid="5218710819864377084">"Konfigurer opplåsing med ansikt på nytt"</string>
+    <string name="biometric_dialog_tap_confirm_with_face" product="default" msgid="2261934158598458578">"Låst opp med ansiktet"</string>
+    <string name="biometric_dialog_tap_confirm_with_face" product="desktop" msgid="2066067154465078068">"Låst opp med ansiktet"</string>
+    <string name="biometric_dialog_tap_confirm_with_face_alt_1" product="default" msgid="1268255053915789297">"Låst opp med ansiktet. Trykk for å fortsette."</string>
+    <string name="biometric_dialog_tap_confirm_with_face_alt_1" product="desktop" msgid="1514178179652703156">"Låst opp med ansiktet. Trykk for å fortsette."</string>
+    <string name="biometric_dialog_tap_confirm_with_face_sfps" product="default" msgid="2492608775606333432">"Låst opp med ansiktet. Trykk for å fortsette."</string>
+    <string name="biometric_dialog_tap_confirm_with_face_sfps" product="desktop" msgid="7918648092655463233">"Låst opp med ansiktet. Trykk for å fortsette."</string>
+    <string name="face_re_enroll_notification_name" product="default" msgid="5965443249759045602">"Ansiktslås"</string>
+    <string name="face_re_enroll_notification_name" product="desktop" msgid="3705121888554395242">"Opplåsing med ansiktet"</string>
+    <string name="face_re_enroll_dialog_title" product="default" msgid="2719988247243428771">"Konfigurer ansiktslås"</string>
+    <string name="face_re_enroll_dialog_title" product="desktop" msgid="4217639465392210803">"Konfigurer opplåsing med ansikt"</string>
+    <string name="face_re_enroll_dialog_content" product="default" msgid="7290782487464426692">"For å konfigurere ansiktslåsen på nytt slettes den nåværende ansiktsmodellen din.\n\nDu må konfigurere denne funksjonen på nytt for å låse opp telefonen med ansiktet."</string>
+    <string name="face_re_enroll_dialog_content" product="desktop" msgid="7718739738665960268">"For å konfigurere opplåsing med ansikt på nytt slettes den nåværende ansiktsmodellen din.\n\nDu må konfigurere denne funksjonen på nytt for å låse opp enheten med ansiktet."</string>
+    <string name="face_reenroll_failure_dialog_content" product="default" msgid="6318784230085101323">"Kunne ikke konfigurere ansiktslåsen. Gå til Innstillinger for å prøve på nytt."</string>
+    <string name="face_reenroll_failure_dialog_content" product="desktop" msgid="1206573626798969692">"Kunne ikke konfigurere opplåsing med ansikt. Prøv på nytt i Innstillinger."</string>
+    <string name="keyguard_face_unlock_unavailable" product="default" msgid="3188895702987679056">"Ansiktslås er utilgjengelig"</string>
+    <string name="keyguard_face_unlock_unavailable" product="desktop" msgid="7088502865328130614">"Opplåsing med ansikt er utilgjengelig"</string>
+    <string name="accesssibility_keyguard_retry" product="default" msgid="5017097587017783548">"Sveip opp for å prøve ansiktslåsen igjen"</string>
+    <string name="accesssibility_keyguard_retry" product="desktop" msgid="5084769005671288179">"Sveip opp for å prøve å låse opp med ansiktet igjen"</string>
+    <string name="keyguard_face_successful_unlock_swipe" product="default" msgid="1358318947548832086">"Låst opp med ansiktet. Sveip opp for å åpne."</string>
+    <string name="keyguard_face_successful_unlock_swipe" product="desktop" msgid="4016445068612817741">"Låst opp med ansiktet. Sveip opp for å åpne."</string>
+    <string name="keyguard_face_successful_unlock_confirm_button" product="default" msgid="4883782574761031564">"Låst opp med ansiktet. Trykk på bekreft for å fortsette."</string>
+    <string name="keyguard_face_successful_unlock_confirm_button" product="desktop" msgid="7268520979450633978">"Låst opp med ansiktet. Trykk på bekreft for å fortsette."</string>
+    <string name="keyguard_face_successful_unlock_press" product="default" msgid="7293890116185253825">"Låst opp med ansiktet. Trykk på lås opp-ikonet for å åpne."</string>
+    <string name="keyguard_face_successful_unlock_press" product="desktop" msgid="6158498006084899116">"Låst opp med ansiktet. Trykk på lås opp-ikonet for å åpne."</string>
+    <string name="keyguard_face_successful_unlock_press_alt_1" product="default" msgid="6269966346565076951">"Låst opp med ansiktet. Trykk for å åpne."</string>
+    <string name="keyguard_face_successful_unlock_press_alt_1" product="desktop" msgid="1612731733090835687">"Låst opp med ansiktet. Trykk for å åpne."</string>
+    <string name="keyguard_face_successful_unlock" product="default" msgid="5544493091450184889">"Låst opp med ansiktet"</string>
+    <string name="keyguard_face_successful_unlock" product="desktop" msgid="5348626087316804379">"Låst opp med ansiktet"</string>
 </resources>

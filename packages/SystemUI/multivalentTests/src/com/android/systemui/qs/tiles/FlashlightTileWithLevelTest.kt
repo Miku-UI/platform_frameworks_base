@@ -210,7 +210,7 @@ class FlashlightTileWithLevelTest : SysuiTestCase() {
             runCurrent()
 
             assertThat(tileState.state).isEqualTo(Tile.STATE_ACTIVE)
-            assertThat(tileState.secondaryLabel).isEqualTo("100%")
+            assertThat(tileState.secondaryLabel).isNull()
         }
 
     @Test

@@ -118,7 +118,7 @@ constructor(
 
         if (SceneContainerFlag.isEnabled) {
             scope.launch {
-                sceneInteractor.transitionState
+                sceneInteractor.transitionStateFlow
                     .mapNotNull {
                         val transitioningToGone = it.isTransitioning(to = Scenes.Gone)
                         val deviceEntered = deviceEntryInteractor.isDeviceEntered.value

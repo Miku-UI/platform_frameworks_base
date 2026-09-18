@@ -21,7 +21,6 @@ import android.telephony.TelephonyManager.DATA_ACTIVITY_NONE
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosTestScope
 import com.android.systemui.kairos.kairos
 import com.android.systemui.kairos.map
@@ -47,7 +46,6 @@ import org.junit.runner.RunWith
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.stub
 
-@OptIn(ExperimentalKairosApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class DemoMobileConnectionsRepositoryKairosTest : SysuiTestCase() {
@@ -264,7 +262,7 @@ class DemoMobileConnectionsRepositoryKairosTest : SysuiTestCase() {
         assertThat(latest).hasSize(1)
 
         fakeWifiEventFlow.value =
-            FakeWifiEventModel.Wifi(level = 1, activity = 0, ssid = null, validated = true)
+            FakeWifiEventModel.Wifi(level = 1, activity = 0, ssid = null, showExclamation = true)
 
         assertThat(latest).isEmpty()
     }
@@ -303,7 +301,7 @@ class DemoMobileConnectionsRepositoryKairosTest : SysuiTestCase() {
 
         // WHEN the carrier merged is removed
         fakeWifiEventFlow.value =
-            FakeWifiEventModel.Wifi(level = 4, activity = 0, ssid = null, validated = true)
+            FakeWifiEventModel.Wifi(level = 4, activity = 0, ssid = null, showExclamation = true)
 
         assertThat(latestSubsList).hasSize(1)
         assertThat(connections).hasSize(1)

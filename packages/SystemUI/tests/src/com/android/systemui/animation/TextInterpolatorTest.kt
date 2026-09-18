@@ -18,7 +18,6 @@ package com.android.systemui.animation
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.fonts.Font
 import android.graphics.fonts.FontFamily
@@ -65,20 +64,22 @@ private val END_PAINT =
         typeface = Font.Builder(VF_FONT).setFontVariationSettings("'wght' 700").build().toTypeface()
     }
 
-@RunWith(AndroidJUnit4::class)
 @SmallTest
+@RunWith(AndroidJUnit4::class)
 class TextInterpolatorTest : SysuiTestCase() {
     lateinit var typefaceCache: TypefaceVariantCache
 
-    private fun makeLayout(
-        text: String,
-        paint: TextPaint,
-        dir: TextDirectionHeuristic = TextDirectionHeuristics.LTR,
-    ): Layout {
-        val width = ceil(Layout.getDesiredWidth(text, 0, text.length, paint)).toInt()
-        return StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
-            .setTextDirection(dir)
-            .build()
+    companion object {
+        fun makeLayout(
+            text: String,
+            paint: TextPaint,
+            dir: TextDirectionHeuristic = TextDirectionHeuristics.LTR,
+        ): Layout {
+            val width = ceil(Layout.getDesiredWidth(text, 0, text.length, paint)).toInt()
+            return StaticLayout.Builder.obtain(text, 0, text.length, paint, width)
+                .setTextDirection(dir)
+                .build()
+        }
     }
 
     @Before
@@ -209,128 +210,6 @@ class TextInterpolatorTest : SysuiTestCase() {
                 .toBitmap(BMP_WIDTH, BMP_HEIGHT)
 
         assertThat(expected.sameAs(actual)).isTrue()
-    }
-
-    // @Test
-    // TODO(b/419618174): Use Screenshot Tests to compare bitmaps
-    fun testGlyphCallback_Empty() {
-        val layout = makeLayout(BIDI_TEXT, PAINT, TextDirectionHeuristics.RTL)
-
-        val interp =
-            TextInterpolator(layout, typefaceCache).apply { glyphFilter = { glyph, progress -> } }
-        interp.basePaint.set(START_PAINT)
-        interp.onBasePaintModified()
-
-        interp.targetPaint.set(END_PAINT)
-        interp.onTargetPaintModified()
-
-        // Just after created TextInterpolator, it should have 0 progress.
-        val actual = interp.toBitmap(BMP_WIDTH, BMP_HEIGHT)
-        val expected =
-            makeLayout(BIDI_TEXT, START_PAINT, TextDirectionHeuristics.RTL)
-                .toBitmap(BMP_WIDTH, BMP_HEIGHT)
-
-        assertThat(expected.sameAs(actual)).isTrue()
-    }
-
-    @Test
-    fun testGlyphCallback_Xcoordinate() {
-        val layout = makeLayout(BIDI_TEXT, PAINT, TextDirectionHeuristics.RTL)
-
-        val interp =
-            TextInterpolator(layout, typefaceCache).apply {
-                glyphFilter = { glyph, progress -> glyph.x += 30f }
-            }
-        interp.basePaint.set(START_PAINT)
-        interp.onBasePaintModified()
-
-        interp.targetPaint.set(END_PAINT)
-        interp.onTargetPaintModified()
-
-        // Just after created TextInterpolator, it should have 0 progress.
-        val actual = interp.toBitmap(BMP_WIDTH, BMP_HEIGHT)
-        val expected =
-            makeLayout(BIDI_TEXT, START_PAINT, TextDirectionHeuristics.RTL)
-                .toBitmap(BMP_WIDTH, BMP_HEIGHT)
-
-        // The glyph position was modified by callback, so the bitmap should not be the same.
-        // We cannot modify the result of StaticLayout, so we cannot expect the exact  bitmaps.
-        assertThat(expected.sameAs(actual)).isFalse()
-    }
-
-    @Test
-    fun testGlyphCallback_Ycoordinate() {
-        val layout = makeLayout(BIDI_TEXT, PAINT, TextDirectionHeuristics.RTL)
-
-        val interp =
-            TextInterpolator(layout, typefaceCache).apply {
-                glyphFilter = { glyph, progress -> glyph.y += 30f }
-            }
-        interp.basePaint.set(START_PAINT)
-        interp.onBasePaintModified()
-
-        interp.targetPaint.set(END_PAINT)
-        interp.onTargetPaintModified()
-
-        // Just after created TextInterpolator, it should have 0 progress.
-        val actual = interp.toBitmap(BMP_WIDTH, BMP_HEIGHT)
-        val expected =
-            makeLayout(BIDI_TEXT, START_PAINT, TextDirectionHeuristics.RTL)
-                .toBitmap(BMP_WIDTH, BMP_HEIGHT)
-
-        // The glyph position was modified by callback, so the bitmap should not be the same.
-        // We cannot modify the result of StaticLayout, so we cannot expect the exact  bitmaps.
-        assertThat(expected.sameAs(actual)).isFalse()
-    }
-
-    @Test
-    fun testGlyphCallback_TextSize() {
-        val layout = makeLayout(BIDI_TEXT, PAINT, TextDirectionHeuristics.RTL)
-
-        val interp =
-            TextInterpolator(layout, typefaceCache).apply {
-                glyphFilter = { glyph, progress -> glyph.textSize += 10f }
-            }
-        interp.basePaint.set(START_PAINT)
-        interp.onBasePaintModified()
-
-        interp.targetPaint.set(END_PAINT)
-        interp.onTargetPaintModified()
-
-        // Just after created TextInterpolator, it should have 0 progress.
-        val actual = interp.toBitmap(BMP_WIDTH, BMP_HEIGHT)
-        val expected =
-            makeLayout(BIDI_TEXT, START_PAINT, TextDirectionHeuristics.RTL)
-                .toBitmap(BMP_WIDTH, BMP_HEIGHT)
-
-        // The glyph position was modified by callback, so the bitmap should not be the same.
-        // We cannot modify the result of StaticLayout, so we cannot expect the exact  bitmaps.
-        assertThat(expected.sameAs(actual)).isFalse()
-    }
-
-    @Test
-    fun testGlyphCallback_Color() {
-        val layout = makeLayout(BIDI_TEXT, PAINT, TextDirectionHeuristics.RTL)
-
-        val interp =
-            TextInterpolator(layout, typefaceCache).apply {
-                glyphFilter = { glyph, progress -> glyph.color = Color.RED }
-            }
-        interp.basePaint.set(START_PAINT)
-        interp.onBasePaintModified()
-
-        interp.targetPaint.set(END_PAINT)
-        interp.onTargetPaintModified()
-
-        // Just after created TextInterpolator, it should have 0 progress.
-        val actual = interp.toBitmap(BMP_WIDTH, BMP_HEIGHT)
-        val expected =
-            makeLayout(BIDI_TEXT, START_PAINT, TextDirectionHeuristics.RTL)
-                .toBitmap(BMP_WIDTH, BMP_HEIGHT)
-
-        // The glyph position was modified by callback, so the bitmap should not be the same.
-        // We cannot modify the result of StaticLayout, so we cannot expect the exact  bitmaps.
-        assertThat(expected.sameAs(actual)).isFalse()
     }
 }
 

@@ -28,6 +28,7 @@ import com.android.settingslib.bluetooth.devicesettings.DeviceSettingAction
 import com.android.settingslib.bluetooth.devicesettings.DeviceSettingContract
 import com.android.settingslib.bluetooth.devicesettings.DeviceSettingDefaultIcon
 import com.android.settingslib.bluetooth.devicesettings.DeviceSettingFooterPreference
+import com.android.settingslib.bluetooth.devicesettings.DeviceSettingGroup
 import com.android.settingslib.bluetooth.devicesettings.DeviceSettingHelpPreference
 import com.android.settingslib.bluetooth.devicesettings.DeviceSettingId
 import com.android.settingslib.bluetooth.devicesettings.DeviceSettingIntentAction
@@ -38,12 +39,10 @@ import com.android.settingslib.bluetooth.devicesettings.MultiTogglePreference
 import com.android.settingslib.bluetooth.devicesettings.ToggleInfo
 import com.android.settingslib.bluetooth.devicesettings.shared.model.ButtonModel
 import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingActionModel
-import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingConfigItemModel
-import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingConfigItemModel.AppProvidedItem
-import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingConfigItemModel.BuiltinItem.BluetoothProfilesItem
-import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingConfigItemModel.BuiltinItem.CommonBuiltinItem
 import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingConfigModel
+import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingConfigNodeModel
 import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingIcon
+import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingLayout
 import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingModel
 import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingStateModel
 import com.android.settingslib.bluetooth.devicesettings.shared.model.ToggleModel
@@ -79,19 +78,16 @@ class DeviceSettingRepositoryImpl(
             LoadingCache<CachedBluetoothDevice, DeviceSettingServiceConnection> =
         CacheBuilder.newBuilder()
             .weakValues()
-            .build(
-                object : CacheLoader<CachedBluetoothDevice, DeviceSettingServiceConnection>() {
-                    override fun load(
-                        cachedDevice: CachedBluetoothDevice
-                    ): DeviceSettingServiceConnection =
-                        DeviceSettingServiceConnection(
-                            cachedDevice,
-                            context,
-                            coroutineScope,
-                            backgroundCoroutineContext,
-                        )
-                }
-            )
+            .build(object : CacheLoader<CachedBluetoothDevice, DeviceSettingServiceConnection>() {
+                override fun load(
+                    cachedDevice: CachedBluetoothDevice
+                ): DeviceSettingServiceConnection = DeviceSettingServiceConnection(
+                    cachedDevice,
+                    context,
+                    coroutineScope,
+                    backgroundCoroutineContext,
+                )
+            })
 
     override suspend fun getDeviceSettingsConfig(
         cachedDevice: CachedBluetoothDevice
@@ -101,36 +97,72 @@ class DeviceSettingRepositoryImpl(
     override fun getDeviceSetting(
         cachedDevice: CachedBluetoothDevice,
         settingId: Int,
-    ): Flow<DeviceSettingModel?> =
-        connectionCache.get(cachedDevice).let { connection ->
-            connection.getDeviceSetting(settingId).map { it?.toModel(cachedDevice, connection) }
-        }
+    ): Flow<DeviceSettingModel?> = connectionCache.get(cachedDevice).let { connection ->
+        connection.getDeviceSetting(settingId).map { it?.toModel(cachedDevice, connection) }
+    }
 
-    private fun DeviceSettingsConfig.toModel(): DeviceSettingConfigModel =
-        DeviceSettingConfigModel(
-            mainItems = mainContentItems.toModel(),
-            moreSettingsItems = moreSettingsItems.toModel(),
-            moreSettingsHelpItem = moreSettingsHelpItem?.toModel(),
-        )
+    private fun DeviceSettingsConfig.toModel(): DeviceSettingConfigModel = DeviceSettingConfigModel(
+        mainItems = getDeviceSettingLayout(mainContentItems, settingGroups),
+        moreSettingsItems = getDeviceSettingLayout(moreSettingsItems, settingGroups),
+        moreSettingsHelpItem = moreSettingsHelpItem?.toModel(),
+    )
 
-    private fun List<DeviceSettingItem>.toModel(): List<DeviceSettingConfigItemModel> {
-        return this.flatMap { item ->
-            if (item.settingId in EXPANDABLE_SETTING_IDS) {
-                IntRange(item.settingId, item.settingId + SETTING_ID_EXPAND_LIMIT - 1).map {
-                    item.toModel(overrideSettingId = it)
+    private fun getDeviceSettingLayout(
+        items: List<DeviceSettingItem>, groups: List<DeviceSettingGroup>?
+    ): DeviceSettingLayout {
+        return DeviceSettingLayout(items.partitionByKeys { it.groupIndex }
+            .flatMap { (groupIndex, items) ->
+                if (groupIndex == null) {
+                    items.flatMap { mayBeExpandItems(it) }
+                } else {
+                    listOf(
+                        DeviceSettingConfigNodeModel.Group(
+                            "GROUP_START_WITH_${items.first().settingId}",
+                            groups?.getOrNull(groupIndex)?.preferenceCategoryTitle,
+                            items.flatMap { mayBeExpandItems(it) },
+                        )
+                    )
                 }
-            } else {
-                listOf(item.toModel())
+            })
+    }
+
+    private fun mayBeExpandItems(item: DeviceSettingItem): List<DeviceSettingConfigNodeModel.Item> =
+        if (item.settingId in EXPANDABLE_SETTING_IDS) {
+            IntRange(
+                item.settingId, item.settingId + SETTING_ID_EXPAND_LIMIT - 1
+            ).map {
+                item.toModel(overrideSettingId = it)
             }
+        } else {
+            listOf(item.toModel())
         }
+
+    private fun <T, K> List<T>.partitionByKeys(partitionBy: (T) -> K): List<Pair<K, List<T>>> {
+        if (isEmpty()) {
+            return listOf()
+        }
+        var previousKey: K = partitionBy(first())
+        var prevGroup = mutableListOf(first())
+        val result = mutableListOf<Pair<K, List<T>>>()
+        for (item in drop(1)) {
+            val curKey = partitionBy(item)
+            if (curKey != previousKey) {
+                result.add(Pair(previousKey, prevGroup))
+                previousKey = curKey
+                prevGroup = mutableListOf()
+            }
+            prevGroup.add(item)
+        }
+        result.add(Pair(previousKey, prevGroup))
+        return result
     }
 
     private fun DeviceSettingItem.toModel(
         overrideSettingId: Int? = null
-    ): DeviceSettingConfigItemModel {
+    ): DeviceSettingConfigNodeModel.Item {
         return if (!TextUtils.isEmpty(preferenceKey)) {
             if (settingId == DeviceSettingId.DEVICE_SETTING_ID_BLUETOOTH_PROFILES) {
-                BluetoothProfilesItem(
+                DeviceSettingConfigNodeModel.Item.BuiltinItem.BluetoothProfilesItem(
                     overrideSettingId ?: settingId,
                     highlighted,
                     preferenceKey!!,
@@ -138,119 +170,112 @@ class DeviceSettingRepositoryImpl(
                         ?: emptyList(),
                 )
             } else {
-                CommonBuiltinItem(overrideSettingId ?: settingId, highlighted, preferenceKey!!)
+                DeviceSettingConfigNodeModel.Item.BuiltinItem.CommonBuiltinItem(
+                    overrideSettingId ?: settingId, highlighted, preferenceKey!!
+                )
             }
         } else {
-            AppProvidedItem(overrideSettingId ?: settingId, highlighted)
+            DeviceSettingConfigNodeModel.Item.AppProvidedItem(
+                overrideSettingId ?: settingId, highlighted
+            )
         }
     }
 
-    private fun DeviceSettingAction.toModel(): DeviceSettingActionModel? =
-        when (this) {
-            is DeviceSettingIntentAction -> DeviceSettingActionModel.IntentAction(this.intent)
-            is DeviceSettingPendingIntentAction ->
-                DeviceSettingActionModel.PendingIntentAction(this.pendingIntent)
+    private fun DeviceSettingAction.toModel(): DeviceSettingActionModel? = when (this) {
+        is DeviceSettingIntentAction -> DeviceSettingActionModel.IntentAction(this.intent)
+        is DeviceSettingPendingIntentAction -> DeviceSettingActionModel.PendingIntentAction(this.pendingIntent)
 
-            else -> null
-        }
+        else -> null
+    }
 
     private fun DeviceSetting.toModel(
         cachedDevice: CachedBluetoothDevice,
         connection: DeviceSettingServiceConnection,
-    ): DeviceSettingModel =
-        when (val pref = preference) {
-            is ActionSwitchPreference ->
-                DeviceSettingModel.ActionSwitchPreference(
-                    cachedDevice = cachedDevice,
-                    id = settingId,
-                    title = pref.title,
-                    summary = pref.summary,
-                    icon = pref.icon?.let { DeviceSettingIcon.BitmapIcon(it) },
-                    isAllowedChangingState = pref.isAllowedChangingState,
-                    action = pref.action.toModel(),
-                    switchState =
-                        if (pref.hasSwitch()) {
-                            DeviceSettingStateModel.ActionSwitchPreferenceState(pref.checked)
-                        } else {
-                            null
-                        },
-                    updateState = { newState ->
-                        coroutineScope.launch(backgroundCoroutineContext) {
-                            connection.updateDeviceSettings(settingId, newState.toParcelable())
-                        }
-                    },
-                )
+    ): DeviceSettingModel = when (val pref = preference) {
+        is ActionSwitchPreference -> DeviceSettingModel.ActionSwitchPreference(
+            cachedDevice = cachedDevice,
+            id = settingId,
+            title = pref.title,
+            summary = pref.summary,
+            icon = pref.icon?.let { DeviceSettingIcon.BitmapIcon(it) },
+            isAllowedChangingState = pref.isAllowedChangingState,
+            action = pref.action.toModel(),
+            switchState = if (pref.hasSwitch()) {
+                DeviceSettingStateModel.ActionSwitchPreferenceState(pref.checked)
+            } else {
+                null
+            },
+            updateState = { newState ->
+                coroutineScope.launch(backgroundCoroutineContext) {
+                    connection.updateDeviceSettings(settingId, newState.toParcelable())
+                }
+            },
+        )
 
-            is MultiTogglePreference ->
-                DeviceSettingModel.MultiTogglePreference(
-                    cachedDevice = cachedDevice,
-                    id = settingId,
-                    title = pref.title,
-                    toggles = pref.toggleInfos.map { it.toModel() },
-                    isAllowedChangingState = pref.isAllowedChangingState,
-                    isActive = pref.isActive,
-                    state = DeviceSettingStateModel.MultiTogglePreferenceState(pref.state),
-                    updateState = { newState ->
-                        coroutineScope.launch(backgroundCoroutineContext) {
-                            connection.updateDeviceSettings(settingId, newState.toParcelable())
-                        }
-                    },
-                )
+        is MultiTogglePreference -> DeviceSettingModel.MultiTogglePreference(
+            cachedDevice = cachedDevice,
+            id = settingId,
+            title = pref.title,
+            toggles = pref.toggleInfos.map { it.toModel() },
+            isAllowedChangingState = pref.isAllowedChangingState,
+            isActive = pref.isActive,
+            state = DeviceSettingStateModel.MultiTogglePreferenceState(pref.state),
+            updateState = { newState ->
+                coroutineScope.launch(backgroundCoroutineContext) {
+                    connection.updateDeviceSettings(settingId, newState.toParcelable())
+                }
+            },
+        )
 
-            is DeviceSettingFooterPreference ->
-                DeviceSettingModel.FooterPreference(
-                    cachedDevice = cachedDevice,
-                    id = settingId,
-                    footerText = pref.footerText,
-                )
+        is DeviceSettingFooterPreference -> DeviceSettingModel.FooterPreference(
+            cachedDevice = cachedDevice,
+            id = settingId,
+            footerText = pref.footerText,
+        )
 
-            is DeviceSettingHelpPreference ->
-                DeviceSettingModel.HelpPreference(
-                    cachedDevice = cachedDevice,
-                    id = settingId,
-                    intent = pref.intent,
-                )
+        is DeviceSettingHelpPreference -> DeviceSettingModel.HelpPreference(
+            cachedDevice = cachedDevice,
+            id = settingId,
+            intent = pref.intent,
+        )
 
-            is BannerPreference ->
-                DeviceSettingModel.BannerPreference(
-                    cachedDevice = cachedDevice,
-                    id = settingId,
-                    title = pref.title,
-                    message = pref.message,
-                    icon = pref.icon.toModel(),
-                    positiveButton = pref.positiveButtonInfo?.toModel(),
-                    negativeButton = pref.negativeButtonInfo?.toModel(),
-                )
+        is BannerPreference -> DeviceSettingModel.BannerPreference(
+            cachedDevice = cachedDevice,
+            id = settingId,
+            title = pref.title,
+            message = pref.message,
+            icon = pref.icon.toModel(),
+            positiveButton = pref.positiveButtonInfo?.toModel(),
+            negativeButton = pref.negativeButtonInfo?.toModel(),
+        )
 
-            else -> DeviceSettingModel.Unknown(cachedDevice, settingId)
-        }
+        else -> DeviceSettingModel.Unknown(cachedDevice, settingId)
+    }
 
     private fun ToggleInfo.toModel(): ToggleModel =
         ToggleModel(label, DeviceSettingIcon.BitmapIcon(icon))
 
-    private fun com.android.settingslib.bluetooth.devicesettings.DeviceSettingIcon.toModel():
-            DeviceSettingIcon? {
+    private fun com.android.settingslib.bluetooth.devicesettings.DeviceSettingIcon.toModel(): DeviceSettingIcon? {
         val bitmapIcon = customizedIcon
         if (bitmapIcon != null) {
             return DeviceSettingIcon.BitmapIcon(bitmapIcon)
         }
         when (defaultIcon) {
             // TODO: Add more supported default icon type here
-            DeviceSettingDefaultIcon.DEVICE_SETTING_DEFAULT_ICON_WARNING ->
-                return DeviceSettingIcon.ResourceIcon(R.drawable.bluetooth_warning_icon)
+            DeviceSettingDefaultIcon.DEVICE_SETTING_DEFAULT_ICON_WARNING -> return DeviceSettingIcon.ResourceIcon(
+                R.drawable.bluetooth_warning_icon
+            )
         }
         return null
     }
 
-    private fun ButtonInfo.toModel(): ButtonModel =
-        ButtonModel(label, action.toModel())
+    private fun ButtonInfo.toModel(): ButtonModel = ButtonModel(label, action.toModel())
 
     companion object {
-        private val EXPANDABLE_SETTING_IDS =
-            listOf(
-                DeviceSettingId.DEVICE_SETTING_ID_EXPANDABLE_1,
-                DeviceSettingId.DEVICE_SETTING_ID_EXPANDABLE_2,
-            )
+        private val EXPANDABLE_SETTING_IDS = listOf(
+            DeviceSettingId.DEVICE_SETTING_ID_EXPANDABLE_1,
+            DeviceSettingId.DEVICE_SETTING_ID_EXPANDABLE_2,
+        )
         private const val SETTING_ID_EXPAND_LIMIT = 15
     }
 }

@@ -114,6 +114,30 @@ public class ArrayUtils {
     }
 
     /**
+     * Like {@link Arrays#copyOf(byte[], int)}, but allocates the new array as non-movable.
+     *
+     * <p>This is useful when a copy needs to be made of sensitive data. It prevents additional
+     * implicit copies from being left on the Java heap as a result of heap compaction. For more
+     * information, see {@link #newNonMovableByteArray(int)}.
+     *
+     * <p>Assuming that the original and new arrays indeed contain sensitive data, the caller is
+     * responsible for zeroizing both of them when they are no longer needed. Note that while this
+     * method does not itself require that the original array be non-movable, for zeroization of it
+     * to work reliably it does need to be non-movable as well.
+     *
+     * @param original the original array
+     * @param newLength the length of the new array
+     * @return the new array
+     * @see Arrays#copyOf(byte[], int)
+     * @see #newNonMovableByteArray(int)
+     */
+    public static byte[] copyOfArrayNonMovable(byte[] original, int newLength) {
+        byte[] copy = ArrayUtils.newNonMovableByteArray(newLength);
+        System.arraycopy(original, 0, copy, 0, Math.min(original.length, newLength));
+        return copy;
+    }
+
+    /**
      * Zeroizes a byte array as securely as possible. Use this when the array contains sensitive
      * data such as a password or cryptographic key.
      * <p>

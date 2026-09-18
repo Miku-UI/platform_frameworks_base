@@ -37,6 +37,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.Process;
 import android.os.UserHandle;
 import android.os.storage.StorageManager;
 import android.permission.PermissionManager;
@@ -847,7 +848,8 @@ public class InstantAppRegistry implements Watchable, Snappable {
             final String packageToDelete = packagesToDelete.get(i).packageName();
             if (mDeletePackageHelper.deletePackageX(packageToDelete,
                         PackageManager.VERSION_CODE_HIGHEST, UserHandle.USER_SYSTEM,
-                        PackageManager.DELETE_ALL_USERS, true /*removedBySystem*/)
+                        PackageManager.DELETE_ALL_USERS, true /*removedBySystem*/,
+                        Process.SYSTEM_UID)
                     == PackageManager.DELETE_SUCCEEDED) {
                 if (file.getUsableSpace() >= neededSpace) {
                     return true;

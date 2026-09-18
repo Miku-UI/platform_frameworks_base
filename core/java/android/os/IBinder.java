@@ -92,6 +92,7 @@ import java.util.concurrent.Executor;
  *
  * @see Binder
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public interface IBinder {
     /**
      * The first transaction code available for user commands.
@@ -451,7 +452,7 @@ public interface IBinder {
      * @param executor The executor on which to run the callback.
      * @param callback The callback used to deliver state change notifications.
      *
-     * @throws {@link UnsupportedOperationException} if the kernel binder driver does not support
+     * @throws UnsupportedOperationException if the kernel binder driver does not support
      * this feature.
      */
     @FlaggedApi(Flags.FLAG_BINDER_FROZEN_STATE_CHANGE_CALLBACK)

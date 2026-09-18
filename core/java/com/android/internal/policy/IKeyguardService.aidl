@@ -20,30 +20,55 @@ import com.android.internal.policy.IKeyguardDrawnCallback;
 import com.android.internal.policy.IKeyguardDismissCallback;
 import com.android.internal.policy.IKeyguardStateCallback;
 import com.android.internal.policy.IKeyguardExitCallback;
+import com.android.internal.policy.KeyguardState;
 
 import android.os.Bundle;
 
 oneway interface IKeyguardService {
 
     /**
-     * Sets the Keyguard as occluded when a window dismisses the Keyguard with flag
-     * FLAG_SHOW_ON_LOCK_SCREEN.
+     * Sets whether Keyguard is occluded by another window.
      *
-     * @param isOccluded Whether the Keyguard is occluded by another window.
-     * @param animate Whether to play an animation for the state change.
+     * @param isOccluded the new occluded state.
      */
-    void setOccluded(boolean isOccluded, boolean animate);
+    void setOccluded(boolean isOccluded);
 
-    void addStateMonitorCallback(IKeyguardStateCallback callback);
-    void verifyUnlock(IKeyguardExitCallback callback);
-    void dismiss(IKeyguardDismissCallback callback, CharSequence message);
+    /**
+     * Adds a callback for KeyguardService to report state changes.
+     *
+     * @param callback the callback to add.
+     */
+    void addStateMonitorCallback(in IKeyguardStateCallback callback);
+
+    /**
+     * Verifies whether Keyguard is unlocked and notifies the given callback.
+     *
+     * @param callback the callback to be informed about the result.
+     */
+    void verifyUnlock(in IKeyguardExitCallback callback);
+
+    /**
+     * Dismisses Keyguard, if it is currently shown.
+     *
+     * @param callback the callback to be informed about the result.
+     * @param message the message that should be displayed in Keyguard.
+     */
+    void dismiss(in @nullable IKeyguardDismissCallback callback, in @nullable CharSequence message);
+
+    /**
+     * Called when dreaming has started.
+     */
     void onDreamingStarted();
+
+    /**
+     * Called when dreaming has stopped.
+     */
     void onDreamingStopped();
 
     /**
      * Called when the device has started going to sleep.
      *
-     * @param pmSleepReason One of PowerManager.GO_TO_SLEEP_REASON_*, detailing the specific reason
+     * @param pmSleepReason one of PowerManager.GO_TO_SLEEP_REASON_*, detailing the specific reason
      * we're going to sleep, such as GO_TO_SLEEP_REASON_POWER_BUTTON or GO_TO_SLEEP_REASON_TIMEOUT.
      */
     void onStartedGoingToSleep(int pmSleepReason);
@@ -51,7 +76,7 @@ oneway interface IKeyguardService {
     /**
      * Called when the device has finished going to sleep.
      *
-     * @param pmSleepReason One of PowerManager.GO_TO_SLEEP_REASON_*, detailing the specific reason
+     * @param pmSleepReason one of PowerManager.GO_TO_SLEEP_REASON_*, detailing the specific reason
      * we're going to sleep, such as GO_TO_SLEEP_REASON_POWER_BUTTON or GO_TO_SLEEP_REASON_TIMEOUT.
      * @param powerButtonLaunchGestureTriggered whether the power button double tap gesture was
      *                               triggered between {@link #onStartedGoingToSleep} and this
@@ -62,9 +87,9 @@ oneway interface IKeyguardService {
     /**
      * Called when the device has started waking up.
 
-     * @param pmWakeReason One of PowerManager.WAKE_REASON_*, detailing the reason we're waking up,
+     * @param pmWakeReason one of PowerManager.WAKE_REASON_*, detailing the reason we're waking up,
      * such as WAKE_REASON_POWER_BUTTON or WAKE_REASON_GESTURE.
-     * @param powerButtonLaunchGestureTriggered Whether we're waking up due to a power button
+     * @param powerButtonLaunchGestureTriggered whether we're waking up due to a power button
      * double tap gesture.
      */
     void onStartedWakingUp(int pmWakeReason,  boolean powerButtonLaunchGestureTriggered);
@@ -86,41 +111,77 @@ oneway interface IKeyguardService {
     const int SCREEN_TURNING_ON_REASON_DISPLAY_SWITCH = 1;
 
     /**
-     * Called when the device screen is turning on.
+     * Called when the device screen has started turning on.
+     *
      * @param reason the reason for the screen turning on, must be one of
      *        IKeyguardService.SCREEN_TURNING_ON_REASON_*
-     * @param callback the callback that should executed when SystemUI has finished preparations
-     *        for turning on the screen
+     * @param callback the callback to be informed when SystemUI has finished preparations for
+     *                 turning on the screen.
      */
-    void onScreenTurningOn(int reason, IKeyguardDrawnCallback callback);
+    void onScreenTurningOn(int reason, in IKeyguardDrawnCallback callback);
 
     /**
-     * Called when the screen has actually turned on.
+     * Called when the device screen has finished turning on.
      */
     void onScreenTurnedOn();
 
     /**
-     * Called when the screen starts turning off.
+     * Called when the device screen has started turning off.
      */
     void onScreenTurningOff();
 
     /**
-     * Called when the screen has turned off.
+     * Called when the device screen has finished turning off.
      */
     void onScreenTurnedOff();
 
+    /**
+     * Sets whether Keyguard is enabled. While disabled it is prevented from showing.
+     *
+     * <p>If disabled while it is currently showing, it will be hidden. If disabling lead to a hide,
+     * re-enabling will show it again.
+     *
+     * @param enabled the new enabled state.
+     */
     @UnsupportedAppUsage
     void setKeyguardEnabled(boolean enabled);
+
+    /**
+     * Called when the system is mostly done booting.
+     */
     void onSystemReady();
+
+    /**
+     * Handle the inactivity timeout while the device is unlocked, after which Keyguard should be
+     * shown.
+     *
+     * @param options the Keyguard timeout options.
+     */
     @UnsupportedAppUsage
-    void doKeyguardTimeout(in Bundle options);
+    void doKeyguardTimeout(in @nullable Bundle options);
+
+    /**
+     * Sets whether a user switch is in progress.
+     *
+     * @param switching the new switching state.
+     */
     void setSwitchingUser(boolean switching);
+
+    /**
+     * Sets the current user (or user profile) to the given one.
+     *
+     * @param userId the ID of the new user.
+     */
     void setCurrentUser(int userId);
+
+    /**
+     * Called when the system is fully done booting.
+     */
     void onBootCompleted();
 
     /**
      * Notifies that the activity behind has now been drawn and it's safe to remove the wallpaper
-     * and keyguard flag.
+     * and Keyguard flag.
      *
      * @param startTime the start time of the animation in uptime milliseconds
      * @param fadeoutDuration the duration of the exit animation, in milliseconds
@@ -128,27 +189,47 @@ oneway interface IKeyguardService {
     void startKeyguardExitAnimation(long startTime, long fadeoutDuration);
 
     /**
-     * Notifies the Keyguard that the power key was pressed while locked and launched Home rather
-     * than putting the device to sleep or waking up. Note that it's called only if the device is
+     * Notifies Keyguard that the power key was pressed while locked and launched Home rather than
+     * putting the device to sleep or waking up. Note that it's called only if the device is
      * interactive.
      */
     void onShortPowerPressedGoHome();
 
     /**
-     * Notifies the Keyguard that it needs to bring up a bouncer and then launch the intent as soon
-     * as user unlocks the watch.
+     * Notifies Keyguard that it needs to bring up a bouncer and then launch the intent as soon as
+     * user unlocks the watch.
+     *
+     * @param intent the Intent to launch.
      */
-    void dismissKeyguardToLaunch(in Intent intentToLaunch);
+    void dismissKeyguardToLaunch(in Intent intent);
 
     /**
-     * Notifies the Keyguard that a key was pressed while locked so the Keyguard can handle it.
-     * Note that it's called only if the device is interactive.
+     * Notifies Keyguard that a key was pressed while locked so Keyguard can handle it. Note that
+     * it's called only if the device is interactive.
+     *
+     * @param keycode the key that was pressed.
      */
     void onSystemKeyPressed(int keycode);
 
     /**
-     * Requests to show the keyguard immediately without locking the device. Keyguard will show
+     * Requests to show Keyguard immediately without locking the device. It will show regardless
      * whether a screen lock was configured or not (including if screen lock is SWIPE or NONE).
      */
     void showDismissibleKeyguard();
+
+    /**
+     * Restores the stored Keyguard state when the KeyguardService is connected. This is called on
+     * the first connection, as well as subsequent connections (e.g. if the SystemUI process died
+     * and restarted).
+     *
+     * @param state the Keyguard state to restore.
+     * @param stateCallback the callback for KeyguardService to report state changes.
+     * @param drawnCallback callback the callback to be informed when SystemUI has finished
+     *                      preparations for turning on the screen.
+     * @param timeoutRequested whether the Keyguard timeout was reached but not handled yet.
+     * @param timeoutOptions the options for the Keyguard timeout.
+     */
+    void restoreKeyguardState(in KeyguardState state, in IKeyguardStateCallback stateCallback,
+        in IKeyguardDrawnCallback drawnCallback, boolean timeoutRequested,
+        in @nullable Bundle timeoutOptions);
 }

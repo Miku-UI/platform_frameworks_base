@@ -16,20 +16,21 @@
 
 package com.android.virtualdevicemanager;
 
+import static android.companion.virtual.computercontrol.ComputerControlSession.RESULT_STOP_AUTOMATION;
+
 import android.app.Activity;
 import android.app.ActivityOptions;
 import android.app.Dialog;
-import android.companion.virtual.IVirtualDeviceManager;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.ResultReceiver;
-import android.os.ServiceManager;
-import android.util.Slog;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -47,6 +48,8 @@ public class AutomatedAppLaunchWarningActivityFragment  extends DialogFragment {
     private static final String ARG_TARGET_PACKAGE_NAME = "argTargetPackageName";
     private static final String ARG_RESULT_RECEIVER = "argResultReceiver";
 
+    private static final int REQUEST_CODE_LAUNCH_TARGET_INTENT = 1;
+
     private String mAgentPackageName;
     private IntentSender mTarget;
     private String mTargetPackageName;
@@ -56,7 +59,6 @@ public class AutomatedAppLaunchWarningActivityFragment  extends DialogFragment {
     private CharSequence mAgentAppLabel;
     private Drawable mAgentAppIcon;
     private CharSequence mTargetAppLabel;
-    private Drawable mTargetAppIcon;
 
     static AutomatedAppLaunchWarningActivityFragment newInstance(
             @NonNull String targetPackageName, @NonNull IntentSender target,
@@ -89,7 +91,6 @@ public class AutomatedAppLaunchWarningActivityFragment  extends DialogFragment {
             final ApplicationInfo targetAppInfo = packageManager.getApplicationInfo(
                     mTargetPackageName, PackageManager.ApplicationInfoFlags.of(0));
             mTargetAppLabel = packageManager.getApplicationLabel(targetAppInfo);
-            mTargetAppIcon = packageManager.getApplicationIcon(targetAppInfo);
         } catch (PackageManager.NameNotFoundException e) {
             requireActivity().finish();
         }
@@ -116,8 +117,6 @@ public class AutomatedAppLaunchWarningActivityFragment  extends DialogFragment {
 
         ImageView agentIconView = view.findViewById(R.id.agent_icon);
         agentIconView.setImageDrawable(mAgentAppIcon);
-        ImageView targetIconView = view.findViewById(R.id.target_icon);
-        targetIconView.setImageDrawable(mTargetAppIcon);
 
         Dialog dialog = new Dialog(activity);
         dialog.setContentView(view);
@@ -131,24 +130,42 @@ public class AutomatedAppLaunchWarningActivityFragment  extends DialogFragment {
     }
 
     private void onStop(View view) {
-        var vdm = IVirtualDeviceManager.Stub.asInterface(
-                ServiceManager.getService(Context.VIRTUAL_DEVICE_SERVICE));
-        if (vdm == null) {
-            Slog.e(TAG, "Failed to get VDM");
+        // Make sure that the target app is no longer considered as automated so the launch of the
+        // original intent is not intercepted again.
+        // TODO(b/477164279): Make this synchronous
+        mResultReceiver.send(RESULT_STOP_AUTOMATION, null);
+
+        final Bundle options = ActivityOptions.makeBasic()
+                .setPendingIntentBackgroundActivityStartMode(
+                        ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                .toBundle();
+        try {
+            startIntentSenderForResult(
+                    mTarget, REQUEST_CODE_LAUNCH_TARGET_INTENT, null, 0, 0, 0, options);
+        } catch (IntentSender.SendIntentException e) {
+            Log.e(TAG, "Error while starting intent " + mTarget, e);
             requireActivity().finish();
         }
+    }
 
-        mResultReceiver.send(Activity.RESULT_OK, null);
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_CODE_LAUNCH_TARGET_INTENT) {
+            // Close the session if the launch was successful.
+            mResultReceiver.send(resultCode, null);
+            requireActivity().finish();
+        }
+    }
 
+    static void startIntentSender(@NonNull Context context, @NonNull IntentSender target) {
         final Bundle activityOptions = ActivityOptions.makeBasic()
                 .setPendingIntentBackgroundActivityStartMode(
                         ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
                 .toBundle();
         try {
-            mTarget.sendIntent(requireActivity(), 0, null, null, activityOptions, null, null);
+            target.sendIntent(context, 0, null, null, activityOptions, null, null);
         } catch (IntentSender.SendIntentException e) {
-            Slog.e(TAG, "Error while starting intent " + mTarget, e);
+            Log.e(TAG, "Error while starting intent " + target, e);
         }
-        requireActivity().finish();
     }
 }

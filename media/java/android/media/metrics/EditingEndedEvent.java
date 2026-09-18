@@ -24,6 +24,8 @@ import android.annotation.IntRange;
 import android.annotation.LongDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.media.metrics.reported.ReportedEditingEndedEvent;
+import android.media.metrics.reported.ReportedMediaItemInfo;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -557,6 +559,33 @@ public final class EditingEndedEvent extends Event implements Parcelable {
                     mOperationTypes,
                     mMetricsBundle);
         }
+    }
+
+    /** @hide */
+    public ReportedEditingEndedEvent toReportable() {
+
+        ReportedEditingEndedEvent reportable =
+                        new ReportedEditingEndedEvent();
+
+        reportable.finalState = mFinalState;
+        reportable.finalProgressPercent = mFinalProgressPercent;
+        reportable.errorCode = mErrorCode;
+        reportable.timeSinceCreatedMillis = mTimeSinceCreatedMillis;
+        reportable.exporterName = mExporterName;
+        reportable.muxerName = mMuxerName;
+        if (mInputMediaItemInfos != null) {
+            int n = mInputMediaItemInfos.size();
+            reportable.inputMediaItemInfos = new ReportedMediaItemInfo[n];
+            for (int i = 0; i < n; i++) {
+                reportable.inputMediaItemInfos[i] = mInputMediaItemInfos.get(i).toReportable();
+            }
+        }
+        if (mOutputMediaItemInfo != null) {
+            reportable.outputMediaItemInfo = mOutputMediaItemInfo.toReportable();
+        }
+        reportable.operationTypes = mOperationTypes;
+
+        return reportable;
     }
 
 }

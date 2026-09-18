@@ -30,9 +30,9 @@ import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.telecom.TelecomManager;
 import android.os.IDeviceIdleController;
 
-import com.android.settingslib.testutils.shadow.ShadowDefaultDialerManager;
 import com.android.settingslib.testutils.shadow.ShadowSmsApplication;
 
 import org.junit.Before;
@@ -46,9 +46,10 @@ import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.shadows.ShadowPackageManager;
+import org.robolectric.shadows.ShadowTelecomManager;
 
 @RunWith(RobolectricTestRunner.class)
-@Config(shadows = {ShadowDefaultDialerManager.class, ShadowSmsApplication.class})
+@Config(shadows = {ShadowSmsApplication.class})
 public class PowerAllowlistBackendTest {
 
     private static final String PACKAGE_ONE = "com.example.packageone";
@@ -137,7 +138,11 @@ public class PowerAllowlistBackendTest {
     @Test
     public void isAllowlisted_shouldAllowlistDefaultDialer() {
         final String testDialer = "com.android.test.defaultdialer";
-        ShadowDefaultDialerManager.setDefaultDialerApplication(testDialer);
+
+        // Use Shadow.extract() to get the ShadowTelecomManager
+        TelecomManager telecomManager = mContext.getSystemService(TelecomManager.class);
+        ShadowTelecomManager shadowTelecomManager = Shadow.extract(telecomManager);
+        shadowTelecomManager.setDefaultDialerPackage(testDialer);
 
         mPowerAllowlistBackend.refreshList();
 

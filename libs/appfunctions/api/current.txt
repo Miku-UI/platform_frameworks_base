@@ -1,7 +1,8 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package com.android.extensions.appfunctions {
 
-  public final class AppFunctionException extends java.lang.Exception {
+  public final class AppFunctionException extends Exception {
     ctor public AppFunctionException(int, @Nullable String);
     ctor public AppFunctionException(int, @Nullable String, @NonNull android.os.Bundle);
     method public int getErrorCategory();
@@ -24,10 +25,10 @@ package com.android.extensions.appfunctions {
 
   public final class AppFunctionManager {
     ctor public AppFunctionManager(android.content.Context);
-    method @RequiresPermission(android.Manifest.permission.EXECUTE_APP_FUNCTIONS) public void executeAppFunction(@NonNull com.android.extensions.appfunctions.ExecuteAppFunctionRequest, @NonNull java.util.concurrent.Executor, @NonNull android.os.CancellationSignal, @NonNull android.os.OutcomeReceiver<com.android.extensions.appfunctions.ExecuteAppFunctionResponse,com.android.extensions.appfunctions.AppFunctionException>);
-    method @RequiresPermission(android.Manifest.permission.EXECUTE_APP_FUNCTIONS) public void isAppFunctionEnabled(@NonNull String, @NonNull String, @NonNull java.util.concurrent.Executor, @NonNull android.os.OutcomeReceiver<java.lang.Boolean,java.lang.Exception>);
-    method public void isAppFunctionEnabled(@NonNull String, @NonNull java.util.concurrent.Executor, @NonNull android.os.OutcomeReceiver<java.lang.Boolean,java.lang.Exception>);
-    method public void setAppFunctionEnabled(@NonNull String, int, @NonNull java.util.concurrent.Executor, @NonNull android.os.OutcomeReceiver<java.lang.Void,java.lang.Exception>);
+    method @RequiresPermission(android.Manifest.permission.EXECUTE_APP_FUNCTIONS) public void executeAppFunction(@NonNull com.android.extensions.appfunctions.ExecuteAppFunctionRequest, @NonNull java.util.concurrent.Executor, @NonNull android.os.CancellationSignal, @NonNull android.os.OutcomeReceiver<com.android.extensions.appfunctions.ExecuteAppFunctionResponse, com.android.extensions.appfunctions.AppFunctionException>);
+    method @RequiresPermission(android.Manifest.permission.EXECUTE_APP_FUNCTIONS) public void isAppFunctionEnabled(@NonNull String, @NonNull String, @NonNull java.util.concurrent.Executor, @NonNull android.os.OutcomeReceiver<Boolean, Exception>);
+    method public void isAppFunctionEnabled(@NonNull String, @NonNull java.util.concurrent.Executor, @NonNull android.os.OutcomeReceiver<Boolean, Exception>);
+    method public void setAppFunctionEnabled(@NonNull String, int, @NonNull java.util.concurrent.Executor, @NonNull android.os.OutcomeReceiver<Void, Exception>);
     field public static final int APP_FUNCTION_STATE_DEFAULT = 0; // 0x0
     field public static final int APP_FUNCTION_STATE_DISABLED = 2; // 0x2
     field public static final int APP_FUNCTION_STATE_ENABLED = 1; // 0x1
@@ -36,7 +37,7 @@ package com.android.extensions.appfunctions {
   public abstract class AppFunctionService extends android.app.Service {
     ctor public AppFunctionService();
     method @NonNull public final android.os.IBinder onBind(@Nullable android.content.Intent);
-    method @MainThread public abstract void onExecuteFunction(@NonNull com.android.extensions.appfunctions.ExecuteAppFunctionRequest, @NonNull String, @NonNull android.os.CancellationSignal, @NonNull android.os.OutcomeReceiver<com.android.extensions.appfunctions.ExecuteAppFunctionResponse,com.android.extensions.appfunctions.AppFunctionException>);
+    method @MainThread public abstract void onExecuteFunction(@NonNull com.android.extensions.appfunctions.ExecuteAppFunctionRequest, @NonNull String, @NonNull android.os.CancellationSignal, @NonNull android.os.OutcomeReceiver<com.android.extensions.appfunctions.ExecuteAppFunctionResponse, com.android.extensions.appfunctions.AppFunctionException>);
     field @NonNull public static final String BIND_APP_FUNCTION_SERVICE = "android.permission.BIND_APP_FUNCTION_SERVICE";
     field @NonNull public static final String SERVICE_INTERFACE = "android.app.appfunctions.AppFunctionService";
   }

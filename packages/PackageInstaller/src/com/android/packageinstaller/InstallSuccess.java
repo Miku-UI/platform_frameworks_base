@@ -87,6 +87,10 @@ public class InstallSuccess extends Activity {
             return;
         }
 
+        if (mDialog != null) {
+            mDialog.dismiss();
+        }
+
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setIcon(mAppSnippet.icon);
         builder.setTitle(mAppSnippet.label);
@@ -127,6 +131,9 @@ public class InstallSuccess extends Activity {
                         Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP));
                 } catch (ActivityNotFoundException | SecurityException e) {
                     Log.e(LOG_TAG, "Could not start activity", e);
+                }
+                if (mDialog != null) {
+                    mDialog.dismiss();
                 }
                 finish();
             });

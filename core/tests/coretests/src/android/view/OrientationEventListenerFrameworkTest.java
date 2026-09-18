@@ -16,8 +16,6 @@
 
 package android.view;
 
-import static com.android.window.flags.Flags.FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING;
-
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -34,8 +32,6 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.hardware.input.InputSensorInfo;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.filters.SmallTest;
@@ -93,7 +89,6 @@ public class OrientationEventListenerFrameworkTest {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING)
     public void testSensorOrientationUpdate() {
         final Sensor mockSensor = setupMockAccelerometerSensor();
         final TestOrientationEventListener listener = new TestOrientationEventListener(mContext);
@@ -107,7 +102,6 @@ public class OrientationEventListenerFrameworkTest {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING)
     public void testSensorOrientationUpdate_overriddenDisplayRotationReportedWhenSet() {
         final Sensor mockSensor = setupMockAccelerometerSensor();
         final TestOrientationEventListener listener = new TestOrientationEventListener(mContext);
@@ -125,7 +119,6 @@ public class OrientationEventListenerFrameworkTest {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING)
     public void testSensorOrientationUpdate_overriddenDisplayRotationIsNegativeFromSensor() {
         final Sensor mockSensor = setupMockAccelerometerSensor();
         final TestOrientationEventListener listener = new TestOrientationEventListener(mContext);
@@ -141,24 +134,6 @@ public class OrientationEventListenerFrameworkTest {
 
         assertEquals(1, listener.mReportedOrientations.size());
         assertEquals(90, (int) listener.mReportedOrientations.get(0));
-    }
-
-    @Test
-    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING)
-    public void testSensorOrientationUpdate_notOverriddenWhenCameraFeatureDisabled() {
-        final Sensor mockSensor = setupMockAccelerometerSensor();
-        final TestOrientationEventListener listener = new TestOrientationEventListener(mContext);
-
-        listener.enable();
-
-        CompatibilityInfo.setCameraCompatibilityInfo(new CameraCompatibilityInfo.Builder()
-                .setDisplayRotationSandbox(Surface.ROTATION_180).build());
-
-        sendSensorEventWithOrientation270(mockSensor);
-
-        assertEquals(1, listener.mReportedOrientations.size());
-        // Sensor unchanged by override because the feature is disabled.
-        assertEquals(270, (int) listener.mReportedOrientations.get(0));
     }
 
     @NonNull

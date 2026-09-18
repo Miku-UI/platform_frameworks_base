@@ -32,7 +32,7 @@ class VolumeDialogLogger @Inject constructor(@VolumeLog private val logBuffer: L
             TAG,
             LogLevel.DEBUG,
             { int1 = reason },
-            { "Show: ${Events.SHOW_REASONS[int1]}" },
+            { "Show: ${Events.SHOW_REASONS.getOrNull(int1) ?: "unknown($int1)"}" },
         )
     }
 
@@ -41,7 +41,7 @@ class VolumeDialogLogger @Inject constructor(@VolumeLog private val logBuffer: L
             TAG,
             LogLevel.DEBUG,
             { int1 = reason },
-            { "Dismiss: ${Events.DISMISS_REASONS[int1]}" },
+            { "Dismiss: ${Events.DISMISS_REASONS.getOrNull(int1) ?: "unknown($int1)"}" },
         )
     }
 

@@ -159,7 +159,7 @@ constructor(
     private fun dumpNormal(pw: PrintWriter, args: ParsedArgs) {
         val targets = dumpManager.getDumpables()
         for (target in targets) {
-            if (target.priority == DumpPriority.NORMAL) {
+            if (DUMP_ALL_WHEN_NORMAL || target.priority == DumpPriority.NORMAL) {
                 dumpDumpable(target, pw, args.rawArgs)
             }
         }
@@ -272,10 +272,9 @@ constructor(
         dumpables: Collection<DumpableEntry>,
         logBuffers: Collection<LogBufferEntry>,
         tableBuffers: Collection<TableLogBufferEntry>,
-    ): List<DumpsysEntry> =
-        targets.mapNotNull { target ->
-            findTargetInCollection(target, dumpables, logBuffers, tableBuffers)
-        }
+    ): List<DumpsysEntry> = targets.mapNotNull { target ->
+        findTargetInCollection(target, dumpables, logBuffers, tableBuffers)
+    }
 
     /** Finds all matches for any target, returning in the --list order. */
     private fun findAllMatchesInCollection(
@@ -289,7 +288,8 @@ constructor(
                 yieldAll(logBuffers.filter { it.matchesAny(targets) })
                 yieldAll(tableBuffers.filter { it.matchesAny(targets) })
             }
-            .sortedBy { it.name }.toList()
+            .sortedBy { it.name }
+            .toList()
 
     private fun dumpConfig(pw: PrintWriter) {
         config.dump(pw, arrayOf())
@@ -386,7 +386,7 @@ constructor(
     private fun <T> readArgument(
         iterator: MutableIterator<String>,
         flag: String,
-        parser: (arg: String) -> T
+        parser: (arg: String) -> T,
     ): T {
         if (!iterator.hasNext()) {
             throw ArgParseException("Missing argument for $flag")
@@ -427,16 +427,26 @@ constructor(
         const val DUMPSYS_DUMPABLE_DIVIDER =
             "----------------------------------------------------------------------------"
 
+        /**
+         * Whether to dump all dumpables when the command is "bugreport-normal" and no targets are
+         * specified. This will result in duplicating the critical dumpables in the normal dump to
+         * ensure that even when the critical dump is cut short for time, we should always have a
+         * backup in the normal dump.
+         */
+        const val DUMP_ALL_WHEN_NORMAL = true
+
         private fun DumpsysEntry.matches(target: String) = name.endsWith(target)
-        private fun DumpsysEntry.matchesAny(targets: Collection<String>) =
-            targets.any { matches(it) }
+
+        private fun DumpsysEntry.matchesAny(targets: Collection<String>) = targets.any {
+            matches(it)
+        }
 
         private fun findBestTargetMatch(c: Collection<DumpsysEntry>, target: String) =
             c.asSequence().filter { it.matches(target) }.minByOrNull { it.name.length }
 
         private fun findBestProtoTargetMatch(
             c: Collection<DumpableEntry>,
-            target: String
+            target: String,
         ): ProtoDumpable? =
             c.asSequence()
                 .filter { it.matches(target) }
@@ -498,11 +508,8 @@ constructor(
          * Utility to write a [LogBufferEntry] to the given [PrintWriter] in a dumpsys-appropriate
          * format.
          */
-        private fun dumpBuffer(
-            entry: LogBufferEntry,
-            pw: PrintWriter,
-            tailLength: Int = 0,
-        ) = pw.wrapSection(entry) { entry.buffer.dump(pw, tailLength) }
+        private fun dumpBuffer(entry: LogBufferEntry, pw: PrintWriter, tailLength: Int = 0) =
+            pw.wrapSection(entry) { entry.buffer.dump(pw, tailLength) }
 
         /**
          * Utility to write a [TableLogBufferEntry] to the given [PrintWriter] in a
@@ -544,7 +551,7 @@ private val COMMANDS =
         "dumpables",
         "tables",
         "config",
-        "help"
+        "help",
     )
 
 private class ParsedArgs(val rawArgs: Array<String>, val nonFlagArgs: List<String>) {

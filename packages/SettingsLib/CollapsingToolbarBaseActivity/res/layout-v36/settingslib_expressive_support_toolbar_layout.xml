@@ -39,20 +39,7 @@
             app:maxLines="2"
             style="@style/SettingsLibCollapsingToolbarLayoutStyle.Expressive">
 
-            <androidx.appcompat.widget.Toolbar
-                android:id="@+id/support_action_bar"
-                android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
-                android:layout_marginStart="@dimen/settingslib_expressive_space_extrasmall4"
-                android:theme="?android:attr/actionBarTheme"
-                android:transitionName="shared_element_view"
-                android:nextFocusForward="@+id/content_frame"
-                android:touchscreenBlocksFocus="false"
-                app:layout_collapseMode="pin">
-
-                <include layout="@layout/settingslib_expressive_toolbar_buttons"/>
-            </androidx.appcompat.widget.Toolbar>
-
+            <include layout="@layout/settingslib_expressive_support_toolbar"/>
         </com.google.android.material.appbar.CollapsingToolbarLayout>
     </com.google.android.material.appbar.AppBarLayout>
 

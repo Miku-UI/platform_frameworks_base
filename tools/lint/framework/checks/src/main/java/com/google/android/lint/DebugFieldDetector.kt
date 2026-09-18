@@ -31,11 +31,11 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.uast.UField
 
 /**
- * Lint Detector for checking the usage of `DEBUG` flags in Java code.
+ * Lint Detector for checking the usage of `DEBUG`-style fields in Java/Kotlin code.
  *
- * This detects cases where the `DEBUG` flag is set to `true` or is not declared as `final`. Both
+ * This detects cases where the debugging field is set to `true` or is not declared as `final`. Both
  * scenarios are generally undesirable in production code, as they prevent code optimization and can
- * lead to unintended behavior (e.g., log spam).
+ * lead to unintended behavior (e.g., log spam). This includes DEBUG, LOCAL_LOGV, and LOCAL_LOGD.
  *
  * TODO(b/436095548): Consider migrating to global lint after initial application to the framework.
  */
@@ -50,7 +50,7 @@ class DebugFieldDetector : Detector(), SourceCodeScanner {
         override fun visitField(node: UField) {
             if (!isRelevantDebugField(node)) return
 
-            // We want to alert against both non-final and true values for DEBUG.
+            // We want to alert against both non-final and true values for the debugging field.
             val isKotlin = isKotlin(node)
             val isDebugTrue = node.uastInitializer?.evaluate() == true
             val isDebugNonFinal =
@@ -91,9 +91,14 @@ class DebugFieldDetector : Detector(), SourceCodeScanner {
                     }
                 }
             }
+
+            val fieldName = node.name
             val compositeFix =
-                if (fixes.isEmpty()) null
-                else fix().name("Fix DEBUG field usage").composite(*fixes.toTypedArray())
+                if (fixes.isEmpty()) {
+                    null
+                } else {
+                    fix().name("Fix $fieldName field usage").composite(*fixes.toTypedArray())
+                }
 
             // Report the detected issues separately, but with the same composite fix.
             if (isDebugTrue) {
@@ -101,7 +106,7 @@ class DebugFieldDetector : Detector(), SourceCodeScanner {
                     ISSUE_DEBUG_TRUE,
                     node,
                     context.getLocation(node),
-                    "Avoid enabling `DEBUG`-guarded code in production; set `DEBUG` to `false`.",
+                    "Avoid enabling `$fieldName`-guarded code in production; set `$fieldName` to `false`.",
                     compositeFix,
                 )
             }
@@ -111,14 +116,16 @@ class DebugFieldDetector : Detector(), SourceCodeScanner {
                     ISSUE_NON_FINAL_DEBUG,
                     node,
                     context.getLocation(node),
-                    "Avoid non-final `DEBUG` usage; mark as $modifier.",
+                    "Avoid non-final `$fieldName` usage; mark as $modifier.",
                     compositeFix,
                 )
             }
         }
 
         private fun isRelevantDebugField(node: UField): Boolean {
-            return node.isStatic && node.type == PsiTypes.booleanType() && node.name == "DEBUG"
+            return node.isStatic &&
+                node.type == PsiTypes.booleanType() &&
+                node.name in DEBUG_FIELD_NAMES
         }
     }
 
@@ -128,19 +135,21 @@ class DebugFieldDetector : Detector(), SourceCodeScanner {
 
         private val ISSUE_SEVERITY = Severity.ERROR
 
+        private val DEBUG_FIELD_NAMES = setOf("DEBUG", "LOCAL_LOGV", "LOCAL_LOGD")
+
         private val DEBUG_TRUE_EXPLANATION =
             """
-            `DEBUG`-guarded statements and code should be disabled in production. \
-            Any exceptions should include a detailed comment and bug tracking removal or turndown, \
-            with the appropropriate `@SuppressLint("DebugTrue")` usage.
-        """
+                Local debugging fields should be disabled in production. \
+                Any exceptions should include a detailed comment and bug tracking removal or turndown, \
+                with the appropropriate `@SuppressLint("DebugTrue")` usage.
+            """
                 .trimIndent()
 
         @JvmField
         val ISSUE_DEBUG_TRUE =
             Issue.create(
                 id = "DebugTrue",
-                briefDescription = "DEBUG flag is enabled.",
+                briefDescription = "Debugging field is enabled.",
                 explanation = DEBUG_TRUE_EXPLANATION,
                 category = Category.PERFORMANCE,
                 priority = ISSUE_PRIORITY,
@@ -151,17 +160,17 @@ class DebugFieldDetector : Detector(), SourceCodeScanner {
 
         private val NON_FINAL_DEBUG_EXPLANATION =
             """
-            Non-final `DEBUG` usage prevents code optimization. \
-            Any exceptions should include a detailed comment and bug tracking removal or finalization, \
-            with the appropropriate `@SuppressLint("DebugNonFinal")` usage.
-        """
+                Non-final debugging field usage prevents code optimization. \
+                Any exceptions should include a detailed comment and bug tracking removal or finalization, \
+                with the appropropriate `@SuppressLint("DebugNonFinal")` usage.
+            """
                 .trimIndent()
 
         @JvmField
         val ISSUE_NON_FINAL_DEBUG =
             Issue.create(
                 id = "DebugNonFinal",
-                briefDescription = "DEBUG flag is non-final.",
+                briefDescription = "Debugging field is non-final.",
                 explanation = NON_FINAL_DEBUG_EXPLANATION,
                 category = Category.PERFORMANCE,
                 priority = ISSUE_PRIORITY,

@@ -97,7 +97,7 @@ public final class PeopleManager {
      *
      * @param packageName name of the package the conversation is part of
      * @param shortcutId  the shortcut id backing the conversation
-     * @return whether the {@shortcutId} is backed by a Conversation.
+     * @return whether the {@code shortcutId} is backed by a Conversation.
      * @hide
      */
     @SystemApi

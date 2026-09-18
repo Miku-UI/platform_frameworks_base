@@ -17,8 +17,10 @@
 package android.appwidget;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
@@ -34,6 +36,7 @@ import androidx.annotation.Nullable;
 public class AppWidgetConfigActivityProxy extends Activity {
 
     private static final int CONFIG_ACTIVITY_REQUEST_CODE = 1;
+    private static final String TAG = "AppWidgetConfigActivityProxy";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -47,7 +50,16 @@ public class AppWidgetConfigActivityProxy extends Activity {
             return;
         }
 
-        startActivityForResult(target, CONFIG_ACTIVITY_REQUEST_CODE);
+        startActivityForResultSafely(target, CONFIG_ACTIVITY_REQUEST_CODE);
+    }
+
+    private void startActivityForResultSafely(Intent intent, int requestCode) {
+        try {
+            startActivityForResult(intent, requestCode);
+        } catch (ActivityNotFoundException e) {
+            Log.e(TAG, "Config activity for widget not found", e);
+            onActivityResult(requestCode, RESULT_CANCELED, null);
+        }
     }
 
     @Override
@@ -58,30 +70,5 @@ public class AppWidgetConfigActivityProxy extends Activity {
         AppWidgetManager.getInstance(this).setConfigActivityComplete(widgetId);
 
         finish();
-    }
-
-    @Override
-    public WindowManager getWindowManager() {
-        return new MyWM(super.getWindowManager());
-    }
-
-    /** Wrapper over windowManager with disables adding a window */
-    private static class MyWM extends WindowManagerWrapper {
-
-        MyWM(WindowManager original) {
-            super(original);
-        }
-
-        @Override
-        public void addView(View view, ViewGroup.LayoutParams params) { }
-
-        @Override
-        public void updateViewLayout(View view, ViewGroup.LayoutParams params) { }
-
-        @Override
-        public void removeView(View view) { }
-
-        @Override
-        public void removeViewImmediate(View view) { }
     }
 }

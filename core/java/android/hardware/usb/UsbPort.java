@@ -57,6 +57,10 @@ import static android.hardware.usb.UsbPortStatus.COMPLIANCE_WARNING_MISSING_DATA
 import static android.hardware.usb.UsbPortStatus.COMPLIANCE_WARNING_ENUMERATION_FAIL;
 import static android.hardware.usb.UsbPortStatus.COMPLIANCE_WARNING_FLAKY_CONNECTION;
 import static android.hardware.usb.UsbPortStatus.COMPLIANCE_WARNING_UNRELIABLE_IO;
+import static android.hardware.usb.UsbPortStatus.BC12_TYPE_UNKNOWN;
+import static android.hardware.usb.UsbPortStatus.BC12_TYPE_SDP;
+import static android.hardware.usb.UsbPortStatus.BC12_TYPE_CDP;
+import static android.hardware.usb.UsbPortStatus.BC12_TYPE_DCP;
 import static android.hardware.usb.DisplayPortAltModeInfo.DISPLAYPORT_ALT_MODE_STATUS_UNKNOWN;
 import static android.hardware.usb.DisplayPortAltModeInfo.DISPLAYPORT_ALT_MODE_STATUS_NOT_CAPABLE;
 import static android.hardware.usb.DisplayPortAltModeInfo.DISPLAYPORT_ALT_MODE_STATUS_CAPABLE_DISABLED;
@@ -103,6 +107,8 @@ public final class UsbPort {
     private final boolean mSupportsEnableContaminantPresenceDetection;
     private final boolean mSupportsComplianceWarnings;
     private final @AltModeType int mSupportedAltModes;
+    private final boolean mSupportsPartnerBc12Type;
+    private final boolean mSupportsPowerProfiles;
 
     private static final int NUM_DATA_ROLES = Constants.PortDataRole.NUM_DATA_ROLES;
     /**
@@ -278,6 +284,26 @@ public final class UsbPort {
     public @interface AltModeType {}
 
     /** @hide */
+    public UsbPort(Builder builder) {
+        Objects.requireNonNull(builder.mId);
+        Preconditions.checkFlagsArgument(builder.mSupportedModes,
+                MODE_DFP | MODE_UFP | MODE_AUDIO_ACCESSORY | MODE_DEBUG_ACCESSORY);
+
+        mUsbManager = builder.mUsbManager;
+        mId = builder.mId;
+        mSupportedModes = builder.mSupportedModes;
+        mSupportedContaminantProtectionModes = builder.mSupportedContaminantProtectionModes;
+        mSupportsEnableContaminantPresenceProtection =
+                builder.mSupportsEnableContaminantPresenceProtection;
+        mSupportsEnableContaminantPresenceDetection =
+                builder.mSupportsEnableContaminantPresenceDetection;
+        mSupportsComplianceWarnings = builder.mSupportsComplianceWarnings;
+        mSupportedAltModes = builder.mSupportedAltModes;
+        mSupportsPartnerBc12Type = builder.mSupportsPartnerBc12Type;
+        mSupportsPowerProfiles = builder.mSupportsPowerProfiles;
+    }
+
+    /** @hide */
     public UsbPort(@NonNull UsbManager usbManager, @NonNull String id, int supportedModes,
             int supportedContaminantProtectionModes,
             boolean supportsEnableContaminantPresenceProtection,
@@ -309,6 +335,8 @@ public final class UsbPort {
                 supportsEnableContaminantPresenceDetection;
         mSupportsComplianceWarnings = supportsComplianceWarnings;
         mSupportedAltModes = supportedAltModes;
+        mSupportsPartnerBc12Type = false;
+        mSupportsPowerProfiles = false;
     }
 
     /**
@@ -425,6 +453,37 @@ public final class UsbPort {
         return (mSupportedAltModes & typeMask) == typeMask;
     }
 
+    /**
+     * Returns whether the port supports reporting the partner BC 1.2 type, defined in the
+     * Battery Charging Specification Revision 1.2 (BC 1.2). If this method returns {@code false},
+     * {@link UsbPortStatus#getPartnerBc12Type()} will return
+     * {@link UsbPortStatus#BC12_TYPE_UNKNOWN}.
+     *
+     * <b><Note:</b> The BC 1.2 specification can be found <a href="https://www.usb.org/document-library/battery-charging-v12-spec-and-adopters-agreement">here</a>
+     *
+     * @return true if the local port reports the partner port BC 1.2 type,
+     *         false otherwise.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_POWER_PROFILE_REPORTING)
+    public boolean supportsPartnerBc12Type() {
+        return mSupportsPartnerBc12Type;
+    }
+
+    /**
+     * Returns whether the port supports reporting port and partner source/sink power profiles.
+     * If the port does not support this feature, then
+     * {@link UsbPortStatus#getPortSinkPowerProfiles},
+     * {@link UsbPortStatus#getPortSourcePowerProfiles},
+     * {@link UsbPortStatus#getPartnerSinkPowerProfiles},
+     * and {@link UsbPortStatus#getPartnerSourcePowerProfiles} will all return an empty List.
+     *
+     * @return true if the local port reports port and partner source/sink power profiles,
+     *         false otherwise
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_POWER_PROFILE_REPORTING)
+    public boolean supportsPowerProfiles() {
+        return mSupportsPowerProfiles;
+    }
 
     /**
      * Sets the desired role combination of the port.
@@ -883,6 +942,22 @@ public final class UsbPort {
         return false;
     }
 
+    /** @hide */
+    public static String bc12TypeToString(int bc12Type) {
+        switch (bc12Type) {
+            case BC12_TYPE_UNKNOWN:
+                return "Unknown";
+            case BC12_TYPE_SDP:
+                return "SDP";
+            case BC12_TYPE_CDP:
+                return "CDP";
+            case BC12_TYPE_DCP:
+                return "DCP";
+            default:
+                return Integer.toString(bc12Type);
+        }
+    }
+
     @NonNull
     @Override
     public String toString() {
@@ -893,6 +968,161 @@ public final class UsbPort {
                 + ", supportsEnableContaminantPresenceDetection="
                 + mSupportsEnableContaminantPresenceDetection
                 + ", supportsComplianceWarnings="
-                + mSupportsComplianceWarnings;
+                + mSupportsComplianceWarnings
+                + ", supportsPartnerBc12Type="
+                + mSupportsPartnerBc12Type
+                + ", supportsPowerProfiles="
+                + mSupportsPowerProfiles;
+    }
+
+    /**
+     * Builder is used to create {@link UsbPort} objects.
+     *
+     * @hide
+     */
+    public static final class Builder {
+        private String mId;
+        private int mSupportedModes;
+        private UsbManager mUsbManager;
+        private int mSupportedContaminantProtectionModes;
+        private boolean mSupportsEnableContaminantPresenceProtection;
+        private boolean mSupportsEnableContaminantPresenceDetection;
+        private boolean mSupportsComplianceWarnings;
+        private @AltModeType int mSupportedAltModes;
+        private boolean mSupportsPartnerBc12Type;
+        private boolean mSupportsPowerProfiles;
+
+        public Builder() {
+            mId = "";
+            mSupportedModes = 0;
+            mUsbManager = null;
+            mSupportedContaminantProtectionModes = 0;
+            mSupportsEnableContaminantPresenceProtection = false;
+            mSupportsEnableContaminantPresenceDetection = false;
+            mSupportsComplianceWarnings = false;
+            mSupportedAltModes = 0;
+            mSupportsPartnerBc12Type = false;
+        }
+
+        /**
+         * Sets the id of {@link UsbPort}
+         *
+         * @return Instance of {@link Builder}
+         */
+        @NonNull
+        public Builder setId(@NonNull String id) {
+            mId = id;
+            return this;
+        }
+
+        /**
+         * Sets the supported modes of {@link UsbPort}
+         *
+         * @return Instance of {@link Builder}
+         */
+        @NonNull
+        public Builder setSupportedModes(int modes) {
+            mSupportedModes = modes;
+            return this;
+        }
+
+        /**
+         * Sets the UsbManager of {@link UsbPort}
+         *
+         * @return Instance of {@link Builder}
+         */
+        @NonNull
+        public Builder setUsbManager(@NonNull UsbManager usbManager) {
+            mUsbManager = usbManager;
+            return this;
+        }
+
+        /**
+         * Sets the supported contaminant protection modes of {@link UsbPort}
+         *
+         * @return Instance of {@link Builder}
+         */
+        @NonNull
+        public Builder setSupportedContaminantProtectionModes(int modes) {
+            mSupportedContaminantProtectionModes = modes;
+            return this;
+        }
+
+        /**
+         * Sets whether or not the {@link UsbPort} supports enabling contaminant presence
+         * protection
+         *
+         * @return Instance of {@link Builder}
+         */
+        @NonNull
+        public Builder setSupportsEnableContaminantPresenceProtection(boolean supportsFeature) {
+            mSupportsEnableContaminantPresenceProtection = supportsFeature;
+            return this;
+        }
+
+        /**
+         * Sets whether or not the {@link UsbPort} supports enabling contaminant presence
+         * detection
+         *
+         * @return Instance of {@link Builder}
+         */
+        @NonNull
+        public Builder setSupportsEnableContaminantPresenceDetection(boolean supportsFeature) {
+            mSupportsEnableContaminantPresenceDetection = supportsFeature;
+            return this;
+        }
+
+        /**
+         * Sets whether or not the {@link UsbPort} supports reporting compliance warnings
+         *
+         * @return Instance of {@link Builder}
+         */
+        @NonNull
+        public Builder setSupportsComplianceWarnings(boolean supportsFeature) {
+            mSupportsComplianceWarnings = supportsFeature;
+            return this;
+        }
+
+        /**
+         * Sets the supported alt modes of {@link UsbPort}
+         *
+         * @return Instance of {@link Builder}
+         */
+        @NonNull
+        public Builder setSupportedAltModes(@AltModeType int altModes) {
+            mSupportedAltModes = altModes;
+            return this;
+        }
+
+        /**
+         * Sets whether or not the {@link UsbPort} supports reporting the partner BC 1.2 type.
+         *
+         * @return Instance of {@link Builder}
+         */
+        @NonNull
+        public Builder setSupportsPartnerBc12Type(boolean supportsFeature) {
+            mSupportsPartnerBc12Type = supportsFeature;
+            return this;
+        }
+
+        /**
+         * Sets whether or not the {@link UsbPort} supports reporting local and partner port
+         * power profile information.
+         *
+         * @return Instance of {@link Builder}
+         */
+        @NonNull
+        public Builder setSupportsPowerProfiles(boolean supportsFeature) {
+            mSupportsPowerProfiles = supportsFeature;
+            return this;
+        }
+
+        /**
+         * Creates the {@link UsbPort} object.
+         */
+        @NonNull
+        public UsbPort build() {
+            return new UsbPort(this);
+        }
     }
 }

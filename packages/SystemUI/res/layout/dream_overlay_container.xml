@@ -32,4 +32,11 @@
         />
 
     <include layout="@layout/ambient_status_bar_view" />
+
+    <ViewStub
+        android:id="@+id/edge_swipe_indicator_stub"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout="@layout/dream_edge_swipe_indicator" />
+
 </com.android.systemui.dreams.DreamOverlayContainerView>

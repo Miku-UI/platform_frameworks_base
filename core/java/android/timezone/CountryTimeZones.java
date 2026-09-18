@@ -34,6 +34,9 @@ import java.util.Objects;
 /**
  * Information about a country's time zones.
  *
+ * <p>This class provides access to the time zones known to be used in a country, and methods to
+ * find a time zone by UTC offset.
+ *
  * @hide
  */
 @FlaggedApi(Flags.FLAG_EXPOSE_TIME_ZONE_SYSTEM_API)
@@ -41,7 +44,7 @@ import java.util.Objects;
 public final class CountryTimeZones {
 
     /**
-     * A wrapper for a time zone mapping.
+     * Represents a time zone used in a country.
      *
      * <p>This class currently only exposes the time zone and its ID (e.g., "America/Los_Angeles").
      * It is structured to allow for additional metadata to be exposed in the future without
@@ -63,15 +66,19 @@ public final class CountryTimeZones {
         /**
          * Returns the ID for this mapping. The ID is a tzdb time zone identifier like
          * "America/Los_Angeles" that can be used with methods such as {@link
-         * TimeZone#getFrozenTimeZone(String)}. See {@link #getTimeZone()} which returns a frozen
-         * {@link TimeZone} object.
+         * TimeZone#getFrozenTimeZone(String)} to obtain an immutable {@link TimeZone} instance. See
+         * {@link #getTimeZone()}.
          */
         @NonNull
         public String getTimeZoneId() {
             return mDelegate.getTimeZoneId();
         }
 
-        /** Returns a frozen {@link TimeZone} object for this mapping. */
+        /**
+         * Returns an immutable {@link TimeZone} object for this mapping.
+         *
+         * <p>This can be {@code null} if the time zone ID is not recognized.
+         */
         @Nullable
         public TimeZone getTimeZone() {
             return mDelegate.getTimeZone();
@@ -101,7 +108,9 @@ public final class CountryTimeZones {
     }
 
     /**
-     * The result of lookup up a time zone using offset information (and possibly more).
+     * The result of looking up a time zone using offset information.
+     *
+     * <p>It contains the matching time zone and information about the match.
      *
      * @hide
      */
@@ -129,7 +138,12 @@ public final class CountryTimeZones {
             return mTimeZone;
         }
 
-        /** Returns the country ISO code where the time zone matched. */
+        /**
+         * Returns the ISO country code for the country where the time zone was matched.
+         *
+         * <p>This can be used to identify the country when a search for a time zone is performed
+         * over multiple countries.
+         */
         @Nullable
         public String getCountryIsoCode() {
             return mCountryIsoCode;

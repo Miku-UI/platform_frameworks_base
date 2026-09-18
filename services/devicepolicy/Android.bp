@@ -22,11 +22,13 @@ java_library_static {
         ":statslog-devicepolicy-java-gen",
     ],
     libs: [
+        "services.contentrestriction",
         "services.core",
         "app-compat-annotations",
         "service-permission.stubs.system_server",
         "device_policy_aconfig_flags_lib",
         "androidx.annotation_annotation",
+        "telephony_flags_core_java_lib",
     ],
 }
 

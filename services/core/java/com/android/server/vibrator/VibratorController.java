@@ -32,7 +32,6 @@ import android.os.VibratorInfo;
 import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.PrimitiveSegment;
 import android.os.vibrator.PwlePoint;
-import android.os.vibrator.RampSegment;
 import android.util.IndentingPrintWriter;
 import android.util.Slog;
 
@@ -308,27 +307,6 @@ final class VibratorController implements HalVibrator {
     }
 
     @Override
-    public long on(long vibrationId, long stepId, RampSegment[] primitives) {
-        Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.onPwleV1");
-        try {
-            if (!mVibratorInfo.hasCapability(IVibrator.CAP_COMPOSE_PWLE_EFFECTS)) {
-                return 0;
-            }
-            synchronized (mLock) {
-                int braking = mVibratorInfo.getDefaultBraking();
-                long duration = mNativeWrapper.composePwle(
-                        primitives, braking, vibrationId, stepId);
-                if (duration > 0) {
-                    updateStateAndNotifyListenersLocked(State.VIBRATING);
-                }
-                return duration;
-            }
-        } finally {
-            Trace.traceEnd(TRACE_TAG_VIBRATOR);
-        }
-    }
-
-    @Override
     public long on(long vibrationId, long stepId, PwlePoint[] pwlePoints) {
         Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.onPwleV2");
         try {
@@ -460,9 +438,6 @@ final class VibratorController implements HalVibrator {
         private static native long performComposedEffect(long nativePtr, PrimitiveSegment[] effect,
                 long vibrationId, long stepId);
 
-        private static native long performPwleEffect(long nativePtr, RampSegment[] effect,
-                int braking, long vibrationId, long stepId);
-
         private static native long performPwleV2Effect(long nativePtr, PwlePoint[] effect,
                 long vibrationId, long stepId);
 
@@ -520,12 +495,6 @@ final class VibratorController implements HalVibrator {
         /** Turns vibrator on to perform effect composed of give primitives effect. */
         public long compose(PrimitiveSegment[] primitives, long vibrationId, long stepId) {
             return performComposedEffect(mNativePtr, primitives, vibrationId, stepId);
-        }
-
-        /** Turns vibrator on to perform PWLE effect composed of given primitives. */
-        public long composePwle(RampSegment[] primitives, int braking, long vibrationId,
-                long stepId) {
-            return performPwleEffect(mNativePtr, primitives, braking, vibrationId, stepId);
         }
 
         /** Turns vibrator on to perform PWLE effect composed of given points. */

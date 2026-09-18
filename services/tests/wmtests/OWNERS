@@ -8,3 +8,6 @@ per-file *Assist* = file:/core/java/android/service/voice/OWNERS
 per-file res/xml/bookmarks.xml = file:/services/core/java/com/android/server/input/OWNERS
 
 natanieljr@google.com
+
+# App Lock
+per-file *AppLock*.java = file:/core/java/android/content/pm/APP_LOCK_OWNERS

@@ -40,16 +40,17 @@ class ActivityStarterImpl
 constructor(
     private val statusBarStateController: SysuiStatusBarStateController,
     @Main private val mainExecutor: DelayableExecutor,
-    activityStarterInternal: Lazy<ActivityStarterInternalImpl>,
-    legacyActivityStarter: Lazy<LegacyActivityStarterInternalImpl>,
+    private val activityStarterInternalLazy: Lazy<ActivityStarterInternalImpl>,
+    private val legacyActivityStarterLazy: Lazy<LegacyActivityStarterInternalImpl>,
 ) : ActivityStarter {
 
-    private val activityStarterInternal: ActivityStarterInternal =
+    private val activityStarterInternal: ActivityStarterInternal by lazy {
         if (SceneContainerFlag.isEnabled) {
-            activityStarterInternal.get()
+            activityStarterInternalLazy.get()
         } else {
-            legacyActivityStarter.get()
+            legacyActivityStarterLazy.get()
         }
+    }
 
     override fun registerTransition(
         cookie: ActivityTransitionAnimator.TransitionCookie,

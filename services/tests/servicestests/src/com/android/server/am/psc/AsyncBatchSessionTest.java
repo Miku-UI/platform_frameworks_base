@@ -25,165 +25,163 @@ import android.os.HandlerThread;
 import android.os.TestLooperManager;
 import android.platform.test.annotations.Presubmit;
 
-import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExternalResource;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Presubmit
-public class AsyncBatchSessionTest {
+public final class AsyncBatchSessionTest {
+    private static final String UPDATE_MESSAGE = "UPDATED";
 
-    private Handler mManagedHandler;
-    private TestLooperManager mTestLooperManager;
-
-    @Before
-    public void setup() {
-        HandlerThread t = new HandlerThread("ManagedThread");
-        t.start();
-        mManagedHandler = new Handler(t.getLooper());
-        mTestLooperManager = new TestLooperManager(t.getLooper());
-    }
+    @Rule
+    public final TestHandlerRule mHandlerRule = new TestHandlerRule();
 
     @Test
     public void asyncBatchSession_enqueue() {
-        ArrayList<String> updates = new ArrayList<>();
-        AsyncBatchSession session = new AsyncBatchSession(mManagedHandler, new Object(), null,
-                () -> updates.add("UPDATED"));
+        List<String> updates = new ArrayList<>();
+        try (AsyncBatchSession session = new AsyncBatchSession(mHandlerRule.getHandler(),
+                new Object(), null,
+                () -> updates.add(UPDATE_MESSAGE))) {
 
-        // Enqueue some work and trigger an update mid way, while batching is active.
-        session.enqueue(() -> updates.add("A"));
-        mManagedHandler.post(() -> updates.add("X"));
-        session.runUpdate();
-        session.enqueue(() -> updates.add("B"));
+            // Enqueue some work and trigger an update mid way, while batching is active.
+            session.enqueue(() -> updates.add("A"));
+            mHandlerRule.getHandler().post(() -> updates.add("X"));
+            session.runUpdate();
+            session.enqueue(() -> updates.add("B"));
+        }
 
         // Step through the looper once.
-        mTestLooperManager.execute(mTestLooperManager.next());
+        mHandlerRule.dispatchNext();
         assertThat(updates).containsExactly("A");
         // Step through the looper once more.
-        mTestLooperManager.execute(mTestLooperManager.next());
-        assertThat(updates).containsExactly("A", "X");
+        mHandlerRule.dispatchNext();
+        assertThat(updates).containsExactly("A", "X").inOrder();
         // Step through the looper once more.
-        mTestLooperManager.execute(mTestLooperManager.next());
-        assertThat(updates).containsExactly("A", "X", "UPDATED");
+        mHandlerRule.dispatchNext();
+        assertThat(updates).containsExactly("A", "X", UPDATE_MESSAGE).inOrder();
         // Step through the looper one last time.
-        mTestLooperManager.execute(mTestLooperManager.next());
-        assertThat(updates).containsExactly("A", "X", "UPDATED", "B");
+        mHandlerRule.dispatchNext();
+        assertThat(updates).containsExactly("A", "X", UPDATE_MESSAGE, "B").inOrder();
     }
 
     @Test
     public void asyncBatchSession_enqueue_batched() {
-        ArrayList<String> updates = new ArrayList<>();
-        AsyncBatchSession session = new AsyncBatchSession(mManagedHandler, new Object(), null,
-                () -> updates.add("UPDATED"));
-
-        // Enqueue some work and trigger an update mid way, while batching is active.
-        session.start(OOM_ADJ_REASON_ACTIVITY);
-        session.enqueue(() -> updates.add("A"));
-        mManagedHandler.post(() -> updates.add("X"));
-        session.runUpdate();
-        session.enqueue(() -> updates.add("B"));
-        session.close();
+        List<String> updates = new ArrayList<>();
+        try (AsyncBatchSession session = new AsyncBatchSession(mHandlerRule.getHandler(),
+                new Object(), null,
+                () -> updates.add(UPDATE_MESSAGE))) {
+            // Enqueue some work and trigger an update mid way, while batching is active.
+            session.start(OOM_ADJ_REASON_ACTIVITY);
+            session.enqueue(() -> updates.add("A"));
+            mHandlerRule.getHandler().post(() -> updates.add("X"));
+            session.runUpdate();
+            session.enqueue(() -> updates.add("B"));
+        }
 
         // Step through the looper once.
-        mTestLooperManager.execute(mTestLooperManager.next());
+        mHandlerRule.dispatchNext();
         assertThat(updates).containsExactly("X");
         // Step through the looper once more.
-        mTestLooperManager.execute(mTestLooperManager.next());
-        assertThat(updates.get(0)).isEqualTo("X");
-        assertThat(updates.get(1)).isEqualTo("A");
-        assertThat(updates.get(2)).isEqualTo("B");
-        assertThat(updates.get(3)).isEqualTo("UPDATED");
+        mHandlerRule.dispatchNext();
+        assertThat(updates).containsExactly("X", "A", "B", UPDATE_MESSAGE).inOrder();
     }
 
     @Test
     public void asyncBatchSession_enqueueNoUpdate_batched() {
-        ArrayList<String> updates = new ArrayList<>();
-        AsyncBatchSession session = new AsyncBatchSession(mManagedHandler, new Object(), null,
-                () -> updates.add("UPDATED"));
-
-        // Enqueue some work and trigger an update mid way, while batching is active.
-        session.start(OOM_ADJ_REASON_ACTIVITY);
-        session.enqueue(() -> updates.add("A"));
-        mManagedHandler.post(() -> updates.add("X"));
-        session.enqueue(() -> updates.add("B"));
-        session.close();
+        List<String> updates = new ArrayList<>();
+        try (AsyncBatchSession session = new AsyncBatchSession(mHandlerRule.getHandler(),
+                new Object(), null,
+                () -> updates.add(UPDATE_MESSAGE))) {
+            // Enqueue some work and trigger an update mid way, while batching is active.
+            session.start(OOM_ADJ_REASON_ACTIVITY);
+            session.enqueue(() -> updates.add("A"));
+            mHandlerRule.getHandler().post(() -> updates.add("X"));
+            session.enqueue(() -> updates.add("B"));
+        }
 
         // Step through the looper once.
-        mTestLooperManager.execute(mTestLooperManager.next());
+        mHandlerRule.dispatchNext();
         assertThat(updates).containsExactly("X");
         // Step through the looper once more.
-        mTestLooperManager.execute(mTestLooperManager.next());
-        assertThat(updates).containsExactly("X", "A", "B");
+        mHandlerRule.dispatchNext();
+        assertThat(updates).containsExactly("X", "A", "B").inOrder();
     }
 
     @Test
     public void asyncBatchSession_enqueueBoostPriority_batched() {
-        ArrayList<String> updates = new ArrayList<>();
-        AsyncBatchSession session = new AsyncBatchSession(mManagedHandler, new Object(), null,
-                () -> updates.add("UPDATED"));
+        List<String> updates = new ArrayList<>();
+        try (AsyncBatchSession session = new AsyncBatchSession(mHandlerRule.getHandler(),
+                new Object(), null,
+                () -> updates.add(UPDATE_MESSAGE))) {
 
-        // Enqueue some work , while batching is active and boost the priority of the session.
-        session.start(OOM_ADJ_REASON_ACTIVITY);
-        session.enqueue(() -> updates.add("A"));
-        mManagedHandler.post(() -> updates.add("X"));
-        session.enqueue(() -> updates.add("B"));
-        session.postToHead();
-        session.close();
+            // Enqueue some work , while batching is active and boost the priority of the session.
+            session.start(OOM_ADJ_REASON_ACTIVITY);
+            session.enqueue(() -> updates.add("A"));
+            mHandlerRule.getHandler().post(() -> updates.add("X"));
+            session.enqueue(() -> updates.add("B"));
+            session.postToHead();
+        }
 
         assertThat(updates).isEmpty();
         // Step through the looper once.
-        mTestLooperManager.execute(mTestLooperManager.next());
-        assertThat(updates).containsExactly("A", "B");
+        mHandlerRule.dispatchNext();
+        assertThat(updates).containsExactly("A", "B").inOrder();
         // Step through the looper once more.
-        mTestLooperManager.execute(mTestLooperManager.next());
-        assertThat(updates).containsExactly("A", "B", "X");
+        mHandlerRule.dispatchNext();
+        assertThat(updates).containsExactly("A", "B", "X").inOrder();
     }
 
     @Test
     public void asyncBatchSession_interlacedEnqueueAndStage() {
-        ArrayList<String> updates = new ArrayList<>();
+        List<String> updates = new ArrayList<>();
         ConcurrentLinkedQueue<Runnable> stagingQueue = new ConcurrentLinkedQueue<>();
-        AsyncBatchSession session = new AsyncBatchSession(mManagedHandler, new Object(),
-                stagingQueue, () -> updates.add("UPDATED"));
+        try (AsyncBatchSession session = new AsyncBatchSession(mHandlerRule.getHandler(),
+                new Object(),
+                stagingQueue, () -> updates.add(UPDATE_MESSAGE))) {
 
-        // Enqueue some work and trigger an update mid way, while batching is active.
-        session.stage(() -> updates.add("1"));
-        session.enqueue(() -> updates.add("A"));
-        session.runUpdate();
-        session.stage(() -> updates.add("2"));
+            // Enqueue some work and trigger an update mid way, while batching is active.
+            session.stage(() -> updates.add("1"));
+            session.enqueue(() -> updates.add("A"));
+            session.runUpdate();
+            session.stage(() -> updates.add("2"));
+        }
 
         // Run the first staged runnable.
         stagingQueue.poll().run();
         assertThat(updates).containsExactly("1");
         // Step through the looper one
-        mTestLooperManager.execute(mTestLooperManager.next());
-        assertThat(updates).containsExactly("1", "A");
+        mHandlerRule.dispatchNext();
+        assertThat(updates).containsExactly("1", "A").inOrder();
         // Run the second staged runnable.
         stagingQueue.poll().run();
-        assertThat(updates).containsExactly("1", "A", "2");
+        assertThat(updates).containsExactly("1", "A", "2").inOrder();
         // Step through the looper once more.
-        mTestLooperManager.execute(mTestLooperManager.next());
-        assertThat(updates).containsExactly("1", "A", "2", "UPDATED");
+        mHandlerRule.dispatchNext();
+        assertThat(updates).containsExactly("1", "A", "2", UPDATE_MESSAGE).inOrder();
     }
 
     @Test
     public void asyncBatchSession_interlacedEnqueueAndStage_batched() {
-        ArrayList<String> updates = new ArrayList<>();
+        List<String> updates = new ArrayList<>();
         ConcurrentLinkedQueue<Runnable> stagingQueue = new ConcurrentLinkedQueue<>();
-        AsyncBatchSession session = new AsyncBatchSession(mManagedHandler, new Object(),
-                stagingQueue, () -> updates.add("UPDATED"));
+        try (AsyncBatchSession session = new AsyncBatchSession(mHandlerRule.getHandler(),
+                new Object(),
+                stagingQueue, () -> updates.add(UPDATE_MESSAGE))) {
 
-        // Enqueue some work and trigger an update mid way, while batching is active.
-        session.start(OOM_ADJ_REASON_ACTIVITY);
-        session.stage(() -> updates.add("1"));
-        session.enqueue(() -> updates.add("A"));
-        session.stage(() -> updates.add("2"));
-        session.runUpdate();
-        session.enqueue(() -> updates.add("B"));
-        session.stage(() -> updates.add("3"));
-        session.stage(() -> updates.add("4"));
-        session.close();
+            // Enqueue some work and trigger an update mid way, while batching is active.
+            session.start(OOM_ADJ_REASON_ACTIVITY);
+            session.stage(() -> updates.add("1"));
+            session.enqueue(() -> updates.add("A"));
+            session.stage(() -> updates.add("2"));
+            session.runUpdate();
+            session.enqueue(() -> updates.add("B"));
+            session.stage(() -> updates.add("3"));
+            session.stage(() -> updates.add("4"));
+        }
 
         // Run the first staged runnable.
         stagingQueue.poll().run();
@@ -192,16 +190,47 @@ public class AsyncBatchSessionTest {
         // Run the third staged runnable.
         stagingQueue.poll().run();
         // Step through the looper once to run all batched enqueued work.
-        mTestLooperManager.execute(mTestLooperManager.next());
+        mHandlerRule.dispatchNext();
         // Run the last staged runnable.
         stagingQueue.poll().run();
 
-        assertThat(updates.get(0)).isEqualTo("1");
-        assertThat(updates.get(1)).isEqualTo("2");
-        assertThat(updates.get(2)).isEqualTo("3");
-        assertThat(updates.get(3)).isEqualTo("A");
-        assertThat(updates.get(4)).isEqualTo("B");
-        assertThat(updates.get(5)).isEqualTo("UPDATED");
-        assertThat(updates.get(6)).isEqualTo("4");
+        assertThat(updates).containsExactly("1", "2", "3", "A", "B", UPDATE_MESSAGE, "4").inOrder();
+    }
+
+    /**
+     * A JUnit rule for managing a HandlerThread and TestLooperManager.
+     */
+    private static final class TestHandlerRule extends ExternalResource {
+        private static final String HANDLER_THREAD_NAME = "TestHandlerRuleThread";
+        private Handler mHandler;
+        private TestLooperManager mTestLooperManager;
+        private HandlerThread mHandlerThread;
+
+        @Override
+        protected void before() {
+            mHandlerThread = new HandlerThread(HANDLER_THREAD_NAME);
+            mHandlerThread.start();
+            mHandler = new Handler(mHandlerThread.getLooper());
+            mTestLooperManager = new TestLooperManager(mHandlerThread.getLooper());
+        }
+
+        @Override
+        protected void after() {
+            mHandlerThread.getLooper().quitSafely();
+        }
+
+        /**
+         * Returns the handler associated with this test rule.
+         */
+        Handler getHandler() {
+            return mHandler;
+        }
+
+        /**
+         * Executes the next message on the looper.
+         */
+        void dispatchNext() {
+            mTestLooperManager.execute(mTestLooperManager.next());
+        }
     }
 }

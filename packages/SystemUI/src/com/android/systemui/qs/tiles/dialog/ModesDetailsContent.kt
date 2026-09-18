@@ -19,9 +19,13 @@ package com.android.systemui.qs.tiles.dialog
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.unit.dp
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.policy.ui.dialog.composable.ModeTileGrid
+
+private const val MODES_DETAILS_VIEW_TEST_TAG = "modes_details_view"
 
 @Composable
 fun ModesDetailsContent(viewModel: ModesDetailsViewModel) {
@@ -30,9 +34,12 @@ fun ModesDetailsContent(viewModel: ModesDetailsViewModel) {
         viewModel = viewModel.viewModel,
         modifier =
             Modifier.padding(
-                horizontal = dimensionResource(R.dimen.tile_details_horizontal_padding),
-                vertical = dimensionResource(R.dimen.tile_details_vertical_padding),
-            ),
+                    start = dimensionResource(R.dimen.tile_details_horizontal_padding),
+                    end = dimensionResource(R.dimen.tile_details_horizontal_padding),
+                    top = 0.dp,
+                    bottom = dimensionResource(R.dimen.tile_details_bottom_padding),
+                )
+                .testTag(MODES_DETAILS_VIEW_TEST_TAG),
         inDetailsView = true,
     )
 }

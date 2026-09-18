@@ -52,5 +52,11 @@ sealed interface MediaProjectionState {
             override val hostPackage: String,
             override val hostDeviceName: String? = null,
         ) : Projecting(hostPackage, hostDeviceName)
+
+        /** An app content session is being projected. */
+        data class AppContent(
+            override val hostPackage: String,
+            override val hostDeviceName: String? = null,
+        ) : Projecting(hostPackage, hostDeviceName)
     }
 }

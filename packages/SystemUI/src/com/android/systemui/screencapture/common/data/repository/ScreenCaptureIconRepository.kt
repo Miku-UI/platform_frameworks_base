@@ -34,6 +34,7 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.screencapture.common.ScreenCaptureUi
 import com.android.systemui.screencapture.common.ScreenCaptureUiScope
 import com.android.systemui.shared.system.PackageManagerWrapper
+import com.android.users.UserType
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlin.coroutines.CoroutineContext
@@ -106,15 +107,15 @@ constructor(
 
     @SuppressLint("MissingPermission")
     @VisibleForTesting(otherwise = VisibleForTesting.Companion.PRIVATE)
-    suspend fun getIconTypeForUser(@UserIdInt userId: Int): Int =
+    suspend fun getIconTypeForUser(@UserIdInt userId: Int): UserType =
         withContext(bgContext) {
             val userInfo = userManager.getUserInfo(userId)
 
             when {
-                userInfo.isCloneProfile -> UserIconInfo.TYPE_CLONED
-                userInfo.isManagedProfile -> UserIconInfo.TYPE_WORK
-                userInfo.isPrivateProfile -> UserIconInfo.TYPE_PRIVATE
-                else -> UserIconInfo.TYPE_MAIN
+                userInfo.isCloneProfile -> UserType.CLONED
+                userInfo.isManagedProfile -> UserType.WORK
+                userInfo.isPrivateProfile -> UserType.PRIVATE
+                else -> UserType.MAIN
             }
         }
 }

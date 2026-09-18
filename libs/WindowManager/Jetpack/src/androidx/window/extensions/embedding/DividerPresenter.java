@@ -23,7 +23,7 @@ import static android.util.TypedValue.COMPLEX_UNIT_DIP;
 import static android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
 import static android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
 import static android.view.WindowManager.LayoutParams.FLAG_SLIPPERY;
-import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_PANEL;
+import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_SUB_PANEL;
 import static android.window.TaskFragmentOperation.OP_TYPE_CREATE_OR_MOVE_TASK_FRAGMENT_DECOR_SURFACE;
 import static android.window.TaskFragmentOperation.OP_TYPE_REMOVE_TASK_FRAGMENT_DECOR_SURFACE;
 import static android.window.TaskFragmentOperation.OP_TYPE_SET_DECOR_SURFACE_BOOSTED;
@@ -1278,13 +1278,13 @@ class DividerPresenter implements View.OnTouchListener {
                     ? new WindowManager.LayoutParams(
                             mDividerSurfaceWidthPx,
                             taskBounds.height(),
-                            TYPE_APPLICATION_PANEL,
+                            TYPE_APPLICATION_SUB_PANEL,
                             FLAG_NOT_FOCUSABLE | FLAG_NOT_TOUCH_MODAL | FLAG_SLIPPERY,
                             PixelFormat.TRANSLUCENT)
                     : new WindowManager.LayoutParams(
                             taskBounds.width(),
                             mDividerSurfaceWidthPx,
-                            TYPE_APPLICATION_PANEL,
+                            TYPE_APPLICATION_SUB_PANEL,
                             FLAG_NOT_FOCUSABLE | FLAG_NOT_TOUCH_MODAL | FLAG_SLIPPERY,
                             PixelFormat.TRANSLUCENT);
             lp.setTitle(WINDOW_NAME);
@@ -1333,6 +1333,8 @@ class DividerPresenter implements View.OnTouchListener {
             params.gravity = Gravity.CENTER;
             button.setLayoutParams(params);
             button.setBackgroundColor(Color.TRANSPARENT);
+            button.setContentDescription(context.getString(
+                    R.string.activity_embedding_divider_drag_handle_description));
 
             final Drawable handle = context.getResources().getDrawable(
                     R.drawable.activity_embedding_divider_handle, context.getTheme());

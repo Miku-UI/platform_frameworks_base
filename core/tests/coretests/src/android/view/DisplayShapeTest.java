@@ -20,12 +20,16 @@ import static android.view.Surface.ROTATION_270;
 import static android.view.Surface.ROTATION_90;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import android.graphics.Path;
 import android.graphics.RectF;
+import android.os.Parcel;
 import android.platform.test.annotations.Presubmit;
+import android.util.PathParser;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
@@ -60,8 +64,12 @@ public class DisplayShapeTest {
         final DisplayShape displayShape = DisplayShape.createDefaultDisplayShape(100, 100, true);
 
         // A circle with radius = 50.
-        final String expect = "M0,50.0 A50.0,50.0 0 1,1 100,50.0 A50.0,50.0 0 1,1 0,50.0 Z";
-        assertEquals(displayShape.mDisplayShapeSpec, expect);
+        final String expectSpec = "M0,50.0 A50.0,50.0 0 1,1 100,50.0 A50.0,50.0 0 1,1 0,50.0 Z";
+        final Path expectedPath = PathParser.createPathFromPathData(expectSpec);
+        final Path actualPath = displayShape.getPath();
+        final Path diffPath = new Path();
+        diffPath.op(actualPath, expectedPath, Path.Op.XOR);
+        assertTrue(diffPath.isEmpty());
     }
 
     @Test
@@ -69,8 +77,42 @@ public class DisplayShapeTest {
         final DisplayShape displayShape = DisplayShape.createDefaultDisplayShape(100, 200, false);
 
         // A rectangle with width/height = 100/200.
-        final String expect = "M0,0 L100,0 L100,200 L0,200 Z";
-        assertEquals(displayShape.mDisplayShapeSpec, expect);
+        final String expectSpec = "M0,0 L100,0 L100,200 L0,200 Z";
+        final Path expectedPath = PathParser.createPathFromPathData(expectSpec);
+        final Path actualPath = displayShape.getPath();
+        final Path diffPath = new Path();
+        diffPath.op(actualPath, expectedPath, Path.Op.XOR);
+        assertTrue(diffPath.isEmpty());
+    }
+
+    @Test
+    public void testDefaultShape_cache() {
+        final DisplayShape shapeA = DisplayShape.createDefaultDisplayShape(100, 100, true);
+        // This should be a new instance and update the cache.
+        DisplayShape.createDefaultDisplayShape(200, 200, false);
+        // This should be a new instance because the cache was updated.
+        final DisplayShape shapeC = DisplayShape.createDefaultDisplayShape(100, 100, true);
+        // This should be the same instance as shapeC.
+        final DisplayShape shapeD = DisplayShape.createDefaultDisplayShape(100, 100, true);
+
+        assertThat(shapeC, not(sameInstance(shapeA)));
+        assertThat(shapeD, sameInstance(shapeC));
+    }
+
+    @Test
+    public void testFromResources_cache() {
+        final DisplayShape shapeA = DisplayShape.fromResources("local:1", 100, 200, 100, 200);
+        // This should be a new instance with different logical dimensions.
+        final DisplayShape shapeB = DisplayShape.fromResources("local:1", 100, 200, 200, 100);
+        // This should be a new instance because the cache was updated by shapeB.
+        final DisplayShape shapeC = DisplayShape.fromResources("local:1", 100, 200, 100, 200);
+        // This should be the same instance as shapeC.
+        final DisplayShape shapeD = DisplayShape.fromResources("local:1", 100, 200, 100, 200);
+
+
+        assertThat(shapeA, not(sameInstance(shapeB)));
+        assertThat(shapeC, not(sameInstance(shapeA)));
+        assertThat(shapeD, sameInstance(shapeC));
     }
 
     @Test
@@ -139,5 +181,33 @@ public class DisplayShapeTest {
 
         final RectF expectRect = new RectF(0f, 0f, 50f, 100f);
         assertEquals(actualRect, expectRect);
+    }
+
+    @Test
+    public void testParcelable() {
+        final DisplayShape original = DisplayShape.fromSpecString(
+                SPEC_RECTANGULAR_SHAPE, 0.5f, 100, 200);
+        final Parcel parcel = Parcel.obtain();
+        original.writeToParcel(parcel, 0);
+        parcel.setDataPosition(0);
+        final DisplayShape restored = DisplayShape.CREATOR.createFromParcel(parcel);
+        parcel.recycle();
+
+        assertEquals(original, restored);
+    }
+
+    @Test
+    public void testParcelable_caching() {
+        final DisplayShape original = DisplayShape.fromSpecString(
+                SPEC_RECTANGULAR_SHAPE, 0.5f, 100, 200);
+        final Parcel parcel = Parcel.obtain();
+        original.writeToParcel(parcel, 0);
+        parcel.setDataPosition(0);
+        final DisplayShape restored1 = DisplayShape.CREATOR.createFromParcel(parcel);
+        parcel.setDataPosition(0);
+        final DisplayShape restored2 = DisplayShape.CREATOR.createFromParcel(parcel);
+        parcel.recycle();
+
+        assertThat(restored2, sameInstance(restored1));
     }
 }

@@ -26,7 +26,6 @@ import static com.android.systemui.statusbar.notification.stack.NotificationStac
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
-import android.annotation.Nullable;
 import android.content.Context;
 import android.util.Property;
 import android.view.View;
@@ -35,7 +34,6 @@ import com.android.app.animation.Interpolators;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.dynamicanimation.animation.DynamicAnimation;
 import com.android.systemui.res.R;
-import com.android.systemui.shared.clocks.AnimatableClockView;
 import com.android.systemui.statusbar.NotificationShelf;
 import com.android.systemui.statusbar.notification.PhysicsPropertyAnimator;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpAnimator;
@@ -65,8 +63,7 @@ public class StackStateAnimator {
     public static final int ANIMATION_DURATION_HEADS_UP_APPEAR = 400;
     public static final int ANIMATION_DURATION_HEADS_UP_DISAPPEAR = 400;
     public static final int ANIMATION_DURATION_HEADS_UP_CYCLING = 400;
-    public static final int ANIMATION_DURATION_FOLD_TO_AOD =
-            AnimatableClockView.ANIMATION_DURATION_FOLD_TO_AOD;
+    public static final int ANIMATION_DURATION_FOLD_TO_AOD = 600;
     public static final int ANIMATION_DURATION_PRIORITY_CHANGE = 500;
     public static final int ANIMATION_DELAY_PER_ELEMENT_INTERRUPTING = 80;
     public static final int ANIMATION_DELAY_PER_ELEMENT_MANUAL = 32;
@@ -83,7 +80,6 @@ public class StackStateAnimator {
     private final ExpandableViewState mTmpState = new ExpandableViewState();
     private final AnimationProperties mAnimationProperties;
     public NotificationStackScrollLayout mHostLayout;
-    @Nullable
     private final HeadsUpAnimator mHeadsUpAnimator;
 
     private ArrayList<NotificationStackScrollLayout.AnimationEvent> mNewEvents =
@@ -108,7 +104,7 @@ public class StackStateAnimator {
     public StackStateAnimator(
             Context context,
             NotificationStackScrollLayout hostLayout,
-            @Nullable HeadsUpAnimator headsUpAnimator) {
+            HeadsUpAnimator headsUpAnimator) {
         mHostLayout = hostLayout;
         mHeadsUpAnimator = headsUpAnimator;
         initView(context);
@@ -536,7 +532,8 @@ public class StackStateAnimator {
 
                 mTmpState.copyFrom(changingView.getViewState());
                 mTmpState.setYTranslation(changingView.getViewState().getYTranslation()
-                        + getHeadsUpCyclingInYTranslationStart(event.headsUpFromBottom));
+                        + getHeadsUpCyclingInYTranslationStart(event.headsUpFromBottom),
+                        "StackStateAnimator.processAnimationEvents.cyclingIn");
                 mTmpState.applyToView(changingView);
 
                 // TODO(b/339519404): use a different interpolator
@@ -556,9 +553,9 @@ public class StackStateAnimator {
                 mHeadsUpAppearChildren.add(changingView);
 
                 mTmpState.copyFrom(changingView.getViewState());
-                mTmpState.setYTranslation(
-                        getHeadsUpYTranslationStart(
-                                event.headsUpFromBottom, event.headsUpHasStatusBarChip));
+                mTmpState.setYTranslation(getHeadsUpYTranslationStart(
+                                event.headsUpFromBottom, event.headsUpHasStatusBarChip),
+                        "StackStateAnimator.processAnimationEvents.headsUpAppear");
                 // set the height and the initial position
                 mTmpState.applyToView(changingView);
                 mAnimationProperties.setCustomInterpolator(View.TRANSLATION_Y,
@@ -588,9 +585,8 @@ public class StackStateAnimator {
                     // StackScrollAlgorithm cannot find this view because it has been removed
                     // from the NSSL. To correctly translate the view to the top or bottom of
                     // the screen (where it animated from), we need to update its translation.
-                    mTmpState.setYTranslation(
-                            mTmpState.getYTranslation() + 10
-                    );
+                    mTmpState.setYTranslation(mTmpState.getYTranslation() + 10,
+                            "StackStateAnimator.processAnimationEvents.cyclingOut");
                     endRunnable = changingView::removeFromTransientContainer;
                 }
 
@@ -672,7 +668,8 @@ public class StackStateAnimator {
                     // the screen (where it animated from), we need to update its translation.
                     mTmpState.setYTranslation(
                             getHeadsUpYTranslationStart(
-                                    event.headsUpFromBottom, event.headsUpHasStatusBarChip));
+                                    event.headsUpFromBottom, event.headsUpHasStatusBarChip),
+                                    "StackStateAnimator.processAnimationEvents.disappear");
                     endRunnable = changingView::removeFromTransientContainer;
                 }
 

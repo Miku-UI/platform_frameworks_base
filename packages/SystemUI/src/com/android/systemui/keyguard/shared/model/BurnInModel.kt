@@ -16,8 +16,6 @@
 
 package com.android.systemui.keyguard.shared.model
 
-import com.android.systemui.shared.Flags
-
 /** Clock burn-in translation/scaling data */
 data class BurnInModel(
     val translationX: Int = 0,
@@ -34,9 +32,6 @@ data class BurnInModel(
          * run, after test rules have had a chance to set the flag's state, preventing a
          * FlagSetException.
          */
-        val MAX_LARGE_CLOCK_SCALE: Float
-            get() {
-                return if (Flags.clockReactiveSmartspaceLayout()) 0.9f else 1f
-            }
+        const val MAX_LARGE_CLOCK_SCALE: Float = 0.9f
     }
 }

@@ -31,8 +31,6 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
-import android.os.Parcel;
-import android.os.Parcelable;
 import android.os.RemoteException;
 
 import com.android.internal.os.SomeArgs;
@@ -166,117 +164,6 @@ public abstract class CallScreeningService extends Service {
     }
 
     private ICallScreeningAdapter mCallScreeningAdapter;
-
-    /**
-     * Parcelable version of {@link CallResponse} used to do IPC.
-     * @hide
-     */
-    public static class ParcelableCallResponse implements Parcelable {
-        private final boolean mShouldDisallowCall;
-        private final boolean mShouldRejectCall;
-        private final boolean mShouldSilenceCall;
-        private final boolean mShouldSkipCallLog;
-        private final boolean mShouldSkipNotification;
-        private final boolean mShouldScreenCallViaAudioProcessing;
-
-        private final int mCallComposerAttachmentsToShow;
-
-        private ParcelableCallResponse(
-                boolean shouldDisallowCall,
-                boolean shouldRejectCall,
-                boolean shouldSilenceCall,
-                boolean shouldSkipCallLog,
-                boolean shouldSkipNotification,
-                boolean shouldScreenCallViaAudioProcessing,
-                int callComposerAttachmentsToShow) {
-            mShouldDisallowCall = shouldDisallowCall;
-            mShouldRejectCall = shouldRejectCall;
-            mShouldSilenceCall = shouldSilenceCall;
-            mShouldSkipCallLog = shouldSkipCallLog;
-            mShouldSkipNotification = shouldSkipNotification;
-            mShouldScreenCallViaAudioProcessing = shouldScreenCallViaAudioProcessing;
-            mCallComposerAttachmentsToShow = callComposerAttachmentsToShow;
-        }
-
-        protected ParcelableCallResponse(Parcel in) {
-            mShouldDisallowCall = in.readBoolean();
-            mShouldRejectCall = in.readBoolean();
-            mShouldSilenceCall = in.readBoolean();
-            mShouldSkipCallLog = in.readBoolean();
-            mShouldSkipNotification = in.readBoolean();
-            mShouldScreenCallViaAudioProcessing = in.readBoolean();
-            mCallComposerAttachmentsToShow = in.readInt();
-        }
-
-        public CallResponse toCallResponse() {
-            return new CallResponse.Builder()
-                    .setDisallowCall(mShouldDisallowCall)
-                    .setRejectCall(mShouldRejectCall)
-                    .setSilenceCall(mShouldSilenceCall)
-                    .setSkipCallLog(mShouldSkipCallLog)
-                    .setSkipNotification(mShouldSkipNotification)
-                    .setShouldScreenCallViaAudioProcessing(mShouldScreenCallViaAudioProcessing)
-                    .setCallComposerAttachmentsToShow(mCallComposerAttachmentsToShow)
-                    .build();
-        }
-
-        public boolean shouldDisallowCall() {
-            return mShouldDisallowCall;
-        }
-
-        public boolean shouldRejectCall() {
-            return mShouldRejectCall;
-        }
-
-        public boolean shouldSilenceCall() {
-            return mShouldSilenceCall;
-        }
-
-        public boolean shouldSkipCallLog() {
-            return mShouldSkipCallLog;
-        }
-
-        public boolean shouldSkipNotification() {
-            return mShouldSkipNotification;
-        }
-
-        public boolean shouldScreenCallViaAudioProcessing() {
-            return mShouldScreenCallViaAudioProcessing;
-        }
-
-        public int getCallComposerAttachmentsToShow() {
-            return mCallComposerAttachmentsToShow;
-        }
-
-        public static final Creator<ParcelableCallResponse> CREATOR =
-                new Creator<ParcelableCallResponse>() {
-                    @Override
-                    public ParcelableCallResponse createFromParcel(Parcel in) {
-                        return new ParcelableCallResponse(in);
-                    }
-
-                    @Override
-                    public ParcelableCallResponse[] newArray(int size) {
-                        return new ParcelableCallResponse[size];
-                    }
-                };
-
-        @Override
-        public int describeContents() {
-            return 0;
-        }
-
-        @Override
-        public void writeToParcel(Parcel dest, int flags) {
-            dest.writeBoolean(mShouldDisallowCall);
-            dest.writeBoolean(mShouldRejectCall);
-            dest.writeBoolean(mShouldSilenceCall);
-            dest.writeBoolean(mShouldSkipCallLog);
-            dest.writeBoolean(mShouldSkipNotification);
-            dest.writeBoolean(mShouldScreenCallViaAudioProcessing);
-            dest.writeInt(mCallComposerAttachmentsToShow);
-        }
-    }
 
     /**
      * Information about how to respond to an incoming call. Call screening apps can construct an

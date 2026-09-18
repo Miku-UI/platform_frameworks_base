@@ -17,39 +17,20 @@
 #ifndef ANDROID_HWUI_FEATURE_FLAGS_H
 #define ANDROID_HWUI_FEATURE_FLAGS_H
 
-#ifdef __ANDROID__
 #include <android_view_accessibility.h>
 #include <com_android_text_flags.h>
-#endif  // __ANDROID__
 
 namespace android {
 
 namespace text_feature {
 
 inline bool letter_spacing_justification() {
-#ifdef __ANDROID__
     return com_android_text_flags_letter_spacing_justification();
-#else
-    return true;
-#endif  // __ANDROID__
-}
-
-inline bool typeface_redesign_readonly() {
-#ifdef __ANDROID__
-    static bool flag = com_android_text_flags_typeface_redesign_readonly();
-    return flag;
-#else
-    return true;
-#endif  // __ANDROID__
 }
 
 inline bool use_fontation_by_default() {
-#ifdef __ANDROID__
     static bool flag = com_android_text_flags_use_fontation_by_default();
     return flag;
-#else
-    return true;
-#endif  // __ANDROID__
 }
 
 }  // namespace text_feature
@@ -57,12 +38,8 @@ inline bool use_fontation_by_default() {
 namespace view_accessibility_flags {
 
 inline bool force_invert_color() {
-#ifdef __ANDROID__
     static bool flag = android::view::accessibility::force_invert_color();
     return flag;
-#else
-    return true;
-#endif  // __ANDROID__
 }
 
 }  // namespace view_accessibility_flags

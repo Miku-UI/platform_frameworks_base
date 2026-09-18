@@ -23,26 +23,25 @@ import com.android.wm.shell.R
 import java.io.PrintWriter
 
 class PhoneSizeSpecSource(
-        private var context: Context,
-        private val pipDisplayLayoutState: PipDisplayLayoutState
+    private var context: Context,
+    private val pipDisplayLayoutState: PipDisplayLayoutState,
 ) : SizeSpecSource, PipDisplayLayoutState.DisplayIdListener {
     private var DEFAULT_OPTIMIZED_ASPECT_RATIO = 9f / 16
 
     private var mDefaultMinSize = 0
     /** The absolute minimum an overridden size's edge can be */
     private var mOverridableMinSize = 0
-    /** The preferred minimum (and default minimum) size specified by apps.  */
+    /** The preferred minimum (and default minimum) size specified by apps. */
     private var mOverrideMinSize: Size? = null
-
 
     /**
      * Default percentages for the PIP size logic.
      * 1. Determine max widths
-     * Subtract width of system UI and default padding from the shortest edge of the device.
-     * This is the max width.
+     *     - Subtract width of system UI and default padding from the shortest edge of the device.
+     *       This is the max width.
      * 2. Calculate Default and Mins
-     * Default is mSystemPreferredDefaultSizePercent of max-width/height.
-     * Min is mSystemPreferredMinimumSizePercent of it.
+     *     - Default is mSystemPreferredDefaultSizePercent of max-width/height.
+     *     - Min is mSystemPreferredMinimumSizePercent of it.
      *
      * NOTE: Do not use this directly, use the mPreferredDefaultSizePercent getter instead.
      */
@@ -53,15 +52,15 @@ class PhoneSizeSpecSource(
     /** Threshold to categorize the Display as square, calculated as min(w, h) / max(w, h). */
     private var mSquareDisplayThresholdForSystemPreferredSize = 0.95f
     /**
-     * Default percentages for the PIP size logic when the Display is square-ish.
-     * This is used instead when the display is square-ish, like fold-ables when unfolded,
-     * to make sure that default PiP does not cover the hinge (halfway of the display).
+     * Default percentages for the PIP size logic when the Display is square-ish. This is used
+     * instead when the display is square-ish, like fold-ables when unfolded, to make sure that
+     * default PiP does not cover the hinge (halfway of the display).
      * 1. Determine max widths
-     * Subtract width of system UI and default padding from the shortest edge of the device.
-     * This is the max width.
+     *     - Subtract width of system UI and default padding from the shortest edge of the device.
+     *       This is the max width.
      * 2. Calculate Default and Mins
-     * Default is mSystemPreferredDefaultSizePercent of max-width/height.
-     * Min is mSystemPreferredMinimumSizePercent of it.
+     *     - Default is mSystemPreferredDefaultSizePercent of max-width/height.
+     *     - Min is mSystemPreferredMinimumSizePercent of it.
      *
      * NOTE: Do not use this directly, use the mPreferredDefaultSizePercent getter instead.
      */
@@ -70,20 +69,28 @@ class PhoneSizeSpecSource(
     private var mSystemPreferredMinimumSizePercentForSquareDisplay = 0.4f
 
     private val mIsSquareDisplay
-        get() = minOf(pipDisplayLayoutState.displayLayout.width(),
-                        pipDisplayLayoutState.displayLayout.height()).toFloat() /
-                maxOf(pipDisplayLayoutState.displayLayout.width(),
-                        pipDisplayLayoutState.displayLayout.height()) >
-                mSquareDisplayThresholdForSystemPreferredSize
+        get() =
+            minOf(
+                    pipDisplayLayoutState.displayLayout.width(),
+                    pipDisplayLayoutState.displayLayout.height(),
+                )
+                .toFloat() /
+                maxOf(
+                    pipDisplayLayoutState.displayLayout.width(),
+                    pipDisplayLayoutState.displayLayout.height(),
+                ) > mSquareDisplayThresholdForSystemPreferredSize
+
     private val mPreferredDefaultSizePercent
-        get() = if (mIsSquareDisplay) mSystemPreferredDefaultSizePercentForSquareDisplay else
-            mSystemPreferredDefaultSizePercent
+        get() =
+            if (mIsSquareDisplay) mSystemPreferredDefaultSizePercentForSquareDisplay
+            else mSystemPreferredDefaultSizePercent
 
     private val mPreferredMinimumSizePercent
-        get() = if (mIsSquareDisplay) mSystemPreferredMinimumSizePercentForSquareDisplay else
-            mSystemPreferredMinimumSizePercent
+        get() =
+            if (mIsSquareDisplay) mSystemPreferredMinimumSizePercentForSquareDisplay
+            else mSystemPreferredMinimumSizePercent
 
-    /** Aspect ratio that the PIP size spec logic optimizes for.  */
+    /** Aspect ratio that the PIP size spec logic optimizes for. */
     private var mOptimizedAspectRatio = 0f
 
     init {
@@ -94,30 +101,30 @@ class PhoneSizeSpecSource(
     private fun reloadResources() {
         val res: Resources = context.resources
 
-        mDefaultMinSize = res.getDimensionPixelSize(
-                R.dimen.default_minimal_size_pip_resizable_task)
-        mOverridableMinSize = res.getDimensionPixelSize(
-                R.dimen.overridable_minimal_size_pip_resizable_task)
+        mDefaultMinSize = res.getDimensionPixelSize(R.dimen.default_minimal_size_pip_resizable_task)
+        mOverridableMinSize =
+            res.getDimensionPixelSize(R.dimen.overridable_minimal_size_pip_resizable_task)
 
-        mSystemPreferredDefaultSizePercent = res.getFloat(
-                R.dimen.config_pipSystemPreferredDefaultSizePercent)
-        mSystemPreferredMinimumSizePercent = res.getFloat(
-                R.dimen.config_pipSystemPreferredMinimumSizePercent)
+        mSystemPreferredDefaultSizePercent =
+            res.getFloat(R.dimen.config_pipSystemPreferredDefaultSizePercent)
+        mSystemPreferredMinimumSizePercent =
+            res.getFloat(R.dimen.config_pipSystemPreferredMinimumSizePercent)
 
-        mSquareDisplayThresholdForSystemPreferredSize = res.getFloat(
-                R.dimen.config_pipSquareDisplayThresholdForSystemPreferredSize)
-        mSystemPreferredDefaultSizePercentForSquareDisplay = res.getFloat(
-                R.dimen.config_pipSystemPreferredDefaultSizePercentForSquareDisplay)
-        mSystemPreferredMinimumSizePercentForSquareDisplay = res.getFloat(
-                R.dimen.config_pipSystemPreferredMinimumSizePercentForSquareDisplay)
+        mSquareDisplayThresholdForSystemPreferredSize =
+            res.getFloat(R.dimen.config_pipSquareDisplayThresholdForSystemPreferredSize)
+        mSystemPreferredDefaultSizePercentForSquareDisplay =
+            res.getFloat(R.dimen.config_pipSystemPreferredDefaultSizePercentForSquareDisplay)
+        mSystemPreferredMinimumSizePercentForSquareDisplay =
+            res.getFloat(R.dimen.config_pipSystemPreferredMinimumSizePercentForSquareDisplay)
 
         val requestedOptAspRatio = res.getFloat(R.dimen.config_pipLargeScreenOptimizedAspectRatio)
         // make sure the optimized aspect ratio is valid with a default value to fall back to
-        mOptimizedAspectRatio = if (requestedOptAspRatio > 1) {
-            DEFAULT_OPTIMIZED_ASPECT_RATIO
-        } else {
-            requestedOptAspRatio
-        }
+        mOptimizedAspectRatio =
+            if (requestedOptAspRatio > 1) {
+                DEFAULT_OPTIMIZED_ASPECT_RATIO
+            } else {
+                requestedOptAspRatio
+            }
     }
 
     override fun onDisplayIdChanged(newContext: Context) {
@@ -132,9 +139,9 @@ class PhoneSizeSpecSource(
     /**
      * Calculates the max size of PIP.
      *
-     * Optimizes for 16:9 aspect ratios, making them take full length of shortest display edge.
-     * As aspect ratio approaches values close to 1:1, the logic does not let PIP occupy the
-     * whole screen. A linear function is used to calculate these sizes.
+     * Optimizes for 16:9 aspect ratios, making them take full length of shortest display edge. As
+     * aspect ratio approaches values close to 1:1, the logic does not let PIP occupy the whole
+     * screen. A linear function is used to calculate these sizes.
      *
      * @param aspectRatio aspect ratio of the PIP window
      * @return dimensions of the max size of the PIP
@@ -143,20 +150,26 @@ class PhoneSizeSpecSource(
         val insetBounds = pipDisplayLayoutState.insetBounds
         val displayBounds = pipDisplayLayoutState.displayBounds
 
-        val totalHorizontalPadding: Int = (insetBounds.left +
-                (displayBounds.width() - insetBounds.right))
-        val totalVerticalPadding: Int = (insetBounds.top +
-                (displayBounds.height() - insetBounds.bottom))
-        val shorterLength: Int = Math.min(displayBounds.width() - totalHorizontalPadding,
-                displayBounds.height() - totalVerticalPadding)
+        val totalHorizontalPadding: Int =
+            (insetBounds.left + (displayBounds.width() - insetBounds.right))
+        val totalVerticalPadding: Int =
+            (insetBounds.top + (displayBounds.height() - insetBounds.bottom))
+        val shorterLength: Int =
+            Math.min(
+                displayBounds.width() - totalHorizontalPadding,
+                displayBounds.height() - totalVerticalPadding,
+            )
         var maxWidth: Int
         val maxHeight: Int
 
         // use the optimized max sizing logic only within a certain aspect ratio range
         if (aspectRatio >= mOptimizedAspectRatio && aspectRatio <= 1 / mOptimizedAspectRatio) {
             // this formula and its derivation is explained in b/198643358#comment16
-            maxWidth = Math.round(mOptimizedAspectRatio * shorterLength +
-                    shorterLength * (aspectRatio - mOptimizedAspectRatio) / (1 + aspectRatio))
+            maxWidth =
+                Math.round(
+                    mOptimizedAspectRatio * shorterLength +
+                        shorterLength * (aspectRatio - mOptimizedAspectRatio) / (1 + aspectRatio)
+                )
             // make sure the max width doesn't go beyond shorter screen length after rounding
             maxWidth = Math.min(maxWidth, shorterLength)
             maxHeight = Math.round(maxWidth / aspectRatio)
@@ -184,8 +197,8 @@ class PhoneSizeSpecSource(
             return minSize
         }
         val maxSize = getMaxSize(aspectRatio)
-        val defaultWidth = Math.max(Math.round(maxSize.width * mPreferredDefaultSizePercent),
-                minSize.width)
+        val defaultWidth =
+            Math.max(Math.round(maxSize.width * mPreferredDefaultSizePercent), minSize.width)
         val defaultHeight = Math.round(defaultWidth / aspectRatio)
         return Size(defaultWidth, defaultHeight)
     }
@@ -219,9 +232,8 @@ class PhoneSizeSpecSource(
     /**
      * Returns the size for target aspect ratio making sure new size conforms with the rules.
      *
-     *
-     * Recalculates the dimensions such that the target aspect ratio is achieved, while
-     * maintaining the same maximum size to current size ratio.
+     * Recalculates the dimensions such that the target aspect ratio is achieved, while maintaining
+     * the same maximum size to current size ratio.
      *
      * @param size current size
      * @param aspectRatio target aspect ratio
@@ -244,7 +256,7 @@ class PhoneSizeSpecSource(
 
         // adjust the dimensions if below allowed min edge size
         val minEdgeSize =
-                if (mOverrideMinSize == null) mDefaultMinSize else getOverrideMinEdgeSize()
+            if (mOverrideMinSize == null) mDefaultMinSize else getOverrideMinEdgeSize()
 
         if (width < minEdgeSize && aspectRatio <= 1) {
             width = minEdgeSize
@@ -258,16 +270,18 @@ class PhoneSizeSpecSource(
         return Size(width, height)
     }
 
-    /** Sets the preferred size of PIP as specified by the activity in PIP mode.  */
+    /** Sets the preferred size of PIP as specified by the activity in PIP mode. */
     override fun setOverrideMinSize(overrideMinSize: Size?) {
         mOverrideMinSize = overrideMinSize
     }
 
-    /** Returns the preferred minimal size specified by the activity in PIP.  */
+    /** Returns the preferred minimal size specified by the activity in PIP. */
     override fun getOverrideMinSize(): Size? {
         val overrideMinSize = mOverrideMinSize ?: return null
-        return if (overrideMinSize.width < mOverridableMinSize ||
-                overrideMinSize.height < mOverridableMinSize) {
+        return if (
+            overrideMinSize.width < mOverridableMinSize ||
+                overrideMinSize.height < mOverridableMinSize
+        ) {
             Size(mOverridableMinSize, mOverridableMinSize)
         } else {
             overrideMinSize
@@ -276,7 +290,6 @@ class PhoneSizeSpecSource(
 
     /**
      * Returns the adjusted overridden min size if it is set; otherwise, returns null.
-     *
      *
      * Overridden min size needs to be adjusted in its own way while making sure that the target
      * aspect ratio is maintained

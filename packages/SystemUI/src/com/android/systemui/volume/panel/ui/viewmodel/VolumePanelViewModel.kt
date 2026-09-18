@@ -75,7 +75,7 @@ class VolumePanelViewModel(
     private val componentsInteractor: ComponentsInteractor
         get() = volumePanelComponent.componentsInteractor()
 
-    private val componentsFactory: ComponentsFactory
+    val componentsFactory: ComponentsFactory
         get() = volumePanelComponent.componentsFactory()
 
     private val componentsLayoutManager: ComponentsLayoutManager
@@ -96,14 +96,11 @@ class VolumePanelViewModel(
                 SharingStarted.Eagerly,
                 VolumePanelState(
                     orientation = resources.configuration.orientation,
-                    isLargeScreen = resources.getBoolean(R.bool.volume_panel_is_large_screen)
+                    isLargeScreen = resources.getBoolean(R.bool.volume_panel_is_large_screen),
                 ),
             )
     val componentsLayout: StateFlow<ComponentsLayout?> =
-        combine(
-                componentsInteractor.components,
-                volumePanelState,
-            ) { components, scope ->
+        combine(componentsInteractor.components, volumePanelState) { components, scope ->
                 val componentStates =
                     components.map { model ->
                         ComponentState(
@@ -114,11 +111,7 @@ class VolumePanelViewModel(
                     }
                 componentsLayoutManager.layout(scope, componentStates)
             }
-            .stateIn(
-                scope,
-                SharingStarted.Eagerly,
-                null,
-            )
+            .stateIn(scope, SharingStarted.Eagerly, null)
 
     init {
         scope.launchAndDispose {

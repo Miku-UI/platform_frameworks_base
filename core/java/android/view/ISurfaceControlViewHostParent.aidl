@@ -27,4 +27,6 @@ oneway interface ISurfaceControlViewHostParent {
     void updateParams(in WindowManager.LayoutParams[] childAttrs);
     // To forward the back key event from embedded to host app.
     void forwardBackKeyToParent(in KeyEvent keyEvent);
+    // To transfer the focus from embedded to host app.
+    void transferFocusToParent(int direction);
 }

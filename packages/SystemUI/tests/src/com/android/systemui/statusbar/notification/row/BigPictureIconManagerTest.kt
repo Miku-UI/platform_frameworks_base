@@ -26,6 +26,7 @@ import androidx.test.filters.SmallTest
 import com.android.internal.widget.NotificationDrawableConsumer
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.graphics.ImageLoader
+import com.android.systemui.graphics.ImageLoaderImpl
 import com.android.systemui.res.R
 import com.android.systemui.util.mockito.argumentCaptor
 import com.android.systemui.util.mockito.mock
@@ -54,7 +55,7 @@ class BigPictureIconManagerTest : SysuiTestCase() {
     private val testDispatcher = StandardTestDispatcher()
     private val testScope = TestScope(testDispatcher)
     private val testableResources = context.orCreateTestableResources
-    private val imageLoader: ImageLoader = ImageLoader(context, testDispatcher)
+    private val imageLoader: ImageLoader = ImageLoaderImpl(context, testDispatcher)
     private val statsManager = BigPictureStatsManager(mock(), testDispatcher, mock())
     private var mockConsumer: NotificationDrawableConsumer = mock()
     private val drawableCaptor = argumentCaptor<Drawable>()
@@ -89,7 +90,7 @@ class BigPictureIconManagerTest : SysuiTestCase() {
                 statsManager,
                 scope = testScope,
                 mainDispatcher = testDispatcher,
-                bgDispatcher = testDispatcher
+                bgDispatcher = testDispatcher,
             )
     }
 
@@ -242,7 +243,7 @@ class BigPictureIconManagerTest : SysuiTestCase() {
             // GIVEN the max width is smaller than our image
             testableResources.addOverride(
                 com.android.internal.R.dimen.notification_big_picture_max_width,
-                20
+                20,
             )
             iconManager.updateMaxImageSizes()
 
@@ -261,7 +262,7 @@ class BigPictureIconManagerTest : SysuiTestCase() {
             // GIVEN the max height is smaller than our image
             testableResources.addOverride(
                 com.android.internal.R.dimen.notification_big_picture_max_height,
-                20
+                20,
             )
             iconManager.updateMaxImageSizes()
 
@@ -461,11 +462,11 @@ class BigPictureIconManagerTest : SysuiTestCase() {
     private fun overrideMaxImageSizes() {
         testableResources.addOverride(
             com.android.internal.R.dimen.notification_big_picture_max_width,
-            MAX_IMAGE_SIZE
+            MAX_IMAGE_SIZE,
         )
         testableResources.addOverride(
             com.android.internal.R.dimen.notification_big_picture_max_height,
-            MAX_IMAGE_SIZE
+            MAX_IMAGE_SIZE,
         )
     }
 
@@ -480,7 +481,7 @@ class BigPictureIconManagerTest : SysuiTestCase() {
     private fun assertSize(
         drawable: Drawable,
         expectedWidth: Int = expectedDrawable.intrinsicWidth,
-        expectedHeight: Int = expectedDrawable.intrinsicHeight
+        expectedHeight: Int = expectedDrawable.intrinsicHeight,
     ) {
         assertThat(drawable.intrinsicWidth).isEqualTo(expectedWidth)
         assertThat(drawable.intrinsicHeight).isEqualTo(expectedHeight)

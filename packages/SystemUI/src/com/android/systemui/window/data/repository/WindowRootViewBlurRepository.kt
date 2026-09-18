@@ -80,19 +80,20 @@ constructor(
 
     override val isBlurSupported: StateFlow<Boolean> =
         conflatedCallbackFlow {
-                val sendUpdate = { value: Boolean ->
-                    trySendWithFailureLogging(
-                        isBlurAllowed() && value,
-                        TAG,
-                        "unable to send blur enabled/disable state change",
-                    )
-                }
+                val sendUpdate =
+                    Consumer<Boolean> { value: Boolean ->
+                        trySendWithFailureLogging(
+                            isBlurAllowed() && value,
+                            TAG,
+                            "unable to send blur enabled/disable state change",
+                        )
+                    }
                 crossWindowBlurListeners.addListener(executor, sendUpdate)
-                sendUpdate(crossWindowBlurListeners.isCrossWindowBlurEnabled)
+                sendUpdate.accept(crossWindowBlurListeners.isCrossWindowBlurEnabled)
 
                 awaitClose { crossWindowBlurListeners.removeListener(sendUpdate) }
             } // stateIn because this is backed by a binder call.
-            .stateIn(scope, SharingStarted.WhileSubscribed(), false)
+            .stateIn(scope, SharingStarted.Eagerly, false)
 
     override var blurAppliedListener: BlurAppliedListener? = null
 

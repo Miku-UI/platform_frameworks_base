@@ -23,7 +23,9 @@
 #include <android-base/logging.h>
 #include <android-base/stringprintf.h>
 #include <android_runtime/AndroidRuntime.h>
+#include <com_android_graphics_libgui_flags.h>
 #include <ftl/enum.h>
+#include <gui/TraceUtils.h>
 #include <input/BlockingQueue.h>
 #include <input/InputConsumer.h>
 #include <input/InputTransport.h>
@@ -98,17 +100,17 @@ std::string getDispatchInputEventTraceDescription(const InputEvent& inputEvent) 
     switch (inputEvent.getType()) {
         case InputEventType::KEY: {
             const KeyEvent& keyEvent = static_cast<const KeyEvent&>(inputEvent);
-            return StringPrintf("dispatchInputEvent KeyEvent %s deviceId=%d",
+            return StringPrintf("dispatchInputEvent KeyEvent %s deviceId=%d id=%d",
                                 KeyEvent::actionToString(keyEvent.getAction()),
-                                keyEvent.getDeviceId());
+                                keyEvent.getDeviceId(), keyEvent.getId());
         }
         case InputEventType::MOTION: {
             const MotionEvent& motionEvent = static_cast<const MotionEvent&>(inputEvent);
             return StringPrintf("dispatchInputEvent MotionEvent %s deviceId=%d "
-                                "source=0x%" PRIx32 ", historySize=%zu",
+                                "source=0x%" PRIx32 ", historySize=%zu id=%d",
                                 MotionEvent::actionToString(motionEvent.getAction()).c_str(),
                                 motionEvent.getDeviceId(), motionEvent.getSource(),
-                                motionEvent.getHistorySize());
+                                motionEvent.getHistorySize(), motionEvent.getId());
         }
         default: {
             std::ostringstream description;
@@ -476,8 +478,24 @@ status_t NativeInputEventReceiver::consumeEvents(JNIEnv* env,
         uint32_t seq;
         InputEvent* inputEvent;
 
-        status_t status = mInputConsumer->consume(&mInputEventFactory, consumeBatches, frameTime,
-                                                  &seq, &inputEvent);
+        const auto& [result, unfinishedInputMessages] =
+                mInputConsumer->consume(&mInputEventFactory, consumeBatches, frameTime, &seq,
+                                        &inputEvent);
+        status_t status;
+        if (result.ok()) {
+            status = OK;
+        } else {
+            status = result.error().code();
+        }
+
+        for (const InputMessage& msg : unfinishedInputMessages) {
+            // We ignore the result here as we are concerned with the status of the
+            // socket read in our function, whereas this result is related to the
+            // socket write status. On failure, processOutboundEvents will keep retrying
+            // until the finish is sent from the outbound queue.
+            finishInputEvent(msg.header.seq, /*handled=*/false);
+        }
+
         if (status != OK && status != WOULD_BLOCK) {
             ALOGE("channel '%s' ~ Failed to consume input event.  status=%s(%d)", mName.c_str(),
                   statusToString(status).c_str(), status);
@@ -698,11 +716,21 @@ void InputFrameMetricsObserver::notify(const uirenderer::FrameInfoBuffer& buffer
     }
     const int64_t gpuCompletedTime =
             buffer[static_cast<size_t>(uirenderer::FrameInfoIndex::GpuCompleted)];
+    const int64_t vsyncId =
+            buffer[static_cast<size_t>(uirenderer::FrameInfoIndex::FrameTimelineVsyncId)];
+    if (com::android::graphics::libgui::flags::debug_gpu_present_times()) {
+        ATRACE_FORMAT_INSTANT("450351988: %s: vsyncId=%" PRId64 " inputEventId=%" PRId64
+                              " gpuCompleted=%" PRId64 " presentTime=%" PRId64,
+                              __func__, vsyncId, inputEventId, gpuCompletedTime, presentTime);
+    }
+
     if (gpuCompletedTime >= presentTime) {
-        const int64_t discrepancy = (gpuCompletedTime - presentTime);
-        const int64_t vsyncId =
-                buffer[static_cast<size_t>(uirenderer::FrameInfoIndex::FrameTimelineVsyncId)];
-        LOG(ERROR) << "Not reporting timeline because gpuCompletedTime is " << discrepancy * 1E-6
+        const double discrepancy = (gpuCompletedTime - presentTime) * 1E-6;
+        if (com::android::graphics::libgui::flags::debug_gpu_present_times()) {
+            ATRACE_FORMAT_INSTANT("%s: b/450351988 DETECTED: discrepancy=%.2f ms", __func__,
+                                  discrepancy);
+        }
+        LOG(ERROR) << "Not reporting timeline because gpuCompletedTime is " << discrepancy
                    << "ms ahead of presentTime. FRAME_TIMELINE_VSYNC_ID=" << vsyncId
                    << ", INPUT_EVENT_ID=" << inputEventId;
         return;
@@ -717,8 +745,8 @@ void InputFrameMetricsObserver::notify(const uirenderer::FrameInfoBuffer& buffer
 
 static jlong nativeInit(JNIEnv* env, jclass clazz, jobject receiverWeak,
         jobject inputChannelObj, jobject messageQueueObj) {
-    std::shared_ptr<InputChannel> inputChannel =
-            android_view_InputChannel_getInputChannel(env, inputChannelObj);
+    std::unique_ptr<InputChannel> inputChannel =
+            android_view_InputChannel_extractInputChannel(env, inputChannelObj);
     if (inputChannel == nullptr) {
         jniThrowRuntimeException(env, "InputChannel is not initialized.");
         return 0;
@@ -731,7 +759,8 @@ static jlong nativeInit(JNIEnv* env, jclass clazz, jobject receiverWeak,
     }
 
     sp<NativeInputEventReceiver> receiver =
-            sp<NativeInputEventReceiver>::make(env, receiverWeak, inputChannel, messageQueue);
+            sp<NativeInputEventReceiver>::make(env, receiverWeak, std::move(inputChannel),
+                                               messageQueue);
     status_t status = receiver->initialize();
     if (status) {
         std::string message = android::base::

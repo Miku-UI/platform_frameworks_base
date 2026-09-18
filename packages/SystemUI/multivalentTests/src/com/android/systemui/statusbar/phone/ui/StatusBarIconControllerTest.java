@@ -73,7 +73,7 @@ public class StatusBarIconControllerTest extends LeakCheckedTest {
         injectLeakCheckedDependencies(ALL_SUPPORTED_CLASSES);
         // For testing, ignore context overrides
         when(mMobileContextProvider.getMobileContextForSub(anyInt(), any())).thenReturn(mContext);
-        when(mMobileUiAdapter.getMobileIconsViewModel()).thenReturn(mMobileIconsViewModel);
+        when(mMobileUiAdapter.getMobileIconsViewModel()).thenReturn(() -> mMobileIconsViewModel);
     }
 
     @Test

@@ -19,8 +19,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:minHeight="@dimen/settingslib_expressive_space_large3"
-    android:gravity="center_vertical"
+    android:orientation="vertical"
     android:paddingStart="?android:attr/listPreferredItemPaddingStart"
     android:paddingEnd="?android:attr/listPreferredItemPaddingEnd"
     android:background="?android:attr/selectableItemBackground"
@@ -28,19 +27,32 @@
     android:baselineAligned="false"
     android:filterTouchesWhenObscured="false">
 
-    <include layout="@layout/settingslib_expressive_preference_number_frame"/>
-
-    <include layout="@layout/settingslib_expressive_preference_icon_frame"/>
-
-    <include layout="@layout/settingslib_expressive_preference_text_frame"/>
-
-    <!-- Preference should place its actual preference widget here. -->
     <LinearLayout
-        android:id="@android:id/widget_frame"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:gravity="end|center_vertical"
-        android:minWidth="@dimen/settingslib_expressive_space_medium4"
-        android:orientation="vertical"/>
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:minHeight="72dp"
+        android:baselineAligned="false"
+        android:orientation="horizontal"
+        android:clipToPadding="false">
+
+        <include layout="@layout/settingslib_expressive_preference_number_frame"/>
+
+        <include layout="@layout/settingslib_expressive_preference_icon_frame"/>
+
+        <include layout="@layout/settingslib_expressive_preference_text_frame"/>
+
+        <!-- Preference should place its actual preference widget here. -->
+        <LinearLayout
+            android:id="@android:id/widget_frame"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="end|center_vertical"
+            android:minWidth="@dimen/settingslib_expressive_space_medium4"
+            android:orientation="vertical"/>
+
+    </LinearLayout>
+
+    <include layout="@layout/settingslib_expressive_preference_footer"/>
 
 </LinearLayout>

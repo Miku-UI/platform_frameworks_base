@@ -16,11 +16,9 @@
 
 package android.companion.virtual;
 
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
-import android.companion.virtualdevice.flags.Flags;
 import android.content.ComponentName;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -41,7 +39,6 @@ import java.util.Objects;
  *
  * @hide
  */
-@FlaggedApi(Flags.FLAG_ACTIVITY_CONTROL_API)
 @SystemApi
 public final class ActivityPolicyExemption implements Parcelable {
 
@@ -118,7 +115,6 @@ public final class ActivityPolicyExemption implements Parcelable {
     /**
      * Builder for {@link ActivityPolicyExemption}.
      */
-    @FlaggedApi(Flags.FLAG_ACTIVITY_CONTROL_API)
     public static final class Builder {
 
         private @Nullable ComponentName mComponentName;

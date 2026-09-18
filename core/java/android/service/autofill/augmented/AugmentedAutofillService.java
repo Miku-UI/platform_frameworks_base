@@ -270,7 +270,6 @@ public abstract class AugmentedAutofillService extends Service {
                     cancellationSignal);
             mAutofillProxies.put(sessionId,  proxy);
         } else {
-            // TODO(b/123099468): figure out if it's ok to reuse the proxy; add logging
             if (sDebug) Log.d(TAG, "Reusing proxy for session " + sessionId);
             proxy.update(focusedId, focusedValue, callback, cancellationSignal);
         }
@@ -369,7 +368,7 @@ public abstract class AugmentedAutofillService extends Service {
      * replies to a
      * {@link #onFillRequest(FillRequest, CancellationSignal, FillController, FillCallback)}
      * by calling {@link FillCallback#onSuccess(FillResponse)}. Hence, the service should call
-     * {@link #getFillEventHistory() before finishing the {@link FillCallback}.
+     * {@link #getFillEventHistory()} before finishing the {@link FillCallback}.
      *
      * <p>Also note that the events from the dropdown suggestion UI is not stored in the history
      * since the service owns the UI.
@@ -457,7 +456,6 @@ public abstract class AugmentedAutofillService extends Service {
             mFocusedValue = focusedValue;
             mFirstRequestTime = requestTime;
             mCancellationSignal = cancellationSignal;
-            // TODO(b/123099468): linkToDeath
         }
 
         @NonNull

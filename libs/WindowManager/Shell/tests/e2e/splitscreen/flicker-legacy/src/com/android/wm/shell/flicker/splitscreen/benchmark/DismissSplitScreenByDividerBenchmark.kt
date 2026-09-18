@@ -16,10 +16,10 @@
 
 package com.android.wm.shell.flicker.splitscreen.benchmark
 
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import androidx.test.filters.RequiresDevice
 import com.android.wm.shell.flicker.utils.SplitScreenUtils
 import org.junit.FixMethodOrder
@@ -42,7 +42,7 @@ abstract class DismissSplitScreenByDividerBenchmark(override val flicker: Flicke
                     device,
                     primaryApp,
                     secondaryApp,
-                    flicker.scenario.startRotation
+                    flicker.scenario.startRotation,
                 )
             }
             transitions {
@@ -51,14 +51,14 @@ abstract class DismissSplitScreenByDividerBenchmark(override val flicker: Flicke
                         device,
                         wmHelper,
                         dragToRight = false,
-                        dragToBottom = true
+                        dragToBottom = true,
                     )
                 } else {
                     SplitScreenUtils.dragDividerToDismissSplit(
                         device,
                         wmHelper,
                         dragToRight = true,
-                        dragToBottom = true
+                        dragToBottom = true,
                     )
                 }
                 wmHelper.StateSyncBuilder().withFullScreenApp(secondaryApp).waitForAndVerify()

@@ -104,4 +104,17 @@ public class MainSwitchPreferenceTest {
         mMainSwitchBar.performClick();
         verify(preferenceDataStore).putBoolean(any(), anyBoolean());
     }
+
+    @Test
+    public void onBindViewHolder_disablesFocusOnMainSwitchBar() {
+        // MainSwitchBar is focusable by default. This test ensures MainSwitchPreference
+        // disables it to prevent duplicate focus stops on the preference and the switch bar.
+        assertThat(mMainSwitchBar.isFocusable()).isTrue();
+
+        // Bind the preference to the view holder.
+        mPreference.onBindViewHolder(mHolder);
+
+        // Verify that the MainSwitchBar is no longer focusable.
+        assertThat(mMainSwitchBar.isFocusable()).isFalse();
+    }
 }

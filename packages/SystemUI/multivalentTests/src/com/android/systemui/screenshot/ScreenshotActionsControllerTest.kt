@@ -49,7 +49,7 @@ class ScreenshotActionsControllerTest : SysuiTestCase() {
                 requestId: UUID,
                 request: ScreenshotData,
                 actionExecutor: ActionExecutor,
-                actionsCallback: ScreenshotActionsController.ActionsCallback
+                actionsCallback: ScreenshotActionsController.ActionsCallback,
             ): ScreenshotActionsProvider {
                 return if (isFirstCall) {
                     isFirstCall = false
@@ -93,7 +93,7 @@ class ScreenshotActionsControllerTest : SysuiTestCase() {
             actionsCallback.providePreviewAction(previewAction)
         }
 
-        override fun onScrollChipReady(onClick: Runnable) {}
+        override fun onScrollChipReady(onClick: ScrollClickCallback) {}
 
         override fun onScrollChipInvalidated() {}
 

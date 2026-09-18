@@ -16,12 +16,8 @@
 
 package com.android.wm.shell.shared.desktopmode
 
-/**
- * A listener that will receive callbacks about desktop-first state.
- */
+/** A listener that will receive callbacks about desktop-first state. */
 fun interface DesktopFirstListener {
-    /**
-     * Called when the desktop-first state changes.
-     */
+    /** Called when the desktop-first state changes. */
     fun onStateChanged(displayId: Int, isDesktopFirstEnabled: Boolean)
 }

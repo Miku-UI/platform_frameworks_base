@@ -64,7 +64,7 @@ public final class ProviderInfo extends ComponentInfo
      * this field to be filled in.
      */
     public PatternMatcher[] uriPermissionPatterns = null;
-    
+
     /**
      * If non-null, these are path-specific permissions that are allowed for
      * accessing the provider.  Any permissions listed here will allow a
@@ -72,15 +72,23 @@ public final class ProviderInfo extends ComponentInfo
      * the URI it provides when making calls against the patterns here.
      */
     public PathPermission[] pathPermissions = null;
-    
+
     /** If true, this content provider allows multiple instances of itself
      *  to run in different process.  If false, a single instances is always
      *  run in {@link #processName}. */
     public boolean multiprocess = false;
-    
+
     /** Used to control initialization order of single-process providers
      *  running in the same process.  Higher goes first. */
     public int initOrder = 0;
+
+    /**
+     * Bit in {@link #flags} indicating if the provider should run in the Private Compute Core
+     * sandbox.
+     * @see android.R.styleable#AndroidManifestProvider_privateComputeCore
+     * @hide
+     */
+    public static final int FLAG_RUN_IN_PCC_SANDBOX = 0x80000;
 
     /**
      * Bit in {@link #flags} indicating if the provider is visible to ephemeral applications.
@@ -181,6 +189,15 @@ public final class ProviderInfo extends ComponentInfo
 
     public String toString() {
         return "ContentProviderInfo{name=" + authority + " className=" + name + "}";
+    }
+
+    /**
+     * Returns whether if the provider should run in PCC sandbox
+     * @hide
+     */
+    @Override
+    public boolean shouldRunInPccSandbox() {
+        return (flags & FLAG_RUN_IN_PCC_SANDBOX) != 0;
     }
 
     private ProviderInfo(Parcel in) {

@@ -53,6 +53,7 @@ import android.view.accessibility.AccessibilityNodeInfo.CollectionItemInfo;
 import android.view.accessibility.AccessibilityNodeProvider;
 import android.view.inspector.InspectableProperty;
 import android.widget.RemoteViews.RemoteView;
+import android.widget.flags.Flags;
 
 import com.android.internal.R;
 
@@ -1869,7 +1870,7 @@ public class ListView extends AbsListView {
             case LAYOUT_SPECIFIC:
                 final int selectedPosition = reconcileSelectedPosition();
                 sel = fillSpecific(selectedPosition, mSpecificTop);
-                /**
+                /*
                  * When ListView is resized, FocusSelector requests an async selection for the
                  * previously focused item to make sure it is still visible. If the item is not
                  * selectable, it won't regain focus so instead we call FocusSelector
@@ -4162,15 +4163,28 @@ public class ListView extends AbsListView {
     public void onInitializeAccessibilityNodeInfoInternal(AccessibilityNodeInfo info) {
         super.onInitializeAccessibilityNodeInfoInternal(info);
 
-        final int rowsCount = getCount();
-        final int selectionMode = getSelectionModeForAccessibility();
-        final CollectionInfo collectionInfo = CollectionInfo.obtain(
-                -1, -1, false, selectionMode);
-        info.setCollectionInfo(collectionInfo);
+        info.setCollectionInfo(createCollectionInfo());
 
-        if (rowsCount > 0) {
+        if (getCount() > 0) {
             info.addAction(AccessibilityAction.ACTION_SCROLL_TO_POSITION);
         }
+    }
+
+    private CollectionInfo createCollectionInfo() {
+        final ListAdapter adapter = mAdapter;
+        CollectionInfo.Builder builder =
+                new CollectionInfo.Builder()
+                        .setRowCount(CollectionInfo.UNDEFINED)
+                        .setColumnCount(CollectionInfo.UNDEFINED)
+                        .setSelectionMode(getSelectionModeForAccessibility());
+
+        if (Flags.listViewCountForAccessibility()
+                && adapter != null
+                && adapter.areAllItemsEnabled()) {
+            int count = getCount();
+            builder.setRowCount(count).setColumnCount(1).setItemCount(count);
+        }
+        return builder.build();
     }
 
     /** @hide */

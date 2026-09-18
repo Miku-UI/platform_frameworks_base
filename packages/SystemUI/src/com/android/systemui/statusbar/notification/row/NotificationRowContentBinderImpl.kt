@@ -50,11 +50,10 @@ import com.android.systemui.statusbar.NotificationRemoteInputManager
 import com.android.systemui.statusbar.notification.ConversationNotificationProcessor
 import com.android.systemui.statusbar.notification.CustomViewMemorySizeExceededException
 import com.android.systemui.statusbar.notification.InflationException
-import com.android.systemui.statusbar.notification.NmSummarizationUiFlag
+import com.android.systemui.statusbar.notification.NmSummarizationAllFlag
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.logKey
 import com.android.systemui.statusbar.notification.promoted.PromotedNotificationContentExtractor
-import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModel
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModels
 import com.android.systemui.statusbar.notification.row.NotificationContentView.VISIBLE_TYPE_CONTRACTED
 import com.android.systemui.statusbar.notification.row.NotificationContentView.VISIBLE_TYPE_EXPANDED
@@ -71,13 +70,11 @@ import com.android.systemui.statusbar.notification.row.NotificationRowContentBin
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.InflationCallback
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.InflationFlag
-import com.android.systemui.statusbar.notification.row.shared.AsyncGroupHeaderViewInflation
 import com.android.systemui.statusbar.notification.row.shared.HeadsUpStatusBarModel
 import com.android.systemui.statusbar.notification.row.shared.NewRemoteViews
 import com.android.systemui.statusbar.notification.row.shared.NotificationContentModel
 import com.android.systemui.statusbar.notification.row.ui.viewbinder.SingleLineViewBinder
 import com.android.systemui.statusbar.notification.row.wrapper.NotificationViewWrapper
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.statusbar.notification.stack.NotificationChildrenContainer
 import com.android.systemui.statusbar.policy.InflatedSmartReplyState
 import com.android.systemui.statusbar.policy.InflatedSmartReplyViewHolder
@@ -106,6 +103,7 @@ constructor(
     private val logger: NotificationRowContentBinderLogger,
 ) : NotificationRowContentBinder {
     private var inflateSynchronously = false
+    private var userProfileBadgeProvider: Notification.UserProfileBadgeProvider? = null
 
     override fun bindContent(
         entry: NotificationEntry,
@@ -137,6 +135,7 @@ constructor(
             AsyncInflationTask(
                 inflationExecutor,
                 inflateSynchronously,
+                userProfileBadgeProvider,
                 /* reInflateFlags = */ contentToBind,
                 remoteViewCache,
                 entry,
@@ -199,21 +198,21 @@ constructor(
         result.inflatedSingleLineView =
             result.contentModel.singleLineViewModel?.let { viewModel ->
                 SingleLineViewInflater.inflatePrivateSingleLineView(
-                    viewModel.isConversation(),
-                    reInflateFlags,
-                    entry,
-                    systemUIContext,
-                    logger,
+                    payload = viewModel.payload,
+                    reinflateFlags = reInflateFlags,
+                    entry = entry,
+                    context = systemUIContext,
+                    logger = logger,
                 )
             }
         result.inflatedPublicSingleLineView =
             result.contentModel.publicSingleLineViewModel?.let { viewModel ->
                 SingleLineViewInflater.inflatePublicSingleLineView(
-                    viewModel.isConversation(),
-                    reInflateFlags,
-                    entry,
-                    systemUIContext,
-                    logger,
+                    payload = viewModel.payload,
+                    reinflateFlags = reInflateFlags,
+                    entry = entry,
+                    context = systemUIContext,
+                    logger = logger,
                 )
             }
         apply(
@@ -344,9 +343,21 @@ constructor(
         this.inflateSynchronously = inflateSynchronously
     }
 
+    /**
+     * Sets the user profile badge provider. This method should only be used in tests, not in
+     * production.
+     */
+    @VisibleForTesting
+    override fun setUserProfileBadgeProvider(
+        userProfileBadgeProvider: Notification.UserProfileBadgeProvider?
+    ): Unit {
+        this.userProfileBadgeProvider = userProfileBadgeProvider
+    }
+
     class AsyncInflationTask(
         private val inflationExecutor: Executor,
         private val inflateSynchronously: Boolean,
+        private val userProfileBadgeProvider: Notification.UserProfileBadgeProvider?,
         @get:InflationFlag @get:VisibleForTesting @InflationFlag val reInflateFlags: Int,
         private val remoteViewCache: NotifRemoteViewCache,
         private val entry: NotificationEntry,
@@ -410,6 +421,10 @@ constructor(
             // Ensure the ApplicationInfo is updated before a builder is recovered.
             updateApplicationInfo(sbn)
             val recoveredBuilder = Notification.Builder.recoverBuilder(context, sbn.notification)
+            // In some tests, we want to replace the static badge logic with a fake.
+            if (userProfileBadgeProvider != null) {
+                recoveredBuilder.setUserProfileBadgeProvider(userProfileBadgeProvider)
+            }
             var packageContext: Context = sbn.getPackageContext(context)
             if (recoveredBuilder.usesTemplate()) {
                 // For all of our templates, we want it to be RTL
@@ -450,11 +465,11 @@ constructor(
             inflationProgress.inflatedSingleLineView =
                 inflationProgress.contentModel.singleLineViewModel?.let {
                     SingleLineViewInflater.inflatePrivateSingleLineView(
-                        it.isConversation(),
-                        reInflateFlags,
-                        entry,
-                        context,
-                        logger,
+                        payload = it.payload,
+                        reinflateFlags = reInflateFlags,
+                        entry = entry,
+                        context = context,
+                        logger = logger,
                     )
                 }
 
@@ -462,21 +477,21 @@ constructor(
             inflationProgress.inflatedPublicSingleLineView =
                 inflationProgress.contentModel.publicSingleLineViewModel?.let { viewModel ->
                     SingleLineViewInflater.inflatePublicSingleLineView(
-                        viewModel.isConversation(),
-                        reInflateFlags,
-                        entry,
-                        context,
-                        logger,
+                        payload = viewModel.payload,
+                        reinflateFlags = reInflateFlags,
+                        entry = entry,
+                        context = context,
+                        logger = logger,
                     )
                 }
 
             logger.logAsyncTaskProgress(entry.logKey, "loading RON images")
             inflationProgress.rowImageInflater.loadImagesSynchronously(packageContext)
-
             logger.logAsyncTaskProgress(
                 entry.logKey,
-                "getting row image resolver (on wrong thread!)",
+                "loaded RON images: ${inflationProgress.rowImageInflater.toDebugString()}",
             )
+
             val imageResolver = row.imageResolver
             // wait for image resolver to finish preloading
             logger.logAsyncTaskProgress(entry.logKey, "waiting for preloaded images")
@@ -517,7 +532,7 @@ constructor(
             val ident: String = (sbn.packageName + "/0x" + Integer.toHexString(sbn.id))
             Log.e(TAG, "couldn't inflate view for notification $ident", e)
             callback?.handleInflationException(
-                if (NotificationBundleUi.isEnabled) entry else row.entryLegacy,
+                entry,
                 when (e) {
                     is InflationException -> e
                     else -> InflationException("Couldn't inflate contentViews: $e")
@@ -671,37 +686,31 @@ constructor(
                     reinflating = reInflateFlags and FLAG_CONTENT_VIEW_CONTRACTED != 0,
                 )
 
+            logger.logAsyncTaskProgress(entry.logKey, "extracting promoted notification content")
+            val imageModelProvider = rowImageInflater.useForContentModel()
             val promotedContent =
-                if (PromotedNotificationContentModel.featureFlagEnabled()) {
-                    logger.logAsyncTaskProgress(
-                        entry.logKey,
-                        "extracting promoted notification content",
+                promotedNotificationContentExtractor
+                    .extractContent(
+                        entry,
+                        builder,
+                        bindParams.redactionType,
+                        imageModelProvider,
+                        packageContext,
+                        systemUiContext,
                     )
-                    val imageModelProvider = rowImageInflater.useForContentModel()
-                    promotedNotificationContentExtractor
-                        .extractContent(
-                            entry,
-                            builder,
-                            bindParams.redactionType,
-                            imageModelProvider,
-                            packageContext,
-                            systemUiContext,
+                    .also {
+                        logger.logAsyncTaskProgress(
+                            entry.logKey,
+                            "extracted promoted notification content: ${it?.toRedactedString()}",
                         )
-                        .also {
-                            logger.logAsyncTaskProgress(
-                                entry.logKey,
-                                "extracted promoted notification content: ${it?.toRedactedString()}",
-                            )
-                        }
-                } else {
-                    null
-                }
+                    }
 
             // process conversations and extract the messaging style
             val messagingStyle =
-                if (NmSummarizationUiFlag.isEnabled || entry.ranking.isConversation) {
+                if (!NmSummarizationAllFlag.isEnabled || entry.ranking.isConversation) {
                     conversationProcessor.processNotification(entry, builder, logger)
                 } else null
+            val metricStyle = builder.style as? Notification.MetricStyle
 
             val remoteViews =
                 createRemoteViews(
@@ -723,6 +732,7 @@ constructor(
                     SingleLineViewInflater.inflateSingleLineViewModel(
                         notification = entry.sbn.notification,
                         messagingStyle = messagingStyle,
+                        metricStyle = metricStyle,
                         builder = builder,
                         systemUiContext = systemUiContext,
                         redactText = false,
@@ -741,6 +751,7 @@ constructor(
                         SingleLineViewInflater.inflateSingleLineViewModel(
                             notification = entry.sbn.notification,
                             messagingStyle = messagingStyle,
+                            metricStyle = metricStyle,
                             builder = builder,
                             systemUiContext = systemUiContext,
                             redactText = true,
@@ -843,7 +854,8 @@ constructor(
                 val headsUp =
                     if (reInflateFlags and FLAG_CONTENT_VIEW_HEADS_UP != 0) {
                         logger.logAsyncTaskProgress(row.loggingKey, "creating heads up remote view")
-                        val isHeadsUpCompact = headsUpStyleProvider.shouldApplyCompactStyle()
+                        val isHeadsUpCompact =
+                            headsUpStyleProvider.shouldApplyCompactStyle(systemUiContext.displayId)
                         if (isHeadsUpCompact) {
                             builder.createCompactHeadsUpContentView()
                         } else {
@@ -866,10 +878,7 @@ constructor(
                         }
                     } else null
                 val normalGroupHeader =
-                    if (
-                        AsyncGroupHeaderViewInflation.isEnabled &&
-                            reInflateFlags and FLAG_GROUP_SUMMARY_HEADER != 0
-                    ) {
+                    if (reInflateFlags and FLAG_GROUP_SUMMARY_HEADER != 0) {
                         logger.logAsyncTaskProgress(
                             row.loggingKey,
                             "creating group summary remote view",
@@ -877,10 +886,7 @@ constructor(
                         builder.makeNotificationGroupHeader()
                     } else null
                 val minimizedGroupHeader =
-                    if (
-                        AsyncGroupHeaderViewInflation.isEnabled &&
-                            reInflateFlags and FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER != 0
-                    ) {
+                    if (reInflateFlags and FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER != 0) {
                         logger.logAsyncTaskProgress(
                             row.loggingKey,
                             "creating low-priority group summary remote view",
@@ -913,13 +919,10 @@ constructor(
             expanded.setLayoutInflaterFactoryRecursively(FLAG_CONTENT_VIEW_EXPANDED)
             headsUp.setLayoutInflaterFactoryRecursively(FLAG_CONTENT_VIEW_HEADS_UP)
             public.setLayoutInflaterFactoryRecursively(FLAG_CONTENT_VIEW_PUBLIC)
-
-            if (android.app.Flags.notificationsRedesignAppIcons()) {
-                normalGroupHeader.setLayoutInflaterFactoryRecursively(FLAG_GROUP_SUMMARY_HEADER)
-                minimizedGroupHeader.setLayoutInflaterFactoryRecursively(
-                    FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER
-                )
-            }
+            normalGroupHeader.setLayoutInflaterFactoryRecursively(FLAG_GROUP_SUMMARY_HEADER)
+            minimizedGroupHeader.setLayoutInflaterFactoryRecursively(
+                FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER
+            )
             return this
         }
 
@@ -1096,100 +1099,89 @@ constructor(
                     logger = logger,
                 )
             }
-            if (AsyncGroupHeaderViewInflation.isEnabled) {
-                val childrenContainer: NotificationChildrenContainer =
-                    row.getChildrenContainerNonNull()
-                if (reInflateFlags and FLAG_GROUP_SUMMARY_HEADER != 0) {
-                    val isNewView =
-                        !canReapplyRemoteView(
-                            newView = result.remoteViews.normalGroupHeader,
-                            oldView =
-                                remoteViewCache.getCachedView(entry, FLAG_GROUP_SUMMARY_HEADER),
-                        )
-                    val applyCallback: ApplyCallback =
-                        object : ApplyCallback() {
-                            override fun setResultView(v: View) {
-                                logger.logAsyncTaskProgress(
-                                    entry.logKey,
-                                    "group header view applied",
-                                )
-                                result.inflatedGroupHeaderView = v as NotificationHeaderView?
-                            }
-
-                            override val remoteView: RemoteViews
-                                get() = result.remoteViews.normalGroupHeader!!
+            val childrenContainer: NotificationChildrenContainer = row.getChildrenContainerNonNull()
+            if (reInflateFlags and FLAG_GROUP_SUMMARY_HEADER != 0) {
+                val isNewView =
+                    !canReapplyRemoteView(
+                        newView = result.remoteViews.normalGroupHeader,
+                        oldView = remoteViewCache.getCachedView(entry, FLAG_GROUP_SUMMARY_HEADER),
+                    )
+                val applyCallback: ApplyCallback =
+                    object : ApplyCallback() {
+                        override fun setResultView(v: View) {
+                            logger.logAsyncTaskProgress(entry.logKey, "group header view applied")
+                            result.inflatedGroupHeaderView = v as NotificationHeaderView?
                         }
-                    logger.logAsyncTaskProgress(entry.logKey, "applying group header view")
-                    applyRemoteView(
-                        inflationExecutor = inflationExecutor,
-                        inflateSynchronously = inflateSynchronously,
-                        isMinimized = isMinimized,
-                        result = result,
-                        reInflateFlags = reInflateFlags,
-                        inflationId = FLAG_GROUP_SUMMARY_HEADER,
-                        remoteViewCache = remoteViewCache,
-                        entry = entry,
-                        row = row,
-                        isNewView = isNewView,
-                        remoteViewClickHandler = remoteViewClickHandler,
-                        callback = callback,
-                        parentLayout = childrenContainer,
-                        existingView = childrenContainer.groupHeader,
-                        existingWrapper = childrenContainer.notificationHeaderWrapper,
-                        runningInflations = runningInflations,
-                        applyCallback = applyCallback,
-                        logger = logger,
-                    )
-                }
-                if (reInflateFlags and FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER != 0) {
-                    val isNewView =
-                        !canReapplyRemoteView(
-                            newView = result.remoteViews.minimizedGroupHeader,
-                            oldView =
-                                remoteViewCache.getCachedView(
-                                    entry,
-                                    FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER,
-                                ),
-                        )
-                    val applyCallback: ApplyCallback =
-                        object : ApplyCallback() {
-                            override fun setResultView(v: View) {
-                                logger.logAsyncTaskProgress(
-                                    entry.logKey,
-                                    "low-priority group header view applied",
-                                )
-                                result.inflatedMinimizedGroupHeaderView =
-                                    v as NotificationHeaderView?
-                            }
 
-                            override val remoteView: RemoteViews
-                                get() = result.remoteViews.minimizedGroupHeader!!
+                        override val remoteView: RemoteViews
+                            get() = result.remoteViews.normalGroupHeader!!
+                    }
+                logger.logAsyncTaskProgress(entry.logKey, "applying group header view")
+                applyRemoteView(
+                    inflationExecutor = inflationExecutor,
+                    inflateSynchronously = inflateSynchronously,
+                    isMinimized = isMinimized,
+                    result = result,
+                    reInflateFlags = reInflateFlags,
+                    inflationId = FLAG_GROUP_SUMMARY_HEADER,
+                    remoteViewCache = remoteViewCache,
+                    entry = entry,
+                    row = row,
+                    isNewView = isNewView,
+                    remoteViewClickHandler = remoteViewClickHandler,
+                    callback = callback,
+                    parentLayout = childrenContainer,
+                    existingView = childrenContainer.groupHeader,
+                    existingWrapper = childrenContainer.notificationHeaderWrapper,
+                    runningInflations = runningInflations,
+                    applyCallback = applyCallback,
+                    logger = logger,
+                )
+            }
+            if (reInflateFlags and FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER != 0) {
+                val isNewView =
+                    !canReapplyRemoteView(
+                        newView = result.remoteViews.minimizedGroupHeader,
+                        oldView =
+                            remoteViewCache.getCachedView(
+                                entry,
+                                FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER,
+                            ),
+                    )
+                val applyCallback: ApplyCallback =
+                    object : ApplyCallback() {
+                        override fun setResultView(v: View) {
+                            logger.logAsyncTaskProgress(
+                                entry.logKey,
+                                "low-priority group header view applied",
+                            )
+                            result.inflatedMinimizedGroupHeaderView = v as NotificationHeaderView?
                         }
-                    logger.logAsyncTaskProgress(
-                        entry.logKey,
-                        "applying low priority group header view",
-                    )
-                    applyRemoteView(
-                        inflationExecutor = inflationExecutor,
-                        inflateSynchronously = inflateSynchronously,
-                        isMinimized = isMinimized,
-                        result = result,
-                        reInflateFlags = reInflateFlags,
-                        inflationId = FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER,
-                        remoteViewCache = remoteViewCache,
-                        entry = entry,
-                        row = row,
-                        isNewView = isNewView,
-                        remoteViewClickHandler = remoteViewClickHandler,
-                        callback = callback,
-                        parentLayout = childrenContainer,
-                        existingView = childrenContainer.minimizedNotificationHeader,
-                        existingWrapper = childrenContainer.minimizedGroupHeaderWrapper,
-                        runningInflations = runningInflations,
-                        applyCallback = applyCallback,
-                        logger = logger,
-                    )
-                }
+
+                        override val remoteView: RemoteViews
+                            get() = result.remoteViews.minimizedGroupHeader!!
+                    }
+                logger.logAsyncTaskProgress(entry.logKey, "applying low priority group header view")
+                applyRemoteView(
+                    inflationExecutor = inflationExecutor,
+                    inflateSynchronously = inflateSynchronously,
+                    isMinimized = isMinimized,
+                    result = result,
+                    reInflateFlags = reInflateFlags,
+                    inflationId = FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER,
+                    remoteViewCache = remoteViewCache,
+                    entry = entry,
+                    row = row,
+                    isNewView = isNewView,
+                    remoteViewClickHandler = remoteViewClickHandler,
+                    callback = callback,
+                    parentLayout = childrenContainer,
+                    existingView = childrenContainer.minimizedNotificationHeader,
+                    existingWrapper = childrenContainer.minimizedGroupHeaderWrapper,
+                    runningInflations = runningInflations,
+                    applyCallback = applyCallback,
+                    logger = logger,
+                )
             }
 
             // Let's try to finish, maybe nobody is even inflating anything
@@ -1532,9 +1524,7 @@ constructor(
             row.mImageModelIndex = result.rowImageInflater.getNewImageIndex()
 
             entry.setContentModel(result.contentModel)
-            if (PromotedNotificationContentModel.featureFlagEnabled()) {
-                entry.promotedNotificationContentModels = result.promotedContent
-            }
+            entry.promotedNotificationContentModels = result.promotedContent
 
             result.inflatedSmartReplyState?.let { row.privateLayout.setInflatedSmartReplyState(it) }
 
@@ -1620,23 +1610,21 @@ constructor(
                 result.inflatedPublicView,
                 publicLayout::setContractedChild,
             )
-            if (AsyncGroupHeaderViewInflation.isEnabled) {
-                remoteViewsUpdater.setContentView(
-                    FLAG_GROUP_SUMMARY_HEADER,
-                    result.remoteViews.normalGroupHeader,
-                    result.inflatedGroupHeaderView,
-                ) { views ->
-                    row.setIsMinimized(isMinimized)
-                    row.setGroupHeader(views)
-                }
-                remoteViewsUpdater.setContentView(
-                    FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER,
-                    result.remoteViews.minimizedGroupHeader,
-                    result.inflatedMinimizedGroupHeaderView,
-                ) { views ->
-                    row.setIsMinimized(isMinimized)
-                    row.setMinimizedGroupHeader(views)
-                }
+            remoteViewsUpdater.setContentView(
+                FLAG_GROUP_SUMMARY_HEADER,
+                result.remoteViews.normalGroupHeader,
+                result.inflatedGroupHeaderView,
+            ) { views ->
+                row.setIsMinimized(isMinimized)
+                row.setGroupHeader(views)
+            }
+            remoteViewsUpdater.setContentView(
+                FLAG_LOW_PRIORITY_GROUP_SUMMARY_HEADER,
+                result.remoteViews.minimizedGroupHeader,
+                result.inflatedMinimizedGroupHeaderView,
+            ) { views ->
+                row.setIsMinimized(isMinimized)
+                row.setMinimizedGroupHeader(views)
             }
         }
 

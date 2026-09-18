@@ -35,9 +35,8 @@ import org.junit.Ignore
 import org.junit.Test
 
 @Ignore("Test Base Class")
-abstract class TaskbarInDesktopMode(
-    val rotation: Rotation = Rotation.ROTATION_0
-) : TestScenarioBase(rotation) {
+abstract class TaskbarInDesktopMode(val rotation: Rotation = Rotation.ROTATION_0) :
+    TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val tapl = LauncherInstrumentation()
@@ -50,27 +49,22 @@ abstract class TaskbarInDesktopMode(
     private val clockAppHelper = ClockAppHelper(instrumentation)
     private val calculatorAppHelper = CalculatorAppHelper(instrumentation)
 
-    private val appHelpers = listOf(
-        simpleAppHelper,
-        cameraAppHelper,
-        browserAppHelper,
-        clockAppHelper,
-        calculatorAppHelper
-    )
+    private val appHelpers =
+        listOf(
+            simpleAppHelper,
+            cameraAppHelper,
+            browserAppHelper,
+            clockAppHelper,
+            calculatorAppHelper,
+        )
 
     // This is a subset of the list above, having only apps that are reliable for identifying a
     // taskbar visual indicator using content description labels.
-    private val appHelpersToTestTaskbarIndicator = listOf(
-        simpleAppHelper,
-        browserAppHelper,
-    )
+    private val appHelpersToTestTaskbarIndicator = listOf(simpleAppHelper, browserAppHelper)
 
     // This is a subset of the list above, having only apps that are reliable for minimizing action
-    private val appHelpersToTestMinimizedTaskbarIndicator = listOf(
-        simpleAppHelper,
-        clockAppHelper,
-        calculatorAppHelper
-    )
+    private val appHelpersToTestMinimizedTaskbarIndicator =
+        listOf(simpleAppHelper, clockAppHelper, calculatorAppHelper)
 
     private val appsMap: Map<DesktopModeAppHelper, StandardAppHelper> =
         appHelpers.associateBy { DesktopModeAppHelper(it) }
@@ -78,7 +72,8 @@ abstract class TaskbarInDesktopMode(
     private val appsToTestTaskbarIndicatorMap: Map<DesktopModeAppHelper, StandardAppHelper> =
         appHelpersToTestTaskbarIndicator.associateBy { DesktopModeAppHelper(it) }
 
-    private val appsToTestMinimizedTaskbarIndicatorMap: Map<DesktopModeAppHelper, StandardAppHelper> =
+    private val appsToTestMinimizedTaskbarIndicatorMap:
+        Map<DesktopModeAppHelper, StandardAppHelper> =
         appHelpersToTestMinimizedTaskbarIndicator.associateBy { DesktopModeAppHelper(it) }
 
     @Test
@@ -135,9 +130,7 @@ abstract class TaskbarInDesktopMode(
 
     @After
     fun teardown() {
-        appsMap.keys.reversed().forEach { desktopApp ->
-            desktopApp.exit(wmHelper)
-        }
+        appsMap.keys.reversed().forEach { desktopApp -> desktopApp.exit(wmHelper) }
     }
 
     private companion object {

@@ -399,7 +399,6 @@ public final class UsageStatsManager {
      * the category of the user interaction associated with the event. The category cannot
      * be more than 127 characters, longer value will be truncated to 127 characters.
      */
-    @FlaggedApi(Flags.FLAG_USER_INTERACTION_TYPE_API)
     public static final String EXTRA_EVENT_CATEGORY =
             "android.app.usage.extra.EVENT_CATEGORY";
 
@@ -408,7 +407,6 @@ public final class UsageStatsManager {
      * the action of the user interaction associated with the event. The action cannot be
      * more than 127 characters, longer value will be truncated to 127 characters.
      */
-    @FlaggedApi(Flags.FLAG_USER_INTERACTION_TYPE_API)
     public static final String EXTRA_EVENT_ACTION =
             "android.app.usage.extra.EVENT_ACTION";
 
@@ -617,7 +615,6 @@ public final class UsageStatsManager {
      * @param query The query object used to specify the query parameters.
      * @return A {@link UsageEvents} which contains the events matching the query parameters.
      */
-    @FlaggedApi(Flags.FLAG_FILTER_BASED_EVENT_QUERY_API)
     @Nullable
     @RequiresPermission(android.Manifest.permission.PACKAGE_USAGE_STATS)
     public UsageEvents queryEvents(@NonNull UsageEventsQuery query) {
@@ -1188,7 +1185,6 @@ public final class UsageStatsManager {
      *               {@link #EXTRA_EVENT_ACTION}. Cannot be empty.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_USER_INTERACTION_TYPE_API)
     @RequiresPermission(android.Manifest.permission.REPORT_USAGE_STATS)
     public void reportUserInteraction(@NonNull String packageName, @UserIdInt int userId,
             @NonNull PersistableBundle extras) {
@@ -1325,13 +1321,13 @@ public final class UsageStatsManager {
             case REASON_MAIN_FORCED_BY_SYSTEM:
                 sb.append("s");
                 if (subReason > 0) {
-                    sb.append("-").append(Integer.toBinaryString(subReason));
+                    sb.append("-").append(forcedSystemSubReasonToString(subReason));
                 }
                 break;
             case REASON_MAIN_FORCED_BY_USER:
                 sb.append("f");
                 if (subReason > 0) {
-                    sb.append("-").append(Integer.toBinaryString(subReason));
+                    sb.append("-").append(forcedUserSubReasonToString(subReason));
                 }
                 break;
             case REASON_MAIN_PREDICTED:
@@ -1397,6 +1393,24 @@ public final class UsageStatsManager {
                 break;
         }
         return sb.toString();
+    }
+
+    private static String forcedSystemSubReasonToString(int subReason) {
+        return switch (subReason) {
+            case REASON_SUB_FORCED_SYSTEM_FLAG_UNDEFINED -> "ud";
+            case REASON_SUB_FORCED_SYSTEM_FLAG_BACKGROUND_RESOURCE_USAGE -> "br";
+            case REASON_SUB_FORCED_SYSTEM_FLAG_ABUSE -> "ab";
+            case REASON_SUB_FORCED_SYSTEM_FLAG_BUGGY -> "bu";
+            default -> Integer.toBinaryString(subReason);
+        };
+    }
+
+    private static String forcedUserSubReasonToString(int subReason) {
+        return switch (subReason) {
+            case REASON_SUB_FORCED_SYSTEM_FLAG_UNDEFINED -> "ud";
+            case REASON_SUB_FORCED_USER_FLAG_INTERACTION -> "i";
+            default -> Integer.toBinaryString(subReason);
+        };
     }
 
     /** @hide */
@@ -1504,7 +1518,7 @@ public final class UsageStatsManager {
      * Also note that component usage is only reported for component bindings (e.g. broadcast
      * receiver, service, content provider) and only when such a binding would cause an app to leave
      * the stopped state.
-     * See {@link UsageEvents.Event.USER_INTERACTION}, {@link UsageEvents.Event.APP_COMPONENT_USED}.
+     * See {@link UsageEvents.Event#USER_INTERACTION}, {@link UsageEvents.Event#APP_COMPONENT_USED}.
      * </p>
      *
      * @param packageName The name of the package to be queried.

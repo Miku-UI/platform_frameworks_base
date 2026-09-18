@@ -20,4 +20,5 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="guest_wipe_session_title" msgid="7147965814683990944">"¡Bienvenida de nuevo, invitada!"</string>
+    <string name="guest_notification_session_active" msgid="5567273684713471450">"Estás en modo Invitada"</string>
 </resources>

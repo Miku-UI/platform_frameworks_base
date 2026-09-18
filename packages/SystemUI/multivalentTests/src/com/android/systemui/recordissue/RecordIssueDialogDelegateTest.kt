@@ -24,8 +24,6 @@ import android.widget.Switch
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.animation.DialogTransitionAnimator
-import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.flags.FeatureFlagsClassic
 import com.android.systemui.mediaprojection.MediaProjectionMetricsLogger
 import com.android.systemui.mediaprojection.SessionCreationSource
@@ -35,7 +33,8 @@ import com.android.systemui.recordissue.IssueRecordingState.Companion.ISSUE_TYPE
 import com.android.systemui.res.R
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.statusbar.phone.SystemUIDialog
-import com.android.systemui.statusbar.phone.SystemUIDialogManager
+import com.android.systemui.statusbar.phone.systemUIDialogDotFactory
+import com.android.systemui.testKosmos
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.eq
@@ -51,7 +50,6 @@ import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mock
 import org.mockito.Mockito.never
-import org.mockito.Mockito.spy
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
 
@@ -69,40 +67,26 @@ class RecordIssueDialogDelegateTest : SysuiTestCase() {
     @Mock
     private lateinit var screenCaptureDisabledDialogDelegate: ScreenCaptureDisabledDialogDelegate
     @Mock private lateinit var screenCaptureDisabledDialog: SystemUIDialog
-
-    @Mock private lateinit var systemUIDialogManager: SystemUIDialogManager
-    @Mock private lateinit var broadcastDispatcher: BroadcastDispatcher
+    private val kosmos = testKosmos()
     private val systemClock = FakeSystemClock()
     private val bgExecutor = FakeExecutor(systemClock)
     private val mainExecutor = FakeExecutor(systemClock)
-    @Mock private lateinit var mDialogTransitionAnimator: DialogTransitionAnimator
 
     private lateinit var dialog: SystemUIDialog
-    private lateinit var factory: SystemUIDialog.Factory
     private lateinit var latch: CountDownLatch
 
     @Before
     fun setup() {
         MockitoAnnotations.initMocks(this)
         whenever(dprLazy.get()).thenReturn(devicePolicyResolver)
-        whenever(screenCaptureDisabledDialogDelegate.createSysUIDialog())
+        whenever(screenCaptureDisabledDialogDelegate.createDialog())
             .thenReturn(screenCaptureDisabledDialog)
         whenever(state.issueTypeRes).thenReturn(ISSUE_TYPE_NOT_SET)
-
-        factory =
-            spy(
-                SystemUIDialog.Factory(
-                    context,
-                    systemUIDialogManager,
-                    broadcastDispatcher,
-                    mDialogTransitionAnimator,
-                )
-            )
 
         latch = CountDownLatch(1)
         dialog =
             RecordIssueDialogDelegate(
-                    factory,
+                    kosmos.systemUIDialogDotFactory,
                     userTracker,
                     flags,
                     bgExecutor,

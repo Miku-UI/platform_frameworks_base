@@ -20,6 +20,7 @@ import android.annotation.CallbackExecutor;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
+import android.media.AudioManager.AudioRecordingCallback;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -46,8 +47,26 @@ public class AudioRecordingMonitorImpl implements AudioRecordingMonitor {
     private static final String TAG = "android.media.AudioRecordingMonitor";
 
     private static IAudioService sService; //lazy initialization, use getService()
-
     private final AudioRecordingMonitorClient mClient;
+
+    private final Object mRecordCallbackLock = new Object();
+
+    @GuardedBy("mRecordCallbackLock")
+    private List<AudioRecordingCallbackInfo> mRecordCallbackList =
+            new ArrayList<AudioRecordingCallbackInfo>();
+
+    private final IRecordingConfigDispatcher mRecordingCallback =
+            new IRecordingConfigDispatcher.Stub() {
+                @Override
+                public void dispatchRecordingConfigChange(
+                        List<AudioRecordingConfiguration> configs) {
+                    AudioRecordingConfiguration config = getMyConfig(configs);
+                    if (config != null) {
+                        configs.removeIf(c -> c != config);
+                        handleCallback(configs);
+                    }
+                }
+            };
 
     AudioRecordingMonitorImpl(@NonNull AudioRecordingMonitorClient client) {
         mClient = client;
@@ -62,7 +81,7 @@ public class AudioRecordingMonitorImpl implements AudioRecordingMonitor {
      * @param cb non-null callback to register
      */
     public void registerAudioRecordingCallback(@NonNull @CallbackExecutor Executor executor,
-            @NonNull AudioManager.AudioRecordingCallback cb) {
+            @NonNull AudioRecordingCallback cb) {
         if (cb == null) {
             throw new IllegalArgumentException("Illegal null AudioRecordingCallback");
         }
@@ -72,13 +91,19 @@ public class AudioRecordingMonitorImpl implements AudioRecordingMonitor {
         synchronized (mRecordCallbackLock) {
             // check if eventCallback already in list
             for (AudioRecordingCallbackInfo arci : mRecordCallbackList) {
-                if (arci.mCb == cb) {
+                if (arci.cb == cb) {
                     throw new IllegalArgumentException(
                             "AudioRecordingCallback already registered");
                 }
             }
-            beginRecordingCallbackHandling();
-            mRecordCallbackList.add(new AudioRecordingCallbackInfo(executor, cb));
+            if (mRecordCallbackList.isEmpty()) {
+                try {
+                    getService().registerRecordingCallback(mRecordingCallback);
+                } catch (RemoteException e) {
+                    throw e.rethrowFromSystemServer();
+                }
+            }
+            mRecordCallbackList.add(new AudioRecordingCallbackInfo(cb, executor));
         }
     }
 
@@ -87,23 +112,22 @@ public class AudioRecordingMonitorImpl implements AudioRecordingMonitor {
      * {@link #registerAudioRecordingCallback(Executor, AudioManager.AudioRecordingCallback)}.
      * @param cb non-null callback to unregister
      */
-    public void unregisterAudioRecordingCallback(@NonNull AudioManager.AudioRecordingCallback cb) {
+    public void unregisterAudioRecordingCallback(@NonNull AudioRecordingCallback cb) {
         if (cb == null) {
             throw new IllegalArgumentException("Illegal null AudioRecordingCallback argument");
         }
-
         synchronized (mRecordCallbackLock) {
-            for (AudioRecordingCallbackInfo arci : mRecordCallbackList) {
-                if (arci.mCb == cb) {
-                    // ok to remove while iterating over list as we exit iteration
-                    mRecordCallbackList.remove(arci);
-                    if (mRecordCallbackList.size() == 0) {
-                        endRecordingCallbackHandling();
+            if (mRecordCallbackList.removeIf((arci) -> arci.cb == cb)) {
+                if (mRecordCallbackList.isEmpty()) {
+                    try {
+                        getService().unregisterRecordingCallback(mRecordingCallback);
+                    } catch (RemoteException e) {
+                        throw e.rethrowFromSystemServer();
                     }
-                    return;
                 }
+            } else {
+                throw new IllegalArgumentException("AudioRecordingCallback was not registered");
             }
-            throw new IllegalArgumentException("AudioRecordingCallback was not registered");
         }
     }
 
@@ -123,109 +147,34 @@ public class AudioRecordingMonitorImpl implements AudioRecordingMonitor {
         }
     }
 
-    private static class AudioRecordingCallbackInfo {
-        final AudioManager.AudioRecordingCallback mCb;
-        final Executor mExecutor;
-        AudioRecordingCallbackInfo(Executor e, AudioManager.AudioRecordingCallback cb) {
-            mExecutor = e;
-            mCb = cb;
+    private static record AudioRecordingCallbackInfo(AudioRecordingCallback cb, Executor executor) {
+        void dispatch(List<AudioRecordingConfiguration> configs) {
+            executor.execute(() -> cb.onRecordingConfigChanged(configs));
         }
     }
 
-    private static final int MSG_RECORDING_CONFIG_CHANGE = 1;
-
-    private final Object mRecordCallbackLock = new Object();
-    @GuardedBy("mRecordCallbackLock")
-    @NonNull private LinkedList<AudioRecordingCallbackInfo> mRecordCallbackList =
-            new LinkedList<AudioRecordingCallbackInfo>();
-    @GuardedBy("mRecordCallbackLock")
-    private @Nullable HandlerThread mRecordingCallbackHandlerThread;
-    @GuardedBy("mRecordCallbackLock")
-    private @Nullable volatile Handler mRecordingCallbackHandler;
-
-    @GuardedBy("mRecordCallbackLock")
-    private final IRecordingConfigDispatcher mRecordingCallback =
-            new IRecordingConfigDispatcher.Stub() {
-        @Override
-        public void dispatchRecordingConfigChange(List<AudioRecordingConfiguration> configs) {
-            AudioRecordingConfiguration config = getMyConfig(configs);
-            if (config != null) {
-                synchronized (mRecordCallbackLock) {
-                    if (mRecordingCallbackHandler != null) {
-                        final Message m = mRecordingCallbackHandler.obtainMessage(
-                                              MSG_RECORDING_CONFIG_CHANGE/*what*/, config /*obj*/);
-                        mRecordingCallbackHandler.sendMessage(m);
-                    }
-                }
+    private void handleCallback(List<AudioRecordingConfiguration> configs) {
+        List<AudioRecordingCallbackInfo> cbInfoList;
+        synchronized (mRecordCallbackLock) {
+            if (mRecordCallbackList.isEmpty()) {
+                return;
             }
+            cbInfoList = new ArrayList<AudioRecordingCallbackInfo>(mRecordCallbackList);
         }
-    };
+        Binder.withCleanCallingIdentity(() -> cbInfoList.forEach(cbi -> cbi.dispatch(configs)));
+    }
 
-    @GuardedBy("mRecordCallbackLock")
-    private void beginRecordingCallbackHandling() {
-        if (mRecordingCallbackHandlerThread == null) {
-            mRecordingCallbackHandlerThread = new HandlerThread(TAG + ".RecordingCallback");
-            mRecordingCallbackHandlerThread.start();
-            final Looper looper = mRecordingCallbackHandlerThread.getLooper();
-            if (looper != null) {
-                mRecordingCallbackHandler = new Handler(looper) {
-                    @Override
-                    public void handleMessage(Message msg) {
-                        switch (msg.what) {
-                            case MSG_RECORDING_CONFIG_CHANGE: {
-                                if (msg.obj == null) {
-                                    return;
-                                }
-                                ArrayList<AudioRecordingConfiguration> configs =
-                                        new ArrayList<AudioRecordingConfiguration>();
-                                configs.add((AudioRecordingConfiguration) msg.obj);
-
-                                final LinkedList<AudioRecordingCallbackInfo> cbInfoList;
-                                synchronized (mRecordCallbackLock) {
-                                    if (mRecordCallbackList.size() == 0) {
-                                        return;
-                                    }
-                                    cbInfoList = new LinkedList<AudioRecordingCallbackInfo>(
-                                        mRecordCallbackList);
-                                }
-
-                                final long identity = Binder.clearCallingIdentity();
-                                try {
-                                    for (AudioRecordingCallbackInfo cbi : cbInfoList) {
-                                        cbi.mExecutor.execute(() ->
-                                                cbi.mCb.onRecordingConfigChanged(configs));
-                                    }
-                                } finally {
-                                    Binder.restoreCallingIdentity(identity);
-                                }
-                            } break;
-                            default:
-                                Log.e(TAG, "Unknown event " + msg.what);
-                                break;
-                        }
-                    }
-                };
-                final IAudioService service = getService();
+    // Package private for cleanup from AudioRecord#release
+    void endRecordingCallbackHandling() {
+        synchronized (mRecordCallbackLock) {
+            if (!mRecordCallbackList.isEmpty()) {
                 try {
-                    service.registerRecordingCallback(mRecordingCallback);
+                    getService().unregisterRecordingCallback(mRecordingCallback);
                 } catch (RemoteException e) {
                     throw e.rethrowFromSystemServer();
                 }
+                mRecordCallbackList.clear();
             }
-        }
-    }
-
-    @GuardedBy("mRecordCallbackLock")
-    private void endRecordingCallbackHandling() {
-        if (mRecordingCallbackHandlerThread != null) {
-            final IAudioService service = getService();
-            try {
-                service.unregisterRecordingCallback(mRecordingCallback);
-            } catch (RemoteException e) {
-                throw e.rethrowFromSystemServer();
-            }
-            mRecordingCallbackHandlerThread.quit();
-            mRecordingCallbackHandlerThread = null;
         }
     }
 

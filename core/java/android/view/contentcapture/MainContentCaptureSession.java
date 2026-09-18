@@ -16,6 +16,7 @@
 package android.view.contentcapture;
 
 import static android.view.contentcapture.ContentCaptureCondition.CONDITION_ENABLE_EXPORTING_VIRTUAL_CHILDREN;
+import static android.view.contentcapture.ContentCaptureEvent.TYPE_CONTENT_INTERACTION;
 import static android.view.contentcapture.ContentCaptureEvent.TYPE_CONTEXT_UPDATED;
 import static android.view.contentcapture.ContentCaptureEvent.TYPE_SESSION_FINISHED;
 import static android.view.contentcapture.ContentCaptureEvent.TYPE_SESSION_FLUSH;
@@ -63,6 +64,7 @@ import android.view.contentcapture.ViewNode.ViewStructureImpl;
 import android.view.contentcapture.flags.Flags;
 import android.view.contentprotection.ContentProtectionEventProcessor;
 import android.view.inputmethod.BaseInputConnection;
+import android.widget.TextView;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.IResultReceiver;
@@ -202,7 +204,7 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
         public void send(int resultCode, Bundle resultData) {
             final MainContentCaptureSession mainSession = mMainSession.get();
             if (mainSession == null) {
-                Log.w(TAG, "received result after mina session released");
+                Log.w(TAG, "received result after main session released");
                 return;
             }
             final IBinder binder;
@@ -495,23 +497,31 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
         boolean addEvent = true;
 
         if (eventType == TYPE_VIEW_TEXT_CHANGED) {
+            final CharSequence text = event.getText();
+            ContentCaptureEvent lastEvent = null;
+            for (int index = mEvents.size() - 1; index >= 0; index--) {
+                final ContentCaptureEvent tmpEvent = mEvents.get(index);
+                if (event.getId().equals(tmpEvent.getId())) {
+                    lastEvent = tmpEvent;
+                    break;
+                }
+            }
+
+            if (lastEvent != null) {
+                final CharSequence lastText = lastEvent.getText();
+                if (Flags.flushOnNonEmptyText()
+                        && TextUtils.isEmpty(lastText) && !TextUtils.isEmpty(text)) {
+                    forceFlush = true;
+                }
+            }
             // We determine whether to add or merge the current event by following criteria:
             // 1. Don't have composing span: always add.
             // 2. Have composing span:
             //    2.1 either last or current text is empty: add.
             //    2.2 last event doesn't have composing span: add.
             // Otherwise, merge.
-            final CharSequence text = event.getText();
             final boolean hasComposingSpan = event.hasComposingSpan();
             if (hasComposingSpan) {
-                ContentCaptureEvent lastEvent = null;
-                for (int index = mEvents.size() - 1; index >= 0; index--) {
-                    final ContentCaptureEvent tmpEvent = mEvents.get(index);
-                    if (event.getId().equals(tmpEvent.getId())) {
-                        lastEvent = tmpEvent;
-                        break;
-                    }
-                }
                 if (lastEvent != null && lastEvent.hasComposingSpan()) {
                     final CharSequence lastText = lastEvent.getText();
                     final boolean bothNonEmpty = !TextUtils.isEmpty(lastText)
@@ -668,6 +678,17 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
 
     private void flushIfNeeded(@FlushReason int reason) {
         checkOnContentCaptureThread();
+        // Drain the UI-thread queue into the buffer
+        final List<ContentCaptureEvent> batchEvents = clearBufferEvents();
+        for (int i = 0; i < batchEvents.size(); i++) {
+            sendEvent(batchEvents.get(i));
+        }
+        // Send a Content Capture Flush Event
+        if (reason == FLUSH_REASON_TEXT_CHANGE_TIMEOUT) {
+            final ContentCaptureEvent flushEvent =
+                    new ContentCaptureEvent(mId, TYPE_SESSION_FLUSH);
+            sendEvent(flushEvent);
+        }
         if (mEvents == null || mEvents.isEmpty()) {
             if (sVerbose) Log.v(TAG, "Nothing to flush");
             return;
@@ -864,6 +885,10 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
                 .setComposingIndex(composingStart, composingEnd)
                 .setSelectionIndex(startIndex, endIndex);
         enqueueEvent(event);
+        // Schedule a flush on Text Change.
+        runOnContentCaptureThread(() -> {
+            scheduleFlush(FLUSH_REASON_TEXT_CHANGE_TIMEOUT, /* checkExisting= */ true);
+        });
     }
 
     @Override
@@ -877,18 +902,12 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
     @Override
     public void internalNotifyViewTreeEvent(int sessionId, boolean started) {
         final int type = started ? TYPE_VIEW_TREE_APPEARING : TYPE_VIEW_TREE_APPEARED;
-        final boolean disableFlush = mManager.getFlushViewTreeAppearingEventDisabled();
-        final boolean forceFlush = disableFlush ? !started : FORCE_FLUSH;
 
         final ContentCaptureEvent event = new ContentCaptureEvent(sessionId, type);
 
-        if (Flags.reduceBinderTransactionEnabled()) {
-            // Don't force a flush for view tree events. A dedicated flush event will be sent
-            // after the entire view tree is processed, reducing binder transactions.
-            enqueueEvent(event);
-        } else {
-            enqueueEvent(event, forceFlush);
-        }
+        // Don't force a flush for view tree events. A dedicated flush event will be sent
+        // after the entire view tree is processed, reducing binder transactions.
+        enqueueEvent(event);
     }
 
     @Override
@@ -919,7 +938,14 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
      * @return whether disabled state was changed.
      */
     boolean setDisabled(boolean disabled) {
-        return mDisabled.compareAndSet(!disabled, disabled);
+        final boolean changed = mDisabled.compareAndSet(!disabled, disabled);
+        if (changed) {
+            Trace.instant(
+                    Trace.TRACE_TAG_VIEW,
+                    disabled ? "contentCaptureDisabled" : "contentCaptureEnabled");
+        }
+
+        return changed;
     }
 
     @Override
@@ -959,6 +985,14 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
     void internalNotifySessionFlushEvent(int sessionId) {
         final ContentCaptureEvent event = new ContentCaptureEvent(sessionId, TYPE_SESSION_FLUSH);
         enqueueEvent(event, FORCE_FLUSH);
+    }
+
+    @Override
+    void internalNotifyContentInteractionEvent(int sessionId, @NonNull AutofillId autofillId) {
+        final ContentCaptureEvent event =
+                new ContentCaptureEvent(sessionId, TYPE_CONTENT_INTERACTION)
+                        .setAutofillId(autofillId);
+        enqueueEvent(event);
     }
 
     private List<ContentCaptureEvent> clearBufferEvents() {
@@ -1005,6 +1039,34 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
         });
     }
 
+    @Override
+    public void notifyContentCaptureInteractionEvents(
+            @NonNull SparseArray<ArrayList<Object>> contentCaptureInteractionEvents) {
+            runOnContentCaptureThread(() -> {
+                try {
+                    if (Trace.isTagEnabled(Trace.TRACE_TAG_VIEW)) {
+                        Trace.traceBegin(Trace.TRACE_TAG_VIEW,
+                                "notifyContentCaptureInteractionEvents");
+                    }
+                    for (int i = 0; i < contentCaptureInteractionEvents.size(); i++) {
+                        int sessionId = contentCaptureInteractionEvents.keyAt(i);
+                        ArrayList<Object> events = contentCaptureInteractionEvents.valueAt(i);
+                        for_each_event: for (int j = 0; j < events.size(); j++) {
+                            Object event = events.get(j);
+                            if (event instanceof AutofillId autofillId) {
+                                internalNotifyContentInteractionEvent(sessionId, autofillId);
+                            } else {
+                                Log.w(TAG, "Invalid content capture interaction event: " + event);
+                            }
+                        }
+                    }
+                } finally {
+                    Trace.traceEnd(Trace.TRACE_TAG_VIEW);
+                }
+
+            });
+    }
+
     /**
      * Traverse events and pre-process {@link View} events to {@link ViewStructureSession} events.
      * If a {@link View} event is invalid, an empty {@link ViewStructureSession} will still be
@@ -1038,6 +1100,16 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
                     }
                     ViewStructure structure = session.newViewStructure(view);
                     view.onProvideContentCaptureStructure(structure, /* flags= */ 0);
+
+                    if (Flags.newHeuristicsForImportanceEnabled()) {
+                        try {
+                            setContentDescriptionFromA11yIfNeeded(view, structure);
+                        } catch (NullPointerException e) {
+                            // NPE can be thrown if some views do not support a11y properly.
+                            Log.w(TAG, "Failed to set content description");
+                        }
+                    }
+
                     if (Flags.enableExportAssistVirtualNodeToCcapi()
                             && view.getAccessibilityNodeProvider() != null
                             && structure.getAutofillId() != null
@@ -1055,6 +1127,26 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
                 }
             }
         }
+    }
+
+    private void setContentDescriptionFromA11yIfNeeded(
+            @NonNull View view, @NonNull ViewStructure structure) {
+        // No need to set the content description for TextView as it has the text value.
+        // Return early to reduce the system health impact.
+        if (view instanceof TextView) {
+            return;
+        }
+
+        CharSequence viewContentDescription = view.getContentDescription();
+        if (viewContentDescription != null && !viewContentDescription.isEmpty()) {
+            return;
+        }
+
+        AccessibilityNodeInfo currentNodeInfo = view.createAccessibilityNodeInfo();
+        if (currentNodeInfo == null) {
+            return;
+        }
+        structure.setContentDescription(currentNodeInfo.getText());
     }
 
     private void notifyContentCaptureEventsImpl(

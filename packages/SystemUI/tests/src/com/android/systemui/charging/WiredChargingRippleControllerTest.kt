@@ -24,14 +24,14 @@ import android.view.WindowMetrics
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.UiEventLogger
-import com.android.systemui.res.R
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.FeatureFlags
 import com.android.systemui.flags.Flags
+import com.android.systemui.res.R
 import com.android.systemui.statusbar.commandline.CommandRegistry
 import com.android.systemui.statusbar.policy.BatteryController
 import com.android.systemui.statusbar.policy.ConfigurationController
-import com.android.systemui.surfaceeffects.ripple.RippleView
+import com.android.systemui.surfaceeffects.view.ripple.RippleView
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.time.FakeSystemClock
 import org.junit.Before
@@ -40,12 +40,12 @@ import org.junit.runner.RunWith
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers
 import org.mockito.Mock
-import org.mockito.Mockito.`when`
 import org.mockito.Mockito.any
 import org.mockito.Mockito.eq
 import org.mockito.Mockito.never
 import org.mockito.Mockito.reset
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
 
 @SmallTest
@@ -66,9 +66,17 @@ class WiredChargingRippleControllerTest : SysuiTestCase() {
     fun setUp() {
         MockitoAnnotations.initMocks(this)
         `when`(featureFlags.isEnabled(Flags.CHARGING_RIPPLE)).thenReturn(true)
-        controller = WiredChargingRippleController(
-                commandRegistry, batteryController, configurationController,
-                featureFlags, context, windowManager, systemClock, uiEventLogger)
+        controller =
+            WiredChargingRippleController(
+                commandRegistry,
+                batteryController,
+                configurationController,
+                featureFlags,
+                context,
+                windowManager,
+                systemClock,
+                uiEventLogger,
+            )
         rippleView.setupShader()
         controller.rippleView = rippleView // Replace the real ripple view with a mock instance
         controller.registerCallbacks()
@@ -79,23 +87,23 @@ class WiredChargingRippleControllerTest : SysuiTestCase() {
 
     @Test
     fun testTriggerRipple_UnlockedState() {
-        val captor = ArgumentCaptor
-                .forClass(BatteryController.BatteryStateChangeCallback::class.java)
+        val captor =
+            ArgumentCaptor.forClass(BatteryController.BatteryStateChangeCallback::class.java)
         verify(batteryController).addCallback(captor.capture())
 
         // Verify ripple added to window manager.
         captor.value.onBatteryLevelChanged(
-                /* unusedBatteryLevel= */ 0,
-                /* plugged in= */ true,
-                /* charging= */ false)
+            /* unusedBatteryLevel= */ 0,
+            /* plugged in= */ true,
+            /* charging= */ false,
+        )
         val attachListenerCaptor =
-                ArgumentCaptor.forClass(View.OnAttachStateChangeListener::class.java)
+            ArgumentCaptor.forClass(View.OnAttachStateChangeListener::class.java)
         verify(rippleView).addOnAttachStateChangeListener(attachListenerCaptor.capture())
         verify(windowManager).addView(eq(rippleView), any<WindowManager.LayoutParams>())
 
         // Verify ripple started
-        val runnableCaptor =
-                ArgumentCaptor.forClass(Runnable::class.java)
+        val runnableCaptor = ArgumentCaptor.forClass(Runnable::class.java)
         attachListenerCaptor.value.onViewAttachedToWindow(rippleView)
         verify(rippleView).startRipple(runnableCaptor.capture())
 
@@ -104,14 +112,14 @@ class WiredChargingRippleControllerTest : SysuiTestCase() {
         verify(windowManager).removeView(rippleView)
 
         // Verify event logged
-        verify(uiEventLogger).log(
-                WiredChargingRippleController.WiredChargingRippleEvent.CHARGING_RIPPLE_PLAYED)
+        verify(uiEventLogger)
+            .log(WiredChargingRippleController.WiredChargingRippleEvent.CHARGING_RIPPLE_PLAYED)
     }
 
     @Test
     fun testUpdateRippleColor() {
-        val captor = ArgumentCaptor
-                .forClass(ConfigurationController.ConfigurationListener::class.java)
+        val captor =
+            ArgumentCaptor.forClass(ConfigurationController.ConfigurationListener::class.java)
         verify(configurationController).addCallback(captor.capture())
 
         reset(rippleView)
@@ -159,17 +167,18 @@ class WiredChargingRippleControllerTest : SysuiTestCase() {
     @Test
     fun testRipple_whenDocked_doesNotPlayRipple() {
         `when`(batteryController.isChargingSourceDock).thenReturn(true)
-        val captor = ArgumentCaptor
-                .forClass(BatteryController.BatteryStateChangeCallback::class.java)
+        val captor =
+            ArgumentCaptor.forClass(BatteryController.BatteryStateChangeCallback::class.java)
         verify(batteryController).addCallback(captor.capture())
 
         captor.value.onBatteryLevelChanged(
-                /* unusedBatteryLevel= */ 0,
-                /* plugged in= */ true,
-                /* charging= */ false)
+            /* unusedBatteryLevel= */ 0,
+            /* plugged in= */ true,
+            /* charging= */ false,
+        )
 
         val attachListenerCaptor =
-                ArgumentCaptor.forClass(View.OnAttachStateChangeListener::class.java)
+            ArgumentCaptor.forClass(View.OnAttachStateChangeListener::class.java)
         verify(rippleView, never()).addOnAttachStateChangeListener(attachListenerCaptor.capture())
         verify(windowManager, never()).addView(eq(rippleView), any<WindowManager.LayoutParams>())
     }
@@ -182,22 +191,22 @@ class WiredChargingRippleControllerTest : SysuiTestCase() {
         whenever(windowMetrics.bounds).thenReturn(Rect(0, 0, width, height))
 
         // Trigger ripple.
-        val captor = ArgumentCaptor
-                .forClass(BatteryController.BatteryStateChangeCallback::class.java)
+        val captor =
+            ArgumentCaptor.forClass(BatteryController.BatteryStateChangeCallback::class.java)
         verify(batteryController).addCallback(captor.capture())
 
         captor.value.onBatteryLevelChanged(
-                /* unusedBatteryLevel= */ 0,
-                /* plugged in= */ true,
-                /* charging= */ false)
+            /* unusedBatteryLevel= */ 0,
+            /* plugged in= */ true,
+            /* charging= */ false,
+        )
 
         val attachListenerCaptor =
-                ArgumentCaptor.forClass(View.OnAttachStateChangeListener::class.java)
+            ArgumentCaptor.forClass(View.OnAttachStateChangeListener::class.java)
         verify(rippleView).addOnAttachStateChangeListener(attachListenerCaptor.capture())
         verify(windowManager).addView(eq(rippleView), any<WindowManager.LayoutParams>())
 
-        val runnableCaptor =
-                ArgumentCaptor.forClass(Runnable::class.java)
+        val runnableCaptor = ArgumentCaptor.forClass(Runnable::class.java)
         attachListenerCaptor.value.onViewAttachedToWindow(rippleView)
         verify(rippleView).startRipple(runnableCaptor.capture())
 
@@ -206,9 +215,9 @@ class WiredChargingRippleControllerTest : SysuiTestCase() {
         verify(rippleView).setMaxSize(maxWidth = maxSize, maxHeight = maxSize)
 
         val normalizedPortPosX =
-                context.resources.getFloat(R.dimen.physical_charger_port_location_normalized_x)
+            context.resources.getFloat(R.dimen.physical_charger_port_location_normalized_x)
         val normalizedPortPosY =
-                context.resources.getFloat(R.dimen.physical_charger_port_location_normalized_y)
+            context.resources.getFloat(R.dimen.physical_charger_port_location_normalized_y)
         val expectedCenterX: Float
         val expectedCenterY: Float
         when (checkNotNull(context.display).rotation) {
@@ -216,14 +225,17 @@ class WiredChargingRippleControllerTest : SysuiTestCase() {
                 expectedCenterX = width * normalizedPortPosY
                 expectedCenterY = height * (1 - normalizedPortPosX)
             }
+
             Surface.ROTATION_180 -> {
                 expectedCenterX = width * (1 - normalizedPortPosX)
                 expectedCenterY = height * (1 - normalizedPortPosY)
             }
+
             Surface.ROTATION_270 -> {
                 expectedCenterX = width * (1 - normalizedPortPosY)
                 expectedCenterY = height * normalizedPortPosX
             }
+
             else -> { // Surface.ROTATION_0
                 expectedCenterX = width * normalizedPortPosX
                 expectedCenterY = height * normalizedPortPosY

@@ -20,9 +20,6 @@ import static android.app.ActivityManager.UID_OBSERVER_ACTIVE;
 import static android.app.ActivityManager.UID_OBSERVER_GONE;
 import static android.os.Process.SYSTEM_UID;
 
-import static com.android.server.flags.Flags.pinGlobalQuota;
-import static com.android.server.flags.Flags.pinWebview;
-
 import android.annotation.EnforcePermission;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -486,9 +483,6 @@ public final class PinnerService extends SystemService {
     }
 
     public int getWebviewPinQuota() {
-        if (!pinWebview()) {
-            return 0;
-        }
         int quota = mConfiguredWebviewPinBytes;
         int overrideQuota = SystemProperties.getInt("pinner.pin_webview_size", -1);
         if (overrideQuota != -1) {
@@ -925,13 +919,11 @@ public final class PinnerService extends SystemService {
 
         long remainingQuota = getAvailableGlobalQuota();
 
-        if (pinGlobalQuota()) {
-            if (remainingQuota <= 0) {
-                Slog.w(TAG, "Reached pin quota, skipping file: " + fileToPin);
-                return null;
-            }
-            bytesRequestedToPin = Math.min(bytesRequestedToPin, remainingQuota);
+        if (remainingQuota <= 0) {
+            Slog.w(TAG, "Reached pin quota, skipping file: " + fileToPin);
+            return null;
         }
+        bytesRequestedToPin = Math.min(bytesRequestedToPin, remainingQuota);
 
         boolean isApk = fileToPin.endsWith(".apk");
 

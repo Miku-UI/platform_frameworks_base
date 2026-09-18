@@ -25,7 +25,6 @@ import android.app.ActivityThread;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.ravenwood.annotation.RavenwoodRedirect;
-import android.ravenwood.annotation.RavenwoodRedirectionClass;
 import android.util.Log;
 import android.util.Printer;
 import android.util.SparseArray;
@@ -48,7 +47,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * {@link Looper#myQueue() Looper.myQueue()}.
  */
 @RavenwoodKeepWholeClass
-@RavenwoodRedirectionClass("MessageQueue_ravenwood")
 public final class MessageQueue {
     private static final String TAG = "MessageQueue";
     private static final boolean DEBUG = false;
@@ -83,25 +81,25 @@ public final class MessageQueue {
     @UnsupportedAppUsage
     private int mNextBarrierToken;
 
-    @RavenwoodRedirect
+    private final Thread mLooperThread;
+
     private native static long nativeInit();
-    @RavenwoodRedirect
     private native static void nativeDestroy(long ptr);
     @UnsupportedAppUsage
-    @RavenwoodRedirect
     private native void nativePollOnce(long ptr, int timeoutMillis); /*non-static for callbacks*/
-    @RavenwoodRedirect
     private native static void nativeWake(long ptr);
-    @RavenwoodRedirect
     private native static boolean nativeIsPolling(long ptr);
-    @RavenwoodRedirect
     private native static void nativeSetFileDescriptorEvents(long ptr, int fd, int events);
-    @RavenwoodRedirect
     private native static void nativeSetSkipEpollWaitForZeroTimeout(long ptr);
 
     MessageQueue(boolean quitAllowed) {
         mQuitAllowed = quitAllowed;
         mPtr = nativeInit();
+        mLooperThread = Thread.currentThread();
+    }
+
+    Thread getLooperThread() {
+        return mLooperThread;
     }
 
     @Override
@@ -124,6 +122,19 @@ public final class MessageQueue {
 
     static boolean getUseConcurrent() {
         return false;
+    }
+
+    /** @hide */
+    public static void setUseDeliQueue(boolean enable) {
+        // no-op for LegacyMessageQueue.
+    }
+
+    /**
+     * @return human-readable string that identifies the implementation.
+     * @hide
+     */
+    public static String getImplName() {
+        return "legacy";
     }
 
     /**
@@ -221,7 +232,6 @@ public final class MessageQueue {
      * @see OnFileDescriptorEventListener
      * @see #removeOnFileDescriptorEventListener
      */
-    @android.ravenwood.annotation.RavenwoodThrow(blockedBy = android.os.ParcelFileDescriptor.class)
     public void addOnFileDescriptorEventListener(@NonNull FileDescriptor fd,
             @OnFileDescriptorEventListener.Events int events,
             @NonNull OnFileDescriptorEventListener listener) {
@@ -249,7 +259,6 @@ public final class MessageQueue {
      * @see OnFileDescriptorEventListener
      * @see #addOnFileDescriptorEventListener
      */
-    @android.ravenwood.annotation.RavenwoodThrow(blockedBy = android.os.ParcelFileDescriptor.class)
     public void removeOnFileDescriptorEventListener(@NonNull FileDescriptor fd) {
         if (fd == null) {
             throw new IllegalArgumentException("fd must not be null");
@@ -260,7 +269,6 @@ public final class MessageQueue {
         }
     }
 
-    @android.ravenwood.annotation.RavenwoodThrow(blockedBy = android.os.ParcelFileDescriptor.class)
     private void updateOnFileDescriptorEventListenerLocked(FileDescriptor fd, int events,
             OnFileDescriptorEventListener listener) {
         final int fdNum = fd.getInt$();
@@ -499,6 +507,7 @@ public final class MessageQueue {
      */
     public void resetForTest() {
         ActivityThread.throwIfNotInstrumenting();
+        onResetForTestCalled();
         synchronized (this) {
             // This queue is already quitting, so we can't reset its state and continue using it.
             if (mQuitting) {
@@ -513,6 +522,10 @@ public final class MessageQueue {
             resetSyncBarrierTokens();
             nativeWake(mPtr);
         }
+    }
+
+    @RavenwoodRedirect
+    private static void onResetForTestCalled() {
     }
 
     private void removeAllFdRecords() {
@@ -577,7 +590,12 @@ public final class MessageQueue {
     @UnsupportedAppUsage
     @TestApi
     public int postSyncBarrier() {
-        return postSyncBarrier(SystemClock.uptimeMillis());
+        return onSyncBarrierPosted(postSyncBarrier(SystemClock.uptimeMillis()));
+    }
+
+    @RavenwoodRedirect
+    private int onSyncBarrierPosted(int token) {
+        return token;
     }
 
     private int postSyncBarrier(long when) {
@@ -671,6 +689,11 @@ public final class MessageQueue {
                 nativeWake(mPtr);
             }
         }
+        onSyncBarrierRemoved(token);
+    }
+
+    @RavenwoodRedirect
+    private void onSyncBarrierRemoved(int token) {
     }
 
     boolean enqueueMessage(Message msg, long when) {
@@ -1363,4 +1386,16 @@ public final class MessageQueue {
             mListener = listener;
         }
     }
+
+    /**
+     * @hide
+     */
+    public void setLooperDoctor(LooperDoctor d) {
+        // This version of MessageQueue does not use LooperDoctor
+    }
+
+    /**
+     * @hide
+     */
+    public static final long USE_NEW_MESSAGEQUEUE = 421623328L;
 }

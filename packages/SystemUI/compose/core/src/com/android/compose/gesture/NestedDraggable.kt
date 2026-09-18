@@ -22,6 +22,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
 import androidx.compose.foundation.gestures.awaitVerticalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.gestures.verticalDrag
 import androidx.compose.foundation.overscroll
@@ -54,9 +55,12 @@ import androidx.compose.ui.node.currentValueOf
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.util.fastAny
 import com.android.compose.modifiers.thenIf
+import com.android.systemui.Flags
 import kotlin.math.sign
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 
@@ -366,10 +370,70 @@ private class NestedDraggableNode(
                 }
             }
 
-            val drag = awaitTouchSlopOrCancellation(down.id)
+            var drag = awaitTouchSlopOrCancellation(down.id)
+            var isGesturePickupEvent = false
+
+            if (Flags.nesteddraggableGesturePickup()) {
+                // If the pointer is still down, keep reading events in case we need to pick up the
+                // gesture.
+                while (drag == null && currentEvent.changes.fastAny { it.pressed }) {
+                    var event: PointerEvent
+                    do {
+                        // Use final pass so we only pick up a gesture if it was really ignored by
+                        // everyone else.
+                        event = awaitPointerEvent(pass = PointerEventPass.Final)
+                    } while (
+                        event.changes.fastAny { it.isConsumed } &&
+                            event.changes.fastAny { it.pressed }
+                    )
+
+                    // An event was not consumed and there's still a pointer in the screen.
+                    if (event.changes.fastAny { it.pressed }) {
+                        isGesturePickupEvent = true
+                        // Await touch slop again, using the initial down as starting point.
+                        // For most cases this should return immediately since we probably moved
+                        // far enough from the initial down event.
+                        val initialPositionChange =
+                            (event.changes.firstOrNull()?.position ?: Offset.Zero) - down.position
+                        drag =
+                            awaitPointerSlopOrCancellation(
+                                pointerId = down.id,
+                                pointerType = down.type,
+                                orientation = orientation,
+                                initialPositionChange = initialPositionChange,
+                            ) { change: PointerInputChange, over: Offset ->
+                                onTouchSlopReached(change, over.toFloat())
+                            }
+
+                        // If the gesture pickup failed (e.g., the pointer was lifted or another
+                        // gesture consumed the event), ensure any pending nested scroll state is
+                        // cleanly terminated to prevent stuck transitions.
+                        if (drag == null) {
+                            nestedScrollController?.ensureOnDragStoppedIsCalled()
+                            nestedScrollController = null
+                        }
+                    }
+                }
+            }
+
             if (drag != null) {
                 velocityTracker.resetTracking()
-                val sign = drag.positionChangeIgnoreConsumed().toFloat().sign
+                val sign =
+                    if (Flags.nesteddraggableGesturePickup()) {
+                        // Check the direction of the latest movement.
+                        val latestMovementSign = drag.positionChangeIgnoreConsumed().toFloat().sign
+
+                        // During a gesture pickup, the latest event might not have moved in the
+                        // current orientation. If so, fallback to the total distance from the
+                        // initial position.
+                        if (latestMovementSign == 0f && isGesturePickupEvent) {
+                            (drag.position.toFloat() - down.position.toFloat()).sign
+                        } else {
+                            latestMovementSign
+                        }
+                    } else {
+                        drag.positionChangeIgnoreConsumed().toFloat().sign
+                    }
                 check(sign != 0f) {
                     buildString {
                         append("sign is equal to 0 ")
@@ -377,6 +441,9 @@ private class NestedDraggableNode(
                         append("down.position ${down.position} ")
                         append("drag.position ${drag.position} ")
                         append("drag.previousPosition ${drag.previousPosition}")
+                        if (Flags.nesteddraggableGesturePickup()) {
+                            append("isGesturePickupEvent $isGesturePickupEvent")
+                        }
                     }
                 }
 
@@ -411,9 +478,13 @@ private class NestedDraggableNode(
                             change.consume()
                         }
 
-                        when (orientation) {
-                            Orientation.Horizontal -> horizontalDrag(drag.id, onDrag)
-                            Orientation.Vertical -> verticalDrag(drag.id, onDrag)
+                        if (Flags.nesteddraggableGesturePickup()) {
+                            drag(drag.id, onDrag)
+                        } else {
+                            when (orientation) {
+                                Orientation.Horizontal -> horizontalDrag(drag.id, onDrag)
+                                Orientation.Vertical -> verticalDrag(drag.id, onDrag)
+                            }
                         }
                     } catch (t: Throwable) {
                         onDragStopped(controller, Velocity.Zero)
@@ -607,7 +678,6 @@ private class NestedDraggableNode(
         source: NestedScrollSource,
     ): Offset {
         if (source == NestedScrollSource.SideEffect) {
-            check(nestedScrollController == null)
             return Offset.Zero
         }
 
@@ -654,7 +724,11 @@ private class NestedDraggableNode(
             val available = delta.toFloat()
             val consumed = controller.controller.onDrag(available)
             if (controller.controller.autoStopNestedDrags && consumed != available) {
-                controller.ensureOnDragStoppedIsCalled()
+                // with autoStopNestedDrags ensure that onDragStopped is called immediately:
+                // In case where the onDrag does not consume the full available delta, since its
+                // hitting the end, but a new overdrag drag is started with the remainder, this
+                // ensures the controller sees the stop before the new start.
+                controller.ensureOnDragStoppedIsCalled(start = CoroutineStart.UNDISPATCHED)
                 this.nestedScrollController = null
             }
 
@@ -675,8 +749,10 @@ private class NestedDraggableNode(
         private val overscrollEffect: OverscrollEffect?,
         val controller: NestedDraggable.Controller,
     ) {
-        fun ensureOnDragStoppedIsCalled() {
-            nestedScrollDispatcher.coroutineScope.launch { flingWithOverscroll(Velocity.Zero) }
+        fun ensureOnDragStoppedIsCalled(start: CoroutineStart = CoroutineStart.DEFAULT) {
+            nestedScrollDispatcher.coroutineScope.launch(start = start) {
+                flingWithOverscroll(Velocity.Zero)
+            }
         }
 
         suspend fun flingWithOverscroll(velocity: Velocity): Velocity {

@@ -28,6 +28,16 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
 import java.util.Objects;
 
+/**
+ * Information describing the physical channel configuration.
+ *
+ * <p>This class provides detailed information about the Cell physical channel that the device is
+ * currently using for communication. It includes properties such as the frequency, bandwidth,
+ * network type, and connection status (e.g., primary or secondary serving cell).
+ *
+ * <p>Instances of this class are typically delivered via
+ * {@link TelephonyCallback.PhysicalChannelConfigListener#onPhysicalChannelConfigChanged(java.util.List)}.
+ */
 public final class PhysicalChannelConfig implements Parcelable {
     // TODO(b/72993578) consolidate these enums in a central location.
     /** @hide */
@@ -164,7 +174,9 @@ public final class PhysicalChannelConfig implements Parcelable {
     }
 
     /**
-     * @return Downlink cell bandwidth in kHz, {@link #CELL_BANDWIDTH_UNKNOWN} if unknown.
+     * Returns the downlink cell bandwidth in kHz.
+     *
+     * @return Downlink cell bandwidth in kHz, or {@link #CELL_BANDWIDTH_UNKNOWN} if unknown.
      */
     @IntRange(from = 1)
     public int getCellBandwidthDownlinkKhz() {
@@ -172,7 +184,9 @@ public final class PhysicalChannelConfig implements Parcelable {
     }
 
     /**
-     * @return Uplink cell bandwidth in kHz, {@link #CELL_BANDWIDTH_UNKNOWN} if unknown.
+     * Returns the uplink cell bandwidth in kHz.
+     *
+     * @return Uplink cell bandwidth in kHz, or {@link #CELL_BANDWIDTH_UNKNOWN} if unknown.
      */
     @IntRange(from = 1)
     public int getCellBandwidthUplinkKhz() {
@@ -207,8 +221,10 @@ public final class PhysicalChannelConfig implements Parcelable {
     }
 
     /**
-     * @return Downlink Absolute Radio Frequency Channel Number,
-     * {@link #CHANNEL_NUMBER_UNKNOWN} if unknown.
+     * Returns the downlink Absolute Radio Frequency Channel Number (ARFCN).
+     *
+     * @return Downlink Absolute Radio Frequency Channel Number, or {@link #CHANNEL_NUMBER_UNKNOWN}
+     * if unknown.
      */
     @IntRange(from = 0)
     public int getDownlinkChannelNumber() {
@@ -216,8 +232,10 @@ public final class PhysicalChannelConfig implements Parcelable {
     }
 
     /**
-     * @return Uplink Absolute Radio Frequency Channel Number,
-     * {@link #CHANNEL_NUMBER_UNKNOWN} if unknown.
+     * Returns the uplink Absolute Radio Frequency Channel Number (ARFCN).
+     *
+     * @return Uplink Absolute Radio Frequency Channel Number, or {@link #CHANNEL_NUMBER_UNKNOWN}
+     * if unknown.
      */
     @IntRange(from = 0)
     public int getUplinkChannelNumber() {
@@ -225,18 +243,23 @@ public final class PhysicalChannelConfig implements Parcelable {
     }
 
     /**
-     * The valid bands are {@link AccessNetworkConstants.GeranBand},
-     * {@link AccessNetworkConstants.UtranBand}, {@link AccessNetworkConstants.EutranBand} and
+     * Returns the frequency band.
+     *
+     * <p>The valid bands are defined in {@link AccessNetworkConstants.GeranBand},
+     * {@link AccessNetworkConstants.UtranBand}, {@link AccessNetworkConstants.EutranBand}, and
      * {@link AccessNetworkConstants.NgranBands}.
      *
-     * @return the frequency band, {@link #BAND_UNKNOWN} if unknown. */
+     * @return the frequency band, or {@link #BAND_UNKNOWN} if unknown.
+     */
     @IntRange(from = 1, to = 261)
     public int getBand() {
         return mBand;
     }
 
     /**
-     * @return The downlink frequency in kHz, {@link #FREQUENCY_UNKNOWN} if unknown.
+     * Returns the downlink frequency in kHz.
+     *
+     * @return The downlink frequency in kHz, or {@link #FREQUENCY_UNKNOWN} if unknown.
      */
     @IntRange(from = 0)
     public int getDownlinkFrequencyKhz() {
@@ -244,7 +267,9 @@ public final class PhysicalChannelConfig implements Parcelable {
     }
 
     /**
-     * @return The uplink frequency in kHz, {@link #FREQUENCY_UNKNOWN} if unknown.
+     * Returns the uplink frequency in kHz.
+     *
+     * @return The uplink frequency in kHz, or {@link #FREQUENCY_UNKNOWN} if unknown.
      */
     @IntRange(from = 0)
     public int getUplinkFrequencyKhz() {
@@ -252,22 +277,22 @@ public final class PhysicalChannelConfig implements Parcelable {
     }
 
     /**
-     * The physical cell ID which differentiates cells using the same radio channel.
+     * Returns the physical cell identifier for this cell.
      *
-     * In GERAN, this value is the BSIC. The range is [0-63].
-     * Reference: 3GPP TS 3.03 section 4.2.2.
+     * <p>The physical cell ID differentiates cells using the same radio channel.
+     * <ul>
+     *     <li>In GERAN, this value is the BSIC. The range is [0-63].
+     *     Reference: 3GPP TS 3.03 section 4.2.2.</li>
+     *     <li>In UTRAN, this value is primary scrambling code. The range is [0, 511].
+     *     Reference: 3GPP TS 25.213 section 5.2.2.</li>
+     *     <li>In EUTRAN, this value is physical layer cell identity. The range is [0, 503].
+     *     Reference: 3GPP TS 36.211 section 6.11.</li>
+     *     <li>In 5G RAN, this value is physical layer cell identity. The range is [0, 1007].
+     *     Reference: 3GPP TS 38.211 section 7.4.2.1.</li>
+     * </ul>
      *
-     * In UTRAN, this value is primary scrambling code. The range is [0, 511].
-     * Reference: 3GPP TS 25.213 section 5.2.2.
-     *
-     * In EUTRAN, this value is physical layer cell identity. The range is [0, 503].
-     * Reference: 3GPP TS 36.211 section 6.11.
-     *
-     * In 5G RAN, this value is physical layer cell identity. The range is [0, 1007].
-     * Reference: 3GPP TS 38.211 section 7.4.2.1.
-     *
-     * @return the physical cell identifier for this cell, {@link #PHYSICAL_CELL_ID_UNKNOWN}
-     * if {@link android.telephony.CellInfo#UNAVAILABLE}.
+     * @return the physical cell identifier for this cell, or {@link #PHYSICAL_CELL_ID_UNKNOWN}
+     * if unknown.
      */
     @IntRange(from = 0, to = 1007)
     public int getPhysicalCellId() {
@@ -275,8 +300,9 @@ public final class PhysicalChannelConfig implements Parcelable {
     }
 
     /**
-     * @return The network type for this physical channel,
-     * {@link TelephonyManager#NETWORK_TYPE_UNKNOWN} if unknown.
+     * Returns the network type for this physical channel.
+     *
+     * @return The network type, or {@link TelephonyManager#NETWORK_TYPE_UNKNOWN} if unknown.
      */
     @NetworkType
     public int getNetworkType() {
@@ -284,13 +310,16 @@ public final class PhysicalChannelConfig implements Parcelable {
     }
 
     /**
-     * Gets the connection status of the cell.
+     * Returns the connection status of the cell.
      *
-     * @see #CONNECTION_PRIMARY_SERVING
-     * @see #CONNECTION_SECONDARY_SERVING
-     * @see #CONNECTION_UNKNOWN
+     * <p>Connection status can be one of:
+     * <ul>
+     *     <li>{@link #CONNECTION_PRIMARY_SERVING}</li>
+     *     <li>{@link #CONNECTION_SECONDARY_SERVING}</li>
+     *     <li>{@link #CONNECTION_UNKNOWN}</li>
+     * </ul>
      *
-     * @return Connection status of the cell, {@link #CONNECTION_UNKNOWN} if unknown.
+     * @return Connection status of the cell, or {@link #CONNECTION_UNKNOWN} if unknown.
      */
     @ConnectionStatus
     public int getConnectionStatus() {

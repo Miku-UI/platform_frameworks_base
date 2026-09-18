@@ -130,7 +130,11 @@ class WallpaperData {
     boolean mIsColorExtractedFromDim;
 
     /**
-     * List of callbacks registered they should each be notified when the wallpaper is changed.
+     * List of callbacks notified when the wallpaper is changed.
+     * <p>
+     * When WallpaperManager.getBitmap or similar APIs are called, WallpaperManager will cache the
+     * result for the calling process and register a callback here. When the wallpaper changes,
+     * the callbacks are triggered to clear the cache of these processes.
      */
     RemoteCallbackList<IWallpaperManagerCallback> callbacks = new RemoteCallbackList<>();
 
@@ -162,6 +166,7 @@ class WallpaperData {
         SWITCH_WALLPAPER_FAILURE,
         SWITCH_WALLPAPER_SWITCH_USER,
         SWITCH_WALLPAPER_UNLOCK_USER,
+        SWITCH_WALLPAPER_DELAYED,
     }
 
     // Context in which this wallpaper was bound. Intended for use in resolving b/301073479 but may
@@ -184,8 +189,12 @@ class WallpaperData {
      */
     int mOrientationWhenSet = ORIENTATION_UNKNOWN;
 
+    /** Default component name used before a component is set at boot time  */
+    static final ComponentName NO_COMPONENT = new ComponentName("", "");
+
     /** Description of the current wallpaper */
-    private WallpaperDescription mDescription = new WallpaperDescription.Builder().build();
+    private WallpaperDescription mDescription = new WallpaperDescription.Builder()
+            .setComponent(NO_COMPONENT).build();
 
     WallpaperData(int userId, @SetWallpaperFlags int wallpaperType) {
         this.userId = userId;
@@ -213,11 +222,11 @@ class WallpaperData {
         this.allowBackup = source.allowBackup;
         this.primaryColors = source.primaryColors;
         this.mWallpaperDimAmount = source.mWallpaperDimAmount;
+        // NB: this is a shallow copy of the connection. The caller is responsible for updating
+        // fields in the connection as needed, particularly its mWallpaper field. This is preferable
+        // to updating mWallpaper here, which has side effects (see b/447140523).
         this.connection = source.connection;
         this.setDescription(source.getDescription());
-        if (this.connection != null) {
-            this.connection.mWallpaper = this;
-        }
     }
 
     File getWallpaperFile() {
@@ -239,7 +248,13 @@ class WallpaperData {
         return result;
     }
 
-    @NonNull ComponentName getComponent() {
+    @NonNull
+    ComponentName getComponent() {
+        if (mDescription.getComponent() == null) {
+            // This should be impossible since all methods of setting the component enforce
+            // non-nullity, but this gets rid of a linter error.
+            throw new IllegalStateException("WallpaperDescription component must not be null");
+        }
         return mDescription.getComponent();
     }
 

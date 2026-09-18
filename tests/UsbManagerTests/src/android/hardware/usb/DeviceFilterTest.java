@@ -28,11 +28,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.hardware.usb.flags.Flags;
+import android.util.Xml;
 
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import com.android.internal.util.XmlUtils;
+import com.android.modules.utils.TypedXmlSerializer;
 
 import org.junit.After;
 import org.junit.Before;
@@ -43,9 +45,10 @@ import org.mockito.MockitoSession;
 import org.mockito.quality.Strictness;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
-import org.xmlpull.v1.XmlSerializer;
 
+import java.io.ByteArrayOutputStream;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Unit tests for {@link android.hardware.usb.DeviceFilter}.
@@ -140,7 +143,7 @@ public class DeviceFilterTest {
     @Test
     public void testWrite_withInterfaceName() throws Exception {
         DeviceFilter deviceFilter = getDeviceFilterFromXml("<usb-device interface-name=\"MTP\"/>");
-        XmlSerializer serializer = Mockito.mock(XmlSerializer.class);
+        TypedXmlSerializer serializer = Mockito.mock(TypedXmlSerializer.class);
 
         deviceFilter.write(serializer);
 
@@ -150,11 +153,39 @@ public class DeviceFilterTest {
     @Test
     public void testWrite_withoutInterfaceName() throws Exception {
         DeviceFilter deviceFilter = getDeviceFilterFromXml("<usb-device vendor-id=\"1\" />");
-        XmlSerializer serializer = Mockito.mock(XmlSerializer.class);
+        TypedXmlSerializer serializer = Mockito.mock(TypedXmlSerializer.class);
 
         deviceFilter.write(serializer);
 
         verify(serializer, times(0)).attribute(eq(null), eq("interface-name"), any());
+    }
+
+    @Test
+    public void testWrite_equalsWhenRead() throws Exception {
+        DeviceFilter writtenFilter = new DeviceFilter(
+                VID, PID, CLASS, SUBCLASS, PROTOCOL, MANUFACTURER,
+                PRODUCT, SERIAL_NO, INTERFACE_NAME);
+
+        ByteArrayOutputStream stream = new ByteArrayOutputStream();
+        // Use this instead of `resolveSerializer` to avoid the binary serializer for testing.
+        TypedXmlSerializer serializer = Xml.newFastSerializer();
+        serializer.setOutput(stream, StandardCharsets.UTF_8.name());
+
+        serializer.startDocument(null, true);
+        writtenFilter.write(serializer);
+        serializer.endDocument();
+        serializer.flush();
+
+        StringReader reader = new StringReader(stream.toString());
+
+        XmlPullParserFactory factory = XmlPullParserFactory.newInstance();
+        XmlPullParser parser = factory.newPullParser();
+        parser.setInput(reader);
+        XmlUtils.nextElement(parser);
+
+        DeviceFilter readFilter = DeviceFilter.read(parser);
+
+        assertTrue(readFilter.equals(writtenFilter));
     }
 
     @Test

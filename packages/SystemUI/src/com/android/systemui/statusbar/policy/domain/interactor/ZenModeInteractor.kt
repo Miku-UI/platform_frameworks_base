@@ -77,7 +77,10 @@ constructor(
             AudioManager.STREAM_MUSIC to { it.policy.priorityCategoryMedia == STATE_DISALLOW },
             AudioManager.STREAM_ALARM to { it.policy.priorityCategoryAlarms == STATE_DISALLOW },
             AudioManager.STREAM_SYSTEM to { it.policy.priorityCategorySystem == STATE_DISALLOW },
+            AudioManager.STREAM_ASSISTANT to { it.policy.priorityCategoryMedia == STATE_DISALLOW },
         )
+
+    val hasNextAlarm: StateFlow<Boolean> = zenModeRepository.hasNextAlarm
 
     val isZenAvailable: Flow<Boolean> =
         combine(
@@ -162,17 +165,6 @@ constructor(
             .distinctUntilChanged()
     }
 
-    suspend fun getActiveModes(): ActiveZenModes {
-        if (android.app.Flags.modesUiTileReactivatesLast()) {
-            Log.wtfStack(
-                TAG,
-                "getActiveModes shouldn't be called with modes_ui_tile_reactivates_last",
-            )
-        }
-
-        return buildActiveZenModes(zenModeRepository.getModes())
-    }
-
     private suspend fun buildActiveZenModes(modes: List<ZenMode>): ActiveZenModes {
         val activeModesList =
             modes.filter { mode -> mode.isActive }.sortedWith(ZenMode.PRIORITIZING_COMPARATOR)
@@ -222,7 +214,7 @@ constructor(
                         Log.e(
                             TAG,
                             "Interactor cannot handle showing the zen duration prompt. " +
-                                    "Please use EnableZenModeDialog when this setting is active.",
+                                "Please use EnableZenModeDialog when this setting is active.",
                         )
                         null
                     }
@@ -241,24 +233,20 @@ constructor(
         zenModeRepository.deactivateMode(zenMode)
     }
 
+    fun setHasNextAlarm(hasNextAlarm: Boolean) {
+        zenModeRepository.hasNextAlarm.value = hasNextAlarm
+    }
+
     fun deactivateAllModes() {
-        if (android.app.Flags.modesUiTileReactivatesLast()) {
-            // Deactivate in reverse order of priority. This will prevent flickering in the
-            // "active mode" icon (which is the highest-priority one).
-            val modesToDeactivate =
-                zenModeRepository
-                    .getModes()
-                    .filter { it.isActive }
-                    .sortedWith(ZenMode.PRIORITIZING_COMPARATOR.reversed())
-            for (mode in modesToDeactivate) {
-                deactivateMode(mode)
-            }
-        } else {
-            for (mode in zenModeRepository.getModes()) {
-                if (mode.isActive) {
-                    deactivateMode(mode)
-                }
-            }
+        // Deactivate in reverse order of priority. This will prevent flickering in the
+        // "active mode" icon (which is the highest-priority one).
+        val modesToDeactivate =
+            zenModeRepository
+                .getModes()
+                .filter { it.isActive }
+                .sortedWith(ZenMode.PRIORITIZING_COMPARATOR.reversed())
+        for (mode in modesToDeactivate) {
+            deactivateMode(mode)
         }
     }
 

@@ -496,7 +496,8 @@ public class DataManager {
     public void reportShareTargetEvent(@NonNull AppTargetEvent event,
             @NonNull IntentFilter intentFilter) {
         AppTarget appTarget = event.getTarget();
-        if (appTarget == null || event.getAction() != AppTargetEvent.ACTION_LAUNCH) {
+        if (appTarget == null || event.getAction() != AppTargetEvent.ACTION_LAUNCH
+                   || intentFilter.countDataTypes() == 0) {
             return;
         }
         UserData userData = getUnlockedUserData(appTarget.getUser().getIdentifier());

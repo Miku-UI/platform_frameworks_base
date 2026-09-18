@@ -227,14 +227,14 @@ public class AccessibilityCache {
                         removeCachedNodeLocked(mAccessibilityFocusedWindow, mAccessibilityFocus);
                     }
                     mAccessibilityFocus = event.getSourceNodeId();
-                    mAccessibilityFocusedWindow = event.getWindowId();
+                    mAccessibilityFocusedWindow = event.getRealWindowId();
                     nodeToRefresh = removeCachedNodeLocked(mAccessibilityFocusedWindow,
                             mAccessibilityFocus);
                 } break;
 
                 case AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUS_CLEARED: {
                     if (mAccessibilityFocus == event.getSourceNodeId()
-                            && mAccessibilityFocusedWindow == event.getWindowId()) {
+                            && mAccessibilityFocusedWindow == event.getRealWindowId()) {
                         nodeToRefresh = removeCachedNodeLocked(mAccessibilityFocusedWindow,
                                 mAccessibilityFocus);
                         mAccessibilityFocus = AccessibilityNodeInfo.UNDEFINED_ITEM_ID;
@@ -244,24 +244,24 @@ public class AccessibilityCache {
 
                 case AccessibilityEvent.TYPE_VIEW_FOCUSED: {
                     if (mInputFocus != AccessibilityNodeInfo.UNDEFINED_ITEM_ID) {
-                        removeCachedNodeLocked(event.getWindowId(), mInputFocus);
+                        removeCachedNodeLocked(event.getRealWindowId(), mInputFocus);
                     }
                     mInputFocus = event.getSourceNodeId();
-                    mInputFocusWindow = event.getWindowId();
-                    nodeToRefresh = removeCachedNodeLocked(event.getWindowId(), mInputFocus);
+                    mInputFocusWindow = event.getRealWindowId();
+                    nodeToRefresh = removeCachedNodeLocked(event.getRealWindowId(), mInputFocus);
                 } break;
 
                 case AccessibilityEvent.TYPE_VIEW_SELECTED:
                 case AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED:
                 case AccessibilityEvent.TYPE_VIEW_CLICKED:
                 case AccessibilityEvent.TYPE_VIEW_TEXT_SELECTION_CHANGED: {
-                    nodeToRefresh = removeCachedNodeLocked(event.getWindowId(),
+                    nodeToRefresh = removeCachedNodeLocked(event.getRealWindowId(),
                             event.getSourceNodeId());
                 } break;
 
                 case AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED: {
                     synchronized (mLock) {
-                        final int windowId = event.getWindowId();
+                        final int windowId = event.getRealWindowId();
                         final long sourceId = event.getSourceNodeId();
                         if ((event.getContentChangeTypes()
                                 & AccessibilityEvent.CONTENT_CHANGE_TYPE_SUBTREE) != 0) {
@@ -273,13 +273,13 @@ public class AccessibilityCache {
                 } break;
 
                 case AccessibilityEvent.TYPE_VIEW_SCROLLED: {
-                    clearSubTreeLocked(event.getWindowId(), event.getSourceNodeId());
+                    clearSubTreeLocked(event.getRealWindowId(), event.getSourceNodeId());
                 } break;
 
                 case AccessibilityEvent.TYPE_WINDOWS_CHANGED: {
                     mValidWindowCacheTimeStamp = event.getEventTime();
                     if (event.getWindowChanges() == AccessibilityEvent.WINDOWS_CHANGE_REMOVED) {
-                        mWindowIdToEventSourceClassName.remove(event.getWindowId());
+                        mWindowIdToEventSourceClassName.remove(event.getRealWindowId());
                     }
                     if (event.getWindowChanges()
                             == AccessibilityEvent.WINDOWS_CHANGE_ACCESSIBILITY_FOCUSED) {
@@ -294,7 +294,7 @@ public class AccessibilityCache {
                 case AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED: {
                     mValidWindowCacheTimeStamp = event.getEventTime();
                     if (event.getContentChangeTypes() == 0 && event.getClassName() != null) {
-                        mWindowIdToEventSourceClassName.put(event.getWindowId(),
+                        mWindowIdToEventSourceClassName.put(event.getRealWindowId(),
                                 event.getClassName().toString());
                     }
                     clear();
@@ -370,7 +370,7 @@ public class AccessibilityCache {
         if (info == null) {
             return false;
         }
-        int windowId = info.getWindowId();
+        int windowId = info.getRealWindowId();
         long accessibilityNodeId = info.getSourceNodeId();
         synchronized (mLock) {
             if (!mEnabled) {
@@ -497,7 +497,7 @@ public class AccessibilityCache {
                 Log.i(LOG_TAG, "add(" + info + ")");
             }
 
-            final int windowId = info.getWindowId();
+            final int windowId = info.getRealWindowId();
             LongSparseArray<AccessibilityNodeInfo> nodes = mNodeCache.get(windowId);
             if (nodes == null) {
                 nodes = new LongSparseArray<>();
@@ -720,7 +720,7 @@ public class AccessibilityCache {
                 }
                 return false;
             }
-            clearSubTreeLocked(info.getWindowId(), info.getSourceNodeId());
+            clearSubTreeLocked(info.getRealWindowId(), info.getSourceNodeId());
             return true;
         }
     }

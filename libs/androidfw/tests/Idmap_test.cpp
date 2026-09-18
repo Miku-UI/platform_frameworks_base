@@ -50,7 +50,7 @@ class IdmapTest : public ::testing::Test {
     system_assets_ = ApkAssets::Load("system/system.apk");
     ASSERT_NE(nullptr, system_assets_);
 
-    overlay_assets_ = ApkAssets::LoadOverlay("overlay/overlay.idmap");
+    overlay_assets_ = ApkAssets::LoadOverlay("overlay/overlay.idmap", nullptr);
     ASSERT_NE(nullptr, overlay_assets_);
 
     overlayable_assets_ = ApkAssets::Load("overlayable/overlayable.apk");
@@ -216,7 +216,7 @@ TEST_F(IdmapTest, OverlayAssetsIsUpToDate) {
   TemporaryFile temp_file;
   ASSERT_TRUE(base::WriteStringToFile(idmap_contents, temp_file.path));
 
-  auto apk_assets = ApkAssets::LoadOverlay(temp_file.path);
+  auto apk_assets = ApkAssets::LoadOverlay(temp_file.path, nullptr);
   ASSERT_NE(nullptr, apk_assets);
   ASSERT_TRUE(apk_assets->IsOverlay());
   ASSERT_EQ(UpToDate::True, apk_assets->IsUpToDate());

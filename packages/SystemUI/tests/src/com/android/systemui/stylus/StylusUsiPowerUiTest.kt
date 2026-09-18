@@ -38,7 +38,7 @@ import com.android.systemui.util.mockito.argumentCaptor
 import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
-import junit.framework.Assert.assertEquals
+import java.text.NumberFormat
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -163,14 +163,15 @@ class StylusUsiPowerUiTest : SysuiTestCase() {
 
         verify(notificationManager, times(2))
             .notify(eq(R.string.stylus_battery_low_percentage), notificationCaptor.capture())
-        assertEquals(
-            notificationCaptor.value.extras.getString(Notification.EXTRA_TITLE),
-            context.getString(R.string.stylus_battery_low_percentage, "15%")
-        )
-        assertEquals(
-            notificationCaptor.value.extras.getString(Notification.EXTRA_TEXT),
-            context.getString(R.string.stylus_battery_low_subtitle)
-        )
+        assertThat(notificationCaptor.value.extras.getString(Notification.EXTRA_TITLE))
+            .isEqualTo(
+                context.getString(
+                    R.string.stylus_battery_low_percentage,
+                    NumberFormat.getPercentInstance().format(0.15f),
+                )
+            )
+        assertThat(notificationCaptor.value.extras.getString(Notification.EXTRA_TEXT))
+            .isEqualTo(context.getString(R.string.stylus_battery_low_subtitle))
         verifyNoMoreInteractions(notificationManager)
     }
 
@@ -233,7 +234,7 @@ class StylusUsiPowerUiTest : SysuiTestCase() {
                 uid,
                 contextSpy.packageName,
                 InstanceId.fakeInstanceId(instanceIdSequenceFake.lastInstanceId),
-                10
+                10,
             )
     }
 
@@ -272,7 +273,7 @@ class StylusUsiPowerUiTest : SysuiTestCase() {
                 uid,
                 contextSpy.packageName,
                 InstanceId.fakeInstanceId(instanceIdSequenceFake.lastInstanceId),
-                100
+                100,
             )
     }
 
@@ -287,7 +288,7 @@ class StylusUsiPowerUiTest : SysuiTestCase() {
                 uid,
                 contextSpy.packageName,
                 InstanceId.fakeInstanceId(instanceIdSequenceFake.lastInstanceId),
-                100
+                100,
             )
     }
 }

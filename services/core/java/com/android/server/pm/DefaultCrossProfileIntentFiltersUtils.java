@@ -27,6 +27,7 @@ import android.content.Intent;
 import android.hardware.usb.UsbManager;
 import android.nfc.NfcAdapter;
 import android.provider.AlarmClock;
+import android.provider.ContactsPickerSessionContract;
 import android.provider.MediaStore;
 
 import java.util.ArrayList;
@@ -534,6 +535,17 @@ public class DefaultCrossProfileIntentFiltersUtils {
                     .addDataType("*/*")
                     .build();
 
+    /*
+     Action Pick for contacts is allowed from clone to parent.
+    */
+    private static final DefaultCrossProfileIntentFilter CLONE_TO_PARENT_PICK_CONTACTS_ACTION =
+            new DefaultCrossProfileIntentFilter.Builder(
+                    DefaultCrossProfileIntentFilter.Direction.TO_PARENT,
+                    /* flags= */ FLAG_IS_PACKAGE_FOR_FILTER | FLAG_ALLOW_CHAINED_RESOLUTION,
+                    /* letsPersonalDataIntoProfile= */ false)
+                    .addAction(ContactsPickerSessionContract.ACTION_PICK_CONTACTS)
+                    .build();
+
 
     /*
      Allowing pick,insert and edit action from clone to parent profile to open picker or contacts
@@ -671,25 +683,31 @@ public class DefaultCrossProfileIntentFiltersUtils {
                     .build();
 
     public static List<DefaultCrossProfileIntentFilter> getDefaultCloneProfileFilters() {
-        return Arrays.asList(
-                PARENT_TO_CLONE_SEND_ACTION,
-                PARENT_TO_CLONE_WEB_VIEW_ACTION,
-                PARENT_TO_CLONE_PICK_INSERT_ACTION,
-                PARENT_TO_CLONE_DIAL_DATA,
-                CLONE_TO_PARENT_MEDIA_CAPTURE,
-                CLONE_TO_PARENT_SEND_ACTION,
-                CLONE_TO_PARENT_WEB_VIEW_ACTION,
-                CLONE_TO_PARENT_VIEW_ACTION,
-                CLONE_TO_PARENT_PICK_INSERT_ACTION,
-                CLONE_TO_PARENT_DIAL_DATA,
-                CLONE_TO_PARENT_SMS_MMS,
-                CLONE_TO_PARENT_PHOTOPICKER_SELECTION,
-                CLONE_TO_PARENT_ACTION_PICK_IMAGES,
-                CLONE_TO_PARENT_ACTION_PICK_IMAGES_WITH_DATA_TYPES,
-                PARENT_TO_CLONE_NFC_TAG_DISCOVERED,
-                PARENT_TO_CLONE_NFC_TECH_DISCOVERED,
-                PARENT_TO_CLONE_NFC_NDEF_DISCOVERED
-        );
+        List<DefaultCrossProfileIntentFilter> filters = new ArrayList<>();
+        filters.addAll(
+                Arrays.asList(
+                    PARENT_TO_CLONE_SEND_ACTION,
+                    PARENT_TO_CLONE_WEB_VIEW_ACTION,
+                    PARENT_TO_CLONE_PICK_INSERT_ACTION,
+                    PARENT_TO_CLONE_DIAL_DATA,
+                    CLONE_TO_PARENT_MEDIA_CAPTURE,
+                    CLONE_TO_PARENT_SEND_ACTION,
+                    CLONE_TO_PARENT_WEB_VIEW_ACTION,
+                    CLONE_TO_PARENT_VIEW_ACTION,
+                    CLONE_TO_PARENT_PICK_INSERT_ACTION,
+                    CLONE_TO_PARENT_DIAL_DATA,
+                    CLONE_TO_PARENT_SMS_MMS,
+                    CLONE_TO_PARENT_PHOTOPICKER_SELECTION,
+                    CLONE_TO_PARENT_ACTION_PICK_IMAGES,
+                    CLONE_TO_PARENT_ACTION_PICK_IMAGES_WITH_DATA_TYPES,
+                    PARENT_TO_CLONE_NFC_TAG_DISCOVERED,
+                    PARENT_TO_CLONE_NFC_TECH_DISCOVERED,
+                    PARENT_TO_CLONE_NFC_NDEF_DISCOVERED
+        ));
+        if (android.content.flags.Flags.enableSystemContactsPicker()) {
+            filters.add(CLONE_TO_PARENT_PICK_CONTACTS_ACTION);
+        }
+        return filters;
     }
 
     /** Call intent should be handled by the main user. */

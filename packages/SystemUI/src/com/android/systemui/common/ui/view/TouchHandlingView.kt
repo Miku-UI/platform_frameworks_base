@@ -20,14 +20,10 @@ package com.android.systemui.common.ui.view
 import android.annotation.SuppressLint
 import android.companion.virtualdevice.flags.Flags
 import android.content.Context
-import android.os.Bundle
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
-import android.view.accessibility.AccessibilityNodeInfo
-import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
-import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import com.android.systemui.Flags.doubleTapToSleep
 import com.android.systemui.log.TouchHandlingViewLogger
 import com.android.systemui.shade.TouchLogger
@@ -48,10 +44,6 @@ open class TouchHandlingView(
     logger: TouchHandlingViewLogger? = null,
 ) : View(context, attrs) {
 
-    init {
-        setupAccessibilityDelegate()
-    }
-
     constructor(
         context: Context,
         attrs: AttributeSet?,
@@ -67,7 +59,7 @@ open class TouchHandlingView(
 
     interface Listener {
         /** Notifies that a long-press has been detected by the given view. */
-        fun onLongPressDetected(view: View, x: Int, y: Int, isA11yAction: Boolean = false)
+        fun onLongPressDetected(view: View, x: Int, y: Int)
 
         /** Notifies that the gesture was too short for a long press, it is actually a click. */
         fun onSingleTapDetected(view: View, x: Int, y: Int) = Unit
@@ -77,8 +69,6 @@ open class TouchHandlingView(
     }
 
     var listener: Listener? = null
-
-    var accessibilityHintLongPressAction: AccessibilityAction? = null
 
     private val interactionHandler: TouchHandlingViewInteractionHandler by lazy {
         TouchHandlingViewInteractionHandler(
@@ -127,50 +117,5 @@ open class TouchHandlingView(
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         return interactionHandler.onTouchEvent(event)
-    }
-
-    private fun setupAccessibilityDelegate() {
-        accessibilityDelegate =
-            object : AccessibilityDelegate() {
-                override fun onInitializeAccessibilityNodeInfo(
-                    v: View,
-                    info: AccessibilityNodeInfo,
-                ) {
-                    super.onInitializeAccessibilityNodeInfo(v, info)
-                    if (
-                        interactionHandler.isLongPressHandlingEnabled &&
-                            accessibilityHintLongPressAction != null
-                    ) {
-                        info.addAction(accessibilityHintLongPressAction)
-                    }
-                }
-
-                override fun performAccessibilityAction(
-                    host: View,
-                    action: Int,
-                    args: Bundle?,
-                ): Boolean {
-                    return if (
-                        interactionHandler.isLongPressHandlingEnabled &&
-                            action == AccessibilityNodeInfoCompat.ACTION_LONG_CLICK
-                    ) {
-                        val touchHandlingView = host as? TouchHandlingView
-                        if (touchHandlingView != null) {
-                            // the coordinates are not available as it is an a11y long press
-                            listener?.onLongPressDetected(
-                                view = touchHandlingView,
-                                x = 0,
-                                y = 0,
-                                isA11yAction = true,
-                            )
-                            true
-                        } else {
-                            false
-                        }
-                    } else {
-                        super.performAccessibilityAction(host, action, args)
-                    }
-                }
-            }
     }
 }

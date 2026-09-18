@@ -18,6 +18,7 @@ package com.android.server;
 
 import static android.telephony.SubscriptionManager.INVALID_SIM_SLOT_INDEX;
 import static android.telephony.TelephonyManager.ACTION_MULTI_SIM_CONFIG_CHANGED;
+import static android.telephony.TelephonyManager.SATELLITE_PURCHASE_MODE_STATE_INACTIVE;
 import static android.telephony.TelephonyRegistryManager.SIM_ACTIVATION_TYPE_DATA;
 import static android.telephony.TelephonyRegistryManager.SIM_ACTIVATION_TYPE_VOICE;
 
@@ -47,7 +48,6 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.provider.DeviceConfig;
-import android.telecom.TelecomManager;
 import android.telephony.AccessNetworkConstants;
 import android.telephony.Annotation;
 import android.telephony.Annotation.RadioPowerState;
@@ -70,6 +70,7 @@ import android.telephony.DisconnectCause;
 import android.telephony.LinkCapacityEstimate;
 import android.telephony.LocationAccessPolicy;
 import android.telephony.NetworkRegistrationInfo;
+import android.telephony.NetworkSecurityEvent;
 import android.telephony.PhoneCapability;
 import android.telephony.PhoneStateListener;
 import android.telephony.PhysicalChannelConfig;
@@ -258,14 +259,14 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
         }
 
         /**
-         * See {@link TelecomManager#ENABLE_GET_CALL_STATE_PERMISSION_PROTECTION} for more
+         * See {@link TelephonyManager#ENABLE_GET_CALL_STATE_PERMISSION_PROTECTION} for more
          * information.
          * @noinspection ConstantConditions
          */
         public boolean isCallStateReadPhoneStateEnforcedInPlatformCompat(String packageName,
                 UserHandle userHandle) {
             return Binder.withCleanCallingIdentity(() -> CompatChanges.isChangeEnabled(
-                    TelecomManager.ENABLE_GET_CALL_STATE_PERMISSION_PROTECTION, packageName,
+                    TelephonyManager.ENABLE_GET_CALL_STATE_PERMISSION_PROTECTION, packageName,
                     userHandle));
         }
 
@@ -441,6 +442,8 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
 
     private boolean[] mCarrierRoamingNtnMode = null;
     private boolean[] mCarrierRoamingNtnEligible = null;
+    private boolean[] mIsPurchaseModeActive = null;
+    private int[] mSatellitePurchaseModeState = null;
 
     private List<IntArray> mCarrierRoamingNtnAvailableServices;
     private NtnSignalStrength[] mCarrierRoamingNtnSignalStrength;
@@ -448,6 +451,9 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
     // Local cache to check if Satellite Modem is enabled
     private AtomicBoolean mIsSatelliteEnabled;
     private AtomicBoolean mWasSatelliteEnabledNotified;
+
+    private boolean[] mDomainSelectionCallEmergencyMode;
+    private boolean[] mDomainSelectionSmsEmergencyMode;
 
     private final int mPid = Process.myPid();
 
@@ -464,6 +470,8 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
     @NonNull private List<Pair<List<String>, int[]>> mCarrierPrivilegeStates;
     /** Per-phoneId of CarrierService (PackageName, UID) pair. */
     @NonNull private List<Pair<String, Integer>> mCarrierServiceStates;
+
+    private List<List<NetworkSecurityEvent>> mNetworkSecurityEvents;
 
     /**
      * Support backward compatibility for {@link android.telephony.TelephonyDisplayInfo}.
@@ -596,7 +604,13 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
                 || events.contains(TelephonyCallback
                         .EVENT_SIMULTANEOUS_CELLULAR_CALLING_SUBSCRIPTIONS_CHANGED)
                 || events.contains(TelephonyCallback.EVENT_CELLULAR_IDENTIFIER_DISCLOSED_CHANGED)
-                || events.contains(TelephonyCallback.EVENT_SECURITY_ALGORITHMS_CHANGED);
+                || events.contains(TelephonyCallback.EVENT_SECURITY_ALGORITHMS_CHANGED)
+                || events.contains(TelephonyCallback.EVENT_NETWORK_SECURITY_EVENTS);
+
+    }
+
+    private boolean isBasicPhoneStatePermissionRequired(Set<Integer> events) {
+        return events.contains(TelephonyCallback.EVENT_DOMAIN_SELECTION_EMERGENCY_MODE_CHANGED);
     }
 
     private static final int MSG_USER_SWITCHED = 1;
@@ -753,12 +767,17 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
             mSCBMDuration = copyOf(mSCBMDuration, mNumPhones);
             mCarrierRoamingNtnMode = copyOf(mCarrierRoamingNtnMode, mNumPhones);
             mCarrierRoamingNtnEligible = copyOf(mCarrierRoamingNtnEligible, mNumPhones);
+            mIsPurchaseModeActive = copyOf(mIsPurchaseModeActive, mNumPhones);
+            mSatellitePurchaseModeState = copyOf(mSatellitePurchaseModeState, mNumPhones);
             if (mCarrierRoamingNtnSignalStrength != null) {
                 mCarrierRoamingNtnSignalStrength = copyOf(
                         mCarrierRoamingNtnSignalStrength, mNumPhones);
             } else {
                 mCarrierRoamingNtnSignalStrength = new NtnSignalStrength[mNumPhones];
             }
+            mDomainSelectionCallEmergencyMode =
+                    copyOf(mDomainSelectionCallEmergencyMode, mNumPhones);
+            mDomainSelectionSmsEmergencyMode = copyOf(mDomainSelectionSmsEmergencyMode, mNumPhones);
             // ds -> ss switch.
             if (mNumPhones < oldNumPhones) {
                 cutListToSize(mCellInfo, mNumPhones);
@@ -772,6 +791,7 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
                 cutListToSize(mCallStateLists, mNumPhones);
                 cutListToSize(mMediaQualityStatus, mNumPhones);
                 cutListToSize(mCarrierRoamingNtnAvailableServices, mNumPhones);
+                cutListToSize(mNetworkSecurityEvents, mNumPhones);
                 return;
             }
 
@@ -820,9 +840,14 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
                 mSCBMDuration[i] = 0;
                 mCarrierRoamingNtnMode[i] = false;
                 mCarrierRoamingNtnEligible[i] = false;
+                mIsPurchaseModeActive[i] = false;
+                mSatellitePurchaseModeState[i] = SATELLITE_PURCHASE_MODE_STATE_INACTIVE;
                 mCarrierRoamingNtnAvailableServices.add(i, new IntArray());
                 mCarrierRoamingNtnSignalStrength[i] = new NtnSignalStrength(
                         NtnSignalStrength.NTN_SIGNAL_STRENGTH_NONE);
+                mDomainSelectionCallEmergencyMode[i] = false;
+                mDomainSelectionSmsEmergencyMode[i] = false;
+                mNetworkSecurityEvents.add(i, new ArrayList<>());
             }
         }
     }
@@ -898,10 +923,15 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
         mSCBMDuration = new long[numPhones];
         mCarrierRoamingNtnMode = new boolean[numPhones];
         mCarrierRoamingNtnEligible = new boolean[numPhones];
+        mIsPurchaseModeActive = new boolean[numPhones];
+        mSatellitePurchaseModeState = new int[numPhones];
         mCarrierRoamingNtnAvailableServices = new ArrayList<>();
         mCarrierRoamingNtnSignalStrength = new NtnSignalStrength[numPhones];
+        mNetworkSecurityEvents = new ArrayList<>();
         mIsSatelliteEnabled = new AtomicBoolean();
         mWasSatelliteEnabledNotified = new AtomicBoolean();
+        mDomainSelectionCallEmergencyMode = new boolean[numPhones];
+        mDomainSelectionSmsEmergencyMode = new boolean[numPhones];
 
         for (int i = 0; i < numPhones; i++) {
             mCallState[i] =  TelephonyManager.CALL_STATE_IDLE;
@@ -947,9 +977,14 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
             mSCBMDuration[i] = 0;
             mCarrierRoamingNtnMode[i] = false;
             mCarrierRoamingNtnEligible[i] = false;
+            mIsPurchaseModeActive[i] = false;
+            mSatellitePurchaseModeState[i] = SATELLITE_PURCHASE_MODE_STATE_INACTIVE;
             mCarrierRoamingNtnAvailableServices.add(i, new IntArray());
             mCarrierRoamingNtnSignalStrength[i] = new NtnSignalStrength(
                     NtnSignalStrength.NTN_SIGNAL_STRENGTH_NONE);
+            mDomainSelectionCallEmergencyMode[i] = false;
+            mDomainSelectionSmsEmergencyMode[i] = false;
+            mNetworkSecurityEvents.add(i, new ArrayList<>());
         }
 
         mAppOps = mContext.getSystemService(AppOpsManager.class);
@@ -1598,6 +1633,53 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
                     try {
                         r.callback.onCarrierRoamingNtnSignalStrengthChanged(
                                 mCarrierRoamingNtnSignalStrength[r.phoneId]);
+                    } catch (RemoteException ex) {
+                        remove(r.binder);
+                    }
+                }
+                if (events.contains(
+                        TelephonyCallback.EVENT_DOMAIN_SELECTION_EMERGENCY_MODE_CHANGED)) {
+                    try {
+                        if (mDomainSelectionCallEmergencyMode[r.phoneId]) {
+                            r.callback.onDomainSelectionEmergencyModeEntered(
+                                    TelephonyManager.DOMAIN_SELECTION_EMERGENCY_TYPE_CALL,
+                                    r.phoneId, r.subId);
+                        } else {
+                            r.callback.onDomainSelectionEmergencyModeExited(
+                                    TelephonyManager.DOMAIN_SELECTION_EMERGENCY_TYPE_CALL,
+                                    r.phoneId, r.subId);
+                        }
+
+                        if (mDomainSelectionSmsEmergencyMode[r.phoneId]) {
+                            r.callback.onDomainSelectionEmergencyModeEntered(
+                                    TelephonyManager.DOMAIN_SELECTION_EMERGENCY_TYPE_SMS,
+                                    r.phoneId, r.subId);
+                        } else {
+                            r.callback.onDomainSelectionEmergencyModeExited(
+                                    TelephonyManager.DOMAIN_SELECTION_EMERGENCY_TYPE_SMS,
+                                    r.phoneId, r.subId);
+                        }
+                    } catch (RemoteException ex) {
+                        remove(r.binder);
+                    }
+                }
+                if (events.contains(TelephonyCallback.EVENT_NETWORK_SECURITY_EVENTS)) {
+                    try {
+                        if (VDBG) {
+                            log("listen: call onNetworkSecurityEvents="
+                                    + mNetworkSecurityEvents.get(r.phoneId));
+                        }
+                        r.callback.onNetworkSecurityEvents(mNetworkSecurityEvents.get(r.phoneId));
+                    } catch (RemoteException ex) {
+                        remove(r.binder);
+                    }
+                }
+                if (events.contains(TelephonyCallback.EVENT_SATELLITE_PURCHASE_MODE_CHANGED)) {
+                    try {
+                        r.callback.onSatellitePurchaseModeChanged(
+                                r.subId,
+                                mIsPurchaseModeActive[r.phoneId],
+                                mSatellitePurchaseModeState[r.phoneId]);
                     } catch (RemoteException ex) {
                         remove(r.binder);
                     }
@@ -3908,6 +3990,46 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
     }
 
     /**
+     * Notify external listeners that satellite purchase mode changed.
+     *
+     * @param subId subscription ID.
+     * @param isEnabled {@code true} If satellite purchase is in progress,
+     *                         {@code false} otherwise.
+     * @param purchaseModeState State of the purchase mode. Network setup, teardown and Purchase
+     *                          Mode active or inactive. Inactive by default.
+     */
+    public void notifySatellitePurchaseModeChanged(int subId, boolean isEnabled,
+            @TelephonyManager.SatellitePurchaseModeState int purchaseModeState) {
+        if (VDBG) {
+            log("notifySatellitePurchaseModeChanged: subId=" + subId
+                    + " isEnabled=" + isEnabled
+                    + " satellitePurchaseModeState=" + purchaseModeState);
+        }
+
+        synchronized (mRecords) {
+            int phoneId = getPhoneIdFromSubId(subId);
+            if (!validatePhoneId(phoneId)) {
+                return;
+            }
+            mIsPurchaseModeActive[phoneId] = isEnabled;
+            mSatellitePurchaseModeState[phoneId] = purchaseModeState;
+            for (Record r : mRecords) {
+                if (r.matchTelephonyCallbackEvent(
+                        TelephonyCallback.EVENT_SATELLITE_PURCHASE_MODE_CHANGED)
+                        && idMatch(r, subId, phoneId)) {
+                    try {
+                        r.callback.onSatellitePurchaseModeChanged(subId, isEnabled,
+                                purchaseModeState);
+                    } catch (RemoteException ex) {
+                        mRemoveList.add(r.binder);
+                    }
+                }
+            }
+            handleRemoveListLocked();
+        }
+    }
+
+    /**
      * Notify that the radio security algorithms have changed.
      *
      * @param phoneId the phone id.
@@ -3916,10 +4038,6 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
      */
     public void notifySecurityAlgorithmsChanged(int phoneId, int subId,
             SecurityAlgorithmUpdate update) {
-        if (!Flags.securityAlgorithmsUpdateIndications()) {
-            log("Not available due to securityAlgorithmsUpdateIndications() flag");
-            return;
-        }
         if (!checkNotifyPermission("notifySecurityAlgorithmChanged()")) {
             return;
         }
@@ -3962,10 +4080,6 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
      */
     public void notifyCellularIdentifierDisclosedChanged(int phoneId, int subId,
             @NonNull CellularIdentifierDisclosure disclosure) {
-        if (!Flags.cellularIdentifierDisclosureIndications()) {
-            log("Not available due to cellularIdentifierDisclosureIndications() flag");
-            return;
-        }
         if (!checkNotifyPermission("notifyCellularIdentifierDisclosedChanged()")) {
             return;
         }
@@ -3989,6 +4103,124 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
                                         + disclosure);
                             }
                             r.callback.onCellularIdentifierDisclosedChanged(disclosure);
+                        } catch (RemoteException ex) {
+                            mRemoveList.add(r.binder);
+                        }
+                    }
+                }
+            }
+            handleRemoveListLocked();
+        }
+    }
+
+    /**
+     * Notify the listeners that emergency mode has been entered or exited
+     * when AP domain selection is enabled.
+     *
+     * @param phoneId the phone id.
+     * @param subId the subscription id.
+     * @param type the emergency type.
+     *             See {@link TelephonyManager.DomainSelectionEmergencyType}.
+     * @param isEntered the flag specifying whether the emergency mode is entered or exited.
+     */
+    public void notifyDomainSelectionEmergencyModeChanged(int phoneId, int subId,
+            @TelephonyManager.DomainSelectionEmergencyType int type, boolean isEntered) {
+        if (!Flags.domainSelectionEmergencyModeNotification()) {
+            log("Not available due to domainSelectionEmergencyModeNotification flag");
+            return;
+        }
+        if (!checkNotifyPermission("notifyDomainSelectionEmergencyModeChanged")) {
+            return;
+        }
+
+        if (VDBG) {
+            log("notifyDomainSelectionEmergencyModeChanged: phoneId=" + phoneId
+                    + ", subId=" + subId + ", type=" + type + ", isEntered=" + isEntered);
+        }
+        synchronized (mRecords) {
+            if (validatePhoneId(phoneId)) {
+                if (type == TelephonyManager.DOMAIN_SELECTION_EMERGENCY_TYPE_CALL) {
+                    mDomainSelectionCallEmergencyMode[phoneId] = isEntered;
+                } else if (type == TelephonyManager.DOMAIN_SELECTION_EMERGENCY_TYPE_SMS) {
+                    mDomainSelectionSmsEmergencyMode[phoneId] = isEntered;
+                }
+
+                if (isEntered) {
+                    for (Record r : mRecords) {
+                        // Send to all listeners regardless of subscription
+                        if (r.matchTelephonyCallbackEvent(
+                                TelephonyCallback.EVENT_DOMAIN_SELECTION_EMERGENCY_MODE_CHANGED)) {
+                            try {
+                                r.callback.onDomainSelectionEmergencyModeEntered(
+                                        type, phoneId, subId);
+                            } catch (RemoteException ex) {
+                                mRemoveList.add(r.binder);
+                            }
+                        }
+                    }
+                } else {
+                    for (Record r : mRecords) {
+                        // Send to all listeners regardless of subscription
+                        if (r.matchTelephonyCallbackEvent(
+                                TelephonyCallback.EVENT_DOMAIN_SELECTION_EMERGENCY_MODE_CHANGED)) {
+                            try {
+                                r.callback.onDomainSelectionEmergencyModeExited(
+                                        type, phoneId, subId);
+                            } catch (RemoteException ex) {
+                                mRemoveList.add(r.binder);
+                            }
+                        }
+                    }
+                }
+            }
+            handleRemoveListLocked();
+        }
+    }
+
+    /**
+     * Notify of network security events.
+     *
+     * @param phoneId the phone id.
+     * @param subId the subId.
+     * @param events the network security events.
+     */
+    public void notifyNetworkSecurityEvents(int phoneId, int subId,
+            @NonNull List<NetworkSecurityEvent> events) {
+
+        if (!Flags.networkSecurityEventIndications()) {
+            log("Not available due to networkSecurityEventIndications() flag");
+            return;
+        }
+
+        if (!checkNotifyPermission("notifyNetworkSecurityEvents()")) {
+            return;
+        }
+
+        synchronized (mRecords) {
+            if (validatePhoneId(phoneId)) {
+                if (Objects.equals(mNetworkSecurityEvents.get(phoneId), events)) {
+                    if (VDBG) log("Ignoring duplicate network security events notification.");
+                    return;
+                }
+                mNetworkSecurityEvents.set(phoneId, events);
+                if (events.isEmpty()) {
+                    loge(
+                            "NetworkSecurityEvent is empty, subId=" + subId
+                            + ", phoneId=" + phoneId);
+                    // Listeners shouldn't be updated for empty events.
+                    return;
+                }
+
+                for (Record r : mRecords) {
+                    if (r.matchTelephonyCallbackEvent(
+                            TelephonyCallback.EVENT_NETWORK_SECURITY_EVENTS)
+                            && idMatch(r, subId, phoneId)) {
+                        try {
+                            if (VDBG) {
+                                log("notifyNetworkSecurityEvents: events= "
+                                        + events);
+                            }
+                            r.callback.onNetworkSecurityEvents(events);
                         } catch (RemoteException ex) {
                             mRemoveList.add(r.binder);
                         }
@@ -4054,8 +4286,15 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
                 pw.println("mSCBMDuration=" + mSCBMDuration[i]);
                 pw.println("mCarrierRoamingNtnMode=" + mCarrierRoamingNtnMode[i]);
                 pw.println("mCarrierRoamingNtnEligible=" + mCarrierRoamingNtnEligible[i]);
+                pw.println("mIsPurchaseModeActive=" + mIsPurchaseModeActive[i]);
+                pw.println("mSatellitePurchaseModeState=" + mSatellitePurchaseModeState[i]);
                 pw.println("mCarrierRoamingNtnSignalStrength="
                         + mCarrierRoamingNtnSignalStrength[i]);
+                pw.println("mDomainSelectionCallEmergencyMode="
+                        + mDomainSelectionCallEmergencyMode[i]);
+                pw.println("mDomainSelectionSmsEmergencyMode="
+                        + mDomainSelectionSmsEmergencyMode[i]);
+                pw.println("mNetworkSecurityEvents=" + mNetworkSecurityEvents.get(i));
 
                 // We need to obfuscate package names, and primitive arrays' native toString is ugly
                 Pair<List<String>, int[]> carrierPrivilegeState = mCarrierPrivilegeStates.get(i);
@@ -4487,6 +4726,11 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
             mContext.enforceCallingOrSelfPermission(
                     android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE, null);
         }
+
+        if (isBasicPhoneStatePermissionRequired(events)) {
+            mContext.enforceCallingOrSelfPermission(
+                    android.Manifest.permission.READ_BASIC_PHONE_STATE, null);
+        }
         return isPermissionCheckSuccessful;
     }
 
@@ -4562,7 +4806,7 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
      *
      * We follow the rules below:
      * 1) If sub id of the event is invalid, phone id should be used.
-     * 2) If record's phoneId is also invalid then allow phone 0 notifications
+     * 2) If record's phoneId is also invalid then allow valid phone 0/1 notifications
      * 3) The event on default sub should be notified to the records
      * which register the default sub id.
      * 4) Sub id should be exactly matched for all other cases.
@@ -4571,20 +4815,20 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
     boolean idMatchRelaxed(Record r, int subId, int phoneId) {
         if (subId < 0) {
             // Invalid case, we need compare phoneId.
-            // If the record does not have a valid phone Id send phone 0 notifications.
+            // If the record does not have a valid phone Id send phone 0/1 notifications.
             // A record's phoneId can get invalid if there is no SIM or modem was restarting
             // when caller registered.
             if (r.phoneId == INVALID_SIM_SLOT_INDEX) {
-                return (phoneId == 0);
+                return validatePhoneId(phoneId);
             } else {
                 return (r.phoneId == phoneId);
             }
         }
 
         if (r.subId == SubscriptionManager.DEFAULT_SUBSCRIPTION_ID) {
-            // if the registered record does not have a valid phoneId then use the phone 0
+            // if the registered record does not have a valid phoneId then use the phone 0/1
             if (r.phoneId == INVALID_SIM_SLOT_INDEX) {
-                return (phoneId == 0);
+                return validatePhoneId(phoneId);
             }
             return (subId == mDefaultSubId);
         } else {
@@ -4753,6 +4997,17 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
                 if (mTelephonyDisplayInfos[phoneId] != null) {
                     r.callback.onDisplayInfoChanged(mTelephonyDisplayInfos[phoneId]);
                 }
+            } catch (RemoteException ex) {
+                mRemoveList.add(r.binder);
+            }
+        }
+        if (events.contains(TelephonyCallback.EVENT_NETWORK_SECURITY_EVENTS)) {
+            try {
+                if (VDBG) {
+                    log("checkPossibleMissNotify: onNetworkSecurityEvents phoneId="
+                            + phoneId + " events=" + mNetworkSecurityEvents.get(phoneId));
+                }
+                r.callback.onNetworkSecurityEvents(mNetworkSecurityEvents.get(phoneId));
             } catch (RemoteException ex) {
                 mRemoveList.add(r.binder);
             }

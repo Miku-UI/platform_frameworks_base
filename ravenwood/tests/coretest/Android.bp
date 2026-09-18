@@ -15,6 +15,9 @@ android_ravenwood_test {
         "androidx.test.rules",
         "junit-params",
         "platform-parametric-runner-lib-no-robo",
+        "platform-test-annotations",
+        "truth",
+        "testables",
 
         // This library should be removed by Ravenizer
         "mockito-target-minus-junit4",
@@ -24,10 +27,14 @@ android_ravenwood_test {
         "ravenwood-junit-impl",
     ],
     srcs: [
-        "test/**/*.java",
-        "test/**/*.kt",
+        "src/**/*.java",
+        "src/**/*.kt",
+        "src/**/*.aidl",
     ],
-    data: ["data/**/*"],
+    data: [
+        "data/**/*",
+        "ravenwood.sysprop",
+    ],
     test_options: {
         // This is injected outside of the <test> element.
         tradefed_options: [

@@ -63,7 +63,9 @@ import com.android.systemui.media.controls.shared.model.MediaData
 import com.android.systemui.media.controls.util.MediaUiEventLogger
 import com.android.systemui.media.controls.util.fakeMediaControllerFactory
 import com.android.systemui.media.controls.util.mediaFlags
+import com.android.systemui.media.controls.util.mediaUiEventLogger
 import com.android.systemui.media.remedia.data.repository.mediaPipelineRepository
+import com.android.systemui.media.remedia.data.repository.mediaRepository
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.SbnBuilder
 import com.android.systemui.statusbar.notificationLockscreenUserManager
@@ -125,7 +127,6 @@ class MediaDataProcessorTest() : SysuiTestCase() {
     private lateinit var metadataBuilder: MediaMetadata.Builder
     lateinit var backgroundExecutor: FakeExecutor
     private lateinit var foregroundExecutor: FakeExecutor
-    lateinit var uiExecutor: FakeExecutor
     @Mock lateinit var dumpManager: DumpManager
     @Mock lateinit var broadcastDispatcher: BroadcastDispatcher
     @Mock lateinit var mediaTimeoutListener: MediaTimeoutListener
@@ -151,6 +152,7 @@ class MediaDataProcessorTest() : SysuiTestCase() {
     private val mediaControllerFactory = kosmos.fakeMediaControllerFactory
     private val notificationLockscreenUserManager = kosmos.notificationLockscreenUserManager
     private val mediaPipelineRepository = kosmos.mediaPipelineRepository
+    private val mediaRepository = kosmos.mediaRepository
     private val mediaDataFilter = kosmos.mediaDataFilter
 
     private val instanceIdSequence = InstanceIdSequenceFake(1 shl 20)
@@ -168,14 +170,12 @@ class MediaDataProcessorTest() : SysuiTestCase() {
         whenever(UriGrantsManager.getService()).thenReturn(ugm)
         foregroundExecutor = FakeExecutor(clock)
         backgroundExecutor = FakeExecutor(clock)
-        uiExecutor = FakeExecutor(clock)
         mediaDataProcessor =
             MediaDataProcessor(
                 context = context,
                 applicationScope = testScope,
                 backgroundDispatcher = testDispatcher,
                 backgroundExecutor = backgroundExecutor,
-                uiExecutor = uiExecutor,
                 foregroundExecutor = foregroundExecutor,
                 mainDispatcher = testDispatcher,
                 mediaControllerFactory = mediaControllerFactory,
@@ -204,6 +204,8 @@ class MediaDataProcessorTest() : SysuiTestCase() {
                 mediaDataCombineLatest = mediaDataCombineLatest,
                 mediaDataFilter = mediaDataFilter,
                 mediaPipelineRepository = mediaPipelineRepository,
+                mediaRepository = mediaRepository,
+                mediaUiEventLogger = kosmos.mediaUiEventLogger,
                 keyguardTransitionInteractor = kosmos.keyguardTransitionInteractor,
                 deviceEntryInteractor = kosmos.deviceEntryInteractor,
             )
@@ -998,6 +1000,11 @@ class MediaDataProcessorTest() : SysuiTestCase() {
                 setPkg(PACKAGE_NAME)
                 modifyNotification(context).also {
                     it.setSmallIcon(android.R.drawable.ic_media_pause)
+                    it.addAction(android.R.drawable.ic_media_rew, "rewind", null)
+                    it.addAction(android.R.drawable.ic_media_previous, "prev", null)
+                    it.addAction(android.R.drawable.ic_media_play, "play", null)
+                    it.addAction(android.R.drawable.ic_media_next, "next", null)
+                    it.addAction(android.R.drawable.ic_media_ff, "ff", null)
                     it.setStyle(
                         MediaStyle().apply {
                             setMediaSession(session.sessionToken)

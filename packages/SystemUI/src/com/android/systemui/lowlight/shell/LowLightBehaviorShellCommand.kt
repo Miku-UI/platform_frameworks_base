@@ -61,7 +61,6 @@ constructor(private val commandRegistry: CommandRegistry) {
             }
 
             when (arg.lowercase()) {
-                "screen-off" -> update(LowLightDisplayBehavior.SCREEN_OFF)
                 "low-light-dream" -> update(LowLightDisplayBehavior.LOW_LIGHT_DREAM)
                 "no-dream" -> update(LowLightDisplayBehavior.NO_DREAM)
                 "disable" -> update(null)
@@ -75,8 +74,6 @@ constructor(private val commandRegistry: CommandRegistry) {
         override fun help(pw: PrintWriter) {
             pw.println("Usage: adb shell cmd statusbar $COMMAND_ROOT <cmd>")
             pw.println("Supported commands:")
-            pw.println("  - screen-off")
-            pw.println("    nothing will be shown on screen")
             pw.println("  - low-light-dream")
             pw.println("    device will use low light dream")
             pw.println("  - no-dream")

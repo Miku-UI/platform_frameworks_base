@@ -408,25 +408,51 @@ public final class CellSignalStrengthNr extends CellSignalStrength implements Pa
         if (cc == null) {
             mParametersUseForLevel = USE_SSRSRP;
         } else {
-            mParametersUseForLevel = cc.getInt(
-                    CarrierConfigManager.KEY_PARAMETERS_USE_FOR_5G_NR_SIGNAL_BAR_INT, USE_SSRSRP);
-            mSsRsrpThresholds = cc.getIntArray(
-                    CarrierConfigManager.KEY_5G_NR_SSRSRP_THRESHOLDS_INT_ARRAY);
-            if (VDBG) {
-                Rlog.i(TAG, "Applying 5G NR SSRSRP Thresholds: "
-                        + Arrays.toString(mSsRsrpThresholds));
-            }
-            mSsRsrqThresholds = cc.getIntArray(
-                    CarrierConfigManager.KEY_5G_NR_SSRSRQ_THRESHOLDS_INT_ARRAY);
-            if (VDBG) {
-                Rlog.i(TAG, "Applying 5G NR SSRSRQ Thresholds: "
-                        + Arrays.toString(mSsRsrqThresholds));
-            }
-            mSsSinrThresholds = cc.getIntArray(
-                    CarrierConfigManager.KEY_5G_NR_SSSINR_THRESHOLDS_INT_ARRAY);
-            if (VDBG) {
-                Rlog.i(TAG, "Applying 5G NR SSSINR Thresholds: "
-                        + Arrays.toString(mSsSinrThresholds));
+            if (ss != null && ss.isUsingNonTerrestrialNetwork()) {
+                if (VDBG) Rlog.i(TAG, "updateLevel: from NTN NR");
+                mParametersUseForLevel = cc.getInt(
+                        CarrierConfigManager.KEY_PARAMETERS_USE_FOR_NTN_5G_NR_SIGNAL_BAR_INT,
+                        USE_SSRSRP);
+                mSsRsrpThresholds = cc.getIntArray(
+                        CarrierConfigManager.KEY_NTN_5G_NR_SSRSRP_THRESHOLDS_INT_ARRAY);
+                if (VDBG) {
+                    Rlog.i(TAG, "Applying NTN 5G NR SSRSRP Thresholds: "
+                            + Arrays.toString(mSsRsrpThresholds));
+                }
+                mSsRsrqThresholds = cc.getIntArray(
+                        CarrierConfigManager.KEY_NTN_5G_NR_SSRSRQ_THRESHOLDS_INT_ARRAY);
+                if (VDBG) {
+                    Rlog.i(TAG, "Applying NTN 5G NR SSRSRQ Thresholds: "
+                            + Arrays.toString(mSsRsrqThresholds));
+                }
+                mSsSinrThresholds = cc.getIntArray(
+                        CarrierConfigManager.KEY_NTN_5G_NR_SSSINR_THRESHOLDS_INT_ARRAY);
+                if (VDBG) {
+                    Rlog.i(TAG, "Applying NTN 5G NR SSSINR Thresholds: "
+                            + Arrays.toString(mSsSinrThresholds));
+                }
+            } else {
+                mParametersUseForLevel = cc.getInt(
+                        CarrierConfigManager.KEY_PARAMETERS_USE_FOR_5G_NR_SIGNAL_BAR_INT,
+                        USE_SSRSRP);
+                mSsRsrpThresholds = cc.getIntArray(
+                        CarrierConfigManager.KEY_5G_NR_SSRSRP_THRESHOLDS_INT_ARRAY);
+                if (VDBG) {
+                    Rlog.i(TAG, "Applying 5G NR SSRSRP Thresholds: "
+                            + Arrays.toString(mSsRsrpThresholds));
+                }
+                mSsRsrqThresholds = cc.getIntArray(
+                        CarrierConfigManager.KEY_5G_NR_SSRSRQ_THRESHOLDS_INT_ARRAY);
+                if (VDBG) {
+                    Rlog.i(TAG, "Applying 5G NR SSRSRQ Thresholds: "
+                            + Arrays.toString(mSsRsrqThresholds));
+                }
+                mSsSinrThresholds = cc.getIntArray(
+                        CarrierConfigManager.KEY_5G_NR_SSSINR_THRESHOLDS_INT_ARRAY);
+                if (VDBG) {
+                    Rlog.i(TAG, "Applying 5G NR SSSINR Thresholds: "
+                            + Arrays.toString(mSsSinrThresholds));
+                }
             }
         }
         int ssRsrpLevel = SignalStrength.INVALID;

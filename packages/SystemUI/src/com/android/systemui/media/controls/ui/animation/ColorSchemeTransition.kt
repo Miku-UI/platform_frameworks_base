@@ -28,9 +28,9 @@ import com.android.internal.annotations.VisibleForTesting
 import com.android.systemui.Flags.enableSuggestedDeviceUi
 import com.android.systemui.media.controls.ui.view.MediaViewHolder
 import com.android.systemui.monet.ColorScheme
-import com.android.systemui.surfaceeffects.loadingeffect.LoadingEffect
-import com.android.systemui.surfaceeffects.ripple.MultiRippleController
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseController
+import com.android.systemui.surfaceeffects.view.loadingeffect.LoadingEffect
+import com.android.systemui.surfaceeffects.view.ripple.MultiRippleController
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseController
 
 /**
  * A [ColorTransition] is an object that updates the colors of views each time [updateColorScheme]

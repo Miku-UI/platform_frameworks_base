@@ -547,6 +547,8 @@ object TestShortcuts {
             simpleShortcutCategory(System, "System apps", "Open digital assistant"),
             simpleShortcutCategory(System, "System controls", "Go to home screen"),
             simpleShortcutCategory(System, "System apps", "Open settings"),
+            simpleShortcutCategory(System, "System apps", "Contextual Search"),
+            simpleShortcutCategory(System, "System apps", "Contextual Cursor"),
             simpleShortcutCategory(System, "System controls", "Lock screen"),
             simpleShortcutCategory(System, "System controls", "View notifications"),
             simpleShortcutCategory(System, "System controls", "View quick settings"),
@@ -566,6 +568,7 @@ object TestShortcuts {
             ),
             simpleShortcutCategory(System, "System controls", "Show shortcuts"),
             simpleShortcutCategory(System, "System controls", "View recent apps"),
+            simpleShortcutCategory(System, "System apps", "Take a note"),
         )
     val customInputGestureTypeHome = simpleInputGestureData(keyGestureType = KEY_GESTURE_TYPE_HOME)
 
@@ -584,6 +587,12 @@ object TestShortcuts {
             ),
             simpleInputGestureData(
                 keyGestureType = KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_QUICK_SETTINGS_PANEL
+            ),
+            simpleInputGestureData(
+                keyGestureType = KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_SEARCH
+            ),
+            simpleInputGestureData(
+                keyGestureType = KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_CONTEXTUAL_CURSOR
             ),
             simpleInputGestureData(
                 keyGestureType = KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_SCREENSHOT
@@ -608,6 +617,7 @@ object TestShortcuts {
             simpleInputGestureData(
                 keyGestureType = KeyGestureEvent.KEY_GESTURE_TYPE_RECENT_APPS_SWITCHER
             ),
+            simpleInputGestureData(keyGestureType = KeyGestureEvent.KEY_GESTURE_TYPE_OPEN_NOTES),
         )
 
     val allAppsShortcutAddRequest =

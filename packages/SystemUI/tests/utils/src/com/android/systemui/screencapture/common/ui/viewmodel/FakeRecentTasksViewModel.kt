@@ -16,21 +16,52 @@
 
 package com.android.systemui.screencapture.common.ui.viewmodel
 
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import com.android.systemui.screencapture.common.domain.model.ScreenCaptureRecentTask
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import com.android.systemui.screencapture.common.domain.model.TargetModel
+import kotlinx.coroutines.awaitCancellation
 
-class FakeRecentTasksViewModel : RecentTasksViewModel {
+class FakeRecentTasksViewModel(
+    var fakeViewModelFactory: RecentTaskViewModel.Factory,
+    fakeDrawableLoaderViewModel: DrawableLoaderViewModel,
+    fakeAudioSwitchViewModel: AudioSwitchViewModel = AudioSwitchViewModelImpl(),
+) :
+    RecentTasksViewModel,
+    DrawableLoaderViewModel by fakeDrawableLoaderViewModel,
+    AudioSwitchViewModel by fakeAudioSwitchViewModel {
 
-    private val _recentTasks = MutableStateFlow<List<ScreenCaptureRecentTask>?>(null)
-    override val recentTasks: Flow<List<ScreenCaptureRecentTask>?> = _recentTasks.asStateFlow()
+    private val _targets = mutableStateOf<List<ScreenCaptureRecentTask>?>(null)
 
-    fun setRecentTasks(tasks: List<ScreenCaptureRecentTask>?) {
-        _recentTasks.value = tasks
+    override val targets: State<List<ScreenCaptureRecentTask>?> = _targets
+
+    private val _selectedTarget = mutableStateOf<RecentTaskViewModel?>(null)
+    override val selectedTarget: State<RecentTaskViewModel?> = _selectedTarget
+
+    override fun setSelectedTarget(target: TargetViewModel?) {
+        _selectedTarget.value = target as RecentTaskViewModel?
     }
 
-    fun setRecentTasks(vararg tasks: ScreenCaptureRecentTask) {
-        _recentTasks.value = tasks.toList()
+    override fun createViewModelFor(target: TargetModel): RecentTaskViewModel =
+        fakeViewModelFactory.create(target as ScreenCaptureRecentTask)
+
+    fun setTargets(tasks: List<ScreenCaptureRecentTask>?) {
+        _targets.value = tasks
+    }
+
+    fun setTargets(vararg tasks: ScreenCaptureRecentTask) {
+        _targets.value = tasks.toList()
+    }
+
+    var activateCallCount = 0
+    var deactivateCallCount = 0
+
+    override suspend fun activate(): Nothing {
+        activateCallCount++
+        try {
+            awaitCancellation()
+        } finally {
+            deactivateCallCount++
+        }
     }
 }

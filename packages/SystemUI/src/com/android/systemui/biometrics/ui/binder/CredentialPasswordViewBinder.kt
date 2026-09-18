@@ -1,6 +1,5 @@
 package com.android.systemui.biometrics.ui.binder
 
-import android.hardware.biometrics.Flags
 import android.os.UserHandle
 import android.view.KeyEvent
 import android.view.View
@@ -66,53 +65,32 @@ object CredentialPasswordViewBinder {
             }
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 // dismiss on a valid credential check
-                if (Flags.bpFallbackOptions()) {
-                    launch {
-                        viewModel.currentView.collect { currentView ->
-                            // Hide keyboard if we are no longer on credential screen
-                            if (currentView != BiometricPromptView.CREDENTIAL) {
-                                imeManager.hideSoftInputFromWindow(
-                                    view.windowToken,
-                                    0, // flag
-                                )
-                            }
+                launch {
+                    viewModel.currentView.collect { currentView ->
+                        // Hide keyboard if we are no longer on credential screen
+                        if (currentView != BiometricPromptView.CREDENTIAL) {
+                            imeManager.hideSoftInputFromWindow(
+                                view.windowToken,
+                                0, // flag
+                            )
                         }
                     }
+                }
 
-                    launch {
-                        combine(
-                                viewModel.validatedAttestation,
-                                viewModel.isCredentialAllowed,
-                                ::Pair,
-                            )
-                            .collect { (attestation, isAllowed) ->
-                                if (attestation != null) {
-                                    imeManager.hideSoftInputFromWindow(
-                                        view.windowToken,
-                                        0, // flag
-                                    )
-                                    host.onCredentialMatched(attestation, isAllowed)
-                                    viewModel.resetAttestation()
-                                } else {
-                                    passwordField.setText("")
-                                }
-                            }
-                    }
-                } else {
-                    launch {
-                        viewModel.validatedAttestation.collect { attestation ->
+                launch {
+                    combine(viewModel.validatedAttestation, viewModel.isCredentialAllowed, ::Pair)
+                        .collect { (attestation, isAllowed) ->
                             if (attestation != null) {
                                 imeManager.hideSoftInputFromWindow(
                                     view.windowToken,
                                     0, // flag
                                 )
-                                host.onCredentialMatched(attestation)
+                                host.onCredentialMatched(attestation, isAllowed)
                                 viewModel.resetAttestation()
                             } else {
                                 passwordField.setText("")
                             }
                         }
-                    }
                 }
 
                 val onBackInvokedDispatcher = view.findOnBackInvokedDispatcher()

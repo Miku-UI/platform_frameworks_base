@@ -31,7 +31,7 @@ sealed class SettingsStore(protected val contentResolver: ContentResolver) :
     private val contentObserver =
         object : ContentObserver(HandlerExecutor.main) {
             override fun onChange(selfChange: Boolean) {
-                super.onChange(selfChange, null)
+                onChange(selfChange, null)
             }
 
             override fun onChange(selfChange: Boolean, uri: Uri?) {

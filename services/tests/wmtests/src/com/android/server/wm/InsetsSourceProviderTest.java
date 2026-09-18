@@ -16,6 +16,8 @@
 
 package com.android.server.wm;
 
+import static android.internal.perfetto.protos.Windowmanagerservice.InsetsStateControllerProto.INSETS_SOURCE_PROVIDERS;
+import static android.server.wm.ProtoExtractors.extract;
 import static android.view.InsetsSource.ID_IME;
 import static android.view.WindowInsets.Type.ime;
 import static android.view.WindowInsets.Type.statusBars;
@@ -36,15 +38,20 @@ import android.graphics.Insets;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.platform.test.annotations.Presubmit;
+import android.util.proto.ProtoOutputStream;
 import android.view.InsetsSource;
 import android.view.SurfaceControl;
 
 import androidx.annotation.NonNull;
 import androidx.test.filters.SmallTest;
 
+import com.google.protobuf.InvalidProtocolBufferException;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+
+import perfetto.protos.Windowmanagerservice;
 
 @SmallTest
 @Presubmit
@@ -350,5 +357,21 @@ public class InsetsSourceProviderTest extends WindowTestsBase {
         assertEquals(Insets.of(0, 0, 0, 0),
                 mProvider.getSource().calculateInsets(new Rect(-100, 0, 400, 500),
                         null /* hostBounds */, false /* ignoreVisibility */));
+    }
+
+    @Test
+    public void testDumpDebug() throws InvalidProtocolBufferException {
+        final ProtoOutputStream proto = new ProtoOutputStream();
+        mProvider.dumpDebug(proto, INSETS_SOURCE_PROVIDERS);
+
+        final Windowmanagerservice.InsetsSourceProviderProto providerProto =
+                Windowmanagerservice.InsetsStateControllerProto.parseFrom(proto.getBytes())
+                        .getInsetsSourceProvidersList().getFirst();
+        assertEquals(mProvider.isLeashReadyForDispatching(),
+                providerProto.getIsLeashReadyForDispatching());
+        assertEquals(mProvider.isClientVisible(), providerProto.getClientVisible());
+        assertEquals(mProvider.isServerVisible(), providerProto.getServerVisible());
+        assertEquals(mProvider.isControllable(), providerProto.getControllable());
+        assertEquals(mProvider.getInsetsHint(), extract(providerProto.getInsetsHint()));
     }
 }

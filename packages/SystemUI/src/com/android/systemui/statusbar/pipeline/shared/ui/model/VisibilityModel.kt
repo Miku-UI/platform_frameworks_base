@@ -31,19 +31,14 @@ data class VisibilityModel(
         if (visibility != prevVal.visibility) {
             row.logChange(COL_VIS, visibilityString(visibility))
         }
-
-        if (shouldAnimateChange != prevVal.shouldAnimateChange) {
-            row.logChange(COL_ANIMATE, shouldAnimateChange)
-        }
+        // Purposefully don't log `shouldAnimate`, since it adds noise to logs without being useful
     }
 
     override fun logFull(row: TableRowLogger) {
         row.logChange(COL_VIS, visibilityString(visibility))
-        row.logChange(COL_ANIMATE, shouldAnimateChange)
     }
 
     companion object {
         const val COL_VIS = "vis"
-        const val COL_ANIMATE = "animate"
     }
 }

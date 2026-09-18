@@ -25,7 +25,6 @@ import android.view.SurfaceControlViewHost
 import android.view.WindowInsets.Type.systemBars
 import android.view.WindowManager
 import android.view.WindowlessWindowManager
-import android.window.DesktopModeFlags
 import android.window.TaskConstants
 import android.window.TaskSnapshot
 import androidx.compose.ui.graphics.toArgb
@@ -77,10 +76,7 @@ class DesktopHeaderManageWindowsMenu(
                 WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
         val desktopRepository = desktopUserRepositories.getProfile(callerTaskInfo.userId)
         menuViewContainer =
-            if (
-                DesktopModeFlags.ENABLE_FULLY_IMMERSIVE_IN_DESKTOP.isTrue &&
-                    desktopRepository.isTaskInFullImmersiveState(callerTaskInfo.taskId)
-            ) {
+            if (desktopRepository.isTaskInFullImmersiveState(callerTaskInfo.taskId)) {
                 // Use system view container so that forcibly shown system bars take effect in
                 // immersive.
                 createAsSystemViewContainer(menuPosition, flags)

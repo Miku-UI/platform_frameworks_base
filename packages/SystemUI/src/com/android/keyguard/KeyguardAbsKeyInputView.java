@@ -61,8 +61,10 @@ public abstract class KeyguardAbsKeyInputView extends KeyguardInputView {
      *
      * Note that PIN/PUK have their own implementation of verifyPasswordAndUnlock and so don't need this
      */
-    protected int getWrongPasswordStringId() {
-        return R.string.kg_wrong_password;
+    protected int getWrongPasswordStringId(boolean isDuplicate) {
+        return isDuplicate
+                ? R.string.kg_primary_auth_duplicate_guess_password
+                : R.string.kg_wrong_password;
     }
 
     protected abstract void resetPasswordText(boolean animate, boolean announce);

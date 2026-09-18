@@ -24,6 +24,7 @@ import android.hardware.radio.ITuner;
 import android.hardware.radio.ITunerCallback;
 import android.hardware.radio.RadioManager;
 import android.hardware.radio.RadioTuner;
+import android.os.Binder;
 import android.os.IBinder;
 import android.os.IServiceCallback;
 import android.os.RemoteException;
@@ -34,6 +35,7 @@ import android.util.Log;
 import android.util.SparseArray;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.broadcastradio.RadioServiceUserController;
 import com.android.server.utils.Slogf;
 
@@ -42,16 +44,17 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 
-/**
- * Broadcast radio service using BroadcastRadio AIDL HAL
- */
+/** Broadcast radio service using BroadcastRadio AIDL HAL */
 public final class BroadcastRadioServiceImpl {
     private static final String TAG = "BcRadioAidlSrv";
     private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
 
     private final Object mLock = new Object();
     private final RadioServiceUserController mUserController;
+    private final ThreadFactory mThreadFactory;
 
     @GuardedBy("mLock")
     private int mNextModuleId;
@@ -63,52 +66,68 @@ public final class BroadcastRadioServiceImpl {
     @GuardedBy("mLock")
     private final SparseArray<RadioModule> mModules = new SparseArray<>();
 
-    private final IServiceCallback.Stub mServiceListener = new IServiceCallback.Stub() {
-        @Override
-        public void onRegistration(String name, final IBinder newBinder) {
-            Slogf.i(TAG, "onRegistration for %s", name);
-            Integer moduleId;
-            synchronized (mLock) {
-                // If the service has been registered before, reuse its previous module ID.
-                moduleId = mServiceNameToModuleIdMap.get(name);
-                boolean newService = false;
-                if (moduleId == null) {
-                    newService = true;
-                    moduleId = mNextModuleId;
+    private final IServiceCallback.Stub mServiceListener =
+            new IServiceCallback.Stub() {
+                @Override
+                public void onRegistration(String name, final IBinder newBinder) {
+                    Slogf.i(TAG, "onRegistration for %s", name);
+                    if (newBinder == null) {
+                        Slogf.e(TAG, "onRegistration: newBinder is null for %s", name);
+                        return;
+                    }
+                    // Execute the registration process on a separate thread to avoid blocking the
+                    // Binder thread pool of system_server. The registration process involves
+                    // blocking (or synchronous / non-oneway) calls
+                    mThreadFactory.newThread(() -> {
+                        // Allowing blocking as Radio is a built-in component
+                        Binder.allowBlocking(newBinder);
+                        processRegistration(name, newBinder);
+                    }).start();
                 }
+            };
 
-                RadioModule radioModule =
-                        RadioModule.tryLoadingModule(moduleId, name, newBinder, mUserController);
-                if (radioModule == null) {
-                    Slogf.w(TAG, "No module %s with id %d (HAL AIDL)", name, moduleId);
-                    return;
-                }
-                if (DEBUG) {
-                    Slogf.d(TAG, "Loaded broadcast radio module %s with id %d (HAL AIDL)",
-                            name, moduleId);
-                }
-                RadioModule prevModule = mModules.get(moduleId);
-                mModules.put(moduleId, radioModule);
-                if (prevModule != null) {
-                    prevModule.closeSessions(RadioTuner.ERROR_HARDWARE_FAILURE);
-                }
+    private void processRegistration(String name, final IBinder newBinder) {
+        Integer moduleId;
+        synchronized (mLock) {
+            // If the service has been registered before, reuse its previous module ID.
+            moduleId = mServiceNameToModuleIdMap.get(name);
+            boolean newService = false;
+            if (moduleId == null) {
+                newService = true;
+                moduleId = mNextModuleId;
+            }
 
-                if (newService) {
-                    mServiceNameToModuleIdMap.put(name, moduleId);
-                    mNextModuleId++;
-                }
+            RadioModule radioModule =
+                    RadioModule.tryLoadingModule(moduleId, name, newBinder, mUserController);
+            if (radioModule == null) {
+                Slogf.w(TAG, "No module %s with id %d (HAL AIDL)", name, moduleId);
+                return;
+            }
+            if (DEBUG) {
+                Slogf.d(TAG, "Loaded broadcast radio module %s with id %d (HAL AIDL)",
+                        name, moduleId);
+            }
+            RadioModule prevModule = mModules.get(moduleId);
+            mModules.put(moduleId, radioModule);
+            if (prevModule != null) {
+                prevModule.closeSessions(RadioTuner.ERROR_HARDWARE_FAILURE);
+            }
 
-                try {
-                    BroadcastRadioDeathRecipient deathRecipient =
-                            new BroadcastRadioDeathRecipient(moduleId);
-                    radioModule.getService().asBinder().linkToDeath(deathRecipient, moduleId);
-                } catch (RemoteException ex) {
-                    Slogf.w(TAG, "Service has already died, so remove its entry from mModules.");
-                    mModules.remove(moduleId);
-                }
+            if (newService) {
+                mServiceNameToModuleIdMap.put(name, moduleId);
+                mNextModuleId++;
+            }
+
+            try {
+                BroadcastRadioDeathRecipient deathRecipient =
+                        new BroadcastRadioDeathRecipient(moduleId);
+                radioModule.getService().asBinder().linkToDeath(deathRecipient, moduleId);
+            } catch (RemoteException ex) {
+                Slogf.w(TAG, "Service has already died, so remove its entry from mModules.");
+                mModules.remove(moduleId);
             }
         }
-    };
+    }
 
     private final class BroadcastRadioDeathRecipient implements IBinder.DeathRecipient {
         private final int mModuleId;
@@ -146,8 +165,15 @@ public final class BroadcastRadioServiceImpl {
      */
     public BroadcastRadioServiceImpl(List<String> serviceNameList,
             RadioServiceUserController userController) {
+        this(serviceNameList, userController, Executors.defaultThreadFactory());
+    }
+
+    @VisibleForTesting
+    BroadcastRadioServiceImpl(List<String> serviceNameList,
+            RadioServiceUserController userController, ThreadFactory threadFactory) {
         mNextModuleId = 0;
         mUserController = Objects.requireNonNull(userController, "User controller can not be null");
+        mThreadFactory = Objects.requireNonNull(threadFactory, "Thread factory can not be null");
         if (DEBUG) {
             Slogf.d(TAG, "Initializing BroadcastRadioServiceImpl %s", IBroadcastRadio.DESCRIPTOR);
         }

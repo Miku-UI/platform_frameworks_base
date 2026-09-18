@@ -42,7 +42,7 @@ public:
     ~PerfettoDataSource();
 
     jobject newInstance(JNIEnv* env, void* ds_config, size_t ds_config_size,
-                        PerfettoDsInstanceIndex inst_id);
+                        PerfettoDsInstanceIndex inst_id, std::string* out_error_msg);
 
     bool TraceIterateBegin();
     bool TraceIterateNext();
@@ -54,6 +54,8 @@ public:
     void SetCustomTls(jobject);
     jobject GetIncrementalState();
     void SetIncrementalState(jobject);
+
+    void OnInstanceCreateFailed(JNIEnv* env, PerfettoDsInstanceIndex inst_id, std::string& reason);
 
     void flushAll();
 

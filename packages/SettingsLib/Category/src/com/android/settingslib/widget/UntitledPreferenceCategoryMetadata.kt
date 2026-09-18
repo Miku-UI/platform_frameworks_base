@@ -18,11 +18,14 @@ package com.android.settingslib.widget
 
 import android.content.Context
 import com.android.settingslib.metadata.PreferenceGroup
+import com.android.settingslib.metadata.UI_ONLY_PREFERENCE
 import com.android.settingslib.preference.PreferenceBinding
 
 /** Metadata and binding for [UntitledPreferenceCategory]. */
-class UntitledPreferenceCategoryMetadata(override val key: String) :
+class UntitledPreferenceCategoryMetadata(override val key: String, override val purpose: Int) :
     PreferenceGroup, PreferenceBinding {
+
+    override fun tags(context: Context) = arrayOf(UI_ONLY_PREFERENCE)
 
     override fun createWidget(context: Context) = UntitledPreferenceCategory(context)
 }

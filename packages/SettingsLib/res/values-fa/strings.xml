@@ -147,7 +147,7 @@
     <string name="bluetooth_profile_opp" msgid="6692618568149493430">"انتقال فایل"</string>
     <string name="bluetooth_profile_hid" msgid="2969922922664315866">"دستگاه ورودی"</string>
     <string name="bluetooth_profile_pan" msgid="1006235139308318188">"دسترسی به اینترنت"</string>
-    <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"مجاز کردن دسترسی به مخاطبین و سابقه تماس"</string>
+    <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"اجازه دادن دسترسی به مخاطبین و سابقه تماس"</string>
     <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"از اطلاعات برای اعلام تماس‌ها و موارد دیگر استفاده خواهد شد"</string>
     <string name="bluetooth_profile_pan_nap" msgid="7871974753822470050">"اشتراک‌گذاری اتصال اینترنت"</string>
     <string name="bluetooth_profile_map" msgid="8907204701162107271">"پیام‌های نوشتاری"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"‏سه نوار برای Wi‑Fi."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"‏قدرت سیگنال Wi‑Fi کامل است."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"به دستگاهتان متصل شد."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"همه کاربران این دستگاه می‌توانند مشاهده و متصل کنند."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"شبکه باز"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"شبکه ایمن"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"‏سیستم‌عامل Android"</string>
@@ -240,7 +241,7 @@
     <string name="tts_engine_settings_title" msgid="7849477533103566291">"تنظیمات برای <xliff:g id="TTS_ENGINE_NAME">%s</xliff:g>"</string>
     <string name="tts_engine_settings_button" msgid="477155276199968948">"راه‌اندازی تنظیمات موتور"</string>
     <string name="tts_engine_preference_section_title" msgid="3861562305498624904">"موتور ترجیحی"</string>
-    <string name="tts_general_section_title" msgid="8919671529502364567">"کلی"</string>
+    <string name="tts_general_section_title" msgid="8919671529502364567">"عمومی"</string>
     <string name="tts_reset_speech_pitch_title" msgid="7149398585468413246">"بازنشانی زیروبمی گفتار"</string>
     <string name="tts_reset_speech_pitch_summary" msgid="6822904157021406449">"بازنشانی زیروبمی صدای گفته شدن نوشتار روی مقدار پیش‌فرض."</string>
   <string-array name="tts_rate_entries">
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"تنظیمات نام تقطه دسترسی برای این کاربر در دسترس نیست"</string>
     <string name="enable_adb" msgid="8072776357237289039">"‏اشکال‌زدایی USB"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"‏با اتصال USB، حالت اشکال‌زدایی فعال شود"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"‏لغو مجوزهای اشکال‌زدایی USB"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"‏لغو کردن مجوزهای اشکال‌زدایی ADB"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"اشکال‌زدایی بی‌سیم"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"‏حالت اشکال‌زدایی کردن وقتی Wi‑Fi متصل است"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"خطا"</string>
@@ -293,6 +294,8 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"جفت کردن دستگاه…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"جفت کردن دستگاه انجام نشد. یا رمزینه پاسخ‌سریع اشتباه بوده است، یا دستگاه به همان شبکه متصل نیست."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"‏نشانی IP و درگاه"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"دردسترس نیست (مجاز نیست)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"‏دردسترس نیست (Wi-Fi قطع شد)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"اسکن رمزینه پاسخ‌سریع"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"‏دستگاه را ازطریق Wi‑Fi و با اسکن کردن رمزینه پاسخ‌سریع مرتبط کنید"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"‏لطفاً به شبکه Wi-Fi متصل شوید"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"‏اشکال‌زدایی USB فقط برای اهداف برنامه‌نویسی در نظر گرفته شده است. از آن برای رونوشت‌برداری داده بین رایانه و دستگاهتان، نصب برنامه‌ها در دستگاهتان بدون اعلان و خواندن داده‌های گزارش استفاده کنید."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"اشکال‌زدایی بی‌سیم انجام شود؟"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"اشکال‌زدایی بی‌سیم فقط برای اهداف برنامه‌نویسی در نظر گرفته شده است. از آن برای کپی کردن داده بین رایانه و دستگاهتان، نصب برنامه‌ها در دستگاهتان بدون اعلان، و خواندن داده‌های گزارش استفاده کنید."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"‏دسترسی به اشکال‌زدایی USB از تمام رایانه‌هایی که قبلاً مجاز دانسته‌اید لغو شود؟"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"‏دسترسی به اشکال‌زدایی ADB از تمام رایانه‌ها و شبکه‌هایی که قبلاً مجاز دانسته‌اید لغو شود؟"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"تنظیمات برنامه‌نویسی مجاز باشد؟"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"این تنظیمات فقط برای برنامه‌نویسی در نظر گرفته شده است. ممکن است استفاده از این تنظیمات موجب خرابی یا عملکرد نادرست دستگاه یا برنامه‌های شما شود."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"‏تأیید برنامه‌ها ازطریق USB"</string>
@@ -401,9 +404,9 @@
     <string name="pointer_location" msgid="7516929526199520173">"محل اشاره‌گر"</string>
     <string name="pointer_location_summary" msgid="957120116989798464">"هم‌پوشانی صفحه‌نمایش با نمایش داده لمسی فعلی"</string>
     <string name="show_touches" msgid="8437666942161289025">"نمایش تک‌ضرب‌ها"</string>
-    <string name="show_touches_summary" msgid="3692861665994502193">"نمایش بازخورد تصویری برای تک‌ضرب‌ها"</string>
+    <string name="show_touches_summary" msgid="3692861665994502193">"نشان دادن بازخورد دیداری برای تک‌ضرب‌ها"</string>
     <string name="show_key_presses" msgid="6360141722735900214">"نمایش فشار کلیدها"</string>
-    <string name="show_key_presses_summary" msgid="725387457373015024">"نمایش بازخورد بصری برای فشار دادن کلیدهای فیزیکی"</string>
+    <string name="show_key_presses_summary" msgid="725387457373015024">"نشان دادن بازخورد دیداری برای فشار دادن کلیدهای فیزیکی"</string>
     <string name="touchpad_visualizer" msgid="3707916068870825115">"نمایش ورودی صفحه لمسی"</string>
     <string name="touchpad_visualizer_summary" msgid="4056080018119847449">"رونهاد صفحه که داده‌های ورودی صفحه لمسی و اشاره‌های شناسایی‌شده را نمایش می‌دهد"</string>
     <string name="show_screen_updates" msgid="2078782895825535494">"نمایش به‌روزرسانی سطح"</string>
@@ -551,7 +554,7 @@
     <string name="enabled" msgid="3997122818554810678">"فعال"</string>
     <string name="external_source_trusted" msgid="1146522036773132905">"اجازه داشتن"</string>
     <string name="external_source_untrusted" msgid="5037891688911672227">"اجازه نداشتن"</string>
-    <string name="install_other_apps" msgid="3232595082023199454">"نصب برنامه‌های ناشناس"</string>
+    <string name="install_other_apps" msgid="3232595082023199454">"نصب کردن برنامه‌های ناشناس"</string>
     <string name="home" msgid="973834627243661438">"صفحه اصلی تنظیمات"</string>
   <string-array name="battery_labels">
     <item msgid="7878690469765357158">"٪۰"</item>
@@ -702,7 +705,7 @@
     <string name="guest_exit_dialog_message" msgid="1743218864242719783">"با این کار، برنامه‌ها و داده‌ها از جلسه مهمان کنونی حذف خواهند شد."</string>
     <string name="grant_admin" msgid="4323199171790522574">"بله، سرپرست شود"</string>
     <string name="not_grant_admin" msgid="3557849576157702485">"نه، سرپرست نشود"</string>
-    <string name="guest_exit_dialog_button" msgid="1736401897067442044">"خروج"</string>
+    <string name="guest_exit_dialog_button" msgid="1736401897067442044">"خارج شدن"</string>
     <string name="guest_exit_dialog_title_non_ephemeral" msgid="7675327443743162986">"فعالیت مهمان ذخیره شود؟"</string>
     <string name="guest_exit_dialog_message_non_ephemeral" msgid="223385323235719442">"می‌توانید فعالیت جلسه کنونی را ذخیره کنید یا همه برنامه و داده‌ها را حذف کنید"</string>
     <string name="guest_exit_clear_data_button" msgid="3425812652180679014">"حذف"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"اترنت قطع شد."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"اترنت."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"تماس گرفته نشود."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"صفحه‌کلید فیزیکی"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"انتخاب جانمایی صفحه‌کلید"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"پیش‌فرض"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"کنترل روشن شدن صفحه‌نمایش"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"اجازه روشن کردن صفحه‌نمایش"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"به برنامه اجازه می‌دهد صفحه‌نمایش را روشن کند. اگر این اجازه داده شود، ممکن است این برنامه در هر زمانی بدون توجه به منظور صریح شما صفحه‌نمایش را روشن کند."</string>

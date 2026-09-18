@@ -16,31 +16,33 @@
 
 package com.android.systemui.statusbar.ui.viewmodel
 
-import com.android.systemui.Flags
-import com.android.systemui.dagger.SysUISingleton
+import android.view.View
+import androidx.compose.runtime.getValue
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.desktop.domain.interactor.DesktopInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.scene.domain.interactor.SceneInteractor
-import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.shade.domain.interactor.ShadeStatusBarComponentsInteractor
 import com.android.systemui.statusbar.domain.interactor.KeyguardStatusBarInteractor
-import com.android.systemui.statusbar.headsup.shared.StatusBarNoHunBehavior
-import com.android.systemui.statusbar.notification.domain.interactor.HeadsUpNotificationInteractor
-import com.android.systemui.statusbar.policy.BatteryController
-import com.android.systemui.statusbar.policy.BatteryController.BatteryStateChangeCallback
-import com.android.systemui.user.domain.interactor.UserLogoutInteractor
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
-import javax.inject.Inject
+import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState
+import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState.Idle
+import com.android.systemui.statusbar.phone.domain.interactor.IsAreaDark
+import com.android.systemui.statusbar.phone.domain.interactor.ShadeDarkIconInteractor
+import com.android.systemui.statusbar.pipeline.shared.domain.interactor.HomeStatusBarIconBlockListInteractor
+import com.android.systemui.statusbar.pipeline.shared.ui.model.SystemInfoCombinedVisibilityModel
+import com.android.systemui.statusbar.pipeline.shared.ui.model.VisibilityModel
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -52,27 +54,18 @@ import kotlinx.coroutines.flow.stateIn
  * [com.android.systemui.statusbar.pipeline.wifi.ui.viewmodel.WifiViewModel] or
  * [com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconsViewModel].
  */
-@SysUISingleton
 class KeyguardStatusBarViewModel
-@Inject
+@AssistedInject
 constructor(
     @Application scope: CoroutineScope,
-    headsUpNotificationInteractor: HeadsUpNotificationInteractor,
     desktopInteractor: DesktopInteractor,
     sceneInteractor: SceneInteractor,
-    private val keyguardInteractor: KeyguardInteractor,
+    keyguardInteractor: KeyguardInteractor,
     keyguardStatusBarInteractor: KeyguardStatusBarInteractor,
-    private val userLogoutInteractor: UserLogoutInteractor,
-    batteryController: BatteryController,
+    shadeStatusBarComponentsInteractor: ShadeStatusBarComponentsInteractor,
+    darkIconInteractor: ShadeDarkIconInteractor,
+    val statusBarIconBlockListInteractor: HomeStatusBarIconBlockListInteractor,
 ) : HydratedActivatable(enableEnqueuedActivations = true) {
-
-    private val showingHeadsUpStatusBar: Flow<Boolean> =
-        if (SceneContainerFlag.isEnabled && !StatusBarNoHunBehavior.isEnabled) {
-            headsUpNotificationInteractor.statusBarHeadsUpStatus.map { it.isPinned }
-        } else {
-            flowOf(false)
-        }
-
     /** True if this view should be visible and false otherwise. */
     val isVisible: StateFlow<Boolean> =
         combine(
@@ -80,50 +73,61 @@ constructor(
                 sceneInteractor.currentScene,
                 sceneInteractor.currentOverlays,
                 keyguardInteractor.isDozing,
-                showingHeadsUpStatusBar,
-            ) { useDesktopStatusBar, currentScene, currentOverlays, isDozing, showHeadsUpStatusBar
-                ->
+            ) { useDesktopStatusBar, currentScene, currentOverlays, isDozing ->
                 !useDesktopStatusBar &&
-                    currentScene == Scenes.Lockscreen &&
+                    (currentScene == Scenes.Lockscreen || currentScene == Scenes.Communal) &&
                     Overlays.NotificationsShade !in currentOverlays &&
                     Overlays.QuickSettingsShade !in currentOverlays &&
                     Overlays.Bouncer !in currentOverlays &&
-                    !isDozing &&
-                    !showHeadsUpStatusBar
+                    !isDozing
             }
             .stateIn(scope, SharingStarted.WhileSubscribed(), false)
 
-    /** True if the device's battery is currently charging and false otherwise. */
-    // Note: Never make this an eagerly-started state flow so that the callback is removed when the
-    // keyguard status bar view isn't attached.
-    val isBatteryCharging: Flow<Boolean> = conflatedCallbackFlow {
-        val callback =
-            object : BatteryStateChangeCallback {
-                override fun onBatteryLevelChanged(
-                    level: Int,
-                    pluggedIn: Boolean,
-                    charging: Boolean,
-                ) {
-                    trySend(charging)
-                }
+    val isAreaDark: IsAreaDark by
+        darkIconInteractor.isShadeAreaDark.hydratedStateOf(
+            traceName = "areaDark",
+            initialValue = IsAreaDark { true },
+        )
+
+    private val systemEventAnimationState: Flow<SystemEventAnimationState> =
+        shadeStatusBarComponentsInteractor.systemStatusEventAnimationInteractor.flatMapLatest {
+            it.animationState
+        }
+
+    private val isSystemInfoVisible: Flow<Boolean> =
+        shadeStatusBarComponentsInteractor.disableFlags.map { it.isSystemInfoEnabled }
+
+    /**
+     * Pair of (system info visibility, event animation state). The animation state can be used to
+     * respond to the system event chip animations. In all cases, system info visibility correctly
+     * models the View.visibility for the system info area
+     */
+    val systemInfoCombinedVis: SystemInfoCombinedVisibilityModel by
+        combine(isSystemInfoVisible, systemEventAnimationState) { sysInfoVisible, animationState ->
+                val model =
+                    VisibilityModel(
+                        if (sysInfoVisible) {
+                            View.VISIBLE
+                        } else {
+                            View.INVISIBLE
+                        },
+                        animationState == Idle,
+                    )
+                SystemInfoCombinedVisibilityModel(model, animationState)
             }
-        batteryController.addCallback(callback)
-        awaitClose { batteryController.removeCallback(callback) }
-    }
+            .distinctUntilChanged()
+            .hydratedStateOf(
+                traceName = "systemInfoCombinedVis",
+                initialValue =
+                    SystemInfoCombinedVisibilityModel(VisibilityModel(View.INVISIBLE, false), Idle),
+            )
 
     /** True if we can show the user switcher on keyguard and false otherwise. */
     val isKeyguardUserSwitcherEnabled: Flow<Boolean> =
         keyguardStatusBarInteractor.isKeyguardUserSwitcherEnabled
 
-    val isSignOutButtonEnabled: Boolean
-        get() =
-            Flags.signOutButtonOnKeyguardStatusBar() &&
-                keyguardInteractor.isSignOutButtonOnStatusBarEnabled
-
-    val isSignOutButtonVisible: Boolean by
-        userLogoutInteractor.isLogoutToSystemUserEnabled.hydratedStateOf()
-
-    fun onSignOut() {
-        enqueueOnActivatedScope { userLogoutInteractor.logOutToSystemUser() }
+    @AssistedFactory
+    interface Factory {
+        fun create(): KeyguardStatusBarViewModel
     }
 }

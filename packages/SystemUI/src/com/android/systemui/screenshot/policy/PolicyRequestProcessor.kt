@@ -26,15 +26,13 @@ import android.os.UserHandle
 import android.util.Log
 import android.view.WindowManager.TAKE_SCREENSHOT_FULLSCREEN
 import android.view.WindowManager.TAKE_SCREENSHOT_PROVIDED_IMAGE
-import com.android.systemui.Flags.screenshotPolicySplitAndDesktopMode
+import com.android.systemui.Flags.screenshotDisableLongScreenshotForSystemShade
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.screencapture.record.domain.interactor.ScreenCaptureRecordFeaturesInteractor
 import com.android.systemui.screenshot.ImageCapture
 import com.android.systemui.screenshot.ScreenshotData
 import com.android.systemui.screenshot.ScreenshotRequestProcessor
-import com.android.systemui.screenshot.data.model.DisplayContentModel
 import com.android.systemui.screenshot.data.repository.DisplayContentRepository
-import com.android.systemui.screenshot.policy.CapturePolicy.PolicyResult.Matched
-import com.android.systemui.screenshot.policy.CapturePolicy.PolicyResult.NotMatched
 import com.android.systemui.screenshot.policy.CaptureType.FullScreen
 import com.android.systemui.screenshot.policy.CaptureType.IsolatedTask
 import kotlinx.coroutines.CoroutineDispatcher
@@ -56,6 +54,7 @@ class PolicyRequestProcessor(
     private val defaultOwner: UserHandle = myUserHandle(),
     /** The assigned component when no application has focus, or not visible */
     private val defaultComponent: ComponentName,
+    private val screenCaptureRecordFeaturesInteractor: ScreenCaptureRecordFeaturesInteractor,
 ) : ScreenshotRequestProcessor {
     override suspend fun process(original: ScreenshotData): ScreenshotData {
 
@@ -65,28 +64,22 @@ class PolicyRequestProcessor(
             return original
         }
         val displayContent = displayTasks.getDisplayContent(original.displayId)
-
-        if (screenshotPolicySplitAndDesktopMode()) {
-            Log.i(TAG, "Applying screenshot policy....")
-            val type = policy.apply(displayContent, defaultComponent, defaultOwner)
-            return modify(original, type)
-        }
-
-        // If policies yield explicit modifications, apply them and return the result
-        Log.i(TAG, "Applying policy checks....")
-        policies.map { policy ->
-            when (val result = policy.check(displayContent)) {
-                is Matched -> {
-                    Log.i(TAG, "$result")
-                    return modify(original, result.parameters)
-                }
-
-                is NotMatched -> Log.i(TAG, "$result")
+        val original =
+            if (
+                (screenshotDisableLongScreenshotForSystemShade() &&
+                    displayContent.systemUiState.shadeExpanded) ||
+                    screenCaptureRecordFeaturesInteractor.isLargeScreenScreencaptureEnabled
+            ) {
+                // Suppress long screenshot if the shade is expanded or large-screen capture
+                // is enabled; ScreenshotController will hide the long screenshot chip.
+                original.copy(suppressLongScreenshot = true)
+            } else {
+                original
             }
-        }
 
-        // Otherwise capture normally, filling in additional information as needed.
-        return captureScreenshot(original, displayContent)
+        Log.i(TAG, "Applying screenshot policy....")
+        val type = policy.apply(displayContent, defaultComponent, defaultOwner)
+        return modify(original, type)
     }
 
     /** Produce a new [ScreenshotData] using [CaptureParameters] */
@@ -151,27 +144,6 @@ class PolicyRequestProcessor(
                     )
             }
         return updated
-    }
-
-    private suspend fun captureScreenshot(
-        original: ScreenshotData,
-        displayContent: DisplayContentModel,
-    ): ScreenshotData {
-        // The first root task on the display, excluding Picture-in-Picture
-        val topMainRootTask =
-            if (!displayContent.systemUiState.shadeExpanded) {
-                displayContent.rootTasks.firstOrNull(::nonPipVisibleTask)
-            } else {
-                null // Otherwise attributed to SystemUI / current user
-            }
-
-        return replaceWithScreenshot(
-            original = original,
-            componentName = topMainRootTask?.topActivity ?: defaultComponent,
-            taskId = topMainRootTask?.taskId,
-            owner = defaultOwner,
-            displayId = original.displayId,
-        )
     }
 
     private suspend fun replaceWithTaskSnapshot(

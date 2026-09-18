@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
+#include <jni.h>
+#include <utils/Log.h>
+#include <utils/misc.h>
 #include <nativehelper/JNIHelp.h>
 #include <com_android_internal_os.h>
+#include <android/binder_ibinder_jni.h>
+#include <aidl/com/android/ravenwoodtest/bivalenttest/BnRavenwoodAidlService.h>
+
 #include <atomic>
-#include "jni.h"
-#include "utils/Log.h"
-#include "utils/misc.h"
+
+using aidl::com::android::ravenwoodtest::bivalenttest::BnRavenwoodAidlService;
 
 // JNI methods for RavenwoodJniTest
 
@@ -105,6 +110,29 @@ static const JNINativeMethod sMethods_RavenwoodAconfigNativeFlagsTest[] =
     { "getRavenwoodFlagRw2", "()Z", (void*)getRavenwoodFlagRw2 },
 };
 
+
+// JNI methods for RavenwoodNativeBinderTest
+
+class RavenwoodAidlService : public BnRavenwoodAidlService {
+public:
+    RavenwoodAidlService() {}
+private:
+    ::ndk::ScopedAStatus add(int32_t a, int32_t b, int32_t* ret) override {
+        *ret = a + b;
+        return ndk::ScopedAStatus::ok();
+    }
+};
+
+static jobject getNativeService(JNIEnv* env, jclass) {
+    auto service = ndk::SharedRefBase::make<RavenwoodAidlService>();
+    return AIBinder_toJavaBinder(env, service->asBinder().get());
+}
+
+static const JNINativeMethod sMethods_BinderTest[] =
+{
+    { "getNativeService", "()Landroid/os/IBinder;", (void*)getNativeService },
+};
+
 extern "C" jint JNI_OnLoad(JavaVM* vm, void* /* reserved */)
 {
     JNIEnv* env = NULL;
@@ -134,6 +162,12 @@ extern "C" jint JNI_OnLoad(JavaVM* vm, void* /* reserved */)
             "com/android/ravenwoodtest/bivalenttest/aconfig/RavenwoodAconfigNativeFlagsTest",
             sMethods_RavenwoodAconfigNativeFlagsTest,
             NELEM(sMethods_RavenwoodAconfigNativeFlagsTest));
+    if (res < 0) {
+        return res;
+    }
+    res = jniRegisterNativeMethods(env,
+            "com/android/ravenwoodtest/bivalenttest/RavenwoodNativeBinderTest",
+            sMethods_BinderTest, NELEM(sMethods_BinderTest));
     if (res < 0) {
         return res;
     }

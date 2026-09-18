@@ -46,7 +46,7 @@ class CloseImeOnDismissPopupDialogTest(flicker: FlickerTest) : BaseTest(flicker)
     /** {@inheritDoc} */
     override val transition: FlickerBuilder.() -> Unit = {
         setup {
-            tapl.setExpectedRotationCheckEnabled(false)
+            tapl.expectedRotationCheckEnabled = false
             imeTestApp.launchViaIntent(wmHelper)
             imeTestApp.openIME(wmHelper)
         }
@@ -55,7 +55,7 @@ class CloseImeOnDismissPopupDialogTest(flicker: FlickerTest) : BaseTest(flicker)
             wmHelper.StateSyncBuilder().withImeGone().waitForAndVerify()
         }
         teardown {
-            tapl.goHome()
+            device.pressHome()
             wmHelper.StateSyncBuilder().withHomeActivityVisible().waitForAndVerify()
             imeTestApp.exit(wmHelper)
         }

@@ -29,6 +29,8 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -119,6 +121,9 @@ public class SliderPreference extends Preference {
             mTrackingTouch = false;
             if ((int) slider.getValue() != mSliderValue) {
                 syncValueInternal(slider);
+
+                // After slider is dragged, also update start and end buttons
+                notifyChanged();
             }
             if (mExtraTouchListener != null) {
                 mExtraTouchListener.onStopTrackingTouch(slider);
@@ -271,6 +276,13 @@ public class SliderPreference extends Preference {
             boolean enabled) {
         iconView.setEnabled(enabled);
         iconFrame.setEnabled(enabled);
+        iconFrame.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override
+            public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(host, info);
+                info.setClassName(Button.class.getName());
+            }
+        });
     }
 
     /** Set the start icon of the Slider. */
@@ -356,10 +368,11 @@ public class SliderPreference extends Preference {
         final CharSequence title = getTitle();
         if (!TextUtils.isEmpty(mSliderContentDescription)) {
             holder.itemView.setContentDescription(mSliderContentDescription);
+            mSlider.setContentDescription(mSliderContentDescription);
         } else if (!TextUtils.isEmpty(title)) {
-            holder.itemView.setContentDescription(title);
+            mSlider.setContentDescription(title);
         } else {
-            holder.itemView.setContentDescription(null);
+            mSlider.setContentDescription(null);
         }
         if (!TextUtils.isEmpty(mSliderStateDescription)) {
             mSlider.setStateDescription(mSliderStateDescription);
@@ -738,13 +751,16 @@ public class SliderPreference extends Preference {
         }
 
         iconFrame.setOnClickListener((view) -> {
-            if (mSliderValue > 0) {
-                setValue(mSliderValue - mSliderIncrement);
+            if (mSliderValue > mMin) {
+                final int newValue = mSliderValue - mSliderIncrement;
+                if (callChangeListener(newValue)) {
+                    setValue(newValue);
+                }
             }
         });
 
         iconFrame.setVisibility(View.VISIBLE);
-        setIconViewAndFrameEnabled(icon, iconFrame, mSliderValue > mMin);
+        setIconViewAndFrameEnabled(icon, iconFrame, isEnabled() && mSliderValue > mMin);
     }
 
     private void updateIconEndIfNeeded(ImageView icon) {
@@ -773,12 +789,15 @@ public class SliderPreference extends Preference {
 
         iconFrame.setOnClickListener((view) -> {
             if (mSliderValue < mMax) {
-                setValue(mSliderValue + mSliderIncrement);
+                final int newValue = mSliderValue + mSliderIncrement;
+                if (callChangeListener(newValue)) {
+                    setValue(newValue);
+                }
             }
         });
 
         iconFrame.setVisibility(View.VISIBLE);
-        setIconViewAndFrameEnabled(icon, iconFrame, mSliderValue < mMax);
+        setIconViewAndFrameEnabled(icon, iconFrame, isEnabled() && mSliderValue < mMax);
     }
 
     /**

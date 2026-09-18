@@ -112,6 +112,23 @@ internal fun CustomizedTopAppBar(
     )
 }
 
+@Composable
+internal fun CustomizedTopAppBarWithTitleScalable(
+    title: @Composable () -> Unit,
+    navigationIcon: @Composable () -> Unit = {},
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    SingleRowTopAppBar(
+        title = title,
+        titleTextStyle = MaterialTheme.typography.titleMedium,
+        navigationIcon = navigationIcon,
+        actions = actions,
+        windowInsets = safeDrawingWindowInsets,
+        colors = topAppBarColors(),
+        titleScaleDisabled = false
+    )
+}
+
 /** The customized LargeTopAppBar for Settings. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -268,6 +285,7 @@ private fun SingleRowTopAppBar(
     actions: @Composable (RowScope.() -> Unit),
     windowInsets: WindowInsets,
     colors: TopAppBarColors,
+    titleScaleDisabled: Boolean = true,
 ) {
     // Wrap the given actions in a Row.
     val actionsRow =
@@ -304,7 +322,7 @@ private fun SingleRowTopAppBar(
             hideTitleSemantics = false,
             navigationIcon = navigationIcon,
             actions = actionsRow,
-            titleScaleDisabled = false,
+            titleScaleDisabled = titleScaleDisabled,
         )
     }
 }
@@ -543,7 +561,13 @@ private fun TopAppBarLayout(
                 ProvideTextStyle(value = titleTextStyle) {
                     CompositionLocalProvider(
                         LocalContentColor provides titleContentColor,
-                        localDensityDisableFontScale(),
+                        LocalDensity provides
+                                with(LocalDensity.current) {
+                                    Density(
+                                        density = density,
+                                        fontScale = if (titleScaleDisabled) 1f else fontScale,
+                                    )
+                                },
                         content = title,
                     )
                 }

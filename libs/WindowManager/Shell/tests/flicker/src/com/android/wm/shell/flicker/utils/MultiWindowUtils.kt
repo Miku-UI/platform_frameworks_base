@@ -35,20 +35,20 @@ object MultiWindowUtils {
     fun getDevEnableNonResizableMultiWindow(context: Context): Int =
         Settings.Global.getInt(
             context.contentResolver,
-            Settings.Global.DEVELOPMENT_ENABLE_NON_RESIZABLE_MULTI_WINDOW
+            Settings.Global.DEVELOPMENT_ENABLE_NON_RESIZABLE_MULTI_WINDOW,
         )
 
     fun setDevEnableNonResizableMultiWindow(context: Context, configValue: Int) =
         Settings.Global.putInt(
             context.contentResolver,
             Settings.Global.DEVELOPMENT_ENABLE_NON_RESIZABLE_MULTI_WINDOW,
-            configValue
+            configValue,
         )
 
     fun setSupportsNonResizableMultiWindow(instrumentation: Instrumentation, configValue: Int) =
         executeShellCommand(
             instrumentation,
-            createConfigSupportsNonResizableMultiWindowCommand(configValue)
+            createConfigSupportsNonResizableMultiWindowCommand(configValue),
         )
 
     fun resetMultiWindowConfig(instrumentation: Instrumentation) =

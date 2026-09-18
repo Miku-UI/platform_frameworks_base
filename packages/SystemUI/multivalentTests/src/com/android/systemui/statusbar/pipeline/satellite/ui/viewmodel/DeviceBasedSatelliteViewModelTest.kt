@@ -20,87 +20,41 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.coroutines.collectLastValue
-import com.android.systemui.log.core.FakeLogBuffer
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.advanceTimeBy
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runTest
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.pipeline.airplane.data.repository.airplaneModeRepository
-import com.android.systemui.statusbar.pipeline.airplane.data.repository.fake
-import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.airplaneModeInteractor
-import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.FakeMobileIconsInteractor
-import com.android.systemui.statusbar.pipeline.mobile.util.FakeMobileMappingsProxy
-import com.android.systemui.statusbar.pipeline.satellite.data.prod.FakeDeviceBasedSatelliteRepository
-import com.android.systemui.statusbar.pipeline.satellite.domain.interactor.DeviceBasedSatelliteInteractor
+import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.fakeMobileIconsInteractor
+import com.android.systemui.statusbar.pipeline.satellite.data.repository.deviceBasedSatelliteRepository
 import com.android.systemui.statusbar.pipeline.satellite.shared.model.SatelliteConnectionState
-import com.android.systemui.statusbar.pipeline.shared.data.repository.connectivityRepository
-import com.android.systemui.statusbar.pipeline.shared.data.repository.fake
-import com.android.systemui.statusbar.pipeline.wifi.data.repository.FakeWifiRepository
-import com.android.systemui.statusbar.pipeline.wifi.domain.interactor.WifiInteractorImpl
+import com.android.systemui.statusbar.pipeline.wifi.data.repository.fakeWifiRepository
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.runTest
-import org.junit.Before
 import org.junit.runner.RunWith
-import org.mockito.MockitoAnnotations
-import org.mockito.kotlin.mock
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
-    private val kosmos = testKosmos()
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
-    private lateinit var underTest: DeviceBasedSatelliteViewModel
-    private lateinit var interactor: DeviceBasedSatelliteInteractor
-    private val airplaneModeRepository = kosmos.airplaneModeRepository.fake
-    private val repo = FakeDeviceBasedSatelliteRepository()
-    private val testScope = TestScope()
-
-    private val mobileIconsInteractor = FakeMobileIconsInteractor(FakeMobileMappingsProxy(), mock())
-
-    private val connectivityRepository = kosmos.connectivityRepository.fake
-    private val wifiRepository = FakeWifiRepository()
-    private val wifiInteractor =
-        WifiInteractorImpl(connectivityRepository, wifiRepository, testScope.backgroundScope)
-
-    @Before
-    fun setUp() {
-        MockitoAnnotations.initMocks(this)
-
-        interactor =
-            DeviceBasedSatelliteInteractor(
-                repo,
-                mobileIconsInteractor,
-                wifiInteractor,
-                testScope.backgroundScope,
-                FakeLogBuffer.Factory.create(),
-                mock(),
-            )
-
-        underTest =
-            DeviceBasedSatelliteViewModelImpl(
-                context,
-                interactor,
-                testScope.backgroundScope,
-                kosmos.airplaneModeInteractor,
-                FakeLogBuffer.Factory.create(),
-                mock(),
-            )
-    }
+    private val Kosmos.underTest by Kosmos.Fixture { deviceBasedSatelliteViewModel }
 
     @Test
     fun icon_null_satelliteNotAllowed() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN satellite is not allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = false
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = false
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -113,19 +67,20 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun icon_null_connectedAndNotAllowed() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN satellite is not allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = false
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = false
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
             // GIVEN satellite state is Connected. (this should not ever occur, but still)
-            repo.connectionState.value = SatelliteConnectionState.Connected
+            deviceBasedSatelliteRepository.connectionState.value =
+                SatelliteConnectionState.Connected
 
             // GIVEN apm is disabled
             airplaneModeRepository.setIsAirplaneMode(false)
@@ -136,14 +91,14 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun icon_null_notAllOos() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN satellite is allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
 
             // GIVEN all icons are not OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = true
             i1.isEmergencyOnly.value = false
 
@@ -156,14 +111,14 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun icon_null_allOosAndNotAllowed() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN satellite is allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = false
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = false
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -176,14 +131,14 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun icon_null_allOosAndConfigIsFalse() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN config for opportunistic icon is false
-            repo.isOpportunisticSatelliteIconEnabled = false
+            deviceBasedSatelliteRepository.isOpportunisticSatelliteIconEnabled = false
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -196,14 +151,14 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun icon_null_isEmergencyOnly() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN satellite is allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -225,14 +180,14 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun icon_null_apmIsEnabled() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN satellite is allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -245,14 +200,14 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun icon_notNull_satelliteAllowedAndAllOos() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN satellite is allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -268,14 +223,14 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun icon_hysteresisWhenEnablingIcon() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN satellite is allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -300,14 +255,14 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun icon_ignoresHysteresis_whenConnected() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN satellite is allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -315,7 +270,8 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
             airplaneModeRepository.setIsAirplaneMode(false)
 
             // GIVEN satellite reports that it is Connected
-            repo.connectionState.value = SatelliteConnectionState.Connected
+            deviceBasedSatelliteRepository.connectionState.value =
+                SatelliteConnectionState.Connected
 
             // THEN icon is non null because we are connected, despite the normal OOS icon waiting
             // 10 seconds for hysteresis
@@ -324,14 +280,14 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun icon_ignoresHysteresis_whenOn() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN satellite is allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
 
             // GIVEN all icons are OOS and not ntn
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
             i1.isNonTerrestrial.value = false
@@ -340,7 +296,7 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
             airplaneModeRepository.setIsAirplaneMode(false)
 
             // GIVEN satellite reports that it is Connected
-            repo.connectionState.value = SatelliteConnectionState.On
+            deviceBasedSatelliteRepository.connectionState.value = SatelliteConnectionState.On
 
             // THEN icon is non null because the connection state is On, despite the normal OOS icon
             // waiting 10 seconds for hysteresis
@@ -349,21 +305,21 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun icon_nullWhenConnected_mobileNtnConnectionExists() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN satellite is allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
 
             // GIVEN ntn connection exists
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isNonTerrestrial.value = true
 
             // GIVEN apm is disabled
             airplaneModeRepository.setIsAirplaneMode(false)
 
             // GIVEN satellite reports that it is Connected
-            repo.connectionState.value = SatelliteConnectionState.On
+            deviceBasedSatelliteRepository.connectionState.value = SatelliteConnectionState.On
 
             // THEN icon is null because despite being connected, the mobile stack is reporting a
             // nonTerrestrial network, and therefore will have its own icon
@@ -372,14 +328,14 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun icon_satelliteIsProvisioned() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN satellite is allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -387,13 +343,13 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
             airplaneModeRepository.setIsAirplaneMode(false)
 
             // GIVEN satellite is not provisioned
-            repo.isSatelliteProvisioned.value = false
+            deviceBasedSatelliteRepository.isSatelliteProvisioned.value = false
 
             // THEN icon is null because the device is not provisioned
             assertThat(latest).isNull()
 
             // GIVEN satellite becomes provisioned
-            repo.isSatelliteProvisioned.value = true
+            deviceBasedSatelliteRepository.isSatelliteProvisioned.value = true
 
             // Wait for delay to be completed
             advanceTimeBy(10.seconds)
@@ -404,14 +360,14 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun icon_wifiIsActive() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.icon)
 
             // GIVEN satellite is allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -419,16 +375,16 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
             airplaneModeRepository.setIsAirplaneMode(false)
 
             // GIVEN satellite is provisioned
-            repo.isSatelliteProvisioned.value = true
+            deviceBasedSatelliteRepository.isSatelliteProvisioned.value = true
 
             // GIVEN wifi network is active
-            wifiRepository.setWifiNetwork(WifiNetworkModel.Active.of(level = 1))
+            fakeWifiRepository.setWifiNetwork(WifiNetworkModel.Active.of(level = 1))
 
             // THEN icon is null because the device is connected to wifi
             assertThat(latest).isNull()
 
             // GIVEN device loses wifi connection
-            wifiRepository.setWifiNetwork(WifiNetworkModel.Invalid("test"))
+            fakeWifiRepository.setWifiNetwork(WifiNetworkModel.Invalid("test"))
 
             // Wait for delay to be completed
             advanceTimeBy(10.seconds)
@@ -439,14 +395,14 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun carrierText_nullWhenShouldNotShow_satelliteNotAllowed() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.carrierText)
 
             // GIVEN satellite is not allowed
-            repo.isSatelliteAllowedForCurrentLocation.value = false
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = false
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -459,15 +415,15 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun carrierText_null_notAllOos() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.carrierText)
 
             // GIVEN satellite is allowed + off
-            repo.isSatelliteAllowedForCurrentLocation.value = true
-            repo.connectionState.value = SatelliteConnectionState.Off
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.connectionState.value = SatelliteConnectionState.Off
 
             // GIVEN all icons are not OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = true
             i1.isEmergencyOnly.value = false
 
@@ -480,15 +436,16 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun carrierText_notNull_notAllOos_butConnected() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.carrierText)
 
             // GIVEN satellite is allowed + connected
-            repo.isSatelliteAllowedForCurrentLocation.value = true
-            repo.connectionState.value = SatelliteConnectionState.Connected
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.connectionState.value =
+                SatelliteConnectionState.Connected
 
             // GIVEN all icons are not OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = true
             i1.isEmergencyOnly.value = false
 
@@ -502,15 +459,16 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun carrierText_nullWhenShouldNotShow_apmIsEnabled() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.carrierText)
 
             // GIVEN satellite is allowed + connected
-            repo.isSatelliteAllowedForCurrentLocation.value = true
-            repo.connectionState.value = SatelliteConnectionState.Connected
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.connectionState.value =
+                SatelliteConnectionState.Connected
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -523,15 +481,16 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun carrierText_satelliteIsOn() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.carrierText)
 
             // GIVEN satellite is allowed + connected
-            repo.isSatelliteAllowedForCurrentLocation.value = true
-            repo.connectionState.value = SatelliteConnectionState.Connected
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.connectionState.value =
+                SatelliteConnectionState.Connected
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -539,7 +498,7 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
             airplaneModeRepository.setIsAirplaneMode(false)
 
             // Wait for delay to be completed
-            advanceTimeBy(10.seconds)
+            //            advanceTimeBy(10.seconds)
 
             // THEN carrier text is set because we don't have service
             assertThat(latest).isNotNull()
@@ -547,15 +506,16 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun carrierText_noHysteresisWhenEnablingText_connected() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.carrierText)
 
             // GIVEN satellite is allowed + connected
-            repo.isSatelliteAllowedForCurrentLocation.value = true
-            repo.connectionState.value = SatelliteConnectionState.Connected
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.connectionState.value =
+                SatelliteConnectionState.Connected
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -568,15 +528,16 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun carrierText_deviceIsProvisioned() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.carrierText)
 
             // GIVEN satellite is allowed + connected
-            repo.isSatelliteAllowedForCurrentLocation.value = true
-            repo.connectionState.value = SatelliteConnectionState.Connected
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.connectionState.value =
+                SatelliteConnectionState.Connected
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -584,13 +545,13 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
             airplaneModeRepository.setIsAirplaneMode(false)
 
             // GIVEN satellite is not provisioned
-            repo.isSatelliteProvisioned.value = false
+            deviceBasedSatelliteRepository.isSatelliteProvisioned.value = false
 
             // THEN carrier text is null because the device is not provisioned
             assertThat(latest).isNull()
 
             // GIVEN satellite becomes provisioned
-            repo.isSatelliteProvisioned.value = true
+            deviceBasedSatelliteRepository.isSatelliteProvisioned.value = true
 
             // Wait for delay to be completed
             advanceTimeBy(10.seconds)
@@ -601,15 +562,16 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun carrierText_wifiIsActive() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.carrierText)
 
             // GIVEN satellite is allowed + connected
-            repo.isSatelliteAllowedForCurrentLocation.value = true
-            repo.connectionState.value = SatelliteConnectionState.Connected
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
+            deviceBasedSatelliteRepository.connectionState.value =
+                SatelliteConnectionState.Connected
 
             // GIVEN all icons are OOS
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
 
@@ -617,16 +579,16 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
             airplaneModeRepository.setIsAirplaneMode(false)
 
             // GIVEN satellite is provisioned
-            repo.isSatelliteProvisioned.value = true
+            deviceBasedSatelliteRepository.isSatelliteProvisioned.value = true
 
             // GIVEN wifi network is active
-            wifiRepository.setWifiNetwork(WifiNetworkModel.Active.of(level = 1))
+            fakeWifiRepository.setWifiNetwork(WifiNetworkModel.Active.of(level = 1))
 
             // THEN carrier text is null because the device is connected to wifi
             assertThat(latest).isNull()
 
             // GIVEN device loses wifi connection
-            wifiRepository.setWifiNetwork(WifiNetworkModel.Invalid("test"))
+            fakeWifiRepository.setWifiNetwork(WifiNetworkModel.Invalid("test"))
 
             // Wait for delay to be completed
             advanceTimeBy(10.seconds)
@@ -637,17 +599,17 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun carrierText_connectionStateUnknown_usesEmergencyOnlyText() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.carrierText)
 
             // Set up the conditions for satellite to be enabled
-            repo.isSatelliteAllowedForCurrentLocation.value = true
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
             airplaneModeRepository.setIsAirplaneMode(false)
 
-            repo.connectionState.value = SatelliteConnectionState.Unknown
+            deviceBasedSatelliteRepository.connectionState.value = SatelliteConnectionState.Unknown
 
             // Wait for delay to be completed
             advanceTimeBy(10.seconds)
@@ -658,17 +620,17 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun carrierText_connectionStateOff_usesEmergencyOnlyText() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.carrierText)
 
             // Set up the conditions for satellite to be enabled
-            repo.isSatelliteAllowedForCurrentLocation.value = true
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
             airplaneModeRepository.setIsAirplaneMode(false)
 
-            repo.connectionState.value = SatelliteConnectionState.Off
+            deviceBasedSatelliteRepository.connectionState.value = SatelliteConnectionState.Off
 
             // Wait for delay to be completed
             advanceTimeBy(10.seconds)
@@ -679,17 +641,17 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun carrierText_connectionStateOn_notConnectedString() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.carrierText)
 
             // Set up the conditions for satellite to be enabled
-            repo.isSatelliteAllowedForCurrentLocation.value = true
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
             airplaneModeRepository.setIsAirplaneMode(false)
 
-            repo.connectionState.value = SatelliteConnectionState.On
+            deviceBasedSatelliteRepository.connectionState.value = SatelliteConnectionState.On
 
             // Wait for delay to be completed
             advanceTimeBy(10.seconds)
@@ -700,17 +662,18 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
 
     @Test
     fun carrierText_connectionStateConnected_connectedString() =
-        testScope.runTest {
+        kosmos.runTest {
             val latest by collectLastValue(underTest.carrierText)
 
             // Set up the conditions for satellite to be enabled
-            repo.isSatelliteAllowedForCurrentLocation.value = true
-            val i1 = mobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
+            deviceBasedSatelliteRepository.isSatelliteAllowedForCurrentLocation.value = true
+            val i1 = fakeMobileIconsInteractor.getMobileConnectionInteractorForSubId(1)
             i1.isInService.value = false
             i1.isEmergencyOnly.value = false
             airplaneModeRepository.setIsAirplaneMode(false)
 
-            repo.connectionState.value = SatelliteConnectionState.Connected
+            deviceBasedSatelliteRepository.connectionState.value =
+                SatelliteConnectionState.Connected
 
             // Wait for delay to be completed
             advanceTimeBy(10.seconds)

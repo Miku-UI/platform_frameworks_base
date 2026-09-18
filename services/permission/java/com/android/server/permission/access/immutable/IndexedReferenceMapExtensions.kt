@@ -54,6 +54,10 @@ inline fun <K, I : Immutable<M>, M : I> IndexedReferenceMap<K, I, M>.forEachReve
     }
 }
 
+@Suppress("NOTHING_TO_INLINE")
+inline fun <K, I : Immutable<M>, M : I> IndexedReferenceMap<K, I, M>.isNotEmpty(): Boolean =
+    !isEmpty()
+
 inline val <K, I : Immutable<M>, M : I> IndexedReferenceMap<K, I, M>.lastIndex: Int
     get() = size - 1
 

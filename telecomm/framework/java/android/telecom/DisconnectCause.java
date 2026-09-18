@@ -21,6 +21,7 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.media.ToneGenerator;
 import android.os.Parcel;
@@ -44,7 +45,13 @@ import java.util.Objects;
  * the label and description. It also may contain a reason for the disconnect, which is intended for
  * logging and not for display to the user.
  */
+/* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+ * And update the SDK check to the final version number.
+ */
+@SuppressLint("NewApi")
 public final class DisconnectCause implements Parcelable {
+
+    private static final int TONE_UNKNOWN = -1;
 
     /** Disconnected because of an unknown or unspecified reason. */
     public static final int UNKNOWN = 0;
@@ -157,7 +164,7 @@ public final class DisconnectCause implements Parcelable {
      * @param code The code for the disconnect cause.
      */
     public DisconnectCause(@DisconnectCauseCode int code) {
-        this(code, null, null, null, ToneGenerator.TONE_UNKNOWN);
+        this(code, null, null, null, TONE_UNKNOWN);
     }
 
     /**
@@ -167,7 +174,7 @@ public final class DisconnectCause implements Parcelable {
      * @param reason The reason for the disconnect.
      */
     public DisconnectCause(@DisconnectCauseCode int code, String reason) {
-        this(code, null, null, reason, ToneGenerator.TONE_UNKNOWN);
+        this(code, null, null, reason, TONE_UNKNOWN);
     }
 
     /**
@@ -180,7 +187,7 @@ public final class DisconnectCause implements Parcelable {
      */
     public DisconnectCause(@DisconnectCauseCode int code, CharSequence label,
             CharSequence description, String reason) {
-        this(code, label, description, reason, ToneGenerator.TONE_UNKNOWN);
+        this(code, label, description, reason, TONE_UNKNOWN);
     }
 
     /**
@@ -325,14 +332,18 @@ public final class DisconnectCause implements Parcelable {
     /**
      * @hide
      */
+    /* TODO: b/478043076 - Remove SuppressLint once the API is finalized.
+     * And update the SDK check to the final version number.
+     */
     @SystemApi
     @FlaggedApi(Flags.FLAG_TELECOM_RESOLVE_HIDDEN_DEPENDENCIES)
+    @SuppressLint("NewApi")
     public static final class Builder {
         private @DisconnectCauseCode int mDisconnectCode;
         private CharSequence mDisconnectLabel;
         private CharSequence mDisconnectDescription;
         private String mDisconnectReason;
-        private int mToneToPlay = ToneGenerator.TONE_UNKNOWN;
+        private int mToneToPlay = TONE_UNKNOWN;
         private int mTelephonyDisconnectCause;
         private int mTelephonyPreciseDisconnectCause;
         private ImsReasonInfo mImsReasonInfo;
@@ -503,53 +514,49 @@ public final class DisconnectCause implements Parcelable {
         return false;
     }
 
+    /**
+     * Converts a disconnect code to a human readable string.
+     * @param code the code
+     * @return the string representation of the code
+     * @hide
+     */
+    public static String disconnectCodeToString(int code) {
+        switch (code) {
+            case UNKNOWN:
+                return "UNKNOWN";
+            case ERROR:
+                return "ERROR";
+            case LOCAL:
+                return "LOCAL";
+            case REMOTE:
+                return "REMOTE";
+
+            case CANCELED:
+                return "CANCELED";
+            case MISSED:
+                return "MISSED";
+            case REJECTED:
+                return "REJECTED";
+            case BUSY:
+                return "BUSY";
+            case RESTRICTED:
+                return "RESTRICTED";
+            case OTHER:
+                return "OTHER";
+            case CONNECTION_MANAGER_NOT_SUPPORTED:
+                return "CONNECTION_MANAGER_NOT_SUPPORTED";
+            case CALL_PULLED:
+                return "CALL_PULLED";
+            case ANSWERED_ELSEWHERE:
+                return "ANSWERED_ELSEWHERE";
+            default:
+                return ("invalid code: " + code);
+        }
+    }
+
     @Override
     public String toString() {
-        String code = "";
-        switch (mDisconnectCode) {
-            case UNKNOWN:
-                code = "UNKNOWN";
-                break;
-            case ERROR:
-                code = "ERROR";
-                break;
-            case LOCAL:
-                code = "LOCAL";
-                break;
-            case REMOTE:
-                code = "REMOTE";
-                break;
-            case CANCELED:
-                code = "CANCELED";
-                break;
-            case MISSED:
-                code = "MISSED";
-                break;
-            case REJECTED:
-                code = "REJECTED";
-                break;
-            case BUSY:
-                code = "BUSY";
-                break;
-            case RESTRICTED:
-                code = "RESTRICTED";
-                break;
-            case OTHER:
-                code = "OTHER";
-                break;
-            case CONNECTION_MANAGER_NOT_SUPPORTED:
-                code = "CONNECTION_MANAGER_NOT_SUPPORTED";
-                break;
-            case CALL_PULLED:
-                code = "CALL_PULLED";
-                break;
-            case ANSWERED_ELSEWHERE:
-                code = "ANSWERED_ELSEWHERE";
-                break;
-            default:
-                code = "invalid code: " + mDisconnectCode;
-                break;
-        }
+        String code = disconnectCodeToString(mDisconnectCode);
         String label = mDisconnectLabel == null ? "" : mDisconnectLabel.toString();
         String description = mDisconnectDescription == null
                 ? "" : mDisconnectDescription.toString();

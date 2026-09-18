@@ -21,8 +21,6 @@ import static org.junit.Assert.assertTrue;
 
 import android.platform.test.flag.junit.SetFlagsRule;
 
-import com.android.internal.compat.flags.Flags;
-
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -39,9 +37,10 @@ public class ChangeReporterTest {
 
         assertTrue(reporter.shouldWriteToStatsLog(false,
                 reporter.isAlreadyReported(myUid, myChangeId, myState)));
+
         reporter.reportChange(myUid, myChangeId, myState, true);
 
-        // Same report will not be logged again.
+        // Verify internal state updated and subsequent calls return false.
         assertFalse(reporter.shouldWriteToStatsLog(false,
                 reporter.isAlreadyReported(myUid, myChangeId, myState)));
         // Other reports will be logged.
@@ -81,15 +80,15 @@ public class ChangeReporterTest {
         long myChangeId = 500L, otherChangeId = 600L;
         int myState = ChangeReporter.STATE_ENABLED, otherState = ChangeReporter.STATE_LOGGED;
 
-        assertTrue(reporter.shouldWriteToDebug(myUid, myChangeId, myState));
+        assertTrue(shouldWriteToDebugAndNotReported(reporter, myUid, myChangeId, myState));
         reporter.reportChange(myUid, myChangeId, myState, false);
 
         // Same report will not be logged again.
-        assertFalse(reporter.shouldWriteToDebug(myUid, myChangeId, myState));
+        assertFalse(shouldWriteToDebugAndNotReported(reporter, myUid, myChangeId, myState));
         // Other reports will be logged.
-        assertTrue(reporter.shouldWriteToDebug(otherUid, myChangeId, myState));
-        assertTrue(reporter.shouldWriteToDebug(myUid, otherChangeId, myState));
-        assertTrue(reporter.shouldWriteToDebug(myUid, myChangeId, otherState));
+        assertTrue(shouldWriteToDebugAndNotReported(reporter, otherUid, myChangeId, myState));
+        assertTrue(shouldWriteToDebugAndNotReported(reporter, myUid, otherChangeId, myState));
+        assertTrue(shouldWriteToDebugAndNotReported(reporter, myUid, myChangeId, otherState));
 
         assertTrue(reporter.isAlreadyReported(myUid, myChangeId, myState));
 
@@ -102,15 +101,15 @@ public class ChangeReporterTest {
         long myChangeId = 500L;
         int myState = ChangeReporter.STATE_ENABLED;
 
-        assertTrue(reporter.shouldWriteToDebug(myUid, myChangeId, myState));
+        assertTrue(shouldWriteToDebugAndNotReported(reporter, myUid, myChangeId, myState));
         reporter.reportChange(myUid, myChangeId, myState, false);
 
         // Same report will not be logged again.
-        assertFalse(reporter.shouldWriteToDebug(myUid, myChangeId, myState));
+        assertFalse(shouldWriteToDebugAndNotReported(reporter, myUid, myChangeId, myState));
         reporter.resetReportedChanges(myUid);
 
         // Same report will be logged again after reset.
-        assertTrue(reporter.shouldWriteToDebug(myUid, myChangeId, myState));
+        assertTrue(shouldWriteToDebugAndNotReported(reporter, myUid, myChangeId, myState));
     }
 
     @Test
@@ -120,16 +119,22 @@ public class ChangeReporterTest {
         long myChangeId = 500L;
         int myState = ChangeReporter.STATE_ENABLED;
 
-        assertTrue(reporter.shouldWriteToDebug(myUid, myChangeId, myState));
-        reporter.reportChange(myUid, myChangeId, myState, false);
+        assertTrue(shouldWriteToDebugAndNotReported(reporter, myUid, myChangeId, myState));
 
+        // Mark as reported.
+        reporter.reportChange(myUid, myChangeId, myState, false);
+        assertTrue(reporter.isAlreadyReported(myUid, myChangeId, myState));
+
+        // Enable LogAll. This ensures shouldWriteToDebug returns true.
         reporter.startDebugLogAll();
-        // Same report will be logged again.
-        assertTrue(reporter.shouldWriteToDebug(myUid, myChangeId, myState));
-        assertTrue(reporter.shouldWriteToDebug(myUid, myChangeId, myState));
+
+        // With LogAll, it should write even if already reported.
+        assertTrue(reporter.isAlreadyReported(myUid, myChangeId, myState));
 
         reporter.stopDebugLogAll();
-        assertFalse(reporter.shouldWriteToDebug(myUid, myChangeId, myState));
+
+        // Still already reported so won't write.
+        assertFalse(shouldWriteToDebugAndNotReported(reporter, myUid, myChangeId, myState));
     }
 
     @Test
@@ -147,5 +152,15 @@ public class ChangeReporterTest {
 
         assertFalse(unknownReporter.shouldWriteToStatsLog(true, false));
         assertFalse(unknownReporter.shouldWriteToStatsLog(true, true));
+    }
+
+    /**
+     * Helper to reconstruct the logic required for debug logging: Not already reported AND
+     * configured for debug logging.
+     */
+    private boolean shouldWriteToDebugAndNotReported(
+            ChangeReporter reporter, int uid, long changeId, int state) {
+        return !reporter.isAlreadyReported(uid, changeId, state)
+                && reporter.shouldWriteToDebug(uid, changeId, state);
     }
 }

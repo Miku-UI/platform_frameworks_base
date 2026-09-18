@@ -286,21 +286,18 @@ float computeReverseOverscroll(float overscroll, float normalizedInput) {
     float distanceStretched = 1.f / (1.f + abs(overscroll));
     float distanceDiff = distanceStretched - 1.f;
     if (overscroll > 0) {
-        float output = reverseMapStart(overscroll, normalizedInput);
-        if (output <= 1.0f) {
-            return output;
-        } else if (output >= distanceStretched){
-            return output - distanceDiff;
+        if (normalizedInput >= distanceStretched) {
+            return normalizedInput - distanceDiff;
         }
+        return reverseMapStart(overscroll, normalizedInput);
     }
 
     if (overscroll < 0) {
-        float output = reverseMapEnd(overscroll, normalizedInput);
-        if (output >= 0.f) {
-            return output;
-        } else if (output < 0.f){
-            return output + distanceDiff;
+        distanceStretched = 1.f - distanceStretched;
+        if (normalizedInput <= distanceStretched) {
+            return normalizedInput + distanceDiff;
         }
+        return reverseMapEnd(overscroll, normalizedInput);
     }
     return normalizedInput;
 }

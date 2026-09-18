@@ -28,8 +28,6 @@ import org.junit.rules.TestRule;
 /** Unit tests for {@link android.util.CloseGuard} */
 @DisabledOnRavenwood(blockedBy = CloseGuard.class)
 public class CloseGuardTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     @Rule
     public final TestRule rule;

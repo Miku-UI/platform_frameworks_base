@@ -457,6 +457,7 @@ public class PackageItemInfo {
         // no back here
     }
 
+    // LINT.IfChange(parcel)
     public void writeToParcel(Parcel dest, int parcelableFlags) {
         dest.writeString8(name);
         dest.writeString8(packageName);
@@ -502,6 +503,7 @@ public class PackageItemInfo {
         showUserIcon = source.readInt();
         isArchived = source.readBoolean();
     }
+    // LINT.ThenChange(ComponentInfo.java:parcel)
 
     /**
      * Get the ApplicationInfo for the application to which this item belongs,

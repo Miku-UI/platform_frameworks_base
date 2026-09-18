@@ -19,7 +19,7 @@ package com.android.systemui.slice
 import android.net.Uri
 import androidx.slice.Slice
 import androidx.slice.SliceViewManager
-import com.android.systemui.common.coroutine.ConflatedCallbackFlow
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import com.android.app.tracing.coroutines.launchTraced as launch
@@ -33,7 +33,7 @@ import com.android.app.tracing.coroutines.launchTraced as launch
  * isn't thread-safe. An exception will be thrown otherwise.
  */
 fun SliceViewManager.sliceForUri(sliceUri: Uri): Flow<Slice?> =
-    ConflatedCallbackFlow.conflatedCallbackFlow {
+    conflatedCallbackFlow {
         val callback = SliceViewManager.SliceCallback { launch { send(it) } }
 
         val slice = bindSlice(sliceUri)

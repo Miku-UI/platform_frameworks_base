@@ -20,10 +20,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.InstanceId
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.dump.DumpManager
+import com.android.systemui.dump.realDumpManager
 import com.android.systemui.log.LogBuffer
-import com.android.systemui.log.LogBufferFactory
 import com.android.systemui.log.LogcatEchoTracker
+import com.android.systemui.log.impl.LogBufferFactoryImpl
+import com.android.systemui.testKosmosNew
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
 import java.io.StringWriter
@@ -35,13 +36,17 @@ import org.mockito.Mockito
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class TemporaryViewLoggerTest : SysuiTestCase() {
+    private val kosmos = testKosmosNew()
     private lateinit var buffer: LogBuffer
     private lateinit var logger: TemporaryViewLogger<TemporaryViewInfo>
 
     @Before
     fun setUp() {
         buffer =
-            LogBufferFactory(DumpManager(), Mockito.mock(LogcatEchoTracker::class.java))
+            LogBufferFactoryImpl(
+                    kosmos.realDumpManager,
+                    Mockito.mock(LogcatEchoTracker::class.java),
+                )
                 .create("buffer", 10)
         logger = TemporaryViewLogger(buffer, TAG)
     }

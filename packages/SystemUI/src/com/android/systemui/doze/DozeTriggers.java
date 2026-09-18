@@ -18,7 +18,6 @@ package com.android.systemui.doze;
 
 import static android.app.StatusBarManager.SESSION_KEYGUARD;
 
-import static com.android.systemui.Flags.newDozingKeyguardStates;
 import static com.android.systemui.doze.DozeMachine.State.DOZE_SUSPEND_TRIGGERS;
 import static com.android.systemui.doze.DozeMachine.State.FINISH;
 import static com.android.systemui.doze.DozeMachine.State.UNINITIALIZED;
@@ -54,6 +53,7 @@ import com.android.systemui.statusbar.policy.DevicePostureController;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
 import com.android.systemui.util.Assert;
+import com.android.systemui.util.sensors.ActivityDetectionProximitySensor;
 import com.android.systemui.util.sensors.AsyncSensorManager;
 import com.android.systemui.util.sensors.ProximityCheck;
 import com.android.systemui.util.sensors.ProximitySensor;
@@ -201,8 +201,8 @@ public class DozeTriggers implements DozeMachine.Part {
             AmbientDisplayConfiguration config,
             DozeParameters dozeParameters, AsyncSensorManager sensorManager,
             WakeLock wakeLock, DockManager dockManager,
-            ProximitySensor proximitySensor,
-            ProximityCheck proxCheck,
+            @ActivityDetectionProximitySensor ProximitySensor proximitySensor,
+            @ActivityDetectionProximitySensor ProximityCheck proxCheck,
             DozeLog dozeLog, BroadcastDispatcher broadcastDispatcher,
             SecureSettings secureSettings, AuthController authController,
             UiEventLogger uiEventLogger,
@@ -585,40 +585,38 @@ public class DozeTriggers implements DozeMachine.Part {
             return;
         }
 
-        if (newDozingKeyguardStates()) {
-            // When already pulsing, quick pickup and longpress gestures don't need to request
-            // a new pulse
-            if (alreadyPulsing
-                    && (reason == DozeLog.REASON_SENSOR_QUICK_PICKUP
-                    || reason == DozeLog.REASON_SENSOR_UDFPS_LONG_PRESS)) {
-                return;
-            }
+        // When already pulsing, quick pickup and longpress gestures don't need to request
+        // a new pulse
+        if (alreadyPulsing
+                && (reason == DozeLog.REASON_SENSOR_QUICK_PICKUP
+                || reason == DozeLog.REASON_SENSOR_UDFPS_LONG_PRESS)) {
+            return;
+        }
 
-            // When already showing auth UI, PULSE_REASON_FINGERPRINT_PULSE_SHOW_AUTH_UI
-            // doesn't need to request a new pulse
-            if ((dozeState == State.DOZE_PULSING_AUTH_UI || dozeState == State.DOZE_PULSING)
-                    && reason == DozeLog.PULSE_REASON_FINGERPRINT_PULSE_SHOW_AUTH_UI) {
-                return;
-            }
+        // When already showing auth UI, PULSE_REASON_FINGERPRINT_PULSE_SHOW_AUTH_UI
+        // doesn't need to request a new pulse
+        if ((dozeState == State.DOZE_PULSING_AUTH_UI || dozeState == State.DOZE_PULSING)
+                && reason == DozeLog.PULSE_REASON_FINGERPRINT_PULSE_SHOW_AUTH_UI) {
+            return;
+        }
 
-            // When already showing full aod UI, PULSE_REASON_FINGERPRINT_PULSE_SHOW_FULL_UI
-            // doesn't need to request a new pulse
-            if (dozeState == State.DOZE_PULSING
-                    && reason == DozeLog.PULSE_REASON_FINGERPRINT_PULSE_SHOW_FULL_UI) {
-                return;
-            }
+        // When already showing full aod UI, PULSE_REASON_FINGERPRINT_PULSE_SHOW_FULL_UI
+        // doesn't need to request a new pulse
+        if (dozeState == State.DOZE_PULSING
+                && reason == DozeLog.PULSE_REASON_FINGERPRINT_PULSE_SHOW_FULL_UI) {
+            return;
+        }
 
-            // When we're already pulsing and showing selective or no UI,
-            // we can directly go to other pulsing states.
-            if (selectiveUiPulsing) {
-                if (reason == DozeLog.PULSE_REASON_FINGERPRINT_PULSE_SHOW_AUTH_UI) {
-                    mMachine.requestState(State.DOZE_PULSING_AUTH_UI);
-                } else {
-                    // all other pulses should show full aod ui
-                    mMachine.requestState(State.DOZE_PULSING);
-                }
-                return;
+        // When we're already pulsing and showing selective or no UI,
+        // we can directly go to other pulsing states.
+        if (selectiveUiPulsing) {
+            if (reason == DozeLog.PULSE_REASON_FINGERPRINT_PULSE_SHOW_AUTH_UI) {
+                mMachine.requestState(State.DOZE_PULSING_AUTH_UI);
+            } else {
+                // all other pulses should show full aod ui
+                mMachine.requestState(State.DOZE_PULSING);
             }
+            return;
         }
 
         if (!mAllowPulseTriggers || mDozeHost.isPulsePending()

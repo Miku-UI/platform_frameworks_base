@@ -25,21 +25,18 @@ import static android.view.Surface.ROTATION_90;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
-import static com.android.window.flags.Flags.FLAG_ENABLE_CAMERA_COMPAT_EXTERNAL_DISPLAY_ROTATION_BUGFIX;
-import static com.android.window.flags.Flags.FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING;
 
 import static org.junit.Assert.assertEquals;
 
 import android.annotation.NonNull;
 import android.compat.testing.PlatformCompatChangeRule;
 import android.content.res.Configuration;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.view.Surface;
 
 import androidx.test.filters.SmallTest;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
@@ -61,23 +58,6 @@ public class AppCompatCameraRotationStateTests extends WindowTestsBase {
     public TestRule compatChangeRule = new PlatformCompatChangeRule();
 
     @Test
-    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_EXTERNAL_DISPLAY_ROTATION_BUGFIX)
-    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING)
-    public void testFeatureDisabled_returnsCurrentDisplayRotation() {
-        runTestScenario((robot) -> {
-            robot.configureActivityAndDisplay(ROTATION_90, ORIENTATION_PORTRAIT, TYPE_INTERNAL);
-            robot.makeCurrentDisplayDefault();
-            // The last created display is 'current'.
-            robot.configureActivityAndDisplay(ROTATION_0, ORIENTATION_LANDSCAPE, TYPE_EXTERNAL);
-
-            robot.checkOrientationEventListenerSetUp(/* expected= */ false);
-            robot.checkDisplayRotation(/* expected= */ Surface.ROTATION_0);
-        });
-    }
-
-    @Test
-    @EnableFlags({FLAG_ENABLE_CAMERA_COMPAT_EXTERNAL_DISPLAY_ROTATION_BUGFIX,
-            FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING})
     public void testFeatureEnabled_internalDisplay_returnsCurrentDisplayRotation() {
         runTestScenario((robot) -> {
             robot.configureActivityAndDisplay(ROTATION_0, ORIENTATION_PORTRAIT, TYPE_INTERNAL);
@@ -85,14 +65,14 @@ public class AppCompatCameraRotationStateTests extends WindowTestsBase {
             // The last created display is 'current'.
             robot.configureActivityAndDisplay(ROTATION_90, ORIENTATION_PORTRAIT, TYPE_INTERNAL);
 
-            robot.checkOrientationEventListenerSetUp(/* expected= */ false);
+            // TODO(b/495372418): start the listener only while external display is connected.
+            // robot.checkOrientationEventListenerSetUp(/* expected= */ false);
             robot.checkDisplayRotation(/* expected= */ Surface.ROTATION_90);
         });
     }
 
     @Test
-    @EnableFlags({FLAG_ENABLE_CAMERA_COMPAT_EXTERNAL_DISPLAY_ROTATION_BUGFIX,
-            FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING})
+    @Ignore("b/498068211")
     public void testFeatureEnabled_externalDisplay_returnsSensorRotation() {
         runTestScenario((robot) -> {
             robot.configureActivityAndDisplay(ROTATION_90, ORIENTATION_PORTRAIT, TYPE_INTERNAL);
@@ -111,8 +91,7 @@ public class AppCompatCameraRotationStateTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags({FLAG_ENABLE_CAMERA_COMPAT_EXTERNAL_DISPLAY_ROTATION_BUGFIX,
-            FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING})
+    @Ignore("b/498068211")
     public void testIsCameraDeviceOrientationPortrait_rotatesToLandscape_returnsFalse() {
         runTestScenario((robot) -> {
             robot.configureActivityAndDisplay(ROTATION_0, ORIENTATION_PORTRAIT, TYPE_INTERNAL);
@@ -132,8 +111,7 @@ public class AppCompatCameraRotationStateTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags({FLAG_ENABLE_CAMERA_COMPAT_EXTERNAL_DISPLAY_ROTATION_BUGFIX,
-            FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING})
+    @Ignore("b/498068211")
     public void testIsPortraitCamera_portraitInnerDisplay_rotatesToLandscape_true() {
         runTestScenario((robot) -> {
             robot.configureActivityAndDisplay(ROTATION_0, ORIENTATION_PORTRAIT, TYPE_INTERNAL);
@@ -151,14 +129,102 @@ public class AppCompatCameraRotationStateTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags({FLAG_ENABLE_CAMERA_COMPAT_EXTERNAL_DISPLAY_ROTATION_BUGFIX,
-            FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING})
     public void testIsCamera_DeviceNaturalOrientationPortrait_landscapeDisplay_returnsFalse() {
         runTestScenario((robot) -> {
-            robot.configureActivityAndDisplay(ROTATION_0, ORIENTATION_LANDSCAPE, TYPE_INTERNAL);
+            robot.configureActivityAndDisplay(ROTATION_0, ORIENTATION_LANDSCAPE,
+                TYPE_INTERNAL);
 
             // Current rotation does not affect whether camera sensor is portrait or landscape.
             robot.checkIsPortraitCamera(/* expected= */ false);
+        });
+    }
+
+    @Test
+    @Ignore("b/498068211")
+    public void testTransformSensorOrientationToDisplayRotation_mapsCorrectly() {
+        runTestScenario((robot) -> {
+            // Setup external display to enable sensor orientation listener
+            robot.configureActivityAndDisplay(ROTATION_90, ORIENTATION_PORTRAIT, TYPE_INTERNAL);
+            robot.makeCurrentDisplayDefault();
+            robot.configureActivityAndDisplay(ROTATION_0, ORIENTATION_LANDSCAPE, TYPE_EXTERNAL);
+
+            // Test ROTATION_0 range: [0, 45] U (315, 360)
+            robot.setSensorOrientation(10); // display rotation 350
+            robot.checkDisplayRotation(Surface.ROTATION_0);
+            robot.setSensorOrientation(350); // display rotation 10
+            robot.checkDisplayRotation(Surface.ROTATION_0);
+            robot.setSensorOrientation(315); // display rotation 45
+            robot.checkDisplayRotation(Surface.ROTATION_0);
+
+            // Test ROTATION_90 range: (45, 135]
+            robot.setSensorOrientation(270); // display rotation 90
+            robot.checkDisplayRotation(Surface.ROTATION_90);
+            robot.setSensorOrientation(225); // display rotation 135
+            robot.checkDisplayRotation(Surface.ROTATION_90);
+
+            // Test ROTATION_180 range: (135, 225]
+            robot.setSensorOrientation(180); // display rotation 180
+            robot.checkDisplayRotation(Surface.ROTATION_180);
+            robot.setSensorOrientation(135); // display rotation 225
+            robot.checkDisplayRotation(Surface.ROTATION_180);
+
+            // Test ROTATION_270 range: (225, 315]
+            robot.setSensorOrientation(90); // display rotation 270
+            robot.checkDisplayRotation(Surface.ROTATION_270);
+            robot.setSensorOrientation(45); // display rotation 315
+            robot.checkDisplayRotation(Surface.ROTATION_270);
+        });
+    }
+
+    @Test
+    @Ignore("b/498068211")
+    public void testIsCameraDeviceOrientationPortrait_naturalPortrait_noRotate_returnsTrue() {
+        runTestScenario((robot) -> {
+            // Setup: Default display natural orientation is portrait.
+            robot.configureActivityAndDisplay(ROTATION_0, ORIENTATION_PORTRAIT, TYPE_INTERNAL);
+            robot.makeCurrentDisplayDefault();
+            robot.configureActivityAndDisplay(ROTATION_0, ORIENTATION_LANDSCAPE, TYPE_EXTERNAL);
+
+            // Action: Set sensor to a value that results in a natural rotation (0 or 180).
+            // Sensor orientation 180 -> display rotation 180.
+            robot.setSensorOrientation(180);
+
+            // Assert: Should be considered portrait.
+            robot.checkIsCameraDisplayRotationPortrait(/* expected= */ true);
+        });
+    }
+
+    @Test
+    @Ignore("b/498068211")
+    public void testIsCameraDeviceOrientationPortrait_naturalLandscape_rotated_returnsTrue() {
+        runTestScenario((robot) -> {
+            robot.configureActivityAndDisplay(ROTATION_0, ORIENTATION_LANDSCAPE, TYPE_INTERNAL);
+            robot.makeCurrentDisplayDefault();
+            robot.configureActivityAndDisplay(ROTATION_0, ORIENTATION_LANDSCAPE, TYPE_EXTERNAL);
+
+            // Rotate the device so that rotation sensor reports 90 degrees.
+            // Sensor orientation 90 -> display rotation 270.
+            robot.setSensorOrientation(90);
+
+            // Assert: Should be considered portrait.
+            robot.checkIsCameraDisplayRotationPortrait(/* expected= */ true);
+        });
+    }
+
+    @Test
+    @Ignore("b/498068211")
+    public void testIsCameraDeviceOrientationPortrait_naturalLandscape_returnsFalse() {
+        runTestScenario((robot) -> {
+            robot.configureActivityAndDisplay(ROTATION_0, ORIENTATION_LANDSCAPE, TYPE_INTERNAL);
+            robot.makeCurrentDisplayDefault();
+            robot.configureActivityAndDisplay(ROTATION_0, ORIENTATION_LANDSCAPE, TYPE_EXTERNAL);
+
+            // Rotate the device so that rotation sensor reports 90 degrees.
+            // Sensor orientation 180 -> display rotation 180.
+            robot.setSensorOrientation(180);
+
+            // Assert: Should be considered landscape.
+            robot.checkIsCameraDisplayRotationPortrait(/* expected= */ false);
         });
     }
 
@@ -189,14 +255,13 @@ public class AppCompatCameraRotationStateTests extends WindowTestsBase {
         @Override
         void onPostActivityCreation(@NonNull ActivityRecord activity) {
             super.onPostActivityCreation(activity);
-            mCameraInfoProvider = new AppCompatCameraRotationState(activity.mDisplayContent);
+            mCameraInfoProvider = new AppCompatCameraRotationState(activity.mWmService);
             mCameraInfoProvider.start();
         }
 
         private void setupAppCompatConfiguration() {
             applyOnConf((c) -> {
                 c.enableCameraCompatForceRotateTreatment(true);
-                c.enableCameraCompatForceRotateTreatmentAtBuildTime(true);
             });
         }
 
@@ -223,15 +288,18 @@ public class AppCompatCameraRotationStateTests extends WindowTestsBase {
         }
 
         void checkDisplayRotation(@Surface.Rotation int expected) {
-            assertEquals(expected, mCameraInfoProvider.getCameraDeviceRotation());
+            assertEquals(expected,
+                    mCameraInfoProvider.getCameraDeviceRotation(activity().displayContent()));
         }
 
         void checkIsPortraitCamera(boolean expected) {
-            assertEquals(expected, mCameraInfoProvider.isCameraDeviceNaturalOrientationPortrait());
+            assertEquals(expected, mCameraInfoProvider
+                    .isCameraDeviceNaturalOrientationPortrait(activity().displayContent()));
         }
 
         void checkIsCameraDisplayRotationPortrait(boolean expected) {
-            assertEquals(expected, mCameraInfoProvider.isCameraDeviceOrientationPortrait());
+            assertEquals(expected, mCameraInfoProvider
+                    .isCameraDeviceOrientationPortrait(activity().displayContent()));
         }
 
         void checkOrientationEventListenerSetUp(boolean expected) {

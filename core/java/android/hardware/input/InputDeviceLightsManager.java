@@ -18,11 +18,14 @@ package android.hardware.input;
 
 import android.annotation.NonNull;
 import android.app.ActivityThread;
+import android.hardware.lights.ColorSequence;
 import android.hardware.lights.Light;
 import android.hardware.lights.LightState;
 import android.hardware.lights.LightsManager;
 import android.hardware.lights.LightsRequest;
 import android.util.CloseGuard;
+
+import androidx.annotation.Nullable;
 
 import com.android.internal.util.Preconditions;
 
@@ -68,6 +71,17 @@ class InputDeviceLightsManager extends LightsManager {
     public @NonNull LightState getLightState(@NonNull Light light) {
         Preconditions.checkNotNull(light);
         return mGlobal.getLightState(mDeviceId, light);
+    }
+
+    /**
+     * Returns the color sequence for a given light effect playing on the light.
+     *
+     * @hide
+     */
+    @Override
+    @Nullable
+    public ColorSequence getLightSequence(@androidx.annotation.NonNull Light light) {
+        throw new UnsupportedOperationException();
     }
 
     /**

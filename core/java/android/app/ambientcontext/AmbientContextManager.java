@@ -149,7 +149,7 @@ public final class AmbientContextManager {
      * {@link AmbientContextManager#STATUS_ACCESS_DENIED}, and the app can
      * call {@link #startConsentActivity} to redirect the user to the consent screen.
      * If the AmbientContextRequest contains a mixed set of events containing values both greater
-     * than and less than {@link AmbientContextEvent.EVENT_VENDOR_WEARABLE_START}, the request
+     * than and less than {@link AmbientContextEvent#EVENT_VENDOR_WEARABLE_START}, the request
      * will be rejected with {@link AmbientContextManager#STATUS_NOT_SUPPORTED}.
      * <p />
      *
@@ -206,7 +206,7 @@ public final class AmbientContextManager {
     /**
      * Requests the consent data host to open an activity that allows users to modify consent.
      * If the eventTypes contains a mixed set of events containing values both greater than and less
-     * than {@link AmbientContextEvent.EVENT_VENDOR_WEARABLE_START}, the request will be rejected
+     * than {@link AmbientContextEvent#EVENT_VENDOR_WEARABLE_START}, the request will be rejected
      * with {@link AmbientContextManager#STATUS_NOT_SUPPORTED}.
      *
      * @param eventTypes The set of event codes to be consented.
@@ -238,7 +238,7 @@ public final class AmbientContextManager {
      * event is detected. Registering another observer from the same package that has already been
      * registered will override the previous observer.
      * If the AmbientContextRequest contains a mixed set of events containing values both greater
-     * than and less than {@link AmbientContextEvent.EVENT_VENDOR_WEARABLE_START}, the request
+     * than and less than {@link AmbientContextEvent#EVENT_VENDOR_WEARABLE_START}, the request
      * will be rejected with {@link AmbientContextManager#STATUS_NOT_SUPPORTED}.
      * <p />
      *

@@ -23,12 +23,12 @@ import com.android.wm.shell.sysui.ShellInit
  * A component for observing changes to the system's LockTask mode.
  *
  * This class listens for changes to LockTaskMode from [TaskStackListenerImpl] and keeps a cache of
- * the current LockTask mode (LOCK_TASK_MODE_NONE, LOCK_TASK_MODE_LOCKED, LOCK_TASK_MODE_PINNED).
- * It provides a listener interface for other components to subscribe to these changes,
- * allowing them to react when a task becomes locked or unlocked.
+ * the current LockTask mode (LOCK_TASK_MODE_NONE, LOCK_TASK_MODE_LOCKED, LOCK_TASK_MODE_PINNED). It
+ * provides a listener interface for other components to subscribe to these changes, allowing them
+ * to react when a task becomes locked or unlocked.
  *
- * To use this class, obtain an instance and register a [LockTaskModeChangedListener] via
- * the [addListener] method.
+ * To use this class, obtain an instance and register a [LockTaskModeChangedListener] via the
+ * [addListener] method.
  */
 class LockTaskChangeListener(
     shellInit: ShellInit,

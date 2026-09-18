@@ -20,8 +20,8 @@ import java.util.HashMap;
 /**
  * Kernel wakelock stats object.
  */
-public class KernelWakelockStats extends HashMap<String, KernelWakelockStats.Entry> {
-    public static class Entry {
+public final class KernelWakelockStats extends HashMap<String, KernelWakelockStats.Entry> {
+    public static final class Entry {
         public int count;
         public long totalTimeUs;
         public long activeTimeUs;

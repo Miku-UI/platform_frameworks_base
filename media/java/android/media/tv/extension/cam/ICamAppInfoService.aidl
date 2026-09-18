@@ -23,10 +23,27 @@ import android.os.Bundle;
  * @hide
  */
 interface ICamAppInfoService {
-    // Register ICamAppInfoListener to get CICAM Application Information updates.
+/**
+     * Registers an ICamAppInfoListener to receive notifications about CICAM
+     * application information updates.
+     *
+     * @param listener The ICamAppInfoListener to be added.
+     */
     void addCamAppInfoListener(ICamAppInfoListener listener);
-    // Unregister ICamAppInfoListener and stop get Application Information notify.
+    /**
+     * Unregisters an ICamAppInfoListener to stop receiving notifications about
+     * CICAM application information updates.
+     *
+     * @param listener The ICamAppInfoListener to be removed.
+     */
     void removeCamAppInfoListener(ICamAppInfoListener listener);
-    // Get the Application Information of the CICAM.
+    /**
+     * Retrieves the application information for a specific CICAM.
+     *
+     * @param slotId The ID of the corresponding CICAM slot.
+     * @param appInfo An output bundle with the application information upon success retrieval, the
+     *                bundle containing keys as defined in @CamConstants.CamAppInfoBundleKey.
+     * @return An integer status code in @CamConstants.CamAppInfoResult indicating the result.
+     */
     int getCamAppInfo(int slotId, out Bundle appInfo);
 }

@@ -37,7 +37,9 @@ public final class TimeZoneDetectorInternalImpl implements TimeZoneDetectorInter
     @NonNull private final CurrentUserIdentityInjector mCurrentUserIdentityInjector;
     @NonNull private final TimeZoneDetectorStrategy mTimeZoneDetectorStrategy;
 
-    public TimeZoneDetectorInternalImpl(@NonNull Context context, @NonNull Handler handler,
+    public TimeZoneDetectorInternalImpl(
+            @NonNull Context context,
+            @NonNull Handler handler,
             @NonNull CurrentUserIdentityInjector currentUserIdentityInjector,
             @NonNull TimeZoneDetectorStrategy timeZoneDetectorStrategy) {
         mContext = Objects.requireNonNull(context);
@@ -82,8 +84,9 @@ public final class TimeZoneDetectorInternalImpl implements TimeZoneDetectorInter
 
         // This call can take place on the mHandler thread because there is no return value.
         mHandler.post(
-                () -> mTimeZoneDetectorStrategy.handleLocationAlgorithmEvent(
-                        locationAlgorithmEvent));
+                () ->
+                        mTimeZoneDetectorStrategy.handleLocationAlgorithmEvent(
+                                locationAlgorithmEvent));
     }
 
     @Override

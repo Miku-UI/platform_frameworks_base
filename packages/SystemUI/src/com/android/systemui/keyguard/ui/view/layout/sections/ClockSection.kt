@@ -39,7 +39,6 @@ import com.android.systemui.keyguard.ui.binder.KeyguardClockViewBinder
 import com.android.systemui.keyguard.ui.viewmodel.AodBurnInViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardClockViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardRootViewModel
-import com.android.systemui.keyguard.ui.viewmodel.KeyguardSmartspaceViewModel
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockController
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockFaceLayout
 import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
@@ -71,7 +70,6 @@ constructor(
     private val clockInteractor: KeyguardClockInteractor,
     protected val keyguardClockViewModel: KeyguardClockViewModel,
     @ShadeDisplayAware private val context: Context,
-    val smartspaceViewModel: KeyguardSmartspaceViewModel,
     val blueprintInteractor: Lazy<KeyguardBlueprintInteractor>,
     private val rootViewModel: KeyguardRootViewModel,
     private val aodBurnInViewModel: AodBurnInViewModel,
@@ -199,42 +197,17 @@ constructor(
         constraints.apply {
             connect(ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE, START, PARENT_ID, START)
             connect(ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE, END, guideline, END)
-            if (
-                com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout() &&
-                    !com.android.systemui.shared.Flags.clockReactiveVariants()
-            ) {
-                connect(
-                    ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE,
-                    BOTTOM,
-                    R.id.device_entry_icon_view,
-                    TOP,
-                    context.resources.getDimensionPixelSize(
-                        clocksR.dimen.date_weather_view_height
-                    ) * 2,
-                )
-            } else {
-                connect(
-                    ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE,
-                    BOTTOM,
-                    R.id.device_entry_icon_view,
-                    TOP,
-                )
-            }
+            connect(
+                ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE,
+                BOTTOM,
+                R.id.device_entry_icon_view,
+                TOP,
+            )
             val largeClockTopMargin =
-                if (com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout()) {
-                    keyguardClockViewModel.getLargeClockTopMargin() +
-                        context.resources.getDimensionPixelSize(
-                            clocksR.dimen.enhanced_smartspace_height
-                        )
-                } else {
-                    keyguardClockViewModel.getLargeClockTopMargin() +
-                        context.resources.getDimensionPixelSize(
-                            clocksR.dimen.date_weather_view_height
-                        ) +
-                        context.resources.getDimensionPixelSize(
-                            clocksR.dimen.enhanced_smartspace_height
-                        )
-                }
+                keyguardClockViewModel.getLargeClockTopMargin() +
+                    context.resources.getDimensionPixelSize(
+                        clocksR.dimen.enhanced_smartspace_height
+                    )
             connect(
                 ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE,
                 TOP,
@@ -301,9 +274,7 @@ constructor(
                 )
             } else {
                 clockInteractor.setNotificationStackDefaultTop(
-                    (keyguardClockViewModel.getSmallClockTopMargin() +
-                            marginBetweenSmartspaceAndNotification)
-                        .toFloat()
+                    (smallClockBottom + marginBetweenSmartspaceAndNotification).toFloat()
                 )
             }
         }

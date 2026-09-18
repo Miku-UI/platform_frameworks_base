@@ -16,6 +16,9 @@
 
 package com.android.server.wm;
 
+import static android.internal.perfetto.protos.Windowmanagerservice.DisplayFramesProto.HEIGHT;
+import static android.internal.perfetto.protos.Windowmanagerservice.DisplayFramesProto.ROTATION;
+import static android.internal.perfetto.protos.Windowmanagerservice.DisplayFramesProto.WIDTH;
 import static android.view.InsetsSource.createId;
 import static android.view.WindowInsets.Type.displayCutout;
 
@@ -133,6 +136,9 @@ public class DisplayFrames {
 
     public void dumpDebug(ProtoOutputStream proto, long fieldId) {
         final long token = proto.start(fieldId);
+        proto.write(WIDTH, mWidth);
+        proto.write(HEIGHT, mHeight);
+        proto.write(ROTATION, mRotation);
         proto.end(token);
     }
 

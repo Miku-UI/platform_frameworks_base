@@ -15,15 +15,18 @@
  */
 package com.android.wm.shell.desktopmode.animation
 
+import android.animation.RectEvaluator
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Point
+import android.graphics.Rect
 import android.view.Choreographer
 import android.view.SurfaceControl
 import android.window.TransitionInfo
 import androidx.core.animation.addListener
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.transition.Transitions
+import com.android.wm.shell.windowdecor.OnTaskResizeAnimationListener
 
 /**
  * A animator util to animate a task moving from desktop that interpolates between the start and end
@@ -33,7 +36,10 @@ class DesktopToFullscreenTaskAnimator(
     private val context: Context,
     private val transactionSupplier: () -> SurfaceControl.Transaction,
     private val displayController: DisplayController,
+    private val onTaskResizeAnimationListener: OnTaskResizeAnimationListener? = null,
 ) {
+    private val rectEvaluator = RectEvaluator()
+
     /** Starts the animation of [change]. */
     fun animate(
         change: TransitionInfo.Change,
@@ -47,37 +53,50 @@ class DesktopToFullscreenTaskAnimator(
         val screenWidth = context.resources.displayMetrics.widthPixels
         val screenHeight = context.resources.displayMetrics.heightPixels
         val leash = change.leash
-        val startBounds = change.startAbsBounds
+        val startAbsBounds = change.startAbsBounds
         val endBounds = change.endAbsBounds
-        val startPosition = overrideStartPosition ?: Point(startBounds.left, startBounds.top)
+        val startPosition = overrideStartPosition ?: Point(startAbsBounds.left, startAbsBounds.top)
+        val startBounds =
+            Rect(change.startAbsBounds).apply { offsetTo(startPosition.x, startPosition.y) }
         val scaleX = startBounds.width().toFloat() / screenWidth
         val scaleY = startBounds.height().toFloat() / screenHeight
 
-        // Hide the first (fullscreen) frame because the animation will start from the freeform
-        // size.
         startTransaction
-            .hide(leash)
-            .setWindowCrop(leash, endBounds.width(), endBounds.height())
-            .apply()
+            .setPosition(leash, startBounds.left.toFloat(), startBounds.top.toFloat())
+            .setWindowCrop(leash, startBounds.width(), startBounds.height())
+        val startTransactionApplied =
+            onTaskResizeAnimationListener?.onAnimationStart(
+                taskId = task.taskId,
+                t = startTransaction,
+                bounds = startBounds,
+            ) ?: false
+        if (!startTransactionApplied) {
+            startTransaction.apply()
+        }
 
         val updateTransaction = transactionSupplier()
-        ValueAnimator.ofFloat(0f, 1f).apply {
+        ValueAnimator.ofObject(rectEvaluator, startBounds, endBounds).apply {
             duration = ANIMATION_DURATION_MS
             addUpdateListener { animation ->
-                val fraction = animation.animatedFraction
-                val currentPositionX = startPosition.x * (1 - fraction)
-                val currentPositionY = startPosition.y * (1 - fraction)
-                val currentScaleX = scaleX + ((1 - scaleX) * fraction)
-                val currentScaleY = scaleY + ((1 - scaleY) * fraction)
+                val rect = animation.animatedValue as Rect
                 updateTransaction
-                    .setPosition(leash, currentPositionX, currentPositionY)
-                    .setScale(leash, currentScaleX, currentScaleY)
+                    .setPosition(leash, rect.left.toFloat(), rect.top.toFloat())
+                    .setWindowCrop(leash, rect.width(), rect.height())
                     .show(leash)
                     .setFrameTimeline(Choreographer.getInstance().getVsyncId())
-                    .apply()
+                val updateTransactionApplied =
+                    onTaskResizeAnimationListener?.onBoundsChange(
+                        taskId = task.taskId,
+                        t = updateTransaction,
+                        bounds = rect,
+                    ) ?: false
+                if (!updateTransactionApplied) {
+                    updateTransaction.apply()
+                }
             }
             addListener(
                 onEnd = {
+                    onTaskResizeAnimationListener?.onAnimationEnd(task.taskId)
                     onAnimationEnd?.invoke()
                     finishCallback.onTransitionFinished(/* wct= */ null)
                 }

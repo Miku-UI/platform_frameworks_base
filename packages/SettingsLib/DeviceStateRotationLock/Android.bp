@@ -16,4 +16,7 @@ android_library {
     ],
 
     min_sdk_version: "23",
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }

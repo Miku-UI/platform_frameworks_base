@@ -82,7 +82,7 @@ void Flush(const std::string& basePath) {
     fprintf(f,
             "%c{\"ts\" : \"%" PRIu64
             "\", \"ph\" : \"%c\", \"tid\" : \"%d\" , \"pid\" : \"%d\", \"name\" : \"%s\" }\n",
-            delimiter, trace.time, trace.type, 0, trace.tid, trace.tag.c_str());
+            delimiter, trace.time, trace.type, 0, (int)trace.tid, trace.tag.c_str());
     delimiter = ',';
   }
   if (!traces.empty()) {

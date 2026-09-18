@@ -17,6 +17,11 @@ package com.android.server.pm;
 
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.set;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -31,11 +36,15 @@ import android.os.Looper;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.test.filters.SmallTest;
+import androidx.test.runner.AndroidJUnit4;
 
 import com.android.server.LocalServices;
 
 import java.util.List;
 import java.util.Set;
+
+import org.junit.runner.RunWith;
+import org.junit.Test;
 
 /**
  * Unit tests for all the IPackageManager related methods in {@link ShortcutService}.
@@ -45,6 +54,7 @@ import java.util.Set;
  */
 @Presubmit
 @SmallTest
+@RunWith(AndroidJUnit4.class)
 public class ShortcutManagerTest5 extends BaseShortcutManagerTest {
     private ShortcutService mShortcutService;
 
@@ -58,7 +68,7 @@ public class ShortcutManagerTest5 extends BaseShortcutManagerTest {
     }
 
     @Override
-    protected void setUp() throws Exception {
+    public void setUp() throws Exception {
         super.setUp();
 
         LocalServices.removeServiceForTest(ShortcutServiceInternal.class);
@@ -95,6 +105,7 @@ public class ShortcutManagerTest5 extends BaseShortcutManagerTest {
         assertNull(pi);
     }
 
+    @Test
     public void testGetApplicationInfo() {
         ApplicationInfo ai = mShortcutService.getApplicationInfo(
                 mMyPackage, mMyUserId);
@@ -105,6 +116,7 @@ public class ShortcutManagerTest5 extends BaseShortcutManagerTest {
         assertNull(ai);
     }
 
+    @Test
     public void testGetActivityInfoWithMetadata() {
         // Disabled activity
         ActivityInfo ai = mShortcutService.getActivityInfoWithMetadata(
@@ -145,6 +157,7 @@ public class ShortcutManagerTest5 extends BaseShortcutManagerTest {
         assertEquals(set(), expectedPackages);
     }
 
+    @Test
     public void testGetDefaultMainActivity() {
         ComponentName cn = mShortcutService.injectGetDefaultMainActivity(
                 "com.android.settings", mMyUserId);
@@ -162,6 +175,7 @@ public class ShortcutManagerTest5 extends BaseShortcutManagerTest {
                 "no.such.package", mMyUserId));
     }
 
+    @Test
     public void testIsMainActivity() {
         assertTrue(mShortcutService.injectIsMainActivity(
                 ComponentName.unflattenFromString("com.android.settings/.Settings"), mMyUserId));
@@ -177,6 +191,7 @@ public class ShortcutManagerTest5 extends BaseShortcutManagerTest {
 
     }
 
+    @Test
     public void testGetMainActivities() {
         assertEquals(1, mShortcutService.injectGetMainActivities(
                 "com.android.settings", mMyUserId).size());
@@ -186,6 +201,7 @@ public class ShortcutManagerTest5 extends BaseShortcutManagerTest {
                 mMyPackage, mMyUserId).size());
     }
 
+    @Test
     public void testIsActivityEnabledAndExported() {
         assertTrue(mShortcutService.injectIsActivityEnabledAndExported(
                 ComponentName.unflattenFromString("com.android.settings/.Settings"), mMyUserId));
@@ -207,6 +223,7 @@ public class ShortcutManagerTest5 extends BaseShortcutManagerTest {
                 new ComponentName(mMyPackage, "a.ShortcutUnexported"), mMyUserId));
     }
 
+    @Test
     public void testIsEnabled() {
         ActivityInfo ai = mShortcutService.getActivityInfoWithMetadata(
             new ComponentName(mMyPackage, "a.Shortcut1"), mMyUserId);

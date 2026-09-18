@@ -122,7 +122,7 @@ public abstract class CallRedirectionService extends Service {
      *                                 interact with their device.
      */
 
-    @FlaggedApi(Flags.FLAG_SEND_ORIGINAL_NUMBER_ON_PLACE_CALL)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_SEND_ORIGINAL_NUMBER_ON_PLACE_CALL)
     public void onPlaceCall(@NonNull Uri handle, @NonNull Uri originalHandle,
                             @NonNull PhoneAccountHandle initialPhoneAccount,
                             boolean allowInteractiveResponse) {
@@ -165,6 +165,9 @@ public abstract class CallRedirectionService extends Service {
      * changes are required to the phone number or/and {@link PhoneAccountHandle} for the outgoing
      * call. Telecom will cancel the call if the implemented {@link CallRedirectionService}
      * replies Telecom a handle for an emergency number.
+     * <p>
+     * Note: The {@code targetPhoneAccount} can only be used to place a call via a
+     * {@link PhoneAccount} with {@link PhoneAccount#CAPABILITY_SIM_SUBSCRIPTION}.
      *
      * <p>This can only be called from implemented
      * {@link #onPlaceCall(Uri, PhoneAccountHandle, boolean)}. The response corresponds to the
@@ -185,6 +188,49 @@ public abstract class CallRedirectionService extends Service {
                 throw new IllegalStateException("Can only be called from onPlaceCall.");
             }
             mCallRedirectionAdapter.redirectCall(gatewayUri, targetPhoneAccount, confirmFirst);
+        } catch (RemoteException e) {
+            e.rethrowAsRuntimeException();
+        }
+    }
+
+    /**
+     * The implemented {@link CallRedirectionService} calls this method to respond to a request
+     * received via {@link #onPlaceCall(Uri, PhoneAccountHandle, boolean)} to inform Telecom that
+     * the call should be placed to a different number entirely.
+     * <p>
+     * This is in contrast to {@link #redirectCall(Uri, PhoneAccountHandle, boolean)} which places
+     * the call on the mobile network via a gateway number but still shows the original dialed
+     * number to the user in the Dialer app. This method places the call to the specified number and
+     * also shows that number to the user.
+     * <p>
+     * This is useful for apps which perform number rewriting to add dialing prefixes and the like.
+     * <p>
+     * Note: The {@code targetPhoneAccount} can only be used to place a call via a
+     * {@link PhoneAccount} with {@link PhoneAccount#CAPABILITY_SIM_SUBSCRIPTION}.
+     *
+     * @param alternateUri the alternate number to place the call to and to show to the user.
+     * @param targetPhoneAccount the {@link PhoneAccountHandle} to use when placing the call.
+     * @param confirmFirst Telecom will ask users to confirm the redirection via a yes/no dialog
+     *                     if the confirmFirst is true, and if the redirection request of this
+     *                     response was sent with a true flag of allowInteractiveResponse via
+     *                     {@link #onPlaceCall(Uri, PhoneAccountHandle, boolean)}
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_PLACE_CALL_TO_ALTERNATE_NUMBER)
+    public final void placeCallToAlternateNumber(@NonNull Uri alternateUri,
+                                                 @NonNull PhoneAccountHandle targetPhoneAccount,
+                                                 boolean confirmFirst) {
+        try {
+            if (mCallRedirectionAdapter == null) {
+                throw new IllegalStateException("Can only be called from onPlaceCall.");
+            }
+
+            if (alternateUri == null) {
+                throw new IllegalArgumentException("alternateUri must be non-null");
+            }
+
+            mCallRedirectionAdapter.placeCallToAlternateNumber(alternateUri,
+                                                               targetPhoneAccount,
+                                                               confirmFirst);
         } catch (RemoteException e) {
             e.rethrowAsRuntimeException();
         }

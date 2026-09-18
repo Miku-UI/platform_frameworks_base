@@ -269,7 +269,7 @@ public final class ImsCallProfile implements Parcelable {
     public static final String EXTRA_CALL_SUBJECT = "android.telephony.ims.extra.CALL_SUBJECT";
 
     /**
-     * Extra for the call composer call location, an {@Link android.location.Location} parcelable
+     * Extra for the call composer call location, an {@link android.location.Location} parcelable
      * class to represent the geolocation as a latitude and longitude pair. It can be set via
      * {@link #setCallExtraParcelable(String, Parcelable)}.
      *
@@ -314,9 +314,46 @@ public final class ImsCallProfile implements Parcelable {
      * Call(Video CRBT).  Vendor IMS stack {@link ImsService} sets this on a call
      * to indicate that the modem/network has identified the call as a video CRBT call.
      */
-    @FlaggedApi(com.android.server.telecom.flags.Flags.FLAG_IS_USING_VIDEO_RINGBACK)
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_IS_USING_VIDEO_RINGBACK)
     public static final String EXTRA_IS_USING_VIDEO_RINGBACK  =
              "android.telephony.ims.extra.IS_USING_VIDEO_RINGBACK";
+
+    /**
+     * Extra key to indicate the media type of a Customized Ringing Signal (CRS) call.
+     * The value should be an integer bitmask of
+     * {@link android.telecom.Call#CRS_MEDIA_TYPE_AUDIO} and
+     * {@link android.telecom.Call#CRS_MEDIA_TYPE_VIDEO}.
+     * <p>
+     * Vendor IMS stack {@link ImsService} sets this
+     * on a call to indicate the type of media (e.g., audio, video) the network-provided
+     * ringing signal contains.
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_IS_USING_CRS)
+    public static final String EXTRA_CRS_MEDIA_TYPE  =
+             "android.telephony.ims.extra.CRS_MEDIA_TYPE";
+
+    /**
+     * Extra key for the audio mode of a Customized Ringing Signal (CRS) call. The value should be
+     * one of the {@code AudioManager#MODE_*} integer constants, such as
+     * {@link android.media.AudioManager#MODE_RINGTONE} or
+     * {@link android.media.AudioManager#MODE_IN_CALL}.
+     *
+     * <p>Used when {@link #EXTRA_CRS_MEDIA_TYPE} indicates audio is present. The vendor
+     * {@link ImsService} sets this to suggest an audio mode for the network ringtone. If not set,
+     * Telecom will use a default.
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_IS_USING_CRS)
+    public static final String EXTRA_CRS_AUDIO_MODE =
+            "android.telephony.ims.extra.CRS_AUDIO_MODE";
+
+    /**
+     * Boolean extra property indicates that this call is a Unidirectional Video Service
+     * Call(UVS). Vendor IMS stack {@link ImsService} sets this on a call
+     * to indicate that the modem/network has identified the call as a UVS call.
+     */
+    @FlaggedApi(android.telecom.flags.Flags.FLAG_IS_USING_UNIDIRECTIONAL_VIDEO_SERVICE)
+    public static final String EXTRA_IS_USING_UNIDIRECTIONAL_VIDEO_SERVICE =
+            "android.telephony.ims.extra.IS_USING_UNIDIRECTIONAL_VIDEO_SERVICE";
 
     /**
      * Values for EXTRA_OIR / EXTRA_CNAP
@@ -452,8 +489,9 @@ public final class ImsCallProfile implements Parcelable {
      * Note: Despite the fact the {@link android.telephony.ServiceState} values are integer
      * constants, the values passed for the {@link #EXTRA_CALL_RAT_TYPE} should be strings (e.g.
      * "14" vs (int) 14).
-     * Note: This is used by {@link com.android.internal.telephony.imsphone.ImsPhoneConnection#
-     *      updateImsCallRatFromExtras(Bundle)} to determine whether to set the
+     * Note: This is used by
+     * {@link com.android.internal.telephony.imsphone.ImsPhoneConnection#updateImsCallRatFromExtras(Bundle)}
+     * to determine whether to set the
      * {@link android.telecom.TelecomManager#EXTRA_CALL_NETWORK_TYPE} extra value and
      * {@link android.telecom.Connection#PROPERTY_WIFI} property on a connection.
      * @deprecated the constants associated with this extra are hidden, instead use
@@ -591,6 +629,15 @@ public final class ImsCallProfile implements Parcelable {
     private boolean mHasKnownUserIntentEmergency = false;
 
     private Set<RtpHeaderExtensionType> mAcceptedRtpHeaderExtensionTypes = new ArraySet<>();
+
+    /**
+     * Boolean extra property set on an {@link ImsCallProfile} to indicate whether the device has
+     * entered low battery state while this call session is ongoing.
+     * @hide
+     */
+    @FlaggedApi(com.android.internal.telephony.flags.Flags.FLAG_ENABLE_VT_CALL_LOW_BATTERY_CONFIG)
+    @SystemApi
+    public static final String EXTRA_LOW_BATTERY = "android.telephony.ims.extra.LOW_BATTERY";
 
     /**
      * Extras associated with this {@link ImsCallProfile}.

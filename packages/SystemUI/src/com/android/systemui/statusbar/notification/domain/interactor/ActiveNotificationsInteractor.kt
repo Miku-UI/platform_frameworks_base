@@ -21,7 +21,6 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.statusbar.notification.data.model.NotifStats
 import com.android.systemui.statusbar.notification.data.repository.ActiveNotificationListRepository
 import com.android.systemui.statusbar.notification.data.repository.ActiveNotificationsStore
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.shared.ActiveBundleModel
 import com.android.systemui.statusbar.notification.shared.ActiveNotificationGroupModel
 import com.android.systemui.statusbar.notification.shared.ActiveNotificationModel
@@ -77,14 +76,10 @@ constructor(
      * criteria.
      */
     val promotedOngoingNotifications: Flow<List<ActiveNotificationModel>> =
-        if (PromotedNotificationUi.isEnabled) {
-            topLevelRepresentativeNotifications
-                .map { notifs -> notifs.filter { it.promotedContent != null } }
-                .distinctUntilChanged()
-                .flowOn(backgroundDispatcher)
-        } else {
-            flowOf(emptyList())
-        }
+        topLevelRepresentativeNotifications
+            .map { notifs -> notifs.filter { it.promotedContent != null } }
+            .distinctUntilChanged()
+            .flowOn(backgroundDispatcher)
 
     /**
      * The priority ongoing call notification, or null if there is no ongoing call.

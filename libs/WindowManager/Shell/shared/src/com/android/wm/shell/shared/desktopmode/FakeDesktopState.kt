@@ -46,12 +46,6 @@ class FakeDesktopState : DesktopState {
     /** Overrides [isProjectedMode] */
     var isProjected: Boolean = false
 
-    override fun isMultipleDesktopFrontendEnabledOnDisplay(display: Display): Boolean =
-        enableMultipleDesktops && isDesktopModeSupportedOnDisplay(display)
-
-    override fun isMultipleDesktopFrontendEnabledOnDisplay(displayId: Int): Boolean =
-        enableMultipleDesktops && isDesktopModeSupportedOnDisplay(displayId)
-
     /**
      * This implementation returns [canEnterDesktopMode] unless overridden in
      * [overrideDesktopModeSupportPerDisplay].

@@ -46,6 +46,7 @@ import android.content.ContentProvider;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.hardware.power.Boost;
 import android.net.Uri;
@@ -122,6 +123,7 @@ final class VoiceInteractionSessionConnection implements ServiceConnection,
     final AppOpsManager mAppOps;
     final IBinder mPermissionOwner;
     private boolean mEnableAssistStructure;
+    private boolean mEnableRestrictAssistStructureScreenContent;
     boolean mShown;
     Bundle mShowArgs;
     int mShowFlags;
@@ -220,14 +222,23 @@ final class VoiceInteractionSessionConnection implements ServiceConnection,
         }
     };
 
-    public VoiceInteractionSessionConnection(Object lock, ComponentName component, int user,
-            Context context, Callback callback, int callingUid,
-            Handler handler, boolean enableAssistStructure) {
+    VoiceInteractionSessionConnection(
+            Object lock,
+            ComponentName component,
+            int user,
+            Context context,
+            Callback callback,
+            int callingUid,
+            Handler handler,
+            boolean enableAssistStructure,
+            boolean enableRestrictAssistStructureScreenContent) {
+
         mLock = lock;
         mSessionComponentName = component;
         mUser = user;
         mContext = context;
         mEnableAssistStructure = enableAssistStructure;
+        mEnableRestrictAssistStructureScreenContent = enableRestrictAssistStructureScreenContent;
         mCallback = callback;
         mCallingUid = callingUid;
         mHandler = handler;
@@ -277,6 +288,22 @@ final class VoiceInteractionSessionConnection implements ServiceConnection,
                 Settings.Secure.ASSIST_SCREENSHOT_ENABLED, 1, mUser) == 0) {
             flags |= VoiceInteractionSession.SHOW_WITH_SCREENSHOT;
         }
+
+        // If this session should restrict access to AssistStructure screen content and the
+        // associated permission flag is enabled then READ_ASSIST_STRUCTURE_SCREEN_CONTENT must be
+        // held by the VIS package (mCallingUid) to or it should be considered a disabled flag.
+        // Whether to restrict is based on the target-sdk of the VIS package and the associated flag
+        // for VIS manifest declarations.
+        if (android.permission.flags.Flags.restrictAssistStructureScreenContentEnabled()
+                && mEnableRestrictAssistStructureScreenContent
+                && mContext != null
+                && mContext.checkPermission(
+                                android.Manifest.permission.READ_ASSIST_STRUCTURE_SCREEN_CONTENT,
+                                -1,
+                                mCallingUid)
+                        == PackageManager.PERMISSION_DENIED) {
+            flags |= VoiceInteractionSession.SHOW_WITH_ASSIST_STRUCTURE_SCREEN_CONTENT;
+        }
         return flags;
     }
 
@@ -301,6 +328,9 @@ final class VoiceInteractionSessionConnection implements ServiceConnection,
 
             boolean fetchData = (flags & VoiceInteractionSession.SHOW_WITH_ASSIST) != 0;
             boolean fetchScreenshot = (flags & VoiceInteractionSession.SHOW_WITH_SCREENSHOT) != 0;
+            boolean fetchAssistStructureScreenContent =
+                    (flags & VoiceInteractionSession.SHOW_WITH_ASSIST_STRUCTURE_SCREEN_CONTENT)
+                            != 0;
             boolean assistDataRequestNeeded = fetchData || fetchScreenshot;
 
             if (assistDataRequestNeeded) {
@@ -311,21 +341,16 @@ final class VoiceInteractionSessionConnection implements ServiceConnection,
                 }
                 boolean fetchDataAllowed =
                         (disabledContext & VoiceInteractionSession.SHOW_WITH_ASSIST) == 0;
+                boolean fetchAssistStructureScreenContentAllowed =
+                        (disabledContext
+                                        & VoiceInteractionSession
+                                                .SHOW_WITH_ASSIST_STRUCTURE_SCREEN_CONTENT)
+                                == 0;
 
                 // Ensure that the current activity supports assist data
-                boolean isAssistDataAllowed = false;
-                if (com.android.window.flags.Flags.supportGeminiOnMultiDisplay()) {
-                    isAssistDataAllowed =
-                            mActivityTaskManagerInternal.isAssistDataForActivitiesAllowed(
-                                    topActivitiesToken);
-                } else {
-                    try {
-                        isAssistDataAllowed = mActivityTaskManager.isAssistDataAllowed();
-                    } catch (RemoteException e) {
-                        // Should never happen
-                    }
-                }
-
+                boolean isAssistDataAllowed =
+                        mActivityTaskManagerInternal.isAssistDataForActivitiesAllowed(
+                                topActivitiesToken);
                 // TODO: Refactor to have all assist data allowed checks in one place.
                 if (fetchDataAllowed && isAssistDataAllowed) {
                     ArrayList<ComponentName> topComponents = new ArrayList<>(topActivitiesCount);
@@ -340,8 +365,10 @@ final class VoiceInteractionSessionConnection implements ServiceConnection,
                             fetchData,
                             fetchScreenshot,
                             mEnableAssistStructure,
+                            fetchAssistStructureScreenContent,
                             fetchDataAllowed,
                             (disabledContext & VoiceInteractionSession.SHOW_WITH_SCREENSHOT) == 0,
+                            fetchAssistStructureScreenContentAllowed,
                             /* ignoreTopActivityCheck= */ false,
                             mCallingUid,
                             mSessionComponentName.getPackageName(),
@@ -350,15 +377,19 @@ final class VoiceInteractionSessionConnection implements ServiceConnection,
                     mAssistDataRequester.requestAssistData(topActivitiesToken,
                             fetchData,
                             fetchScreenshot,
+                            fetchAssistStructureScreenContent,
                             fetchDataAllowed,
                             (disabledContext & VoiceInteractionSession.SHOW_WITH_SCREENSHOT) == 0,
+                            fetchAssistStructureScreenContentAllowed,
                             mCallingUid,
                             mSessionComponentName.getPackageName(),
                             attributionTag);
                 }
                 boolean needDisclosure = mAssistDataRequester.getPendingDataCount() > 0
                         || mAssistDataRequester.getPendingScreenshotCount() > 0;
-                if (needDisclosure && AssistUtils.shouldDisclose(mContext, mSessionComponentName)) {
+                if (!android.permission.flags.Flags.assistSettingsPrivacyImprovementsEnabled()
+                        && needDisclosure && AssistUtils.shouldDisclose(mContext,
+                        mSessionComponentName)) {
                     mHandler.post(mShowAssistDisclosureRunnable);
                 }
             }

@@ -37,11 +37,11 @@ struct AInputReceiverCallbacks {
 
 class InputReceiver : public InputConsumerCallbacks {
 public:
-    InputReceiver(const sp<Looper>& looper, const std::shared_ptr<InputChannel>& inputChannel,
+    InputReceiver(const sp<Looper>& looper, std::unique_ptr<InputChannel> inputChannel,
                   const sp<IBinder>& clientToken, const sp<InputTransferToken>& inputTransferToken,
                   AInputReceiverCallbacks* callbacks)
           : mCallbacks(callbacks),
-            mInputConsumer(inputChannel, looper, *this, nullptr),
+            mInputConsumer(std::move(inputChannel), looper, *this, nullptr),
             mClientToken(clientToken),
             mInputTransferToken(inputTransferToken) {}
 
@@ -106,13 +106,12 @@ private:
 
 class BatchedInputReceiver : public InputReceiver {
 public:
-    BatchedInputReceiver(Choreographer& choreographer,
-                         const std::shared_ptr<InputChannel>& inputChannel,
+    BatchedInputReceiver(Choreographer& choreographer, std::unique_ptr<InputChannel> inputChannel,
                          const sp<IBinder>& clientToken,
                          const sp<InputTransferToken>& inputTransferToken,
                          AInputReceiverCallbacks* callbacks)
-          : InputReceiver(choreographer.getLooper(), inputChannel, clientToken, inputTransferToken,
-                          callbacks),
+          : InputReceiver(choreographer.getLooper(), std::move(inputChannel), clientToken,
+                          inputTransferToken, callbacks),
             mChoreographer(choreographer) {}
 
     static void vsyncCallback(const AChoreographerFrameCallbackData* callbackData, void* data) {
@@ -159,13 +158,13 @@ AInputReceiver* AInputReceiver_createBatchedInputReceiver(AChoreographer* aChore
     sp<IBinder> clientToken = sp<BBinder>::make();
     sp<InputTransferToken> clientInputTransferToken = sp<InputTransferToken>::make();
 
-    std::shared_ptr<InputChannel> inputChannel =
+    std::unique_ptr<InputChannel> inputChannel =
             createInputChannel(clientToken, reinterpret_cast<const InputTransferToken&>(*hostToken),
                                reinterpret_cast<const SurfaceControl&>(*aSurfaceControl),
                                *clientInputTransferToken);
     return InputReceiver_to_AInputReceiver(
             new BatchedInputReceiver(reinterpret_cast<Choreographer&>(*aChoreographer),
-                                     inputChannel, clientToken, clientInputTransferToken,
+                                     std::move(inputChannel), clientToken, clientInputTransferToken,
                                      callbacks));
 }
 
@@ -177,12 +176,12 @@ AInputReceiver* AInputReceiver_createUnbatchedInputReceiver(ALooper* aLooper,
     sp<IBinder> clientToken = sp<BBinder>::make();
     sp<InputTransferToken> clientInputTransferToken = sp<InputTransferToken>::make();
 
-    std::shared_ptr<InputChannel> inputChannel =
+    std::unique_ptr<InputChannel> inputChannel =
             createInputChannel(clientToken, reinterpret_cast<const InputTransferToken&>(*hostToken),
                                reinterpret_cast<const SurfaceControl&>(*aSurfaceControl),
                                *clientInputTransferToken);
     return InputReceiver_to_AInputReceiver(new InputReceiver(reinterpret_cast<Looper*>(aLooper),
-                                                             inputChannel, clientToken,
+                                                             std::move(inputChannel), clientToken,
                                                              clientInputTransferToken, callbacks));
 }
 

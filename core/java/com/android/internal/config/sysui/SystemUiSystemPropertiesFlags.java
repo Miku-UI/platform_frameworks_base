@@ -58,10 +58,6 @@ public class SystemUiSystemPropertiesFlags {
         public static final Flag LOG_DND_STATE_EVENTS =
                 releasedFlag("persist.sysui.notification.log_dnd_state_events");
 
-        /** Gating storing NotificationRankingUpdate ranking map in shared memory. */
-        public static final Flag RANKING_UPDATE_ASHMEM = devFlag(
-                "persist.sysui.notification.ranking_update_ashmem");
-
         public static final Flag PROPAGATE_CHANNEL_UPDATES_TO_CONVERSATIONS = releasedFlag(
                 "persist.sysui.notification.propagate_channel_updates_to_conversations");
 

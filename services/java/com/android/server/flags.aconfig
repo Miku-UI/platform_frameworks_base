@@ -2,20 +2,6 @@ package: "android.server"
 container: "system"
 
 flag {
-     name: "remove_text_service"
-     namespace: "wear_frameworks"
-     description: "Remove TextServiceManagerService on Wear"
-     bug: "323720705"
-}
-
-flag {
-     name: "remove_wearable_sensing_service_from_wear"
-     namespace: "wear_frameworks"
-     description: "Remove WearableSensingManagerService on Wear"
-     bug: "340929916"
-}
-
-flag {
      namespace: "system_performance"
      name: "enable_theme_service"
      description: "Switches from SystemUi's ThemeOverlayController to Server's ThemeService."
@@ -23,26 +9,10 @@ flag {
 }
 
 flag {
-     name: "allow_removing_vpn_service"
-     namespace: "wear_frameworks"
-     description: "Allow removing VpnManagerService"
-     bug: "340928692"
-}
-
-flag {
-     name: "migrate_wrist_orientation"
-     namespace: "wear_frameworks"
-     description: "Migrate wrist orientation service functionality to wear settings service"
-     bug: "352725980"
-     is_fixed_read_only: true
-}
-
-flag {
-     name: "remove_game_manager_service_from_wear"
-     namespace: "wear_frameworks"
-     description: "Remove GameManagerService from Wear"
-     bug: "340929737"
-     is_fixed_read_only: true
+     namespace: "system_performance"
+     name: "enable_wear_theme_service"
+     description: "Controls whether the Theme Service should be enabled on Wear."
+     bug: "394565651"
 }
 
 flag {
@@ -61,22 +31,8 @@ flag {
 }
 
 flag {
-    name: "voiceinteractionmanagerservice_get_resources_in_init_thread"
-    namespace: "system_performance"
-    description: "Move VoiceInteractionManagerService getResources away from the boot critical path"
-    bug: "406841419"
-}
-
-flag {
      name: "remove_ad_services_manager_service_from_wear"
      namespace: "wear_frameworks"
      description: "Remove AdServicesManagerService from Wear"
      bug: "340928611"
-}
-
-flag {
-    namespace: "wear_system_health"
-    name: "allow_system_server_inherit_rt"
-    description: "Allow enabling real-time priority inheritance for binder services within system_server"
-    bug: "379851024"
 }

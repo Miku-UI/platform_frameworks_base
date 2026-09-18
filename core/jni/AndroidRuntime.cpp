@@ -84,6 +84,7 @@ extern int register_android_hardware_camera2_impl_CameraExtensionJpegProcessor(J
 extern int register_android_hardware_camera2_utils_SurfaceUtils(JNIEnv* env);
 extern int register_android_hardware_display_DisplayManagerGlobal(JNIEnv* env);
 extern int register_android_hardware_HardwareBuffer(JNIEnv *env);
+extern int register_android_hardware_HubEndpoint(JNIEnv* env);
 extern int register_android_hardware_OverlayProperties(JNIEnv* env);
 extern int register_android_hardware_SensorManager(JNIEnv *env);
 extern int register_android_hardware_SerialPort(JNIEnv *env);
@@ -161,8 +162,6 @@ extern int register_android_os_SELinux(JNIEnv* env);
 extern int register_android_os_storage_StorageManager(JNIEnv* env);
 extern int register_android_os_SystemProperties(JNIEnv *env);
 extern int register_android_os_SystemClock(JNIEnv* env);
-extern int register_android_os_PerfettoTrace(JNIEnv* env);
-extern int register_android_os_PerfettoTrackEventExtra(JNIEnv* env);
 extern int register_android_os_Trace(JNIEnv* env);
 extern int register_android_os_FileObserver(JNIEnv *env);
 extern int register_android_os_UEventObserver(JNIEnv* env);
@@ -170,7 +169,7 @@ extern int register_android_os_HidlMemory(JNIEnv* env);
 extern int register_android_os_MemoryFile(JNIEnv* env);
 extern int register_android_os_SharedMemory(JNIEnv* env);
 #ifdef ANDROID_NATIVE_FRAMEWORK_PROTOTYPE
-extern int register_android_os_ZygoteProcess(JNIEnv* env);
+extern int register_android_os_NativeZygoteProcess(JNIEnv* env);
 #endif
 extern int register_android_service_DataLoaderService(JNIEnv* env);
 extern int register_android_os_incremental_IncrementalManager(JNIEnv* env);
@@ -219,6 +218,9 @@ extern int register_com_android_internal_os_DebugStore(JNIEnv* env);
 extern int register_com_android_internal_os_FuseAppLoop(JNIEnv* env);
 extern int register_com_android_internal_os_KernelAllocationStats(JNIEnv* env);
 extern int register_com_android_internal_os_KernelCpuBpfTracking(JNIEnv* env);
+#ifdef __x86_64__
+extern int register_com_android_internal_os_KernelCpuCyclePerUidBpf(JNIEnv* env);
+#endif
 extern int register_com_android_internal_os_KernelCpuTotalBpfMapReader(JNIEnv* env);
 extern int register_com_android_internal_os_KernelCpuUidBpfMapReader(JNIEnv *env);
 extern int register_com_android_internal_os_KernelSingleProcessCpuThreadReader(JNIEnv* env);
@@ -684,8 +686,6 @@ int AndroidRuntime::startVm(JavaVM** pJavaVM, JNIEnv** pEnv, bool zygote, bool p
             sizeof("-XMadviseWillNeedVdexFileSize:")-1 + PROPERTY_VALUE_MAX];
     char madviseWillNeedFileSizeOdex[
             sizeof("-XMadviseWillNeedOdexFileSize:")-1 + PROPERTY_VALUE_MAX];
-    char madviseWillNeedFileSizeArt[
-            sizeof("-XMadviseWillNeedArtFileSize:")-1 + PROPERTY_VALUE_MAX];
     char gctypeOptsBuf[sizeof("-Xgc:")-1 + PROPERTY_VALUE_MAX];
     char backgroundgcOptsBuf[sizeof("-XX:BackgroundGC=")-1 + PROPERTY_VALUE_MAX];
     char heaptargetutilizationOptsBuf[sizeof("-XX:HeapTargetUtilization=")-1 + PROPERTY_VALUE_MAX];
@@ -712,6 +712,18 @@ int AndroidRuntime::startVm(JavaVM** pJavaVM, JNIEnv** pEnv, bool zygote, bool p
     char perfettoHprofOptBuf[sizeof("-XX:PerfettoHprof=") + PROPERTY_VALUE_MAX];
     char perfettoJavaHeapStackOptBuf[
             sizeof("-XX:PerfettoJavaHeapStackProf=") + PROPERTY_VALUE_MAX];
+    char hugeMethodMaxThresholdBuf[
+            sizeof("--huge-method-max=")-1 + PROPERTY_VALUE_MAX];
+    char inlineMaxCodeUnitsBuf[
+            sizeof("--inline-max-code-units=")-1 + PROPERTY_VALUE_MAX];
+    char inlineMaxTotalInstructionsBuf[
+            sizeof("--inline-max-total-instructions=")-1 + PROPERTY_VALUE_MAX];
+    char inlineMaxInstructionsForSmallMethodBuf[
+            sizeof("--inline-max-instructions-for-small-method=")-1 + PROPERTY_VALUE_MAX];
+    char inlineMaxCumulatedDexRegistersBuf[
+            sizeof("--inline-max-cumulated-dex-registers=")-1 + PROPERTY_VALUE_MAX];
+    char inlineMaxRecursiveCallsBuf[
+            sizeof("--inline-max-recursive-calls=")-1 + PROPERTY_VALUE_MAX];
     enum {
       kEMDefault,
       kEMIntPortable,
@@ -911,14 +923,6 @@ int AndroidRuntime::startVm(JavaVM** pJavaVM, JNIEnv** pEnv, bool zygote, bool p
                        madviseWillNeedFileSizeOdex,
                        "-XMadviseWillNeedOdexFileSize:");
 
-    // Historically, dalvik.vm.madvise.artfile.size was set to UINT_MAX by default. With the
-    // disable_madvise_art_default flag rollout, we use this default only when the flag is disabled.
-    // TODO(b/382110550): Remove this property/flag entirely after validating and ramping.
-    const char* madvise_artfile_size_default =
-            android::os::disable_madvise_artfile_default() ? "" : "4294967295";
-    parseRuntimeOption("dalvik.vm.madvise.artfile.size", madviseWillNeedFileSizeArt,
-                       "-XMadviseWillNeedArtFileSize:", madvise_artfile_size_default);
-
     /*
      * Profile related options.
      */
@@ -1007,6 +1011,22 @@ int AndroidRuntime::startVm(JavaVM** pJavaVM, JNIEnv** pEnv, bool zygote, bool p
     parseCompilerOption("dalvik.vm.dex2oat-threads", dex2oatThreadsBuf, "-j", "-Xcompiler-option");
     parseCompilerOption("dalvik.vm.dex2oat-cpu-set", dex2oatCpuSetBuf, "--cpu-set=",
                         "-Xcompiler-option");
+
+    // Extra options for Inliner tuning.
+    parseCompilerOption("dalvik.vm.huge-method-max", hugeMethodMaxThresholdBuf,
+                        "--huge-method-max=", "-Xcompiler-option");
+    parseCompilerOption("dalvik.vm.inline-max-code-units", inlineMaxCodeUnitsBuf,
+                        "--inline-max-code-units=", "-Xcompiler-option");
+    parseCompilerOption("dalvik.vm.inline-max-total-instructions", inlineMaxTotalInstructionsBuf,
+                        "--inline-max-total-instructions=", "-Xcompiler-option");
+    parseCompilerOption("dalvik.vm.inline-max-instructions-for-small-method",
+                        inlineMaxInstructionsForSmallMethodBuf,
+                        "--inline-max-instructions-for-small-method=", "-Xcompiler-option");
+    parseCompilerOption("dalvik.vm.inline-max-cumulated-dex-registers",
+                        inlineMaxCumulatedDexRegistersBuf,
+                        "--inline-max-cumulated-dex-registers=", "-Xcompiler-option");
+    parseCompilerOption("dalvik.vm.inline-max-recursive-calls", inlineMaxRecursiveCallsBuf,
+                        "--inline-max-recursive-calls=", "-Xcompiler-option");
 
     // Copy the variant.
     sprintf(dex2oat_isa_variant_key, "dalvik.vm.isa.%s.variant", ABI_STRING);
@@ -1204,20 +1224,6 @@ char* AndroidRuntime::toSlashClassName(const char* className)
     }
     return result;
 }
-
-/** Create a Java string from an ASCII or Latin-1 string */
-jstring AndroidRuntime::NewStringLatin1(JNIEnv* env, const char* bytes) {
-    if (!bytes) return NULL;
-    int length = strlen(bytes);
-    jchar* buffer = (jchar *)alloca(length * sizeof(jchar));
-    if (!buffer) return NULL;
-    jchar* chp = buffer;
-    for (int i = 0; i < length; i++) {
-        *chp++ = *bytes++;
-    }
-    return env->NewString(buffer, length);
-}
-
 
 /*
  * Start the Android runtime.  This involves starting the virtual machine
@@ -1630,15 +1636,13 @@ static const RegJNIRec gRegJNI[] = {
         REG_JNI(register_android_os_GraphicsEnvironment),
         REG_JNI(register_android_os_MessageQueue),
         REG_JNI(register_android_os_SELinux),
-        REG_JNI(register_android_os_PerfettoTrace),
-        REG_JNI(register_android_os_PerfettoTrackEventExtra),
         REG_JNI(register_android_os_Trace),
         REG_JNI(register_android_os_UEventObserver),
         REG_JNI(register_android_net_LocalSocketImpl),
         REG_JNI(register_android_os_MemoryFile),
         REG_JNI(register_android_os_SharedMemory),
 #ifdef ANDROID_NATIVE_FRAMEWORK_PROTOTYPE
-        REG_JNI(register_android_os_ZygoteProcess),
+        REG_JNI(register_android_os_NativeZygoteProcess),
 #endif
         REG_JNI(register_android_os_incremental_IncrementalManager),
         REG_JNI(register_com_android_internal_content_om_OverlayConfig),
@@ -1662,6 +1666,7 @@ static const RegJNIRec gRegJNI[] = {
         REG_JNI(register_android_hardware_camera2_utils_SurfaceUtils),
         REG_JNI(register_android_hardware_display_DisplayManagerGlobal),
         REG_JNI(register_android_hardware_HardwareBuffer),
+        REG_JNI(register_android_hardware_HubEndpoint),
         REG_JNI(register_android_hardware_OverlayProperties),
         REG_JNI(register_android_hardware_SensorManager),
         REG_JNI(register_android_hardware_SerialPort),
@@ -1723,6 +1728,9 @@ static const RegJNIRec gRegJNI[] = {
         REG_JNI(register_com_android_internal_os_FuseAppLoop),
         REG_JNI(register_com_android_internal_os_KernelAllocationStats),
         REG_JNI(register_com_android_internal_os_KernelCpuBpfTracking),
+#ifdef __x86_64__
+        REG_JNI(register_com_android_internal_os_KernelCpuCyclePerUidBpf),
+#endif
         REG_JNI(register_com_android_internal_os_KernelCpuTotalBpfMapReader),
         REG_JNI(register_com_android_internal_os_KernelCpuUidBpfMapReader),
         REG_JNI(register_com_android_internal_os_KernelSingleProcessCpuThreadReader),

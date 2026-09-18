@@ -59,15 +59,8 @@ final class DeviceAdapter implements CombinedVibration.VibratorAdapter {
                 new PrebakedFallbackAdapter(settings.getFallbackEffects()),
                 // Updates primitive delays to hardware supported pauses
                 new PrimitiveDelayAdapter(),
-                // Convert segments based on device capabilities
-                new RampToStepAdapter(settings.getRampStepDuration()),
-                new StepToRampAdapter(),
                 // Add extra ramp down segments as needed
-                new RampDownAdapter(settings.getRampDownDuration(), settings.getRampStepDuration()),
-                // Split segments based on their duration and device supported limits
-                new SplitSegmentsAdapter(),
-                // Clip amplitudes and frequencies of final segments based on device bandwidth curve
-                new ClippingAmplitudeAndFrequencyAdapter(),
+                new RampDownAdapter(settings.getRampDownDuration()),
                 // Convert BasicPwleSegments to PwleSegments based on device capabilities
                 new BasicToPwleSegmentAdapter(),
                 // Split Pwle segments based on their duration and device supported limits

@@ -31,6 +31,8 @@ import com.android.systemui.keyguard.ui.transitions.blurConfig
 import com.android.systemui.kosmos.collectValues
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.communal.domain.interactor.communalSceneInteractor
+import com.android.systemui.communal.shared.model.EditModeState
 import com.android.systemui.res.R
 import com.android.systemui.testKosmos
 import com.google.common.collect.Range
@@ -104,6 +106,31 @@ class GlanceableHubToDreamingTransitionViewModelTest : SysuiTestCase() {
             keyguardWindowBlurTestUtil.assertTransitionToBlurRadius(
                 transitionProgress = listOf(0.0f, 0.2f, 0.3f, 0.65f, 0.7f, 1.0f),
                 startValue = blurConfig.maxBlurRadiusPx,
+                endValue = blurConfig.minBlurRadiusPx,
+                actualValuesProvider = { values },
+                transitionFactory = { step, transitionState ->
+                    TransitionStep(
+                        from = KeyguardState.GLANCEABLE_HUB,
+                        to = KeyguardState.DREAMING,
+                        value = step,
+                        transitionState = transitionState,
+                        ownerName = "GlanceableHubToDreamingTransitionViewModelTest",
+                    )
+                },
+                checkInterpolatedValues = false,
+            )
+        }
+
+    @Test
+    fun blurBecomesMinValueImmediately_whenInEditMode() =
+        kosmos.runTest {
+            communalSceneInteractor.setEditModeState(EditModeState.SHOWING)
+
+            val values by collectValues(underTest.windowBlurRadius)
+
+            keyguardWindowBlurTestUtil.assertTransitionToBlurRadius(
+                transitionProgress = listOf(0.0f, 0.2f, 0.3f, 0.65f, 0.7f, 1.0f),
+                startValue = blurConfig.minBlurRadiusPx,
                 endValue = blurConfig.minBlurRadiusPx,
                 actualValuesProvider = { values },
                 transitionFactory = { step, transitionState ->

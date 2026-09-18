@@ -34,6 +34,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
             <LinearLayout
+                android:id="@+id/magnifier_size_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal">
@@ -60,6 +61,7 @@
             </LinearLayout>
 
             <LinearLayout
+                android:id="@+id/magnifier_size_button_view"
                 android:background="@drawable/accessibility_magnification_setting_view_image_btn_layout_bg"
                 android:layout_width="match_parent"
                 android:layout_height="@dimen/magnification_setting_image_button_height"

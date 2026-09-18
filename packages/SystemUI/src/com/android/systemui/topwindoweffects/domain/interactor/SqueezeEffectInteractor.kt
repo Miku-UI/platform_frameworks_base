@@ -17,6 +17,7 @@
 package com.android.systemui.topwindoweffects.domain.interactor
 
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.shared.Flags
 import com.android.systemui.topwindoweffects.data.repository.SqueezeEffectRepository
 import java.io.PrintWriter
 import javax.inject.Inject
@@ -29,9 +30,9 @@ import kotlinx.coroutines.flow.filterNotNull
 class SqueezeEffectInteractor
 @Inject
 constructor(private val squeezeEffectRepository: SqueezeEffectRepository) {
-    val isSqueezeEffectHapticEnabled = squeezeEffectRepository.isSqueezeEffectHapticEnabled
-
     val isPowerButtonLongPressed = squeezeEffectRepository.isPowerButtonLongPressed
+
+    val gestureProgress = squeezeEffectRepository.gestureProgress
 
     val powerButtonSemantics: Flow<PowerButtonSemantics> =
         combine(
@@ -39,7 +40,7 @@ constructor(private val squeezeEffectRepository: SqueezeEffectRepository) {
                 squeezeEffectRepository.isPowerButtonPressedAsSingleGesture,
                 isPowerButtonLongPressed,
             ) { isEnabled, isPowerButtonPressedAsSingleGesture, isPowerButtonLongPressed ->
-                val useInitialRumble = squeezeEffectRepository.useHapticRumble()
+                val useInitialRumble = Flags.enableLppAssistInvocationInitialRumble()
                 when {
                     !isPowerButtonPressedAsSingleGesture -> PowerButtonSemantics.CANCEL_SQUEEZE
                     isEnabled && isPowerButtonPressedAsSingleGesture && useInitialRumble ->
@@ -54,12 +55,16 @@ constructor(private val squeezeEffectRepository: SqueezeEffectRepository) {
             .filterNotNull()
             .distinctUntilChanged()
 
-    fun getInvocationEffectInitialDelayMillis(): Long {
-        return squeezeEffectRepository.getInvocationEffectInitialDelayMillis()
+    fun getLppInvocationEffectInitialDelayMillis(): Long {
+        return squeezeEffectRepository.getLppInvocationEffectInitialDelayMillis()
     }
 
-    fun getInvocationEffectInAnimationDurationMillis(): Long {
-        return squeezeEffectRepository.getInvocationEffectInAnimationDurationMillis()
+    fun getLppInvocationEffectInAnimationDurationMillis(): Long {
+        return squeezeEffectRepository.getLppInvocationEffectInAnimationDurationMillis()
+    }
+
+    fun getGestureInvocationEffectInAnimationDurationMillis(): Long {
+        return squeezeEffectRepository.getGestureInvocationEffectInAnimationDurationMillis()
     }
 
     fun getInvocationEffectOutAnimationDurationMillis(): Long {

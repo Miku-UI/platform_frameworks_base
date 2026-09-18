@@ -1,2 +1,5 @@
 include platform/frameworks/base:/services/core/java/com/android/server/am/OWNERS
 per-file GameManagerServiceSettingsTests.java = file:/GAME_MANAGER_OWNERS
+per-file companion_*.xml = file:/core/java/android/companion/OWNERS
+per-file NetworkPolicyManagerServiceTest.java = file:/platform/frameworks/opt/telephony:/OWNERS
+per-file res/xml/device_admin_sample.xml = file:/core/java/android/app/admin/EnterprisePlatform_OWNERS

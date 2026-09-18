@@ -34,6 +34,7 @@ import com.android.systemui.keyguard.ui.StateToValue
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import com.android.systemui.keyguard.ui.transitions.GlanceableHubTransition
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.ShadeDisplayAware
 import javax.inject.Inject
@@ -93,28 +94,34 @@ constructor(
         blurFactory.create(transitionAnimation).getBlurProvider().exitBlurRadius
 
     val keyguardAlpha: Flow<Float> =
-        willRotateToPortraitInTransition.flatMapLatest { willRotate ->
-            transitionAnimation.sharedFlow(
-                duration = 167.milliseconds,
-                // If will rotate, start later to leave time for screen rotation.
-                startTime =
-                    if (willRotate || Flags.gestureBetweenHubAndLockscreenMotion()) 500.milliseconds
-                    else 167.milliseconds,
-                onStep = { step ->
-                    if (willRotate) {
-                        if (!communalSceneInteractor.rotatedToPortrait.value) {
-                            0f
+        if (SceneContainerFlag.isEnabled) {
+            // Fading keyguard elements during this transition is controlled by SceneContainer.
+            emptyFlow()
+        } else {
+            willRotateToPortraitInTransition.flatMapLatest { willRotate ->
+                transitionAnimation.sharedFlow(
+                    duration = 167.milliseconds,
+                    // If will rotate, start later to leave time for screen rotation.
+                    startTime =
+                        if (willRotate || Flags.gestureBetweenHubAndLockscreenMotion())
+                            500.milliseconds
+                        else 167.milliseconds,
+                    onStep = { step ->
+                        if (willRotate) {
+                            if (!communalSceneInteractor.rotatedToPortrait.value) {
+                                0f
+                            } else {
+                                1f
+                            }
                         } else {
-                            1f
+                            step
                         }
-                    } else {
-                        step
-                    }
-                },
-                onFinish = { 1f },
-                onCancel = { 0f },
-                name = "GLANCEABLE_HUB->LOCKSCREEN: keyguardAlpha",
-            )
+                    },
+                    onFinish = { 1f },
+                    onCancel = { 0f },
+                    name = "GLANCEABLE_HUB->LOCKSCREEN: keyguardAlpha",
+                )
+            }
         }
 
     // Show UMO as long as keyguard is not visible.

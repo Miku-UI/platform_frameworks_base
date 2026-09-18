@@ -18,6 +18,7 @@ package android.security.identity;
 
 import static java.lang.annotation.RetentionPolicy.SOURCE;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -31,6 +32,7 @@ import java.util.Collection;
  *
  * @deprecated Use {@link PresentationSession} instead.
  */
+@FlaggedApi(Flags.FLAG_API_DEPRECATION)
 @Deprecated
 public abstract class ResultData {
 
@@ -55,7 +57,11 @@ public abstract class ResultData {
     /**
      * The entry was not retrieved because it was configured without any access
      * control profile.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public static final int STATUS_NO_ACCESS_CONTROL_PROFILES = 6;
 
     /**
@@ -108,7 +114,11 @@ public abstract class ResultData {
      * as defined above.
      *
      * @return The bytes of the {@code DeviceNameSpaces} CBOR structure.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @NonNull byte[] getAuthenticatedData();
 
     /**
@@ -131,7 +141,11 @@ public abstract class ResultData {
      *
      * @return A COSE_Mac0 structure with the message authentication code as described above
      *         or {@code null} if the conditions specified above are not met.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @Nullable byte[] getMessageAuthenticationCode();
 
     @Nullable byte[] getSignature() {
@@ -144,7 +158,11 @@ public abstract class ResultData {
      *
      * @return The static authentication data associated with dynamic authentication key used to
      * MAC the data.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @NonNull byte[] getStaticAuthenticationData();
 
     /**
@@ -152,7 +170,11 @@ public abstract class ResultData {
      *
      * @return collection of name of namespaces containing retrieved entries. May be empty if no
      *     data was retrieved.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @NonNull Collection<String> getNamespaces();
 
     /**
@@ -163,7 +185,11 @@ public abstract class ResultData {
      * @param namespaceName the namespace name to get entries for.
      * @return A collection of names or {@code null} if there are no entries for the given
      *     namespace.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @Nullable Collection<String> getEntryNames(@NonNull String namespaceName);
 
     /**
@@ -175,7 +201,11 @@ public abstract class ResultData {
      * @param namespaceName the namespace name to get entries for.
      * @return A collection of names or {@code null} if there are no entries for the given
      *     namespace.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @Nullable Collection<String> getRetrievedEntryNames(
             @NonNull String namespaceName);
 
@@ -195,7 +225,11 @@ public abstract class ResultData {
      * @param namespaceName the namespace name of the entry.
      * @param name the name of the entry to get the value for.
      * @return the status indicating whether the value was retrieved and if not, why.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @Status int getStatus(@NonNull String namespaceName, @NonNull String name);
 
     /**
@@ -207,7 +241,11 @@ public abstract class ResultData {
      * @param namespaceName the namespace name of the entry.
      * @param name the name of the entry to get the value for.
      * @return the raw CBOR data or {@code null} if no entry with the given name exists.
+     * @deprecated Use {@code java.security.KeyStore} with the Android hardware-backed keystore
+     * instead.
      */
+    @FlaggedApi(Flags.FLAG_API_DEPRECATION)
+    @Deprecated
     public abstract @Nullable byte[] getEntry(@NonNull String namespaceName, @NonNull String name);
 
     /**

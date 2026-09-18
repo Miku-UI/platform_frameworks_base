@@ -19,9 +19,7 @@ package com.android.systemui.statusbar.pipeline.mobile.data.repository.demo
 import android.telephony.SubscriptionManager.INVALID_SUBSCRIPTION_ID
 import android.telephony.TelephonyManager
 import com.android.settingslib.SignalIcon
-import com.android.systemui.KairosBuilder
 import com.android.systemui.kairos.Events
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.TransactionScope
 import com.android.systemui.kairos.map
@@ -33,7 +31,6 @@ import com.android.systemui.kairos.util.Either.First
 import com.android.systemui.kairos.util.Either.Second
 import com.android.systemui.kairos.util.firstOrNull
 import com.android.systemui.kairos.util.nameTag
-import com.android.systemui.kairosBuilder
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.log.table.logDiffsForTable
 import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionState
@@ -57,6 +54,8 @@ import com.android.systemui.statusbar.pipeline.mobile.data.repository.prod.FullM
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
 import com.android.systemui.statusbar.pipeline.shared.data.model.toMobileDataActivityModel
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.model.FakeWifiEventModel.CarrierMerged as FakeCarrierMergedEvent
+import com.android.systemui.util.lifecycle.kairos.KairosBuilder
+import com.android.systemui.util.lifecycle.kairos.kairosBuilder
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
@@ -65,7 +64,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
  * [MutableStateFlow] while still logging all of the inputs in the same manor as the production
  * repos.
  */
-@ExperimentalKairosApi
 class DemoMobileConnectionRepositoryKairos(
     override val subId: Int,
     override val tableLogBuffer: TableLogBuffer,

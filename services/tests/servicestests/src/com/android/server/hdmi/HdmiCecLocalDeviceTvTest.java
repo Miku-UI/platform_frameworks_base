@@ -2504,6 +2504,74 @@ public class HdmiCecLocalDeviceTvTest {
         assertThat(mHdmiCecLocalDeviceTv.getActions(SystemAudioActionFromTv.class)).hasSize(0);
     }
 
+    @Test
+    public void handleInactiveSource_previousPortWasHome_inactivatesSource() {
+        mHdmiCecLocalDeviceTv.setPrevPortId(Constants.CEC_SWITCH_HOME);
+
+        int activeSourceAddress = ADDR_PLAYBACK_1;
+        int activeSourcePhysicalAddress = 0x1000;
+
+        HdmiDeviceInfo activeDevice = HdmiDeviceInfo.cecDeviceBuilder()
+            .setLogicalAddress(activeSourceAddress)
+            .setPhysicalAddress(activeSourcePhysicalAddress)
+            .setPortId(PORT_1)
+            .setDeviceType(HdmiDeviceInfo.DEVICE_PLAYBACK)
+            .build();
+        mHdmiControlService.getHdmiCecNetwork().addCecDevice(activeDevice);
+        mTestLooper.dispatchAll();
+
+        mHdmiControlService.setActiveSource(activeSourceAddress, activeSourcePhysicalAddress,
+            "Test");
+        mHdmiCecLocalDeviceTv.setActiveSource(ActiveSource.of(activeSourceAddress,
+            activeSourcePhysicalAddress), "Test");
+        mHdmiCecLocalDeviceTv.setActivePath(activeSourcePhysicalAddress);
+        HdmiCecMessage inactiveSourceMessage = HdmiCecMessageBuilder.buildInactiveSource(
+            activeSourceAddress, mTvLogicalAddress);
+        mHdmiCecLocalDeviceTv.handleInactiveSource(inactiveSourceMessage);
+        mTestLooper.dispatchAll();
+
+        assertThat(mHdmiCecLocalDeviceTv.getActiveSource().isValid()).isFalse();
+        assertThat(mHdmiCecLocalDeviceTv.getActivePath()).isEqualTo(
+            Constants.INVALID_PHYSICAL_ADDRESS);
+        assertThat(mHdmiCecLocalDeviceTv.getPrevPortId()).isEqualTo(Constants.CEC_SWITCH_HOME);
+        assertThat(mNativeWrapper.getResultMessages()).isEmpty();
+    }
+
+    @Test
+    public void handleInactiveSource_previousPortWasExternal_switchesPort() {
+        int previousPortId = PORT_1;
+        int previousPhysicalAddress = 0x1000;
+        mHdmiCecLocalDeviceTv.setPrevPortId(previousPortId);
+
+        int activeSourceAddress = ADDR_PLAYBACK_2;
+        int activeSourcePhysicalAddress = 0x2000;
+        int activeSourcePortId = PORT_2;
+
+        HdmiDeviceInfo activeDevice = HdmiDeviceInfo.cecDeviceBuilder()
+            .setLogicalAddress(activeSourceAddress)
+            .setPhysicalAddress(activeSourcePhysicalAddress)
+            .setPortId(activeSourcePortId)
+            .setDeviceType(HdmiDeviceInfo.DEVICE_PLAYBACK)
+            .build();
+        mHdmiControlService.getHdmiCecNetwork().addCecDevice(activeDevice);
+        mTestLooper.dispatchAll();
+
+        mHdmiControlService.setActiveSource(activeSourceAddress, activeSourcePhysicalAddress,
+            "Test");
+        mHdmiCecLocalDeviceTv.setActiveSource(ActiveSource.of(activeSourceAddress,
+            activeSourcePhysicalAddress), "Test");
+        mHdmiCecLocalDeviceTv.setActivePath(activeSourcePhysicalAddress);
+        HdmiCecMessage inactiveSourceMessage = HdmiCecMessageBuilder.buildInactiveSource(
+            activeSourceAddress, mTvLogicalAddress);
+        mHdmiCecLocalDeviceTv.handleInactiveSource(inactiveSourceMessage);
+        mTestLooper.dispatchAll();
+
+        HdmiCecMessage routingChange = HdmiCecMessageBuilder.buildRoutingChange(
+            mTvLogicalAddress, activeSourcePhysicalAddress, previousPhysicalAddress);
+        assertThat(mNativeWrapper.getResultMessages()).contains(routingChange);
+        assertThat(mHdmiCecLocalDeviceTv.getPrevPortId()).isEqualTo(Constants.INVALID_PORT_ID);
+    }
+
     protected static class MockTvDevice extends HdmiCecLocalDeviceTv {
         MockTvDevice(HdmiControlService service) {
             super(service);

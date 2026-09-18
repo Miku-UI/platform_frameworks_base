@@ -28,6 +28,9 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSess
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import android.app.WindowConfiguration;
 import android.content.Context;
@@ -488,6 +491,19 @@ public class DisplayTest {
         int[] hdrTypesCopy = hdrCapabilities.getSupportedHdrTypes();
         hdrTypesCopy[0] = 0;
         assertArrayEquals(hdrTypes, hdrCapabilities.getSupportedHdrTypes());
+    }
+
+    @Test
+    public void infoChanges_typeUpdated() {
+        mDisplayInfo.type = Display.TYPE_INTERNAL;
+        Display display = new Display(mDisplayManagerGlobal, DEFAULT_DISPLAY, mDisplayInfo,
+                DisplayAdjustments.DEFAULT_DISPLAY_ADJUSTMENTS);
+        assertEquals(Display.TYPE_INTERNAL, display.getType());
+        assertTrue(display.isInternal());
+
+        mDisplayInfo.type = Display.TYPE_EXTERNAL;
+        assertEquals(Display.TYPE_EXTERNAL, display.getType());
+        assertFalse(display.isInternal());
     }
 
     // Given rotated display dimensions, calculate the letterboxed app bounds.

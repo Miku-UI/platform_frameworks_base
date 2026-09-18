@@ -47,6 +47,7 @@ import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.systemui.CoreStartable;
 import com.android.systemui.broadcast.BroadcastDispatcher;
 import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.Flags;
 import com.android.systemui.statusbar.notification.NotificationUtils;
 import com.android.systemui.util.NotificationChannels;
 
@@ -176,6 +177,8 @@ public class StorageNotification implements CoreStartable {
         }
     };
 
+    private boolean notificationAlertsChannelConfig;
+
     @Override
     public void start() {
         mStorageManager.registerListener(mListener);
@@ -209,6 +212,9 @@ public class StorageNotification implements CoreStartable {
         mContext.getPackageManager().registerMoveCallback(mMoveCallback, new Handler());
 
         updateMissingPrivateVolumes();
+
+        notificationAlertsChannelConfig = mContext.getResources().getBoolean(
+            com.android.systemui.res.R.bool.config_storageNotificationsUseAlertsChannel);
     }
 
     private void updateMissingPrivateVolumes() {
@@ -333,9 +339,6 @@ public class StorageNotification implements CoreStartable {
 
         final Notification notif;
         switch (vol.getState()) {
-            case VolumeInfo.STATE_UNMOUNTED:
-                notif = onVolumeUnmounted(vol);
-                break;
             case VolumeInfo.STATE_CHECKING:
                 notif = onVolumeChecking(vol);
                 break;
@@ -358,23 +361,26 @@ public class StorageNotification implements CoreStartable {
             case VolumeInfo.STATE_BAD_REMOVAL:
                 notif = onVolumeBadRemoval(vol);
                 break;
+            case VolumeInfo.STATE_UNMOUNTED:
             default:
                 notif = null;
                 break;
         }
 
         if (notif != null) {
-            mNotificationManager.notifyAsUser(vol.getId(), SystemMessage.NOTE_STORAGE_PUBLIC,
-                    notif, UserHandle.of(vol.getMountUserId()));
+            try {
+                mNotificationManager.notifyAsUser(vol.getId(), SystemMessage.NOTE_STORAGE_PUBLIC,
+                        notif, UserHandle.of(vol.getMountUserId()));
+            } catch (SecurityException e) {
+                // When a user is being removed, the volume may go into the EJECTING state, but the
+                // user removal may complete before the notification is posted, causing a
+                // SecurityException, which we catch here.
+                Log.e(TAG, "Failed to post notification.", e);
+            }
         } else {
             mNotificationManager.cancelAsUser(vol.getId(), SystemMessage.NOTE_STORAGE_PUBLIC,
                     UserHandle.of(vol.getMountUserId()));
         }
-    }
-
-    private Notification onVolumeUnmounted(VolumeInfo vol) {
-        // Ignored
-        return null;
     }
 
     private Notification onVolumeChecking(VolumeInfo vol) {
@@ -630,8 +636,12 @@ public class StorageNotification implements CoreStartable {
 
     private Notification.Builder buildNotificationBuilder(VolumeInfo vol, CharSequence title,
             CharSequence text) {
+        String channel = NotificationChannels.STORAGE;
+        if (Flags.notificationStorageAlertsChannel() && notificationAlertsChannelConfig) {
+            channel = NotificationChannels.ALERTS;
+        }
         Notification.Builder builder =
-                new Notification.Builder(mContext, NotificationChannels.STORAGE)
+                new Notification.Builder(mContext, channel)
                         .setSmallIcon(getSmallIcon(vol.getDisk(), vol.getState()))
                         .setColor(mContext.getColor(R.color.system_notification_accent_color))
                         .setContentTitle(title)

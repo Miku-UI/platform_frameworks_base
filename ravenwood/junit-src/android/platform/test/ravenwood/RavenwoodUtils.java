@@ -25,11 +25,13 @@ import android.util.Log;
 import com.android.internal.annotations.GuardedBy;
 import com.android.ravenwood.common.SneakyThrow;
 
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -43,6 +45,12 @@ public class RavenwoodUtils {
 
     @GuardedBy("sHandlers")
     private static final Map<Looper, Handler> sHandlers = new HashMap<>();
+
+    /**
+     * Date format used for log filename.
+     */
+    public static final DateTimeFormatter LOG_FILE_TIMESTAMP_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
     /**
      * Return a handler for any looper.
@@ -66,24 +74,41 @@ public class RavenwoodUtils {
      */
     @Nullable
     public static <T> T runOnHandlerSync(@NonNull Handler h, @NonNull Callable<T> c) {
+        return runOnHandlerSync(h, c, DEFAULT_TIMEOUT_SECONDS * 1000);
+    }
+
+    @Nullable
+    public static <T> T runOnHandlerSync(@NonNull Handler h,
+            @NonNull Callable<T> c,
+            int timeoutMillis) {
         var result = new AtomicReference<T>();
         var thrown = new AtomicReference<Throwable>();
         var latch = new CountDownLatch(1);
+        var tooLate = new AtomicBoolean(false);
 
         var postedHere = new MessageWasPostedHereStackTrace();
         h.post(() -> {
             try {
+                if (tooLate.get()) {
+                    return;
+                }
                 result.set(c.call());
             } catch (Throwable th) {
                 thrown.set(th);
+            } finally {
+                latch.countDown();
             }
-            latch.countDown();
         });
         try {
-            latch.await(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            var success = latch.await(timeoutMillis, TimeUnit.MILLISECONDS);
+            if (!success) {
+                // TODO: Take a bugreport?
+                throw new RuntimeException("Timed out while waiting for callback to finish");
+            }
         } catch (InterruptedException e) {
             throw new RuntimeException("Interrupted while waiting on the Runnable", e);
         }
+        tooLate.set(true);
         var th = thrown.get();
         if (th != null) {
             // Inject the current stacktrace as a cause for easier debugging.
@@ -123,24 +148,20 @@ public class RavenwoodUtils {
     }
 
     /**
-     * Set by {@link RavenwoodDriver} to run code before {@link #waitForLooperDone(Looper)}.
-     */
-    static volatile Runnable sPendingExceptionThrower = () -> {};
-
-    /**
      * Wait for a looper to be idle.
      *
      * When running on Ravenwood, this will also throw the pending exception, if any.
      */
     public static void waitForLooperDone(Looper looper) {
+        if (Looper.myLooper() == looper) {
+            throw new IllegalStateException("Cannot wait for the current looper");
+        }
         var idler = new Idler();
         looper.getQueue().addIdleHandler(idler);
         // Wake up the queue, if sleeping.
         getHandler(looper).post(() -> {});
 
         idler.waitForIdle();
-
-        sPendingExceptionThrower.run();
     }
 
     /**

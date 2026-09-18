@@ -52,20 +52,23 @@ import com.android.systemui.media.controls.ui.view.MediaHost
 import com.android.systemui.media.dream.MediaDreamComplication
 import com.android.systemui.media.remedia.shared.flag.MediaControlsInComposeFlag
 import com.android.systemui.plugins.statusbar.StatusBarStateController
-import com.android.systemui.qs.flags.QSComposeFragment
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
+import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
+import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.statusbar.CrossFadeHelper
 import com.android.systemui.statusbar.StatusBarState
 import com.android.systemui.statusbar.SysuiStatusBarStateController
-import com.android.systemui.statusbar.featurepods.popups.StatusBarPopupChips
 import com.android.systemui.statusbar.notification.stack.StackStateAnimator
 import com.android.systemui.statusbar.phone.KeyguardBypassController
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.KeyguardStateController
 import com.android.systemui.statusbar.policy.SplitShadeStateController
+import com.android.systemui.statusbar.quickactions.popups.StatusBarPopupChips
 import com.android.systemui.util.animation.UniqueObjectHostView
+import com.android.systemui.util.kotlin.mapDirect
 import com.android.systemui.util.settings.SecureSettings
 import java.io.PrintWriter
 import javax.inject.Inject
@@ -73,7 +76,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.mapLatest
 
 private val TAG: String = MediaHierarchyManager::class.java.simpleName
 
@@ -110,6 +112,7 @@ constructor(
     private val keyguardStateController: KeyguardStateController,
     private val bypassController: KeyguardBypassController,
     private val mediaCarouselController: MediaCarouselController,
+    private val mediaReorderController: MediaReorderController,
     private val mediaManager: MediaDataManager,
     private val dreamOverlayStateController: DreamOverlayStateController,
     private val keyguardInteractor: KeyguardInteractor,
@@ -122,6 +125,7 @@ constructor(
     @Background private val handler: Handler,
     @Application private val coroutineScope: CoroutineScope,
     private val splitShadeStateController: SplitShadeStateController,
+    private val shadeModeInteractor: ShadeModeInteractor,
     private val logger: MediaViewLogger,
     private val dumpManager: DumpManager,
 ) : Dumpable {
@@ -601,6 +605,7 @@ constructor(
             }
         )
 
+        mediaReorderController.isCarouselCurrentlyVisible = this::isCarouselCurrentlyVisible
         mediaCarouselController.updateUserVisibility = this::updateUserVisibility
         mediaCarouselController.updateHostVisibility = {
             mediaHosts.forEach { it?.updateViewVisibility() }
@@ -646,6 +651,14 @@ constructor(
             }
         }
 
+        coroutineScope.launch {
+            shadeModeInteractor.shadeMode.collect { shadeMode ->
+                inSplitShade = shadeMode is ShadeMode.Split
+                updateConfiguration()
+                updateDesiredLocation(forceNoAnimation = true, forceStateUpdate = true)
+            }
+        }
+
         val settingsObserver: ContentObserver =
             object : ContentObserver(handler) {
                 override fun onChange(selfChange: Boolean, uri: Uri?) {
@@ -679,7 +692,7 @@ constructor(
                     // in
                     // QS
                     shadeInteractor.shadeExpansion
-                        .mapLatest { it < EXPANSION_THRESHOLD }
+                        .mapDirect { it < EXPANSION_THRESHOLD }
                         .distinctUntilChanged(),
                     ::Triple,
                 )
@@ -699,7 +712,10 @@ constructor(
             context.resources.getDimensionPixelSize(
                 R.dimen.lockscreen_shade_media_transition_distance
             )
-        inSplitShade = splitShadeStateController.shouldUseSplitNotificationShade(context.resources)
+        if (!SceneContainerFlag.isEnabled) {
+            inSplitShade =
+                splitShadeStateController.shouldUseSplitNotificationShade(context.resources)
+        }
     }
 
     /**
@@ -910,8 +926,7 @@ constructor(
         }
         if (
             skipQqsOnExpansion ||
-                (QSComposeFragment.isEnabled &&
-                    desiredLocation == LOCATION_QQS &&
+                (desiredLocation == LOCATION_QQS &&
                     previousLocation == LOCATION_QS &&
                     shadeExpandedFraction == 0.0f)
         ) {
@@ -1346,22 +1361,35 @@ constructor(
         return isCrossFadeAnimatorRunning
     }
 
-    /** Update whether or not the media carousel could be visible to the user */
-    private fun updateUserVisibility() {
-        if (MediaControlsInComposeFlag.isEnabled) return
+    internal fun isCarouselCurrentlyVisible(): Boolean {
+        return isCarouselCurrentlyVisible(false)
+    }
 
+    private fun isCarouselCurrentlyVisible(logUpdate: Boolean = false): Boolean {
         val shadeVisible =
             isLockScreenVisibleToUser() ||
                 isHomeScreenShadeVisibleToUser() ||
                 isGlanceableHubVisibleToUser()
         val mediaVisible = qsExpanded || hasActiveMedia
-        logger.logUserVisibilityChange(shadeVisible, mediaVisible)
         val carouselVisible = shadeVisible && mediaVisible
+        if (logUpdate) logger.logUserVisibilityChange(shadeVisible, mediaVisible)
+        return carouselVisible
+    }
+
+    /** Update whether or not the media carousel could be visible to the user */
+    private fun updateUserVisibility() {
+        if (MediaControlsInComposeFlag.isEnabled) return
+
+        val carouselVisible = isCarouselCurrentlyVisible(logUpdate = true)
         mediaCarouselController.mediaCarouselScrollHandler.visibleToUser = carouselVisible
-        if (carouselVisible && !previousCarouselVisible) {
+        val prevVisible = previousCarouselVisible
+        previousCarouselVisible = carouselVisible
+        if (carouselVisible && !prevVisible) {
             mediaCarouselController.onCarouselVisibleToUser()
         }
-        previousCarouselVisible = carouselVisible
+        if (!carouselVisible && prevVisible) {
+            mediaReorderController.onReorderingAllowed()
+        }
     }
 
     private fun isLockScreenVisibleToUser(): Boolean {

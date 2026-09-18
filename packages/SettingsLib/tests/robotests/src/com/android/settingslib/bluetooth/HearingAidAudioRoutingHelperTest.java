@@ -24,6 +24,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
@@ -68,6 +69,7 @@ public class HearingAidAudioRoutingHelperTest {
     @Spy
     private final Context mContext = ApplicationProvider.getApplicationContext();
     private static final String TEST_DEVICE_ADDRESS = "00:A1:A1:A1:A1:A1";
+    private static final String TEST_DEVICE_ADDRESS_2 = "00:A2:A2:A2:A2:A2";
     private static final String NOT_EXPECT_DEVICE_ADDRESS = "11:B2:B2:B2:B2:B2";
 
     @Mock
@@ -82,7 +84,14 @@ public class HearingAidAudioRoutingHelperTest {
     private CachedBluetoothDevice mCachedBluetoothDevice;
     @Mock
     private CachedBluetoothDevice mSubCachedBluetoothDevice;
-    private AudioDeviceAttributes mHearingDeviceAttributeOutput;
+    private final AudioDeviceAttributes mHearingDeviceAttributeOutput = new AudioDeviceAttributes(
+            AudioDeviceAttributes.ROLE_OUTPUT,
+            AudioDeviceInfo.TYPE_HEARING_AID,
+            TEST_DEVICE_ADDRESS);
+    private final AudioDeviceAttributes mHearingDeviceAttributeOutput2 = new AudioDeviceAttributes(
+            AudioDeviceAttributes.ROLE_OUTPUT,
+            AudioDeviceInfo.TYPE_BLE_HEADSET,
+            TEST_DEVICE_ADDRESS_2);
     private HearingAidAudioRoutingHelper mHelper;
 
     @Before
@@ -103,10 +112,6 @@ public class HearingAidAudioRoutingHelperTest {
                 AudioManager.STREAM_MUSIC))
                 .thenReturn((new AudioAttributes.Builder()).build());
 
-        mHearingDeviceAttributeOutput = new AudioDeviceAttributes(
-                AudioDeviceAttributes.ROLE_OUTPUT,
-                AudioDeviceInfo.TYPE_HEARING_AID,
-                TEST_DEVICE_ADDRESS);
         mHelper = spy(new HearingAidAudioRoutingHelper(mContext));
         doReturn(List.of(mAudioStrategy)).when(mHelper).getAudioProductStrategies();
     }
@@ -225,5 +230,52 @@ public class HearingAidAudioRoutingHelperTest {
 
         verify(mAudioManager).setPreferredDeviceForCapturePreset(
                 MICROPHONE_SOURCE_VOICE_COMMUNICATION, BUILTIN_MIC);
+    }
+
+    @Test
+    public void configureRoutingStrategies_valueHearingDevice_callRemoveNonDefaultStrategy() {
+        when(mAudioManager.getNonDefaultDevicesForStrategy(mAudioStrategy)).thenReturn(
+                Collections.singletonList(mHearingDeviceAttributeOutput));
+
+        mHelper.configureRoutingStrategies(List.of(mAudioStrategy),
+                mHearingDeviceAttributeOutput, RoutingValue.HEARING_DEVICE);
+
+        verify(mAudioManager, atLeastOnce()).removeDeviceAsNonDefaultForStrategy(mAudioStrategy,
+                mHearingDeviceAttributeOutput);
+    }
+
+    @Test
+    public void configureRoutingStrategies_valueAuto_callRemoveNonDefaultStrategy() {
+        when(mAudioManager.getNonDefaultDevicesForStrategy(mAudioStrategy)).thenReturn(
+                Collections.singletonList(mHearingDeviceAttributeOutput));
+
+        mHelper.configureRoutingStrategies(List.of(mAudioStrategy),
+                mHearingDeviceAttributeOutput, RoutingValue.AUTO);
+
+        verify(mAudioManager, atLeastOnce()).removeDeviceAsNonDefaultForStrategy(mAudioStrategy,
+                mHearingDeviceAttributeOutput);
+    }
+
+    @Test
+    public void configureRoutingStrategies_valueBuiltinDevice_callSetNonDefaultStrategy() {
+        when(mAudioManager.getNonDefaultDevicesForStrategy(mAudioStrategy)).thenReturn(
+                Collections.singletonList(mHearingDeviceAttributeOutput));
+
+        mHelper.configureRoutingStrategies(List.of(mAudioStrategy),
+                mHearingDeviceAttributeOutput, RoutingValue.BUILTIN_DEVICE);
+
+        verify(mAudioManager, atLeastOnce()).setDeviceAsNonDefaultForStrategy(mAudioStrategy,
+                mHearingDeviceAttributeOutput);
+    }
+
+    @Test
+    public void removeDevicesStrategies_twoRemoveOne_callRemoveLeftOne() {
+        when(mAudioManager.getNonDefaultDevicesForStrategy(mAudioStrategy)).thenReturn(
+                List.of(mHearingDeviceAttributeOutput, mHearingDeviceAttributeOutput2));
+
+        mHelper.removeDevicesStrategies(List.of(mAudioStrategy), mCachedBluetoothDevice);
+
+        verify(mAudioManager, atLeast(1)).removeDeviceAsNonDefaultForStrategy(eq(mAudioStrategy),
+                any(AudioDeviceAttributes.class));
     }
 }

@@ -708,7 +708,6 @@ public final class ApplicationStartInfo implements Parcelable {
      * @return {@code true} if this is the first process launch of the app after having been
      *      stopped, {@code false} otherwise.
      */
-    @FlaggedApi(android.content.pm.Flags.FLAG_STAY_STOPPED)
     public boolean wasForceStopped() {
         return mWasForceStopped;
     }

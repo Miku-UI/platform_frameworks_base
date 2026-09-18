@@ -20,6 +20,7 @@ import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIG
 import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIGHTNESS_MODE_DEFAULT;
 import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIGHTNESS_MODE_DOZE;
 import static com.android.server.display.AutomaticBrightnessController.AUTO_BRIGHTNESS_MODE_IDLE;
+import static com.android.server.display.BrightnessMappingStrategy.INVALID_LUX;
 import static com.android.server.display.TestUtilsKt.createSensor;
 import static com.android.server.display.TestUtilsKt.createSensorEvent;
 
@@ -119,7 +120,7 @@ public class AutomaticBrightnessControllerTest {
 
         mLightSensor = createSensor(Sensor.TYPE_LIGHT, "Light Sensor");
         mContext = InstrumentationRegistry.getContext();
-        setupController(BrightnessMappingStrategy.INVALID_LUX,
+        setupController(INVALID_LUX,
                 BrightnessMappingStrategy.INVALID_NITS, /* applyDebounce= */ false,
                 /* useHorizon= */ true);
     }
@@ -455,7 +456,7 @@ public class AutomaticBrightnessControllerTest {
         when(mIdleBrightnessMappingStrategy.getUserBrightness()).thenReturn(
                 PowerManager.BRIGHTNESS_INVALID_FLOAT);
         when(mIdleBrightnessMappingStrategy.getUserLux()).thenReturn(
-                BrightnessMappingStrategy.INVALID_LUX);
+                INVALID_LUX);
         when(mBrightnessMappingStrategy.shouldResetShortTermModel(
                 123f, 0.5f)).thenReturn(true);
 
@@ -502,7 +503,7 @@ public class AutomaticBrightnessControllerTest {
         when(mIdleBrightnessMappingStrategy.getUserBrightness()).thenReturn(
                 PowerManager.BRIGHTNESS_INVALID_FLOAT);
         when(mIdleBrightnessMappingStrategy.getUserLux()).thenReturn(
-                BrightnessMappingStrategy.INVALID_LUX);
+                INVALID_LUX);
 
         when(mBrightnessMappingStrategy.shouldResetShortTermModel(
                 123f, 0.5f)).thenReturn(true);
@@ -538,7 +539,7 @@ public class AutomaticBrightnessControllerTest {
         when(mBrightnessMappingStrategy.getUserBrightness()).thenReturn(
                 PowerManager.BRIGHTNESS_INVALID_FLOAT);
         when(mBrightnessMappingStrategy.getUserLux()).thenReturn(
-                BrightnessMappingStrategy.INVALID_LUX);
+                INVALID_LUX);
 
         // No user brightness interaction.
 
@@ -546,7 +547,7 @@ public class AutomaticBrightnessControllerTest {
         when(mIdleBrightnessMappingStrategy.getUserBrightness()).thenReturn(
                 PowerManager.BRIGHTNESS_INVALID_FLOAT);
         when(mIdleBrightnessMappingStrategy.getUserLux()).thenReturn(
-                BrightnessMappingStrategy.INVALID_LUX);
+                INVALID_LUX);
 
         // Sensor reads 1000 lux,
         listener.onSensorChanged(createSensorEvent(mLightSensor, 1000));
@@ -1034,7 +1035,7 @@ public class AutomaticBrightnessControllerTest {
     @Test
     public void testBrighteningLightDebounce() throws Exception {
         clearInvocations(mSensorManager);
-        setupController(BrightnessMappingStrategy.INVALID_LUX,
+        setupController(INVALID_LUX,
                 BrightnessMappingStrategy.INVALID_NITS, /* applyDebounce= */ true,
                 /* useHorizon= */ false);
 
@@ -1079,7 +1080,7 @@ public class AutomaticBrightnessControllerTest {
                 .thenReturn(10000f);
         when(mAmbientBrightnessThresholds.getDarkeningThreshold(anyFloat()))
                 .thenReturn(10000f);
-        setupController(BrightnessMappingStrategy.INVALID_LUX,
+        setupController(INVALID_LUX,
                 BrightnessMappingStrategy.INVALID_NITS, /* applyDebounce= */ true,
                 /* useHorizon= */ false);
 
@@ -1120,7 +1121,7 @@ public class AutomaticBrightnessControllerTest {
     @Test
     public void testBrighteningLightDebounceIdle() throws Exception {
         clearInvocations(mSensorManager);
-        setupController(BrightnessMappingStrategy.INVALID_LUX,
+        setupController(INVALID_LUX,
                 BrightnessMappingStrategy.INVALID_NITS, /* applyDebounce= */ true,
                 /* useHorizon= */ false);
 
@@ -1160,7 +1161,7 @@ public class AutomaticBrightnessControllerTest {
                 .thenReturn(10000f);
         when(mAmbientBrightnessThresholdsIdle.getDarkeningThreshold(anyFloat()))
                 .thenReturn(10000f);
-        setupController(BrightnessMappingStrategy.INVALID_LUX,
+        setupController(INVALID_LUX,
                 BrightnessMappingStrategy.INVALID_NITS, /* applyDebounce= */ true,
                 /* useHorizon= */ false);
 
@@ -1425,5 +1426,71 @@ public class AutomaticBrightnessControllerTest {
 
         assertEquals(normalizedBrightness,
                 mController.getAutomaticScreenBrightness(/* brightnessEvent= */ null), EPSILON);
+    }
+
+    @Test
+    public void testIgnoreNaNLuxValues() throws Exception {
+        ArgumentCaptor<SensorEventListener> listenerCaptor =
+                ArgumentCaptor.forClass(SensorEventListener.class);
+        verify(mSensorManager).registerListener(listenerCaptor.capture(), eq(mLightSensor),
+                eq(INITIAL_LIGHT_SENSOR_RATE * 1000), any(Handler.class));
+        SensorEventListener listener = listenerCaptor.getValue();
+
+        // Initial valid lux value
+        float initialLux = 100.0f;
+        listener.onSensorChanged(createSensorEvent(mLightSensor, initialLux,
+                (mClock.now() + ANDROID_SLEEP_TIME) * NANO_SECONDS_MULTIPLIER));
+        assertEquals(initialLux, mController.getAmbientLux(), EPSILON);
+
+        // Send a NaN lux value
+        listener.onSensorChanged(createSensorEvent(mLightSensor, Float.NaN,
+                (mClock.now() + ANDROID_SLEEP_TIME + 100) * NANO_SECONDS_MULTIPLIER));
+
+        // Verify that the ambient lux has not changed
+        assertEquals(initialLux, mController.getAmbientLux(), EPSILON);
+    }
+
+    @Test
+    public void testLuxDelta() {
+        ArgumentCaptor<SensorEventListener> listenerCaptor =
+                ArgumentCaptor.forClass(SensorEventListener.class);
+        verify(mSensorManager).registerListener(listenerCaptor.capture(), eq(mLightSensor),
+                eq(INITIAL_LIGHT_SENSOR_RATE * 1000), any(Handler.class));
+        SensorEventListener listener = listenerCaptor.getValue();
+
+        when(mAmbientBrightnessThresholds.getBrighteningThreshold(100)).thenReturn(150f);
+        when(mAmbientBrightnessThresholds.getDarkeningThreshold(100)).thenReturn(50f);
+        listener.onSensorChanged(createSensorEvent(mLightSensor, /* value= */ 100,
+                (mClock.now() + ANDROID_SLEEP_TIME) * NANO_SECONDS_MULTIPLIER));
+        assertEquals(100, mController.getAmbientLux(), EPSILON);
+        assertEquals(INVALID_LUX, mController.getLuxDelta(), /* delta= */ 0);
+
+        when(mAmbientBrightnessThresholds.getBrighteningThreshold(anyFloat())).thenReturn(0f);
+        when(mAmbientBrightnessThresholds.getDarkeningThreshold(anyFloat())).thenReturn(
+                Float.POSITIVE_INFINITY);
+
+        float prevLux = mController.getAmbientLux();
+        listener.onSensorChanged(createSensorEvent(mLightSensor, /* value= */ 200,
+                (mClock.now() + ANDROID_SLEEP_TIME) * NANO_SECONDS_MULTIPLIER));
+        assertEquals(Math.abs(mController.getAmbientLux() - prevLux), mController.getLuxDelta(),
+                EPSILON);
+
+        prevLux = mController.getAmbientLux();
+        listener.onSensorChanged(createSensorEvent(mLightSensor, /* value= */ 50,
+                (mClock.now() + ANDROID_SLEEP_TIME) * NANO_SECONDS_MULTIPLIER));
+        assertEquals(Math.abs(mController.getAmbientLux() - prevLux), mController.getLuxDelta(),
+                EPSILON);
+
+        prevLux = mController.getAmbientLux();
+        listener.onSensorChanged(createSensorEvent(mLightSensor, /* value= */ 5000,
+                (mClock.now() + ANDROID_SLEEP_TIME) * NANO_SECONDS_MULTIPLIER));
+        assertEquals(Math.abs(mController.getAmbientLux() - prevLux), mController.getLuxDelta(),
+                EPSILON);
+
+        prevLux = mController.getAmbientLux();
+        listener.onSensorChanged(createSensorEvent(mLightSensor, /* value= */ 5050,
+                (mClock.now() + ANDROID_SLEEP_TIME) * NANO_SECONDS_MULTIPLIER));
+        assertEquals(Math.abs(mController.getAmbientLux() - prevLux), mController.getLuxDelta(),
+                EPSILON);
     }
 }

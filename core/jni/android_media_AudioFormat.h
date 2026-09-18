@@ -17,6 +17,7 @@
 #ifndef ANDROID_MEDIA_AUDIOFORMAT_H
 #define ANDROID_MEDIA_AUDIOFORMAT_H
 
+#include <nativehelper/ScopedLocalRef.h>
 #include <system/audio.h>
 
 // keep these values in sync with AudioFormat.java
@@ -276,24 +277,72 @@ static inline int audioFormatFromNative(audio_format_t nativeFormat)
     }
 }
 
-// This function converts Java channel masks to a native channel mask.
-// validity should be checked with audio_is_output_channel().
-static inline audio_channel_mask_t nativeChannelMaskFromJavaChannelMasks(
-        jint channelPositionMask, jint channelIndexMask)
-{
-    // 0 is the java android.media.AudioFormat.CHANNEL_INVALID value
-    if (channelIndexMask != 0) {  // channel index mask takes priority
-        // To convert to a native channel mask, the Java channel index mask
-        // requires adding the index representation.
-        return audio_channel_mask_from_representation_and_bits(
-                        AUDIO_CHANNEL_REPRESENTATION_INDEX,
-                        channelIndexMask);
+struct ChannelMasks {
+    jint positionMask = CHANNEL_INVALID;
+    jint indexMask = CHANNEL_INVALID;
+    jint acnMask = CHANNEL_INVALID;
+
+    struct fields_t {
+        jclass clazz;
+        jmethodID defaultConstructID;
+        jmethodID constructID;
+        jfieldID mPositionMask;
+        jfieldID mIndexMask;
+        jfieldID mAcnMask;
+
+        void init(JNIEnv* env) {
+            jclass lclazz = env->FindClass("android/media/AudioFormat$ChannelMasks");
+            if (lclazz == NULL) return;
+            clazz = (jclass)env->NewGlobalRef(lclazz);
+            if (clazz == NULL) return;
+            defaultConstructID = env->GetMethodID(clazz, "<init>", "()V");
+            constructID = env->GetMethodID(clazz, "<init>", "(III)V");
+            mPositionMask = env->GetFieldID(clazz, "mPositionMask", "I");
+            mIndexMask = env->GetFieldID(clazz, "mIndexMask", "I");
+            mAcnMask = env->GetFieldID(clazz, "mAcnMask", "I");
+        }
+
+        void exit(JNIEnv* env) {
+            env->DeleteGlobalRef(clazz);
+            clazz = NULL;
+        }
+    };
+
+    ChannelMasks& fillFromJobject(JNIEnv* env, const fields_t& fields, jobject channelMasks) {
+        if (channelMasks != NULL) {
+            positionMask = env->GetIntField(channelMasks, fields.mPositionMask);
+            indexMask = env->GetIntField(channelMasks, fields.mIndexMask);
+            acnMask = env->GetIntField(channelMasks, fields.mAcnMask);
+        }
+        return *this;
     }
-    // To convert to a native channel mask, the Java channel position mask
-    // requires a shift by 2 to skip the two deprecated channel
-    // configurations "default" and "mono".
-    return (audio_channel_mask_t)((uint32_t)channelPositionMask >> 2);
-}
+
+    // This function converts Java channel masks to a native channel mask using a separate
+    // indicator. This will prioritize the channelIndexMask, if set, or use
+    // [in|out]ChannelMaskToNative to convert the channel mask based on the isInput value.
+    // The AcnMask has the least priority.
+    audio_channel_mask_t toNative(jboolean isInput);
+};
+
+struct ChannelMasksArray {
+    struct fields_t {
+        jclass clazz;
+        jmethodID constructID;
+
+        void init(JNIEnv* env) {
+            jclass lclazz = env->FindClass("android/media/AudioFormat$ChannelMasksArray");
+            if (lclazz == NULL) return;
+            clazz = (jclass)env->NewGlobalRef(lclazz);
+            if (clazz == NULL) return;
+            constructID = env->GetMethodID(clazz, "<init>", "([I[I[I)V");
+        }
+
+        void exit(JNIEnv* env) {
+            env->DeleteGlobalRef(clazz);
+            clazz = NULL;
+        }
+    };
+};
 
 static inline audio_channel_mask_t outChannelMaskToNative(int channelMask)
 {
@@ -335,5 +384,27 @@ static inline int inChannelMaskFromNative(audio_channel_mask_t nativeMask)
             return (int)nativeMask;
     }
 }
+
+static inline audio_channel_mask_t nativeChannelMaskFromJavaChannelMasks(
+        JNIEnv* env, const ChannelMasks::fields_t fields, jobject jChannelMasks, jboolean isInput) {
+    ChannelMasks channelMasks;
+    return channelMasks.fillFromJobject(env, fields, jChannelMasks).toNative(isInput);
+}
+
+ScopedLocalRef<jobject> javaChannelMasksFromNativeChannelMask(JNIEnv* env,
+                                                              const ChannelMasks::fields_t fields,
+                                                              audio_channel_mask_t nMask,
+                                                              jboolean isInput);
+
+static inline ScopedLocalRef<jobject> javaChannelMasksDefault(JNIEnv* env,
+                                                              const ChannelMasks::fields_t fields) {
+    return ScopedLocalRef<jobject>(env, env->NewObject(fields.clazz, fields.defaultConstructID));
+}
+
+ScopedLocalRef<jobject> javaChannelMasksArrayFromNative(JNIEnv* env,
+                                                        const ChannelMasksArray::fields_t& fields,
+                                                        unsigned int num_channel_masks,
+                                                        const audio_channel_mask_t* channel_masks,
+                                                        jboolean useInMask);
 
 #endif // ANDROID_MEDIA_AUDIOFORMAT_H

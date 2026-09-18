@@ -18,6 +18,7 @@ package com.android.systemui.recordissue
 
 import android.app.IActivityManager
 import android.app.NotificationManager
+import android.media.projection.StopReason
 import android.net.Uri
 import android.os.Handler
 import android.os.UserHandle
@@ -27,9 +28,9 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.dialogTransitionAnimator
-import com.android.systemui.concurrency.fakeExecutor
 import com.android.systemui.kosmos.testCase
 import com.android.systemui.qs.pipeline.domain.interactor.PanelInteractor
+import com.android.systemui.screenrecord.domain.interactor.ScreenRecordingServiceInteractor
 import com.android.systemui.settings.UserContextProvider
 import com.android.systemui.settings.userFileManager
 import com.android.systemui.settings.userTracker
@@ -37,6 +38,12 @@ import com.android.systemui.testKosmos
 import com.android.systemui.util.settings.fakeGlobalSettings
 import com.android.traceur.TraceConfig
 import com.google.common.truth.Truth
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
@@ -49,11 +56,14 @@ import org.mockito.kotlin.verify
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
 class IssueRecordingServiceSessionTest : SysuiTestCase() {
 
     private val kosmos = testKosmos().also { it.testCase = this }
-    private val bgExecutor = kosmos.fakeExecutor
+    private val testDispatcher = StandardTestDispatcher()
+    private val backgroundContext: CoroutineContext = testDispatcher
+    private val testCoroutineScope: CoroutineScope = TestScope(testDispatcher)
     private val userContextProvider: UserContextProvider = kosmos.userTracker
     private val dialogTransitionAnimator: DialogTransitionAnimator = kosmos.dialogTransitionAnimator
     private lateinit var traceurConnection: TraceurConnection
@@ -70,6 +80,7 @@ class IssueRecordingServiceSessionTest : SysuiTestCase() {
     private val notificationManager = mock<NotificationManager>()
     private val panelInteractor = mock<PanelInteractor>()
     private val screenRecordingStartTimeStore = mock<ScreenRecordingStartTimeStore>()
+    private val mockScreenRecordingServiceInteractor: ScreenRecordingServiceInteractor = mock()
 
     private lateinit var underTest: IssueRecordingServiceSession
 
@@ -78,7 +89,8 @@ class IssueRecordingServiceSessionTest : SysuiTestCase() {
         traceurConnection = mock<TraceurConnection>()
         underTest =
             IssueRecordingServiceSession(
-                bgExecutor,
+                testCoroutineScope,
+                backgroundContext,
                 dialogTransitionAnimator,
                 panelInteractor,
                 traceurConnection,
@@ -87,65 +99,72 @@ class IssueRecordingServiceSessionTest : SysuiTestCase() {
                 notificationManager,
                 userContextProvider,
                 screenRecordingStartTimeStore,
+                mockScreenRecordingServiceInteractor,
             )
     }
 
     @Test
-    fun startsTracing_afterReceivingActionStartCommand() {
-        underTest.start()
-        bgExecutor.runAllReady()
+    fun startsTracing_afterReceivingActionStartCommand() =
+        runTest(testDispatcher.scheduler) {
+            underTest.start(0)
+            advanceUntilIdle()
 
-        Truth.assertThat(issueRecordingState.isRecording).isTrue()
-        verify(traceurConnection).startTracing(any<TraceConfig>())
-    }
-
-    @Test
-    fun stopsTracing_afterReceivingStopTracingCommand() {
-        underTest.stop()
-        bgExecutor.runAllReady()
-
-        Truth.assertThat(issueRecordingState.isRecording).isFalse()
-        verify(traceurConnection).stopTracing()
-    }
+            Truth.assertThat(issueRecordingState.isRecording).isTrue()
+            verify(traceurConnection).startTracing(any<TraceConfig>())
+        }
 
     @Test
-    fun cancelsNotification_afterReceivingShareCommand() {
-        underTest.share(0, null)
-        bgExecutor.runAllReady()
+    fun stopsTracing_afterReceivingStopTracingCommand() =
+        runTest(testDispatcher.scheduler) {
+            underTest.stop(StopReason.STOP_USER_SWITCH)
+            advanceUntilIdle()
 
-        verify(notificationManager).cancelAsUser(isNull(), anyInt(), any<UserHandle>())
-    }
+            Truth.assertThat(issueRecordingState.isRecording).isFalse()
+            verify(traceurConnection).stopTracing()
+        }
 
     @Test
-    fun requestBugreport_afterReceivingShareCommand_withTakeBugreportTrue() {
-        underTest.takeBugReport = true
-        val uri = mock<Uri>()
+    fun cancelsNotification_afterReceivingShareCommand() =
+        runTest(testDispatcher.scheduler) {
+            underTest.share(0, null)
+            advanceUntilIdle()
 
-        underTest.share(0, uri)
-        bgExecutor.runAllReady()
+            verify(notificationManager).cancelAsUser(isNull(), anyInt(), any<UserHandle>())
+        }
 
-        verify(iActivityManager).requestBugReportWithExtraAttachments(any())
-    }
+    @Test
+    fun requestBugreport_afterReceivingShareCommand_withTakeBugreportTrue() =
+        runTest(testDispatcher.scheduler) {
+            underTest.takeBugReport = true
+            val uri = mock<Uri>()
+
+            underTest.share(0, uri)
+            advanceUntilIdle()
+
+            verify(iActivityManager).requestBugReportWithExtraAttachments(any())
+        }
 
     @Ignore("b/392753499")
     @Test
-    fun sharesTracesDirectly_afterReceivingShareCommand_withTakeBugreportFalse() {
-        underTest.takeBugReport = false
-        val uri = mock<Uri>()
+    fun sharesTracesDirectly_afterReceivingShareCommand_withTakeBugreportFalse() =
+        runTest(testDispatcher.scheduler) {
+            underTest.takeBugReport = false
+            val uri = mock<Uri>()
 
-        underTest.share(0, uri)
-        bgExecutor.runAllReady()
+            underTest.share(0, uri)
+            advanceUntilIdle()
 
-        verify(traceurConnection).shareTraces(any())
-    }
+            verify(traceurConnection).shareTraces(any())
+        }
 
     @Test
-    fun closesShade_afterReceivingShareCommand() {
-        val uri = mock<Uri>()
+    fun closesShade_afterReceivingShareCommand() =
+        runTest(testDispatcher.scheduler) {
+            val uri = mock<Uri>()
 
-        underTest.share(0, uri)
-        bgExecutor.runAllReady()
+            underTest.share(0, uri)
+            advanceUntilIdle()
 
-        verify(panelInteractor).collapsePanels()
-    }
+            verify(panelInteractor).collapsePanels()
+        }
 }

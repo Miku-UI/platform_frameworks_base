@@ -101,13 +101,12 @@ import com.android.systemui.log.SessionTracker;
 import com.android.systemui.plugins.FalsingManager;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.power.domain.interactor.PowerInteractor;
-import com.android.systemui.shade.ShadeDisplayAware;
+import com.android.systemui.scene.domain.interactor.SceneInteractor;
 import com.android.systemui.shade.domain.interactor.ShadeInteractor;
 import com.android.systemui.shared.system.SysUiStatsLog;
 import com.android.systemui.statusbar.VibratorHelper;
 import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager;
 import com.android.systemui.statusbar.phone.SystemUIDialogManager;
-import com.android.systemui.statusbar.phone.UnlockedScreenOffAnimationController;
 import com.android.systemui.statusbar.policy.ConfigurationController;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
@@ -172,8 +171,6 @@ public class UdfpsController implements DozeReceiver, Dumpable {
     @NonNull private final AccessibilityManager mAccessibilityManager;
     @NonNull private final ConfigurationController mConfigurationController;
     @NonNull private final SystemClock mSystemClock;
-    @NonNull private final UnlockedScreenOffAnimationController
-            mUnlockedScreenOffAnimationController;
     @NonNull private final LatencyTracker mLatencyTracker;
     @VisibleForTesting @NonNull final BiometricDisplayListener mOrientationListener;
     @NonNull private final ActivityTransitionAnimator mActivityTransitionAnimator;
@@ -194,6 +191,7 @@ public class UdfpsController implements DozeReceiver, Dumpable {
     @NonNull private final InputManager mInputManager;
     @NonNull private final SelectedUserInteractor mSelectedUserInteractor;
     @NonNull private final MSDLPlayer mMsdlPlayer;
+    private final Lazy<SceneInteractor> mSceneInteractorLazy;
     private final boolean mIgnoreRefreshRate;
     private final KeyguardTransitionInteractor mKeyguardTransitionInteractor;
 
@@ -329,7 +327,8 @@ public class UdfpsController implements DozeReceiver, Dumpable {
                         mPromptUdfpsTouchOverlayViewModel,
                         mUdfpsOverlayInteractor,
                         mPowerInteractor,
-                        mScope
+                        mScope,
+                        mSceneInteractorLazy
                     )));
         }
 
@@ -688,7 +687,7 @@ public class UdfpsController implements DozeReceiver, Dumpable {
     @Inject
     public UdfpsController(@NonNull @Main Context context,
             @NonNull Execution execution,
-            @NonNull @ShadeDisplayAware LayoutInflater inflater,
+            @NonNull LayoutInflater inflater,
             @Nullable FingerprintManager fingerprintManager,
             @NonNull @Main WindowManager windowManager,
             @NonNull StatusBarStateController statusBarStateController,
@@ -708,7 +707,6 @@ public class UdfpsController implements DozeReceiver, Dumpable {
             @Main Handler mainHandler,
             @NonNull @Main ConfigurationController configurationController,
             @NonNull SystemClock systemClock,
-            @NonNull UnlockedScreenOffAnimationController unlockedScreenOffAnimationController,
             @NonNull SystemUIDialogManager dialogManager,
             @NonNull LatencyTracker latencyTracker,
             @NonNull ActivityTransitionAnimator activityTransitionAnimator,
@@ -730,7 +728,8 @@ public class UdfpsController implements DozeReceiver, Dumpable {
             @Application CoroutineScope scope,
             UserActivityNotifier userActivityNotifier,
             Lazy<WakefulnessLifecycle> wakefulnessLifecycle,
-            MSDLPlayer msdlPlayer) {
+            MSDLPlayer msdlPlayer,
+            Lazy<SceneInteractor> sceneInteractorLazy) {
         mContext = context;
         mExecution = execution;
         mVibrator = vibrator;
@@ -756,7 +755,6 @@ public class UdfpsController implements DozeReceiver, Dumpable {
         mScreenOn = screenLifecycle.getScreenState() == ScreenLifecycle.SCREEN_ON;
         mConfigurationController = configurationController;
         mSystemClock = systemClock;
-        mUnlockedScreenOffAnimationController = unlockedScreenOffAnimationController;
         mLatencyTracker = latencyTracker;
         mActivityTransitionAnimator = activityTransitionAnimator;
         mSensorProps = new FingerprintSensorPropertiesInternal(
@@ -784,6 +782,7 @@ public class UdfpsController implements DozeReceiver, Dumpable {
         mDefaultUdfpsTouchOverlayViewModel = defaultUdfpsTouchOverlayViewModel;
         mPromptUdfpsTouchOverlayViewModel = promptUdfpsTouchOverlayViewModel;
         mMsdlPlayer = msdlPlayer;
+        mSceneInteractorLazy = sceneInteractorLazy;
 
         mDumpManager.registerDumpable(TAG, this);
 
@@ -898,7 +897,10 @@ public class UdfpsController implements DozeReceiver, Dumpable {
                 onFingerUp(mOverlay.getRequestId(), oldView);
             }
             final boolean removed = mOverlay.hide();
-            mKeyguardViewManager.hideAlternateBouncer(true);
+            mKeyguardViewManager.hideAlternateBouncer(
+                    /* updateScrim */ true,
+                    /* clearDismissAction */ false
+            );
             Log.v(TAG, "hideUdfpsOverlay | removing window: " + removed);
         } else {
             Log.v(TAG, "hideUdfpsOverlay | the overlay is already hidden");

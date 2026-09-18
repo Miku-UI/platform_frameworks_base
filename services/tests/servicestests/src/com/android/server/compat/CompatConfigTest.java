@@ -31,10 +31,13 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.util.LongSparseArray;
 
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.internal.compat.AndroidBuildClassifier;
+import com.android.internal.compat.CompatibilityChangeInfo;
+import com.android.internal.compat.CompatibilityRules;
 import com.android.internal.compat.CompatibilityOverrideConfig;
 import com.android.internal.compat.CompatibilityOverridesByPackageConfig;
 import com.android.internal.compat.CompatibilityOverridesToRemoveByPackageConfig;
@@ -89,6 +92,7 @@ public class CompatConfigTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        CompatibilityRules.reset();
         when(mContext.getPackageManager()).thenReturn(mPackageManager);
         // Assume userdebug/eng non-final build
         when(mBuildClassifier.isDebuggableBuild()).thenReturn(true);
@@ -1238,5 +1242,75 @@ public class CompatConfigTest {
                 + "        </raw>\n"
                 + "    </change-overrides>\n"
                 + "</overrides>\n");
+
+    }
+
+    @Test
+    public void testGetDisabledChangesDiff() throws Exception {
+        LongSparseArray<CompatibilityChangeInfo> rules = new LongSparseArray<>();
+        // Change 1: enabled in Zygote, but disabled for app -> Diff
+        rules.put(1L, new CompatibilityChangeInfo(
+                1L, "CHANGE_1", -1, -1, false, false, false, "", false));
+        // Change 2: disabled in Zygote, and disabled for app -> No diff
+        rules.put(2L, new CompatibilityChangeInfo(
+                2L, "CHANGE_2", -1, -1, true, false, false, "", false));
+
+        CompatibilityRules.init(rules);
+
+        CompatConfig compatConfig = CompatConfigBuilder.create(mBuildClassifier, mContext)
+                .addDisabledChangeWithId(1L) // Diff
+                .addDisabledChangeWithId(2L) // No diff
+                .addDisabledChangeWithId(3L) // APEX change (not in Zygote) -> Diff
+                .build();
+
+        ApplicationInfo appInfo = ApplicationInfoBuilder.create().build();
+        assertThat(compatConfig.getDisabledChanges(appInfo)).asList().containsExactly(1L, 3L);
+    }
+
+    @Test
+    public void testGetEnabledChangesDiff() throws Exception {
+        LongSparseArray<CompatibilityChangeInfo> rules = new LongSparseArray<>();
+        // Change 1: disabled in Zygote, but enabled for app (override) -> Diff
+        rules.put(
+                1L,
+                new CompatibilityChangeInfo(1L, "CHANGE_1", -1, -1, true, false, false, "", false));
+        // Change 2: enabled in Zygote, and enabled for app -> No diff
+        rules.put(
+                2L,
+                new CompatibilityChangeInfo(
+                        2L, "CHANGE_2", -1, -1, false, false, false, "", false));
+
+        CompatibilityRules.init(rules);
+
+        CompatConfig compatConfig =
+                CompatConfigBuilder.create(mBuildClassifier, mContext)
+                        .addEnabledChangeWithId(1L) // Diff
+                        .addEnabledChangeWithId(2L) // No diff
+                        .addEnabledChangeWithId(
+                                3L) // APEX change (not in Zygote) -> No diff (not in
+                                    // disabled-by-default list)
+                        .build();
+
+        ApplicationInfo appInfo = ApplicationInfoBuilder.create().build();
+        assertThat(compatConfig.getEnabledChanges(appInfo)).asList().containsExactly(1L);
+    }
+
+    @Test
+    public void testGetVersionCodeOrNull_nullPackageName() {
+        // This test is to ensure that calling a method that uses getVersionCodeOrNull with a
+        // null package name does not cause a NullPointerException.
+        CompatConfig compatConfig = new CompatConfig(mBuildClassifier, mContext);
+        compatConfig.recheckOverrides(null);
+        // No exception thrown is the success condition.
+    }
+
+    @Test
+    public void testGetVersionCodeOrNull_nullPackageManager() {
+        // This test is to ensure that getVersionCodeOrNull returns null when PackageManager
+        // is not available, without causing a NullPointerException.
+        when(mContext.getPackageManager()).thenReturn(null);
+        CompatConfig compatConfig = new CompatConfig(mBuildClassifier, mContext);
+        compatConfig.recheckOverrides("com.some.package");
+        // No exception thrown is the success condition.
     }
 }

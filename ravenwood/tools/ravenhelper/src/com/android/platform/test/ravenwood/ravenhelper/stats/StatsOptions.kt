@@ -15,28 +15,17 @@
  */
 package com.android.platform.test.ravenwood.ravenhelper.stats
 
-import com.android.hoststubgen.ArgumentsException
 import com.android.hoststubgen.HostStubGenClassProcessorOptions
 import com.android.hoststubgen.utils.ArgIterator
 import com.android.hoststubgen.utils.SetOnce
-import com.android.hoststubgen.utils.ensureFileExists
 
 class StatsOptions(
-    /** Input jar file*/
-    val inJar: SetOnce<String> = SetOnce(""),
-
     val inputJarDumpFile: SetOnce<String?> = SetOnce(null),
 
     val inputJarAsKeepAllFile: SetOnce<String?> = SetOnce(null),
 
     val apiListFile: SetOnce<String?> = SetOnce(null),
 ) : HostStubGenClassProcessorOptions() {
-
-    override fun checkArgs() {
-        if (!inJar.isSet) {
-            throw ArgumentsException("Required option missing: --in-jar")
-        }
-    }
 
     override fun parseOption(option: String, args: ArgIterator): Boolean {
         // Define some shorthands...
@@ -45,8 +34,6 @@ class StatsOptions(
         when (option) {
             // TODO: Write help
             "-h", "--help" -> TODO("Help is not implemented yet")
-
-            "--in-jar" -> inJar.set(nextArg()).ensureFileExists()
 
             "--gen-input-dump-file" -> inputJarDumpFile.set(nextArg())
             "--gen-keep-all-file" -> inputJarAsKeepAllFile.set(nextArg())
@@ -61,7 +48,6 @@ class StatsOptions(
 
     override fun dumpFields(): String {
         return """
-            inJar=$inJar,
             inputJarDumpFile=$inputJarDumpFile,
             inputJarAsKeepAllFile=$inputJarAsKeepAllFile,
             apiListFile=$apiListFile,

@@ -16,7 +16,6 @@
 
 package com.android.systemui.screencapture.record.largescreen.ui.compose
 
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 
@@ -67,11 +66,8 @@ sealed interface ResizeZone {
      * @param alignment The alignment of the corner.
      */
     sealed interface Corner : ResizeZone {
-        val alignment: Alignment
 
         data object TopLeft : Corner {
-            override val alignment = Alignment.TopStart
-
             override fun processResizeDrag(
                 rect: Rect,
                 dragAmount: Offset,
@@ -86,8 +82,6 @@ sealed interface ResizeZone {
         }
 
         data object TopRight : Corner {
-            override val alignment = Alignment.TopEnd
-
             override fun processResizeDrag(
                 rect: Rect,
                 dragAmount: Offset,
@@ -102,8 +96,6 @@ sealed interface ResizeZone {
         }
 
         data object BottomLeft : Corner {
-            override val alignment = Alignment.BottomStart
-
             override fun processResizeDrag(
                 rect: Rect,
                 dragAmount: Offset,
@@ -118,8 +110,6 @@ sealed interface ResizeZone {
         }
 
         data object BottomRight : Corner {
-            override val alignment = Alignment.BottomEnd
-
             override fun processResizeDrag(
                 rect: Rect,
                 dragAmount: Offset,

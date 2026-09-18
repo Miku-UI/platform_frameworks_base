@@ -25,8 +25,9 @@ import android.hardware.SensorManager;
 import android.os.Handler;
 import android.util.Slog;
 
-import com.android.internal.util.Preconditions;
+import com.android.server.display.config.SensorData;
 import com.android.server.display.utils.History;
+import com.android.server.display.utils.SensorUtils;
 
 import java.io.PrintWriter;
 import java.util.Objects;
@@ -76,12 +77,13 @@ abstract class AmbientSensor {
      *      - Cannot find the necessary sensor.
      */
     AmbientSensor(String tag, @NonNull Handler handler, @NonNull SensorManager sensorManager,
-            int rate) {
+            Sensor sensor, int rate) {
         validateArguments(handler, sensorManager, rate);
         mTag = tag;
         mLoggingEnabled = false;
         mHandler = handler;
         mSensorManager = sensorManager;
+        mSensor = sensor;
         mEnabled = false;
         mRate = rate;
         mEventsCount = 0;
@@ -138,6 +140,26 @@ abstract class AmbientSensor {
         writer.println("    mEventsHistory=" + mEventsHistory);
     }
 
+    void setSensorData(SensorData sensorData, int fallbackType) {
+        Sensor sensor = SensorUtils.findSensor(mSensorManager, sensorData, fallbackType);
+        if (sensor == null) {
+            Slog.e(mTag, "Can't switch sensor: " + sensorData);
+            return;
+        }
+        if (sensor == mSensor) {
+            Slog.i(mTag, "Switch to same sensor:" + sensorData);
+            return;
+        }
+        if (mEnabled) {
+            // start listening new sensor first
+            startListening(sensor);
+            // unregister old sensor
+            stopListening();
+        }
+        // swap sensors
+        mSensor = sensor;
+
+    }
 
     private static void validateArguments(Handler handler, SensorManager sensorManager, int rate) {
         Objects.requireNonNull(handler, "handler cannot be null");
@@ -175,17 +197,20 @@ abstract class AmbientSensor {
     }
 
     private void startListening() {
+        startListening(mSensor);
+    }
+    private void startListening(Sensor sensor) {
         if (mSensorManager == null) {
             return;
         }
-        mSensorManager.registerListener(mListener, mSensor, mRate * 1000, mHandler);
+        mSensorManager.registerListener(mListener, sensor, mRate * 1000, mHandler);
     }
 
     private void stopListening() {
         if (mSensorManager == null) {
             return;
         }
-        mSensorManager.unregisterListener(mListener);
+        mSensorManager.unregisterListener(mListener, mSensor);
     }
 
     private void handleNewEvent(float value) {
@@ -235,6 +260,8 @@ abstract class AmbientSensor {
          *      The handler used to determine which thread to run on.
          * @param sensorManager
          *      The sensor manager used to acquire necessary sensors.
+         * @param sensor
+         *      The ambient light sensor.
          * @param rate
          *      The sensor rate.
          *
@@ -247,12 +274,8 @@ abstract class AmbientSensor {
          *      - Cannot find the light sensor.
          */
         AmbientBrightnessSensor(@NonNull Handler handler, @NonNull SensorManager sensorManager,
-                int rate) {
-            super(TAG, handler, sensorManager, rate);
-            mSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_LIGHT);
-            if (mSensor == null) {
-                throw new IllegalStateException("cannot find light sensor");
-            }
+                Sensor sensor, int rate) {
+            super(TAG, handler, sensorManager, sensor, rate);
             mCallbacks = null;
         }
 
@@ -291,7 +314,6 @@ abstract class AmbientSensor {
                 mCallbacks.onAmbientBrightnessChanged(value);
             }
         }
-
     }
 
     /**
@@ -312,8 +334,8 @@ abstract class AmbientSensor {
          *      The handler used to determine which thread to run on.
          * @param sensorManager
          *      The sensor manager used to acquire necessary sensors.
-         * @param name
-         *      The color sensor name.
+         * @param sensor
+         *      The color sensor.
          * @param rate
          *      The sensor rate.
          *
@@ -326,18 +348,8 @@ abstract class AmbientSensor {
          *      - Cannot find the color sensor.
          */
         AmbientColorTemperatureSensor(@NonNull Handler handler,
-                @NonNull SensorManager sensorManager, String name, int rate) {
-            super(TAG, handler, sensorManager, rate);
-            mSensor = null;
-            for (Sensor sensor : mSensorManager.getSensorList(Sensor.TYPE_ALL)) {
-                if (sensor.getStringType().equals(name)) {
-                    mSensor = sensor;
-                    break;
-                }
-            }
-            if (mSensor == null) {
-                throw new IllegalStateException("cannot find sensor " + name);
-            }
+                @NonNull SensorManager sensorManager, Sensor sensor, int rate) {
+            super(TAG, handler, sensorManager, sensor, rate);
             mCallbacks = null;
         }
 

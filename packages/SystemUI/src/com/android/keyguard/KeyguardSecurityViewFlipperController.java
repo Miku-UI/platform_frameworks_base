@@ -31,6 +31,7 @@ import com.android.keyguard.KeyguardSecurityModel.SecurityMode;
 import com.android.keyguard.dagger.KeyguardBouncerScope;
 import com.android.systemui.flags.FeatureFlags;
 import com.android.systemui.res.R;
+import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.util.ViewController;
 
 import java.util.ArrayList;
@@ -124,12 +125,13 @@ public class KeyguardSecurityViewFlipperController
      * Asynchronously inflate view and then add it to view flipper on the main thread when complete.
      *
      * OnInflateFinishedListener will be called on the main thread.
-     *
-     * @param securityMode
-     * @param keyguardSecurityCallback
      */
     private void asynchronouslyInflateView(SecurityMode securityMode,
             KeyguardSecurityCallback keyguardSecurityCallback) {
+        if (SceneContainerFlag.isEnabled()) {
+            return;
+        }
+
         int layoutId = mFeatureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE)
                 ? getLayoutIdFor(securityMode) : getLegacyLayoutIdFor(securityMode);
         if (layoutId != 0) {
@@ -160,7 +162,7 @@ public class KeyguardSecurityViewFlipperController
                         if (mFeatureFlags.isEnabled(LOCKSCREEN_ENABLE_LANDSCAPE)) {
                             boolean useSplitBouncer =
                                     getResources().getBoolean(R.bool.update_bouncer_constraints)
-                                        && getResources().getConfiguration().orientation
+                                            && getResources().getConfiguration().orientation
                                             == ORIENTATION_LANDSCAPE;
                             updateConstraints(useSplitBouncer);
                         }
@@ -169,7 +171,6 @@ public class KeyguardSecurityViewFlipperController
     }
 
     private int getLayoutIdFor(SecurityMode securityMode) {
-        // TODO (b/297863911, b/297864907) - implement motion layout for other bouncers
         return switch (securityMode) {
             case SecureLockDeviceBiometricAuth ->
                     R.layout.keyguard_secure_lock_device_biometric_auth_view;
@@ -195,9 +196,11 @@ public class KeyguardSecurityViewFlipperController
         };
     }
 
-    /** Updates the keyguard view's constraints (single or split constraints).
-     *  Split constraints are only used for small landscape screens.
-     *  Only called when flag LANDSCAPE_ENABLE_LOCKSCREEN is enabled. */
+    /**
+     * Updates the keyguard view's constraints (single or split constraints).
+     * Split constraints are only used for small landscape screens.
+     * Only called when flag LANDSCAPE_ENABLE_LOCKSCREEN is enabled.
+     */
     public void updateConstraints(boolean useSplitBouncer) {
         mView.updateConstraints(useSplitBouncer);
     }

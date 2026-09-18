@@ -19,8 +19,10 @@ import android.graphics.Color
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE
-import com.android.systemui.surfaceeffects.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE_FRACTAL
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseAnimationConfig
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE
+import com.android.systemui.surfaceeffects.core.turbulencenoise.TurbulenceNoiseShader.Companion.Type.SIMPLEX_NOISE_FRACTAL
+import com.android.systemui.surfaceeffects.view.turbulencenoise.TurbulenceNoiseView
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat
@@ -52,32 +54,32 @@ class TurbulenceNoiseViewTest : SysuiTestCase() {
     }
 
     @Test
-    fun playEaseIn_playsEaseInAnimation() {
+    fun playFadeIn_playsFadeInAnimation() {
         val config = TurbulenceNoiseAnimationConfig()
         val turbulenceNoiseView = TurbulenceNoiseView(context, null)
         turbulenceNoiseView.initShader(SIMPLEX_NOISE, config)
         var onAnimationEndCalled = false
 
         fakeExecutor.execute {
-            turbulenceNoiseView.playEaseIn(onAnimationEnd = { onAnimationEndCalled = true })
+            turbulenceNoiseView.playFadeIn(onAnimationEnd = { onAnimationEndCalled = true })
 
-            fakeSystemClock.advanceTime(config.easeInDuration.toLong())
+            fakeSystemClock.advanceTime(config.fadeInDuration.toLong())
 
             assertThat(onAnimationEndCalled).isTrue()
         }
     }
 
     @Test
-    fun playEaseOut_playsEaseOutAnimation() {
+    fun playFadeOut_playsFadeOutAnimation() {
         val config = TurbulenceNoiseAnimationConfig()
         val turbulenceNoiseView = TurbulenceNoiseView(context, null)
         turbulenceNoiseView.initShader(SIMPLEX_NOISE, config)
         var onAnimationEndCalled = false
 
         fakeExecutor.execute {
-            turbulenceNoiseView.playEaseOut(onAnimationEnd = { onAnimationEndCalled = true })
+            turbulenceNoiseView.playFadeOut(onAnimationEnd = { onAnimationEndCalled = true })
 
-            fakeSystemClock.advanceTime(config.easeOutDuration.toLong())
+            fakeSystemClock.advanceTime(config.fadeOutDuration.toLong())
 
             assertThat(onAnimationEndCalled).isTrue()
         }

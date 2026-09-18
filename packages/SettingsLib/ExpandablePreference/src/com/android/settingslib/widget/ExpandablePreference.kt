@@ -18,17 +18,23 @@ package com.android.settingslib.widget
 
 import android.content.Context
 import android.util.AttributeSet
+import android.view.View
 import android.widget.ImageView
+import androidx.core.view.AccessibilityDelegateCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.preference.Preference
 import androidx.preference.PreferenceGroup
 import androidx.preference.PreferenceViewHolder
 import com.android.settingslib.widget.preference.expandable.R
 
-class ExpandablePreference @JvmOverloads constructor(
+class ExpandablePreference
+@JvmOverloads
+constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
-    defStyleRes: Int = 0
+    defStyleRes: Int = 0,
 ) : PreferenceGroup(context, attrs, defStyleAttr, defStyleRes), Expandable {
 
     private var isExpanded = false
@@ -41,7 +47,8 @@ class ExpandablePreference @JvmOverloads constructor(
     }
 
     init {
-        layoutResource = com.android.settingslib.widget.theme.R.layout.settingslib_expressive_preference
+        layoutResource =
+            com.android.settingslib.widget.theme.R.layout.settingslib_expressive_preference
         widgetLayoutResource = R.layout.settingslib_widget_expandable_icon
     }
 
@@ -56,6 +63,7 @@ class ExpandablePreference @JvmOverloads constructor(
         updateExpandedState()
 
         holder.itemView.setOnClickListener { toggleExpansion() }
+        updateAccessibilityState(holder.itemView)
     }
 
     override fun addPreference(preference: Preference): Boolean {
@@ -72,6 +80,59 @@ class ExpandablePreference @JvmOverloads constructor(
         return isExpanded
     }
 
+    private fun updateAccessibilityState(view: View) {
+        // Replace the click action with the appropriate action based on the expansion state.
+        ViewCompat.replaceAccessibilityAction(
+            view,
+            AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
+            context.getString(
+                if (isExpanded) {
+                    com.android.settingslib.widget.theme.R.string
+                        .settingslib_expressive_text_collapse
+                } else {
+                    com.android.settingslib.widget.theme.R.string.settingslib_expressive_text_expand
+                }
+            ),
+            /* command= */ null,
+        )
+        // Add the appropriate action based on the expansion state and set the expanded state.
+        ViewCompat.setAccessibilityDelegate(
+            view,
+            object : AccessibilityDelegateCompat() {
+                override fun onInitializeAccessibilityNodeInfo(
+                    host: View,
+                    info: AccessibilityNodeInfoCompat,
+                ) {
+                    super.onInitializeAccessibilityNodeInfo(host, info)
+                    if (isExpanded) {
+                        info.expandedState = AccessibilityNodeInfoCompat.EXPANDED_STATE_FULL
+                        info.addAction(
+                            AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_COLLAPSE
+                        )
+                    } else {
+                        info.expandedState = AccessibilityNodeInfoCompat.EXPANDED_STATE_COLLAPSED
+                        info.addAction(
+                            AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_EXPAND
+                        )
+                    }
+                }
+            },
+        )
+        // Set the state description to the appropriate string based on the expansion state.
+        ViewCompat.setStateDescription(
+            view,
+            context.getString(
+                if (isExpanded) {
+                    com.android.settingslib.widget.theme.R.string
+                        .settingslib_expressive_expanded_state_expanded
+                } else {
+                    com.android.settingslib.widget.theme.R.string
+                        .settingslib_expressive_expanded_state_collapsed
+                }
+            ),
+        )
+    }
+
     private fun toggleExpansion() {
         isExpanded = !isExpanded
         isDirty = true // Mark as dirty when expansion state changes
@@ -79,16 +140,28 @@ class ExpandablePreference @JvmOverloads constructor(
         notifyChanged()
     }
 
-    private fun updateExpandedState() {
-        expandIcon?.rotation = when (isExpanded) {
-            true -> ROTATION_EXPANDED
-            false -> ROTATION_COLLAPSED
+    override fun setExpanded(expanded: Boolean) {
+        if (isExpanded == expanded) {
+            return
         }
 
-        if (isDirty) {
-            (0 until preferenceCount).forEach { i ->
-                getPreference(i).isVisible = isExpanded
+        isExpanded = expanded
+        isDirty = true
+        updateExpandedState()
+        notifyChanged()
+
+        onPreferenceExpansionStateChangeListener?.onExpansionStateChange(isExpanded)
+    }
+
+    private fun updateExpandedState() {
+        expandIcon?.rotation =
+            when (isExpanded) {
+                true -> ROTATION_EXPANDED
+                false -> ROTATION_COLLAPSED
             }
+
+        if (isDirty) {
+            (0 until preferenceCount).forEach { i -> getPreference(i).isVisible = isExpanded }
             isDirty = false
         }
     }

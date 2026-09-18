@@ -18,9 +18,11 @@ package android.app.appfunctions;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -39,7 +41,7 @@ public class SafeOneTimeExecuteAppFunctionCallback {
 
     @NonNull private final IExecuteAppFunctionCallback mCallback;
 
-    @Nullable private final CompletionCallback mCompletionCallback;
+    @Nullable private ArrayList<CompletionCallback> mCompletionCallbacks;
 
     @Nullable private final BeforeCompletionCallback mBeforeCompletionCallback;
 
@@ -55,7 +57,10 @@ public class SafeOneTimeExecuteAppFunctionCallback {
             @Nullable CompletionCallback completionCallback) {
         mCallback = Objects.requireNonNull(callback);
         mBeforeCompletionCallback = beforeCompletionCallback;
-        mCompletionCallback = completionCallback;
+        if (completionCallback != null) {
+            mCompletionCallbacks = new ArrayList<>(1);
+            mCompletionCallbacks.add(completionCallback);
+        }
     }
 
     /** Invoke wrapped callback with the result. */
@@ -69,9 +74,11 @@ public class SafeOneTimeExecuteAppFunctionCallback {
                 mBeforeCompletionCallback.beforeOnSuccess(result);
             }
             mCallback.onSuccess(result);
-            if (mCompletionCallback != null) {
-                mCompletionCallback.finalizeOnSuccess(
-                        result, mExecutionStartTimeAfterBindMillis.get());
+            if (mCompletionCallbacks != null) {
+                for (CompletionCallback completionCallback : mCompletionCallbacks) {
+                    completionCallback.finalizeOnSuccess(
+                            result, mExecutionStartTimeAfterBindMillis.get());
+                }
             }
         } catch (RemoteException ex) {
             // Failed to notify the other end. Ignore.
@@ -87,9 +94,11 @@ public class SafeOneTimeExecuteAppFunctionCallback {
         }
         try {
             mCallback.onError(error);
-            if (mCompletionCallback != null) {
-                mCompletionCallback.finalizeOnError(
-                        error, mExecutionStartTimeAfterBindMillis.get());
+            if (mCompletionCallbacks != null) {
+                for (CompletionCallback completionCallback : mCompletionCallbacks) {
+                    completionCallback.finalizeOnError(
+                            error, mExecutionStartTimeAfterBindMillis.get());
+                }
             }
         } catch (RemoteException ex) {
             // Failed to notify the other end. Ignore.
@@ -114,6 +123,63 @@ public class SafeOneTimeExecuteAppFunctionCallback {
                 0, executionStartTimeAfterBindMillis)) {
             Log.w(TAG, "Ignore subsequent calls to setExecutionStartTimeAfterBindMillis()");
         }
+    }
+
+    /**
+     * Creates an {@link IExecuteAppFunctionCallback} that delegates its calls to the {@link
+     * #onResult(ExecuteAppFunctionResponse)} and {@link #onError(AppFunctionException)} methods of
+     * this {@code SafeOneTimeExecuteAppFunctionCallback} instance.
+     *
+     * @return A new {@link IExecuteAppFunctionCallback} instance that wraps this callback.
+     */
+    public IExecuteAppFunctionCallback wrapToExecutionCallback() {
+        return new IExecuteAppFunctionCallback.Stub() {
+            @Override
+            public void onSuccess(ExecuteAppFunctionResponse response) throws RemoteException {
+                SafeOneTimeExecuteAppFunctionCallback.this.onResult(response);
+            }
+
+            @Override
+            public void onError(AppFunctionException error) throws RemoteException {
+                SafeOneTimeExecuteAppFunctionCallback.this.onError(error);
+            }
+        };
+    }
+
+    /**
+     * Attaches a death recipient to the passed binder, propagates error if binder dies.
+     *
+     * @param binder Binder to attach listener to
+     * @throws RemoteException in case passed binder already died
+     */
+    public void attachOnDeathListener(IBinder binder) throws RemoteException {
+        IBinder.DeathRecipient listener =
+                (IBinder.DeathRecipient)
+                        () ->
+                                onError(
+                                        new AppFunctionException(
+                                                AppFunctionException.ERROR_APP_UNKNOWN_ERROR,
+                                                "Remote process has gone away"));
+        binder.linkToDeath(listener, 0);
+
+        if (mCompletionCallbacks == null) {
+            mCompletionCallbacks = new ArrayList<>(1);
+        }
+        mCompletionCallbacks.add(
+                new CompletionCallback() {
+                    @Override
+                    public void finalizeOnSuccess(
+                            @NonNull ExecuteAppFunctionResponse result,
+                            long executionStartTimeMillis) {
+                        binder.unlinkToDeath(listener, 0);
+                    }
+
+                    @Override
+                    public void finalizeOnError(
+                            @NonNull AppFunctionException error, long executionStartTimeMillis) {
+                        binder.unlinkToDeath(listener, 0);
+                    }
+                });
     }
 
     /**

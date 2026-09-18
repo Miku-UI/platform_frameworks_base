@@ -31,16 +31,14 @@ import java.util.concurrent.Executor;
 public interface ShellTransitions {
     /**
      * Registers a remote transition for all operations excluding takeovers (see
-     * {@link ShellTransitions#registerRemoteForTakeover(TransitionFilter, RemoteTransition)}).
+     * {@link ShellTransitions#registerRemoteForTakeover(RemoteTransition)}).
      */
-    default void registerRemote(@NonNull TransitionFilter filter,
-            @NonNull RemoteTransition remoteTransition) {}
+    default void registerRemote(@NonNull RemoteTransition remoteTransition) {}
 
     /**
      * Registers a remote transition for takeover operations only.
      */
-    default void registerRemoteForTakeover(@NonNull TransitionFilter filter,
-            @NonNull RemoteTransition remoteTransition) {}
+    default void registerRemoteForTakeover(@NonNull RemoteTransition remoteTransition) {}
 
     /**
      * Unregisters a remote transition for all operations.

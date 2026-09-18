@@ -29,6 +29,8 @@ import android.app.WallpaperManager;
  * <p>
  * In the context of theming, this is used to retrieve the colors from the current home or
  * lock screen wallpaper, which can then be used as a seed for generating dynamic color schemes.
+ *
+ * @hide
  */
 interface WallpaperColorsReader {
     WallpaperColors getWallpaperColors(@WallpaperManager.SetWallpaperFlags int which,

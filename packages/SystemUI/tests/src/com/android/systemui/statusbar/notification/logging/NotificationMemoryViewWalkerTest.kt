@@ -181,7 +181,7 @@ class NotificationMemoryViewWalkerTest : SysuiTestCase() {
     @Test
     fun testViewWalker_customView() {
         val icon = Icon.createWithBitmap(Bitmap.createBitmap(10, 10, Bitmap.Config.ARGB_8888))
-        val bitmap = Bitmap.createBitmap(200, 200, Bitmap.Config.ARGB_8888)
+        val bitmap = Bitmap.createBitmap(48, 48, Bitmap.Config.ARGB_8888)
 
         val views = RemoteViews(mContext.packageName, R.layout.custom_view_dark)
         views.setImageViewBitmap(R.id.custom_view_dark_image, bitmap)

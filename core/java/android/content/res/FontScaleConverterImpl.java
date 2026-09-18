@@ -28,8 +28,7 @@ import java.util.Arrays;
  * A lookup table for non-linear font scaling. Converts font sizes given in "sp" dimensions to a
  * "dp" dimension according to a non-linear curve by interpolating values in a lookup table.
  *
- * {@see FontScaleConverter}
- *
+ * @see FontScaleConverter
  * @hide
  */
 // Needs to be public so the Kotlin test can see it

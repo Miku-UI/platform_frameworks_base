@@ -31,33 +31,32 @@ import java.util.Objects;
 /**
  * Time-relate capabilities for a user.
  *
- * <p>For configuration settings capabilities, the associated settings value can be found via
- * {@link TimeManager#getTimeCapabilitiesAndConfig()} and may be changed using {@link
- * TimeManager#updateTimeConfiguration(TimeConfiguration)} (if the user's capabilities
- * allow).
+ * <p>For configuration settings capabilities, the associated settings value can be found via {@link
+ * TimeManager#getTimeCapabilitiesAndConfig()} and may be changed using {@link
+ * TimeManager#updateTimeConfiguration(TimeConfiguration)} (if the user's capabilities allow).
  *
  * @hide
  */
 @SystemApi
 public final class TimeCapabilities implements Parcelable {
 
-    public static final @NonNull Creator<TimeCapabilities> CREATOR = new Creator<>() {
-        public TimeCapabilities createFromParcel(Parcel in) {
-            return TimeCapabilities.createFromParcel(in);
-        }
+    public static final @NonNull Creator<TimeCapabilities> CREATOR =
+            new Creator<>() {
+                public TimeCapabilities createFromParcel(Parcel in) {
+                    return TimeCapabilities.createFromParcel(in);
+                }
 
-        public TimeCapabilities[] newArray(int size) {
-            return new TimeCapabilities[size];
-        }
-    };
-
+                public TimeCapabilities[] newArray(int size) {
+                    return new TimeCapabilities[size];
+                }
+            };
 
     /**
      * The user the capabilities are for. This is used for object equality and debugging but there
      * is no accessor.
      */
-    @NonNull
-    private final UserHandle mUserHandle;
+    @NonNull private final UserHandle mUserHandle;
+
     private final @CapabilityState int mConfigureAutoDetectionEnabledCapability;
     private final @CapabilityState int mSetManualTimeCapability;
 
@@ -105,17 +104,16 @@ public final class TimeCapabilities implements Parcelable {
     }
 
     /**
-     * Tries to create a new {@link TimeConfiguration} from the {@code config} and the set of
-     * {@code requestedChanges}, if {@code this} capabilities allow. The new configuration is
-     * returned. If the capabilities do not permit one or more of the requested changes then {@code
-     * null} is returned.
+     * Tries to create a new {@link TimeConfiguration} from the {@code config} and the set of {@code
+     * requestedChanges}, if {@code this} capabilities allow. The new configuration is returned. If
+     * the capabilities do not permit one or more of the requested changes then {@code null} is
+     * returned.
      *
      * @hide
      */
     @Nullable
     public TimeConfiguration tryApplyConfigChanges(
-            @NonNull TimeConfiguration config,
-            @NonNull TimeConfiguration requestedChanges) {
+            @NonNull TimeConfiguration config, @NonNull TimeConfiguration requestedChanges) {
         TimeConfiguration.Builder newConfigBuilder = new TimeConfiguration.Builder(config);
         if (requestedChanges.hasIsAutoDetectionEnabled()) {
             if (this.getConfigureAutoDetectionEnabledCapability() < CAPABILITY_NOT_APPLICABLE) {
@@ -138,24 +136,26 @@ public final class TimeCapabilities implements Parcelable {
         if (o == null || getClass() != o.getClass()) return false;
         TimeCapabilities that = (TimeCapabilities) o;
         return mConfigureAutoDetectionEnabledCapability
-                == that.mConfigureAutoDetectionEnabledCapability
+                        == that.mConfigureAutoDetectionEnabledCapability
                 && mSetManualTimeCapability == that.mSetManualTimeCapability
                 && mUserHandle.equals(that.mUserHandle);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(mUserHandle, mConfigureAutoDetectionEnabledCapability,
-                mSetManualTimeCapability);
+        return Objects.hash(
+                mUserHandle, mConfigureAutoDetectionEnabledCapability, mSetManualTimeCapability);
     }
 
     @Override
     public String toString() {
         return "TimeCapabilities{"
-                + "mUserHandle=" + mUserHandle
+                + "mUserHandle="
+                + mUserHandle
                 + ", mConfigureAutoDetectionEnabledCapability="
                 + mConfigureAutoDetectionEnabledCapability
-                + ", mSetManualTimeCapability=" + mSetManualTimeCapability
+                + ", mSetManualTimeCapability="
+                + mSetManualTimeCapability
                 + '}';
     }
 
@@ -196,7 +196,8 @@ public final class TimeCapabilities implements Parcelable {
 
         /** Returns the {@link TimeCapabilities}. */
         public TimeCapabilities build() {
-            verifyCapabilitySet(mConfigureAutoDetectionEnabledCapability,
+            verifyCapabilitySet(
+                    mConfigureAutoDetectionEnabledCapability,
                     "configureAutoDetectionEnabledCapability");
             verifyCapabilitySet(mSetManualTimeCapability, "mSetManualTimeCapability");
             return new TimeCapabilities(this);

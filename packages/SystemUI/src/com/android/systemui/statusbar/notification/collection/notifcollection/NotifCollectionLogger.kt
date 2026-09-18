@@ -599,12 +599,15 @@ class NotifCollectionLogger @Inject constructor(@NotificationLog private val buf
         )
     }
 
-    fun logCancelLocalDismissalNotDismissedNotif(entry: NotificationEntry) {
+    fun logCancelLocalDismissal(entry: NotificationEntry) {
         buffer.log(
             TAG,
             INFO,
-            { str1 = entry.logKey },
-            { "CANCEL LOCAL DISMISS Not Dismissed $str1" },
+            {
+                str1 = entry.logKey
+                str2 = entry.dismissState.name
+            },
+            { "CANCEL LOCAL DISMISS (was $str2) $str1" },
         )
     }
 

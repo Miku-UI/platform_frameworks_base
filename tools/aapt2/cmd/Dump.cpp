@@ -32,6 +32,7 @@
 #include "format/binary/BinaryResourceParser.h"
 #include "format/binary/XmlFlattener.h"
 #include "format/proto/ProtoDeserialize.h"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "io/ZipArchive.h"
 #include "process/IResourceTableConsumer.h"
 #include "text/Printer.h"

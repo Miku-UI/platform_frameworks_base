@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) 2025 The Android Open Source Project
  *
@@ -32,8 +31,8 @@ import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 
 /**
- * Tests for [LockTaskChangeListener], making sure listeners are correctly called
- * and the member variables are correctly updated when a change occurs.
+ * Tests for [LockTaskChangeListener], making sure listeners are correctly called and the member
+ * variables are correctly updated when a change occurs.
  */
 @RunWith(AndroidTestingRunner::class)
 class LockTaskChangeListenerTest : ShellTestCase() {

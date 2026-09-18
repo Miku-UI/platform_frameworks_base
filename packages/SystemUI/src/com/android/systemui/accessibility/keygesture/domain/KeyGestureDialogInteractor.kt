@@ -19,20 +19,17 @@ package com.android.systemui.accessibility.keygesture.domain
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.os.Handler
 import android.os.UserHandle
 import android.view.Display.INVALID_DISPLAY
 import androidx.annotation.VisibleForTesting
 import com.android.internal.accessibility.common.KeyGestureEventConstants
-import com.android.internal.accessibility.util.FrameworkObjectProvider
+import com.android.internal.accessibility.common.ShortcutConstants
 import com.android.internal.accessibility.util.TtsPrompt
 import com.android.systemui.accessibility.data.repository.AccessibilityShortcutsRepository
 import com.android.systemui.accessibility.keygesture.shared.model.KeyGestureConfirmInfo
 import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
-import com.android.systemui.dagger.qualifiers.Main
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -44,17 +41,19 @@ import kotlinx.coroutines.withContext
 class KeyGestureDialogInteractor
 @Inject
 constructor(
-    @Application private val context: Context,
     private val repository: AccessibilityShortcutsRepository,
     private val broadcastDispatcher: BroadcastDispatcher,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
-    @Main private val handler: Handler,
 ) {
     /** Emits whenever a launch key gesture dialog broadcast is received. */
-    val keyGestureConfirmDialogRequest: Flow<KeyGestureConfirmInfo?> =
+    val keyGestureConfirmDialogRequest: Flow<Pair<Boolean, KeyGestureConfirmInfo?>> =
         broadcastDispatcher
             .broadcastFlow(
-                filter = IntentFilter().apply { addAction(ACTION) },
+                filter =
+                    IntentFilter().apply {
+                        addAction(LAUNCH_DIALOG_ACTION)
+                        addAction(DISMISS_DIALOG_ACTION)
+                    },
                 user = UserHandle.SYSTEM,
                 flags = Context.RECEIVER_NOT_EXPORTED,
             ) { intent, _ ->
@@ -63,7 +62,11 @@ constructor(
             .map { intent -> processDialogRequest(intent) }
 
     fun enableShortcutsForTargets(enable: Boolean, targetName: String) {
-        repository.enableShortcutsForTargets(enable, targetName)
+        repository.enableShortcutsForTargets(
+            enable,
+            ShortcutConstants.UserShortcutType.KEY_GESTURE,
+            setOf(targetName),
+        )
     }
 
     fun enableMagnificationAndZoomIn(displayId: Int) {
@@ -72,12 +75,15 @@ constructor(
         }
     }
 
-    fun performTtsPromptForText(text: CharSequence): TtsPrompt {
-        return TtsPrompt(context, handler, FrameworkObjectProvider(), text)
-    }
+    fun createTtsPromptForText(text: CharSequence): TtsPrompt =
+        repository.createTtsPromptForText(text)
 
-    private suspend fun processDialogRequest(intent: Intent): KeyGestureConfirmInfo? {
+    private suspend fun processDialogRequest(
+        intent: Intent
+    ): Pair<Boolean, KeyGestureConfirmInfo?> {
         return withContext(backgroundDispatcher) {
+            val isLaunchDialogRequest = intent.action == LAUNCH_DIALOG_ACTION
+
             val keyGestureType = intent.getIntExtra(KeyGestureEventConstants.KEY_GESTURE_TYPE, 0)
             val targetName = intent.getStringExtra(KeyGestureEventConstants.TARGET_NAME)
             val metaState = intent.getIntExtra(KeyGestureEventConstants.META_STATE, 0)
@@ -85,27 +91,16 @@ constructor(
             val displayId = intent.getIntExtra(KeyGestureEventConstants.DISPLAY_ID, INVALID_DISPLAY)
 
             if (isInvalidDialogRequest(keyGestureType, metaState, keyCode, targetName, displayId)) {
-                null
+                isLaunchDialogRequest to null
             } else {
-                val titleToContent =
-                    repository.getTitleToContentForKeyGestureDialog(
+                isLaunchDialogRequest to
+                    repository.getKeyGestureConfirmInfo(
                         keyGestureType,
                         metaState,
                         keyCode,
                         targetName as String,
-                    )
-                if (titleToContent == null) {
-                    null
-                } else {
-                    KeyGestureConfirmInfo(
-                        keyGestureType,
-                        titleToContent.first,
-                        titleToContent.second,
-                        targetName,
-                        repository.getActionKeyIconResId(),
                         displayId,
                     )
-                }
             }
         }
     }
@@ -126,6 +121,9 @@ constructor(
 
     companion object {
         @VisibleForTesting
-        const val ACTION = "com.android.systemui.action.LAUNCH_KEY_GESTURE_CONFIRM_DIALOG"
+        const val LAUNCH_DIALOG_ACTION =
+            "com.android.systemui.action.LAUNCH_KEY_GESTURE_CONFIRM_DIALOG"
+        const val DISMISS_DIALOG_ACTION =
+            "com.android.systemui.action.DISMISS_KEY_GESTURE_CONFIRM_DIALOG"
     }
 }

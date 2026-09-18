@@ -22,28 +22,24 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.PendingIntent.FLAG_IMMUTABLE
+import android.app.userProfileBadgeProvider
 import android.content.Context
 import android.content.Intent
 import android.content.pm.LauncherApps
-import android.graphics.drawable.Drawable
 import android.os.UserHandle
-import android.os.UserManager
-import android.provider.DeviceConfig
 import androidx.core.os.bundleOf
-import com.android.internal.config.sysui.SystemUiDeviceConfigFlags
 import com.android.internal.logging.MetricsLogger
 import com.android.internal.logging.UiEventLogger
 import com.android.internal.statusbar.IStatusBarService
 import com.android.systemui.TestableDependency
 import com.android.systemui.classifier.FalsingManagerFake
-import com.android.systemui.dump.dumpManager
 import com.android.systemui.flags.FakeFeatureFlagsClassic
 import com.android.systemui.flags.FeatureFlagsClassic
 import com.android.systemui.flags.Flags
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.log.logcatLogBuffer
 import com.android.systemui.media.NotificationMediaManager
 import com.android.systemui.media.dialog.MediaOutputDialogManager
+import com.android.systemui.notifications.content.icon.FakeNotificationPackage
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.plugins.statusbar.statusBarStateController
@@ -63,12 +59,12 @@ import com.android.systemui.statusbar.notification.ConversationNotificationProce
 import com.android.systemui.statusbar.notification.NotificationActivityStarter
 import com.android.systemui.statusbar.notification.collection.BundleEntry
 import com.android.systemui.statusbar.notification.collection.BundleSpec
-import com.android.systemui.statusbar.notification.collection.GroupEntryBuilder
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder
 import com.android.systemui.statusbar.notification.collection.PipelineEntry
 import com.android.systemui.statusbar.notification.collection.buildNotificationEntry
 import com.android.systemui.statusbar.notification.collection.buildSummaryNotificationEntry
+import com.android.systemui.statusbar.notification.collection.coordinator.SummarizationDecorator
 import com.android.systemui.statusbar.notification.collection.mockNotifCollection
 import com.android.systemui.statusbar.notification.collection.notifcollection.CommonNotifCollection
 import com.android.systemui.statusbar.notification.collection.notifcollection.NotifCollectionListener
@@ -82,19 +78,12 @@ import com.android.systemui.statusbar.notification.headsup.mockHeadsUpManager
 import com.android.systemui.statusbar.notification.icon.IconBuilder
 import com.android.systemui.statusbar.notification.icon.IconManager
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationContentExtractorImpl
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationLogger
-import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow.CoordinateOnClickListener
+import com.android.systemui.statusbar.notification.promoted.promotedNotificationContentExtractor
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow.ExpandableNotificationRowLogger
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow.OnExpandClickListener
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.FLAG_CONTENT_VIEW_ALL
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.InflationFlag
-import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyleProviderImpl
-import com.android.systemui.statusbar.notification.row.icon.NotificationRowIconViewInflaterFactory
-import com.android.systemui.statusbar.notification.row.icon.appIconProvider
-import com.android.systemui.statusbar.notification.row.icon.mockAppIconProvider
-import com.android.systemui.statusbar.notification.row.icon.notificationIconStyleProvider
-import com.android.systemui.statusbar.notification.row.shared.SkeletonImageTransform
+import com.android.systemui.statusbar.notification.row.icon.notificationRowIconViewInflaterFactory
 import com.android.systemui.statusbar.notification.stack.NotificationChildrenContainerLogger
 import com.android.systemui.statusbar.phone.KeyguardBypassController
 import com.android.systemui.statusbar.phone.KeyguardDismissUtil
@@ -104,9 +93,7 @@ import com.android.systemui.statusbar.policy.SmartReplyInflaterImpl
 import com.android.systemui.statusbar.policy.SmartReplyStateInflaterImpl
 import com.android.systemui.statusbar.policy.dagger.RemoteInputViewSubcomponent
 import com.android.systemui.util.Assert.runWithCurrentThreadAsMainThread
-import com.android.systemui.util.DeviceConfigProxyFake
 import com.android.systemui.util.concurrency.FakeExecutor
-import com.android.systemui.util.time.FakeSystemClock
 import com.android.systemui.util.time.fakeSystemClock
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executor
@@ -117,8 +104,6 @@ import org.junit.Assert.assertTrue
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito
-import org.mockito.kotlin.anyOrNull
-import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 class ExpandableNotificationRowBuilder(
@@ -126,13 +111,13 @@ class ExpandableNotificationRowBuilder(
     private val kosmos: Kosmos,
     dependency: TestableDependency,
     featureFlags: FakeFeatureFlagsClassic = FakeFeatureFlagsClassic(),
+    private val createStatusBarIcons: Boolean = true,
 ) {
 
     private val mMockLogger: ExpandableNotificationRowLogger
     private val mStatusBarStateController: StatusBarStateController
     private val mKeyguardBypassController: KeyguardBypassController
     private val mGroupMembershipManager: GroupMembershipManager
-    private val mUserManager: UserManager
     private val mHeadsUpManager: HeadsUpManager
     private val mIconManager: IconManager
     private val mContentBinder: NotificationRowContentBinder
@@ -147,11 +132,11 @@ class ExpandableNotificationRowBuilder(
     private val mTestScope: TestScope = TestScope()
     private val mBgCoroutineContext = mTestScope.backgroundScope.coroutineContext
     private val mMainCoroutineContext = mTestScope.coroutineContext
-    private val mFakeSystemClock = FakeSystemClock()
+    private val mFakeSystemClock = kosmos.fakeSystemClock
     private val mMainExecutor = FakeExecutor(mFakeSystemClock)
+    private val mHeadsUpStyleProvider: HeadsUpStyleProvider
 
     init {
-        featureFlags.setDefault(Flags.ENABLE_NOTIFICATIONS_SIMULATE_SLOW_MEASURE)
         featureFlags.setDefault(Flags.BIGPICTURE_NOTIFICATION_LAZY_LOADING)
 
         dependency.injectTestDependency(FeatureFlagsClassic::class.java, featureFlags)
@@ -164,8 +149,8 @@ class ExpandableNotificationRowBuilder(
         mKeyguardBypassController = Mockito.mock(KeyguardBypassController::class.java, STUB_ONLY)
         mGroupMembershipManager = GroupMembershipManagerImpl()
         mSmartReplyController = Mockito.mock(SmartReplyController::class.java, STUB_ONLY)
+        mHeadsUpStyleProvider = kosmos.headsUpStyleProvider
 
-        mUserManager = Mockito.mock(UserManager::class.java, STUB_ONLY)
         mHeadsUpManager =
             kosmos.mockHeadsUpManager.apply {
                 whenever(isTrackingHeadsUp()).thenReturn(MutableStateFlow(false))
@@ -181,31 +166,7 @@ class ExpandableNotificationRowBuilder(
                 context,
             )
 
-        mSmartReplyConstants =
-            SmartReplyConstants(
-                /* mainExecutor = */ mMainExecutor,
-                /* context = */ context,
-                /* deviceConfig = */ DeviceConfigProxyFake().apply {
-                    setProperty(
-                        DeviceConfig.NAMESPACE_SYSTEMUI,
-                        SystemUiDeviceConfigFlags.SSIN_SHOW_IN_HEADS_UP,
-                        "true",
-                        true,
-                    )
-                    setProperty(
-                        DeviceConfig.NAMESPACE_SYSTEMUI,
-                        SystemUiDeviceConfigFlags.SSIN_ENABLED,
-                        "true",
-                        true,
-                    )
-                    setProperty(
-                        DeviceConfig.NAMESPACE_SYSTEMUI,
-                        SystemUiDeviceConfigFlags.SSIN_REQUIRES_TARGETING_P,
-                        "false",
-                        true,
-                    )
-                },
-            )
+        mSmartReplyConstants = SmartReplyConstants(context)
         val remoteViewsFactories = getNotifRemoteViewsFactoryContainer(featureFlags)
         val remoteInputManager = Mockito.mock(NotificationRemoteInputManager::class.java, STUB_ONLY)
         val smartReplyStateInflater =
@@ -244,14 +205,7 @@ class ExpandableNotificationRowBuilder(
                 context,
                 Mockito.mock(LauncherApps::class.java, STUB_ONLY),
                 Mockito.mock(ConversationNotificationManager::class.java, STUB_ONLY),
-            )
-        val promotedNotificationContentExtractor =
-            PromotedNotificationContentExtractorImpl(
-                kosmos.notificationIconStyleProvider,
-                kosmos.appIconProvider,
-                SkeletonImageTransform(context),
-                mFakeSystemClock,
-                PromotedNotificationLogger(logcatLogBuffer("PromotedNotifLog")),
+                decorator = Mockito.mock(SummarizationDecorator::class.java, STUB_ONLY),
             )
 
         mContentBinder =
@@ -262,11 +216,12 @@ class ExpandableNotificationRowBuilder(
                 Mockito.mock(Executor::class.java, STUB_ONLY),
                 smartReplyStateInflater,
                 notifLayoutInflaterFactoryProvider,
-                Mockito.mock(HeadsUpStyleProvider::class.java, STUB_ONLY),
-                promotedNotificationContentExtractor,
-                Mockito.mock(NotificationRowContentBinderLogger::class.java, STUB_ONLY),
+                mHeadsUpStyleProvider,
+                kosmos.promotedNotificationContentExtractor,
+                kosmos.notificationRowContentBinderLogger,
             )
         mContentBinder.setInflateSynchronously(true)
+        mContentBinder.setUserProfileBadgeProvider(kosmos.userProfileBadgeProvider)
         mBindStage =
             RowContentBindStage(
                 mContentBinder,
@@ -305,48 +260,43 @@ class ExpandableNotificationRowBuilder(
     private fun getNotifRemoteViewsFactoryContainer(
         featureFlags: FeatureFlagsClassic
     ): NotifRemoteViewsFactoryContainer {
-        val iconDrawable = mock<Drawable>()
-        whenever(
-                kosmos.mockAppIconProvider.getOrFetchAppIcon(anyOrNull(), anyOrNull(), anyOrNull())
-            )
-            .thenReturn(iconDrawable)
-
         return NotifRemoteViewsFactoryContainerImpl(
             featureFlags,
             PrecomputedTextViewFactory(),
             BigPictureLayoutInflaterFactory(),
             NotificationOptimizedLinearLayoutFactory(),
             { Mockito.mock(NotificationViewFlipperFactory::class.java) },
-            NotificationRowIconViewInflaterFactory(
-                kosmos.mockAppIconProvider,
-                NotificationIconStyleProviderImpl(
-                    mUserManager,
-                    kosmos.dumpManager,
-                    kosmos.fakeSystemClock,
-                ),
-            ),
+            kosmos.notificationRowIconViewInflaterFactory,
         )
     }
 
-    fun createRowGroup(childCount: Int = 4): ExpandableNotificationRow {
+    fun createRowGroup(
+        childCount: Int = 4,
+        channel: NotificationChannel? = null,
+    ): ExpandableNotificationRow {
         val children = ArrayList<NotificationEntry>()
-        for (i in 0..< childCount) {
+        for (i in 0..<childCount) {
             val childEntry =
                 kosmos.buildNotificationEntry {
                     Notification.Builder(context, "channel")
                         .setSmallIcon(R.drawable.ic_person)
                         .setGroup("group")
+                    channel?.let { setChannel(channel) }
                 }
             childEntry.row = kosmos.createRowWithEntry(childEntry)
             children.add(childEntry)
         }
         val summary =
-            kosmos.buildSummaryNotificationEntry(children, {
-                Notification.Builder(context, "channel")
-                    .setSmallIcon(R.drawable.ic_person)
-                    .setGroupSummary(true)
-                    .setGroup("group")
-            })
+            kosmos.buildSummaryNotificationEntry(
+                children,
+                {
+                    Notification.Builder(context, "channel")
+                        .setSmallIcon(R.drawable.ic_person)
+                        .setGroupSummary(true)
+                        .setGroup("group")
+                    channel?.let { setChannel(channel) }
+                },
+            )
         summary.row = kosmos.createRowWithEntry(summary)
         for (child in children) {
             summary.row.addChildNotification(child.row)
@@ -380,7 +330,21 @@ class ExpandableNotificationRowBuilder(
         )
     }
 
-    fun createRow(notification: Notification): ExpandableNotificationRow {
+    fun createCompactHUN(
+        notification: Notification,
+        fakePackage: FakeNotificationPackage? = null,
+    ): ExpandableNotificationRow {
+        whenever(mHeadsUpStyleProvider.shouldApplyCompactStyle(context.displayId)).thenReturn(true)
+        val row = createRow(notification, fakePackage)
+        row.isHeadsUp = true
+        Mockito.reset(mHeadsUpStyleProvider)
+        return row
+    }
+
+    fun createRow(
+        notification: Notification,
+        fakePackage: FakeNotificationPackage? = null,
+    ): ExpandableNotificationRow {
         val channel =
             NotificationChannel(
                 notification.channelId,
@@ -388,10 +352,16 @@ class ExpandableNotificationRowBuilder(
                 NotificationManager.IMPORTANCE_DEFAULT,
             )
         channel.isBlockable = true
+        if (notification.isImportantConversation) {
+            channel.setImportantConversation(true)
+        }
+
+        val promoted = notification.isOngoingEvent && notification.isRequestPromotedOngoing
+        val packageName = fakePackage?.packageName ?: PKG
         val entry =
             NotificationEntryBuilder()
-                .setPkg(PKG)
-                .setOpPkg(PKG)
+                .setPkg(packageName)
+                .setOpPkg(packageName)
                 .setId(123321)
                 .setUid(UID)
                 .setInitialPid(2000)
@@ -399,6 +369,8 @@ class ExpandableNotificationRowBuilder(
                 .setUser(USER_HANDLE)
                 .setPostTime(System.currentTimeMillis())
                 .setChannel(channel)
+                .setFlag(context, Notification.FLAG_PROMOTED_ONGOING, promoted)
+                .setFlag(context, Notification.FLAG_CAN_COLORIZE, notification.isColorizedRequested)
                 .build()
 
         // it is for mitigating Rank building process.
@@ -408,7 +380,7 @@ class ExpandableNotificationRowBuilder(
             entry.ranking = rb.build()
         }
 
-        return generateRow(entry, INFLATION_FLAGS)
+        return generateRow(entry, INFLATION_FLAGS, fakePackage)
     }
 
     fun createRow(entry: NotificationEntry): ExpandableNotificationRow {
@@ -419,7 +391,10 @@ class ExpandableNotificationRowBuilder(
         return generateRow(BundleEntry(spec))
     }
 
-    private fun initRow(entry: PipelineEntry): ExpandableNotificationRow {
+    private fun initRow(
+        entry: PipelineEntry,
+        fakePackage: FakeNotificationPackage? = null,
+    ): ExpandableNotificationRow {
         val userTracker = Mockito.mock(UserTracker::class.java, STUB_ONLY)
         whenever(userTracker.userHandle).thenReturn(context.user)
 
@@ -432,11 +407,11 @@ class ExpandableNotificationRowBuilder(
             )
         val row = rowInflaterTask.inflateSynchronously(context, null, entry)
         val entryAdapter = kosmos.entryAdapterFactory.create(entry)
+        val appName = fakePackage?.label ?: APP_NAME
         row.initialize(
-            entryAdapter, // if (NotificationBundleUi.isEnabled) entryAdapter else null,
-            entry, // if (NotificationBundleUi.isEnabled) null else entry,
+            entryAdapter,
             Mockito.mock(RemoteInputViewSubcomponent.Factory::class.java, STUB_ONLY),
-            APP_NAME,
+            appName,
             entry.key,
             mMockLogger,
             mKeyguardBypassController,
@@ -445,7 +420,6 @@ class ExpandableNotificationRowBuilder(
             mHeadsUpManager,
             mBindStage,
             Mockito.mock(OnExpandClickListener::class.java, STUB_ONLY),
-            Mockito.mock(CoordinateOnClickListener::class.java, STUB_ONLY),
             FalsingManagerFake(),
             mStatusBarStateController,
             mPeopleNotificationIdentifier,
@@ -462,6 +436,8 @@ class ExpandableNotificationRowBuilder(
             Mockito.mock(NotificationRebindingTracker::class.java, STUB_ONLY),
             Mockito.mock(BundleInteractionLogger::class.java, STUB_ONLY),
             Mockito.mock(NotificationActivityStarter::class.java, STUB_ONLY),
+            kosmos.notificationUiEligibilityChecker,
+            kosmos.automationNotificationBackgroundProvider,
         )
         row.setAboveShelfChangedListener {}
         return row
@@ -470,17 +446,25 @@ class ExpandableNotificationRowBuilder(
     private fun generateRow(
         entry: NotificationEntry,
         @InflationFlag extraInflationFlags: Int,
+        fakePackage: FakeNotificationPackage? = null,
     ): ExpandableNotificationRow {
         // NOTE: This flag is read when the ExpandableNotificationRow is inflated, so it needs to be
         //  set, but we do not want to override an existing value that is needed by a specific test.
 
-        val row = initRow(entry)
+        val row = initRow(entry, fakePackage)
         entry.row = row
-        mIconManager.createIcons(entry)
+        if (createStatusBarIcons) {
+            mIconManager.createIcons(entry)
+        }
         mBindPipelineEntryListener.onEntryInit(entry)
         mBindPipeline.manageRow(entry, row)
+
         mBindStage.getStageParams(entry).requireContentViews(extraInflationFlags)
         inflateAndWait(entry)
+
+        if (entry.sbn.notification.isRecentlyAudiblyAlerted) {
+            row.setLastAudiblyAlertedMs(System.currentTimeMillis())
+        }
         return row
     }
 
@@ -504,14 +488,31 @@ class ExpandableNotificationRowBuilder(
         private val USER_HANDLE = UserHandle.of(ActivityManager.getCurrentUser())
         private const val INFLATION_FLAGS = FLAG_CONTENT_VIEW_ALL
         private const val IS_CONVERSATION_FLAG = "test.isConversation"
+        private const val IS_IMPORTANT_CONVERSATION_FLAG = "test.isImportantConversation"
+        private const val IS_RECENTLY_AUDIBLY_ALERTED_FLAG = "test.isRecentlyAudiblyAlerted"
 
         private val Notification.isConversationStyleNotification
             get() = extras.getBoolean(IS_CONVERSATION_FLAG, false)
 
+        private val Notification.isImportantConversation
+            get() = extras.getBoolean(IS_IMPORTANT_CONVERSATION_FLAG, false)
+
+        private val Notification.isRecentlyAudiblyAlerted
+            get() = extras.getBoolean(IS_RECENTLY_AUDIBLY_ALERTED_FLAG, false)
+
         private val STUB_ONLY = Mockito.withSettings().stubOnly()
 
-        fun markAsConversation(builder: Notification.Builder) {
-            builder.addExtras(bundleOf(IS_CONVERSATION_FLAG to true))
+        fun markAsRecentlyAudiblyAlerted(builder: Notification.Builder) {
+            builder.addExtras(bundleOf(IS_RECENTLY_AUDIBLY_ALERTED_FLAG to true))
+        }
+
+        fun markAsConversation(builder: Notification.Builder, isImportant: Boolean = false) {
+            builder.addExtras(
+                bundleOf(
+                    IS_CONVERSATION_FLAG to true,
+                    IS_IMPORTANT_CONVERSATION_FLAG to isImportant,
+                )
+            )
         }
     }
 }

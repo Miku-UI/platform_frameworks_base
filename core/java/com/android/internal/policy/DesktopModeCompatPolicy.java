@@ -17,23 +17,29 @@
 package com.android.internal.policy;
 
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_DREAM;
+import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.os.UserHandle.USER_SYSTEM;
+import static android.os.UserManager.isHeadlessSystemUserMode;
 
 import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RequiresPermission;
+import android.app.AppCompatTaskInfo;
 import android.app.TaskInfo;
 import android.app.WindowConfiguration;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
-import android.window.DesktopExperienceFlags;
-import android.window.DesktopModeFlags;
+import android.content.pm.ResolveInfo;
+import android.provider.Settings;
 
 import com.android.internal.R;
+import com.android.window.flags.Flags;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -48,8 +54,12 @@ public class DesktopModeCompatPolicy {
     private final String mSystemUiPackage;
     @NonNull
     private final List<String> mConfigExemptPackages;
+    @NonNull
+    private final List<String> mConfigTransparentExemptionIgnoreList;
     private final Map<String, Boolean> mPackageInfoCache = new HashMap<>();
     private PackageManager mPackageManager = null;
+    @NonNull private final List<String> mConfigHomeFreeformActivities;
+    @NonNull private final List<String> mConfigLaunchInFullscreenPackages;
 
     public Supplier<String> mDefaultHomePackageSupplier;
 
@@ -58,6 +68,16 @@ public class DesktopModeCompatPolicy {
         mSystemUiPackage = context.getResources().getString(R.string.config_systemUi);
         mConfigExemptPackages = Arrays.asList(context.getResources().getStringArray(
                 R.array.config_desktopExemptPackages));
+        mConfigTransparentExemptionIgnoreList = Arrays.asList(context.getResources().getStringArray(
+                R.array.config_desktopTransparentExemptionIgnoreList));
+        mConfigHomeFreeformActivities =
+                Arrays.asList(
+                        context.getResources()
+                                .getStringArray(
+                                        R.array.config_desktopHomePackageFreeformActivities));
+        mConfigLaunchInFullscreenPackages =
+                Arrays.asList(context.getResources().getStringArray(
+                        R.array.config_desktopLaunchInFullscreenPackages));
     }
 
     public void setDefaultHomePackageSupplier(
@@ -76,17 +96,14 @@ public class DesktopModeCompatPolicy {
     }
 
     @Nullable
-    private String getDefaultHomePackage() {
-        if (mDefaultHomePackageSupplier != null && mDefaultHomePackageSupplier.get() != null) {
+    public String getDefaultHomePackage(int userId) {
+        if (mDefaultHomePackageSupplier != null) {
             return mDefaultHomePackageSupplier.get();
         }
-
-        final ComponentName homeActivities = getPackageManager().getHomeActivities(
-                new ArrayList<>());
-        if (homeActivities != null) {
-            return homeActivities.getPackageName();
-        }
-        return null;
+        final ResolveInfo homeActivityInfo = getPackageManager().resolveActivityAsUser(
+                new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0, userId);
+        if (homeActivityInfo == null) return null;
+        return homeActivityInfo.activityInfo.packageName;
     }
 
     /**
@@ -109,12 +126,13 @@ public class DesktopModeCompatPolicy {
     public boolean isTopActivityExemptFromDesktopWindowing(@Nullable ComponentName baseActivity,
             boolean isTopActivityNoDisplay, boolean isActivityStackTransparent, int numActivities,
             int userId, ActivityInfo info, @WindowConfiguration.ActivityType int topActivityType) {
-        final String packageName = baseActivity != null ? baseActivity.getPackageName() : null;
-        if (packageName == null) {
-            return false;
+        if (isHeadlessSystemUserMode() && userId == USER_SYSTEM) {
+            // An activity for system user in HSUM should not activate desktop windowing.
+            return true;
         }
-
-        if (!DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_MODALS_POLICY.isTrue()) {
+        final String packageName = baseActivity != null ? baseActivity.getPackageName() : null;
+        final String className = baseActivity != null ? baseActivity.getClassName() : null;
+        if (packageName == null) {
             return false;
         }
         // If activity is not being displayed, window mode change has no visual affect so leave
@@ -123,11 +141,9 @@ public class DesktopModeCompatPolicy {
             return false;
         }
         // Dream activities should be fullscreen and thus should be forced out of desktop.
-        if (DesktopExperienceFlags.ENABLE_DREAM_ACTIVITY_WINDOWING_EXCLUSION.isTrue()
-                && topActivityType == ACTIVITY_TYPE_DREAM) {
+        if (topActivityType == ACTIVITY_TYPE_DREAM) {
             return true;
         }
-        // TODO: b/434943016 - Replace with permission.
         // If activity belongs to package exempt via device config, force out of desktop.
         if (isPackageExemptViaConfig(packageName) && !isActivityStackTransparent) {
             return true;
@@ -137,28 +153,37 @@ public class DesktopModeCompatPolicy {
             return true;
         }
         // If activity belongs to default home package, safe to force out of desktop.
-        if (isPartOfDefaultHomePackageOrNoHomeAvailable(packageName)) {
+        if (isPartOfDefaultHomePackageOrNoHomeAvailable(packageName, userId, className)) {
             return true;
         }
         // If all activities in task stack are transparent AND package has the relevant
         // fullscreen transparent permission OR is signed with platform key, safe to force out
         // of desktop.
+        // TODO: b/458693972 - Replace with permission and manifest check.
         return isTransparentTask(isActivityStackTransparent, numActivities)
-                && (hasFullscreenTransparentPermission(packageName, userId)
-                || hasPlatformSignature(info));
+                && (hasFullscreenTransparentPermission(packageName, userId, info)
+                    || hasPlatformSignature(info)
+                    || (Flags.enablePrivilegedAppTransparentWindowingExemptions()
+                        && isPrivilegedApp(info)))
+                && !mConfigTransparentExemptionIgnoreList.contains(packageName);
     }
 
-    /** @see #shouldDisableDesktopEntryPoints(String, int, boolean, boolean, int) */
+    /**
+     * @see #shouldDisableDesktopEntryPoints(String, String, int, boolean, boolean, int, int)
+     */
     public boolean shouldDisableDesktopEntryPoints(@NonNull TaskInfo task) {
         final String packageName = task.baseActivity != null ? task.baseActivity.getPackageName() :
                 null;
+        final String className =
+                task.baseActivity != null ? task.baseActivity.getClassName() : null;
         return shouldDisableDesktopEntryPoints(
                 packageName,
+                className,
                 task.numActivities,
                 task.isTopActivityNoDisplay,
                 task.isActivityStackTransparent,
-                task.topActivityType
-        );
+                task.topActivityType,
+                task.userId);
     }
 
     /**
@@ -167,18 +192,22 @@ public class DesktopModeCompatPolicy {
      */
     public boolean shouldDisableDesktopEntryPoints(
             @Nullable String packageName,
+            @Nullable String className,
             int numActivities,
             boolean isTopActivityNoDisplay,
             boolean isActivityStackTransparent,
-            @WindowConfiguration.ActivityType int topActivityType
-    ) {
+            @WindowConfiguration.ActivityType int topActivityType,
+            int userId) {
+        if (packageName == null) {
+            return true;
+        }
+
         // Activity will not be displayed, no need to show desktop entry point.
         if (isTopActivityNoDisplay) {
             return true;
         }
         // Dream activities should be fullscreen and thus not allowed to enter desktop.
-        if (DesktopExperienceFlags.ENABLE_DREAM_ACTIVITY_WINDOWING_EXCLUSION.isTrue()
-                && topActivityType == ACTIVITY_TYPE_DREAM) {
+        if (topActivityType == ACTIVITY_TYPE_DREAM) {
             return true;
         }
         // If activity belongs to system ui package, hide desktop entry point.
@@ -186,10 +215,9 @@ public class DesktopModeCompatPolicy {
             return true;
         }
         // If activity belongs to default home package, safe to force out of desktop.
-        if (isPartOfDefaultHomePackageOrNoHomeAvailable(packageName)) {
+        if (isPartOfDefaultHomePackageOrNoHomeAvailable(packageName, userId, className)) {
             return true;
         }
-        // TODO: b/434943016 - Replace with permission.
         // If activity belongs to package exempt via device config, hide desktop entry point.
         if (isPackageExemptViaConfig(packageName)) {
             return true;
@@ -202,12 +230,16 @@ public class DesktopModeCompatPolicy {
 
     /** @see DesktopModeCompatUtils#shouldExcludeCaptionFromAppBounds */
     public boolean shouldExcludeCaptionFromAppBounds(@NonNull TaskInfo taskInfo) {
+        final AppCompatTaskInfo appCompatInfo = taskInfo.appCompatTaskInfo;
+        if (Flags.refactorCaptionSandboxingToCore()) {
+            return appCompatInfo != null && appCompatInfo.hasIsExcludeCaptionInsets();
+        }
         if (taskInfo.topActivityInfo != null) {
             return DesktopModeCompatUtils.shouldExcludeCaptionFromAppBounds(
                     taskInfo.topActivityInfo,
                     taskInfo.isResizeable,
-                    taskInfo.appCompatTaskInfo != null
-                            && taskInfo.appCompatTaskInfo.hasOptOutEdgeToEdge()
+                    appCompatInfo != null && appCompatInfo.hasOptOutEdgeToEdge(),
+                    appCompatInfo != null && appCompatInfo.hasIsExcludeCaptionInsets()
             );
         }
         return false;
@@ -221,6 +253,15 @@ public class DesktopModeCompatPolicy {
         return isTransparentTask(task.isActivityStackTransparent, task.numActivities);
     }
 
+    /** Returns true if the package should be launched in fullscreen by default when in desktop. */
+    public boolean isPackageLaunchInFullscreen(@Nullable ComponentName baseActivity) {
+        if (!Flags.launchGamesInFullscreenByAllowlist()) return false;
+        if (baseActivity == null) return false;
+        final String packageName = baseActivity.getPackageName();
+        if (packageName == null) return false;
+        return mConfigLaunchInFullscreenPackages.contains(packageName);
+    }
+
     private boolean isTransparentTask(boolean isActivityStackTransparent, int numActivities) {
         return isActivityStackTransparent && numActivities > 0;
     }
@@ -229,25 +270,24 @@ public class DesktopModeCompatPolicy {
         return Objects.equals(packageName, mSystemUiPackage);
     }
 
-    private boolean isPackageExemptViaConfig(@Nullable String packageName) {
+    private boolean isPackageExemptViaConfig(@NonNull String packageName) {
         return mConfigExemptPackages.contains(packageName);
     }
 
     // Checks if the app for the given package has the SYSTEM_ALERT_WINDOW permission.
-    private boolean hasFullscreenTransparentPermission(@NonNull String packageName, int userId) {
-        if (!DesktopModeFlags.ENABLE_MODALS_FULLSCREEN_WITH_PERMISSIONS.isTrue()) {
-            // If the ENABLE_MODALS_FULLSCREEN_WITH_PERMISSIONS flag is disabled, make neutral
-            // condition
-            // dependant on the ENABLE_MODALS_FULLSCREEN_WITH_PLATFORM_SIGNATURE flag.
-            return !DesktopExperienceFlags.ENABLE_MODALS_FULLSCREEN_WITH_PLATFORM_SIGNATURE
-                    .isTrue();
+    private boolean hasFullscreenTransparentPermission(
+            @NonNull String packageName, int userId, ActivityInfo info) {
+        if (info != null && info.applicationInfo != null) {
+            int uid = info.applicationInfo.uid;
+            Boolean appOpState = Settings.isCallingPackageAllowedToDrawOverlays(
+                    mContext, uid, packageName, false);
+            if (appOpState) return true;
         }
 
         final String cacheKey = userId + "@" + packageName;
         if (mPackageInfoCache.containsKey(cacheKey)) {
             return mPackageInfoCache.get(cacheKey);
         }
-
         boolean hasPermission = false;
         try {
             PackageInfo packageInfo = getPackageManager().getPackageInfoAsUser(
@@ -256,9 +296,14 @@ public class DesktopModeCompatPolicy {
                     userId
             );
             if (packageInfo != null && packageInfo.requestedPermissions != null) {
-                for (String permission : packageInfo.requestedPermissions) {
-                    if (Objects.equals(permission, Manifest.permission.SYSTEM_ALERT_WINDOW)) {
-                        hasPermission = true;
+                for (int i = 0; i < packageInfo.requestedPermissions.length; i++) {
+                    if (Objects.equals(
+                            packageInfo.requestedPermissions[i],
+                            Manifest.permission.SYSTEM_ALERT_WINDOW)) {
+                        if ((packageInfo.requestedPermissionsFlags[i]
+                                & PackageInfo.REQUESTED_PERMISSION_GRANTED) != 0) {
+                            hasPermission = true;
+                        }
                         break;
                     }
                 }
@@ -268,28 +313,50 @@ public class DesktopModeCompatPolicy {
         }
         mPackageInfoCache.put(cacheKey, hasPermission);
         return hasPermission;
-
     }
 
     // Checks if the app is signed with the platform signature.
     private boolean hasPlatformSignature(@Nullable ActivityInfo info) {
-        if (DesktopExperienceFlags.ENABLE_MODALS_FULLSCREEN_WITH_PLATFORM_SIGNATURE.isTrue()) {
-            return info != null
-                    && info.applicationInfo != null
-                    && info.applicationInfo.isSignedWithPlatformKey();
-        }
-        // If the ENABLE_MODALS_FULLSCREEN_WITH_PLATFORM_SIGNATURE flag is disabled, make neutral
-        // condition dependant on the ENABLE_MODALS_FULLSCREEN_WITH_PERMISSIONS flag.
-        return !DesktopModeFlags.ENABLE_MODALS_FULLSCREEN_WITH_PERMISSIONS.isTrue();
+        return info != null
+                && info.applicationInfo != null
+                && info.applicationInfo.isSignedWithPlatformKey();
+    }
+
+    // Checks if the app is a privileged application.
+    @RequiresPermission(Manifest.permission.INSTALL_PACKAGES)
+    private boolean isPrivilegedApp(@Nullable ActivityInfo info) {
+        return info != null
+                && info.applicationInfo != null
+                && info.applicationInfo.isPrivilegedApp();
     }
 
     /**
      * Returns true if the tasks base activity is part of the default home package, or there is
      * currently no default home package available.
      */
-    private boolean isPartOfDefaultHomePackageOrNoHomeAvailable(@Nullable String packageName) {
-        final String defaultHomePackage = getDefaultHomePackage();
-        return defaultHomePackage == null || (packageName != null
-                && packageName.equals(defaultHomePackage));
+    public boolean isPartOfDefaultHomePackageOrNoHomeAvailable(
+            @NonNull String packageName, int userId, @Nullable String className) {
+        final String defaultHomePackage = getDefaultHomePackage(userId);
+        return (defaultHomePackage == null || packageName.equals(defaultHomePackage))
+                && (className == null || !mConfigHomeFreeformActivities.contains(className));
+    }
+
+    /**
+    * Returns true if the task is transparent and full screen.
+    * Examples are Gemini and circle to search that overlay on top of other apps.
+    */
+    public boolean isTransparentOverlay(@NonNull TaskInfo task) {
+        return isTransparentOverlay(task.isActivityStackTransparent, task.numActivities,
+                task.getWindowingMode());
+    }
+
+   /**
+    * Returns true if the task is transparent and full screen.
+    * Examples are Gemini and circle to search that overlay on top of other apps.
+    */
+    public boolean isTransparentOverlay(boolean isActivityStackTransparent,
+            int numActivities, int windowingMode) {
+        return isTransparentTask(isActivityStackTransparent, numActivities)
+                && windowingMode == WINDOWING_MODE_FULLSCREEN;
     }
 }

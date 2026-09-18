@@ -16,17 +16,6 @@
 
 package com.android.internal.protolog;
 
-import static android.internal.perfetto.protos.Protolog.ProtoLogViewerConfig.GROUPS;
-import static android.internal.perfetto.protos.Protolog.ProtoLogViewerConfig.Group.ID;
-import static android.internal.perfetto.protos.Protolog.ProtoLogViewerConfig.Group.NAME;
-import static android.internal.perfetto.protos.Protolog.ProtoLogViewerConfig.Group.TAG;
-import static android.internal.perfetto.protos.Protolog.ProtoLogViewerConfig.MESSAGES;
-import static android.internal.perfetto.protos.Protolog.ProtoLogViewerConfig.MessageData.GROUP_ID;
-import static android.internal.perfetto.protos.Protolog.ProtoLogViewerConfig.MessageData.LEVEL;
-import static android.internal.perfetto.protos.Protolog.ProtoLogViewerConfig.MessageData.LOCATION;
-import static android.internal.perfetto.protos.Protolog.ProtoLogViewerConfig.MessageData.MESSAGE;
-import static android.internal.perfetto.protos.Protolog.ProtoLogViewerConfig.MessageData.MESSAGE_ID;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemService;
@@ -40,8 +29,6 @@ import android.os.ResultReceiver;
 import android.os.ShellCallback;
 import android.util.ArraySet;
 import android.util.Log;
-import android.util.proto.ProtoInputStream;
-import android.util.proto.ProtoOutputStream;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
@@ -49,7 +36,6 @@ import com.android.internal.annotations.VisibleForTesting;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -218,7 +204,7 @@ public class ProtoLogConfigurationServiceImpl extends IProtoLogConfigurationServ
     }
 
     /**
-     * Unregister the {@param client}.
+     * Unregister the {@code client}.
      */
     @Override
     public void unregisterClient(@Nullable IProtoLogClient client) {
@@ -350,7 +336,7 @@ public class ProtoLogConfigurationServiceImpl extends IProtoLogConfigurationServ
 
         final var clientRecord = mClientRecords.get(client.asBinder());
         if (clientRecord == null) {
-            Log.wtf(LOG_TAG, "Trying to add groups to unregistered client: " + client);
+            Log.wtfStack(LOG_TAG, "Trying to add groups to unregistered client: " + client);
             return;
         }
 
@@ -460,57 +446,5 @@ public class ProtoLogConfigurationServiceImpl extends IProtoLogConfigurationServ
                         "Failed to load viewer config file " + viewerConfigFilePath, e);
             }
         });
-    }
-
-    private static void writeViewerConfigGroup(
-            @NonNull ProtoInputStream pis, @NonNull ProtoOutputStream os) throws IOException {
-        final long inGroupToken = pis.start(GROUPS);
-        final long outGroupToken = os.start(GROUPS);
-
-        while (pis.nextField() != ProtoInputStream.NO_MORE_FIELDS) {
-            switch (pis.getFieldNumber()) {
-                case (int) ID -> {
-                    int id = pis.readInt(ID);
-                    os.write(ID, id);
-                }
-                case (int) NAME -> {
-                    String name = pis.readString(NAME);
-                    os.write(NAME, name);
-                }
-                case (int) TAG -> {
-                    String tag = pis.readString(TAG);
-                    os.write(TAG, tag);
-                }
-                default ->
-                    throw new RuntimeException(
-                            "Unexpected field id " + pis.getFieldNumber());
-            }
-        }
-
-        pis.end(inGroupToken);
-        os.end(outGroupToken);
-    }
-
-    private static void writeViewerConfigMessage(
-            @NonNull ProtoInputStream pis, @NonNull ProtoOutputStream os) throws IOException {
-        final long inMessageToken = pis.start(MESSAGES);
-        final long outMessagesToken = os.start(MESSAGES);
-
-        while (pis.nextField() != ProtoInputStream.NO_MORE_FIELDS) {
-            switch (pis.getFieldNumber()) {
-                case (int) MESSAGE_ID -> os.write(MESSAGE_ID,
-                        pis.readLong(MESSAGE_ID));
-                case (int) MESSAGE -> os.write(MESSAGE, pis.readString(MESSAGE));
-                case (int) LEVEL -> os.write(LEVEL, pis.readInt(LEVEL));
-                case (int) GROUP_ID -> os.write(GROUP_ID, pis.readInt(GROUP_ID));
-                case (int) LOCATION -> os.write(LOCATION, pis.readString(LOCATION));
-                default ->
-                    throw new RuntimeException(
-                            "Unexpected field id " + pis.getFieldNumber());
-            }
-        }
-
-        pis.end(inMessageToken);
-        os.end(outMessagesToken);
     }
 }

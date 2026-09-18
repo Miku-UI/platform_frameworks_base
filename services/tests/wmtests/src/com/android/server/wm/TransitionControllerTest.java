@@ -29,14 +29,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 
 import android.annotation.NonNull;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.view.WindowManager.TransitionType;
 
 import androidx.test.filters.SmallTest;
-
-import com.android.window.flags.Flags;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -75,21 +71,6 @@ public class TransitionControllerTest extends WindowTestsBase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_PARALLEL_CD_TRANSITIONS_DURING_RECENTS)
-    public void testGetCanBeIndependent_recentsParallelQueued_collectingTaskInOtherDisplay_false() {
-        final Task task = new ActivityBuilder(mAtm).setCreateTask(true).build().getTask();
-        task.mDisplayContent = mock(DisplayContent.class);
-        final Transition collecting = createTestTransition(TRANSIT_CLOSE);
-        collecting.mParticipants.add(task);
-        final Transition queued = createRecentsParallelTransition(mDefaultDisplay);
-
-        final boolean canBeIndependent = getCanBeIndependent(collecting, queued);
-
-        assertFalse(canBeIndependent);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_PARALLEL_CD_TRANSITIONS_DURING_RECENTS)
     public void testGetCanBeIndependent_recentsParallelQueued_collectingTaskInOtherDisplay_true() {
         final Transition collecting = createTestTransition(TRANSIT_CLOSE);
         final Task task = new ActivityBuilder(mAtm).setCreateTask(true).build().getTask();

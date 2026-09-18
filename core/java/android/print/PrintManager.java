@@ -26,6 +26,7 @@ import android.app.Activity;
 import android.app.ActivityOptions;
 import android.app.Application.ActivityLifecycleCallbacks;
 import android.compat.annotation.UnsupportedAppUsage;
+import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.IntentSender;
@@ -544,6 +545,8 @@ public final class PrintManager {
                     return new PrintJob(printJob, this);
                 } catch (SendIntentException sie) {
                     Log.e(LOG_TAG, "Couldn't start print job config activity.", sie);
+                } catch (ActivityNotFoundException anfe) {
+                    Log.e(LOG_TAG, "Print preview activity not found: ", anfe);
                 }
             }
         } catch (RemoteException re) {

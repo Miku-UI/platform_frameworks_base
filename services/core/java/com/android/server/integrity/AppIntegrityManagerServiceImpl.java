@@ -16,49 +16,23 @@
 
 package com.android.server.integrity;
 
-import static android.content.Intent.ACTION_PACKAGE_NEEDS_INTEGRITY_VERIFICATION;
 import static android.content.integrity.AppIntegrityManager.EXTRA_STATUS;
-import static android.content.integrity.AppIntegrityManager.STATUS_FAILURE;
 import static android.content.integrity.AppIntegrityManager.STATUS_SUCCESS;
-import static android.content.integrity.IntegrityUtils.getHexDigest;
-import static android.content.pm.PackageManager.EXTRA_VERIFICATION_ID;
 
 import android.annotation.BinderThread;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.IntentSender;
 import android.content.integrity.IAppIntegrityManager;
 import android.content.integrity.Rule;
-import android.content.pm.PackageInfo;
-import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
 import android.content.pm.ParceledListSlice;
-import android.net.Uri;
-import android.os.Binder;
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.provider.Settings;
-import android.util.Pair;
 import android.util.Slog;
 
-import com.android.internal.R;
-import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.LocalServices;
 
-import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Stream;
 
 /** Implementation of {@link AppIntegrityManagerService}. */
 public class AppIntegrityManagerServiceImpl extends IAppIntegrityManager.Stub {
@@ -71,28 +45,19 @@ public class AppIntegrityManagerServiceImpl extends IAppIntegrityManager.Stub {
 
     // Access to files inside mRulesDir is protected by mRulesLock;
     private final Context mContext;
-    private final Handler mHandler;
     private final PackageManagerInternal mPackageManagerInternal;
 
     /** Create an instance of {@link AppIntegrityManagerServiceImpl}. */
     public static AppIntegrityManagerServiceImpl create(Context context) {
-        HandlerThread handlerThread = new HandlerThread("AppIntegrityManagerServiceHandler");
-        handlerThread.start();
-
         return new AppIntegrityManagerServiceImpl(
                 context,
-                LocalServices.getService(PackageManagerInternal.class),
-                handlerThread.getThreadHandler());
+                LocalServices.getService(PackageManagerInternal.class));
     }
 
-    @VisibleForTesting
-    AppIntegrityManagerServiceImpl(
-            Context context,
-            PackageManagerInternal packageManagerInternal,
-            Handler handler) {
+    private AppIntegrityManagerServiceImpl(
+            Context context, PackageManagerInternal packageManagerInternal) {
         mContext = context;
         mPackageManagerInternal = packageManagerInternal;
-        mHandler = handler;
     }
 
     @Override

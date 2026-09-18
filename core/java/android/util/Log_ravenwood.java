@@ -17,8 +17,8 @@ package android.util;
 
 import android.annotation.Nullable;
 import android.os.Process;
-import android.platform.test.ravenwood.RavenwoodDriver;
 import android.platform.test.ravenwood.RavenwoodEnvironment;
+import android.platform.test.ravenwood.RavenwoodLogManager;
 import android.util.Log.Level;
 
 import com.android.internal.annotations.GuardedBy;
@@ -149,11 +149,13 @@ public class Log_ravenwood {
 
         String leading =  sTimestampFormat.format(new Date())
                 + " %-6d %-6d %s %-8s: ".formatted(getPid(), getTid(), prio, tag);
-        var out = RavenwoodDriver.sRawStdOut;
+        var sb = new StringBuilder();
         for (String s : msg.split("\\n")) {
-            out.print(leading);
-            out.println(s);
+            sb.append(leading);
+            sb.append(s);
+            sb.append("\n");
         }
+        RavenwoodLogManager.printRawString(sb.toString());
         return msg.length();
     }
 
@@ -164,7 +166,12 @@ public class Log_ravenwood {
     private static ThreadLocal<Integer> sTid = ThreadLocal.withInitial(Process::myTid);
 
     private static int getPid() {
-        return RavenwoodEnvironment.getInstance().getPid();
+        try {
+            return RavenwoodEnvironment.getInstance().getPid();
+        } catch (Exception e) {
+            // If RavenwoodEnvironment isn't initialized yet, just use 0.
+            return 0;
+        }
     }
 
     private static long getTid() {

@@ -36,8 +36,8 @@ data class MobileNetworkTypeIcon(
     val name: String,
 
     /** The resource ID of the icon drawable to use. */
-    @DrawableRes val iconResId: Int,
+    @param:DrawableRes val iconResId: Int,
 
     /** The resource ID of the content description to use. */
-    @StringRes val contentDescriptionResId: Int,
+    @param:StringRes val contentDescriptionResId: Int,
 )

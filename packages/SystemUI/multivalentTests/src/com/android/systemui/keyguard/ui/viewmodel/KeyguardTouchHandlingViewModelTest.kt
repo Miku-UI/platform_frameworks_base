@@ -74,7 +74,7 @@ class KeyguardTouchHandlingViewModelTest : SysuiTestCase() {
     @Test
     fun onLongPress_playsLongPressHapticToken() =
         testScope.runTest {
-            underTest.onLongPress(any())
+            underTest.onLongPress()
 
             assertThat(msdlPlayer.latestTokenPlayed).isEqualTo(MSDLToken.LONG_PRESS)
         }

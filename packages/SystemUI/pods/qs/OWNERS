@@ -1,0 +1,7 @@
+set noparent
+
+# Bug component: 78010
+
+include /packages/SystemUI/src/com/android/systemui/qs/OWNERS
+
+per-file {**/,}Android.bp = file:/packages/SystemUI/BUILD_OWNERS

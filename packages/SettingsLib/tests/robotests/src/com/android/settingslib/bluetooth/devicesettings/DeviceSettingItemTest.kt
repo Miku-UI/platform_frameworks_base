@@ -36,6 +36,8 @@ class DeviceSettingItemTest {
                 intentAction = "intent_action",
                 preferenceKey = "key1",
                 highlighted = true,
+                groupIndex = 1,
+                isOptional = true,
                 extras = Bundle().apply { putString("key1", "value1") },
             )
 
@@ -46,7 +48,32 @@ class DeviceSettingItemTest {
         assertThat(fromParcel.className).isEqualTo(item.className)
         assertThat(fromParcel.intentAction).isEqualTo(item.intentAction)
         assertThat(fromParcel.preferenceKey).isEqualTo(item.preferenceKey)
+        assertThat(fromParcel.highlighted).isTrue()
+        assertThat(fromParcel.groupIndex).isEqualTo(1)
+        assertThat(fromParcel.isOptional).isTrue()
         assertThat(fromParcel.extras.getString("key1")).isEqualTo(item.extras.getString("key1"))
+    }
+
+    @Test
+    fun parcelOperation_withDefaultValues() {
+        // Verifies parceling works correctly for an item with default values.
+        val item = DeviceSettingItem(settingId = 1)
+
+        val fromParcel = writeAndRead(item)
+
+        // Assert that all fields are correctly read from the parcel with their default values.
+        assertThat(fromParcel.settingId).isEqualTo(item.settingId)
+        assertThat(fromParcel.packageName).isNull()
+        assertThat(fromParcel.className).isNull()
+        assertThat(fromParcel.intentAction).isNull()
+        assertThat(fromParcel.preferenceKey).isNull()
+        assertThat(fromParcel.highlighted).isFalse()
+        assertThat(fromParcel.groupIndex).isNull()
+        assertThat(fromParcel.isOptional).isFalse()
+        // The `extras` bundle after parceling will contain the internal `isOptional` key.
+        assertThat(fromParcel.extras.getBoolean("isOptional")).isFalse()
+        // Since no other extras were added, the size should be 1.
+        assertThat(fromParcel.extras.size()).isEqualTo(1)
     }
 
     private fun writeAndRead(item: DeviceSettingItem): DeviceSettingItem {

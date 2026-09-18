@@ -84,7 +84,8 @@ public class AutomaticBrightnessController {
             AUTO_BRIGHTNESS_MODE_DEFAULT,
             AUTO_BRIGHTNESS_MODE_IDLE,
             AUTO_BRIGHTNESS_MODE_DOZE,
-            AUTO_BRIGHTNESS_MODE_BEDTIME_WEAR
+            AUTO_BRIGHTNESS_MODE_BEDTIME_WEAR,
+            AUTO_BRIGHTNESS_MODE_CHARGING
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface AutomaticBrightnessMode{}
@@ -93,7 +94,8 @@ public class AutomaticBrightnessController {
     public static final int AUTO_BRIGHTNESS_MODE_IDLE = 1;
     public static final int AUTO_BRIGHTNESS_MODE_DOZE = 2;
     public static final int AUTO_BRIGHTNESS_MODE_BEDTIME_WEAR = 3;
-    public static final int AUTO_BRIGHTNESS_MODE_MAX = AUTO_BRIGHTNESS_MODE_DOZE;
+    public static final int AUTO_BRIGHTNESS_MODE_CHARGING = 4;
+    public static final int AUTO_BRIGHTNESS_MODE_MAX = AUTO_BRIGHTNESS_MODE_CHARGING;
 
     // How long the current sensor reading is assumed to be valid beyond the current time.
     // This provides a bit of prediction, as well as ensures that the weight for the last sample is
@@ -197,7 +199,7 @@ public class AutomaticBrightnessController {
     private float mFastAmbientLux;
 
     // The last ambient lux value prior to passing the darkening or brightening threshold.
-    private float mPreThresholdLux;
+    private float mPreThresholdLux = INVALID_LUX;
 
     // True if mAmbientLux holds a valid value.
     private boolean mAmbientLuxValid;
@@ -519,6 +521,17 @@ public class AutomaticBrightnessController {
         return mAmbientLux;
     }
 
+    /**
+     * @return The absolute difference between the current and previous ambient lux values, or
+     * {@link BrightnessMappingStrategy#INVALID_LUX} if one of them is invalid.
+     */
+    float getLuxDelta() {
+        if (mPreThresholdLux == INVALID_LUX || mAmbientLux == INVALID_LUX) {
+            return INVALID_LUX;
+        }
+        return Math.abs(mAmbientLux - mPreThresholdLux);
+    }
+
     float getSlowAmbientLux() {
         return mSlowAmbientLux;
     }
@@ -718,7 +731,7 @@ public class AutomaticBrightnessController {
             mLightSensorEnabled = false;
             mAmbientLuxValid = !mResetAmbientLuxAfterWarmUpConfig;
             if (!mAmbientLuxValid) {
-                mPreThresholdLux = PowerManager.BRIGHTNESS_INVALID_FLOAT;
+                mPreThresholdLux = INVALID_LUX;
             }
             mScreenAutoBrightness = PowerManager.BRIGHTNESS_INVALID_FLOAT;
             mRawScreenAutoBrightness = PowerManager.BRIGHTNESS_INVALID_FLOAT;
@@ -1305,7 +1318,8 @@ public class AutomaticBrightnessController {
         return (mDisplayManagerFlags.isNormalBrightnessForDozeParameterEnabled(mContext)
                 ? (!mUseNormalBrightnessForDoze && mDisplayPolicy == POLICY_DOZE)
                         || Display.isDozeState(mDisplayState) : Display.isDozeState(mDisplayState))
-                && getMode() != AUTO_BRIGHTNESS_MODE_DOZE;
+                && getMode() != AUTO_BRIGHTNESS_MODE_DOZE
+                && getMode() != AUTO_BRIGHTNESS_MODE_CHARGING;
     }
 
     private class ShortTermModel {
@@ -1425,6 +1439,10 @@ public class AutomaticBrightnessController {
                 // The time received from the sensor is in nano seconds, hence changing it to ms
                 final long time = TimeUnit.NANOSECONDS.toMillis(event.timestamp);
                 final float lux = event.values[0];
+                if (Float.isNaN(lux)) {
+                    Slog.e(TAG, "Light sensor reported NaN lux value, ignoring.");
+                    return;
+                }
                 handleLightSensorEvent(time, lux);
             }
         }

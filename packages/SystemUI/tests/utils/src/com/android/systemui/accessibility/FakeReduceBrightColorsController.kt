@@ -17,7 +17,6 @@
 package com.android.systemui.accessibility
 
 import android.content.res.Resources
-import com.android.server.display.feature.flags.Flags
 import com.android.systemui.qs.ReduceBrightColorsController
 
 class FakeReduceBrightColorsController : ReduceBrightColorsController {
@@ -49,8 +48,7 @@ class FakeReduceBrightColorsController : ReduceBrightColorsController {
 
     override fun isInUpgradeMode(resources: Resources?): Boolean {
         if (resources != null) {
-            return Flags.evenDimmer() &&
-                resources.getBoolean(com.android.internal.R.bool.config_evenDimmerEnabled)
+            return resources.getBoolean(com.android.internal.R.bool.config_evenDimmerEnabled)
         }
         return false
     }

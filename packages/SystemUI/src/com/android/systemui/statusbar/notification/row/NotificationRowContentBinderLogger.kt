@@ -91,22 +91,18 @@ constructor(@NotifInflationLog private val buffer: LogBuffer) {
         )
     }
 
-    fun logInflateSingleLine(
-        entry: String?,
-        @InflationFlag inflationFlags: Int,
-        isConversation: Boolean,
-    ) {
+    fun logInflateSingleLine(entry: String?, @InflationFlag inflationFlags: Int, type: String) {
         buffer.log(
             TAG,
             LogLevel.DEBUG,
             {
                 str1 = entry
                 int1 = inflationFlags
-                bool1 = isConversation
+                str2 = type
             },
             {
                 "inflateSingleLineView, inflationFlags: ${flagToString(int1)} for $str1, " +
-                    "isConversation: $bool1"
+                    "type: $str2"
             },
         )
     }

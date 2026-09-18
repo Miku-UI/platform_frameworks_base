@@ -38,22 +38,8 @@ sysprop_library {
 }
 
 sysprop_library {
-    name: "com.android.sysprop.foldlockbehavior",
-    srcs: ["FoldLockBehaviorProperties.sysprop"],
-    property_owner: "Platform",
-    api_packages: ["android.sysprop"],
-}
-
-sysprop_library {
     name: "com.android.sysprop.view",
     srcs: ["ViewProperties.sysprop"],
-    property_owner: "Platform",
-    api_packages: ["android.sysprop"],
-}
-
-sysprop_library {
-    name: "com.android.sysprop.nativebinderstats",
-    srcs: ["NativeBinderStatsProperties.sysprop"],
     property_owner: "Platform",
     api_packages: ["android.sysprop"],
 }

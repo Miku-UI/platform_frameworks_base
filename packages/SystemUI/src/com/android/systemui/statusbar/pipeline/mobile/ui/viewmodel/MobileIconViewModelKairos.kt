@@ -16,12 +16,10 @@
 
 package com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel
 
-import com.android.systemui.Flags.statusBarStaticInoutIndicators
-import com.android.systemui.KairosBuilder
+import com.android.settingslib.R as settingsLibR
 import com.android.systemui.activated
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.State as KairosState
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.combine
@@ -29,19 +27,21 @@ import com.android.systemui.kairos.flatMap
 import com.android.systemui.kairos.map
 import com.android.systemui.kairos.stateOf
 import com.android.systemui.kairos.util.nameTag
-import com.android.systemui.kairosBuilder
 import com.android.systemui.log.table.logDiffsForTable
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.core.NewStatusBarIcons
 import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
+import com.android.systemui.statusbar.pipeline.mobile.NewSatelliteIcon
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIconInteractorKairos
 import com.android.systemui.statusbar.pipeline.mobile.domain.model.SignalIconModel
 import com.android.systemui.statusbar.pipeline.mobile.ui.model.MobileContentDescription
 import com.android.systemui.statusbar.pipeline.shared.ConnectivityConstants
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
+import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
+import com.android.systemui.util.lifecycle.kairos.KairosBuilder
+import com.android.systemui.util.lifecycle.kairos.kairosBuilder
 
 /** Common interface for all of the location-based mobile icon view models. */
-@ExperimentalKairosApi
 interface MobileIconViewModelKairosCommon {
     val subscriptionId: Int
     val iconInteractor: MobileIconInteractorKairos
@@ -67,7 +67,6 @@ interface MobileIconViewModelKairosCommon {
  * There will be exactly one [MobileIconViewModelKairos] per filtered subscription offered from
  * [MobileIconsInteractorKairos.filteredSubscriptions].
  */
-@ExperimentalKairosApi
 class MobileIconViewModelKairos(
     override val subscriptionId: Int,
     override val iconInteractor: MobileIconInteractorKairos,
@@ -134,7 +133,6 @@ class MobileIconViewModelKairos(
 }
 
 /** Representation of this network when it is non-terrestrial (e.g., satellite) */
-@ExperimentalKairosApi
 private class CarrierBasedSatelliteViewModelKairosImpl(
     override val subscriptionId: Int,
     override val iconInteractor: MobileIconInteractorKairos,
@@ -144,11 +142,48 @@ private class CarrierBasedSatelliteViewModelKairosImpl(
     override val icon: KairosState<SignalIconModel>
         get() = iconInteractor.signalLevelIcon
 
-    override val contentDescription: KairosState<MobileContentDescription?> = stateOf(null)
+    override val contentDescription: KairosState<MobileContentDescription?> =
+        if (NewSatelliteIcon.isEnabled) {
+            icon.map { iconModel ->
+                if (iconModel is SignalIconModel.CellularTypeIconModel.SatelliteV2) {
+                    val reportedLevel =
+                        if (iconModel.numberOfLevels == 6) {
+                            iconModel.level - 1
+                        } else {
+                            iconModel.level
+                        }
+                    val resId =
+                        when (reportedLevel) {
+                            0 -> R.string.accessibility_status_bar_satellite_no_connection
+                            1,
+                            2 -> R.string.accessibility_status_bar_satellite_poor_connection
+                            3,
+                            4 -> R.string.accessibility_status_bar_satellite_good_connection
+                            else -> R.string.accessibility_status_bar_satellite_no_connection
+                        }
+                    MobileContentDescription.SatelliteContentDescription(resId)
+                } else {
+                    null
+                }
+            }
+        } else {
+            stateOf(null)
+        }
+
+    override val networkTypeIcon: KairosState<Icon.Resource?> =
+        stateOf(
+            if (NewSatelliteIcon.isEnabled) {
+                Icon.Resource(
+                    settingsLibR.drawable.ic_sat_mobiledata,
+                    ContentDescription.Resource(R.string.accessibility_status_bar_satellite_symbol),
+                )
+            } else {
+                null
+            }
+        )
 
     /** These fields are not used for satellite icons currently */
     override val roaming: KairosState<Boolean> = stateOf(false)
-    override val networkTypeIcon: KairosState<Icon.Resource?> = stateOf(null)
     override val networkTypeBackground: KairosState<Icon.Resource?> = stateOf(null)
     override val activityInVisible: KairosState<Boolean> = stateOf(false)
     override val activityOutVisible: KairosState<Boolean> = stateOf(false)
@@ -156,7 +191,6 @@ private class CarrierBasedSatelliteViewModelKairosImpl(
 }
 
 /** Terrestrial (cellular) icon. */
-@ExperimentalKairosApi
 private class CellularIconViewModelKairos(
     override val subscriptionId: Int,
     override val iconInteractor: MobileIconInteractorKairos,
@@ -206,13 +240,13 @@ private class CellularIconViewModelKairos(
     override val contentDescription: KairosState<MobileContentDescription?> =
         combine(iconInteractor.signalLevelIcon, iconInteractor.networkName) { icon, nameModel ->
             when (icon) {
-                is SignalIconModel.Cellular ->
+                is SignalIconModel.CellularTypeIconModel.Cellular ->
                     MobileContentDescription.Cellular(nameModel.name, icon.levelDescriptionRes())
                 else -> null
             }
         }
 
-    private fun SignalIconModel.Cellular.levelDescriptionRes() =
+    private fun SignalIconModel.CellularTypeIconModel.Cellular.levelDescriptionRes() =
         when (level) {
             0 -> R.string.accessibility_no_signal
             1 -> R.string.accessibility_one_bar
@@ -318,7 +352,7 @@ private class CellularIconViewModelKairos(
         activity.map { it?.hasActivityOut ?: false }
 
     override val activityContainerVisible: KairosState<Boolean> =
-        if (statusBarStaticInoutIndicators()) {
+        if (SystemStatusIconsInCompose.isEnabled) {
             stateOf(constants.shouldShowActivityConfig)
         } else {
             activity.map { it != null && (it.hasActivityIn || it.hasActivityOut) }

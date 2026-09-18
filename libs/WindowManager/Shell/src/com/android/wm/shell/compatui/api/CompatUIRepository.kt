@@ -16,18 +16,17 @@
 
 package com.android.wm.shell.compatui.api
 
-/** Abstraction for the repository of all the available CompatUISpec */
-interface CompatUIRepository {
-    /**
-     * Adds a {@link CompatUISpec} to the repository
-     *
-     * @throws IllegalStateException in case of illegal spec
-     */
-    fun addSpec(spec: CompatUISpec)
+import com.android.internal.protolog.ProtoLog
+import com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_APP_COMPAT
+import com.android.wm.shell.repository.GenericRepository
+import com.android.wm.shell.repository.MemoryRepositoryImpl
 
-    /** Iterates on the list of available {@link CompatUISpec} invoking fn for each of them. */
-    fun iterateOn(fn: (CompatUISpec) -> Unit)
+/** Repository of all the available CompatUISpec */
+class CompatUIRepository() :
+    GenericRepository<String, CompatUISpec> by MemoryRepositoryImpl(
+        logger = { msg -> ProtoLog.v(WM_SHELL_APP_COMPAT, "CompatUIRepository: %s", msg) }
+    ) {
 
-    /** Returns the {@link CompatUISpec} for a given key */
-    fun findSpec(name: String): CompatUISpec?
+    /** Simple way to register a [CompatUISpec]. */
+    fun registerSpec(spec: CompatUISpec): Boolean = insert(spec.name, spec, true)
 }

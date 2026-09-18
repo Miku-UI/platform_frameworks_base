@@ -25,7 +25,6 @@ import android.content.ComponentName;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.ColorSpace;
-import android.graphics.GraphicBuffer;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.hardware.HardwareBuffer;
@@ -33,6 +32,7 @@ import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceControl;
 import android.view.WindowInsetsController;
@@ -50,6 +50,7 @@ import java.util.function.Consumer;
  * @hide
  */
 public class TaskSnapshot implements Parcelable {
+    private static final String TAG = "TaskSnapshot";
     // Identifier of this snapshot
     private final long mId;
     // The elapsed real time (in nanoseconds) when this snapshot was captured or loaded from disk
@@ -195,26 +196,13 @@ public class TaskSnapshot implements Parcelable {
     }
 
     /**
-     * @return The graphic buffer representing the screenshot.
-     *
-     * Note: Prefer {@link #getHardwareBuffer}, which returns the internal object. This version
-     * creates a new object.
-     *
-     * @deprecated Do not access hardware buffer directly.
-     */
-    @UnsupportedAppUsage
-    @Deprecated
-    public GraphicBuffer getSnapshot() {
-        return GraphicBuffer.createFromHardwareBuffer(mSnapshot);
-    }
-
-    /**
      * @return The hardware buffer representing the screenshot.
      * @deprecated Do not access hardware buffer directly.
      */
     @Deprecated
     public HardwareBuffer getHardwareBuffer() {
-        return mSnapshot;
+        Log.e(TAG, "getHardwareBuffer is deprecated!");
+        return null;
     }
 
     /**

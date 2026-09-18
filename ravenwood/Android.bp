@@ -20,6 +20,14 @@ filegroup {
 }
 
 filegroup {
+    name: "ravenwood-aidl-policies",
+    srcs: [
+        "texts/ravenwood-aidl-policies.txt",
+    ],
+    visibility: [":__subpackages__"],
+}
+
+filegroup {
     name: "ravenwood-services-policies",
     srcs: [
         "texts/ravenwood-services-policies.txt",
@@ -68,8 +76,8 @@ filegroup {
 }
 
 filegroup {
-    name: "ravenwood-services-jarjar-rules",
-    srcs: ["texts/ravenwood-services-jarjar-rules.txt"],
+    name: "ravenwood-services-rename-policies",
+    srcs: ["texts/ravenwood-services-rename-policies.txt"],
     visibility: ["//visibility:private"],
 }
 
@@ -101,10 +109,10 @@ java_library {
     host_supported: true,
     sdk_version: "core_current",
     srcs: ["common-src/**/*.java"],
-    static_libs: [
+    static_libs: ["modules-utils-ravenwood"],
+    libs: [
         "junit",
         "framework-annotations-lib",
-        "modules-utils-ravenwood",
     ],
     visibility: ["//visibility:private"],
     jarjar_rules: ":ravenwood-module-utils-jarjar-rules",
@@ -116,6 +124,7 @@ java_library_host {
     srcs: ["libcore-fake/**/*.java"],
     libs: [
         "app-compat-annotations",
+        "framework-annotations-lib",
         "ravenwood-common-utils",
     ],
     visibility: ["//visibility:private"],
@@ -127,12 +136,20 @@ java_host_for_device {
     visibility: ["//visibility:private"],
 }
 
-// We use java_import to strip out the sdk_version of AndroidX libraries.
+// We use java_import to ignore sdk_version of libraries, e.g. AndroidX.
+// This allows us to build ravenwood-junit-impl with core_current.
 java_import {
-    name: "ravenwood-androidx",
-    // Put the list of all AndroidX libraries Ravenwood needs here.
+    name: "ravenwood-deps",
     jars: [
-        ":androidx.test.monitor",
+        ":androidx.test.runner",
+        // Adds android.os.ext.SdkExtensions
+        ":framework-sdkextensions.impl{.jar}",
+        // Adds android.test.mock classes
+        ":android.test.mock.impl{.jar}",
+        // Adds android.test classes
+        ":android.test.legacy{.jar}",
+        // Adds android.testing classes
+        ":testable-framework-libs{.jar}",
     ],
     visibility: ["//visibility:private"],
 }
@@ -142,11 +159,12 @@ java_library {
     srcs: [
         ":framework-configinfrastructure-ravenwood-sources",
         ":framework-ravenwood-sources",
+        ":services.fakes-sources",
         "junit-impl-src/**/*.java",
         "junit-src/**/*.java",
     ],
     static_libs: [
-        "ravenwood-androidx",
+        "ravenwood-deps",
         "ravenwood-common-utils",
         "ravenwood-libcore",
         "ow2-asm",
@@ -156,17 +174,17 @@ java_library {
         "ow2-asm-util",
     ],
     libs: [
-        "framework-configinfrastructure.ravenwood",
         "framework-minus-apex.ravenwood",
+        "framework-updatable.ravenwood",
         "hoststubgen-helper-runtime",
-        "junit",
         "ravenwood-framework",
         "services.core.ravenwood",
         "objenesis",
+        "mockito-ravenwood-prebuilt",
     ],
     sdk_version: "core_current",
     visibility: [":__subpackages__"],
-    jarjar_rules: ":ravenwood-services-jarjar-rules",
+    jarjar_rules: "texts/ravenwood-runtime-jarjar-rules.txt",
 }
 
 java_device_for_host {
@@ -188,6 +206,7 @@ java_library {
     sdk_version: "core_current",
     static_libs: ["ravenwood-common-utils"],
     libs: [
+        "ravenwood-deps",
         "framework-minus-apex.ravenwood",
         "junit",
     ],
@@ -238,6 +257,9 @@ cc_library_host_shared {
     name: "libravenwood_runtime",
     defaults: ["ravenwood_jni_defaults"],
     header_libs: ["libicuuc_headers"],
+    cflags: [
+        "-DNATIVE_HELPER_EMULATE_ART_UTF_CHARS=1",
+    ],
     srcs: [
         "runtime-jni/ravenwood_os_constants.cpp",
         "runtime-jni/ravenwood_runtime.cpp",
@@ -246,6 +268,8 @@ cc_library_host_shared {
         "libbase",
         "libcutils",
         "libutils",
+        "libinput",
+        "libandroid_runtime_ravenwood",
     ],
 }
 
@@ -264,48 +288,20 @@ sh_test_host {
         ":services.core.ravenwood-stats{hoststubgen_services.core_dump.txt}",
         ":services.core.ravenwood-stats{hoststubgen_services.core_keep_all.txt}",
 
-        ":framework-configinfrastructure.ravenwood-stats{framework-configinfrastructure_apis.csv}",
-        ":framework-configinfrastructure.ravenwood-stats{framework-configinfrastructure_dump.txt}",
-        ":framework-configinfrastructure.ravenwood-stats{framework-configinfrastructure_keep_all.txt}",
-
-        ":framework-statsd.ravenwood-stats{framework-statsd_apis.csv}",
-        ":framework-statsd.ravenwood-stats{framework-statsd_dump.txt}",
-        ":framework-statsd.ravenwood-stats{framework-statsd_keep_all.txt}",
-
-        ":framework-graphics.ravenwood-stats{framework-graphics_apis.csv}",
-        ":framework-graphics.ravenwood-stats{framework-graphics_dump.txt}",
-        ":framework-graphics.ravenwood-stats{framework-graphics_keep_all.txt}",
+        ":framework-updatable.ravenwood-stats{hoststubgen_framework-updatable_apis.csv}",
+        ":framework-updatable.ravenwood-stats{hoststubgen_framework-updatable_dump.txt}",
+        ":framework-updatable.ravenwood-stats{hoststubgen_framework-updatable_keep_all.txt}",
     ],
-}
-
-java_library {
-    name: "services.fakes.ravenwood-jarjar",
-    installable: false,
-    srcs: [":services.fakes-sources"],
-    libs: [
-        "ravenwood-framework",
-        "services.core.ravenwood",
-    ],
-    jarjar_rules: ":ravenwood-services-jarjar-rules",
-    visibility: ["//visibility:private"],
 }
 
 // On Ravenwood, we now use Mockito 5 throughout.
 // Mockito 5 doesn't have an "inline-*" module, which only contained a "marker" file
 // which would signal Mockito 4 used inline-mockito.
-// Mockito 5 uses the "inline" storategy by default, so we no longer need an "inline"
+// Mockito 5 uses the "inline" strategy by default, so we no longer need an "inline"
 // module.
-// However, because we can't delete an existing jar in the runtime directory
-// for b/418236847, we still keep "inline-mockito-ravenwood-prebuilt" as an empty jar.
 java_import {
     name: "mockito-ravenwood-prebuilt",
     jars: [":mockito5-hostside-prebuilt"],
-    sdk_version: "core_current",
-}
-
-java_library {
-    name: "inline-mockito-ravenwood-prebuilt",
-    installable: false,
     sdk_version: "core_current",
 }
 
@@ -336,23 +332,15 @@ platform_compat_config {
     visibility: ["//visibility:private"],
 }
 
-java_library {
-    name: "ext-ravenwood",
-    installable: false,
-    static_libs: ["ext"],
-    visibility: ["//visibility:private"],
-}
-
 filegroup {
     name: "ravenwood-data",
     device_common_srcs: [
         ":framework-res",
+        ":motion_predictor_model",
         ":ravenwood-empty-res",
         ":ravenwood-framework-platform-compat-config",
         ":ravenwood-services.core-platform-compat-config",
         ":system-build.prop",
-        "texts/ravenwood-build.prop",
-        "texts/ravenwood-classpath.txt",
     ],
     device_first_srcs: [
         ":apex_icu.dat",
@@ -578,55 +566,138 @@ filegroup {
     visibility: ["//visibility:private"],
 }
 
+filegroup {
+    name: "ravenwood-keyboard-files",
+    device_first_srcs: [
+        ":keylayout_data",
+        ":keychars_data",
+        ":idc_data",
+    ],
+    visibility: ["//visibility:private"],
+}
+
+// The libraries listed in ravenwood-runtime.* should be in sync with
+// texts/ravenwood-classpath.txt.
+// ravenwood-classpath.txt determines the order of the jar files in the classpath.
+
+filegroup {
+    name: "ravenwood-core-data",
+    device_common_srcs: [
+        "texts/ravenwood-build.prop",
+        "texts/ravenwood-classpath.txt",
+    ],
+    visibility: ["//visibility:private"],
+}
+
 android_ravenwood_libgroup {
-    name: "ravenwood-runtime",
-    data: [":ravenwood-data"],
-    fonts: [":ravenwood-fonts"],
+    name: "ravenwood-runtime.ravenwood-core",
+    data: [
+        {
+            path: "ravenwood-data",
+            srcs: [":ravenwood-core-data"],
+        },
+    ],
     libs: [
-        // The libraries listed here should be in sync with texts/ravenwood-classpath.txt.
-        // ravenwood-classpath.txt determines the order of the jar files in the classpath.
-        "framework-minus-apex.ravenwood",
-        "kxml2-android",
-        "json-prebuilt",
-        "ext-ravenwood",
-        "android.test.mock.ravenwood",
         "hoststubgen-helper-runtime",
-        "services.core.ravenwood-jarjar",
-        "services.fakes.ravenwood-jarjar",
-        "core-icu4j-for-host.ravenwood",
-        "icu4j-icudata-jarjar",
-        "icu4j-icutzdata-jarjar",
-        "framework-configinfrastructure.ravenwood",
-        "framework-statsd.ravenwood",
-        "framework-graphics.ravenwood",
-        "junit",
-        "truth",
-        "flag-junit",
         "ravenwood-framework",
         "ravenwood-junit-impl",
-        "mockito-ravenwood-prebuilt",
-        "inline-mockito-ravenwood-prebuilt",
-        "framework-updatable-stubs-module_libs_api-for-host",
-        "all-updatable-modules-system-stubs-for-host",
     ],
     jni_libs: [
         // Libraries has to be loaded in the following order
         "libravenwood_initializer",
         "libravenwood_runtime",
-        "libandroid_runtime_ravenwood",
+    ],
+    // Install it along with "ravenwood-runtime".
+    install_name: "ravenwood-runtime",
+}
+
+android_ravenwood_libgroup {
+    name: "ravenwood-runtime.framework-minus-apex",
+    libs: [
+        "framework-minus-apex.ravenwood",
+    ],
+    // Install it along with "ravenwood-runtime".
+    install_name: "ravenwood-runtime",
+}
+
+android_ravenwood_libgroup {
+    name: "ravenwood-runtime.services.core",
+    libs: [
+        "services.core.ravenwood-jarjar",
+    ],
+    // Install it along with "ravenwood-runtime".
+    install_name: "ravenwood-runtime",
+}
+
+android_ravenwood_libgroup {
+    name: "ravenwood-runtime.framework-updatable",
+    libs: [
+        "framework-updatable.ravenwood",
+    ],
+    // Install it along with "ravenwood-runtime".
+    install_name: "ravenwood-runtime",
+}
+
+android_ravenwood_libgroup {
+    name: "ravenwood-runtime",
+    data: [
+        {
+            path: "ravenwood-data",
+            srcs: [":ravenwood-data"],
+        },
+        {
+            path: "fonts",
+            srcs: [":ravenwood-fonts"],
+        },
+        {
+            path: "hyph-data",
+            srcs: [":hyph-data"],
+        },
+        {
+            path: "keymaps",
+            srcs: [":ravenwood-keyboard-files"],
+        },
+    ],
+    subruntimes: [
+        "ravenwood-runtime.ravenwood-core",
+        "ravenwood-runtime.framework-minus-apex",
+        "ravenwood-runtime.framework-updatable",
+        "ravenwood-runtime.services.core",
+    ],
+    libs: [
+        "kxml2-android",
+        "json-prebuilt",
+        "ext",
+        "icu4j-icudata-jarjar",
+        "icu4j-icutzdata-jarjar",
+        "mockito-ravenwood-prebuilt",
+        "framework-updatable-stubs-module_libs_api-for-host",
+        "all-modules-system-stubs-for-host",
     ],
 }
 
 android_ravenwood_libgroup {
     name: "ravenwood-utils",
     libs: [
-        "flag-junit",
-        "inline-mockito-ravenwood-prebuilt",
         "junit",
         "mockito-ravenwood-prebuilt",
         "ravenwood-framework",
         "ravenwood-junit",
-        "truth",
+    ],
+}
+
+// Phony target to build all the Ravenwood specific artifacts:
+// - ravenwood-runtime
+// - ravenwood-utils
+// - ravenizer
+// - and their dependencies such as hoststubgen
+// This allows projects like go/sonata to easily build all the
+// necessary artifacts.
+phony {
+    name: "ravenwood",
+    required: [
+        // This module requires all the artifacts.
+        "RavenwoodMinimumTest",
     ],
 }
 

@@ -16,11 +16,11 @@
 
 package com.android.wm.shell.flicker.pip.nonmatchparent
 
-import androidx.test.filters.RequiresDevice
 import android.platform.test.annotations.RequiresFlagsDisabled
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
+import androidx.test.filters.RequiresDevice
 import org.junit.FixMethodOrder
 import org.junit.runner.RunWith
 import org.junit.runners.MethodSorters
@@ -55,8 +55,7 @@ import org.junit.runners.Parameterized
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class BottomHalfExitPipToAppViaIntentTest(flicker: FlickerTest) :
-    BottomHalfExitPipToAppTransition(flicker)
-{
+    BottomHalfExitPipToAppTransition(flicker) {
     override val thisTransition: FlickerBuilder.() -> Unit = {
         setup {
             // launch an app behind the pip one
@@ -66,8 +65,12 @@ class BottomHalfExitPipToAppViaIntentTest(flicker: FlickerTest) :
             // This will bring PipApp to fullscreen
             pipApp.exitPipToOriginalTaskViaIntent(wmHelper)
             // Wait until the transition idle and test and pip app still shows.
-            wmHelper.StateSyncBuilder().withLayerVisible(testApp).withLayerVisible(pipApp)
-                .withAppTransitionIdle().waitForAndVerify()
+            wmHelper
+                .StateSyncBuilder()
+                .withLayerVisible(testApp)
+                .withLayerVisible(pipApp)
+                .withAppTransitionIdle()
+                .waitForAndVerify()
         }
     }
 }

@@ -17,20 +17,19 @@ package com.android.systemui.shared.plugins
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.pm.ApplicationInfo
 import android.util.Log
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.FlakyTest
 import androidx.test.filters.SmallTest
-import androidx.test.runner.AndroidJUnit4
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.log.LogcatOnlyMessageBuffer
 import com.android.systemui.log.assertRunnableLogsWtf
 import com.android.systemui.log.core.LogLevel
-import com.android.systemui.log.core.MessageBuffer
 import com.android.systemui.plugins.Plugin
 import com.android.systemui.plugins.PluginLifecycleManager
 import com.android.systemui.plugins.PluginListener
-import com.android.systemui.plugins.PluginManager
 import com.android.systemui.plugins.PluginWrapper
 import com.android.systemui.plugins.TestPlugin
 import com.android.systemui.plugins.annotations.Requires
@@ -48,13 +47,16 @@ import junit.framework.TestCase.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.spy
+import org.mockito.kotlin.whenever
 
 @SmallTest
 @FlakyTest(bugId = 395832204)
 @RunWith(AndroidJUnit4::class)
 class PluginInstanceTest : SysuiTestCase() {
     private lateinit var mPluginListener: FakeListener
-    private lateinit var mVersionInfo: VersionInfo
 
     private var mVersionCheckResult = true
     private lateinit var mVersionChecker: VersionChecker
@@ -63,6 +65,14 @@ class PluginInstanceTest : SysuiTestCase() {
     private lateinit var mPluginInstance: PluginInstance<TestPlugin>
     private lateinit var mPluginInstanceFactory: PluginInstance.Factory
     private lateinit var mAppInfo: ApplicationInfo
+
+    private val mockPrefsEditor = mock<SharedPreferences.Editor>()
+    private val mockPrefs =
+        mock<SharedPreferences> { mock -> whenever(mock.edit()).thenReturn(mockPrefsEditor) }
+    private val spyContext =
+        spy(mContext) { mock ->
+            whenever(mock.getSharedPreferences(any<String>(), any<Int>())).thenReturn(mockPrefs)
+        }
 
     // Because we're testing memory in this file, we must be careful not to assert the target
     // objects, or capture them via mockito if we expect the garbage collector to later free them.
@@ -77,7 +87,6 @@ class PluginInstanceTest : SysuiTestCase() {
         mAppInfo = mContext.applicationInfo
         mAppInfo.packageName = TEST_PLUGIN_COMPONENT_NAME.packageName
         mPluginListener = FakeListener()
-        mVersionInfo = VersionInfo()
         mVersionChecker =
             object : VersionChecker {
                 override fun <T : Plugin> checkVersion(
@@ -89,7 +98,7 @@ class PluginInstanceTest : SysuiTestCase() {
                 }
 
                 override fun <T : Plugin> getVersionInfo(instanceClass: Class<T>): VersionInfo {
-                    return mVersionInfo
+                    return VersionInfo(instanceClass)
                 }
             }
 
@@ -97,8 +106,8 @@ class PluginInstanceTest : SysuiTestCase() {
             PluginInstance.Factory(
                 mVersionChecker,
                 javaClass.classLoader!!,
-                PluginManager.Config(listOf(PRIVILEGED_PACKAGE)),
-                BuildInfo(BuildVariant.User, isDebuggable = false),
+                PackageConfig(PRIVILEGED_PACKAGE),
+                PluginEnvironment(BuildVariant.User, isDebuggable = false),
             ) { _ ->
                 val plugin = TestPluginImpl(mCounter)
                 mPlugin = WeakReference(plugin)
@@ -107,7 +116,7 @@ class PluginInstanceTest : SysuiTestCase() {
 
         mPluginInstance =
             mPluginInstanceFactory.create(
-                mContext,
+                spyContext,
                 mAppInfo,
                 TEST_PLUGIN_COMPONENT_NAME,
                 TestPlugin::class.java,
@@ -137,7 +146,7 @@ class PluginInstanceTest : SysuiTestCase() {
 
         mPluginInstanceFactory
             .create(
-                mContext,
+                spyContext,
                 mAppInfo,
                 wrongVersionTestPluginComponentName,
                 TestPlugin::class.java,
@@ -310,7 +319,7 @@ class PluginInstanceTest : SysuiTestCase() {
             counter.mAllocatedInstances.getAndDecrement()
         }
 
-        override fun onCreate(sysuiContext: Context, pluginContext: Context) {
+        override fun onCreate(hostContext: Context, pluginContext: Context) {
             counter.mCreatedInstances.getAndIncrement()
         }
 
@@ -341,9 +350,7 @@ class PluginInstanceTest : SysuiTestCase() {
         var mUnloadCount: Int = 0
             private set
 
-        override fun getLogBuffer(): MessageBuffer {
-            return LogcatOnlyMessageBuffer(LogLevel.DEBUG)
-        }
+        override val logBuffer = LogcatOnlyMessageBuffer(LogLevel.DEBUG)
 
         override fun onPluginAttached(manager: PluginLifecycleManager<TestPlugin>): Boolean {
             mAttachedCount++

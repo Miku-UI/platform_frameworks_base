@@ -17,12 +17,15 @@
 package com.android.server.am;
 
 import static android.app.ActivityManagerInternal.OOM_ADJ_REASON_ACTIVITY;
-import static android.app.ActivityManagerInternal.OOM_ADJ_REASON_UI_VISIBILITY;
+import static android.app.ProcessMemoryState.HOSTING_COMPONENT_TYPE_FOREGROUND_SERVICE;
+import static android.app.privatecompute.flags.Flags.enablePccFrameworkSupport;
+import static android.os.Process.INVALID_UID;
 
 import static com.android.internal.util.Preconditions.checkArgument;
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_AM;
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_WITH_CLASS_NAME;
 import static com.android.server.am.ActivityManagerService.MY_PID;
+import static com.android.server.am.psc.Constants.INVALID_ADJ;
 
 import static java.util.Objects.requireNonNull;
 
@@ -34,6 +37,7 @@ import android.app.ApplicationExitInfo.Reason;
 import android.app.ApplicationExitInfo.SubReason;
 import android.app.BackgroundStartPrivileges;
 import android.app.IApplicationThread;
+import android.app.ProcessMemoryState.HostingComponentType;
 import android.content.ComponentName;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManagerInternal;
@@ -66,10 +70,12 @@ import com.android.internal.app.procstats.ProcessState;
 import com.android.internal.app.procstats.ProcessStats;
 import com.android.internal.os.Zygote;
 import com.android.server.FgThread;
-import com.android.server.am.OomAdjusterImpl.ProcessRecordNode;
-import com.android.server.am.ProcessCachedOptimizerRecord.ShouldNotFreezeReason;
+import com.android.server.am.psc.Constants.OomAdjust;
+import com.android.server.am.psc.OomAdjuster;
+import com.android.server.am.psc.OomAdjusterImpl.ProcessRecordNode;
 import com.android.server.am.psc.PlatformCompatCache.CachedCompatChangeId;
 import com.android.server.am.psc.ProcessRecordInternal;
+import com.android.server.am.psc.ProcessServiceRecordInternal;
 import com.android.server.wm.WindowProcessController;
 import com.android.server.wm.WindowProcessListener;
 
@@ -83,7 +89,8 @@ import java.util.function.Consumer;
  * Full information about a particular process that
  * is currently running.
  */
-class ProcessRecord extends ProcessRecordInternal implements WindowProcessListener {
+class ProcessRecord extends ProcessRecordInternal implements WindowProcessListener,
+        ProcessServiceRecordInternal.Observer {
     static final String TAG = TAG_WITH_CLASS_NAME ? "ProcessRecord" : TAG_AM;
 
     final ActivityManagerService mService; // where we came from
@@ -191,6 +198,12 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
     private long mStartSeq;
 
     /**
+     * Sequence id for identifying LRU update cycles.
+     */
+    @GuardedBy("mService")
+    private int mLruSeq;
+
+    /**
      * Params used in starting this process.
      */
     private volatile HostingRecord mHostingRecord;
@@ -247,6 +260,12 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
      */
     @GuardedBy("mService")
     private long[] mDisabledCompatChanges;
+
+    /**
+     * Set of enabled compat changes for the process (overrides).
+     */
+    @GuardedBy("mService")
+    private long[] mEnabledCompatChanges;
 
     /**
      * Set of compat changes for the process that are intended to be logged to logcat.
@@ -334,6 +353,30 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
             BackgroundStartPrivileges.NONE;
 
     /**
+     * Whether we have told usage stats about it being an interaction.
+     */
+    @CompositeRWLock({"mService", "mProcLock"})
+    private boolean mHasReportedInteraction;
+
+    /**
+     * When we became foreground for interaction purposes.
+     */
+    @CompositeRWLock({"mService", "mProcLock"})
+    private long mFgInteractionTime;
+
+    /**
+     * The time we sent the last interaction event.
+     */
+    @CompositeRWLock({"mService", "mProcLock"})
+    private long mInteractionEventTime;
+
+    /**
+     * When (uptime) the process last became unimportant.
+     */
+    @CompositeRWLock({"mService", "mProcLock"})
+    private long mWhenUnimportant;
+
+    /**
      * Controller for driving the process state on the window manager side.
      */
     private final WindowProcessController mWindowProcessController;
@@ -369,6 +412,11 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
     final ProcessCachedOptimizerRecord mOptRecord;
 
     /**
+     * The MemoryLimiter associated with this process.  The limiter may be null.
+     */
+    private final MemoryLimiter.Limiter mMemoryLimiter;
+
+    /**
      * The preceding instance of the process, which would exist when the previous process is killed
      * but not fully dead yet; in this case, the new instance of the process should be held until
      * this preceding instance is fully dead.
@@ -401,6 +449,12 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
     /** Whether the app was launched from a stopped state and is being unstopped. */
     @GuardedBy("mService")
     volatile boolean mWasForceStopped;
+
+    /**
+     * The last adjustment that was verified as actually being set.
+     */
+    @GuardedBy("mService")
+    private @OomAdjust int mVerifiedAdj = INVALID_ADJ;
 
     void setStartParams(int startUid, HostingRecord hostingRecord, String seInfo,
             long startUptime, long startElapsedTime) {
@@ -490,7 +544,8 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
         if (mPendingStart) {
             pw.print(prefix); pw.print("pendingStart="); pw.println(mPendingStart);
         }
-        pw.print(prefix); pw.print("startSeq="); pw.println(mStartSeq);
+        pw.print(prefix); pw.print("startSeq="); pw.print(mStartSeq);
+        pw.print(" lruSeq="); pw.println(mLruSeq);
         pw.print(prefix); pw.print("mountMode="); pw.println(
                 DebugUtils.valueToString(Zygote.class, "MOUNT_EXTERNAL_", mMountMode));
         if (isKilled() || isKilledByAm() || getWaitingToKill() != null) {
@@ -510,7 +565,26 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
             pw.print(prefix); pw.print("pendingUiClean="); pw.println(mProfile.hasPendingUiClean());
         }
         mProfile.dumpPss(pw, prefix, nowUptime);
+        if (mHasReportedInteraction || mFgInteractionTime != 0) {
+            pw.print(prefix); pw.print("reportedInteraction=");
+            pw.print(mHasReportedInteraction);
+            if (mInteractionEventTime != 0) {
+                pw.print(" time=");
+                TimeUtils.formatDuration(mInteractionEventTime, SystemClock.elapsedRealtime(), pw);
+            }
+            if (mFgInteractionTime != 0) {
+                pw.print(" fgInteractionTime=");
+                TimeUtils.formatDuration(mFgInteractionTime, SystemClock.elapsedRealtime(), pw);
+            }
+            pw.println();
+        }
         super.dump(pw, prefix, nowUptime);
+        if (getSetProcState() > ActivityManager.PROCESS_STATE_SERVICE) {
+            pw.print(prefix);
+            pw.print("whenUnimportant=");
+            TimeUtils.formatDuration(mWhenUnimportant - nowUptime, pw);
+            pw.println();
+        }
         mErrorState.dump(pw, prefix, nowUptime);
         mServices.dump(pw, prefix, nowUptime);
         mProviders.dump(pw, prefix, nowUptime);
@@ -573,7 +647,7 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
         mErrorState = new ProcessErrorStateRecord(this);
         mWindowProcessController = new WindowProcessController(
                 mService.mActivityTaskManager, info, processName, uid, userId, this, this);
-
+        mMemoryLimiter = mService.newMemoryLimiter();
 
         mOptRecord = new ProcessCachedOptimizerRecord(this);
         final long now = SystemClock.uptimeMillis();
@@ -622,6 +696,11 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
     @GuardedBy({"mService", "mProcLock"})
     void setUidRecord(UidRecord uidRecord) {
         mUidRecord = uidRecord;
+        if (mUidRecord != null) {
+            mMemoryLimiter.setUid(mUidRecord.getUid(), info.packageName);
+        } else {
+            mMemoryLimiter.setUid(INVALID_UID, null);
+        }
     }
 
     PackageList getPkgList() {
@@ -653,6 +732,7 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
         }
         mPid = pid;
         mWindowProcessController.setPid(pid);
+        mMemoryLimiter.setPid(getPid());
         mShortStringName = null;
         mStringName = null;
         synchronized (mProfile.mProfilerLock) {
@@ -821,6 +901,16 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
         mStartSeq = startSeq;
     }
 
+    @GuardedBy("mService")
+    int getLruSeq() {
+        return mLruSeq;
+    }
+
+    @GuardedBy("mService")
+    void setLruSeq(int lruSeq) {
+        mLruSeq = lruSeq;
+    }
+
     HostingRecord getHostingRecord() {
         return mHostingRecord;
     }
@@ -912,6 +1002,12 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
     }
 
     @GuardedBy("mService")
+    @Nullable
+    long[] getEnabledCompatChanges() {
+        return mEnabledCompatChanges;
+    }
+
+    @GuardedBy("mService")
     long[] getLoggableCompatChanges() {
         return mLoggableCompatChanges;
     }
@@ -924,6 +1020,11 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
     @GuardedBy("mService")
     void setDisabledCompatChanges(long[] disabledCompatChanges) {
         mDisabledCompatChanges = disabledCompatChanges;
+    }
+
+    @GuardedBy("mService")
+    void setEnabledCompatChanges(@Nullable long[] enabledCompatChanges) {
+        mEnabledCompatChanges = enabledCompatChanges;
     }
 
     @GuardedBy("mService")
@@ -962,17 +1063,12 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
                 isInstrumenting,
                 isInstrumenting ? instr.mSourceUid : -1,
                 isInstrumenting && instr.mHasBackgroundActivityStartsPermission);
+        mService.mProcessStateController.setHasActiveInstrumentation(this, isInstrumenting);
     }
 
     @GuardedBy(anyOf = {"mService", "mProcLock"})
     ActiveInstrumentation getActiveInstrumentation() {
         return mInstr;
-    }
-
-    @Override
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    public boolean hasActiveInstrumentation() {
-        return mInstr != null;
     }
 
     @GuardedBy(anyOf = {"mService", "mProcLock"})
@@ -997,6 +1093,60 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
     @GuardedBy("mService")
     boolean isDebugging() {
         return mDebugging;
+    }
+
+    @GuardedBy({"mServiceLock", "mProcLock"})
+    void setHasReportedInteraction(boolean hasReportedInteraction) {
+        mHasReportedInteraction = hasReportedInteraction;
+    }
+
+    @GuardedBy(anyOf = {"mServiceLock", "mProcLock"})
+    boolean getHasReportedInteraction() {
+        return mHasReportedInteraction;
+    }
+
+    /**
+     * Sets the time the process became foreground for interaction purposes, and notifies the
+     * WindowProcessController.
+     */
+    @GuardedBy({"mServiceLock", "mProcLock"})
+    void setFgInteractionTime(long fgInteractionTime) {
+        mFgInteractionTime = fgInteractionTime;
+        mWindowProcessController.setFgInteractionTime(mFgInteractionTime);
+    }
+
+    @GuardedBy(anyOf = {"mServiceLock", "mProcLock"})
+    long getFgInteractionTime() {
+        return mFgInteractionTime;
+    }
+
+    /**
+     * Sets the time the last interaction event was sent, and notifies the WindowProcessController.
+     */
+    @GuardedBy({"mServiceLock", "mProcLock"})
+    void setInteractionEventTime(long interactionEventTime) {
+        mInteractionEventTime = interactionEventTime;
+        mWindowProcessController.setInteractionEventTime(mInteractionEventTime);
+    }
+
+    @GuardedBy(anyOf = {"mServiceLock", "mProcLock"})
+    long getInteractionEventTime() {
+        return mInteractionEventTime;
+    }
+
+    /**
+     * Sets the uptime in milliseconds when the process last became unimportant, and notifies the
+     * WindowProcessController.
+     */
+    @GuardedBy({"mServiceLock", "mProcLock"})
+    void setWhenUnimportant(long whenUnimportant) {
+        mWhenUnimportant = whenUnimportant;
+        mWindowProcessController.setWhenUnimportant(mWhenUnimportant);
+    }
+
+    @GuardedBy(anyOf = {"mServiceLock", "mProcLock"})
+    long getWhenUnimportant() {
+        return mWhenUnimportant;
     }
 
     @Nullable
@@ -1069,55 +1219,12 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
         mInFullBackup = inFullBackup;
     }
 
-    @Override
     public boolean hasActivities() {
         return mWindowProcessController.hasActivities();
     }
 
-    @Override
-    public boolean isHeavyWeightProcess() {
-        return mWindowProcessController.isHeavyWeightProcess();
-    }
-
-    @Override
-    public boolean hasVisibleActivities() {
-        return mWindowProcessController.hasVisibleActivities();
-    }
-
-    @Override
-    public boolean isHomeProcess() {
-        return mWindowProcessController.isHomeProcess();
-    }
-
-    @Override
-    public boolean isPreviousProcess() {
-        return mWindowProcessController.isPreviousProcess();
-    }
-
-    @Override
     public boolean hasRecentTasks() {
         return mWindowProcessController.hasRecentTasks();
-    }
-
-    @Override
-    public boolean isShowingUiWhileDozing() {
-        return mWindowProcessController.isShowingUiWhileDozing();
-    }
-
-    @Override
-    public int getActivityStateFlagsLegacy() {
-        return mWindowProcessController.getActivityStateFlags();
-    }
-
-    @Override
-    public long getPerceptibleTaskStoppedTimeMillisLegacy() {
-        return mWindowProcessController.getPerceptibleTaskStoppedTimeMillis();
-    }
-
-
-    @Override
-    public boolean isReceivingBroadcast(int[] outSchedGroup) {
-        return mService.isReceivingBroadcastLocked(this, outSchedGroup);
     }
 
     @Override
@@ -1149,27 +1256,6 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
     @Override
     public boolean isPendingFreeze() {
         return mOptRecord.isPendingFreeze();
-    }
-
-    @Override
-    public boolean shouldNotFreeze() {
-        return mOptRecord.shouldNotFreeze();
-    }
-
-    @Override
-    public boolean setShouldNotFreeze(boolean shouldNotFreeze, boolean dryRun,
-            @ShouldNotFreezeReason int reason, int adjSeq) {
-        return mOptRecord.setShouldNotFreeze(shouldNotFreeze, dryRun, reason, adjSeq);
-    }
-
-    @Override
-    public @ShouldNotFreezeReason int shouldNotFreezeReason() {
-        return mOptRecord.shouldNotFreezeReason();
-    }
-
-    @Override
-    public int shouldNotFreezeAdjSeq() {
-        return mOptRecord.shouldNotFreezeAdjSeq();
     }
 
     @Override
@@ -1206,6 +1292,16 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
         return info;
     }
 
+    @GuardedBy("mService")
+    void setVerifiedAdj(@OomAdjust int verifiedAdj) {
+        mVerifiedAdj = verifiedAdj;
+    }
+
+    @GuardedBy("mService")
+    @OomAdjust int getVerifiedAdj() {
+        return mVerifiedAdj;
+    }
+
     @GuardedBy({"mService", "mProcLock"})
     boolean onCleanupApplicationRecordLSP(ProcessStatsService processStats, boolean allowRestart,
             boolean unlinkDeath) {
@@ -1216,9 +1312,10 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
             unlinkDeathRecipient();
         }
         makeInactive(processStats);
-        setWaitingToKill(null);
+        mService.mProcessStateController.setWaitingToKill(this, /* reason= */ null);
 
         super.onCleanupApplicationRecordLSP();
+        mVerifiedAdj = INVALID_ADJ;
         mService.mProcessStateController.onCleanupApplicationRecord(mServices);
         mReceivers.onCleanupApplicationRecordLocked();
         mService.mOomAdjuster.onProcessEndLocked(this);
@@ -1247,9 +1344,12 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
      * @param message exception message
      * @param exceptionTypeId ID defined in {@link android.app.RemoteServiceException} or one
      *                        of its subclasses.
+     * @param extras optional extras to pass to the exception.
+     * @param subReason the subreason for the crash if it fails to schedule.
      */
     @GuardedBy("mService")
-    void scheduleCrashLocked(String message, int exceptionTypeId, @Nullable Bundle extras) {
+    void scheduleCrashLocked(String message, int exceptionTypeId, @Nullable Bundle extras,
+            @SubReason int subReason) {
         // Checking killedbyAm should keep it from showing the crash dialog if the process
         // was already dead for a good / normal reason.
         if (!isKilledByAm()) {
@@ -1265,7 +1365,7 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
                     // If it's already dead our work is done. If it's wedged just kill it.
                     // We won't get the crash dialog or the error reporting.
                     killLocked("scheduleCrash for '" + message + "' failed",
-                            ApplicationExitInfo.REASON_CRASH, true);
+                            ApplicationExitInfo.REASON_CRASH, subReason, true);
                 } finally {
                     Binder.restoreCallingIdentity(ident);
                 }
@@ -1280,8 +1380,14 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
 
     @Override
     @GuardedBy("mService")
-    public void killLocked(String reason, String description, @Reason int reasonCode,
-            @SubReason int subReason, boolean noisy, boolean asyncKPG) {
+    public void killLocked(
+            String reason,
+            String description,
+            @Reason int reasonCode,
+            @SubReason int subReason,
+            @Nullable ApplicationExitInfo.AnrInfo anrInfo,
+            boolean noisy,
+            boolean asyncKPG) {
         if (!isKilledByAm()) {
             if (Trace.isTagEnabled(Trace.TRACE_TAG_ACTIVITY_MANAGER)) {
                 Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER,
@@ -1291,8 +1397,8 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
                     && mErrorState.getAnrAnnotation() != null) {
                 description = description + ": " + mErrorState.getAnrAnnotation();
             }
-            BoostFramework ux_perf = new BoostFramework();
-            if (mService != null && (noisy || info.uid == mService.mCurOomAdjUid)) {
+            if (mService != null
+                    && (noisy || info.uid == mService.mProcessStateController.getDebugUid())) {
                 mService.reportUidInfoMessageLocked(TAG,
                         "Killing " + toShortString() + " (adj " + getSetAdj()
                         + "): " + reason, info.uid);
@@ -1303,7 +1409,8 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
                 mOptRecord.setFrozen(false);
             }
             if (mPid > 0) {
-                mService.mProcessList.noteAppKill(this, reasonCode, subReason, description);
+                mService.mProcessList.noteAppKill(
+                        this, reasonCode, subReason, description, anrInfo);
                 EventLog.writeEvent(EventLogTags.AM_KILL,
                         userId, mPid, processName, getSetAdj(), reason, getRss(mPid));
                 Process.killProcessQuiet(mPid);
@@ -1313,8 +1420,8 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
             }
             if (!mPersistent) {
                 synchronized (mProcLock) {
-                    setKilled(true);
-                    setKilledByAm(true);
+                    mService.mProcessStateController.setKilled(this, true);
+                    mService.mProcessStateController.setKilledByAm(this, true);
                     mKillTime = SystemClock.uptimeMillis();
                 }
             }
@@ -1439,8 +1546,13 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
                 sb.append(appId);
             }
             if (uid != info.uid) {
-                sb.append('i');
-                sb.append(UserHandle.getAppId(uid) - Process.FIRST_ISOLATED_UID);
+                if (enablePccFrameworkSupport() && Process.isPrivateComputeCoreUid(uid))  {
+                    sb.append('p');
+                    sb.append(UserHandle.getAppId(uid) - Process.FIRST_PCC_UID);
+                } else {
+                    sb.append('i');
+                    sb.append(UserHandle.getAppId(uid) - Process.FIRST_ISOLATED_UID);
+                }
             }
         }
     }
@@ -1527,6 +1639,18 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
         mServices.onProcessFrozenCancelled();
     }
 
+    /**
+     * Called when the process state is updated.
+     *
+     * @param newProcState The new process state.
+     */
+    void onProcStateUpdated(@ActivityManager.ProcessState int newProcState) {
+        if (Flags.encapsulateCurProcState()) {
+            mWindowProcessController.setCurrentProcState(newProcState);
+        }
+        mMemoryLimiter.onProcStateUpdated(newProcState);
+    }
+
     /*
      *  Delete all packages from list except the package indicated in info
      */
@@ -1569,6 +1693,17 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
         return mPkgList.getPackageNames();
     }
 
+    @Override
+    public boolean shouldKeepWarm() {
+        final ArraySet<ComponentName> warmServices = mService.mConstants.KEEP_WARMING_SERVICES;
+        for (int i = warmServices.size() - 1; i >= 0; i--) {
+            if (mPkgList.containsKey(warmServices.valueAt(i).getPackageName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     List<VersionedPackage> getPackageListWithVersionCode() {
         return mPkgList.getPackageListWithVersionCode();
     }
@@ -1578,8 +1713,8 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
     }
 
     /**
-     * Allows background activity starts using token {@param entity}. Optionally, you can provide
-     * {@param originatingToken} if you have one such originating token, this is useful for tracing
+     * Allows background activity starts using token {@code entity}. Optionally, you can provide
+     * {@code originatingToken} if you have one such originating token, this is useful for tracing
      * back the grant in the case of the notification token.
      */
     void addOrUpdateBackgroundStartPrivileges(@NonNull Binder entity,
@@ -1655,8 +1790,7 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
         return mProfile.getNextPssTime();
     }
 
-    @Override
-    public void setLastCpuTime(long time) {
+    void setLastCpuTime(long time) {
         mProfile.mLastCpuTime.set(time);
     }
 
@@ -1712,7 +1846,7 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
     public void onStartActivity(int topProcessState, boolean setProfileProc, String packageName,
             long versionCode) {
         synchronized (mService) {
-            setWaitingToKill(null);
+            mService.mProcessStateController.setWaitingToKill(this, /* reason= */ null);
             if (setProfileProc) {
                 synchronized (mService.mAppProfiler.mProfilerLock) {
                     mService.mAppProfiler.setProfileProcLPf(this);
@@ -1745,15 +1879,8 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
             return;
         }
         synchronized (mService) {
-            if (mService.mProcessStateController.setRunningRemoteAnimation(this,
-                    runningRemoteAnimation)) {
-                if (Flags.autoTriggerOomadjUpdates()) {
-                    // Do nothing.
-                    // ProcessStateController handled the update in setRunningRemoteAnimation.
-                } else {
-                    mService.mProcessStateController.runUpdate(this, OOM_ADJ_REASON_UI_VISIBILITY);
-                }
-            }
+            mService.mProcessStateController.setRunningRemoteAnimation(this,
+                    runningRemoteAnimation);
         }
     }
 
@@ -1793,18 +1920,43 @@ class ProcessRecord extends ProcessRecordInternal implements WindowProcessListen
     public void forEachConnectionHost(Consumer<ProcessRecord> consumer) {
         for (int i = mServices.numberOfConnections() - 1; i >= 0; i--) {
             final ConnectionRecord cr = mServices.getConnectionAt(i);
-            final ProcessRecord service = cr.binding.service.app;
+            final ProcessRecord service = cr.binding.service.getHostProcess();
             consumer.accept(service);
         }
         for (int i = mServices.numberOfSdkSandboxConnections() - 1; i >= 0; i--) {
             final ConnectionRecord cr = mServices.getSdkSandboxConnectionAt(i);
-            final ProcessRecord service = cr.binding.service.app;
+            final ProcessRecord service = cr.binding.service.getHostProcess();
             consumer.accept(service);
         }
         for (int i = mProviders.numberOfProviderConnections() - 1; i >= 0; i--) {
             ContentProviderConnection cpc = mProviders.getProviderConnectionAt(i);
-            ProcessRecord provider = cpc.provider.proc;
+            ProcessRecord provider = cpc.provider.mProc;
             consumer.accept(provider);
         }
+    }
+
+    @Override
+    public void onHasClientActivitiesChanged(boolean hasClientActivities) {
+        mWindowProcessController.setHasClientActivities(hasClientActivities);
+    }
+
+    @Override
+    public void onHasForegroundServicesChanged(boolean hasForegroundServices) {
+        mWindowProcessController.setHasForegroundServices(hasForegroundServices);
+        if (hasForegroundServices) {
+            mProfile.addHostingComponentType(HOSTING_COMPONENT_TYPE_FOREGROUND_SERVICE);
+        } else {
+            mProfile.clearHostingComponentType(HOSTING_COMPONENT_TYPE_FOREGROUND_SERVICE);
+        }
+    }
+
+    @Override
+    public void addHostingComponentType(@HostingComponentType int type) {
+        mProfile.addHostingComponentType(type);
+    }
+
+    @Override
+    public void clearHostingComponentType(@HostingComponentType int type) {
+        mProfile.clearHostingComponentType(type);
     }
 }

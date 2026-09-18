@@ -190,15 +190,22 @@ constructor(
                 return configurationController.onConfigChanged
                     .onStart { emit(context.resources.configuration) }
                     .map { config ->
+                        val fixedDialogWidth =
+                            context.resources.getDimensionPixelSize(
+                                R.dimen.connected_display_dialog_fixed_width
+                            )
                         val width =
                             if (config.orientation == Configuration.ORIENTATION_LANDSCAPE) {
                                 // In landscape, set the window to a fixed width
-                                context.resources.getDimensionPixelSize(
-                                    R.dimen.connected_display_dialog_landscape_width
-                                )
+                                fixedDialogWidth
                             } else {
-                                // In portrait, make the window match the parent
-                                MATCH_PARENT
+                                // In portrait, make the window match the parent if device expects
+                                // an edge-to-edge dialog, otherwise set it to a fixed width
+                                val edgeToEdgeHorizontally =
+                                    context.resources.getBoolean(
+                                        R.bool.config_edgeToEdgeBottomSheetDialog
+                                    )
+                                if (edgeToEdgeHorizontally) MATCH_PARENT else fixedDialogWidth
                             }
                         Layout(width, WRAP_CONTENT)
                     }

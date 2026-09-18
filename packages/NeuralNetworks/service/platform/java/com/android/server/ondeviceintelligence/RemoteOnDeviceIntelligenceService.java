@@ -23,6 +23,7 @@ import android.annotation.NonNull;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Handler;
 import android.provider.Settings;
 import android.service.ondeviceintelligence.IOnDeviceIntelligenceService;
 import android.service.ondeviceintelligence.OnDeviceIntelligenceService;
@@ -40,11 +41,11 @@ public class RemoteOnDeviceIntelligenceService extends
             RemoteOnDeviceIntelligenceService.class.getSimpleName();
 
     RemoteOnDeviceIntelligenceService(Context context, ComponentName serviceName,
-            int userId) {
+            int userId, Handler handler) {
         super(context, new Intent(
                         OnDeviceIntelligenceService.SERVICE_INTERFACE).setComponent(serviceName),
                 BIND_FOREGROUND_SERVICE | BIND_INCLUDE_CAPABILITIES, userId,
-                IOnDeviceIntelligenceService.Stub::asInterface);
+                IOnDeviceIntelligenceService.Stub::asInterface, handler);
 
         // Bind right away
         connect();

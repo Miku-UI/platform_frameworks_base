@@ -16,11 +16,11 @@
 
 package com.android.wm.shell.util
 
+import com.android.testing.wm.util.BaseChangeTestContext
 import com.android.wm.shell.compatui.letterbox.lifecycle.LetterboxLifecycleEvent
 import com.android.wm.shell.compatui.letterbox.lifecycle.LetterboxLifecycleEventFactory
 
-@DslMarker
-annotation class LetterboxLifecycleEventFactoryTagMarker
+@DslMarker annotation class LetterboxLifecycleEventFactoryTagMarker
 
 @LetterboxLifecycleEventFactoryTagMarker
 class LetterboxLifecycleEventFactoryTestContext(
@@ -38,12 +38,10 @@ class LetterboxLifecycleEventFactoryTestContext(
     }
 }
 
-/**
- * Function to run tests for the different [LetterboxLifecycleEventFactory] implementations.
- */
+/** Function to run tests for the different [LetterboxLifecycleEventFactory] implementations. */
 fun testLetterboxLifecycleEventFactory(
     testSubjectFactory: () -> LetterboxLifecycleEventFactory,
-    init: LetterboxLifecycleEventFactoryTestContext.() -> Unit
+    init: LetterboxLifecycleEventFactoryTestContext.() -> Unit,
 ): LetterboxLifecycleEventFactoryTestContext {
     val testContext = LetterboxLifecycleEventFactoryTestContext(testSubjectFactory)
     testContext.init()

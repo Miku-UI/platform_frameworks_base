@@ -19,6 +19,7 @@
 #include <dlfcn.h>
 #include <private/performance_hint_private.h>
 #include <utils/Log.h>
+#include <utils/Trace.h>
 
 #include <algorithm>
 #include <chrono>
@@ -26,6 +27,7 @@
 
 #include "../Properties.h"
 #include "RenderThread.h"
+#include "cutils/trace.h"
 #include "thread/CommonPool.h"
 
 using namespace std::chrono_literals;
@@ -81,6 +83,15 @@ void HintSessionWrapper::destroy() {
     mResetsSinceLastReport = 0;
 }
 
+void HintSessionWrapper::setHintSessionEnabled(bool enabled) {
+    mHintSessionEnabled = enabled;
+    if (mHintSessionEnabled) {
+        init();
+    } else {
+        destroy();
+    }
+}
+
 bool HintSessionWrapper::init() {
     if (mHintSession != nullptr) return true;
     // If we're waiting for the session
@@ -99,8 +110,8 @@ bool HintSessionWrapper::init() {
 
     // If it broke last time we tried this, shouldn't be running, or
     // has bad argument values, don't even bother
-    if (!mSessionValid || !Properties::useHintManager || !Properties::isDrawingEnabled() ||
-        mUiThreadId < 0 || mRenderThreadId < 0) {
+    if (!mSessionValid || !mHintSessionEnabled || !Properties::useHintManager ||
+        !Properties::isDrawingEnabled() || mUiThreadId < 0 || mRenderThreadId < 0) {
         return false;
     }
 
@@ -128,7 +139,7 @@ bool HintSessionWrapper::init() {
     return false;
 }
 
-void HintSessionWrapper::updateTargetWorkDuration(long targetWorkDurationNanos) {
+void HintSessionWrapper::updateTargetWorkDuration(int64_t targetWorkDurationNanos) {
     if (!init()) return;
     targetWorkDurationNanos = targetWorkDurationNanos * Properties::targetCpuTimePercentage / 100;
     if (targetWorkDurationNanos != mLastTargetWorkDuration &&
@@ -140,7 +151,7 @@ void HintSessionWrapper::updateTargetWorkDuration(long targetWorkDurationNanos) 
     mLastFrameNotification = systemTime();
 }
 
-void HintSessionWrapper::reportActualWorkDuration(long actualDurationNanos) {
+void HintSessionWrapper::reportActualWorkDuration(int64_t actualDurationNanos) {
     if (!init()) return;
     mResetsSinceLastReport = 0;
     if (actualDurationNanos > kSanityCheckLowerBound &&
@@ -168,6 +179,7 @@ void HintSessionWrapper::setActiveFunctorThreads(std::vector<pid_t> threadIds) {
 }
 
 void HintSessionWrapper::sendCpuLoadResetHint() {
+    ATRACE_CALL();
     static constexpr int kMaxResetsSinceLastReport = 2;
     if (!init()) return;
     nsecs_t now = systemTime();
@@ -175,6 +187,7 @@ void HintSessionWrapper::sendCpuLoadResetHint() {
         mResetsSinceLastReport <= kMaxResetsSinceLastReport) {
         ++mResetsSinceLastReport;
         mBinding->sendHint(mHintSession, static_cast<int32_t>(SessionHint::CPU_LOAD_RESET));
+        ATRACE_INSTANT("CPU_LOAD_RESET hint sent");
     }
     mLastFrameNotification = now;
 }

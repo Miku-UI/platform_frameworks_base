@@ -35,9 +35,9 @@ import static android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS;
 import static android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
 import static android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
 import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_EDGE_TO_EDGE_ENFORCED;
-import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_FORCE_DRAW_BAR_BACKGROUNDS;
 import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_NO_MOVE_ANIMATION;
 import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_OVERRIDE_LAYOUT_IN_DISPLAY_CUTOUT_MODE;
+import static android.view.WindowManager.LayoutParams.RENDERING_HINT_FORCE_DRAW_BAR_BACKGROUNDS;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -1228,7 +1228,7 @@ public class PhoneWindow extends Window implements MenuBuilder.Callback {
 
             final PanelFeatureState st = getPanelState(featureId, false);
 
-            if (event.isCanceled() || (mDecor != null && mDecor.mPrimaryActionMode != null) ||
+            if (event.isCanceled() || (mDecor != null && mDecor.hasPrimaryActionMode()) ||
                     (st == null)) {
                 return;
             }
@@ -2694,7 +2694,7 @@ public class PhoneWindow extends Window implements MenuBuilder.Callback {
                         FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS & ~getForcedWindowFlags());
             }
             if (mDecor.mForceWindowDrawsBarBackgrounds) {
-                params.privateFlags |= PRIVATE_FLAG_FORCE_DRAW_BAR_BACKGROUNDS;
+                params.renderingHints |= RENDERING_HINT_FORCE_DRAW_BAR_BACKGROUNDS;
             }
             params.privateFlags |= PRIVATE_FLAG_NO_MOVE_ANIMATION;
         }
@@ -2755,6 +2755,13 @@ public class PhoneWindow extends Window implements MenuBuilder.Callback {
             if (!haveDimAmount()) {
                 params.dimAmount = a.getFloat(
                         android.R.styleable.Window_backgroundDimAmount, 0.5f);
+            }
+            if (com.android.window.flags.Flags.supportCustomDimColor()) {
+                if (!hasDimColor() && a.hasValue(R.styleable.Window_backgroundDimColor)) {
+                    params.dimColor = Color.pack(
+                            a.getColor(R.styleable.Window_backgroundDimColor, Color.BLACK)
+                    );
+                }
             }
         }
 

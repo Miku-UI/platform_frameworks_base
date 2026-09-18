@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="app_label" msgid="1092971641119916701">"Virtuaalseadmete haldur"</string>
+    <string name="request_computer_control_access_dialog_title" msgid="1970509993635617382">"Kas lubada rakendusel &lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; kasutada ekraani automatiseerimist?"</string>
+    <string name="request_computer_control_access_per_app_consent_dialog_title" msgid="8118885324223570680">"Kas lubada rakendusel &lt;strong&gt;<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g>&lt;/strong&gt; kasutada ekraani automatiseerimist rakendusega &lt;strong&gt;<xliff:g id="AUTOMATABLE_APP_NAME">%2$s</xliff:g>&lt;/strong&gt;?"</string>
+    <string name="request_computer_control_access_dialog_description" msgid="3423347516805473691">"See rakendus saab näha teiste rakenduste ekraanikuva sisu ja sellega interakteeruda, et aidata teil toiminguid teha, isegi kui rakendused on taustal."</string>
+    <string name="request_computer_control_access_dialog_button_allow" msgid="6210271960695301518">"Ainult see kord"</string>
+    <string name="request_computer_control_access_dialog_button_dont_allow" msgid="4793579155406896411">"Ära luba"</string>
+    <string name="request_computer_control_access_dialog_button_always_allow" msgid="1551784758130170359">"Luba alati"</string>
+    <string name="automated_app_launch_warning_dialog_title" msgid="5210938311581044737">"<xliff:g id="AGENT_APP_NAME">%1$s</xliff:g> kasutab rakendust <xliff:g id="TARGET_APP_NAME">%2$s</xliff:g>"</string>
+    <string name="automated_app_launch_warning_dialog_description" msgid="5372128583106771831">"Ülesande edenemise vaatamiseks avage rakendus <xliff:g id="AGENT_APP_NAME_0">%1$s</xliff:g>.<xliff:g id="EMPTY_LINE">
+
+</xliff:g>Kui peatate ülesande kohe, võite oma edenemise kaotada. Taaskäivitamiseks avage <xliff:g id="AGENT_APP_NAME_1">%1$s</xliff:g>."</string>
+    <string name="automated_app_launch_warning_dialog_stop" msgid="5255022618671675595">"Peata ülesanne ja ava rakendus"</string>
+    <string name="automated_app_launch_warning_dialog_wait" msgid="3472782366270857170">"Sule"</string>
+</resources>

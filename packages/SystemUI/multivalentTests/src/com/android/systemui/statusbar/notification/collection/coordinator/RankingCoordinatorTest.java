@@ -59,7 +59,6 @@ import com.android.systemui.statusbar.notification.collection.listbuilder.plugga
 import com.android.systemui.statusbar.notification.collection.provider.HighPriorityProvider;
 import com.android.systemui.statusbar.notification.collection.render.NodeController;
 import com.android.systemui.statusbar.notification.collection.render.SectionHeaderController;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -158,7 +157,6 @@ public class RankingCoordinatorTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     public void testSilentHeader_clearableBundle_enableClearSectionTrue() {
         // Set up bundle with clearable listEntry child
         BundleEntry bundleEntry = new BundleEntry(BundleSpec.Companion.getNEWS());
@@ -316,7 +314,6 @@ public class RankingCoordinatorTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     public void testSilentSectioner_accepts_bundle() {
         BundleEntry bundleEntry = new BundleEntry(BundleSpec.Companion.getNEWS());
         assertTrue(mSilentSectioner.isInSection(bundleEntry));
@@ -330,7 +327,6 @@ public class RankingCoordinatorTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     public void testSilentSectionComparator_sortsBundlesByPrefixedKeys() {
         // This is the sorted order
         BundleEntry socialBundle = new BundleEntry(BundleSpec.Companion.getSOCIAL_MEDIA());
@@ -351,7 +347,6 @@ public class RankingCoordinatorTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     public void testSilentSectionComparator_sortsBundlesBeforeNotifs() {
         BundleEntry bundleEntry = new BundleEntry(BundleSpec.Companion.getSOCIAL_MEDIA());
         int comparison = mSilentSectioner.getComparator().compare(bundleEntry, mEntry);
@@ -361,7 +356,6 @@ public class RankingCoordinatorTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     public void testMinimizedSectioner_rejectsBundle() {
         BundleEntry bundleEntry = new BundleEntry(BundleSpec.Companion.getNEWS());
         assertFalse(mMinimizedSectioner.isInSection(bundleEntry));

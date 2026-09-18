@@ -21,6 +21,7 @@ import static com.android.internal.widget.remotecompose.core.documentation.Docum
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
+import com.android.internal.widget.remotecompose.core.Limits;
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
 import com.android.internal.widget.remotecompose.core.PaintContext;
@@ -32,11 +33,13 @@ import com.android.internal.widget.remotecompose.core.documentation.Documentatio
 import com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation;
 import com.android.internal.widget.remotecompose.core.operations.layout.Container;
 import com.android.internal.widget.remotecompose.core.operations.utilities.AnimatedFloatExpression;
+import com.android.internal.widget.remotecompose.core.operations.utilities.CollectionsAccess;
 import com.android.internal.widget.remotecompose.core.operations.utilities.NanMap;
 import com.android.internal.widget.remotecompose.core.serialize.MapSerializer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * This provides the mechanism to evolve the particles It consist of a restart equation and a list
@@ -52,8 +55,6 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
     private final float[][] mOutEquations;
     private int[] mVarId;
     private float[][] mParticles;
-    private static final int MAX_FLOAT_ARRAY = 2000;
-    private static final int MAX_EQU_LENGTH = 32;
     ParticlesCreate mParticlesSource;
 
     @NonNull
@@ -62,16 +63,17 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
         return mList;
     }
 
-    @NonNull private final ArrayList<Operation> mList = new ArrayList<>();
+    @NonNull
+    private final ArrayList<Operation> mList = new ArrayList<>();
 
     @NonNull AnimatedFloatExpression mExp = new AnimatedFloatExpression();
 
     /**
      * Create a new ParticlesLoop operation
      *
-     * @param id of the create
+     * @param id      of the create
      * @param restart the restart equation kills and restart when positive
-     * @param values the loop equations
+     * @param values  the loop equations
      */
     public ParticlesLoop(int id, @Nullable float [] restart, @NonNull float [][] values) {
         mId = id;
@@ -98,8 +100,8 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
                 float v = mRestart[i];
                 mOutRestart[i] =
                         (Float.isNaN(v)
-                                        && !AnimatedFloatExpression.isMathOperator(v)
-                                        && !NanMap.isDataVariable(v))
+                                && !AnimatedFloatExpression.isMathOperator(v)
+                                && !NanMap.isDataVariable(v))
                                 ? context.getFloat(Utils.idFromNan(v))
                                 : v;
             }
@@ -110,8 +112,8 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
                 float v = mEquation[j];
                 mOutEquations[i][j] =
                         (Float.isNaN(v)
-                                        && !AnimatedFloatExpression.isMathOperator(v)
-                                        && !NanMap.isDataVariable(v))
+                                && !AnimatedFloatExpression.isMathOperator(v)
+                                && !NanMap.isDataVariable(v))
                                 ? context.getFloat(Utils.idFromNan(v))
                                 : v;
             }
@@ -160,9 +162,9 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
     /**
      * Write the operation on the buffer
      *
-     * @param buffer the buffer to write to
-     * @param id the id of the particle system
-     * @param restart the restart equation
+     * @param buffer    the buffer to write to
+     * @param id        the id of the particle system
+     * @param restart   the restart equation
      * @param equations the equations to evolve the particles
      */
     public static void apply(
@@ -192,7 +194,7 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
     /**
      * Read this operation and add it to the list of operations
      *
-     * @param buffer the buffer to read
+     * @param buffer     the buffer to read
      * @param operations the list of operations that will be added to
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
@@ -200,9 +202,10 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
         int restartLen = buffer.readInt();
         float[] restart = null;
         if (restartLen > 0) {
-            if (restartLen > MAX_EQU_LENGTH) {
+            if (restartLen > Limits.MAX_EXPRESSION_SIZE) {
                 throw new RuntimeException(
-                        restartLen + " map entries more than max = " + MAX_EQU_LENGTH);
+                        restartLen + " map entries more than max = "
+                                + Limits.MAX_EXPRESSION_SIZE);
             }
             restart = new float[restartLen];
             for (int i = 0; i < restartLen; i++) {
@@ -211,17 +214,19 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
         }
 
         int varLen = buffer.readInt();
-        if (varLen > MAX_FLOAT_ARRAY) {
-            throw new RuntimeException(varLen + " map entries more than max = " + MAX_FLOAT_ARRAY);
+        if (varLen > Limits.MAX_PARTICLE_FLOAT_ARRAY_SIZE) {
+            throw new RuntimeException(varLen + " map entries more than max = "
+                    + Limits.MAX_PARTICLE_FLOAT_ARRAY_SIZE);
         }
 
         float[][] equations = new float[varLen][];
         for (int i = 0; i < varLen; i++) {
 
             int equLen = buffer.readInt();
-            if (equLen > MAX_EQU_LENGTH) {
+            if (equLen > Limits.MAX_EXPRESSION_SIZE) {
                 throw new RuntimeException(
-                        equLen + " map entries more than max = " + MAX_FLOAT_ARRAY);
+                        equLen + " map entries more than max = "
+                                + Limits.MAX_EXPRESSION_SIZE);
             }
             equations[i] = new float[equLen];
             for (int j = 0; j < equations[i].length; j++) {
@@ -238,17 +243,17 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
      * @param doc to append the description to.
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
-        doc.operation("Data Operations", OP_CODE, CLASS_NAME)
-                .description("This evolves the particles & recycles them")
-                .field(DocumentedOperation.INT, "id", "id of particle system")
+        doc.operation("Animation & Particles Operations", OP_CODE, CLASS_NAME)
+                .description("Update and recycle particles in a system")
+                .field(DocumentedOperation.INT, "id", "The ID of the particle system")
                 .field(
                         INT,
-                        "recycleLen",
-                        "the number of floats in restart equeation if 0 no restart")
-                .field(FLOAT_ARRAY, "values", "recycleLen", "array of floats")
-                .field(INT, "varLen", "the number of equations to follow")
-                .field(INT, "equLen", "the number of equations to follow")
-                .field(FLOAT_ARRAY, "values", "equLen", "floats for the equation");
+                        "restartLen",
+                        "The length of the restart equation (recycles particle if > 0)")
+                .field(FLOAT_ARRAY, "restartEquation", "The restart equation (RPN)")
+                .field(INT, "varCount", "The number of update equations")
+                .field(INT, "equLen[0..n]", "The length of each update equation")
+                .field(FLOAT_ARRAY, "equations[0..n]", "The update equations (RPN)");
     }
 
     @NonNull
@@ -260,6 +265,8 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
     @Override
     public void paint(@NonNull PaintContext context) {
         RemoteContext remoteContext = context.getContext();
+        CollectionsAccess ca = Objects.requireNonNull(remoteContext.getCollectionsAccess());
+
         for (int i = 0; i < mParticles.length; i++) {
             // Save the values to context TODO hand code the update
             for (int j = 0; j < mParticles[i].length; j++) {
@@ -268,7 +275,7 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
             }
             // Evaluate the update function
             for (int j = 0; j < mParticles[i].length; j++) {
-                mParticles[i][j] = mExp.eval(mOutEquations[j], mOutEquations[j].length);
+                mParticles[i][j] = mExp.eval(ca, mOutEquations[j], mOutEquations[j].length);
                 remoteContext.loadFloat(mVarId[j], mParticles[i][j]);
             }
             // test for reset
@@ -277,12 +284,12 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
                     float v = mRestart[k];
                     mOutRestart[k] =
                             (Float.isNaN(v)
-                                            && !AnimatedFloatExpression.isMathOperator(v)
-                                            && !NanMap.isDataVariable(v))
+                                    && !AnimatedFloatExpression.isMathOperator(v)
+                                    && !NanMap.isDataVariable(v))
                                     ? remoteContext.getFloat(Utils.idFromNan(v))
                                     : v;
                 }
-                if (mExp.eval(mOutRestart, mOutRestart.length) > 0) {
+                if (mExp.eval(ca, mOutRestart, mOutRestart.length) > 0) {
                     mParticlesSource.initializeParticle(i);
                 }
             }

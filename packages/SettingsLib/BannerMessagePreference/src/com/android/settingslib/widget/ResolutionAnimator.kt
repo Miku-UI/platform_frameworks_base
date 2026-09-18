@@ -178,5 +178,30 @@ internal class ResolutionAnimator(
 
         val TextView.resolutionDrawable: AnimatedVectorDrawable?
             get() = compoundDrawables.find { it != null } as? AnimatedVectorDrawable
+
+        /**
+         * Resets the banner's views to the default state (no resolution animation).
+         * Stops any pending transitions and resets drawable states.
+         */
+        @JvmStatic
+        fun resetBannerState(holder: PreferenceViewHolder) {
+            val defaultBannerContent: View? = holder.findView(R.id.banner_content)
+            val resolvedTextView: TextView? = holder.findView(R.id.resolved_banner_text)
+            val itemView = holder.itemView as ViewGroup
+
+            TransitionManager.endTransitions(itemView)
+
+            defaultBannerContent?.visibility = View.VISIBLE
+            resolvedTextView?.visibility = View.GONE
+
+            fun resetDrawables(drawable: Drawable?) {
+                (drawable as? AnimatedVectorDrawable)?.let { avd ->
+                    avd.stop()
+                    avd.reset()
+                }
+            }
+
+            resolvedTextView?.compoundDrawables?.forEach(::resetDrawables)
+        }
     }
 }

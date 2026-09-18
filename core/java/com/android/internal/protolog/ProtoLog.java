@@ -23,13 +23,14 @@ import android.ravenwood.annotation.RavenwoodReplace;
 import android.tracing.perfetto.DataSourceParams;
 import android.tracing.perfetto.InitArguments;
 import android.tracing.perfetto.Producer;
-
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.common.IProtoLog;
 import com.android.internal.protolog.common.IProtoLogGroup;
 import com.android.internal.protolog.common.LogLevel;
+
+import java.util.UUID;
 
 /**
  * ProtoLog API - exposes static logging methods. Usage of this API is similar
@@ -91,13 +92,26 @@ public class ProtoLog {
     }
 
     /**
-     * Initialize ProtoLog in this process.
+     * Synchronously initialize ProtoLog in this process.
      * <p>
      * This method MUST be called before any protologging is performed in this process.
      * Ensure that all groups that will be used for protologging are registered.
+     * <p>
+     * This method will block until the Perfetto producer and data source are initialized.
+     * For a non-blocking alternative, see {@link #initAsync(IProtoLogGroup...)}.
      */
     public static void init(@NonNull IProtoLogGroup... groups) {
         sController.init(groups);
+    }
+
+    /**
+     * Asynchronously initialize ProtoLog in this process.
+     * <p>
+     * This method is the non-blocking equivalent of {@link #init(IProtoLogGroup...)}.
+     * Initialization is performed on a background thread.
+     */
+    public static void initAsync(@NonNull IProtoLogGroup... groups) {
+        sController.initAsync(groups);
     }
 
     /**
@@ -210,42 +224,68 @@ public class ProtoLog {
         return sController.mProtoLogInstance;
     }
 
+    @NonNull
+    public static ProtoLogDataSource getSharedSingleInstanceDataSource() {
+        return getSharedSingleInstanceDataSource(true);
+    }
+
     /**
      * Gets or creates if it doesn't exist yet the protolog datasource to use in this process.
      * We should re-use the same datasource to avoid registering the datasource multiple times in
      * the same process, since there is no way to unregister the datasource after registration.
      *
+     * @param register if true, the datasource will be registered within this call. Otherwise,
+     *                 the caller is expected to register the returned datasource.
      * @return The single ProtoLog datasource instance to be shared across all ProtoLog tracing
      *         objects.
      */
     @NonNull
-    public static ProtoLogDataSource getSharedSingleInstanceDataSource() {
+    public static ProtoLogDataSource getSharedSingleInstanceDataSource(boolean register) {
         synchronized (sDataSourceLock) {
             if (sDataSource == null) {
-                Producer.init(InitArguments.DEFAULTS);
                 sDataSource = new ProtoLogDataSource();
-                DataSourceParams params =
-                        new DataSourceParams.Builder()
-                                .setBufferExhaustedPolicy(
-                                        DataSourceParams
-                                                .PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP)
-                                .build();
-                sDataSource.register(params);
+
+                if (register) {
+                    Producer.init(InitArguments.DEFAULTS);
+                    var policy = DataSourceParams
+                            .PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP;
+                    DataSourceParams params =
+                            new DataSourceParams.Builder()
+                                    .setBufferExhaustedPolicy(policy)
+                                    .build();
+                    sDataSource.register(params);
+                }
             }
+
             return sDataSource;
         }
     }
 
     private static void logStringMessage(@NonNull LogLevel logLevel, @NonNull IProtoLogGroup group,
             @NonNull String stringMessage, @NonNull Object... args) {
-        final var instance = sController.mProtoLogInstance;
+        IProtoLog instance = sController.mProtoLogInstance;
         if (instance == null) {
-            Log.wtf(LOG_TAG, "Trying to use ProtoLog before it is initialized in this process.");
-            return;
+            instance = initializeInstance(group);
+            if (instance == null) {
+                return;
+            }
         }
 
         if (instance.isEnabled(group, logLevel)) {
             instance.log(logLevel, group, stringMessage, args);
+        }
+    }
+
+    /** Keep this out of the hot path to facilitate JIT inlining of logStringMessage. */
+    private static IProtoLog initializeInstance(IProtoLogGroup group) {
+        if (android.tracing.Flags.protologAsyncInit()) {
+            initAsync(group);
+            Log.w(LOG_TAG, "ProtoLog used before initialization, calling initAsync");
+            return sController.mProtoLogInstance;
+        } else {
+            Log.wtfStack(LOG_TAG,
+                    "Trying to use ProtoLog before it is initialized in this process.");
+            return null;
         }
     }
 
@@ -278,4 +318,53 @@ public class ProtoLog {
         // already been made compatible with ravenwood.
         return true;
     }
+
+    /**
+     * This is only used by unit tests to wait until {@link #connectToConfigurationServiceAsync} is
+     * done. Because unit tests are sensitive to concurrent accesses.
+     */
+    @VisibleForTesting
+    public static void waitForInitialization() {
+        final IProtoLog currentInstance = getSingleInstance();
+        if (!(currentInstance instanceof PerfettoProtoLogImpl protoLog)) {
+            return;
+        }
+
+        protoLog.waitForInitialization();
+    }
+
+    private static final IProtoLogGroup PROTOLOG_GROUP = new IProtoLogGroup() {
+        private volatile boolean mLogToLogcat = true;
+
+        @Override
+        public boolean isEnabled() {
+            return true;
+        }
+
+        @Override
+        public boolean isLogToLogcat() {
+            return mLogToLogcat;
+        }
+
+        @Override
+        public String getTag() {
+            return "ProtoLog";
+        }
+
+        @Override
+        public void setLogToLogcat(boolean logToLogcat) {
+            mLogToLogcat = logToLogcat;
+        }
+
+        @Override
+        public String name() {
+            return "ProtoLog";
+        }
+
+        @Override
+        public int getId() {
+            return (int) UUID.nameUUIDFromBytes(ProtoLog.class.getName().getBytes())
+                    .getMostSignificantBits() % Integer.MAX_VALUE;
+        }
+    };
 }

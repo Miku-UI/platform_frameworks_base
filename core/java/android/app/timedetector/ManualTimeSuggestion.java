@@ -39,8 +39,9 @@ public final class ManualTimeSuggestion implements Parcelable {
     public static final @NonNull Creator<ManualTimeSuggestion> CREATOR =
             new Creator<ManualTimeSuggestion>() {
                 public ManualTimeSuggestion createFromParcel(Parcel in) {
-                    TimeSuggestionHelper helper = TimeSuggestionHelper.handleCreateFromParcel(
-                            ManualTimeSuggestion.class, in);
+                    TimeSuggestionHelper helper =
+                            TimeSuggestionHelper.handleCreateFromParcel(
+                                    ManualTimeSuggestion.class, in);
                     return new ManualTimeSuggestion(helper);
                 }
 
@@ -81,8 +82,8 @@ public final class ManualTimeSuggestion implements Parcelable {
 
     /**
      * Associates information with the instance that can be useful for debugging / logging. The
-     * information is present in {@link #toString()} but is not considered for
-     * {@link #equals(Object)} and {@link #hashCode()}.
+     * information is present in {@link #toString()} but is not considered for {@link
+     * #equals(Object)} and {@link #hashCode()}.
      */
     public void addDebugInfo(String... debugInfos) {
         mTimeSuggestionHelper.addDebugInfo(debugInfos);

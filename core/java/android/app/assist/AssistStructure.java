@@ -4,6 +4,7 @@ import static android.app.assist.flags.Flags.addPlaceholderViewForNullChild;
 import static android.credentials.Constants.FAILURE_CREDMAN_SELECTOR;
 import static android.credentials.Constants.SUCCESS_CREDMAN_SELECTOR;
 import static android.service.autofill.Flags.FLAG_AUTOFILL_CREDMAN_DEV_INTEGRATION;
+import static android.service.autofill.Flags.FLAG_STRING_REBUILD_API;
 
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
@@ -53,6 +54,8 @@ import android.view.ViewStructure.HtmlInfo.Builder;
 import android.view.WindowManager;
 import android.view.WindowManagerGlobal;
 import android.view.autofill.AutofillId;
+import android.view.autofill.AutofillNoiseInjectedData;
+import android.view.autofill.AutofillNoiseInjector;
 import android.view.autofill.AutofillValue;
 
 import java.util.ArrayList;
@@ -89,6 +92,25 @@ public class AssistStructure implements Parcelable {
     private static final int VALIDATE_WINDOW_TOKEN = 0x11111111;
     private static final int VALIDATE_VIEW_TOKEN = 0x22222222;
 
+    /**
+     * A flag indicating that the {@link AssistStructure} should be populated with only
+     * information about the window state, and exclude any screen content.
+     *
+     * <p>When this flag is set, the structure will contain metadata about the windows on
+     * the screen, but the {@link ViewNode} hierarchy within each window will be empty.
+     * This prevents the collection of any view-specific data, such as text, content
+     * descriptions, or other screen content.
+     *
+     * <p>This flag is set by the system when the requesting Voice Interaction Service
+     * does not declare {@code usesAssistStructureScreenContent } in its {@code
+     * <voice-interaction-service> } manifest block.
+     *
+     * It is an internal-only flag and is not part of the public SDK.
+     *
+     * @hide
+     */
+    public static final int FLAG_OMIT_SCREEN_CONTENT = 0x80000000;
+
     private boolean mHaveData;
 
     // The task id and component of the activity which this assist structure is for
@@ -108,6 +130,8 @@ public class AssistStructure implements Parcelable {
     private Rect mTmpRect = new Rect();
 
     private boolean mSanitizeOnWrite = false;
+    @Nullable private AutofillNoiseInjector mAutofillNoiseInjector;
+
     private long mAcquisitionStartTime;
     private long mAcquisitionEndTime;
 
@@ -205,6 +229,7 @@ public class AssistStructure implements Parcelable {
 
     final static class ParcelTransferWriter extends Binder {
         final boolean mWriteStructure;
+        final AutofillNoiseInjector mAutofillNoiseInjector;
         int mCurWindow;
         int mNumWindows;
         final ArrayList<ViewStackEntry> mViewStack = new ArrayList<>();
@@ -217,6 +242,7 @@ public class AssistStructure implements Parcelable {
 
         ParcelTransferWriter(AssistStructure as, Parcel out) {
             mSanitizeOnWrite = as.mSanitizeOnWrite;
+            mAutofillNoiseInjector = as.mAutofillNoiseInjector;
             mWriteStructure = as.waitForReady();
             out.writeInt(as.mFlags);
             out.writeInt(as.mAutofillFlags);
@@ -298,7 +324,7 @@ public class AssistStructure implements Parcelable {
                 child = new ViewNode();
             }
             int flags = child.writeSelfToParcel(out, pwriter, mSanitizeOnWrite,
-                    mTmpMatrix, /*willWriteChildren=*/true);
+                    mAutofillNoiseInjector, mTmpMatrix, /*willWriteChildren=*/true);
             mNumWrittenViews++;
             // If the child has children, push it on the stack to write them next.
             if ((flags&ViewNode.FLAGS_HAS_CHILDREN) != 0) {
@@ -534,7 +560,17 @@ public class AssistStructure implements Parcelable {
             mDisplayId = root.getDisplayId();
             mRoot = new ViewNode();
 
+
             ViewNodeBuilder builder = new ViewNodeBuilder(assist, mRoot, false);
+
+            // Determine if screen content should be omitted based on the flag.
+            if ((flags & FLAG_OMIT_SCREEN_CONTENT) != 0) {
+                Slog.d(TAG, "omitScreenContent was set, skipping view traversal");
+                // If the flag is set, do not proceed with the view hierarchy traversal.
+                // This effectively omits all view-specific information.
+                return; // Skip the traversal.
+            }
+
             if ((root.getWindowFlags() & WindowManager.LayoutParams.FLAG_SECURE) != 0) {
                 if (forAutoFill) {
                     final int viewFlags = resolveViewAutofillFlags(view.getContext(), flags);
@@ -669,6 +705,7 @@ public class AssistStructure implements Parcelable {
 
 
         AutofillValue mAutofillValue;
+        @Nullable AutofillNoiseInjectedData mAutofillNoiseInjectedData;
         CharSequence[] mAutofillOptions;
         boolean mSanitized;
         HtmlInfo mHtmlInfo;
@@ -745,6 +782,7 @@ public class AssistStructure implements Parcelable {
         static final int AUTOFILL_FLAGS_HAS_MAX_TEXT_LENGTH =          0x0400;
         static final int AUTOFILL_FLAGS_HAS_AUTOFILL_SESSION_ID =      0x0800;
         static final int AUTOFILL_FLAGS_HAS_HINT_ID_ENTRY =            0x1000;
+        static final int AUTOFILL_FLAGS_HAS_AUTOFILL_NOISE_INJECTED_DATA = 0X2000;
 
         int mFlags;
         int mAutofillFlags;
@@ -854,6 +892,10 @@ public class AssistStructure implements Parcelable {
                 if ((autofillFlags & AUTOFILL_FLAGS_HAS_AUTOFILL_VALUE) != 0) {
                     mAutofillValue = in.readParcelable(null, android.view.autofill.AutofillValue.class);
                 }
+                if ((autofillFlags & AUTOFILL_FLAGS_HAS_AUTOFILL_NOISE_INJECTED_DATA) != 0) {
+                    mAutofillNoiseInjectedData = in.readParcelable(
+                            null, android.view.autofill.AutofillNoiseInjectedData.class);
+                }
                 if ((autofillFlags & AUTOFILL_FLAGS_HAS_AUTOFILL_OPTIONS) != 0) {
                     mAutofillOptions = in.readCharSequenceArray();
                 }
@@ -935,6 +977,10 @@ public class AssistStructure implements Parcelable {
             mGetCredentialResultReceiver = in.readTypedObject(ResultReceiver.CREATOR);
         }
 
+        private boolean shouldWriteSensitive(boolean isSanitized, boolean sanitizeOnWrite) {
+            return isSanitized || !sanitizeOnWrite;
+        }
+
         /**
          * This does not write the child nodes.
          *
@@ -942,7 +988,8 @@ public class AssistStructure implements Parcelable {
          *                          calling this method.
          */
         int writeSelfToParcel(@NonNull Parcel out, @Nullable PooledStringWriter pwriter,
-                boolean sanitizeOnWrite, @Nullable float[] tmpMatrix, boolean willWriteChildren) {
+                boolean sanitizeOnWrite, @Nullable AutofillNoiseInjector autofillNoiseInjector,
+                @Nullable float[] tmpMatrix, boolean willWriteChildren) {
             // Guard used to skip non-sanitized data when writing for autofill.
             boolean writeSensitive = true;
 
@@ -1010,6 +1057,13 @@ public class AssistStructure implements Parcelable {
             if (mAutofillValue != null) {
                 autofillFlags |= AUTOFILL_FLAGS_HAS_AUTOFILL_VALUE;
             }
+            if (!shouldWriteSensitive(mSanitized, sanitizeOnWrite)
+                    && autofillNoiseInjector != null) {
+                mAutofillNoiseInjectedData = autofillNoiseInjector.injectNoise(this);
+                if (mAutofillNoiseInjectedData != null) {
+                    autofillFlags |= AUTOFILL_FLAGS_HAS_AUTOFILL_NOISE_INJECTED_DATA;
+                }
+            }
             if (mAutofillType != View.AUTOFILL_TYPE_NONE) {
                 autofillFlags |= AUTOFILL_FLAGS_HAS_AUTOFILL_TYPE;
             }
@@ -1041,7 +1095,7 @@ public class AssistStructure implements Parcelable {
             writeString(out, pwriter, mClassName);
 
             int writtenFlags = flags;
-            if (autofillFlags != 0 && (mSanitized || !sanitizeOnWrite)) {
+            if (autofillFlags != 0 && shouldWriteSensitive(mSanitized, sanitizeOnWrite)) {
                 // Remove 'checked' from sanitized autofill request.
                 writtenFlags = flags & ~FLAGS_CHECKED;
             }
@@ -1070,7 +1124,7 @@ public class AssistStructure implements Parcelable {
                 out.writeInt(mSanitized ? 1 : 0);
                 out.writeInt(mIsCredential ? 1 : 0);
                 out.writeInt(mImportantForAutofill);
-                writeSensitive = mSanitized || !sanitizeOnWrite;
+                writeSensitive = shouldWriteSensitive(mSanitized, sanitizeOnWrite);
                 if ((autofillFlags & AUTOFILL_FLAGS_HAS_AUTOFILL_VIEW_ID) != 0) {
                     out.writeInt(mAutofillId.getViewId());
                     if ((autofillFlags & AUTOFILL_FLAGS_HAS_AUTOFILL_VIRTUAL_VIEW_ID) != 0) {
@@ -1096,6 +1150,9 @@ public class AssistStructure implements Parcelable {
                         sanitizedValue = null;
                     }
                     out.writeParcelable(sanitizedValue, 0);
+                }
+                if ((autofillFlags & AUTOFILL_FLAGS_HAS_AUTOFILL_NOISE_INJECTED_DATA) != 0) {
+                    out.writeParcelable(mAutofillNoiseInjectedData, 0);
                 }
                 if ((autofillFlags & AUTOFILL_FLAGS_HAS_AUTOFILL_OPTIONS) != 0) {
                     out.writeCharSequenceArray(mAutofillOptions);
@@ -1260,6 +1317,26 @@ public class AssistStructure implements Parcelable {
          */
         @Nullable public AutofillValue getAutofillValue() {
             return mAutofillValue;
+        }
+
+        /**
+         * Gets the payload of noise-injected version text of this ViewNode. The
+         * payload is only returned when the current ViewNode's text is sensitive and
+         * stripped from the AssistStructure(i.e. {@link ViewNode#getText()} returns empty
+         * string). See the doc for {@link AutofillNoiseInjectedData} about the details
+         * of the noise-injection algorithm and suggestions on how to rebuild the
+         * non-private parts of the text at server side.
+         *
+         * <p> It's only relevant when the {@link AssistStructure} is used for autofill
+         * purpose, not for assist purposes.
+         *
+         *  @return the noise-injected text payload, or {@code null} if the structure
+         *          was created for assist purposes or if the ViewNode does not have text
+         *          eligible for providing a noise-injected version.
+         */
+        @FlaggedApi(FLAG_STRING_REBUILD_API)
+        @Nullable public AutofillNoiseInjectedData getAutofillNoiseInjectedData() {
+            return mAutofillNoiseInjectedData;
         }
 
         /** @hide **/
@@ -1876,7 +1953,7 @@ public class AssistStructure implements Parcelable {
         @Override
         public void writeToParcel(@NonNull Parcel parcel, int flags) {
             mViewNode.writeSelfToParcel(parcel, /*pwriter=*/null, /*sanitizeOnWrite=*/false,
-                    /*tmpMatrix*/null, /*willWriteChildren=*/ false);
+                    /*autofillNoiseInjector*/null, /*tmpMatrix*/null, /*willWriteChildren=*/ false);
         }
 
         @NonNull
@@ -2541,8 +2618,10 @@ public class AssistStructure implements Parcelable {
      * <p>Used just on autofill.
      * @hide
      */
-    public void sanitizeForParceling(boolean sanitize) {
+    public void sanitizeForParceling(
+            boolean sanitize, @Nullable AutofillNoiseInjector autofillNoiseInjector) {
         mSanitizeOnWrite = sanitize;
+        mAutofillNoiseInjector = autofillNoiseInjector;
     }
 
     /** @hide */

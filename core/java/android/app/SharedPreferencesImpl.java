@@ -25,6 +25,7 @@ import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.FileUtils;
 import android.os.Looper;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.StructStat;
@@ -61,6 +62,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+@RavenwoodKeepWholeClass
 final class SharedPreferencesImpl implements SharedPreferences {
     private static final String TAG = "SharedPreferencesImpl";
     private static final boolean DEBUG = false;
@@ -812,9 +814,7 @@ final class SharedPreferencesImpl implements SharedPreferences {
 
             writeTime = System.currentTimeMillis();
 
-            if (!Flags.sharedpreferencesSkipFsync()) {
-                FileUtils.sync(str);
-            }
+            FileUtils.sync(str);
 
             fsyncTime = System.currentTimeMillis();
 

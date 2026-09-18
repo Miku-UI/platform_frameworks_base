@@ -17,13 +17,13 @@
 
 package com.android.systemui.keyguard.ui.view.layout.sections
 
-import android.platform.test.annotations.DisableFlags
+import android.content.Context
+import android.testing.ViewUtils
 import android.view.View
+import android.view.ViewTreeObserver
 import android.widget.LinearLayout
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
-import androidx.constraintlayout.widget.ConstraintSet.GONE
-import androidx.constraintlayout.widget.ConstraintSet.VISIBLE
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -31,10 +31,9 @@ import com.android.systemui.keyguard.KeyguardUnlockAnimationController
 import com.android.systemui.keyguard.domain.interactor.KeyguardBlueprintInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardSmartspaceInteractor
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardClockViewModel
-import com.android.systemui.keyguard.ui.viewmodel.KeyguardRootViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardSmartspaceViewModel
-import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
 import com.android.systemui.res.R
+import com.android.systemui.runOnMainThreadAndWaitForIdleSync
 import com.android.systemui.shared.R as sharedR
 import com.android.systemui.statusbar.lockscreen.LockscreenSmartspaceController
 import com.google.common.truth.Truth.assertThat
@@ -46,11 +45,15 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
+import org.mockito.kotlin.clearInvocations
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.never
+import org.mockito.kotlin.spy
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 @RunWith(AndroidJUnit4::class)
 @SmallTest
-@DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
 class SmartspaceSectionTest : SysuiTestCase() {
     private lateinit var underTest: SmartspaceSection
     @Mock private lateinit var keyguardClockViewModel: KeyguardClockViewModel
@@ -59,11 +62,14 @@ class SmartspaceSectionTest : SysuiTestCase() {
     @Mock private lateinit var keyguardUnlockAnimationController: KeyguardUnlockAnimationController
     @Mock private lateinit var keyguardSmartspaceInteractor: KeyguardSmartspaceInteractor
     @Mock private lateinit var blueprintInteractor: Lazy<KeyguardBlueprintInteractor>
-    @Mock private lateinit var keyguardRootViewModel: KeyguardRootViewModel
 
     private val smartspaceView = View(mContext).also { it.id = sharedR.id.bc_smartspace_view }
     private val weatherView = View(mContext).also { it.id = sharedR.id.weather_smartspace_view }
+    private val weatherViewLarge =
+        View(mContext).also { it.id = sharedR.id.weather_smartspace_view_large }
     private val dateView = LinearLayout(mContext).also { it.id = sharedR.id.date_smartspace_view }
+    private val dateViewLarge =
+        LinearLayout(mContext).also { it.id = sharedR.id.date_smartspace_view_large }
     private lateinit var constraintLayout: ConstraintLayout
     private lateinit var constraintSet: ConstraintSet
 
@@ -87,15 +93,18 @@ class SmartspaceSectionTest : SysuiTestCase() {
                 lockscreenSmartspaceController,
                 keyguardUnlockAnimationController,
                 blueprintInteractor,
-                keyguardRootViewModel,
             )
         constraintLayout = ConstraintLayout(mContext)
         whenever(lockscreenSmartspaceController.buildAndConnectView(any()))
             .thenReturn(smartspaceView)
-        whenever(lockscreenSmartspaceController.buildAndConnectWeatherView(any(), any()))
+        whenever(lockscreenSmartspaceController.buildAndConnectWeatherView(any(), eq(false)))
             .thenReturn(weatherView)
-        whenever(lockscreenSmartspaceController.buildAndConnectDateView(any(), any()))
+        whenever(lockscreenSmartspaceController.buildAndConnectWeatherView(any(), eq(true)))
+            .thenReturn(weatherViewLarge)
+        whenever(lockscreenSmartspaceController.buildAndConnectDateView(any(), eq(false)))
             .thenReturn(dateView)
+        whenever(lockscreenSmartspaceController.buildAndConnectDateView(any(), eq(true)))
+            .thenReturn(dateViewLarge)
         whenever(keyguardClockViewModel.hasCustomWeatherDataDisplay)
             .thenReturn(hasCustomWeatherDataDisplay)
         whenever(keyguardClockViewModel.isLargeClockVisible).thenReturn(isLargeClockVisible)
@@ -111,38 +120,26 @@ class SmartspaceSectionTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
-    fun testAddViews_notSmartspaceEnabled() {
+    fun testAddViews_smartspaceNotEnabled() {
         whenever(keyguardSmartspaceViewModel.isSmartspaceEnabled).thenReturn(false)
-        val constraintLayout = ConstraintLayout(mContext)
+
         underTest.addViews(constraintLayout)
+
         assertThat(smartspaceView.parent).isNull()
         assertThat(weatherView.parent).isNull()
         assertThat(dateView.parent).isNull()
     }
 
     @Test
-    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
-    fun testAddViews_smartspaceEnabled_dateWeatherDecoupled() {
-        whenever(keyguardSmartspaceViewModel.isDateWeatherDecoupled).thenReturn(true)
+    fun testAddViews_smartspaceEnabled() {
         underTest.addViews(constraintLayout)
-        assert(smartspaceView.parent == constraintLayout)
+
+        assertThat(smartspaceView.parent).isEqualTo(constraintLayout)
         assertThat(weatherView.parent).isEqualTo(dateView)
-        assert(dateView.parent == constraintLayout)
+        assertThat(dateView.parent).isEqualTo(constraintLayout)
     }
 
     @Test
-    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
-    fun testAddViews_smartspaceEnabled_notDateWeatherDecoupled() {
-        whenever(keyguardSmartspaceViewModel.isDateWeatherDecoupled).thenReturn(false)
-        underTest.addViews(constraintLayout)
-        assert(smartspaceView.parent == constraintLayout)
-        assert(weatherView.parent == null)
-        assert(dateView.parent == null)
-    }
-
-    @Test
-    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
     fun testConstraintsWhenShadeLayoutIsNotWide() {
         underTest.addViews(constraintLayout)
         underTest.applyConstraints(constraintSet)
@@ -152,7 +149,6 @@ class SmartspaceSectionTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
     fun testConstraintsWhenShadeLayoutIsWide() {
         isFullWidthShade.value = false
 
@@ -164,23 +160,6 @@ class SmartspaceSectionTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
-    fun testConstraintsWhenNotHasCustomWeatherDataDisplay() {
-        whenever(keyguardSmartspaceViewModel.isDateWeatherDecoupled).thenReturn(true)
-        underTest.addViews(constraintLayout)
-        underTest.applyConstraints(constraintSet)
-        assertThat(weatherView.parent).isEqualTo(dateView)
-
-        val smartspaceConstraints = constraintSet.getConstraint(smartspaceView.id)
-        assertThat(smartspaceConstraints.layout.topToBottom).isEqualTo(dateView.id)
-
-        val dateConstraints = constraintSet.getConstraint(dateView.id)
-        assertThat(dateConstraints.layout.topToBottom)
-            .isEqualTo(ClockViewIds.LOCKSCREEN_CLOCK_VIEW_SMALL)
-    }
-
-    @Test
-    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
     fun testConstraintsWhenHasCustomWeatherDataDisplay() {
         hasCustomWeatherDataDisplay.value = true
         underTest.addViews(constraintLayout)
@@ -191,27 +170,50 @@ class SmartspaceSectionTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
-    fun testNormalDateWeatherVisibility() {
-        isWeatherVisibleFlow.value = true
-        underTest.addViews(constraintLayout)
-        underTest.applyConstraints(constraintSet)
-        assertThat(constraintSet.getVisibility(weatherView.id)).isEqualTo(VISIBLE)
+    fun testRemoveViews_unRegistersListener_fromAttachInfoTreeObserver() {
+        val ssViewWithSpiedTreeObserver =
+            ViewWithSpiedTreeObserver(mContext).also { it.id = sharedR.id.bc_smartspace_view }
+        whenever(lockscreenSmartspaceController.buildAndConnectView(any()))
+            .thenReturn(ssViewWithSpiedTreeObserver)
 
-        isWeatherVisibleFlow.value = false
-        underTest.applyConstraints(constraintSet)
-        assertThat(constraintSet.getVisibility(weatherView.id)).isEqualTo(GONE)
-        assertThat(constraintSet.getVisibility(dateView.id)).isEqualTo(VISIBLE)
+        runOnMainThreadAndWaitForIdleSync { ViewUtils.attachView(constraintLayout) }
+        assertThat(constraintLayout.isAttachedToWindow).isTrue()
+
+        runOnMainThreadAndWaitForIdleSync { underTest.addViews(constraintLayout) }
+
+        assertThat(ssViewWithSpiedTreeObserver.isAttachedToWindow).isTrue()
+        assertThat(ssViewWithSpiedTreeObserver.getSuperViewTreeObserver())
+            .isEqualTo(constraintLayout.viewTreeObserver)
+        val viewTreeObserver1 = ssViewWithSpiedTreeObserver.viewTreeObserver
+
+        verify(viewTreeObserver1).addOnGlobalLayoutListener(any())
+        clearInvocations(viewTreeObserver1)
+
+        runOnMainThreadAndWaitForIdleSync { underTest.removeViews(constraintLayout) }
+
+        assertThat(ssViewWithSpiedTreeObserver.isAttachedToWindow).isFalse()
+        assertThat(ssViewWithSpiedTreeObserver.getSuperViewTreeObserver())
+            .isNotEqualTo(constraintLayout.viewTreeObserver)
+        val viewTreeObserver2 = ssViewWithSpiedTreeObserver.viewTreeObserver
+        verify(viewTreeObserver1).removeOnGlobalLayoutListener(any())
+        verify(viewTreeObserver2, never()).removeOnGlobalLayoutListener(any())
     }
 
-    @Test
-    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
-    fun testCustomDateWeatherVisibility() {
-        hasCustomWeatherDataDisplay.value = true
-        underTest.addViews(constraintLayout)
-        underTest.applyConstraints(constraintSet)
+    class ViewWithSpiedTreeObserver(context: Context) : View(context) {
+        private var realTreeObserver: ViewTreeObserver? = null
+        private var spiedTreeObserver: ViewTreeObserver? = null
 
-        assertThat(constraintSet.getVisibility(weatherView.id)).isEqualTo(GONE)
-        assertThat(constraintSet.getVisibility(dateView.id)).isEqualTo(GONE)
+        override fun getViewTreeObserver(): ViewTreeObserver {
+            val viewViewTreeObserver = getSuperViewTreeObserver()
+            if (realTreeObserver == null || realTreeObserver !== viewViewTreeObserver) {
+                realTreeObserver = viewViewTreeObserver
+                spiedTreeObserver = spy(realTreeObserver)
+            }
+            return spiedTreeObserver!!
+        }
+
+        fun getSuperViewTreeObserver(): ViewTreeObserver {
+            return super.getViewTreeObserver()
+        }
     }
 }

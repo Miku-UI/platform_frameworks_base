@@ -45,11 +45,9 @@ public class NotificationChannelExtractor implements NotificationSignalExtractor
     static final long RESTRICT_AUDIO_ATTRIBUTES = 331793339L;
 
     private RankingConfig mConfig;
-    private Context mContext;
     private IPlatformCompat mPlatformCompat;
 
     public void initialize(Context ctx, NotificationUsageStats usageStats) {
-        mContext = ctx;
         if (DBG) Slog.d(TAG, "Initializing  " + getClass().getSimpleName() + ".");
     }
 
@@ -71,7 +69,7 @@ public class NotificationChannelExtractor implements NotificationSignalExtractor
                 record.getSbn().getPackageName(),
                 record.getSbn().getUid(), record.getChannel().getId(),
                 record.getSbn().getShortcutId(), true, false);
-        record.updateNotificationChannel(updatedChannel);
+        record.updateSystemNotificationChannel(updatedChannel);
 
         AudioAttributes attributes = record.getChannel().getAudioAttributes();
         if (attributes == null) {
@@ -100,7 +98,7 @@ public class NotificationChannelExtractor implements NotificationSignalExtractor
             clone.setSound(clone.getSound(), new AudioAttributes.Builder(attributes)
                     .setUsage(USAGE_NOTIFICATION)
                      .build());
-            record.updateNotificationChannel(clone);
+            record.updateSystemNotificationChannel(clone);
         }
 
         return null;

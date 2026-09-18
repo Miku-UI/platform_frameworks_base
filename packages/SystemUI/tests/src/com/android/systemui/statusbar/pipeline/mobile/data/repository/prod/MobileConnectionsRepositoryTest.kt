@@ -28,6 +28,8 @@ import android.net.NetworkCapabilities.TRANSPORT_WIFI
 import android.net.vcn.VcnTransportInfo
 import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelUuid
 import android.telephony.CarrierConfigManager
 import android.telephony.ServiceState
@@ -466,6 +468,7 @@ abstract class MobileConnectionsRepositoryTest<T : MobileConnectionsRepository> 
             ConnectivityRepositoryImpl(
                 connectivityManager,
                 ConnectivitySlots(context),
+                Handler(Looper.getMainLooper()),
                 context,
                 mock(),
                 mock(),
@@ -1373,8 +1376,8 @@ abstract class MobileConnectionsRepositoryTest<T : MobileConnectionsRepository> 
     @Test
     fun carrierConfig_initialValueIsFetched() =
         testScope.runTest {
-            // Value starts out false
-            assertThat(underTest.defaultDataSubRatConfig.value.showAtLeast3G).isFalse()
+            // Value starts out null
+            assertThat(underTest.defaultDataSubRatConfig.value).isNull()
 
             overrideResource(R.bool.config_showMin3G, true)
             val configFromContext = MobileMappings.Config.readConfig(context)

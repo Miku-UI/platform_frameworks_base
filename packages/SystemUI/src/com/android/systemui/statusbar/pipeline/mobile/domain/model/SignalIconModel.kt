@@ -35,47 +35,89 @@ sealed interface SignalIconModel : Diffable<SignalIconModel> {
 
     fun logPartial(prevVal: SignalIconModel, row: TableRowLogger)
 
-    /** A model that will be consumed by [SignalDrawable] to show the mobile triangle icon. */
-    data class Cellular(
-        override val level: Int,
-        val numberOfLevels: Int,
-        val showExclamationMark: Boolean,
-        val carrierNetworkChange: Boolean,
-    ) : SignalIconModel {
-        override fun logPartial(prevVal: SignalIconModel, row: TableRowLogger) {
-            if (prevVal !is Cellular) {
-                logFull(row)
-            } else {
-                if (prevVal.level != level) {
-                    row.logChange(COL_LEVEL, level)
-                }
-                if (prevVal.numberOfLevels != numberOfLevels) {
-                    row.logChange(COL_NUM_LEVELS, numberOfLevels)
-                }
-                if (prevVal.showExclamationMark != showExclamationMark) {
-                    row.logChange(COL_SHOW_EXCLAMATION, showExclamationMark)
-                }
-                if (prevVal.carrierNetworkChange != carrierNetworkChange) {
-                    row.logChange(COL_CARRIER_NETWORK_CHANGE, carrierNetworkChange)
-                }
-            }
-        }
-
-        override fun logFully(row: TableRowLogger) {
-            row.logChange(COL_TYPE, "c")
-            row.logChange(COL_LEVEL, level)
-            row.logChange(COL_NUM_LEVELS, numberOfLevels)
-            row.logChange(COL_SHOW_EXCLAMATION, showExclamationMark)
-            row.logChange(COL_CARRIER_NETWORK_CHANGE, carrierNetworkChange)
-        }
+    sealed interface CellularTypeIconModel : SignalIconModel {
+        val numberOfLevels: Int
+        val showExclamationMark: Boolean
 
         /** Convert this model to an [Int] consumable by [SignalDrawable]. */
-        fun toSignalDrawableState(): Int =
-            if (carrierNetworkChange) {
-                SignalDrawable.getCarrierChangeState(numberOfLevels)
-            } else {
-                SignalDrawable.getState(level, numberOfLevels, showExclamationMark)
+        fun toSignalDrawableState(): Int
+
+        /** A model that will be consumed by [SignalDrawable] to show the mobile triangle icon. */
+        data class Cellular(
+            override val level: Int,
+            override val numberOfLevels: Int,
+            override val showExclamationMark: Boolean,
+            val carrierNetworkChange: Boolean,
+        ) : CellularTypeIconModel {
+            override fun logPartial(prevVal: SignalIconModel, row: TableRowLogger) {
+                if (prevVal !is Cellular) {
+                    logFull(row)
+                } else {
+                    if (prevVal.level != level) {
+                        row.logChange(COL_LEVEL, level)
+                    }
+                    if (prevVal.numberOfLevels != numberOfLevels) {
+                        row.logChange(COL_NUM_LEVELS, numberOfLevels)
+                    }
+                    if (prevVal.showExclamationMark != showExclamationMark) {
+                        row.logChange(COL_SHOW_EXCLAMATION, showExclamationMark)
+                    }
+                    if (prevVal.carrierNetworkChange != carrierNetworkChange) {
+                        row.logChange(COL_CARRIER_NETWORK_CHANGE, carrierNetworkChange)
+                    }
+                }
             }
+
+            override fun logFully(row: TableRowLogger) {
+                row.logChange(COL_TYPE, "c")
+                row.logChange(COL_LEVEL, level)
+                row.logChange(COL_NUM_LEVELS, numberOfLevels)
+                row.logChange(COL_SHOW_EXCLAMATION, showExclamationMark)
+                row.logChange(COL_CARRIER_NETWORK_CHANGE, carrierNetworkChange)
+            }
+
+            /** Convert this model to an [Int] consumable by [SignalDrawable]. */
+            override fun toSignalDrawableState(): Int =
+                if (carrierNetworkChange) {
+                    SignalDrawable.getCarrierChangeState(numberOfLevels)
+                } else {
+                    SignalDrawable.getState(level, numberOfLevels, showExclamationMark)
+                }
+        }
+
+        /** A model that will be consumed by [SignalDrawable] to show the mobile triangle icon. */
+        data class SatelliteV2(
+            override val level: Int,
+            override val numberOfLevels: Int,
+            override val showExclamationMark: Boolean,
+        ) : CellularTypeIconModel {
+            override fun logPartial(prevVal: SignalIconModel, row: TableRowLogger) {
+                if (prevVal !is SatelliteV2) {
+                    logFull(row)
+                } else {
+                    if (prevVal.level != level) {
+                        row.logChange(COL_LEVEL, level)
+                    }
+                    if (prevVal.numberOfLevels != numberOfLevels) {
+                        row.logChange(COL_NUM_LEVELS, numberOfLevels)
+                    }
+                    if (prevVal.showExclamationMark != showExclamationMark) {
+                        row.logChange(COL_SHOW_EXCLAMATION, showExclamationMark)
+                    }
+                }
+            }
+
+            override fun logFully(row: TableRowLogger) {
+                row.logChange(COL_TYPE, "s")
+                row.logChange(COL_LEVEL, level)
+                row.logChange(COL_NUM_LEVELS, numberOfLevels)
+                row.logChange(COL_SHOW_EXCLAMATION, showExclamationMark)
+            }
+
+            /** Convert this model to an [Int] consumable by [SignalDrawable]. */
+            override fun toSignalDrawableState(): Int =
+                SignalDrawable.getState(level, numberOfLevels, showExclamationMark)
+        }
     }
 
     /**
@@ -101,7 +143,7 @@ sealed interface SignalIconModel : Diffable<SignalIconModel> {
 
     companion object {
         val DEFAULT =
-            Cellular(
+            CellularTypeIconModel.Cellular(
                 level = 0,
                 numberOfLevels = DEFAULT_NUM_LEVELS,
                 showExclamationMark = true,

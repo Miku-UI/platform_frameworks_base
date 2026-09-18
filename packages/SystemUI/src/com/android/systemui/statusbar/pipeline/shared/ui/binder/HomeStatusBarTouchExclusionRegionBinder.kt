@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.pipeline.shared.ui.binder
 
 import android.graphics.Rect
 import android.graphics.Region
-import android.window.DesktopExperienceFlags
 import com.android.systemui.common.ui.view.onLayoutChanged
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.lifecycle.setSnapshotBinding
@@ -35,10 +34,6 @@ object HomeStatusBarTouchExclusionRegionBinder {
      * exclusion region provided.
      */
     fun bind(view: PhoneStatusBarView, appHandlesViewModel: AppHandlesViewModel): DisposableHandle {
-        if (!DesktopExperienceFlags.ENABLE_REMOVE_STATUS_BAR_INPUT_LAYER.isTrue) {
-            return DisposableHandle {}
-        }
-
         // Update touchable regions when touchableExclusionRegion changes
         view.repeatWhenAttached {
             view.setSnapshotBinding {

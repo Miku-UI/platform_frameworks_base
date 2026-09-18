@@ -28,8 +28,8 @@ import java.time.Duration;
 import java.util.Objects;
 
 /**
- * The real implementation of {@link LocationTimeZoneProviderController.Environment} used by
- * {@link LocationTimeZoneProviderController} to interact with other server components.
+ * The real implementation of {@link LocationTimeZoneProviderController.Environment} used by {@link
+ * LocationTimeZoneProviderController} to interact with other server components.
  */
 class LocationTimeZoneProviderControllerEnvironmentImpl
         extends LocationTimeZoneProviderController.Environment {
@@ -37,7 +37,8 @@ class LocationTimeZoneProviderControllerEnvironmentImpl
     @NonNull private final ServiceConfigAccessor mServiceConfigAccessor;
     @NonNull private final StateChangeListener mConfigurationInternalChangeListener;
 
-    LocationTimeZoneProviderControllerEnvironmentImpl(@NonNull ThreadingDomain threadingDomain,
+    LocationTimeZoneProviderControllerEnvironmentImpl(
+            @NonNull ThreadingDomain threadingDomain,
             @NonNull ServiceConfigAccessor serviceConfigAccessor,
             @NonNull LocationTimeZoneProviderController controller) {
         super(threadingDomain);
@@ -86,7 +87,8 @@ class LocationTimeZoneProviderControllerEnvironmentImpl
     }
 
     @Override
-    @ElapsedRealtimeLong long elapsedRealtimeMillis() {
+    @ElapsedRealtimeLong
+    long elapsedRealtimeMillis() {
         return SystemClock.elapsedRealtime();
     }
 }

@@ -34,6 +34,9 @@ inline fun IntSet.anyIndexed(predicate: (Int, Int) -> Boolean): Boolean {
     return false
 }
 
+@Suppress("NOTHING_TO_INLINE")
+inline fun IntSet.first(): Int = elementAt(0)
+
 inline fun IntSet.forEachIndexed(action: (Int, Int) -> Unit) {
     for (index in 0 until size) {
         action(index, elementAt(index))
@@ -45,6 +48,9 @@ inline fun IntSet.forEachReversedIndexed(action: (Int, Int) -> Unit) {
         action(index, elementAt(index))
     }
 }
+
+@Suppress("NOTHING_TO_INLINE")
+inline fun IntSet.isNotEmpty(): Boolean = !isEmpty()
 
 inline val IntSet.lastIndex: Int
     get() = size - 1

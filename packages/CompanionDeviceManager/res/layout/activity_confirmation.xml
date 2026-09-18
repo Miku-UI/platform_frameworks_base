@@ -46,9 +46,11 @@
                 android:layout_width="match_parent"
                 android:layout_height="32dp"
                 android:gravity="center"
-                android:layout_marginTop="18dp" />
+                android:layout_marginTop="18dp"
+                android:importantForAccessibility="no" />
 
-            <LinearLayout style="@style/Description">
+            <LinearLayout style="@style/Description"
+                android:importantForAccessibility="no">
                 <TextView
                     android:id="@+id/title"
                     style="@style/DescriptionTitle" />
@@ -62,14 +64,16 @@
             <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1">
+                android:layout_weight="1"
+                android:importantForAccessibility="no">
 
                 <androidx.constraintlayout.widget.ConstraintLayout
                     xmlns:app="http://schemas.android.com/apk/res-auto"
                     android:id="@+id/constraint_list"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:visibility="gone">
+                    android:visibility="gone"
+                    android:importantForAccessibility="no">
 
                     <TextView
                         android:id="@+id/timeout_message"
@@ -86,7 +90,10 @@
                         app:layout_constraintHeight_max="220dp"
                         app:layout_constraintHeight_min="200dp"
                         android:scrollbars="vertical"
-                        android:visibility="gone" />
+                        android:visibility="gone"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toTopOf="@+id/border_bottom"
+                        android:layout_marginBottom="6dp" />
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/permission_list"
@@ -95,7 +102,10 @@
                         android:scrollbars="vertical"
                         android:fadeScrollbars="false"
                         app:layout_constraintHeight_max="220dp"
-                        android:visibility="gone" />
+                        android:visibility="gone"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:layout_constraintBottom_toTopOf="@+id/border_bottom"
+                        android:layout_marginBottom="6dp" />
 
                     <ProgressBar
                         android:id="@+id/progress_bar"
@@ -120,7 +130,8 @@
                 android:layout_height="wrap_content"
                 android:gravity="center"
                 android:orientation="vertical"
-                android:layout_marginTop="16dp">
+                android:layout_marginTop="16dp"
+                android:importantForAccessibility="no">
 
                 <!-- Do NOT change the IDs of the buttons: they are referenced in CTS tests. -->
 
@@ -150,11 +161,11 @@
                 <LinearLayout
                     android:id="@+id/negative_multiple_devices_layout"
                     android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:padding="6dp"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
                     android:gravity="center"
+                    android:padding="0dp"
                     android:visibility="gone">
-
                     <Button
                         android:id="@+id/btn_negative_multiple_devices"
                         style="@style/NegativeButtonMultipleDevices"

@@ -24,9 +24,11 @@
 #include <android-base/stringprintf.h>
 #include <android-base/unique_fd.h>
 #include <android_runtime/AndroidRuntime.h>
+#include <binder/BinderNetlink.h>
 #include <cutils/compiler.h>
 #include <dirent.h>
 #include <jni.h>
+#include <linux/android/binderfs.h>
 #include <linux/errno.h>
 #include <linux/time.h>
 #include <log/log.h>
@@ -47,12 +49,13 @@
 #include <utils/Trace.h>
 
 #include <algorithm>
+#include <fstream>
 #include <optional>
+#include <string>
 
 using android::base::StringPrintf;
-using android::base::WriteStringToFile;
 using android::meminfo::ProcMemInfo;
-using namespace android::meminfo;
+using android::meminfo::Vma;
 
 static const size_t kPageSize = getpagesize();
 static const size_t kPageMask = ~(kPageSize - 1);
@@ -79,7 +82,15 @@ using android::base::unique_fd;
 // Selected a high enough number to avoid clashing with linux errno codes
 #define ERROR_COMPACTION_CANCELLED -1000
 
+// Value aligned with android_util_Binder.cpp
+static const int kTransactionTooLarge = 200 * 1024;
+
+// Enable noisy binder netlink logging.
+constexpr bool ENABLE_NOISY_NETLINK = false;
+
 namespace android {
+
+static bindernetlink::BinderNetlink binderNetlink;
 
 // Signal happening in separate thread that would bail out compaction
 // before starting next VMA batch
@@ -479,7 +490,7 @@ static void com_android_server_am_CachedAppOptimizer_compactSystem(JNIEnv *, job
             continue;
         }
 
-        std::string status_name = StringPrintf("/proc/%s/status", current->d_name);
+        std::string status_name = StringPrintf("/proc/%s/", current->d_name);
         struct stat status_info;
 
         if (stat(status_name.c_str(), &status_info) != 0) {
@@ -494,7 +505,33 @@ static void com_android_server_am_CachedAppOptimizer_compactSystem(JNIEnv *, job
 
         int pid = atoi(current->d_name);
 
-        compactMemcg(status_info.st_uid, pid, COMPACT_ACTION_ANON_FLAG | COMPACT_ACTION_FILE_FLAG);
+        compactProcess(pid, COMPACT_ACTION_ANON_FLAG | COMPACT_ACTION_FILE_FLAG);
+    }
+}
+
+static void com_android_server_am_CachedAppOptimizer_compactSystemWithMemcg(JNIEnv*, jobject) {
+    std::ifstream current_file("/sys/fs/cgroup/system/memory.current");
+    if (!current_file) {
+        LOG(ERROR) << "Could not open system memory.current";
+        return;
+    }
+
+    std::string current;
+    if (!std::getline(current_file, current)) {
+        LOG(ERROR) << "Could not read system memory.current";
+        return;
+    }
+
+    std::ofstream reclaim_file("/sys/fs/cgroup/system/memory.reclaim");
+    if (!reclaim_file) {
+        LOG(ERROR) << "Could not open system memory.reclaim";
+        return;
+    }
+
+    reclaim_file << current;
+    reclaim_file.flush();
+    if (!reclaim_file) {
+        LOG(ERROR) << "Could not write to system memory.reclaim";
     }
     inSystemCompaction = false;
 }
@@ -564,6 +601,106 @@ static jboolean com_android_server_am_CachedAppOptimizer_compactionFlagsValidFor
     return *valid[compactionFlags];
 }
 
+static jboolean com_android_server_am_CachedAppOptimizer_enableBinderReport(JNIEnv*, jobject) {
+    if (binderNetlink.open() < 0) {
+        ALOGE("Failed to open Binder Netlink socket: %s", strerror(errno));
+        return false;
+    }
+    return true;
+}
+
+// LINT.IfChange(binderCodes)
+static constexpr int CAO_BR_REPORT_FAILED = -1;
+static constexpr int CAO_BR_FROZEN_REPLY = 1;
+static constexpr int CAO_BR_FAILED_REPLY = 2;
+static constexpr int CAO_BR_ONEWAY_SPAM_SUSPECT = 3;
+static constexpr int CAO_BR_TRANSACTION_PENDING_FROZEN = 4;
+// LINT.ThenChange(/services/core/java/com/android/server/am/CachedAppOptimizer.java:binderCodes)
+
+static int binderErrorToJava(int error_code) {
+    switch (error_code) {
+        case BR_FROZEN_REPLY:
+            return CAO_BR_FROZEN_REPLY;
+        case BR_FAILED_REPLY:
+            return CAO_BR_FAILED_REPLY;
+        case BR_ONEWAY_SPAM_SUSPECT:
+            return CAO_BR_ONEWAY_SPAM_SUSPECT;
+        case BR_TRANSACTION_PENDING_FROZEN:
+            return CAO_BR_TRANSACTION_PENDING_FROZEN;
+    }
+    return error_code;
+}
+
+static char const* binderErrorToString(int error_code) {
+    switch (error_code) {
+        case BR_FROZEN_REPLY:
+            return "binderErrorFrozen";
+        case BR_FAILED_REPLY:
+            return "binderErrorFailed";
+        case BR_ONEWAY_SPAM_SUSPECT:
+            return "binderSpamming";
+        case BR_TRANSACTION_PENDING_FROZEN:
+            return "binderPending";
+    }
+    return "binderErrorOther";
+}
+
+static void com_android_server_am_CachedAppOptimizer_handleBinderReport(JNIEnv* env, jobject thiz) {
+    jclass clazz = env->GetObjectClass(thiz);
+    jmethodID method = env->GetMethodID(clazz, "handleBinderReport", "(IIIZZ)Z");
+    if (!method) {
+        jniThrowException(env, "java/lang/RuntimeException", "Failed to find handleBinderReport");
+        return;
+    }
+
+    while (true) {
+        bindernetlink::Report report;
+        if (binderNetlink.getReport(&report) < 0) {
+            // Pass the error to the Java layer.  The Java layer can ask that the thread
+            // continue or exit.
+            if (!env->CallBooleanMethod(thiz, method, CAO_BR_REPORT_FAILED, 0, false, false)) {
+                binderNetlink.close();
+                return;
+            }
+            sleep(1);
+        } else {
+            if (ENABLE_NOISY_NETLINK) ALOGV("Binder report: %s", report.toString().c_str());
+
+            int error = report.error;
+            int ecode = binderErrorToJava(error);
+            int toPid = report.toPid;
+            int fromPid = report.fromPid;
+            int size = report.dataSize;
+            bool large = size >= kTransactionTooLarge;
+            bool oneway = report.flags & TF_ONE_WAY;
+
+            switch (error) {
+                // The errors we know how to handle
+                case BR_FROZEN_REPLY:
+                case BR_FAILED_REPLY:
+                case BR_ONEWAY_SPAM_SUSPECT:
+                case BR_TRANSACTION_PENDING_FROZEN:
+                    ATRACE_BEGIN(binderErrorToString(error));
+                    if (!env->CallBooleanMethod(thiz, method, ecode, fromPid, toPid, large,
+                                                oneway)) {
+                        // The Java layer has requested that the thread exit.
+                        return;
+                    }
+                    ATRACE_END();
+                    break;
+                // Errors we know to ignore.
+                case BR_DEAD_REPLY:
+                    break;
+                // The errors we don't know how to handle
+                default:
+                    ALOGE("Unknown binder error 0x%08x", report.error);
+                    break;
+            }
+        }
+    }
+    binderNetlink.close();
+}
+
 static const JNINativeMethod sMethods[] = {
         /* name, signature, funcPtr */
         {"cancelCompaction", "()V",
@@ -576,6 +713,8 @@ static const JNINativeMethod sMethods[] = {
         {"getMemoryFreedCompaction", "()J",
          (void*)com_android_server_am_CachedAppOptimizer_getMemoryFreedCompaction},
         {"compactSystem", "()V", (void*)com_android_server_am_CachedAppOptimizer_compactSystem},
+        {"compactSystemWithMemcg", "()V",
+         (void*)com_android_server_am_CachedAppOptimizer_compactSystemWithMemcg},
         {"compactProcess", "(II)V",
          (void*)com_android_server_am_CachedAppOptimizer_compactNativeProcess},
         {"performNativeMemcgCompaction", "(III)V",
@@ -584,6 +723,10 @@ static const JNINativeMethod sMethods[] = {
          (void*)com_android_server_am_CachedAppOptimizer_compactNativeProcess},
         {"compactionFlagsValidForMemcg", "(I)Z",
          (void*)com_android_server_am_CachedAppOptimizer_compactionFlagsValidForMemcg},
+        {"enableBinderReport", "()Z",
+         (void*)com_android_server_am_CachedAppOptimizer_enableBinderReport},
+        {"handleBinderReport", "()V",
+         (void*)com_android_server_am_CachedAppOptimizer_handleBinderReport},
 };
 
 int register_android_server_am_CachedAppOptimizer(JNIEnv* env)

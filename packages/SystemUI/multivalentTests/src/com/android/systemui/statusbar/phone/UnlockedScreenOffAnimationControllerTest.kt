@@ -91,14 +91,12 @@ class UnlockedScreenOffAnimationControllerTest : SysuiTestCase() {
                 context,
                 wakefulnessLifecycle,
                 statusBarStateController,
-                { keyguardViewMediator },
                 { dozeParameters },
                 globalSettings,
                 { notifShadeWindowController },
                 interactionJankMonitor,
                 powerManager,
                 { shadeLockscreenInteractor },
-                { panelExpansionInteractor },
                 { displayStateInteractor },
                 handler,
             )
@@ -222,8 +220,6 @@ class UnlockedScreenOffAnimationControllerTest : SysuiTestCase() {
         `when`(displayStateInteractor.isDefaultDisplayOff).thenReturn(MutableStateFlow(false))
 
         controller.startAnimation()
-
-        assertFalse(controller.shouldAnimateInKeyguard())
 
         val callbackCaptor = ArgumentCaptor.forClass(Runnable::class.java)
         verify(handler).postDelayed(callbackCaptor.capture(), anyLong())

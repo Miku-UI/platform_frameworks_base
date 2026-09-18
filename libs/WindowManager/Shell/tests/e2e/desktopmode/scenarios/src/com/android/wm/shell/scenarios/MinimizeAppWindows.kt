@@ -17,18 +17,16 @@
 package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
+import android.platform.test.annotations.WithDesktopTest
 import android.tools.Rotation
 import android.tools.traces.parsers.WindowManagerStateHelper
-import android.window.DesktopModeFlags
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.NewTasksAppHelper
 import com.android.server.wm.flicker.helpers.NonResizeableAppHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
-import com.android.window.flags.Flags
 import org.junit.After
-import org.junit.Assume
 import org.junit.Before
 import org.junit.Ignore
 import org.junit.Test
@@ -38,10 +36,11 @@ import org.junit.Test
  * minimize buttons.
  */
 @Ignore("Test Base Class")
+@WithDesktopTest
 abstract class MinimizeAppWindows
 constructor(
     private val rotation: Rotation = Rotation.ROTATION_0,
-    private val usingKeyboard: Boolean = false
+    private val usingKeyboard: Boolean = false,
 ) : TestScenarioBase(rotation) {
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
@@ -54,11 +53,6 @@ constructor(
 
     @Before
     fun setup() {
-        Assume.assumeTrue(Flags.enableMinimizeButton())
-        Assume.assumeTrue(Flags.enableEmptyDeskOnMinimize())
-        if (usingKeyboard) {
-            Assume.assumeTrue(DesktopModeFlags.ENABLE_TASK_RESIZING_KEYBOARD_SHORTCUTS.isTrue)
-        }
         testApp1.enterDesktopMode(wmHelper, device)
         appInDesktop.add(testApp1)
         testApp2.launchViaIntent(wmHelper)

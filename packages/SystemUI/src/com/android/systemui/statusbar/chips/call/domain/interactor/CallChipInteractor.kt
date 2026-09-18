@@ -16,16 +16,12 @@
 
 package com.android.systemui.statusbar.chips.call.domain.interactor
 
-import android.app.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.Logger
 import com.android.systemui.statusbar.chips.StatusBarChipLogTags.pad
 import com.android.systemui.statusbar.chips.StatusBarChipsLog
-import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
-import com.android.systemui.statusbar.phone.ongoingcall.StatusBarChipsModernization
-import com.android.systemui.statusbar.phone.ongoingcall.data.repository.OngoingCallRepository
 import com.android.systemui.statusbar.phone.ongoingcall.domain.interactor.OngoingCallInteractor
 import com.android.systemui.statusbar.phone.ongoingcall.shared.model.OngoingCallModel
 import javax.inject.Inject
@@ -44,23 +40,14 @@ class CallChipInteractor
 constructor(
     @Application private val scope: CoroutineScope,
     ongoingCallInteractor: OngoingCallInteractor,
-    repository: OngoingCallRepository,
     @StatusBarChipsLog private val logBuffer: LogBuffer,
 ) {
     private val logger = Logger(logBuffer, "CallChip".pad())
 
     val ongoingCallState: StateFlow<OngoingCallModel> =
-        (if (StatusBarChipsModernization.isEnabled) {
-                ongoingCallInteractor.ongoingCallState
-            } else {
-                repository.ongoingCallState
-            })
+        ongoingCallInteractor.ongoingCallState
             .map { state ->
-                if (
-                    PromotedNotificationUi.isEnabled &&
-                        state is OngoingCallModel.InCall &&
-                        state.requestedPromotion
-                ) {
+                if (state is OngoingCallModel.InCall && state.requestedPromotion) {
                     // If this notification requested promotion, then the promoted notification
                     // chips will handle everything and we don't ever need to show a call chip. See
                     // b/414830065.

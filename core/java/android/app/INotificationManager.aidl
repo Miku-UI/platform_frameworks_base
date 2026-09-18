@@ -24,6 +24,7 @@ import android.app.NotificationChannel;
 import android.app.NotificationChannelGroup;
 import android.app.NotificationHistory;
 import android.app.NotificationManager;
+import android.app.NotificationRule;
 import android.app.ICallNotificationEventCallback;
 import android.content.AttributionSource;
 import android.content.ComponentName;
@@ -34,6 +35,7 @@ import android.os.Bundle;
 import android.os.UserHandle;
 import android.service.notification.Adjustment;
 import android.service.notification.Condition;
+import android.service.notification.DynamicBundle;
 import android.service.notification.IConditionListener;
 import android.service.notification.IConditionProvider;
 import android.service.notification.INotificationListener;
@@ -79,7 +81,6 @@ interface INotificationManager
 
     @UnsupportedAppUsage
     boolean areNotificationsEnabledForPackage(String pkg, int uid);
-    boolean areNotificationsEnabled(String pkg);
     int getPackageImportance(String pkg);
     boolean isImportanceLocked(String pkg, int uid);
 
@@ -179,6 +180,7 @@ interface INotificationManager
     void setInterruptionFilter(String pkg, int interruptionFilter, boolean fromUser);
 
     NotificationChannel createConversationNotificationChannelForPackageFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user, String parentChannelId, String conversationId);
+    void deleteConversationNotificationChannelFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user, String channelId);
     void updateNotificationChannelFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user, in NotificationChannel channel);
     ParceledListSlice getNotificationChannelsFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user);
     ParceledListSlice getNotificationChannelGroupsFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user);
@@ -188,6 +190,9 @@ interface INotificationManager
     void applyAdjustmentsFromAssistant(in INotificationListener token, in List<Adjustment> adjustments);
     void unsnoozeNotificationFromAssistant(in INotificationListener token, String key);
     void unsnoozeNotificationFromSystemListener(in INotificationListener token, String key);
+    void createDynamicBundle(in INotificationListener token, int dynamicBundleId, String bundleName);
+    void deleteDynamicBundle(in INotificationListener token, int dynamicBundleId);
+    List<DynamicBundle> getDynamicBundles(in INotificationListener token, in UserHandle user);
 
     ComponentName getEffectsSuppressor();
     boolean matchesCallFilter(in Bundle extras);
@@ -201,6 +206,7 @@ interface INotificationManager
     void setNotificationAssistantAccessGranted(in ComponentName assistant, boolean enabled);
     void setNotificationListenerAccessGrantedForUser(in ComponentName listener, int userId, boolean enabled, boolean userSet);
     void setNotificationAssistantAccessGrantedForUser(in ComponentName assistant, int userId, boolean enabled);
+    List<String> getEnabledZenPackages();
     List<String> getEnabledNotificationListenerPackages();
     List<ComponentName> getEnabledNotificationListeners(int userId);
     ComponentName getAllowedNotificationAssistantForUser(int userId);
@@ -274,7 +280,18 @@ interface INotificationManager
 
     int[] getAllowedClassificationTypes();
     void setAssistantClassificationTypeState(int type, boolean enabled);
+    void setAssistantClassificationTypeStateForUser(int userId, int type, boolean enabled);
     String[] getAdjustmentDeniedPackages(int userId, String key);
     boolean isAdjustmentSupportedForPackage(int userId, String key, String pkg);
     void setAdjustmentSupportedForPackage(int userId, String key, String pkg, boolean enabled);
+    oneway void requestSystemAdjustments(in List<Adjustment> adjustments);
+
+    NotificationRule addNotificationRule(int userId, in NotificationRule rule, int position);
+    NotificationRule updateNotificationRule(int userId, in NotificationRule rule);
+    boolean removeNotificationRule(int userId, int ruleId);
+    ParceledListSlice getNotificationRules(in INotificationListener token, int userId);
+    NotificationRule getNotificationRule(int userId, int ruleId);
+
+    @EnforcePermission("STATUS_BAR_SERVICE")
+    oneway void logHsuNotificationPostStatus(in StatusBarNotification sbn, int status);
 }

@@ -375,6 +375,7 @@ public abstract class FileSystemProvider extends DocumentsProvider {
     public void deleteDocument(String docId) throws FileNotFoundException {
         final File file = getFileForDocId(docId);
         final File visibleFile = getFileForDocId(docId, true);
+        final boolean isTrashedDocument = isTrashFile(file);
 
         final boolean isDirectory = file.isDirectory();
         if (isDirectory) {
@@ -388,6 +389,11 @@ public abstract class FileSystemProvider extends DocumentsProvider {
 
         onDocIdChanged(docId);
         onDocIdDeleted(docId, /* shouldRevokeUriPermission */ true);
+        // Notify if deleting a trashed document.
+        if (isTrashedDocument) {
+            notifyTrashChange(docId);
+        }
+
         updateMediaStore(getContext(), visibleFile);
     }
 
@@ -652,12 +658,29 @@ public abstract class FileSystemProvider extends DocumentsProvider {
         return trashedDocId;
     }
 
-    protected final Cursor queryTrashDocuments(File parent, String[] projection)
+    protected final Cursor queryTrashDocuments(@NonNull File parent, @NonNull String volumeName,
+            @Nullable String[] projection)
             throws FileNotFoundException {
-        MatrixCursor result = new MatrixCursor(resolveProjection(projection));
+        String docId = getDocIdForFile(parent);
+        String[] trashProjections = projection;
+        if (projection == null) {
+            trashProjections = mDefaultProjection;
+            if (!ArrayUtils.contains(trashProjections, Document.COLUMN_ORIGINAL_RELATIVE_PATH)) {
+                trashProjections = ArrayUtils.appendElement(String.class, trashProjections,
+                        Document.COLUMN_ORIGINAL_RELATIVE_PATH);
+            }
+        }
+        MatrixCursor result = new DirectoryCursor(trashProjections, docId, parent);
         includeTrashFiles(result, parent);
         // include MediaStore trashed files which are not in .trash-storage location
-        includeMediaStoreTrashFiles(result);
+        includeMediaStoreTrashFiles(result, volumeName);
+
+        // Set notification URI for trash
+        final Uri trashUri = buildTrashNotificationUri(docId);
+        if (trashUri != null) {
+            result.setNotificationUri(getContext().getContentResolver(), trashUri);
+        }
+
         return result;
     }
 
@@ -693,6 +716,8 @@ public abstract class FileSystemProvider extends DocumentsProvider {
         final String restoredDocId = getDocIdForFile(restoredFile);
         onDocIdChanged(documentId);
         onDocIdChanged(restoredDocId);
+        // Notify if restoring a trashed document.
+        notifyTrashChange(documentId);
 
         return restoredDocId;
     }
@@ -715,15 +740,22 @@ public abstract class FileSystemProvider extends DocumentsProvider {
         }
     }
 
-    private void includeMediaStoreTrashFiles(MatrixCursor result)
+    private void includeMediaStoreTrashFiles(@NonNull MatrixCursor result,
+            @NonNull String volumeName)
             throws FileNotFoundException {
         final Uri uri = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL);
         final Bundle queryArgs = new Bundle();
         queryArgs.putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY);
-        queryArgs.putString(ContentResolver.QUERY_ARG_SQL_SELECTION,
-                MediaStore.MediaColumns.RELATIVE_PATH + " NOT LIKE ?");
-        queryArgs.putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS,
-                new String[]{DIRECTORY_TRASH_STORAGE + "/%"});
+
+        final String selection = MediaStore.MediaColumns.RELATIVE_PATH + " NOT LIKE ? AND "
+                + MediaStore.MediaColumns.VOLUME_NAME + " = ?";
+        final String[] selectionArgs = new String[]{
+                DIRECTORY_TRASH_STORAGE + "/%",
+                volumeName.toLowerCase(Locale.ROOT)
+        };
+
+        queryArgs.putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection);
+        queryArgs.putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs);
         String[] projection = new String[]{MediaStore.Files.FileColumns.DATA};
 
         try (Cursor cursor = getContext().getContentResolver().query(uri, projection,
@@ -776,6 +808,11 @@ public abstract class FileSystemProvider extends DocumentsProvider {
             if (enableDocumentsTrashApi()) {
                 if (isTrashFile(file)) {
                     flags |= Document.FLAG_SUPPORTS_RESTORE;
+                    final int pathColumnIndex = ArrayUtils.indexOf(columns,
+                            Document.COLUMN_ORIGINAL_RELATIVE_PATH);
+                    if (pathColumnIndex != -1) {
+                        addOriginalRelativePath(row, columns, file);
+                    }
                 } else if (isTrashSupported(file)) {
                     flags |= Document.FLAG_SUPPORTS_TRASH;
                 }
@@ -845,6 +882,10 @@ public abstract class FileSystemProvider extends DocumentsProvider {
         return false;
     }
 
+    protected String getRelativePathFromRoot(@NonNull String path) throws FileNotFoundException {
+        return null;
+    }
+
     /**
      * A variant of the {@link #shouldHideDocument(String)} that takes a {@link File} instead of
      * a {@link String} {@code documentId}.
@@ -874,6 +915,11 @@ public abstract class FileSystemProvider extends DocumentsProvider {
 
     protected final File getFileForDocId(String docId) throws FileNotFoundException {
         return getFileForDocId(docId, false);
+    }
+
+    @Nullable
+    protected Uri buildTrashNotificationUri(@NonNull String docId) {
+        return null;
     }
 
     private String[] resolveProjection(String[] projection) {
@@ -907,6 +953,128 @@ public abstract class FileSystemProvider extends DocumentsProvider {
             }
 
             if (LOG_INOTIFY) Log.d(TAG, "after stop: " + observer);
+        }
+    }
+
+    /**
+     * Adds the original relative path of a trashed file to the given row.
+     * @param row The row to add the path to.
+     * @param columns The columns of the cursor.
+     * @param file The trashed file.
+     */
+    private void addOriginalRelativePath(RowBuilder row, String[] columns, File file)
+            throws FileNotFoundException {
+        final int pathColumnIndex = ArrayUtils.indexOf(columns,
+                Document.COLUMN_ORIGINAL_RELATIVE_PATH);
+        if (pathColumnIndex == -1) {
+            return;
+        }
+
+        final String originalParentPath = getOriginalParentPath(file);
+        if (originalParentPath == null) {
+            return;
+        }
+
+        final String relativePath = getRelativePathFromRoot(originalParentPath);
+        if (!TextUtils.isEmpty(relativePath)) {
+            row.add(pathColumnIndex, relativePath);
+        }
+    }
+
+    /**
+     * Gets the original absolute parent path for a given trashed file.
+     *
+     * @param file The trashed file.
+     * @return The absolute path of the original parent directory.
+     */
+    @Nullable
+    private String getOriginalParentPath(File file) {
+        if (!isTrashFile(file)) {
+            return null;
+        }
+
+        final String parentPath = file.getParent();
+        if (parentPath == null) {
+            return null;
+        }
+
+        final String trashDirSuffix = File.separator + DIRECTORY_TRASH_STORAGE;
+        final String trashDir = trashDirSuffix + File.separator;
+        final int trashRootEndIndex = parentPath.indexOf(trashDir);
+
+        // e.g., /storage/emulated/0/.trash-storage/.trashed-123-Folder
+        if (trashRootEndIndex == -1) {
+            // Check if the parent is the .trash-storage directory itself
+            if (parentPath.endsWith(trashDirSuffix)) {
+                // The original parent is the volume root.
+                return parentPath.substring(0, parentPath.length() - trashDirSuffix.length());
+            }
+
+            // If a trashed file doesn't exist inside .trash-storage then it's a legacy trashed
+            // file. e.g., /storage/emulated/0/Download/.trashed-123-file
+            return removeTrashPrefixFromPath(parentPath);
+        }
+
+        // e.g., /storage/emulated/0
+        final String volumePath = parentPath.substring(0, trashRootEndIndex);
+
+        // e.g., Download/.trashed-123-Folder
+        final String pathInsideTrash = parentPath.substring(trashRootEndIndex + trashDir.length());
+
+        // e.g., Download/Folder
+        final String cleanPathInsideTrash = removeTrashPrefixFromPath(pathInsideTrash);
+
+        return new File(volumePath, cleanPathInsideTrash).getAbsolutePath();
+    }
+
+    /**
+     * Reconstructs an original path from a path that may contain trashed directory names.
+     * This method iterates through each segment of the given path and removes the trashed prefix
+     * (e.g., ".trashed-123-") from any segment that matches the trashed file pattern.
+     *
+     * @param path The path string to clean
+     * @return The reconstructed path with trashed prefixes removed from its segments.
+     */
+    private String removeTrashPrefixFromPath(String path) {
+        if (TextUtils.isEmpty(path)) {
+            return "";
+        }
+        final String[] segments = path.split(File.separator);
+        final List<String> cleanedSegments = new ArrayList<>();
+        for (String segment : segments) {
+            cleanedSegments.add(removeTrashPrefixFromSegment(segment));
+        }
+        return String.join(File.separator, cleanedSegments);
+    }
+
+    /**
+     * Removes the trashed prefix from a single path segment if it exists.
+     * For example, ".trashed-12345-MyFolder" becomes "MyFolder".
+     *
+     * @param segment The path segment to remove the trash prefix from.
+     * @return The cleaned segment, or the original segment if it doesn't represent
+     * a trashed item.
+     */
+    private String removeTrashPrefixFromSegment(String segment) {
+        if (segment == null) {
+            return null;
+        }
+        final Matcher matcher = PATTERN_EXPIRES_FILE.matcher(segment);
+        if (matcher.matches() && PREFIX_TRASHED.equals(matcher.group(1))) {
+            // Return the original name part of the trashed file pattern
+            return matcher.group(3);
+        }
+        return segment;
+    }
+
+    private void notifyTrashChange(String docId) {
+        if (!enableDocumentsTrashApi()) {
+            return;
+        }
+
+        Uri trashUri = buildTrashNotificationUri(docId);
+        if (trashUri != null) {
+            getContext().getContentResolver().notifyChange(trashUri, /* observer */ null);
         }
     }
 

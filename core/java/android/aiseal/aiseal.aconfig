@@ -1,0 +1,10 @@
+package: "android.aiseal"
+container: "system"
+
+flag {
+  name: "aiseal_host_apis"
+  is_exported: true
+  namespace: "virtualization"
+  description: "Flag for enabling AiSeal API for host applications"
+  bug: "419522842"
+}

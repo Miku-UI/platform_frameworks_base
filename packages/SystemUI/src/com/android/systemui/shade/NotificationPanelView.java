@@ -132,7 +132,7 @@ public final class NotificationPanelView extends FrameLayout {
     @Override
     public void dispatchConfigurationChanged(Configuration newConfig) {
         super.dispatchConfigurationChanged(newConfig);
-        if (!SceneContainerFlag.isEnabled()) {
+        if (!SceneContainerFlag.isEnabled() && mOnConfigurationChangedListener != null) {
             mOnConfigurationChangedListener.onConfigurationChanged(newConfig);
         }
     }

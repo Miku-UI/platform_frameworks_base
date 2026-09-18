@@ -16,8 +16,10 @@
 
 package android.media;
 
+import android.annotation.NonNull;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Build;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 /**
  * An AudioDevicePortConfig describes a possible configuration of an output or input device
@@ -28,6 +30,7 @@ import android.os.Build;
  * @hide
  */
 
+@RavenwoodKeepWholeClass
 public class AudioDevicePortConfig extends AudioPortConfig {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     AudioDevicePortConfig(AudioDevicePort devicePort, int samplingRate, int channelMask,
@@ -36,8 +39,13 @@ public class AudioDevicePortConfig extends AudioPortConfig {
     }
 
     AudioDevicePortConfig(AudioDevicePortConfig config) {
-        this(config.port(), config.samplingRate(), config.channelMask(), config.format(),
+        this(config.port(), config.samplingRate(), config.channelMasks(), config.format(),
                 config.gain());
+    }
+
+    AudioDevicePortConfig(AudioDevicePort devicePort, int samplingRate,
+            @NonNull AudioFormat.ChannelMasks channelMasks, int format, AudioGainConfig gain) {
+        super((AudioPort) devicePort, samplingRate, channelMasks, format, gain);
     }
 
     /**

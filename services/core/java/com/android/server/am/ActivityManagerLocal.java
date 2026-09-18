@@ -16,6 +16,9 @@
 
 package com.android.server.am;
 
+import static com.android.server.am.Flags.FLAG_GET_PACKAGE_NAMES_FOR_PID_API;
+
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
@@ -178,4 +181,47 @@ public interface ActivityManagerLocal {
      *        {@link Context#getProcessToken()}.
      */
     void killSdkSandboxClientAppProcess(@NonNull IBinder clientAppProcessToken);
+
+    /**
+     * Get all the package names associated with a process id.
+     *
+     * @param pid The process id of the process to be checked.
+     * @param uid The UID of the app to be checked.
+     * @return The package names associated with the provided PID and UID, or an empty array if the
+     *         process is not found or doesn't match the UID provided.
+     */
+    @FlaggedApi(FLAG_GET_PACKAGE_NAMES_FOR_PID_API)
+    @NonNull
+    String[] getPackageNamesForPid(int pid, int uid);
+
+    /**
+     * Start a foreground service delegate on behalf of the actual app. By this the client app's
+     * process state can be promoted to a higher process state, equivalent to that of a foreground
+     * service, which may be higher than the app's actual process state if the app is in the
+     * background. This can help keep the app in memory and potentially give it extra run-time. The
+     * app does not need to define an actual service component nor add it to their manifest file.
+     *
+     * @param params foreground service delegate params.
+     * @param connection a service connection served as callback to the caller. If {@code null}, no
+     *                   callbacks will be made to the caller.
+     * @return true if delegate is started successfully, false otherwise.
+     * @hide
+     */
+    @SystemApi(client = SystemApi.Client.SYSTEM_SERVER)
+    @FlaggedApi(Flags.FLAG_FGS_DELEGATE_SYSTEM_API)
+    boolean startForegroundServiceDelegate(
+            @NonNull ForegroundServiceDelegationParams params,
+            @Nullable ServiceConnection connection);
+
+    /**
+     * Stop a foreground service delegate that was started with
+     * {@link #startForegroundServiceDelegate}.
+     *
+     * @param params the foreground service delegate params.
+     * @hide
+     */
+    @SystemApi(client = SystemApi.Client.SYSTEM_SERVER)
+    @FlaggedApi(Flags.FLAG_FGS_DELEGATE_SYSTEM_API)
+    void stopForegroundServiceDelegate(
+            @NonNull ForegroundServiceDelegationParams params);
 }

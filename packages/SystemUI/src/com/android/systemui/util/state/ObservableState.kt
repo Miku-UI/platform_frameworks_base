@@ -80,6 +80,48 @@ class SynchronouslyObservableState<T>(value: T) : ObservableState<T> {
     override fun toString(): String = "SynchronouslyObservableState($value)"
 }
 
+/**
+ * An [ObservableState] that allows observing a value derived from a map, with synchronous updates.
+ *
+ * This class wraps a [SynchronouslyObservableState] to manage a [MutableMap] and expose a
+ * transformed value from that map. When the underlying map is modified via [set] or [remove], the
+ * [selector] function is applied to the updated map, and the derived value is synchronously emitted
+ * to all observers.
+ *
+ * @param K The type of the keys in the internal map.
+ * @param V The type of the values in the internal map.
+ * @param T The type handled by [value] and [observe] methods.
+ * @param selector A function that transforms the internal map into the observable value of type
+ *   [T]. This function is called whenever the map changes.
+ */
+class SynchronouslyObservableStateMap<K, V, T>(private val selector: (Map<K, V>) -> T) :
+    ObservableState<T> {
+    private val internalState = SynchronouslyObservableState(selector(emptyMap()))
+
+    private val valuesMap = mutableMapOf<K, V>()
+
+    override val value: T
+        get() = internalState.value
+
+    operator fun set(key: K, value: V) {
+        valuesMap[key] = value
+        internalState.value = selector(valuesMap)
+    }
+
+    /** Removes the specified key and its corresponding value from this map. */
+    fun remove(key: K) {
+        valuesMap.remove(key)
+        internalState.value = selector(valuesMap)
+    }
+
+    override fun observe(
+        sendCurrentValue: Boolean,
+        observer: (value: T) -> Unit,
+    ): DisposableHandle = internalState.observe(sendCurrentValue, observer)
+
+    override fun toString(): String = "StateMap(value:$value storedValues:$valuesMap)"
+}
+
 abstract class DownstreamObservableState<R> : ObservableState<R> {
     private val subscriptions = ListenerSet<Subscription<R>>()
 

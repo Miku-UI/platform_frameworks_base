@@ -58,6 +58,7 @@ import com.android.systemui.shared.system.TaskStackChangeListener
 import com.android.systemui.shared.system.TaskStackChangeListeners
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import java.io.PrintWriter
+import java.time.Instant
 import java.util.concurrent.Executor
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
@@ -107,6 +108,12 @@ interface AmbientCueRepository {
 
     /* The timeout for Ambient Cue to disappear. */
     val ambientCueTimeoutMs: StateFlow<Int>
+
+    /* Groups dismissed by the user, storing the expiration [Instant]. */
+    val dismissedGroups: StateFlow<Map<String, Instant>>
+
+    /* Adds dismissed groups, storing the expiration [Instant].*/
+    fun addDismissedGroups(dismissalGroupIds: Set<String>, expiry: Instant)
 }
 
 @SysUISingleton
@@ -144,7 +151,28 @@ constructor(
         dumpManager.registerNormalDumpable(this)
     }
 
-    override val actions: StateFlow<List<ActionModel>> =
+    override val isImeVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
+    private val _dismissedGroups: MutableStateFlow<Map<String, Instant>> =
+        MutableStateFlow(emptyMap())
+    override val dismissedGroups: StateFlow<Map<String, Instant>> = _dismissedGroups.asStateFlow()
+
+    override fun addDismissedGroups(dismissalGroupIds: Set<String>, expiry: Instant) =
+        _dismissedGroups.update { current ->
+            val newMap = current.toMutableMap()
+
+            dismissalGroupIds.forEach { id -> newMap[id] = expiry }
+
+            if (newMap.size > MAX_DISMISSED_GROUPS_SIZE) {
+                val sortedEntries = newMap.entries.sortedBy { it.value }
+                val removeCount = newMap.size - MAX_DISMISSED_GROUPS_SIZE
+                sortedEntries.take(removeCount).forEach { newMap.remove(it.key) }
+            }
+            newMap
+        }
+
+    /** Private flow containing all actions received. */
+    private val unfilteredActions: StateFlow<List<ActionModel>> =
         conflatedCallbackFlow {
                 if (smartSpaceManager == null) {
                     Log.i(TAG, "Cannot connect to SmartSpaceManager, it's null.")
@@ -206,6 +234,10 @@ constructor(
                                         EXTRA_ONE_TAP_DELAY_MS,
                                         DEFAULT_ONE_TAP_DELAY_MS,
                                     )
+                                val isEnabledWithImeVisible =
+                                    chip.extras?.getBoolean(EXTRA_ENABLED_WITH_IME_VISIBLE)
+                                val dismissalGroupId =
+                                    chip.extras?.getString(EXTRA_DISMISSAL_GROUP_ID)
                                 ActionModel(
                                     icon =
                                         IconModel(
@@ -281,6 +313,8 @@ constructor(
                                     actionType = actionType,
                                     oneTapEnabled = oneTapEnabled == true,
                                     oneTapDelayMs = oneTapDelayMs ?: DEFAULT_ONE_TAP_DELAY_MS,
+                                    isEnabledWithImeVisible = isEnabledWithImeVisible == true,
+                                    dismissalGroupId = dismissalGroupId,
                                 )
                             }
                             .let { actions -> cuebarPlugin?.filterActions(actions) ?: actions }
@@ -299,6 +333,17 @@ constructor(
                     Log.i(TAG, "SmartSpace session closed")
                 }
             }
+            .stateIn(
+                scope = backgroundScope,
+                started = SharingStarted.WhileSubscribed(),
+                initialValue = emptyList(),
+            )
+
+    /** Public flow providing actions filtered by IME visibility. */
+    override val actions: StateFlow<List<ActionModel>> =
+        combine(unfilteredActions, isImeVisible) { currentActions, imeVisible ->
+                currentActions.filter { action -> !imeVisible || action.isEnabledWithImeVisible }
+            }
             .onEach { actions ->
                 if (actions.isNotEmpty()) {
                     isDeactivated.update { false }
@@ -307,7 +352,7 @@ constructor(
             }
             .stateIn(
                 scope = backgroundScope,
-                started = SharingStarted.WhileSubscribed(),
+                started = kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(),
                 initialValue = emptyList(),
             )
 
@@ -340,8 +385,6 @@ constructor(
 
     private val _recentsButtonPosition = MutableStateFlow<Rect?>(null)
     override val recentsButtonPosition: StateFlow<Rect?> = _recentsButtonPosition.asStateFlow()
-
-    override val isImeVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
     override val isDeactivated: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
@@ -391,15 +434,22 @@ constructor(
             )
 
     override val isRootViewAttached: StateFlow<Boolean> =
-        combine(isDeactivated, globallyFocusedTaskId, actions, isAmbientCueEnabled) {
+        combine(
                 isDeactivated,
                 globallyFocusedTaskId,
-                actions,
+                targetTaskId,
+                unfilteredActions,
+                isAmbientCueEnabled,
+            ) {
+                isDeactivated,
+                globallyFocusedTaskId,
+                targetTaskId,
+                unfilteredActions,
                 isAmbientCueEnabled ->
-                actions.isNotEmpty() &&
+                unfilteredActions.isNotEmpty() &&
                     isAmbientCueEnabled &&
                     !isDeactivated &&
-                    globallyFocusedTaskId == targetTaskId.value
+                    globallyFocusedTaskId == targetTaskId
             }
             .onEach { isAttached ->
                 if (isAttached && !isSessionStarted) {
@@ -407,7 +457,7 @@ constructor(
                     var maCount = 0
                     var mrCount = 0
                     val packageName = frontRunningTask?.baseIntent?.component?.packageName ?: ""
-                    actions.value.forEach { action ->
+                    unfilteredActions.value.forEach { action ->
                         when (action.actionType) {
                             MA_ACTION_TYPE_NAME -> maCount++
                             MR_ACTION_TYPE_NAME -> mrCount++
@@ -471,6 +521,8 @@ constructor(
         @VisibleForTesting const val EXTRA_ACTION_TYPE = "actionType"
         private const val EXTRA_ONE_TAP_ENABLED = "oneTapEnabled"
         private const val EXTRA_ONE_TAP_DELAY_MS = "oneTapDelayMs"
+        private const val EXTRA_ENABLED_WITH_IME_VISIBLE = "enabledWithImeVisible"
+        private const val EXTRA_DISMISSAL_GROUP_ID = "dismissalGroupId"
         private const val DEFAULT_ONE_TAP_DELAY_MS = 200L
 
         // Timeout to hide cuebar if it wasn't interacted with
@@ -485,5 +537,6 @@ constructor(
         private const val AMBIENT_CUE_DEFAULT_TIMEOUT_MS = 30_000
         @VisibleForTesting const val MA_ACTION_TYPE_NAME = "ma"
         @VisibleForTesting const val MR_ACTION_TYPE_NAME = "mr"
+        @VisibleForTesting const val MAX_DISMISSED_GROUPS_SIZE = 20
     }
 }

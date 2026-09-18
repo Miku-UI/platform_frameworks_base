@@ -1096,7 +1096,7 @@ public class RecoverableKeyStoreManager {
                     .build();
         }
         if (response.hasTimeout()) {
-            long timeout = (long) response.getTimeout();
+            long timeout = response.getTimeout().toMillis();
             return new RemoteLockscreenValidationResult.Builder()
                     .setResultCode(RemoteLockscreenValidationResult.RESULT_LOCKOUT)
                     .setTimeoutMillis(timeout)

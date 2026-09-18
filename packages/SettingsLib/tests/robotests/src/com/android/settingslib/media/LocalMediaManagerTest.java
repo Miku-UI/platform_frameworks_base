@@ -18,7 +18,6 @@ package com.android.settingslib.media;
 
 import static android.media.MediaRoute2ProviderService.REASON_UNKNOWN_ERROR;
 import static android.media.RoutingChangeInfo.ENTRY_POINT_PROXY_ROUTER_UNSPECIFIED;
-import static android.media.RoutingChangeInfo.ENTRY_POINT_SYSTEM_MEDIA_CONTROLS;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -36,14 +35,15 @@ import static org.mockito.Mockito.withSettings;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.media.AudioDeviceAttributes;
 import android.media.AudioManager;
 import android.media.AudioSystem;
 import android.media.MediaRoute2Info;
 import android.media.RoutingChangeInfo;
 import android.media.RoutingSessionInfo;
-import android.media.SuggestedDeviceInfo;
 
 import com.android.settingslib.bluetooth.A2dpProfile;
 import com.android.settingslib.bluetooth.CachedBluetoothDevice;
@@ -64,14 +64,14 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
+import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
-import org.robolectric.shadows.ShadowLooper;
+import org.robolectric.shadows.ShadowPackageManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @RunWith(RobolectricTestRunner.class)
 @Config(shadows = {ShadowBluetoothAdapter.class})
@@ -84,6 +84,7 @@ public class LocalMediaManagerTest {
     private static final String TEST_DEVICE_ID_1 = "device_id_1";
     private static final String TEST_DEVICE_ID_2 = "device_id_2";
     private static final String TEST_DEVICE_ID_3 = "device_id_3";
+    private static final String TEST_PHONE_DEVICE_ID = "phone_device_id";
     private static final String TEST_CURRENT_DEVICE_ID = "currentDevice_id";
     private static final String TEST_PACKAGE_NAME = "com.test.playmusic";
     private static final String TEST_SESSION_ID = "session_id";
@@ -105,7 +106,6 @@ public class LocalMediaManagerTest {
     private MediaRoute2Info mRouteInfo2;
     @Mock
     private AudioManager mAudioManager;
-    @Mock private SuggestedDeviceInfo mSuggestedDeviceInfo;
 
     private Context mContext;
     private LocalMediaManager mLocalMediaManager;
@@ -113,7 +113,6 @@ public class LocalMediaManagerTest {
     private ShadowBluetoothAdapter mShadowBluetoothAdapter;
     private InfoMediaDevice mInfoMediaDevice1;
     private InfoMediaDevice mInfoMediaDevice2;
-    private SuggestedDeviceState mSuggestedDeviceState;
 
     @Before
     public void setUp() {
@@ -128,7 +127,6 @@ public class LocalMediaManagerTest {
         when(mLocalBluetoothManager.getProfileManager()).thenReturn(mLocalProfileManager);
         when(mLocalProfileManager.getA2dpProfile()).thenReturn(mA2dpProfile);
         when(mLocalProfileManager.getHearingAidProfile()).thenReturn(mHapProfile);
-        mSuggestedDeviceState = new SuggestedDeviceState(mSuggestedDeviceInfo);
 
         // Need to call constructor to initialize final fields.
         mInfoMediaManager =
@@ -353,6 +351,66 @@ public class LocalMediaManagerTest {
 
         assertThat(mLocalMediaManager.mMediaDevices).hasSize(1);
         verify(mCallback).onDeviceListUpdate(any());
+    }
+
+    @Test
+    public void onDeviceListAdded_isTv_bondedDeviceAddedToList() {
+        setUpTvEnvironment();
+        List<MediaDevice> devices = setUpMediaDevice(MediaDevice.MediaDeviceType.TYPE_PHONE_DEVICE,
+                TEST_PHONE_DEVICE_ID);
+        List<LocalBluetoothProfile> profiles = setUpProfiles();
+        BluetoothDevice bluetoothDevice = mock(BluetoothDevice.class);
+        CachedBluetoothDeviceManager cachedDeviceManager = setUpCachedDeviceManager();
+        setUpCachedDevice(bluetoothDevice, cachedDeviceManager, profiles, TEST_ADDRESS,
+                TEST_DEVICE_NAME_1);
+        setUpMostRecentlyConnectedDevice(bluetoothDevice);
+
+        mLocalMediaManager.mMediaDeviceCallback.onDeviceListAdded(devices);
+
+        assertThat(mLocalMediaManager.mMediaDevices).hasSize(2);
+    }
+
+    @Test
+    public void onDeviceListAdded_isTvNoBluetoothManager_bondedDeviceIgnored() {
+        // Simulate TV Environment
+        setUpTvEnvironment();
+        List<MediaDevice> devices = setUpMediaDevice(MediaDevice.MediaDeviceType.TYPE_PHONE_DEVICE,
+                TEST_PHONE_DEVICE_ID);
+        List<LocalBluetoothProfile> profiles = setUpProfiles();
+        BluetoothDevice bluetoothDevice = mock(BluetoothDevice.class);
+        CachedBluetoothDeviceManager cachedDeviceManager = setUpCachedDeviceManager();
+        setUpCachedDevice(bluetoothDevice, cachedDeviceManager, profiles, TEST_ADDRESS,
+                TEST_DEVICE_NAME_1);
+        setUpMostRecentlyConnectedDevice(bluetoothDevice);
+
+        //Setup LocalMediaManager with nullBluetoothManager
+        LocalMediaManager localMediaManager = setUpLocalMediaManagerWithNullBluetoothManager(
+                mInfoMediaManager, TEST_PACKAGE_NAME, mCallback, mAudioManager);
+        localMediaManager.mMediaDeviceCallback.onDeviceListAdded(devices);
+
+        assertThat(localMediaManager.mMediaDevices).hasSize(1);
+    }
+
+    @Test
+    public void onDeviceListAdded_hasMutingExpectedDeviceNoBluetoothManager_deviceIgnored() {
+        setUpTvEnvironment();
+        List<MediaDevice> devices = setUpMediaDevice(MediaDevice.MediaDeviceType.TYPE_PHONE_DEVICE,
+                TEST_PHONE_DEVICE_ID);
+        BluetoothDevice bluetoothDevice = mock(BluetoothDevice.class);
+        setUpMostRecentlyConnectedDevice(bluetoothDevice);
+        List<LocalBluetoothProfile> profiles = setUpProfiles();
+        when(mA2dpProfile.getActiveDevice()).thenReturn(bluetoothDevice);
+        CachedBluetoothDeviceManager cachedDeviceManager = setUpCachedDeviceManager();
+        setUpCachedDevice(bluetoothDevice, cachedDeviceManager, profiles, TEST_ADDRESS,
+                TEST_DEVICE_NAME_1);
+        setUpAudioDeviceAttributes();
+        when(mHapProfile.getActiveDevices()).thenReturn(new ArrayList<>());
+
+        LocalMediaManager localMediaManager = setUpLocalMediaManagerWithNullBluetoothManager(
+                mInfoMediaManager, TEST_PACKAGE_NAME, mCallback, mAudioManager);
+        localMediaManager.mMediaDeviceCallback.onDeviceListAdded(devices);
+
+        assertThat(localMediaManager.mMediaDevices).hasSize(1);
     }
 
     @Test
@@ -640,92 +698,95 @@ public class LocalMediaManagerTest {
     }
 
     @Test
-    public void connectSuggestedDevice_deviceIsDiscovered_immediatelyConnects() {
-        when(mSuggestedDeviceInfo.getRouteId()).thenReturn(TEST_DEVICE_ID_1);
-        mLocalMediaManager.mMediaDevices.add(mInfoMediaDevice1);
-
-        RoutingChangeInfo routingChangeInfo =
-                new RoutingChangeInfo(ENTRY_POINT_SYSTEM_MEDIA_CONTROLS, /* isSuggested= */ true);
-        mLocalMediaManager.connectSuggestedDevice(mSuggestedDeviceState, routingChangeInfo);
-
-        verify(mInfoMediaManager).connectToDevice(mInfoMediaDevice1, routingChangeInfo);
-        verify(mInfoMediaManager, never()).startScan();
-    }
-
-    @Test
-    public void connectSuggestedDevice_deviceIsNotDiscovered_scanStarted() {
-        when(mSuggestedDeviceInfo.getRouteId()).thenReturn(TEST_DEVICE_ID_2);
-        mLocalMediaManager.mMediaDevices.add(mInfoMediaDevice1);
-
-        RoutingChangeInfo routingChangeInfo =
-                new RoutingChangeInfo(ENTRY_POINT_SYSTEM_MEDIA_CONTROLS, /* isSuggested= */ true);
-        mLocalMediaManager.connectSuggestedDevice(mSuggestedDeviceState, routingChangeInfo);
-
-        verify(mInfoMediaManager).startScan();
-        verify(mInfoMediaManager, never()).connectToDevice(mInfoMediaDevice1, routingChangeInfo);
-    }
-
-    @Test
-    public void connectSuggestedDevice_deviceDiscoveredAfter_connects() {
-        when(mSuggestedDeviceInfo.getRouteId()).thenReturn(TEST_DEVICE_ID_1);
-        mLocalMediaManager.mMediaDevices.add(mInfoMediaDevice2);
-
-        RoutingChangeInfo routingChangeInfo =
-                new RoutingChangeInfo(ENTRY_POINT_SYSTEM_MEDIA_CONTROLS, /* isSuggested= */ true);
-        mLocalMediaManager.connectSuggestedDevice(mSuggestedDeviceState, routingChangeInfo);
-        mLocalMediaManager.mMediaDevices.add(mInfoMediaDevice1);
-        mLocalMediaManager.dispatchDeviceListUpdate();
-
-        verify(mInfoMediaManager).connectToDevice(mInfoMediaDevice1, routingChangeInfo);
-        verify(mInfoMediaManager).startScan();
-    }
-
-    @Test
-    public void connectSuggestedDevice_handlerTimesOut_completesConnectionAttempt() {
-        when(mSuggestedDeviceInfo.getRouteId()).thenReturn(TEST_DEVICE_ID_1);
-        mLocalMediaManager.mMediaDevices.add(mInfoMediaDevice2);
-
-        RoutingChangeInfo routingChangeInfo =
-                new RoutingChangeInfo(ENTRY_POINT_SYSTEM_MEDIA_CONTROLS, /* isSuggested= */ true);
-        mLocalMediaManager.connectSuggestedDevice(mSuggestedDeviceState, routingChangeInfo);
-        mLocalMediaManager.mMediaDevices.add(mInfoMediaDevice1);
-        mLocalMediaManager.dispatchDeviceListUpdate();
-
-        verify(mInfoMediaManager).connectToDevice(mInfoMediaDevice1, routingChangeInfo);
-
-        long scanAndConnectTimeoutSeconds = 30;
-        ShadowLooper.idleMainLooper(scanAndConnectTimeoutSeconds - 5, TimeUnit.SECONDS);
-
-        verify(mCallback, never()).onConnectSuggestedDeviceFinished(mSuggestedDeviceState, false);
-
-        ShadowLooper.idleMainLooper(6, TimeUnit.SECONDS);
-
-        verify(mCallback).onConnectSuggestedDeviceFinished(mSuggestedDeviceState, false);
-    }
-
-    @Test
-    public void connectSuggestedDevice_connectionSuccess_completesConnectionAttempt() {
-        when(mSuggestedDeviceInfo.getRouteId()).thenReturn(TEST_DEVICE_ID_1);
-        mLocalMediaManager.mMediaDevices.add(mInfoMediaDevice2);
-
-        RoutingChangeInfo routingChangeInfo =
-                new RoutingChangeInfo(ENTRY_POINT_SYSTEM_MEDIA_CONTROLS, /* isSuggested= */ true);
-        mLocalMediaManager.connectSuggestedDevice(mSuggestedDeviceState, routingChangeInfo);
-        mLocalMediaManager.mMediaDevices.add(mInfoMediaDevice1);
-        mLocalMediaManager.dispatchDeviceListUpdate();
-
-        verify(mInfoMediaManager).connectToDevice(mInfoMediaDevice1, routingChangeInfo);
-
-        mLocalMediaManager.dispatchSelectedDeviceStateChanged(mInfoMediaDevice1,
-            LocalMediaManager.MediaDeviceState.STATE_CONNECTED);
-        verify(mCallback).onConnectSuggestedDeviceFinished(mSuggestedDeviceState, true);
-    }
-
-    @Test
     public void getSessionReleaseType_returnCorrectType() {
         when(mInfoMediaManager.getSessionReleaseType())
                 .thenReturn(RoutingSessionInfo.RELEASE_TYPE_SHARING);
         assertThat(mLocalMediaManager.getSessionReleaseType())
                 .isEqualTo(RoutingSessionInfo.RELEASE_TYPE_SHARING);
+    }
+
+    @Test
+    public void getMissingPermissionsInfo_returnsInfoFromInfoMediaManager() {
+        ComponentName component = new ComponentName(TEST_PACKAGE_NAME, "TestClass");
+        MissingPermissionsInfo info = new MissingPermissionsInfo(component, Collections.emptySet());
+        when(mInfoMediaManager.getMissingPermissionsInfo()).thenReturn(info);
+
+        assertThat(mLocalMediaManager.getMissingPermissionsInfo()).isEqualTo(info);
+    }
+
+    @Test
+    public void onMissingPermissionsUpdated_notifiesCallbacks() {
+        ComponentName component = new ComponentName(TEST_PACKAGE_NAME, "TestClass");
+        MissingPermissionsInfo info = new MissingPermissionsInfo(component, Collections.emptySet());
+
+        mLocalMediaManager.mMediaDeviceCallback.onMissingPermissionsUpdated(info);
+
+        verify(mCallback).onMissingPermissionsUpdated(info);
+    }
+
+    private void setUpTvEnvironment() {
+        ShadowPackageManager shadowPackageManager = Shadows.shadowOf(mContext.getPackageManager());
+        shadowPackageManager.setSystemFeature(PackageManager.FEATURE_LEANBACK, true);
+        shadowPackageManager.setSystemFeature(PackageManager.FEATURE_TELEVISION, true);
+    }
+
+    private List<MediaDevice> setUpMediaDevice(int type,
+            String id) {
+        List<MediaDevice> devices = new ArrayList<>();
+        MediaDevice device = mock(MediaDevice.class);
+        when(device.getDeviceType()).thenReturn(type);
+        when(device.getId()).thenReturn(id);
+        devices.add(device);
+        return devices;
+    }
+
+    private void setUpCachedDevice(BluetoothDevice bluetoothDevice,
+            CachedBluetoothDeviceManager cachedDeviceManager, List<LocalBluetoothProfile> profiles,
+            String address, String name) {
+
+        CachedBluetoothDevice cachedDevice = mock(CachedBluetoothDevice.class);
+        when(cachedDeviceManager.findDevice(bluetoothDevice)).thenReturn(cachedDevice);
+        when(cachedDevice.getDevice()).thenReturn(bluetoothDevice);
+        when(cachedDevice.getBondState()).thenReturn(BluetoothDevice.BOND_BONDED);
+        when(cachedDevice.isConnected()).thenReturn(false);
+        when(cachedDevice.getUiAccessibleProfiles()).thenReturn(profiles);
+        when(cachedDevice.getAddress()).thenReturn(address);
+        when(cachedDevice.getName()).thenReturn(name);
+        when(bluetoothDevice.getAddress()).thenReturn(address);
+    }
+
+    private LocalMediaManager setUpLocalMediaManagerWithNullBluetoothManager(
+            InfoMediaManager infoMediaManager, String packageName,
+            LocalMediaManager.DeviceCallback callback, AudioManager audioManager) {
+        LocalMediaManager localMediaManager = new LocalMediaManager(
+                mContext, /* localBluetoothManager= */ null, infoMediaManager, packageName);
+        localMediaManager.registerCallback(callback);
+        localMediaManager.mAudioManager = audioManager;
+
+        return localMediaManager;
+    }
+
+    private CachedBluetoothDeviceManager setUpCachedDeviceManager() {
+        CachedBluetoothDeviceManager cachedDeviceManager = mock(CachedBluetoothDeviceManager.class);
+        when(mLocalBluetoothManager.getCachedDeviceManager()).thenReturn(cachedDeviceManager);
+        return cachedDeviceManager;
+    }
+
+    private void setUpMostRecentlyConnectedDevice(BluetoothDevice bluetoothDevice) {
+        List<BluetoothDevice> mostRecentlyConnected = new ArrayList<>();
+        mostRecentlyConnected.add(bluetoothDevice);
+        mShadowBluetoothAdapter.setMostRecentlyConnectedDevices(mostRecentlyConnected);
+    }
+
+    private List<LocalBluetoothProfile> setUpProfiles() {
+        List<LocalBluetoothProfile> profiles = new ArrayList<>();
+        profiles.add(mA2dpProfile);
+        return profiles;
+    }
+
+    private void setUpAudioDeviceAttributes() {
+        AudioDeviceAttributes audioDeviceAttributes = new AudioDeviceAttributes(
+                AudioSystem.DEVICE_OUT_BLUETOOTH_A2DP, TEST_ADDRESS);
+        when(mAudioManager.getMutingExpectedDevice()).thenReturn(audioDeviceAttributes);
     }
 }

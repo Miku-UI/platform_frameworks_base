@@ -16,6 +16,7 @@
 
 package com.android.systemui.bouncer.domain.interactor
 
+import android.content.res.mainResources
 import com.android.keyguard.keyguardSecurityModel
 import com.android.keyguard.keyguardUpdateMonitor
 import com.android.systemui.biometrics.data.repository.facePropertyRepository
@@ -26,6 +27,7 @@ import com.android.systemui.keyguard.data.repository.fakeBiometricSettingsReposi
 import com.android.systemui.keyguard.data.repository.fakeTrustRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.kosmos.backgroundScope
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.securelockdevice.domain.interactor.secureLockDeviceInteractor
 import com.android.systemui.user.data.repository.fakeUserRepository
@@ -39,6 +41,7 @@ val Kosmos.bouncerMessageInteractor by Fixture {
         updateMonitor = keyguardUpdateMonitor,
         biometricSettingsRepository = fakeBiometricSettingsRepository,
         applicationScope = testScope.backgroundScope,
+        backgroundScope = backgroundScope,
         trustRepository = fakeTrustRepository,
         systemPropertiesHelper = fakeSystemPropertiesHelper,
         primaryBouncerInteractor = primaryBouncerInteractor,
@@ -46,6 +49,7 @@ val Kosmos.bouncerMessageInteractor by Fixture {
         securityModel = keyguardSecurityModel,
         deviceEntryBiometricsAllowedInteractor = deviceEntryBiometricsAllowedInteractor,
         secureLockDeviceInteractor = { secureLockDeviceInteractor },
+        resources = mainResources,
     )
 }
 val Kosmos.countDownTimerUtil by Fixture { mock<CountDownTimerUtil>() }

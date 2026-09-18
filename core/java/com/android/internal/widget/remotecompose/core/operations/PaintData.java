@@ -15,7 +15,6 @@
  */
 package com.android.internal.widget.remotecompose.core.operations;
 
-import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.INT;
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.INT_ARRAY;
 
 import android.annotation.NonNull;
@@ -39,10 +38,15 @@ public class PaintData extends PaintOperation
         implements ComponentData, VariableSupport, Serializable {
     private static final int OP_CODE = Operations.PAINT_VALUES;
     private static final String CLASS_NAME = "PaintData";
-    @NonNull public PaintBundle mPaintData = new PaintBundle();
-    public static final int MAX_STRING_SIZE = 4000;
+    @NonNull
+    public PaintBundle mPaintData = new PaintBundle();
 
-    public PaintData() {}
+    public PaintData() {
+    }
+
+    public PaintData(@NonNull PaintBundle paintData) {
+        mPaintData = paintData;
+    }
 
     @Override
     public void updateVariables(@NonNull RemoteContext context) {
@@ -87,7 +91,7 @@ public class PaintData extends PaintOperation
     /**
      * add a paint data to the buffer
      *
-     * @param buffer the buffer to add to
+     * @param buffer      the buffer to add to
      * @param paintBundle the paint bundle
      */
     public static void apply(@NonNull WireBuffer buffer, @NonNull PaintBundle paintBundle) {
@@ -98,7 +102,7 @@ public class PaintData extends PaintOperation
     /**
      * Read this operation and add it to the list of operations
      *
-     * @param buffer the buffer to read
+     * @param buffer     the buffer to read
      * @param operations the list of operations that will be added to
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
@@ -113,10 +117,10 @@ public class PaintData extends PaintOperation
      * @param doc to append the description to.
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
-        doc.operation("Data Operations", OP_CODE, CLASS_NAME)
-                .description("Encode a Paint ")
-                .field(INT, "length", "id string")
-                .field(INT_ARRAY, "paint", "length", "path encoded as floats");
+        doc.operation("Paint & Styles Operations", OP_CODE, CLASS_NAME)
+                .additionalDocumentation("paint_data")
+                .description("Encode a Paint object with various properties")
+                .field(INT_ARRAY, "paintBundle", "The encoded paint properties");
     }
 
     @NonNull

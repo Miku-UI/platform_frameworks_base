@@ -33,11 +33,6 @@ object NotificationHeadsUpCycling {
     inline val isEnabled
         get() = NotificationThrottleHun.isEnabled
 
-    /** Whether to animate the bottom line when transiting from a tall HUN to a short HUN */
-    @JvmStatic
-    inline val animateTallToShort
-        get() = false
-
     /**
      * Called to ensure code is only run when the flag is enabled. This protects users from the
      * unintended behaviors caused by accidentally running new logic, while also crashing on an eng

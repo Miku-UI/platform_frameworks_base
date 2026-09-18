@@ -23,6 +23,9 @@ import android.window.TaskSnapshot;
 import com.android.internal.annotations.GuardedBy;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
@@ -30,6 +33,7 @@ import java.util.function.Consumer;
  * @param <TYPE> The basic type, either Task or ActivityRecord
  */
 abstract class SnapshotCache<TYPE extends WindowContainer> {
+    private static final long WAIT_SNAPSHOT_ENTRY_PUT_OR_REMOVED_TIMEOUT_MS = 300;
     protected final Object mLock = new Object();
 
     protected final String mName;
@@ -41,12 +45,44 @@ abstract class SnapshotCache<TYPE extends WindowContainer> {
     protected final ArrayMap<Integer, CacheEntry> mRunningCache = new ArrayMap<>();
 
     protected Consumer<HardwareBuffer> mSafeSnapshotReleaser;
+    @GuardedBy("itself")
+    private final ArrayList<WaitEntryPutOrRemoved> mWaitEntryPutOrRemoved = new ArrayList<>();
 
     SnapshotCache(String name) {
         mName = name;
     }
 
     abstract void putSnapshot(TYPE window, TaskSnapshot snapshot);
+
+    void onSnapshotEntryPutOrRemoved(Integer id) {
+        synchronized (mWaitEntryPutOrRemoved) {
+            for (int i = mWaitEntryPutOrRemoved.size() - 1; i >= 0; --i) {
+                // Multiple callers may be waiting for the same id.
+                if (mWaitEntryPutOrRemoved.get(i).mId == id) {
+                    final WaitEntryPutOrRemoved latch = mWaitEntryPutOrRemoved.remove(i);
+                    latch.mLatch.countDown();
+                }
+            }
+        }
+    }
+
+    void waitForLowResSnapshotEntryPutOrRemoved(Integer id) {
+        synchronized (mLock) {
+            final CacheEntry entry = mRunningCache.get(id);
+            if (entry == null || entry.snapshot.isLowResolution()) {
+                return;
+            }
+        }
+        final CountDownLatch latch = new CountDownLatch(1);
+        synchronized (mWaitEntryPutOrRemoved) {
+            mWaitEntryPutOrRemoved.add(new WaitEntryPutOrRemoved(id, latch));
+        }
+        try {
+            latch.await(WAIT_SNAPSHOT_ENTRY_PUT_OR_REMOVED_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            // No matter what, continue.
+        }
+    }
 
     void setSafeSnapshotReleaser(Consumer<HardwareBuffer> safeSnapshotReleaser) {
         mSafeSnapshotReleaser = safeSnapshotReleaser;
@@ -55,6 +91,13 @@ abstract class SnapshotCache<TYPE extends WindowContainer> {
     void clearRunningCache() {
         synchronized (mLock) {
             mRunningCache.clear();
+        }
+        synchronized (mWaitEntryPutOrRemoved) {
+            for (int i = mWaitEntryPutOrRemoved.size() - 1; i >= 0; --i) {
+                final WaitEntryPutOrRemoved latch = mWaitEntryPutOrRemoved.remove(i);
+                latch.mLatch.countDown();
+            }
+            mWaitEntryPutOrRemoved.clear();
         }
     }
 
@@ -103,6 +146,7 @@ abstract class SnapshotCache<TYPE extends WindowContainer> {
                 entry.snapshot.removeReference(TaskSnapshot.REFERENCE_CACHE);
             }
         }
+        onSnapshotEntryPutOrRemoved(id);
     }
 
     void dump(PrintWriter pw, String prefix) {
@@ -117,6 +161,15 @@ abstract class SnapshotCache<TYPE extends WindowContainer> {
                 pw.println(triplePrefix + "topApp=" + entry.topApp);
                 pw.println(triplePrefix + "snapshot=" + entry.snapshot);
             }
+        }
+    }
+
+    static final class WaitEntryPutOrRemoved {
+        final int mId;
+        final CountDownLatch mLatch;
+        WaitEntryPutOrRemoved(int id, CountDownLatch latch) {
+            mId = id;
+            mLatch = latch;
         }
     }
 

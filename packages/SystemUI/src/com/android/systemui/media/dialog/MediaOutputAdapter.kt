@@ -35,18 +35,16 @@ import android.widget.TextView
 import androidx.annotation.VisibleForTesting
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.recyclerview.widget.RecyclerView
-import com.android.media.flags.Flags
 import com.android.settingslib.media.MediaDevice
 import com.android.systemui.FontStyles.GSF_TITLE_MEDIUM_EMPHASIZED
 import com.android.systemui.FontStyles.GSF_TITLE_SMALL
-import com.android.systemui.media.dialog.MediaItem.MediaItemType.TYPE_DEVICE
-import com.android.systemui.media.dialog.MediaItem.MediaItemType.TYPE_DEVICE_GROUP
-import com.android.systemui.media.dialog.MediaItem.MediaItemType.TYPE_GROUP_DIVIDER
+import com.android.systemui.media.dialog.MediaItem.DeviceGroupMediaItem
+import com.android.systemui.media.dialog.MediaItem.DeviceMediaItem
+import com.android.systemui.media.dialog.MediaItem.GroupDividerMediaItem
 import com.android.systemui.media.dialog.MediaOutputAdapterBase.ConnectionState.CONNECTED
 import com.android.systemui.media.dialog.MediaOutputAdapterBase.ConnectionState.CONNECTING
 import com.android.systemui.media.dialog.MediaOutputAdapterBase.ConnectionState.DISCONNECTED
 import com.android.systemui.res.R
-import com.android.systemui.util.kotlin.getOrNull
 import com.google.android.material.slider.Slider
 
 /** A RecyclerView adapter for the legacy UI media output dialog device list. */
@@ -54,14 +52,23 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
     MediaOutputAdapterBase(controller) {
 
     /** Refreshes the RecyclerView dataset and forces re-render. */
-    override fun updateItems() {
-        val newList =
-            mController.getMediaItemList(false /* addConnectNewDeviceButton */).toMutableList()
-
+    fun updateItems() {
         mMediaItemList.clear()
-        mMediaItemList.addAll(newList)
+        mMediaItemList.addAll(mController.getMediaItemList())
 
         notifyDataSetChanged()
+    }
+
+    override fun getItemViewType(position: Int): Int {
+        if (position >= mMediaItemList.size) {
+            Log.d(TAG, "Incorrect position for item type: $position")
+            return TYPE_GROUP_DIVIDER
+        }
+        return when (mMediaItemList[position]) {
+            is DeviceMediaItem -> TYPE_DEVICE
+            is GroupDividerMediaItem -> TYPE_GROUP_DIVIDER
+            is DeviceGroupMediaItem -> TYPE_DEVICE_GROUP
+        }
     }
 
     override fun getItemId(position: Int): Long {
@@ -69,14 +76,12 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
             Log.e(TAG, "Item position exceeds list size: $position")
             return RecyclerView.NO_ID
         }
-        val currentMediaItem = mMediaItemList[position]
-        return when (currentMediaItem.mediaItemType) {
-            TYPE_DEVICE ->
-                currentMediaItem.mediaDevice.getOrNull()?.id?.hashCode()?.toLong()
-                    ?: RecyclerView.NO_ID
-            TYPE_GROUP_DIVIDER -> currentMediaItem.title.hashCode().toLong()
-            TYPE_DEVICE_GROUP -> currentMediaItem.mediaItemType.toLong()
-            else -> RecyclerView.NO_ID
+        return when (val item = mMediaItemList[position]) {
+            is DeviceMediaItem -> {
+                item.mediaDevice.id?.hashCode()?.toLong() ?: RecyclerView.NO_ID
+            }
+            is GroupDividerMediaItem -> item.title.hashCode().toLong()
+            is DeviceGroupMediaItem -> TYPE_DEVICE_GROUP.toLong()
         }
     }
 
@@ -104,26 +109,25 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
 
     override fun onBindViewHolder(viewHolder: RecyclerView.ViewHolder, position: Int) {
         require(position < itemCount) { "Invalid position: $position, list size: $itemCount" }
-        val currentMediaItem = mMediaItemList[position]
-        when (currentMediaItem.mediaItemType) {
-            TYPE_GROUP_DIVIDER ->
+        when (val item = mMediaItemList[position]) {
+            is GroupDividerMediaItem -> {
                 (viewHolder as MediaGroupDividerViewHolder).onBind(
-                    groupDividerTitle = currentMediaItem.title,
-                    isExpandableDivider = currentMediaItem.isExpandableDivider,
-                    hasTopSeparator = currentMediaItem.hasTopSeparator(),
+                    groupDividerTitle = item.title,
+                    isExpandableDivider = item.isExpandable,
+                    hasTopSeparator = item.hasTopSeparator,
                 )
+            }
 
-            TYPE_DEVICE ->
+            is DeviceMediaItem -> {
                 (viewHolder as MediaDeviceViewHolder).onBindDevice(
-                    mediaItem = currentMediaItem,
+                    mediaItem = item,
                     position = position,
                 )
+            }
 
-            TYPE_DEVICE_GROUP -> (viewHolder as MediaDeviceViewHolder).onBindDeviceGroup()
-            else ->
-                throw IllegalArgumentException(
-                    "Invalid item type ${currentMediaItem.mediaItemType} for position: $position"
-                )
+            is DeviceGroupMediaItem -> {
+                (viewHolder as MediaDeviceViewHolder).onBindDeviceGroup()
+            }
         }
     }
 
@@ -131,7 +135,7 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
         get() = mController
 
     /** ViewHolder for binding device view. */
-    inner class MediaDeviceViewHolder(view: View, context: Context?) :
+    inner class MediaDeviceViewHolder(view: View, context: Context) :
         MediaDeviceViewHolderBase(view, context) {
         @VisibleForTesting val mMainContent: LinearLayout = view.requireViewById(R.id.main_content)
 
@@ -181,7 +185,7 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
                 R.drawable.media_output_dialog_item_fixed_volume_background,
             )
 
-        fun onBindDevice(mediaItem: MediaItem, position: Int) {
+        fun onBindDevice(mediaItem: DeviceMediaItem, position: Int) {
             resetViewState()
             renderItem(mediaItem, position)
         }
@@ -203,7 +207,6 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
         }
 
         override fun renderDeviceItem(
-            hideGroupItem: Boolean,
             device: MediaDevice,
             connectionState: ConnectionState,
             restrictVolumeAdjustment: Boolean,
@@ -236,7 +239,7 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
             updateItemBackground()
             updateTitle(
                 title =
-                    mController.sessionName
+                    mController.getSessionName()
                         ?: mContext.getString(R.string.media_output_dialog_group),
                 connectionState = CONNECTED,
                 colorTheme = colorTheme,
@@ -269,7 +272,7 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
         }
 
         private fun updateItemBackground() {
-            mItemLayout.setBackgroundColor(mController.colorScheme.getSurfaceContainer())
+            mItemLayout.setBackgroundColor(mController.getColorScheme().getSurfaceContainer())
         }
 
         private fun updateContentPadding(verticalPadding: Float) {
@@ -319,19 +322,16 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
             initSeekbar(
                 volumeChangeCallback = { volume: Int -> mController.adjustSessionVolume(volume) },
                 deviceDrawable = groupDrawable,
-                // When Flags.enableOutputSwitcherPersonalAudioSharing() is on, no need to show
-                // disabled seek bar for volume control disabled session because devices won't be
-                // collapsed.
+                // No need to show disabled seek bar for volume control disabled session because
+                // devices won't be collapsed.
                 // This is a side effect of broadcast design: broadcast devices should be controlled
                 // separately so they should not be collapsed, so isVolumeControlEnabledForSession
                 // is added to {@link MediaOutputAdapter#updateItems()}. The logic will spread to
                 // casting devices without group volume control, so disabling seek bar will be
-                // unnecessary when Flags.enableOutputSwitcherPersonalAudioSharing() is on.
-                isVolumeControlAllowed =
-                    Flags.enableOutputSwitcherPersonalAudioSharing() ||
-                        mController.isVolumeControlEnabledForSession,
-                currentVolume = mController.sessionVolume,
-                maxVolume = mController.sessionVolumeMax,
+                // unnecessary.
+                isVolumeControlAllowed = true,
+                currentVolume = mController.getSessionVolume(),
+                maxVolume = mController.getSessionVolumeMax(),
                 colorTheme = colorTheme,
             )
         }
@@ -367,7 +367,7 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
             muteDrawable: Drawable?,
         ) {
             tryResolveVolumeUserRequest(currentVolume)
-            if (!isDragging && hasNoPendingVolumeRequests()) {
+            if (!isDragging() && hasNoPendingVolumeRequests()) {
                 mSlider.value = currentVolume.toFloat()
                 updateSliderIconsVisibility(
                     deviceDrawable = deviceDrawable,
@@ -405,6 +405,12 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
             if (maxVolume == 0) {
                 Log.e(TAG, "Invalid maxVolume value")
                 // Slider doesn't allow valueFrom == valueTo, return to prevent crash.
+                return
+            }
+
+            if (currentVolume !in 0..maxVolume) {
+                Log.e(TAG, "currentVolume must be between 0 and $maxVolume, actual: $currentVolume")
+                // Slider doesn't allow setting volume out of range, return to prevent crash.
                 return
             }
 
@@ -532,7 +538,7 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
 
             mDivider.visibility =
                 if (showDivider && connectionState == DISCONNECTED) VISIBLE else GONE
-            mDivider.setBackgroundColor(mController.colorScheme.getOutline())
+            mDivider.setBackgroundColor(mController.getColorScheme().getOutline())
         }
 
         private fun shouldShowGroupCheckbox(groupStatus: GroupStatus): Boolean {
@@ -548,7 +554,7 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
             val iconDrawableId =
                 if (isHost) R.drawable.media_output_status_edit_session
                 else R.drawable.ic_sound_bars_anim
-            mOngoingSessionButton.setOnClickListener { v: View? ->
+            mOngoingSessionButton.setOnClickListener { v: View ->
                 mController.tryToLaunchInAppRoutingIntent(device.id, v)
             }
             val drawable = AppCompatResources.getDrawable(mContext, iconDrawableId)
@@ -620,14 +626,14 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
             hasTopSeparator: Boolean,
         ) {
             mTitleText.text = groupDividerTitle
-            mTitleText.setTextColor(mController.colorScheme.getPrimary())
+            mTitleText.setTextColor(mController.getColorScheme().getPrimary())
             if (hasTopSeparator) {
                 mTopSeparator.visibility = VISIBLE
-                mTopSeparator.setBackgroundColor(mController.colorScheme.getOutlineVariant())
+                mTopSeparator.setBackgroundColor(mController.getColorScheme().getOutlineVariant())
             } else {
                 mTopSeparator.visibility = GONE
             }
-            mItemLayout.setBackgroundColor(mController.colorScheme.getSurfaceContainer())
+            mItemLayout.setBackgroundColor(mController.getColorScheme().getSurfaceContainer())
             updateExpandButton(isExpandableDivider)
         }
 
@@ -636,7 +642,7 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
                 mExpandButton.visibility = GONE
                 return
             }
-            val isCollapsed = mController.isGroupListCollapsed
+            val isCollapsed = mController.isGroupListCollapsed()
             mExpandButtonIcon.setImageDrawable(
                 AppCompatResources.getDrawable(
                     mContext,
@@ -652,14 +658,14 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
             mExpandButton.visibility = VISIBLE
             mExpandButton.setOnClickListener { toggleGroupList() }
             mExpandButtonIcon.backgroundTintList =
-                ColorStateList.valueOf(mController.colorScheme.getOnSurface())
+                ColorStateList.valueOf(mController.getColorScheme().getOnSurface())
                     .withAlpha((255 * 0.1).toInt())
             mExpandButtonIcon.imageTintList =
-                ColorStateList.valueOf(mController.colorScheme.getOnSurface())
+                ColorStateList.valueOf(mController.getColorScheme().getOnSurface())
         }
 
         private fun toggleGroupList() {
-            mController.isGroupListCollapsed = !mController.isGroupListCollapsed
+            mController.setGroupListCollapsed(!mController.isGroupListCollapsed())
             updateItems()
         }
     }
@@ -668,28 +674,30 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
         isConnectedWithFixedVolume: Boolean = false,
         val contentAlpha: Float = DEVICE_ACTIVE_ALPHA,
     ) {
-        private val colorScheme: MediaOutputColorScheme = mController.colorScheme
+        private val colorScheme: MediaOutputColorScheme = mController.getColorScheme()
+        private val isExpandedAudioTileDetailsFeatureEnabled: Boolean =
+            mController.isExpandedAudioTileDetailsFeatureEnabled()
 
         val titleColor =
-            if (isConnectedWithFixedVolume) {
+            if (!isExpandedAudioTileDetailsFeatureEnabled && isConnectedWithFixedVolume) {
                 colorScheme.getOnPrimary()
             } else {
                 colorScheme.getOnSurface()
             }
         val subtitleColor =
-            if (isConnectedWithFixedVolume) {
+            if (!isExpandedAudioTileDetailsFeatureEnabled && isConnectedWithFixedVolume) {
                 colorScheme.getOnPrimary()
             } else {
                 colorScheme.getOnSurfaceVariant()
             }
         val iconColor =
-            if (isConnectedWithFixedVolume) {
+            if (!isExpandedAudioTileDetailsFeatureEnabled && isConnectedWithFixedVolume) {
                 colorScheme.getOnPrimary()
             } else {
                 colorScheme.getOnSurface()
             }
         val statusIconColor =
-            if (isConnectedWithFixedVolume) {
+            if (!isExpandedAudioTileDetailsFeatureEnabled && isConnectedWithFixedVolume) {
                 colorScheme.getOnPrimary()
             } else {
                 colorScheme.getOnSurfaceVariant()
@@ -702,6 +710,11 @@ class MediaOutputAdapter(controller: MediaSwitchingController) :
     }
 
     companion object {
+        // All possible RecyclerView item view types, based on the child classes of [MediaItem].
+        const val TYPE_DEVICE = 0
+        const val TYPE_GROUP_DIVIDER = 1
+        const val TYPE_DEVICE_GROUP = 2
+
         private const val TAG = "MediaOutputAdapter"
         private const val DEVICE_ACTIVE_ALPHA = 1f
         private const val NO_VOLUME_SET = -1

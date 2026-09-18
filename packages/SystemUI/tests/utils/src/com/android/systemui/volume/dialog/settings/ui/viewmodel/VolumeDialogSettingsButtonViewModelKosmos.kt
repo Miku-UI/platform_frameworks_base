@@ -21,6 +21,7 @@ import com.android.internal.logging.uiEventLogger
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.util.mockito.mock
 import com.android.systemui.volume.dialog.settings.domain.volumeDialogSettingsButtonInteractor
 import com.android.systemui.volume.mediaDeviceSessionInteractor
 import com.android.systemui.volume.mediaOutputInteractor
@@ -34,6 +35,8 @@ val Kosmos.volumeDialogSettingsButtonViewModel by
             mediaOutputInteractor,
             mediaDeviceSessionInteractor,
             volumeDialogSettingsButtonInteractor,
+            mock(),
+            mock(),
             uiEventLogger,
         )
     }

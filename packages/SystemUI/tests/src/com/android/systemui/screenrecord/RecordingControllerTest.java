@@ -30,6 +30,7 @@ import static junit.framework.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -51,10 +52,10 @@ import com.android.systemui.mediaprojection.MediaProjectionMetricsLogger;
 import com.android.systemui.mediaprojection.SessionCreationSource;
 import com.android.systemui.mediaprojection.devicepolicy.ScreenCaptureDevicePolicyResolver;
 import com.android.systemui.mediaprojection.devicepolicy.ScreenCaptureDisabledDialogDelegate;
-import com.android.systemui.screenrecord.domain.ScreenRecordingParameters;
-import com.android.systemui.screenrecord.domain.interactor.ScreenRecordingServiceInteractorKosmosKt;
-import com.android.systemui.screenrecord.domain.interactor.ScreenRecordingStartStopInteractor;
-import com.android.systemui.screenrecord.domain.interactor.ScreenRecordingStartStopInteractorKosmosKt;
+import com.android.systemui.screenrecord.data.repository.ScreenRecordingServiceRepositoryKosmosKt;
+import com.android.systemui.screenrecord.data.repository.ScreenRecordingStartStopRepository;
+import com.android.systemui.screenrecord.data.repository.ScreenRecordingStartStopRepositoryKosmosKt;
+import com.android.systemui.screenrecord.shared.model.ScreenRecordingParameters;
 import com.android.systemui.settings.UserTrackerKosmosKt;
 import com.android.systemui.statusbar.phone.SystemUIDialog;
 import com.android.systemui.util.concurrency.FakeExecutor;
@@ -112,7 +113,7 @@ public class RecordingControllerTest extends SysuiTestCase {
         Context spiedContext = spy(mContext);
         when(spiedContext.getUserId()).thenReturn(TEST_USER_ID);
 
-        when(mScreenCaptureDisabledDialogDelegate.createSysUIDialog())
+        when(mScreenCaptureDisabledDialogDelegate.createDialog())
                 .thenReturn(mScreenCaptureDisabledDialog);
         when(mScreenRecordPermissionDialogDelegateFactory.create(any(), any(), anyInt(), any()))
                 .thenReturn(mScreenRecordPermissionDialogDelegate);
@@ -132,9 +133,9 @@ public class RecordingControllerTest extends SysuiTestCase {
                 mScreenRecordPermissionContentManagerFactory
         );
         ScreenRecordUxControllerKosmosKt.setScreenRecordUxController(mKosmos, uxController);
-        ScreenRecordingStartStopInteractorKosmosKt.setScreenRecordingStartStopInteractor(
+        ScreenRecordingStartStopRepositoryKosmosKt.setScreenRecordingStartStopRepository(
                 mKosmos,
-                ScreenRecordingServiceInteractorKosmosKt.getScreenRecordingServiceInteractor(
+                ScreenRecordingServiceRepositoryKosmosKt.getScreenRecordingServiceRepository(
                         mKosmos)
         );
         mController = uxController.getRecordingController();
@@ -166,7 +167,7 @@ public class RecordingControllerTest extends SysuiTestCase {
 
         assertFalse(mController.isStarting());
         assertFalse(mController.isRecording());
-        verify(mCallback).onRecordingEnd();
+        verify(mCallback, atLeastOnce()).onRecordingEnd();
     }
 
     // Test that updating the controller state works and notifies listeners.
@@ -215,7 +216,7 @@ public class RecordingControllerTest extends SysuiTestCase {
         mController.mUserChangedCallback.onUserChanged(USER_ID, mContext);
 
         // Ensure that the recording was stopped
-        verify(mCallback).onRecordingEnd();
+        verify(mCallback, atLeastOnce()).onRecordingEnd();
         assertFalse(mController.isRecording());
     }
 
@@ -272,18 +273,18 @@ public class RecordingControllerTest extends SysuiTestCase {
     }
 
     private Runnable start() {
-        ScreenRecordingStartStopInteractor mInteractor =
-                ScreenRecordingStartStopInteractorKosmosKt.getScreenRecordingStartStopInteractor(
+        ScreenRecordingStartStopRepository repository =
+                ScreenRecordingStartStopRepositoryKosmosKt.getScreenRecordingStartStopRepository(
                         mKosmos);
-        return () -> mInteractor.startRecording(
+        return () -> repository.startRecording(
                 new ScreenRecordingParameters(null, ScreenRecordingAudioSource.NONE, 0,
                         false));
     }
 
     private Runnable stop() {
-        ScreenRecordingStartStopInteractor mInteractor =
-                ScreenRecordingStartStopInteractorKosmosKt.getScreenRecordingStartStopInteractor(
+        ScreenRecordingStartStopRepository repository =
+                ScreenRecordingStartStopRepositoryKosmosKt.getScreenRecordingStartStopRepository(
                         mKosmos);
-        return () -> mInteractor.stopRecording(StopReason.STOP_HOST_APP);
+        return () -> repository.stopRecording(StopReason.STOP_HOST_APP);
     }
 }

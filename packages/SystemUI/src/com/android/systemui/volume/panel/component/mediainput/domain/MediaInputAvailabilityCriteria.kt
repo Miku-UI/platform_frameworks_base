@@ -16,7 +16,7 @@
 
 package com.android.systemui.volume.panel.component.mediainput.domain
 
-import com.android.systemui.volume.dialog.domain.interactor.DesktopAudioTileDetailsFeatureInteractor
+import com.android.systemui.volume.dialog.domain.interactor.ExpandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.panel.dagger.scope.VolumePanelScope
 import com.android.systemui.volume.panel.domain.ComponentAvailabilityCriteria
 import javax.inject.Inject
@@ -27,9 +27,9 @@ import kotlinx.coroutines.flow.flowOf
 class MediaInputAvailabilityCriteria
 @Inject
 constructor(
-    private val desktopAudioTileDetailsFeatureInteractor: DesktopAudioTileDetailsFeatureInteractor
+    private val expandedAudioTileDetailsFeatureInteractor: ExpandedAudioTileDetailsFeatureInteractor
 ) : ComponentAvailabilityCriteria {
 
     override fun isAvailable(): Flow<Boolean> =
-        flowOf(desktopAudioTileDetailsFeatureInteractor.isEnabled())
+        flowOf(expandedAudioTileDetailsFeatureInteractor.isEnabled())
 }

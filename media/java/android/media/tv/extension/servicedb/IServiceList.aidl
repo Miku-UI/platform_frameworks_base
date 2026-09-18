@@ -19,12 +19,24 @@ package android.media.tv.extension.servicedb;
 import android.os.Bundle;
 
 /**
+ * Interface for retrieving service list information.
  * @hide
  */
 interface IServiceList {
-    // Get a list of the Service list IDs quivalent to COLUMN_CHANNEL_LIST_ID
-    // in the Channels table of TvProvider.
+    /**
+     * Retrieves a list of available Service List IDs from tv.db.
+     * <p>These correspond to {@code COLUMN_CHANNEL_LIST_ID} in the TvProvider.</p>
+     *
+     * @return An array of Service List IDs.
+     */
     String[] getServiceListIds();
-    // Get the information associated with the Service list.
+    /**
+     * Retrieves detailed information for a specific Service List from tv.db.
+     *
+     * @param serviceListId The ID grouping services by broadcast standard (e.g., DVB-T, DVB-C).
+     * @param keys The metadata keys to retrieve.
+     * @return A bundle containing the Service List information, bundle keys defined but not
+     *         limited to @ServicedbConstants.ServiceListInfoKeys.
+     */
     Bundle getServiceListInfo(String serviceListId, in String[] keys);
 }

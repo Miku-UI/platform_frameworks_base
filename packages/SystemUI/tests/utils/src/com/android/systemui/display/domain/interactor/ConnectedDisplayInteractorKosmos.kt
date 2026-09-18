@@ -22,7 +22,10 @@ import com.android.systemui.display.data.repository.fakeDeviceStateRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testDispatcher
+import com.android.systemui.kosmos.testScope
 import org.mockito.kotlin.mock
+
+val Kosmos.virtualDeviceManager by Kosmos.Fixture { mock<VirtualDeviceManager>() }
 
 val Kosmos.connectedDisplayInteractor by
     Kosmos.Fixture {
@@ -31,6 +34,7 @@ val Kosmos.connectedDisplayInteractor by
             displayRepository = displayRepository,
             deviceStateRepository = fakeDeviceStateRepository,
             backgroundCoroutineDispatcher = testDispatcher,
-            virtualDeviceManager = mock<VirtualDeviceManager>(),
+            virtualDeviceManager = virtualDeviceManager,
+            bgCoroutineScope = testScope.backgroundScope,
         )
     }

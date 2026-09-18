@@ -41,6 +41,7 @@ class RemoteCollectionItemsAdapter extends BaseAdapter {
     private InteractionHandler mInteractionHandler;
     private ColorResources mColorResources;
     private boolean mOnLightBackground;
+    private float mOriginalDensity;
 
     private SparseIntArray mLayoutIdToViewType;
 
@@ -48,7 +49,7 @@ class RemoteCollectionItemsAdapter extends BaseAdapter {
             @NonNull RemoteCollectionItems items,
             @NonNull InteractionHandler interactionHandler,
             @NonNull ColorResources colorResources,
-            boolean onLightBackground) {
+            boolean onLightBackground, float originalDensity) {
         // View type count can never increase after an adapter has been set on a ListView.
         // Additionally, decreasing it could inhibit view recycling if the count were to back and
         // forth between 3-2-3-2 for example. Therefore, the view type count, should be fixed for
@@ -59,6 +60,7 @@ class RemoteCollectionItemsAdapter extends BaseAdapter {
         mInteractionHandler = interactionHandler;
         mColorResources = colorResources;
         mOnLightBackground = onLightBackground;
+        mOriginalDensity = originalDensity;
 
         initLayoutIdToViewType();
     }
@@ -72,7 +74,7 @@ class RemoteCollectionItemsAdapter extends BaseAdapter {
             @NonNull RemoteCollectionItems items,
             @NonNull InteractionHandler interactionHandler,
             @NonNull ColorResources colorResources,
-            boolean onLightBackground) {
+            boolean onLightBackground, float originalDensity) {
         if (mViewTypeCount < items.getViewTypeCount()) {
             throw new IllegalArgumentException(
                     "RemoteCollectionItemsAdapter cannot increase view type count after creation");
@@ -82,6 +84,7 @@ class RemoteCollectionItemsAdapter extends BaseAdapter {
         mInteractionHandler = interactionHandler;
         mColorResources = colorResources;
         mOnLightBackground = onLightBackground;
+        mOriginalDensity = originalDensity;
 
         initLayoutIdToViewType();
 
@@ -182,6 +185,7 @@ class RemoteCollectionItemsAdapter extends BaseAdapter {
 
         RemoteViews item = mItems.getItemView(position);
         item.addFlags(RemoteViews.FLAG_WIDGET_IS_COLLECTION_CHILD);
+        item.setOriginalDensity(mOriginalDensity);
 
         AppWidgetHostView newView = convertView instanceof AppWidgetHostView.AdapterChildHostView
                 widgetChildView

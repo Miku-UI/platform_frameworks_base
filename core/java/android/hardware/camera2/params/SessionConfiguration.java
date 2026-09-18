@@ -87,7 +87,6 @@ public final class SessionConfiguration implements Parcelable {
      * @see CameraDevice#createCaptureSession(SessionConfiguration)
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CAMERA_MULTI_CLIENT)
     @SystemApi
     public static final int SESSION_SHARED = CameraDevice.SESSION_OPERATION_MODE_SHARED;
 

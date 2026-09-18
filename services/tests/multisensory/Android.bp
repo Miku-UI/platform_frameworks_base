@@ -1,0 +1,43 @@
+package {
+    default_team: "trendy_team_motion",
+    default_applicable_licenses: ["frameworks_base_license"],
+}
+
+android_test {
+    name: "FrameworksMultisensoryServicesTests",
+
+    srcs: [
+        "src/**/*.java",
+    ],
+
+    libs: [
+        "android.test.mock.stubs.system",
+        "android.test.base.stubs.system",
+        "android.test.runner.stubs.system",
+    ],
+
+    static_libs: [
+        "androidx.test.core",
+        "androidx.test.ext.truth",
+        "androidx.test.runner",
+        "androidx.test.rules",
+        "androidx.test.ext.junit",
+        "frameworks-base-testutils",
+        "junit",
+        "mockito-target-inline-minus-junit4",
+        "platform-test-annotations",
+        "services.core",
+    ],
+    jni_libs: ["libdexmakerjvmtiagent"],
+    platform_apis: true,
+    certificate: "platform",
+    dxflags: ["--multi-dex"],
+
+    test_suites: [
+        "device-tests",
+    ],
+
+    optimize: {
+        enabled: false,
+    },
+}

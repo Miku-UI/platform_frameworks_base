@@ -36,10 +36,4 @@ interface WifiViewModelCommon {
 
     /** True if the activity container view should be visible. */
     val isActivityContainerVisible: Flow<Boolean>
-
-    /** True if the airplane spacer view should be visible. */
-    val isAirplaneSpacerVisible: Flow<Boolean>
-
-    /** True if the spacer between the wifi icon and the RAT icon should be visible. */
-    val isSignalSpacerVisible: Flow<Boolean>
 }

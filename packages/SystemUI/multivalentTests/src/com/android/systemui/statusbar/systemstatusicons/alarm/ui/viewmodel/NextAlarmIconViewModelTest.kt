@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.systemstatusicons.alarm.ui.viewmodel
 
 import android.app.AlarmManager
 import android.app.PendingIntent
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -30,7 +29,7 @@ import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.policy.fakeNextAlarmController
-import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
+import com.android.systemui.statusbar.systemstatusicons.flags.EnableSystemStatusIconsInCompose
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
@@ -39,7 +38,7 @@ import org.mockito.kotlin.mock
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(SystemStatusIconsInCompose.FLAG_NAME)
+@EnableSystemStatusIconsInCompose
 class NextAlarmIconViewModelTest : SysuiTestCase() {
 
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
@@ -98,7 +97,7 @@ class NextAlarmIconViewModelTest : SysuiTestCase() {
     companion object {
         private val EXPECTED_ALARM_ICON =
             Icon.Resource(
-                resId = R.drawable.ic_alarm,
+                resId = R.drawable.stat_sys_alarm,
                 contentDescription = ContentDescription.Resource(R.string.status_bar_alarm),
             )
     }

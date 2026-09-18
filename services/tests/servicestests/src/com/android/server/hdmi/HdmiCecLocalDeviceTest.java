@@ -325,6 +325,8 @@ public class HdmiCecLocalDeviceTest {
                         HdmiCecKeycode.CEC_KEYCODE_VOLUME_UP));
 
         assertEquals(Constants.HANDLED, result);
+        verify(mAudioManager, times(1))
+                .adjustStreamVolume(anyInt(), eq(AudioManager.ADJUST_RAISE), anyInt());
     }
 
     @Test
@@ -336,6 +338,8 @@ public class HdmiCecLocalDeviceTest {
                         HdmiCecKeycode.CEC_KEYCODE_VOLUME_DOWN));
 
         assertEquals(Constants.HANDLED, result);
+        verify(mAudioManager, times(1))
+                .adjustStreamVolume(anyInt(), eq(AudioManager.ADJUST_LOWER), anyInt());
     }
 
     @Test

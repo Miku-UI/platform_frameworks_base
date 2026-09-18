@@ -17,6 +17,7 @@
 #ifndef _ANDROID_MEDIA_MEDIASYNC_H_
 #define _ANDROID_MEDIA_MEDIASYNC_H_
 
+#include <gui/Flags.h> // Remove with MediaSurfaceType
 #include <media/AudioResamplerPublic.h>
 #include <media/stagefright/foundation/ABase.h>
 #include <media/stagefright/MediaSync.h>
@@ -26,17 +27,16 @@
 namespace android {
 
 class AudioTrack;
-class IGraphicBufferProducer;
 struct MediaClock;
 class MediaSync;
 
 struct JMediaSync : public RefBase {
     JMediaSync();
 
-    status_t setSurface(const sp<IGraphicBufferProducer> &bufferProducer);
+    status_t setSurface(const sp<MediaSurfaceType> &surface);
     status_t setAudioTrack(const sp<AudioTrack> &audioTrack);
 
-    status_t createInputSurface(sp<IGraphicBufferProducer>* bufferProducer);
+    status_t createInputSurface(sp<MediaSurfaceType>* outSurface);
 
     status_t updateQueuedAudioData(int sizeInBytes, int64_t presentationTimeUs);
 

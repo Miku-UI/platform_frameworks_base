@@ -31,3 +31,25 @@ interface CompatUIHandler {
     /** Optional reference to the object responsible to send {@link CompatUIEvent} */
     fun setCallback(compatUIEventSender: Consumer<CompatUIEvent>?)
 }
+
+/**
+ * Creates a [CompatUIHandler] which is the composition of other two [CompatUIHandler]. It basically
+ * invokes the method on both of them.
+ */
+infix fun CompatUIHandler.append(other: CompatUIHandler) =
+    object : CompatUIHandler {
+        override fun onCompatInfoChanged(compatUIInfo: CompatUIInfo) {
+            this@append.onCompatInfoChanged(compatUIInfo)
+            other.onCompatInfoChanged(compatUIInfo)
+        }
+
+        override fun sendCompatUIRequest(compatUIRequest: CompatUIRequest) {
+            this@append.sendCompatUIRequest(compatUIRequest)
+            other.sendCompatUIRequest(compatUIRequest)
+        }
+
+        override fun setCallback(compatUIEventSender: Consumer<CompatUIEvent>?) {
+            this@append.setCallback(compatUIEventSender)
+            other.setCallback(compatUIEventSender)
+        }
+    }

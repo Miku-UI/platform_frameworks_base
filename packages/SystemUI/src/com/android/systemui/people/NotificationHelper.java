@@ -24,6 +24,7 @@ import android.annotation.Nullable;
 import android.app.Notification;
 import android.app.Person;
 import android.content.pm.PackageManager;
+import android.os.Bundle;
 import android.os.Parcelable;
 import android.service.notification.StatusBarNotification;
 import android.util.Log;

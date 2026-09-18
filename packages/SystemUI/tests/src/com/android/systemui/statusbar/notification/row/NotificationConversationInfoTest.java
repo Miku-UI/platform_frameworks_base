@@ -28,7 +28,6 @@ import static android.print.PrintManager.PRINT_SPOOLER_PACKAGE_NAME;
 import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
 
-import static com.android.systemui.Flags.FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT;
 import static com.android.systemui.statusbar.notification.stack.StackStateAnimator.ANIMATION_DURATION_STANDARD;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -49,7 +48,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import android.app.Flags;
 import android.app.INotificationManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -72,7 +70,6 @@ import android.graphics.drawable.Icon;
 import android.os.Handler;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.notification.StatusBarNotification;
@@ -93,17 +90,9 @@ import com.android.systemui.people.widget.PeopleSpaceWidgetManager;
 import com.android.systemui.res.R;
 import com.android.systemui.shade.ShadeController;
 import com.android.systemui.statusbar.RankingBuilder;
-import com.android.systemui.statusbar.SbnBuilder;
-import com.android.systemui.statusbar.notification.NotificationActivityStarter;
 import com.android.systemui.statusbar.notification.collection.EntryAdapter;
-import com.android.systemui.statusbar.notification.collection.EntryAdapterFactoryImpl;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder;
-import com.android.systemui.statusbar.notification.collection.coordinator.VisualStabilityCoordinator;
-import com.android.systemui.statusbar.notification.collection.provider.HighPriorityProvider;
-import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
-import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier;
-import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyleProvider;
 import com.android.systemui.wmshell.BubblesManager;
 import com.android.systemui.wmshell.BubblesTestActivity;
 
@@ -191,9 +180,7 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
         mDependency.injectTestDependency(ShadeController.class, mShadeController);
         // Inflate the layout
         final LayoutInflater layoutInflater = LayoutInflater.from(mContext);
-        int layoutId = Flags.notificationsRedesignTemplates()
-                ? R.layout.notification_2025_conversation_info
-                : R.layout.notification_conversation_info;
+        int layoutId = R.layout.notification_2025_conversation_info;
         mNotificationInfo = (NotificationConversationInfo) layoutInflater.inflate(
                 layoutId,
                 null);
@@ -292,7 +279,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
                 mMockINotificationManager,
                 mOnUserInteractionCallback,
                 TEST_PACKAGE_NAME,
-                mEntry,
                 mEntryAdapter,
                 mEntry.getRanking(),
                 mSbn,
@@ -315,7 +301,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
                 mMockINotificationManager,
                 mOnUserInteractionCallback,
                 TEST_PACKAGE_NAME,
-                mEntry,
                 mEntryAdapter,
                 mEntry.getRanking(),
                 mSbn,
@@ -356,7 +341,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
      * mOnUserInteractionCallback,
      * TEST_PACKAGE_NAME,
      * mNotificationChannel,
-     * mEntry,
      * mBubbleMetadata,
      * null,
      * null,
@@ -419,7 +403,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
                 mMockINotificationManager,
                 mOnUserInteractionCallback,
                 TEST_PACKAGE_NAME,
-                mEntry,
                 mEntryAdapter,
                 mEntry.getRanking(),
                 mSbn,
@@ -437,19 +420,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags({
-            Flags.FLAG_NM_SUMMARIZATION,
-            Flags.FLAG_NM_SUMMARIZATION_UI,
-            Flags.FLAG_NOTIFICATION_CLASSIFICATION_UI,
-            FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT
-    })
-    public void testBindNotification_HidesFeedbackLink_flagOff() {
-        doStandardBind();
-        assertEquals(GONE, mNotificationInfo.findViewById(R.id.feedback).getVisibility());
-    }
-
-    @Test
-    @EnableFlags({Flags.FLAG_NM_SUMMARIZATION, Flags.FLAG_NM_SUMMARIZATION_UI})
     public void testBindNotification_SetsFeedbackLink_ifSummaryInRanking() {
         mEntry.setRanking(new RankingBuilder(mEntry.getRanking())
                 .setSummarization("something").build());
@@ -462,7 +432,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
                 mMockINotificationManager,
                 mOnUserInteractionCallback,
                 TEST_PACKAGE_NAME,
-                mEntry,
                 mEntryAdapter,
                 mEntry.getRanking(),
                 mSbn,
@@ -485,7 +454,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_NOTIFICATION_CLASSIFICATION_UI})
     public void testBindNotification_SetsFeedbackLink_ifClassified() {
         mEntry.setRanking(new RankingBuilder(mEntry.getRanking())
                 .setChannel(new NotificationChannel(
@@ -500,7 +468,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
                 mMockINotificationManager,
                 mOnUserInteractionCallback,
                 TEST_PACKAGE_NAME,
-                mEntry,
                 mEntryAdapter,
                 mEntry.getRanking(),
                 mSbn,
@@ -533,7 +500,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
                 mMockINotificationManager,
                 mOnUserInteractionCallback,
                 TEST_PACKAGE_NAME,
-                mEntry,
                 mEntryAdapter,
                 mEntry.getRanking(),
                 mSbn,
@@ -573,7 +539,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
                 mMockINotificationManager,
                 mOnUserInteractionCallback,
                 TEST_PACKAGE_NAME,
-                mEntry,
                 mEntryAdapter,
                 mEntry.getRanking(),
                 mSbn,
@@ -653,7 +618,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
                 mMockINotificationManager,
                 mOnUserInteractionCallback,
                 TEST_PACKAGE_NAME,
-                mEntry,
                 mEntryAdapter,
                 mEntry.getRanking(),
                 mSbn,
@@ -685,7 +649,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
                 mMockINotificationManager,
                 mOnUserInteractionCallback,
                 TEST_PACKAGE_NAME,
-                mEntry,
                 mEntryAdapter,
                 mEntry.getRanking(),
                 mSbn,
@@ -1122,4 +1085,23 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
 
     }
 
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_NM_SUMMARIZATION_ALL)
+    public void testBindNotification_noAppSummarization() {
+        doStandardBind();
+        View v = mNotificationInfo.findViewById(R.id.summarized_by);
+        assertThat(v.getVisibility()).isEqualTo(GONE);
+    }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_NM_SUMMARIZATION_ALL)
+    public void testBindNotification_appSummarized() {
+        mEntry.getSbn().getNotification().extras.putCharSequence(
+                Notification.EXTRA_APP_SUMMARIZATION, "hello");
+
+        doStandardBind();
+        TextView v = mNotificationInfo.findViewById(R.id.summarized_by);
+        assertThat(v.getVisibility()).isEqualTo(VISIBLE);
+        assertThat(v.getText().toString()).contains("Summarized");
+    }
 }

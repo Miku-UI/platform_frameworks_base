@@ -1,6 +1,39 @@
 package: "com.android.window.flags"
 container: "system"
 
+# keep-sorted start block=yes newline_separated=yes
+flag {
+    name: "bal_additional_start_modes"
+    namespace: "responsible_apis"
+    description: "Introduce additional start modes."
+    bug: "352182359"
+    is_exported: true
+}
+
+flag {
+    name: "bal_asm_opt_in_null_top_activity"
+    namespace: "responsible_apis"
+    description: "Opt in null top activities for ASM."
+    bug: "416033243"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "bal_cover_intent_sender"
+    namespace: "responsible_apis"
+    description: "Cover IntentSender API in addition to PendingIntent."
+    bug: "405995292"
+}
+
+flag {
+    name: "bal_dont_add_bal_token_in_set_allow_bg_activity_starts"
+    namespace: "responsible_apis"
+    description: "Do not add the BAL token in setAllowBgActivityStarts."
+    bug: "447255745"
+}
+
 flag {
     name: "bal_dont_bring_existing_background_task_stack_to_fg"
     namespace: "responsible_apis"
@@ -9,18 +42,31 @@ flag {
 }
 
 flag {
+    name: "bal_ignore_callback"
+    namespace: "responsible_apis"
+    description: "Do not use the callback to check if a token is valid."
+    bug: "447255745"
+}
+
+flag {
+    name: "bal_reduce_grace_period"
+    namespace: "responsible_apis"
+    description: "Changes to reduce or ideally remove the grace period exemption."
+    bug: "362575865"
+}
+
+flag {
+    name: "bal_report_aborted_activity_starts"
+    namespace: "responsible_apis"
+    description: "Report aborted activity starts in the calling process."
+    bug: "427863001"
+}
+
+flag {
     name: "bal_respect_app_switch_state_when_check_bound_by_foreground_uid"
     namespace: "responsible_apis"
     description: "Prevent BAL based on it is bound by foreground Uid but the app switch is stopped."
     bug: "283801068"
-}
-
-flag {
-    name: "bal_additional_start_modes"
-    namespace: "responsible_apis"
-    description: "Introduce additional start modes."
-    bug: "352182359"
-    is_exported: true
 }
 
 flag {
@@ -39,34 +85,4 @@ flag {
     is_fixed_read_only: true
     is_exported: true
 }
-
-flag {
-    name: "bal_reduce_grace_period"
-    namespace: "responsible_apis"
-    description: "Changes to reduce or ideally remove the grace period exemption."
-    bug: "362575865"
-}
-
-flag {
-    name: "bal_cover_intent_sender"
-    namespace: "responsible_apis"
-    description: "Cover IntentSender API in addition to PendingIntent."
-    bug: "405995292"
-}
-
-flag {
-    name: "bal_report_aborted_activity_starts"
-    namespace: "responsible_apis"
-    description: "Report aborted activity starts in the calling process."
-    bug: "427863001"
-}
-
-flag {
-    name: "bal_check_broadcast_when_dispatched"
-    namespace: "responsible_apis"
-    description: "Check granting BAL permissions on dispatch instead on send."
-    bug: "421197489"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
+# keep-sorted end

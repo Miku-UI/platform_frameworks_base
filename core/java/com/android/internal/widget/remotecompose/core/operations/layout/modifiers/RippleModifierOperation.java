@@ -26,7 +26,6 @@ import com.android.internal.widget.remotecompose.core.WireBuffer;
 import com.android.internal.widget.remotecompose.core.documentation.DocumentationBuilder;
 import com.android.internal.widget.remotecompose.core.operations.Utils;
 import com.android.internal.widget.remotecompose.core.operations.layout.Component;
-import com.android.internal.widget.remotecompose.core.operations.layout.RootLayoutComponent;
 import com.android.internal.widget.remotecompose.core.operations.layout.TouchHandler;
 import com.android.internal.widget.remotecompose.core.operations.paint.PaintBundle;
 import com.android.internal.widget.remotecompose.core.operations.utilities.ColorUtils;
@@ -76,14 +75,6 @@ public class RippleModifierOperation extends DecoratorModifierOperation implemen
     @Override
     public String toString() {
         return "RippleModifier";
-    }
-
-    @Override
-    public void apply(@NonNull RemoteContext context) {
-        RootLayoutComponent root = context.getDocument().getRootLayoutComponent();
-        if (root != null) {
-            root.setHasTouchListeners(true);
-        }
     }
 
     @NonNull
@@ -184,13 +175,13 @@ public class RippleModifierOperation extends DecoratorModifierOperation implemen
      * @param doc to append the description to.
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
-        doc.operation("Layout Operations", OP_CODE, name())
+        doc.operation("Modifier Operations", OP_CODE, name())
                 .description(
                         "Ripple modifier. This modifier will do a ripple animation on touch down");
     }
 
     @Override
-    public void onTouchDown(
+    public boolean onTouchDown(
             @NonNull RemoteContext context,
             @NonNull CoreDocument document,
             @NonNull Component component,
@@ -198,37 +189,44 @@ public class RippleModifierOperation extends DecoratorModifierOperation implemen
             float y) {
         locationInWindow[0] = 0f;
         locationInWindow[1] = 0f;
-        component.getLocationInWindow(locationInWindow);
+        component.getLocationInWindow(context, locationInWindow);
         animateRipple(
                 x - locationInWindow[0], y - locationInWindow[1], context.getClock().millis());
         context.hapticEffect(3);
+        return true;
     }
 
     @Override
-    public void onTouchUp(
+    public boolean onTouchUp(
             @NonNull RemoteContext context,
             @NonNull CoreDocument document,
             @NonNull Component component,
             float x,
             float y,
             float dx,
-            float dy) {}
+            float dy) {
+        return false;
+    }
 
     @Override
-    public void onTouchDrag(
+    public boolean onTouchDrag(
             @NonNull RemoteContext context,
             @NonNull CoreDocument document,
             @NonNull Component component,
             float x,
-            float y) {}
+            float y) {
+        return false;
+    }
 
     @Override
-    public void onTouchCancel(
+    public boolean onTouchCancel(
             @NonNull RemoteContext context,
             @NonNull CoreDocument document,
             @NonNull Component component,
             float x,
-            float y) {}
+            float y) {
+        return false;
+    }
 
     @Override
     public void serialize(@NonNull MapSerializer serializer) {

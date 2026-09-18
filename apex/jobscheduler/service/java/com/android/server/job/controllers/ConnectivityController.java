@@ -27,11 +27,12 @@ import static android.text.format.DateUtils.MINUTE_IN_MILLIS;
 
 import static com.android.server.job.JobSchedulerService.RESTRICTED_INDEX;
 import static com.android.server.job.JobSchedulerService.sElapsedRealtimeClock;
-import static com.android.server.job.Flags.FLAG_RELAX_PREFETCH_CONNECTIVITY_CONSTRAINT_ONLY_ON_CHARGER;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
+import android.app.ActivityManager.ProcessCapability;
+import android.app.ActivityManager.ProcessState;
 import android.app.job.JobInfo;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
@@ -790,8 +791,8 @@ public final class ConnectivityController extends RestrictingController implemen
         }
 
         final int uid = jobStatus.getSourceUid();
-        final int procState = mService.getUidProcState(uid);
-        final int capabilities = mService.getUidCapabilities(uid);
+        final @ProcessState int procState = mService.getUidProcState(uid);
+        final @ProcessCapability int capabilities = mService.getUidCapabilities(uid);
         // Jobs don't raise the proc state to anything better than IMPORTANT_FOREGROUND.
         // If the app is in a better state, see if it has the capability to use the metered network.
         final boolean currentStateAllows = procState != ActivityManager.PROCESS_STATE_UNKNOWN
@@ -832,8 +833,9 @@ public final class ConnectivityController extends RestrictingController implemen
             // With user-initiated jobs, JobScheduler will request that the process
             // run at IMPORTANT_FOREGROUND process state
             // and get the USER_RESTRICTED_NETWORK process capability.
-            final int expectedProcState = ActivityManager.PROCESS_STATE_IMPORTANT_FOREGROUND;
-            final int mergedCapabilities = capabilities
+            final @ProcessState int expectedProcState =
+                    ActivityManager.PROCESS_STATE_IMPORTANT_FOREGROUND;
+            final @ProcessCapability int mergedCapabilities = capabilities
                     | ActivityManager.PROCESS_CAPABILITY_USER_RESTRICTED_NETWORK
                     | NetworkPolicyManager.getDefaultProcessNetworkCapabilities(expectedProcState);
             final boolean wouldBeAllowed =
@@ -1025,12 +1027,10 @@ public final class ConnectivityController extends RestrictingController implemen
             // Need to at least know the estimated download bytes for a prefetch job.
             return false;
         }
-        if (Flags.relaxPrefetchConnectivityConstraintOnlyOnCharger()) {
-            // Since the constraint relaxation isn't required by the job, only do it when the
-            // device is charging and the battery level is above the "low battery" threshold.
-            if (!mService.isBatteryCharging() || !mService.isBatteryNotLow()) {
-                return false;
-            }
+        // Since the constraint relaxation isn't required by the job, only do it when the
+        // device is charging and the battery level is above the "low battery" threshold.
+        if (!mService.isBatteryCharging() || !mService.isBatteryNotLow()) {
+            return false;
         }
 
         // See if we match after relaxing any unmetered request
@@ -2280,13 +2280,6 @@ public final class ConnectivityController extends RestrictingController implemen
     public void dumpControllerStateLocked(IndentingPrintWriter pw,
             Predicate<JobStatus> predicate) {
         final long nowElapsed = sElapsedRealtimeClock.millis();
-
-        pw.println("Aconfig flags:");
-        pw.increaseIndent();
-        pw.print(FLAG_RELAX_PREFETCH_CONNECTIVITY_CONSTRAINT_ONLY_ON_CHARGER,
-                Flags.relaxPrefetchConnectivityConstraintOnlyOnCharger());
-        pw.println();
-        pw.decreaseIndent();
         pw.println();
 
         if (mRequestedWhitelistJobs.size() > 0) {

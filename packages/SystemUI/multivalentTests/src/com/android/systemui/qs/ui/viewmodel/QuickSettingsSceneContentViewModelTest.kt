@@ -16,11 +16,14 @@
 
 package com.android.systemui.qs.ui.viewmodel
 
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper.RunWithLooper
 import androidx.lifecycle.LifecycleOwner
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.content.state.TransitionState
+import com.android.systemui.Flags.FLAG_DUAL_SHADE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.ui.transitions.blurConfig
@@ -105,6 +108,7 @@ class QuickSettingsSceneContentViewModelTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun shadeModeChange_split_switchToShadeScene() =
         kosmos.runTest {
             val scene by collectLastValue(sceneInteractor.currentScene)
@@ -119,6 +123,7 @@ class QuickSettingsSceneContentViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(FLAG_DUAL_SHADE)
     fun isBlurred_whenBouncerOverlayShowingOverQuickSettingsAndBlurSupported_isTrue() =
         kosmos.runTest {
             assertThat(
@@ -132,7 +137,7 @@ class QuickSettingsSceneContentViewModelTest : SysuiTestCase() {
                 )
                 .isEqualTo(0f)
 
-            kosmos.fakeWindowRootViewBlurRepository.isBlurSupported.value = true
+            fakeWindowRootViewBlurRepository.isBlurSupported.value = true
             runCurrent()
             assertThat(
                     underTest.calculateBlur(
@@ -165,6 +170,7 @@ class QuickSettingsSceneContentViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(FLAG_DUAL_SHADE)
     fun shadeModeChange_dual_switchToOverlay() =
         kosmos.runTest {
             val scene by collectLastValue(sceneInteractor.currentScene)

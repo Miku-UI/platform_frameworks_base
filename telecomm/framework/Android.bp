@@ -9,11 +9,74 @@ package {
 }
 
 filegroup {
-    name: "framework-telecomm-sources",
+    name: "framework-telecom-annotation-sources",
     srcs: [
-        "**/*.java",
-        "**/*.aidl",
+        "java/android/telecom/Annotation.java",
     ],
     path: "java",
-    visibility: ["//frameworks/base"],
+    visibility: [
+        "//frameworks/base",
+        "//packages/modules/Telephony:__subpackages__",
+    ],
+}
+
+filegroup {
+    name: "framework-telecom-internal-sources",
+    srcs: [
+        "java/**/*.java",
+    ],
+    path: "java",
+    exclude_srcs: [
+        "java/android/telecom/Annotation.java",
+    ],
+    visibility: [
+        "//frameworks/base:__subpackages__",
+        "//packages/modules/Telephony/telecom:__subpackages__",
+        "//packages/services/Telecomm",
+        "//packages/services/Telephony:__subpackages__",
+    ],
+}
+
+filegroup {
+    name: "framework-telecom-aidl-internal-sources",
+    srcs: [
+        "java/**/*.aidl",
+    ],
+    path: "java",
+    visibility: [
+        "//frameworks/base:__subpackages__",
+        "//packages/modules/Telephony/telecom:__subpackages__",
+        "//packages/services/Telecomm",
+        "//packages/services/Telephony:__subpackages__",
+    ],
+}
+
+filegroup {
+    name: "framework-telecom-aidl-export-sources",
+    srcs: [
+        "aidl-export/**/*.aidl",
+    ],
+    path: "aidl-export",
+    visibility: [
+        "//cts/tests/tests:__subpackages__",
+        "//frameworks/base:__subpackages__",
+        "//packages/modules/Telephony/telecom:__subpackages__",
+        "//packages/services/Telecomm",
+        "//packages/services/Telephony:__subpackages__",
+    ],
+}
+
+// Required for TelecomShim because the app doesn't have access to
+// system_server_current.
+filegroup {
+    name: "telecom-service-init-sources",
+    srcs: [
+        "java/android/telecom/TelecomServiceInitializerRepository.java",
+    ],
+    path: "java",
+    visibility: [
+        "//frameworks/base:__subpackages__",
+        "//packages/modules/Telephony/telecom:__subpackages__",
+        "//packages/services/Telecomm",
+    ],
 }

@@ -18,11 +18,11 @@ package com.android.wm.shell.flicker.pip
 
 import android.platform.test.annotations.Presubmit
 import android.platform.test.annotations.RequiresFlagsDisabled
-import android.tools.flicker.assertions.FlickerChecker
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.assertions.FlickerChecker
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.helpers.WindowUtils
 import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
@@ -159,8 +159,8 @@ class ShowPipAndRotateDisplay(flicker: FlickerTest) : PipTransition(flicker) {
         /**
          * Creates the test configurations.
          *
-         * See [FlickerTestFactory.nonRotationTests] for configuring repetitions, screen
-         * orientation and navigation modes.
+         * See [FlickerTestFactory.nonRotationTests] for configuring repetitions, screen orientation
+         * and navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic

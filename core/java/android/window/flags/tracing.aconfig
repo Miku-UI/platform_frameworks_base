@@ -1,0 +1,9 @@
+package: "com.android.window.flags"
+container: "system"
+
+flag {
+  name: "enable_input_dispatcher_long_method_tracing"
+  namespace: "stability"
+  description: "Enable pre-ANR long method tracing for input dispatcher ANRs"
+  bug: "413119509"
+}

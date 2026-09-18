@@ -33,6 +33,7 @@ import org.junit.runner.RunWith
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class MutableSelectionStateTest : SysuiTestCase() {
+
     private val underTest = MutableSelectionState()
 
     @Test
@@ -95,13 +96,13 @@ class MutableSelectionStateTest : SysuiTestCase() {
     }
 
     @Test
-    fun placementModeDisabled_tapOnSelection_unselect() {
+    fun placementModeDisabled_tapOnSelection_staysSelected() {
         // Select the tile and tap on it
         underTest.select(TEST_SPEC)
         underTest.onTap(TEST_SPEC)
 
         assertThat(underTest.placementEnabled).isFalse()
-        assertThat(underTest.selected).isFalse()
+        assertThat(underTest.selected).isTrue()
     }
 
     @Test

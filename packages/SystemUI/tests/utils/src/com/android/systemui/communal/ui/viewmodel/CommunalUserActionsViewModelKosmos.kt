@@ -16,6 +16,7 @@
 
 package com.android.systemui.communal.ui.viewmodel
 
+import android.content.res.mainResources
 import com.android.systemui.deviceentry.domain.interactor.deviceUnlockedInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
@@ -27,5 +28,6 @@ val Kosmos.communalUserActionsViewModel by Fixture {
         deviceUnlockedInteractor = deviceUnlockedInteractor,
         shadeInteractor = shadeInteractor,
         shadeModeInteractor = shadeModeInteractor,
+        resources = mainResources,
     )
 }

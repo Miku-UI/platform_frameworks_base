@@ -28,13 +28,11 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.platform.test.annotations.DisabledOnRavenwood;
-import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -53,8 +51,6 @@ import java.util.List;
 @DisabledOnRavenwood(blockedBy = DebugStore.class)
 @SmallTest
 public class DebugStoreTest {
-    @Rule public final RavenwoodRule mRavenwood = new RavenwoodRule();
-
     @Mock private DebugStore.DebugStoreNative mDebugStoreNativeMock;
 
     @Captor private ArgumentCaptor<List<String>> mListCaptor;
@@ -351,6 +347,17 @@ public class DebugStoreTest {
                         Thread.currentThread().getName(),
                         "tid",
                         String.valueOf(Thread.currentThread().getId()),
+                        "prid",
+                        "f00")
+                .inOrder();
+    }
+
+    @Test
+    public void testRecordSendFinished() {
+        DebugStore.recordSendFinished(3840 /* 0xf00 */);
+
+        assertThat(paramsForRecordEvent("SendFinished"))
+                .containsExactly(
                         "prid",
                         "f00")
                 .inOrder();

@@ -17,11 +17,11 @@
 package com.android.wm.shell.flicker.pip.nonmatchparent
 
 import android.platform.test.annotations.Presubmit
-import androidx.test.filters.RequiresDevice
 import android.platform.test.annotations.RequiresFlagsDisabled
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
+import androidx.test.filters.RequiresDevice
 import org.junit.Assume
 import org.junit.FixMethodOrder
 import org.junit.Test
@@ -42,6 +42,7 @@ import org.junit.runners.Parameterized
  *     Select "Via code behind" radio button
  *     Press Home button or swipe up to go Home and put [pipApp] in pip mode
  * ```
+ *
  * Notes:
  * ```
  *     1. All assertions are inherited from [EnterPipTest]
@@ -58,12 +59,13 @@ import org.junit.runners.Parameterized
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 class BottomHalfEnterPipOnUserLeaveHintTest(flicker: FlickerTest) :
-    BottomHalfEnterPipTransition(flicker)
-{
-    override val thisTransition: FlickerBuilder.() -> Unit = { transitions {
-        tapl.goHome()
-        pipApp.waitForPip(wmHelper)
-    } }
+    BottomHalfEnterPipTransition(flicker) {
+    override val thisTransition: FlickerBuilder.() -> Unit = {
+        transitions {
+            device.pressHome()
+            pipApp.waitForPip(wmHelper)
+        }
+    }
 
     override val defaultEnterPip: FlickerBuilder.() -> Unit = {
         setup {

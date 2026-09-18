@@ -17,12 +17,11 @@
 package android.app;
 
 import static android.annotation.Dimension.DP;
-import static android.app.Flags.FLAG_HIDE_STATUS_BAR_NOTIFICATION;
-import static android.app.Flags.FLAG_NM_SUMMARIZATION;
+import static android.app.Flags.FLAG_BRIDGED_NOTIFICATIONS;
 import static android.app.Flags.FLAG_NM_SUMMARIZATION_ALL;
 import static android.app.Flags.FLAG_NOTIFICATION_IS_ANIMATED_ACTION_API;
 import static android.app.Flags.apiMetricStyle;
-import static android.app.Flags.notificationsRedesignTemplates;
+import static android.app.Flags.richOngoingImprovements;
 import static android.app.admin.DevicePolicyResources.Drawables.Source.NOTIFICATION;
 import static android.app.admin.DevicePolicyResources.Drawables.Style.SOLID_COLORED;
 import static android.app.admin.DevicePolicyResources.Drawables.WORK_PROFILE_ICON;
@@ -35,6 +34,7 @@ import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 
 import static com.android.internal.util.Preconditions.checkArgument;
 
+import static java.time.temporal.ChronoUnit.SECONDS;
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.ColorInt;
@@ -79,6 +79,7 @@ import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Icon;
+import android.icu.number.Notation;
 import android.icu.number.NumberFormatter;
 import android.icu.number.Precision;
 import android.media.AudioAttributes;
@@ -98,6 +99,7 @@ import android.os.Trace;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.Settings;
+import android.text.Annotation;
 import android.text.BidiFormatter;
 import android.text.SpannableString;
 import android.text.SpannableStringBuilder;
@@ -122,6 +124,7 @@ import android.view.ContextThemeWrapper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.contentcapture.ContentCaptureContext;
+import android.widget.ChronometerAdaptiveFormat;
 import android.widget.ProgressBar;
 import android.widget.RemoteViews;
 
@@ -131,7 +134,9 @@ import com.android.internal.graphics.ColorUtils;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.ContrastColorUtil;
 import com.android.internal.util.NotificationBigTextNormalizer;
+import com.android.internal.util.Preconditions;
 import com.android.internal.widget.NotificationProgressModel;
+import com.android.internal.widget.NotificationRowIconView;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -153,6 +158,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.LongSupplier;
 
 /**
@@ -218,6 +224,15 @@ public class Notification implements Parcelable
     @SdkConstant(SdkConstantType.INTENT_CATEGORY)
     public static final String INTENT_CATEGORY_NOTIFICATION_PREFERENCES
             = "android.intent.category.NOTIFICATION_PREFERENCES";
+
+    /**
+     * An activity that provides a user interface for adjusting notification preferences for its
+     * bridged notification which originated on another device.
+     */
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    @FlaggedApi(FLAG_BRIDGED_NOTIFICATIONS)
+    public static final String ACTION_BRIDGED_NOTIFICATION_PREFERENCES =
+            "android.app.action.BRIDGED_NOTIFICATION_PREFERENCES";
 
     /**
      * Optional extra for {@link #INTENT_CATEGORY_NOTIFICATION_PREFERENCES}. If provided, will
@@ -316,12 +331,10 @@ public class Notification implements Parcelable
     public static final String EXTRA_REMOTE_INPUT_DRAFT = "android.remoteInputDraft";
 
     /**
-     * A boolean indicating that the notification card should show the small icon instead of the
-     * launcher app icon.
-     * @hide
+     * A boolean for {@link #extras} requesting that the notification card show the small icon
+     * instead of the launcher app icon.
      */
-    @SystemApi
-    @RequiresPermission(android.Manifest.permission.PACKAGE_VERIFICATION_AGENT)
+    @FlaggedApi(Flags.FLAG_PREFER_SMALL_ICON)
     public static final String EXTRA_PREFER_SMALL_ICON = "android.app.preferSmallIcon";
 
     /**
@@ -483,24 +496,6 @@ public class Notification implements Parcelable
     public RemoteViews headsUpContentView;
 
     private boolean mUsesStandardHeader;
-
-    private static final ArraySet<Integer> STANDARD_LAYOUTS = new ArraySet<>();
-    static {
-        STANDARD_LAYOUTS.add(R.layout.notification_template_material_base);
-        STANDARD_LAYOUTS.add(R.layout.notification_template_material_heads_up_base);
-        STANDARD_LAYOUTS.add(R.layout.notification_template_material_big_base);
-        STANDARD_LAYOUTS.add(R.layout.notification_template_material_big_picture);
-        STANDARD_LAYOUTS.add(R.layout.notification_template_material_big_text);
-        STANDARD_LAYOUTS.add(R.layout.notification_template_material_inbox);
-        STANDARD_LAYOUTS.add(R.layout.notification_template_material_messaging);
-        STANDARD_LAYOUTS.add(R.layout.notification_template_material_big_messaging);
-        STANDARD_LAYOUTS.add(R.layout.notification_template_material_conversation);
-        STANDARD_LAYOUTS.add(R.layout.notification_template_material_media);
-        STANDARD_LAYOUTS.add(R.layout.notification_template_material_big_media);
-        STANDARD_LAYOUTS.add(R.layout.notification_template_material_call);
-        STANDARD_LAYOUTS.add(R.layout.notification_template_material_big_call);
-        STANDARD_LAYOUTS.add(R.layout.notification_template_header);
-    }
 
     /**
      * A large bitmap to be shown in the notification content area.
@@ -775,7 +770,6 @@ public class Notification implements Parcelable
      * <p>This flag is for internal use only; applications cannot set this flag directly.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_LIFETIME_EXTENSION_REFACTOR)
     public static final int FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY = 0x00010000;
 
     /**
@@ -797,8 +791,16 @@ public class Notification implements Parcelable
      * <p>Applications cannot set this flag directly, but the posting app and
      * {@link android.service.notification.NotificationListenerService} can read it.
      */
-    @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
     public static final int FLAG_PROMOTED_ONGOING = 0x00040000;
+
+    /**
+     * Bit to be bitwise-ORed into the {@link #flags} field that should be
+     * set by the system if this notification is associated with a ComputerControlSession.
+     *
+     * <p>This flag is for internal use only; applications cannot set this flag directly.
+     * @hide
+     */
+    public static final int FLAG_COMPUTER_CONTROL = 0x00080000;
 
     private static final Set<Class<? extends Style>> PLATFORM_STYLE_CLASSES = Set.of(
             BigTextStyle.class,
@@ -808,6 +810,7 @@ public class Notification implements Parcelable
             DecoratedCustomViewStyle.class,
             DecoratedMediaCustomViewStyle.class,
             MessagingStyle.class,
+            ProgressStyle.class,
             CallStyle.class
     );
 
@@ -820,10 +823,6 @@ public class Notification implements Parcelable
             return true;
         }
 
-        if (Flags.apiRichOngoing() && style.getClass() == ProgressStyle.class) {
-            return true;
-        }
-
         if (Flags.apiMetricStyle() && style.getClass() == MetricStyle.class) {
             return true;
         }
@@ -832,38 +831,31 @@ public class Notification implements Parcelable
     }
 
     private static boolean isStandardLayout(int layoutId) {
-        if (Flags.notificationsRedesignTemplates()) {
-            return switch (layoutId) {
-                case R.layout.notification_2025_template_collapsed_base,
-                     R.layout.notification_2025_template_expanded_base,
-                     R.layout.notification_2025_template_heads_up_base,
-                     R.layout.notification_2025_template_header,
-                     R.layout.notification_2025_template_collapsed_conversation,
-                     R.layout.notification_2025_template_expanded_conversation,
-                     R.layout.notification_2025_template_collapsed_call,
-                     R.layout.notification_2025_template_expanded_call,
-                     R.layout.notification_2025_template_collapsed_messaging,
-                     R.layout.notification_2025_template_expanded_messaging,
-                     R.layout.notification_2025_template_collapsed_media,
-                     R.layout.notification_2025_template_expanded_media,
-                     R.layout.notification_2025_template_expanded_big_picture,
-                     R.layout.notification_2025_template_expanded_big_text,
-                     R.layout.notification_2025_template_expanded_inbox -> true;
-                case R.layout.notification_2025_template_expanded_progress
-                        -> Flags.apiRichOngoing();
-                case R.layout.notification_2025_template_collapsed_metric
-                        -> Flags.apiMetricStyle();
-                case R.layout.notification_2025_template_expanded_metric
-                        -> Flags.apiMetricStyle();
-                default -> false;
-            };
-        }
-        if (Flags.apiRichOngoing()) {
-            if (layoutId == R.layout.notification_template_material_progress) {
-                return true;
-            }
-        }
-        return STANDARD_LAYOUTS.contains(layoutId);
+        return switch (layoutId) {
+            case R.layout.notification_2025_template_collapsed_base,
+                 R.layout.notification_2025_template_expanded_base,
+                 R.layout.notification_2025_template_heads_up_base,
+                 R.layout.notification_2025_template_header,
+                 R.layout.notification_2025_template_collapsed_conversation,
+                 R.layout.notification_2025_template_expanded_conversation,
+                 R.layout.notification_2025_template_collapsed_call,
+                 R.layout.notification_2025_template_expanded_call,
+                 R.layout.notification_2025_template_collapsed_messaging,
+                 R.layout.notification_2025_template_expanded_messaging,
+                 R.layout.notification_2025_template_collapsed_media,
+                 R.layout.notification_2025_template_expanded_media,
+                 R.layout.notification_2025_template_expanded_big_picture,
+                 R.layout.notification_2025_template_expanded_big_text,
+                 R.layout.notification_2025_template_expanded_progress,
+                 R.layout.notification_2025_template_expanded_inbox -> true;
+            case R.layout.notification_2025_template_collapsed_metric
+                    -> Flags.apiMetricStyle();
+            case R.layout.notification_2025_template_expanded_metric
+                    -> Flags.apiMetricStyle();
+            case R.layout.notification_2025_template_expanded_single_metric
+                    -> Flags.apiMetricStyle();
+            default -> false;
+        };
     }
 
     /** @hide */
@@ -884,7 +876,9 @@ public class Notification implements Parcelable
             FLAG_NO_DISMISS,
             FLAG_FSI_REQUESTED_BUT_DENIED,
             FLAG_USER_INITIATED_JOB,
-            FLAG_SILENT
+            FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY,
+            FLAG_SILENT,
+            FLAG_PROMOTED_ONGOING
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface NotificationFlags{};
@@ -970,6 +964,105 @@ public class Notification implements Parcelable
     public int priority;
 
     /**
+     * This is the default value for semantic style, signaling no particular semantics. An
+     * {@link Annotation} with this style has no effect.
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+    public static final int SEMANTIC_STYLE_UNSPECIFIED = 0;
+
+    /**
+     * This value is used to annotate an element as indicating information that should stand out
+     * from other content, but which doesn’t fall on a scale or hierarchy. This can be thought of
+     * as a more neutral value that may be used in cases where the element is intended to stand
+     * out against elements with the other semantic styles -- for example if a {@link ProgressStyle}
+     * bar uses semantic style to color segments, this style would be appropriate for segments where
+     * the semantic hierarchy is unhelpful to the user.
+     *
+     * <p>Info is generally represented to users by styling the element with a color (like blue)
+     * that is clearly distinct from the colors used for other styles.
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+    public static final int SEMANTIC_STYLE_INFO = 1;
+
+    /**
+     * This value is used to annotate an element as indicating safety, non-urgency, timeliness,
+     * or another “mild” value on the semantic hierarchy.
+     *
+     * <p>Safety is generally represented to users by styling the element with a green color.
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+    public static final int SEMANTIC_STYLE_SAFE = 2;
+
+    /**
+     * This value is used to annotate an element as indicating caution, moderate urgency, tardiness,
+     * or another “intermediate” value on the semantic hierarchy.
+     *
+     * <p>Caution is generally represented to users by styling the element with a yellow or
+     * orange color.
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+    public static final int SEMANTIC_STYLE_CAUTION = 3;
+
+    /**
+     * This value is used to annotate an element as indicating danger, extreme urgency or
+     * lateness, or another “extreme” value on the semantic hierarchy.
+     *
+     * <p>Danger is generally represented to users by styling the element with a red color.
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+    public static final int SEMANTIC_STYLE_DANGER = 4;
+
+    /** @hide */
+    @IntDef(prefix = { "SEMANTIC_STYLE_" }, value = {
+            SEMANTIC_STYLE_UNSPECIFIED,
+            SEMANTIC_STYLE_INFO,
+            SEMANTIC_STYLE_SAFE,
+            SEMANTIC_STYLE_CAUTION,
+            SEMANTIC_STYLE_DANGER
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface SemanticStyle {}
+
+    private static final String ANNOTATION_SEMANTIC_STYLE_KEY =
+            "android.app.notification.semanticStyle";
+
+    /**
+     * Constructs an {@link Annotation} that can be used to span text in a {@link Spanned}
+     * {@link CharSequence} in some Notification text fields, and which may then be converted into
+     * styling of that section of text in order to indicate the semantic style. Since Notifications
+     * may strip styling, even for semantic styles, it’s important that stripping these styles
+     * should not distort the meaning of the text.
+     *
+     * <p>Semantic style will only be applied to text appearance in notifications that are eligible
+     * (e.g. {@link #FLAG_PROMOTED_ONGOING promoted} notifications).
+     *
+     * @see android.text.Spannable#setSpan(Object, int, int, int)
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+    @NonNull
+    public static Annotation createSemanticStyleAnnotation(@SemanticStyle int semanticStyle) {
+        return new Annotation(ANNOTATION_SEMANTIC_STYLE_KEY, String.valueOf(semanticStyle));
+    }
+
+    /**
+     * Returns the color resource corresponding to a {@link SemanticStyle}, or {@code null} if the
+     * value is either {@link #SEMANTIC_STYLE_UNSPECIFIED} or out of the range of known values.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+    @Nullable
+    @ColorRes
+    public static Integer semanticStyleToColorRes(@SemanticStyle int semanticStyle) {
+        return switch (semanticStyle) {
+            case SEMANTIC_STYLE_INFO -> R.color.semanticBlueOnSurfaceVariant;
+            case SEMANTIC_STYLE_SAFE -> R.color.semanticGreenOnSurfaceVariant;
+            case SEMANTIC_STYLE_CAUTION -> R.color.semanticYellowOnSurfaceVariant;
+            case SEMANTIC_STYLE_DANGER -> R.color.semanticRedOnSurfaceVariant;
+            default -> null;
+        };
+    }
+
+    /**
      * Accent color (an ARGB integer like the constants in {@link android.graphics.Color})
      * to be applied by the standard Style templates when presenting this notification.
      *
@@ -981,8 +1074,8 @@ public class Notification implements Parcelable
     public int color = COLOR_DEFAULT;
 
     /**
-     * Special value of {@link #color} telling the system not to decorate this notification with
-     * any special color but instead use default colors when presenting this notification.
+     * Special value of {@link #color} telling the system not to decorate this element with
+     * any special color (but instead use default system colors).
      */
     @ColorInt
     public static final int COLOR_DEFAULT = 0; // AKA Color.TRANSPARENT
@@ -1382,7 +1475,6 @@ public class Notification implements Parcelable
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
     public static final String EXTRA_SHORT_CRITICAL_TEXT = "android.shortCriticalText";
 
     /**
@@ -1697,7 +1789,6 @@ public class Notification implements Parcelable
      * This extra is a parcelable array list of bundles.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
     public static final String EXTRA_PROGRESS_SEGMENTS = "android.progressSegments";
 
     /**
@@ -1709,7 +1800,6 @@ public class Notification implements Parcelable
      * This extra is a parcelable array list of bundles.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
     public static final String EXTRA_PROGRESS_POINTS = "android.progressPoints";
 
     /**
@@ -1718,7 +1808,6 @@ public class Notification implements Parcelable
      * This extra is a boolean.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
     public static final String EXTRA_STYLED_BY_PROGRESS = "android.styledByProgress";
 
     /**
@@ -1727,7 +1816,6 @@ public class Notification implements Parcelable
      * {@link ProgressStyle#setProgressTrackerIcon(Icon)}.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
     public static final String EXTRA_PROGRESS_TRACKER_ICON = "android.progressTrackerIcon";
 
     /**
@@ -1736,7 +1824,6 @@ public class Notification implements Parcelable
      * {@link ProgressStyle#setProgressStartIcon(Icon)}.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
     public static final String EXTRA_PROGRESS_START_ICON = "android.progressStartIcon";
 
     /**
@@ -1745,7 +1832,6 @@ public class Notification implements Parcelable
      * {@link ProgressStyle#setProgressEndIcon(Icon)}.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
     public static final String EXTRA_PROGRESS_END_ICON = "android.progressEndIcon";
 
     /**
@@ -1817,8 +1903,7 @@ public class Notification implements Parcelable
      * @hide
      */
     @SystemApi
-    @RequiresPermission("android.Manifest.permission.HIDE_STATUS_BAR_NOTIFICATION")
-    @FlaggedApi(FLAG_HIDE_STATUS_BAR_NOTIFICATION)
+    @RequiresPermission(android.Manifest.permission.HIDE_STATUS_BAR_NOTIFICATION)
     public static final String EXTRA_HIDE_STATUS_BAR_NOTIFICATION =
             "android.hideStatusBarNotification";
 
@@ -1831,11 +1916,19 @@ public class Notification implements Parcelable
      * {@link #extras} key: an arraylist of {@link android.app.Notification.Metric}
      * bundles provided by a {@link android.app.Notification.MetricStyle} notification (as supplied
      * to {@link MetricStyle#addMetric} and related methods.
-     *
-     * @hide
      */
     @FlaggedApi(Flags.FLAG_API_METRIC_STYLE)
     static final String EXTRA_METRICS = "android.metrics";
+
+    /**
+     * {@link #extras} key: an int pointing to an index in {@link #EXTRA_METRICS}.
+     */
+    @FlaggedApi(Flags.FLAG_API_METRIC_STYLE)
+    static final String EXTRA_METRICS_CRITICAL_INDEX = "android.metrics.criticalIndex";
+
+    /** {@link #extras} key: Bundle corresponding to {@link CompactContent}. */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_CHIP)
+    static final String EXTRA_COMPACT_CONTENT = "android.compactContent";
 
     /**
      * {@link InstantSource} used for obtaining "now". Normally {@link InstantSource#system()},
@@ -1871,6 +1964,7 @@ public class Notification implements Parcelable
     private CharSequence mSettingsText;
 
     private BubbleMetadata mBubbleMetadata;
+    private BridgedNotificationMetadata mBridgedNotificationMetadata;
 
     /** @hide */
     @IntDef(prefix = { "GROUP_ALERT_" }, value = {
@@ -2054,6 +2148,29 @@ public class Notification implements Parcelable
         public static final int SEMANTIC_ACTION_CONVERSATION_IS_PHISHING = 12;
 
         /**
+         * {@code SemanticAction}: Start (or continue previously paused) content associated with the
+         * notification. This could mean starting media playback, resuming a paused timer, etc.
+         */
+        @FlaggedApi(Flags.FLAG_NOTIFICATION_SEMANTIC_ACTIONS_FOR_PLAYBACK)
+        public static final int SEMANTIC_ACTION_PLAY = 13;
+
+        /**
+         * {@code SemanticAction}: Pause the content associated with the notification. This could
+         * mean pausing media playback, pausing a running timer, etc.
+         */
+        @FlaggedApi(Flags.FLAG_NOTIFICATION_SEMANTIC_ACTIONS_FOR_PLAYBACK)
+        public static final int SEMANTIC_ACTION_PAUSE = 14;
+
+        /**
+         * {@code SemanticAction}: Stop the content associated with the notification. This could
+         * mean stopping media playback, resetting a timer, etc. It is implied that a follow-up
+         * {@link #SEMANTIC_ACTION_PLAY} would restart from the beginning, or may not be offered at
+         * all.
+         */
+        @FlaggedApi(Flags.FLAG_NOTIFICATION_SEMANTIC_ACTIONS_FOR_PLAYBACK)
+        public static final int SEMANTIC_ACTION_STOP = 15;
+
+        /**
          * {@link #extras} key to a boolean defining if this action requires special visual
          * treatment.
          * @hide
@@ -2063,6 +2180,70 @@ public class Notification implements Parcelable
         @SuppressLint("ActionValue")
         public static final String EXTRA_IS_ANIMATED = "android.extra.IS_ANIMATED";
 
+        /**
+         * The action’s visual emphasis is generally the default, or may be automatically
+         * determined by the system based on context.
+         */
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+        public static final int EMPHASIS_AUTO = 0;
+
+        /**
+         * The action’s visual emphasis may indicate that this action is more important than others.
+         */
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+        public static final int EMPHASIS_PRIMARY = 1;
+
+        /**
+         * The action’s visual emphasis may indicate that this action is less important than others.
+         */
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+        public static final int EMPHASIS_SECONDARY = 2;
+
+        /** @hide */
+        @IntDef(prefix = { "EMPHASIS_" }, value = {
+                EMPHASIS_AUTO,
+                EMPHASIS_PRIMARY,
+                EMPHASIS_SECONDARY
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface Emphasis {}
+
+        /** The action can be presented with the best form for the content and context. */
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+        public static final int STYLE_AUTO = 0;
+
+        /** The action is best represented by only the text (its {@link #title}). */
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+        public static final int STYLE_TEXT_ONLY = 1;
+
+        /** The action is best represented by a combo of the icon and text. */
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+        public static final int STYLE_ICON_AND_TEXT = 2;
+
+        /**
+         * The action is best represented by only its {@link #getIcon() icon}. Note that a non-null
+         * {@link #title} is still mandatory, or the action might be ignored.
+         */
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+        public static final int STYLE_ICON_ONLY = 3;
+
+        /** @hide */
+        @IntDef(prefix = { "STYLE_" }, value = {
+                STYLE_AUTO,
+                STYLE_TEXT_ONLY,
+                STYLE_ICON_AND_TEXT,
+                STYLE_ICON_ONLY
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface Style {}
+
+
+        /**
+         * {@link #extras} key to a String defining this action's content description.
+         * @hide
+         */
+        public static final String EXTRA_CONTENT_DESCRIPTION = "android.extra.CONTENT_DESCRIPTION";
+
         private final Bundle mExtras;
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
         private Icon mIcon;
@@ -2070,7 +2251,9 @@ public class Notification implements Parcelable
         private boolean mAllowGeneratedReplies = true;
         private final @SemanticAction int mSemanticAction;
         private final boolean mIsContextual;
-        private boolean mAuthenticationRequired;
+        private final @Emphasis int mEmphasisHint;
+        private final @Style int mStyleHint;
+        private final boolean mAuthenticationRequired;
 
         /**
          * Small icon representing the action.
@@ -2107,6 +2290,8 @@ public class Notification implements Parcelable
             mAllowGeneratedReplies = in.readInt() == 1;
             mSemanticAction = in.readInt();
             mIsContextual = in.readInt() == 1;
+            mEmphasisHint = in.readInt();
+            mStyleHint = in.readInt();
             mAuthenticationRequired = in.readInt() == 1;
         }
 
@@ -2116,13 +2301,15 @@ public class Notification implements Parcelable
         @Deprecated
         public Action(int icon, CharSequence title, @Nullable PendingIntent intent) {
             this(Icon.createWithResource("", icon), title, intent, new Bundle(), null, true,
-                    SEMANTIC_ACTION_NONE, false /* isContextual */, false /* requireAuth */);
+                    SEMANTIC_ACTION_NONE, /* isContextual= */ false, EMPHASIS_AUTO, STYLE_AUTO,
+                    /* requireAuth= */ false);
         }
 
         /** Keep in sync with {@link Notification.Action.Builder#Builder(Action)}! */
         private Action(Icon icon, CharSequence title, PendingIntent intent, Bundle extras,
                 RemoteInput[] remoteInputs, boolean allowGeneratedReplies,
                 @SemanticAction int semanticAction, boolean isContextual,
+                @Emphasis int emphasisHint, @Style int styleHint,
                 boolean requireAuth) {
             this.mIcon = icon;
             if (icon != null && icon.getType() == Icon.TYPE_RESOURCE) {
@@ -2135,6 +2322,8 @@ public class Notification implements Parcelable
             this.mAllowGeneratedReplies = allowGeneratedReplies;
             this.mSemanticAction = semanticAction;
             this.mIsContextual = isContextual;
+            this.mEmphasisHint = emphasisHint;
+            this.mStyleHint = styleHint;
             this.mAuthenticationRequired = requireAuth;
         }
 
@@ -2192,6 +2381,23 @@ public class Notification implements Parcelable
         }
 
         /**
+         * Returns the app’s hint about the importance of this action relative to others in this
+         * notification.
+         */
+        @Emphasis
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+        public int getEmphasisHint() {
+            return mEmphasisHint;
+        }
+
+        /** Returns the app’s hint about the preferred visual style of this action. */
+        @Style
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+        public int getStyleHint() {
+            return mStyleHint;
+        }
+
+        /**
          * Get the list of inputs to be collected from the user that ONLY accept data when this
          * action is sent. These remote inputs are guaranteed to return {@code true} on a call to
          * {@link RemoteInput#isDataOnly}.
@@ -2228,6 +2434,8 @@ public class Notification implements Parcelable
             @Nullable private ArrayList<RemoteInput> mRemoteInputs;
             private @SemanticAction int mSemanticAction;
             private boolean mIsContextual;
+            private @Emphasis int mEmphasisHint;
+            private @Style int mStyleHint;
             private boolean mAuthenticationRequired;
 
             /**
@@ -2278,7 +2486,10 @@ public class Notification implements Parcelable
              * system UI.
              */
             public Builder(Icon icon, CharSequence title, @Nullable PendingIntent intent) {
-                this(icon, title, intent, new Bundle(), null, true, SEMANTIC_ACTION_NONE, false);
+                this(icon, title, intent, new Bundle(), /* remoteInputs= */ null,
+                        /* allowGeneratedReplies= */ true, SEMANTIC_ACTION_NONE,
+                        /* isContextual= */ false, EMPHASIS_AUTO, STYLE_AUTO,
+                        /* authRequired= */ false);
             }
 
             /**
@@ -2290,13 +2501,15 @@ public class Notification implements Parcelable
                 this(action.getIcon(), action.title, action.actionIntent,
                         new Bundle(action.mExtras), action.getRemoteInputs(),
                         action.getAllowGeneratedReplies(), action.getSemanticAction(),
+                        action.isContextual(), action.getEmphasisHint(), action.getStyleHint(),
                         action.isAuthenticationRequired());
             }
 
             private Builder(@Nullable Icon icon, @Nullable CharSequence title,
                     @Nullable PendingIntent intent, @NonNull Bundle extras,
                     @Nullable RemoteInput[] remoteInputs, boolean allowGeneratedReplies,
-                    @SemanticAction int semanticAction, boolean authRequired) {
+                    @SemanticAction int semanticAction, boolean isContextual,
+                    @Emphasis int emphasisHint, @Style int styleHint, boolean authRequired) {
                 mIcon = icon;
                 mTitle = title;
                 mIntent = intent;
@@ -2307,6 +2520,9 @@ public class Notification implements Parcelable
                 }
                 mAllowGeneratedReplies = allowGeneratedReplies;
                 mSemanticAction = semanticAction;
+                mIsContextual = isContextual;
+                mEmphasisHint = emphasisHint;
+                mStyleHint = styleHint;
                 mAuthenticationRequired = authRequired;
             }
 
@@ -2392,6 +2608,30 @@ public class Notification implements Parcelable
             }
 
             /**
+             * Sets a hint about the importance of this action relative to others in this
+             * notification. This may be used for {@link Notification#FLAG_PROMOTED_ONGOING
+             * promoted ongoing} notifications, and is not binding on standard notifications.
+             */
+            @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+            @NonNull
+            public Builder setEmphasisHint(@Emphasis int emphasis) {
+                mEmphasisHint = emphasis;
+                return this;
+            }
+
+            /**
+             * Sets a preferred visual style of this action. This may be used for
+             * {@link Notification#FLAG_PROMOTED_ONGOING promoted ongoing} notifications, and is
+             * not binding on standard notifications.
+             */
+            @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+            @NonNull
+            public Builder setStyleHint(@Style int style) {
+                mStyleHint = style;
+                return this;
+            }
+
+            /**
              * Apply an {@link Extender} to this action builder. Extenders may be used to add
              * metadata or change options on this builder.
              */
@@ -2469,7 +2709,7 @@ public class Notification implements Parcelable
                         ? null : textInputs.toArray(new RemoteInput[textInputs.size()]);
                 return new Action(mIcon, mTitle, mIntent, mExtras, textInputsArr,
                         mAllowGeneratedReplies, mSemanticAction, mIsContextual,
-                        mAuthenticationRequired);
+                        mEmphasisHint, mStyleHint, mAuthenticationRequired);
             }
         }
 
@@ -2488,6 +2728,8 @@ public class Notification implements Parcelable
                     getAllowGeneratedReplies(),
                     getSemanticAction(),
                     isContextual(),
+                    getEmphasisHint(),
+                    getStyleHint(),
                     isAuthenticationRequired());
         }
 
@@ -2517,6 +2759,8 @@ public class Notification implements Parcelable
             out.writeInt(mAllowGeneratedReplies ? 1 : 0);
             out.writeInt(mSemanticAction);
             out.writeInt(mIsContextual ? 1 : 0);
+            out.writeInt(mEmphasisHint);
+            out.writeInt(mStyleHint);
             out.writeInt(mAuthenticationRequired ? 1 : 0);
         }
 
@@ -2809,7 +3053,10 @@ public class Notification implements Parcelable
                 SEMANTIC_ACTION_THUMBS_DOWN,
                 SEMANTIC_ACTION_CALL,
                 SEMANTIC_ACTION_MARK_CONVERSATION_AS_PRIORITY,
-                SEMANTIC_ACTION_CONVERSATION_IS_PHISHING
+                SEMANTIC_ACTION_CONVERSATION_IS_PHISHING,
+                SEMANTIC_ACTION_PLAY,
+                SEMANTIC_ACTION_PAUSE,
+                SEMANTIC_ACTION_STOP
         })
         @Retention(RetentionPolicy.SOURCE)
         public @interface SemanticAction {}
@@ -3012,6 +3259,11 @@ public class Notification implements Parcelable
             mBubbleMetadata = BubbleMetadata.CREATOR.createFromParcel(parcel);
         }
 
+        if (parcel.readInt() != 0) {
+            mBridgedNotificationMetadata =
+                    BridgedNotificationMetadata.CREATOR.createFromParcel(parcel);
+        }
+
         mAllowSystemGeneratedContextualActions = parcel.readBoolean();
 
         mFgsDeferBehavior = parcel.readInt();
@@ -3132,6 +3384,7 @@ public class Notification implements Parcelable
         that.mGroupAlertBehavior = this.mGroupAlertBehavior;
         that.mFgsDeferBehavior = this.mFgsDeferBehavior;
         that.mBubbleMetadata = this.mBubbleMetadata;
+        that.mBridgedNotificationMetadata = this.mBridgedNotificationMetadata;
         that.mAllowSystemGeneratedContextualActions = this.mAllowSystemGeneratedContextualActions;
 
         if (!heavy) {
@@ -3240,8 +3493,8 @@ public class Notification implements Parcelable
                 person.visitUris(visitor);
             }
 
-            final Parcelable[] messages = extras.getParcelableArray(EXTRA_MESSAGES,
-                    Parcelable.class);
+            final Bundle[] messages =
+                    getParcelableArrayFromBundle(extras, EXTRA_MESSAGES, Bundle.class);
             if (!ArrayUtils.isEmpty(messages)) {
                 for (MessagingStyle.Message message : MessagingStyle.Message
                         .getMessagesFromBundleArray(messages)) {
@@ -3249,8 +3502,8 @@ public class Notification implements Parcelable
                 }
             }
 
-            final Parcelable[] historic = extras.getParcelableArray(EXTRA_HISTORIC_MESSAGES,
-                    Parcelable.class);
+            final Parcelable[] historic =
+                    getParcelableArrayFromBundle(extras, EXTRA_HISTORIC_MESSAGES, Bundle.class);
             if (!ArrayUtils.isEmpty(historic)) {
                 for (MessagingStyle.Message message : MessagingStyle.Message
                         .getMessagesFromBundleArray(historic)) {
@@ -3267,19 +3520,20 @@ public class Notification implements Parcelable
             }
             visitIconUri(visitor, extras.getParcelable(EXTRA_VERIFICATION_ICON, Icon.class));
 
-
-            if (Flags.apiRichOngoing()) {
-                visitIconUri(visitor, extras.getParcelable(EXTRA_PROGRESS_TRACKER_ICON,
-                    Icon.class));
-                visitIconUri(visitor, extras.getParcelable(EXTRA_PROGRESS_START_ICON,
-                    Icon.class));
-                visitIconUri(visitor, extras.getParcelable(EXTRA_PROGRESS_END_ICON,
-                    Icon.class));
-            }
+            visitIconUri(visitor, extras.getParcelable(EXTRA_PROGRESS_TRACKER_ICON,
+                Icon.class));
+            visitIconUri(visitor, extras.getParcelable(EXTRA_PROGRESS_START_ICON,
+                Icon.class));
+            visitIconUri(visitor, extras.getParcelable(EXTRA_PROGRESS_END_ICON,
+                Icon.class));
         }
 
         if (mBubbleMetadata != null) {
             visitIconUri(visitor, mBubbleMetadata.getIcon());
+        }
+
+        if (mBridgedNotificationMetadata != null) {
+            visitIconUri(visitor, mBridgedNotificationMetadata.getAppIcon());
         }
 
         if (extras != null && extras.containsKey(WearableExtender.EXTRA_WEARABLE_EXTENSIONS)) {
@@ -3336,9 +3590,7 @@ public class Notification implements Parcelable
             return null;
         }
         final int size = context.getResources().getDimensionPixelSize(
-                Flags.notificationsRedesignTemplates()
-                        ? R.dimen.notification_2025_badge_size
-                        : R.dimen.notification_badge_size);
+                R.dimen.notification_2025_badge_size);
         Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         badge.setBounds(0, 0, size, size);
@@ -3371,6 +3623,59 @@ public class Notification implements Parcelable
     }
 
     /**
+     * Returns the title for the Notification History.
+     * @hide
+     */
+    public String getHistoryTitle(@NonNull Context context) {
+        Preconditions.checkNotNull(context);
+        CharSequence title = null;
+        if (extras != null) {
+            title = extras.getCharSequence(Notification.EXTRA_TITLE);
+            if (title == null) {
+                title = extras.getCharSequence(EXTRA_TITLE_BIG);
+            }
+        }
+
+        return TextUtils.isEmpty(title) ? context.getString(
+                R.string.notification_history_title_placeholder)
+                : String.valueOf(title);
+    }
+
+    /**
+     * Returns the appropriate substring for this notification based on the style of notification.
+     * This is going to be shown on the Notification History.
+     * @hide
+     */
+    public String getHistoryText(@NonNull Context context) {
+        Preconditions.checkNotNull(context);
+        CharSequence text = null;
+        if (extras != null) {
+            final boolean hasStyledHistoryText = isStyle(BigTextStyle.class)
+                || isStyle(MetricStyle.class)
+                || isStyle(MessagingStyle.class);
+            if (hasStyledHistoryText) {
+                final Style style = Notification.Builder.recoverStyle(this);
+                if (style != null) {
+                    text = style.getHistoryText(context);
+                }
+            }
+        }
+
+        if (TextUtils.isEmpty(text) && extras != null) {
+            text = extras.getCharSequence(EXTRA_TEXT);
+        }
+
+        return text == null ? null : String.valueOf(text);
+    }
+
+    /**
+     * @hide
+     */
+    public boolean hasFlag(final int flag) {
+        return (flags & flag) != 0;
+    }
+
+    /**
      * @hide
      */
     public boolean containsCustomViews() {
@@ -3384,6 +3689,8 @@ public class Notification implements Parcelable
     }
 
     /**
+     * Returns whether the notification has a title, or a title-like element that can be used in
+     * its place (such as the caller's name for a call notification).
      * @hide
      */
     public boolean hasTitle() {
@@ -3394,6 +3701,11 @@ public class Notification implements Parcelable
         if (isStyle(CallStyle.class)) {
             Person person = extras.getParcelable(EXTRA_CALL_PERSON, Person.class);
             return person != null && !TextUtils.isEmpty(person.getName());
+        }
+        if (Flags.apiMetricStyle() && isStyle(MetricStyle.class)) {
+            // MetricStyle has at least one metric, and their titles will be used as the
+            // notification's "title".
+            return true;
         }
         // non-CallStyle notifications can use EXTRA_TITLE
         if (!TextUtils.isEmpty(extras.getCharSequence(EXTRA_TITLE))) {
@@ -3410,7 +3722,6 @@ public class Notification implements Parcelable
     /**
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
     public boolean hasPromotableStyle() {
         final Class<? extends Style> notificationStyle = getNotificationStyle();
 
@@ -3428,36 +3739,14 @@ public class Notification implements Parcelable
      * the notification will be assigned {@link #FLAG_PROMOTED_ONGOING} by the system, but if this
      * returns {@code false}, it will not.
      */
-    @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
     public boolean hasPromotableCharacteristics() {
-        if (Flags.uiRichOngoing()) {
-            return isRequestPromotedOngoing()
-                    && isOngoingEvent()
-                    && hasTitle()
-                    && hasPromotableStyle()
-                    && !isGroupSummary()
-                    && !containsCustomViews()
-                    && !isColorizedRequested();
-        } else {
-            // Original promotable specs:
-            if (!isOngoingEvent() || isGroupSummary() || containsCustomViews() || !hasTitle()) {
-                return false;
-            }
-            // Only "Ongoing CallStyle" notifications are promotable without EXTRA_COLORIZED
-            if (isOngoingCallStyle()) {
-                return true;
-            }
-            return isColorizedRequested() && hasPromotableStyle();
-        }
-    }
-
-    /** Returns whether the notification is CallStyle.forOngoingCall(). */
-    private boolean isOngoingCallStyle() {
-        if (!isStyle(CallStyle.class)) {
-            return false;
-        }
-        int callType = extras.getInt(EXTRA_CALL_TYPE, CallStyle.CALL_TYPE_UNKNOWN);
-        return callType == CallStyle.CALL_TYPE_ONGOING;
+        return isRequestPromotedOngoing()
+                && isOngoingEvent()
+                && hasTitle()
+                && hasPromotableStyle()
+                && !isGroupSummary()
+                && !containsCustomViews()
+                && !isColorizedRequested();
     }
 
     /**
@@ -3499,6 +3788,11 @@ public class Notification implements Parcelable
                 if (TvExtender.EXTRA_TV_EXTENDER.equals(key)) {
                     continue;
                 }
+
+                if (EXTRA_METRICS.equals(key)) {
+                    continue;
+                }
+
                 final Object obj = extras.get(key);
                 if (obj != null &&
                     (  obj instanceof Parcelable
@@ -3559,20 +3853,18 @@ public class Notification implements Parcelable
         return cs.toString();
     }
 
-    private static CharSequence stripNonStyleSpans(@Nullable CharSequence text) {
-        // Keep Strikethrough spans for MessagingStyle notifications.
-        // Strikethrough can be an important part of the meaning of the message
-        // e.g.the corrections, cancelations etc.
-        return stripNonStyleSpans(text, /* keepStrikethrough= */ true);
-    }
-
+    /**
+     * Strips all spans from a {@link CharSequence} except from a set of known, style-related ones.
+     *
+     * @param semanticColors if supplied, {@link Annotation} spans representing semantic
+     *                       style will be converted into {@link ForegroundColorSpan}.
+     */
     @Nullable
     private static CharSequence stripNonStyleSpans(@Nullable CharSequence text,
-        boolean keepStrikethrough) {
+            boolean keepStrikethrough, @Nullable SemanticColors semanticColors) {
         if (text == null) return null;
 
-        if (text instanceof Spanned) {
-            Spanned ss = (Spanned) text;
+        if (text instanceof Spanned ss) {
             Object[] spans = ss.getSpans(0, ss.length(), Object.class);
             SpannableString outString = new SpannableString(ss.toString());
             for (Object span : spans) {
@@ -3581,14 +3873,21 @@ public class Notification implements Parcelable
                         || (keepStrikethrough && (span instanceof StrikethroughSpan))
                         || span instanceof UnderlineSpan) {
                     resultSpan = span;
-                } else if (span instanceof TextAppearanceSpan) {
-                    final TextAppearanceSpan originalSpan = (TextAppearanceSpan) span;
+                } else if (span instanceof TextAppearanceSpan originalSpan) {
                     resultSpan = new TextAppearanceSpan(
                             null,
                             originalSpan.getTextStyle(),
                             -1,
                             null,
                             null);
+                } else if (Flags.apiNotificationSemanticStyle() && semanticColors != null
+                        && span instanceof Annotation annotation) {
+                    Integer semanticColor = semanticAnnotationToColor(annotation, semanticColors);
+                    if (semanticColor != null) {
+                        resultSpan = new ForegroundColorSpan(semanticColor);
+                    } else {
+                        continue;
+                    }
                 } else {
                     continue;
                 }
@@ -3598,6 +3897,27 @@ public class Notification implements Parcelable
             return outString;
         }
         return text;
+    }
+
+    @Nullable
+    @ColorInt
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+    private static Integer semanticAnnotationToColor(Annotation annotation,
+            @NonNull SemanticColors semanticColors) {
+        if (ANNOTATION_SEMANTIC_STYLE_KEY.equals(annotation.getKey())) {
+            try {
+                int semanticStyle = Integer.parseInt(annotation.getValue());
+                int semanticColor = semanticColors.getSemanticColor(semanticStyle);
+                if (semanticColor != COLOR_DEFAULT) {
+                    return semanticColor;
+                }
+            } catch (NumberFormatException ex) {
+                Log.wtfStack(TAG, "Invalid " + ANNOTATION_SEMANTIC_STYLE_KEY + ": "
+                        + annotation.getValue());
+            }
+        }
+
+        return null;
     }
 
     private static CharSequence normalizeBigText(@Nullable CharSequence charSequence) {
@@ -3868,6 +4188,13 @@ public class Notification implements Parcelable
             parcel.writeInt(0);
         }
 
+        if (mBridgedNotificationMetadata != null) {
+            parcel.writeInt(1);
+            mBridgedNotificationMetadata.writeToParcel(parcel, 0);
+        } else {
+            parcel.writeInt(0);
+        }
+
         parcel.writeBoolean(mAllowSystemGeneratedContextualActions);
 
         parcel.writeInt(mFgsDeferBehavior);
@@ -4123,9 +4450,16 @@ public class Notification implements Parcelable
     }
 
     /**
+     * Associates an {@link ApplicationInfo} object to this notification, which should point to the
+     * package that posted it. This is normally done by {@code NotificationManagerService} before
+     * forwarding the Notification to NLSes, but can be used in tests to fake that mechanism.
+     *
      * @hide
      */
-    public static void addFieldsFromContext(ApplicationInfo ai, Notification notification) {
+    @TestApi
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_CHIP)
+    public static void addFieldsFromContext(@NonNull ApplicationInfo ai,
+            @NonNull Notification notification) {
         notification.extras.putParcelable(EXTRA_BUILDER_APPLICATION_INFO, ai);
     }
 
@@ -4336,17 +4670,17 @@ public class Notification implements Parcelable
             flagStrings.add("USER_INITIATED_JOB");
             flags &= ~FLAG_USER_INITIATED_JOB;
         }
-        if (Flags.lifetimeExtensionRefactor()) {
-            if ((flags & FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY) != 0) {
-                flagStrings.add("LIFETIME_EXTENDED_BY_DIRECT_REPLY");
-                flags &= ~FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY;
-            }
+        if ((flags & FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY) != 0) {
+            flagStrings.add("LIFETIME_EXTENDED_BY_DIRECT_REPLY");
+            flags &= ~FLAG_LIFETIME_EXTENDED_BY_DIRECT_REPLY;
         }
-        if (Flags.apiRichOngoing()) {
-            if ((flags & FLAG_PROMOTED_ONGOING) != 0) {
-                flagStrings.add("PROMOTED_ONGOING");
-                flags &= ~FLAG_PROMOTED_ONGOING;
-            }
+        if ((flags & FLAG_PROMOTED_ONGOING) != 0) {
+            flagStrings.add("PROMOTED_ONGOING");
+            flags &= ~FLAG_PROMOTED_ONGOING;
+        }
+        if ((flags & FLAG_COMPUTER_CONTROL) != 0) {
+            flagStrings.add("COMPUTER_CONTROL");
+            flags &= ~FLAG_COMPUTER_CONTROL;
         }
 
         if (android.service.notification.Flags.notificationSilentFlag()) {
@@ -4404,7 +4738,6 @@ public class Notification implements Parcelable
      * notification, or {@code null} if this field was not set.
      */
     @Nullable
-    @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
     public String getShortCriticalText() {
         return extras.getString(EXTRA_SHORT_CRITICAL_TEXT);
     }
@@ -4416,23 +4749,6 @@ public class Notification implements Parcelable
         return (flags & FLAG_ONGOING_EVENT) != 0;
     }
 
-    /**
-     * @hide
-     */
-    // TODO: b/425364383 - Remove when inlining
-    public boolean hasCompletedProgress() {
-        // not a progress notification; can't be complete
-        if (!extras.containsKey(EXTRA_PROGRESS)
-                || !extras.containsKey(EXTRA_PROGRESS_MAX)) {
-            return false;
-        }
-        // many apps use max 0 for 'indeterminate'; not complete
-        if (extras.getInt(EXTRA_PROGRESS_MAX) == 0) {
-            return false;
-        }
-        return extras.getInt(EXTRA_PROGRESS) == extras.getInt(EXTRA_PROGRESS_MAX);
-    }
-
     /** @hide */
     public static final int PROGRESS_STATE_NONE = 0;
     /** @hide */
@@ -4441,7 +4757,6 @@ public class Notification implements Parcelable
     public static final int PROGRESS_STATE_COMPLETE = 2;
 
     /** @hide */
-    @FlaggedApi(Flags.FLAG_NOTIFICATION_UPDATE_SHEDDING_ALLOW_PROGRESS_COMPLETION)
     public int getProgressState() {
         final int progress = extras.getInt(EXTRA_PROGRESS, 0);
         final int max = extras.getInt(EXTRA_PROGRESS_MAX, 0);
@@ -4529,6 +4844,16 @@ public class Notification implements Parcelable
     }
 
     /**
+     * Returns the {@link RemoteInputHistoryItem}s provided to
+     * {@link Builder#setRemoteInputHistoryItems(RemoteInputHistoryItem[])}.
+     * @hide
+     */
+    public RemoteInputHistoryItem[] getRemoteInputHistoryItems() {
+        return getParcelableArrayFromBundle(extras, EXTRA_REMOTE_INPUT_HISTORY_ITEMS,
+                RemoteInputHistoryItem.class);
+    }
+
+    /**
      * Returns which type of notifications in a group are responsible for audibly alerting the
      * user.
      */
@@ -4560,6 +4885,29 @@ public class Notification implements Parcelable
      */
     public void setBubbleMetadata(BubbleMetadata data) {
         mBubbleMetadata = data;
+    }
+
+    /**
+     * Returns the metadata associated with a notification originating on another device.
+     * A copy of the original notification is sent to this device by a bridging app. This
+     * metadata is used for displaying the notification as a bridged notification to the user.
+     *
+     * @return the metadata associated with the notification.
+     */
+    @Nullable
+    @FlaggedApi(FLAG_BRIDGED_NOTIFICATIONS)
+    public BridgedNotificationMetadata getBridgedNotificationMetadata() {
+        return mBridgedNotificationMetadata;
+    }
+
+    /**
+     * Removes BridgedNotificationMetadata from a notification. BridgedNotificationMetadata can
+     * only be set by the builder, but in situations where the metadata needs to be stripped (such
+     * as if the caller did not have the correct permissions), this function is required.
+     * @hide
+     */
+    public void removeBridgedNotificationMetadata() {
+        mBridgedNotificationMetadata = null;
     }
 
     /**
@@ -4760,6 +5108,7 @@ public class Notification implements Parcelable
         private ContrastColorUtil mColorUtil;
         private boolean mIsLegacy;
         private boolean mIsLegacyInitialized;
+        @Nullable private UserProfileBadgeProvider mUserProfileBadgeProvider;
 
         /**
          * Caches an instance of StandardTemplateParams. Note that this may have been used before,
@@ -4840,29 +5189,39 @@ public class Notification implements Parcelable
                     setLargeIcon(mN.largeIcon);
                 }
 
-                String templateClass = mN.extras.getString(EXTRA_TEMPLATE);
-                if (!TextUtils.isEmpty(templateClass)) {
-                    final Class<? extends Style> styleClass
-                            = getNotificationStyleClass(templateClass);
-                    if (styleClass == null) {
-                        Log.d(TAG, "Unknown style class: " + templateClass);
-                    } else {
-                        try {
-                            final Constructor<? extends Style> ctor =
-                                    styleClass.getDeclaredConstructor();
-                            ctor.setAccessible(true);
-                            final Style style = ctor.newInstance();
-                            style.restoreFromExtras(mN.extras);
+                final Style style = recoverStyle(mN);
+                if (style != null) {
+                    setStyle(style);
+                }
+            }
+        }
 
-                            if (style != null) {
-                                setStyle(style);
-                            }
-                        } catch (Throwable t) {
-                            Log.e(TAG, "Could not create Style", t);
-                        }
+        /**
+         * Recover Style from the given notification.
+         * @hide
+         */
+        public static Style recoverStyle(Notification n) {
+            String templateClass = n.extras.getString(EXTRA_TEMPLATE);
+            if (!TextUtils.isEmpty(templateClass)) {
+                final Class<? extends Style> styleClass = getNotificationStyleClass(templateClass);
+                if (styleClass == null) {
+                    Log.d(TAG, "Unknown style class: " + templateClass);
+                    return null;
+                } else {
+                    try {
+                        final Constructor<? extends Style> ctor =
+                                styleClass.getDeclaredConstructor();
+                        ctor.setAccessible(true);
+                        final Style style = ctor.newInstance();
+                        style.restoreFromExtras(n.extras);
+                        return style;
+                    } catch (Throwable t) {
+                        Log.e(TAG, "Could not create Style", t);
+                        return null;
                     }
                 }
             }
+            return null;
         }
 
         /**
@@ -4870,7 +5229,6 @@ public class Notification implements Parcelable
          * other sources. The OS may choose to display this notification with different styling or
          * choose not to summarize this content if this is true.
          */
-        @FlaggedApi(Flags.FLAG_NM_SUMMARIZATION)
         @NonNull
         public Builder setHasSummarizedContent(boolean hasSummarizedContent) {
             mN.extras.putBoolean(EXTRA_CONTAINS_SUMMARIZATION, hasSummarizedContent);
@@ -4887,9 +5245,7 @@ public class Notification implements Parcelable
         @NonNull
         public Builder setSummarizedContent(@Nullable CharSequence summarizedContent) {
             mN.extras.putCharSequence(EXTRA_APP_SUMMARIZATION, summarizedContent);
-            if (Flags.nmSummarization()) {
-                setHasSummarizedContent(!TextUtils.isEmpty(summarizedContent));
-            }
+            setHasSummarizedContent(!TextUtils.isEmpty(summarizedContent));
             return this;
         }
 
@@ -5008,6 +5364,21 @@ public class Notification implements Parcelable
             return this;
         }
 
+        /**
+         * Sets the metadata for notifications which originate from another device. This metadata
+         * is used to display the notifications in a distinct way from local notifications, to
+         * reflect their source.
+         * @hide
+         */
+        @NonNull
+        @SystemApi
+        @RequiresPermission("android.Manifest.permission.POST_BRIDGED_NOTIFICATIONS")
+        @FlaggedApi(FLAG_BRIDGED_NOTIFICATIONS)
+        public Builder setBridgedNotificationMetadata(@Nullable BridgedNotificationMetadata data) {
+            mN.mBridgedNotificationMetadata = data;
+            return this;
+        }
+
         /** @removed */
         @Deprecated
         public Builder setChannel(String channelId) {
@@ -5072,6 +5443,9 @@ public class Notification implements Parcelable
          *
          * <p>The counter can also be set to count down to <code>when</code> when using
          * {@link #setChronometerCountDown(boolean)}.
+         *
+         * <p>If the notification is {@link #FLAG_PROMOTED_ONGOING promoted ongoing} then this
+         * stopwatch might also be displayed in its status bar chip.
          *
          * @see android.widget.Chronometer
          * @see Notification#when
@@ -5344,8 +5718,26 @@ public class Notification implements Parcelable
          * Sets a very short string summarizing the most critical information contained in the
          * notification. Suggested max length is 7 characters, and there is no guarantee how much or
          * how little of this text will be shown.
+         *
+         * <p>This field is designed exclusively for the compact representation (hereafter "chip")
+         * shown when the notification is {@link #FLAG_PROMOTED_ONGOING promoted ongoing}.
+         * <ul>
+         *     <li>A chip's content may not be shown in certain states or if it cannot fit.
+         *     <li>Short critical text will always be the highest precedence content for a chip.
+         *     <li>Setting this to {@code ""} will ensure the chip has no content; {@code null}
+         *     (the default) will fall back to the other options.
+         *     {@if (flag(Flags.FLAG_API_METRIC_STYLE)) {<li>A {@link MetricStyle}'s critical metric
+         *     is the next option for the chip's content.}}
+         *     <li>A time (from {@link #when}) is the final source of content for the chip.
+         *     <ul>
+         *         <li>If {@link #setUsesChronometer(boolean)} is {@code true}, the chip content
+         *         will be a chronometer, if that is positive (based on
+         *         {@link #setChronometerCountDown(boolean)}).
+         *         <li>If {@link #setShowWhen(boolean)} is true, the chip content will be the time
+         *         remaining until {@link #when}, if positive.
+         *     </ul>
+         * </ul>
          */
-        @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
         @NonNull
         public Builder setShortCriticalText(@Nullable String shortCriticalText) {
             mN.extras.putString(EXTRA_SHORT_CRITICAL_TEXT, safeString(shortCriticalText));
@@ -6002,7 +6394,7 @@ public class Notification implements Parcelable
 
         /**
          * Alter the complete list of actions attached to this notification.
-         * @see #addAction(Action).
+         * @see #addAction(Action)
          */
         @NonNull
         public Builder setActions(Action... actions) {
@@ -6111,6 +6503,33 @@ public class Notification implements Parcelable
             return this;
         }
 
+        /**
+         * Sets the content to be displayed in the compact representation of a
+         * {@link #FLAG_PROMOTED_ONGOING promoted ongoing} notification.
+         *
+         * <p>If {@code null}, {@link #resolveCompactContent(Context)} default content} will be
+         * used.
+         */
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_CHIP)
+        @NonNull
+        public Builder setCompactContent(@Nullable CompactContent compactContent) {
+            CompactContent.toExtras(compactContent, mN.extras);
+            return this;
+        }
+
+        /**
+         * Sets the profile badge provider for this notification.
+         *
+         * @param provider the profile badge provider for this notification.
+         * @return the same Builder
+         * @hide
+         */
+        @VisibleForTesting
+        public Builder setUserProfileBadgeProvider(@Nullable UserProfileBadgeProvider provider) {
+            mUserProfileBadgeProvider = provider;
+            return this;
+        }
+
         private void bindPhishingAlertIcon(RemoteViews contentView, StandardTemplateParams p) {
             contentView.setDrawableTint(
                     R.id.phishing_alert,
@@ -6119,20 +6538,43 @@ public class Notification implements Parcelable
                     PorterDuff.Mode.SRC_ATOP);
         }
 
+        /**
+         * Returns the profile badge for this notification.
+         *
+         * @hide
+         */
+        public Bitmap getProfileBadge() {
+            if (mUserProfileBadgeProvider != null) {
+                return mUserProfileBadgeProvider.getProfileBadge(mContext);
+            } else {
+                return Notification.getProfileBadge(mContext);
+            }
+        }
+
         private void bindProfileBadge(RemoteViews contentView, StandardTemplateParams p) {
-            Bitmap profileBadge = Notification.getProfileBadge(mContext);
+            if (richOngoingImprovements() && p.mHideProfileBadge) {
+                return;
+            }
+
+            final Bitmap profileBadge = getProfileBadge();
 
             if (profileBadge != null) {
                 contentView.setImageViewBitmap(R.id.profile_badge, profileBadge);
                 contentView.setViewVisibility(R.id.profile_badge, View.VISIBLE);
                 if (isBackgroundColorized(p)) {
                     contentView.setDrawableTint(R.id.profile_badge, false,
-                            getPrimaryTextColor(p), PorterDuff.Mode.SRC_ATOP);
+                            getTextColor(p), PorterDuff.Mode.SRC_ATOP);
                 }
-                contentView.setContentDescription(
-                        R.id.profile_badge,
-                        mContext.getSystemService(UserManager.class)
-                                .getProfileAccessibilityString(mContext.getUserId()));
+                final String profileAccessibilityString;
+                if (mUserProfileBadgeProvider != null) {
+                    profileAccessibilityString =
+                            mUserProfileBadgeProvider.getProfileAccessibilityString(mContext);
+                } else {
+                    profileAccessibilityString =
+                            mContext.getSystemService(UserManager.class)
+                                    .getProfileAccessibilityString(mContext.getUserId());
+                }
+                contentView.setContentDescription(R.id.profile_badge, profileAccessibilityString);
             }
         }
 
@@ -6140,7 +6582,7 @@ public class Notification implements Parcelable
             contentView.setDrawableTint(
                     R.id.alerted_icon,
                     false /* targetBackground */,
-                    getColors(p).getSecondaryTextColor(),
+                    getColors(p).getTextColor(),
                     PorterDuff.Mode.SRC_IN);
         }
 
@@ -6163,6 +6605,24 @@ public class Notification implements Parcelable
             return contentViewUsesHeader && bigContentViewUsesHeader;
         }
 
+        /**
+         * Whether the notification shows a subtext or a summary text in the header. Doesn't support
+         * the legacy info field used before Android N.
+         *
+         * @see #bindHeaderText
+         * @hide
+         */
+        final boolean hasHeaderText(StandardTemplateParams p) {
+            if (p.mHideSubText) {
+                return false;
+            }
+            if (!TextUtils.isEmpty(p.mSubText)) {
+                return true;
+            }
+            return mStyle != null && mStyle.mSummaryTextSet
+                    && mStyle.hasSummaryInHeader() && !TextUtils.isEmpty(mStyle.mSummaryText);
+        }
+
         private void resetStandardTemplate(RemoteViews contentView) {
             resetNotificationHeader(contentView);
             contentView.setViewVisibility(R.id.right_icon, View.GONE);
@@ -6170,6 +6630,12 @@ public class Notification implements Parcelable
             contentView.setTextViewText(R.id.title, null);
             contentView.setViewVisibility(R.id.text, View.GONE);
             contentView.setTextViewText(R.id.text, null);
+            if (richOngoingImprovements()) {
+                contentView.setViewVisibility(R.id.alt_title, View.GONE);
+                contentView.setTextViewText(R.id.alt_title, null);
+                contentView.setViewVisibility(R.id.alt_subtext, View.GONE);
+                contentView.setTextViewText(R.id.alt_subtext, null);
+            }
         }
 
         /**
@@ -6207,10 +6673,10 @@ public class Notification implements Parcelable
                     || resId == getCollapsedMessagingLayoutResource()
                     || resId == getCollapsedMediaLayoutResource()
                     || resId == getCollapsedConversationLayoutResource()
-                    || (apiMetricStyle()
-                    && resId == getCollapsedMetricLayoutResource())
-                    || (notificationsRedesignTemplates()
-                    && resId == getCollapsedCallLayoutResource()));
+                    || (apiMetricStyle() && (resId == getCollapsedMetricLayoutResource()
+                    || resId == getCompactHeadsUpMetricLayoutResource()
+                    || resId == getHeadsUpMetricLayoutResource()))
+                    || resId == getCollapsedCallLayoutResource());
             RemoteViews contentView = new BuilderRemoteViews(mContext.getApplicationInfo(), resId);
 
             resetStandardTemplate(contentView);
@@ -6218,41 +6684,55 @@ public class Notification implements Parcelable
             final Bundle ex = mN.extras;
             updateBackgroundColor(contentView, p);
             bindNotificationHeader(contentView, p);
+            if (richOngoingImprovements()) {
+                updateToplineCentering(contentView, p);
+            }
             bindLargeIconAndApplyMargin(contentView, p, result);
             boolean showProgress = handleProgressBar(contentView, ex, p);
             boolean hasSecondLine = showProgress;
             // Metrics are considered as second line for MetricStyle.
             final boolean showMetrics = apiMetricStyle()
                     && (resId == getCollapsedMetricLayoutResource()
+                    || resId == getHeadsUpMetricLayoutResource()
                     || resId == getExpandedMetricLayoutResource());
             hasSecondLine |= showMetrics;
             if (p.hasTitle()) {
                 contentView.setViewVisibility(p.mTitleViewId, View.VISIBLE);
-                contentView.setTextViewText(p.mTitleViewId,
-                        ensureColorSpanContrastOrStripStyling(p.mTitle, p));
-                setTextViewColorPrimary(contentView, p.mTitleViewId, p);
+                contentView.setTextViewText(p.mTitleViewId, stripUnwantedSpans(p.mTitle, p));
+                setTextColor(contentView, p.mTitleViewId, p);
             } else if (p.mTitleViewId != R.id.title) {
                 // This alternate title view ID is not cleared by resetStandardTemplate
                 contentView.setViewVisibility(p.mTitleViewId, View.GONE);
                 contentView.setTextViewText(p.mTitleViewId, null);
             }
-            if (p.mText != null && p.mText.length() != 0
-                    && (!showProgress || p.mAllowTextWithProgress)) {
+            boolean isCollapsedContent = p.mViewType != StandardTemplateParams.VIEW_TYPE_EXPANDED;
+            if (Flags.nmSummarizationAll()
+                    && isCollapsedContent && !TextUtils.isEmpty(p.mSummarization)) {
                 contentView.setViewVisibility(p.mTextViewId, View.VISIBLE);
-                contentView.setTextViewText(p.mTextViewId,
-                        ensureColorSpanContrastOrStripStyling(p.mText, p));
-                setTextViewColorSecondary(contentView, p.mTextViewId, p);
+                contentView.setBoolean(p.mTextViewId, "showAsSummarization", true);
+                contentView.setTextViewText(p.mTextViewId, p.mSummarization);
+                setTextColor(contentView, p.mTextViewId, p);
                 hasSecondLine = true;
-            } else if (p.mTextViewId != R.id.text) {
-                // This alternate text view ID is not cleared by resetStandardTemplate
-                contentView.setViewVisibility(p.mTextViewId, View.GONE);
-                contentView.setTextViewText(p.mTextViewId, null);
+            } else {
+                if (p.mText != null && p.mText.length() != 0
+                        && (!showProgress || p.mAllowTextWithProgress)) {
+                    contentView.setViewVisibility(p.mTextViewId, View.VISIBLE);
+                    contentView.setTextViewText(p.mTextViewId, stripUnwantedSpans(p.mText, p));
+                    setTextColor(contentView, p.mTextViewId, p);
+                    hasSecondLine = true;
+                } else if (p.mTextViewId != R.id.text) {
+                    // This alternate text view ID is not cleared by resetStandardTemplate
+                    contentView.setViewVisibility(p.mTextViewId, View.GONE);
+                    contentView.setTextViewText(p.mTextViewId, null);
+                }
+            }
+            if (hasHeaderText(p) && p.mSubtextViewId == R.id.alt_subtext) {
+                hasSecondLine = true;
             }
 
             updateExpanderAlignment(contentView, p, hasSecondLine);
-            setHeaderlessVerticalMargins(contentView, p, hasSecondLine);
 
-            if (notificationsRedesignTemplates() && !p.mHeaderless) {
+            if (!p.mHeaderless) {
                 // Update margins to leave space for the top line (but not for headerless views like
                 // HUNS, which use a different layout that already accounts for that). Templates
                 // that have content that will be displayed under the small icon also use a
@@ -6262,7 +6742,7 @@ public class Notification implements Parcelable
                 contentView.setViewLayoutMargin(R.id.notification_main_column,
                         RemoteViews.MARGIN_TOP, margin, COMPLEX_UNIT_PX);
 
-                // Use a slightly larger text margin for expanded text with the redesign
+                // Use a slightly larger text margin for expanded text
                 int textMarginForLargeIcon = mContext.getResources().getDimensionPixelSize(
                         R.dimen.notification_2025_text_margin_top);
                 contentView.setViewLayoutMargin(p.mTextViewId, RemoteViews.MARGIN_TOP,
@@ -6272,9 +6752,15 @@ public class Notification implements Parcelable
             return contentView;
         }
 
+        private void updateToplineCentering(RemoteViews contentView,
+                StandardTemplateParams params) {
+            contentView.setBoolean(R.id.notification_header,
+                    "centerTopLine", shouldCenterTopLine(params));
+        }
+
         private static void updateExpanderAlignment(RemoteViews contentView,
                 StandardTemplateParams p, boolean hasSecondLine) {
-            if (notificationsRedesignTemplates() && p.mHeaderless) {
+            if (p.mHeaderless) {
                 if (!hasSecondLine) {
                     // If there's no text, let's center the expand button vertically to align things
                     // more nicely. This is handled separately for notifications that use a
@@ -6289,48 +6775,19 @@ public class Notification implements Parcelable
             }
         }
 
-        private static void setHeaderlessVerticalMargins(RemoteViews contentView,
-                StandardTemplateParams p, boolean hasSecondLine) {
-            if (Flags.notificationsRedesignTemplates() || !p.mHeaderless) {
-                return;
-            }
-            int marginDimen = hasSecondLine
-                    ? R.dimen.notification_headerless_margin_twoline
-                    : R.dimen.notification_headerless_margin_oneline;
-            contentView.setViewLayoutMarginDimen(R.id.notification_headerless_view_column,
-                    RemoteViews.MARGIN_TOP, marginDimen);
-            contentView.setViewLayoutMarginDimen(R.id.notification_headerless_view_column,
-                    RemoteViews.MARGIN_BOTTOM, marginDimen);
-        }
-
-        private void setTextViewColorPrimary(RemoteViews contentView, @IdRes int id,
+        private void setTextColor(RemoteViews contentView, @IdRes int id,
                 StandardTemplateParams p) {
-            contentView.setTextColor(id, getPrimaryTextColor(p));
+            contentView.setTextColor(id, getTextColor(p));
         }
 
         /**
          * @param p the template params to inflate this with
-         * @return the primary text color
+         * @return the text color
          * @hide
          */
         @VisibleForTesting
-        public @ColorInt int getPrimaryTextColor(StandardTemplateParams p) {
-            return getColors(p).getPrimaryTextColor();
-        }
-
-        /**
-         * @param p the template params to inflate this with
-         * @return the secondary text color
-         * @hide
-         */
-        @VisibleForTesting
-        public @ColorInt int getSecondaryTextColor(StandardTemplateParams p) {
-            return getColors(p).getSecondaryTextColor();
-        }
-
-        private void setTextViewColorSecondary(RemoteViews contentView, @IdRes int id,
-                StandardTemplateParams p) {
-            contentView.setTextColor(id, getSecondaryTextColor(p));
+        public @ColorInt int getTextColor(StandardTemplateParams p) {
+            return getColors(p).getTextColor();
         }
 
         private Colors getColors(StandardTemplateParams p) {
@@ -6350,9 +6807,6 @@ public class Notification implements Parcelable
 
         private void updateHeaderBackgroundColor(RemoteViews contentView,
                 StandardTemplateParams p) {
-            if (!Flags.uiRichOngoing()) {
-                return;
-            }
             if (isBackgroundColorized(p)) {
                 contentView.setInt(R.id.notification_header, "setBackgroundColor",
                         getBackgroundColor(p));
@@ -6411,10 +6865,21 @@ public class Notification implements Parcelable
                             R.id.notification_header);
                 }
                 result.mTitleMarginSet.applyToView(contentView, R.id.title);
-                // If there is no title, the text (or big_text) needs to wrap around the image
+                // When there's no title, or the title is in the top line, we need to indent the
+                // end of the first line of text (or big_text) to leave space for the large icon.
                 result.mTitleMarginSet.applyToView(contentView, p.mTextViewId);
-                contentView.setInt(p.mTextViewId, "setNumIndentLines", p.hasTitle() ? 0 : 1);
-            } else if (notificationsRedesignTemplates() && p.mNeedsExtraTextMargin) {
+                boolean shouldWrapAroundImage = !p.hasTitle() || p.mTitleViewId == R.id.alt_title;
+                if (richOngoingImprovements() && shouldWrapAroundImage
+                        && hasHeaderText(p) && p.mSubtextViewId == R.id.alt_subtext) {
+                    // If the alternate subtext is the first line of text that needs to be wrapped,
+                    // it gets the margin instead of the content text.
+                    result.mTitleMarginSet.applyToView(contentView, p.mSubtextViewId);
+                    contentView.setInt(p.mTextViewId, "setNumIndentLines", 0);
+                } else {
+                    contentView.setInt(p.mTextViewId, "setNumIndentLines",
+                            shouldWrapAroundImage ? 1 : 0);
+                }
+            } else if (p.mNeedsExtraTextMargin) {
                 // In the collapsed view (except for compact HUNs), the top line needs to
                 // accommodate both the expander and large icon (when present)
                 result.mHeadingFullMarginSet.applyToView(contentView, R.id.notification_top_line);
@@ -6428,14 +6893,12 @@ public class Notification implements Parcelable
         }
 
         private void adjustExpandButtonPadding(RemoteViews contentView, boolean rightIconVisible) {
-            if (notificationsRedesignTemplates()) {
-                final Resources res = mContext.getResources();
-                int normalPadding = res.getDimensionPixelSize(R.dimen.notification_2025_margin);
-                int iconSpacing = res.getDimensionPixelSize(
-                        R.dimen.notification_2025_expand_button_right_icon_spacing);
-                contentView.setInt(R.id.expand_button, "setStartPadding",
-                        rightIconVisible ? iconSpacing : normalPadding);
-            }
+            final Resources res = mContext.getResources();
+            int normalPadding = res.getDimensionPixelSize(R.dimen.notification_2025_margin);
+            int iconSpacing = res.getDimensionPixelSize(
+                    R.dimen.notification_2025_expand_button_right_icon_spacing);
+            contentView.setInt(R.id.expand_button, "setStartPadding",
+                    rightIconVisible ? iconSpacing : normalPadding);
         }
 
         // This code is executed on behalf of other apps' notifications, sometimes even by 3p apps,
@@ -6447,29 +6910,19 @@ public class Notification implements Parcelable
                 @NonNull TemplateBindResult result) {
             final Resources resources = mContext.getResources();
             final float density = resources.getDisplayMetrics().density;
-            int notifMarginId = notificationsRedesignTemplates()
-                    ? R.dimen.notification_2025_margin
-                    : R.dimen.notification_content_margin;
+            int notifMarginId = R.dimen.notification_2025_margin;
             final float notificationMarginDp = resources.getDimension(notifMarginId) / density;
-            int iconMarginId = notificationsRedesignTemplates()
-                    ? R.dimen.notification_2025_right_icon_content_margin
-                    : R.dimen.notification_right_icon_content_margin;
+            int iconMarginId = R.dimen.notification_2025_right_icon_content_margin;
             final float iconMarginDp = resources.getDimension(iconMarginId) / density;
             final float contentMarginDp = resources.getDimension(
-                    R.dimen.notification_content_margin_end) / density;
+                    R.dimen.notification_2025_margin) / density;
             float spaceForExpanderDp;
-            if (Flags.uiRichOngoing() && mN.isPromotedOngoing() && !mParams.mHeaderless) {
+            if (mN.isPromotedOngoing() && !mParams.mHeaderless) {
                 // No expander is shown in promoted notifications
                 spaceForExpanderDp = 0;
             } else {
-                if (notificationsRedesignTemplates()) {
-                    spaceForExpanderDp = getLargeIconMarginEnd(mParams) / density
-                            - notificationMarginDp;
-                } else {
-                    spaceForExpanderDp = resources.getDimension(
-                            R.dimen.notification_header_expand_icon_size) / density
-                            - contentMarginDp;
-                }
+                spaceForExpanderDp = getLargeIconMarginEnd(mParams) / density
+                        - notificationMarginDp;
             }
 
             final float viewHeightDp = resources.getDimension(
@@ -6535,10 +6988,8 @@ public class Notification implements Parcelable
                 contentView.setImageViewIcon(R.id.right_icon, rightIcon);
                 contentView.setIntTag(R.id.right_icon, R.id.tag_keep_when_showing_left_icon,
                         isPromotedPicture ? 1 : 0);
-                if (notificationsRedesignTemplates() || Flags.uiRichOngoing()) {
-                    contentView.setViewLayoutMargin(R.id.right_icon,
-                            RemoteViews.MARGIN_END, getLargeIconMarginEnd(p), COMPLEX_UNIT_PX);
-                }
+                contentView.setViewLayoutMargin(R.id.right_icon,
+                        RemoteViews.MARGIN_END, getLargeIconMarginEnd(p), COMPLEX_UNIT_PX);
 
                 processLargeLegacyIcon(rightIcon, contentView, p);
             } else {
@@ -6553,53 +7004,108 @@ public class Notification implements Parcelable
         int getLargeIconMarginEnd(@NonNull StandardTemplateParams p) {
             Resources res = mContext.getResources();
 
-            if (Flags.uiRichOngoing() && mN.isPromotedOngoing() && !p.mHeaderless) {
+            if (mN.isPromotedOngoing() && !p.mHeaderless) {
                 // Promoted notifications don't need space for the expand button
-                if (notificationsRedesignTemplates()) {
-                    return res.getDimensionPixelSize(R.dimen.notification_2025_margin);
-                } else {
-                    return res.getDimensionPixelSize(R.dimen.notification_content_margin);
-                }
+                return res.getDimensionPixelSize(R.dimen.notification_2025_margin);
             }
 
-            if (notificationsRedesignTemplates()) {
-                int rightIconMarginPx = res.getDimensionPixelSize(
-                        R.dimen.notification_2025_right_icon_margin_end);
-                int extraSpaceForExpanderPx = res.getDimensionPixelSize(
-                        R.dimen.notification_2025_extra_space_for_expander);
-                return rightIconMarginPx + extraSpaceForExpanderPx;
-            } else {
-                return res.getDimensionPixelSize(R.dimen.notification_header_expand_icon_size);
-            }
+            int rightIconMarginPx = res.getDimensionPixelSize(
+                    R.dimen.notification_2025_right_icon_margin_end);
+            int extraSpaceForExpanderPx = res.getDimensionPixelSize(
+                    R.dimen.notification_2025_extra_space_for_expander);
+            return rightIconMarginPx + extraSpaceForExpanderPx;
         }
 
         private void bindNotificationHeader(RemoteViews contentView, StandardTemplateParams p) {
             bindSmallIcon(contentView, p);
-
-            boolean hasTextToLeft = Flags.apiMetricStyle()
-                && p.mTitleViewId == R.id.alt_title && p.hasTitle();
+            boolean hasTextToLeft = p.mTitleViewId == R.id.alt_title && p.hasTitle();
+            if (hasTextToLeft) {
+                 contentView.setViewLayoutMarginDimen(R.id.app_name_text,
+                        RemoteViews.MARGIN_START, R.dimen.notification_header_separating_margin);
+            }
             // Populate text left-to-right so that separators are only shown between strings
             hasTextToLeft |= bindHeaderAppName(contentView, p, false /* force */, hasTextToLeft);
             hasTextToLeft |= bindHeaderTextSecondary(contentView, p, hasTextToLeft);
             hasTextToLeft |= bindHeaderText(contentView, p, hasTextToLeft);
             if (!hasTextToLeft) {
                 // If there's still no text, force add the app name so there is some text.
-                hasTextToLeft |= bindHeaderAppName(contentView, p, true /* force */, hasTextToLeft);
+                hasTextToLeft = bindHeaderAppName(contentView, p, true /* force */, hasTextToLeft);
             }
-            bindHeaderChronometerAndTime(contentView, p, hasTextToLeft);
+            if (richOngoingImprovements()) {
+                bindHeaderChronometerAndTime(contentView, p, hasTextToLeft);
+            } else {
+                bindHeaderChronometerAndTimeLegacy(contentView, p, hasTextToLeft);
+            }
             bindPhishingAlertIcon(contentView, p);
             bindProfileBadge(contentView, p);
             bindAlertedIcon(contentView, p);
             bindExpandButton(contentView, p);
             bindCloseButton(contentView, p);
+            if (Flags.bridgedNotifications()) {
+                bindBridgedIcon(contentView);
+            }
             mN.mUsesStandardHeader = true;
+        }
+
+        private boolean shouldCenterTopLine(StandardTemplateParams params) {
+            // Center top line vertically in minimized and public header-only views
+            if (params.mViewType == StandardTemplateParams.VIEW_TYPE_MINIMIZED
+                    || params.mViewType == StandardTemplateParams.VIEW_TYPE_PUBLIC) {
+                return true;
+            }
+
+            if (!mN.isPromotedOngoing()) return false;
+            if (params.mViewType != StandardTemplateParams.VIEW_TYPE_EXPANDED) return false;
+
+            // MetricStyle and CallStyle never centers the top line.
+            if (mN.isStyle(Notification.MetricStyle.class)
+                    || mN.isStyle(Notification.CallStyle.class)) {
+                return false;
+            } else {
+                final boolean hasText = !TextUtils.isEmpty(params.mText);
+                final boolean hasSubText = !params.mHideSubText && !TextUtils.isEmpty(
+                        params.mSubText);
+
+                if (mN.isStyle(Notification.ProgressStyle.class)) {
+                    return !hasSubText && !hasText;
+                } else if (mN.getNotificationStyle() == null
+                        || mN.isStyle(Notification.BigTextStyle.class)) {
+                    boolean hasProgress = hasNormalProgress();
+                    return !hasSubText && !hasText && !hasProgress;
+                } else {
+                    final String newPromoteableType = mN.getNotificationStyle().getSimpleName();
+                    Log.w(TAG, "New Promotable Notification Type! it is "
+                            + newPromoteableType);
+                    return false;
+                }
+            }
+        }
+
+        private boolean hasNormalProgress() {
+            final Bundle ex = mN.extras;
+            final int max = ex.getInt(EXTRA_PROGRESS_MAX, 0);
+            final boolean ind = ex.getBoolean(EXTRA_PROGRESS_INDETERMINATE);
+            return max != 0 || ind;
+        }
+
+        private void bindBridgedIcon(RemoteViews contentView) {
+            if (mN.getBridgedNotificationMetadata() != null) {
+                contentView.setViewVisibility(R.id.bridging_app_icon, View.VISIBLE);
+
+                // The NotificationRowIconView is showing the "bridged" icon by default for bridged
+                // notifications, meaning the icon of the app that the notification originates from.
+                // We still want to show the icon of the app that actually posted the notification
+                // in the top line though.
+                contentView.setInt(R.id.bridging_app_icon,
+                        "setIconTypeOverride", NotificationRowIconView.ICON_TYPE_LAUNCHER_ICON);
+            }
         }
 
         private void bindExpandButton(RemoteViews contentView, StandardTemplateParams p) {
             // set default colors
             int bgColor = getBackgroundColor(p);
             int pillColor = Colors.flattenAlpha(getColors(p).getProtectionColor(), bgColor);
-            int textColor = Colors.flattenAlpha(getPrimaryTextColor(p), pillColor);
+            int textColor = Colors.flattenAlpha(getTextColor(p), pillColor);
             contentView.setInt(R.id.expand_button, "setDefaultTextColor", textColor);
             contentView.setInt(R.id.expand_button, "setDefaultPillColor", pillColor);
             // Use different highlighted colors for conversations' unread count
@@ -6617,17 +7123,45 @@ public class Notification implements Parcelable
             // set default colors
             int bgColor = getBackgroundColor(p);
             int backgroundColor = Colors.flattenAlpha(getColors(p).getProtectionColor(), bgColor);
-            int foregroundColor = Colors.flattenAlpha(getPrimaryTextColor(p), backgroundColor);
+            int foregroundColor = Colors.flattenAlpha(getTextColor(p), backgroundColor);
             contentView.setInt(R.id.close_button, "setForegroundColor", foregroundColor);
             contentView.setInt(R.id.close_button, "setBackgroundColor", backgroundColor);
         }
 
         private void bindHeaderChronometerAndTime(RemoteViews contentView,
                 StandardTemplateParams p, boolean hasTextToLeft) {
-            if (!p.mHideTime && showsTimeOrChronometer()) {
+            boolean showsTime = mN.showsTime() && !p.mHideTime;
+            boolean showsChronometer = mN.showsChronometer() && !p.mHideChronometer;
+
+            if ((showsTime || showsChronometer) && hasTextToLeft) {
+                contentView.setViewVisibility(R.id.time_divider, View.VISIBLE);
+                setTextColor(contentView, R.id.time_divider, p);
+            }
+            if (showsChronometer) {
+                contentView.setViewVisibility(R.id.chronometer, View.VISIBLE);
+                contentView.setLong(R.id.chronometer, "setBase", mN.getWhen()
+                        + (SystemClock.elapsedRealtime() - System.currentTimeMillis()));
+                contentView.setBoolean(R.id.chronometer, "setStarted", true);
+                boolean countsDown = mN.extras.getBoolean(EXTRA_CHRONOMETER_COUNT_DOWN);
+                contentView.setChronometerCountDown(R.id.chronometer, countsDown);
+                setTextColor(contentView, R.id.chronometer, p);
+            } else if (showsTime) {
+                contentView.setViewVisibility(R.id.time, View.VISIBLE);
+            }
+            // We bind the time even if it's not visible, such that we can show and hide it
+            // on demand in case it's a child notification without anything in the header
+            contentView.setLong(R.id.time, "setTime", mN.getWhen() != 0 ? mN.getWhen() :
+                    mN.creationTime);
+            setTextColor(contentView, R.id.time, p);
+        }
+
+        private void bindHeaderChronometerAndTimeLegacy(RemoteViews contentView,
+                StandardTemplateParams p, boolean hasTextToLeft) {
+            // TODO: b/440125908 - Remove this method when inlining the flag.
+            if (!p.mHideTime && showsTimeOrChronometer(p)) {
                 if (hasTextToLeft) {
                     contentView.setViewVisibility(R.id.time_divider, View.VISIBLE);
-                    setTextViewColorSecondary(contentView, R.id.time_divider, p);
+                    setTextColor(contentView, R.id.time_divider, p);
                 }
                 if (mN.extras.getBoolean(EXTRA_SHOW_CHRONOMETER)) {
                     contentView.setViewVisibility(R.id.chronometer, View.VISIBLE);
@@ -6636,18 +7170,18 @@ public class Notification implements Parcelable
                     contentView.setBoolean(R.id.chronometer, "setStarted", true);
                     boolean countsDown = mN.extras.getBoolean(EXTRA_CHRONOMETER_COUNT_DOWN);
                     contentView.setChronometerCountDown(R.id.chronometer, countsDown);
-                    setTextViewColorSecondary(contentView, R.id.chronometer, p);
+                    setTextColor(contentView, R.id.chronometer, p);
                 } else {
                     contentView.setViewVisibility(R.id.time, View.VISIBLE);
                     contentView.setLong(R.id.time, "setTime", mN.getWhen());
-                    setTextViewColorSecondary(contentView, R.id.time, p);
+                    setTextColor(contentView, R.id.time, p);
                 }
             } else {
                 // We still want a time to be set but gone, such that we can show and hide it
                 // on demand in case it's a child notification without anything in the header
                 contentView.setLong(R.id.time, "setTime", mN.getWhen() != 0 ? mN.getWhen() :
                         mN.creationTime);
-                setTextViewColorSecondary(contentView, R.id.time, p);
+                setTextColor(contentView, R.id.time, p);
             }
         }
 
@@ -6664,19 +7198,22 @@ public class Notification implements Parcelable
                     && mStyle.hasSummaryInHeader()) {
                 headerText = mStyle.mSummaryText;
             }
-            if (headerText == null
-                    && mContext.getApplicationInfo().targetSdkVersion < Build.VERSION_CODES.N
-                    && mN.extras.getCharSequence(EXTRA_INFO_TEXT) != null) {
-                headerText = mN.extras.getCharSequence(EXTRA_INFO_TEXT);
+            // The alternate subtext views don't support the legacy field
+            if (p.mSubtextViewId == R.id.header_text) {
+                if (headerText == null
+                        && mContext.getApplicationInfo().targetSdkVersion < Build.VERSION_CODES.N
+                        && mN.extras.getCharSequence(EXTRA_INFO_TEXT) != null) {
+                    headerText = mN.extras.getCharSequence(EXTRA_INFO_TEXT);
+                }
             }
             if (!TextUtils.isEmpty(headerText)) {
-                contentView.setTextViewText(R.id.header_text, ensureColorSpanContrastOrStripStyling(
+                contentView.setTextViewText(p.mSubtextViewId, stripUnwantedSpans(
                         processLegacyText(headerText), p));
-                setTextViewColorSecondary(contentView, R.id.header_text, p);
-                contentView.setViewVisibility(R.id.header_text, View.VISIBLE);
-                if (hasTextToLeft) {
+                setTextColor(contentView, p.mSubtextViewId, p);
+                contentView.setViewVisibility(p.mSubtextViewId, View.VISIBLE);
+                if (hasTextToLeft && p.mSubtextViewId == R.id.header_text) {
                     contentView.setViewVisibility(R.id.header_text_divider, View.VISIBLE);
-                    setTextViewColorSecondary(contentView, R.id.header_text_divider, p);
+                    setTextColor(contentView, R.id.header_text_divider, p);
                 }
                 return true;
             }
@@ -6693,13 +7230,12 @@ public class Notification implements Parcelable
             }
             if (!TextUtils.isEmpty(p.mHeaderTextSecondary)) {
                 contentView.setTextViewText(R.id.header_text_secondary,
-                        ensureColorSpanContrastOrStripStyling(
-                                processLegacyText(p.mHeaderTextSecondary), p));
-                setTextViewColorSecondary(contentView, R.id.header_text_secondary, p);
+                        stripUnwantedSpans(processLegacyText(p.mHeaderTextSecondary), p));
+                setTextColor(contentView, R.id.header_text_secondary, p);
                 contentView.setViewVisibility(R.id.header_text_secondary, View.VISIBLE);
                 if (hasTextToLeft) {
                     contentView.setViewVisibility(R.id.header_text_secondary_divider, View.VISIBLE);
-                    setTextViewColorSecondary(contentView, R.id.header_text_secondary_divider, p);
+                    setTextColor(contentView, R.id.header_text_secondary_divider, p);
                 }
                 return true;
             }
@@ -6735,7 +7271,7 @@ public class Notification implements Parcelable
             }
             contentView.setViewVisibility(R.id.app_name_text, View.VISIBLE);
             contentView.setTextViewText(R.id.app_name_text, loadHeaderAppName());
-            contentView.setTextColor(R.id.app_name_text, getSecondaryTextColor(p));
+            contentView.setTextColor(R.id.app_name_text, getTextColor(p));
             if (Flags.apiMetricStyle() && hasTextToLeft) {
                 contentView.setViewVisibility(R.id.app_name_text_divider, View.VISIBLE);
             }
@@ -6773,7 +7309,8 @@ public class Notification implements Parcelable
          * @return {@code true} if the built notification will show the time or the chronometer;
          *   {@code false} otherwise
          */
-        private boolean showsTimeOrChronometer() {
+        private boolean showsTimeOrChronometer(StandardTemplateParams p) {
+            // TODO: b/440125908 - Remove this method when inlining the flag.
             return mN.showsTime() || mN.showsChronometer();
         }
 
@@ -6793,12 +7330,6 @@ public class Notification implements Parcelable
             contentView.setTextViewText(R.id.notification_material_reply_text_2, null);
             contentView.setViewVisibility(R.id.notification_material_reply_text_3, View.GONE);
             contentView.setTextViewText(R.id.notification_material_reply_text_3, null);
-
-            if (!notificationsRedesignTemplates()) {
-                // This may get erased by bindSnoozeAction, or if we're showing the bubble icon
-                contentView.setViewLayoutMarginDimen(R.id.notification_action_list_margin_target,
-                        RemoteViews.MARGIN_BOTTOM, R.dimen.notification_content_margin);
-            }
         }
 
         private boolean bindSnoozeAction(RemoteViews contentView, StandardTemplateParams p) {
@@ -6812,14 +7343,9 @@ public class Notification implements Parcelable
                 contentView.setViewVisibility(R.id.snooze_button, View.GONE);
             }
 
-            final boolean snoozeEnabled = !hideSnoozeButton
+            return !hideSnoozeButton
                     && mContext.getContentResolver() != null
                     && isSnoozeSettingEnabled();
-            if (!notificationsRedesignTemplates() && snoozeEnabled) {
-                contentView.setViewLayoutMarginDimen(R.id.notification_action_list_margin_target,
-                        RemoteViews.MARGIN_BOTTOM, 0);
-            }
-            return snoozeEnabled;
         }
 
         private boolean isSnoozeSettingEnabled() {
@@ -6833,83 +7359,318 @@ public class Notification implements Parcelable
             }
         }
 
-        /**
-         * Returns the actions that are not contextual.
-         */
-        private @NonNull List<Notification.Action> getNonContextualActions() {
-            if (mActions == null) return Collections.emptyList();
-            List<Notification.Action> standardActions = new ArrayList<>();
-            for (Notification.Action action : mActions) {
-                // Actions with RemoteInput are ignored for RONs.
-                if (mN.isPromotedOngoing()
-                        && hasValidRemoteInput(action)) {
-                    continue;
-                }
-                if (!action.isContextual()) {
-                    standardActions.add(action);
-                }
-            }
-            return standardActions;
-        }
-
         private RemoteViews applyStandardTemplateWithActions(int layoutId,
                 StandardTemplateParams p, TemplateBindResult result) {
             RemoteViews contentView = applyStandardTemplate(layoutId, p, result);
 
             resetStandardTemplateWithActions(contentView);
-            boolean snoozeEnabled = bindSnoozeAction(contentView, p);
-            // color the snooze and bubble actions with the theme color
+            bindSnoozeAction(contentView, p);
             ColorStateList actionColor = ColorStateList.valueOf(getStandardActionColor(p));
             contentView.setColorStateList(R.id.snooze_button, "setImageTintList", actionColor);
             contentView.setColorStateList(R.id.bubble_button, "setImageTintList", actionColor);
 
-            // In the UI, contextual actions appear separately from the standard actions, so we
-            // filter them out here.
-            List<Notification.Action> nonContextualActions = getNonContextualActions();
+            ActionButtons actions = getEffectiveActions();
 
-            int numActions = Math.min(nonContextualActions.size(), MAX_ACTION_BUTTONS);
-            boolean emphasizedMode = mN.fullScreenIntent != null
-                    || p.mCallStyleActions
-                    || ((mN.flags & FLAG_FSI_REQUESTED_BUT_DENIED) != 0);
-
-            if (p.mCallStyleActions) {
-                // Clear view padding to allow buttons to start on the left edge.
-                // This must be done before 'setEmphasizedMode' which sets top/bottom margins.
-                contentView.setViewPadding(R.id.actions, 0, 0, 0, 0);
-                if (!Flags.notificationsRedesignTemplates()) {
-                    // Add an optional indent that will make buttons start at the correct column
-                    // when there is enough space to do so (and fall back to the left edge if not).
-                    // This is handled directly in NotificationActionListLayout in the new design.
-                    contentView.setInt(R.id.actions, "setCollapsibleIndentDimen",
-                            R.dimen.call_notification_collapsible_indent);
-                }
-                if (CallStyle.DEBUG_NEW_ACTION_LAYOUT) {
-                    Log.d(TAG, "setting evenly divided mode on action list");
-                }
-                contentView.setBoolean(R.id.actions, "setEvenlyDividedMode", true);
-            }
-            if (!notificationsRedesignTemplates()) {
-                contentView.setBoolean(R.id.actions, "setEmphasizedMode", emphasizedMode);
-            }
+            contentView.setBoolean(R.id.actions, "setEvenlyDividedMode", actions.edgeToEdge());
 
             boolean validRemoteInput = false;
-            // With the new design, the actions_container should always be visible to act as padding
-            // when there are no actions. We're making its child GONE instead.
-            int actionsContainerForVisibilityChange = notificationsRedesignTemplates()
-                    ? R.id.actions_container_layout : R.id.actions_container;
-            if (numActions > 0 && !p.mHideActions) {
-                contentView.setViewVisibility(actionsContainerForVisibilityChange, View.VISIBLE);
+            // The actions_container should always be visible to act as padding when there are no
+            // actions. We're making its child GONE instead.
+            if (!actions.actions().isEmpty() && !p.mHideActions) {
+                contentView.setViewVisibility(R.id.actions_container_layout, View.VISIBLE);
                 contentView.setViewVisibility(R.id.actions, View.VISIBLE);
-                updateMarginsForActions(contentView, emphasizedMode);
-                validRemoteInput = populateActionsContainer(contentView, p, nonContextualActions,
-                        numActions, emphasizedMode);
+                updateMarginsForActions(contentView, actions.emphasized());
+                validRemoteInput = populateActionsContainer(contentView, p, actions);
             } else {
-                contentView.setViewVisibility(actionsContainerForVisibilityChange, View.GONE);
+                contentView.setViewVisibility(R.id.actions_container_layout, View.GONE);
             }
 
-            RemoteInputHistoryItem[] replyText = getParcelableArrayFromBundle(
-                    mN.extras, EXTRA_REMOTE_INPUT_HISTORY_ITEMS, RemoteInputHistoryItem.class);
-            if (validRemoteInput && replyText != null && replyText.length > 0
+            if (validRemoteInput) {
+                displayRemoteInputHistory(contentView, p);
+            }
+
+            return contentView;
+        }
+
+        /**
+         * @param originalIndex position of the action in {@link Builder#mActions}.
+         *     This differs from the list index because some actions are filtered out. It also
+         *     differs from {@code mActions.indexOf(action)} because the Action object is modified
+         *     by {@link #getEffectiveActions()}.
+         */
+        private record ActionButton(Action action, int originalIndex) { }
+
+        /**
+         * @param supportCustomColors whether colors set via full-width style or semantic annotation
+         *     spans in the action text will be used to color the button background (or border)
+         *     if the action is emphasized.
+         */
+        private record ActionButtons(
+                List<ActionButton> actions, boolean edgeToEdge, boolean emphasized,
+                boolean supportCustomColors) {
+            private static final ActionButtons EMPTY =
+                    new ActionButtons(List.of(), false, false, false);
+        }
+
+        /**
+         * Returns the subset of actions to be shown in the actions "row" of a notification.
+         * <ul>
+         *     <li>Excludes actions with RemoteInput in live-ongoing notifications.
+         *     <li>Excludes actions with null or empty title (except in MediaStyle).
+         *     <li>Excludes contextual actions, which are shown separately.
+         *     <li>Resolves {@link Action#STYLE_AUTO} and {@link Action#EMPHASIS_AUTO} into
+         *     concrete values for RONs/FSI/CallStyle notifications.
+         *     <li>Applies other style restrictions (e.g. if single action, must be SECONDARY).
+         *     <li>Limits the number of actions to 3.
+         * </ul>
+         */
+        private @NonNull ActionButtons getEffectiveActions() {
+            if (mActions == null || mActions.isEmpty()) {
+                return ActionButtons.EMPTY;
+            }
+
+            boolean isPromotedOngoing = mN.isPromotedOngoing();
+            boolean isCallStyle = mN.isStyle(CallStyle.class);
+            boolean isPseudoFsi = mN.fullScreenIntent != null
+                    || (mN.flags & FLAG_FSI_REQUESTED_BUT_DENIED) != 0;
+            boolean isMediaStyle = mN.isStyle(MediaStyle.class)
+                    || mN.isStyle(DecoratedMediaCustomViewStyle.class);
+
+            int actionsCounted = 0;
+            List<ActionButton> candidates = new ArrayList<>();
+            for (int i = 0; i < mActions.size(); i++) {
+                Notification.Action action = mActions.get(i);
+                if (action.isContextual()) {
+                    continue;
+                }
+                // Except for the case of contextual actions (which are always separate), whenever
+                // we skip an action do not allow those past the 3d one to "page in". Mostly for
+                // compatibility reasons, as these actions were never displayed before we started
+                // filtering.
+                actionsCounted++;
+                if (isPromotedOngoing && hasValidRemoteInput(action)) {
+                    continue;
+                }
+                if (!isMediaStyle && (action.title == null || action.title.toString().isBlank())) {
+                    continue;
+                }
+                candidates.add(new ActionButton(action, i));
+                if (actionsCounted >= MAX_ACTION_BUTTONS) {
+                    break;
+                }
+            }
+
+            // Resolve AUTO style/emphasis, or force specific style/emphasis for special cases.
+            for (int i = 0; i < candidates.size(); i++) {
+                ActionButton candidate = candidates.get(i);
+                Action original = candidate.action;
+                Action.Builder updated = new Action.Builder(original);
+                if (isCallStyle) {
+                    updated.setStyleHint(Action.STYLE_ICON_AND_TEXT);
+                } else if (!isPromotedOngoing
+                        || original.getStyleHint() == Action.STYLE_AUTO
+                        || (original.getStyleHint() == Action.STYLE_ICON_ONLY
+                            && original.getIcon() == null)) {
+                    updated.setStyleHint(Action.STYLE_TEXT_ONLY);
+                }
+                if (isCallStyle) {
+                    updated.setEmphasisHint(Action.EMPHASIS_PRIMARY);
+                } else if (!isPromotedOngoing
+                        || original.getEmphasisHint() == Action.EMPHASIS_AUTO
+                        || (isPromotedOngoing && candidates.size() == 1)) {
+                    // Promoted ongoing with 1 action is forced to SECONDARY regardless of
+                    // caller's choice.
+                    updated.setEmphasisHint(Action.EMPHASIS_SECONDARY);
+                }
+                candidates.set(i, new ActionButton(updated.build(), candidate.originalIndex));
+            }
+
+            boolean emphasizedEdgeToEdge =
+                    Flags.notifsAllUsePillButtons()
+                            || isPromotedOngoing || isPseudoFsi || isCallStyle;
+            boolean supportCustomColors = isPseudoFsi || isCallStyle; // but not other RONs.
+            return new ActionButtons(candidates, emphasizedEdgeToEdge, emphasizedEdgeToEdge,
+                    supportCustomColors);
+        }
+
+        private boolean populateActionsContainer(RemoteViews contentView, StandardTemplateParams p,
+                ActionButtons actions) {
+            boolean validRemoteInput = false;
+            for (ActionButton action : actions.actions()) {
+                boolean actionHasValidInput = hasValidRemoteInput(action.action);
+                validRemoteInput |= actionHasValidInput;
+
+                final RemoteViews button = createActionButtonView(action, actions.emphasized(),
+                        actions.supportCustomColors(), p);
+                if (actionHasValidInput && !actions.emphasized()) {
+                    // Clear the drawable
+                    button.setInt(R.id.action0, "setBackgroundResource", 0);
+                }
+                if (actions.emphasized() && actions.actions().indexOf(action) > 0) {
+                    // Clear start margin from non-first buttons to reduce the gap between them.
+                    //  (8dp remaining gap is from all buttons' standard 4dp inset).
+                    button.setViewLayoutMarginDimen(R.id.action0, RemoteViews.MARGIN_START, 0);
+                }
+                contentView.addView(R.id.actions, button);
+            }
+            return validRemoteInput;
+        }
+
+        private RemoteViews createActionButtonView(ActionButton actionButton,
+                boolean emphasizedMode, boolean supportCustomColor, StandardTemplateParams p) {
+            Action action = actionButton.action;
+            final boolean tombstone = (action.actionIntent == null);
+            final boolean showIcon =
+                    emphasizedMode && action.getStyleHint() != Action.STYLE_TEXT_ONLY;
+            final boolean showText =
+                    !emphasizedMode || action.getStyleHint() != Action.STYLE_ICON_ONLY;
+
+            final RemoteViews button = new BuilderRemoteViews(mContext.getApplicationInfo(),
+                    getActionButtonLayoutResource(emphasizedMode, tombstone));
+
+            if (!tombstone) {
+                button.setOnClickPendingIntent(R.id.action0, action.actionIntent);
+            }
+            button.setContentDescription(R.id.action0, action.title);
+            if (action.mRemoteInputs != null) {
+                button.setRemoteInputs(R.id.action0, action.mRemoteInputs);
+            }
+
+            if (emphasizedMode) {
+                button.setBoolean(R.id.action0, "setEnabled", !tombstone);
+
+                EmphasizedButtonColors colors = resolveEmphasisColors(action, p,
+                        supportCustomColor, tombstone);
+
+                button.setColorStateList(R.id.action0, "setButtonBackground",
+                        ColorStateList.valueOf(colors.background));
+                button.setColorStateList(R.id.action0, "setButtonBorder",
+                        colors.outline != Color.TRANSPARENT
+                                ? ColorStateList.valueOf(colors.outline)
+                                : null);
+                button.setColorStateList(R.id.action0, "setRippleColor",
+                        ColorStateList.valueOf(colors.ripple));
+                button.setTextColor(R.id.action0, colors.text); // Used for icon too.
+
+                if (showText) {
+                    // Already mapped color/semanticStyle spans to button color. Drop any others.
+                    final CharSequence label = stripStyling(action.title);
+                    button.setCharSequence(R.id.action0, "glueLabel", label);
+                } else {
+                    button.setCharSequence(R.id.action0, "glueLabel", null);
+                }
+
+                if (showIcon) {
+                    button.setIcon(R.id.action0, "glueIcon", action.getIcon());
+                } else {
+                    button.setIcon(R.id.action0, "glueIcon", null);
+                }
+
+                if (p.mCallStyleActions) {
+                    boolean priority = action.getExtras().getBoolean(CallStyle.KEY_ACTION_PRIORITY);
+                    button.setBoolean(R.id.action0, "setIsPriority", priority);
+                    int minWidthDimen =
+                            priority ? R.dimen.call_notification_system_action_min_width : 0;
+                    button.setIntDimen(R.id.action0, "setMinimumWidth", minWidthDimen);
+                }
+            } else {
+                button.setTextViewText(R.id.action0, stripUnwantedSpans(action.title, p));
+                button.setTextColor(R.id.action0, getStandardActionColor(p));
+            }
+
+            button.setIntTag(R.id.action0, R.id.notification_action_index_tag,
+                    actionButton.originalIndex);
+            return button;
+        }
+
+        private int getActionButtonLayoutResource(boolean emphasizedMode, boolean tombstone) {
+            if (emphasizedMode) {
+                if (Flags.apiNotificationActionCustom()) {
+                    // With apiNotificationActionCustom() all emphasized-button properties are set
+                    // in runtime, so no need for separate layout for tombstones. This is likely
+                    // also possible for normal buttons with a little effort.
+                    return getEmphasizedActionLayoutResource();
+                } else {
+                    return tombstone ? getEmphasizedTombstoneActionLayoutResource()
+                            : getEmphasizedActionLayoutResource();
+                }
+            } else {
+                return tombstone ? getActionTombstoneLayoutResource()
+                        : getActionLayoutResource();
+            }
+        }
+
+        private record EmphasizedButtonColors(@ColorInt int background, @ColorInt int outline,
+                                              @ColorInt int text, @ColorInt int ripple) { }
+
+        private EmphasizedButtonColors resolveEmphasisColors(Action action,
+                StandardTemplateParams p, boolean useColorFromActionTitle, boolean isTombstone) {
+            Colors colors = getColors(p);
+            int notifBackgroundColor = getColors(p).getBackgroundColor();
+
+            int backgroundColor;
+            int outlineColor;
+            int textColor;
+
+            Integer customColor = null;
+            if (useColorFromActionTitle && !isLegacy()) {
+                // Check for a full-length span color (including semantic color) to use as the
+                // button color. This will have to be adjusted for contrast, below.
+                customColor = getFullLengthSpanColor(action.title, colors);
+            }
+
+            if (action.getEmphasisHint() == Action.EMPHASIS_PRIMARY) {
+                outlineColor = Color.TRANSPARENT;
+                if (customColor != null) {
+                    backgroundColor = Colors.ensureMinimalContrast(customColor,
+                            notifBackgroundColor);
+                    // For custom color background, use white/black-ish for text. This will also
+                    // ensure necessary contrast.
+                    textColor = ContrastColorUtil.resolvePrimaryColor(mContext,
+                            backgroundColor, mInNightMode);
+                } else {
+                    backgroundColor = colors.getPrimaryEmphasisBackground();
+                    textColor = colors.getPrimaryEmphasisText();
+                }
+            } else {
+                backgroundColor = Color.TRANSPARENT;
+                if (customColor != null) {
+                    outlineColor = Colors.ensureThinContrast(customColor, notifBackgroundColor);
+                    textColor = Colors.ensureTextContrast(colors.getSecondaryEmphasisText(),
+                            notifBackgroundColor);
+                } else {
+                    outlineColor = colors.getSecondaryEmphasisOutline();
+                    textColor = colors.getSecondaryEmphasisText();
+                }
+            }
+
+            // We only want about 20% alpha for the ripple.
+            int rippleColor = (textColor & 0x00ffffff) | 0x33000000;
+
+            if (isTombstone) {
+                // Make the colors a bit more transparent.
+                // Don't fade BOTH background and text, just one of them.
+                // We don't force contrast after this because it shouldn't happen for proper apps.
+                if (backgroundColor != Color.TRANSPARENT) {
+                    backgroundColor = getDisabledActionColor(mContext, backgroundColor);
+                } else {
+                    outlineColor = getDisabledActionColor(mContext, outlineColor);
+                    textColor = getDisabledActionColor(mContext, textColor);
+                }
+            }
+
+            return new EmphasizedButtonColors(backgroundColor, outlineColor, textColor,
+                    rippleColor);
+        }
+
+        private static @ColorInt int getDisabledActionColor(Context context, @ColorInt int color) {
+            return setAlphaComponentByFloatDimen(context, color,
+                    R.dimen.notification_action_disabled_content_alpha);
+        }
+
+        private void displayRemoteInputHistory(RemoteViews contentView, StandardTemplateParams p) {
+            RemoteInputHistoryItem[] replyText = mN.getRemoteInputHistoryItems();
+            if (replyText != null && replyText.length > 0
                     && !TextUtils.isEmpty(replyText[0].getText())
                     && p.maxRemoteInputHistory > 0) {
                 boolean showSpinner = mN.extras.getBoolean(EXTRA_SHOW_REMOTE_INPUT_SPINNER);
@@ -6918,8 +7679,8 @@ public class Notification implements Parcelable
                 contentView.setViewVisibility(R.id.notification_material_reply_text_1_container,
                         View.VISIBLE);
                 contentView.setTextViewText(R.id.notification_material_reply_text_1,
-                        ensureColorSpanContrastOrStripStyling(replyText[0].getText(), p));
-                setTextViewColorSecondary(contentView, R.id.notification_material_reply_text_1, p);
+                        stripUnwantedSpans(replyText[0].getText(), p));
+                setTextColor(contentView, R.id.notification_material_reply_text_1, p);
                 contentView.setViewVisibility(R.id.notification_material_reply_progress,
                         showSpinner ? View.VISIBLE : View.GONE);
                 contentView.setProgressIndeterminateTintList(
@@ -6931,8 +7692,8 @@ public class Notification implements Parcelable
                     contentView.setViewVisibility(R.id.notification_material_reply_text_2,
                             View.VISIBLE);
                     contentView.setTextViewText(R.id.notification_material_reply_text_2,
-                            ensureColorSpanContrastOrStripStyling(replyText[1].getText(), p));
-                    setTextViewColorSecondary(contentView, R.id.notification_material_reply_text_2,
+                            stripUnwantedSpans(replyText[1].getText(), p));
+                    setTextColor(contentView, R.id.notification_material_reply_text_2,
                             p);
 
                     if (replyText.length > 2 && !TextUtils.isEmpty(replyText[2].getText())
@@ -6940,62 +7701,31 @@ public class Notification implements Parcelable
                         contentView.setViewVisibility(
                                 R.id.notification_material_reply_text_3, View.VISIBLE);
                         contentView.setTextViewText(R.id.notification_material_reply_text_3,
-                                ensureColorSpanContrastOrStripStyling(replyText[2].getText(), p));
-                        setTextViewColorSecondary(contentView,
+                                stripUnwantedSpans(replyText[2].getText(), p));
+                        setTextColor(contentView,
                                 R.id.notification_material_reply_text_3, p);
                     }
                 }
             }
-
-            return contentView;
         }
 
         private void updateMarginsForActions(RemoteViews contentView, boolean emphasizedMode) {
-            if (notificationsRedesignTemplates()) {
-                if (emphasizedMode) {
-                    // Emphasized actions look similar to smart replies, so let's use the same
-                    // margins.
-                    contentView.setViewLayoutMarginDimen(R.id.actions_container,
-                            RemoteViews.MARGIN_TOP,
-                            R.dimen.notification_2025_smart_reply_container_margin);
-                    contentView.setViewLayoutMarginDimen(R.id.actions_container,
-                            RemoteViews.MARGIN_BOTTOM,
-                            R.dimen.notification_2025_smart_reply_container_margin);
-                } else {
-                    contentView.setViewLayoutMarginDimen(R.id.actions_container,
-                            RemoteViews.MARGIN_TOP, 0);
-                    contentView.setViewLayoutMarginDimen(R.id.actions_container,
-                            RemoteViews.MARGIN_BOTTOM,
-                            R.dimen.notification_2025_action_list_margin_bottom);
-                }
+            if (emphasizedMode) {
+                // Emphasized actions look similar to smart replies, so let's use the same
+                // margins.
+                contentView.setViewLayoutMarginDimen(R.id.actions_container,
+                        RemoteViews.MARGIN_TOP,
+                        R.dimen.notification_2025_smart_reply_container_margin);
+                contentView.setViewLayoutMarginDimen(R.id.actions_container,
+                        RemoteViews.MARGIN_BOTTOM,
+                        R.dimen.notification_2025_smart_reply_container_margin);
             } else {
-                contentView.setViewLayoutMarginDimen(R.id.notification_action_list_margin_target,
-                        RemoteViews.MARGIN_BOTTOM, 0);
+                contentView.setViewLayoutMarginDimen(R.id.actions_container,
+                        RemoteViews.MARGIN_TOP, 0);
+                contentView.setViewLayoutMarginDimen(R.id.actions_container,
+                        RemoteViews.MARGIN_BOTTOM,
+                        R.dimen.notification_2025_action_list_margin_bottom);
             }
-        }
-
-        private boolean populateActionsContainer(RemoteViews contentView, StandardTemplateParams p,
-                List<Action> nonContextualActions, int numActions, boolean emphasizedMode) {
-            boolean validRemoteInput = false;
-            for (int i = 0; i < numActions; i++) {
-                Action action = nonContextualActions.get(i);
-
-                boolean actionHasValidInput = hasValidRemoteInput(action);
-                validRemoteInput |= actionHasValidInput;
-
-                final RemoteViews button = generateActionButton(action, emphasizedMode, p);
-                if (actionHasValidInput && !emphasizedMode) {
-                    // Clear the drawable
-                    button.setInt(R.id.action0, "setBackgroundResource", 0);
-                }
-                if (emphasizedMode && i > 0) {
-                    // Clear start margin from non-first buttons to reduce the gap between them.
-                    //  (8dp remaining gap is from all buttons' standard 4dp inset).
-                    button.setViewLayoutMarginDimen(R.id.action0, RemoteViews.MARGIN_START, 0);
-                }
-                contentView.addView(R.id.actions, button);
-            }
-            return validRemoteInput;
         }
 
         /**
@@ -7178,10 +7908,12 @@ public class Notification implements Parcelable
                 }
             }
             if (result == null) {
+                // Use "StandardStyle" (a.k.a. no style)
                 if (expandedContentViewRequired()) {
                     StandardTemplateParams p = mParams.reset()
                             .viewType(StandardTemplateParams.VIEW_TYPE_EXPANDED)
                             .allowTextWithProgress(true)
+                            .maybeUseMinimalHeader(this)
                             .fillTextsFrom(this);
                     result = applyStandardTemplateWithActions(getExpandedBaseLayoutResource(), p,
                             null /* result */);
@@ -7189,6 +7921,12 @@ public class Notification implements Parcelable
             }
             makeHeaderExpanded(result);
             return result;
+        }
+
+        private boolean isTimeInTheFuture() {
+            final Instant notifWhen = Instant.ofEpochMilli(mN.getWhen());
+            final Instant now = Instant.now();
+            return notifWhen.isAfter(now);
         }
 
         // This code is executed on behalf of other apps' notifications, sometimes even by 3p apps,
@@ -7239,11 +7977,14 @@ public class Notification implements Parcelable
             resetNotificationHeader(header);
             bindNotificationHeader(header, p);
             updateHeaderBackgroundColor(header, p);
-            if (Flags.notificationsRedesignTemplates()
-                    && (p.mViewType == StandardTemplateParams.VIEW_TYPE_MINIMIZED
-                    || p.mViewType == StandardTemplateParams.VIEW_TYPE_PUBLIC)) {
-                // Center top line vertically in minimized and public header-only views
-                header.setBoolean(R.id.notification_header, "centerTopLine", true);
+            if (richOngoingImprovements()) {
+                updateToplineCentering(header, p);
+            } else {
+                if (p.mViewType == StandardTemplateParams.VIEW_TYPE_MINIMIZED
+                        || p.mViewType == StandardTemplateParams.VIEW_TYPE_PUBLIC) {
+                    // Center top line vertically in minimized and public header-only views
+                    header.setBoolean(R.id.notification_header, "centerTopLine", true);
+                }
             }
             return header;
         }
@@ -7280,10 +8021,17 @@ public class Notification implements Parcelable
                     .viewType(StandardTemplateParams.VIEW_TYPE_HEADS_UP)
                     .needsExtraTextMargin(false)
                     .fillTextsFrom(this);
+            if (Flags.nmSummarizationAll()) {
+                p.mSummarization = getExtras().getCharSequence(EXTRA_SUMMARIZED_CONTENT);
+            }
             // Notification text is shown as secondary header text
             // for the minimal hun when it is provided.
             // Time(when and chronometer) is not shown for the minimal hun.
-            p.headerTextSecondary(p.mText).text(null).hideTime(true).summaryText("");
+            p.headerTextSecondary(p.mText)
+                    .text(null)
+                    .hideTime(true)
+                    .hideChronometer(true)
+                    .summaryText("");
 
             return applyStandardTemplate(
                     getCompactHeadsUpBaseLayoutResource(), p,
@@ -7433,117 +8181,6 @@ public class Notification implements Parcelable
             return summary;
         }
 
-        private RemoteViews generateActionButton(Action action, boolean emphasizedMode,
-                StandardTemplateParams p) {
-            final boolean tombstone = (action.actionIntent == null);
-            final RemoteViews button = new BuilderRemoteViews(mContext.getApplicationInfo(),
-                    getActionButtonLayoutResource(emphasizedMode, tombstone));
-            if (!tombstone) {
-                button.setOnClickPendingIntent(R.id.action0, action.actionIntent);
-            }
-            button.setContentDescription(R.id.action0, action.title);
-            if (action.mRemoteInputs != null) {
-                button.setRemoteInputs(R.id.action0, action.mRemoteInputs);
-            }
-            if (emphasizedMode) {
-                // change the background bgColor
-                CharSequence title = action.title;
-                int buttonFillColor = getColors(p).getSecondaryAccentColor();
-                if (tombstone) {
-                    buttonFillColor = setAlphaComponentByFloatDimen(mContext,
-                            ContrastColorUtil.resolveSecondaryColor(
-                                    mContext, getColors(p).getBackgroundColor(), mInNightMode),
-                            R.dimen.notification_action_disabled_container_alpha);
-                }
-                if (Flags.cleanUpSpansAndNewLines()) {
-                    if (!isLegacy()) {
-                        // Check for a full-length span color to use as the button fill color.
-                        Integer fullLengthColor = getFullLengthSpanColor(title);
-                        if (fullLengthColor != null) {
-                            // Ensure the custom button fill has 1.3:1 contrast w/ notification bg.
-                            int notifBackgroundColor = getColors(p).getBackgroundColor();
-                            buttonFillColor = ensureButtonFillContrast(
-                                    fullLengthColor, notifBackgroundColor);
-                        }
-                    }
-                } else {
-                    if (isLegacy()) {
-                        title = ContrastColorUtil.clearColorSpans(title);
-                    } else {
-                        // Check for a full-length span color to use as the button fill color.
-                        Integer fullLengthColor = getFullLengthSpanColor(title);
-                        if (fullLengthColor != null) {
-                            // Ensure the custom button fill has 1.3:1 contrast w/ notification bg.
-                            int notifBackgroundColor = getColors(p).getBackgroundColor();
-                            buttonFillColor = ensureButtonFillContrast(
-                                    fullLengthColor, notifBackgroundColor);
-                        }
-                        // Remove full-length color spans
-                        // and ensure text contrast with the button fill.
-                        title = ContrastColorUtil.ensureColorSpanContrast(title, buttonFillColor);
-                    }
-                }
-
-
-                final CharSequence label = ensureColorSpanContrastOrStripStyling(title, p);
-                if (p.mCallStyleActions) {
-                    if (CallStyle.DEBUG_NEW_ACTION_LAYOUT) {
-                        Log.d(TAG, "new action layout enabled, gluing instead of setting text");
-                    }
-                    button.setCharSequence(R.id.action0, "glueLabel", label);
-                } else {
-                    button.setTextViewText(R.id.action0, label);
-                }
-                int textColor = ContrastColorUtil.resolvePrimaryColor(mContext,
-                        buttonFillColor, mInNightMode);
-                if (tombstone) {
-                    textColor = setAlphaComponentByFloatDimen(mContext,
-                            ContrastColorUtil.resolveSecondaryColor(
-                                    mContext, getColors(p).getBackgroundColor(), mInNightMode),
-                            R.dimen.notification_action_disabled_content_alpha);
-                }
-                button.setTextColor(R.id.action0, textColor);
-                // We only want about 20% alpha for the ripple
-                final int rippleColor = (textColor & 0x00ffffff) | 0x33000000;
-                button.setColorStateList(R.id.action0, "setRippleColor",
-                        ColorStateList.valueOf(rippleColor));
-                button.setColorStateList(R.id.action0, "setButtonBackground",
-                        ColorStateList.valueOf(buttonFillColor));
-                if (p.mCallStyleActions) {
-                    if (CallStyle.DEBUG_NEW_ACTION_LAYOUT) {
-                        Log.d(TAG, "new action layout enabled, gluing instead of setting icon");
-                    }
-                    button.setIcon(R.id.action0, "glueIcon", action.getIcon());
-                    boolean priority = action.getExtras().getBoolean(CallStyle.KEY_ACTION_PRIORITY);
-                    button.setBoolean(R.id.action0, "setIsPriority", priority);
-                    int minWidthDimen =
-                            priority ? R.dimen.call_notification_system_action_min_width : 0;
-                    button.setIntDimen(R.id.action0, "setMinimumWidth", minWidthDimen);
-                }
-            } else {
-                button.setTextViewText(R.id.action0, ensureColorSpanContrastOrStripStyling(
-                        action.title, p));
-                button.setTextColor(R.id.action0, getStandardActionColor(p));
-            }
-            // CallStyle notifications add action buttons which don't actually exist in mActions,
-            //  so we have to omit the index in that case.
-            int actionIndex = mActions.indexOf(action);
-            if (actionIndex != -1) {
-                button.setIntTag(R.id.action0, R.id.notification_action_index_tag, actionIndex);
-            }
-            return button;
-        }
-
-        private int getActionButtonLayoutResource(boolean emphasizedMode, boolean tombstone) {
-            if (emphasizedMode) {
-                return tombstone ? getEmphasizedTombstoneActionLayoutResource()
-                        : getEmphasizedActionLayoutResource();
-            } else {
-                return tombstone ? getActionTombstoneLayoutResource()
-                        : getActionLayoutResource();
-            }
-        }
-
         /**
          * Set the alpha component of {@code color} to be {@code alphaDimenResId}.
          */
@@ -7558,13 +8195,16 @@ public class Notification implements Parcelable
          * Extract the color from a full-length span from the text.
          *
          * @param charSequence the charSequence containing spans
+         * @param semanticColors if provided, and a full-length semantic style annotation is found,
+         *                       then its corresponding actual color will be returned
          * @return the raw color of the text's last full-length span containing a color, or
          * {@code null} if no full-length span sets the text color.
          * @hide
          */
         @VisibleForTesting
         @Nullable
-        public static Integer getFullLengthSpanColor(CharSequence charSequence) {
+        public static Integer getFullLengthSpanColor(CharSequence charSequence,
+                @Nullable SemanticColors semanticColors) {
             // NOTE: this method preserves the functionality that for a CharSequence with multiple
             // full-length spans, the color of the last one is used.
             Integer result = null;
@@ -7589,6 +8229,13 @@ public class Notification implements Parcelable
                     } else if (span instanceof ForegroundColorSpan) {
                         ForegroundColorSpan originalSpan = (ForegroundColorSpan) span;
                         result = originalSpan.getForegroundColor();
+                    } else if (Flags.apiNotificationSemanticStyle() && semanticColors != null
+                            && span instanceof Annotation annotation) {
+                        Integer semanticColor = semanticAnnotationToColor(annotation,
+                                semanticColors);
+                        if (semanticColor != null) {
+                            result = semanticColor;
+                        }
                     }
                 }
             }
@@ -7596,54 +8243,24 @@ public class Notification implements Parcelable
         }
 
         /**
-         * @hide
+         * Removes "unwanted" spans from a text shown in a Notification (for all cases except
+         * Messaging messages).
+         * <ul>
+         *     <li>For promoted-ongoing notifications, keeps a set of known style-related spans
+         *     (excluding color), and maps "semantic style" to its concrete color.
+         *     <li>For all others, removes all spans.
+         * </ul>
          */
-        public CharSequence ensureColorSpanContrastOrStripStyling(CharSequence cs,
-                StandardTemplateParams p) {
-            return ensureColorSpanContrastOrStripStyling(cs, getBackgroundColor(p));
-        }
-
-        /**
-         * @hide
-         */
-        public CharSequence ensureColorSpanContrastOrStripStyling(CharSequence cs,
-                int buttonFillColor) {
-            if ( mN.isPromotedOngoing()) {
+        private CharSequence stripUnwantedSpans(CharSequence cs, StandardTemplateParams p) {
+            if (mN.isPromotedOngoing()) {
                 // RON keeps non style spans just like MessagingStyle but disallow strikethrough
                 // as that could change the text's meaning between promoted (which allows spans)
                 // and demoted (which removes spans).
-                return stripNonStyleSpans(cs, /* keepStrikethrough= */ false);
-            } else if (Flags.cleanUpSpansAndNewLines()) {
+                return stripNonStyleSpans(cs, /* keepStrikethrough= */ false,
+                        Flags.apiNotificationSemanticStyle() ? getColors(p) : null);
+            } else {
                 return stripStyling(cs);
             }
-
-            return ContrastColorUtil.ensureColorSpanContrast(cs, buttonFillColor);
-        }
-
-        /**
-         * Ensures contrast on color spans against a background color.
-         * Note that any full-length color spans will be removed instead of being contrasted.
-         *
-         * @hide
-         */
-        @VisibleForTesting
-        public CharSequence ensureColorSpanContrast(CharSequence charSequence,
-                StandardTemplateParams p) {
-            return ContrastColorUtil.ensureColorSpanContrast(charSequence, getBackgroundColor(p));
-        }
-
-        /**
-         * Determines if the color is light or dark.  Specifically, this is using the same metric as
-         * {@link ContrastColorUtil#resolvePrimaryColor(Context, int, boolean)} and peers so that
-         * the direction of color shift is consistent.
-         *
-         * @param color the color to check
-         * @return {@code true} if the color has higher contrast with white than black
-         * @hide
-         */
-        public static boolean isColorDark(int color) {
-            // as per ContrastColorUtil.shouldUseDark, this uses the color contrast midpoint.
-            return ContrastColorUtil.calculateLuminance(color) <= 0.17912878474;
         }
 
         /**
@@ -7655,14 +8272,7 @@ public class Notification implements Parcelable
          */
         @VisibleForTesting
         public static int ensureButtonFillContrast(int color, int bg) {
-            return ensureColorContrast(color, bg, 1.3);
-        }
-
-
-        private static int ensureColorContrast(int color, int bg, double contrastRatio) {
-            return isColorDark(bg)
-                    ? ContrastColorUtil.findContrastColorAgainstDark(color, bg, true, contrastRatio)
-                    : ContrastColorUtil.findContrastColor(color, bg, true, contrastRatio);
+            return ContrastColorUtil.ensureContrast(color, bg, 1.3);
         }
 
         /**
@@ -7692,8 +8302,9 @@ public class Notification implements Parcelable
          */
         private void processSmallIconColor(Icon smallIcon, RemoteViews contentView,
                 StandardTemplateParams p) {
-            boolean colorable = !isLegacy() || getColorUtil().isGrayscaleIcon(mContext,
-                    smallIcon);
+            // Colorize any icon that is not either really ancient or an adaptive drawable.
+            boolean colorable = !isLegacy() && !ContrastColorUtil.isAdaptiveIconDrawableIcon(
+                    mContext, smallIcon);
             int color = getSmallIconColor(p);
             contentView.setInt(R.id.icon, "setBackgroundColor",
                     getBackgroundColor(p));
@@ -7727,7 +8338,7 @@ public class Notification implements Parcelable
          */
         private @ColorInt int getStandardActionColor(Notification.StandardTemplateParams p) {
             return mTintActionButtons || isBackgroundColorized(p)
-                    ? getPrimaryAccentColor(p) : getSecondaryTextColor(p);
+                    ? getPrimaryAccentColor(p) : getTextColor(p);
         }
 
         /**
@@ -7931,10 +8542,10 @@ public class Notification implements Parcelable
         }
 
         /**
-         * Removes RemoteViews that were created for compatibility from {@param n}, if they did not
+         * Removes RemoteViews that were created for compatibility from {@code n}, if they did not
          * change.
          *
-         * @return {@param n}, if no stripping is needed, otherwise a stripped clone of {@param n}
+         * @return {@code n}, if no stripping is needed, otherwise a stripped clone of {@code n}
          *
          * @hide
          */
@@ -7981,122 +8592,79 @@ public class Notification implements Parcelable
         }
 
         private int getHeaderLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_header;
-            } else {
-                return R.layout.notification_template_header;
-            }
+            return R.layout.notification_2025_template_header;
         }
 
         @UnsupportedAppUsage
         private int getCollapsedBaseLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_collapsed_base;
-            } else {
-                return R.layout.notification_template_material_base;
-            }
+            return R.layout.notification_2025_template_collapsed_base;
         }
 
         private int getHeadsUpBaseLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_heads_up_base;
-            } else {
-                return R.layout.notification_template_material_heads_up_base;
-            }
+            return R.layout.notification_2025_template_heads_up_base;
         }
 
         private int getCompactHeadsUpBaseLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_compact_heads_up_base;
-            } else {
-                return R.layout.notification_template_material_compact_heads_up_base;
-            }
+            return R.layout.notification_2025_template_compact_heads_up_base;
         }
 
         private int getMessagingCompactHeadsUpLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_compact_heads_up_messaging;
-            } else {
-                return R.layout.notification_template_material_messaging_compact_heads_up;
-            }
+            return R.layout.notification_2025_template_compact_heads_up_messaging;
         }
 
         private int getExpandedBaseLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_expanded_base;
-            } else {
-                return R.layout.notification_template_material_big_base;
-            }
+            return R.layout.notification_2025_template_expanded_base;
         }
 
         private int getBigPictureLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_expanded_big_picture;
-            } else {
-                return R.layout.notification_template_material_big_picture;
-            }
+            return R.layout.notification_2025_template_expanded_big_picture;
         }
 
         private int getBigTextLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_expanded_big_text;
-            } else {
-                return R.layout.notification_template_material_big_text;
-            }
+            return R.layout.notification_2025_template_expanded_big_text;
         }
 
         private int getInboxLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_expanded_inbox;
-            } else {
-                return R.layout.notification_template_material_inbox;
-            }
+            return R.layout.notification_2025_template_expanded_inbox;
         }
 
         private int getCollapsedMessagingLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_collapsed_messaging;
-            } else {
-                return R.layout.notification_template_material_messaging;
-            }
+            return R.layout.notification_2025_template_collapsed_messaging;
         }
 
         private int getExpandedMessagingLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_expanded_messaging;
-            } else {
-                return R.layout.notification_template_material_big_messaging;
-            }
+            return R.layout.notification_2025_template_expanded_messaging;
+        }
+
+        private int getCompactHeadsUpMetricLayoutResource() {
+            return R.layout.notification_2025_template_compact_heads_up_metric;
         }
 
         private int getCollapsedMetricLayoutResource() {
             return R.layout.notification_2025_template_collapsed_metric;
         }
 
+        private int getHeadsUpMetricLayoutResource() {
+            return R.layout.notification_2025_template_heads_up_metric;
+        }
+
         private int getExpandedMetricLayoutResource() {
             return R.layout.notification_2025_template_expanded_metric;
         }
 
+        private int getExpandedSingleMetricLayoutResource() {
+            return R.layout.notification_2025_template_expanded_single_metric;
+        }
+        private int getPromotedSingleMetricLayoutResource() {
+            return R.layout.notification_2025_template_promoted_single_metric;
+        }
+
         private int getCollapsedMediaLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_collapsed_media;
-            } else {
-                return R.layout.notification_template_material_media;
-            }
+            return R.layout.notification_2025_template_collapsed_media;
         }
 
         private int getExpandedMediaLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_expanded_media;
-            } else {
-                return R.layout.notification_template_material_big_media;
-            }
-        }
-
-        // Note: In the 2025 redesign, we use two separate layouts for the collapsed and expanded
-        //  version of conversations. See below.
-        private int getConversationLayoutResource() {
-            return R.layout.notification_template_material_conversation;
+            return R.layout.notification_2025_template_expanded_media;
         }
 
         private int getCollapsedConversationLayoutResource() {
@@ -8108,27 +8676,19 @@ public class Notification implements Parcelable
         }
 
         private int getCollapsedCallLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_collapsed_call;
-            } else {
-                return R.layout.notification_template_material_call;
-            }
+            return R.layout.notification_2025_template_collapsed_call;
         }
 
         private int getExpandedCallLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_expanded_call;
-            } else {
-                return R.layout.notification_template_material_big_call;
-            }
+            return R.layout.notification_2025_template_expanded_call;
         }
 
         private int getProgressLayoutResource() {
-            if (Flags.notificationsRedesignTemplates()) {
-                return R.layout.notification_2025_template_expanded_progress;
-            } else {
-                return R.layout.notification_template_material_progress;
-            }
+            return R.layout.notification_2025_template_expanded_progress;
+        }
+
+        private int getPromotedProgressLayoutResource() {
+            return R.layout.notification_2025_template_promoted_progress;
         }
 
         private int getActionLayoutResource() {
@@ -8200,24 +8760,20 @@ public class Notification implements Parcelable
         if (extras.getBoolean(EXTRA_REDUCED_IMAGES)) {
             return;
         }
-        boolean isLowRam = ActivityManager.isLowRamDeviceStatic();
+        Resources resources = context.getResources();
 
-        if (mSmallIcon != null
-                // Only bitmap icons can be downscaled.
-                && (mSmallIcon.getType() == Icon.TYPE_BITMAP
-                        || mSmallIcon.getType() == Icon.TYPE_ADAPTIVE_BITMAP)) {
-            Resources resources = context.getResources();
-            int maxSize = resources.getDimensionPixelSize(
-                    isLowRam ? R.dimen.notification_small_icon_size_low_ram
-                            : R.dimen.notification_small_icon_size);
+        if (mSmallIcon != null) {
+            int maxSize = resources.getDimensionPixelSize(R.dimen.notification_small_icon_size);
             mSmallIcon.scaleDownIfNecessary(maxSize, maxSize);
         }
 
+        if (mBridgedNotificationMetadata != null) {
+            int maxSize = resources.getDimensionPixelSize(R.dimen.notification_small_icon_size);
+            mBridgedNotificationMetadata.getAppIcon().scaleDownIfNecessary(maxSize, maxSize);
+        }
+
         if (mLargeIcon != null || largeIcon != null) {
-            Resources resources = context.getResources();
-            int maxSize = resources.getDimensionPixelSize(isLowRam
-                    ? R.dimen.notification_right_icon_size_low_ram
-                    : R.dimen.notification_right_icon_size);
+            int maxSize = resources.getDimensionPixelSize(R.dimen.notification_right_icon_size);
             if (mLargeIcon != null) {
                 mLargeIcon.scaleDownIfNecessary(maxSize, maxSize);
             }
@@ -8225,24 +8781,48 @@ public class Notification implements Parcelable
                 largeIcon = Icon.scaleDownIfNecessary(largeIcon, maxSize, maxSize);
             }
         }
-        reduceImageSizesForRemoteView(contentView, context, isLowRam);
-        reduceImageSizesForRemoteView(headsUpContentView, context, isLowRam);
-        reduceImageSizesForRemoteView(bigContentView, context, isLowRam);
-        extras.putBoolean(EXTRA_REDUCED_IMAGES, true);
-    }
-
-    private void reduceImageSizesForRemoteView(RemoteViews remoteView, Context context,
-            boolean isLowRam) {
-        if (remoteView != null) {
-            Resources resources = context.getResources();
-            int maxWidth = resources.getDimensionPixelSize(isLowRam
-                    ? R.dimen.notification_custom_view_max_image_width_low_ram
-                    : R.dimen.notification_custom_view_max_image_width);
-            int maxHeight = resources.getDimensionPixelSize(isLowRam
-                    ? R.dimen.notification_custom_view_max_image_height_low_ram
-                    : R.dimen.notification_custom_view_max_image_height);
-            remoteView.reduceImageSizes(maxWidth, maxHeight);
+        if (contentView != null) {
+            int maxWidth = resources.getDimensionPixelSize(
+                    R.dimen.notification_custom_view_max_image_width);
+            int maxHeight = resources.getDimensionPixelSize(
+                    R.dimen.notification_collapsed_custom_view_max_image_height);
+            contentView.reduceImageSizes(maxWidth, maxHeight);
         }
+        if (headsUpContentView != null) {
+            int maxWidth = resources.getDimensionPixelSize(
+                    R.dimen.notification_custom_view_max_image_width);
+            int maxHeight = resources.getDimensionPixelSize(
+                    R.dimen.notification_hun_custom_view_max_image_height);
+            headsUpContentView.reduceImageSizes(maxWidth, maxHeight);
+        }
+        if (bigContentView != null) {
+            int maxWidth = resources.getDimensionPixelSize(
+                    R.dimen.notification_custom_view_max_image_width);
+            int maxHeight = resources.getDimensionPixelSize(
+                    R.dimen.notification_expanded_custom_view_max_image_height);
+            bigContentView.reduceImageSizes(maxWidth, maxHeight);
+        }
+        if (mBubbleMetadata != null) {
+            int bubbleSize = resources.getDimensionPixelSize(
+                    R.dimen.notification_bubble_size);
+            if (mBubbleMetadata.mIcon != null) {
+                mBubbleMetadata.mIcon.scaleDownIfNecessary(bubbleSize, bubbleSize);
+            }
+        }
+        int smallIconSize = resources.getDimensionPixelSize(
+                R.dimen.notification_small_icon_size);
+        if (actions != null) {
+            for (Action action : actions) {
+                if (action.mIcon != null) {
+                    action.mIcon.scaleDownIfNecessary(smallIconSize, smallIconSize);
+                }
+            }
+        }
+
+        if (publicVersion != null) {
+            publicVersion.reduceImageSizes(context);
+        }
+        extras.putBoolean(EXTRA_REDUCED_IMAGES, true);
     }
 
     /**
@@ -8269,6 +8849,14 @@ public class Notification implements Parcelable
      */
     public boolean isFgsOrUij() {
         return isForegroundService() || isUserInitiatedJob();
+    }
+
+    /**
+     * @return whether this notification is associated with a computer control session.
+     * @hide
+     */
+    public boolean isComputerControl() {
+        return (flags & FLAG_COMPUTER_CONTROL) != 0;
     }
 
     /**
@@ -8352,6 +8940,17 @@ public class Notification implements Parcelable
     }
 
     /**
+     * returns whether the style supports showing summarized content
+     * @hide
+     */
+    public boolean supportsSummarization() {
+        return getNotificationStyle() == null
+                || isStyle(MessagingStyle.class)
+                || isStyle(InboxStyle.class)
+                || isStyle(BigTextStyle.class);
+    }
+
+    /**
      * @return {@code true} if this notification is colorized *for the purposes of ranking*. If the
      * {@link #color} is {@link #COLOR_DEFAULT} this will be true, even though the actual
      * appearance of the notification may not be "colorized".
@@ -8359,15 +8958,15 @@ public class Notification implements Parcelable
      * @hide
      */
     public boolean isColorized() {
-        return isColorizedRequested()
-                && (hasColorizedPermission() || isFgsOrUij() || isPromotedOngoing());
+        return isColorizedRequested() && (hasColorizedPermission() || isFgsOrUij());
     }
 
     /**
      * @return {@code true} if this notification has requested to be colorized, regardless of
      * whether it meets the requirements to be displayed that way.
+     * @hide
      */
-    private boolean isColorizedRequested() {
+    public boolean isColorizedRequested() {
         return extras.getBoolean(EXTRA_COLORIZED);
     }
 
@@ -8384,14 +8983,12 @@ public class Notification implements Parcelable
     /**
      * Returns whether this notification is a promoted ongoing notification.
      *
-     * <p>This requires the Notification.FLAG_PROMOTED_ONGOING flag to be set (which may be true
-     * once the api_rich_ongoing feature flag is enabled), and requires that the ui_rich_ongoing
-     * feature flag is enabled.
+     * <p>This requires the Notification.FLAG_PROMOTED_ONGOING flag to be set.
      *
      * @hide
      */
     public boolean isPromotedOngoing() {
-        return Flags.uiRichOngoing() && (flags & Notification.FLAG_PROMOTED_ONGOING) != 0;
+        return (flags & Notification.FLAG_PROMOTED_ONGOING) != 0;
     }
 
     /**
@@ -8456,7 +9053,6 @@ public class Notification implements Parcelable
      * some surfaces and may add styling to indicate to the user that this was computationally
      * generated.
      */
-    @FlaggedApi(FLAG_NM_SUMMARIZATION)
     public boolean hasSummarizedContent() {
         return extras != null && extras.getBoolean(EXTRA_CONTAINS_SUMMARIZATION);
     }
@@ -8505,8 +9101,8 @@ public class Notification implements Parcelable
      */
     public boolean hasImage() {
         if (isStyle(MessagingStyle.class) && extras != null) {
-            final Parcelable[] messages = extras.getParcelableArray(EXTRA_MESSAGES,
-                    Parcelable.class);
+            final Bundle[] messages =
+                    getParcelableArrayFromBundle(extras, EXTRA_MESSAGES, Bundle.class);
             if (!ArrayUtils.isEmpty(messages)) {
                 for (MessagingStyle.Message m : MessagingStyle.Message
                         .getMessagesFromBundleArray(messages)) {
@@ -8537,11 +9133,6 @@ public class Notification implements Parcelable
             }
         }
 
-        if (Flags.apiRichOngoing()) {
-            if (templateClass.equals(ProgressStyle.class.getName())) {
-                return ProgressStyle.class;
-            }
-        }
         if (Flags.apiMetricStyle()) {
             if (templateClass.equals(MetricStyle.class.getName())) {
                 return MetricStyle.class;
@@ -8560,11 +9151,7 @@ public class Notification implements Parcelable
             customContent = customContent.clone();
             if (p.mHeaderless) {
                 template.removeFromParent(R.id.notification_top_line);
-                // We do not know how many lines a remote view has, so we presume it has 2;  this
-                // ensures that we don't under-pad the content, which could lead to abuse, at the
-                // cost of making single-line custom content over-padded.
-                Builder.setHeaderlessVerticalMargins(template, p, true /* hasSecondLine */);
-                if (notificationsRedesignTemplates() && p.mNeedsExtraTextMargin) {
+                if (p.mNeedsExtraTextMargin) {
                     // also update the end margin to account for the large icon or expander
                     result.mHeadingFullMarginSet.applyToView(template,
                             R.id.notification_main_column);
@@ -8572,7 +9159,7 @@ public class Notification implements Parcelable
             } else {
                 Resources resources = context.getResources();
                 result.mTitleMarginSet.applyToView(template, R.id.notification_main_column,
-                        resources.getDimension(R.dimen.notification_content_margin_end)
+                        resources.getDimension(R.dimen.notification_2025_margin)
                                 / resources.getDisplayMetrics().density);
             }
             template.removeAllViewsExceptId(R.id.notification_main_column, R.id.progress);
@@ -8793,8 +9380,7 @@ public class Notification implements Parcelable
          *
          * @hide
          */
-        public void reduceImageSizes(Context context) {
-        }
+        protected void reduceImageSizes(Context context) {}
 
         /**
          * Validate that this style was properly composed. This is called at build time.
@@ -8816,6 +9402,15 @@ public class Notification implements Parcelable
          * @hide
          */
         public CharSequence getHeadsUpStatusBarText() {
+            return null;
+        }
+
+        /**
+         * @return the text that should be displayed in the notification history.
+         * If {@code null} is returned, the default implementation will be used.
+         * @hide
+         */
+        public CharSequence getHistoryText(@NonNull Context context) {
             return null;
         }
     }
@@ -8965,22 +9560,17 @@ public class Notification implements Parcelable
          */
         @Override
         public void reduceImageSizes(Context context) {
-            super.reduceImageSizes(context);
             Resources resources = context.getResources();
-            boolean isLowRam = ActivityManager.isLowRamDeviceStatic();
             if (mPictureIcon != null) {
-                int maxPictureHeight = resources.getDimensionPixelSize(isLowRam
-                        ? R.dimen.notification_big_picture_max_height_low_ram
-                        : R.dimen.notification_big_picture_max_height);
-                int maxPictureWidth = resources.getDimensionPixelSize(isLowRam
-                        ? R.dimen.notification_big_picture_max_width_low_ram
-                        : R.dimen.notification_big_picture_max_width);
+                int maxPictureHeight = resources.getDimensionPixelSize(
+                        R.dimen.notification_big_picture_max_height);
+                int maxPictureWidth = resources.getDimensionPixelSize(
+                        R.dimen.notification_big_picture_max_width);
                 mPictureIcon.scaleDownIfNecessary(maxPictureWidth, maxPictureHeight);
             }
             if (mBigLargeIcon != null) {
-                int rightIconSize = resources.getDimensionPixelSize(isLowRam
-                        ? R.dimen.notification_right_icon_size_low_ram
-                        : R.dimen.notification_right_icon_size);
+                int rightIconSize = resources.getDimensionPixelSize(
+                        R.dimen.notification_right_icon_size);
                 mBigLargeIcon.scaleDownIfNecessary(rightIconSize, rightIconSize);
             }
         }
@@ -9044,9 +9634,8 @@ public class Notification implements Parcelable
                     p, null /* result */);
             if (mSummaryTextSet) {
                 contentView.setTextViewText(R.id.text,
-                        mBuilder.ensureColorSpanContrastOrStripStyling(
-                                mBuilder.processLegacyText(mSummaryText), p));
-                mBuilder.setTextViewColorSecondary(contentView, R.id.text, p);
+                        mBuilder.stripUnwantedSpans(mBuilder.processLegacyText(mSummaryText), p));
+                mBuilder.setTextColor(contentView, R.id.text, p);
                 contentView.setViewVisibility(R.id.text, View.VISIBLE);
             }
 
@@ -9240,17 +9829,26 @@ public class Notification implements Parcelable
         /**
          * @hide
          */
+        @Override
+        public void reduceImageSizes(Context context) {
+            // no images
+        }
+
+        /**
+         * @hide
+         */
         public RemoteViews makeExpandedContentView() {
             StandardTemplateParams p = mBuilder.mParams.reset()
                     .viewType(StandardTemplateParams.VIEW_TYPE_EXPANDED)
                     .allowTextWithProgress(true)
                     .textViewId(R.id.big_text)
+                    .maybeUseMinimalHeader(mBuilder)
                     .fillTextsFrom(mBuilder);
 
             // Replace the text with the big text, but only if the big text is not empty.
             CharSequence bigTextText = mBuilder.processLegacyText(mBigText);
             // Ongoing promoted notifications are allowed to have styling.
-            if (!mBuilder.mN.isPromotedOngoing() && Flags.cleanUpSpansAndNewLines()) {
+            if (!mBuilder.mN.isPromotedOngoing()) {
                 bigTextText = normalizeBigText(stripStyling(bigTextText));
             }
             if (!TextUtils.isEmpty(bigTextText)) {
@@ -9273,6 +9871,13 @@ public class Notification implements Parcelable
             return !Objects.equals(String.valueOf(getBigText()), String.valueOf(newS.getBigText()));
         }
 
+        /**
+         * @hide
+         */
+        @Override
+        public CharSequence getHistoryText(@NonNull Context unused) {
+            return mBigText;
+        }
     }
 
     /**
@@ -9652,13 +10257,13 @@ public class Notification implements Parcelable
         @Override
         public void addExtras(Bundle extras) {
             super.addExtras(extras);
-            addExtras(extras, false, 0);
+            addExtras(extras, /* processSpans= */ false);
         }
 
         /**
          * @hide
          */
-        public void addExtras(Bundle extras, boolean ensureContrast, int backgroundColor) {
+        public void addExtras(Bundle extras, boolean processSpans) {
             if (mUser != null) {
                 // For legacy usages
                 extras.putCharSequence(EXTRA_SELF_DISPLAY_NAME, mUser.getName());
@@ -9669,11 +10274,11 @@ public class Notification implements Parcelable
             }
             if (!mMessages.isEmpty()) {
                 extras.putParcelableArray(EXTRA_MESSAGES,
-                        getBundleArrayForMessages(mMessages, ensureContrast, backgroundColor));
+                        getBundleArrayForMessages(mMessages, processSpans));
             }
             if (!mHistoricMessages.isEmpty()) {
                 extras.putParcelableArray(EXTRA_HISTORIC_MESSAGES, getBundleArrayForMessages(
-                        mHistoricMessages, ensureContrast, backgroundColor));
+                        mHistoricMessages, processSpans));
             }
             if (mShortcutIcon != null) {
                 extras.putParcelable(EXTRA_CONVERSATION_ICON, mShortcutIcon);
@@ -9685,13 +10290,13 @@ public class Notification implements Parcelable
         }
 
         private static Bundle[] getBundleArrayForMessages(List<Message> messages,
-                boolean ensureContrast, int backgroundColor) {
+                boolean processSpans) {
             Bundle[] bundles = new Bundle[messages.size()];
             final int N = messages.size();
             for (int i = 0; i < N; i++) {
                 final Message m = messages.get(i);
-                if (ensureContrast) {
-                    m.ensureColorContrastOrStripStyling(backgroundColor);
+                if (processSpans) {
+                    m.stripNonStyleSpans();
                 }
                 bundles[i] = m.toBundle();
             }
@@ -9717,9 +10322,8 @@ public class Notification implements Parcelable
             } else {
                 title = sender;
             }
-            if (Flags.cleanUpSpansAndNewLines()) {
-                title = stripStyling(title);
-            }
+
+            title = stripStyling(title);
             if (title != null) {
                 extras.putCharSequence(EXTRA_TITLE, title);
             }
@@ -9749,10 +10353,8 @@ public class Notification implements Parcelable
                         bidi.unicodeWrap(conversationTitle), "");
             }
 
-            if (Flags.cleanUpSpansAndNewLines()) {
-                conversationTitle = stripStyling(conversationTitle);
-                sender = stripStyling(sender);
-            }
+            conversationTitle = stripStyling(conversationTitle);
+            sender = stripStyling(sender);
 
             final CharSequence title;
             final boolean isConversationTitleAvailable = showConversationTitle()
@@ -9798,10 +10400,10 @@ public class Notification implements Parcelable
                 mUser = user;
             }
             mConversationTitle = extras.getCharSequence(EXTRA_CONVERSATION_TITLE);
-            Parcelable[] messages = extras.getParcelableArray(EXTRA_MESSAGES, Parcelable.class);
+            Bundle[] messages = getParcelableArrayFromBundle(extras, EXTRA_MESSAGES, Bundle.class);
             mMessages = Message.getMessagesFromBundleArray(messages);
-            Parcelable[] histMessages = extras.getParcelableArray(EXTRA_HISTORIC_MESSAGES,
-                    Parcelable.class);
+            Bundle[] histMessages = getParcelableArrayFromBundle(
+                    extras, EXTRA_HISTORIC_MESSAGES, Bundle.class);
             mHistoricMessages = Message.getMessagesFromBundleArray(histMessages);
             mIsGroupConversation = extras.getBoolean(EXTRA_IS_GROUP_CONVERSATION);
             mUnreadMessageCount = extras.getInt(EXTRA_CONVERSATION_UNREAD_MESSAGE_COUNT);
@@ -9921,7 +10523,6 @@ public class Notification implements Parcelable
             boolean isCollapsed = viewType != StandardTemplateParams.VIEW_TYPE_EXPANDED;
             boolean isConversationLayout = mConversationType != CONVERSATION_TYPE_LEGACY;
             boolean isImportantConversation = mConversationType == CONVERSATION_TYPE_IMPORTANT;
-            boolean isLegacyHeaderless = !isConversationLayout && isCollapsed;
 
             //TODO (b/217799515): ensure mConversationTitle always returns the correct
             // conversationTitle, probably set mConversationTitle = conversationTitle after this
@@ -9942,55 +10543,44 @@ public class Notification implements Parcelable
             } else {
                 isOneToOne = !isGroupConversation();
             }
-            if ((isLegacyHeaderless || notificationsRedesignTemplates())
-                    && isOneToOne && TextUtils.isEmpty(conversationTitle)) {
+            if (isOneToOne && TextUtils.isEmpty(conversationTitle)) {
                 conversationTitle = getOtherPersonName();
             }
 
             Icon largeIcon = mBuilder.mN.mLargeIcon;
+            String lastMessage = !mMessages.isEmpty()
+                    ? mMessages.getLast().mText.toString() : null;
             TemplateBindResult bindResult = new TemplateBindResult();
             StandardTemplateParams p = mBuilder.mParams.reset()
                     .viewType(viewType)
                     .highlightExpander(isConversationLayout)
                     .hideProgress(true)
                     .hideLeftIcon(true)
-                    .hideRightIcon(true);
-            if (notificationsRedesignTemplates()) {
-                String lastMessage = !mMessages.isEmpty()
-                        ? mMessages.getLast().mText.toString() : null;
+                    .hideRightIcon(true)
+                    .title(conversationTitle)
+                    // The text is not actually displayed like this (since we're using a
+                    // MessagingLinearLayout instead of the regular text), but we're using it to
+                    // know whether the notification will have a second line in practice.
+                    .text(lastMessage)
+                    .hideAppName(isCollapsed);
 
-                p.title(conversationTitle)
-                        // The text is not actually displayed like this (since we're using a
-                        // MessagingLinearLayout instead of the regular text), but we're using it to
-                        // know whether the notification will have a second line in practice.
-                        .text(lastMessage)
-                        .hideAppName(isCollapsed);
-            } else {
-                p.title(isLegacyHeaderless ? conversationTitle : null)
-                        .text(null)
-                        .headerTextSecondary(isLegacyHeaderless ? null : conversationTitle);
-            }
             RemoteViews contentView = mBuilder.applyStandardTemplateWithActions(
                     getMessagingLayoutResource(isConversationLayout, isCollapsed),
                     p,
                     bindResult);
-            if (isConversationLayout && !notificationsRedesignTemplates()) {
-                // Redesign note: This view is replaced by the `title`, which is handled normally.
-                mBuilder.setTextViewColorPrimary(contentView, R.id.conversation_text, p);
-                // Redesign note: This special divider is no longer needed.
-                mBuilder.setTextViewColorSecondary(contentView, R.id.app_name_divider, p);
-            }
 
-            addExtras(mBuilder.mN.extras, true, mBuilder.getBackgroundColor(p));
+            addExtras(mBuilder.mN.extras, /* processSpans= */ true);
             contentView.setInt(R.id.status_bar_latest_event_content, "setLayoutColor",
                     mBuilder.getSmallIconColor(p));
             contentView.setInt(R.id.status_bar_latest_event_content, "setSenderTextColor",
-                    mBuilder.getPrimaryTextColor(p));
+                    mBuilder.getTextColor(p));
             contentView.setInt(R.id.status_bar_latest_event_content, "setMessageTextColor",
-                    mBuilder.getSecondaryTextColor(p));
-            contentView.setInt(R.id.status_bar_latest_event_content,
-                    "setNotificationBackgroundColor",
-                    mBuilder.getBackgroundColor(p));
+                    mBuilder.getTextColor(p));
+            if (!SetNotificationBackgroundColorRefactor.isEnabled()) {
+                contentView.setInt(R.id.status_bar_latest_event_content,
+                        "setNotificationBackgroundColor",
+                        mBuilder.getBackgroundColor(p));
+            }
             contentView.setBoolean(R.id.status_bar_latest_event_content, "setIsCollapsed",
                     isCollapsed);
             contentView.setIcon(R.id.status_bar_latest_event_content, "setAvatarReplacement",
@@ -10007,7 +10597,7 @@ public class Notification implements Parcelable
                 contentView.setBoolean(R.id.status_bar_latest_event_content,
                         "setIsImportantConversation", isImportantConversation);
             }
-            if (notificationsRedesignTemplates() && !isCollapsed) {
+            if (!isCollapsed) {
                 // Align the title to the app/small icon in the expanded form. In other layouts,
                 // this margin is added directly to the notification_main_column parent, but for
                 // messages we don't want the margin to be applied to the actual messaging
@@ -10018,7 +10608,7 @@ public class Notification implements Parcelable
                 contentView.setViewLayoutMargin(R.id.title,
                         RemoteViews.MARGIN_START, marginStart, COMPLEX_UNIT_PX);
             }
-            if (isLegacyHeaderless) {
+            if (!isConversationLayout && isCollapsed) {
                 // Collapsed legacy messaging style has a 1-line limit.
                 contentView.setInt(R.id.notification_messaging, "setMaxDisplayedLines", 1);
             }
@@ -10030,29 +10620,20 @@ public class Notification implements Parcelable
         }
 
         private int getMessagingLayoutResource(boolean isConversationLayout, boolean isCollapsed) {
-            if (notificationsRedesignTemplates()) {
-                // Note: We eventually would like to use the same layouts for both conversations and
-                //  regular messaging notifications.
-                if (isConversationLayout) {
-                    if (isCollapsed) {
-                        return mBuilder.getCollapsedConversationLayoutResource();
-                    } else {
-                        return mBuilder.getExpandedConversationLayoutResource();
-                    }
+            // Note: We eventually would like to use the same layouts for both conversations and
+            //  regular messaging notifications.
+            if (isConversationLayout) {
+                if (isCollapsed) {
+                    return mBuilder.getCollapsedConversationLayoutResource();
                 } else {
-                    if (isCollapsed) {
-                        return mBuilder.getCollapsedMessagingLayoutResource();
-                    } else {
-                        return mBuilder.getExpandedMessagingLayoutResource();
-                    }
+                    return mBuilder.getExpandedConversationLayoutResource();
                 }
-
             } else {
-                return isConversationLayout
-                        ? mBuilder.getConversationLayoutResource()
-                        : isCollapsed
-                                ? mBuilder.getCollapsedMessagingLayoutResource()
-                                : mBuilder.getExpandedMessagingLayoutResource();
+                if (isCollapsed) {
+                    return mBuilder.getCollapsedMessagingLayoutResource();
+                } else {
+                    return mBuilder.getExpandedMessagingLayoutResource();
+                }
             }
         }
 
@@ -10073,7 +10654,7 @@ public class Notification implements Parcelable
             // likely points to an incorrect use of our API, where the user isn't being set
             // correctly. It's either that, or perhaps the user actually is having a conversation
             // with themselves ¯\_(ツ)_/¯ so let's not leave the name empty.
-            return notificationsRedesignTemplates() ? mUser.getName() : null;
+            return mUser.getName();
         }
 
         private boolean hasOnlyWhiteSpaceSenders() {
@@ -10121,9 +10702,7 @@ public class Notification implements Parcelable
         public RemoteViews makeCompactHeadsUpContentView() {
             final boolean isConversationLayout = mConversationType != CONVERSATION_TYPE_LEGACY;
             Icon conversationIcon = null;
-            Notification.Action remoteInputAction = null;
             if (isConversationLayout) {
-
                 conversationIcon = mShortcutIcon;
 
                 // conversation icon is m
@@ -10139,19 +10718,6 @@ public class Notification implements Parcelable
                         }
                     }
                 }
-
-                if (Flags.compactHeadsUpNotificationReply()) {
-                    // Get the first non-contextual inline reply action.
-                    final List<Notification.Action> nonContextualActions =
-                            mBuilder.getNonContextualActions();
-                    for (int i = 0; i < nonContextualActions.size(); i++) {
-                        final Notification.Action action = nonContextualActions.get(i);
-                        if (mBuilder.hasValidRemoteInput(action)) {
-                            remoteInputAction = action;
-                            break;
-                        }
-                    }
-                }
             }
 
             final StandardTemplateParams p = mBuilder.mParams.reset()
@@ -10159,6 +10725,7 @@ public class Notification implements Parcelable
                     .highlightExpander(isConversationLayout)
                     .fillTextsFrom(mBuilder)
                     .hideTime(true)
+                    .hideChronometer(true)
                     .needsExtraTextMargin(false);
 
             fixTitleAndTextForCompactMessaging(p);
@@ -10168,6 +10735,7 @@ public class Notification implements Parcelable
                     mBuilder.getMessagingCompactHeadsUpLayoutResource(), p, bindResult);
             contentView.setViewVisibility(R.id.header_text_secondary_divider, View.GONE);
             contentView.setViewVisibility(R.id.header_text_divider, View.GONE);
+            contentView.setViewVisibility(R.id.reply_action_container, View.GONE);
             if (conversationIcon != null) {
                 contentView.setViewVisibility(R.id.icon, View.GONE);
                 contentView.setViewVisibility(R.id.conversation_face_pile, View.GONE);
@@ -10176,55 +10744,52 @@ public class Notification implements Parcelable
             } else if (mIsGroupConversation) {
                 contentView.setViewVisibility(R.id.icon, View.GONE);
                 contentView.setViewVisibility(R.id.conversation_icon, View.GONE);
-                contentView.setInt(R.id.status_bar_latest_event_content,
-                        "setNotificationBackgroundColor", mBuilder.getBackgroundColor(p));
+                if (!SetNotificationBackgroundColorRefactor.isEnabled()) {
+                    contentView.setInt(R.id.status_bar_latest_event_content,
+                            "setNotificationBackgroundColor", mBuilder.getBackgroundColor(p));
+                }
                 contentView.setInt(R.id.status_bar_latest_event_content, "setLayoutColor",
                         mBuilder.getSmallIconColor(p));
                 contentView.setBundle(R.id.status_bar_latest_event_content, "setGroupFacePile",
                         mBuilder.mN.extras);
             }
 
-            if (remoteInputAction != null) {
-                contentView.setViewVisibility(R.id.reply_action_container, View.VISIBLE);
-
-                final RemoteViews inlineReplyButton =
-                        mBuilder.generateActionButton(remoteInputAction, false, p);
-                // Clear the drawable
-                inlineReplyButton.setInt(R.id.action0, "setBackgroundResource", 0);
-                inlineReplyButton.setTextViewText(R.id.action0,
-                        mBuilder.mContext.getString(R.string.notification_compact_heads_up_reply));
-                contentView.addView(R.id.reply_action_container, inlineReplyButton);
-            } else {
-                contentView.setViewVisibility(R.id.reply_action_container, View.GONE);
-            }
             return contentView;
         }
-
 
         /**
          * @hide
          */
         @Override
         public void reduceImageSizes(Context context) {
-            super.reduceImageSizes(context);
             Resources resources = context.getResources();
-            boolean isLowRam = ActivityManager.isLowRamDeviceStatic();
             if (mShortcutIcon != null) {
                 int maxSize = resources.getDimensionPixelSize(
-                        isLowRam ? R.dimen.notification_small_icon_size_low_ram
-                                : R.dimen.notification_small_icon_size);
+                        R.dimen.notification_person_icon_max_size);
                 mShortcutIcon.scaleDownIfNecessary(maxSize, maxSize);
             }
 
             int maxAvatarSize = resources.getDimensionPixelSize(
-                    isLowRam ? R.dimen.notification_person_icon_max_size_low_ram
-                            : R.dimen.notification_person_icon_max_size);
+                    R.dimen.notification_person_icon_max_size);
             if (mUser != null && mUser.getIcon() != null) {
                 mUser.getIcon().scaleDownIfNecessary(maxAvatarSize, maxAvatarSize);
             }
 
             reduceMessagesIconSizes(mMessages, maxAvatarSize);
             reduceMessagesIconSizes(mHistoricMessages, maxAvatarSize);
+        }
+
+        /**
+         * @hide
+         */
+        @Override
+        public CharSequence getHistoryText(@NonNull Context unused) {
+            final List<MessagingStyle.Message> messages = getMessages();
+            if (messages != null && messages.size() > 0) {
+                return messages.get(messages.size() - 1).getText();
+            }
+
+            return null;
         }
 
         /**
@@ -10377,23 +10942,13 @@ public class Notification implements Parcelable
 
             /**
              * Strip styling or updates TextAppearance spans in message text.
-             * @hide
              */
-            public void ensureColorContrastOrStripStyling(int backgroundColor) {
-                if (Flags.cleanUpSpansAndNewLines()) {
-                    mText = stripNonStyleSpans(mText);
-                } else {
-                    ensureColorContrast(backgroundColor);
-                }
-            }
-
-            /**
-             * Updates TextAppearance spans in the message text so it has sufficient contrast
-             * against its background.
-             * @hide
-             */
-            public void ensureColorContrast(int backgroundColor) {
-                mText = ContrastColorUtil.ensureColorSpanContrast(mText, backgroundColor);
+            private void stripNonStyleSpans() {
+                // Keep Strikethrough spans for MessagingStyle notifications (strikethrough can
+                // be an important part of the meaning of the message, e.g. corrections).
+                // But ignore any semantic style annotations.
+                mText = Notification.stripNonStyleSpans(mText, /* keepStrikethrough= */ true,
+                            /* semanticColors= */ null);
             }
 
             /**
@@ -10633,6 +11188,15 @@ public class Notification implements Parcelable
         }
 
         /**
+         * Clears the current lines.
+         * @hide
+         */
+        public InboxStyle clearLines() {
+            mTexts.clear();
+            return this;
+        }
+
+        /**
          * @hide
          */
         public ArrayList<CharSequence> getLines() {
@@ -10665,6 +11229,14 @@ public class Notification implements Parcelable
         /**
          * @hide
          */
+        @Override
+        public void reduceImageSizes(Context context) {
+            // no images
+        }
+
+        /**
+         * @hide
+         */
         public RemoteViews makeExpandedContentView() {
             StandardTemplateParams p = mBuilder.mParams.reset()
                     .viewType(StandardTemplateParams.VIEW_TYPE_EXPANDED)
@@ -10689,9 +11261,7 @@ public class Notification implements Parcelable
             if (mBuilder.mActions.size() > 0) {
                 maxRows--;
             }
-            RemoteInputHistoryItem[] remoteInputHistory = getParcelableArrayFromBundle(
-                    mBuilder.mN.extras, EXTRA_REMOTE_INPUT_HISTORY_ITEMS,
-                    RemoteInputHistoryItem.class);
+            RemoteInputHistoryItem[] remoteInputHistory = mBuilder.mN.getRemoteInputHistoryItems();
             if (remoteInputHistory != null
                     && remoteInputHistory.length > NUMBER_OF_HISTORY_ALLOWED_UNTIL_REDUCTION) {
                 // Let's remove some messages to make room for the remote input history.
@@ -10717,9 +11287,8 @@ public class Notification implements Parcelable
                 if (!TextUtils.isEmpty(str)) {
                     contentView.setViewVisibility(rowIds[i], View.VISIBLE);
                     contentView.setTextViewText(rowIds[i],
-                            mBuilder.ensureColorSpanContrastOrStripStyling(
-                                    mBuilder.processLegacyText(str), p));
-                    mBuilder.setTextViewColorSecondary(contentView, rowIds[i], p);
+                            mBuilder.stripUnwantedSpans(mBuilder.processLegacyText(str), p));
+                    mBuilder.setTextColor(contentView, rowIds[i], p);
                     contentView.setViewPadding(rowIds[i], 0, topPadding, 0, 0);
                     if (first) {
                         onlyViewId = rowIds[i];
@@ -10960,6 +11529,14 @@ public class Notification implements Parcelable
          * @hide
          */
         @Override
+        public void reduceImageSizes(Context context) {
+            // no images
+        }
+
+        /**
+         * @hide
+         */
+        @Override
         protected void restoreFromExtras(Bundle extras) {
             super.restoreFromExtras(extras);
 
@@ -11028,10 +11605,12 @@ public class Notification implements Parcelable
                         numActions, numActions - 1));
             }
 
+            boolean actionsWiderThanRightIcon = numActionsToShow > 1;
             StandardTemplateParams p = mBuilder.mParams.reset()
                     .viewType(StandardTemplateParams.VIEW_TYPE_NORMAL)
-                    .hideTime(numActionsToShow > 1)       // hide if actions wider than a right icon
-                    .hideSubText(numActionsToShow > 1)    // hide if actions wider than a right icon
+                    .hideTime(actionsWiderThanRightIcon)
+                    .hideChronometer(actionsWiderThanRightIcon)
+                    .hideSubText(actionsWiderThanRightIcon)
                     .hideLeftIcon(false)                  // allow large icon on left when grouped
                     .hideRightIcon(numActionsToShow > 0)  // right icon or actions; not both
                     .hideProgress(true)
@@ -11330,13 +11909,15 @@ public class Notification implements Parcelable
          */
         @Override
         public void reduceImageSizes(Context context) {
-            super.reduceImageSizes(context);
             if (mVerificationIcon != null) {
                 int rightIconSize = context.getResources().getDimensionPixelSize(
-                        ActivityManager.isLowRamDeviceStatic()
-                                ? R.dimen.notification_right_icon_size_low_ram
-                                : R.dimen.notification_right_icon_size);
+                        R.dimen.notification_right_icon_size);
                 mVerificationIcon.scaleDownIfNecessary(rightIconSize, rightIconSize);
+            }
+            if (mPerson.getIcon() != null) {
+                int leftIconSize = context.getResources().getDimensionPixelSize(
+                        R.dimen.notification_person_icon_max_size);
+                mPerson.getIcon().scaleDownIfNecessary(leftIconSize, leftIconSize);
             }
         }
 
@@ -11486,39 +12067,28 @@ public class Notification implements Parcelable
                     .hideAppName(isCollapsed)
                     .title(title)
                     .text(text);
-            if (!notificationsRedesignTemplates()) {
-                // We're using the normal title in the redesign, not a special text.
-                p.titleViewId(R.id.conversation_text)
-                        // The verification text is now part of the top line views, so this is no
-                        // longer necessary.
-                        .summaryText(mBuilder.processLegacyText(mVerificationText));
-            }
+
             mBuilder.mActions = getActionsListWithSystemActions();
             final RemoteViews contentView;
             if (isCollapsed) {
                 contentView = mBuilder.applyStandardTemplate(
                         mBuilder.getCollapsedCallLayoutResource(), p, null /* result */);
-            } else if (notificationsRedesignTemplates() && isHeadsUp) {
+            } else if (isHeadsUp) {
                 contentView = mBuilder.applyStandardTemplateWithActions(
                         mBuilder.getCollapsedCallLayoutResource(), p, null /* result */);
             } else {
                 contentView = mBuilder.applyStandardTemplateWithActions(
-                    mBuilder.getExpandedCallLayoutResource(), p, null /* result */);
+                        mBuilder.getExpandedCallLayoutResource(), p, null /* result */);
             }
-
-            // Bind some extra conversation-specific header fields.
-            if (!notificationsRedesignTemplates() && !p.mHideAppName) {
-                // Redesign note: This special divider is no longer needed.
-                mBuilder.setTextViewColorSecondary(contentView, R.id.app_name_divider, p);
-                contentView.setViewVisibility(R.id.app_name_divider, View.VISIBLE);
-            }
-            bindCallerVerification(contentView, p);
 
             // Bind some custom CallLayout properties
+            bindCallerVerification(contentView, p);
             contentView.setInt(R.id.status_bar_latest_event_content, "setLayoutColor",
                     mBuilder.getSmallIconColor(p));
-            contentView.setInt(R.id.status_bar_latest_event_content,
-                    "setNotificationBackgroundColor", mBuilder.getBackgroundColor(p));
+            if (!SetNotificationBackgroundColorRefactor.isEnabled()) {
+                contentView.setInt(R.id.status_bar_latest_event_content,
+                        "setNotificationBackgroundColor", mBuilder.getBackgroundColor(p));
+            }
             contentView.setIcon(R.id.status_bar_latest_event_content, "setLargeIcon",
                     mBuilder.mN.mLargeIcon);
             contentView.setBundle(R.id.status_bar_latest_event_content, "setData",
@@ -11533,7 +12103,7 @@ public class Notification implements Parcelable
             if (mVerificationIcon != null) {
                 contentView.setImageViewIcon(R.id.verification_icon, mVerificationIcon);
                 contentView.setDrawableTint(R.id.verification_icon, false /* targetBackground */,
-                        mBuilder.getSecondaryTextColor(p), PorterDuff.Mode.SRC_ATOP);
+                        mBuilder.getTextColor(p), PorterDuff.Mode.SRC_ATOP);
                 contentView.setViewVisibility(R.id.verification_icon, View.VISIBLE);
                 iconContentDescription = mBuilder.mContext.getString(
                         R.string.notification_verified_content_description);
@@ -11543,7 +12113,7 @@ public class Notification implements Parcelable
             }
             if (!TextUtils.isEmpty(mVerificationText)) {
                 contentView.setTextViewText(R.id.verification_text, mVerificationText);
-                mBuilder.setTextViewColorSecondary(contentView, R.id.verification_text, p);
+                mBuilder.setTextColor(contentView, R.id.verification_text, p);
                 contentView.setViewVisibility(R.id.verification_text, View.VISIBLE);
                 iconContentDescription = null;  // let the app's text take precedence
             } else {
@@ -11553,7 +12123,7 @@ public class Notification implements Parcelable
             contentView.setContentDescription(R.id.verification_icon, iconContentDescription);
             if (showDivider) {
                 contentView.setViewVisibility(R.id.verification_divider, View.VISIBLE);
-                mBuilder.setTextViewColorSecondary(contentView, R.id.verification_divider, p);
+                mBuilder.setTextColor(contentView, R.id.verification_divider, p);
             } else {
                 contentView.setViewVisibility(R.id.verification_divider, View.GONE);
             }
@@ -11676,15 +12246,28 @@ public class Notification implements Parcelable
      * <p>A MetricStyle must contain at least one {@link Metric} object to be valid; an invalid
      * style will be rejected when {@link Builder#build()} is called.
      *
+     * <p>If a notification with this style is {@link #FLAG_PROMOTED_ONGOING promoted ongoing},
+     * then one of its metrics might be displayed in the status bar chip.
+     *
      * <p>Note that this style doesn't display the large icon set via
      * {@link Builder#setLargeIcon(Icon)}.
      */
     @FlaggedApi(Flags.FLAG_API_METRIC_STYLE)
     public static final class MetricStyle extends Style {
 
+        /**
+         * Special value for {@link #setCriticalMetric(int)} to indicate that none of the metrics
+         * should be considered the "most important" one.
+         */
+        public static final int METRIC_INDEX_NONE = -1;
+
+        /* Index of the default critical metric (the first one). */
+        private static final int CRITICAL_METRIC_DEFAULT = 0;
+
         private static final int MAX_METRICS = 3;
 
         private final List<Metric> mMetrics = new ArrayList<>();
+        private int mCriticalMetric = CRITICAL_METRIC_DEFAULT;
 
         public MetricStyle() {
         }
@@ -11693,17 +12276,21 @@ public class Notification implements Parcelable
         public boolean equals(Object obj) {
             if (!(obj instanceof MetricStyle that)) return false;
             if (this == that) return true;
-            return Objects.equals(this.mMetrics, that.mMetrics);
+            return Objects.equals(this.mMetrics, that.mMetrics)
+                    && this.mCriticalMetric == that.mCriticalMetric;
         }
 
         @Override
         public int hashCode() {
-            return mMetrics.hashCode();
+            return Objects.hash(mMetrics, mCriticalMetric);
         }
 
         @Override
         public String toString() {
-            return "MetricStyle{" + mMetrics + "}";
+            return "MetricStyle{"
+                    + "mMetrics=" + mMetrics
+                    + ", mCriticalMetric=" + mCriticalMetric
+                    + "}";
         }
 
         /** Adds a {@link Metric} to this {@link MetricStyle}. */
@@ -11733,6 +12320,37 @@ public class Notification implements Parcelable
         @NonNull
         public List<Metric> getMetrics() {
             return Collections.unmodifiableList(mMetrics);
+        }
+
+        /**
+         * Indicates which of the metrics is considered the "most important". This may be used when
+         * the notification is displayed in other surfaces (such as a status bar chip).
+         *
+         * @param index either the index (0-based) of an item in {@link #getMetrics()}, or
+         *              {@link #METRIC_INDEX_NONE} to indicate no {@link Metric} should be used
+         *              for this purpose
+         */
+        @NonNull
+        public MetricStyle setCriticalMetric(int index) {
+            mCriticalMetric = index;
+            return this;
+        }
+
+        /**
+         * Returns which, if any, of the metrics is considered the "most important", or {@code null}
+         * if none are. This may be used when the notification is displayed in other surfaces (such
+         * as a status bar chip).
+         *
+         * <p>By default, unless {@link #setCriticalMetric(int)} has been set, the first metric in
+         * the list is considered the critical one.
+         */
+        @Nullable
+        public Metric getCriticalMetric() {
+            if (mCriticalMetric >= 0 && mCriticalMetric < mMetrics.size()) {
+                return mMetrics.get(mCriticalMetric);
+            } else {
+                return null;
+            }
         }
 
         /** @hide */
@@ -11768,6 +12386,7 @@ public class Notification implements Parcelable
                 bundles.add(Metric.toBundle(metric));
             }
             extras.putParcelableArrayList(EXTRA_METRICS, bundles);
+            extras.putInt(EXTRA_METRICS_CRITICAL_INDEX, mCriticalMetric);
         }
 
         /** @hide */
@@ -11789,6 +12408,16 @@ public class Notification implements Parcelable
                     }
                 }
             }
+
+            mCriticalMetric = extras.getInt(EXTRA_METRICS_CRITICAL_INDEX, CRITICAL_METRIC_DEFAULT);
+        }
+
+        /**
+         * @hide
+         */
+        @Override
+        public void reduceImageSizes(Context context) {
+            // no images
         }
 
         /** @hide */
@@ -11809,6 +12438,40 @@ public class Notification implements Parcelable
             return true;
         }
 
+        /**
+         * @hide
+         */
+        @Override
+        public CharSequence getHistoryText(@NonNull Context context) {
+            final StringBuilder buffer = new StringBuilder();
+            final String separator = context.getString(R.string.notification_header_divider_symbol);
+            for (int i = 0; i < mMetrics.size(); i++) {
+                final Metric metric = mMetrics.get(i);
+                if (i > 0) {
+                    buffer.append(" ");
+                    buffer.append(separator);
+                    buffer.append(" ");
+                }
+                final Notification.Metric.MetricValue metricValue = metric.getValue();
+                final Notification.Metric.MetricValue.ValueString valueString =
+                        metricValue.toValueString(context);
+                final String unit = valueString.subtext();
+                CharSequence value = valueString.textVariants.getFirst();
+                final CharSequence label;
+                if (TextUtils.isEmpty(unit)) {
+                    label = metric.getLabel();
+                } else {
+                    label = context.getString(
+                            R.string.notification_metric_label_unit,
+                            metric.getLabel(), unit);
+                }
+                buffer.append(context.getString(R.string.notification_history_metric_subtext,
+                        label, value));
+            }
+
+            return buffer.toString();
+        }
+
         /** @hide */
         @Override
         public RemoteViews makeContentView() {
@@ -11817,10 +12480,38 @@ public class Notification implements Parcelable
                     .fillTextsFrom(mBuilder).text(null)
                     .hideProgress(true)
                     .hideRightIcon(true);
-            final TemplateBindResult result = new TemplateBindResult();
-            final RemoteViews contentView = getStandardView(
-                    mBuilder.getCollapsedMetricLayoutResource(), p, result);
-            return bindMetricStyleMetrics(contentView, p, /* isExpandedView = */ false);
+            return buildMetricView(
+                    mBuilder.getCollapsedMetricLayoutResource(),
+                    p,
+                    /* isExpandedView = */ false,
+                    mMetrics);
+        }
+
+        /** @hide */
+        @Override
+        public RemoteViews makeCompactHeadsUpContentView() {
+            final StandardTemplateParams p = mBuilder.mParams.reset()
+                    .viewType(StandardTemplateParams.VIEW_TYPE_HEADS_UP)
+                    .fillTextsFrom(mBuilder)
+                    .text(null)
+                    .hideAppName(true).hideSubText(true).hideTime(true)
+                    .hideProgress(true)
+                    .hideRightIcon(true)
+                    .needsExtraTextMargin(false);
+            final RemoteViews result = buildMetricView(
+                    mBuilder.getCompactHeadsUpMetricLayoutResource(),
+                    p,
+                    /* isExpandedView = */ false,
+                    getCompactHeadsUpMetrics());
+
+            result.setInt(R.id.extra_topline_content,
+                    "setGravity", Gravity.CENTER_VERTICAL);
+
+            return result;
+        }
+
+        private List<Metric> getCompactHeadsUpMetrics() {
+            return mMetrics.size() > 0 ? mMetrics.subList(0, 1) : List.of();
         }
 
         /** @hide */
@@ -11831,10 +12522,11 @@ public class Notification implements Parcelable
                     .fillTextsFrom(mBuilder).text(null)
                     .hideProgress(true)
                     .hideRightIcon(true);
-            final TemplateBindResult result = new TemplateBindResult();
-            final RemoteViews contentView = getStandardView(
-                    mBuilder.getCollapsedMetricLayoutResource(), p, result);
-            return bindMetricStyleMetrics(contentView, p, /* isExpandedView = */ false);
+            return buildMetricView(
+                    mBuilder.getHeadsUpMetricLayoutResource(),
+                    p,
+                    /* isExpandedView = */ false,
+                    mMetrics);
         }
 
         /** @hide */
@@ -11843,63 +12535,110 @@ public class Notification implements Parcelable
             final StandardTemplateParams p = mBuilder.mParams.reset()
                     .viewType(StandardTemplateParams.VIEW_TYPE_EXPANDED)
                     .hideProgress(true)
+                    .maybeUseMinimalHeader(mBuilder)
                     .fillTextsFrom(mBuilder)
                     .text(null)
                     .titleViewId(R.id.alt_title)
+                    .subTextViewId(R.id.header_text)  // reset default after maybeUseMinimalHeader
                     .hideRightIcon(true);
+
+            final int expandedLayoutRes;
+            if (mMetrics.size() == 1) {
+                if (mBuilder.mN.isPromotedOngoing()) {
+                    expandedLayoutRes = mBuilder.getPromotedSingleMetricLayoutResource();
+                } else {
+                    expandedLayoutRes = mBuilder.getExpandedSingleMetricLayoutResource();
+                }
+            } else {
+                expandedLayoutRes = mBuilder.getExpandedMetricLayoutResource();
+            }
+
+            return buildMetricView(
+                    expandedLayoutRes,
+                    p,
+                    /* isExpandedView = */ true,
+                    mMetrics);
+        }
+
+        private RemoteViews buildMetricView(
+                int layoutRes,
+                StandardTemplateParams p,
+                boolean isExpandedView,
+                List<Metric> metricsToBind) {
+
+            final boolean hasTitle = !TextUtils.isEmpty(p.mTitle);
+            final boolean singleMetricWithoutTitle = mMetrics.size() == 1 && !hasTitle;
+            final boolean useLabelAsTitle = singleMetricWithoutTitle && !isExpandedView;
+            final boolean useAppNameAsTitle = !hasTitle && isExpandedView;
+
+            if (useLabelAsTitle) {
+                p.title(getMetricLabel(metricsToBind.getFirst(),
+                        isExpandedView, /* isForSingleMetric = */true));
+            }
+
+            if (useAppNameAsTitle) {
+                p.hideAppName(false);
+            }
+
             final TemplateBindResult result = new TemplateBindResult();
-            final RemoteViews contentView = getStandardView(
-                    mBuilder.getExpandedMetricLayoutResource(), p, result);
-            return bindMetricStyleMetrics(contentView, p, /* isExpandedView = */ true);
+            final RemoteViews contentView = getStandardView(layoutRes, p, result);
+
+            if (p.mViewType == StandardTemplateParams.VIEW_TYPE_HEADS_UP
+                    && layoutRes == mBuilder.getHeadsUpMetricLayoutResource()) {
+                // notification_main_column needs to have expander space.
+                // Otherwise,metric content and expander will overlap
+                result.mHeadingFullMarginSet.applyToView(contentView,
+                        R.id.notification_main_column);
+            }
+
+            bindMetricStyleMetrics(contentView, p, metricsToBind, isExpandedView);
+
+            if (useLabelAsTitle) {
+                contentView.setViewVisibility(MetricView.VIEWS.getFirst().labelId(), View.GONE);
+            }
+
+            return contentView;
         }
 
         private RemoteViews bindMetricStyleMetrics(
-                RemoteViews contentView, StandardTemplateParams p, boolean isExpandedView) {
+                RemoteViews contentView, StandardTemplateParams p,
+                List<Metric> metrics, boolean isExpandedView) {
             for (int i = 0; i < MAX_METRICS; i++) {
                 final MetricView metricView = MetricView.VIEWS.get(i);
-                if (i < mMetrics.size()) {
+                if (i < metrics.size()) {
                     contentView.setViewVisibility(metricView.containerId(), View.VISIBLE);
-                    final Metric metric = mMetrics.get(i);
+                    final Metric metric = metrics.get(i);
                     final Metric.MetricValue metricValue = metric.getValue();
                     final Metric.MetricValue.ValueString valueString = metricValue.toValueString(
                             mBuilder.mContext);
 
-                    final CharSequence metricLabel;
-                    if (isExpandedView) {
-                        if (Flags.metricStyleUnitInLabel()
-                                && !TextUtils.isEmpty(valueString.subtext())) {
-                            metricLabel = mBuilder.mContext.getString(
-                                    R.string.notification_metric_label_unit,
-                                    metric.getLabel(), valueString.subtext());
+                    final CharSequence metricLabel = getMetricLabel(metric, isExpandedView);
+
+                    mBuilder.setTextColor(contentView, metricView.labelId(), p);
+                    contentView.setViewVisibility(metricView.labelId(), View.VISIBLE);
+                    contentView.setTextViewText(metricView.labelId(), metricLabel);
+
+                    // Choose the view (text/chronometer) to show and its visual appearance.
+                    int valueViewId = metricValue instanceof Metric.TimeDifference
+                            ? metricView.chronometerId : metricView.textValueId;
+                    contentView.setViewVisibility(metricView.textValueId,
+                            valueViewId == metricView.textValueId ? View.VISIBLE : View.GONE);
+                    contentView.setViewVisibility(metricView.chronometerId,
+                            valueViewId == metricView.chronometerId ? View.VISIBLE : View.GONE);
+                    if (Flags.apiNotificationSemanticStyle() && mBuilder.mN.isPromotedOngoing()
+                            && metric.getSemanticStyle() != SEMANTIC_STYLE_UNSPECIFIED) {
+                        int semanticColor = mBuilder.getColors(p).getSemanticColor(
+                                metric.getSemanticStyle());
+                        if (semanticColor != COLOR_DEFAULT) {
+                            contentView.setTextColor(valueViewId, semanticColor);
                         } else {
-                            metricLabel = metric.getLabel();
+                            mBuilder.setTextColor(contentView, valueViewId, p);
                         }
                     } else {
-                        // No unit shown in collapsed view.
-                        metricLabel = mBuilder.mContext.getString(
-                                R.string.notification_metric_label_separator,
-                                metric.getLabel());
-                    }
-
-                    mBuilder.setTextViewColorSecondary(contentView, metricView.labelId(), p);
-                    contentView.setTextViewText(metricView.labelId(), metricLabel);
-                    if (Flags.metricStyleUnitInLabel()) {
-                        contentView.setViewVisibility(metricView.unitId(), View.GONE);
-                    } else if (isExpandedView) {
-                        mBuilder.setTextViewColorSecondary(contentView, metricView.unitId(), p);
-                        contentView.setViewVisibility(metricView.unitId(),
-                                TextUtils.isEmpty(valueString.subtext())
-                                        ? View.GONE
-                                        : View.VISIBLE);
-                        contentView.setTextViewText(metricView.unitId(), valueString.subtext());
+                        mBuilder.setTextColor(contentView, valueViewId, p);
                     }
 
                     if (metricValue instanceof Metric.TimeDifference timeDifference) {
-                        contentView.setViewVisibility(metricView.textValueId(), View.GONE);
-                        contentView.setViewVisibility(metricView.chronometerId(), View.VISIBLE);
-                        mBuilder.setTextViewColorSecondary(contentView, metricView.chronometerId(),
-                                p);
-
                         contentView.setChronometerCountDown(
                                 metricView.chronometerId(), timeDifference.isTimer());
                         contentView.setBoolean(metricView.chronometerId(),
@@ -11923,11 +12662,9 @@ public class Notification implements Parcelable
                                             + metric);
                         }
                     } else {
-                        contentView.setViewVisibility(metricView.chronometerId(), View.GONE);
-                        contentView.setViewVisibility(metricView.textValueId(), View.VISIBLE);
-                        mBuilder.setTextViewColorSecondary(contentView, metricView.textValueId(),
-                                p);
-                        contentView.setTextViewText(metricView.textValueId(), valueString.text());
+                        contentView.setCharSequenceList(metricView.textValueId(),
+                                "setTextVariants",
+                                new ArrayList<>(valueString.textVariants()));
                     }
                 } else {
                     contentView.setViewVisibility(metricView.containerId(), View.GONE);
@@ -11936,33 +12673,59 @@ public class Notification implements Parcelable
             return contentView;
         }
 
+        private CharSequence getMetricLabel(Metric metric, boolean isExpandedView) {
+            return getMetricLabel(metric, isExpandedView, /* isForSingleMetric =*/ false);
+        }
+
+        private CharSequence getMetricLabel(
+                Metric metric,
+                boolean isExpandedView,
+                boolean isForSingleMetric) {
+            final Metric.MetricValue metricValue = metric.getValue();
+            final Metric.MetricValue.ValueString valueString = metricValue.toValueString(
+                    mBuilder.mContext);
+
+            final CharSequence metricLabel;
+            if (isExpandedView || isForSingleMetric) {
+                if (!TextUtils.isEmpty(valueString.subtext())) {
+                    metricLabel = mBuilder.mContext.getString(
+                            R.string.notification_metric_label_unit,
+                            metric.getLabel(), valueString.subtext());
+                } else {
+                    metricLabel = metric.getLabel();
+                }
+            } else {
+                // No unit shown in collapsed view.
+                metricLabel = mBuilder.mContext.getString(
+                        R.string.notification_metric_label_separator,
+                        metric.getLabel());
+            }
+            return metricLabel;
+        }
+
         private record MetricView(int containerId,
                            int labelId,
                            int textValueId,
-                           int chronometerId,
-                           int unitId) {
+                           int chronometerId
+        ) {
             private static final List<MetricView> VIEWS = List.of(
                     new MetricView(
                             /* containerId = */R.id.metric_view_0,
                             /* labelId = */R.id.metric_label_0,
                             /* textValueId = */R.id.metric_value_0,
-                            /* chronometerId = */R.id.metric_chronometer_0,
-                            /* unitId = */R.id.metric_unit_0),
+                            /* chronometerId = */R.id.metric_chronometer_0),
                     new MetricView(
                             /* containerId = */R.id.metric_view_1,
                             /* labelId = */R.id.metric_label_1,
                             /* textValueId = */R.id.metric_value_1,
-                            /* chronometerId = */R.id.metric_chronometer_1,
-                            /* unitId = */R.id.metric_unit_1),
+                            /* chronometerId = */R.id.metric_chronometer_1),
                     new MetricView(
                             /* containerId = */R.id.metric_view_2,
                             /* labelId = */R.id.metric_label_2,
                             /* textValueId = */R.id.metric_value_2,
-                            /* chronometerId = */R.id.metric_chronometer_2,
-                            /* unitId = */R.id.metric_unit_2)
+                            /* chronometerId = */R.id.metric_chronometer_2)
             );
         }
-
     }
 
     /**
@@ -11973,9 +12736,11 @@ public class Notification implements Parcelable
 
         private static final String KEY_VALUE = "value";
         private static final String KEY_LABEL = "label";
+        private static final String KEY_SEMANTIC_STYLE = "semanticStyle";
 
         private final MetricValue mValue;
         private final String mLabel;
+        private final @SemanticStyle int mSemanticStyle;
 
         /**
          * Creates a Metric with the specified value and label.
@@ -11984,9 +12749,25 @@ public class Notification implements Parcelable
          * @param label metric label -- should be 10 characters or fewer
          */
         public Metric(@NonNull MetricValue value, @NonNull CharSequence label) {
+            this(value, label, SEMANTIC_STYLE_UNSPECIFIED);
+        }
+
+        /**
+         * Creates a Metric with the specified value, label, and semantic style.
+         *
+         * @param value one of the subclasses of {@link MetricValue}, such as {@link FixedInt}
+         * @param label metric label -- should be 10 characters or fewer
+         * @param semanticStyle semantic style applied to the metric. When the notification
+         *                      {@link #FLAG_PROMOTED_ONGOING is promoted} the metric value will be
+         *                      displayed (e.g. colored) according to this style.
+         */
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+        public Metric(@NonNull MetricValue value, @NonNull CharSequence label,
+                @SemanticStyle int semanticStyle) {
             mValue = requireNonNull(value);
             mLabel = safeCharSequenceToString(requireNonNull(label));
             checkArgument(!mLabel.isBlank(), "Metric label is required");
+            mSemanticStyle = semanticStyle;
         }
 
         @Nullable
@@ -12000,7 +12781,12 @@ public class Notification implements Parcelable
                 return null;
             }
             String label = bundle.getString(KEY_LABEL);
-            return new Metric(value, label);
+            if (Flags.apiNotificationSemanticStyle()) {
+                int semanticStyle = bundle.getInt(KEY_SEMANTIC_STYLE, SEMANTIC_STYLE_UNSPECIFIED);
+                return new Metric(value, label, semanticStyle);
+            } else {
+                return new Metric(value, label);
+            }
         }
 
         @NonNull
@@ -12008,6 +12794,9 @@ public class Notification implements Parcelable
             Bundle bundle = new Bundle();
             bundle.putBundle(KEY_VALUE, MetricValue.toBundle(metric.mValue));
             bundle.putString(KEY_LABEL, metric.mLabel);
+            if (Flags.apiNotificationSemanticStyle()) {
+                bundle.putInt(KEY_SEMANTIC_STYLE, metric.mSemanticStyle);
+            }
             return bundle;
         }
 
@@ -12016,12 +12805,13 @@ public class Notification implements Parcelable
             if (!(obj instanceof Metric that)) return false;
             if (this == that) return true;
             return Objects.equals(this.mValue, that.mValue)
-                    && Objects.equals(this.mLabel, that.mLabel);
+                    && Objects.equals(this.mLabel, that.mLabel)
+                    && this.mSemanticStyle == that.mSemanticStyle;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(mValue, mLabel);
+            return Objects.hash(mValue, mLabel, mSemanticStyle);
         }
 
         @Override
@@ -12029,6 +12819,7 @@ public class Notification implements Parcelable
             return "Metric{"
                     + "mValue=" + mValue
                     + ", mLabel=" + mLabel
+                    + ", mSemanticStyle=" + mSemanticStyle
                     + "}";
         }
 
@@ -12049,7 +12840,21 @@ public class Notification implements Parcelable
             return mLabel;
         }
 
-        /** A superclass for the various value types used by the {@link Metric} class. */
+        /**
+         * Applies semantics to the metric. When the notification {@link #FLAG_PROMOTED_ONGOING
+         * is promoted} the metric value will be displayed (e.g. colored) according to this style.
+         */
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+        @SemanticStyle
+        public int getSemanticStyle() {
+            return mSemanticStyle;
+        }
+
+        /**
+         * A superclass for the various value types used by the {@link Metric}
+         * class{@if (flag(Flags.FLAG_API_NOTIFICATION_CHIP)) {, or included in
+         * a {@link ResolvedCompactContent}}}.
+         */
         public abstract static class MetricValue {
 
             private static final String KEY_TYPE = "_type";
@@ -12058,7 +12863,7 @@ public class Notification implements Parcelable
             private static final int TYPE_FIXED_TIME = 3;
             private static final int TYPE_FIXED_INT = 4;
             private static final int TYPE_FIXED_FLOAT = 5;
-            private static final int TYPE_FIXED_STRING = 6;
+            private static final int TYPE_FIXED_TEXT = 6;
 
             // Restrict inheritance to inner classes of Notification.
             private MetricValue() { }
@@ -12072,7 +12877,7 @@ public class Notification implements Parcelable
                     case TYPE_FIXED_TIME -> FixedTime.fromBundle(bundle);
                     case TYPE_FIXED_INT -> FixedInt.fromBundle(bundle);
                     case TYPE_FIXED_FLOAT -> FixedFloat.fromBundle(bundle);
-                    case TYPE_FIXED_STRING -> FixedString.fromBundle(bundle);
+                    case TYPE_FIXED_TEXT -> FixedText.fromBundle(bundle);
                     default -> null;
                 };
             }
@@ -12090,8 +12895,8 @@ public class Notification implements Parcelable
                     bundle.putInt(KEY_TYPE, TYPE_FIXED_INT);
                 } else if (value instanceof FixedFloat) {
                     bundle.putInt(KEY_TYPE, TYPE_FIXED_FLOAT);
-                } else if (value instanceof FixedString) {
-                    bundle.putInt(KEY_TYPE, TYPE_FIXED_STRING);
+                } else if (value instanceof FixedText) {
+                    bundle.putInt(KEY_TYPE, TYPE_FIXED_TEXT);
                 } else {
                     throw new AssertionError("Impossible MetricValue subclass: " + value);
                 }
@@ -12102,14 +12907,32 @@ public class Notification implements Parcelable
             /** @hide */
             protected abstract void toBundle(Bundle bundle);
 
-            /** @hide */
-            @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-            public record ValueString(String text, @Nullable String subtext) {
+            /**
+             * Text representation of a {@link MetricValue}.
+             *
+             * @param textVariants options for the text representation of a {@link MetricValue}.
+             *     The first one is required and must be the "canonical" (i.e. preferred)
+             *     representation. Any further items in the collection are alternative (presumably
+             *     shorter and less precise) versions of the same value.
+             * @param subtext optional subtext. Usually the "unit" of the associated value.
+
+             * @hide
+             */
+            public record ValueString(List<String> textVariants, @Nullable String subtext) {
+                public ValueString {
+                    checkArgument(!textVariants.isEmpty());
+                    textVariants = textVariants.stream().distinct().toList();
+                }
+
                 public ValueString(String text) {
                     this(text, null);
                 }
 
-                private static final ValueString EMPTY = new ValueString("", null);
+                public ValueString(String text, @Nullable String subtext) {
+                    this(List.of(text), subtext);
+                }
+
+                private static final ValueString EMPTY = new ValueString("");
             }
 
             /**
@@ -12121,7 +12944,6 @@ public class Notification implements Parcelable
              * @hide
              */
             @NonNull
-            @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
             public abstract ValueString toValueString(Context context);
         }
 
@@ -12404,10 +13226,33 @@ public class Notification implements Parcelable
             /** @hide */
             @Override
             @NonNull
-            @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
             public ValueString toValueString(Context context) {
-                // Not used; Chronometer view will take charge of formatting.
-                return ValueString.EMPTY;
+                Duration pausedDuration = getPausedDuration();
+                String value;
+                if (pausedDuration == null) {
+                    value = context.getString(
+                            isTimer() ? R.string.notification_metric_running_timer :
+                                    R.string.notification_metric_running_stopwatch
+                    );
+                } else {
+                    // ms are ignored and we don't want -0:00
+                    pausedDuration = pausedDuration.truncatedTo(SECONDS);
+                    final boolean isNegative = pausedDuration.isNegative();
+                    pausedDuration = pausedDuration.abs();
+                    final boolean isAdaptive = getFormat()
+                            ==  Notification.Metric.TimeDifference.FORMAT_ADAPTIVE;
+
+                    if (isAdaptive) {
+                        value = ChronometerAdaptiveFormat.format(pausedDuration);
+                    } else {
+                        value = DateUtils.formatElapsedTime(new StringBuilder(),
+                                pausedDuration.toSeconds());
+                    }
+                    if (isNegative) {
+                        value = context.getString(R.string.negative_duration, value);
+                    }
+                }
+                return new ValueString(value);
             }
         }
 
@@ -12459,6 +13304,8 @@ public class Notification implements Parcelable
             /**
              * Creates a {@link FixedDate} where the {@link LocalDate} will be displayed in the
              * specified formatting option.
+             *
+             * <p>Note that the formatting option might be ignored to make the text fit.
              */
             public FixedDate(@NonNull LocalDate value, @Format int format) {
                 mValue = requireNonNull(value);
@@ -12520,16 +13367,35 @@ public class Notification implements Parcelable
             /** @hide */
             @Override
             @NonNull
-            @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
             public ValueString toValueString(Context context) {
                 // DateUtils.formatDateTime expects epoch millis, so make up a time.
                 LocalDateTime localDateTime = mValue.atStartOfDay();
+                long epochMillis = localDateTime.atZone(ZoneId.systemDefault()).toInstant()
+                        .toEpochMilli();
 
-                String formatted = DateUtils.formatDateTime(context,
-                        localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
-                        getFormatFlags(mFormat, mValue));
+                if (Flags.metricValueAlternativeStrings()) {
+                    int formatFlags = getFormatFlags(mFormat, mValue);
+                    ArrayList<String> alternatives = new ArrayList<>();
+                    // Requested formatting.
+                    alternatives.add(DateUtils.formatDateTime(context, epochMillis, formatFlags));
+                    // Same general format (short/long) but without year if suitable.
+                    if ((formatFlags & DateUtils.FORMAT_SHOW_YEAR) != 0
+                            && isDateCloseToToday(mValue)) {
+                        alternatives.add(DateUtils.formatDateTime(context, epochMillis,
+                                (formatFlags & ~DateUtils.FORMAT_SHOW_YEAR)
+                                        | DateUtils.FORMAT_NO_YEAR));
+                    }
+                    // Automatic is often shorter than Long and removes year if suitable.
+                    if (mFormat == FORMAT_LONG_DATE) {
+                        alternatives.add(DateUtils.formatDateTime(context, epochMillis,
+                                getAutomaticFormatFlags(mValue)));
+                    }
 
-                return new ValueString(formatted, null);
+                    return new ValueString(alternatives, null);
+                } else {
+                    return new ValueString(DateUtils.formatDateTime(context, epochMillis,
+                            getFormatFlags(mFormat, mValue)), null);
+                }
             }
 
             private static int getFormatFlags(@Format int format, LocalDate date) {
@@ -12546,17 +13412,8 @@ public class Notification implements Parcelable
                 }
             }
 
-            // Whole-month interval in either direction of the current month in which a date is
-            // considered "close to today" (e.g. if today is Feb 10 2025 then any date in
-            // Nov 1 2024 .. May 31 2025 is considered "close").
-            private static final int CLOSE_DATE_MONTH_SPAN = 3;
-
             private static int getAutomaticFormatFlags(LocalDate date) {
-                YearMonth currentMonth = YearMonth.from(getToday());
-                YearMonth dateMonth = YearMonth.from(date);
-                long monthsBetween = Math.abs(ChronoUnit.MONTHS.between(currentMonth, dateMonth));
-
-                if (monthsBetween <= CLOSE_DATE_MONTH_SPAN) {
+                if (isDateCloseToToday(date)) {
                     // Date is "close" to today -> FORMAT_SHORT_DATE but without year
                     return DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_NUMERIC_DATE
                             | DateUtils.FORMAT_NO_YEAR;
@@ -12565,6 +13422,19 @@ public class Notification implements Parcelable
                     return DateUtils.FORMAT_SHOW_DATE | DateUtils.FORMAT_NUMERIC_DATE
                             | DateUtils.FORMAT_SHOW_YEAR;
                 }
+            }
+
+            // Whole-month interval in either direction of the current month in which a date is
+            // considered "close to today" (e.g. if today is Feb 10 2025 then any date in
+            // Nov 1 2024 .. May 31 2025 is considered "close").
+            private static final int CLOSE_DATE_MONTH_SPAN = 3;
+
+            private static boolean isDateCloseToToday(LocalDate date) {
+                YearMonth currentMonth = YearMonth.from(getToday());
+                YearMonth dateMonth = YearMonth.from(date);
+                long monthsBetween = Math.abs(ChronoUnit.MONTHS.between(currentMonth, dateMonth));
+
+                return monthsBetween <= CLOSE_DATE_MONTH_SPAN;
             }
         }
 
@@ -12582,13 +13452,17 @@ public class Notification implements Parcelable
 
             private static final String KEY_VALUE = "value";
 
+            private static final int NORMAL_FORMAT = DateUtils.FORMAT_SHOW_TIME
+                    | DateUtils.FORMAT_NO_NOON | DateUtils.FORMAT_NO_MIDNIGHT;
+            private static final int ABBREV_FORMAT = NORMAL_FORMAT | DateUtils.FORMAT_ABBREV_TIME;
+
             private final LocalTime mValue;
 
             /**
              * Creates a {@link FixedTime} with the specified {@link LocalTime}.
              */
             public FixedTime(@NonNull LocalTime value) {
-                mValue = requireNonNull(value).truncatedTo(ChronoUnit.SECONDS);
+                mValue = requireNonNull(value).truncatedTo(SECONDS);
             }
 
             @Nullable
@@ -12635,17 +13509,23 @@ public class Notification implements Parcelable
             /** @hide */
             @Override
             @NonNull
-            @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
             public ValueString toValueString(Context context) {
                 // DateUtils.formatDateTime expects epoch millis, so make up a date.
                 LocalDateTime localDateTime = mValue.atDate(getToday());
+                long epochMillis = localDateTime.atZone(ZoneId.systemDefault()).toInstant()
+                        .toEpochMilli();
 
-                String formatted = DateUtils.formatDateTime(context,
-                        localDateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
-                        DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_NO_NOON
-                                | DateUtils.FORMAT_NO_MIDNIGHT);
+                if (Flags.metricValueAlternativeStrings()) {
+                    return new ValueString(
+                            List.of(
+                                    DateUtils.formatDateTime(context, epochMillis, NORMAL_FORMAT),
+                                    DateUtils.formatDateTime(context, epochMillis, ABBREV_FORMAT)),
+                            null);
 
-                return new ValueString(formatted, null);
+                } else {
+                    return new ValueString(
+                            DateUtils.formatDateTime(context, epochMillis, NORMAL_FORMAT), null);
+                }
             }
         }
 
@@ -12730,9 +13610,25 @@ public class Notification implements Parcelable
             /** @hide */
             @Override
             @NonNull
-            @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
             public ValueString toValueString(Context context) {
-                return new ValueString(String.valueOf(mValue), mUnit);
+                if (Flags.metricValueAlternativeStrings()) {
+                    return new ValueString(
+                            List.of(
+                                    NumberFormatter.withLocale(Locale.getDefault())
+                                            .format(mValue)
+                                            .toString(),
+                                    NumberFormatter.withLocale(Locale.getDefault())
+                                            .notation(Notation.compactShort())
+                                            .format(mValue)
+                                            .toString()),
+                            mUnit);
+                } else {
+                    return new ValueString(
+                            NumberFormatter.withLocale(Locale.getDefault())
+                                    .format(mValue)
+                                    .toString(),
+                            mUnit);
+                }
             }
         }
 
@@ -12755,7 +13651,7 @@ public class Notification implements Parcelable
             private final int mMaxFractionDigits;
 
             /**
-             * Creates a {@link FixedFloat} instance with no unit and 0 minimum and 3 maximum
+             * Creates a {@link FixedFloat} instance with no unit and 0 minimum and 2 maximum
              * fractional digits.
              */
             public FixedFloat(float value) {
@@ -12772,6 +13668,9 @@ public class Notification implements Parcelable
 
             /**
              * Creates a {@link FixedFloat} instance.
+             *
+             * <p>Note that the specified fraction digits might be ignored to make the text fit.
+             *
              * @param unit optional unit for the value. Limit this to a few characters.
              * @param minFractionDigits minimum number of factional digits to display (0-6)
              * @param maxFractionDigits maximum number of factional digits to display (0-6 and
@@ -12876,18 +13775,36 @@ public class Notification implements Parcelable
             /** @hide */
             @Override
             @NonNull
-            @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
             public ValueString toValueString(Context context) {
-                String formatted = NumberFormatter.withLocale(Locale.getDefault())
-                        .precision(Precision.minMaxFraction(mMinFractionDigits, mMaxFractionDigits))
-                        .format(mValue)
-                        .toString();
-                return new ValueString(formatted, mUnit);
+                if (Flags.metricValueAlternativeStrings()) {
+                    return new ValueString(
+                            List.of(
+                                    // First with requested precision, then compact (with default
+                                    // precision).
+                                    NumberFormatter.withLocale(Locale.getDefault())
+                                            .precision(Precision.minMaxFraction(mMinFractionDigits,
+                                                    mMaxFractionDigits))
+                                            .format(mValue)
+                                            .toString(),
+                                    NumberFormatter.withLocale(Locale.getDefault())
+                                            .notation(Notation.compactShort())
+                                            .format(mValue)
+                                            .toString()),
+                            mUnit);
+                } else {
+                    return new ValueString(
+                            NumberFormatter.withLocale(Locale.getDefault())
+                                    .precision(Precision.minMaxFraction(mMinFractionDigits,
+                                            mMaxFractionDigits))
+                                    .format(mValue)
+                                    .toString(),
+                            mUnit);
+                }
             }
         }
 
-        /** Metric corresponding to a string value. */
-        public static final class FixedString extends MetricValue {
+        /** Metric corresponding to a text value. */
+        public static final class FixedText extends MetricValue {
 
             private static final String KEY_VALUE = "value";
             private static final String KEY_UNIT = "unit";
@@ -12896,25 +13813,25 @@ public class Notification implements Parcelable
             private final String mUnit;
 
             /**
-             * Creates a {@link FixedString} instance with the specified String.
+             * Creates a {@link FixedText} instance with the specified text.
              */
-            public FixedString(@NonNull CharSequence value) {
+            public FixedText(@NonNull CharSequence value) {
                 this(value, null);
             }
 
             /**
-             * Creates a {@link FixedString} instance with the specified String.
+             * Creates a {@link FixedText} instance with the specified text.
              *
              * @param unit optional unit for the value. Limit this to a few characters.
              */
-            public FixedString(@NonNull CharSequence value, @Nullable CharSequence unit) {
+            public FixedText(@NonNull CharSequence value, @Nullable CharSequence unit) {
                 mValue = safeCharSequenceToString(requireNonNull(value));
                 mUnit = safeCharSequenceToString(unit);
             }
 
             @NonNull
-            private static FixedString fromBundle(Bundle bundle) {
-                return new FixedString(
+            private static FixedText fromBundle(Bundle bundle) {
+                return new FixedText(
                         bundle.getString(KEY_VALUE, ""),
                         bundle.getString(KEY_UNIT));
             }
@@ -12928,7 +13845,7 @@ public class Notification implements Parcelable
 
             @Override
             public boolean equals(Object obj) {
-                if (!(obj instanceof FixedString that)) return false;
+                if (!(obj instanceof FixedText that)) return false;
                 if (this == that) return true;
                 return Objects.equals(this.mValue, that.mValue)
                         && Objects.equals(this.mUnit, that.mUnit);
@@ -12947,7 +13864,7 @@ public class Notification implements Parcelable
                         + "}";
             }
 
-            /** The string value. */
+            /** The text value. */
             @NonNull
             public CharSequence getValue() {
                 return mValue;
@@ -12969,7 +13886,6 @@ public class Notification implements Parcelable
             /** @hide */
             @Override
             @NonNull
-            @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
             public ValueString toValueString(Context context) {
                 return new ValueString(mValue, mUnit);
             }
@@ -13021,12 +13937,12 @@ public class Notification implements Parcelable
      * </p>
      *
      */
-    @FlaggedApi(Flags.FLAG_API_RICH_ONGOING)
     public static class ProgressStyle extends Notification.Style {
         private static final String KEY_ELEMENT_ID = "id";
         private static final String KEY_ELEMENT_COLOR = "colorInt";
         private static final String KEY_SEGMENT_LENGTH = "length";
         private static final String KEY_POINT_POSITION = "position";
+        private static final String KEY_ELEMENT_SEMANTIC_STYLE = "semanticStyle";
 
         private static final int MAX_PROGRESS_SEGMENT_LIMIT = 10;
         private static final int MAX_PROGRESS_POINT_LIMIT = 4;
@@ -13375,8 +14291,6 @@ public class Notification implements Parcelable
          */
         @Override
         public void reduceImageSizes(Context context) {
-            super.reduceImageSizes(context);
-
             final Resources resources = context.getResources();
 
             int progressIconSize =
@@ -13492,10 +14406,18 @@ public class Notification implements Parcelable
                     .viewType(StandardTemplateParams.VIEW_TYPE_EXPANDED)
                     .allowTextWithProgress(true)
                     .hideProgress(true)
+                    .maybeUseMinimalHeader(mBuilder)
                     .fillTextsFrom(mBuilder);
 
+            final int progressLayoutResId;
+            if (Flags.apiNotificationActionCustom() && mBuilder.mN.isPromotedOngoing()) {
+                progressLayoutResId = mBuilder.getPromotedProgressLayoutResource();
+            } else {
+                progressLayoutResId = mBuilder.getProgressLayoutResource();
+            }
+
             // Replace the text with the big text, but only if the big text is not empty.
-            RemoteViews contentView = getStandardView(mBuilder.getProgressLayoutResource(), p,
+            RemoteViews contentView = getStandardView(progressLayoutResId, p,
                     null /* result */);
 
             // Bind progress start and end icons.
@@ -13515,16 +14437,13 @@ public class Notification implements Parcelable
 
             contentView.setViewVisibility(R.id.progress, View.VISIBLE);
 
-            final int backgroundColor = mBuilder.getColors(p).getBackgroundColor();
-            final int defaultProgressColor = mBuilder.getPrimaryAccentColor(p);
-            final NotificationProgressModel model = createProgressModel(
-                    defaultProgressColor, backgroundColor);
-            contentView.setBundle(R.id.progress,
-                    "setProgressModel", model.toBundle());
-
-            contentView.setIcon(R.id.progress,
-                    "setProgressTrackerIcon",
-                    mTrackerIcon);
+            Colors colors = mBuilder.getColors(p);
+            final int backgroundColor = colors.getBackgroundColor();
+            final int defaultProgressColor = colors.getPrimaryAccentColor();
+            final NotificationProgressModel model = createProgressModel(defaultProgressColor,
+                    backgroundColor, colors);
+            contentView.setBundle(R.id.progress, "setProgressModel", model.toBundle());
+            contentView.setIcon(R.id.progress, "setProgressTrackerIcon", mTrackerIcon);
 
             return contentView;
         }
@@ -13546,6 +14465,9 @@ public class Notification implements Parcelable
                     bundle.putInt(KEY_SEGMENT_LENGTH, segment.getLength());
                     bundle.putInt(KEY_ELEMENT_ID, segment.getId());
                     bundle.putInt(KEY_ELEMENT_COLOR, segment.getColor());
+                    if (Flags.apiNotificationSemanticStyle()) {
+                        bundle.putInt(KEY_ELEMENT_SEMANTIC_STYLE, segment.getSemanticStyle());
+                    }
 
                     segments.add(bundle);
                 }
@@ -13573,6 +14495,11 @@ public class Notification implements Parcelable
                             Notification.COLOR_DEFAULT);
                     final Segment segment = new Segment(length)
                             .setId(id).setColor(color);
+                    if (Flags.apiNotificationSemanticStyle()) {
+                        segment.setSemanticStyle(
+                                segmentBundle.getInt(KEY_ELEMENT_SEMANTIC_STYLE,
+                                        SEMANTIC_STYLE_UNSPECIFIED));
+                    }
 
                     segments.add(segment);
                 }
@@ -13580,6 +14507,7 @@ public class Notification implements Parcelable
 
             return segments;
         }
+
         /**
          * @hide
          */
@@ -13597,6 +14525,9 @@ public class Notification implements Parcelable
                     bundle.putInt(KEY_POINT_POSITION, point.getPosition());
                     bundle.putInt(KEY_ELEMENT_ID, point.getId());
                     bundle.putInt(KEY_ELEMENT_COLOR, point.getColor());
+                    if (Flags.apiNotificationSemanticStyle()) {
+                        bundle.putInt(KEY_ELEMENT_SEMANTIC_STYLE, point.getSemanticStyle());
+                    }
 
                     points.add(bundle);
                 }
@@ -13623,6 +14554,11 @@ public class Notification implements Parcelable
                     final int color = pointBundle.getInt(KEY_ELEMENT_COLOR,
                             Notification.COLOR_DEFAULT);
                     final Point point = new Point(position).setId(id).setColor(color);
+                    if (Flags.apiNotificationSemanticStyle()) {
+                        point.setSemanticStyle(
+                                pointBundle.getInt(KEY_ELEMENT_SEMANTIC_STYLE,
+                                        SEMANTIC_STYLE_UNSPECIFIED));
+                    }
                     points.add(point);
                 }
             }
@@ -13634,19 +14570,19 @@ public class Notification implements Parcelable
          * @hide
          */
         public @NonNull NotificationProgressModel createProgressModel(int defaultProgressColor,
-                int backgroundColor) {
+                int backgroundColor, SemanticColors semanticColors) {
             final NotificationProgressModel model;
             if (mIndeterminate) {
                 final int indeterminateColor;
                 if (!mProgressSegments.isEmpty()) {
-                    indeterminateColor = mProgressSegments.get(0).mColor;
+                    indeterminateColor = mProgressSegments.getFirst().getColor();
                 } else {
                     indeterminateColor = defaultProgressColor;
                 }
 
                 model = new NotificationProgressModel(
-                        sanitizeProgressColor(indeterminateColor,
-                                backgroundColor, defaultProgressColor));
+                        sanitizeProgressColor(indeterminateColor, backgroundColor,
+                                defaultProgressColor));
             } else {
                 // Ensure segment color contrasts.
                 final List<Segment> segments = new ArrayList<>();
@@ -13657,8 +14593,8 @@ public class Notification implements Parcelable
 
                     try {
                         totalLength = Math.addExact(totalLength, length);
-                        segments.add(sanitizeSegment(segment, backgroundColor,
-                                defaultProgressColor));
+                        segments.add(fixSegmentColor(segment, backgroundColor, defaultProgressColor,
+                                semanticColors));
                     } catch (ArithmeticException e) {
                         totalLength = DEFAULT_PROGRESS_MAX;
                         segments.clear();
@@ -13669,32 +14605,24 @@ public class Notification implements Parcelable
                 // Create default segment when no segments are provided.
                 if (segments.isEmpty()) {
                     totalLength = DEFAULT_PROGRESS_MAX;
-                    segments.add(sanitizeSegment(new Segment(totalLength), backgroundColor,
-                            defaultProgressColor));
+                    segments.add(fixSegmentColor(new Segment(totalLength), backgroundColor,
+                            defaultProgressColor, semanticColors));
                 } else if (segments.size() > MAX_PROGRESS_SEGMENT_LIMIT) {
-                    // If segment limit is exceeded. All segments will be replaced
-                    // with a single segment
-                    boolean allSameColor = true;
-                    int firstSegmentColor = segments.getFirst().getColor();
-
-                    for (int i = 1; i < segments.size(); i++) {
-                        if (segments.get(i).getColor() != firstSegmentColor) {
-                            allSameColor = false;
-                            break;
-                        }
-                    }
-
-                    // This single segment length has same max as total.
+                    // If segment limit is exceeded, all segments are replaced with a single one.
+                    // If all segments had the same color, that color is used (otherwise a default)
+                    // and the same for the semantic style.
                     final Segment singleSegment = new Segment(totalLength);
-                    // Single segment color: if all segments have the same color,
-                    // use that color. Otherwise, use 0 / default.
-                    singleSegment.setColor(allSameColor ? firstSegmentColor
-                            : Notification.COLOR_DEFAULT);
-
+                    singleSegment.setColor(
+                            getUniqueOrDefault(segments, Segment::getColor, COLOR_DEFAULT));
+                    if (Flags.apiNotificationSemanticStyle()) {
+                        singleSegment.setSemanticStyle(
+                                getUniqueOrDefault(segments, Segment::getSemanticStyle,
+                                        SEMANTIC_STYLE_UNSPECIFIED));
+                    }
                     segments.clear();
-                    segments.add(sanitizeSegment(singleSegment,
-                            backgroundColor,
-                            defaultProgressColor));
+                    segments.add(
+                            fixSegmentColor(singleSegment, backgroundColor, defaultProgressColor,
+                                    semanticColors));
                 }
 
                 // Ensure point color contrasts.
@@ -13704,7 +14632,8 @@ public class Notification implements Parcelable
                     // The points at start/end aren't supposed to show in the progress bar.
                     // Therefore those are also dropped here.
                     if (position <= 0 || position >= totalLength) continue;
-                    points.add(sanitizePoint(point, backgroundColor, defaultProgressColor));
+                    points.add(fixPointColor(point, backgroundColor, defaultProgressColor,
+                            semanticColors));
                     if (points.size() == MAX_PROGRESS_POINT_LIMIT) {
                         break;
                     }
@@ -13716,7 +14645,6 @@ public class Notification implements Parcelable
                 if (segments.size() <= 1) {
                     segmentsFallbackColor = NotificationProgressModel.INVALID_COLOR;
                 } else {
-
                     boolean allSameColor = true;
                     int firstSegmentColor = segments.getFirst().getColor();
                     for (int i = 1; i < segments.size(); i++) {
@@ -13739,19 +14667,47 @@ public class Notification implements Parcelable
             return model;
         }
 
-        private Segment sanitizeSegment(@NonNull Segment segment,
-                @ColorInt int bg,
-                @ColorInt int defaultColor) {
-            return new Segment(segment.getLength())
-                    .setId(segment.getId())
-                    .setColor(sanitizeProgressColor(segment.getColor(), bg, defaultColor));
+        private static <T> int getUniqueOrDefault(List<T> list, Function<T, Integer> extractor,
+                int defaultValue) {
+            return list.stream().map(extractor).distinct().limit(2).count() == 1
+                    ? extractor.apply(list.getFirst())
+                    : defaultValue;
         }
 
-        private Point sanitizePoint(@NonNull Point point,
-                @ColorInt int bg,
-                @ColorInt int defaultColor) {
-            return new Point(point.getPosition()).setId(point.getId())
-                    .setColor(sanitizeProgressColor(point.getColor(), bg, defaultColor));
+        private static Segment fixSegmentColor(@NonNull Segment segment, @ColorInt int bg,
+                @ColorInt int defaultColor, SemanticColors semanticColors) {
+            Segment fixed = new Segment(segment.getLength()).setId(segment.getId());
+            if (Flags.apiNotificationSemanticStyle()) {
+                fixed.setSemanticStyle(segment.getSemanticStyle());
+                if (segment.getSemanticStyle() != SEMANTIC_STYLE_UNSPECIFIED
+                        && segment.getColor() == COLOR_DEFAULT) {
+                    int semanticColor = semanticColors.getSemanticColor(segment.getSemanticStyle());
+                    fixed.setColor(sanitizeProgressColor(semanticColor, bg, defaultColor));
+                } else {
+                    fixed.setColor(sanitizeProgressColor(segment.getColor(), bg, defaultColor));
+                }
+            } else {
+                fixed.setColor(sanitizeProgressColor(segment.getColor(), bg, defaultColor));
+            }
+            return fixed;
+        }
+
+        private static Point fixPointColor(@NonNull Point point, @ColorInt int bg,
+                @ColorInt int defaultColor, SemanticColors semanticColors) {
+            Point fixed = new Point(point.getPosition()).setId(point.getId());
+            if (Flags.apiNotificationSemanticStyle()) {
+                fixed.setSemanticStyle(point.getSemanticStyle());
+                if (point.getSemanticStyle() != SEMANTIC_STYLE_UNSPECIFIED
+                        && point.getColor() == COLOR_DEFAULT) {
+                    int semanticColor = semanticColors.getSemanticColor(point.getSemanticStyle());
+                    fixed.setColor(sanitizeProgressColor(semanticColor, bg, defaultColor));
+                } else {
+                    fixed.setColor(sanitizeProgressColor(point.getColor(), bg, defaultColor));
+                }
+            } else {
+                fixed.setColor(sanitizeProgressColor(point.getColor(), bg, defaultColor));
+            }
+            return fixed;
         }
 
         /**
@@ -13765,7 +14721,7 @@ public class Notification implements Parcelable
         public static int sanitizeProgressColor(@ColorInt int color,
                 @ColorInt int bg,
                 @ColorInt int defaultColor) {
-            return Builder.ensureColorContrast(
+            return ContrastColorUtil.ensureContrast(
                     Color.alpha(color) == 0 ? defaultColor : color,
                     bg,
                     3);
@@ -13778,10 +14734,10 @@ public class Notification implements Parcelable
          * For example, Traffic conditions along a navigation journey.
          */
         public static final class Segment {
-            private int mLength;
+            private final int mLength;
             private int mId = 0;
-            @ColorInt
-            private int mColor = Notification.COLOR_DEFAULT;
+            private @ColorInt int mColor = Notification.COLOR_DEFAULT;
+            private @SemanticStyle int mSemanticStyle = SEMANTIC_STYLE_UNSPECIFIED;
 
             /**
              * Create a segment with a non-zero length.
@@ -13839,20 +14795,43 @@ public class Notification implements Parcelable
             }
 
             /**
-             * Needed for {@link Notification.Style#areNotificationsVisiblyDifferent}
+             * Returns the semantics applied to the Segment. When the notification
+             * {@link #FLAG_PROMOTED_ONGOING is promoted} this value is used to style (e.g.
+             * color) the segment.
              */
+            @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+            @SemanticStyle
+            public int getSemanticStyle() {
+                return mSemanticStyle;
+            }
+
+            /**
+             * Applies semantics to the Segment. When the notification
+             * {@link #FLAG_PROMOTED_ONGOING is promoted} this value is used to style (e.g.
+             * color) the segment.
+             *
+             * <p>If an app specifies <em>both</em> color and semantic style, the color overrides
+             * the style.
+             */
+            @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+            public @NonNull Segment setSemanticStyle(@SemanticStyle int semanticStyle) {
+                mSemanticStyle = semanticStyle;
+                return this;
+            }
+
+            // Needed for Notification.Style.areNotificationsVisiblyDifferent()
             @Override
             public boolean equals(Object o) {
                 if (this == o) return true;
                 if (o == null || getClass() != o.getClass()) return false;
                 final Segment segment = (Segment) o;
                 return mLength == segment.mLength && mId == segment.mId
-                        && mColor == segment.mColor;
+                        && mColor == segment.mColor && mSemanticStyle == segment.mSemanticStyle;
             }
 
             @Override
             public int hashCode() {
-                return Objects.hash(mLength, mId, mColor);
+                return Objects.hash(mLength, mId, mColor, mSemanticStyle);
             }
         }
 
@@ -13863,11 +14842,10 @@ public class Notification implements Parcelable
          * navigation journey, where each point represents a destination.
          */
         public static final class Point {
-
-            private int mPosition;
+            private final int mPosition;
             private int mId = 0;
-            @ColorInt
-            private int mColor = Notification.COLOR_DEFAULT;
+            private @ColorInt int mColor = Notification.COLOR_DEFAULT;
+            private @SemanticStyle int mSemanticStyle = SEMANTIC_STYLE_UNSPECIFIED;
 
             /**
              * Create a point element.
@@ -13908,7 +14886,7 @@ public class Notification implements Parcelable
             }
 
             /**
-             * Returns the color of this Segment.
+             * Returns the color of this Point.
              *
              * @see #setColor
              */
@@ -13918,7 +14896,7 @@ public class Notification implements Parcelable
             }
 
             /**
-             * Optional color of this Segment
+             * Optional color of this Point
              */
             public @NonNull Point setColor(@ColorInt int color) {
                 mColor = color;
@@ -13926,20 +14904,43 @@ public class Notification implements Parcelable
             }
 
             /**
-             * Needed for {@link Notification.Style#areNotificationsVisiblyDifferent}
+             * Returns the semantics applied to the Point. When the notification
+             * {@link #FLAG_PROMOTED_ONGOING is promoted} this value is used to style (e.g.
+             * color) the point.
              */
+            @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+            @SemanticStyle
+            public int getSemanticStyle() {
+                return mSemanticStyle;
+            }
+
+            /**
+             * Applies semantics to the Point. When the notification
+             * {@link #FLAG_PROMOTED_ONGOING is promoted} this value is used to style (e.g.
+             * color) the point.
+             *
+             * <p>If an app specifies <em>both</em> color and semantic style, the color overrides
+             * the style.
+             */
+            @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+            public @NonNull Point setSemanticStyle(@SemanticStyle int semanticStyle) {
+                mSemanticStyle = semanticStyle;
+                return this;
+            }
+
+            // Needed for Notification.Style.areNotificationsVisiblyDifferent()
             @Override
             public boolean equals(Object o) {
                 if (this == o) return true;
                 if (o == null || getClass() != o.getClass()) return false;
                 final Point point = (Point) o;
                 return mPosition == point.mPosition && mId == point.mId
-                        && mColor == point.mColor;
+                        && mColor == point.mColor && mSemanticStyle == point.mSemanticStyle;
             }
 
             @Override
             public int hashCode() {
-                return Objects.hash(mPosition, mId, mColor);
+                return Objects.hash(mPosition, mId, mColor, mSemanticStyle);
             }
         }
     }
@@ -13970,6 +14971,14 @@ public class Notification implements Parcelable
     public static class DecoratedCustomViewStyle extends Style {
 
         public DecoratedCustomViewStyle() {
+        }
+
+        /**
+         * @hide
+         */
+        @Override
+        public void reduceImageSizes(Context context) {
+            // no images
         }
 
         /**
@@ -14111,6 +15120,14 @@ public class Notification implements Parcelable
         /**
          * @hide
          */
+        @Override
+        public void reduceImageSizes(Context context) {
+            // no images
+        }
+
+        /**
+         * @hide
+         */
         public boolean displayCustomViewInline() {
             return true;
         }
@@ -14155,6 +15172,684 @@ public class Notification implements Parcelable
             }
             // Comparison done for all custom RemoteViews, independent of style
             return false;
+        }
+    }
+
+    /**
+     * Base class for the objects that can customize the appearance of a Notification's <i>compact
+     * content</i>, such as the status bar chip when it is {@link #FLAG_PROMOTED_ONGOING promoted
+     * ongoing}.
+     *
+     * @see Builder#setCompactContent
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_CHIP)
+    public abstract static class CompactContent {
+        private static final String KEY_TYPE = "type";
+        private static final int TYPE_BASIC = 1;
+        private static final String KEY_DATA = "bundle";
+
+        private CompactContent() { }
+
+        @Nullable
+        static final CompactContent fromExtras(Bundle notificationExtras) {
+            Bundle container = notificationExtras.getBundle(EXTRA_COMPACT_CONTENT);
+            if (container != null) {
+                int type = container.getInt(KEY_TYPE);
+                if (type == TYPE_BASIC) {
+                    return container.getParcelable(KEY_DATA, BasicCompactContent.class);
+                }
+            }
+
+            return null;
+        }
+
+        static final void toExtras(@Nullable CompactContent content, Bundle notificationExtras) {
+            Bundle container = new Bundle();
+            if (content instanceof BasicCompactContent basicContent) {
+                container.putInt(KEY_TYPE, TYPE_BASIC);
+                container.putParcelable(KEY_DATA, basicContent);
+            }
+            if (!container.isEmpty()) {
+                notificationExtras.putBundle(EXTRA_COMPACT_CONTENT, container);
+            } else {
+                notificationExtras.remove(EXTRA_COMPACT_CONTENT);
+            }
+        }
+    }
+
+    /**
+     * Compact content for a Notification showing an icon plus an optional short text.
+     *
+     * <p>For example, a "navigation" notification could have a chip with a small icon representing
+     * the direction of the next turn, plus a short text displaying the distance until that turn.
+     *
+     * @see Builder#setCompactContent
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_CHIP)
+    public static final class BasicCompactContent extends CompactContent implements Parcelable {
+        private final CompactIcon mIcon;
+        private final CompactText mText;
+        private @SemanticStyle int mSemanticStyle;
+
+        /**
+         * Creates a {@link BasicCompactContent} instance with a specific icon and text.
+         */
+        public BasicCompactContent(@NonNull CompactIcon icon, @NonNull CompactText text) {
+            mIcon = requireNonNull(icon);
+            mText = requireNonNull(text);
+        }
+
+        /**
+         * Creates a {@link BasicCompactContent} instance with a {@link CompactIcon#auto()} default}
+         * icon and a specific text.
+         */
+        public BasicCompactContent(@NonNull CompactText text) {
+            this(CompactIcon.auto(), text);
+        }
+
+        /** Sets the semantic style for the compact content. */
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+        @NonNull
+        public BasicCompactContent setSemanticStyle(@SemanticStyle int semanticStyle) {
+            mSemanticStyle = semanticStyle;
+            return this;
+        }
+
+        @NonNull
+        private CompactIcon getIcon() {
+            return mIcon;
+        }
+
+        @NonNull
+        private CompactText getText() {
+            return mText;
+        }
+
+        private @SemanticStyle int getSemanticStyle() {
+            return mSemanticStyle;
+        }
+
+        @Override
+        public void writeToParcel(@NonNull Parcel dest, int flags) {
+            dest.writeTypedObject(mIcon, flags);
+            dest.writeTypedObject(mText, flags);
+            dest.writeInt(mSemanticStyle);
+        }
+
+        public static final @NonNull Creator<BasicCompactContent> CREATOR = new Creator<>() {
+            @Override
+            public BasicCompactContent createFromParcel(Parcel source) {
+                return new BasicCompactContent(
+                        source.readTypedObject(CompactIcon.CREATOR),
+                        source.readTypedObject(CompactText.CREATOR))
+                        .setSemanticStyle(source.readInt());
+            }
+
+            @Override
+            public BasicCompactContent[] newArray(int size) {
+                return new BasicCompactContent[size];
+            }
+        };
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+    }
+
+    /** Chooses the icon to show as part of the notification's compact content. */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_CHIP)
+    public static final class CompactIcon implements Parcelable {
+        private static final int ICON_AUTO = 0;
+        private static final int ICON_SMALL = 1;
+
+        /** @hide */
+        @IntDef(prefix = { "ICON_" }, value = {
+                ICON_AUTO,
+                ICON_SMALL,
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface IconSource {}
+
+        private final @IconSource int mWhich;
+
+        private CompactIcon(@IconSource int which) {
+            mWhich = which;
+        }
+
+        /**
+         * The system chooses what icon to show. For example, posting app's icon, or the
+         * {@link #getSmallIcon() small icon}.
+         */
+        @NonNull
+        public static CompactIcon auto() {
+            return new CompactIcon(ICON_AUTO);
+        }
+
+        /** Shows the notification's {@link #getSmallIcon() small icon}. */
+        @NonNull
+        public static CompactIcon useSmallIcon() {
+            return new CompactIcon(ICON_SMALL);
+        }
+
+        @Override
+        public void writeToParcel(@NonNull Parcel dest, int flags) {
+            dest.writeInt(mWhich);
+        }
+
+        public static final @NonNull Creator<CompactIcon> CREATOR = new Creator<>() {
+            @Override
+            public CompactIcon createFromParcel(Parcel source) {
+                return new CompactIcon(source.readInt());
+            }
+
+            @Override
+            public CompactIcon[] newArray(int size) {
+                return new CompactIcon[size];
+            }
+        };
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+    }
+
+    /** Chooses the text to show as part of the notification's compact content. */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_CHIP)
+    public static final class CompactText implements Parcelable {
+        private static final int TEXT_NONE = 1;
+        private static final int TEXT_SHORT_CRITICAL = 2;
+        private static final int TEXT_WHEN_REMAINING_ADAPTIVE = 3;
+        private static final int TEXT_WHEN_STOPWATCH = 4;
+        private static final int TEXT_WHEN_TIMER = 5;
+        private static final int TEXT_STYLE_METRIC = 6;
+        private static final int TEXT_CUSTOM_METRIC = 7;
+
+        /** @hide */
+        @IntDef(prefix = { "TEXT_" }, value = {
+                TEXT_NONE,
+                TEXT_SHORT_CRITICAL,
+                TEXT_WHEN_REMAINING_ADAPTIVE,
+                TEXT_WHEN_STOPWATCH,
+                TEXT_WHEN_TIMER,
+                TEXT_STYLE_METRIC,
+                TEXT_CUSTOM_METRIC
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface TextSource {}
+
+        // This class is sort of a "union type" and doesn't expose getters, so we just mash all
+        // the fields of the different variants here. The result will be exposed properly when
+        // resolved to a MetricValue.
+        private final @TextSource int mWhich;
+        private final int mStyleMetricIndex;
+        private final @Nullable Metric.MetricValue mCustomMetricValue;
+
+        private CompactText(@TextSource int which, int styleMetricIndex,
+                @Nullable Metric.MetricValue customMetricValue) {
+            mWhich = which;
+            mStyleMetricIndex = styleMetricIndex;
+            mCustomMetricValue = customMetricValue;
+        }
+
+        /** The compact content will show no text. */
+        @NonNull
+        public static CompactText none() {
+            return new CompactText(TEXT_NONE, 0, null);
+        }
+
+        /**
+         * The compact content will show the string from
+         * {@link Notification#getShortCriticalText()}.
+         */
+        @NonNull
+        public static CompactText useShortCriticalText() {
+            return new CompactText(TEXT_SHORT_CRITICAL, 0, null);
+        }
+
+        /**
+         * The compact content will show the time remaining in a brief format until
+         * {@link Notification#when}, as long as that time is still in the future (otherwise, no
+         * text will be shown).
+         */
+        @NonNull
+        public static CompactText useWhenAsTimeRemaining() {
+            return new CompactText(TEXT_WHEN_REMAINING_ADAPTIVE, 0, null);
+        }
+
+        /**
+         * The compact content will show a chronometer, counting up from, or down to,
+         * {@link Notification#when}, as long as that chronometer value is positive (otherwise, no
+         * text will be shown).
+         */
+        @NonNull
+        public static CompactText useWhenAsChronometer(boolean countDown) {
+            return new CompactText(countDown ? TEXT_WHEN_TIMER : TEXT_WHEN_STOPWATCH, 0, null);
+        }
+
+        /**
+         * The compact content will show value of the metric on the attached {@link MetricStyle} at
+         * the given index. If the notification does not use {@link MetricStyle} or does not
+         * have a metric at that index, no text will be shown.
+         */
+        @FlaggedApi(Flags.FLAG_API_METRIC_STYLE)
+        @NonNull
+        public static CompactText useStyleMetric(int metricIndex) {
+            return new CompactText(TEXT_STYLE_METRIC, metricIndex, null);
+        }
+
+        /** The compact content will show the given {@link Metric.MetricValue}. */
+        @FlaggedApi(Flags.FLAG_API_METRIC_STYLE)
+        @NonNull
+        public static CompactText fromMetricValue(@NonNull Metric.MetricValue metricValue) {
+            return new CompactText(TEXT_CUSTOM_METRIC, 0, requireNonNull(metricValue));
+        }
+
+        @Override
+        public void writeToParcel(@NonNull Parcel dest, int flags) {
+            dest.writeInt(mWhich);
+            if (Flags.apiMetricStyle()) {
+                dest.writeInt(mStyleMetricIndex);
+                if (mCustomMetricValue != null) {
+                    // Leverage Metric's bundling (unused but required label).
+                    dest.writeBoolean(true);
+                    dest.writeBundle(Metric.toBundle(new Metric(mCustomMetricValue,  "x")));
+                } else {
+                    dest.writeBoolean(false);
+                }
+            }
+        }
+
+        public static final @NonNull Creator<CompactText> CREATOR = new Creator<>() {
+            @Override
+            public CompactText createFromParcel(Parcel source) {
+                CompactText res = null;
+                int which = source.readInt();
+                if (Flags.apiMetricStyle()) {
+                    if (source.readBoolean()) {
+                        int styleMetricIndex = source.readInt();
+                        Metric customMetric = Metric.fromBundle(
+                                source.readBundle(getClass().getClassLoader()));
+                        return new CompactText(which, styleMetricIndex, customMetric.getValue());
+                    } else {
+                        return new CompactText(which, 0, null);
+                    }
+                } else {
+                    return new CompactText(which, 0, null);
+                }
+            }
+
+            @Override
+            public CompactText[] newArray(int size) {
+                return new CompactText[size];
+            }
+        };
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+    }
+
+    /**
+     * Base class for the "resolved" compact content to be shown for
+     * {@link #FLAG_PROMOTED_ONGOING promoted ongoing} notifications.
+     *
+     * @see #resolveCompactContent(Context)
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_CHIP)
+    public abstract static class ResolvedCompactContent {
+        private ResolvedCompactContent() {
+            // Constructor private to restrict subclassing.
+        }
+    }
+
+    /**
+     * "Resolved" compact content for a Notification showing an icon plus an optional short text.
+     *
+     * @see BasicCompactContent
+     * @see #resolveCompactContent(Context)
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_CHIP)
+    public static final class ResolvedBasicCompactContent extends ResolvedCompactContent {
+        private final @NonNull ResolvedCompactIcon mIcon;
+        private final @Nullable Metric.MetricValue mText;
+        private final @SemanticStyle int mSemanticStyle;
+
+        /** @hide */
+        @VisibleForTesting
+        public ResolvedBasicCompactContent(@NonNull ResolvedCompactIcon icon,
+                @Nullable Metric.MetricValue text, @SemanticStyle int semanticStyle) {
+            mIcon = icon;
+            mText = text;
+            mSemanticStyle = semanticStyle;
+        }
+
+        /** The icon to be shown as part of the compact content. */
+        @NonNull
+        public ResolvedCompactIcon getIcon() {
+            return mIcon;
+        }
+
+        /**
+         * The text, if any, to be shown as part of the compact content. This can be either a
+         * "fixed" text, e.g. a string, or dynamic (such as a timer or stopwatch).
+         */
+        @FlaggedApi(Flags.FLAG_API_METRIC_STYLE)
+        @Nullable
+        public Metric.MetricValue getText() {
+            return mText;
+        }
+
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+        @SemanticStyle
+        public int getSemanticStyle() {
+            return mSemanticStyle;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof ResolvedBasicCompactContent that)) return false;
+            if (this == that) return true;
+            return Objects.equals(this.mIcon, that.mIcon)
+                    && Objects.equals(this.mText, that.mText)
+                    && this.mSemanticStyle == that.mSemanticStyle;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(mIcon, mText, mSemanticStyle);
+        }
+
+        @Override
+        public String toString() {
+            return "ResolvedBasicCompactContent{"
+                    + "mIcon=" + mIcon
+                    + ", mText=" + mText
+                    + ", mSemanticStyle=" + mSemanticStyle
+                    + "}";
+        }
+    }
+
+    /**
+     * Resolved icon to show as part of the notification's compact content.
+     *
+     * @see ResolvedBasicCompactContent
+     * @see BasicCompactContent#BasicCompactContent(CompactIcon, CompactText)
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_CHIP)
+    public static class ResolvedCompactIcon {
+        /** The icon's source is not specifically known. */
+        public static final int SOURCE_UNKNOWN = 0;
+
+        /**
+         * Indicates that the displayed icon should be the notification's small icon (that is,
+         * {@link #getIcon()}} returns the same as {@link Notification#getSmallIcon()}.
+         */
+        public static final int SOURCE_SMALL_ICON = 1;
+
+        /**
+         * Indicates that the displayed icon should be the posting package's application icon in
+         * full color.
+         */
+        public static final int SOURCE_PACKAGE_APP_ICON = 2;
+
+        /** @hide */
+        @IntDef(prefix = { "SOURCE_" }, value = {
+                SOURCE_UNKNOWN,
+                SOURCE_SMALL_ICON,
+                SOURCE_PACKAGE_APP_ICON,
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface ResolvedCompactIconSource {}
+
+        private final int mSource;
+        private final @Nullable Icon mIcon;
+
+        /** @hide */
+        @VisibleForTesting
+        public ResolvedCompactIcon(@ResolvedCompactIconSource int source, @Nullable Icon icon) {
+            mSource = source;
+            mIcon = icon;
+        }
+
+        /**
+         * Identifies the source of the icon which has been resolved.
+         *
+         * <p>This allows callers who already resolve other content (like the
+         * {@link #getSmallIcon() small icon}) to avoid duplicating that work.
+         */
+        @ResolvedCompactIconSource
+        public int getSource() {
+            return mSource;
+        }
+
+        /** The {@link Icon} representation of the content, if applicable. */
+        @Nullable
+        public Icon getIcon() {
+            return mIcon;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof ResolvedCompactIcon that)) return false;
+            if (this == that) return true;
+            return this.mSource == that.mSource
+                    && Objects.equals(this.mIcon, that.mIcon);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(mSource, mIcon);
+        }
+
+        @Override
+        public String toString() {
+            return "ResolvedCompactIcon{"
+                    + "mSource=" + sourceToString(mSource)
+                    + ", mIcon=" + mIcon
+                    + "}";
+        }
+
+        private static String sourceToString(@ResolvedCompactIconSource int value) {
+            return switch(value) {
+                case SOURCE_SMALL_ICON -> "SOURCE_SMALL_ICON";
+                case SOURCE_PACKAGE_APP_ICON -> "SOURCE_PACKAGE_APP_ICON";
+                case SOURCE_UNKNOWN -> "SOURCE_UNKNOWN";
+                default -> "Unexpected! (" + value + ")";
+            };
+        }
+    }
+
+    /**
+     * Returns the content to be displayed in the compact representation of a
+     * {@link Notification#FLAG_PROMOTED_ONGOING promoted ongoing} notification. This method is
+     * mostly useful for {@link android.service.notification.NotificationListenerService}
+     * implementations.
+     *
+     * <p>If the Notification has a {@link CompactContent}, then this method will return a {@code
+     * Resolved*} version of the content class that was provided. (e.g. if
+     * {@link BasicCompactContent} was set, this will return {@link ResolvedBasicCompactContent}).
+     * This resolved object will contain the data that was provided or referenced by the original.
+     *
+     * <p>If the Notification does not have a {@link CompactContent}, then this method will
+     * return a {@link ResolvedBasicCompactContent}.
+     * <ul>
+     *     <li>The icon will be as if the app provided {@link CompactIcon#auto()}, unless the app
+     *     does not target {@link Build.VERSION_CODES#CINNAMON_BUN}, in which case it will be
+     *     the value of {@link #getSmallIcon()}.
+     *     <li>The text will be a {@link Metric.MetricValue} populated based on the data in the
+     *     Notification, using the following ordered list of checks:
+     *     <ol>
+     *         <li>If the Notification has a non-null {@link #getShortCriticalText()}, it will be a
+     *         {@link Metric.FixedText} with that text.
+     *         <li>If the Notification uses {@link MetricStyle}, it will be the value of the
+     *         first metric.
+     *         <li>If the Notification has {@link Builder#setUsesChronometer(boolean)} equal to
+     *         {@code true}, it will be a {@link Metric.TimeDifference} built from {@link #when}
+     *         with {@link Metric.TimeDifference#FORMAT_CHRONOMETER}. It will be a countdown if
+     *         {@link Builder#setChronometerCountDown(boolean)} is {@code true}.
+     *         <li>If the notification has {@link Builder#setShowWhen(boolean)} equal to
+     *         {@code true}, if will be a {@link Metric.TimeDifference}, counting down to
+     *         {@link #when}, with {@link Metric.TimeDifference#FORMAT_ADAPTIVE}.
+     *         <li>Otherwise it will be {@code null}.
+     *     </ol>
+     * </ul>
+     *
+     * <p>NOTE: Even when the returned value contains a text with type
+     * {@link Metric.TimeDifference}, the compact representation UI should not show negative
+     * chronometers or adaptive times.
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_CHIP)
+    @NonNull
+    public ResolvedCompactContent resolveCompactContent(@NonNull Context context) {
+        requireNonNull(context);
+        Builder builder = Builder.recoverBuilder(context, this);
+        // Although this method is @FlaggedApi it will be used by SystemUI, ONLY for the DEFAULT
+        // case. Thus we must ensure that it does NOT use any CompactContent customization that
+        // could find its way into the Notification (e.g. via directly setting extras) until the
+        // flag is launched.
+        if (Flags.apiNotificationChip()) {
+            try {
+                CompactContent suppliedContent = CompactContent.fromExtras(this.extras);
+                if (suppliedContent != null) {
+                    return CompactContentResolver.resolveCompactContent(context, this, builder,
+                            suppliedContent);
+                }
+            } catch (Exception e) {
+                // If there is trash in the extras, also fall back to the default.
+                Log.w(TAG, "Error reading or resolving supplied CompactContent", e);
+            }
+        }
+
+        CompactContent defaultContent = getDefaultCompactContent(context, builder);
+        return CompactContentResolver.resolveCompactContent(context, this, builder, defaultContent);
+    }
+
+    /**
+     * See {@link #resolveCompactContent(Context)} for the logic. ("If the Notification does not
+     * have a CompactContent...").
+     */
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_CHIP)
+    @SuppressWarnings("AndroidFrameworkCompatChange") // Cannot use CompatChange -- client side
+    // code, plus the SDK check is on a different package than the caller.
+    private BasicCompactContent getDefaultCompactContent(Context context, Builder builder) {
+        ApplicationInfo appInfo = requireNonNull(getApplicationInfo(context));
+        CompactIcon compactIcon = appInfo.targetSdkVersion >= Build.VERSION_CODES.CINNAMON_BUN
+                ? CompactIcon.auto()
+                : CompactIcon.useSmallIcon();
+
+        CompactText compactText;
+        if (getShortCriticalText() != null) {
+            compactText = CompactText.useShortCriticalText();
+        } else if (Flags.apiMetricStyle()
+                && builder.getStyle() instanceof MetricStyle metricStyle
+                && metricStyle.getCriticalMetric() != null) {
+            compactText = CompactText.useStyleMetric(
+                    metricStyle.getMetrics().indexOf(metricStyle.getCriticalMetric()));
+        } else if (showsChronometer()) {
+            boolean isCountdown = extras.getBoolean(EXTRA_CHRONOMETER_COUNT_DOWN);
+            compactText = CompactText.useWhenAsChronometer(isCountdown);
+        } else if (showsTime()) {
+            compactText = CompactText.useWhenAsTimeRemaining();
+        } else {
+            compactText = CompactText.none();
+        }
+
+        return new BasicCompactContent(compactIcon, compactText);
+    }
+
+    @FlaggedApi(Flags.FLAG_API_NOTIFICATION_CHIP)
+    private static class CompactContentResolver {
+        @NonNull
+        private static ResolvedCompactContent resolveCompactContent(Context context,
+                Notification notification, Notification.Builder builder,
+                @NonNull CompactContent content) {
+            if (content instanceof BasicCompactContent basic) {
+                return resolveBasicCompactContent(context, notification, builder, basic);
+            } else {
+                throw new IllegalStateException("Unexpected CompactContent: " + content);
+            }
+        }
+
+        @NonNull
+        private static ResolvedBasicCompactContent resolveBasicCompactContent(Context context,
+                Notification notification, Notification.Builder builder,
+                @NonNull BasicCompactContent content) {
+            ResolvedCompactIcon resolvedIcon = resolveCompactIcon(context, notification,
+                    content.getIcon());
+            if (Flags.apiMetricStyle()) {
+                Metric.MetricValue resolvedText = resolveCompactText(notification, builder,
+                        content.getText());
+                if (Flags.apiNotificationSemanticStyle()) {
+                    return new ResolvedBasicCompactContent(resolvedIcon, resolvedText,
+                            content.getSemanticStyle());
+                } else {
+                    return new ResolvedBasicCompactContent(resolvedIcon, resolvedText,
+                            SEMANTIC_STYLE_UNSPECIFIED);
+                }
+            } else {
+                if (Flags.apiNotificationSemanticStyle()) {
+                    return new ResolvedBasicCompactContent(resolvedIcon, null,
+                            content.getSemanticStyle());
+                } else {
+                    return new ResolvedBasicCompactContent(resolvedIcon, null,
+                            SEMANTIC_STYLE_UNSPECIFIED);
+                }
+            }
+        }
+
+        private static ResolvedCompactIcon resolveCompactIcon(Context context,
+                Notification notification, CompactIcon icon) {
+            ApplicationInfo appInfo = requireNonNull(notification.getApplicationInfo(context));
+            if (icon.mWhich == CompactIcon.ICON_AUTO) {
+                return new ResolvedCompactIcon(ResolvedCompactIcon.SOURCE_PACKAGE_APP_ICON,
+                        Icon.createWithResource(appInfo.packageName, appInfo.icon));
+            } else if (icon.mWhich == CompactIcon.ICON_SMALL) {
+                return new ResolvedCompactIcon(ResolvedCompactIcon.SOURCE_SMALL_ICON,
+                        notification.getSmallIcon());
+            } else {
+                throw new IllegalArgumentException("Unexpected CompactIcon: " + icon.mWhich);
+            }
+        }
+
+        @FlaggedApi(Flags.FLAG_API_METRIC_STYLE)
+        @Nullable
+        private static Metric.MetricValue resolveCompactText(Notification notification,
+                Notification.Builder builder, @NonNull CompactText text) {
+            return switch (text.mWhich) {
+                case CompactText.TEXT_NONE -> null;
+                case CompactText.TEXT_SHORT_CRITICAL -> {
+                    String shortCriticalText = notification.getShortCriticalText();
+                    if (shortCriticalText != null) {
+                        yield new Metric.FixedText(shortCriticalText);
+                    } else {
+                        yield null;
+                    }
+                }
+                case CompactText.TEXT_WHEN_REMAINING_ADAPTIVE ->
+                        Metric.TimeDifference.forTimer(Instant.ofEpochMilli(notification.when),
+                                Metric.TimeDifference.FORMAT_ADAPTIVE);
+                case CompactText.TEXT_WHEN_STOPWATCH ->
+                        Metric.TimeDifference.forStopwatch(Instant.ofEpochMilli(notification.when),
+                                Metric.TimeDifference.FORMAT_CHRONOMETER);
+                case CompactText.TEXT_WHEN_TIMER ->
+                        Metric.TimeDifference.forTimer(Instant.ofEpochMilli(notification.when),
+                                Metric.TimeDifference.FORMAT_CHRONOMETER);
+                case CompactText.TEXT_STYLE_METRIC -> {
+                    if (builder.getStyle() instanceof MetricStyle metricStyle
+                            && text.mStyleMetricIndex >= 0
+                            && text.mStyleMetricIndex < metricStyle.getMetrics().size()) {
+                        yield metricStyle.getMetrics().get(text.mStyleMetricIndex).getValue();
+                    } else {
+                        yield null;
+                    }
+                }
+                case CompactText.TEXT_CUSTOM_METRIC -> text.mCustomMetricValue;
+                default -> throw new IllegalArgumentException(
+                        "Unexpected CompactText: " + text.mWhich);
+            };
         }
     }
 
@@ -14490,7 +16185,7 @@ public class Notification implements Parcelable
             /**
              * Creates a {@link BubbleMetadata.Builder} based on a {@link ShortcutInfo}. To create
              * a shortcut bubble, ensure that the shortcut associated with the provided
-             * {@param shortcutId} is published as a dynamic shortcut that was built with
+             * {@code shortcutId} is published as a dynamic shortcut that was built with
              * {@link ShortcutInfo.Builder#setLongLived(boolean)} being true, otherwise your
              * notification will not be able to bubble.
              *
@@ -14758,6 +16453,122 @@ public class Notification implements Parcelable
         }
     }
 
+    /**
+     * Encapsulates the information needed to display a notification as a bridged notification.
+     *
+     * A bridged notification is a notification sent from another device via a bridging application.
+     * The notification is displayed with customized content to differentiate it to the user from
+     * a local notification.
+     *
+     * Only preauthorized applications with bridging permissions can post bridged notifications.
+     */
+    @FlaggedApi(FLAG_BRIDGED_NOTIFICATIONS)
+    public static final class BridgedNotificationMetadata implements Parcelable {
+        @NonNull
+        private String mOriginDeviceName;
+        @NonNull
+        private String mPackageName;
+        @NonNull
+        private String mChannelId;
+        @NonNull
+        private Icon mAppIcon;
+
+        public BridgedNotificationMetadata(@NonNull String originDeviceName,
+                                           @NonNull String packageName,
+                                           @NonNull String channelId,
+                                           @NonNull Icon appIcon) {
+            mOriginDeviceName = originDeviceName;
+            mPackageName = requireNonNull(packageName);
+            mChannelId = requireNonNull(channelId);
+            mAppIcon = requireNonNull(appIcon);
+        }
+
+        private BridgedNotificationMetadata(Parcel in) {
+            if (in.readInt() != 0) {
+                mOriginDeviceName = in.readString8();
+            }
+            if (in.readInt() != 0) {
+                mPackageName = in.readString8();
+            }
+            if (in.readInt() != 0) {
+                mChannelId = in.readString8();
+            }
+            if (in.readInt() != 0) {
+                mAppIcon = Icon.CREATOR.createFromParcel(in);
+            }
+        }
+
+        public static final @NonNull Parcelable.Creator<BridgedNotificationMetadata> CREATOR =
+                new Parcelable.Creator<BridgedNotificationMetadata>() {
+
+                    @Override
+                    public BridgedNotificationMetadata createFromParcel(Parcel source) {
+                        return new BridgedNotificationMetadata(source);
+                    }
+
+                    @Override
+                    public BridgedNotificationMetadata[] newArray(int size) {
+                        return new BridgedNotificationMetadata[size];
+                    }
+                };
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+
+        @Override
+        public void writeToParcel(@NonNull Parcel out, int flags) {
+            requireNonNull(out);
+
+            out.writeInt(1);
+            out.writeString8(mOriginDeviceName);
+
+            out.writeInt(1);
+            out.writeString8(mPackageName);
+
+            out.writeInt(1);
+            out.writeString8(mChannelId);
+
+            out.writeInt(1);
+            mAppIcon.writeToParcel(out, 0);
+        }
+
+        /**
+         * The name of the device the notification originated from (e.g. "Jane's phone").
+         */
+        @NonNull
+        public String getOriginDeviceName() {
+            return mOriginDeviceName;
+        }
+
+        /**
+         * The package name of the application the notification originated from.
+         */
+        @NonNull
+        public String getPackageName() {
+            return mPackageName;
+        }
+
+        /**
+         * The channel ID for the notification on the origin device. Generally this should match
+         * the channel ID that the notification would have gone to on the local device if the
+         * app is installed in both places. This is used for blocking bridged notifications
+         * if the user has muted notifications for the applications channel on the local device.
+         */
+        @NonNull
+        public String getChannelId() {
+            return mChannelId;
+        }
+
+        /**
+         * An icon representing the application the notification originated from.
+         */
+        @NonNull
+        public Icon getAppIcon() {
+            return mAppIcon;
+        }
+    }
 
     // When adding a new Style subclass here, don't forget to update
     // Builder.getNotificationStyleClass.
@@ -14772,7 +16583,8 @@ public class Notification implements Parcelable
          * @param builder the builder to be modified
          * @return the build object for chaining
          */
-        public Builder extend(Builder builder);
+        @NonNull
+        public Builder extend(@NonNull Builder builder);
     }
 
     /**
@@ -16300,6 +18112,109 @@ public class Notification implements Parcelable
     }
 
     /**
+     * Helper class to add projection-specific extensions to a notification.
+     * This class is used to specify metadata that is specific to notifications
+     * that may be displayed on a Projected device.
+     *
+     * <p>To create a notification with Projected extensions:
+     * <ol>
+     * <li>Create a {@link Notification.Builder} for the notification.
+     * <li>Create an {@code ProjectedExtender}.
+     * <li>Set projection-specific properties using the {@code set} methods on the
+     * {@code ProjectedExtender}.
+     * <li>Call {@link Notification.Builder#extend} to apply the extensions to
+     * the notification.
+     * </ol>
+     *
+     * <pre class="prettyprint">
+     * Notification.Builder builder = new Notification.Builder(context, CHANNEL_ID)
+     *     .setContentTitle("Example Title")
+     *     .setContentText("Example Text")
+     *     .setSmallIcon(R.drawable.ic_notification);
+     *
+     * ProjectedExtender projectedExtender = new ProjectedExtender()
+     *     .setContentIntent(projectedTapIntent);
+     *
+     * builder.extend(projectedExtender);
+     * notificationManager.notify(NOTIFICATION_ID, builder.build());
+     * </pre>
+     */
+    @FlaggedApi(Flags.FLAG_API_PROJECTED_EXTENDER)
+    public static final class ProjectedExtender implements Extender {
+        /** @hide */ @TestApi public static final String EXTRA_PROJECTED_EXTENDER =
+                "android.projected.EXTENSIONS";
+        /** @hide */ @TestApi public static final String KEY_CONTENT_INTENT = "content_intent";
+
+        private PendingIntent mContentIntent;
+
+        /**
+         * Create a {@link ProjectedExtender} with default options.
+         */
+        public ProjectedExtender() {
+        }
+
+        /**
+         * Creates an {@link ProjectedExtender} from the extensions in a
+         * {@link Notification}.
+         *
+         * @param notification The notification to extract extensions from.
+         */
+        public ProjectedExtender(@NonNull Notification notification) {
+            Bundle projectedBundle = notification.extras == null ?
+                    null : notification.extras.getBundle(EXTRA_PROJECTED_EXTENDER);
+            if (projectedBundle != null) {
+                mContentIntent = projectedBundle.getParcelable(KEY_CONTENT_INTENT,
+                        PendingIntent.class);
+            }
+        }
+
+        /**
+         * Sets the {@link PendingIntent} to be opened on the Projected device when the notification
+         * is tapped on the that device. This is distinct from the notification's main
+         * {@link Notification#contentIntent}, which is typically fired when the
+         * notification is tapped on the host device (e.g., the phone).
+         *
+         * @param intent the {@link PendingIntent} to fire on tap
+         * @return this {@code ProjectedExtender} object for chaining
+         */
+        @NonNull
+        public ProjectedExtender setContentIntent(@Nullable PendingIntent intent) {
+            mContentIntent = intent;
+            return this;
+        }
+
+        /**
+         * Returns the {@link PendingIntent} to be fired when the notification is
+         * tapped on the Projected device.
+         *
+         * @return the {@link PendingIntent} to fire on tap, or null if not set
+         */
+        @Nullable
+        public PendingIntent getContentIntent() {
+            return mContentIntent;
+        }
+
+        /**
+         * Applies the Projected extensions to the notification builder. This method is
+         * called by the {@link Notification.Builder#extend} method and should not
+         * be called directly.
+         *
+         * @param builder the notification builder to extend
+         * @return the modified notification builder
+         */
+        @Override
+        @NonNull
+        public Notification.Builder extend(@NonNull Notification.Builder builder) {
+            Bundle projectedBundle = new Bundle();
+            if (mContentIntent != null) {
+                projectedBundle.putParcelable(KEY_CONTENT_INTENT, mContentIntent);
+            }
+            builder.getExtras().putBundle(EXTRA_PROJECTED_EXTENDER, projectedBundle);
+            return builder;
+        }
+    }
+
+    /**
      * Get an array of Parcelable objects from a parcelable array bundle field.
      * Update the bundle to have a typed array so fetches in the future don't need
      * to do an array copy.
@@ -16493,6 +18408,8 @@ public class Notification implements Parcelable
         boolean mHideTitle;
         boolean mHideSubText;
         boolean mHideTime;
+        boolean mHideChronometer;
+        boolean mHideProfileBadge;
         boolean mHideActions;
         boolean mHideProgress;
         boolean mHideSnoozeButton;
@@ -16502,11 +18419,13 @@ public class Notification implements Parcelable
         boolean mCallStyleActions;
         boolean mAllowTextWithProgress;
         int mTitleViewId;
+        int mSubtextViewId;
         int mTextViewId;
         @Nullable CharSequence mTitle;
         @Nullable CharSequence mText;
         @Nullable CharSequence mHeaderTextSecondary;
         @Nullable CharSequence mSubText;
+        @Nullable CharSequence mSummarization;
         int maxRemoteInputHistory = Style.MAX_REMOTE_INPUT_HISTORY_LINES;
         boolean allowColorization  = true;
         boolean mHighlightExpander = false;
@@ -16528,6 +18447,7 @@ public class Notification implements Parcelable
             mCallStyleActions = false;
             mAllowTextWithProgress = false;
             mTitleViewId = R.id.title;
+            mSubtextViewId = R.id.header_text;
             mTextViewId = R.id.text;
             mTitle = null;
             mText = null;
@@ -16536,6 +18456,7 @@ public class Notification implements Parcelable
             maxRemoteInputHistory = Style.MAX_REMOTE_INPUT_HISTORY_LINES;
             allowColorization = true;
             mHighlightExpander = false;
+            mSummarization = null;
             return this;
         }
 
@@ -16570,6 +18491,22 @@ public class Notification implements Parcelable
 
         public StandardTemplateParams hideTime(boolean hideTime) {
             mHideTime = hideTime;
+            if (!richOngoingImprovements()) {
+                // When the flag is off, hideTime controls both the time and the chronometer. With
+                // the flag on, the chronometer is controlled explicitly through hideChronometer and
+                // hideTime affects only the when.
+                hideChronometer(hideTime);
+            }
+            return this;
+        }
+
+        public StandardTemplateParams hideChronometer(boolean hideChronometer) {
+            mHideChronometer = hideChronometer;
+            return this;
+        }
+
+        public StandardTemplateParams hideProfileBadge(boolean hideProfileBadge) {
+            mHideProfileBadge = hideProfileBadge;
             return this;
         }
 
@@ -16613,6 +18550,14 @@ public class Notification implements Parcelable
             return this;
         }
 
+        public StandardTemplateParams subTextViewId(int subTextViewId) {
+            if (!richOngoingImprovements()) {
+                return this;
+            }
+            mSubtextViewId = subTextViewId;
+            return this;
+        }
+
         public StandardTemplateParams textViewId(int textViewId) {
             mTextViewId = textViewId;
             return this;
@@ -16630,6 +18575,11 @@ public class Notification implements Parcelable
 
         final StandardTemplateParams summaryText(@Nullable CharSequence text) {
             this.mSubText = text;
+            return this;
+        }
+
+        final StandardTemplateParams summarization(@Nullable CharSequence text) {
+            this.mSummarization = text;
             return this;
         }
 
@@ -16664,6 +18614,9 @@ public class Notification implements Parcelable
             this.mTitle = b.processLegacyText(extras.getCharSequence(EXTRA_TITLE));
             this.mText = b.processLegacyText(extras.getCharSequence(EXTRA_TEXT));
             this.mSubText = extras.getCharSequence(EXTRA_SUB_TEXT);
+            if (Flags.nmSummarizationAll()) {
+                this.mSummarization = extras.getCharSequence(EXTRA_SUMMARIZED_CONTENT);
+            }
             return this;
         }
 
@@ -16677,12 +18630,29 @@ public class Notification implements Parcelable
             return this;
         }
 
+        /**
+         * Certain promoted notifications show a simplified version of the header. This also moves
+         * the title to the top line.
+         */
+        public StandardTemplateParams maybeUseMinimalHeader(Builder b) {
+            if (Flags.richOngoingImprovements() && b.mN.isPromotedOngoing()) {
+                boolean isTimeInTheFuture = b.isTimeInTheFuture();
+                boolean prefersSmallIcon = b.mN.extras.getBoolean(EXTRA_PREFER_SMALL_ICON);
+                titleViewId(R.id.alt_title);
+                subTextViewId(R.id.alt_subtext);
+                hideAppName(!prefersSmallIcon);
+                hideProfileBadge(!prefersSmallIcon);
+                hideTime(!isTimeInTheFuture);
+            }
+            return this;
+        }
+
         public StandardTemplateParams decorationType(int decorationType) {
             hideTitle(true);
             // Minimally decorated custom views do not show certain pieces of chrome that have
             // always been shown when using DecoratedCustomViewStyle.
             boolean hideOtherFields = decorationType <= DECORATION_MINIMAL;
-            hideLeftIcon(false);  // The left icon decoration is better than showing nothing.
+            hideLeftIcon(hideOtherFields);
             hideRightIcon(hideOtherFields);
             hideProgress(hideOtherFields);
             hideActions(hideOtherFields);
@@ -16691,18 +18661,73 @@ public class Notification implements Parcelable
     }
 
     /**
+     * Helper to map semantic styles to concrete properties (currently, only color).
+     * @hide
+     */
+    @FunctionalInterface
+    public interface SemanticColors {
+        /** Maps semantic style to color value (e.g. SAFE -> green). */
+        @ColorInt
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+        int getSemanticColor(@SemanticStyle int style);
+    }
+
+    /**
+     * A provider for the profile badge.
+     * @hide
+     */
+    public interface UserProfileBadgeProvider {
+        /**
+         * Returns the profile badge for the user of the given context.
+         *
+         * @param context The context of the app that is to be badged.
+         * @return The profile badge for the given user, or null if no badge is available.
+         */
+        @Nullable
+        Bitmap getProfileBadge(@NonNull Context context);
+
+        /**
+         * Returns the profile badge accessibility string for the user of the given context.
+         *
+         * @param context The context of the app that is to be badged.
+         * @return The profile badge accessibility string for the given user, or null if no badge is
+         *     available.
+         */
+        @Nullable
+        String getProfileAccessibilityString(@NonNull Context context);
+    }
+
+    /**
      * A utility which stores and calculates the palette of colors used to color notifications.
      * @hide
      */
-    public static class Colors {
+    public static class Colors implements SemanticColors {
+        /**
+         * Minimal contrast that any text should have over its background (e.g. text on notification
+         * background, button text on button color).
+         */
+        private static final double TEXT_CONTRAST = 4.5;
+
+        /**
+         * Minimal contrast for a non-text but "thin" visual element (e.g. a line, separator, or
+         * outline on top of a background).
+         */
+        private static final double THIN_CONTRAST = 3;
+
+        /**
+         * Minimal contrast for any two colors (e.g. button color over its parent background color).
+         * Note that this contrast is only acceptable for "filled" elements (e.g. pills), and not
+         * for "thin" ones (e.g. outlines).
+         */
+        private static final double MINIMAL_CONTRAST = 1.3;
+
         private int mPaletteIsForRawColor = COLOR_INVALID;
         private boolean mPaletteIsForColorized = false;
         private boolean mPaletteIsForNightMode = false;
         // The following colors are the palette
         private int mBackgroundColor = COLOR_INVALID;
         private int mProtectionColor = COLOR_INVALID;
-        private int mPrimaryTextColor = COLOR_INVALID;
-        private int mSecondaryTextColor = COLOR_INVALID;
+        private int mTextColor = COLOR_INVALID;
         private int mPrimaryAccentColor = COLOR_INVALID;
         private int mSecondaryAccentColor = COLOR_INVALID;
         private int mTertiaryAccentColor = COLOR_INVALID;
@@ -16714,6 +18739,18 @@ public class Notification implements Parcelable
         private int mSemanticRedContainerHighColor = COLOR_INVALID;
         private int mContrastColor = COLOR_INVALID;
         private int mRippleAlpha = 0x33;
+
+        // Colors for emphasized buttons.
+        private int mPrimaryEmphasisBackground = COLOR_INVALID;
+        private int mPrimaryEmphasisText = COLOR_INVALID;
+        private int mSecondaryEmphasisOutline = COLOR_INVALID;
+        private int mSecondaryEmphasisText = COLOR_INVALID;
+
+        // Colors associated to semantic styles.
+        private int mSemanticInfo = COLOR_INVALID;
+        private int mSemanticSafe = COLOR_INVALID;
+        private int mSemanticCaution = COLOR_INVALID;
+        private int mSemanticDanger = COLOR_INVALID;
 
         /**
          * A utility for obtaining a TypedArray of the given DayNight-styled attributes, which
@@ -16772,32 +18809,32 @@ public class Notification implements Parcelable
                 } else {
                     mBackgroundColor = rawColor;
                 }
-                if (Flags.uiRichOngoing()) {
-                    boolean isBgDark = Notification.Builder.isColorDark(mBackgroundColor);
-                    int onSurfaceColorExtreme = isBgDark ? Color.WHITE : Color.BLACK;
-                    mPrimaryTextColor = ContrastColorUtil.ensureContrast(
-                            ColorUtils.blendARGB(mBackgroundColor, onSurfaceColorExtreme, 0.9f),
-                            mBackgroundColor, isBgDark, 4.5);
-                    mSecondaryTextColor = ContrastColorUtil.ensureContrast(
-                            ColorUtils.blendARGB(mBackgroundColor, onSurfaceColorExtreme, 0.8f),
-                            mBackgroundColor, isBgDark, 4.5);
-                } else {
-                    mPrimaryTextColor = ContrastColorUtil.findAlphaToMeetContrast(
-                            ContrastColorUtil.resolvePrimaryColor(ctx, mBackgroundColor, nightMode),
-                            mBackgroundColor, 4.5);
-                    mSecondaryTextColor = ContrastColorUtil.findAlphaToMeetContrast(
-                            ContrastColorUtil.resolveSecondaryColor(ctx,
-                                    mBackgroundColor, nightMode), mBackgroundColor, 4.5);
-                }
-                mContrastColor = mPrimaryTextColor;
-                mPrimaryAccentColor = mPrimaryTextColor;
-                mSecondaryAccentColor = mSecondaryTextColor;
-                mTertiaryAccentColor = flattenAlpha(mPrimaryTextColor, mBackgroundColor);
+                boolean isBgDark = ContrastColorUtil.isColorDark(mBackgroundColor);
+                int onSurfaceColorExtreme = isBgDark ? Color.WHITE : Color.BLACK;
+                mTextColor = ContrastColorUtil.ensureContrast(
+                        ColorUtils.blendARGB(mBackgroundColor, onSurfaceColorExtreme, 0.9f),
+                        mBackgroundColor, isBgDark, TEXT_CONTRAST);
+                mContrastColor = mTextColor;
+                mPrimaryAccentColor = mTextColor;
+                mSecondaryAccentColor = mTextColor;
+                mTertiaryAccentColor = flattenAlpha(mTextColor, mBackgroundColor);
                 mOnTertiaryAccentTextColor = mBackgroundColor;
                 mTertiaryFixedDimAccentColor = mTertiaryAccentColor;
                 mOnTertiaryFixedAccentTextColor = mOnTertiaryAccentTextColor;
-                mErrorColor = mPrimaryTextColor;
+                mErrorColor = mTextColor;
                 mRippleAlpha = 0x33;
+
+                if (Flags.apiNotificationActionCustom()) {
+                    mPrimaryEmphasisBackground = ensureMinimalContrast(
+                            ctx.getColor(R.color.materialColorPrimary), mBackgroundColor);
+                    mPrimaryEmphasisText = ensureTextContrast(
+                            ctx.getColor(R.color.materialColorOnPrimary),
+                            mPrimaryEmphasisBackground);
+                    mSecondaryEmphasisOutline = ensureThinContrast(
+                            ctx.getColor(R.color.materialColorOutlineVariant), mBackgroundColor);
+                    mSecondaryEmphasisText = ensureTextContrast(
+                            ctx.getColor(R.color.materialColorPrimary), mBackgroundColor);
+                }
             } else {
                 int[] attrs = {
                         R.attr.colorError,
@@ -16805,10 +18842,7 @@ public class Notification implements Parcelable
                 };
 
                 mBackgroundColor = ctx.getColor(R.color.materialColorSurfaceContainerHigh);
-                mPrimaryTextColor = ctx.getColor(R.color.materialColorOnSurface);
-                mSecondaryTextColor = Flags.notificationsRedesignFonts()
-                        ? mPrimaryTextColor
-                        : ctx.getColor(R.color.materialColorOnSurfaceVariant);
+                mTextColor = ctx.getColor(R.color.materialColorOnSurface);
                 mPrimaryAccentColor = ctx.getColor(R.color.materialColorPrimary);
                 mSecondaryAccentColor = ctx.getColor(R.color.materialColorSecondary);
                 mTertiaryAccentColor = ctx.getColor(R.color.materialColorTertiary);
@@ -16826,14 +18860,11 @@ public class Notification implements Parcelable
                         mBackgroundColor, nightMode);
 
                 // make sure every color has a valid value
-                if (mPrimaryTextColor == COLOR_INVALID) {
-                    mPrimaryTextColor = ContrastColorUtil.resolvePrimaryColor(
+                if (mTextColor == COLOR_INVALID) {
+                    mTextColor = ContrastColorUtil.resolvePrimaryColor(
                             ctx, mBackgroundColor, nightMode);
                 }
-                if (mSecondaryTextColor == COLOR_INVALID) {
-                    mSecondaryTextColor = ContrastColorUtil.resolveSecondaryColor(
-                            ctx, mBackgroundColor, nightMode);
-                }
+
                 if (mPrimaryAccentColor == COLOR_INVALID) {
                     mPrimaryAccentColor = mContrastColor;
                 }
@@ -16857,13 +18888,49 @@ public class Notification implements Parcelable
                                     ctx, mTertiaryFixedDimAccentColor, nightMode), 0xFF);
                 }
                 if (mErrorColor == COLOR_INVALID) {
-                    mErrorColor = mPrimaryTextColor;
+                    mErrorColor = mTextColor;
+                }
+
+                if (Flags.apiNotificationActionCustom()) {
+                    // For non-colorized, theme should provide enough contrast.
+                    mPrimaryEmphasisBackground = ctx.getColor(R.color.materialColorPrimary);
+                    mPrimaryEmphasisText = ctx.getColor(R.color.materialColorOnPrimary);
+                    mSecondaryEmphasisOutline = ctx.getColor(R.color.materialColorOutlineVariant);
+                    mSecondaryEmphasisText = ctx.getColor(R.color.materialColorPrimary);
                 }
             }
+
+            if (Flags.apiNotificationSemanticStyle()) {
+                mSemanticInfo = ensureTextContrast(
+                        ctx.getColor(semanticStyleToColorRes(SEMANTIC_STYLE_INFO)),
+                        mBackgroundColor);
+                mSemanticSafe = ensureTextContrast(
+                        ctx.getColor(semanticStyleToColorRes(SEMANTIC_STYLE_SAFE)),
+                        mBackgroundColor);
+                mSemanticCaution = ensureTextContrast(
+                        ctx.getColor(semanticStyleToColorRes(SEMANTIC_STYLE_CAUTION)),
+                        mBackgroundColor);
+                mSemanticDanger = ensureTextContrast(
+                        ctx.getColor(semanticStyleToColorRes(SEMANTIC_STYLE_DANGER)),
+                        mBackgroundColor);
+            }
+
             // make sure every color has a valid value
-            mProtectionColor = ctx.getColor(R.color.surface_effect_3);
+            mProtectionColor = ctx.getColor(R.color.customColorSurfaceEffect3);
             mSemanticRedContainerHighColor =
-                    ctx.getColor(R.color.materialColorSemanticRedContainerHigh);
+                    ctx.getColor(R.color.semanticRedContainerHigh);
+        }
+
+        private static @ColorInt int ensureTextContrast(@ColorInt int textColor, @ColorInt int bg) {
+            return ContrastColorUtil.ensureContrast(textColor, bg, TEXT_CONTRAST);
+        }
+
+        private static @ColorInt int ensureThinContrast(@ColorInt int color, @ColorInt int bg) {
+            return ContrastColorUtil.ensureContrast(color, bg, THIN_CONTRAST);
+        }
+
+        private static @ColorInt int ensureMinimalContrast(@ColorInt int color, @ColorInt int bg) {
+            return ContrastColorUtil.ensureContrast(color, bg, MINIMAL_CONTRAST);
         }
 
         /** calculates the contrast color for the non-colorized notifications */
@@ -16901,14 +18968,9 @@ public class Notification implements Parcelable
             return mProtectionColor;
         }
 
-        /** @return the color for the most prominent text */
-        public @ColorInt int getPrimaryTextColor() {
-            return mPrimaryTextColor;
-        }
-
-        /** @return the color for less prominent text */
-        public @ColorInt int getSecondaryTextColor() {
-            return mSecondaryTextColor;
+        /** @return the color for notification text */
+        public @ColorInt int getTextColor() {
+            return mTextColor;
         }
 
         /** @return the theme's accent color for colored UI elements */
@@ -16965,6 +19027,48 @@ public class Notification implements Parcelable
         /** @return the alpha component of the current theme's control highlight color */
         public int getRippleAlpha() {
             return mRippleAlpha;
+        }
+
+        /**
+         * Returns the actual color associated to a semantic style, depending on the current
+         * theme.
+         */
+        @Override
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_SEMANTIC_STYLE)
+        @ColorInt
+        public int getSemanticColor(@SemanticStyle int style) {
+            return switch (style) {
+                case SEMANTIC_STYLE_INFO -> mSemanticInfo;
+                case SEMANTIC_STYLE_SAFE -> mSemanticSafe;
+                case SEMANTIC_STYLE_CAUTION -> mSemanticCaution;
+                case SEMANTIC_STYLE_DANGER -> mSemanticDanger;
+                case SEMANTIC_STYLE_UNSPECIFIED -> COLOR_DEFAULT;
+                default -> COLOR_DEFAULT;
+            };
+        }
+
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+        @ColorInt
+        public int getPrimaryEmphasisBackground() {
+            return mPrimaryEmphasisBackground;
+        }
+
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+        @ColorInt
+        int getPrimaryEmphasisText() {
+            return mPrimaryEmphasisText;
+        }
+
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+        @ColorInt
+        int getSecondaryEmphasisOutline() {
+            return mSecondaryEmphasisOutline;
+        }
+
+        @FlaggedApi(Flags.FLAG_API_NOTIFICATION_ACTION_CUSTOM)
+        @ColorInt
+        int getSecondaryEmphasisText() {
+            return mSecondaryEmphasisText;
         }
     }
 }

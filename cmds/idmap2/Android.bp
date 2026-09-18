@@ -161,6 +161,11 @@ cc_library_static {
             ],
         },
     },
+    min_sdk_version: "apex_inherit",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.webapp",
+    ],
 }
 
 cc_test {

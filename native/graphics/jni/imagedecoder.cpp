@@ -68,7 +68,7 @@ int ResultToErrorCode(SkCodec::Result result) {
             return ANDROID_IMAGE_DECODER_SUCCESS;
         case SkCodec::kInvalidScale:
             return ANDROID_IMAGE_DECODER_INVALID_SCALE;
-        case SkCodec::kInternalError:
+        default:
             return ANDROID_IMAGE_DECODER_INTERNAL_ERROR;
     }
 }

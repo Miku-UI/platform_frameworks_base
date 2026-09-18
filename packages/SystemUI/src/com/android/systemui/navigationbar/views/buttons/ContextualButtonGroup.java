@@ -76,7 +76,7 @@ public class ContextualButtonGroup extends ButtonDispatcher {
     }
 
     /**
-     * Set the visibility of the button by {@param buttonResId} with {@param visible}. Only one
+     * Set the visibility of the button by {@code buttonResId} with {@code visible}. Only one
      * button is shown at a time. The input button will only show up if it has higher priority than
      * a previous button, otherwise it will be marked as visible and shown later if all higher
      * priority buttons are invisible. Therefore hiding a button will show the next marked visible

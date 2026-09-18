@@ -160,13 +160,16 @@ public final class Font {
         /**
          * Constructs a builder with a file descriptor.
          *
+         * <p>This constructor immediately maps the font file into memory and closes the
+         * provided file descriptor.
+         *
          * @param fd a file descriptor
          * @param offset an offset to of the font data in the file
          * @param size a size of the font data. If -1 is passed, use until end of the file.
          */
         public Builder(@NonNull ParcelFileDescriptor fd, @IntRange(from = 0) long offset,
                 @IntRange(from = -1) long size) {
-            try (FileInputStream fis = new FileInputStream(fd.getFileDescriptor())) {
+            try (FileInputStream fis = new ParcelFileDescriptor.AutoCloseInputStream(fd)) {
                 final FileChannel fc = fis.getChannel();
                 size = (size == -1) ? fc.size() - offset : size;
                 mBuffer = fc.map(FileChannel.MapMode.READ_ONLY, offset, size);

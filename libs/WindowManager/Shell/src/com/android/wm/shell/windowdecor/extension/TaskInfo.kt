@@ -23,7 +23,6 @@ import android.app.WindowConfiguration.WINDOWING_MODE_PINNED
 import android.view.WindowInsets
 import android.view.WindowInsetsController.APPEARANCE_LIGHT_CAPTION_BARS
 import android.view.WindowInsetsController.APPEARANCE_TRANSPARENT_CAPTION_BAR_BACKGROUND
-import android.window.DesktopModeFlags
 
 val TaskInfo.isTransparentCaptionBarAppearance: Boolean
     get() {
@@ -61,8 +60,6 @@ fun TaskInfo.isDragResizable(inFullImmersive: Boolean): Boolean =
     if (inFullImmersive) {
         // Task cannot be resized in full immersive.
         false
-    } else if (DesktopModeFlags.ENABLE_WINDOWING_SCALED_RESIZING.isTrue) {
-        isFreeform
     } else {
-        isFreeform && isResizeable
+        isFreeform && isVisibleRequested
     }

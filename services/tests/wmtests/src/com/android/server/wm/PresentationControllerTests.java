@@ -30,19 +30,20 @@ import static android.view.WindowManager.LayoutParams.TYPE_PRESENTATION;
 import static android.view.WindowManager.LayoutParams.TYPE_PRIVATE_PRESENTATION;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
-import static com.android.window.flags.Flags.FLAG_ENABLE_PRESENTATION_DISALLOWED_ON_UNFOCUSED_HOST_TASK;
-import static com.android.window.flags.Flags.FLAG_ENABLE_PRESENTATION_FOR_CONNECTED_DISPLAYS;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
+import static com.android.window.flags.Flags.FLAG_ENABLE_PRESENTATION_STOPS_TOP_TASK_BUGFIX;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.eq;
 
 import android.annotation.NonNull;
 import android.os.Binder;
 import android.os.UserHandle;
-import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.view.DisplayInfo;
@@ -75,12 +76,15 @@ public class PresentationControllerTests extends WindowTestsBase {
         mPlayer = registerTestTransitionPlayer();
     }
 
-    @EnableFlags(FLAG_ENABLE_PRESENTATION_FOR_CONNECTED_DISPLAYS)
+    @EnableFlags(FLAG_ENABLE_PRESENTATION_STOPS_TOP_TASK_BUGFIX)
     @Test
     public void testPresentationShowAndHide() {
         final DisplayContent dc = createPresentationDisplay();
         final ActivityRecord activity = createActivityRecord(createTask(dc));
         assertTrue(activity.isVisible());
+        assertTrue(activity.getTask().isFocusableAndVisible());
+        // Finish WAKE transition (adding task to empty display wakes it up)
+        mPlayer.flush();
 
         // Add a presentation window, which requests the activity to stop.
         final WindowState window = addPresentationWindow(100000, dc.mDisplayId);
@@ -94,6 +98,7 @@ public class PresentationControllerTests extends WindowTestsBase {
         // Completing the transition makes the activity invisible.
         completeTransition(addTransition, /*abortSync=*/ true);
         assertFalse(activity.isVisible());
+        assertFalse(activity.getTask().isFocusableAndVisible());
 
         // Remove a Presentation window, which requests the activity to be resumed back.
         window.removeIfPossible();
@@ -109,28 +114,10 @@ public class PresentationControllerTests extends WindowTestsBase {
         assertTrue(activity.isVisible());
     }
 
-    @DisableFlags(FLAG_ENABLE_PRESENTATION_FOR_CONNECTED_DISPLAYS)
-    @Test
-    public void testPresentationShowAndHide_flagDisabled() {
-        final DisplayContent dc = createPresentationDisplay();
-        final ActivityRecord activity = createActivityRecord(createTask(dc));
-        assertTrue(activity.isVisible());
-
-        final WindowState window = addPresentationWindow(100000, dc.mDisplayId);
-        assertFalse(window.mTransitionController.isCollecting());
-        assertTrue(activity.isVisibleRequested());
-        assertTrue(activity.isVisible());
-
-        window.removeIfPossible();
-        assertFalse(window.mTransitionController.isCollecting());
-        assertTrue(activity.isVisibleRequested());
-        assertTrue(activity.isVisible());
-        assertFalse(window.isAttached());
-    }
-
-    @EnableFlags(FLAG_ENABLE_PRESENTATION_FOR_CONNECTED_DISPLAYS)
     @Test
     public void testPresentationCannotCoverFocusedHostTask() {
+        forceAllowPresentationsOnDefaultDisplay();
+
         int uid = Binder.getCallingUid();
         final DisplayContent presentationDisplay = createPresentationDisplay();
         final Task task = createTask(presentationDisplay);
@@ -156,8 +143,6 @@ public class PresentationControllerTests extends WindowTestsBase {
         assertFalse(window.isVisible());
     }
 
-    @EnableFlags({FLAG_ENABLE_PRESENTATION_FOR_CONNECTED_DISPLAYS,
-            FLAG_ENABLE_PRESENTATION_DISALLOWED_ON_UNFOCUSED_HOST_TASK})
     @Test
     public void testPresentationCannotCoverUnfocusedHostTask() {
         int uid = Binder.getCallingUid();
@@ -185,9 +170,43 @@ public class PresentationControllerTests extends WindowTestsBase {
         assertAddPresentationWindowFails(uid, presentationDisplay.mDisplayId);
     }
 
-    @EnableFlags(FLAG_ENABLE_PRESENTATION_FOR_CONNECTED_DISPLAYS)
+    @Test
+    public void testPresentationCanLaunchWithUnfocusedHostTaskOnDifferentDisplay() {
+        // This test verifies that a presentation can be launched on a display when its host task
+        // is visible but not focused on a different display.
+        int uid = Binder.getCallingUid();
+
+        // Create a host task on the default display.
+        final Task hostTask = createTask(mDefaultDisplay);
+        hostTask.effectiveUid = uid;
+        final ActivityRecord hostActivity = createActivityRecord(hostTask);
+        assertTrue(hostActivity.isVisible());
+
+        // Create another task on the default display to make the host task unfocused.
+        final Task taskFromAnotherApp = createTask(mDefaultDisplay.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FREEFORM, ACTIVITY_TYPE_STANDARD);
+        taskFromAnotherApp.effectiveUid = uid + 1;
+        final ActivityRecord activityFromAnotherApp = createActivityRecord(taskFromAnotherApp);
+        assertTrue(hostActivity.isVisible());
+        assertTrue(activityFromAnotherApp.isVisible());
+        assertFalse(hostActivity.isFocusedActivityOnDisplay());
+        assertTrue(activityFromAnotherApp.isFocusedActivityOnDisplay());
+
+        // Create a separate display for the presentation.
+        final DisplayContent presentationDisplay = createPresentationDisplay();
+
+        // Adding a presentation window on the other display must succeed, even with an unfocused
+        // host task.
+        final WindowState window = addPresentationWindow(uid, presentationDisplay.getDisplayId());
+        final Transition addTransition = window.mTransitionController.getCollectingTransition();
+        completeTransition(addTransition, /*abortSync=*/ true);
+        assertTrue(window.isVisible());
+    }
+
     @Test
     public void testPresentationCannotLaunchOnAllDisplays() {
+        forceAllowPresentationsOnDefaultDisplay();
+
         final int uid = Binder.getCallingUid();
         final DisplayContent presentationDisplay = createPresentationDisplay();
         final Task task = createTask(presentationDisplay);
@@ -206,7 +225,6 @@ public class PresentationControllerTests extends WindowTestsBase {
         assertAddPresentationWindowFails(uid + 1, presentationDisplay.mDisplayId);
     }
 
-    @EnableFlags(FLAG_ENABLE_PRESENTATION_FOR_CONNECTED_DISPLAYS)
     @Test
     public void testInvisiblePresentationIsNotAllowed() {
         final int uid = Binder.getCallingUid();
@@ -233,7 +251,6 @@ public class PresentationControllerTests extends WindowTestsBase {
         assertFalse(window.isVisible());
     }
 
-    @EnableFlags(FLAG_ENABLE_PRESENTATION_FOR_CONNECTED_DISPLAYS)
     @Test
     public void testInvisiblePrivatePresentationIsAllowed() {
         final int uid = Binder.getCallingUid();
@@ -259,9 +276,10 @@ public class PresentationControllerTests extends WindowTestsBase {
         assertTrue(window.isVisible());
     }
 
-    @EnableFlags(FLAG_ENABLE_PRESENTATION_FOR_CONNECTED_DISPLAYS)
     @Test
     public void testPresentationCannotLaunchOnInternalDisplayWithoutHostHavingGlobalFocus() {
+        forceAllowPresentationsOnDefaultDisplay();
+
         final int uid = Binder.getCallingUid();
         // Adding a presentation window on an internal display requires a host task
         // with global focus on another display.
@@ -290,7 +308,6 @@ public class PresentationControllerTests extends WindowTestsBase {
         assertTrue(window.isVisible());
     }
 
-    @EnableFlags(FLAG_ENABLE_PRESENTATION_FOR_CONNECTED_DISPLAYS)
     @Test
     public void testReparentingActivityToSameDisplayClosesPresentation() {
         final int uid = Binder.getCallingUid();
@@ -316,9 +333,57 @@ public class PresentationControllerTests extends WindowTestsBase {
         assertFalse(window.isVisible());
     }
 
-    @EnableFlags(FLAG_ENABLE_PRESENTATION_FOR_CONNECTED_DISPLAYS)
+    @Test
+    public void testPrivatePresentationDoesNotHaveHostTask() {
+        final int uid = Binder.getCallingUid();
+        final Task task = createTask(mDefaultDisplay);
+        task.effectiveUid = uid;
+        final ActivityRecord activity = createActivityRecord(task);
+        assertTrue(activity.isVisible());
+
+        // Add a presentation window on a presentation display.
+        final DisplayContent presentationDisplay = createPrivatePresentationDisplay();
+        final WindowState window = addPrivatePresentationWindow(uid,
+                presentationDisplay.getDisplayId());
+        final Transition addTransition = window.mTransitionController.getCollectingTransition();
+        completeTransition(addTransition, /*abortSync=*/ true);
+        assertTrue(window.isVisible());
+
+        // Reparenting the host task below the presentation must NOT close the presentation
+        // because the presentation doesn't have a host task in per-display-focus systems.
+        task.reparent(presentationDisplay.getDefaultTaskDisplayArea(), true);
+        waitHandlerIdle(window.mWmService.mAtmService.mH);
+        final Transition removeTransition = window.mTransitionController.getCollectingTransition();
+        assertEquals(TRANSIT_WAKE, removeTransition.mType);
+        completeTransition(removeTransition, /*abortSync=*/ false);
+        assertTrue(window.isVisible());
+    }
+
+    @Test
+    public void testPrivatePresentationCanCoverHostTask() {
+        // This test verifies that a private presentation can be shown on the same display as its
+        // host task, because host task policies do not apply to private displays.
+        final int uid = Binder.getCallingUid();
+        final DisplayContent privateDisplay = createPrivatePresentationDisplay();
+        final Task task = createTask(privateDisplay);
+        task.effectiveUid = uid;
+        final ActivityRecord activity = createActivityRecord(task);
+        assertTrue(activity.isVisible());
+        // Finish WAKE transition (adding task to empty display wakes it up)
+        mPlayer.flush();
+
+        // Adding a private presentation window over its host task must succeed because host task
+        // policies are ignored for private displays.
+        final WindowState window = addPrivatePresentationWindow(uid, privateDisplay.getDisplayId());
+        final Transition addTransition = window.mTransitionController.getCollectingTransition();
+        completeTransition(addTransition, /*abortSync=*/ true);
+        assertTrue(window.isVisible());
+    }
+
     @Test
     public void testNewPresentationCannotShowOnPresentingDesk() {
+        forceAllowPresentationsOnDefaultDisplay();
+
         int uid = Binder.getCallingUid();
         final DisplayContent presentationDisplay = createPresentationDisplay();
 
@@ -339,6 +404,17 @@ public class PresentationControllerTests extends WindowTestsBase {
 
         // Adding another presentation window over the presentation must fail.
         assertAddPresentationWindowFails(uid, DEFAULT_DISPLAY);
+    }
+
+    @Test
+    public void testDisallowPresentationOnNonPresentationDisplay() {
+        assumeTrue(!mDefaultDisplay.mDisplay.isPublicPresentation());
+
+        final DisplayContent dc = createPresentationDisplay();
+        final ActivityRecord activity = createActivityRecord(createTask(dc));
+        assertTrue(activity.isVisible());
+
+        assertAddPresentationWindowFails(100000, mDefaultDisplay.getDisplayId());
     }
 
     private WindowState addPresentationWindow(int uid, int displayId) {
@@ -423,5 +499,10 @@ public class PresentationControllerTests extends WindowTestsBase {
             transition.onTransactionReady(transition.getSyncId(), mTransaction);
         }
         transition.finishTransition(chain);
+    }
+
+    private void forceAllowPresentationsOnDefaultDisplay() {
+        spyOn(mDefaultDisplay.getDisplay());
+        when(mDefaultDisplay.getDisplay().isPublicPresentation()).thenReturn(true);
     }
 }

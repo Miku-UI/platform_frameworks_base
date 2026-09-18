@@ -28,8 +28,8 @@ import dagger.assisted.AssistedInject
 class EditTopBarActionsViewModel
 @AssistedInject
 constructor(private val activityStarter: ActivityStarter) {
-    val actions: List<EditTopBarActionViewModel> = buildList {
-        if (SceneContainerFlag.isEnabled) {
+    fun actions(showDualShadeSetting: Boolean): List<EditTopBarActionViewModel> = buildList {
+        if (SceneContainerFlag.isEnabled && showDualShadeSetting) {
             add(
                 EditTopBarActionViewModel(
                     SettingsIcon,

@@ -30,20 +30,13 @@ private const val CAPACITY = 16
  */
 class BubbleVolatileRepository(private val launcherApps: LauncherApps) {
 
-    /**
-     * Set of bubbles per user. Each set of bubbles is ordered by recency.
-     */
+    /** Set of bubbles per user. Each set of bubbles is ordered by recency. */
     private var entitiesByUser = SparseArray<MutableList<BubbleEntity>>()
 
-    /**
-     * The capacity of the cache.
-     */
-    @VisibleForTesting
-    var capacity = CAPACITY
+    /** The capacity of the cache. */
+    @VisibleForTesting var capacity = CAPACITY
 
-    /**
-     * Returns a snapshot of all the bubbles, a map of the userId to bubble list.
-     */
+    /** Returns a snapshot of all the bubbles, a map of the userId to bubble list. */
     val bubbles: SparseArray<List<BubbleEntity>>
         @Synchronized
         get() {
@@ -63,16 +56,14 @@ class BubbleVolatileRepository(private val launcherApps: LauncherApps) {
     fun getEntities(userId: Int): MutableList<BubbleEntity> {
         val entities = entitiesByUser.get(userId)
         return when (entities) {
-            null -> mutableListOf<BubbleEntity>().also {
-                entitiesByUser.put(userId, it)
-            }
+            null -> mutableListOf<BubbleEntity>().also { entitiesByUser.put(userId, it) }
             else -> entities
         }
     }
 
     /**
-     * Add the bubbles to memory and perform a de-duplication. In case a bubble already exists,
-     * it will be moved to the last.
+     * Add the bubbles to memory and perform a de-duplication. In case a bubble already exists, it
+     * will be moved to the last.
      */
     @Synchronized
     fun addBubbles(userId: Int, bubbles: List<BubbleEntity>) {
@@ -82,8 +73,10 @@ class BubbleVolatileRepository(private val launcherApps: LauncherApps) {
         // Verify the size of given bubbles is within capacity, otherwise trim down to capacity
         val bubblesInRange = bubbles.takeLast(capacity)
         // To ensure natural ordering of the bubbles, removes bubbles which already exist
-        val uniqueBubbles = bubblesInRange.filterNot { b: BubbleEntity ->
-            entities.removeIf { e: BubbleEntity -> b.key == e.key } }
+        val uniqueBubbles =
+            bubblesInRange.filterNot { b: BubbleEntity ->
+                entities.removeIf { e: BubbleEntity -> b.key == e.key }
+            }
         val overflowCount = entities.size + bubblesInRange.size - capacity
         if (overflowCount > 0) {
             // Uncache ShortcutInfo of bubbles that will be removed due to capacity
@@ -97,11 +90,15 @@ class BubbleVolatileRepository(private val launcherApps: LauncherApps) {
 
     @Synchronized
     fun removeBubbles(@UserIdInt userId: Int, bubbles: List<BubbleEntity>) =
-            uncache(bubbles.filter { b: BubbleEntity ->
-                getEntities(userId).removeIf { e: BubbleEntity -> b.key == e.key } })
+        uncache(
+            bubbles.filter { b: BubbleEntity ->
+                getEntities(userId).removeIf { e: BubbleEntity -> b.key == e.key }
+            }
+        )
 
     /**
      * Removes all the bubbles associated with the provided userId.
+     *
      * @return whether bubbles were removed or not.
      */
     @Synchronized
@@ -116,26 +113,27 @@ class BubbleVolatileRepository(private val launcherApps: LauncherApps) {
     }
 
     /**
-     * Removes all the bubbles associated with the provided userId when that userId is part of
-     * a profile (e.g. managed account).
+     * Removes all the bubbles associated with the provided userId when that userId is part of a
+     * profile (e.g. managed account).
      *
      * @return whether bubbles were removed or not.
      */
     @Synchronized
     private fun removeBubblesForUserWithParent(
         @UserIdInt userId: Int,
-        @UserIdInt parentUserId: Int
+        @UserIdInt parentUserId: Int,
     ): Boolean {
         if (entitiesByUser.get(parentUserId) != null) {
-            return entitiesByUser.get(parentUserId).removeIf {
-                b: BubbleEntity -> b.userId == userId }
+            return entitiesByUser.get(parentUserId).removeIf { b: BubbleEntity ->
+                b.userId == userId
+            }
         }
         return false
     }
 
     /**
-     * Goes through all the persisted bubbles and removes them if the user is not in the active
-     * list of users.
+     * Goes through all the persisted bubbles and removes them if the user is not in the active list
+     * of users.
      *
      * @return whether the list of bubbles changed or not (i.e. was a removal made).
      */
@@ -159,16 +157,28 @@ class BubbleVolatileRepository(private val launcherApps: LauncherApps) {
     }
 
     private fun cache(bubbles: List<BubbleEntity>) {
-        bubbles.groupBy { ShortcutKey(it.userId, it.packageName) }.forEach { (key, bubbles) ->
-            launcherApps.cacheShortcuts(key.pkg, bubbles.map { it.shortcutId },
-                    UserHandle.of(key.userId), LauncherApps.FLAG_CACHE_BUBBLE_SHORTCUTS)
-        }
+        bubbles
+            .groupBy { ShortcutKey(it.userId, it.packageName) }
+            .forEach { (key, bubbles) ->
+                launcherApps.cacheShortcuts(
+                    key.pkg,
+                    bubbles.map { it.shortcutId },
+                    UserHandle.of(key.userId),
+                    LauncherApps.FLAG_CACHE_BUBBLE_SHORTCUTS,
+                )
+            }
     }
 
     private fun uncache(bubbles: List<BubbleEntity>) {
-        bubbles.groupBy { ShortcutKey(it.userId, it.packageName) }.forEach { (key, bubbles) ->
-            launcherApps.uncacheShortcuts(key.pkg, bubbles.map { it.shortcutId },
-                    UserHandle.of(key.userId), LauncherApps.FLAG_CACHE_BUBBLE_SHORTCUTS)
-        }
+        bubbles
+            .groupBy { ShortcutKey(it.userId, it.packageName) }
+            .forEach { (key, bubbles) ->
+                launcherApps.uncacheShortcuts(
+                    key.pkg,
+                    bubbles.map { it.shortcutId },
+                    UserHandle.of(key.userId),
+                    LauncherApps.FLAG_CACHE_BUBBLE_SHORTCUTS,
+                )
+            }
     }
 }

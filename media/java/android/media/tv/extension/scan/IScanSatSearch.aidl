@@ -21,6 +21,11 @@ package android.media.tv.extension.scan;
  * @hide
  */
 interface IScanSatSearch {
-    // Set currecnt LNB as customized LNB, default LNB is universal LNB
+    /**
+     * Set currecnt LNB as customized LNB, default LNB is universal LNB.
+     *
+     * @param customizedLnb default LNB is universal LNB, customized LNB upon End-User selection.
+     * @return @ScanConstants.OpResult.RESULT_SUCCESS if set successfully else RESULT_FAILED.
+     */
     int setCustomizedLnb(String customizedLnb);
 }

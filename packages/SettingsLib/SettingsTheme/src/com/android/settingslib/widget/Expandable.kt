@@ -18,4 +18,5 @@ package com.android.settingslib.widget
 
 interface Expandable {
     fun isExpanded(): Boolean
+    fun setExpanded(expanded: Boolean)
 }

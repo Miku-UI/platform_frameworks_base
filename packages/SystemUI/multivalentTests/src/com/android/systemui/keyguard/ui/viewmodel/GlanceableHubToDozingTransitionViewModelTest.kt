@@ -29,11 +29,10 @@ import com.android.systemui.kosmos.collectValues
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.testKosmos
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Test
 import org.junit.runner.RunWith
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@DisableSceneContainer
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class GlanceableHubToDozingTransitionViewModelTest : SysuiTestCase() {
@@ -45,7 +44,6 @@ class GlanceableHubToDozingTransitionViewModelTest : SysuiTestCase() {
     val underTest by lazy { kosmos.glanceableHubToDozingTransitionViewModel }
 
     @Test
-    @DisableSceneContainer
     fun blurBecomesMinValueImmediately() =
         kosmos.runTest {
             val values by collectValues(underTest.windowBlurRadius)

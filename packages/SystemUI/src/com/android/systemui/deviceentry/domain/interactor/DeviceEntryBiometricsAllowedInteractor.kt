@@ -123,22 +123,36 @@ constructor(
             )
 
     /** Whether fingerprint authentication is currently allowed while on the bouncer. */
-    val isFingerprintCurrentlyAllowedOnBouncer: Flow<Boolean> =
+    val isFingerprintCurrentlyAllowedOnBouncer: StateFlow<Boolean> =
         combine(
-            secureLockDeviceInteractor.get().isSecureLockDeviceEnabled,
-            deviceEntryFingerprintAuthInteractor.isSensorUnderDisplay,
-            isFingerprintAuthCurrentlyAllowed,
-        ) { isSecureLockDeviceEnabled, sensorBelowDisplay, isFingerprintAuthCurrentlyAllowed ->
-            if (secureLockDevice() && isSecureLockDeviceEnabled) {
-                isFingerprintAuthCurrentlyAllowed
-            } else {
-                if (sensorBelowDisplay) {
-                    false
-                } else {
-                    isFingerprintAuthCurrentlyAllowed
-                }
-            }
+                secureLockDeviceInteractor.get().isSecureLockDeviceEnabled,
+                deviceEntryFingerprintAuthInteractor.isSensorUnderDisplay,
+                isFingerprintAuthCurrentlyAllowed,
+                ::getIsFingerprintCurrentlyAllowedOnBouncer,
+            )
+            .stateIn(
+                applicationScope,
+                SharingStarted.WhileSubscribed(),
+                getIsFingerprintCurrentlyAllowedOnBouncer(
+                    isSecureLockDeviceEnabled =
+                        secureLockDeviceInteractor.get().isSecureLockDeviceEnabled.value,
+                    sensorBelowDisplay =
+                        deviceEntryFingerprintAuthInteractor.isSensorUnderDisplay.value,
+                    isFingerprintAuthCurrentlyAllowed = isFingerprintAuthCurrentlyAllowed.value,
+                ),
+            )
+
+    private fun getIsFingerprintCurrentlyAllowedOnBouncer(
+        isSecureLockDeviceEnabled: Boolean,
+        sensorBelowDisplay: Boolean,
+        isFingerprintAuthCurrentlyAllowed: Boolean,
+    ): Boolean {
+        return if (secureLockDevice() && isSecureLockDeviceEnabled) {
+            isFingerprintAuthCurrentlyAllowed
+        } else {
+            !sensorBelowDisplay && isFingerprintAuthCurrentlyAllowed
         }
+    }
 
     /**
      * Whether face authentication is currently allowed for the user. This is true if the user has

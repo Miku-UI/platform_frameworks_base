@@ -61,6 +61,7 @@ import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mock
 import org.mockito.junit.MockitoJUnit
 import org.mockito.junit.MockitoRule
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -190,18 +191,33 @@ class BluetoothDetailsContentViewModelTest(flags: FlagsParameterization) : Sysui
             bluetoothDetailsContentViewModel.showDialog(null)
             runCurrent()
 
-            verify(mDialogTransitionAnimator, never()).show(any(), any(), any())
+            verify(mDialogTransitionAnimator, never()).show(any(), any(), any(), anyBoolean())
         }
     }
 
     @Test
-    @DisableFlags(QsDetailedView.FLAG_NAME)
+    @DisableFlags(
+        QsDetailedView.FLAG_NAME,
+        com.android.systemui.Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION,
+    )
     fun testShowDialog_animated() {
         testScope.runTest {
             bluetoothDetailsContentViewModel.showDialog(expandable)
             runCurrent()
 
             verify(mDialogTransitionAnimator).show(any(), any(), anyBoolean())
+        }
+    }
+
+    @Test
+    @DisableFlags(QsDetailedView.FLAG_NAME)
+    @EnableFlags(com.android.systemui.Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
+    fun testShowDialog_animated_withDynamicTargetResolution() {
+        testScope.runTest {
+            bluetoothDetailsContentViewModel.showDialog(expandable)
+            runCurrent()
+
+            verify(mDialogTransitionAnimator).show(any(), anyOrNull(), anyOrNull(), anyBoolean())
         }
     }
 
@@ -327,11 +343,33 @@ class BluetoothDetailsContentViewModelTest(flags: FlagsParameterization) : Sysui
 
     @Test
     @DisableFlags(QsDetailedView.FLAG_NAME)
+    @EnableFlags(com.android.systemui.Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION)
+    fun testUpdateTitleAndSubtitle_withDynamicTargetResolution() {
+        testScope.runTest {
+            assertThat(bluetoothDetailsContentViewModel.title).isEqualTo("")
+            assertThat(bluetoothDetailsContentViewModel.subTitle).isEqualTo("")
+
+            whenever(mDialogTransitionAnimator.show(any(), anyOrNull(), anyOrNull(), anyBoolean()))
+                .thenReturn(true)
+            bluetoothDetailsContentViewModel.showDialog(expandable)
+            runCurrent()
+
+            assertThat(bluetoothDetailsContentViewModel.title).isEqualTo("Bluetooth")
+            assertThat(bluetoothDetailsContentViewModel.subTitle).isEqualTo("Bluetooth is off")
+        }
+    }
+
+    @Test
+    @DisableFlags(
+        QsDetailedView.FLAG_NAME,
+        com.android.systemui.Flags.FLAG_ANIMATION_LIBRARY_DYNAMIC_TARGET_RESOLUTION,
+    )
     fun testUpdateTitleAndSubtitle() {
         testScope.runTest {
             assertThat(bluetoothDetailsContentViewModel.title).isEqualTo("")
             assertThat(bluetoothDetailsContentViewModel.subTitle).isEqualTo("")
 
+            whenever(mDialogTransitionAnimator.show(any(), any(), anyBoolean())).thenReturn(true)
             bluetoothDetailsContentViewModel.showDialog(expandable)
             runCurrent()
 

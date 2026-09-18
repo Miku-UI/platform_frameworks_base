@@ -22,17 +22,15 @@ import java.util.UUID;
 
 public enum TestProtoLogGroups implements IProtoLogGroup {
 
-    TEST_GROUP_1(true, true, false, "TEST_TAG_1"),
-    TEST_GROUP_2(true, false, true, "TEST_TAG_2");
+    TEST_GROUP_1(true, true, "TEST_TAG_1"),
+    TEST_GROUP_2(true, false, "TEST_TAG_2");
 
     private final boolean mEnabled;
-    private volatile boolean mLogToProto;
     private volatile boolean mLogToLogcat;
     private final String mTag;
 
-    TestProtoLogGroups(boolean enabled, boolean logToProto, boolean logToLogcat, String tag) {
+    TestProtoLogGroups(boolean enabled, boolean logToLogcat, String tag) {
         this.mEnabled = enabled;
-        this.mLogToProto = logToProto;
         this.mLogToLogcat = logToLogcat;
         this.mTag = tag;
     }

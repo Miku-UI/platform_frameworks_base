@@ -18,9 +18,8 @@ package com.android.wm.shell.desktopmode.desktopwallpaperactivity
 
 import android.testing.AndroidTestingRunner
 import android.testing.TestableLooper.RunWithLooper
-import android.view.Display.DEFAULT_DISPLAY
 import androidx.test.filters.SmallTest
-import com.android.wm.shell.MockToken
+import com.android.testing.wm.util.MockToken
 import com.android.wm.shell.ShellTestCase
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before

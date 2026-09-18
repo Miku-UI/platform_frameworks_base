@@ -121,17 +121,15 @@ class DesktopWindowingEducationPromoController(
                     requireViewById<TextView>(R.id.education_text).apply {
                         text = viewConfig.educationText
                     }
-                    if (DesktopExperienceFlags.ENABLE_APP_TO_WEB_EDUCATION_ANIMATION.isTrue) {
-                        requireViewById<ImageView>(R.id.education_image).apply {
-                            setImageDrawable(
-                                getLottieDrawable(
-                                    viewConfig.educationImage,
-                                    context,
-                                    taskInfo,
-                                    bgDispatcher,
-                                )
+                    requireViewById<ImageView>(R.id.education_image).apply {
+                        setImageDrawable(
+                            getLottieDrawable(
+                                viewConfig.educationImage,
+                                context,
+                                taskInfo,
+                                bgDispatcher,
                             )
-                        }
+                        )
                     }
                     setOnTouchListener { _, motionEvent ->
                         if (motionEvent.action == MotionEvent.ACTION_OUTSIDE) {

@@ -31,7 +31,7 @@ sealed interface InternetTileModel {
     data class Active(
         override val secondaryTitle: CharSequence? = null,
         override val secondaryLabel: Text? = null,
-        override val icon: InternetTileIconModel = InternetTileIconModel.Cellular(1),
+        override val icon: InternetTileIconModel = InternetTileIconModel.SignalLevel(1),
         override val stateDescription: ContentDescription? = null,
         override val contentDescription: ContentDescription? = null,
     ) : InternetTileModel
@@ -39,7 +39,7 @@ sealed interface InternetTileModel {
     data class Inactive(
         override val secondaryTitle: CharSequence? = null,
         override val secondaryLabel: Text? = null,
-        override val icon: InternetTileIconModel = InternetTileIconModel.Cellular(1),
+        override val icon: InternetTileIconModel = InternetTileIconModel.SignalLevel(1),
         override val stateDescription: ContentDescription? = null,
         override val contentDescription: ContentDescription? = null,
     ) : InternetTileModel

@@ -28,13 +28,13 @@ import kotlin.math.roundToInt
 interface FontCache {
     val animationFrameCount: Int
 
-    fun get(key: InterpKey): Font?
+    operator fun get(key: InterpKey): Font?
 
-    fun get(key: VarFontKey): Font?
+    operator fun get(key: VarFontKey): Font?
 
-    fun put(key: InterpKey, font: Font)
+    operator fun set(key: InterpKey, font: Font)
 
-    fun put(key: VarFontKey, font: Font)
+    operator fun set(key: VarFontKey, font: Font)
 }
 
 /** Cache key for the interpolated font. */
@@ -61,11 +61,11 @@ class FontCacheImpl(override val animationFrameCount: Int = DEFAULT_FONT_CACHE_M
 
     override fun get(key: VarFontKey): Font? = verFontCache[key]
 
-    override fun put(key: InterpKey, font: Font) {
+    override fun set(key: InterpKey, font: Font) {
         interpCache.put(key, font)
     }
 
-    override fun put(key: VarFontKey, font: Font) {
+    override fun set(key: VarFontKey, font: Font) {
         verFontCache.put(key, font)
     }
 
@@ -94,7 +94,7 @@ class FontInterpolator(val fontCache: FontCache = FontCacheImpl()) {
         // text chunks with the same font.
         val iKey =
             InterpKey(start, end, (linearProgress * fontCache.animationFrameCount).roundToInt())
-        fontCache.get(iKey)?.let {
+        fontCache[iKey]?.let {
             if (DEBUG) {
                 Log.d(LOG_TAG, "[$progress, $linearProgress] Interp. cache hit for $iKey")
             }
@@ -106,15 +106,15 @@ class FontInterpolator(val fontCache: FontCache = FontCacheImpl()) {
         // support more number of axes, we may want to preprocess the font and store the sorted axes
         // and also pre-fill the missing axes value with default value from 'fvar' table.
         val newAxes =
-            lerp(startAxes, endAxes) { tag, startValue, endValue ->
+            lerp(startAxes, endAxes) { _, startValue, endValue ->
                 MathUtils.lerp(startValue, endValue, progress)
             }
 
         // Check if we already make font for this axes. This is typically happens if the animation
         // happens backward and is being linearly interpolated.
         val vKey = VarFontKey(start, newAxes)
-        fontCache.get(vKey)?.let {
-            fontCache.put(iKey, it)
+        fontCache[vKey]?.let {
+            fontCache[iKey] = it
             if (DEBUG) {
                 Log.d(LOG_TAG, "[$progress, $linearProgress] Axis cache hit for $vKey")
             }
@@ -125,8 +125,8 @@ class FontInterpolator(val fontCache: FontCache = FontCacheImpl()) {
         // Font.Builder#build won't throw IOException since creating fonts from existing fonts will
         // not do any IO work.
         val newFont = Font.Builder(start).setFontVariationSettings(newAxes.toTypedArray()).build()
-        fontCache.put(iKey, newFont)
-        fontCache.put(vKey, newFont)
+        fontCache[iKey] = newFont
+        fontCache[vKey] = newFont
 
         // Cache misses are likely to create memory leaks, so this is logged at error level.
         Log.e(LOG_TAG, "[$progress, $linearProgress] Cache MISS for $iKey / $vKey")

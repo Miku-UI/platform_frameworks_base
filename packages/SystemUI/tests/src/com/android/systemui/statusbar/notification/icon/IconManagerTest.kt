@@ -28,15 +28,11 @@ import android.graphics.drawable.Icon
 import android.os.Bundle
 import android.os.SystemClock
 import android.os.UserHandle
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.controls.controller.AuxiliaryPersistenceWrapperTest.Companion.any
-import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
-import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
 import com.android.systemui.statusbar.notification.collection.BundleEntry
 import com.android.systemui.statusbar.notification.collection.BundleSpec
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
@@ -114,19 +110,7 @@ class IconManagerTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(StatusBarConnectedDisplays.FLAG_NAME)
-    fun testCreateIcons_cdFlagDisabled_statusBarChipIconIsNotNull() {
-        val entry =
-            notificationEntry(hasShortcut = true, hasMessageSenderIcon = true, hasLargeIcon = true)
-        entry?.let { iconManager.createIcons(it) }
-        testScope.runCurrent()
-
-        assertThat(entry?.icons?.statusBarChipIcon).isNotNull()
-    }
-
-    @Test
-    @EnableFlags(StatusBarConnectedDisplays.FLAG_NAME)
-    fun testCreateIcons_cdFlagEnabled_statusBarChipIconIsNull() {
+    fun testCreateIcons_statusBarChipIconIsNull() {
         val entry =
             notificationEntry(hasShortcut = true, hasMessageSenderIcon = true, hasLargeIcon = true)
         entry?.let { iconManager.createIcons(it) }
@@ -207,23 +191,7 @@ class IconManagerTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(StatusBarConnectedDisplays.FLAG_NAME)
-    fun testCreateIcons_cdFlagDisabled_sensitiveImportantConversation() {
-        val entry =
-            notificationEntry(hasShortcut = true, hasMessageSenderIcon = true, hasLargeIcon = false)
-        entry?.setSensitive(true, true)
-        entry?.channel?.isImportantConversation = true
-        entry?.let { iconManager.createIcons(it) }
-        testScope.runCurrent()
-        assertThat(entry?.icons?.statusBarIcon?.sourceIcon).isEqualTo(shortcutIc)
-        assertThat(entry?.icons?.statusBarChipIcon?.sourceIcon).isEqualTo(shortcutIc)
-        assertThat(entry?.icons?.shelfIcon?.sourceIcon).isEqualTo(smallIc)
-        assertThat(entry?.icons?.aodIcon?.sourceIcon).isEqualTo(smallIc)
-    }
-
-    @Test
-    @EnableFlags(StatusBarConnectedDisplays.FLAG_NAME)
-    fun testCreateIcons_cdFlagEnabled_sensitiveImportantConversation() {
+    fun testCreateIcons_sensitiveImportantConversation() {
         val entry =
             notificationEntry(hasShortcut = true, hasMessageSenderIcon = true, hasLargeIcon = false)
         entry?.setSensitive(true, true)
@@ -237,25 +205,7 @@ class IconManagerTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(StatusBarConnectedDisplays.FLAG_NAME)
-    fun testUpdateIcons_cdFlagDisabled_sensitiveImportantConversation() {
-        val entry =
-            notificationEntry(hasShortcut = true, hasMessageSenderIcon = true, hasLargeIcon = false)
-        entry?.setSensitive(true, true)
-        entry?.channel?.isImportantConversation = true
-        entry?.let { iconManager.createIcons(it) }
-        // Updating the icons after creation shouldn't break anything
-        entry?.let { iconManager.updateIcons(it) }
-        testScope.runCurrent()
-        assertThat(entry?.icons?.statusBarIcon?.sourceIcon).isEqualTo(shortcutIc)
-        assertThat(entry?.icons?.statusBarChipIcon?.sourceIcon).isEqualTo(shortcutIc)
-        assertThat(entry?.icons?.shelfIcon?.sourceIcon).isEqualTo(smallIc)
-        assertThat(entry?.icons?.aodIcon?.sourceIcon).isEqualTo(smallIc)
-    }
-
-    @Test
-    @EnableFlags(StatusBarConnectedDisplays.FLAG_NAME)
-    fun testUpdateIcons_cdFlagEnabled_sensitiveImportantConversation() {
+    fun testUpdateIcons_sensitiveImportantConversation() {
         val entry =
             notificationEntry(hasShortcut = true, hasMessageSenderIcon = true, hasLargeIcon = false)
         entry?.setSensitive(true, true)
@@ -286,7 +236,6 @@ class IconManagerTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(ShadeWindowGoesAround.FLAG_NAME)
     fun createIcons_forEntry_shelfIconCreatedWithShadeContext() {
         val entry =
             notificationEntry(hasShortcut = true, hasMessageSenderIcon = true, hasLargeIcon = true)
@@ -297,18 +246,6 @@ class IconManagerTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(ShadeWindowGoesAround.FLAG_NAME)
-    fun createIcons_forEntry_shelfIconCreatedWithoutShadeContext() {
-        val entry =
-            notificationEntry(hasShortcut = true, hasMessageSenderIcon = true, hasLargeIcon = true)
-        entry?.let { iconManager.createIcons(it) }
-
-        assertThat(entry?.icons?.shelfIcon?.context).isNotEqualTo(shadeContext)
-        assertThat(entry?.icons?.shelfIcon?.context).isEqualTo(context)
-    }
-
-    @Test
-    @EnableFlags(ShadeWindowGoesAround.FLAG_NAME)
     fun createIcons_forBundleEntry_withContextProvided_createsShelfIconWithProvidedContext() {
         val entry = BundleEntry(BundleSpec.NEWS)
         val newContext = spy(context)
@@ -317,18 +254,6 @@ class IconManagerTest : SysuiTestCase() {
         assertThat(entry.icons.shelfIcon?.context).isEqualTo(newContext)
         assertThat(entry.icons.shelfIcon?.context).isNotEqualTo(shadeContext)
         assertThat(entry.icons.shelfIcon?.context).isNotEqualTo(context)
-    }
-
-    @Test
-    @DisableFlags(ShadeWindowGoesAround.FLAG_NAME)
-    fun createIcons_forBundleEntry_shelfIconCreatedWithoutShadeContext() {
-        val entry = BundleEntry(BundleSpec.NEWS)
-        val newContext = spy(context)
-        iconManager.createIcons(newContext, entry)
-
-        assertThat(entry.icons.shelfIcon?.context).isNotEqualTo(newContext)
-        assertThat(entry.icons.shelfIcon?.context).isNotEqualTo(shadeContext)
-        assertThat(entry.icons.shelfIcon?.context).isEqualTo(context)
     }
 
     private fun notificationEntry(
@@ -358,7 +283,7 @@ class IconManagerTest : SysuiTestCase() {
             n.style = messagingStyle
         } else {
             val bundle = Bundle()
-            messagingStyle.addExtras(bundle, false, 0) // Set extras but not EXTRA_TEMPLATE
+            messagingStyle.addExtras(bundle, false) // Set extras but not EXTRA_TEMPLATE
             n.addExtras(bundle)
         }
 

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// "framework-minus-apex" and "all-updatable-modules-system-stubs" are not
+// "framework-minus-apex" and "all-modules-system-stubs" are not
 // visible publicly. We re-export them to Ravenwood in this file.
 
 java_library {
@@ -23,10 +23,10 @@ java_library {
 }
 
 java_library {
-    name: "all-updatable-modules-system-stubs-for-host",
+    name: "all-modules-system-stubs-for-host",
     installable: false,
-    stem: "all-updatable-modules-system-stubs",
-    static_libs: ["all-updatable-modules-system-stubs"],
+    stem: "all-modules-system-stubs",
+    static_libs: ["all-modules-system-stubs"],
     visibility: ["//frameworks/base/ravenwood"],
 }
 

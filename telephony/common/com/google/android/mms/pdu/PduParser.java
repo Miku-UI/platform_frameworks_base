@@ -316,7 +316,7 @@ public class PduParser {
                 case PduHeaders.CONTENT_CLASS:
                 case PduHeaders.RETRIEVE_STATUS:
                 case PduHeaders.STORE_STATUS:
-                    /**
+                    /*
                      * The following field has a different value when
                      * used in the M-Mbox-Delete.conf and M-Delete.conf PDU.
                      * For now we ignore this fact, since we do not support these PDUs
@@ -386,7 +386,7 @@ public class PduParser {
                 case PduHeaders.AUX_APPLIC_ID:
                 case PduHeaders.APPLIC_ID:
                 case PduHeaders.REPLY_APPLIC_ID:
-                    /**
+                    /*
                      * The next three header fields are email addresses
                      * as defined in RFC2822,
                      * not including the characters "<" and ">"
@@ -394,7 +394,7 @@ public class PduParser {
                 case PduHeaders.MESSAGE_ID:
                 case PduHeaders.REPLACE_ID:
                 case PduHeaders.CANCEL_ID:
-                    /**
+                    /*
                      * The following field has a different value when
                      * used in the M-Mbox-Delete.conf and M-Delete.conf PDU.
                      * For now we ignore this fact, since we do not support these PDUs
@@ -964,7 +964,7 @@ public class PduParser {
      */
     @UnsupportedAppUsage
     protected static int parseUnsignedInt(ByteArrayInputStream pduDataStream) {
-        /**
+        /*
          * From wap-230-wsp-20010705-a.pdf
          * The maximum size of a uintvar is 32 bits.
          * So it will be encoded in no more than 5 octets.
@@ -999,7 +999,7 @@ public class PduParser {
      */
     @UnsupportedAppUsage
     protected static int parseValueLength(ByteArrayInputStream pduDataStream) {
-        /**
+        /*
          * From wap-230-wsp-20010705-a.pdf
          * Value-length = Short-length | (Length-quote Length)
          * Short-length = <Any octet 0-30>
@@ -1028,7 +1028,7 @@ public class PduParser {
      * @return the EncodedStringValue
      */
     protected static EncodedStringValue parseEncodedStringValue(ByteArrayInputStream pduDataStream){
-        /**
+        /*
          * From OMA-TS-MMS-ENC-V1_3-20050927-C.pdf
          * Encoded-string-value = Text-string | Value-length Char-set Text-string
          */
@@ -1076,7 +1076,7 @@ public class PduParser {
     protected static byte[] parseWapString(ByteArrayInputStream pduDataStream,
             int stringType) {
         assert(null != pduDataStream);
-        /**
+        /*
          * From wap-230-wsp-20010705-a.pdf
          * Text-string = [Quote] *TEXT End-of-string
          * If the first character in the TEXT is in the range of 128-255,
@@ -1112,7 +1112,7 @@ public class PduParser {
         }
 
         // We are now definitely at the beginning of string
-        /**
+        /*
          * Return *TOKEN or *TEXT (Text-String without QUOTE,
          * Quoted-String without QUOTED_STRING_FLAG and without End-of-string)
          */
@@ -1125,7 +1125,7 @@ public class PduParser {
      * @return true when ch is TOKEN, false when ch is not TOKEN
      */
     protected static boolean isTokenCharacter(int ch) {
-        /**
+        /*
          * Token      = 1*<any CHAR except CTLs or separators>
          * separators = "("(40) | ")"(41) | "<"(60) | ">"(62) | "@"(64)
          *            | ","(44) | ";"(59) | ":"(58) | "\"(92) | <">(34)
@@ -1171,7 +1171,7 @@ public class PduParser {
      * @return true when ch is TEXT, false when ch is not TEXT
      */
     protected static boolean isText(int ch) {
-        /**
+        /*
          * TEXT = <any OCTET except CTLs,
          *      but including LWS>
          * CTL  = <any US-ASCII control character
@@ -1245,7 +1245,7 @@ public class PduParser {
      */
     @UnsupportedAppUsage
     protected static int parseShortInteger(ByteArrayInputStream pduDataStream) {
-        /**
+        /*
          * From wap-230-wsp-20010705-a.pdf
          * Short-integer = OCTET
          * Integers in range 0-127 shall be encoded as a one
@@ -1265,7 +1265,7 @@ public class PduParser {
      * @return long integer
      */
     protected static long parseLongInteger(ByteArrayInputStream pduDataStream) {
-        /**
+        /*
          * From wap-230-wsp-20010705-a.pdf
          * Long-integer = Short-length Multi-octet-integer
          * The Short-length indicates the length of the Multi-octet-integer
@@ -1303,7 +1303,7 @@ public class PduParser {
      * @return long integer
      */
     protected static long parseIntegerValue(ByteArrayInputStream pduDataStream) {
-        /**
+        /*
          * From wap-230-wsp-20010705-a.pdf
          * Integer-Value = Short-integer | Long-integer
          */
@@ -1347,7 +1347,7 @@ public class PduParser {
      */
     protected static void parseContentTypeParams(ByteArrayInputStream pduDataStream,
             HashMap<Integer, Object> map, Integer length) {
-        /**
+        /*
          * From wap-230-wsp-20010705-a.pdf
          * Parameter = Typed-parameter | Untyped-parameter
          * Typed-parameter = Well-known-parameter-token Typed-value
@@ -1377,7 +1377,7 @@ public class PduParser {
             lastLen--;
 
             switch (param) {
-                /**
+                /*
                  * From rfc2387, chapter 3.1
                  * The type parameter must be specified and its value is the MIME media
                  * type of the "root" body part. It permits a MIME user agent to
@@ -1417,7 +1417,7 @@ public class PduParser {
                     lastLen = length - (startPos - tempPos);
                     break;
 
-                    /**
+                    /*
                      * From oma-ts-mms-conf-v1_3.pdf, chapter 10.2.3.
                      * Start Parameter Referring to Presentation
                      *
@@ -1441,7 +1441,7 @@ public class PduParser {
                     lastLen = length - (startPos - tempPos);
                     break;
 
-                    /**
+                    /*
                      * From oma-ts-mms-conf-v1_3.pdf
                      * In creation, the character set SHALL be either us-ascii
                      * (IANA MIBenum 3) or utf-8 (IANA MIBenum 106)[Unicode].
@@ -1485,7 +1485,7 @@ public class PduParser {
                     lastLen = length - (startPos - tempPos);
                     break;
 
-                    /**
+                    /*
                      * From oma-ts-mms-conf-v1_3.pdf
                      * A name for multipart object SHALL be encoded using name-parameter
                      * for Content-Type header in WSP multipart headers.
@@ -1531,7 +1531,7 @@ public class PduParser {
     @UnsupportedAppUsage
     protected static byte[] parseContentType(ByteArrayInputStream pduDataStream,
             HashMap<Integer, Object> map) {
-        /**
+        /*
          * From wap-230-wsp-20010705-a.pdf
          * Content-type-value = Constrained-media | Content-general-form
          * Content-general-form = Value-length Media-type
@@ -1612,7 +1612,7 @@ public class PduParser {
         assert(null != part);
         assert(length > 0);
 
-        /**
+        /*
          * From oma-ts-mms-conf-v1_3.pdf, chapter 10.2.
          * A name for multipart object SHALL be encoded using name-parameter
          * for Content-Type header in WSP multipart headers.
@@ -1640,7 +1640,7 @@ public class PduParser {
                 // Number assigned headers.
                 switch (header) {
                     case PduPart.P_CONTENT_LOCATION:
-                        /**
+                        /*
                          * From wap-230-wsp-20010705-a.pdf, chapter 8.4.2.21
                          * Content-location-value = Uri-value
                          */
@@ -1653,7 +1653,7 @@ public class PduParser {
                         lastLen = length - (startPos - tempPos);
                         break;
                     case PduPart.P_CONTENT_ID:
-                        /**
+                        /*
                          * From wap-230-wsp-20010705-a.pdf, chapter 8.4.2.21
                          * Content-ID-value = Quoted-string
                          */
@@ -1667,7 +1667,7 @@ public class PduParser {
                         break;
                     case PduPart.P_DEP_CONTENT_DISPOSITION:
                     case PduPart.P_CONTENT_DISPOSITION:
-                        /**
+                        /*
                          * From wap-230-wsp-20010705-a.pdf, chapter 8.4.2.21
                          * Content-disposition-value = Value-length Disposition *(Parameter)
                          * Disposition = Form-data | Attachment | Inline | Token-text

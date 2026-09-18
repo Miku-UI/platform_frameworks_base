@@ -23,6 +23,7 @@ import android.os.Message;
 import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.server.display.persistence.PersistentDataStoreDelegate;
 
 import java.util.concurrent.CopyOnWriteArraySet;
 
@@ -35,7 +36,7 @@ public class BrightnessSetting {
 
     private static final int MSG_BRIGHTNESS_CHANGED = 1;
 
-    private final PersistentDataStore mPersistentDataStore;
+    private final PersistentDataStoreDelegate mPersistentDataStore;
     private final DisplayManagerService.SyncRoot mSyncRoot;
 
     private final LogicalDisplay mLogicalDisplay;
@@ -58,7 +59,7 @@ public class BrightnessSetting {
     private float mBrightness;
 
     BrightnessSetting(int userSerial,
-            @NonNull PersistentDataStore persistentDataStore,
+            @NonNull PersistentDataStoreDelegate persistentDataStore,
             @NonNull LogicalDisplay logicalDisplay,
             DisplayManagerService.SyncRoot syncRoot) {
         mPersistentDataStore = persistentDataStore;

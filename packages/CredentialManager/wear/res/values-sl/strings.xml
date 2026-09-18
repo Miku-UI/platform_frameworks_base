@@ -27,7 +27,7 @@
     <string name="provider_list_title" msgid="6803918216129492212">"Upravljanje podatkov za prijavo"</string>
     <string name="choose_sign_in_title" msgid="3616025924746872202">"Izbira prijave"</string>
     <string name="choose_passkey_title" msgid="8459270617632817465">"Izbira ključa za dostop"</string>
-    <string name="choose_password_title" msgid="7610721820858017214">"Izbira gesla"</string>
+    <string name="choose_password_title" msgid="7610721820858017214">"Izberite geslo"</string>
     <string name="sign_in_on_phone_button" msgid="7618621977586522403">"Prijava v telefonu"</string>
     <string name="locked_credential_entry_label_subtext_no_sign_in" msgid="1733094937495140605">"Ni nobenih podatkov za prijavo"</string>
     <string name="locked_credential_entry_label_subtext_tap_to_unlock" msgid="4320941096211904568">"Dotaknite se, da odklenete"</string>

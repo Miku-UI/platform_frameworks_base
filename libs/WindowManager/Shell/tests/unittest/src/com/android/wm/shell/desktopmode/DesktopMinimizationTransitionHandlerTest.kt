@@ -93,21 +93,6 @@ class DesktopMinimizationTransitionHandlerTest : ShellTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
-    fun startAnimation_toBackTransitionFullscreenTask_returnsFalse() {
-        val animates =
-            handler.startAnimation(
-                transition = mock(),
-                info = createTransitionInfo(task = createTask(WINDOWING_MODE_FULLSCREEN)),
-                startTransaction = mock(),
-                finishTransaction = mock(),
-                finishCallback = {},
-            )
-
-        assertFalse("Should not animate fullscreen task to back transition", animates)
-    }
-
-    @Test
     fun startAnimation_toBackTransitionOpeningFreeformTask_returnsFalse() {
         val animates =
             handler.startAnimation(

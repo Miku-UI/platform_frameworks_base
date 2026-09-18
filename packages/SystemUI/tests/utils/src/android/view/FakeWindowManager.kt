@@ -25,6 +25,9 @@ class FakeWindowManager(private val context: Context) : WindowManager {
     val addedViews = mutableMapOf<View, LayoutParams>()
 
     override fun addView(view: View, params: ViewGroup.LayoutParams) {
+        if (addedViews.containsKey(view)) {
+            throw IllegalStateException("View $view has already been added to the window manager.")
+        }
         addedViews[view] = params as LayoutParams
     }
 

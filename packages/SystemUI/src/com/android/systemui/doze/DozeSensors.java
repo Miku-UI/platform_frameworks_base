@@ -49,7 +49,6 @@ import com.android.internal.R;
 import com.android.internal.logging.UiEvent;
 import com.android.internal.logging.UiEventLogger;
 import com.android.internal.logging.UiEventLoggerImpl;
-import com.android.systemui.Flags;
 import com.android.systemui.biometrics.AuthController;
 import com.android.systemui.plugins.SensorManagerPlugin;
 import com.android.systemui.statusbar.phone.DozeParameters;
@@ -307,13 +306,9 @@ public class DozeSensors {
     }
 
     private boolean quickPickUpConfigured() {
-        if (Flags.newDozingKeyguardStates()) {
-            return mOpticalUdfpsEnrolled
-                    && mConfig.quickPickupSensorEnabled(
-                            mSelectedUserInteractor.getSelectedUserId());
-        }
-        return mUdfpsEnrolled
-                && mConfig.quickPickupSensorEnabled(mSelectedUserInteractor.getSelectedUserId());
+        return mOpticalUdfpsEnrolled
+                && mConfig.quickPickupSensorEnabled(
+                        mSelectedUserInteractor.getSelectedUserId());
     }
 
     /**

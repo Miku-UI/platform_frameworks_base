@@ -131,6 +131,8 @@ public class AccessibilityShortcutControllerTest {
     private @Mock TextToSpeech mTextToSpeech;
     private @Mock Voice mVoice;
     private @Mock Ringtone mRingtone;
+    private @Mock Ringtone mMockRingtone1;
+    private @Mock Ringtone mMockRingtone2;
     private @Captor ArgumentCaptor<List<String>> mListCaptor;
     private WindowManager.LayoutParams mLayoutParams = new WindowManager.LayoutParams();
 
@@ -565,7 +567,7 @@ public class AccessibilityShortcutControllerTest {
 
     @Test
     public void getFrameworkFeatureMap_oneHandedModeEnabled_containsExpectedKey() {
-        TestUtils.setOneHandedModeEnabled(this, /* enabled= */ true);
+        AccessibilityShortcutController.setSupportOneHandedModeForTesting(true);
 
         final Map<ComponentName, AccessibilityShortcutController.FrameworkFeatureInfo>
                 frameworkFeatureMap =
@@ -576,7 +578,7 @@ public class AccessibilityShortcutControllerTest {
 
     @Test
     public void getFrameworkFeatureMap_oneHandedModeDisabled_containsExpectedKey() {
-        TestUtils.setOneHandedModeEnabled(this, /* enabled= */ false);
+        AccessibilityShortcutController.setSupportOneHandedModeForTesting(false);
 
         final Map<ComponentName, AccessibilityShortcutController.FrameworkFeatureInfo>
                 frameworkFeatureMap =
@@ -725,6 +727,21 @@ public class AccessibilityShortcutControllerTest {
         final String shortcut = Settings.Secure.getStringForUser(
                 mContentResolver, ACCESSIBILITY_SHORTCUT_TARGET_SERVICE, mContext.getUserId());
         assertThat(shortcut).isEqualTo("");
+    }
+
+    @Test
+    public void playNotificationTone_preventExhaustionTrue_hasCurrentTone_stopsOldPlaysNewTone() {
+        AccessibilityShortcutController controller = spy(getController());
+        controller.mCurrentRingtone = mMockRingtone1;
+        when(mFrameworkObjectProvider.getDefaultAccessibilityNotificationRingtone(mContext))
+                .thenReturn(mMockRingtone2);
+
+        controller.playNotificationTone();
+
+        verify(mMockRingtone1).stop();
+        verify(mFrameworkObjectProvider).getDefaultAccessibilityNotificationRingtone(mContext);
+        assertThat(controller.mCurrentRingtone).isSameInstanceAs(mMockRingtone2);
+        verify(mMockRingtone2).play();
     }
 
     private void configureNoShortcutService() throws Exception {

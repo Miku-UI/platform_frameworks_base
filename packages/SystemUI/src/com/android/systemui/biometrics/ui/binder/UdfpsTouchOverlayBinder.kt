@@ -64,7 +64,7 @@ object UdfpsTouchOverlayBinder {
                                 "UdfpsTouchOverlayBinder",
                                 "[$view-detached]: update shouldHandleTouches=false",
                             )
-                            udfpsOverlayInteractor?.setHandleTouches(false)
+                            udfpsOverlayInteractor.setHandleTouches(false)
                         }
                     }
             }

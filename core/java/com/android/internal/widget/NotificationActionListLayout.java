@@ -16,11 +16,9 @@
 
 package com.android.internal.widget;
 
-import static android.app.Flags.notificationsRedesignTemplates;
 import static android.app.Notification.CallStyle.DEBUG_NEW_ACTION_LAYOUT;
 
 import android.annotation.DimenRes;
-import android.app.Flags;
 import android.app.Notification;
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -30,7 +28,6 @@ import android.util.Log;
 import android.view.Gravity;
 import android.view.RemotableViewMethod;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.RemoteViews;
 import android.widget.TextView;
@@ -51,14 +48,7 @@ public class NotificationActionListLayout extends LinearLayout {
     private int mExtraStartPadding = 0;
     private ArrayList<TextViewInfo> mMeasureOrderTextViews = new ArrayList<>();
     private ArrayList<View> mMeasureOrderOther = new ArrayList<>();
-    private boolean mEmphasizedMode;
     private boolean mEvenlyDividedMode;
-    private int mDefaultPaddingBottom;
-    private int mDefaultPaddingTop;
-    private int mEmphasizedPaddingTop;
-    private int mEmphasizedPaddingBottom;
-    private int mEmphasizedHeight;
-    private int mRegularHeight;
     @DimenRes private int mCollapsibleIndentDimen;
     int mNumNotGoneChildren;
     int mNumPriorityChildren;
@@ -74,9 +64,7 @@ public class NotificationActionListLayout extends LinearLayout {
     public NotificationActionListLayout(Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
 
-        mCollapsibleIndentDimen = Flags.notificationsRedesignTemplates()
-                ? R.dimen.notification_2025_actions_margin_start
-                : R.dimen.notification_actions_padding_start;
+        mCollapsibleIndentDimen = R.dimen.notification_2025_actions_margin_start;
 
         int[] attrIds = { android.R.attr.gravity };
         TypedArray ta = context.obtainStyledAttributes(attrs, attrIds, defStyleAttr, defStyleRes);
@@ -164,6 +152,14 @@ public class NotificationActionListLayout extends LinearLayout {
             if (child.getVisibility() != GONE) {
                 child.measure(childWidthMeasureSpec, heightMeasureSpec);
             }
+        }
+
+        if (android.app.Flags.apiNotificationActionCustom()) {
+            // In evenly-divided mode the extra start padding must be zero regardless of
+            // mCollapsibleIndentDimen. The measurement was made with that assumption.
+            // (I don't understand how this was working... perhaps we never switched
+            // setEvenlyDividedMode to true -> false -> true in practice before?)
+            mExtraStartPadding = 0;
         }
 
         return innerWidth;
@@ -329,7 +325,6 @@ public class NotificationActionListLayout extends LinearLayout {
             }
         }
 
-
         // Where bottom of child should go
         final int height = bottom - top;
 
@@ -365,47 +360,6 @@ public class NotificationActionListLayout extends LinearLayout {
         }
     }
 
-    @Override
-    protected void onFinishInflate() {
-        super.onFinishInflate();
-        if (!notificationsRedesignTemplates()) {
-            mDefaultPaddingBottom = getPaddingBottom();
-            mDefaultPaddingTop = getPaddingTop();
-            updateHeights();
-        }
-    }
-
-    private void updateHeights() {
-        if (notificationsRedesignTemplates()) {
-            return;
-        }
-        int inset = getResources().getDimensionPixelSize(
-                com.android.internal.R.dimen.button_inset_vertical_material);
-        mEmphasizedPaddingTop = getResources().getDimensionPixelSize(
-                com.android.internal.R.dimen.notification_content_margin) - inset;
-        // same padding on bottom and at end
-        mEmphasizedPaddingBottom = getResources().getDimensionPixelSize(
-                com.android.internal.R.dimen.notification_content_margin_end) - inset;
-        mEmphasizedHeight = mEmphasizedPaddingTop + mEmphasizedPaddingBottom
-                + getResources().getDimensionPixelSize(
-                        com.android.internal.R.dimen.notification_action_emphasized_height);
-        mRegularHeight = getResources().getDimensionPixelSize(
-                com.android.internal.R.dimen.notification_action_list_height);
-    }
-
-    /**
-     * When buttons are in wrap mode, this is a padding that will be applied at the start of the
-     * layout of the actions, but only when those actions would fit with the entire padding
-     * visible.  Otherwise, this padding will be omitted entirely.
-     */
-    @RemotableViewMethod
-    public void setCollapsibleIndentDimen(@DimenRes int collapsibleIndentDimen) {
-        if (mCollapsibleIndentDimen != collapsibleIndentDimen) {
-            mCollapsibleIndentDimen = collapsibleIndentDimen;
-            requestLayout();
-        }
-    }
-
     /**
      * Sets whether the available width should be distributed evenly among the action buttons.
      *
@@ -430,46 +384,6 @@ public class NotificationActionListLayout extends LinearLayout {
         }
         mEvenlyDividedMode = evenlyDividedMode;
         requestLayout();
-    }
-
-    /**
-     * Set whether the list is in a mode where some actions are emphasized. This will trigger an
-     * equal measuring where all actions are full height and change a few parameters like
-     * the padding.
-     */
-    @RemotableViewMethod
-    public void setEmphasizedMode(boolean emphasizedMode) {
-        if (notificationsRedesignTemplates()) {
-            return;
-        }
-        mEmphasizedMode = emphasizedMode;
-        int height;
-        if (emphasizedMode) {
-            setPaddingRelative(getPaddingStart(),
-                    mEmphasizedPaddingTop,
-                    getPaddingEnd(),
-                    mEmphasizedPaddingBottom);
-            setMinimumHeight(mEmphasizedHeight);
-            height = ViewGroup.LayoutParams.WRAP_CONTENT;
-        } else {
-            setPaddingRelative(getPaddingStart(),
-                    mDefaultPaddingTop,
-                    getPaddingEnd(),
-                    mDefaultPaddingBottom);
-            height = mRegularHeight;
-        }
-        ViewGroup.LayoutParams layoutParams = getLayoutParams();
-        layoutParams.height = height;
-        setLayoutParams(layoutParams);
-    }
-
-    public int getExtraMeasureHeight() {
-        // Note: the emphasized height is no longer different from the regular height when the
-        // notificationsRedesignTemplates flag is on.
-        if (!notificationsRedesignTemplates() && mEmphasizedMode) {
-            return mEmphasizedHeight - mRegularHeight;
-        }
-        return 0;
     }
 
     public static final Comparator<TextViewInfo> MEASURE_ORDER_COMPARATOR = (a, b) -> {

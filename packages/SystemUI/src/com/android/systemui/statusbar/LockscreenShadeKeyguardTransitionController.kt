@@ -3,16 +3,19 @@ package com.android.systemui.statusbar
 import android.content.Context
 import android.util.IndentingPrintWriter
 import android.util.MathUtils
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.domain.interactor.ShadeLockscreenInteractor
+import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.SplitShadeStateController
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CoroutineScope
 
 /** Controls the lockscreen to shade transition for the keyguard elements. */
 class LockscreenShadeKeyguardTransitionController
@@ -24,12 +27,16 @@ constructor(
     configurationController: ConfigurationController,
     dumpManager: DumpManager,
     splitShadeStateController: SplitShadeStateController,
+    shadeModeInteractor: ShadeModeInteractor,
+    @Background private val backgroundScope: CoroutineScope,
 ) :
     AbstractLockscreenShadeTransitionController(
         context,
         configurationController,
         dumpManager,
         splitShadeStateController,
+        shadeModeInteractor,
+        backgroundScope,
     ) {
 
     /**

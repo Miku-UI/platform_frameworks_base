@@ -16,7 +16,6 @@
 
 package com.android.systemui.dreams.complication;
 
-import static com.android.systemui.Flags.removeDreamOverlayHideOnTouch;
 import static com.android.systemui.dreams.complication.dagger.DreamComplicationModule.COMPLICATIONS_FADE_OUT_DELAY;
 import static com.android.systemui.dreams.complication.dagger.DreamComplicationModule.COMPLICATIONS_RESTORE_TIMEOUT;
 
@@ -121,58 +120,12 @@ public class HideComplicationTouchHandler implements TouchHandler {
         final boolean bouncerShowing = mStatusBarKeyguardViewManager.isBouncerShowing();
 
         // If other sessions are interested in this touch, do not fade out elements.
-        if (removeDreamOverlayHideOnTouch() || session.getActiveSessionCount() > 1 || bouncerShowing
-                || mOverlayStateController.areExitAnimationsRunning()) {
-            if (DEBUG) {
-                Log.d(TAG, "not fading. Active session count: " + session.getActiveSessionCount()
-                        + ". Bouncer showing: " + bouncerShowing);
-            }
-            session.pop();
-            return;
+        if (DEBUG) {
+            Log.d(TAG, "not fading. Active session count: " + session.getActiveSessionCount()
+                    + ". Bouncer showing: " + bouncerShowing);
         }
-
-        session.registerInputListener(ev -> {
-            if (!(ev instanceof MotionEvent)) {
-                return;
-            }
-
-            final MotionEvent motionEvent = (MotionEvent) ev;
-
-            if (motionEvent.getAction() == MotionEvent.ACTION_DOWN) {
-                Log.i(TAG, "ACTION_DOWN received");
-
-                final ListenableFuture<Boolean> touchCheck = mTouchInsetManager
-                        .checkWithinTouchRegion(Math.round(motionEvent.getX()),
-                                Math.round(motionEvent.getY()));
-
-                touchCheck.addListener(() -> {
-                    try {
-                        if (!touchCheck.get()) {
-                            // Cancel all pending callbacks.
-                            while (!mCancelCallbacks.isEmpty()) mCancelCallbacks.pop().run();
-                            mCancelCallbacks.add(
-                                    mExecutor.executeDelayed(
-                                            mHideComplications, mFadeOutDelay));
-                        } else {
-                            // If a touch occurred inside the dream overlay touch insets, do not
-                            // handle the touch.
-                            session.pop();
-                        }
-                    } catch (InterruptedException | ExecutionException exception) {
-                        Log.e(TAG, "could not check TouchInsetManager:" + exception);
-                    }
-                }, mExecutor);
-            } else if (motionEvent.getAction() == MotionEvent.ACTION_CANCEL
-                    || motionEvent.getAction() == MotionEvent.ACTION_UP) {
-                Log.i(TAG, "ACTION_CANCEL|ACTION_UP received");
-
-                // End session and initiate delayed reappearance of the complications.
-                session.pop();
-                runAfterHidden(() -> mCancelCallbacks.add(
-                        mExecutor.executeDelayed(mRestoreComplications,
-                                mRestoreTimeout)));
-            }
-        });
+        session.pop();
+        return;
     }
 
     /**

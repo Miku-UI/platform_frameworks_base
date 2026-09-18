@@ -17,8 +17,6 @@
 package com.android.systemui.screencapture.record.ui.compose
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.screencapture.common.ScreenCaptureUiScope
@@ -45,16 +43,13 @@ constructor(
             rememberViewModel("ScreenCaptureRecordContent#ScreenCaptureRecordViewModel") {
                 screenCaptureRecordViewModelFactory.create()
             }
-        val content: ScreenCaptureContent? by
-            remember(viewModel.isLargeScreen) {
-                derivedStateOf {
-                    when (viewModel.isLargeScreen) {
-                        true -> largeScreenCaptureContent.get()
-                        false -> smallScreenCaptureRecordContent.get()
-                        else -> null
-                    }
+        remember(viewModel.isLargeScreen) {
+                if (viewModel.isLargeScreen) {
+                    largeScreenCaptureContent.get()
+                } else {
+                    smallScreenCaptureRecordContent.get()
                 }
             }
-        content?.Content()
+            .Content()
     }
 }

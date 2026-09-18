@@ -19,11 +19,14 @@ package com.android.systemui.qs.pipeline.domain.interactor
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.animation.Expandable
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.qs.FakeQSTile
+import com.android.systemui.qs.panels.domain.interactor.IconTilesInteractor
 import com.android.systemui.qs.pipeline.data.repository.FakeAutoAddRepository
 import com.android.systemui.qs.pipeline.domain.autoaddable.FakeAutoAddable
+import com.android.systemui.qs.pipeline.domain.model.AutoAddSignal.AutoAddSize
 import com.android.systemui.qs.pipeline.domain.model.AutoAddTracking
 import com.android.systemui.qs.pipeline.domain.model.AutoAddable
 import com.android.systemui.qs.pipeline.domain.model.TileModel
@@ -56,6 +59,7 @@ class AutoAddInteractorTest : SysuiTestCase() {
     @Mock private lateinit var dumpManager: DumpManager
     @Mock private lateinit var currentTilesInteractor: CurrentTilesInteractor
     @Mock private lateinit var logger: QSPipelineLogger
+    @Mock private lateinit var iconTilesInteractor: IconTilesInteractor
     private lateinit var underTest: AutoAddInteractor
 
     @Before
@@ -201,10 +205,26 @@ class AutoAddInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    fun autoAddable_addTrackingSignal_notAddedButMarked() =
+        testScope.runTest {
+            autoAddRepository.unmarkTileAdded(USER, SPEC)
+            val autoAddedTiles by collectLastValue(autoAddRepository.autoAddedTiles(USER))
+            val fakeAutoAddable = FakeAutoAddable(SPEC, AutoAddTracking.Always)
+
+            underTest = createInteractor(setOf(fakeAutoAddable))
+
+            fakeAutoAddable.sendAddTrackingSignal(USER)
+            runCurrent()
+
+            verify(currentTilesInteractor, never()).addTile(any(), anyInt())
+            assertThat(autoAddedTiles).contains(SPEC)
+        }
+
+    @Test
     fun autoAddable_trackIfNotAdded_currentTile_markedAsAdded() =
         testScope.runTest {
             val fakeTile = FakeQSTile(USER).apply { tileSpec = SPEC.spec }
-            val fakeCurrentTileModel = TileModel(SPEC, fakeTile)
+            val fakeCurrentTileModel = TileModel(SPEC, fakeTile, Expandable())
             whenever(currentTilesInteractor.currentTiles)
                 .thenReturn(MutableStateFlow(listOf(fakeCurrentTileModel)))
 
@@ -221,7 +241,7 @@ class AutoAddInteractorTest : SysuiTestCase() {
     fun autoAddable_trackIfNotAdded_tileAddedToCurrentTiles_markedAsAdded() =
         testScope.runTest {
             val fakeTile = FakeQSTile(USER).apply { tileSpec = SPEC.spec }
-            val fakeCurrentTileModel = TileModel(SPEC, fakeTile)
+            val fakeCurrentTileModel = TileModel(SPEC, fakeTile, Expandable())
             val currentTilesFlow = MutableStateFlow(emptyList<TileModel>())
 
             whenever(currentTilesInteractor.currentTiles).thenReturn(currentTilesFlow)
@@ -239,15 +259,90 @@ class AutoAddInteractorTest : SysuiTestCase() {
             assertThat(autoAddedTiles).contains(SPEC)
         }
 
+    @Test
+    fun autoAddable_notMarkedAsAdded_add_Large() =
+        testScope.runTest {
+            val fakeAutoAddable = FakeAutoAddable(SPEC, AutoAddTracking.Always)
+
+            underTest = createInteractor(setOf(fakeAutoAddable))
+
+            val position = 3
+            fakeAutoAddable.sendAddSignal(USER, position, size = AutoAddSize.LARGE)
+            runCurrent()
+
+            verify(iconTilesInteractor).addLargeTile(SPEC)
+        }
+
+    @Test
+    fun autoAddable_notMarkedAsAdded_add_Small() =
+        testScope.runTest {
+            val fakeAutoAddable = FakeAutoAddable(SPEC, AutoAddTracking.Always)
+
+            underTest = createInteractor(setOf(fakeAutoAddable))
+
+            val position = 3
+            fakeAutoAddable.sendAddSignal(USER, position, size = AutoAddSize.SMALL)
+            runCurrent()
+
+            verify(iconTilesInteractor).removeLargeTiles(setOf(SPEC))
+        }
+
+    @Test
+    fun autoAddable_notMarkedAsAdded_add_Default_noSizeChange() =
+        testScope.runTest {
+            val fakeAutoAddable = FakeAutoAddable(SPEC, AutoAddTracking.Always)
+
+            underTest = createInteractor(setOf(fakeAutoAddable))
+
+            val position = 3
+            fakeAutoAddable.sendAddSignal(USER, position, size = AutoAddSize.DEFAULT)
+            runCurrent()
+
+            verify(iconTilesInteractor, never()).addLargeTile(any())
+            verify(iconTilesInteractor, never()).removeLargeTiles(any())
+        }
+
+    @Test
+    fun autoAddable_markedAsAdded_add_Large_noSizeChange() =
+        testScope.runTest {
+            val fakeAutoAddable = FakeAutoAddable(SPEC, AutoAddTracking.Always)
+            autoAddRepository.markTileAdded(USER, SPEC)
+
+            underTest = createInteractor(setOf(fakeAutoAddable))
+
+            val position = 3
+            fakeAutoAddable.sendAddSignal(USER, position, size = AutoAddSize.LARGE)
+            runCurrent()
+
+            verify(iconTilesInteractor, never()).addLargeTile(any())
+            verify(iconTilesInteractor, never()).removeLargeTiles(any())
+        }
+
+    @Test
+    fun autoAddable_markedAsAdded_add_Small_noSizeChange() =
+        testScope.runTest {
+            val fakeAutoAddable = FakeAutoAddable(SPEC, AutoAddTracking.Always)
+            autoAddRepository.markTileAdded(USER, SPEC)
+
+            underTest = createInteractor(setOf(fakeAutoAddable))
+
+            val position = 3
+            fakeAutoAddable.sendAddSignal(USER, position, size = AutoAddSize.SMALL)
+            runCurrent()
+
+            verify(iconTilesInteractor, never()).addLargeTile(any())
+            verify(iconTilesInteractor, never()).removeLargeTiles(any())
+        }
+
     private fun createInteractor(autoAddables: Set<AutoAddable>): AutoAddInteractor {
         return AutoAddInteractor(
                 autoAddables,
                 autoAddRepository,
                 dumpManager,
                 logger,
-                testScope.backgroundScope
+                testScope.backgroundScope,
             )
-            .apply { init(currentTilesInteractor) }
+            .apply { init(currentTilesInteractor, iconTilesInteractor) }
     }
 
     companion object {

@@ -54,6 +54,18 @@ constructor(@PromotedNotificationLog private val buffer: LogBuffer) {
         )
     }
 
+    fun logSkeletonInflationFailed(entry: NotificationEntry, reason: String) {
+        buffer.log(
+            EXTRACTION_TAG,
+            ERROR,
+            {
+                str1 = entry.logKey
+                str2 = reason
+            },
+            { "skeleton inflation failed: $str2 for $str1" },
+        )
+    }
+
     fun logExtractionSucceeded(
         entry: NotificationEntry,
         content: PromotedNotificationContentModels,

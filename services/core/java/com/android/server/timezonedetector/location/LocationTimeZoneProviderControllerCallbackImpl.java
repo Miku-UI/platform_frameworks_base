@@ -23,8 +23,8 @@ import com.android.server.timezonedetector.LocationAlgorithmEvent;
 import com.android.server.timezonedetector.TimeZoneDetectorInternal;
 
 /**
- * The real implementation of {@link LocationTimeZoneProviderController.Callback} used by
- * {@link LocationTimeZoneProviderController} to interact with other server components.
+ * The real implementation of {@link LocationTimeZoneProviderController.Callback} used by {@link
+ * LocationTimeZoneProviderController} to interact with other server components.
  */
 class LocationTimeZoneProviderControllerCallbackImpl
         extends LocationTimeZoneProviderController.Callback {

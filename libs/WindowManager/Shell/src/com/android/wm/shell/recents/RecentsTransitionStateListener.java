@@ -37,7 +37,7 @@ public interface RecentsTransitionStateListener {
     int TRANSITION_STATE_ANIMATING = 3;
 
     /** Notifies whether the recents transition state changes. */
-    default void onTransitionStateChanged(@RecentsTransitionState int state) {
+    default void onTransitionStateChanged(@RecentsTransitionState int state, int displayId) {
     }
 
     /** Returns whether the recents transition is running. */

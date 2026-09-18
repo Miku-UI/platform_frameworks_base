@@ -14,22 +14,24 @@
  * limitations under the License.
  */
 
-#include "generic_message.h"
-#include "printer.h"
-
-#include <frameworks/base/core/proto/android/os/incident.pb.h>
-#include <google/protobuf/wire_format.h>
-#include <google/protobuf/io/coded_stream.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
-#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
+
+#include <bit>
+#include <cerrno>
+#include <cinttypes>
+#include <cstdio>
+#include <cstring>
+
+#include "frameworks/base/core/proto/android/os/incident.pb.h"
+#include "generic_message.h"
+#include "google/protobuf/descriptor.h"
+#include "google/protobuf/io/coded_stream.h"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "printer.h"
 
 using namespace android::os;
 using namespace google::protobuf;
@@ -47,7 +49,8 @@ read_length_delimited(CodedInputStream* in, uint32 fieldId, Descriptor const* de
 {
     uint32_t size;
     if (!in->ReadVarint32(&size)) {
-        fprintf(stderr, "Fail to read size of %s\n", descriptor->name().c_str());
+        const auto name = descriptor->name();
+        fprintf(stderr, "Fail to read size of %.*s\n", static_cast<int>(name.size()), name.data());
         return false;
     }
 
@@ -69,8 +72,9 @@ read_length_delimited(CodedInputStream* in, uint32 fieldId, Descriptor const* de
                 message->addString(fieldId, str);
                 return true;
             } else {
-                fprintf(stderr, "Fail to read string of field %s, expect size %d, read %lu\n",
-                        field->full_name().c_str(), size, str.size());
+                const auto name = field->full_name();
+                fprintf(stderr, "Fail to read string of field %.*s, expect size %d, read %lu\n",
+                        static_cast<int>(name.size()), name.data(), size, str.size());
                 fprintf(stderr, "String read \"%s\"\n", str.c_str());
                 return false;
             }
@@ -101,8 +105,9 @@ read_message(CodedInputStream* in, Descriptor const* descriptor, GenericMessage*
                     message->addInt64(fieldId, value64);
                     break;
                 } else {
-                    fprintf(stderr, "bad VARINT: 0x%x (%d) at index %d of field %s\n",
-                            tag, tag, in->CurrentPosition(), descriptor->name().c_str());
+                    const auto name = descriptor->name();
+                    fprintf(stderr, "bad VARINT: 0x%x (%d) at index %d of field %.*s\n", tag, tag,
+                            in->CurrentPosition(), static_cast<int>(name.size()), name.data());
                     return false;
                 }
             case WireFormatLite::WIRETYPE_FIXED64:
@@ -110,14 +115,17 @@ read_message(CodedInputStream* in, Descriptor const* descriptor, GenericMessage*
                     message->addInt64(fieldId, value64);
                     break;
                 } else {
-                    fprintf(stderr, "bad VARINT: 0x%x (%d) at index %d of field %s\n",
-                            tag, tag, in->CurrentPosition(), descriptor->name().c_str());
+                    const auto name = descriptor->name();
+                    fprintf(stderr, "bad VARINT: 0x%x (%d) at index %d of field %.*s\n", tag, tag,
+                            in->CurrentPosition(), static_cast<int>(name.size()), name.data());
                     return false;
                 }
             case WireFormatLite::WIRETYPE_LENGTH_DELIMITED:
                 if (!read_length_delimited(in, fieldId, descriptor, message)) {
-                    fprintf(stderr, "bad LENGTH_DELIMITED: 0x%x (%d) at index %d of field %s\n",
-                            tag, tag, in->CurrentPosition(), descriptor->name().c_str());
+                    const auto name = descriptor->name();
+                    fprintf(stderr, "bad LENGTH_DELIMITED: 0x%x (%d) at index %d of field %.*s\n",
+                            tag, tag, in->CurrentPosition(), static_cast<int>(name.size()),
+                            name.data());
                     return false;
                 }
                 break;
@@ -126,14 +134,17 @@ read_message(CodedInputStream* in, Descriptor const* descriptor, GenericMessage*
                     message->addInt32(fieldId, value32);
                     break;
                 } else {
-                    fprintf(stderr, "bad FIXED32: 0x%x (%d) at index %d of field %s\n",
-                            tag, tag, in->CurrentPosition(), descriptor->name().c_str());
+                    const auto name = descriptor->name();
+                    fprintf(stderr, "bad FIXED32: 0x%x (%d) at index %d of field %.*s\n", tag, tag,
+                            in->CurrentPosition(), static_cast<int>(name.size()), name.data());
                     return false;
                 }
-            default:
-                fprintf(stderr, "bad tag: 0x%x (%d) at index %d of field %s\n", tag, tag,
-                        in->CurrentPosition(), descriptor->name().c_str());
+            default: {
+                const auto name = descriptor->name();
+                fprintf(stderr, "bad tag: 0x%x (%d) at index %d of field %.*s\n", tag, tag,
+                        in->CurrentPosition(), static_cast<int>(name.size()), name.data());
                 return false;
+            }
         }
     }
 }
@@ -154,7 +165,7 @@ print_value(Out* out, FieldDescriptor const* field, GenericMessage::Node const& 
                     out->printf("%d", node.value32);
                     break;
                 case FieldDescriptor::TYPE_FLOAT:
-                    out->printf("%f", *(float*)&node.value32);
+                    out->printf("%f", std::bit_cast<float>(node.value32));
                     break;
                 default:
                     out->printf("(unexpected type %d: value32 %d (0x%x)",
@@ -165,23 +176,23 @@ print_value(Out* out, FieldDescriptor const* field, GenericMessage::Node const& 
         case GenericMessage::TYPE_VALUE64:
             switch (type) {
                 case FieldDescriptor::TYPE_DOUBLE:
-                    out->printf("%f", *(double*)&node.value64);
+                    out->printf("%f", std::bit_cast<double>(node.value64));
                     break;
                 // Int32s here were added with addInt64 from a WIRETYPE_VARINT,
                 // even if the definition is for a 32 bit int.
                 case FieldDescriptor::TYPE_SINT32:
                 case FieldDescriptor::TYPE_INT32:
-                    out->printf("%d", node.value64);
+                    out->printf("%" PRId32, static_cast<int>(node.value64));
                     break;
                 case FieldDescriptor::TYPE_INT64:
                 case FieldDescriptor::TYPE_SINT64:
                 case FieldDescriptor::TYPE_SFIXED64:
-                    out->printf("%lld", node.value64);
+                    out->printf("%" PRId64, static_cast<int64_t>(node.value64));
                     break;
                 case FieldDescriptor::TYPE_UINT32:
                 case FieldDescriptor::TYPE_UINT64:
                 case FieldDescriptor::TYPE_FIXED64:
-                    out->printf("%u", node.value64);
+                    out->printf("%" PRIu64, node.value64);
                     break;
                 case FieldDescriptor::TYPE_BOOL:
                     if (node.value64) {
@@ -190,17 +201,21 @@ print_value(Out* out, FieldDescriptor const* field, GenericMessage::Node const& 
                         out->printf("false");
                     }
                     break;
-                case FieldDescriptor::TYPE_ENUM:
-                    if (field->enum_type()->FindValueByNumber((int)node.value64) == NULL) {
-                        out->printf("%lld", (int) node.value64);
+                case FieldDescriptor::TYPE_ENUM: {
+                    int number = static_cast<int>(node.value64);
+                    if (const EnumValueDescriptor* enum_desc =
+                                field->enum_type()->FindValueByNumber(number);
+                        enum_desc == nullptr) {
+                        out->printf("%d", number);
                     } else {
-                        out->printf("%s", field->enum_type()->FindValueByNumber((int)node.value64)
-                            ->name().c_str());
+                        const auto name = enum_desc->name();
+                        out->printf("%.*s", static_cast<int>(name.size()), name.data());
                     }
                     break;
+                }
                 default:
-                    out->printf("(unexpected type %d: value64 %lld (0x%x))",
-                                type, node.value64, node.value64);
+                    out->printf("(unexpected type %d: value64 %" PRIu64 " (0x%" PRIx64 "))", type,
+                                node.value64, node.value64);
                     break;
             }
             break;
@@ -220,7 +235,7 @@ print_value(Out* out, FieldDescriptor const* field, GenericMessage::Node const& 
 static void
 print_message(Out* out, Descriptor const* descriptor, GenericMessage const* message)
 {
-    out->printf("%s {\n", descriptor->name().c_str());
+    out->printf("%.*s {\n", static_cast<int>(descriptor->name().size()), descriptor->name().data());
     out->indent();
 
     int const N = descriptor->field_count();
@@ -232,7 +247,7 @@ print_message(Out* out, Descriptor const* descriptor, GenericMessage const* mess
         FieldDescriptor::Type type = field->type();
         GenericMessage::const_iterator_pair it = message->find(fieldId);
 
-        out->printf("%s=", field->name().c_str());
+        out->printf("%.*s=", static_cast<int>(field->name().size()), field->name().data());
         if (repeated) {
             if (it.first != it.second) {
                 out->printf("[\n");
@@ -261,9 +276,11 @@ print_message(Out* out, Descriptor const* descriptor, GenericMessage const* mess
                     case FieldDescriptor::TYPE_MESSAGE:
                         out->printf("");
                         break;
-                    case FieldDescriptor::TYPE_ENUM:
-                        out->printf("%s", field->default_value_enum()->name().c_str());
+                    case FieldDescriptor::TYPE_ENUM: {
+                        const auto name = field->default_value_enum()->name();
+                        out->printf("%.*s", static_cast<int>(name.size()), name.data());
                         break;
+                    }
                     default:
                         out->printf("0");
                         break;

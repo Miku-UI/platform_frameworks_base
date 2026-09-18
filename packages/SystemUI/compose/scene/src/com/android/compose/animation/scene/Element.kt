@@ -28,8 +28,8 @@ import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.geometry.isUnspecified
 import androidx.compose.ui.geometry.lerp
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
-import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.layout.ApproachLayoutModifierNode
 import androidx.compose.ui.layout.ApproachMeasureScope
 import androidx.compose.ui.layout.LayoutCoordinates
@@ -54,10 +54,20 @@ import androidx.compose.ui.util.fastForEachReversed
 import androidx.compose.ui.util.lerp
 import com.android.compose.animation.scene.content.Content
 import com.android.compose.animation.scene.content.state.TransitionState
+import com.android.compose.animation.scene.debug.StlDebugConfig
+import com.android.compose.animation.scene.debug.debugElement
+import com.android.compose.animation.scene.debug.filterOutElementExclusive
+import com.android.compose.animation.scene.debug.logElementState
+import com.android.compose.animation.scene.debug.performLog
+import com.android.compose.animation.scene.debug.placedInContents
 import com.android.compose.animation.scene.transformation.CustomPropertyTransformation
+import com.android.compose.animation.scene.transformation.CustomSharedPropertyTransformation
 import com.android.compose.animation.scene.transformation.InterpolatedPropertyTransformation
-import com.android.compose.animation.scene.transformation.PropertyTransformation
+import com.android.compose.animation.scene.transformation.InterpolatedSharedPropertyTransformation
+import com.android.compose.animation.scene.transformation.PropertyTransformationScope
+import com.android.compose.animation.scene.transformation.SharedElementPropertyTransformation
 import com.android.compose.animation.scene.transformation.TransformationWithRange
+import com.android.compose.animation.scene.transformation.TransformedElementPropertyTransformation
 import com.android.compose.modifiers.thenIf
 import com.android.compose.ui.graphics.drawInContainer
 import com.android.compose.ui.util.lerp
@@ -165,11 +175,15 @@ internal fun Modifier.element(
     // we can ensure that SceneTransitionLayoutImpl will compose new contents first.
     val currentTransitionStates = getAllNestedTransitionStates(layoutImpl)
 
-    return then(ElementModifier(layoutImpl, currentTransitionStates, content, key))
+    return thenIf(StlDebugConfig.logElements()) {
+            Modifier.logElementState(layoutImpl, key, content)
+        }
+        .then(ElementModifier(layoutImpl, currentTransitionStates, content, key))
         .thenIf(layoutImpl.state.isElevationPossible(content.key, key)) {
             Modifier.maybeElevateInContent(layoutImpl, content, key, currentTransitionStates)
         }
         .thenIf(layoutImpl.implicitTestTags) { Modifier.testTag(key.testTag) }
+        .thenIf(StlDebugConfig.isDebuggingElement()) { Modifier.debugElement(key, content) }
 }
 
 /**
@@ -219,7 +233,6 @@ private fun Modifier.maybeElevateInContent(
                 state.transformationSpec
                     .transformations(key, content.key)
                     ?.shared
-                    ?.transformation
                     ?.elevateInContent == content.key &&
                 isSharedElement(stateByContent, state) &&
                 isSharedElementEnabled(key, state) &&
@@ -273,6 +286,7 @@ internal class ElementNode(
         super.onAttach()
         updateElementAndContentValues()
         addNodeToContentState()
+        log { "onAttach()" }
     }
 
     private fun updateElementAndContentValues() {
@@ -288,8 +302,12 @@ internal class ElementNode(
             val elementState = Element.State(contents)
             element.stateByContent[content.key] = elementState
 
+            log { "updateElementAndContentValues(): New stateByContent added" }
             layoutImpl.ancestors.fastForEach {
                 element.stateByContent.putIfAbsent(it.inContent, elementState)
+                log {
+                    "and propagated to ${it.inContent} of ancestor STL(${it.layoutImpl.debugName})"
+                }
             }
         }
     }
@@ -310,6 +328,9 @@ internal class ElementNode(
 
     override fun onDetach() {
         super.onDetach()
+        log { "onDetach()" }
+        trackNotPlaced()
+
         removeNodeFromContentState()
         maybePruneMaps(layoutImpl, element, stateInContent)
 
@@ -338,20 +359,25 @@ internal class ElementNode(
 
         addNodeToContentState()
         maybePruneMaps(layoutImpl, prevElement, prevElementState)
+        log { "update()" }
     }
 
     override fun isMeasurementApproachInProgress(lookaheadSize: IntSize): Boolean {
+        val result = isAnyStateTransitioning()
+        log { "isMeasurementApproachInProgress() returns $result" }
         // TODO(b/324191441): Investigate whether making this check more complex (checking if this
         // element is shared or transformed) would lead to better performance.
-        return isAnyStateTransitioning()
+        return result
     }
 
     override fun Placeable.PlacementScope.isPlacementApproachInProgress(
         lookaheadCoordinates: LayoutCoordinates
     ): Boolean {
+        val result = isAnyStateTransitioning()
+        log { "isPlacementApproachInProgress() returns $result" }
         // TODO(b/324191441): Investigate whether making this check more complex (checking if this
         // element is shared or transformed) would lead to better performance.
-        return isAnyStateTransitioning()
+        return result
     }
 
     private fun isAnyStateTransitioning(): Boolean {
@@ -379,6 +405,7 @@ internal class ElementNode(
                             lookaheadScopeCoordinates.localLookaheadPositionOf(coords)
                     }
                 }
+                log { "measure() layout() place" }
                 place(0, 0)
             }
         }
@@ -388,7 +415,11 @@ internal class ElementNode(
         measurable: Measurable,
         constraints: Constraints,
     ): MeasureResult {
+        syncAncestorElementState()
         val elementState = elementState(layoutImpl, element, currentTransitionStates)
+        log {
+            "approachMeasure() elementState=$elementState, picked from currentTransitionState $currentTransitionStates"
+        }
         if (elementState == null) {
             // If the element is not part of any transition, place it normally in its idle scene.
             // This is the case if for example a transition between two overlays is ongoing where
@@ -407,7 +438,6 @@ internal class ElementNode(
                 doNotPlace(measurable, constraints)
             }
         }
-        syncAncestorElementState()
 
         val transition = elementState as? TransitionState.Transition
 
@@ -425,7 +455,11 @@ internal class ElementNode(
         stateInContent.lastSize = Element.SizeUnspecified
 
         val placeable = measurable.measure(constraints)
-        return layout(placeable.width, placeable.height) { /* Do not place */ }
+        return layout(placeable.width, placeable.height) {
+            /* Do not place */
+            log { "doNotPlace()" }
+            trackNotPlaced()
+        }
     }
 
     private fun ApproachMeasureScope.placeNormally(
@@ -442,6 +476,8 @@ internal class ElementNode(
                 }
             }
 
+            log { "placeNormally()" }
+            trackPlaced()
             placeable.place(0, 0)
         }
     }
@@ -459,6 +495,10 @@ internal class ElementNode(
             // No need to place the element in this content if we don't want to draw it anyways.
             if (!shouldPlaceElement(layoutImpl, content.key, element, elementState)) {
                 recursivelyClearPlacementValues()
+                log {
+                    "place() not placing due to shouldPlaceElement() - elementState $elementState"
+                }
+                trackNotPlaced()
                 return
             }
 
@@ -472,6 +512,7 @@ internal class ElementNode(
                     transition,
                     contentValue = { it.targetOffset },
                     transformation = { it?.offset },
+                    sharedTransformation = { it?.sharedOffset },
                     currentValue = { currentOffset },
                     isSpecified = { it != Offset.Unspecified },
                     ::lerp,
@@ -503,20 +544,30 @@ internal class ElementNode(
                 )
 
             stateInContent.lastOffset = interruptedOffset
-
             val offset = (interruptedOffset - currentOffset).round()
             if (
-                isElementOpaque(content, element, transition) &&
+                isElementOpaqueWithDefaultScale(content, element, transition) &&
                     interruptedAlpha(layoutImpl, element, transition, stateInContent, alpha = 1f) ==
-                        1f
+                        1f &&
+                    interruptedScale(
+                        layoutImpl,
+                        element,
+                        transition,
+                        stateInContent,
+                        scale = Scale.Default,
+                    ) == Scale.Default
             ) {
                 stateInContent.lastAlpha = 1f
+                stateInContent.lastScale = Scale.Default
 
                 // TODO(b/291071158): Call placeWithLayer() if offset != IntOffset.Zero and size is
                 // not animated once b/305195729 is fixed. Test that drawing is not invalidated in
                 // that case.
+                log { "place()" }
+                trackPlaced()
                 placeable.place(offset)
             } else {
+                log { "placeWithLayer()" }
                 placeable.placeWithLayer(offset) {
                     // This layer might still run on its own (outside of the placement phase) even
                     // if this element is not placed or composed anymore, so we need to double check
@@ -525,6 +576,8 @@ internal class ElementNode(
                     // make sure that we are using the current transition and not a reference to an
                     // old one. See b/343138966 for details.
                     if (_element == null) {
+                        log { "placeWithLayer() layerBlock - not placing _element is null" }
+                        trackNotPlaced()
                         return@placeWithLayer
                     }
 
@@ -533,12 +586,32 @@ internal class ElementNode(
                         elementState == null ||
                             !shouldPlaceElement(layoutImpl, content.key, element, elementState)
                     ) {
+                        log {
+                            "placeWithLayer() layerBlock - not placing due to " +
+                                "shouldPlaceElement() - elementState $elementState"
+                        }
+                        trackNotPlaced()
                         return@placeWithLayer
                     }
 
                     val transition = elementState as? TransitionState.Transition
                     alpha = elementAlpha(layoutImpl, element, transition, stateInContent)
                     compositingStrategy = CompositingStrategy.ModulateAlpha
+
+                    val scale = getScale(layoutImpl, element, transition, stateInContent)
+                    scaleX = scale.scaleX
+                    scaleY = scale.scaleY
+                    transformOrigin =
+                        if (scale.pivot == Offset.Unspecified) {
+                            TransformOrigin.Center
+                        } else {
+                            TransformOrigin(
+                                pivotFractionX = scale.pivot.x,
+                                pivotFractionY = scale.pivot.y,
+                            )
+                        }
+                    log { "placeWithLayer() layerBlock" }
+                    trackPlaced()
                 }
             }
         }
@@ -629,6 +702,12 @@ internal class ElementNode(
         traverseDescendants(ElementTraverseKey) { node ->
             if ((node as ElementNode)._element != null) {
                 node.stateInContent.clearLastPlacementValues()
+                log(node.key, node.content.key) {
+                    "recursivelyClearPlacementValues started by $key clearing for ${node.key}: " +
+                        "off:${node.stateInContent.lastOffset}, " +
+                        "scale:${node.stateInContent.lastScale}, " +
+                        "alpha:${node.stateInContent.lastAlpha}"
+                }
             }
             TraversableNode.Companion.TraverseDescendantsAction.ContinueTraversal
         }
@@ -636,22 +715,28 @@ internal class ElementNode(
 
     override fun ContentDrawScope.draw() {
         element.wasDrawnInAnyContent = true
+        drawContent()
+    }
 
-        val transition =
-            elementState(layoutImpl, element, currentTransitionStates)
-                as? TransitionState.Transition
-        val drawScale = getDrawScale(layoutImpl, element, transition, stateInContent)
-        if (drawScale == Scale.Default) {
-            drawContent()
-        } else {
-            scale(
-                drawScale.scaleX,
-                drawScale.scaleY,
-                if (drawScale.pivot.isUnspecified) center else drawScale.pivot,
-            ) {
-                this@draw.drawContent()
-            }
+    private fun trackPlaced() {
+        if (StlDebugConfig.logElements()) {
+            log { "trackPlaced()" }
+            placedInContents.getOrPut(element.key) { mutableSetOf() }.add(content.key)
         }
+    }
+
+    private fun trackNotPlaced() {
+        if (StlDebugConfig.logElements()) {
+            log { "trackNotPlaced()" }
+            placedInContents[element.key]?.remove(content.key)
+        }
+    }
+
+    private inline fun log(msg: () -> String) {
+        if (!StlDebugConfig.logElementsVerbose() || filterOutElementExclusive(element.key)) {
+            return
+        }
+        performLog(element.key, content.key, msg())
     }
 
     companion object {
@@ -727,19 +812,45 @@ internal inline fun elementState(
     transitionStates.fastForEachIndexed { index, states ->
         if (index < transitionStates.size - 1) {
             // Check if any ancestor runs a transition that has a transformation for the element
-            states.fastForEachReversed { state ->
+            for (j in states.indices.reversed()) {
+                val state = states[j]
+                if (state !is TransitionState.Transition) continue
+
+                // We check if the element is affected by the current transition either by being
+                // shared or having a transformation defined. If a transformation is defined we
+                // prioritize the transformation of the ancestor transition over its children.
+                // However, checking for a transformation is needed because otherwise a running
+                // ancestor transition would always claim priority even if the element is just
+                // sitting idle there - this would mask running child STL transitions.
                 if (
                     isSharedElement(state, isInContent) ||
-                        hasTransformationForElement(state, elementKey)
+                        isElementAffectedByTransition(state, elementKey, isInContent)
                 ) {
                     return state
                 }
+
+                // If we don't have a transformation on an ancestor defined but it is still part
+                // of the content we want to break on the current nesting level and defer
+                // responsibility to the nesting layer beneath. This is done so no other
+                // transition can claim priority over this when the current transition has the
+                // content defined and also this logic has to be synced with the selection in
+                // localElementState otherwise the picked transitions mismatch and the element
+                // might disappear.
+                if (appearsInAnyContent(state, isInContent)) break
             }
         } else {
             return localElementState(states, isInContent)
         }
     }
     return null
+}
+
+/** Matching selection logic between localElementState() and elementState() */
+private inline fun appearsInAnyContent(
+    state: TransitionState.Transition,
+    isInContent: (ContentKey) -> Boolean,
+): Boolean {
+    return isInContent(state.fromContent) || isInContent(state.toContent)
 }
 
 private inline fun localElementState(
@@ -756,7 +867,7 @@ private inline fun localElementState(
     // Find the last transition with a content that contains the element.
     states.fastForEachReversed { state ->
         val transition = state as TransitionState.Transition
-        if (isInContent(transition.fromContent) || isInContent(transition.toContent)) {
+        if (appearsInAnyContent(transition, isInContent)) {
             return transition
         }
     }
@@ -776,10 +887,22 @@ private inline fun isSharedElement(
         isInContent(state.toContent)
 }
 
-private fun hasTransformationForElement(state: TransitionState, elementKey: ElementKey): Boolean {
-    return state is TransitionState.Transition &&
-        (state.transformationSpec.hasTransformation(elementKey, state.fromContent) ||
-            state.transformationSpec.hasTransformation(elementKey, state.toContent))
+/**
+ * Returns true if the given [elementKey] is affected by the provided [state] transition. An element
+ * is affected if it has a transformation defined in either the [TransitionState.fromContent] or
+ * [TransitionState.toContent] and is present in that content.
+ */
+private inline fun isElementAffectedByTransition(
+    state: TransitionState,
+    elementKey: ElementKey,
+    isInContent: (ContentKey) -> Boolean,
+): Boolean {
+    if (state !is TransitionState.Transition) return false
+
+    return (state.transformationSpec.hasTransformation(elementKey, state.fromContent) &&
+        isInContent(state.fromContent)) ||
+        (state.transformationSpec.hasTransformation(elementKey, state.toContent) &&
+            isInContent(state.toContent))
 }
 
 internal inline fun elementContentWhenIdle(
@@ -1030,6 +1153,7 @@ private fun shouldPlaceElement(
     elementState: TransitionState,
 ): Boolean {
     if (element.key.placeAllCopies) {
+        log(element.key) { "shouldPlaceElement() placing all copies" }
         return true
     }
 
@@ -1055,6 +1179,7 @@ private fun shouldPlaceElement(
             (!isReplacingOverlay || content != transition.currentScene) &&
             transitionDoesNotInvolveAncestorContent(layoutImpl, transition)
     ) {
+        log(element.key, content) { "shouldPlaceElement() not placing - not part of transition" }
         return false
     }
 
@@ -1064,11 +1189,15 @@ private fun shouldPlaceElement(
     if (transition.toContent in element.stateByContent) copies++
     if (isReplacingOverlay && transition.currentScene in element.stateByContent) copies++
     if (copies <= 1) {
+        log(element.key, content) { "shouldPlaceElement() placing - not shared" }
         return true
     }
 
     val sharedTransformation = sharedElementTransformation(element.key, transition)
-    if (sharedTransformation?.transformation?.enabled == false) {
+    if (sharedTransformation?.enabled == false) {
+        log(element.key, content) {
+            "shouldPlaceElement() placing - sharedTransformation is disabled"
+        }
         return true
     }
 
@@ -1088,10 +1217,10 @@ private fun transitionDoesNotInvolveAncestorContent(
  * Whether the element is opaque or not.
  *
  * Important: The logic here should closely match the logic in [elementAlpha]. Note that we don't
- * reuse [elementAlpha] and simply check if alpha == 1f because [isElementOpaque] is checked during
- * placement and we don't want to read the transition progress in that phase.
+ * reuse [elementAlpha] and simply check if alpha == 1f because [isElementOpaqueWithDefaultScale] is
+ * checked during placement and we don't want to read the transition progress in that phase.
  */
-private fun isElementOpaque(
+private fun isElementOpaqueWithDefaultScale(
     content: Content,
     element: Element,
     transition: TransitionState.Transition?,
@@ -1109,21 +1238,37 @@ private fun isElementOpaque(
         return true
     }
 
+    val transformations = transition.transformationSpec.transformations(element.key, content.key)
+    val previewTransformations =
+        transition.previewTransformationSpec?.transformations(element.key, content.key)
+
     val isSharedElement = fromState != null && toState != null
     if (isSharedElement && isSharedElementEnabled(element.key, transition)) {
-        return true
+        return (transformations == null ||
+            !transformations.hasSharedAlphaOrScaleTransformation()) &&
+            (previewTransformations == null ||
+                !previewTransformations.hasSharedAlphaOrScaleTransformation())
     }
 
-    return transition.transformationSpec.transformations(element.key, content.key)?.alpha == null
+    return (transformations == null || !transformations.hasAlphaOrScaleTransformation()) &&
+        (previewTransformations == null || !previewTransformations.hasAlphaOrScaleTransformation())
+}
+
+private fun ElementTransformations.hasAlphaOrScaleTransformation(): Boolean {
+    return alpha != null || scale != null
+}
+
+private fun ElementTransformations.hasSharedAlphaOrScaleTransformation(): Boolean {
+    return sharedAlpha != null || sharedDrawScale != null
 }
 
 /**
  * Whether the element is opaque or not.
  *
- * Important: The logic here should closely match the logic in [isElementOpaque]. Note that we don't
- * reuse [elementAlpha] in [isElementOpaque] and simply check if alpha == 1f because
- * [isElementOpaque] is checked during placement and we don't want to read the transition progress
- * in that phase.
+ * Important: The logic here should closely match the logic in [isElementOpaqueWithDefaultScale].
+ * Note that we don't reuse [elementAlpha] in [isElementOpaqueWithDefaultScale] and simply check if
+ * alpha == 1f because [isElementOpaqueWithDefaultScale] is checked during placement and we don't
+ * want to read the transition progress in that phase.
  */
 internal fun elementAlpha(
     layoutImpl: SceneTransitionLayoutImpl,
@@ -1139,6 +1284,7 @@ internal fun elementAlpha(
                 transition,
                 contentValue = { 1f },
                 transformation = { it?.alpha },
+                sharedTransformation = { it?.sharedAlpha },
                 currentValue = { 1f },
                 isSpecified = { true },
                 ::lerp,
@@ -1207,6 +1353,7 @@ private fun measure(
             transition,
             contentValue = { it.targetSize },
             transformation = { it?.size },
+            sharedTransformation = { it?.sharedSize },
             currentValue = { measurable.measure(constraints).also { maybePlaceable = it }.size() },
             isSpecified = { it != Element.SizeUnspecified },
             ::lerp,
@@ -1249,7 +1396,7 @@ private fun measure(
 
 private fun Placeable.size(): IntSize = IntSize(width, height)
 
-private fun ContentDrawScope.getDrawScale(
+internal fun getScale(
     layoutImpl: SceneTransitionLayoutImpl,
     element: Element,
     transition: TransitionState.Transition?,
@@ -1262,65 +1409,72 @@ private fun ContentDrawScope.getDrawScale(
             element,
             transition,
             contentValue = { Scale.Default },
-            transformation = { it?.drawScale },
+            transformation = { it?.scale },
+            sharedTransformation = { it?.sharedDrawScale },
             currentValue = { Scale.Default },
             isSpecified = { true },
             ::lerp,
         )
 
-    fun Offset.specifiedOrCenter(): Offset {
-        return this.takeIf { isSpecified } ?: center
-    }
-
-    val interruptedScale =
-        computeInterruptedValue(
-            layoutImpl,
-            transition,
-            value = scale,
-            unspecifiedValue = Scale.Unspecified,
-            zeroValue = Scale.Zero,
-            getValueBeforeInterruption = { stateInContent.scaleBeforeInterruption },
-            setValueBeforeInterruption = { stateInContent.scaleBeforeInterruption = it },
-            getInterruptionDelta = { stateInContent.scaleInterruptionDelta },
-            setInterruptionDelta = { delta ->
-                setPlacementInterruptionDelta(
-                    element = element,
-                    stateInContent = stateInContent,
-                    transition = transition,
-                    delta = delta,
-                    setter = { stateInContent, delta ->
-                        stateInContent.scaleInterruptionDelta = delta
-                    },
-                )
-            },
-            diff = { a, b ->
-                Scale(
-                    scaleX = a.scaleX - b.scaleX,
-                    scaleY = a.scaleY - b.scaleY,
-                    pivot =
-                        if (a.pivot.isUnspecified && b.pivot.isUnspecified) {
-                            Offset.Unspecified
-                        } else {
-                            a.pivot.specifiedOrCenter() - b.pivot.specifiedOrCenter()
-                        },
-                )
-            },
-            add = { a, b, bProgress ->
-                Scale(
-                    scaleX = a.scaleX + b.scaleX * bProgress,
-                    scaleY = a.scaleY + b.scaleY * bProgress,
-                    pivot =
-                        if (a.pivot.isUnspecified && b.pivot.isUnspecified) {
-                            Offset.Unspecified
-                        } else {
-                            a.pivot.specifiedOrCenter() + b.pivot.specifiedOrCenter() * bProgress
-                        },
-                )
-            },
-        )
-
+    val interruptedScale = interruptedScale(layoutImpl, element, transition, stateInContent, scale)
     stateInContent.lastScale = interruptedScale
     return interruptedScale
+}
+
+private fun interruptedScale(
+    layoutImpl: SceneTransitionLayoutImpl,
+    element: Element,
+    transition: TransitionState.Transition?,
+    stateInContent: Element.State,
+    scale: Scale,
+): Scale {
+    return computeInterruptedValue(
+        layoutImpl,
+        transition,
+        value = scale,
+        unspecifiedValue = Scale.Unspecified,
+        zeroValue = Scale.Zero,
+        getValueBeforeInterruption = { stateInContent.scaleBeforeInterruption },
+        setValueBeforeInterruption = { stateInContent.scaleBeforeInterruption = it },
+        getInterruptionDelta = { stateInContent.scaleInterruptionDelta },
+        setInterruptionDelta = { delta ->
+            setPlacementInterruptionDelta(
+                element = element,
+                stateInContent = stateInContent,
+                transition = transition,
+                delta = delta,
+                setter = { stateInContent, delta -> stateInContent.scaleInterruptionDelta = delta },
+            )
+        },
+        diff = { a, b ->
+            Scale(
+                scaleX = a.scaleX - b.scaleX,
+                scaleY = a.scaleY - b.scaleY,
+                pivot =
+                    if (a.pivot.isUnspecified && b.pivot.isUnspecified) {
+                        Offset.Unspecified
+                    } else {
+                        a.pivot.specifiedOrCenter() - b.pivot.specifiedOrCenter()
+                    },
+            )
+        },
+        add = { a, b, bProgress ->
+            Scale(
+                scaleX = a.scaleX + b.scaleX * bProgress,
+                scaleY = a.scaleY + b.scaleY * bProgress,
+                pivot =
+                    if (a.pivot.isUnspecified && b.pivot.isUnspecified) {
+                        Offset.Unspecified
+                    } else {
+                        a.pivot.specifiedOrCenter() + b.pivot.specifiedOrCenter() * bProgress
+                    },
+            )
+        },
+    )
+}
+
+private fun Offset.specifiedOrCenter(): Offset {
+    return this.takeIf { isSpecified } ?: Offset(0.5f, 0.5f)
 }
 
 /**
@@ -1351,7 +1505,10 @@ private inline fun <T> computeValue(
     transition: TransitionState.Transition?,
     contentValue: (Element.State) -> T,
     transformation:
-        (ElementTransformations?) -> TransformationWithRange<PropertyTransformation<T>>?,
+        (ElementTransformations?) -> TransformationWithRange<
+                TransformedElementPropertyTransformation<T>
+            >?,
+    sharedTransformation: (ElementTransformations?) -> SharedElementPropertyTransformation<T>?,
     currentValue: () -> T,
     isSpecified: (T) -> Boolean,
     lerp: (T, T, Float) -> T,
@@ -1384,11 +1541,24 @@ private inline fun <T> computeValue(
     val isSharedElement = fromState != null && toState != null
     if (isSharedElement && isSharedElementEnabled(element.key, transition)) {
         return interpolateSharedElement(
+            element = element.key,
             transition = transition,
             contentValue = contentValue,
-            fromState = fromState!!,
-            toState = toState!!,
+            fromState = fromState,
+            toState = toState,
             isSpecified = isSpecified,
+            transformationScope = layoutImpl.propertyTransformationScope,
+            transformation =
+                sharedTransformation(
+                    transition.transformationSpec.transformations(element.key, currentContent)
+                ),
+            previewTransformation =
+                sharedTransformation(
+                    transition.previewTransformationSpec?.transformations(
+                        element.key,
+                        currentContent,
+                    )
+                ),
             lerp = lerp,
         )
     }
@@ -1400,11 +1570,27 @@ private inline fun <T> computeValue(
         currentSceneState = element.stateByContent[transition.currentScene]
         if (currentSceneState != null && isSharedElementEnabled(element.key, transition)) {
             return interpolateSharedElement(
+                element = element.key,
                 transition = transition,
                 contentValue = contentValue,
                 fromState = fromState ?: currentSceneState,
                 toState = toState ?: currentSceneState,
                 isSpecified = isSpecified,
+                transformationScope = layoutImpl.propertyTransformationScope,
+                transformation =
+                    sharedTransformation(
+                        transition.transformationSpec.transformations(
+                            element.key,
+                            transition.currentScene,
+                        )
+                    ),
+                previewTransformation =
+                    sharedTransformation(
+                        transition.previewTransformationSpec?.transformations(
+                            element.key,
+                            currentContent,
+                        )
+                    ),
                 lerp = lerp,
             )
         }
@@ -1566,20 +1752,17 @@ private inline fun <T> computePreviewTransformationValue(
     idleValue: T,
     transformationContentKey: ContentKey,
     isEntering: Boolean,
-    previewTransformation: TransformationWithRange<PropertyTransformation<T>>,
+    previewTransformation: TransformationWithRange<TransformedElementPropertyTransformation<T>>,
     element: Element,
     layoutImpl: SceneTransitionLayoutImpl,
-    transformationWithRange: TransformationWithRange<PropertyTransformation<T>>?,
+    transformationWithRange: TransformationWithRange<TransformedElementPropertyTransformation<T>>?,
     lerp: (T, T, Float) -> T,
 ): T {
     val isInPreviewStage = transition.isInPreviewStage
 
     val previewTargetValue =
         with(
-            previewTransformation.transformation.requireInterpolatedTransformation(
-                element,
-                transition,
-            ) {
+            previewTransformation.transformation.requireInterpolated(element, transition) {
                 "Custom transformations in preview specs should not be possible"
             }
         ) {
@@ -1594,10 +1777,7 @@ private inline fun <T> computePreviewTransformationValue(
     val targetValueOrNull =
         transformationWithRange?.let { transformation ->
             with(
-                transformation.transformation.requireInterpolatedTransformation(
-                    element,
-                    transition,
-                ) {
+                transformation.transformation.requireInterpolated(element, transition) {
                     "Custom transformations are not allowed for properties with a preview"
                 }
             ) {
@@ -1682,7 +1862,7 @@ private fun isEnteringAncestorTransition(
     return layoutImpl.ancestors.fastAny { it.inContent == transition.toContent }
 }
 
-private inline fun <T> PropertyTransformation<T>.requireInterpolatedTransformation(
+private inline fun <T> TransformedElementPropertyTransformation<T>.requireInterpolated(
     element: Element,
     transition: TransitionState.Transition,
     errorMessage: () -> String,
@@ -1699,11 +1879,15 @@ private inline fun <T> PropertyTransformation<T>.requireInterpolatedTransformati
 }
 
 private inline fun <T> interpolateSharedElement(
+    element: ElementKey,
     transition: TransitionState.Transition,
     contentValue: (Element.State) -> T,
     fromState: Element.State,
     toState: Element.State,
     isSpecified: (T) -> Boolean,
+    transformationScope: PropertyTransformationScope,
+    transformation: SharedElementPropertyTransformation<T>?,
+    previewTransformation: SharedElementPropertyTransformation<T>?,
     lerp: (T, T, Float) -> T,
 ): T {
     val start = contentValue(fromState)
@@ -1716,5 +1900,101 @@ private inline fun <T> interpolateSharedElement(
 
     // Make sure we don't read progress if values are the same and we don't need to interpolate,
     // so we don't invalidate the phase where this is read.
-    return if (start == end) start else lerp(start, end, transition.progress)
+    if (previewTransformation == null && transformation == null) {
+        return if (start == end) start else lerp(start, end, transition.progress)
+    }
+
+    val previewValue =
+        if (previewTransformation != null && transition.previewTransformationSpec != null) {
+            val previewValue =
+                when (previewTransformation) {
+                    is CustomSharedPropertyTransformation -> {
+                        with(previewTransformation) {
+                            transformationScope.transform(
+                                element,
+                                transition,
+                                transition.coroutineScope,
+                                start,
+                                end,
+                            )
+                        }
+                    }
+                    is InterpolatedSharedPropertyTransformation -> {
+                        val previewTargetValue =
+                            with(previewTransformation) {
+                                transformationScope.targetPreviewValue(
+                                    element,
+                                    transition,
+                                    start,
+                                    end,
+                                )
+                            }
+                        if (previewTargetValue == start) start
+                        else lerp(start, previewTargetValue, transition.previewProgress)
+                    }
+                }
+
+            if (transition.isInPreviewStage) {
+                return previewValue
+            } else if (transformation == null) {
+                return if (previewValue == end) {
+                    end
+                } else {
+                    lerp(previewValue, end, transition.progress)
+                }
+            }
+
+            previewValue
+        } else {
+            null
+        }
+
+    when (transformation!!) {
+        is InterpolatedSharedPropertyTransformation ->
+            error(
+                "Element ${element.debugName} has a SharedElementPropertyTransformation that " +
+                    "is a InterpolatedSharedPropertyTransformation, which is only supported " +
+                    "inside preview for shared elements."
+            )
+        is CustomSharedPropertyTransformation -> {}
+    }
+
+    return with(transformation) {
+        when {
+            previewValue == null -> {
+                transformationScope.transform(
+                    element,
+                    transition,
+                    transition.coroutineScope,
+                    start,
+                    end,
+                )
+            }
+            transition.isToCurrentContent() -> {
+                transformationScope.transform(
+                    element,
+                    transition,
+                    transition.coroutineScope,
+                    previewValue,
+                    end,
+                )
+            }
+            else -> {
+                transformationScope.transform(
+                    element,
+                    transition,
+                    transition.coroutineScope,
+                    start,
+                    previewValue,
+                )
+            }
+        }
+    }
+}
+
+internal inline fun log(elementKey: ElementKey, contentKey: ContentKey? = null, msg: () -> String) {
+    if (!StlDebugConfig.logElementsVerbose() || filterOutElementExclusive(elementKey)) {
+        return
+    }
+    performLog(elementKey, contentKey, msg())
 }

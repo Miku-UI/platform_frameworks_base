@@ -50,6 +50,7 @@ class BundleHeaderGutsContent(context: Context) : GutsContent {
             BundleHeaderGutsViewModel(
                 titleText = repository.titleText,
                 bundleIcon = repository.bundleIcon,
+                summaryTextRes = repository.summaryTextRes,
                 summaryText = repository.summaryText,
                 disableBundle = { enableBundle(repository.bundleType, false) },
                 onSettingsClicked = onSettingsClicked,

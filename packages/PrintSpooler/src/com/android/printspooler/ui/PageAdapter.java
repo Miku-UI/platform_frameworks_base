@@ -110,6 +110,7 @@ public final class PageAdapter extends Adapter<ViewHolder> {
 
     private MediaSize mMediaSize;
     private Margins mMinMargins;
+    private int mColorMode;
 
     private int mState;
 
@@ -205,8 +206,13 @@ public final class PageAdapter extends Adapter<ViewHolder> {
         });
     }
 
-    public void update(PageRange[] writtenPages, PageRange[] selectedPages,
-            int documentPageCount, MediaSize mediaSize, Margins minMargins) {
+    public void update(
+            PageRange[] writtenPages,
+            PageRange[] selectedPages,
+            int documentPageCount,
+            MediaSize mediaSize,
+            Margins minMargins,
+            int colorMode) {
         boolean documentChanged = false;
         boolean updatePreviewAreaAndPageSize = false;
         boolean clearSelectedPages = false;
@@ -251,6 +257,11 @@ public final class PageAdapter extends Adapter<ViewHolder> {
             clearSelectedPages = true;
         }
 
+        if (mColorMode == 0 || mColorMode != colorMode) {
+            mColorMode = colorMode;
+            updatePreviewAreaAndPageSize = true;
+            documentChanged = true;
+        }
         if (clearSelectedPages) {
             mSelectedPages = PageRange.ALL_PAGES_ARRAY;
             mSelectedPageCount = documentPageCount;
@@ -352,7 +363,7 @@ public final class PageAdapter extends Adapter<ViewHolder> {
         } else {
             onSelectedPageNotInFile(pageInDocument);
         }
-        content.init(provider, mEmptyState, mErrorState, mMediaSize, mMinMargins);
+        content.init(provider, mEmptyState, mErrorState, mMediaSize, mMinMargins, mColorMode);
 
         if (mConfirmedPagesInDocument.indexOfKey(pageInDocument) >= 0) {
             page.setSelected(true);
@@ -799,7 +810,7 @@ public final class PageAdapter extends Adapter<ViewHolder> {
     private void recyclePageView(PageContentView page, int pageIndexInAdapter) {
         PageContentProvider provider = page.getPageContentProvider();
         if (provider != null) {
-            page.init(null, mEmptyState, mErrorState, mMediaSize, mMinMargins);
+            page.init(null, mEmptyState, mErrorState, mMediaSize, mMinMargins, mColorMode);
             mPageContentRepository.releasePageContentProvider(provider);
         }
         mBoundPagesInAdapter.remove(pageIndexInAdapter);

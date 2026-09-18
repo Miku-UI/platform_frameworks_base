@@ -17,7 +17,6 @@
 package com.android.systemui.customization.clocks.view
 
 import android.view.View
-import com.android.systemui.customization.clocks.utils.FontUtils.set
 
 data class DigitalAlignment(
     val horizontalAlignment: HorizontalAlignment? = null,
@@ -40,12 +39,12 @@ enum class HorizontalAlignment {
     },
     START {
         override fun resolveXAlignment(view: View): XAlignment {
-            return if (view.isLayoutRtl()) XAlignment.RIGHT else XAlignment.LEFT
+            return if (view.isLayoutRtl) XAlignment.RIGHT else XAlignment.LEFT
         }
     },
     END {
         override fun resolveXAlignment(view: View): XAlignment {
-            return if (view.isLayoutRtl()) XAlignment.LEFT else XAlignment.RIGHT
+            return if (view.isLayoutRtl) XAlignment.LEFT else XAlignment.RIGHT
         }
     },
     CENTER {

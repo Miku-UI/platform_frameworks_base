@@ -26,7 +26,6 @@ import static com.android.internal.vibrator.persistence.XmlConstants.TAG_PRIMITI
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.os.VibrationEffect;
-import android.os.vibrator.Flags;
 import android.os.vibrator.PrimitiveSegment;
 
 import com.android.internal.vibrator.persistence.SerializedComposedEffect.SerializedSegment;
@@ -43,6 +42,7 @@ import java.io.IOException;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 final class SerializedCompositionPrimitive implements SerializedSegment {
 
     @NonNull
@@ -62,7 +62,7 @@ final class SerializedCompositionPrimitive implements SerializedSegment {
 
     @Override
     public void deserializeIntoComposition(@NonNull VibrationEffect.Composition composition) {
-        if (Flags.primitiveCompositionAbsoluteDelay() && mDelayType != null) {
+        if (mDelayType != null) {
             composition.addPrimitive(mPrimitiveName.getPrimitiveId(), mPrimitiveScale,
                     mPrimitiveDelayMs, mDelayType.getDelayType());
         } else {
@@ -84,10 +84,9 @@ final class SerializedCompositionPrimitive implements SerializedSegment {
             serializer.attributeInt(NAMESPACE, ATTRIBUTE_DELAY_MS, mPrimitiveDelayMs);
         }
 
-        if (Flags.primitiveCompositionAbsoluteDelay() && mDelayType != null) {
-            if (mDelayType.getDelayType() != PrimitiveSegment.DEFAULT_DELAY_TYPE) {
+        if (mDelayType != null &&
+            mDelayType.getDelayType() != PrimitiveSegment.DEFAULT_DELAY_TYPE) {
                 serializer.attribute(NAMESPACE, ATTRIBUTE_DELAY_TYPE, mDelayType.toString());
-            }
         }
 
         serializer.endTag(NAMESPACE, TAG_PRIMITIVE_EFFECT);
@@ -110,14 +109,8 @@ final class SerializedCompositionPrimitive implements SerializedSegment {
         static SerializedCompositionPrimitive parseNext(@NonNull TypedXmlPullParser parser)
                 throws XmlParserException, IOException {
             XmlValidator.checkStartTag(parser, TAG_PRIMITIVE_EFFECT);
-
-            if (Flags.primitiveCompositionAbsoluteDelay()) {
-                XmlValidator.checkTagHasNoUnexpectedAttributes(parser,
-                        ATTRIBUTE_NAME, ATTRIBUTE_DELAY_MS, ATTRIBUTE_SCALE, ATTRIBUTE_DELAY_TYPE);
-            } else {
-                XmlValidator.checkTagHasNoUnexpectedAttributes(parser,
-                        ATTRIBUTE_NAME, ATTRIBUTE_DELAY_MS, ATTRIBUTE_SCALE);
-            }
+            XmlValidator.checkTagHasNoUnexpectedAttributes(parser,
+                    ATTRIBUTE_NAME, ATTRIBUTE_DELAY_MS, ATTRIBUTE_SCALE, ATTRIBUTE_DELAY_TYPE);
 
             PrimitiveEffectName primitiveName = parsePrimitiveName(
                     parser.getAttributeValue(NAMESPACE, ATTRIBUTE_NAME));
@@ -152,9 +145,6 @@ final class SerializedCompositionPrimitive implements SerializedSegment {
                 throws XmlParserException {
             if (name == null) {
                 return null;
-            }
-            if (!Flags.primitiveCompositionAbsoluteDelay()) {
-                throw new XmlParserException("Unexpected primitive delay type " + name);
             }
             PrimitiveDelayType delayType = PrimitiveDelayType.findByName(name);
             if (delayType == null) {

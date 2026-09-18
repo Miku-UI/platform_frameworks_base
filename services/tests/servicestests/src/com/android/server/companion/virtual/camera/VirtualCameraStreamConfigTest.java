@@ -44,11 +44,11 @@ public class VirtualCameraStreamConfigTest {
     @Test
     public void testEquals() {
         VirtualCameraStreamConfig vgaYuvStreamConfig = new VirtualCameraStreamConfig(VGA_WIDTH,
-                VGA_HEIGHT, ImageFormat.YUV_420_888, MAX_FPS_1);
+                VGA_HEIGHT, ImageFormat.YUV_420_888, MAX_FPS_1, 0);
         VirtualCameraStreamConfig qvgaYuvStreamConfig = new VirtualCameraStreamConfig(QVGA_WIDTH,
-                QVGA_HEIGHT, ImageFormat.YUV_420_888, MAX_FPS_2);
+                QVGA_HEIGHT, ImageFormat.YUV_420_888, MAX_FPS_2, 0);
         VirtualCameraStreamConfig vgaRgbaStreamConfig = new VirtualCameraStreamConfig(VGA_WIDTH,
-                VGA_HEIGHT, PixelFormat.RGBA_8888, MAX_FPS_1);
+                VGA_HEIGHT, PixelFormat.RGBA_8888, MAX_FPS_1, 0);
 
         new EqualsTester()
                 .addEqualityGroup(vgaYuvStreamConfig, reparcel(vgaYuvStreamConfig))

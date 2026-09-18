@@ -29,6 +29,7 @@ import com.android.compose.animation.scene.MovableElementContentScope
 import com.android.compose.animation.scene.MovableElementKey
 import com.android.compose.animation.scene.SceneKey
 import com.android.compose.animation.scene.SceneTransitionLayoutScope
+import com.android.compose.animation.scene.SceneTransitionLayoutState
 import com.android.compose.animation.scene.SceneTransitionsBuilder
 import com.android.compose.animation.scene.rememberMutableSceneTransitionLayoutState
 import com.android.compose.animation.scene.transitions as buildTransitions
@@ -37,6 +38,10 @@ import com.android.compose.lifecycle.LaunchedEffectWithLifecycle
 @Immutable
 /** Combined context for lockscreen elements. Contains relevant rendering parameters. */
 interface LockscreenScope<out TScope : BaseContentScope> {
+
+    /** Layout state of the SceneContainer STL */
+    val sceneContainerLayoutState: SceneTransitionLayoutState
+
     /** Inner STL Content Scope */
     val contentScope: TScope
 
@@ -46,8 +51,8 @@ interface LockscreenScope<out TScope : BaseContentScope> {
     /** Context used by element and factory to build LockscreenElements */
     val context: LockscreenElementContext
 
-    /** Creates a copy of this LockscreenScope with the specified inner scope */
-    fun <T : BaseContentScope> createChildScope(scope: T): LockscreenScope<T>
+    /** Factory used to build retargetted scopes */
+    val scopeFactory: LockscreenScopeFactory
 
     @Composable
     /** Creates an element by delegating to [ContentScope] */
@@ -82,6 +87,14 @@ interface LockscreenScope<out TScope : BaseContentScope> {
         fun scene(sceneKey: SceneKey, content: @Composable LockscreenScope<ContentScope>.() -> Unit)
     }
 
+    fun Modifier.burnInAware(isClock: Boolean): Modifier {
+        return this.then(if (isClock) context.burnInAwareClock else context.burnInAware)
+    }
+
+    fun Modifier.nonAuthUI(): Modifier {
+        return this.then(context.nonAuthUI)
+    }
+
     @Immutable
     class NestedSceneScopeImpl(
         private val parentScope: LockscreenScope<*>,
@@ -91,8 +104,21 @@ interface LockscreenScope<out TScope : BaseContentScope> {
             sceneKey: SceneKey,
             content: @Composable LockscreenScope<ContentScope>.() -> Unit,
         ) {
-            transitionScope.scene(sceneKey) { parentScope.createChildScope(this).content() }
+            val scopeFactory = parentScope.scopeFactory
+            transitionScope.scene(sceneKey) { scopeFactory.create(this).content() }
         }
+    }
+
+    @Immutable
+    interface LockscreenScopeFactory {
+        /** Creates a copy of this LockscreenScope with the specified inner scope */
+        fun <T : BaseContentScope> create(scope: T): LockscreenScope<T>
+
+        /** Creates a copy of this LockscreenScope with the specified inner scope & context */
+        fun <T : BaseContentScope> create(
+            scope: T,
+            context: LockscreenElementContext,
+        ): LockscreenScope<T>
     }
 
     companion object {
@@ -105,6 +131,7 @@ interface LockscreenScope<out TScope : BaseContentScope> {
             sceneKey: SceneKey,
             transitions: SceneTransitionsBuilder.() -> Unit,
             modifier: Modifier = Modifier,
+            debugName: String,
             content: NestedSceneScope.() -> Unit,
         ) {
             val coroutineScope = rememberCoroutineScope()
@@ -118,7 +145,7 @@ interface LockscreenScope<out TScope : BaseContentScope> {
                 sceneState.setTargetScene(sceneKey, coroutineScope)
             }
 
-            contentScope.NestedSceneTransitionLayout(sceneState, modifier) {
+            contentScope.NestedSceneTransitionLayout(sceneState, debugName, modifier) {
                 NestedSceneScopeImpl(this@NestedScenes, this).content()
             }
         }

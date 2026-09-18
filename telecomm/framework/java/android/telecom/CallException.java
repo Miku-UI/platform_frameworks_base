@@ -82,7 +82,7 @@ public final class CallException extends RuntimeException implements Parcelable 
 
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
-        dest.writeString8(mMessage);
+        dest.writeString(mMessage);
         dest.writeInt(mCode);
     }
 
@@ -93,7 +93,7 @@ public final class CallException extends RuntimeException implements Parcelable 
             Parcelable.Creator<CallException> CREATOR = new Parcelable.Creator<>() {
                     @Override
                     public CallException createFromParcel(Parcel source) {
-                        return new CallException(source.readString8(), source.readInt());
+                        return new CallException(source.readString(), source.readInt());
                     }
 
                     @Override

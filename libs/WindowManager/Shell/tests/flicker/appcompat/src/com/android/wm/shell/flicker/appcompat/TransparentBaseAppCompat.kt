@@ -17,8 +17,8 @@
 package com.android.wm.shell.flicker.appcompat
 
 import android.content.Context
-import android.tools.flicker.FlickerTestData
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestData
 import android.tools.helpers.FIND_TIMEOUT
 import android.tools.traces.parsers.toFlickerComponent
 import androidx.test.uiautomator.By
@@ -37,13 +37,13 @@ abstract class TransparentBaseAppCompat(flicker: FlickerTest) : BaseTest(flicker
         LetterboxAppHelper(
             instrumentation,
             launcherName = ActivityOptions.LaunchTransparentActivity.LABEL,
-            component = ActivityOptions.LaunchTransparentActivity.COMPONENT.toFlickerComponent()
+            component = ActivityOptions.LaunchTransparentActivity.COMPONENT.toFlickerComponent(),
         )
     protected val letterboxTranslucentApp =
         LetterboxAppHelper(
             instrumentation,
             launcherName = ActivityOptions.TransparentActivity.LABEL,
-            component = ActivityOptions.TransparentActivity.COMPONENT.toFlickerComponent()
+            component = ActivityOptions.TransparentActivity.COMPONENT.toFlickerComponent(),
         )
 
     @JvmField @Rule val letterboxRule: LetterboxRule = LetterboxRule()

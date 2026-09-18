@@ -25,8 +25,8 @@ import java.lang.annotation.RetentionPolicy;
 
 /**
  * Data about the current brightness state.
- * {@see android.view.Display.getBrightnessInfo()}
  *
+ * @see android.view.Display.getBrightnessInfo()
  * @hide
  */
 public final class BrightnessInfo implements Parcelable {
@@ -65,7 +65,9 @@ public final class BrightnessInfo implements Parcelable {
                 BRIGHTNESS_MAX_REASON_POWER_IC,
                 BRIGHTNESS_MAX_REASON_WEAR_BEDTIME_MODE,
                 BRIGHTNESS_MAX_REASON_MODES,
-                BRIGHTNESS_MAX_REASON_MINMODE
+                BRIGHTNESS_MAX_REASON_MINMODE,
+                BRIGHTNESS_MAX_REASON_PLUGIN,
+                BRIGHTNESS_MAX_REASON_LUX
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface BrightnessMaxReason {}
@@ -99,6 +101,16 @@ public final class BrightnessInfo implements Parcelable {
      * Maximum brightness is restricted due to the MinMode
      */
     public static final int BRIGHTNESS_MAX_REASON_MINMODE = 5;
+
+    /**
+     * Maximum brightness is restricted due to a plugin.
+     */
+    public static final int BRIGHTNESS_MAX_REASON_PLUGIN = 6;
+
+    /**
+     * Maximum brightness is restricted due to the current lux.
+     */
+    public static final int BRIGHTNESS_MAX_REASON_LUX = 7;
 
     /** Brightness */
     public final float brightness;
@@ -185,6 +197,10 @@ public final class BrightnessInfo implements Parcelable {
                 return "wear bedtime";
             case BRIGHTNESS_MAX_REASON_MODES:
                 return "modes";
+            case BRIGHTNESS_MAX_REASON_PLUGIN:
+                return "plugin";
+            case BRIGHTNESS_MAX_REASON_LUX:
+                return "lux";
         }
         return "invalid";
     }

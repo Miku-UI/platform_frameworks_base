@@ -35,16 +35,16 @@ constructor(repository: BiometricSettingsRepository) {
      *
      * This exposes why biometrics may not be currently allowed.
      */
-    val authenticationFlags: Flow<AuthenticationFlags> = repository.authenticationFlags
+    val authenticationFlags: StateFlow<AuthenticationFlags> = repository.authenticationFlags
 
     /** Whether the current user has enrolled and enabled fingerprint auth. */
-    val isFingerprintAuthEnrolledAndEnabled: Flow<Boolean> =
+    val isFingerprintAuthEnrolledAndEnabled: StateFlow<Boolean> =
         repository.isFingerprintEnrolledAndEnabled
 
     val fingerprintAuthCurrentlyAllowed: StateFlow<Boolean> =
         repository.isFingerprintAuthCurrentlyAllowed
     /** Whether the current user has enrolled and enabled face auth. */
-    val isFaceAuthEnrolledAndEnabled: Flow<Boolean> = repository.isFaceAuthEnrolledAndEnabled
+    val isFaceAuthEnrolledAndEnabled: StateFlow<Boolean> = repository.isFaceAuthEnrolledAndEnabled
     val faceAuthCurrentlyAllowed: Flow<Boolean> = repository.isFaceAuthCurrentlyAllowed
 
     /** Whether both fingerprint and face are enrolled and enabled for device entry. */

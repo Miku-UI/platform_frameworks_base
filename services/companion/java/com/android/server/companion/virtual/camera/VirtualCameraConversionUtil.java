@@ -39,10 +39,16 @@ import android.os.RemoteException;
 import android.util.Slog;
 import android.view.Surface;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /** Utilities to convert the client side classes to the virtual camera service ones. */
-public final class VirtualCameraConversionUtil {
+final class VirtualCameraConversionUtil {
 
     private static final String TAG = "VirtualCameraConversionUtil";
+
+    private VirtualCameraConversionUtil() {
+    }
 
     /**
      * Fetches the configuration of the provided virtual cameraConfig that was provided by its owner
@@ -53,22 +59,30 @@ public final class VirtualCameraConversionUtil {
      * @return The converted configuration to be sent to the {@link IVirtualCameraService}.
      * @throws RemoteException If there was an issue fetching the configuration from the client.
      */
+    @SuppressWarnings("NullAway") // code generated for aidl files is not properly annotated
     @NonNull
     public static VirtualCameraConfiguration
             getServiceCameraConfiguration(@NonNull VirtualCameraConfig cameraConfig) {
         VirtualCameraConfiguration serviceConfiguration = new VirtualCameraConfiguration();
+        List<SupportedStreamConfiguration> list = new ArrayList<>();
+        for (VirtualCameraStreamConfig virtualCameraStreamConfig :
+                cameraConfig.getStreamConfigs()) {
+            SupportedStreamConfiguration supportedStreamConfiguration =
+                    convertSupportedStreamConfiguration(virtualCameraStreamConfig);
+            list.add(supportedStreamConfiguration);
+        }
         serviceConfiguration.supportedStreamConfigs =
-                cameraConfig.getStreamConfigs().stream()
-                        .map(VirtualCameraConversionUtil::convertSupportedStreamConfiguration)
-                        .toArray(SupportedStreamConfiguration[]::new);
+                list.toArray(new SupportedStreamConfiguration[0]);
         serviceConfiguration.sensorOrientation = cameraConfig.getSensorOrientation();
         serviceConfiguration.lensFacing = cameraConfig.getLensFacing();
         serviceConfiguration.virtualCameraCallback = convertCallback(cameraConfig.getCallback());
-        if (Flags.virtualCameraMetadata()) {
-            serviceConfiguration.perFrameCameraMetadataEnabled =
-                    cameraConfig.isPerFrameCameraMetadataEnabled();
-            serviceConfiguration.cameraCharacteristics = convertToVirtualCameraMetadata(
-                    cameraConfig.getCameraCharacteristics());
+        serviceConfiguration.perFrameCameraMetadataEnabled =
+                cameraConfig.isPerFrameCameraMetadataEnabled();
+        serviceConfiguration.cameraCharacteristics = convertToVirtualCameraMetadata(
+                cameraConfig.getCameraCharacteristics());
+        if (Flags.cameraMultipleInputStreams()) {
+            serviceConfiguration.isMultiInputStreamEnabled =
+                    cameraConfig.isConcurrentStreamConfigSupported();
         }
         return serviceConfiguration;
     }
@@ -87,15 +101,13 @@ public final class VirtualCameraConversionUtil {
             @Override
             public void onConfigureSession(VirtualCameraMetadata sessionParameters,
                     ICaptureResultConsumer captureResultConsumer) throws RemoteException {
-                if (Flags.virtualCameraMetadata()) {
-                    CaptureRequest captureRequest = null;
-                    if (sessionParameters != null) {
-                        captureRequest = convertToCaptureRequest(sessionParameters);
-                    }
-
-                    camera.onConfigureSession(captureRequest,
-                            convertToVdmCaptureResultConsumer(captureResultConsumer));
+                CaptureRequest captureRequest = null;
+                if (sessionParameters != null) {
+                    captureRequest = convertToCaptureRequest(sessionParameters);
                 }
+
+                camera.onConfigureSession(captureRequest,
+                        convertToVdmCaptureResultConsumer(captureResultConsumer));
             }
             @Override
             public void onStreamConfigured(int streamId, Surface surface, int width, int height,
@@ -109,7 +121,7 @@ public final class VirtualCameraConversionUtil {
                     VirtualCameraMetadata captureRequestSettings) throws RemoteException {
                 CaptureRequest captureRequest = null;
 
-                if (Flags.virtualCameraMetadata() && captureRequestSettings != null) {
+                if (captureRequestSettings != null) {
                     captureRequest = convertToCaptureRequest(captureRequestSettings);
                 }
 
@@ -129,8 +141,9 @@ public final class VirtualCameraConversionUtil {
         SupportedStreamConfiguration supportedConfig = new SupportedStreamConfiguration();
         supportedConfig.height = stream.getHeight();
         supportedConfig.width = stream.getWidth();
-        supportedConfig.pixelFormat = convertToHalFormat(stream.getFormat());
+        supportedConfig.imageFormat = convertToHalFormat(stream.getFormat());
         supportedConfig.maxFps = stream.getMaximumFramesPerSecond();
+        supportedConfig.index = stream.getStreamIndex();
         return supportedConfig;
     }
 
@@ -138,6 +151,8 @@ public final class VirtualCameraConversionUtil {
         return switch (javaFormat) {
             case ImageFormat.YUV_420_888 -> Format.YUV_420_888;
             case PixelFormat.RGBA_8888 -> Format.RGBA_8888;
+            case ImageFormat.JPEG -> Format.JPEG;
+            case ImageFormat.HEIC -> Format.HEIC;
             default -> Format.UNKNOWN;
         };
     }
@@ -146,12 +161,15 @@ public final class VirtualCameraConversionUtil {
         return switch (halFormat) {
             case Format.YUV_420_888 -> ImageFormat.YUV_420_888;
             case Format.RGBA_8888 -> PixelFormat.RGBA_8888;
+            case Format.JPEG -> ImageFormat.JPEG;
+            case Format.HEIC -> ImageFormat.HEIC;
             default -> ImageFormat.UNKNOWN;
         };
     }
 
+    @Nullable
     private static VirtualCameraMetadata convertToVirtualCameraMetadata(
-            CameraCharacteristics cameraCharacteristics) {
+            @Nullable CameraCharacteristics cameraCharacteristics) {
         if (cameraCharacteristics == null) {
             return null;
         }
@@ -159,8 +177,9 @@ public final class VirtualCameraConversionUtil {
         return convertToVirtualCameraMetadata(cameraCharacteristics.getNativeMetadata());
     }
 
+    @Nullable
     private static VirtualCameraMetadata convertToVirtualCameraMetadata(
-            CameraMetadataNative metadataNative) {
+            @Nullable CameraMetadataNative metadataNative) {
         if (metadataNative == null) {
             return null;
         }
@@ -180,6 +199,7 @@ public final class VirtualCameraConversionUtil {
         return virtualCameraMetadata;
     }
 
+    @Nullable
     private static CameraMetadataNative convertToCameraMetadataNative(
             @NonNull VirtualCameraMetadata virtualCameraMetadata) {
         CameraMetadataNative cameraMetadataNative = null;
@@ -197,7 +217,8 @@ public final class VirtualCameraConversionUtil {
         return cameraMetadataNative;
     }
 
-    private static @Nullable CaptureRequest convertToCaptureRequest(
+    @Nullable
+    private static CaptureRequest convertToCaptureRequest(
             @NonNull VirtualCameraMetadata virtualCameraMetadata) {
         CameraMetadataNative metadataNative = convertToCameraMetadataNative(virtualCameraMetadata);
         if (metadataNative != null) {
@@ -210,7 +231,8 @@ public final class VirtualCameraConversionUtil {
         return null;
     }
 
-    private static @Nullable android.companion.virtual.camera.ICaptureResultConsumer
+    @Nullable
+    private static android.companion.virtual.camera.ICaptureResultConsumer
             convertToVdmCaptureResultConsumer(
                 @Nullable ICaptureResultConsumer serviceCaptureResultConsumer) {
         if (serviceCaptureResultConsumer != null) {

@@ -24,12 +24,12 @@ import org.junit.Test
  * - [BubbleAppBecomesNotExpandedTestCases]
  * - [LauncherAlwaysVisibleTestCases]
  */
-interface CollapseBubbleAppTestCases : BubbleAlwaysVisibleTestCases,
-    BubbleAppBecomesNotExpandedTestCases, LauncherAlwaysVisibleTestCases {
+interface CollapseBubbleAppTestCases :
+    BubbleAlwaysVisibleTestCases,
+    BubbleAppBecomesNotExpandedTestCases,
+    LauncherAlwaysVisibleTestCases {
 
-    /**
-     * Verifies bubble app window is invisible at the end of the transition.
-     */
+    /** Verifies bubble app window is invisible at the end of the transition. */
     @Test
     override fun appWindowIsInvisibleAtEnd() {
         wmStateSubjectAtEnd.isAppWindowInvisible(testApp, mustExist = true)

@@ -186,7 +186,7 @@ public class DeviceStateAutoRotateSettingController {
 
     /**
      * Request to change {@link ACCELEROMETER_ROTATION} persisted setting. If needed, we might also
-     * write into {@link USER_ROTATION} with {@param userRotation}.
+     * write into {@link USER_ROTATION} with {@code userRotation}.
      */
     public void requestAccelerometerRotationSettingChange(boolean autoRotate, int userRotation,
             String caller) {

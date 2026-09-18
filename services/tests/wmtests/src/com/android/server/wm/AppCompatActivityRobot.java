@@ -25,6 +25,7 @@ import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
 import static android.content.pm.ApplicationInfo.CATEGORY_GAME;
 import static android.content.pm.ApplicationInfo.CATEGORY_UNDEFINED;
 import static android.view.Display.TYPE_INTERNAL;
+import static android.view.WindowManager.TRANSIT_CHANGE;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
@@ -143,7 +144,7 @@ class AppCompatActivityRobot {
     }
     void createActivityWithComponentInNewTaskAndDisplay(int displayType) {
         createActivityWithComponentInNewTask(/* inNewTask */ true, /* inNewDisplay */ true,
-                displayType);
+                /* inSecondaryDisplay */ false, displayType);
     }
 
     void configureTopActivity(float minAspect, float maxAspect, int screenOrientation,
@@ -210,8 +211,15 @@ class AppCompatActivityRobot {
         mTaskStack.top().setWindowingMode(windowingMode);
     }
 
-    void moveTaskToSecondaryDisplay() {
-        mTaskStack.top().reparent(mSecondaryDisplayContent.getDefaultTaskDisplayArea(),
+    void moveTaskBetweenDisplays() {
+        final DisplayContent newDisplay =
+                mTaskStack.top().getDisplayId() == mDisplayContent.getDisplayId()
+                        ? mSecondaryDisplayContent : mDisplayContent;
+        if (!mTaskStack.top().mTransitionController.isCollecting()) {
+            mTaskStack.top().mTransitionController.requestTransitionIfNeeded(TRANSIT_CHANGE,
+                    0 /* flags */, null /* trigger */, newDisplay, ActionChain.test());
+        }
+        mTaskStack.top().reparent(newDisplay.getDefaultTaskDisplayArea(),
                 true /* onTop */);
         mActivityStack.top().ensureActivityConfiguration();
     }
@@ -226,27 +234,34 @@ class AppCompatActivityRobot {
     }
 
     void enableFullscreenCameraCompatTreatmentForTopActivity(boolean enabled) {
-        if (mDisplayContent.mAppCompatCameraPolicy.hasDisplayRotationPolicy()) {
-            doReturn(enabled).when(
-                    mDisplayContent.mAppCompatCameraPolicy.mDisplayRotationPolicy)
-                        .isTreatmentEnabledForActivity(eq(mActivityStack.top()));
+        final AppCompatCameraPolicy cameraPolicy = mDisplayContent.mWmService
+                .mAppCompatCameraPolicy;
+        if (cameraPolicy.hasDisplayRotationPolicy()) {
+            doReturn(enabled).when(cameraPolicy.mDisplayRotationPolicy)
+                    .isTreatmentEnabledForActivity(eq(mActivityStack.top()));
         }
     }
 
     void setIsCameraRunningAndWindowingModeEligibleFullscreen(boolean enabled) {
-        doReturn(enabled).when(getTopDisplayRotationCompatPolicy())
+        final AppCompatCameraDisplayRotationPolicy policy = getTopDisplayRotationCompatPolicy();
+        doReturn(enabled).when(policy)
                 .isCameraRunningAndWindowingModeEligible(eq(mActivityStack.top()),
                         /* mustBeFullscreen= */ eq(true));
     }
 
     void setIsCameraRunningAndWindowingModeEligibleFreeform(boolean enabled) {
-        doReturn(enabled).when(getTopCameraCompatSimReqOrientationPolicy())
-                .isCameraRunningAndWindowingModeEligible(eq(mActivityStack.top()));
+        final AppCompatCameraSimReqOrientationPolicy policy =
+                getTopCameraCompatSimReqOrientationPolicy();
+        doReturn(enabled).when(policy).isCameraRunningAndWindowingModeEligible(
+                eq(mActivityStack.top()));
     }
 
     void setTopActivityEligibleForOrientationOverride(boolean enabled) {
-        doReturn(enabled).when(getTopDisplayRotationCompatPolicy())
-                .isActivityEligibleForOrientationOverride(eq(mActivityStack.top()));
+        final AppCompatCameraDisplayRotationPolicy policy = getTopDisplayRotationCompatPolicy();
+        if (policy != null) {
+            doReturn(enabled).when(policy).isActivityEligibleForOrientationOverride(
+                    eq(mActivityStack.top()));
+        }
     }
 
     void setTopActivityInTransition(boolean inTransition) {
@@ -288,6 +303,11 @@ class AppCompatActivityRobot {
 
     void setIgnoreOrientationRequest(boolean enabled) {
         mDisplayContent.setIgnoreOrientationRequest(enabled);
+    }
+
+    void setOnLargeScreen() {
+        setIgnoreOrientationRequest(true);
+        doReturn(true).when(mDisplayContent).isLargeScreen();
     }
 
     void setTopActivityOrganizedTask() {
@@ -345,7 +365,7 @@ class AppCompatActivityRobot {
     }
 
     void setTopActivityResumed() {
-        doReturn(RESUMED).when(mActivityStack.top()).getState();
+        mActivityStack.top().setState(RESUMED, "test");
         doReturn(true).when(mActivityStack.top()).isVisibleRequested();
         doReturn(true).when(mActivityStack.top()).isVisible();
         mActivityStack.top().mAppCompatController.getSizeCompatModePolicy()
@@ -369,28 +389,53 @@ class AppCompatActivityRobot {
         mActivityStack.top().removeImmediately();
     }
 
+    void finishTopActivity() {
+        mActivityStack.top().finishIfPossible("test", false);
+    }
+
+    void removeTopTask() {
+        final ActivityRecord r = mActivityStack.top();
+        mSupervisor.removeTask(r.getTask(), false /*killProcess*/, true, "test", r.getUid(),
+                r.getPid(), r.info.name);
+    }
+
+    void exitAppProcess() {
+        mActivityStack.top().handleAppDied();
+    }
+
     void destroyActivity(int fromTop) {
         mActivityStack.applyTo(/* fromTop */ fromTop, ActivityRecord::removeImmediately);
     }
 
     void createNewDisplay() {
-        createNewDisplay(TYPE_INTERNAL);
+        createNewDisplay(TYPE_INTERNAL, false /* asSecondaryDisplay */);
     }
-    void createNewDisplay(int type) {
-        mDisplayContent = new TestDisplayContent.Builder(mAtm, mDisplayWidth, mDisplayHeight)
-                .setType(type)
-                .build();
-        onPostDisplayContentCreation(mDisplayContent);
+
+    void createNewDisplay(int type, boolean asSecondaryDisplay) {
+        if (asSecondaryDisplay) {
+            createSecondaryDisplay(type);
+        } else {
+            mDisplayContent = new TestDisplayContent.Builder(mAtm, mDisplayWidth, mDisplayHeight)
+                    .setType(type)
+                    .build();
+            // Skip WAKE transition when adding a task to the empty display.
+            mDisplayContent.setIsSleeping(false);
+            onPostDisplayContentCreation(mDisplayContent);
+        }
+    }
+
+    void createSecondaryDisplay() {
+        createSecondaryDisplay(Display.TYPE_EXTERNAL);
     }
 
     /**
      * Creates a secondary display. Its density, color mode, and touchscreen are intentionally set
      * different from those of the default display to emulate common physical environments.
      */
-    void createSecondaryDisplay() {
+    private void createSecondaryDisplay(int displayType) {
         final DisplayInfo displayInfo = new DisplayInfo();
         displayInfo.copyFrom(mDisplayContent.getDisplayInfo());
-        displayInfo.type = Display.TYPE_EXTERNAL;
+        displayInfo.type = displayType;
         final int[] hdrTypesWithDv = new int[] {1, 2, 3, 4};
         displayInfo.hdrCapabilities = new Display.HdrCapabilities(hdrTypesWithDv, 0, 0, 0);
         doReturn(true).when(mAtm.mWindowManager).hasHdrSupport();
@@ -413,7 +458,7 @@ class AppCompatActivityRobot {
 
         // Make sure the display doesn't get into sleep when created;
         doReturn(false).when(mSecondaryDisplayContent).shouldSleep();
-        mAtm.updateSleepIfNeededLocked();
+        mSecondaryDisplayContent.wakeIfNeeded();
 
         onPostDisplayContentCreation(mSecondaryDisplayContent);
     }
@@ -475,6 +520,10 @@ class AppCompatActivityRobot {
         display.getDisplayRotation().setRotation(rotation);
         display.computeScreenConfiguration(c);
         display.onRequestedOverrideConfigurationChanged(c);
+    }
+
+    void makeDisplayLargeScreen() {
+        WindowTestsBase.makeDisplayLargeScreen(mDisplayContent);
     }
 
     void assertTrueOnActivity(int fromTop, Predicate<ActivityRecord> predicate) {
@@ -592,14 +641,20 @@ class AppCompatActivityRobot {
         }
     }
 
+    void createActivityWithComponentInSecondaryDisplay(int displayType) {
+        createActivityWithComponentInNewTask(true /* inNewTask */, true /* inNewTask */,
+                true /* inSecondaryDisplay */, displayType);
+    }
+
     private void createActivityWithComponentInNewTask(boolean inNewTask, boolean inNewDisplay) {
-        createActivityWithComponentInNewTask(inNewTask, inNewDisplay, TYPE_INTERNAL);
+        createActivityWithComponentInNewTask(inNewTask, inNewDisplay,
+                false  /* inSecondaryDisplay */, TYPE_INTERNAL);
     }
 
     private void createActivityWithComponentInNewTask(boolean inNewTask, boolean inNewDisplay,
-            int displayType) {
+            boolean inSecondaryDisplay, int displayType) {
         if (inNewDisplay) {
-            createNewDisplay(displayType);
+            createNewDisplay(displayType, inSecondaryDisplay);
         }
         if (inNewTask) {
             createNewTask();
@@ -658,12 +713,11 @@ class AppCompatActivityRobot {
     }
 
     private AppCompatCameraDisplayRotationPolicy getTopDisplayRotationCompatPolicy() {
-        return mActivityStack.top().mDisplayContent.mAppCompatCameraPolicy
-                .mDisplayRotationPolicy;
+        return mActivityStack.top().mWmService.mAppCompatCameraPolicy.mDisplayRotationPolicy;
     }
 
     private AppCompatCameraSimReqOrientationPolicy getTopCameraCompatSimReqOrientationPolicy() {
-        return mActivityStack.top().mDisplayContent.mAppCompatCameraPolicy.mSimReqOrientationPolicy;
+        return mActivityStack.top().mWmService.mAppCompatCameraPolicy.mSimReqOrientationPolicy;
     }
 
     // We add the activity to the stack and spyOn() on its properties.

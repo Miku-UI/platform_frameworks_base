@@ -92,7 +92,7 @@ constructor(
     }
 
     private fun ErrorFaceAuthenticationStatus.shouldSuppressError(): Boolean {
-        return isCancellationError() || isUnableToProcessError()
+        return isUnableToProcessError()
     }
 
     val fingerprintErrorMessage: Flow<FingerprintMessage> =

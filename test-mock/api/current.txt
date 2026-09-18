@@ -1,4 +1,5 @@
-// Signature format: 2.0
+// Signature format: 6.0
+// - style=java
 package android.test.mock {
 
   @Deprecated public class MockAccountManager {
@@ -200,8 +201,8 @@ package android.test.mock {
     method @Deprecated public boolean canRequestPackageInstalls();
     method @Deprecated public String[] canonicalToCurrentPackageNames(String[]);
     method @Deprecated public int checkPermission(String, String);
-    method @Deprecated public int checkSignatures(String, String);
     method @Deprecated public int checkSignatures(int, int);
+    method @Deprecated public int checkSignatures(String, String);
     method @Deprecated public void clearInstantAppCookie();
     method @Deprecated public void clearPackagePreferredActivities(String);
     method @Deprecated public String[] currentToCanonicalPackageNames(String[]);
@@ -239,8 +240,8 @@ package android.test.mock {
     method @Deprecated public String getNameForUid(int);
     method @Deprecated public int[] getPackageGids(String) throws android.content.pm.PackageManager.NameNotFoundException;
     method @Deprecated public int[] getPackageGids(String, int) throws android.content.pm.PackageManager.NameNotFoundException;
-    method @Deprecated public android.content.pm.PackageInfo getPackageInfo(String, int) throws android.content.pm.PackageManager.NameNotFoundException;
     method @Deprecated public android.content.pm.PackageInfo getPackageInfo(android.content.pm.VersionedPackage, int) throws android.content.pm.PackageManager.NameNotFoundException;
+    method @Deprecated public android.content.pm.PackageInfo getPackageInfo(String, int) throws android.content.pm.PackageManager.NameNotFoundException;
     method @Deprecated public android.content.pm.PackageInstaller getPackageInstaller();
     method @Deprecated public int getPackageUid(String, int) throws android.content.pm.PackageManager.NameNotFoundException;
     method @Deprecated public String[] getPackagesForUid(int);

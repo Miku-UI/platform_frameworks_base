@@ -39,7 +39,7 @@ import static com.android.systemui.LauncherProxyService.LauncherProxyListener;
 import static com.android.systemui.navigationbar.NavBarHelper.transitionMode;
 import static com.android.systemui.shared.recents.utilities.Utilities.isLargeScreen;
 import static com.android.systemui.shared.rotation.RotationButtonController.DEBUG_ROTATION;
-import static com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_OPAQUE;
+import static com.android.systemui.shared.statusbar.phone.BarTransitions.MODE_OPAQUE_DARK;
 import static com.android.systemui.shared.statusbar.phone.BarTransitions.TransitionMode;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_A11Y_BUTTON_CLICKABLE;
 import static com.android.systemui.shared.system.QuickStepContract.SYSUI_STATE_A11Y_BUTTON_LONG_CLICKABLE;
@@ -108,7 +108,6 @@ import com.android.internal.logging.UiEvent;
 import com.android.internal.logging.UiEventLogger;
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
 import com.android.internal.statusbar.LetterboxDetails;
-import com.android.internal.util.LatencyTracker;
 import com.android.internal.view.AppearanceRegion;
 import com.android.systemui.Gefingerpoken;
 import com.android.systemui.LauncherProxyService;
@@ -443,7 +442,7 @@ public class NavigationBar extends ViewController<NavigationBarView> implements 
         }
 
         @Override
-        public void onOverviewShown(boolean fromHome) {
+        public void onOverviewShown() {
             // If the overview has fixed orientation that may change display to natural rotation,
             // we don't want the user rotation to be reset. So after user returns to application,
             // it can keep in the original rotation.
@@ -1127,13 +1126,13 @@ public class NavigationBar extends ViewController<NavigationBarView> implements 
 
     @Override
     public void setImeWindowStatus(int displayId, @ImeWindowVisibility int vis,
-            @BackDispositionMode int backDisposition, boolean showImeSwitcher) {
+            @BackDispositionMode int backDisposition, boolean showImeSwitcherButton) {
         if (displayId != mDisplayId) {
             return;
         }
         final boolean isImeVisible = mNavBarHelper.isImeVisible(vis);
         final int flags = Utilities.updateNavbarFlagsFromIme(mNavbarFlags, backDisposition,
-                isImeVisible, showImeSwitcher);
+                isImeVisible, showImeSwitcherButton);
         if (flags == mNavbarFlags) {
             return;
         }
@@ -1532,10 +1531,6 @@ public class NavigationBar extends ViewController<NavigationBarView> implements 
     private void onRecentsClick(View v) {
         mNavBarButtonClickLogger.logRecentsButtonClick();
 
-        if (LatencyTracker.isEnabled(mContext)) {
-            LatencyTracker.getInstance(mContext).onActionStart(
-                    LatencyTracker.ACTION_TOGGLE_RECENTS);
-        }
         mCentralSurfacesOptionalLazy.get().ifPresent(CentralSurfaces::awakenDreams);
         mCommandQueue.toggleRecentApps();
     }
@@ -1550,7 +1545,9 @@ public class NavigationBar extends ViewController<NavigationBarView> implements 
     @VisibleForTesting
     boolean onImeSwitcherLongClick(View v) {
         mNavBarButtonClickLogger.logImeSwitcherClick();
-        mInputMethodManager.showInputMethodPickerFromSystem(true /* showAuxiliarySubtypes */,
+        mInputMethodManager.showInputMethodPickerFromSystem(
+                true /* showAuxiliarySubtypes */,
+                InputMethodManager.IM_PICKER_ENTRY_POINT_DEFAULT,
                 mDisplayId);
         mUiEventLogger.log(KeyButtonView.NavBarButtonEvent.NAVBAR_IME_SWITCHER_BUTTON_LONGPRESS);
         return true;
@@ -2063,7 +2060,7 @@ public class NavigationBar extends ViewController<NavigationBarView> implements 
     }
 
     void onBarTransition(int newMode) {
-        if (newMode == MODE_OPAQUE) {
+        if (newMode == MODE_OPAQUE_DARK) {
             // If the nav bar background is opaque, stop auto tinting since we know the icons are
             // showing over a dark background
             mRegionSamplingHelper.stop();

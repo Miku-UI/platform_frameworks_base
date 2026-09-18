@@ -16,12 +16,13 @@
 
 #include "androidfw/AssetsProvider.h"
 
-#include <sys/stat.h>
-
 #include <android-base/errors.h>
 #include <android-base/stringprintf.h>
 #include <android-base/utf8.h>
+#include <sys/stat.h>
 #include <ziparchive/zip_archive.h>
+
+#include "android_content_res.h"
 
 namespace android {
 
@@ -47,8 +48,8 @@ std::unique_ptr<AssetsProvider> AssetsProvider::CreateFromNullable(
 }
 
 std::unique_ptr<Asset> AssetsProvider::Open(const std::string& path, Asset::AccessMode mode,
-                                            bool* file_exists) const {
-  return OpenInternal(path, mode, file_exists);
+                                            bool* file_exists, off64_t max_size) const {
+  return OpenInternal(path, mode, file_exists, max_size);
 }
 
 std::unique_ptr<Asset> AssetsProvider::CreateAssetFromFile(const std::string& path) {
@@ -61,10 +62,9 @@ std::unique_ptr<Asset> AssetsProvider::CreateAssetFromFile(const std::string& pa
   return CreateAssetFromFd(std::move(fd), path.c_str());
 }
 
-std::unique_ptr<Asset> AssetsProvider::CreateAssetFromFd(base::unique_fd fd,
-                                                         const char* path,
-                                                         off64_t offset,
-                                                         off64_t length) {
+std::unique_ptr<Asset> AssetsProvider::CreateAssetFromFd(base::unique_fd fd, const char* path,
+                                                         off64_t offset, off64_t length,
+                                                         off64_t max_size) {
   CHECK(length >= kUnknownLength) << "length must be greater than or equal to " << kUnknownLength;
   CHECK(length != kUnknownLength || offset == 0) << "offset must be 0 if length is "
                                                  << kUnknownLength;
@@ -75,6 +75,12 @@ std::unique_ptr<Asset> AssetsProvider::CreateAssetFromFd(base::unique_fd fd,
                  << base::SystemErrorCodeToString(errno);
       return {};
     }
+  }
+
+  if (android_content_res_xml_file_size_limit() && max_size >= 0 && length > max_size) {
+    LOG(ERROR) << "File size " << length << " of file '" << ((path) ? path : "anon")
+               << "' is greater than the maximum allowed size " << max_size;
+    return {};
   }
 
   incfs::IncFsFileMap file_map;
@@ -177,67 +183,90 @@ std::unique_ptr<ZipAssetsProvider> ZipAssetsProvider::Create(base::unique_fd fd,
 }
 
 std::unique_ptr<Asset> ZipAssetsProvider::OpenInternal(const std::string& path,
-                                                       Asset::AccessMode mode,
-                                                       bool* file_exists) const {
-    if (file_exists != nullptr) {
-      *file_exists = false;
-    }
+                                                       Asset::AccessMode mode, bool* file_exists,
+                                                       off64_t max_size) const {
+  if (file_exists != nullptr) {
+    *file_exists = false;
+  }
 
-    ZipEntry entry;
-    if (FindEntry(zip_handle_.get(), path, &entry) != 0) {
-      return {};
-    }
+  ZipEntry entry;
+  if (FindEntry(zip_handle_.get(), path, &entry) != 0) {
+    return {};
+  }
 
-    if (file_exists != nullptr) {
-      *file_exists = true;
-    }
+  // There's a few apps that do a crazy thing and patch libziparchive's exports to search their
+  // separate resource files when the currently configured ones don't have the path.
+  // E.g. |com.ataaw.tianyi| just calls FindEntry() again in a different zip_handle, returning
+  // an entry that may have offsets pointing out of the current file. Then they want to also
+  // replace the extraction call to extract out of their file. Unfortunately, if we try accessing
+  // those offsets using the 'proper' zip file's mmap, it crashes, not letting the patched code
+  // to extract their data.
+  // To not crash at least we should make sure the offsets are correct before going any further.
+  const auto array_info = GetArchiveInfo(zip_handle_.get());
+  if (entry.offset + entry.compressed_length > array_info.archive_size) {
+    LOG(ERROR) << "Found zip entry outside of zip file?? Offset " << entry.offset << " + length "
+               << entry.compressed_length << " = " << entry.offset + entry.compressed_length
+               << " is greater than the archive size " << array_info.archive_size << ", for file '"
+               << path << "' in APK '" << name_.GetDebugName();
+    return {};
+  }
 
-    const int fd = GetFileDescriptor(zip_handle_.get());
-    const off64_t fd_offset = GetFileDescriptorOffset(zip_handle_.get());
-    const bool incremental_hardening = (flags_ & PROPERTY_DISABLE_INCREMENTAL_HARDENING) == 0U;
-    incfs::IncFsFileMap asset_map;
-    if (entry.method == kCompressDeflated) {
-      if (!asset_map.Create(fd, entry.offset + fd_offset, entry.compressed_length,
-                            name_.GetDebugName().c_str(), incremental_hardening)) {
-        LOG(ERROR) << "Failed to mmap file '" << path << "' in APK '" << name_.GetDebugName()
-                   << "'";
-        return {};
-      }
+  if (file_exists != nullptr) {
+    *file_exists = true;
+  }
 
-      std::unique_ptr<Asset> asset =
-          Asset::createFromCompressedMap(std::move(asset_map), entry.uncompressed_length, mode);
-      if (asset == nullptr) {
-        LOG(ERROR) << "Failed to decompress '" << path << "' in APK '" << name_.GetDebugName()
-                   << "'";
-        return {};
-      }
-      return asset;
-    }
+  if (android_content_res_xml_file_size_limit() && max_size >= 0 &&
+      entry.uncompressed_length > max_size) {
+    LOG(ERROR) << "Uncompressed size " << entry.uncompressed_length << " of the file '" << path
+               << "' in APK '" << name_.GetDebugName()
+               << "is greater than the maximum allowed size " << max_size;
+    return {};
+  }
 
-    if (!asset_map.Create(fd, entry.offset + fd_offset, entry.uncompressed_length,
+  const int fd = GetFileDescriptor(zip_handle_.get());
+  const off64_t fd_offset = GetFileDescriptorOffset(zip_handle_.get());
+  const bool incremental_hardening = (flags_ & PROPERTY_DISABLE_INCREMENTAL_HARDENING) == 0U;
+  incfs::IncFsFileMap asset_map;
+  if (entry.method == kCompressDeflated) {
+    if (!asset_map.Create(fd, entry.offset + fd_offset, entry.compressed_length,
                           name_.GetDebugName().c_str(), incremental_hardening)) {
       LOG(ERROR) << "Failed to mmap file '" << path << "' in APK '" << name_.GetDebugName() << "'";
       return {};
     }
 
-    base::unique_fd ufd;
-    if (name_.GetPath() == nullptr) {
-      // If the zip name does not represent a path, create a new `fd` for the new Asset to own in
-      // order to create new file descriptors using Asset::openFileDescriptor. If the zip name is a
-      // path, it will be used to create new file descriptors.
-      ufd = base::unique_fd(dup(fd));
-      if (!ufd.ok()) {
-        LOG(ERROR) << "Unable to dup fd '" << path << "' in APK '" << name_.GetDebugName() << "'";
-        return {};
-      }
-    }
-
-    auto asset = Asset::createFromUncompressedMap(std::move(asset_map), mode, std::move(ufd));
+    std::unique_ptr<Asset> asset =
+        Asset::createFromCompressedMap(std::move(asset_map), entry.uncompressed_length, mode);
     if (asset == nullptr) {
-      LOG(ERROR) << "Failed to mmap file '" << path << "' in APK '" << name_.GetDebugName() << "'";
+      LOG(ERROR) << "Failed to decompress '" << path << "' in APK '" << name_.GetDebugName() << "'";
       return {};
     }
     return asset;
+  }
+
+  if (!asset_map.Create(fd, entry.offset + fd_offset, entry.uncompressed_length,
+                        name_.GetDebugName().c_str(), incremental_hardening)) {
+    LOG(ERROR) << "Failed to mmap file '" << path << "' in APK '" << name_.GetDebugName() << "'";
+    return {};
+  }
+
+  base::unique_fd ufd;
+  if (name_.GetPath() == nullptr) {
+    // If the zip name does not represent a path, create a new `fd` for the new Asset to own in
+    // order to create new file descriptors using Asset::openFileDescriptor. If the zip name is a
+    // path, it will be used to create new file descriptors.
+    ufd = base::unique_fd(dup(fd));
+    if (!ufd.ok()) {
+      LOG(ERROR) << "Unable to dup fd '" << path << "' in APK '" << name_.GetDebugName() << "'";
+      return {};
+    }
+  }
+
+  auto asset = Asset::createFromUncompressedMap(std::move(asset_map), mode, std::move(ufd));
+  if (asset == nullptr) {
+    LOG(ERROR) << "Failed to mmap file '" << path << "' in APK '" << name_.GetDebugName() << "'";
+    return {};
+  }
+  return asset;
 }
 
 bool ZipAssetsProvider::ForEachFile(
@@ -340,13 +369,21 @@ std::unique_ptr<DirectoryAssetsProvider> DirectoryAssetsProvider::Create(std::st
 
 std::unique_ptr<Asset> DirectoryAssetsProvider::OpenInternal(const std::string& path,
                                                              Asset::AccessMode /* mode */,
-                                                             bool* file_exists) const {
+                                                             bool* file_exists,
+                                                             off64_t max_size) const {
   const std::string resolved_path = dir_ + path;
-  if (file_exists != nullptr) {
+  if (file_exists != nullptr || max_size >= 0) {
     struct stat sb{};
-    *file_exists = (stat(resolved_path.c_str(), &sb) != -1) && S_ISREG(sb.st_mode);
+    const bool exists = (stat(resolved_path.c_str(), &sb) != -1) && S_ISREG(sb.st_mode);
+    if (file_exists) {
+      *file_exists = exists;
+    }
+    if (android_content_res_xml_file_size_limit() && max_size >= 0 && sb.st_size > max_size) {
+      LOG(ERROR) << "File size " << sb.st_size << " of the file '" << path
+                 << "' is greater than the maximum allowed size " << max_size;
+      return {};
+    }
   }
-
   return CreateAssetFromFile(resolved_path);
 }
 
@@ -389,10 +426,10 @@ std::unique_ptr<AssetsProvider> MultiAssetsProvider::Create(
 }
 
 std::unique_ptr<Asset> MultiAssetsProvider::OpenInternal(const std::string& path,
-                                                         Asset::AccessMode mode,
-                                                         bool* file_exists) const {
-  auto asset = primary_->Open(path, mode, file_exists);
-  return (asset) ? std::move(asset) : secondary_->Open(path, mode, file_exists);
+                                                         Asset::AccessMode mode, bool* file_exists,
+                                                         off64_t max_size) const {
+  auto asset = primary_->Open(path, mode, file_exists, max_size);
+  return (asset) ? std::move(asset) : secondary_->Open(path, mode, file_exists, max_size);
 }
 
 bool MultiAssetsProvider::ForEachFile(
@@ -426,7 +463,8 @@ std::unique_ptr<AssetsProvider> EmptyAssetsProvider::Create(std::string path) {
 
 std::unique_ptr<Asset> EmptyAssetsProvider::OpenInternal(const std::string& /* path */,
                                                          Asset::AccessMode /* mode */,
-                                                         bool* file_exists) const {
+                                                         bool* file_exists,
+                                                         [[maybe_unused]] off64_t max_size) const {
   if (file_exists) {
     *file_exists = false;
   }

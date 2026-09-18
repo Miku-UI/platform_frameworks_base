@@ -55,7 +55,6 @@ public class OffloadBrightnessStrategyTest {
 
     @Test
     public void testUpdateBrightnessWhenOffloadBrightnessIsSet() {
-        when(mDisplayManagerFlags.isRefactorDisplayPowerControllerEnabled()).thenReturn(true);
         DisplayManagerInternal.DisplayPowerRequest
                 displayPowerRequest = new DisplayManagerInternal.DisplayPowerRequest();
         float brightness = 0.2f;

@@ -19,18 +19,17 @@ package com.android.wm.shell.repository
 import android.testing.AndroidTestingRunner
 import androidx.test.filters.SmallTest
 import com.android.wm.shell.ShellTestCase
-import org.junit.Test
-import org.junit.runner.RunWith
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
 
 /**
  * Tests for [GenericRepository].
  *
- * Build/Install/Run:
- *  atest WMShellUnitTests:GenericRepositoryTest
+ * Build/Install/Run: atest WMShellUnitTests:GenericRepositoryTest
  */
 @RunWith(AndroidTestingRunner::class)
 @SmallTest
@@ -41,10 +40,7 @@ class GenericRepositoryTest : ShellTestCase() {
         val repository = MemoryRepositoryImpl<FakeKey, FakeItem>()
         var returnedItem: FakeItem? = null
         val result =
-            repository.executeOn(
-                FakeKey(id1 = 0, id2 = ""),
-                defaultResult = true
-            ) { item ->
+            repository.executeOn(FakeKey(id1 = 0, id2 = ""), defaultResult = true) { item ->
                 returnedItem = item
                 true
             }
@@ -57,9 +53,7 @@ class GenericRepositoryTest : ShellTestCase() {
         val repository = MemoryRepositoryImpl<FakeKey, FakeItem>()
         var returnedItem: FakeItem? = null
         val result =
-            repository.executeOn(
-                FakeKey(id1 = 0, id2 = "")
-            ) { item ->
+            repository.executeOn(FakeKey(id1 = 0, id2 = "")) { item ->
                 returnedItem = item
                 true
             }
@@ -69,17 +63,16 @@ class GenericRepositoryTest : ShellTestCase() {
 
     @Test
     fun `callback invoked when item is found and returns true`() {
-        val repository = MemoryRepositoryImpl<FakeKey, FakeItem>().apply {
-            insert(
-                key = FakeKey(id1 = 1, id2 = "test"),
-                item = FakeItem(value1 = 1, value2 = "item")
-            )
-        }
+        val repository =
+            MemoryRepositoryImpl<FakeKey, FakeItem>().apply {
+                insert(
+                    key = FakeKey(id1 = 1, id2 = "test"),
+                    item = FakeItem(value1 = 1, value2 = "item"),
+                )
+            }
         var returnedItem: FakeItem? = null
         val result =
-            repository.executeOn(
-                FakeKey(id1 = 1, id2 = "test")
-            ) { item ->
+            repository.executeOn(FakeKey(id1 = 1, id2 = "test")) { item ->
                 returnedItem = item
                 true
             }
@@ -89,17 +82,16 @@ class GenericRepositoryTest : ShellTestCase() {
 
     @Test
     fun `callback invoked when item is found and returns false`() {
-        val repository = MemoryRepositoryImpl<FakeKey, FakeItem>().apply {
-            insert(
-                key = FakeKey(id1 = 1, id2 = "test"),
-                item = FakeItem(value1 = 1, value2 = "item")
-            )
-        }
+        val repository =
+            MemoryRepositoryImpl<FakeKey, FakeItem>().apply {
+                insert(
+                    key = FakeKey(id1 = 1, id2 = "test"),
+                    item = FakeItem(value1 = 1, value2 = "item"),
+                )
+            }
         var returnedItem: FakeItem? = null
         val result =
-            repository.executeOn(
-                FakeKey(id1 = 1, id2 = "test")
-            ) { item ->
+            repository.executeOn(FakeKey(id1 = 1, id2 = "test")) { item ->
                 returnedItem = item
                 false
             }

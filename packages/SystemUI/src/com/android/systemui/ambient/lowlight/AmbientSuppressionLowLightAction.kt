@@ -21,7 +21,6 @@ import com.android.systemui.ambient.lowlight.dagger.AmbientSuppressionModule
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import javax.inject.Inject
 import javax.inject.Named
-import kotlinx.coroutines.awaitCancellation
 
 /**
  * {@link AmbientSuppressionLowLightAction} is a {@link LowLightAction} implementation configurable
@@ -35,15 +34,14 @@ constructor(
 ) : ExclusiveActivatable() {
     private val suppressionToken: String = "AmbientSuppressionLowLightAction:" + flags
 
-    override suspend fun onActivated(): Nothing {
-        try {
-            powerManager.suppressAmbientDisplay(suppressionToken, flags)
-            awaitCancellation()
-        } finally {
-            powerManager.suppressAmbientDisplay(
-                suppressionToken,
-                PowerManager.FLAG_AMBIENT_SUPPRESSION_NONE,
-            )
-        }
+    override suspend fun onActivated() {
+        powerManager.suppressAmbientDisplay(suppressionToken, flags)
+    }
+
+    override suspend fun onDeactivated() {
+        powerManager.suppressAmbientDisplay(
+            suppressionToken,
+            PowerManager.FLAG_AMBIENT_SUPPRESSION_NONE,
+        )
     }
 }

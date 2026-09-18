@@ -18,13 +18,15 @@ package com.android.systemui.statusbar.events
 
 import android.annotation.IntRange
 import android.content.Context
+import android.location.flags.Flags.locationIndicatorsAnimation
 import android.location.flags.Flags.locationIndicatorsEnabled
 import android.provider.DeviceConfig
 import android.provider.DeviceConfig.NAMESPACE_PRIVACY
 import com.android.internal.annotations.VisibleForTesting
 import com.android.systemui.Flags
-import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
 import com.android.systemui.display.domain.interactor.ConnectedDisplayInteractor
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel
@@ -33,32 +35,34 @@ import com.android.systemui.privacy.PrivacyItem
 import com.android.systemui.privacy.PrivacyItemController
 import com.android.systemui.privacy.PrivacyType
 import com.android.systemui.res.R
-import com.android.systemui.statusbar.featurepods.av.domain.interactor.AvControlsChipInteractor
 import com.android.systemui.statusbar.policy.BatteryController
 import com.android.systemui.util.time.SystemClock
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 
 /**
  * Listens for system events (battery, privacy, connectivity) and allows listeners to show status
  * bar animations when they happen
  */
-@SysUISingleton
+@PerDisplaySingleton
 class SystemEventCoordinator
 @Inject
 constructor(
     private val systemClock: SystemClock,
     private val batteryController: BatteryController,
     private val privacyController: PrivacyItemController,
-    private val avControlsChipInteractor: AvControlsChipInteractor,
-    private val context: Context,
-    @Application private val appScope: CoroutineScope,
+    @DisplayAware private val context: Context,
+    @DisplayAware private val scope: CoroutineScope,
     connectedDisplayInteractor: ConnectedDisplayInteractor,
     @SystemEventCoordinatorLog private val logBuffer: LogBuffer,
+    @Main private val mainCoroutineContext: CoroutineContext,
 ) {
+
+    private val tag = "SystemEventCoordinator(displayId=${context.displayId})"
+
     private val onDisplayConnectedFlow = connectedDisplayInteractor.connectedDisplayAddition
     private val defaultCameraPackageName =
         context.resources.getString(R.string.config_cameraGesturePackage)
@@ -69,7 +73,12 @@ constructor(
     fun startObserving() {
         batteryController.addCallback(batteryStateListener)
         privacyController.addCallback(privacyStateListener)
-        startConnectedDisplayCollection()
+        if (
+            !Flags.statusBarIsConnectedDisplayChipControlledByConfig() ||
+                context.resources.getBoolean(R.bool.config_isStatusBarConnectedDisplayChipEnabled)
+        ) {
+            startConnectedDisplayCollection()
+        }
     }
 
     fun stopObserving() {
@@ -83,24 +92,24 @@ constructor(
     }
 
     fun notifyPluggedIn(@IntRange(from = 0, to = 100) batteryLevel: Int) {
-        scheduler.onStatusEvent(BatteryEvent(batteryLevel))
+        scope.launch(mainCoroutineContext) { scheduler.onStatusEvent(BatteryEvent(batteryLevel)) }
     }
 
     fun notifyPrivacyItemsEmpty() {
-        scheduler.removePersistentDot()
+        scope.launch(mainCoroutineContext) { scheduler.removePersistentDot() }
     }
 
     fun notifyPrivacyItemsChanged(showAnimation: Boolean = true) {
         // Disabling animation in case that the privacy indicator is implemented as a status bar
         // chip
-        val shouldShowAnimation = showAnimation && !avControlsChipInteractor.isEnabled.value
+        val shouldShowAnimation = showAnimation && !Flags.expandedPrivacyIndicatorsOnLargeScreen()
         val event = PrivacyEvent(shouldShowAnimation)
         event.privacyItems = privacyStateListener.currentPrivacyItems
         event.contentDescription = run {
             val items = PrivacyChipBuilder(context, event.privacyItems).joinTypes()
             context.getString(R.string.ongoing_privacy_chip_content_multiple_apps, items)
         }
-        scheduler.onStatusEvent(event)
+        scope.launch(mainCoroutineContext) { scheduler.onStatusEvent(event) }
     }
 
     private fun startConnectedDisplayCollection() {
@@ -109,24 +118,16 @@ constructor(
                 contentDescription = context.getString(R.string.connected_display_icon_desc)
             }
         connectedDisplayCollectionJob =
-            onDisplayConnectedFlow
-                .onEach { scheduler.onStatusEvent(connectedDisplayEvent) }
-                .launchIn(appScope)
+            scope.launch(mainCoroutineContext) {
+                onDisplayConnectedFlow.collect { scheduler.onStatusEvent(connectedDisplayEvent) }
+            }
     }
 
     private val batteryStateListener =
         object : BatteryController.BatteryStateChangeCallback {
-            private var plugged = false
-            private var stateKnown = false
+            private var plugged = batteryController.isPluggedIn
 
             override fun onBatteryLevelChanged(level: Int, pluggedIn: Boolean, charging: Boolean) {
-                if (!stateKnown) {
-                    stateKnown = true
-                    plugged = pluggedIn
-                    notifyListeners(level)
-                    return
-                }
-
                 if (plugged != pluggedIn) {
                     plugged = pluggedIn
                     notifyListeners(level)
@@ -184,7 +185,9 @@ constructor(
                             // For location-only, we show an animation if the flag is enabled. The
                             // 10-minute debounce is handled in filterOutExemptItems.
                             val shouldAnimateLocation =
-                                hasOnlyLocationItems && locationIndicatorsEnabled()
+                                hasOnlyLocationItems &&
+                                    locationIndicatorsEnabled() &&
+                                    locationIndicatorsAnimation()
 
                             isChipAnimationEnabled() &&
                                 (shouldAnimateCameraMic || shouldAnimateLocation)
@@ -213,38 +216,29 @@ constructor(
             private fun filterOutExemptItems(items: List<PrivacyItem>): List<PrivacyItem> {
                 val now = systemClock.elapsedRealtime()
 
-                val cameraMicExemption = Flags.statusBarPrivacyChipAnimationExemption()
                 val locationFlagEnabled = locationIndicatorsEnabled()
 
-                if (!cameraMicExemption && !locationFlagEnabled) {
-                    return items
-                }
-
-                // First, filter out camera/mic exemptions if the flag is enabled
+                // First, filter out camera/mic exemptions
                 val afterCameraMicFilter =
-                    if (cameraMicExemption) {
-                        items.filterNot { item ->
-                            val isCameraMicExempt =
-                                isCameraOrMicrophoneRequest(item) &&
-                                    item.application.packageName == defaultCameraPackageName
-                            if (isCameraMicExempt) {
-                                logBuffer.log(
-                                    TAG,
-                                    LogLevel.DEBUG,
-                                    {
-                                        str1 = item.application.packageName
-                                        str2 = item.privacyType.permGroupName
-                                    },
-                                    {
-                                        "Privacy item from default camera ($str1) is exempt " +
-                                            "from chip animation. Permission group=$str2"
-                                    },
-                                )
-                            }
-                            isCameraMicExempt
+                    items.filterNot { item ->
+                        val isCameraMicExempt =
+                            isCameraOrMicrophoneRequest(item) &&
+                                item.application.packageName == defaultCameraPackageName
+                        if (isCameraMicExempt) {
+                            logBuffer.log(
+                                tag,
+                                LogLevel.DEBUG,
+                                {
+                                    str1 = item.application.packageName
+                                    str2 = item.privacyType.permGroupName
+                                },
+                                {
+                                    "Privacy item from default camera ($str1) is exempt " +
+                                        "from chip animation. Permission group=$str2"
+                                },
+                            )
                         }
-                    } else {
-                        items
+                        isCameraMicExempt
                     }
 
                 // Now, if the location flag is enabled and only location items remain,
@@ -259,7 +253,7 @@ constructor(
                                 now - lastAnimationTime < DEBOUNCE_TIME_LOCATION
                         ) {
                             logBuffer.log(
-                                TAG,
+                                tag,
                                 LogLevel.DEBUG,
                                 {
                                     str1 = item.application.packageName
@@ -302,4 +296,3 @@ constructor(
 private const val DEBOUNCE_TIME = 3000L
 @VisibleForTesting const val DEBOUNCE_TIME_LOCATION = 600_000L // 10 minutes.
 private const val CHIP_ANIMATION_ENABLED = "privacy_chip_animation_enabled"
-private const val TAG = "SystemEventCoordinator"

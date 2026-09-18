@@ -17,18 +17,16 @@
 package com.android.wm.shell.desktopmode
 
 import android.os.IBinder
-import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.view.SurfaceControl
 import android.view.WindowManager.TRANSIT_CHANGE
 import android.view.WindowManager.TRANSIT_CLOSE
 import androidx.test.filters.SmallTest
-import com.android.window.flags.Flags
+import com.android.testing.wm.util.StubTransaction
+import com.android.testing.wm.util.TransitionInfoBuilder
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.desktopmode.multidesks.DesksTransitionObserver
 import com.android.wm.shell.transition.FocusTransitionObserver
-import com.android.wm.shell.transition.TransitionInfoBuilder
-import com.android.wm.shell.util.StubTransaction
 import java.util.Optional
 import org.junit.Before
 import org.junit.Test
@@ -52,7 +50,6 @@ class DesktopInOrderTransitionObserverTest : ShellTestCase() {
     private val desktopImeHandler = mock<DesktopImeHandler>()
     private val desktopBackNavTransitionObserver = mock<DesktopBackNavTransitionObserver>()
     private val desktopModeLoggerTransitionObserver = mock<DesktopModeLoggerTransitionObserver>()
-    private val displayFocusResolver = mock<DisplayFocusResolver>()
     private lateinit var transitionObserver: DesktopInOrderTransitionObserver
 
     @Before
@@ -65,15 +62,10 @@ class DesktopInOrderTransitionObserverTest : ShellTestCase() {
                 Optional.of(desktopImeHandler),
                 Optional.of(desktopBackNavTransitionObserver),
                 desktopModeLoggerTransitionObserver,
-                Optional.of(displayFocusResolver),
             )
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP,
-        Flags.FLAG_ENABLE_INORDER_TRANSITION_CALLBACKS_FOR_DESKTOP,
-    )
     fun onTransitionReady_forwardsToDesktopImmersiveController() {
         val transition = Mockito.mock(IBinder::class.java)
         val info = TransitionInfoBuilder(TRANSIT_CHANGE, 0).build()
@@ -86,10 +78,6 @@ class DesktopInOrderTransitionObserverTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP,
-        Flags.FLAG_ENABLE_INORDER_TRANSITION_CALLBACKS_FOR_DESKTOP,
-    )
     fun onTransitionMerged_forwardsToDesktopImmersiveController() {
         val merged = Mockito.mock(IBinder::class.java)
         val playing = Mockito.mock(IBinder::class.java)
@@ -100,10 +88,6 @@ class DesktopInOrderTransitionObserverTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP,
-        Flags.FLAG_ENABLE_INORDER_TRANSITION_CALLBACKS_FOR_DESKTOP,
-    )
     fun onTransitionStarting_forwardsToDesktopImmersiveController() {
         val transition = Mockito.mock(IBinder::class.java)
 
@@ -113,10 +97,6 @@ class DesktopInOrderTransitionObserverTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP,
-        Flags.FLAG_ENABLE_INORDER_TRANSITION_CALLBACKS_FOR_DESKTOP,
-    )
     fun onTransitionFinished_forwardsToDesktopImmersiveController() {
         val transition = Mockito.mock(IBinder::class.java)
 
@@ -126,7 +106,6 @@ class DesktopInOrderTransitionObserverTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_INORDER_TRANSITION_CALLBACKS_FOR_DESKTOP)
     fun onTransitionReady_forwardsToDesksTransitionObserver() {
         val transition = Mockito.mock(IBinder::class.java)
         val info = TransitionInfoBuilder(TRANSIT_CLOSE, /* flags= */ 0).build()
@@ -137,7 +116,6 @@ class DesktopInOrderTransitionObserverTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_INORDER_TRANSITION_CALLBACKS_FOR_DESKTOP)
     fun onTransitionMerged_forwardsToDesksTransitionObserver() {
         val merged = Mockito.mock(IBinder::class.java)
         val playing = Mockito.mock(IBinder::class.java)
@@ -148,7 +126,6 @@ class DesktopInOrderTransitionObserverTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_INORDER_TRANSITION_CALLBACKS_FOR_DESKTOP)
     fun onTransitionFinished_forwardsToDesksTransitionObserver() {
         val transition = Mockito.mock(IBinder::class.java)
 
@@ -158,7 +135,6 @@ class DesktopInOrderTransitionObserverTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_INORDER_TRANSITION_CALLBACKS_FOR_DESKTOP)
     fun onTransitionReady_forwardsToDesktopModeLoggerTransitionObserver() {
         val transition = Mockito.mock(IBinder::class.java)
         val info = TransitionInfoBuilder(TRANSIT_CHANGE, /* flags= */ 0).build()
@@ -176,7 +152,6 @@ class DesktopInOrderTransitionObserverTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_INORDER_TRANSITION_CALLBACKS_FOR_DESKTOP)
     fun onTransitionFinished_forwardsToDesktopModeLoggerTransitionObserver() {
         val transition = Mockito.mock(IBinder::class.java)
         val aborted = false
@@ -189,21 +164,5 @@ class DesktopInOrderTransitionObserverTest : ShellTestCase() {
         inorder
             .verify(desktopModeLoggerTransitionObserver)
             .onTransitionFinished(transition, aborted)
-    }
-
-    @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_FULLY_IMMERSIVE_IN_DESKTOP,
-        Flags.FLAG_ENABLE_INORDER_TRANSITION_CALLBACKS_FOR_DESKTOP,
-    )
-    fun onTransitionReady_forwardsToDisplayFocusResolver() {
-        val transition = Mockito.mock(IBinder::class.java)
-        val info = TransitionInfoBuilder(TRANSIT_CHANGE, 0).build()
-        val startT = mock<SurfaceControl.Transaction>()
-        val finishT = mock<SurfaceControl.Transaction>()
-
-        transitionObserver.onTransitionReady(transition, info, startT, finishT)
-
-        verify(displayFocusResolver).onTransitionReady(info)
     }
 }

@@ -19,6 +19,7 @@ package com.android.test.input
 import android.content.Context
 import android.content.res.Resources
 import android.os.SystemProperties
+import android.platform.test.ravenwood.RavenwoodRule
 import android.view.InputDevice
 import android.view.MotionEvent
 import android.view.MotionEvent.ACTION_DOWN
@@ -34,6 +35,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.mock
@@ -87,23 +89,34 @@ private fun getPredictionContext(offset: Duration, enablePrediction: Boolean): C
     return context
 }
 
+private const val ENABLE_MOTION_PREDICTION_PROP = "persist.input.enable_motion_prediction"
+
 @RunWith(AndroidJUnit4::class)
 @SmallTest
 class MotionPredictorTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
-    val initialPropertyValue = SystemProperties.get("persist.input.enable_motion_prediction")
+    lateinit var initialPropertyValue: String
+
+    @get:Rule
+    val rule: RavenwoodRule =
+        RavenwoodRule.Builder()
+            .setSystemPropertyImmutable(ENABLE_MOTION_PREDICTION_PROP, "true")
+            .build()
 
     @Before
     fun setUp() {
+        if (RavenwoodRule.isOnRavenwood()) return
+        initialPropertyValue = SystemProperties.get(ENABLE_MOTION_PREDICTION_PROP)
         instrumentation.uiAutomation.executeShellCommand(
-            "setprop persist.input.enable_motion_prediction true"
+            "setprop $ENABLE_MOTION_PREDICTION_PROP true"
         )
     }
 
     @After
     fun tearDown() {
+        if (RavenwoodRule.isOnRavenwood()) return
         instrumentation.uiAutomation.executeShellCommand(
-            "setprop persist.input.enable_motion_prediction $initialPropertyValue"
+            "setprop $ENABLE_MOTION_PREDICTION_PROP $initialPropertyValue"
         )
     }
 

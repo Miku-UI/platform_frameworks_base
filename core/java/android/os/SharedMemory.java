@@ -16,6 +16,7 @@
 
 package android.os;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.compat.annotation.UnsupportedAppUsage;
@@ -152,6 +153,35 @@ public final class SharedMemory implements Parcelable, Closeable {
         validateProt(prot);
         int errno = nSetProt(mFileDescriptor, prot);
         return errno == 0;
+    }
+
+    /**
+     * Returns whether any future mappings of this SharedMemory region will be read-only. Note that
+     * existing writable mappings of this region may exist, and that the region being read only
+     * also does not say anything about its executable state.
+
+     * @return true if the shared memory region is read-only, false otherwise.
+     * @throws IllegalStateException if the shared memory is closed or could not be examined.
+     */
+    @FlaggedApi(com.android.libcore.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    public boolean isRegionReadOnly() {
+        checkOpen();
+        try {
+            int seals = Os.fcntlInt(mFileDescriptor, OsConstants.F_GET_SEALS, 0);
+            if (seals >= 0) {
+                return (seals & (OsConstants.F_SEAL_WRITE | OsConstants.F_SEAL_FUTURE_WRITE)) != 0;
+            }
+        } catch (ErrnoException e) {
+            // Ignore and try fallback
+        }
+
+        try {
+            int prot = Os.ioctlRet(mFileDescriptor, OsConstants.ASHMEM_GET_PROT_MASK);
+            return (prot & OsConstants.PROT_WRITE) == 0;
+        } catch (ErrnoException e) {
+            throw new IllegalStateException(
+                    "SharedMemory could not be examined for read only status", e);
+        }
     }
 
     /**

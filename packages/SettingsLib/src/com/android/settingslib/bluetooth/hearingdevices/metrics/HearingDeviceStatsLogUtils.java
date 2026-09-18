@@ -75,17 +75,44 @@ public final class HearingDeviceStatsLogUtils {
 
     private static final String HISTORY_RECORD_DELIMITER = ",";
 
-    static final String CATEGORY_HEARING_DEVICES = "A11yHearingAidsUser";
-    static final String CATEGORY_NEW_HEARING_DEVICES = "A11yNewHearingAidsUser";
-    static final String CATEGORY_LE_HEARING_DEVICES = "A11yLeHearingAidsUser";
-    static final String CATEGORY_NEW_LE_HEARING_DEVICES = "A11yNewLeHearingAidsUser";
-    // The values here actually represent Bluetooth hearable devices, but were mistyped
-    // as hearing devices in the string value previously. Keep the string values to ensure record
-    // persistence.
+    // For the category string values below, "HearingDevices" in the string value was mistyped, it
+    // actually represents Bluetooth hearable devices. The variable names are corrected to
+    // HearableDevice/HearingDevice but keep the string values as HearingDevices/HearingAids to
+    // ensure record persistence.
     static final String CATEGORY_HEARABLE_DEVICES = "A11yHearingDevicesUser";
-    static final String CATEGORY_NEW_HEARABLE_DEVICES = "A11yNewHearingDevicesUser";
+    static final String CATEGORY_HEARING_DEVICES = "A11yHearingAidsUser";
     static final String CATEGORY_LE_HEARABLE_DEVICES = "A11yLeHearingDevicesUser";
+    static final String CATEGORY_LE_HEARING_DEVICES = "A11yLeHearingAidsUser";
+    static final String CATEGORY_NEW_HEARABLE_DEVICES = "A11yNewHearingDevicesUser";
+    static final String CATEGORY_NEW_HEARING_DEVICES = "A11yNewHearingAidsUser";
     static final String CATEGORY_NEW_LE_HEARABLE_DEVICES = "A11yNewLeHearingDevicesUser";
+    static final String CATEGORY_NEW_LE_HEARING_DEVICES = "A11yNewLeHearingAidsUser";
+
+    static final Set<String> HEARING_DEVICE_CATEGORIES = Set.of(
+            CATEGORY_HEARABLE_DEVICES,
+            CATEGORY_HEARING_DEVICES,
+            CATEGORY_LE_HEARABLE_DEVICES,
+            CATEGORY_LE_HEARING_DEVICES,
+            CATEGORY_NEW_HEARABLE_DEVICES,
+            CATEGORY_NEW_HEARING_DEVICES,
+            CATEGORY_NEW_LE_HEARABLE_DEVICES,
+            CATEGORY_NEW_LE_HEARING_DEVICES
+    );
+
+    /**
+     * Returns the set of all hearing device related category keys.
+     */
+    public static Set<String> getHearingDeviceCategories() {
+        return HEARING_DEVICE_CATEGORIES;
+    }
+
+    /**
+     * Returns true if the provided device is a hearing device or a hearable device.
+     */
+    public static boolean isHearingOrHearableDevice(CachedBluetoothDevice device) {
+        return isHearingDevice(device) || isLeHearingDevice(device) || isHearableDevice(device)
+                || isLeHearableDevice(device);
+    }
 
     static final int PAIRED_HISTORY_EXPIRED_DAY = 30;
     static final int CONNECTED_HISTORY_EXPIRED_DAY = 7;
@@ -392,7 +419,6 @@ public final class HearingDeviceStatsLogUtils {
 
     private static boolean isLeHearingDevice(CachedBluetoothDevice device) {
         return device.getProfiles().stream().anyMatch(p -> p instanceof HapClientProfile);
-
     }
 
     private static boolean isHearableDevice(CachedBluetoothDevice device) {

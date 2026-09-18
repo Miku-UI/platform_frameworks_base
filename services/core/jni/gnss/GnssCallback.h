@@ -89,8 +89,10 @@ struct GnssCallbackHidl : public hardware::gnss::V2_1::IGnssCallback {
             const hardware::gnss::V1_0::IGnssCallback::GnssStatusValue status) override;
     hardware::Return<void> gnssSvStatusCb(
             const hardware::gnss::V1_0::IGnssCallback::GnssSvStatus& svStatus) override {
-        return gnssSvStatusCbImpl<hardware::gnss::V1_0::IGnssCallback::GnssSvStatus,
-                                  hardware::gnss::V1_0::IGnssCallback::GnssSvInfo>(svStatus);
+        return gnssSvStatusCbImpl<
+                hardware::gnss::V1_0::IGnssCallback::GnssSvStatus,
+                hardware::gnss::V1_0::IGnssCallback::GnssSvInfo>(svStatus,
+                                                                 /* interfaceVersion= */ 0);
     }
     hardware::Return<void> gnssNmeaCb(int64_t timestamp,
                                       const hardware::hidl_string& nmea) override;
@@ -117,7 +119,8 @@ struct GnssCallbackHidl : public hardware::gnss::V2_1::IGnssCallback {
             override {
         return gnssSvStatusCbImpl<
                 hardware::hidl_vec<hardware::gnss::V2_0::IGnssCallback::GnssSvInfo>,
-                hardware::gnss::V1_0::IGnssCallback::GnssSvInfo>(svInfoList);
+                hardware::gnss::V1_0::IGnssCallback::GnssSvInfo>(svInfoList,
+                                                                 /* interfaceVersion= */ 0);
     }
 
     // New in 2.1
@@ -126,7 +129,8 @@ struct GnssCallbackHidl : public hardware::gnss::V2_1::IGnssCallback {
             override {
         return gnssSvStatusCbImpl<
                 hardware::hidl_vec<hardware::gnss::V2_1::IGnssCallback::GnssSvInfo>,
-                hardware::gnss::V1_0::IGnssCallback::GnssSvInfo>(svInfoList);
+                hardware::gnss::V1_0::IGnssCallback::GnssSvInfo>(svInfoList,
+                                                                 /* interfaceVersion= */ 0);
     }
     hardware::Return<void> gnssSetCapabilitiesCb_2_1(uint32_t capabilities) override;
 
@@ -138,7 +142,7 @@ struct GnssCallbackHidl : public hardware::gnss::V2_1::IGnssCallback {
     static hardware::Return<void> gnssLocationCbImpl(const T& location);
 
     template <class T_list, class T_sv_info>
-    static hardware::Return<void> gnssSvStatusCbImpl(const T_list& svStatus);
+    static hardware::Return<void> gnssSvStatusCbImpl(const T_list& svStatus, int interfaceVersion);
 
 private:
     template <class T>

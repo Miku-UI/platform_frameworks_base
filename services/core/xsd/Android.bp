@@ -15,6 +15,13 @@ xsd_config {
 }
 
 xsd_config {
+    name: "memory-limiter-config",
+    srcs: ["memory-limiter-config/memory-limiter-config.xsd"],
+    api_dir: "memory-limiter-config/schema",
+    package_name: "com.android.server.am.memorylimiter.config",
+}
+
+xsd_config {
     name: "platform-compat-config",
     srcs: ["platform-compat/config/platform-compat-config.xsd"],
     api_dir: "platform-compat/config/schema",
@@ -57,4 +64,18 @@ xsd_config {
     srcs: ["device-state-config/device-state-config.xsd"],
     api_dir: "device-state-config/schema",
     package_name: "com.android.server.policy.devicestate.config",
+}
+
+xsd_config {
+    name: "supplemental_security_patches_xsd",
+    srcs: ["supplemental_security_patches/supplemental_security_patches.xsd"],
+    api_dir: "supplemental_security_patches/schema",
+    package_name: "android.security.patches",
+}
+
+xsd_config {
+    name: "advanced-protection-config",
+    srcs: ["advanced-protection-config/advanced-protection-config.xsd"],
+    api_dir: "advanced-protection-config/schema",
+    package_name: "com.android.server.security.advancedprotection.config",
 }

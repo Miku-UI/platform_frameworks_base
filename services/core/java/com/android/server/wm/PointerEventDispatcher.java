@@ -16,6 +16,7 @@
 
 package com.android.server.wm;
 
+import android.util.Log;
 import android.view.InputChannel;
 import android.view.InputDevice;
 import android.view.InputEvent;
@@ -28,8 +29,11 @@ import com.android.server.UiThread;
 import java.util.ArrayList;
 
 public class PointerEventDispatcher extends InputEventReceiver {
+    private static final String TAG = "PointerEventDispatcher";
+
     private final ArrayList<PointerEventListener> mListeners = new ArrayList<>();
     private PointerEventListener[] mListenersArray = new PointerEventListener[0];
+    private boolean mDisposed = false;
 
     public PointerEventDispatcher(InputChannel inputChannel) {
         super(inputChannel, UiThread.getHandler().getLooper());
@@ -91,6 +95,14 @@ public class PointerEventDispatcher extends InputEventReceiver {
     /** Dispose the associated input channel and clean up the listeners. */
     @Override
     public void dispose() {
+        if (mDisposed) {
+            // TODO(b/456106969): dispose() should only be called once, but we have a number of
+            // crash reports from it being called multiple times. We should investigate those and
+            // then remove this if block so that multiple calls crash again.
+            Log.wtf(TAG, "dispose() called on an already-disposed PointerEventDispatcher");
+            return;
+        }
+        mDisposed = true;
         synchronized (mListeners) {
             mListeners.clear();
             mListenersArray = null;

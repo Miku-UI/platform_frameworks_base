@@ -36,7 +36,7 @@
     <string name="wifi_security_none" msgid="7392696451280611452">"ఏదీ లేదు"</string>
     <string name="wifi_security_wep" msgid="1413627788581122366">"WEP"</string>
     <string name="wifi_security_wpa" msgid="1072450904799930636">"WPA-Personal"</string>
-    <string name="wifi_security_wpa2" msgid="4038267581230425543">"WPA2-Personal"</string>
+    <string name="wifi_security_wpa2" msgid="4038267581230425543">"WPA2-వ్య‌క్తిగ‌తం"</string>
     <string name="wifi_security_wpa_wpa2" msgid="946853615482465986">"WPA/WPA2-వ్యక్తిగత"</string>
     <string name="wifi_security_eap" msgid="6179633834446852269">"WPA/WPA2/WPA3-Enterprise"</string>
     <string name="wifi_security_eap_wpa" msgid="6189023812330549957">"WPA-Enterprise"</string>
@@ -45,11 +45,11 @@
     <string name="wifi_security_eap_wpa3" msgid="7961135182909018796">"WPA3-ఎంటర్‌ప్రయిజ్"</string>
     <string name="wifi_security_passpoint" msgid="2209078477216565387">"పాస్ పాయింట్"</string>
     <string name="wifi_security_sae" msgid="3644520541721422843">"WPA3-వ్యక్తిగత"</string>
-    <string name="wifi_security_psk_sae" msgid="8135104122179904684">"WPA2/WPA3-Personal"</string>
+    <string name="wifi_security_psk_sae" msgid="8135104122179904684">"WPA2/WPA3-వ్య‌క్తిగ‌తం"</string>
     <string name="wifi_security_none_owe" msgid="5241745828327404101">"None/Enhanced Open"</string>
     <string name="wifi_security_owe" msgid="3343421403561657809">"Enhanced Open"</string>
     <string name="wifi_security_eap_suiteb" msgid="415842785991698142">"WPA3-ఎంటర్‌ప్రయిజ్ 192-బిట్"</string>
-    <string name="wifi_remembered" msgid="3266709779723179188">"సేవ్ చేయబడింది"</string>
+    <string name="wifi_remembered" msgid="3266709779723179188">"సేవ్ అయింది"</string>
     <string name="wifi_disconnected" msgid="7054450256284661757">"డిస్‌కనెక్ట్ అయ్యింది"</string>
     <string name="wifi_disabled_generic" msgid="2651916945380294607">"డిజేబుల్ చేయబడింది"</string>
     <string name="wifi_disabled_network_failure" msgid="2660396183242399585">"IP కాన్ఫిగరేషన్ వైఫల్యం"</string>
@@ -60,7 +60,7 @@
     <string name="wifi_not_in_range" msgid="1541760821805777772">"పరిధిలో లేదు"</string>
     <string name="wifi_no_internet_no_reconnect" msgid="821591791066497347">"ఆటోమేటిక్‌గా కనెక్ట్ కాదు"</string>
     <string name="wifi_no_internet" msgid="1774198889176926299">"ఇంటర్నెట్ యాక్సెస్ లేదు"</string>
-    <string name="saved_network" msgid="7143698034077223645">"<xliff:g id="NAME">%1$s</xliff:g> ద్వారా సేవ్ చేయబడింది"</string>
+    <string name="saved_network" msgid="7143698034077223645">"<xliff:g id="NAME">%1$s</xliff:g> ద్వారా సేవ్ అయింది"</string>
     <string name="connected_via_network_scorer" msgid="7665725527352893558">"%1$s ద్వారా ఆటోమేటిక్‌గా కనెక్ట్ చేయబడింది"</string>
     <string name="connected_via_network_scorer_default" msgid="7973529709744526285">"నెట్‌వర్క్ రేటింగ్ ప్రదాత ద్వారా ఆటోమేటిక్‌గా కనెక్ట్ చేయబడింది"</string>
     <string name="connected_via_app" msgid="3532267661404276584">"<xliff:g id="NAME">%1$s</xliff:g> ద్వారా కనెక్ట్ చేయబడింది"</string>
@@ -113,7 +113,7 @@
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"ఎడమ వైపు <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"కుడి వైపు <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"యాక్టివ్‌గా ఉంది"</string>
-    <string name="bluetooth_saved_device" msgid="4895871321722311428">"సేవ్ చేయబడింది"</string>
+    <string name="bluetooth_saved_device" msgid="4895871321722311428">"సేవ్ అయింది"</string>
     <string name="bluetooth_hearing_aid_left_active" msgid="8330226430756799572">"యాక్టివ్‌గా ఉంది (ఎడమ వైపు మాత్రమే)"</string>
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"యాక్టివ్‌గా ఉంది (కుడి వైపు మాత్రమే)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"యాక్టివ్‌గా ఉంది (ఎడమ వైపు, కుడి వైపు)"</string>
@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wifi సిగ్నల్ మూడు బార్‌లు ఉంది."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Wifi సిగ్నల్ పూర్తిగా ఉంది."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"మీ పరికరానికి కనెక్ట్ చేయబడింది."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"ఈ డివైజ్‌లోని యూజర్‌లందరూ చూడగలరు, కనెక్ట్ అవ్వగలరు."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"ఓపెన్ నెట్‌వర్క్"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"సురక్షిత నెట్‌వర్క్"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -268,12 +269,12 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"యాక్సెస్ స్థానం పేరు సెట్టింగ్‌లు ఈ వినియోగదారుకి అందుబాటులో లేవు"</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB డీబగ్గింగ్"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"USB కనెక్ట్ చేయబడినప్పుడు డీబగ్ మోడ్"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"USB డీబగ్ ప్రామాణీకరణలు ఉపసంహరించండి"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"adb డీబగ్గింగ్ ప్రామాణీకరణలను ఉపసంహరించండి"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"వైర్‌లెస్ డీబగ్గింగ్"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Wi-Fi కనెక్ట్ అయి ఉన్నప్పుడు, డీబగ్ మోడ్‌లో ఉంచు"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"ఎర్రర్"</string>
     <string name="adb_wireless_settings" msgid="2295017847215680229">"వైర్‌లెస్ డీబగ్గింగ్"</string>
-    <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"అందుబాటులో ఉన్న పరికరాలను చూడటానికి, ఉపయోగించడానికి, వైర్‌లెస్ డీబగ్గింగ్‌ను ఆన్ చేయండి"</string>
+    <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"అందుబాటులో ఉన్న డివైజ్‌లను చూడటానికి, ఉపయోగించడానికి, వైర్‌లెస్ డీబగ్గింగ్‌ను ఆన్ చేయండి"</string>
     <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"QR కోడ్‌తో డివైజ్‌ను పెయిర్ చేయండి"</string>
     <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"QR కోడ్ స్కానర్‌ను ఉపయోగించి కొత్త డివైజ్‌లను పెయిర్ చేయండి"</string>
     <string name="adb_pair_method_code_title" msgid="1122590300445142904">"పెయిరింగ్ కోడ్‌తో డివైజ్‌ను పెయిర్ చేయండి"</string>
@@ -293,8 +294,10 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"పరికరం పెయిర్ చేయబడుతోంది…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"పరికరాన్ని పెయిర్ చేయడం విఫలమైంది. QR కోడ్ తప్పుగా ఉండడం గాని, లేదా పరికరం అదే నెట్‌వర్క్‌కు కనెక్ట్ అయి లేకపోవడం గాని జరిగింది."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP అడ్రస్ &amp; పోర్ట్"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"అందుబాటులో లేదు (అనుమతించబడదు)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"అందుబాటులో లేదు (Wi‑Fi డిస్‌కనెక్ట్ అయింది)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"QR కోడ్‌ను స్కాన్ చేయండి"</string>
-    <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"QR కోడ్‌ను స్కాన్ చేయడం ద్వారా Wi-Fiని ఉపయోగించి పరికరాన్ని పెయిర్ చేయండి"</string>
+    <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"QR కోడ్‌ను స్కాన్ చేయడం ద్వారా Wi-Fiని ఉపయోగించి డివైజ్‌ను పెయిర్ చేయండి"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"దయచేసి Wi-Fi నెట్‌వర్క్‌కు కనెక్ట్ చేయండి"</string>
     <string name="keywords_adb_wireless" msgid="6507505581882171240">"adb, డీబగ్, dev"</string>
     <string name="bugreport_in_power" msgid="8664089072534638709">"బగ్ రిపోర్ట్ షార్ట్‌కట్"</string>
@@ -340,7 +343,7 @@
     <string name="select_private_dns_configuration_dialog_title" msgid="3731422918335951912">"ప్రైవేట్ DNS మోడ్‌ను ఎంచుకోండి"</string>
     <string name="private_dns_mode_off" msgid="7065962499349997041">"ఆఫ్"</string>
     <string name="private_dns_mode_opportunistic" msgid="1947864819060442354">"ఆటోమేటిక్"</string>
-    <string name="private_dns_mode_provider" msgid="3619040641762557028">"ప్రైవేట్ DNS ప్రొవైడర్ హోస్ట్‌పేరు"</string>
+    <string name="private_dns_mode_provider" msgid="3619040641762557028">"ప్రైవేట్ DNS ప్రొవైడర్ హోస్ట్ నేమ్"</string>
     <string name="private_dns_mode_provider_hostname_hint" msgid="6564868953748514595">"DNS ప్రొవైడర్ హోస్ట్‌పేరును ఎంటర్ చేయండి"</string>
     <string name="private_dns_mode_provider_failure" msgid="8356259467861515108">"కనెక్ట్ చేయడం సాధ్యపడలేదు"</string>
     <string name="wifi_display_certification_summary" msgid="8111151348106907513">"వైర్‌లెస్ డిస్‌ప్లే సర్టిఫికేషన్ ఆప్షన్‌లను చూపు"</string>
@@ -352,7 +355,7 @@
     <string name="select_logd_size_title" msgid="4393502933789367691">"లాగర్ బఫర్ సైజ్"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"లాగ్ బఫర్‌కి లాగర్ పరిమా. ఎంచుకోండి"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"లాగర్ నిరంతర నిల్వలోని డేటాను తీసివేయాలా?"</string>
-    <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"మేము నిరంతర లాగర్‌తో ఇక పర్యవేక్షించనప్పుడు, మీ పరికరంలోని లాగర్ డేటాను మేము తొలగించాల్సి ఉంటుంది."</string>
+    <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"మేము నిరంతర లాగర్‌తో ఇక పర్యవేక్షించనప్పుడు, మీ డివైజ్‌లోని లాగర్ డేటాను మేము తొలగించాల్సి ఉంటుంది."</string>
     <string name="select_logpersist_title" msgid="447071974007104196">"డివైజ్‌లో లాగర్ డేటా నిరంతరం స్టోర్ చేయండి"</string>
     <string name="select_logpersist_dialog_title" msgid="7745193591195485594">"పరికరంలో నిరంతరం స్టోరేజ్‌ చేయాల్సిన లాగ్ బఫర్‌లను ఎంచుకోండి"</string>
     <string name="select_usb_configuration_title" msgid="6339801314922294586">"USB కాన్ఫిగరేషన్‌ని ఎంచుకోండి"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB డీబగ్గింగ్ అనేది అభివృద్ధి ప్రయోజనాల కోసం మాత్రమే ఉద్దేశించబడింది. మీ కంప్యూటర్ మరియు మీ పరికరం మధ్య డేటాను కాపీ చేయడానికి, నోటిఫికేషన్ లేకుండా మీ పరికరంలో యాప్‌లను ఇన్‌స్టాల్ చేయడానికి మరియు లాగ్ డేటాను చదవడానికి దీన్ని ఉపయోగించండి."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"వైర్‌లెస్ డీబగ్గింగ్‌ను అనుమతించాలా?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"వైర్‌లెస్ డీబగ్గింగ్ అనేది అభివృద్ధి ప్రయోజనాల కోసం మాత్రమే ఉద్దేశించబడింది. మీ కంప్యూటర్, పరికరాల మధ్య డేటాను కాపీ చేయడానికి, నోటిఫికేషన్ లేకుండా మీ పరికరంలో యాప్‌లను ఇన్‌స్టాల్ చేయడానికి, లాగ్ డేటాను చదవడానికి దీన్ని ఉపయోగించండి."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"మీరు గతంలో ప్రామాణీకరించిన అన్ని కంప్యూటర్‌ల నుండి USB డీబగ్గింగ్‌కు యాక్సెస్‌ను ఉపసంహరించాలా?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"మీరు గతంలో ప్రామాణీకరించిన అన్ని కంప్యూటర్‌లు, నెట్‌వర్క్‌ల నుండి adb డీబగ్గింగ్‌కు యాక్సెస్‌ను ఉపసంహరించాలా?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"అభివృద్ధి సెట్టింగ్‌లను అనుమతించాలా?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"ఈ సెట్టింగ్‌లు అభివృద్ధి వినియోగం కోసం మాత్రమే ఉద్దేశించబడినవి. వీటి వలన మీ పరికరం మరియు దీనిలోని యాప్‌లు విచ్ఛిన్నం కావచ్చు లేదా తప్పుగా ప్రవర్తించవచ్చు."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"USB ద్వారా యాప్స్ వెరిఫై చేయండి"</string>
@@ -548,7 +551,7 @@
     <string name="disabled_by_app_ops_text" msgid="8373595926549098012">"పరిమితం చేసిన సెట్టింగ్ ద్వారా నియంత్రించబడుతుంది"</string>
     <string name="disabled_in_phone_call_text" msgid="6568931334337318320">"కాల్స్ సమయంలో అందుబాటులో ఉండదు"</string>
     <string name="disabled" msgid="8017887509554714950">"డిజేబుల్ చేయబడింది"</string>
-    <string name="enabled" msgid="3997122818554810678">"ఎనేబుల్ చేయబడింది"</string>
+    <string name="enabled" msgid="3997122818554810678">"ఎనేబుల్ అయింది"</string>
     <string name="external_source_trusted" msgid="1146522036773132905">"అనుమతించినవి"</string>
     <string name="external_source_untrusted" msgid="5037891688911672227">"అనుమతించబడలేదు"</string>
     <string name="install_other_apps" msgid="3232595082023199454">"తెలియని యాప్‌ల ఇన్‌స్టలేషన్"</string>
@@ -661,7 +664,7 @@
     <string name="user_add_user_item_summary" msgid="5748424612724703400">"వినియోగదారులు వారి స్వంత యాప్‌లను మరియు కంటెంట్‌ను కలిగి ఉన్నారు"</string>
     <string name="user_add_profile_item_summary" msgid="5418602404308968028">"మీరు మీ ఖాతా నుండి యాప్‌లకు మరియు కంటెంట్‌కు యాక్సెస్‌ను పరిమితం చేయవచ్చు"</string>
     <string name="user_add_user_item_title" msgid="2394272381086965029">"యూజర్"</string>
-    <string name="user_add_profile_item_title" msgid="3111051717414643029">"పరిమితం చేయబడిన ప్రొఫైల్"</string>
+    <string name="user_add_profile_item_title" msgid="3111051717414643029">"పరిమితి ఉన్న ప్రొఫైల్"</string>
     <string name="user_add_user_title" msgid="5457079143694924885">"కొత్త యూజర్‌ను జోడించాలా?"</string>
     <string name="user_add_user_message_long" msgid="1527434966294733380">"అదనపు యూజర్‌లను క్రియేట్ చేయడం ద్వారా మీరు ఈ డివైజ్‌ను ఇతరులతో షేర్ చేయవచ్చు. ప్రతి యూజర్‌కు‌ వారికంటూ ప్రత్యేక స్పేస్ ఉంటుంది, వారు ఆ స్పేస్‌ను యాప్‌లు, వాల్‌పేపర్ మొదలైనవాటితో అనుకూలంగా మార్చుకోవచ్చు. యూజర్‌లు ప్రతి ఒక్కరిపై ప్రభావం చూపే Wi‑Fi వంటి డివైజ్‌ సెట్టింగ్‌లను కూడా సర్దుబాటు చేయవచ్చు.\n\nమీరు కొత్త యూజర్‌ను జోడించినప్పుడు, ఆ వ్యక్తి వారికంటూ స్వంత స్పేస్‌ను సెట్ చేసుకోవాలి.\n\nఏ యూజర్ అయినా మిగిలిన యూజర్‌లందరి కోసం యాప్‌లను అప్‌డేట్ చేయవచ్చు. యాక్సెసిబిలిటీ సెట్టింగ్‌లు, సర్వీస్‌లు కొత్త యూజర్‌కు బదిలీ కాకపోవచ్చు."</string>
     <string name="user_add_user_message_short" msgid="3295959985795716166">"మీరు కొత్త యూజర్‌ను జోడించినప్పుడు, ఆ వ్యక్తి తన స్పేస్‌ను సెటప్ చేసుకోవాలి.\n\nఏ యూజర్ అయినా మిగతా యూజర్ల కోసం యాప్‌లను అప్‌డేట్‌ చేయగలరు."</string>
@@ -720,7 +723,7 @@
     <string name="failed_attempts_now_wiping_dialog_dismiss" msgid="2749889771223578925">"విస్మరించండి"</string>
     <string name="cached_apps_freezer_device_default" msgid="2616594131750144342">"డివైజ్ ఆటోమేటిక్ సెట్టింగ్"</string>
     <string name="cached_apps_freezer_disabled" msgid="4816382260660472042">"డిజేబుల్ చేయబడింది"</string>
-    <string name="cached_apps_freezer_enabled" msgid="8866703500183051546">"ఎనేబుల్ చేయబడింది"</string>
+    <string name="cached_apps_freezer_enabled" msgid="8866703500183051546">"ఎనేబుల్ అయింది"</string>
     <string name="cached_apps_freezer_reboot_dialog_text" msgid="695330563489230096">"ఈ మార్పును వర్తింపజేయాలంటే మీరు మీ డివైజ్‌ను తప్పనిసరిగా రీబూట్ చేయాలి. ఇప్పుడే రీబూట్ చేయండి లేదా రద్దు చేయండి."</string>
     <string name="media_transfer_wired_headphone_name" msgid="8698668536022665254">"వైర్ ఉన్న హెడ్‌ఫోన్"</string>
     <string name="media_transfer_headphone_name" msgid="1157798825650178478">"వైర్ ఉన్న ఆడియో"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"ఈథర్‌నెట్ డిస్‌కనెక్ట్ చేయబడింది."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"ఈథర్‌నెట్."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"కాలింగ్ మోడ్ ఆఫ్‌లో ఉంది."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"ఫిజికల్ కీబోర్డ్"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"కీబోర్డ్ లేఅవుట్‌ను ఎంచుకోండి"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"ఆటోమేటిక్ సెట్టింగ్"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"స్క్రీన్‌ను ఆన్ చేయడానికి సంబంధించిన కంట్రోల్"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"స్క్రీన్‌ను ఆన్ చేయడానికి అనుమతించండి"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"స్క్రీన్‌ను ఆన్ చేయడానికి యాప్‌ను అనుమతించండి. మంజూరు చేయబడితే, మీ స్పష్టమైన ఉద్దేశం లేకుండా యాప్ ఎప్పుడైనా స్క్రీన్‌ను ఆన్ చేయవచ్చు."</string>

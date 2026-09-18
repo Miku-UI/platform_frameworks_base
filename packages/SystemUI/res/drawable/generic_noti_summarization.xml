@@ -1,0 +1,38 @@
+<!--
+  ~ Copyright (C) 2026 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<!-- res/drawable/ic_notification_summarization_vector.xml -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="14"
+    android:viewportHeight="14">
+    <group
+        android:name="summarization_group"
+        android:rotation="0.0"
+        android:pivotX="7"
+        android:pivotY="7">
+        <path
+            android:pathData="M1,4.456C1,4.204 1.204,4 1.456,4H6.544C6.796,4 7,4.204 7,4.456V5.544C7,5.796 6.796,6 6.544,6H1.456C1.204,6 1,5.796 1,5.544V4.456Z"
+            android:fillColor="#ffffff"/>
+        <path
+            android:pathData="M1,7.456C1,7.204 1.204,7 1.456,7H12.544C12.796,7 13,7.204 13,7.456V8.544C13,8.796 12.796,9 12.544,9H1.456C1.204,9 1,8.796 1,8.544V7.456Z"
+            android:fillColor="#ffffff"/>
+        <path
+            android:pathData="M1,10.456C1,10.204 1.204,10 1.456,10H12.544C12.796,10 13,10.204 13,10.456V11.544C13,11.796 12.796,12 12.544,12H1.456C1.204,12 1,11.796 1,11.544V10.456Z"
+            android:fillColor="#ffffff"/>
+    </group>
+</vector>

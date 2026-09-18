@@ -25,7 +25,6 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.battery.BatteryMeterView.BatteryEstimateFetcher
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.core.NewStatusBarIcons
-import com.android.systemui.statusbar.core.StatusBarRootModernization
 import com.android.systemui.statusbar.policy.BatteryController.EstimateFetchCompletion
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
@@ -140,7 +139,7 @@ class BatteryMeterViewTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @DisableFlags(NewStatusBarIcons.FLAG_NAME)
     fun changesFromEstimateToPercent_textAndContentDescriptionChanges_flagOff() {
         mBatteryMeterView.onBatteryLevelChanged(15, false)
         mBatteryMeterView.setPercentShowMode(BatteryMeterView.MODE_ESTIMATE)
@@ -162,7 +161,7 @@ class BatteryMeterViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun changesFromEstimateToPercent_textAndContentDescriptionChanges_flagOn() {
         mBatteryMeterView.onBatteryLevelChanged(15, false)
         mBatteryMeterView.setPercentShowMode(BatteryMeterView.MODE_ESTIMATE)
@@ -185,7 +184,7 @@ class BatteryMeterViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun modeEstimate_batteryPercentView_isNotNull_flagOn() {
         mBatteryMeterView.onBatteryLevelChanged(15, false)
         mBatteryMeterView.setPercentShowMode(BatteryMeterView.MODE_ESTIMATE)
@@ -200,7 +199,7 @@ class BatteryMeterViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun modePercent_batteryPercentView_isNull_flagOn() {
         mBatteryMeterView.onBatteryLevelChanged(15, false)
         mBatteryMeterView.setPercentShowMode(BatteryMeterView.MODE_ON)
@@ -252,7 +251,7 @@ class BatteryMeterViewTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @DisableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isBatteryDefenderChanged_true_drawableGetsTrue_flagOff() {
         val drawable = getBatteryDrawable()
 
@@ -262,7 +261,7 @@ class BatteryMeterViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isBatteryDefenderChanged_true_drawableGetsTrue_flagOn() {
         mBatteryMeterView.onIsBatteryDefenderChanged(true)
 
@@ -270,7 +269,7 @@ class BatteryMeterViewTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @DisableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isBatteryDefenderChanged_false_drawableGetsFalse_flagOff() {
         val drawable = getBatteryDrawable()
 
@@ -284,7 +283,7 @@ class BatteryMeterViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isBatteryDefenderChanged_false_drawableGetsFalse_flagOn() {
         // Start as true
         mBatteryMeterView.onIsBatteryDefenderChanged(true)
@@ -296,7 +295,7 @@ class BatteryMeterViewTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @DisableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isIncompatibleChargingChanged_true_drawableGetsChargingFalse_flagOff() {
         mBatteryMeterView.onBatteryLevelChanged(45, true)
         val drawable = getBatteryDrawable()
@@ -308,7 +307,7 @@ class BatteryMeterViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isIncompatibleChargingChanged_true_drawableGetsChargingFalse_flagOn() {
         mBatteryMeterView.onBatteryLevelChanged(45, true)
 
@@ -319,7 +318,7 @@ class BatteryMeterViewTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @DisableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isIncompatibleChargingChanged_false_drawableGetsChargingTrue_flagOff() {
         mBatteryMeterView.onBatteryLevelChanged(45, true)
         val drawable = getBatteryDrawable()
@@ -330,7 +329,7 @@ class BatteryMeterViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
     fun isIncompatibleChargingChanged_false_drawableGetsChargingTrue_flagOn() {
         mBatteryMeterView.onBatteryLevelChanged(45, true)
 

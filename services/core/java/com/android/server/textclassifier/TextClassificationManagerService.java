@@ -19,12 +19,14 @@ package com.android.server.textclassifier;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.UserIdInt;
+import android.app.AppGlobals;
 import android.app.RemoteAction;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.content.pm.PackageManagerInternal;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.graphics.drawable.Icon;
@@ -35,6 +37,7 @@ import android.os.IBinder;
 import android.os.Parcelable;
 import android.os.Process;
 import android.os.RemoteException;
+import android.os.SystemClock;
 import android.os.UserHandle;
 import android.provider.DeviceConfig;
 import android.service.textclassifier.ITextClassifierCallback;
@@ -67,7 +70,10 @@ import com.android.internal.util.FunctionalUtils.ThrowingConsumer;
 import com.android.internal.util.FunctionalUtils.ThrowingRunnable;
 import com.android.internal.util.IndentingPrintWriter;
 import com.android.internal.util.Preconditions;
+import com.android.server.LocalServices;
 import com.android.server.SystemService;
+import com.android.server.textclassifier.personalcontext.PersonalContextBridge;
+import com.android.server.textclassifier.personalcontext.PersonalContextBridgeImpl;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -114,6 +120,8 @@ public final class TextClassificationManagerService extends ITextClassifierServi
         public void onStart() {
             try {
                 publishBinderService(Context.TEXT_CLASSIFICATION_SERVICE, mManagerService);
+                publishLocalService(
+                        PersonalContextBridge.class, mManagerService.mPersonalContextBridge);
                 mManagerService.startListenSettings();
                 mManagerService.startTrackingPackageChanges();
             } catch (Throwable t) {
@@ -177,7 +185,9 @@ public final class TextClassificationManagerService extends ITextClassifierServi
     private final String mDefaultTextClassifierPackage;
     @Nullable
     private final String mSystemTextClassifierPackage;
+    private final PackageManagerInternal mPmInternal;
     private final MyPackageMonitor mPackageMonitor;
+    private final PersonalContextBridge mPersonalContextBridge;
 
     private TextClassificationManagerService(Context context) {
         mContext = Objects.requireNonNull(context);
@@ -187,8 +197,11 @@ public final class TextClassificationManagerService extends ITextClassifierServi
         PackageManager packageManager = mContext.getPackageManager();
         mDefaultTextClassifierPackage = packageManager.getDefaultTextClassifierPackageName();
         mSystemTextClassifierPackage = packageManager.getSystemTextClassifierPackageName();
+        mPmInternal = LocalServices.getService(PackageManagerInternal.class);
         mSessionCache = new SessionCache(mLock);
         mPackageMonitor = new MyPackageMonitor();
+        mPersonalContextBridge = new PersonalContextBridgeImpl(
+                new PersonalContextBridge.Config(mContext));
     }
 
     private void startListenSettings() {
@@ -250,7 +263,8 @@ public final class TextClassificationManagerService extends ITextClassifierServi
                 request.getSystemTextClassifierMetadata(),
                 /* verifyCallingPackage= */ true,
                 /* attemptToBind= */ true,
-                service -> service.onSuggestSelection(sessionId, request, wrap(callback)),
+                service -> service.onSuggestSelection(
+                    sessionId, request, wrap(callback, Binder.getCallingUid())),
                 "onSuggestSelection",
                 callback);
     }
@@ -263,13 +277,27 @@ public final class TextClassificationManagerService extends ITextClassifierServi
         Objects.requireNonNull(request);
         Objects.requireNonNull(request.getSystemTextClassifierMetadata());
 
+        final ITextClassifierCallback wrappedCallback =
+                (sessionId != null && PersonalContextBridge.isPersonalContextEnabled())
+                        ? mPersonalContextBridge.wrap(
+                                sessionId.getValue(),
+                                request,
+                                wrap(callback, Binder.getCallingUid()))
+                        : wrap(callback, Binder.getCallingUid());
+
         handleRequest(
                 request.getSystemTextClassifierMetadata(),
                 /* verifyCallingPackage= */ true,
                 /* attemptToBind= */ true,
-                service -> service.onClassifyText(sessionId, request, wrap(callback)),
+                service -> service.onClassifyText(sessionId, request, wrappedCallback),
                 "onClassifyText",
                 callback);
+        if (sessionId != null && PersonalContextBridge.isPersonalContextEnabled()) {
+            mPersonalContextBridge.trigger(
+                    request.getSystemTextClassifierMetadata().getUserId(),
+                    sessionId.getValue(),
+                    request);
+        }
     }
 
     @Override
@@ -354,7 +382,7 @@ public final class TextClassificationManagerService extends ITextClassifierServi
                 /* verifyCallingPackage= */ true,
                 /* attemptToBind= */ true,
                 service -> service.onSuggestConversationActions(
-                        sessionId, request, wrap(callback)),
+                        sessionId, request, wrap(callback, Binder.getCallingUid())),
                 "onSuggestConversationActions",
                 callback);
     }
@@ -408,6 +436,7 @@ public final class TextClassificationManagerService extends ITextClassifierServi
                     },
                     "onDestroyTextClassificationSession",
                     NO_OP_CALLBACK);
+            mPersonalContextBridge.clearSession(sessionId.getValue());
         }
     }
 
@@ -529,6 +558,22 @@ public final class TextClassificationManagerService extends ITextClassifierServi
                 }
                 consumeServiceNoExceptLocked(textClassifierServiceConsumer, serviceState.mService);
             } else {
+                if (com.android.server.textclassifier.Flags
+                        .textclassifierPendingRequestTimeoutEnabled()) {
+                    if (!serviceState.mBinding && serviceState.mLastDisconnectTime == 0) {
+                        serviceState.mLastDisconnectTime = SystemClock.elapsedRealtime();
+                    }
+                    if (serviceState.mLastDisconnectTime > 0
+                            && (SystemClock.elapsedRealtime() - serviceState.mLastDisconnectTime)
+                            > serviceState.PENDING_REQUEST_TIMEOUT_MS) {
+                        Slog.w(
+                                LOG_TAG, serviceState.mPackageName
+                                + " has been disconnected for too long. Failing request.");
+                        serviceState.handlePendingRequestsLocked();
+                        callback.onFailure();
+                        return;
+                    }
+                }
                 serviceState.mPendingRequests.add(
                         new PendingRequest(
                                 methodName,
@@ -552,7 +597,19 @@ public final class TextClassificationManagerService extends ITextClassifierServi
         }
     }
 
-    private static ITextClassifierCallback wrap(ITextClassifierCallback orig) {
+    private static ITextClassifierCallback wrap(ITextClassifierCallback orig, int uid) {
+        if (com.android.server.textclassifier.Flags.textclassifierSkipRedundantIconRewriting()) {
+            // If the caller has full package visibility there's no need to rewrite any responses.
+            try {
+                if (AppGlobals.getPackageManager()
+                                .checkUidPermission(
+                                        android.Manifest.permission.QUERY_ALL_PACKAGES, uid)
+                        == PackageManager.PERMISSION_GRANTED) {
+                    return orig;
+                }
+            } catch (RemoteException exception) {
+            }
+        }
         return new CallbackWrapper(orig);
     }
 
@@ -643,11 +700,10 @@ public final class TextClassificationManagerService extends ITextClassifierServi
     private void validateCallingPackage(@Nullable String callingPackage)
             throws PackageManager.NameNotFoundException {
         if (callingPackage != null) {
-            final int packageUid = mContext.getPackageManager()
-                    .getPackageUidAsUser(callingPackage, UserHandle.getCallingUserId());
             final int callingUid = Binder.getCallingUid();
+            final int callingUserId = UserHandle.getCallingUserId();
             Preconditions.checkArgument(
-                    callingUid == packageUid
+                    mPmInternal.isSameApp(callingPackage, callingUid, callingUserId)
                             // Trust the system process:
                             || callingUid == android.os.Process.SYSTEM_UID,
                     "Invalid package name. callingPackage=%s, callingUid=%d", callingPackage,
@@ -909,6 +965,7 @@ public final class TextClassificationManagerService extends ITextClassifierServi
 
     private final class ServiceState {
         private static final int MAX_PENDING_REQUESTS = 20;
+        private static final long PENDING_REQUEST_TIMEOUT_MS = 10000;
 
         @UserIdInt
         final int mUserId;
@@ -942,6 +999,8 @@ public final class TextClassificationManagerService extends ITextClassifierServi
         boolean mInstalled;
         @GuardedBy("mLock")
         boolean mEnabled;
+        @GuardedBy("mLock")
+        long mLastDisconnectTime = 0;
 
         private ServiceState(
                 @UserIdInt int userId, @NonNull String packageName, boolean isTrusted) {
@@ -1114,7 +1173,7 @@ public final class TextClassificationManagerService extends ITextClassifierServi
 
         @GuardedBy("mLock")
         private boolean checkRequestAcceptedLocked(int requestUid, @NonNull String methodName) {
-            if (mIsTrusted || (requestUid == mBoundServiceUid)) {
+            if (mIsTrusted || mPmInternal.isSameApp(mPackageName, requestUid, mUserId)) {
                 return true;
             }
             Slog.w(LOG_TAG, String.format(
@@ -1178,6 +1237,7 @@ public final class TextClassificationManagerService extends ITextClassifierServi
             private void init(@Nullable ITextClassifierService service,
                     @Nullable ComponentName name) {
                 synchronized (mLock) {
+                    mLastDisconnectTime = (service != null) ? 0 : SystemClock.elapsedRealtime();
                     mService = service;
                     mBinding = false;
                     updateServiceInfoLocked(mUserId, name);

@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#ifdef __ANDROID__
+#include <com_android_text_flags.h>
+#endif
 #include <core_jni_helpers.h>
 #include <cutils/trace.h>
 #include <fcntl.h>
@@ -91,6 +94,17 @@ static void addHyphenatorWithoutPatternFile(const std::string& locale, int minPr
 }
 
 static void addHyphenator(const std::string& locale, int minPrefix, int minSuffix) {
+#ifdef __ANDROID__
+    if (com::android::text::flags::rust_hyphenator() &&
+        com::android::text::flags::lazy_hyphenator_mmap_init()) {
+        const std::string hyFilePath = buildFileName(locale);
+        minikin::addHyphenator(locale,
+                               minikin::Hyphenator::loadBinaryFromPath(hyFilePath, minPrefix,
+                                                                       minSuffix, locale));
+        return;
+    }
+#endif
+
     std::pair<const uint8_t*, size_t> r = mmapPatternFile(locale);
     if (r.first == nullptr) {
         ALOGE("Unable to find pattern file or unable to map it for %s", locale.c_str());

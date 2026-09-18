@@ -60,8 +60,14 @@ public class InputMethodSubtypeArray {
             mCount = 0;
             return;
         }
-        mCount = subtypes.size();
-        mInstance = subtypes.toArray(new InputMethodSubtype[mCount]);
+        List<InputMethodSubtype> list = subtypes;
+        if (Flags.limitSubtypeCount() && subtypes.size() > InputMethodInfo.MAX_SUBTYPES_PER_IME) {
+            Slog.e(TAG, "The number of subtypes is too large, truncating to "
+                    + InputMethodInfo.MAX_SUBTYPES_PER_IME + " from " + subtypes.size());
+            list = subtypes.subList(0, InputMethodInfo.MAX_SUBTYPES_PER_IME);
+        }
+        mCount = list.size();
+        mInstance = list.toArray(new InputMethodSubtype[mCount]);
     }
 
     /**
@@ -75,6 +81,9 @@ public class InputMethodSubtypeArray {
         mCount = source.readInt();
         if (mCount < 0) {
             throw new BadParcelableException("mCount must be non-negative.");
+        }
+        if (Flags.limitSubtypeCount() && mCount > InputMethodInfo.MAX_SUBTYPES_PER_IME) {
+            throw new BadParcelableException("The number of subtypes is too large.");
         }
         if (mCount > 0) {
             mDecompressedSize = source.readInt();

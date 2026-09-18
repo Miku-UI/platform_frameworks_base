@@ -49,7 +49,7 @@ class CloseSecondaryActivityInSplitTest(flicker: FlickerTest) :
 
     override val transition: FlickerBuilder.() -> Unit = {
         setup {
-            tapl.setExpectedRotationCheckEnabled(false)
+            tapl.expectedRotationCheckEnabled = false
             // Launches fullscreen A.
             testApp.launchViaIntent(wmHelper)
             // Launches a split A|B and waits for both activities to show.
@@ -66,7 +66,7 @@ class CloseSecondaryActivityInSplitTest(flicker: FlickerTest) :
             wmHelper.StateSyncBuilder().withFullScreenApp(testApp).waitForAndVerify()
         }
         teardown {
-            tapl.goHome()
+            device.pressHome()
             testApp.exit(wmHelper)
         }
     }

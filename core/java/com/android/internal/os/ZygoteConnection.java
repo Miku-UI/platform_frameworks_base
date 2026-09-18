@@ -530,6 +530,7 @@ class ZygoteConnection {
             if (!isZygote) {
                 return ZygoteInit.zygoteInit(parsedArgs.mTargetSdkVersion,
                         parsedArgs.mDisabledCompatChanges,
+                        parsedArgs.mEnabledCompatChanges,
                         parsedArgs.mRemainingArgs, null /* classLoader */);
             } else {
                 return ZygoteInit.childZygoteInit(

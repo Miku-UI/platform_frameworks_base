@@ -23,6 +23,12 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.distinctUntilChanged
+import com.android.packageinstaller.stats.StatsUtil.PIA_INSTALL_STAGE_FAILED
+import com.android.packageinstaller.stats.StatsUtil.PIA_INSTALL_STAGE_INSTALLING
+import com.android.packageinstaller.stats.StatsUtil.PIA_INSTALL_STAGE_STAGING
+import com.android.packageinstaller.stats.StatsUtil.PIA_INSTALL_STAGE_SUCCESS
+import com.android.packageinstaller.stats.StatsUtil.PIA_INSTALL_STAGE_USER_ACTION_REQUIRED
+import com.android.packageinstaller.stats.StatsUtil.PIA_INSTALL_STAGE_VERIFICATION_FAILURE
 import com.android.packageinstaller.v2.model.InstallRepository
 import com.android.packageinstaller.v2.model.InstallStage
 import com.android.packageinstaller.v2.model.InstallStaging
@@ -38,6 +44,9 @@ class InstallViewModel(application: Application, val repository: InstallReposito
     val currentInstallStage: MutableLiveData<InstallStage>
         get() = _currentInstallStage
 
+    var isPreprocessed: Boolean = false
+        private set
+
     init {
         // Since installing is an async operation, we may get the install result later in time.
         // Result of the installation will be set in InstallRepository#installResult.
@@ -46,6 +55,7 @@ class InstallViewModel(application: Application, val repository: InstallReposito
             repository.installResult.distinctUntilChanged()
         ) { installStage: InstallStage? ->
             if (installStage != null) {
+                    updateInstallStage(installStage)
                 _currentInstallStage.value = installStage
             }
         }
@@ -60,17 +70,28 @@ class InstallViewModel(application: Application, val repository: InstallReposito
             when (installStage.stageCode) {
                 InstallStage.STAGE_READY -> checkIfAllowedAndInitiateInstall()
                 InstallStage.STAGE_VERIFICATION_CONFIRMATION_REQUIRED -> requestVerification()
-                else -> _currentInstallStage.value = installStage
+                else -> updateInstallStage(installStage)
             }
         }
     }
 
+    /**
+     * Single source of truth for updating the current install stage.
+     * Updates the LiveData and automatically tracks the telemetry stage.
+     */
+    private fun updateInstallStage(stage: InstallStage) {
+        _currentInstallStage.value = stage
+        trackInstallStage(stage)
+    }
+
     fun preprocessIntent(intent: Intent, callerInfo: InstallRepository.CallerInfo) {
+        isPreprocessed = true
         val stage = repository.performPreInstallChecks(intent, callerInfo)
         if (stage.stageCode == InstallStage.STAGE_ABORTED
             || stage.stageCode == InstallStage.STAGE_VERIFICATION_FAILURE) {
-            _currentInstallStage.value = stage
+            updateInstallStage(stage)
         } else {
+            trackInstallStage(stage)
             repository.stageForInstall()
         }
     }
@@ -81,36 +102,36 @@ class InstallViewModel(application: Application, val repository: InstallReposito
     private fun checkIfAllowedAndInitiateInstall() {
         val stage = repository.requestUserConfirmation()
         if (stage != null) {
-            _currentInstallStage.value = stage
+            updateInstallStage(stage)
         }
     }
 
     private fun requestVerification() {
         val stage = repository.requestVerificationConfirmation()
-        _currentInstallStage.value = stage
+        updateInstallStage(stage)
     }
 
     fun onNegativeVerificationUserResponse() {
         val stage = repository.setNegativeVerificationUserResponse()
-        _currentInstallStage.value = stage
+        updateInstallStage(stage)
     }
 
     fun onPositiveVerificationUserResponse() {
         val stage =
             repository.setPositiveVerificationUserResponse()
-        _currentInstallStage.value = stage
+        updateInstallStage(stage)
     }
 
     fun onRetryVerificationUserResponse() {
         val stage =
             repository.setRetryVerificationUserResponse()
-        _currentInstallStage.value = stage
+        updateInstallStage(stage)
     }
 
     fun forcedSkipSourceCheck() {
         val stage = repository.requestUserConfirmation(/* forceSourceCheck= */ false)
         if (stage != null) {
-            _currentInstallStage.value = stage
+            updateInstallStage(stage)
         }
     }
 
@@ -120,7 +141,7 @@ class InstallViewModel(application: Application, val repository: InstallReposito
 
     fun reattemptInstall() {
         val stage = repository.reattemptInstall()
-        _currentInstallStage.value = stage
+        updateInstallStage(stage)
     }
 
     fun initiateInstall() {
@@ -129,6 +150,37 @@ class InstallViewModel(application: Application, val repository: InstallReposito
 
     fun abortStaging() {
         repository.abortStaging()
+    }
+
+    /**
+     * Track the installation stage and log the corresponding StatsD stage.
+     *
+     * @param installStage The installation stage to track.
+     */
+    fun trackInstallStage(installStage: InstallStage) {
+        // 1. Log the corresponding StatsD stage
+        when (installStage.stageCode) {
+            InstallStage.STAGE_STAGING -> repository.piaStagesLatencyTracker.startRecordingNextStage(PIA_INSTALL_STAGE_STAGING)
+            InstallStage.STAGE_USER_ACTION_REQUIRED -> repository.piaStagesLatencyTracker.startRecordingNextStage(PIA_INSTALL_STAGE_USER_ACTION_REQUIRED)
+            InstallStage.STAGE_INSTALLING -> repository.piaStagesLatencyTracker.startRecordingNextStage(PIA_INSTALL_STAGE_INSTALLING)
+            InstallStage.STAGE_SUCCESS -> repository.piaStagesLatencyTracker.startRecordingNextStage(PIA_INSTALL_STAGE_SUCCESS)
+            InstallStage.STAGE_FAILED -> repository.piaStagesLatencyTracker.startRecordingNextStage(PIA_INSTALL_STAGE_FAILED)
+            InstallStage.STAGE_VERIFICATION_FAILURE -> repository.piaStagesLatencyTracker.startRecordingNextStage(PIA_INSTALL_STAGE_VERIFICATION_FAILURE)
+        }
+
+        // 2. Stop recording and log if this is a terminal stage
+        if (installStage.stageCode == InstallStage.STAGE_SUCCESS ||
+            installStage.stageCode == InstallStage.STAGE_FAILED ||
+            installStage.stageCode == InstallStage.STAGE_ABORTED) {
+            repository.piaStagesLatencyTracker.stopRecordingAndLog()
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // Catch-all: Ensure the latency tracker always dispatches the atom
+        // when the PackageInstaller UI is closed or finishes early.
+        repository.piaStagesLatencyTracker.stopRecordingAndLog()
     }
 
     val stagedSessionId: Int

@@ -33,28 +33,26 @@ import org.junit.Ignore
 import org.junit.Test
 
 @Ignore("Test Base Class")
-abstract class EnterDesktopFromSplitScreenWithAppHandleMenu(val rotation: Rotation = Rotation.ROTATION_0) :
-    TestScenarioBase(rotation) {
+abstract class EnterDesktopFromSplitScreenWithAppHandleMenu(
+    val rotation: Rotation = Rotation.ROTATION_0
+) : TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val tapl = LauncherInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
     private val keyEventHelper = KeyEventHelper(InstrumentationRegistry.getInstrumentation())
-    private val simpleAppHelper = SimpleAppHelper(instrumentation)
     val calculatorApp = CalculatorAppHelper(instrumentation)
-    val testApp = DesktopModeAppHelper(simpleAppHelper)
+    val testApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
 
     @Before
     fun setup() {
-        // Launch app in order to enter split screen
-        simpleAppHelper.launchViaIntent(wmHelper)
+        testApp.launchViaIntent(wmHelper)
+        testApp.exitDesktopModeToFullScreenIfNeeded(wmHelper, device)
         testApp.enterSplitScreenFromAppHandleMenu(wmHelper, device)
         // Open allApps via keyboard shortcut
         keyEventHelper.press(KEYCODE_META_RIGHT)
-        tapl.allApps
-            .getAppIcon(calculatorApp.appName)
-            .launch(calculatorApp.packageName)
+        tapl.allApps.getAppIcon(calculatorApp.appName).launch(calculatorApp.packageName)
     }
 
     @Test

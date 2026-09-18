@@ -123,23 +123,46 @@ public class SystemConfigService extends SystemService {
         }
 
         @Override
-        public List<SignedPackageParcel> getEnhancedConfirmationTrustedPackages() {
+        public List<SignedPackage> getEnhancedConfirmationTrustedPackages() {
             getContext().enforceCallingOrSelfPermission(
                     Manifest.permission.MANAGE_ENHANCED_CONFIRMATION_STATES,
                     "Caller must hold " + Manifest.permission.MANAGE_ENHANCED_CONFIRMATION_STATES);
 
-            return SystemConfig.getInstance().getEnhancedConfirmationTrustedPackages().stream()
-                    .map(SignedPackage::getData).toList();
+            return new ArrayList<>(
+                    SystemConfig.getInstance().getEnhancedConfirmationTrustedPackages()
+            );
+        }
+        @Override
+        public List<SignedPackageParcel> getEnhancedConfirmationTrustedPackagesLegacy() {
+            List<SignedPackage> packages = getEnhancedConfirmationTrustedPackages();
+            List<SignedPackageParcel> parcels = new ArrayList<>(packages.size());
+            for (int i = 0; i < packages.size(); i++) {
+                parcels.add(packages.get(i).toSignedPackageParcel());
+            }
+
+            return parcels;
         }
 
         @Override
-        public List<SignedPackageParcel> getEnhancedConfirmationTrustedInstallers() {
+        public List<SignedPackage> getEnhancedConfirmationTrustedInstallers() {
             getContext().enforceCallingOrSelfPermission(
                     Manifest.permission.MANAGE_ENHANCED_CONFIRMATION_STATES,
                     "Caller must hold " + Manifest.permission.MANAGE_ENHANCED_CONFIRMATION_STATES);
 
-            return SystemConfig.getInstance().getEnhancedConfirmationTrustedInstallers().stream()
-                    .map(SignedPackage::getData).toList();
+            return new ArrayList<>(
+                    SystemConfig.getInstance().getEnhancedConfirmationTrustedInstallers()
+            );
+        }
+
+        @Override
+        public List<SignedPackageParcel> getEnhancedConfirmationTrustedInstallersLegacy() {
+            List<SignedPackage> packages = getEnhancedConfirmationTrustedInstallers();
+            List<SignedPackageParcel> parcels = new ArrayList<>(packages.size());
+            for (int i = 0; i < packages.size(); i++) {
+                parcels.add(packages.get(i).toSignedPackageParcel());
+            }
+
+            return parcels;
         }
     };
 

@@ -27,14 +27,13 @@ import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.statusbar.connectivity.WifiIcons.WIFI_FULL_ICONS
 import com.android.systemui.statusbar.connectivity.WifiIcons.WIFI_NO_INTERNET_ICONS
 import com.android.systemui.statusbar.connectivity.WifiIcons.WIFI_NO_NETWORK
-import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
-import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
-import com.android.systemui.statusbar.pipeline.airplane.ui.viewmodel.AirplaneModeViewModel
-import com.android.systemui.statusbar.pipeline.airplane.ui.viewmodel.AirplaneModeViewModelImpl
-import com.android.systemui.statusbar.pipeline.mobile.data.repository.fakeMobileConnectionsRepository
+import com.android.systemui.statusbar.pipeline.airplane.data.repository.AirplaneModeRepository
+import com.android.systemui.statusbar.pipeline.airplane.data.repository.airplaneModeRepository
 import com.android.systemui.statusbar.pipeline.shared.ConnectivityConstants
 import com.android.systemui.statusbar.pipeline.shared.data.model.ConnectivitySlot
 import com.android.systemui.statusbar.pipeline.shared.data.repository.FakeConnectivityRepository
+import com.android.systemui.statusbar.pipeline.shared.data.repository.connectivityRepository
+import com.android.systemui.statusbar.pipeline.shared.data.repository.fake
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.FakeWifiRepository
 import com.android.systemui.statusbar.pipeline.wifi.domain.interactor.WifiInteractor
 import com.android.systemui.statusbar.pipeline.wifi.domain.interactor.WifiInteractorImpl
@@ -47,7 +46,6 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
@@ -72,32 +70,21 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
     @Mock private lateinit var tableLogBuffer: TableLogBuffer
     @Mock private lateinit var connectivityConstants: ConnectivityConstants
     @Mock private lateinit var wifiConstants: WifiConstants
-    private lateinit var airplaneModeRepository: FakeAirplaneModeRepository
+    private lateinit var airplaneModeRepository: AirplaneModeRepository
     private lateinit var connectivityRepository: FakeConnectivityRepository
     private lateinit var wifiRepository: FakeWifiRepository
     private lateinit var interactor: WifiInteractor
-    private lateinit var airplaneModeViewModel: AirplaneModeViewModel
     private lateinit var scope: CoroutineScope
 
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
-        airplaneModeRepository = FakeAirplaneModeRepository()
-        connectivityRepository = FakeConnectivityRepository()
+        airplaneModeRepository = kosmos.airplaneModeRepository
+        connectivityRepository = kosmos.connectivityRepository.fake
         wifiRepository = FakeWifiRepository()
         wifiRepository.setIsWifiEnabled(true)
         scope = CoroutineScope(IMMEDIATE)
         interactor = WifiInteractorImpl(connectivityRepository, wifiRepository, scope)
-        airplaneModeViewModel =
-            AirplaneModeViewModelImpl(
-                AirplaneModeInteractor(
-                    airplaneModeRepository,
-                    connectivityRepository,
-                    kosmos.fakeMobileConnectionsRepository,
-                ),
-                tableLogBuffer,
-                scope,
-            )
     }
 
     @After
@@ -123,8 +110,6 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                 .thenReturn(testCase.hasDataCapabilities)
             underTest =
                 WifiViewModel(
-                    airplaneModeViewModel,
-                    shouldShowSignalSpacerProvider = { MutableStateFlow(false) },
                     connectivityConstants,
                     context,
                     tableLogBuffer,
@@ -213,12 +198,12 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                 TestCase(enabled = false, network = WifiNetworkModel.Inactive(), expected = null),
                 TestCase(
                     enabled = false,
-                    network = WifiNetworkModel.Active.of(isValidated = false, level = 1),
+                    network = WifiNetworkModel.Active.of(showExclamation = true, level = 1),
                     expected = null,
                 ),
                 TestCase(
                     enabled = false,
-                    network = WifiNetworkModel.Active.of(isValidated = true, level = 3),
+                    network = WifiNetworkModel.Active.of(showExclamation = false, level = 3),
                     expected = null,
                 ),
 
@@ -235,12 +220,12 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                 ),
                 TestCase(
                     enabled = false,
-                    network = WifiNetworkModel.Active.of(isValidated = false, level = 2),
+                    network = WifiNetworkModel.Active.of(showExclamation = true, level = 2),
                     expected = null,
                 ),
                 TestCase(
                     forceHidden = true,
-                    network = WifiNetworkModel.Active.of(isValidated = true, level = 1),
+                    network = WifiNetworkModel.Active.of(showExclamation = false, level = 1),
                     expected = null,
                 ),
 
@@ -260,7 +245,7 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                 ),
                 TestCase(
                     alwaysShowIconWhenEnabled = true,
-                    network = WifiNetworkModel.Active.of(isValidated = false, level = 4),
+                    network = WifiNetworkModel.Active.of(showExclamation = true, level = 4),
                     expected =
                         Expected(
                             iconResource = WIFI_NO_INTERNET_ICONS[4],
@@ -273,7 +258,7 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                 ),
                 TestCase(
                     alwaysShowIconWhenEnabled = true,
-                    network = WifiNetworkModel.Active.of(isValidated = true, level = 2),
+                    network = WifiNetworkModel.Active.of(showExclamation = false, level = 2),
                     expected =
                         Expected(
                             iconResource = WIFI_FULL_ICONS[2],
@@ -300,7 +285,7 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                 ),
                 TestCase(
                     hasDataCapabilities = false,
-                    network = WifiNetworkModel.Active.of(isValidated = false, level = 2),
+                    network = WifiNetworkModel.Active.of(showExclamation = true, level = 2),
                     expected =
                         Expected(
                             iconResource = WIFI_NO_INTERNET_ICONS[2],
@@ -313,7 +298,7 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                 ),
                 TestCase(
                     hasDataCapabilities = false,
-                    network = WifiNetworkModel.Active.of(isValidated = true, level = 0),
+                    network = WifiNetworkModel.Active.of(showExclamation = false, level = 0),
                     expected =
                         Expected(
                             iconResource = WIFI_FULL_ICONS[0],
@@ -340,7 +325,7 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                 ),
                 TestCase(
                     isDefault = true,
-                    network = WifiNetworkModel.Active.of(isValidated = false, level = 3),
+                    network = WifiNetworkModel.Active.of(showExclamation = true, level = 3),
                     expected =
                         Expected(
                             iconResource = WIFI_NO_INTERNET_ICONS[3],
@@ -353,7 +338,7 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                 ),
                 TestCase(
                     isDefault = true,
-                    network = WifiNetworkModel.Active.of(isValidated = true, level = 1),
+                    network = WifiNetworkModel.Active.of(showExclamation = false, level = 1),
                     expected =
                         Expected(
                             iconResource = WIFI_FULL_ICONS[1],
@@ -382,7 +367,7 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                 ),
                 TestCase(
                     isDefault = false,
-                    network = WifiNetworkModel.Active.of(isValidated = false, level = 3),
+                    network = WifiNetworkModel.Active.of(showExclamation = true, level = 3),
                     expected = null,
                 ),
 
@@ -390,7 +375,7 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                 // because wifi isn't the default connection (b/272509965).
                 TestCase(
                     isDefault = false,
-                    network = WifiNetworkModel.Active.of(isValidated = true, level = 4),
+                    network = WifiNetworkModel.Active.of(showExclamation = false, level = 4),
                     expected = null,
                 ),
             )

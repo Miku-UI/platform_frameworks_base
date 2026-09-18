@@ -17,6 +17,7 @@
 package com.android.server.backup;
 
 import static com.android.server.input.InputManagerInternal.BACKUP_CATEGORY_INPUT_GESTURES;
+import static com.android.server.input.InputManagerInternal.BACKUP_CATEGORY_INPUT_DEVICE_REMAPPING;
 
 import android.annotation.NonNull;
 import android.annotation.UserIdInt;
@@ -30,20 +31,22 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class InputBackupHelper extends BlobBackupHelper {
-    private static final String TAG = "InputBackupHelper";   // must be < 23 chars
+    private static final String TAG = "InputBackupHelper";
 
     // Current version of the blob schema
     private static final int BLOB_VERSION = 1;
 
-    // Key under which the payload blob is stored
+    // Keys under which the payload blob is stored
     private static final String KEY_INPUT_GESTURES = "input_gestures";
+
+    private static final String KEY_INPUT_DEVICE_REMAPPINGS = "input_device_remappings";
 
     private final @UserIdInt int mUserId;
 
     private final @NonNull InputManagerInternal mInputManagerInternal;
 
     public InputBackupHelper(int userId) {
-        super(BLOB_VERSION, KEY_INPUT_GESTURES);
+        super(BLOB_VERSION, KEY_INPUT_GESTURES, KEY_INPUT_DEVICE_REMAPPINGS);
         mUserId = userId;
         mInputManagerInternal = LocalServices.getService(InputManagerInternal.class);
     }
@@ -60,8 +63,9 @@ public class InputBackupHelper extends BlobBackupHelper {
 
         if (KEY_INPUT_GESTURES.equals(key)) {
             return payloads.getOrDefault(BACKUP_CATEGORY_INPUT_GESTURES, null);
+        } else if (KEY_INPUT_DEVICE_REMAPPINGS.equals(key)) {
+            return payloads.getOrDefault(BACKUP_CATEGORY_INPUT_DEVICE_REMAPPING, null);
         }
-
         return null;
     }
 
@@ -70,6 +74,8 @@ public class InputBackupHelper extends BlobBackupHelper {
         Map<Integer, byte[]> payloads = new HashMap<>();
         if (KEY_INPUT_GESTURES.equals(key)) {
             payloads.put(BACKUP_CATEGORY_INPUT_GESTURES, payload);
+        } else if (KEY_INPUT_DEVICE_REMAPPINGS.equals(key)) {
+            payloads.put(BACKUP_CATEGORY_INPUT_DEVICE_REMAPPING, payload);
         }
 
         try {

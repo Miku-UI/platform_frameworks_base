@@ -24,7 +24,6 @@ import static android.view.KeyEvent.KEYCODE_POWER;
 
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
-import static com.android.hardware.input.Flags.FLAG_ABORT_SLOW_MULTI_PRESS;
 import static com.android.server.policy.SingleKeyGestureEvent.ACTION_CANCEL;
 import static com.android.server.policy.SingleKeyGestureEvent.ACTION_COMPLETE;
 import static com.android.server.policy.SingleKeyGestureEvent.ACTION_START;
@@ -44,10 +43,9 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Process;
 import android.os.SystemClock;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
+import android.view.Display;
 import android.view.KeyEvent;
 
 import androidx.annotation.NonNull;
@@ -115,22 +113,22 @@ public class SingleKeyGestureTests {
         mDetector.addRule(
                 new SingleKeyGestureDetector.SingleKeyRule(KEYCODE_POWER) {
                     @Override
-                    boolean supportLongPress() {
+                    public boolean supportLongPress() {
                         return mLongPressOnPowerBehavior;
                     }
 
                     @Override
-                    boolean supportVeryLongPress() {
+                    public boolean supportVeryLongPress() {
                         return mVeryLongPressOnPowerBehavior;
                     }
 
                     @Override
-                    int getMaxMultiPressCount() {
+                    public int getMaxMultiPressCount() {
                         return mMaxMultiPressCount;
                     }
 
                     @Override
-                    void onKeyGesture(@NonNull SingleKeyGestureEvent event) {
+                    public void onKeyGesture(@NonNull SingleKeyGestureEvent event) {
                         final int pressCount = event.getPressCount();
                         if (event.getAction() != ACTION_COMPLETE) {
                             return;
@@ -175,13 +173,13 @@ public class SingleKeyGestureTests {
                         if (mDetector.beganFromNonInteractive() && !mAllowNonInteractiveForPress) {
                             return;
                         }
-                        mMultiPressed.countDown();
                         assertTrue(mMaxMultiPressCount >= count);
                         assertEquals(mExpectedMultiPressCount, count);
+                        mMultiPressed.countDown();
                     }
 
                     @Override
-                    void onKeyUp(int multiPressCount, KeyEvent event) {
+                    public void onKeyUp(int multiPressCount, KeyEvent event) {
                         mKeyUpQueue.add(new KeyUpData(KEYCODE_POWER, multiPressCount));
                     }
                 });
@@ -190,17 +188,17 @@ public class SingleKeyGestureTests {
         mDetector.addRule(
                 new SingleKeyGestureDetector.SingleKeyRule(KEYCODE_BACK) {
                     @Override
-                    boolean supportLongPress() {
+                    public boolean supportLongPress() {
                         return mLongPressOnBackBehavior;
                     }
 
                     @Override
-                    int getMaxMultiPressCount() {
+                    public int getMaxMultiPressCount() {
                         return mMaxMultiPressCount;
                     }
 
                     @Override
-                    void onKeyGesture(@NonNull SingleKeyGestureEvent event) {
+                    public void onKeyGesture(@NonNull SingleKeyGestureEvent event) {
                         final long eventTime = event.getEventTime();
                         final int displayId = event.getDisplayId();
                         final int pressCount = event.getPressCount();
@@ -232,13 +230,13 @@ public class SingleKeyGestureTests {
                         if (mDetector.beganFromNonInteractive() && !mAllowNonInteractiveForPress) {
                             return;
                         }
-                        mMultiPressed.countDown();
                         assertTrue(mMaxMultiPressCount >= count);
                         assertEquals(mExpectedMultiPressCount, count);
+                        mMultiPressed.countDown();
                     }
 
                     @Override
-                    void onKeyUp(int multiPressCount, KeyEvent event) {
+                    public void onKeyUp(int multiPressCount, KeyEvent event) {
                         mKeyUpQueue.add(new KeyUpData(KEYCODE_BACK, multiPressCount));
                     }
 
@@ -265,11 +263,11 @@ public class SingleKeyGestureTests {
     }
 
     private void pressKey(int keyCode, long pressTime, boolean interactive) {
-        pressKey(keyCode, pressTime, interactive, false /* defaultDisplayOn */);
+        pressKey(keyCode, pressTime, interactive, Display.STATE_OFF);
     }
 
     private void pressKey(
-            int keyCode, long pressTime, boolean interactive, boolean defaultDisplayOn) {
+            int keyCode, long pressTime, boolean interactive, int defaultDisplayState) {
         long eventTime = SystemClock.uptimeMillis();
         final KeyEvent keyDown =
                 new KeyEvent(
@@ -279,7 +277,7 @@ public class SingleKeyGestureTests {
                         keyCode,
                         0 /* repeat */,
                         0 /* metaState */);
-        mDetector.interceptKey(keyDown, interactive, defaultDisplayOn);
+        mDetector.interceptKey(keyDown, interactive, defaultDisplayState);
 
         // keep press down.
         try {
@@ -298,7 +296,7 @@ public class SingleKeyGestureTests {
                         0 /* repeat */,
                         0 /* metaState */);
 
-        mDetector.interceptKey(keyUp, interactive, defaultDisplayOn);
+        mDetector.interceptKey(keyUp, interactive, defaultDisplayState);
     }
 
     @Test
@@ -320,7 +318,6 @@ public class SingleKeyGestureTests {
     }
 
     @Test
-    @EnableFlags(FLAG_ABORT_SLOW_MULTI_PRESS)
     public void testMultipress_noLongPressBehavior_longPressCancelsMultiPress()
             throws InterruptedException {
         mLongPressOnPowerBehavior = false;
@@ -332,7 +329,6 @@ public class SingleKeyGestureTests {
     }
 
     @Test
-    @EnableFlags(FLAG_ABORT_SLOW_MULTI_PRESS)
     public void testMultipress_noVeryLongPressBehavior_veryLongPressCancelsMultiPress()
             throws InterruptedException {
         mLongPressOnPowerBehavior = false;
@@ -342,19 +338,6 @@ public class SingleKeyGestureTests {
         pressKey(KEYCODE_POWER, mVeryLongPressTime /* pressTime */);
 
         assertFalse(mMultiPressed.await(mWaitTimeout, TimeUnit.MILLISECONDS));
-    }
-
-    @Test
-    @DisableFlags(FLAG_ABORT_SLOW_MULTI_PRESS)
-    public void testMultipress_flagDisabled_noLongPressBehavior_longPressDoesNotCancelMultiPress()
-            throws InterruptedException {
-        mLongPressOnPowerBehavior = false;
-        mExpectedMultiPressCount = 2;
-
-        pressKey(KEYCODE_POWER, 0 /* pressTime */);
-        pressKey(KEYCODE_POWER, mLongPressTime /* pressTime */);
-
-        assertTrue(mMultiPressed.await(mWaitTimeout, TimeUnit.MILLISECONDS));
     }
 
     @Test
@@ -498,7 +481,7 @@ public class SingleKeyGestureTests {
         final SingleKeyGestureDetector.SingleKeyRule rule =
                 new SingleKeyGestureDetector.SingleKeyRule(KEYCODE_POWER) {
                     @Override
-                    void onKeyGesture(@NonNull SingleKeyGestureEvent event) {
+                    public void onKeyGesture(@NonNull SingleKeyGestureEvent event) {
                         if (event.getType() == SINGLE_KEY_GESTURE_TYPE_PRESS
                                 && event.getPressCount() == 1) {
                             mShortPressed.countDown();
@@ -684,32 +667,32 @@ public class SingleKeyGestureTests {
         }
 
         @Override
-        boolean supportLongPress() {
+        public boolean supportLongPress() {
             return true;
         }
 
         @Override
-        boolean supportVeryLongPress() {
+        public boolean supportVeryLongPress() {
             return true;
         }
 
         @Override
-        int getMaxMultiPressCount() {
+        public int getMaxMultiPressCount() {
             return mMaxMultiPressCount;
         }
 
         @Override
-        long getLongPressTimeoutMs() {
+        public long getLongPressTimeoutMs() {
             return mLongPressTime;
         }
 
         @Override
-        long getVeryLongPressTimeoutMs() {
+        public long getVeryLongPressTimeoutMs() {
             return mVeryLongPressTime;
         }
 
         @Override
-        void onKeyGesture(@NonNull SingleKeyGestureEvent event) {
+        public void onKeyGesture(@NonNull SingleKeyGestureEvent event) {
             if (event.getKeyCode() != mKeyCode) {
                 throw new IllegalArgumentException(
                         "Rule generated a gesture for " + KeyEvent.keyCodeToString(

@@ -16,15 +16,12 @@
 
 package com.android.systemui.qs.tiles.impl.reducebrightness.domain.interactor
 
-import android.platform.test.annotations.RequiresFlagsDisabled
-import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.R
-import com.android.server.display.feature.flags.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.accessibility.extradim.ExtraDimDialogManager
 import com.android.systemui.accessibility.reduceBrightColorsController
@@ -82,7 +79,6 @@ class ReduceBrightColorsTileUserActionInteractorTest : SysuiTestCase() {
     }
 
     @Test
-    @RequiresFlagsDisabled(Flags.FLAG_EVEN_DIMMER)
     fun handleClickWhenEnabled() = runTest {
         val wasEnabled = true
         controller.isReduceBrightColorsActivated = wasEnabled
@@ -93,7 +89,6 @@ class ReduceBrightColorsTileUserActionInteractorTest : SysuiTestCase() {
     }
 
     @Test
-    @RequiresFlagsDisabled(Flags.FLAG_EVEN_DIMMER)
     fun handleClickWhenDisabled() = runTest {
         val wasEnabled = false
         controller.isReduceBrightColorsActivated = wasEnabled
@@ -104,7 +99,6 @@ class ReduceBrightColorsTileUserActionInteractorTest : SysuiTestCase() {
     }
 
     @Test
-    @RequiresFlagsDisabled(Flags.FLAG_EVEN_DIMMER)
     fun handleLongClickWhenDisabled() = runTest {
         val enabled = false
 
@@ -116,7 +110,6 @@ class ReduceBrightColorsTileUserActionInteractorTest : SysuiTestCase() {
     }
 
     @Test
-    @RequiresFlagsDisabled(Flags.FLAG_EVEN_DIMMER)
     fun handleLongClickWhenEnabled() = runTest {
         val enabled = true
 
@@ -128,7 +121,6 @@ class ReduceBrightColorsTileUserActionInteractorTest : SysuiTestCase() {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_EVEN_DIMMER)
     fun handleClickWhenEnabledEvenDimmer() = runTest {
         val wasEnabled = true
         controller.isReduceBrightColorsActivated = wasEnabled
@@ -141,7 +133,6 @@ class ReduceBrightColorsTileUserActionInteractorTest : SysuiTestCase() {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_EVEN_DIMMER)
     fun handleClickWhenDisabledEvenDimmer() = runTest {
         val wasEnabled = false
         controller.isReduceBrightColorsActivated = wasEnabled
@@ -154,7 +145,6 @@ class ReduceBrightColorsTileUserActionInteractorTest : SysuiTestCase() {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_EVEN_DIMMER)
     fun handleLongClickWhenDisabledEvenDimmer() = runTest {
         val enabled = false
 
@@ -166,7 +156,6 @@ class ReduceBrightColorsTileUserActionInteractorTest : SysuiTestCase() {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_EVEN_DIMMER)
     fun handleLongClickWhenEnabledEvenDimmer() = runTest {
         val enabled = true
 

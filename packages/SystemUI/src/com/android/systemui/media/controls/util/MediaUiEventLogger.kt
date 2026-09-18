@@ -24,6 +24,7 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.media.controls.shared.model.MediaData
 import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager
 import com.android.systemui.media.controls.ui.controller.MediaLocation
+import com.android.systemui.media.remedia.ui.compose.Media
 import com.android.systemui.res.R
 import java.lang.IllegalArgumentException
 import javax.inject.Inject
@@ -145,6 +146,7 @@ class MediaUiEventLogger @Inject constructor(private val logger: UiEventLogger) 
         logger.logWithInstanceId(MediaUiEvent.MEDIA_TAP_CONTENT_VIEW, uid, packageName, instanceId)
     }
 
+    @Deprecated(message = "Use logCarouselLocation for any new location to log")
     fun logCarouselPosition(@MediaLocation location: Int) {
         val event =
             when (location) {
@@ -159,6 +161,19 @@ class MediaUiEventLogger @Inject constructor(private val logger: UiEventLogger) 
                 MediaHierarchyManager.LOCATION_STATUS_BAR_POPUP ->
                     MediaUiEvent.MEDIA_CAROUSEL_LOCATION_STATUS_BAR_POPUP
                 else -> throw IllegalArgumentException("Unknown media carousel location $location")
+            }
+        logger.log(event)
+    }
+
+    fun logCarouselLocation(location: Media.Location) {
+        val event =
+            when (location) {
+                Media.Location.SHADE -> MediaUiEvent.MEDIA_CAROUSEL_LOCATION_QQS
+                Media.Location.QS -> MediaUiEvent.MEDIA_CAROUSEL_LOCATION_QS
+                Media.Location.LOCKSCREEN -> MediaUiEvent.MEDIA_CAROUSEL_LOCATION_LOCKSCREEN
+                Media.Location.COMMUNAL_HUB -> MediaUiEvent.MEDIA_CAROUSEL_LOCATION_COMMUNAL
+                Media.Location.STATUS_BAR_POPUP ->
+                    MediaUiEvent.MEDIA_CAROUSEL_LOCATION_STATUS_BAR_POPUP
             }
         logger.log(event)
     }

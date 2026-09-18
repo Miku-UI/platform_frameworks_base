@@ -66,7 +66,9 @@ public class RequestRectangleVisibleWithInternalScroll extends Activity {
                 Rect rect = new Rect();
                 rect.set(0, 0, 0, mTextBlob.getHeight());
                 rect.offset(0, mTextBlob.getScrollY());
-                mTextBlob.requestRectangleOnScreen(rect);
+                mTextBlob.requestRectangleOnScreen(rect,
+                        false,
+                        View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_SCROLL_ONLY);
             }
         });
     }

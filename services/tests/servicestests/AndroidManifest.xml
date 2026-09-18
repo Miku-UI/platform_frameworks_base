@@ -17,6 +17,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
      package="com.android.frameworks.servicestests">
 
+    <uses-permission android:name="android.permission.SUBSCRIBE_TO_KEYGUARD_LOCKED_STATE" />
     <uses-permission android:name="android.permission.READ_LOGS"/>
     <uses-permission android:name="android.permission.ACCESS_VR_MANAGER"/>
     <uses-permission android:name="android.permission.ACCOUNT_MANAGER"/>
@@ -243,6 +244,11 @@
 
         <activity android:name="com.android.server.accounts.AccountAuthenticatorDummyActivity"/>
         <activity android:name="com.android.server.adb.AdbDebuggingManagerTestActivity"/>
+
+        <activity android:name="com.android.server.om.OverlayConstraintsTests$TestActivity" />
+        <activity android:name="com.android.server.om.OverlayConstraintsTests$TestActivity2" />
+        <activity android:name="com.android.server.om.OverlayConstraintsTests$LaunchCounterActivity" />
+        <activity android:name="com.android.server.om.OverlayConstraintsTests$LaunchCounterActivity2" />
 
         <activity-alias android:name="a.ShortcutEnabled"
              android:targetActivity="com.android.server.pm.ShortcutTestActivity"

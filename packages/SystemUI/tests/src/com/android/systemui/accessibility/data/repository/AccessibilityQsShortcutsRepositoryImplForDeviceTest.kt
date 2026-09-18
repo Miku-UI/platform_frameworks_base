@@ -20,15 +20,11 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.ComponentName
 import android.content.pm.ResolveInfo
 import android.content.pm.ServiceInfo
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
-import android.platform.test.flag.junit.SetFlagsRule
 import android.view.accessibility.AccessibilityManager
 import android.view.accessibility.IUserInitializationCompleteCallback
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.accessibility.AccessibilityShortcutController
-import com.android.server.accessibility.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.backgroundScope
 import com.android.systemui.kosmos.runCurrent
@@ -67,7 +63,6 @@ import org.mockito.kotlin.whenever
 @RunWith(AndroidJUnit4::class)
 class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
     @get:Rule val mockitoRule: MockitoRule = MockitoJUnit.rule()
-    @get:Rule val setFlagsRule: SetFlagsRule = SetFlagsRule()
 
     // mocks
     @Mock private lateinit var a11yManager: AccessibilityManager
@@ -134,16 +129,6 @@ class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
             )
     }
 
-    @DisableFlags(Flags.FLAG_NOTIFY_QS_TILE_CHANGED_AFTER_USER_INITIALIZATION)
-    @Test
-    fun initRepository_doesNotRegisterUserInitializationCallback() =
-        kosmos.runTest {
-            runCurrent()
-
-            assertThat(userInitializationCallback).isNull()
-        }
-
-    @EnableFlags(Flags.FLAG_NOTIFY_QS_TILE_CHANGED_AFTER_USER_INITIALIZATION)
     @Test
     fun initRepository_registeredUserInitializationCallback() =
         kosmos.runTest {
@@ -152,7 +137,6 @@ class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
             assertThat(userInitializationCallback).isNotNull()
         }
 
-    @EnableFlags(Flags.FLAG_NOTIFY_QS_TILE_CHANGED_AFTER_USER_INITIALIZATION)
     @Test
     fun notifyAccessibilityManagerTilesChanged_notifyOnlyWhenUserInitializationComplete() =
         kosmos.runTest {

@@ -88,7 +88,7 @@ class QuickSwitchBetweenTwoAppsBackTest(flicker: FlickerTest) : BaseTest(flicker
      */
     @Presubmit
     @Test
-    open fun startsWithApp2WindowsCoverFullScreen() {
+    fun startsWithApp2WindowsCoverFullScreen() {
         flicker.assertWmStart { this.visibleRegion(testApp2).coversExactly(startDisplayBounds) }
     }
 
@@ -98,14 +98,14 @@ class QuickSwitchBetweenTwoAppsBackTest(flicker: FlickerTest) : BaseTest(flicker
      */
     @FlakyTest(bugId = 250520840)
     @Test
-    open fun startsWithApp2LayersCoverFullScreen() {
+    fun startsWithApp2LayersCoverFullScreen() {
         flicker.assertLayersStart { this.visibleRegion(testApp2).coversExactly(startDisplayBounds) }
     }
 
     /** Checks that the transition starts with [testApp2] being the top window. */
     @Presubmit
     @Test
-    open fun startsWithApp2WindowBeingOnTop() {
+    fun startsWithApp2WindowBeingOnTop() {
         flicker.assertWmStart { this.isAppWindowOnTop(testApp2) }
     }
 
@@ -115,7 +115,7 @@ class QuickSwitchBetweenTwoAppsBackTest(flicker: FlickerTest) : BaseTest(flicker
      */
     @Presubmit
     @Test
-    open fun endsWithApp1WindowsCoveringFullScreen() {
+    fun endsWithApp1WindowsCoveringFullScreen() {
         flicker.assertWmEnd { this.visibleRegion(testApp1).coversExactly(startDisplayBounds) }
     }
 
@@ -135,7 +135,7 @@ class QuickSwitchBetweenTwoAppsBackTest(flicker: FlickerTest) : BaseTest(flicker
      */
     @Presubmit
     @Test
-    open fun endsWithApp1BeingOnTop() {
+    fun endsWithApp1BeingOnTop() {
         flicker.assertWmEnd { this.isAppWindowOnTop(testApp1) }
     }
 
@@ -145,7 +145,7 @@ class QuickSwitchBetweenTwoAppsBackTest(flicker: FlickerTest) : BaseTest(flicker
      */
     @Presubmit
     @Test
-    open fun app1WindowBecomesAndStaysVisible() {
+    fun app1WindowBecomesAndStaysVisible() {
         flicker.assertWm {
             this.isAppWindowInvisible(testApp1)
                 .then()
@@ -161,7 +161,7 @@ class QuickSwitchBetweenTwoAppsBackTest(flicker: FlickerTest) : BaseTest(flicker
      */
     @Presubmit
     @Test
-    open fun app1LayerBecomesAndStaysVisible() {
+    fun app1LayerBecomesAndStaysVisible() {
         flicker.assertLayers { this.isInvisible(testApp1).then().isVisible(testApp1) }
     }
 
@@ -171,7 +171,7 @@ class QuickSwitchBetweenTwoAppsBackTest(flicker: FlickerTest) : BaseTest(flicker
      */
     @Presubmit
     @Test
-    open fun app2WindowBecomesAndStaysInvisible() {
+    fun app2WindowBecomesAndStaysInvisible() {
         flicker.assertWm { this.isAppWindowVisible(testApp2).then().isAppWindowInvisible(testApp2) }
     }
 
@@ -181,7 +181,7 @@ class QuickSwitchBetweenTwoAppsBackTest(flicker: FlickerTest) : BaseTest(flicker
      */
     @Presubmit
     @Test
-    open fun app2LayerBecomesAndStaysInvisible() {
+    fun app2LayerBecomesAndStaysInvisible() {
         flicker.assertLayers { this.isVisible(testApp2).then().isInvisible(testApp2) }
     }
 
@@ -192,7 +192,7 @@ class QuickSwitchBetweenTwoAppsBackTest(flicker: FlickerTest) : BaseTest(flicker
      */
     @Presubmit
     @Test
-    open fun app1WindowIsVisibleOnceApp2WindowIsInvisible() {
+    fun app1WindowIsVisibleOnceApp2WindowIsInvisible() {
         flicker.assertWm {
             this.isAppWindowVisible(testApp2)
                 .then()
@@ -212,7 +212,7 @@ class QuickSwitchBetweenTwoAppsBackTest(flicker: FlickerTest) : BaseTest(flicker
      */
     @Presubmit
     @Test
-    open fun app1LayerIsVisibleOnceApp2LayerIsInvisible() {
+    fun app1LayerIsVisibleOnceApp2LayerIsInvisible() {
         flicker.assertLayers {
             this.isVisible(testApp2)
                 .then()

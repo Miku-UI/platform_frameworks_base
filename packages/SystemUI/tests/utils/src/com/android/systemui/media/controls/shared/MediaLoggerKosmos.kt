@@ -20,5 +20,5 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.log.logcatLogBuffer
 import org.mockito.Mockito.mock
 
-var Kosmos.mediaLogger by Kosmos.Fixture { MediaLogger(logcatLogBuffer("MediaLogBuffer")) }
-val Kosmos.mockMediaLogger by Kosmos.Fixture { mock(MediaLogger::class.java) }
+var Kosmos.mediaLogger by Kosmos.Fixture { MediaLoggerImpl(logcatLogBuffer("MediaLogBuffer")) }
+val Kosmos.mockMediaLogger by Kosmos.Fixture { mock(MediaLoggerImpl::class.java) }

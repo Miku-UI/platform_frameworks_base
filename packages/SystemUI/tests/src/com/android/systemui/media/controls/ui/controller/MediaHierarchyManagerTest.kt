@@ -51,13 +51,15 @@ import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.res.R
 import com.android.systemui.shade.data.repository.fakeShadeRepository
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
+import com.android.systemui.shade.domain.interactor.fakeShadeModeInteractor
+import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.statusbar.StatusBarState
 import com.android.systemui.statusbar.SysuiStatusBarStateController
-import com.android.systemui.statusbar.featurepods.popups.StatusBarPopupChips
 import com.android.systemui.statusbar.phone.KeyguardBypassController
 import com.android.systemui.statusbar.policy.FakeConfigurationController
 import com.android.systemui.statusbar.policy.KeyguardStateController
 import com.android.systemui.statusbar.policy.ResourcesSplitShadeStateController
+import com.android.systemui.statusbar.quickactions.popups.StatusBarPopupChips
 import com.android.systemui.testKosmos
 import com.android.systemui.util.animation.UniqueObjectHostView
 import com.android.systemui.util.mockito.mock
@@ -107,6 +109,7 @@ class MediaHierarchyManagerTest : SysuiTestCase() {
     @Mock private lateinit var keyguardStateController: KeyguardStateController
     @Mock private lateinit var statusBarStateController: SysuiStatusBarStateController
     @Mock private lateinit var mediaCarouselController: MediaCarouselController
+    @Mock private lateinit var mediaReorderController: MediaReorderController
     @Mock private lateinit var mediaCarouselScrollHandler: MediaCarouselScrollHandler
     @Mock private lateinit var wakefulnessLifecycle: WakefulnessLifecycle
     @Mock private lateinit var mediaDataManager: MediaDataManager
@@ -134,6 +137,7 @@ class MediaHierarchyManagerTest : SysuiTestCase() {
     private val keyguardTransitionRepository = kosmos.fakeKeyguardTransitionRepository
     private val keyguardRepository = kosmos.fakeKeyguardRepository
     private val shadeRepository = kosmos.fakeShadeRepository
+    private val fakeShadeModeInteractor = kosmos.fakeShadeModeInteractor
 
     @Before
     fun setup() {
@@ -157,6 +161,7 @@ class MediaHierarchyManagerTest : SysuiTestCase() {
                 keyguardStateController,
                 bypassController,
                 mediaCarouselController,
+                mediaReorderController,
                 mediaDataManager,
                 dreamOverlayStateController,
                 kosmos.keyguardInteractor,
@@ -169,6 +174,7 @@ class MediaHierarchyManagerTest : SysuiTestCase() {
                 fakeHandler,
                 testScope.backgroundScope,
                 ResourcesSplitShadeStateController(),
+                fakeShadeModeInteractor,
                 logger,
                 dumpManager,
             )
@@ -904,6 +910,7 @@ class MediaHierarchyManagerTest : SysuiTestCase() {
         }
 
     private fun enableSplitShade() {
+        fakeShadeModeInteractor.shadeMode = MutableStateFlow(ShadeMode.Split)
         context
             .getOrCreateTestableResources()
             .addOverride(R.bool.config_use_split_notification_shade, true)

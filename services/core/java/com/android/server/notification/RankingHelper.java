@@ -55,7 +55,8 @@ public class RankingHelper {
             })
     public RankingHelper(Context context, RankingHandler rankingHandler, RankingConfig config,
             ZenModeHelper zenHelper, NotificationUsageStats usageStats, String[] extractorNames,
-            IPlatformCompat platformCompat, GroupHelper groupHelper) {
+            IPlatformCompat platformCompat, GroupHelper groupHelper,
+            NotificationRuleManager ruleManager) {
         mContext = context;
         mRankingHandler = rankingHandler;
         mPreliminaryComparator = new NotificationTimeComparator();
@@ -71,6 +72,7 @@ public class RankingHelper {
                 extractor.setConfig(config);
                 extractor.setZenHelper(zenHelper);
                 extractor.setGroupHelper(groupHelper);
+                extractor.setRuleManager(ruleManager);
                 extractor.setCompatChangeLogger(platformCompat);
                 mSignalExtractors[i] = extractor;
             } catch (ClassNotFoundException e) {

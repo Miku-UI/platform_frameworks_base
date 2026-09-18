@@ -23,15 +23,14 @@ import com.android.systemui.statusbar.notification.row.ExpandableView;
  * bounds change.
  */
 public class NotificationSection {
-    private @PriorityBucket final int mBucket;
+    private final int mBucket;
     private ExpandableView mFirstVisibleChild;
     private ExpandableView mLastVisibleChild;
 
-    NotificationSection(@PriorityBucket int bucket) {
+    NotificationSection(int bucket) {
         mBucket = bucket;
     }
 
-    @PriorityBucket
     public int getBucket() {
         return mBucket;
     }

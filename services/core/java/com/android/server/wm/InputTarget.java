@@ -16,9 +16,7 @@
 
 package com.android.server.wm;
 
-import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.util.proto.ProtoOutputStream;
 
 /**
  * Common interface between focusable objects.
@@ -64,8 +62,5 @@ interface InputTarget extends InsetsTarget {
     @Nullable
     DisplayContent getDisplayContent();
     InsetsControlTarget getImeControlTarget();
-
-    void dumpProto(@NonNull ProtoOutputStream proto, long fieldId,
-            @WindowTracingLogLevel int logLevel);
 }
 

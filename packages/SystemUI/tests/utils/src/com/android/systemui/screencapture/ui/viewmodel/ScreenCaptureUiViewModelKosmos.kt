@@ -18,12 +18,17 @@ package com.android.systemui.screencapture.ui.viewmodel
 
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.screencapture.common.shared.model.ScreenCaptureType
+import com.android.systemui.screencapture.domain.interactor.screenCaptureTracingInteractor
 import com.android.systemui.screencapture.domain.interactor.screenCaptureUiInteractor
 
 val Kosmos.screenCaptureUiViewModelFactory by
     Kosmos.Fixture {
         object : ScreenCaptureUiViewModel.Factory {
             override fun create(type: ScreenCaptureType): ScreenCaptureUiViewModel =
-                ScreenCaptureUiViewModel(type = type, interactor = screenCaptureUiInteractor)
+                ScreenCaptureUiViewModel(
+                    type = type,
+                    interactor = screenCaptureUiInteractor,
+                    tracingInteractor = screenCaptureTracingInteractor,
+                )
         }
     }

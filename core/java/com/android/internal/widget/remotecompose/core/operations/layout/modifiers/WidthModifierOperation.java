@@ -34,7 +34,7 @@ import java.util.List;
 public class WidthModifierOperation extends DimensionModifierOperation {
     private static final int OP_CODE = Operations.MODIFIER_WIDTH;
     public static final String CLASS_NAME = "WidthModifierOperation";
-    private @Nullable WidthInModifierOperation mWidthIn = null;
+    private @Nullable DimensionInModifierOperation mWidthIn = null;
 
     /**
      * The name of the class
@@ -117,9 +117,9 @@ public class WidthModifierOperation extends DimensionModifierOperation {
      */
     public static void documentation(@NonNull DocumentationBuilder doc) {
         doc.operation("Modifier Operations", OP_CODE, CLASS_NAME)
-                .description("define the animation")
-                .field(INT, "type", "")
-                .field(FLOAT, "value", "");
+                .description("Set the width dimension on a component")
+                .field(INT, "type", "The type of dimension rule (0=FIXED, 1=WRAP, etc.)")
+                .field(FLOAT, "value", "The width value");
     }
 
     /**
@@ -127,7 +127,7 @@ public class WidthModifierOperation extends DimensionModifierOperation {
      *
      * @param widthInConstraints width constraints
      */
-    public void setWidthIn(@NonNull WidthInModifierOperation widthInConstraints) {
+    public void setWidthIn(@NonNull DimensionInModifierOperation widthInConstraints) {
         mWidthIn = widthInConstraints;
     }
 
@@ -136,7 +136,7 @@ public class WidthModifierOperation extends DimensionModifierOperation {
      *
      * @return width in constraints
      */
-    public @Nullable WidthInModifierOperation getWidthIn() {
+    public @Nullable DimensionInModifierOperation getWidthIn() {
         return mWidthIn;
     }
 

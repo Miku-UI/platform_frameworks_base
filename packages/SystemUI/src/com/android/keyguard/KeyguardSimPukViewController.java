@@ -31,6 +31,7 @@ import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
+import android.uilatencystats.UiLatencyStatsManager;
 import android.util.Log;
 import android.view.WindowManager;
 import android.widget.ImageView;
@@ -45,6 +46,9 @@ import com.android.systemui.flags.FeatureFlags;
 import com.android.systemui.res.R;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
 import com.android.systemui.util.wrapper.LockPatternCheckerWrapper;
+
+import java.time.Duration;
+import java.util.Optional;
 
 public class KeyguardSimPukViewController
         extends KeyguardPinBasedInputViewController<KeyguardSimPukView> {
@@ -99,13 +103,14 @@ public class KeyguardSimPukViewController
             BouncerHapticPlayer bouncerHapticPlayer,
             UserActivityNotifier userActivityNotifier,
             InputManager inputManager,
-            LockPatternCheckerWrapper lockPatternCheckerWrapper
+            LockPatternCheckerWrapper lockPatternCheckerWrapper,
+            Optional<UiLatencyStatsManager> uiLatencyStatsManager
     ) {
         super(view, keyguardUpdateMonitor, securityMode, lockPatternUtils, keyguardSecurityCallback,
                 messageAreaControllerFactory, latencyTracker,
                 emergencyButtonController, falsingCollector, featureFlags, selectedUserInteractor,
                 keyguardKeyboardInteractor, bouncerHapticPlayer, userActivityNotifier, inputManager,
-                lockPatternCheckerWrapper
+                lockPatternCheckerWrapper, uiLatencyStatsManager
         );
         mKeyguardUpdateMonitor = keyguardUpdateMonitor;
         mTelephonyManager = telephonyManager;
@@ -246,10 +251,10 @@ public class KeyguardSimPukViewController
 
         // Sending empty PUK here to query the number of remaining PIN attempts
         new CheckSimPuk("", "", mSubId) {
-            void onSimLockChangedResponse(final PinResult result) {
+            void onSimLockChangedResponse(final PinResult result, int subId) {
                 if (result == null) Log.e(TAG, "onSimCheckResponse, pin result is NULL");
                 else {
-                    Log.d(TAG, "onSimCheckResponse " + " empty One result "
+                    Log.d(TAG, "onSimCheckResponse (" + subId + ") empty One result "
                             + result.toString());
                     if (result.getAttemptsRemaining() >= 0) {
                         mRemainingAttempts = result.getAttemptsRemaining();
@@ -292,7 +297,7 @@ public class KeyguardSimPukViewController
         if (mCheckSimPukThread == null) {
             mCheckSimPukThread = new CheckSimPuk(mPukText, mPinText, mSubId) {
                 @Override
-                void onSimLockChangedResponse(final PinResult result) {
+                void onSimLockChangedResponse(final PinResult result, int subId) {
                     mView.post(() -> {
                         if (mSimUnlockProgressDialog != null) {
                             mSimUnlockProgressDialog.hide();
@@ -301,7 +306,7 @@ public class KeyguardSimPukViewController
                                 /* announce */
                                 result.getResult() != PinResult.PIN_RESULT_TYPE_SUCCESS);
                         if (result.getResult() == PinResult.PIN_RESULT_TYPE_SUCCESS) {
-                            mKeyguardUpdateMonitor.reportSimUnlocked(mSubId);
+                            mKeyguardUpdateMonitor.reportSimUnlocked(subId);
                             mRemainingAttempts = -1;
                             mShowDefaultMessage = true;
 
@@ -347,7 +352,7 @@ public class KeyguardSimPukViewController
     }
 
     @Override
-    protected boolean shouldLockout(long deadline) {
+    protected boolean shouldLockout(Duration lockoutEndTime) {
         // SIM PUK doesn't have a timed lockout
         return false;
     }
@@ -419,7 +424,7 @@ public class KeyguardSimPukViewController
             mSubId = subId;
         }
 
-        abstract void onSimLockChangedResponse(@NonNull PinResult result);
+        abstract void onSimLockChangedResponse(@NonNull PinResult result, int subId);
 
         @Override
         public void run() {
@@ -431,7 +436,7 @@ public class KeyguardSimPukViewController
             if (DEBUG) {
                 Log.v(TAG, "supplyIccLockPuk returned: " + result.toString());
             }
-            mView.post(() -> onSimLockChangedResponse(result));
+            mView.post(() -> onSimLockChangedResponse(result, mSubId));
         }
     }
 

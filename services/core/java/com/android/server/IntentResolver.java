@@ -923,7 +923,7 @@ public abstract class IntentResolver<F, R extends Object> {
     /**
      * Rather than refactoring the entire class, this allows the input {@link F} to be a type
      * other than {@link IntentFilter}, transforming it whenever necessary. It is valid to use
-     * {@link IntentFilter} directly as {@link F} and just return {@param input}.
+     * {@link IntentFilter} directly as {@link F} and just return {@code input}.
      */
     protected abstract IntentFilter getIntentFilter(@NonNull F input);
 }

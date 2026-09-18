@@ -202,7 +202,6 @@ public class AudioDeviceVolumeManager {
             ADJUST_MODE_START,
             ADJUST_MODE_END}
     )
-    /** @hide */
     @Retention(RetentionPolicy.SOURCE)
     public @interface VolumeAdjustmentMode {}
 

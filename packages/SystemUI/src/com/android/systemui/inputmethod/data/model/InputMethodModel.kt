@@ -16,6 +16,8 @@
 
 package com.android.systemui.inputmethod.data.model
 
+import androidx.annotation.DrawableRes
+
 /**
  * Models an input method editor (IME).
  *
@@ -49,5 +51,20 @@ data class InputMethodModel(
          * input).
          */
         val isAuxiliary: Boolean,
+        /** The icon for this subtype. */
+        val icon: SubtypeIcon? = null,
+        /**
+         * The short label for this subtype. This is a non-localized string the IME can provide to
+         * represent the subtype in compact UI elements.
+         */
+        val shortLabel: String? = null,
+    )
+
+    /** A subtype icon that can be loaded from an IME app. */
+    data class SubtypeIcon(
+        /** The resource id of the icon. */
+        @param:DrawableRes val resId: Int,
+        /** The package name of the IME app that contains the icon resource. */
+        val packageName: String,
     )
 }

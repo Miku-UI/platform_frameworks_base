@@ -199,6 +199,7 @@
     <string name="accessibility_wifi_three_bars" msgid="779895671061950234">"Wi-Fi 신호 막대가 세 개입니다."</string>
     <string name="accessibility_wifi_signal_full" msgid="7165262794551355617">"Wi-Fi 신호가 강합니다."</string>
     <string name="accessibility_wifi_other_device" msgid="2815627624555795918">"기기에 연결되었습니다."</string>
+    <string name="accessibility_wifi_shared_network_icon_message" msgid="7853291528081728631">"이 기기의 모든 사용자가 확인하고 연결할 수 있습니다."</string>
     <string name="accessibility_wifi_security_type_none" msgid="162352241518066966">"개방형 네트워크"</string>
     <string name="accessibility_wifi_security_type_secured" msgid="2399774097343238942">"보안 네트워크"</string>
     <string name="process_kernel_label" msgid="950292573930336765">"Android OS"</string>
@@ -217,7 +218,7 @@
     <string name="launch_defaults_none" msgid="8049374306261262709">"기본값이 설정되지 않음"</string>
     <string name="tts_settings" msgid="8130616705989351312">"TTS 설정"</string>
     <string name="tts_settings_title" msgid="7602210956640483039">"텍스트 음성 변환 출력"</string>
-    <string name="tts_default_rate_title" msgid="3964187817364304022">"말하는 속도"</string>
+    <string name="tts_default_rate_title" msgid="3964187817364304022">"말하기 속도"</string>
     <string name="tts_default_rate_summary" msgid="3781937042151716987">"텍스트를 읽어주는 속도"</string>
     <string name="tts_default_pitch_title" msgid="6988592215554485479">"음조"</string>
     <string name="tts_default_pitch_summary" msgid="9132719475281551884">"합성 음성의 어조에 영향을 미침"</string>
@@ -268,7 +269,7 @@
     <string name="apn_settings_not_available" msgid="1147111671403342300">"이 사용자는 액세스 포인트 이름(APN) 설정을 수정할 수 없습니다."</string>
     <string name="enable_adb" msgid="8072776357237289039">"USB 디버깅"</string>
     <string name="enable_adb_summary" msgid="3711526030096574316">"USB가 연결된 경우 디버그 모드 사용"</string>
-    <string name="clear_adb_keys" msgid="3010148733140369917">"USB 디버깅 권한 승인 취소"</string>
+    <string name="clear_adb_keys" msgid="2696065439790970581">"adb 디버깅 승인 취소"</string>
     <string name="enable_adb_wireless" msgid="6973226350963971018">"무선 디버깅"</string>
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Wi‑Fi가 연결되었을 때 디버그 모드 사용"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"오류"</string>
@@ -293,8 +294,10 @@
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"기기 페어링 중…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"기기를 페어링할 수 없습니다. QR 코드가 잘못되었거나 기기가 동일한 네트워크에 연결되어 있지 않습니다."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP 주소 및 포트"</string>
+    <string name="adb_wireless_unavailable_not_allowed" msgid="83310404140556806">"사용할 수 없음(허용되지 않음)"</string>
+    <string name="adb_wireless_unavailable_disconnected" msgid="8819105186435736128">"사용할 수 없음(Wi‑Fi 연결 해제됨)"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"QR 코드 스캔"</string>
-    <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"QR 코드를 스캔하여 Wi‑Fi를 통해 기기 페어링"</string>
+    <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"QR 코드를 스캔하여 Wi‑Fi를 통해 기기를 페어링하세요."</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Wi-Fi 네트워크에 연결하세요."</string>
     <string name="keywords_adb_wireless" msgid="6507505581882171240">"adb, 디버그, 개발자"</string>
     <string name="bugreport_in_power" msgid="8664089072534638709">"버그 신고 바로가기"</string>
@@ -366,7 +369,7 @@
     <string name="adb_warning_message" msgid="8145270656419669221">"USB 디버깅은 개발용으로만 설계되었습니다. 이 기능을 사용하면 컴퓨터와 기기 간에 데이터를 복사하고 알림 없이 기기에 앱을 설치하며 로그 데이터를 읽을 수 있습니다."</string>
     <string name="adbwifi_warning_title" msgid="727104571653031865">"무선 디버깅을 허용하시겠습니까?"</string>
     <string name="adbwifi_warning_message" msgid="8005936574322702388">"무선 디버깅은 개발용으로만 설계되었습니다. 이 기능을 사용하면 컴퓨터와 기기 간에 데이터를 복사하고 알림 없이 기기에 앱을 설치하며 로그 데이터를 읽을 수 있습니다."</string>
-    <string name="adb_keys_warning_message" msgid="2968555274488101220">"이전에 승인한 모든 컴퓨터에서 USB 디버깅에 대한 액세스 권한을 취소하시겠습니까?"</string>
+    <string name="adb_keys_warning_message" msgid="7827514623080777814">"이전에 승인한 모든 컴퓨터 및 네트워크에서 adb 디버깅에 대한 액세스 권한을 취소하시겠습니까?"</string>
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"개발자 설정을 허용하시겠습니까?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"이 설정은 개발자용으로만 설계되었습니다. 이 설정을 사용하면 기기 및 애플리케이션에 예기치 않은 중단이나 오류가 발생할 수 있습니다."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"USB를 통해 설치된 앱 확인"</string>
@@ -538,7 +541,7 @@
     <string name="battery_info_status_charging_wireless" msgid="8924722966861282197">"무선 충전 중"</string>
     <string name="battery_info_status_charging_dock" msgid="8573274094093364791">"충전"</string>
     <string name="battery_info_status_discharging" msgid="6962689305413556485">"충전 안함"</string>
-    <string name="battery_info_status_not_charging" msgid="1103084691314264664">"연결되었으나 충전 중이 아님"</string>
+    <string name="battery_info_status_not_charging" msgid="1103084691314264664">"연결되었으나 충전 중이지 않음"</string>
     <string name="battery_info_status_full" msgid="1339002294876531312">"충전됨"</string>
     <string name="battery_info_status_full_charged" msgid="3536054261505567948">"완전히 충전됨"</string>
     <string name="battery_info_status_charging_on_hold" msgid="6364355145521694438">"충전 일시중지"</string>
@@ -758,9 +761,6 @@
     <string name="accessibility_ethernet_disconnected" msgid="2832501530856497489">"이더넷에서 연결 해제되었습니다."</string>
     <string name="accessibility_ethernet_connected" msgid="6175942685957461563">"이더넷에 연결되었습니다."</string>
     <string name="accessibility_no_calling" msgid="3540827068323895748">"통화 모드가 없습니다."</string>
-    <string name="physical_keyboard_title" msgid="4811935435315835220">"물리적 키보드"</string>
-    <string name="keyboard_layout_dialog_title" msgid="3927180147005616290">"키보드 레이아웃 선택"</string>
-    <string name="keyboard_layout_default_label" msgid="1997292217218546957">"기본"</string>
     <string name="turn_screen_on_title" msgid="2662312432042116026">"화면 사용 설정 제어"</string>
     <string name="allow_turn_screen_on" msgid="6194845766392742639">"화면 켜기 허용"</string>
     <string name="allow_turn_screen_on_description" msgid="43834403291575164">"앱에서 화면을 켜도록 허용합니다. 권한이 부여된 경우 앱에서 명시적 인텐트 없이 언제든지 화면을 켤 수 있습니다."</string>

@@ -28,7 +28,9 @@
 #include <nativehelper/JNIHelp.h>
 #include <nativehelper/ScopedUtfChars.h>
 
+#include <optional>
 #include <sstream>
+#include <string_view>
 
 #include "android_os_Parcel.h"
 #include "android_util_Binder.h"
@@ -516,7 +518,8 @@ static void android_view_MotionEvent_nativeWriteToParcel(JNIEnv* env, jclass cla
 
 static jstring android_view_MotionEvent_nativeAxisToString(JNIEnv* env, jclass clazz,
         jint axis) {
-    return env->NewStringUTF(MotionEvent::getLabel(static_cast<int32_t>(axis)));
+    const std::optional<std::string_view> label = MotionEvent::getLabel(static_cast<int32_t>(axis));
+    return label.has_value() ? env->NewStringUTF(std::string(label.value()).c_str()) : nullptr;
 }
 
 static jint android_view_MotionEvent_nativeAxisFromString(JNIEnv* env, jclass clazz,
@@ -830,7 +833,8 @@ static void android_view_MotionEvent_nativeScale(CRITICAL_JNI_PARAMS_COMMA jlong
     event->scale(scale);
 }
 
-static jint android_view_MotionEvent_nativeGetSurfaceRotation(jlong nativePtr) {
+static jint android_view_MotionEvent_nativeGetSurfaceRotation(
+        CRITICAL_JNI_PARAMS_COMMA jlong nativePtr) {
     MotionEvent* event = reinterpret_cast<MotionEvent*>(nativePtr);
     auto rotation = event->getSurfaceRotation();
     if (rotation) {

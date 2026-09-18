@@ -17,6 +17,10 @@
 package android.os;
 
 import android.compat.annotation.UnsupportedAppUsage;
+import android.ravenwood.annotation.RavenwoodIgnore;
+import android.ravenwood.annotation.RavenwoodKeep;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
+import android.ravenwood.annotation.RavenwoodRemove;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -39,6 +43,7 @@ import java.util.HashMap;
  *
  * @hide
 */
+@RavenwoodKeepPartialClass(comment = "Support for Linux UEvents are not planned on Ravenwood")
 public abstract class UEventObserver {
     private static final String TAG = "UEventObserver";
     private static final boolean DEBUG = false;
@@ -51,10 +56,12 @@ public abstract class UEventObserver {
     private static native void nativeRemoveMatch(String match);
 
     @UnsupportedAppUsage
+    @RavenwoodKeep
     public UEventObserver() {
     }
 
     @Override
+    @RavenwoodRemove(reason = "Support for Linux UEvents are not planned on Ravenwood")
     protected void finalize() throws Throwable {
         try {
             stopObserving();
@@ -96,6 +103,7 @@ public abstract class UEventObserver {
      * for each vsync period.
      */
     @UnsupportedAppUsage
+    @RavenwoodIgnore(reason = "Support for Linux UEvents are not planned on Ravenwood")
     public final void startObserving(String match) {
         if (match == null || match.isEmpty()) {
             throw new IllegalArgumentException("match substring must be non-empty");
@@ -111,6 +119,7 @@ public abstract class UEventObserver {
      * UEventObserver after this call. Repeated calls have no effect.
      */
     @UnsupportedAppUsage
+    @RavenwoodIgnore(reason = "Support for Linux UEvents are not planned on Ravenwood")
     public final void stopObserving() {
         final UEventThread t = peekThread();
         if (t != null) {

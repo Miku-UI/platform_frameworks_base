@@ -33,8 +33,6 @@ import android.provider.settings.backup.SystemSettings;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.server.display.feature.flags.Flags;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -65,6 +63,7 @@ public class SettingsBackupTest {
                     Settings.Global.ADB_DISCONNECT_SESSIONS_ON_REVOKE,
                     Settings.Global.AIRPLANE_MODE_ON,
                     Settings.Global.AIRPLANE_MODE_RADIOS,
+                    Settings.Global.AIRPLANE_MODE_SYNC,
                     Settings.Global.ALLOW_WORK_PROFILE_TELEPHONY_FOR_NON_DPM_ROLE_HOLDERS,
                     Settings.Global.SATELLITE_MODE_RADIOS,
                     Settings.Global.SATELLITE_MODE_ENABLED,
@@ -226,7 +225,6 @@ public class SettingsBackupTest {
                     Settings.Global.ENABLE_EPHEMERAL_FEATURE,
                     Settings.Global.DYNAMIC_POWER_SAVINGS_ENABLED,
                     Settings.Global.DYNAMIC_POWER_SAVINGS_DISABLE_THRESHOLD,
-                    Settings.Global.SMART_REPLIES_IN_NOTIFICATIONS_FLAGS,
                     Settings.Global.STYLUS_EVER_USED,
                     Settings.Global.ENABLE_ADB_INCREMENTAL_INSTALL_DEFAULT,
                     Settings.Global.ENABLE_MULTI_SLOT_TIMEOUT_MILLIS,
@@ -350,7 +348,6 @@ public class SettingsBackupTest {
                     Settings.Global.NITZ_UPDATE_DIFF,
                     Settings.Global.NITZ_UPDATE_SPACING,
                     Settings.Global.NOTIFICATION_SNOOZE_OPTIONS,
-                    Settings.Global.NOTIFICATION_FEEDBACK_ENABLED,
                     Settings.Global.NR_NSA_TRACKING_SCREEN_OFF_MODE,
                     Settings.Global.NTP_SERVER,
                     Settings.Global.NTP_TIMEOUT,
@@ -466,6 +463,7 @@ public class SettingsBackupTest {
                     Settings.Global.GPU_DEBUG_LAYERS,
                     Settings.Global.GPU_DEBUG_LAYERS_GLES,
                     Settings.Global.ANGLE_DEBUG_PACKAGE,
+                    Settings.Global.ANGLE_DYNAMIC_DENYLIST,
                     Settings.Global.ANGLE_GL_DRIVER_ALL_ANGLE,
                     Settings.Global.ANGLE_GL_DRIVER_SELECTION_PKGS,
                     Settings.Global.ANGLE_GL_DRIVER_SELECTION_VALUES,
@@ -564,6 +562,8 @@ public class SettingsBackupTest {
                     Settings.Global.HEARING_DEVICE_LOCAL_AMBIENT_VOLUME, // cache per hearing device
                     Settings.Global.HEARING_DEVICE_LOCAL_NOTIFICATION, // cache per hearing device
                     Settings.Global.REDACT_OTP_NOTIFICATIONS_FROM_UNTRUSTED_LISTENERS,
+                    Settings.Global.ENABLE_WEBAPP_MINTER,
+                    Settings.Global.SCENE_CONTAINER_ENABLED,
                     Settings.Global.Wearable.COMBINED_LOCATION_ENABLE,
                     Settings.Global.Wearable.HAS_PAY_TOKENS,
                     Settings.Global.Wearable.GMS_CHECKIN_TIMEOUT_MIN,
@@ -601,6 +601,7 @@ public class SettingsBackupTest {
                     Settings.Global.Wearable.AMBIENT_FORCE_WHEN_DOCKED,
                     Settings.Global.Wearable.AMBIENT_LOW_BIT_ENABLED,
                     Settings.Global.Wearable.AMBIENT_PLUGGED_TIMEOUT_MIN,
+                    Settings.Global.Wearable.AMBIENT_OFFWRIST_TIMEOUT_MIN,
                     Settings.Global.Wearable.PAIRED_DEVICE_OS_TYPE,
                     Settings.Global.Wearable.COMPANION_BLE_ROLE,
                     Settings.Global.Wearable.COMPANION_NAME,
@@ -613,7 +614,6 @@ public class SettingsBackupTest {
                     Settings.Global.Wearable.MASTER_GESTURES_ENABLED,
                     Settings.Global.Wearable.UNGAZE_ENABLED,
                     Settings.Global.Wearable.BURN_IN_PROTECTION_ENABLED,
-                    Settings.Global.Wearable.WRIST_ORIENTATION_MODE,
                     Settings.Global.Wearable.CLOCKWORK_SYSUI_PACKAGE,
                     Settings.Global.Wearable.CLOCKWORK_SYSUI_MAIN_ACTIVITY,
                     Settings.Global.Wearable.CLOCKWORK_LONG_PRESS_TO_ASSISTANT_ENABLED,
@@ -621,6 +621,7 @@ public class SettingsBackupTest {
                     Settings.Global.Wearable.COOLDOWN_MODE_ON,
                     Settings.Global.Wearable.BEDTIME_MODE,
                     Settings.Global.Wearable.BEDTIME_HARD_MODE,
+                    Settings.Global.Wearable.WEAR_CHARGING_EXPERIENCE_ENABLED,
                     Settings.Global.Wearable.VIBRATE_FOR_ACTIVE_UNLOCK,
                     Settings.Global.Wearable.LOCK_SCREEN_STATE,
                     Settings.Global.Wearable.DISABLE_AOD_WHILE_PLUGGED,
@@ -634,7 +635,9 @@ public class SettingsBackupTest {
                     Settings.Global.Wearable.WEAR_POWER_ANOMALY_SERVICE_ENABLED,
                     Settings.Global.Wearable.CONNECTIVITY_KEEP_DATA_ON,
                     Settings.Global.Wearable.PHONE_SWITCHING_REQUEST_SOURCE,
-                    Settings.Global.Wearable.WEAR_SYSTEM_STATUS_TRAY_CONFIGURATION);
+                    Settings.Global.Wearable.WEAR_SYSTEM_STATUS_TRAY_CONFIGURATION,
+                    Settings.Global.Wearable.RAISE_TO_TALK_MEDIATED_ENABLED
+                );
 
     private static final Set<String> BACKUP_DENY_LIST_SECURE_SETTINGS =
              newHashSet(
@@ -684,6 +687,7 @@ public class SettingsBackupTest {
                  Settings.Secure.CONNECTIVITY_RELEASE_PENDING_INTENT_DELAY_MS,
                  Settings.Secure.CONTENT_CAPTURE_ENABLED,
                  Settings.Secure.CONTEXTUAL_SEARCH_PACKAGE,
+                 Settings.Secure.CONTEXTUAL_MODE_SYNC_ENABLED,
                  Settings.Secure.DEFAULT_INPUT_METHOD,
                  Settings.Secure.DEFAULT_DEVICE_INPUT_METHOD,
                  Settings.Secure.DEVICE_PAIRED,
@@ -794,6 +798,8 @@ public class SettingsBackupTest {
                  Settings.Secure.FACE_UNLOCK_RE_ENROLL,
                  Settings.Secure.TAP_GESTURE,
                  Settings.Secure.NEARBY_SHARING_COMPONENT, // not user configurable
+                 Settings.Secure.TAP_EVENT_SERVICE_COMPONENT, // not user configurable
+                 Settings.Secure.TAP_SHARE_FULFILLMENT_ACTIVITY_COMPONENT, // not user configurable
                  Settings.Secure.ACCESSIBILITY_SHORTCUT_TARGET_MAGNIFICATION_CONTROLLER,
                  Settings.Secure.SUPPRESS_DOZE,
                  Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
@@ -809,7 +815,10 @@ public class SettingsBackupTest {
                  Settings.Secure.SUGGESTED_THEME_FEATURE_ENABLED,
                  Settings.Secure.REDACT_OTP_NOTIFICATION_WHILE_CONNECTED_TO_WIFI,
                  Settings.Secure.OTP_NOTIFICATION_REDACTION_LOCK_TIME,
-                 Settings.Secure.APP_FUNCTION_ADDITIONAL_AGENT_ALLOWLIST);
+                 Settings.Secure.APP_FUNCTION_ADDITIONAL_AGENT_ALLOWLIST,
+                 Settings.Secure.READ_SCREEN_CONTEXT_REQUEST_DENIED_COUNT,
+                 Settings.Secure.TRUSTED_LOCATIONS_COUNT,
+                 Settings.Secure.IS_WALLET_SERVICE_AVAILABLE);
 
     @Test
     public void systemSettingsBackedUpOrDenied() {
@@ -869,7 +878,6 @@ public class SettingsBackupTest {
                         Settings.Secure.NAS_SETTINGS_UPDATED,
                         Settings.Secure.NAV_BAR_FORCE_VISIBLE,
                         Settings.Secure.NAV_BAR_KIDS_MODE,
-                        Settings.Secure.NAVIGATIONBAR_KEY_ORDER,
                         Settings.Secure.NEARBY_FAST_PAIR_SETTINGS_DEVICES_COMPONENT,
                         Settings.Secure.NEARBY_SHARING_SLICE_URI,
                         Settings.Secure.NOTIFIED_NON_ACCESSIBILITY_CATEGORY_SERVICES,
@@ -910,8 +918,6 @@ public class SettingsBackupTest {
                         Settings.System.END_BUTTON_BEHAVIOR, // bug?
                         Settings.System
                                 .ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_ENABLE,
-                        Settings.System
-                                .ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_DISABLE,
                         Settings.System.DEFAULT_DEVICE_FONT_SCALE, // Non configurable
                         Settings.System.HIDE_ROTATION_LOCK_TOGGLE_FOR_ACCESSIBILITY,
                         Settings.System.INPUT_GAIN_INDEX_SETTINGS,
@@ -960,10 +966,6 @@ public class SettingsBackupTest {
                         // Potentially disruptive to on-boarding flow on new devices
                         Settings.System.TOUCHPAD_ENABLED
                 );
-        if (!Flags.backUpSmoothDisplayAndForcePeakRefreshRate()) {
-            settings.add(Settings.System.MIN_REFRESH_RATE);
-            settings.add(Settings.System.PEAK_REFRESH_RATE);
-        }
         return settings;
     }
 

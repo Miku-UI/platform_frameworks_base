@@ -22,52 +22,44 @@ option java_multiple_files = true;
 
 // Next index: 2
 message TaskContinuityMessage {
-    oneof data {
-        ContinuityDeviceConnected device_connected = 1;
-        RemoteTaskAddedMessage remote_task_added = 2;
-        RemoteTaskRemovedMessage remote_task_removed = 3;
-        HandoffRequestMessage handoff_request = 4;
-        RemoteTaskUpdatedMessage remote_task_updated = 5;
-        HandoffRequestResultMessage handoff_request_result = 6;
-    }
+  oneof data {
+    TaskStackBroadcastMessage task_stack_broadcast = 1;
+    HandoffRequestMessage handoff_request = 2;
+    HandoffRequestResultMessage handoff_request_result = 3;
+  }
 }
 
-message ContinuityDeviceConnected {
-    repeated RemoteTaskInfo remoteTasks = 1;
-}
-
-message RemoteTaskAddedMessage {
-    RemoteTaskInfo task = 1;
-}
-
-message RemoteTaskUpdatedMessage {
-    RemoteTaskInfo task = 1;
+message TaskStackBroadcastMessage {
+  bool is_stack_empty = 1;
+  repeated RemoteTaskInfo remoteTasks = 2;
 }
 
 message HandoffRequestMessage {
-    int32 task_id = 1;
+  int32 task_id = 1;
 }
 
 message RemoteTaskInfo {
-    int32 id = 1;
-    string label = 2;
-    int64 lastUsedTimeMillis = 3;
-    bytes taskIcon = 4;
-    bool isHandoffEnabled = 5;
+  int32 id = 1;
+  string package_name = 2;
+  bool is_in_foreground = 3;
+  int64 lastUsedTimeMillis = 4;
+  HandoffOptions handoffOptions = 5;
 }
 
-message RemoteTaskRemovedMessage {
-    int32 taskId = 1;
+message HandoffOptions {
+  bool isHandoffEnabled = 1;
+  bool requirePackageInstalled = 2;
 }
 
 message HandoffRequestResultMessage {
-    int32 statusCode = 1;
-    int32 taskId = 2;
-    repeated HandoffActivityData activities = 3;
+  int32 statusCode = 1;
+  int32 taskId = 2;
+  repeated HandoffActivityDataMessage activities = 3;
 }
 
-message HandoffActivityData {
-    string componentName = 1;
-    string fallbackUri = 2;
-    bytes extras = 3;
+message HandoffActivityDataMessage {
+  string componentName = 1;
+  string fallbackUri = 2;
+  bytes extras = 3;
+  repeated bytes signature_digests = 4;
 }

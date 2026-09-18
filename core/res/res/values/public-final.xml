@@ -405,9 +405,9 @@
   <public type="attr" name="flipInterval" id="0x01010179" />
   <public type="attr" name="fillViewport" id="0x0101017a" />
   <public type="attr" name="prompt" id="0x0101017b" />
-  <!-- {@deprecated Use minDate instead.} -->
+  <!-- @deprecated Use minDate instead. -->
   <public type="attr" name="startYear" id="0x0101017c" />
-  <!-- {@deprecated Use maxDate instead.} -->
+  <!-- @deprecated Use maxDate instead. -->
   <public type="attr" name="endYear" id="0x0101017d" />
   <public type="attr" name="mode" id="0x0101017e" />
   <public type="attr" name="layout_x" id="0x0101017f" />
@@ -710,21 +710,21 @@
 
   <!-- Equivalent to 0xffaaaaaa -->
   <public type="color" name="darker_gray" id="0x01060000" />
-  <!-- {@deprecated Use a text color from your theme instead.} -->
+  <!-- @deprecated Use a text color from your theme instead. -->
   <public type="color" name="primary_text_dark" id="0x01060001" />
-  <!-- {@deprecated Use a text color from your theme instead.} -->
+  <!-- @deprecated Use a text color from your theme instead. -->
   <public type="color" name="primary_text_dark_nodisable" id="0x01060002" />
-  <!-- {@deprecated Use a text color from your theme instead.} -->
+  <!-- @deprecated Use a text color from your theme instead. -->
   <public type="color" name="primary_text_light" id="0x01060003" />
-  <!-- {@deprecated Use a text color from your theme instead.} -->
+  <!-- @deprecated Use a text color from your theme instead. -->
   <public type="color" name="primary_text_light_nodisable" id="0x01060004" />
-  <!-- {@deprecated Use a text color from your theme instead.} -->
+  <!-- @deprecated Use a text color from your theme instead. -->
   <public type="color" name="secondary_text_dark" id="0x01060005" />
-  <!-- {@deprecated Use a text color from your theme instead.} -->
+  <!-- @deprecated Use a text color from your theme instead. -->
   <public type="color" name="secondary_text_dark_nodisable" id="0x01060006" />
-  <!-- {@deprecated Use a text color from your theme instead.} -->
+  <!-- @deprecated Use a text color from your theme instead. -->
   <public type="color" name="secondary_text_light" id="0x01060007" />
-  <!-- {@deprecated Use a text color from your theme instead.} -->
+  <!-- @deprecated Use a text color from your theme instead. -->
   <public type="color" name="secondary_text_light_nodisable" id="0x01060008" />
   <!-- Equivalent to 0xff808080 -->
   <public type="color" name="tab_indicator_text" id="0x01060009" />
@@ -737,9 +737,9 @@
   <public type="color" name="background_dark" id="0x0106000e" />
   <!-- Equivalent to 0xffffffff -->
   <public type="color" name="background_light" id="0x0106000f" />
-  <!-- {@deprecated Use a text color from your theme instead.} -->
+  <!-- @deprecated Use a text color from your theme instead. -->
   <public type="color" name="tertiary_text_dark" id="0x01060010" />
-  <!-- {@deprecated Use a text color from your theme instead.} -->
+  <!-- @deprecated Use a text color from your theme instead. -->
   <public type="color" name="tertiary_text_light" id="0x01060011" />
 
   <public type="array" name="emailAddressTypes" id="0x01070000" />
@@ -1068,7 +1068,7 @@
 
   <!-- View ID of the {@link android.inputmethodservice.KeyboardView} within
        an input method's input area.
-       {@deprecated Use Copy this definition into your own application project.} -->
+       @deprecated Use Copy this definition into your own application project. -->
   <public type="id" name="keyboardView" id="0x01020026" />
   <!-- View ID of a {@link android.view.View} to close a popup keyboard -->
   <public type="id" name="closeButton" id="0x01020027" />
@@ -1083,7 +1083,7 @@
   <public type="style" name="Theme.InputMethod" id="0x01030054" />
   <public type="style" name="Theme.NoDisplay" id="0x01030055" />
   <public type="style" name="Animation.InputMethod" id="0x01030056" />
-  <!-- {@deprecated Use Copy this definition into your own application project.} -->
+  <!-- @deprecated Use Copy this definition into your own application project. -->
   <public type="style" name="Widget.KeyboardView" id="0x01030057" />
   <public type="style" name="ButtonBar" id="0x01030058" />
   <public type="style" name="Theme.Panel" id="0x01030059" />
@@ -2816,7 +2816,7 @@
     <public type="attr" name="iconSpaceReserved" id="0x01010561"/>
     <public type="attr" name="defaultFocusHighlightEnabled" id="0x01010562" />
     <public type="attr" name="persistentWhenFeatureAvailable" id="0x01010563"/>
-    <!-- {@deprecated Use windowSplashscreenAnimatedIcon instead } -->
+    <!-- @deprecated Use windowSplashscreenAnimatedIcon instead  -->
     <public type="attr" name="windowSplashscreenContent" id="0x01010564" />
     <!-- @hide @SystemApi -->
     <public type="attr" name="requiredSystemPropertyName" id="0x01010565" />
@@ -2905,7 +2905,7 @@
     <public type="attr" name="usesNonSdkApi" id="0x0101058e" />
     <public type="attr" name="nonInteractiveUiTimeout" id="0x0101058f" />
     <public type="attr" name="isLightTheme" id="0x01010590" />
-    <!-- {@deprecated Use requiredSplitTypes instead.} -->
+    <!-- @deprecated Use requiredSplitTypes instead. -->
     <public type="attr" name="isSplitRequired" id="0x01010591" />
     <public type="attr" name="textLocale" id="0x01010592" />
     <public type="attr" name="settingsSliceUri" id="0x01010593" />
@@ -4146,5 +4146,152 @@
   <!-- @FlaggedApi(android.content.pm.Flags.FLAG_USE_PIA_V2)
       @hide @SystemApi -->
   <public type="bool" name="config_enableMaterialDesignInPackageInstaller" id="0x0111000c" />
+
+  <!-- ===============================================================
+    Resources added in version NEXT of the platform
+
+    NOTE: After this version of the platform is forked, changes cannot be made to the root
+    branch's groups for that release. Only merge changes to the forked platform branch.
+    =============================================================== -->
+  <eat-comment/>
+
+  <staging-public-group-final type="attr" first-id="0x01a20000">
+    <public name="removed_" />
+    <public name="removed_" />
+    <public name="removed_" />
+    <!-- @hide No longer needed. -->
+    <public name="removed_runInPccSandbox"/>
+    <!-- @FlaggedApi(android.service.dreams.Flags.FLAG_USER_SELECTABLE_METADATA)
+    @hide @SystemApi -->
+    <public name="userSelectable"/>
+    <!-- @FlaggedApi(android.os.Flags.FLAG_NATIVE_FRAMEWORK_PROTOTYPE) -->
+    <public name="nativeService"/>
+    <public name="removed_" />
+    <!-- @FlaggedApi(android.os.Flags.FLAG_NATIVE_APP_ZYGOTE) -->
+    <public name="zygotePreloadNativeLib"/>
+    <!-- @FlaggedApi(android.os.Flags.FLAG_NATIVE_APP_ZYGOTE) -->
+    <public name="zygotePreloadNativeFunc"/>
+    <!-- @FlaggedApi(android.service.voice.flags.Flags.FLAG_ENABLE_ASSIST_RESOURCE_ATTRIBUTES) -->
+    <public name="usesAssistData"/>
+    <!-- @FlaggedApi(android.service.voice.flags.Flags.FLAG_ENABLE_ASSIST_RESOURCE_ATTRIBUTES) -->
+    <public name="usesAssistScreenshots"/>
+    <!-- @FlaggedApi(android.service.voice.flags.Flags.FLAG_ENABLE_ASSIST_RESOURCE_ATTRIBUTES) -->
+    <public name="usesAssistStructureScreenContent"/>
+    <!-- @FlaggedApi(android.view.inputmethod.Flags.FLAG_IME_SUBTYPE_SHORT_LABEL) -->
+    <public name="shortLabel"/>
+    <!-- @FlaggedApi(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT) -->
+    <public name="privateComputeCore"/>
+    <!-- @FlaggedApi(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT) -->
+    <public name="backupAgentProcess"/>
+    <public name="removed_" />
+    <public name="removed_" />
+    <public name="removed_" />
+    <public name="removed_" />
+    <!-- @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE) -->
+    <public name="iconColor"/>
+    <!-- @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE) -->
+    <public name="suggestionBackgroundColor"/>
+    <!-- @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE) -->
+    <public name="suggestionCornerRadius"/>
+    <public name="removed_" />
+    <!-- @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE) -->
+    <public name="embeddedViewTheme"/>
+    <!-- @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE) -->
+    <public name="inlineSuggestion"/>
+  </staging-public-group-final>
+
+  <!-- @FlaggedApi(android.service.dreams.Flags.FLAG_USER_SELECTABLE_METADATA)
+  @hide @SystemApi -->
+  <public type="attr" name="userSelectable" id="0x010106ad" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_NATIVE_FRAMEWORK_PROTOTYPE) -->
+  <public type="attr" name="nativeService" id="0x010106ae" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_NATIVE_APP_ZYGOTE) -->
+  <public type="attr" name="zygotePreloadNativeLib" id="0x010106af" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_NATIVE_APP_ZYGOTE) -->
+  <public type="attr" name="zygotePreloadNativeFunc" id="0x010106b0" />
+  <!-- @FlaggedApi(android.service.voice.flags.Flags.FLAG_ENABLE_ASSIST_RESOURCE_ATTRIBUTES) -->
+  <public type="attr" name="usesAssistData" id="0x010106b1" />
+  <!-- @FlaggedApi(android.service.voice.flags.Flags.FLAG_ENABLE_ASSIST_RESOURCE_ATTRIBUTES) -->
+  <public type="attr" name="usesAssistScreenshots" id="0x010106b2" />
+  <!-- @FlaggedApi(android.service.voice.flags.Flags.FLAG_ENABLE_ASSIST_RESOURCE_ATTRIBUTES) -->
+  <public type="attr" name="usesAssistStructureScreenContent" id="0x010106b3" />
+  <!-- @FlaggedApi(android.view.inputmethod.Flags.FLAG_IME_SUBTYPE_SHORT_LABEL) -->
+  <public type="attr" name="shortLabel" id="0x010106b4" />
+  <!-- @FlaggedApi(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT) -->
+  <public type="attr" name="privateComputeCore" id="0x010106b5" />
+  <!-- @FlaggedApi(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT) -->
+  <public type="attr" name="backupAgentProcess" id="0x010106b6" />
+  <!-- @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE) -->
+  <public type="attr" name="iconColor" id="0x010106b7" />
+  <!-- @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE) -->
+  <public type="attr" name="suggestionBackgroundColor" id="0x010106b8" />
+  <!-- @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE) -->
+  <public type="attr" name="suggestionCornerRadius" id="0x010106b9" />
+  <!-- @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE) -->
+  <public type="attr" name="embeddedViewTheme" id="0x010106ba" />
+  <!-- @FlaggedApi(android.service.personalcontext.Flags.FLAG_ENABLE_PERSONAL_CONTEXT_SERVICE) -->
+  <public type="attr" name="inlineSuggestion" id="0x010106bb" />
+
+  <staging-public-group-final type="color" first-id="0x019d0000">
+    <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+    <public name="system_inverse_on_surface_light"/>
+    <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+    <public name="system_inverse_primary_light"/>
+    <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+    <public name="system_inverse_surface_light"/>
+    <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+    <public name="system_scrim_light"/>
+    <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+    <public name="system_shadow_light"/>
+    <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+    <public name="system_surface_tint_light"/>
+    <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+    <public name="system_inverse_on_surface_dark"/>
+    <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+    <public name="system_inverse_primary_dark"/>
+    <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+    <public name="system_inverse_surface_dark"/>
+    <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+    <public name="system_scrim_dark"/>
+    <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+    <public name="system_shadow_dark"/>
+    <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+    <public name="system_surface_tint_dark"/>
+    <public name="removed_" />
+    <public name="removed_" />
+    <public name="removed_" />
+    <public name="removed_" />
+    <public name="removed_" />
+    <public name="removed_" />
+    <public name="removed_" />
+    <public name="removed_" />
+    <public name="removed_" />
+    <public name="removed_" />
+  </staging-public-group-final>
+
+  <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+  <public type="color" name="system_inverse_on_surface_light" id="0x010600d2" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+  <public type="color" name="system_inverse_primary_light" id="0x010600d3" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+  <public type="color" name="system_inverse_surface_light" id="0x010600d4" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+  <public type="color" name="system_scrim_light" id="0x010600d5" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+  <public type="color" name="system_shadow_light" id="0x010600d6" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+  <public type="color" name="system_surface_tint_light" id="0x010600d7" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+  <public type="color" name="system_inverse_on_surface_dark" id="0x010600d8" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+  <public type="color" name="system_inverse_primary_dark" id="0x010600d9" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+  <public type="color" name="system_inverse_surface_dark" id="0x010600da" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+  <public type="color" name="system_scrim_dark" id="0x010600db" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+  <public type="color" name="system_shadow_dark" id="0x010600dc" />
+  <!-- @FlaggedApi(android.os.Flags.FLAG_MATERIAL_COLORS_10_2024)-->
+  <public type="color" name="system_surface_tint_dark" id="0x010600dd" />
 
 </resources>

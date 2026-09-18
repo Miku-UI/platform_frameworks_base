@@ -18,14 +18,18 @@ package com.android.systemui.model
 
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.scene.domain.interactor.sceneBackInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 
 val Kosmos.sceneContainerPlugin: SceneContainerPlugin by Fixture { fakeSceneContainerPlugin }
 val Kosmos.fakeSceneContainerPlugin by Fixture { FakeSceneContainerPlugin() }
 val Kosmos.sceneContainerPluginImpl: SceneContainerPlugin by Fixture {
     SceneContainerPluginImpl(
         sceneInteractor = { sceneInteractor },
+        sceneBackInteractor = { sceneBackInteractor },
         shadeDisplaysRepository = { fakeShadeDisplaysRepository },
+        shadeModeInteractor = { shadeModeInteractor },
     )
 }

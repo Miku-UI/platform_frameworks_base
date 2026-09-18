@@ -27,6 +27,7 @@ import static com.android.settingslib.media.MediaDevice.SUGGESTION_PROVIDER_DEVI
 import static com.android.settingslib.media.MediaDevice.SUGGESTION_PROVIDER_DEVICE_SUGGESTION_OTHER;
 import static com.android.settingslib.media.MediaDevice.SUGGESTION_PROVIDER_RLP;
 import static com.android.settingslib.media.MediaDevice.SUGGESTION_PROVIDER_UNSPECIFIED;
+import static com.android.settingslib.media.MediaDevice.SelectionBehavior.SELECTION_BEHAVIOR_NONE;
 import static com.android.settingslib.media.MediaDevice.SelectionBehavior.SELECTION_BEHAVIOR_TRANSFER;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -41,7 +42,11 @@ import android.media.MediaRoute2Info;
 import android.media.NearbyDevice;
 import android.media.RouteListingPreference;
 import android.os.Parcel;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 
+import com.android.media.flags.Flags;
 import com.android.settingslib.bluetooth.A2dpProfile;
 import com.android.settingslib.bluetooth.CachedBluetoothDevice;
 import com.android.settingslib.bluetooth.HearingAidProfile;
@@ -49,6 +54,7 @@ import com.android.settingslib.bluetooth.LocalBluetoothManager;
 import com.android.settingslib.bluetooth.LocalBluetoothProfileManager;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -78,6 +84,9 @@ public class MediaDeviceTest {
             createBtClass(BluetoothClass.Device.AUDIO_VIDEO_HEADPHONES);
     private final BluetoothClass mCarkitClass =
             createBtClass(BluetoothClass.Device.AUDIO_VIDEO_CAR_AUDIO);
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock
     private BluetoothDevice mDevice1;
@@ -570,6 +579,7 @@ public class MediaDeviceTest {
         assertThat(castMediaDevice.getSelectionBehavior()).isEqualTo(SELECTION_BEHAVIOR_GO_TO_APP);
     }
 
+    @DisableFlags(Flags.FLAG_MAKE_DEVICE_SELECTION_BEHAVIOUR_RESPECT_ROUTE_LISTING_PREFERENCE)
     @Test
     public void getSelectionBehavior_withoutRouteListingPreferenceItem_returnTransfer() {
         MediaDevice castMediaDevice = new ComplexMediaDevice(mContext,
@@ -578,6 +588,40 @@ public class MediaDeviceTest {
 
         assertThat(castMediaDevice.hasRouteListingPreferenceItem()).isFalse();
         assertThat(castMediaDevice.getSelectionBehavior()).isEqualTo(SELECTION_BEHAVIOR_TRANSFER);
+    }
+
+    @EnableFlags(Flags.FLAG_MAKE_DEVICE_SELECTION_BEHAVIOUR_RESPECT_ROUTE_LISTING_PREFERENCE)
+    @Test
+    public void getSelectionBehavior_withoutRLPItem_isTransferableTrue_returnTransfer() {
+        DynamicRouteAttributes dynamicRouteAttributes = new DynamicRouteAttributes(
+                /* transferable= */ true,
+                /* selected= */ true,
+                /* selectable= */ true,
+                /* deselectable= */ true);
+        MediaDevice castMediaDevice = new ComplexMediaDevice(mContext,
+                mRouteInfo1,
+                /* dynamicRouteAttributes= */ dynamicRouteAttributes,
+                /* item= */ null);
+
+        assertThat(castMediaDevice.hasRouteListingPreferenceItem()).isFalse();
+        assertThat(castMediaDevice.getSelectionBehavior()).isEqualTo(SELECTION_BEHAVIOR_TRANSFER);
+    }
+
+    @EnableFlags(Flags.FLAG_MAKE_DEVICE_SELECTION_BEHAVIOUR_RESPECT_ROUTE_LISTING_PREFERENCE)
+    @Test
+    public void getSelectionBehavior_withoutRLPItem_isTransferableFalse_returnNone() {
+        DynamicRouteAttributes dynamicRouteAttributes = new DynamicRouteAttributes(
+                /* transferable= */ false,
+                /* selected= */ false,
+                /* selectable= */ true,
+                /* deselectable= */ true);
+        MediaDevice castMediaDevice = new ComplexMediaDevice(mContext,
+                mRouteInfo1,
+                /* dynamicRouteAttributes= */ dynamicRouteAttributes,
+                /* item= */ null);
+
+        assertThat(castMediaDevice.hasRouteListingPreferenceItem()).isFalse();
+        assertThat(castMediaDevice.getSelectionBehavior()).isEqualTo(SELECTION_BEHAVIOR_NONE);
     }
 
     @Test

@@ -41,8 +41,12 @@ import java.lang.annotation.RetentionPolicy;
 public final class Capabilities {
 
     /** @hide */
-    @IntDef({ CAPABILITY_NOT_SUPPORTED, CAPABILITY_NOT_ALLOWED, CAPABILITY_NOT_APPLICABLE,
-            CAPABILITY_POSSESSED })
+    @IntDef({
+        CAPABILITY_NOT_SUPPORTED,
+        CAPABILITY_NOT_ALLOWED,
+        CAPABILITY_NOT_APPLICABLE,
+        CAPABILITY_POSSESSED
+    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface CapabilityState {}
 
@@ -54,19 +58,19 @@ public final class Capabilities {
 
     /**
      * Indicates that a capability is supported on this device, but not allowed for the user, e.g.
-     * if the capability relates to the ability to modify settings the user is not able to.
-     * This could be because of the user's type (e.g. maybe it applies to the primary user only) or
-     * device policy. Depending on the capability, this could mean the associated UI
-     * should be hidden, or displayed but disabled.
+     * if the capability relates to the ability to modify settings the user is not able to. This
+     * could be because of the user's type (e.g. maybe it applies to the primary user only) or
+     * device policy. Depending on the capability, this could mean the associated UI should be
+     * hidden, or displayed but disabled.
      */
     public static final int CAPABILITY_NOT_ALLOWED = 20;
 
     /**
-     * Indicates that a capability is possessed but not currently applicable, e.g. if the
-     * capability relates to the ability to modify settings, the user has the ability to modify
-     * it, but it is currently rendered irrelevant by other settings or other device state (flags,
-     * resource config, etc.). The associated UI may be hidden, disabled, or left visible (but
-     * ineffective) depending on requirements.
+     * Indicates that a capability is possessed but not currently applicable, e.g. if the capability
+     * relates to the ability to modify settings, the user has the ability to modify it, but it is
+     * currently rendered irrelevant by other settings or other device state (flags, resource
+     * config, etc.). The associated UI may be hidden, disabled, or left visible (but ineffective)
+     * depending on requirements.
      */
     public static final int CAPABILITY_NOT_APPLICABLE = 30;
 
@@ -74,5 +78,4 @@ public final class Capabilities {
     public static final int CAPABILITY_POSSESSED = 40;
 
     private Capabilities() {}
-
 }

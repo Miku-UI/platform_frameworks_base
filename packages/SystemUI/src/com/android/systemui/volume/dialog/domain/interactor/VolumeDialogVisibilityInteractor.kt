@@ -72,13 +72,13 @@ constructor(
     private val controller: VolumeDialogController,
     private val secureSettingsRepository: SecureSettingsRepository,
     private val shadeInteractor: ShadeInteractor,
-    desktopAudioTileDetailsFeatureInteractor: DesktopAudioTileDetailsFeatureInteractor,
+    expandedAudioTileDetailsFeatureInteractor: ExpandedAudioTileDetailsFeatureInteractor,
 ) {
 
     /** @see computeTimeout */
     private val defaultTimeout = 3.seconds
 
-    private val showVolumeSliderInQsShade = desktopAudioTileDetailsFeatureInteractor.isEnabled()
+    private val showVolumeSliderInQsShade = expandedAudioTileDetailsFeatureInteractor.isEnabled()
 
     @SuppressLint("SharedFlowCreation")
     private val mutableDismissDialogEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)

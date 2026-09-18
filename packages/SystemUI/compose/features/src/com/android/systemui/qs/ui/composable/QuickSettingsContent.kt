@@ -22,16 +22,20 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.dimensionResource
 import androidx.lifecycle.compose.LifecycleStartEffect
 import com.android.compose.animation.scene.ContentScope
+import com.android.compose.gesture.gesturesDisabled
+import com.android.compose.modifiers.thenIf
 import com.android.systemui.brightness.ui.compose.BrightnessSliderContainer
 import com.android.systemui.brightness.ui.compose.ContainerColors
 import com.android.systemui.compose.modifiers.sysuiResTag
@@ -42,28 +46,43 @@ import com.android.systemui.qs.panels.ui.compose.TileGrid
 import com.android.systemui.qs.shared.ui.QuickSettings.Elements
 import com.android.systemui.qs.ui.viewmodel.QuickSettingsContainerViewModel
 import com.android.systemui.res.R
+import kotlinx.coroutines.flow.filterNotNull
 
 @Composable
 fun ContentScope.QuickSettingsContent(
     viewModel: QuickSettingsContainerViewModel,
     mediaInRow: Boolean,
+    modifier: Modifier = Modifier,
+    mediaSquishiness: () -> Float = { 1f },
 ) {
     QuickSettingsPanelLayout(
         brightness =
             @Composable {
                 if (viewModel.isBrightnessSliderVisible) {
-                    BrightnessSliderContainer(
-                        viewModel.brightnessSliderViewModel,
-                        containerColors =
-                            ContainerColors(
-                                Color.Transparent,
-                                ContainerColors.defaultContainerColor,
-                            ),
-                        modifier =
-                            Modifier.padding(
-                                vertical = dimensionResource(id = R.dimen.qs_brightness_margin_top)
-                            ),
-                    )
+                    var isBrightnessSliderInteractable by remember { mutableStateOf(false) }
+                    LaunchedEffect(Unit) {
+                        snapshotFlow { Elements.QuickSettingsContent.currentAlpha() }
+                            .filterNotNull()
+                            .collect { isBrightnessSliderInteractable = it >= .5f }
+                    }
+                    Element(modifier = Modifier, key = Elements.BrightnessSlider) {
+                        BrightnessSliderContainer(
+                            viewModel.brightnessSliderViewModel,
+                            containerColors =
+                                ContainerColors(
+                                    Color.Transparent,
+                                    ContainerColors.defaultContainerColor,
+                                ),
+                            modifier =
+                                Modifier.padding(
+                                        vertical =
+                                            dimensionResource(id = R.dimen.qs_brightness_margin_top)
+                                    )
+                                    .thenIf(!isBrightnessSliderInteractable) {
+                                        Modifier.gesturesDisabled()
+                                    },
+                        )
+                    }
                 }
             },
         tiles =
@@ -77,23 +96,36 @@ fun ContentScope.QuickSettingsContent(
 
                 Box {
                     GridAnchor()
-                    TileGrid(viewModel.tileGridViewModel, listening = { listening })
+                    TileGrid(
+                        viewModel.tileGridViewModel,
+                        listening = { listening },
+                        modifier = Modifier.element(Elements.QuickSettingsTiles),
+                    )
                 }
             },
         media =
             @Composable {
-                Element(key = Media.Elements.mediaCarousel, modifier = Modifier) {
-                    Media(
-                        viewModelFactory = viewModel.mediaViewModelFactory,
-                        presentationStyle = MediaPresentationStyle.Default,
-                        behavior = QuickSettingsContainerViewModel.mediaUiBehavior,
-                        onDismissed = viewModel::onMediaSwipeToDismiss,
-                    )
+                if (isAlwaysComposedContentVisible()) {
+                    Element(key = Media.Elements.MediaCarousel, modifier = Modifier) {
+                        Media(
+                            viewModelFactory = viewModel.mediaViewModelFactory,
+                            presentationStyle = MediaPresentationStyle.Default,
+                            behavior = QuickSettingsContainerViewModel.mediaUiBehavior,
+                            onDismissed = viewModel::onMediaSwipeToDismiss,
+                            mediaSquishiness = mediaSquishiness,
+                            location = Media.Location.QS,
+                        )
+                    }
+                } else {
+                    // Add an empty box when QS content is not visible to keep the same number of
+                    // elements.
+                    Box(modifier = Modifier)
                 }
             },
         mediaInRow = mediaInRow,
         modifier =
-            Modifier.element(Elements.QuickSettingsContent)
+            modifier
+                .element(Elements.QuickSettingsContent)
                 .padding(horizontal = dimensionResource(id = R.dimen.qs_horizontal_margin))
                 .sysuiResTag("quick_settings_panel"),
     )
@@ -109,13 +141,13 @@ private fun QuickSettingsPanelLayout(
 ) {
     if (mediaInRow) {
         Column(
-            verticalArrangement = spacedBy(QuickSettingsShade.Dimensions.Padding),
+            verticalArrangement = spacedBy(QuickSettingsShade.Dimensions.VerticalPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = modifier,
         ) {
             brightness()
             Row(
-                horizontalArrangement = spacedBy(QuickSettingsShade.Dimensions.Padding),
+                horizontalArrangement = spacedBy(QuickSettingsShade.Dimensions.HorizontalPadding),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(modifier = Modifier.weight(1f)) { tiles() }
@@ -124,7 +156,7 @@ private fun QuickSettingsPanelLayout(
         }
     } else {
         Column(
-            verticalArrangement = spacedBy(QuickSettingsShade.Dimensions.Padding),
+            verticalArrangement = spacedBy(QuickSettingsShade.Dimensions.VerticalPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = modifier,
         ) {

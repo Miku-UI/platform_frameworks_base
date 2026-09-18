@@ -16,19 +16,22 @@
 
 package com.android.mediaframeworktest.unit;
 
-import com.android.mediaframeworktest.R;
-
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.ExifInterface;
 import android.os.Environment;
 import android.os.FileUtils;
-import android.test.AndroidTestCase;
-import android.util.Log;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
+import android.test.AndroidTestCase;
+import android.util.Log;
+
+import com.android.mediaframeworktest.R;
+
+import libcore.io.IoUtils;
+import libcore.io.Streams;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
@@ -36,13 +39,9 @@ import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.io.IOException;
-import java.io.OutputStream;
+import java.io.InputStream;
 import java.util.Objects;
-
-import libcore.io.IoUtils;
-import libcore.io.Streams;
 
 public class ExifInterfaceTest extends AndroidTestCase {
     private static final String TAG = ExifInterface.class.getSimpleName();
@@ -53,13 +52,28 @@ public class ExifInterfaceTest extends AndroidTestCase {
     // List of files.
     private static final String EXIF_BYTE_ORDER_II_JPEG = "image_exif_byte_order_ii.jpg";
     private static final String EXIF_BYTE_ORDER_MM_JPEG = "image_exif_byte_order_mm.jpg";
+    private static final String EXIF_WITH_FILL_1BYTE_JPEG = "image_exif_with_fill_1byte.jpg";
+    private static final String EXIF_WITH_FILL_2BYTES_JPEG = "image_exif_with_fill_2bytes.jpg";
     private static final String LG_G4_ISO_800_DNG = "lg_g4_iso_800.dng";
     private static final String VOLANTIS_JPEG = "volantis.jpg";
-    private static final int[] IMAGE_RESOURCES = new int[] {
-            R.raw.image_exif_byte_order_ii,  R.raw.image_exif_byte_order_mm, R.raw.lg_g4_iso_800,
-            R.raw.volantis };
-    private static final String[] IMAGE_FILENAMES = new String[] {
-            EXIF_BYTE_ORDER_II_JPEG, EXIF_BYTE_ORDER_MM_JPEG, LG_G4_ISO_800_DNG, VOLANTIS_JPEG };
+    private static final int[] IMAGE_RESOURCES =
+            new int[] {
+                R.raw.image_exif_byte_order_ii,
+                R.raw.image_exif_byte_order_mm,
+                R.raw.image_exif_with_fill_1byte,
+                R.raw.image_exif_with_fill_2bytes,
+                R.raw.lg_g4_iso_800,
+                R.raw.volantis
+            };
+    private static final String[] IMAGE_FILENAMES =
+            new String[] {
+                EXIF_BYTE_ORDER_II_JPEG,
+                EXIF_BYTE_ORDER_MM_JPEG,
+                EXIF_WITH_FILL_1BYTE_JPEG,
+                EXIF_WITH_FILL_2BYTES_JPEG,
+                LG_G4_ISO_800_DNG,
+                VOLANTIS_JPEG
+            };
 
     private static final String[] EXIF_TAGS = {
             ExifInterface.TAG_MAKE,
@@ -465,6 +479,16 @@ public class ExifInterfaceTest extends AndroidTestCase {
 
     public void testReadExifDataFromExifByteOrderMMJpeg() throws Throwable {
         testExifInterfaceForJpeg(EXIF_BYTE_ORDER_MM_JPEG, R.array.exifbyteordermm_jpg);
+    }
+
+    public void testReadExifDataFromExifWithFill1Byte() throws Throwable {
+        // 1 0xFF fill byte added before each marker.
+        testExifInterfaceForJpeg(EXIF_WITH_FILL_1BYTE_JPEG, R.array.exifwith1fillbyte_jpg);
+    }
+
+    public void testReadExifDataFromExifWithFill2Bytes() throws Throwable {
+        // 2 0xFF fill bytes added before each marker.
+        testExifInterfaceForJpeg(EXIF_WITH_FILL_2BYTES_JPEG, R.array.exifwith2fillbytes_jpg);
     }
 
     public void testReadExifDataFromLgG4Iso800Dng() throws Throwable {

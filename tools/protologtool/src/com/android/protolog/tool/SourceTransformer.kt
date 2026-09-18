@@ -47,7 +47,7 @@ import com.github.javaparser.printer.configuration.PrettyPrinterConfiguration
 
 class SourceTransformer(
     protoLogImplClassName: String,
-    private val protoLogCallProcessor: ProtoLogCallProcessor
+    private val protoLogCallProcessor: ProtoLogCallProcessor,
 ) {
     private val inlinePrinter: PrettyPrinter
     private val objectType = StaticJavaParser.parseClassOrInterfaceType("Object")
@@ -64,19 +64,24 @@ class SourceTransformer(
         code: String,
         path: String,
         packagePath: String,
-        compilationUnit: CompilationUnit =
-            StaticJavaParser.parse(code)
+        compilationUnit: CompilationUnit = StaticJavaParser.parse(code),
     ): Pair<String, Collection<CodeProcessingException>> {
         this.path = path
         this.packagePath = packagePath
         processedCode = code.split('\n').toMutableList()
         offsets = IntArray(processedCode.size)
-        val processingErrors = protoLogCallProcessor.process(compilationUnit, protoLogCallVisitor, otherCallVisitor, path)
+        val processingErrors =
+            protoLogCallProcessor.process(
+                compilationUnit,
+                protoLogCallVisitor,
+                otherCallVisitor,
+                path,
+            )
         return Pair(processedCode.joinToString("\n"), processingErrors)
     }
 
     private val protoLogImplClassNode =
-            StaticJavaParser.parseExpression<FieldAccessExpr>(protoLogImplClassName)
+        StaticJavaParser.parseExpression<FieldAccessExpr>(protoLogImplClassName)
     private val protoLogImplCacheClassNode =
         StaticJavaParser.parseExpression<FieldAccessExpr>("$protoLogImplClassName.Cache")
     private var processedCode: MutableList<String> = mutableListOf()
@@ -86,39 +91,42 @@ class SourceTransformer(
     /** The path of the file being processed, relative to the root package */
     private var packagePath: String = ""
 
-    private val protoLogCallVisitor = object : ProtoLogCallVisitor {
-        override fun processCall(
-            call: MethodCallExpr,
-            messageString: String,
-            level: LogLevel,
-            group: LogGroup,
-            lineNumber: Int,
-        ) {
-            validateCall(call)
-            val processedCallStatement =
-                createProcessedCallStatement(call, group, level, messageString)
-            val parentStmt = call.parentNode.get() as ExpressionStmt
-            injectProcessedCallStatementInCode(processedCallStatement, parentStmt)
+    private val protoLogCallVisitor =
+        object : ProtoLogCallVisitor {
+            override fun processCall(
+                call: MethodCallExpr,
+                messageString: String,
+                level: LogLevel,
+                group: LogGroup,
+                lineNumber: Int,
+            ) {
+                validateCall(call)
+                val processedCallStatement =
+                    createProcessedCallStatement(call, group, level, messageString)
+                val parentStmt = call.parentNode.get() as ExpressionStmt
+                injectProcessedCallStatementInCode(processedCallStatement, parentStmt)
+            }
         }
-    }
 
     private fun validateCall(call: MethodCallExpr) {
         // Input format: ProtoLog.e(GROUP, "msg %d", arg)
         if (!call.parentNode.isPresent) {
             // Should never happen
-            throw RuntimeException("Unable to process log call $call " +
-                    "- no parent node in AST")
+            throw RuntimeException("Unable to process log call $call " + "- no parent node in AST")
         }
         if (call.parentNode.get() !is ExpressionStmt) {
             // Should never happen
-            throw RuntimeException("Unable to process log call $call " +
-                    "- parent node in AST is not an ExpressionStmt")
+            throw RuntimeException(
+                "Unable to process log call $call " +
+                    "- parent node in AST is not an ExpressionStmt"
+            )
         }
         val parentStmt = call.parentNode.get() as ExpressionStmt
         if (!parentStmt.parentNode.isPresent) {
             // Should never happen
-            throw RuntimeException("Unable to process log call $call " +
-                    "- no grandparent node in AST")
+            throw RuntimeException(
+                "Unable to process log call $call " + "- no grandparent node in AST"
+            )
         }
     }
 
@@ -126,7 +134,7 @@ class SourceTransformer(
         call: MethodCallExpr,
         group: LogGroup,
         level: LogLevel,
-        messageString: String
+        messageString: String,
     ): Statement {
         val hash = CodeUtils.hash(packagePath, messageString, level, group)
 
@@ -142,14 +150,15 @@ class SourceTransformer(
         // Insert bitmap representing which Number parameters are to be considered as
         // floating point numbers.
         // Out: ProtoLog.e(GROUP, 1234, 0, args)
-        newCall.arguments.add(2, IntegerLiteralExpr(typeMask))
+        newCall.arguments.add(2, LongLiteralExpr("${typeMask}L"))
         // Replace call to a stub method with an actual implementation.
         // Out: ProtoLogImpl.e(GROUP, 1234, 0, args)
         newCall.setScope(protoLogImplClassNode)
         if (argTypes.size != call.arguments.size - 2) {
             throw InvalidProtoLogCallException(
-                "Number of arguments (${argTypes.size} does not match format" +
-                        " string in: $call", ParsingContext(path, call))
+                "Number of arguments (${argTypes.size} does not match format" + " string in: $call",
+                ParsingContext(path, call),
+            )
         }
         val argsOffset = 3
         val blockStmt = BlockStmt()
@@ -159,8 +168,12 @@ class SourceTransformer(
             // Out: long protoLogParam0 = arg
             argTypes.forEachIndexed { idx, type ->
                 val varName = "protoLogParam$idx"
-                val declaration = VariableDeclarator(getASTTypeForDataType(type), varName,
-                    getConversionForType(type)(newCall.arguments[idx + argsOffset].clone()))
+                val declaration =
+                    VariableDeclarator(
+                        getASTTypeForDataType(type),
+                        varName,
+                        getConversionForType(type)(newCall.arguments[idx + argsOffset].clone()),
+                    )
                 blockStmt.addStatement(ExpressionStmt(VariableDeclarationExpr(declaration)))
                 newCall.setArgument(idx + argsOffset, NameExpr(SimpleName(varName)))
             }
@@ -172,66 +185,89 @@ class SourceTransformer(
         }
         blockStmt.addStatement(ExpressionStmt(newCall))
 
-        val isLogEnabled = ArrayAccessExpr()
-            .setName(NameExpr("$protoLogImplCacheClassNode.${group.name}_enabled"))
-            .setIndex(IntegerLiteralExpr(level.ordinal))
+        val isLogEnabled =
+            ArrayAccessExpr()
+                .setName(NameExpr("$protoLogImplCacheClassNode.${group.name}_enabled"))
+                .setIndex(IntegerLiteralExpr(level.ordinal))
 
         return IfStmt(isLogEnabled, blockStmt, null)
     }
 
     private fun injectProcessedCallStatementInCode(
         processedCallStatement: Statement,
-        parentStmt: ExpressionStmt
+        parentStmt: ExpressionStmt,
     ) {
         // Inline the new statement.
         val printedBlockStmt = inlinePrinter.print(processedCallStatement)
         // Append blank lines to preserve line numbering in file (to allow debugging)
         val parentRange = parentStmt.range.get()
         val newLines = parentRange.end.line - parentRange.begin.line
-        val newStmt = printedBlockStmt.substringBeforeLast('}') + ("\n".repeat(newLines)) + '}'
+
+        val contentBeforeBrace = printedBlockStmt.substringBeforeLast('}')
+
+        // Trim the trailing space only if the original statement spanned multiple lines.
+        val trimmedContent = if (newLines > 0) {
+            contentBeforeBrace.trimEnd()
+        } else {
+            contentBeforeBrace
+        }
+
+        val newStmt = trimmedContent + ("\n".repeat(newLines)) + '}'
         // pre-workaround code, see explanation below
 
-        /** Workaround for a bug in JavaParser (AST tree invalid after replacing a node when using
-         * LexicalPreservingPrinter (https://github.com/javaparser/javaparser/issues/2290).
-         * Replace the code below with the one commended-out above one the issue is resolved. */
+        /**
+         * Workaround for a bug in JavaParser (AST tree invalid after replacing a node when using
+         * LexicalPreservingPrinter (https://github.com/javaparser/javaparser/issues/2290). Replace
+         * the code below with the one commended-out above one the issue is resolved.
+         */
         if (!parentStmt.range.isPresent) {
             // Should never happen
-            throw RuntimeException("Unable to process log call in $parentStmt " +
-                    "- unable to replace the call.")
+            throw RuntimeException(
+                "Unable to process log call in $parentStmt " + "- unable to replace the call."
+            )
         }
         val range = parentStmt.range.get()
         val begin = range.begin.line - 1
         val oldLines = processedCode.subList(begin, range.end.line)
         val oldCode = oldLines.joinToString("\n")
-        val newCode = oldCode.replaceRange(
-            offsets[begin] + range.begin.column - 1,
-            oldCode.length - oldLines.lastOrNull()!!.length +
-                    range.end.column + offsets[range.end.line - 1], newStmt)
+        val newCode =
+            oldCode.replaceRange(
+                offsets[begin] + range.begin.column - 1,
+                oldCode.length - oldLines.lastOrNull()!!.length +
+                    range.end.column +
+                    offsets[range.end.line - 1],
+                newStmt,
+            )
         newCode.split("\n").forEachIndexed { idx, line ->
             offsets[begin + idx] += line.length - processedCode[begin + idx].length
             processedCode[begin + idx] = line
         }
     }
 
-    private val otherCallVisitor = object : MethodCallVisitor {
-        override fun processCall(call: MethodCallExpr) {
-            val newCall = call.clone()
-            newCall.setScope(protoLogImplClassNode)
+    private val otherCallVisitor =
+        object : MethodCallVisitor {
+            override fun processCall(call: MethodCallExpr) {
+                val newCall = call.clone()
+                newCall.setScope(protoLogImplClassNode)
 
-            val range = call.range.get()
-            val begin = range.begin.line - 1
-            val oldLines = processedCode.subList(begin, range.end.line)
-            val oldCode = oldLines.joinToString("\n")
-            val newCode = oldCode.replaceRange(
-                offsets[begin] + range.begin.column - 1,
-                oldCode.length - oldLines.lastOrNull()!!.length +
-                        range.end.column + offsets[range.end.line - 1], newCall.toString())
-            newCode.split("\n").forEachIndexed { idx, line ->
-                offsets[begin + idx] += line.length - processedCode[begin + idx].length
-                processedCode[begin + idx] = line
+                val range = call.range.get()
+                val begin = range.begin.line - 1
+                val oldLines = processedCode.subList(begin, range.end.line)
+                val oldCode = oldLines.joinToString("\n")
+                val newCode =
+                    oldCode.replaceRange(
+                        offsets[begin] + range.begin.column - 1,
+                        oldCode.length - oldLines.lastOrNull()!!.length +
+                            range.end.column +
+                            offsets[range.end.line - 1],
+                        newCall.toString(),
+                    )
+                newCode.split("\n").forEachIndexed { idx, line ->
+                    offsets[begin + idx] += line.length - processedCode[begin + idx].length
+                    processedCode[begin + idx] = line
+                }
             }
         }
-    }
 
     companion object {
         private val stringType: ClassOrInterfaceType =
@@ -253,9 +289,12 @@ class SourceTransformer(
         fun getConversionForType(type: Int): (Expression) -> Expression {
             return when (type) {
                 LogDataType.STRING -> { expr ->
-                    MethodCallExpr(TypeExpr(StaticJavaParser.parseClassOrInterfaceType("String")),
-                        SimpleName("valueOf"), NodeList(expr))
-                }
+                        MethodCallExpr(
+                            TypeExpr(StaticJavaParser.parseClassOrInterfaceType("String")),
+                            SimpleName("valueOf"),
+                            NodeList(expr),
+                        )
+                    }
                 else -> { expr -> expr }
             }
         }

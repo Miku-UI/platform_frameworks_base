@@ -34,30 +34,31 @@ import com.android.systemui.keyguard.data.quickaffordance.KeyguardQuickAffordanc
 import com.android.systemui.keyguard.data.quickaffordance.KeyguardQuickAffordanceConfig.LockScreenState
 import com.android.systemui.keyguard.data.repository.KeyguardQuickAffordanceRepository
 import com.android.systemui.notetask.LaunchNotesRoleSettingsTrampolineActivity.Companion.ACTION_MANAGE_NOTES_ROLE_FROM_QUICK_AFFORDANCE
+import com.android.systemui.notetask.LockscreenNoteTakingAvailability
 import com.android.systemui.notetask.NoteTaskController
 import com.android.systemui.notetask.NoteTaskEntryPoint
 import com.android.systemui.notetask.NoteTaskInfoResolver
+import com.android.systemui.notetask.NoteTaskUserResolver
 import com.android.systemui.res.R
 import com.android.systemui.stylus.StylusManager
 import com.android.systemui.util.concurrency.FakeExecutor
-import com.android.systemui.util.mockito.any
-import com.android.systemui.util.mockito.eq
-import com.android.systemui.util.mockito.mock
-import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
-import org.mockito.Mockito.anyString
-import org.mockito.Mockito.spy
-import org.mockito.Mockito.verify
-import org.mockito.Mockito.`when`
 import org.mockito.MockitoSession
+import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.spy
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import org.mockito.quality.Strictness
 
 /** atest SystemUITests:NoteTaskQuickAffordanceConfigTest */
@@ -71,6 +72,8 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
     @Mock lateinit var userManager: UserManager
     @Mock lateinit var roleManager: RoleManager
     @Mock lateinit var packageManager: PackageManager
+    @Mock lateinit var lockscreenNoteTakingAvailability: LockscreenNoteTakingAvailability
+    @Mock lateinit var userResolver: NoteTaskUserResolver
 
     private lateinit var mockitoSession: MockitoSession
 
@@ -78,32 +81,30 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
     private val spiedResources = spy(spiedContext.resources)
 
     @Before
-    fun setUp() {
+    fun setUp(): Unit = runBlocking {
         mockitoSession =
             ExtendedMockito.mockitoSession()
-                .initMocks(this)
+                .initMocks(this@NoteTaskQuickAffordanceConfigTest)
                 .mockStatic(InputSettings::class.java)
                 .strictness(Strictness.LENIENT)
                 .startMocking()
 
         whenever(
                 packageManager.getApplicationInfoAsUser(
-                    anyString(),
-                    any(ApplicationInfoFlags::class.java),
-                    any(UserHandle::class.java),
+                    any(),
+                    any<ApplicationInfoFlags>(),
+                    any<UserHandle>(),
                 )
             )
             .thenReturn(ApplicationInfo())
-        whenever(controller.getUserForHandlingNotesTaking(any())).thenReturn(UserHandle.SYSTEM)
-        whenever(
-                roleManager.getRoleHoldersAsUser(
-                    eq(RoleManager.ROLE_NOTES),
-                    any(UserHandle::class.java),
-                )
-            )
+        whenever(userResolver.getUserForHandlingNoteTaking(any())).thenReturn(UserHandle.SYSTEM)
+        whenever(roleManager.getRoleHoldersAsUser(eq(RoleManager.ROLE_NOTES), any<UserHandle>()))
             .thenReturn(listOf("com.google.test.notes"))
+        whenever(lockscreenNoteTakingAvailability.isLockscreenNoteTakingEnabled()).thenReturn(true)
+        whenever(lockscreenNoteTakingAvailability.shouldShowNotesInLockscreenShortcutPicker())
+            .thenReturn(true)
 
-        `when`(spiedContext.resources).thenReturn(spiedResources)
+        whenever(spiedContext.resources).thenReturn(spiedResources)
     }
 
     @After
@@ -115,10 +116,12 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
         NoteTaskQuickAffordanceConfig(
             context = spiedContext,
             controller = controller,
-            stylusManager = stylusManager,
+            stylusManager = { stylusManager },
             userManager = userManager,
             keyguardMonitor = mock(),
             lazyRepository = { repository },
+            lockscreenNoteTakingAvailability = lockscreenNoteTakingAvailability,
+            userResolver = userResolver,
             isEnabled = isEnabled,
             backgroundExecutor = FakeExecutor(FakeSystemClock()),
             roleManager = roleManager,
@@ -138,7 +141,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
     // region lockScreenState
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUnused_userLocked_customizationDisabled_notesLockScreenShortcutNotSelected_shouldEmitHidden() =
+    fun lockScreenState_stylusUnused_userLocked_customizationDisabled_notesLockScreenShortcutNotSelected_lockscreenNoteTakingEnabled_shouldEmitHidden() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -146,6 +149,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(false)
                 .setLockScreenCustomizationEnabled(false)
                 .setConfigSelections()
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -154,7 +158,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUnused_userLocked_customizationDisabled_notesLockScreenShortcutSelected_shouldEmitHidden() =
+    fun lockScreenState_stylusUnused_userLocked_customizationDisabled_notesLockScreenShortcutSelected_lockscreenNoteTakingEnabled_shouldEmitHidden() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -162,6 +166,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(false)
                 .setLockScreenCustomizationEnabled(false)
                 .setConfigSelections(underTest)
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -170,7 +175,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUnused_userLocked_customizationEnabled_notesLockScreenShortcutNotSelected_shouldEmitHidden() =
+    fun lockScreenState_stylusUnused_userLocked_customizationEnabled_notesLockScreenShortcutNotSelected_lockscreenNoteTakingEnabled_shouldEmitHidden() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -178,6 +183,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(false)
                 .setLockScreenCustomizationEnabled(true)
                 .setConfigSelections()
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -186,7 +192,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUnused_userLocked_customizationEnabled_notesLockScreenShortcutSelected_shouldEmitHidden() =
+    fun lockScreenState_stylusUnused_userLocked_customizationEnabled_notesLockScreenShortcutSelected_lockscreenNoteTakingEnabled_shouldEmitHidden() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -194,6 +200,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(false)
                 .setLockScreenCustomizationEnabled(true)
                 .setConfigSelections(underTest)
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -202,7 +209,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUnused_userUnlocked_customizationDisabled_notesLockScreenShortcutNotSelected_shouldEmitHidden() =
+    fun lockScreenState_stylusUnused_userUnlocked_customizationDisabled_notesLockScreenShortcutNotSelected_lockscreenNoteTakingEnabled_shouldEmitHidden() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -210,6 +217,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(true)
                 .setLockScreenCustomizationEnabled(false)
                 .setConfigSelections()
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -218,7 +226,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUnused_userUnlocked_customizationDisabled_notesLockScreenShortcutSelected_shouldEmitHidden() =
+    fun lockScreenState_stylusUnused_userUnlocked_customizationDisabled_notesLockScreenShortcutSelected_lockscreenNoteTakingEnabled_shouldEmitHidden() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -226,6 +234,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(true)
                 .setLockScreenCustomizationEnabled(false)
                 .setConfigSelections(underTest)
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -234,7 +243,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUnused_userUnlocked_customizationEnabled_notesLockScreenShortcutNotSelected_shouldEmitHidden() =
+    fun lockScreenState_stylusUnused_userUnlocked_customizationEnabled_notesLockScreenShortcutNotSelected_lockscreenNoteTakingEnabled_shouldEmitHidden() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -242,6 +251,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(true)
                 .setLockScreenCustomizationEnabled(true)
                 .setConfigSelections()
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -250,7 +260,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUnused_userUnlocked_customizationEnabled_notesLockScreenShortcutSelected_shouldEmitVisible() =
+    fun lockScreenState_stylusUnused_userUnlocked_customizationEnabled_notesLockScreenShortcutSelected_lockscreenNoteTakingEnabled_shouldEmitVisible() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -258,6 +268,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(true)
                 .setLockScreenCustomizationEnabled(true)
                 .setConfigSelections(underTest)
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -266,7 +277,27 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUsed_userLocked_customizationDisabled_notesLockScreenShortcutNotSelected_shouldEmitHidden() =
+    fun lockScreenState_stylusUnused_userUnlocked_customizationEnabled_notesLockScreenShortcutSelected_lockscreenNoteTakingDisabled_shouldEmitHidden() =
+        runTest {
+            val underTest = createUnderTest()
+            TestConfig()
+                .setStylusEverUsed(false)
+                .setUserUnlocked(true)
+                .setLockScreenCustomizationEnabled(true)
+                .setConfigSelections(underTest)
+                .setLockScreenNoteTakingEnabled(false)
+
+            whenever(lockscreenNoteTakingAvailability.isLockscreenNoteTakingEnabled())
+                .thenReturn(false)
+
+            val actual by collectLastValue(underTest.lockScreenState)
+
+            assertThat(actual).isEqualTo(LockScreenState.Hidden)
+        }
+
+    @Suppress("ktlint:standard:max-line-length")
+    @Test
+    fun lockScreenState_stylusUsed_userLocked_customizationDisabled_notesLockScreenShortcutNotSelected_lockscreenNoteTakingEnabled_shouldEmitHidden() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -274,6 +305,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(false)
                 .setLockScreenCustomizationEnabled(false)
                 .setConfigSelections()
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -282,7 +314,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUsed_userLocked_customizationDisabled_notesLockScreenShortcutSelected_shouldEmitHidden() =
+    fun lockScreenState_stylusUsed_userLocked_customizationDisabled_notesLockScreenShortcutSelected_lockscreenNoteTakingEnabled_shouldEmitHidden() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -290,6 +322,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(false)
                 .setLockScreenCustomizationEnabled(false)
                 .setConfigSelections(underTest)
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -298,7 +331,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUsed_userLocked_customizationEnabled_notesLockScreenShortcutNotSelected_shouldEmitHidden() =
+    fun lockScreenState_stylusUsed_userLocked_customizationEnabled_notesLockScreenShortcutNotSelected_lockscreenNoteTakingEnabled_shouldEmitHidden() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -306,6 +339,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(false)
                 .setLockScreenCustomizationEnabled(true)
                 .setConfigSelections()
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -314,7 +348,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUsed_userLocked_customizationEnabled_notesLockScreenShortcutSelected_shouldEmitHidden() =
+    fun lockScreenState_stylusUsed_userLocked_customizationEnabled_notesLockScreenShortcutSelected_lockscreenNoteTakingEnabled_shouldEmitHidden() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -322,6 +356,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(false)
                 .setLockScreenCustomizationEnabled(true)
                 .setConfigSelections(underTest)
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -330,7 +365,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUsed_userUnlocked_customizationDisabled_notesLockScreenShortcutNotSelected_shouldEmitVisible() =
+    fun lockScreenState_stylusUsed_userUnlocked_customizationDisabled_notesLockScreenShortcutNotSelected_lockscreenNoteTakingEnabled_shouldEmitVisible() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -338,6 +373,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(true)
                 .setLockScreenCustomizationEnabled(false)
                 .setConfigSelections()
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -346,7 +382,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUsed_userUnlocked_customizationDisabled_notesLockScreenShortcutSelected_shouldEmitVisible() =
+    fun lockScreenState_stylusUsed_userUnlocked_customizationDisabled_notesLockScreenShortcutSelected_lockscreenNoteTakingEnabled_shouldEmitVisible() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -354,6 +390,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(true)
                 .setLockScreenCustomizationEnabled(false)
                 .setConfigSelections(underTest)
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -362,7 +399,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUsed_userUnlocked_customizationEnabled_notesLockScreenShortcutNotSelected_shouldEmitHidden() =
+    fun lockScreenState_stylusUsed_userUnlocked_customizationEnabled_notesLockScreenShortcutNotSelected_lockscreenNoteTakingEnabled_shouldEmitHidden() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -370,6 +407,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(true)
                 .setLockScreenCustomizationEnabled(true)
                 .setConfigSelections()
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -378,7 +416,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
 
     @Suppress("ktlint:standard:max-line-length")
     @Test
-    fun lockScreenState_stylusUsed_userUnlocked_customizationEnabled_notesLockScreenShortcutSelected_shouldEmitVisible() =
+    fun lockScreenState_stylusUsed_userUnlocked_customizationEnabled_notesLockScreenShortcutSelected_lockscreenNoteTakingEnabled_shouldEmitVisible() =
         runTest {
             val underTest = createUnderTest()
             TestConfig()
@@ -386,6 +424,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
                 .setUserUnlocked(true)
                 .setLockScreenCustomizationEnabled(true)
                 .setConfigSelections(underTest)
+                .setLockScreenNoteTakingEnabled(true)
 
             val actual by collectLastValue(underTest.lockScreenState)
 
@@ -415,12 +454,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
     @Test
     fun getPickerScreenState_noDefaultNoteAppSet_shouldReturnDisabled() = runTest {
         val underTest = createUnderTest(isEnabled = true)
-        whenever(
-                roleManager.getRoleHoldersAsUser(
-                    eq(RoleManager.ROLE_NOTES),
-                    any(UserHandle::class.java),
-                )
-            )
+        whenever(roleManager.getRoleHoldersAsUser(eq(RoleManager.ROLE_NOTES), any<UserHandle>()))
             .thenReturn(emptyList())
 
         val pickerScreenState = underTest.getPickerScreenState()
@@ -435,6 +469,17 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
         assertThat(disabled.actionIntent?.`package`).isEqualTo(context.packageName)
     }
 
+    @Test
+    fun getPickerScreenState_lockscreenNoteTakingDisabled_shouldReturnUnavailableOnDevice() =
+        runTest {
+            val underTest = createUnderTest(isEnabled = true)
+            whenever(lockscreenNoteTakingAvailability.shouldShowNotesInLockscreenShortcutPicker())
+                .thenReturn(false)
+
+            assertThat(underTest.getPickerScreenState())
+                .isEqualTo(KeyguardQuickAffordanceConfig.PickerScreenState.UnavailableOnDevice)
+        }
+
     // endregion
 
     private inner class TestConfig {
@@ -448,7 +493,7 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
         }
 
         fun setLockScreenCustomizationEnabled(value: Boolean) = also {
-            `when`(spiedResources.getBoolean(R.bool.custom_lockscreen_shortcuts_enabled))
+            whenever(spiedResources.getBoolean(R.bool.custom_lockscreen_shortcuts_enabled))
                 .thenReturn(value)
         }
 
@@ -457,6 +502,13 @@ internal class NoteTaskQuickAffordanceConfigTest : SysuiTestCase() {
             val configSnapshots = values.toList()
             val map = mapOf(slotKey to configSnapshots)
             whenever(repository.selections).thenReturn(MutableStateFlow(map))
+        }
+
+        fun setLockScreenNoteTakingEnabled(value: Boolean) = also {
+            runBlocking {
+                whenever(lockscreenNoteTakingAvailability.isLockscreenNoteTakingEnabled())
+                    .thenReturn(value)
+            }
         }
     }
 }

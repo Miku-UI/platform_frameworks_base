@@ -22,6 +22,7 @@ import android.content.pm.ConfigurationInfo
 import android.content.pm.FeatureGroupInfo
 import android.content.pm.FeatureInfo
 import android.content.pm.PackageManager
+import android.content.pm.SignedPackage
 import android.content.pm.SigningDetails
 import android.net.Uri
 import android.os.Bundle
@@ -35,6 +36,7 @@ import com.android.internal.R
 import com.android.internal.pm.parsing.pkg.AndroidPackageLegacyUtils
 import com.android.internal.pm.parsing.pkg.PackageImpl
 import com.android.internal.pm.pkg.component.ParsedActivityImpl
+import com.android.internal.pm.pkg.component.ParsedAllowComponentAccessPolicyImpl
 import com.android.internal.pm.pkg.component.ParsedApexSystemServiceImpl
 import com.android.internal.pm.pkg.component.ParsedAttributionImpl
 import com.android.internal.pm.pkg.component.ParsedComponentImpl
@@ -49,15 +51,17 @@ import com.android.internal.pm.pkg.component.ParsedUsesPermissionImpl
 import com.android.server.pm.pkg.AndroidPackage
 import com.android.server.testutils.mockThrowOnUnmocked
 import com.android.server.testutils.whenever
-import org.junit.Rule
 import java.security.KeyPairGenerator
 import java.security.PublicKey
 import java.util.UUID
 import kotlin.contracts.ExperimentalContracts
+import org.junit.Rule
 
 @ExperimentalContracts
 @EnableFlags(android.content.pm.Flags.FLAG_INCLUDE_FEATURE_FLAGS_IN_PACKAGE_CACHER,
-        android.permission.flags.Flags.FLAG_PURPOSE_DECLARATION_ENABLED)
+    android.permission.flags.Flags.FLAG_PPD_INSTALL_TIME_ENABLED,
+    android.os.Flags.FLAG_NATIVE_APP_ZYGOTE
+)
 class AndroidPackageTest : ParcelableComponentTest(AndroidPackage::class, PackageImpl::class) {
 
     @get:Rule
@@ -229,6 +233,8 @@ class AndroidPackageTest : ParcelableComponentTest(AndroidPackage::class, Packag
         AndroidPackage::getUid,
         AndroidPackage::getVersionName,
         AndroidPackage::getZygotePreloadName,
+        AndroidPackage::getZygotePreloadNativeLib,
+        AndroidPackage::getZygotePreloadNativeFunc,
         AndroidPackage::isAllowAudioPlaybackCapture,
         AndroidPackage::isBackupAllowed,
         AndroidPackage::isClearUserDataAllowed,
@@ -293,6 +299,7 @@ class AndroidPackageTest : ParcelableComponentTest(AndroidPackage::class, Packag
         AndroidPackage::isAllowCrossUidActivitySwitchFromBelow,
         AndroidPackage::getIntentMatchingFlags,
         AndroidPackage::getPageSizeAppCompatFlags,
+        AndroidPackage::getBackupAgentProcess,
     )
 
     override fun extraParams() = listOf(
@@ -324,8 +331,8 @@ class AndroidPackageTest : ParcelableComponentTest(AndroidPackage::class, Packag
             true
         ),
         getSetByValue(
-            AndroidPackage::shouldRunInPccSandbox,
-            PackageImpl::setRunInPccSandbox,
+            AndroidPackage::hasPccComponents,
+            PackageImpl::setHasPccComponents,
             true
         ),
         getSetByValue2(
@@ -354,6 +361,24 @@ class AndroidPackageTest : ParcelableComponentTest(AndroidPackage::class, Packag
                 )
             } }
         ),
+        getSetByValue(
+            AndroidPackage::getParsedAllowComponentAccessPolicy,
+            PackageImpl::setParsedAllowComponentAccessPolicy,
+            ParsedAllowComponentAccessPolicyImpl(
+                listOf(
+                    SignedPackage("com.test.package", "TEST_CERT_DIGEST".toByteArray())
+                )
+            ),
+            compare = { first, second ->
+                equalBy(
+                    first, second,
+                    { it.parsedAllowlistedSignedPackages.size },
+                    { it.parsedAllowlistedSignedPackages.get(0)?.packageName },
+                    {
+                        val digest = it.parsedAllowlistedSignedPackages.get(0)?.certificateDigest
+                        digest.contentToString()
+                    })
+            }),
         getSetByValue2(
             AndroidPackage::getKeySetMapping,
             PackageImpl::addKeySet,
@@ -493,12 +518,14 @@ class AndroidPackageTest : ParcelableComponentTest(AndroidPackage::class, Packag
         getSetByValue(
             AndroidPackage::getUsesPermissionMapping,
             PackageImpl::addUsesPermission,
-            mapOf("test.USES_PERMISSION_MAPPING" to ParsedUsesPermissionImpl("test.USES_PERMISSION_MAPPING", 0, setOf())),
+            mapOf("test.USES_PERMISSION_MAPPING" to ParsedUsesPermissionImpl("test.USES_PERMISSION_MAPPING", 0, 0, setOf(), setOf())),
             transformSet = {
                 ParsedUsesPermissionImpl(
                         "test.USES_PERMISSION_MAPPING",
                         0,
+                        0,
                         setOf(),
+                        setOf()
                     )
             },
             compare = { first, second ->
@@ -592,34 +619,6 @@ class AndroidPackageTest : ParcelableComponentTest(AndroidPackage::class, Packag
             "isSystemExt",
             PackageImpl::setSystemExt,
             true
-        ),
-        getSetByValue(
-            AndroidPackage::getAlternateLauncherIconResIds,
-            PackageImpl::setAlternateLauncherIconResIds,
-            intArrayOf(3, 5, 7),
-            compare = { first, second ->
-                equalBy(
-                    first, second,
-                    { it.size },
-                    { it[0] },
-                    { it[1] },
-                    { it[2] }
-                )
-            }
-        ),
-        getSetByValue(
-            AndroidPackage::getAlternateLauncherLabelResIds,
-            PackageImpl::setAlternateLauncherLabelResIds,
-            intArrayOf(3, 5, 7),
-            compare = { first, second ->
-                equalBy(
-                    first, second,
-                    { it.size },
-                    { it[0] },
-                    { it[1] },
-                    { it[2] }
-                )
-            }
         ),
     )
 

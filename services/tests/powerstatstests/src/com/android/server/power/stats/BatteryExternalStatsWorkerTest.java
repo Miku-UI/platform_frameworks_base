@@ -55,7 +55,7 @@ public class BatteryExternalStatsWorkerTest {
 
         mHandler = new Handler(Looper.getMainLooper());
         BatteryStatsImpl batteryStats = new BatteryStatsImpl(
-                new BatteryStatsImpl.BatteryStatsConfig.Builder().build(), Clock.SYSTEM_CLOCK,
+                new BatteryStatsConfig.Builder().build(), Clock.SYSTEM_CLOCK,
                 new MonotonicClock(0, Clock.SYSTEM_CLOCK), null,
                 mHandler, null, null, null,
                 new PowerProfile(context, true /* forTest */), buildScalingPolicies(),

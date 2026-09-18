@@ -16,10 +16,14 @@
 
 package com.android.systemui.screencapture.common.ui.compose
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -69,6 +73,33 @@ class RadioButtonGroupTest : SysuiTestCase() {
 
         composeTestRule.setContent { RadioButtonGroup(items = testItems) }
 
-        composeTestRule.onNodeWithContentDescription(testLabel).assertIsDisplayed()
+        composeTestRule.onNodeWithText(testLabel).assertIsDisplayed()
+    }
+
+    @Test
+    fun radiobuttonGroup_withStateDescription_setsSemantics() {
+        val testContentDescription = "Test Content Description"
+        val testStateDescription = "Test State Description"
+        val testItems =
+            listOf(
+                RadioButtonGroupItem(
+                    isSelected = true,
+                    onClick = {},
+                    contentDescription = testContentDescription,
+                    stateDescription = testStateDescription,
+                )
+            )
+
+        composeTestRule.setContent { RadioButtonGroup(items = testItems) }
+
+        composeTestRule
+            .onNodeWithContentDescription(testContentDescription)
+            .assertIsDisplayed()
+            .assert(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.StateDescription,
+                    testStateDescription,
+                )
+            )
     }
 }

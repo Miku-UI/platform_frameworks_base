@@ -16,54 +16,69 @@
 
 package com.android.systemui.statusbar.pipeline.shared.ui.composable
 
-import android.graphics.Rect
 import android.view.ContextThemeWrapper
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.layout.onLayoutRectChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.android.systemui.clock.ClockModernization
+import com.android.systemui.clock.ui.composable.Clock
 import com.android.systemui.clock.ui.composable.ClockLegacy
 import com.android.systemui.clock.ui.viewmodel.AmPmStyle
 import com.android.systemui.clock.ui.viewmodel.ClockViewModel
+import com.android.systemui.common.shared.model.Icon as IconModel
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.common.ui.compose.Icon
 import com.android.systemui.compose.modifiers.sysUiResTagContainer
+import com.android.systemui.compose.modifiers.sysuiResTag
 import com.android.systemui.lifecycle.rememberViewModel
-import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager
-import com.android.systemui.media.controls.ui.view.MediaHost
-import com.android.systemui.media.remedia.ui.viewmodel.MediaViewModel
 import com.android.systemui.res.R
 import com.android.systemui.shade.ui.composable.ChipHighlightModel
+import com.android.systemui.shade.ui.composable.OverlayShade
 import com.android.systemui.shade.ui.composable.ShadeHighlightChip
 import com.android.systemui.shade.ui.composable.VariableDayDate
 import com.android.systemui.statusbar.chips.ui.compose.OngoingActivityChips
-import com.android.systemui.statusbar.featurepods.popups.StatusBarPopupChips
-import com.android.systemui.statusbar.featurepods.popups.ui.compose.StatusBarPopupChipsContainer
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.NotificationIconContainerViewBinder
 import com.android.systemui.statusbar.phone.StatusBarLocation
 import com.android.systemui.statusbar.phone.StatusIconContainer
+import com.android.systemui.statusbar.phone.domain.interactor.IsAreaDark
 import com.android.systemui.statusbar.phone.ui.StatusBarIconController
 import com.android.systemui.statusbar.phone.ui.TintedIconManager
 import com.android.systemui.statusbar.pipeline.battery.ui.composable.UnifiedBattery
 import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryViewModel
 import com.android.systemui.statusbar.pipeline.shared.ui.viewmodel.HomeStatusBarViewModel
+import com.android.systemui.statusbar.quickactions.popups.StatusBarPopupChips
+import com.android.systemui.statusbar.quickactions.ui.compose.QuickActionChipsContainer
+import com.android.systemui.statusbar.shared.ui.compose.StatusBarIcon
 import com.android.systemui.statusbar.systemstatusicons.SystemStatusIconsInCompose
 import com.android.systemui.statusbar.systemstatusicons.ui.compose.SystemStatusIcons
 import com.android.systemui.statusbar.systemstatusicons.ui.compose.SystemStatusIconsLegacy
@@ -71,8 +86,12 @@ import com.android.systemui.statusbar.systemstatusicons.ui.compose.movableSystem
 
 object DesktopStatusBar {
     object Dimensions {
-        val ElementSpacing = 8.dp
+        val PaddingHorizontal: Dp
+            @Composable @ReadOnlyComposable get() = OverlayShade.Dimensions.PanelPaddingHorizontal
+
+        val ElementSpacing = 12.dp
         val ChipInternalSpacing = 6.dp
+        val ChipHeight = 24.dp
     }
 }
 
@@ -84,17 +103,20 @@ fun DesktopStatusBar(
     clockViewModelFactory: ClockViewModel.Factory,
     statusBarIconController: StatusBarIconController,
     iconManagerFactory: TintedIconManager.Factory,
-    mediaHierarchyManager: MediaHierarchyManager,
-    mediaViewModelFactory: MediaViewModel.Factory,
-    mediaHost: MediaHost,
     iconViewStore: NotificationIconContainerViewBinder.IconViewStore?,
     modifier: Modifier = Modifier,
 ) {
     // TODO(433589833): Update padding values to match UX specs.
-    Row(modifier = modifier.fillMaxWidth().padding(top = 4.dp, start = 12.dp, end = 12.dp)) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier =
+            // TODO(b/478352392): Move this padding to clickable Row below (after applying the
+            // clickable modifier), so it's included in the click target. Ref: b/494287030.
+            modifier.fillMaxSize().padding(start = DesktopStatusBar.Dimensions.PaddingHorizontal),
+    ) {
         WithAdaptiveTint(
+            highlightModel = ChipHighlightModel.Transparent,
             isDarkProvider = { bounds -> viewModel.areaDark.isDarkTheme(bounds) },
-            isHighlighted = false,
         ) { tint ->
             Row(
                 horizontalArrangement =
@@ -103,27 +125,39 @@ fun DesktopStatusBar(
                         Alignment.Start,
                     ),
                 verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable(onClick = viewModel::onClockClicked),
             ) {
-                ClockLegacy(textColor = tint, onClick = null)
-
                 val clockViewModel =
                     rememberViewModel("HomeStatusBar.Clock") {
                         clockViewModelFactory.create(AmPmStyle.Gone)
                     }
+                val textStyle = MaterialTheme.typography.labelLargeEmphasized
+
+                if (ClockModernization.isEnabled) {
+                    Clock(clockViewModel = clockViewModel, textColor = tint, textStyle = textStyle)
+                } else {
+                    ClockLegacy(textColor = tint, onClick = null, textStyle = textStyle)
+                }
+
                 VariableDayDate(
                     longerDateText = clockViewModel.longerDateText,
                     shorterDateText = clockViewModel.shorterDateText,
                     textColor = tint,
+                    textStyle = textStyle,
                 )
             }
         }
-        Spacer(modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.weight(1f).clickable(onClick = viewModel::onSpacerClicked))
 
         Row(
             horizontalArrangement =
                 Arrangement.spacedBy(DesktopStatusBar.Dimensions.ElementSpacing, Alignment.End),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (viewModel.isSignOutButtonVisible) {
+                SignOutButton(onSignOut = viewModel::onSignOut)
+            }
+
             val chipsVisibilityModel = viewModel.ongoingActivityChips
             if (chipsVisibilityModel.areChipsAllowed) {
                 OngoingActivityChips(
@@ -135,23 +169,25 @@ fun DesktopStatusBar(
             }
 
             if (StatusBarPopupChips.isEnabled) {
-                StatusBarPopupChipsContainer(
+                QuickActionChipsContainer(
                     chips = viewModel.popupChips,
-                    mediaViewModelFactory = mediaViewModelFactory,
-                    mediaHost = mediaHost,
-                    onMediaControlPopupVisibilityChanged = { popupShowing ->
-                        mediaHierarchyManager.isMediaControlPopupShowing = popupShowing
-                    },
+                    isDarkProvider = viewModel.areaDark::isDarkTheme,
                 )
             }
 
-            NotificationsChip(viewModel = viewModel)
+            // The wrapper row prevents application of ElementSpacing between the chips. Instead,
+            // they will internally allocate the same padding space to their touch targets.
+            // TODO(b/489444201): Remove this wrapper and `spacedBy` above once all the elements in
+            //  this row have expanded touch targets.
+            Row {
+                NotificationsChip(viewModel = viewModel)
 
-            QuickSettingsChip(
-                viewModel = viewModel,
-                statusBarIconController = statusBarIconController,
-                iconManagerFactory = iconManagerFactory,
-            )
+                QuickSettingsChip(
+                    viewModel = viewModel,
+                    statusBarIconController = statusBarIconController,
+                    iconManagerFactory = iconManagerFactory,
+                )
+            }
         }
     }
 }
@@ -164,28 +200,80 @@ private fun NotificationsChip(viewModel: HomeStatusBarViewModel, modifier: Modif
         } else {
             ChipHighlightModel.Transparent
         }
-    ShadeHighlightChip(
-        modifier = modifier,
-        onClick = { viewModel.onNotificationIconChipClicked() },
-        backgroundColor = chipHighlightModel.backgroundColor,
-        onHoveredBackgroundColor = chipHighlightModel.onHoveredBackgroundColor,
-        horizontalArrangement =
-            Arrangement.spacedBy(DesktopStatusBar.Dimensions.ChipInternalSpacing, Alignment.Start),
-    ) {
-        // TODO(433589833): Add new icon resources for the notification chip icon.
-        WithAdaptiveTint(
-            isHighlighted = viewModel.isNotificationsChipHighlighted,
-            isDarkProvider = { bounds -> viewModel.areaDark.isDarkTheme(bounds) },
-        ) { tint ->
-            Icon(
-                icon =
-                    Icon.Resource(
-                        resId = R.drawable.ic_notification_bell,
-                        contentDescription = null,
+
+    WithAdaptiveTint(
+        highlightModel = chipHighlightModel,
+        isDarkProvider = { bounds -> viewModel.areaDark.isDarkTheme(bounds) },
+    ) { tint ->
+        val (hoverColor, rippleColor) =
+            when (chipHighlightModel) {
+                is ChipHighlightModel.Transparent ->
+                    tint.copy(alpha = ChipHighlightModel.Companion.Alpha.TRANSPARENT_HOVER) to
+                        tint.copy(alpha = ChipHighlightModel.Companion.Alpha.TRANSPARENT_RIPPLE)
+                else -> chipHighlightModel.hoverBackgroundColor to chipHighlightModel.rippleColor
+            }
+        val contentDescription =
+            LocalContext.current.getString(R.string.accessibility_notification_bell)
+
+        ShadeHighlightChip(
+            modifier =
+                modifier
+                    .height(DesktopStatusBar.Dimensions.ChipHeight)
+                    .widthIn(min = DesktopStatusBar.Dimensions.ChipHeight)
+                    .semantics { this.contentDescription = contentDescription }
+                    .sysuiResTag("notificationIcons"),
+            onClick = viewModel::onNotificationIconChipClicked,
+            clickTargetModifier =
+                Modifier.fillMaxHeight()
+                    .padding(
+                        // Divide by two, since the spacing between this chip and the next one is
+                        // divided among the corresponding touch targets.
+                        end = DesktopStatusBar.Dimensions.ElementSpacing / 2
                     ),
-                tint = tint,
-                modifier = Modifier.size(20.dp).padding(1.dp),
-            )
+            backgroundColor = chipHighlightModel.backgroundColor,
+            hoverBackgroundColor = hoverColor,
+            rippleColor = rippleColor,
+            horizontalArrangement =
+                Arrangement.spacedBy(
+                    DesktopStatusBar.Dimensions.ChipInternalSpacing,
+                    Alignment.CenterHorizontally,
+                ),
+            includePadding = false,
+            isClickable = viewModel.isNotificationsChipClickable,
+        ) {
+            if (viewModel.hasStatusBarNotifications) {
+                Box(modifier = Modifier.align(Alignment.CenterVertically)) {
+                    StatusBarIcon(
+                        icon =
+                            Icon.Resource(
+                                resId = R.drawable.ic_notification_bell_unread_base,
+                                contentDescription = null,
+                            ),
+                        tint = tint,
+                    )
+                    StatusBarIcon(
+                        icon =
+                            Icon.Resource(
+                                resId = R.drawable.ic_notification_bell_unread_dot,
+                                contentDescription = null,
+                            ),
+                        tint =
+                            if (chipHighlightModel is ChipHighlightModel.Transparent)
+                                Color.Unspecified
+                            else tint,
+                    )
+                }
+            } else {
+                StatusBarIcon(
+                    icon =
+                        Icon.Resource(
+                            resId = R.drawable.ic_notification_bell,
+                            contentDescription = null,
+                        ),
+                    tint = tint,
+                    modifier = Modifier.align(Alignment.CenterVertically),
+                )
+            }
         }
     }
 }
@@ -203,46 +291,66 @@ private fun QuickSettingsChip(
         } else {
             ChipHighlightModel.Transparent
         }
-    ShadeHighlightChip(
-        modifier = modifier,
-        onClick = { viewModel.onQuickSettingsChipClicked() },
-        backgroundColor = chipHighlightModel.backgroundColor,
-        onHoveredBackgroundColor = chipHighlightModel.onHoveredBackgroundColor,
-        horizontalArrangement =
-            Arrangement.spacedBy(DesktopStatusBar.Dimensions.ChipInternalSpacing, Alignment.Start),
-    ) {
-        if (SystemStatusIconsInCompose.isEnabled) {
-            WithAdaptiveTint(
-                isHighlighted = viewModel.isQuickSettingsChipHighlighted,
-                isDarkProvider = { bounds -> viewModel.areaDark.isDarkTheme(bounds) },
-            ) { tint ->
+
+    WithAdaptiveTint(
+        highlightModel = chipHighlightModel,
+        isDarkProvider = viewModel.areaDark::isDarkTheme,
+    ) { tint ->
+        val (hoverColor, rippleColor) =
+            when (chipHighlightModel) {
+                is ChipHighlightModel.Transparent ->
+                    tint.copy(alpha = ChipHighlightModel.Companion.Alpha.TRANSPARENT_HOVER) to
+                        tint.copy(alpha = ChipHighlightModel.Companion.Alpha.TRANSPARENT_RIPPLE)
+                else -> chipHighlightModel.hoverBackgroundColor to chipHighlightModel.rippleColor
+            }
+
+        ShadeHighlightChip(
+            modifier =
+                modifier.height(DesktopStatusBar.Dimensions.ChipHeight).sysuiResTag("statusIcons"),
+            onClick = viewModel::onQuickSettingsChipClicked,
+            clickTargetModifier =
+                Modifier.fillMaxHeight()
+                    .padding(
+                        // Divide by two, since the spacing between this chip and the previous one
+                        // is divided among the corresponding touch targets.
+                        start = DesktopStatusBar.Dimensions.ElementSpacing / 2,
+                        end = DesktopStatusBar.Dimensions.PaddingHorizontal,
+                    ),
+            backgroundColor = chipHighlightModel.backgroundColor,
+            hoverBackgroundColor = hoverColor,
+            rippleColor = rippleColor,
+            horizontalArrangement =
+                Arrangement.spacedBy(
+                    DesktopStatusBar.Dimensions.ChipInternalSpacing,
+                    Alignment.Start,
+                ),
+            isClickable = viewModel.isQuickSettingsChipClickable,
+        ) {
+            if (SystemStatusIconsInCompose.isEnabled) {
                 SystemStatusIcons(
                     viewModelFactory = viewModel.systemStatusIconsViewModelFactory,
                     tint = tint,
                     modifier = modifier,
+                    systemStatusIconBlocklistInteractor =
+                        viewModel.systemStatusIconBlockListInteractor,
                 )
-            }
-        } else {
-            val localContext = LocalContext.current
-            val iconContainer =
-                remember(localContext, iconManagerFactory) {
-                    StatusIconContainer(
-                        ContextThemeWrapper(localContext, R.style.Theme_SystemUI),
-                        null,
-                    )
-                }
-            val iconManager =
-                remember(iconContainer) {
-                    iconManagerFactory.create(iconContainer, StatusBarLocation.HOME)
-                }
+            } else {
+                val localContext = LocalContext.current
+                val iconContainer =
+                    remember(localContext, iconManagerFactory) {
+                        StatusIconContainer(
+                            ContextThemeWrapper(localContext, R.style.Theme_SystemUI),
+                            null,
+                        )
+                    }
+                val iconManager =
+                    remember(iconContainer) {
+                        iconManagerFactory.create(iconContainer, StatusBarLocation.HOME)
+                    }
 
-            val movableContent =
-                remember(iconManager) { movableSystemStatusIconsLegacyAndroidView(iconManager) }
+                val movableContent =
+                    remember(iconManager) { movableSystemStatusIconsLegacyAndroidView(iconManager) }
 
-            WithAdaptiveTint(
-                isHighlighted = viewModel.isQuickSettingsChipHighlighted,
-                isDarkProvider = { bounds -> viewModel.areaDark.isDarkTheme(bounds) },
-            ) { tint ->
                 SystemStatusIconsLegacy(
                     statusBarIconController = statusBarIconController,
                     iconContainer = iconContainer,
@@ -258,53 +366,50 @@ private fun QuickSettingsChip(
                     content = movableContent,
                 )
             }
-        }
 
-        val batteryHeight =
-            with(LocalDensity.current) {
-                BatteryViewModel.getStatusBarBatteryHeight(LocalContext.current).toDp()
-            }
-        UnifiedBattery(
-            viewModel =
-                rememberViewModel("DesktopStatusBar.BatteryViewModel") {
-                    viewModel.unifiedBatteryViewModel.create()
-                },
-            isDarkProvider = { viewModel.areaDark },
-            modifier = Modifier.height(batteryHeight),
-        )
+            val batteryHeight =
+                with(LocalDensity.current) {
+                    BatteryViewModel.getStatusBarBatteryHeight(LocalContext.current).toDp()
+                }
+
+            val isDarkTheme = isSystemInDarkTheme()
+            val batteryDarkProvider: IsAreaDark =
+                when (chipHighlightModel) {
+                    ChipHighlightModel.Strong -> IsAreaDark { !isDarkTheme }
+                    ChipHighlightModel.Transparent -> viewModel.areaDark
+                    ChipHighlightModel.Weak -> viewModel.areaDark
+                }
+            UnifiedBattery(
+                viewModel =
+                    rememberViewModel("DesktopStatusBar.BatteryViewModel") {
+                        viewModel.unifiedBatteryViewModel.create()
+                    },
+                isDarkProvider = { batteryDarkProvider },
+                modifier = Modifier.height(batteryHeight),
+            )
+        }
     }
 }
 
-/**
- * A helper composable that calculates the correct tint for UI elements.
- *
- * It manages its own bounds state and provides the calculated tint and a modifier to its content,
- * abstracting away the boilerplate of tint calculation.
- */
 @Composable
-private fun WithAdaptiveTint(
-    isDarkProvider: (Rect) -> Boolean,
-    isHighlighted: Boolean,
-    modifier: Modifier = Modifier,
-    content: @Composable (tint: Color) -> Unit,
-) {
-    var bounds by remember { mutableStateOf(Rect()) }
-    val tint =
-        if (isHighlighted) {
-            ChipHighlightModel.Strong.foregroundColor
-        } else if (isDarkProvider(bounds)) {
-            Color.White
-        } else {
-            Color.Black
-        }
-
-    Box(
-        propagateMinConstraints = true,
-        modifier =
-            modifier.onLayoutRectChanged { layoutCoordinates ->
-                bounds = with(layoutCoordinates.boundsInScreen) { Rect(left, top, right, bottom) }
-            },
+private fun SignOutButton(onSignOut: () -> Unit) {
+    Button(
+        onClick = onSignOut,
+        contentPadding = PaddingValues(horizontal = DesktopStatusBar.Dimensions.ElementSpacing / 2),
+        modifier = Modifier.heightIn(min = DesktopStatusBar.Dimensions.ChipHeight),
     ) {
-        content(tint)
+        Icon(
+            icon =
+                IconModel.Resource(
+                    com.android.internal.R.drawable.ic_logout,
+                    contentDescription = null,
+                ),
+            modifier = Modifier.size(16.dp),
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = stringResource(com.android.internal.R.string.global_action_logout),
+            modifier = Modifier.wrapContentHeight(unbounded = true),
+        )
     }
 }

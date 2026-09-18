@@ -39,7 +39,7 @@ import android.text.TextUtils;
  * {@link android.R.styleable#TextAppearance_fallbackLineSpacing fallbackLineSpacing}
  * are not supported by {@link TextAppearanceSpan}.
  *
- * {@see android.widget.TextView#setTextAppearance(int)}
+ * @see android.widget.TextView#setTextAppearance(int)
  *
  * @attr ref android.R.styleable#TextAppearance_fontFamily
  * @attr ref android.R.styleable#TextAppearance_textColor

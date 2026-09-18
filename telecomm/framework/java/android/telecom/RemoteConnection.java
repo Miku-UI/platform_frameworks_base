@@ -67,7 +67,7 @@ public final class RemoteConnection {
          * Invoked when this {@code RemoteConnection} is disconnected.
          *
          * @param connection The {@code RemoteConnection} invoking this method.
-         * @param disconnectCause The ({@see DisconnectCause}) associated with this failed
+         * @param disconnectCause The ({@link DisconnectCause}) associated with this failed
          *     connection.
          */
         public void onDisconnected(

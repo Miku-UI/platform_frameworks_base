@@ -28,28 +28,28 @@ import android.content.res.Resources;
 
 import com.android.dream.lowlight.dagger.LowLightDreamComponent;
 import com.android.settingslib.dream.DreamBackend;
+import com.android.systemui.CoreStartable;
 import com.android.systemui.ambient.touch.scrim.dagger.ScrimModule;
 import com.android.systemui.complication.dagger.RegisteredComplicationsModule;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dreams.DreamOverlayNotificationCountProvider;
 import com.android.systemui.dreams.DreamOverlayService;
+import com.android.systemui.dreams.DreamStartable;
 import com.android.systemui.dreams.SystemDialogsCloser;
 import com.android.systemui.dreams.complication.dagger.DreamComplicationComponent;
+import com.android.systemui.dreams.data.repository.DreamRepository;
+import com.android.systemui.dreams.data.repository.DreamRepositoryImpl;
 import com.android.systemui.dreams.homecontrols.HomeControlsDreamService;
 import com.android.systemui.dreams.homecontrols.dagger.HomeControlsDataSourceModule;
 import com.android.systemui.dreams.homecontrols.dagger.HomeControlsRemoteServiceComponent;
 import com.android.systemui.dreams.homecontrols.system.HomeControlsRemoteService;
 import com.android.systemui.dreams.suppression.dagger.DreamSuppressionStartableModule;
 import com.android.systemui.lowlightclock.LowLightClockDreamService;
-import com.android.systemui.qs.QsEventLogger;
-import com.android.systemui.qs.pipeline.shared.TileSpec;
-import com.android.systemui.qs.shared.model.TileCategory;
-import com.android.systemui.qs.tiles.base.shared.model.QSTileConfig;
-import com.android.systemui.qs.tiles.base.shared.model.QSTilePolicy;
-import com.android.systemui.qs.tiles.base.shared.model.QSTileUIConfig;
 import com.android.systemui.res.R;
 import com.android.systemui.touch.TouchInsetManager;
+import com.android.systemui.user.utils.UserScopedService;
+import com.android.systemui.user.utils.UserScopedServiceImpl;
 
 import dagger.Binds;
 import dagger.BindsOptionalOf;
@@ -57,7 +57,6 @@ import dagger.Module;
 import dagger.Provides;
 import dagger.multibindings.ClassKey;
 import dagger.multibindings.IntoMap;
-import dagger.multibindings.StringKey;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -89,7 +88,6 @@ public interface DreamModule {
     String DREAM_SUPPORTED = "dream_supported";
     String DREAM_OVERLAY_WINDOW_TITLE = "dream_overlay_window_title";
     String HOME_CONTROL_PANEL_DREAM_COMPONENT = "home_control_panel_dream_component";
-    String DREAM_TILE_SPEC = "dream";
     String LOW_LIGHT_DREAM_SERVICE = "low_light_dream_component";
 
     String LOW_LIGHT_CLOCK_DREAM = "low_light_clock_dream";
@@ -210,29 +208,22 @@ public interface DreamModule {
         return resources.getString(R.string.app_label);
     }
 
-    /** Provides config for the dream tile */
-    @Provides
-    @IntoMap
-    @StringKey(DREAM_TILE_SPEC)
-    static QSTileConfig provideDreamTileConfig(QsEventLogger uiEventLogger) {
-        TileSpec tileSpec = TileSpec.create(DREAM_TILE_SPEC);
-        return new QSTileConfig(tileSpec,
-                new QSTileUIConfig.Resource(
-                        R.drawable.ic_qs_screen_saver,
-                        R.string.quick_settings_screensaver_label),
-                uiEventLogger.getNewInstanceId(),
-                TileCategory.UTILITIES,
-                tileSpec.getSpec(),
-                QSTilePolicy.NoRestrictions.INSTANCE
-                );
-    }
-
     /**
      * Provides dream manager.
      */
     @Provides
+    @SysUISingleton
     static DreamManager providesDreamManager(Context context) {
         return Objects.requireNonNull(context.getSystemService(DreamManager.class));
+    }
+
+    /**
+     * Provides user scoped dream manager.
+     */
+    @Provides
+    @SysUISingleton
+    static UserScopedService<DreamManager> providesUserScopedDreamManager(Context context) {
+        return new UserScopedServiceImpl<>(context, DreamManager.class);
     }
 
     /**
@@ -286,4 +277,16 @@ public interface DreamModule {
             @Named(LOW_LIGHT_DREAM_SERVICE) ComponentName lowLightDreamService) {
         return factory.create(dreamManager, lowLightDreamService);
     }
+
+    /**
+     * Binds the DreamStartable to the map of CoreStartables.
+     */
+    @Binds
+    @IntoMap
+    @ClassKey(DreamStartable.class)
+    CoreStartable bindDreamStartable(DreamStartable impl);
+
+    /** */
+    @Binds
+    DreamRepository bindDreamRepository(DreamRepositoryImpl impl);
 }

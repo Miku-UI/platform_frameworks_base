@@ -20,12 +20,14 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
 import android.compat.annotation.UnsupportedAppUsage;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
+import android.ravenwood.annotation.RavenwoodRedirect;
+import android.ravenwood.annotation.RavenwoodRedirectionClass;
 import android.util.ArrayMap;
 import android.util.Log;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.os.BinderInternal;
-import com.android.internal.util.Preconditions;
 import com.android.internal.util.StatLogger;
 
 import java.util.Map;
@@ -39,7 +41,8 @@ import java.util.Map;
  * @hide
  **/
 @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
-@android.ravenwood.annotation.RavenwoodKeepPartialClass
+@RavenwoodKeepPartialClass
+@RavenwoodRedirectionClass("ServiceManager_ravenwood")
 public final class ServiceManager {
     private static final String TAG = "ServiceManager";
     private static final Object sLock = new Object();
@@ -54,11 +57,6 @@ public final class ServiceManager {
     // start to avoid any overhead from locking
     @UnsupportedAppUsage
     private static Map<String, IBinder> sCache = new ArrayMap<String, IBinder>();
-
-    @GuardedBy("ServiceManager.class")
-    // NOTE: this cache is designed to support mutation by tests, so we require
-    // a lock to be held for all accesses
-    private static Map<String, IBinder> sCache$ravenwood;
 
     /**
      * We do the "slow log" at most once every this interval.
@@ -128,23 +126,6 @@ public final class ServiceManager {
     public ServiceManager() {
     }
 
-    /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
-    public static void init$ravenwood() {
-        synchronized (ServiceManager.class) {
-            sCache$ravenwood = new ArrayMap<>();
-        }
-    }
-
-    /** @hide */
-    @android.ravenwood.annotation.RavenwoodKeep
-    public static void reset$ravenwood() {
-        synchronized (ServiceManager.class) {
-            sCache$ravenwood.clear();
-            sCache$ravenwood = null;
-        }
-    }
-
     @UnsupportedAppUsage
     private static IServiceManager getIServiceManager() {
         if (sServiceManager != null) {
@@ -165,7 +146,7 @@ public final class ServiceManager {
      * @hide
      */
     @UnsupportedAppUsage
-    @android.ravenwood.annotation.RavenwoodReplace
+    @RavenwoodRedirect
     public static IBinder getService(String name) {
         try {
             IBinder service = sCache.get(name);
@@ -178,14 +159,6 @@ public final class ServiceManager {
             Log.e(TAG, "error in getService", e);
         }
         return null;
-    }
-
-    /** @hide */
-    public static IBinder getService$ravenwood(String name) {
-        synchronized (ServiceManager.class) {
-            // Ravenwood is a single-process environment, so it only needs to store locally
-            return Preconditions.requireNonNullViaRavenwoodRule(sCache$ravenwood).get(name);
-        }
     }
 
     /**
@@ -246,22 +219,13 @@ public final class ServiceManager {
      * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    @android.ravenwood.annotation.RavenwoodReplace
+    @RavenwoodRedirect
     public static void addService(String name, IBinder service, boolean allowIsolated,
             int dumpPriority) {
         try {
             getIServiceManager().addService(name, service, allowIsolated, dumpPriority);
         } catch (RemoteException e) {
             Log.e(TAG, "error in addService", e);
-        }
-    }
-
-    /** @hide */
-    public static void addService$ravenwood(String name, IBinder service, boolean allowIsolated,
-            int dumpPriority) {
-        synchronized (ServiceManager.class) {
-            // Ravenwood is a single-process environment, so it only needs to store locally
-            Preconditions.requireNonNullViaRavenwoodRule(sCache$ravenwood).put(name, service);
         }
     }
 

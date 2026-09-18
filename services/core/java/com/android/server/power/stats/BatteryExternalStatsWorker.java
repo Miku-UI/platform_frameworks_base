@@ -251,12 +251,12 @@ public class BatteryExternalStatsWorker implements BatteryStatsImpl.ExternalStat
     }
 
     /**
-     * Schedule a sync {@param syncRunnable} with a delay. If there's already a scheduled sync, a
+     * Schedule a sync {@code syncRunnable} with a delay. If there's already a scheduled sync, a
      * new sync won't be scheduled unless it is being scheduled to run immediately (delayMillis=0).
      *
      * @param lastScheduledSync the task which was earlier scheduled to run
      * @param syncRunnable the task that needs to be scheduled to run
-     * @param delayMillis time after which {@param syncRunnable} needs to be scheduled
+     * @param delayMillis time after which {@code syncRunnable} needs to be scheduled
      * @return scheduled {@link Future} which can be used to check if task is completed or to
      *         cancel it if needed
      */

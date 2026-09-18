@@ -30,7 +30,6 @@ import com.android.modules.utils.FastDataOutput;
 import libcore.util.HexEncoding;
 
 import org.junit.Assume;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -53,8 +52,6 @@ import java.util.function.Consumer;
 
 @RunWith(Parameterized.class)
 public class FastDataTest {
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     private final boolean use4ByteSequence;
 

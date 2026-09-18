@@ -21,6 +21,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.os.IBinder;
+import android.service.dreams.IDreamManagerListener;
+import android.service.dreams.DreamPlaylist;
 
 /** @hide */
 interface IDreamManager {
@@ -48,7 +50,14 @@ interface IDreamManager {
     void forceAmbientDisplayEnabled(boolean enabled);
     ComponentName[] getDreamComponentsForUser(int userId);
     void setDreamComponentsForUser(int userId, in ComponentName[] componentNames);
-    void setSystemDreamComponent(in ComponentName componentName);
+    /**
+     * Sets the system dream component.
+     *
+     * @param componentName The component to set.
+     * @param token A binder token used to track the lifecycle of the requesting app.
+     * If the app dies, the system dream will be cleared automatically.
+     */
+    void setSystemDreamComponent(in ComponentName componentName, in IBinder token);
     void registerDreamOverlayService(in ComponentName componentName);
     void startDreamActivity(in Intent intent);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.WRITE_DREAM_STATE)")
@@ -60,4 +69,12 @@ interface IDreamManager {
     oneway void finishSelfOneway(in IBinder token, boolean immediate);
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.WRITE_SECURE_SETTINGS)")
     void setScreensaverEnabled(boolean enabled);
+    @EnforcePermission("READ_DREAM_STATE")
+    void registerListener(in IDreamManagerListener listener, int userId);
+    @EnforcePermission("READ_DREAM_STATE")
+    void unregisterListener(in IDreamManagerListener listener, int userId);
+    @EnforcePermission("READ_DREAM_STATE")
+    DreamPlaylist getDreamPlaylist(int userId);
+    @EnforcePermission("WRITE_DREAM_STATE")
+    boolean setActiveDream(in ComponentName componentName, int userId);
 }

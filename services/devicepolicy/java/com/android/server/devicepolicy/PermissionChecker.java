@@ -17,6 +17,7 @@
 package com.android.server.devicepolicy;
 
 import static android.Manifest.permission.MANAGE_DEFAULT_APPLICATIONS;
+import static android.Manifest.permission.MANAGE_DEVICE_POLICY_ACCESSIBILITY;
 import static android.Manifest.permission.MANAGE_DEVICE_POLICY_ACCOUNT_MANAGEMENT;
 import static android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS;
 import static android.Manifest.permission.MANAGE_DEVICE_POLICY_ACROSS_USERS_FULL;
@@ -47,6 +48,7 @@ import static android.Manifest.permission.MANAGE_DEVICE_POLICY_KEYGUARD;
 import static android.Manifest.permission.MANAGE_DEVICE_POLICY_LOCALE;
 import static android.Manifest.permission.MANAGE_DEVICE_POLICY_LOCATION;
 import static android.Manifest.permission.MANAGE_DEVICE_POLICY_LOCK;
+import static android.Manifest.permission.MANAGE_DEVICE_POLICY_LOCKSCREEN_MESSAGE;
 import static android.Manifest.permission.MANAGE_DEVICE_POLICY_LOCK_CREDENTIALS;
 import static android.Manifest.permission.MANAGE_DEVICE_POLICY_LOCK_TASK;
 import static android.Manifest.permission.MANAGE_DEVICE_POLICY_MANAGED_SUBSCRIPTIONS;
@@ -88,23 +90,22 @@ import static android.Manifest.permission.MANAGE_DEVICE_POLICY_WIPE_DATA;
 import static android.Manifest.permission.QUERY_ADMIN_POLICY;
 import static android.Manifest.permission.SET_TIME;
 import static android.Manifest.permission.SET_TIME_ZONE;
+import static android.app.admin.DevicePolicyManager.AFFILIATED_FULL_USER_PROFILE_OWNER;
+import static android.app.admin.DevicePolicyManager.DEVICE_OWNER;
 import static android.app.admin.DevicePolicyManager.DELEGATION_APP_RESTRICTIONS;
 import static android.app.admin.DevicePolicyManager.DELEGATION_BLOCK_UNINSTALL;
 import static android.app.admin.DevicePolicyManager.DELEGATION_CERT_INSTALL;
 import static android.app.admin.DevicePolicyManager.DELEGATION_PACKAGE_ACCESS;
 import static android.app.admin.DevicePolicyManager.DELEGATION_PERMISSION_GRANT;
 import static android.app.admin.DevicePolicyManager.DELEGATION_SECURITY_LOGGING;
+import static android.app.admin.DevicePolicyManager.DpcType;
+import static android.app.admin.DevicePolicyManager.FINANCED_DEVICE_OWNER;
+import static android.app.admin.DevicePolicyManager.NOT_A_DPC;
+import static android.app.admin.DevicePolicyManager.MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE;
+import static android.app.admin.DevicePolicyManager.MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE;
+import static android.app.admin.DevicePolicyManager.UNAFFILIATED_FULL_USER_PROFILE_OWNER;
+import static android.app.admin.DevicePolicyManager.PROFILE_OWNER_ON_USER_0;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
-
-import static com.android.server.devicepolicy.DevicePolicyManagerService.AFFILIATED_PROFILE_OWNER_ON_USER;
-import static com.android.server.devicepolicy.DevicePolicyManagerService.DEFAULT_DEVICE_OWNER;
-import static com.android.server.devicepolicy.DevicePolicyManagerService.DpcType;
-import static com.android.server.devicepolicy.DevicePolicyManagerService.FINANCED_DEVICE_OWNER;
-import static com.android.server.devicepolicy.DevicePolicyManagerService.NOT_A_DPC;
-import static com.android.server.devicepolicy.DevicePolicyManagerService.PROFILE_OWNER;
-import static com.android.server.devicepolicy.DevicePolicyManagerService.PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE;
-import static com.android.server.devicepolicy.DevicePolicyManagerService.PROFILE_OWNER_ON_USER;
-import static com.android.server.devicepolicy.DevicePolicyManagerService.PROFILE_OWNER_ON_USER_0;
 
 import android.annotation.NonNull;
 import android.annotation.UserIdInt;
@@ -124,8 +125,7 @@ import java.util.List;
  * Each instance of this class is tightly tied to a single caller, so a new instance of this class
  * is needed to check the permissions of a new caller.
  */
-// DoNotPush maybe `CallerPermissionChecker` or `PermissionEnforcer`? `PermissionHelper`?
-class PermissionChecker {
+public class PermissionChecker implements IPermissionChecker {
     private final Context mContext;
     private final Delegate mDelegate;
 
@@ -183,6 +183,14 @@ class PermissionChecker {
                 MANAGE_DEVICE_POLICY_ACROSS_USERS);
         CROSS_USER_PERMISSIONS.put(MANAGE_DEVICE_POLICY_CALLS, MANAGE_DEVICE_POLICY_ACROSS_USERS);
         CROSS_USER_PERMISSIONS.put(MANAGE_DEVICE_POLICY_CAMERA, MANAGE_DEVICE_POLICY_ACROSS_USERS);
+        if (Flags.commonCriteriaModeCoexistence()) {
+            CROSS_USER_PERMISSIONS.put(MANAGE_DEVICE_POLICY_COMMON_CRITERIA_MODE,
+                    MANAGE_DEVICE_POLICY_ACROSS_USERS);
+        }
+        if (Flags.lockscreenInfoCoexistence()) {
+            CROSS_USER_PERMISSIONS.put(MANAGE_DEVICE_POLICY_LOCKSCREEN_MESSAGE,
+                    MANAGE_DEVICE_POLICY_ACROSS_USERS);
+        }
         CROSS_USER_PERMISSIONS.put(MANAGE_DEVICE_POLICY_DEFAULT_SMS,
                 MANAGE_DEVICE_POLICY_ACROSS_USERS);
         CROSS_USER_PERMISSIONS.put(MANAGE_DEVICE_POLICY_INPUT_METHODS,
@@ -229,8 +237,10 @@ class PermissionChecker {
                 MANAGE_DEVICE_POLICY_ACROSS_USERS_FULL);
         CROSS_USER_PERMISSIONS.put(MANAGE_DEVICE_POLICY_CAMERA_TOGGLE,
                 MANAGE_DEVICE_POLICY_ACROSS_USERS_FULL);
-        CROSS_USER_PERMISSIONS.put(MANAGE_DEVICE_POLICY_COMMON_CRITERIA_MODE,
-                MANAGE_DEVICE_POLICY_ACROSS_USERS_FULL);
+        if (!Flags.commonCriteriaModeCoexistence()) {
+            CROSS_USER_PERMISSIONS.put(MANAGE_DEVICE_POLICY_COMMON_CRITERIA_MODE,
+                    MANAGE_DEVICE_POLICY_ACROSS_USERS_FULL);
+        }
         CROSS_USER_PERMISSIONS.put(MANAGE_DEVICE_POLICY_DEBUGGING_FEATURES,
                 MANAGE_DEVICE_POLICY_ACROSS_USERS_FULL);
         CROSS_USER_PERMISSIONS.put(MANAGE_DEVICE_POLICY_DISPLAY,
@@ -278,7 +288,7 @@ class PermissionChecker {
     }
 
     // Permissions of existing DPC types.
-    private static final List<String> DEFAULT_DEVICE_OWNER_PERMISSIONS = List.of(
+    private static final List<String> DEVICE_OWNER_PERMISSIONS = List.of(
             MANAGE_DEVICE_POLICY_ACCOUNT_MANAGEMENT, MANAGE_DEVICE_POLICY_ACROSS_USERS,
             MANAGE_DEVICE_POLICY_ACROSS_USERS_FULL,
             MANAGE_DEVICE_POLICY_ACROSS_USERS_SECURITY_CRITICAL, MANAGE_DEVICE_POLICY_AIRPLANE_MODE,
@@ -310,7 +320,7 @@ class PermissionChecker {
             MANAGE_DEVICE_POLICY_USB_FILE_TRANSFER, MANAGE_DEVICE_POLICY_VPN,
             MANAGE_DEVICE_POLICY_WALLPAPER, MANAGE_DEVICE_POLICY_WIFI, MANAGE_DEVICE_POLICY_WINDOWS,
             MANAGE_DEVICE_POLICY_WIPE_DATA, SET_TIME, SET_TIME_ZONE,
-            MANAGE_DEVICE_POLICY_QUERY_SYSTEM_UPDATES);
+            MANAGE_DEVICE_POLICY_QUERY_SYSTEM_UPDATES, MANAGE_DEVICE_POLICY_LOCKSCREEN_MESSAGE);
 
     private static final List<String> FINANCED_DEVICE_OWNER_PERMISSIONS = List.of(
             MANAGE_DEVICE_POLICY_ACROSS_USERS, MANAGE_DEVICE_POLICY_ACROSS_USERS_FULL,
@@ -323,35 +333,54 @@ class PermissionChecker {
             MANAGE_DEVICE_POLICY_SAFE_BOOT, MANAGE_DEVICE_POLICY_SUPPORT_MESSAGE,
             MANAGE_DEVICE_POLICY_TIME, MANAGE_DEVICE_POLICY_WIPE_DATA);
 
-    /**
-     * All the permissions granted to a profile owner.
-     */
-    private static final List<String> PROFILE_OWNER_PERMISSIONS = List.of(
-            MANAGE_DEVICE_POLICY_ACCOUNT_MANAGEMENT,
-            MANAGE_DEVICE_POLICY_ACROSS_USERS_SECURITY_CRITICAL, MANAGE_DEVICE_POLICY_APPS_CONTROL,
-            MANAGE_DEVICE_POLICY_APP_FUNCTIONS, MANAGE_DEVICE_POLICY_APP_RESTRICTIONS,
-            MANAGE_DEVICE_POLICY_AUDIO_OUTPUT, MANAGE_DEVICE_POLICY_AUTOFILL,
-            MANAGE_DEVICE_POLICY_BLUETOOTH, MANAGE_DEVICE_POLICY_CALLS, MANAGE_DEVICE_POLICY_CAMERA,
-            MANAGE_DEVICE_POLICY_CERTIFICATES, MANAGE_DEVICE_POLICY_CONTENT_PROTECTION,
-            MANAGE_DEVICE_POLICY_DEBUGGING_FEATURES, MANAGE_DEVICE_POLICY_DISPLAY,
-            MANAGE_DEVICE_POLICY_FACTORY_RESET, MANAGE_DEVICE_POLICY_INPUT_METHODS,
-            MANAGE_DEVICE_POLICY_INSTALL_UNKNOWN_SOURCES, MANAGE_DEVICE_POLICY_KEYGUARD,
-            MANAGE_DEVICE_POLICY_LOCALE, MANAGE_DEVICE_POLICY_LOCATION, MANAGE_DEVICE_POLICY_LOCK,
-            MANAGE_DEVICE_POLICY_LOCK_CREDENTIALS, MANAGE_DEVICE_POLICY_MANAGED_SUBSCRIPTIONS,
-            MANAGE_DEVICE_POLICY_NEARBY_COMMUNICATION, MANAGE_DEVICE_POLICY_ORGANIZATION_IDENTITY,
-            MANAGE_DEVICE_POLICY_PACKAGE_STATE, MANAGE_DEVICE_POLICY_PRINTING,
-            MANAGE_DEVICE_POLICY_PROFILES, MANAGE_DEVICE_POLICY_PROFILE_INTERACTION,
-            MANAGE_DEVICE_POLICY_RESET_PASSWORD, MANAGE_DEVICE_POLICY_RUNTIME_PERMISSIONS,
-            MANAGE_DEVICE_POLICY_SCREEN_CAPTURE, MANAGE_DEVICE_POLICY_SCREEN_CONTENT,
-            MANAGE_DEVICE_POLICY_SUPPORT_MESSAGE, MANAGE_DEVICE_POLICY_SYSTEM_DIALOGS,
-            MANAGE_DEVICE_POLICY_TIME, MANAGE_DEVICE_POLICY_VPN, MANAGE_DEVICE_POLICY_WIPE_DATA,
-            MANAGE_DEVICE_POLICY_QUERY_SYSTEM_UPDATES);
+    /** All the permissions granted to a profile owner. */
+    private static final List<String> MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE_PERMISSIONS =
+            List.of(
+                    MANAGE_DEVICE_POLICY_ACCOUNT_MANAGEMENT,
+                    MANAGE_DEVICE_POLICY_ACROSS_USERS_SECURITY_CRITICAL,
+                    MANAGE_DEVICE_POLICY_APPS_CONTROL,
+                    MANAGE_DEVICE_POLICY_APP_FUNCTIONS,
+                    MANAGE_DEVICE_POLICY_APP_RESTRICTIONS,
+                    MANAGE_DEVICE_POLICY_AUDIO_OUTPUT,
+                    MANAGE_DEVICE_POLICY_AUTOFILL,
+                    MANAGE_DEVICE_POLICY_BLUETOOTH,
+                    MANAGE_DEVICE_POLICY_CALLS,
+                    MANAGE_DEVICE_POLICY_CAMERA,
+                    MANAGE_DEVICE_POLICY_CERTIFICATES,
+                    MANAGE_DEVICE_POLICY_CONTENT_PROTECTION,
+                    MANAGE_DEVICE_POLICY_DEBUGGING_FEATURES,
+                    MANAGE_DEVICE_POLICY_DISPLAY,
+                    MANAGE_DEVICE_POLICY_FACTORY_RESET,
+                    MANAGE_DEVICE_POLICY_INPUT_METHODS,
+                    MANAGE_DEVICE_POLICY_INSTALL_UNKNOWN_SOURCES,
+                    MANAGE_DEVICE_POLICY_KEYGUARD,
+                    MANAGE_DEVICE_POLICY_LOCALE,
+                    MANAGE_DEVICE_POLICY_LOCATION,
+                    MANAGE_DEVICE_POLICY_LOCK,
+                    MANAGE_DEVICE_POLICY_LOCK_CREDENTIALS,
+                    MANAGE_DEVICE_POLICY_MANAGED_SUBSCRIPTIONS,
+                    MANAGE_DEVICE_POLICY_NEARBY_COMMUNICATION,
+                    MANAGE_DEVICE_POLICY_ORGANIZATION_IDENTITY,
+                    MANAGE_DEVICE_POLICY_PACKAGE_STATE,
+                    MANAGE_DEVICE_POLICY_PRINTING,
+                    MANAGE_DEVICE_POLICY_PROFILES,
+                    MANAGE_DEVICE_POLICY_PROFILE_INTERACTION,
+                    MANAGE_DEVICE_POLICY_RESET_PASSWORD,
+                    MANAGE_DEVICE_POLICY_RUNTIME_PERMISSIONS,
+                    MANAGE_DEVICE_POLICY_SCREEN_CAPTURE,
+                    MANAGE_DEVICE_POLICY_SCREEN_CONTENT,
+                    MANAGE_DEVICE_POLICY_SUPPORT_MESSAGE,
+                    MANAGE_DEVICE_POLICY_SYSTEM_DIALOGS,
+                    MANAGE_DEVICE_POLICY_TIME,
+                    MANAGE_DEVICE_POLICY_VPN,
+                    MANAGE_DEVICE_POLICY_WIPE_DATA,
+                    MANAGE_DEVICE_POLICY_QUERY_SYSTEM_UPDATES);
 
     /**
      * All the additional permissions granted to an organisation owned profile owner.
      */
     private static final List<String>
-            ADDITIONAL_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS = List.of(
+            ADDITIONAL_MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS = List.of(
             MANAGE_DEVICE_POLICY_ACROSS_USERS, MANAGE_DEVICE_POLICY_AIRPLANE_MODE,
             MANAGE_DEVICE_POLICY_APPS_CONTROL, MANAGE_DEVICE_POLICY_COMMON_CRITERIA_MODE,
             MANAGE_DEVICE_POLICY_DEFAULT_SMS, MANAGE_DEVICE_POLICY_LOCALE,
@@ -361,7 +390,8 @@ class PermissionChecker {
             MANAGE_DEVICE_POLICY_SAFE_BOOT, MANAGE_DEVICE_POLICY_SECURITY_LOGGING,
             MANAGE_DEVICE_POLICY_SMS, MANAGE_DEVICE_POLICY_SYSTEM_UPDATES,
             MANAGE_DEVICE_POLICY_USB_DATA_SIGNALLING, MANAGE_DEVICE_POLICY_USB_FILE_TRANSFER,
-            MANAGE_DEVICE_POLICY_WIFI, SET_TIME, SET_TIME_ZONE);
+            MANAGE_DEVICE_POLICY_WIFI, SET_TIME, SET_TIME_ZONE,
+            MANAGE_DEVICE_POLICY_LOCKSCREEN_MESSAGE);
 
     /**
      * All the additional permissions granted to a Profile Owner on user 0.
@@ -377,74 +407,92 @@ class PermissionChecker {
             MANAGE_DEVICE_POLICY_WINDOWS, SET_TIME, SET_TIME_ZONE);
 
     /**
-     * All the additional permissions granted to a Profile Owner on an unaffiliated user.
+     * All the additional permissions granted to a Profile Owner on an unaffiliated full user.
      */
-    private static final List<String> ADDITIONAL_PROFILE_OWNER_ON_USER_PERMISSIONS = List.of(
-            MANAGE_DEVICE_POLICY_LOCK_TASK);
+    private static final List<String> ADDITIONAL_UNAFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS =
+            List.of(MANAGE_DEVICE_POLICY_LOCK_TASK);
 
     /**
-     * All the additional permissions granted to a Profile Owner on an affiliated user.
+     * All the additional permissions granted to a Profile Owner on an affiliated full user.
      */
-    private static final List<String> ADDITIONAL_AFFILIATED_PROFILE_OWNER_ON_USER_PERMISSIONS =
+    private static final List<String> ADDITIONAL_AFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS =
             List.of(MANAGE_DEVICE_POLICY_STATUS_BAR);
 
     /**
-     * Combination of {@link PROFILE_OWNER_PERMISSIONS} and
-     * {@link ADDITIONAL_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS}.
+     * Combination of {@link MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE_PERMISSIONS} and
+     * {@link ADDITIONAL_MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS}.
      */
-    private static final List<String> PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS =
-            new ArrayList();
+    private static final List<String>
+            MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS = new ArrayList();
 
     /**
-     * Combination of {@link PROFILE_OWNER_PERMISSIONS} and
+     * Combination of {@link MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE_PERMISSIONS} and
      * {@link ADDITIONAL_PROFILE_OWNER_ON_USER_0_PERMISSIONS}.
      */
     private static final List<String> PROFILE_OWNER_ON_USER_0_PERMISSIONS = new ArrayList();
 
     /**
-     * Combination of {@link PROFILE_OWNER_PERMISSIONS} and
+     * Combination of {@link MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE_PERMISSIONS} and
      * {@link ADDITIONAL_AFFILIATED_PROFIL_OWNER_ON_USER_PERMISSIONS}.
      */
-    private static final List<String> AFFILIATED_PROFILE_OWNER_ON_USER_PERMISSIONS =
+    private static final List<String> AFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS =
             new ArrayList();
 
     /**
-     * Combination of {@link PROFILE_OWNER_PERMISSIONS} and
-     * {@link ADDITIONAL_PROFILE_OWNER_ON_USER_PERMISSIONS}.
+     * Combination of {@link MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE_PERMISSIONS} and
+     * {@link ADDITIONAL_UNAFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS}.
      */
-    private static final List<String> PROFILE_OWNER_ON_USER_PERMISSIONS = new ArrayList();
+    private static final List<String> UNAFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS =
+            new ArrayList();
 
     private static final HashMap<Integer, List<String>> DPC_PERMISSIONS = new HashMap<>();
 
     static {
         // Organisation owned profile owners have all the permission of a profile owner plus
         // some extra permissions.
-        PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS.addAll(PROFILE_OWNER_PERMISSIONS);
-        PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS.addAll(
-                ADDITIONAL_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS);
+        MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS.addAll(
+                MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE_PERMISSIONS
+        );
+        MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS.addAll(
+                ADDITIONAL_MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS);
         // Profile owners on user 0 have all the permission of a profile owner plus
         // some extra permissions.
-        PROFILE_OWNER_ON_USER_0_PERMISSIONS.addAll(PROFILE_OWNER_PERMISSIONS);
+        PROFILE_OWNER_ON_USER_0_PERMISSIONS.addAll(
+                MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE_PERMISSIONS
+        );
         PROFILE_OWNER_ON_USER_0_PERMISSIONS.addAll(ADDITIONAL_PROFILE_OWNER_ON_USER_0_PERMISSIONS);
         // Profile owners on users have all the permission of a profile owner plus
         // some extra permissions.
-        PROFILE_OWNER_ON_USER_PERMISSIONS.addAll(PROFILE_OWNER_PERMISSIONS);
-        PROFILE_OWNER_ON_USER_PERMISSIONS.addAll(ADDITIONAL_PROFILE_OWNER_ON_USER_PERMISSIONS);
+        UNAFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS.addAll(
+                MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE_PERMISSIONS
+        );
+        UNAFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS.addAll(
+                ADDITIONAL_UNAFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS
+        );
         // Profile owners on affiliated users have all the permission of a profile owner on a user
         // plus some extra permissions.
-        AFFILIATED_PROFILE_OWNER_ON_USER_PERMISSIONS.addAll(PROFILE_OWNER_ON_USER_PERMISSIONS);
-        AFFILIATED_PROFILE_OWNER_ON_USER_PERMISSIONS.addAll(
-                ADDITIONAL_AFFILIATED_PROFILE_OWNER_ON_USER_PERMISSIONS);
+        AFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS.addAll(
+                UNAFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS
+        );
+        AFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS.addAll(
+                ADDITIONAL_AFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS);
 
-        DPC_PERMISSIONS.put(DEFAULT_DEVICE_OWNER, DEFAULT_DEVICE_OWNER_PERMISSIONS);
+        DPC_PERMISSIONS.put(DEVICE_OWNER, DEVICE_OWNER_PERMISSIONS);
         DPC_PERMISSIONS.put(FINANCED_DEVICE_OWNER, FINANCED_DEVICE_OWNER_PERMISSIONS);
-        DPC_PERMISSIONS.put(PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE,
-                PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS);
+        DPC_PERMISSIONS.put(MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE,
+                MANAGED_PROFILE_OWNER_OF_ORGANIZATION_OWNED_DEVICE_PERMISSIONS );
         DPC_PERMISSIONS.put(PROFILE_OWNER_ON_USER_0, PROFILE_OWNER_ON_USER_0_PERMISSIONS);
-        DPC_PERMISSIONS.put(PROFILE_OWNER, PROFILE_OWNER_PERMISSIONS);
-        DPC_PERMISSIONS.put(PROFILE_OWNER_ON_USER, PROFILE_OWNER_ON_USER_PERMISSIONS);
-        DPC_PERMISSIONS.put(AFFILIATED_PROFILE_OWNER_ON_USER,
-                AFFILIATED_PROFILE_OWNER_ON_USER_PERMISSIONS);
+        DPC_PERMISSIONS.put(
+                MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE,
+                MANAGED_PROFILE_OWNER_OF_PERSONAL_OWNED_DEVICE_PERMISSIONS
+
+        );
+        DPC_PERMISSIONS.put(
+                UNAFFILIATED_FULL_USER_PROFILE_OWNER,
+                UNAFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS
+        );
+        DPC_PERMISSIONS.put(AFFILIATED_FULL_USER_PROFILE_OWNER,
+                AFFILIATED_FULL_USER_PROFILE_OWNER_PERMISSIONS);
     }
 
     // Map of user restriction to permission.
@@ -458,6 +506,8 @@ class PermissionChecker {
         USER_RESTRICTION_PERMISSIONS.put(UserManager.DISALLOW_ADD_PRIVATE_PROFILE,
                 new String[]{MANAGE_DEVICE_POLICY_PROFILES});
         USER_RESTRICTION_PERMISSIONS.put(UserManager.DISALLOW_ADD_USER,
+                new String[]{MANAGE_DEVICE_POLICY_MODIFY_USERS});
+        USER_RESTRICTION_PERMISSIONS.put(UserManager.DISALLOW_ADD_GUEST,
                 new String[]{MANAGE_DEVICE_POLICY_MODIFY_USERS});
         USER_RESTRICTION_PERMISSIONS.put(UserManager.DISALLOW_ADD_WIFI_CONFIG,
                 new String[]{MANAGE_DEVICE_POLICY_WIFI});
@@ -601,7 +651,10 @@ class PermissionChecker {
                 new String[]{MANAGE_DEVICE_POLICY_INSTALL_UNKNOWN_SOURCES});
         USER_RESTRICTION_PERMISSIONS.put(UserManager.DISALLOW_SIM_GLOBALLY,
                 new String[]{MANAGE_DEVICE_POLICY_MOBILE_NETWORK});
-
+        if (android.security.Flags.extendAapmToA11yServices()) {
+            USER_RESTRICTION_PERMISSIONS.put(UserManager.DISALLOW_NON_TOOL_ACCESSIBILITY_SERVICE,
+                    new String[]{MANAGE_DEVICE_POLICY_ACCESSIBILITY});
+        }
         // Restrictions not allowed to be set by admins.
         USER_RESTRICTION_PERMISSIONS.put(UserManager.DISALLOW_RECORD_AUDIO, null);
         USER_RESTRICTION_PERMISSIONS.put(UserManager.DISALLOW_WALLPAPER, null);
@@ -631,6 +684,7 @@ class PermissionChecker {
      * @param permission The name of the permission being checked.
      * @param caller     The identity of the calling application.
      */
+    @Override
     public boolean hasPermission(@NonNull String permission, @NonNull CallerIdentity caller) {
         if (permission == null) {
             return true;
@@ -691,6 +745,7 @@ class PermissionChecker {
      * @param caller     The identity of the calling application.
      * @throws SecurityException if the caller has not been granted the given permission.
      */
+    @Override
     public void enforce(@NonNull String permission, @NonNull CallerIdentity caller)
             throws SecurityException {
         if (!hasPermission(permission, caller)) {

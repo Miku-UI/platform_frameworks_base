@@ -59,4 +59,12 @@ flag {
   namespace: "wear_frameworks"
   description: "Make GradientDrawable support arc shape for drawing ring with rounded stroke cap."
   bug: "380000245"
+  is_exported: true
+}
+
+flag {
+    name: "scale_bitmap_directly_to_ashmem"
+    namespace: "system_performance"
+    description: "Enable creating scaled ashmem bitmaps directly."
+    bug: "458709877"
 }

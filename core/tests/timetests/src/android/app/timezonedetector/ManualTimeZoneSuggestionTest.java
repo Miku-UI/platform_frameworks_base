@@ -76,7 +76,8 @@ public class ManualTimeZoneSuggestionTest {
 
     @Test
     public void testPrintCommandLineOpts() throws Exception {
-        try (StringWriter sw = new StringWriter(); PrintWriter pw = new PrintWriter(sw)) {
+        try (StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw)) {
             ManualTimeZoneSuggestion.printCommandLineOpts(pw);
             assertTrue(sw.getBuffer().length() > 0);
         }
@@ -92,8 +93,7 @@ public class ManualTimeZoneSuggestionTest {
     public void testParseCommandLineArg_validSuggestion() {
         ShellCommand testShellCommand =
                 createShellCommandWithArgsAndOptions("--zone_id Europe/London");
-        ManualTimeZoneSuggestion expectedSuggestion =
-                new ManualTimeZoneSuggestion("Europe/London");
+        ManualTimeZoneSuggestion expectedSuggestion = new ManualTimeZoneSuggestion("Europe/London");
         ManualTimeZoneSuggestion actualSuggestion =
                 ManualTimeZoneSuggestion.parseCommandLineArg(testShellCommand);
         assertEquals(expectedSuggestion, actualSuggestion);
@@ -101,8 +101,8 @@ public class ManualTimeZoneSuggestionTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testParseCommandLineArg_unknownArgument() {
-        ShellCommand testShellCommand = createShellCommandWithArgsAndOptions(
-                "--zone_id Europe/London --bad_arg 0");
+        ShellCommand testShellCommand =
+                createShellCommandWithArgsAndOptions("--zone_id Europe/London --bad_arg 0");
         ManualTimeZoneSuggestion.parseCommandLineArg(testShellCommand);
     }
 }

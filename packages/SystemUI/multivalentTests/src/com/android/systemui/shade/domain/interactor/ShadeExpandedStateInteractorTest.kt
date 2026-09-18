@@ -20,12 +20,13 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.EnableSceneContainer
-import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.shade.shadeTestUtil
+import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -33,10 +34,8 @@ import org.junit.runner.RunWith
 @SmallTest
 @EnableSceneContainer
 class ShadeExpandedStateInteractorTest : SysuiTestCase() {
-    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
-    private val testScope = kosmos.testScope
-    private val shadeTestUtil by lazy { kosmos.shadeTestUtil }
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
     private val underTest: ShadeExpandedStateInteractor by lazy {
         kosmos.shadeExpandedStateInteractor
@@ -44,18 +43,28 @@ class ShadeExpandedStateInteractorTest : SysuiTestCase() {
 
     @Test
     fun expandedElement_qsExpanded_returnsQSElement() =
-        testScope.runTest {
+        kosmos.runTest {
+            val shadeMode by collectLastValue(shadeModeInteractor.shadeMode)
+
             shadeTestUtil.setShadeAndQsExpansion(shadeExpansion = 0f, qsExpansion = 1f)
             val currentlyExpandedElement = underTest.currentlyExpandedElement
 
             val element = currentlyExpandedElement.value
 
-            assertThat(element).isInstanceOf(QSShadeElement::class.java)
+            assertThat(element)
+                .isInstanceOf(
+                    if (shadeMode is ShadeMode.Split) {
+                        // In Split Shade, NotificationShadeElement is always shown when opening QS.
+                        NotificationShadeElement::class.java
+                    } else {
+                        QSShadeElement::class.java
+                    }
+                )
         }
 
     @Test
     fun expandedElement_shadeExpanded_returnsShade() =
-        testScope.runTest {
+        kosmos.runTest {
             shadeTestUtil.setShadeAndQsExpansion(shadeExpansion = 1f, qsExpansion = 0f)
 
             val element = underTest.currentlyExpandedElement.value
@@ -65,7 +74,7 @@ class ShadeExpandedStateInteractorTest : SysuiTestCase() {
 
     @Test
     fun expandedElement_noneExpanded_returnsNull() =
-        testScope.runTest {
+        kosmos.runTest {
             shadeTestUtil.setShadeAndQsExpansion(shadeExpansion = 0f, qsExpansion = 0f)
 
             val element = underTest.currentlyExpandedElement.value

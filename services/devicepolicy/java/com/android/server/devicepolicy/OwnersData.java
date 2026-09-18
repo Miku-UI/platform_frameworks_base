@@ -16,6 +16,9 @@
 package com.android.server.devicepolicy;
 
 import static android.app.admin.DevicePolicyManager.DEVICE_OWNER_TYPE_DEFAULT;
+import static android.app.admin.DevicePolicyManager.MULTIUSER_MANAGED_DEVICE_PROVISIONING_STATE_UNMANAGED;
+import static android.app.admin.DevicePolicyManager.MultiuserManagedDeviceProvisioningState;
+import static com.android.server.devicepolicy.DevicePolicyManagerService.multiuserManagedDeviceProvisioningStateToString;
 
 import android.annotation.Nullable;
 import android.app.admin.SystemUpdateInfo;
@@ -59,6 +62,8 @@ class OwnersData {
     private static final String TAG_ROOT = "root";
     private static final String TAG_DEVICE_OWNER = "device-owner";
     private static final String TAG_DEVICE_MANAGED = "device-managed";
+    private static final String TAG_MULTIUSER_MANAGED_DEVICE_PROVISIONING_STATE =
+            "multiuser-managed-device-provisioning-state";
     private static final String TAG_SYSTEM_UPDATE_POLICY = "system-update-policy";
     private static final String TAG_FREEZE_PERIOD_RECORD = "freeze-record";
     private static final String TAG_PENDING_OTA_INFO = "pending-ota-info";
@@ -73,6 +78,7 @@ class OwnersData {
     private static final String ATTR_NAME = "name";
     private static final String ATTR_PACKAGE = "package";
     private static final String ATTR_COMPONENT_NAME = "component";
+    private static final String ATTR_MULTIUSER_MANAGED_DEVICE_PROVISIONING_STATE = "state";
     private static final String ATTR_SIZE = "size";
     private static final String ATTR_REMOTE_BUGREPORT_URI = "remoteBugreportUri";
     private static final String ATTR_REMOTE_BUGREPORT_HASH = "remoteBugreportHash";
@@ -104,6 +110,10 @@ class OwnersData {
             "crossProfileWidgetProviderMigrated";
     private static final String ATTR_PERMISSION_GRANT_STATE_MIGRATED =
             "permissionGrantStateMigrated";
+    private static final String ATTR_COMMON_CRITERIA_MODE_MIGRATED =
+            "commonCriteriaModeMigrated";
+    private static final String ATTR_LOCKSCREEN_INFO_MIGRATED =
+            "lockScreenInfoMigrated";
 
     private static final String ATTR_MIGRATED_POST_UPGRADE = "migratedPostUpgrade";
 
@@ -113,6 +123,10 @@ class OwnersData {
 
     // Whether the device is managed. This can be true even if the device owner is null.
     boolean mDeviceManaged = false;
+
+    // The multiuser managed device state.
+    @MultiuserManagedDeviceProvisioningState int mMultiuserManagedDeviceProvisioningState =
+            MULTIUSER_MANAGED_DEVICE_PROVISIONING_STATE_UNMANAGED;
 
     // Device owner type for a managed device.
     final ArrayMap<String, Integer> mDeviceOwnerTypes = new ArrayMap<>();
@@ -145,6 +159,8 @@ class OwnersData {
     boolean mCrossProfileWidgetProviderMigrated = false;
     boolean mSetKeyguardDisabledFeaturesMigrated = false;
     boolean mPermissionGrantStateMigrated = false;
+    boolean mCommonCriteriaModeMigrated = false;
+    boolean mLockScreenInfoMigrated = false;
 
     boolean mPoliciesMigratedPostUpdate = false;
 
@@ -202,6 +218,10 @@ class OwnersData {
                 pw.println();
             }
             pw.println("Is Device Managed: " + mDeviceManaged);
+            pw.println("Multiuser Managed Device Provisioning State: "
+            + mMultiuserManagedDeviceProvisioningState
+            + " (" + multiuserManagedDeviceProvisioningStateToString(
+                    mMultiuserManagedDeviceProvisioningState) +")");
             needBlank = true;
         }
         if (mSystemUpdatePolicy != null) {
@@ -409,6 +429,10 @@ class OwnersData {
                     out.startTag(null, TAG_DEVICE_MANAGED);
                     out.endTag(null, TAG_DEVICE_MANAGED);
                 }
+                out.startTag(null, TAG_MULTIUSER_MANAGED_DEVICE_PROVISIONING_STATE);
+                out.attributeInt(null, ATTR_MULTIUSER_MANAGED_DEVICE_PROVISIONING_STATE,
+                        mMultiuserManagedDeviceProvisioningState);
+                out.endTag(null, TAG_MULTIUSER_MANAGED_DEVICE_PROVISIONING_STATE);
             }
 
             if (!mDeviceOwnerTypes.isEmpty()) {
@@ -470,13 +494,21 @@ class OwnersData {
                 out.attributeBoolean(null, ATTR_SET_KEYGUARD_DISABLED_FEATURES_MIGRATED,
                         mSetKeyguardDisabledFeaturesMigrated);
             }
-            if (Flags.setPermissionGrantStateCoexistence() && Flags.dpeBasedOnAsyncApisEnabled()) {
+            if (Flags.setPermissionGrantStateCoexistence()) {
                 out.attributeBoolean(null, ATTR_PERMISSION_GRANT_STATE_MIGRATED,
                         mPermissionGrantStateMigrated);
             }
             if (Flags.crossProfileWidgetProviderBulkApis()) {
                 out.attributeBoolean(null, ATTR_CROSS_PROFILE_WIDGET_PROVIDER_MIGRATED,
                         mCrossProfileWidgetProviderMigrated);
+            }
+            if (Flags.commonCriteriaModeCoexistence()) {
+                out.attributeBoolean(null, ATTR_COMMON_CRITERIA_MODE_MIGRATED,
+                        mCommonCriteriaModeMigrated);
+            }
+            if (Flags.lockscreenInfoCoexistence()) {
+                out.attributeBoolean(null, ATTR_LOCKSCREEN_INFO_MIGRATED,
+                        mLockScreenInfoMigrated);
             }
             out.endTag(null, TAG_POLICY_ENGINE_MIGRATION);
 
@@ -494,6 +526,12 @@ class OwnersData {
                     break;
                 case TAG_DEVICE_MANAGED:
                     mDeviceManaged = true;
+                    break;
+                case TAG_MULTIUSER_MANAGED_DEVICE_PROVISIONING_STATE:
+                    mMultiuserManagedDeviceProvisioningState =
+                            parser.getAttributeInt(null,
+                            ATTR_MULTIUSER_MANAGED_DEVICE_PROVISIONING_STATE,
+                                    MULTIUSER_MANAGED_DEVICE_PROVISIONING_STATE_UNMANAGED);
                     break;
                 case TAG_DEVICE_OWNER_CONTEXT: {
                     mDeviceOwnerUserId =
@@ -566,12 +604,19 @@ class OwnersData {
                                     ATTR_SET_KEYGUARD_DISABLED_FEATURES_MIGRATED, false);
                     mPermissionGrantStateMigrated =
                             Flags.setPermissionGrantStateCoexistence()
-                                    && Flags.dpeBasedOnAsyncApisEnabled()
                                     && parser.getAttributeBoolean(null,
                                     ATTR_PERMISSION_GRANT_STATE_MIGRATED, false);
                     mCrossProfileWidgetProviderMigrated = Flags.crossProfileWidgetProviderBulkApis()
                             && parser.getAttributeBoolean(null,
                             ATTR_CROSS_PROFILE_WIDGET_PROVIDER_MIGRATED, false);
+                    mCommonCriteriaModeMigrated =
+                            Flags.commonCriteriaModeCoexistence()
+                                    && parser.getAttributeBoolean(null,
+                                    ATTR_COMMON_CRITERIA_MODE_MIGRATED, false);
+                    mLockScreenInfoMigrated =
+                            Flags.lockscreenInfoCoexistence()
+                                    && parser.getAttributeBoolean(null,
+                                    ATTR_LOCKSCREEN_INFO_MIGRATED, false);
                     break;
                 default:
                     Slog.e(TAG, "Unexpected tag: " + tag);

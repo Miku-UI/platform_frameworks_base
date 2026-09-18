@@ -54,6 +54,39 @@ com.android.hoststubgen.test.tinyframework
   1
   1
 com.android.hoststubgen.test.tinyframework
+  IgnoreClassTest
+  0
+  com.android.hoststubgen.test.tinyframework.IgnoreClassTest
+  <clinit>
+  <clinit>()V
+  0
+  Ignore
+  class-wide in com/android/hoststubgen/test/tinyframework/IgnoreClassTest [inner-reason: file-override [class - 'ignore']]
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  IgnoreClassTest
+  0
+  com.android.hoststubgen.test.tinyframework.IgnoreClassTest
+  <init>
+  <init>()V
+  1
+  Keep
+  file-override [method - 'keep'] (#Ignore on a ctor doesn't work. b/448180616 # no-pta)
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  IgnoreClassTest
+  0
+  com.android.hoststubgen.test.tinyframework.IgnoreClassTest
+  foo
+  foo()I
+  0
+  Ignore
+  class-wide in com/android/hoststubgen/test/tinyframework/IgnoreClassTest [inner-reason: file-override [class - 'ignore']]
+  0
+  0
+com.android.hoststubgen.test.tinyframework
   R
   0
   com.android.hoststubgen.test.tinyframework.R
@@ -86,6 +119,39 @@ com.android.hoststubgen.test.tinyframework
   class-wide in com/android/hoststubgen/test/tinyframework/R$Nested [inner-reason: file-override [special-class: R - 'keepclass']]
   1
   1
+com.android.hoststubgen.test.tinyframework
+  ThrowClassTest
+  0
+  com.android.hoststubgen.test.tinyframework.ThrowClassTest
+  <clinit>
+  <clinit>()V
+  0
+  Ignore
+  'throw' on static initializer is handled as 'ignore' [original throw reason: class-wide in com/android/hoststubgen/test/tinyframework/ThrowClassTest [inner-reason: file-override [class - 'throw']]]
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  ThrowClassTest
+  0
+  com.android.hoststubgen.test.tinyframework.ThrowClassTest
+  <init>
+  <init>()V
+  1
+  Keep
+  file-override [method - 'keep'] (#allow instantiating the class for the test. # no-pta)
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  ThrowClassTest
+  0
+  com.android.hoststubgen.test.tinyframework.ThrowClassTest
+  foo
+  foo()I
+  0
+  Throw
+  class-wide in com/android/hoststubgen/test/tinyframework/ThrowClassTest [inner-reason: file-override [class - 'throw']]
+  0
+  0
 com.android.hoststubgen.test.tinyframework
   TinyFrameworkAnnotations
   0

@@ -193,8 +193,7 @@ struct CanvasOp<CanvasOpType::DrawPoints> {
     void draw(SkCanvas* canvas) const {
         canvas->drawPoints(
             SkCanvas::kPoints_PointMode,
-            count,
-            points->data(),
+            {points->data(), count},
             paint
         );
     }
@@ -307,8 +306,7 @@ struct CanvasOp<CanvasOpType::DrawLines> {
     void draw(SkCanvas* canvas) const {
         canvas->drawPoints(
             SkCanvas::kLines_PointMode,
-            count,
-            points->data(),
+            {points->data(), count},
             paint
         );
     }

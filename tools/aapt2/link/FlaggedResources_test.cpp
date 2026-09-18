@@ -170,7 +170,7 @@ TEST_F(FlaggedResourcesTest, EnabledXmlElementAttributeRemoved) {
   auto loaded_apk = LoadedApk::LoadApkFromPath(apk_path, &noop_diag);
 
   std::string output;
-  DumpXmlTreeToString(loaded_apk.get(), "res/layout-v36/layout1.xml", &output);
+  DumpXmlTreeToString(loaded_apk.get(), "res/layout-v36.1/layout1.xml", &output);
   ASSERT_TRUE(output.contains("FIND_ME"));
 }
 
@@ -221,11 +221,43 @@ TEST_F(FlaggedResourcesTest, ReadWriteFlagInXmlGetsFlagged) {
   ASSERT_EQ(fields_flagged, 3);
 }
 
+TEST_F(FlaggedResourcesTest, FlagInXmlNotRecognized) {
+  const std::string compiled_files_dir = GetTestPath("compiled");
+  ASSERT_TRUE(
+      CompileFile(GetTestPath("res/layout/mylayout.xml"),
+                  R"(<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android">
+                                      <TextView android:featureFlag="test.package.myFlag"/>
+                                      </LinearLayout>)",
+                  compiled_files_dir, &noop_diag, {}));
+  const std::string manifest_file = GetTestPath("AndroidManifest.xml");
+  WriteFile(manifest_file, R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+        package="com.aapt.command.test">
+      <overlay android:targetPackage="com.example.target" />
+    </manifest>)");
+  const std::string out_apk = GetTestPath("out.apk");
+  std::vector<std::string> link_args = {
+      "--manifest",
+      manifest_file,
+      "-o",
+      out_apk,
+  };
+
+  test::TestDiagnosticsImpl diag;
+  ASSERT_FALSE(Link(link_args, compiled_files_dir, &diag));
+  ASSERT_TRUE(
+      diag.GetLog().contains("res/layout/mylayout.xml:2: error: element 'TextView' has "
+                             "flag 'test.package.myFlag' not found in flags from --feature_flags "
+                             "parameter"));
+}
+
 TEST_F(FlaggedResourcesTest, ReadWriteFlagChunk) {
   const std::string compiled_files_dir = GetTestPath("compiled");
   ASSERT_TRUE(CompileFile(GetTestPath("res/values/strings.xml"),
                           R"(<resources  xmlns:android="http://schemas.android.com/apk/res/android">
-                                <string name="text1" android:featureFlag="test.package.rwFlag">foobar</string>
+<string name="text1" android:featureFlag="test.package.rwFlag">foobar</string>
+<string name="text2">foobar</string>
+<string name="text3" android:featureFlag="test.package.rwFlag">@string/text2</string>
                               </resources>)",
                           compiled_files_dir, &noop_diag,
                           {"--feature-flags", "test.package.rwFlag"}));
@@ -243,6 +275,7 @@ TEST_F(FlaggedResourcesTest, ReadWriteFlagChunk) {
 
   std::string output;
   DumpChunksToString(loaded_apk.get(), &output);
+  SCOPED_TRACE(output);
 
   std::string expected1 =
       R"OUT_END(  [RES_TABLE_FLAG_LIST] chunkSize: 12 headerSize: 8 count: 1
@@ -250,12 +283,49 @@ TEST_F(FlaggedResourcesTest, ReadWriteFlagChunk) {
   ASSERT_TRUE(output.contains(expected1));
 
   std::string expected2 =
-      R"OUT_END(    [RES_TABLE_FLAGGED] chunkSize: 120 headerSize: 16 name: test.package.rwFlag negated: false
-      [ResTable_type] chunkSize: 104 headerSize: 84 id: 0x01 name: string flags: 0x00 (DENSE) entryCount: 1 entryStart: 88 config: 
-        [ResTable_entry] id: 0x0000 name: text1 keyIndex: 0 size: 8 flags: 0x0000
-          [Res_value] size: 8 dataType: 0x03 data: 0x00000000 ("foobar"))OUT_END";
-
+      R"OUT_END([RES_TABLE_FLAGGED] chunkSize: 144 headerSize: 16 name: test.package.rwFlag negated: false
+      [ResTable_type] chunkSize: 128 headerSize: 84 id: 0x01 name: string flags: 0x00 (DENSE) entryCount: 3 entryStart: 96 config: 
+        [ResTable_entry] id: 0x0000 name: text1 keyIndex: 0 size: 8 flags: 0x0010
+          [Res_value] size: 8 dataType: 0x03 (string) data: 0x00000000 ("foobar")
+        [ResTable_entry] id: 0x0002 name: text3 keyIndex: 2 size: 8 flags: 0x0010
+          [Res_value] size: 8 dataType: 0x01 (reference) data: 0x7f010001 (@0x7f010001))OUT_END";
   ASSERT_TRUE(output.contains(expected2));
+}
+
+TEST_F(FlaggedResourcesTest, ReadWriteFlagsOnOverlaySucceeds) {
+  const std::string compiled_files_dir = GetTestPath("compiled");
+  ASSERT_TRUE(CompileFile(GetTestPath("res/values/strings.xml"),
+                          R"(<resources  xmlns:android="http://schemas.android.com/apk/res/android">
+<string name="text1" android:featureFlag="test.package.rwFlag">foobar</string>
+                              </resources>)",
+                          compiled_files_dir, &noop_diag,
+                          {"--feature-flags", "test.package.rwFlag"}));
+  const std::string manifest_file = GetTestPath("AndroidManifest.xml");
+  WriteFile(manifest_file, R"(
+    <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+        package="com.aapt.command.test">
+      <overlay android:targetPackage="com.example.target" />
+    </manifest>)");
+  const std::string out_apk = GetTestPath("out.apk");
+  std::vector<std::string> link_args = {
+      "--manifest",
+      manifest_file,
+      "-o",
+      out_apk,
+  };
+
+  test::TestDiagnosticsImpl diag;
+  ASSERT_TRUE(Link(link_args, compiled_files_dir, &diag));
+}
+
+TEST_F(FlaggedResourcesTest, RODisabledManifestElementRemoved) {
+  auto apk_path = file::BuildPath({android::base::GetExecutableDirectory(), "resapp.apk"});
+  auto loaded_apk = LoadedApk::LoadApkFromPath(apk_path, &noop_diag);
+
+  std::string output;
+  DumpXmlTreeToString(loaded_apk.get(), "AndroidManifest.xml", &output);
+  SCOPED_TRACE(output);
+  ASSERT_FALSE(output.contains("CAMERA"));
 }
 
 }  // namespace aapt

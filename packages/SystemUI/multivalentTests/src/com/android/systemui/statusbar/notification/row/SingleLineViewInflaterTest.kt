@@ -26,6 +26,7 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
+import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper
 import androidx.core.graphics.drawable.toBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -36,12 +37,9 @@ import com.android.systemui.statusbar.notification.row.ui.viewmodel.Conversation
 import com.android.systemui.statusbar.notification.row.ui.viewmodel.FacePile
 import com.android.systemui.statusbar.notification.row.ui.viewmodel.SingleIcon
 import com.android.systemui.statusbar.notification.row.ui.viewmodel.SingleLineViewModel
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
-import kotlin.test.assertIsNot
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import com.android.systemui.statusbar.notification.row.ui.viewmodel.SingleLineViewPayload
+import com.android.systemui.statusbar.notification.shared.Metric
+import com.google.common.truth.Truth.assertThat
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -67,6 +65,9 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
         const val CONVERSATION_TITLE = "The Sender Family"
         const val CONTENT_TITLE = "A Cool Group"
         const val CONTENT_TEXT = "This is an amazing group chat"
+
+        const val REPLY_ONE = "reply one of two"
+        const val REPLY_TWO = "reply two of two"
 
         const val SHORTCUT_ID = "Shortcut"
     }
@@ -95,7 +96,15 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
 
         // Then: the inflated SingleLineViewModel should be as expected
         // conversationData: null, because it's not a conversation notification
-        assertEquals(SingleLineViewModel(CONTENT_TITLE, CONTENT_TEXT, null), singleLineViewModel)
+        assertThat(singleLineViewModel)
+            .isEqualTo(
+                SingleLineViewModel(
+                    CONTENT_TITLE,
+                    CONTENT_TEXT,
+                    null,
+                    SingleLineViewPayload.StandardPayload,
+                )
+            )
     }
 
     @Test
@@ -109,9 +118,10 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
 
         // Then: the view model should show the placeholder title
         val expectedTitle = context.getString(R.string.empty_notification_single_line_title)
-        assertEquals(expectedTitle, singleLineViewModel.titleText)
-        assertNull(singleLineViewModel.contentText)
-        assertNull(singleLineViewModel.conversationData)
+        assertThat(singleLineViewModel.titleText).isEqualTo(expectedTitle)
+        assertThat(singleLineViewModel.contentText).isNull()
+        assertThat(singleLineViewModel.payload)
+            .isInstanceOf(SingleLineViewPayload.StandardPayload::class.java)
     }
 
     @Test
@@ -128,17 +138,47 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
         // contentText: the last message text
         // conversationSenderName: null, because it's not a group conversation
         // conversationData.avatar: a single icon of the last sender
-        assertEquals(CONVERSATION_TITLE, singleLineViewModel.titleText)
-        assertEquals(LAST_MESSAGE, singleLineViewModel.contentText)
-        assertNull(
-            singleLineViewModel.conversationData?.conversationSenderName,
-            "Sender name should be null for one-on-one conversation",
-        )
-        assertTrue {
-            singleLineViewModel.conversationData
-                ?.avatar
-                ?.equalsTo(SingleIcon(firstSenderIcon.loadDrawable(context))) == true
-        }
+        assertThat(singleLineViewModel.titleText).isEqualTo(CONVERSATION_TITLE)
+        assertThat(singleLineViewModel.contentText).isEqualTo(LAST_MESSAGE)
+        assertThat(singleLineViewModel.payload)
+            .isInstanceOf(SingleLineViewPayload.ConversationData::class.java)
+        val conversationData = singleLineViewModel.payload as SingleLineViewPayload.ConversationData
+        // Sender name should be null for one-on-one conversation
+        assertThat(conversationData.conversationSenderName).isNull()
+        assertThat(
+                conversationData.avatar.equalsTo(SingleIcon(firstSenderIcon.loadDrawable(context)))
+            )
+            .isTrue()
+    }
+
+    @Test
+    fun createViewModelForNonGroupConversationNotification_withRemoteInputHistory() {
+        // Given: a non-group conversation notification
+        val notificationType = OneToOneConversation()
+        val notification =
+            getNotification(notificationType) { builder ->
+                builder.setRemoteInputHistory(arrayOf<CharSequence>(REPLY_ONE, REPLY_TWO))
+            }
+
+        // When: inflate the SingleLineViewModel
+        val singleLineViewModel = notification.makeSingleLineViewModel(notificationType)
+
+        // Then: the inflated SingleLineViewModel should be as expected
+        // titleText: Notification.ConversationTitle
+        // contentText: the second reply text
+        // conversationSenderName: "User:" because the last message is a remote input
+        // conversationData.avatar: a single icon of the last sender
+        assertThat(singleLineViewModel.titleText).isEqualTo(CONVERSATION_TITLE)
+        assertThat(singleLineViewModel.contentText).isEqualTo(REPLY_TWO)
+        assertThat(singleLineViewModel.payload)
+            .isInstanceOf(SingleLineViewPayload.ConversationData::class.java)
+        val conversationData = singleLineViewModel.payload as SingleLineViewPayload.ConversationData
+        // Sender name should be "User:" because the last message is a remote input
+        assertThat(conversationData.conversationSenderName).isEqualTo("User:")
+        assertThat(
+                conversationData.avatar.equalsTo(SingleIcon(firstSenderIcon.loadDrawable(context)))
+            )
+            .isTrue()
     }
 
     @Test
@@ -154,12 +194,12 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
         // titleText: CONVERSATION_TITLE: SENDER_NAME
         // contentText: the last message text
         // conversationData: null, because it's not a conversation notification
-        assertEquals("$CONVERSATION_TITLE: $FIRST_SENDER_NAME", singleLineViewModel.titleText)
-        assertEquals(LAST_MESSAGE, singleLineViewModel.contentText)
-        assertNull(
-            singleLineViewModel.conversationData,
-            "conversationData should be null for legacy messaging conversation",
-        )
+        assertThat(singleLineViewModel.titleText)
+            .isEqualTo("$CONVERSATION_TITLE: $FIRST_SENDER_NAME")
+        assertThat(singleLineViewModel.contentText).isEqualTo(LAST_MESSAGE)
+        // Legacy messaging conversation should have standard payload
+        assertThat(singleLineViewModel.payload)
+            .isInstanceOf(SingleLineViewPayload.StandardPayload::class.java)
     }
 
     @Test
@@ -175,12 +215,12 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
         // titleText: CONVERSATION_TITLE: LAST_SENDER_NAME
         // contentText: the last message text
         // conversationData: null, because it's not a conversation notification
-        assertEquals("$CONVERSATION_TITLE: $LAST_SENDER_NAME", singleLineViewModel.titleText)
-        assertEquals(LAST_MESSAGE, singleLineViewModel.contentText)
-        assertNull(
-            singleLineViewModel.conversationData,
-            "conversationData should be null for legacy messaging conversation",
-        )
+        assertThat(singleLineViewModel.titleText)
+            .isEqualTo("$CONVERSATION_TITLE: $LAST_SENDER_NAME")
+        assertThat(singleLineViewModel.contentText).isEqualTo(LAST_MESSAGE)
+        // Legacy messaging conversation should have standard payload.
+        assertThat(singleLineViewModel.payload)
+            .isInstanceOf(SingleLineViewPayload.StandardPayload::class.java)
     }
 
     @Test
@@ -199,17 +239,16 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
         // contentText: the last message text
         // conversationSenderName: null, because it's not a group conversation
         // conversationData.avatar: a single icon of the shortcut icon
-        assertEquals(CONVERSATION_TITLE, singleLineViewModel.titleText)
-        assertEquals(LAST_MESSAGE, singleLineViewModel.contentText)
-        assertNull(
-            singleLineViewModel.conversationData?.conversationSenderName,
-            "Sender name should be null for one-on-one conversation",
-        )
-        assertTrue {
-            singleLineViewModel.conversationData
-                ?.avatar
-                ?.equalsTo(SingleIcon(shortcutIcon.loadDrawable(context))) == true
-        }
+        assertThat(singleLineViewModel.titleText).isEqualTo(CONVERSATION_TITLE)
+        assertThat(singleLineViewModel.contentText).isEqualTo(LAST_MESSAGE)
+        assertThat(singleLineViewModel.payload)
+            .isInstanceOf(SingleLineViewPayload.ConversationData::class.java)
+        val conversationData = singleLineViewModel.payload as SingleLineViewPayload.ConversationData
+
+        // Sender name should be null for one-on-one conversation
+        assertThat(conversationData.conversationSenderName).isNull()
+        assertThat(conversationData.avatar.equalsTo(SingleIcon(shortcutIcon.loadDrawable(context))))
+            .isTrue()
     }
 
     @Test
@@ -228,20 +267,51 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
         // contentText: the last message text
         // conversationSenderName: the last non-user sender's name
         // conversationData.avatar: a single icon
-        assertEquals(CONVERSATION_TITLE, singleLineViewModel.titleText)
-        assertEquals(LAST_MESSAGE, singleLineViewModel.contentText)
-        assertEquals(
-            context.resources.getString(
-                com.android.internal.R.string.conversation_single_line_name_display,
-                LAST_SENDER_NAME,
-            ),
-            singleLineViewModel.conversationData?.conversationSenderName,
-        )
-        assertTrue {
-            singleLineViewModel.conversationData
-                ?.avatar
-                ?.equalsTo(SingleIcon(largeIcon.loadDrawable(context))) == true
-        }
+        assertThat(singleLineViewModel.titleText).isEqualTo(CONVERSATION_TITLE)
+        assertThat(singleLineViewModel.contentText).isEqualTo(LAST_MESSAGE)
+        assertThat(singleLineViewModel.payload)
+            .isInstanceOf(SingleLineViewPayload.ConversationData::class.java)
+
+        val conversationData = singleLineViewModel.payload as SingleLineViewPayload.ConversationData
+        assertThat(conversationData.conversationSenderName)
+            .isEqualTo(
+                context.resources.getString(
+                    com.android.internal.R.string.conversation_single_line_name_display,
+                    LAST_SENDER_NAME,
+                )
+            )
+        assertThat(conversationData.avatar.equalsTo(SingleIcon(largeIcon.loadDrawable(context))))
+            .isTrue()
+    }
+
+    @Test
+    fun createViewModelForGroupConversationNotificationWithLargeIcon_withRemoteInputHistory() {
+        // Given: a group conversation notification with a large icon
+        val largeIcon =
+            Icon.createWithResource(context, com.android.internal.R.drawable.ic_account_circle)
+        val notificationType = GroupConversation(largeIcon = largeIcon)
+        val notification =
+            getNotification(notificationType) { builder ->
+                builder.setRemoteInputHistory(arrayOf<CharSequence>(REPLY_ONE, REPLY_TWO))
+            }
+
+        // When: inflate the SingleLineViewModel
+        val singleLineViewModel = notification.makeSingleLineViewModel(notificationType)
+
+        // Then: the inflated SingleLineViewModel should be expected
+        // titleText: Notification.ConversationTitle
+        // contentText: the second reply text
+        // conversationSenderName: the user's name
+        // conversationData.avatar: a single icon
+        assertThat(singleLineViewModel.titleText).isEqualTo(CONVERSATION_TITLE)
+        assertThat(singleLineViewModel.contentText).isEqualTo(REPLY_TWO)
+        assertThat(singleLineViewModel.payload)
+            .isInstanceOf(SingleLineViewPayload.ConversationData::class.java)
+
+        val conversationData = singleLineViewModel.payload as SingleLineViewPayload.ConversationData
+        assertThat(conversationData.conversationSenderName).isEqualTo("User:")
+        assertThat(conversationData.avatar.equalsTo(SingleIcon(largeIcon.loadDrawable(context))))
+            .isTrue()
     }
 
     @Test
@@ -258,26 +328,32 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
         // contentText: the last message text
         // conversationSenderName: the last non-user sender's name
         // conversationData.avatar: a face-pile consists the last sender's icon
-        assertEquals(CONVERSATION_TITLE, singleLineViewModel.titleText)
-        assertEquals(LAST_MESSAGE, singleLineViewModel.contentText)
-        assertEquals(
-            context.resources.getString(
-                com.android.internal.R.string.conversation_single_line_name_display,
-                LAST_SENDER_NAME,
-            ),
-            singleLineViewModel.conversationData?.conversationSenderName,
-        )
+        assertThat(singleLineViewModel.titleText).isEqualTo(CONVERSATION_TITLE)
+        assertThat(singleLineViewModel.contentText).isEqualTo(LAST_MESSAGE)
+        assertThat(singleLineViewModel.payload)
+            .isInstanceOf(SingleLineViewPayload.ConversationData::class.java)
+        val conversationData = singleLineViewModel.payload as SingleLineViewPayload.ConversationData
+        assertThat(conversationData.conversationSenderName)
+            .isEqualTo(
+                context.resources.getString(
+                    com.android.internal.R.string.conversation_single_line_name_display,
+                    LAST_SENDER_NAME,
+                )
+            )
 
         val backgroundColor =
             Notification.Builder.recoverBuilder(context, notification)
                 .getBackgroundColor(/* isHeader= */ false)
-        assertTrue {
-            singleLineViewModel.conversationData
-                ?.avatar
-                ?.equalsTo(
-                    FacePile(firstSenderIconDrawable, lastSenderIconDrawable, backgroundColor)
-                ) == true
-        }
+        assertThat(
+                conversationData.avatar.equalsTo(
+                    FacePile(
+                        topIconDrawable = firstSenderIconDrawable,
+                        bottomIconDrawable = lastSenderIconDrawable,
+                        bottomBackgroundColor = backgroundColor,
+                    )
+                )
+            )
+            .isTrue()
     }
 
     @Test
@@ -287,7 +363,7 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
         val notification = getNotification(notificationType)
 
         // When: inflate the SingleLineViewModel
-        val singleLineViewModel = notification.makeSingleLineViewModel(notificationType)
+        val singleLineViewModel = notification.makeSingleLineViewModel(notificationType, true)
 
         // Then: the inflated SingleLineViewModel should be as expected
         // titleText: Notification.ConversationTitle
@@ -295,18 +371,17 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
         // conversationSenderName: null, because it's not a group conversation
         // conversationData.avatar: a single icon of the last sender
         // summarizedText: the summary text from the ranking
-        assertEquals(CONVERSATION_TITLE, singleLineViewModel.titleText)
-        assertEquals(LAST_MESSAGE, singleLineViewModel.contentText)
-        assertNull(
-            singleLineViewModel.conversationData?.conversationSenderName,
-            "Sender name should be null for one-on-one conversation",
-        )
-        assertTrue {
-            singleLineViewModel.conversationData
-                ?.avatar
-                ?.equalsTo(SingleIcon(firstSenderIcon.loadDrawable(context))) == true
-        }
-        assertEquals("summary", singleLineViewModel.conversationData?.summarization)
+        assertThat(singleLineViewModel.titleText).isEqualTo(CONVERSATION_TITLE)
+        assertThat(singleLineViewModel.contentText).isEqualTo(LAST_MESSAGE)
+        assertThat(singleLineViewModel.payload)
+            .isInstanceOf(SingleLineViewPayload.ConversationData::class.java)
+        val conversationData = singleLineViewModel.payload as SingleLineViewPayload.ConversationData
+        assertThat(conversationData.conversationSenderName).isNull()
+        assertThat(
+                conversationData.avatar.equalsTo(SingleIcon(firstSenderIcon.loadDrawable(context)))
+            )
+            .isTrue()
+        assertThat(conversationData.summarization).isEqualTo("summary")
     }
 
     @Test
@@ -316,18 +391,41 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
             SingleLineViewInflater.inflatePublicSingleLineViewModel(context, isConversation = true)
 
         // Then: the view model should be populated with the correct data
+        assertThat(singleLineViewModel.payload)
+            .isInstanceOf(SingleLineViewPayload.ConversationData::class.java)
+        val conversationData = singleLineViewModel.payload as SingleLineViewPayload.ConversationData
+
         val expectedIcon = context.getDrawable(R.drawable.ic_public_notification_single_line_icon)
-        assertTrue(
-            (singleLineViewModel.conversationData?.avatar as? SingleIcon)
-                ?.iconDrawable
-                ?.equalsTo(expectedIcon) == true
-        )
-
+        assertThat(conversationData.avatar.equalsTo(SingleIcon(expectedIcon))).isTrue()
         val expectedTitle = context.getString(R.string.public_notification_single_line_title)
-        assertEquals(expectedTitle, singleLineViewModel.titleText)
+        assertThat(singleLineViewModel.titleText).isEqualTo(expectedTitle)
+        assertThat(singleLineViewModel.contentText).isNull()
+    }
 
-        assertNull(singleLineViewModel.contentText)
-        assertNotNull(singleLineViewModel.conversationData)
+    @Test
+    @EnableFlags(
+        android.app.Flags.FLAG_API_METRIC_STYLE,
+        android.app.Flags.FLAG_METRIC_VALUE_ALTERNATIVE_STRINGS,
+    )
+    fun createViewModelForMetricSingleLineView() {
+        // Given: a MetricStyle notification
+        val testMetric = Notification.Metric(Notification.Metric.FixedInt(1245), "Steps")
+        val notificationType = MetricNotification(testMetric)
+        val notification = getNotification(notificationType)
+
+        // When: inflate the SingleLineViewModel
+        val singleLineViewModel = notification.makeSingleLineViewModel(notificationType)
+
+        // Then: the inflated SingleLineViewModel should be as expected
+        assertThat(singleLineViewModel.titleText).isEqualTo(CONTENT_TITLE)
+        assertThat(singleLineViewModel.contentText).isNull()
+        assertThat(singleLineViewModel.payload)
+            .isInstanceOf(SingleLineViewPayload.MetricPayload::class.java)
+        val metric = (singleLineViewModel.payload as? SingleLineViewPayload.MetricPayload)?.data
+        assertThat(metric).isNotNull()
+        assertThat(metric?.label).isEqualTo("Steps")
+        assertThat(metric).isInstanceOf(Metric.Text::class.java)
+        assertThat((metric as Metric.Text).textVariants).containsExactly("1,245", "1.2K")
     }
 
     sealed class NotificationType(val largeIcon: Icon? = null)
@@ -345,13 +443,19 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
 
     class GroupConversation(largeIcon: Icon? = null) : NotificationType(largeIcon)
 
-    private fun getNotification(type: NotificationType): Notification {
+    class MetricNotification(val metric: Notification.Metric) : NotificationType()
+
+    private fun getNotification(
+        type: NotificationType,
+        extraBuild: (Notification.Builder) -> Unit = {},
+    ): Notification {
         val notificationBuilder: Notification.Builder =
             Notification.Builder(mContext, "channelId")
                 .setSmallIcon(R.drawable.ic_person)
                 .setContentTitle(CONTENT_TITLE)
                 .setContentText(CONTENT_TEXT)
                 .setLargeIcon(type.largeIcon)
+                .also(extraBuild)
 
         val user = Person.Builder().setName("User").build()
 
@@ -365,6 +469,7 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
                 notificationBuilder
                     .setStyle(Notification.BigTextStyle().bigText("Big Text"))
                     .build()
+
             is Empty -> notificationBuilder.setContentTitle(null).setContentText(null).build()
             is LegacyMessaging -> {
                 buildMessagingStyle
@@ -374,9 +479,10 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
 
                 val notification = notificationBuilder.setStyle(buildMessagingStyle).build()
 
-                assertNull(notification.shortcutId)
+                assertThat(notification.shortcutId).isNull()
                 notification
             }
+
             is LegacyMessagingGroup -> {
                 buildMessagingStyle
                     .addMessage("What's up?", 0, firstSender)
@@ -386,9 +492,10 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
 
                 val notification = notificationBuilder.setStyle(buildMessagingStyle).build()
 
-                assertNull(notification.shortcutId)
+                assertThat(notification.shortcutId).isNull()
                 notification
             }
+
             is OneToOneConversation -> {
                 buildMessagingStyle
                     .addMessage("What's up?", 0, firstSender)
@@ -397,6 +504,7 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
                     .setShortcutIcon(type.shortcutIcon)
                 notificationBuilder.setShortcutId(SHORTCUT_ID).setStyle(buildMessagingStyle).build()
             }
+
             is GroupConversation -> {
                 buildMessagingStyle
                     .addMessage("What's up?", 0, firstSender)
@@ -405,10 +513,19 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
                     .addMessage(LAST_MESSAGE, 0, lastSender)
                 notificationBuilder.setShortcutId(SHORTCUT_ID).setStyle(buildMessagingStyle).build()
             }
+
+            is MetricNotification -> {
+                val style = Notification.MetricStyle()
+                style.addMetric(type.metric)
+                notificationBuilder.setStyle(style).build()
+            }
         }
     }
 
-    private fun Notification.makeSingleLineViewModel(type: NotificationType): SingleLineViewModel {
+    private fun Notification.makeSingleLineViewModel(
+        type: NotificationType,
+        includeSummarization: Boolean = false,
+    ): SingleLineViewModel {
         val builder = Notification.Builder.recoverBuilder(context, this)
 
         // Validate the recovered builder has the right type of style
@@ -418,31 +535,29 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
                 is LegacyMessagingGroup,
                 is OneToOneConversation,
                 is GroupConversation -> true
+
                 else -> false
             }
         if (expectMessagingStyle) {
-            assertIs<Notification.MessagingStyle>(
-                builder.style,
-                "Notification style should be MessagingStyle",
-            )
+            assertThat(builder.style).isInstanceOf(Notification.MessagingStyle::class.java)
         } else {
-            assertIsNot<Notification.MessagingStyle>(
-                builder.style,
-                message = "Notification style should not be MessagingStyle",
-            )
+            assertThat(builder.style).isNotInstanceOf(Notification.MessagingStyle::class.java)
         }
 
         // Inflate the SingleLineViewModel
         // Mock the behavior of NotificationRowContentBinder.doInBackground
         val messagingStyle = builder.getMessagingStyle()
         val isConversation = type is OneToOneConversation || type is GroupConversation
+        val metricStyle = builder.style as? Notification.MetricStyle
+        val isMetric = type is MetricNotification
         return SingleLineViewInflater.inflateSingleLineViewModel(
             this,
             if (isConversation) messagingStyle else null,
+            if (isMetric) metricStyle else null, // Pass metricStyle
             builder,
             context,
             false,
-            "summary",
+            if (includeSummarization) "summary" else null,
         )
     }
 
@@ -495,7 +610,7 @@ class SingleLineViewInflaterTest : SysuiTestCase() {
             else -> true
         }
 
-    fun Drawable.equalsTo(other: Drawable?): Boolean =
+    private fun Drawable.equalsTo(other: Drawable?): Boolean =
         when {
             this === other -> true
             this.pixelsEqualTo(other) -> true

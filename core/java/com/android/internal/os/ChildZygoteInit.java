@@ -106,7 +106,7 @@ public class ChildZygoteInit {
             throw new RuntimeException("Passed in UID range does not map to isolated processes.");
         }
 
-        /**
+        /*
          * Install a seccomp filter that ensure this Zygote can only setuid()/setgid()
          * to the passed in range.
          */

@@ -16,6 +16,7 @@
 
 package com.android.internal.statusbar;
 
+import android.app.motioncues.MotionCuesSettings;
 import android.app.Notification;
 import android.content.ComponentName;
 import android.graphics.drawable.Icon;
@@ -32,6 +33,7 @@ import android.os.UserHandle;
 import android.view.KeyEvent;
 import android.service.notification.StatusBarNotification;
 
+import com.android.internal.infra.AndroidFuture;
 import com.android.internal.logging.InstanceId;
 import com.android.internal.statusbar.IAddTileResultCallback;
 import com.android.internal.statusbar.ISessionListener;
@@ -60,16 +62,22 @@ interface IStatusBarService
     @UnsupportedAppUsage
     void setIconVisibility(String slot, boolean visible);
     @UnsupportedAppUsage
+    int getIcon(String slot);
+    @UnsupportedAppUsage
     void removeIcon(String slot);
+
     /**
      * Sets the new IME window status.
      *
-     * @param displayId The id of the display to which the IME is bound.
-     * @param vis The IME window visibility.
-     * @param backDisposition The IME back disposition mode.
-     * @param showImeSwitcher Whether the IME Switcher button should be shown.
+     * @param displayId             The ID of the display where the IME should be shown.
+     * @param vis                   The IME window visibility.
+     * @param backDisposition       The IME back disposition mode.
+     * @param showImeSwitcherButton Whether the IME Switcher button should be shown when the IME
+     *                              is shown.
      */
-    void setImeWindowStatus(int displayId, int vis, int backDisposition, boolean showImeSwitcher);
+    void setImeWindowStatus(int displayId, int vis, int backDisposition,
+            boolean showImeSwitcherButton);
+
     void expandSettingsPanel(String subPanel);
 
     // ---- Methods below are for use by the status bar policy services ----
@@ -111,6 +119,8 @@ interface IStatusBarService
 
     void onGlobalActionsShown();
     void onGlobalActionsHidden();
+    @EnforcePermission(anyOf={"SHOW_POWER_MENU", "SHOW_POWER_MENU_PRIVILEGED"})
+    void showGlobalActionsFromApp(in AndroidFuture future /* T=Integer */);
 
     /**
      * These methods are needed for global actions control which the UI is shown in sysui.
@@ -244,4 +254,14 @@ interface IStatusBarService
 
     /** Shows rear display educational dialog */
     void showRearDisplayDialog(int currentBaseState);
+
+    /** Directs the system to bind to the given component and start a motion cues session.
+    *
+    * @param componentName the component to bind to.
+    * @param motionCuesSettings the initial settings for motion cues.
+    */
+    void startMotionCuesSession(in ComponentName componentName, in MotionCuesSettings motionCuesSettings);
+
+    /** Terminates the started motion cues session */
+    void endMotionCuesSession();
 }

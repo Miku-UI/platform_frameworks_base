@@ -28,6 +28,7 @@ import android.graphics.PixelFormat;
 import android.graphics.drawable.Drawable;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -320,8 +321,11 @@ public class ToastPresenter {
         //   2. getInstance() caches the instance for the process even if we pass a different
         //      context to it. This is problematic for multi-user because callers can pass a context
         //      created via Context.createContextAsUser().
-        final AccessibilityManager accessibilityManager = new AccessibilityManager(context,
-                    mAccessibilityManagerService, context.getUserId());
+        final AccessibilityManager accessibilityManager = new AccessibilityManager(
+                context,
+                mAccessibilityManagerService,
+                context.createContextAsUser(UserHandle.CURRENT, 0).getUserId()
+        );
 
         if (!accessibilityManager.isEnabled()) {
             accessibilityManager.removeClient();

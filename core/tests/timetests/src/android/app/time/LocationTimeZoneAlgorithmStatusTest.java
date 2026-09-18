@@ -65,68 +65,117 @@ public class LocationTimeZoneAlgorithmStatusTest {
         // Sample some invalid cases
 
         // There can't be a reported provider status if the algorithm isn't running.
-        new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                PROVIDER_STATUS_IS_CERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS,
-                PROVIDER_STATUS_IS_UNCERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS);
-        assertThrows(IllegalArgumentException.class,
-                () -> new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
-                        PROVIDER_STATUS_IS_CERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS,
-                        PROVIDER_STATUS_IS_UNCERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS));
+        new LocationTimeZoneAlgorithmStatus(
+                DETECTION_ALGORITHM_STATUS_RUNNING,
+                PROVIDER_STATUS_IS_CERTAIN,
+                ARBITRARY_PROVIDER_RUNNING_STATUS,
+                PROVIDER_STATUS_IS_UNCERTAIN,
+                ARBITRARY_PROVIDER_RUNNING_STATUS);
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new LocationTimeZoneAlgorithmStatus(
+                                DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
+                                PROVIDER_STATUS_IS_CERTAIN,
+                                ARBITRARY_PROVIDER_RUNNING_STATUS,
+                                PROVIDER_STATUS_IS_UNCERTAIN,
+                                ARBITRARY_PROVIDER_RUNNING_STATUS));
 
-        new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                PROVIDER_STATUS_IS_CERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS,
-                PROVIDER_STATUS_NOT_PRESENT, null);
-        assertThrows(IllegalArgumentException.class,
-                () -> new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
-                        PROVIDER_STATUS_IS_CERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS,
-                        PROVIDER_STATUS_NOT_PRESENT, null));
+        new LocationTimeZoneAlgorithmStatus(
+                DETECTION_ALGORITHM_STATUS_RUNNING,
+                PROVIDER_STATUS_IS_CERTAIN,
+                ARBITRARY_PROVIDER_RUNNING_STATUS,
+                PROVIDER_STATUS_NOT_PRESENT,
+                null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new LocationTimeZoneAlgorithmStatus(
+                                DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
+                                PROVIDER_STATUS_IS_CERTAIN,
+                                ARBITRARY_PROVIDER_RUNNING_STATUS,
+                                PROVIDER_STATUS_NOT_PRESENT,
+                                null));
 
-        new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                PROVIDER_STATUS_NOT_PRESENT, null,
-                PROVIDER_STATUS_IS_UNCERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS);
-        assertThrows(IllegalArgumentException.class,
-                () -> new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
-                        PROVIDER_STATUS_NOT_PRESENT, null,
-                        PROVIDER_STATUS_IS_UNCERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS));
+        new LocationTimeZoneAlgorithmStatus(
+                DETECTION_ALGORITHM_STATUS_RUNNING,
+                PROVIDER_STATUS_NOT_PRESENT,
+                null,
+                PROVIDER_STATUS_IS_UNCERTAIN,
+                ARBITRARY_PROVIDER_RUNNING_STATUS);
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new LocationTimeZoneAlgorithmStatus(
+                                DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
+                                PROVIDER_STATUS_NOT_PRESENT,
+                                null,
+                                PROVIDER_STATUS_IS_UNCERTAIN,
+                                ARBITRARY_PROVIDER_RUNNING_STATUS));
 
         // No reported provider status expected if the associated provider isn't ready / present.
-        new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                PROVIDER_STATUS_NOT_PRESENT, null,
-                PROVIDER_STATUS_NOT_PRESENT, null);
-        assertThrows(IllegalArgumentException.class,
-                () -> new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                        PROVIDER_STATUS_NOT_PRESENT, ARBITRARY_PROVIDER_RUNNING_STATUS,
-                        PROVIDER_STATUS_NOT_PRESENT, null));
-        new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                PROVIDER_STATUS_NOT_READY, null,
-                PROVIDER_STATUS_NOT_PRESENT, null);
-        assertThrows(IllegalArgumentException.class,
-                () -> new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                        PROVIDER_STATUS_NOT_READY, null,
-                        PROVIDER_STATUS_NOT_PRESENT, ARBITRARY_PROVIDER_RUNNING_STATUS));
+        new LocationTimeZoneAlgorithmStatus(
+                DETECTION_ALGORITHM_STATUS_RUNNING,
+                PROVIDER_STATUS_NOT_PRESENT,
+                null,
+                PROVIDER_STATUS_NOT_PRESENT,
+                null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new LocationTimeZoneAlgorithmStatus(
+                                DETECTION_ALGORITHM_STATUS_RUNNING,
+                                PROVIDER_STATUS_NOT_PRESENT,
+                                ARBITRARY_PROVIDER_RUNNING_STATUS,
+                                PROVIDER_STATUS_NOT_PRESENT,
+                                null));
+        new LocationTimeZoneAlgorithmStatus(
+                DETECTION_ALGORITHM_STATUS_RUNNING,
+                PROVIDER_STATUS_NOT_READY,
+                null,
+                PROVIDER_STATUS_NOT_PRESENT,
+                null);
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        new LocationTimeZoneAlgorithmStatus(
+                                DETECTION_ALGORITHM_STATUS_RUNNING,
+                                PROVIDER_STATUS_NOT_READY,
+                                null,
+                                PROVIDER_STATUS_NOT_PRESENT,
+                                ARBITRARY_PROVIDER_RUNNING_STATUS));
     }
 
     @Test
     public void testEquals() {
-        LocationTimeZoneAlgorithmStatus one = new LocationTimeZoneAlgorithmStatus(
-                DETECTION_ALGORITHM_STATUS_RUNNING,
-                PROVIDER_STATUS_IS_CERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS,
-                PROVIDER_STATUS_NOT_PRESENT, null);
+        LocationTimeZoneAlgorithmStatus one =
+                new LocationTimeZoneAlgorithmStatus(
+                        DETECTION_ALGORITHM_STATUS_RUNNING,
+                        PROVIDER_STATUS_IS_CERTAIN,
+                        ARBITRARY_PROVIDER_RUNNING_STATUS,
+                        PROVIDER_STATUS_NOT_PRESENT,
+                        null);
         assertEqualsAndHashCode(one, one);
 
         {
-            LocationTimeZoneAlgorithmStatus two = new LocationTimeZoneAlgorithmStatus(
-                    DETECTION_ALGORITHM_STATUS_RUNNING,
-                    PROVIDER_STATUS_IS_CERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS,
-                    PROVIDER_STATUS_NOT_PRESENT, null);
+            LocationTimeZoneAlgorithmStatus two =
+                    new LocationTimeZoneAlgorithmStatus(
+                            DETECTION_ALGORITHM_STATUS_RUNNING,
+                            PROVIDER_STATUS_IS_CERTAIN,
+                            ARBITRARY_PROVIDER_RUNNING_STATUS,
+                            PROVIDER_STATUS_NOT_PRESENT,
+                            null);
             assertEqualsAndHashCode(one, two);
         }
 
         {
-            LocationTimeZoneAlgorithmStatus three = new LocationTimeZoneAlgorithmStatus(
-                    DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
-                    PROVIDER_STATUS_NOT_READY, null,
-                    PROVIDER_STATUS_NOT_PRESENT, null);
+            LocationTimeZoneAlgorithmStatus three =
+                    new LocationTimeZoneAlgorithmStatus(
+                            DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
+                            PROVIDER_STATUS_NOT_READY,
+                            null,
+                            PROVIDER_STATUS_NOT_PRESENT,
+                            null);
             assertNotEquals(one, three);
             assertNotEquals(three, one);
         }
@@ -139,8 +188,10 @@ public class LocationTimeZoneAlgorithmStatusTest {
             LocationTimeZoneAlgorithmStatus locationAlgorithmStatus =
                     new LocationTimeZoneAlgorithmStatus(
                             DETECTION_ALGORITHM_STATUS_RUNNING,
-                            PROVIDER_STATUS_IS_CERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS,
-                            PROVIDER_STATUS_NOT_PRESENT, null);
+                            PROVIDER_STATUS_IS_CERTAIN,
+                            ARBITRARY_PROVIDER_RUNNING_STATUS,
+                            PROVIDER_STATUS_NOT_PRESENT,
+                            null);
             assertRoundTripParcelable(locationAlgorithmStatus);
         }
 
@@ -149,8 +200,10 @@ public class LocationTimeZoneAlgorithmStatusTest {
             LocationTimeZoneAlgorithmStatus locationAlgorithmStatus =
                     new LocationTimeZoneAlgorithmStatus(
                             DETECTION_ALGORITHM_STATUS_RUNNING,
-                            PROVIDER_STATUS_NOT_PRESENT, null,
-                            PROVIDER_STATUS_IS_CERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS);
+                            PROVIDER_STATUS_NOT_PRESENT,
+                            null,
+                            PROVIDER_STATUS_IS_CERTAIN,
+                            ARBITRARY_PROVIDER_RUNNING_STATUS);
             assertRoundTripParcelable(locationAlgorithmStatus);
         }
 
@@ -159,8 +212,10 @@ public class LocationTimeZoneAlgorithmStatusTest {
             LocationTimeZoneAlgorithmStatus locationAlgorithmStatus =
                     new LocationTimeZoneAlgorithmStatus(
                             DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
-                            PROVIDER_STATUS_NOT_PRESENT, null,
-                            PROVIDER_STATUS_NOT_PRESENT, null);
+                            PROVIDER_STATUS_NOT_PRESENT,
+                            null,
+                            PROVIDER_STATUS_NOT_PRESENT,
+                            null);
             assertRoundTripParcelable(locationAlgorithmStatus);
         }
     }
@@ -168,66 +223,91 @@ public class LocationTimeZoneAlgorithmStatusTest {
     @Test
     public void testRequireValidProviderStatus() {
         for (@ProviderStatus int status = PROVIDER_STATUS_NOT_PRESENT;
-                status <= PROVIDER_STATUS_IS_UNCERTAIN; status++) {
-            assertEquals(status,
-                    LocationTimeZoneAlgorithmStatus.requireValidProviderStatus(status));
+                status <= PROVIDER_STATUS_IS_UNCERTAIN;
+                status++) {
+            assertEquals(
+                    status, LocationTimeZoneAlgorithmStatus.requireValidProviderStatus(status));
         }
 
-        assertThrows(IllegalArgumentException.class,
-                () -> LocationTimeZoneAlgorithmStatus.requireValidProviderStatus(
-                        PROVIDER_STATUS_NOT_PRESENT - 1));
-        assertThrows(IllegalArgumentException.class,
-                () -> LocationTimeZoneAlgorithmStatus.requireValidProviderStatus(
-                        PROVIDER_STATUS_IS_UNCERTAIN + 1));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        LocationTimeZoneAlgorithmStatus.requireValidProviderStatus(
+                                PROVIDER_STATUS_NOT_PRESENT - 1));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        LocationTimeZoneAlgorithmStatus.requireValidProviderStatus(
+                                PROVIDER_STATUS_IS_UNCERTAIN + 1));
     }
 
     @Test
     public void testFormatAndParseProviderStatus() {
         for (@ProviderStatus int status = PROVIDER_STATUS_NOT_PRESENT;
-                status <= PROVIDER_STATUS_IS_UNCERTAIN; status++) {
-            assertEquals(status, LocationTimeZoneAlgorithmStatus.providerStatusFromString(
-                    LocationTimeZoneAlgorithmStatus.providerStatusToString(status)));
+                status <= PROVIDER_STATUS_IS_UNCERTAIN;
+                status++) {
+            assertEquals(
+                    status,
+                    LocationTimeZoneAlgorithmStatus.providerStatusFromString(
+                            LocationTimeZoneAlgorithmStatus.providerStatusToString(status)));
         }
 
-        assertThrows(IllegalArgumentException.class,
-                () -> LocationTimeZoneAlgorithmStatus.providerStatusToString(
-                        PROVIDER_STATUS_NOT_PRESENT - 1));
-        assertThrows(IllegalArgumentException.class,
-                () -> LocationTimeZoneAlgorithmStatus.providerStatusToString(
-                        PROVIDER_STATUS_IS_UNCERTAIN + 1));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        LocationTimeZoneAlgorithmStatus.providerStatusToString(
+                                PROVIDER_STATUS_NOT_PRESENT - 1));
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        LocationTimeZoneAlgorithmStatus.providerStatusToString(
+                                PROVIDER_STATUS_IS_UNCERTAIN + 1));
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> LocationTimeZoneAlgorithmStatus.providerStatusFromString(null));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> LocationTimeZoneAlgorithmStatus.providerStatusFromString(""));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> LocationTimeZoneAlgorithmStatus.providerStatusFromString("FOO"));
     }
 
     @Test
     public void testParseCommandlineArg_noNullReportedStatuses() {
-        LocationTimeZoneAlgorithmStatus status = new LocationTimeZoneAlgorithmStatus(
-                DETECTION_ALGORITHM_STATUS_RUNNING,
-                PROVIDER_STATUS_IS_CERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS,
-                PROVIDER_STATUS_IS_UNCERTAIN, ARBITRARY_PROVIDER_RUNNING_STATUS);
-        assertEquals(status,
-                LocationTimeZoneAlgorithmStatus.parseCommandlineArg(status.toString()));
+        LocationTimeZoneAlgorithmStatus status =
+                new LocationTimeZoneAlgorithmStatus(
+                        DETECTION_ALGORITHM_STATUS_RUNNING,
+                        PROVIDER_STATUS_IS_CERTAIN,
+                        ARBITRARY_PROVIDER_RUNNING_STATUS,
+                        PROVIDER_STATUS_IS_UNCERTAIN,
+                        ARBITRARY_PROVIDER_RUNNING_STATUS);
+        assertEquals(
+                status, LocationTimeZoneAlgorithmStatus.parseCommandlineArg(status.toString()));
     }
 
     @Test
     public void testParseCommandlineArg_withNullReportedStatuses() {
-        LocationTimeZoneAlgorithmStatus status = new LocationTimeZoneAlgorithmStatus(
-                DETECTION_ALGORITHM_STATUS_RUNNING,
-                PROVIDER_STATUS_IS_CERTAIN, null,
-                PROVIDER_STATUS_IS_UNCERTAIN, null);
-        assertEquals(status,
-                LocationTimeZoneAlgorithmStatus.parseCommandlineArg(status.toString()));
+        LocationTimeZoneAlgorithmStatus status =
+                new LocationTimeZoneAlgorithmStatus(
+                        DETECTION_ALGORITHM_STATUS_RUNNING,
+                        PROVIDER_STATUS_IS_CERTAIN,
+                        null,
+                        PROVIDER_STATUS_IS_UNCERTAIN,
+                        null);
+        assertEquals(
+                status, LocationTimeZoneAlgorithmStatus.parseCommandlineArg(status.toString()));
     }
 
     @Test
     public void testCouldEnableTelephonyFallback_notRunning() {
         LocationTimeZoneAlgorithmStatus notRunning =
-                new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
-                        PROVIDER_STATUS_NOT_READY, null, PROVIDER_STATUS_NOT_READY, null);
+                new LocationTimeZoneAlgorithmStatus(
+                        DETECTION_ALGORITHM_STATUS_NOT_RUNNING,
+                        PROVIDER_STATUS_NOT_READY,
+                        null,
+                        PROVIDER_STATUS_NOT_READY,
+                        null);
         assertFalse(notRunning.couldEnableTelephonyFallback());
     }
 
@@ -235,8 +315,12 @@ public class LocationTimeZoneAlgorithmStatusTest {
     public void testCouldEnableTelephonyFallback_unknown() {
         // DETECTION_ALGORITHM_STATUS_UNKNOWN must never allow fallback
         LocationTimeZoneAlgorithmStatus unknown =
-                new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_UNKNOWN,
-                        PROVIDER_STATUS_NOT_READY, null, PROVIDER_STATUS_NOT_READY, null);
+                new LocationTimeZoneAlgorithmStatus(
+                        DETECTION_ALGORITHM_STATUS_UNKNOWN,
+                        PROVIDER_STATUS_NOT_READY,
+                        null,
+                        PROVIDER_STATUS_NOT_READY,
+                        null);
         assertFalse(unknown.couldEnableTelephonyFallback());
     }
 
@@ -244,8 +328,12 @@ public class LocationTimeZoneAlgorithmStatusTest {
     public void testCouldEnableTelephonyFallback_notSupported() {
         // DETECTION_ALGORITHM_STATUS_NOT_SUPPORTED must never allow fallback
         LocationTimeZoneAlgorithmStatus notSupported =
-                new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_NOT_SUPPORTED,
-                        PROVIDER_STATUS_NOT_READY, null, PROVIDER_STATUS_NOT_READY, null);
+                new LocationTimeZoneAlgorithmStatus(
+                        DETECTION_ALGORITHM_STATUS_NOT_SUPPORTED,
+                        PROVIDER_STATUS_NOT_READY,
+                        null,
+                        PROVIDER_STATUS_NOT_READY,
+                        null);
         assertFalse(notSupported.couldEnableTelephonyFallback());
     }
 
@@ -274,22 +362,34 @@ public class LocationTimeZoneAlgorithmStatusTest {
         // Provider not ready: Never enable fallback
         {
             LocationTimeZoneAlgorithmStatus status =
-                    new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                            PROVIDER_STATUS_NOT_READY, null, PROVIDER_STATUS_NOT_READY, null);
+                    new LocationTimeZoneAlgorithmStatus(
+                            DETECTION_ALGORITHM_STATUS_RUNNING,
+                            PROVIDER_STATUS_NOT_READY,
+                            null,
+                            PROVIDER_STATUS_NOT_READY,
+                            null);
             assertFalse(status.couldEnableTelephonyFallback());
         }
 
         // Provider uncertain without reported status: Never enable fallback
         {
             LocationTimeZoneAlgorithmStatus status =
-                    new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                            PROVIDER_STATUS_IS_UNCERTAIN, null, PROVIDER_STATUS_NOT_READY, null);
+                    new LocationTimeZoneAlgorithmStatus(
+                            DETECTION_ALGORITHM_STATUS_RUNNING,
+                            PROVIDER_STATUS_IS_UNCERTAIN,
+                            null,
+                            PROVIDER_STATUS_NOT_READY,
+                            null);
             assertFalse(status.couldEnableTelephonyFallback());
         }
         {
             LocationTimeZoneAlgorithmStatus status =
-                    new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                            PROVIDER_STATUS_IS_UNCERTAIN, null, PROVIDER_STATUS_NOT_PRESENT, null);
+                    new LocationTimeZoneAlgorithmStatus(
+                            DETECTION_ALGORITHM_STATUS_RUNNING,
+                            PROVIDER_STATUS_IS_UNCERTAIN,
+                            null,
+                            PROVIDER_STATUS_NOT_PRESENT,
+                            null);
             assertFalse(status.couldEnableTelephonyFallback());
         }
 
@@ -298,37 +398,52 @@ public class LocationTimeZoneAlgorithmStatusTest {
         // agree that fallback is a good idea.
         {
             LocationTimeZoneAlgorithmStatus status =
-                    new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                            PROVIDER_STATUS_IS_UNCERTAIN, enableTelephonyFallbackProviderStatus,
-                            PROVIDER_STATUS_NOT_READY, null);
+                    new LocationTimeZoneAlgorithmStatus(
+                            DETECTION_ALGORITHM_STATUS_RUNNING,
+                            PROVIDER_STATUS_IS_UNCERTAIN,
+                            enableTelephonyFallbackProviderStatus,
+                            PROVIDER_STATUS_NOT_READY,
+                            null);
             assertFalse(status.couldEnableTelephonyFallback());
         }
         {
             LocationTimeZoneAlgorithmStatus status =
-                    new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                            PROVIDER_STATUS_IS_UNCERTAIN, enableTelephonyFallbackProviderStatus,
-                            PROVIDER_STATUS_NOT_PRESENT, null);
+                    new LocationTimeZoneAlgorithmStatus(
+                            DETECTION_ALGORITHM_STATUS_RUNNING,
+                            PROVIDER_STATUS_IS_UNCERTAIN,
+                            enableTelephonyFallbackProviderStatus,
+                            PROVIDER_STATUS_NOT_PRESENT,
+                            null);
             assertTrue(status.couldEnableTelephonyFallback());
         }
         {
             LocationTimeZoneAlgorithmStatus status =
-                    new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                            PROVIDER_STATUS_IS_UNCERTAIN, enableTelephonyFallbackProviderStatus,
-                            PROVIDER_STATUS_IS_UNCERTAIN, enableTelephonyFallbackProviderStatus);
+                    new LocationTimeZoneAlgorithmStatus(
+                            DETECTION_ALGORITHM_STATUS_RUNNING,
+                            PROVIDER_STATUS_IS_UNCERTAIN,
+                            enableTelephonyFallbackProviderStatus,
+                            PROVIDER_STATUS_IS_UNCERTAIN,
+                            enableTelephonyFallbackProviderStatus);
             assertTrue(status.couldEnableTelephonyFallback());
         }
         {
             LocationTimeZoneAlgorithmStatus status =
-                    new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                            PROVIDER_STATUS_IS_UNCERTAIN, enableTelephonyFallbackProviderStatus,
-                            PROVIDER_STATUS_IS_UNCERTAIN, notEnableTelephonyFallbackProviderStatus);
+                    new LocationTimeZoneAlgorithmStatus(
+                            DETECTION_ALGORITHM_STATUS_RUNNING,
+                            PROVIDER_STATUS_IS_UNCERTAIN,
+                            enableTelephonyFallbackProviderStatus,
+                            PROVIDER_STATUS_IS_UNCERTAIN,
+                            notEnableTelephonyFallbackProviderStatus);
             assertFalse(status.couldEnableTelephonyFallback());
         }
         {
             LocationTimeZoneAlgorithmStatus status =
-                    new LocationTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING,
-                            PROVIDER_STATUS_NOT_PRESENT, null,
-                            PROVIDER_STATUS_IS_UNCERTAIN, enableTelephonyFallbackProviderStatus);
+                    new LocationTimeZoneAlgorithmStatus(
+                            DETECTION_ALGORITHM_STATUS_RUNNING,
+                            PROVIDER_STATUS_NOT_PRESENT,
+                            null,
+                            PROVIDER_STATUS_IS_UNCERTAIN,
+                            enableTelephonyFallbackProviderStatus);
             assertTrue(status.couldEnableTelephonyFallback());
         }
     }

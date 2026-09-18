@@ -17,7 +17,6 @@
 package android.os;
 
 import static android.os.Process.ZYGOTE_POLICY_FLAG_LATENCY_SENSITIVE;
-import static android.os.Process.ZYGOTE_POLICY_FLAG_NATIVE_PROCESS;
 import static android.os.Process.ZYGOTE_POLICY_FLAG_SYSTEM_PROCESS;
 
 import android.annotation.NonNull;
@@ -70,7 +69,7 @@ import java.util.UUID;
  *
  * @hide
  */
-public class ZygoteProcess {
+public class ZygoteProcess implements IZygoteProcess {
 
     private static final int ZYGOTE_CONNECT_TIMEOUT_MS = 60000;
 
@@ -81,7 +80,7 @@ public class ZygoteProcess {
      * Use a relatively short delay, because for app zygote, this is in the critical path of
      * service launch.
      */
-    private static final int ZYGOTE_CONNECT_RETRY_DELAY_MS = 50;
+    private static final int ZYGOTE_CONNECT_RETRY_DELAY_MS = 5;
 
     private static final String LOG_TAG = "ZygoteProcess";
 
@@ -138,6 +137,7 @@ public class ZygoteProcess {
         mUsapPoolSupported = false;
     }
 
+    @Override
     public LocalSocketAddress getPrimarySocketAddress() {
         return mZygoteSocketAddress;
     }
@@ -292,53 +292,16 @@ public class ZygoteProcess {
     private boolean mUsapPoolEnabled = false;
 
     /**
-     * Start a new process.
+     * {@inheritDoc}
      *
-     * <p>If processes are enabled, a new process is created and the
-     * static main() function of a <var>processClass</var> is executed there.
-     * The process will continue running after this function returns.
+     * <p>If processes are enabled, a new process is created and the static main() function of a
+     * <var>processClass</var> is executed there. The process will continue running after this
+     * function returns.</p>
      *
-     * <p>If processes are not enabled, a new thread in the caller's
-     * process is created and main() of <var>processclass</var> called there.
-     *
-     * <p>The niceName parameter, if not an empty string, is a custom name to
-     * give to the process instead of using processClass.  This allows you to
-     * make easily identifyable processes even if you are using the same base
-     * <var>processClass</var> to start them.
-     *
-     * When invokeWith is not null, the process will be started as a fresh app
-     * and not a zygote fork. Note that this is only allowed for uid 0 or when
-     * runtimeFlags contains DEBUG_ENABLE_DEBUGGER.
-     *
-     * @param processClass The class to use as the process's main entry
-     *                     point.
-     * @param niceName A more readable name to use for the process.
-     * @param uid The user-id under which the process will run.
-     * @param gid The group-id under which the process will run.
-     * @param gids Additional group-ids associated with the process.
-     * @param runtimeFlags Additional flags.
-     * @param targetSdkVersion The target SDK version for the app.
-     * @param seInfo null-ok SELinux information for the new process.
-     * @param abi non-null the ABI this app should be started with.
-     * @param instructionSet null-ok the instruction set to use.
-     * @param appDataDir null-ok the data directory of the app.
-     * @param invokeWith null-ok the command to invoke with.
-     * @param packageName null-ok the name of the package this process belongs to.
-     * @param zygotePolicyFlags Flags used to determine how to launch the application.
-     * @param isTopApp Whether the process starts for high priority application.
-     * @param disabledCompatChanges null-ok list of disabled compat changes for the process being
-     *                             started.
-     * @param pkgDataInfoMap Map from related package names to private data directory
-     *                       volume UUID and inode number.
-     * @param allowlistedDataInfoList Map from allowlisted package names to private data directory
-     *                       volume UUID and inode number.
-     * @param bindMountAppsData whether zygote needs to mount CE and DE data.
-     * @param bindMountAppStorageDirs whether zygote needs to mount Android/obb and Android/data.
-     *
-     * @param zygoteArgs Additional arguments to supply to the Zygote process.
-     * @return An object that describes the result of the attempt to start the process.
-     * @throws RuntimeException on fatal start failure
+     * </p>If processes are not enabled, a new thread in the caller's process is created and main()
+     * of <var>processClass</var> called there.</p>
      */
+    @Override
     public final Process.ProcessStartResult start(@NonNull final String processClass,
                                                   final String niceName,
                                                   int uid, int gid, @Nullable int[] gids,
@@ -353,6 +316,8 @@ public class ZygoteProcess {
                                                   int zygotePolicyFlags,
                                                   boolean isTopApp,
                                                   @Nullable long[] disabledCompatChanges,
+                                                  @Nullable long[] enabledCompatChanges,
+                                                  boolean useDeliQueue,
                                                   @Nullable Map<String, Pair<String, Long>>
                                                           pkgDataInfoMap,
                                                   @Nullable Map<String, Pair<String, Long>>
@@ -372,8 +337,9 @@ public class ZygoteProcess {
                     runtimeFlags, mountExternal, targetSdkVersion, seInfo,
                     abi, instructionSet, appDataDir, invokeWith, /*startChildZygote=*/ false,
                     packageName, zygotePolicyFlags, isTopApp, disabledCompatChanges,
-                    pkgDataInfoMap, allowlistedDataInfoList, bindMountAppsData,
-                    bindMountAppStorageDirs, bindOverrideSysprops, startSeq, zygoteArgs);
+                    enabledCompatChanges, useDeliQueue, pkgDataInfoMap, allowlistedDataInfoList,
+                    bindMountAppsData, bindMountAppStorageDirs, bindOverrideSysprops,
+                    startSeq, zygoteArgs);
         } catch (ZygoteStartFailedEx ex) {
             Log.e(LOG_TAG,
                     "Starting VM process through Zygote failed");
@@ -593,11 +559,6 @@ public class ZygoteProcess {
         return true;
     }
 
-    private static native int nativeStartNativeProcess(
-            int uid, int gid, long startSeq, String packageName,
-            String niceName, int targetSdkVersion, boolean startChildZygote,
-            int runtimeFlags, String seInfo);
-
     /**
      * Starts a new process via the zygote mechanism.
      *
@@ -645,6 +606,8 @@ public class ZygoteProcess {
                                                       int zygotePolicyFlags,
                                                       boolean isTopApp,
                                                       @Nullable long[] disabledCompatChanges,
+                                                      @Nullable long[] enabledCompatChanges,
+                                                      boolean useDeliQueue,
                                                       @Nullable Map<String, Pair<String, Long>>
                                                               pkgDataInfoMap,
                                                       @Nullable Map<String, Pair<String, Long>>
@@ -655,20 +618,6 @@ public class ZygoteProcess {
                                                       long startSeq,
                                                       @Nullable String[] extraArgs)
                                                       throws ZygoteStartFailedEx {
-        if (Flags.nativeFrameworkPrototype()
-                && (zygotePolicyFlags & ZYGOTE_POLICY_FLAG_NATIVE_PROCESS) != 0) {
-            Log.i(LOG_TAG, "about to request forking a native process to the native zygote!!!");
-            int pid = nativeStartNativeProcess(uid, gid, startSeq, packageName, niceName,
-                    targetSdkVersion, startChildZygote, runtimeFlags, seInfo);
-            if (pid == -1) {
-                throw new ZygoteStartFailedEx("Failed to fork a native process.");
-            }
-            Process.ProcessStartResult result = new Process.ProcessStartResult();
-            result.pid = pid;
-            result.usingWrapper = false;
-            return result;
-        }
-
         ArrayList<String> argsForZygote = new ArrayList<>();
 
         // --runtime-args, --setuid=, --setgid=,
@@ -802,11 +751,34 @@ public class ZygoteProcess {
             argsForZygote.add(sb.toString());
         }
 
+        if (enabledCompatChanges != null && enabledCompatChanges.length > 0) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("--enabled-compat-changes=");
+
+            int sz = enabledCompatChanges.length;
+            for (int i = 0; i < sz; i++) {
+                if (i != 0) {
+                    sb.append(',');
+                }
+                sb.append(enabledCompatChanges[i]);
+            }
+
+            argsForZygote.add(sb.toString());
+        }
+
         argsForZygote.add(processClass);
 
         if (extraArgs != null) {
             Collections.addAll(argsForZygote, extraArgs);
         }
+
+        // Ordering is significant; only args after processClass (android.app.ActivityThread if
+        // started from ProcessList) are propagated to ActivityThread, where
+        // Looper.prepareMainLooper() is called.
+        StringBuilder deliQueueSb = new StringBuilder();
+        deliQueueSb.append("--use-deliqueue=");
+        deliQueueSb.append(useDeliQueue);
+        argsForZygote.add(deliQueueSb.toString());
 
         synchronized(mLock) {
             // The USAP pool can not be used if the application will not use the systems graphics
@@ -852,9 +824,7 @@ public class ZygoteProcess {
         return false;
     }
 
-    /**
-     * Closes the connections to the zygote, if they exist.
-     */
+    @Override
     public void close() {
         if (primaryZygoteState != null) {
             primaryZygoteState.close();
@@ -1136,10 +1106,7 @@ public class ZygoteProcess {
         sAppZygotePreloadTimeoutMs = timeoutMs;
     }
 
-    /**
-     * Instructs the zygote to pre-load the application code for the given Application.
-     * Only the app zygote supports this function.
-     */
+    @Override
     public boolean preloadApp(ApplicationInfo appInfo, String abi)
             throws ZygoteStartFailedEx, IOException {
         synchronized (mLock) {
@@ -1210,12 +1177,30 @@ public class ZygoteProcess {
      * @param zygoteSocketAddress The name of the socket to connect to.
      */
     public static void waitForConnectionToZygote(LocalSocketAddress zygoteSocketAddress) {
+        waitForConnectionToZygote(zygoteSocketAddress, false);
+    }
+
+    /**
+     * Try connecting to the Native Zygote over and over again until we hit a time-out.
+     * @param zygoteSocketAddress The name of the socket to connect to.
+     */
+    public static void waitForConnectionToNativeZygote(LocalSocketAddress zygoteSocketAddress) {
+        waitForConnectionToZygote(zygoteSocketAddress, true);
+    }
+
+    private static void waitForConnectionToZygote(LocalSocketAddress zygoteSocketAddress,
+                                                  boolean isNativeZygote) {
         int numRetries = ZYGOTE_CONNECT_TIMEOUT_MS / ZYGOTE_CONNECT_RETRY_DELAY_MS;
         for (int n = numRetries; n >= 0; n--) {
             try {
-                final ZygoteState zs =
-                        ZygoteState.connect(zygoteSocketAddress, null);
-                zs.close();
+                if (isNativeZygote) {
+                    final LocalSocket socket = new LocalSocket(LocalSocket.SOCKET_SEQPACKET);
+                    socket.connect(zygoteSocketAddress);
+                    socket.close();
+                } else {
+                    final ZygoteState zs = ZygoteState.connect(zygoteSocketAddress, null);
+                    zs.close();
+                }
                 return;
             } catch (IOException ioe) {
                 Log.w(LOG_TAG,
@@ -1283,28 +1268,7 @@ public class ZygoteProcess {
         }
     }
 
-    /**
-     * Starts a new zygote process as a child of this zygote. This is used to create
-     * secondary zygotes that inherit data from the zygote that this object
-     * communicates with. This returns a new ZygoteProcess representing a connection
-     * to the newly created zygote. Throws an exception if the zygote cannot be started.
-     *
-     * @param processClass The class to use as the child zygote's main entry
-     *                     point.
-     * @param niceName A more readable name to use for the process.
-     * @param uid The user-id under which the child zygote will run.
-     * @param gid The group-id under which the child zygote will run.
-     * @param gids Additional group-ids associated with the child zygote process.
-     * @param runtimeFlags Additional flags.
-     * @param seInfo null-ok SELinux information for the child zygote process.
-     * @param abi non-null the ABI of the child zygote
-     * @param acceptedAbiList ABIs this child zygote will accept connections for; this
-     *                        may be different from <code>abi</code> in case the children
-     *                        spawned from this Zygote only communicate using ABI-safe methods.
-     * @param instructionSet null-ok the instruction set to use.
-     * @param uidRangeStart The first UID in the range the child zygote may setuid()/setgid() to
-     * @param uidRangeEnd The last UID in the range the child zygote may setuid()/setgid() to
-     */
+    @Override
     public ChildZygoteProcess startChildZygote(final String processClass,
                                                final String niceName,
                                                int uid, int gid, int[] gids,
@@ -1314,7 +1278,8 @@ public class ZygoteProcess {
                                                String acceptedAbiList,
                                                String instructionSet,
                                                int uidRangeStart,
-                                               int uidRangeEnd) {
+                                               int uidRangeEnd,
+                                               ApplicationInfo unused) {
         // Create an unguessable address in the global abstract namespace.
         final LocalSocketAddress serverAddress = new LocalSocketAddress(
                 processClass + "/" + UUID.randomUUID().toString());
@@ -1333,15 +1298,16 @@ public class ZygoteProcess {
                     abi, instructionSet, null /* appDataDir */, null /* invokeWith */,
                     true /* startChildZygote */, null /* packageName */,
                     ZYGOTE_POLICY_FLAG_SYSTEM_PROCESS /* zygotePolicyFlags */, false /* isTopApp */,
-                    null /* disabledCompatChanges */, null /* pkgDataInfoMap */,
-                    null /* allowlistedDataInfoList */, true /* bindMountAppsData*/,
-                    /* bindMountAppStorageDirs */ false, /*bindMountOverrideSysprops */ false,
-                    /* startSeq */ 0, extraArgs);
+                    null /* disabledCompatChanges */, null /* enabledCompatChanges */,
+                    true /* useDeliQueue */,
+                    null /* pkgDataInfoMap */, null /* allowlistedDataInfoList */,
+                    true /* bindMountAppsData*/, /* bindMountAppStorageDirs */ false,
+                    /*bindMountOverrideSysprops */ false, /* startSeq */ 0, extraArgs);
 
         } catch (ZygoteStartFailedEx ex) {
             throw new RuntimeException("Starting child-zygote through Zygote failed", ex);
         }
 
-        return new ChildZygoteProcess(serverAddress, result.pid, uid);
+        return ChildZygoteProcess.createManagedChildZygoteProcess(serverAddress, result.pid, uid);
     }
 }

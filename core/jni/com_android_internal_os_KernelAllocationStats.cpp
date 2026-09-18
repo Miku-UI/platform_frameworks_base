@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <android-base/logging.h>
 #include <android-base/stringprintf.h>
+#include <dmabufinfo/dmabuf_per_buffer_stats.h>
 #include <dmabufinfo/dmabufinfo.h>
 #include <iterator>
 #include <jni.h>
@@ -33,6 +34,8 @@ static jclass gProcessDmabufClazz;
 static jmethodID gProcessDmabufCtor;
 static jclass gProcessGpuMemClazz;
 static jmethodID gProcessGpuMemCtor;
+static jclass gSlabCacheStatsClazz;
+static jmethodID gSlabCacheStatsCtor;
 } // namespace
 
 namespace android {
@@ -44,9 +47,12 @@ struct PidDmaInfo {
 };
 
 static jobjectArray KernelAllocationStats_getDmabufAllocations(JNIEnv *env, jobject) {
+    android::dmabufinfo::DmabufPerBufferStats stats;
     std::vector<DmaBuffer> buffers;
 
-    if (!dmabufinfo::ReadProcfsDmaBufs(&buffers)) {
+    if (!GetDmabufPerBufferStats(stats)) return nullptr;
+
+    if (!dmabufinfo::ReadProcfsDmaBufs(buffers, stats)) {
         return nullptr;
     }
 
@@ -160,6 +166,25 @@ static jobjectArray KernelAllocationStats_getDmabufAllocations(JNIEnv *env, jobj
     return ret;
 }
 
+static jint KernelAllocationStats_getDmabufSizeForProcessKb(JNIEnv* /* env */, jobject, jint pid) {
+    android::dmabufinfo::DmabufPerBufferStats stats;
+    if (!GetDmabufPerBufferStats(stats)) {
+        return -1;
+    }
+
+    std::vector<DmaBuffer> buffers;
+    if (!android::dmabufinfo::ReadDmaBufInfo(pid, buffers, stats)) {
+        return -1;
+    }
+
+    long totalSize = 0;
+    for (const auto& buffer : buffers) {
+        totalSize += buffer.size();
+    }
+
+    return totalSize / 1024;
+}
+
 static jobject KernelAllocationStats_getGpuAllocations(JNIEnv *env) {
     std::unordered_map<uint32_t, uint64_t> out;
     meminfo::ReadPerProcessGpuMem(&out);
@@ -179,11 +204,37 @@ static jobject KernelAllocationStats_getGpuAllocations(JNIEnv *env) {
     return result;
 }
 
+static jobjectArray KernelAllocationStats_getSlabInfoStats(JNIEnv *env) {
+    std::unordered_map<std::string, meminfo::SlabCacheStats> out;
+    if (!meminfo::ReadSlabInfo(&out) || out.size() == 0) return nullptr;
+
+    jobjectArray result = env->NewObjectArray(out.size(), gSlabCacheStatsClazz, nullptr);
+    if (result == NULL) {
+        jniThrowRuntimeException(env, "Cannot create result array");
+        return nullptr;
+    }
+    unsigned int idx = 0;
+    for (const auto& entry: out) {
+        jstring name = env->NewStringUTF(entry.first.c_str());
+        jobject slabCacheStats = env->NewObject(gSlabCacheStatsClazz, gSlabCacheStatsCtor, name,
+                                                entry.second);
+        env->SetObjectArrayElement(result, idx++, slabCacheStats);
+        env->DeleteLocalRef(slabCacheStats);
+        env->DeleteLocalRef(name);
+    }
+    return result;
+}
+
 static const JNINativeMethod methods[] = {
         {"getDmabufAllocations", "()[Lcom/android/internal/os/KernelAllocationStats$ProcessDmabuf;",
          (void *)KernelAllocationStats_getDmabufAllocations},
+        {"getDmabufSizeForProcessKb", "(I)I",
+         (void *)KernelAllocationStats_getDmabufSizeForProcessKb},
         {"getGpuAllocations", "()[Lcom/android/internal/os/KernelAllocationStats$ProcessGpuMem;",
          (void *)KernelAllocationStats_getGpuAllocations},
+        {"getSlabInfoStats", "()[Lcom/android/internal/os/KernelAllocationStats$SlabCacheStats;",
+         (void *)KernelAllocationStats_getSlabInfoStats},
+
 };
 
 int register_com_android_internal_os_KernelAllocationStats(JNIEnv *env) {
@@ -198,6 +249,11 @@ int register_com_android_internal_os_KernelAllocationStats(JNIEnv *env) {
     clazz = FindClassOrDie(env, "com/android/internal/os/KernelAllocationStats$ProcessGpuMem");
     gProcessGpuMemClazz = MakeGlobalRefOrDie(env, clazz);
     gProcessGpuMemCtor = GetMethodIDOrDie(env, gProcessGpuMemClazz, "<init>", "(II)V");
+
+    clazz = FindClassOrDie(env, "com/android/internal/os/KernelAllocationStats$SlabCacheStats");
+    gSlabCacheStatsClazz = MakeGlobalRefOrDie(env, clazz);
+    gSlabCacheStatsCtor = GetMethodIDOrDie(env, gSlabCacheStatsClazz, "<init>",
+                                           "(Ljava/lang/String;I)V");
     return res;
 }
 

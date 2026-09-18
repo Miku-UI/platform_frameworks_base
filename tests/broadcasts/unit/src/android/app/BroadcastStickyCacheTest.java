@@ -33,11 +33,8 @@ import static org.mockito.Mockito.when;
 
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.media.AudioManager;
 import android.os.IpcDataCache;
 import android.os.RemoteException;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
@@ -83,45 +80,21 @@ public class BroadcastStickyCacheTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_USE_STICKY_BCAST_CACHE)
-    public void useCache_flagDisabled_returnsFalse() {
-        assertFalse(BroadcastStickyCache.useCache(new IntentFilter(Intent.ACTION_BATTERY_CHANGED)));
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_USE_STICKY_BCAST_CACHE)
     public void useCache_nullFilter_returnsFalse() {
         assertFalse(BroadcastStickyCache.useCache(null));
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_USE_STICKY_BCAST_CACHE)
     public void useCache_filterWithoutAction_returnsFalse() {
         assertFalse(BroadcastStickyCache.useCache(new IntentFilter()));
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_USE_STICKY_BCAST_CACHE)
     public void useCache_filterWithoutStickyBroadcastAction_returnsFalse() {
         assertFalse(BroadcastStickyCache.useCache(new IntentFilter(Intent.ACTION_BOOT_COMPLETED)));
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_USE_STICKY_BCAST_CACHE)
-    public void invalidateCache_flagDisabled_cacheNotInvalidated() {
-        final String apiName = BroadcastStickyCache.sActionApiNameMap.get(
-                AudioManager.INTERNAL_RINGER_MODE_CHANGED_ACTION);
-
-        BroadcastStickyCache.invalidateCache(
-                AudioManager.INTERNAL_RINGER_MODE_CHANGED_ACTION);
-
-        ExtendedMockito.verify(
-                () -> IpcDataCache.invalidateCache(eq(IpcDataCache.MODULE_SYSTEM), eq(apiName)),
-                times(0));
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_USE_STICKY_BCAST_CACHE)
     public void invalidateCache_broadcastNotSticky_cacheNotInvalidated() {
         BroadcastStickyCache.invalidateCache(Intent.ACTION_AIRPLANE_MODE_CHANGED);
 
@@ -131,7 +104,6 @@ public class BroadcastStickyCacheTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_USE_STICKY_BCAST_CACHE)
     public void invalidateCache_withStickyBroadcast_cacheInvalidated() {
         final String apiName = BroadcastStickyCache.sActionApiNameMap.get(
                 Intent.ACTION_BATTERY_CHANGED);

@@ -28,7 +28,9 @@ import android.annotation.SpecialUsers.CanBeCURRENT;
 import android.annotation.SpecialUsers.CanBeCURRENT_OR_SELF;
 import android.annotation.UserIdInt;
 import android.app.ActivityManager.ProcessCapability;
+import android.app.ActivityManager.ProcessState;
 import android.app.ActivityManager.RestrictionLevel;
+import android.app.AnrTypes.AnrType;
 import android.app.assist.ActivityId;
 import android.content.ComponentName;
 import android.content.IIntentReceiver;
@@ -52,6 +54,7 @@ import android.os.instrumentation.MethodDescriptor;
 import android.util.ArraySet;
 import android.util.Pair;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.TimeoutRecord;
 
 import java.lang.annotation.Retention;
@@ -111,6 +114,13 @@ public abstract class ActivityManagerInternal {
      * as in {@link #ALLOW_NON_FULL}.
      */
     public static final int ALLOW_PROFILES_OR_NON_FULL = 3;
+
+    /**
+     * Special object to denote toast as the reason for importance set via
+     * {@link #setIsToastActive(int, boolean)}.
+     */
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PROTECTED)
+    public static final String TOAST_TOKEN = "SimpleImportanceToken { toast }";
 
     /**
      * Returns profile information in free form string in two separate strings.
@@ -247,7 +257,7 @@ public abstract class ActivityManagerInternal {
      * Note if the UID doesn't exist, it'll return {@link ActivityManager#PROCESS_STATE_NONEXISTENT}
      * (-1).
      */
-    public abstract int getUidProcessState(int uid);
+    public abstract @ProcessState int getUidProcessState(int uid);
 
     /**
      * Get a map of pid and package name that process of that pid Android/data and Android/obb
@@ -285,8 +295,8 @@ public abstract class ActivityManagerInternal {
 
     /**
      * Called after the network policy rules are updated by
-     * {@link com.android.server.net.NetworkPolicyManagerService} for a specific {@param uid} and
-     * {@param procStateSeq}.
+     * {@link com.android.server.net.NetworkPolicyManagerService} for a specific {@code uid} and
+     * {@code procStateSeq}.
      */
     public abstract void notifyNetworkPolicyRulesUpdated(int uid, long procStateSeq);
 
@@ -707,6 +717,25 @@ public abstract class ActivityManagerInternal {
     /** @see com.android.server.am.ActivityManagerService#monitor */
     public abstract void monitor();
 
+    /**
+     * Input dispatch ANR warning to notify apps about the imminent ANR before the official ANR
+     * timeout. *
+     *
+     * @param uid The uid of the application.
+     * @param eventId The id of the input event.
+     * @param anrType The type of ANR.
+     * @param elapsedDurationMs The duration in milliseconds that has elapsed since the input
+     *     dispatching became unresponsive.
+     * @param timeoutDurationMs The total duration in milliseconds after which an ANR will be
+     *     triggered.
+     */
+    public abstract void inputDispatchingTimedOutWarning(
+            int uid,
+            int eventId,
+            @AnrType int anrType,
+            long elapsedDurationMs,
+            long timeoutDurationMs);
+
     /** Input dispatch timeout to a window, start the ANR process. Return the timeout extension,
      * in milliseconds, or 0 to abort dispatch. */
     public abstract long inputDispatchingTimedOut(int pid, boolean aboveSystem,
@@ -766,11 +795,13 @@ public abstract class ActivityManagerInternal {
      * @param maxProcState the process state at or below which to preserve processes,
      *                     or {@code -1} to ignore the process state
      */
-    public abstract void killAllBackgroundProcessesExcept(int minTargetSdk, int maxProcState);
+    public abstract void killAllBackgroundProcessesExcept(int minTargetSdk,
+            @ProcessState int maxProcState);
 
     /** Starts a given process. */
     public abstract void startProcess(String processName, ApplicationInfo info,
-            boolean knownToBeDead, boolean isTop, String hostingType, ComponentName hostingName);
+            boolean knownToBeDead, boolean isTop, String hostingType, ComponentName hostingName,
+            boolean isPcc, int callerUid, String callerProcessName);
 
     /** Starts up the starting activity process for debugging if needed.
      * This function needs to be called synchronously from WindowManager context so the caller
@@ -951,6 +982,12 @@ public abstract class ActivityManagerInternal {
      * @return true if exists, false otherwise.
      */
     public abstract boolean isPendingTopUid(int uid);
+
+    /**
+     * Used to signal toast visibility changes by the notification service.
+     * When a process is showing a toast, its importance may need to be elevated.
+     */
+    public abstract void setIsToastActive(int pid, boolean isActive);
 
     /**
      * @return the intent for the given intent sender.
@@ -1433,4 +1470,13 @@ public abstract class ActivityManagerInternal {
      * @hide
      */
     public abstract void addCreatorToken(Intent intent, String creatorPackage);
+
+    /**
+     * Returns whether {@code clientUid} has a service binding or provider client to
+     * {@code uid}.
+     *
+     * @param uid the UID that is running a service or provider
+     * @param clientUid the UID that has a bound client
+     */
+    public abstract boolean hasServiceBindingOrProviderUse(int uid, int clientUid);
 }

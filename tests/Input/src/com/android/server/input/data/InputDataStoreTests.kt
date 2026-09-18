@@ -21,6 +21,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.hardware.input.AppLaunchData
+import android.hardware.input.InputDeviceIdentifier
 import android.hardware.input.InputGestureData
 import android.hardware.input.KeyGestureEvent
 import android.platform.test.annotations.Presubmit
@@ -477,5 +478,31 @@ class InputDataStoreTests {
             listOf(),
             inputDataStore.readData(inputStream, true, InputGestureData::class.java),
         )
+    }
+
+    @Test
+    fun saveData_deviceRemappings_reloadsCorrectly() {
+        val remappings =
+            listOf(
+                InputDeviceRemappingData(
+                    InputDeviceIdentifier("descriptor1", 1, 2),
+                    /* buttonRemappingMap= */ mapOf(10 to 20, 11 to 21),
+                    /* buttonToAxisRemappingMap= */ mapOf(30 to 40),
+                    /* axisRemappingMap= */ mapOf(50 to 60, 51 to 61)
+                ),
+                InputDeviceRemappingData(
+                    InputDeviceIdentifier("descriptor2", 3, 4),
+                    /* buttonRemappingMap= */ emptyMap(),
+                    /* buttonToAxisRemappingMap= */ mapOf(70 to 80, 55 to 17),
+                    /* axisRemappingMap= */ emptyMap()
+                )
+            )
+
+        inputDataStore.saveData(USER_ID, remappings, InputDeviceRemappingData::class.java)
+
+        val loadedRemappings =
+            inputDataStore.loadData(USER_ID, InputDeviceRemappingData::class.java)
+
+        assertEquals(loadedRemappings, remappings)
     }
 }

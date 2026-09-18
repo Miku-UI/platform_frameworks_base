@@ -35,14 +35,17 @@ class BubblePopupDrawable(val config: Config) : Drawable() {
     /** The direction of the arrow in the popup drawable */
     enum class ArrowDirection {
         UP,
-        DOWN
+        DOWN,
     }
 
     /** The arrow position on the side of the popup bubble */
     sealed class ArrowPosition {
         object Start : ArrowPosition()
+
         object Center : ArrowPosition()
+
         object End : ArrowPosition()
+
         class Custom(val value: Float) : ArrowPosition()
     }
 
@@ -53,7 +56,7 @@ class BubblePopupDrawable(val config: Config) : Drawable() {
         val contentPadding: Int,
         val arrowWidth: Float,
         val arrowHeight: Float,
-        val arrowRadius: Float
+        val arrowRadius: Float,
     )
 
     /**
@@ -95,7 +98,7 @@ class BubblePopupDrawable(val config: Config) : Drawable() {
             config.contentPadding,
             config.contentPadding,
             config.contentPadding,
-            config.contentPadding
+            config.contentPadding,
         )
         when (arrowDirection) {
             ArrowDirection.UP -> padding.top += config.arrowHeight.toInt()
@@ -171,8 +174,11 @@ class BubblePopupDrawable(val config: Config) : Drawable() {
         val matrix = Matrix()
         var translationX = positionValue(position) - config.arrowWidth / 2
         // Offset to position between rounded corners of the content view
-        translationX = translationX.coerceIn(config.cornerRadius,
-                bounds.width() - config.cornerRadius - config.arrowWidth)
+        translationX =
+            translationX.coerceIn(
+                config.cornerRadius,
+                bounds.width() - config.cornerRadius - config.arrowWidth,
+            )
         // Translate to add the arrow in the center horizontally
         matrix.setTranslate(-translationX, 0f)
         path.transform(matrix)
@@ -212,7 +218,7 @@ class BubblePopupDrawable(val config: Config) : Drawable() {
             /* bottom = */ tipCircleCenterY + config.arrowRadius,
             /* startAngle = */ 180 + thetaDeg,
             /* sweepAngle = */ 180 - (2 * thetaDeg),
-            /* forceMoveTo = */ false
+            /* forceMoveTo = */ false,
         )
         // Add the right side of the triangle
         path.lineTo(config.arrowWidth, config.arrowHeight)

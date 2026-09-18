@@ -335,6 +335,7 @@ public class ScreenCaptureInternal {
         public final boolean mPreserveDisplayColors;
         public final boolean mUseDisplayInstallationOrientation;
         public final boolean mIncludeSystemOverlays;
+        public final int mExclusionMask;
 
         private CaptureArgs(CaptureArgs.Builder<? extends CaptureArgs.Builder<?>> builder) {
             mPixelFormat = builder.mPixelFormat;
@@ -350,6 +351,7 @@ public class ScreenCaptureInternal {
             mPreserveDisplayColors = builder.mPreserveDisplayColors;
             mUseDisplayInstallationOrientation = builder.mUseDisplayInstallationOrientation;
             mIncludeSystemOverlays = builder.mIncludeSystemOverlays;
+            mExclusionMask = builder.mExclusionMask;
         }
 
         private CaptureArgs(Parcel in) {
@@ -375,6 +377,7 @@ public class ScreenCaptureInternal {
             mPreserveDisplayColors = in.readBoolean();
             mUseDisplayInstallationOrientation = in.readBoolean();
             mIncludeSystemOverlays = in.readBoolean();
+            mExclusionMask = in.readInt();
         }
 
         /** Release any layers if set using {@link Builder#setExcludeLayers(SurfaceControl[])}. */
@@ -426,6 +429,7 @@ public class ScreenCaptureInternal {
             private boolean mPreserveDisplayColors;
             private boolean mUseDisplayInstallationOrientation;
             private boolean mIncludeSystemOverlays;
+            private int mExclusionMask = 0;
 
             /**
              * Construct a new {@link CaptureArgs} with the set parameters. The builder remains
@@ -575,6 +579,17 @@ public class ScreenCaptureInternal {
             }
 
             /**
+             * Set the exclusion bit mask. A layer will be excluded from the screenshot if its
+             * screen capture flag AND the {@link #mExclusionMask} is non-zero.
+             *
+             * <p> See {@link ScreenCapture#ScreenCaptureFlag}.
+             */
+            public T setExclusionMask(int exclusionMask) {
+                mExclusionMask = exclusionMask;
+                return getThis();
+            }
+
+            /**
              * Each sub class should return itself to allow the builder to chain properly
              */
             T getThis() {
@@ -609,6 +624,7 @@ public class ScreenCaptureInternal {
             dest.writeBoolean(mPreserveDisplayColors);
             dest.writeBoolean(mUseDisplayInstallationOrientation);
             dest.writeBoolean(mIncludeSystemOverlays);
+            dest.writeInt(mExclusionMask);
         }
 
         public static final Parcelable.Creator<CaptureArgs> CREATOR =
@@ -747,6 +763,7 @@ public class ScreenCaptureInternal {
                 setGrayscale(args.mGrayscale);
                 setExcludeLayers(args.mExcludeLayers);
                 setPreserveDisplayColors(args.mPreserveDisplayColors);
+                setExclusionMask(args.mExclusionMask);
             }
 
             public Builder(SurfaceControl layer) {

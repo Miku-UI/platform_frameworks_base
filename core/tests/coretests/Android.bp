@@ -38,6 +38,9 @@ java_defaults {
         "-c fa",
     ],
     resource_dirs: ["res"],
+    flags_packages: [
+        "android.content.res.flags-aconfig",
+    ],
 }
 
 android_test {
@@ -69,7 +72,9 @@ android_test {
         "androidx.core_core",
         "androidx.core_core-ktx",
         "androidx.test.core",
+        "apct-perftests-utils",
         "androidx.test.espresso.core",
+        "androidx.test.espresso.intents",
         "androidx.test.ext.junit",
         "androidx.test.rules",
         "androidx.test.runner",
@@ -83,7 +88,6 @@ android_test {
         "flag-junit",
         "flag-junit",
         "flickerlib-parsers",
-        "flickerlib-trace_processor_shell",
         "frameworks-base-testutils",
         "frameworks-core-util-lib",
         "guava",
@@ -154,6 +158,7 @@ android_test {
         ":HelloWorldUsingSdkMalformedNegativeVersion",
         ":NoUpdateAppWidgetTestApp",
         ":com.android.cts.helpers.aosp",
+        ":ResApkBadXml",
     ],
 }
 
@@ -217,6 +222,9 @@ android_library {
         "framework",
         "framework-res",
     ],
+    flags_packages: [
+        "android.content.res.flags-aconfig",
+    ],
 }
 
 android_ravenwood_test {
@@ -250,14 +258,18 @@ android_ravenwood_test {
         "platform-compat-test-rules",
         "platform-parametric-runner-lib",
         "platform-test-annotations",
+        "ravenwood-junit",
         "testng",
         "TestParameterInjector",
     ],
     srcs: [
         "src/android/app/ActivityManagerTest.java",
+        "src/android/app/FullscreenRequestHandlerTest.java",
         "src/android/app/PropertyInvalidatedCacheTests.java",
+        "src/android/app/QueuedWorkTest.java",
         "src/android/colormodel/CamTest.java",
         "src/android/content/ContextTest.java",
+        "src/android/content/ContentResolverUtilsTest.java",
         "src/android/content/TestComponentCallbacks2.java",
         "src/android/content/pm/PackageManagerTest.java",
         "src/android/content/res/*.java",
@@ -273,6 +285,7 @@ android_ravenwood_test {
         "src/android/view/DisplayAdjustmentsTests.java",
         "src/android/view/DisplayInfoTest.java",
         "src/android/view/DisplayTest.java",
+        "src/android/view/MotionEventTest.java",
         "src/com/android/internal/logging/**/*.java",
         "src/com/android/internal/os/**/*.java",
         "src/com/android/internal/ravenwood/**/*.java",
@@ -299,7 +312,6 @@ android_ravenwood_test {
     resource_zips: [":FrameworksCoreTests_apks_as_resources"],
     sdk_version: "core_platform",
     auto_gen_config: true,
-    team: "trendy_team_ravenwood",
 }
 
 test_module_config {
@@ -311,21 +323,6 @@ test_module_config {
         "device-tests",
     ],
     include_annotations: ["android.platform.test.annotations.Presubmit"],
-}
-
-test_module_config {
-    name: "FrameworksCoreTests_inputmethod",
-    base: "FrameworksCoreTests",
-    test_suites: [
-        "automotive-tests",
-        "device-platinum-tests",
-        "device-tests",
-    ],
-    include_filters: [
-        "android.view.inputmethod",
-        "com.android.internal.inputmethod",
-    ],
-    exclude_annotations: ["androidx.test.filters.FlakyTest"],
 }
 
 test_module_config {
@@ -868,4 +865,15 @@ test_module_config {
         "android.os.MessageStackTest",
         "android.os.WaitStateTest",
     ],
+}
+
+test_module_config {
+    name: "FrameworksCoreTests_companion_virtual",
+    base: "FrameworksCoreTests",
+    test_suites: [
+        "automotive-tests",
+        "device-platinum-tests",
+        "device-tests",
+    ],
+    include_filters: ["android.companion.virtual."],
 }

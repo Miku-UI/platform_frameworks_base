@@ -19,6 +19,7 @@ package com.android.systemui.keyguard
 import com.android.systemui.Flags
 import com.android.systemui.flags.FlagToken
 import com.android.systemui.flags.RefactorFlagUtils
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 
 /**
  * Helper for reading or using the keyguard_wm_state_refactor flag state.
@@ -41,7 +42,7 @@ object KeyguardWmStateRefactor {
 
     @JvmStatic
     inline val isEnabled
-        get() = Flags.keyguardWmStateRefactor() || Flags.sceneContainer()
+        get() = Flags.keyguardWmStateRefactor() || SceneContainerFlag.isEnabled
 
     /**
      * Called to ensure code is only run when the flag is enabled. This protects users from the

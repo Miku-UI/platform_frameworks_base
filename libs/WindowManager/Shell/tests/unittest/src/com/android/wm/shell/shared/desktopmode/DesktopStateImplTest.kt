@@ -49,9 +49,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.mockito.quality.Strictness
 
-/**
- * Test class for [DesktopStateImpl].
- */
+/** Test class for [DesktopStateImpl]. */
 @SmallTest
 @Presubmit
 class DesktopStateImplTest : ShellTestCase() {
@@ -224,9 +222,7 @@ class DesktopStateImplTest : ShellTestCase() {
         assertThat(desktopState.canEnterDesktopMode).isFalse()
     }
 
-    @DisableFlags(
-        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION,
-    )
+    @DisableFlags(Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION)
     @EnableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
         Flags.FLAG_ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE,
@@ -242,7 +238,7 @@ class DesktopStateImplTest : ShellTestCase() {
 
     @EnableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION
+        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION,
     )
     @Test
     fun canEnterDesktopMode_DWFlagEnabled_deviceNotEligible_forceUsingDevOption_returnsTrue() {
@@ -257,7 +253,7 @@ class DesktopStateImplTest : ShellTestCase() {
 
     @EnableFlags(
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
-        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION
+        Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION,
     )
     @Test
     fun canEnterDesktopMode_DWFlagEnabled_deviceNotEligible_forceNotUsingDevOption_returnsFalse() {
@@ -340,7 +336,10 @@ class DesktopStateImplTest : ShellTestCase() {
         assertThat(desktopState.isDeviceEligibleForDesktopMode).isTrue()
     }
 
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE, Flags.FLAG_ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE)
+    @EnableFlags(
+        Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
+        Flags.FLAG_ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE,
+    )
     @Test
     fun isProjectedMode_oneDisplay_returnsFalse() {
         val resources = mContext.getOrCreateTestableResources()
@@ -351,11 +350,13 @@ class DesktopStateImplTest : ShellTestCase() {
         assertThat(desktopState.isProjectedMode()).isFalse()
     }
 
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE, Flags.FLAG_ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE)
+    @EnableFlags(
+        Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
+        Flags.FLAG_ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE,
+    )
     @Test
     fun isProjectedMode_twoDisplay_bothSupportDesktopMode_returnsFalse() {
-        whenever(displayManager
-            .getDisplays(DisplayManager.DISPLAY_CATEGORY_ALL_INCLUDING_DISABLED))
+        whenever(displayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_ALL_INCLUDING_DISABLED))
             .thenReturn(arrayOf(defaultDisplay, extendedDisplay))
         val resources = mContext.getOrCreateTestableResources()
         resources.addOverride(R.bool.config_isDesktopModeSupported, true)
@@ -366,11 +367,14 @@ class DesktopStateImplTest : ShellTestCase() {
         assertThat(desktopState.isProjectedMode()).isFalse()
     }
 
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE, Flags.FLAG_ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE, FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT)
+    @EnableFlags(
+        Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
+        Flags.FLAG_ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE,
+        FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
+    )
     @Test
     fun isProjectedMode_twoDisplay_onlyExternalSupportDesktopMode_returnsTrue() {
-        whenever(displayManager.displays)
-            .thenReturn(arrayOf(defaultDisplay, extendedDisplay))
+        whenever(displayManager.displays).thenReturn(arrayOf(defaultDisplay, extendedDisplay))
         val resources = mContext.getOrCreateTestableResources()
         resources.addOverride(R.bool.config_isDesktopModeSupported, true)
         resources.addOverride(R.bool.config_canInternalDisplayHostDesktops, false)
@@ -379,7 +383,11 @@ class DesktopStateImplTest : ShellTestCase() {
         assertThat(desktopState.isProjectedMode()).isTrue()
     }
 
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE, Flags.FLAG_ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE, FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT)
+    @EnableFlags(
+        Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
+        Flags.FLAG_ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE,
+        FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
+    )
     @Test
     fun isProjectedMode_oneDisplay_returnFalse_addAnotherDisplay_onDesktopModeEligibleChanged_returnsTrue() {
         val mockService: IWindowManager = mock()
@@ -393,26 +401,24 @@ class DesktopStateImplTest : ShellTestCase() {
         assertThat(desktopState.isProjectedMode()).isFalse()
 
         val argument = argumentCaptor<IDisplayWindowListener>()
-        verify(mockService)
-            .registerDisplayWindowListener(
-                argument.capture(),
-            )
-       val listener = argument.firstValue
+        verify(mockService).registerDisplayWindowListener(argument.capture())
+        val listener = argument.firstValue
 
         // Add an extended display
-        whenever(displayManager.displays)
-            .thenReturn(arrayOf(defaultDisplay, extendedDisplay))
+        whenever(displayManager.displays).thenReturn(arrayOf(defaultDisplay, extendedDisplay))
         whenever(windowManager.isEligibleForDesktopMode(anyInt())).thenReturn(true)
 
         listener.onDesktopModeEligibleChanged(extendedDisplay.displayId)
         assertThat(desktopState.isProjectedMode()).isTrue()
     }
 
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE, Flags.FLAG_ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE)
+    @EnableFlags(
+        Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
+        Flags.FLAG_ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE,
+    )
     @Test
     fun isProjectedMode_twoDisplay_neitherSupportDesktopMode_returnsFalse() {
-        whenever(displayManager
-            .getDisplays(DisplayManager.DISPLAY_CATEGORY_ALL_INCLUDING_DISABLED))
+        whenever(displayManager.getDisplays(DisplayManager.DISPLAY_CATEGORY_ALL_INCLUDING_DISABLED))
             .thenReturn(arrayOf(defaultDisplay, extendedDisplay))
         val resources = mContext.getOrCreateTestableResources()
         resources.addOverride(R.bool.config_isDesktopModeSupported, true)

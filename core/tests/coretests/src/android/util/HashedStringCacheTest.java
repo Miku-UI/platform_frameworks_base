@@ -32,7 +32,6 @@ import android.platform.test.ravenwood.RavenwoodRule;
 import androidx.test.InstrumentationRegistry;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.File;
@@ -46,8 +45,6 @@ public class HashedStringCacheTest {
     private Context mContext;
     private static final String TEST_STRING = "test_string";
 
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     @Before
     public void setup() {

@@ -514,8 +514,13 @@ public class ActiveRestoreSession extends IRestoreSession.Stub {
             throw new IllegalStateException("Restore session already ended");
         }
 
-        mBackupManagerService
-                .getBackupHandler()
-                .post(new EndRestoreRunnable(mBackupManagerService, this));
+        if (Flags.enableSynchronousRestoreSessionCleanup()) {
+            mEnded = true;
+            mBackupManagerService.clearRestoreSession(this);
+        } else {
+            mBackupManagerService
+                    .getBackupHandler()
+                    .post(new EndRestoreRunnable(mBackupManagerService, this));
+        }
     }
 }

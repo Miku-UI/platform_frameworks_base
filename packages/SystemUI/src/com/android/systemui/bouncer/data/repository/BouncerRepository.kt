@@ -18,8 +18,8 @@ package com.android.systemui.bouncer.data.repository
 
 import android.content.Context
 import android.provider.Settings.Global.ONE_HANDED_KEYGUARD_SIDE
-import com.android.systemui.authentication.shared.model.BouncerInputSide
-import com.android.systemui.authentication.shared.model.toBouncerInputSide
+import com.android.systemui.bouncer.shared.model.BouncerInputSide
+import com.android.systemui.bouncer.shared.model.toBouncerInputSide
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.flags.FeatureFlagsClassic
@@ -56,6 +56,11 @@ constructor(
             applicationContext.resources.getBoolean(
                 R.bool.config_improveLargeScreenInteractionOnLockscreen
             )
+
+    /** Whether showing the accessibility button on the bouncer is enabled. */
+    val isShowAccessibilityButtonOnBouncerEnabledInConfig: Boolean
+        get() =
+            applicationContext.resources.getBoolean(R.bool.config_showAccessibilityButtonOnBouncer)
 
     /**
      * Preferred side of the screen where the input area on the bouncer should be. This is

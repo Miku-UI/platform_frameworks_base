@@ -158,6 +158,7 @@ public class PipDisplayChangeObserverTest {
         verify(mMockPipTransitionState).setState(PipTransitionState.CHANGED_PIP_BOUNDS);
         assertTrue("Transition should be removed from cache after finishing",
                 mPipDisplayChangeObserver.getDisplayChangeTransitions().isEmpty());
+        verify(mMockPipTransitionState).setIsDisplayChangeScheduled(false);
     }
 
     @Test
@@ -178,6 +179,7 @@ public class PipDisplayChangeObserverTest {
         verify(mMockPipTransitionState).setState(PipTransitionState.CHANGED_PIP_BOUNDS);
         assertTrue("Transition should be removed from cache after merging",
                 mPipDisplayChangeObserver.getDisplayChangeTransitions().isEmpty());
+        verify(mMockPipTransitionState).setIsDisplayChangeScheduled(false);
     }
 
     @Test
@@ -197,6 +199,7 @@ public class PipDisplayChangeObserverTest {
         verify(mMockPipTransitionState, never()).setState(anyInt());
         assertTrue("Transition should be removed from cache after finishing",
                 mPipDisplayChangeObserver.getDisplayChangeTransitions().isEmpty());
+        verify(mMockPipTransitionState).setIsDisplayChangeScheduled(false);
     }
 
     private TransitionInfo createPipBoundsChangingWithDisplayInfo() {

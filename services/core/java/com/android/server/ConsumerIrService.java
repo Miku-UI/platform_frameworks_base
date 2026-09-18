@@ -30,20 +30,10 @@ import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.util.Slog;
 
-import com.android.server.utils.LazyJniRegistrar;
-
 public class ConsumerIrService extends IConsumerIrService.Stub {
     private static final String TAG = "ConsumerIrService";
 
     private static final int MAX_XMIT_TIME = 2000000; /* in microseconds */
-
-    private static native boolean getHidlHalService();
-    private static native int halTransmit(int carrierFrequency, int[] pattern);
-    private static native int[] halGetCarrierFrequencies();
-
-    static {
-        LazyJniRegistrar.registerConsumerIrService();
-    }
 
     private final Context mContext;
     private final PowerManager.WakeLock mWakeLock;
@@ -80,12 +70,7 @@ public class ConsumerIrService extends IConsumerIrService.Stub {
         final String fqName = IConsumerIr.DESCRIPTOR + "/default";
         mAidlService = IConsumerIr.Stub.asInterface(
                         ServiceManager.waitForDeclaredService(fqName));
-        if (mAidlService != null) {
-            return true;
-        }
-
-        // Fall back to the HIDL HAL service
-        return getHidlHalService();
+        return mAidlService != null;
     }
 
     private void throwIfNoIrEmitter() {
@@ -123,12 +108,6 @@ public class ConsumerIrService extends IConsumerIrService.Stub {
                 } catch (RemoteException ignore) {
                     Slog.e(TAG, "Error transmitting frequency: " + carrierFrequency);
                 }
-            } else {
-                int err = halTransmit(carrierFrequency, pattern);
-
-                if (err < 0) {
-                    Slog.e(TAG, "Error transmitting: " + err);
-                }
             }
         }
     }
@@ -156,9 +135,8 @@ public class ConsumerIrService extends IConsumerIrService.Stub {
                 } catch (RemoteException ignore) {
                     return null;
                 }
-            } else {
-                return halGetCarrierFrequencies();
             }
         }
+        return null;
     }
 }

@@ -17,10 +17,8 @@
 package com.android.systemui.qs.tiles.impl.modes.domain.interactor
 
 import android.app.AutomaticZenRule
-import android.app.Flags
 import android.graphics.drawable.TestStubDrawable
 import android.os.UserHandle
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.FlagsParameterization
 import androidx.test.filters.SmallTest
 import com.android.internal.R
@@ -213,7 +211,6 @@ class ModesTileDataInteractorTest(flags: FlagsParameterization) : SysuiTestCase(
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
     fun tileData_withPastManualActivation_iconOfMruManualMode() =
         testScope.runTest {
             val tileData by
@@ -274,7 +271,6 @@ class ModesTileDataInteractorTest(flags: FlagsParameterization) : SysuiTestCase(
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
     fun tileData_withRecentManualDeactivation_quickModeIsLastDeactivatedMode() =
         testScope.runTest {
             val tileData by
@@ -327,7 +323,6 @@ class ModesTileDataInteractorTest(flags: FlagsParameterization) : SysuiTestCase(
             assertThat(tileData?.icon).isEqualTo(MODES_ICON)
         }
 
-    @EnableFlags(Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
     fun tileData_withPastManualActivation_mruManualModeAsQuickMode() =
         testScope.runTest {
             val tileData by

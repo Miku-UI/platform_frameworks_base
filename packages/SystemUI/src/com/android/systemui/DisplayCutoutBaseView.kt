@@ -35,40 +35,45 @@ import android.view.DisplayInfo
 import android.view.Surface
 import android.view.View
 import androidx.annotation.VisibleForTesting
-import com.android.systemui.RegionInterceptingFrameLayout.RegionInterceptableView
 import com.android.app.animation.Interpolators
+import com.android.systemui.RegionInterceptingFrameLayout.RegionInterceptableView
 import com.android.systemui.util.asIndenting
 import java.io.PrintWriter
 
 /**
- *  A class that handles common actions of display cutout view.
- *  - Draws cutouts.
- *  - Handles camera protection.
- *  - Intercepts touches on cutout areas.
+ * A class that handles common actions of display cutout view.
+ * - Draws cutouts.
+ * - Handles camera protection.
+ * - Intercepts touches on cutout areas.
  */
 open class DisplayCutoutBaseView : View, RegionInterceptableView {
 
-    private var shouldDrawCutout: Boolean = DisplayCutout.getFillBuiltInDisplayCutout(
-        context.resources, context.display?.uniqueId
-    )
+    private var shouldDrawCutout: Boolean =
+        DisplayCutout.getFillBuiltInDisplayCutout(context.resources, context.display?.uniqueId)
     private var displayUniqueId: String? = null
     private var displayMode: Display.Mode? = null
     protected val location = IntArray(2)
     protected var displayRotation = 0
 
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
-    @JvmField val displayInfo = DisplayInfo()
+    @JvmField
+    val displayInfo = DisplayInfo()
     @JvmField protected var pendingConfigChange = false
     @JvmField protected val paint = Paint()
     @JvmField protected val cutoutPath = Path()
 
     @JvmField protected var showProtection = false
+
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
-    @JvmField val protectionRect: RectF = RectF()
+    @JvmField
+    val protectionRect: RectF = RectF()
+
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
-    @JvmField val protectionPath: Path = Path()
+    @JvmField
+    val protectionPath: Path = Path()
     private val protectionRectOrig: RectF = RectF()
     private val protectionPathOrig: Path = Path()
+
     @VisibleForTesting(otherwise = VisibleForTesting.PROTECTED)
     var cameraProtectionProgress: Float = HIDDEN_CAMERA_PROTECTION_SCALE
     private var cameraProtectionAnimator: ValueAnimator? = null
@@ -77,8 +82,11 @@ open class DisplayCutoutBaseView : View, RegionInterceptableView {
 
     constructor(context: Context, attrs: AttributeSet?) : super(context, attrs)
 
-    constructor(context: Context, attrs: AttributeSet?, defStyleAttr: Int) :
-        super(context, attrs, defStyleAttr)
+    constructor(
+        context: Context,
+        attrs: AttributeSet?,
+        defStyleAttr: Int,
+    ) : super(context, attrs, defStyleAttr)
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -97,9 +105,11 @@ open class DisplayCutoutBaseView : View, RegionInterceptableView {
         updateDisplayUniqueId(info.uniqueId)
 
         // Skip if display mode or cutout hasn't changed.
-        if (!displayModeChanged(oldMode, displayMode) &&
+        if (
+            !displayModeChanged(oldMode, displayMode) &&
                 displayInfo.displayCutout == info.displayCutout &&
-                displayRotation == info.rotation) {
+                displayRotation == info.rotation
+        ) {
             return
         }
         if (newDisplayUniqueId == info.uniqueId) {
@@ -113,9 +123,8 @@ open class DisplayCutoutBaseView : View, RegionInterceptableView {
     open fun updateDisplayUniqueId(newDisplayUniqueId: String?) {
         if (displayUniqueId != newDisplayUniqueId) {
             displayUniqueId = newDisplayUniqueId
-            shouldDrawCutout = DisplayCutout.getFillBuiltInDisplayCutout(
-                    context.resources, displayUniqueId
-            )
+            shouldDrawCutout =
+                DisplayCutout.getFillBuiltInDisplayCutout(context.resources, displayUniqueId)
             invalidate()
         }
     }
@@ -147,7 +156,11 @@ open class DisplayCutoutBaseView : View, RegionInterceptableView {
     }
 
     override fun shouldInterceptTouch(): Boolean {
-        return displayInfo.displayCutout != null && visibility == VISIBLE && shouldDrawCutout
+        return if (Flags.statusBarScreenDecorTouchHandlingFix()) {
+            false
+        } else {
+            displayInfo.displayCutout != null && visibility == VISIBLE && shouldDrawCutout
+        }
     }
 
     override fun getInterceptRegion(): Region? {
@@ -160,7 +173,11 @@ open class DisplayCutoutBaseView : View, RegionInterceptableView {
 
         // Intersect with window's frame
         cutoutBounds.op(
-            rootView.left, rootView.top, rootView.right, rootView.bottom, Region.Op.INTERSECT
+            rootView.left,
+            rootView.top,
+            rootView.right,
+            rootView.bottom,
+            Region.Op.INTERSECT,
         )
         return cutoutBounds
     }
@@ -183,20 +200,18 @@ open class DisplayCutoutBaseView : View, RegionInterceptableView {
     }
 
     protected open fun drawCutoutProtection(canvas: Canvas) {
-        if (cameraProtectionProgress > HIDDEN_CAMERA_PROTECTION_SCALE &&
-            !protectionRect.isEmpty
-        ) {
+        if (cameraProtectionProgress > HIDDEN_CAMERA_PROTECTION_SCALE && !protectionRect.isEmpty) {
             canvas.scale(
-                cameraProtectionProgress, cameraProtectionProgress, protectionRect.centerX(),
-                protectionRect.centerY()
+                cameraProtectionProgress,
+                cameraProtectionProgress,
+                protectionRect.centerX(),
+                protectionRect.centerY(),
             )
             canvas.drawPath(protectionPath, paint)
         }
     }
 
-    /**
-     * Converts a set of [Rect]s into a [Region]
-     */
+    /** Converts a set of [Rect]s into a [Region] */
     fun rectsToRegion(rects: List<Rect?>?): Region {
         val result = Region.obtain()
         if (rects != null) {
@@ -221,10 +236,12 @@ open class DisplayCutoutBaseView : View, RegionInterceptableView {
             requestLayout()
         }
         cameraProtectionAnimator?.cancel()
-        cameraProtectionAnimator = ValueAnimator.ofFloat(
-            cameraProtectionProgress,
-            if (showProtection) 1.0f else HIDDEN_CAMERA_PROTECTION_SCALE
-        ).setDuration(750)
+        cameraProtectionAnimator =
+            ValueAnimator.ofFloat(
+                    cameraProtectionProgress,
+                    if (showProtection) 1.0f else HIDDEN_CAMERA_PROTECTION_SCALE,
+                )
+                .setDuration(750)
         cameraProtectionAnimator?.interpolator = Interpolators.DECELERATE_QUINT
         cameraProtectionAnimator?.addUpdateListener(
             ValueAnimator.AnimatorUpdateListener { animation: ValueAnimator ->
@@ -232,14 +249,16 @@ open class DisplayCutoutBaseView : View, RegionInterceptableView {
                 invalidate()
             }
         )
-        cameraProtectionAnimator?.addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator) {
-                cameraProtectionAnimator = null
-                if (!showProtection) {
-                    requestLayout()
+        cameraProtectionAnimator?.addListener(
+            object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    cameraProtectionAnimator = null
+                    if (!showProtection) {
+                        requestLayout()
+                    }
                 }
             }
-        })
+        )
         cameraProtectionAnimator?.start()
     }
 
@@ -264,10 +283,9 @@ open class DisplayCutoutBaseView : View, RegionInterceptableView {
         // Apply rotation.
         val lw: Int = displayInfo.logicalWidth
         val lh: Int = displayInfo.logicalHeight
-        val flipped = (
-            displayInfo.rotation == Surface.ROTATION_90 ||
-                displayInfo.rotation == Surface.ROTATION_270
-            )
+        val flipped =
+            (displayInfo.rotation == Surface.ROTATION_90 ||
+                displayInfo.rotation == Surface.ROTATION_270)
         val dw = if (flipped) lh else lw
         val dh = if (flipped) lw else lh
         transformPhysicalToLogicalCoordinates(displayInfo.rotation, dw, dh, m)
@@ -302,11 +320,12 @@ open class DisplayCutoutBaseView : View, RegionInterceptableView {
     companion object {
         const val HIDDEN_CAMERA_PROTECTION_SCALE = 0.5f
 
-        @JvmStatic protected fun transformPhysicalToLogicalCoordinates(
+        @JvmStatic
+        protected fun transformPhysicalToLogicalCoordinates(
             @Surface.Rotation rotation: Int,
             @Dimension physicalWidth: Int,
             @Dimension physicalHeight: Int,
-            out: Matrix
+            out: Matrix,
         ) {
             when (rotation) {
                 Surface.ROTATION_0 -> return
@@ -314,14 +333,17 @@ open class DisplayCutoutBaseView : View, RegionInterceptableView {
                     out.postRotate(270f)
                     out.postTranslate(0f, physicalWidth.toFloat())
                 }
+
                 Surface.ROTATION_180 -> {
                     out.postRotate(180f)
                     out.postTranslate(physicalWidth.toFloat(), physicalHeight.toFloat())
                 }
+
                 Surface.ROTATION_270 -> {
                     out.postRotate(90f)
                     out.postTranslate(physicalHeight.toFloat(), 0f)
                 }
+
                 else -> throw IllegalArgumentException("Unknown rotation: $rotation")
             }
         }

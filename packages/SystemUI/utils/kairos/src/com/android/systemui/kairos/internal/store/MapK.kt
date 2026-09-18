@@ -16,8 +16,10 @@
 
 package com.android.systemui.kairos.internal.store
 
+import com.android.systemui.kairos.internal.util.fastForEachIndexed
+
 /**
- * Higher-kinded encoding for [Map].
+ * Higher-kinded encoding for a [Map]-like collection.
  *
  * Let's say you want to write a class that is generic over both a map, and the type of data within
  * the map:
@@ -53,19 +55,36 @@ package com.android.systemui.kairos.internal.store
  *   val foo: Foo<Int, String> = fooStore.asFoo()
  * ```
  */
-internal interface MapK<W, K, V> : Map<K, V>
+internal interface MapK<W, K, out V> : FastIterable<K, V> {
+    fun isEmpty(): Boolean
 
-internal interface MutableMapK<W, K, V> : MutableMap<K, V> {
+    operator fun get(key: K): V?
 
+    fun getValue(key: K): V
+
+    fun containsKey(key: K): Boolean
+}
+
+/** [MapK] that allows for adding and removing elements. */
+internal interface MutableMapK<W, K, V> : MapK<W, K, V> {
     fun readOnlyCopy(): MapK<W, K, V>
 
-    fun asReadOnly(): MapK<W, K, V>
+    operator fun set(key: K, value: V)
+
+    fun remove(key: K): V?
+
+    fun clear()
+
+    fun getOrPut(key: K, getValue: () -> V): V
 
     interface Factory<W, K> {
         fun <V> create(capacity: Int?): MutableMapK<W, K, V>
-
-        fun <V> create(input: MapK<W, K, V>): MutableMapK<W, K, V>
     }
+}
+
+/** A "stream" of pairs of data. Unlike [Iterable] and [Sequence], this does not allocate. */
+internal fun interface FastIterable<out K, out V> {
+    fun forEach(yield: (K, V) -> Unit)
 }
 
 internal object NoValue
@@ -73,4 +92,15 @@ internal object NoValue
 internal data class StoreEntry<K, V>(override var key: K, override var value: V) :
     MutableMap.MutableEntry<K, V> {
     override fun setValue(newValue: V): V = value.also { value = newValue }
+}
+
+@Suppress("NOTHING_TO_INLINE") internal inline fun MapK<*, *, *>.isNotEmpty(): Boolean = !isEmpty()
+
+internal inline fun <K, A, B> FastIterable<K, A>.map(
+    crossinline block: (A) -> B
+): FastIterable<K, B> = FastIterable { yield -> forEach { k, a -> yield(k, block(a)) } }
+
+@Suppress("NOTHING_TO_INLINE")
+internal inline fun <A> List<A>.asFastIterable() = FastIterable { yield ->
+    fastForEachIndexed(yield)
 }

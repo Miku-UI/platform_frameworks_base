@@ -22,6 +22,7 @@
 #include "android_runtime/AndroidRuntime.h"
 #include "jni.h"
 
+#include <android-base/strings.h>
 #include <media/AudioCapabilities.h>
 #include <media/CodecCapabilities.h>
 #include <media/EncoderCapabilities.h>
@@ -794,6 +795,27 @@ static jboolean android_media_EncoderCapabilities_isBitrateModeSupported(JNIEnv 
     return res;
 }
 
+static jobjectArray android_media_EncoderCapabilities_getSupportedLayeringSchemas(JNIEnv *env,
+                                                                                  jobject thiz) {
+    EncoderCapabilities *const encoderCaps = getEncoderCapabilities(env, thiz);
+    if (encoderCaps == nullptr) {
+        jniThrowException(env, "java/lang/IllegalStateException", NULL);
+        return 0;
+    }
+
+    const std::vector<const char*>& schemas = encoderCaps->getSupportedLayeringSchemasPointers();
+    jclass stringClazz = env->FindClass("java/lang/String");
+    CHECK(stringClazz != NULL);
+    jobjectArray jschemas = env->NewObjectArray(schemas.size(), stringClazz, NULL);
+    for (size_t i = 0; i < schemas.size(); ++i) {
+        jstring jschema = env->NewStringUTF(schemas.at(i));
+        env->SetObjectArrayElement(jschemas, i, jschema);
+        env->DeleteLocalRef(jschema);
+    }
+
+    return jschemas;
+}
+
 // CodecCapabilities
 
 static void android_media_CodecCapabilities_native_init(JNIEnv *env, jobject /* thiz */) {
@@ -1005,7 +1027,10 @@ static const JNINativeMethod gVideoCapsMethods[] = {
 
 static const JNINativeMethod gEncoderCapsMethods[] = {
     {"native_init", "()V", (void *)android_media_EncoderCapabilities_native_init},
-    {"native_isBitrateModeSupported", "(I)Z", (void *)android_media_EncoderCapabilities_isBitrateModeSupported}
+    {"native_isBitrateModeSupported", "(I)Z",
+     (void *)android_media_EncoderCapabilities_isBitrateModeSupported},
+    {"native_getSupportedLayeringSchemas", "()[Ljava/lang/String;",
+     (void *)android_media_EncoderCapabilities_getSupportedLayeringSchemas},
 };
 
 static const JNINativeMethod gCodecCapsMethods[] = {

@@ -17,6 +17,64 @@
 //! This module contains shared data structures and traits used across the crate.
 
 use std::collections::HashSet;
+use std::path::PathBuf;
+
+/// Represents the different USB alternate modes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AlternateMode {
+    /// USB4 mode.
+    USB4,
+    /// Thunderbolt 3 mode.
+    TBT3,
+    /// DisplayPort mode.
+    DP,
+}
+
+impl AlternateMode {
+    /// Returns the SVID for the alternate mode.
+    pub fn svid(&self) -> u16 {
+        match self {
+            AlternateMode::USB4 => 0xFF00,
+            AlternateMode::TBT3 => 0x8087,
+            AlternateMode::DP => 0xFF01,
+        }
+    }
+
+    /// Creates an AlternateMode from an SVID.
+    pub fn from_svid(svid: u16) -> Option<Self> {
+        match svid {
+            0xFF00 => Some(AlternateMode::USB4),
+            0x8087 => Some(AlternateMode::TBT3),
+            0xFF01 => Some(AlternateMode::DP),
+            _ => None,
+        }
+    }
+}
+
+/// Represents a Type-C alternate mode for a port.
+#[derive(Debug, Clone)]
+pub struct TypecAltMode {
+    /// The sysfs path of the alternate mode.
+    pub sysfs_path: PathBuf,
+    /// The SVID of the alternate mode.
+    pub svid: u16,
+    /// The priority of the alternate mode.
+    pub priority: u8,
+    /// The active status of the alternate mode. True if the alternate mode can be entered.
+    pub active: bool,
+}
+
+/// Represents a Type-C alternate mode for a partner device.
+#[derive(Debug, Clone)]
+pub struct TypeCPartnerAltMode {
+    /// The sysfs path of the partner's alternate mode.
+    pub sysfs_path: PathBuf,
+    /// The SVID of the partner's alternate mode.
+    pub svid: u16,
+    /// The active status of the partner's alternate mode.
+    /// True if this alternate mode is currently active on the partner.
+    pub active: bool,
+}
 
 /// Newtype to hold user ids.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

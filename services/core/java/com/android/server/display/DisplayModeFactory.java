@@ -16,15 +16,18 @@
 
 package com.android.server.display;
 
+import static android.view.Display.Mode.INVALID_MODE_ID;
+
 import static com.android.server.display.DisplayDeviceConfig.DEFAULT_LOW_REFRESH_RATE;
 
+import android.annotation.Nullable;
 import android.annotation.SuppressLint;
+import android.util.Slog;
 import android.util.SparseArray;
 import android.view.Display;
 import android.view.SurfaceControl;
 
 import com.android.server.display.LocalDisplayAdapter.DisplayModeRecord;
-import com.android.server.display.feature.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,6 +36,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class DisplayModeFactory {
+    private static final String TAG = "DisplayModeFactory";
 
     /**
      * Used to generate globally unique display mode ids.
@@ -45,10 +49,16 @@ public class DisplayModeFactory {
     private static final float SYNTHETIC_MODE_HIGH_BOUNDARY =
             SYNTHETIC_MODE_REFRESH_RATE + FLOAT_TOLERANCE;
 
+    /**
+     * if one of the anisotropic mode dimensions differ less than this boundary from any isotropic
+     * mode, no synthetic mode will be generated
+     */
+    private static final float SYNTHETIC_ANISOTROPY_CORRECTION_BOUNDARY = 0.05f;
+
 
     static Display.Mode createMode(int width, int height, float refreshRate) {
         return new Display.Mode(NEXT_DISPLAY_MODE_ID.getAndIncrement(),
-                Display.Mode.INVALID_MODE_ID, 0,
+                INVALID_MODE_ID, INVALID_MODE_ID, 0,
                 width, height, refreshRate, refreshRate,
                 new float[0], new int[0]
         );
@@ -56,10 +66,9 @@ public class DisplayModeFactory {
 
     @SuppressLint("WrongConstant")
     static Display.Mode createMode(SurfaceControl.DisplayMode mode, float[] alternativeRefreshRates,
-            boolean hasArrSupport, boolean syntheticModesV2Enabled, boolean sizeOverrideEnabled) {
+            boolean hasArrSupport, boolean sizeOverrideEnabled) {
         int flags = 0;
-        if (syntheticModesV2Enabled
-                && hasArrSupport && mode.peakRefreshRate <= SYNTHETIC_MODE_HIGH_BOUNDARY) {
+        if (hasArrSupport && mode.peakRefreshRate <= SYNTHETIC_MODE_HIGH_BOUNDARY) {
             flags |= Display.Mode.FLAG_ARR_RENDER_RATE;
         }
 
@@ -68,7 +77,7 @@ public class DisplayModeFactory {
         }
 
         return new Display.Mode(NEXT_DISPLAY_MODE_ID.getAndIncrement(),
-                Display.Mode.INVALID_MODE_ID, flags,
+                INVALID_MODE_ID, mode.id, flags,
                 mode.width, mode.height, mode.peakRefreshRate, mode.vsyncRate,
                 alternativeRefreshRates, mode.supportedHdrTypes
         );
@@ -76,17 +85,13 @@ public class DisplayModeFactory {
 
     @SuppressWarnings("MixedMutabilityReturnType")
     static List<DisplayModeRecord> createArrSyntheticModes(List<DisplayModeRecord> records,
-            boolean hasArrSupport, boolean syntheticModesV2Enabled) {
-        if (!syntheticModesV2Enabled) {
-            return Collections.emptyList();
-        }
-
+            boolean hasArrSupport) {
         if (!hasArrSupport) {
             return Collections.emptyList();
         }
 
         List<Display.Mode> modesToSkipForArrSyntheticMode = new ArrayList<>();
-        for (DisplayModeRecord record: records) {
+        for (DisplayModeRecord record : records) {
             // already have < 60Hz mode, don't need to add synthetic
             if ((record.mMode.getFlags() & Display.Mode.FLAG_ARR_RENDER_RATE) != 0) {
                 modesToSkipForArrSyntheticMode.add(record.mMode);
@@ -94,7 +99,7 @@ public class DisplayModeFactory {
         }
 
         List<Display.Mode> modesForArrSyntheticMode = new ArrayList<>();
-        for (DisplayModeRecord record: records) {
+        for (DisplayModeRecord record : records) {
             if (!is60HzAchievable(record.mMode)) {
                 continue;
             }
@@ -115,7 +120,7 @@ public class DisplayModeFactory {
         for (Display.Mode mode : modesForArrSyntheticMode) {
             syntheticModes.add(new DisplayModeRecord(
                     new Display.Mode(NEXT_DISPLAY_MODE_ID.getAndIncrement(),
-                            mode.getModeId(), Display.Mode.FLAG_ARR_RENDER_RATE,
+                            mode.getModeId(), INVALID_MODE_ID, Display.Mode.FLAG_ARR_RENDER_RATE,
                             mode.getPhysicalWidth(), mode.getPhysicalHeight(),
                             SYNTHETIC_MODE_REFRESH_RATE, SYNTHETIC_MODE_REFRESH_RATE,
                             new float[0], mode.getSupportedHdrTypes()
@@ -139,13 +144,20 @@ public class DisplayModeFactory {
      */
     @SuppressWarnings("MixedMutabilityReturnType")
     static List<DisplayModeRecord> createAnisotropyCorrectedModes(List<DisplayModeRecord> records,
-            SparseArray<SurfaceControl.DisplayMode> modeIdToSfMode) {
-        if (!Flags.enableAnisotropyCorrectedModes()) {
-            return Collections.emptyList();
+            SparseArray<SurfaceControl.DisplayMode> modeIdToSfMode, boolean sizeOverrideEnabled) {
+        int modeFlag = Display.Mode.FLAG_ANISOTROPY_CORRECTION;
+
+        if (sizeOverrideEnabled) {
+            modeFlag |= Display.Mode.FLAG_SIZE_OVERRIDE;
         }
-        List<DisplayModeRecord> syntheticModes = new ArrayList<>();
-        int modeFlag = Display.Mode.FLAG_SIZE_OVERRIDE | Display.Mode.FLAG_ANISOTROPY_CORRECTION;
-        for (DisplayModeRecord record: records) {
+
+        // used for filtering anisotropic modes with size similar to isotropic
+        List<Display.Mode> isotropicModes = new ArrayList<>();
+
+        List<Display.Mode> tallAnisotropicModes = new ArrayList<>();
+        List<Display.Mode> wideAnisotropicModes = new ArrayList<>();
+
+        for (DisplayModeRecord record : records) {
             Display.Mode mode = record.mMode;
             SurfaceControl.DisplayMode sfMode = modeIdToSfMode.get(mode.getModeId());
             if (sfMode == null) {
@@ -154,32 +166,78 @@ public class DisplayModeFactory {
             if (sfMode.xDpi <= 0 || sfMode.yDpi <= 0) {
                 continue;
             }
-
             if (sfMode.xDpi > sfMode.yDpi * DisplayDevice.MAX_ANISOTROPY) { // "tall" pixels
+                tallAnisotropicModes.add(mode);
+            } else if (sfMode.yDpi > sfMode.xDpi * DisplayDevice.MAX_ANISOTROPY) { // "wide" pixels
+                wideAnisotropicModes.add(mode);
+            } else {
+                isotropicModes.add(mode);
+            }
+        }
+
+        List<DisplayModeRecord> syntheticModes = new ArrayList<>();
+        for (Display.Mode mode : tallAnisotropicModes) {
+            Display.Mode correspondingIsotropic = findCorrespondingIsotropic(mode, isotropicModes);
+            if (correspondingIsotropic == null) {
+                SurfaceControl.DisplayMode sfMode = modeIdToSfMode.get(mode.getModeId());
                 // scale up height in "logical" pixels
                 int correctedHeight =
                         (int) (mode.getPhysicalHeight() * sfMode.xDpi / sfMode.yDpi + 0.5);
                 syntheticModes.add(new DisplayModeRecord(
                         new Display.Mode(NEXT_DISPLAY_MODE_ID.getAndIncrement(),
-                                mode.getModeId(), modeFlag,
+                                mode.getModeId(), INVALID_MODE_ID, modeFlag,
                                 mode.getPhysicalWidth(), correctedHeight,
                                 mode.getRefreshRate(), mode.getVsyncRate(),
                                 mode.getAlternativeRefreshRates(), mode.getSupportedHdrTypes()
                         )));
-            } else if (sfMode.yDpi > sfMode.xDpi * DisplayDevice.MAX_ANISOTROPY) { // "wide" pixels
+                Slog.d(TAG, "anisotropic mode generated for tall mode with id=" + mode.getModeId());
+            } else {
+                Slog.d(TAG,
+                        "anisotropic mode not generated for tall mode with id=" + mode.getModeId()
+                                + ", corresponding isotropic mode found modeId="
+                                + correspondingIsotropic.getModeId());
+            }
+        }
+
+        for (Display.Mode mode : wideAnisotropicModes) {
+            Display.Mode correspondingIsotropic = findCorrespondingIsotropic(mode, isotropicModes);
+            if (correspondingIsotropic == null) {
+                SurfaceControl.DisplayMode sfMode = modeIdToSfMode.get(mode.getModeId());
                 // scale up width in "logical" pixels
                 int correctedWidth =
                         (int) (mode.getPhysicalWidth() * sfMode.yDpi / sfMode.xDpi + 0.5);
                 syntheticModes.add(new DisplayModeRecord(
                         new Display.Mode(NEXT_DISPLAY_MODE_ID.getAndIncrement(),
-                                mode.getModeId(), modeFlag,
+                                mode.getModeId(), INVALID_MODE_ID, modeFlag,
                                 correctedWidth, mode.getPhysicalHeight(),
                                 mode.getRefreshRate(), mode.getVsyncRate(),
                                 mode.getAlternativeRefreshRates(), mode.getSupportedHdrTypes()
                         )));
+                Slog.d(TAG, "anisotropic mode generated for wide mode with id=" + mode.getModeId());
+            } else {
+                Slog.d(TAG,
+                        "anisotropic mode not generated for wide mode with id=" + mode.getModeId()
+                                + ", corresponding isotropic mode found modeId="
+                                + correspondingIsotropic.getModeId());
             }
         }
         return syntheticModes;
+    }
+
+    @Nullable
+    private static Display.Mode findCorrespondingIsotropic(
+            Display.Mode anisotropicMode, List<Display.Mode> isotropicModes) {
+        int widthToCheck = anisotropicMode.getPhysicalWidth();
+        int heightToCheck = anisotropicMode.getPhysicalHeight();
+        for (Display.Mode mode : isotropicModes) {
+            if ((float) Math.abs(widthToCheck - mode.getPhysicalWidth()) / widthToCheck
+                    < SYNTHETIC_ANISOTROPY_CORRECTION_BOUNDARY || (float) Math.abs(
+                    heightToCheck - mode.getPhysicalHeight()) / heightToCheck
+                    < SYNTHETIC_ANISOTROPY_CORRECTION_BOUNDARY) {
+                return mode;
+            }
+        }
+        return null;
     }
 
     private static boolean hasMatchingForArr(List<Display.Mode> modes, Display.Mode modeToMatch) {
@@ -196,7 +254,7 @@ public class DisplayModeFactory {
         return Math.abs(divisor - Math.round(divisor)) < FLOAT_TOLERANCE;
     }
 
-    private static  boolean matchingForSyntheticArr(Display.Mode mode1, Display.Mode mode2) {
+    private static boolean matchingForSyntheticArr(Display.Mode mode1, Display.Mode mode2) {
         return mode1.getPhysicalWidth() == mode2.getPhysicalWidth()
                 && mode1.getPhysicalHeight() == mode2.getPhysicalHeight()
                 && Arrays.equals(mode1.getSupportedHdrTypes(), mode2.getSupportedHdrTypes());

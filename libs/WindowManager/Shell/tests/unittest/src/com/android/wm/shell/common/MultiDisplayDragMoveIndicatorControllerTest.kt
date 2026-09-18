@@ -20,12 +20,10 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.graphics.RectF
-import android.platform.test.annotations.EnableFlags
 import android.testing.TestableResources
 import android.view.SurfaceControl
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.window.flags.Flags
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.MultiDisplayTestUtil.TestDisplay
@@ -116,18 +114,13 @@ class MultiDisplayDragMoveIndicatorControllerTest : ShellTestCase() {
             taskLeash,
             taskInfo,
             displayIds = setOf(0, 1),
-        ) {
-            transaction
-        }
+            transaction,
+        )
 
         verify(indicatorSurfaceFactory, never()).create(any(), any())
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_WINDOW_DROP_SMOOTH_TRANSITION,
-        Flags.FLAG_ENABLE_BLOCK_NON_DESKTOP_DISPLAY_WINDOW_DRAG_BUGFIX,
-    )
     fun onDrag_boundsIntersectWithStartDisplay_showIndicator() {
         controller.onDragMove(
             RectF(100f, 100f, 200f, 200f), // intersect with display 0
@@ -136,9 +129,8 @@ class MultiDisplayDragMoveIndicatorControllerTest : ShellTestCase() {
             taskLeash,
             taskInfo,
             displayIds = setOf(0, 1),
-        ) {
-            transaction
-        }
+            transaction,
+        )
 
         verify(indicatorSurfaceFactory).create(eq(displayContext0), eq(taskLeash))
         verify(indicatorSurface0)
@@ -154,10 +146,6 @@ class MultiDisplayDragMoveIndicatorControllerTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_WINDOW_DROP_SMOOTH_TRANSITION,
-        Flags.FLAG_ENABLE_BLOCK_NON_DESKTOP_DISPLAY_WINDOW_DRAG_BUGFIX,
-    )
     fun onDrag_boundsIntersectWithDesktopModeUnsupportedDisplay_noIndicatorOnThatDisplay() {
         shellDesktopState.overrideWindowDropTargetEligibility[1] = false
 
@@ -168,18 +156,13 @@ class MultiDisplayDragMoveIndicatorControllerTest : ShellTestCase() {
             taskLeash,
             taskInfo,
             displayIds = setOf(0, 1),
-        ) {
-            transaction
-        }
+            transaction,
+        )
 
         verify(indicatorSurfaceFactory, never()).create(eq(displayContext1), any())
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_WINDOW_DROP_SMOOTH_TRANSITION,
-        Flags.FLAG_ENABLE_BLOCK_NON_DESKTOP_DISPLAY_WINDOW_DRAG_BUGFIX,
-    )
     fun onDrag_boundsIntersectWithNonStartDisplayAndMoveAway_showHideAndDisposeIndicator() {
         controller.onDragMove(
             RectF(100f, -100f, 200f, 200f), // intersect with display 0 and 1
@@ -188,9 +171,8 @@ class MultiDisplayDragMoveIndicatorControllerTest : ShellTestCase() {
             taskLeash,
             taskInfo,
             displayIds = setOf(0, 1),
-        ) {
-            transaction
-        }
+            transaction,
+        )
 
         verify(indicatorSurfaceFactory).create(eq(displayContext0), eq(taskLeash))
         verify(indicatorSurfaceFactory).create(eq(displayContext1), eq(taskLeash))
@@ -222,9 +204,8 @@ class MultiDisplayDragMoveIndicatorControllerTest : ShellTestCase() {
             taskLeash,
             taskInfo,
             displayIds = setOf(0, 1),
-        ) {
-            transaction
-        }
+            transaction,
+        )
 
         verify(indicatorSurface0)
             .relayout(
@@ -246,10 +227,6 @@ class MultiDisplayDragMoveIndicatorControllerTest : ShellTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_WINDOW_DROP_SMOOTH_TRANSITION,
-        Flags.FLAG_ENABLE_BLOCK_NON_DESKTOP_DISPLAY_WINDOW_DRAG_BUGFIX,
-    )
     fun disposeAllIndicators_verifyAllIndicatorsDisposed() {
         // Drag a first task to create indicators on two displays
         controller.onDragMove(
@@ -259,9 +236,8 @@ class MultiDisplayDragMoveIndicatorControllerTest : ShellTestCase() {
             taskLeash,
             taskInfo,
             displayIds = setOf(0, 1),
-        ) {
-            transaction
-        }
+            transaction,
+        )
 
         // Drag the second task to create an indicator on one display
         controller.onDragMove(
@@ -271,9 +247,8 @@ class MultiDisplayDragMoveIndicatorControllerTest : ShellTestCase() {
             taskLeash2,
             taskInfo2,
             displayIds = setOf(0, 1),
-        ) {
-            transaction
-        }
+            transaction,
+        )
 
         // Verify indicators for both tasks are created
         verify(indicatorSurfaceFactory).create(eq(displayContext0), eq(taskLeash))

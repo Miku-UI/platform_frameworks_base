@@ -144,13 +144,12 @@ public class QuickAccessWalletTile extends QSTileImpl<QSTile.State> {
 
         mUiHandler.post(
                 () -> {
-                    if (android.service.quickaccesswallet.Flags.launchSelectedCardFromQsTile()
-                            && mSelectedCard != null) {
+                    if (mSelectedCard != null) {
                         mController.startWalletCardPendingIntent(
                                 mSelectedCard, mActivityStarter, animationController);
                     } else {
                         mController.startQuickAccessUiIntent(
-                                mActivityStarter, animationController, mSelectedCard != null);
+                                mActivityStarter, animationController, false);
                     }
                 });
     }

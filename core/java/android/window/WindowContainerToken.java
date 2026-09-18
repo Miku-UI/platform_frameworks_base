@@ -19,6 +19,7 @@ package android.window;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.TestApi;
+import android.os.Binder;
 import android.os.IBinder;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -36,6 +37,21 @@ public final class WindowContainerToken implements Parcelable {
     /** @hide */
     public WindowContainerToken(IWindowContainerToken realToken) {
         mRealToken = realToken;
+    }
+
+    /**
+     * Creates a token to represent a container-like entity that isn't backed by an
+     * actual WM window (eg. a SCVH that should be animated as part of a transition).
+     * @hide
+     */
+    public static WindowContainerToken createProxy(@NonNull String name) {
+        final Binder tmp = new Binder(name);
+        return new WindowContainerToken(new IWindowContainerToken() {
+            @Override
+            public IBinder asBinder() {
+                return tmp;
+            }
+        });
     }
 
     private WindowContainerToken(Parcel in) {

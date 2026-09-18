@@ -22,23 +22,20 @@ import static android.bluetooth.BluetoothDevice.BOND_BONDED;
 
 import static com.android.settingslib.bluetooth.HearingAidInfo.DeviceSide.SIDE_LEFT;
 import static com.android.settingslib.bluetooth.HearingAidInfo.DeviceSide.SIDE_RIGHT;
+import static com.android.settingslib.bluetooth.hearingdevices.ui.ExpandableControlUi.SIDE_UNIFIED;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.robolectric.Shadows.shadowOf;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.os.Handler;
-import android.os.Looper;
 
 import androidx.test.core.app.ApplicationProvider;
 
@@ -61,6 +58,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.mockito.stubbing.Answer;
 import org.robolectric.RobolectricTestRunner;
+import org.robolectric.shadows.ShadowLog;
 
 import java.util.List;
 import java.util.Set;
@@ -77,6 +75,8 @@ public class AmbientVolumeUiControllerTest {
     private static final String TEST_MEMBER_ADDRESS = "00:00:00:00:22";
     private static final int TEST_AMBIENT_MAX = 60;
     private static final int TEST_AMBIENT_MIN = -30;
+    private static final int TEST_AMBIENT = 10;
+    private static final int TEST_MEMBER_AMBIENT = 20;
 
     @Mock
     LocalBluetoothManager mBluetoothManager;
@@ -109,6 +109,7 @@ public class AmbientVolumeUiControllerTest {
 
     @Before
     public void setUp() {
+        ShadowLog.stream = System.out;
         when(mBluetoothManager.getProfileManager()).thenReturn(mProfileManager);
         when(mBluetoothManager.getEventManager()).thenReturn(mEventManager);
 
@@ -138,6 +139,8 @@ public class AmbientVolumeUiControllerTest {
         when(mTestHandler.postDelayed(any(Runnable.class), anyLong())).thenAnswer(answer);
 
         prepareDevice(/* hasMember= */ true);
+        prepareRemoteData(mDevice, TEST_AMBIENT, MUTE_NOT_MUTED);
+        prepareRemoteData(mMemberDevice, TEST_MEMBER_AMBIENT, MUTE_NOT_MUTED);
         mController.loadDevice(mCachedDevice);
         Mockito.reset(mController);
         Mockito.reset(mAmbientLayout);
@@ -222,25 +225,35 @@ public class AmbientVolumeUiControllerTest {
 
     @Test
     public void onDeviceLocalDataChange_verifySetControlExpandedAndDataUpdated() {
-        final boolean testExpanded = true;
-        HearingDeviceLocalDataManager.Data data = new HearingDeviceLocalDataManager.Data.Builder()
-                .ambient(0).groupAmbient(0).ambientControlExpanded(testExpanded).build();
+        HearingDeviceLocalDataManager.Data data = prepareLocalData(30, 40, true);
         when(mLocalDataManager.get(mDevice)).thenReturn(data);
 
-        mController.refresh();
         mController.onDeviceLocalDataChange(TEST_ADDRESS, data);
-        shadowOf(Looper.getMainLooper()).idle();
 
-        verify(mAmbientLayout).setControlExpanded(testExpanded);
-        verifyDeviceDataUpdated(mDevice);
+        verify(mAmbientLayout).setControlExpanded(true);
+        verify(mLocalDataManager).updateAmbient(mDevice, 30);
+        verify(mLocalDataManager).updateGroupAmbient(mDevice, 40);
+        verify(mLocalDataManager).updateAmbientControlExpanded(mDevice, true);
     }
 
     @Test
-    public void onAmbientChanged_refreshWhenNotInitiateFromUi() {
-        HearingDeviceLocalDataManager.Data data = new HearingDeviceLocalDataManager.Data.Builder()
-                .ambient(10).groupAmbient(10).ambientControlExpanded(true).build();
+    public void onAmbientChanged_controlExpanded_updateUiIfDifferent() {
+        HearingDeviceLocalDataManager.Data data = prepareLocalData(10, 10, true);
         when(mLocalDataManager.get(mDevice)).thenReturn(data);
         when(mAmbientLayout.isControlExpanded()).thenReturn(true);
+
+        mController.onAmbientChanged(mDevice, 10);
+        verify(mAmbientLayout, never()).setSliderValue(SIDE_LEFT, 10);
+
+        mController.onAmbientChanged(mDevice, 20);
+        verify(mAmbientLayout).setSliderValue(SIDE_LEFT, 20);
+    }
+
+    @Test
+    public void onAmbientChanged_controlNotExpanded_refreshUiIfDifferent() {
+        HearingDeviceLocalDataManager.Data data = prepareLocalData(10, 10, false);
+        when(mLocalDataManager.get(mDevice)).thenReturn(data);
+        when(mAmbientLayout.isControlExpanded()).thenReturn(false);
 
         mController.onAmbientChanged(mDevice, 10);
         verify(mController, never()).refresh();
@@ -250,17 +263,28 @@ public class AmbientVolumeUiControllerTest {
     }
 
     @Test
-    public void onMuteChanged_refreshWhenNotInitiateFromUi() {
-        AmbientVolumeController.RemoteAmbientState state =
-                new AmbientVolumeController.RemoteAmbientState(MUTE_NOT_MUTED, 0);
-        when(mVolumeController.refreshAmbientState(mDevice)).thenReturn(state);
+    public void onMuteChanged_controlExpanded_updateUiIfDifferent() {
+        when(mAmbientLayout.getSliderMuteState(SIDE_LEFT)).thenReturn(MUTE_NOT_MUTED);
+        when(mAmbientLayout.isControlExpanded()).thenReturn(true);
+
+        mController.onMuteChanged(mDevice, MUTE_NOT_MUTED);
+        verify(mAmbientLayout, never()).setSliderMuteState(SIDE_LEFT, MUTE_NOT_MUTED);
+
+        mController.onMuteChanged(mDevice, MUTE_MUTED);
+        verify(mAmbientLayout).setSliderMuteState(SIDE_LEFT, MUTE_MUTED);
+    }
+
+    @Test
+    public void onMuteChanged_controlNotExpanded_expandUiIfDifferent() {
+        when(mAmbientLayout.getSliderMuteState(SIDE_LEFT)).thenReturn(MUTE_NOT_MUTED);
+        when(mAmbientLayout.getSliderMuteState(SIDE_UNIFIED)).thenReturn(MUTE_NOT_MUTED);
         when(mAmbientLayout.isControlExpanded()).thenReturn(false);
 
         mController.onMuteChanged(mDevice, MUTE_NOT_MUTED);
-        verify(mController, never()).refresh();
+        verify(mAmbientLayout, never()).setControlExpanded(true);
 
         mController.onMuteChanged(mDevice, MUTE_MUTED);
-        verify(mController).refresh();
+        verify(mAmbientLayout).setControlExpanded(true);
     }
 
     @Test
@@ -312,10 +336,10 @@ public class AmbientVolumeUiControllerTest {
                 new AmbientVolumeController.RemoteAmbientState(gainSetting, mute));
     }
 
-    private void verifyDeviceDataUpdated(BluetoothDevice device) {
-        verify(mLocalDataManager).updateAmbient(eq(device), anyInt());
-        verify(mLocalDataManager).updateGroupAmbient(eq(device), anyInt());
-        verify(mLocalDataManager).updateAmbientControlExpanded(eq(device),
-                anyBoolean());
+    private HearingDeviceLocalDataManager.Data prepareLocalData(int ambient, int groupAmbient,
+            boolean expanded) {
+        return new HearingDeviceLocalDataManager.Data.Builder()
+                .ambient(ambient).groupAmbient(groupAmbient).ambientControlExpanded(
+                        expanded).build();
     }
 }

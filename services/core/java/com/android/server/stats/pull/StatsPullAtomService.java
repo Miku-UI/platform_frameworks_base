@@ -19,6 +19,7 @@ package com.android.server.stats.pull;
 import static android.app.AppOpsManager.OP_FLAG_SELF;
 import static android.app.AppOpsManager.OP_FLAG_TRUSTED_PROXIED;
 import static android.app.AppProtoEnums.HOSTING_COMPONENT_TYPE_EMPTY;
+import static android.bpfprogs.flags.Flags.kernelWakelockDuration;
 import static android.content.pm.PackageInfo.REQUESTED_PERMISSION_GRANTED;
 import static android.content.pm.PermissionInfo.PROTECTION_DANGEROUS;
 import static android.hardware.display.HdrConversionMode.HDR_CONVERSION_PASSTHROUGH;
@@ -37,11 +38,9 @@ import static android.net.NetworkTemplate.MATCH_WIFI;
 import static android.net.NetworkTemplate.OEM_MANAGED_ALL;
 import static android.net.NetworkTemplate.OEM_MANAGED_PAID;
 import static android.net.NetworkTemplate.OEM_MANAGED_PRIVATE;
-import static android.os.Debug.getIonHeapsSizeKb;
 import static android.os.Process.INVALID_UID;
 import static android.os.Process.LAST_SHARED_APPLICATION_GID;
 import static android.os.Process.SYSTEM_UID;
-import static android.os.Process.getUidForPid;
 import static android.os.storage.VolumeInfo.TYPE_PRIVATE;
 import static android.os.storage.VolumeInfo.TYPE_PUBLIC;
 import static android.permission.flags.Flags.enableAllSqliteAppopsAccesses;
@@ -52,9 +51,9 @@ import static android.view.Display.HdrCapabilities.HDR_TYPE_INVALID;
 
 import static com.android.internal.os.MemcgProcMemoryUtil.readHighWaterMarkMemorySnapshot;
 import static com.android.internal.os.MemcgProcMemoryUtil.readMemcgMemorySnapshot;
+import static com.android.internal.os.MemcgProcMemoryUtil.readMemcgProcessStatSnapshot;
 import static com.android.internal.os.ProcfsMemoryUtil.DmaBufType;
 import static com.android.internal.os.ProcfsMemoryUtil.getProcessCmdlines;
-import static com.android.internal.os.ProcfsMemoryUtil.readCmdlineFromProcfs;
 import static com.android.internal.os.ProcfsMemoryUtil.readDmabufFromProcfs;
 import static com.android.internal.os.ProcfsMemoryUtil.readMemorySnapshotFromProcfs;
 import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
@@ -64,6 +63,7 @@ import static com.android.internal.util.FrameworkStatsLog.ACCESSIBILITY_SHORTCUT
 import static com.android.internal.util.FrameworkStatsLog.ACCESSIBILITY_SHORTCUT_STATS__SOFTWARE_SHORTCUT_TYPE__A11Y_BUTTON;
 import static com.android.internal.util.FrameworkStatsLog.ACCESSIBILITY_SHORTCUT_STATS__SOFTWARE_SHORTCUT_TYPE__A11Y_FLOATING_MENU;
 import static com.android.internal.util.FrameworkStatsLog.ACCESSIBILITY_SHORTCUT_STATS__SOFTWARE_SHORTCUT_TYPE__A11Y_GESTURE;
+import static com.android.internal.util.FrameworkStatsLog.ACCESSIBILITY_SHORTCUT_STATS__SOFTWARE_SHORTCUT_TYPE__TOP_ROW_KEY;
 import static com.android.internal.util.FrameworkStatsLog.ACCESSIBILITY_SHORTCUT_STATS__SOFTWARE_SHORTCUT_TYPE__UNKNOWN_TYPE;
 import static com.android.internal.util.FrameworkStatsLog.DATA_USAGE_BYTES_TRANSFER__OPPORTUNISTIC_DATA_SUB__NOT_OPPORTUNISTIC;
 import static com.android.internal.util.FrameworkStatsLog.DATA_USAGE_BYTES_TRANSFER__OPPORTUNISTIC_DATA_SUB__OPPORTUNISTIC;
@@ -77,10 +77,11 @@ import static com.android.internal.util.FrameworkStatsLog.TIME_ZONE_DETECTOR_STA
 import static com.android.internal.util.FrameworkStatsLog.TIME_ZONE_DETECTOR_STATE__DETECTION_MODE__MANUAL;
 import static com.android.internal.util.FrameworkStatsLog.TIME_ZONE_DETECTOR_STATE__DETECTION_MODE__TELEPHONY;
 import static com.android.internal.util.FrameworkStatsLog.TIME_ZONE_DETECTOR_STATE__DETECTION_MODE__UNKNOWN;
-import static com.android.server.stats.Flags.addMobileBytesTransferByProcStatePuller;
+import static com.android.server.stats.Flags.addAdaptiveSuspendStatsPuller;
+import static com.android.server.stats.Flags.addKeystorePerUidPuller;
 import static com.android.server.stats.Flags.addMemcgMemoryInformationPuller;
-import static com.android.server.stats.pull.IonMemoryUtil.readProcessSystemIonHeapSizesFromDebugfs;
-import static com.android.server.stats.pull.IonMemoryUtil.readSystemIonHeapSizeFromDebugfs;
+import static com.android.server.stats.Flags.addMobileBytesTransferByProcStatePuller;
+import static com.android.server.stats.Flags.addWebviewPinQuotaPuller;
 import static com.android.server.stats.pull.netstats.NetworkStatsUtils.fromPublicNetworkStats;
 import static com.android.server.stats.pull.netstats.NetworkStatsUtils.isAddEntriesSupported;
 import static com.android.server.stats.pull.netstats.NetworkStatsUtils.isTransportTypeSupported;
@@ -110,6 +111,7 @@ import android.app.StatsManager.PullAtomMetadata;
 import android.app.usage.NetworkStatsManager;
 import android.bluetooth.BluetoothActivityEnergyInfo;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothManager;
 import android.bluetooth.UidTraffic;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -141,6 +143,7 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CoolingDevice;
+import android.os.Debug;
 import android.os.Environment;
 import android.os.IStoraged;
 import android.os.IThermalEventListener;
@@ -169,18 +172,25 @@ import android.provider.DeviceConfig;
 import android.provider.Settings;
 import android.security.metrics.CrashStats;
 import android.security.metrics.IKeystoreMetrics;
+import android.security.metrics.KeyCreationPerUid;
 import android.security.metrics.KeyCreationWithAuthInfo;
 import android.security.metrics.KeyCreationWithGeneralInfo;
 import android.security.metrics.KeyCreationWithPurposeAndModesInfo;
+import android.security.metrics.KeyOperationPerUid;
+import android.security.metrics.KeyOperationStreamingStats;
 import android.security.metrics.KeyOperationWithGeneralInfo;
 import android.security.metrics.KeyOperationWithPurposeAndModesInfo;
 import android.security.metrics.KeysPerUid;
 import android.security.metrics.Keystore2AtomWithOverflow;
 import android.security.metrics.KeystoreAtom;
 import android.security.metrics.KeystoreAtomPayload;
+import android.security.metrics.OperationLatency;
 import android.security.metrics.RkpErrorStats;
 import android.security.metrics.StorageStats;
 import android.stats.storage.StorageEnums;
+import android.system.suspend.internal.AggregatedKernelWakelockInfo;
+import android.system.suspend.internal.ISuspendControlServiceInternal;
+import android.system.suspend.internal.SuspendInfo;
 import android.telephony.ModemActivityInfo;
 import android.telephony.SubscriptionInfo;
 import android.telephony.SubscriptionManager;
@@ -218,6 +228,7 @@ import com.android.internal.os.KernelCpuUidTimeReader.KernelCpuUidUserSysTimeRea
 import com.android.internal.os.LooperStats;
 import com.android.internal.os.MemcgProcMemoryUtil.MemcgHighWaterMarkMemorySnapshot;
 import com.android.internal.os.MemcgProcMemoryUtil.MemcgMemorySnapshot;
+import com.android.internal.os.MemcgProcMemoryUtil.MemcgMemoryStatSnapshot;
 import com.android.internal.os.PowerProfile;
 import com.android.internal.os.ProcessCpuTracker;
 import com.android.internal.os.ProcfsMemoryUtil;
@@ -239,7 +250,6 @@ import com.android.server.pinner.PinnerService.PinnedFileStats;
 import com.android.server.pm.UserManagerInternal;
 import com.android.server.power.stats.KernelWakelockReader;
 import com.android.server.power.stats.KernelWakelockStats;
-import com.android.server.stats.pull.IonMemoryUtil.IonAllocations;
 import com.android.server.stats.pull.netstats.NetworkStatsAccumulator;
 import com.android.server.stats.pull.netstats.NetworkStatsExt;
 import com.android.server.stats.pull.netstats.SubInfo;
@@ -400,6 +410,8 @@ public class StatsPullAtomService extends SystemService {
     private KernelWakelockReader mKernelWakelockReader;
     @GuardedBy("mKernelWakelockLock")
     private KernelWakelockStats mTmpWakelockStats;
+    @GuardedBy("mSuspendControlServiceInternalLock")
+    private ISuspendControlServiceInternal mSuspendControlServiceInternal;
 
     @GuardedBy("mDiskIoLock")
     private StoragedUidIoStatsReader mStoragedUidIoStatsReader;
@@ -476,6 +488,18 @@ public class StatsPullAtomService extends SystemService {
     public static final boolean ENABLE_MEMCG_STATS_PULLER =
                 addMemcgMemoryInformationPuller();
 
+    private static final boolean ENABLE_AGGREGATED_KERNEL_WAKELOCK_STATS_PULLER =
+                kernelWakelockDuration();
+
+    private static final boolean ENABLE_ADAPTIVE_SUSPEND_STATS_PULLER =
+                addAdaptiveSuspendStatsPuller();
+
+    private static final boolean ENABLE_WEBVIEW_PIN_QUOTA_PULLER =
+                addWebviewPinQuotaPuller();
+
+    private static final boolean ENABLE_KEYSTORE_PER_UID_PULLER =
+                addKeystorePerUidPuller();
+
     private static final ArrayMap<String, Integer> mPreviousThermalThrottlingStatus =
             new ArrayMap<>();
     // Puller locks
@@ -494,9 +518,6 @@ public class StatsPullAtomService extends SystemService {
     private final Object mSystemElapsedRealtimeLock = new Object();
     private final Object mSystemUptimeLock = new Object();
     private final Object mProcessMemoryHighWaterMarkLock = new Object();
-    private final Object mSystemIonHeapSizeLock = new Object();
-    private final Object mIonHeapSizeLock = new Object();
-    private final Object mProcessSystemIonHeapSizeLock = new Object();
     private final Object mTemperatureLock = new Object();
     private final Object mCooldownDeviceLock = new Object();
     private final Object mBinderCallsStatsLock = new Object();
@@ -532,6 +553,7 @@ public class StatsPullAtomService extends SystemService {
     private final Object mSettingsStatsLock = new Object();
     private final Object mInstalledIncrementalPackagesLock = new Object();
     private final Object mKeystoreLock = new Object();
+    private final Object mSuspendControlServiceInternalLock = new Object();
 
     public StatsPullAtomService(Context context) {
         super(context);
@@ -595,6 +617,10 @@ public class StatsPullAtomService extends SystemService {
                         synchronized (mKernelWakelockLock) {
                             return pullKernelWakelockLocked(atomTag, data);
                         }
+                    case FrameworkStatsLog.AGGREGATED_KERNEL_WAKELOCK_INFO:
+                        synchronized (mSuspendControlServiceInternalLock) {
+                            return pullAggregatedKernelWakelockInfo(atomTag, data);
+                        }
                     case FrameworkStatsLog.CPU_TIME_PER_CLUSTER_FREQ:
                         synchronized (mCpuTimePerClusterFreqLock) {
                             return pullCpuTimePerClusterFreqLocked(atomTag, data);
@@ -653,20 +679,10 @@ public class StatsPullAtomService extends SystemService {
                         }
                     case FrameworkStatsLog.PROCESS_MEMORY_SNAPSHOT:
                         return pullProcessMemorySnapshot(atomTag, data);
-                    case FrameworkStatsLog.SYSTEM_ION_HEAP_SIZE:
-                        synchronized (mSystemIonHeapSizeLock) {
-                            return pullSystemIonHeapSizeLocked(atomTag, data);
-                        }
-                    case FrameworkStatsLog.ION_HEAP_SIZE:
-                        synchronized (mIonHeapSizeLock) {
-                            return pullIonHeapSizeLocked(atomTag, data);
-                        }
-                    case FrameworkStatsLog.PROCESS_SYSTEM_ION_HEAP_SIZE:
-                        synchronized (mProcessSystemIonHeapSizeLock) {
-                            return pullProcessSystemIonHeapSizeLocked(atomTag, data);
-                        }
                     case FrameworkStatsLog.PROCESS_DMABUF_MEMORY:
                         return pullProcessDmabufMemory(atomTag, data);
+                    case FrameworkStatsLog.DMABUF_STATS:
+                        return pullDmabufStats(atomTag, data);
                     case FrameworkStatsLog.SYSTEM_MEMORY:
                         return pullSystemMemory(atomTag, data);
                     case FrameworkStatsLog.VMSTAT:
@@ -830,6 +846,10 @@ public class StatsPullAtomService extends SystemService {
                         synchronized (mSettingsStatsLock) {
                             return pullSettingsStatsLocked(atomTag, data);
                         }
+                    case FrameworkStatsLog.CREDENTIAL_MANAGER_SETTINGS_SNAPSHOT:
+                        synchronized (mSettingsStatsLock) {
+                            return pullCredentialManagerSettingsSnapshotLocked(atomTag, data);
+                        }
                     case FrameworkStatsLog.INSTALLED_INCREMENTAL_PACKAGE:
                         synchronized (mInstalledIncrementalPackagesLock) {
                             return pullInstalledIncrementalPackagesLocked(atomTag, data);
@@ -844,6 +864,10 @@ public class StatsPullAtomService extends SystemService {
                     case FrameworkStatsLog.RKP_ERROR_STATS:
                     case FrameworkStatsLog.KEYSTORE2_CRASH_STATS:
                     case FrameworkStatsLog.KEYSTORE2_KEYS_PER_UID:
+                    case FrameworkStatsLog.KEYSTORE2_KEY_CREATION_PER_UID:
+                    case FrameworkStatsLog.KEYSTORE2_KEY_OPERATION_PER_UID:
+                    case FrameworkStatsLog.KEYSTORE2_OPERATION_LATENCY:
+                    case FrameworkStatsLog.KEYSTORE2_KEY_OPERATION_STREAMING_STATS:
                         return pullKeystoreAtoms(atomTag, data);
                     case FrameworkStatsLog.ACCESSIBILITY_SHORTCUT_STATS:
                         return pullAccessibilityShortcutStatsLocked(data);
@@ -853,6 +877,8 @@ public class StatsPullAtomService extends SystemService {
                         return pullMediaCapabilitiesStats(atomTag, data);
                     case FrameworkStatsLog.PINNED_FILE_SIZES_PER_PACKAGE:
                         return pullSystemServerPinnerStats(atomTag, data);
+                    case FrameworkStatsLog.WEBVIEW_PIN_QUOTA:
+                        return pullWebViewPinQuota(atomTag, data);
                     case FrameworkStatsLog.PENDING_INTENTS_PER_PACKAGE:
                         return pullPendingIntentsPerPackage(atomTag, data);
                     case FrameworkStatsLog.HDR_CAPABILITIES:
@@ -865,6 +891,14 @@ public class StatsPullAtomService extends SystemService {
                         return pullMemcgProcessMemoryInformation(atomTag, data);
                     case FrameworkStatsLog.MEMCG_MEMORY_HIGH_WATER_MARK_SNAPSHOT:
                         return pullMemcgProcessHighMemoryHighWatermark(atomTag, data);
+                    case FrameworkStatsLog.MEMCG_MEMORY_STAT_SNAPSHOT:
+                        return pullMemcgProcessStatSnapshot(atomTag, data);
+                    case FrameworkStatsLog.ADAPTIVE_SUSPEND_STATS:
+                        synchronized (mSuspendControlServiceInternalLock) {
+                            return pullAdaptiveSuspendStats(atomTag, data);
+                        }
+                    case FrameworkStatsLog.SLAB_INFO:
+                        return pullSlabInfoStats(atomTag, data);
                     default:
                         throw new UnsupportedOperationException("Unknown tagId=" + atomTag);
                 }
@@ -1002,11 +1036,9 @@ public class StatsPullAtomService extends SystemService {
         registerSystemUptime();
         registerProcessMemoryHighWaterMark();
         registerProcessMemorySnapshot();
-        registerSystemIonHeapSize();
-        registerIonHeapSize();
-        registerProcessSystemIonHeapSize();
         registerSystemMemory();
         registerProcessDmabufMemory();
+        registerDmabufStats();
         registerVmStat();
         registerTemperature();
         registerCoolingDevice();
@@ -1053,6 +1085,7 @@ public class StatsPullAtomService extends SystemService {
         registerBatteryCycleCount();
         registerBatteryHealth();
         registerSettingsStats();
+        registerCredentialManagerSettingsSnapshot();
         registerStorageHealth();
         registerInstalledIncrementalPackages();
         registerKeystorePullers();
@@ -1061,14 +1094,25 @@ public class StatsPullAtomService extends SystemService {
         registerMediaCapabilitiesStats();
         registerPendingIntentsPerPackagePuller();
         registerPinnerServiceStats();
+        if (ENABLE_WEBVIEW_PIN_QUOTA_PULLER) {
+            registerWebViewPinQuota();
+        }
         registerHdrCapabilitiesPuller();
         registerCachedAppsHighWatermarkPuller();
         registerPressureStallInformation();
         registerBatteryLife();
+        if (ENABLE_AGGREGATED_KERNEL_WAKELOCK_STATS_PULLER) {
+            registerAggregatedKernelWakelockInfo();
+        }
         if (ENABLE_MEMCG_STATS_PULLER) {
             registerMemcgInformation();
             registerMemcgMemoryHighWaterMark();
         }
+        registerMemcgMemoryStats();
+        if (ENABLE_ADAPTIVE_SUSPEND_STATS_PULLER) {
+            registerAdaptiveSuspendStats();
+        }
+        registerSlabInfoStats();
     }
 
     private void initMobileDataStatsPuller() {
@@ -1310,6 +1354,35 @@ public class StatsPullAtomService extends SystemService {
         return mProcessStatsService;
     }
 
+    private ISuspendControlServiceInternal getISuspendControlServiceInternal() {
+        synchronized (mSuspendControlServiceInternalLock) {
+            if (mSuspendControlServiceInternal == null) {
+                mSuspendControlServiceInternal =
+                        ISuspendControlServiceInternal.Stub.asInterface(
+                                ServiceManager.getService("suspend_control_internal"));
+
+                if (mSuspendControlServiceInternal != null) {
+                    try {
+                        mSuspendControlServiceInternal
+                                .asBinder()
+                                .linkToDeath(
+                                        () -> {
+                                            synchronized (mSuspendControlServiceInternalLock) {
+                                                mSuspendControlServiceInternal = null;
+                                            }
+                                        }, /* flags */
+                                        0);
+                    } catch (RemoteException e) {
+                        Slog.e(TAG, "linkToDeath with SuspendControlServiceInternal failed", e);
+                        mSuspendControlServiceInternal = null;
+                    }
+                }
+            }
+
+            return mSuspendControlServiceInternal;
+        }
+    }
+
     private void registerWifiBytesTransfer() {
         int tagId = FrameworkStatsLog.WIFI_BYTES_TRANSFER;
         PullAtomMetadata metadata = new PullAtomMetadata.Builder()
@@ -1518,10 +1591,10 @@ public class StatsPullAtomService extends SystemService {
                             statsExt.subInfo.mcc, statsExt.subInfo.mnc, statsExt.subInfo.carrierId,
                             subInfoisOpportunistic(statsExt.subInfo), isNR));
                 }
-                case SATELLITE_BYTES_TRANSFER, ETHERNET_BYTES_TRANSFER -> {
+                case ETHERNET_BYTES_TRANSFER -> {
                     if (!isTransportTypeSupported()) {
                         Log.wtf(TAG,
-                                "addNetworkStats for Satellite/Ethernet without flag enabled!");
+                                "addNetworkStats for Ethernet without flag enabled!");
                         return;
                     }
                     if (UserHandle.isIsolated(entry.getUid())) {
@@ -1533,6 +1606,28 @@ public class StatsPullAtomService extends SystemService {
                             entry.getTag(), entry.getMetered() == NetworkStats.METERED_YES,
                             entry.getSet() == NetworkStats.SET_FOREGROUND, entry.getRxBytes(),
                             entry.getRxPackets(), entry.getTxBytes(), entry.getTxPackets()));
+                }
+                case SATELLITE_BYTES_TRANSFER -> {
+                    if (!isTransportTypeSupported()) {
+                        Log.wtf(TAG,
+                                "addNetworkStats for Satellite without flag enabled!");
+                        return;
+                    }
+                    if (UserHandle.isIsolated(entry.getUid())) {
+                        // Skip individual isolated uids because they are recycled and quickly
+                        // removed from the underlying data source.
+                        continue;
+                    }
+                    String packageName = "";
+                    PackageManager pm = mContext.getPackageManager();
+                    if (pm != null) {
+                        packageName = pm.getNameForUid(entry.getUid());
+                    }
+                    pulledData.add(FrameworkStatsLog.buildStatsEvent(atomTag, entry.getUid(),
+                            entry.getTag(), entry.getMetered() == NetworkStats.METERED_YES,
+                            entry.getSet() == NetworkStats.SET_FOREGROUND, entry.getRxBytes(),
+                            entry.getRxPackets(), entry.getTxBytes(), entry.getTxPackets(),
+                            packageName));
                 }
                 case FrameworkStatsLog.MOBILE_BYTES_TRANSFER_BY_FG_BG,
                         FrameworkStatsLog.WIFI_BYTES_TRANSFER_BY_FG_BG,
@@ -1672,14 +1767,18 @@ public class StatsPullAtomService extends SystemService {
     private NetworkStats getUidNetworkStatsSnapshotForTemplateLocked(
             @NonNull NetworkTemplate template, boolean includeTags, long startTime, long endTime) {
         final long elapsedMillisSinceBoot = SystemClock.elapsedRealtime();
+
         // Rate-limit force-polling for all NetworkStats queries
         if (elapsedMillisSinceBoot - mLastNetworkStatsPollTime >= NETSTATS_POLL_RATE_LIMIT_MS) {
             mLastNetworkStatsPollTime = elapsedMillisSinceBoot;
             getNetworkStatsManager().forceUpdate();
         }
 
+        // Use 0 for flags to avoid redundant polling, as forceUpdate() is already called above.
         final android.app.usage.NetworkStats queryNonTaggedStats =
-                getNetworkStatsManager().querySummary(template, startTime, endTime);
+                android.net.platform.flags.Flags.useNetstatsPerQueryFlags()
+                ? getNetworkStatsManager().querySummary(template, startTime, endTime, 0)
+                : getNetworkStatsManager().querySummary(template, startTime, endTime);
 
         final NetworkStats nonTaggedStats =
                 fromPublicNetworkStats(queryNonTaggedStats);
@@ -1687,7 +1786,9 @@ public class StatsPullAtomService extends SystemService {
         if (!includeTags) return nonTaggedStats;
 
         final android.app.usage.NetworkStats queryTaggedStats =
-                getNetworkStatsManager().queryTaggedSummary(template, startTime, endTime);
+                android.net.platform.flags.Flags.useNetstatsPerQueryFlags()
+                ? getNetworkStatsManager().queryTaggedSummary(template, startTime, endTime, 0)
+                : getNetworkStatsManager().queryTaggedSummary(template, startTime, endTime);
         final NetworkStats taggedStats =
                 fromPublicNetworkStats(queryTaggedStats);
         queryTaggedStats.close();
@@ -1987,7 +2088,8 @@ public class StatsPullAtomService extends SystemService {
     }
 
     private BluetoothActivityEnergyInfo fetchBluetoothData() {
-        final BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+        final BluetoothAdapter adapter =
+                mContext.getSystemService(BluetoothManager.class).getAdapter();
         if (adapter != null) {
             SynchronousResultReceiver bluetoothReceiver =
                     new SynchronousResultReceiver("bluetooth");
@@ -2050,6 +2152,32 @@ public class StatsPullAtomService extends SystemService {
             KernelWakelockStats.Entry kws = ent.getValue();
             pulledData.add(FrameworkStatsLog.buildStatsEvent(
                     atomTag, name, kws.count, kws.version, kws.totalTimeUs));
+        }
+        return StatsManager.PULL_SUCCESS;
+    }
+
+    private void registerAggregatedKernelWakelockInfo() {
+        int tagId = FrameworkStatsLog.AGGREGATED_KERNEL_WAKELOCK_INFO;
+        mStatsManager.setPullAtomCallback(
+                tagId, /* PullAtomMetadata */ null, DIRECT_EXECUTOR, mStatsCallbackImpl);
+    }
+
+    int pullAggregatedKernelWakelockInfo(int atomTag, List<StatsEvent> pulledData) {
+        ISuspendControlServiceInternal suspendControlServiceInternal =
+                getISuspendControlServiceInternal();
+        if (suspendControlServiceInternal == null) {
+            return StatsManager.PULL_SKIP;
+        }
+
+        try {
+            AggregatedKernelWakelockInfo aggregatedKernelWakelockInfo =
+                    suspendControlServiceInternal.getKernelWakelockDurationStats();
+            pulledData.add(
+                    FrameworkStatsLog.buildStatsEvent(
+                            atomTag, aggregatedKernelWakelockInfo.kernelWakelockDuration / 1000));
+        } catch (RemoteException e) {
+            Slog.e(TAG, "Cannot pull aggregated kernel wakelock info.", e);
+            return StatsManager.PULL_SKIP;
         }
         return StatsManager.PULL_SUCCESS;
     }
@@ -2639,62 +2767,6 @@ public class StatsPullAtomService extends SystemService {
         return StatsManager.PULL_SUCCESS;
     }
 
-    private void registerSystemIonHeapSize() {
-        int tagId = FrameworkStatsLog.SYSTEM_ION_HEAP_SIZE;
-        mStatsManager.setPullAtomCallback(
-                tagId,
-                null, // use default PullAtomMetadata values
-                DIRECT_EXECUTOR,
-                mStatsCallbackImpl
-        );
-    }
-
-    int pullSystemIonHeapSizeLocked(int atomTag, List<StatsEvent> pulledData) {
-        final long systemIonHeapSizeInBytes = readSystemIonHeapSizeFromDebugfs();
-        pulledData.add(FrameworkStatsLog.buildStatsEvent(atomTag, systemIonHeapSizeInBytes));
-        return StatsManager.PULL_SUCCESS;
-    }
-
-    private void registerIonHeapSize() {
-        if (!new File("/sys/kernel/ion/total_heaps_kb").exists()) {
-            return;
-        }
-        int tagId = FrameworkStatsLog.ION_HEAP_SIZE;
-        mStatsManager.setPullAtomCallback(
-                tagId,
-                /* PullAtomMetadata */ null,
-                DIRECT_EXECUTOR,
-                mStatsCallbackImpl
-        );
-    }
-
-    int pullIonHeapSizeLocked(int atomTag, List<StatsEvent> pulledData) {
-        int ionHeapSizeInKilobytes = (int) getIonHeapsSizeKb();
-        pulledData.add(FrameworkStatsLog.buildStatsEvent(atomTag, ionHeapSizeInKilobytes));
-        return StatsManager.PULL_SUCCESS;
-    }
-
-    private void registerProcessSystemIonHeapSize() {
-        int tagId = FrameworkStatsLog.PROCESS_SYSTEM_ION_HEAP_SIZE;
-        mStatsManager.setPullAtomCallback(
-                tagId,
-                null, // use default PullAtomMetadata values
-                DIRECT_EXECUTOR,
-                mStatsCallbackImpl
-        );
-    }
-
-    int pullProcessSystemIonHeapSizeLocked(int atomTag, List<StatsEvent> pulledData) {
-        List<IonAllocations> result = readProcessSystemIonHeapSizesFromDebugfs();
-        for (IonAllocations allocations : result) {
-            pulledData.add(FrameworkStatsLog.buildStatsEvent(atomTag, getUidForPid(allocations.pid),
-                    readCmdlineFromProcfs(allocations.pid),
-                    (int) (allocations.totalSizeInBytes / 1024), allocations.count,
-                    (int) (allocations.maxSizeInBytes / 1024)));
-        }
-        return StatsManager.PULL_SUCCESS;
-    }
-
     private void registerProcessDmabufMemory() {
         int tagId = FrameworkStatsLog.PROCESS_DMABUF_MEMORY;
         mStatsManager.setPullAtomCallback(
@@ -2729,6 +2801,57 @@ public class StatsPullAtomService extends SystemService {
         return StatsManager.PULL_SUCCESS;
     }
 
+    private void registerDmabufStats() {
+        int tagId = FrameworkStatsLog.DMABUF_STATS;
+        mStatsManager.setPullAtomCallback(
+                tagId,
+                null, // use default PullAtomMetadata values
+                DIRECT_EXECUTOR,
+                mStatsCallbackImpl
+        );
+    }
+
+    int pullDmabufStats(int atomTag, List<StatsEvent> pulledData) {
+        int dmaBufTotalExportedKb = (int) Debug.getDmabufTotalExportedKb();
+        int dmaBufUserspaceKb = (int) Debug.getDmabufUserspaceKb();
+        pulledData.add(
+                FrameworkStatsLog.buildStatsEvent(
+                        atomTag,
+                        dmaBufTotalExportedKb,
+                        dmaBufUserspaceKb,
+                        dmaBufTotalExportedKb - dmaBufUserspaceKb));
+        return StatsManager.PULL_SUCCESS;
+    }
+
+    private void registerSlabInfoStats() {
+        int tagId = FrameworkStatsLog.SLAB_INFO;
+        mStatsManager.setPullAtomCallback(
+            tagId,
+            null, // use default PullAtomMetadata values,
+            DIRECT_EXECUTOR,
+            mStatsCallbackImpl
+        );
+    }
+
+    int pullSlabInfoStats(int atomTag, List<StatsEvent> pulledData) {
+        KernelAllocationStats.SlabCacheStats[] slabCacheStats =
+            KernelAllocationStats.getSlabInfoStats();
+
+        if (slabCacheStats == null) {
+            return StatsManager.PULL_SKIP;
+        }
+
+        for (KernelAllocationStats.SlabCacheStats slabCache : slabCacheStats) {
+            pulledData.add(FrameworkStatsLog.buildStatsEvent(
+                atomTag,
+                slabCache.name,
+                slabCache.totalMemUsageKb
+                )
+            );
+        }
+        return StatsManager.PULL_SUCCESS;
+    }
+
     private void registerSystemMemory() {
         int tagId = FrameworkStatsLog.SYSTEM_MEMORY;
         mStatsManager.setPullAtomCallback(
@@ -2748,7 +2871,7 @@ public class StatsPullAtomService extends SystemService {
                         metrics.vmallocUsedKb,
                         metrics.pageTablesKb,
                         metrics.kernelStackKb,
-                        metrics.totalIonKb,
+                        0, /* totalIonKb - deprecated */
                         metrics.unaccountedKb,
                         metrics.gpuTotalUsageKb,
                         metrics.gpuPrivateAllocationsKb,
@@ -4338,10 +4461,13 @@ public class StatsPullAtomService extends SystemService {
 
     static void unpackStreamedData(int atomTag, List<StatsEvent> pulledData,
             List<ParcelFileDescriptor> statsFiles) throws IOException {
-        InputStream stream = new ParcelFileDescriptor.AutoCloseInputStream(statsFiles.get(0));
-        int[] len = new int[1];
-        byte[] stats = readFully(stream, len);
-        pulledData.add(FrameworkStatsLog.buildStatsEvent(atomTag, Arrays.copyOf(stats, len[0])));
+        try (InputStream stream =
+                new ParcelFileDescriptor.AutoCloseInputStream(statsFiles.get(0))) {
+            int[] len = new int[1];
+            byte[] stats = readFully(stream, len);
+            pulledData.add(
+                    FrameworkStatsLog.buildStatsEvent(atomTag, Arrays.copyOf(stats, len[0])));
+        }
     }
 
     static byte[] readFully(InputStream stream, int[] outLen) throws IOException {
@@ -4653,6 +4779,40 @@ public class StatsPullAtomService extends SystemService {
         return StatsManager.PULL_SUCCESS;
     }
 
+    private void registerCredentialManagerSettingsSnapshot() {
+        int tagId = FrameworkStatsLog.CREDENTIAL_MANAGER_SETTINGS_SNAPSHOT;
+        mStatsManager.setPullAtomCallback(tagId, null, DIRECT_EXECUTOR, mStatsCallbackImpl);
+    }
+
+    @GuardedBy("mSettingsStatsLock")
+    private int pullCredentialManagerSettingsSnapshotLocked(int atomTag,
+            List<StatsEvent> pulledData) {
+        final UserManager userManager = mContext.getSystemService(UserManager.class);
+        if (userManager == null) {
+            return StatsManager.PULL_SKIP;
+        }
+        final long token = Binder.clearCallingIdentity();
+        try {
+            for (UserInfo user : userManager.getUsers()) {
+                int userId = user.getUserHandle().getIdentifier();
+                pulledData.add(FrameworkStatsLog.buildStatsEvent(atomTag,
+                        CredentialManagerUtil.getPreferredAutofillServiceBaseUid(mContext, userId),
+                        CredentialManagerUtil
+                                .getPreferredCredentialServicesBaseUids(mContext, userId),
+                        CredentialManagerUtil
+                                .getAvailableCredentialServicesBaseUids(mContext, userId),
+                        CredentialManagerUtil
+                                .getEnabledCredentialServicesBaseUids(mContext, userId)));
+            }
+        } catch (Exception e) {
+            Slog.e(TAG, "Failed to pullCredentialManagerSettingsSnapshotLocked", e);
+            return StatsManager.PULL_SKIP;
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
+        return StatsManager.PULL_SUCCESS;
+    }
+
     private void registerInstalledIncrementalPackages() {
         int tagId = FrameworkStatsLog.INSTALLED_INCREMENTAL_PACKAGE;
         mStatsManager.setPullAtomCallback(
@@ -4717,6 +4877,21 @@ public class StatsPullAtomService extends SystemService {
                     null, // use default PullAtomMetadata values,
                     DIRECT_EXECUTOR,
                     mStatsCallbackImpl);
+        }
+
+        if (ENABLE_KEYSTORE_PER_UID_PULLER) {
+            for (int tag : new int[] {
+                    FrameworkStatsLog.KEYSTORE2_KEY_CREATION_PER_UID,
+                    FrameworkStatsLog.KEYSTORE2_KEY_OPERATION_PER_UID,
+                    FrameworkStatsLog.KEYSTORE2_OPERATION_LATENCY,
+                    FrameworkStatsLog.KEYSTORE2_KEY_OPERATION_STREAMING_STATS
+            }) {
+                mStatsManager.setPullAtomCallback(
+                        tag,
+                        null,
+                        DIRECT_EXECUTOR,
+                        mStatsCallbackImpl);
+            }
         }
     }
 
@@ -4851,7 +5026,8 @@ public class StatsPullAtomService extends SystemService {
             KeyOperationWithGeneralInfo atom = atomWrapper.payload.getKeyOperationWithGeneralInfo();
             pulledData.add(FrameworkStatsLog.buildStatsEvent(
                     FrameworkStatsLog.KEYSTORE2_KEY_OPERATION_WITH_GENERAL_INFO, atom.outcome,
-                    atom.error_code, atom.key_upgraded, atom.security_level, atomWrapper.count));
+                    atom.error_code, atom.key_upgraded, atom.security_level, atomWrapper.count,
+                    atom.is_attested));
         }
         return StatsManager.PULL_SUCCESS;
     }
@@ -4896,6 +5072,69 @@ public class StatsPullAtomService extends SystemService {
         return StatsManager.PULL_SUCCESS;
     }
 
+    int parseKeystoreKeyCreationPerUid(KeystoreAtom[] atoms,
+            List<StatsEvent> pulledData) {
+        if (Arrays.stream(atoms).anyMatch(
+                atom -> atom.payload.getTag() != KeystoreAtomPayload.keyCreationPerUid)) {
+            return StatsManager.PULL_SKIP;
+        }
+        for (KeystoreAtom atomWrapper : atoms) {
+            KeyCreationPerUid atom = atomWrapper.payload.getKeyCreationPerUid();
+            pulledData.add(FrameworkStatsLog.buildStatsEvent(
+                    FrameworkStatsLog.KEYSTORE2_KEY_CREATION_PER_UID, atom.uid, atom.security_level,
+                    atom.algorithm, atom.user_auth_type, atom.attestation_requested,
+                    atomWrapper.count));
+        }
+        return StatsManager.PULL_SUCCESS;
+    }
+
+    int parseKeystoreKeyOperationPerUid(KeystoreAtom[] atoms,
+            List<StatsEvent> pulledData) {
+        if (Arrays.stream(atoms).anyMatch(
+                atom -> atom.payload.getTag() != KeystoreAtomPayload.keyOperationPerUid)) {
+            return StatsManager.PULL_SKIP;
+        }
+        for (KeystoreAtom atomWrapper : atoms) {
+            KeyOperationPerUid atom = atomWrapper.payload.getKeyOperationPerUid();
+            pulledData.add(FrameworkStatsLog.buildStatsEvent(
+                    FrameworkStatsLog.KEYSTORE2_KEY_OPERATION_PER_UID, atom.uid,
+                    atom.security_level, atomWrapper.count));
+        }
+        return StatsManager.PULL_SUCCESS;
+    }
+
+    int parseKeystoreOperationLatency(KeystoreAtom[] atoms,
+            List<StatsEvent> pulledData) {
+        if (Arrays.stream(atoms).anyMatch(
+                atom -> atom.payload.getTag() != KeystoreAtomPayload.operationLatency)) {
+            return StatsManager.PULL_SKIP;
+        }
+        for (KeystoreAtom atomWrapper : atoms) {
+            OperationLatency atom = atomWrapper.payload.getOperationLatency();
+            pulledData.add(FrameworkStatsLog.buildStatsEvent(
+                    FrameworkStatsLog.KEYSTORE2_OPERATION_LATENCY, atom.operation_type,
+                    atom.algorithm, atom.key_size, atom.ec_curve, atom.security_level,
+                    atom.is_success, atom.latency_ms, atomWrapper.count));
+        }
+        return StatsManager.PULL_SUCCESS;
+    }
+
+    int parseKeystoreKeyOperationStreamingStats(KeystoreAtom[] atoms,
+            List<StatsEvent> pulledData) {
+        if (Arrays.stream(atoms).anyMatch(
+                atom -> atom.payload.getTag() != KeystoreAtomPayload.keyOperationStreamingStats)) {
+            return StatsManager.PULL_SKIP;
+        }
+        for (KeystoreAtom atomWrapper : atoms) {
+            KeyOperationStreamingStats atom = atomWrapper.payload.getKeyOperationStreamingStats();
+            pulledData.add(FrameworkStatsLog.buildStatsEvent(
+                    FrameworkStatsLog.KEYSTORE2_KEY_OPERATION_STREAMING_STATS, atom.algorithm,
+                    atom.is_success, atom.call_count, atom.total_input_bytes,
+                    atomWrapper.count));
+        }
+        return StatsManager.PULL_SUCCESS;
+    }
+
     int pullKeystoreAtoms(int atomTag, List<StatsEvent> pulledData) {
         IKeystoreMetrics keystoreMetricsService = getIKeystoreMetricsService();
         if (keystoreMetricsService == null) {
@@ -4926,6 +5165,14 @@ public class StatsPullAtomService extends SystemService {
                     return parseKeystoreCrashStats(atoms, pulledData);
                 case FrameworkStatsLog.KEYSTORE2_KEYS_PER_UID:
                     return parseKeystoreKeysPerUid(atoms, pulledData);
+                case FrameworkStatsLog.KEYSTORE2_KEY_CREATION_PER_UID:
+                    return parseKeystoreKeyCreationPerUid(atoms, pulledData);
+                case FrameworkStatsLog.KEYSTORE2_KEY_OPERATION_PER_UID:
+                    return parseKeystoreKeyOperationPerUid(atoms, pulledData);
+                case FrameworkStatsLog.KEYSTORE2_OPERATION_LATENCY:
+                    return parseKeystoreOperationLatency(atoms, pulledData);
+                case FrameworkStatsLog.KEYSTORE2_KEY_OPERATION_STREAMING_STATS:
+                    return parseKeystoreKeyOperationStreamingStats(atoms, pulledData);
                 default:
                     Slog.w(TAG, "Unsupported keystore atom: " + atomTag);
                     return StatsManager.PULL_SKIP;
@@ -4974,6 +5221,11 @@ public class StatsPullAtomService extends SystemService {
                             Settings.Secure.ACCESSIBILITY_QS_TARGETS, userId);
                     final boolean qs_shortcut_enabled = !TextUtils.isEmpty(qs_shortcut_list);
 
+                    final String top_row_key_list = Settings.Secure.getStringForUser(resolver,
+                            Settings.Secure.ACCESSIBILITY_TOP_ROW_KEY_TARGETS, userId);
+                    final int top_row_key_service_num =
+                            countAccessibilityServices(top_row_key_list);
+
                     // only allow magnification to use it for now
                     final int triple_tap_service_num = Settings.Secure.getIntForUser(resolver,
                             Settings.Secure.ACCESSIBILITY_DISPLAY_MAGNIFICATION_ENABLED, 0, userId);
@@ -4985,7 +5237,9 @@ public class StatsPullAtomService extends SystemService {
                             ACCESSIBILITY_SHORTCUT_STATS__GESTURE_SHORTCUT_TYPE__TRIPLE_TAP,
                             triple_tap_service_num,
                             ACCESSIBILITY_SHORTCUT_STATS__QS_SHORTCUT_TYPE__QUICK_SETTINGS,
-                            qs_shortcut_enabled));
+                            qs_shortcut_enabled,
+                            ACCESSIBILITY_SHORTCUT_STATS__SOFTWARE_SHORTCUT_TYPE__TOP_ROW_KEY,
+                            top_row_key_service_num));
                 }
             }
         } catch (RuntimeException e) {
@@ -5194,6 +5448,16 @@ public class StatsPullAtomService extends SystemService {
         );
     }
 
+    private void registerWebViewPinQuota() {
+        int tagId = FrameworkStatsLog.WEBVIEW_PIN_QUOTA;
+        mStatsManager.setPullAtomCallback(
+                tagId,
+                null, // use default PullAtomMetadata values
+                DIRECT_EXECUTOR,
+                mStatsCallbackImpl
+        );
+    }
+
     private void registerHdrCapabilitiesPuller() {
         int tagId = FrameworkStatsLog.HDR_CAPABILITIES;
         mStatsManager.setPullAtomCallback(
@@ -5274,12 +5538,25 @@ public class StatsPullAtomService extends SystemService {
         );
     }
 
+    private void registerMemcgMemoryStats() {
+        int tagId = FrameworkStatsLog.MEMCG_MEMORY_STAT_SNAPSHOT;
+        mStatsManager.setPullAtomCallback(
+                tagId,
+                new PullAtomMetadata.Builder()
+                        .setCoolDownMillis(MILLIS_PER_SEC)
+                        .build(),
+                DIRECT_EXECUTOR,
+                mStatsCallbackImpl
+        );
+    }
+
     int pullMemcgProcessMemoryInformation(int atomTag, List<StatsEvent> pulledData) {
         List<ProcessMemoryState> managedProcessList =
                 LocalServices.getService(ActivityManagerInternal.class)
                         .getMemoryStateForProcesses();
         for (ProcessMemoryState managedProcess : managedProcessList) {
-            final MemcgMemorySnapshot snapshot = readMemcgMemorySnapshot(managedProcess.pid);
+            final MemcgMemorySnapshot snapshot =
+                    readMemcgMemorySnapshot(managedProcess.uid, managedProcess.pid);
             if (snapshot == null) {
                 continue;
             }
@@ -5300,7 +5577,7 @@ public class StatsPullAtomService extends SystemService {
                         .getMemoryStateForProcesses();
         for (ProcessMemoryState managedProcess : managedProcessList) {
             final MemcgHighWaterMarkMemorySnapshot snapshot =
-                    readHighWaterMarkMemorySnapshot(managedProcess.pid);
+                    readHighWaterMarkMemorySnapshot(managedProcess.uid, managedProcess.pid);
             if (snapshot == null) {
                 continue;
             }
@@ -5313,6 +5590,82 @@ public class StatsPullAtomService extends SystemService {
             ));
         }
         return StatsManager.PULL_SUCCESS;
+    }
+
+    int pullMemcgProcessStatSnapshot(int atomTag, List<StatsEvent> pulledData) {
+        List<ProcessMemoryState> managedProcessList =
+                LocalServices.getService(ActivityManagerInternal.class)
+                        .getMemoryStateForProcesses();
+        for (ProcessMemoryState managedProcess : managedProcessList) {
+            final MemcgMemoryStatSnapshot snapshot =
+                    readMemcgProcessStatSnapshot(managedProcess.uid, managedProcess.pid);
+            if (snapshot == null) {
+                continue;
+            }
+            pulledData.add(FrameworkStatsLog.buildStatsEvent(
+                    atomTag,
+                    managedProcess.uid,
+                    managedProcess.processName,
+                    snapshot.anonInKiloBytes,
+                    snapshot.fileInKiloBytes,
+                    snapshot.totalKernelInKiloBytes,
+                    snapshot.shmemInKiloBytes,
+                    snapshot.fileMappedInKiloBytes,
+                    snapshot.memorySwapInKiloBytes
+            ));
+        }
+        return StatsManager.PULL_SUCCESS;
+    }
+
+    private void registerAdaptiveSuspendStats() {
+        int tagId = FrameworkStatsLog.ADAPTIVE_SUSPEND_STATS;
+        mStatsManager.setPullAtomCallback(
+                tagId, /* PullAtomMetadata */ null, DIRECT_EXECUTOR, mStatsCallbackImpl);
+    }
+
+    int pullAdaptiveSuspendStats(int atomTag, List<StatsEvent> pulledData) {
+        ISuspendControlServiceInternal suspendControlServiceInternal =
+                getISuspendControlServiceInternal();
+        if (suspendControlServiceInternal == null) {
+            return StatsManager.PULL_SKIP;
+        }
+        try {
+            SuspendInfo info = suspendControlServiceInternal.getSuspendStats();
+            pulledData.add(FrameworkStatsLog.buildStatsEvent(
+                    atomTag,
+                    (int) info.suspendAttemptCount,
+                    (int) info.failedSuspendCount,
+                    (int) info.shortSuspendCount,
+                    info.suspendTimeMillis - info.shortSuspendTimeMillis,
+                    info.shortSuspendTimeMillis,
+                    (int) info.breakEvenMillis,
+                    info.suspendOverheadTimeMillis,
+                    info.failedSuspendOverheadTimeMillis,
+                    (int) info.newBackoffCount,
+                    (int) info.backoffContinueCount,
+                    info.sleepTimeMillis,
+                    toIntArray(info.suspendDurationMillisBins),
+                    toIntArray(info.consecutiveBadSuspendBins),
+                    (int) info.maxBackoffContinuations,
+                    (int) info.newBadSuspends,
+                    (int) info.earlyRecoveryBadSuspends
+            ));
+        } catch (RemoteException e) {
+            Slog.e(TAG, "Cannot pull adaptive suspend stats.", e);
+            return StatsManager.PULL_SKIP;
+        }
+        return StatsManager.PULL_SUCCESS;
+    }
+
+    private static int[] toIntArray(long[] longArray) {
+        if (longArray == null) {
+            return null;
+        }
+        int[] intArray = new int[longArray.length];
+        for (int i = 0; i < longArray.length; i++) {
+            intArray[i] = (int) longArray[i];
+        }
+        return intArray;
     }
 
     private int toProtoPsiResourceType(PsiData.ResourceType resourceType) {
@@ -5335,6 +5688,16 @@ public class StatsPullAtomService extends SystemService {
             pulledData.add(FrameworkStatsLog.buildStatsEvent(atomTag,
                     pfstats.uid, pfstats.filename, pfstats.sizeKb));
         }
+        return StatsManager.PULL_SUCCESS;
+    }
+
+    private int pullWebViewPinQuota(int atomTag, List<StatsEvent> pulledData) {
+        PinnerService pinnerService = LocalServices.getService(PinnerService.class);
+        if (pinnerService == null) {
+            return StatsManager.PULL_SKIP;
+        }
+        int quota = pinnerService.getWebviewPinQuota();
+        pulledData.add(FrameworkStatsLog.buildStatsEvent(atomTag, quota));
         return StatsManager.PULL_SUCCESS;
     }
 
@@ -5440,17 +5803,20 @@ public class StatsPullAtomService extends SystemService {
                 Settings.Secure.ACCESSIBILITY_SHORTCUT_TARGET_SERVICE, userId);
         final String qs_shortcut_list = Settings.Secure.getStringForUser(resolver,
                 Settings.Secure.ACCESSIBILITY_QS_TARGETS, userId);
+        final String top_row_key_list = Settings.Secure.getStringForUser(resolver,
+                Settings.Secure.ACCESSIBILITY_TOP_ROW_KEY_TARGETS, userId);
         final boolean hardware_shortcut_dialog_shown = Settings.Secure.getIntForUser(resolver,
                 Settings.Secure.ACCESSIBILITY_SHORTCUT_DIALOG_SHOWN, 0, userId) == 1;
         final boolean software_shortcut_enabled = !TextUtils.isEmpty(software_shortcut_list);
         final boolean hardware_shortcut_enabled =
                 hardware_shortcut_dialog_shown && !TextUtils.isEmpty(hardware_shortcut_list);
         final boolean qs_shortcut_enabled = !TextUtils.isEmpty(qs_shortcut_list);
+        final boolean top_row_key_enabled = !TextUtils.isEmpty(top_row_key_list);
         final boolean triple_tap_shortcut_enabled = Settings.Secure.getIntForUser(resolver,
                 Settings.Secure.ACCESSIBILITY_DISPLAY_MAGNIFICATION_ENABLED, 0, userId) == 1;
 
         return software_shortcut_enabled || hardware_shortcut_enabled
-                || triple_tap_shortcut_enabled || qs_shortcut_enabled;
+                || triple_tap_shortcut_enabled || qs_shortcut_enabled || top_row_key_enabled;
     }
 
     private boolean isAccessibilityFloatingMenuUser(Context context, @UserIdInt int userId) {

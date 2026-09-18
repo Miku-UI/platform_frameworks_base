@@ -23,12 +23,9 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import android.platform.test.ravenwood.RavenwoodRule;
-
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -39,8 +36,6 @@ import java.util.EnumSet;
 public class DisplayInfoTest {
     private static final float FLOAT_EQUAL_DELTA = 0.0001f;
 
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
 
     @Test
     public void testDefaultDisplayInfosAreEqual() {

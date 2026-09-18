@@ -20,6 +20,10 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
+import android.ravenwood.annotation.RavenwoodKeep;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
+import android.ravenwood.annotation.RavenwoodKeepStaticInitializer;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Log;
 import android.util.SparseIntArray;
 
@@ -48,6 +52,8 @@ import java.util.concurrent.TimeUnit;
  *
  * @hide
  */
+@RavenwoodKeepPartialClass
+@RavenwoodKeepStaticInitializer
 public final class BinderProxy implements IBinder {
     // See android_util_Binder.cpp for the native half of this.
 
@@ -55,6 +61,9 @@ public final class BinderProxy implements IBinder {
     volatile boolean mWarnOnBlocking = Binder.sWarnOnBlocking;
 
     private static volatile Binder.ProxyTransactListener sTransactListener = null;
+
+    private final boolean sUseExecutorForFrozenStateChangeCallback =
+            Flags.binderProxyUseExecutorMap();
 
     private static class BinderProxyMapSizeException extends AssertionError {
         BinderProxyMapSizeException(String s) {
@@ -78,6 +87,7 @@ public final class BinderProxy implements IBinder {
      * performance degrades as occupancy increases significantly past MAIN_INDEX_SIZE.
      * Not thread-safe. Client ensures there's a single access at a time.
      */
+    @RavenwoodKeepWholeClass
     private static final class ProxyMap {
         private static final int LOG_MAIN_INDEX_SIZE = 8;
         private static final int MAIN_INDEX_SIZE = 1 <<  LOG_MAIN_INDEX_SIZE;
@@ -245,12 +255,14 @@ public final class BinderProxy implements IBinder {
                         } finally {
                             Binder.restoreCallingIdentity(identity);
                         }
-                        dumpPerUidProxyCounts();
+                        // The dump returns the UID and count of the top offender
+                        final String proxyCounts = dumpPerUidProxyCounts();
                         Runtime.getRuntime().gc();
                         throw new BinderProxyMapSizeException(
                                 "Binder ProxyMap has too many entries: "
                                 + totalSize + " (total), " + totalUnclearedSize + " (uncleared), "
-                                + unclearedSize() + " (uncleared after GC). BinderProxy leak?");
+                                + unclearedSize() + " (uncleared after GC). BinderProxy leak? "
+                                + proxyCounts);
                     } else if (totalSize > 3 * totalUnclearedSize / 2) {
                         Log.v(Binder.TAG, "BinderProxy map has many cleared entries: "
                                 + (totalSize - totalUnclearedSize) + " of " + totalSize
@@ -360,17 +372,24 @@ public final class BinderProxy implements IBinder {
         }
 
         /**
-         * Dump per uid binder proxy counts to the logcat.
+         * Dump per uid binder proxy counts to the logcat and return a string with the top offender.
          */
-        private void dumpPerUidProxyCounts() {
+        private String dumpPerUidProxyCounts() {
             SparseIntArray counts = BinderInternal.nGetBinderProxyPerUidCounts();
-            if (counts.size() == 0) return;
+            if (counts.size() == 0) return "";
             Log.d(Binder.TAG, "Per Uid Binder Proxy Counts:");
+            int maxCount = -1;
+            int maxUid = -1;
             for (int i = 0; i < counts.size(); i++) {
                 final int uid = counts.keyAt(i);
                 final int binderCount = counts.valueAt(i);
                 Log.d(Binder.TAG, "UID : " + uid + "  count = " + binderCount);
+                if (binderCount > maxCount) {
+                    maxCount = binderCount;
+                    maxUid = uid;
+                }
             }
+            return "TOP UID " + maxUid + " count " + maxCount;
         }
 
         // Corresponding ArrayLists in the following two arrays always have the same size.
@@ -453,6 +472,7 @@ public final class BinderProxy implements IBinder {
      * recycle nativeData.
      * @param iBinder C++ pointer to IBinder. Does not take ownership of referenced object.
      */
+    @RavenwoodKeep
     private static BinderProxy getInstance(long nativeData, long iBinder) {
         BinderProxy result;
         synchronized (sProxyMap) {
@@ -475,6 +495,7 @@ public final class BinderProxy implements IBinder {
         return result;
     }
 
+    @RavenwoodKeep
     private BinderProxy(long nativeData) {
         mNativeData = nativeData;
     }
@@ -489,6 +510,7 @@ public final class BinderProxy implements IBinder {
 
     // Use a Holder to allow static initialization of BinderProxy in the boot image, and
     // to avoid some initialization ordering issues.
+    @RavenwoodKeepWholeClass
     private static class NoImagePreloadHolder {
         public static final long sNativeFinalizer = getNativeFinalizer();
         public static final NativeAllocationRegistry sRegistry = new NativeAllocationRegistry(
@@ -498,6 +520,7 @@ public final class BinderProxy implements IBinder {
     /**
      * @return false if the hosting process is gone, otherwise whatever the remote returns
      */
+    @RavenwoodKeep
     public native boolean pingBinder();
 
     /**
@@ -508,17 +531,20 @@ public final class BinderProxy implements IBinder {
      *
      * @return false if the hosting process is gone
      */
+    @RavenwoodKeep
     public native boolean isBinderAlive();
 
     /**
      * Retrieve a local interface - always null in case of a proxy
      */
+    @RavenwoodKeep
     public IInterface queryLocalInterface(String descriptor) {
         return null;
     }
 
     /** @hide */
     @Override
+    @RavenwoodKeep
     public native @Nullable IBinder getExtension() throws RemoteException;
 
     /**
@@ -538,6 +564,7 @@ public final class BinderProxy implements IBinder {
      * @return
      * @throws RemoteException
      */
+    @RavenwoodKeep
     public boolean transact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
         Binder.checkParcel(this, code, data, "Unreasonably large binder buffer");
 
@@ -621,11 +648,13 @@ public final class BinderProxy implements IBinder {
     /**
      *  See {@link IBinder#getInterfaceDescriptor()}
      */
+    @RavenwoodKeep
     public native String getInterfaceDescriptor() throws RemoteException;
 
     /**
      * Native implementation of transact() for proxies
      */
+    @RavenwoodKeep
     public native boolean transactNative(int code, Parcel data, Parcel reply,
             int flags) throws RemoteException;
 
@@ -639,6 +668,7 @@ public final class BinderProxy implements IBinder {
     /**
      * See {@link IBinder#linkToDeath(DeathRecipient, int)}
      */
+    @RavenwoodKeep
     public void linkToDeath(DeathRecipient recipient, int flags)
             throws RemoteException {
         linkToDeathNative(recipient, flags);
@@ -648,14 +678,17 @@ public final class BinderProxy implements IBinder {
     /**
      * See {@link IBinder#unlinkToDeath}
      */
+    @RavenwoodKeep
     public boolean unlinkToDeath(DeathRecipient recipient, int flags) {
         mDeathRecipients.remove(recipient);
         return unlinkToDeathNative(recipient, flags);
     }
 
+    @RavenwoodKeep
     private native void linkToDeathNative(DeathRecipient recipient, int flags)
             throws RemoteException;
 
+    @RavenwoodKeep
     private native boolean unlinkToDeathNative(DeathRecipient recipient, int flags);
 
     /**
@@ -672,10 +705,31 @@ public final class BinderProxy implements IBinder {
             Collections.synchronizedMap(new HashMap<>());
 
     /**
+     * This map is to hold strong reference to the executors of frozen state callbacks.
+     *
+     * The key is the original callback passed into {@link #addFrozenStateChangeCallback}. The value
+     * is the associated executor.
+     */
+    private Map<FrozenStateChangeCallback, Executor> mFrozenStateChangeCallbackExecutors =
+            Collections.synchronizedMap(new HashMap<>());
+
+    /**
      * See {@link IBinder#addFrozenStateChangeCallback(FrozenStateChangeCallback)}
      */
     public void addFrozenStateChangeCallback(Executor executor, FrozenStateChangeCallback callback)
             throws RemoteException {
+        if (sUseExecutorForFrozenStateChangeCallback) {
+            if (mFrozenStateChangeCallbackExecutors.put(callback, executor) != null) {
+                return;
+            }
+            try {
+                addFrozenStateChangeCallbackNative(callback);
+            } catch (Throwable e) {
+                mFrozenStateChangeCallbackExecutors.remove(callback);
+                throw e;
+            }
+            return;
+        }
         FrozenStateChangeCallback wrappedCallback = (who, state) ->
                 executor.execute(() -> callback.onFrozenStateChanged(who, state));
         addFrozenStateChangeCallbackNative(wrappedCallback);
@@ -687,6 +741,12 @@ public final class BinderProxy implements IBinder {
      */
     public boolean removeFrozenStateChangeCallback(FrozenStateChangeCallback callback)
             throws IllegalArgumentException {
+        if (sUseExecutorForFrozenStateChangeCallback) {
+            if (mFrozenStateChangeCallbackExecutors.remove(callback) == null) {
+                throw new IllegalArgumentException("callback not found");
+            }
+            return removeFrozenStateChangeCallbackNative(callback);
+        }
         FrozenStateChangeCallback wrappedCallback = mFrozenStateChangeCallbacks.remove(callback);
         if (wrappedCallback == null) {
             throw new IllegalArgumentException("callback not found");
@@ -713,6 +773,7 @@ public final class BinderProxy implements IBinder {
      * @param args additional arguments to the dump request.
      * @throws RemoteException
      */
+    @RavenwoodKeep
     public void dump(FileDescriptor fd, String[] args) throws RemoteException {
         Parcel data = Parcel.obtain();
         Parcel reply = Parcel.obtain();
@@ -734,6 +795,7 @@ public final class BinderProxy implements IBinder {
      * @param args additional arguments to the dump request.
      * @throws RemoteException
      */
+    @RavenwoodKeep
     public void dumpAsync(FileDescriptor fd, String[] args) throws RemoteException {
         Parcel data = Parcel.obtain();
         Parcel reply = Parcel.obtain();
@@ -759,6 +821,7 @@ public final class BinderProxy implements IBinder {
      * @param resultReceiver Called when the command has finished executing, with the result code.
      * @throws RemoteException
      */
+    @RavenwoodKeep
     public void shellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
             String[] args, ShellCallback callback,
             ResultReceiver resultReceiver) throws RemoteException {
@@ -793,6 +856,20 @@ public final class BinderProxy implements IBinder {
 
     private static void invokeFrozenStateChangeCallback(
             FrozenStateChangeCallback callback, IBinder binderProxy, int stateIndex) {
+        if (binderProxy instanceof BinderProxy
+                && ((BinderProxy) binderProxy).sUseExecutorForFrozenStateChangeCallback) {
+            final BinderProxy bp = (BinderProxy) binderProxy;
+            final Executor executor = bp.mFrozenStateChangeCallbackExecutors.get(callback);
+            if (executor != null) {
+                try {
+                    executor.execute(() -> callback.onFrozenStateChanged(binderProxy, stateIndex));
+                } catch (RuntimeException exc) {
+                    Log.w("BinderNative",
+                            "Uncaught exception from frozen state change callback", exc);
+                }
+            }
+            return;
+        }
         try {
             callback.onFrozenStateChanged(binderProxy, stateIndex);
         } catch (RuntimeException exc) {

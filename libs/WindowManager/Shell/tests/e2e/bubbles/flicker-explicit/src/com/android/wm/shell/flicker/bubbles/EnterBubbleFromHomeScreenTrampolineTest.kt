@@ -17,16 +17,19 @@
 package com.android.wm.shell.flicker.bubbles
 
 import android.platform.test.annotations.Presubmit
+import android.platform.test.annotations.RequiresFlagsDisabled
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.tools.NavBar
 import androidx.test.filters.RequiresDevice
 import com.android.wm.shell.Flags
-import com.android.wm.shell.Utils
+import com.android.wm.shell.Utils.testSetupRule
+import com.android.wm.shell.flicker.bubbles.testcase.ColdLaunchTaskTrampolineTestCases
 import com.android.wm.shell.flicker.bubbles.testcase.EnterBubbleTestCases
-import com.android.wm.shell.flicker.bubbles.utils.ApplyPerParameterRule
+import com.android.wm.shell.flicker.bubbles.testcase.TaskTrampolineBecomesExpandedTestCases
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.BubbleLaunchSource.FROM_HOME_SCREEN
 import com.android.wm.shell.flicker.bubbles.utils.BubbleFlickerTestHelper.launchBubbleViaBubbleMenu
 import com.android.wm.shell.flicker.bubbles.utils.RecordTraceWithTransitionRule
+import com.android.wm.shell.flicker.bubbles.utils.RunOncePerParameterRule
 import org.junit.FixMethodOrder
 import org.junit.Rule
 import org.junit.runners.MethodSorters
@@ -47,21 +50,33 @@ import org.junit.runners.MethodSorters
  * ```
  *
  * Verified tests:
- * - [BubbleFlickerTrampolineTestBase]
  * - [EnterBubbleTestCases]
+ * - [ColdLaunchTaskTrampolineTestCases]
+ * - [TaskTrampolineBecomesExpandedTestCases]
  */
+// TODO(b/479182156) Remove this when bubbling is supported in desktop mode.
+@RequiresFlagsDisabled(Flags.FLAG_DISABLE_BUBBLE_ANYTHING_DESKTOP_WINDOWING)
 @RequiresFlagsEnabled(Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE)
 @RequiresDevice
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 @Presubmit
-open class EnterBubbleFromHomeScreenTrampolineTest :
-    BubbleFlickerTrampolineTestBase(), EnterBubbleTestCases {
+class EnterBubbleFromHomeScreenTrampolineTest :
+    BubbleFlickerTrampolineTestBase(),
+    EnterBubbleTestCases,
+    ColdLaunchTaskTrampolineTestCases,
+    TaskTrampolineBecomesExpandedTestCases {
 
     companion object {
         private val recordTraceWithTransitionRule =
             RecordTraceWithTransitionRule(
                 transition = {
-                    launchBubbleViaBubbleMenu(trampolineApp, tapl, wmHelper, FROM_HOME_SCREEN)
+                    launchBubbleViaBubbleMenu(
+                        runningApp,
+                        tapl,
+                        wmHelper,
+                        FROM_HOME_SCREEN,
+                        trampolineApp,
+                    )
                 },
                 tearDownAfterTransition = {
                     runningApp.exit(wmHelper)
@@ -75,9 +90,12 @@ open class EnterBubbleFromHomeScreenTrampolineTest :
         private val navBar = NavBar.MODE_GESTURAL
     }
 
-    @get:Rule
-    open val setUpRule =
-        ApplyPerParameterRule(Utils.testSetupRule(navBar).around(recordTraceWithTransitionRule))
+    @get:Rule(order = 1)
+    val setUpRule =
+        RunOncePerParameterRule(
+            testClass = this::class,
+            wrappedRule = testSetupRule(navBar).around(recordTraceWithTransitionRule),
+        )
 
     override val traceDataReader
         get() = recordTraceWithTransitionRule.reader

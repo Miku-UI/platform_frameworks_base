@@ -60,7 +60,7 @@ public class HeadsUpViewBinder {
      */
     public void bindHeadsUpView(
             NotificationEntry entry,
-            boolean isPinnedByUser,
+            boolean isFromUserOpenAction,
             @Nullable HeadsUpBindCallback callback) {
         RowContentBindParams params = mStage.getStageParams(entry);
         params.requireContentViews(FLAG_CONTENT_VIEW_HEADS_UP);
@@ -71,11 +71,11 @@ public class HeadsUpViewBinder {
             // adding to this map, we know this will remove the correct signal.
             mOngoingBindCallbacks.remove(entry);
             if (callback != null) {
-                callback.onHeadsUpBindFinished(en, isPinnedByUser);
+                callback.onHeadsUpBindFinished(en, isFromUserOpenAction);
             }
         });
         abortBindCallback(entry);
-        mLogger.startBindingHun(entry, isPinnedByUser);
+        mLogger.startBindingHun(entry, isFromUserOpenAction);
         mOngoingBindCallbacks.put(entry, signal);
     }
 
@@ -119,6 +119,6 @@ public class HeadsUpViewBinder {
         /**
          * Called when all views are fully bound on the notification.
          */
-        void onHeadsUpBindFinished(NotificationEntry entry, boolean isPinnedByUser);
+        void onHeadsUpBindFinished(NotificationEntry entry, boolean isFromUserOpenAction);
     }
 }

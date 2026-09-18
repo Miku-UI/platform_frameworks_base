@@ -16,6 +16,7 @@
 
 package android.os;
 
+import static android.os.Build.VERSION_CODES.CINNAMON_BUN;
 import static android.security.Flags.failOnParcelSizeMismatch;
 
 import static com.android.internal.util.Preconditions.checkArgument;
@@ -29,10 +30,12 @@ import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.annotation.TestApi;
 import android.app.AppOpsManager;
+import android.app.compat.CompatChanges;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledSince;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.ravenwood.annotation.RavenwoodReplace;
-import android.ravenwood.annotation.RavenwoodThrow;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -50,7 +53,6 @@ import android.util.SparseIntArray;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
-import com.android.internal.util.StringCache;
 
 import dalvik.annotation.optimization.CriticalNative;
 import dalvik.annotation.optimization.FastNative;
@@ -246,6 +248,11 @@ public final class Parcel {
     private static final boolean DEBUG_RECYCLE = false;
     private static final boolean DEBUG_ARRAY_MAP = false;
     private static final String TAG = "Parcel";
+
+    /**  Feature flag for parcel hardening */
+    @ChangeId
+    @EnabledSince(targetSdkVersion = CINNAMON_BUN)
+    private static final long PARCEL_HARDENING = 416031865L;
 
     @UnsupportedAppUsage
     @SuppressWarnings({"UnusedDeclaration"})
@@ -547,6 +554,14 @@ public final class Parcel {
 
         public String readString16(Parcel p) {
             return p.readString16NoHelper();
+        }
+
+        public void writeStrongBinder(Parcel p, IBinder val) {
+            p.writeStrongBinderNoHelper(val);
+        }
+
+        public IBinder readStrongBinder(Parcel p) {
+            return p.readStrongBinderNoHelper();
         }
     }
 
@@ -1352,6 +1367,11 @@ public final class Parcel {
         nativeWriteString16(mNativePtr, val);
     }
 
+    /** @hide */
+    public void writeStrongBinderNoHelper(IBinder val) {
+        nativeWriteStrongBinder(mNativePtr, val);
+    }
+
     /**
      * Write a boolean value into the parcel at the current dataPosition(),
      * growing dataCapacity() if needed.
@@ -1369,7 +1389,6 @@ public final class Parcel {
      * @hide
      */
     @UnsupportedAppUsage
-    @RavenwoodThrow(blockedBy = android.text.Spanned.class)
     public final void writeCharSequence(@Nullable CharSequence val) {
         TextUtils.writeToParcel(val, this, 0);
     }
@@ -1379,7 +1398,7 @@ public final class Parcel {
      * growing dataCapacity() if needed.
      */
     public final void writeStrongBinder(IBinder val) {
-        nativeWriteStrongBinder(mNativePtr, val);
+        mReadWriteHelper.writeStrongBinder(this, val);
     }
 
     /**
@@ -3451,20 +3470,27 @@ public final class Parcel {
 
     /** @hide */
     public @Nullable String readString8NoHelper() {
-        if (Flags.parcelStringCacheEnabled()) {
-            return StringCache.INSTANCE.cache(nativeReadString8(mNativePtr));
-        } else {
-            return nativeReadString8(mNativePtr);
-        }
+        return nativeReadString8(mNativePtr);
     }
 
     /** @hide */
     public @Nullable String readString16NoHelper() {
-        if (Flags.parcelStringCacheEnabled()) {
-            return StringCache.INSTANCE.cache(nativeReadString16(mNativePtr));
-        } else {
-            return nativeReadString16(mNativePtr);
+        return nativeReadString16(mNativePtr);
+    }
+
+    /** @hide */
+    public IBinder readStrongBinderNoHelper() {
+        final IBinder result = nativeReadStrongBinder(mNativePtr);
+
+        // If it's a reply from a method with @PropagateAllowBlocking, then inherit allow-blocking
+        // from the object that returned it.
+        if (result != null
+                && hasFlags(
+                        FLAG_IS_REPLY_FROM_BLOCKING_ALLOWED_OBJECT
+                                | FLAG_PROPAGATE_ALLOW_BLOCKING)) {
+            Binder.allowBlocking(result);
         }
+        return result;
     }
 
     /**
@@ -3488,15 +3514,7 @@ public final class Parcel {
      * Read an object from the parcel at the current dataPosition().
      */
     public final IBinder readStrongBinder() {
-        final IBinder result = nativeReadStrongBinder(mNativePtr);
-
-        // If it's a reply from a method with @PropagateAllowBlocking, then inherit allow-blocking
-        // from the object that returned it.
-        if (result != null && hasFlags(
-                FLAG_IS_REPLY_FROM_BLOCKING_ALLOWED_OBJECT | FLAG_PROPAGATE_ALLOW_BLOCKING)) {
-            Binder.allowBlocking(result);
-        }
-        return result;
+        return mReadWriteHelper.readStrongBinder(this);
     }
 
     /**
@@ -4743,7 +4761,8 @@ public final class Parcel {
             object = readValue(type, loader, clazz, itemTypes);
             int actual = dataPosition() - start;
             if (actual != length) {
-                boolean failOnMismatch = failOnParcelSizeMismatch();
+                boolean failOnMismatch = failOnParcelSizeMismatch()
+                        && CompatChanges.isChangeEnabled(PARCEL_HARDENING);
                 String msg = "Unparcelling of " + object + " of type " + Parcel.valueTypeToString(
                         type) + "  consumed " + actual + " bytes, but " + length + " expected."
                         + (failOnMismatch ? " [throwing]" : " [ignored]");
@@ -5306,7 +5325,7 @@ public final class Parcel {
      * enclosing class of the runtime type of its CREATOR field (that is,
      * {@link Class#getEnclosingClass()} has to return the parcelable implementing class),
      * otherwise this method might throw an exception. If the Parcelable class does not enclose the
-     * CREATOR, use the deprecated {@link #readParcelableCreator(ClassLoader) instead.
+     * CREATOR, use the deprecated {@link #readParcelableCreator(ClassLoader)} instead.
      *
      * @throws BadParcelableException Throws BadParcelableException if the item to be deserialized
      * is not an instance of that class or any of its children classes or there there was an error

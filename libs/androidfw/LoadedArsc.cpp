@@ -54,17 +54,27 @@ namespace {
 struct TypeSpecBuilder {
   explicit TypeSpecBuilder(incfs::verified_map_ptr<ResTable_typeSpec> header) : header_(header) {
     type_entries.reserve(dtohs(header_->typesCount));
+    flagged_type_entries.reserve(dtohs(header_->typesCount));
   }
 
-  void AddType(incfs::verified_map_ptr<ResTable_type> type) {
-    TypeSpec::TypeEntry& entry = type_entries.emplace_back();
+  void AddType(incfs::verified_map_ptr<ResTable_type> type, bool flagged) {
+    TypeSpec::TypeEntry& entry = flagged ? flagged_type_entries.emplace_back()
+                                         : type_entries.emplace_back();
     entry.config.copyFromDtoH(type->config);
     entry.type = type;
   }
 
   TypeSpec Build() {
-    type_entries.shrink_to_fit();
-    return {header_, std::move(type_entries)};
+    // put flagged values at the beginning so they are chosen over non-flagged ones
+    if (!flagged_type_entries.empty()) {
+      flagged_type_entries.insert(flagged_type_entries.end(), type_entries.begin(),
+                                  type_entries.end());
+      flagged_type_entries.shrink_to_fit();
+      return {header_, std::move(flagged_type_entries)};
+    } else {
+      type_entries.shrink_to_fit();
+      return {header_, std::move(type_entries)};
+    }
   }
 
  private:
@@ -72,6 +82,7 @@ struct TypeSpecBuilder {
 
   incfs::verified_map_ptr<ResTable_typeSpec> header_;
   std::vector<TypeSpec::TypeEntry> type_entries;
+  std::vector<TypeSpec::TypeEntry> flagged_type_entries;
 };
 
 }  // namespace
@@ -320,11 +331,7 @@ base::expected<uint32_t, NullOrIOError> LoadedPackage::GetEntryOffset(
 base::expected<incfs::verified_map_ptr<ResTable_entry>, NullOrIOError>
 LoadedPackage::GetEntryFromOffset(incfs::verified_map_ptr<ResTable_type> type_chunk,
                                   uint32_t offset) {
-  auto valid = VerifyResTableEntry(type_chunk, offset);
-  if (UNLIKELY(!valid.has_value())) {
-    return base::unexpected(valid.error());
-  }
-  return valid;
+  return VerifyResTableEntry(type_chunk, offset);
 }
 
 base::expected<std::monostate, IOError> LoadedPackage::CollectConfigurations(
@@ -431,12 +438,16 @@ base::expected<uint32_t, NullOrIOError> LoadedPackage::FindEntryByName(
       }
 
       if (offset != ResTable_type::NO_ENTRY) {
-        auto entry = type.offset(dtohl(type->entriesStart) + offset).convert<ResTable_entry>();
-        if (!entry) {
-          return base::unexpected(IOError::PAGES_MISSING);
+        // Make sure to validate the entry offset, as we only validate the type
+        auto entry = GetEntryFromOffset(type, offset);
+        if (!entry.has_value()) {
+          if (IsIOError(entry)) {
+            return base::unexpected(entry.error());
+          }
+          continue;
         }
 
-        if (entry->key() == static_cast<uint32_t>(*key_idx)) {
+        if (entry.value()->key() == static_cast<uint32_t>(*key_idx)) {
           // The package ID will be overridden by the caller (due to runtime assignment of package
           // IDs for shared libraries).
           return make_resid(0x00, *type_idx + type_id_offset_ + 1, res_idx);
@@ -456,8 +467,60 @@ const LoadedPackage* LoadedArsc::GetPackageById(uint8_t package_id) const {
   return nullptr;
 }
 
+bool LoadType(
+    const Chunk& chunk,
+    std::unordered_map<int, std::optional<TypeSpecBuilder>>& type_builder_map,
+    bool flagged) {
+  const auto type = chunk.header<ResTable_type, kResTableTypeMinSize>();
+  if (!type) {
+    LOG(ERROR) << "RES_TABLE_TYPE_TYPE too small.";
+    return false;
+  }
+
+  if (!VerifyResTableType(type)) {
+    return false;
+  }
+
+  // Type chunks must be preceded by their TypeSpec chunks.
+  auto& maybe_type_builder = type_builder_map[type->id];
+  if (maybe_type_builder) {
+    maybe_type_builder->AddType(type.verified(), flagged);
+  } else {
+    LOG(ERROR) << StringPrintf(
+        "RES_TABLE_TYPE_TYPE with ID %02x found without preceding RES_TABLE_TYPE_SPEC_TYPE.",
+        type->id);
+    return false;
+  }
+  return true;
+}
+
+std::ostream& operator<<(std::ostream& os, LoadedArscFeatureFlagStatus status) {
+  switch (status) {
+    case LoadedArscFeatureFlagStatus::Enabled:
+      os << "Enabled";
+      break;
+    case LoadedArscFeatureFlagStatus::Disabled:
+      os << "Disabled";
+      break;
+    case LoadedArscFeatureFlagStatus::AlwaysShown:
+      os << "AlwaysShown";
+      break;
+    case LoadedArscFeatureFlagStatus::AlwaysHidden:
+      os << "AlwaysHidden";
+      break;
+    case LoadedArscFeatureFlagStatus::Unknown:
+      os << "Unknown";
+      break;
+    default:
+      os << static_cast<int>(status); // Fallback to integer value for unrecognized enums
+      break;
+  }
+  return os;
+}
+
 std::unique_ptr<const LoadedPackage> LoadedPackage::Load(const Chunk& chunk,
-                                                         package_property_t property_flags) {
+                                                         package_property_t property_flags,
+                                                         const FlagMap& flag_map) {
   ATRACE_NAME("LoadedPackage::Load");
   const bool optimize_name_lookups = (property_flags & PROPERTY_OPTIMIZE_NAME_LOOKUPS) != 0;
   std::unique_ptr<LoadedPackage> loaded_package(new LoadedPackage(optimize_name_lookups));
@@ -486,7 +549,13 @@ std::unique_ptr<const LoadedPackage> LoadedPackage::Load(const Chunk& chunk,
     loaded_package->property_flags_ |= PROPERTY_OVERLAY | PROPERTY_DYNAMIC;
   }
 
-  loaded_package->package_id_ = dtohl(header->id);
+  const uint32_t package_id = dtohl(header->id);
+  if (package_id > std::numeric_limits<uint8_t>::max()) {
+    LOG(ERROR) << "RES_TABLE_PACKAGE_TYPE package id is out of valid range";
+    return {};
+  }
+
+  loaded_package->package_id_ = static_cast<int>(package_id);
   if (loaded_package->package_id_ == 0 ||
       (loaded_package->package_id_ == kAppPackageId && (property_flags & PROPERTY_DYNAMIC) != 0)) {
     loaded_package->property_flags_ |= PROPERTY_DYNAMIC;
@@ -593,25 +662,45 @@ std::unique_ptr<const LoadedPackage> LoadedPackage::Load(const Chunk& chunk,
       } break;
 
       case RES_TABLE_TYPE_TYPE: {
-        const auto type = child_chunk.header<ResTable_type, kResTableTypeMinSize>();
-        if (!type) {
-          LOG(ERROR) << "RES_TABLE_TYPE_TYPE too small.";
+        if (!LoadType(child_chunk, type_builder_map, false)) {
           return {};
         }
+      } break;
 
-        if (!VerifyResTableType(type)) {
-          return {};
-        }
+      case RES_TABLE_FLAGGED: {
+        if (android_content_res_resource_readwrite_flags()) {
+          const auto flagged = child_chunk.header<ResTable_flagged>();
+          if (!flagged) {
+            LOG(ERROR) << "RES_TABLE_FLAGGED too small.";
+            return {};
+          }
 
-        // Type chunks must be preceded by their TypeSpec chunks.
-        auto& maybe_type_builder = type_builder_map[type->id];
-        if (maybe_type_builder) {
-          maybe_type_builder->AddType(type.verified());
-        } else {
-          LOG(ERROR) << StringPrintf(
-              "RES_TABLE_TYPE_TYPE with ID %02x found without preceding RES_TABLE_TYPE_SPEC_TYPE.",
-              type->id);
-          return {};
+          auto it = flag_map.find(flagged->flag_name_index.index);
+          if (it == flag_map.end()) {
+            LOG(ERROR) << StringPrintf(
+                "RES_TABLE_FLAGGED sections contains flag with index %d not in "
+                "RES_TABLE_FLAG_LIST.",
+                flagged->flag_name_index.index);
+            return {};
+          }
+          if (ShouldIncludeFlaggedResource(it->second.status, flagged->flag_negated)) {
+            ChunkIterator flagged_type_iter(child_chunk.data_ptr(), child_chunk.data_size());
+            while (flagged_type_iter.HasNext()) {
+              const Chunk flagged_child_chunk = flagged_type_iter.Next();
+
+              switch (flagged_child_chunk.type()) {
+                case RES_TABLE_TYPE_TYPE: {
+                  if (!LoadType(flagged_child_chunk, type_builder_map, true)) {
+                    return {};
+                  }
+                } break;
+
+                default:
+                  LOG(WARNING) << StringPrintf("Unknown chunk type '%02x'.", flagged_child_chunk.type());
+                  break;
+              }
+            }
+          }
         }
       } break;
 
@@ -718,7 +807,7 @@ std::unique_ptr<const LoadedPackage> LoadedPackage::Load(const Chunk& chunk,
             }
 
             default:
-              LOG(WARNING) << StringPrintf("Unknown chunk type '%02x'.", chunk.type());
+              LOG(WARNING) << StringPrintf("Unknown chunk type '%02x'.", overlayable_child_chunk.type());
               break;
           }
         }
@@ -852,29 +941,47 @@ bool LoadedArsc::LoadTable(const Chunk& chunk, const LoadedIdmap* loaded_idmap,
 
       case RES_TABLE_FLAG_LIST: {
         if (android_content_res_resource_readwrite_flags()) {
+          if (!flag_map_.empty()) {
+            LOG(WARNING) << "Multiple RES_TABLE_FLAG_LIST chunks found in RES_TABLE_TYPE, "
+                            "skipping all but the first one.";
+            break;
+          }
           const auto& flag_header = child_chunk.header<ResTable_flag_list>();
-          const auto start_index = child_chunk.data_ptr().convert<uint32_t>();
-          size_t count = child_chunk.data_size() / sizeof(start_index.value());
+          const auto names_begin = child_chunk.data_ptr().convert<uint32_t>();
+          size_t count = child_chunk.data_size() / sizeof(names_begin.value());
+          const auto names_end = names_begin + count;
 
-          const auto end_index = start_index + count;
           if (count > 0 && global_string_pool_->size() == 0) {
             LOG(ERROR) << "RES_TABLE_FLAG_LIST with empty string pool";
             return false;
           }
-          for (auto index = start_index; index != end_index; ++index) {
-            if (!index) {
+          for (auto name_iter = names_begin; name_iter != names_end; ++name_iter) {
+            if (!name_iter) {
               LOG(ERROR) << "Couldn't read RES_TABLE_FLAG_LIST.";
               return false;
             }
-            auto sp_index = dtohl(index.value());
+            auto sp_index = dtohl(name_iter.value());
             auto flag_name = global_string_pool_->string8At(sp_index);
             if (flag_name) {
-              flag_map_.insert({std::string(flag_name.value()), LoadedArscFlagStatus::Unknown});
+              flag_map_.insert({sp_index, FeatureFlagInfo {
+                                              .name = std::string(flag_name.value()),
+                                              .status = LoadedArscFeatureFlagStatus::Unknown
+                                          }});
             } else {
               LOG(ERROR) << "flag list: couldn't find flag name with index " << sp_index;
               return false;
             }
           }
+          if (!flag_map_.empty()) {
+            if (get_flag_values_func_) {
+              get_flag_values_func_(flag_map_);
+            } else {
+              for (auto& [_, flag_info] : flag_map_) {
+                flag_info.status = LoadedArscFeatureFlagStatus::AlwaysShown;
+              }
+            }
+          }
+
         }
       }
       break;
@@ -888,7 +995,7 @@ bool LoadedArsc::LoadTable(const Chunk& chunk, const LoadedIdmap* loaded_idmap,
         packages_seen++;
 
         std::unique_ptr<const LoadedPackage> loaded_package =
-            LoadedPackage::Load(child_chunk, property_flags);
+            LoadedPackage::Load(child_chunk, property_flags, flag_map_);
         if (!loaded_package) {
           return false;
         }
@@ -905,15 +1012,6 @@ bool LoadedArsc::LoadTable(const Chunk& chunk, const LoadedIdmap* loaded_idmap,
     }
   }
 
-  if (!flag_map_.empty()) {
-    if (get_flag_values_func_) {
-      get_flag_values_func_(flag_map_);
-    } else {
-      for (auto& [_, flag_value] : flag_map_) {
-        flag_value = LoadedArscFlagStatus::AlwaysShown;
-      }
-    }
-  }
 
   if (iter.HadError()) {
     LOG(ERROR) << iter.GetLastError();

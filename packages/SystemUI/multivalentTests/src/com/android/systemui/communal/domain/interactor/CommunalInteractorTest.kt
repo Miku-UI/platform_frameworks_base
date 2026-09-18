@@ -758,6 +758,7 @@ class CommunalInteractorTest(flags: FlagsParameterization) : SysuiTestCase() {
         }
 
     @Test
+    @DisableSceneContainer
     fun showCommunalFromOccluded_enteredOccludedFromHub() =
         kosmos.runTest {
             kosmos.setCommunalAvailable(true)
@@ -774,6 +775,7 @@ class CommunalInteractorTest(flags: FlagsParameterization) : SysuiTestCase() {
         }
 
     @Test
+    @DisableSceneContainer
     fun showCommunalFromOccluded_enteredOccludedFromLockscreen() =
         kosmos.runTest {
             kosmos.setCommunalAvailable(true)
@@ -790,6 +792,7 @@ class CommunalInteractorTest(flags: FlagsParameterization) : SysuiTestCase() {
         }
 
     @Test
+    @DisableSceneContainer
     fun showCommunalFromOccluded_communalBecomesUnavailableWhileOccluded() =
         kosmos.runTest {
             kosmos.setCommunalAvailable(true)
@@ -807,6 +810,7 @@ class CommunalInteractorTest(flags: FlagsParameterization) : SysuiTestCase() {
         }
 
     @Test
+    @DisableSceneContainer
     fun showCommunalFromOccluded_showBouncerWhileOccluded() =
         kosmos.runTest {
             kosmos.setCommunalAvailable(true)
@@ -828,6 +832,7 @@ class CommunalInteractorTest(flags: FlagsParameterization) : SysuiTestCase() {
         }
 
     @Test
+    @DisableSceneContainer
     fun showCommunalFromOccluded_enteredOccludedFromDreaming() =
         kosmos.runTest {
             kosmos.setCommunalAvailable(true)

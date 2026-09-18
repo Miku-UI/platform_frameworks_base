@@ -1,0 +1,45 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
+ * except in compliance with the License. You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the
+ * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the specific language governing
+ * permissions and limitations under the License.
+ */
+package com.android.systemui.plugins
+
+import com.android.systemui.Dependency
+import dagger.Lazy
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class PluginDependencyProvider @Inject constructor(private val managerLazy: Lazy<PluginManager>) :
+    PluginDependency.DependencyProvider() {
+    private val dependencyMap = mutableMapOf<Class<*>, Any>()
+
+    init {
+        PluginDependency.sProvider = this
+    }
+
+    fun <T : Any> allowPluginDependency(cls: Class<T>) {
+        allowPluginDependency(cls, Dependency.get(cls))
+    }
+
+    fun <T : Any> allowPluginDependency(cls: Class<T>, obj: T) {
+        synchronized(dependencyMap) { dependencyMap.put(cls, obj) }
+    }
+
+    override fun <T : Any> get(p: Plugin, cls: Class<T>): T {
+        require(managerLazy.get().dependsOn(p, cls)) { "${p.javaClass} does not depend on $cls" }
+        synchronized(dependencyMap) {
+            require(dependencyMap.containsKey(cls)) { "Unknown dependency $cls" }
+            return dependencyMap[cls] as T
+        }
+    }
+}

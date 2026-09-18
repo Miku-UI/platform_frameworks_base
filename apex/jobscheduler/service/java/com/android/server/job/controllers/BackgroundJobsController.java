@@ -187,14 +187,6 @@ public final class BackgroundJobsController extends StateController {
     @GuardedBy("mLock")
     public void dumpControllerStateLocked(final IndentingPrintWriter pw,
             final Predicate<JobStatus> predicate) {
-        pw.println("Aconfig flags:");
-        pw.increaseIndent();
-        pw.print(android.content.pm.Flags.FLAG_STAY_STOPPED,
-                android.content.pm.Flags.stayStopped());
-        pw.println();
-        pw.decreaseIndent();
-        pw.println();
-
         mAppStateTracker.dump(pw);
         pw.println();
 
@@ -349,8 +341,7 @@ public final class BackgroundJobsController extends StateController {
             isCallingPkgStopped =
                     isPackageStoppedLocked(jobStatus.getCallingPackageName(), jobStatus.getUid());
         }
-        final boolean isStopped = android.content.pm.Flags.stayStopped()
-                && (isCallingPkgStopped || isSourcePkgStopped);
+        final boolean isStopped = isCallingPkgStopped || isSourcePkgStopped;
         final boolean isUserBgRestricted = isStopped
                 || (!mActivityManagerInternal.isBgAutoRestrictedBucketFeatureFlagEnabled()
                         && !mAppStateTracker.isRunAnyInBackgroundAppOpsAllowed(uid, packageName));

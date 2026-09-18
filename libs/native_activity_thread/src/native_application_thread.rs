@@ -13,17 +13,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use binder::{Interface, SpIBinder};
+use binder::{Interface, ParcelFileDescriptor, SpIBinder, ThreadState};
 use log::info;
 use native_application_thread_aidl::aidl::android::app::INativeApplicationThread::INativeApplicationThread;
-use std::{marker::PhantomData, thread};
+use std::{marker::PhantomData, os::fd::OwnedFd, thread};
 
 use crate::task::Sender;
+use crate::utils::reset_time_zone;
+
+const ROOT_UID: u32 = 0;
+const SYSTEM_UID: u32 = 1000;
+
+fn check_calling_uid() -> binder::Result<()> {
+    let calling_uid = ThreadState::get_calling_uid();
+    if calling_uid != ROOT_UID && calling_uid != SYSTEM_UID {
+        return Err(binder::Status::new_exception_str(
+            binder::ExceptionCode::SECURITY,
+            Some(format!(
+                "NativeApplicationThread called by non-system process (callingUid: {})",
+                calling_uid
+            )),
+        ));
+    }
+    Ok(())
+}
 
 pub struct CreateServiceRequest {
     pub service_token: SpIBinder,
-    pub library_paths: Vec<String>,
+    pub zip_paths: String,
+    pub library_paths: String,
     pub permitted_libs_dir: String,
+    pub target_sdk_version: i32,
+    pub is_shared: bool,
+    pub native_shared_lib_path: String,
     pub library_name: String,
     pub base_symbol_name: String,
     pub _process_state: i32,
@@ -36,18 +58,27 @@ impl CreateServiceRequest {
     ///
     /// Users must ensure that `library_name` specifies a safe dynamic library and it has a
     /// function named `base_symbol_name` with the type signature `ANativeService_createFunc`.
+    #[allow(clippy::too_many_arguments)]
     unsafe fn new(
         service_token: SpIBinder,
-        library_paths: Vec<String>,
+        zip_paths: String,
+        library_paths: String,
         permitted_libs_dir: String,
+        target_sdk_version: i32,
+        is_shared: bool,
+        native_shared_lib_path: String,
         library_name: String,
         base_symbol_name: String,
         process_state: i32,
     ) -> Self {
         Self {
             service_token,
+            zip_paths,
             library_paths,
             permitted_libs_dir,
+            target_sdk_version,
+            is_shared,
+            native_shared_lib_path,
             library_name,
             base_symbol_name,
             _process_state: process_state,
@@ -63,7 +94,6 @@ pub struct DestroyServiceRequest {
 pub struct BindServiceRequest {
     pub service_token: SpIBinder,
     pub bind_token: SpIBinder,
-    pub intent_hash: i32,
     pub action: Option<String>,
     pub data: Option<String>,
     pub rebind: bool,
@@ -74,7 +104,10 @@ pub struct BindServiceRequest {
 pub struct UnbindServiceRequest {
     pub service_token: SpIBinder,
     pub bind_token: SpIBinder,
-    pub intent_hash: i32,
+}
+
+pub struct BindApplicationRequest {
+    pub system_font_map_fd: Option<OwnedFd>,
 }
 
 pub enum NativeApplicationThreadRequest {
@@ -83,7 +116,7 @@ pub enum NativeApplicationThreadRequest {
     BindService(BindServiceRequest),
     UnbindService(UnbindServiceRequest),
     TrimMemory(i32),
-    BindApplication,
+    BindApplication(BindApplicationRequest),
     SetProcessState(i32),
 }
 
@@ -105,13 +138,19 @@ impl INativeApplicationThread for NativeApplicationThread {
     fn scheduleCreateService(
         &self,
         service_token: &SpIBinder,
-        library_paths: &[String],
+        zip_paths: &str,
+        library_paths: &str,
         permitted_libs_dir: &str,
+        target_sdk_version: i32,
+        is_shared: bool,
+        native_shared_lib_path: &str,
         library_name: &str,
         base_symbol_name: &str,
         _process_state: i32,
     ) -> binder::Result<()> {
         info!("scheduleCreateService thread id={:?}", thread::current().id());
+        check_calling_uid()?;
+
         // SAFETY: We trust that the caller of this function requests to load a library specified
         // by the application according to the native service specification. The application is
         // responsible for implementing a safe library and an entry point function of its native
@@ -119,8 +158,12 @@ impl INativeApplicationThread for NativeApplicationThread {
         let req = unsafe {
             CreateServiceRequest::new(
                 service_token.clone(),
-                library_paths.to_vec(),
+                zip_paths.to_string(),
+                library_paths.to_string(),
                 permitted_libs_dir.to_string(),
+                target_sdk_version,
+                is_shared,
+                native_shared_lib_path.to_string(),
                 library_name.to_string(),
                 base_symbol_name.to_string(),
                 _process_state,
@@ -137,6 +180,8 @@ impl INativeApplicationThread for NativeApplicationThread {
 
     fn scheduleDestroyService(&self, service_token: &SpIBinder) -> binder::Result<()> {
         info!("scheduleDestroyService thread id={:?}", thread::current().id());
+        check_calling_uid()?;
+
         self.sender
             .send(NativeApplicationThreadRequest::DestroyService(DestroyServiceRequest {
                 service_token: service_token.clone(),
@@ -154,7 +199,6 @@ impl INativeApplicationThread for NativeApplicationThread {
         &self,
         service_token: &SpIBinder,
         bind_token: &SpIBinder,
-        intent_hash: i32,
         action: Option<&str>,
         data: Option<&str>,
         rebind: bool,
@@ -165,11 +209,12 @@ impl INativeApplicationThread for NativeApplicationThread {
         if let Some(s) = action {
             info!("scheduleBindService action={}", s);
         }
+        check_calling_uid()?;
+
         self.sender
             .send(NativeApplicationThreadRequest::BindService(BindServiceRequest {
                 service_token: service_token.clone(),
                 bind_token: bind_token.clone(),
-                intent_hash,
                 action: action.map(|s| s.to_string()),
                 data: data.map(|s| s.to_string()),
                 rebind,
@@ -189,14 +234,14 @@ impl INativeApplicationThread for NativeApplicationThread {
         &self,
         service_token: &SpIBinder,
         bind_token: &SpIBinder,
-        intent_hash: i32,
     ) -> binder::Result<()> {
         info!("scheduleUnbindService thread id={:?}", thread::current().id());
+        check_calling_uid()?;
+
         self.sender
             .send(NativeApplicationThreadRequest::UnbindService(UnbindServiceRequest {
                 service_token: service_token.clone(),
                 bind_token: bind_token.clone(),
-                intent_hash,
             }))
             .map_err(|e| {
                 binder::Status::new_exception_str(
@@ -208,7 +253,9 @@ impl INativeApplicationThread for NativeApplicationThread {
     }
 
     fn scheduleTrimMemory(&self, level: i32) -> binder::Result<()> {
-        info!("scheduleLowMemory thread id={:?}", thread::current().id());
+        info!("scheduleTrimMemory thread id={:?}", thread::current().id());
+        check_calling_uid()?;
+
         self.sender.send(NativeApplicationThreadRequest::TrimMemory(level)).map_err(|e| {
             binder::Status::new_exception_str(
                 binder::ExceptionCode::SERVICE_SPECIFIC,
@@ -218,9 +265,41 @@ impl INativeApplicationThread for NativeApplicationThread {
         Ok(())
     }
 
-    fn bindApplication(&self) -> binder::Result<()> {
+    fn bindApplication(
+        &self,
+        system_font_map_fd: Option<&ParcelFileDescriptor>,
+    ) -> binder::Result<()> {
         info!("bindApplication thread id={:?}", thread::current().id());
-        self.sender.send(NativeApplicationThreadRequest::BindApplication).map_err(|e| {
+        check_calling_uid()?;
+
+        let system_font_map_fd = system_font_map_fd
+            .map(|fd| {
+                fd.as_ref().try_clone().map_err(|e| {
+                    binder::Status::new_exception_str(
+                        binder::ExceptionCode::SERVICE_SPECIFIC,
+                        Some(format!("Failed to dup the FD for system font map: {:?}", e)),
+                    )
+                })
+            })
+            .transpose()?;
+        self.sender
+            .send(NativeApplicationThreadRequest::BindApplication(BindApplicationRequest {
+                system_font_map_fd,
+            }))
+            .map_err(|e| {
+                binder::Status::new_exception_str(
+                    binder::ExceptionCode::SERVICE_SPECIFIC,
+                    Some(format!("Failed to send a task: {:?}", e)),
+                )
+            })?;
+        Ok(())
+    }
+
+    fn setProcessState(&self, state: i32) -> binder::Result<()> {
+        info!("setProcessState thread id={:?}", thread::current().id());
+        check_calling_uid()?;
+
+        self.sender.send(NativeApplicationThreadRequest::SetProcessState(state)).map_err(|e| {
             binder::Status::new_exception_str(
                 binder::ExceptionCode::SERVICE_SPECIFIC,
                 Some(format!("Failed to send a task: {:?}", e)),
@@ -229,14 +308,11 @@ impl INativeApplicationThread for NativeApplicationThread {
         Ok(())
     }
 
-    fn setProcessState(&self, state: i32) -> binder::Result<()> {
-        info!("setProcessState thread id={:?}", thread::current().id());
-        self.sender.send(NativeApplicationThreadRequest::SetProcessState(state)).map_err(|e| {
-            binder::Status::new_exception_str(
-                binder::ExceptionCode::SERVICE_SPECIFIC,
-                Some(format!("Failed to send a task: {:?}", e)),
-            )
-        })?;
+    fn updateTimeZone(&self) -> binder::Result<()> {
+        info!("updateTimeZone thread id={:?}", thread::current().id());
+        check_calling_uid()?;
+
+        reset_time_zone();
         Ok(())
     }
 }

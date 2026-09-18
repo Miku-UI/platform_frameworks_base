@@ -18,11 +18,10 @@
 
 #include <SkGainmapShader.h>
 
+#include <cmath>
+
 #include "Gainmap.h"
 #include "Rect.h"
-#include "utils/Trace.h"
-
-#ifdef __ANDROID__
 #include "include/core/SkColorSpace.h"
 #include "include/core/SkImage.h"
 #include "include/core/SkShader.h"
@@ -32,9 +31,7 @@
 #include "src/core/SkColorFilterPriv.h"
 #include "src/core/SkImageInfoPriv.h"
 #include "src/core/SkRuntimeEffectPriv.h"
-
-#include <cmath>
-#endif
+#include "utils/Trace.h"
 
 namespace android::uirenderer {
 
@@ -56,11 +53,9 @@ float getTargetHdrSdrRatio(const SkColorSpace* destColorspace) {
         return maxPQLux / GenericSdrWhiteNits;
     } else if (skcms_TransferFunction_isHLGish(&destTF)) {
         return maxHLGLux / GenericSdrWhiteNits;
-#ifdef __ANDROID__
     } else if (RenderThread::isCurrent()) {
         CanvasContext* context = CanvasContext::getActiveContext();
         return context ? context->targetSdrHdrRatio() : 1.f;
-#endif
     }
     return 1.f;
 }
@@ -70,7 +65,6 @@ void DrawGainmapBitmap(SkCanvas* c, const sk_sp<const SkImage>& image, const SkR
                        SkCanvas::SrcRectConstraint constraint,
                        const sk_sp<const SkImage>& gainmapImage, const SkGainmapInfo& gainmapInfo) {
     ATRACE_CALL();
-#ifdef __ANDROID__
     float targetSdrHdrRatio = getTargetHdrSdrRatio(c->imageInfo().colorSpace());
     const bool baseImageHdr = gainmapInfo.fBaseImageType == SkGainmapInfo::BaseImageType::kHDR;
     if (gainmapImage && ((baseImageHdr && targetSdrHdrRatio < gainmapInfo.fDisplayRatioHdr) ||
@@ -90,11 +84,8 @@ void DrawGainmapBitmap(SkCanvas* c, const sk_sp<const SkImage>& image, const SkR
         gainmapPaint.setShader(shader);
         c->drawRect(dst, gainmapPaint);
     } else
-#endif
         c->drawImageRect(image.get(), src, dst, sampling, paint, constraint);
 }
-
-#ifdef __ANDROID__
 
 static constexpr char gGainmapSKSL[] = R"SKSL(
     uniform shader linearBase;
@@ -313,16 +304,5 @@ sk_sp<SkShader> MakeGainmapShader(const sk_sp<const SkImage>& image,
     return DeferredGainmapShader::Make(image, gainmapImage, gainmapInfo, tileModeX, tileModeY,
                                        sampling);
 }
-
-#else  // __ANDROID__
-
-sk_sp<SkShader> MakeGainmapShader(const sk_sp<const SkImage>& image,
-                                  const sk_sp<const SkImage>& gainmapImage,
-                                  const SkGainmapInfo& gainmapInfo, SkTileMode tileModeX,
-                                  SkTileMode tileModeY, const SkSamplingOptions& sampling) {
-        return nullptr;
-}
-
-#endif  // __ANDROID__
 
 }  // namespace android::uirenderer

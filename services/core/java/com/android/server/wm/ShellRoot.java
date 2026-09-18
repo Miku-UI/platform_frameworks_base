@@ -21,20 +21,14 @@ import static android.view.WindowManager.LayoutParams.TYPE_DOCK_DIVIDER;
 import static android.view.WindowManager.SHELL_ROOT_LAYER_DIVIDER;
 import static android.view.WindowManager.SHELL_ROOT_LAYER_PIP;
 
-import static com.android.server.wm.SurfaceAnimator.ANIMATION_TYPE_WINDOW_ANIMATION;
-import static com.android.server.wm.WindowManagerService.MAX_ANIMATION_DURATION;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.graphics.Point;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Slog;
-import android.view.DisplayInfo;
 import android.view.IWindow;
 import android.view.SurfaceControl;
 import android.view.WindowManager;
-import android.view.animation.Animation;
 
 /**
  * Represents a piece of the hierarchy under which a client Shell can manage sub-windows.
@@ -42,7 +36,6 @@ import android.view.animation.Animation;
 public class ShellRoot {
     private static final String TAG = "ShellRoot";
     private final DisplayContent mDisplayContent;
-    private final int mShellRootLayer;
     private IWindow mClient;
     private WindowToken mToken;
     private final IBinder.DeathRecipient mDeathRecipient;
@@ -54,7 +47,6 @@ public class ShellRoot {
     ShellRoot(@NonNull IWindow client, @NonNull DisplayContent dc,
             @WindowManager.ShellRootLayer final int shellRootLayer) {
         mDisplayContent = dc;
-        mShellRootLayer = shellRootLayer;
         mDeathRecipient = () -> mDisplayContent.removeShellRoot(shellRootLayer);
         try {
             client.asBinder().linkToDeath(mDeathRecipient, 0);
@@ -76,10 +68,10 @@ public class ShellRoot {
                         + " is not an acceptable shell root layer.");
         }
         mToken = new WindowToken.Builder(dc.mWmService, client.asBinder(), mWindowType)
-                .setDisplayContent(dc)
                 .setPersistOnEmpty(true)
                 .setOwnerCanManageAppTokens(true)
                 .build();
+        dc.addWindowToken(mToken);
         mSurfaceControl = mToken.makeChildSurface(null)
                 .setContainerLayer()
                 .setName("Shell Root Leash " + dc.getDisplayId())
@@ -109,30 +101,6 @@ public class ShellRoot {
 
     IWindow getClient() {
         return mClient;
-    }
-
-    void startAnimation(Animation anim) {
-        // Only do this for the divider
-        if (mToken.windowType != TYPE_DOCK_DIVIDER) {
-            return;
-        }
-
-        DisplayInfo displayInfo = mToken.getFixedRotationTransformDisplayInfo();
-        if (displayInfo == null) {
-            displayInfo = mDisplayContent.getDisplayInfo();
-        }
-
-        // Mostly copied from WindowState to enable keyguard transition animation
-        anim.initialize(displayInfo.logicalWidth, displayInfo.logicalHeight,
-                displayInfo.appWidth, displayInfo.appHeight);
-        anim.restrictDuration(MAX_ANIMATION_DURATION);
-        anim.scaleCurrentDuration(mDisplayContent.getWindowAnimationScaleLocked());
-        final AnimationAdapter adapter = new LocalAnimationAdapter(
-                new WindowAnimationSpec(anim, new Point(0, 0), false /* canSkipFirstFrame */,
-                        0 /* windowCornerRadius */),
-                mDisplayContent.mWmService.mSurfaceAnimationRunner);
-        mToken.startAnimation(mToken.getPendingTransaction(), adapter, false /* hidden */,
-                ANIMATION_TYPE_WINDOW_ANIMATION);
     }
 
     @Nullable

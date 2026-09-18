@@ -6,6 +6,7 @@ flag {
   namespace: "autofill"
   description: "Guards against new metrics definitions introduced in W"
   bug: "342676602"
+  is_exported: true
 }
 
 flag {
@@ -66,4 +67,34 @@ flag {
   namespace: "autofill"
   description: "Supports multiple concurrent users on different displays"
   bug: "280116881"
+}
+
+flag {
+  name: "expressive_fill_dialog"
+  namespace: "autofill"
+  description: "Supports expressive style for fill dialog"
+  bug: "433824891"
+}
+
+flag {
+  name: "expressive_save_dialog"
+  namespace: "autofill"
+  description: "Supports expressive style for save dialog"
+  bug: "433824891"
+}
+
+flag {
+  name: "public_autofill_service_name"
+  namespace: "autofill"
+  description: "Make autofill service name in context a public API"
+  bug: "390180715"
+  is_exported: true
+}
+
+flag {
+  name: "string_rebuild_api"
+  is_exported: true
+  namespace: "autofill"
+  description: "API to provide noise-injected text for server side string rebuild"
+  bug: "441075073"
 }

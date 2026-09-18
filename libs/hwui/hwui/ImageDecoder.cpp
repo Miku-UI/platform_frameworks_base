@@ -72,6 +72,7 @@ ImageDecoder::ImageDecoder(std::unique_ptr<SkAndroidCodec> codec, sk_sp<SkPngChu
     , mUnpremultipliedRequired(false)
     , mOutColorSpace(getDefaultColorSpace())
     , mHandleRestorePrevious(true)
+    , mAllocationLimit(0)
 {
     mTargetSize = swapWidthHeight() ? SkISize { mDecodeSize.height(), mDecodeSize.width() }
                                     : mDecodeSize;
@@ -207,6 +208,13 @@ sk_sp<SkColorSpace> ImageDecoder::getOutputColorSpace() const {
     return mOutColorType == kGray_8_SkColorType ? nullptr : mOutColorSpace;
 }
 
+void ImageDecoder::setAllocationLimit(size_t limit) {
+    mAllocationLimit = limit;
+}
+
+size_t ImageDecoder::getAllocationLimit() {
+    return mAllocationLimit;
+}
 
 SkImageInfo ImageDecoder::getOutputInfo() const {
     SkISize size = mCropRect ? mCropRect->size() : mTargetSize;
@@ -448,6 +456,18 @@ SkCodec::Result ImageDecoder::decode(void* pixels, size_t rowBytes) {
         {
             return SkCodec::kInternalError;
         }
+
+        if (mAllocationLimit) {
+            size_t size;
+            if (!Bitmap::computeAllocationSize(tmp.rowBytes(), tmp.height(), &size) ||
+                    size > mAllocationLimit) {
+                return SkCodec::kOutOfMemory;
+            }
+
+            // 0 indicates no limit, lower bound to 1 for off chance we hit exactly 0
+            mAllocationLimit = std::max(static_cast<size_t>(1), mAllocationLimit - size);
+        }
+
         if (!Bitmap::allocateHeapBitmap(&tmp)) {
             return SkCodec::kInternalError;
         }
@@ -474,6 +494,7 @@ SkCodec::Result ImageDecoder::decode(void* pixels, size_t rowBytes) {
         mOptions.fZeroInitialized = SkCodec::kYes_ZeroInitialized;
     }
 
+    mOptions.fMaxDecodeMemory = mAllocationLimit;
     ATRACE_BEGIN("getAndroidPixels");
     auto result = mCodec->getAndroidPixels(decodeInfo, decodePixels, decodeRowBytes, &mOptions);
     ATRACE_END();

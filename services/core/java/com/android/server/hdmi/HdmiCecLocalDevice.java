@@ -18,6 +18,8 @@ package com.android.server.hdmi;
 
 import static com.android.server.hdmi.HdmiControlService.DEVICE_CLEANUP_TIMEOUT;
 
+import static java.util.Map.entry;
+
 import android.annotation.CallSuper;
 import android.hardware.hdmi.DeviceFeatures;
 import android.hardware.hdmi.HdmiControlManager;
@@ -51,6 +53,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ArrayBlockingQueue;
 
 /**
@@ -78,6 +81,20 @@ abstract class HdmiCecLocalDevice extends HdmiLocalDevice {
     // Stores recent changes to the active source in the CEC network.
     private final ArrayBlockingQueue<HdmiCecController.Dumpable> mActiveSourceHistory =
             new ArrayBlockingQueue<>(MAX_HDMI_ACTIVE_SOURCE_HISTORY);
+
+    // Some <User Control Pressed> volume/mute commands should be handled by calling
+    // AudioManager.adjustStreamVolume directly - as opposed to injecting an Android key event.
+    // This stores the mapping from CEC keycode to AudioManager adjustment for such calls.
+    private static final Map<Integer, Integer> sCecKeycodeToVolumeAdjustment = Map.ofEntries(
+            // These need to bypass AudioService's batching logic for long presses, so we pass them
+            // directly to mimic short presses.
+            entry(HdmiCecKeycode.CEC_KEYCODE_VOLUME_UP, AudioManager.ADJUST_RAISE),
+            entry(HdmiCecKeycode.CEC_KEYCODE_VOLUME_DOWN, AudioManager.ADJUST_LOWER),
+            // These are not mapped to any Android keycode, so they are not injected as key events
+            // by default, and need to be passed to AudioService as a special case.
+            entry(HdmiCecKeycode.CEC_KEYCODE_MUTE_FUNCTION, AudioManager.ADJUST_MUTE),
+            entry(HdmiCecKeycode.CEC_KEYCODE_RESTORE_VOLUME_FUNCTION, AudioManager.ADJUST_UNMUTE)
+    );
 
     static class ActiveSource {
         int logicalAddress;
@@ -745,6 +762,9 @@ abstract class HdmiCecLocalDevice extends HdmiLocalDevice {
     @Constants.HandleMessageResult
     protected int handleUserControlPressed(HdmiCecMessage message) {
         assertRunOnServiceThread();
+
+        final byte[] params = message.getParams();
+
         mHandler.removeMessages(MSG_USER_CONTROL_RELEASE_TIMEOUT);
         if (mService.isPowerOnOrTransient() && isPowerOffOrToggleCommand(message)) {
             mService.standby();
@@ -752,10 +772,16 @@ abstract class HdmiCecLocalDevice extends HdmiLocalDevice {
         } else if (mService.isPowerStandbyOrTransient() && isPowerOnOrToggleCommand(message)) {
             mService.wakeUp();
             return Constants.HANDLED;
-        } else if (mService.getHdmiCecVolumeControl()
-                == HdmiControlManager.VOLUME_CONTROL_DISABLED && isVolumeOrMuteCommand(
-                message)) {
-            return Constants.ABORT_REFUSED;
+        } else if (isVolumeOrMuteCommand(message)) {
+            if (mService.getHdmiCecVolumeControl() == HdmiControlManager.VOLUME_CONTROL_DISABLED) {
+                return Constants.ABORT_REFUSED;
+            }
+            int cecKeycode = params[0];
+            if (sCecKeycodeToVolumeAdjustment.containsKey(cecKeycode)) {
+                mService.getAudioManager().adjustStreamVolume(AudioManager.STREAM_MUSIC,
+                        sCecKeycodeToVolumeAdjustment.get(cecKeycode), AudioManager.FLAG_SHOW_UI);
+                return Constants.HANDLED;
+            }
         }
 
         if (isPowerOffOrToggleCommand(message) || isPowerOnOrToggleCommand(message)) {
@@ -767,7 +793,6 @@ abstract class HdmiCecLocalDevice extends HdmiLocalDevice {
         }
 
         final long downTime = SystemClock.uptimeMillis();
-        final byte[] params = message.getParams();
         final int keycode = HdmiCecKeycode.cecKeycodeAndParamsToAndroidKey(params);
         int keyRepeatCount = 0;
         if (mLastKeycode != HdmiCecKeycode.UNSUPPORTED_KEYCODE) {
@@ -786,26 +811,8 @@ abstract class HdmiCecLocalDevice extends HdmiLocalDevice {
                     Message.obtain(mHandler, MSG_USER_CONTROL_RELEASE_TIMEOUT),
                     FOLLOWER_SAFETY_TIMEOUT);
             return Constants.HANDLED;
-        } else if (params.length > 0) {
-            // Handle CEC UI commands that are not mapped to an Android keycode
-            return handleUnmappedCecKeycode(params[0]);
         }
 
-        return Constants.ABORT_INVALID_OPERAND;
-    }
-
-    @ServiceThreadOnly
-    @Constants.HandleMessageResult
-    protected int handleUnmappedCecKeycode(int cecKeycode) {
-        if (cecKeycode == HdmiCecKeycode.CEC_KEYCODE_MUTE_FUNCTION) {
-            mService.getAudioManager().adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                    AudioManager.ADJUST_MUTE, AudioManager.FLAG_SHOW_UI);
-            return Constants.HANDLED;
-        } else if (cecKeycode == HdmiCecKeycode.CEC_KEYCODE_RESTORE_VOLUME_FUNCTION) {
-            mService.getAudioManager().adjustStreamVolume(AudioManager.STREAM_MUSIC,
-                    AudioManager.ADJUST_UNMUTE, AudioManager.FLAG_SHOW_UI);
-            return Constants.HANDLED;
-        }
         return Constants.ABORT_INVALID_OPERAND;
     }
 

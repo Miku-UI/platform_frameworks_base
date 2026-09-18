@@ -20,7 +20,6 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.AppGlobals;
-import android.app.admin.DevicePolicyManagerInternal;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
@@ -104,6 +103,7 @@ public class UserRestrictionsUtils {
             UserManager.DISALLOW_NETWORK_RESET,
             UserManager.DISALLOW_FACTORY_RESET,
             UserManager.DISALLOW_ADD_USER,
+            UserManager.DISALLOW_ADD_GUEST,
             UserManager.DISALLOW_ADD_MANAGED_PROFILE,
             UserManager.DISALLOW_ADD_CLONE_PROFILE,
             UserManager.DISALLOW_ADD_PRIVATE_PROFILE,
@@ -118,6 +118,7 @@ public class UserRestrictionsUtils {
             UserManager.DISALLOW_SMS,
             UserManager.DISALLOW_FUN,
             UserManager.DISALLOW_CREATE_WINDOWS,
+            UserManager.DISALLOW_TASK_CONTINUITY_HANDOFF,
             UserManager.DISALLOW_SYSTEM_ERROR_DIALOGS,
             UserManager.DISALLOW_CROSS_PROFILE_COPY_PASTE,
             UserManager.DISALLOW_OUTGOING_BEAM,
@@ -160,7 +161,8 @@ public class UserRestrictionsUtils {
             UserManager.DISALLOW_SIM_GLOBALLY,
             UserManager.DISALLOW_ASSIST_CONTENT,
             UserManager.DISALLOW_THREAD_NETWORK,
-            UserManager.DISALLOW_CHANGE_NEAR_FIELD_COMMUNICATION_RADIO
+            UserManager.DISALLOW_CHANGE_NEAR_FIELD_COMMUNICATION_RADIO,
+            UserManager.DISALLOW_NON_TOOL_ACCESSIBILITY_SERVICE
     });
 
     public static final Set<String> DEPRECATED_USER_RESTRICTIONS = Sets.newArraySet(
@@ -174,6 +176,18 @@ public class UserRestrictionsUtils {
     private static final Set<String> NON_PERSIST_USER_RESTRICTIONS = Sets.newArraySet(
             UserManager.DISALLOW_RECORD_AUDIO
     );
+
+    /**
+     * User restrictions that are set to {@code true} when supervision is enabled.
+     *
+     * <p>See {@link SupervisionManager#isSupervisionEnabled()}.
+     */
+    public static final Set<String> DEFAULT_SUPERVISION_RESTRICTIONS =
+            Sets.newArraySet(
+                    UserManager.DISALLOW_FACTORY_RESET,
+                    UserManager.DISALLOW_CONFIG_DATE_TIME,
+                    UserManager.DISALLOW_ADD_USER,
+                    UserManager.DISALLOW_GRANT_ADMIN);
 
     /**
      * User restrictions that can only be set by profile owners on the main user, or by device
@@ -222,7 +236,8 @@ public class UserRestrictionsUtils {
     private static final Set<String> IMMUTABLE_BY_OWNERS = Sets.newArraySet(
             UserManager.DISALLOW_RECORD_AUDIO,
             UserManager.DISALLOW_WALLPAPER,
-            UserManager.DISALLOW_OEM_UNLOCK
+            UserManager.DISALLOW_OEM_UNLOCK,
+            UserManager.DISALLOW_ADD_GUEST
     );
 
     /**
@@ -239,6 +254,7 @@ public class UserRestrictionsUtils {
             UserManager.DISALLOW_UNMUTE_DEVICE,
             UserManager.DISALLOW_CAMERA,
             UserManager.DISALLOW_ASSIST_CONTENT,
+            UserManager.DISALLOW_TASK_CONTINUITY_HANDOFF,
             UserManager.DISALLOW_CONFIG_DEFAULT_APPS
     );
 
@@ -284,6 +300,7 @@ public class UserRestrictionsUtils {
                     UserManager.DISALLOW_CONTENT_CAPTURE,
                     UserManager.DISALLOW_CONTENT_SUGGESTIONS,
                     UserManager.DISALLOW_DEBUGGING_FEATURES,
+                    UserManager.DISALLOW_TASK_CONTINUITY_HANDOFF,
                     UserManager.DISALLOW_SHARE_LOCATION,
                     UserManager.DISALLOW_OUTGOING_CALLS,
                     UserManager.DISALLOW_CAMERA,
@@ -615,13 +632,13 @@ public class UserRestrictionsUtils {
      * <p>Note this method is called by {@link UserManagerService} without holding any locks.
      */
     public static void applyUserRestrictions(Context context, int userId,
-            Bundle newRestrictions, Bundle prevRestrictions) {
+            Bundle newRestrictions, Bundle prevRestrictions, int deviceOwnerUserId) {
         for (String key : USER_RESTRICTIONS) {
             final boolean newValue = newRestrictions.getBoolean(key);
             final boolean prevValue = prevRestrictions.getBoolean(key);
 
             if (newValue != prevValue) {
-                applyUserRestriction(context, userId, key, newValue);
+                applyUserRestriction(context, userId, key, newValue, deviceOwnerUserId);
             }
         }
     }
@@ -633,7 +650,7 @@ public class UserRestrictionsUtils {
      * which should be in sync with this method.
      */
     private static void applyUserRestriction(Context context, int userId, String key,
-            boolean newValue) {
+            boolean newValue, int deviceOwnerUserId) {
         if (UserManagerService.DBG) {
             Log.d(TAG, "Applying user restriction: userId=" + userId
                     + " key=" + key + " value=" + newValue);
@@ -684,7 +701,7 @@ public class UserRestrictionsUtils {
                     break;
                 case UserManager.DISALLOW_DEBUGGING_FEATURES:
                     if (newValue) {
-                        if (userId == UserHandle.USER_SYSTEM || userId == getDeviceOwnerUserId()) {
+                        if (userId == UserHandle.USER_SYSTEM || userId == deviceOwnerUserId) {
                             android.provider.Settings.Global.putStringForUser(cr,
                                     android.provider.Settings.Global.ADB_ENABLED, "0",
                                     userId);
@@ -779,7 +796,7 @@ public class UserRestrictionsUtils {
     }
 
     public static boolean isSettingRestrictedForUser(Context context, @NonNull String setting,
-            int userId, String value, int callingUid) {
+            int userId, String value, int callingUid, int deviceOwnerUserId) {
         Objects.requireNonNull(setting);
         final UserManager mUserManager = context.getSystemService(UserManager.class);
         String restriction;
@@ -809,7 +826,7 @@ public class UserRestrictionsUtils {
                     return false;
                 }
                 restriction = UserManager.DISALLOW_DEBUGGING_FEATURES;
-                if (deviceOwnerOrSystemUserHasRestriction(restriction)) {
+                if (deviceOwnerOrSystemUserHasRestriction(restriction, deviceOwnerUserId)) {
                     return true;
                 }
                 break;
@@ -971,13 +988,8 @@ public class UserRestrictionsUtils {
                 UserHandle.of(userId))) ? 0 : 1;
     }
 
-    private static int getDeviceOwnerUserId() {
-        DevicePolicyManagerInternal dpm = LocalServices.getService(
-                DevicePolicyManagerInternal.class);
-        return dpm.getDeviceOwnerUserId();
-    }
-
-    private static boolean deviceOwnerOrSystemUserHasRestriction(String restriction) {
+    private static boolean deviceOwnerOrSystemUserHasRestriction(
+            String restriction, int deviceOwnerUserId) {
         UserManagerInternal userManager = LocalServices.getService(UserManagerInternal.class);
         if (userManager == null) {
             return false;
@@ -987,8 +999,8 @@ public class UserRestrictionsUtils {
             return true;
         }
 
-        final int deviceOwnerId = getDeviceOwnerUserId();
-        return deviceOwnerId != UserHandle.USER_NULL && deviceOwnerId != UserHandle.USER_SYSTEM
-                && userManager.hasUserRestriction(restriction, deviceOwnerId);
+        return deviceOwnerUserId != UserHandle.USER_NULL
+                && deviceOwnerUserId != UserHandle.USER_SYSTEM
+                && userManager.hasUserRestriction(restriction, deviceOwnerUserId);
     }
 }

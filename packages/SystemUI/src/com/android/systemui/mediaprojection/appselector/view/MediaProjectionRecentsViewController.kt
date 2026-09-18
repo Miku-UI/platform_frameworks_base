@@ -70,11 +70,11 @@ constructor(
     fun createView(parent: ViewGroup): ViewGroup =
         views?.root
             ?: createRecentViews(parent)
-                    .also {
-                        views = it
-                        lastBoundData?.let { recents -> bind(recents) }
-                    }
-                    .root
+                .also {
+                    views = it
+                    lastBoundData?.let { recents -> bind(recents) }
+                }
+                .root
 
     fun bind(recentTasks: List<RecentTask>) {
         views?.apply {
@@ -90,7 +90,7 @@ constructor(
             recycler.adapter =
                 recentTasksAdapterFactory.create(
                     recentTasks,
-                    this@MediaProjectionRecentsViewController
+                    this@MediaProjectionRecentsViewController,
                 )
         }
 
@@ -100,10 +100,8 @@ constructor(
     private fun createRecentViews(parent: ViewGroup): Views {
         val recentsRoot =
             LayoutInflater.from(parent.context)
-                    .inflate(R.layout.media_projection_recent_tasks,
-                        parent, /* attachToRoot= */
-                        false)
-                    as ViewGroup
+                .inflate(R.layout.media_projection_recent_tasks, parent, /* attachToRoot= */ false)
+                as ViewGroup
 
         val container =
             recentsRoot.requireViewById<View>(R.id.media_projection_recent_tasks_container)
@@ -116,7 +114,7 @@ constructor(
             LinearLayoutManager(
                 parent.context,
                 LinearLayoutManager.HORIZONTAL,
-                /* reverseLayout= */ false
+                /* reverseLayout= */ false,
             )
 
         val itemDecoration =
@@ -139,12 +137,12 @@ constructor(
         val activityOptions = createAnimation(task, view)
         activityOptions.pendingIntentBackgroundActivityStartMode =
             MODE_BACKGROUND_ACTIVITY_START_ALLOWED
-        activityOptions.launchDisplayId = task.displayId
+        activityOptions.launchDisplayId = view.context.displayId
         activityOptions.setLaunchCookie(launchCookie)
 
         val taskId = task.taskId
         val splitBounds = task.splitBounds
-        val handleResult: () -> Unit = { resultHandler.returnSelectedApp(launchCookie, taskId)}
+        val handleResult: () -> Unit = { resultHandler.returnSelectedApp(launchCookie, taskId) }
 
         if (task.isLaunchingInSplitScreen() && !task.isForegroundTask) {
             startSplitScreenTask(view, taskId, splitBounds!!, handleResult, activityOptions)
@@ -153,7 +151,6 @@ constructor(
             handleResult()
         }
     }
-
 
     private fun createAnimation(task: RecentTask, view: View): ActivityOptions =
         if (task.isForegroundTask) {
@@ -165,7 +162,7 @@ constructor(
                 /* exitResId= */ com.android.internal.R.anim.resolver_close_anim,
                 /* handler = */ null,
                 /* startedListener = */ null,
-                /* finishedListener = */ null
+                /* finishedListener = */ null,
             )
         } else if (task.isLaunchingInSplitScreen()) {
             // When the selected task isn't in the foreground, but is launching in split screen,
@@ -180,7 +177,7 @@ constructor(
                 /* startX= */ 0,
                 /* startY= */ 0,
                 view.width,
-                view.height
+                view.height,
             )
         }
 
@@ -197,15 +194,34 @@ constructor(
         val splitPosition =
             if (isLeftTopTask) SPLIT_POSITION_TOP_OR_LEFT else SPLIT_POSITION_BOTTOM_OR_RIGHT
 
-        val animationRunner = RemoteRecentSplitTaskTransitionRunner(taskId, task2Id,
-            view.locationOnScreen, view.context.display.naturalBounds, handleResult)
-        val remoteTransition = RemoteTransition(animationRunner,
-            view.context.iApplicationThread, "startSplitScreenTask")
+        val animationRunner =
+            RemoteRecentSplitTaskTransitionRunner(
+                taskId,
+                task2Id,
+                view.locationOnScreen,
+                view.context.display.naturalBounds,
+                handleResult,
+            )
+        val remoteTransition =
+            RemoteTransition(
+                animationRunner,
+                view.context.iApplicationThread,
+                "startSplitScreenTask",
+            )
 
-        splitScreen.get().startTasks(taskId, activityOptions.toBundle(), task2Id, null,
-            splitPosition, splitBounds.snapPosition, remoteTransition, null)
+        splitScreen
+            .get()
+            .startTasks(
+                taskId,
+                activityOptions.toBundle(),
+                task2Id,
+                null,
+                splitPosition,
+                splitBounds.snapPosition,
+                remoteTransition,
+                null,
+            )
     }
-
 
     override fun onTaskSizeChanged(size: Rect) {
         views?.recentsContainer?.setTaskHeightSize()
@@ -215,12 +231,12 @@ constructor(
         val thumbnailHeight = taskViewSizeProvider.size.height()
         val itemHeight =
             thumbnailHeight +
-                    context.resources.getDimensionPixelSize(
-                        R.dimen.media_projection_app_selector_task_icon_size
-                    ) +
-                    context.resources.getDimensionPixelSize(
-                        R.dimen.media_projection_app_selector_task_icon_margin
-                    ) * 2
+                context.resources.getDimensionPixelSize(
+                    R.dimen.media_projection_app_selector_task_icon_size
+                ) +
+                context.resources.getDimensionPixelSize(
+                    R.dimen.media_projection_app_selector_task_icon_margin
+                ) * 2
 
         layoutParams = layoutParams.apply { height = itemHeight }
     }
@@ -229,6 +245,6 @@ constructor(
         val root: ViewGroup,
         val recentsContainer: View,
         val progress: View,
-        val recycler: RecyclerView
+        val recycler: RecyclerView,
     )
 }

@@ -1677,7 +1677,7 @@ public class Fragment implements ComponentCallbacks2, OnCreateContextMenuListene
      *
      * @param isInMultiWindowMode True if the activity is in multi-window mode.
      * @param newConfig The new configuration of the activity with the state
-     *                  {@param isInMultiWindowMode}.
+     *                  {@code isInMultiWindowMode}.
      */
     public void onMultiWindowModeChanged(boolean isInMultiWindowMode, Configuration newConfig) {
         onMultiWindowModeChanged(isInMultiWindowMode);
@@ -1704,7 +1704,7 @@ public class Fragment implements ComponentCallbacks2, OnCreateContextMenuListene
      *
      * @param isInPictureInPictureMode True if the activity is in picture-in-picture mode.
      * @param newConfig The new configuration of the activity with the state
-     *                  {@param isInPictureInPictureMode}.
+     *                  {@code isInPictureInPictureMode}.
      */
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode,
             Configuration newConfig) {

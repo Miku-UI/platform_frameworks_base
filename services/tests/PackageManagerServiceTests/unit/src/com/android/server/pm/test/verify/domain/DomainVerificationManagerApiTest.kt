@@ -32,9 +32,11 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PatternMatcher.PATTERN_LITERAL
 import android.os.Process
+import android.platform.test.annotations.EnableFlags
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
+import android.platform.test.flag.junit.SetFlagsRule
 import android.util.ArraySet
 import android.util.SparseArray
 import com.android.internal.pm.parsing.pkg.AndroidPackageInternal
@@ -62,6 +64,8 @@ class DomainVerificationManagerApiTest {
 
     @get:Rule
     val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
+
+    @get:Rule val setFlagsRule = SetFlagsRule()
 
     companion object {
         private const val PKG_ONE = "com.test.one"
@@ -380,7 +384,8 @@ class DomainVerificationManagerApiTest {
         val manager1 = makeManager(service, 1)
 
         listOf(DOMAIN_1, "").forEach {
-            assertThat(service.getOwnersForDomain(it, 0)).isEmpty()
+            assertThat(
+                service.getOwnersForDomain(it, 0, true /*= includeUnverifiedOwners */)).isEmpty()
             assertThat(manager0.getOwnersForDomain(it)).isEmpty()
         }
 
@@ -408,7 +413,7 @@ class DomainVerificationManagerApiTest {
 
         service.setUserSelection(pkg1.domainSetId, setOf(DOMAIN_2), true, 0)
 
-        service.getOwnersForDomain(DOMAIN_1, 0).let {
+        service.getOwnersForDomain(DOMAIN_1, 0, true /*= includeUnverifiedOwners */).let {
             assertThat(it).containsExactly(
                 DomainOwner(pkg1.packageName, false),
                 DomainOwner(pkg2.packageName, false)
@@ -421,17 +426,18 @@ class DomainVerificationManagerApiTest {
             ).inOrder()
         }
 
-        service.getOwnersForDomain(DOMAIN_2, 0).let {
+        service.getOwnersForDomain(DOMAIN_2, 0, true /*= includeUnverifiedOwners */).let {
             assertThat(it).containsExactly(DomainOwner(pkg1.packageName, true))
         }
         manager0.getOwnersForDomain(DOMAIN_2).let {
             assertThat(it).containsExactly(DomainOwner(pkg1.packageName, true))
         }
 
-        assertThat(service.getOwnersForDomain(DOMAIN_2, 1)).isEmpty()
+        assertThat(
+            service.getOwnersForDomain(DOMAIN_2, 1, true /*= includeUnverifiedOwners */)).isEmpty()
         assertThat(manager1.getOwnersForDomain(DOMAIN_2)).isEmpty()
         service.setUserSelection(pkg1.domainSetId, setOf(DOMAIN_2), true, 1)
-        service.getOwnersForDomain(DOMAIN_2, 1).let {
+        service.getOwnersForDomain(DOMAIN_2, 1, true /*= includeUnverifiedOwners */).let {
             assertThat(it).containsExactly(DomainOwner(pkg1.packageName, true))
         }
         manager1.getOwnersForDomain(DOMAIN_2).let {
@@ -442,7 +448,7 @@ class DomainVerificationManagerApiTest {
         pkg1User0Enabled.set(false)
         service.clearPackageForUser(pkg1.packageName, 0)
 
-        service.getOwnersForDomain(DOMAIN_1, 0).let {
+        service.getOwnersForDomain(DOMAIN_1, 0, true /*= includeUnverifiedOwners */).let {
             assertThat(it).containsExactly(DomainOwner(pkg2.packageName, false))
         }
         manager0.getOwnersForDomain(DOMAIN_1).let {
@@ -450,10 +456,11 @@ class DomainVerificationManagerApiTest {
         }
 
         // Domain 2 user selection gone for user 0
-        assertThat(service.getOwnersForDomain(DOMAIN_2, 0)).isEmpty()
+        assertThat(
+            service.getOwnersForDomain(DOMAIN_2, 0, true /*= includeUnverifiedOwners */)).isEmpty()
 
         // Domain 2 user selection still around for user 1
-        service.getOwnersForDomain(DOMAIN_2, 1).let {
+        service.getOwnersForDomain(DOMAIN_2, 1, true /*= includeUnverifiedOwners */).let {
             assertThat(it).containsExactly(DomainOwner(pkg1.packageName, true))
         }
         manager1.getOwnersForDomain(DOMAIN_2).let {
@@ -461,7 +468,7 @@ class DomainVerificationManagerApiTest {
         }
 
         // Now assert for user 1 that it was unaffected by the change to user 0
-        service.getOwnersForDomain(DOMAIN_1, 1).let {
+        service.getOwnersForDomain(DOMAIN_1, 1, true /*= includeUnverifiedOwners */).let {
             assertThat(it).containsExactly(
                 DomainOwner(pkg1.packageName, false),
                 DomainOwner(pkg2.packageName, false)
@@ -476,7 +483,7 @@ class DomainVerificationManagerApiTest {
 
         service.setUserSelection(pkg1.domainSetId, setOf(DOMAIN_2), true, 0)
 
-        service.getOwnersForDomain(DOMAIN_2, 1).let {
+        service.getOwnersForDomain(DOMAIN_2, 1, true /*= includeUnverifiedOwners */).let {
             assertThat(it).containsExactly(DomainOwner(pkg1.packageName, true))
         }
         manager1.getOwnersForDomain(DOMAIN_2).let {
@@ -487,16 +494,65 @@ class DomainVerificationManagerApiTest {
         pkg1User0Enabled.set(false)
 
         // This state should have been cleared when the package was uninstalled
-        assertThat(service.getOwnersForDomain(DOMAIN_2, 0)).isEmpty()
+        assertThat(
+            service.getOwnersForDomain(DOMAIN_2, 0, true /*= includeUnverifiedOwners */)).isEmpty()
         assertThat(manager0.getOwnersForDomain(DOMAIN_2)).isEmpty()
 
         // Other package unaffected
         service.setUserSelection(pkg2.domainSetId, setOf(DOMAIN_2), true, 0)
-        service.getOwnersForDomain(DOMAIN_2, 0).let {
+        service.getOwnersForDomain(DOMAIN_2, 0, true /*= includeUnverifiedOwners */).let {
             assertThat(it).containsExactly(DomainOwner(pkg2.packageName, true))
         }
         manager0.getOwnersForDomain(DOMAIN_2).let {
             assertThat(it).containsExactly(DomainOwner(pkg2.packageName, true))
+        }
+    }
+
+    @EnableFlags(android.view.flags.Flags.FLAG_REDACT_WEB_OTP_SMS_API)
+    @Test
+    fun getVerifiedOwnersForDomain() {
+        // Arrange.
+        //           verified_owners   user_selected
+        // DOMAIN_1      pkg1             N/A
+        // DOMAIN_2      pkg2             pkg1
+        // DOMAIN_3    pkg1,pkg2          pkg3
+        val pkg1 = mockPkgState(PKG_ONE, UUID_ONE, listOf(DOMAIN_1, DOMAIN_3))
+        val pkg2 = mockPkgState(PKG_TWO, UUID_TWO, listOf(DOMAIN_2, DOMAIN_3))
+        val pkg3 = mockPkgState(PKG_THREE, UUID_THREE, listOf())
+        val service = makeService(pkg1, pkg2, pkg3).apply {
+            addPackages(pkg1, pkg2, pkg3)
+        }
+        assertThat(
+            service.setStatus(
+                pkg1.domainSetId,
+                setOf(DOMAIN_1, DOMAIN_3),
+                DomainVerificationInfo.STATE_SUCCESS
+            )
+        ).isEqualTo(DomainVerificationManager.STATUS_OK)
+        assertThat(
+            service.setStatus(
+                pkg2.domainSetId,
+                setOf(DOMAIN_2, DOMAIN_3),
+                DomainVerificationInfo.STATE_SUCCESS
+            )
+        ).isEqualTo(DomainVerificationManager.STATUS_OK)
+
+        service.setUserSelection(pkg1.domainSetId, setOf(DOMAIN_2), true, 0)
+        service.setUserSelection(pkg3.domainSetId, setOf(DOMAIN_3), true, 0)
+
+        val manager = makeManager(service, 0)
+
+        // Act and assert.
+        manager.getVerifiedOwnersForDomain(DOMAIN_1).let {
+            assertThat(it).containsExactly(DomainOwner(pkg1.packageName, false))
+        }
+        manager.getVerifiedOwnersForDomain(DOMAIN_2).let {
+            assertThat(it).containsExactly(DomainOwner(pkg2.packageName, false))
+        }
+        manager.getVerifiedOwnersForDomain(DOMAIN_3).let {
+            assertThat(it).containsExactly(
+                DomainOwner(pkg1.packageName, false),
+                DomainOwner(pkg2.packageName, false))
         }
     }
 

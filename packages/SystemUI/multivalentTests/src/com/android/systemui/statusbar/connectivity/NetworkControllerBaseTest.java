@@ -75,6 +75,7 @@ import com.android.systemui.demomode.DemoModeController;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.log.LogBuffer;
 import com.android.systemui.settings.UserTracker;
+import com.android.systemui.shade.domain.interactor.ShadeModeInteractor;
 import com.android.systemui.statusbar.pipeline.StatusBarPipelineFlags;
 import com.android.systemui.statusbar.pipeline.mobile.util.FakeMobileMappingsProxy;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
@@ -263,7 +264,8 @@ public class NetworkControllerBaseTest extends SysuiTestCase {
                 mMobileFactory,
                 mMainHandler,
                 mock(DumpManager.class),
-                mock(LogBuffer.class)
+                mock(LogBuffer.class),
+                mock(ShadeModeInteractor.class)
         );
         setupNetworkController();
 

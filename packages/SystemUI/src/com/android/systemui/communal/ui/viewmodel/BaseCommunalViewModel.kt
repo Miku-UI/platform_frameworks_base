@@ -93,6 +93,11 @@ abstract class BaseCommunalViewModel(
                 carouselVisibility = MediaCarouselVisibility.WhenAnyCardIsActive,
             )
 
+    protected val _addingWidgetDragAction = MutableStateFlow(false)
+
+    /** Whether widgets are currently being added. */
+    open val addingWidgetDragAction: StateFlow<Boolean> = _addingWidgetDragAction.asStateFlow()
+
     /**
      * The up-to-date value of the grid scroll offset. persisted to interactor on
      * {@link #persistScrollPosition}
@@ -243,6 +248,14 @@ abstract class BaseCommunalViewModel(
     open fun clearPersistedScrollPosition(reason: String) {
         communalInteractor.clearScrollPosition(reason)
     }
+
+    /** Called when the user starts adding a new widget. */
+    open fun onAddWidgetDragAndDropStart() {}
+
+    /** Called when the user finishes or cancels adding a new widget. */
+    open fun onAddWidgetDragAndDropEnd() {}
+
+    open fun allocateWidgets() {}
 
     val savedFirstScrollIndex: Int
         get() = communalInteractor.firstVisibleItemIndex

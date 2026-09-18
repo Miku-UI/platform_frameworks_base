@@ -17,9 +17,12 @@
 package com.android.systemui.statusbar.policy.domain.interactor
 
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.log.table.TableLogBuffer
+import com.android.systemui.log.table.logDiffsForTable
 import com.android.systemui.statusbar.policy.data.repository.DeviceProvisioningRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 
 /** Encapsulates device-provisioning related business logic. */
 @SysUISingleton
@@ -39,5 +42,15 @@ constructor(private val repository: DeviceProvisioningRepository) {
 
     fun getProvisionedTimestamp(): DeviceProvisioningRepository.ProvisionedTimestamp {
         return repository.getProvisionedTimestamp()
+    }
+
+    suspend fun hydrateTableLogBuffer(tableLogBuffer: TableLogBuffer) {
+        isDeviceProvisioned
+            .logDiffsForTable(
+                tableLogBuffer = tableLogBuffer,
+                columnName = "deviceProvisioned",
+                initialValue = isDeviceProvisioned(),
+            )
+            .collect()
     }
 }

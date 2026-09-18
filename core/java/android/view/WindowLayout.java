@@ -352,4 +352,9 @@ public class WindowLayout {
 
         outSurfaceSize.set(width, height);
     }
+
+    /** Whether the relayout is always handled locally. */
+    boolean isLocallyManaged() {
+        return false;
+    }
 }

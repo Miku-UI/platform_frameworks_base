@@ -29,8 +29,10 @@ public abstract class AutofillManagerInternal {
 
     /**
      * Notifies the manager that the back key was pressed.
+     *
+     * @param userId The user id of the key event.
      */
-    public abstract void onBackKeyPressed();
+    public abstract void onBackKeyPressed(@UserIdInt int userId);
 
     /**
      * Gets autofill options for a package.

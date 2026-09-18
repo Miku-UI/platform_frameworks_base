@@ -247,6 +247,7 @@ message UsbPortProto {
     repeated Mode supported_modes = 2;
     optional bool supports_compliance_warnings = 3;
     repeated AltMode supported_alt_modes = 4;
+    optional bool supports_power_profiles = 5;
 }
 
 message UsbPortStatusProto {
@@ -277,6 +278,7 @@ message UsbPortStatusProto {
     optional string usb_power_brick_status = 9;
     optional string compliance_warnings_string = 10;
     optional string displayport_alt_mode_status = 11;
+    optional string power_profiles_string = 12;
 }
 
 message UsbPortStatusRoleCombinationProto {

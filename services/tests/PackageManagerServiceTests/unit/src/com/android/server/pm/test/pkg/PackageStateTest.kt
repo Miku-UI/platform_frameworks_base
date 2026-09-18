@@ -39,6 +39,7 @@ import com.android.internal.pm.pkg.component.ParsedProvider
 import com.android.internal.pm.pkg.component.ParsedProviderImpl
 import com.android.internal.pm.pkg.component.ParsedService
 import com.android.internal.pm.pkg.component.ParsedUsesPermissionImpl
+import com.android.internal.pm.pkg.component.ParsedValidGeneralPurposeImpl
 import com.android.internal.pm.pkg.component.ParsedValidPurposeImpl
 import com.android.server.pm.PackageSetting
 import com.android.server.pm.PackageSettingBuilder
@@ -204,6 +205,10 @@ class PackageStateTest {
             ParsedValidPurposeImpl("validPurpose", 20))
         (pkg.usesPermissionMapping.values.first() as ParsedUsesPermissionImpl)
                 .purposes = setOf("validPurpose")
+        (pkg.permissions.first() as ParsedPermissionImpl).validGeneralPurposes = listOf(
+            ParsedValidGeneralPurposeImpl("validGeneralPurpose", 20))
+        (pkg.usesPermissionMapping.values.first() as ParsedUsesPermissionImpl)
+            .generalPurposes = setOf("validGeneralPurpose")
 
         (pkg.providers.first() as ParsedProviderImpl).apply {
             addPathPermission(PathPermission("pattern", PatternMatcher.PATTERN_LITERAL,

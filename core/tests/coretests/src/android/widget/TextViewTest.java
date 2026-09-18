@@ -41,9 +41,14 @@ import android.platform.test.annotations.Presubmit;
 import android.text.GetChars;
 import android.text.Layout;
 import android.text.PrecomputedText;
+import android.text.Selection;
+import android.text.Spannable;
 import android.text.method.OffsetMapping;
 import android.text.method.TransformationMethod;
+import android.view.Gravity;
 import android.view.View;
+import android.view.WindowManager;
+import android.view.accessibility.AccessibilityEvent;
 import android.view.inputmethod.EditorInfo;
 import android.widget.TextView.BufferType;
 
@@ -59,6 +64,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Locale;
 
 /**
@@ -78,6 +84,32 @@ public class TextViewTest {
     public void setup() {
         mActivity = mActivityRule.getActivity();
         mInstrumentation = InstrumentationRegistry.getInstrumentation();
+    }
+
+    @Test
+    public void testSetTextChangeTypes() throws Exception {
+        mTextView = new TextView(mActivity);
+        mTextView.beginCommitText();
+        mTextView.setSuggestionSelection(true);
+        mTextView.setText("Hello", BufferType.EDITABLE);
+        mTextView.clearComposingText();
+
+        assertFalse(mTextView.hasComposingText());
+        assertTrue(mTextView.isConversionSuggestionSelected());
+        assertTrue(mTextView.isCommittingText());
+
+        AccessibilityEvent event =
+                AccessibilityEvent.obtain(AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED);
+        Method setTextChangeTypesMethod = TextView.class.getDeclaredMethod(
+                "setTextChangeTypes", AccessibilityEvent.class);
+        setTextChangeTypesMethod.setAccessible(true);
+        setTextChangeTypesMethod.invoke(mTextView, event);
+        int expectedChangeTypes =
+                AccessibilityEvent.TEXT_CHANGE_TYPE_COMMITTED_BY_IME
+                        | AccessibilityEvent.TEXT_CHANGE_TYPE_CONVERSION_SUGGESTION_SELECTED_BY_IME;
+        assertEquals(expectedChangeTypes, event.getTextChangeTypes());
+
+        mTextView.endCommitText();
     }
 
     @Presubmit
@@ -418,6 +450,114 @@ public class TextViewTest {
                 .isEqualTo(0);
         verify(transformedText, times(1))
                 .transformedToOriginal(1, OffsetMapping.MAP_STRATEGY_CURSOR);
+    }
+
+    @Test
+    @UiThreadTest
+    public void testGetFocusedRect_adjustPan_singleAndMultiline() {
+        mActivity.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
+        FrameLayout parent = new FrameLayout(mActivity);
+        mTextView = new TextView(mActivity);
+        mTextView.setPadding(0, 20, 0, 40);
+        mTextView.setGravity(Gravity.TOP);
+        mTextView.setLayoutParams(new FrameLayout.LayoutParams(1000, 200, Gravity.BOTTOM));
+        parent.addView(mTextView);
+        mActivity.setContentView(parent);
+
+        mTextView.scrollTo(0, 50); // Simulate pan up
+        mTextView.requestFocus();
+
+        Rect r = new Rect();
+
+        // 1. Single line
+        mTextView.setText("Hello", BufferType.EDITABLE);
+        mTextView.setSingleLine(true);
+        Selection.setSelection((Spannable) mTextView.getText(), 0);
+        mTextView.measure(View.MeasureSpec.makeMeasureSpec(1000, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(200, View.MeasureSpec.EXACTLY));
+        mTextView.layout(0, 800, 1000, 1000);
+        Layout layout = mTextView.getLayout();
+        mTextView.getFocusedRect(r);
+        assertEquals(layout.getLineTop(0), r.top);
+        assertEquals(layout.getLineBottom(0) + mTextView.getExtendedPaddingTop()
+                + mTextView.getExtendedPaddingBottom(), r.bottom);
+
+        // 2. Multi line
+        mTextView.setText("Line 1\nLine 2\nLine 3", BufferType.EDITABLE);
+        mTextView.setSingleLine(false);
+        mTextView.measure(View.MeasureSpec.makeMeasureSpec(1000, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(200, View.MeasureSpec.EXACTLY));
+        mTextView.layout(0, 800, 1000, 1000);
+        layout = mTextView.getLayout();
+
+        // Top line
+        Selection.setSelection((Spannable) mTextView.getText(), 0);
+        mTextView.getFocusedRect(r);
+        assertEquals(layout.getLineTop(0), r.top);
+        assertEquals(layout.getLineBottom(0) + mTextView.getExtendedPaddingTop(), r.bottom);
+
+        // Middle line
+        Selection.setSelection((Spannable) mTextView.getText(), 7); // Start of "Line 2"
+        mTextView.getFocusedRect(r);
+        assertEquals(layout.getLineTop(1) + mTextView.getExtendedPaddingTop(), r.top);
+        assertEquals(layout.getLineBottom(1) + mTextView.getExtendedPaddingTop(), r.bottom);
+
+        // Bottom line
+        Selection.setSelection((Spannable) mTextView.getText(), mTextView.getText().length());
+        mTextView.getFocusedRect(r);
+        assertEquals(layout.getLineTop(2) + mTextView.getExtendedPaddingTop(), r.top);
+        assertEquals(layout.getLineBottom(2) + mTextView.getExtendedPaddingTop()
+                + mTextView.getExtendedPaddingBottom(), r.bottom);
+    }
+
+    @Test
+    @UiThreadTest
+    public void testBringPointIntoViewAndGetFocusedRectCompatibility() {
+        mTextView = new TextView(mActivity);
+        mTextView.setText("Line 1\nLine 2\nLine 3", BufferType.EDITABLE);
+        mTextView.setPadding(10, 20, 30, 40);
+
+        final Rect requestedRect = new Rect();
+        FrameLayout parent = new FrameLayout(mActivity) {
+            @Override
+            public boolean requestChildRectangleOnScreen(View child, Rect rectangle,
+                    boolean immediate) {
+                requestedRect.set(rectangle);
+                return true;
+            }
+        };
+        parent.addView(mTextView);
+        mActivity.setContentView(parent);
+        mTextView.measure(View.MeasureSpec.makeMeasureSpec(1000, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(200, View.MeasureSpec.EXACTLY));
+        mTextView.layout(0, 0, 1000, 200);
+
+        mTextView.requestFocus();
+
+        Rect focusedRect = new Rect();
+
+        // 1. Top line
+        requestedRect.setEmpty();
+        Selection.setSelection((Spannable) mTextView.getText(), 0);
+        mTextView.bringPointIntoView(0, true);
+        mTextView.getFocusedRect(focusedRect);
+        // The requested rect from bringPointIntoView and getFocusedRect should be the same.
+        assertEquals(focusedRect, requestedRect);
+
+        // 2. Bottom line
+        requestedRect.setEmpty();
+        int lastOffset = mTextView.getText().length();
+        Selection.setSelection((Spannable) mTextView.getText(), lastOffset);
+        mTextView.bringPointIntoView(lastOffset, true);
+        mTextView.getFocusedRect(focusedRect);
+        assertEquals(focusedRect, requestedRect);
+
+        // 3. Middle line
+        requestedRect.setEmpty();
+        Selection.setSelection((Spannable) mTextView.getText(), 7); // Start of "Line 2"
+        mTextView.bringPointIntoView(7, true);
+        mTextView.getFocusedRect(focusedRect);
+        assertEquals(focusedRect, requestedRect);
     }
 
     private String createLongText() {

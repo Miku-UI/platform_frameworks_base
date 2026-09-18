@@ -29,6 +29,7 @@
 #include <utils/Log.h>
 #include <utils/RefBase.h>
 
+#include <atomic>
 #include <sstream>
 #include <thread>
 
@@ -41,6 +42,7 @@ static struct {
     jmethodID createInstance;
     jmethodID createTlsState;
     jmethodID createIncrementalState;
+    jmethodID onInstanceCreateFailed;
 } gPerfettoDataSourceClassInfo;
 
 static struct {
@@ -74,8 +76,31 @@ PerfettoDataSource::PerfettoDataSource(JNIEnv* env, jobject javaDataSource,
         mJavaDataSource(env->NewGlobalRef(javaDataSource)) {}
 
 jobject PerfettoDataSource::newInstance(JNIEnv* env, void* ds_config, size_t ds_config_size,
-                                        PerfettoDsInstanceIndex inst_id) {
+                                        PerfettoDsInstanceIndex inst_id,
+                                        std::string* out_error_msg) {
+    // NewByteArray can return nullptr if the allocation fails
+    // (e.g., due to a large configuration or system memory pressure).
     jbyteArray configArray = env->NewByteArray(ds_config_size);
+
+    if (configArray == nullptr) {
+        std::stringstream ss;
+        ss << "Failed to allocate " << ds_config_size << " bytes for " << dataSourceName
+           << " config.";
+        *out_error_msg = ss.str();
+        ALOGE("%s", out_error_msg->c_str());
+
+        ScopedLocalRef<jstring> reasonStr(env, env->NewStringUTF(out_error_msg->c_str()));
+        if (reasonStr.get()) {
+            env->CallVoidMethod(mJavaDataSource,
+                                gPerfettoDataSourceClassInfo.onInstanceCreateFailed, inst_id,
+                                reasonStr.get());
+            if (env->ExceptionCheck()) {
+                LOGE_EX(env);
+                env->ExceptionClear();
+            }
+        }
+        return nullptr;
+    }
 
     void* temp = env->GetPrimitiveArrayCritical((jarray)configArray, 0);
     memcpy(temp, ds_config, ds_config_size);
@@ -86,19 +111,76 @@ jobject PerfettoDataSource::newInstance(JNIEnv* env, void* ds_config, size_t ds_
                                   configArray, inst_id);
 
     if (env->ExceptionCheck()) {
-        LOGE_EX(env);
+        jthrowable exception = env->ExceptionOccurred();
         env->ExceptionClear();
-        LOG_ALWAYS_FATAL("Failed to create new Java Perfetto datasource instance");
+
+        // Get exception message
+        jclass throwable_class = env->FindClass("java/lang/Throwable");
+        jmethodID get_message_method =
+                env->GetMethodID(throwable_class, "toString", "()Ljava/lang/String;");
+        jstring message_jstr = (jstring)env->CallObjectMethod(exception, get_message_method);
+        const char* message_str = env->GetStringUTFChars(message_jstr, 0);
+        std::stringstream ss;
+        ss << "Java createInstance threw an exception: " << message_str;
+        *out_error_msg = ss.str();
+        env->ReleaseStringUTFChars(message_jstr, message_str);
+        ALOGE("%s", out_error_msg->c_str());
+
+        // Also call onInstanceCreateFailed from native
+        ScopedLocalRef<jstring> reasonStr(env, env->NewStringUTF(out_error_msg->c_str()));
+        if (reasonStr.get()) {
+            env->CallVoidMethod(mJavaDataSource,
+                                gPerfettoDataSourceClassInfo.onInstanceCreateFailed, inst_id,
+                                reasonStr.get());
+            if (env->ExceptionCheck()) {
+                LOGE_EX(env);
+                env->ExceptionClear();
+            }
+        }
+        return nullptr;
+    }
+
+    if (instance == nullptr) {
+        std::stringstream ss;
+        ss << "Java createInstance for " << dataSourceName << " returned null.";
+        *out_error_msg = ss.str();
+        ALOGE("%s", out_error_msg->c_str());
+
+        ScopedLocalRef<jstring> reasonStr(env, env->NewStringUTF(out_error_msg->c_str()));
+        if (reasonStr.get()) {
+            env->CallVoidMethod(mJavaDataSource,
+                                gPerfettoDataSourceClassInfo.onInstanceCreateFailed, inst_id,
+                                reasonStr.get());
+            if (env->ExceptionCheck()) {
+                LOGE_EX(env);
+                env->ExceptionClear();
+            }
+        }
     }
 
     return instance;
 }
 
+void PerfettoDataSource::OnInstanceCreateFailed(JNIEnv* env, PerfettoDsInstanceIndex inst_id,
+                                                std::string& reason) {
+    ScopedLocalRef<jstring> reasonJString(env, env->NewStringUTF(reason.c_str()));
+    if (!reasonJString.get()) {
+        return;
+    }
+
+    env->CallVoidMethod(mJavaDataSource, gPerfettoDataSourceClassInfo.onInstanceCreateFailed,
+                        inst_id, reasonJString.get());
+    if (env->ExceptionCheck()) {
+        LOGE_EX(env);
+        env->ExceptionClear();
+    }
+}
+
 bool PerfettoDataSource::TraceIterateBegin() {
     if (gInIteration) {
         ALOG(LOG_ERROR, LOG_TAG,
-              "Tried calling TraceIterateBegin with an already active iterator for datasource %s.",
-              dataSourceName.c_str());
+             "Tried calling TraceIterateBegin with an already active iterator for datasource %s.",
+             dataSourceName.c_str());
         return false;
     }
 
@@ -232,6 +314,14 @@ PerfettoDataSource::~PerfettoDataSource() {
 jlong nativeCreate(JNIEnv* env, jclass clazz, jobject javaDataSource, jstring name) {
     const char* nativeString = env->GetStringUTFChars(name, 0);
     PerfettoDataSource* dataSource = new PerfettoDataSource(env, javaDataSource, nativeString);
+
+    if (dataSource == nullptr) {
+        ALOGE("Failed to allocate PerfettoDataSource");
+        jniThrowException(env, "java/lang/OutOfMemoryError",
+                          "Failed to allocate native PerfettoDataSource");
+        env->ReleaseStringUTFChars(name, nativeString);
+        return 0;
+    }
     env->ReleaseStringUTFChars(name, nativeString);
 
     dataSource->incStrong((void*)nativeCreate);
@@ -259,19 +349,41 @@ void nativeFlushAll(JNIEnv* env, jclass clazz, jlong ptr) {
 }
 
 template <bool PostponeStop>
-void* onSetupCb(struct PerfettoDsImpl*, PerfettoDsInstanceIndex inst_id, void* ds_config,
-                size_t ds_config_size, void* user_arg, struct PerfettoDsOnSetupArgs*) {
+void* onSetupCb(struct PerfettoDsImpl* ds, PerfettoDsInstanceIndex inst_id, void* ds_config,
+                size_t ds_config_size, void* user_arg, struct PerfettoDsOnSetupArgs* args) {
     JNIEnv* env = GetOrAttachJNIEnvironment(gVm, JNI_VERSION_1_6);
 
     auto* datasource = reinterpret_cast<PerfettoDataSource*>(user_arg);
 
+    std::string error_msg;
     ScopedLocalRef<jobject> java_data_source_instance(env,
                                                       datasource->newInstance(env, ds_config,
                                                                               ds_config_size,
-                                                                              inst_id));
+                                                                              inst_id, &error_msg));
 
-    auto* datasource_instance = new PerfettoDataSourceInstance(env, java_data_source_instance.get(),
-                                                               inst_id, PostponeStop);
+    // datasource->newInstance can now fail and return nullptr (e.g. on allocation failure).
+    if (java_data_source_instance.get() == nullptr) {
+        ALOGE("Failed to create java data source instance for %s. onSetupCb is failing.",
+              datasource->dataSourceName.c_str());
+
+        return nullptr;
+    }
+
+    PerfettoDataSourceInstance* datasource_instance =
+            new PerfettoDataSourceInstance(env, java_data_source_instance.get(), inst_id,
+                                           PostponeStop);
+    if (datasource_instance == nullptr) {
+        ALOGE("Failed to allocate PerfettoDataSourceInstance");
+
+        std::stringstream ss;
+        ss << "Failed to allocate native PerfettoDataSourceInstance for "
+           << datasource->dataSourceName;
+        error_msg = ss.str();
+        datasource->OnInstanceCreateFailed(env, inst_id, error_msg);
+
+        return nullptr;
+    }
+
     return static_cast<void*>(datasource_instance);
 };
 
@@ -330,6 +442,9 @@ void nativeRegisterDataSource(JNIEnv* env, jclass clazz, jlong datasource_ptr,
 
     params.on_start_cb = [](struct PerfettoDsImpl*, PerfettoDsInstanceIndex, void*, void* inst_ctx,
                             struct PerfettoDsOnStartArgs*) {
+        if (inst_ctx == nullptr) {
+            return;
+        }
         JNIEnv* env = GetOrAttachJNIEnvironment(gVm, JNI_VERSION_1_6);
 
         auto* datasource_instance = static_cast<PerfettoDataSourceInstance*>(inst_ctx);
@@ -339,6 +454,9 @@ void nativeRegisterDataSource(JNIEnv* env, jclass clazz, jlong datasource_ptr,
     if (!no_flush) {
         params.on_flush_cb = [](struct PerfettoDsImpl*, PerfettoDsInstanceIndex, void*,
                                 void* inst_ctx, struct PerfettoDsOnFlushArgs*) {
+            if (inst_ctx == nullptr) {
+                return;
+            }
             JNIEnv* env = GetOrAttachJNIEnvironment(gVm, JNI_VERSION_1_6);
 
             auto* datasource_instance = static_cast<PerfettoDataSourceInstance*>(inst_ctx);
@@ -348,6 +466,9 @@ void nativeRegisterDataSource(JNIEnv* env, jclass clazz, jlong datasource_ptr,
 
     params.on_stop_cb = [](struct PerfettoDsImpl*, PerfettoDsInstanceIndex inst_id, void* user_arg,
                            void* inst_ctx, struct PerfettoDsOnStopArgs* args) {
+        if (inst_ctx == nullptr) {
+            return;
+        }
         JNIEnv* env = GetOrAttachJNIEnvironment(gVm, JNI_VERSION_1_6);
 
         auto* datasource_instance = static_cast<PerfettoDataSourceInstance*>(inst_ctx);
@@ -356,6 +477,9 @@ void nativeRegisterDataSource(JNIEnv* env, jclass clazz, jlong datasource_ptr,
 
     params.on_destroy_cb = [](struct PerfettoDsImpl* ds_impl, void* user_arg,
                               void* inst_ctx) -> void {
+        if (inst_ctx == nullptr) {
+            return;
+        }
         auto* datasource_instance = static_cast<PerfettoDataSourceInstance*>(inst_ctx);
 
         delete datasource_instance;
@@ -496,6 +620,9 @@ int register_android_tracing_PerfettoDataSource(JNIEnv* env) {
             env->GetMethodID(gPerfettoDataSourceClassInfo.clazz, "createIncrementalState",
                              "(Landroid/tracing/perfetto/CreateIncrementalStateArgs;)Ljava/lang/"
                              "Object;");
+    gPerfettoDataSourceClassInfo.onInstanceCreateFailed =
+            env->GetMethodID(gPerfettoDataSourceClassInfo.clazz, "onInstanceCreateFailed",
+                             "(ILjava/lang/String;)V");
 
     clazz = env->FindClass("android/tracing/perfetto/CreateTlsStateArgs");
     gCreateTlsStateArgsClassInfo.clazz = MakeGlobalRefOrDie(env, clazz);

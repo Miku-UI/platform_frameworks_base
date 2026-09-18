@@ -23,8 +23,6 @@ import android.os.IBinder
 import android.view.SurfaceControl
 import android.view.WindowManager.TRANSIT_CHANGE
 import android.view.animation.DecelerateInterpolator
-import android.window.DesktopModeFlags
-import android.window.DesktopModeFlags.ENABLE_WINDOWING_DYNAMIC_INITIAL_BOUNDS
 import android.window.TransitionInfo
 import android.window.TransitionRequestInfo
 import android.window.WindowContainerTransaction
@@ -105,7 +103,7 @@ class DesktopImmersiveController(
             return
         }
         val wct = WindowContainerTransaction().apply { setBounds(taskInfo.token, Rect()) }
-        logV("Moving task ${taskInfo.taskId} into immersive mode")
+        logV("Moving task %d into immersive mode", taskInfo.taskId)
         val transition = transitions.startTransition(TRANSIT_CHANGE, wct, /* handler= */ this)
         addPendingImmersiveTransition(
             taskId = taskInfo.taskId,
@@ -153,7 +151,6 @@ class DesktopImmersiveController(
         displayId: Int,
         reason: ExitReason,
     ) {
-        if (!DesktopModeFlags.ENABLE_FULLY_IMMERSIVE_IN_DESKTOP.isTrue) return
         val result = exitImmersiveIfApplicable(wct, displayId, excludeTaskId = null, reason)
         result.asExit()?.runOnTransitionStart?.invoke(transition)
     }
@@ -172,7 +169,6 @@ class DesktopImmersiveController(
         excludeTaskId: Int? = null,
         reason: ExitReason,
     ): ExitResult {
-        if (!DesktopModeFlags.ENABLE_FULLY_IMMERSIVE_IN_DESKTOP.isTrue) return ExitResult.NoExit
         val immersiveTask =
             desktopUserRepositories.current.getTaskInFullImmersiveState(displayId)
                 ?: return ExitResult.NoExit
@@ -214,7 +210,6 @@ class DesktopImmersiveController(
         taskInfo: RunningTaskInfo,
         reason: ExitReason,
     ): ExitResult {
-        if (!DesktopModeFlags.ENABLE_FULLY_IMMERSIVE_IN_DESKTOP.isTrue) return ExitResult.NoExit
         if (desktopUserRepositories.current.isTaskInFullImmersiveState(taskInfo.taskId)) {
             // A full immersive task is being minimized, make sure the immersive state is broken
             // (i.e. resize back to max bounds).
@@ -327,8 +322,12 @@ class DesktopImmersiveController(
             .setPosition(leash, startBounds.left.toFloat(), startBounds.top.toFloat())
             .setWindowCrop(leash, startBounds.width(), startBounds.height())
             .show(leash)
-        onTaskResizeAnimationListener?.onAnimationStart(taskId, startTransaction, startBounds)
-            ?: startTransaction.apply()
+        val startTransactionApplied =
+            onTaskResizeAnimationListener?.onAnimationStart(taskId, startTransaction, startBounds)
+                ?: false
+        if (!startTransactionApplied) {
+            startTransaction.apply()
+        }
         val updateTransaction = transactionSupplier()
         ValueAnimator.ofObject(rectEvaluator, startBounds, endBounds).apply {
             duration = FULL_IMMERSIVE_ANIM_DURATION_MS
@@ -349,8 +348,12 @@ class DesktopImmersiveController(
                     .setPosition(leash, rect.left.toFloat(), rect.top.toFloat())
                     .setWindowCrop(leash, rect.width(), rect.height())
                     .apply()
-                onTaskResizeAnimationListener?.onBoundsChange(taskId, updateTransaction, rect)
-                    ?: updateTransaction.apply()
+                val updateTransactionApplied =
+                    onTaskResizeAnimationListener?.onBoundsChange(taskId, updateTransaction, rect)
+                        ?: false
+                if (!updateTransactionApplied) {
+                    updateTransaction.apply()
+                }
             }
             start()
         }
@@ -397,17 +400,15 @@ class DesktopImmersiveController(
                 taskId = taskId,
                 immersive = pendingTransition.direction == Direction.ENTER,
             )
-            if (DesktopModeFlags.ENABLE_RESTORE_TO_PREVIOUS_SIZE_FROM_DESKTOP_IMMERSIVE.isTrue) {
-                when (pendingTransition.direction) {
-                    Direction.EXIT -> {
-                        desktopRepository.removeBoundsBeforeFullImmersive(taskId)
-                    }
-                    Direction.ENTER -> {
-                        desktopRepository.saveBoundsBeforeFullImmersive(
-                            taskId,
-                            immersiveChange.startAbsBounds,
-                        )
-                    }
+            when (pendingTransition.direction) {
+                Direction.EXIT -> {
+                    desktopRepository.removeBoundsBeforeFullImmersive(taskId)
+                }
+                Direction.ENTER -> {
+                    desktopRepository.saveBoundsBeforeFullImmersive(
+                        taskId,
+                        immersiveChange.startAbsBounds,
+                    )
                 }
             }
         }
@@ -434,7 +435,7 @@ class DesktopImmersiveController(
             }
         if (pendingTransition != null) {
             logV(
-                "Pending transition %s for task#%s merged into %s",
+                "Pending transition %s for task#%d merged into %s",
                 merged,
                 pendingTransition.taskId,
                 playing,
@@ -458,16 +459,8 @@ class DesktopImmersiveController(
         val displayLayout =
             displayController.getDisplayLayout(taskInfo.displayId)
                 ?: error("Expected non-null display layout for displayId: ${taskInfo.displayId}")
-        return if (DesktopModeFlags.ENABLE_RESTORE_TO_PREVIOUS_SIZE_FROM_DESKTOP_IMMERSIVE.isTrue) {
-            desktopUserRepositories.current.removeBoundsBeforeFullImmersive(taskInfo.taskId)
-                ?: if (ENABLE_WINDOWING_DYNAMIC_INITIAL_BOUNDS.isTrue()) {
-                    calculateInitialBounds(displayLayout, taskInfo)
-                } else {
-                    calculateDefaultDesktopTaskBounds(displayLayout)
-                }
-        } else {
-            return calculateMaximizeBounds(displayLayout, taskInfo)
-        }
+        return desktopUserRepositories.current.removeBoundsBeforeFullImmersive(taskInfo.taskId)
+            ?: calculateInitialBounds(displayLayout, taskInfo)
     }
 
     private fun TransitionInfo.getTaskChange(taskId: Int): TransitionInfo.Change? =
@@ -534,10 +527,14 @@ class DesktopImmersiveController(
         CLOSED, // The immersive task was closed.
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logV(msg: String, vararg arguments: Any?) {
         ProtoLog.v(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }
 
+    // TODO(b/478792808): Remove suppression
+    @SuppressWarnings("ProtoLogNonConstantFormat")
     private fun logD(msg: String, vararg arguments: Any?) {
         ProtoLog.d(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }

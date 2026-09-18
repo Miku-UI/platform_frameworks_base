@@ -97,6 +97,30 @@ class AppOpInfo {
      */
     public final boolean forceCollectNotes;
 
+    /**
+     * This specifies the behavior for PCC UIDs. A value of -1 means that PCC
+     * UIDs 'inherit' the mode of their defining app. Other values specified here map to
+     * the existing MODE_ values.
+     */
+    public final int pccMode;
+
+    /**
+     * A value for {@link #pccMode} that indicates that PCC UIDs should inherit the mode
+     * of their defining app.
+     */
+    public static final int PCC_MODE_INHERIT = -1;
+
+    /**
+     * The last app op code that doesn't require an explicit Private Compute Core
+     * behavior specification.
+     *
+     * All new app op codes should define their desired behavior for Private Compute Core
+     * sandboxes.
+     *
+     * @hide
+     */
+    public static final int LAST_DEFAULT_PCC_MODE_INHERIT_OP = 177;
+
     AppOpInfo(int code,
             int switchCode,
             @NonNull String name,
@@ -107,7 +131,8 @@ class AppOpInfo {
             int defaultMode,
             boolean disableReset,
             boolean restrictRead,
-            boolean forceCollectNotes) {
+            boolean forceCollectNotes,
+            int pccMode) {
         if (code < OP_NONE) throw new IllegalArgumentException();
         if (switchCode < OP_NONE) throw new IllegalArgumentException();
         Objects.requireNonNull(name);
@@ -123,6 +148,7 @@ class AppOpInfo {
         this.disableReset = disableReset;
         this.restrictRead = restrictRead;
         this.forceCollectNotes = forceCollectNotes;
+        this.pccMode = pccMode;
     }
 
     static class Builder {
@@ -137,8 +163,16 @@ class AppOpInfo {
         private boolean mDisableReset = false;
         private boolean mRestrictRead = false;
         private boolean mForceCollectNotes = false;
+        private int mPccMode;
 
         Builder(int code, @NonNull String name, @NonNull String simpleName) {
+            this(code, name, simpleName, PCC_MODE_INHERIT);
+            if (code > LAST_DEFAULT_PCC_MODE_INHERIT_OP) {
+                throw new IllegalArgumentException("App op " + code + " must specify a pccMode");
+            }
+        }
+
+        Builder(int code, @NonNull String name, @NonNull String simpleName, int pccMode) {
             if (code < OP_NONE) throw new IllegalArgumentException();
             Objects.requireNonNull(name);
             Objects.requireNonNull(simpleName);
@@ -146,6 +180,7 @@ class AppOpInfo {
             this.mSwitchCode = code;
             this.mName = name;
             this.mSimpleName = simpleName;
+            this.mPccMode = pccMode;
         }
 
         public Builder setCode(int value) {
@@ -207,7 +242,7 @@ class AppOpInfo {
         public AppOpInfo build() {
             return new AppOpInfo(mCode, mSwitchCode, mName, mSimpleName, mPermission, mRestriction,
                 mAllowSystemRestrictionBypass, mDefaultMode, mDisableReset, mRestrictRead,
-                    mForceCollectNotes);
+                    mForceCollectNotes, mPccMode);
         }
     }
 }

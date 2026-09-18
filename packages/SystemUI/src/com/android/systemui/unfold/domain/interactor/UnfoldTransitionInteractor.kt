@@ -76,11 +76,12 @@ constructor(
     fun unfoldTranslationX(isOnStartSide: Boolean): Flow<Float> {
         return combine(
             unfoldProgress,
-            configurationInteractor.dimensionPixelSize(R.dimen.notification_side_paddings),
+            configurationInteractor.dimensionPixelSize(R.dimen.notification_side_paddings_single),
             configurationInteractor.layoutDirection.map {
                 if (it == View.LAYOUT_DIRECTION_RTL) -1 else 1
             },
         ) { unfoldedAmount, max, layoutDirectionMultiplier ->
+            // TODO(b/488459485): make max response to shadeMode
             val sideMultiplier = if (isOnStartSide) 1 else -1
             max * (1 - unfoldedAmount) * sideMultiplier * layoutDirectionMultiplier
         }

@@ -556,8 +556,8 @@ public class AssetFileDescriptor implements Parcelable, Closeable {
                 return bytesRead;
             }
 
+            /** The only read method that does not move channel position. */
             @Override
-            /**The only read method that does not move channel position*/
             public int read(ByteBuffer dst, long position) throws IOException {
                 if (position - mFileOffset > mTotalSize) return -1;
                 return mDelegate.read(dst, position);

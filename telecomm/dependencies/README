@@ -1,0 +1,3 @@
+This directory is temporary and is used during the transition period where
+flags can be enabled/disabled based on build. This directory should be removed
+once the telecom apex flag has launched.

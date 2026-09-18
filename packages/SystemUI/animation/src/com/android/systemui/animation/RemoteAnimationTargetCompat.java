@@ -43,7 +43,7 @@ public class RemoteAnimationTargetCompat {
         // LeafTaskFilter is order-dependent, so the same object needs to be used for all Change
         // objects. That's why it's constructed here and captured by the lambda instead of building
         // a new one ad hoc every time.
-        TransitionUtil.LeafTaskFilter taskFilter = new TransitionUtil.LeafTaskFilter();
+        TransitionUtil.LeafTaskFilter taskFilter = new TransitionUtil.LeafTaskFilter(info);
         return wrap(info, t, leashMap, (change) -> {
             // Intra-task activity -> activity transitions should be categorized as apps.
             if (change.getActivityComponent() != null) return true;
@@ -75,7 +75,7 @@ public class RemoteAnimationTargetCompat {
         final ArrayList<RemoteAnimationTarget> out = new ArrayList<>();
         for (int i = 0; i < info.getChanges().size(); i++) {
             TransitionInfo.Change change = info.getChanges().get(i);
-            if (TransitionUtil.isOrderOnly(change)) continue;
+            if (TransitionUtil.isStationary(change)) continue;
             if (filter.test(change)) {
                 out.add(TransitionUtil.newTarget(
                         change, info.getChanges().size() - i, info, t, leashMap));

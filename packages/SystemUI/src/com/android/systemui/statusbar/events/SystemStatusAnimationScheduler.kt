@@ -16,17 +16,21 @@
 
 package com.android.systemui.statusbar.events
 
+import androidx.annotation.MainThread
 import androidx.core.animation.Animator
 import androidx.core.animation.AnimatorSet
 import androidx.core.animation.PathInterpolator
 import com.android.systemui.Dumpable
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.privacy.PrivacyItem
 import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState
 import com.android.systemui.statusbar.policy.CallbackController
 import kotlinx.coroutines.flow.StateFlow
 
 interface SystemStatusAnimationScheduler :
-    CallbackController<SystemStatusAnimationCallback>, Dumpable {
+    CallbackController<SystemStatusAnimationCallback>,
+    Dumpable,
+    SystemUIDisplaySubcomponent.LifecycleListener {
 
     /**
      * The current state of the animation. This can be used from compose functions to coordinate
@@ -34,9 +38,9 @@ interface SystemStatusAnimationScheduler :
      */
     val animationState: StateFlow<SystemEventAnimationState>
 
-    fun onStatusEvent(event: StatusEvent)
+    @MainThread fun onStatusEvent(event: StatusEvent)
 
-    fun removePersistentDot()
+    @MainThread fun removePersistentDot()
 }
 
 /**

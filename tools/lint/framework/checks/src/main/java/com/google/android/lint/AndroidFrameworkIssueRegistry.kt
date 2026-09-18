@@ -45,6 +45,9 @@ class AndroidFrameworkIssueRegistry : IssueRegistry() {
         JavaStreamDetector.ISSUE,
         DebugFieldDetector.ISSUE_DEBUG_TRUE,
         DebugFieldDetector.ISSUE_NON_FINAL_DEBUG,
+        EnumReflectionDetector.ISSUE_GET_ENUM_CONSTANTS,
+        EnumReflectionDetector.ISSUE_ENUM_VALUE_OF,
+        EnumReflectionDetector.ISSUE_ENUM_MAP_CONSTRUCTOR,
     )
 
     override val api: Int

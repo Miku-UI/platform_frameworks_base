@@ -26,55 +26,38 @@ import java.io.PrintWriter
 
 /** Interface to be implemented by any controllers providing a layout for DragAndDrop in Shell */
 interface DragLayoutProvider {
-    /**
-     * Updates the drag layout based on the given drag session.
-     */
+    /** Updates the drag layout based on the given drag session. */
     fun updateSession(session: DragSession)
-    /**
-     * Called when a new drag is started.
-     */
+
+    /** Called when a new drag is started. */
     fun prepare(session: DragSession, loggerSessionId: InstanceId?)
 
-    /**
-     * Shows the drag layout.
-     */
+    /** Shows the drag layout. */
     fun show()
 
-    /**
-     * Updates the visible drop target as the user drags.
-     */
+    /** Updates the visible drop target as the user drags. */
     fun update(event: DragEvent?)
 
-    /**
-     * Hides the drag layout and animates out the visible drop targets.
-     */
+    /** Hides the drag layout and animates out the visible drop targets. */
     fun hide(event: DragEvent?, hideCompleteCallback: Runnable?)
 
-    /**
-     * Whether target has already been dropped or not
-     */
+    /** Whether target has already been dropped or not */
     fun hasDropped(): Boolean
 
-    /**
-     * Handles the drop onto a target and animates out the visible drop targets.
-     */
+    /** Handles the drop onto a target and animates out the visible drop targets. */
     fun drop(
-        event: DragEvent?, dragSurface: SurfaceControl,
-        hideTaskToken: WindowContainerToken?, dropCompleteCallback: Runnable?
+        event: DragEvent?,
+        dragSurface: SurfaceControl,
+        hideTaskToken: WindowContainerToken?,
+        dropCompleteCallback: Runnable?,
     ): Boolean
 
-    /**
-     * Dumps information about this drag layout.
-     */
+    /** Dumps information about this drag layout. */
     fun dump(pw: PrintWriter, prefix: String?)
 
-    /**
-     * @return a View which will be added to the global root view for drag and drop
-     */
+    /** @return a View which will be added to the global root view for drag and drop */
     fun addDraggingView(viewGroup: ViewGroup)
 
-    /**
-     * Called when the configuration changes.
-     */
+    /** Called when the configuration changes. */
     fun onConfigChanged(newConfig: Configuration?)
 }

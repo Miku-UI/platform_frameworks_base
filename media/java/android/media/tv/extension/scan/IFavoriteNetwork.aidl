@@ -20,17 +20,30 @@ import android.media.tv.extension.scan.IFavoriteNetworkListener;
 import android.os.Bundle;
 
 /**
- * Country: Norway
- * Broadcast Type: BROADCAST_TYPE_DVB_T
- * (Operator: RiksTV)
- *
  * @hide
  */
 interface IFavoriteNetwork {
-    // Get the favorite network information,If there are no conflicts, the array of Bundle is empty.
+    /**
+     * Get the favorite network information.
+     * If there are no conflicts, the array of Bundle is empty.
+     *
+     * @return an array of bundle of favorite network information, each bundle key should be at
+     *         least contain keys defined in @ScanConstants.FavoriteNetworkBundleKey.
+     */
     Bundle[] getFavoriteNetworks();
-    // Select and set one of two or more favorite networks detected by the service scan.
+    /**
+     * Select and set one of two or more favorite networks detected by the service scan.
+     *
+     * @param favoriteNetworkSettings, each bundle key should be at
+     *        least contain keys defined in @ScanConstants.FavoriteNetworkBundleKey.
+     * @return @ScanConstants.OpResult.RESULT_SUCCESS if set successfully else RESULT_FAILED.
+     */
     int setFavoriteNetwork(in Bundle favoriteNetworkSettings);
-    // Set the listener to be invoked when two or more favorite networks are detected.
+    /**
+     * Set the listener to be invoked when two or more favorite networks are detected.
+     *
+     * @param listener IFavoriteNetworkListener.
+     * @return @ScanConstants.OpResult.RESULT_SUCCESS if set successfully else RESULT_FAILED.
+     */
     int setListener(in IFavoriteNetworkListener listener);
 }

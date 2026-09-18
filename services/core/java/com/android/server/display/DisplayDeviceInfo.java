@@ -18,6 +18,7 @@ package com.android.server.display;
 
 import static android.view.Display.Mode.INVALID_MODE_ID;
 
+import android.annotation.Nullable;
 import android.hardware.display.DeviceProductInfo;
 import android.hardware.display.DisplayViewport;
 import android.util.DisplayMetrics;
@@ -507,6 +508,50 @@ final class DisplayDeviceInfo {
         // but we don't know the physical size of the display.
         xDpi = densityDpi;
         yDpi = densityDpi;
+    }
+
+    @Nullable
+    public Display.Mode getDisplayModeForSizeOverride() {
+        if (userPreferredModeId == INVALID_MODE_ID) {
+            return null;
+        }
+        Display.Mode userPreferredMode = null;
+        for (Display.Mode mode : supportedModes) {
+            if (userPreferredModeId == mode.getModeId()) {
+                userPreferredMode = mode;
+                break;
+            }
+        }
+        if (userPreferredMode == null) {
+            return null;
+        }
+
+        if ((userPreferredMode.getFlags() & Display.Mode.FLAG_SIZE_OVERRIDE) != 0) {
+            // SIZE_OVERRIDE: user selected mode applied immediately
+            return userPreferredMode;
+        } else if ((userPreferredMode.getFlags() & Display.Mode.FLAG_ANISOTROPY_CORRECTION) != 0) {
+            // ANISOTROPY_CORRECTION: user selected mode applied after parent mode is applied
+            Display.Mode currentMode = null;
+            Display.Mode parentMode = null;
+            for (Display.Mode mode : supportedModes) {
+                if (modeId == mode.getModeId()) {
+                    currentMode = mode;
+                }
+                if (userPreferredMode.getParentModeId() == mode.getModeId()) {
+                    parentMode = mode;
+                }
+                if (currentMode != null && parentMode != null) {
+                    break;
+                }
+            }
+            // Only size of currently active mode need to match with parent mode
+            if (currentMode != null && parentMode != null
+                    && currentMode.matches(
+                            parentMode.getPhysicalWidth(), parentMode.getPhysicalHeight())) {
+                return userPreferredMode;
+            }
+        }
+        return null;
     }
 
     @Override

@@ -55,7 +55,7 @@ class AudioPlayerStateMonitor {
          * Called when the active state of audio player is changed.
          *
          * @param config The audio playback configuration for the audio player for which active
-         *              state was changed. If {@param isRemoved} is {@code true}, this holds
+         *              state was changed. If {@code isRemoved} is {@code true}, this holds
          *              outdated information.
          * @param isRemoved {@code true} if the audio player is removed.
          */

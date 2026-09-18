@@ -463,6 +463,10 @@ public class AnimatedImageDrawable extends Drawable implements Animatable2 {
             throw new IllegalStateException("called start on empty AnimatedImageDrawable");
         }
 
+        if (Flags.animatedImageFrameRateHint() && Looper.myLooper() != null) {
+            nSetOnFrameRateHintListener(mState.mNativePtr, new WeakReference<>(this));
+        }
+
         if (nStart(mState.mNativePtr)) {
             mStarting = true;
             invalidateSelf();
@@ -482,6 +486,9 @@ public class AnimatedImageDrawable extends Drawable implements Animatable2 {
         }
         if (nStop(mState.mNativePtr)) {
             postOnAnimationEnd();
+        }
+        if (Flags.animatedImageFrameRateHint() && Looper.myLooper() != null) {
+            nSetOnFrameRateHintListener(mState.mNativePtr, null);
         }
     }
 
@@ -608,6 +615,23 @@ public class AnimatedImageDrawable extends Drawable implements Animatable2 {
         }
     }
 
+    @SuppressWarnings("unused")
+    // This method is called from native code (see AnimatedImageDrawable.cpp)
+    private static void callOnFrameRateHint(WeakReference<AnimatedImageDrawable> weakDrawable,
+            float fps) {
+
+        if (!Flags.animatedImageFrameRateHint()) {
+            return;
+        }
+        AnimatedImageDrawable drawable = weakDrawable.get();
+        if (drawable != null) {
+            final Callback cb = drawable.getCallback();
+            if (cb != null) {
+                cb.onFrameRateHint(drawable, fps);
+            }
+        }
+    }
+
     @Override
     protected void onBoundsChange(Rect bounds) {
         if (mState.mNativePtr != 0) {
@@ -641,6 +665,8 @@ public class AnimatedImageDrawable extends Drawable implements Animatable2 {
     private static native void nSetRepeatCount(long nativePtr, int repeatCount);
     // Pass the drawable down to native so it can call onAnimationEnd.
     private static native void nSetOnAnimationEndListener(long nativePtr,
+            @Nullable WeakReference<AnimatedImageDrawable> drawable);
+    private static native void nSetOnFrameRateHintListener(long nativePtr,
             @Nullable WeakReference<AnimatedImageDrawable> drawable);
     @FastNative
     private static native long nNativeByteSize(long nativePtr);

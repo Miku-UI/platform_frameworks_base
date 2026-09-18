@@ -32,9 +32,10 @@ import android.view.SurfaceView;
 public class EGL14 {
 
 public static final int EGL_DEFAULT_DISPLAY            = 0;
-public static EGLContext EGL_NO_CONTEXT                = null;
-public static EGLDisplay EGL_NO_DISPLAY                = null;
-public static EGLSurface EGL_NO_SURFACE                = null;
+
+public static EGLContext EGL_NO_CONTEXT                = new EGLContext(0L);
+public static EGLDisplay EGL_NO_DISPLAY                = new EGLDisplay(0L);
+public static EGLSurface EGL_NO_SURFACE                = new EGLSurface(0L);
 
 public static final int EGL_FALSE                          = 0;
 public static final int EGL_TRUE                           = 1;

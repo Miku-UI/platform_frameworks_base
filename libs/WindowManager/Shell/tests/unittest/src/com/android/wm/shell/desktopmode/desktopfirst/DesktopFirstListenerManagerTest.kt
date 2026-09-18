@@ -19,7 +19,7 @@ package com.android.wm.shell.desktopmode.desktopfirst
 import android.testing.AndroidTestingRunner
 import android.window.DisplayAreaInfo
 import androidx.test.filters.SmallTest
-import com.android.wm.shell.MockToken
+import com.android.testing.wm.util.MockToken
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.TestShellExecutor

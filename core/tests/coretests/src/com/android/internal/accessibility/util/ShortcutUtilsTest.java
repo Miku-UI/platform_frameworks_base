@@ -22,24 +22,33 @@ import static android.provider.Settings.Secure.ACCESSIBILITY_SHORTCUT_TARGET_MAG
 import static com.android.internal.accessibility.common.ShortcutConstants.SERVICES_SEPARATOR;
 import static com.android.internal.accessibility.common.ShortcutConstants.USER_SHORTCUT_TYPES;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.DEFAULT;
+import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.KEY_GESTURE;
+import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.QUICK_ACCESS;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.SOFTWARE;
 import static com.android.server.testutils.MockitoUtilsKt.eq;
 
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
 
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.annotation.UserIdInt;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.ParceledListSlice;
+import android.content.res.Resources;
+import android.hardware.input.KeyGestureEvent;
 import android.os.Handler;
 import android.os.RemoteException;
 import android.provider.Settings;
 import android.testing.TestableContext;
+import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.IAccessibilityManager;
 
@@ -52,6 +61,7 @@ import com.android.internal.accessibility.common.ShortcutConstants;
 import com.google.testing.junit.testparameterinjector.TestParameter;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -59,6 +69,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
@@ -81,17 +92,25 @@ public class ShortcutUtilsTest {
     private static final String STANDARD_SERVICE_COMPONENT_NAME =
             "fake.package/fake.standard.service.name";
     private static final String SERVICE_NAME_SUMMARY = "Summary";
+    private static final String FAKE_SCREEN_READER_TARGET_NAME = "fake.package/.FakeScreenReader";
+    private static final String FAKE_SELECT_TO_SPEAK_TARGET_NAME =
+            "fake.package/.FakeSelectToSpeak";
+    private static final String FAKE_VOICE_ACCESS_TARGET_NAME = "fake.package/.FakeVoiceAccess";
+
     @Mock
     private IAccessibilityManager mAccessibilityManagerService;
     private TestableContext mContext;
     @UserIdInt
     private int mDefaultUserId;
+    private Resources mMockResources;
 
     @Before
     public void setUp() throws RemoteException {
         MockitoAnnotations.initMocks(this);
-        mContext = new TestableContext(InstrumentationRegistry.getInstrumentation().getContext());
+        mContext =
+                spy(new TestableContext(InstrumentationRegistry.getInstrumentation().getContext()));
         mDefaultUserId = mContext.getContentResolver().getUserId();
+        mMockResources = mock(Resources.class);
 
         AccessibilityManager accessibilityManager =
                 new AccessibilityManager(
@@ -344,6 +363,229 @@ public class ShortcutUtilsTest {
                 shortcutType1 | shortcutType2);
     }
 
+    @Test
+    public void convertToKey_doesNotThrow(
+            @TestParameter(valuesProvider = ShortcutTypeValueProvider.class) int type) {
+        ShortcutUtils.convertToKey(type);
+    }
+
+    @Test
+    public void convertToKey_default_throws() {
+        assertThrows(() -> ShortcutUtils.convertToKey(DEFAULT));
+    }
+
+    @Test
+    public void convertToType_doesNotThrow(
+            @TestParameter(valuesProvider = ShortcutSettingValueProvider.class) String setting) {
+        ShortcutUtils.convertToType(setting);
+    }
+
+    @Test
+    public void convertToType_default_throws() {
+        assertThrows(() -> ShortcutUtils.convertToType("Foo"));
+    }
+
+    @Test
+    public void typeToString_doesNotThrow(
+            @TestParameter(valuesProvider = ShortcutTypeValueProvider.class) int shortcutType) {
+        Assume.assumeFalse("Non user-facing shortcut types are excluded",
+                shortcutType == KEY_GESTURE);
+        Assume.assumeFalse("Quick Access shortcuts are not user facing",
+                shortcutType == QUICK_ACCESS);
+        ShortcutUtils.typeToString(shortcutType);
+    }
+
+    @Test
+    public void typeToString_default_throws() {
+        assertThrows(() -> ShortcutUtils.typeToString(DEFAULT));
+    }
+
+    @Test
+    public void getLabelFromKeyCode_validKeyCode_returnsCorrectLabel() {
+        assertThat(ShortcutUtils.getLabelFromKeyCode(mContext, KeyEvent.KEYCODE_M)).isEqualTo("M");
+        assertThat(ShortcutUtils.getLabelFromKeyCode(mContext, KeyEvent.KEYCODE_S)).isEqualTo("S");
+        assertThat(ShortcutUtils.getLabelFromKeyCode(mContext, KeyEvent.KEYCODE_T)).isEqualTo("T");
+        assertThat(ShortcutUtils.getLabelFromKeyCode(mContext, KeyEvent.KEYCODE_V)).isEqualTo("V");
+    }
+
+    @Test
+    public void getLabelFromKeyCode_invalidKeyCode_returnsNull() {
+        assertThat(ShortcutUtils.getLabelFromKeyCode(mContext, KeyEvent.KEYCODE_A)).isNull();
+    }
+
+    @Test
+    public void getLabelFromKeyCode_keyCodeI_turkishLanguage_returnsCorrectLabel() {
+        setupMockedLanguage("tr");
+        assertThat(ShortcutUtils.getLabelFromKeyCode(mContext,
+                KeyEvent.KEYCODE_I)).isEqualTo("\u0130");
+    }
+
+    @Test
+    public void getLabelFromKeyCode_keyCodeI_notTurkishLanguage_returnsCorrectLabel() {
+        setupMockedLanguage("en");
+        assertThat(ShortcutUtils.getLabelFromKeyCode(mContext, KeyEvent.KEYCODE_I)).isEqualTo("I");
+    }
+
+    @Test
+    public void getKeyCodeLabelFromTarget_magnification_returnsCorrectLabel() {
+        setupMockedLanguage("en");
+        assertThat(ShortcutUtils.getKeyCodeLabelFromTarget(mContext,
+                AccessibilityShortcutController.MAGNIFICATION_CONTROLLER_NAME)).isEqualTo("M");
+    }
+
+    @Test
+    public void getKeyCodeLabelFromTarget_colorInversion_turkishLanguage_returnsCorrectLabel() {
+        setupMockedLanguage("tr");
+        assertThat(ShortcutUtils.getKeyCodeLabelFromTarget(mContext,
+                AccessibilityShortcutController.COLOR_INVERSION_COMPONENT_NAME.flattenToString()))
+                .isEqualTo("\u0130");
+    }
+
+    @Test
+    public void getKeyCodeLabelFromTarget_screenReader_returnsCorrectLabel() {
+        setupMockedLanguage("en");
+        setupMockedConfigString(
+                com.android.internal.R.string.config_defaultAccessibilityService,
+                FAKE_SCREEN_READER_TARGET_NAME);
+        final String screenReaderTarget = ShortcutUtils.getScreenReaderTargetName(mContext);
+        assertThat(ShortcutUtils.getKeyCodeLabelFromTarget(mContext, screenReaderTarget))
+                .isEqualTo("T");
+    }
+
+    @Test
+    public void getKeyCodeLabelFromTarget_screenReaderComponentName_returnsCorrectLabel() {
+        setupMockedLanguage("en");
+        setupMockedConfigString(
+                com.android.internal.R.string.config_defaultAccessibilityService,
+                FAKE_SCREEN_READER_TARGET_NAME);
+        final ComponentName componentName = ComponentName.unflattenFromString(
+                ShortcutUtils.getScreenReaderTargetName(mContext));
+        assertNotNull(componentName);
+
+        final String screenReaderTarget = componentName.flattenToString();
+        assertThat(ShortcutUtils.getKeyCodeLabelFromTarget(mContext, screenReaderTarget))
+                .isEqualTo("T");
+    }
+
+    @Test
+    public void getKeyCodeLabelFromTarget_selectToSpeak_returnsCorrectLabel() {
+        setupMockedLanguage("en");
+        setupMockedConfigString(
+                com.android.internal.R.string.config_defaultSelectToSpeakService,
+                FAKE_SELECT_TO_SPEAK_TARGET_NAME);
+        final String selectToSpeakTarget = ShortcutUtils.getSelectToSpeakTargetName(mContext);
+        assertThat(ShortcutUtils.getKeyCodeLabelFromTarget(mContext, selectToSpeakTarget))
+                .isEqualTo("S");
+    }
+
+    @Test
+    public void getKeyCodeLabelFromTarget_voiceAccess_returnsCorrectLabel() {
+        setupMockedLanguage("en");
+        setupMockedConfigString(
+                com.android.internal.R.string.config_defaultVoiceAccessService,
+                FAKE_VOICE_ACCESS_TARGET_NAME);
+        final String voiceAccessTarget = ShortcutUtils.getVoiceAccessTargetName(mContext);
+        assertThat(ShortcutUtils.getKeyCodeLabelFromTarget(mContext, voiceAccessTarget))
+                .isEqualTo("V");
+    }
+
+    @Test
+    public void getTargetFromKeyGestureEvent_magnification_returnsCorrectTarget() {
+        KeyGestureEvent event = new KeyGestureEvent.Builder().setKeyGestureType(
+                KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_MAGNIFICATION).setKeycodes(
+                    new int[]{KeyEvent.KEYCODE_M}).build();
+        assertThat(ShortcutUtils.getTargetFromKeyGestureEvent(mContext, event))
+                .isEqualTo(AccessibilityShortcutController.MAGNIFICATION_CONTROLLER_NAME);
+    }
+
+    @Test
+    public void getTargetFromKeyGestureEvent_screenReader_returnsCorrectTarget() {
+        setupMockedConfigString(
+                com.android.internal.R.string.config_defaultAccessibilityService,
+                FAKE_SCREEN_READER_TARGET_NAME);
+        final ComponentName componentName = ComponentName.unflattenFromString(
+                ShortcutUtils.getScreenReaderTargetName(mContext));
+        assertNotNull(componentName);
+
+        final String screenReaderTarget = componentName.flattenToString();
+        KeyGestureEvent event = new KeyGestureEvent.Builder().setKeyGestureType(
+                KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_SCREEN_READER).setKeycodes(
+                    new int[]{KeyEvent.KEYCODE_T}).build();
+        assertThat(ShortcutUtils.getTargetFromKeyGestureEvent(mContext, event))
+                .isEqualTo(screenReaderTarget);
+    }
+
+    @Test
+    public void getTargetFromKeyGestureEvent_selectToSpeak_returnsCorrectTarget() {
+        setupMockedConfigString(
+                com.android.internal.R.string.config_defaultSelectToSpeakService,
+                FAKE_SELECT_TO_SPEAK_TARGET_NAME);
+        final ComponentName componentName = ComponentName.unflattenFromString(
+                ShortcutUtils.getSelectToSpeakTargetName(mContext));
+        assertNotNull(componentName);
+
+        final String selectToSpeakTarget = componentName.flattenToString();
+        KeyGestureEvent event = new KeyGestureEvent.Builder().setKeyGestureType(
+                KeyGestureEvent.KEY_GESTURE_TYPE_ACTIVATE_SELECT_TO_SPEAK).setKeycodes(
+                    new int[]{KeyEvent.KEYCODE_S}).build();
+        assertThat(ShortcutUtils.getTargetFromKeyGestureEvent(mContext, event))
+                .isEqualTo(selectToSpeakTarget);
+    }
+
+    @Test
+    public void getTargetFromKeyGestureEvent_voiceAccess_returnsCorrectTarget() {
+        setupMockedConfigString(
+                com.android.internal.R.string.config_defaultVoiceAccessService,
+                FAKE_VOICE_ACCESS_TARGET_NAME);
+        final ComponentName componentName = ComponentName.unflattenFromString(
+                ShortcutUtils.getVoiceAccessTargetName(mContext));
+        assertNotNull(componentName);
+
+        final String voiceAccessTarget = componentName.flattenToString();
+        KeyGestureEvent event = new KeyGestureEvent.Builder().setKeyGestureType(
+                KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_VOICE_ACCESS).setKeycodes(
+                    new int[]{KeyEvent.KEYCODE_V}).build();
+        assertThat(ShortcutUtils.getTargetFromKeyGestureEvent(mContext, event))
+                .isEqualTo(voiceAccessTarget);
+    }
+
+    @Test
+    public void getTargetFromKeyGestureEvent_unsupportedKeyCode_returnsNull() {
+        KeyGestureEvent event = new KeyGestureEvent.Builder().setKeyGestureType(
+                KeyGestureEvent.KEY_GESTURE_TYPE_UNSPECIFIED).build();
+        assertThat(ShortcutUtils.getTargetFromKeyGestureEvent(mContext, event)).isNull();
+    }
+
+    @Test
+    public void getScreenReaderTargetName_mockedContext_returnsFakeName() {
+        setupMockedConfigString(
+                com.android.internal.R.string.config_defaultAccessibilityService,
+                FAKE_SCREEN_READER_TARGET_NAME);
+
+        assertThat(ShortcutUtils.getScreenReaderTargetName(mContext))
+                .isEqualTo(FAKE_SCREEN_READER_TARGET_NAME);
+    }
+
+    @Test
+    public void getSelectToSpeakTargetName_mockedContext_returnsFakeName() {
+        setupMockedConfigString(
+                com.android.internal.R.string.config_defaultSelectToSpeakService,
+                FAKE_SELECT_TO_SPEAK_TARGET_NAME);
+
+        assertThat(ShortcutUtils.getSelectToSpeakTargetName(mContext))
+                .isEqualTo(FAKE_SELECT_TO_SPEAK_TARGET_NAME);
+    }
+
+    @Test
+    public void getVoiceAccessTargetName_mockedContext_returnsFakeName() {
+        setupMockedConfigString(
+                com.android.internal.R.string.config_defaultVoiceAccessService,
+                FAKE_VOICE_ACCESS_TARGET_NAME);
+
+        assertThat(ShortcutUtils.getVoiceAccessTargetName(mContext))
+                .isEqualTo(FAKE_VOICE_ACCESS_TARGET_NAME);
+    }
+
     private void setupShortcutTargets(Set<String> components, String shortcutSettingsKey) {
         final StringJoiner stringJoiner = new StringJoiner(String.valueOf(SERVICES_SEPARATOR));
         for (String target : components) {
@@ -456,5 +698,28 @@ public class ShortcutUtilsTest {
             }
             return values;
         }
+    }
+
+    static final class ShortcutSettingValueProvider implements
+            TestParameter.TestParameterValuesProvider {
+        @Override
+        public List<String> provideValues() {
+            List<String> values = new ArrayList<>();
+            Collections.addAll(values, ShortcutConstants.MAGNIFICATION_SHORTCUT_SETTINGS);
+            return values;
+        }
+    }
+
+    private void setupMockedConfigString(int resId, String value) {
+        doReturn(mMockResources).when(mContext).getResources();
+        when(mMockResources.getString(eq(resId))).thenReturn(value);
+    }
+
+    private void setupMockedLanguage(String language) {
+        final android.content.res.Configuration mockConfig =
+                new android.content.res.Configuration();
+        mockConfig.setLocales(android.os.LocaleList.forLanguageTags(language));
+        doReturn(mMockResources).when(mContext).getResources();
+        when(mMockResources.getConfiguration()).thenReturn(mockConfig);
     }
 }

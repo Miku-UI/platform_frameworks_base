@@ -130,6 +130,7 @@ public class PackageArchiverTest {
                     INSTALLER_PACKAGE,
                     INSTALLER_PACKAGE,
                     Binder.getCallingUid(),
+                    Binder.getCallingUid(),
                     INSTALLER_PACKAGE,
                     /* installerAttributionTag= */ null,
                     /* packageSource= */ 0);
@@ -287,6 +288,7 @@ public class PackageArchiverTest {
                         CALLER_PACKAGE,
                         CALLER_PACKAGE,
                         /* installerPackageName= */ null,
+                        Binder.getCallingUid(),
                         Binder.getCallingUid(),
                         /* updateOwnerPackageName= */ null,
                         /* installerAttributionTag= */ null,
@@ -508,6 +510,7 @@ public class PackageArchiverTest {
                         CALLER_PACKAGE,
                         CALLER_PACKAGE,
                         /* installerPackageName= */ null,
+                        Binder.getCallingUid(),
                         Binder.getCallingUid(),
                         /* updateOwnerPackageName= */ null,
                         /* installerAttributionTag= */ null,

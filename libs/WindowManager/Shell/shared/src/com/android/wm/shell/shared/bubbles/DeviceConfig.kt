@@ -18,24 +18,22 @@ package com.android.wm.shell.shared.bubbles
 
 import android.content.Context
 import android.content.res.Configuration
-import android.content.res.Configuration.ORIENTATION_LANDSCAPE
 import android.graphics.Insets
 import android.graphics.Rect
 import android.view.View.LAYOUT_DIRECTION_RTL
 import android.view.WindowInsets
 import android.view.WindowManager
-import kotlin.math.max
-
 import com.android.wm.shell.shared.ShellSharedConstants.SMALL_TABLET_MAX_EDGE_DP
+import kotlin.math.max
 
 /** Contains device configuration used for positioning bubbles on the screen. */
 data class DeviceConfig(
-        val isLargeScreen: Boolean,
-        val isSmallTablet: Boolean,
-        val isLandscape: Boolean,
-        val isRtl: Boolean,
-        val windowBounds: Rect,
-        val insets: Insets
+    val isLargeScreen: Boolean,
+    val isSmallTablet: Boolean,
+    val isLandscape: Boolean,
+    val isRtl: Boolean,
+    val windowBounds: Rect,
+    val insets: Insets,
 ) {
     companion object {
 
@@ -45,20 +43,28 @@ data class DeviceConfig(
         fun create(context: Context, windowManager: WindowManager): DeviceConfig {
             val windowMetrics = windowManager.currentWindowMetrics
             val metricInsets = windowMetrics.windowInsets
-            val insets = metricInsets.getInsetsIgnoringVisibility(WindowInsets.Type.navigationBars()
-                    or WindowInsets.Type.statusBars()
-                    or WindowInsets.Type.displayCutout())
+            val insets =
+                metricInsets.getInsetsIgnoringVisibility(
+                    WindowInsets.Type.navigationBars() or
+                        WindowInsets.Type.statusBars() or
+                        WindowInsets.Type.displayCutout()
+                )
             val windowBounds = windowMetrics.bounds
+            return create(context, windowBounds, insets)
+        }
+
+        @JvmStatic
+        fun create(context: Context, windowBounds: Rect, insets: Insets): DeviceConfig {
             val config: Configuration = context.resources.configuration
-            val isLandscape = context.resources.configuration.orientation == ORIENTATION_LANDSCAPE
+            val isLandscape = windowBounds.width() > windowBounds.height()
             val isRtl = context.resources.configuration.layoutDirection == LAYOUT_DIRECTION_RTL
             return DeviceConfig(
-                    isLargeScreen = isLargeScreen(config),
-                    isSmallTablet = isSmallTablet(context),
-                    isLandscape = isLandscape,
-                    isRtl = isRtl,
-                    windowBounds = windowBounds,
-                    insets = insets
+                isLargeScreen = isLargeScreen(config),
+                isSmallTablet = isSmallTablet(context),
+                isLandscape = isLandscape,
+                isRtl = isRtl,
+                windowBounds = windowBounds,
+                insets = insets,
             )
         }
 

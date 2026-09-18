@@ -38,19 +38,19 @@ public class TelephonyTimeZoneAlgorithmStatusTest {
 
     @Test
     public void testEquals() {
-        TelephonyTimeZoneAlgorithmStatus one = new TelephonyTimeZoneAlgorithmStatus(
-                DETECTION_ALGORITHM_STATUS_RUNNING);
+        TelephonyTimeZoneAlgorithmStatus one =
+                new TelephonyTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING);
         assertEqualsAndHashCode(one, one);
 
         {
-            TelephonyTimeZoneAlgorithmStatus two = new TelephonyTimeZoneAlgorithmStatus(
-                    DETECTION_ALGORITHM_STATUS_RUNNING);
+            TelephonyTimeZoneAlgorithmStatus two =
+                    new TelephonyTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING);
             assertEqualsAndHashCode(one, two);
         }
 
         {
-            TelephonyTimeZoneAlgorithmStatus three = new TelephonyTimeZoneAlgorithmStatus(
-                    DETECTION_ALGORITHM_STATUS_NOT_RUNNING);
+            TelephonyTimeZoneAlgorithmStatus three =
+                    new TelephonyTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_NOT_RUNNING);
             assertNotEquals(one, three);
             assertNotEquals(three, one);
         }
@@ -61,16 +61,14 @@ public class TelephonyTimeZoneAlgorithmStatusTest {
         // Algorithm running.
         {
             TelephonyTimeZoneAlgorithmStatus locationAlgorithmStatus =
-                    new TelephonyTimeZoneAlgorithmStatus(
-                            DETECTION_ALGORITHM_STATUS_RUNNING);
+                    new TelephonyTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_RUNNING);
             assertRoundTripParcelable(locationAlgorithmStatus);
         }
 
         // Algorithm not running.
         {
             TelephonyTimeZoneAlgorithmStatus locationAlgorithmStatus =
-                    new TelephonyTimeZoneAlgorithmStatus(
-                            DETECTION_ALGORITHM_STATUS_NOT_RUNNING);
+                    new TelephonyTimeZoneAlgorithmStatus(DETECTION_ALGORITHM_STATUS_NOT_RUNNING);
             assertRoundTripParcelable(locationAlgorithmStatus);
         }
     }

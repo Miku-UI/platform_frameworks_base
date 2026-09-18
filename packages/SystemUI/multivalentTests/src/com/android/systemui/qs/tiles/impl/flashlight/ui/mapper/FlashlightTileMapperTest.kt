@@ -265,7 +265,6 @@ class FlashlightTileMapperTest : SysuiTestCase() {
                 .isEqualTo(
                     createFlashlightState(
                         activationState = QSTileState.ActivationState.ACTIVE,
-                        secondaryLabel = "47%",
                         toggleable = true,
                     )
                 )
@@ -289,7 +288,6 @@ class FlashlightTileMapperTest : SysuiTestCase() {
                 .isEqualTo(
                     createFlashlightState(
                         activationState = QSTileState.ActivationState.ACTIVE,
-                        secondaryLabel = "47 %", // extra NBSP
                         toggleable = true,
                     )
                 )
@@ -307,7 +305,10 @@ class FlashlightTileMapperTest : SysuiTestCase() {
 
             assertThat(actual)
                 .isEqualTo(
-                    createFlashlightState(activationState = QSTileState.ActivationState.UNAVAILABLE)
+                    createFlashlightState(
+                        activationState = QSTileState.ActivationState.ACTIVE,
+                        toggleable = true,
+                    )
                 )
         }
 
@@ -323,7 +324,10 @@ class FlashlightTileMapperTest : SysuiTestCase() {
 
             assertThat(actual)
                 .isEqualTo(
-                    createFlashlightState(activationState = QSTileState.ActivationState.UNAVAILABLE)
+                    createFlashlightState(
+                        activationState = QSTileState.ActivationState.ACTIVE,
+                        toggleable = true,
+                    )
                 )
         }
 
@@ -339,7 +343,10 @@ class FlashlightTileMapperTest : SysuiTestCase() {
 
             assertThat(actual)
                 .isEqualTo(
-                    createFlashlightState(activationState = QSTileState.ActivationState.UNAVAILABLE)
+                    createFlashlightState(
+                        activationState = QSTileState.ActivationState.ACTIVE,
+                        toggleable = true,
+                    )
                 )
         }
 
@@ -352,7 +359,10 @@ class FlashlightTileMapperTest : SysuiTestCase() {
 
             assertThat(actual)
                 .isEqualTo(
-                    createFlashlightState(activationState = QSTileState.ActivationState.UNAVAILABLE)
+                    createFlashlightState(
+                        activationState = QSTileState.ActivationState.ACTIVE,
+                        toggleable = true,
+                    )
                 )
         }
 

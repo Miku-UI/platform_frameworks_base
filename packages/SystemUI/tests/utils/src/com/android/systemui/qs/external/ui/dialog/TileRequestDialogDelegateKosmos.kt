@@ -27,7 +27,7 @@ var Kosmos.tileRequestDialogDelegateFactory by
         object : TileRequestDialogDelegate.Factory {
             override fun create(
                 tiledata: TileData,
-                dialogListener: DialogInterface.OnClickListener,
+                dialogListener: DialogInterface.OnMultiChoiceClickListener,
             ): TileRequestDialogDelegate {
                 return TileRequestDialogDelegate(
                     systemUIDialogFactory,

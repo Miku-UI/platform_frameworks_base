@@ -25,6 +25,7 @@ import com.android.systemui.statusbar.phone.HeadsUpAppearanceController
 import java.util.function.Consumer
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
+import java.util.function.BiConsumer
 
 /** Empty implementation of ShadeViewController for variants with no shade. */
 open class ShadeViewControllerEmptyImpl @Inject constructor() :
@@ -114,9 +115,13 @@ open class ShadeViewControllerEmptyImpl @Inject constructor() :
 }
 
 class ShadeHeadsUpTrackerEmptyImpl : ShadeHeadsUpTracker {
-    override fun addTrackingHeadsUpListener(listener: Consumer<ExpandableNotificationRow>) {}
+    override fun addTrackingHeadsUpListener(
+        listener: BiConsumer<ExpandableNotificationRow, String>
+    ) {}
 
-    override fun removeTrackingHeadsUpListener(listener: Consumer<ExpandableNotificationRow>) {}
+    override fun removeTrackingHeadsUpListener(
+        listener: BiConsumer<ExpandableNotificationRow, String>
+    ) {}
 
     override fun setHeadsUpAppearanceController(
         headsUpAppearanceController: HeadsUpAppearanceController?

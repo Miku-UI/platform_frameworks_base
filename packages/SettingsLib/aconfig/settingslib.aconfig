@@ -30,13 +30,6 @@ flag {
 }
 
 flag {
-    name: "enable_le_audio_qr_code_private_broadcast_sharing"
-    namespace: "pixel_cross_device_control"
-    description: "Gates whether to enable LE audio private broadcast sharing via QR code"
-    bug: "388674074"
-}
-
-flag {
     name: "enable_determining_advanced_details_header_with_metadata"
     namespace: "pixel_cross_device_control"
     description: "Use metadata instead of device type to determine whether a bluetooth device should use advanced details header."
@@ -82,7 +75,13 @@ flag {
     description: "Settings catalyst project migration"
     is_exported: true
     bug: "323791114"
-    is_exported: true
+}
+
+flag {
+  name: "metadata_refactor"
+  namespace: "android_settings"
+  description: "Flag for refactoring the infrastructure for a clearer separation between get, device state and metadata"
+  bug: "447037228"
 }
 
 flag {
@@ -92,17 +91,6 @@ flag {
     description: "Enable WRITE_SYSTEM_PREFERENCE permission and appop"
     is_exported: true
     bug: "375193223"
-    is_exported: true
-}
-
-flag {
-    name: "asha_profile_access_profile_enabled_true"
-    namespace: "accessibility"
-    description: "Changes the return value of HearingAidProfile.accessProfileEnabled() to true"
-    bug: "356530795"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -143,13 +131,6 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
-}
-
-flag {
-    name: "hearing_devices_ambient_volume_control"
-    namespace: "accessibility"
-    description: "Enable the ambient volume control in device details and hearing devices dialog."
-    bug: "357878944"
 }
 
 flag {
@@ -221,26 +202,6 @@ flag {
 }
 
 flag {
-    name: "promote_audio_sharing_for_second_auto_connected_lea_device"
-    namespace: "cross_device_experiences"
-    description: "Show audio sharing promote notification or dialog when the second lea device is auto connected"
-    bug: "395786392"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "audio_stream_media_service_by_receive_state"
-    namespace: "cross_device_experiences"
-    description: "Start or update audio stream media service by receive state"
-    bug: "398700619"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "audio_stream_play_pause_by_modify_source"
     namespace: "cross_device_experiences"
     description: "Play pause the audio stream by modify source"
@@ -285,4 +246,28 @@ flag {
     namespace: "cross_device_experiences"
     description: "Enable Bluetooth problem detection and diagnosis"
     bug: "411309851"
+}
+
+flag {
+    name: "enable_limited_app_info_metadata_for_apex"
+    namespace: "modularization"
+    description: "Enable APKs-in-APEX to opt out of limited AppInfo UI behavior"
+    bug: "449011063"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+  name: "add_extra_external_display_density_stops"
+  namespace: "lse_desktop_experience"
+  description: "Add 200% and 300% display density adjustments for external display"
+  bug: "456530370"
+}
+
+flag {
+    name: "hearing_devices_granular_output_routing"
+    namespace: "accessibility"
+    description: "Enables separate routing controls for Notifications and Ringtones & Alarms"
+    bug: "417319636"
 }

@@ -34,7 +34,7 @@ import android.provider.Telephony;
  * A static helper class used to send Intents with prepopulated flags.
  * <p>
  * This is intended to be used by the CellBroadcastService and does nothing if the caller does not
- * have permission to broadcast {@link Telephony.Sms.Intents.SMS_CB_RECEIVED_ACTION}.
+ * have permission to broadcast {@link Telephony.Sms.Intents#SMS_CB_RECEIVED_ACTION}.
  *
  * @hide
  */
@@ -67,7 +67,7 @@ public class CellBroadcastIntents {
      * Broadcasts an SMS_CB_RECEIVED_ACTION intent which can be received by background
      * BroadcastReceivers. This is only intended to be used by the CellBroadcastService and will
      * do nothing if the caller does not have permission to broadcast
-     * {@link Telephony.Sms.Intents.SMS_CB_RECEIVED_ACTION}.
+     * {@link Telephony.Sms.Intents#SMS_CB_RECEIVED_ACTION}.
      *
      * @param context            The context from which to send the broadcast
      * @param user               The user from which to send the broadcast

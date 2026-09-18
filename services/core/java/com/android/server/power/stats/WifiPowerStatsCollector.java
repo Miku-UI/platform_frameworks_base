@@ -245,7 +245,7 @@ public class WifiPowerStatsCollector extends PowerStatsCollector {
                 continue;
             }
 
-            int uid = mUidResolver.mapUid(uidDelta.getUid());
+            int uid = mUidResolver.getOwnerUid(uidDelta.getUid());
             long[] stats = mPowerStats.uidStats.get(uid);
             if (stats == null) {
                 stats = new long[mLayout.getUidStatsArrayLength()];
@@ -280,7 +280,7 @@ public class WifiPowerStatsCollector extends PowerStatsCollector {
             if (scanTimeDelta != 0 || batchScanTimeDelta != 0) {
                 mScanTimes.basicScanTimeMs += scanTimeDelta;
                 mScanTimes.batchedScanTimeMs += batchScanTimeDelta;
-                uid = mUidResolver.mapUid(uid);
+                uid = mUidResolver.getOwnerUid(uid);
                 long[] stats = mPowerStats.uidStats.get(uid);
                 if (stats == null) {
                     stats = new long[mLayout.getUidStatsArrayLength()];

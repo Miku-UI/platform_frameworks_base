@@ -40,7 +40,7 @@ import kotlin.time.toDuration
  * @hide
  */
 class LowLightDreamManager @Inject constructor(
-    @Application private val coroutineScope: CoroutineScope,
+    @param:Application private val coroutineScope: CoroutineScope,
     private val dreamManager: DreamManager,
     private val lowLightTransitionCoordinator: LowLightTransitionCoordinator,
     @param:Named(LowLightDreamModule.LOW_LIGHT_DREAM_COMPONENT)

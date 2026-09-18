@@ -20,6 +20,9 @@ import android.content.Context
 import android.graphics.Point
 import android.graphics.Rect
 import android.graphics.Region
+import android.view.InsetsBoundingRect
+import android.view.WindowInsets.Side.LEFT
+import android.view.WindowInsets.Side.RIGHT
 import com.android.wm.shell.windowdecor.caption.OccludingElement
 import com.android.wm.shell.windowdecor.extension.isRtl
 import com.android.wm.shell.windowdecor.extension.isTransparentCaptionBarAppearance
@@ -165,6 +168,26 @@ object CaptionRegionHelper {
         return boundingRects
     }
 
+    /**
+     * Calculates the bounding rect insets to report based on a caption insets frame and the list of
+     * occluding elements being drawn in the caption by the system.
+     *
+     * Note that the resulting rects are relative to the [captionFrame].
+     */
+    @JvmStatic
+    fun calculateInsetsBoundingRectsInsets(
+        context: Context,
+        captionFrame: Rect,
+        elements: List<OccludingElement>,
+    ): List<InsetsBoundingRect> {
+        val boundingRects = mutableListOf<InsetsBoundingRect>()
+        for (element in elements) {
+            val boundingRect = calculateInsetsBoundingRectLocal(element, captionFrame, context)
+            boundingRects.add(boundingRect)
+        }
+        return boundingRects
+    }
+
     private fun calculateBoundingRectsRegion(
         elements: List<OccludingElement>,
         context: Context,
@@ -220,5 +243,21 @@ object CaptionRegionHelper {
                 }
             }
         }
+    }
+
+    private fun calculateInsetsBoundingRectLocal(
+        element: OccludingElement,
+        captionRect: Rect,
+        context: Context,
+    ): InsetsBoundingRect {
+        val isRtl = context.isRtl
+        val isStart = element.alignment == OccludingElement.Alignment.START
+        return InsetsBoundingRect(
+            if (isRtl xor isStart) LEFT else RIGHT,
+            0,
+            0,
+            element.width,
+            captionRect.height(),
+        )
     }
 }

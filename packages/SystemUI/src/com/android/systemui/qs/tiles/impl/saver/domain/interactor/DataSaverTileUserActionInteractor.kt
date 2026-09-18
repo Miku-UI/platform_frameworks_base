@@ -22,6 +22,7 @@ import android.provider.Settings
 import com.android.internal.jank.InteractionJankMonitor
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
+import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.qs.tiles.base.domain.actions.QSTileIntentUserInputHandler
@@ -96,7 +97,15 @@ constructor(
                                 )
                             )
                             ?.let { controller ->
-                                dialogTransitionAnimator.show(dialog, controller)
+                                if (TransitionAnimator.dynamicTargetResolutionEnabled()) {
+                                    dialogTransitionAnimator.show(
+                                        dialog,
+                                        action.expandable!!::dialogTransitionController,
+                                        controller.cuj,
+                                    )
+                                } else {
+                                    dialogTransitionAnimator.show(dialog, controller)
+                                }
                             } ?: dialog.show()
                     }
                 }

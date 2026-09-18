@@ -132,7 +132,7 @@ private suspend fun <T : ContentKey> animateProgress(
                     // Progress based animation should never overscroll given that the
                     // absoluteDistance exposed to overscroll builders is always 1f and will not
                     // lead to any noticeable transformation.
-                    animation.dragOffset = progress.fastCoerceIn(0f, 1f)
+                    animation.gestureContext.dragOffset = progress.fastCoerceIn(0f, 1f)
                 }
 
                 // Transition committed.

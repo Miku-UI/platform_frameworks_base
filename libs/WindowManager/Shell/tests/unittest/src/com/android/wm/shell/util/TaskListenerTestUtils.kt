@@ -18,12 +18,13 @@ package com.android.wm.shell.util
 
 import android.app.ActivityManager.RunningTaskInfo
 import android.view.SurfaceControl
+import com.android.testing.wm.util.RunningTaskInfoTestInputBuilder
+import com.android.testing.wm.util.SurfaceControlTestInputBuilder
 import com.android.wm.shell.ShellTaskOrganizer.TaskAppearedListener
 import com.android.wm.shell.ShellTaskOrganizer.TaskInfoChangedListener
 import com.android.wm.shell.ShellTaskOrganizer.TaskVanishedListener
 
-@DslMarker
-annotation class TaskListenerTestTagMarker
+@DslMarker annotation class TaskListenerTestTagMarker
 
 // Base class for the TaskListener interfaces Test Context.
 open class BaseTaskListenerTestContext<TL> {
@@ -34,26 +35,21 @@ open class BaseTaskListenerTestContext<TL> {
         builder: RunningTaskInfoTestInputBuilder.(RunningTaskInfo) -> Unit
     ): RunningTaskInfo {
         val runningTaskInfoObj = RunningTaskInfoTestInputBuilder()
-        return RunningTaskInfo().also {
-            runningTaskInfoObj.builder(it)
-        }.apply {
-            inputTaskInfo = this
-        }
+        return RunningTaskInfo()
+            .also { runningTaskInfoObj.builder(it) }
+            .apply { inputTaskInfo = this }
     }
 }
 
 @TaskListenerTestTagMarker
-class TaskAppearedListenerTestContext(
-    private val testSubjectFactory: () -> TaskAppearedListener
-) : BaseTaskListenerTestContext<TaskAppearedListener>() {
+class TaskAppearedListenerTestContext(private val testSubjectFactory: () -> TaskAppearedListener) :
+    BaseTaskListenerTestContext<TaskAppearedListener>() {
 
     private var inputLeash: SurfaceControl = SurfaceControl()
 
     fun leash(builder: SurfaceControlTestInputBuilder.() -> SurfaceControl): SurfaceControl {
         val binderObj = SurfaceControlTestInputBuilder()
-        return binderObj.builder().apply {
-            inputLeash = this
-        }
+        return binderObj.builder().apply { inputLeash = this }
     }
 
     fun validateOnTaskAppeared(verifier: () -> Unit) {
@@ -63,12 +59,10 @@ class TaskAppearedListenerTestContext(
     }
 }
 
-/**
- * Function to run tests for the different [TaskAppearedListener] implementations.
- */
+/** Function to run tests for the different [TaskAppearedListener] implementations. */
 fun testTaskAppearedListener(
     testSubjectFactory: () -> TaskAppearedListener,
-    init: TaskAppearedListenerTestContext.() -> Unit
+    init: TaskAppearedListenerTestContext.() -> Unit,
 ): TaskAppearedListenerTestContext {
     val testContext = TaskAppearedListenerTestContext(testSubjectFactory)
     testContext.init()
@@ -76,9 +70,8 @@ fun testTaskAppearedListener(
 }
 
 @TaskListenerTestTagMarker
-class TaskVanishedListenerTestContext(
-    private val testSubjectFactory: () -> TaskVanishedListener
-) : BaseTaskListenerTestContext<TaskVanishedListener>() {
+class TaskVanishedListenerTestContext(private val testSubjectFactory: () -> TaskVanishedListener) :
+    BaseTaskListenerTestContext<TaskVanishedListener>() {
 
     fun validateOnTaskVanished(verifier: () -> Unit) {
         // We execute the test subject using the input
@@ -87,12 +80,10 @@ class TaskVanishedListenerTestContext(
     }
 }
 
-/**
- * Function to run tests for the different [TaskVanishedListener] implementations.
- */
+/** Function to run tests for the different [TaskVanishedListener] implementations. */
 fun testTaskVanishedListener(
     testSubjectFactory: () -> TaskVanishedListener,
-    init: TaskVanishedListenerTestContext.() -> Unit
+    init: TaskVanishedListenerTestContext.() -> Unit,
 ): TaskVanishedListenerTestContext {
     val testContext = TaskVanishedListenerTestContext(testSubjectFactory)
     testContext.init()
@@ -111,12 +102,10 @@ class TaskInfoChangedListenerTestContext(
     }
 }
 
-/**
- * Function to run tests for the different [TaskInfoChangedListener] implementations.
- */
+/** Function to run tests for the different [TaskInfoChangedListener] implementations. */
 fun testTaskInfoChangedListener(
     testSubjectFactory: () -> TaskInfoChangedListener,
-    init: TaskInfoChangedListenerTestContext.() -> Unit
+    init: TaskInfoChangedListenerTestContext.() -> Unit,
 ): TaskInfoChangedListenerTestContext {
     val testContext = TaskInfoChangedListenerTestContext(testSubjectFactory)
     testContext.init()

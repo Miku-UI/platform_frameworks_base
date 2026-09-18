@@ -61,15 +61,24 @@ public class MoveToDisplayItem extends ActivityTransactionItem {
         CompatibilityInfo.applyOverrideIfNeeded(mConfiguration, mTargetDisplayId);
         // Notify the client of an upcoming change in the token configuration. This ensures that
         // batches of config change items only process the newest configuration.
-        client.updatePendingActivityConfiguration(getActivityToken(), mConfiguration);
+        if (!com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            client.updatePendingActivityConfiguration(getActivityToken(), mConfiguration);
+        } else {
+            client.updatePendingActivityConfiguration(
+                    getActivityToken(), mConfiguration, mActivityWindowInfo, mTargetDisplayId);
+        }
     }
 
     @Override
     public void execute(@NonNull ClientTransactionHandler client, @NonNull ActivityClientRecord r,
             @NonNull PendingTransactionActions pendingActions) {
         Trace.traceBegin(TRACE_TAG_ACTIVITY_MANAGER, "activityMovedToDisplay");
-        client.handleActivityConfigurationChanged(r, mConfiguration, mTargetDisplayId,
-                mActivityWindowInfo);
+        if (!com.android.window.flags.Flags.improveFluidResizingPerformance()) {
+            client.handleActivityConfigurationChanged(r, mConfiguration, mTargetDisplayId,
+                    mActivityWindowInfo);
+        } else {
+            client.handleActivityConfigurationChanged(r);
+        }
         Trace.traceEnd(TRACE_TAG_ACTIVITY_MANAGER);
     }
 

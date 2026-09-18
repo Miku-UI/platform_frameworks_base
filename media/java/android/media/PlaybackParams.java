@@ -186,13 +186,13 @@ public final class PlaybackParams implements Parcelable {
 
     /**
      * Sets the pitch factor.
-     * @param pitch
+     * @param pitch a strictly positive value
      * @return this <code>PlaybackParams</code> instance.
      * @throws IllegalArgumentException if the pitch is negative.
      */
     public PlaybackParams setPitch(float pitch) {
-        if (pitch < 0.f) {
-            throw new IllegalArgumentException("pitch must not be negative");
+        if ((pitch <= 0.f) || Float.isNaN(pitch) || Float.isInfinite(pitch)) {
+            throw new IllegalArgumentException("invalid pitch value " + Float.toString(pitch));
         }
         mPitch = pitch;
         mSet |= SET_PITCH;
@@ -213,10 +213,15 @@ public final class PlaybackParams implements Parcelable {
 
     /**
      * Sets the speed factor.
-     * @param speed
+     * @param speed a non-negative value
      * @return this <code>PlaybackParams</code> instance.
      */
     public PlaybackParams setSpeed(float speed) {
+        if ((speed < 0.f) || Float.isNaN(speed) || Float.isInfinite(speed)) {
+            // not throwing IAE due to API behavior change, but keeping the speed value unchanged
+            android.util.Log.e("PlaybackParams", "invalid speed value " + Float.toString(speed));
+            return this;
+        }
         mSpeed = speed;
         mSet |= SET_SPEED;
         return this;

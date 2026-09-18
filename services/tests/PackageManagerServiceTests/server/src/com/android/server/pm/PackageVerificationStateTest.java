@@ -16,13 +16,30 @@
 
 package com.android.server.pm;
 
+import static android.platform.test.flag.junit.SetFlagsRule.DefaultInitValueType.NULL_DEFAULT;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertArrayEquals;
+
 import android.content.pm.PackageManager;
-import android.content.pm.PackageManagerInternal;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
-import android.test.AndroidTestCase;
+import android.platform.test.flag.junit.SetFlagsRule;
+
+import androidx.test.runner.AndroidJUnit4;
+
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 
 @Presubmit
-public class PackageVerificationStateTest extends AndroidTestCase {
+@RunWith(AndroidJUnit4.class)
+public class PackageVerificationStateTest {
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule(NULL_DEFAULT);
     private static final int REQUIRED_UID_1 = 1948;
 
     private static final int REQUIRED_UID_2 = 1949;
@@ -31,6 +48,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
 
     private static final int SUFFICIENT_UID_2 = 8938;
 
+    @Test
     public void testPackageVerificationState_OnlyRequiredVerifier_AllowedInstall() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -47,6 +65,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testPackageVerificationState_OnlyRequiredVerifier_DeniedInstall() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -63,6 +82,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testPackageVerificationState_TwoRequiredVerifiers_AllowedInstall() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -85,6 +105,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testPackageVerificationState_TwoRequiredVerifiers_DeniedInstall() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -111,6 +132,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testPackageVerificationState_TwoRequiredVerifiers_FirstDeniedInstall() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -137,6 +159,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testPackageVerificationState_TwoRequiredVerifiers_SecondDeniedInstall() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -159,6 +182,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testPackageVerificationState_TwoRequiredVerifiers_SecondTimesOut_DefaultAllow() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -178,6 +202,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
         processOnTimeout(state, PackageManager.VERIFICATION_ALLOW, REQUIRED_UID_2, true);
     }
 
+    @Test
     public void testPackageVerificationState_TwoRequiredVerifiers_SecondTimesOut_DefaultReject() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -222,6 +247,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testPackageVerificationState_TwoRequiredVerifiers_FirstTimesOut_DefaultReject() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -261,7 +287,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
         assertFalse("Verification should not be marked as complete yet",
                 state.isVerificationComplete());
 
-        state.extendTimeout(REQUIRED_UID_2);
+        state.extendTimeout(REQUIRED_UID_2, 1000L);
 
         // Timeout with default ALLOW.
         processOnTimeout(state, PackageManager.VERIFICATION_ALLOW, REQUIRED_UID_1);
@@ -281,6 +307,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testPackageVerificationState_TwoRequiredVerifiers_FirstTimesOut_SecondExtends_DefaultReject() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -291,7 +318,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
         assertFalse("Verification should not be marked as complete yet",
                 state.isVerificationComplete());
 
-        state.extendTimeout(REQUIRED_UID_2);
+        state.extendTimeout(REQUIRED_UID_2, 1000L);
 
         // Timeout with default REJECT.
         processOnTimeout(state, PackageManager.VERIFICATION_REJECT, REQUIRED_UID_1);
@@ -315,6 +342,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testPackageVerificationState_RequiredAndOneSufficient_RequiredDeniedInstall() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -341,6 +369,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testPackageVerificationState_RequiredAndOneSufficient_OneRequiredDeniedInstall() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -369,6 +398,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testPackageVerificationState_RequiredAndOneSufficient_SufficientDeniedInstall() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -395,6 +425,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testPackageVerificationState_RequiredAllow_SufficientTimesOut_DefaultAllow() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -427,7 +458,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isVerificationComplete());
 
         // Extend first.
-        state.extendTimeout(REQUIRED_UID_1);
+        state.extendTimeout(REQUIRED_UID_1, 1000L);
 
         // Required allows.
         state.setVerifierResponse(REQUIRED_UID_1, PackageManager.VERIFICATION_ALLOW);
@@ -436,6 +467,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
         processOnTimeout(state, PackageManager.VERIFICATION_ALLOW, REQUIRED_UID_1, true);
     }
 
+    @Test
     public void testPackageVerificationState_RequiredAllow_SufficientTimesOut_DefaultReject() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -455,6 +487,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
         processOnTimeout(state, PackageManager.VERIFICATION_REJECT, REQUIRED_UID_1, true);
     }
 
+    @Test
     public void testPackageVerificationState_RequiredAndTwoSufficient_OneSufficientIsEnough() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -514,6 +547,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testPackageVerificationState_RequiredAndTwoSufficient_RequiredOverrides() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -553,6 +587,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
                 state.isInstallAllowed());
     }
 
+    @Test
     public void testAreAllVerificationsComplete_timeoutSuccessWithSufficient() {
         PackageVerificationState state = new PackageVerificationState(null);
 
@@ -574,6 +609,7 @@ public class PackageVerificationStateTest extends AndroidTestCase {
         assertTrue(state.isInstallAllowed());
     }
 
+    @Test
     public void testAreAllVerificationsComplete() {
         PackageVerificationState state = new PackageVerificationState(null);
         state.addRequiredVerifierUid(REQUIRED_UID_1);
@@ -582,6 +618,65 @@ public class PackageVerificationStateTest extends AndroidTestCase {
         state.setVerifierResponse(REQUIRED_UID_1, PackageManager.VERIFICATION_ALLOW);
 
         assertTrue(state.areAllVerificationsComplete());
+    }
+
+    @Test
+    public void testPackageVerificationState_negativeDelayConvertedToZero() {
+        PackageVerificationState state = new PackageVerificationState(null);
+        state.addRequiredVerifierUid(REQUIRED_UID_1);
+
+        state.extendTimeout(REQUIRED_UID_1, -200L);
+
+        assertTrue("Total delay equals 0", state.getTotalDelay(REQUIRED_UID_1) == 0L);
+    }
+
+    @Test
+    @EnableFlags(android.content.pm.Flags.FLAG_EXTEND_VERIFICATION_TIMEOUT_MULTIPLE_TIMES)
+    public void testPackageVerificationState_extendTimeoutMultipleTimesAllowed() {
+        PackageVerificationState state = new PackageVerificationState(null);
+        state.addRequiredVerifierUid(REQUIRED_UID_1);
+
+        boolean firstExtendCallValue = state.extendTimeout(REQUIRED_UID_1, 1000L);
+        boolean secondExtendCallValue = state.extendTimeout(REQUIRED_UID_1, 2000L);
+        boolean thirdExtendCallValue = state.extendTimeout(REQUIRED_UID_1, 500L);
+
+        boolean[] expected = {true, true, true};
+        boolean[] actual = {firstExtendCallValue, secondExtendCallValue, thirdExtendCallValue};
+        assertTrue("Timeout extended all three times",
+                state.getTotalDelay(REQUIRED_UID_1) == 3500L);
+        assertArrayEquals("extendTimeout call allowed each time", expected, actual);
+    }
+
+    @Test
+    @DisableFlags(android.content.pm.Flags.FLAG_EXTEND_VERIFICATION_TIMEOUT_MULTIPLE_TIMES)
+    public void testPackageVerificationState_extendTimeoutMultipleTimesNotAllowed() {
+        PackageVerificationState state = new PackageVerificationState(null);
+        state.addRequiredVerifierUid(REQUIRED_UID_1);
+
+        boolean firstExtendCallValue = state.extendTimeout(REQUIRED_UID_1, 1000L);
+        boolean secondExtendCallValue = state.extendTimeout(REQUIRED_UID_1, 2000L);
+
+        boolean[] expected = {true, false};
+        boolean[] actual = {firstExtendCallValue, secondExtendCallValue};
+        assertTrue("Timeout extended only once", state.getTotalDelay(REQUIRED_UID_1) == 1000L);
+        assertArrayEquals("extendTimeout call allowed only once", expected, actual);
+    }
+
+    @Test
+    @EnableFlags(android.content.pm.Flags.FLAG_EXTEND_VERIFICATION_TIMEOUT_MULTIPLE_TIMES)
+    public void testPackageVerificationState_extendTimeoutOnlyToMaxAmount() {
+        PackageVerificationState state = new PackageVerificationState(null);
+        state.addRequiredVerifierUid(REQUIRED_UID_1);
+
+        boolean firstExtendCallValue = state.extendTimeout(REQUIRED_UID_1, 58 * 60 * 1000L);
+        boolean secondExtendCallValue = state.extendTimeout(REQUIRED_UID_1, 2 * 60 * 1000L);
+        boolean thirdExtendCallValue = state.extendTimeout(REQUIRED_UID_1, 2000L);
+
+        boolean[] expected = {true, true, true};
+        boolean[] actual = {firstExtendCallValue, secondExtendCallValue, thirdExtendCallValue};
+        assertTrue("Timeout extended only to max allowed timeout",
+                state.getTotalDelay(REQUIRED_UID_1) == 60 * 60 * 1000L);
+        assertArrayEquals("extendTimeout call allowed each time", expected, actual);
     }
 
     private void processOnTimeout(PackageVerificationState state, int code, int uid) {

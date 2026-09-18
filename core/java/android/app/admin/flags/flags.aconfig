@@ -71,16 +71,6 @@ flag {
 }
 
 flag {
-  name: "dpe_based_on_async_apis_enabled"
-  namespace: "supervision"
-  description: "Whether DPE's synchronous APIs use async APIs."
-  bug: "374123015"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "coexistence_migration_for_supervision_enabled"
   is_exported: true
   namespace: "enterprise"
@@ -169,16 +159,6 @@ flag {
   namespace: "enterprise"
   description: "Improve access to security logging in the context of Zero Trust."
   bug: "295324350"
-}
-
-flag {
-  name: "internal_log_event_listener"
-  namespace: "enterprise"
-  description: "Allow internal listeners to see unfiltered event stream"
-  bug: "385730709"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
 }
 
 flag {
@@ -316,13 +296,6 @@ flag {
 }
 
 flag {
-    name: "backup_connected_apps_settings"
-    namespace: "enterprise"
-    description: "backup and restore connected work and personal apps user settings across devices"
-    bug: "175067666"
-}
-
-flag {
     name: "headless_single_min_target_sdk"
     namespace: "enterprise"
     description: "Only allow DPCs targeting Android V to provision into single user mode"
@@ -363,16 +336,6 @@ flag {
 }
 
 flag {
-    name: "active_admin_cleanup"
-    namespace: "enterprise"
-    description: "Remove ActiveAdmin from EnforcingAdmin and related cleanups"
-    bug: "335663055"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "remove_managed_profile_enabled"
     namespace: "enterprise"
     description: "API that removes a given managed profile."
@@ -402,7 +365,6 @@ flag {
   namespace: "enterprise"
   description: "Split up existing create and provision managed profile API."
   bug: "375382324"
-  is_exported: true
 }
 
 flag {
@@ -471,16 +433,6 @@ flag {
 }
 
 flag {
-  name: "dont_write_is_system_authority"
-  namespace: "enterprise"
-  description: "Stop writing redundant is-system attribute in EnforcingAdmin XML representation ."
-  bug: "336315393"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "cross_profile_widget_provider_bulk_apis"
   namespace: "enterprise"
   description: "Add bulk APIs for cross profile widget providers"
@@ -494,6 +446,14 @@ flag {
   namespace: "enterprise"
   description: "Enable the policy streamlining APIs."
   bug: "434919316"
+}
+
+flag {
+  name: "policy_streamlining_tests"
+  is_exported: false
+  namespace: "enterprise"
+  description: "Enable the tests using the policy streamlining APIs."
+  bug: "454277430"
 }
 
 flag {
@@ -523,16 +483,253 @@ flag {
 }
 
 flag {
-  name: "device_owner_for_all"
-  namespace: "enterprise"
-  description: "Enable any user (not just the Main User) to be a DeviceOwner"
-  bug: "435271558"
-}
-
-flag {
   name: "multi_user_management_device_provisioning"
   is_exported: true
   namespace: "enterprise"
   description: "Enable the multi user management device provisioning APIs."
   bug: "390162247"
+}
+
+flag {
+  name: "policy_streamlining_screen_capture"
+  namespace: "enterprise"
+  description: "Redirect set/getScreenCaptureDisabled to the generic set/getPolicy APIs"
+  bug: "434919316"
+}
+
+flag {
+  name: "common_criteria_mode_coexistence"
+  namespace: "enterprise"
+  description: "Enables coexistence support for setCommonCriteriaModeEnabled"
+  bug: "436799232"
+  is_exported: true
+}
+
+flag {
+  name: "secure_adb_role_bypassing"
+  namespace: "enterprise"
+  description: "Making sure that the existing `adb shell cmd role set-bypassing-role-qualification` command is protected against abuse on MUM devices."
+  bug: "451571955"
+  is_exported: true
+}
+
+flag {
+  name: "introduce_generic_provisioning_error"
+  namespace: "enterprise"
+  description: "Add a generic provisioning error for forward compatibility."
+  bug: "458352522"
+  is_exported: true
+}
+
+flag {
+  name: "multi_user_management_user_provisioning"
+  is_exported: true
+  namespace: "enterprise"
+  description: "Enable the multi user management user provisioning APIs."
+  bug: "390162247"
+}
+
+flag {
+  name: "policy_transparency_refactor_v2"
+  namespace: "enterprise"
+  description: "Refactor policy transparency to use new API during the rollout of policy_transparency_refactor_enabled."
+  bug: "445889973"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "lockscreen_info_coexistence"
+  namespace: "enterprise"
+  description: "Enables coexistence support for setDeviceOwnerLockScreenInfo"
+  bug: "457343029"
+  is_exported: true
+}
+
+flag {
+  name: "enable_nullable_admin_component"
+  namespace: "enterprise"
+  description: "Enable passing a null admin component to DPM.enableSystemApp and DPM.setPermissionPolicy."
+  bug: "346490174"
+  is_exported: true
+}
+
+flag {
+  name: "managed_device_definition_extended"
+  is_exported: false
+  namespace: "enterprise"
+  description: "Extend the definition of managed device to include COPE and MUM"
+  bug: "451607072"
+  metadata {
+      purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "managed_esim_outgoing_transfer_policy"
+  namespace: "enterprise"
+  description: "Adds a new API for setting the outgoing transfer policy of managed eSIMs"
+  bug: "461421887"
+  is_exported: true
+}
+
+flag {
+  name: "increase_watch_strong_auth_timeout"
+  namespace: "cross_device_access_service"
+  description: "Increase the watch strong auth timeout to 14 days."
+  bug: "461907039"
+}
+
+flag {
+  name: "policy_streamlining_auto_time"
+  namespace: "enterprise"
+  description: "Redirect set/getAutoTimeEnabled to the generic set/getPolicy APIs."
+  bug: "434919316"
+  is_exported: true
+}
+
+flag {
+  name: "keychain_suppress_certificate_selections"
+  namespace: "enterprise"
+  description: "Feature flag to enable keychain to suppress certificate selection"
+  bug: "424869636"
+  is_exported: true
+}
+
+
+flag {
+    name: "user_control_disabled_packages_settings_fix"
+    namespace: "enterprise"
+    description: "Controls a fix for the user_control_disabled_packages policy. When this policy is active, this flag ensures that users are prevented from clearing app storage or cache in the Settings app."
+    bug: "407764721"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+  name: "use_hardened_frp_active_check"
+  namespace: "enterprise"
+  description: "Use hardened FRP active check during ChooseLockGeneric creation"
+  bug: "481171742"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "policy_streamlining_maximum_time_to_lock"
+  namespace: "enterprise"
+  description: "Redirect set/getMaximumTimeToLock to the generic set/getPolicy APIs."
+  bug: "444381053"
+}
+
+flag {
+  name: "check_personal_suspension_for_all_profiles"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+  namespace: "enterprise"
+  description: "When ACTION_DATE_CHANGED or ACTION_TIME_CHANGED is received, iterates through all managed profiles on the device to determine if personal apps should be suspended, instead of relying on the main user setting."
+  bug: "470176722"
+}
+
+flag {
+  name: "add_user_info_in_profile_off_deadline_alarm"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+  namespace: "enterprise"
+  description: "Attach user info to the profile off deadline alarm, to avoid relying on the main user setting."
+  bug: "470176722"
+}
+
+flag {
+  name: "policy_streamlining_auto_time_zone"
+  namespace: "enterprise"
+  description: "Redirect set/getAutoTimeZoneEnabled to the generic set/getPolicy APIs."
+  bug: "434919316"
+  is_exported: true
+}
+
+flag {
+  name: "push_dpc_packages_to_system_services"
+  namespace: "enterprise"
+  description: "Update the methods that push the device/profile owner packages to system services to use more generic names."
+  bug: "481619042"
+}
+
+flag {
+  name: "policy_streamlining_app_install"
+  namespace: "enterprise"
+  description: "Redirect app install policy to the generic set/getPolicy APIs"
+  bug: "444381314"
+  is_exported: true
+}
+
+flag {
+  name: "policy_streamlining_app_uninstall"
+  namespace: "enterprise"
+  description: "Redirect app uninstall policy to the generic set/getPolicy APIs"
+  bug: "444381314"
+  is_exported: true
+}
+
+flag {
+  name: "policy_streamlining_easter_eggs"
+  namespace: "enterprise"
+  description: "Redirect addUserRestriction/getUserRestriction for DISALLOW_FUN to the generic set/getPolicy APIs."
+  bug: "444381084"
+  is_exported: true
+}
+
+flag {
+  name: "policy_streamlining_lockscreen_message"
+  namespace: "enterprise"
+  description: "Implement setDeviceOwnerLockScreenInfo as a generic setPolicy API"
+  bug: "491048428"
+  is_exported: true
+}
+
+flag {
+  name: "policy_streamlining_keyguard_status"
+  namespace: "enterprise"
+  description: "Redirect setKeyguardDisabled to the generic setPolicy APIs"
+  bug: "434919316"
+  is_exported: true
+}
+
+flag {
+  name: "policy_streamlining_bluetooth_sharing"
+  namespace: "enterprise"
+  description: "Redirect DISALLOW_BLUETOOTH_SHARING to the generic set/getPolicy APIs"
+  bug: "444379417"
+  is_exported: true
+}
+
+flag {
+  name: "policy_streamlining_disallow_factory_reset"
+  is_exported: true
+  namespace: "enterprise"
+  description: "Policy streamlining for the DISALLOW_FACTORY_RESET API."
+  bug: "444380537"
+}
+
+flag {
+  name: "policy_streamlining_screen_capture_api"
+  is_exported: true
+  namespace: "enterprise"
+  description: "Policy streamlining for the SCREEN_CAPTURE API."
+  bug: "434919316"
+}
+
+flag {
+  name: "wipe_device_when_wiped_user_is_last_admin"
+  namespace: "enterprise"
+  description: "Wipe the device instead of the user when the latter is the last admin in the device."
+  bug: "480237028"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
 }

@@ -18,6 +18,8 @@ package com.android.server.criticalevents;
 
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.SystemClock;
+import android.os.SystemProperties;
 import android.server.ServerProtoEnums;
 import android.util.Slog;
 
@@ -140,8 +142,8 @@ public class CriticalEventLog {
     }
 
     @VisibleForTesting
-    protected long getWallTimeMillis() {
-        return System.currentTimeMillis();
+    protected long getUptimeMillis() {
+        return SystemClock.uptimeMillis();
     }
 
    /** Logs when a uid sends an excessive number of binder calls. */
@@ -162,8 +164,10 @@ public class CriticalEventLog {
 
     /** Logs when system server started. */
     public void logSystemServerStarted() {
+        SystemServerStarted started = new SystemServerStarted();
+        started.startCount = SystemProperties.getInt("sys.system_server.start_count", 0);
         CriticalEventProto event = new CriticalEventProto();
-        event.setSystemServerStarted(new SystemServerStarted());
+        event.setSystemServerStarted(started);
         log(event);
     }
 
@@ -251,7 +255,7 @@ public class CriticalEventLog {
     }
 
     private void log(CriticalEventProto event) {
-        event.timestampMs = getWallTimeMillis();
+        event.timestampMs = getUptimeMillis();
         appendAndSave(event);
     }
 
@@ -305,7 +309,7 @@ public class CriticalEventLog {
     protected CriticalEventLogProto getOutputLogProto(int traceProcessClassEnum,
             String traceProcessName, int traceUid) {
         CriticalEventLogProto log = new CriticalEventLogProto();
-        log.timestampMs = getWallTimeMillis();
+        log.timestampMs = getUptimeMillis();
         log.windowMs = mWindowMs;
         log.capacity = mEvents.capacity();
 
@@ -368,14 +372,14 @@ public class CriticalEventLog {
      */
     @VisibleForTesting
     protected long saveDelayMs() {
-        final long nowMs = getWallTimeMillis();
+        final long nowMs = getUptimeMillis();
         return Math.max(0,
                 mLastSaveAttemptMs + mMinTimeBetweenSavesMs - nowMs);
     }
 
     @VisibleForTesting
     protected void saveLogToFileNow() {
-        mLastSaveAttemptMs = getWallTimeMillis();
+        mLastSaveAttemptMs = getUptimeMillis();
 
         File logDir = mLogFile.getParentFile();
         if (!logDir.exists()) {

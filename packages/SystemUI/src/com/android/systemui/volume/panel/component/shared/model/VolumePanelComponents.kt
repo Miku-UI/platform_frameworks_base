@@ -27,4 +27,5 @@ object VolumePanelComponents {
     const val CAPTIONING: VolumePanelComponentKey = "captioning"
     const val SPATIAL_AUDIO: VolumePanelComponentKey = "spatial_audio"
     const val ANC: VolumePanelComponentKey = "anc"
+    const val MNC: VolumePanelComponentKey = "mnc"
 }

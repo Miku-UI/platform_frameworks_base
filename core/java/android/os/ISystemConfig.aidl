@@ -18,6 +18,7 @@ package android.os;
 
 import android.content.ComponentName;
 import android.os.Bundle;
+import android.content.pm.SignedPackage;
 import android.content.pm.SignedPackageParcel;
 
 /**
@@ -63,10 +64,20 @@ interface ISystemConfig {
     /**
      * @see SystemConfigManager#getEnhancedConfirmationTrustedPackages
      */
-    List<SignedPackageParcel> getEnhancedConfirmationTrustedPackages();
+    List<SignedPackage> getEnhancedConfirmationTrustedPackages();
+
+    /**
+     * @see SystemConfigManager#getEnhancedConfirmationTrustedPackages
+     */
+    List<SignedPackageParcel> getEnhancedConfirmationTrustedPackagesLegacy();
 
     /**
      * @see SystemConfigManager#getEnhancedConfirmationTrustedInstallers
      */
-    List<SignedPackageParcel> getEnhancedConfirmationTrustedInstallers();
+    List<SignedPackage> getEnhancedConfirmationTrustedInstallers();
+
+    /**
+     * @see SystemConfigManager#getEnhancedConfirmationTrustedInstallers
+     */
+    List<SignedPackageParcel> getEnhancedConfirmationTrustedInstallersLegacy();
 }

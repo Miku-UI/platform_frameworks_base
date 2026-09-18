@@ -21,11 +21,8 @@
     android:id="@+id/icon_frame"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:minWidth="@dimen/settingslib_expressive_space_medium4"
-    android:gravity="top|start"
-    android:layout_marginTop="@dimen/settingslib_expressive_space_small1"
     android:paddingStart="@dimen/settingslib_expressive_space_extrasmall4"
-    android:paddingEnd="@dimen/settingslib_expressive_space_small1">
+    android:paddingEnd="@dimen/settingslib_expressive_space_extrasmall4">
 
     <androidx.preference.internal.PreferenceImageView
         android:id="@android:id/icon"

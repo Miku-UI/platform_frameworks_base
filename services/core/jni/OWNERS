@@ -1,6 +1,9 @@
 # Input
 per-file com_android_server_input_* = file:/INPUT_OWNERS
 
+# Attention
+per-file com_android_server_attention_* = file:/core/java/android/attention/OWNERS
+
 # Power
 per-file com_android_server_HardwarePropertiesManagerService.cpp = file:/services/core/java/com/android/server/power/OWNERS
 per-file com_android_server_power_* = file:/services/core/java/com/android/server/power/OWNERS
@@ -13,7 +16,7 @@ per-file com_android_server_SystemClock* = file:/services/core/java/com/android/
 per-file com_android_server_Usb* = file:/services/usb/OWNERS
 per-file com_android_server_Vibrator* = file:/services/core/java/com/android/server/vibrator/OWNERS
 per-file com_android_server_accessibility_* = file:/services/accessibility/OWNERS
-per-file com_android_server_adb_* = file:/services/core/java/com/android/server/adb/OWNERS
+per-file com_android_server_adb_* = file:/ADB_OWNERS
 per-file com_android_server_display_* = file:/services/core/java/com/android/server/display/OWNERS
 per-file com_android_server_hdmi_* = file:/core/java/android/hardware/hdmi/OWNERS
 per-file com_android_server_lights_* = file:/services/core/java/com/android/server/lights/OWNERS
@@ -31,6 +34,7 @@ per-file com_android_server_am_CachedAppOptimizer.cpp = file:/PERFORMANCE_OWNERS
 per-file com_android_server_am_Freezer.cpp = file:/PERFORMANCE_OWNERS
 per-file com_android_server_utils_LazyJniRegistrar.cpp = file:/PERFORMANCE_OWNERS
 per-file com_android_server_stats_pull_StatsPullAtomService.cpp = file:/services/core/jni/stats/OWNERS
+per-file *MemoryLimiter* = file:/PERFORMANCE_OWNERS
 
 # Memory
 per-file com_android_server_am_OomConnection.cpp = file:/MEMORY_OWNERS

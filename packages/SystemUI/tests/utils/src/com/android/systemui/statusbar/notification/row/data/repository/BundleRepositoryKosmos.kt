@@ -23,7 +23,8 @@ val Kosmos.testBundleRepository by
         BundleRepository(
             TEST_BUNDLE_SPEC.titleText,
             TEST_BUNDLE_SPEC.icon,
-            TEST_BUNDLE_SPEC.summaryText,
+            TEST_BUNDLE_SPEC.summaryTextRes,
+            summaryText = null,
             TEST_BUNDLE_SPEC.bundleType,
         )
     }

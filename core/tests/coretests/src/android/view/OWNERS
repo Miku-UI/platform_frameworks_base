@@ -17,6 +17,10 @@ per-file *Window*  = file:/services/core/java/com/android/server/wm/OWNERS
 per-file *ContentRecord*  = file:/services/core/java/com/android/server/wm/OWNERS
 per-file SurfaceControlTest.java  = file:/services/core/java/com/android/server/wm/OWNERS
 
+# Display
+per-file Display*.java = file:/services/core/java/com/android/server/display/OWNERS
+per-file Display*.kt = file:/services/core/java/com/android/server/display/OWNERS
+
 # Scroll Capture
 per-file *ScrollCapture*.java = file:/packages/SystemUI/src/com/android/systemui/screenshot/OWNERS
 

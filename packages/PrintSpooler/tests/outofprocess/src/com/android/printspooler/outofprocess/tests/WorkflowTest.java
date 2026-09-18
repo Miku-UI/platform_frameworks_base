@@ -18,19 +18,10 @@ package com.android.printspooler.outofprocess.tests;
 
 import static org.junit.Assert.assertNotNull;
 
-import android.graphics.pdf.PdfDocument;
-import android.os.Bundle;
-import android.os.CancellationSignal;
-import android.os.ParcelFileDescriptor;
-import android.print.PageRange;
 import android.print.PrintAttributes;
-import android.print.PrintDocumentAdapter;
-import android.print.PrintDocumentInfo;
 import android.print.PrinterCapabilitiesInfo;
 import android.print.PrinterId;
 import android.print.PrinterInfo;
-import android.print.pdf.PrintedPdfDocument;
-import android.print.test.BasePrintTest;
 import android.print.test.services.AddPrintersActivity;
 import android.print.test.services.FirstPrintService;
 import android.print.test.services.PrinterDiscoverySessionCallbacks;
@@ -39,9 +30,6 @@ import android.util.Log;
 
 import androidx.test.filters.LargeTest;
 import androidx.test.uiautomator.By;
-import androidx.test.uiautomator.UiDevice;
-import androidx.test.uiautomator.UiObject;
-import androidx.test.uiautomator.UiObjectNotFoundException;
 import androidx.test.uiautomator.UiSelector;
 import androidx.test.uiautomator.Until;
 
@@ -49,19 +37,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
-import java.util.function.Supplier;
 
-/**
- * Tests for the basic printing workflows
- */
+/** Tests for the basic printing workflows */
 @RunWith(Parameterized.class)
-public class WorkflowTest extends BasePrintTest {
+public class WorkflowTest extends PrintSpoolerBaseTest {
     private static final String LOG_TAG = WorkflowTest.class.getSimpleName();
 
     private PrintAttributes.MediaSize mFirst;
@@ -73,33 +55,6 @@ public class WorkflowTest extends BasePrintTest {
         mFirst = first;
         mSelectPrinter = selectPrinter;
         mSecond = second;
-    }
-
-    interface InterruptableConsumer<T> {
-        void accept(T t) throws InterruptedException;
-    }
-
-    public static UiDevice getUiDevice() {
-        return UiDevice.getInstance(getInstrumentation());
-    }
-
-    /**
-     * Execute {@code waiter} until {@code condition} is met.
-     *
-     * @param condition Conditions to wait for
-     * @param waiter    Code to execute while waiting
-     */
-    private void waitWithTimeout(Supplier<Boolean> condition, InterruptableConsumer<Long> waiter)
-            throws TimeoutException, InterruptedException {
-        long startTime = System.currentTimeMillis();
-        while (condition.get()) {
-            long timeLeft = OPERATION_TIMEOUT_MILLIS - (System.currentTimeMillis() - startTime);
-            if (timeLeft < 0) {
-                throw new TimeoutException();
-            }
-
-            waiter.accept(timeLeft);
-        }
     }
 
     /** Add a printer with a given name and supported mediasize to a session */
@@ -129,26 +84,6 @@ public class WorkflowTest extends BasePrintTest {
 
         printers.add(printerInfo);
         session.addPrinters(printers);
-    }
-
-    /** Find a certain element in the UI and click on it */
-    private void clickOn(UiSelector selector) throws UiObjectNotFoundException {
-        Log.i(LOG_TAG, "Click on " + selector);
-        UiObject view = getUiDevice().findObject(selector);
-        view.click();
-        getUiDevice().waitForIdle();
-    }
-
-    /** Find a certain text in the UI and click on it */
-    private void clickOnText(String text) throws UiObjectNotFoundException {
-        clickOn(new UiSelector().text(text));
-    }
-
-    /** Set the printer in the print activity */
-    private void setPrinter(String printerName) throws UiObjectNotFoundException {
-        clickOn(new UiSelector().resourceId("com.android.printspooler:id/destination_spinner"));
-
-        clickOnText(printerName);
     }
 
     /**
@@ -192,60 +127,6 @@ public class WorkflowTest extends BasePrintTest {
                             return null;
                         }
                 ), null, null));
-    }
-
-    /**
-     * Start print operation that just prints a single empty page
-     *
-     * @param printAttributesRef Where to store the reference to the print attributes once started
-     */
-    private void print(PrintAttributes[] printAttributesRef) {
-        print(new PrintDocumentAdapter() {
-            @Override
-            public void onStart() {
-            }
-
-            @Override
-            public void onLayout(PrintAttributes oldAttributes, PrintAttributes newAttributes,
-                    CancellationSignal cancellationSignal, LayoutResultCallback callback,
-                    Bundle extras) {
-                callback.onLayoutFinished((new PrintDocumentInfo.Builder("doc")).build(),
-                        !newAttributes.equals(printAttributesRef[0]));
-
-                synchronized (printAttributesRef) {
-                    printAttributesRef[0] = newAttributes;
-                    printAttributesRef.notifyAll();
-                }
-            }
-
-            @Override
-            public void onWrite(PageRange[] pages, ParcelFileDescriptor destination,
-                    CancellationSignal cancellationSignal, WriteResultCallback callback) {
-                try {
-                    try {
-                        PrintedPdfDocument document = new PrintedPdfDocument(getActivity(),
-                                printAttributesRef[0]);
-                        try {
-                            PdfDocument.Page page = document.startPage(0);
-                            document.finishPage(page);
-                            try (FileOutputStream os = new FileOutputStream(
-                                    destination.getFileDescriptor())) {
-                                document.writeTo(os);
-                                os.flush();
-                            }
-                        } finally {
-                            document.close();
-                        }
-                    } finally {
-                        destination.close();
-                    }
-
-                    callback.onWriteFinished(pages);
-                } catch (IOException e) {
-                    callback.onWriteFailed(e.getMessage());
-                }
-            }
-        }, (PrintAttributes) null);
     }
 
     @Parameterized.Parameters

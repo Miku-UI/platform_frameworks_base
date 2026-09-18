@@ -181,9 +181,8 @@ public class CarrierIdentifier implements Parcelable {
         if (this == obj) {
             return true;
         }
-        if (obj == null || getClass() != obj.getClass()) {
-            return false;
-        }
+
+        if (!(obj instanceof CarrierIdentifier)) return false;
 
         CarrierIdentifier that = (CarrierIdentifier) obj;
         return Objects.equals(mMcc, that.mMcc)

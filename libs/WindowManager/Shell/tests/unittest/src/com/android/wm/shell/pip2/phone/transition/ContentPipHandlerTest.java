@@ -46,11 +46,11 @@ import android.window.TransitionInfo;
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import com.android.testing.wm.util.TransitionInfoBuilder;
 import com.android.wm.shell.R;
 import com.android.wm.shell.pip2.PipSurfaceTransactionHelper;
 import com.android.wm.shell.pip2.animation.PipResizeAnimator;
 import com.android.wm.shell.pip2.phone.PipTransitionState;
-import com.android.wm.shell.transition.TransitionInfoBuilder;
 import com.android.wm.shell.transition.Transitions;
 
 import junit.framework.Assert;

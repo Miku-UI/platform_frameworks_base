@@ -22,11 +22,11 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.util.kotlin.emitOnStart
+import com.android.systemui.util.kotlin.mapDirect
 import javax.inject.Inject
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.mapLatest
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @SysUISingleton
@@ -39,13 +39,13 @@ constructor(
     val useExtraLargeTiles: Flow<Boolean> =
         configurationRepository.onConfigurationChange
             .emitOnStart()
-            .mapLatest { currentUseExtraLargeTiles }
+            .mapDirect { currentUseExtraLargeTiles }
             .distinctUntilChanged()
 
     val tileMaxWidth: Flow<Int> =
         configurationRepository.onConfigurationChange
             .emitOnStart()
-            .mapLatest { currentTileMaxWidth }
+            .mapDirect { currentTileMaxWidth }
             .distinctUntilChanged()
 
     val defaultTileMaxWidth: Int = DEFAULT_LARGE_TILE_WIDTH

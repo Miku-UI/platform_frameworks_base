@@ -36,6 +36,8 @@ import com.android.internal.logging.UiEventLogger
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.UiBackground
 import com.android.systemui.lottie.await
+import com.android.systemui.qs.panels.ui.viewmodel.DetailsViewModel
+import com.android.systemui.qs.tiles.dialog.AudioDetailsViewModel
 import com.android.systemui.res.R
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialog
 import com.android.systemui.volume.dialog.settings.domain.VolumeDialogSettingsButtonInteractor
@@ -73,6 +75,8 @@ constructor(
     mediaOutputInteractor: MediaOutputInteractor,
     private val mediaDeviceSessionInteractor: MediaDeviceSessionInteractor,
     private val interactor: VolumeDialogSettingsButtonInteractor,
+    private val detailsViewModel: DetailsViewModel,
+    private val audioDetailsViewModelFactory: AudioDetailsViewModel.Factory,
     private val uiEventLogger: UiEventLogger,
 ) {
 
@@ -98,7 +102,7 @@ constructor(
                             LottieCompositionFactory.fromRawRes(context, R.raw.audio_bars_out)
                                 .await()
                                 .toDrawable { setColor(color) },
-                        idle = context.getDrawable(R.drawable.audio_bars_idle)!!,
+                        idle = context.getDrawable(R.drawable.ic_tuner)!!,
                     )
                 )
             }
@@ -163,6 +167,9 @@ constructor(
 
     fun onButtonClicked() {
         interactor.onButtonClicked()
+        if (interactor.isExpandedAudioTileDetailsEnabled()) {
+            detailsViewModel.onVolumeSettingsButtonClicked(audioDetailsViewModelFactory.create())
+        }
         uiEventLogger.log(VolumeDialogUiEvent.VOLUME_DIALOG_SETTINGS_CLICK)
     }
 

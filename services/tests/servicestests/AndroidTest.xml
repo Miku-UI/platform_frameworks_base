@@ -23,6 +23,10 @@
                 value="/data/local/tmp/cts/content/SimpleServiceTestApp3.apk" />
         <option name="push-file" key="broken_shortcut.xml"
                 value="/data/local/tmp/cts/content/broken_shortcut.xml" />
+        <option name="push-file" key="test_system_supplemental_security_patches.xml"
+                value="/data/local/tmp/test_system_supplemental_security_patches.xml" />
+        <option name="push-file" key="test_vendor_supplemental_security_patches.xml"
+                value="/data/local/tmp/test_vendor_supplemental_security_patches.xml" />
     </target_preparer>
 
     <target_preparer class="com.android.tradefed.targetprep.DeviceSetup">

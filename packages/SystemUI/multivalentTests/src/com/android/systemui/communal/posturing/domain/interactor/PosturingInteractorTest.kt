@@ -19,7 +19,6 @@ package com.android.systemui.communal.posturing.domain.interactor
 import android.hardware.Sensor
 import android.hardware.TriggerEventListener
 import android.platform.test.annotations.EnableFlags
-import android.service.dreams.Flags.FLAG_ALLOW_DREAM_WHEN_POSTURED
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -49,7 +48,6 @@ import org.mockito.kotlin.stub
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(FLAG_ALLOW_DREAM_WHEN_POSTURED)
 class PosturingInteractorTest : SysuiTestCase() {
 
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
@@ -65,7 +63,7 @@ class PosturingInteractorTest : SysuiTestCase() {
             posturingRepository.fake.emitPositionState(
                 PositionState(
                     stationary = ConfidenceLevel.Positive(confidence = 1f),
-                    orientation = ConfidenceLevel.Positive(confidence = 1f),
+                    postured = ConfidenceLevel.Positive(confidence = 1f),
                 )
             )
 
@@ -82,7 +80,7 @@ class PosturingInteractorTest : SysuiTestCase() {
             posturingRepository.fake.emitPositionState(
                 PositionState(
                     stationary = ConfidenceLevel.Positive(confidence = 1f),
-                    orientation = ConfidenceLevel.Positive(confidence = 0.2f),
+                    postured = ConfidenceLevel.Positive(confidence = 0.2f),
                 )
             )
 
@@ -99,7 +97,7 @@ class PosturingInteractorTest : SysuiTestCase() {
             posturingRepository.fake.emitPositionState(
                 PositionState(
                     stationary = ConfidenceLevel.Positive(confidence = 1f),
-                    orientation = ConfidenceLevel.Positive(confidence = 0.2f),
+                    postured = ConfidenceLevel.Positive(confidence = 0.2f),
                 )
             )
 
@@ -116,7 +114,7 @@ class PosturingInteractorTest : SysuiTestCase() {
             posturingRepository.fake.emitPositionState(
                 PositionState(
                     stationary = ConfidenceLevel.Positive(confidence = 1f),
-                    orientation = ConfidenceLevel.Positive(confidence = 0.2f),
+                    postured = ConfidenceLevel.Positive(confidence = 0.2f),
                 )
             )
 
@@ -127,7 +125,7 @@ class PosturingInteractorTest : SysuiTestCase() {
             posturingRepository.fake.emitPositionState(
                 PositionState(
                     stationary = ConfidenceLevel.Positive(confidence = 1f),
-                    orientation = ConfidenceLevel.Positive(confidence = 1f),
+                    postured = ConfidenceLevel.Positive(confidence = 1f),
                 )
             )
             assertThat(postured).isFalse()
@@ -157,7 +155,7 @@ class PosturingInteractorTest : SysuiTestCase() {
             posturingRepository.fake.emitPositionState(
                 PositionState(
                     stationary = ConfidenceLevel.Positive(confidence = 1f),
-                    orientation = ConfidenceLevel.Positive(confidence = 1f),
+                    postured = ConfidenceLevel.Positive(confidence = 1f),
                 )
             )
 
@@ -188,7 +186,7 @@ class PosturingInteractorTest : SysuiTestCase() {
                 posturingRepository.fake.emitPositionState(
                     PositionState(
                         stationary = ConfidenceLevel.Positive(confidence = 1f),
-                        orientation = ConfidenceLevel.Positive(confidence = 1f),
+                        postured = ConfidenceLevel.Positive(confidence = 1f),
                     )
                 )
             }
@@ -215,7 +213,7 @@ class PosturingInteractorTest : SysuiTestCase() {
             posturingRepository.fake.emitPositionState(
                 PositionState(
                     stationary = ConfidenceLevel.Positive(confidence = 1f),
-                    orientation = ConfidenceLevel.Positive(confidence = 1f),
+                    postured = ConfidenceLevel.Positive(confidence = 1f),
                 )
             )
 
@@ -243,7 +241,7 @@ class PosturingInteractorTest : SysuiTestCase() {
             posturingRepository.fake.emitPositionState(
                 PositionState(
                     stationary = ConfidenceLevel.Positive(confidence = 1f),
-                    orientation = ConfidenceLevel.Positive(confidence = 1f),
+                    postured = ConfidenceLevel.Positive(confidence = 1f),
                 )
             )
 
@@ -267,7 +265,7 @@ class PosturingInteractorTest : SysuiTestCase() {
             posturingRepository.fake.emitPositionState(
                 PositionState(
                     stationary = ConfidenceLevel.Negative(confidence = 1f),
-                    orientation = ConfidenceLevel.Positive(confidence = 1f),
+                    postured = ConfidenceLevel.Positive(confidence = 1f),
                 )
             )
 
@@ -281,7 +279,7 @@ class PosturingInteractorTest : SysuiTestCase() {
             posturingRepository.fake.emitPositionState(
                 PositionState(
                     stationary = ConfidenceLevel.Positive(confidence = 0.5f),
-                    orientation = ConfidenceLevel.Positive(confidence = 1f),
+                    postured = ConfidenceLevel.Positive(confidence = 1f),
                 )
             )
 
@@ -295,7 +293,7 @@ class PosturingInteractorTest : SysuiTestCase() {
             posturingRepository.fake.emitPositionState(
                 PositionState(
                     stationary = ConfidenceLevel.Positive(confidence = 1f),
-                    orientation = ConfidenceLevel.Positive(confidence = 1f),
+                    postured = ConfidenceLevel.Positive(confidence = 1f),
                 )
             )
 

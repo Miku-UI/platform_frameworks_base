@@ -36,8 +36,8 @@
     <string name="status_bar_settings_auto_rotation" msgid="8329080442278431708">"অটো-রোটেট স্ক্রিন"</string>
     <string name="usb_device_permission_prompt" msgid="4414719028369181772">"<xliff:g id="APPLICATION">%1$s</xliff:g> কে <xliff:g id="USB_DEVICE">%2$s</xliff:g> অ্যাক্সেস করতে দেবেন?"</string>
     <string name="usb_device_permission_prompt_warn" msgid="2309129784984063656">"<xliff:g id="USB_DEVICE">%2$s</xliff:g> অ্যাক্সেস করতে <xliff:g id="APPLICATION">%1$s</xliff:g>-কে কি অনুমতি দেবেন?\nএই অ্যাপকে রেকর্ড করার অনুমতি দেওয়া হয়নি কিন্তু USB ডিভাইসের মাধ্যমে সেটি অডিও রেকর্ড করতে পারে।"</string>
-    <string name="usb_audio_device_permission_prompt_title" msgid="4221351137250093451">"<xliff:g id="USB_DEVICE">%2$s</xliff:g> অ্যাক্সেস করতে <xliff:g id="APPLICATION">%1$s</xliff:g> অ্যাপকে অনুমতি দিতে চান?"</string>
-    <string name="usb_audio_device_confirm_prompt_title" msgid="8828406516732985696">"<xliff:g id="USB_DEVICE">%2$s</xliff:g> ব্যবহার করার জন্য <xliff:g id="APPLICATION">%1$s</xliff:g> চালু করতে চান?"</string>
+    <string name="usb_audio_device_permission_prompt_title" msgid="6812876813400484157">"&lt;b&gt;<xliff:g id="APPLICATION">%1$s</xliff:g>&lt;/b&gt; অ্যাপকে &lt;b&gt;<xliff:g id="USB_DEVICE">%2$s</xliff:g>’s&lt;/b&gt; ডিভাইসের লোকেশন অ্যাক্সেসের অনুমতি দেবেন?"</string>
+    <string name="usb_audio_device_confirm_prompt_title" msgid="7623364019381948073">"&lt;b&gt;<xliff:g id="USB_DEVICE">%2$s</xliff:g>&lt;/b&gt; হ্যান্ডেল করতে &lt;b&gt;<xliff:g id="APPLICATION">%1$s</xliff:g>&lt;/b&gt; খুলবেন?"</string>
     <string name="usb_audio_device_prompt_warn" msgid="2504972133361130335">"এই অ্যাপকে রেকর্ড করার অনুমতি দেওয়া হয়নি কিন্তু USB ডিভাইসের সাহায্যে সেটি অডিও রেকর্ড করতে পারে। <xliff:g id="APPLICATION">%1$s</xliff:g> অ্যাপের ব্যবহার এই ডিভাইসের সাথে করার ফলে হতে পারে কল, বিজ্ঞপ্তি এবং অ্যালার্মের আওয়াজ শোনা যাবে না।"</string>
     <string name="usb_audio_device_prompt" msgid="7944987408206252949">"<xliff:g id="APPLICATION">%1$s</xliff:g> অ্যাপের ব্যবহার এই ডিভাইসের সাথে করার ফলে হতে পারে কল, বিজ্ঞপ্তি এবং অ্যালার্মের আওয়াজ শোনা যাবে না।"</string>
     <string name="usb_accessory_permission_prompt" msgid="717963550388312123">"<xliff:g id="APPLICATION">%1$s</xliff:g> কে <xliff:g id="USB_ACCESSORY">%2$s</xliff:g> অ্যাক্সেস করতে দেবেন?"</string>
@@ -46,6 +46,9 @@
     <string name="usb_accessory_confirm_prompt" msgid="5728408382798643421">"<xliff:g id="USB_ACCESSORY">%2$s</xliff:g> ব্যবহার করার জন্য <xliff:g id="APPLICATION">%1$s</xliff:g> চালু করবেন?"</string>
     <string name="usb_accessory_uri_prompt" msgid="6756649383432542382">"ইনস্টল থাকা কোনো অ্যাপ্লিকেশান এই USB যন্ত্রাংশের সাথে কাজ করে না৷ <xliff:g id="URL">%1$s</xliff:g> এ এই যন্ত্রাংশের সম্পর্কে আরও জানুন৷"</string>
     <string name="title_usb_accessory" msgid="1236358027511638648">"USB যন্ত্রাংশ"</string>
+    <string name="usb_device_dialog_always_allow_button" msgid="7426535342650638393">"সবসময় অনুমতি দিন"</string>
+    <string name="usb_device_dialog_allow_only_this_time_button" msgid="3653881633944232491">"শুধুমাত্র এখন"</string>
+    <string name="usb_device_dialog_cancel_button" msgid="9050554648474787233">"বাতিল করুন"</string>
     <string name="label_view" msgid="6815442985276363364">"দেখুন"</string>
     <string name="always_use_device" msgid="210535878779644679">"<xliff:g id="USB_DEVICE">%2$s</xliff:g> যখনই সংযুক্ত থাকবে তখনই <xliff:g id="APPLICATION">%1$s</xliff:g> চালু হবে"</string>
     <string name="always_use_accessory" msgid="1977225429341838444">"<xliff:g id="USB_ACCESSORY">%2$s</xliff:g> যখনই সংযুক্ত থাকবে তখনই <xliff:g id="APPLICATION">%1$s</xliff:g> চালু হবে"</string>
@@ -55,6 +58,15 @@
     <string name="usb_debugging_allow" msgid="1722643858015321328">"অনুমতি দিন"</string>
     <string name="usb_debugging_secondary_user_title" msgid="7843050591380107998">"USB ডিবাগিং অনুমোদিত নয়"</string>
     <string name="usb_debugging_secondary_user_message" msgid="1888835696965417845">"বর্তমানে এই ডিভাইসে সাইন-ইন করে থাকা ব্যবহারকারী \'USB ডিবাগিং\' চালু করতে পারবেন না। এই ফিচার ব্যবহার করতে, একজন অ্যাডমিন ব্যবহারকারী হিসেবে সাইন-ইন করুন।"</string>
+    <string name="usb_authorization_title" msgid="3332796080113535331">"USB ডিভাইস কানেক্ট করার অনুমতি দেবেন?"</string>
+    <string name="usb_authorization_title_multi" msgid="1966181648363433366">"USB ডিভাইস কানেক্ট করার অনুমতি দেবেন?"</string>
+    <string name="usb_authorization_message" msgid="1107567912094941105">"নিম্নলিখিত ডিভাইসটি আপনার <xliff:g id="NAME">%1$s</xliff:g>-এর সাথে কানেক্ট করা হয়েছে:"</string>
+    <string name="usb_authorization_message_multi" msgid="4867596373922923637">"নিম্নলিখিত ডিভাইসগুলি আপনার <xliff:g id="NAME">%1$s</xliff:g>-এর সাথে কানেক্ট করা হয়েছে:"</string>
+    <string name="usb_authorization_message_untrusted" msgid="4407977362840907960">"নিম্নলিখিত ডিভাইসটি আপনার <xliff:g id="NAME">%1$s</xliff:g>-এর সাথে কানেক্ট করা হয়েছে। আপনি সাইন-ইন করার পরেই শুধুমাত্র এই ডিভাইসটিকে বিশ্বাস করা হবে।"</string>
+    <string name="usb_authorization_message_multi_untrusted" msgid="85055448435495205">"নিম্নলিখিত ডিভাইসগুলি আপনার <xliff:g id="NAME">%1$s</xliff:g>-এর সাথে কানেক্ট করা হয়েছে। আপনি সাইন-ইন করার পরেই শুধুমাত্র এইসব ডিভাইসকে বিশ্বাস করা হবে।"</string>
+    <string name="usb_authorization_unknown_device" msgid="1107933381080189970">"অজানা প্রোডাক্ট (<xliff:g id="VENDOR_ID">%1$04X</xliff:g>:<xliff:g id="PRODUCT_ID">%2$04X</xliff:g>)"</string>
+    <string name="usb_authorization_allow" msgid="5517449937301874244">"অনুমতি দিন"</string>
+    <string name="usb_authorization_deny" msgid="8156333001876101456">"অনুমতি দেবেন না"</string>
     <string name="hdmi_cec_set_menu_language_title" msgid="1259765420091503742">"আপনি কি সিস্টেমের ভাষা পরিবর্তন করে <xliff:g id="LANGUAGE">%1$s</xliff:g> করতে চান?"</string>
     <string name="hdmi_cec_set_menu_language_description" msgid="8176716678074126619">"অন্য ডিভাইসের দ্বারা সিস্টেমের ভাষা পরিবর্তনের অনুরোধ করা হয়েছে"</string>
     <string name="hdmi_cec_set_menu_language_accept" msgid="2513689457281009578">"ভাষা পরিবর্তন করুন"</string>
@@ -67,7 +79,6 @@
     <string name="wifi_debugging_allow" msgid="4573224609684957886">"অনুমতি দিন"</string>
     <string name="wifi_debugging_secondary_user_title" msgid="2493201475880517725">"ওয়্যারলেস ডিবাগিং করা যাবে না"</string>
     <string name="wifi_debugging_secondary_user_message" msgid="9085779370142222881">"বর্তমানে এই ডিভাইসে সাইন-ইন করে থাকা ব্যবহারকারী \'ওয়্যারলেস ডিবাগিং\' চালু করতে পারবেন না। এই ফিচার ব্যবহার করতে, একজন অ্যাডমিন ব্যবহারকারী হিসেবে সাইন-ইন করুন।"</string>
-    <string name="change_connected_wifi_text" msgid="6346095920396568246">"একবার লগ-ইন করলে এই সেটিংস পরিবর্তন করতে পারবেন"</string>
     <string name="usb_contaminant_title" msgid="894052515034594113">"ইউএসবি পোর্ট বন্ধ করা হয়েছে"</string>
     <string name="usb_contaminant_message" msgid="7730476585174719805">"কোনও তরল পদার্থ ও ধুলো থেকে আপনার ডিভাইসকে সুরক্ষিত রাখতে, ইউএসবি পোর্ট বন্ধ করা আছে, তাই কোনও অ্যাক্সেসরির শনাক্ত করা যাবে না।\n\nইউএসবি পোর্ট আবার ব্যবহার করা নিরাপদ হলে, আপনাকে জানানো হবে।"</string>
     <string name="usb_port_enabled" msgid="531823867664717018">"চার্জার ও আনুষঙ্গিক আইটেম শনাক্ত করার জন্য ইউএসবি চালু করা হয়েছে"</string>
@@ -81,19 +92,27 @@
     <string name="screenshot_saving_private_profile" msgid="8934706048497093297">"ব্যক্তিগত প্রোফাইলে স্ক্রিনশট সেভ করা হয়েছে"</string>
     <string name="screenshot_saved_title" msgid="8893267638659083153">"স্ক্রিনশট সেভ করা হয়েছে"</string>
     <string name="screenshot_failed_title" msgid="3259148215671936891">"স্ক্রিনশট সেভ করা যায়নি"</string>
+    <string name="screenshot_save_to" msgid="3294574417295882864">"এখানে সেভ করুন"</string>
+    <string name="screenshot_select_folder" msgid="4770537414396025502">"ফোল্ডার বেছে নিন"</string>
+    <string name="screenshot_custom_uri_save_fail_title" msgid="1584124511048051054">"%1$s ফোল্ডারে সেভ করা হয়েছে"</string>
+    <string name="screenshot_custom_uri_save_fail_message" msgid="8548656555271518389">"কোনও সমস্যা হয়েছে। \"%1$s\" ফোল্ডারে সেভ করা যাচ্ছে না।"</string>
     <string name="screenshot_failed_external_display_indication" msgid="6555673132061101936">"এক্সটার্নাল ডিসপ্লে"</string>
     <string name="screenshot_failed_to_save_user_locked_text" msgid="6156607948256936920">"স্ক্রিনশট সেভ করার আগে ডিভাইসটি অবশ্যই আনলক করতে হবে"</string>
     <string name="screenshot_failed_to_save_unknown_text" msgid="1506621600548684129">"আবার স্ক্রিনশট নেওয়ার চেষ্টা করুন"</string>
     <string name="screenshot_failed_to_save_text" msgid="7232739948999195960">"স্ক্রিনশট সেভ করা যায়নি"</string>
     <string name="screenshot_failed_to_capture_text" msgid="7818288545874407451">"এই অ্যাপ বা আপনার প্রতিষ্ঠান স্ক্রিনশট নেওয়ার অনুমতি দেয়নি"</string>
     <string name="screenshot_blocked_by_admin" msgid="5486757604822795797">"আপনার আইটি অ্যাডমিন স্ক্রিনশট নেওয়ার সুবিধা ব্লক করেছেন"</string>
+    <string name="screenshot_copy_label" msgid="3551237076438128722">"কপি করুন"</string>
+    <string name="screenshot_copy_description" msgid="2890150686381938858">"ক্লিপবোর্ডে স্ক্রিনশট কপি করার বোতাম"</string>
     <string name="screenshot_edit_label" msgid="8754981973544133050">"এডিট করুন"</string>
-    <string name="screenshot_edit_description" msgid="3333092254706788906">"স্ক্রিনশট এডিট করুন"</string>
+    <string name="screenshot_edit_description" msgid="7802378587672433507">"\'স্ক্রিনশট এডিট করুন\' বোতাম"</string>
     <string name="screenshot_share_label" msgid="1653061117238861559">"শেয়ার করুন"</string>
-    <string name="screenshot_share_description" msgid="2861628935812656612">"স্ক্রিনশট শেয়ার করুন"</string>
+    <string name="screenshot_share_description" msgid="2654362001720033972">"\'স্ক্রিনশট শেয়ার করুন\' বোতাম"</string>
     <string name="screenshot_scroll_label" msgid="2930198809899329367">"আরও বেশি ক্যাপচার করুন"</string>
     <string name="screenshot_dismiss_description" msgid="4702341245899508786">"স্ক্রিনশট বাতিল করুন"</string>
     <string name="screenshot_dismiss_work_profile" msgid="3101530842987697045">"অফিস প্রোফাইল সংক্রান্ত মেসেজ বাতিল করুন"</string>
+    <string name="screenshot_open_in_folder_label" msgid="7030308792263959983">"দেখুন"</string>
+    <string name="screenshot_open_in_folder_description" msgid="2181459418652236210">"Files বোতামে স্ক্রিনশট দেখুন"</string>
     <string name="screenshot_preview_description" msgid="7606510140714080474">"স্ক্রিনশটের প্রিভিউ"</string>
     <string name="screenshot_top_boundary_pct" msgid="2520148599096479332">"উপরের প্রান্ত থেকে <xliff:g id="PERCENT">%1$d</xliff:g> শতাংশ"</string>
     <string name="screenshot_bottom_boundary_pct" msgid="3880821519814946478">"নিচের প্রান্ত থেকে <xliff:g id="PERCENT">%1$d</xliff:g> শতাংশ"</string>
@@ -129,6 +148,8 @@
     <string name="screenrecord_ongoing_screen_and_audio" msgid="5351133763125180920">"স্ক্রিন এবং অডিও রেকর্ড করা হচ্ছে"</string>
     <string name="screenrecord_taps_label" msgid="1595690528298857649">"স্ক্রিনে টাচ লোকেশন দেখুন"</string>
     <string name="screenrecord_stop_label" msgid="72699670052087989">"বন্ধ করুন"</string>
+    <string name="screenrecord_stop_description" msgid="4656717003438764637">"রেকর্ড করা বন্ধ করুন"</string>
+    <string name="screenrecord_start_description" msgid="8173864933793754995">"রেকর্ডিং শুরু করুন"</string>
     <string name="screenrecord_share_label" msgid="5025590804030086930">"শেয়ার করুন"</string>
     <string name="screenrecord_save_title" msgid="1886652605520893850">"স্ক্রিন রেকর্ডিং সেভ করা হয়েছে"</string>
     <string name="screenrecord_save_text" msgid="3008973099800840163">"দেখতে ট্যাপ করুন"</string>
@@ -144,13 +165,19 @@
     <string name="screen_record_single_app_no_recents" msgid="1023249803854209330">"একটি অ্যাপ (বেছে নিতে অ্যাপ খুলুন)"</string>
     <string name="screen_record_record_device_audio_label" msgid="5363057443124085198">"ডিভাইসের অডিও রেকর্ড করুন"</string>
     <string name="screen_record_record_microphone_label" msgid="4685753707185662381">"মাইক্রোফোন দিয়ে রেকর্ড করুন"</string>
+    <string name="screen_record_record_audio_during_recording_warning" msgid="1240590393919102946">"রেকর্ডিংয়ের সময় অডিও সেটিংস পরিবর্তন করা যাবে না"</string>
     <string name="screen_record_should_show_camera_label" msgid="159628971484931357">"সেলফি ক্যামেরা দেখুন"</string>
-    <string name="screen_record_should_show_touches_label" msgid="2203962566795833783">"স্পর্শ করা সংক্রান্ত সেটিং দেখুন"</string>
+    <string name="screen_record_should_show_touches_label" msgid="2203962566795833783">"টাচ দেখুন"</string>
     <string name="screen_record_capture_target_choose_app" msgid="3524481083640900931">"রেকর্ড করার জন্য অ্যাপ বেছে নিন"</string>
+    <string name="screen_record_accessibility_label_show_next" msgid="6733148530962728100">"পরেরটি দেখুন"</string>
+    <string name="screen_record_accessibility_label_show_previous" msgid="5202414285722078012">"আগেরটি দেখুন"</string>
+    <string name="screen_record_settings" msgid="2377267679200139285">"স্ক্রিন রেকর্ডিং সেটিংস"</string>
+    <string name="screen_record_markup" msgid="5583986085046693669">"Markup"</string>
+    <string name="screen_record_color_picker" msgid="6732567862106107021">"কালার পিকার"</string>
     <string name="screen_record_video_saved" msgid="1345283626390232282">"ভিডিও সেভ করা হয়েছে"</string>
     <string name="screen_record_video_deleted" msgid="30786214839944540">"ভিডিও মোছা হয়েছে"</string>
     <string name="screen_record_undo" msgid="7942716736019800870">"আগের অবস্থায় ফিরুন"</string>
-    <string name="screen_record_retake" msgid="3846643688365398450">"আবার রেকর্ড করুন"</string>
+    <string name="screen_record_take_another" msgid="5877933424208100617">"নতুন"</string>
     <string name="screen_record_edit" msgid="8733014191240769309">"এডিট করুন"</string>
     <string name="screen_record_delete" msgid="1023421937978254537">"মুছুন"</string>
     <string name="screen_record_delete_dialog_title" msgid="5868561491974057044">"এই রেকর্ডিং মুছে দেবেন?"</string>
@@ -159,15 +186,51 @@
     <string name="screen_record_pause" msgid="1715012292444967776">"পজ করুন"</string>
     <string name="screen_record_mute" msgid="8111682249858638168">"মিউট করুন"</string>
     <string name="screen_record_unmute" msgid="2207912659365156472">"আনমিউট করুন"</string>
+    <string name="screen_record_video_preview_elapsed_time_a11y_template" formatted="false" msgid="969599623785875798">"<xliff:g id="DURATION">%2$s</xliff:g>-এর <xliff:g id="ELAPSED_TIME">%1$s</xliff:g>"</string>
+    <string name="screen_record_selfie_hint" msgid="7176948583444196453">"সেলফি পিঞ্চ করে, টেনে ও ট্যাপ করে অ্যাডজাস্ট করুন"</string>
+    <string name="screen_capture_blocked_by_admin" msgid="1751756953683506644">"আপনার আইটি অ্যাডমিন স্ক্রিন ক্যাপচার করার সুবিধা ব্লক করেছেন"</string>
     <string name="screen_capture_fullscreen_screenshot_button" msgid="3173749413928507877">"সম্পূর্ণ স্ক্রিনের স্ক্রিনশট নিন"</string>
     <string name="screen_capture_fullscreen_record_button" msgid="5697594296042198690">"সম্পূর্ণ স্ক্রিন জুড়ে রেকর্ড করুন"</string>
     <string name="screen_capture_region_selection_button" msgid="515608875142444130">"বেছে নেওয়া অংশের স্ক্রিনশট নিন"</string>
     <string name="screen_capture_record_region_selection_button" msgid="3699353194755563053">"বেছে নেওয়া জায়গা রেকর্ড করুন"</string>
     <string name="screen_capture_toolbar_screenshot_button" msgid="5676585348709494125">"স্ক্রিনশট"</string>
     <string name="screen_capture_toolbar_record_button" msgid="7533814143351870339">"রেকর্ড করুন"</string>
+    <string name="screen_capture_region_box_top_left_handle_description" msgid="3619310281612042126">"উপরের বাঁদিকের হ্যান্ডেল - রিসাইজ করতে \'তীরচিহ্ন কী\' ব্যবহার করুন"</string>
+    <string name="screen_capture_region_box_top_right_handle_description" msgid="7732373569053287436">"উপরের-ডানদিকের হ্যান্ডেল - রিসাইজ করতে \'তীরচিহ্ন কী\' ব্যবহার করুন"</string>
+    <string name="screen_capture_region_box_bottom_right_handle_description" msgid="5444943380877006881">"নিচে ডানদিকের হ্যান্ডেল - রিসাইজ করতে \'তীরচিহ্ন কী\' ব্যবহার করুন"</string>
+    <string name="screen_capture_region_box_bottom_left_handle_description" msgid="6095764656409143184">"নিচে বাঁদিকের হ্যান্ডেল - রিসাইজ করতে \'তীরচিহ্ন কী\' ব্যবহার করুন"</string>
     <string name="screen_share_toolbar_share_button" msgid="9182050596136815833">"শেয়ার করুন"</string>
-    <string name="screen_share_no_select_app_thumbnail" msgid="1630012401570567430">"শেয়ার করার জন্য একটি অ্যাপ বেছে নিন"</string>
-    <string name="screen_share_app_audio_sharing" msgid="7201172218924898712">"উইন্ডো অডিও শেয়ার করুন"</string>
+    <string name="screen_share_no_select_app_thumbnail" msgid="1886183147809224215">"শেয়ার করতে অ্যাপ উইন্ডো বেছে নিন"</string>
+    <string name="screen_share_no_select_tab_thumbnail" msgid="677801966729809584">"শেয়ার করার জন্য ট্যাব বেছে নিন"</string>
+    <string name="screen_share_no_select_display_thumbnail" msgid="4351422134286332559">"শেয়ার করার জন্য ডিসপ্লে বেছে নিন"</string>
+    <string name="screen_share_audio_sharing_text" msgid="7829391478284315787">"অডিও শেয়ার করুন"</string>
+    <string name="screen_share_app_window_sharing_title" msgid="2063554880747318383">"অ্যাপ উইন্ডো শেয়ার করুন"</string>
+    <string name="screen_share_tab_sharing_title" msgid="1178046793832072728">"ট্যাব শেয়ার করুন"</string>
+    <string name="screen_share_entire_screen_sharing_title" msgid="9093580141248337998">"সম্পূর্ণ স্ক্রিন শেয়ার করুন"</string>
+    <string name="screen_share_disclaimer_app_sharing" msgid="1839029004749224549">"কোনও অ্যাপ শেয়ার করার সময়, সেই অ্যাপে দেখা ও চালানো হয় এমন সব কিছু <xliff:g id="APP_NAME">%1$s</xliff:g> দেখতে পাবে। তাই সংবেদনশীল তথ্য সম্পর্কে সতর্ক থাকুন।"</string>
+    <string name="screen_share_disclaimer_tab_sharing" msgid="3811486274577713101">"আপনি কোনও ট্যাব শেয়ার করার সময়, ট্যাবে থাকা সব কিছু <xliff:g id="APP_NAME">%1$s</xliff:g> দেখতে পাবে। তাই সংবেদনশীল তথ্য সম্পর্কে সতর্ক থাকুন।"</string>
+    <string name="screen_share_disclaimer_full_screen_sharing" msgid="5173795016606926338">"আপনার সম্পূর্ণ স্ক্রিন শেয়ার করার সময়, স্ক্রিনে থাকা সব কিছু <xliff:g id="APP_NAME">%1$s</xliff:g> দেখতে পাবে। তাই সংবেদনশীল তথ্য সম্পর্কে সতর্ক থাকুন।"</string>
+    <string name="screen_share_a11y_announcement" msgid="8938007210094494367">"কী শেয়ার করতে চান, তা বেছে নিন ট্যাব, অ্যাপ বা সম্পূর্ণ স্ক্রিন বেছে নিন। তারপর শেয়ার করার বোতামে প্রেস করুন।"</string>
+    <string name="screen_share_cancel_announcement" msgid="5940879227647436383">"স্ক্রিন শেয়ার করার ইনিশিয়েশন শেষ হয়েছে। কারও সাথে স্ক্রিন শেয়ার করা হয়নি।"</string>
+    <string name="screen_share_a11y_sharing_app" msgid="3445421300603336524">"এখন শেয়ার করা অ্যাপ: <xliff:g id="APP_NAME">%1$s</xliff:g>। শেয়ারিং বন্ধ করতে গোপনীয়তা নির্দেশক ব্যবহার করুন।"</string>
+    <string name="screen_share_a11y_sharing_tab" msgid="2963542572740628746">"এখন শেয়ার করা ট্যাব: <xliff:g id="TAB_TITLE">%1$s</xliff:g>। শেয়ারিং বন্ধ করতে গোপনীয়তা নির্দেশক ব্যবহার করুন।"</string>
+    <string name="screen_share_a11y_sharing_display" msgid="5919924998949424031">"এখন শেয়ার করা ডিসপ্লে: <xliff:g id="DISPLAY_NAME">%1$s</xliff:g>। শেয়ারিং বন্ধ করতে গোপনীয়তা নির্দেশক ব্যবহার করুন।"</string>
+    <string name="screen_share_a11y_stopped_sharing_app" msgid="6928492106881188404">"অ্যাপ শেয়ার করা বন্ধ করা হয়েছে: <xliff:g id="APP_NAME">%1$s</xliff:g>। কারও সাথে স্ক্রিন শেয়ার করা হয়নি।"</string>
+    <string name="screen_share_a11y_stopped_sharing_tab" msgid="5929089339684027985">"ট্যাব শেয়ারিং বন্ধ করা হয়েছে: <xliff:g id="TAB_TITLE">%1$s</xliff:g>। কারও সাথে স্ক্রিন শেয়ার করা হয়নি।"</string>
+    <string name="screen_share_a11y_stopped_sharing_display" msgid="121502117308433983">"ডিসপ্লে শেয়ারিং বন্ধ করা হয়েছে: <xliff:g id="DISPLAY_NAME">%1$s</xliff:g>। কারও সাথে স্ক্রিন শেয়ার করা হয়নি।"</string>
+    <string name="screen_share_a11y_close_button" msgid="8017115316741874857">"\'বন্ধ করুন\' বোতাম। প্রি-শেয়ার ডায়ালগ বন্ধ করতে Enter প্রেস করুন।"</string>
+    <string name="screen_share_a11y_tab_button_unselected" msgid="5363622532939787310">"ট্যাব শেয়ার করার বোতাম। বেছে নেওয়া হয়নি। ট্যাব শেয়ার করতে Enter প্রেস করুন।"</string>
+    <string name="screen_share_a11y_tab_button_selected" msgid="3969246191128243157">"ট্যাব শেয়ার করা হচ্ছে। উপলভ্য ট্যাব চেক করতে নেভিগেট করুন।"</string>
+    <string name="screen_share_a11y_app_button_unselected" msgid="4539549394242556282">"অ্যাপ শেয়ার করার বোতাম। বেছে নেওয়া হয়নি। অ্যাপ শেয়ার করতে Enter প্রেস করুন।"</string>
+    <string name="screen_share_a11y_app_button_selected" msgid="4891977117777987696">"অ্যাপ শেয়ার করা হচ্ছে। উপলভ্য অ্যাপ দেখতে নেভিগেট করুন।"</string>
+    <string name="screen_share_a11y_fullscreen_button_unselected" msgid="2492516552817892989">"ফুল-স্ক্রিন দেখার বোতাম বেছে নেওয়া হয়নি। ফুল-স্ক্রিন শেয়ার করতে Enter প্রেস করুন।"</string>
+    <string name="screen_share_a11y_fullscreen_button_selected" msgid="4428416497634907009">"ফুল-স্ক্রিন শেয়ার করা হচ্ছে। উপলভ্য ডিসপ্লে চেক করতে নেভিগেট করুন।"</string>
+    <string name="screen_share_a11y_share_button_off" msgid="2004866083045967602">"\'শেয়ার করুন\' বোতাম বন্ধ আছে। শেয়ার করার জন্য অ্যাপ, ট্যাব বা ডিসপ্লে বেছে নিন।"</string>
+    <string name="screen_share_a11y_share_button_on" msgid="1311279200212158833">"শেয়ারিং করা চালু আছে <xliff:g id="ITEM">%1$s</xliff:g> বেছে নেওয়া হয়েছে। শেয়ার করা শুরু করতে Enter প্রেস করুন।"</string>
+    <string name="screen_share_a11y_item_unselected" msgid="7479321583507874795">"<xliff:g id="ITEM_NAME">%1$s</xliff:g>. বেছে নেওয়া হয়নি। বেছে নিতে Enter প্রেস করুন।"</string>
+    <string name="screen_share_a11y_item_selected" msgid="2538971376128528640">"<xliff:g id="ITEM_NAME">%1$s</xliff:g> বেছে নেওয়া হয়েছে। শেয়ার করা শুরু করতে \'শেয়ার করুন\' বোতামে নেভিগেট করুন।"</string>
+    <string name="screen_share_a11y_tab_audio_on" msgid="7240792268381508075">"ট্যাব অডিও চালু আছে"</string>
+    <string name="screen_share_a11y_tab_audio_off" msgid="8545238601433952854">"ট্যাব অডিও বন্ধ আছে"</string>
     <string name="screen_capture_toolbar_app_window_button_screenshot_a11y" msgid="1357560392667941303">"উইন্ডোর স্ক্রিনশট নিন"</string>
     <string name="screen_capture_toolbar_app_window_button_record_a11y" msgid="8984966592912823394">"উইন্ডো রেকর্ড করুন"</string>
     <string name="screen_capture_toolbar_region_button_screenshot_a11y" msgid="2102262602357521192">"বেছে নেওয়া অংশের স্ক্রিনশট নিন"</string>
@@ -175,12 +238,20 @@
     <string name="screen_capture_toolbar_fullscreen_button_screenshot_a11y" msgid="8699983355979869210">"সম্পূর্ণ স্ক্রিনের স্ক্রিনশট নিন"</string>
     <string name="screen_capture_toolbar_fullscreen_button_record_a11y" msgid="852148867883959158">"সম্পূর্ণ স্ক্রিন রেকর্ড করুন"</string>
     <string name="screen_capture_toolbar_settings_button_a11y" msgid="8014446956996739704">"স্ক্রিন ক্যাপচার করার সেটিংস"</string>
+    <string name="screen_capture_post_recording_shelf_share_button_a11y" msgid="2907313384921655711">"স্ক্রিন রেকর্ডিং শেয়ার করুন"</string>
+    <string name="screen_capture_post_recording_shelf_folder_button_a11y" msgid="4217075254383938093">"ফাইল ম্যানেজারে স্ক্রিন রেকর্ডিং খুলুন"</string>
+    <string name="screen_capture_post_recording_shelf_delete_button_a11y" msgid="8519897681775354217">"স্ক্রিন রেকর্ডিং মুছুন"</string>
+    <string name="screen_capture_post_recording_shelf_thumbnail_a11y" msgid="4764732838982357845">"ভিউয়িং অ্যাপে স্ক্রিন রেকর্ডিং খুলুন"</string>
     <string name="screen_capture_show_clicks_and_keys" msgid="2151690554364148717">"ক্লিক এবং \'কী\' দেখান"</string>
     <string name="screen_capture_device_audio" msgid="1537290197773737349">"ডিভাইস অডিও"</string>
     <string name="screen_capture_microphone_audio" msgid="1698835678818747741">"মাইক্রোফোন"</string>
     <string name="screen_capture_front_camera" msgid="1214647538302639358">"সামনের ক্যামেরা"</string>
     <string name="screen_capture_region_dimensions" msgid="2317064050253056256">"<xliff:g id="WIDTH">%1$d</xliff:g> x <xliff:g id="HEIGHT">%2$d</xliff:g>"</string>
+    <string name="screen_capture_a11y_toolbar_radio_button_action" msgid="978101981178584140">"বেছে নিন"</string>
+    <string name="screen_capture_a11y_settings_menu_expanded" msgid="3063066229912137755">"মেনু বড় করা হয়েছে"</string>
+    <string name="screen_capture_a11y_settings_menu_collapsed" msgid="3669791857195646127">"মেনু আড়াল করা হয়েছে"</string>
     <string name="screen_share_privacy_indicator_stop_sharing" msgid="2297045039651417274">"শেয়ার করা বন্ধ করুন"</string>
+    <string name="share_screen_privacy_indicator_accessibility_label" msgid="8748931450480306816">"স্ক্রিন শেয়ার করা চালু আছে। শেয়ারিং বন্ধ করতে গোপনীয়তা নির্দেশক ব্যবহার করুন।"</string>
     <string name="share_to_app_chip_accessibility_label" msgid="4210256229976947065">"স্ক্রিন শেয়ার করা হচ্ছে"</string>
     <string name="share_to_app_chip_accessibility_label_generic" msgid="5517431657924536133">"কন্টেন্ট শেয়ার করা হচ্ছে"</string>
     <string name="share_to_app_stop_dialog_title" msgid="9212915050910250438">"স্ক্রিন শেয়ার করা বন্ধ করবেন?"</string>
@@ -228,7 +299,6 @@
     <string name="accessibility_unlock_button" msgid="3613812140816244310">"আনলক করা হয়েছে"</string>
     <string name="accessibility_lock_icon" msgid="661492842417875775">"ডিভাইস লক করা আছে"</string>
     <string name="accessibility_confirm_biometric_auth_to_unlock" msgid="1600162805010332470">"কনফার্ম করে ডিভাইস আনলক করুন"</string>
-    <string name="accessibility_retry_face_auth" msgid="3018310877303150273">"ফেস আনলক সুবিধা আবার ব্যবহার করে দেখুন"</string>
     <string name="accessibility_scanning_face" msgid="3093828357921541387">"ফেস স্ক্যান করা হচ্ছে"</string>
     <string name="accessibility_send_smart_reply" msgid="8885032190442015141">"পাঠান"</string>
     <string name="cancel" msgid="1089011503403416730">"বাতিল করুন"</string>
@@ -241,11 +311,8 @@
     <string name="biometric_dialog_face_icon_description_authenticated" msgid="2242167416140740920">"ফেস যাচাই করা হয়েছে"</string>
     <string name="biometric_dialog_face_icon_description_confirmed" msgid="7918067993953940778">"কনফার্ম করা হয়েছে"</string>
     <string name="biometric_dialog_tap_confirm" msgid="9166350738859143358">"সম্পূর্ণ করতে \'কনফার্ম করুন\' বোতামে ট্যাপ করুন"</string>
-    <string name="biometric_dialog_tap_confirm_with_face" msgid="2378151312221818694">"ফেস দেখিয়ে আনলক করা হয়েছে"</string>
-    <string name="biometric_dialog_tap_confirm_with_face_alt_1" msgid="439152621640507113">"ফেসের সাহায্যে আনলক করা হয়েছে। চালিয়ে যেতে প্রেস করুন।"</string>
     <string name="biometric_dialog_tap_confirm_with_face_alt_2" msgid="8586608186457385108">"ফেস শনাক্ত করা হয়েছে। চালিয়ে যেতে প্রেস করুন।"</string>
     <string name="biometric_dialog_tap_confirm_with_face_alt_3" msgid="2192670471930606539">"ফেস শনাক্ত করা হয়েছে। চালিয়ে যেতে আনলক আইকন প্রেস করুন।"</string>
-    <string name="biometric_dialog_tap_confirm_with_face_sfps" msgid="2499213248903257928">"ফেসের সাহায্যে আনলক করা হয়েছে। চালিয়ে যেতে ট্যাপ করুন।"</string>
     <string name="biometric_dialog_authenticated" msgid="7337147327545272484">"প্রমাণীকৃত"</string>
     <string name="biometric_dialog_cancel_authentication" msgid="981316588773442637">"যাচাইকরণ বাতিল করুন"</string>
     <string name="biometric_dialog_content_view_more_options_button" msgid="2663810393874865475">"আরও বিকল্প"</string>
@@ -290,11 +357,6 @@
     <string name="fingerprint_re_enroll_dialog_content" msgid="4866561176695984879">"\'ফিঙ্গারপ্রিন্ট আনলক\' আবার সেট-আপ করতে, আপনার বর্তমানে থাকা ফিঙ্গারপ্রিন্ট ইমেজ ও মডেল মুছে ফেলা হবে।\n\nমুছে ফেলা হয়ে গেলে, আপনার ফোন আনলক করতে অথবা নিজের পরিচয় যাচাই করার জন্য ফিঙ্গারপ্রিন্ট ব্যবহার করতে হলে আপনাকে আবার \'ফিঙ্গারপ্রিন্ট আনলক\' সেট-আপ করতে হবে।"</string>
     <string name="fingerprint_re_enroll_dialog_content_singular" msgid="3083663339787381218">"\'ফিঙ্গারপ্রিন্ট আনলক\' আবার সেট-আপ করতে, আপনার বর্তমানে থাকা ফিঙ্গারপ্রিন্ট ইমেজ ও মডেল মুছে ফেলা হবে।\n\nমুছে ফেলা হয়ে গেলে, আপনার ফোন আনলক করতে অথবা নিজের পরিচয় যাচাই করার জন্য ফিঙ্গারপ্রিন্ট ব্যবহার করতে হলে আপনাকে আবার \'ফিঙ্গারপ্রিন্ট আনলক\' সেট-আপ করতে হবে।"</string>
     <string name="fingerprint_reenroll_failure_dialog_content" msgid="4733768492747300666">"\'ফিঙ্গারপ্রিন্ট আনলক\' সেট-আপ করা যায়নি। আবার চেষ্টা করতে সেটিংসে যান।"</string>
-    <string name="face_re_enroll_notification_title" msgid="1850838867718410520">"\'ফেস আনলক\' আবার সেট আপ করুন"</string>
-    <string name="face_re_enroll_notification_name" msgid="7384545252206120659">"ফেস আনলক"</string>
-    <string name="face_re_enroll_dialog_title" msgid="6392173708176069994">"\'ফেস আনলক\' সেট-আপ করুন"</string>
-    <string name="face_re_enroll_dialog_content" msgid="7353502359464038511">"\'ফেস আনলক\' আবার সেট-আপ করতে, বর্তমানে থাকা আপনার ফেস মডেলটি মুছে ফেলা হবে।\n\nফেস ব্যবহার করে আপনার ফোন আনলক করার জন্য আপনাকে আবার এই ফিচার সেট-আপ করতে হবে।"</string>
-    <string name="face_reenroll_failure_dialog_content" msgid="7073947334397236935">"\'ফেস আনলক\' সেট-আপ করা যায়নি। আবার চেষ্টা করতে সেটিংসে যান।"</string>
     <string name="fingerprint_dialog_touch_sensor" msgid="2817887108047658975">"ফিঙ্গারপ্রিন্ট সেন্সর টাচ করুন"</string>
     <string name="fingerprint_dialog_authenticated_confirmation" msgid="1603899612957562862">"চালিয়ে যেতে \'আনলক করুন\' আইকনে প্রেস করুন"</string>
     <string name="fingerprint_dialog_use_fingerprint_instead" msgid="5542430577183894219">"ফেস চেনা যায়নি। এর পরিবর্তে ফিঙ্গারপ্রিন্ট ব্যবহার করুন।"</string>
@@ -302,7 +364,6 @@
     <skip />
     <string name="keyguard_face_failed" msgid="2346762871330729634">"মুখ চেনা যায়নি"</string>
     <string name="keyguard_suggest_fingerprint" msgid="8742015961962702960">"পরিবর্তে ফিঙ্গারপ্রিন্ট ব্যবহার করুন"</string>
-    <string name="keyguard_face_unlock_unavailable" msgid="1581949044193418736">"\'ফেস আনলক\' উপলভ্য নেই"</string>
     <string name="accessibility_bluetooth_connected" msgid="4745196874551115205">"ব্লুটুথ সংযুক্ত হয়েছে৷"</string>
     <string name="accessibility_bluetooth_device_icon" msgid="9163840051642587982">"ব্লুটুথ ডিভাইসের আইকন"</string>
     <string name="accessibility_bluetooth_device_settings_gear" msgid="3314916468105272540">"ডিভাইসের বিবরণ কনফিগার করতে ক্লিক করুন"</string>
@@ -316,8 +377,6 @@
     <string name="accessibility_cast_name" msgid="7344437925388773685">"<xliff:g id="CAST">%s</xliff:g> এর সাথে সংযুক্ত৷"</string>
     <string name="accessibility_expand_group" msgid="521237935987978624">"গ্রুপ বড় করুন।"</string>
     <string name="accessibility_collapse_group" msgid="1842704016768329517">"গ্রুপ আড়াল করুন।"</string>
-    <string name="accessibility_add_device_to_group" msgid="5446422960697860806">"গ্রুপে ডিভাইস যোগ করুন।"</string>
-    <string name="accessibility_remove_device_from_group" msgid="3114694270949142228">"গ্রুপ থেকে ডিভাইস সরিয়ে দিন।"</string>
     <string name="accessibility_add_device_to_group_with_name" msgid="1042306202917036858">"গ্রুপে <xliff:g id="DEVICE_NAME">%s</xliff:g> ডিভাইস যোগ করুন।"</string>
     <string name="accessibility_remove_device_from_group_with_name" msgid="5582015497111561027">"গ্রুপ থেকে <xliff:g id="DEVICE_NAME">%s</xliff:g> ডিভাইস সরান।"</string>
     <string name="accessibility_open_application" msgid="1749126077501259712">"অ্যাপ্লিকেশন খুলুন।"</string>
@@ -365,6 +424,12 @@
     <string name="accessibility_location_active" msgid="2845747916764660369">"লোকেশন অনুরোধ সক্রিয় রয়েছে"</string>
     <string name="accessibility_sensors_off_active" msgid="2619725434618911551">"সেন্সর অফ অ্যাক্টিভ"</string>
     <string name="accessibility_clear_all" msgid="970525598287244592">"সমস্ত বিজ্ঞপ্তি সাফ করুন৷"</string>
+    <string name="accessibility_notification_bell" msgid="7149451526721220526">"বিজ্ঞপ্তি"</string>
+    <string name="accessibility_status_bar_assistant_icon" msgid="1174898709836451013">"অ্যাসিস্ট্যান্ট"</string>
+    <string name="accessibility_status_bar_input_method_indicator" msgid="4911669064186093506">"কীবোর্ড"</string>
+    <string name="input_method_switcher_title_large_screen" msgid="8490419050265486980">"কীবোর্ড"</string>
+    <string name="input_method_switcher_select_item" msgid="5370389660346295303">"বেছে নিন"</string>
+    <string name="input_method_switcher_dismiss" msgid="6026386403345712616">"বাতিল করুন"</string>
     <string name="notification_group_overflow_indicator" msgid="7605120293801012648">"+ <xliff:g id="NUMBER">%s</xliff:g>টি"</string>
     <string name="notification_group_overflow_description" msgid="7176322877233433278">"{count,plural, =1{ভিতরে আরও #টি বিজ্ঞপ্তি আছে।}one{ভিতরে আরও #টি বিজ্ঞপ্তি আছে।}other{ভিতরে আরও #টি বিজ্ঞপ্তি আছে।}}"</string>
     <string name="accessibility_rotation_lock_on_landscape" msgid="936972553861524360">"ল্যান্ডস্কেপ সজ্জাতে স্ক্রিন লক করা আছে৷"</string>
@@ -402,11 +467,9 @@
     <string name="quick_settings_bluetooth_secondary_label_input" msgid="3887552721233148132">"ইনপুট"</string>
     <string name="quick_settings_bluetooth_secondary_label_hearing_aids" msgid="5553051568867097111">"হিয়ারিং এড"</string>
     <string name="quick_settings_bluetooth_secondary_label_transient" msgid="3882884317600669650">"চালু করা হচ্ছে…"</string>
-    <string name="quick_settings_brightness_unable_adjust_msg" msgid="4124028416057617517">"উজ্জ্বলতা অ্যাডজাস্ট করা যাচ্ছে না কারণ এটি সেরা অ্যাপের মাধ্যমে কন্ট্রোল করা হচ্ছে"</string>
     <string name="quick_settings_rotation_unlocked_label" msgid="2359922767950346112">"নিজে থেকে ঘুরবে"</string>
     <string name="accessibility_quick_settings_rotation" msgid="4800050198392260738">"অটো-রোটেট স্ক্রিন"</string>
     <string name="quick_settings_location_label" msgid="2621868789013389163">"লোকেশন"</string>
-    <string name="quick_settings_screensaver_label" msgid="1495003469366524120">"স্ক্রিন সেভার"</string>
     <string name="quick_settings_camera_label" msgid="5612076679385269339">"ক্যামেরা অ্যাক্সেস"</string>
     <string name="quick_settings_mic_label" msgid="8392773746295266375">"মাইক্রোফোন অ্যাক্সেস"</string>
     <string name="quick_settings_camera_mic_available" msgid="1453719768420394314">"উপলভ্য"</string>
@@ -423,8 +486,15 @@
     <string name="quick_settings_casting" msgid="1435880708719268055">"কাস্ট করা হচ্ছে"</string>
     <string name="quick_settings_cast_device_default_name" msgid="6988469571141331700">"নামবিহীন ডিভাইস"</string>
     <string name="quick_settings_cast_detail_empty_text" msgid="2846282280014617785">"কোনো ডিভাইস উপলব্ধ নয়"</string>
+    <string name="quick_settings_cast_detail_title" msgid="8212426967651562547">"ডিভাইসে স্ক্রিন কাস্ট করুন"</string>
+    <string name="quick_settings_cast_detail_subtitle" msgid="6406833630052788623">"ডিভাইস সার্চ করা হচ্ছে..."</string>
     <string name="quick_settings_cast_no_network" msgid="3863016850468559522">"কোনও ওয়াই-ফাই বা ইথারনেট কানেকশন উপলভ্য নেই"</string>
     <string name="quick_settings_cast_disconnect" msgid="4836025217838730930">"ডিসকানেক্ট করুন"</string>
+    <string name="quick_settings_audio_current_input" msgid="8219735427828862612">"বর্তমান মাইক হল"</string>
+    <string name="quick_settings_audio_output_section_title" msgid="3448300919285193209">"আউটপুট"</string>
+    <string name="quick_settings_audio_input_section_title" msgid="9203723659866975215">"ইনপুট"</string>
+    <string name="quick_settings_audio_input_disclaimer_text" msgid="442891508001590727">"মাইকের ভলিউম অটোমেটিক অ্যাডজাস্ট করা হবে"</string>
+    <string name="quick_settings_audio_effects_section_title" msgid="6770520531879816578">"এফেক্ট"</string>
     <string name="quick_settings_brightness_dialog_title" msgid="4980669966716685588">"উজ্জ্বলতা"</string>
     <string name="quick_settings_inversion_label" msgid="3501527749494755688">"কালার ইনভার্সন"</string>
     <string name="quick_settings_color_correction_label" msgid="5636617913560474664">"রঙ সংশোধন"</string>
@@ -470,6 +540,7 @@
     <string name="quick_settings_nfc_off" msgid="3465000058515424663">"NFC অক্ষম করা আছে"</string>
     <string name="quick_settings_nfc_on" msgid="1004976611203202230">"NFC সক্ষম করা আছে"</string>
     <string name="quick_settings_screen_record_label" msgid="8650355346742003694">"স্ক্রিন রেকর্ড"</string>
+    <string name="quick_settings_screen_capture_label" msgid="4400625606618045690">"স্ক্রিন ক্যাপচার"</string>
     <string name="quick_settings_screen_record_start" msgid="1574725369331638985">"শুরু করুন"</string>
     <string name="quick_settings_screen_record_stop" msgid="8087348522976412119">"বন্ধ করুন"</string>
     <string name="qs_record_issue_label" msgid="8166290137285529059">"রেকর্ডিংয়ে সমস্যা"</string>
@@ -565,16 +636,10 @@
     <string name="tap_again" msgid="1315420114387908655">"আবার ট্যাপ করুন"</string>
     <string name="keyguard_unlock" msgid="8031975796351361601">"খোলার জন্য উপরে সোয়াইপ করুন"</string>
     <string name="keyguard_unlock_press" msgid="9140109453735019209">"খোলার জন্য আনলক আইকন প্রেস করুন"</string>
-    <string name="keyguard_face_successful_unlock_swipe" msgid="6180997591385846073">"মুখের মাধ্যমে আনলক করা হয়েছে। খুলতে উপরের দিকে সোয়াইপ করুন।"</string>
-    <string name="keyguard_face_successful_unlock_confirm_button" msgid="3862344771780817393">"ফেসের সাহায্যে আনলক করা হয়েছে। চালিয়ে যেতে \'কনফার্ম করুন\' প্রেস করুন।"</string>
-    <string name="keyguard_face_successful_unlock_press" msgid="25520941264602588">"ফেসের সাহায্যে আনলক করা হয়েছে। খোলার জন্য আনলক আইকন প্রেস করুন।"</string>
-    <string name="keyguard_face_successful_unlock_press_alt_1" msgid="5715461103913071474">"ফেসের সাহায্যে আনলক করা হয়েছে। খোলার জন্য প্রেস করুন।"</string>
     <string name="keyguard_face_successful_unlock_press_alt_2" msgid="8310787946357120406">"ফেস শনাক্ত করা হয়েছে। খোলার জন্য প্রেস করুন।"</string>
     <string name="keyguard_face_successful_unlock_press_alt_3" msgid="7219030481255573962">"ফেস শনাক্ত করা হয়েছে। খোলার জন্য আনলক আইকন প্রেস করুন।"</string>
-    <string name="keyguard_face_successful_unlock" msgid="4203999851465708287">"ফেস দেখিয়ে আনলক করা হয়েছে"</string>
     <string name="keyguard_face_successful_unlock_alt1" msgid="5853906076353839628">"ফেস চিনে নেওয়া হয়েছে"</string>
     <string name="keyguard_retry" msgid="886802522584053523">"আবার চেষ্টা করতে উপরের দিকে সোয়াইপ করুন"</string>
-    <string name="accesssibility_keyguard_retry" msgid="8880238862712870676">"\'ফেস আনলক\' ফিচার আবার ব্যবহার করতে উপরের দিকে সোয়াইপ করুন"</string>
     <string name="require_unlock_for_nfc" msgid="1305686454823018831">"NFC ব্যবহার করতে আনলক করুন"</string>
     <string name="do_disclosure_generic" msgid="4896482821974707167">"এই ডিভাইসটি আপনার প্রতিষ্ঠানের"</string>
     <string name="do_disclosure_with_name" msgid="2091641464065004091">"এই ডিভাইসটি <xliff:g id="ORGANIZATION_NAME">%s</xliff:g>-এর"</string>
@@ -595,6 +660,7 @@
     <string name="keyguard_indication_charging_time_slowly" msgid="301936949731705417">"<xliff:g id="PERCENTAGE">%2$s</xliff:g> • ধীরে চার্জ হচ্ছে • পুরো চার্জ হতে <xliff:g id="CHARGING_TIME_LEFT">%1$s</xliff:g> লাগবে"</string>
     <string name="keyguard_indication_charging_time_dock" msgid="3149328898931741271">"<xliff:g id="PERCENTAGE">%2$s</xliff:g> • চার্জ হচ্ছে • পুরো চার্জ হতে আরও <xliff:g id="CHARGING_TIME_LEFT">%1$s</xliff:g> সময় লাগবে"</string>
     <string name="accessibility_action_open_communal_hub" msgid="3081702792413787849">"লক স্ক্রিনে উইজেট"</string>
+    <string name="accessibility_action_customize_lock_screen" msgid="1998560311105362696">"লক স্ক্রিন কাস্টমাইজ করুন"</string>
     <string name="accessibility_announcement_communal_widget_added" msgid="6911593106099328271">"<xliff:g id="WIDGET_NAME">%1$s</xliff:g> উইজেট লক স্ক্রিনে যোগ করা হয়েছে"</string>
     <string name="communal_tutorial_indicator_text" msgid="4503010353591430123">"কমিউনিটি টিউটোরিয়াল চালু করতে বাঁদিকে সোয়াইপ করুন"</string>
     <string name="cta_tile_button_to_open_widget_editor" msgid="3871562362382963878">"কাস্টমাইজ করুন"</string>
@@ -625,8 +691,11 @@
     <string name="communal_widget_picker_title" msgid="1953369090475731663">"লক স্ক্রিন উইজেট"</string>
     <string name="communal_widget_picker_description" msgid="6927728582371632782">"আপনার ডিভাইস লক থাকলেও যেকোনও ব্যক্তি লক স্ক্রিনে উইজেট দেখতে পাবেন।"</string>
     <string name="accessibility_action_label_unselect_widget" msgid="1041811747619468698">"উইজেট বাদ দিন"</string>
+    <string name="accessibility_action_label_resize_widget" msgid="639756010934310745">"উইজেট ছোট বড় করুন"</string>
     <string name="accessibility_action_label_shrink_widget" msgid="8259511040536438771">"উচ্চতা কমান"</string>
     <string name="accessibility_action_label_expand_widget" msgid="9190524260912211759">"উচ্চতা বাড়ান"</string>
+    <string name="accessibility_announcement_expand_widget" msgid="1123324821904704150">"উচ্চতা বড় করা হয়েছে"</string>
+    <string name="accessibility_announcement_shrink_widget" msgid="2720176058287945622">"উচ্চতা কমানো হয়েছে"</string>
     <string name="accessibility_action_label_umo_show_next" msgid="8033581654789193281">"পরেরটি দেখুন"</string>
     <string name="accessibility_action_label_umo_show_previous" msgid="5935831384525173810">"আগেরটি দেখুন"</string>
     <string name="communal_widgets_disclaimer_title" msgid="1150954395585308868">"লক স্ক্রিন উইজেট"</string>
@@ -637,6 +706,12 @@
     <string name="hub_onboarding_bottom_sheet_text" msgid="8589816797970240544">"চার্জ করার সময় আপনার পছন্দের উইজেট এবং স্ক্রিন সেভার অ্যাক্সেস করুন।"</string>
     <string name="hub_onboarding_bottom_sheet_action_button" msgid="6161983690157872829">"শুরু করা যাক"</string>
     <string name="glanceable_hub_to_dream_button_tooltip" msgid="9018287673822335829">"চার্জিংয়ের সময় আপনার পছন্দের স্ক্রিন সেভার দেখুন"</string>
+    <string name="dream_switcher_select_dream_title" msgid="2784437029616150736">"ড্রিম বেছে নিন"</string>
+    <string name="dream_switcher_choose_screensaver" msgid="3073471555365511227">"স্ক্রিন সেভার বেছে নিন"</string>
+    <string name="dream_switcher_edit_button_text" msgid="2152516873780618659">"<xliff:g id="DREAM_NAME">%1$s</xliff:g> এডিট করুন"</string>
+    <string name="dream_switcher_go_to_app_button_text" msgid="6043693674135654080">"<xliff:g id="APP_NAME">%1$s</xliff:g>-এ যান"</string>
+    <string name="dream_switcher_more_screensavers" msgid="6672017768044989604">"আরও স্ক্রিন সেভার"</string>
+    <string name="dreams_switcher_accessibility_action" msgid="2910870945341642369">"স্বপ্নের তালিকা বেছে নেওয়ার মেনু খুলুন"</string>
     <string name="accessibility_multi_user_switch_switcher" msgid="5330448341251092660">"ব্যবহারকারী পাল্টে দিন"</string>
     <string name="accessibility_multi_user_list_switcher" msgid="8574105376229857407">"পুলডাউন মেনু"</string>
     <string name="guest_exit_guest_dialog_message" msgid="8183450985628495709">"এই সেশনের সব অ্যাপ ও ডেটা মুছে ফেলা হবে।"</string>
@@ -693,12 +768,14 @@
     <string name="clear_all_notifications_text" msgid="348312370303046130">"সব মুছে দিন"</string>
     <string name="manage_notifications_text" msgid="6885645344647733116">"ম্যানেজ করুন"</string>
     <string name="manage_notifications_history_text" msgid="57055985396576230">"ইতিহাস"</string>
+    <string name="notification_dismiss_button_text" msgid="2443352751894142153">"বন্ধ করুন"</string>
     <string name="notification_settings_button_description" msgid="2441994740884163889">"বিজ্ঞপ্তি সেটিংস"</string>
     <string name="notification_history_button_description" msgid="1578657591405033383">"বিজ্ঞপ্তির ইতিহাস"</string>
     <string name="notification_section_header_incoming" msgid="850925217908095197">"নতুন"</string>
     <string name="notification_section_header_gentle" msgid="6804099527336337197">"আওয়াজ করবে না"</string>
     <string name="notification_section_header_alerting" msgid="5581175033680477651">"বিজ্ঞপ্তি"</string>
     <string name="notification_section_header_conversations" msgid="821834744538345661">"কথোপকথন"</string>
+    <string name="notification_section_header_highlights" msgid="1671475076192152483">"হাইলাইট"</string>
     <string name="accessibility_notification_section_header_gentle_clear_all" msgid="6490207897764933919">"সব নীরব বিজ্ঞপ্তি মুছুন"</string>
     <string name="accessibility_notification_section_header_open_settings" msgid="6235202417954844004">"বিজ্ঞপ্তির সেটিংস খুলুন"</string>
     <string name="modes_suppressing_shade_text" msgid="6037581130837903239">"{count,plural,offset:1 =0{কোনও বিজ্ঞপ্তি নেই}=1{{mode}-এর জন্য বিজ্ঞপ্তি পজ করা হয়েছে}=2{{mode} ও অন্য আরেকটি মোডের জন্য বিজ্ঞপ্তি পজ করা হয়েছে}one{{mode} ও অন্য #টি মোডের জন্য বিজ্ঞপ্তি পজ করা হয়েছে}other{{mode} ও অন্য #টি মোডের জন্য বিজ্ঞপ্তি পজ করা হয়েছে}}"</string>
@@ -710,7 +787,8 @@
     <string name="adaptive_notification_edu_hun_text" msgid="7743367744129536610">"আপনি একসঙ্গে খুব বেশি বিজ্ঞপ্তি পেলে আপনার ডিভাইসের ভলিউম এবং সতর্কবার্তা সর্বাধিক ২ মিনিটের জন্য অটোমেটিক কমে যায়।"</string>
     <string name="go_to_adaptive_notification_settings" msgid="2423690125178298479">"বন্ধ করুন"</string>
     <string name="unlock_to_see_notif_text" msgid="7439033907167561227">"পুরনো বিজ্ঞপ্তি দেখতে আনলক করুন"</string>
-    <string name="quick_settings_disclosure_parental_controls" msgid="2114102871438223600">"আপনার অভিভাবক এই ডিভাইস ম্যানেজ করেন"</string>
+    <string name="quick_settings_disclosure_parental_controls" msgid="9196246842317344981">"অভিভাবকীয় নিয়ন্ত্রণ চালু আছে"</string>
+    <string name="quick_settings_disclosure_parental_controls_legacy" msgid="4116797775361496057">"তোমার অভিভাবক এই ডিভাইস ম্যানেজ করেন"</string>
     <string name="quick_settings_disclosure_pin_protection" msgid="9219481515114868267">"কিছু ডিভাইস সেটিংস পিন দিয়ে সুরক্ষিত করা আছে।"</string>
     <string name="quick_settings_disclosure_management_monitoring" msgid="8231336875820702180">"এই ডিভাইসটি আপনার প্রতিষ্ঠানের এবং এরা ডিভাইসের নেটওয়ার্ক ট্রাফিক মনিটর করতে পারে"</string>
     <string name="quick_settings_disclosure_named_management_monitoring" msgid="2831423806103479812">"<xliff:g id="ORGANIZATION_NAME">%1$s</xliff:g> এই ডিভাইসের মালিক এবং এটির নেটওয়ার্ক ট্রাফিক মনিটর করতে পারে"</string>
@@ -751,8 +829,9 @@
     <string name="monitoring_description_personal_profile_named_vpn" msgid="5083909710727365452">"<xliff:g id="VPN_APP">%1$s</xliff:g>-এর মাধ্যমে আপনার ব্যক্তিগত অ্যাপ ইন্টারনেটের সাথে কানেক্ট করা আছে। ইমেল ও ব্রাউজ করা ডেটা সহ নেটওয়ার্ক অ্যাক্টিভিটি আপনার ভিপিএন প্রদানকারী দেখতে পারবেন।"</string>
     <string name="monitoring_description_vpn_settings_separator" msgid="8292589617720435430">" "</string>
     <string name="monitoring_description_vpn_settings" msgid="5264167033247632071">"VPN সেটিংস খুলুন"</string>
-    <string name="monitoring_description_parental_controls" msgid="8184693528917051626">"আপনার অভিভাবক এই ডিভাইস ম্যানেজ করেন। আপনার অভিভাবক আপনার ব্যবহার করা অ্যাপ, লোকেশন ও স্ক্রিন টাইমের মতো তথ্যগুলি দেখতে এবং ম্যানেজ করতে পারেন।"</string>
+    <string name="monitoring_description_parental_controls_legacy" msgid="3331029441820725897">"এই ডিভাইস তোমার অভিভাবক ম্যানেজ করেন। অভিভাবক তোমার ব্যবহার করা অ্যাপ, লোকেশন ও স্ক্রিন টাইমের মতো তথ্যগুলি দেখতে এবং ম্যানেজ করতে পারেন।"</string>
     <string name="monitoring_description_pin_protection" msgid="1983580207046670355">"আপনার ডিভাইসের কিছু কন্ট্রোল, যেমন দৈনিক সীমা এবং ডাউনটাইম, একটি পিন দিয়ে শুধুমাত্র পরিবর্তন করা যেতে পারে।"</string>
+    <string name="monitoring_description_parental_controls" msgid="4255592993669461543">"কিছু কন্ট্রোল শুধুমাত্র তোমার অভিভাবক পরিবর্তন করতে পারবেন"</string>
     <string name="legacy_vpn_name" msgid="4174223520162559145">"VPN"</string>
     <string name="keyguard_indication_trust_unlocked" msgid="7395154975733744547">"TrustAgent দিয়ে আনলক করে রাখা হয়েছে"</string>
     <string name="kg_prompt_after_adaptive_auth_lock" msgid="6065186971000690782">"স্ক্রিন লক করা আছে। যাচাইকরণের জন্য অসংখ্য বার চেষ্টা করা হয়েছে।"</string>
@@ -814,6 +893,7 @@
     <string name="volume_stream_content_description_vibrate_a11y" msgid="2742330052979397471">"%1$s। ভাইব্রেট করতে ট্যাপ করুন।"</string>
     <string name="volume_stream_content_description_mute_a11y" msgid="5743548478357238156">"%1$s। মিউট করতে ট্যাপ করুন।"</string>
     <string name="volume_panel_noise_control_title" msgid="7413949943872304474">"নয়েজ কন্ট্রোল"</string>
+    <string name="volume_panel_mic_noise_cancellation_title" msgid="2324838199042895036">"মাইক নয়েজ ক্যানসেলেশন"</string>
     <string name="volume_panel_spatial_audio_title" msgid="3367048857932040660">"স্পেশিয়ল অডিও"</string>
     <string name="volume_panel_spatial_audio_off" msgid="4177490084606772989">"বন্ধ আছে"</string>
     <string name="volume_panel_spatial_audio_fixed" msgid="3136080137827746046">"চালু আছে"</string>
@@ -867,6 +947,7 @@
     <string name="accessibility_status_bar_satellite_poor_connection" msgid="5231478574952724160">"স্যাটেলাইট, খারাপ কানেকশন"</string>
     <string name="accessibility_status_bar_satellite_good_connection" msgid="308079391708578704">"স্যাটেলাইট, ভালো কানেকশন"</string>
     <string name="accessibility_status_bar_satellite_available" msgid="6514855015496916829">"স্যাটেলাইট, কানেকশন উপলভ্য আছে"</string>
+    <string name="accessibility_status_bar_satellite_symbol" msgid="3840194796890095832">"স্যাটেলাইট"</string>
     <string name="satellite_connected_carrier_text" msgid="118524195198532589">"স্যাটেলাইট SOS"</string>
     <string name="satellite_emergency_only_carrier_text" msgid="9103913890116841786">"শুধুমাত্র জরুরি কল বা SOS"</string>
     <string name="satellite_network_title_text" msgid="1483004114819442028">"স্যাটেলাইট নেটওয়ার্ক"</string>
@@ -885,6 +966,7 @@
     <string name="tuner_toast" msgid="3812684836514766951">"অভিনন্দন! সেটিংস -এ সিস্টেম UI টিউনার যোগ করা হয়েছে"</string>
     <string name="remove_from_settings" msgid="633775561782209994">"সেটিংস থেকে সরান"</string>
     <string name="remove_from_settings_prompt" msgid="551565437265615426">"সেটিংস থেকে সিস্টেম UI টিউনার সরাতে এবং এটির সমস্ত বৈশিষ্ট্য ব্যবহার করা বন্ধ করতে চান?"</string>
+    <string name="qs_customize_remove" msgid="1840904349092819026">"সরান"</string>
     <string name="enable_bluetooth_title" msgid="866883307336662596">"ব্লুটুথ চালু করবেন?"</string>
     <string name="enable_bluetooth_message" msgid="6740938333772779717">"আপনার ট্যাবলেটের সাথে আপনার কীবোর্ড সংযুক্ত করতে, আপনাকে প্রথমে ব্লুটুথ চালু করতে হবে।"</string>
     <string name="enable_bluetooth_confirmation_ok" msgid="2866408183324184876">"চালু করুন"</string>
@@ -898,21 +980,26 @@
     <string name="notification_guts_recs_summary" msgid="8391881843238947007">"নিউজলেটার, সাজেস্ট করা মিডিয়া ও আরও অনেক কিছু"</string>
     <string name="notification_onboarding_summaries_turn_on" msgid="3831339570984683297">"সেটিংস থেকে চালু করুন"</string>
     <string name="notification_onboarding_summaries_message" msgid="6061524903176459064">"আপনাকে দ্রুত রিক্যাপ দিতে অপেক্ষাকৃত দীর্ঘ মেসেজের এখন সারসংক্ষেপ করা যাবে"</string>
+    <string name="notification_onboarding_summaries_message_with_apps" msgid="5320980333818238465">"আপনাকে দ্রুত রিক্যাপ দিতে আপনার ডিভাইস ও অ্যাপ এখন অপেক্ষাকৃত দীর্ঘ কথোপকথনের সারসংক্ষেপ করতে পারবে"</string>
     <string name="notification_onboarding_bundles_message" msgid="4612908213178622912">"বিজ্ঞপ্তি অর্গানাইজার কম অগ্রাধিকারযুক্ত বিজ্ঞপ্তি বান্ডেল এবং সাইলেন্ট করে। \'সেটিংস\' থেকে আরও বিভাগ যোগ করুন।"</string>
     <string name="notification_bundle_header_counter" msgid="5515532701569242265">"{count,plural, =1{#টি বিজ্ঞপ্তি}one{#টি বিজ্ঞপ্তি}other{#টি বিজ্ঞপ্তি}}"</string>
     <string name="notification_bundle_header_joined_description" msgid="4517556837418088139">"<xliff:g id="NAME">%1$s</xliff:g>, <xliff:g id="NUM_NOTIFICATIONS">%2$s</xliff:g>"</string>
     <string name="inline_done_button" msgid="6043094985588909584">"হয়ে গেছে"</string>
     <string name="inline_ok_button" msgid="603075490581280343">"প্রয়োগ করুন"</string>
     <string name="inline_turn_off_notifications" msgid="2653064779176881329">"বন্ধ করুন"</string>
+    <string name="bridged_source_device" msgid="2233591993331607836">"সোর্স ডিভাইস"</string>
+    <string name="inline_bridged_open_associated_device_settings" msgid="6885442224230065508">"<xliff:g id="DEVICE_TYPE">%1$s</xliff:g> সেটিংস খুলুন"</string>
     <string name="notification_silence_title" msgid="8608090968400832335">"সাইলেন্ট"</string>
     <string name="notification_alert_title" msgid="3656229781017543655">"ডিফল্ট"</string>
     <string name="notification_automatic_title" msgid="3745465364578762652">"অটোমেটিক"</string>
+    <string name="notification_bridged_title" msgid="4213554380230273828">"এই বিজ্ঞপ্তি আপনার <xliff:g id="DEVICE_TYPE">%1$s</xliff:g> থেকে এসেছে"</string>
     <string name="notification_channel_summary_low" msgid="4860617986908931158">"আওয়াজ করবে না বা ভাইব্রেট হবে না"</string>
     <string name="notification_conversation_summary_low" msgid="3855696451919728790">"কোনও সাউন্ড বা ভাইব্রেশন ছাড়াই কথোপকথন বিভাগে দেখা যাবে"</string>
     <string name="notification_channel_summary_default" msgid="777294388712200605">"ডিভাইসের সেটিংস অনুযায়ী রিং বা ভাইব্রেট হতে পারে"</string>
     <string name="notification_channel_summary_default_with_bubbles" msgid="3482483084451555344">"ডিভাইসের সেটিংস অনুযায়ী রিং বা ভাইব্রেট হতে পারে। <xliff:g id="APP_NAME">%1$s</xliff:g>-এর কথোপকথন সাধারণত বাবলের মতো দেখাবে।"</string>
     <string name="notification_channel_summary_automatic" msgid="5813109268050235275">"এই বিজ্ঞপ্তি এলে ডিভাইস আওয়াজ করবে না ভাইব্রেট করবে তা সিস্টেমকে সেট করতে দিন"</string>
     <string name="notification_channel_summary_automatic_alerted" msgid="954166812246932240">"&lt;b&gt;স্ট্যাটাস:&lt;/b&gt; লেভেল বাড়িয়ে ডিফল্ট করা হয়েছে"</string>
+    <string name="notification_channel_summary_bridged" msgid="6837698421232117637">"সিঙ্ক করা বিজ্ঞপ্তির অগ্রাধিকার ও সেটিংস আপনার <xliff:g id="DEVICE_NAME">%1$s</xliff:g>-এ অ্যাডজাস্ট করা যাবে"</string>
     <string name="notification_channel_summary_automatic_silenced" msgid="7403004439649872047">"&lt;b&gt;স্ট্যাটাস:&lt;/b&gt; লেভেল কমিয়ে সাইলেন্ করা হয়েছে"</string>
     <string name="notification_channel_summary_automatic_promoted" msgid="1301710305149590426">"&lt;b&gt;স্ট্যাটাস:&lt;/b&gt; র‍্যাঙ্ক বেড়ে গেছে"</string>
     <string name="notification_channel_summary_automatic_demoted" msgid="1831303964660807700">"&lt;b&gt;স্ট্যাটাস:&lt;/b&gt; র‍্যাঙ্ক কমে গেছে"</string>
@@ -932,6 +1019,7 @@
     <string name="notification_unblockable_call_desc" msgid="5907328164696532169">"কল বিজ্ঞপ্তি পরিবর্তন করা যাবে না।"</string>
     <string name="notification_multichannel_desc" msgid="7414593090056236179">"এই সমস্ত বিজ্ঞপ্তিকে এখানে কনফিগার করা যাবে না"</string>
     <string name="notification_delegate_header" msgid="1264510071031479920">"প্রক্সি করা বিজ্ঞপ্তি"</string>
+    <string name="notification_summarization_header" msgid="511445254923268688">"<xliff:g id="APP_NAME">%1$s</xliff:g> সারসংক্ষেপ করেছে"</string>
     <string name="notification_channel_dialog_title" msgid="6856514143093200019">"<xliff:g id="APP_NAME">%1$s</xliff:g> সংক্রান্ত সমস্ত বিজ্ঞপ্তি"</string>
     <string name="see_more_title" msgid="7409317011708185729">"আরও দেখুন"</string>
     <string name="feedback_alerted" msgid="5192459808484271208">"সিস্টেম অটোমেটিক এই বিজ্ঞপ্তির &lt;b&gt;লেভেল বাড়িয়ে ডিফল্ট&lt;/b&gt; হিসেবে সেট করেছে।"</string>
@@ -1012,6 +1100,8 @@
     <string name="group_system_access_all_apps_search" msgid="1553588630154197469">"অ্যাপের তালিকা খুলুন"</string>
     <string name="group_system_access_system_settings" msgid="8731721963449070017">"সেটিংস খুলুন"</string>
     <string name="group_system_access_google_assistant" msgid="3769929488906534254">"ডিজিটাল অ্যাসিস্ট্যান্ট খুলুন"</string>
+    <string name="group_system_access_contextual_search" msgid="525635757621336007">"প্রাসঙ্গিক সার্চ"</string>
+    <string name="group_system_access_contextual_cursor" msgid="200587108400598774">"প্রাসঙ্গিক কার্সর"</string>
     <string name="group_system_lock_screen" msgid="7391191300363416543">"লক স্ক্রিন"</string>
     <string name="group_system_quick_memo" msgid="3764560265935722903">"একটি নোট লিখুন"</string>
     <string name="keyboard_shortcut_group_system_multitasking" msgid="6967816258924795558">"মাল্টিটাস্কিং"</string>
@@ -1090,17 +1180,12 @@
     <string name="right_keycode" msgid="2480715509844798438">"ডানদিকের কিকোড"</string>
     <string name="left_icon" msgid="5036278531966897006">"বাঁ দিকের আইকন"</string>
     <string name="right_icon" msgid="1103955040645237425">"ডানদিকের আইকন"</string>
-    <string name="drag_to_add_tiles" msgid="8933270127508303672">"টাইল যোগ করতে ধরে থেকে টেনে আনুন"</string>
-    <string name="drag_to_rearrange_tiles" msgid="2143204300089638620">"টাইলগুলি আবার সাজানোর জন্য ধরে থেকে টেনে আনুন"</string>
     <string name="select_to_rearrange_tiles" msgid="6166153534235179148">"আবার সাজাতে এবং ছোট বড় করতে টাইল বেছে নিন"</string>
     <string name="tap_to_remove_tiles" msgid="76564688376603718">"টাইল সরাতে ট্যাপ করুন"</string>
     <string name="resize_and_reorder_tiles" msgid="5530933353774871231">"লেআউটের আকার পরিবর্তন করুন এবং আবার সাজান"</string>
     <string name="qs_edit_edit_tab" msgid="467315123555871860">"এডিট করুন"</string>
     <string name="qs_edit_layout_tab" msgid="1935366846617681520">"লেআউট"</string>
     <string name="tap_to_position_tile" msgid="6282815817773342757">"টাইল সঠিক জায়গায় রাখার জন্য ট্যাপ করুন"</string>
-    <string name="drag_to_remove_tiles" msgid="4682194717573850385">"সরানোর জন্য এখানে টেনে আনুন"</string>
-    <string name="drag_to_remove_disabled" msgid="933046987838658850">"আপনাকে কমপক্ষে <xliff:g id="MIN_NUM_TILES">%1$d</xliff:g>টি টাইল রাখতে হবে"</string>
-    <string name="qs_edit" msgid="5583565172803472437">"এডিট করুন"</string>
     <string name="qs_edit_tiles" msgid="2105215324060865035">"টাইল এডিট করুন"</string>
     <string name="qs_edit_mode_tooltip" msgid="4164112885539479781">"কুইক সেটিংস টাইল ছোট বড় করুন"</string>
     <string name="qs_edit_settings" msgid="3243175290660574156">"সেটিংস"</string>
@@ -1123,13 +1208,7 @@
     <string name="accessibility_qs_edit_place_tile_action" msgid="7073332873378207231">"টাইল প্লেস করুন"</string>
     <string name="accessibility_qs_edit_toggle_placement_mode" msgid="3870429389210569610">"প্লেসমেন্ট মোড টগল করুন"</string>
     <string name="accessibility_qs_edit_toggle_selection" msgid="2201248304072372239">"বেছে নেওয়া বিকল্প টগল করুন"</string>
-    <string name="accessibility_qs_edit_tile_add_action" msgid="7188303979684400620">"শেষ জায়গাতে টাইল যোগ করুন"</string>
     <string name="accessibility_qs_edit_named_tile_add_action" msgid="7929752125913967625">"শেষ পজিশনে <xliff:g id="NAME">%1$s</xliff:g>-কে যোগ করুন"</string>
-    <string name="accessibility_qs_edit_tile_start_move" msgid="2009373939914517817">"টাইল সরান"</string>
-    <string name="accessibility_qs_edit_tile_start_add" msgid="8141710006899065161">"আপনার পছন্দের জায়গাতে টাইল যোগ করুন"</string>
-    <string name="accessibility_qs_edit_tile_move_to_position" msgid="5198161544045930556">"<xliff:g id="POSITION">%1$d</xliff:g>-এ সরান"</string>
-    <string name="accessibility_qs_edit_tile_add_to_position" msgid="9029163095148274690">"অবস্থান <xliff:g id="POSITION">%1$d</xliff:g>-এ যোগ করুন"</string>
-    <string name="accessibilit_qs_edit_tile_add_move_invalid_position" msgid="2858467994472624487">"পজিশন সঠিক নয়।"</string>
     <string name="accessibility_qs_edit_position" msgid="4509277359815711830">"অবস্থান <xliff:g id="POSITION">%1$d</xliff:g>"</string>
     <string name="accessibility_qs_edit_tile_already_added" msgid="5900071201690226752">"টাইল আগেই যোগ করা হয়েছে"</string>
     <string name="accessibility_qs_edit_tile_added" msgid="9067146040380836334">"টাইল যোগ করা হয়েছে"</string>
@@ -1145,19 +1224,40 @@
     <string name="accessibility_quick_settings_open_settings" msgid="536838345505030893">"<xliff:g id="ID_1">%s</xliff:g> সেটিংস খুলুন৷"</string>
     <string name="accessibility_quick_settings_edit" msgid="6544873823850165">"দ্রুত সেটিংসের ক্রম এডিট করুন"</string>
     <string name="accessibility_quick_settings_power_menu" msgid="6820426108301758412">"পাওয়ার মেনু"</string>
+    <string name="accessibility_quick_settings_power_menu_expanded" msgid="4665161431290201722">"বড় করা হয়েছে"</string>
+    <string name="accessibility_quick_settings_power_menu_collapsed" msgid="5800930916550853776">"আড়াল করা হয়েছে"</string>
     <string name="accessibility_quick_settings_page" msgid="7506322631645550961">"<xliff:g id="ID_2">%2$d</xliff:g>টির মধ্যে <xliff:g id="ID_1">%1$d</xliff:g> নং পৃষ্ঠা"</string>
     <string name="accessibility_key_gesture_dialog_title" msgid="7614965716626605518">"<xliff:g id="ID_1">%1$s</xliff:g> চালু করতে চান?"</string>
-    <string name="accessibility_key_gesture_dialog_content" msgid="4519838108423437794">"<xliff:g id="ID_3">^3</xliff:g> ব্যবহার করার জন্য কীবোর্ড শর্টকাট হল অ্যাকশন "<annotation id="action_key_icon">"আইকন"</annotation>" + <xliff:g id="ID_1">^1</xliff:g> + <xliff:g id="ID_2">^2</xliff:g>। <xliff:g id="ID_4">^4</xliff:g>"</string>
-    <string name="accessibility_key_gesture_dialog_talkback_intro" msgid="1617808784388544741">"<xliff:g id="ID_1">%1$s</xliff:g> হল একটি স্ক্রিন রিডার যা আপনাকে আইটেম জোরে পড়ে শোনানোর অনুমতি দেয়। স্ক্রিন দেখতে যাদের অসুবিধা হয় তাদের জন্য এটি সহায়ক হতে পারে।"</string>
-    <string name="accessibility_key_gesture_dialog_positive_button_text" msgid="3670746017523589293">"চালু করুন"</string>
+    <string name="accessibility_key_gesture_dialog_content" msgid="2409946187069273612">"<xliff:g id="ID_1">^1</xliff:g> "<annotation id="action_key_icon">"আইকন"</annotation>" + <xliff:g id="ID_2">^2</xliff:g> + <xliff:g id="ID_3">^3</xliff:g> হল <xliff:g id="ID_4">^4</xliff:g> ব্যবহার করার কীবোর্ড শর্টকাট। <xliff:g id="ID_5">^5</xliff:g>"</string>
+    <string name="accessibility_key_gesture_dialog_screen_reader_tts" msgid="6466269887128043486">"<xliff:g id="ID_4">%4$s</xliff:g> চালু করতে, <xliff:g id="ID_1">%1$s</xliff:g> + <xliff:g id="ID_2">%2$s</xliff:g> + <xliff:g id="ID_3">%3$s</xliff:g> আবার প্রেস করুন"</string>
     <string name="accessibility_key_gesture_shortcut_not_yet_enabled_dialog_title" msgid="5331043821287212071">"<xliff:g id="ID_1">%1$s</xliff:g> কীবোর্ড শর্টকাট চালু করতে চান?"</string>
     <string name="accessibility_key_gesture_shortcut_not_yet_enabled_negative_button_text" msgid="6711239406914231612">"চালু করবেন না"</string>
     <string name="accessibility_key_gesture_shortcut_not_yet_enabled_positive_button_text" msgid="7748487028569821131">"শর্টকাট চালু করুন"</string>
+    <string name="accessibility_key_gesture_color_inversion_dialog_content" msgid="8831745570619953566">"<xliff:g id="ID_1">^1</xliff:g> "<annotation id="action_key_icon">"আইকন"</annotation>" + <xliff:g id="ID_2">^2</xliff:g> + <xliff:g id="ID_3">^3</xliff:g> হল কালার ইনভার্সন ব্যবহার করার কীবোর্ড শর্টকাট। কালার ইনভার্সন হালকা স্ক্রিনকে গাঢ় করে। এছাড়াও এই সুবিধা ব্যবহার করলে গাঢ় রঙের স্ক্রিন হালকা হয়ে যায়।"</string>
     <string name="accessibility_key_gesture_magnification_dialog_title" msgid="5770691510738701250">"<xliff:g id="ID_1">%1$s</xliff:g> কীবোর্ড শর্টকাট চালু করা হয়েছে"</string>
-    <string name="accessibility_key_gesture_magnification_dialog_content" msgid="582920726242272572">"অ্যাক্সেসিবিলিটি ফিচার <xliff:g id="ID_3">^3</xliff:g> ব্যবহার করার জন্য কীবোর্ড শর্টকাট হল অ্যাকশন "<annotation id="action_key_icon">"আইকন"</annotation>" + <xliff:g id="ID_1">^1</xliff:g> + <xliff:g id="ID_2">^2</xliff:g>। এটি আপনাকে কন্টেন্ট বড় করে দেখার জন্য স্ক্রিনে দ্রুত জুম-ইন করার সুবিধা দেয়। \'বড় করে দেখা\' ফিচার চালু হয়ে গেলে, জুম অ্যাডজাস্ট করতে অ্যাকশন "<annotation id="action_key_icon">"আইকন"</annotation>" + <xliff:g id="ID_4">^1</xliff:g> এবং \"+\" বা \"-\" প্রেস করুন।"</string>
+    <string name="accessibility_key_gesture_magnification_dialog_content" msgid="1647246652170256645">"<xliff:g id="ID_1">^1</xliff:g> "<annotation id="action_key_icon">"আইকন"</annotation>" + <xliff:g id="ID_2">^2</xliff:g> + <xliff:g id="ID_3">^3</xliff:g> হল <xliff:g id="ID_4">^4</xliff:g> অ্যাক্সেসিবিলিটি ফিচার ব্যবহার করার কীবোর্ড শর্টকাট। এটি আপনাকে কন্টেন্ট বড় করার জন্য স্ক্রিনে দ্রুত জুম-ইন করার সুযোগ দেয়। \'বড় করে দেখা\' ফিচার চালু হয়ে গেলে, জুম অ্যাডজাস্ট করতে <xliff:g id="ID_5">^1</xliff:g> "<annotation id="action_key_icon">"আইকন"</annotation>" + <xliff:g id="ID_6">^2</xliff:g> এবং \"+\" বা \"-\" প্রেস করুন।"</string>
     <string name="accessibility_key_gesture_magnification_dialog_negative_button_text" msgid="8393469413785600834">"শর্টকাট বন্ধ করুন"</string>
     <string name="accessibility_key_gesture_magnification_dialog_positive_button_text" msgid="895076240681888057">"চালু রাখুন"</string>
-    <string name="accessibility_key_gesture_voice_access_dialog_content" msgid="7934170819801013870">"অ্যাকশন "<annotation id="action_key_icon">"আইকন"</annotation>" + <xliff:g id="ID_1">^1</xliff:g> + <xliff:g id="ID_2">^2</xliff:g> প্রেস করলে, অ্যাক্সেসিবিলিটি ফিচার <xliff:g id="ID_3">^3</xliff:g> চালু হয়ে যায়। এটি আপনাকে হ্যান্ডস-ফ্রি সুবিধা ব্যবহার করে ডিভাইস কন্ট্রোল করতে দেয়।"</string>
+    <string name="accessibility_key_gesture_screen_reader_dialog_content" msgid="2322728522389883751">"<xliff:g id="ID_1">^1</xliff:g> "<annotation id="action_key_icon">"আইকন"</annotation>" + <xliff:g id="ID_2">^2</xliff:g> + <xliff:g id="ID_3">^3</xliff:g> হল <xliff:g id="ID_4">^4</xliff:g> ব্যবহার করার কীবোর্ড শর্টকাট। <xliff:g id="ID_5">^4</xliff:g> হল এমন একটি স্ক্রিন রিডার যেটি আপনাকে আইটেম জোরে পড়ে শোনার সুবিধা দেয়। স্ক্রিন দেখতে সমস্যা রয়েছে এমন লোকজনের পক্ষে এটি সহায়ক হতে পারে। এর ফলে, আপনার ডিভাইস কীভাবে কাজ করবে, সেটি পরিবর্তিত হতে পারে।"</string>
+    <string name="accessibility_key_gesture_screen_reader_dialog_warning_heading" msgid="5958960812509429136">"কীবোর্ড শর্টকাট চালু করার মাধ্যমে, আপনি টকব্যাককে আপনার ডিভাইসের সম্পূর্ণ কন্ট্রোল করার অনুমতি দেবেন।"</string>
+    <string name="accessibility_key_gesture_screen_reader_dialog_warning_message" msgid="2026368922103788492">"যে অ্যাপগুলি আপনাকে অ্যাক্সেসিবিলিটির প্রয়োজন মেটাতে সাহায্য করে সেই অ্যাপগুলির জন্য সম্পূর্ণ কন্ট্রোলের বিষয়টি উপযুক্ত, কিন্তু তা বলে সমস্ত অ্যাপের জন্য নয়।"</string>
+    <string name="accessibility_key_gesture_screen_reader_dialog_warning_view_control_screen_heading" msgid="5346128898440400425">"স্ক্রিন দেখে কন্ট্রোল করুন"</string>
+    <string name="accessibility_key_gesture_screen_reader_dialog_warning_view_control_screen_message" msgid="5810348116536082139">"এটি স্ক্রিনের সমস্ত কন্টেন্ট পড়তে এবং অন্য অ্যাপেও কন্টেন্ট ডিসপ্লে করতে পারে।"</string>
+    <string name="accessibility_key_gesture_screen_reader_dialog_warning_perform_actions_heading" msgid="6032379987970298008">"দেখুন এবং কাজটি করুন"</string>
+    <string name="accessibility_key_gesture_screen_reader_dialog_warning_perform_actions_message" msgid="4565304881759944542">"এটি কোনও একটি অ্যাপের সাথে অথবা হার্ডওয়্যার সেন্সরের সাথে আপনার ইন্টার‍্যাকশন ট্র্যাক করতে এবং আপনার হয়ে বিভিন্ন অ্যাপের সাথে ইন্টার‍্যাক্ট করতে পারে।"</string>
+    <string name="accessibility_key_gesture_select_to_speak_dialog_content" msgid="2241403419620826861">"<xliff:g id="ID_1">^1</xliff:g> "<annotation id="action_key_icon">"আইকন"</annotation>" + <xliff:g id="ID_2">^2</xliff:g> + <xliff:g id="ID_3">^3</xliff:g> হল <xliff:g id="ID_4">^4</xliff:g> ব্যবহার করার কীবোর্ড শর্টকাট। এর ফলে আপনি ফন্ট ও স্পেসিং কাস্টমাইজ করতে পারবেন এবং সরাসরি আপনার ডিভাইসে টেক্সট জোরে শুনতে পাবেন।"</string>
+    <string name="accessibility_key_gesture_voice_access_dialog_content" msgid="8539054865187379687">"<xliff:g id="ID_1">^1</xliff:g> "<annotation id="action_key_icon">"আইকন"</annotation>" + <xliff:g id="ID_2">^2</xliff:g> + <xliff:g id="ID_3">^3</xliff:g> প্রেস করলে, অ্যাক্সেসিবিলিটি ফিচার <xliff:g id="ID_4">^4</xliff:g> চালু হয়ে যায়। এটি আপনাকে হ্যান্ডস-ফ্রি সুবিধা ব্যবহার করে ডিভাইস নিয়ন্ত্রণ করতে দেয়।"</string>
+    <string name="accessibility_shortcutchooser_toprow_tutorial_dialog_title" msgid="4659318395231105188">"অ্যাক্সেসিবিলিটি কী"</string>
+    <string name="accessibility_shortcutchooser_toprow_tutorial_dialog_content" msgid="7058726404278534674">"আপনি অ্যাক্সেসিবিলিটি কী প্রেস করে অ্যাক্সেসিবিলিটি ফিচার ব্যবহার করা শুরু করতে পারবেন।"</string>
+    <string name="accessibility_shortcutchooser_toprow_tutorial_dialog_positive_button_text" msgid="7095579813773247709">"ফিচার যোগ করুন"</string>
+    <string name="accessibility_shortcutchooser_toprow_editor_dialog_title" msgid="1898531469029411168">"অ্যাক্সেসিবিলিটি \'কী\' সেট-আপ করুন"</string>
+    <string name="accessibility_shortcutchooser_editor_dialog_title" msgid="7881631878787325869">"<xliff:g id="ID_1">%1$s</xliff:g> সেট-আপ করুন"</string>
+    <string name="accessibility_shortcutchooser_done_button" msgid="5288975589451082156">"হয়ে গেছে"</string>
+    <string name="accessibility_shortcutchooser_picker_dialog_title" msgid="6067291073174568750">"একটি ফিচার বেছে নিন"</string>
+    <string name="accessibility_shortcutchooser_edit_button" msgid="1924449663239985111">"এডিট করুন"</string>
+    <string name="accessibility_nav_bar_more_options_title" msgid="2549386798738178479">"ফিচার বেছে নিন"</string>
+    <string name="accessibility_nav_bar_more_options_subtitle" msgid="4336832036115080533">"পরের বার অ্যাক্সেসিবিলিটি বোতাম বেছে নিলে এই ফিচারটি খুলবে"</string>
+    <string name="accessibility_quick_access_dialog_title" msgid="8792322423145117379">"অ্যাক্সেসিবিলিটি"</string>
     <string name="tuner_lock_screen" msgid="2267383813241144544">"লক স্ক্রিন"</string>
     <string name="shutdown_progress" msgid="5464239146561542178">"বন্ধ হচ্ছে…"</string>
     <string name="thermal_shutdown_dialog_help_text" msgid="6413474593462902901">"ডিভাইস রক্ষণাবেক্ষণের ধাপগুলি দেখুন"</string>
@@ -1240,6 +1340,7 @@
     <string name="privacy_type_location" msgid="7991481648444066703">"লোকেশন"</string>
     <string name="privacy_type_microphone" msgid="9136763906797732428">"মাইক্রোফোন"</string>
     <string name="privacy_type_media_projection" msgid="8136723828804251547">"স্ক্রিন রেকর্ডিং"</string>
+    <string name="privacy_chip_container_leading_title" msgid="4911201935798986077">"গোপনীয়তা"</string>
     <string name="music_controls_no_title" msgid="4166497066552290938">"কোনও শীর্ষক নেই"</string>
     <string name="inattentive_sleep_warning_title" msgid="3891371591713990373">"স্ট্যান্ডবাই"</string>
     <string name="font_scaling_dialog_title" msgid="6273107303850248375">"ফন্ট সাইজ"</string>
@@ -1358,6 +1459,7 @@
     <string name="controls_media_button_prev" msgid="8126822360056482970">"আগের ট্র্যাক"</string>
     <string name="controls_media_button_next" msgid="6662636627525947610">"পরের ট্র্যাক"</string>
     <string name="controls_media_button_connecting" msgid="3138354625847598095">"কানেক্ট করা হচ্ছে"</string>
+    <string name="controls_media_output_chip" msgid="324952606619594635">"আউটপুট সেটিংস খুলুন"</string>
     <string name="media_transfer_undo" msgid="1895606387620728736">"আগের অবস্থায় ফিরুন"</string>
     <string name="media_move_closer_to_start_cast" msgid="2673104707465013176">"<xliff:g id="DEVICENAME">%1$s</xliff:g>-এ চালাতে আরও কাছে আনুন"</string>
     <string name="media_move_closer_to_end_cast" msgid="7302555909119374738">"এখানে চালানোর জন্য আপনার ডিভাইস <xliff:g id="DEVICENAME">%1$s</xliff:g>-এর কাছে নিয়ে যান"</string>
@@ -1378,32 +1480,26 @@
     <string name="controls_menu_edit" msgid="890623986951347062">"কন্ট্রোল এডিট করুন"</string>
     <string name="controls_menu_add_another_app" msgid="8661172304650786705">"অ্যাপ যোগ করুন"</string>
     <string name="controls_menu_remove" msgid="3006525275966023468">"অ্যাপটি সরিয়ে দিন"</string>
-    <string name="media_output_dialog_add_output" msgid="5642703238877329518">"আউটপুট যোগ করুন"</string>
     <string name="media_output_dialog_group" msgid="5571251347877452212">"গ্রুপ"</string>
-    <string name="media_output_dialog_single_device" msgid="3102758980643351058">"১টি ডিভাইস বেছে নেওয়া হয়েছে"</string>
-    <string name="media_output_dialog_multiple_devices" msgid="1093771040315422350">"<xliff:g id="COUNT">%1$d</xliff:g>টি ডিভাইস বেছে নেওয়া হয়েছে"</string>
     <string name="media_output_item_connected_state" msgid="297439499870755458">"কানেক্ট করা আছে"</string>
     <string name="media_output_dialog_connect_failed" msgid="3080972621975339387">"পাল্টানো যাচ্ছে না। আবার চেষ্টা করতে ট্যাপ করুন।"</string>
-    <string name="media_output_dialog_pairing_new" msgid="5098212763195577270">"ডিভাইস কানেক্ট করুন"</string>
     <string name="media_output_dialog_button_connect_device" msgid="2819038239946643550">"ডিভাইস কানেক্ট করুন"</string>
     <string name="media_output_dialog_unknown_launch_app_name" msgid="1084899329829371336">"অজানা অ্যাপ"</string>
     <string name="media_output_dialog_button_stop_casting" msgid="6581379537930199189">"কাস্ট করা বন্ধ করুন"</string>
     <string name="media_output_dialog_accessibility_title" msgid="4681741064190167888">"অডিও আউটপুটের জন্য উপলভ্য ডিভাইস।"</string>
     <string name="media_output_dialog_accessibility_seekbar" msgid="5332843993805568978">"ভলিউম"</string>
     <string name="media_output_dialog_volume_percentage" msgid="1613984910585111798">"<xliff:g id="PERCENTAGE">%1$d</xliff:g>%%"</string>
+    <string name="media_output_dialog_missing_permissions_warning" msgid="4312830846174995199">"আরও ডিভাইস দেখতে, আপনাকে <xliff:g id="MEDIA_APP_NAME">%1$s</xliff:g>-কে অনুমতি দিতে হতে পারে"</string>
+    <string name="media_output_dialog_warning_button_fix" msgid="3650735180540135181">"<xliff:g id="MEDIA_APP_NAME">%1$s</xliff:g> অ্যাপ খুলুন"</string>
     <string name="media_output_group_title_connected_speakers" msgid="3413876972919684479">"কানেক্ট করা স্পিকার"</string>
     <string name="media_output_group_title_speakers_and_displays" msgid="7169712332365659820">"স্পিকার ও ডিসপ্লে"</string>
     <string name="media_output_group_title_suggested" msgid="5097061363820410332">"সাজেস্ট করা হয়েছে"</string>
-    <string name="media_output_group_title_suggested_device" msgid="4157186235837903826">"সাজেস্ট করা ডিভাইস"</string>
     <string name="media_input_group_title" msgid="2057057473860783021">"ইনপুট"</string>
     <string name="media_output_group_title" msgid="6789001895863332576">"আউটপুট"</string>
-    <string name="media_output_end_session_dialog_summary" msgid="5954520685989877347">"অন্য ডিভাইসে মিডিয়া সরাতে আপনার শেয়ার করা সেশন বন্ধ করুন"</string>
-    <string name="media_output_end_session_dialog_stop" msgid="208189434474624412">"বন্ধ করুন"</string>
     <string name="media_output_dialog_button_stop_sharing" msgid="5043482739689716185">"শেয়ার করা বন্ধ করুন"</string>
     <string name="media_output_dialog_button_sharing_audio" msgid="8312910741492835648">"অডিও শেয়ার করা হচ্ছে"</string>
     <string name="media_output_dialog_button_share_audio" msgid="827604934548421520">"অডিও শেয়ার করুন"</string>
     <string name="build_number_clip_data_label" msgid="3623176728412560914">"বিল্ড নম্বর"</string>
-    <string name="build_number_copy_toast" msgid="877720921605503046">"বিল্ড নম্বর ক্লিপবোর্ডে কপি করা হয়েছে।"</string>
     <string name="copy_to_clipboard_a11y_action" msgid="4312789069718446749">"ক্লিপবোর্ডে কপি করুন।"</string>
     <string name="basic_status" msgid="2315371112182658176">"খোলা কথোপকথন"</string>
     <string name="select_conversation_title" msgid="6716364118095089519">"কথোপকথন উইজেট"</string>
@@ -1476,8 +1572,12 @@
     <string name="wifi_scan_notify_message" msgid="3753839537448621794">"ডিভাইস সংক্রান্ত অভিজ্ঞতা আরও ভাল করতে, অ্যাপ ও পরিষেবা যেকোনও সময় আপনার ওয়াই-ফাই নেটওয়ার্ক স্ক্যান করতে পারবে, এমনকি ডিভাইসের ওয়াই-ফাই বন্ধ করা থাকলেও। ওয়াই-ফাই স্ক্যানিং সেটিংস থেকে আপনি এটি পরিবর্তন করতে পারবেন। "<annotation id="link">"পরিবর্তন করুন"</annotation></string>
     <string name="turn_off_airplane_mode" msgid="8425587763226548579">"\'বিমান মোড\' বন্ধ করুন"</string>
     <string name="qs_tile_request_dialog_text" msgid="3501359944139877694">"<xliff:g id="APPNAME">%1$s</xliff:g> নিম্নলিখিত টাইল দ্রুত সেটিংস মেনুতে যোগ করতে চায়"</string>
+    <string name="qs_tile_request_dialog_text_with_size" msgid="732578771040573291">"<xliff:g id="APPNAME">%1$s</xliff:g> দ্রুত সেটিংস মেনুতে টাইল যোগ করতে চায়। চালিয়ে যেতে টাইলের সাইজ বেছে নিন।"</string>
     <string name="qs_tile_request_dialog_add" msgid="4888460910694986304">"টাইল যোগ করুন"</string>
-    <string name="qs_tile_request_dialog_not_add" msgid="4168716573114067296">"টাইল যোগ করবেন না"</string>
+    <string name="qs_tile_request_dialog_not_add" msgid="8375425041428574394">"টাইল যোগ করবেন না"</string>
+    <string name="qs_tile_request_dialog_title" msgid="5654666862347548966">"দ্রুত সেটিংস মেনুতে টাইল যোগ করুন"</string>
+    <string name="qs_tile_request_dialog_small_format_content_description" msgid="5429197059724172135">"ছোট ফর্ম্যাট"</string>
+    <string name="qs_tile_request_dialog_large_format_content_description" msgid="67983044110405787">"বড় ফর্ম্যাট"</string>
     <string name="qs_user_switch_dialog_title" msgid="3045189293587781366">"ব্যবহারকারী বেছে নিন"</string>
     <string name="fgs_manager_footer_label" msgid="8276763570622288231">"{count,plural, =1{#টি অ্যাপ চালু আছে}one{#টি অ্যাপ চালু আছে}other{#টি অ্যাপ চালু আছে}}"</string>
     <string name="fgs_dot_content_description" msgid="2865071539464777240">"নতুন তথ্য"</string>
@@ -1500,6 +1600,7 @@
     <string name="clipboard_image_preview" msgid="2156475174343538128">"ছবির প্রিভিউ"</string>
     <string name="clipboard_edit" msgid="4500155216174011640">"এডিট করতে"</string>
     <string name="add" msgid="81036585205287996">"যোগ করুন"</string>
+    <string name="remove" msgid="7031760447233505700">"সরান"</string>
     <string name="manage_users" msgid="1823875311934643849">"ব্যবহারকারীদের ম্যানেজ করুন"</string>
     <string name="drag_split_not_supported" msgid="7173481676120546121">"\'স্প্লিটস্ক্রিন\' মোডে এই বিজ্ঞপ্তি টেনে আনা যাবে না"</string>
     <string name="dream_overlay_location_active" msgid="6484763493158166618">"লোকেশন অ্যাক্টিভ আছে"</string>
@@ -1555,6 +1656,8 @@
     <string name="keyguard_unlock_to_customize_ls" msgid="2068542308086253819">"লক স্ক্রিন কাস্টমাইজ করতে আনলক করুন"</string>
     <string name="wifi_unavailable_dream_overlay_content_description" msgid="2024166212194640100">"ওয়াই-ফাই উপলভ্য নয়"</string>
     <string name="location_active_dream_overlay_content_description" msgid="6208885541020673916">"লোকেশন অ্যাক্টিভ আছে"</string>
+    <string name="camera_privacy_dream_overlay_content_description" msgid="4503818441101346249">"ক্যামেরা চালু আছে"</string>
+    <string name="mic_privacy_dream_overlay_content_description" msgid="1164197684411086751">"মাইক্রোফোন চালু আছে"</string>
     <string name="camera_blocked_dream_overlay_content_description" msgid="4074759493559418130">"ক্যামেরার অ্যাক্সেস ব্লক করা আছে"</string>
     <string name="camera_and_microphone_blocked_dream_overlay_content_description" msgid="7891078093416249764">"ক্যামেরা এবং মাইক্রোফোনের অ্যাক্সেস ব্লক করা আছে"</string>
     <string name="microphone_blocked_dream_overlay_content_description" msgid="5466897982130007033">"মাইক্রোফোনের অ্যাক্সেস ব্লক করা আছে"</string>
@@ -1572,7 +1675,8 @@
     <string name="start_desktop_mode" msgid="5459815912537830841">"ডেস্কটপ"</string>
     <string name="start_mirroring" msgid="3611044878130481882">"মিরর করুন"</string>
     <string name="connected_display_icon_desc" msgid="6373560639989971997">"ডিসপ্লে কানেক্ট করা আছে"</string>
-    <string name="connected_display_extended_mode_text" msgid="2457269692913653696">"এক্সটার্নাল ডিসপ্লের সাথে কানেক্ট করা হয়েছে"</string>
+    <string name="connected_display_connection_text" msgid="6787771675124372815">"এক্সটার্নাল ডিসপ্লের সাথে কানেক্ট করা হয়েছে"</string>
+    <string name="connected_display_removal_text" msgid="8270253839172935318">"এক্সটার্নাল ডিসপ্লে ডিসকানেক্ট হয়ে গেছে"</string>
     <string name="privacy_dialog_title" msgid="5201413527644766025">"মাইক্রোফোন, ক্যামেরা ও লোকেশন"</string>
     <string name="privacy_dialog_summary" msgid="2458769652125995409">"সম্প্রতি ব্যবহার করা অ্যাপ"</string>
     <string name="privacy_dialog_more_button" msgid="7610604080293562345">"সাম্প্রতিক অ্যাক্সেস দেখুন"</string>
@@ -1647,7 +1751,7 @@
     <string name="touchpad_tutorial_switch_apps_gesture_button" msgid="7768255095423767779">"অ্যাপ পরিবর্তন করুন"</string>
     <string name="touchpad_tutorial_done_button" msgid="176168488821755503">"হয়ে গেছে"</string>
     <string name="touchpad_tutorial_next_button" msgid="9169718126626806688">"এরপর"</string>
-    <string name="gesture_error_title" msgid="469064941635578511">"আবার চেষ্টা করুন!"</string>
+    <string name="gesture_error_title" msgid="6041718460759544782">"আবার চেষ্টা করুন"</string>
     <string name="touchpad_back_gesture_action_title" msgid="7199067250654332735">"ফিরে যান"</string>
     <string name="touchpad_back_gesture_guidance" msgid="5352221087725906542">"আপনার টাচপ্যাডে তিনটি আঙুল ব্যবহার করে বাঁদিকে বা ডানদিকে সোয়াইপ করুন"</string>
     <string name="touchpad_back_gesture_success_title" msgid="7370719098633023496">"সাবাস!"</string>
@@ -1655,14 +1759,19 @@
     <string name="touchpad_back_gesture_error_body" msgid="7112668207481458792">"নিজের টাচপ্যাড ব্যবহার করে ফিরে যেতে, তিনটি আঙুল ব্যবহার করে বাঁদিকে বা ডানদিকে সোয়াইপ করুন"</string>
     <string name="touchpad_home_gesture_action_title" msgid="8885107349719257882">"হোমে যান"</string>
     <string name="touchpad_home_gesture_guidance" msgid="4178219118381915899">"আপনার টাচপ্যাডে তিনটি আঙুলের সাহায্যে উপরের দিকে সোয়াইপ করুন"</string>
+    <string name="touchpad_home_gesture_updated_guidance" msgid="606317296917583468">"প্রথমে, আপনার সাম্প্রতিক অ্যাপ দেখতে তিনটি আঙুল দিয়ে উপরের দিকে সোয়াইপ করুন"</string>
     <string name="touchpad_home_gesture_success_title" msgid="3648264553645798470">"অসাধারণ!"</string>
     <string name="touchpad_home_gesture_success_body" msgid="2590690589194027059">"জেসচার ব্যবহার করে কীভাবে হোমে ফিরে যাওয়া যায় সেই সম্পর্কে আপনি জেনেছেন"</string>
     <string name="touchpad_home_gesture_error_body" msgid="3810674109999513073">"আপনার হোম স্ক্রিনে যেতে নিজের টাচপ্যাডে তিনটি আঙুল ব্যবহার করে উপরের দিকে সোয়াইপ করুন"</string>
+    <string name="touchpad_home_gesture_partial_success_title" msgid="5618869261676484908">"লক্ষ্য প্রায় পূরণ করে ফেলেছেন!"</string>
+    <string name="touchpad_home_gesture_partial_success_body" msgid="8133100850302405630">"এরপরে, আপনার হোম স্ক্রিনে যেতে আবার তিনটি আঙুল দিয়ে উপরের দিকে সোয়াইপ করুন"</string>
     <string name="touchpad_recent_apps_gesture_action_title" msgid="934906836867137906">"সম্প্রতি ব্যবহার করা হয়েছে এমন অ্যাপ দেখুন"</string>
     <string name="touchpad_recent_apps_gesture_guidance" msgid="6304446013842271822">"আপনার টাচপ্যাডে তিনটি আঙুল ব্যবহার করে উপরের দিকে সোয়াইপ করে ধরে রাখুন"</string>
+    <string name="touchpad_recent_apps_updated_gesture_guidance" msgid="828804493094219998">"আপনার টাচপ্যাডে তিনটি আঙুলের সাহায্যে উপরের দিকে সোয়াইপ করুন"</string>
     <string name="touchpad_recent_apps_gesture_success_title" msgid="8481920554139332593">"অসাধারণ!"</string>
-    <string name="touchpad_recent_apps_gesture_success_body" msgid="4334263906697493273">"সম্প্রতি ব্যবহার করা হয়েছে এমন অ্যাপের জেসচার দেখা সম্পূর্ণ করেছেন।"</string>
+    <string name="touchpad_recent_apps_gesture_success_body" msgid="6217687180479342625">"সম্প্রতি ব্যবহার করা হয়েছে এমন অ্যাপের জেসচার দেখা সম্পূর্ণ করেছেন।"</string>
     <string name="touchpad_recent_gesture_error_body" msgid="8695535720378462022">"সাম্প্রতিক অ্যাপ দেখতে, নিজের টাচপ্যাডে তিনটি আঙুল ব্যবহার করে উপরের দিকে সোয়াইপ করে হোল্ড করুন"</string>
+    <string name="touchpad_recent_updated_gesture_error_body" msgid="3310047209458414383">"আপনার সাম্প্রতিক অ্যাপ স্ক্রিনে যেতে নিজের টাচপ্যাডে তিনটি আঙুল ব্যবহার করে উপরের দিকে সোয়াইপ করুন"</string>
     <string name="touchpad_switch_apps_gesture_action_title" msgid="6835222344612924512">"অ্যাপ পরিবর্তন করুন"</string>
     <string name="touchpad_switch_apps_gesture_guidance" msgid="2554844933805502538">"আপনার টাচপ্যাডে চারটি আঙুল ব্যবহার করে ডানদিকে সোয়াইপ করুন"</string>
     <string name="touchpad_switch_apps_gesture_success_title" msgid="4894947244328032458">"অসাধারণ!"</string>
@@ -1720,8 +1829,68 @@
     <string name="dual_shade_educational_tooltip_notifs" msgid="7666159428113013319">"বিজ্ঞপ্তি খুলতে উপরের বাঁদিক থেকে সোয়াইপ করুন"</string>
     <string name="dual_shade_educational_tooltip_qs" msgid="3842355853737057332">"দ্রুত সেটিংস খুলতে উপরের ডানদিক থেকে সোয়াইপ করুন"</string>
     <string name="back_button_on_bouncer" msgid="809134628434396761">"ফিরে যান"</string>
+    <string name="sign_in_button_on_bouncer" msgid="3595960142516902559">"সাইন-ইন করুন"</string>
+    <string name="accessibility_button_on_bouncer_description" msgid="9186344135931507168">"অ্যাক্সেসিবিলিটি"</string>
     <string name="pager_dots_previous_content_description" msgid="26963508904918908">"পূর্ববর্তী"</string>
     <string name="pager_dots_next_content_description" msgid="613943992626163120">"পরবর্তী"</string>
+    <string name="accessibility_pager_dots_navigate_to_next_page_action" msgid="7662720613169169465">"পরের পৃষ্ঠায় যান"</string>
+    <string name="accessibility_close_overlay_action" msgid="3581095146209387670">"ফিরে যান"</string>
+    <string name="accessibility_close_overlay_box_description" msgid="8399871568780893724">"ফিরে যান"</string>
     <string name="ambient_cue_autofill_action" msgid="9213025887835308128">"অটোফিল"</string>
     <string name="ambient_cue_expand_action" msgid="6803711089932959312">"বড় করুন"</string>
+    <string name="location_button_text_precise_location" msgid="4441259889842542799">"সুনির্দিষ্ট লোকেশন"</string>
+    <string name="location_button_text_use_precise_location" msgid="3499475231656390476">"সুনির্দিষ্ট লোকেশন ব্যবহার করুন"</string>
+    <string name="location_button_text_share_precise_location" msgid="5341882050169860712">"সুনির্দিষ্ট লোকেশন শেয়ার করুন"</string>
+    <string name="location_button_text_near_my_precise_location" msgid="7590342799002942963">"আমার সুনির্দিষ্ট লোকেশনের কাছাকাছি"</string>
+    <string name="location_button_text_near_your_precise_location" msgid="3792598666253599055">"আপনার সুনির্দিষ্ট লোকেশনের কাছাকাছি"</string>
+    <string name="privacy_chip_use_string" msgid="979159484631969073">"<xliff:g id="SENSOR">%1$s</xliff:g> ব্যবহার হচ্ছে"</string>
+    <string name="privacy_chip_use_string_with_app" msgid="6807216002072346877">"<xliff:g id="APP">%2$s</xliff:g>-এ <xliff:g id="SENSOR">%1$s</xliff:g> ব্যবহার করা হচ্ছে"</string>
+    <string name="privacy_chip_camera_and_mic_text" msgid="6254449489859255607">"ক্যামেরা ও মাইক"</string>
+    <string name="av_panel_title" msgid="455230832870768515">"গোপনীয়তা"</string>
+    <string name="sensor_activity_header" msgid="2145727448786698035">"এইসব অনুমতি অ্যাক্টিভভাবে বা সম্প্রতি ব্যবহার করছে এমন অ্যাপ দেখুন।"</string>
+    <string name="sensor_activity_see_all_access_button" msgid="8005330122289549048">"সব অ্যাক্সেস দেখুন"</string>
+    <string name="sensor_activity_camera_label" msgid="4260675418606211259">"ক্যামেরা"</string>
+    <string name="sensor_activity_microphone_label" msgid="4012136402420177411">"মাইক্রোফোন"</string>
+    <string name="sensor_activity_manage_access_button" msgid="1275701280501357102">"অ্যাক্সেস ম্যানেজ করুন"</string>
+    <string name="sensor_activity_close_app_button" msgid="6907314738150753330">"অ্যাপ বন্ধ করুন"</string>
+    <string name="sensor_activity_back_button_cd" msgid="6894532284650291222">"ফিরে যান"</string>
+    <string name="privacy_chip_apps_using_sensor_suffix" msgid="527247786536767096">"আরও <xliff:g id="COUNT">%1$d</xliff:g>টি"</string>
+    <string name="privacy_chip_camera_in_use" msgid="5163494654848590528">"ক্যামেরা ব্যবহার করা হচ্ছে"</string>
+    <string name="privacy_chip_mic_in_use" msgid="1586091297556363367">"মাইক ব্যবহার করা হচ্ছে"</string>
+    <string name="privacy_chip_camera_mic_in_use" msgid="5179267787210197484">"ক্যামেরা, মাইক ব্যবহার করা হচ্ছে"</string>
+    <string name="av_camera_portrait_touch_up" msgid="5191856296212427203">"পোর্ট্রেট টাচ-আপ"</string>
+    <string name="av_mic_label" msgid="5427348054144789879">"মাইক্রোফোন"</string>
+    <string name="av_camera_label" msgid="7719772172590702343">"ক্যামেরা"</string>
+    <string name="av_camera_blur_drill_in_title" msgid="3392789469292685354">"ব্লার ব্যাকগ্রাউন্ড"</string>
+    <string name="av_camera_blur_off" msgid="3170334995799202022">"বন্ধ আছে"</string>
+    <string name="av_camera_blur_light" msgid="5105255788203563538">"হালকা ব্লার"</string>
+    <string name="av_camera_blur_full" msgid="6493497965254048479">"বেশি ব্লার"</string>
+    <string name="av_camera_improve_lighting" msgid="1540549414296669133">"লাইটিং উন্নত করুন"</string>
+    <string name="av_camera_face_retouch" msgid="45890971969486224">"পোর্ট্রেট টাচ-আপ"</string>
+    <string name="av_camera_framing" msgid="2948988841290208034">"ক্যামেরা ফ্রেমিং"</string>
+    <string name="av_studio_mic" msgid="1815195630183143501">"Studio মাইক"</string>
+    <string name="av_studio_look" msgid="631085505786989852">"স্টুডিও লুক"</string>
+    <string name="av_studio_look_effects" msgid="4105109585851068415">"%dটি এফেক্ট"</string>
+    <string name="av_blur" msgid="405131343487260171">"ব্লার করুন"</string>
+    <string name="av_live_captions" msgid="802763867449401889">"লাইভ ক্যাপশন"</string>
+    <string name="av_drill_in_return_to_main" msgid="5273814393426741827">"ফিরে যান"</string>
+    <string name="accessibility_hearing_device_battery_level" msgid="1032601787487328432">"ব্যাটারি %s"</string>
+    <string name="accessibility_hearing_device_left_right_battery_level" msgid="5327672450604052979">"বাঁদিকের ব্যাটারি %1$s    ডানদিকের ব্যাটারি %2$s"</string>
+    <string name="accessibility_hearing_device_left_battery_level" msgid="327961080394238636">"বাঁদিকের ব্যাটারি %1$s"</string>
+    <string name="accessibility_hearing_device_right_battery_level" msgid="7598843215226414563">"ডানদিকের ব্যাটারি %1$s"</string>
+    <string name="accessibility_hearing_device_notification_channel_name" msgid="7365020777623709400">"হিয়ারিং ডিভাইসের স্ট্যাটাস"</string>
+    <string name="more_options_edit" msgid="6337988646114341329">"এডিট করুন"</string>
+    <string name="more_options_move" msgid="2226159413422979066">"সরান"</string>
+    <string name="more_options_remove_all" msgid="194855000797536179">"সবকটি সরান"</string>
+    <string name="floating_menu_more_options_label" msgid="7859269790323628599">"আরও বিকল্প"</string>
+    <string name="dream_setup_title" msgid="7996530071414508238">"স্ক্রিন সেভার সেট-আপ করুন"</string>
+    <string name="dream_setup_button_not_now" msgid="8028385323668620805">"এখন নয়"</string>
+    <string name="dream_setup_button_setup" msgid="4755361016017554826">"সেট-আপ করুন"</string>
+    <string name="ace_attribution_dialog_settings_label" msgid="8898211593287114433">"সেটিংস"</string>
+    <string name="ace_attribution_dialog_title" msgid="5236154464063969824">"Magic Cue সম্পর্কিত সাজেশন"</string>
+    <string name="ace_attribution_dialog_description" msgid="1431906058759687758">"এই সাজেশনে যেসব আইটেম বিবেচনা করা হয়েছে"</string>
+    <string name="ace_attribution_header_icon_accessibility_description" msgid="7385840112370423581">"Android Device Intelligence আইকন"</string>
+    <string name="ace_attribution_settings_button_accessibility_description" msgid="8426163772933746374">"সেটিংস বোতাম"</string>
+    <string name="ace_attribution_thumbs_up_button_accessibility_description" msgid="3561722934830934360">"থাম্বস আপ ফিডব্যাক বোতাম"</string>
+    <string name="ace_attribution_thumbs_down_button_accessibility_description" msgid="5471283747650437662">"থাম্বস ডাউন ফিডব্যাক বোতাম"</string>
 </resources>

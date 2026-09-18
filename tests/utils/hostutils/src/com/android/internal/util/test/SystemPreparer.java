@@ -187,12 +187,6 @@ public class SystemPreparer extends ExternalResource {
             case UNTIL_ONLINE:
                 device.rebootUntilOnline();
                 break;
-            case USERSPACE:
-                device.rebootUserspace();
-                break;
-            case USERSPACE_UNTIL_ONLINE:
-                device.rebootUserspaceUntilOnline();
-                break;
             // TODO(b/159540015): Make this START_STOP instead of default once it's fixed. Can't
             //  currently be done because START_STOP is commented out.
             default:
@@ -396,12 +390,6 @@ public class SystemPreparer extends ExternalResource {
 
         /** @see ITestDevice#rebootUntilOnline() () */
         UNTIL_ONLINE,
-
-        /** @see ITestDevice#rebootUserspace() */
-        USERSPACE,
-
-        /** @see ITestDevice#rebootUserspaceUntilOnline() () */
-        USERSPACE_UNTIL_ONLINE,
 
         /**
          * Uses shell stop && start to "reboot" the device. May leave invalid state after each test.

@@ -27,9 +27,9 @@ import org.junit.Test;
 public final class UserVisibilityMediatorMUMDTest
         extends UserVisibilityMediatorVisibleBackgroundUserTestCase {
 
-    public UserVisibilityMediatorMUMDTest() throws Exception {
+    public UserVisibilityMediatorMUMDTest(boolean flagCacheEnabled) throws Exception {
         super(/* backgroundUsersOnDisplaysEnabled= */ true,
-                /* backgroundUserOnDefaultDisplayAllowed= */ false);
+                /* backgroundUserOnDefaultDisplayAllowed= */ false, flagCacheEnabled);
     }
 
     @Test

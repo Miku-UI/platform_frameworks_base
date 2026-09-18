@@ -55,22 +55,19 @@ public class ReferenceWithHistoryTest {
         // Try setting a non-null value.
         setAndCompareReturnValue(referenceWithHistory, reference, "Foo");
         compareGet(referenceWithHistory, reference, "Foo");
-        assertDumpContent(referenceWithHistory,
-                new DumpLine(0, "null"), new DumpLine(1, "Foo"));
+        assertDumpContent(referenceWithHistory, new DumpLine(0, "null"), new DumpLine(1, "Foo"));
         compareToString(referenceWithHistory, reference, "Foo");
 
         // Try setting null again.
         setAndCompareReturnValue(referenceWithHistory, reference, null);
         compareGet(referenceWithHistory, reference, null);
-        assertDumpContent(referenceWithHistory,
-                new DumpLine(1, "Foo"), new DumpLine(2, "null"));
+        assertDumpContent(referenceWithHistory, new DumpLine(1, "Foo"), new DumpLine(2, "null"));
         compareToString(referenceWithHistory, reference, "null");
 
         // Try a non-null value again.
         setAndCompareReturnValue(referenceWithHistory, reference, "Bar");
         compareGet(referenceWithHistory, reference, "Bar");
-        assertDumpContent(referenceWithHistory,
-                new DumpLine(2, "null"), new DumpLine(3, "Bar"));
+        assertDumpContent(referenceWithHistory, new DumpLine(2, "null"), new DumpLine(3, "Bar"));
         compareToString(referenceWithHistory, reference, "Bar");
     }
 
@@ -146,15 +143,21 @@ public class ReferenceWithHistoryTest {
             assertEquals(expectedEmptyOutput, 1, actualLines.length);
             assertEquals(expectedEmptyOutput, actualLines[0]);
         } else {
-            assertEquals("Expected=" + Arrays.toString(expectedLines)
-                            + ", actual=" + Arrays.toString(actualLines),
-                    expectedLines.length, actualLines.length);
+            assertEquals(
+                    "Expected="
+                            + Arrays.toString(expectedLines)
+                            + ", actual="
+                            + Arrays.toString(actualLines),
+                    expectedLines.length,
+                    actualLines.length);
             for (int i = 0; i < expectedLines.length; i++) {
                 DumpLine expectedLine = expectedLines[i];
                 String actualLine = actualLines[i];
-                assertTrue("i=" + i + ", expected=" + expectedLine + ", actual=" + actualLine,
+                assertTrue(
+                        "i=" + i + ", expected=" + expectedLine + ", actual=" + actualLine,
                         actualLine.startsWith(Integer.toString(expectedLine.mIndex)));
-                assertTrue("i=" + i + ", expected=" + expectedLine + ", actual=" + actualLine,
+                assertTrue(
+                        "i=" + i + ", expected=" + expectedLine + ", actual=" + actualLine,
                         actualLine.endsWith(expectedLine.mLine));
             }
         }
@@ -181,10 +184,7 @@ public class ReferenceWithHistoryTest {
 
         @Override
         public String toString() {
-            return "DumpLine{"
-                    + "mIndex=" + mIndex
-                    + ", mLine='" + mLine + '\''
-                    + '}';
+            return "DumpLine{" + "mIndex=" + mIndex + ", mLine='" + mLine + '\'' + '}';
         }
     }
 }

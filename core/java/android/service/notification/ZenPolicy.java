@@ -16,6 +16,7 @@
 
 package android.service.notification;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -25,6 +26,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.util.Slog;
 import android.util.proto.ProtoOutputStream;
 
 import androidx.annotation.VisibleForTesting;
@@ -44,6 +46,7 @@ import java.util.Objects;
  * a device is in Do Not Disturb mode.
  */
 public final class ZenPolicy implements Parcelable {
+    private static final String TAG = "ZenPolicy";
 
     /**
      * Enum for the user-modifiable fields in this object.
@@ -67,6 +70,7 @@ public final class ZenPolicy implements Parcelable {
             FIELD_VISUAL_EFFECT_BADGE,
             FIELD_VISUAL_EFFECT_AMBIENT,
             FIELD_VISUAL_EFFECT_NOTIFICATION_LIST,
+            FIELD_INTERRUPTION_TYPE_ALARMS,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ModifiableField {}
@@ -145,8 +149,13 @@ public final class ZenPolicy implements Parcelable {
      * @hide
      */
     public static final int FIELD_VISUAL_EFFECT_NOTIFICATION_LIST = 1 << 16;
+    /**
+     * @hide
+     */
+    public static final int FIELD_INTERRUPTION_TYPE_ALARMS = 1 << 17;
 
     private List<Integer> mPriorityCategories;
+    private List<Integer> mInterruptionTypes;
     private List<Integer> mVisualEffects;
     private @PeopleType int mPriorityMessages = PEOPLE_TYPE_UNSET;
     private @PeopleType int mPriorityCalls = PEOPLE_TYPE_UNSET;
@@ -357,21 +366,121 @@ public final class ZenPolicy implements Parcelable {
     public static final int CHANNEL_POLICY_NONE = 2;
 
     /** @hide */
+    @IntDef(
+            prefix = {"INTERRUPTION_TYPE_"},
+            value = {
+                    ALLOWED_INTERRUPTION_TYPE_UNSET,
+                    ALLOWED_INTERRUPTION_TYPE_ALL,
+                    ALLOWED_INTERRUPTION_TYPE_SOUND_ONLY,
+                    ALLOWED_INTERRUPTION_TYPE_VIBRATION_ONLY,
+            })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface InterruptionType {}
+
+    /**
+     * Used to indicate that the interruption type for the corresponding priority category is not
+     * explicitly set, and when the policy is active, the interruption mechanism should resort to
+     * the default behavior.
+     *
+     * <p>This is also used for when a priority category is marked as {@link #STATE_DISALLOW} or
+     * {@link #STATE_UNSET}. When used with {@link #STATE_ALLOW}, the priority category attempts to
+     * breakthrough with both sound and vibration.
+     *
+     * @hide
+     */
+    public static final int ALLOWED_INTERRUPTION_TYPE_UNSET = -1;
+
+    /**
+     * Used to indicate that the interruption type for the corresponding priority category is
+     * explicitly set to allow breakthrough for both sound and vibration.
+     *
+     * <p>This should only be used when a priority category is marked as {@link #STATE_ALLOW}.
+     *
+     * @hide
+     */
+    public static final int ALLOWED_INTERRUPTION_TYPE_ALL = 0;
+
+    /**
+     * Used to indicate that notification of the corresponding priority category should attempt to
+     * breakthrough with only sound when the policy is active.
+     *
+     * <p>This requires the corresponding priority category (e.g., {@link
+     * #PRIORITY_CATEGORY_ALARMS}) to be set to {@link #STATE_ALLOW}.
+     *
+     * @hide
+     */
+    public static final int ALLOWED_INTERRUPTION_TYPE_SOUND_ONLY = 1;
+
+    /**
+     * Used to indicate that notification of the corresponding priority category should attempt to
+     * breakthrough with only vibration when the policy is active.
+     *
+     * <p>This requires the corresponding priority category (e.g., {@link
+     * #PRIORITY_CATEGORY_ALARMS}) to be set to {@link #STATE_ALLOW}.
+     *
+     * @hide
+     */
+    public static final int ALLOWED_INTERRUPTION_TYPE_VIBRATION_ONLY = 2;
+
+    /** @hide */
     public ZenPolicy() {
-        mPriorityCategories = new ArrayList<>(Collections.nCopies(NUM_PRIORITY_CATEGORIES, 0));
-        mVisualEffects = new ArrayList<>(Collections.nCopies(NUM_VISUAL_EFFECTS, 0));
+        mPriorityCategories =
+                new ArrayList<>(Collections.nCopies(NUM_PRIORITY_CATEGORIES, STATE_UNSET));
+        mInterruptionTypes =
+                new ArrayList<>(
+                        Collections.nCopies(
+                                NUM_PRIORITY_CATEGORIES, ALLOWED_INTERRUPTION_TYPE_UNSET));
+        mVisualEffects =
+                new ArrayList<>(
+                        Collections.nCopies(NUM_VISUAL_EFFECTS, STATE_UNSET));
+        validate();
     }
 
     /** @hide */
-    public ZenPolicy(List<Integer> priorityCategories, List<Integer> visualEffects,
-                     @PeopleType int priorityMessages, @PeopleType int priorityCalls,
-                     @ConversationSenders int conversationSenders, @ChannelType int allowChannels) {
+    public ZenPolicy(
+            List<Integer> priorityCategories,
+            List<Integer> interruptionTypes,
+            List<Integer> visualEffects,
+            @PeopleType int priorityMessages,
+            @PeopleType int priorityCalls,
+            @ConversationSenders int conversationSenders,
+            @ChannelType int allowChannels) {
         mPriorityCategories = priorityCategories;
+        if (!Flags.splitSoundVibrationForNotificationBreakthrough()) {
+            mInterruptionTypes =
+                    new ArrayList<>(
+                            Collections.nCopies(
+                                    NUM_PRIORITY_CATEGORIES, ALLOWED_INTERRUPTION_TYPE_UNSET));
+        } else {
+            mInterruptionTypes = interruptionTypes;
+        }
         mVisualEffects = visualEffects;
         mPriorityMessages = priorityMessages;
         mPriorityCalls = priorityCalls;
         mConversationSenders = conversationSenders;
         mAllowChannels = allowChannels;
+        validate();
+    }
+
+    private void validate() {
+        if (!Flags.splitSoundVibrationForNotificationBreakthrough()) {
+            return;
+        }
+
+        for (int i = 0; i < NUM_PRIORITY_CATEGORIES; i++) {
+            int interruptionType = mInterruptionTypes.get(i);
+            int state = mPriorityCategories.get(i);
+
+            if (interruptionType != ALLOWED_INTERRUPTION_TYPE_UNSET && state != STATE_ALLOW) {
+                throw new IllegalArgumentException(
+                        "Provided invalid interruption type ("
+                                + interruptionTypeToString(interruptionType)
+                                + ") and state ("
+                                + stateToString(state)
+                                + ") combination for "
+                                + indexToCategory(i));
+            }
+        }
     }
 
     /**
@@ -511,6 +620,27 @@ public final class ZenPolicy implements Parcelable {
      */
     public @State int getPriorityCategoryAlarms() {
         return mPriorityCategories.get(PRIORITY_CATEGORY_ALARMS);
+    }
+
+    /**
+     * Returns the manner (sound and/or vibration) in which a notification with category {@link
+     * Notification#CATEGORY_ALARM} breaks through when DND is active. It should be used in
+     * conjunction with {@link #getPriorityCategoryAlarms()} which returns whether the notification
+     * breaks through or is intercepted, whereas this method returns whether it should breakthrough
+     * with sound and/or vibration.
+     *
+     * <p>A value of {@link #ALLOWED_INTERRUPTION_TYPE_UNSET} denotes that the default behavior must
+     * be used to decide the manner of interruption.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+    public @InterruptionType int getInterruptionTypeAlarms() {
+        if (getPriorityCategoryAlarms() != STATE_ALLOW) {
+            return ALLOWED_INTERRUPTION_TYPE_UNSET;
+        } else {
+            return mInterruptionTypes.get(PRIORITY_CATEGORY_ALARMS);
+        }
     }
 
     /**
@@ -668,10 +798,31 @@ public final class ZenPolicy implements Parcelable {
          * Builds the current ZenPolicy.
          */
         public @NonNull ZenPolicy build() {
-            return new ZenPolicy(new ArrayList<>(mZenPolicy.mPriorityCategories),
+            return new ZenPolicy(
+                    new ArrayList<>(mZenPolicy.mPriorityCategories),
+                    new ArrayList<>(mZenPolicy.mInterruptionTypes),
                     new ArrayList<>(mZenPolicy.mVisualEffects),
-                    mZenPolicy.mPriorityMessages, mZenPolicy.mPriorityCalls,
-                    mZenPolicy.mConversationSenders, mZenPolicy.mAllowChannels);
+                    mZenPolicy.mPriorityMessages,
+                    mZenPolicy.mPriorityCalls,
+                    mZenPolicy.mConversationSenders,
+                    mZenPolicy.mAllowChannels);
+        }
+
+        private void setBreakthroughForPriorityCategory(boolean allowSound, boolean allowVibration,
+                @PriorityCategory int priorityCategory) {
+            boolean allow = allowSound || allowVibration;
+            mZenPolicy.mPriorityCategories.set(priorityCategory,
+                    allow ? STATE_ALLOW : STATE_DISALLOW);
+
+            @InterruptionType int interruptionType = ALLOWED_INTERRUPTION_TYPE_UNSET;
+            if (allowSound && !allowVibration) {
+                interruptionType = ALLOWED_INTERRUPTION_TYPE_SOUND_ONLY;
+            } else if (!allowSound && allowVibration) {
+                interruptionType = ALLOWED_INTERRUPTION_TYPE_VIBRATION_ONLY;
+            } else if (allowSound && allowVibration) {
+                interruptionType = ALLOWED_INTERRUPTION_TYPE_ALL;
+            }
+            mZenPolicy.mInterruptionTypes.set(priorityCategory, interruptionType);
         }
 
         /**
@@ -680,6 +831,7 @@ public final class ZenPolicy implements Parcelable {
         public @NonNull Builder allowAllSounds() {
             for (int i = 0; i < mZenPolicy.mPriorityCategories.size(); i++) {
                 mZenPolicy.mPriorityCategories.set(i, STATE_ALLOW);
+                unsetInterruptionType(i);
             }
             mZenPolicy.mPriorityMessages = PEOPLE_TYPE_ANYONE;
             mZenPolicy.mPriorityCalls = PEOPLE_TYPE_ANYONE;
@@ -697,6 +849,7 @@ public final class ZenPolicy implements Parcelable {
         public @NonNull Builder disallowAllSounds() {
             for (int i = 0; i < mZenPolicy.mPriorityCategories.size(); i++) {
                 mZenPolicy.mPriorityCategories.set(i, STATE_DISALLOW);
+                unsetInterruptionType(i);
             }
             mZenPolicy.mPriorityMessages = PEOPLE_TYPE_NONE;
             mZenPolicy.mPriorityCalls = PEOPLE_TYPE_NONE;
@@ -731,6 +884,7 @@ public final class ZenPolicy implements Parcelable {
          */
         public @NonNull Builder unsetPriorityCategory(@PriorityCategory int category) {
             mZenPolicy.mPriorityCategories.set(category, STATE_UNSET);
+            unsetInterruptionType(category);
 
             if (category == PRIORITY_CATEGORY_MESSAGES) {
                 mZenPolicy.mPriorityMessages = PEOPLE_TYPE_UNSET;
@@ -740,6 +894,30 @@ public final class ZenPolicy implements Parcelable {
                 mZenPolicy.mConversationSenders = CONVERSATION_SENDERS_UNSET;
             }
 
+            return this;
+        }
+
+        /**
+         * Unsets the interruption type for a priority category, allowing the notification's manner
+         * of interruption to resort to the default behavior.
+         *
+         * @hide
+         */
+        private @NonNull Builder unsetInterruptionType(@PriorityCategory int category) {
+            mZenPolicy.mInterruptionTypes.set(category, ALLOWED_INTERRUPTION_TYPE_UNSET);
+            return this;
+        }
+
+        /**
+         * Same as {@link #unsetInterruptionType(int)} but unsets the interruption type for all
+         * priority categories.
+         *
+         * @hide
+         */
+        public @NonNull Builder unsetAllInterruptionTypes() {
+            for (int i = 0; i < NUM_PRIORITY_CATEGORIES; i++) {
+                unsetInterruptionType(i);
+            }
             return this;
         }
 
@@ -760,6 +938,7 @@ public final class ZenPolicy implements Parcelable {
         public @NonNull Builder allowReminders(boolean allow) {
             mZenPolicy.mPriorityCategories.set(PRIORITY_CATEGORY_REMINDERS,
                     allow ? STATE_ALLOW : STATE_DISALLOW);
+            unsetInterruptionType(PRIORITY_CATEGORY_REMINDERS);
             return this;
         }
 
@@ -770,6 +949,7 @@ public final class ZenPolicy implements Parcelable {
         public @NonNull Builder allowEvents(boolean allow) {
             mZenPolicy.mPriorityCategories.set(PRIORITY_CATEGORY_EVENTS,
                     allow ? STATE_ALLOW : STATE_DISALLOW);
+            unsetInterruptionType(PRIORITY_CATEGORY_EVENTS);
             return this;
         }
 
@@ -787,6 +967,7 @@ public final class ZenPolicy implements Parcelable {
 
             if (audienceType == CONVERSATION_SENDERS_NONE) {
                 mZenPolicy.mPriorityCategories.set(PRIORITY_CATEGORY_CONVERSATIONS, STATE_DISALLOW);
+                unsetInterruptionType(PRIORITY_CATEGORY_CONVERSATIONS);
             } else if (audienceType == CONVERSATION_SENDERS_ANYONE
                     || audienceType == CONVERSATION_SENDERS_IMPORTANT) {
                 mZenPolicy.mPriorityCategories.set(PRIORITY_CATEGORY_CONVERSATIONS, STATE_ALLOW);
@@ -811,6 +992,7 @@ public final class ZenPolicy implements Parcelable {
 
             if (audienceType == PEOPLE_TYPE_NONE) {
                 mZenPolicy.mPriorityCategories.set(PRIORITY_CATEGORY_MESSAGES, STATE_DISALLOW);
+                unsetInterruptionType(PRIORITY_CATEGORY_MESSAGES);
             } else if (audienceType == PEOPLE_TYPE_ANYONE || audienceType == PEOPLE_TYPE_CONTACTS
                     || audienceType == PEOPLE_TYPE_STARRED) {
                 mZenPolicy.mPriorityCategories.set(PRIORITY_CATEGORY_MESSAGES, STATE_ALLOW);
@@ -835,6 +1017,7 @@ public final class ZenPolicy implements Parcelable {
 
             if (audienceType == PEOPLE_TYPE_NONE) {
                 mZenPolicy.mPriorityCategories.set(PRIORITY_CATEGORY_CALLS, STATE_DISALLOW);
+                unsetInterruptionType(PRIORITY_CATEGORY_CALLS);
             } else if (audienceType == PEOPLE_TYPE_ANYONE || audienceType == PEOPLE_TYPE_CONTACTS
                     || audienceType == PEOPLE_TYPE_STARRED) {
                 mZenPolicy.mPriorityCategories.set(PRIORITY_CATEGORY_CALLS, STATE_ALLOW);
@@ -854,6 +1037,7 @@ public final class ZenPolicy implements Parcelable {
         public @NonNull Builder allowRepeatCallers(boolean allow) {
             mZenPolicy.mPriorityCategories.set(PRIORITY_CATEGORY_REPEAT_CALLERS,
                     allow ? STATE_ALLOW : STATE_DISALLOW);
+            unsetInterruptionType(PRIORITY_CATEGORY_REPEAT_CALLERS);
             return this;
         }
 
@@ -865,6 +1049,28 @@ public final class ZenPolicy implements Parcelable {
         public @NonNull Builder allowAlarms(boolean allow) {
             mZenPolicy.mPriorityCategories.set(PRIORITY_CATEGORY_ALARMS,
                     allow ? STATE_ALLOW : STATE_DISALLOW);
+            unsetInterruptionType(PRIORITY_CATEGORY_ALARMS);
+            return this;
+        }
+
+        /**
+         * Similar to {@link #allowAlarms(boolean)}, this sets whether to allow notifications with
+         * category {@link Notification#CATEGORY_ALARM} to play sound and/or vibration, and visually
+         * appear or to intercept them when DND is active.
+         *
+         * @param allowSound whether to allow alarms to breakthrough with sound
+         * @param allowVibration whether to allow alarms to breakthrough with vibration
+         * @hide
+         */
+        @FlaggedApi(Flags.FLAG_SPLIT_SOUND_VIBRATION_FOR_NOTIFICATION_BREAKTHROUGH)
+        public @NonNull Builder allowAlarms(boolean allowSound, boolean allowVibration) {
+            if (Flags.splitSoundVibrationForNotificationBreakthrough()) {
+                setBreakthroughForPriorityCategory(allowSound, allowVibration,
+                        PRIORITY_CATEGORY_ALARMS);
+            } else {
+                Slog.wtf(TAG, "allowAlarms(boolean, boolean) called with "
+                        + "splitSoundVibrationForNotificationBreakthrough disabled; ignoring.");
+            }
             return this;
         }
 
@@ -876,6 +1082,7 @@ public final class ZenPolicy implements Parcelable {
         public @NonNull Builder allowMedia(boolean allow) {
             mZenPolicy.mPriorityCategories.set(PRIORITY_CATEGORY_MEDIA,
                     allow ? STATE_ALLOW : STATE_DISALLOW);
+            unsetInterruptionType(PRIORITY_CATEGORY_MEDIA);
             return this;
         }
 
@@ -886,6 +1093,7 @@ public final class ZenPolicy implements Parcelable {
         public @NonNull Builder allowSystem(boolean allow) {
             mZenPolicy.mPriorityCategories.set(PRIORITY_CATEGORY_SYSTEM,
                     allow ? STATE_ALLOW : STATE_DISALLOW);
+            unsetInterruptionType(PRIORITY_CATEGORY_SYSTEM);
             return this;
         }
 
@@ -1043,6 +1251,7 @@ public final class ZenPolicy implements Parcelable {
     @Override
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeList(mPriorityCategories);
+        dest.writeList(mInterruptionTypes);
         dest.writeList(mVisualEffects);
         dest.writeInt(mPriorityMessages);
         dest.writeInt(mPriorityCalls);
@@ -1055,13 +1264,22 @@ public final class ZenPolicy implements Parcelable {
                 @Override
                 public ZenPolicy createFromParcel(Parcel source) {
                     return new ZenPolicy(
-                            trimList(source.readArrayList(Integer.class.getClassLoader(),
-                                    Integer.class), NUM_PRIORITY_CATEGORIES),
-                            trimList(source.readArrayList(Integer.class.getClassLoader(),
-                                    Integer.class), NUM_VISUAL_EFFECTS),
-                            source.readInt(), source.readInt(), source.readInt(),
-                            source.readInt()
-                        );
+                            trimList(
+                                    source.readArrayList(
+                                            Integer.class.getClassLoader(), Integer.class),
+                                    NUM_PRIORITY_CATEGORIES),
+                            trimList(
+                                    source.readArrayList(
+                                            Integer.class.getClassLoader(), Integer.class),
+                                    NUM_PRIORITY_CATEGORIES),
+                            trimList(
+                                    source.readArrayList(
+                                            Integer.class.getClassLoader(), Integer.class),
+                                    NUM_VISUAL_EFFECTS),
+                            source.readInt(),
+                            source.readInt(),
+                            source.readInt(),
+                            source.readInt());
                 }
 
                 @Override
@@ -1072,16 +1290,28 @@ public final class ZenPolicy implements Parcelable {
 
     @Override
     public String toString() {
+        String interruptionTypes = "";
+        if (Flags.splitSoundVibrationForNotificationBreakthrough()) {
+            interruptionTypes = interruptionTypesToString();
+        }
         return new StringBuilder(ZenPolicy.class.getSimpleName())
                 .append('{')
-                .append("priorityCategories=[").append(priorityCategoriesToString())
-                .append("], visualEffects=[").append(visualEffectsToString())
-                .append("], priorityCallsSenders=").append(peopleTypeToString(mPriorityCalls))
-                .append(", priorityMessagesSenders=").append(peopleTypeToString(mPriorityMessages))
-                .append(", priorityConversationSenders=").append(
-                        conversationTypeToString(mConversationSenders))
-                .append(", allowChannels=").append(channelTypeToString(mAllowChannels))
-                .append('}').toString();
+                .append("priorityCategories=[")
+                .append(priorityCategoriesToString())
+                .append(!interruptionTypes.isEmpty() ? "], interruptionType=[" : "")
+                .append(!interruptionTypes.isEmpty() ? interruptionTypes : "")
+                .append("], visualEffects=[")
+                .append(visualEffectsToString())
+                .append("], priorityCallsSenders=")
+                .append(peopleTypeToString(mPriorityCalls))
+                .append(", priorityMessagesSenders=")
+                .append(peopleTypeToString(mPriorityMessages))
+                .append(", priorityConversationSenders=")
+                .append(conversationTypeToString(mConversationSenders))
+                .append(", allowChannels=")
+                .append(channelTypeToString(mAllowChannels))
+                .append('}')
+                .toString();
     }
 
     /** @hide */
@@ -1138,12 +1368,17 @@ public final class ZenPolicy implements Parcelable {
         if ((bitmask & FIELD_VISUAL_EFFECT_NOTIFICATION_LIST) != 0) {
             modified.add("FIELD_VISUAL_EFFECT_NOTIFICATION_LIST");
         }
+        if ((bitmask & FIELD_INTERRUPTION_TYPE_ALARMS) != 0) {
+            modified.add("FIELD_INTERRUPTION_TYPE_ALARMS");
+        }
         return "{" + String.join(",", modified) + "}";
     }
 
-    // Returns a list containing the first maxLength elements of the input list if the list is
-    // longer than that size. For the lists in ZenPolicy, this should not happen unless the input
-    // is corrupt.
+    /**
+     * Returns a list containing the first maxLength elements of the input list if the list is
+     * longer than that size. For the lists in ZenPolicy, this should not happen unless the input is
+     * corrupt
+     */
     private static ArrayList<Integer> trimList(ArrayList<Integer> list, int maxLength) {
         if (list == null || list.size() <= maxLength) {
             return list;
@@ -1161,6 +1396,19 @@ public final class ZenPolicy implements Parcelable {
                         .append(" ");
             }
 
+        }
+        return builder.toString();
+    }
+
+    private String interruptionTypesToString() {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < mInterruptionTypes.size(); i++) {
+            if (mInterruptionTypes.get(i) != ALLOWED_INTERRUPTION_TYPE_UNSET) {
+                builder.append(indexToCategory(i))
+                        .append("=")
+                        .append(interruptionTypeToString(mInterruptionTypes.get(i)))
+                        .append(" ");
+            }
         }
         return builder.toString();
     }
@@ -1199,7 +1447,7 @@ public final class ZenPolicy implements Parcelable {
         return null;
     }
 
-    private String indexToCategory(@PriorityCategory int categoryIndex) {
+    private static String indexToCategory(@PriorityCategory int categoryIndex) {
         switch (categoryIndex) {
             case PRIORITY_CATEGORY_REMINDERS:
                 return "reminders";
@@ -1223,7 +1471,7 @@ public final class ZenPolicy implements Parcelable {
         return null;
     }
 
-    private String stateToString(@State int state) {
+    private static String stateToString(@State int state) {
         switch (state) {
             case STATE_UNSET:
                 return "unset";
@@ -1233,6 +1481,17 @@ public final class ZenPolicy implements Parcelable {
                 return "allow";
         }
         return "invalidState{" + state + "}";
+    }
+
+    /** @hide */
+    public static String interruptionTypeToString(@InterruptionType int interruptionType) {
+        return switch (interruptionType) {
+            case ALLOWED_INTERRUPTION_TYPE_UNSET -> "unset";
+            case ALLOWED_INTERRUPTION_TYPE_ALL -> "all";
+            case ALLOWED_INTERRUPTION_TYPE_SOUND_ONLY -> "sound";
+            case ALLOWED_INTERRUPTION_TYPE_VIBRATION_ONLY -> "vibration";
+            default -> "invalidInterruptionType{" + interruptionType + "}";
+        };
     }
 
     /**
@@ -1293,6 +1552,7 @@ public final class ZenPolicy implements Parcelable {
         final ZenPolicy other = (ZenPolicy) o;
 
         return Objects.equals(other.mPriorityCategories, mPriorityCategories)
+                && Objects.equals(other.mInterruptionTypes, mInterruptionTypes)
                 && Objects.equals(other.mVisualEffects, mVisualEffects)
                 && other.mPriorityCalls == mPriorityCalls
                 && other.mPriorityMessages == mPriorityMessages
@@ -1302,8 +1562,14 @@ public final class ZenPolicy implements Parcelable {
 
     @Override
     public int hashCode() {
-        return Objects.hash(mPriorityCategories, mVisualEffects, mPriorityCalls,
-                mPriorityMessages, mConversationSenders, mAllowChannels);
+        return Objects.hash(
+                    mPriorityCategories,
+                    mInterruptionTypes,
+                    mVisualEffects,
+                    mPriorityCalls,
+                    mPriorityMessages,
+                    mConversationSenders,
+                    mAllowChannels);
     }
 
     private @State int getZenPolicyPriorityCategoryState(@PriorityCategory int
@@ -1368,6 +1634,70 @@ public final class ZenPolicy implements Parcelable {
         return stateToBoolean(getZenPolicyPriorityCategoryState(category), defaultVal);
     }
 
+    /**
+     * Returns a boolean indicating whether sound is allowed for a given priority category.
+     * @param category the priority category to check for sound breakthrough.
+     * @param defaultVal the default value returned when the current state of the given priority
+     *                   category is {@link #STATE_UNSET}.
+     * @hide
+     */
+    public boolean isSoundAllowed(@PriorityCategory int category,
+            boolean defaultVal) {
+        int categoryState = getZenPolicyPriorityCategoryState(category);
+        if (categoryState == STATE_UNSET) {
+            return defaultVal;
+        }
+        boolean priorityCategoryAllowed = categoryState == STATE_ALLOW;
+        if (!Flags.splitSoundVibrationForNotificationBreakthrough()) {
+            return priorityCategoryAllowed;
+        }
+        if (!priorityCategoryAllowed) {
+            return false;
+        }
+        int interruptionType = getInterruptionTypeForPriorityCategory(category);
+        if (interruptionType == ALLOWED_INTERRUPTION_TYPE_UNSET) {
+            return true;
+        }
+        return interruptionType != ALLOWED_INTERRUPTION_TYPE_VIBRATION_ONLY;
+    }
+
+    /**
+     * Returns a boolean indicating whether vibration is allowed for a given priority category.
+     * @param category the priority category to check for vibration breakthrough.
+     * @param defaultVal the default value returned when the current state of the given priority
+     *                   category is {@link #STATE_UNSET}.
+     * @hide
+     */
+    public boolean isVibrationAllowed(@PriorityCategory int category,
+            boolean defaultVal) {
+        int categoryState = getZenPolicyPriorityCategoryState(category);
+        if (categoryState == STATE_UNSET) {
+            return defaultVal;
+        }
+        boolean priorityCategoryAllowed = categoryState == STATE_ALLOW;
+        if (!Flags.splitSoundVibrationForNotificationBreakthrough()) {
+            return priorityCategoryAllowed;
+        }
+        if (!priorityCategoryAllowed) {
+            return false;
+        }
+        int interruptionType = getInterruptionTypeForPriorityCategory(category);
+        if (interruptionType == ALLOWED_INTERRUPTION_TYPE_UNSET) {
+            return true;
+        }
+        return interruptionType != ALLOWED_INTERRUPTION_TYPE_SOUND_ONLY;
+    }
+
+    /** @hide */
+    public @InterruptionType int getInterruptionTypeForPriorityCategory(
+            @PriorityCategory int category) {
+        // For now, we can only get interruption type for alarms.
+        if (category == PRIORITY_CATEGORY_ALARMS) {
+            return getInterruptionTypeAlarms();
+        }
+        return ALLOWED_INTERRUPTION_TYPE_UNSET;
+    }
+
     /** @hide */
     public boolean isVisualEffectAllowed(@VisualEffect int effect, boolean defaultVal) {
         return stateToBoolean(getZenPolicyVisualEffectState(effect), defaultVal);
@@ -1405,6 +1735,41 @@ public final class ZenPolicy implements Parcelable {
                 } else if (category == PRIORITY_CATEGORY_CONVERSATIONS
                         && mConversationSenders < policyToApply.mConversationSenders) {
                     mConversationSenders = policyToApply.mConversationSenders;
+                }
+
+                if (newState == STATE_DISALLOW) {
+                    // remove granular interruption type if category is disallowed
+                    mInterruptionTypes.set(category, ALLOWED_INTERRUPTION_TYPE_UNSET);
+                } else if (Flags.splitSoundVibrationForNotificationBreakthrough()) {
+                    // merge granular interruption type if category is allowed
+                    // and split breakthrough flag is enabled.
+                    @InterruptionType
+                    int curInterruptionType = mInterruptionTypes.get(category);
+                    @InterruptionType
+                    int newInterruptionType = policyToApply.mInterruptionTypes.get(category);
+                    @InterruptionType int mergedInterruptionType;
+                    if (curInterruptionType == ALLOWED_INTERRUPTION_TYPE_UNSET
+                        && newInterruptionType == ALLOWED_INTERRUPTION_TYPE_UNSET) {
+                        mergedInterruptionType = ALLOWED_INTERRUPTION_TYPE_UNSET;
+                    } else if (curInterruptionType == ALLOWED_INTERRUPTION_TYPE_UNSET) {
+                        mergedInterruptionType = newInterruptionType;
+                    } else if (newInterruptionType == ALLOWED_INTERRUPTION_TYPE_UNSET) {
+                        mergedInterruptionType = curInterruptionType;
+                    } else {
+                        // Both current and new interruption types are explicitly set
+                        if (curInterruptionType == ALLOWED_INTERRUPTION_TYPE_ALL) {
+                            mergedInterruptionType = newInterruptionType;
+                        } else if (newInterruptionType == ALLOWED_INTERRUPTION_TYPE_ALL
+                                || curInterruptionType == newInterruptionType) {
+                            mergedInterruptionType = curInterruptionType;
+                        } else {
+                            // Merging SOUND_ONLY and VIBRATION_ONLY results in no breakthrough.
+                            mPriorityCategories.set(category, STATE_DISALLOW);
+                            mergedInterruptionType = ALLOWED_INTERRUPTION_TYPE_UNSET;
+                        }
+                    }
+
+                    mInterruptionTypes.set(category, mergedInterruptionType);
                 }
             }
         }
@@ -1456,6 +1821,24 @@ public final class ZenPolicy implements Parcelable {
                     result.mPriorityCalls = newPolicy.mPriorityCalls;
                 } else if (category == PRIORITY_CATEGORY_CONVERSATIONS) {
                     result.mConversationSenders = newPolicy.mConversationSenders;
+                }
+
+                @InterruptionType int newInterruptionType =
+                        newPolicy.mInterruptionTypes.get(category);
+                @InterruptionType int originalInterruptionType =
+                        result.mInterruptionTypes.get(category);
+
+                if (newState == STATE_DISALLOW) {
+                    // remove granular interruption type if category is disallowed
+                    result.mInterruptionTypes.set(category, ALLOWED_INTERRUPTION_TYPE_UNSET);
+                } else if (Flags.splitSoundVibrationForNotificationBreakthrough()) {
+                    if (newInterruptionType != ALLOWED_INTERRUPTION_TYPE_UNSET) {
+                        // newPolicy specifies an interruption type, so use it
+                        result.mInterruptionTypes.set(category, newInterruptionType);
+                    } else if (originalInterruptionType != ALLOWED_INTERRUPTION_TYPE_UNSET) {
+                        // newPolicy did not set interruption type, preserve original type
+                        result.mInterruptionTypes.set(category, originalInterruptionType);
+                    }
                 }
             }
         }

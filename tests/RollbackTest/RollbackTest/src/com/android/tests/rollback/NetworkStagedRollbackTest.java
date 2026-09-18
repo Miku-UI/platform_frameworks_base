@@ -55,7 +55,7 @@ public class NetworkStagedRollbackTest {
             "watchdog_request_timeout_millis";
 
     private static final String[] NETWORK_STACK_APK_NAMES = {
-            "NetworkStack", "NetworkStackGoogle", "NetworkStackNext", "NetworkStackNextGoogle"
+            "NetworkStack", "NetworkStackGoogle"
     };
 
     private static final TestApp NETWORK_STACK = new TestApp("NetworkStack",

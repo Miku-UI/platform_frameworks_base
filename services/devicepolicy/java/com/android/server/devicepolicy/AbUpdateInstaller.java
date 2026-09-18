@@ -142,7 +142,7 @@ class AbUpdateInstaller extends UpdateInstaller {
     }
 
     AbUpdateInstaller(Context context, ParcelFileDescriptor updateFileDescriptor,
-            StartInstallingUpdateCallback callback, DevicePolicyManagerService.Injector injector,
+            StartInstallingUpdateCallback callback, Injector injector,
             DevicePolicyConstants constants) {
         super(context, updateFileDescriptor, callback, injector, constants);
         mUpdateInstalled = false;

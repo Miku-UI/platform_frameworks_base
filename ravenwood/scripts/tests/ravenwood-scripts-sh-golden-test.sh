@@ -52,9 +52,14 @@ echo "# Target script:"
 echo "$target_script"
 echo
 
-# Command to run "run-ravenwood-tests.sh"
+# Command to run "run-ravenwood-tests.sh" (always dry-run)
 run-ravenwood-tests-wrapper() {
     "$target_script" -d "$@"
+}
+
+# Command to run "run-ravenwood-tests.sh" (not dry-run)
+run-ravenwood-tests-wrapper-no-dry() {
+    "$target_script" "$@"
 }
 
 # We "inject" into list-ravenwood-tests.sh and use them as the test module names.
@@ -67,6 +72,14 @@ list_tests() {
 }
 export -f list_tests
 export LIST_TEST_COMMAND=list_tests
+
+# To simulate bugreport generation, set this command as $ATEST.
+# (we can't directly set "touch" to ATEST because we need to ignore
+# all arguments.)
+touch_bugreport() {
+    touch $RAVENWOOD_BUGREPORT_DIR/bugreport.txt
+}
+export -f touch_bugreport
 
 # Print the whole command line, and execute it.
 run() {
@@ -88,9 +101,15 @@ run_test() {
 
 # Run the target commands.
 run_all_commands() {
-    unset RAVENWOOD_TEST_ENABLEMENT_POLICY
-    unset RAVENWOOD_RUN_DISABLED_TESTS
-    unset RAVENWOOD_FORCE_FILTER_REGEX
+    run export RRT_START_TIME=20250102-030405
+    run unset RAVENWOOD_TEST_ENABLEMENT_POLICY
+    run unset RAVENWOOD_RUN_DISABLED_TESTS
+    run unset RAVENWOOD_FORCE_FILTER_REGEX
+    run unset RAVENWOOD_HIDE_DISABLED_TESTS
+    run unset RAVENWOOD_SKIP_LARGE_TESTS
+    run unset RAVENWOOD_DUMP_TESTS_ONLY
+    run unset RAVENWOOD_SLOW_TIMEOUT_SECONDS
+    run unset RAVENWOOD_DIE_TIMEOUT_SECONDS
 
     run_test "Run with no arguments" run-ravenwood-tests-wrapper
 
@@ -109,6 +128,8 @@ run_all_commands() {
 
     run_test "Run specific tests with -s" run-ravenwood-tests-wrapper -s TestX TestY
 
+    run_test "Run specific tests with -m with more flags" run-ravenwood-tests-wrapper -m TestX -m "TestY TestZ" -t
+
     run_test "Inclusion" run-ravenwood-tests-wrapper -f '(Test[2345])'
 
     run_test "Exclusion" run-ravenwood-tests-wrapper -x '(Test[2345])'
@@ -118,6 +139,33 @@ run_all_commands() {
     run_test "Run with disabled tests" run-ravenwood-tests-wrapper -R
 
     RAVENWOOD_RUN_DISABLED_TESTS=xxx RAVENWOOD_FORCE_FILTER_REGEX=yyy run_test "Make sure env vars are printed" run-ravenwood-tests-wrapper
+
+    run_test "Run only disabled tests" run-ravenwood-tests-wrapper -X
+
+    run_test "Clean output" run-ravenwood-tests-wrapper -c
+
+    run_test "Live logcat" run-ravenwood-tests-wrapper -t
+
+    RAVENWOOD_LOG_OUT=- run_test "No live logcat" run-ravenwood-tests-wrapper -T
+
+    run_test "Wait for debugger" run-ravenwood-tests-wrapper -w
+
+    run_test "Dump only" run-ravenwood-tests-wrapper -P
+
+    run_test "Filter" run-ravenwood-tests-wrapper -F FilterRegex
+
+    run_test "Impatient" run-ravenwood-tests-wrapper -I FilterRegex
+
+    run_test "Even more impatient" run-ravenwood-tests-wrapper -II FilterRegex
+
+    # Replace "atest" with a touch command to pretend a bugreport was
+    # generated. Note it's not a dry-run, so that touch is actually
+    # executed.
+    # Also note we use a different bugreport dir for this test,
+    # so that the subsequent tests won't show them.
+    RRT_START_TIME=20300102-030405 ATEST="touch_bugreport" run_test "Generate bugreport" run-ravenwood-tests-wrapper-no-dry
+
+    run_test "No experimental API" run-ravenwood-tests-wrapper -E
 
     echo "== All commands finished =="
 }

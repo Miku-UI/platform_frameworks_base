@@ -90,7 +90,7 @@ public class ImageSpan extends DynamicDrawableSpan {
      * Constructs an {@link ImageSpan} from a {@link Context} and a {@link Bitmap} with the default
      * alignment {@link DynamicDrawableSpan#ALIGN_BOTTOM}
      *
-     * @param context context used to create a drawable from {@param bitmap} based on the display
+     * @param context context used to create a drawable from {@code bitmap} based on the display
      *                metrics of the resources
      * @param bitmap  bitmap to be rendered
      */
@@ -102,7 +102,7 @@ public class ImageSpan extends DynamicDrawableSpan {
      * Constructs an {@link ImageSpan} from a {@link Context}, a {@link Bitmap} and a vertical
      * alignment.
      *
-     * @param context           context used to create a drawable from {@param bitmap} based on
+     * @param context           context used to create a drawable from {@code bitmap} based on
      *                          the display metrics of the resources
      * @param bitmap            bitmap to be rendered
      * @param verticalAlignment one of {@link DynamicDrawableSpan#ALIGN_BOTTOM} or
@@ -171,7 +171,7 @@ public class ImageSpan extends DynamicDrawableSpan {
      * alignment {@link DynamicDrawableSpan#ALIGN_BOTTOM}. The Uri source can be retrieved via
      * {@link #getSource()}
      *
-     * @param context context used to create a drawable from {@param bitmap} based on the display
+     * @param context context used to create a drawable from {@code bitmap} based on the display
      *                metrics of the resources
      * @param uri     {@link Uri} used to construct the drawable that will be rendered
      */
@@ -183,7 +183,7 @@ public class ImageSpan extends DynamicDrawableSpan {
      * Constructs an {@link ImageSpan} from a {@link Context}, a {@link Uri} and a vertical
      * alignment. The Uri source can be retrieved via {@link #getSource()}
      *
-     * @param context           context used to create a drawable from {@param bitmap} based on
+     * @param context           context used to create a drawable from {@code bitmap} based on
      *                          the display
      *                          metrics of the resources
      * @param uri               {@link Uri} used to construct the drawable that will be rendered.

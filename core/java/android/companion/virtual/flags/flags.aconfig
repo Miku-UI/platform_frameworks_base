@@ -11,45 +11,6 @@ package: "android.companion.virtualdevice.flags"
 container: "system"
 
 flag {
-    namespace: "virtual_devices"
-    name: "virtual_display_insets"
-    description: "APIs for specifying virtual display insets (via cutout)"
-    bug: "350007135"
-    is_exported: true
-}
-
-flag {
-     namespace: "virtual_devices"
-     name: "activity_control_api"
-     description: "Enable APIs for fine grained activity policy, fallback and callbacks"
-     bug: "333443509"
-     is_exported: true
-}
-
-flag {
-    name: "virtual_rotary"
-    is_exported: true
-    namespace: "virtual_devices"
-    description: "Enable virtual rotary input"
-    bug: "320328752"
-}
-
-flag {
-    namespace: "virtual_devices"
-    name: "virtual_display_rotation_api"
-    description: "API for on-demand rotation of virtual displays"
-    bug: "291748430"
-    is_exported: true
-}
-
-flag {
-    namespace: "virtual_devices"
-    name: "high_resolution_scroll"
-    description: "Enable high resolution scroll"
-    bug: "335160780"
-}
-
-flag {
     name: "camera_multiple_input_streams"
     is_exported: true
     namespace: "virtual_devices"
@@ -59,25 +20,16 @@ flag {
 
 flag {
     namespace: "virtual_devices"
-    name: "device_aware_display_power"
-    description: "Device awareness in power and display APIs"
-    bug: "285020111"
-    is_exported: true
-}
-
-flag {
-    name: "status_bar_and_insets"
-    namespace: "virtual_devices"
-    description: "Allow for status bar and insets on virtual devices"
-    bug: "350007866"
-    is_exported: true
-}
-
-flag {
-    namespace: "virtual_devices"
     name: "camera_timestamp_from_surface"
     description: "Pass the surface timestamp to the capture result"
     bug: "351341245"
+}
+
+flag {
+    namespace: "virtual_devices"
+    name: "virtual_camera_direct_blob_transfer"
+    description: "Pass supported blob types directly from producer to consumer (Camera2 client) without intermediate processing, e.g. transcoding"
+    bug: "456537353"
 }
 
 flag {
@@ -97,16 +49,6 @@ flag {
 }
 
 flag {
-    name: "itemized_vdm_permissions"
-    namespace: "virtual_devices"
-    description: "Itemized permissions in CDM dialog for VDM roles"
-    bug: "419169396"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     namespace: "virtual_devices"
     name: "notifications_for_device_streaming"
     description: "Add notifications permissions to device streaming role"
@@ -123,31 +65,6 @@ flag {
 }
 
 flag {
-    name: "correct_virtual_display_power_state"
-    namespace: "virtual_devices"
-    description: "Fix the virtual display power state"
-    bug: "371125136"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "migrate_viewconfiguration_constants_to_resources"
-    namespace: "virtual_devices"
-    description: "Use resources instead of constants in ViewConfiguration"
-    is_fixed_read_only: true
-    bug: "370928384"
-}
-
-flag {
-    name: "device_aware_settings_override"
-    namespace: "virtual_devices"
-    description: "Settings override for virtual devices"
-    bug: "371801645"
-}
-
-flag {
     namespace: "virtual_devices"
     name: "viewconfiguration_apis"
     description: "APIs for setting ViewConfiguration attributes on virtual devices"
@@ -161,13 +78,6 @@ flag {
     description: "API for injecting SensorAdditionalInfo for VirtualSensor"
     bug: "393517834"
     is_exported: true
-}
-
-flag {
-    name: "external_virtual_cameras"
-    namespace: "virtual_devices"
-    description: "Allow external virtual cameras visible only in the Context of the virtual device"
-    bug: "375609768"
 }
 
 flag {
@@ -197,6 +107,7 @@ flag {
     namespace: "virtual_devices"
     description: "Device and display awareness for UiModeManager"
     bug: "340667076"
+    is_exported: true
 }
 
 flag {
@@ -204,24 +115,6 @@ flag {
     namespace: "virtual_devices"
     description: "Do not show content from opted out activities on mirror displays"
     bug: "394573488"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "virtual_camera_metadata"
-    namespace: "virtual_devices"
-    description: "API for enabling metadata support for virtual cameras"
-    bug: "371167033"
-    is_exported: true
-}
-
-flag {
-    name: "handle_invalid_device_id"
-    namespace: "virtual_devices"
-    description: "Handle invalid device ids in various system services"
-    bug: "394613051"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -238,50 +131,167 @@ flag {
 }
 
 flag {
-    name: "enable_animations_per_display"
+    name: "virtual_camera_stable_stream_id"
     namespace: "virtual_devices"
-    description: "Enable/disable window and transition animations per display"
-    bug: "427437362"
+    description: "Assign the index at which a stream has been added to the virtual camera config as its id."
+    bug: "430870772"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "computer_control_consent"
+    name: "virtual_camera_support_api"
     namespace: "virtual_devices"
-    description: "Show a consent dialog for computer control session creation"
-    bug: "437901655"
+    description: "API for checking if virtual camera is supported on the device"
+    bug: "462710537"
+    is_exported: true
+}
+
+flag {
+    name: "device_aware_touch_mode"
+    namespace: "virtual_devices"
+    description: "API for setting the touch mode for a virtual display"
+    bug: "461824207"
+    is_exported: true
+}
+
+flag {
+    name: "device_aware_thermal_status"
+    namespace: "virtual_devices"
+    description: "API for exposing the virtual device's thermal status"
+    bug: "444259414"
+    is_exported: true
+}
+
+flag {
+    name: "virtual_input_view_behavior"
+    namespace: "virtual_devices"
+    description: "API for setting the view behavior for virtual input devices"
+    bug: "434658418"
+    is_exported: true
+}
+
+
+flag {
+    name: "public_device_profile"
+    namespace: "virtual_devices"
+    description: "API for getting the profile of a virtual device"
+    bug: "493126008"
+    is_exported: true
+}
+
+flag {
+    name: "audio_focus_environments"
+    namespace: "virtual_devices"
+    description: "Create separate audio focus environments per virtual device with custom audio policy"
+    bug: "433996961"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "automated_app_launch_interception"
+    name: "remove_start_mode_from_blocked_intents"
     namespace: "virtual_devices"
-    description: "Show a warning dialog when launching an automated app"
-    bug: "442627126"
+    description: "Remove the start mode from the blocked intents list"
+    bug: "474610879"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "computer_control_activity_policy_strict"
+    name: "associated_display_id_input_api"
     namespace: "virtual_devices"
-    description: "Implements a strict Activity policy for ComputerControl VirtualDevices"
-    bug: "437849470"
+    description: "API for getting the associated display id for an input device"
+    bug: "441661489"
+    is_exported: true
+}
+
+flag {
+    name: "computer_control_managed_profiles"
+    namespace: "virtual_devices"
+    description: "Improve computer control support for managed profiles."
+    bug: "440352486"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "computer_control_typing"
+  name: "virtual_camera_stream_close_device_close"
+  namespace: "virtual_devices"
+  description: "Call onStreamClosed when the virtual device or virtual camera is closed"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+  bug: "470486743"
+}
+
+flag {
+    name: "computer_control_per_app_consent"
     namespace: "virtual_devices"
-    description: "Support input connection based CC text manipulation APIs"
-    bug: "422134565"
+    description: "Change consent flow for computer control to a per app model"
+    bug: "483624078"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "multi_user_view_configuration"
+    namespace: "virtual_devices"
+    description: "Apply custom ViewConfiguration for virtual devices across users."
+    bug: "435495374"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "virtual_camera_lower_resource_cost"
+    namespace: "virtual_devices"
+    description: "Lower the resource cost of virtual cameras"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+    bug: "487291564"
+}
+
+flag {
+    name: "virtual_camera_close_session"
+    namespace: "virtual_devices"
+    description: "API for VirtualCamera owner to close the current camera session"
+    bug: "487943236"
+    is_exported: true
+}
+
+flag {
+    name: "computer_control_role_assistant_requirement"
+    namespace: "virtual_devices"
+    description: "Require the ASSISTANT role for computer control session creation"
+    bug: "487979979"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "computer_control_cross_device"
+    namespace: "virtual_devices"
+    description: "Enables support for cross-device ComputerControl"
+    bug: "493529664"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "computer_control_support_v5"
+    namespace: "virtual_devices"
+    description: "Enables support for the ComputerControl v5 APIs"
+    bug: "489808412"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

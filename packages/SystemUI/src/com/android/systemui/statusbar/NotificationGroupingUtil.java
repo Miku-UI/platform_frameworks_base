@@ -16,9 +16,6 @@
 
 package com.android.systemui.statusbar;
 
-import static android.app.Flags.notificationsRedesignAppIcons;
-import static android.app.Flags.notificationsRedesignTemplates;
-
 import android.app.Flags;
 import android.app.Notification;
 import android.graphics.drawable.Drawable;
@@ -37,13 +34,10 @@ import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.R;
 import com.android.internal.widget.CachingIconView;
-import com.android.internal.widget.ConversationLayout;
 import com.android.internal.widget.ImageFloatingTextView;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.row.NotificationContentView;
-import com.android.systemui.statusbar.notification.row.shared.AsyncGroupHeaderViewInflation;
 import com.android.systemui.statusbar.notification.row.wrapper.NotificationViewWrapper;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -60,21 +54,16 @@ public class NotificationGroupingUtil {
     private static final TextViewComparator APP_NAME_COMPARATOR = new AppNameComparator();
     private static final ViewComparator BADGE_COMPARATOR = new BadgeComparator();
     private static final VisibilityApplicator VISIBILITY_APPLICATOR = new VisibilityApplicator();
-    private static final VisibilityApplicator APP_NAME_APPLICATOR = new AppNameApplicator();
     private static final ResultApplicator LEFT_ICON_APPLICATOR = new LeftIconApplicator();
 
     @VisibleForTesting
     static final DataExtractor ICON_EXTRACTOR = new DataExtractor() {
         @Override
         public Object extractData(ExpandableNotificationRow row) {
-            if (NotificationBundleUi.isEnabled()) {
-                if (row.getEntryAdapter().getSbn() != null) {
-                    return row.getEntryAdapter().getSbn().getNotification();
-                }
-                return null;
-            } else {
-                return row.getEntryLegacy().getSbn().getNotification();
+            if (row.getEntryAdapter().getSbn() != null) {
+                return row.getEntryAdapter().getSbn().getNotification();
             }
+            return null;
         }
     };
 
@@ -89,7 +78,7 @@ public class NotificationGroupingUtil {
             @Override
             public boolean compare(View parent, View child, Object parentData,
                     Object childData) {
-                if (Flags.notificationsRedesignAppIcons() && mRow.isShowingAppIcon()) {
+                if (mRow.isShowingAppIcon()) {
                     // Icon is always the same when we're showing the app icon.
                     return true;
                 }
@@ -101,7 +90,7 @@ public class NotificationGroupingUtil {
             @Override
             public boolean compare(View parent, View child, Object parentData,
                     Object childData) {
-                if (Flags.notificationsRedesignAppIcons() && mRow.isShowingAppIcon()) {
+                if (mRow.isShowingAppIcon()) {
                     return false;
                 }
                 return !hasSameIcon(parentData, childData)
@@ -111,7 +100,7 @@ public class NotificationGroupingUtil {
         final ResultApplicator greyApplicator = new ResultApplicator() {
             @Override
             public void apply(View parent, View view, boolean apply, boolean reset) {
-                if (Flags.notificationsRedesignAppIcons() && mRow.isShowingAppIcon()) {
+                if (mRow.isShowingAppIcon()) {
                     // Do nothing.
                     return;
                 }
@@ -128,14 +117,6 @@ public class NotificationGroupingUtil {
                 ICON_EXTRACTOR,
                 iconVisibilityComparator,
                 VISIBILITY_APPLICATOR));
-        if (!notificationsRedesignAppIcons()) {
-            // To grey out the icons when they are not the same, or they have the same color
-            mProcessors.add(new Processor(mRow,
-                    com.android.internal.R.id.status_bar_latest_event_content,
-                    ICON_EXTRACTOR,
-                    greyComparator,
-                    greyApplicator));
-        }
         // To show the large icon on the left side instead if all the small icons are the same
         mProcessors.add(new Processor(mRow,
                 com.android.internal.R.id.status_bar_latest_event_content,
@@ -153,10 +134,13 @@ public class NotificationGroupingUtil {
                 com.android.internal.R.id.app_name_text,
                 null,
                 APP_NAME_COMPARATOR,
-                APP_NAME_APPLICATOR));
+                VISIBILITY_APPLICATOR));
         // To hide the header text if it's the same
         mProcessors.add(Processor.forTextView(mRow, com.android.internal.R.id.header_text));
 
+        if (Flags.apiMetricStyle()) {
+            mDividers.add(com.android.internal.R.id.app_name_text_divider);
+        }
         mDividers.add(com.android.internal.R.id.header_text_divider);
         mDividers.add(com.android.internal.R.id.header_text_secondary_divider);
         mDividers.add(com.android.internal.R.id.time_divider);
@@ -261,12 +245,9 @@ public class NotificationGroupingUtil {
 
     @VisibleForTesting
     boolean showsTime(ExpandableNotificationRow row) {
-        StatusBarNotification sbn;
-        if (NotificationBundleUi.isEnabled()) {
-            sbn = row.getEntryAdapter() != null ? row.getEntryAdapter().getSbn() : null;
-        } else {
-            sbn = row.getEntryLegacy().getSbn();
-        }
+        StatusBarNotification sbn =
+                row.getEntryAdapter() != null ? row.getEntryAdapter().getSbn() : null;
+
         return (sbn != null && sbn.getNotification().showsTime());
     }
 
@@ -385,7 +366,7 @@ public class NotificationGroupingUtil {
 
         @Override
         public boolean isEmpty(View view) {
-            if (AsyncGroupHeaderViewInflation.isEnabled() && view == null) {
+            if (view == null) {
                 return true;
             }
             if (view instanceof ImageView) {
@@ -466,19 +447,6 @@ public class NotificationGroupingUtil {
         }
     }
 
-    private static class AppNameApplicator extends VisibilityApplicator {
-
-        @Override
-        public void apply(View parent, View view, boolean apply, boolean reset) {
-            if (!notificationsRedesignTemplates()
-                    && reset && parent instanceof ConversationLayout) {
-                ConversationLayout layout = (ConversationLayout) parent;
-                apply = layout.shouldHideAppName();
-            }
-            super.apply(parent, view, apply, reset);
-        }
-    }
-
     private static class AppNameComparator extends TextViewComparator {
         @Override
         public boolean compare(View parent, View child, Object parentData, Object childData) {
@@ -500,7 +468,7 @@ public class NotificationGroupingUtil {
                 R.id.title,
                 R.id.notification_main_column,
                 R.id.notification_header,
-                notificationsRedesignTemplates() ? R.id.notification_top_line : -1
+                R.id.notification_top_line
         };
 
         @Override
@@ -519,9 +487,7 @@ public class NotificationGroupingUtil {
                 Drawable rightDrawable = rightIcon == null ? null : rightIcon.getDrawable();
                 leftIcon.setImageDrawable(apply && !keepRightIcon ? rightDrawable : null);
             }
-            boolean shouldShowLeftIcon = notificationsRedesignTemplates()
-                            ? apply && leftIcon.getDrawable() != null
-                            : apply;
+            boolean shouldShowLeftIcon = apply && leftIcon.getDrawable() != null;
             leftIcon.setVisibility(shouldShowLeftIcon ? View.VISIBLE : View.GONE);
 
             // update the right icon as well

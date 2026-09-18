@@ -145,7 +145,7 @@ class NotificationLoggerViewModelTest(flags: FlagsParameterization) : SysuiTestC
     fun isLockscreenOrShadeInteractive_deviceActiveAndShadeIsClosed() =
         testScope.runTest {
             powerInteractor.setAwakeForTest()
-            kosmos.setSceneTransition(Idle(Scenes.Gone))
+            kosmos.setSceneTransition(Idle(Scenes.Gone), skipChangeScene = true)
 
             val actual by collectLastValue(underTest.isLockscreenOrShadeInteractive)
 

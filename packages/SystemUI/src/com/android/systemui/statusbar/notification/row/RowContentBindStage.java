@@ -26,7 +26,6 @@ import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.BindParams;
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.InflationCallback;
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.InflationFlag;
-import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import javax.inject.Inject;
 
@@ -80,11 +79,7 @@ public class RowContentBindStage extends BindStage<RowContentBindParams> {
         InflationCallback inflationCallback = new InflationCallback() {
             @Override
             public void handleInflationException(NotificationEntry errorEntry, Exception e) {
-                if (NotificationBundleUi.isEnabled()) {
-                    mNotifInflationErrorManager.setInflationError(entry, e);
-                } else {
-                    mNotifInflationErrorManager.setInflationError(errorEntry, e);
-                }
+                mNotifInflationErrorManager.setInflationError(entry, e);
             }
 
             @Override
@@ -94,15 +89,9 @@ public class RowContentBindStage extends BindStage<RowContentBindParams> {
 
             @Override
             public void onAsyncInflationFinished(NotificationEntry finishedEntry) {
-                if (NotificationBundleUi.isEnabled()) {
-                    mNotifInflationErrorManager.clearInflationError(entry);
-                    getStageParams(entry).clearDirtyContentViews();
-                    callback.onStageFinished(entry);
-                } else {
-                    mNotifInflationErrorManager.clearInflationError(finishedEntry);
-                    getStageParams(finishedEntry).clearDirtyContentViews();
-                    callback.onStageFinished(finishedEntry);
-                }
+                mNotifInflationErrorManager.clearInflationError(entry);
+                getStageParams(entry).clearDirtyContentViews();
+                callback.onStageFinished(entry);
             }
 
             @Override

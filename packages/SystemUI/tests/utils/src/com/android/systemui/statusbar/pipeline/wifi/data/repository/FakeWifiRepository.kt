@@ -44,7 +44,7 @@ class FakeWifiRepository : WifiRepository {
     override val wifiScanResults: MutableStateFlow<List<WifiScanEntry>> =
         MutableStateFlow(emptyList())
 
-    override val wifiToggleState: StateFlow<WifiToggleState> =
+    override val wifiToggleState: MutableStateFlow<WifiToggleState> =
         MutableStateFlow(WifiToggleState.Normal)
 
     override fun enableWifi() {
@@ -73,5 +73,9 @@ class FakeWifiRepository : WifiRepository {
 
     fun setWifiActivity(activity: DataActivityModel) {
         _wifiActivity.value = activity
+    }
+
+    fun setToggleState(toggleState: WifiToggleState) {
+        wifiToggleState.value = toggleState
     }
 }

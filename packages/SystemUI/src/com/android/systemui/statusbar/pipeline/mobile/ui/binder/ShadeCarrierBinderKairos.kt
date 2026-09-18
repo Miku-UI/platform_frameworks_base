@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.pipeline.mobile.ui.binder
 
 import androidx.core.view.isVisible
 import com.android.systemui.kairos.BuildSpec
-import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosNetwork
 import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.lifecycle.repeatWhenWindowIsVisible
@@ -30,7 +29,6 @@ import kotlinx.coroutines.launch
 
 object ShadeCarrierBinderKairos {
     /** Binds the view to the view-model, continuing to update the former based on the latter */
-    @ExperimentalKairosApi
     fun bind(
         subId: Int,
         carrierTextView: AutoMarqueeTextView,

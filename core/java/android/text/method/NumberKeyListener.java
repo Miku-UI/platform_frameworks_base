@@ -127,7 +127,7 @@ public abstract class NumberKeyListener extends BaseKeyListener
                     Selection.setSelection(content, selEnd);
                 }
 
-                content.replace(selStart, selEnd, String.valueOf((char) i));
+                replaceText(content, selStart, selEnd, String.valueOf((char) i), event);
 
                 adjustMetaAfterKeypress(content);
                 return true;
@@ -137,7 +137,7 @@ public abstract class NumberKeyListener extends BaseKeyListener
 
             if (selStart == selEnd && selEnd > 0 &&
                     content.charAt(selStart - 1) == '0') {
-                content.replace(selStart - 1, selEnd, String.valueOf('+'));
+                replaceText(content, selStart - 1, selEnd, String.valueOf('+'), event);
                 adjustMetaAfterKeypress(content);
                 return true;
             }

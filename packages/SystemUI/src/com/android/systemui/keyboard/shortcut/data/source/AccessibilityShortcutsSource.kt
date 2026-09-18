@@ -30,10 +30,7 @@ import android.view.KeyEvent.META_META_ON
 import android.view.KeyboardShortcutGroup
 import android.view.KeyboardShortcutInfo
 import com.android.hardware.input.Flags.enableSelectToSpeakKeyGestures
-import com.android.hardware.input.Flags.enableTalkbackAndMagnifierKeyGestures
 import com.android.hardware.input.Flags.enableTalkbackKeyGestures
-import com.android.hardware.input.Flags.enableVoiceAccessKeyGestures
-import com.android.hardware.input.Flags.keyboardA11yShortcutControl
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.keyboard.shortcut.data.model.shortcutInfo
 import com.android.systemui.res.R
@@ -52,48 +49,42 @@ class AccessibilityShortcutsSource @Inject constructor(@Main private val resourc
     private fun accessibilityShortcuts(): List<KeyboardShortcutInfo> {
         val shortcuts = mutableListOf<KeyboardShortcutInfo>()
 
-        if (keyboardA11yShortcutControl()) {
-            shortcuts.add(
-                // Toggle bounce keys:
-                //  - Meta + Alt + 3
-                shortcutInfo(resources.getString(R.string.group_accessibility_toggle_bounce_keys)) {
-                    command(META_META_ON or META_ALT_ON, KEYCODE_3)
-                }
-            )
-            shortcuts.add(
-                // Toggle mouse keys:
-                //  - Meta + Alt + 4
-                shortcutInfo(resources.getString(R.string.group_accessibility_toggle_mouse_keys)) {
-                    command(META_META_ON or META_ALT_ON, KEYCODE_4)
-                }
-            )
-            shortcuts.add(
-                // Toggle sticky keys:
-                //  - Meta + Alt + 5
-                shortcutInfo(resources.getString(R.string.group_accessibility_toggle_sticky_keys)) {
-                    command(META_META_ON or META_ALT_ON, KEYCODE_5)
-                }
-            )
-            shortcuts.add(
-                // Toggle slow keys:
-                //  - Meta + Alt + 6
-                shortcutInfo(resources.getString(R.string.group_accessibility_toggle_slow_keys)) {
-                    command(META_META_ON or META_ALT_ON, KEYCODE_6)
-                }
-            )
-        }
+        shortcuts.add(
+            // Toggle bounce keys:
+            //  - Meta + Alt + 3
+            shortcutInfo(resources.getString(R.string.group_accessibility_toggle_bounce_keys)) {
+                command(META_META_ON or META_ALT_ON, KEYCODE_3)
+            }
+        )
+        shortcuts.add(
+            // Toggle mouse keys:
+            //  - Meta + Alt + 4
+            shortcutInfo(resources.getString(R.string.group_accessibility_toggle_mouse_keys)) {
+                command(META_META_ON or META_ALT_ON, KEYCODE_4)
+            }
+        )
+        shortcuts.add(
+            // Toggle sticky keys:
+            //  - Meta + Alt + 5
+            shortcutInfo(resources.getString(R.string.group_accessibility_toggle_sticky_keys)) {
+                command(META_META_ON or META_ALT_ON, KEYCODE_5)
+            }
+        )
+        shortcuts.add(
+            // Toggle slow keys:
+            //  - Meta + Alt + 6
+            shortcutInfo(resources.getString(R.string.group_accessibility_toggle_slow_keys)) {
+                command(META_META_ON or META_ALT_ON, KEYCODE_6)
+            }
+        )
 
-        if (enableVoiceAccessKeyGestures()) {
-            shortcuts.add(
-                // Toggle voice access:
-                //  - Meta + Alt + V
-                shortcutInfo(
-                    resources.getString(R.string.group_accessibility_toggle_voice_access)
-                ) {
-                    command(META_META_ON or META_ALT_ON, KEYCODE_V)
-                }
-            )
-        }
+        shortcuts.add(
+            // Toggle voice access:
+            //  - Meta + Alt + V
+            shortcutInfo(resources.getString(R.string.group_accessibility_toggle_voice_access)) {
+                command(META_META_ON or META_ALT_ON, KEYCODE_V)
+            }
+        )
 
         if (enableTalkbackKeyGestures()) {
             shortcuts.add(
@@ -105,17 +96,13 @@ class AccessibilityShortcutsSource @Inject constructor(@Main private val resourc
             )
         }
 
-        if (enableTalkbackAndMagnifierKeyGestures()) {
-            shortcuts.add(
-                // Toggle magnification:
-                //  - Meta + Alt + M
-                shortcutInfo(
-                    resources.getString(R.string.group_accessibility_toggle_magnification)
-                ) {
-                    command(META_META_ON or META_ALT_ON, KEYCODE_M)
-                }
-            )
-        }
+        shortcuts.add(
+            // Toggle magnification:
+            //  - Meta + Alt + M
+            shortcutInfo(resources.getString(R.string.group_accessibility_toggle_magnification)) {
+                command(META_META_ON or META_ALT_ON, KEYCODE_M)
+            }
+        )
 
         if (enableSelectToSpeakKeyGestures()) {
             shortcuts.add(

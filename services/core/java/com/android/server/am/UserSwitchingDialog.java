@@ -35,6 +35,7 @@ import android.graphics.Shader;
 import android.graphics.drawable.Animatable2;
 import android.graphics.drawable.AnimatedVectorDrawable;
 import android.graphics.drawable.Drawable;
+import android.multiuser.Flags;
 import android.os.Handler;
 import android.os.SystemProperties;
 import android.os.Trace;
@@ -46,6 +47,7 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.animation.AlphaAnimation;
+import android.view.animation.TranslateYAnimation;
 import android.view.animation.Animation;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -70,8 +72,8 @@ class UserSwitchingDialog extends Dialog {
     @SuppressWarnings("DebugTrue")
     protected static final boolean DEBUG = true;
 
-    private static final long DIALOG_SHOW_HIDE_ANIMATION_DURATION_MS = 300;
-    private final boolean mDisableAnimations;
+    private static final long DIALOG_SHOW_HIDE_ANIMATION_DURATION_MS = 100;
+    private volatile boolean mDisableAnimations;
 
     // Time to wait for the onAnimationEnd() callbacks before moving on
     private static final int ANIMATION_TIMEOUT_MS = 1000;
@@ -85,6 +87,7 @@ class UserSwitchingDialog extends Dialog {
     private final String mSwitchingToUserMessage;
     protected final Context mContext;
     private final int mTraceCookie;
+    private final Boolean mIsLogout;
 
     UserSwitchingDialog(Context context, UserInfo oldUser, UserInfo newUser, Handler handler,
             @Nullable String switchingFromUserMessage, @Nullable String switchingToUserMessage) {
@@ -99,6 +102,13 @@ class UserSwitchingDialog extends Dialog {
         mDisableAnimations = SystemProperties.getBoolean(
                 "debug.usercontroller.disable_user_switching_dialog_animations", false);
         mTraceCookie = UserHandle.MAX_SECONDARY_USER_ID * oldUser.id + newUser.id;
+
+        mIsLogout =
+                Flags.userSwitchingDialogSignoutMessage()
+                        && UserManager.isHeadlessSystemUserMode()
+                        && mNewUser.id == UserHandle.USER_SYSTEM
+                        && mContext.getResources()
+                                .getBoolean(R.bool.config_userSwitchingMustGoThroughLoginScreen);
 
         inflateContent();
         configureWindow();
@@ -146,7 +156,8 @@ class UserSwitchingDialog extends Dialog {
     }
 
     private Bitmap getUserIconRounded() {
-        final Bitmap bmp = ObjectUtils.getOrElse(BitmapFactory.decodeFile(mNewUser.iconPath),
+        final String iconPath = mIsLogout ? mOldUser.iconPath : mNewUser.iconPath;
+        final Bitmap bmp = ObjectUtils.getOrElse(BitmapFactory.decodeFile(iconPath),
                 defaultUserIcon(mNewUser.id));
         final int w = bmp.getWidth();
         final int h = bmp.getHeight();
@@ -177,6 +188,10 @@ class UserSwitchingDialog extends Dialog {
                 return mSwitchingFromUserMessage + " " + mSwitchingToUserMessage;
             }
             return Objects.requireNonNullElse(mSwitchingFromUserMessage, mSwitchingToUserMessage);
+        }
+
+        if (mIsLogout) {
+            return res.getString(R.string.user_logging_out_message);
         }
 
         return res.getString(R.string.user_switching_message, mNewUser.name);
@@ -221,6 +236,7 @@ class UserSwitchingDialog extends Dialog {
             return;
         }
         asyncTraceBegin("showAnimation", 1);
+
         startDialogAnimation("show", new AlphaAnimation(0, 1), () -> {
             asyncTraceEnd("showAnimation", 1);
 
@@ -239,6 +255,7 @@ class UserSwitchingDialog extends Dialog {
             onAnimationEnd.run();
             return;
         }
+
         asyncTraceBegin("dismissAnimation", 3);
         startDialogAnimation("dismiss", new AlphaAnimation(1, 0), () -> {
             asyncTraceEnd("dismissAnimation", 3);
@@ -275,29 +292,26 @@ class UserSwitchingDialog extends Dialog {
     }
 
     private void startDialogAnimation(String name, Animation animation, Runnable onAnimationEnd) {
-        final View view = findViewById(R.id.content);
+        final View view = findViewById(R.id.outer_container);
         if (mDisableAnimations || view == null) {
             onAnimationEnd.run();
             return;
         }
         final Runnable onAnimationEndWithTimeout = animationWithTimeout(name, onAnimationEnd);
         animation.setDuration(DIALOG_SHOW_HIDE_ANIMATION_DURATION_MS);
-        animation.setAnimationListener(new Animation.AnimationListener() {
-            @Override
-            public void onAnimationStart(Animation animation) {
+        animation.setAnimationListener(
+                new Animation.AnimationListener() {
+                    @Override
+                    public void onAnimationStart(Animation animation) {}
 
-            }
+                    @Override
+                    public void onAnimationEnd(Animation animation) {
+                        onAnimationEndWithTimeout.run();
+                    }
 
-            @Override
-            public void onAnimationEnd(Animation animation) {
-                onAnimationEndWithTimeout.run();
-            }
-
-            @Override
-            public void onAnimationRepeat(Animation animation) {
-
-            }
-        });
+                    @Override
+                    public void onAnimationRepeat(Animation animation) {}
+                });
         view.startAnimation(animation);
     }
 
@@ -311,6 +325,7 @@ class UserSwitchingDialog extends Dialog {
         };
         mHandler.postDelayed(() -> {
             Slog.w(TAG, name + " animation not completed in " + ANIMATION_TIMEOUT_MS + " ms");
+            mDisableAnimations = true;
             onAnimationEndOrTimeout.run();
         }, USER_SWITCHING_DIALOG_ANIMATION_TIMEOUT_MSG, ANIMATION_TIMEOUT_MS);
 

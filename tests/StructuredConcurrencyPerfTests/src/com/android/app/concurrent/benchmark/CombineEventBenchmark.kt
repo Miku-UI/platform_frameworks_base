@@ -13,11 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.app.concurrent.benchmark
 
 import androidx.benchmark.BlackHole
-import androidx.benchmark.ExperimentalBlackHoleApi
+import com.android.app.concurrent.benchmark.base.BaseLooperThreadBenchmark
 import com.android.app.concurrent.benchmark.base.ConcurrentBenchmarkRule
+import com.android.app.concurrent.benchmark.base.CoroutineLooperThreadBenchmark
 import com.android.app.concurrent.benchmark.event.BaseEventBenchmark
 import com.android.app.concurrent.benchmark.event.BaseFlowEventBenchmark
 import com.android.app.concurrent.benchmark.event.BaseSimpleEventBenchmark
@@ -30,17 +32,27 @@ import com.android.app.concurrent.benchmark.event.FilterOperator
 import com.android.app.concurrent.benchmark.event.FlowWritableEventBuilder
 import com.android.app.concurrent.benchmark.event.IntEventCombiner
 import com.android.app.concurrent.benchmark.event.SimpleEvent
+import com.android.app.concurrent.benchmark.event.SimpleState
 import com.android.app.concurrent.benchmark.event.SimpleWritableEventBuilder
 import com.android.app.concurrent.benchmark.event.WritableEventFactory
-import com.android.app.concurrent.benchmark.util.ExecutorServiceCoroutineScopeBuilder
-import com.android.app.concurrent.benchmark.util.ExecutorThreadBuilder
-import com.android.app.concurrent.benchmark.util.ThreadFactory
+import com.android.app.concurrent.benchmark.util.ExecutorServiceThreadWithExecutorBuilder
+import com.android.app.concurrent.benchmark.util.ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder
+import com.android.app.concurrent.benchmark.util.ThreadBuilder
+import com.android.app.concurrent.benchmark.util.allCpuWorkloads
 import com.android.app.concurrent.benchmark.util.dbg
+import com.android.app.concurrent.benchmark.util.stressCpu
 import com.android.app.concurrent.benchmark.util.times
 import java.util.concurrent.Executor
 import kotlin.random.Random
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -48,7 +60,6 @@ import org.junit.runners.MethodSorters
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
 
-@OptIn(ExperimentalBlackHoleApi::class)
 private sealed interface CombineEventBenchmark<T, E : Any>
     where
         T : WritableEventFactory<E>,
@@ -285,24 +296,26 @@ private sealed interface CombineEventBenchmark<T, E : Any>
 
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class SimpleCombineEventBenchmark(param: ThreadFactory<Any, Executor>) :
+class SimpleCombineEventBenchmark(param: ThreadBuilder<Executor>) :
     BaseSimpleEventBenchmark(param),
     CombineEventBenchmark<SimpleWritableEventBuilder, SimpleEvent<*>> {
 
     companion object {
-        @Parameters(name = "{0}") @JvmStatic fun getDispatchers() = listOf(ExecutorThreadBuilder)
+        @Parameters(name = "{0}")
+        @JvmStatic
+        fun getParameters() = listOf(ExecutorServiceThreadWithExecutorBuilder)
     }
 }
 
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class FlowCombineEventBenchmark(param: ThreadFactory<Any, CoroutineScope>) :
+class FlowCombineEventBenchmark(param: ThreadBuilder<CoroutineScope>) :
     BaseFlowEventBenchmark(param), CombineEventBenchmark<FlowWritableEventBuilder, Flow<*>> {
 
     companion object {
         @Parameters(name = "{0}")
         @JvmStatic
-        fun getDispatchers() = listOf(ExecutorServiceCoroutineScopeBuilder)
+        fun getParameters() = listOf(ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder)
     }
 }
 
@@ -316,7 +329,6 @@ private object SequentialOrder : Order {
     override fun toString() = "Sequential"
 }
 
-@OptIn(ExperimentalBlackHoleApi::class)
 private sealed interface HighArityCombineEventBenchmark<T, E : Any>
     where T : WritableEventFactory<E>, T : EventContextProvider<E>, T : IntEventCombiner<E> {
     val benchmarkRule: ConcurrentBenchmarkRule
@@ -386,7 +398,7 @@ private sealed interface HighArityCombineEventBenchmark<T, E : Any>
 
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class DirectHighArityCombineEventBenchmark(param: ThreadFactory<Any, Executor>, order: Order) :
+class DirectHighArityCombineEventBenchmark(param: ThreadBuilder<Executor>, order: Order) :
     BaseEventBenchmark<Executor, DirectWritableEventBuilder>(
         param,
         { DirectWritableEventBuilder(it) },
@@ -396,15 +408,16 @@ class DirectHighArityCombineEventBenchmark(param: ThreadFactory<Any, Executor>, 
     override val randomUpdates: Boolean = order == RandomOrder
 
     companion object {
-        @Parameters(name = "{0},{1}")
+        @Parameters(name = "{0}:order={1}")
         @JvmStatic
-        fun getDispatchers() = listOf(ExecutorThreadBuilder) * listOf(RandomOrder, SequentialOrder)
+        fun getParameters() =
+            listOf(ExecutorServiceThreadWithExecutorBuilder) * listOf(RandomOrder, SequentialOrder)
     }
 }
 
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class SimpleHighArityCombineEventBenchmark(param: ThreadFactory<Any, Executor>, order: Order) :
+class SimpleHighArityCombineEventBenchmark(param: ThreadBuilder<Executor>, order: Order) :
     BaseEventBenchmark<Executor, SimpleWritableEventBuilder>(
         param,
         { SimpleWritableEventBuilder(it) },
@@ -413,15 +426,16 @@ class SimpleHighArityCombineEventBenchmark(param: ThreadFactory<Any, Executor>, 
     override val randomUpdates: Boolean = order == RandomOrder
 
     companion object {
-        @Parameters(name = "{0},{1}")
+        @Parameters(name = "{0}:order={1}")
         @JvmStatic
-        fun getDispatchers() = listOf(ExecutorThreadBuilder) * listOf(RandomOrder, SequentialOrder)
+        fun getParameters() =
+            listOf(ExecutorServiceThreadWithExecutorBuilder) * listOf(RandomOrder, SequentialOrder)
     }
 }
 
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class FlowHighArityCombineEventBenchmark(param: ThreadFactory<Any, CoroutineScope>, order: Order) :
+class FlowHighArityCombineEventBenchmark(param: ThreadBuilder<CoroutineScope>, order: Order) :
     BaseEventBenchmark<CoroutineScope, FlowWritableEventBuilder>(
         param,
         { FlowWritableEventBuilder(it) },
@@ -430,9 +444,183 @@ class FlowHighArityCombineEventBenchmark(param: ThreadFactory<Any, CoroutineScop
     override val randomUpdates: Boolean = order == RandomOrder
 
     companion object {
-        @Parameters(name = "{0},{1}")
+        @Parameters(name = "{0}:order={1}")
         @JvmStatic
-        fun getDispatchers() =
-            listOf(ExecutorServiceCoroutineScopeBuilder) * listOf(RandomOrder, SequentialOrder)
+        fun getParameters() =
+            listOf(ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder) *
+                listOf(RandomOrder, SequentialOrder)
+    }
+}
+
+@RunWith(Parameterized::class)
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
+class LooperCombineSingleThreadBenchmark(val consumeCpuIterations: Int) :
+    BaseLooperThreadBenchmark() {
+
+    companion object {
+        @Parameters(name = "mainWorkload={0}") @JvmStatic fun getParameters() = allCpuWorkloads
+    }
+
+    interface BenchmarkContext : HandlerSynchronousContext {
+        val consumeCpu: () -> Unit
+        val a: SimpleState<Boolean>
+        val b: SimpleState<Boolean>
+        val c: SimpleState<Boolean>
+
+        fun endMeasurement() {
+            if (state.keepRunning()) {
+                a.value = false
+                b.value = false
+                c.value = false
+                consumeCpu()
+                handler.post { a.value = true }
+                handler.post { b.value = true }
+                handler.post { c.value = true }
+            } else {
+                stopBenchmark()
+            }
+        }
+    }
+
+    class BenchmarkContextImpl(
+        threadCtx: HandlerSynchronousContext,
+        override val consumeCpu: () -> Unit,
+    ) : BenchmarkContext, HandlerSynchronousContext by threadCtx {
+        override val a = SimpleState(false)
+        override val b = SimpleState(false)
+        override val c = SimpleState(false)
+    }
+
+    @Test
+    fun benchmark_listen3_direct() {
+        var sum = 0.0
+        measure {
+            val ctx = BenchmarkContextImpl(this) { sum += stressCpu(consumeCpuIterations) }
+            ctx.a.listen { a -> if (a && ctx.b.value && ctx.c.value) ctx.endMeasurement() }
+            ctx.b.listen { b -> if (ctx.a.value && b && ctx.c.value) ctx.endMeasurement() }
+            ctx.c.listen { c -> if (ctx.a.value && ctx.b.value && c) ctx.endMeasurement() }
+            ctx.endMeasurement()
+        }
+        BlackHole.consume(sum)
+    }
+
+    @Test
+    fun benchmark_listen3_deferred() {
+        var sum = 0.0
+        measure {
+            val ctx = BenchmarkContextImpl(this) { sum += stressCpu(consumeCpuIterations) }
+            ctx.a.listen { a ->
+                handler.post { if (a && ctx.b.value && ctx.c.value) ctx.endMeasurement() }
+            }
+            ctx.b.listen { b ->
+                handler.post { if (ctx.a.value && b && ctx.c.value) ctx.endMeasurement() }
+            }
+            ctx.c.listen { c ->
+                handler.post { if (ctx.a.value && ctx.b.value && c) ctx.endMeasurement() }
+            }
+            ctx.endMeasurement()
+        }
+        BlackHole.consume(sum)
+    }
+}
+
+@RunWith(Parameterized::class)
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
+class CoroutineCombineSingleThreadBenchmark(val mainWorkload: Int) :
+    CoroutineLooperThreadBenchmark() {
+
+    companion object {
+        @Parameters(name = "mainWorkload={0}") @JvmStatic fun getParameters() = allCpuWorkloads
+    }
+
+    interface BenchmarkContext : CoroutineScopeContext {
+        val consumeCpu: () -> Unit
+        val a: MutableStateFlow<Boolean>
+        val b: MutableStateFlow<Boolean>
+        val c: MutableStateFlow<Boolean>
+
+        suspend fun endMeasurement() {
+            if (state.keepRunning()) {
+                a.value = false
+                b.value = false
+                c.value = false
+                consumeCpu()
+                handler.post { a.value = true }
+                handler.post { b.value = true }
+                handler.post { c.value = true }
+            } else {
+                stopBenchmark()
+            }
+        }
+    }
+
+    class BenchmarkContextImpl(
+        context: CoroutineScopeContext,
+        override val consumeCpu: () -> Unit,
+    ) : BenchmarkContext, CoroutineScopeContext by context {
+        override val a = MutableStateFlow(false)
+        override val b = MutableStateFlow(false)
+        override val c = MutableStateFlow(false)
+    }
+
+    @Test
+    fun benchmark_collect3_direct() {
+        var sum = 0.0
+        measureCoroutine { scope ->
+            val ctx = BenchmarkContextImpl(this) { sum += stressCpu(mainWorkload) }
+            ctx.a
+                .filter { a -> a && ctx.b.value && ctx.c.value }
+                .onEach { ctx.endMeasurement() }
+                .launchIn(scope)
+            ctx.b
+                .filter { b -> ctx.a.value && b && ctx.c.value }
+                .onEach { ctx.endMeasurement() }
+                .launchIn(scope)
+            ctx.c
+                .filter { c -> ctx.a.value && ctx.b.value && c }
+                .onEach { ctx.endMeasurement() }
+                .launchIn(scope)
+            scope.launch(start = CoroutineStart.UNDISPATCHED) { ctx.endMeasurement() }
+        }
+        BlackHole.consume(sum)
+    }
+
+    @Test
+    fun benchmark_collect1_combine() {
+        var sum = 0.0
+        measureCoroutine { scope ->
+            val ctx = BenchmarkContextImpl(this) { sum += stressCpu(mainWorkload) }
+            val abc = combine(ctx.a, ctx.b, ctx.c) { a, b, c -> a && b && c }
+            abc.filter { it }.onEach { ctx.endMeasurement() }.launchIn(scope)
+            scope.launch(start = CoroutineStart.UNDISPATCHED) { ctx.endMeasurement() }
+        }
+        BlackHole.consume(sum)
+    }
+
+    @Test
+    fun benchmark_collect1_combineChained1() {
+        var sum = 0.0
+        measureCoroutine { scope ->
+            val ctx = BenchmarkContextImpl(this) { sum += stressCpu(mainWorkload) }
+            val ab = combine(ctx.a, ctx.b) { a, b -> a && b }
+            val abc = combine(ab, ctx.c) { ab, c -> ab && c }
+            abc.filter { it }.onEach { ctx.endMeasurement() }.launchIn(scope)
+            scope.launch(start = CoroutineStart.UNDISPATCHED) { ctx.endMeasurement() }
+        }
+        BlackHole.consume(sum)
+    }
+
+    @Test
+    fun benchmark_collect1_combineChained2() {
+        var sum = 0.0
+        measureCoroutine { scope ->
+            val ctx = BenchmarkContextImpl(this) { sum += stressCpu(mainWorkload) }
+            val ab = combine(ctx.a, ctx.b) { a, b -> a && b }
+            val bc = combine(ctx.b, ctx.c) { b, c -> b && c }
+            val abc = combine(ab, bc) { ab, bc -> ab && bc }
+            abc.filter { it }.onEach { ctx.endMeasurement() }.launchIn(scope)
+            scope.launch(start = CoroutineStart.UNDISPATCHED) { ctx.endMeasurement() }
+        }
+        BlackHole.consume(sum)
     }
 }

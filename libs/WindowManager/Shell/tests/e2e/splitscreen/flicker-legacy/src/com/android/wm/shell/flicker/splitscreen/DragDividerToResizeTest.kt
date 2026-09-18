@@ -17,10 +17,10 @@
 package com.android.wm.shell.flicker.splitscreen
 
 import android.platform.test.annotations.Presubmit
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
 import android.tools.flicker.FlickerTestFactory
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import androidx.test.filters.FlakyTest
 import androidx.test.filters.RequiresDevice
 import com.android.wm.shell.flicker.splitscreen.benchmark.DragDividerToResizeBenchmark
@@ -93,7 +93,7 @@ class DragDividerToResizeTest(override val flicker: FlickerTest) :
         flicker.splitAppLayerBoundsChanges(
             primaryApp,
             landscapePosLeft = true,
-            portraitPosTop = false
+            portraitPosTop = false,
         )
     }
 
@@ -103,7 +103,7 @@ class DragDividerToResizeTest(override val flicker: FlickerTest) :
         flicker.splitAppLayerBoundsChanges(
             secondaryApp,
             landscapePosLeft = false,
-            portraitPosTop = true
+            portraitPosTop = true,
         )
 
     @FlakyTest(bugId = 291678271)

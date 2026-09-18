@@ -38,10 +38,13 @@ class FakeWallpaperRepository : WallpaperRepository {
     override var rootView: View? = null
     private val _shouldSendFocalArea = MutableStateFlow(false)
     override val shouldSendFocalArea: StateFlow<Boolean> = _shouldSendFocalArea.asStateFlow()
+    var sendTapCommandCallCount: Int = 0
 
     override fun sendLockScreenLayoutChangeCommand(wallpaperFocalAreaBounds: RectF) {}
 
-    override fun sendTapCommand(tapPosition: PointF) {}
+    override fun sendTapCommand(tapPosition: PointF) {
+        sendTapCommandCallCount++
+    }
 
     fun setWallpaperSupportsAmbientMode(supportsAmbientMode: Boolean) {
         _wallpaperSupportsAmbientMode.value = supportsAmbientMode

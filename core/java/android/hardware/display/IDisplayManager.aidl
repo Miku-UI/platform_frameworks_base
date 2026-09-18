@@ -167,6 +167,10 @@ interface IDisplayManager {
     @EnforcePermission("CONTROL_DISPLAY_BRIGHTNESS")
     void setTemporaryBrightness(int displayId, float brightness);
 
+    // Temporally sets the display brightness mode.
+    @EnforcePermission("CONFIGURE_DISPLAY_BRIGHTNESS")
+    boolean setTemporaryBrightnessMode(int displayId, int brightnessMode);
+
     // Saves the display brightness.
     @EnforcePermission("CONTROL_DISPLAY_BRIGHTNESS")
     void setBrightness(int displayId, float brightness);
@@ -259,6 +263,14 @@ interface IDisplayManager {
 
     // Returns the saved connection preference for external display.
     int getConnectionPreference(String uniqueId);
+
+    // Sets user HDR preferred mode for a given display
+    @EnforcePermission("MANAGE_DISPLAYS")
+    void setUserPreferredHdrMode(int displayId, int preference);
+
+    // Gets user HDR preferred mode for a given display
+    @EnforcePermission("MANAGE_DISPLAYS")
+    int getUserPreferredHdrMode(int displayId);
 
     // Restricts display modes to specified modeIds.
     @EnforcePermission("RESTRICT_DISPLAY_MODES")

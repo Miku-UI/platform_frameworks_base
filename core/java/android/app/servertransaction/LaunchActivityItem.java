@@ -220,7 +220,7 @@ public class LaunchActivityItem extends ClientTransactionItem {
                 mInfo, mOverrideConfig, mReferrer, mVoiceInteractor, mState, mPersistentState,
                 mPendingResults, mPendingNewIntents, mSceneTransitionInfo, mIsForward,
                 mProfilerInfo, client, mAssistToken, mShareableActivityToken, mLaunchedFromBubble,
-                mTaskFragmentToken, mInitialCallerInfoAccessToken, mActivityWindowInfo);
+                mTaskFragmentToken, mInitialCallerInfoAccessToken, mActivityWindowInfo, mDisplayId);
         client.handleLaunchActivity(r, pendingActions, mDeviceId, null /* customIntent */);
         Trace.traceEnd(TRACE_TAG_ACTIVITY_MANAGER);
     }

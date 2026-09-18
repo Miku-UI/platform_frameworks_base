@@ -1,13 +1,49 @@
 # Background
 
-As general background, `OWNERS` files expedite code reviews by helping code
-authors quickly find relevant reviewers, and they also ensure that stakeholders
-are involved in code changes in their areas.
+Internal only link: go/fb-owners.
+
+As general background, `OWNERS` (especially `<TEAM>_OWNERS`) files expedite code
+reviews by helping code authors quickly find relevant reviewers, and they also
+ensure that stakeholders are involved in code changes in their areas.
+
+# How to create new OWNERS file and get it reviewed quickly
+
+1. Create your `OWNERS` file change:
+  - Please follow structure in "Review Structure" section below.
+  - Please include a bug component. See "Bug Component" section below.
+2. Follow these steps to get it reviewed in Gerrit quickly:
+  - please find the people that normally work on this code. For instance,
+    check git history and/or review history. These people who own the code but
+    are not yet reflected in the owners system are called the "de facto OWNERS".
+  - add a screenshot of recent git maintainers and/or reviewers to the Gerrit
+    review in a comment, showing that the "de facto OWNERS" really are
+    represented. If you don't do this, whoever is approving the change has to do
+    this research themselves. Internal only: go/sniplt will make this fast!
+  - add the "de facto OWNERS" as a reviewer to Gerrit initially to approve
+    themselves and any other reviewers that you are adding.
+  - once they approve, add one (and only one) LAST_RESORT_OWNERS as reviewers
+    from frameworks/base/OWNERS. These people get many many reviews, so doing
+    research to make sure OWNERS are properly reflected make it very easy for
+    them to approve. These are the reviewers that Gerrit will suggest on
+    "unowned" files.
+3. Relax & celebrate! Good job!
+
+# Review Structure
 
 The structure of `frameworks/base/` is unique among Android repositories, and
 it's evolved into a complex interleaved structure over the years.  Because of
-this structure, the best place to authoritatively define `OWNERS` can vary
-wildly, but here are some common patterns:
+this structure, we recommend `<TEAM>_OWNERS` files at the root of
+frameworks/base.
+
+Area maintainers are strongly encouraged to list people in a single
+authoritative `OWNERS` file in **exactly one** location, preferably at the
+`frameworks/base` root directory. Then, other paths should reference that
+single authoritative `OWNERS` file using an include directive. This approach
+ensures that updates are applied consistently across the tree, reducing
+maintenance burden.
+
+For some common teams, these authorative places can be
+used:
 
 * `core/java/` contains source that is included in the base classpath, and as
 such it's where most APIs are defined:
@@ -29,13 +65,13 @@ main `services/core/` project:
   * `media/`
   * `wifi/`
 
-# Design
+# Bug component
 
-Area maintainers are strongly encouraged to list people in a single
-authoritative `OWNERS` file in **exactly one** location.  Then, other paths
-should reference that single authoritative `OWNERS` file using an include
-directive.  This approach ensures that updates are applied consistently across
-the tree, reducing maintenance burden.
+Always include an up-to-date bug component in the top-level `<TEAM>_OWNERS` files:
+
+```
+# Bug component: XXX
+```
 
 # Examples
 

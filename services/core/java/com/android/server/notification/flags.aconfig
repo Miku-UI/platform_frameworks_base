@@ -16,31 +16,10 @@ flag {
 }
 
 flag {
-  name: "refactor_attention_helper"
-  namespace: "systemui"
-  description: "This flag controls the refactoring of NMS to NotificationAttentionHelper"
-  bug: "291907312"
-}
-
-flag {
-  name: "cross_app_polite_notifications"
-  namespace: "systemui"
-  description: "This flag controls the cross-app effect of polite notifications"
-  bug: "270456865"
-}
-
-flag {
   name: "vibrate_while_unlocked"
   namespace: "systemui"
   description: "This flag controls the vibrate while unlocked setting of polite notifications"
   bug: "270456865"
-}
-
-flag {
-  name: "autogroup_summary_icon_update"
-  namespace: "systemui"
-  description: "This flag controls the fix for notifications autogroup summary icon updates"
-  bug: "227693160"
 }
 
 flag {
@@ -55,13 +34,6 @@ flag {
   namespace: "systemui"
   description: "This flag enables memory restriction of notifications holding custom views with Uri Bitmaps"
   bug: "270553691"
-}
-
-flag {
-  name: "polite_notifications_attn_update"
-  namespace: "systemui"
-  description: "This flag controls the polite notification attention behavior updates as per UXR feedback"
-  bug: "270456865"
 }
 
 flag {
@@ -99,13 +71,6 @@ flag {
 }
 
 flag {
-  name: "notification_force_group_singletons"
-  namespace: "systemui"
-  description: "This flag enables forced auto-grouping singleton groups"
-  bug: "336488844"
-}
-
-flag {
   name: "notification_force_group_conversations"
   namespace: "systemui"
   description: "This flag enables forced auto-grouping conversations"
@@ -134,23 +99,10 @@ flag {
 }
 
 flag {
-  name: "nm_binder_perf_reduce_zen_broadcasts"
-  namespace: "systemui"
-  description: "Don't send duplicate zen-related (policy changed, etc) broadcasts"
-  bug: "324376849"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "nm_binder_perf_throttle_effects_suppressor_broadcast"
-  namespace: "systemui"
-  description: "Delay sending the ACTION_EFFECTS_SUPPRESSOR_CHANGED broadcast if it changes too often"
-  bug: "371776935"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
+  name: "channel_vibration_ignore_invalid_pattern"
+  namespace: "notifications"
+  description: "Ignore invalid patterns (e.g. empty array) and fall back to default vibration instead of none"
+  bug: "447121175"
 }
 
 flag {
@@ -185,50 +137,29 @@ flag {
 }
 
 flag {
-  name: "log_cached_posts"
-  namespace: "systemui"
-  description: "Logs an event if notify was called from a cached process state"
-  bug: "392740866"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-
-
-flag {
-  name: "random_conversation_ids"
-  namespace: "systemui"
-  description: "Use random ids for new conversation channels, instead of concatenating parent id and conversation id"
-  bug: "432250872"
-}
-
-flag {
-  name: "show_noisy_bundled_notifications"
-  namespace: "notifications"
-  description: "If a classification arrived late and the notification made noise, show the notification as unclassified temporarily"
-  bug: "430573835"
-  metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-  name: "use_on_binding_died"
-  namespace: "notifications"
-  description: "Prefer onBindingDied for package updates to avoid duplicate service bindings"
+  name: "ignore_duplicate_bindings"
+  namespace: "backstage_power"
+  description: "Ignores duplicate bindings to the same NotificationListenerService."
   bug: "434679743"
   metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-  name: "limit_managed_services_count"
-  namespace: "systemui"
-  description: "Enforce a maximum number of allowed components in ManagedServices"
-  bug: "428701593"
-  metadata {
     purpose: PURPOSE_BUGFIX
   }
 }
+
+flag {
+  name: "favorites_incoming_call_lights"
+  namespace: "notifications"
+  description: "Apply priority_notification lights for incoming calls from favorites."
+  bug: "480207922"
+}
+
+# Start: Flags that have been cleaned up in code but must remain defined for CTS
+
+flag {
+  name: "autogroup_summary_icon_update"
+  namespace: "systemui"
+  description: "This flag controls the fix for notifications autogroup summary icon updates"
+  bug: "227693160"
+}
+
+# End: Flags that have been cleaned up in code but must remain defined for CTS

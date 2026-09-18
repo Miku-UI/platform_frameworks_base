@@ -22,9 +22,6 @@ import android.hardware.devicestate.DeviceStateManager
 import android.hardware.input.InputManagerGlobal
 import android.os.Handler
 import android.os.Trace
-import com.android.systemui.Flags.unfoldAnimationBackgroundProgress
-import com.android.systemui.flags.FeatureFlagsClassic
-import com.android.systemui.flags.Flags
 import com.android.systemui.statusbar.LinearLightRevealEffect
 import com.android.systemui.unfold.FullscreenLightRevealAnimationController.Companion.ALPHA_OPAQUE
 import com.android.systemui.unfold.FullscreenLightRevealAnimationController.Companion.ALPHA_TRANSPARENT
@@ -44,12 +41,10 @@ class UnfoldLightRevealOverlayAnimation
 @Inject
 constructor(
     private val context: Context,
-    private val featureFlags: FeatureFlagsClassic,
     private val contentResolver: ContentResolver,
     @UnfoldBg private val unfoldProgressHandler: Handler,
     @UnfoldBg
     private val unfoldTransitionBgProgressProvider: Provider<UnfoldTransitionProgressProvider>,
-    private val unfoldTransitionProgressProvider: Provider<UnfoldTransitionProgressProvider>,
     private val deviceStateManager: DeviceStateManager,
     private val threadFactory: ThreadFactory,
     private val fullscreenLightRevealAnimationControllerFactory:
@@ -76,11 +71,7 @@ constructor(
         controller.init()
         bgExecutor = threadFactory.buildDelayableExecutorOnHandler(unfoldProgressHandler)
         deviceStateManager.registerCallback(bgExecutor, FoldListener())
-        if (unfoldAnimationBackgroundProgress()) {
-            unfoldTransitionBgProgressProvider.get().addCallback(transitionListener)
-        } else {
-            unfoldTransitionProgressProvider.get().addCallback(transitionListener)
-        }
+        unfoldTransitionBgProgressProvider.get().addCallback(transitionListener)
     }
 
     /**
@@ -123,13 +114,9 @@ constructor(
             }
         }
 
-        val showVignetteWhenFolding =
-            featureFlags.isEnabled(Flags.ENABLE_DARK_VIGNETTE_WHEN_FOLDING)
-
-        return if (!showVignetteWhenFolding && overlayAddReason == FOLD) {
-            // Do not darken the content when SHOW_VIGNETTE_WHEN_FOLDING flag is off
-            // and we are folding the device. We still add the overlay to block touches
-            // while the animation is running but the overlay is transparent.
+        return if (overlayAddReason == FOLD) {
+            // Do not darken the content when we are folding the device. We still add the overlay
+            // to block touches while the animation is running but the overlay will be transparent.
             ALPHA_TRANSPARENT
         } else {
             animationProgress

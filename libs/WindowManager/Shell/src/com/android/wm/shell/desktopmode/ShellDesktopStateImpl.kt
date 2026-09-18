@@ -16,6 +16,7 @@
 package com.android.wm.shell.desktopmode
 
 import android.app.WindowConfiguration.ACTIVITY_TYPE_HOME
+import com.android.window.flags.Flags
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.shared.desktopmode.DesktopState
 import com.android.wm.shell.sysui.ShellController
@@ -54,10 +55,37 @@ class ShellDesktopStateImpl(
      * context of desktop mode.
      *
      * A display is considered an eligible target if either:
-     * 1. It already has an active desktop session.
-     * 2. It supports desktop mode and the home screen is currently focused.
+     * 1. It already has an active and interactive desktop session.
+     * 2. It supports a desktop mode and the home or wallpaper tasks are interactive. 2.1. (Without
+     *    a bugfix) It supports desktop mode and the home screen is currently focused.
      */
-    override fun isEligibleWindowDropTarget(displayId: Int): Boolean =
-        isInDesktop(displayId) ||
-            (desktopState.isDesktopModeSupportedOnDisplay(displayId) && isHomeFocused(displayId))
+    override fun isEligibleWindowDropTarget(displayId: Int): Boolean {
+        return if (Flags.allowDragAndDropWhenInteractiveBugfix()) {
+            isActiveDeskInteractive(displayId) ||
+                (isDesktopModeSupportedOnDisplay(displayId) &&
+                    isHomeOrDesktopWallpaperInteractive(displayId))
+        } else {
+            isInDesktop(displayId) ||
+                (desktopState.isDesktopModeSupportedOnDisplay(displayId) &&
+                    isHomeFocused(displayId))
+        }
+    }
+
+    private fun isActiveDeskInteractive(displayId: Int): Boolean {
+        // TODO(b/486093288): This leaks desks implementation details that they're tasks created
+        // with ShellTaskOrganizer. This should be moved to the DesktopRepository instead.
+        val deskTaskId =
+            desktopUserRepositories
+                .getProfile(shellController.currentUserId)
+                .getActiveDeskId(displayId) ?: return false
+        return shellTaskOrganizer.getRunningTaskInfo(deskTaskId)?.isInteractive ?: false
+    }
+
+    private fun isHomeOrDesktopWallpaperInteractive(displayId: Int): Boolean {
+        val tasks = shellTaskOrganizer.getRunningTasks(displayId)
+        return tasks.any { task ->
+            (task.activityType == ACTIVITY_TYPE_HOME ||
+                DesktopWallpaperActivity.isWallpaperTask(task)) && task.isInteractive
+        }
+    }
 }

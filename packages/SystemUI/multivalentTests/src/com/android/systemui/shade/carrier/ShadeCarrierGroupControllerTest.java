@@ -172,7 +172,7 @@ public class ShadeCarrierGroupControllerTest extends LeakCheckedTest {
 
         mSlotIndexResolver = new FakeSlotIndexResolver();
 
-        when(mMobileUiAdapter.getMobileIconsViewModel()).thenReturn(mMobileIconsViewModel);
+        when(mMobileUiAdapter.getMobileIconsViewModel()).thenReturn(() -> mMobileIconsViewModel);
 
         mShadeCarrierGroupController = new ShadeCarrierGroupController.Builder(
                 mActivityStarter,

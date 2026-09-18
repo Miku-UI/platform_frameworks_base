@@ -23,7 +23,7 @@ import static com.android.server.usb.UsbDeviceManager.logAndPrintException;
 import android.annotation.Nullable;
 import android.hardware.usb.gadget.IUsbGadget;
 import android.hardware.usb.gadget.IUsbGadgetCallback;
-import android.hardware.usb.Status;
+import android.hardware.usb.gadget.Status;
 import android.hardware.usb.UsbManager.UsbGadgetHalVersion;
 import android.os.ServiceManager;
 import android.os.IBinder;
@@ -207,7 +207,7 @@ public final class UsbGadgetAidl implements UsbGadgetHal {
         @Override
         public void getCurrentUsbFunctionsCb(long functions,
                 int status, long transactionId) {
-            if (status == Status.SUCCESS) {
+            if (status == Status.SUCCESS || status == Status.FUNCTIONS_APPLIED) {
                 logAndPrint(Log.INFO, mPw, "Usb getCurrentUsbFunctionsCb"
                 + " ,functions:" + functions + " ,status:" + status
                 + " ,transactionId:" + transactionId);

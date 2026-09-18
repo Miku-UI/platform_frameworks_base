@@ -22,6 +22,7 @@ import com.android.systemui.volume.panel.component.bottombar.BottomBarModule
 import com.android.systemui.volume.panel.component.captioning.CaptioningModule
 import com.android.systemui.volume.panel.component.mediainput.MediaInputModule
 import com.android.systemui.volume.panel.component.mediaoutput.MediaOutputModule
+import com.android.systemui.volume.panel.component.mnc.MncModule
 import com.android.systemui.volume.panel.component.spatialaudio.SpatialAudioModule
 import com.android.systemui.volume.panel.component.volume.VolumeSlidersModule
 import com.android.systemui.volume.panel.dagger.factory.VolumePanelComponentFactory
@@ -53,6 +54,7 @@ import kotlinx.coroutines.CoroutineScope
             // Components modules
             BottomBarModule::class,
             AncModule::class,
+            MncModule::class,
             SpatialAudioModule::class,
             VolumeSlidersModule::class,
             CaptioningModule::class,

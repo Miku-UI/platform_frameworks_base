@@ -54,7 +54,7 @@ public class AuthenticationStatsCollector {
     private static final int AUTHENTICATION_UPLOAD_INTERVAL = 50;
     // The maximum number of eligible biometric enrollment notification can be sent.
     @VisibleForTesting
-    static final int MAXIMUM_ENROLLMENT_NOTIFICATIONS = Flags.frrDialogImprovement() ? 3 : 1;
+    static final int MAXIMUM_ENROLLMENT_NOTIFICATIONS = 3;
     @VisibleForTesting
     static final Duration FRR_MINIMAL_DURATION = Duration.ofDays(7);
 
@@ -100,6 +100,9 @@ public class AuthenticationStatsCollector {
                         mUserAuthenticationStatsMap.get(userId);
                 Slog.d(TAG, "Update enroll time for user: " + userId);
                 authenticationStats.updateLastEnrollmentTime(mClock.millis());
+                if (Flags.frrDialogEnrollTime()) {
+                    persistDataIfNeeded(userId, true);
+                }
             }
         }
     };
@@ -153,20 +156,14 @@ public class AuthenticationStatsCollector {
         if (isSingleModalityDevice()) {
             return;
         }
-        if (Flags.frrDialogImprovement()) {
-            // Don't collect data for users who have fingerprint enrolled when the current modality
-            // is not fingerprint. Because the customized FRR notification is for fingerprint only,
-            // and we don't want to send the default notification for face when the user has
-            // fingerprint enrolled.
-            if (mModality != BiometricsProtoEnums.MODALITY_FINGERPRINT
-                    && hasEnrolledFingerprint(userId)) {
-                return;
-            }
-        } else {
-            // Don't collect data for user has both biometrics enrolled
-            if (hasEnrolledFace(userId) && hasEnrolledFingerprint(userId)) {
-                return;
-            }
+
+        // Don't collect data for users who have fingerprint enrolled when the current modality
+        // is not fingerprint. Because the customized FRR notification is for fingerprint only,
+        // and we don't want to send the default notification for face when the user has
+        // fingerprint enrolled.
+        if (mModality != BiometricsProtoEnums.MODALITY_FINGERPRINT
+                && hasEnrolledFingerprint(userId)) {
+            return;
         }
 
         updateAuthenticationStatsMapIfNeeded(userId);
@@ -178,9 +175,13 @@ public class AuthenticationStatsCollector {
 
         authenticationStats.authenticate(authenticated);
 
-        sendNotificationIfNeeded(userId);
+        boolean sent = sendNotificationIfNeeded(userId);
 
-        persistDataIfNeeded(userId);
+        if (Flags.frrDialogEnrollTime()) {
+            persistDataIfNeeded(userId, sent);
+        } else {
+            persistDataIfNeeded(userId);
+        }
     }
 
     private void updateAuthenticationStatsMapIfNeeded(int userId) {
@@ -196,42 +197,39 @@ public class AuthenticationStatsCollector {
         }
     }
 
-    /** Check if a notification should be sent after a calculation cycle. */
-    private void sendNotificationIfNeeded(int userId) {
+    /**
+     * Check if a notification should be sent after a calculation cycle.
+     *
+     * @param userId The user ID.
+     * @return true if a notification was sent, false otherwise.
+     */
+    private boolean sendNotificationIfNeeded(int userId) {
         AuthenticationStats authenticationStats = mUserAuthenticationStatsMap.get(userId);
         if (authenticationStats.getTotalAttempts() < MINIMUM_ATTEMPTS) {
-            return;
+            return false;
         }
 
-        boolean showFrr;
-        if (Flags.frrDialogImprovement()) {
-            long lastFrrOrEnrollTime = Math.max(authenticationStats.getLastEnrollmentTime(),
-                    authenticationStats.getLastFrrNotificationTime());
-            showFrr = authenticationStats.getEnrollmentNotifications()
-                            < MAXIMUM_ENROLLMENT_NOTIFICATIONS
-                    && authenticationStats.getFrr() >= mThreshold
-                    && isFrrMinimalDurationPassed(lastFrrOrEnrollTime);
-        } else {
-            showFrr = authenticationStats.getEnrollmentNotifications()
-                            < MAXIMUM_ENROLLMENT_NOTIFICATIONS
-                    && authenticationStats.getFrr() >= mThreshold;
-        }
+        long lastFrrOrEnrollTime = Math.max(authenticationStats.getLastEnrollmentTime(),
+                authenticationStats.getLastFrrNotificationTime());
+        boolean showFrr = authenticationStats.getEnrollmentNotifications()
+                        < MAXIMUM_ENROLLMENT_NOTIFICATIONS
+                && authenticationStats.getFrr() >= mThreshold
+                && isFrrMinimalDurationPassed(lastFrrOrEnrollTime);
 
         // Don't send notification if FRR below the threshold.
         if (!showFrr) {
             authenticationStats.resetData();
-            return;
+            return false;
         }
 
         authenticationStats.resetData();
 
-        if (Flags.frrDialogImprovement()
-                && mModality == BiometricsProtoEnums.MODALITY_FINGERPRINT) {
+        if (mModality == BiometricsProtoEnums.MODALITY_FINGERPRINT) {
             boolean sent = mBiometricNotification.sendCustomizeFpFrrNotification(mContext);
             if (sent) {
                 authenticationStats.updateLastFrrNotificationTime(mClock.millis());
                 authenticationStats.updateNotificationCounter();
-                return;
+                return true;
             }
         }
 
@@ -242,11 +240,14 @@ public class AuthenticationStatsCollector {
             mBiometricNotification.sendFpEnrollNotification(mContext);
             authenticationStats.updateLastFrrNotificationTime(mClock.millis());
             authenticationStats.updateNotificationCounter();
+            return true;
         } else if (!hasEnrolledFace && hasEnrolledFingerprint) {
             mBiometricNotification.sendFaceEnrollNotification(mContext);
             authenticationStats.updateLastFrrNotificationTime(mClock.millis());
             authenticationStats.updateNotificationCounter();
+            return true;
         }
+        return false;
     }
 
     private boolean isFrrMinimalDurationPassed(long previousMillis) {
@@ -268,9 +269,33 @@ public class AuthenticationStatsCollector {
         return false;
     }
 
+    @Deprecated
     private void persistDataIfNeeded(int userId) {
+        if (Flags.frrDialogEnrollTime()) {
+            Slog.wtf(TAG, "wrong persistDataIfNeeded()");
+            return;
+        }
         AuthenticationStats authenticationStats = mUserAuthenticationStatsMap.get(userId);
         if (authenticationStats.getTotalAttempts() % AUTHENTICATION_UPLOAD_INTERVAL == 0) {
+            mAuthenticationStatsPersister.persistFrrStats(authenticationStats.getUserId(),
+                    authenticationStats.getTotalAttempts(),
+                    authenticationStats.getRejectedAttempts(),
+                    authenticationStats.getEnrollmentNotifications(),
+                    authenticationStats.getLastEnrollmentTime(),
+                    authenticationStats.getLastFrrNotificationTime(),
+                    authenticationStats.getModality());
+        }
+    }
+
+    private void persistDataIfNeeded(int userId, boolean forceUpdate) {
+        if (!Flags.frrDialogEnrollTime()) {
+            Slog.e(TAG, "new persistDataIfNeeded() feature flag not enabled");
+            return;
+        }
+        AuthenticationStats authenticationStats = mUserAuthenticationStatsMap.get(userId);
+        if (forceUpdate
+                || authenticationStats.getTotalAttempts() % AUTHENTICATION_UPLOAD_INTERVAL
+                == 0) {
             mAuthenticationStatsPersister.persistFrrStats(authenticationStats.getUserId(),
                     authenticationStats.getTotalAttempts(),
                     authenticationStats.getRejectedAttempts(),

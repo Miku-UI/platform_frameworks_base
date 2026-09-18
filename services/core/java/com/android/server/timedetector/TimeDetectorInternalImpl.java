@@ -41,7 +41,9 @@ public class TimeDetectorInternalImpl implements TimeDetectorInternal {
     @NonNull private final ServiceConfigAccessor mServiceConfigAccessor;
     @NonNull private final TimeDetectorStrategy mTimeDetectorStrategy;
 
-    public TimeDetectorInternalImpl(@NonNull Context context, @NonNull Handler handler,
+    public TimeDetectorInternalImpl(
+            @NonNull Context context,
+            @NonNull Handler handler,
             @NonNull CurrentUserIdentityInjector currentUserIdentityInjector,
             @NonNull ServiceConfigAccessor serviceConfigAccessor,
             @NonNull TimeDetectorStrategy timeDetectorStrategy) {

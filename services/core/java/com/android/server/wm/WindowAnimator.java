@@ -54,7 +54,6 @@ public class WindowAnimator {
     /** Is any window animating? */
     private boolean mLastRootAnimating;
 
-    final Choreographer.FrameCallback mAnimationFrameCallback;
     final Choreographer.VsyncCallback mAnimationVsyncCallback;
 
     /** Time of current animation step. Reset on each iteration */
@@ -107,25 +106,11 @@ public class WindowAnimator {
         mContext = service.mContext;
         mPolicy = service.mPolicy;
         mTransaction = service.mTransactionFactory.get();
-        if (com.android.window.flags.Flags.deprecateSurfaceAnimationFrameCallback()) {
-            service.mAnimationHandler.runWithScissors(
-                    () -> mChoreographer = Choreographer.getInstance(), 0 /* timeout */);
-        } else {
-            service.mAnimationHandler.runWithScissors(
-                    () -> mChoreographer = Choreographer.getSfInstance(), 0 /* timeout */);
-        }
+        service.mAnimationHandler.runWithScissors(
+                () -> mChoreographer = Choreographer.getInstance(), 0 /* timeout */);
+
         mExecutor = new HandlerExecutor(service.mAnimationHandler);
 
-        mAnimationFrameCallback =
-                frameTimeNs -> {
-                    synchronized (mService.mGlobalLock) {
-                        mAnimationFrameCallbackScheduled = false;
-                        animate(frameTimeNs);
-                        if (mNotifyWhenNoAnimation && !mLastRootAnimating) {
-                            mService.mGlobalLock.notifyAll();
-                        }
-                    }
-                };
         mAnimationVsyncCallback =
                 frameData -> {
                     synchronized (mService.mGlobalLock) {
@@ -276,22 +261,14 @@ public class WindowAnimator {
     void scheduleAnimation() {
         if (!mAnimationFrameCallbackScheduled) {
             mAnimationFrameCallbackScheduled = true;
-            if (com.android.window.flags.Flags.deprecateWindowAnimatorFrameCallback()) {
-                mChoreographer.postVsyncCallback(mAnimationVsyncCallback);
-            } else {
-                mChoreographer.postFrameCallback(mAnimationFrameCallback);
-            }
+            mChoreographer.postVsyncCallback(mAnimationVsyncCallback);
         }
     }
 
     private void cancelAnimation() {
         if (mAnimationFrameCallbackScheduled) {
             mAnimationFrameCallbackScheduled = false;
-            if (com.android.window.flags.Flags.deprecateWindowAnimatorFrameCallback()) {
-                mChoreographer.removeVsyncCallback(mAnimationVsyncCallback);
-            } else {
-                mChoreographer.removeFrameCallback(mAnimationFrameCallback);
-            }
+            mChoreographer.removeVsyncCallback(mAnimationVsyncCallback);
         }
     }
 

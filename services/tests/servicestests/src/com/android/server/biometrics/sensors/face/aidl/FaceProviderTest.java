@@ -294,7 +294,6 @@ public class FaceProviderTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_INTERNAL_CLEANUP_FOR_ALL_PROFILES)
     public void testGetHalInstance_whenDaemonIsNull() {
         mFaceProvider.setTestHalEnabled(false);
         for (SensorProps sensor: mSensorProps) {
@@ -315,6 +314,18 @@ public class FaceProviderTest {
                         any(ClientMonitorCallback.class));
         verify(mScheduler, times(ALIVE_USERS.size() * mSensorProps.length))
                 .scheduleClientMonitor(any(FaceGetAuthenticatorIdClient.class));
+    }
+
+    @Test
+    public void testNullSensorProps() {
+        mFaceProvider = new FaceProvider(mContext, mBiometricStateCallback,
+                mAuthenticationStateListeners, null /* props */, TAG, mLockoutResetDispatcher,
+                mBiometricContext, mDaemon, mBiometricHandlerProvider, (fqName) -> mDaemon,
+                false /* resetLockoutRequiresChallenge */, false /* testHalEnabled */);
+
+        waitForIdle();
+
+        //No crash
     }
 
     private void waitForIdle() {

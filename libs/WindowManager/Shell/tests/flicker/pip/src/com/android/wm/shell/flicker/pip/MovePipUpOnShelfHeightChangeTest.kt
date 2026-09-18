@@ -17,11 +17,11 @@
 package com.android.wm.shell.flicker.pip
 
 import android.platform.test.annotations.Presubmit
-import androidx.test.filters.RequiresDevice
 import android.platform.test.annotations.RequiresFlagsDisabled
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
 import android.tools.flicker.FlickerBuilder
 import android.tools.flicker.FlickerTest
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
+import androidx.test.filters.RequiresDevice
 import com.android.wm.shell.Flags
 import com.android.wm.shell.flicker.pip.common.MovePipShelfHeightTransition
 import com.android.wm.shell.flicker.utils.Direction
@@ -63,13 +63,12 @@ open class MovePipUpOnShelfHeightChangeTest(flicker: FlickerTest) :
     MovePipShelfHeightTransition(flicker) {
     override val thisTransition: FlickerBuilder.() -> Unit = {
         setup { testApp.launchViaIntent(wmHelper) }
-        transitions { tapl.pressHome() }
+        transitions { device.pressHome() }
         teardown { testApp.exit(wmHelper) }
     }
 
     /** Checks that the visible region of [pipApp] window always moves up during the animation. */
-    @Presubmit
-    @Test fun pipWindowMovesUp() = pipWindowMoves(Direction.UP)
+    @Presubmit @Test fun pipWindowMovesUp() = pipWindowMoves(Direction.UP)
 
     /** Checks that the visible region of [pipApp] layer always moves up during the animation. */
     @Presubmit @Test fun pipLayerMovesUp() = pipLayerMoves(Direction.UP)

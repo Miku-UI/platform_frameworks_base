@@ -45,7 +45,8 @@ import com.android.settingslib.spa.widget.ui.SettingsDialogItem
 data class ListPreferenceOption(
     val id: Int,
     val text: String,
-    val summary: String = String()
+    val summary: String = String(),
+    val icon: (@Composable () -> Unit)? = null,
 )
 
 /**

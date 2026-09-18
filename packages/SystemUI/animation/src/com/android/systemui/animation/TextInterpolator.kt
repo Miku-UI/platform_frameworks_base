@@ -23,9 +23,10 @@ import android.graphics.text.PositionedGlyphs
 import android.text.Layout
 import android.text.TextPaint
 import android.text.TextShaper
-import android.util.MathUtils
+import android.util.MathUtils.lerp
+import androidx.core.graphics.withSave
 import com.android.internal.graphics.ColorUtils
-import java.lang.Math.max
+import kotlin.math.max
 
 interface TextInterpolatorListener {
     fun onPaintModified(paint: Paint) {}
@@ -41,9 +42,11 @@ interface TextInterpolatorListener {
     ): Boolean = false
 }
 
-class ShapingResult(val text: String, val lines: List<List<ShapingRun>>, val layout: Layout)
+data class ShapingResult(val text: String, val lines: List<ShapingLine>, val layout: Layout)
 
-class ShapingRun(val text: String, val glyphs: PositionedGlyphs)
+data class ShapingLine(val text: String, val runs: List<ShapingRun>)
+
+data class ShapingRun(val text: String, val glyphs: PositionedGlyphs)
 
 /** Provide text style linear interpolation for plain text. */
 class TextInterpolator(
@@ -93,25 +96,21 @@ class TextInterpolator(
     /** A class represents text layout of a single run. */
     private class Run(
         val glyphIds: IntArray,
-        var baseOffset: Float,
         val baseX: FloatArray, // same length as glyphIds
         val baseY: FloatArray, // same length as glyphIds
-        var targetOffset: Float,
         val targetX: FloatArray, // same length as glyphIds
         val targetY: FloatArray, // same length as glyphIds
         val fontRuns: List<FontRun>,
     )
 
     /** A class represents text layout of a single line. */
-    private class Line(val runs: List<Run>)
+    private class Line(var baseOffset: Float, var targetOffset: Float, val runs: List<Run>)
 
     private var lines = listOf<Line>()
     private val fontInterpolator = FontInterpolator(typefaceCache.fontCache)
 
     // Recycling object for glyph drawing and tweaking.
     private val tmpPaint = TextPaint()
-    private val tmpPaintForGlyph by lazy { TextPaint() }
-    private val tmpGlyph by lazy { MutablePositionedGlyph() }
     // Will be extended for the longest font run if needed.
     private var tmpPositionArray = FloatArray(20)
 
@@ -138,7 +137,6 @@ class TextInterpolator(
      * throw runtime exception if they cannot be interpolated.
      */
     var layout: Layout = layout
-        get() = field
         set(value) {
             field = value
             shapeText(value)
@@ -229,22 +227,24 @@ class TextInterpolator(
      * </code> </pre>
      */
     fun rebase() {
-        if (progress == 0f) {
-            listener?.onRebased(progress)
-            return
-        } else if (progress == 1f) {
-            basePaint.set(targetPaint)
-        } else {
-            lerp(basePaint, targetPaint, progress, tmpPaint)
-            basePaint.set(tmpPaint)
+        when (progress) {
+            0f -> {
+                listener?.onRebased(progress)
+                return
+            }
+            1f -> basePaint.set(targetPaint)
+            else -> {
+                lerp(basePaint, targetPaint, progress, tmpPaint)
+                basePaint.set(tmpPaint)
+            }
         }
 
         lines.forEach { line ->
+            line.baseOffset = lerp(line.baseOffset, line.targetOffset, progress)
             line.runs.forEach { run ->
                 for (i in run.baseX.indices) {
-                    run.baseX[i] = MathUtils.lerp(run.baseX[i], run.targetX[i], progress)
-                    run.baseY[i] = MathUtils.lerp(run.baseY[i], run.targetY[i], progress)
-                    run.baseOffset = MathUtils.lerp(run.baseOffset, run.targetOffset, progress)
+                    run.baseX[i] = lerp(run.baseX[i], run.targetX[i], progress)
+                    run.baseY[i] = lerp(run.baseY[i], run.targetY[i], progress)
                 }
                 run.fontRuns.forEach { fontRun ->
                     fontRun.baseFont =
@@ -273,22 +273,14 @@ class TextInterpolator(
     fun draw(canvas: Canvas) {
         lerp(basePaint, targetPaint, progress, tmpPaint)
         lines.forEachIndexed { lineNo, line ->
-            line.runs.forEach { run ->
-                canvas.save()
-                try {
-                    val offset = MathUtils.lerp(run.baseOffset, run.targetOffset, progress)
-                    // Move to drawing origin w/ correction for RTL offset
-                    val origin = layout.getLineDrawOrigin(lineNo)
-                    canvas.translate(
-                        origin - (origin + offset),
-                        layout.getLineBaseline(lineNo).toFloat(),
-                    )
+            canvas.withSave {
+                val offset = lerp(line.baseOffset, line.targetOffset, progress)
+                // Move to drawing origin w/ correction for RTL offset
+                val origin = layout.getLineDrawOrigin(lineNo)
+                translate(origin - (origin + offset), layout.getLineBaseline(lineNo).toFloat())
 
-                    run.fontRuns.forEach { fontRun ->
-                        drawFontRun(canvas, run, fontRun, lineNo, tmpPaint)
-                    }
-                } finally {
-                    canvas.restore()
+                line.runs.forEach { run ->
+                    run.fontRuns.forEach { fontRun -> drawFontRun(run, fontRun, tmpPaint) }
                 }
             }
         }
@@ -306,8 +298,14 @@ class TextInterpolator(
         var maxRunLength = 0
         lines =
             baseLayout.lines.zip(targetLayout.lines) { baseLine, targetLine ->
+                require(baseLine.runs.size == targetLine.runs.size) {
+                    "The new layout result has different run count."
+                }
+
+                val baseOffset = baseLine.runs.lastOrNull()?.glyphs?.offsetX ?: 0f
+                val targetOffset = targetLine.runs.lastOrNull()?.glyphs?.offsetX ?: 0f
                 val runs =
-                    baseLine.zip(targetLine) { base, target ->
+                    baseLine.runs.zip(targetLine.runs) { base, target ->
                         require(base.glyphs.glyphCount() == target.glyphs.glyphCount()) {
                             "Inconsistent glyph count at line ${lines.size}"
                         }
@@ -327,77 +325,69 @@ class TextInterpolator(
 
                         val baseX = FloatArray(glyphCount)
                         val baseY = FloatArray(glyphCount)
-                        val baseOffset =
-                            populateGlyphPositions(
-                                basePaint,
-                                baseLayout.layout,
-                                base.glyphs,
-                                base.text,
-                                baseX,
-                                baseY,
-                            )
+                        populateGlyphPositions(
+                            basePaint,
+                            baseLayout.layout,
+                            base.glyphs,
+                            base.text,
+                            baseX,
+                            baseY,
+                        )
 
                         val targetX = FloatArray(glyphCount)
                         val targetY = FloatArray(glyphCount)
-                        val targetOffset =
-                            populateGlyphPositions(
-                                targetPaint,
-                                targetLayout.layout,
-                                target.glyphs,
-                                target.text,
-                                targetX,
-                                targetY,
-                            )
-
-                        // Calculate font runs
-                        val fontRun = mutableListOf<FontRun>()
-                        if (glyphCount != 0) {
-                            var start = 0
-                            var baseFont = base.glyphs.getFont(start)
-                            var targetFont = target.glyphs.getFont(start)
-                            require(FontInterpolator.canInterpolate(baseFont, targetFont)) {
-                                "Cannot interpolate font at $start ($baseFont vs $targetFont)"
-                            }
-
-                            for (i in 1 until glyphCount) {
-                                val nextBaseFont = base.glyphs.getFont(i)
-                                val nextTargetFont = target.glyphs.getFont(i)
-
-                                if (baseFont !== nextBaseFont) {
-                                    require(targetFont !== nextTargetFont) {
-                                        "Base font has changed at $i but target font is unchanged."
-                                    }
-                                    // Font transition point. push run and reset context.
-                                    fontRun.add(FontRun(start, i, baseFont, targetFont))
-                                    maxRunLength = max(maxRunLength, i - start)
-                                    baseFont = nextBaseFont
-                                    targetFont = nextTargetFont
-                                    start = i
-                                    require(FontInterpolator.canInterpolate(baseFont, targetFont)) {
-                                        "Cannot interpolate font at $start" +
-                                            " ($baseFont vs $targetFont)"
-                                    }
-                                } else { // baseFont === nextBaseFont
-                                    require(targetFont === nextTargetFont) {
-                                        "Base font is unchanged at $i but target font has changed."
-                                    }
-                                }
-                            }
-                            fontRun.add(FontRun(start, glyphCount, baseFont, targetFont))
-                            maxRunLength = max(maxRunLength, glyphCount - start)
-                        }
-                        Run(
-                            glyphIds,
-                            baseOffset,
-                            baseX,
-                            baseY,
-                            targetOffset,
+                        populateGlyphPositions(
+                            targetPaint,
+                            targetLayout.layout,
+                            target.glyphs,
+                            target.text,
                             targetX,
                             targetY,
-                            fontRun,
                         )
+
+                        // Calculate font runs
+                        val fontRuns = buildList {
+                            if (glyphCount != 0) {
+                                var start = 0
+                                var baseFont = base.glyphs.getFont(start)
+                                var targetFont = target.glyphs.getFont(start)
+                                require(FontInterpolator.canInterpolate(baseFont, targetFont)) {
+                                    "Cannot interpolate font at $start ($baseFont vs $targetFont)"
+                                }
+
+                                for (i in 1 until glyphCount) {
+                                    val nextBaseFont = base.glyphs.getFont(i)
+                                    val nextTargetFont = target.glyphs.getFont(i)
+
+                                    if (baseFont !== nextBaseFont) {
+                                        require(targetFont !== nextTargetFont) {
+                                            "Base font has changed at $i but target font is unchanged."
+                                        }
+                                        // Font transition point. push run and reset context.
+                                        add(FontRun(start, i, baseFont, targetFont))
+                                        maxRunLength = max(maxRunLength, i - start)
+                                        baseFont = nextBaseFont
+                                        targetFont = nextTargetFont
+                                        start = i
+                                        require(
+                                            FontInterpolator.canInterpolate(baseFont, targetFont)
+                                        ) {
+                                            "Cannot interpolate font at $start ($baseFont vs $targetFont)"
+                                        }
+                                    } else { // baseFont === nextBaseFont
+                                        require(targetFont === nextTargetFont) {
+                                            "Base font is unchanged at $i but target font has changed."
+                                        }
+                                    }
+                                }
+                                add(FontRun(start, glyphCount, baseFont, targetFont))
+                                maxRunLength = max(maxRunLength, glyphCount - start)
+                            }
+                        }
+
+                        Run(glyphIds, baseX, baseY, targetX, targetY, fontRuns)
                     }
-                Line(runs)
+                Line(baseOffset, targetOffset, runs)
             }
 
         // Update float array used for drawing.
@@ -406,90 +396,15 @@ class TextInterpolator(
         }
     }
 
-    private class MutablePositionedGlyph : TextAnimator.PositionedGlyph() {
-        override var runStart: Int = 0
-            public set
-
-        override var runLength: Int = 0
-            public set
-
-        override var glyphIndex: Int = 0
-            public set
-
-        override lateinit var font: Font
-            public set
-
-        override var glyphId: Int = 0
-            public set
-    }
-
-    var glyphFilter: GlyphCallback? = null
-
     // Draws single font run.
-    private fun drawFontRun(c: Canvas, line: Run, run: FontRun, lineNo: Int, paint: Paint) {
+    private fun Canvas.drawFontRun(line: Run, run: FontRun, paint: Paint) {
         var arrayIndex = 0
         val font = fontInterpolator.lerp(run.baseFont, run.targetFont, progress, linearProgress)
-
-        val glyphFilter = glyphFilter
-        if (glyphFilter == null) {
-            for (i in run.start until run.end) {
-                tmpPositionArray[arrayIndex++] =
-                    MathUtils.lerp(line.baseX[i], line.targetX[i], progress)
-                tmpPositionArray[arrayIndex++] =
-                    MathUtils.lerp(line.baseY[i], line.targetY[i], progress)
-            }
-            c.drawGlyphs(line.glyphIds, run.start, tmpPositionArray, 0, run.length, font, paint)
-            return
-        }
-
-        tmpGlyph.font = font
-        tmpGlyph.runStart = run.start
-        tmpGlyph.runLength = run.end - run.start
-        tmpGlyph.lineNo = lineNo
-
-        tmpPaintForGlyph.set(paint)
-        var prevStart = run.start
-
         for (i in run.start until run.end) {
-            tmpGlyph.glyphIndex = i
-            tmpGlyph.glyphId = line.glyphIds[i]
-            tmpGlyph.x = MathUtils.lerp(line.baseX[i], line.targetX[i], progress)
-            tmpGlyph.y = MathUtils.lerp(line.baseY[i], line.targetY[i], progress)
-            tmpGlyph.textSize = paint.textSize
-            tmpGlyph.color = paint.color
-
-            glyphFilter(tmpGlyph, progress)
-
-            if (tmpGlyph.textSize != paint.textSize || tmpGlyph.color != paint.color) {
-                tmpPaintForGlyph.textSize = tmpGlyph.textSize
-                tmpPaintForGlyph.color = tmpGlyph.color
-
-                c.drawGlyphs(
-                    line.glyphIds,
-                    prevStart,
-                    tmpPositionArray,
-                    0,
-                    i - prevStart,
-                    font,
-                    tmpPaintForGlyph,
-                )
-                prevStart = i
-                arrayIndex = 0
-            }
-
-            tmpPositionArray[arrayIndex++] = tmpGlyph.x
-            tmpPositionArray[arrayIndex++] = tmpGlyph.y
+            tmpPositionArray[arrayIndex++] = lerp(line.baseX[i], line.targetX[i], progress)
+            tmpPositionArray[arrayIndex++] = lerp(line.baseY[i], line.targetY[i], progress)
         }
-
-        c.drawGlyphs(
-            line.glyphIds,
-            prevStart,
-            tmpPositionArray,
-            0,
-            run.end - prevStart,
-            font,
-            tmpPaintForGlyph,
-        )
+        drawGlyphs(line.glyphIds, run.start, tmpPositionArray, 0, run.length, font, paint)
     }
 
     private fun updatePositionsAndFonts(layoutResult: ShapingResult, updateBase: Boolean) {
@@ -498,19 +413,26 @@ class TextInterpolator(
             "The new layout result has different line count."
         }
 
-        lines.zip(layoutResult.lines) { line, runs ->
-            line.runs.zip(runs) { lineRun, newRun ->
-                require(newRun.glyphs.glyphCount() == lineRun.glyphIds.size) {
+        lines.zip(layoutResult.lines) { baseLine, newLine ->
+            if (updateBase) {
+                baseLine.baseOffset = newLine.runs.lastOrNull()?.glyphs?.offsetX ?: 0f
+            } else {
+                baseLine.targetOffset = newLine.runs.lastOrNull()?.glyphs?.offsetX ?: 0f
+            }
+
+            baseLine.runs.zip(newLine.runs) { baseRun, newRun ->
+                require(newRun.glyphs.glyphCount() == baseRun.glyphIds.size) {
                     "The new layout has different glyph count."
                 }
 
-                lineRun.fontRuns.forEach { run ->
-                    val newFont = newRun.glyphs.getFont(run.start)
-                    for (i in run.start until run.end) {
+                baseRun.fontRuns.forEach { fontRun ->
+                    val newFont = newRun.glyphs.getFont(fontRun.start)
+                    for (i in fontRun.start until fontRun.end) {
                         require(
-                            newRun.glyphs.getGlyphId(run.start) == lineRun.glyphIds[run.start]
+                            newRun.glyphs.getGlyphId(fontRun.start) ==
+                                baseRun.glyphIds[fontRun.start]
                         ) {
-                            "The new layout has different glyph ID at ${run.start}"
+                            "The new layout has different glyph ID at ${fontRun.start}"
                         }
                         require(newFont === newRun.glyphs.getFont(i)) {
                             "The new layout has different font run." +
@@ -520,38 +442,35 @@ class TextInterpolator(
 
                     // The passing base font and target font is already interpolatable, so just
                     // check new font can be interpolatable with base font.
-                    require(FontInterpolator.canInterpolate(newFont, run.baseFont)) {
-                        "New font cannot be interpolated with existing font. $newFont," +
-                            " ${run.baseFont}"
+                    require(FontInterpolator.canInterpolate(newFont, fontRun.baseFont)) {
+                        "New font cannot be interpolated with existing font. $newFont, ${fontRun.baseFont}"
                     }
 
                     if (updateBase) {
-                        run.baseFont = newFont
+                        fontRun.baseFont = newFont
                     } else {
-                        run.targetFont = newFont
+                        fontRun.targetFont = newFont
                     }
                 }
 
                 if (updateBase) {
-                    lineRun.baseOffset =
-                        populateGlyphPositions(
-                            basePaint,
-                            layoutResult.layout,
-                            newRun.glyphs,
-                            newRun.text,
-                            lineRun.baseX,
-                            lineRun.baseY,
-                        )
+                    populateGlyphPositions(
+                        basePaint,
+                        layoutResult.layout,
+                        newRun.glyphs,
+                        newRun.text,
+                        baseRun.baseX,
+                        baseRun.baseY,
+                    )
                 } else {
-                    lineRun.targetOffset =
-                        populateGlyphPositions(
-                            targetPaint,
-                            layoutResult.layout,
-                            newRun.glyphs,
-                            newRun.text,
-                            lineRun.targetX,
-                            lineRun.targetY,
-                        )
+                    populateGlyphPositions(
+                        targetPaint,
+                        layoutResult.layout,
+                        newRun.glyphs,
+                        newRun.text,
+                        baseRun.targetX,
+                        baseRun.targetY,
+                    )
                 }
             }
         }
@@ -563,41 +482,49 @@ class TextInterpolator(
 
         // Currently only font size & colors are interpolated.
         // TODO(172943390): Add other interpolation or support custom interpolator.
-        out.textSize = MathUtils.lerp(from.textSize, to.textSize, progress)
+        out.textSize = lerp(from.textSize, to.textSize, progress)
         out.color = ColorUtils.blendARGB(from.color, to.color, progress)
-        out.strokeWidth = MathUtils.lerp(from.strokeWidth, to.strokeWidth, progress)
+        out.strokeWidth = lerp(from.strokeWidth, to.strokeWidth, progress)
     }
 
     // Shape the text and stores the result to out argument.
     private fun shapeText(layout: Layout, paint: TextPaint): ShapingResult {
-        var text = StringBuilder()
-        val lines = mutableListOf<List<ShapingRun>>()
-        for (lineNo in 0 until layout.lineCount) { // Shape all lines.
-            val lineStart = layout.getLineStart(lineNo)
-            val lineEnd = layout.getLineEnd(lineNo)
-            var count = lineEnd - lineStart
-            // Do not render the last character in the line if it's a newline and unprintable
-            val last = lineStart + count - 1
-            if (last > lineStart && last < layout.text.length && layout.text[last] == '\n') {
-                count--
-            }
+        val lines = buildList {
+            for (lineNo in 0 until layout.lineCount) { // Shape all lines.
+                val lineStart = layout.getLineStart(lineNo)
+                val lineEnd = layout.getLineEnd(lineNo)
+                var lineCount = lineEnd - lineStart
+                // Do not render the last character in the line if it's a newline and unprintable
+                val last = lineStart + lineCount - 1
+                if (last > lineStart && last < layout.text.length && layout.text[last] == '\n') {
+                    lineCount--
+                }
 
-            val runs = mutableListOf<ShapingRun>()
-            TextShaper.shapeText(
-                layout.text,
-                lineStart,
-                count,
-                layout.textDirectionHeuristic,
-                paint,
-            ) { start, count, glyphs, _ ->
-                runs.add(ShapingRun(layout.text.substring(start, start + count), glyphs))
-            }
-            lines.add(runs)
+                val runs = buildList {
+                    TextShaper.shapeText(
+                        layout.text,
+                        lineStart,
+                        lineCount,
+                        layout.textDirectionHeuristic,
+                        paint,
+                    ) { runStart, runCount, glyphs, _ ->
+                        add(
+                            ShapingRun(layout.text.substring(runStart, runStart + runCount), glyphs)
+                        )
+                    }
+                }
 
-            if (lineNo > 0) text.append("\n")
-            text.append(layout.text.substring(lineStart, lineEnd))
+                add(ShapingLine(layout.text.substring(lineStart, lineEnd), runs))
+            }
         }
-        shapedText = text.toString()
+
+        val shapedText = buildString {
+            lines.forEachIndexed { lineNo, line ->
+                if (lineNo > 0) append("\n")
+                append(line.text)
+            }
+        }
+        this.shapedText = shapedText
         return ShapingResult(shapedText, lines, layout)
     }
 
@@ -608,7 +535,7 @@ class TextInterpolator(
         str: String,
         outX: FloatArray,
         outY: FloatArray,
-    ): Float {
+    ) {
         val isRtl = layout.textDirectionHeuristic.isRtl(str, 0, str.length)
         val range = (0 until glyphs.glyphCount()).let { if (isRtl) it.reversed() else it }
         val sign = if (isRtl) -1 else 1
@@ -626,23 +553,22 @@ class TextInterpolator(
                 val nextXPos =
                     when {
                         i + 1 < glyphs.glyphCount() -> glyphs.getGlyphX(i + 1)
-                        !isRtl -> glyphs.getAdvance()
+                        !isRtl -> glyphs.advance
                         else -> 0f
                     }
                 xAdjustment += listener?.getCharWidthAdjustment(font, str[i], nextXPos - xPos) ?: 0f
             }
         }
 
-        listener?.onTotalAdjustmentComputed(paint, glyphs.getAdvance(), xAdjustment)
-        return glyphs.offsetX
+        listener?.onTotalAdjustmentComputed(paint, glyphs.advance, xAdjustment)
     }
 
     companion object {
         private fun Layout.getLineDrawOrigin(lineNo: Int): Float {
-            if (getParagraphDirection(lineNo) == Layout.DIR_LEFT_TO_RIGHT) {
-                return getLineLeft(lineNo)
+            return if (getParagraphDirection(lineNo) == Layout.DIR_LEFT_TO_RIGHT) {
+                getLineLeft(lineNo)
             } else {
-                return getLineRight(lineNo)
+                getLineRight(lineNo)
             }
         }
     }

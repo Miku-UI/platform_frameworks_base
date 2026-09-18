@@ -41,6 +41,7 @@ class LaunchAdjacentController(private val syncQueue: SyncTransactionQueue) {
                 }
             }
         }
+
     private var container: WindowContainerToken? = null
 
     /**

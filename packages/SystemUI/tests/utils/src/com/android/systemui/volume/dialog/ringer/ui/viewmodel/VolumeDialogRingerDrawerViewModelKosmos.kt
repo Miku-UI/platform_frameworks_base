@@ -26,6 +26,7 @@ import com.android.systemui.statusbar.notification.domain.interactor.notificatio
 import com.android.systemui.statusbar.policy.configurationController
 import com.android.systemui.util.time.fakeSystemClock
 import com.android.systemui.util.time.systemClock
+import com.android.systemui.volume.dialog.domain.interactor.expandedAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.domain.interactor.volumeDialogVisibilityInteractor
 import com.android.systemui.volume.dialog.ringer.domain.volumeDialogRingerInteractor
 import com.android.systemui.volume.dialog.shared.volumeDialogLogger
@@ -44,5 +45,6 @@ val Kosmos.volumeDialogRingerDrawerViewModel by
             configurationController = configurationController,
             uiEventLogger = uiEventLogger,
             systemClock = fakeSystemClock,
+            expandedAudioTileDetailsFeatureInteractor = expandedAudioTileDetailsFeatureInteractor,
         )
     }

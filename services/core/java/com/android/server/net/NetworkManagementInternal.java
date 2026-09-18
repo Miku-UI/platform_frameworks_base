@@ -23,7 +23,7 @@ package com.android.server.net;
  */
 public abstract class NetworkManagementInternal {
     /**
-     * Checks if network is restricted for {@param uid} as per the app idle state, device idle mode,
+     * Checks if network is restricted for {@code uid} as per the app idle state, device idle mode,
      * battery and data saver modes.
      */
     public abstract boolean isNetworkRestrictedForUid(int uid);

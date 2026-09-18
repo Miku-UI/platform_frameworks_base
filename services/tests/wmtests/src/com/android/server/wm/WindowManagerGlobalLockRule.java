@@ -27,10 +27,9 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Holds {@link WindowManagerGlobalLock} for test methods (including before and after) to prevent
@@ -62,8 +61,8 @@ class WindowManagerGlobalLockRule implements WindowTestRunner.MethodWrapper {
         return base;
     }
 
-    boolean runWithScissors(Handler handler, Runnable r, long timeout) {
-        return waitForLocked(() -> handler.runWithScissors(r, timeout));
+    void runWithScissors(Handler handler, Runnable r, long timeout) {
+        waitForLocked(() -> handler.runWithScissors(r, timeout));
     }
 
     void waitForLocked(Runnable r) {
@@ -88,26 +87,27 @@ class WindowManagerGlobalLockRule implements WindowTestRunner.MethodWrapper {
 
         final Object lock = mSystemServicesTestRule.getWindowManagerService().mGlobalLock;
         final AtomicBoolean done = new AtomicBoolean(false);
-        final List<T> result = Arrays.asList((T) null);
+        final AtomicReference<T> result = new AtomicReference<>();
         final Exception[] exception = { null };
 
         AsyncTask.SERIAL_EXECUTOR.execute(() -> {
             try {
-                result.set(0, callable.call());
+                result.set(callable.call());
             } catch (Exception e) {
                 exception[0] = e;
             }
             synchronized (lock) {
-                lock.notifyAll();
                 done.set(true);
+                lock.notifyAll();
             }
         });
 
         synchronized (lock) {
-            if (!done.get()) {
+            while (!done.get()) {
                 try {
                     lock.wait();
                 } catch (InterruptedException impossible) {
+                    // Wait until the result is set.
                 }
             }
         }
@@ -115,7 +115,7 @@ class WindowManagerGlobalLockRule implements WindowTestRunner.MethodWrapper {
             throw new RuntimeException(exception[0]);
         }
 
-        return result.get(0);
+        return result.get();
     }
 
     /** Wraps methods annotated with {@link org.junit.Test}. */

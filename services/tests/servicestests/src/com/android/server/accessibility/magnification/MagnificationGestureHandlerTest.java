@@ -68,7 +68,6 @@ public class MagnificationGestureHandlerTest {
         MockitoAnnotations.initMocks(this);
         mMgh = new TestMagnificationGestureHandler(DISPLAY_0,
                 /* detectSingleFingerTripleTap= */true,
-                /* detectTwoFingerTripleTap= */true,
                 /* detectShortcutTrigger= */true,
                 mTraceManager,
                 mCallback);
@@ -85,34 +84,6 @@ public class MagnificationGestureHandlerTest {
             assertTrue(mMgh.mIsInternalMethodCalled);
         } finally {
             downEvent.recycle();
-        }
-    }
-
-    @Test
-    public void onMotionEvent_isFromMouse_handleMouseOrStylusEvent() {
-        final MotionEvent mouseEvent = MotionEvent.obtain(0, 0, ACTION_HOVER_MOVE, 0, 0, 0);
-        mouseEvent.setSource(InputDevice.SOURCE_MOUSE);
-
-        mMgh.onMotionEvent(mouseEvent, mouseEvent, /* policyFlags= */ 0);
-
-        try {
-            assertTrue(mMgh.mIsHandleMouseOrStylusEventCalled);
-        } finally {
-            mouseEvent.recycle();
-        }
-    }
-
-    @Test
-    public void onMotionEvent_isFromStylus_handleMouseOrStylusEvent() {
-        final MotionEvent stylusEvent = MotionEvent.obtain(0, 0, ACTION_HOVER_MOVE, 0, 0, 0);
-        stylusEvent.setSource(InputDevice.SOURCE_STYLUS);
-
-        mMgh.onMotionEvent(stylusEvent, stylusEvent, /* policyFlags= */ 0);
-
-        try {
-            assertTrue(mMgh.mIsHandleMouseOrStylusEventCalled);
-        } finally {
-            stylusEvent.recycle();
         }
     }
 
@@ -189,19 +160,11 @@ public class MagnificationGestureHandlerTest {
     private static class TestMagnificationGestureHandler extends MagnificationGestureHandler {
 
         boolean mIsInternalMethodCalled = false;
-        boolean mIsHandleMouseOrStylusEventCalled = false;
 
         TestMagnificationGestureHandler(int displayId, boolean detectSingleFingerTripleTap,
-                boolean detectTwoFingerTripleTap,
                 boolean detectShortcutTrigger, @NonNull AccessibilityTraceManager trace,
                 @NonNull Callback callback) {
-            super(displayId, detectSingleFingerTripleTap, detectTwoFingerTripleTap,
-                    detectShortcutTrigger, trace, callback);
-        }
-
-        @Override
-        void handleMouseOrStylusEvent(MotionEvent event, MotionEvent rawEvent, int policyFlags) {
-            mIsHandleMouseOrStylusEventCalled = true;
+            super(displayId, detectSingleFingerTripleTap, detectShortcutTrigger, trace, callback);
         }
 
         @Override

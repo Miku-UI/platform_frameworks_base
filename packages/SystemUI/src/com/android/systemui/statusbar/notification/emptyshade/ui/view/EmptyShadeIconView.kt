@@ -96,7 +96,7 @@ class EmptyShadeIconView @JvmOverloads constructor(context: Context, attrs: Attr
     inner class EmptyShadeViewState : ExpandableViewState() {
         override fun applyToView(view: View) {
             super.applyToView(view)
-            if (view is EmptyShadeView) {
+            if (view is EmptyShadeIconView) {
                 view.setContentVisibleAnimated(view.isVisible)
             }
         }

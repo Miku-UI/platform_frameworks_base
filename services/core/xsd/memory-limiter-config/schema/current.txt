@@ -1,0 +1,40 @@
+// Signature format: 6.0
+// - style=java
+package com.android.server.am.memorylimiter.config {
+
+  public class ConfigList {
+    ctor public ConfigList();
+    method public java.util.List<com.android.server.am.memorylimiter.config.LimitSet> getLimitSet();
+  }
+
+  public class LimitSet {
+    ctor public LimitSet();
+    method public java.math.BigInteger getMemNotVisible();
+    method public java.math.BigInteger getMemVisible();
+    method public java.math.BigInteger getMinimumRequiredMemTotal();
+    method public java.math.BigInteger getSwapNotVisible();
+    method public java.math.BigInteger getSwapVisible();
+    method public void setMemNotVisible(java.math.BigInteger);
+    method public void setMemVisible(java.math.BigInteger);
+    method public void setMinimumRequiredMemTotal(java.math.BigInteger);
+    method public void setSwapNotVisible(java.math.BigInteger);
+    method public void setSwapVisible(java.math.BigInteger);
+  }
+
+  public class MemoryLimiterConfig {
+    ctor public MemoryLimiterConfig();
+    method public com.android.server.am.memorylimiter.config.ConfigList getConfigList();
+    method public java.math.BigInteger getVersion();
+    method public void setConfigList(com.android.server.am.memorylimiter.config.ConfigList);
+    method public void setVersion(java.math.BigInteger);
+  }
+
+  public class XmlParser {
+    ctor public XmlParser();
+    method public static com.android.server.am.memorylimiter.config.MemoryLimiterConfig read(java.io.InputStream) throws javax.xml.datatype.DatatypeConfigurationException, java.io.IOException, org.xmlpull.v1.XmlPullParserException;
+    method public static String readText(org.xmlpull.v1.XmlPullParser) throws java.io.IOException, org.xmlpull.v1.XmlPullParserException;
+    method public static void skip(org.xmlpull.v1.XmlPullParser) throws java.io.IOException, org.xmlpull.v1.XmlPullParserException;
+  }
+
+}
+

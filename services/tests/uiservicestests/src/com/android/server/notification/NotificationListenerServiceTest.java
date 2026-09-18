@@ -154,7 +154,6 @@ public class NotificationListenerServiceTest extends UiServiceTestCase {
             assertEquals(getImportance(i), ranking.getImportance());
             assertEquals(getExplanation(key), ranking.getImportanceExplanation());
             assertEquals(getChannel(key, i), ranking.getChannel());
-            assertEquals(getPeople(key, i), ranking.getAdditionalPeople());
             assertEquals(getSnoozeCriteria(key, i), ranking.getSnoozeCriteria());
             assertEquals(getShowBadge(i), ranking.canShowBadge());
             assertEquals(getUserSentiment(i), ranking.getUserSentiment());
@@ -166,7 +165,6 @@ public class NotificationListenerServiceTest extends UiServiceTestCase {
             assertEquals(isTextChanged(i), ranking.isTextChanged());
             assertEquals(isConversation(i), ranking.isConversation());
             assertEquals(getShortcutInfo(i).getId(), ranking.getConversationShortcutInfo().getId());
-            assertEquals(getRankingAdjustment(i), ranking.getRankingAdjustment());
         }
     }
 
@@ -231,20 +229,17 @@ public class NotificationListenerServiceTest extends UiServiceTestCase {
                     getExplanation(key),
                     getOverrideGroupKey(key),
                     getChannel(key, i),
-                    getPeople(key, i),
                     getSnoozeCriteria(key, i),
                     getShowBadge(i),
                     getUserSentiment(i),
                     getHidden(i),
                     lastAudiblyAlerted(i),
-                    getNoisy(i),
                     getSmartActions(key, i),
                     getSmartReplies(key, i),
                     canBubble(i),
                     isTextChanged(i),
                     isConversation(i),
                     getShortcutInfo(i),
-                    getRankingAdjustment(i),
                     isBubble(i),
                     getProposedImportance(i),
                     hasSensitiveContent(i),
@@ -308,18 +303,6 @@ public class NotificationListenerServiceTest extends UiServiceTestCase {
         return index * 2000;
     }
 
-    private boolean getNoisy(int index) {
-        return index < 1;
-    }
-
-    private ArrayList<String> getPeople(String key, int index) {
-        ArrayList<String> people = new ArrayList<>();
-        for (int i = 0; i < index; i++) {
-            people.add(i + key);
-        }
-        return people;
-    }
-
     private ArrayList<SnoozeCriterion> getSnoozeCriteria(String key, int index) {
         ArrayList<SnoozeCriterion> snooze = new ArrayList<>();
         for (int i = 0; i < index; i++) {
@@ -372,10 +355,6 @@ public class NotificationListenerServiceTest extends UiServiceTestCase {
         return si;
     }
 
-    private int getRankingAdjustment(int index) {
-        return index % 3 - 1;
-    }
-
     private int getProposedImportance(int index) {
         return index % 5 - 1;
     }
@@ -385,10 +364,7 @@ public class NotificationListenerServiceTest extends UiServiceTestCase {
     }
 
     public static String getSummarization(int index) {
-        if ((android.app.Flags.nmSummarizationUi() || android.app.Flags.nmSummarization())) {
-            return "summary " + index;
-        }
-        return null;
+        return "summary " + index;
     }
 
     private boolean isBubble(int index) {

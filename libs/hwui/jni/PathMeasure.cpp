@@ -16,7 +16,7 @@
 */
 
 #include "GraphicsJNI.h"
-
+#include "Path.h"
 #include "SkMatrix.h"
 #include "SkPath.h"
 #include "SkPathMeasure.h"
@@ -56,7 +56,7 @@ public:
 
     static jlong create(JNIEnv* env, jobject clazz, jlong pathHandle,
                         jboolean forceClosedHandle) {
-        const SkPath* path = reinterpret_cast<SkPath*>(pathHandle);
+        const SkPath* path = AsSkPath(pathHandle);
         bool forceClosed = (forceClosedHandle == JNI_TRUE);
         PathMeasurePair* pair;
         if(path)
@@ -69,7 +69,7 @@ public:
     static void setPath(JNIEnv* env, jobject clazz, jlong pairHandle,
                         jlong pathHandle, jboolean forceClosedHandle) {
         PathMeasurePair* pair = reinterpret_cast<PathMeasurePair*>(pairHandle);
-        const SkPath* path = reinterpret_cast<SkPath*>(pathHandle);
+        const SkPath* path = AsSkPath(pathHandle);
         bool forceClosed = (forceClosedHandle == JNI_TRUE);
 
         if (NULL == path) {
@@ -122,7 +122,7 @@ public:
     static jboolean getSegment(JNIEnv* env, jobject clazz, jlong pairHandle, jfloat startF,
                                jfloat stopF, jlong dstHandle, jboolean startWithMoveTo) {
         PathMeasurePair* pair = reinterpret_cast<PathMeasurePair*>(pairHandle);
-        SkPath* dst = reinterpret_cast<SkPath*>(dstHandle);
+        SkPathBuilder* dst = AsSkPathBuilder(dstHandle);
         bool result = pair->fMeasure.getSegment(startF, stopF, dst, startWithMoveTo);
         return result ? JNI_TRUE : JNI_FALSE;
     }

@@ -28,8 +28,8 @@ java_library {
     host_supported: true,
     device_supported: true,
     srcs: [
-        "src/**/annotations/*.java",
-        "src/**/annotations/*.kt",
+        "annotations/src/**/*.java",
+        "annotations/src/**/*.kt",
     ],
     optimize: {
         proguard_flags_files: ["proguard.flags"],
@@ -50,10 +50,6 @@ java_library {
     srcs: [
         "src/**/*.java",
         "src/**/*.kt",
-    ],
-    exclude_srcs: [
-        "src/**/annotations/*.java",
-        "src/**/annotations/*.kt",
     ],
     static_libs: [
         "PluginAnnotationLib",

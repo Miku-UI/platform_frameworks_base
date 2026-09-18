@@ -49,8 +49,4 @@ class QSPreferencesInteractor @Inject constructor(private val repo: QSPreference
     fun setInitialOrUpgradeLargeTilesSpecs(specs: TilesUpgradePath, user: Int) {
         repo.setInitialOrUpgradeLargeTiles(specs, user)
     }
-
-    suspend fun deleteLargeTilesDataJob() {
-        repo.deleteLargeTileDataJob()
-    }
 }

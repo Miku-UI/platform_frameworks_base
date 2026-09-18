@@ -29,6 +29,7 @@ import com.android.systemui.qs.tiles.impl.hearingdevices.domain.model.HearingDev
 import com.android.systemui.statusbar.policy.fakeBluetoothController
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -36,23 +37,22 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mock
 import org.mockito.junit.MockitoJUnit
 import org.mockito.junit.MockitoRule
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class HearingDevicesTileDataInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
     private val testUser = UserHandle.of(1)
-
     private val controller = kosmos.fakeBluetoothController
     private lateinit var underTest: HearingDevicesTileDataInteractor
-
     @Rule @JvmField val mockitoRule: MockitoRule = MockitoJUnit.rule()
-    @Mock private lateinit var checker: HearingDevicesChecker
+    private var checker = mock<HearingDevicesChecker>()
 
     @Before
     fun setup() {
@@ -60,11 +60,23 @@ class HearingDevicesTileDataInteractorTest : SysuiTestCase() {
     }
 
     @Test
-    fun availability_returnTrue() =
+    fun availability_supportHearingDevices_returnTrue() =
         testScope.runTest {
+            whenever(checker.isHearingDeviceSupported()).thenReturn(true)
             val availability by collectLastValue(underTest.availability(testUser))
+            runCurrent()
 
             assertThat(availability).isTrue()
+        }
+
+    @Test
+    fun availability_notSupportHearingDevices_returnFalse() =
+        testScope.runTest {
+            whenever(checker.isHearingDeviceSupported()).thenReturn(false)
+            val availability by collectLastValue(underTest.availability(testUser))
+            runCurrent()
+
+            assertThat(availability).isFalse()
         }
 
     @Test

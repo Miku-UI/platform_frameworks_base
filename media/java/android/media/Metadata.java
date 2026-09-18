@@ -477,9 +477,7 @@ import java.util.TimeZone;
      */
     @UnsupportedAppUsage
     public long getLong(final int key) {
-        checkType(key, LONG_VAL);    /**
-     * @hide
-     */
+        checkType(key, LONG_VAL);
         return mParcel.readLong();
     }
 

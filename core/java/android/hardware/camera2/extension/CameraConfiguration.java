@@ -19,8 +19,12 @@ package android.hardware.camera2.extension;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
+import android.hardware.camera2.CaptureRequest;
 
 import com.android.internal.camera.flags.Flags;
+
+import java.util.HashMap;
+import java.util.Map;
 
 
 /**
@@ -37,6 +41,7 @@ public final class CameraConfiguration {
     private CameraOutputSurface mPreviewOutputSurface;
     private CameraOutputSurface mStillCaptureOutputSurface;
     private CameraOutputSurface mPostViewOutputSurface;
+    private Map<CaptureRequest.Key<?>, Object> mSessionParams = new HashMap<>();
 
     CameraConfiguration(@NonNull CameraOutputSurface previewOutputSurface,
             @NonNull CameraOutputSurface stillCaptureOutputSurface,
@@ -68,5 +73,27 @@ public final class CameraConfiguration {
     @NonNull
     public CameraOutputSurface getPostViewOutputSurface() {
         return mPostViewOutputSurface;
+    }
+
+    /**
+     * Set the current session parameters map.
+     *
+     * @param sessionCaptureParams Capture request key value map of all client session parameters.
+     *                             OEM can choose to apply those that are appropriate for the
+     *                             specific extension.
+     */
+    @FlaggedApi(Flags.FLAG_VENDOR_DEFINED_CAMERA_EXTENSIONS)
+    public void setSessionWideParams(
+            @NonNull Map<CaptureRequest.Key<?>, Object> sessionCaptureParams) {
+        mSessionParams = sessionCaptureParams;
+    }
+
+    /**
+     * Return the current session parameters map.
+     */
+    @FlaggedApi(Flags.FLAG_VENDOR_DEFINED_CAMERA_EXTENSIONS)
+    @NonNull
+    public Map<CaptureRequest.Key<?>, Object> getSessionWideParams() {
+        return mSessionParams;
     }
 }

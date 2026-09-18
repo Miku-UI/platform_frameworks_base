@@ -22,5 +22,4 @@ enum class UserActionModel {
     ADD_USER,
     ADD_SUPERVISED_USER,
     NAVIGATE_TO_USER_MANAGEMENT,
-    SIGN_OUT,
 }

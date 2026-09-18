@@ -27,9 +27,14 @@ import com.android.systemui.keyguard.ui.view.DeviceEntryIconView
 import com.android.systemui.keyguard.ui.viewmodel.DeviceEntryForegroundViewModel
 import com.android.systemui.keyguard.ui.viewmodel.DeviceEntryIconViewModel
 import com.android.systemui.res.R
+import com.android.systemui.scene.domain.interactor.SceneInteractor
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Scenes
+import dagger.Lazy
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 
 /** Models the UI state for the non-alternate bouncer UDFPS accessibility overlay */
 class DeviceEntryUdfpsAccessibilityOverlayViewModel
@@ -42,6 +47,7 @@ constructor(
     accessibilityInteractor: AccessibilityInteractor,
     private val deviceEntryIconViewModel: DeviceEntryIconViewModel,
     private val deviceEntryFgIconViewModel: DeviceEntryForegroundViewModel,
+    sceneInteractor: Lazy<SceneInteractor>,
 ) :
     UdfpsAccessibilityOverlayViewModel(
         applicationContext,
@@ -54,15 +60,26 @@ constructor(
     val customizeLockscreenString =
         applicationContext.resources.getString(R.string.accessibility_desc_customize_lock_screen)
 
+    private val isDeviceEntryIconFullyVisible: Flow<Boolean> =
+        if (SceneContainerFlag.isEnabled) {
+            combine(
+                sceneInteractor.get().currentScene,
+                deviceEntryIconViewModel.deviceEntryViewAlpha,
+            ) { scene, alpha ->
+                scene == Scenes.Lockscreen && alpha == 1f
+            }
+        } else {
+            deviceEntryIconViewModel.deviceEntryViewAlpha.map { it == 1f }
+        }
+
     /** Overlay is only visible if the UDFPS icon is visible on the keyguard. */
     override fun isVisibleWhenTouchExplorationEnabled(): Flow<Boolean> =
-        combine(
-            deviceEntryFgIconViewModel.viewModel,
-            deviceEntryIconViewModel.deviceEntryViewAlpha,
-        ) { iconViewModel, alpha ->
+        combine(deviceEntryFgIconViewModel.viewModel, isDeviceEntryIconFullyVisible) {
+            iconViewModel,
+            deviceEntryIconFullVisible ->
             iconViewModel.type == DeviceEntryIconView.IconType.FINGERPRINT &&
                 !iconViewModel.useAodVariant &&
-                alpha == 1f
+                deviceEntryIconFullVisible
         }
 
     /** Give directional feedback to help the user authenticate with UDFPS. */

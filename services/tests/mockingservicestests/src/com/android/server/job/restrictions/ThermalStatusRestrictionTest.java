@@ -29,7 +29,6 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.inOrder;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mock;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
-import static com.android.server.job.Flags.FLAG_THERMAL_RESTRICTIONS_TO_FGS_JOBS;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -45,12 +44,6 @@ import android.app.job.JobInfo;
 import android.content.ComponentName;
 import android.content.Context;
 import android.os.PowerManager;
-import android.platform.test.annotations.RequiresFlagsDisabled;
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
-import android.platform.test.flag.junit.SetFlagsRule;
-import android.provider.DeviceConfig;
 import android.util.DebugUtils;
 
 import androidx.test.runner.AndroidJUnit4;
@@ -77,8 +70,6 @@ public class ThermalStatusRestrictionTest {
     private static final String SOURCE_PACKAGE = "com.android.frameworks.mockingservicestests";
     private static final int SOURCE_USER_ID = 0;
 
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-
     private ThermalStatusRestriction mThermalStatusRestriction;
     private PowerManager.OnThermalStatusChangedListener mStatusChangedListener;
 
@@ -87,9 +78,6 @@ public class ThermalStatusRestrictionTest {
     private Context mContext;
     @Mock
     private JobSchedulerService mJobSchedulerService;
-
-    @Rule
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     class JobStatusContainer {
         public final JobStatus jobMinPriority;
@@ -244,7 +232,6 @@ public class ThermalStatusRestrictionTest {
         mMockingSession = mockitoSession()
                 .initMocks(this)
                 .strictness(Strictness.LENIENT)
-                .spyStatic(DeviceConfig.class)
                 .mockStatic(LocalServices.class)
                 .startMocking();
 
@@ -399,44 +386,7 @@ public class ThermalStatusRestrictionTest {
      * Service and all Thermal states.
      */
     @Test
-    @RequiresFlagsDisabled(FLAG_THERMAL_RESTRICTIONS_TO_FGS_JOBS)
-    public void testIsJobRestrictedBiasFgs_flagThermalRestrictionsToFgsJobsDisabled() {
-        JobStatusContainer jc =
-                new JobStatusContainer("testIsJobRestrictedBiasFgs", mJobSchedulerService);
-
-        int jobBias = JobInfo.BIAS_FOREGROUND_SERVICE;
-        for (int thermalStatus : jc.thermalStatuses) {
-            String msg = "Thermal Status = " + DebugUtils.valueToString(
-                    PowerManager.class, "THERMAL_STATUS_", thermalStatus);
-            mStatusChangedListener.onThermalStatusChanged(thermalStatus);
-            // No restrictions on any jobs
-            assertFalse(msg, isJobRestricted(jc.jobMinPriority, jobBias));
-            assertFalse(msg, isJobRestricted(jc.jobLowPriority, jobBias));
-            assertFalse(msg, isJobRestricted(jc.jobLowPriorityRunning, jobBias));
-            assertFalse(msg, isJobRestricted(jc.jobLowPriorityRunningLong, jobBias));
-            assertFalse(msg, isJobRestricted(jc.jobDefaultPriority, jobBias));
-            assertFalse(msg, isJobRestricted(jc.jobHighPriority, jobBias));
-            assertFalse(msg, isJobRestricted(jc.jobHighPriorityRunning, jobBias));
-            assertFalse(msg, isJobRestricted(jc.jobHighPriorityRunningLong, jobBias));
-            assertFalse(msg, isJobRestricted(jc.ej, jobBias));
-            assertFalse(msg, isJobRestricted(jc.ejDowngraded, jobBias));
-            assertFalse(msg, isJobRestricted(jc.ejRetried, jobBias));
-            assertFalse(msg, isJobRestricted(jc.ejRunning, jobBias));
-            assertFalse(msg, isJobRestricted(jc.ejRunningLong, jobBias));
-            assertFalse(msg, isJobRestricted(jc.ui, jobBias));
-            assertFalse(msg, isJobRestricted(jc.uiRetried, jobBias));
-            assertFalse(msg, isJobRestricted(jc.uiRunning, jobBias));
-            assertFalse(msg, isJobRestricted(jc.uiRunningLong, jobBias));
-        }
-    }
-
-    /**
-     * Test {@link JobSchedulerService#isJobRestricted(JobStatus)} when Job Bias is Foreground
-     * Service and all Thermal states.
-     */
-    @Test
-    @RequiresFlagsEnabled(FLAG_THERMAL_RESTRICTIONS_TO_FGS_JOBS)
-    public void testIsJobRestrictedBiasFgs_flagThermalRestrictionsToFgsJobsEnabled() {
+    public void testIsJobRestrictedBiasFgs() {
         JobStatusContainer jc =
                 new JobStatusContainer("testIsJobRestrictedBiasFgs", mJobSchedulerService);
         int jobBias = JobInfo.BIAS_FOREGROUND_SERVICE;

@@ -23,6 +23,7 @@ import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteCallback;
+import android.service.autofill.Dataset;
 import android.service.autofill.FillEventHistory;
 import android.service.autofill.UserData;
 import android.view.autofill.AutofillId;
@@ -72,7 +73,10 @@ oneway interface IAutoFillManager {
     void setAutofillIdsAttemptedForRefill(int sessionId, in List<AutofillId> ids, int userId);
     void notifyImeAnimationStart(int sessionId, long startTimeMs, int userId);
     void notifyImeAnimationEnd(int sessionId, long endTimeMs, int userId);
+    // For SystemUI to notify AutofillManager of a suggestion result from personal context.
+    void notifySystemInlineSuggestions(int sessionId, in List<Dataset> inlineSuggestionsData, int userId);
     // For SystemUI to notify AutofillManager that a remote fill has occurred.
     void autofillRemoteApp(IBinder activityToken, int taskId, in AutofillId id,
         in AutofillValue value, int userId);
+    void getNoiseInjectionMasterSeed(in IResultReceiver result);
 }

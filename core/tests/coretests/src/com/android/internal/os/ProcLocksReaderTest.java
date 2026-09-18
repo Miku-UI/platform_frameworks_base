@@ -102,6 +102,45 @@ public class ProcLocksReaderTest implements
         assertTrue(mPids.isEmpty());
     }
 
+    @Test
+    public void testNonIntegerPid() throws Exception {
+        // Verifies that non-integer PIDs are gracefully ignored.
+        String blockedLocks =
+                // This lock group should be ignored because the holder PID is not an integer.
+                "1: POSIX  ADVISORY  WRITE not_a_pid fd:09:34062 0 EOF\n"
+                + "1: -> POSIX  ADVISORY  WRITE 18291 fd:09:34062 0 EOF\n"
+                // This lock group should be processed, but the non-integer blocked PID ignored.
+                + "2: POSIX  ADVISORY  WRITE 18292 fd:09:34062 0 EOF\n"
+                + "2: -> POSIX  ADVISORY  WRITE 18293 fd:09:34062 0 EOF\n"
+                + "2: -> POSIX  ADVISORY  WRITE not_a_pid_either fd:09:34062 0 EOF\n"
+                + "2: -> POSIX  ADVISORY  WRITE 18294 fd:09:34062 0 EOF\n";
+
+        runHandleBlockingFileLocks(blockedLocks);
+
+        assertTrue(Arrays.equals(mPids.remove(0), new int[]{18292, 18293, 18294}));
+        assertTrue(mPids.isEmpty());
+    }
+
+    @Test
+    public void testNonPositivePid() throws Exception {
+        // Verifies that non-positive PIDs (e.g., 0, -1) are gracefully ignored.
+        String blockedLocks =
+                // This lock group should be ignored because the holder PID is 0.
+                "1: POSIX  ADVISORY  WRITE 0 fd:09:34062 0 EOF\n"
+                + "1: -> POSIX  ADVISORY  WRITE 18291 fd:09:34062 0 EOF\n"
+                // This lock group should be processed, but the non-positive blocked PIDs ignored.
+                + "2: POSIX  ADVISORY  WRITE 18292 fd:09:34062 0 EOF\n"
+                + "2: -> POSIX  ADVISORY  WRITE 18293 fd:09:34062 0 EOF\n"
+                + "2: -> POSIX  ADVISORY  WRITE 0 fd:09:34062 0 EOF\n"
+                + "2: -> POSIX  ADVISORY  WRITE -100 fd:09:34062 0 EOF\n"
+                + "2: -> POSIX  ADVISORY  WRITE 18294 fd:09:34062 0 EOF\n";
+
+        runHandleBlockingFileLocks(blockedLocks);
+
+        assertTrue(Arrays.equals(mPids.remove(0), new int[]{18292, 18293, 18294}));
+        assertTrue(mPids.isEmpty());
+    }
+
     private void runHandleBlockingFileLocks(String fileContents) throws Exception {
         File tempFile = File.createTempFile("locks", null, mProcDirectory);
         Files.write(tempFile.toPath(), fileContents.getBytes());

@@ -29,6 +29,7 @@ import android.annotation.TestApi;
 import android.annotation.UptimeMillisLong;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Build.VERSION_CODES;
+import android.ravenwood.annotation.RavenwoodIgnore;
 import android.ravenwood.annotation.RavenwoodKeep;
 import android.ravenwood.annotation.RavenwoodKeepPartialClass;
 import android.ravenwood.annotation.RavenwoodRedirect;
@@ -269,7 +270,7 @@ public class Process {
 
     /**
      * Defines a virtual UID that is used to aggregate data related to SDK sandbox UIDs.
-     * {@see SdkSandboxManager}
+     * @see SdkSandboxManager
      * @hide
      */
     @TestApi
@@ -317,6 +318,27 @@ public class Process {
      * @hide
      */
     public static final int LAST_SDK_SANDBOX_UID = 29999;
+
+    /**
+     * Defines the start of a range of UIDs going from this number to
+     * {@link #LAST_PCC_UID} that are reserved for assigning to
+     * processes that need to run in a Private Compute Core (PCC) sandbox.
+     * @hide
+     */
+    public static final int FIRST_PCC_UID = 30000;
+
+    /**
+     * Last UID that is used for PCC processes.
+     * @hide
+     */
+    public static final int LAST_PCC_UID = 39999;
+
+    /**
+     * Defines the start of range of GIDs for the cache directory of Private Compute Core (PCC)
+     * sandbox storage.
+     * @hide
+     */
+    public static final int FIRST_PCC_CACHE_GID = 60000;
 
     /**
      * First uid used for fully isolated sandboxed processes spawned from an app zygote
@@ -685,6 +707,12 @@ public class Process {
     public static final ZygoteProcess ZYGOTE_PROCESS = new ZygoteProcess();
 
     /**
+     * State associated with the native zygote process.
+     * @hide
+     */
+    public static final NativeZygoteProcess NATIVE_ZYGOTE_PROCESS = new NativeZygoteProcess();
+
+    /**
      * The process name set via {@link #setArgV0(String)}.
      */
     private static String sArgV0;
@@ -753,6 +781,8 @@ public class Process {
                                            int zygotePolicyFlags,
                                            boolean isTopApp,
                                            @Nullable long[] disabledCompatChanges,
+                                           @Nullable long[] enabledCompatChanges,
+                                           boolean useDeliQueue,
                                            @Nullable Map<String, Pair<String, Long>>
                                                    pkgDataInfoMap,
                                            @Nullable Map<String, Pair<String, Long>>
@@ -762,10 +792,14 @@ public class Process {
                                            boolean bindMountSystemOverrides,
                                            long startSeq,
                                            @Nullable String[] zygoteArgs) {
-        return ZYGOTE_PROCESS.start(processClass, niceName, uid, gid, gids,
+        boolean isNative = android.os.Flags.nativeFrameworkPrototype()
+                && (zygotePolicyFlags & ZYGOTE_POLICY_FLAG_NATIVE_PROCESS) != 0;
+        IZygoteProcess process = isNative ? NATIVE_ZYGOTE_PROCESS : ZYGOTE_PROCESS;
+        return process.start(processClass, niceName, uid, gid, gids,
                     runtimeFlags, mountExternal, targetSdkVersion, seInfo,
                     abi, instructionSet, appDataDir, invokeWith, packageName,
                     zygotePolicyFlags, isTopApp, disabledCompatChanges,
+                    enabledCompatChanges, useDeliQueue,
                     pkgDataInfoMap, whitelistedDataInfoMap, bindMountAppsData,
                     bindMountAppStorageDirs, bindMountSystemOverrides, startSeq, zygoteArgs);
     }
@@ -784,18 +818,40 @@ public class Process {
                                                   @Nullable String invokeWith,
                                                   @Nullable String packageName,
                                                   @Nullable long[] disabledCompatChanges,
+                                                  @Nullable long[] enabledCompatChanges,
+                                                  boolean useDeliQueue,
                                                   long startSeq,
                                                   @Nullable String[] zygoteArgs) {
         // Webview zygote can't access app private data files, so doesn't need to know its data
         // info.
-        return WebViewZygote.getProcess().start(processClass, niceName, uid, gid, gids,
-                    runtimeFlags, mountExternal, targetSdkVersion, seInfo,
-                    abi, instructionSet, appDataDir, invokeWith, packageName,
-                    /*zygotePolicyFlags=*/ ZYGOTE_POLICY_FLAG_EMPTY, /*isTopApp=*/ false,
-                disabledCompatChanges, /* pkgDataInfoMap */ null,
-                /* whitelistedDataInfoMap */ null, /* bindMountAppsData */ false,
-                /* bindMountAppStorageDirs */ false, /* bindMountSyspropOverrides */ false,
-                startSeq, zygoteArgs);
+        return WebViewZygote.getProcess()
+                .start(
+                        processClass,
+                        niceName,
+                        uid,
+                        gid,
+                        gids,
+                        runtimeFlags,
+                        mountExternal,
+                        targetSdkVersion,
+                        seInfo,
+                        abi,
+                        instructionSet,
+                        appDataDir,
+                        invokeWith,
+                        packageName,
+                        /* zygotePolicyFlags= */ ZYGOTE_POLICY_FLAG_EMPTY,
+                        /* isTopApp= */ false,
+                        disabledCompatChanges,
+                        enabledCompatChanges,
+                        useDeliQueue, /* pkgDataInfoMap */
+                        null,
+                        /* whitelistedDataInfoMap */ null, /* bindMountAppsData */
+                        false,
+                        /* bindMountAppStorageDirs */ false, /* bindMountSyspropOverrides */
+                        false,
+                        startSeq,
+                        zygoteArgs);
     }
 
     /**
@@ -995,6 +1051,38 @@ public class Process {
     }
 
     /**
+     * Returns the app UID corresponding to a Private Compute Core UID.
+     *
+     * @param uid the Private Compute Core UID
+     * @return the app UID for the given Private Compute Core UID
+     * @throws IllegalArgumentException if input is not a Private Compute Core UID
+     * @hide
+     */
+    @RavenwoodKeep
+    public static final int getAppUidForPrivateComputeCoreUid(int uid) {
+        if (!isPrivateComputeCoreUid(uid)) {
+            throw new IllegalArgumentException("Input UID is not a Private Compute Core UID");
+        }
+        return uid - (FIRST_PCC_UID - FIRST_APPLICATION_UID);
+    }
+
+    /**
+     * Returns the Private Compute Core UID corresponding to an app UID.
+     *
+     * @param uid the app UID
+     * @return the Private Compute Core UID for the given app UID
+     * @throws IllegalArgumentException if input is not an app UID
+     * @hide
+     */
+    @RavenwoodKeep
+    public static final int getPrivateComputeCoreUidForAppUid(int uid) {
+        if (!isApplicationUid(uid)) {
+            throw new IllegalArgumentException("Input UID is not an app UID");
+        }
+        return uid + (FIRST_PCC_UID - FIRST_APPLICATION_UID);
+    }
+
+    /**
      *
      * Returns the sdk sandbox process corresponding to an app process.
      *
@@ -1032,6 +1120,18 @@ public class Process {
     @RavenwoodKeep
     public static final boolean isSdkSandbox() {
         return isSdkSandboxUid(myUid());
+    }
+
+    /**
+     * Returns whether the provided UID belongs to components running in a
+     * Private Compute Core sandbox process.
+     *
+     */
+    @FlaggedApi(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+    @RavenwoodKeep
+    public static final boolean isPrivateComputeCoreUid(int uid) {
+        uid = UserHandle.getAppId(uid);
+        return uid >= FIRST_PCC_UID && uid <= LAST_PCC_UID;
     }
 
     /**
@@ -1167,6 +1267,7 @@ public class Process {
      * Does not set cpuset for some historical reason, just calls
      * libcutils::set_sched_policy().
      */
+    @RavenwoodIgnore
     public static final native void setThreadGroup(int tid, int group)
             throws IllegalArgumentException, SecurityException;
 
@@ -1721,7 +1822,7 @@ public class Process {
      * pid.
      * @hide
      */
-    public static final native int killProcessGroup(int uid, int pid);
+    public static final native boolean killProcessGroup(int uid, int pid);
 
     /**
      * Send a signal to all processes in a group under the given PID, but do not wait for the

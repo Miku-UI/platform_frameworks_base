@@ -16,8 +16,10 @@
 
 package com.android.server.pm;
 
+import android.content.pm.Flags;
 import android.content.pm.PackageManager;
 import android.util.SparseBooleanArray;
+import android.util.SparseLongArray;
 
 /**
  * Tracks the package verification state for a particular package. Each package verification has a
@@ -33,7 +35,8 @@ class PackageVerificationState {
     private final SparseBooleanArray mRequiredVerifierUids;
     private final SparseBooleanArray mUnrespondedRequiredVerifierUids;
 
-    private final SparseBooleanArray mExtendedTimeoutUids;
+    // Stores uids and total time extension for the uids.
+    private final SparseLongArray mExtendedTimeoutUids;
 
     private boolean mSufficientVerificationComplete;
 
@@ -52,7 +55,7 @@ class PackageVerificationState {
         mSufficientVerifierUids = new SparseBooleanArray();
         mRequiredVerifierUids = new SparseBooleanArray();
         mUnrespondedRequiredVerifierUids = new SparseBooleanArray();
-        mExtendedTimeoutUids = new SparseBooleanArray();
+        mExtendedTimeoutUids = new SparseLongArray();
         mRequiredVerificationComplete = false;
         mRequiredVerificationPassed = true;
     }
@@ -194,11 +197,24 @@ class PackageVerificationState {
     }
 
     /** Extend the timeout for this Package to be verified. */
-    boolean extendTimeout(int uid) {
-        if (!checkRequiredVerifierUid(uid) || timeoutExtended(uid)) {
+    boolean extendTimeout(int uid, long millisToDelay) {
+        if (!checkRequiredVerifierUid(uid)) {
             return false;
         }
-        mExtendedTimeoutUids.append(uid, true);
+        // If timeoutExtended is true and flag is disabled, exit early (old behaviour). If flag is
+        // enabled, update mExtendedTimeoutUids.
+        // If timeoutExtended is false, flag value doesn't matter - update mExtendedTimeoutUids.
+        if (timeoutExtended(uid) && !Flags.extendVerificationTimeoutMultipleTimes()) {
+            return false;
+        }
+        if (millisToDelay < 0) {
+            millisToDelay = 0;
+        }
+        long delay = millisToDelay + mExtendedTimeoutUids.get(uid);
+        if (delay > PackageManager.MAXIMUM_VERIFICATION_TIMEOUT) {
+            delay = PackageManager.MAXIMUM_VERIFICATION_TIMEOUT;
+        }
+        mExtendedTimeoutUids.put(uid, delay);
         return true;
     }
 
@@ -208,10 +224,14 @@ class PackageVerificationState {
      * @return {@code true} if a timeout was already extended.
      */
     boolean timeoutExtended(int uid) {
-        return mExtendedTimeoutUids.get(uid, false);
+        return mExtendedTimeoutUids.indexOfKey(uid) >= 0;
     }
 
     boolean areAllVerificationsComplete() {
         return isVerificationComplete();
+    }
+
+    long getTotalDelay(int uid) {
+        return mExtendedTimeoutUids.get(uid);
     }
 }

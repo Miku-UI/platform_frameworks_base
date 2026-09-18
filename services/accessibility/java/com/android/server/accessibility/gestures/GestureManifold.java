@@ -84,7 +84,7 @@ import java.util.List;
  */
 public class GestureManifold implements GestureMatcher.StateChangeListener {
 
-    private static final String LOG_TAG = "GestureManifold";
+    private static final String LOG_TAG = GestureManifold.class.getSimpleName();
 
     private final List<GestureMatcher> mGestures = new ArrayList<>();
     private final Context mContext;

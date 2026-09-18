@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.android.servicestests.apps.packageparserapp">
+    <application>
+        <activity android:name=".MyActivity" />
+
+        <activity android:name=".PccActivity" android:privateComputeCore="true" />
+        <service android:name=".PccService" android:privateComputeCore="true" />
+        <receiver android:name=".PccReceiver" android:privateComputeCore="true" />
+        <provider android:name=".PccProvider"
+          android:authorities="com.android.servicestests.apps.packageparserapp.pccprovider"
+          android:privateComputeCore="true" />
+        <activity-alias android:name=".PccActivityAlias" android:targetActivity=".PccActivity"
+          android:privateComputeCore="true" />
+        <activity-alias android:name=".PccActivityAliasToNormal" android:targetActivity=".MyActivity"
+          android:privateComputeCore="true" />
+
+        <activity-alias android:name=".MyActivityAliasToPcc" android:targetActivity=".PccActivity"
+          android:privateComputeCore="false" />
+
+        <activity android:name=".MyActivityExplicitlyNotPcc" android:privateComputeCore="false" />
+        <service android:name=".MyServiceExplicitlyNotPcc" android:privateComputeCore="false" />
+        <receiver android:name=".MyReceiverExplicitlyNotPcc" android:privateComputeCore="false" />
+        <provider android:name=".MyProviderExplicitlyNotPcc"
+          android:authorities="com.android.servicestests.apps.packageparserapp.myproviderexplicitlynotpcc"
+          android:privateComputeCore="false" />
+        <activity-alias android:name=".MyActivityAliasExplicitlyNotPcc" android:targetActivity=".MyActivityExplicitlyNotPcc"
+          android:privateComputeCore="false" />
+
+        <service android:name=".MyService" />
+        <receiver android:name=".MyReceiver" />
+        <provider android:name=".MyProvider"
+            android:authorities="com.android.servicestests.apps.packageparserapp.myprovider" />
+
+    </application>
+</manifest>
+

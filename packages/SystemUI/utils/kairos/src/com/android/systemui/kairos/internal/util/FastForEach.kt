@@ -21,3 +21,9 @@ inline fun <T> List<T>.fastForEach(block: (T) -> Unit) {
         block(get(idx))
     }
 }
+
+inline fun <T> List<T>.fastForEachIndexed(block: (Int, T) -> Unit) {
+    for (idx in indices) {
+        block(idx, get(idx))
+    }
+}

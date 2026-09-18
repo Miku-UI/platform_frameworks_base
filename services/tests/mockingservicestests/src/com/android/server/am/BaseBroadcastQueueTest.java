@@ -18,6 +18,7 @@ package com.android.server.am;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doNothing;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
+import static com.android.server.am.BroadcastQueueImpl.ENFORCE_ENQUEUED_BROADCAST_LIMITS_FOR_SENDER;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -95,6 +96,9 @@ public abstract class BaseBroadcastQueueTest {
     static final String PACKAGE_ORANGE = "com.example.orange";
 
     static final String PROCESS_SYSTEM = "system";
+    static final String PROCESS_RED = ":red";
+    static final String PROCESS_GREEN = ":green";
+    static final String PROCESS_BLUE = ":blue";
 
     static final String CLASS_RED = "com.example.red.Red";
     static final String CLASS_GREEN = "com.example.green.Green";
@@ -114,6 +118,7 @@ public abstract class BaseBroadcastQueueTest {
             .spyStatic(FrameworkStatsLog.class)
             .spyStatic(ProcessList.class)
             .spyStatic(SystemServiceRegistry.class)
+            .spyStatic(BroadcastSkipPolicy.class)
             .mockStatic(AppGlobals.class)
             .build();
 
@@ -150,6 +155,8 @@ public abstract class BaseBroadcastQueueTest {
 
     @Mock
     AppStartInfoTracker mAppStartInfoTracker;
+    @Mock
+    AppErrors mAppErrors;
 
     Context mContext;
     ActivityManagerService mAms;
@@ -166,6 +173,8 @@ public abstract class BaseBroadcastQueueTest {
     SparseArray<ReceiverList> mRegisteredReceivers = new SparseArray<>();
 
     public void setUp() throws Exception {
+        System.loadLibrary("mockingservicestestjni");
+
         MockitoAnnotations.initMocks(this);
 
         mContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
@@ -199,15 +208,22 @@ public abstract class BaseBroadcastQueueTest {
         doReturn(mPermissionManager).when(spyContext).getSystemService(PermissionManager.class);
         final ActivityManagerService realAms = new ActivityManagerService(
                 new TestInjector(spyContext), mServiceThreadRule.getThread());
+        realAms.mProcessStateController = spy(realAms.mProcessStateController);
         realAms.mActivityTaskManager = new ActivityTaskManagerService(mContext);
         realAms.mActivityTaskManager.initialize(null, null, realAms.mProcessStateController,
                 mContext.getMainLooper());
         realAms.mAtmInternal = spy(realAms.mActivityTaskManager.getAtmInternal());
         realAms.setCachedAppOptimizer(mock(CachedAppOptimizer.class));
         realAms.mOomAdjuster = spy(realAms.mOomAdjuster);
+        realAms.mPhantomProcessList = spy(realAms.mPhantomProcessList);
+        doNothing().when(realAms.mPhantomProcessList).setProcessGroupForPhantomProcessOfApp(any(),
+                anyInt());
         doNothing().when(() -> ProcessList.setOomAdj(anyInt(), anyInt(), anyInt()));
+        doNothing().when(() -> ProcessList.batchSetOomAdj(any()));
         realAms.mPackageManagerInt = mPackageManagerInt;
         realAms.mUsageStatsService = mUsageStatsManagerInt;
+        realAms.mAppProfiler = spy(realAms.mAppProfiler);
+        doNothing().when(realAms.mAppProfiler).updateLowMemStateLSP(anyInt(), anyInt(), anyLong());
         realAms.mProcessesReady = true;
         mAms = spy(realAms);
 
@@ -216,9 +232,7 @@ public abstract class BaseBroadcastQueueTest {
         doReturn(mAppStartInfoTracker).when(mProcessList).getAppStartInfoTracker();
 
         doReturn(true).when(mPlatformCompat).isChangeEnabledInternalNoLogging(
-                eq(BroadcastFilter.RESTRICT_PRIORITY_VALUES), any(ApplicationInfo.class));
-        doReturn(true).when(mPlatformCompat).isChangeEnabledInternalNoLogging(
-                eq(BroadcastRecord.LIMIT_PRIORITY_SCOPE), any(ApplicationInfo.class));
+                eq(ENFORCE_ENQUEUED_BROADCAST_LIMITS_FOR_SENDER), any(ApplicationInfo.class));
     }
 
     public void tearDown() throws Exception {
@@ -231,7 +245,7 @@ public abstract class BaseBroadcastQueueTest {
         final BroadcastSkipPolicy skipPolicy = spy(new BroadcastSkipPolicy(mAms));
         doReturn(null).when(skipPolicy).shouldSkipAtEnqueueMessage(any(), any());
         doReturn(null).when(skipPolicy).shouldSkipMessage(any(), any());
-        doReturn(false).when(skipPolicy).disallowBackgroundStart(any());
+        doReturn(false).when(() -> BroadcastSkipPolicy.disallowBackgroundStart(any()));
         return skipPolicy;
     }
 
@@ -273,8 +287,18 @@ public abstract class BaseBroadcastQueueTest {
         }
 
         @Override
+        public AppErrors getAppErrors() {
+            return mAppErrors;
+        }
+
+        @Override
         public BroadcastQueue getBroadcastQueue(ActivityManagerService service) {
             return null;
+        }
+
+        @Override
+        public PlatformCompat getPlatformCompat() {
+            return mPlatformCompat;
         }
 
         @Override
@@ -398,6 +422,10 @@ public abstract class BaseBroadcastQueueTest {
         private int mCallerAppProcState = ActivityManager.PROCESS_STATE_UNKNOWN;
         private PlatformCompat mPlatformCompat = mock(PlatformCompat.class);
 
+        public BroadcastRecordBuilder setIntentAction(String action) {
+            return setIntent(new Intent(action));
+        }
+
         public BroadcastRecordBuilder setIntent(Intent intent) {
             mIntent = intent;
             return this;
@@ -410,6 +438,26 @@ public abstract class BaseBroadcastQueueTest {
 
         public BroadcastRecordBuilder setAppOp(int appOp) {
             mAppOp = appOp;
+            return this;
+        }
+
+        public BroadcastRecordBuilder setCallingUid(int callingUid) {
+            mCallingUid = callingUid;
+            return this;
+        }
+
+        public BroadcastRecordBuilder setCallerPackage(String callerPackage) {
+            mCallerPackage = callerPackage;
+            return this;
+        }
+
+        public BroadcastRecordBuilder setCallerApp(ProcessRecord callerApp) {
+            mProcessRecord = callerApp;
+            return this;
+        }
+
+        public BroadcastRecordBuilder setReceivers(List receivers) {
+            mReceivers = receivers;
             return this;
         }
 

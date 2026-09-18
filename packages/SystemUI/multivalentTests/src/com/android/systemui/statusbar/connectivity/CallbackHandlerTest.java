@@ -49,10 +49,8 @@ public class CallbackHandlerTest extends SysuiTestCase {
     private CallbackHandler mHandler;
     private HandlerThread mHandlerThread;
 
-    @Mock
-    private EmergencyListener mEmengencyListener;
-    @Mock
-    private SignalCallback mSignalCallback;
+    @Mock private EmergencyListener mEmengencyListener;
+    @Mock private SignalCallback mSignalCallback;
 
     @Before
     public void setUp() throws Exception {
@@ -84,13 +82,12 @@ public class CallbackHandlerTest extends SysuiTestCase {
         boolean out = true;
         String description = "Test";
         String secondaryLabel = "Secondary label";
-        WifiIndicators indicators = new WifiIndicators(
-                enabled, status, qs, in, out, description, true, secondaryLabel);
+        WifiIndicators indicators =
+                new WifiIndicators(enabled, status, qs, in, out, description, true, secondaryLabel);
         mHandler.setWifiIndicators(indicators);
         waitForCallbacks();
 
-        ArgumentCaptor<WifiIndicators> indicatorArg =
-                ArgumentCaptor.forClass(WifiIndicators.class);
+        ArgumentCaptor<WifiIndicators> indicatorArg = ArgumentCaptor.forClass(WifiIndicators.class);
         Mockito.verify(mSignalCallback).setWifiIndicators(indicatorArg.capture());
         WifiIndicators expected = indicatorArg.getValue();
 
@@ -118,9 +115,20 @@ public class CallbackHandlerTest extends SysuiTestCase {
         boolean wide = true;
         int subId = 5;
         boolean roaming = true;
-        MobileDataIndicators indicators = new MobileDataIndicators(
-                status, qs, type, qsType, in, out, typeDescription,
-                typeDescriptionHtml, description, subId, roaming, true);
+        MobileDataIndicators indicators =
+                new MobileDataIndicators(
+                        status,
+                        qs,
+                        type,
+                        qsType,
+                        in,
+                        out,
+                        typeDescription,
+                        typeDescriptionHtml,
+                        description,
+                        subId,
+                        roaming,
+                        true);
         mHandler.setMobileDataIndicators(indicators);
         waitForCallbacks();
 
@@ -179,7 +187,10 @@ public class CallbackHandlerTest extends SysuiTestCase {
     @Test
     public void testSignalCallback_setIsAirplaneMode() {
         IconState state =
-                new IconState(true, com.android.systemui.res.R.drawable.stat_sys_airplane_mode, "Test Description");
+                new IconState(
+                        true,
+                        com.android.systemui.res.R.drawable.stat_sys_airplane_mode,
+                        "Test Description");
         mHandler.setIsAirplaneMode(state);
         waitForCallbacks();
 
@@ -195,5 +206,4 @@ public class CallbackHandlerTest extends SysuiTestCase {
         } catch (InterruptedException e) {
         }
     }
-
 }

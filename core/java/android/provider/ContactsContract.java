@@ -315,6 +315,19 @@ public final class ContactsContract {
      * {@link CommonDataKinds.Email#CONTENT_FILTER_URI CommonDataKinds.Email.CONTENT_FILTER_URI}
      * and
      * {@link CommonDataKinds.Phone#CONTENT_FILTER_URI CommonDataKinds.Phone.CONTENT_FILTER_URI}.
+     *
+     * <aside class="note"><b>Note:</b>If an app targets
+     * {@link android.os.Build.VERSION_CODES#CINNAMON_BUN}
+     * or after, they must hold
+     * {@link android.Manifest.permission#WRITE_CONTACTS} permission in order to respond to
+     * directory contact queries such as {@link ContactsContract.Contacts#CONTENT_FILTER_URI}.
+     * Additionally, Apps must have
+     * {@link android.Manifest.permission#READ_CALL_LOG} in order respond to
+     * {@link PhoneLookup#CONTENT_FILTER_URI} and
+     * {@link CommonDataKinds.Phone#CONTENT_FILTER_URI}.
+     * If an app that implements a directory provider lacks the required permissions the
+     * contacts provider will not forward queries to it.
+     * </aside>
      * </p>
      * <p>
      * A directory provider should return NULL for every projection field it does not
@@ -1870,6 +1883,50 @@ public final class ContactsContract {
         }
 
         /**
+        * Query parameter key used to specify a comma-separated list of mimetypes for filtering.
+        * Used with URIs that support mimetype-based filtering.
+        * This is supported by com.android.contacts/contacts/mimes and
+        * com.android.contacts/contacts/mimes/filter uris.
+        *
+        * <p>
+        * Example uri:
+        * <pre>
+        * Uri uri = Contacts.CONTACTS_DATA.buildUpon()
+        *          .appendQueryParameter(Contacts.REQUESTED_MIMETYPES_PARAM_KEY,
+        *              "vnd.android.cursor.item/email_v2,vnd.android.cursor.item/phone_v2")
+        *          .build();
+        * </pre>
+        * </p>
+        *
+        * @hide
+        */
+        public static final String REQUESTED_MIMETYPES_PARAM_KEY = "requested_mimetypes";
+
+        /**
+        * Query parameter key used to specify if *all* provided mimetypes must be present for a
+        * contact to be included in the results. If "true", only contacts having data for all
+        * specified mimetypes are returned. If "false" or absent, contacts having data for *any*
+        * of the specified mimetypes are returned.
+        * Used in conjunction with {@link #REQUESTED_MIMETYPES_PARAM_KEY} and is supported by
+        * com.android.contacts/contacts/mimes and com.android.contacts/contacts/mimes/filter uris.
+        *
+        * <p>
+        * Example uri:
+        * <pre>
+        * Uri uri = Contacts.CONTACTS_DATA.buildUpon()
+        *          .appendQueryParameter(Contacts.REQUESTED_MIMETYPES_PARAM_KEY,
+        *              "vnd.android.cursor.item/email_v2,vnd.android.cursor.item/phone_v2")
+        *          .appendQueryParameter(Contacts.MATCH_ALL_MIMETYPES_PARAM_KEY, "true")
+        *          .build();
+        * // This returning cursor will contain contacts that have BOTH an email and a phone number.
+        * </pre>
+        * </p>
+        *
+        * @hide
+        */
+        public static final String MATCH_ALL_MIMETYPES_PARAM_KEY = "match_all_mimetypes";
+
+        /**
          * A sub-directory of a single contact that contains all of the constituent raw contact
          * {@link ContactsContract.Data} rows.  This directory can be used either
          * with a {@link #CONTENT_URI} or {@link #CONTENT_LOOKUP_URI}.
@@ -2256,7 +2313,7 @@ public final class ContactsContract {
          * @param contactUri the contact whose photo should be used. This can be used with
          * either a {@link #CONTENT_URI} or a {@link #CONTENT_LOOKUP_URI} URI.
          * @return an InputStream of the photo, or null if no photo is present
-         * @see #openContactPhotoInputStream(ContentResolver, Uri, boolean), if instead
+         * @see #openContactPhotoInputStream(ContentResolver, Uri, boolean) if instead
          * of the thumbnail the high-res picture is preferred
          */
         public static InputStream openContactPhotoInputStream(ContentResolver cr, Uri contactUri) {
@@ -3024,7 +3081,6 @@ public final class ContactsContract {
          * New raw contacts requested to be inserted without a specified {@link Account} will be
          * saved in the default account.
          */
-        @FlaggedApi(Flags.FLAG_NEW_DEFAULT_ACCOUNT_API_ENABLED)
         public static final class DefaultAccount {
             /**
              * no public constructor since this is a utility class
@@ -3102,7 +3158,6 @@ public final class ContactsContract {
              * saved in this SIM account. </li>
              * </ul>
              */
-            @FlaggedApi(Flags.FLAG_NEW_DEFAULT_ACCOUNT_API_ENABLED)
             public static final class DefaultAccountAndState {
                 /** A state indicating that default account is not set. */
                 public static final int DEFAULT_ACCOUNT_STATE_NOT_SET = 1;
@@ -3292,7 +3347,6 @@ public final class ContactsContract {
              * @throws RuntimeException if failed to look up the default account.
              * @throws IllegalStateException if the default account is in an invalid state.
              */
-            @FlaggedApi(Flags.FLAG_NEW_DEFAULT_ACCOUNT_API_ENABLED)
             public static @NonNull DefaultAccountAndState getDefaultAccountForNewContacts(
                     @NonNull ContentResolver resolver) {
                 Bundle response = nullSafeCall(resolver, ContactsContract.AUTHORITY_URI,
@@ -3349,7 +3403,6 @@ public final class ContactsContract {
              * @hide
              */
             @RequiresPermission(android.Manifest.permission.SET_DEFAULT_ACCOUNT_FOR_CONTACTS)
-            @FlaggedApi(Flags.FLAG_NEW_DEFAULT_ACCOUNT_API_ENABLED)
             @SystemApi
             public static void setDefaultAccountForNewContacts(@NonNull ContentResolver resolver,
                     @NonNull DefaultAccountAndState defaultAccountAndState) {
@@ -3379,7 +3432,6 @@ public final class ContactsContract {
              * @hide
              */
             @RequiresPermission(android.Manifest.permission.SET_DEFAULT_ACCOUNT_FOR_CONTACTS)
-            @FlaggedApi(Flags.FLAG_NEW_DEFAULT_ACCOUNT_API_ENABLED)
             @SystemApi
             public static @NonNull List<Account> getEligibleCloudAccounts(
                     @NonNull ContentResolver resolver) {
@@ -3413,7 +3465,6 @@ public final class ContactsContract {
              * @hide
              */
             @SystemApi
-            @FlaggedApi(Flags.FLAG_NEW_DEFAULT_ACCOUNT_API_ENABLED)
             @RequiresPermission(allOf = {android.Manifest.permission.WRITE_CONTACTS,
                     android.Manifest.permission.SET_DEFAULT_ACCOUNT_FOR_CONTACTS})
             public static void moveLocalContactsToCloudDefaultAccount(
@@ -3446,7 +3497,6 @@ public final class ContactsContract {
              * @hide
              */
             @SystemApi
-            @FlaggedApi(Flags.FLAG_NEW_DEFAULT_ACCOUNT_API_ENABLED)
             @RequiresPermission(allOf = {android.Manifest.permission.WRITE_CONTACTS,
                     android.Manifest.permission.SET_DEFAULT_ACCOUNT_FOR_CONTACTS})
             public static void moveSimContactsToCloudDefaultAccount(
@@ -3488,7 +3538,6 @@ public final class ContactsContract {
              * @hide
              */
             @SystemApi
-            @FlaggedApi(Flags.FLAG_NEW_DEFAULT_ACCOUNT_API_ENABLED)
             @RequiresPermission(allOf = {android.Manifest.permission.READ_CONTACTS,
                     android.Manifest.permission.SET_DEFAULT_ACCOUNT_FOR_CONTACTS})
             public static int getNumberOfMovableLocalContacts(
@@ -3532,7 +3581,6 @@ public final class ContactsContract {
              * @hide
              */
             @SystemApi
-            @FlaggedApi(Flags.FLAG_NEW_DEFAULT_ACCOUNT_API_ENABLED)
             @RequiresPermission(allOf = {android.Manifest.permission.READ_CONTACTS,
                     android.Manifest.permission.SET_DEFAULT_ACCOUNT_FOR_CONTACTS})
             public static int getNumberOfMovableSimContacts(
@@ -9430,7 +9478,6 @@ public final class ContactsContract {
          * should be used.
          */
         @Deprecated
-        @FlaggedApi(Flags.FLAG_NEW_DEFAULT_ACCOUNT_API_ENABLED)
         @Nullable
         public static Account getDefaultAccount(@NonNull ContentResolver resolver) {
             Bundle response = resolver.call(ContactsContract.AUTHORITY_URI,
@@ -9457,7 +9504,6 @@ public final class ContactsContract {
          * should be used.
          */
         @Deprecated
-        @FlaggedApi(Flags.FLAG_NEW_DEFAULT_ACCOUNT_API_ENABLED)
         @SystemApi
         @RequiresPermission(android.Manifest.permission.SET_DEFAULT_ACCOUNT_FOR_CONTACTS)
         public static void setDefaultAccount(@NonNull ContentResolver resolver,
@@ -9568,6 +9614,8 @@ public final class ContactsContract {
         public static @AccountAttributes.AttributeFlags long getAccountAttributes(
                 @NonNull ContentResolver resolver,
                 @Nullable Account account, @Nullable String dataSet) {
+            Objects.requireNonNull(resolver, "ContentResolver cannot be null");
+
             Bundle extras = new Bundle();
             if (account != null) {
                 extras.putString(ACCOUNT_NAME, account.name);
@@ -9616,6 +9664,8 @@ public final class ContactsContract {
         public static void setAccountAttributes(@NonNull ContentResolver resolver,
                 @Nullable Account account, @Nullable String dataSet,
                 @AccountAttributes.AttributeFlags long newAttributes) {
+            Objects.requireNonNull(resolver, "ContentResolver cannot be null");
+
             Bundle extras = new Bundle();
             if (account != null) {
                 extras.putString(ACCOUNT_NAME, account.name);
@@ -9653,6 +9703,8 @@ public final class ContactsContract {
         @RequiresPermission(android.Manifest.permission.WRITE_CONTACTS)
         public static void resetAccountAttributes(@NonNull ContentResolver resolver,
                 @Nullable Account account, @Nullable String dataSet) {
+            Objects.requireNonNull(resolver, "ContentResolver cannot be null");
+
             Bundle extras = new Bundle();
             if (account != null) {
                 extras.putString(ACCOUNT_NAME, account.name);

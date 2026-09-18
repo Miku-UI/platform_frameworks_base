@@ -21,6 +21,7 @@ import com.android.wm.shell.draganddrop.SplitDragPolicy
 
 /**
  * Contains the animation props to represent a single state of drop targets.
+ *
  * When the user is dragging, we'd be going between different HoverAnimProps
  */
 data class HoverAnimProps(
@@ -30,25 +31,29 @@ data class HoverAnimProps(
     val scaleX: Float,
     val scaleY: Float,
     /**
-     * Pass in null to indicate this target cannot be hovered over for this given animation/
-     * state
+     * Pass in null to indicate this target cannot be hovered over for this given animation/ state
      *
-     * TODO: There's some way we can probably use the existing translation/scaling values
-     * to take [.target]'s hitRect and scale that so we don't have to take in a separate
-     * hoverRect in the CTOR. Have to make sure the pivots match since view's pivot in the
-     * center of the view and rect's pivot at 0, 0 if unspecified.
-     * The two may also not be correlated, but worth investigating
-     *
+     * TODO: There's some way we can probably use the existing translation/scaling values to take
+     *   [.target]'s hitRect and scale that so we don't have to take in a separate hoverRect in the
+     *   CTOR. Have to make sure the pivots match since view's pivot in the center of the view and
+     *   rect's pivot at 0, 0 if unspecified. The two may also not be correlated, but worth
+     *   investigating
      */
-    var hoverRect: Rect?
+    var hoverRect: Rect?,
 ) {
 
     override fun toString(): String {
-        return ("targetId: " + target
-                + " translationX: " + transX
-                + " translationY: " + transY
-                + " scaleX: " + scaleX
-                + " scaleY: " + scaleY
-                + " hoverRect: " + hoverRect)
+        return ("targetId: " +
+            target +
+            " translationX: " +
+            transX +
+            " translationY: " +
+            transY +
+            " scaleX: " +
+            scaleX +
+            " scaleY: " +
+            scaleY +
+            " hoverRect: " +
+            hoverRect)
     }
 }

@@ -16,7 +16,6 @@
 package com.android.app.concurrent.benchmark
 
 import androidx.benchmark.BlackHole
-import androidx.benchmark.ExperimentalBlackHoleApi
 import com.android.app.concurrent.benchmark.base.ConcurrentBenchmarkRule
 import com.android.app.concurrent.benchmark.event.BaseFlowEventBenchmark
 import com.android.app.concurrent.benchmark.event.BaseSimpleEventBenchmark
@@ -29,13 +28,13 @@ import com.android.app.concurrent.benchmark.event.MapOperator
 import com.android.app.concurrent.benchmark.event.SimpleEvent
 import com.android.app.concurrent.benchmark.event.SimpleWritableEventBuilder
 import com.android.app.concurrent.benchmark.event.WritableEventFactory
-import com.android.app.concurrent.benchmark.util.ExecutorServiceCoroutineScopeBuilder
-import com.android.app.concurrent.benchmark.util.ExecutorThreadBuilder
-import com.android.app.concurrent.benchmark.util.HandlerImmediateThreadBuilder
-import com.android.app.concurrent.benchmark.util.HandlerThreadBuilder
-import com.android.app.concurrent.benchmark.util.HandlerThreadImmediateScopeBuilder
-import com.android.app.concurrent.benchmark.util.HandlerThreadScopeBuilder
-import com.android.app.concurrent.benchmark.util.ThreadFactory
+import com.android.app.concurrent.benchmark.util.ExecutorServiceThreadWithExecutorBuilder
+import com.android.app.concurrent.benchmark.util.ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder
+import com.android.app.concurrent.benchmark.util.LooperThreadWithExecutorBuilder
+import com.android.app.concurrent.benchmark.util.LooperThreadWithHandlerDispatcherBuilder
+import com.android.app.concurrent.benchmark.util.LooperThreadWithImmediateExecutorBuilder
+import com.android.app.concurrent.benchmark.util.LooperThreadWithImmediateHandlerDispatcherBuilder
+import com.android.app.concurrent.benchmark.util.ThreadBuilder
 import com.android.app.concurrent.benchmark.util.dbg
 import java.util.concurrent.Executor
 import java.util.concurrent.atomic.AtomicInteger
@@ -48,7 +47,6 @@ import org.junit.runners.MethodSorters
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
 
-@OptIn(ExperimentalBlackHoleApi::class)
 private sealed interface StringConcatEventBenchmark<T, E : Any>
     where
         T : WritableEventFactory<E>,
@@ -193,38 +191,42 @@ private sealed interface StringConcatEventBenchmark<T, E : Any>
     }
 
     @Test
-    fun benchmarkE_manyStringConcatFlows() {
+    fun benchmark_manyStringConcatFlows() {
         context.manyStringConcatFlows()
     }
 }
 
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class SimpleStringConcatEventBenchmark(param: ThreadFactory<Any, Executor>) :
+class SimpleStringConcatEventBenchmark(param: ThreadBuilder<Executor>) :
     BaseSimpleEventBenchmark(param),
     StringConcatEventBenchmark<SimpleWritableEventBuilder, SimpleEvent<*>> {
 
     companion object {
         @Parameters(name = "{0}")
         @JvmStatic
-        fun getDispatchers() =
-            listOf(ExecutorThreadBuilder, HandlerThreadBuilder, HandlerImmediateThreadBuilder)
+        fun getParameters() =
+            listOf(
+                ExecutorServiceThreadWithExecutorBuilder,
+                LooperThreadWithExecutorBuilder,
+                LooperThreadWithImmediateExecutorBuilder,
+            )
     }
 }
 
 @RunWith(Parameterized::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class FlowStringConcatEventBenchmark(param: ThreadFactory<Any, CoroutineScope>) :
+class FlowStringConcatEventBenchmark(param: ThreadBuilder<CoroutineScope>) :
     BaseFlowEventBenchmark(param), StringConcatEventBenchmark<FlowWritableEventBuilder, Flow<*>> {
 
     companion object {
         @Parameters(name = "{0}")
         @JvmStatic
-        fun getDispatchers() =
+        fun getParameters() =
             listOf(
-                ExecutorServiceCoroutineScopeBuilder,
-                HandlerThreadScopeBuilder,
-                HandlerThreadImmediateScopeBuilder,
+                ExecutorServiceThreadWithExecutorCoroutineDispatcherBuilder,
+                LooperThreadWithHandlerDispatcherBuilder,
+                LooperThreadWithImmediateHandlerDispatcherBuilder,
             )
     }
 }

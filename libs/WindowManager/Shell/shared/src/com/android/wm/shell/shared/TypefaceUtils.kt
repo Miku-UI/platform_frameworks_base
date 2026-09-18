@@ -23,8 +23,8 @@ import com.android.wm.shell.Flags
 /**
  * Utility class to apply a specified typeface to a [TextView].
  *
- * This class provides a method, [setTypeface],
- * to easily set a pre-defined font family and style to a given [TextView].
+ * This class provides a method, [setTypeface], to easily set a pre-defined font family and style to
+ * a given [TextView].
  */
 class TypefaceUtils {
 
@@ -63,14 +63,17 @@ class TypefaceUtils {
 
     companion object {
         /**
-         * Sets the typeface of the provided [textView] to the specified [fontFamily] and [fontStyle].
+         * Sets the typeface of the provided [textView] to the specified [fontFamily] and
+         * [fontStyle].
          *
-         * The typeface is only applied to the [TextView] when [Flags.enableGsf] is `true`.
-         * If [Flags.enableGsf] is `false`, this method has no effect.
+         * The typeface is only applied to the [TextView] when [Flags.enableGsf] is `true`. If
+         * [Flags.enableGsf] is `false`, this method has no effect.
          *
-         * @param textView The [TextView] to which the typeface should be applied. If `null`, this method does nothing.
+         * @param textView The [TextView] to which the typeface should be applied. If `null`, this
+         *   method does nothing.
          * @param fontFamily The desired [FontFamily] for the [TextView].
-         * @param fontStyle The desired font style (e.g., [Typeface.NORMAL], [Typeface.BOLD], [Typeface.ITALIC]). Defaults to [Typeface.NORMAL].
+         * @param fontStyle The desired font style (e.g., [Typeface.NORMAL], [Typeface.BOLD],
+         *   [Typeface.ITALIC]). Defaults to [Typeface.NORMAL].
          */
         @JvmStatic
         @JvmOverloads

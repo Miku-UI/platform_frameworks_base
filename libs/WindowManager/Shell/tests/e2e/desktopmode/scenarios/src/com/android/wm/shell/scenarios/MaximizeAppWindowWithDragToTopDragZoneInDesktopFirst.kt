@@ -40,10 +40,9 @@ import platform.test.desktop.SimulatedConnectedDisplayTestRule
 @RequiresFlagsEnabled(
     Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
     Flags.FLAG_ENABLE_DISPLAY_WINDOWING_MODE_SWITCHING,
-    Flags.FLAG_ENABLE_DESKTOP_FIRST_BASED_DRAG_TO_MAXIMIZE,
 )
 abstract class MaximizeAppWindowWithDragToTopDragZoneInDesktopFirst(
-    rotation: Rotation = Rotation.ROTATION_0,
+    rotation: Rotation = Rotation.ROTATION_0
 ) : TestScenarioBase(rotation) {
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
@@ -55,7 +54,8 @@ abstract class MaximizeAppWindowWithDragToTopDragZoneInDesktopFirst(
     @Before
     fun setup() {
         testApp.enterDesktopMode(wmHelper, device)
-        connectedDisplayRule.setupTestDisplay()
+        val displayId = connectedDisplayRule.setupTestDisplay()
+        wmHelper.StateSyncBuilder().withDesktopModeOnDisplay(displayId).waitForAndVerify()
     }
 
     @Test

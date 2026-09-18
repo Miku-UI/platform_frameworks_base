@@ -17,11 +17,21 @@
 package com.android.systemui.ambientcue.domain.interactor
 
 import com.android.systemui.ambientcue.data.repository.ambientCueRepository
+import com.android.systemui.domain.interactor.sharedPreferencesInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.kosmos.testScope
 import com.android.systemui.shade.domain.interactor.shadeInteractor
+import com.android.systemui.util.time.fakeSystemClock
 
 val Kosmos.ambientCueInteractor by Fixture {
-    AmbientCueInteractor(ambientCueRepository, shadeInteractor, keyguardInteractor)
+    AmbientCueInteractor(
+        ambientCueRepository,
+        fakeSystemClock,
+        shadeInteractor,
+        keyguardInteractor,
+        sharedPreferencesInteractor,
+        testScope.backgroundScope,
+    )
 }

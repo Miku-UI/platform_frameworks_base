@@ -57,6 +57,12 @@ inline fun <T> LongSparseArray<T>.getOrPut(key: Long, defaultValue: () -> T): T 
     }
 }
 
+@Suppress("NOTHING_TO_INLINE")
+inline fun <T> LongSparseArray<T>.isEmpty(): Boolean = size == 0
+
+@Suppress("NOTHING_TO_INLINE")
+inline fun <T> LongSparseArray<T>.isNotEmpty(): Boolean = !isEmpty()
+
 inline val <T> LongSparseArray<T>.lastIndex: Int
     get() = size - 1
 

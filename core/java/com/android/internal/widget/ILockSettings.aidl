@@ -51,6 +51,7 @@ interface ILockSettings {
     String getString(in String key, in String defaultValue, in int userId);
     boolean setLockCredential(in LockscreenCredential credential, in LockscreenCredential savedCredential, int userId);
     void resetKeyStore(int userId);
+    void prepareToVerifyCredential(int userId);
     VerifyCredentialResponse checkCredential(in LockscreenCredential credential, int userId,
             in ICheckCredentialProgressCallback progressCallback);
     VerifyCredentialResponse verifyCredential(in LockscreenCredential credential, int userId, int flags);
@@ -62,7 +63,7 @@ interface ILockSettings {
     boolean refreshStoredPinLength(int userId);
     byte[] getHashFactor(in LockscreenCredential currentCredential, int userId);
     void setSeparateProfileChallengeEnabled(int userId, boolean enabled, in LockscreenCredential managedUserPassword);
-    boolean getSeparateProfileChallengeEnabled(int userId);
+    boolean isUseOneLockSettingEnabled(int userId);
     void registerStrongAuthTracker(in IStrongAuthTracker tracker);
     void unregisterStrongAuthTracker(in IStrongAuthTracker tracker);
     void requireStrongAuth(int strongAuthReason, int userId);

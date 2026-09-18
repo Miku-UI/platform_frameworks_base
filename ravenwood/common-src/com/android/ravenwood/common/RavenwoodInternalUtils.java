@@ -25,6 +25,8 @@ import org.junit.runner.Description;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -32,6 +34,10 @@ import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
@@ -69,6 +75,16 @@ public class RavenwoodInternalUtils {
      */
     public static boolean shouldEnableExtraRuntimeCheck() {
         return sEnableExtraRuntimeCheck;
+    }
+
+    private static final AtomicInteger sNextIdRangeStartPrefix = new AtomicInteger(9100);
+
+    /**
+     * Returns an {@link AtomicLong} starting with an arbitrary, easy-to-spot numbers. We
+     * use it to assign IDs to various objects.
+     */
+    public static AtomicLong getNextIdGenerator() {
+        return new AtomicLong(sNextIdRangeStartPrefix.getAndIncrement() * 1000000L);
     }
 
     /**
@@ -349,4 +365,79 @@ public class RavenwoodInternalUtils {
                     description.getMethodName());
         }
     }
+
+    /**
+     * Creates a stream that forks the output to multiple {@link OutputStream}s.
+     */
+    public static OutputStream createForkingOutputStream(
+            @NonNull List<OutputStream> outs) {
+        return new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                for (int i = 0; i < outs.size(); i++) {
+                    outs.get(i).write(b);
+                }
+            }
+
+            @Override
+            public void write(byte[] b) throws IOException {
+                for (int i = 0; i < outs.size(); i++) {
+                    outs.get(i).write(b);
+                }
+            }
+
+            @Override
+            public void write(byte[] b, int off, int len) throws IOException {
+                for (int i = 0; i < outs.size(); i++) {
+                    outs.get(i).write(b, off, len);
+                }
+            }
+
+            @Override
+            public void flush() throws IOException {
+                for (int i = 0; i < outs.size(); i++) {
+                    outs.get(i).flush();
+                }
+            }
+
+            @Override
+            public void close() throws IOException {
+                var eref = new AtomicReference<IOException>();
+                for (int i = 0; i < outs.size(); i++) {
+                    try {
+                        outs.get(i).close();
+                    } catch (IOException e) {
+                        eref.compareAndSet(null, e);
+                    }
+                }
+                var e = eref.get();
+                if (e != null) {
+                    throw e;
+                }
+            }
+        };
+    }
+
+    /** Null output stream */
+    public static final OutputStream NULL_OUTPUT_STREAM = new OutputStream() {
+        @Override
+        public void write(int b) throws IOException {
+        }
+
+        @Override
+        public void write(byte[] b) throws IOException {
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+        }
+
+        @Override
+        public void flush() throws IOException {
+        }
+
+        @Override
+        public void close() throws IOException {
+        }
+    };
 }

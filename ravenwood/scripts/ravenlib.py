@@ -26,14 +26,11 @@ Path = pathlib.Path
 class SourceFile:
   """A Java or Kotlin source file."""
 
-  path: Path
-  lines: list[str]
-  modified: bool = False
-
   def __init__(self, path: Path):
     self.path = path
     with open(path, "r") as f:
       self.lines = f.readlines()
+    self.modified = False
 
   def get_package(self) -> str:
     """Returns the package name of the source file."""
@@ -50,7 +47,7 @@ class SourceFile:
         return idx
     return -1
 
-  def list_classes(self) -> list[(str, int)]:
+  def list_classes(self) -> list[tuple[str, int]]:
     """Finds the classes and their line numbers in the source file."""
     if self.path.name.endswith(".java"):
       pattern = re.compile(
@@ -84,7 +81,7 @@ class SourceFile:
         self.modified = True
         return
 
-  def list_annotations(self, class_idx: int) -> list[(str, int)]:
+  def list_annotations(self, class_idx: int) -> list[tuple[str, int]]:
     """Finds the annotations and their line numbers in the source file."""
     result = []
     curr_idx = class_idx - 1
@@ -151,7 +148,7 @@ def load_source_map(src_root: str) -> dict[str, SourceFile]:
 
 
 def _find_tests(
-    csv_file: str, select_func: Callable[[[str]], bool]
+    csv_file: str, select_func: Callable[[dict[str, str]], bool]
 ) -> list[str]:
   """Finds all test classes from a test result CSV file."""
   test = []

@@ -155,7 +155,7 @@ public interface ParseInput {
             @Nullable Exception exception);
 
     /**
-     * Moves the error in {@param result} to this input's type. In practice this does nothing
+     * Moves the error in {@code result} to this input's type. In practice this does nothing
      * but cast the type of the {@link ParseResult} for type safety, since the parameter
      * and the receiver should be the same object.
      */

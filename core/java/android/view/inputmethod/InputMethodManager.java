@@ -49,6 +49,8 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresFeature;
 import android.annotation.RequiresPermission;
+import android.annotation.SpecialUsers.CanBeALL;
+import android.annotation.SpecialUsers.CanBeCURRENT;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
@@ -114,6 +116,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.inputmethod.DirectBootAwareness;
 import com.android.internal.inputmethod.IBooleanListener;
 import com.android.internal.inputmethod.IConnectionlessHandwritingCallback;
+import com.android.internal.inputmethod.IImeSwitcherMenu;
 import com.android.internal.inputmethod.IInputMethodClient;
 import com.android.internal.inputmethod.IInputMethodSession;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
@@ -128,6 +131,7 @@ import com.android.internal.inputmethod.StartInputReason;
 import com.android.internal.inputmethod.UnbindReason;
 import com.android.internal.os.SomeArgs;
 import com.android.internal.protolog.ProtoLog;
+import com.android.internal.protolog.common.LogLevel;
 import com.android.internal.view.IInputMethodManager;
 
 import java.io.FileDescriptor;
@@ -433,6 +437,31 @@ public final class InputMethodManager {
     public static final int SHOW_IM_PICKER_MODE_EXCLUDE_AUXILIARY_SUBTYPES = 2;
 
     /**
+     * The entry point where the IME Switcher Menu was requested from.
+     * @hide
+     */
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef({
+        IM_PICKER_ENTRY_POINT_DEFAULT,
+        IM_PICKER_ENTRY_POINT_STATUS_BAR_CHIP,
+    })
+    public @interface IMPickerEntryPoint {}
+
+    /**
+     * The default entry point value, currently used to group most entry points for the IME
+     * Switcher Menu (e.g. IME navigation bar, taskbar, public API).
+     * @hide
+     */
+    public static final int IM_PICKER_ENTRY_POINT_DEFAULT = 0;
+
+    /**
+     * The entry point where the IME Switcher Menu was requested from the IME chip on the desktop
+     * status bar.
+     * @hide
+     */
+    public static final int IM_PICKER_ENTRY_POINT_STATUS_BAR_CHIP = 1;
+
+    /**
      * Always return {@code true} when {@link #hideSoftInputFromWindow(IBinder, int)} and
      * {@link #hideSoftInputFromWindow(IBinder, int, ResultReceiver, int, ImeTracker.Token)} is
      * called.
@@ -687,8 +716,6 @@ public final class InputMethodManager {
             mAccessibilityInputMethodSession = new SparseArray<>();
 
     @GuardedBy("mH")
-    private InputChannel mCurChannel;
-    @GuardedBy("mH")
     private ImeInputEventSender mCurSender;
 
     private static final int REQUEST_UPDATE_CURSOR_ANCHOR_INFO_NONE = 0x0;
@@ -707,6 +734,16 @@ public final class InputMethodManager {
     private final SparseArray<PendingEvent> mPendingEvents = new SparseArray<>(20);
 
     private final DelegateImpl mDelegate = new DelegateImpl();
+
+    /**
+     * State that stores whether we have already tried to request focus again, after the IME
+     * session has been reset. This will lead to show the IME after tapping on a text field, even
+     * if the {@link android.view.InsetsController#mRequestedVisibleTypes} have not changed.
+     * This forces a call to the system server to re-establish the IME session when it would
+     * otherwise not occur.
+     */
+    @GuardedBy("mH")
+    private boolean mFocusRequestedAfterImeSessionReset = false;
 
     private static boolean sPreventImeStartupUnlessTextEditor;
 
@@ -1036,7 +1073,7 @@ public final class InputMethodManager {
             final var statsToken = ImeTracker.forLogging().onStart(
                     ImeTracker.TYPE_HIDE, ImeTracker.ORIGIN_CLIENT,
                     SoftInputShowHideReason.HIDE_WINDOW_LOST_FOCUS,
-                    false /* fromUser */);
+                    false /* fromUser */, UserHandle.myUserId(), mDisplayId);
             if (android.tracing.Flags.imetrackerProtolog()) {
                 ProtoLog.d(INPUT_METHOD_MANAGER_DEBUG,
                         "onImeFocusLost, hiding IME because of STATE_ALWAYS_HIDDEN");
@@ -1160,13 +1197,13 @@ public final class InputMethodManager {
                         if (curBindSequence < 0 || curBindSequence != res.sequence) {
                             if (android.tracing.Flags.imetrackerProtolog()) {
                                 ProtoLog.w(INPUT_METHOD_MANAGER_WITH_LOGCAT,
-                                        "Ignoring onBind: cur seq=%s, given seq=%s",
+                                        "Ignoring onBind: cur seq=%d, given seq=%d",
                                         curBindSequence, res.sequence);
                             } else {
                                 Log.w(TAG, "Ignoring onBind: cur seq=" + curBindSequence
                                         + ", given seq=" + res.sequence);
                             }
-                            if (res.channel != null && res.channel != mCurChannel) {
+                            if (res.channel != null) {
                                 res.channel.dispose();
                             }
                             return;
@@ -1221,7 +1258,7 @@ public final class InputMethodManager {
                                 }
                             }
                             mCurId = res.id; // for @UnsupportedAppUsage
-                        } else if (res.channel != null && res.channel != mCurChannel) {
+                        } else if (res.channel != null) {
                             res.channel.dispose();
                         }
                         switch (res.result) {
@@ -1292,13 +1329,13 @@ public final class InputMethodManager {
                         if (curBindSequence < 0 || curBindSequence != res.sequence) {
                             if (android.tracing.Flags.imetrackerProtolog()) {
                                 ProtoLog.w(INPUT_METHOD_MANAGER_WITH_LOGCAT,
-                                        "Ignoring onBind: cur seq=%s, given seq=%s",
+                                        "Ignoring onBind: cur seq=%d, given seq=%d",
                                         curBindSequence, res.sequence);
                             } else {
                                 Log.w(TAG, "Ignoring onBind: cur seq=" + curBindSequence
                                         + ", given seq=" + res.sequence);
                             }
-                            if (res.channel != null && res.channel != mCurChannel) {
+                            if (res.channel != null) {
                                 res.channel.dispose();
                             }
                             return;
@@ -1343,7 +1380,7 @@ public final class InputMethodManager {
                         if (getBindSequenceLocked() != sequence) {
                             if (android.tracing.Flags.imetrackerProtolog()) {
                                 ProtoLog.i(INPUT_METHOD_MANAGER_DEBUG,
-                                        "current BindSequence=%s sequence=%s id=%s",
+                                        "current BindSequence=%d sequence=%d id=%d",
                                         getBindSequenceLocked(), sequence, id);
                             } else if (DEBUG) {
                                 Log.i(TAG, "current BindSequence =" + getBindSequenceLocked()
@@ -1461,6 +1498,7 @@ public final class InputMethodManager {
                                     ImeTracker.PHASE_CLIENT_HANDLE_SET_IME_VISIBILITY);
                         }
                     }
+                    args.recycle();
                     break;
                 case MSG_SEND_INPUT_EVENT: {
                     sendInputEventAndReportResultOnMainLooper((PendingEvent)msg.obj);
@@ -1998,6 +2036,93 @@ public final class InputMethodManager {
     }
 
     /**
+     * A test API for CTS to enable the given IME for the given user.
+     *
+     * <p>This is the same as "adb shell ime enable --user <userId> <imeId>" command.</p>
+     *
+     * @param imeId the IME that should be enabled.
+     * @param userId the user that imeId should be enabled for.
+     *
+     * @hide
+     */
+    @TestApi
+    @RequiresPermission(allOf = {Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL},
+            conditional = true)
+    @SuppressWarnings("UnflaggedApi")
+    public boolean enableInputMethodForTesting(@NonNull String imeId,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        return IInputMethodManagerGlobalInvoker.enableInputMethodForTesting(imeId, userId);
+    }
+
+    /**
+     * A test API for CTS to disable the given IME for the given user.
+     *
+     * <p>This is the same as "adb shell ime disable --user <userId> <imeId>" command.</p>
+     *
+     * @param imeId the IME that should be disabled.
+     * @param userId the user that imeId should be disabled for.
+     *
+     * @hide
+     */
+    @TestApi
+    @RequiresPermission(allOf = {Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL},
+            conditional = true)
+    @SuppressWarnings("UnflaggedApi")
+    public boolean disableInputMethodForTesting(@NonNull String imeId,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        return IInputMethodManagerGlobalInvoker.disableInputMethodForTesting(imeId, userId);
+    }
+
+    /**
+     * A test API for CTS to set the currently selected and enabled IMEs to the default ones for
+     * a given user.
+     *
+     * <p>This is the same as "adb shell ime set --user <userId> <imeId>" command.</p>
+     *
+     * @param imeId the IME that should be disabled.
+     * @param userId the user that imeId should be disabled for.
+     *
+     * @hide
+     */
+    @TestApi
+    @RequiresPermission(allOf = {Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL},
+            conditional = true)
+    @SuppressWarnings("UnflaggedApi")
+    public boolean setInputMethodForTesting(@NonNull String imeId,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        return IInputMethodManagerGlobalInvoker.setInputMethodForTesting(imeId, userId);
+    }
+
+    /**
+     * A test API for CTS to reset the currently selected and enabled IMEs to the default ones for
+     * a given user.
+     *
+     * <p>This is the same as "adb shell ime reset --user <userId>" command.</p>
+     *
+     * This behavior can be triggered for all users using the UserHandle.USER_ALL constant.
+     *
+     * @param userId the user that IMEs should be reset for
+     *
+     * @hide
+     */
+    @TestApi
+    @RequiresPermission(allOf = {Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.TEST_INPUT_METHOD,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL},
+            conditional = true)
+    @SuppressWarnings("UnflaggedApi")
+    public void resetInputMethodsForTesting(@CanBeALL @CanBeCURRENT @UserIdInt int userId) {
+        IInputMethodManagerGlobalInvoker.resetInputMethodsForTesting(userId);
+    }
+
+
+    /**
      * @deprecated Use {@link InputMethodService#showStatusIcon(int)} instead. This method was
      * intended for IME developers who should be accessing APIs through the service. APIs in this
      * class are intended for app developers interacting with the IME.
@@ -2132,6 +2257,7 @@ public final class InputMethodManager {
         mCurMethod = null; // for @UnsupportedAppUsage
         // We only reset sequence number for input method, but not accessibility.
         mCurBindState = null;
+        mFocusRequestedAfterImeSessionReset = false;
     }
 
     /**
@@ -2140,7 +2266,7 @@ public final class InputMethodManager {
     @GuardedBy("mH")
     private void clearAccessibilityBindingLocked(int id) {
         if (android.tracing.Flags.imetrackerProtolog()) {
-            ProtoLog.v(INPUT_METHOD_MANAGER_DEBUG, "Clearing accessibility binding %s", id);
+            ProtoLog.v(INPUT_METHOD_MANAGER_DEBUG, "Clearing accessibility binding %d", id);
         } else if (DEBUG) {
             Log.v(TAG, "Clearing accessibility binding " + id);
         }
@@ -2162,7 +2288,10 @@ public final class InputMethodManager {
 
     @GuardedBy("mH")
     private void updateInputChannelLocked(InputChannel channel) {
-        if (areSameInputChannel(mCurChannel, channel)) {
+        if (mCurSender != null && channel != null && mCurSender.getToken() == channel.getToken()) {
+            // Keep the existing sender, and avoid recreating it. The provided input channel is a
+            // dup, so we still need to dispose it before returning.
+            channel.dispose();
             return;
         }
         // TODO(b/238720598) : Requirements when design a new protocol for InputChannel
@@ -2175,21 +2304,9 @@ public final class InputMethodManager {
             mCurSender = null;
         }
 
-        if (mCurChannel != null) {
-            mCurChannel.dispose();
+        if (channel != null) {
+            mCurSender = new ImeInputEventSender(channel, mH.getLooper());
         }
-        mCurChannel = channel;
-    }
-
-    private static boolean areSameInputChannel(@Nullable InputChannel lhs,
-            @Nullable InputChannel rhs) {
-        if (lhs == rhs) {
-            return true;
-        }
-        if (lhs == null || rhs == null) {
-            return false;
-        }
-        return lhs.getToken() == rhs.getToken();
     }
 
     /**
@@ -2224,7 +2341,8 @@ public final class InputMethodManager {
             }
         }
         if (clearedView != null) {
-            if (android.tracing.Flags.imetrackerProtolog()) {
+            if (android.tracing.Flags.imetrackerProtolog()
+                        && ProtoLog.isEnabled(INPUT_METHOD_MANAGER_DEBUG, LogLevel.VERBOSE)) {
                 ProtoLog.v(INPUT_METHOD_MANAGER_DEBUG, "FINISH INPUT: mServedView=%s",
                         InputMethodDebug.dumpViewInfo(clearedView));
             } else if (DEBUG) {
@@ -2422,7 +2540,7 @@ public final class InputMethodManager {
      * {@link #RESULT_UNCHANGED_HIDDEN}, {@link #RESULT_SHOWN}, or
      * {@link #RESULT_HIDDEN}.
      * @return {@code true} if a request was sent to system_server, {@code false} otherwise. Note:
-     * this does not return result of the request. For result use {@param resultReceiver} instead.
+     * this does not return result of the request. For result use {@code resultReceiver} instead.
      *
      * @deprecated The {@link ResultReceiver} is not a reliable way of determining whether the
      * Input Method is actually shown or hidden. If result is needed, use
@@ -2439,7 +2557,8 @@ public final class InputMethodManager {
             @Nullable ResultReceiver resultReceiver, @SoftInputShowHideReason int reason) {
         // TODO(b/303041796): handle tracking physical keyboard and DPAD as user interactions
         final var statsToken = ImeTracker.forLogging().onStart(ImeTracker.TYPE_SHOW,
-                ImeTracker.ORIGIN_CLIENT, reason, ImeTracker.isFromUser(view));
+                ImeTracker.ORIGIN_CLIENT, reason, ImeTracker.isFromUser(view),
+                UserHandle.myUserId(), mDisplayId);
         return showSoftInput(view, statsToken, flags, resultReceiver, reason);
     }
 
@@ -2515,7 +2634,8 @@ public final class InputMethodManager {
         synchronized (mH) {
             final int reason = SoftInputShowHideReason.SHOW_SOFT_INPUT;
             final var statsToken = ImeTracker.forLogging().onStart(ImeTracker.TYPE_SHOW,
-                    ImeTracker.ORIGIN_CLIENT, reason, false /* fromUser */);
+                    ImeTracker.ORIGIN_CLIENT, reason, false /* fromUser */,
+                    UserHandle.myUserId(), mDisplayId);
 
             Log.w(TAG, "showSoftInputUnchecked() is a hidden method, which will be"
                     + " removed soon. If you are using androidx.appcompat.widget.SearchView,"
@@ -2576,7 +2696,7 @@ public final class InputMethodManager {
      *
      * @param windowToken The token of the window that is making the request,
      * as returned by {@link View#getWindowToken() View.getWindowToken()}.
-     * @return <p>For apps targeting Android {@link Build.VERSION_CODES.BAKLAVA}, onwards, it
+     * @return <p>For apps targeting Android {@link Build.VERSION_CODES#BAKLAVA}, onwards, it
      * will always return {@code true}. To see when the IME is hidden, use
      * {@link View.OnApplyWindowInsetsListener} and verify the provided {@link WindowInsets} for
      * the visibility of IME.
@@ -2617,7 +2737,7 @@ public final class InputMethodManager {
      * {@link #RESULT_HIDDEN}.
      * @return {@code true} if a request was sent to system_server, {@code false} otherwise. Note:
      * This does not return the result of that request (i.e. whether the IME was actually hidden).
-     * For result use {@param resultReceiver} instead.
+     * For result use {@code resultReceiver} instead.
      *
      * @deprecated The {@link ResultReceiver} is not a reliable way of determining whether the
      * Input Method is actually shown or hidden. If result is needed, use
@@ -2643,7 +2763,8 @@ public final class InputMethodManager {
 
         if (statsToken == null) {
             statsToken = ImeTracker.forLogging().onStart(ImeTracker.TYPE_HIDE,
-                    ImeTracker.ORIGIN_CLIENT, reason, ImeTracker.isFromUser(initialServedView));
+                    ImeTracker.ORIGIN_CLIENT, reason, ImeTracker.isFromUser(initialServedView),
+                    UserHandle.myUserId(), mDisplayId);
             ImeTracker.forLatency().onRequestHide(statsToken, ImeTracker.ORIGIN_CLIENT, reason,
                     ActivityThread::currentApplication);
         }
@@ -2720,7 +2841,8 @@ public final class InputMethodManager {
 
             final int reason = SoftInputShowHideReason.HIDE_SOFT_INPUT_FROM_VIEW;
             final var statsToken = ImeTracker.forLogging().onStart(ImeTracker.TYPE_HIDE,
-                    ImeTracker.ORIGIN_CLIENT, reason, ImeTracker.isFromUser(view));
+                    ImeTracker.ORIGIN_CLIENT, reason, ImeTracker.isFromUser(view),
+                    UserHandle.myUserId(), mDisplayId);
             ImeTracker.forLatency().onRequestHide(statsToken,
                     ImeTracker.ORIGIN_CLIENT, reason, ActivityThread::currentApplication);
             ImeTracing.getInstance().triggerClientDump("InputMethodManager#hideSoftInputFromView",
@@ -3455,7 +3577,8 @@ public final class InputMethodManager {
             view = getServedViewLocked();
 
             // Make sure we have a window token for the served view.
-            if (android.tracing.Flags.imetrackerProtolog()) {
+            if (android.tracing.Flags.imetrackerProtolog()
+                        && ProtoLog.isEnabled(INPUT_METHOD_MANAGER_DEBUG, LogLevel.VERBOSE)) {
                 ProtoLog.v(INPUT_METHOD_MANAGER_DEBUG, "Starting input: view=%s reason=%s",
                         InputMethodDebug.dumpViewInfo(view),
                         InputMethodDebug.startInputReasonToString(startInputReason));
@@ -3536,10 +3659,11 @@ public final class InputMethodManager {
             final View servedView = getServedViewLocked();
             if (servedView != view || !mServedConnecting) {
                 // Something else happened, so abort.
-                if (android.tracing.Flags.imetrackerProtolog()) {
+                if (android.tracing.Flags.imetrackerProtolog()
+                        && ProtoLog.isEnabled(INPUT_METHOD_MANAGER_DEBUG, LogLevel.VERBOSE)) {
                     ProtoLog.v(INPUT_METHOD_MANAGER_DEBUG,
                             "Starting input: finished by someone else. view=%s servedView=%s "
-                                    + "mServedConnecting=%s",
+                                    + "mServedConnecting=%b",
                             InputMethodDebug.dumpViewInfo(view),
                             InputMethodDebug.dumpViewInfo(servedView), mServedConnecting);
                 } else if (DEBUG) {
@@ -3607,10 +3731,11 @@ public final class InputMethodManager {
 
             imeRequestedVisible = hasViewImeRequestedVisible(servedView);
 
-            if (android.tracing.Flags.imetrackerProtolog()) {
+            if (android.tracing.Flags.imetrackerProtolog()
+                        && ProtoLog.isEnabled(INPUT_METHOD_MANAGER_DEBUG, LogLevel.VERBOSE)) {
                 ProtoLog.v(INPUT_METHOD_MANAGER_DEBUG,
                         "START INPUT: view=%s ic=%s editorInfo=%s startInputFlags=%s "
-                                + "imeRequestedVisible=%s",
+                                + "imeRequestedVisible=%b",
                         InputMethodDebug.dumpViewInfo(view), ic, editorInfo,
                         InputMethodDebug.startInputFlagsToString(startInputFlags),
                         imeRequestedVisible);
@@ -3647,8 +3772,7 @@ public final class InputMethodManager {
                     servedInputConnection == null ? null
                             : servedInputConnection.asIRemoteAccessibilityInputConnection();
             final IRemoteComputerControlInputConnection computerControlInputConnection =
-                    (!android.companion.virtualdevice.flags.Flags.computerControlTyping()
-                            || servedInputConnection == null) ? null
+                    servedInputConnection == null ? null
                             : servedInputConnection.asIRemoteComputerControlInputConnection();
             // async result delivered via MSG_START_INPUT_RESULT.
             final int startInputSeq =
@@ -3663,9 +3787,7 @@ public final class InputMethodManager {
             // Create a runnable for delayed notification to the app that the InputConnection is
             // initialized and ready for use.
             if (ic != null) {
-                if (Flags.invalidateInputCallsRestart()) {
-                    mLastPendingStartSeqId = startInputSeq;
-                }
+                mLastPendingStartSeqId = startInputSeq;
                 mReportInputConnectionOpenedRunner =
                         new ReportInputConnectionOpenedRunner(startInputSeq) {
                             @Override
@@ -3673,7 +3795,7 @@ public final class InputMethodManager {
                                 if (android.tracing.Flags.imetrackerProtolog()) {
                                     ProtoLog.v(INPUT_METHOD_MANAGER_DEBUG,
                                             "Calling View.onInputConnectionOpened: view=%s, ic=%s, "
-                                                    + "editorInfo=%s, handler=%s, startInputSeq=%s",
+                                                    + "editorInfo=%s, handler=%s, startInputSeq=%d",
                                             view, ic, editorInfo, icHandler, startInputSeq);
                                 } else if (DEBUG) {
                                     Log.v(TAG, "Calling View.onInputConnectionOpened: view= "
@@ -3763,6 +3885,23 @@ public final class InputMethodManager {
     }
 
     /**
+     * A test-only method to set a list of allowed apps to bypass IME startup prevention.
+     *
+     * @param allowedPackages {@link List} of allowed apps for which the IME should start up. Set
+     *                        {@code null} to reset after the test run.
+     * @hide
+     */
+    @TestApi
+    @FlaggedApi(Flags.FLAG_PREVENT_IME_STARTUP_BYPASSED_APPS)
+    @RequiresPermission(Manifest.permission.TEST_INPUT_METHOD)
+    public void setPreventImeStartupBypassedAppsForTest(@Nullable List<String> allowedPackages) {
+        synchronized (mH) {
+            IInputMethodManagerGlobalInvoker.setPreventImeStartupBypassedAppsForTest(
+                    allowedPackages);
+        }
+    }
+
+    /**
      * An empty method only to avoid crashes of apps that call this method via reflection and do not
      * handle {@link NoSuchMethodException} in a graceful manner.
      *
@@ -3843,7 +3982,7 @@ public final class InputMethodManager {
         }
         if (android.tracing.Flags.imetrackerProtolog()) {
             ProtoLog.v(INPUT_METHOD_MANAGER_DEBUG,
-                    "checkFocus: view=%s next=%s force=%s package=%s",
+                    "checkFocus: view=%s next=%s force=%b package=%s",
                     mServedView, mNextServedView, forceNewFocus,
                     (mServedView != null ? mServedView.getContext().getPackageName() : "<none>"));
         } else if (DEBUG) {
@@ -3880,7 +4019,8 @@ public final class InputMethodManager {
             if (!view.hasImeFocus() || !view.hasWindowFocus()) {
                 return;
             }
-            if (android.tracing.Flags.imetrackerProtolog()) {
+            if (android.tracing.Flags.imetrackerProtolog()
+                        && ProtoLog.isEnabled(INPUT_METHOD_MANAGER_DEBUG, LogLevel.DEBUG)) {
                 ProtoLog.d(INPUT_METHOD_MANAGER_DEBUG, "onViewFocusChangedInternal, view=%s",
                         InputMethodDebug.dumpViewInfo(view));
             } else if (DEBUG) {
@@ -3908,7 +4048,8 @@ public final class InputMethodManager {
     void closeCurrentInput() {
         final int reason = SoftInputShowHideReason.HIDE_CLOSE_CURRENT_SESSION;
         final var statsToken = ImeTracker.forLogging().onStart(ImeTracker.TYPE_HIDE,
-                ImeTracker.ORIGIN_CLIENT, reason, false /* fromUser */);
+                ImeTracker.ORIGIN_CLIENT, reason, false /* fromUser */,
+                UserHandle.myUserId(), mDisplayId);
         ImeTracker.forLatency().onRequestHide(statsToken,
                 ImeTracker.ORIGIN_CLIENT, reason,
                 ActivityThread::currentApplication);
@@ -3928,6 +4069,36 @@ public final class InputMethodManager {
             }
             ImeTracker.forLogging().onProgress(statsToken, ImeTracker.PHASE_CLIENT_VIEW_SERVED);
             setImeVisibilityOnInsetsController(mCurRootView, false, statsToken);
+        }
+    }
+
+
+    /**
+     * @hide
+     */
+    public void requestFocusAfterSessionReset() {
+        synchronized (mH) {
+            if (!mFocusRequestedAfterImeSessionReset && !isImeSessionAvailableLocked()) {
+                final View view = getServedViewLocked();
+                ProtoLog.d(INPUT_METHOD_MANAGER_DEBUG, "requestFocusAfterSessionReset: view=%s",
+                        view);
+                if (view == null) {
+                    return;
+                }
+                // Use the same state as the main startInput call.
+                final int startInputFlags = getStartInputFlags(view, 0 /* startInputFlags */);
+                int softInputMode = 0;
+                int windowFlags = 0;
+                final var viewRootImpl = view.getViewRootImpl();
+                if (viewRootImpl != null) {
+                    softInputMode = viewRootImpl.mWindowAttributes.softInputMode;
+                    windowFlags = viewRootImpl.mWindowAttributes.flags;
+                }
+                // Call into IMMS only once after the binding was cleared (e.g., after pm clear)
+                mFocusRequestedAfterImeSessionReset = true;
+                startInputOnWindowFocusGainInternal(StartInputReason.CHECK_FOCUS, view,
+                        startInputFlags, softInputMode, windowFlags);
+            }
         }
     }
 
@@ -3981,7 +4152,7 @@ public final class InputMethodManager {
                     ProtoLog.d(INPUT_METHOD_MANAGER_DEBUG, "updateSelection");
 
                     ProtoLog.v(INPUT_METHOD_MANAGER_DEBUG,
-                            "SELECTION CHANGE: " + mCurBindState.mImeSession);
+                            "SELECTION CHANGE: %s", mCurBindState.mImeSession);
                 } else if (DEBUG) {
                     Log.d(TAG, "updateSelection");
                     Log.v(TAG, "SELECTION CHANGE: " + mCurBindState.mImeSession);
@@ -4031,7 +4202,7 @@ public final class InputMethodManager {
                 return;
             }
             if (android.tracing.Flags.imetrackerProtolog()) {
-                ProtoLog.v(INPUT_METHOD_MANAGER_DEBUG, "onViewClicked: %s", focusChanged);
+                ProtoLog.v(INPUT_METHOD_MANAGER_DEBUG, "onViewClicked: %b", focusChanged);
             } else if (DEBUG) {
                 Log.v(TAG, "onViewClicked: " + focusChanged);
             }
@@ -4319,7 +4490,8 @@ public final class InputMethodManager {
     public void hideSoftInputFromInputMethod(IBinder token, @HideFlags int flags) {
         final int reason = SoftInputShowHideReason.HIDE_SOFT_INPUT_IMM_DEPRECATION;
         final var statsToken = ImeTracker.forLogging().onStart(ImeTracker.TYPE_HIDE,
-                ImeTracker.ORIGIN_CLIENT, reason, false /* fromUser */);
+                ImeTracker.ORIGIN_CLIENT, reason, false /* fromUser */,  UserHandle.myUserId(),
+                mDisplayId);
         InputMethodPrivilegedOperationsRegistry.get(token).hideMySoftInput(statsToken, flags,
                 reason);
     }
@@ -4341,7 +4513,8 @@ public final class InputMethodManager {
     public void showSoftInputFromInputMethod(IBinder token, @ShowFlags int flags) {
         final int reason = SoftInputShowHideReason.SHOW_SOFT_INPUT_IMM_DEPRECATION;
         final var statsToken = ImeTracker.forLogging().onStart(ImeTracker.TYPE_SHOW,
-                ImeTracker.ORIGIN_CLIENT, reason, false /* fromUser */);
+                ImeTracker.ORIGIN_CLIENT, reason, false /* fromUser */, UserHandle.myUserId(),
+                mDisplayId);
         InputMethodPrivilegedOperationsRegistry.get(token).showMySoftInput(statsToken, flags,
                 reason);
     }
@@ -4448,11 +4621,7 @@ public final class InputMethodManager {
     // Must be called on the main looper
     @GuardedBy("mH")
     private int sendInputEventOnMainLooperLocked(PendingEvent p) {
-        if (mCurChannel != null) {
-            if (mCurSender == null) {
-                mCurSender = new ImeInputEventSender(mCurChannel, mH.getLooper());
-            }
-
+        if (mCurSender != null) {
             final InputEvent event = p.mEvent;
             final int seq = event.getSequenceNumber();
             if (mCurSender.sendInputEvent(seq, event)) {
@@ -4502,8 +4671,9 @@ public final class InputMethodManager {
             if (timeout) {
                 if (android.tracing.Flags.imetrackerProtolog()) {
                     ProtoLog.w(INPUT_METHOD_MANAGER_WITH_LOGCAT,
-                            "Timeout waiting for IME to handle input event after %s ms: %s",
-                            INPUT_METHOD_NOT_RESPONDING_TIMEOUT, p.mInputMethodId);
+                            "Timeout waiting for IME to handle input event after "
+                                    + INPUT_METHOD_NOT_RESPONDING_TIMEOUT + " ms: %s",
+                            p.mInputMethodId);
                 } else {
                     Log.w(TAG, "Timeout waiting for IME to handle input event after "
                             + INPUT_METHOD_NOT_RESPONDING_TIMEOUT + " ms: " + p.mInputMethodId);
@@ -4582,15 +4752,52 @@ public final class InputMethodManager {
      * Shows the input method chooser dialog from system.
      *
      * @param showAuxiliarySubtypes Set true to show auxiliary input methods.
+     * @param entryPoint The entry point where the chooser dialog was requested from.
      * @param displayId The ID of the display where the chooser dialog should be shown.
      * @hide
      */
     @RequiresPermission(Manifest.permission.WRITE_SECURE_SETTINGS)
-    public void showInputMethodPickerFromSystem(boolean showAuxiliarySubtypes, int displayId) {
+    public void showInputMethodPickerFromSystem(boolean showAuxiliarySubtypes,
+            @IMPickerEntryPoint int entryPoint, int displayId) {
         final int mode = showAuxiliarySubtypes
                 ? SHOW_IM_PICKER_MODE_INCLUDE_AUXILIARY_SUBTYPES
                 : SHOW_IM_PICKER_MODE_EXCLUDE_AUXILIARY_SUBTYPES;
-        IInputMethodManagerGlobalInvoker.showInputMethodPickerFromSystem(mode, displayId);
+        IInputMethodManagerGlobalInvoker.showInputMethodPickerFromSystem(
+                mode, entryPoint, displayId);
+    }
+
+    /**
+     * Toggles the input method chooser dialog from system.
+     *
+     * There's no guarantee that this toggle is an atomic operation. There's potential risk of a
+     * race condition when concurrency is involved, or when this is invoked in quick succession.
+     *
+     * @param showAuxiliarySubtypes Set true to show auxiliary input methods.
+     * @param entryPoint The entry point where the chooser dialog was requested from.
+     * @param displayId The ID of the display where the chooser dialog should be shown if it is
+     * currently hidden. The param is unused if it is currently shown and should now be hidden.
+     * @hide
+     */
+    @RequiresPermission(Manifest.permission.WRITE_SECURE_SETTINGS)
+    public void toggleInputMethodPickerFromSystem(boolean showAuxiliarySubtypes,
+            @IMPickerEntryPoint int entryPoint, int displayId) {
+        final int mode = showAuxiliarySubtypes
+                ? SHOW_IM_PICKER_MODE_INCLUDE_AUXILIARY_SUBTYPES
+                : SHOW_IM_PICKER_MODE_EXCLUDE_AUXILIARY_SUBTYPES;
+        IInputMethodManagerGlobalInvoker.toggleInputMethodPickerFromSystem(
+                mode, entryPoint, displayId);
+    }
+
+    /**
+     * Hides the input method chooser dialog from system.
+     *
+     * @param displayId (legacy unused param)
+     * @hide
+     */
+    @RequiresPermission(Manifest.permission.WRITE_SECURE_SETTINGS)
+    public void hideInputMethodPickerFromSystem(int displayId) {
+        // TODO: b/496501764 - Remove unused "displayId" param.
+        IInputMethodManagerGlobalInvoker.hideInputMethodPickerFromSystem(displayId);
     }
 
     @GuardedBy("mH")
@@ -4613,7 +4820,8 @@ public final class InputMethodManager {
     @TestApi
     @RequiresPermission(Manifest.permission.TEST_INPUT_METHOD)
     public boolean isInputMethodPickerShown() {
-        return IInputMethodManagerGlobalInvoker.isInputMethodPickerShownForTest();
+        return IInputMethodManagerGlobalInvoker
+                .isInputMethodPickerShownForTest(UserHandle.myUserId());
     }
 
     /**
@@ -4641,6 +4849,23 @@ public final class InputMethodManager {
     @RequiresPermission(Manifest.permission.TEST_INPUT_METHOD)
     public boolean shouldShowImeSwitcherButtonForTest() {
         return IInputMethodManagerGlobalInvoker.shouldShowImeSwitcherButtonForTest();
+    }
+
+    /**
+     * Registers an interface for sending calls to the IME Switcher Menu controller. This is called
+     * after the IME Switcher Menu is fully initialized.
+     *
+     * @param imeSwitcherMenu the interface to send calls to the IME Switcher Menu controller.
+     *
+     * @hide
+     */
+    @RequiresPermission(allOf = {
+            Manifest.permission.WRITE_SECURE_SETTINGS,
+            Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+            Manifest.permission.STATUS_BAR_SERVICE,
+    })
+    public void registerImeSwitcherMenu(@NonNull IImeSwitcherMenu imeSwitcherMenu) {
+        IInputMethodManagerGlobalInvoker.registerImeSwitcherMenu(imeSwitcherMenu);
     }
 
     /**
@@ -5192,6 +5417,17 @@ public final class InputMethodManager {
     @GuardedBy("mH")
     private int getBindSequenceLocked() {
         return mCurBindState != null ? mCurBindState.mBindSequence : -1;
+    }
+
+    /**
+     * A test API for CTS to check whether an IME is bound to this client.
+     *
+     * @hide
+     */
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+    @TestApi
+    public boolean isImeBoundForTesting() {
+        return mCurBindState != null;
     }
 
     /**

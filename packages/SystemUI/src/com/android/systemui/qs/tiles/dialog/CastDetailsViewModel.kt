@@ -28,6 +28,7 @@ import com.android.internal.app.MediaRouteControllerContentManager
 import com.android.internal.app.MediaRouteDialogPresenter
 import com.android.systemui.plugins.qs.TileDetailsViewModel
 import com.android.systemui.qs.tiles.base.domain.actions.QSTileIntentUserInputHandler
+import com.android.systemui.res.R
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -43,10 +44,17 @@ constructor(
     MediaRouteChooserContentManager.Delegate,
     MediaRouteControllerContentManager.Delegate,
     TileDetailsViewModel {
-    private var detailsViewTitle by mutableStateOf(DEFAULT_TITLE)
+    private var detailsViewTitle by
+        mutableStateOf(context.getString(R.string.quick_settings_cast_detail_title))
     private var detailsViewSubTitle by
-        mutableStateOf(if (shouldShowChooserDialog()) DEFAULT_SUBTITLE else "")
+        mutableStateOf(
+            if (shouldShowChooserDialog())
+                context.getString(R.string.quick_settings_cast_detail_subtitle)
+            else ""
+        )
     var deviceIcon: Drawable? by mutableStateOf(null)
+    var viewUpdateKey by mutableStateOf(false)
+        private set
 
     @AssistedFactory
     fun interface Factory {
@@ -93,7 +101,7 @@ constructor(
     }
 
     override fun dismissView() {
-        // TODO(b/378514236): Finish implementing this function.
+        viewUpdateKey = !viewUpdateKey
     }
 
     override fun showProgressBarWhenEmpty(): Boolean {
@@ -101,9 +109,6 @@ constructor(
     }
 
     companion object {
-        // TODO(b/388321032): Replace this string with a string in a translatable xml file.
-        const val DEFAULT_TITLE = "Cast screen to device"
-        const val DEFAULT_SUBTITLE = "Searching for devices..."
         const val CHOOSER_VIEW_TEST_TAG = "CastChooserView"
         const val CONTROLLER_VIEW_TEST_TAG = "CastControllerView"
     }

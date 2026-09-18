@@ -158,8 +158,11 @@ public class StartingSurfaceController {
             // that the activity will be updated to the same rotation as the snapshot. Since
             // the transition is not started yet, fixed rotation transform needs to be applied
             // earlier to make the snapshot show in a rotated container.
+            final int knownRotation = com.android.window.flags.Flags.useSnapshotFixedRotation()
+                    ? taskSnapshot.getRotation()
+                    : android.app.WindowConfiguration.ROTATION_UNDEFINED;
             activity.mDisplayContent.handleTopActivityLaunchingInDifferentOrientation(
-                    activity, false /* checkOpening */);
+                    activity, false /* checkOpening */, knownRotation);
         }
         final TaskOrganizerController controller =
                 mService.mAtmService.mTaskOrganizerController;
